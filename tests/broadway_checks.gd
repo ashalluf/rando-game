@@ -175,6 +175,10 @@ func _full_block(city: Node3D, plan: CityPlan, pal: Array) -> void:
 	Broadway.enabled = true
 	Broadway._plans.clear()
 	var bare_sig := _signature(bare, p.lot)
+	if bare_sig != sig:
+		var only_on := sig.filter(func(x: String) -> bool: return not bare_sig.has(x))
+		var only_off := bare_sig.filter(func(x: String) -> bool: return not sig.has(x))
+		printerr("BROADWAY same-block diff: with %s ... without %s" % [str(only_on.slice(0, 6)), str(only_off.slice(0, 6))])
 	_t._check(bare_sig == sig and not sig.is_empty(), "Broadway rolls nothing from the block: built without it, the same props and buildings (%d)" % sig.size())
 	bare.get_parent().remove_child(bare)
 	bare.free()
@@ -211,16 +215,43 @@ func _lod_block(city: Node3D, pal: Array) -> void:
 	chunk.free()
 
 
-func _signature(chunk: CityChunk, palace_lot: Dictionary) -> Array:
+func _signature(chunk: CityChunk, _palace_lot: Dictionary) -> Array:
+	# Broadway's own lots (the palace's and the dressed blocks') and its pavement are the feature:
+	# what their buildings put round them (a forecourt's benches and bollards, the shops' A-boards)
+	# follows the new buildings and is not compared - except the lamps, which keep their slot. The
+	# rest of the block is compared by kind and place (the lots' own props shift later ids).
+	var plan := chunk.plan
+	var side := Broadway.block_side(plan, chunk.ix, chunk.iz)
+	var rect: Rect2 = plan.block(chunk.ix, chunk.iz).rect
+	var own: Array[Rect2] = []
+	for lot: Dictionary in plan.lots(chunk.ix, chunk.iz):
+		if Broadway.lot_fronts(plan, chunk.ix, chunk.iz, side, lot):
+			var c: Vector2 = lot.center
+			var sz: Vector2 = lot.size
+			own.append(Rect2(c - sz * 0.5, sz).grow(1.0))
+	var strip := Rect2(rect.end.x - plan.sidewalk_width, rect.position.y, plan.sidewalk_width, rect.size.y) if side < 0 \
+		else Rect2(rect.position.x, rect.position.y, plan.sidewalk_width, rect.size.y)
+	var mine := func(q: Vector2) -> bool:
+		for r: Rect2 in own:
+			if r.has_point(q):
+				return true
+		return false
 	var out: Array = []
-	var pc: Vector2 = palace_lot.center
 	for c in chunk.get_children():
 		if c is Building or c is TrashCan:
 			var p: Vector3 = (c as Node3D).position
-			if c is Building and Vector2(p.x, p.z).distance_to(pc) < 0.5:
+			if c is Building and mine.call(Vector2(p.x, p.z)):
 				continue
 			out.append("%s %.2f %.2f" % [c.get_class(), p.x, p.z])
 	for r in chunk.prop_records:
-		out.append("%s %s %.2f %.2f" % [r.id, r.kind, (r.position as Vector3).x, (r.position as Vector3).z])
+		var q: Vector3 = r.position
+		var q2 := Vector2(q.x, q.z)
+		# Forecourt furniture (LotFill) runs on per-chunk budgets, so one changed lot moves it
+		# across the block: the street's own props are what is compared.
+		if String(r.kind) in ["bench", "bollard", "planter", "aboard", "cafe"]:
+			continue
+		if mine.call(q2) or (strip.grow(0.5).has_point(q2) and String(r.kind) != "lamp"):
+			continue
+		out.append("%s %.2f %.2f" % [r.kind, q.x, q.z])
 	out.sort()
 	return out

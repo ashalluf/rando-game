@@ -7040,3 +7040,78 @@ ALU in shaders that were already running.
 - The night ambient (DayNight) still lights roofs a moonlit blue-grey on opengl3; not this pass.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
+
+## 9b?. Broadway's theatre district: the movie palaces, 2026-10-05 (agent branch `wt/broadway`)
+
+The historic stretch of Broadway between 3rd St and Olympic Blvd (DowntownReal pins it 1:1 on
+every seed: x 2991, z -403 .. 1006, west blocks bx 27 and east bx 28 on seed 1337) now reads as
+the real street's FORMS with invented names: eleven movie palaces with blade signs, chasing
+marquees and terracotta fronts, the 1920s commercial blocks round them with Spanish/English
+discount, electronics and bridal shops, its own cast-iron lanterns, goods racks and gowns on the
+pavement, a street clock.
+
+**Where** (`Broadway`, `scripts/world/broadway.gd`): `THEATRES` lists each palace by its REAL
+house number on S Broadway (odd east, even west; 307, 518, 534, 615, 630, 703, 744, 802, 812, 842,
+933 - the real palaces' addresses), turned into a game z by the real cross streets
+(`address_z()`: the 300 block is 3rd to 4th St ... the 900 block 9th to Olympic). Each takes the
+Broadway-fronting lot of the seeded block holding its address (`palaces()`, cached per seed; the
+nearest free one within `LOT_REACH` 60 m when an earlier palace has it - the 802 / 812 pair share
+a real block face). `CityChunk._build_lot()` asks `Broadway.claims()` after the fire station's
+check (the pad roll is made), so no other lot moves. `tools/broadway_probe.gd` prints them with
+an EYE each. Names, shows, shops: all invented (the checks fail on a real palace's name).
+
+**The palace** (`BroadwayTheatre`, `scripts/world/broadway_theatre.gd`), in its own frame (x
+along the street, +z out, the face at z 0), filling its lot's whole frontage: a ground storey of
+shopfronts (piers, bulkheads, display glass, transoms, painted sign boards with the shops' names,
+striped awnings) either side of a recessed entrance (terrazzo sunburst, a row of glazed doors in
+brass, lit poster cases, a bulb soffit, the octagonal ticket booth); the PAVILION (the palace's
+own front, `pavilion_width()` 16-26 m) in its `Style` - FRENCH (a giant arched window with
+voussoirs and a real hole in the wall, paired columns, side bays with balconettes, entablature,
+cornice with dentils and modillions, an attic with a balustrade, urns and a crest), SPANISH (a
+tall office shaft with a churrigueresque frontispiece: estipites, nested frames, carving, an
+arched window, a crest of scrolls; Gothic piers ending in pinnacles), DECO (fluted fins stepping
+up past the parapet, chevron spandrels, speed lines, a stepped pylon); wings either side
+(terracotta, or brick with windows when a wing is over 9 m wide, so a 78 m frontage is not one
+long terracotta front); a clock tower on one (`tower`), a rooftop name sign on another
+(`roof_sign`); the brick auditorium and fly tower behind out to the lot's back. The marquee
+(`marquee_plan()`: a vee, flat or drum front) is boards between two bulb rows round its plan,
+neon along its top and bottom edges, a bulb soffit, the name on a crest in lit letters, tie rods;
+the blade sign (`_blade_sign()`) an enamel slab out over the marquee with the name STACKED letter
+by letter on both faces, a bulb border and a column of bulbs on its front edge, a neon outline, a
+pointed foot and a crown. Masonry: `landmark_facade` (LandmarkMats, floodlit after dark);
+everything on the street front is ONE surface on `shaders/broadway_sign.gdshader` (kind in COLOR.a
+x 16: enamel, bulbs with a three-phase chase, neon, bulb-studded letters that spell out row by row
+then flash, the backlit letter board, the soffit, board type, iron, brass, glass, poster cases,
+terrazzo; one material per palace for the sequence's phase). Lettering is TextMesh geometry
+(`ShopfrontKit._text_geo`) merged into that surface. A palace is one MeshInstance3D (about 7
+surfaces), box collision (front, auditorium, marquee, sign), two occluder boxes, one lamp-group
+OmniLight under the marquee and two `bw_pool` light pools (warm, and the neon's colour). LOD and
+the far city: the front and auditorium as `lod_box`es and the blade sign and marquee as lit
+PANEL plant boxes (building_lod lights them after dark), so the column of signs shows from afar.
+
+**The street** (`BroadwayStreet`, `scripts/world/broadway_street.gd`): the lamps along Broadway's
+pavements in the stretch take CityChunk's lamp slot (`Broadway.lamp()` in `_build_sidewalk_props`;
+same prop kind, same counter, so prop ids do not move) with an original lantern (octagonal plinth,
+fluted column, collar, a cross-arm with two pendant globes and a lantern on top; lathe-built, the
+globes lit by `lamp_factor`); goods outside the shops (`bw_rack` clothes racks, `bw_gown` ball
+gowns on dress forms in the instance colour, `bw_table` sale tables) every `GOODS_STEP` by hash,
+off the palaces' frontages and the corners; the street clock (`CLOCKS`: Broadway & 7th east,
+Broadway & 4th west) whose dials (`shaders/broadway_clock.gdshader`) follow DayNight's hour
+(`ClockSync`, once a second) and the palace clock tower uses too. `Broadway.dress()` (one line in
+`_build_lot`, both levels) makes every other Broadway-fronting building masonry, under the old 150
+ft limit (`HEIGHT_LIMIT` 46 m), and names its shops from `BROADWAY_SHOPS` through
+`Building.name_pool` (appended to `SHOP_NAMES` after the old 30; every other building rolls the
+old 30 exactly - checked).
+
+**Shared files touched**: city_chunk.gd (4 hook lines: the claim, dress, the lamp, a block step),
+building.gd (the appended names and `name_pool` in `shop_names()`), shopfront_kit.gd
+(`_face_names()` now asks `Building.shop_names()`), smoke_test.gd (one line).
+
+**A/B**: `BROADWAY=0` in the environment. Checks: `tests/broadway_checks.gd`. Stills
+(`still_shot.gd`, opengl3): Broadway south from 6th St `EYE=2984,1.7,170,180,4` at noon and
+`@21`; the Empress across the street `EYE=2981,1.7,234.8,-90,10`; La Paloma `2998,1.7,255.4,90,12`.
+
+**Not done / not verified**: no Forward+ look (the bulbs' and neon's bloom, AgX on the red neon,
+the terrazzo's polish) - Mac eyes needed; the palace interiors are not modelled (the doors are
+glass); the encampment pieces stand in front of some palaces (Encampment's own placement, left
+alone); the 802 / 812 palaces share a block face so the 812 one stands on the next lot south.

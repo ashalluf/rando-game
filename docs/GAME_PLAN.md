@@ -289,6 +289,19 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Broadway's theatre district (VISUAL_ROADMAP #59, HANDOFF "Broadway").** Downtown's
+  Broadway between 3rd St and Olympic is pinned 1:1, so its movie palaces are placed by their REAL
+  house numbers (a data table, `Broadway.THEATRES`) and take the Broadway-fronting lot of the
+  seeded block there, claimed after the lot's rolls like a fire station - real forms, invented
+  names, shows and shops. Decisions: (1) a palace fills its lot's whole frontage (lots are 30-78 m;
+  the real palaces' are narrower) with brick commercial wings either side of its ornamented
+  pavilion rather than leaving part of the lot to a seeded Building; (2) every lit or painted thing
+  on a palace's street front is one surface on one shader (bulb chase, neon, spelled-out letters,
+  boards, terrazzo by vertex alpha), so a palace is a handful of draws; (3) Broadway's other
+  buildings keep every roll and are only dressed (masonry, 46 m limit, a shop-name pool appended
+  after the old 30 names so no other building's sign moves); (4) its lamps reuse the chunk's lamp
+  slot, so prop ids and destruction memory are unchanged.
+
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it
