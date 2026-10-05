@@ -289,7 +289,7 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
-- **2026-10-05 Photo mode (VISUAL_ROADMAP #59, HANDOFF 9b?).** P (pad: right stick click)
+- **2026-10-05 Photo mode (VISUAL_ROADMAP #61, HANDOFF 9b?).** P (pad: right stick click)
   freezes the world with the tree paused AND `Engine.time_scale` 0 (that is what stops shader
   TIME at runtime), flies a camera of its own so the depth of field and exposure never touch the
   player's, keeps it within 140 m of the player because nothing streams while frozen, and grades
