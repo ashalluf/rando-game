@@ -62,6 +62,7 @@ const LANDMARK_NAMES := {
 	"concert_hall": "Symphony Hall", "lattice_museum": "The Lattice", "pueblo_station": "Pueblo Station",
 	"macarthur_park": "MacArthur Park",
 	"venice_canals": "Marisol Canals",
+	"film_studio": "Sunspire Pictures",
 	# The ballpark north of downtown (Ballpark): an invented name.
 	"ballpark": "Sunridge Ballpark",
 	"golf_course": "Valley Oaks Golf Club",

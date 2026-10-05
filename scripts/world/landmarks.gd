@@ -132,6 +132,9 @@ static func _list() -> Array[Dictionary]:
 	# The canal neighbourhood behind the boardwalk (Canals): a site like the park's.
 	if Canals.enabled:
 		list.append(Canals.entry())
+	# The film studio lot in midtown (FilmStudio): an area site like the canals'.
+	if FilmStudio.enabled:
+		list.append(FilmStudio.entry())
 	# The ballpark in the ravine north of downtown (Ballpark: real form, real place, invented name).
 	if Ballpark.enabled():
 		list.append(Ballpark.entry())
@@ -217,6 +220,8 @@ static func site_steps(site_id: String, chunk: CityChunk) -> Array[Callable]:
 			return GolfBuild.site_steps(chunk)
 		OilField.ID:
 			return OilFieldBuild.site_steps(chunk)
+		FilmStudio.SITE_ID:
+			return FilmStudio.site_steps(chunk)
 	var none: Array[Callable] = []
 	return none
 
@@ -225,6 +230,8 @@ static func site_steps(site_id: String, chunk: CityChunk) -> Array[Callable]:
 static func capture_steps(site_id: String, chunk: CityChunk) -> Array[Callable]:
 	if site_id == Canals.SITE_ID:
 		return Canals.capture_steps(chunk)
+	if site_id == FilmStudio.SITE_ID:
+		return FilmStudio.capture_steps(chunk)
 	var none: Array[Callable] = []
 	return none
 

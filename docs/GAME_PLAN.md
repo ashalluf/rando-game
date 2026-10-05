@@ -1311,6 +1311,14 @@ already mapped so milestone 2 is script-only.
   before the street wear so tags land on top; FULL chunks only. docs/HANDOFF.md 9cw (murals);
   CLAUDE.md "Murals".
 
+- **2026-10-05 A Hollywood film studio lot in midtown (fleet session film-studio).** SUNSPIRE
+  PICTURES (invented; its mark a half sun behind a spire) takes 3 x 2 midtown blocks under the
+  ridge sign as an area site like the canals: the interior roads are closed and become the studio
+  streets; numbered sound stages, the gate arch and guard booth, office bungalows (HouseKit), the
+  water tower, a backlot New York street of false fronts, basecamp. A fixed area rather than a
+  seed-rolled one, as the canals and MacArthur Park are (Landmarks.all() is built before any
+  seed); everything inside is hashed from the seed. docs/HANDOFF.md "The film studio lot".
+
 - **2026-10-05 The cumulus read as photographs, not paintings (owner's review of wt/sky).** Flat
   bases at a shared condensation level, crowns thinned so the billows build them into turrets,
   footprints warped and tops sheared, a second population of fragments, three-octave torn edges

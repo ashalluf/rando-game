@@ -3786,6 +3786,23 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the environment removes the course (the A/B), `GOLF_LIFE=0` its life. Probe:
   `tools/golf/probe.gd` (`OUT=map.png` a top-down map of the fields); poses:
   `tools/golf/golfer_lab.tscn`; checks: `tests/golf_checks.gd`.
+- The film studio lot (2026-10-05, docs/HANDOFF.md "The film studio lot"): SUNSPIRE PICTURES
+  (invented, its mark a half sun behind a spire), `FilmStudio` (`scripts/world/film_studio.gd`)
+  + `FilmStudioKit` (`scripts/world/film_studio_kit.gd`) on ONE shader
+  (`shaders/film_studio.gdshader`, kind in COLOR.a 32nds - IndustrialKit's box writer -, paint in
+  COLOR.rgb). An "area" site like the canals: 3 x 2 midtown blocks under the ridge sign (`WEST_X`
+  .. `SOUTH_Z`), interior roads closed and used as the studio streets. `layout(plan)` is PURE and
+  cached: sub-blocks get roles (front at the south gate, backlot farthest from it, stages where
+  they fit, else a trailer yard); numbered stages (gable roofs, elephant doors, red lights lit by
+  day on the "rolling" ones, painted numbers), the office block, HouseKit bungalows (no garage),
+  the water tower with the mark, a New York street of braced false fronts, basecamp trailers /
+  honeywagons / grip trucks, golf carts and gear, lamps. FULL: one casting mesh a chunk
+  (`StudioLot`), Industrial's ground mesh, pavement, lawns, time-sliced steps; LOD and the far
+  city: `lod_box`es. The relief is flattened over the lot's `flat_rect` (a hook in
+  `MacroMap._relief_at()`), not a radius disc, which reached the hills' switchbacks. `IndustrialKit.cyl()` winds its walls inward (culled from outside), so the
+  kit has its own `cyl()` / `cone()`. `FILM_STUDIO=0` is the A/B. Probe
+  `tools/film_studio/probe.tscn`; checks `tests/film_studio_checks.gd`
+  (`tools/film_studio/checks_only.tscn` alone).
 - Masjid Omar ibn Al-Khattab (owner, 2026-09-24: "way more detailed and 1:1 accurate", six
   photos, "give it an interior", and "make it impossible for the character to shoot anything at
   it"): `LandmarkMasjidOmar` (`scripts/world/landmark_masjid_omar.gd`), a replica of the real

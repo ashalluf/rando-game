@@ -278,10 +278,10 @@ var _relief: FastNoiseLite
 var _landmarks: Array[Dictionary] = []
 ## The oil field (OilField), or null.
 var oil: OilField = null
-## The landmarks whose relief-flattening box (radius + 150 m) reaches each LM_CELL square, as
-## [anchor, radius] in Landmarks.all()'s order: _relief_natural() runs for every ground sample a
-## chunk lays, and looping all ~100 landmarks with two dictionary reads each was most of a sample's
-## cost (a FULL block's pavement was 60-200 ms in one build step).
+## The landmarks whose relief-flattening box (radius + 150 m, or a flat_rect and its margin)
+## reaches each LM_CELL square, in Landmarks.all()'s order: _relief_natural() runs for every ground
+## sample a chunk lays, and looping all ~100 landmarks with two dictionary reads each was most of a
+## sample's cost (a FULL block's pavement was 60-200 ms in one build step).
 var _lm_grid: Dictionary = {}
 const LM_CELL := 400.0
 
@@ -306,15 +306,20 @@ func setup() -> void:
 	_landmarks = Landmarks.all()
 	_lm_grid = {}
 	for lm in _landmarks:
-		var lr: float = lm.radius
-		var la: Vector2 = lm.anchor
-		var reach := lr + 150.0
-		for cz in range(floori((la.y - reach) / LM_CELL), floori((la.y + reach) / LM_CELL) + 1):
-			for cx in range(floori((la.x - reach) / LM_CELL), floori((la.x + reach) / LM_CELL) + 1):
+		# The square a landmark flattens: its own flat ground and margin (the film studio lot), or
+		# the disc round its anchor plus the 150 m box test below.
+		var cover: Rect2
+		if lm.has("flat_rect"):
+			cover = (lm.flat_rect as Rect2).grow(float(lm.flat_margin))
+		else:
+			var reach: float = float(lm.radius) + 150.0
+			cover = Rect2((lm.anchor as Vector2) - Vector2(reach, reach), Vector2(reach, reach) * 2.0)
+		for cz in range(floori(cover.position.y / LM_CELL), floori(cover.end.y / LM_CELL) + 1):
+			for cx in range(floori(cover.position.x / LM_CELL), floori(cover.end.x / LM_CELL) + 1):
 				var ck := Vector2i(cx, cz)
 				if not _lm_grid.has(ck):
 					_lm_grid[ck] = []
-				(_lm_grid[ck] as Array).append([la, lr])
+				(_lm_grid[ck] as Array).append(lm)
 	_calm_spots = []
 	for lm in _landmarks:
 		if raw_height_at(lm.anchor) > 3.0:
@@ -549,9 +554,16 @@ func _relief_natural(pos: Vector2, raw: float) -> float:
 		fade *= _rect_fade(pos, r, 160.0)
 		if fade <= 0.0:
 			return base
-	for lm: Array in _lm_grid.get(Vector2i(floori(pos.x / LM_CELL), floori(pos.y / LM_CELL)), []):
-		var a: Vector2 = lm[0]
-		var radius: float = lm[1]
+	for lm: Dictionary in _lm_grid.get(Vector2i(floori(pos.x / LM_CELL), floori(pos.y / LM_CELL)), []):
+		# A landmark that names its own flat ground (a rect and a margin: the film studio lot)
+		# flattens that rather than a disc round its anchor.
+		if lm.has("flat_rect"):
+			fade *= _rect_fade(pos, lm.flat_rect, float(lm.flat_margin))
+			if fade <= 0.0:
+				return base
+			continue
+		var radius: float = lm.radius
+		var a: Vector2 = lm.anchor
 		# A cheap box test first: this runs for every ground sample in the city (and the whole
 		# baked map at load), and downtown alone is twenty landmarks.
 		if absf(pos.x - a.x) > radius + 150.0 or absf(pos.y - a.y) > radius + 150.0:
