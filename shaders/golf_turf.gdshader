@@ -154,7 +154,7 @@ void fragment() {
 	// Tee boxes: short turf striped across, a few divot scars, a crisp mown edge.
 	float tee = 1.0 - edge(tee_d, 0.06);
 	if (tee > 0.001) {
-		float b = bands(wp, vec2(-mow.y, mow.x), tee_stripe);
+		float b = bands(wp, mow, tee_stripe);
 		vec3 tc = tee_color * (0.92 + 0.14 * mid);
 		float scar = step(0.93, hash12(floor(wp * 3.0))) * smoothstep(-0.5, -3.0, tee_d);
 		tc = mix(tc, soil_color * 1.2, scar * 0.8);
@@ -168,7 +168,7 @@ void fragment() {
 	float collar = 1.0 - edge(green_d - 1.3, 0.06);
 	float green = 1.0 - edge(green_d, 0.05);
 	if (collar > 0.001) {
-		float b = bands(wp, vec2(-mow.y, mow.x) , 1.4);
+		float b = bands(wp, mow, 2.0);
 		col = mix(col, collar_color * (0.95 + 0.1 * mid), collar * (1.0 - green));
 		lean = mix(lean, b * 0.5, collar * (1.0 - green));
 		stripe_k = mix(stripe_k, 0.7, collar * (1.0 - green));

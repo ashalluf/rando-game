@@ -253,7 +253,9 @@ func _golfer(city: Node3D, lay: Dictionary) -> void:
 	var skel: Skeleton3D = g._skel
 	var moved := false
 	if skel != null and g._poses.has("top"):
+		g.set_physics_process(false)
 		var b := skel.find_bone("RightArm")
+		g._apply_pose("", "", 0.0)
 		var before := skel.get_bone_pose_rotation(b)
 		g._pose_at(4.3)
 		var top := skel.get_bone_pose_rotation(b)

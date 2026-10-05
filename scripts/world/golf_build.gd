@@ -27,7 +27,7 @@ extends RefCounted
 const LIFT := 0.0
 ## Turf grid (m): FULL and LOD.
 const CELL_FULL := 1.6
-const CELL_LOD := 3.5
+const CELL_LOD := 2.5
 ## Rows of the turf grid built per step (FULL).
 const ROWS_PER_STEP := 14
 ## The flag: 20 x 14 inches, on a 7 ft stick (m).

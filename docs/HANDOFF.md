@@ -7040,3 +7040,81 @@ ALU in shaders that were already running.
 - The night ambient (DayNight) still lights roofs a moonlit blue-grey on opengl3; not this pass.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
+## 9b?. A golf course in the valley, 2026-10-05 (agent branch `wt/golf`; VISUAL_ROADMAP #63)
+
+Number left for the lead to assign.
+
+**The brief** (lead): LA has big public and country-club courses in its hills and valleys; build
+one - nine or eighteen holes laid out procedurally from a hash, tees, fairways that follow the
+ground's rolls, mown rough, greens with fringes and a flag on a pin waving in the wind, raked
+bunkers with lips, a pond with a fountain, cart paths, yardage markers, ball washers, benches, a
+creek with bridges, tree lines, palms by the clubhouse, hedges, a Spanish revival clubhouse, its
+car park, a pro shop, a driving range with distance flags, nets and a line of golfers, golfers in
+polo shirts swinging and putting, carts on the paths, sprinklers at dawn, a turf shader, LOD and
+far. CLAUDE.md's "The golf course" note is the reference; this is the story.
+
+**Where.** The valley floor north of the front range: suburbs on rolling ground at the plateau
+(130-142 m), seven blocks by six between Ridge/Linden and the street south of River Blvd on the
+default seed (x -389..298, z -3131..-2544: 668 x 573 m, ~38 ha). The foot of the front range on
+the basin side was tried first and rejected: the city there is a single row of 145 m blocks
+between the range and the campus. The valley has room, a 10 m swell of relief across the site
+(real golf ground), no freeway (the 101's line is at x ~500) and no river. Nothing else in the
+lead's area list was placed there when this was built; another session claiming the same blocks
+would show up as a CityPlan.sites() overlap.
+
+**How it is claimed.** A landmark AREA, exactly MacArthur Park's mechanism: `GolfCourse.entry()`
+carries an "area" that CityPlan snaps to the nearest roads, every road inside the four boundary
+roads is closed (`road_open()`), the blocks inside get `"site"` and no lots, and their chunks run
+`GolfBuild.site_steps()` instead of a block (`Landmarks.site_steps()`). Closing roads keeps every
+road index and block seed in the city where it was. Side effects outside the course are the
+existing rules about sites: a plaza rolled across the street becomes buildings (CityPlan) and a
+rec park or school beside it is not rolled (Parks). Street names round it are invented
+(FAIRWAY DR, COUNTRY CLUB DR, LINKS AVE, GREENS AVE). The landmark radius is 18 m (it flattens the
+relief only that much round its anchor, in the clubhouse forecourt) so the rolls stay.
+
+**The layout** (`GolfCourse.layout()`, pure, cached per plan; 50 ms). A routing solver was not
+attempted: a template reads as a designed course and a solver needs a lot of care to avoid
+nonsense holes. `ROUTE` is nine holes drawn by hand in a 660 x 580 m frame (a clockwise loop out
+of the clubhouse, the range down the west side), mirrored east-west by a hash and every point
+jittered by a hash, then validated (`hole_gaps()`); default seed: par 33, 2,177 yd (an executive
+nine like the real valley's municipal nines), holes 136-423 yd. Then tees (three boxes, blue /
+white / red), fairways, greens with pins, bunkers, the pond in front of the par-3 seventh with a
+fountain, the creek that feeds it (three timber bridges where the path crosses), the cart path,
+928 trees in the rough between the holes (a jittered grid thinned by a slow noise into groves:
+the broad city tree, the fir, a few pines and jacarandas; palms along the entry drive and at the
+clubhouse), signs, washers, benches, yardage posts and fairway plates.
+
+**The ground is distance fields.** Six of them (fairway, green, bunker, tee, water, path), binned
+per chunk (`gather()`, 12 m bins: 3.8 us a point), written into the vertices of ONE 1.6 m grid
+mesh a chunk and thresholded per pixel by `golf_turf.gdshader`, so a 1.6 m grid still gives crisp
+greens, collars, bunker edges and paths. The same fields shape the ground: mounds in the rough,
+crowned greens, raised tee pads, dug bunkers with a lip, banks down to the water. Trap, found by
+the seam check: anything the shape reads must saturate inside FIELD_REACH, or a chunk that did
+not gather a far feature disagrees with its neighbour at the shared edge.
+
+**The turf shader.** Colours in linear (color_space include). The grass texture is used as
+luminance detail and recoloured per surface. Mown stripes are a sheen, not paint: the band's lean
+is compared with the view's heading, so the stripes swap light and dark as the camera goes round,
+as real ones do; diagonal on fairways, across on tees, cross-cut (one strong, one faint pass) on
+greens. Raked sand with wavering rake lines and a dark sod line at the lip; wet mud at the water's
+edge; small divots in the landing zones; worn turf beside the path; native gold grass only far
+from play. Everything finer than a few pixels fades to its average.
+
+**Buildings.** The clubhouse and the pro shop are synthetic HouseKit plans (a two-storey hipped
+main block, gabled wings, a front-gabled arched entrance, a three-storey tower; clay tile, white
+stucco, dark trim) built by HouseBuild into the chunk's house meshes - real walls cut round real
+windows - and as HouseKit's LOD boxes far. The car park is LotFill's (stalls, parked cars, light
+poles, booth, edging).
+
+**Life.** Golfers are crowd rigs in a polo and chinos (the character shader's garment split) with
+poses solved per rig over the idle frame like RoughSleeper's, plus a spine twist: address, the
+top of the backswing, impact, the finish, putt (and its back / through), seated. A swing is a
+timeline eased bone by bone every 30-50 s (9-14 s on the range); the club is placed from the
+hands along a per-pose direction (bone-attached in the hand's grip frame it pointed anywhere);
+the ball flies at impact. Groups of two to four on two thirds of the holes - one playing, the rest
+standing by - with their cart parked on the path; golfers in about two thirds of the range's
+bays and two on the practice green; by day only. Four carts drive the path's loop from a clock
+with one or two riders. Sprinklers along the fairways and round the greens sweep at dawn.
+
+**Stills** (shots/golf branch): aerial at 9:00 and at golden hour, a green with the flag from the
+fairway, a bunker, the clubhouse front and from the course, the range's tee line, the poses lab.

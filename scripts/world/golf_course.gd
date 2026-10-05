@@ -87,7 +87,7 @@ const GREEN_CROWN := 0.32
 const TEE_LIFT := 0.45
 const BUNKER_DEPTH := 0.62
 const BUNKER_LIP := 0.2
-const MOUND := 0.75
+const MOUND := 0.5
 const MOUND_SCALE := 26.0
 ## Where the distance fields stop mattering (m): a feature further than this from a point cannot
 ## change what is drawn there (the vertex codes clamp at +-FIELD_REACH).
@@ -288,7 +288,7 @@ static func _hole(ps: int, i: int, pts: PackedVector2Array, template_par: int) -
 		steps = [0.0, hrange(10.0, 14.0, [ps, "golf_t", i, 0]), hrange(20.0, 26.0, [ps, "golf_t", i, 1])]
 	for t in 3:
 		var c := pts[0] + first * float(steps[t]) + side * hrange(-3.0, 3.0, [ps, "golf_t", i, t, 2])
-		tees.append({"c": c, "u": first, "half": tee_half, "color": TEE_COLORS[t]})
+		tees.append({"c": c, "u": first, "half": tee_half, "color": TEE_COLORS[t], "mow": Vector2(-first.y, first.x)})
 	# The fairway: from the landing area in front of the forward tee to the green's front.
 	var fw := PackedVector2Array()
 	var fw_from := float(steps[2]) + hrange(35.0, 60.0, [ps, "golf_fw", i, 0])
@@ -296,6 +296,7 @@ static func _hole(ps: int, i: int, pts: PackedVector2Array, template_par: int) -
 		var front := length - float(green.a) * 0.55
 		fw = sub_poly(pts, fw_from, front)
 	var u := (pts[pts.size() - 1] - pts[0]).normalized()
+	green["mow"] = Vector2(cos(approach.angle() + 0.785), sin(approach.angle() + 0.785))
 	return {"n": i + 1, "par": par, "pts": pts, "length": length, "yards": int(round(yards)),
 		"green": green, "pin": pin, "tees": tees, "fw": fw, "fw_from": fw_from,
 		"fw_half": hrange(FAIRWAY_HALF.x, FAIRWAY_HALF.y, [ps, "golf_fw", i, 1]),
@@ -822,7 +823,7 @@ static func field(sub: Dictionary, p: Vector2) -> PackedFloat32Array:
 			green = d
 			if d < mow_d:
 				mow_d = d
-				mow = Vector2.from_angle(float(g.ang))
+				mow = g.get("mow", Vector2(1.0, 0.0))
 	var bunker := 1e3
 	for bk: Dictionary in b[2]:
 		bunker = minf(bunker, bunker_sdf(bk, p))
@@ -833,7 +834,7 @@ static func field(sub: Dictionary, p: Vector2) -> PackedFloat32Array:
 			tee = d
 			if d < mow_d:
 				mow_d = d
-				mow = t.u
+				mow = t.mow
 	if b[8]:
 		var rr: Rect2 = lay.range
 		var td := rect_sdf(Rect2(rr.position.x + 2.0, rr.end.y - 18.0, rr.size.x - 4.0, 12.0), p)
