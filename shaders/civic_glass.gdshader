@@ -185,7 +185,7 @@ void fragment() {
 	float sky_l = dot(pow(max(sky_tint.rgb, vec3(0.0)), vec3(2.2)), vec3(0.3333));
 	float hr = city_hour;
 	float open = step(open_hours.x, hr) * step(hr, open_hours.y);
-	float day = (1.0 - lamp_factor) * sky_l * mix(0.32, 0.1, clamp(t / 8.0, 0.0, 1.0));
+	float day = (1.0 - lamp_factor) * sky_l * mix(0.2, 0.06, clamp(t / 8.0, 0.0, 1.0));
 	vec3 lamp = vec3(1.0, 0.9, 0.76) * (room == 2 || room == 1 ? vec3(0.92, 0.97, 1.05) : vec3(1.0));
 	float lights = (open * 0.85 + (1.0 - open) * 0.05 * step(0.6, rnd)) * (0.75 + 0.25 * smoothstep(0.0, room_h, wy + 0.5));
 	vec3 room_col = c * (day + lamp * lights * mix(0.18, night_energy, lamp_factor));
