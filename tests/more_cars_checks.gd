@@ -201,17 +201,24 @@ func _builds() -> void:
 	await _ticks(150)
 	_check(ok, "the hatchback, SUV, minivan, taxi and beater build as models with their glass, a far twin, lamps and four wheels%s" % why)
 	_check(worst < 80.0, "each builds inside the traffic's build budget (worst %.1f ms warm)" % worst)
-	# Parked: on their springs, upright, at rest, close to where traffic stands them.
+	# Parked: on its springs, where the wheels touch the road in body space is where traffic
+	# stands it (what car_shot.gd prints as CONTACT; independent of where the deck has moved to).
 	var stance := ""
 	var good_stance := true
 	for i in range(1, _cars.size(), 2):
 		var car: Vehicle = _cars[i]
-		var lift := car.global_position.y - (_deck.global_position.y + 0.5)
-		var want := car.road_lift()
-		if absf(lift - want) > 0.06 or car.global_basis.y.dot(Vector3.UP) < 0.99:
+		var ys: Array[float] = []
+		for w: VehicleWheel3D in car.wheels:
+			if w.is_in_contact():
+				ys.append((car.global_transform.affine_inverse() * w.get_contact_point()).y)
+		var road := -car.road_lift()
+		var at := 9.0
+		if ys.size() == 4:
+			at = (ys[0] + ys[1] + ys[2] + ys[3]) * 0.25
+		if absf(at - road) > 0.04 or car.global_basis.y.dot(Vector3.UP) < 0.99:
 			good_stance = false
-		stance += " %s %.3f/%.3f" % [Vehicle.BODY_NAMES[car.body_type], lift, want]
-	_check(good_stance, "parked, each sits on its springs within 6 cm of where traffic stands it (body over road vs road_lift:%s)" % stance)
+		stance += " %s %.3f/%.3f" % [Vehicle.BODY_NAMES[car.body_type], at, road]
+	_check(good_stance, "parked, each stands on four wheels within 4 cm of where traffic stands it (contact vs road in body space:%s)" % stance)
 
 
 func _traffic_stance() -> void:
