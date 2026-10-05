@@ -63,7 +63,7 @@ func _initialize() -> void:
 				var g2: float = plan.macro.relief_at(pe) if plan.macro.has_method("relief_at") else 0.0
 				print("ROAD block=%d,%d axis=%d road=%d side=%d %.0f..%.0f lane=%.1f EYE=%.1f,%.1f,%.1f,%.0f,-8" % [ix, iz, int(rw.axis), int(rw.index),
 					int(rw.side), float(rw.a), float(rw.b), float(rw.lane), pe.x, 1.9 + g2, pe.y, rad_to_deg(atan2(-lk.x, -lk.y))])
-			if int(block.district) in [plan.District.SUBURBS, plan.District.BEACHTOWN]:
+			if int(block.district) in [plan.District.SUBURBS, plan.District.BEACHTOWN] and int(block.kind) == 0 and int(plan.zone_at(rect.get_center())) == 0:
 				for lot: Dictionary in plan.lots(ix, iz):
 					if lot.yard:
 						continue

@@ -265,13 +265,17 @@ void fragment() {
 		float diag_d = abs(uv.x / wdt - (mod(floor(uv.y / pitch), 2.0) < 0.5 ? py : 1.0 - py)) * wdt;
 		float diag = 1.0 - smoothstep(0.045, 0.045 + fwx * 1.5, diag_d);
 		float on = max(edge, max(horiz, diag));
-		float blur = smoothstep(0.02, 0.06, fwx / wdt);
-		on = mix(on, step(bayer4(FRAGCOORD.xy), 0.38), blur);
-		if (on < 0.5) {
+		// Once the lacing is under a pixel or two the face is drawn solid, darkened to what a
+		// lattice face averages (the sky through it, the steel's shadowed inner faces): a far mast
+		// dithered to a third of its pixels without TAA read as a faint dotted line.
+		float ratio = fwx / wdt;
+		float solid = smoothstep(0.025, 0.07, ratio);
+		if (on < 0.5 && solid < 0.5) {
 			discard;
 		}
 		float chip = smoothstep(0.75, 0.8, fbm(uv * 5.0));
 		albedo = mix(paint, vec3(0.2, 0.18, 0.16), chip * 0.5) * (0.88 + 0.12 * vnoise(uv * 3.0));
+		albedo *= mix(1.0, 0.62, solid * (1.0 - on));
 		rough = 0.5;
 		metal = 0.2;
 	} else if (k == 7) {
@@ -343,19 +347,26 @@ void fragment() {
 		albedo *= 0.88 + 0.12 * (1.0 - lines(uv.x, 0.406, 0.08));
 		rough = 0.6;
 	} else if (k == 11) {
-		// Curtain-wall glass on the finished floors: a mirror of the sky, mullions on a 1.5 m
-		// module and the slab line, a few panels still in their protective film.
+		// Curtain-wall glass on the finished floors: what it mirrors (the sky above the horizon,
+		// the street and the city below it, by the reflected ray), each unit a hair off true so the
+		// wall is not one sheet, mullions on a 1.5 m module and the slab line, the odd unit still in
+		// its blue protective film.
 		vec3 v = normalize(world_p - CAMERA_POSITION_WORLD);
-		float fres = pow(1.0 - clamp(abs(dot(v, world_n)), 0.0, 1.0), 4.0);
-		vec3 sky = sky_tint.rgb;
-		float mull = max(lines(uv.x, 1.5, 0.06), lines(uv.y, 3.6, 0.12));
 		vec2 pnl = floor(uv / vec2(1.5, 3.6));
-		float film = step(0.9, hash12(pnl + 5.0));
-		albedo = mix(vec3(0.05, 0.08, 0.09), vec3(0.72, 0.78, 0.84), film);
-		emit = mix(sky * (0.18 + 0.55 * fres) * (0.8 + 0.4 * hash12(pnl)), vec3(0.0), film);
+		vec3 nb = normalize(world_n + vec3(hash12(pnl) - 0.5, hash12(pnl + 3.1) - 0.5, hash12(pnl + 7.7) - 0.5) * 0.06);
+		vec3 r = reflect(v, nb);
+		float fres = 0.08 + 0.92 * pow(1.0 - clamp(abs(dot(v, nb)), 0.0, 1.0), 5.0);
+		vec3 sky = sky_tint.rgb * mix(1.15, 0.75, clamp(r.y, 0.0, 1.0));
+		vec3 city = mix(vec3(0.16, 0.16, 0.17), vec3(0.32, 0.31, 0.30), vnoise(vec2(atan(r.x, r.z) * 9.0, 0.5))) * (0.35 + 0.65 * (1.0 - night_factor));
+		float above = smoothstep(-0.02, 0.12, r.y + 0.08 * vnoise(vec2(atan(r.x, r.z) * 6.0, 2.0)));
+		vec3 mirror = mix(city, sky, above);
+		float mull = max(lines(uv.x, 1.5, 0.06), lines(uv.y, 3.6, 0.14));
+		float film = step(0.965, hash12(pnl + 5.0));
+		albedo = mix(vec3(0.03, 0.045, 0.05), vec3(0.36, 0.48, 0.56), film);
+		emit = mix(mirror * (0.25 + 0.75 * fres), vec3(0.0), film);
 		albedo = mix(albedo, vec3(0.30, 0.31, 0.32), mull);
 		emit *= 1.0 - mull;
-		rough = mix(0.08, 0.6, max(mull, film));
+		rough = mix(0.06, 0.6, max(mull, film));
 		metal = mix(0.2, 0.4, mull);
 		spec = 0.8;
 	} else if (k == 12) {
@@ -418,7 +429,7 @@ void fragment() {
 		vec3 d = disp(texture(dirt_tex, tw / 4.0).rgb);
 		float tracks = band(fract(tw.x / 7.0 + 0.2 * sin(tw.y * 0.05)), 0.5, 0.06) * 0.25;
 		if (k == 19) {
-			albedo = d * vec3(0.95, 0.88, 0.80) * (0.85 + 0.2 * fbm(tw * 0.2)) * (1.0 - tracks);
+			albedo = mix(vec3(dot(d, vec3(0.333))), d, 0.55) * vec3(0.78, 0.71, 0.62) * (0.8 + 0.2 * fbm(tw * 0.2)) * (1.0 - tracks);
 			rough = 0.95;
 		} else {
 			float stones = vnoise(tw * 9.0) * 0.5 + vnoise(tw * 23.0) * 0.5;

@@ -81,7 +81,7 @@ func _find_house(plan: CityPlan) -> Vector2i:
 				if maxi(absi(ix - c.x), absi(iz - c.y)) != r:
 					continue
 				var b := plan.block(ix, iz)
-				if int(b.district) != CityPlan.District.SUBURBS or int(b.kind) != CityPlan.BlockKind.BUILDINGS:
+				if int(b.district) != CityPlan.District.SUBURBS or int(b.kind) != CityPlan.BlockKind.BUILDINGS or plan.zone_at((b.rect as Rect2).get_center()) != MacroMap.Zone.CITY:
 					continue
 				for lot: Dictionary in plan.lots(ix, iz):
 					if not lot.yard and Construction.house_site(plan, lot):

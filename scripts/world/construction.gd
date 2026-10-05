@@ -127,7 +127,8 @@ static func tower_site(plan: CityPlan, bx: int, bz: int) -> Dictionary:
 
 static func _tower_site(plan: CityPlan, bx: int, bz: int) -> Dictionary:
 	var b := plan.block(bx, bz)
-	if int(b.kind) != CityPlan.BlockKind.BUILDINGS or b.has("site") or b.has("grounds") or plan.river_block(bx, bz):
+	if int(b.kind) != CityPlan.BlockKind.BUILDINGS or b.has("site") or b.has("grounds") or plan.river_block(bx, bz) \
+			or plan.zone_at((b.rect as Rect2).get_center()) != MacroMap.Zone.CITY:
 		return {}
 	var district: int = b.district
 	if not TOWER_BLOCK_ODDS.has(district):
@@ -649,7 +650,7 @@ static func _tower_full(ch: CityChunk, site: Dictionary, g: float) -> void:
 	_shape(ch, Vector3(core.size.x, core_h, core.size.y), Transform3D(Basis(), Vector3(core.get_center().x, floor_y + core_h * 0.5, core.get_center().y)))
 	var jf := core.grow(0.9)
 	var jy := floor_y + core_h - 1.2
-	_net_ring(st, jf, jy, jy + 5.0, form.darkened(0.15), K.K_STEEL)
+	_net_ring(st, jf, jy, jy + 5.0, Color(0.30, 0.34, 0.31), K.K_STEEL)
 	K.box(st, Transform3D(Basis(), Vector3(jf.get_center().x, jy + 5.0, jf.get_center().y)), Vector3(jf.size.x, 0.12, jf.size.y), K.K_GALV, Color.WHITE, -1.0, 0, 32)
 	for e in 4:
 		var seg := _edge(core, e)

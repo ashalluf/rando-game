@@ -66,10 +66,10 @@ const CRANE_WHITE := Color(0.90, 0.90, 0.88)
 const COUNTERWEIGHT := Color(0.62, 0.61, 0.58)
 const LAMP_RED := Color(1.0, 0.12, 0.06)
 
-const CONCRETE := Color(0.80, 0.79, 0.76)
+const CONCRETE := Color(0.70, 0.69, 0.66)
 const LUMBER := Color(0.86, 0.70, 0.48)
 const OSB := Color(0.80, 0.64, 0.40)
-const FORM_PAINTS := [Color(0.82, 0.62, 0.20), Color(0.72, 0.36, 0.14), Color(0.86, 0.74, 0.30)]
+const FORM_PAINTS := [Color(0.72, 0.56, 0.26), Color(0.56, 0.34, 0.18), Color(0.74, 0.64, 0.38)]
 const NET_PAINTS := [Color(0.18, 0.34, 0.22), Color(0.95, 0.48, 0.10), Color(0.12, 0.22, 0.34)]
 const RAIL_PAINT := Color(0.92, 0.78, 0.10)
 const MACHINE_YELLOW := Color(0.94, 0.68, 0.06)
