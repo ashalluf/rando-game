@@ -1888,6 +1888,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   .stage_for_shot()`, `SERVICE_LIFT`); close-ups `car_shot.gd --each=20,21,22,23,24` with
   `SERVICE_WORK=<0..1>` (every gear shown at work: the arm that far through a lift, the bed that
   far down, the brooms and spray on, the flashers on). `SERVICE_VEHICLES=0` is the A/B.
+- Police stations at night (2026-10-05, HANDOFF "Police stations at night"): an OmniLight3D per
+  floodlight pole (`FLOOD_*`, lamp group, desktop only), lit lettering
+  (`police_station_letters.gdshader`), glass that traces its offices and lobby hall
+  (`police_station_glass.gdshader`, `trace`). Judge a block at night with
+  `tools/glshot/station_night_shot.tscn` (the city's real DayNight, lamps on; block_shot's NIGHT=1
+  never switches the lamps on). `POLICE_NIGHT=0` is the A/B; checks `tests/police_night_checks.gd`.
 - Character arms: the generated clips were authored for arms that hang straight, but each
   generated rig is bound in whatever pose its mesh came out in (A-pose, or a palms-up shrug
   with the forearms raised), and the clips drive the arm bones as if that were the rest pose -

@@ -2098,6 +2098,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Neighbourhood civic buildings (tests/civic_buildings_checks.gd): placement, claims, each kind
 	# built near and far.
 	await load("res://tests/civic_buildings_checks.gd").new().run(self, city)
+	# A police station at night (tests/police_night_checks.gd): its lights, lettering and glass.
+	await load("res://tests/police_night_checks.gd").new().run(self, city)
 	# The ambience mixer (tests/ambience_checks.gd): layers per place, hour and weather, fades,
 	# ducks, buses. Mixer state only - the Dummy audio driver plays nothing.
 	await load("res://tests/ambience_checks.gd").new().run(self, city)

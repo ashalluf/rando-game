@@ -1347,6 +1347,12 @@ already mapped so milestone 2 is script-only.
   the middle primary hangs exactly on it. docs/HANDOFF.md (Overhead utilities); CLAUDE.md
   "Overhead utilities".
 
+- **2026-10-05 Police stations read at night.** Their night stills were dark because the shot
+  tool had no DayNight (the lamps were never switched on); the new `station_night_shot.tscn` uses
+  the real one. The station now lights its car park from every floodlight pole, its name is lit
+  lettering and its glass traces lit rooms with parallax. `POLICE_NIGHT=0` is the A/B.
+  docs/HANDOFF.md (police stations at night).
+
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
   in the afternoon, backlighting the mountain faces the city looks at. Realism wins over the old

@@ -12878,3 +12878,42 @@ under a pixel past the FULL ring and its wires are faded out by 340 m anyway. No
 Forward+ (the Mac): the wire alpha and the porcelain's gloss want a look there. Dead-end
 hardware (strain insulators) at a run's last pole, and crossarms per circuit (double arms,
 three-phase risers) are not modelled.
+
+## 9eg. Police stations at night, 2026-10-05 (agent branch `wt/police-night`; VISUAL_ROADMAP #127)
+
+**Why the stills were dark.** The station's night stills (9bz, `shots/police-station`) came from
+`block_shot.tscn NIGHT=1`, a crude night with no DayNight: it set the `lamp_factor` globals but
+nobody ever switched the `lamp_light` OmniLight3Ds on (DayNight does that on its 0.35 s tick), the
+sky was a flat colour and there was no exposure. The station itself was lit in the game all along.
+
+**The shot tool.** `tools/glshot/station_night_shot.tscn` (new; works for any block, not only a
+station): the FULL chunks round EYE, as block_shot builds them, lit by the city scene's own
+WorldEnvironment, Sun AND DayNight (moved into the scene, paused at `HOUR`, default 21) - the sky
+shader with its moon, stars and light dome, the night exposure, the ambient, every lamp light on -
+seen through the player camera's own CameraAttributesPractical (auto exposure; `AE=0` off). Small
+enough for lavapipe. `SHOTS=`, `FRAMES`, `GEO=1`, `LIGHTS=1` (lamp lights on and within 120 m).
+Usage in its header.
+
+**The station's night** (`PoliceStation`, all behind `POLICE_NIGHT=0` for the A/B):
+- one OmniLight3D per floodlight pole (`FLOOD_LIGHT_Y` 8.2 m, a little in front of the heads,
+  `FLOOD_RANGE` 26 m, `FLOOD_ATTENUATION` 0.7, cool white `FLOOD_COLOR`) instead of one light over
+  the middle of the car park, which left the cruisers along its edges black; still in the
+  `lamp_light` group (DayNight casts that group to OmniLight3D: never put a SpotLight3D in it),
+  still not on the web, where the additive pools carry it;
+- the department's name over the canopy and the monument sign's lettering are lit channel letters
+  (`shaders/police_station_letters.gdshader`, `letter_material()`, `LETTER_GLOW`): metal by day,
+  glowing by `lamp_factor` after dark;
+- the glass (`shaders/police_station_glass.gdshader`) TRACES its rooms instead of painting a flat
+  bright pane: an office two bays wide, a storey high and `office_depth` deep (lit ceiling panels,
+  walls lit from above, carpet, a desk and screen line, the blinds), and the lobby one double-height
+  hall (`lobby_room`: stone floor with the downlights' pools, a ceiling of round downlights, a lit
+  wall panel - plain, no emblem - and the reception counter). The storeys now start where the
+  building's do (`storey_origin` = GROUND_H mod UPPER_H). The lobby's night gain is 1.15 (was 2.2:
+  it clipped to a white sheet on both renderers). `trace` 0 is the old flat rooms.
+
+**Checks** (`tests/police_night_checks.gd`, 5): the entrance and every pole carry a lamp-group
+omni, DayNight turns them on at 21:00, the lettering material and the traced glass, and
+`POLICE_NIGHT=0` builds the old two lights.
+
+**Not done.** The parked cruisers' light bars stay dark (parked cruisers do); no cruiser idles at
+the kerb with its bar running. The HQ was not shot separately (same code).
