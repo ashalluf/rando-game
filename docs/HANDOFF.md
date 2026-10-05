@@ -6766,7 +6766,7 @@ channel's edge (under a pixel past ~500 m). Sediment bars and reeds are FULL onl
 (9bk, not on main when this was written) does not reach the river; the rail bridge carries a
 freight spur that ends at buffer stops past the bank roads.
 
-## 9bq. More everyday car bodies: hatchback, SUV, minivan, taxi, beater, 2026-10-05 (agent branch `wt/more-cars`; VISUAL_ROADMAP #63)
+## 9bq. More everyday car bodies: hatchback, SUV, minivan, taxi, beater, 2026-10-05 (agent branch `wt/more-cars`; VISUAL_ROADMAP #59)
 
 The brief: a real LA street is full of compact hatchbacks, full-size SUVs, minivans, taxis and a
 beater or two; traffic had four Blender bodies (sedan, crossover, pickup, van), the exotics and
