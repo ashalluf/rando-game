@@ -260,7 +260,9 @@ func _jay(here: Vector2) -> String:
 		for i in 12:
 			await _tree.physics_frame
 		var side := Vector2(1.0, 0.0) if axis == CityPlan.AXIS_X else Vector2(0.0, 1.0)
-		var e := mid + side * signf(road - lat) * (width * 0.5 + 2.2) * 1.0 + (Vector2(0.0, 1.0) if axis == CityPlan.AXIS_X else Vector2(1.0, 0.0)) * float(dir) * 11.0
+		# ERRAND_EYE_LAT: metres out from the road's middle (default on the far pavement, past the
+		# kerb); ERRAND_EYE_AHEAD: metres along the road ahead of the walker, the car's way.
+		var e := mid + side * signf(road - lat) * _envf("ERRAND_EYE_LAT", width * 0.5 + 2.2) + (Vector2(0.0, 1.0) if axis == CityPlan.AXIS_X else Vector2(1.0, 0.0)) * float(dir) * _envf("ERRAND_EYE_AHEAD", 11.0)
 		print("ERRAND jay at %s, car %s" % [mid.round(), car.display_name()])
 		return _eye(e, 1.6, Vector3(mid.x, _plan.height_at(mid) + 0.9, mid.y))
 	print("ERRAND jay: nobody near could jaywalk")
