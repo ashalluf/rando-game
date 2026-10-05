@@ -13,3 +13,15 @@ the Mac's Forward+. `before_*` is the same frame with `ALLEYS=0` (the city befor
 | `alley_midtown_noon.jpg` / `before_alley_midtown_noon.jpg` | Midtown block -3,-1 (asphalt variant round the concrete ribbon, a dug-up patch across), `EYE=-235.5,1.7,-150,180,-3`: SEPULVEDA ROLL-OFF dumpster, carts, a back door, condensers on brackets, a parking podium's deck. |
 | `alley_midtown_night.jpg` | The same at 22:00: the bulkhead lamp over the door, its pool and a real light on the asphalt. |
 | `alleys_aerial_midtown.jpg` / `before_alleys_aerial_midtown.jpg` | Midtown from 260 m (`EYE=-260,260,-230,0,-82`): the alleys as concrete or asphalt strips down the middle of the blocks. |
+
+## Re-shot on the merged tree (wt/alleys + fleet/base, 2026-10-05), in `merged/`
+
+Same opengl3 still_shot.gd frames, default seed, after merging origin/fleet/base.
+
+| Still | What |
+|---|---|
+| `merged/01_merged_alley_downtown_noon.jpg` | Down the downtown alley (block 27,-3) at 12:30, `EYE=2897,1.7,-508.6,-90,-3` |
+| `merged/02_merged_alley_downtown_night_2200.jpg` | The same at 22:00 |
+| `merged/03_merged_alley_downtown_toward_mouth_noon.jpg` | Back toward the west mouth, `2960,1.7,-508.6,90,-3` |
+| `merged/04_merged_alley_mouth_from_street_noon.jpg` | The mouth from across the street, `2852,1.7,-505,-90,-1` |
+| `merged/05_merged_alley_mouth_from_street_night_2200.jpg` | The same at 22:00 |
