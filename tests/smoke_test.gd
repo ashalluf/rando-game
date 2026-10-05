@@ -1868,6 +1868,8 @@ func _test_city() -> void:
 	# Memorial parks (tests/cemetery_checks.gd): placement, purity, the closed streets, the plan,
 	# the sanctuary zone over it at FULL and LOD, nothing breakable, the far city's lawn.
 	await load("res://tests/cemetery_checks.gd").new().run(self, city)
+	# Kerbs (tests/kerbs_checks.gd): the pavement's cut ring, ramps, aprons, wells, paint, numbers.
+	load("res://tests/kerbs_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

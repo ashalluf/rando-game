@@ -9306,3 +9306,65 @@ with a vase 204, uprights 20-100, monuments 30-340).
 - The outer pavement has lamps and trees but no parked cars, hydrants or bins (the block's furniture
   step is skipped for the park's blocks).
 - The minimap paints the park as a park; it does not draw the drive or a glyph.
+
+## 9cu. Kerbs: ramps, aprons, tree wells, heave, painted zones and house numbers (fleet "kerbs")
+
+**What.** LA's kerbs and pavement edges, built by `Kerbs` (`scripts/world/kerbs.gd`). A FULL
+city block's pavement is no longer one slab: `CityChunk._block_surface` lays the inner slab
+(`Kerbs.inner(rect)`, the rect less `RING` 2.6 m) and hands the ring to Kerbs (`Kerbs.begin`);
+`Kerbs.steps()` (appended after `_build_sidewalk_props` in `_block_steps`, 17 steps of <= 3 ms)
+builds it as real geometry in the pavement's own material with ONE trimesh collision on the
+chunk's StreetProps:
+- **corner ramps**, two a corner, centred `CR_CENTRE` 2.6 m from the corner (in line with
+  `_add_crosswalks`' bars at 1.8 m and clear of the signal pole at 1.2 / 1.2, the downtown
+  bollards at 0.6 / 1.7 and the kerb inlet at 4 m): the kerb cut to a 12 mm lip, flared sides,
+  a yellow truncated-dome pad at the foot (shader domes on a 6 cm grid);
+- **driveway aprons** where YardFill's drives (`beach_block()`'s lot plans, recomputed: pure)
+  meet the kerb in SUBURBS / BEACHTOWN: the kerb dropped to a 3 cm lip, the apron across the
+  parkway, flares (`DR_*`; a dingbat's tuck-under frontage up to `DR_MAX` 12 m);
+- **tree wells**: the `tree_grate` batch now wears a cast-iron grate (rings of slots, studs,
+  rust; `Kerbs.grate_mesh()` swapped into the batch, no line in CityChunk changed), and by hash
+  (`WELL_DIRT`, per district) a bare dirt well cut 3.5 cm into the slab with walls, its grate
+  instance collapsed;
+- **root heave**: `HEAVE_ODDS` of trees lift the joint cell beside them 1.8-4.5 cm on a hinge,
+  with the exposed edge faces and a crack; hairline cracks run out from others.
+Nothing is cut under an upright prop or batch instance in the ring (`_gather_obstacles`, polygon
+distance `CLEAR`); the corner geometry is set so the other chunks' corner props (poles,
+bollards, inlets) are clear by construction.
+
+**Marks** (`shaders/kerb_marks.gdshader`, ONE material, one shadowless mesh per 64 m tile drawn
+to 230 m): kind in COLOR.a, sRGB paint in COLOR.rgb, metres in UV, data in UV2. Zones are pure
+(`edge_zones()`: red at both ends of every face and along bus stops (`BigVehicles.in_stop_zone`),
+one mid-block zone by `ZONE_ODDS` per district - yellow LOADING ZONE / COMMERCIAL LOADING, green
+15/20/30 MIN, white PASSENGER LOADING, blue), plus red `HYDRANT_RED` either side of the block's
+hydrant (read off `prop_records`), merged by `resolve()` so no two coats overlap; painted round
+the face and over the top edge in two worn coats, sun-faded, grimed low, tyre rubber, discarded
+to the concrete where worn. Stencils use LedScreen's 5x7 face packed into UV2 (`glyph_bits()`,
+exact in a float) and drawn as rounded strokes. SUBURBS / BEACHTOWN kerbs carry the house number
+(`house_number()`: hundreds from the block, even / odd by side) on a white plate in front of
+each house, off the apron. Red kerbs and aprons keep THIS chunk's parked cars off
+(`Kerbs.blocks_parking`, after `_park_car`'s rolls); a neighbour chunk's cars on this block's
+west / north kerbs cannot know about its hydrant or driveways. Where Kerbs builds, StreetDetail's
+old `_kerb_paint` is skipped (its own hash rolls, nothing moves).
+
+**A/B, tools, checks.** `KERBS=0` in the environment builds the plain slab and the old paint.
+`tools/kerbs/probe.tscn` (headless, seconds) builds a block per district and prints counts, step
+times (`KERBS_PROF=1`) and EYE lines for `block_shot.tscn`; `BLOCKS=bx,bz;...`, `NOTCHES=1`.
+`tests/kerbs_checks.gd` (31 checks; `tools/kerbs/checks_only.tscn` runs them alone): pure parts,
+three districts' blocks built (ring, collision, ramps, nothing in a cut, marks, paint, numbers,
+grates), the same block with Kerbs off having the same props and batches, an LOD chunk plain.
+
+**Frame cost** (`tools/geo_count.gd`, opengl3 800x600, KERBS=0 -> 1): downtown
+`--spawn=2359.4,880,0,12,2` 5.933 M -> 5.949 M triangles, 3,023 -> 3,053 draws; suburbs
+`--spawn=-535,5.5,165,-10,2` 3.750 M -> 3.779 M, 2,249 -> 2,268. A block's ring is ~800-1,700
+triangles plus its marks; build ~20-30 ms a block in 17 steps.
+
+**Stills** (shots/kerbs; opengl3 block_shot, noon): downtown corner ramp before / after and from
+above, suburban house number, suburban corner, a dirt tree well, a green zone.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the paint's colours and the dome pad
+under AgX. Kerb returns are still square (blocks are sharp rectangles). Driveways only from the
+yard districts' plans (no commercial / car-park aprons). Parkway grass strips are not added. A
+ramp may sit beside a parked car of the neighbouring chunk. Blue zones carry no wheelchair
+symbol. The paving shader's joints are in world space, so a heaved slab lines up with them only
+until the next origin shift.
