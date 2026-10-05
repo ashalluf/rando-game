@@ -314,6 +314,15 @@ already mapped so milestone 2 is script-only.
   pools); a feature that draws big additive pools gets its own copy of the shared pool material
   rather than changing the street lamps'; the harness's crude night must darken every global a
   mirror reads (`sky_tint`), or the review judges a daylit reflection.
+- **2026-10-05 Chinatown (HANDOFF "Chinatown").** A district on N Broadway / N Hill St north of
+  Cesar Chavez, where the real one stands at 1:1 relative to downtown. Decisions: WHERE is a site
+  table off the pinned streets (the district's extent, the plaza's block, the gate's place), applied
+  last in CityPlan.block() so no roll moves; street-facing lots are claimed by hash and built as rows
+  of code-built shop units (sweeping hip roofs, pent eaves, balconies) rather than restyling
+  Building boxes, because the roofs and eaves ARE the look and a box shader cannot give them; the
+  lanterns hang between the street lamps the chunk already places (their spots recomputed exactly),
+  not on new poles; everything of a block is one mesh on one shader plus a shadowless twin for the
+  small parts; names invented, English only on the signs (no CJK font), nothing caricatured.
 
 - **2026-10-05 Tower roofs: helipads, pool decks, roof gardens, penthouses, masts and window
   washers (VISUAL_ROADMAP #59, HANDOFF "Tower roofs").** Roofs are what the player sees most while

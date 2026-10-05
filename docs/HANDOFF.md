@@ -8768,6 +8768,127 @@ the player). Sound: no rolling-traffic emitter of its own (Ambience's freeway em
 segments_in(), so it does hear the connectors). The far city draws the connectors as unbanked
 deck boxes.
 
+## 9em. Chinatown: the gate, tiled-roof shop rows, lanterns across the streets, the central plaza, 2026-10-05 (agent branch `wt/chinatown`)
+
+The district north of the civic centre, where the real one stands relative to downtown at 1:1:
+on N Broadway and N Hill St north of Cesar Chavez Ave, all three pinned by DowntownReal on every
+seed. The real neighbourhood's FORMS, every name invented (the gate, the plaza, the hall, 28
+shops), nothing caricatured: real materials and proportions, a working shopping street.
+
+**Where** (`Chinatown`, `scripts/world/chinatown.gd`, a site table, never placed by hand):
+- the district: blocks whose centre is between Olive St and Main St (pinned avenues) and within
+  `NORTH_REACH` (520 m) north of Cesar Chavez, on CITY ground (the hills start ~500 m north);
+  13 blocks on seed 1337 (ix 26-29, iz -8..-11), 19 on seed 9256;
+- the plaza: the Hill St - Broadway block whose centre is nearest `PLAZA_NORTH` (400 m) north of
+  Cesar Chavez - (27, -11) on 1337, where the real central plaza is;
+- the gate: over Broadway `GATE_NORTH` (52 m) north of Cesar Chavez (the real Broadway gate's
+  place), slid along its segment clear of the junctions and of the pavements' lamp and tree slots
+  (z -1783 on 1337).
+`CityPlan.block()` calls `Chinatown.apply()` LAST (after Schools.apply): it marks the district's
+blocks (`"chinatown": "block"` / `"plaza"`), turns a mall, big box or bare seeded plaza rolled
+there into lots (the neighbourhood is built solid), makes the plaza's block a PLAZA, and skips
+anything another feature owns (site, grounds, hospital, school, river, marina). No seed or roll
+moves (the checks compare the plaza block's seed and a block south of Cesar Chavez with it off).
+
+**The shop buildings** (`ChinatownKit`, `scripts/world/chinatown_kit.gd`): `CityChunk._build_lot()`
+asks `Chinatown.claims()` after Broadway's (the pad roll is made): an edge lot, not a yard or a car
+park, at least 7 m, facing a street (`lot_front()`: the avenue side first), with `CLAIM_ODDS` 0.86
+by hash - 71 lots on 1337. Each is a row of units of ~9 m along the frontage (`plan_units()`, pure),
+each its own design by hash: 2-4 storeys (4.4 m ground, 3.4 m upper), a SWEEP front (a hip roof
+with sweeping eaves over the front 11 m), a PENT front (flat roof behind a parapet with a tiled
+coping, a tiled eave over the shop) or a BALCONY front (a red railed balcony under a tiled eave);
+stucco in seven colours, red piers, a granite bulkhead, shop glass with goods on shelves behind
+it (lit at night), a door, an enamel sign board in a gold frame with the shop's name in gilt or
+red letters (lit at night), a blade sign with a short word stacked down it on 45 %, lattice-framed
+windows with surrounds and sills (on the open side walls and the back too), lanterns hung under
+the eave, a deep lot's back part a storey lower with a rooftop unit; and the shop's GOODS on the
+pavement by its trade (`SHOP_GOODS`): produce tables with tipped crates (fruit drawn in the shader
+as a hex pack of spheres, greens as leaf noise), flower buckets on a stepped stand, souvenir racks
+with small lanterns, potted plants and bamboo, dried-goods bins, stacked crates - always leaving
+the door clear. `dress()` keeps the district's other Buildings low (`HEIGHT_LIMIT` 20 m) in brick
+and stucco. Encampments are off on the district's blocks (one condition in CityChunk: the goods
+use that pavement).
+
+**The roof** (`sweep_roof()`): a hip roof whose slopes are concave (height = pow(t, 1.7) up the
+slope), the eave line lifting `up` and flaring out toward each corner (the flare is the same vector
+from both faces at a corner, so the hip seams are exact and it is watertight at any subdivision),
+smooth normals from finite differences, glazed barrel tiles (`K_TILE`, five glazes), a painted
+underside (rafters in teal and blue on red boards, ringed rafter ends) and fascia, glazed hip caps
+that curl up past the corners, and on a gate or the hall a ridge with upturned ends and a gilded
+ball. `pent()` is the same as a single slope off a wall (shop eaves, balcony roofs, the parapet
+coping is a small hip roof).
+
+**The gate** (`gate_mesh()`): two red columns (gold bands) on granite plinths on the pavements,
+three painted beams (the eave kind's beam mode: red borders, gold lines, blue cartouches every
+2.4 m), the red name board in a gold frame reading CHINATOWN both ways, GATE OF GOLDEN HARMONY on
+a black board under it (clearance 5.8 m), a long sweeping green-tiled roof with ornaments, two big
+lanterns, floodlight pools. **The plaza** (`build_plaza()`, from the PLAZA branch of
+`CityChunk._block_steps()`): warm paving and a grey stone walk across it from Hill St to Broadway,
+a smaller gate (scale 0.72, JADE LANTERN PLAZA) at each end, shop rows round the court (north and
+south whole, west and east either side of the walk; all two-storey SWEEP fronts), the HALL OF
+SPRING WIND (`hall_mesh()`: a granite platform with steps, a red colonnade round a lattice-screened
+hall, three tiers of sweeping roof, a gilded finial, lanterns along the first eave, pools in front),
+a round pond with rocks and a stone lantern, red lantern masts zig-zag-strung down the walk, four
+trees in granite planters, benches round the pond.
+
+**Lanterns across the streets** (`_strings()`): over Hill St and Broadway, and over every cross
+street between Hill and Spring, inside the district: wires from the street lamps' columns
+(`STRING_ATTACH` 5.6 m; the lamp spots worked out exactly as `_build_sidewalk_props()` places them)
+zig-zag across the road (the two sides' lamps are staggered), sagging, a silk lantern every 1.9 m
+(gold every fifth), swaying with `wind_factor` (UV2: metres below the hanging point, phase), lit
+deep red with a warmer core at night; round additive pools of their light on the street.
+
+**Drawn**: ONE mesh a FULL block on `shaders/chinatown.gdshader` (the kind in the vertex alpha,
+16 kinds: paint, tile, eave, ridge, gold, silk, wall, window, shop, stone, sign, ink, produce,
+wire, lattice, water; colours in sRGB vertex colour, worked in linear with color_space.gdshaderinc)
+plus its shadowless twin (`ChinatownFine`: lanterns, wires, lettering, goods - most of what was
+added to the shadow passes at first), one collision body (box shapes), the `ct_pool` light pool
+batch. `ChinatownGeo` (`scripts/world/chinatown_geo.gd`) is LandmarkGeo with a frame (`xf`: every
+builder works in its building's frame) and UV2. LOD chunks and the far city: `lod_box`es (walls in
+their colour with the old path's windows, roofs as tile-coloured slabs, the gate and the hall as
+boxes), recorded by capture with no far-city code.
+
+**Shared files touched**: city_plan.gd (3 lines: the apply hook), city_chunk.gd (the plaza branch,
+the block step, the lot claim, dress, the encampment condition), smoke_test.gd (one line).
+
+**Cost**: tools/geo_count.gd (opengl3, 800x600) at `--spawn=2994,-1745,0,4` (up Broadway through
+the gate): 4.01 M -> 4.09 M triangles, 3,379 -> 2,737 draws, 3,716 -> 3,052 objects; at the plaza (`--spawn=2927,-2090,0,4`) 2.52 M -> 2.62 M triangles,
+1,553 -> 1,089 draws.
+Build: every unit, lantern string and plaza piece is its own deferred job (`_job()`, CityChunk's
+`_run_or_defer`) and the mesh is committed after them in two jobs with the tangents already
+written per triangle (`ChinatownGeo.tri()`; SurfaceTool's index + tangents was 109 / 197 ms in
+one step): the plaza block's worst warm step is 55 ms headless, ~1.1 s over 160 steps; LOD
+15-25 ms a block.
+
+**A/B**: `CHINATOWN=0`. Probe: `tools/chinatown/probe.tscn` (headless: the blocks, claims, plaza,
+gate with EYEs, then each block built FULL and LOD with its worst step; `BUILD=0` layout only,
+`ONLY=ix,iz`). Checks: `tests/chinatown_checks.gd`, alone with `tools/chinatown/checks_only.tscn`
+(a minute, 1.4 GB). Stills (block_shot.tscn, opengl3): up Broadway through the gate
+`EYE=2994,1.7,-1755,0,14`, the plaza from the air `2950,55,-2050,10,-35`, the hall from the walk
+`2927.7,1.7,-2092,0,12`, the district from the air `2940,55,-1850,10,-32`; `NIGHT=1` for night.
+
+**Night light** (lead review: the first night street measured p50 13): the district lights like
+a street, not a row of red dots. Every other lantern cable carries a warm `lamp_light` OmniLight
+(`_light()`: energy from DayNight like any street lamp, faded 70 m, none on the web) and its pools
+are 10 x 10 m at alpha 0.7; every shop unit throws a spill pool (warm, the unit's width, 5 m onto
+the pavement) and every lot an omni under its eaves; the gate has four column floods and one
+under its board; sign boards glow (`sign_night`) and walls, beams and stone take a warm street
+wash under 11 m (`street_wash` 0.55, `wash_top`) so the lit lanterns read on the facades. Fixed on
+the way: the deferred string jobs inherited the last lot's `xf` and hung every string displaced
+(the stills before this pass show no strings over the street). Measured (still_shot, the full
+city, 21:00), luma p5/p50/p95: up Broadway through the gate 8/35/189 (the street below the
+skyline 7/73/199; the sky is ~40 % of the frame), the hall from the walk 15/42/189, the side street
+10/52/201 - the first pass's gate was 9/13/70. Cost after the pass and the merge of main (geo_count,
+the gate view): 4.23 M -> 4.39 M triangles, 3,180 -> 2,568 draws, 3,515 -> 2,881 objects.
+
+**People in the court**: 16 `PlazaGoer`s (`scripts/npc/plaza_goer.gd`, PierGoer's pattern: a
+Pedestrian kept to the court's open quarters and the walk, routed out to the walk and along it),
+one a job, in the crowd cap (a full smoke run's cap can leave the court empty).
+
+**Not done / not verified**: no Forward+ look (the glazed tiles' gloss, the lanterns' red through
+AgX and bloom, the gilt) - Mac eyes needed; the hall has no interior; there are no
+Chinese characters on the signs (the default font has none; the signs use English names only,
+as many real ones do alongside characters); a deep lot's blank party walls are plain stucco.
 ## 9cn. Photographic cumulus, 2026-10-05 (agent branch `wt/sky`, fleet wave 2; VISUAL_ROADMAP row "?")
 
 **Why.** The owner's review of the last sky stills: the volumetric cumulus read stylised -

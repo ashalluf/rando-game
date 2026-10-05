@@ -2504,7 +2504,10 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 			# A public school (Schools; its own hash-seeded plan, any level).
 			steps.append_array(Schools.steps(self, block))
 		CityPlan.BlockKind.PLAZA:
-			steps.append(_build_plaza.bind(rect, rng))
+			if block.get("chinatown", "") == "plaza":
+				steps.append(func() -> void: Chinatown.build_plaza(self, block))
+			else:
+				steps.append(_build_plaza.bind(rect, rng))
 		CityPlan.BlockKind.MALL:
 			steps.append(func() -> void: Commercial.build_mall(self, rect, rng))
 		CityPlan.BlockKind.BIGBOX:
@@ -2536,6 +2539,9 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 			steps.append(func() -> void:
 				if _lawn_rect.size.x > 1.0:
 					_add_grass(_lawn_rect, 0.85, 0.0, _lot_rects))
+	# Chinatown's lanterns over the roads, its gate and the block's one mesh (Chinatown; hash-seeded).
+	if Chinatown.wanted(self, block):
+		steps.append(func() -> void: Chinatown.block_step(self, block))
 	# The tall pole signs' far boxes (BoulevardSigns; LOD and the far city's capture only).
 	steps.append(func() -> void: BoulevardSigns.block_step(self, block))
 	# The farmers' market on this chunk's street (FarmersMarketBuild; hash-seeded, by the hour and
@@ -2553,7 +2559,7 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 			steps.append(func() -> void: Broadway.block_step(self, rect))
 		# Downtown encampments (Encampment), after the furniture they keep clear of. Its own
 		# hash-seeded rolls: the block's rng is untouched, so the cars and the crowd are unmoved.
-		var camps: int = Encampment.block_flags(plan, ix, iz) if block.kind == CityPlan.BlockKind.BUILDINGS else 0
+		var camps: int = Encampment.block_flags(plan, ix, iz) if block.kind == CityPlan.BlockKind.BUILDINGS and not block.has("chinatown") else 0
 		if camps != 0:
 			var sleepers: Array = []
 			steps.append(func() -> void: Encampment.build_block(self, rect, _sidewalk_edges(rect), sleepers))
@@ -2913,6 +2919,10 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	if Broadway.claims(plan, ix, iz, lot):
 		Broadway.build_lot(self, lot)
 		return
+	# A Chinatown shop building (Chinatown: the district's street-facing lots, hash-seeded).
+	if Chinatown.claims(plan, ix, iz, lot):
+		Chinatown.build_lot(self, lot)
+		return
 	# A car dealership's site (CarDealers: a run of edge lots on an auto row, hash-seeded; the pad
 	# roll above is made, so no other lot moves).
 	if CarDealers.claims(plan, ix, iz, lot):
@@ -2981,6 +2991,7 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	building.finish_options.assign(CityPlan.lot_finishes(district, boost))
 	# Broadway's 1920s commercial blocks (masonry, the height limit, its own shop names).
 	Broadway.dress(self, lot, building)
+	Chinatown.dress(self, lot, building)
 	var g := _gy(center.x, center.y)
 	var gmin := g
 	var half: Vector2 = lot.size * 0.5

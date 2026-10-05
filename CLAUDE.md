@@ -3580,6 +3580,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `SHOP_NAMES`, Broadway's appended after the first `BASE_SHOP_NAMES`; nothing else's roll moves).
   `BROADWAY=0` is the A/B; `tools/broadway_probe.gd` lists the palaces with EYEs; checks
   `tests/broadway_checks.gd`.
+- Chinatown (2026-10-05, HANDOFF "Chinatown"): `Chinatown` (`scripts/world/chinatown.gd`) is a
+  site table off the pinned streets - the district (Olive to Main, 520 m north of Cesar Chavez),
+  the plaza's Hill-Broadway block, the gate over Broadway - applied LAST in `CityPlan.block()`
+  (`"chinatown"` key). `ChinatownKit` builds claimed street-facing lots as rows of shop units
+  (`sweep_roof()` / `pent()`: concave, corner-lifted, watertight), the gate, the plaza and its hall,
+  and lantern strings hung between the street lamps; ONE mesh a block on `shaders/chinatown.gdshader`
+  (kind in COLOR.a) plus a shadowless twin (`ChinatownGeo.fine`); LOD/far are lod_boxes.
+  `CHINATOWN=0` is the A/B; probe `tools/chinatown/probe.tscn`; checks `tests/chinatown_checks.gd`.
 - The ballpark in the ravine (2026-10-05, docs/HANDOFF.md "The ballpark in the ravine"): the FORM of LA's
   famous hillside ballpark, in its real place - home plate's real point through
   `DowntownReal.game_xz()`, 2.9 km grid-north of Pershing Square on the embayed hills above the

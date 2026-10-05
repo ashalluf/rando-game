@@ -2156,6 +2156,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Broadway's theatre district (tests/broadway_checks.gd): palaces on their real addresses, one
 	# sign surface each, the lanterns, goods and clock, the far boxes, nothing else in the block moved.
 	load("res://tests/broadway_checks.gd").new().run(self, city)
+	# Chinatown (tests/chinatown_checks.gd): the site table on two seeds, the gate and the plaza, the
+	# street-facing shop buildings, one mesh a block, the LOD boxes, nothing moved with it off.
+	load("res://tests/chinatown_checks.gd").new().run(self, city)
 	# The ballpark in the ravine (tests/ballpark_checks.gd): its real place and facing, the site cut
 	# into the hills, its roads, the shaders' copies, the meshes and a FULL chunk building it.
 	load("res://tests/ballpark_checks.gd").new().run(self, city)
