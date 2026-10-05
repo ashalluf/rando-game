@@ -12,3 +12,9 @@ opengl3 (the Compatibility path the web runs: painted clouds, the new moon / sta
 - 09 the light dome over the city from the pier, 23:00
 - 10 a crescent over downtown, 19:40
 - 11 midday over the hills (painted clouds on this renderer)
+
+Follow-up ("less stylised cumulus"), Forward+ sky-only via `tools/sky/sky_shot.gd`, before / after:
+- 12 / 13 midday from the street (13:00, north)
+- 14 / 15 golden hour from the street (17:24, toward the sun)
+- 16 / 17 midday from the air (1,250 m)
+- 18 / 19 golden hour from the air (1,250 m)
