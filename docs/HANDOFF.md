@@ -8571,3 +8571,104 @@ abrupt. A connector car spawned when nobody can be taken pops in (only farther t
 the player). Sound: no rolling-traffic emitter of its own (Ambience's freeway emitter reads
 segments_in(), so it does hear the connectors). The far city draws the connectors as unbanked
 deck boxes.
+
+## 9d?. Chinatown: the gate, tiled-roof shop rows, lanterns across the streets, the central plaza, 2026-10-05 (agent branch `wt/chinatown`)
+
+The district north of the civic centre, where the real one stands relative to downtown at 1:1:
+on N Broadway and N Hill St north of Cesar Chavez Ave, all three pinned by DowntownReal on every
+seed. The real neighbourhood's FORMS, every name invented (the gate, the plaza, the hall, 28
+shops), nothing caricatured: real materials and proportions, a working shopping street.
+
+**Where** (`Chinatown`, `scripts/world/chinatown.gd`, a site table, never placed by hand):
+- the district: blocks whose centre is between Olive St and Main St (pinned avenues) and within
+  `NORTH_REACH` (520 m) north of Cesar Chavez, on CITY ground (the hills start ~500 m north);
+  13 blocks on seed 1337 (ix 26-29, iz -8..-11), 19 on seed 9256;
+- the plaza: the Hill St - Broadway block whose centre is nearest `PLAZA_NORTH` (400 m) north of
+  Cesar Chavez - (27, -11) on 1337, where the real central plaza is;
+- the gate: over Broadway `GATE_NORTH` (52 m) north of Cesar Chavez (the real Broadway gate's
+  place), slid along its segment clear of the junctions and of the pavements' lamp and tree slots
+  (z -1783 on 1337).
+`CityPlan.block()` calls `Chinatown.apply()` LAST (after Schools.apply): it marks the district's
+blocks (`"chinatown": "block"` / `"plaza"`), turns a mall, big box or bare seeded plaza rolled
+there into lots (the neighbourhood is built solid), makes the plaza's block a PLAZA, and skips
+anything another feature owns (site, grounds, hospital, school, river, marina). No seed or roll
+moves (the checks compare the plaza block's seed and a block south of Cesar Chavez with it off).
+
+**The shop buildings** (`ChinatownKit`, `scripts/world/chinatown_kit.gd`): `CityChunk._build_lot()`
+asks `Chinatown.claims()` after Broadway's (the pad roll is made): an edge lot, not a yard or a car
+park, at least 7 m, facing a street (`lot_front()`: the avenue side first), with `CLAIM_ODDS` 0.86
+by hash - 71 lots on 1337. Each is a row of units of ~9 m along the frontage (`plan_units()`, pure),
+each its own design by hash: 2-4 storeys (4.4 m ground, 3.4 m upper), a SWEEP front (a hip roof
+with sweeping eaves over the front 11 m), a PENT front (flat roof behind a parapet with a tiled
+coping, a tiled eave over the shop) or a BALCONY front (a red railed balcony under a tiled eave);
+stucco in seven colours, red piers, a granite bulkhead, shop glass with goods on shelves behind
+it (lit at night), a door, an enamel sign board in a gold frame with the shop's name in gilt or
+red letters (lit at night), a blade sign with a short word stacked down it on 45 %, lattice-framed
+windows with surrounds and sills (on the open side walls and the back too), lanterns hung under
+the eave, a deep lot's back part a storey lower with a rooftop unit; and the shop's GOODS on the
+pavement by its trade (`SHOP_GOODS`): produce tables with tipped crates (fruit drawn in the shader
+as a hex pack of spheres, greens as leaf noise), flower buckets on a stepped stand, souvenir racks
+with small lanterns, potted plants and bamboo, dried-goods bins, stacked crates - always leaving
+the door clear. `dress()` keeps the district's other Buildings low (`HEIGHT_LIMIT` 20 m) in brick
+and stucco. Encampments are off on the district's blocks (one condition in CityChunk: the goods
+use that pavement).
+
+**The roof** (`sweep_roof()`): a hip roof whose slopes are concave (height = pow(t, 1.7) up the
+slope), the eave line lifting `up` and flaring out toward each corner (the flare is the same vector
+from both faces at a corner, so the hip seams are exact and it is watertight at any subdivision),
+smooth normals from finite differences, glazed barrel tiles (`K_TILE`, five glazes), a painted
+underside (rafters in teal and blue on red boards, ringed rafter ends) and fascia, glazed hip caps
+that curl up past the corners, and on a gate or the hall a ridge with upturned ends and a gilded
+ball. `pent()` is the same as a single slope off a wall (shop eaves, balcony roofs, the parapet
+coping is a small hip roof).
+
+**The gate** (`gate_mesh()`): two red columns (gold bands) on granite plinths on the pavements,
+three painted beams (the eave kind's beam mode: red borders, gold lines, blue cartouches every
+2.4 m), the red name board in a gold frame reading CHINATOWN both ways, GATE OF GOLDEN HARMONY on
+a black board under it (clearance 5.8 m), a long sweeping green-tiled roof with ornaments, two big
+lanterns, floodlight pools. **The plaza** (`build_plaza()`, from the PLAZA branch of
+`CityChunk._block_steps()`): warm paving and a grey stone walk across it from Hill St to Broadway,
+a smaller gate (scale 0.72, JADE LANTERN PLAZA) at each end, shop rows round the court (north and
+south whole, west and east either side of the walk; all two-storey SWEEP fronts), the HALL OF
+SPRING WIND (`hall_mesh()`: a granite platform with steps, a red colonnade round a lattice-screened
+hall, three tiers of sweeping roof, a gilded finial, lanterns along the first eave, pools in front),
+a round pond with rocks and a stone lantern, red lantern masts zig-zag-strung down the walk, four
+trees in granite planters, benches round the pond.
+
+**Lanterns across the streets** (`_strings()`): over Hill St and Broadway, and over every cross
+street between Hill and Spring, inside the district: wires from the street lamps' columns
+(`STRING_ATTACH` 5.6 m; the lamp spots worked out exactly as `_build_sidewalk_props()` places them)
+zig-zag across the road (the two sides' lamps are staggered), sagging, a silk lantern every 1.9 m
+(gold every fifth), swaying with `wind_factor` (UV2: metres below the hanging point, phase), lit
+deep red with a warmer core at night; round additive pools of their light on the street.
+
+**Drawn**: ONE mesh a FULL block on `shaders/chinatown.gdshader` (the kind in the vertex alpha,
+16 kinds: paint, tile, eave, ridge, gold, silk, wall, window, shop, stone, sign, ink, produce,
+wire, lattice, water; colours in sRGB vertex colour, worked in linear with color_space.gdshaderinc)
+plus its shadowless twin (`ChinatownFine`: lanterns, wires, lettering, goods - most of what was
+added to the shadow passes at first), one collision body (box shapes), the `ct_pool` light pool
+batch. `ChinatownGeo` (`scripts/world/chinatown_geo.gd`) is LandmarkGeo with a frame (`xf`: every
+builder works in its building's frame) and UV2. LOD chunks and the far city: `lod_box`es (walls in
+their colour with the old path's windows, roofs as tile-coloured slabs, the gate and the hall as
+boxes), recorded by capture with no far-city code.
+
+**Shared files touched**: city_plan.gd (3 lines: the apply hook), city_chunk.gd (the plaza branch,
+the block step, the lot claim, dress, the encampment condition), smoke_test.gd (one line).
+
+**Cost**: tools/geo_count.gd (opengl3, 800x600) at `--spawn=2994,-1745,0,4` (up Broadway through
+the gate): 4.01 M -> 4.09 M triangles, 3,379 -> 2,737 draws, 3,716 -> 3,052 objects. PLAZA_COST.
+Build: a district block's FULL steps are one lot each (the plaza block's hall is one step of
+~70 ms headless); LOD 15-25 ms a block.
+
+**A/B**: `CHINATOWN=0`. Probe: `tools/chinatown/probe.tscn` (headless: the blocks, claims, plaza,
+gate with EYEs, then each block built FULL and LOD with its worst step; `BUILD=0` layout only,
+`ONLY=ix,iz`). Checks: `tests/chinatown_checks.gd`, alone with `tools/chinatown/checks_only.tscn`
+(a minute, 1.4 GB). Stills (block_shot.tscn, opengl3): up Broadway through the gate
+`EYE=2994,1.7,-1755,0,14`, the plaza from the air `2950,55,-2050,10,-35`, the hall from the walk
+`2927.7,1.7,-2092,0,12`, the district from the air `2940,55,-1850,10,-32`; `NIGHT=1` for night.
+
+**Not done / not verified**: no Forward+ look (the glazed tiles' gloss, the lanterns' red through
+AgX and bloom, the gilt) - Mac eyes needed; the plaza has the block's ordinary walkers on its
+pavement ring but no crowd of its own in the court; the hall has no interior; there are no
+Chinese characters on the signs (the default font has none; the signs use English names only,
+as many real ones do alongside characters); a deep lot's blank party walls are plain stucco.

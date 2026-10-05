@@ -121,6 +121,15 @@ static func _shape(st: Dictionary, xf: Transform3D, center: Vector3, size: Vecto
 	(st.shapes as Array).append([Transform3D(xf.basis, xf * center), size])
 
 
+## Runs `work` as a build step of its own just before the chunk's finish (CityChunk._run_or_defer):
+## the district's FULL geometry is GDScript-heavy, so a unit, a lantern string or a piece of the
+## plaza is one small step each instead of a block in one frame, and the mesh is committed after.
+static func _job(ch: CityChunk, work: Callable) -> void:
+	ch._run_or_defer(func() -> bool:
+		work.call()
+		return true)
+
+
 static func block_step(ch: CityChunk, block: Dictionary) -> void:
 	var gate := Chinatown.gate(ch.plan)
 	var owns_gate: bool = not gate.is_empty() and gate.block == Vector2i(ch.ix, ch.iz)
@@ -132,33 +141,32 @@ static func block_step(ch: CityChunk, block: Dictionary) -> void:
 	var g: ChinatownGeo = st.geo
 	_strings(ch, st, block)
 	if owns_gate:
-		var x: float = gate.x
-		var z: float = gate.z
-		var y := ch._gy(x, z) + CityChunk.SIDEWALK_TOP
-		g.xf = Transform3D(Basis(), Vector3(x, y, z))
-		var span: float = float(gate.width) + 4.4
-		gate_mesh(g, st, span, 1.0, Chinatown.NAME, Chinatown.GATE_NAME, Transform3D(Basis(), Vector3(x, y, z)))
-		_floods(ch, Transform3D(Basis(), Vector3(x, y, z)), span)
-	commit(ch)
+		_job(ch, func() -> void:
+			var x: float = gate.x
+			var z: float = gate.z
+			var y := ch._gy(x, z) + CityChunk.SIDEWALK_TOP
+			var xf := Transform3D(Basis(), Vector3(x, y, z))
+			g.xf = xf
+			var span: float = float(gate.width) + 4.4
+			gate_mesh(g, st, span, 1.0, Chinatown.NAME, Chinatown.GATE_NAME, xf)
+			_floods(ch, xf, span))
+	_job(ch, func() -> void: _commit_main(ch))
+	_job(ch, func() -> void: _commit_fine(ch))
 
 
-## Commits the block's mesh and body (once; the plaza and the lots add to it before).
-static func commit(ch: CityChunk) -> void:
+## Commits the block's mesh and body (the lots, the plaza and the strings add to it before).
+static func _commit_main(ch: CityChunk) -> void:
 	if not ch.has_meta("ct_state"):
 		return
 	var st: Dictionary = ch.get_meta("ct_state")
-	ch.remove_meta("ct_state")
 	var g: ChinatownGeo = st.geo
 	g.xf = Transform3D.IDENTITY
 	var node := Node3D.new()
 	node.name = "Chinatown"
 	node.add_to_group("chinatown")
 	ch.add_child(node)
-	var f := g.fine
+	st["node"] = node
 	g.commit(node, "ChinatownMesh")
-	if f:
-		f.xf = Transform3D.IDENTITY
-		f.commit(node, "ChinatownFine", false)
 	if not (st.shapes as Array).is_empty():
 		var body := StaticBody3D.new()
 		body.name = "ChinatownBody"
@@ -173,6 +181,18 @@ static func commit(ch: CityChunk) -> void:
 			cs.transform = s[0]
 			body.add_child(cs)
 	ch._batch.set_no_shadow("ct_pool")
+
+
+## Commits the shadowless twin (lanterns, wires, lettering, goods), then forgets the block's state.
+static func _commit_fine(ch: CityChunk) -> void:
+	if not ch.has_meta("ct_state"):
+		return
+	var st: Dictionary = ch.get_meta("ct_state")
+	ch.remove_meta("ct_state")
+	var f: ChinatownGeo = (st.geo as ChinatownGeo).fine
+	if f and st.has("node"):
+		f.xf = Transform3D.IDENTITY
+		f.commit(st.node, "ChinatownFine", false)
 
 
 # --- Geometry helpers ---------------------------------------------------------------------------
@@ -535,8 +555,10 @@ static func _zigzag(ch: CityChunk, g: ChinatownGeo, side_a: Array, side_b: Array
 		var b := Vector3(b2.x, ch._gy(b2.x, b2.y) + CityChunk.SIDEWALK_TOP + STRING_ATTACH, b2.y)
 		var l := a.distance_to(b)
 		var sag := 0.35 + 0.035 * l
-		string_lanterns(g, a, b, sag, absi(hash([ch.plan.seed, tag, k])) % 1000)
-		_string_pools(ch, a, b, CityChunk.ROAD_TOP + 0.08)
+		var sd := absi(hash([ch.plan.seed, tag, k])) % 1000
+		_job(ch, func() -> void:
+			string_lanterns(g, a, b, sag, sd)
+			_string_pools(ch, a, b, CityChunk.ROAD_TOP + 0.08))
 		k += 1
 
 
@@ -620,14 +642,15 @@ static func build_lot(ch: CityChunk, lot: Dictionary, out2: Vector2) -> void:
 
 static func _units(ch: CityChunk, st: Dictionary, xf: Transform3D, units: Array, d: float, goods: bool) -> void:
 	var g: ChinatownGeo = st.geo
-	g.xf = xf
 	for u: Dictionary in units:
-		shop_unit(g, u, d, goods)
 		var top: float = float(u.h) + (0.0 if u.roof == "sweep" else 0.9)
 		var cx := (float(u.x0) + float(u.x1)) * 0.5
 		var w := float(u.x1) - float(u.x0)
 		_shape(st, xf, Vector3(cx, (top - 1.2) * 0.5, -d * 0.5), Vector3(w, top + 1.2, d))
 		ch._occluder_boxes.append([xf, Vector3(cx, top * 0.5, -d * 0.5), Vector3(maxf(w - 0.8, 0.5), maxf(top - 0.8, 0.5), maxf(d - 1.2, 0.5))])
+		_job(ch, func() -> void:
+			g.xf = xf
+			shop_unit(g, u, d, goods))
 
 
 ## One unit of a shop building in its lot's frame.
@@ -1081,64 +1104,73 @@ static func build_plaza(ch: CityChunk, block: Dictionary) -> void:
 		var out2: Vector2 = r[1]
 		var xf := _row_frame(ch, r[0], out2)
 		_units(ch, st, xf, plan_units(seed_value, absi(hash([ch.ix, ch.iz, r[0]])), r[2], true), rd, true)
-	# The hall.
-	var hy := ch._gy(hall.x, hall.y) + CityChunk.SIDEWALK_TOP
-	var hxf := Transform3D(Basis(), Vector3(hall.x, hy, hall.y))
-	g.xf = hxf
-	hall_mesh(g, st, hxf)
-	for px: float in [-6.0, 0.0, 6.0]:
-		var hp := hxf * Vector3(px, 0.0, 9.5)
-		ch._batch.add("ct_pool", PropFactory.light_pool(Color(1.0, 1.0, 1.0), 1.3, 1.6),
-			Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(8.0, 1.0, 8.0)), Vector3(hp.x, CityChunk.SIDEWALK_TOP + 0.1, hp.z)), Color(1.0, 0.45, 0.2, 0.4))
-	# The gates at the walk's two ends.
+	# The hall, the gates, the pond, the masts and their strings, the trees: a job each.
+	_job(ch, func() -> void:
+		var hy := ch._gy(hall.x, hall.y) + CityChunk.SIDEWALK_TOP
+		var hxf := Transform3D(Basis(), Vector3(hall.x, hy, hall.y))
+		g.xf = hxf
+		hall_mesh(g, st, hxf)
+		for px: float in [-6.0, 0.0, 6.0]:
+			var hp := hxf * Vector3(px, 0.0, 9.5)
+			ch._batch.add("ct_pool", PropFactory.light_pool(Color(1.0, 1.0, 1.0), 1.3, 1.6),
+				Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(8.0, 1.0, 8.0)), Vector3(hp.x, CityChunk.SIDEWALK_TOP + 0.1, hp.z)), Color(1.0, 0.45, 0.2, 0.4)))
 	for e: Vector2 in [L.gate_w, L.gate_e]:
-		var gy := ch._gy(e.x, e.y) + CityChunk.SIDEWALK_TOP
-		var gxf := Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(e.x, gy, e.y))
-		g.xf = gxf
-		gate_mesh(g, st, float(L.walk_w) + 1.2, 0.72, Chinatown.PLAZA_NAME, "", gxf)
-	# The pond.
+		_job(ch, func() -> void:
+			var gy := ch._gy(e.x, e.y) + CityChunk.SIDEWALK_TOP
+			var gxf := Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(e.x, gy, e.y))
+			g.xf = gxf
+			gate_mesh(g, st, float(L.walk_w) + 1.2, 0.72, Chinatown.PLAZA_NAME, "", gxf))
 	var pond: Vector2 = L.pond
-	var py := ch._gy(pond.x, pond.y) + CityChunk.SIDEWALK_TOP
-	g.xf = Transform3D(Basis(), Vector3(pond.x, py, pond.y))
-	_pond(g, st, g.xf)
+	_job(ch, func() -> void:
+		var py := ch._gy(pond.x, pond.y) + CityChunk.SIDEWALK_TOP
+		g.xf = Transform3D(Basis(), Vector3(pond.x, py, pond.y))
+		_pond(g, st, g.xf)
+		g.xf = Transform3D.IDENTITY
+		for k in 4:
+			var a := PI * 0.25 + float(k) * PI * 0.5
+			var p := pond + Vector2(cos(a), sin(a)) * 8.0
+			ch._add_bench(Vector3(p.x, CityChunk.SIDEWALK_TOP + 0.04, p.y), atan2(cos(a), sin(a))))
 	# Lantern masts down the walk and strings across it.
-	g.xf = Transform3D.IDENTITY
 	var masts: Array = []
 	var mx := inner.position.x + 9.0
-	var side := 0
 	while mx < inner.end.x - 8.0:
 		for sz: float in [-1.0, 1.0]:
 			var p := Vector2(mx + (4.5 if sz > 0.0 else 0.0), walk_z + sz * (float(L.walk_w) * 0.5 + 0.6))
 			var y := ch._gy(p.x, p.y) + CityChunk.SIDEWALK_TOP
-			box(g, Vector3(p.x, y + 2.4, p.y), Vector3(0.16, 4.8, 0.16), kc(RED, K_PAINT))
-			box(g, Vector3(p.x, y + 0.12, p.y), Vector3(0.4, 0.24, 0.4), kc(GRANITE, K_STONE))
-			box(g, Vector3(p.x, y + 4.86, p.y), Vector3(0.26, 0.12, 0.26), kc(GOLD, K_GOLD))
-			_shape(st, Transform3D.IDENTITY, Vector3(p.x, y + 2.4, p.y), Vector3(0.2, 4.8, 0.2))
-			masts.append([p.x, Vector3(p.x, y + 4.6, p.y), 0 if sz < 0.0 else 1])
+			masts.append([p.x, Vector3(p.x, y + 4.6, p.y), 0 if sz < 0.0 else 1, y])
 		mx += 9.0
-		side += 1
 	masts.sort_custom(func(l: Array, r: Array) -> bool: return float(l[0]) < float(r[0]))
+	for m: Array in masts:
+		var top: Vector3 = m[1]
+		_shape(st, Transform3D.IDENTITY, Vector3(top.x, float(m[3]) + 2.4, top.z), Vector3(0.2, 4.8, 0.2))
+	_job(ch, func() -> void:
+		g.xf = Transform3D.IDENTITY
+		for m: Array in masts:
+			var top: Vector3 = m[1]
+			var y: float = m[3]
+			box(g, Vector3(top.x, y + 2.4, top.z), Vector3(0.16, 4.8, 0.16), kc(RED, K_PAINT))
+			box(g, Vector3(top.x, y + 0.12, top.z), Vector3(0.4, 0.24, 0.4), kc(GRANITE, K_STONE))
+			box(g, Vector3(top.x, y + 4.86, top.z), Vector3(0.26, 0.12, 0.26), kc(GOLD, K_GOLD)))
 	for i in masts.size() - 1:
 		var p: Array = masts[i]
 		var q: Array = masts[i + 1]
 		if int(p[2]) != int(q[2]):
-			string_lanterns(g, p[1], q[1], 0.5, i + 17)
-			_string_pools(ch, p[1], q[1], CityChunk.SIDEWALK_TOP + 0.1)
-	# Trees in planters at the four quarters, and benches facing the pond and the hall.
-	var rng := RandomNumberGenerator.new()
-	rng.seed = hash([seed_value, ch.ix, ch.iz, "ct_trees"])
-	for q: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
-		var p := Vector2(c.x + q.x * inner.size.x * 0.32, walk_z + q.y * 12.0)
-		var y := ch._gy(p.x, p.y) + CityChunk.SIDEWALK_TOP
-		g.xf = Transform3D(Basis(), Vector3(p.x, y, p.y))
-		box(g, Vector3(0, 0.3, 0), Vector3(2.6, 0.6, 2.6), kc(GRANITE, K_STONE))
-		box(g, Vector3(0, 0.58, 0), Vector3(2.3, 0.04, 2.3), kc(Color(0.22, 0.42, 0.16), K_PRODUCE))
-		ch._add_tree(Vector3(p.x, CityChunk.SIDEWALK_TOP + 0.6, p.y), rng)
-	for k in 4:
-		var a := PI * 0.25 + float(k) * PI * 0.5
-		var p := pond + Vector2(cos(a), sin(a)) * 8.0
-		ch._add_bench(Vector3(p.x, CityChunk.SIDEWALK_TOP + 0.04, p.y), atan2(cos(a), sin(a)))
-	g.xf = Transform3D.IDENTITY
+			_job(ch, func() -> void:
+				g.xf = Transform3D.IDENTITY
+				string_lanterns(g, p[1], q[1], 0.5, i + 17)
+				_string_pools(ch, p[1], q[1], CityChunk.SIDEWALK_TOP + 0.1))
+	# Trees in planters at the four quarters (a private rng: the block's is untouched).
+	_job(ch, func() -> void:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = hash([seed_value, ch.ix, ch.iz, "ct_trees"])
+		for q: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
+			var p := Vector2(c.x + q.x * inner.size.x * 0.32, walk_z + q.y * 12.0)
+			var y := ch._gy(p.x, p.y) + CityChunk.SIDEWALK_TOP
+			g.xf = Transform3D(Basis(), Vector3(p.x, y, p.y))
+			box(g, Vector3(0, 0.3, 0), Vector3(2.6, 0.6, 2.6), kc(GRANITE, K_STONE))
+			box(g, Vector3(0, 0.58, 0), Vector3(2.3, 0.04, 2.3), kc(Color(0.22, 0.42, 0.16), K_PRODUCE))
+			ch._add_tree(Vector3(p.x, CityChunk.SIDEWALK_TOP + 0.6, p.y), rng)
+		g.xf = Transform3D.IDENTITY)
 
 
 static func _row_frame(ch: CityChunk, face: Vector2, out2: Vector2) -> Transform3D:

@@ -19,6 +19,7 @@ func use(key: String, mat: Material) -> void:
 		return
 	super.use(key, mat)
 	_surfaces[key]["uv2"] = PackedVector2Array()
+	_surfaces[key]["tan"] = PackedFloat32Array()
 
 
 func tri(key: String, a: Vector3, b: Vector3, c: Vector3, want: Vector3, ua: Vector2, ub: Vector2, uc: Vector2,
@@ -73,14 +74,38 @@ func tri(key: String, a: Vector3, b: Vector3, c: Vector3, want: Vector3, ua: Vec
 	u2.append(uv2)
 	u2.append(uv2)
 	u2.append(uv2)
+	# The tangent from the UVs (flat per triangle, made orthogonal to each corner's normal), so the
+	# commit is a plain upload: SurfaceTool's index() and generate_tangents() over a block were
+	# 100-200 ms in one step.
+	var dp1 := b - a
+	var dp2 := c - a
+	var du1 := ub - ua
+	var du2 := uc - ua
+	var det := du1.x * du2.y - du2.x * du1.y
+	var tg := Vector3.RIGHT
+	var bt := Vector3.FORWARD
+	if absf(det) > 1e-10:
+		var r := 1.0 / det
+		tg = (dp1 * du2.y - dp2 * du1.y) * r
+		bt = (dp2 * du1.x - dp1 * du2.x) * r
+	var ts: PackedFloat32Array = s.tan
+	for n: Vector3 in [na, nb, nc]:
+		var t := tg - n * n.dot(tg)
+		if t.length_squared() < 1e-12:
+			t = n.cross(Vector3.UP if absf(n.y) < 0.9 else Vector3.RIGHT)
+		t = t.normalized()
+		ts.append(t.x)
+		ts.append(t.y)
+		ts.append(t.z)
+		ts.append(-1.0 if n.cross(t).dot(bt) < 0.0 else 1.0)
 	s.n += 1
 	triangles += 1
 	if collide:
 		collision.append_array(PackedVector3Array([a, b, c]))
 
 
-## Commits every surface into one MeshInstance3D under `parent`, UV2 carried; tangents from the
-## UVs for the shader's NORMAL_MAP (tiles, rafters, fruit).
+## Commits every surface into one MeshInstance3D under `parent`: the arrays as written (UV2 and
+## the tangents tri() worked out carried), no index - an upload, not a rebuild.
 func commit(parent: Node3D, node_name: String, shadow: bool = true, draw_distance: float = 0.0) -> MeshInstance3D:
 	var mesh := ArrayMesh.new()
 	for key in _order:
@@ -91,15 +116,12 @@ func commit(parent: Node3D, node_name: String, shadow: bool = true, draw_distanc
 		arrays.resize(Mesh.ARRAY_MAX)
 		arrays[Mesh.ARRAY_VERTEX] = s.v
 		arrays[Mesh.ARRAY_NORMAL] = s.nrm
+		arrays[Mesh.ARRAY_TANGENT] = s.tan
 		arrays[Mesh.ARRAY_TEX_UV] = s.uv
 		arrays[Mesh.ARRAY_TEX_UV2] = s.uv2
 		arrays[Mesh.ARRAY_COLOR] = s.col
-		var st := SurfaceTool.new()
-		st.create_from_arrays(arrays)
-		st.index()
-		st.generate_tangents()
 		var before := mesh.get_surface_count()
-		st.commit(mesh)
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 		if mesh.get_surface_count() > before:
 			mesh.surface_set_material(before, s.mat)
 	_surfaces.clear()

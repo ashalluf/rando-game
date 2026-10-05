@@ -289,6 +289,16 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Chinatown (HANDOFF "Chinatown").** A district on N Broadway / N Hill St north of
+  Cesar Chavez, where the real one stands at 1:1 relative to downtown. Decisions: WHERE is a site
+  table off the pinned streets (the district's extent, the plaza's block, the gate's place), applied
+  last in CityPlan.block() so no roll moves; street-facing lots are claimed by hash and built as rows
+  of code-built shop units (sweeping hip roofs, pent eaves, balconies) rather than restyling
+  Building boxes, because the roofs and eaves ARE the look and a box shader cannot give them; the
+  lanterns hang between the street lamps the chunk already places (their spots recomputed exactly),
+  not on new poles; everything of a block is one mesh on one shader plus a shadowless twin for the
+  small parts; names invented, English only on the signs (no CJK font), nothing caricatured.
+
 - **2026-10-05 City acoustics: spaces, gunfire echo, footsteps by surface, the newest systems'
   sounds (HANDOFF "City acoustics").** The city had one street-canyon reverb, no echo, no
   footsteps, and the bus, the light rail, the river and the parks were silent. Decisions: the

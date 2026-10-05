@@ -75,8 +75,9 @@ func _ready() -> void:
 	if OS.get_environment("ONLY") != "":
 		var o := OS.get_environment("ONLY").split(",")
 		blocks = [Vector2i(int(o[0]), int(o[1]))]
+	var reps := 2 if OS.get_environment("REPEAT") == "1" else 1
 	for k: Vector2i in blocks:
-		for level in [0, 1]:
+		for level in ([0, 0, 1] if reps == 2 else [0, 1]):
 			var t0 := Time.get_ticks_usec()
 			var tris0 := LandmarkGeo.committed_triangles
 			var ch = chunk_script.new()
@@ -94,6 +95,8 @@ func _ready() -> void:
 				var s0 := Time.get_ticks_usec()
 				var done: bool = ch.build_step()
 				var sms := float(Time.get_ticks_usec() - s0) / 1000.0
+				if OS.get_environment("STEPS") == "1" and sms > 8.0:
+					print("CT   step %d %.1f ms" % [si, sms])
 				if sms > worst:
 					worst = sms
 					worst_i = si

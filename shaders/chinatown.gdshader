@@ -220,7 +220,7 @@ void fragment() {
 		float cell_h = hash21(floor(v_world.xz * 0.45) + floor(v_world.y / 3.0) * 7.1);
 		float lit = step(0.42, cell_h) * night;
 		vec3 room = vec3(1.0, 0.72, 0.42) * (0.5 + 0.5 * hash21(vec2(cell_h, 3.0)));
-		vec3 glass = k == 7 ? mix(vec3(0.03, 0.035, 0.04), sky_tint.rgb * 0.35, 0.5) : vec3(0.025, 0.02, 0.018);
+		vec3 glass = k == 7 ? mix(vec3(0.03, 0.035, 0.04), sky_tint.rgb * 0.3, 0.3) : vec3(0.025, 0.02, 0.018);
 		col = mix(glass, frame, bars);
 		emit = room * (k == 7 ? window_night : window_night * 0.5) * lit * (1.0 - bars) * (k == 7 ? 1.0 : 0.6);
 		rough = mix(0.1, 0.5, bars);
