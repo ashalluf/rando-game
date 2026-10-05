@@ -436,6 +436,9 @@ func begin_build() -> void:
 		# Tags, buffs, posters and stickers (StreetWear) on the walls, poles and freeway columns
 		# everything above built. Hash-seeded: the block's rng is untouched.
 		_steps.append(StreetWear.build.bind(self))
+		# Bougainvillea, ivy, fig, jasmine, vines and accent plants on what the build laid
+		# (ClimbingPlants: hash-seeded, moves itself behind the deferred steps).
+		_steps.append(ClimbingPlants.build.bind(self))
 	_steps.append(_finish_build)
 
 

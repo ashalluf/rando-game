@@ -44,6 +44,7 @@ Quaternius). Record every pack here.
 | Fabric040 | https://ambientcg.com/a/Fabric040 | CC0 1.0 | encampment kit: mattress ticking (`camp_ticking`) | 2026-09-24 |
 | Fabric031 | https://ambientcg.com/a/Fabric031 | CC0 1.0 | encampment kit: blankets and quilts (`camp_wool`) | 2026-09-24 |
 | Plastic006 | https://ambientcg.com/a/Plastic006 | CC0 1.0 | encampment kit: trash-bag film (`camp_plastic`) | 2026-09-24 |
+| Climbing plants and garden accents atlas (`assets/textures/climbers/climbers_albedo.png`, `climbers_normal.png`) | original, painted procedurally by `tools/make_climbers.py` (parametric leaf outlines, bracts, flowers, agave / aloe blades; no photo or third-party art) | project | `ClimbingPlants` (bougainvillea, ivy, creeping fig, star jasmine, wisteria, grape, trumpet vine, agave, aloe, red-hot poker, lavender, lantana) | 2026-10-05 |
 
 Texture sets are from ambientCG and Poly Haven (both CC0 1.0 Universal, no attribution required,
 attribution given anyway). Only the Color, NormalGL and Roughness maps at 1K are kept, under `assets/textures/<Set>/`.

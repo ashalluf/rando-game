@@ -7740,3 +7740,76 @@ open door is a panel over the body's own closed door (a welded body has no door 
 door animation on the shops (the person passes the closed door's plane). Bus riders are not
 tracked across chunks that stream out (they return to the hidden pool). Nobody is shown sitting
 in the bus seat they took (the cabin trace draws its own passengers).
+
+## 9ce. Climbing plants: bougainvillea, ivy, fig, jasmine, vines and garden accents, 2026-10-05 (agent branch `wt/climbing-plants`; VISUAL_ROADMAP #73)
+
+**What.** The planting that grows ON things - what makes LA walls and fences look lived in.
+`ClimbingPlants` (`scripts/world/climbing_plants.gd`, static) grows, on the walls a FULL chunk has
+just built: bougainvillea (magenta 62 %, orange, white) as a shrub domed out from the wall, deeper
+toward its top, spilling over the coping and down the far side of a garden wall, canes hanging
+under gravity; ivy and creeping fig climbing in ragged fans (ivy mounded, fig flat on the wall);
+star jasmine as a mat through chain-link, pickets and board fences, both sides, white flowers;
+pergolas (built here: posts, beams, rafters in YardFill's timber) over some back-yard decks and
+tiled patios, wisteria with hanging racemes or grape with bunches on them; trumpet vine up some
+wooden utility poles with a mass of orange trumpets at the top; and agave, aloe, red-hot poker,
+lavender and lantana in YardFill's mulch and decomposed-granite beds.
+
+**Where it reads its walls.** `ch._yard_walls` (YardFill's upright boxes, merged into straight
+runs: garden walls, stucco and timber fences, pickets, chain-link, freeway sound walls, block
+walls); every house face (`house_face()`, one hook line in `HouseBuild._wing()`, with the face's
+openings and the spans another wing hides, so a vine frames a window and never grows into the
+wing next door); LotFill's car-park walls and chain-link (`note_run()`, one line in
+`LotFill._edge_run()`); low-rise Building walls (under `BUILDING_MAX_TOP` 14 m, only where
+`StreetWear._paintable()` says the shader draws plain wall); the `upole` batch; `_yard_ground`'s
+decks / tiles and mulch / DG. One step line in `CityChunk.begin_build()` after StreetWear; the step
+moves itself behind the deferred steps (YardFill lays its walls in them), then runs in
+`STEP_BUDGET_US` (1.5 ms) slices, each tile's mesh a job of its own. A wall within `FRONT_REACH`
+of the block's edge is a front wall, planted on its street side and `FRONT_GAIN` times as often;
+a house's front face 1.7x, its back 0.6x. Shares per district (`DISTRICT_SHARE`): beach town 1,
+suburbs 0.85, campus 0.45, midtown 0.4, industrial 0.2, downtown 0.08. Nothing at LOD or in the
+far city. Every roll is a hash of seed + wall / face / pole / bed; built with `CLIMBERS=0` a
+block is the same block (checked).
+
+**How it is drawn.** Leaf and bract cards built in code (`_card()`: centred, bent at the middle,
+the normal leaned toward the mass's outward direction so a mass lights as a volume; COLOR.a the
+wind weight, UV2.x the flower flag, UV2.y the fade distance), from ONE atlas painted by
+`tools/make_climbers.py` (`assets/textures/climbers/`, 8 x 6 cells of 256 px: sprigs for the
+silhouettes, dense MASS cells for the inside of a plant, the agave / aloe blades, spikes, the
+woody trunk; original procedural art) on ONE shader (`shaders/climbers.gdshader`: sway by weight,
+gusts, flutter; the alpha cut lowered per mip level so a mass does not thin to stems; backlight
+translucency, more for bracts; wet leaves; colour-space include; a dithered fade over the last
+25 m). Meshes are 64 m TILES per kind: leaves (no shadow), a shadows-only twin of every 3rd card
+(35 % bigger), accents (cast) - tiles because a node's visibility range is measured to its bounds'
+centre, and on a 415 m beach block a chunk-wide mesh was hidden from its own near end. Agave and
+aloe are real rosettes (golden-angle leaves, a folded V section, three segments curling up).
+
+**What went wrong first** (so nobody repeats it): sprig cells alone, at any density, read as
+sticks and a trellis; the vine trunks drawn as a 7-stem cell read as a lattice; the first
+bougainvillea on a house wall was a mass at the ROOF line (from the top down), a pink blob on the
+roof from the street - it is a shrub now, grown from the ground to 2.4-4.6 m up the corner.
+
+**Numbers.** A beach-town block (76 x 88 m, (-4, 14) on the default seed): ~5,500 cards,
+19 k leaf triangles, 6.4 k shadow-twin triangles, 2 k accent triangles; 75-90 ms of GDScript
+over ~60 slices, the worst slice ~5 ms (one pergola). Frame cost (opengl3, `still_shot.gd` GEO,
+`CLIMBERS=0` against on, same EYE): the beach-town street at noon 5.91 M -> 6.03 M triangles
+(+2.1 %), 2,765 -> 2,837 draws; a bougainvillea close-up 3.46 M -> 3.58 M, 2,393 -> 2,441;
+the pergola 2.68 M -> 2.76 M, 1,788 -> 1,827. `geo_count.gd AB='Climbers*,ClimberAccents*'` at
+`--spawn=-296,2603,0,-3,2`: 3.16 M -> 3.28 M, 2,705 -> 2,760 draws (188 tile nodes in the loaded
+ring, most culled).
+
+**Tools.** `tools/climbers/climbers_probe.tscn` (headless, seconds: cards per species, step
+times, an EYE for every plant; `AT=x,z`, `DISTRICT`, `FIND`, `SLOW=1` lists slow jobs);
+`tools/climbers/checks_only.tscn` (the checks alone against the city, a minute); `block_shot.tscn`
+for a block alone and `still_shot.gd` EYEs. Checks: `tests/climbing_plants_checks.gd`.
+
+**Stills** (shots/climbing-plants; opengl3, not the Mac's Forward+): the beach-town street (Hill
+St-like corner at (-296, 2603) looking north) at noon and 17:36 with and without the plants, a
+bougainvillea over a garden wall at noon and golden hour, an ivy-covered house wall, a pergola.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the translucency, the bracts' colour
+under AgX and the normal map's sign. The industrial district's own walls (Industrial's meshes) and
+the car parks' hedges get nothing; the accent plants appear only where YardFill laid mulch or DG
+(a dozen a block); climbing roses and sound-wall bougainvillea cascades from the freeway side are
+not separate; no seasonal bloom (always in flower). Leaves can overlap a window frame by a few
+centimetres (card centres keep 0.22-0.3 m off openings, the cards are 0.5-0.95 m). Wind sway is
+the same for every species.
