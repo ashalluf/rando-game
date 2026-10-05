@@ -852,6 +852,9 @@ static func _pick_parker(traffic: Node) -> void:
 	var player := traffic.get_tree().get_first_node_in_group("player") as Node3D if traffic.is_inside_tree() else null
 	if plan == null or player == null:
 		return
+	# A staged street (tests, stills) keeps the cars it placed where it placed them.
+	if traffic.get("staged"):
+		return
 	var pp := WorldState.to_world(player.global_position)
 	var cars: Array = traffic.get("cars")
 	if cars.is_empty():
@@ -896,6 +899,9 @@ static func start_parking(car: Vehicle, spot: float) -> void:
 ## a semi, the police, a fire engine or an ambulance, not one already doing something.
 static func _may_park(car: Vehicle) -> bool:
 	if not car.is_traffic() or car.has_meta("errand") or car.traffic.has("bus") or car.traffic.has("park_at"):
+		return false
+	# A car put somewhere on purpose (TrafficManager.place_car(): tests, stills) is not a parker.
+	if car.traffic.get("placed", false):
 		return false
 	if car.traffic.has("police") or car.traffic.has("emergency") or car.is_in_group("police_car") or car.is_in_group("emergency_unit"):
 		return false
