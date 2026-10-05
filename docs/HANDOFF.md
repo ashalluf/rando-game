@@ -8684,3 +8684,24 @@ starts with `Building.SHOP_NAMES` and every name decodes back to itself; the phr
 shop_decal() uses name the phrases it means; '0' is code 27 (the hash digits) and every glyph fits the
 segment loop; `shop_name_codes()` decodes to `shop_names()` on three seeds; building.gdshader includes
 the font, takes the codes and no longer has `fake_glyph`.
+
+**Frame cost.** No geometry, draws or textures added (geo_count unchanged by construction).
+Fragment cost on a frame filled with storefronts (`building_shot.gd BENCH=40`, llvmpipe, 1280x720,
+`CAM_POS=-4,1.8,15 CAM_FOV=70`, two runs each): old shader 102.7 / 98.1 ms, new 96.3 / 100.0 ms,
+`SHOP_VINYL=0` 101.0 / 102.1 ms - within the noise.
+
+**Stills** (shots/shop-vinyl; opengl3, not the Mac's Forward+): before / after pairs of the BANK,
+CAMERA / PIZZA, SHOE REPAIR / OPTICAL and BAKERY / LIQUOR storefronts in midtown (EYEs round
+(900-970, 255-300) with `EYE_AGL=1`), the street at noon and 21:00, a DRY CLEAN close-up from
+`building_shot.gd`, and the font preview.
+
+**Gate.** 1,370 checks pass on the merged head (one earlier run on it lost the two ambulance
+stretcher checks in `emergency_checks.gd` - a physics-timing flake, the next run passed them;
+nothing here touches them).
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the gold leaf and the keyline are judged
+on opengl3 only. Shops past the seventh on a face and the landmark towers' storefronts have no name
+(a phrase instead). A name runs straight across its bay and through a centre mullion where the shop
+has one (real vinyl is usually laid out round it). Text is caps only; no lower case, no script or
+arched layouts, no card-scheme stickers (they would be brands). The hours lines (2 cm) only resolve
+within a couple of metres; past that they fade to grey lines by design.
