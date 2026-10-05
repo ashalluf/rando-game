@@ -45,6 +45,8 @@ func run(t: Node, city: Node3D) -> void:
 	var spot := _find_bins()
 	_check(not spot.is_empty(), "some house block has its carts planned (KerbBins)")
 	if not spot.is_empty():
+		var sc := KerbBins.cart_pos(_plan, spot.set, 1)
+		print("SERVICE carts at %.1f,%.1f (weekday %d)" % [sc.x, sc.y, int(spot.weekday)])
 		_bins_plan(spot)
 		await _go(player, spot)
 		await _arm_cycle(spot)
@@ -82,6 +84,13 @@ func _clear_traffic() -> void:
 			_traffic._retire(c)
 	_traffic.cars.clear()
 	_fleet._tend(0.0)
+
+
+## Off the street into the pool, out of the traffic's list first (as TrafficManager._maintain()
+## does): a pooled car still in the list comes back as its own leader.
+func _retire(car: Vehicle) -> void:
+	_traffic.cars.erase(car)
+	_traffic._retire(car)
 
 
 func _builds() -> void:
@@ -212,6 +221,21 @@ func _go(player: Player, spot: Dictionary) -> void:
 		if int((e[0] as Dictionary).id) == int(st.id):
 			found = true
 	_check(found and _fleet._bins_near.multimesh.instance_count > 0, "the carts are drawn at the kerb round the player (%d near)" % _fleet._bins_near.multimesh.instance_count)
+	# A blast by another set's carts throws them (debris) and they stay gone today.
+	var other := {}
+	for e: Array in _fleet.shown:
+		if int((e[0] as Dictionary).id) != int(st.id):
+			other = e[0]
+	if not other.is_empty():
+		var bc := KerbBins.cart_pos(_plan, other, 1)
+		var props_before := _tree.get_nodes_in_group("physics_prop").size()
+		Explosion.last_blast_world = Vector3(bc.x, _plan.height_at(bc), bc.y)
+		Explosion.blast_count += 1
+		_fleet._knock_carts()
+		var knocked := _fleet._knocked.has(int(other.id) * 3 + 1)
+		var thrown := _tree.get_nodes_in_group("physics_prop").size() - props_before
+		_check(knocked and thrown >= 1, "a blast throws the carts beside it as bodies (%d thrown)" % thrown)
+		_fleet._draw_bins()
 
 
 ## The arm alone: a truck stood beside a cart, one whole cycle stepped by hand.
@@ -242,7 +266,7 @@ func _arm_cycle(spot: Dictionary) -> void:
 			func() -> void: picked[1] = true; _fleet._cart_back(key))
 	_check(began, "the arm reaches the cart from the kerb lane (ext %.2f)" % (arm.target_ext if arm else -1.0))
 	if not began:
-		_traffic._retire(car)
+		_retire(car)
 		return
 	var top := -INF
 	var flipped := false
@@ -267,7 +291,7 @@ func _arm_cycle(spot: Dictionary) -> void:
 	_check(top > 2.4 and flipped, "the cart goes up over the hopper and is tipped upside down (%.2f m up)" % top)
 	_check(hidden and not _fleet._picked.has(key), "the kerb's cart is hidden while the arm holds it and back after")
 	_check(arm.ext < 0.01 and absf(arm.theta) < 0.01, "the arm folds back to rest")
-	_traffic._retire(car)
+	_retire(car)
 	_fleet._tend(0.0)
 
 
@@ -280,7 +304,7 @@ func _collect(spot: Dictionary) -> void:
 	var a := c.y if axis == CityPlan.AXIS_X else c.x
 	var stream := KerbBins.cart_color(st, 1)
 	var lanes := 2 if _plan.road_width(axis, int(st.index)) > _plan.street_width + 1.0 else 1
-	var car := _traffic.place_car(axis, int(st.index), dir, lanes - 1, a - dir * 22.0, _fleet.garbage_speed, false, ServiceVehicles.GARBAGE)
+	var car := _traffic.place_car(axis, int(st.index), dir, lanes - 1, a - dir * 9.0, _fleet.garbage_speed, false, ServiceVehicles.GARBAGE)
 	_check(car != null, "a garbage truck is sent down the street")
 	if car == null:
 		return
@@ -294,6 +318,8 @@ func _collect(spot: Dictionary) -> void:
 	var hazard := false
 	for i in 1500:
 		await _tree.physics_frame
+		if i % 150 == 0 and OS.get_environment("SVC_DEBUG") == "1":
+			print("SVC t=%d v=%.2f along=%.2f ws=%s" % [i, float(car.traffic.get("v", -1)), float(car.traffic.get("along", 0)), ServiceFleet.work_stop(car, car.traffic, float(car.traffic.get("along", 0)), 0.0, 0.0)])
 		if car.traffic.get("lifting", false):
 			lifted = true
 			hazard = hazard or car._traffic_signal() == 2
@@ -303,10 +329,17 @@ func _collect(spot: Dictionary) -> void:
 				stopped_at = absf((along + dir * ServiceVehicles.ARM_AHEAD) - a)
 		if _fleet._collected.has(key):
 			break
+	if not lifted:
+		var wp: Vector3 = _ws.to_world(car.global_position)
+		var tt: Dictionary = car.traffic.duplicate()
+		tt.erase("cart")
+		print("SERVICE collect traffic: ", tt, " ws ", ServiceFleet.work_stop(car, car.traffic, (wp.z if axis == CityPlan.AXIS_X else wp.x), 0.0, 0.0))
+		print("SERVICE collect: truck at %s along-cart %.2f v %.2f cart %s sets %d work %s" % [wp, ((wp.z if axis == CityPlan.AXIS_X else wp.x) - a) * dir,
+				float(car.traffic.get("v", -1.0)), str(car.traffic.get("cart", [])).left(60), _fleet._sets.size(), car.traffic.get("work", "")])
 	_check(lifted and stopped_at < 0.9, "the truck stops with its arm at the cart (%.2f m off)" % stopped_at)
 	_check(_fleet._collected.has(key), "the truck empties the cart of its colour")
 	_check(hazard, "its hazards flash while it lifts")
-	_traffic._retire(car)
+	_retire(car)
 	_fleet._tend(0.0)
 
 
@@ -342,7 +375,7 @@ func _delivery(player: Player) -> void:
 			break
 	_check(stood and car.traffic_speed < 0.3, "the delivery van stops in its lane")
 	_check(flashing, "the double-parked van runs its hazards")
-	_traffic._retire(car)
+	_retire(car)
 	_fleet._tend(0.0)
 
 
@@ -367,7 +400,7 @@ func _sweeper(player: Player) -> void:
 	var spun := g != null and g.brush_r != null and not g.brush_r.basis.is_equal_approx(b0)
 	_check(g != null and g.working and spun, "the sweeper works its brooms along the kerb")
 	_check(absf(float(car.traffic.get("shift", 0.0))) > 0.3, "the sweeper hugs the kerb (shift %.2f)" % float(car.traffic.get("shift", 0.0)))
-	_traffic._retire(car)
+	_retire(car)
 	_fleet._tend(0.0)
 
 
@@ -402,7 +435,7 @@ func _ice_cream(player: Player) -> void:
 		lit = m != null and float(m.get_shader_parameter("active")) > 0.5
 	_check(played, "the ice-cream truck plays its chime as it drives")
 	_check(stood and lit, "it stops with its flashers lit")
-	_traffic._retire(car)
+	_retire(car)
 	_fleet._tend(0.0)
 
 
@@ -429,7 +462,6 @@ func _tow(player: Player) -> void:
 	var dmg := wreck.damage_state()
 	dmg.become_wreck()
 	dmg.extinguish()
-	wreck.set_meta("spawn_time", Time.get_ticks_msec() / 1000.0 - 600.0)
 	await _ticks(30)
 	# The player well away (the tow waits for that); the truck sent close up the street.
 	var pw: Vector3 = _ws.to_world(player.global_position)
@@ -464,7 +496,7 @@ func _tow(player: Player) -> void:
 			await _tree.physics_frame
 		var moved := car.traffic_speed > 1.0
 		_check(moved, "the tow truck drives off with it")
-		_traffic._retire(car)
+		_retire(car)
 		await _ticks(3)
 		_check(not is_instance_valid(wreck) or wreck.is_queued_for_deletion(), "the wreck goes when the tow truck leaves")
 	_fleet.spawn_back = back_was

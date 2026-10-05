@@ -89,6 +89,9 @@ var _cars: Dictionary = {}
 ## of its colour has emptied it.
 var _picked: Dictionary = {}
 var _collected: Dictionary = {}
+## Carts knocked over (run into, blown away): gone from the kerb for the rest of the day.
+var _knocked: Dictionary = {}
+var _blasts_seen := 0
 ## The carts drawn now: [set, k, true-world position] (for the arm and the tests).
 var shown: Array = []
 var _sets: Array = []
@@ -108,6 +111,10 @@ func _ready() -> void:
 	# checks (tests/service_vehicle_checks.gd), like the police and the fire department.
 	if get_tree().root.get_node_or_null("SmokeTest") != null:
 		enabled = false
+	# SERVICE_VEHICLES=0: none of it (the A/B for frame cost and stills).
+	if not KerbBins.enabled:
+		enabled = false
+		set_process(false)
 	for lod in 2:
 		var mmi := MultiMeshInstance3D.new()
 		var mm := MultiMesh.new()
@@ -162,12 +169,14 @@ func _process(delta: float) -> void:
 	if _last_hour >= 0.0 and h < _last_hour - 12.0:
 		weekday = posmod(weekday + 1, 7)
 		_collected.clear()
+		_knocked.clear()
 		_bins_dirty = true
 	_last_hour = h
 	_survey_left -= delta
 	if _survey_left <= 0.0:
 		_survey_left = bin_survey
 		_survey_bins()
+	_knock_carts()
 	if _bins_dirty:
 		_draw_bins()
 	_tend(delta)
@@ -238,7 +247,7 @@ func _draw_bins() -> void:
 	for st: Dictionary in _sets:
 		for k in 3:
 			var key := int(st.id) * 3 + k
-			if _picked.has(key):
+			if _picked.has(key) or _knocked.has(key):
 				continue
 			var xf := cart_xform(st, k)
 			shown.append([st, k, xf])
@@ -259,6 +268,61 @@ func _fill(mmi: MultiMeshInstance3D, list: Array) -> void:
 		mm.set_instance_transform(i, Transform3D(global_basis.inverse() * (e[1] as Basis), e[0]))
 		mm.set_instance_color(i, e[2])
 	mmi.visible = not list.is_empty()
+
+
+## The player (on foot or driving) running into a cart, or a blast near some: each one hit is
+## thrown as a real body (debris, PhysicsBudget clears it) and stays gone today.
+func _knock_carts() -> void:
+	if shown.is_empty():
+		return
+	var mover: Node3D = _player
+	var vel := (_player as CharacterBody3D).velocity if _player is CharacterBody3D else Vector3.ZERO
+	var reach := 0.75
+	if _player.has_method("is_driving") and _player.call("is_driving") and is_instance_valid(_player.get("vehicle")):
+		mover = _player.get("vehicle")
+		vel = (mover as RigidBody3D).linear_velocity
+		reach = 1.6
+	var blast := Explosion.blast_count != _blasts_seen
+	_blasts_seen = Explosion.blast_count
+	var at := WorldState.to_local(Explosion.last_blast_world)
+	if vel.length() < 2.5 and not blast:
+		return
+	var p := mover.global_position
+	for e: Array in shown:
+		var xf: Transform3D = e[2]
+		var key := int((e[0] as Dictionary).id) * 3 + int(e[1])
+		if _knocked.has(key) or _picked.has(key):
+			continue
+		var push := Vector3.ZERO
+		var d := xf.origin - p
+		d.y = 0.0
+		if vel.length() >= 2.5 and d.length() < reach + KerbBins.WIDTH * 0.5:
+			push = vel * 0.9 + Vector3.UP * 2.0
+		elif blast and xf.origin.distance_to(at) < 9.0:
+			var away := (xf.origin - at)
+			push = away.normalized() * (14.0 - away.length()) + Vector3.UP * 6.0
+		if push == Vector3.ZERO:
+			continue
+		_knocked[key] = true
+		_bins_dirty = true
+		_throw_cart(xf, KerbBins.cart_color(e[0], int(e[1])), push)
+
+
+func _throw_cart(xf: Transform3D, color: int, push: Vector3) -> void:
+	if not PhysicsBudget.make_room(1):
+		return
+	var body := PhysicsProp.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(KerbBins.DEPTH, KerbBins.HEIGHT, KerbBins.WIDTH)
+	body.setup(KerbBins.mesh(0), shape, Vector3(0.0, KerbBins.HEIGHT * 0.5, 0.0), 14.0)
+	get_parent().add_child(body)
+	body.global_transform = xf
+	for c in body.get_children():
+		if c is MeshInstance3D:
+			(c as MeshInstance3D).material_override = ServiceVehicles.bin_material(color)
+	PhysicsBudget.register_debris(body)
+	body.linear_velocity = push.limit_length(24.0)
+	body.angular_velocity = Vector3(randf_range(-5.0, 5.0), randf_range(-3.0, 3.0), randf_range(-5.0, 5.0))
 
 
 # --- The work hook ---------------------------------------------------------------------------------
@@ -285,12 +349,28 @@ func _work_stop(car: Vehicle, t: Dictionary, along: float, v: float, delta: floa
 			if not t.has("tow_at"):
 				return Vector2(INF, 0.0)
 			var d := (float(t.tow_at) - along) * dir
-			if v < 0.25 and absf(d) < 0.8:
+			if v < 0.25 and d < 0.8:
 				t.arrived = true
-			return Vector2(d + 0.3 if not t.get("arrived", false) else 0.0, 0.0)
+			return Vector2(_approach(d) if not t.get("arrived", false) else -0.3, 0.0)
 		"ice_cream", "delivery":
 			return _dwell_stop(car, t, along, v, delta)
+		"staged":
+			# Held where stage_for_shot() put it.
+			return Vector2(-0.3, float(t.get("shift", 0.0)))
 	return Vector2(INF, 0.0)
+
+
+## What to hand the traffic for a stop `d` metres ahead: the stop's distance while it is still
+## a way off, then (TrafficManager stands a car still once it is within ~1.2 m of something
+## standing still, which would leave it short) a gap that keeps it creeping until it is there,
+## then no room at all, so it stands exactly at the stop.
+static func _approach(d: float) -> float:
+	if d <= STOP_TOLERANCE:
+		return -0.3
+	return maxf(d + 0.3, 1.5)
+
+
+const STOP_TOLERANCE := 0.1
 
 
 func _garbage_stop(car: Vehicle, t: Dictionary, along: float, v: float) -> Vector2:
@@ -307,23 +387,25 @@ func _garbage_stop(car: Vehicle, t: Dictionary, along: float, v: float) -> Vecto
 				t.lifting = false
 				t.hazard = false
 				return Vector2(INF, kerb_shift)
-			return Vector2(0.0, kerb_shift)
+			return Vector2(-0.3, kerb_shift)
 		if d < -0.8:
 			t.erase("cart")
 			return Vector2(INF, kerb_shift)
-		if v < 0.25 and absf(d) < 0.7:
+		if d > STOP_TOLERANCE:
+			return Vector2(_approach(d), kerb_shift if d < 35.0 else 0.0)
+		if v < 0.25:
 			var st: Dictionary = c[2]
 			var k: int = c[3]
 			var xf := cart_xform(st, k)
 			if arm != null and arm.begin(xf, KerbBins.cart_color(st, k), _cart_taken.bind(key), _cart_back.bind(key)):
 				t.lifting = true
 				t.hazard = true
-				return Vector2(0.0, kerb_shift)
+				return Vector2(-0.3, kerb_shift)
 			# Out of the arm's reach from here: left for another day.
 			_collected[key] = true
 			t.erase("cart")
 			return Vector2(INF, kerb_shift)
-		return Vector2(d + 0.3, kerb_shift if d < 35.0 else 0.0)
+		return Vector2(-0.3, kerb_shift)
 	# The next cart of this truck's colour on its kerb, ahead.
 	var best := INF
 	var pick: Array = []
@@ -335,7 +417,7 @@ func _garbage_stop(car: Vehicle, t: Dictionary, along: float, v: float) -> Vecto
 			if KerbBins.cart_color(st, k) != int(t.get("stream", 0)):
 				continue
 			var key := int(st.id) * 3 + k
-			if _collected.has(key) or _picked.has(key):
+			if _collected.has(key) or _picked.has(key) or _knocked.has(key):
 				continue
 			var p := KerbBins.cart_pos(plan, st, k)
 			var a := p.y if int(st.axis) == CityPlan.AXIS_X else p.x
@@ -346,7 +428,7 @@ func _garbage_stop(car: Vehicle, t: Dictionary, along: float, v: float) -> Vecto
 	if pick.is_empty():
 		return Vector2(INF, 0.0)
 	t.cart = pick
-	return Vector2(best + 0.3, kerb_shift if best < 35.0 else 0.0)
+	return Vector2(_approach(best), kerb_shift if best < 35.0 else 0.0)
 
 
 func _cart_taken(key: int) -> void:
@@ -369,7 +451,7 @@ func _dwell_stop(car: Vehicle, t: Dictionary, along: float, v: float, delta: flo
 		t.next_stop = along + dir * _rng.randf_range(stop_every.x, stop_every.y)
 	var d := (float(t.next_stop) - along) * dir
 	var shift := 0.6 if ice else 0.45
-	if v < 0.25 and d < 0.8:
+	if d <= STOP_TOLERANCE and v < 0.25:
 		var need: float = t.get("dwell_need", 0.0)
 		if need <= 0.0:
 			var r: Vector2 = ice_cream_dwell if ice else delivery_dwell
@@ -389,13 +471,13 @@ func _dwell_stop(car: Vehicle, t: Dictionary, along: float, v: float, delta: flo
 				gear.set_standing(false)
 				gear.set_music(true)
 			return Vector2(INF, 0.0)
-		return Vector2(0.0, shift)
+		return Vector2(-0.3, shift)
 	if gear and not gear.standing:
 		gear.set_music(true)
 	if d < -2.0:
 		t.next_stop = along + dir * _rng.randf_range(stop_every.x, stop_every.y)
 	t.hazard = not ice and d < 12.0
-	return Vector2(d + 0.3, shift if d < 30.0 else 0.0)
+	return Vector2(_approach(d), shift if d < 30.0 else 0.0)
 
 
 # --- Sending them out -------------------------------------------------------------------------------
@@ -756,6 +838,7 @@ func stage_for_shot(scene: String, cam: Camera3D) -> String:
 			if car == null:
 				return ""
 			car.traffic.shift = kerb_shift
+			car.traffic.work = "staged"
 			_cars[car.get_instance_id()] = {"car": car, "kind": ServiceVehicles.GARBAGE}
 			await get_tree().physics_frame
 			await get_tree().physics_frame
@@ -766,12 +849,15 @@ func stage_for_shot(scene: String, cam: Camera3D) -> String:
 				while arm.t < until:
 					arm.advance(1.0 / 60.0)
 				arm.set_process(false)
+				# Held as a lift in progress, or _tend() puts the kerb's cart back.
+				car.traffic.cart = [key, a, best, 1]
+				car.traffic.lifting = true
 			car.traffic.speed = 0.0
 			_draw_bins()
 			var side := StreetRoute.lane_side(axis, dir)
 			var across := Vector2(1.0, 0.0) if axis == CityPlan.AXIS_X else Vector2(0.0, 1.0)
 			var along_v := Vector2(0.0, 1.0) if axis == CityPlan.AXIS_X else Vector2(1.0, 0.0)
-			var e2 := c + across * side * 4.2 + along_v * float(dir) * 9.0
+			var e2 := c + across * side * 2.6 + along_v * float(dir) * 8.5
 			var tgt := c + along_v * float(dir) * -1.0 - across * side * 1.5
 			return _eye(e2, 1.6, tgt, 1.9)
 		"sweeper", "ice_cream", "tow", "delivery":
@@ -788,6 +874,7 @@ func stage_for_shot(scene: String, cam: Camera3D) -> String:
 			if car == null:
 				return ""
 			car.traffic.shift = kerb_shift if scene == "sweeper" else 0.6
+			car.traffic.work = "staged"
 			_cars[car.get_instance_id()] = {"car": car, "kind": kind}
 			await get_tree().physics_frame
 			var gear := ServiceVehicles.gear_of(car)

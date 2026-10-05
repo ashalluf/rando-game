@@ -31,6 +31,9 @@ const CORNER_CLEAR := 7.0
 ## Parked cars longer than this cannot stand in a bay next to a set (CityChunk asks blocks_parking()).
 const LONG_CAR := 5.6
 
+## SERVICE_VEHICLES=0 in the environment: no carts anywhere (the A/B; ServiceFleet reads it too).
+static var enabled: bool = OS.get_environment("SERVICE_VEHICLES") != "0"
+
 static var _block_cache: Dictionary = {}
 static var _cache_seed: int = -1
 static var _meshes: Dictionary = {}
@@ -173,7 +176,7 @@ static func sets_near(plan: CityPlan, p: Vector2, radius: float) -> Array:
 ## in a cart set (any day's: a car parked overnight stays). CityChunk._park_car() asks, after its
 ## rolls; a car of an ordinary length fits between two sets.
 static func blocks_parking(plan: CityPlan, spot: Vector3, length: float) -> bool:
-	if length < LONG_CAR:
+	if length < LONG_CAR or not enabled:
 		return false
 	var p := Vector2(spot.x, spot.z)
 	for st: Dictionary in sets_near(plan, p, 8.0):
@@ -251,7 +254,7 @@ static func _ring(y: float, hx: float, hz: float, r: float, n: int) -> PackedVec
 	var start := [0.0, 90.0, 180.0, 270.0]
 	for i in 4:
 		for k in n + 1:
-			var a := deg_to_rad(float(start[i]) + 90.0 * float(k) / float(n))
+			var a := deg_to_rad(float(start[i]) + (90.0 * float(k) / float(n) if n > 0 else 45.0))
 			var c: Vector2 = corners[i]
 			pts.append(Vector3(c.x + cos(a) * r, y, c.y + sin(a) * r))
 	return pts

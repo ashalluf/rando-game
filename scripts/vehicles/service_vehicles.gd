@@ -30,7 +30,7 @@ const MASS := {GARBAGE: 9.0, SWEEPER: 7.0, TOW: 7.0, ICE_CREAM: 4.0, DELIVERY: 2
 ## the box truck's physics numbers on its chassis, the ambulance's on the cutaway, the van's).
 const DIMS := {
 	GARBAGE: {"length": 8.906, "width": 2.50, "lamp_y": 0.89, "tail_y": 1.39, "chassis_h": 1.0, "cabin": Vector2(-4.4, 8.8), "cabin_h": 1.4, "wheel_z": 2.9, "wheel_front": 3.377, "wheel_rear": 2.423, "track": 1.72, "tyre_r": 0.424, "ride": -0.236, "road": -0.260,
-			"light_len": 8.80, "light_z": 0.06, "letter_at": Vector3(1.252, 2.05, 1.50), "letter_size": 0.30},
+			"light_len": 8.80, "light_z": 0.06, "letter_at": Vector3(1.252, 2.10, 1.85), "letter_size": 0.24},
 	SWEEPER: {"length": 8.776, "width": 2.45, "lamp_y": 0.89, "tail_y": 1.23, "chassis_h": 1.0, "cabin": Vector2(-4.4, 8.8), "cabin_h": 1.4, "wheel_z": 2.9, "wheel_front": 3.312, "wheel_rear": 2.488, "track": 1.72, "tyre_r": 0.424, "ride": -0.259, "road": -0.260,
 			"light_len": 8.70, "light_z": 0.10, "letter_at": Vector3(1.214, 2.00, 0.49), "letter_size": 0.26},
 	TOW: {"length": 9.316, "width": 2.44, "lamp_y": 0.89, "tail_y": 0.92, "chassis_h": 1.0, "cabin": Vector2(-4.4, 8.8), "cabin_h": 1.2, "wheel_z": 2.9, "wheel_front": 3.699, "wheel_rear": 2.101, "track": 1.72, "tyre_r": 0.424, "ride": -0.236, "road": -0.260,
