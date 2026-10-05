@@ -164,7 +164,9 @@ func _full_chunk(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 			people += 1
 	_t._check(pools_ok and buildings == 0 and kit > 500 and kit < KIT_BUDGET,
 		"%s %s: no Building on it, the floodlight pools cast nothing, the kit is %d triangles (budget %d)" % [role, k, kit, KIT_BUDGET])
-	_t._check(people <= Parks.MAX_PEOPLE, "%s %s: %d people on its facilities (at most %d)" % [role, k, people, Parks.MAX_PEOPLE])
+	# The smoke test's crowd cap is usually spent by now, so the spawn steps are what is checked.
+	var steps := Parks.people_steps(chunk, plan.block(k.x, k.y)).size()
+	_t._check(people <= Parks.MAX_PEOPLE and steps >= 3, "%s %s: %d people on its facilities, %d spawn steps (at most %d people)" % [role, k, people, steps, Parks.MAX_PEOPLE])
 	chunk.get_parent().remove_child(chunk)
 	chunk.free()
 

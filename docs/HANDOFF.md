@@ -6465,3 +6465,76 @@ is the story.
   and still; encampments and parked cars keep off a station's apron, other street clutter is not
   checked; there are no ladder trucks, police at fire scenes or traffic cones; the bus's daylit
   cabin is judged on opengl3 only.
+
+## 9bj. Rec parks, schoolyards and sports grounds, 2026-10-04 (agent branch `wt/parks`; VISUAL_ROADMAP #52)
+
+The brief: from the air real Los Angeles is stamped all over with baseball diamonds, basketball
+and tennis courts, soccer fields, school running tracks and public pools; ours had lawns, trees
+and fountains and none of those. CLAUDE.md "Nor is a park just a lawn" is the reference; this is
+the story.
+
+**Where they go.** `Parks.role_for()`, from `CityPlan.block()` after every other roll and
+override (a hash of seed + block): 60 % of the PARK blocks in the suburbs, midtown and the beach
+town become rec parks; of the BUILDINGS blocks, 3.5 % (suburbs) / 2.5 % (midtown) become rec
+parks and 8 % / 4.5 % schools (the new `BlockKind.SCHOOL`). `CityPlan.lots()` is empty on both, so
+the LOD ring, the far city, AirTraffic and HouseKit see no buildings there. Never on or beside a
+site, under a freeway, near a landmark, in the replica, the runway clear zone or downtown. In the
+window `(-1500, -3600) - (1500, 1500)` on seed 1337: 40 rec parks, 4 schools (one high school),
+15 diamonds, 13 soccer fields, 32 basketball court groups, 15 tennis groups, 25 playgrounds,
+5 pools, 9 rec centres.
+
+**The track problem.** A regulation 400 m track (84.39 m straights, 36.5 m radius, 1.22 m
+lanes) round a football field needs ~172 x 88 m of ground. Suburban blocks are 60-100 m long
+(p90 103 m); one midtown block in the whole basin fits it. Merging two blocks into a site that
+closes the road between them (as MacArthur Park does) would have touched traffic, roads, the
+minimap and every system that asks `road_open()`, so a school stays one block and **its track is
+the largest that fits** (`Parks._track()`): 400 m where it can be, else the radius and straights
+shrunk (the default seed's high school is 337 m, 4 lanes), the football field regulation or
+scaled to fit inside the kerb (0.55 at least). High schools only where the block is >= 140 x 72
+m; elementary schools elsewhere (grass field, playground, yard games, bungalows, lunch shelter).
+
+**How it is drawn.**
+- Ground: ONE mesh a FULL chunk (`ParkGround`, `shaders/park_ground.gdshader`, no shadow). Each
+  piece carries its facility's own frame in UV (home plate or the centre at the origin, a along
+  the long axis) and the facility's numbers in UV2, so every line is analytic and box-filtered
+  (`aline()`: crisp up close, its average cover once under a pixel): soccer (FIFA markings scaled
+  for a youth field), the diamond (skinned infield out 60 ft from the pitcher, home circle, base
+  paths, warning track, chalk foul lines, batter's boxes, pitcher's circle, on-deck circles, the
+  outfield's checkerboard mowing, drag rings), basketball (FIBA: key, free-throw circle, 6.75 m
+  arc with its corner straights, restricted arc; acrylic in four palettes, or lines alone on a
+  school's asphalt), tennis (doubles, singles, service boxes, centre mark; three palettes), the
+  track (lane lines, finish and start lines, kerb; the football field inside with yard lines,
+  hash marks, end zones in the school's colour), poured rubber, decomposed granite, concrete
+  deck, asphalt with the drop-off loop's markings, yard games (four-square, hopscotch, a circle),
+  lawn.
+- The pool is TRACED like the windows: the view ray refracted (and wobbled by ripples) into the
+  tank, the floor's tiles and lane T-lines or the wall's tiles and waterline band, absorbed toward
+  turquoise with the path length, caustics by day, underwater lights by night; Fresnel sky
+  emitted on top; lane ropes floating red at the ends, white and blue between.
+- Everything upright: ONE casting mesh (`ParkWalls`, `shaders/park_walls.gdshader`) written by
+  `ParkKit` through IndustrialKit's box and cylinder writers: chain-link and windscreens, tennis
+  and soccer nets and hoop nets (cord or chain) cut out, backboards with the shooter's square,
+  goal posts, a curved backstop with its padding, CMU dugouts, aluminium bleachers, a grandstand
+  with its press box, play structures and swings, floodlight poles whose lenses blaze after dark
+  (and throw `park_pool` light pools), stucco rec centres and classroom wings (windows, doors, lit
+  rooms at night), covered walkways, picnic shelters, a pool's coping, ladders and guard chair.
+- LOD chunks and the far city: the ground as slabs that PARTITION the site (`Parks.minus()`; the
+  track as an infield of turf and a red ring, the diamond as clay and turf), the buildings,
+  shelters and stands as `lod_box`es.
+
+**People.** `ParkGoer` (a Pedestrian kept to its facility, living the crowd-life layer): track
+joggers lapping their lane on the oval, the loop's joggers, pickup basketball (3-6 a court),
+a kickabout, fielders at their positions, parents at the playground, people at the picnic
+tables; `MAX_PEOPLE` (18) a chunk under the city's crowd cap. A `ParkBall` is dribbled, shot at
+the nearer rim on a high arc, drops through and bounces to the nearest player (scripted, nothing
+past 90 m). No children (there are no child rigs); no swimmers.
+
+**Traps.**
+- The block's pavement slab tops out at SIDEWALK_TOP: the pool water, first dropped 12 cm under
+  the deck, was under it, and what showed was the pavement (grey concrete squares).
+- `_fit()` turns a facility to fit; a row of courts must then be told which axis its courts run
+  along (`_along_x()`): three tennis courts side by side are longer across than along.
+- A HDR emission (the floodlight lens) must not go through the sRGB curve: `to_lit()` is applied
+  to the clamped colour and the gain after.
+
+**Coverage, frame cost, stills, checks:** see the numbers below.

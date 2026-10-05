@@ -1550,6 +1550,44 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   occluder. Both shaders work in display numbers (`disp()` / `to_lit()`, like YardFill's). A/B:
   `INDUSTRIAL=0` on `still_shot.gd`, `block_shot.tscn` and `tools/geo_count.gd`; build times:
   `tools/industrial_bench/industrial_bench.tscn`; checks: `tests/industrial_checks.gd`.
+  **Nor is a park just a lawn** (`Parks`, `scripts/world/parks.gd` + `ParkKit`,
+  `scripts/world/park_kit.gd`, 2026-10-04, docs/HANDOFF.md 9bj): LA from the air is stamped with
+  diamonds, courts, fields, tracks and pools. Two block ROLES, rolled by `CityPlan.block()`
+  through `Parks.role_for()` AFTER every other roll and override (a hash of seed + block, never the
+  block rng): `"rec"` (`REC_ON_PARK` of the PARK blocks in SUBURBS / MIDTOWN / BEACHTOWN, and
+  `REC_ON_BUILDINGS` of the BUILDINGS blocks: a rec park, kind PARK) and `"school"` (`SCHOOL_ODDS`
+  of BUILDINGS blocks: the new `CityPlan.BlockKind.SCHOOL`). Either sets `block.grounds`, and
+  `CityPlan.lots()` is then empty (so LOD, Skyline, AirTraffic, HouseKit see no buildings). Never on
+  a site, beside one, under a freeway, near a landmark, the replica, the runway clear zone or
+  downtown. **Plans are pure** (`rec_plan()` / `school_plan()` / `plan_for()`, cached in
+  `Parks._cache`): facilities are axis-aligned rects at regulation size in a frame (`c`, `u` the
+  long axis, `v` = (-u.y, u.x), `L` x `W`; `fp()` / `frect()`), packed by `_fit()` (bottom-left
+  fill against the edges and what is placed). A rec park: a softball diamond in a corner (home in
+  the corner, foul lines down the edges, 60 ft bases, fence 48-69 m), a soccer field, basketball
+  and tennis courts, a playground, a rec centre, a 25 m pool, picnic shelters, a car park
+  (LotFill's `_car_park`), a DG walking loop with trees, benches and light poles. A school:
+  classroom wings with covered walkways and a drop-off loop along the front, a car park, and
+  either (a long block, a HIGH school) a track sized to the block (`_track()`: 1.22 m lanes, 400 m
+  when it fits, else the largest that does - most blocks give 300-390 m) round a football field
+  (regulation or scaled) with goal posts, bleachers and a press box, or (an elementary school) a
+  grass field, a playground, painted yard games, bungalows and a lunch shelter; a chain-link fence
+  round the rest. **Drawn**: a FULL chunk's ground is ONE shadowless mesh (`ParkGround`,
+  `shaders/park_ground.gdshader`, kind `G_*` in COLOR.r 16ths, the facility frame in UV, its
+  numbers in UV2, its u axis in TANGENT) whose lines are drawn analytically and box-filtered;
+  the pool is TRACED (the view ray refracted into a tiled tank, lane T-lines, caustics, absorbed
+  to turquoise, the sky emitted by Fresnel, lane ropes); everything upright is ONE casting mesh
+  (`ParkWalls`, `shaders/park_walls.gdshader`, kinds `ParkKit.K_*` in COLOR.a 32nds, written by
+  IndustrialKit's box / cylinder writers); floodlights glow (`K_LAMP`, `lamp_factor`) and throw
+  `park_pool` light pools (shadowless). LOD chunks and the far city's capture get the ground as
+  slabs that PARTITION the site (`minus()`: never one slab over another) and the buildings and
+  stands as `lod_box`es. **Trap:** the block's pavement slab is at SIDEWALK_TOP; anything below
+  SIDEWALK_TOP + `LIFT` (0.05) is under it (the pool's water is 3.5 cm down, not 12). **People**:
+  `ParkGoer` (`scripts/npc/park_goer.gd`, a Pedestrian kept to its facility: JOG laps of a track
+  lane on an oval, LOOP the walking loop, PLAY pickup games, FIELD fielders, HANG the playground),
+  `Parks.people_steps()`, under the crowd cap, `MAX_PEOPLE` a chunk; a `ParkBall` (scripted, no
+  physics) dribbled and shot at the rim on a court with players. No children (no child rigs).
+  `PARKS=0` in the environment is the A/B (before the plan is made). Checks:
+  `tests/park_checks.gd`; coverage: `tools/lot_coverage.gd` rows `REC` / `SCHOOL`, kind `sport`.
   Shopping plazas, big-box stores, fast-food and gas-station pads are `Commercial`
   (`scripts/world/commercial.gd`); block kinds `MALL` and `BIGBOX` and the `pads` odds live in
   `CityPlan.DISTRICTS`. Shop names are original, never brands.

@@ -300,6 +300,21 @@ already mapped so milestone 2 is script-only.
   `LAMPS_AT_ZERO=1`). Downtown -10 % triangles (shadow -22 %), freeway -6 %, masjid -5 %, camera
   pass unchanged; 0-0.6 % of pixels move by a few levels in thin lines. Kept out: rooftop units
   from the shadow proxy (no measurable change), roads without shadow (paint edges lightened).
+
+- **2026-10-04 Rec parks and school campuses, rolled per block (VISUAL_ROADMAP #52).** (agent
+  branch `wt/parks`; docs/HANDOFF.md 9bj.) LA from the air is diamonds, courts, fields, tracks and
+  pools; ours was lawns and fountains. Calls made, each reversible: **a role is rolled after
+  every other roll** (`Parks.role_for()` from `CityPlan.block()`, a hash of seed + block), so no
+  block seed or lot moves; **a school is a new block kind** (`BlockKind.SCHOOL`, no lots) rather
+  than a site that closes streets - so **the track is sized to its block**: a regulation 400 m
+  lane 1 only where a block is long enough (rare; suburban blocks are 60-100 m), elsewhere the
+  largest that fits (300-390 m, as many LA middle-school tracks are), always 1.22 m lanes, and
+  the football field regulation or scaled to fit inside the kerb; **the rec park's old roll is kept
+  first** (`_lawn_color(rng)`), the FULL-only furniture after it on that block now differs;
+  **no children** (no child rigs): the playground has parents, the courts adults; **every line is
+  drawn by the shader from the facility's own frame** (no paint geometry), and **the pool is
+  traced** like the windows (tank, tiles, lane lines, absorption, emitted sky). `PARKS=0` is the A/B.
+
 - **2026-10-04 The crowd's hats are modelled round each rig's own head, in code (G5).** The
   old caps and beanies were a fixed tube and half-dome hung at one offset from the Head bone, so
   on most rigs the cap's band sat across the eyes or the crown perched on top, in flat saturated

@@ -24,8 +24,8 @@ uniform sampler2D asphalt_tex : source_color, filter_linear_mipmap_anisotropic, 
 uniform sampler2D concrete_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 
 // Field grass and the infield mix (display numbers).
-uniform vec3 turf_color = vec3(0.27, 0.40, 0.15);
-uniform vec3 lawn_color = vec3(0.29, 0.40, 0.18);
+uniform vec3 turf_color = vec3(0.25, 0.37, 0.14);
+uniform vec3 lawn_color = vec3(0.25, 0.35, 0.15);
 uniform vec3 clay_color = vec3(0.70, 0.44, 0.30);
 uniform vec3 track_color = vec3(0.66, 0.27, 0.21);
 uniform vec3 deck_color = vec3(0.80, 0.79, 0.75);
@@ -116,7 +116,9 @@ vec3 grass(vec2 w, vec3 tint) {
 	float la = dot(a, vec3(0.3, 0.59, 0.11));
 	float lb = dot(b, vec3(0.3, 0.59, 0.11));
 	float l = mix(la, lb, 0.4) / 0.36;
-	vec3 c = tint * mix(0.85, 1.15, clamp(l - 0.5, 0.0, 1.0));
+	vec3 c = tint * mix(0.72, 1.28, clamp(l - 0.5, 0.0, 1.0));
+	// Clover and weeds in it, a little burnt yellow.
+	c = mix(c, tint * vec3(1.25, 1.12, 0.7), smoothstep(0.62, 0.8, vnoise(w * 0.9 + 4.0)) * 0.35);
 	// Broad patches: drier, greener, a worn path or two.
 	float patch = fbm(w * 0.045);
 	c *= mix(vec3(1.05, 0.98, 0.86), vec3(0.92, 1.04, 1.0), smoothstep(0.3, 0.7, patch));
