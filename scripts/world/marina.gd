@@ -75,7 +75,7 @@ const DOCK_Y := 0.62
 const HEAD_W := 2.4
 const BULK_GAP := 1.0
 const MAIN_W := 2.4
-const DOCK_PITCH := 42.0
+const DOCK_PITCH := 38.0
 const FAIRWAY := 44.0
 const FINGER_LEN := 9.5
 const FINGER_W := 0.9
@@ -605,15 +605,19 @@ func _plan_yard() -> void:
 	var x := wx + 16.0
 	var k := 0
 	var depth := site.end.y - z_south
+	var rows := clampi(int((depth - 30.0) / 15.0) + 1, 1, 5)
 	while x < site.end.x - 8.0:
-		for row in 2:
-			var z := z_south + 12.0 + row * 17.0
-			if z > z_south + depth - 9.0:
+		for row in rows:
+			var z := z_south + 12.0 + row * 15.0
+			if z > z_south + depth - 24.0:
+				continue
+			# The shed's corner by the south road.
+			if x > site.end.x - 40.0 and z > site.end.y - 30.0:
 				continue
 			if h01(["yocc", k, row]) < 0.82:
 				var t := Type.SAIL if h01(["ytype", k, row]) < 0.55 else (Type.FISHER if h01(["ytype2", k, row]) < 0.5 else Type.MOTOR)
 				var length := _len_roll(t, h01(["ylen", k, row]))
-				yard_boats.append(_boat(t, length, Vector2(x, z), Vector2(1.0 if row == 0 else -1.0, 0.0).rotated(PI * 0.5), 9000 + k * 2 + row))
+				yard_boats.append(_boat(t, length, Vector2(x, z), Vector2(1.0 if row % 2 == 0 else -1.0, 0.0).rotated(PI * 0.5), 9000 + k * 8 + row))
 		x += 9.5
 		k += 1
 
@@ -644,6 +648,8 @@ func _plan_buildings() -> void:
 		var r := Rect2(cx - 10.0, z_north - 9.0 - 13.0, 20.0, 13.0)
 		buildings.append({"rect": r, "kind": "restaurant", "seed": absi(hash([seed_value, "marina_rest", k]))})
 	car_parks.append(Rect2(nx0 - 4.0, site.position.y + 3.0, nx1 - nx0 + 8.0, z_north - 9.0 - 13.0 - 4.0 - site.position.y - 3.0))
+	# The boat yard's car park along the south road, west of the shed.
+	car_parks.append(Rect2(west_x(z_south) + 50.0, site.end.y - 19.0, site.end.x - 44.0 - west_x(z_south) - 50.0, 17.8))
 	# The boat yard's office and shed by the south road.
 	buildings.append({"rect": Rect2(site.end.x - 34.0, site.end.y - 16.0, 28.0, 12.0), "kind": "shed", "seed": absi(hash([seed_value, "marina_shed"]))})
 	# Car park lamps along each car park's long sides.
