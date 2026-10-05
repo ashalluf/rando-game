@@ -7040,3 +7040,81 @@ ALU in shaders that were already running.
 - The night ambient (DayNight) still lights roofs a moonlit blue-grey on opengl3; not this pass.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
+
+## 9b?. Freight rail: the Harbor Subdivision down Alameda St, 2026-10-05 (agent branch `wt/freight-trains`; VISUAL_ROADMAP #63)
+
+**What.** Double-stack, manifest and autorack trains of an invented railroad, the **Arroyo
+Pacific** (reporting mark APXR, red-and-sand livery), run from a covered way "to the port" north up
+Alameda St (a pinned real street that runs the whole map) to a rail yard east of downtown between
+Alameda and Vignes St (z 2304-2785). Everything is worked out from the clock, like the Coral Line
+(9bk): nothing is ticked.
+
+**The line** (`FreightRail`, `scripts/world/freight_rail.gd`, a DATA TABLE resolved once per plan;
+`FREIGHT=0` turns it off). s runs south from the yard's buffer stop (z 2325). YARD (s 0-448: the
+blocks between the avenue and Vignes and Alameda's own roadway, closed through `road_open()`),
+TRENCH (s ~460-2035, rail 9.4 m under the street, entered and left by 3 % ramps, 2 % in the deep),
+GRADE (s 2076-2798 in Alameda's median, 8 gated crossings: Maple St to Olive Blvd), a ramp down to
+the portal of a covered way at s 3091 (z 5417). Of the 36 junctions along it: 5 yard, 13 bridged
+(the junction slab is the deck over the trench), 9 closed (the ramps sever the cross street, with
+K-rail and ROAD CLOSED boards), 8 crossings, 4 covered. The corridor's land is held level
+(`FreightRail.terrace()`, 10.7 m) so the trench floor stays above the GroundBody.
+
+**The timetable**: trip n leaves the port at n x `headway` (1,080 s, the time a trip holds the
+shared single stretch), runs north on the east track (3-4 head-end units), stands 150 s at the
+buffer, then runs back with its 1-2 distributed power units leading, wrong-road to the crossover
+(s 1936) and over to the west track. Consists by hash: 60-120 cars of 1,580-1,850 m; stack trains
+(well cars with PortKit's liveries in two tiers), manifests (tank cars, boxcars, hoppers,
+autoracks), autorack trains. A crossing is down about 29 % of the time (940 s of 3,240). The
+at-grade stretch starts past the longest train's length from the buffer, so no train ever stands
+on a crossing.
+
+**Drawn.** `FreightKit` (chunk steps, FULL and LOD): trench walls with parapets, chain-link, wall
+lights and drains; the decks under bridged junctions; median kerbs and ballast; crossing panels
+and `RailGate` masts (moved to the "freight_gate" group so the light rail never poses them); block
+signals; buffer stops; the portal; real track - ballast stones and tie MultiMeshes on
+`shaders/freight_track.gdshader`, swept 115 lb rail at FULL. `FreightYard`: ladder, six storage
+and two loading tracks, standing cuts, PortKit gantries over the loading tracks, container stacks,
+trailer rows, a shop with the railroad's name, a yard tower, high masts lit at night, fence and
+gate. `FreightStock`: the locomotive (~5k triangles: cab, nose, number boards, headlights, ditch
+lights that alternate while the horn sounds, hood doors, radiators, trucks) and five car types
+(2.2-2.7k), two LOD levels each, on `shaders/freight_stock.gdshader` with the paint as a palette
+index in INSTANCE_CUSTOM (the instance colour multiplies every vertex colour). `FreightRailSystem`
+(`FreightRail` node in city.tscn) places every visible car on its two truck points each frame:
+detailed within 300 m (one MultiMesh per type, one of containers), boxes to 3.8 km; closes the
+crossings near the player (TrafficManager stops at them beside the signals), poses the gates and
+rings the bells, blows a crossing horn pattern from 18 s out (real CC0 recordings of a five-chime
+horn), and strikes whatever stands in front of a lead unit (never the player's crime).
+
+**Tools.** `tools/freight/probe.gd` (headless: profile, junctions, consists, timetable),
+`tools/freight/compile.gd`, `tools/freight/stock_shot.tscn` (the rolling stock alone, seconds:
+`ORDER`, `LAMPS`, `LOD`, `SHOTS`). Stills: `FREIGHT_CROSS=<k>:<dir>:<s before>`, `FREIGHT_S=`,
+`FREIGHT_YARD=`, `FREIGHT_HOLD=1`, `FREIGHT_KIND=0|1|2` on still_shot.gd. Checks:
+`tests/freight_checks.gd`.
+
+**Frame cost** (`tools/geo_count.gd`, opengl3 + Xvfb, 800x600, 15:00, `FREIGHT=0` against the
+line, same spawn; the "on" runs pose a train with `FREIGHT_CROSS` / `FREIGHT_S` / `FREIGHT_YARD`):
+at the Maple St crossing with a stack train going over it (`--spawn=3428,4478,50,-4,14.5`) 2.67 M ->
+2.88 M triangles, 2,928 -> 3,012 draws; over the trench with a manifest in it
+(`--spawn=3412,3640,20,-28,38`) 2.50 M -> 2.69 M, 2,946 -> 3,004; over the yard
+(`--spawn=3470,2840,-20,-20,45`) 1.70 M -> 1.64 M, 2,115 -> 1,659 (the yard replaces 12 blocks'
+buildings). A whole train is at most seven draws near (six types and the containers, one MultiMesh
+each) plus one of far boxes; a locomotive is 5,342 triangles, a car 2,168-2,696. `geo_count.gd`'s
+`AB=` mode could not be used: it sets `Engine.time_scale` 0 and the world goes NaN with or without the
+freight line (pre-existing; a control run with `FREIGHT=0 AB=Nothing_*` does the same).
+
+**Stills** (shots/freight-trains; opengl3, not the Mac's Forward+): `crossing_gates_down` (a stack train over Maple St, gates down), `stack_train_golden_hour` and
+`stack_train_aerial` (at Pacific Blvd), `trench_from_above`, `trench_close`, `trench_night`,
+`yard_night` (the yard from the south-east, masts lit), `loco_closeup_yard` (a lead unit at the
+buffer stops), `loco_closeup_showroom`, `loco_front_showroom`, `consist_showroom`
+(`tools/freight/stock_shot.tscn`). A thin stripe over the trench in `trench_close` is the far city's
+plate still dithering out under the still's frozen clock, not geometry (a FULL chunk lays nothing
+there; checked headless).
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the stock's paint and lamps under AgX
+need eyes. The yard is not joined to the LA River's rail bridge spur (LaRiver, 9bp), which still
+ends at buffer stops. Alameda's left-turners may still cross the median tracks at a gated crossing
+(they stop at the closed gate like everyone else, but turn across the tracks while it is open, as
+in life). The covered way's interior is not modelled (nothing is drawn past the mouth). Block
+signals are static (always clear). Pedestrians never board, and trains never derail. On this 4-core
+box `tests/headless_check.sh`'s 900 s timeout is too short for the whole smoke test; it was run
+directly (see the push message for the count).

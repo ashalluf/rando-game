@@ -289,7 +289,7 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
-- **2026-10-05 Freight trains run the Alameda corridor (VISUAL_ROADMAP #59).** The invented
+- **2026-10-05 Freight trains run the Alameda corridor (VISUAL_ROADMAP #63).** The invented
   Arroyo Pacific's double track runs down Alameda St, the real corridor's street, from a covered way
   at the port north through the industrial district: at street level in the median past gated
   crossings, then in a ten-metre trench under every cross street (decks; the ramps sever a few
