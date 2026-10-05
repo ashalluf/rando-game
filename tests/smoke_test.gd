@@ -1710,6 +1710,9 @@ func _test_city() -> void:
 	# The light rail (tests/light_rail_checks.gd): the line's table, timetable, crossings, the
 	# traffic's lane and stop rules, a station chunk, the trains on the track, a strike.
 	await load("res://tests/light_rail_checks.gd").new().run(self, city)
+	# The city's birds (tests/bird_checks.gd): meshes, survey, a flock flushed and landing,
+	# alarms, shots and blasts.
+	await load("res://tests/bird_checks.gd").new().run(self, city)
 	# The ambience mixer (tests/ambience_checks.gd): layers per place, hour and weather, fades,
 	# ducks, buses. Mixer state only - the Dummy audio driver plays nothing.
 	await load("res://tests/ambience_checks.gd").new().run(self, city)

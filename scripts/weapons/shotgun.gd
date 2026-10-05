@@ -241,6 +241,9 @@ func fire_pellet(from: Vector3, dir: Vector3, people: Dictionary = {}) -> Dictio
 			(hit.collider as Vehicle).take_hit(hit.get("shape", -1), pellet_damage, dir, hit.position, Vehicle.HIT_PELLET)
 			Crosshair.mark_hit(false)
 		WeaponFX.impact(self, hit.position, Color(1.0, 0.85, 0.5), hit.normal, hit.collider)
+	# A bird on the line drops (Birds; no crime, nobody saw a pigeon).
+	if Birds.hit_ray(from, end):
+		Crosshair.mark_hit(false)
 	WeaponFX.tracer(self, muzzle.global_position, end, tracer_color, 0.05, 0.012)
 	return hit
 

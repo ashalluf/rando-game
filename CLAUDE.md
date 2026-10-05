@@ -2601,6 +2601,51 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `STREET_VENDORS=0` turns it off (the A/B). Look with `tools/glshot/vendor_shot.gd` (the stands
   alone, seconds; `NIGHT=1`) and find them with `tools/vendor_probe.gd`; checks:
   `tests/street_vendors_checks.gd`.
+- City birds (VISUAL_ROADMAP #54, 2026-10-04: "nothing alive in the city but people"):
+  `Birds` (`scripts/world/birds.gd`, a Node3D in `city.tscn`, so origin shifts carry it; birds
+  live in its own space). **Nothing is per chunk**: every `survey_interval` it plans flocks round
+  the player from the plan (`_spots_near()`, all hashes of seed + block / 60 m cell + slot, so a
+  plaza always has its flock): pigeons on PLAZA / PARK blocks and landmark sites (12-40), on a
+  downtown / midtown / campus pavement by a corner (`pavement_odds`), crows on a suburban lawn or
+  the block's power line (`_wire_spans()` rebuilds StreetDetail's spans from its constants and
+  `_has_poles()`; `wire_point()` is the very polyline it draws, and a span is only used where a
+  ray finds the pole), sparrows by pavements, gulls on BEACH and PORT cells and on pier decks
+  (OCEAN cells near a `*pier` landmark, a ray must hit a deck). Flocks past `spawn_radius +
+  despawn_margin` are dropped; `max_birds` (Quality scales it), fewer at dusk, none at night or
+  in a storm (`DayNight.lamp_now`). Ground height is a ray from the PLAN's street height (the
+  valley is a plateau 140 m up), rejected over a bench, a car, a roof or a slope. **Behaviour**
+  (plain GDScript, far ground flocks at a quarter rate): walk / peck / stand with separation
+  against two neighbours a frame, one bird a frame re-rays its ground; gulls squabble in pairs;
+  coos, caws and chirps in earshot. **Flush**: the player within `flush` + speed x
+  `flush_speed`, `Birds.startle()` (called first thing in `Pedestrian.alarm()`, so every gun,
+  blast and police round), a car through the flock faster than 6 m/s (a shape query on layer 3
+  at 2 Hz, speed from position deltas - kinematic traffic has no velocity). Takeoff staggered
+  nearest-first with wing claps (Sfx `wings`), a formation flock round an orbit (leader + fixed
+  offsets, glide spells by species), then `_choose_landing()`: a power line, a roof edge (a ray
+  onto a roof, then marched out to where it drops; downtown / midtown pigeons), or open level
+  ground 15-45 m off that is not a carriageway (inside a block rect), a flare and down. **Shot**:
+  `Birds.hit_ray(from, end)` from `AssaultRifle.fire_ray()` and `Shotgun.fire_pellet()` (no
+  physics bodies: segment vs bird spheres, flock bounds first); the bird drops in a puff of its
+  own covert feathers (a one-shot CPUParticles3D from the atlas) and lies `corpse_seconds`; a
+  blast (`Explosion.blast_count` polled) kills within 7 m. No crime, no alarm of its own.
+  **Models** are built in code (`BirdMesh`, `scripts/world/bird_mesh.gd`: lofted body along a
+  curved spine, eyes, legs and toes, feather cards cut from painted feathers - secondaries,
+  tertials, primaries fanned to the tip, alula, a covert sheet, the tail fan - at real size;
+  NEAR ~2.1k / MID ~450 / FAR ~100 triangles) with TWO poses per vertex: VERTEX in flight,
+  CUSTOM0.xyz on the ground (wings folded onto the flanks by `_snap()`, primaries crossed flat
+  over the rump, tail closed, legs standing), CUSTOM1 that normal and a weight. Code, not
+  Blender: a glTF cannot carry the second pose. `shaders/bird.gdshader` blends them by
+  INSTANCE_CUSTOM.x, flaps (shoulder + wrist, hand sweep on the upstroke), pecks and bobs the head,
+  walks the legs, recolours pigeon morphs (COLOR.rgb, sRGB, black = the painted bird) and adds the
+  neck / crow sheen; linear on both renderers. Plumage is `tools/birds/make_bird_textures.py`
+  (original procedural art; its atlas layout and spine landmarks are a contract with
+  `BirdMesh.SLOTS` / `S_*`, checked). ONE MultiMesh per species and LOD (12 nodes), the whole
+  buffer written each frame, `custom_aabb` from the birds; FAR casts no shadow. Look with
+  `tools/glshot/bird_shot.gd` (the lineup, seconds; `LOD`, `YAW`, `MORPHS=1`, `CAM`/`LOOK`) and
+  `still_shot.gd BIRD=ground|flush|wire` (`BIRD_SPECIES`, `BIRD_DIST`, `BIRD_COUNT`, `BIRD_FLY`;
+  staging calms the flock against the player, whom a free camera drags along). `BIRDS=0` in the
+  environment removes them. Ambience's gull one-shots come from a real gull when one is in earshot
+  (`Birds.gull_at()`). Checks: `tests/bird_checks.gd`.
 - The hero (owner, 2026-09-24: "Blender with real fingers from scratch AAA studio level"):
   `assets/models/hero.glb`, built by **`tools/hero/`** in Blender 4.2 with MPFB2 from CC0
   MakeHuman assets plus our own tracksuit, rib tank, rope chain, watch, ring, laced sneakers and

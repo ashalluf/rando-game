@@ -2097,6 +2097,8 @@ func _on_body_entered(body: Node3D) -> void:
 static func alarm(tree: SceneTree, at: Vector3, radius: float, screams: int, force: bool = false, crime: String = "auto") -> void:
 	if tree == null or radius <= 0.0:
 		return
+	# The birds hear every shot and blast first (they startle further than people do).
+	Birds.startle(at, radius)
 	var now := Time.get_ticks_msec()
 	if not force and now - _last_alarm_ms < 250 and at.distance_to(_last_alarm_at) < 10.0:
 		return
