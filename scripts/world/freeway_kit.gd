@@ -475,7 +475,8 @@ func build_segments(segs: Array[Dictionary], area: Rect2) -> int:
 		var a: Vector2 = seg.a
 		var b: Vector2 = seg.b
 		var seg_len := a.distance_to(b)
-		if seg_len < 0.5 or not area.has_point(a.lerp(b, 0.5)):
+		# The four-level stack's connectors are StackBuild's.
+		if seg_len < 0.5 or not area.has_point(a.lerp(b, 0.5)) or seg.has("link"):
 			continue
 		built += 1
 		var ha: float = seg.ha
@@ -503,10 +504,16 @@ func build_segments(segs: Array[Dictionary], area: Rect2) -> int:
 		if not full:
 			_traffic_skin(l0, r0, l1, r1, dir, half, run0, seg_len, ri)
 
+		# The four-level stack (FreewayStack): an outer barrier open where a connector touches the
+		# deck, no light standard or gantry under another deck, bents that would stand on a
+		# lower deck replaced by StackBuild's single columns.
+		var stack: FreewayStack = fw.stack
+		var open_side := int(stack.open_edges.get(Vector2i(ri, idx), 0)) if stack else 0
+		var under := stack != null and stack.covered.has(Vector2i(ri, idx))
 		_girder(a3, b3, nrm, half, run0, run1)
-		_barriers(a3, b3, nrm, half, run0, run1)
-		_markings(a3, b3, nrm, dir, lay, idx, run0, run1, ri)
-		if idx % pillar_every == 0:
+		_barriers(a3, b3, nrm, half, run0, run1, open_side)
+		_markings(a3, b3, nrm, dir, lay, idx, run0, run1, ri, open_side)
+		if idx % pillar_every == 0 and not (stack and stack.skips_bent(plan, ri, idx)):
 			var ground := plan.height_at(a)
 			# A bent standing in the river's channel goes down to the channel's floor (LaRiver).
 			if plan.macro and plan.macro.river:
@@ -515,11 +522,11 @@ func build_segments(segs: Array[Dictionary], area: Rect2) -> int:
 			var cap := ha - Freeway.DECK_THICKNESS - 0.12
 			if cap - ground > 1.5:
 				_bent(Vector3(a.x, ground, a.y), cap, dir, nrm, half, idx / pillar_every)
-		if idx % LIGHT_EVERY == 1:
+		if idx % LIGHT_EVERY == 1 and not under:
 			_light_standard(a3, dir, nrm, ri)
-		if idx % gantry_every == 0:
+		if idx % gantry_every == 0 and not under:
 			_gantry(a3, dir, nrm, half, lay, ri, idx, fw)
-		if full:
+		if full and open_side == 0:
 			_furniture(a3, b3, dir, nrm, lay, idx, ri, run0)
 	return built
 
@@ -540,10 +547,12 @@ func _girder(a3: Vector3, b3: Vector3, nrm: Vector2, half: float, run0: float, r
 
 ## New Jersey-profile barriers: both deck edges (single-sided, the outer face flush with the
 ## fascia) and the median (double-sided). Flag 1 on the faces the traffic sees (tyre scuffs).
-func _barriers(a3: Vector3, b3: Vector3, nrm: Vector2, half: float, run0: float, run1: float) -> void:
+func _barriers(a3: Vector3, b3: Vector3, nrm: Vector2, half: float, run0: float, run1: float, open_side := 0) -> void:
 	var col := kind_color(CONCRETE, S_BARRIER)
 	var h := BARRIER_H
 	for side: float in [-1.0, 1.0]:
+		if int(side) == open_side:
+			continue
 		var toe := half - BARRIER_BASE
 		var pts := PackedVector2Array([Vector2(toe, 0.0), Vector2(toe, 0.075), Vector2(half - 0.24, 0.33),
 			Vector2(half - 0.17, h), Vector2(half, h), Vector2(half, 0.0)])
@@ -559,7 +568,7 @@ func _barriers(a3: Vector3, b3: Vector3, nrm: Vector2, half: float, run0: float,
 
 
 ## Lane markings on both carriageways. The + side (along +nrm) carries traffic heading +dir.
-func _markings(a3: Vector3, b3: Vector3, nrm: Vector2, dir: Vector2, lay: Dictionary, idx: int, run0: float, run1: float, ri: int) -> void:
+func _markings(a3: Vector3, b3: Vector3, nrm: Vector2, dir: Vector2, lay: Dictionary, idx: int, run0: float, run1: float, ri: int, open_side := 0) -> void:
 	var inner: float = lay.inner
 	var lw: float = lay.lane
 	var edge: float = lay.edge
@@ -569,7 +578,8 @@ func _markings(a3: Vector3, b3: Vector3, nrm: Vector2, dir: Vector2, lay: Dictio
 		var face := -dir * side
 		# Left edge: solid yellow; right edge: solid white.
 		strip(a3, b3, nrm, inner * side, 0.12, 0.0, 1.0, run0, run1, yellow, face)
-		strip(a3, b3, nrm, edge * side, 0.15, 0.0, 1.0, run0, run1, white, face)
+		if int(side) != open_side:
+			strip(a3, b3, nrm, edge * side, 0.15, 0.0, 1.0, run0, run1, white, face)
 		# The carpool lane's buffer: a double yellow between lanes 0 and 1.
 		var hov := inner + lw
 		for o: float in [-0.12, 0.12]:

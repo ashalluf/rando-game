@@ -289,7 +289,7 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
-- **2026-10-05 Freight trains run the Alameda corridor (VISUAL_ROADMAP #63).** The invented
+- **2026-10-05 Freight trains run the Alameda corridor (VISUAL_ROADMAP #?).** The invented
   Arroyo Pacific's double track runs down Alameda St, the real corridor's street, from a covered way
   at the port north through the industrial district: at street level in the median past gated
   crossings, then in a ten-metre trench under every cross street (decks; the ramps sever a few
@@ -300,6 +300,186 @@ already mapped so milestone 2 is script-only.
   terrace, like the river's) so the trench never digs under the city's ground plane. Chosen over a
   right of way through the blocks: Alameda is pinned on every seed and runs past the port, its
   junctions give TrafficManager's stop rule something to hold, and no lot moves outside the yard.
+- **2026-10-05 City acoustics: spaces, gunfire echo, footsteps by surface, the newest systems'
+  sounds (HANDOFF "City acoustics").** The city had one street-canyon reverb, no echo, no
+  footsteps, and the bus, the light rail, the river and the parks were silent. Decisions: the
+  acoustic SPACE is worked out from the probe Ambience already ran (eight wall rays, one up) plus
+  plan maths (the river's channel, the light rail's tunnel and trench), as weights over ten
+  presets blended onto the one World reverb - no reverb zones placed by hand, no Area3Ds; gunfire
+  echo is delayed copies of the shot's own take on a new Echo bus, timed from the same wall
+  distances (a slap-back downtown, a rolling tail in the hills, nothing on the beach), hooked in
+  `Sfx.play()` so no weapon changes; footsteps follow the animation's foot contacts, not a timer;
+  the light rail's motor whine and wire hum are synthesized (the CC0 candidates were synthesized
+  tones themselves, and a whine must track the train's speed). Everything new is CC0 (Freesound
+  pages checked one by one, Kenney's Impact Sounds), 1.6 MB.
+
+- **2026-10-05 The hero moves like a protagonist (VISUAL_ROADMAP #64, HANDOFF 9bv).** He had
+  three clips (idle, walk, run) and a frozen stride in the air. Now: the moves library
+  (`tools/hero/hero_clips.gd` retargets Quaternius' CC0 Universal Animation Library onto his
+  54-bone rig in Godot - the take-off, the air, the landing, the hero landing, the roll, the
+  sprint - and KEYS four idle variants over the library's idle, because the free files have none)
+  and `HeroMotion`, a procedural layer first in his skeleton's modifier stack (the flight and fall
+  poses, the hit flinch as a spring, foot IK). Decisions: the gun stays in his right hand through
+  every move (there is no holster mesh; the "draw" brings the new gun up from the hip), and the
+  LEFT arm got its own IK so a move can take it off the gun (the watch, the stretch, flight,
+  falling, rolling); a raised gun (aiming or firing) always wins over a move. Flight lays the
+  whole body along the velocity about the hips and banks it into turns; the right fist - the gun
+  - goes out ahead of the head. Landings follow LandingFX's scale: from 30 m/s the knees take it,
+  from 60 m/s the hero landing, and a hard landing at a run rolls. The police officers'
+  Avatars (crowd rigs) keep the old three clips.
+- **2026-10-05 Photo mode (VISUAL_ROADMAP #67, HANDOFF 9by).** P (pad: right stick click)
+  freezes the world with the tree paused AND `Engine.time_scale` 0 (that is what stops shader
+  TIME at runtime), flies a camera of its own so the depth of field and exposure never touch the
+  player's, keeps it within 140 m of the player because nothing streams while frozen, and grades
+  by rewriting the scene's own look LUT rather than adding a post pass, so a grade is on top of
+  the game's look and costs nothing. Built by the pause menu beside itself (no city.tscn edit);
+  everything it changes is snapshotted on opening and put back on leaving.
+- **2026-10-05 Police stations the cruisers come out of (VISUAL_ROADMAP #68, HANDOFF 9bz).**
+  The police arrived from nowhere along a street. `PoliceStation` places a divisional station per
+  1.5 km cell (a hash of seed + cell; MIDTOWN or downtown off its tower core, never a landmark's,
+  the river's or the fire station's block, ground level within 0.9 m) on a run of whole lots along
+  one street, claimed after every existing roll, and the headquarters on the whole block across
+  1st St from City Hall (eight storeys; an original modernist slab, not the real building).
+  Decisions: (1) a site is whole lot-grid cells, so nothing half-overlaps a neighbour, and a site
+  never takes a courtyard lot (those build their garden before any claim is asked); (2) the
+  parked cruisers are the sedan's far twin in the livery in one MultiMesh, not Vehicles (a
+  Vehicle is ~35 ms to build and a physics body); (3) dispatch out of a gate is scripted, not
+  physics: the cruiser is driven along the station's drive (`PoliceCar.scripted`) and joins the
+  lane exactly where traffic would, so it never fights the fence; (4) only cruisers within
+  `station_reach` (520 m) of the player come from a station, one through a gate at a time - the
+  street arrival stays for everything else, so the response time is unchanged.
+
+- **2026-10-05 Rando Pier becomes an amusement park, Gullwing Park (VISUAL_ROADMAP #69, HANDOFF
+  9ca).** The `pier` landmark (the map's Santa Monica) was primitives; it is now `PierPark`: a
+  timber pier with a park platform on its south side and a strip on its north side, a spoked
+  Ferris wheel, the KELP CRACKER steel coaster looping the platform, a carousel, an arcade,
+  bumper cars, stands, game booths, string lights and arches - a Santa Monica-style FORM with
+  every name invented. Decisions worth knowing: the rides move in the VERTEX SHADER from TIME
+  (wheel, carousel, bumper cars), so nothing ticks per frame and the far copy turns too; the
+  coaster's train is placed from a ride table worked out once (never integrated per car); the
+  layout is one set of constants in the park's frame that the checks hold apart, the crowd walks
+  a graph that never crosses a ride; everything is code on one shader with the surface kind per
+  vertex; shadows come from the rides' far meshes and lights cast none. The pier's deck height,
+  lamp line and anchor did not move.
+- **2026-10-05 A small-craft marina between the beach town and the airport (VISUAL_ROADMAP #70,
+  HANDOFF 9cb).** The coast had no harbour for small boats. `Marina` (a pure plan from the coast
+  and the street grid) and `MarinaBuild` (a chunk's share) lay out the form of LA's big marina on
+  nine blocks south of Venice's boardwalk: a basin behind the sand on a raised terrace with
+  bulkheads, docks on pilings with ~160 code-built boats (BoatMesh: sailboats, motor yachts,
+  sport fishers, runabouts) bobbing in boat.gdshader, an entrance channel cut through the beach
+  between rubble jetties with lights on their heads, a detached breakwater offshore, the coast
+  highway over the channel on a bridge (its own strip gapped), towers, restaurants, car parks and
+  a boat yard with a travel lift; three runabouts motor round the channel. Decided: the basin's
+  water stands at the sea's level over the GroundBody (you wade, as in the sea) rather than a
+  sunk floor with collision exceptions; the bridge clears 3.9 m, so the sailboats stay inside
+  (a fixed span keeps the highway drivable; a bascule is a later job).
+
+- **2026-10-05 What a big blast leaves behind (fleet task "explosions", VISUAL_ROADMAP #71).**
+  A rocket left a 14-second scorch. Now trees and palms catch (from the blast, a burning car, a
+  neighbour), burn and stay charred; big fires send smoke columns up hundreds of metres; a blast
+  leaves a crater, heaved slabs and rubble for minutes, dust off the roofs and leaves off the
+  trees; parked cars' alarms go off with their hazards. Decisions: (1) the trees are known from
+  the chunks' own batch data (no physics shapes, nothing per tree at rest); (2) a burnt tree is a
+  CHARRED COPY of the same mesh with burnt materials, swapped under the flames, rather than a new
+  model; persistence through WorldState like destroyed props; (3) a smoke column is one mesh
+  placed entirely in its shader, so a column visible across the basin is one draw; (4) car alarms
+  are real CC0 recordings (Freesound), not synthesised.
+- **2026-10-05 Planting that grows ON things: bougainvillea, ivy, creeping fig, star jasmine,
+  pergola vines, trumpet vine and garden accents (VISUAL_ROADMAP #73, HANDOFF "Climbing plants").**
+  LA walls and fences read as bare boxes; `ClimbingPlants` grows leaf and bract cards in code on
+  the walls a FULL chunk already built (YardFill's walls and fences, house faces with their
+  openings, car-park walls, low-rise Building walls, utility poles) and builds pergolas over
+  some back-yard decks. Decisions worth knowing: cards, not models - a plant has to follow the
+  wall it is on, spill over its coping and frame its windows, which a placed model cannot; one
+  painted atlas and one shader for every species, so a chunk is a few tiles of meshes, not a
+  batch per species; the atlas needs dense MASS cells as well as sprigs (sprigs alone, at any
+  density, read as sticks and a trellis); meshes are 64 m tiles because a node's visibility range
+  is measured to its bounds' centre; the step moves itself behind the deferred steps, because
+  YardFill lays its walls in deferred steps; front walls and house fronts are planted on their
+  street side more often (people plant the front for show); nothing at LOD or in the far city.
+  Every roll is a hash of seed + wall / face / pole / bed; `CLIMBERS=0` is the A/B.
+
+- **2026-10-05 Twenty people in the crowd, not twelve (VISUAL_ROADMAP #75).** On a downtown
+  pavement with 200+ people the same twelve bodies repeated within a glance. Eight more,
+  `crowd_m..t`, built by the same pipeline and contract, picked for what the twelve lacked: a
+  stooped older man in a windbreaker, a short older South Asian woman in a cardigan and midi skirt,
+  two teenagers (hoodie and joggers; tee and skirt), a heavy tall man in a polo and shorts, a
+  young woman in a hijab-style headscarf, a very short worker in a hi-vis vest over a tee, a very
+  tall woman in a striped shirt. The new garments (hoodie, cardigan, polo, joggers, skirt, vest,
+  headscarf) are ours, modelled on each body in tools/crowd/garments.py and painted by
+  garment_paint.py, like 9av's. Decisions: a headscarf is part of the body (region `keep`), not a
+  hair mesh - it is solid cloth that casts a shadow and must survive into the welded mid / far
+  bodies, which drop the hair; its wearer never rolls a hat; the camp figures stay on the first
+  twelve rigs, so the loading screen does not bake forty more poses; no new rig is a police or
+  fire crew model. Cost in docs/HANDOFF.md 9cg.
+- **2026-10-05 Public schools and the school bus (VISUAL_ROADMAP #76, HANDOFF 9ch).** LA's
+  neighbourhoods are full of schools and the game had only Parks' few campuses. `Schools` puts one
+  in most 640 m map cells of the suburbs, midtown and the beach town from a hash of seed + cell, on
+  a block nobody else claimed, AFTER every roll (so no seed moves). Decisions: (1) an elementary
+  school is one block; a high school is a row of two or three blocks with the local streets
+  between them CLOSED (through `CityPlan.road_open()`, as MacArthur Park closes its roads) - one
+  block is never big enough for a stadium, and that is how LA's high schools sit on the grid;
+  (2) the ground and the sports kit reuse Parks' ground and walls meshes (no new draws for them),
+  the buildings are one new mesh a chunk with a traced classroom behind every window; (3) NO
+  CHILDREN anywhere - the brief ruled out scaled-down adult rigs, so the campus has the empty look
+  of a school in class time and the school buses' rows are empty; (4) the school bus is a
+  Blender-built Type D (the transit-style bus California districts run), a new
+  `BodyType.SCHOOL_BUS`: parked in each school's kerb loading zone as real, drivable Vehicles, and
+  in street traffic near schools at the morning and afternoon bell only; (5) every name is
+  invented (school names, mascots, RANDO UNIFIED SCHOOL DISTRICT); a mural wall is left primed for
+  the murals pass.
+- **2026-10-05 An AAA sky (VISUAL_ROADMAP #77, HANDOFF 9ci sky).** The cumulus were one painted
+  fbm layer; they are now a raymarched VOLUME on Forward+ (a slab 1.45-3.15 km up, a weather map
+  and a Perlin-Worley volume made by `tools/sky/make_cloud_noise.py`, a light march toward the sun
+  or the moon), run in Godot's half-resolution sky pass so it costs a few per cent of a frame.
+  Decisions: the Compatibility renderer (web) and Forward+ below MEDIUM keep the painted deck (no
+  half-res pass there, and the march is too heavy for one web thread); the high jets are the
+  sky's own (SkyExtras), not AirTraffic's, which fly under 1.5 km where no trail forms; a trail is
+  one straight segment worked out from the jet's track and the wind, never a list of points; the
+  moon's phase comes from an in-game date (`DayNight.moon_age_days`, `day_count`) and its place
+  follows from it, replacing the fixed `moon_offset_hours`; moonlight's energy scales with the
+  phase, normalised so the default gibbous night is unchanged; the light dome is worked out from
+  the map round the camera (zones on three rings, pulled toward downtown), not authored.
+- **2026-10-05 The map: one painter for the minimap and a full-screen map, a waypoint and a GPS
+  (VISUAL_ROADMAP #78, HANDOFF 9cj).** The minimap drew blocks, roads and pins, and had no
+  freeways, rail or hill shading; there was no full map. Now `MapPainter` draws both from
+  CityPlan data at any scale, with the mountains and sea painted by a canvas shader from the
+  horizon plane's own basin bake (not a second bake). The full map pauses the game, like GTA's.
+  Decisions: (1) the map's key is M and the pad's Back. Respawn's pad button moves from Back to
+  L3, since the brief asked for Back and respawn is rare. (2) The GPS uses the street grid only.
+  The freeways are drawn but not routed: the grid is the graph StreetRoute and
+  traffic already use, and routing onto a deck would need its ramps linked into it. (3) Shields carry the game's own route numbers (`FreewayKit.ROUTE_NUMBERS`) on an
+  original teal badge. (4) The waypoint beacon ignores fog and widens with distance so it reads
+  across the basin; it is world-space, not HUD, so the hidden-HUD stills still show it.
+- **2026-10-05 Los Angeles weather: the marine layer, the Santa Ana, heat haze (VISUAL_ROADMAP
+  #79, HANDOFF 9ck).** Clear / overcast / rain / storm is any city's weather; LA's own is
+  June gloom and the Santa Ana. Decisions worth knowing: (1) the marine layer's position is ONE
+  number of the hour (`LaWeather.edge_x()`: the deck covers everything west of it), so the deck
+  shader, the Environment, DayNight and the tests agree, and its burn-off and evening return are
+  a schedule, not a simulation - inland first in the morning, back in off the sea as a LOW fog
+  bank at evening; (2) the deck is two camera-following planes plus a ribbon stood on the edge in
+  the vertex shader, fogging themselves (`fog_disabled`) because Godot's height fog is what fades
+  the towers into the deck and would otherwise erase the deck too; the height fog runs with a
+  NEGATIVE density under the deck (thicker going up) and is put back to city.tscn's ground haze
+  everywhere else; (3) the Santa Ana is mostly light and air (fog to almost nothing, a deep sky,
+  warm dust) plus a steady lean of every tree through a new `wind_lean` global, and its brush fire
+  is purely visual (a smoke column and a glow on a hash-picked crest of the front range); (4) the
+  heat haze reads the screen and so follows the explosion shimmer's rules: render_priority MIN,
+  Forward+ desktop only, HIGH and MEDIUM only; (5) the auto roll weights the marine layer by the
+  hour (common overnight and in the morning) and both new states last several rolls long.
+- **2026-10-05 Broadway's theatre district (VISUAL_ROADMAP #80, HANDOFF "Broadway").** Downtown's
+  Broadway between 3rd St and Olympic is pinned 1:1, so its movie palaces are placed by their REAL
+  house numbers (a data table, `Broadway.THEATRES`) and take the Broadway-fronting lot of the
+  seeded block there, claimed after the lot's rolls like a fire station - real forms, invented
+  names, shows and shops. Decisions: (1) a palace fills its lot's whole frontage (lots are 30-78 m;
+  the real palaces' are narrower) with brick commercial wings either side of its ornamented
+  pavilion rather than leaving part of the lot to a seeded Building; (2) every lit or painted thing
+  on a palace's street front is one surface on one shader (bulb chase, neon, spelled-out letters,
+  boards, terrazzo by vertex alpha), so a palace is a handful of draws; (3) Broadway's other
+  buildings keep every roll and are only dressed (masonry, 46 m limit, a shop-name pool appended
+  after the old 30 names so no other building's sign moves); (4) its lamps reuse the chunk's lamp
+  slot, so prop ids and destruction memory are unchanged.
+
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it
@@ -616,7 +796,8 @@ already mapped so milestone 2 is script-only.
   pass, along the inland foot and up the north flank. Estates got driveways, gates, retaining
   walls that follow the ground and pools beside the house. docs/HANDOFF.md 9ay.
 
-- **2026-10-05 Five more everyday car bodies, so the street stops repeating (VISUAL_ROADMAP #59).**
+- **2026-10-05 Five more everyday car bodies, so the street stops repeating (VISUAL_ROADMAP #65).**
+- **2026-10-05 Five more everyday car bodies, so the street stops repeating (VISUAL_ROADMAP #77).**
   A 5-door compact hatchback, a full-size three-row SUV, a minivan with sliding doors, a taxi
   (the sedan with a lit roof sign, the invented company BASIN CAB on its doors and a fare in the
   back) and an older beater (a 1990s notchback with another car's door, a primer patch, a chalky
@@ -635,6 +816,36 @@ already mapped so milestone 2 is script-only.
   pigeon's near body is a denser loft with welded normals, its folded wing shades with the body,
   and every wing and tail has an underside of its own (a pigeon's grey underwing, a gull's white).
   docs/HANDOFF.md 9bs.
+- **2026-10-05 The container terminal works (VISUAL_ROADMAP #65).** The cranes over the moored
+  ship dual-cycle - a yard tractor pulls in with an export box, the spreader lifts it into the
+  ship's bay, takes an import box out of the next slot and sets it on the same chassis, the
+  tractor drives off round the yard and the crane's second tractor pulls in - the gantries
+  shuffle boxes between stacks, straddle carriers drive the aisles, and the north-west corner is a
+  truck gate (booths, an OCR portal, a canopy with an invented terminal name) with drayage semis
+  queued in its lanes. All of it is worked out from a clock, never simulated, so it costs a few
+  MultiMesh draws; LOD chunks keep the still poses. Lamps, beacons and deck lights at night; the
+  clanks come from the real cranes. docs/HANDOFF.md (port life); CLAUDE.md "Port life".
+- **2026-10-05 A canal neighbourhood behind the boardwalk (VISUAL_ROADMAP #66).** MARISOL
+  CANALS (original name; canals Heron, Lantern, Mariner, Juniper, Coral) takes the 2 x 2 blocks
+  inland of the boardwalk as a site like MacArthur Park: the streets inside are closed (no cars),
+  the four round it stay open as its residential ring. Two canals north-south and three east-west,
+  15 m bank to bank, shallow still water below the city's ground box (bodies pass through it while
+  in the water, as at the lake), sloped planted banks, a walk each side, an arched white footbridge
+  on every stretch, docks with rowboats, kayaks and canoes. The houses are HouseKit's, fronted on
+  the canal with no garage (no street reaches them), modern boxes with a wall of glass to the
+  water; small gardens down to the walk behind picket, stucco or slat fences. The water's mirror of
+  the houses is worked out in its shader (the house fronts as planes), because SSR cannot see them
+  and the web has none. Claimed after every roll (no block seed moves; the blocks beside it lose
+  a rolled plaza or rec park, as round MacArthur Park). Canals.
+
+- **2026-10-05 Buildings take damage, as data (VISUAL_ROADMAP #74).** A round crazes a window and
+  a second takes it out (shards, the glass Sfx, glass on the pavement, the room open behind the
+  frame); rounds scar stone and render; a blast blows out the windows round it and punches a hole
+  through a solid wall (a traced burnt room behind a broken edge, soot, rim and rebar, rubble).
+  Kept as a short list of records per building in WorldState, read by building.gdshader, so a
+  building keeps its damage through streaming and an undamaged one costs nothing. Never on a
+  place of worship. docs/HANDOFF.md 9cf; CLAUDE.md "Building damage".
+
 - **2026-10-04 The city answers the chaos with fire engines and ambulances (VISUAL_ROADMAP #55).**
   A burning car or wreck, a big blast or a body on the street opens a call; the nearest fire
   station (one per ~850 m cell, hash-placed on a real lot, bay doors that roll up) or a street
@@ -653,6 +864,14 @@ already mapped so milestone 2 is script-only.
   and lit offices by the hour (`city_hour` global). No new node per block: an additive skin per
   LOD freeway chunk is the only new draw. docs/HANDOFF.md "The night aerial"; CLAUDE.md "Night
   aerial".
+
+- **2026-10-05 The 110 and the 101 meet in a four-level stack (VISUAL_ROADMAP #81).** At the
+  real four-level interchange the two decks used to just cross. Now the 110 is level 1 and the
+  101 level 4, with the four left-turn connectors on levels 2 and 3, banked, on single hammerhead
+  columns, lit in curving rows, leaving and joining their main lines through openings in the
+  barrier; traffic turns onto them. The stack is tall (~26-50 m) because the 101 climbs to the
+  pass at the grade limit from there: both main lines are held level through the stack (raise
+  only). docs/HANDOFF.md (the stack section); CLAUDE.md "The four-level stack".
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north

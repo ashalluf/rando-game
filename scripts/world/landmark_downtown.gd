@@ -158,6 +158,8 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, detaile
 	body.mesh = t.mesh
 	body.position = at
 	parent.add_child(body)
+	if statics:
+		BuildingDamage.restore_tower(body, id)
 	if detailed and t.detail != null:
 		var extra := MeshInstance3D.new()
 		extra.name = "Detail_" + id
