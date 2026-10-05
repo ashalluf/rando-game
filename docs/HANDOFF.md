@@ -7124,3 +7124,30 @@ night), the shader's wobble mirror, forcing each state (DayNight hooks, negative
 shadowless light, the deck drawn / hidden, clearer air, the lean's direction, the fire on a
 front-range crest), heat by hour and weather and only where drawable, the roll's odds by hour, a
 splash on a car's roof, the menu's chips.
+
+**Frame cost** (`tools/geo_count.gd`, opengl3 + Xvfb, 800x600, the default spawn, `AB=` the new
+nodes hidden in the same frozen frame): the marine layer's three draws (deck under, deck top, fog
+bank) 1 draw and 2 triangles in that view (3,659 -> 3,658 draws, 3.65 M triangles either way);
+the Santa Ana's smoke column, glow card, litter and dust 3 draws and ~400 triangles (3,448 ->
+3,445, 3.6413 -> 3.6409 M); the roof splashes 1 draw (no car in reach there). Clear at 15:00 is
+3.64 M / 3,443. The heat haze is one full-screen quad on Forward+ that discards outside the
+horizon band; not measurable on opengl3 (it is never built there).
+
+**Stills** (branch `shots/weather`, opengl3, before = `--weather=clear` from the same eye): the
+skyline from the south-west at 09:00 under the deck (grey ceiling, tower tops and the mountains
+into it, soft shadowless light) and at 15:00 burnt off; the beach by the pier at 18:30 with the
+fog bank low on the sea, and the same bank from the front range rolling along the coast; a
+midtown palm street at 15:00 in a Santa Ana (deep sky, warm light, the smoke column off the
+ridge); the brush fire at 22:00 from over midtown and from the palm street. EYEs in its README.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the grey under the deck and the Santa
+Ana's warm cast through AgX and the auto exposure, the volumetric fog under the deck, the fire's
+OmniLight on the slope, and the heat shimmer at all (Forward+ only). The tree lean is in the
+foliage shaders only: grass, hill shells and the palms' far canopy blobs do not lean; no flags
+fly. The Santa Ana has no sound of its own (ambience.gd is the audio session's: a gusting wind
+bed keyed to `Weather.santa_ana_weight` is the hook to add). The deck's edge is a straight line
+north-south plus a wobble, so in the south (the peninsula, the bay) it does not follow the coast;
+the evening bank is a ribbon along that line and crosses the headland. Under the deck the far
+city and the mountains fade by Godot's height fog; the far ground plane's own haze is not told
+about the deck. Drips off awnings not done (see above). Sea-level fog on the streets as the bank
+comes ashore is depth fog only (no ground-hugging volume).
