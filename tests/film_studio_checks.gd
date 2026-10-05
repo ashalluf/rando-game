@@ -18,6 +18,8 @@ const MESH_BUDGET := 90000
 
 func run(t: Node, city: Node3D) -> void:
 	_t = t
+	if not FilmStudio.enabled:
+		return  # FILM_STUDIO=0, the A/B: there is no lot to check.
 	var plan: CityPlan = city.plan
 	var lay := FilmStudio.layout(plan)
 	_t._check(not lay.is_empty(), "the film studio lot has a site on the plan")
