@@ -1865,6 +1865,9 @@ func _test_city() -> void:
 	# Wilshire's deco boulevard (tests/wilshire_deco_checks.gd): the pure plan, a deco chunk's meshes,
 	# collision and far boxes, nothing else on the block moved.
 	load("res://tests/wilshire_deco_checks.gd").new().run(self, city)
+	# Memorial parks (tests/cemetery_checks.gd): placement, purity, the closed streets, the plan,
+	# the sanctuary zone over it at FULL and LOD, nothing breakable, the far city's lawn.
+	await load("res://tests/cemetery_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

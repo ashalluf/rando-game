@@ -2367,6 +2367,10 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = block.seed
 	var steps: Array[Callable] = [_block_surface.bind(block, params, rng)]
+	# A memorial park (Cemetery): its own hash-seeded plan replaces everything else of the block.
+	if CemeteryBuild.wanted(self, block):
+		steps.append_array(CemeteryBuild.steps(self, block))
+		return steps
 	match block.kind:
 		CityPlan.BlockKind.PARK:
 			if Parks.wanted(self, block):

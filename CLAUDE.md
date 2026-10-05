@@ -3064,6 +3064,22 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   cooldown spent. Rockets that reach it fizzle (`Rocket.fizzle()`), and bullet holes and scorch
   marks skip it whoever fired. Never route a new weapon around `Weapon.tick()`, and give any new
   place of worship the same zone.
+- Memorial parks (2026-10-05, fleet task "cemetery"; docs/HANDOFF.md, the memorial park section):
+  `Cemetery` (`scripts/world/cemetery.gd`) claims a 2 x 2 (or 2 x 1) group of SUBURBS blocks per
+  `CELL` (1.5 km) from hashes and the ROADS alone (`decide()`: never `CityPlan.block()`, so the
+  answer is order-independent; Parks' role checked through `_rolled_kind()`), marks them PARK with
+  grounds "cemetery" in `CityPlan.block()` BEFORE Schools' hook and closes the inner streets
+  (`road_closed()` in `road_open()`). The plan is pure (`plan_for()`): a rise (`height()`), a
+  loop drive, a Mission chapel by the gate, a classical mausoleum on the crown, an old section,
+  trees, the stones (`graves()`, ~3,000). `CemeteryBuild` builds each chunk's part (the hook is
+  the top of `CityChunk._block_steps()`, which it replaces): lawn mesh, drive, wall with the
+  cut-out iron fence (`cemetery_fence.gdshader`), the lit gate with the name in gilt letters,
+  LandmarkGeo buildings, one batch per stone kind (`CemeteryKit`, `cemetery_stone.gdshader`),
+  code-built cypresses (`cemetery_cypress.gdshader`), lanterns, visitors (`CemeteryVisitor`),
+  the outer pavement's lamps and trees. **A sanctuary**: all collision in one sanctuary body, a
+  zone over each chunk's part at FULL and LOD; nothing breaks. `CEMETERY=0` is the A/B; probes
+  `tools/cemetery/probe.gd` (`EYES=` heights on the rise) and `build_probe.gd`; checks
+  `tests/cemetery_checks.gd` (`tools/cemetery/checks_only.tscn` alone).
 - Autoload `WorldState`: `world_offset` (local + offset = true world position, use `to_world()` /
   `to_local()`) and the destroyed-prop registry (`mark_destroyed`, `is_destroyed`).
 - Anything that must survive origin re-centering has to be a 3D child of the scene root (the

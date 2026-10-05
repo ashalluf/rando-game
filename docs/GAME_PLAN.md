@@ -317,6 +317,18 @@ already mapped so milestone 2 is script-only.
   Part i stays box i (the end pieces go last), so every check on the far boxes holds.
   `FAR_CORNERS=0` is the A/B. Notches and setbacks needed nothing: an L and every tier are parts.
 
+- **2026-10-05 Memorial parks (fleet task "cemetery"; HANDOFF, the memorial park section).** A
+  lawn cemetery on a gentle hill in the suburbs. Decisions: a park takes a 2 x 2 (or 2 x 1) group
+  of blocks and closes the streets between them (a single suburban block is ~50 x 80 m, too small
+  for a rise with a loop drive, a chapel and a mausoleum); WHERE is decided from hashes and the
+  road grid alone, never from `CityPlan.block()`, so no load order can change it, and Schools see
+  the mark before they decide; the rise is the park's own lawn mesh over the block's pavement (no
+  change to the map's relief: the streets round it stay where they were); every stone is one of
+  eleven code-built meshes on one shader in one batch per kind (flat bronze markers flush with the
+  turf, an old section of marble, gothic and granite stones round obelisks, columns and family
+  monuments); the Italian cypress is code-built (the hill fir narrowed read as a stick); the park
+  is a sanctuary, as the masjid is: no shot at it, into it or from inside it, and nothing in it
+  breaks. Names invented. `CEMETERY=0` is the A/B.
 - **2026-10-05 City acoustics: spaces, gunfire echo, footsteps by surface, the newest systems'
   sounds (HANDOFF "City acoustics").** The city had one street-canyon reverb, no echo, no
   footsteps, and the bus, the light rail, the river and the parks were silent. Decisions: the

@@ -9183,3 +9183,126 @@ stills are opengl3); the change is geometry and normals only, no colour arithmet
 boxes' parapets are still the box raised to the parapet's top with a painted ring (the roof deck
 is not dropped inside it): from 2-5 km a 1 m parapet is under a pixel. The landmark towers'
 far meshes are another session's (far-landmarks).
+
+## 9ct. Memorial parks: a lawn cemetery on a gentle hill, 2026-10-05 (agent branch `wt/cemetery`; VISUAL_ROADMAP #88)
+
+Fleet task "cemetery": "a memorial park on a gentle hill: lawn cemetery with flat markers in rows,
+some upright headstones and older monuments, mausoleum, mature trees and a chapel, a winding road,
+lit gate. Respectful: the Sanctuary zone covers it, no damage effects. Site claimed by hash in the
+suburbs." Stills on `shots/cemetery`.
+
+### What it is
+
+- **Where** (`Cemetery`, `scripts/world/cemetery.gd`): the map is cut into `CELL` (1.5 km)
+  squares; up to `TRIES` hashed points a cell (each wanted at `ODDS`) must land in SUBURBS, and the
+  block under the point plus one, two or three neighbours (a 2 x 2 first, its corner from the hash,
+  then 2 x 1 either way) must all be eligible: Schools' list (zone, downtown, landmarks, freeway,
+  light rail, the approach, the replica, sites, the river, the marina, a fire station's block) and
+  no Parks role for the kind the block's own first roll gives (`_rolled_kind()`: the same stream
+  `CityPlan.block()` reads). The site (inside the outer pavements, over the closed streets) is
+  95-300 m a side. **Decided from roads and hashes alone, never from `CityPlan.block()`**, so the
+  answer is the same whatever order blocks are asked for in; `apply()` (in `CityPlan.block()`,
+  just BEFORE Schools' hook) marks the blocks PARK with grounds "cemetery" (lots() empty), and
+  Schools, the stations and Parks' people see that. The streets between the blocks are closed
+  (`road_closed()` from `CityPlan.road_open()`: the lawn covers them; the T-junctions on the
+  edge lose their crosswalks like a high school's). Default seed: three parks - HALCYON HILL
+  (blocks 3..4, -22..-21, the valley), LOMA DE PAZ (18..19, -27..-26, the valley) and HOLLYCREST
+  (17..18, 30..31, x 1606, z 4066, south of downtown: the stills).
+- **The plan** (`plan_for()`, pure, cached per cell): the frame is the front street (the widest of
+  the four), `u` along it, `v` in. A rise (`height()`): `H` = 4.5 % of the short side, 2.4-5 m,
+  a superellipse falloff from a crown a little behind the middle to zero `EDGE` (3.5 m) inside the
+  wall, gentle swells; steepest ~15 %. The gate on the front; the drive in from it, round the
+  crown as a wobbling loop (`_road()`, ~3 m points) and back; the mausoleum on the crown facing
+  the gate; the chapel beside the entry on the side with more room; the old section the back
+  corner away from it. Trees (`_trees()`): cypress pairs along the entry, then a jittered 12 m
+  grid thinned in clumps - mature jacarandas and broadleaf (city species at the top of their
+  range), cypress, palms. Lamps every 42 m of drive. The stones (`graves()`): rows every
+  `ROW_PITCH` 2.9 m along the front, 1.3 m apart, an aisle every 7th row and every 16th column,
+  13 % empty plots, a keep-out mask (1 m cells: drive and verges, buildings, trunks, the gate's
+  lane) instead of distance tests; flat bronze-on-granite markers (22 % with a vase of flowers),
+  upright granite mixed into the back half, and the old section - marble tablets (leaning a
+  little), gothic stones, crosses, slants - round monuments on a 7 m grid (obelisks, columns with
+  urns, family monuments, plot copings). ~2,200-3,200 stones a park.
+- **The build** (`CemeteryBuild`, `scripts/world/cemetery_build.gd`; hooked at the top of
+  `CityChunk._block_steps()`, after the block's pavement, replacing the rest of the block: no
+  lots, no sidewalk props, no parked cars, no block walkers). Each chunk builds what stands in its
+  owned rect. FULL: the lawn as a 2 m grid mesh on `PropFactory.lawn()` (mower stripes) with its
+  concave collision; the drive (three asphalt strips across plus concrete edges, following the
+  rise); the wall in 4 m runs (stone with joints, a coping) with iron posts and the picket fence as
+  ONE cut-out quad a run (`shaders/cemetery_fence.gdshader`: square pickets with spear finials,
+  rails, rings; far off it draws every 2nd / 4th picket a pixel wide instead of shimmering); the
+  gate (stone piers with lanterns, two iron leaves standing open, an iron arch with the park's name
+  in gilt letters both ways round, the asphalt apron to the kerb); the chapel (Mission Revival:
+  whitewashed walls with lit windows on a stone base, a clay roof, the curved parapet front with a
+  round window glowing after dark, an arched door up three steps, a bell tower with an open belfry,
+  a bell, a tiled cap and a cross); the mausoleum (stepped base, ashlar cella with panelled bronze
+  doors, four columns, entablature with "IN MEMORIAM", pediments, urns; floodlit); trees; the
+  stones (`CemeteryKit`: eleven meshes, 20-340 triangles, one batch per kind, flat ones shadowless
+  and drawn to 150 m, uprights to 220 m, monuments to 320 m, shadows by reach); lantern posts
+  (every 2nd lit with an OmniLight in `lamp_light` and a pool; the gate's two and the chapel's
+  door lamp too); the closed streets' pavement caps; the outer pavement's street lamps and kerb
+  trees (the block's furniture step does not run); up to three `CemeteryVisitor`s a chunk
+  (`scripts/npc/cemetery_visitor.gd`, a Pedestrian that strolls the drive's verges on the rise).
+  The chapel, mausoleum, gate, wall and lanterns are ONE LandmarkGeo mesh a chunk (a surface per
+  material). LOD: the lawn as a slab, the chapel, its tower and the mausoleum as far boxes, the
+  caps, the sanctuary zone. The far city's capture: the same, without the zone; Skyline plants
+  the plan's trees as canopies (`_add_city_trees()`, three lines).
+- **The stone shader** (`shaders/cemetery_stone.gdshader`, kind in the vertex alpha): polished
+  granite with grain and flecks, sawn / rock-pitched granite, marble with veins, the bronze plaque
+  (patina in the field, border and raised letters rubbed bright), polished granite with carved
+  lettering (rows of stroke letters in the face's metres; faded to their mean under a pixel),
+  flowers (the colour from INSTANCE_CUSTOM.a), lantern glass (lamp_factor), black iron; soot
+  streaks and lichen by INSTANCE_CUSTOM (weathering, lichen, seed), rain gloss from road_wetness.
+  The cypress (`CemeteryKit.cypress()`, `shaders/cemetery_cypress.gdshader`): a lumpy spindle of
+  unit height, clumps from 3D cell noise lit as small domes, a few pale tips, sway with
+  wind_factor. All of it linear on both renderers (color_space.gdshaderinc).
+- **Sanctuary**: every collision shape of the park is in ONE StaticBody3D (`CemeteryBody`) in
+  `Sanctuary.BODY_GROUP`, and each chunk's part of the site carries a `Sanctuary.add_zone()` box 80 m
+  tall at FULL and LOD (not in the capture), so `Weapon.tick()` refuses a shot at it, through it,
+  a blast landing near it, or any shot from inside it; rockets fizzle; nothing leaves a mark.
+  Nothing in it is a breakable prop (the check counts none in the site).
+
+### Tools, checks, A/B
+
+- `CEMETERY=0` in the environment: no park (the blocks are what they were).
+- `tools/cemetery/probe.gd` (headless, a second): every park in a window with its blocks, name,
+  site, rise, an EYE and an AIR view; `EYES="x,z;..."` prints the rise there (block_shot's EYE
+  height is over the plan's ground, not the rise). `tools/cemetery/build_probe.gd [-- ix,iz]`:
+  builds a park's chunks at FULL, LOD and capture and prints steps, the slowest, batches, shapes,
+  lights, zones.
+- `tests/cemetery_checks.gd` (one line in the smoke test; `tools/cemetery/checks_only.tscn` runs
+  it alone in about a minute): placement, purity, closed / open streets, the plan's pieces inside
+  the site, no stone on the drive or a building, the rise, the FULL chunk's lawn / sanctuary body /
+  zone, the guns' rule over the park, nothing breakable, LOD keeps the zone, the capture's lawn.
+
+### Numbers
+
+Frame cost, `still_shot.gd` GEO lines (opengl3, 1280x720, the same eyes and hour 13, `CEMETERY=0` the
+before - the suburb's houses, yards and parked cars that stood there):
+
+| eye | before tris / draws | after tris / draws |
+|---|---|---|
+| the gate from the street `1583.6,13.3,4138.8,-100.9,-3` | 5.12 M / 2,415 | 4.83 M / 1,606 |
+| the lawn rows to the mausoleum `1650,16.4,4148,-90,-3` | 7.10 M / 3,044 | 5.42 M / 2,476 |
+| the old section `1700,18.6,4150,-42,-7` | 6.78 M / 3,025 | 5.24 M / 2,651 |
+| aerial `1540,82,4145,-90,-26` | 2.85 M / 2,096 | 2.81 M / 1,476 |
+
+The park is cheaper than the blocks it replaces. Build (`build_probe.gd`, headless): a FULL chunk's
+steps are all under ~60 ms except the first one that loads a tree species' foliage ladder (warmed on
+the loading screen in game); its stones are ~800-1,200 instances in ~10 batches; an LOD chunk
+8-45 ms in all; the capture under 1 ms. A park is ~3,000 stones (flat markers 20 triangles, a marker
+with a vase 204, uprights 20-100, monuments 30-340).
+
+### Not done / not verified
+
+- Not seen on Forward+ (the Mac): every still is opengl3. The night look (chapel windows, gate and
+  drive lanterns, floodlit mausoleum) needs a Forward+ look. The bright lines the first night still
+  showed on the fence posts are gone (kind codes mid-band, rougher iron); the mausoleum's floodlight
+  read blown out on opengl3 and was halved (0.45) after the last night still.
+- The rise is the park's own lawn mesh: the far city and LOD chunks draw the park flat (a lawn slab),
+  so a 5 m rise appears when the chunk turns FULL (two blocks out).
+- The far city's plates still paint the closed inner streets as roads under the lawn slab.
+- Visitors only stroll the drive; nobody stands at a grave, no flowers are laid, no funerals.
+- The outer pavement has lamps and trees but no parked cars, hydrants or bins (the block's furniture
+  step is skipped for the park's blocks).
+- The minimap paints the park as a park; it does not draw the drive or a glyph.
