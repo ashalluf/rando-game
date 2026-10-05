@@ -551,6 +551,11 @@ static func _do_goto(p: Pedestrian, step: Dictionary) -> bool:
 	if not step.get("sent", false):
 		step.sent = true
 		step.until = _now() + 90000
+		# A few metres along the same pavement: straight there, placed (the ring's own walking
+		# rounds a target off the band's edge and can stop short of it).
+		if Vector2(p.position.x, p.position.z).distance_to(at) < 6.0:
+			_next(p, {"do": "path", "pts": [at]})
+			return true
 		p._go_to(at)
 		p._pause_left = 0.0
 		p._pause_next = 0.0
@@ -564,8 +569,10 @@ static func _do_goto(p: Pedestrian, step: Dictionary) -> bool:
 	if d < float(step.get("best", INF)) - 0.2:
 		step.best = d
 		step.since = _now()
-	elif d < 3.5 and _now() - int(step.get("since", _now())) > 1500:
-		_next(p)
+	elif _now() - int(step.get("since", _now())) > 1500:
+		# Held up by something on the pavement (a lamp post, a bin, somebody standing), or the
+		# ring's walking stopped short: the rest of the way straight, placed.
+		_next(p, {"do": "path", "pts": [at]})
 		return true
 	if _now() > int(step.until):
 		# Never got there (walled in by something on the pavement): off it.
