@@ -7132,7 +7132,10 @@ plan round it). No roll moves.
 **Tools.** `tools/oil_field/probe.tscn` (headless, seconds: the site, the crest, every road's grade and
 cut, the pads, EYEs for close-ups from the lease roads, the claimed lots with street EYEs);
 `tools/oil_field/map_probe.tscn` (an ASCII map of the basin: freeways, zones, districts, sites,
-parks - how the site was chosen). `OIL_FIELD=0` in the environment is the A/B.
+parks - how the site was chosen); `tools/oil_field/topdown.tscn` (a hillshade of the field's relief
+with the drainages tinted, `OUT=`); `tools/oil_field/check_runner.tscn` (the oil checks alone against the
+real city scene, a couple of minutes instead of the smoke test's fifteen). `OIL_FIELD=0` in the
+environment is the A/B.
 
 **Checks** (`tests/oil_field_checks.gd`): the site is CityPlan's snapped rect on midtown city ground,
 clear of the freeways, the airport and its approach; the streets through it closed, its edges open,
@@ -7142,3 +7145,34 @@ table, the pitman's length through a turn, the stroke, the mesh's tags and bound
 meshes, collision and pumpjack batch, a rig chunk's hardware and pools, LOD's far pumpjacks, the
 capture's boxes, the lights mesh; the single wells (industrial and suburban, pure, away from the
 field) and an industrial chunk that builds one.
+
+**Frame cost** (`tools/glshot/still_shot.gd`, opengl3 + Xvfb 1280x720, `--quality=0`, the same
+EYEs with `OIL_FIELD=0` and on; the field replaces sixteen dense midtown blocks, so it is far
+cheaper than what stood there - the point is that it is not dearer):
+
+| EYE | before: triangles / draws | after |
+|---|---|---|
+| the south street, looking in `650,1.7,1995,0,4` (AGL) | 8.13 M / 4,849 | 3.58 M / 724 |
+| golden hour over the field to downtown `470,22,1840,-54,-3` | 8.02 M / 5,270 | 3.52 M / 1,473 |
+| aerial from the south-west `380,170,1960,-42,-24` | 5.89 M / 4,042 | 3.35 M / 1,468 |
+| a pumpjack from its lease road `858.5,1.7,1638.7,-60.3,8` | 8.63 M / 6,044 | 4.56 M / 1,812 |
+
+A FULL field chunk: the ground grid (~5-11k triangles on the terrain material), one dirt mesh,
+the hardware mesh (1-4k; 11.5k for a rig's chunk), one pumpjack MultiMesh (2.4k a unit near,
+170 far). Single wells add one pumpjack, one gravel mesh and one fence mesh to their chunk.
+
+**Stills** (`shots/oil-fields`; opengl3, not the Mac's Forward+): the hill at golden hour with the
+downtown skyline behind it (before / after), a pumpjack mid-stroke at golden hour, another from its
+lease road, the field from the air (before / after), the hill from the south street behind its
+fence (before / after), the rig and the row of pumpjacks at night, a well behind a fence in an
+industrial lot, a pumpjack on a lot between houses.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the terrain's straw and scrub, the paint
+and the dirt under AgX, the rig's lights at night NEED A MAC CHECK. No sound (a pumpjack's slow
+creak and the rig's diesels would carry well - Sfx has nothing fitting yet). No people (no roughnecks
+on the rig, no pumpers' pickups on the lease roads; traffic never drives them). The rig's mast is
+static (no pipe being run). The pumpjacks are a single design scaled 0.78-1.18 (no Mark II or
+air-balanced units). The field's edge reads as a graded bank round the hill (the hand-over ring).
+Single wells in car parks were not done (the lots are LotFill's; a claimed industrial lot reads as
+one). The far city shows the hill as tilted slabs on a planar plate: fine from the basin, stepped
+from the air within a kilometre (inside the LOD ring the real ground draws).
