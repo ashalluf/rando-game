@@ -3008,6 +3008,7 @@ func _add_grass(rect: Rect2, density: float = 1.0, keep_out: float = 0.0, blocke
 	# A big lawn is twenty thousand tufts, so it is planted GRASS_SLICE at a time as build steps
 	# of its own. Its random stream is its own too, so the lawn comes out identical either way.
 	var done := [0]
+	var keys := {}
 	_run_or_defer(func() -> bool:
 		var stop := mini(count, done[0] + GRASS_SLICE)
 		for k in range(done[0], stop):
@@ -3023,17 +3024,25 @@ func _add_grass(rect: Rect2, density: float = 1.0, keep_out: float = 0.0, blocke
 			var sc := rng.randf_range(0.55, 1.6)
 			var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc * rng.randf_range(0.85, 1.2), sc * rng.randf_range(0.7, 1.35), sc * rng.randf_range(0.85, 1.2)))
 			var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.05))
-			_batch.add("grass", blade, Transform3D(basis, Vector3(p.x, SIDEWALK_TOP + 0.05, p.y)), tint, Color(rng.randf(), 0.0, 0.0))
+			var key := "grass_%d_%d" % [floori(p.x / GRASS_CELL), floori(p.y / GRASS_CELL)]
+			keys[key] = true
+			_batch.add(key, blade, Transform3D(basis, Vector3(p.x, SIDEWALK_TOP + 0.05, p.y)), tint, Color(rng.randf(), 0.0, 0.0))
 		done[0] = stop
 		if stop < count:
 			return false
-		_batch.set_no_shadow("grass")
-		_batch.set_draw_distance("grass", grass_distance)
+		for key: String in keys:
+			_batch.set_no_shadow(key)
+			_batch.set_draw_distance(key, grass_distance)
 		return true)
 
 
 ## Grass tufts planted per build step (see _add_grass).
 const GRASS_SLICE := 800
+## The grass is batched in cells this many metres across (true world, so a cell is the same for
+## every lawn of the chunk): a batch's draw distance is measured to the centre of its bounds, so as
+## ONE batch a chunk drew every tuft it had while its centre was inside grass_distance - in the beach
+## town 3.4 million triangles of blades in six draws, 43 % of the frame.
+const GRASS_CELL := 32.0
 
 
 ## Flowering ground cover and grass clumps scattered over a patch of lawn. This is where the

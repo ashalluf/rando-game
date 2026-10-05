@@ -1410,7 +1410,7 @@ func _test_city() -> void:
 				city.update_streaming(true)
 				park_chunk = city.chunks.get(k)
 				break
-	_check(park_chunk != null and park_chunk.has_node("Batch_grass") and (park_chunk.has_node("Batch_shrub_0") or park_chunk.has_node("Batch_shrub_1") or park_chunk.has_node("Batch_shrub_2") or park_chunk.has_node("Batch_shrub_3")), "a park has grass and bushes")
+	_check(park_chunk != null and park_chunk.find_children("Batch_grass_*", "", false, false).size() > 0 and (park_chunk.has_node("Batch_shrub_0") or park_chunk.has_node("Batch_shrub_1") or park_chunk.has_node("Batch_shrub_2") or park_chunk.has_node("Batch_shrub_3")), "a park has grass and bushes")
 	var day: Node = city.get_node("DayNight")
 	var h0: float = day.hour
 	await _ticks(30)
