@@ -17,9 +17,9 @@ render_mode specular_disabled;
 // past it the roads carry far_traffic's lights instead, faded in over this band from the camera.
 uniform float traffic_fade_start = 270.0;
 uniform float traffic_fade_end = 380.0;
-// The far streets' glow against the near road's, and a junction's (building_lod.gdshader's numbers).
-uniform float far_glow_gain = 1.8;
-uniform float junction_glow = 1.6;
+// The far streets' glow against the near road's, and a junction square's (building_lod.gdshader's).
+uniform float far_glow_gain = 2.6;
+uniform float junction_glow = 0.75;
 
 varying vec2 plan_pos;
 varying vec2 slab_uv;

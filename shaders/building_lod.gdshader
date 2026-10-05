@@ -165,10 +165,11 @@ uniform float edge_end = 6860.0;
 uniform vec3 deck_road_color = vec3(0.040, 0.040, 0.044);
 // The far streets' lamp glow against the near road's (street_glow.gdshaderinc): from a hill the
 // lit carriageway is most of what a street is, and at 1.0 the grid was a faint brown hatching
-// under moonlit roofs. A junction, with a lamp on every corner and the signals, is brighter still.
+// under moonlit roofs. A junction square is lit evenly in the pattern, so it is held under the
+// pools beside it or it reads as a flat orange tile.
 // far_ground.gdshader carries the same two numbers.
-uniform float far_glow_gain = 1.8;
-uniform float junction_glow = 1.6;
+uniform float far_glow_gain = 2.6;
+uniform float junction_glow = 0.75;
 #include "res://shaders/street_glow.gdshaderinc"
 #include "res://shaders/color_space.gdshaderinc"
 // The lit offices and the pale or dark spandrels, rolled exactly as building.gdshader rolls them.

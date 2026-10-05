@@ -24,13 +24,13 @@ const float FT_CELLS = 32.0;
 
 // A lamp: a headlight is a hard white point, a tail light a deep red one (red held under ~1 in
 // every channel: through AgX a red brighter than that turns salmon).
-const vec3 FT_HEAD = vec3(1.0, 0.92, 0.80) * 5.5;
-const vec3 FT_TAIL = vec3(1.0, 0.07, 0.035) * 1.15;
+const vec3 FT_HEAD = vec3(1.0, 0.92, 0.80) * 9.0;
+const vec3 FT_TAIL = vec3(1.0, 0.07, 0.035) * 1.6;
 // Radius of one lamp, metres, and the least it is drawn at in pixels (a car a kilometre out is a
 // tenth of a pixel; drawn at that size it would sparkle and vanish, so it grows to this and dims
 // by less than its area: the eye and the lens bloom a distant point light).
 const float FT_LAMP_R = 0.22;
-const float FT_MIN_PX = 0.65;
+const float FT_MIN_PX = 0.9;
 
 
 // Cars on the road through the day, 0..1 of the lanes' cells taken (an LA weekday: the morning
@@ -71,7 +71,7 @@ vec2 ft_lane(float s, float lx, float sgn, float lane, float level, float speed,
 	float front = sgn > 0.0 ? j + 4.6 : j;
 	float rear = sgn > 0.0 ? j : j + 4.6;
 	float re = max(FT_LAMP_R, mpp * FT_MIN_PX);
-	float gain = pow(FT_LAMP_R / re, 1.25);
+	float gain = pow(FT_LAMP_R / re, 1.05);
 	float dx = abs(lx) - 0.75;
 	float hf = length(vec2(w - front, dx));
 	float hr = length(vec2(w - rear, dx));
@@ -113,7 +113,7 @@ vec3 traffic_lights(float s, float x, float x0, float lane_w, float lanes, vec2 
 		// with the same bloom gain, spread over the lane (the bloom held from about 4 m a pixel,
 		// or a river ten kilometres off would outshine the one below the camera).
 		float re = max(FT_LAMP_R, min(mpp, 4.0) * FT_MIN_PX);
-		float gain = pow(FT_LAMP_R / re, 1.25);
+		float gain = pow(FT_LAMP_R / re, 1.05);
 		float area = 2.0 * 0.6 * re * re * 3.14159 * gain / (FT_CELL * lane_w);
 		col += (FT_HEAD * head_w + FT_TAIL * tail_w) * level * area * (1.0 - sharp);
 	}
@@ -129,6 +129,6 @@ vec3 street_traffic(float s, float x, float w, vec2 dir, vec3 to_cam, float mpp,
 	float lanes = clamp(floor((half_w - 2.6) / 3.3), 1.0, 3.0);
 	float lane_w = (half_w - 2.8) / lanes;
 	float busy = smoothstep(12.0, 22.0, w);
-	float level = traffic_level(city_hour) * mix(0.16, 0.7, busy);
+	float level = traffic_level(city_hour) * mix(0.25, 0.95, busy);
 	return traffic_lights(s, x, 0.2, lane_w, lanes, dir, to_cam, mpp, level, mix(10.0, 15.0, busy), mod(road_id, 997.0));
 }
