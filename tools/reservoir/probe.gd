@@ -36,6 +36,14 @@ func _ready() -> void:
 				print("TRAIL_OFF %s height %.2f raw %.2f td %.2f spill %.1f" % [line[k], hh, macro.raw_height_at(line[k]), res.trail_distance(line[k]), res._spill_query(line[k]).x])
 	for a: float in [res.dam_a0 - 6.0 / Reservoir.DAM_RADIUS, res.dam_a1 + 6.0 / Reservoir.DAM_RADIUS]:
 		print("DAM_END %.3f height %.1f crest %.1f" % [a, macro.height_at(res.arc_point(a, Reservoir.DAM_RADIUS + 3.0)), res.crest])
+	var gs := res.grid_size()
+	for j in gs.y:
+		for i in gs.x:
+			if res.wet_grid[j * gs.x + i] == 1:
+				var wp := res.grid_point(i, j)
+				var wh := macro.height_at(wp)
+				if wh > res.level - 0.05:
+					print("WET_OVER %s height %.2f grid %.2f nat %.2f even %s" % [wp, wh, res.ground_grid[j * gs.x + i], res._nat[j * gs.x + i], i % 2 == 0 and j % 2 == 0])
 	var tp := Time.get_ticks_usec()
 	var prof := res.ridge_profile()
 	print("RIDGE %.0f ms" % ((Time.get_ticks_usec() - tp) / 1000.0))

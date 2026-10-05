@@ -45,7 +45,7 @@ func _land(res: Reservoir, macro: MacroMap) -> void:
 			wet += 1
 			edge = edge or i < 2 or j < 2 or i > n.x - 3 or j > n.y - 3
 			var p := res.grid_point(i, j)
-			if macro.height_at(p) > res.level - 0.05:
+			if macro.height_at(p) > res.level + 0.02:
 				through += 1
 			if p.distance_to(res.dam_centre) < Reservoir.DAM_RADIUS:
 				past_dam += 1
