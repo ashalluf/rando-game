@@ -96,7 +96,8 @@ func run(t: Node, city: Node3D) -> void:
 	rp._render_next(at)
 	_check(rp.shown_count() == 3 and rp.renders == 3 and not rp._render_next(at), "reflection probes: all three rendered, then nothing due")
 	rp._publish_reach(at)
-	_check(float(RenderingServer.global_shader_parameter_get("probe_reach")) > 10.0, "reflection probes: probe_reach published while they stand")
+	# (The dummy renderer hands shader globals back as null: the manager's own copy is read.)
+	_check(rp._reach > 10.0, "reflection probes: probe_reach published while they stand (%.0f m)" % rp._reach)
 	# The light moves an hour: the next slot re-renders one where it stands.
 	for s: Dictionary in rp._slots:
 		s.light = [float(s.light[0]) + 1.0, s.light[1], s.light[2]]
@@ -110,7 +111,7 @@ func run(t: Node, city: Node3D) -> void:
 	var off_was: Vector3 = WorldState.world_offset
 	WorldState.world_offset = off_was + Vector3(1000.0, 0.0, 0.0)
 	rp._publish_reach(at)
-	_check(float(RenderingServer.global_shader_parameter_get("probe_reach")) == 0.0, "reflection probes: a re-centre takes them out of the reach")
+	_check(rp._reach == 0.0, "reflection probes: a re-centre takes them out of the reach")
 	rp._render_next(at)
 	var placed := 0
 	for s: Dictionary in rp._slots:
@@ -124,9 +125,10 @@ func run(t: Node, city: Node3D) -> void:
 	rp._assign()
 	await _t.get_tree().process_frame
 	_check(rp._slots.is_empty(), "reflection probes: none at a zero budget")
+	rp._publish_reach(at)
+	_check(rp._reach == 0.0, "reflection probes: probe_reach back to 0 with none standing")
 	rp.queue_free()
 	await _t.get_tree().process_frame
-	_check(float(RenderingServer.global_shader_parameter_get("probe_reach")) == 0.0, "reflection probes: probe_reach back to 0 when they go")
 	ReflectionProbes.force = false
 	ReflectionProbes.budget = budget_was
 

@@ -518,6 +518,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   kept low (`Vehicle.FINISHES`): the mirror is the lacquer's job. `Vehicle.PAINTS` is weighted the way
   a real car park looks (mostly white/black/grey/silver). Grass is tapered curved blades whose
   normals are bent toward up so a lawn lights as a carpet, not as a pile of lit slivers.
+- Reflection probes (G4, 2026-10-05, docs/HANDOFF.md "Reflection probes"): `ReflectionProbes`
+  (`scripts/world/reflection_probes.gd`, a Node CityStreamer adds; **Forward+ desktop only**,
+  `supported()`; `REFLECTION_PROBES=0` the A/B). Box-projected `ReflectionProbe`s on the street
+  segments, open blocks and off-grid ground nearest the camera (`candidates()`, pure, from the
+  plan), `budget` 9 / 5 / 0 / 0 by Quality, no shadows (cost), UPDATE_ONCE, one render per
+  `refresh_seconds`, nearest first, again `settle_seconds` later and when the hour / lamps /
+  weather move (a 1 mm nudge). Traps: a probe that entered the tree hidden never renders (they
+  are made in place and freed, never hidden); `blend_distance` fades a probe within that of EVERY
+  face, the floor too (floor `floor_drop` 2 m under the street, blend 1.5); vehicles in a box go
+  to render layer 19 (`VEHICLE_LAYER`), which probes leave out. Global `probe_reach` hands
+  car_paint's canyon dimming and building glass's emitted mirror over to the real one. The sky's
+  cubemap pass mirrors a CC0 street HDRI under the horizon (`street_hdri`, Forward+ only, set by
+  `street_sky()`). Stills / cost: `tools/reflections/probe_shot.gd`; checks:
+  `tests/reflection_probes_checks.gd`.
 - Vignette and lens: `CityStreamer._build_vignette()` puts `shaders/vignette.gdshader` on a
   full-rect `ColorRect` in its own CanvasLayer at layer -1, so it sits under the HUD, survives F1
   and shows up in screenshots. It reads the 3D picture (`hint_screen_texture`) and writes it

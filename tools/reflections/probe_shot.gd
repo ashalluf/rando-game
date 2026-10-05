@@ -14,7 +14,8 @@ extends SceneTree
 ## the near car); FRAMES before the shot (default 40); BENCH n: n frames timed after the shot
 ## with the probe standing still, then n more while it re-renders (CPU / GPU ms a frame, BENCH
 ## lines; lavapipe's GPU is the CPU, so read the ratios); WET road wetness (0..1); HIGH=1 keeps
-## SDFGI and volumetric fog (very slow on lavapipe); BALL=1 a chrome ball by the car.
+## SDFGI and volumetric fog (very slow on lavapipe); BALL=1 a chrome ball by the car;
+## SHADOWS=1 the probe renders with shadows (off in the game: the cost).
 
 var _top: Node3D
 var _day: Node
@@ -122,6 +123,7 @@ func _run() -> void:
 	elif _env("PROBES", "1") == "1":
 		var rps: GDScript = load("res://scripts/world/reflection_probes.gd")
 		rps.set("force", true)
+		rps.set("shadows", _env("SHADOWS", "0") == "1")
 		_probes = rps.new()
 		_probes.name = "ReflectionProbes"
 		_top.add_child(_probes)
@@ -204,13 +206,14 @@ func _bench(nm: String, n: int) -> void:
 
 
 func _wait(n: int) -> void:
+	var t0 := Time.get_ticks_usec()
 	for i in n:
 		_hold()
 		await process_frame
 		_cpu += RenderingServer.viewport_get_measured_render_time_cpu(_vp)
 		_gpu += RenderingServer.viewport_get_measured_render_time_gpu(_vp)
 		_count += 1
-	print("BENCH %s probes=%s frames %d cpu %.2f ms gpu %.2f ms" % [_bench_name, str(_probes != null), _count, _cpu / _count, _gpu / _count])
+	print("BENCH %s probes=%s frames %d cpu %.2f ms gpu %.2f ms wall %.1f ms" % [_bench_name, str(_probes != null), _count, _cpu / _count, _gpu / _count, (Time.get_ticks_usec() - t0) / 1000.0 / n])
 
 
 func _hold() -> void:

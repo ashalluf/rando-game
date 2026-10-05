@@ -22,23 +22,24 @@ extends Node
 ## is made where its box stands (and freed when its box is no longer wanted), so an origin
 ## re-centre, which strands all of them, costs one probe a slot too.
 ##
-## Quality sets `budget` (HIGH 9, MEDIUM 5, none below) and `shadows` (HIGH). The web and the Compatibility renderer get none (`supported()`), and
+## Quality sets `budget` (HIGH 9, MEDIUM 5, none below) and `refresh_seconds` (0.5, 1.0). The web and the Compatibility renderer get none (`supported()`), and
 ## REFLECTION_PROBES=0 in the environment turns them off (the A/B). While any probe stands, the
 ## `probe_reach` shader global is the radius they cover: car_paint and building glass hand part of
 ## their faked "canyon" reflection over to the real one inside it.
 
 ## How many probes stand at once (Quality: [9, 5, 0, 0]).
 static var budget: int = 9
-## Shadows in the probes' own render (Quality: HIGH only). Sunlit and shaded facades are most of
-## what a mirrored street shows, but a shadowed face costs the shadow pass again.
-static var shadows: bool = true
+## Shadows in the probes' own render. Off at every level: measured on lavapipe Forward+, a frame
+## carrying a probe face cost +50 % with shadows (the sun's shadow pass again) and +10 % without,
+## and a mirrored facade reads as a facade without them.
+static var shadows: bool = false
+## Seconds between two probe renders (Quality: HIGH 0.5, MEDIUM 1.0). A render is six frames
+## of one face each; on lavapipe a frame carrying a face cost about +10 % (shadows off).
+static var refresh_seconds: float = 0.5
 ## Off for the A/B (REFLECTION_PROBES=0) and the web; tests may force it on under the dummy driver.
 static var enabled: bool = true
 static var force: bool = false
 
-## Seconds between two probe renders (a render takes six frames). The cost of the system is one
-## small cubemap face a frame while one is due, nothing in between.
-@export var refresh_seconds: float = 0.25
 ## Re-render a probe once the hour has moved this much since it was rendered (game hours).
 @export var hour_step: float = 0.35
 ## ... or the lamps / the weather darkening moved this much.
