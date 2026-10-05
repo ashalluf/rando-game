@@ -201,6 +201,7 @@ func _building(TG) -> void:
 	b.max_height = 140.0
 	_t.get_tree().root.add_child(b)
 	var rigs: Array = b.find_children("GondolaRig", "Node3D", true, false)
+	var tris_on: int = b.get_meta("rooftops_tris", 0)
 	var ok := rigs.size() == 1
 	if ok:
 		var s: Dictionary = rigs[0].site
@@ -208,3 +209,34 @@ func _building(TG) -> void:
 			and (s.heads[0] as Vector3).distance_to(s.heads[1]) > 2.0
 	_t._check(ok, "a glass tower's hanging BMU carries a live cradle under its jib (seed %d)" % found)
 	b.free()
+	# One cradle per tower: with the gondolas on, Rooftops draws no static cradle on that machine
+	# (its mesh is lighter by the cradle and its ropes) and the live one is the only one.
+	TG.enabled = false
+	var b2 = scene.instantiate()
+	b2.seed = found
+	b2.lot_size = Vector2(40.0, 40.0)
+	b2.min_height = 90.0
+	b2.max_height = 140.0
+	_t.get_tree().root.add_child(b2)
+	var tris_off: int = b2.get_meta("rooftops_tris", 0)
+	var rigs_off: int = b2.find_children("GondolaRig", "Node3D", true, false).size()
+	b2.free()
+	TG.enabled = true
+	_t._check(ok and tris_on < tris_off and rigs_off == 0,
+		"a BMU tower carries one cradle: the live one, never Rooftops' static one too (%d < %d tris)" % [tris_on, tris_off])
+	# The landmark towers: Rooftops gives them a helipad and no machine, so the davit cradles and the
+	# parked BMUs are the only ones there, never two on one face.
+	var LD = load("res://scripts/world/landmark_downtown.gd")
+	var bad := ""
+	for id: String in LD.TOWERS:
+		var s: Dictionary = TG.landmark_sites(id, 1337)
+		var normals: Array = []
+		for site: Dictionary in s.hung:
+			normals.append(site.n)
+		for p: Dictionary in s.parked:
+			normals.append(p.n)
+		for i in normals.size():
+			for j in range(i + 1, normals.size()):
+				if (normals[i] as Vector3).dot(normals[j]) > 0.99:
+					bad += id + " "
+	_t._check(bad == "", "no landmark face carries two cradles or machines (%s)" % bad)
