@@ -19,3 +19,8 @@ Stills for the service vehicles (branch `wt/service-vehicles`, HANDOFF 9bs). All
 - `11_wave2_garbage_lift_1000.jpg` - SERVICE=garbage: the arm mid-lift, the blue and green carts at the kerb.
 - `12_wave2_sweeper_1000.jpg` - SERVICE=sweeper: brooms down in the gutter.
 - `13_wave2_closeups_schoolbus_and_service_types_19_24.jpg` - car_shot.gd --each=19..24 (SERVICE_WORK=0.6): the school bus (19) beside the service vehicles, now body types 20-24.
+- `14_wave2_tow_carrying_wreck_1000.jpg` - SERVICE=tow: a burnt-out wreck on the rollback's bed.
+- `15_wave2_ice_cream_standing_1000.jpg` - SERVICE=ice_cream: standing at the kerb.
+- `16_wave2_delivery_hazards_1000.jpg` - SERVICE=delivery: double-parked with its hazards on.
+
+Frame cost (tools/geo_count.gd, opengl3, 800x600, same spawn): SERVICE_VEHICLES=0 3.586 M tris / 2,695 draws -> on 3.717 M / 2,702 (+3.7 %).
