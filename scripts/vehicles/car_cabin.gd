@@ -153,7 +153,9 @@ static func context(car: Vehicle, mesh_to_car: Transform3D, has_model: bool = tr
 		"scale": maxf(mesh_to_car.basis.get_scale().x, 1e-4),
 		"privacy": PRIVACY_BODIES.has(car.body_type),
 		"two_seat": TWO_SEATERS.has(car.body_type),
-		"bus": car.body_type == Vehicle.BodyType.BUS,
+		"bus": car.body_type == Vehicle.BodyType.BUS or car.body_type == Vehicle.BodyType.SCHOOL_BUS,
+		# A school bus's rows are empty (no children are drawn anywhere: Schools).
+		"empty_rows": car.body_type == Vehicle.BodyType.SCHOOL_BUS,
 	}
 
 
@@ -382,7 +384,7 @@ static func cabin(panes: Array, ctx: Dictionary) -> Dictionary:
 		var first := front_row + back * BUS_FIRST_ROW / scale
 		var pitch := BUS_ROW_PITCH / scale
 		var n := floori(absf(rear_row - first) / pitch)
-		out.bus_rows = Vector4(first, pitch, float(n), BUS_FILL)
+		out.bus_rows = Vector4(first, pitch, float(n), 0.0 if ctx.get("empty_rows", false) else BUS_FILL)
 		out.side_t = Vector2(FRONT_SIDE_T, FRONT_SIDE_T)
 		out.interior_lamp = BUS_LAMP
 		out.cabin_gain = BUS_DAYLIGHT

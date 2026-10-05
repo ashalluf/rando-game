@@ -165,6 +165,8 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, detaile
 	# A raised helipad on the flat roofs the real towers carry one on (Rooftops; "helipad" in TOWERS).
 	if TOWERS[id].has("helipad"):
 		Rooftops.landmark_helipad(parent, at, TOWERS[id].helipad, statics)
+	if statics:
+		BuildingDamage.restore_tower(body, id)
 	if detailed and t.detail != null:
 		var extra := MeshInstance3D.new()
 		extra.name = "Detail_" + id
