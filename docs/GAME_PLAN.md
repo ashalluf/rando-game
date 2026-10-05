@@ -289,6 +289,22 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Construction: tower sites with cranes, house frames, road works (VISUAL_ROADMAP
+  #63, HANDOFF 9bu).** A real city is always being built, and the game's never was. `Construction`
+  claims a share of downtown and midtown blocks' best tall lot for a tower going up (its Building
+  is freed before its own rolls run), a share of HouseKit's lots for a timber frame on the house's
+  own plan, and at most one parking-lane closure a chunk for road works - every decision a hash of
+  seed + place taken after every existing roll, so no other building, prop or parked car moves
+  (checked by building the block with Construction off). Decisions worth knowing: road works only
+  ever close the PARKING lane, so TrafficManager needed no hook at all; the tower crane slews, runs
+  its trolley and drops its hook in its own vertex shader from TIME and where it stands (no CPU per
+  crane), and it only stands where the longest jib that fits swings clear of the freeway, every
+  landmark and, 7 m over, every planned building round it; lattice faces are cut-outs drawn SOLID
+  and darkened once their lacing is under a pixel or two (dithered without TAA, a far mast was a
+  faint dotted line); the obstruction lights ride aircraft_lights.gdshader so they never shrink
+  away. Workers reuse StreetVendor (a placed, standing pedestrian) with ApronCrew's hi-vis and a
+  hard hat modelled round each rig's head like FireHelmet.
+
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it

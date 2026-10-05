@@ -2835,8 +2835,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `Pedestrian.warm_far_mesh()`: ~12 ms a hat, ~10 ms of hair a kind on this box). Look with
   `tools/glshot/crowd_lineup.gd` `HATS=cap,beanie,bucket,police` (`HAT_PICKS=` the colourways);
   checks: `tests/crowd_hat_checks.gd`.
-- Construction (VISUAL_ROADMAP #59, 2026-10-05: "a real city is always being built"; HANDOFF
-  9bq). `Construction` (`scripts/world/construction.gd`, static) plans and builds three things,
+- Construction (VISUAL_ROADMAP #63, 2026-10-05: "a real city is always being built"; HANDOFF
+  9bu). `Construction` (`scripts/world/construction.gd`, static) plans and builds three things,
   every decision a hash of seed + place taken AFTER every roll the city makes: **tower sites**
   (`tower_site(plan, bx, bz)`, pure, cached: `TOWER_BLOCK_ODDS` of DOWNTOWN / MIDTOWN BUILDINGS
   blocks, the block's lot at least `TOWER_MIN_LOT` with a planned building over

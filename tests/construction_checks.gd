@@ -127,6 +127,9 @@ func _tower_chunk(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 		crane_ok = cn.material_override == ConstructionKit.crane_material() and bool(cn.material_override.get_shader_parameter("crane")) \
 			and cn.custom_aabb.size.x >= float(cr.jib) * 2.0 and cn.custom_aabb.size.y > float(cr.ring)
 	_t._check(crane_ok, "the site has one tower crane on the slewing crane material, its bounds round the whole swing")
+	var lights := chunk.get_node_or_null("ConstructionLights") as MeshInstance3D
+	_t._check(lights != null and lights.material_override == Construction.lights_material() and lights.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
+		"the crane's cathead and the frame's corners carry obstruction lights on the never-shrinking billboard shader")
 	_t._check(chunk.get_node_or_null("ConstructionBody") != null and (chunk.get_node("ConstructionBody") as Node).get_child_count() > 10,
 		"the frame, the core, the crane's mast and the hoarding have collision")
 	# No Building stands on the site's lot.

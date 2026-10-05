@@ -216,16 +216,22 @@ void fragment() {
 		albedo = mix(albedo, vec3(0.62, 0.61, 0.58), splash * 0.6);
 		rough = 0.55;
 	} else if (k == 2 || k == 25) {
-		// Rebar: rusted steel, a rib every 8 cm; the mat (25) is a grid of bars cut out of a quad.
-		if (k == 25) {
-			if (strands(uv, vec2(0.2, 0.2), 0.016, FRAGCOORD.xy) < 0.5) {
-				discard;
-			}
+		// Rebar: rusted steel, a rib every 8 cm; the mat (25) is a grid of bars cut out of a quad,
+		// and under a pixel it is drawn solid at what it averages - rust over the deck's grey
+		// (dithered to its 16 % of bars it read as bare concrete with grit on it).
+		float far_mat = k == 25 ? smoothstep(0.12, 0.3, max(fwidth(uv.x), fwidth(uv.y)) / 0.2) : 0.0;
+		if (k == 25 && far_mat < 0.5 && strands(uv, vec2(0.2, 0.2), 0.016, FRAGCOORD.xy) < 0.5) {
+			discard;
 		}
 		float rib = lines(uv.x + uv.y, 0.08, 0.02);
 		albedo = mix(vec3(0.28, 0.15, 0.08), vec3(0.42, 0.26, 0.15), vnoise(tw * 3.0 + uv * 4.0)) * (1.0 - 0.25 * rib);
 		metal = 0.5;
 		rough = 0.8;
+		if (far_mat >= 0.5) {
+			albedo = mix(vec3(0.46, 0.44, 0.41), vec3(0.34, 0.2, 0.12), 0.55) * (0.9 + 0.15 * vnoise(tw * 0.8));
+			metal = 0.2;
+			rough = 0.85;
+		}
 	} else if (k == 3) {
 		// Painted steel: the paint, chipped on edges to dark steel, a little dirt.
 		float chip = smoothstep(0.72, 0.78, fbm(uv * 4.0 + tw * 0.1));

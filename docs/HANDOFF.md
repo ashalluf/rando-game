@@ -7040,3 +7040,113 @@ ALU in shaders that were already running.
 - The night ambient (DayNight) still lights roofs a moonlit blue-grey on opengl3; not this pass.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
+## 9bu. Construction: tower sites with cranes, timber house frames, road works, 2026-10-05 (agent branch `wt/construction`; VISUAL_ROADMAP #63)
+
+The brief (lead, from "make the graphics a million times better"): a real city is always being
+built. High-rise sites downtown and in midtown with a tower crane, timber-frame houses in the
+suburbs and the beach town, road works in the street; crews in hi-vis and hard hats; one mesh per
+material a FULL chunk, the frame and the crane as far boxes. CLAUDE.md's "Construction" note is the
+reference; this is the story.
+
+**What a seed builds now.** `Construction.tower_site()` gives about 7 % of downtown's and 4.5 % of
+midtown's BUILDINGS blocks a tower going up on their best lot (at least 24 m square, its planned
+building 30 m+, clear of the freeway by 16 m, not the fire station's, a crane that fits): 9 sites in
+the 254 blocks within 1.5 km of Pershing Square on the default seed. A site has the planned
+storeys (from `CityPlan.lot_height()`), 28-85 % of them poured (at least four), the lower ones
+under curtain wall and the top 5-9 open frame. `house_site()` turns 3 % of HouseKit lots into
+frames; `road_works()` closes one parking lane in roughly 6-12 % of chunks (per-lane odds by
+district). All of it is hashes of seed + block / lot / road, taken after every roll: the smoke test
+builds the tower block with `Construction.enabled` off and every other building, prop and trash
+can is where it was.
+
+**Hooks** (city_chunk.gd, five lines): `_build_lot()` asks `Construction.build_lot()` once the
+Building is set up and frees it if the lot is the site (the Building's own rng never runs, as
+Industrial's warehouses do); `_build_house()` builds the frame instead of `HouseKit.build()`; the
+block steps add `Construction.steps()` after the vendors (road works, then the crews), before the
+parked cars, which `blocks_parking()` keeps out of a closure after their rolls (and counts as
+parked); the finish calls `Construction.commit()`. Nothing in TrafficManager: a closure only ever
+takes the parking lane, which no traffic drives.
+
+**The tower crane** is the part worth knowing. A flat-top crane at real proportions
+(`ConstructionKit.crane_mesh()`: 2 m lattice mast on a base block, turntable, glazed cab, cathead
+and pendant ropes, a 1.3 x 1.7 m lattice jib of 27-50 m with its catwalk, the counter-jib with rails,
+four counterweight slabs and the winch, the trolley, two ropes and the hook block), ~600 triangles,
+its own MeshInstance3D on `crane_material()` - the site shader with `crane` on. UV2.y codes what a
+vertex does (slews / trolley / hook / rope); the vertex stage turns the slewing parts about the
+node's origin by a swing with dwells at each end, runs the trolley out and back and drops the hook
+(the rope stretched to the drop), all from TIME and a phase hashed from the node's TRUE world
+position (`origin_shift`), so no two cranes swing together, nothing runs on the CPU and an origin
+re-centre does not jump them; after dark (`lamp_factor`) it settles and drifts like a crane left
+to weathervane. The jib length is the longest of `JIBS` whose swing clears the freeway and every
+landmark; the ring stands 7 m over every planned building in the 3 x 3 blocks under the swing (and
+over the core's jump form), and a site whose crane would have to stand more than 70 m over its
+deck is not a site. The bounds (`custom_aabb`) cover the whole swing. Lattice faces are cut out in
+the shader with the chords as real angles; once the lacing is under a pixel or two the face draws
+SOLID and darkened instead (the first version dithered it to its coverage and, with no TAA on the
+opengl3 stills, a far mast was a faint dotted line - I spent a render thinking the crane was
+missing). The red obstruction lights on the cathead (on the slewing axis, so they never move) and
+the frame's top corners are `aircraft_lights.gdshader` billboards (`lights_material()`), never
+smaller than a couple of pixels; the lamp boxes on the jib tip and counter-jib end are the
+material's lamp kind. Far away the crane is FarBuilding plant boxes (a MAST drawn a pixel wide,
+the jib and counter-jib at their rest heading, beacons) that the far city keeps.
+
+**The site** (`_tower_full`): plinth and dirt/gravel ground (shadowless, its own MeshInstance of
+the same material), the curtain wall up to `clad` (a mirror of sky above and city below the
+horizon by the reflected ray, each unit a hair off true, 1.5 m mullions, the slab line every
+storey, the odd unit in its blue film), open slabs with columns on an 8.4 m grid, guardrails with
+toe boards, netting round the top three storeys, the top deck (edge forms, a rebar mat over half,
+film-faced plywood over the other half, starter bars at every column), shores and form joists under
+it, the core a storey ahead with its jump-form shroud and starter bars, a rack-and-pinion hoist with
+ties every three storeys and its cage at a floor, hoarding on the street sides (painted plywood in
+one of four colourways with the project's rendering, sheet joints, fly posters; the project name,
+tagline and developer as lettering), chain-link on the inner sides, the truck gate with its signs,
+a covered walkway over the pavement on one side (lit strips under its deck), and a yard of stacked
+cabins, a skip, toilets, rebar, lumber and form stacks fitted into whichever strips round the
+tower have room. Collision: slabs, the clad block, the core, columns, the mast, the hoist, hoarding,
+cabins, the skip, the walkway deck - you can land on any floor.
+
+**House frames** (`_frame_full`) follow HouseKit's plan through a `HouseBuild` (its frame, ground
+height and world sizes): a slab under each wing, stud walls on 16 in centres with double top
+plates, window openings every ~3.2 m (king and jack studs, doubled header, sill, cripples), floor
+joists and an OSB deck under an upper storey, trusses on 24 in centres (gable or, for a hip, along
+the long side) with webs, OSB on some walls and house wrap over some of that (a staged hash), OSB on
+part of a roof, dirt round the house, a skip on the drive, a toilet, a lumber stack, a framer, and
+the builder's pickup at the kerb (a real parked `Vehicle`, its body found by a private rng: never the
+chunk's). LOD: a lod_box per wing in the OSB colour.
+
+**Road works** (`_closure`): ROAD WORK AHEAD on a spring stand 18 m upstream, a taper of cones
+from the kerb to the lane line over 12 m (upstream is worked out from the traffic's direction:
+`Traffic._lane_offset()`'s convention), cones every 4.5 m, drums, the arrow board trailer facing the
+traffic (its LED arrow drawn and flashed in the shader, lit day and night), trench plates, a spoil
+heap, a compact excavator digging, a barricade at the end, a flagger with the STOP / SLOW paddle and
+a worker at the trench. Vendor trucks keep their kerb (checked at build), bus stops and fire
+stations theirs (in the plan).
+
+**Crews.** `ConstructionWorker` extends `StreetVendor` (a placed, standing person with the life
+clips), sets `accessory_chance` 0 (the old roll is still made), repaints in ApronCrew's hi-vis and
+puts on a `HardHat` (cap-style shell with a centre ridge and side ribs, peak, gutter, headband,
+reflective strip; built round each rig's head from CrowdHatTable like FireHelmet; seven colours).
+Deck workers and road crews are placed on their floor (the `in_truck` lift); they turn to look at
+trouble and do not run. In the crowd cap; only in `WORK_HOURS` (06:30-17:30).
+
+**Frame cost** (still_shot.gd GEO, opengl3 1280x720). The aerial bookmark over the site at block
+(20, -3) `EYE=1765.6,108.0,-418.6,-61,-18 --hour=16`: `CONSTRUCTION=0` 4,474,253 tris / 3,404
+draws -> 4,438,566 / 3,382 with it (the site replaces a finished tower; flat). A tower site in a
+FULL chunk costs one site mesh (~25-60 k triangles: the guardrails, shores and starter bars are
+most of it), one ground draw, one crane draw (~600) and one lights draw; a frame ~5-8 k; a closure
+~3 k in the chunk's site mesh.
+
+**Stills** (`shots/construction`): see the README there - the tower site from the air at 16:00
+and 22:00, the crane up close, from the street, the road works by day and at night, a house frame,
+and the kit alone (`tools/construction/kit_shot.gd`).
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the glass mirror, the crane's paint and
+the lamps' glow under AgX need eyes. The jib-tip lamp boxes are the material's lamp kind, not
+billboards (they move with the slew), so from far away only the cathead light shows at night. The
+crane carries no load on its hook; nothing collides with the swinging jib (the mast does); the
+hoist's car does not move. No concrete trucks, pump booms or deliveries; no night work lights on the
+deck. Workers stand rather than work (no hammering or welding clips); a house frame's workers stand
+on the slab. Road works never close a travel lane (by design) and nothing knocks the cones over
+(they have no collision); the arrow board and excavator do. Sites are only in DOWNTOWN and MIDTOWN
+(no industrial or campus building sites); the far city's frame is plain plant boxes (no netting or
+glass reflection out there).

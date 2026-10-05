@@ -424,7 +424,7 @@ static func working(node: Node) -> bool:
 
 static func _state(ch: CityChunk) -> Dictionary:
 	if not ch.has_meta("construction"):
-		ch.set_meta("construction", {"st": null, "ground": null, "shapes": [], "cranes": [], "workers": []})
+		ch.set_meta("construction", {"st": null, "ground": null, "shapes": [], "cranes": [], "workers": [], "lights": []})
 	return ch.get_meta("construction")
 
 
@@ -446,7 +446,37 @@ static func _shape(ch: CityChunk, size: Vector3, xf: Transform3D) -> void:
 	(_state(ch).shapes as Array).append([size, xf])
 
 
-## The chunk's finish: the site mesh, its ground, the cranes, one static body.
+static var _lights_mat: ShaderMaterial
+
+
+## The aviation obstruction lights (the crane's cathead, the frame's top corners) as billboards on
+## aircraft_lights.gdshader: never smaller than a couple of pixels, so a site reads across the
+## basin at night the way a real one does (a 25 cm lamp box is gone at 200 m).
+static func lights_material() -> ShaderMaterial:
+	if _lights_mat == null:
+		_lights_mat = ShaderMaterial.new()
+		_lights_mat.shader = load("res://shaders/aircraft_lights.gdshader")
+		_lights_mat.set_shader_parameter("min_angle", 0.0055)
+		_lights_mat.set_shader_parameter("hdr", 3.0)
+		_lights_mat.set_shader_parameter("day_level", 0.12)
+	return _lights_mat
+
+
+static func _lights_mesh(lights: Array) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var corners := [Vector2(0.0, 0.0), Vector2(1.0, 0.0), Vector2(1.0, 1.0), Vector2(0.0, 1.0)]
+	for l: Array in lights:
+		for k: int in [0, 1, 2, 0, 2, 3]:
+			st.set_color(Color(1.0, 0.1, 0.05, 1.0))
+			st.set_uv(corners[k])
+			st.set_uv2(Vector2(float(l[1]), 0.0))
+			st.set_normal(Vector3.UP)
+			st.add_vertex(l[0])
+	return st.commit()
+
+
+## The chunk's finish: the site mesh, its ground, the cranes, their lights, one static body.
 static func commit(ch: CityChunk) -> void:
 	if not ch.has_meta("construction"):
 		return
@@ -476,6 +506,15 @@ static func commit(ch: CityChunk) -> void:
 		cn.add_to_group("tower_crane")
 		ch.add_child(cn)
 	(s.cranes as Array).clear()
+	if not (s.lights as Array).is_empty():
+		var ml := MeshInstance3D.new()
+		ml.name = "ConstructionLights"
+		ml.mesh = _lights_mesh(s.lights)
+		ml.material_override = lights_material()
+		ml.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		ml.extra_cull_margin = 16384.0
+		ch.add_child(ml)
+		(s.lights as Array).clear()
 	if not (s.shapes as Array).is_empty():
 		var body := StaticBody3D.new()
 		body.name = "ConstructionBody"
@@ -675,6 +714,12 @@ static func _tower_full(ch: CityChunk, site: Dictionary, g: float) -> void:
 	var aabb := AABB(Vector3(-reach, -ring - 2.0, -reach), Vector3(reach * 2.0, ring + K.JIB_Y + K.JIB_D + K.CATHEAD_H + 4.0, reach * 2.0))
 	(_state(ch).cranes as Array).append([Transform3D(Basis(Vector3.UP, float(cr.yaw)), Vector3(mast.x, floor_y + ring, mast.y)), _crane_meshes[key], aabb])
 	_shape(ch, Vector3(K.MAST_W, ring, K.MAST_W), Transform3D(Basis(), Vector3(mast.x, floor_y + ring * 0.5, mast.y)))
+	# Obstruction lights: on the cathead (on the slewing axis, so it never moves) and at the frame's
+	# top corners.
+	var lights: Array = _state(ch).lights
+	lights.append([Vector3(mast.x, floor_y + ring + K.JIB_Y + K.JIB_D + K.CATHEAD_H + 0.35, mast.y), 1.4])
+	for corner: Vector2 in [foot.position, foot.end, Vector2(foot.position.x, foot.end.y), Vector2(foot.end.x, foot.position.y)]:
+		lights.append([Vector3(corner.x, floor_y + top + 1.6, corner.y), 0.9])
 	# --- Hoarding, the gate, the covered walkway, signs ---
 	_hoarding(ch, st, site, g)
 	# --- The yard: cabins, a skip, toilets, stacks ---
