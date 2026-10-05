@@ -175,7 +175,7 @@ void fragment() {
 		float fall = mix(0.18, 1.0, smoothstep(0.4, 4.0, UV.y));
 		float pools = 0.55 + 0.45 * noise2(vec2(UV.x * 0.9, seed * 5.0));
 		float glow = (0.6 + 0.4 * noise2(UV * vec2(0.6, 0.4) + seed * 5.0)) * fall * pools;
-		emit = vec3(1.0, 0.74, 0.44) * 0.05 * level * glow * night;
+		emit = vec3(1.0, 0.74, 0.44) * 0.1 * level * glow * night;
 	} else if (k < 10.5) {
 		// A one-sheet: a field, a figure block, a title band - all invented shapes.
 		float cell = floor(UV.x / 1.3);
