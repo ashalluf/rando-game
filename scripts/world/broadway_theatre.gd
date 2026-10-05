@@ -309,7 +309,12 @@ static func _front_block(g: LandmarkGeo, spec: Dictionary, w: float, tw: float, 
 	else:
 		# The pavilion's body behind its face (the style builds the face), roofed.
 		g.box("terra", Vector3(0.0, (STOREY_GROUND + hc) * 0.5, -fd * 0.5 - 0.2), Vector3(tw, hc - STOREY_GROUND, fd - 0.4))
-	g.box("roof", Vector3(0.0, hw - 0.6, -fd * 0.5), Vector3(w - 0.6, 0.2, fd - 0.6))
+	# Membrane roofs over the wings and the pavilion (the facade material's own top faces would
+	# read as white terracotta slabs from the air).
+	if wing_w > 0.5:
+		for sx: float in [-1.0, 1.0]:
+			g.box("roof", Vector3(sx * (tw * 0.5 + wing_w * 0.5), hw + 0.03, -fd * 0.5), Vector3(wing_w - 0.5, 0.06, fd - 0.5))
+	g.box("roof", Vector3(0.0, hc + 0.03, -fd * 0.5 - 0.2), Vector3(tw - 0.5, 0.06, fd - 0.8))
 
 
 ## A cornice of `width` along the face at `at` (its top centre on the facade line), `depth` back:
