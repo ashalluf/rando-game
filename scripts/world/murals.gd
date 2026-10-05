@@ -104,19 +104,15 @@ static var _material: ShaderMaterial = null
 
 # --- Entry ---------------------------------------------------------------------------------------
 
-## A build step of a FULL chunk (after StreetWear): queues the work as the last step before the
-## finish, so YardFill's deferred walls are all there.
+## A build step of a FULL chunk (after StreetWear): queues the work behind every deferred step
+## (CityChunk._run_last), so YardFill's deferred walls are all there.
 static func build(chunk: CityChunk) -> void:
 	if not enabled or chunk.level != CityChunk.Level.FULL or chunk.capturing:
 		return
-	chunk._steps.insert(chunk._steps.size() - 1, _work.bind(chunk))
+	chunk._run_last(_work.bind(chunk))
 
 
 static func _work(chunk: CityChunk) -> bool:
-	# Steps deferred after this one was queued (a deferred step deferring more) go first.
-	if chunk._step < chunk._steps.size() - 2:
-		chunk._steps.insert(chunk._steps.size() - 1, _work.bind(chunk))
-		return true
 	paint(chunk)
 	return true
 

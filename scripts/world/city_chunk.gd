@@ -283,6 +283,9 @@ func build() -> void:
 ## is spread over a few frames instead of all landing in one - and it is the same city either
 ## way, because the steps run in the same order with the same random rolls as build().
 func build_step() -> bool:
+	# At the finish, the steps that must follow every deferred one (_run_last) go in, one at a time.
+	if _step == _steps.size() - 1 and not _last_steps.is_empty():
+		_steps.insert(_step, _last_steps.pop_front())
 	if _step < _steps.size():
 		# A step that returns false has more to do and runs again next time (see _run_or_defer).
 		if _steps[_step].call() != false:
@@ -300,6 +303,15 @@ func _run_or_defer(work: Callable) -> void:
 		return
 	while work.call() != true:
 		pass
+
+
+## Runs `step` after every step the build has deferred (_run_or_defer, crowds, YardFill's walls),
+## just before the finish, in the order these calls were made. For the passes that read what the
+## deferred steps laid (ClimbingPlants, Murals). Each of them used to move itself behind whatever
+## step still stood before the finish, and two of them did that to each other forever: the build
+## never ended and grew its step list until the box ran out of memory.
+func _run_last(step: Callable) -> void:
+	_last_steps.append(step)
 
 
 ## `step` with the batch's relief lift switched off while it runs. The hill steps place their
@@ -322,6 +334,8 @@ func _on_map_ground(step: Callable) -> Callable:
 ## is small next to the old all-in-one build, which was a hundred milliseconds on a slow machine.
 var _steps: Array[Callable] = []
 var _step: int = 0
+## Steps queued by _run_last(), put in front of the finish one by one when it is reached.
+var _last_steps: Array[Callable] = []
 
 
 func begin_build() -> void:
@@ -339,6 +353,7 @@ func begin_build() -> void:
 	zone = plan.zone_at((block.rect as Rect2).get_center())
 	_steps.clear()
 	_step = 0
+	_last_steps.clear()
 	# A block the replica area's corridor runs through builds the replica's own content in place
 	# of the seeded block (ReplicaAreas.block_role(), ReplicaBuilder).
 	var replica: ReplicaAreas = plan.macro.replica if plan.macro else null
