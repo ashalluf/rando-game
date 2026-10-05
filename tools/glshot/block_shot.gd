@@ -17,6 +17,11 @@ extends Node
 ## prints each frame's triangles and draws, YARD_FILL=0 builds without YardFill (the A/B), HOUSES=0
 ## the house lots as Building boxes (HouseKit's A/B).
 ## INDUSTRIAL=0 builds the industrial district without Industrial. NIGHT=1 a crude night (lamps on).
+## PLAYER=1 puts a stand-in "player" node at each eye (PortLife and the like only run near one;
+## the chunks find their city root through `plan`).
+
+var plan: CityPlan
+
 
 func _ready() -> void:
 	await get_tree().process_frame
@@ -27,7 +32,7 @@ func _ready() -> void:
 	if OS.get_environment("HOUSES") == "0":
 		(load("res://scripts/world/house_kit.gd") as GDScript).set("enabled", false)
 	var city: Node = (load("res://scenes/levels/city.tscn") as PackedScene).instantiate()
-	var plan := CityPlan.new()
+	plan = CityPlan.new()
 	plan.seed = city.world_seed
 	plan.block_size_range = city.block_size_range
 	plan.street_width = city.street_width
@@ -53,6 +58,9 @@ func _ready() -> void:
 	if OS.get_environment("NIGHT") == "1":
 		RenderingServer.global_shader_parameter_set("lamp_factor", 1.0)
 		RenderingServer.global_shader_parameter_set("night_factor", 1.0)
+		# The sky's horizon colour, which DayNight would take down: mirrors (canal water, the
+		# beach's swash, glass) read it, and left at its day value they drew a lit street.
+		RenderingServer.global_shader_parameter_set("sky_tint", Color(0.03, 0.035, 0.05))
 		if sun:
 			sun.light_energy = 0.06
 			sun.light_color = Color(0.6, 0.7, 1.0)
@@ -73,6 +81,11 @@ func _ready() -> void:
 	cam.far = 4000.0
 	add_child(cam)
 	cam.make_current()
+	var stand_in: Node3D = null
+	if OS.get_environment("PLAYER") == "1":
+		stand_in = Node3D.new()
+		stand_in.add_to_group("player")
+		add_child(stand_in)
 	var built := {}
 	var chunk_script: GDScript = load("res://scripts/world/city_chunk.gd")
 	var blocks := int(OS.get_environment("BLOCKS")) if OS.get_environment("BLOCKS") != "" else 1
@@ -81,6 +94,8 @@ func _ready() -> void:
 		var p: PackedStringArray = (eyes[k] as String).split(",")
 		var at := Vector3(p[0].to_float(), p[1].to_float(), p[2].to_float())
 		at.y += plan.height_at(Vector2(at.x, at.z))
+		if stand_in:
+			stand_in.global_position = at
 		var home: Vector2i = plan.block_index_at(Vector2(at.x, at.z))
 		for dz in range(-blocks, blocks + 1):
 			for dx in range(-blocks, blocks + 1):

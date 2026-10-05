@@ -82,6 +82,9 @@ static func _offered(plan: CityPlan, lot: Dictionary, district: int) -> bool:
 	var c: Vector2 = lot.center
 	if plan.zone_at(c) != MacroMap.Zone.CITY:
 		return false
+	# A vacant lot or gravel car park (VacantLots) is claimed before this.
+	if VacantLots.kind_of(plan, plan.block_index_at(c).x, plan.block_index_at(c).y, lot) != VacantLots.NONE:
+		return false
 	if district == CityPlan.District.MIDTOWN:
 		if plan.lot_height(s, district, plan.macro.skyline_boost(c)) > MIDTOWN_MAX_H:
 			return false

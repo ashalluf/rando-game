@@ -21,6 +21,11 @@ extends RefCounted
 ## Per surface key: {"v", "nrm", "uv", "col" (packed arrays), "mat": Material, "n": triangles}
 var _surfaces: Dictionary = {}
 var _order: Array[String] = []
+var _sliced: Dictionary = {}
+## When > 0, a surface that reaches this many triangles carries on in a new surface on the same
+## material: no vertex array grows past a few hundred kB (a build step that grows one to
+## megabytes stalls on the reallocation now and then). Costs a draw call per extra surface.
+var max_surface_tris: int = 0
 ## World-space triangles for one ConcavePolygonShape3D.
 var collision := PackedVector3Array()
 ## Triangles added, for the cost notes in the builders.
@@ -53,6 +58,13 @@ func has(key: String) -> bool:
 func tri(key: String, a: Vector3, b: Vector3, c: Vector3, want: Vector3, ua: Vector2, ub: Vector2, uc: Vector2,
 		col: Color = Color.WHITE, collide: bool = false, na: Vector3 = Vector3.ZERO, nb: Vector3 = Vector3.ZERO, nc: Vector3 = Vector3.ZERO) -> void:
 	var s: Dictionary = _surfaces[key]
+	if max_surface_tris > 0 and int(s.n) >= max_surface_tris:
+		var full := "%s#%d" % [key, _order.size()]
+		_surfaces[full] = s
+		_order.insert(_order.find(key), full)
+		s = {"v": PackedVector3Array(), "nrm": PackedVector3Array(), "uv": PackedVector2Array(),
+			"col": PackedColorArray(), "mat": s.mat, "n": 0}
+		_surfaces[key] = s
 	var flat := (c - a).cross(b - a)
 	if flat.length_squared() < 1e-12:
 		return
@@ -427,6 +439,96 @@ func commit(parent: Node3D, node_name: String, shadow: bool = true, draw_distanc
 		mi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 	parent.add_child(mi)
 	return mi
+
+
+## commit() a slice at a time, for builders that run as time-sliced build steps: returns false
+## until the node is under `parent` (call it again next step). A call indexes and tangents at
+## most `chunk` triangles of one surface (SurfaceTool on that slice) or adds one finished surface,
+## so none runs long; the mesh is the same triangles on the same materials as commit()'s.
+func commit_sliced(parent: Node3D, node_name: String, shadow: bool = true, draw_distance: float = 0.0,
+		chunk: int = 1800) -> bool:
+	if _sliced.is_empty():
+		_sliced = {"mesh": ArrayMesh.new(), "k": 0, "t": 0, "parts": [], "nv": 0, "merged": [], "kind": -1}
+	var S := _sliced
+	var mesh: ArrayMesh = S.mesh
+	while int(S.k) < _order.size() and int((_surfaces[_order[int(S.k)]] as Dictionary).n) == 0:
+		S.k = int(S.k) + 1
+	if int(S.k) < _order.size():
+		var s: Dictionary = _surfaces[_order[int(S.k)]]
+		var parts: Array = S.parts
+		var n: int = s.n
+		if int(S.t) < n:
+			# Index and tangent one slice; its indices offset by the vertices before it.
+			var t0: int = S.t
+			var t1 := mini(n, t0 + chunk)
+			var arrays := []
+			arrays.resize(Mesh.ARRAY_MAX)
+			arrays[Mesh.ARRAY_VERTEX] = (s.v as PackedVector3Array).slice(t0 * 3, t1 * 3)
+			arrays[Mesh.ARRAY_NORMAL] = (s.nrm as PackedVector3Array).slice(t0 * 3, t1 * 3)
+			arrays[Mesh.ARRAY_TEX_UV] = (s.uv as PackedVector2Array).slice(t0 * 3, t1 * 3)
+			arrays[Mesh.ARRAY_COLOR] = (s.col as PackedColorArray).slice(t0 * 3, t1 * 3)
+			var st := SurfaceTool.new()
+			st.create_from_arrays(arrays)
+			st.index()
+			st.generate_tangents()
+			var out := st.commit_to_arrays()
+			var base: int = S.nv
+			var idx: PackedInt32Array = out[Mesh.ARRAY_INDEX]
+			out[Mesh.ARRAY_INDEX] = null
+			if base > 0:
+				for i in idx.size():
+					idx[i] += base
+			out[Mesh.ARRAY_INDEX] = idx
+			S.nv = base + (out[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+			parts.append(out)
+			S.t = t1
+			return false
+		# Then the slices joined, one array kind a call (growing one array across calls is a
+		# reallocation of megabytes now and then), then the surface added.
+		var kinds := [Mesh.ARRAY_VERTEX, Mesh.ARRAY_NORMAL, Mesh.ARRAY_TANGENT, Mesh.ARRAY_TEX_UV, Mesh.ARRAY_COLOR, Mesh.ARRAY_INDEX]
+		var merged: Array = S.merged
+		if merged.is_empty():
+			merged.resize(Mesh.ARRAY_MAX)
+		var kind: int = int(S.kind) + 1
+		if kind < kinds.size():
+			var ak: int = kinds[kind]
+			var joined: Variant = (parts[0] as Array)[ak]
+			(parts[0] as Array)[ak] = null
+			for j in range(1, parts.size()):
+				joined.append_array((parts[j] as Array)[ak])
+				(parts[j] as Array)[ak] = null
+			merged[ak] = joined
+			S.kind = kind
+			return false
+		var before := mesh.get_surface_count()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, merged)
+		if mesh.get_surface_count() > before:
+			mesh.surface_set_material(before, s.mat)
+		S.k = int(S.k) + 1
+		S.t = 0
+		S.parts = []
+		S.nv = 0
+		S.merged = []
+		S.kind = -1
+		return false
+	_sliced = {}
+	_surfaces.clear()
+	_order.clear()
+	committed_triangles += triangles
+	committed_surfaces += mesh.get_surface_count()
+	triangles = 0
+	if mesh.get_surface_count() == 0:
+		return true
+	var mi := MeshInstance3D.new()
+	mi.name = node_name
+	mi.mesh = mesh
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadow else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	if draw_distance > 0.0:
+		mi.visibility_range_end = draw_distance
+		mi.visibility_range_end_margin = draw_distance * 0.1
+		mi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+	parent.add_child(mi)
+	return true
 
 
 ## Adds the collected curved-surface collision to `statics` as one concave shape.

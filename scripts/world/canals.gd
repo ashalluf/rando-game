@@ -630,21 +630,45 @@ static func _bank_tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> vo
 
 ## The water: one quad per piece of canal in the chunk, UV the across offset from its own centre
 ## line and the along coordinate, UV2.x which way it runs (the reflection works in that frame).
+## A canal's water as rects: [pieces, cross], `cross[i]` the index of the canal crossing piece i
+## or -1. A north-south canal's water owns the crossings, but there the way along the cross canal
+## is open, so those squares are pieces of their own, tagged with the cross canal: the shader
+## mirrors down whichever canal the reflected ray runs along. Pure (tests/fwd_review_a_checks.gd).
+static func water_pieces(canals: Array, ci: int, half: float) -> Array:
+	var c: Dictionary = canals[ci]
+	var rect := _canal_rect(c, half)
+	var holes: Array = []
+	var hole_ids: Array[int] = []
+	for oi in canals.size():
+		if int(canals[oi].axis) != int(c.axis):
+			holes.append(_canal_rect(canals[oi], half))
+			hole_ids.append(oi)
+	if holes.is_empty():
+		return [[rect], [-1]]
+	var pieces: Array = Parks.minus(rect, holes, 0.01)
+	var cross: Array = []
+	cross.resize(pieces.size())
+	cross.fill(-1)
+	if int(c.axis) == 0:
+		for hi in holes.size():
+			var sq: Rect2 = rect.intersection(holes[hi])
+			if sq.size.x > 0.05 and sq.size.y > 0.05:
+				pieces.append(sq)
+				cross.append(hole_ids[hi])
+	return [pieces, cross]
+
+
 static func _water(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
 	var far := ch.level != CityChunk.Level.FULL or ch.capturing
 	var canals: Array = lay.canals
 	for ci in canals.size():
 		var c: Dictionary = canals[ci]
 		var half := COPE_IN if far else (BED_HALF + 1.6)
-		var rect := _canal_rect(c, half)
-		var pieces: Array[Rect2] = [rect]
-		if int(c.axis) == 1:
-			var holes: Array = []
-			for o: Dictionary in canals:
-				if int(o.axis) == 0:
-					holes.append(_canal_rect(o, half))
-			pieces = Parks.minus(rect, holes, 0.01)
-		for piece: Rect2 in pieces:
+		var split := water_pieces(canals, ci, half)
+		var pieces: Array = split[0]
+		var cross: Array = split[1]
+		for pi in pieces.size():
+			var piece: Rect2 = pieces[pi]
 			var part := piece.intersection(area)
 			if part.size.x < 0.05 or part.size.y < 0.05:
 				continue
@@ -662,9 +686,14 @@ static func _water(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
 					var v: Vector3 = vs[k]
 					var across: float = (v.x if int(c.axis) == 0 else v.z) - float(c.c)
 					var along: float = v.z if int(c.axis) == 0 else v.x
+					var uv2 := Vector2(float(c.axis), float(ci))
+					if cross[pi] >= 0:
+						# A crossing: UV.y is the offset across the cross canal, UV2.x 2 + its index.
+						along = v.z - float(canals[cross[pi]].c)
+						uv2.x = 2.0 + float(cross[pi])
 					st.set_normal(Vector3.UP)
 					st.set_uv(Vector2(across, along))
-					st.set_uv2(Vector2(float(c.axis), float(ci)))
+					st.set_uv2(uv2)
 					st.add_vertex(v)
 			if not far:
 				_sink_volume(ch, part)

@@ -366,6 +366,10 @@ func _refresh() -> void:
 		_data.ensure_rect(_geo_area if ppm >= 0.3 else area.grow(200.0))
 		_geo.queue_redraw()
 	MapPainter.set_relief_view(_relief_mat, center, ppm, view, 0.0)
+	var s := _ui_scale()
+	_overlay.position = Vector2.ZERO
+	_overlay.scale = Vector2(s, s)
+	_overlay.size = view / s
 	_overlay.queue_redraw()
 	_ink.queue_redraw()
 
@@ -374,20 +378,25 @@ func _draw_geo() -> void:
 	if _plan == null:
 		return
 	var v := MapPainter.View.new()
-	v.ppm = _geo_ppm
+	# In 1080-line pixels, like the marks: line floors and detail thresholds stay put at 4K.
+	v.ppm = _geo_ppm / _ui_scale()
 	v.area = _geo_area
 	v.aa = _geo_ppm > 0.3
 	v.full = true
 	MapPainter.draw_geo(_geo, v, _plan, _data)
 
 
+## The marks' view, in 1080-line pixels: the Marks layer is drawn at that size and scaled with
+## the window (`_ui_scale()`), so shields, glyphs, names and the arrow keep their size at 4K.
 func _screen_view() -> MapPainter.View:
-	var view := _root.get_viewport_rect().size
+	var s := _ui_scale()
+	var view := _root.get_viewport_rect().size / s
+	var k := ppm / s
 	var v := MapPainter.View.new()
-	v.xf = Transform2D(Vector2(ppm, 0.0), Vector2(0.0, ppm), view * 0.5 - center * ppm)
-	v.k = ppm
-	v.ppm = ppm
-	v.area = Rect2(center - view * 0.5 / ppm, view / ppm)
+	v.xf = Transform2D(Vector2(k, 0.0), Vector2(0.0, k), view * 0.5 - center * k)
+	v.k = k
+	v.ppm = k
+	v.area = Rect2(center - view * 0.5 / k, view / k)
 	v.screen = view
 	v.full = true
 	return v
@@ -403,18 +412,19 @@ func _draw_overlay() -> void:
 		MapPainter.draw_route(c, v, _route.points, pp, _route_index)
 	MapPainter.draw_marks(c, v, _plan, _data)
 	var view := v.screen
+	var inv := 1.0 / _ui_scale()
 	var inset := Rect2(Vector2(14, 14), view - Vector2(28, 28))
 	var clamp_fn := func(p: Vector2) -> Vector2: return p.clamp(inset.position, inset.end)
 	MapPainter.draw_units(c, v, _city, _pulse, clamp_fn)
 	if _has_waypoint:
-		var wp: Vector2 = clamp_fn.call(world_to_screen(_waypoint))
+		var wp: Vector2 = clamp_fn.call(world_to_screen(_waypoint) * inv)
 		c.draw_set_transform(wp)
 		MapPainter.waypoint_pin(c, _pulse)
 		c.draw_set_transform(Vector2.ZERO)
 	# The player: the arrow points where the camera looks.
 	var rig: Node3D = _player.get("camera_rig")
 	var yaw := rig.global_rotation.y if rig else 0.0
-	var pp2: Vector2 = clamp_fn.call(world_to_screen(_player_xz()))
+	var pp2: Vector2 = clamp_fn.call(world_to_screen(_player_xz()) * inv)
 	MapPainter.player_arrow(c, pp2, Vector2(-sin(yaw), -cos(yaw)), _pulse, 1.15)
 	if _pad_cursor:
 		var m := view * 0.5
@@ -545,7 +555,7 @@ func _build() -> void:
 	_root.add_child(_geo)
 	_overlay = Control.new()
 	_overlay.name = "Marks"
-	_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Sized and scaled in _refresh() (1080-line pixels, scaled with the window).
 	_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_overlay.draw.connect(_draw_overlay)
 	_root.add_child(_overlay)

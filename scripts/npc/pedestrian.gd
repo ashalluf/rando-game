@@ -1410,6 +1410,8 @@ func _physics_process(delta: float) -> void:
 		_post_pose(delta)
 	if _life_ok:
 		_life_pose(delta)
+	if not errand.is_empty():
+		StreetErrands.pose(self, delta)
 
 
 func _walk(delta: float) -> void:
@@ -1424,6 +1426,9 @@ func _walk(delta: float) -> void:
 			_scream_in = -1.0
 			if _cross != Cross.CROSSING:
 				_go_to(_random_ring_point(_sidewalk))
+	# On an errand (StreetErrands: a bus, a shop, a parked car, over the road mid-block).
+	if (_life_near or not errand.is_empty()) and StreetErrands.walk(self, delta, panicking):
+		return
 	# Standing still: waiting at a kerb, looking in a window, checking a phone. A crowd where
 	# every single person walks without ever stopping reads as a conveyor belt.
 	if _pause_left > 0.0:
@@ -1810,6 +1815,10 @@ static func far_mesh(mesh: Mesh, cap: int = -1) -> Mesh:
 			break
 	var result := _unweld(w, base, mesh.surface_get_material(0))
 	per_cap[cap] = result
+	# Both bodies built: the weld (the model's arrays read back, the welded copy and its LOD
+	# chain, ~2 MB a rig) is only needed to build them. Kept, it was 40 MB of a city load.
+	if per_cap.has(mid_triangles) and per_cap.has(far_triangles):
+		_welds.erase(mesh)
 	return result
 
 
@@ -2119,6 +2128,8 @@ static func alarm(tree: SceneTree, at: Vector3, radius: float, screams: int, for
 		return
 	# The birds hear every shot and blast first (they startle further than people do).
 	Birds.startle(at, radius)
+	# And the dogs (Dog): a lead dog barks with its tail tucked, a yard dog runs for the house.
+	Dog.startle_all(tree, at, radius)
 	var now := Time.get_ticks_msec()
 	if not force and now - _last_alarm_ms < 250 and at.distance_to(_last_alarm_at) < 10.0:
 		return
@@ -2432,6 +2443,7 @@ func _walk_crossing(delta: float, panicking: bool) -> void:
 func _exit_tree() -> void:
 	_leave_crosswalk()
 	_end_act(true)
+	StreetErrands.release(self)
 
 
 ## The spot on this block's pavement ring farthest from the threat, out of a handful: fleeing
@@ -2525,10 +2537,9 @@ func shot(at: Vector3, dir: Vector3, impulse: Vector3, strength: float = 1.0) ->
 ## Joggers and dog walkers: the share in the suburbs, beach town and on the Esplanade, and in
 ## the rest of the city.
 @export var jogger_share: Vector2 = Vector2(0.14, 0.03)
-## Dog walkers are OFF (lead, 2026-10-04): the only CC0 rigged dog is Quaternius' low-poly,
-## flat-shaded Shiba, which breaks the realism rule. Put (0.12, 0.03) back once
-## `CrowdDog.MODEL` is a realistic dog; the roll is still made, so nothing else moves.
-@export var dog_share: Vector2 = Vector2.ZERO
+## Dog walkers: the dogs are code-built now (DogMesh / DogRig, six breeds with fur shells), so
+## they are back on (they were off while the only dog was a low-poly Shiba).
+@export var dog_share: Vector2 = Vector2(0.12, 0.03)
 ## A jogger's pace (m/s).
 @export var jog_pace: Vector2 = Vector2(2.6, 3.4)
 @export_group("")
@@ -2564,6 +2575,8 @@ var _props: Dictionary = {}
 var _skel_unit: float = 100.0
 var _hip_bone: int = -1
 var _leg_bones := PackedInt32Array()
+## The errand under way (StreetErrands: its steps and where it is in them), {} for none.
+var errand: Dictionary = {}
 
 
 ## Rolls what this person carries and whether they jog or walk a dog (from the seed, so the same
@@ -2581,6 +2594,9 @@ func _roll_life(seed_value: int) -> void:
 	var leisure := _leisure_place()
 	_jogger = _life.randf() < (jogger_share.x if leisure else jogger_share.y)
 	_dog_walker = not _jogger and _life.randf() < (dog_share.x if leisure else dog_share.y)
+	# Only the plain crowd walks dogs: officers, crews and sleepers keep their own pace (the roll
+	# is still made, so nothing after it moves).
+	_dog_walker = _dog_walker and _lives()
 	if _jogger:
 		_carry = CrowdLife.Carry.NONE
 		walk_speed = _life.randf_range(jog_pace.x, jog_pace.y)
@@ -2642,7 +2658,7 @@ func _setup_life() -> void:
 ## Whether this person could start something now (and join a group).
 func _life_free() -> bool:
 	return _life_ok and _life_near and not _down and _act == CrowdLife.Act.NONE and _panic_left <= 0.0 \
-		and _cross == Cross.NONE and not _jogger and _pause_left <= 0.0
+		and _cross == Cross.NONE and not _jogger and _pause_left <= 0.0 and errand.is_empty()
 
 
 ## At the end of a walk, near the player: maybe stop and do something. True when it did.
@@ -2653,6 +2669,9 @@ func _try_life(at_spawn: bool) -> bool:
 			_start_stand(_life.randf_range(4.0, 10.0))
 			return true
 		return false
+	# Somewhere to go (StreetErrands): a bus, a shop, a parked car, over the road mid-block.
+	if StreetErrands.try_start(self, at_spawn):
+		return true
 	# A street vendor's queue nearby (StreetVendors): some stop and wait at the cart or the truck.
 	if _plan_queue(at_spawn):
 		return true
@@ -2979,7 +2998,7 @@ func _do_act(delta: float) -> void:
 					# Along the window to the next thing in it.
 					var along := Vector3(cos(_act_face), 0.0, -sin(_act_face)) * _life.randf_range(-1.6, 1.6)
 					_life_look = _life_look + along * 0.5
-	if _dog_walker and _act == CrowdLife.Act.STAND and _dog:
+	if _dog_walker and _act == CrowdLife.Act.STAND and is_instance_valid(_dog) and _dog.is_inside_tree():
 		_life_look = _dog.global_position + Vector3.UP * 0.3
 
 

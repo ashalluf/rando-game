@@ -44,6 +44,9 @@ extends SceneTree
 ## SHOTS="x,y,z,yaw,pitch@hour[@fov];..." then takes more EYE shots from the same load, saved as OUT
 ## with _1, _2, ... (SHOT_FRAMES frames each to stream in; GEO_n lines give each one's cost). An empty camera ("@21.5") is the last
 ## shot's camera at another hour.
+## OCCLUSION=0 renders with occlusion culling off; OCCLUDERS=0 without the extra occluders
+## (Occluders: hill terrain, freeway decks, river banks, sound walls, the far mountains);
+## OCC_AB=1 counts and saves every shot's held frame again without them and without culling.
 ## EYE=x,y,z,yaw,pitch puts a free camera at a true world point; with EYE_AGL=1 its y is metres
 ## above the ground there.
 ## Every shot also prints the frame's cost (GEO: triangles, draw calls, objects, split into the
@@ -60,8 +63,15 @@ extends SceneTree
 ## nearest person doing that (LIFE_FOCUS_DIST metres off, default 5); CROWD_LIFE=0 turns the crowd's life off (the A/B).
 ## AFTERMATH=palms|burning|charred|column|crater stages what a blast leaves by the nearest palm
 ## row (tools/glshot/aftermath_stage.gd: AF_FIND, AF_TIME, AF_EYE_DIST, AF_FAR, ...).
+## SERVICE=garbage|sweeper|tow|ice_cream|delivery stages a service vehicle at work ahead of the
+## camera and moves a free camera to frame it (ServiceFleet.stage_for_shot; SERVICE_EYE=0 keeps
+## the camera, SERVICE_LIFT 0..1 how far up the garbage truck's arm has its cart).
+## ERRAND=bus|car|jay|shop|deliver stages a street errand ahead of the camera (StreetErrands; see
+## tools/street_errands/stage.gd for ERRAND_PICK and the framing knobs); STREET_ERRANDS=0 turns
+## the errands off (the A/B).
 ## BIRD=ground|flush|wire stages birds ahead of the camera (BIRD_SPECIES, BIRD_DIST, BIRD_COUNT,
 ## BIRD_FLY; see the block before STREET); BIRDS=0 removes the birds (the A/B).
+## TEX_REPORT=1 prints the frame's textures and their video memory (tools/texture_budget/tex_census.gd).
 ## ROOF_TRIS=1 prints what the rooftop units really cost (per instance, by the LOD rule).
 ## INDUSTRIAL=0 builds the industrial district without Industrial (Building warehouses on bare
 ## paving: the A/B of the warehouses, docks and yards).
@@ -91,6 +101,8 @@ extends SceneTree
 ## one of them on the old generated LODs (the simplifier's own errors, the old shadow stand-ins,
 ## no instance-scale LOD bias), saved as <OUT>_treeold.png, then back on FoliageLod's ladders.
 ## TREE_AB=2 adds the parts: no instance bias, lower shadow-twin bias, old shadows, per group.
+## DRIVE=burnout|drift|donut|scrape|sand drives a car badly in front of the camera for the driving
+## effects (tools/glshot/drive_fx_stage.gd: DRIVE_DIST, DRIVE_SIDE, DRIVE_YAW, DRIVE_TIME, ...).
 ## MOTION_BLUR=1 leaves the camera's motion blur on (Forward+ only; off by default so a still
 ## is sharp). Traffic is allowed to build freely during the warm-up, so the streets look the way they do a
 ## minute into play rather than the first second of it.
@@ -106,6 +118,10 @@ func _initialize() -> void:
 	if OS.get_environment("DIFF") == "1":
 		ProjectSettings.set_setting("rendering/limits/time/time_rollover_secs", 0.000001)
 		seed(12345)
+	# OCCLUSION=0 renders without occlusion culling (city_shot.gd's switch): diffed with DIFF=1
+	# against a normal shot, anything in one and not the other was culled in plain sight.
+	if OS.get_environment("OCCLUSION") == "0":
+		get_root().use_occlusion_culling = false
 	# MERGE_STATIC=0: the chunks' solid boxes and the far landmarks' boxes one node each, as
 	# before they were merged (the A/B of that change). Through the script resources, not the
 	# class names: CityChunk uses autoloads, and this script compiles before they exist.
@@ -389,6 +405,39 @@ func _initialize() -> void:
 		for i in _env_int("EMERGENCY_FRAMES", 30):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
+	# TRAFFIC=bus|merge|pullout: a car changing lanes round a bus at its stop, a car merging from an
+	# on-ramp (from above), a parked car pulling out (TrafficAI.stage_for_shot), framed by a free
+	# camera. The staged traffic moves only when told: TRAFFIC_STEPS="s,s,..." advances it that many
+	# seconds before each still of a sequence, saved as OUT with _t1, _t2, ... added.
+	var traffic_env := OS.get_environment("TRAFFIC")
+	if traffic_env != "" and current_scene and current_scene.get_node_or_null("Traffic"):
+		var tai = load("res://scripts/npc/traffic_ai.gd")
+		var tm: Node = current_scene.get_node("Traffic")
+		var t_eye: String = tai.call("stage_for_shot", tm, traffic_env, get_root().get_camera_3d())
+		print("TRAFFIC %s eye %s" % [traffic_env, t_eye])
+		if t_eye != "":
+			OS.set_environment("EYE", t_eye)
+			OS.set_environment("EYE_AGL", "")
+		_eye(player, fov)
+		if current_scene.has_method("update_streaming"):
+			current_scene.call("update_streaming", true)
+		for i in _env_int("TRAFFIC_FRAMES", 30):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
+		var t_steps := OS.get_environment("TRAFFIC_STEPS").split(",", false)
+		for s_i in t_steps.size():
+			tai.call("advance_shot", tm, t_steps[s_i].to_float())
+			Engine.time_scale = 0.0005
+			for i in _env_int("SETTLE", 6):
+				await process_frame
+				_pose(player, anchor, hold, boost, fov)
+			Engine.time_scale = 1.0
+			var t_out := OS.get_environment("OUT").get_basename() + "_t%d.png" % (s_i + 1)
+			var t_img := get_root().get_texture().get_image()
+			if t_img:
+				t_img.save_png(t_out)
+			var sc: Variant = tm.get_meta("shot_car") if tm.has_meta("shot_car") else null
+			print("saved %s: car %s" % [t_out, str((sc as Node).get("traffic")) if sc != null and is_instance_valid(sc) else "-"])
 	# AFTERMATH=palms|burning|charred|column|crater: what a blast leaves behind, staged by the
 	# nearest palm row and framed by a free camera (tools/glshot/aftermath_stage.gd), then AF_TIME
 	# seconds of it at FX_SCALE.
@@ -406,6 +455,49 @@ func _initialize() -> void:
 		while af_t < _env_float("AF_TIME", 0.3):
 			await process_frame
 			af_t += get_root().get_process_delta_time()
+	# SERVICE=garbage|sweeper|tow|ice_cream|delivery: a service vehicle at work in front of the
+	# camera (ServiceFleet.stage_for_shot; SERVICE_LIFT 0..1 how far up the arm has the cart).
+	var svc_env := OS.get_environment("SERVICE")
+	if svc_env != "" and current_scene and current_scene.get_node_or_null("ServiceFleet"):
+		var svc_eye: String = await current_scene.get_node("ServiceFleet").call("stage_for_shot", svc_env, get_root().get_camera_3d())
+		if svc_eye != "" and OS.get_environment("SERVICE_EYE") != "0":
+			OS.set_environment("EYE", svc_eye)
+		print("SERVICE %s eye %s" % [svc_env, svc_eye])
+		_eye(player, fov)
+		if current_scene.has_method("update_streaming"):
+			current_scene.call("update_streaming", true)
+		for i in _env_int("SERVICE_FRAMES", 30):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
+	# HOSPITAL=front|bay|roof|aerial: the hospital nearest the camera (HOSPITAL_AT=medical: the
+	# medical centre), `bay` with an ambulance backing into the ER bay (HospitalStage).
+	var hosp_env := OS.get_environment("HOSPITAL")
+	if hosp_env != "" and current_scene:
+		var h_eye: String = load("res://scripts/world/hospital_stage.gd").stage(self, current_scene, hosp_env, get_root().get_camera_3d())
+		if h_eye != "":
+			OS.set_environment("EYE", h_eye)
+		print("HOSPITAL %s eye %s" % [hosp_env, h_eye])
+		_eye(player, fov)
+		if current_scene.has_method("update_streaming"):
+			current_scene.call("update_streaming", true)
+		for i in _env_int("HOSPITAL_FRAMES", 24):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
+	# DRIVE=burnout|drift|donut|scrape|sand: a car driven badly in front of the camera for
+	# DrivingFX's skid marks, smoke, sparks and sand spray (tools/glshot/drive_fx_stage.gd).
+	if OS.get_environment("DRIVE") != "" and get_root().get_camera_3d():
+		await load("res://tools/glshot/drive_fx_stage.gd").stage(self, OS.get_environment("DRIVE"), get_root().get_camera_3d())
+	# ERRAND=bus|car|jay|shop|deliver: a street errand staged in front of the camera and framed by
+	# a free camera (tools/street_errands/stage.gd; STREET_ERRANDS=0 is the A/B).
+	var errand_env := OS.get_environment("ERRAND")
+	if errand_env != "" and current_scene:
+		var er_eye: String = await load("res://tools/street_errands/stage.gd").new().stage(current_scene, errand_env, get_root().get_camera_3d())
+		if er_eye != "":
+			OS.set_environment("EYE", er_eye)
+		print("ERRAND %s eye %s" % [errand_env, er_eye])
+		_eye(player, fov)
+		for i in _env_int("ERRAND_FRAMES", 12):
+			await process_frame
 			_pose(player, anchor, hold, boost, fov)
 	# Then all but freeze the clock for the last frames: a software frame takes seconds, and at
 	# normal speed everything that moves - people, traffic, leaves, fire - smears under TAA.
@@ -520,6 +612,10 @@ func _initialize() -> void:
 	# category at a time, the world held still, as tools/tri_split.gd does - so every bookmark
 	# still also gives a cost table for the exact frame it shot.
 	await _geo_report("GEO")
+	if OS.get_environment("OCC_AB") == "1":
+		await _occ_ab(out)
+	if OS.get_environment("TEX_REPORT") == "1":
+		load("res://tools/texture_budget/tex_census.gd").report(get_root(), "TEX")
 	if OS.get_environment("ROOF_TRIS") == "1":
 		_roof_unit_tris()
 	if OS.get_environment("PALM_AB") == "1":
@@ -577,6 +673,9 @@ func _initialize() -> void:
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
 		Engine.time_scale = 0.0005
+		# DIFF=1: what streamed in for this shot (people, cars, particles) is hidden too.
+		if OS.get_environment("DIFF") == "1":
+			_diff_freeze(player)
 		for i in _env_int("SETTLE", 6):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
@@ -584,7 +683,42 @@ func _initialize() -> void:
 		get_root().get_texture().get_image().save_png(more)
 		print("saved ", more, " at ", bits[0], " hour ", bits[1] if bits.size() > 1 else "-")
 		await _geo_report("GEO_%d" % k)
+		if OS.get_environment("OCC_AB") == "1":
+			await _occ_ab(more, "_%d" % k)
 	quit()
+
+
+## OCC_AB=1: the same held frame again without the extra occluders (every OccluderExtra and the
+## MountainOccluder hidden: the building occluders alone, the before) and with occlusion culling
+## off, each counted (GEO<n> noextra / nocull) and saved beside the shot (_noextra / _nocull), so
+## one load gives the A/B and the pixel diffs (tools/glshot/img_diff.py: anything in the shot
+## missing from _nocull was culled in plain sight); then the occlusion buffer (_occ).
+func _occ_ab(path: String, tag: String = "") -> void:
+	var hidden: Array[Node3D] = []
+	for n in current_scene.find_children("OccluderExtra", "OccluderInstance3D", true, false):
+		if (n as Node3D).visible:
+			(n as Node3D).visible = false
+			hidden.append(n)
+	var mountains := current_scene.get_node_or_null("MountainOccluder") as Node3D
+	if mountains and mountains.visible:
+		mountains.visible = false
+		hidden.append(mountains)
+	await _geo_report("GEO%s noextra (%d hidden)" % [tag, hidden.size()])
+	get_root().get_texture().get_image().save_png(path.get_basename() + "_noextra.png")
+	for n in hidden:
+		n.visible = true
+	get_root().use_occlusion_culling = false
+	await _geo_report("GEO%s nocull" % tag)
+	get_root().get_texture().get_image().save_png(path.get_basename() + "_nocull.png")
+	get_root().use_occlusion_culling = true
+	await process_frame
+	# The occlusion buffer itself (what the culler sees: every occluder's depth), for the record.
+	get_root().debug_draw = Viewport.DEBUG_DRAW_OCCLUDERS
+	await process_frame
+	await process_frame
+	get_root().get_texture().get_image().save_png(path.get_basename() + "_occ.png")
+	get_root().debug_draw = Viewport.DEBUG_DRAW_DISABLED
+	await process_frame
 
 
 ## TREE_AB: every batch of a scanned plant on its FoliageLod ladder redrawn with the old mesh

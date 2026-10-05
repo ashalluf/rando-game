@@ -119,6 +119,10 @@ func _contrails(day: Node, extras: Node) -> void:
 	for j in jets:
 		high = high and float(j.height) >= 9000.0 and float(j.height) <= 12000.0
 	_t._check(high, "sky: the jets cruise 9-12 km up")
+	# A jet past 75 km is replaced by a new one far out (SkyExtras._fly()), so one near the end of
+	# its track would read as jumping back (CI run 351: "-144612 m in 2 s"); this one is mid-track.
+	if float(jets[0].along) > 60000.0:
+		jets[0].along = 0.0
 	var along: float = jets[0].along
 	extras.call("_fly", 2.0, Vector3.ZERO)
 	_t._check(float(jets[0].along) > along + 400.0, "sky: a jet flies on (%.0f m in 2 s)" % (float(jets[0].along) - along))

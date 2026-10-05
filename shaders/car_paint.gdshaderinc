@@ -97,6 +97,10 @@ uniform vec2 glass_span = vec2(0.0, 1.0);
 // than the pale horizon - with the whole coat there, every car side took a pale-blue sheen.
 uniform float canyon_reflect = 0.4;
 uniform float canyon_rise = 0.45;
+// Inside the reflection probes' reach (ReflectionProbes, Forward+; 0 = none) the radiance a door
+// mirrors IS the street, so the coat is handed back in full there: dimming a real reflection of
+// dark facades a second time made them black.
+global uniform float probe_reach;
 
 #ifdef CAR_DAMAGE
 #include "res://shaders/car_damage.gdshaderinc"
@@ -507,6 +511,9 @@ void fragment() {
 	vec3 w_view = normalize((INV_VIEW_MATRIX * vec4(VIEW, 0.0)).xyz);
 	float rise = reflect(-w_view, w_normal).y;
 	float open_sky = mix(canyon_reflect, 1.0, smoothstep(0.0, canyon_rise, rise));
+	if (probe_reach > 0.0) {
+		open_sky = mix(open_sky, 1.0, 1.0 - smoothstep(probe_reach * 0.6, probe_reach, length(VERTEX)));
+	}
 	CLEARCOAT = max(clearcoat_amount * body, glass_clearcoat * glass * mix(1.0, 0.6, shape_glass)) * open_sky;
 	CLEARCOAT *= 1.0 - worn_coat * body;
 	CLEARCOAT_ROUGHNESS = mix(clearcoat_roughness_value, 0.25, worn_coat);

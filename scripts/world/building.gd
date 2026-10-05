@@ -372,6 +372,8 @@ func plan_only() -> Dictionary:
 	else:
 		finish = _rng.randi_range(0, Finish.size() - 1) as Finish
 	window_style = _pick_window_style()
+	if window_style_force >= 0:
+		window_style = window_style_force as WindowStyle
 	# Roof covering, picked per building: mostly white membrane on modern blocks, gravel on
 	# older ones, bitumen on the rest.
 	var roof_roll := _rng.randf()
@@ -398,6 +400,8 @@ func _layout_parts() -> void:
 	match shape:
 		Shape.SLAB:
 			var size := Vector3(lot.x * _rng.randf_range(0.7, 1.0), _rng.randf_range(h_lo, minf(h_hi, 40.0)), lot.y * _rng.randf_range(0.7, 1.0))
+			if fill_lot:
+				size = Vector3(lot.x, size.y, lot.y)
 			_add_part(size, Vector2.ZERO, 0.0)
 		Shape.TOWER:
 			var w := minf(lot.x, lot.y) * _rng.randf_range(0.45, 0.7)
@@ -615,6 +619,8 @@ func _pick_style() -> Dictionary:
 			colors = GLASS_COLORS
 		_:
 			colors = FLAT_COLORS
+	if not palette_override.is_empty():
+		colors = palette_override
 	var facade: Color = colors[_rng.randi() % colors.size()]
 	facade = facade.lightened(_rng.randf_range(-0.08, 0.08))
 	var pitch_by_style := [2.6, 2.2, 1.8, 1.6]
@@ -672,7 +678,7 @@ func part_grid(part: Dictionary, style: Dictionary) -> Dictionary:
 	# height, so the two have to be asked for from the same place.
 	var base_h := 0.0 if parking else _base_course_height(size, style, storefront, on_ground)
 	var crown := -1.0
-	if size.y > 22.0 and finish != Finish.GLASS and shape != Shape.WAREHOUSE and not parking:
+	if size.y > 22.0 and roof_bands and finish != Finish.GLASS and shape != Shape.WAREHOUSE and not parking:
 		crown = size.y - 1.6 * floor_h
 	return {"storefront": storefront, "rows": rows, "floor_h": floor_h, "cols_x": cols_x, "cols_z": cols_z,
 		"cut_x": cut_x, "cut_z": cut_z, "base_h": base_h, "crown": crown, "parking": parking, "on_ground": on_ground}
@@ -788,6 +794,11 @@ func _part_material(style: Dictionary) -> ShaderMaterial:
 		mat.set_shader_parameter("garage_entry", Vector2(float(entry.face), float(entry.col)))
 	mat.set_shader_parameter("shop_span", _shop_spans())
 	mat.set_shader_parameter("shop_rooms", shop_room_codes())
+	mat.set_shader_parameter("shop_frame_force", shop_frame_force)
+	var name_codes := shop_name_codes()
+	mat.set_shader_parameter("shop_names_a", name_codes[0])
+	mat.set_shader_parameter("shop_names_b", name_codes[1])
+	mat.set_shader_parameter("shop_vinyl", vinyl_enabled)
 	mat.set_shader_parameter("tower_height", height)
 	# Whether the raised shop names are drawn (never on the web): the shader only turns boards
 	# dark for channel letters where there are letters to light.
@@ -956,7 +967,23 @@ const SHOP_NAMES := ["PHARMACY", "NAILS & SPA", "DRY CLEAN", "PHONE FIX", "LIQUO
 ## The names every building rolls from (the first BASE_SHOP_NAMES of SHOP_NAMES), unless it is
 ## handed a `name_pool` of indices into SHOP_NAMES (Broadway.dress()).
 const BASE_SHOP_NAMES := 30
+## Whether the shop glass carries its vinyl (names, hours, promos, posters); SHOP_VINYL=0 in the
+## environment is the A/B.
+static var vinyl_enabled: bool = OS.get_environment("SHOP_VINYL") != "0"
 var name_pool: PackedInt32Array = PackedInt32Array()
+## Historic core (HistoricCore.dress()): a palette the facade colour is picked from instead of the
+## finish's (the same roll), a SLAB that fills its lot, the kit's window surround and cornice
+## forced ("none": none; "" Building's own pick), the window style forced, no stone base course,
+## no box cornice and crown bands (the facade brings its own), and every shop's frame finish
+## forced (an index into SHOP_FRAME_COLORS; -1 the shop's own roll). Inert at their defaults.
+var palette_override: Array = []
+var fill_lot: bool = false
+var kit_surround_force: String = ""
+var kit_cornice_force: String = ""
+var window_style_force: int = -1
+var allow_base_course: bool = true
+var roof_bands: bool = true
+var shop_frame_force: int = -1
 ## Cap height of a shop sign, in metres.
 const SIGN_HEIGHT := 0.40
 ## How far out from the wall the sign sits, and how far a sign still draws.
@@ -1020,6 +1047,22 @@ func shop_room_codes() -> Vector4i:
 	return v
 
 
+## The shader's `shop_names_a` / `shop_names_b` (the window vinyl's names,
+## shaders/vinyl_lettering.gdshaderinc): per face, each of its first SHOP_ROOM_SLOTS shops' index
+## in SHOP_NAMES + 1 in six bits, shops 0-4 in the first, 5-6 in the second.
+func shop_name_codes() -> Array[Vector4i]:
+	var a := Vector4i()
+	var b := Vector4i()
+	for face in 4:
+		var names := shop_names(face, SHOP_ROOM_SLOTS)
+		for run in SHOP_ROOM_SLOTS:
+			if run < 5:
+				a[face] |= (names[run] + 1) << (6 * run)
+			else:
+				b[face] |= (names[run] + 1) << (6 * (run - 5))
+	return [a, b]
+
+
 ## What is behind shop `shop` on face `face_id` (1..4): the room its name says, past the coded
 ## shops the hash's (the shader's own choice, line for line). A tower lobby overrides both.
 func shop_room(face_id: int, shop: int) -> int:
@@ -1048,7 +1091,9 @@ func _shop_spans() -> Vector4:
 ## ink, 24 second poster, 25 OPEN plate, 26 scissor gate, 27 a recessed entry's stone; Building's
 ## alone: 30 blade sign, 31 its colour; the room behind the glass (shaders/shop_interior.gdshaderinc):
 ## 40 its kind, 41 which end its counter is at, 42 its walls, 43 its fittings, 44 a tower lobby,
-## 45 its depth.
+## 45 its depth; the window vinyl (shop_decal(), vinyl_lettering.gdshaderinc): 50 the name's
+## size, 51 the phrase of a shop it has no name for, 52 the line under the name, 53-54 a promo
+## (has, which), 55 the letters' weight, 56 the street number, 57 the hours, 60+ hash digits.
 ## The shader's lights for an open shop (its shop_tone()): warm, neutral, cool, pink, teal.
 const SHOP_TONES := [Color(1.0, 0.70, 0.42), Color(1.0, 0.91, 0.78), Color(0.78, 0.90, 1.0),
 	Color(1.0, 0.50, 0.80), Color(0.55, 1.0, 0.88)]
@@ -1225,7 +1270,7 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		cornice_scale = clampf(fit, 0.6, cornice_scale)
 		var drop := float(KIT_CORNICE_DROP[cornice_piece]) * cornice_scale
 		cornice_lift = clampf(drop + 0.04 - clear, 0.0, KIT_CORNICE_MAX_LIFT)
-	if has_cornice:
+	if has_cornice and roof_bands:
 		if kit_cornice:
 			# The moulding stands for the two bands below near the camera. Past its distance this
 			# one band is what is left of it, sized to sit wholly inside the moulding
@@ -1437,6 +1482,8 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 			if _kit != null and ShopfrontKit.enabled:
 				ShopfrontKit.storefront_face(self, _kit, face_index + 1, fc, a, n, size_u, cols, pitch, cut, bottom,
 					storefront, spans[face_index], stops, masonry, floor_h, top, accent.lightened(0.05))
+			# Where people go in and out of the shops (StreetErrands), off the same shop rolls.
+			StreetErrands.note_shop_doors(self, face_index + 1, fc, a, n, size_u, cols, pitch, cut, bottom, spans[face_index])
 		# Shop signs. The sign band is drawn by the shader on the storefront; this puts the
 		# actual name on it, lined up with the same shop runs (`shop_span`). One per face:
 		# every run would be four names on a wall the player can only read one of.
@@ -1783,6 +1830,10 @@ func _pick_kit(style: Dictionary) -> void:
 				_kit_surround = "surround_brick_a" if _kit_hash("surround") < 0.55 else "surround_brick_b"
 			else:
 				_kit_surround = "surround_stucco"
+	if kit_cornice_force != "":
+		_kit_cornice = "" if kit_cornice_force == "none" else kit_cornice_force
+	if kit_surround_force != "":
+		_kit_surround = "" if kit_surround_force == "none" else kit_surround_force
 	var facade: Color = style.facade
 	if finish == Finish.BRICK:
 		_kit_trim = KIT_STONES[absi(hash([seed, "kit trim"])) % KIT_STONES.size()]
@@ -2018,7 +2069,7 @@ static func _band_xform(a: Vector3, n: Vector3, at: Vector3, length: float, b: A
 func _base_course_height(size: Vector3, style: Dictionary, storefront: float, at_ground: bool) -> float:
 	if not at_ground or not allow_storefront or finish == Finish.GLASS or shape == Shape.WAREHOUSE:
 		return 0.0
-	if size.y < 12.0:
+	if size.y < 12.0 or not allow_base_course:
 		return 0.0
 	return minf(storefront + float(style.floor) * (2.0 if size.y > 30.0 else 1.0), size.y * 0.34)
 

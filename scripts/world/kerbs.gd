@@ -484,6 +484,42 @@ static func _poly_box(poly: PackedVector2Array) -> Rect2:
 	return r
 
 
+## Every place this block's ring MAY cut - each corner ramp and each driveway apron the plan asks
+## for - whether or not Kerbs is on and whether or not the cut is then made (a cut gives way to a
+## prop or another cut). Pure in the plan and the chunk's recorded lots, so what keeps off these
+## (BoulevardSigns' posts) stands the same with the kerbs off, as the kerbs check holds every other
+## prop to. World XZ polygons, kerb line first, as the notches are.
+static func possible_cuts(ch: CityChunk, rect: Rect2, district: int) -> Array:
+	var ctx := {"edges": CityChunk._sidewalk_edges(rect)}
+	var out: Array = []
+	for r: Dictionary in corner_ramps(ch.plan, ch.ix, ch.iz, rect):
+		out.append(_notch_poly(ctx, int(r.e), float(r.uc), CR_HALF, CR_FLARE, CR_RUN))
+	if district != CityPlan.District.SUBURBS and district != CityPlan.District.BEACHTOWN:
+		return out
+	if ch._yard_lots.is_empty():
+		return out
+	var bp := YardFill.beach_block(ch.plan, ch.ix, ch.iz, ch._yard_lots)
+	for lp: Dictionary in bp.lots:
+		var drive: Rect2 = lp.drive
+		if drive.size.x <= 0.0 or lp.walk_front:
+			continue
+		var side := int((lp.frame as Dictionary).side)
+		var gap := 0.0
+		match side:
+			0: gap = drive.position.y - rect.position.y
+			1: gap = rect.end.y - drive.end.y
+			2: gap = drive.position.x - rect.position.x
+			_: gap = rect.end.x - drive.end.x
+		if gap > ch.plan.sidewalk_width + 1.5:
+			continue
+		var u0 := (drive.position.x - rect.position.x) if side < 2 else (drive.position.y - rect.position.y)
+		var w := drive.size.x if side < 2 else drive.size.y
+		if w < DR_MIN or w > DR_MAX:
+			continue
+		out.append(_notch_poly(ctx, side, u0 + w * 0.5, w * 0.5, DR_FLARE, DR_RUN))
+	return out
+
+
 ## Driveway aprons where the yards' driveways meet the street (YardFill's plan of this block).
 static func _driveways(ctx: Dictionary, block: Dictionary) -> void:
 	var ch: CityChunk = ctx.ch

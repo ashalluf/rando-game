@@ -169,13 +169,13 @@ static func _list(ch: CityChunk, key: String) -> Array:
 
 ## The step: first moves itself to just before the finish, then gathers the jobs and runs them in
 ## STEP_BUDGET_US slices (false = run me again), then commits the meshes.
-static func build(ch: CityChunk) -> bool:
+static func build(ch: CityChunk, late: bool = false) -> bool:
 	if not enabled or ch.level != CityChunk.Level.FULL or ch.capturing:
 		return true
 	# Deferred steps (the yards' walls and planting) were inserted just before the finish, so
-	# after this step: go behind them.
-	if ch._step < ch._steps.size() - 2:
-		ch._steps.insert(ch._steps.size() - 1, build.bind(ch))
+	# after this step: go behind them (once; CityChunk._run_last).
+	if not late:
+		ch._run_last(build.bind(ch, true))
 		return true
 	var st: Dictionary = ch.get_meta("climb_state", {})
 	if st.is_empty():

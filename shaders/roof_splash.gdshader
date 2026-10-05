@@ -3,7 +3,12 @@ shader_type spatial;
 // of droplets thrown up and out and falling back, over a flattening ring. INSTANCE_CUSTOM.r is
 // the splash's age 0..1. Water is mostly what it reflects, so its colour is the sky's horizon
 // (`sky_tint`, raw on both renderers) dimmed at night and lifted by the street lamps.
+// `sky_tint` holds sRGB numbers: it is decoded to linear here and the result handed over with
+// cs_out(), so a splash is the same colour on Forward+ and Compatibility (written raw, Forward+
+// took the sRGB numbers for linear light and drew every splash a stop too pale).
 render_mode unshaded, cull_disabled, depth_draw_never, blend_mix, shadows_disabled;
+
+#include "res://shaders/color_space.gdshaderinc"
 
 global uniform vec4 sky_tint;
 global uniform float night_factor;
@@ -45,8 +50,8 @@ void fragment() {
 	float ring = exp(-pow((abs(q.x) - u * 0.85) / 0.06, 2.0)) * (1.0 - smoothstep(0.0, 0.07, q.y));
 	a = max(a, ring * 0.7);
 	a *= (1.0 - u) * (1.0 - u * 0.3);
-	vec3 sky = sky_tint.rgb;
-	vec3 col = mix(sky * 1.05 + vec3(0.06), sky * 0.12 + vec3(0.55, 0.42, 0.25) * 0.35 * lamp_factor, night_factor);
-	ALBEDO = col;
+	vec3 sky = cs_srgb_to_linear(sky_tint.rgb);
+	vec3 col = mix(sky * 1.05 + vec3(0.012), sky * 0.12 + vec3(0.26, 0.15, 0.05) * 0.35 * lamp_factor, night_factor);
+	ALBEDO = cs_out(col);
 	ALPHA = clamp(a * 0.75, 0.0, 1.0);
 }

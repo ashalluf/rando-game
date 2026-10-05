@@ -570,7 +570,7 @@ static func extra_lots(plan: CityPlan, bx: int, bz: int) -> Array[Dictionary]:
 				if bl.size.x > 0.0 and bl.intersects(cell):
 					hit = true
 					break
-			if hit:
+			if hit or Worship.covers(plan, bx, bz, cell):
 				continue
 			var edge := i == 0 or j == 0 or i == int(grid.nx) - 1 or j == int(grid.nz) - 1
 			var lot := {"seed": hash([plan.seed, bx, bz, i, j, "extra_house"]), "size": cell.size - Vector2(2.0, 2.0),
@@ -628,6 +628,8 @@ static func build(ch: CityChunk, h: Dictionary) -> void:
 		b.acc = _acc(ch)
 		b.acc.count += 1
 		b.full()
+		# A cypress pair by the walk and the front garden's accents (LaTrees, hashes only).
+		LaTrees.house(ch, h)
 	else:
 		b.lod()
 

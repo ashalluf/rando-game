@@ -596,6 +596,8 @@ static func _shrub(ch: CityChunk, at: Vector3, rng: RandomNumberGenerator) -> vo
 	var sc := rng.randf_range(0.9, 1.4)
 	var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc, sc, sc))
 	var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.0))
+	if LaTrees.accent_shrub(ch, at, LaTrees.PLANTER_ACCENT):
+		return
 	ch._batch.add("bush_%d" % pick, PropFactory.model_bush(pick), Transform3D(basis, at), tint)
 
 
@@ -606,7 +608,10 @@ static func _tree(ch: CityChunk, at: Vector3, rng: RandomNumberGenerator) -> voi
 	var s := PropFactory.city_tree_scale(variant, PropFactory.city_tree_height(variant, rng) * 0.8)
 	var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.05))
 	var variety := Color(rng.randf(), rng.randf(), rng.randf(), rng.randf_range(0.25, 1.0))
-	ch._batch.add("tree_%d" % variant, PropFactory.model_tree(variant), Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s, s)), at), tint, variety)
+	var yaw := rng.randf() * TAU
+	if LaTrees.lot_tree(ch, at, yaw, tint):
+		return
+	ch._batch.add("tree_%d" % variant, PropFactory.model_tree(variant), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at), tint, variety)
 
 
 ## A shallow reflecting pool over `r`: a stone kerb and a dark still surface (merged boxes).
@@ -683,6 +688,7 @@ static func _car_park(ch: CityChunk, cell: Rect2, key: int) -> void:
 	var r := cell.grow(-1.2)
 	if r.size.x < 12.0 or r.size.y < 10.0:
 		return
+	RoadWear.car_park(ch, r, CityChunk.SIDEWALK_TOP + ASPHALT_LIFT, key)
 	# Rows run along the long side; u along the rows, v across them.
 	var along_x := r.size.x >= r.size.y
 	var U := r.size.x if along_x else r.size.y
@@ -761,6 +767,17 @@ static func _car_park(ch: CityChunk, cell: Rect2, key: int) -> void:
 ## call of its own) - but without the street lamp's OmniLight3D, which a car park's worth of
 ## poles would multiply; the additive pool carries the night.
 static func _lamp(ch: CityChunk, at: Vector3) -> void:
+	if StreetLamps.enabled:
+		var lp := StreetLamps.place(ch.plan, at, Vector2.ZERO, StreetLamps.car_park_type(Vector2(at.x, at.z)))
+		var head: Vector3 = lp.lights[0]
+		var size: float = lp.pool * 1.15
+		var lpool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(size, 1.0, size)), Vector3(head.x, at.y + 0.05, head.z))
+		var box: Vector3 = lp.box
+		ch._add_prop("lamp", at, Color(0.28, 0.29, 0.32), [
+			[lp.key, lp.mesh, lp.xform, lp.paint, lp.custom],
+			["lamp_pool", PropFactory.light_pool(), lpool, StreetLamps.pool_color(lp.type, Vector2(at.x, at.z))],
+		], [[box, at + Vector3(0.0, box.y * 0.5, 0.0), 0.0]])
+		return
 	var pool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(CityChunk.LAMP_POOL_SIZE * 1.3, 1.0, CityChunk.LAMP_POOL_SIZE * 1.3)), at + Vector3(0.0, 0.05, 0.0))
 	ch._add_prop("lamp", at, Color(0.28, 0.29, 0.32), [
 		["lamp", PropFactory.model_lamp(), Transform3D(Basis(Vector3.UP, fmod(absf(at.x * 7.3 + at.z * 3.1), TAU)), at), ch._lamp_tint],

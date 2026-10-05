@@ -120,10 +120,16 @@ def main():
         m = re.match(r"^\| *(\d+|\?+|#?\?) *\|", ln)
         if m and m.group(1) not in row_map:
             row_map[m.group(1)] = None
+    # Skip ids already in use: a branch's section is not always appended last (one inserted mid-file
+    # made the "last header" an older id, and two branches were both given 9em).
+    used_secs = set(re.findall(r"^## (9[a-z][a-z])\.", ours_handoff, re.M))
     nxt = top_sec
     for k in sorted(sec_map, key=lambda x: x):
         nxt = next_sec(nxt)
+        while nxt in used_secs:
+            nxt = next_sec(nxt)
         sec_map[k] = nxt
+        used_secs.add(nxt)
     nr = top_row
     for k in sorted(row_map, key=lambda x: (len(x), x)):
         nr += 1

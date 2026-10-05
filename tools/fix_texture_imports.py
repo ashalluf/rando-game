@@ -13,6 +13,9 @@ needs every texture at:
     detect_3d/compress_to=0    stop the editor rewriting it behind our backs
     compress/normal_map=1      only for normal maps
 
+A texture can also be held under a size by tools/texture_budget/budget.txt (written here as
+process/size_limit; every other texture gets 0, no limit).
+
 Normal maps are detected by filename: Poly Haven names them *_nor_gl / *_nor_dx, and the
 project's own sets use *_NormalGL. Run this after importing any new texture, then commit the
 .import files - CI exports from them and a wrong one costs a whole build.
@@ -26,6 +29,30 @@ WANT = {
     "mipmaps/generate": "true",
     "detect_3d/compress_to": "0",
 }
+BUDGET_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "texture_budget", "budget.txt")
+
+
+def load_budget():
+    rules = []
+    if os.path.exists(BUDGET_FILE):
+        for line in open(BUDGET_FILE, encoding="utf-8"):
+            line = line.strip()
+            if line and not line.startswith("#"):
+                pattern, limit = line.rsplit(None, 1)
+                rules.append((re.compile(pattern), int(limit)))
+    return rules
+
+
+BUDGET = load_budget()
+
+
+def size_limit(res_path: str) -> int:
+    for pattern, limit in BUDGET:
+        if pattern.search(res_path):
+            return limit
+    return 0
+
+
 NORMAL_HINTS = ("_nor_gl", "_nor_dx", "_normalgl", "_normal", "_nrm")
 
 
@@ -37,6 +64,8 @@ def fix(path: str) -> bool:
     base = os.path.basename(path).lower()
     want = dict(WANT)
     want["compress/normal_map"] = "1" if any(h in base for h in NORMAL_HINTS) else "0"
+    m = re.search(r'^source_file="(.*)"$', text, re.MULTILINE)
+    want["process/size_limit"] = str(size_limit(m.group(1) if m else ""))
     out = text
     for key, value in want.items():
         pattern = re.compile(r"^%s=.*$" % re.escape(key), re.MULTILINE)

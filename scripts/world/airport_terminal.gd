@@ -191,7 +191,7 @@ static func build_head_house(parent: Node3D, statics: StaticBody3D, macro: Macro
 		dep.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		parent.add_child(dep)
 	batch.build(parent)
-	_occluder(parent, [[Vector3((hh.position.x + hh.end.x) * 0.5, y0 + 9.0, (hh.position.y + hh.end.y) * 0.5), Vector3(hh.size.x - 4.0, 16.0, hh.size.y - 6.0)]])
+	_occluder(parent, [[Vector3((hh.position.x + hh.end.x) * 0.5, y0 + 9.0, (hh.position.y + hh.end.y) * 0.5), Vector3(hh.size.x - 4.0, 16.0, hh.size.y - 6.0)]], detailed and statics != null)
 
 
 ## A square-section strut from a to b (the tree columns' branches, the arch's ribs).
@@ -276,15 +276,22 @@ static func build_concourse(parent: Node3D, statics: StaticBody3D, macro: MacroM
 		g.wall("base", e0, e1, y0, y0 + DEPARTURE_LEVEL, Color.WHITE, col)
 		g.wall("glass", e0, e1, y0 + DEPARTURE_LEVEL, y0 + h - 0.6, Color.WHITE, col)
 	# Jet bridges and the parked airliners at this half's gates.
+	# Every stand gets an instance, the empty one too (collapsed): AirportGround shows, hides and
+	# repaints each as jets arrive and leave (register_gate_jets(), below).
 	var jets := MultiMeshBatch.new()
-	for gate in Airport.gates():
+	var jet_gates := PackedInt32Array()
+	var gate_list := Airport.gates()
+	for gi in gate_list.size():
+		var gate: Dictionary = gate_list[gi]
 		var a: float = gate.a
 		if (a < 0.0) != west:
 			continue
-		_jet_bridge(g, statics, gate, y0, detailed)
-		if not bool(gate.empty):
-			var xf := jet_transform(gate.centre, gate.yaw, y0)
-			jets.add("gate_jet", jet_mesh(), xf, Color.WHITE, Color(float(gate.livery) / 8.0, 0.0, 0.0, 1.0))
+		_jet_bridge(g, statics, gate, y0, detailed, parent, gi)
+		var xf := jet_transform(gate.centre, gate.yaw, y0)
+		if bool(gate.empty):
+			xf = Transform3D(Basis().scaled(Vector3.ZERO), Vector3(0.0, -10000.0, 0.0))
+		jets.add("gate_jet", jet_mesh(), xf, Color.WHITE, Color(float(gate.livery) / 8.0, 0.0, 0.0, 1.0))
+		jet_gates.append(gi)
 	# Gate signs over the doors on the apron face (the number lit at night).
 	g.commit(parent, "ConcourseW" if west else "ConcourseE")
 	g.commit_collision(statics)
@@ -294,6 +301,8 @@ static func build_concourse(parent: Node3D, statics: StaticBody3D, macro: MacroM
 		var twin: Node = (nodes["gate_jet"] as Node).get_meta("shadow_twin", null) if (nodes["gate_jet"] as Node).has_meta("shadow_twin") else null
 		if twin:
 			(twin as MultiMeshInstance3D).material_override = jet_material()
+		if macro:
+			AirportGround.register_gate_jets(nodes["gate_jet"], jet_gates, y0, macro)
 	if detailed:
 		# The gate numbers over the apron face, lit: one mesh for the half.
 		var items: Array = []
@@ -373,9 +382,10 @@ static func livery_material(livery: int) -> ShaderMaterial:
 
 ## A jet bridge: the rotunda at the concourse face, a two-section telescoping tunnel sloping down
 ## to the cab docked at the parked jet's forward door, the drive column with its wheel bogie.
-static func _jet_bridge(g: LandmarkGeo, statics: StaticBody3D, gate: Dictionary, y0: float, detailed: bool) -> void:
-	g.use("bridge", LandmarkMats.facade("airport_bridge", "", 1.0, {"tint": Color(0.80, 0.81, 0.83), "roughness": 0.4, "metallic": 0.4,
-		"joint_spacing": Vector2(0.22, 0.0), "joint_width": 0.02, "joint_dark": 0.18, "flood_strength": 0.0}))
+static func _jet_bridge(g: LandmarkGeo, statics: StaticBody3D, gate: Dictionary, y0: float, detailed: bool, parent: Node3D = null, gate_index: int = -1) -> void:
+	var bridge_mat := LandmarkMats.facade("airport_bridge", "", 1.0, {"tint": Color(0.80, 0.81, 0.83), "roughness": 0.4, "metallic": 0.4,
+		"joint_spacing": Vector2(0.22, 0.0), "joint_width": 0.02, "joint_dark": 0.18, "flood_strength": 0.0})
+	g.use("bridge", bridge_mat)
 	var n: Vector2 = gate.n
 	var t: Vector2 = gate.t
 	var rot: Vector2 = gate.rotunda
@@ -387,6 +397,15 @@ static func _jet_bridge(g: LandmarkGeo, statics: StaticBody3D, gate: Dictionary,
 	# The rotunda: a short drum on a column.
 	g.cylinder("bridge", Vector3(rot.x, y0, rot.y), 0.7, DEPARTURE_LEVEL - 0.4, 8, Color(0.6, 0.6, 0.62))
 	g.cylinder("bridge", Vector3(rot.x, floor_r - 0.4, rot.y), 2.3, 3.4, 12 if detailed else 6, Color.WHITE)
+	if detailed and parent != null and gate_index >= 0 and JetBridge.posable:
+		# Near: the tunnels, cab and drive column are a JetBridge, posed from the stand's state
+		# (AirportGround); the far copy keeps the static bridge below.
+		var jb := JetBridge.new()
+		jb.name = "JetBridge%d" % gate_index
+		var mats: Array[Material] = [bridge_mat, LandmarkMats.plain("airport_dark", Color(0.06, 0.065, 0.07), 0.5, 0.3), LandmarkMats.plain("airport_metal", Color(0.78, 0.79, 0.81), 0.35, 0.6)]
+		jb.setup(gate_index, y0, detailed, mats)
+		parent.add_child(jb)
+		return
 	# The cab sits off the door on the port side (-t), facing the fuselage.
 	var cab := door - Vector3(t.x, 0.0, t.y) * 1.9
 	cab.y = y0 + door.y - 0.6
@@ -473,7 +492,7 @@ static func build_tower(parent: Node3D, statics: StaticBody3D, macro: MacroMap, 
 			_strut(g, "metal", Vector3(p.x, y0 + TOWER_CAB_TOP + 2.0, p.y), Vector3(at.x, y0 + TOWER_TOP - 0.4, at.y), 0.12, Color(0.7, 0.7, 0.72))
 	g.commit(parent, "ControlTower")
 	g.commit_collision(statics)
-	_occluder(parent, [[Vector3(at.x, y0 + TOWER_SHAFT_TOP * 0.5, at.y), Vector3(4.0, TOWER_SHAFT_TOP - 4.0, 4.0)]])
+	_occluder(parent, [[Vector3(at.x, y0 + TOWER_SHAFT_TOP * 0.5, at.y), Vector3(4.0, TOWER_SHAFT_TOP - 4.0, 4.0)]], detailed and statics != null)
 
 
 # --- The arches ---------------------------------------------------------------------------------
@@ -527,13 +546,16 @@ static func build_skyhook(parent: Node3D, statics: StaticBody3D, macro: MacroMap
 	g.ring_flat("metal", at, Vector2(DISC_R - 0.5, DISC_R - 0.5), Vector2(DISC_R + 0.2, DISC_R + 0.2), y0 + DISC_Y, 0.0, TAU, segs * 2, Color(0.8, 0.8, 0.82), col)
 	g.commit(parent, "Skyhook")
 	g.commit_collision(statics)
-	if detailed:
-		var batch := MultiMeshBatch.new()
-		for i in 8:
-			var ang := TAU * float(i) / 8.0 + 0.2
-			var p := at + Vector2(cos(ang), sin(ang)) * 29.0
-			batch.add("palm_%d" % (i % 3), PropFactory.palm(i % 3), Transform3D(Basis(Vector3.UP, ang).scaled(Vector3.ONE * (1.1 + 0.1 * float(i % 3))), Vector3(p.x, y0 + 0.18, p.y)))
-		batch.build(parent)
+	# The ring of palms, far too (shadowless there): from across the field they are half of what
+	# the plaza is.
+	var batch := MultiMeshBatch.new()
+	for i in 8:
+		var ang := TAU * float(i) / 8.0 + 0.2
+		var p := at + Vector2(cos(ang), sin(ang)) * 29.0
+		batch.add("palm_%d" % (i % 3), PropFactory.palm(i % 3), Transform3D(Basis(Vector3.UP, ang).scaled(Vector3.ONE * (1.1 + 0.1 * float(i % 3))), Vector3(p.x, y0 + 0.18, p.y)))
+	if not detailed:
+		ArenaGrounds._far_shadows(batch)
+	batch.build(parent)
 
 
 static func _circle(c: Vector2, r: float, n: int) -> PackedVector2Array:
@@ -555,7 +577,7 @@ static func build_garage(parent: Node3D, statics: StaticBody3D, macro: MacroMap,
 	g.commit_collision(statics)
 	batch.build(parent)
 	var r := Airport.GARAGE_RECT
-	_occluder(parent, [[Vector3(r.get_center().x, y0 + 6.0, r.get_center().y), Vector3(r.size.x - 4.0, 10.0, r.size.y - 4.0)]])
+	# No occluder: a car park's decks are open between the spandrels, and what is behind them shows.
 	if detailed:
 		var sign := MeshInstance3D.new()
 		sign.name = "GarageSign"
@@ -572,11 +594,8 @@ static func build_rental(parent: Node3D, statics: StaticBody3D, macro: MacroMap,
 	var g := LandmarkGeo.new()
 	var batch := MultiMeshBatch.new()
 	var lot := Rect2(r.position + Vector2(30.0, 0.0), r.size - Vector2(30.0, 0.0))
-	if detailed:
-		ArenaGrounds.surface_lot(g, batch, parent, lot, y0, 4417)
-	else:
-		g.use("lot_asphalt", LandmarkMats.paving("asphalt", 4.0, Color(0.6, 0.6, 0.61), 4417, 0.0, 0.45))
-		g.cap("lot_asphalt", LandmarkGeo.ccw(LandmarkArenaDistrict._rect_poly(lot)), y0 + 0.045)
+	# Far as well (no stall paint or masts): the rows of parked cars are the lot's colour from afar.
+	ArenaGrounds.surface_lot(g, batch, parent, lot, y0, 4417, not detailed)
 	# The rental pavilion at the west end: a glass box under a deep flat roof, a canopy over the
 	# pick-up lane in front of it.
 	g.use("glass", _glass("rental", y0, 4.5, 8.0))
@@ -602,5 +621,7 @@ static func build_rental(parent: Node3D, statics: StaticBody3D, macro: MacroMap,
 		parent.add_child(sign)
 
 
-static func _occluder(parent: Node3D, boxes: Array) -> void:
-	LandmarkArenaDistrict._occluder(parent, boxes)
+## Built only for the detailed copy. (It used to read CivicSites.ctx, which only the civic sites
+## set, so the airport's never were.)
+static func _occluder(parent: Node3D, boxes: Array, detailed: bool) -> void:
+	LandmarkArenaDistrict._occluder(parent, boxes, 1 if detailed else 0)

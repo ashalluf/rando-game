@@ -128,7 +128,15 @@ static func build_pad(chunk: CityChunk, lot: Dictionary, rng: RandomNumberGenera
 	var pad := Rect2(center - size * 0.5, size)
 	var full := chunk.level == CityChunk.Level.FULL
 	_lot(chunk, pad, rng, full, false)
-	if rng.randf() < 0.55:
+	var fast := rng.randf() < 0.55
+	if Roadside.enabled:
+		# Roadside builds the pad (a hash picks what it is); the old path's two rolls (a name and a
+		# fascia colour, on either branch) are still made so nothing after the pad moves.
+		rng.randi()
+		rng.randi()
+		Roadside.build_pad(chunk, lot, fast)
+		return
+	if fast:
 		_fast_food(chunk, pad, rng, full)
 	else:
 		_gas_station(chunk, pad, rng, full)

@@ -54,10 +54,20 @@ uniform int roof_style = 0;
 // Building picks these and places the shop signs in the world from the same numbers, so the
 // names line up with the sign bands drawn here.
 uniform vec4 shop_span = vec4(3.0, 3.0, 3.0, 3.0);
+// Every shop's frame finish forced (Building.shop_frame_force; the historic core's bronze), -1 none.
+uniform int shop_frame_force = -1;
 // The room behind each of a face's first seven shops (x = face 1 .. w = face 4), four bits a
 // shop: its kind + 1 (shop_interior.gdshaderinc's ROOM_*), which Building takes from the shop's
 // name so a BAKERY's glass shows a counter and tables. 0 leaves it to shop_room_kind()'s hash.
 uniform ivec4 shop_rooms = ivec4(0);
+// Each of a face's first seven shops' NAME for its window vinyl (vinyl_lettering.gdshaderinc), as
+// its index in Building.SHOP_NAMES + 1 in six bits: shops 0-4 in shop_names_a, 5-6 in
+// shop_names_b (Building.shop_name_codes()). 0 is unknown: the glass says a phrase instead.
+uniform ivec4 shop_names_a = ivec4(0);
+uniform ivec4 shop_names_b = ivec4(0);
+// Whether anything is stuck on the shop glass at all (Building.vinyl_enabled; SHOP_VINYL=0 in the
+// environment is the A/B).
+uniform bool shop_vinyl = true;
 // The whole building's height (its tallest part's top, Building.height): a tower over 30 m has a
 // lobby at street level (the parts' own heights say nothing: a tower's ground part is often a low
 // podium tier). 0 on the landmark towers, which use their part's height.
@@ -140,6 +150,14 @@ uniform float reflect_energy = 1.6;
 // How much of the city opposite the glass mirrors (0 = the old sky gradient only), and how far
 // each pane's reflection is knocked off true (see the glass branch).
 uniform float reflect_city = 1.0;
+// The reflection probes' hand-over (see the glass): the radius they cover round the camera
+// (ReflectionProbes publishes it; 0 = none, always 0 on Compatibility) and how high up a facade
+// the panes take it (the probes' boxes stop at 14-70 m).
+global uniform float probe_reach;
+uniform float probe_glass_top = 30.0;
+// How much of the faked emitted mirror the real one takes over, and the real mirror's tint (linear).
+uniform float probe_glass_take = 0.6;
+uniform vec3 probe_glass_tint = vec3(0.42, 0.47, 0.52);
 uniform float pane_bow = 0.035;
 // How far the glass sits back from the face of the wall in a punched opening (metres); the other
 // window styles scale it (see the window-depth block). 0 flattens every window onto its wall.
@@ -284,6 +302,7 @@ uint shop_frame_index(uint shop) {
 }
 
 #include "res://shaders/shop_interior.gdshaderinc"
+#include "res://shaders/vinyl_lettering.gdshaderinc"
 // Which offices are lit and which spandrels are pale, rolled exactly as the far boxes roll them.
 #include "res://shaders/window_lights.gdshaderinc"
 // Broken panes, blast holes and soot (scripts/world/building_damage.gd).
@@ -336,91 +355,74 @@ float bay_member(vec2 p, vec2 size, bool split, float glass_low) {
 	return clamp(m, 0.0, 1.0);
 }
 
-// An invented capital letter, drawn from strokes the way sans-serif capitals are made (stems,
-// bars, a bowl, diagonals), one of sixteen shapes by `id`: at the size of a shop window's vinyl
-// it reads as lettering without spelling anything. `g` is the position in the letter's cell
-// (0..1); 1 on a stroke.
-float fake_glyph(vec2 g, float id) {
-	float sw = 0.17;
-	float x0 = 0.12;
-	float x1 = 0.88;
-	float in_x = step(x0, g.x) * step(g.x, x1);
-	float in_y = step(0.0, g.y) * step(g.y, 1.0);
-	float lft = step(x0, g.x) * step(g.x, x0 + sw) * in_y;
-	float rgt = step(x1 - sw, g.x) * step(g.x, x1) * in_y;
-	float ctr = step(abs(g.x - 0.5), sw * 0.5) * in_y;
-	float top = step(1.0 - sw, g.y) * in_y * in_x;
-	float mid = step(abs(g.y - 0.5), sw * 0.5) * in_x;
-	float bot = step(g.y, sw) * in_y * in_x;
-	float d1 = step(abs((g.x - x0) / (x1 - x0) - g.y), sw * 1.2) * in_x * in_y;
-	float d2 = step(abs((g.x - x0) / (x1 - x0) - (1.0 - g.y)), sw * 1.2) * in_x * in_y;
-	float ring = step(abs(length((g - 0.5) / vec2(0.38, 0.5)) - 0.84), sw * 1.1) * in_y;
-	float up = step(0.5, g.y);
-	int k = int(mod(floor(id * 7.31 + hash21(vec2(id, 4.7)) * 16.0), 16.0));
-	float m = 0.0;
-	if (k == 0) { // H
-		m = lft + rgt + mid;
-	} else if (k == 1) { // F
-		m = lft + top + mid;
-	} else if (k == 2) { // E
-		m = lft + top + bot + mid;
-	} else if (k == 3) { // O
-		m = ring;
-	} else if (k == 4) { // N
-		m = lft + rgt + d1;
-	} else if (k == 5) { // T
-		m = ctr + top;
-	} else if (k == 6) { // L
-		m = lft + bot;
-	} else if (k == 7) { // U
-		m = lft + rgt + bot;
-	} else if (k == 8) { // X
-		m = d1 + d2;
-	} else if (k == 9) { // S
-		m = top + mid + bot + lft * up + rgt * (1.0 - up);
-	} else if (k == 10) { // C
-		m = ring * step(g.x, 0.72);
-	} else if (k == 11) { // P
-		m = lft + top + mid + rgt * up;
-	} else if (k == 12) { // A
-		m = lft + top + mid + rgt;
-	} else if (k == 13) { // Y
-		m = ctr + d2 * up + d1 * up;
-	} else if (k == 14) { // M-ish
-		m = lft + rgt + ring * step(0.5, g.y) * step(abs(g.x - 0.5), 0.3);
-	} else { // D
-		m = lft + top + bot + rgt * step(0.2, g.y) * step(g.y, 0.8);
-	}
-	return clamp(m, 0.0, 1.0);
+// One line of window vinyl centred on `cx` (metres along the pane), its baseline at `y0`, at most
+// `h` tall and never wider than `max_w`: the string's ink and outline cover at p.
+vec2 vinyl_line(int s, vec2 p, float cx, float y0, float h, float max_w, float weight, float outline, uint key, float px_m) {
+	float w_units = vt_width(s) + 2.0 * (weight + outline);
+	float hh = min(h, max_w * 6.0 / max(w_units, 1.0));
+	float w_m = vt_width(s) * hh / 6.0;
+	return vt_ink(s, p - vec2(cx - w_m * 0.5, y0), hh, weight, outline, key, px_m);
 }
 
+// The door's hours plate: which lines (phrases) a schedule has, -1 none.
+// What the glass says where the shader does not know the shop's name: NOW OPEN, OPEN 7 DAYS,
+// GRAND OPENING, OPEN LATE.
+const int UNNAMED[4] = int[](1, 2, 3, 13);
+const ivec3 HOURS_LINES[5] = ivec3[](ivec3(16, 17, 18), ivec3(19, 20, -1), ivec3(21, 22, -1),
+	ivec3(23, -1, -1), ivec3(24, 18, -1));
+
 // What is stuck on the inside of a shop window, in metres on the pane (`p` from its bottom corner
-// on the low edge, `pane` its size): vinyl lettering across a display window, a poster or two in
-// one bay, and on a door the opening hours and an OPEN plate. rgb the colour, a its cover (0
-// where the glass is clear). Finer than a pixel it fades to its average, or it would alias.
-vec4 shop_decal(vec2 p, vec2 pane, uint shop, float bay, bool door, float glass_low, float px_m) {
+// on the low edge, `pane` its size), all of it real words (vinyl_lettering.gdshaderinc): the
+// shop's NAME across the bay before the door with a line under it and a promo in another bay,
+// both from its room `kind`'s own lists (VT_TAG / VT_PROMO: a laundromat says WASH & FOLD, a cafe
+// FREE WIFI, a shop SALE, never another kind's line), a
+// poster or two in one bay, and on a door the street number on the transom, the opening hours
+// and an OPEN plate. `name` is the shop's index in Building.SHOP_NAMES + 1 (0 unknown: a phrase
+// instead), `span` its bays, `door_i` the door's bay. rgb the colour, a its cover (0 where the
+// glass is clear). Finer than a pixel the letters fade to their average, or they would alias.
+// Sizes are real window vinyl's: a name 13-22 cm tall at about 1.8 m, a promo up to 30 cm, the
+// lines under it 5-6 cm, the hours 1.6 cm.
+vec4 shop_decal(vec2 p, vec2 pane, uint shop, float bay, bool door, float glass_low, float px_m, int name, float span, float door_i, uint kind) {
 	vec4 out_c = vec4(0.0);
 	float fade = 1.0 - smoothstep(0.012, 0.03, px_m);
+	// Above the pane, below it or past its sides nothing is stuck.
+	if (p.x < 0.0 || p.x > pane.x || p.y < 0.0 || p.y > pane.y) {
+		return out_c;
+	}
+	float cx = pane.x * 0.5;
 	if (!door) {
-		// Vinyl lettering at eye height, centred, in white or gold.
-		if (shop_byte(shop, 20u) < 100u) {
-			float y0 = 1.50 - glass_low;
-			float lh = 0.15;
-			float lw = 0.12;
-			float n_letters = clamp(floor(pane.x * 0.62 / lw), 3.0, 14.0);
-			float x0 = (pane.x - n_letters * lw) * 0.5;
-			vec2 q = vec2((p.x - x0) / lw, (p.y - y0) / lh);
-			if (q.x > 0.0 && q.x < n_letters && q.y > 0.0 && q.y < 1.0) {
-				float li = floor(q.x);
-				// A word break now and then.
-				float space = step(0.84, hash21(vec2(li + bay * 17.0, float(shop % 997u) * 0.13)));
-				float on = fake_glyph(vec2(fract(q.x) * 1.15 - 0.075, q.y), li + bay * 31.0 + float(shop % 1024u)) * (1.0 - space);
-				vec3 ink = shop_byte(shop, 23u) < 90u ? vec3(0.86, 0.68, 0.30) : vec3(0.93, 0.93, 0.90);
-				out_c = vec4(ink, mix(0.30 * (1.0 - space), on, fade) * 0.95);
+		bool vinyl = shop_byte(shop, 20u) < 150u;
+		bool name_bay = abs(bay - mod(door_i + span - 1.0, span)) < 0.5;
+		bool poster_bay = shop_byte(shop, 21u) < 120u && abs(bay - float(shop_byte(shop, 22u) % 3u)) < 0.5;
+		// Ink: white, gold leaf with a dark keyline, now and then red.
+		uint ink_roll = shop_byte(shop, 23u);
+		vec3 ink = ink_roll < 90u ? vec3(0.86, 0.68, 0.30) : (ink_roll < 120u ? vec3(0.80, 0.08, 0.06) : vec3(0.93, 0.93, 0.90));
+		float keyline = ink_roll < 90u ? 0.32 : 0.0;
+		if (vinyl && name_bay) {
+			// The name at about 1.8 m (or a phrase where the shader does not know it).
+			int s = name > 0 ? name - 1 : VT_PHRASE0 + UNNAMED[shop_byte(shop, 51u) % 4u];
+			float h = 0.11 + float(shop_byte(shop, 50u)) / 255.0 * 0.08;
+			float weight = shop_byte(shop, 55u) < 140u ? 0.58 : 0.46;
+			vec2 c = vinyl_line(s, p, cx, 1.76 - glass_low, h, pane.x * 0.84, weight, keyline, shop, px_m);
+			// The line under it: a phone number, how long it has been there, a promise.
+			if (shop_byte(shop, 52u) < 170u) {
+				int sub = VT_PHRASE0 + VT_TAG[int(kind) * 8 + int(shop_byte(shop, 52u) % 8u)];
+				c = max(c, vinyl_line(sub, p, cx, 1.76 - glass_low - 0.115, 0.055, pane.x * 0.7, 0.5, keyline * 0.8, shop, px_m));
 			}
+			out_c = vec4(mix(vec3(0.05), ink, c.x / max(c.x + c.y, 1e-4)), clamp(c.x + c.y, 0.0, 1.0) * 0.95);
+		} else if (vinyl && !poster_bay && shop_byte(shop, 53u) < 150u) {
+			// A promo across another bay, at eye height.
+			int pr = VT_PROMO[int(kind) * 8 + int(shop_byte(shop, 54u) % 8u)];
+			int s = VT_PHRASE0 + pr;
+			int size = VT_PROMO_SIZE[pr];
+			bool loud = size == 2;
+			float h = loud ? 0.30 : (size == 1 ? 0.16 : 0.085);
+			vec3 c_ink = loud ? vec3(0.82, 0.06, 0.05) : ink;
+			vec2 c = vinyl_line(s, p, cx, 1.42 - glass_low, h, pane.x * 0.8, loud ? 0.62 : 0.5, loud ? 0.0 : keyline, shop, px_m);
+			out_c = vec4(mix(vec3(0.05), c_ink, c.x / max(c.x + c.y, 1e-4)), clamp(c.x + c.y, 0.0, 1.0) * 0.95);
 		}
 		// A poster (two, sometimes) low in one bay of the shop.
-		if (shop_byte(shop, 21u) < 120u && abs(bay - float(shop_byte(shop, 22u) % 3u)) < 0.5) {
+		if (poster_bay) {
 			for (int k = 0; k < 2; k++) {
 				if (k == 1 && shop_byte(shop, 24u) < 150u) {
 					break;
@@ -438,9 +440,10 @@ vec4 shop_decal(vec2 p, vec2 pane, uint shop, float bay, bool door, float glass_
 					if (q.y > 0.42 && q.y < 0.92 && q.x > 0.1 && q.x < 0.9) {
 						c = art;
 					} else if (q.y < 0.36 && q.y > 0.08 && q.x > 0.12 && q.x < 0.88) {
-						// Lines of print.
-						float line = step(0.5, fract(q.y * 9.0)) * step(0.3, hash21(vec2(floor(q.y * 9.0), h)));
-						c = mix(paper, vec3(0.08), line * fade);
+						// A headline over the print: one of the promos.
+						float t = vinyl_line(VT_PHRASE0 + VT_PROMO[int(kind) * 8 + int(h * 7.99)], q * size, size.x * 0.5, 0.17, 0.04, size.x * 0.8, 0.6, 0.0, shop, px_m).x;
+						float line = step(0.5, fract(q.y * 9.0)) * step(0.3, hash21(vec2(floor(q.y * 9.0), h))) * step(q.y, 0.2);
+						c = mix(paper, vec3(0.08), max(line * fade, t));
 					}
 					c = mix(c, vec3(0.94, 0.93, 0.90), clamp(border, 0.0, 1.0));
 					out_c = vec4(c, 1.0);
@@ -448,19 +451,33 @@ vec4 shop_decal(vec2 p, vec2 pane, uint shop, float bay, bool door, float glass_
 			}
 		}
 	} else {
-		// On the door: the opening hours at eye height on the hinge side, an OPEN plate above.
 		bool single = pane.x >= 1.45 && shop_byte(shop, 18u) < 120u;
 		float hx = single ? 0.62 : pane.x * 0.5 - 0.36;
-		vec2 q = (p - vec2(hx, 1.40)) / vec2(0.17, 0.23);
-		if (q.x > 0.0 && q.x < 1.0 && q.y > 0.0 && q.y < 1.0) {
-			float line = step(0.55, fract(q.y * 8.0)) * step(0.15, q.x) * step(q.x, 0.85) * step(0.1, q.y) * step(q.y, 0.8);
-			out_c = vec4(mix(vec3(0.93, 0.93, 0.91), vec3(0.12), line * fade), 1.0);
+		// The street number on the transom over the door.
+		if (shop_byte(shop, 56u) < 190u) {
+			vec2 c = vinyl_line(VT_PHRASE0 + 33, p, pane.x * 0.5, pane.y - 0.24, 0.11, pane.x * 0.6, 0.55, 0.3, shop, px_m);
+			out_c = vec4(mix(vec3(0.05), vec3(0.86, 0.70, 0.34), c.x / max(c.x + c.y, 1e-4)), clamp(c.x + c.y, 0.0, 1.0));
 		}
+		// The opening hours at eye height on the hinge side: a white card, HOURS and the days.
+		vec2 q = (p - vec2(hx, 1.36)) / vec2(0.20, 0.25);
+		if (q.x > 0.0 && q.x < 1.0 && q.y > 0.0 && q.y < 1.0) {
+			vec2 qm = p - vec2(hx, 1.36);
+			ivec3 lines = HOURS_LINES[shop_byte(shop, 57u) % 5u];
+			float t = vinyl_line(VT_PHRASE0 + 15, qm, 0.10, 0.195, 0.03, 0.16, 0.62, 0.0, shop, px_m).x;
+			for (int k = 0; k < 3; k++) {
+				int ln = lines[k];
+				if (ln >= 0) {
+					t = max(t, vinyl_line(VT_PHRASE0 + ln, qm, 0.10, 0.14 - float(k) * 0.045, 0.02, 0.17, 0.55, 0.0, shop, px_m).x);
+				}
+			}
+			out_c = vec4(mix(vec3(0.93, 0.93, 0.91), vec3(0.10), t), 1.0);
+		}
+		// An OPEN plate above it, red with white letters.
 		if (shop_byte(shop, 25u) < 160u) {
-			vec2 o = (p - vec2(hx - 0.03, 1.72)) / vec2(0.26, 0.10);
-			if (o.x > 0.0 && o.x < 1.0 && o.y > 0.0 && o.y < 1.0) {
-				float letters = fake_glyph(vec2(fract(o.x * 4.0), (o.y - 0.15) / 0.7), floor(o.x * 4.0) + 3.0) * step(0.15, o.y) * step(o.y, 0.85);
-				out_c = vec4(mix(vec3(0.78, 0.07, 0.06), vec3(0.96), mix(0.3, letters, fade)), 1.0);
+			vec2 o = p - vec2(hx - 0.03, 1.72);
+			if (o.x > 0.0 && o.x < 0.26 && o.y > 0.0 && o.y < 0.10) {
+				float l = vinyl_line(VT_PHRASE0 + 25, o, 0.13, 0.022, 0.056, 0.22, 0.62, 0.0, shop, px_m).x;
+				out_c = vec4(mix(vec3(0.78, 0.07, 0.06), vec3(0.96), l), 1.0);
 			}
 		}
 	}
@@ -893,6 +910,11 @@ void fragment() {
 		bool spandrel = false;
 		vec3 frame_col = vec3(0.3);
 		float shop_bay = 0.0;
+		// The shop's name for its window vinyl (Building.SHOP_NAMES index + 1, 0 unknown), its
+		// bays and which one is the door.
+		int shop_name = 0;
+		float shop_bays = 1.0;
+		float shop_door_i = 0.0;
 		// What kind of room is behind this shop's glass (shop_interior.gdshaderinc), and whether
 		// it is a tower's lobby instead of a shop: the middle unit of most faces of a tall part.
 		uint room_kind = 0u;
@@ -927,6 +949,10 @@ void fragment() {
 			shop_bay = bay;
 			float door_i = float(shop_byte(shop_key, 15u) % uint(span + 0.5));
 			door_bay = abs(bay - door_i) < 0.5;
+			shop_bays = span;
+			shop_door_i = door_i;
+			shop_name = shop_id < 4.5 ? (shop_names_a[int(face_id) - 1] >> (6 * int(shop_id))) & 63
+				: (shop_id < 6.5 ? (shop_names_b[int(face_id) - 1] >> (6 * (int(shop_id) - 5))) & 63 : 0);
 			recess_door = door_bay && shop_byte(shop_key, 16u) < 72u;
 			// The door runs to the pavement; a display window sits on a bulkhead.
 			float low = door_bay ? 0.0 : 0.15;
@@ -940,7 +966,7 @@ void fragment() {
 			float lap_v = 0.012 / sf_h;
 			shop_frame = !glass && !bulkhead && fv < 0.74 + 0.06 / sf_h && fv >= low - 0.045 / sf_h
 				&& (abs(fu - 0.5) >= 0.44 || fv >= 0.74 || fv <= low + lap_v);
-			frame_col = shop_frame_color(shop_frame_index(shop_key));
+			frame_col = shop_frame_color(shop_frame_force >= 0 ? uint(shop_frame_force) : shop_frame_index(shop_key));
 			win_c = vec2(0.5, (low + 0.74) * 0.5);
 			win_h = vec2(0.44, (0.74 - low) * 0.5);
 			// About 62 % open after dark.
@@ -1298,7 +1324,7 @@ void fragment() {
 				// Metres from the pane's corner on ShopfrontKit's low edge (the high end of u).
 				vec2 pk = vec2((1.0 - wd.x) * pane_m.x, wd.y * pane_m.y);
 				float glass_low = (win_c.y - win_h.y) * sf_h;
-				vec4 deco = lobby ? vec4(0.0) : shop_decal(pk, pane_m, shop_key, shop_bay, door_bay, glass_low, px_m);
+				vec4 deco = (lobby || !shop_vinyl) ? vec4(0.0) : shop_decal(pk, pane_m, shop_key, shop_bay, door_bay, glass_low, px_m, shop_name, shop_bays, shop_door_i, room_kind);
 				albedo = mix(albedo, deco.rgb, deco.a);
 				reflected *= 1.0 - 0.55 * deco.a;
 				room_raw *= 1.0 - deco.a;
@@ -1392,6 +1418,20 @@ void fragment() {
 				vec3 nc = neon_color(shop_byte(shop_key, 6u) % 5u) * (1.0 - shop_bars) * shop_on;
 				emission += nc * (core * 7.0 + halo * 0.45);
 				albedo = mix(albedo, nc, core * 0.6);
+			}
+			// Inside the reflection probes' reach (ReflectionProbes, Forward+; 0 = none) and under
+			// their boxes' tops, the pane's mirror is the real street the probe rendered: the faked
+			// emitted city above gives way to a metallic, sharp lobe of the same strength, so the
+			// glass shows the facades, cars and kerbs actually across the street.
+			if (probe_reach > 0.0) {
+				float pw = (1.0 - smoothstep(probe_reach * 0.6, probe_reach, length(VERTEX)))
+					* (1.0 - smoothstep(probe_glass_top * 0.6, probe_glass_top, local_pos.y));
+				float pm = mirror * pw * (1.0 - shop_bars);
+				reflected *= 1.0 - probe_glass_take * pw;
+				// A tinted mirror, as real coated glass is: a white one read as a pale cage.
+				albedo = mix(albedo, probe_glass_tint, pm);
+				metal = mix(metal, 1.0, pm);
+				rough = mix(rough, 0.07, pw * (1.0 - shop_bars));
 			}
 			if (dmg_state > 0.5) {
 				// Broken glass. A crazed pane is a white web that kills the view through it and

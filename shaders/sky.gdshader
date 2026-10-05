@@ -35,6 +35,17 @@ uniform vec3 night_glow = vec3(0.02, 0.025, 0.04);
 /// brightness, and how far under the horizon it takes over (see the end of sky()).
 uniform vec3 reflect_ground = vec3(0.34, 0.32, 0.30);
 uniform float reflect_ground_fade = 0.08;
+/// A real street under that horizon (Forward+ only; ReflectionProbes hands it over): Poly Haven's
+/// CC0 San Giuseppe Bridge HDRI (tools/reflections/make_street_hdri.py), its rgb the scene relative
+/// to its street's mean (x 0.5, sRGB), its alpha where something stands. The flat grey takes the
+/// HDRI's structure at the same mean brightness, so the sky's ambient barely moves while every
+/// car door and puddle out of a probe's reach mirrors facades, kerbs and paving instead of a
+/// uniform grey. `street_hdri_rise` is how far over the horizon its skyline is let in (the up
+/// component: 0.14 is 8 degrees), `street_hdri_yaw` turns it (turns).
+uniform sampler2D street_hdri : source_color, filter_linear_mipmap, repeat_enable;
+uniform float street_hdri_amount = 0.0;
+uniform float street_hdri_rise = 0.14;
+uniform float street_hdri_yaw = 0.0;
 
 // --- Sun --------------------------------------------------------------------------------------
 /// Direction toward the sun. DayNight keeps it continuous through the night, so the sun really
@@ -999,7 +1010,19 @@ void sky() {
 	// it dims at dusk and at night.
 	if (AT_CUBEMAP_PASS) {
 		float street = smoothstep(0.0, -reflect_ground_fade, up);
-		col = mix(col, reflect_ground * dot(sky_horizon, vec3(0.299, 0.587, 0.114)), street);
+		vec3 ground = reflect_ground * dot(sky_horizon, vec3(0.299, 0.587, 0.114));
+#if CURRENT_RENDERER != RENDERER_COMPATIBILITY
+		if (street_hdri_amount > 0.0) {
+			vec2 huv = vec2(atan(dir.x, -dir.z) * 0.1591549 + 0.5 + street_hdri_yaw, acos(clamp(up, -1.0, 1.0)) * 0.3183099);
+			vec4 h = textureLod(street_hdri, huv, 1.0);
+			vec3 lit = ground * h.rgb * 2.0;
+			// Its skyline just over the horizon, then the street under it.
+			float stand = h.a * (1.0 - smoothstep(0.0, street_hdri_rise, up)) * step(0.0, up);
+			col = mix(col, lit, stand * street_hdri_amount);
+			ground = mix(ground, lit, street_hdri_amount);
+		}
+#endif
+		col = mix(col, ground, street);
 	}
 	col += flash * vec3(0.8, 0.85, 1.0);
 	COLOR = col;
