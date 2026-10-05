@@ -537,7 +537,7 @@ static func _rd_shop(parent: Node3D, statics: StaticBody3D, at: Vector3, yaw: fl
 	pivot.add_child(roof_node)
 	# Shopfront, sign band, awning and its posts.
 	_obox(pivot, null, Vector3(length - 1.4, RD_SHOP_H1 - 1.5, 0.3), Vector3(0.0, (RD_SHOP_H1 - 1.5) * 0.5 + 0.25, front + 0.1), Vector3.ZERO, glass, false)
-	_obox(pivot, null, Vector3(length - 0.6, 0.85, 0.35), Vector3(0.0, RD_SHOP_H1 - 0.5, front + 0.2), Vector3.ZERO, WeaponFX.unshaded(trim), false)
+	_obox(pivot, null, Vector3(length - 0.6, 0.85, 0.35), Vector3(0.0, RD_SHOP_H1 - 0.5, front + 0.2), Vector3.ZERO, PropFactory.material(trim, 0.85, true), false)
 	var awning := _obox(pivot, null, Vector3(length - 0.9, 0.14, 2.2), Vector3(0.0, RD_SHOP_H1 - 1.35, front + 1.1), Vector3.ZERO, PropFactory.material(trim, 0.85), false)
 	awning.rotation.x = 0.16
 	for sx: float in ([] if far else [-0.5, 0.5]):
@@ -553,7 +553,7 @@ static func _rd_shop(parent: Node3D, statics: StaticBody3D, at: Vector3, yaw: fl
 		_obox(pivot, null, Vector3(length - 0.5, 0.1, 0.1), Vector3(0.0, RD_SHOP_H1 + 0.95, front + 0.75), Vector3.ZERO, dark, false)
 	# Roughly a third of them get a hoarding standing on the roof.
 	if rng.randf() < 0.36:
-		_obox(pivot, null, Vector3(length * 0.7, 2.4, 0.22), Vector3(0.0, eave + RD_ROOF_RISE + 1.2, 0.3), Vector3.ZERO, WeaponFX.unshaded(trim.lightened(0.15)), false)
+		_obox(pivot, null, Vector3(length * 0.7, 2.4, 0.22), Vector3(0.0, eave + RD_ROOF_RISE + 1.2, 0.3), Vector3.ZERO, PropFactory.material(trim.lightened(0.15), 0.85, true), false)
 		for sx: float in [-0.34, 0.34]:
 			_obox(pivot, null, Vector3(0.16, RD_ROOF_RISE + 1.0, 0.16), Vector3(sx * length, eave + RD_ROOF_RISE * 0.5 + 0.2, 0.3), Vector3.ZERO, dark, false)
 	# One rotated collision box for the whole block.
