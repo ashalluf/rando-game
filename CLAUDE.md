@@ -3896,6 +3896,21 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the LOD ring and times their build (`FAR_CODED=0|1`). The old path (no code) still draws the
   replica houses, estates, slabs and plates: its window grid sampled with a view-direction offset,
   per-room brightness, slab-edge bands, reveal shading and a vertical gradient.
+- Road hardware (2026-10-05, docs/HANDOFF.md "Road hardware"): `RoadHardware`
+  (`scripts/world/road_hardware.gd`, one hook line at the end of `StreetDetail.build_block`, FULL
+  chunks) lays cast-iron manhole covers (four cast patterns, proud or sunk in a patched round or
+  square collar with its sealant band), water / gas valve covers, kerb inlets (concrete apron, the
+  slot under a steel angle, a grate on some, the catch basin lid and the original "NO DUMPING /
+  DRAINS TO OCEAN" stencil), utility cuts, steel road plates with cold-patch ramps, yellow raised
+  markers on centre lines and Botts' dots for the avenues' lane lines - all code-built on ONE
+  shader (`shaders/road_hardware.gdshader`, kind in COLOR.a / 16, pattern / wear / height / a
+  cut's size in INSTANCE_CUSTOM; wet from `road_wetness`, reflectors glint at night), one
+  shadowless `rh_*` batch per kind, tilted to the relief. Hash-placed per road and slot (never the
+  block rng), lane items `END_STREET` / `END_AVENUE` clear of each end (crosswalks, stop lines,
+  arrows), off the rail trackway. With it on, the old box grates / inlets and the Poly Haven
+  manholes are not laid. `ROAD_DETAIL=0` is the A/B, `RD_DEBUG=1` prints placements with EYEs;
+  probe `tools/road_detail/probe.tscn`; checks `tests/road_detail_checks.gd`
+  (`tools/road_detail/checks.gd` alone).
 - **Four measurement traps, each of which has already cost a session.** All fail by reporting
   success, which is the worst way to fail.
   1. **Godot serves a CACHED import of a `.glb`.** Rebuild a model, render it, and you are

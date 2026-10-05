@@ -8571,3 +8571,72 @@ abrupt. A connector car spawned when nobody can be taken pops in (only farther t
 the player). Sound: no rolling-traffic emitter of its own (Ambience's freeway emitter reads
 segments_in(), so it does hear the connectors). The far city draws the connectors as unbanked
 deck boxes.
+
+## 9d?. Road hardware (2026-10-05, branch `wt/road-detail`)
+
+The carriageway was asphalt, paint and one scanned manhole: nothing of what a real LA street
+carries in its surface. `RoadHardware` (`scripts/world/road_hardware.gd`) lays it, called from
+the end of `StreetDetail.build_block()` (FULL chunks; one hook line).
+
+**What.** Per block, its two owned roads (`roads_of()`: the +X and +Z roads, closed ones left out)
+and its four kerbs:
+- **Manhole covers**: a 0.74 m cast-iron lid in a frame with the dark gap round it, in a collar of
+  patched asphalt (round, or a square sawcut) with a tar sealant band at the cut. Four cast
+  patterns drawn in the shader with real relief in the normal (`lid_height()`: sunburst with a
+  ring of cast lettering - pseudo-letters, a few mm high - diamond, waffle with a boss, rings with
+  a cross), pick holes, rust and road dust in the recesses, the raised pattern polished where tyres
+  run. Each sits `PROUD` -18..+12 mm against the road: proud lifts lid and frame (the collar ramps
+  down from them), sunk raises the collar's inner edge into a lip round the frame - one mesh does
+  both from UV2 weights and INSTANCE_CUSTOM.b. Sewer covers in a lane between the wheel tracks
+  or by the centre line, 1-3 a block; a storm drain cover (diamond) in front of some inlets.
+- **Valve covers**: 21 cm water (diamond field) and gas (ring and boss) lids in ones and pairs
+  near the block's ends, some with a dab of blue or yellow locate paint.
+- **Kerb inlets** (replace the old 1.15 m black box and box grate): a 3.8 m concrete gutter apron
+  dipping toward the kerb (silt, tide marks, the wet streak along the kerb, road grime at its rim),
+  a 2.4 m slot under a steel angle with concrete facing either side, a bar grate in the apron on
+  some, the catch basin's lid in the pavement with a diamond access cover and the stencil: a blue
+  panel with "NO DUMPING / DRAINS TO OCEAN" (TextMesh through `FreewayKit.text_geo()`) and a
+  wave. One near each corner of every kerb, 5.8 m in, past the crosswalk. The slot is drawn ON the
+  kerb face, 16 mm proud: StreetDetail's kerb paint stands 12 mm proud and covered a recessed one.
+- **Utility cuts**: sawcut trenches of patched asphalt across a half-road (a service lateral) or
+  along a lane (5-23 m), fresh black to bleached by age, sealed at the cut (`K_CUT`, the size in
+  INSTANCE_CUSTOM.g/b, one unit quad scaled).
+- **Steel road plates**: 2.44 x 1.52 m, 25 mm, one to three in a row over a trench running along a
+  lane (`PLATE_ODDS` 16 % of roads), cold-patch ramps all round, rust, two polished wheel paths,
+  lifting holes, now and then a crew's spray mark.
+- **Raised markers and Botts' dots**: yellow two-way markers every 48 ft on every avenue's centre
+  line and on 55 % of streets'; an avenue's lane lines (never painted in this game) are Botts'
+  dots - four 10 cm ceramic domes 3 ft apart and a white/red marker in each 24 ft cycle, the
+  phase world-anchored so lines run on block to block, the white face toward the traffic. An "old"
+  road (35 %) has more missing and wandering dots.
+
+**How.** All meshes are code (the `Geo` builder: flat triangles turned to face the way asked) on
+ONE shader, `shaders/road_hardware.gdshader`: the surface kind in COLOR.a ((k + 0.5) / 16,
+`K_*` = RoadHardware's enum, checked), linear on both renderers (`color_space.gdshaderinc`), wet
+from `road_wetness` and drying with the road (`wet_drying.gdshaderinc`; water stands in the cast
+recesses, the apron and down the drain), the markers' reflectors glinting at night in a cone of
+headlights at the camera (freeway paint's rule). One batch per kind a chunk (`rh_cover_round`,
+`rh_cover_square`, `rh_valve`, `rh_cut`, `rh_plate`, `rh_marker`, `rh_botts`, `rh_inlet`,
+`rh_inlet_grate`), all shadowless, the flat ones in the batch's `tilt_keys` (without that the
+road's slope cut through them - the first stills had half-buried covers), the inlets tilted by
+hand like the old ones. Draw distances are the CHUNK's reach (150-260 m): a batch's range is
+measured to its bounds' centre. Triangles: a cover 470, a valve 210, an inlet ~1.3k (most of it
+the stencil's letters), a plate 26, a marker 12, a dot 50.
+
+**Rules kept.** Every roll is `h01([seed, "road_hw", axis, index, a, ...])`, never the block rng;
+with it on, StreetDetail's grates and inlets and CityChunk's scanned manholes are skipped (their
+rolls were private: nothing else moves; checked by building blocks both ways). Lane items keep
+`END_STREET` 7 m / `END_AVENUE` 13 m from both ends of the road segment (crosswalks reach 3.3 m,
+stop lines 3.5 m, lane arrows 10.7 m), off the light rail's trackway (`RAIL_KEEP`) and trench.
+LOD chunks and the far city get nothing (centimetre detail).
+
+**Tools.** `ROAD_DETAIL=0` is the A/B. `RD_DEBUG=1` prints every cover, inlet, cut and plate a
+chunk lays with an EYE over it (block_shot / still_shot). `tools/road_detail/probe.tscn -- x,z
+[blocks]` lists the roads round a point with an EYE on each. `tools/road_detail/checks.gd` runs
+the checks alone (a few minutes, headless).
+
+**Checks** (`tests/road_detail_checks.gd`): the shader's kinds match; inlet aprons start past
+the crosswalk; lane items keep clear of the ends; the rail trackway is refused but its outer
+lanes are not; five midtown chunks carry covers, valves, inlets, cuts, markers and dots; each kind
+one shadowless batch on the shader; nothing on the carriageway reaches a crosswalk or stop line;
+the block built without it is the same block and gets the old pieces back.

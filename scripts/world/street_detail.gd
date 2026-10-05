@@ -130,7 +130,8 @@ static func build_block(chunk: CityChunk, rect: Rect2, edges: Array, params: Dic
 			var p := a + dir * (t + piece * 0.5) - inward * 0.3
 			batch.add("gutter", PropFactory.gutter(), Transform3D(Basis(Vector3.UP, yaw).scaled_local(Vector3(1.0, 1.0, piece / 4.0)), Vector3(p.x, road_top + 0.004, p.y)))
 			t += piece
-		for k in 2:
+		# RoadHardware lays its own kerb inlets (with their grates) in place of these.
+		for k in (0 if RoadHardware.enabled else 2):
 			var along := 4.0 if k == 0 else length - 4.0
 			var gp := a + dir * along - inward * 0.55
 			batch.add("grate", PropFactory.grate(), Transform3D(Basis(Vector3.UP, yaw), Vector3(gp.x, road_top + 0.006, gp.y)))
@@ -222,6 +223,8 @@ static func build_block(chunk: CityChunk, rect: Rect2, edges: Array, params: Dic
 	# News boxes, A-frame boards and gutter litter (StreetClutter), last: they keep clear of
 	# everything above and roll nothing from `rng`.
 	StreetClutter.build_block(chunk, rect, edges, district, news)
+	# The road's hardware: covers, inlets, cuts, plates, markers (RoadHardware; hash-seeded).
+	RoadHardware.build_block(chunk, rect, edges)
 
 
 ## Intersection details: stop lines, lane arrows, junction wear, street name signs, no-parking
