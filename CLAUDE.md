@@ -3251,6 +3251,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   stand relative to each other, relative heights at real metres, silhouettes, crowns, facade
   character). **Names and logos stay original**: no real building, company or brand name in any
   game text or on the minimap, and no lettering on any crown. Code ids are neutral (`dt_*`).
+- Far landmarks (2026-10-05, G7, docs/HANDOFF.md "Far landmarks"): a landmark's far copy (what
+  CityStreamer draws until the chunk round it builds it detailed) is its detailed builder run with a
+  `far` flag that drops only what is under a few pixels - palms and trees stay, on the same meshes
+  and rolls (their LOD ladders thin them), shadowless (`ArenaGrounds._far_shadows()`); shopfronts,
+  materials and night glow stay too. Never write a separate stand-in model: they drifted (white
+  boxes 1.5-3.4x too bright, no planting). Check any landmark change with
+  `tools/glshot/far_landmark_shot.gd` (near / far / empty from one camera, `IDS=`, `NIGHT=1`) and
+  `far_landmark_pair.py` (silhouette IoU, far/near brightness); `tests/far_landmarks_checks.gd`
+  holds the planting parity.
 - Pier park (2026-10-05, "an amusement park on a pier, Santa Monica-style, original"; HANDOFF 9ca):
   RANDO PIER (the `pier` landmark, (-940, -350)) is `PierPark` (`scripts/world/pier_park.gd`):
   the pier plus GULLWING PARK on a platform off its south side. Everything sits in the PARK'S

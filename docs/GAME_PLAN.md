@@ -101,6 +101,9 @@ What only the owner can supply, and why each one multiplies everything below:
   for a city of unique boxes; docs/HANDOFF.md 9bd. Done 2026-10-05: cut-corner geometry on the far
   boxes, three pieces of the same unit box reshaped from the code; docs/HANDOFF.md "Cut corners on
   the far boxes". Still to do: the landmark towers' far meshes checked against their near ones the same way.)
+  for a city of unique boxes; docs/HANDOFF.md 9bd. Still to do: cut-corner geometry on the far
+  boxes. Done 2026-10-05: every landmark's far copy checked against its detailed one from the same
+  camera, and the ones that jumped fixed; docs/HANDOFF.md "Far landmarks".)
 - [ ] **G8. Polish, ongoing.** Side-by-sides against the references; fix what reads fake first.
 
 ## Owner requests queued
@@ -433,6 +436,19 @@ already mapped so milestone 2 is script-only.
   lights itself at night does so unevenly and only for open shops, since auto exposure lifts any
   even emission to the facade's brightness; a review on Forward+ is done in small scenes with the
   real DayNight and Weather (the city does not fit lavapipe).
+- **2026-10-05 Far landmarks are the detailed copies less their small parts (G7, HANDOFF "Far
+  landmarks").** Every landmark was rendered detailed and far from one camera at the hand-over
+  distance (`tools/glshot/far_landmark_shot.gd`, `far_landmark_pair.py`). The downtown towers
+  already share one mesh and matched exactly; the rest had far copies written as separate
+  stand-ins, and those jumped: no planting at all, boxes in a flat colour 1.5-3.4x as bright as
+  the textured walls they stood for, a lattice veil that read as a dark grid. Decisions: a far
+  copy is the detailed builder run with a `far` flag that drops only what is under a few pixels
+  (benches, shrubs, railings, stall paint, lettering, small fittings) and keeps everything with
+  area or silhouette - palms and trees on the same meshes and the same rolls (their LOD ladders
+  do the thinning, no stand-in tree), the real shop fronts, the materials, the night glow -
+  rather than a second hand-made model that drifts; far planting casts no shadow. The far copies
+  cost more draws (they were nearly empty), noted in the handoff.
+
 - **2026-10-05 City acoustics: spaces, gunfire echo, footsteps by surface, the newest systems'
   sounds (HANDOFF "City acoustics").** The city had one street-canyon reverb, no echo, no
   footsteps, and the bus, the light rail, the river and the parks were silent. Decisions: the

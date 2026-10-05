@@ -1049,7 +1049,7 @@ static func _build_bandshell(chunk: CityChunk, at: Vector2) -> void:
 # --- The landmark itself: fountain and boathouse ---------------------------------------------------
 
 ## Built by Landmarks.build(): the fountain jet and the boathouse, detailed (with collision) by the
-## chunk that holds the anchor, or far (a white spindle and the boathouse's mass) otherwise.
+## chunk that holds the anchor, or far (a white spindle and the boathouse less its small parts).
 static func build(_anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: CityPlan, detailed: bool) -> void:
 	if plan == null:
 		return
@@ -1223,8 +1223,10 @@ static func _build_boathouse(parent: Node3D, statics: StaticBody3D, lay: Diction
 	cap.rotation.y = PI * 0.25
 	cap.position = house + Vector3(0.0, 15.3, 0.0)
 	holder.add_child(cap)
-	if not detailed:
-		return
+	# The far copy goes on to the eaves band, the veranda deck and its roof, and the landing and
+	# boats - the boathouse's outline over the water; without them it was the house alone, and the
+	# deck, the veranda roof and the boats appeared at the hand-over. Piles, railings and lamps
+	# stay near.
 	# Eaves band and corner boards in the trim green.
 	Landmarks._box(holder, null, Vector3(20.6, 0.35, 11.6), house + Vector3(0.0, 4.25, 0.0), trim, false)
 	for sx: float in [-1.0, 1.0]:
@@ -1234,14 +1236,14 @@ static func _build_boathouse(parent: Node3D, statics: StaticBody3D, lay: Diction
 	var deck_len := 13.0
 	var deck := Landmarks._box(holder, body, Vector3(22.0, 0.3, deck_len), Vector3(0.0, 0.15, -1.5 + deck_len * 0.5), Color(0.5, 0.4, 0.3), true)
 	deck.material_override = PropFactory.pbr("planks", 2.0, Color(0.95, 0.85, 0.75))
-	for i in 7:
+	for i in (7 if detailed else 0):
 		var px := -10.5 + i * 3.5
 		for pz: float in [4.0, 8.5, 11.0]:
 			Landmarks._cyl(holder, null, 0.16, 2.2, Vector3(px, -0.95, pz), Color(0.3, 0.25, 0.2))
 	for side: float in [-1.0, 1.0]:
 		Landmarks._box(holder, body, Vector3(0.08, 1.0, deck_len - 1.0), Vector3(side * 10.9, 0.8, -1.5 + deck_len * 0.5), white, true)
 	Landmarks._box(holder, body, Vector3(21.8, 1.0, 0.08), Vector3(0.0, 0.8, -1.5 + deck_len - 0.05), white, true)
-	for i in 12:
+	for i in (12 if detailed else 0):
 		Landmarks._box(holder, null, Vector3(0.1, 1.0, 0.1), Vector3(-10.9 + i * 1.98, 0.8, -1.5 + deck_len - 0.05), white, false)
 	# Veranda roof on posts along the house front.
 	for i in 6:
@@ -1258,7 +1260,7 @@ static func _build_boathouse(parent: Node3D, statics: StaticBody3D, lay: Diction
 		Landmarks._box(holder, null, Vector3(1.2, 0.5, 0.6), Vector3(15.1, WATER_Y - LAWN_TOP + 0.62, bz - 0.4), Color(0.95, 0.95, 0.92), false)
 		Landmarks._box(holder, null, Vector3(1.3, 0.08, 1.2), Vector3(15.1, WATER_Y - LAWN_TOP + 0.95, bz + 0.2), Color(0.95, 0.95, 0.92), false)
 	# Lamps on the veranda corners.
-	for side: float in [-1.0, 1.0]:
+	for side: float in ([-1.0, 1.0] if detailed else []):
 		var lamp := OmniLight3D.new()
 		lamp.position = Vector3(side * 9.0, 2.9, 2.2)
 		lamp.omni_range = 9.0

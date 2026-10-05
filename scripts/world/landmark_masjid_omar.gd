@@ -54,6 +54,33 @@ extends RefCounted
 const REAL_LATLON := Vector2(34.018543, -118.292465)
 const OSM_WAY := 412475901
 
+## The far copy's windows: the openings _west_block() and _east_wing() cut, drawn as their lattice
+## over a dark backing (the glass and the hall behind it) and their green surround, on the far
+## boxes' faces.
+static func _far_windows(k: _Kit) -> void:
+	var faces := [
+		[Vector3(W_X0, 0.0, W_Z1), Vector3.RIGHT, Vector3.BACK, W_X1 - W_X0, _even_openings(W_X1 - W_X0, 5, BAY_W, BAY_SILL, BAY_SPRING)],
+		[Vector3(W_X1, 0.0, W_Z0), Vector3.LEFT, Vector3.FORWARD, W_X1 - W_X0, _even_openings(W_X1 - W_X0, 5, BAY_W, BAY_SILL, BAY_SPRING)],
+		[Vector3(W_X0, 0.0, W_Z0), Vector3.BACK, Vector3.LEFT, W_Z1 - W_Z0, _even_openings(W_Z1 - W_Z0, 5, BAY_W, BAY_SILL, BAY_SPRING)],
+		[Vector3(W_X1, 0.0, W_Z1), Vector3.FORWARD, Vector3.RIGHT, W_Z1 - W_Z0, _even_openings(W_Z1 - W_Z0, 5, 1.6, E_WALL + 0.9, 9.4)],
+		[Vector3(STAIR_X1, 0.0, E_Z1), Vector3.RIGHT, Vector3.BACK, E_X1 - STAIR_X1, _even_openings(E_X1 - STAIR_X1, 9, WIN_W, WIN_SILL, WIN_SPRING)],
+		[Vector3(E_X1, 0.0, E_Z0), Vector3.LEFT, Vector3.FORWARD, E_X1 - E_X0, _even_openings(E_X1 - E_X0, 12, WIN_W, WIN_SILL, WIN_SPRING)],
+		[Vector3(E_X1, 0.0, E_Z1), Vector3.FORWARD, Vector3.RIGHT, E_Z1 - E_Z0, _even_openings(E_Z1 - E_Z0, 8, WIN_W, WIN_SILL, WIN_SPRING)],
+	]
+	for f in faces:
+		var o: Vector3 = f[0]
+		var u: Vector3 = f[1]
+		var n: Vector3 = f[2]
+		var base := Vector3(o.x, 0.0, o.z)
+		var pt := func(uu: float, yy: float, depth: float) -> Vector3:
+			return base + u * uu + Vector3.UP * yy - n * depth
+		for op: Dictionary in f[4]:
+			var sill: float = maxf(op.sill, SITE_Y)
+			_opening_fill(k, "black", pt, op, sill, -0.02, false)
+			_opening_fill(k, "lattice", pt, op, sill, -0.05, false)
+			_surround(k, pt, u, n, op, sill, 0.18, 0.09)
+
+
 # --- The site -----------------------------------------------------------------------------------
 
 ## The building frame's origin measured from the landmark anchor: the east wing's street face
@@ -177,6 +204,9 @@ static func build(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: 
 		var far := MeshInstance3D.new()
 		far.mesh = _far_mesh
 		root.add_child(far)
+		# The frontage palms and the side yard's trees: from a few hundred metres the palms are
+		# half the masjid's silhouette (their LOD ladders do the thinning).
+		_plant(root, true)
 		return
 	if _mesh_ext == null:
 		_build_meshes()
@@ -303,7 +333,15 @@ static func _build_meshes() -> void:
 static func _build_far() -> ArrayMesh:
 	var mats := _materials()
 	var k := _Kit.new()
-	k.box("paving", Vector3((SITE_X0 + SITE_X1) * 0.5, (SITE_Y + PAVE_Y - 0.6) * 0.5, (SITE_Z0 + SITE_Z1) * 0.5), Vector3(SITE_X1 - SITE_X0, SITE_Y - PAVE_Y + 0.6, SITE_Z1 - SITE_Z0), false)
+	# The white plinth with the car park and the walks on it (it was one grey paving box: the
+	# detailed copy's plinth is painted stucco, and its asphalt is most of the site's top).
+	k.box("stucco", Vector3((SITE_X0 + SITE_X1) * 0.5, (SITE_Y + PAVE_Y - 0.6) * 0.5, (SITE_Z0 + SITE_Z1) * 0.5), Vector3(SITE_X1 - SITE_X0, SITE_Y - PAVE_Y + 0.6, SITE_Z1 - SITE_Z0), false)
+	var top := SITE_Y + 0.012
+	k.flat("asphalt", Rect2(RAMP_X0, SITE_Z0, PARK_X1 - RAMP_X0, RAMP_Z0 - SITE_Z0), top)
+	k.flat("asphalt", Rect2(RAMP_X1, RAMP_Z0, PARK_X1 - RAMP_X1, SITE_Z1 - RAMP_Z0), top)
+	k.flat("paving", Rect2(PARK_X1, SITE_Z0, SITE_X1 - PARK_X1, W_Z0 - SITE_Z0), top)
+	k.flat("paving", Rect2(PARK_X1, W_Z0, W_X0 - PARK_X1, SITE_Z1 - W_Z0), top)
+	k.flat("paving", Rect2(E_X1, E_Z0, SITE_X1 - E_X1, E_Z1 - E_Z0), top)
 	k.box("stucco", Vector3((W_X0 + W_X1) * 0.5, (W_WALL + W_CORNICE + W_PARAPET) * 0.5, (W_Z0 + W_Z1) * 0.5), Vector3(W_X1 - W_X0, W_WALL + W_CORNICE + W_PARAPET, W_Z1 - W_Z0), false)
 	_band_ring(k, "green", Rect2(W_X0, W_Z0, W_X1 - W_X0, W_Z1 - W_Z0), W_WALL, W_CORNICE, 0.6)
 	k.box("stucco", Vector3((E_X0 + E_X1) * 0.5, (E_WALL + E_BAND) * 0.5, (E_Z0 + E_Z1) * 0.5), Vector3(E_X1 - E_X0, E_WALL + E_BAND, E_Z1 - E_Z0), false)
@@ -314,6 +352,12 @@ static func _build_far() -> ArrayMesh:
 		prof.append(Vector2(DOME_R * cos(a), DOME_H * sin(a)))
 	k.revolve("dome", Vector3(DOME_C.x, DRUM_TOP, DOME_C.y), prof, 16, true, false)
 	k.box("stucco", Vector3(MIN_C.x, (E_WALL + MIN_TIER_TOP) * 0.5, MIN_C.y), Vector3(MIN_W, MIN_TIER_TOP - E_WALL, MIN_W), false)
+	# The minaret's balcony (balustrade as one block, its green rail): the silhouette's notch.
+	k.box("stucco", Vector3(MIN_C.x, MIN_SHAFT_TOP + 0.55, MIN_C.y), Vector3(MIN_BALC, 1.1, MIN_BALC), false)
+	k.box("green", Vector3(MIN_C.x, MIN_SHAFT_TOP + 1.14, MIN_C.y), Vector3(MIN_BALC + 0.04, 0.08, MIN_BALC + 0.04), false)
+	# The arched windows: lattice and green surround on the faces, a hand's breadth proud of the
+	# boxes (the detailed copy's dark arches are most of what its facades are from afar).
+	_far_windows(k)
 	k.cyl("green", Vector3(MIN_C.x, MIN_TIER_TOP, MIN_C.y), 1.05, 1.05, MIN_LANTERN_TOP - MIN_TIER_TOP, 8, false, false)
 	k.cyl("green", Vector3(MIN_C.x, MIN_LANTERN_TOP, MIN_C.y), 1.2, 0.05, MIN_CAP_TOP - MIN_LANTERN_TOP, 8, false, false)
 	return k.commit(mats)
@@ -1183,18 +1227,21 @@ static func _lobby_and_domed_hall(k: _Kit) -> void:
 
 ## Palms along the frontage (the aerial counts eight), shrubs in the beds, a few trees in the
 ## side yard. Nodes rather than merged geometry, so they keep their wind-swaying materials.
-static func _plant(root: Node3D) -> void:
+## `far`: the far copy's, the palms and trees only, casting no shadow.
+static func _plant(root: Node3D, far: bool = false) -> void:
 	var y := SITE_Y + 0.04
 	var palms := [-36.0, -29.0, -21.5, -14.0, 3.5, 10.0, 17.0, 26.0]
 	for i in palms.size():
 		var mi := MeshInstance3D.new()
 		mi.mesh = PropFactory.palm(i % 3)
+		if far:
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		var s := 1.05 + 0.12 * float((i * 5) % 3)
 		mi.transform = Transform3D(Basis(Vector3.UP, float(i) * 1.7).scaled(Vector3.ONE * s), Vector3(palms[i], y, SITE_Z1 - 1.6))
 		root.add_child(mi)
 	var x := W_X0
 	var i := 0
-	while x < SITE_X1 - 1.0:
+	while x < SITE_X1 - 1.0 and not far:
 		if x < STAIR_X0 - 0.8 or x > STAIR_X1 + 0.8:
 			var mi := MeshInstance3D.new()
 			mi.mesh = PropFactory.model_shrub(i % 4)
@@ -1208,6 +1255,8 @@ static func _plant(root: Node3D) -> void:
 		var mi := MeshInstance3D.new()
 		mi.mesh = PropFactory.model_tree(int(absf(p.x + p.z)) % PropFactory.CITY_TREES.size())
 		mi.position = p
+		if far:
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(mi)
 
 

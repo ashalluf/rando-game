@@ -12227,3 +12227,111 @@ geometry added or removed (a vertex colour and shader lines on Broadway, a 2D tr
 HUD). Gate: 1,372 checks passed, peak 3.2 GB RSS. (A first run failed the ambulance stretcher pair
 once - a paramedic sunk 0.6 m under the road at (92, 33), nowhere near this work - and passed on
 the rerun: flaky, worth watching.)
+
+## 9dz. Far landmarks: every far copy checked against its detailed one (G7)
+
+**Task** (fleet wave 2, `far-landmarks`): G7's "the landmark towers' far meshes checked against
+their near ones the same way" as FarBuilding was. Branch `wt/far-landmarks`, stills on
+`shots/far-landmarks`.
+
+**The tool.** `tools/glshot/far_landmark_shot.gd` (a thin loader; the work is
+`far_landmark_shot_run.gd`, compiled once the autoloads exist and HELD by the SceneTree - a
+RefCounted runner nobody holds is freed in the middle of its first `await`, silently) builds each
+landmark of `Landmarks.all()` detailed (`Landmarks.build(..., true)` with a StaticBody3D, as the
+chunk does) and far (`false`, then `MultiMeshBatch.merge_meshes()`, as
+`CityStreamer._build_far_landmarks()` does) into an empty scene with a fixed sun and sky, and
+renders `<OUT>_<id>_empty / _near / _far.png` from ONE camera `DIST` (260 m: about where the FULL
+ring hands over) off the detailed copy's bounds, `YAW` round from the south. `IDS=` a list,
+`NIGHT=1` lamp_factor / night_factor 1 and a moon. It prints each copy's draws and triangles.
+`tools/glshot/far_landmark_pair.py <stem>_near.png ...` finds each copy's silhouette by its
+difference from the empty frame (so vertex-shader rides and billboards count) and prints the IoU,
+how much of the near silhouette the far covers and how much it spills, and the far / near LINEAR
+luminance over the pixels both cover; it writes `<stem>_side.png` (near | far | difference x4,
+outlines red / cyan). One full run (51 landmarks) is ~20 minutes on this box, MacroMap.setup()
+8 s of it; opengl3, so judge the pairs against each other, not the light.
+
+**What it found.** The 19 downtown towers, the airport's buildings, the hangars, the ship, the
+observatory, the two signs and the station were already right (IoU 0.99-1.00, brightness 0.98-
+1.03): they build one mesh for both copies. Everything whose far copy was written as a separate
+stand-in jumped:
+
+| landmark | IoU before -> after | far / near brightness, noon | 21:00 |
+|---|---|---|---|
+| venice_boardwalk | 0.58 -> 0.90 | 1.62 -> 0.99 | 0.44 -> 1.00 |
+| verde_cafe | 0.76 -> 0.87 | 3.41 -> 0.96 | 0.98 -> 1.10 |
+| lattice_museum | 0.72 -> 0.97 | 0.41 -> 0.90 | 0.50 -> 0.99 |
+| masjid_omar | 0.77 -> 0.90 | 1.43 -> 1.22 | 1.52 -> 1.35 |
+| arena | 0.85 -> 0.99 | 1.46 -> 0.99 | 1.16 -> 1.01 |
+| redondo_pier | 0.83 -> 0.92 | 1.58 -> 0.99 | 0.83 -> 0.83 |
+| concert_hall | 0.98 -> 1.00 | 1.60 -> 1.01 | 1.20 -> 1.00 |
+| civic_park | 0.84 -> 0.99 | 1.12 -> 0.98 | 0.55 -> 0.97 |
+| skyhook | 0.77 -> 0.90 | 1.12 -> 1.00 | 1.14 -> 0.97 |
+| live_plaza | 0.90 -> 1.00 | 0.98 -> 0.97 | 1.01 -> 1.03 |
+| rental_lot | 0.92 -> 1.00 | 0.65 -> 0.90 | 0.75 -> 0.82 |
+| south_bay_mall | 1.00 -> 1.00 | 0.88 -> 0.91 | 0.56 -> 0.68 |
+
+**The rule now: a far copy is the detailed builder with a `far` flag**, dropping only what is
+under a few pixels from the hand-over (benches, shrubs and flowers, railings and balusters, stall
+paint, sign lettering on small boards, counters, vents, lamps' real lights) and keeping what has
+area or silhouette. Never a second hand-made model: they drifted. Concretely:
+- **Planting.** Far copies planted nothing. `ArenaGrounds.bed / bosque / surface_lot` take `far`
+  (trees, palms and parked cars kept), `_far_shadows(batch)` turns their shadows off (past the
+  cascades anyway); the arena's avenue palms and plaza paving (`_arena_paving_palms()`), the
+  Starlight plaza (`_plaza_far()`), the civic park's planters (`_park_planters(.., far)`: the
+  flowers' rolls are still made so the trees stand where the near ones do) and its lamp pools
+  (`_park_lamps()`), the Lattice's grove (`_museum_far_grove()`), the Symphony Hall garden, the
+  masjid (`_plant(root, true)`), the Skyhook ring, the rental lot and the South Bay mall lot. The
+  SAME meshes (`PropFactory.palm()`, `model_tree()`) and the same rolls: their LOD ladders already
+  thin a palm to ~200-500 triangles at range, so a stand-in tree is never cheaper enough to be worth
+  drifting from the real one.
+- **Venice boardwalk.** The far row drew every other palm as a box-and-cylinder stick: now every
+  palm is `PropFactory.palm()` (the stick palm, its meshes and constants are gone; its lean roll is
+  still drawn so the rolls after it do not move). The shops were pale boxes: `_shop(.., far)` (no
+  ribs, glyphs, counter or vent; the glyph rolls are still made). The art wall is built far too.
+- **Redondo pier.** One pale bar became the real shop row on the detailed path's points and flags
+  (`_rd_shops(.., far)`), with the ROUNDWOOD hoarding; `_rd_far_shops()` is gone.
+- **Verde Cafe.** Six flat-white boxes became its own plaster / concrete / paving materials, a
+  storefront-glass pane per glazed run, the awnings, the signs with lit channel letters, the two
+  street trees and the night glow at `FAR_GLOW` 0.8 (the detailed copy's patio furniture hides a
+  share of the same quads).
+- **The Lattice.** The far veil had double-size cells with the same thin frames: a dark grid. Now
+  the near cells, and with no reveals the frame runs in to where they end.
+- **Symphony Hall.** Its podium's paving cap was detailed-only, so the far podium was bare stone.
+- **Masjid.** `_build_far()` gets the white plinth with the car park and walks, the arched windows
+  (`_far_windows()`: the lattice over a dark backing, the green surrounds), the minaret balcony.
+- **MacArthur Park's boathouse** keeps its deck, veranda roof, landing and boats far.
+
+**Checks** (`tests/far_landmarks_checks.gd`, one line in the smoke test): for the planted
+landmarks the far copy carries exactly as many palms and trees as the detailed one, and none of
+them casts a shadow. Gate: 1,364 passed, 1 failed (the known minimap "closed road" line), peak
+3.2 GB.
+
+**Cost.** The far copies were nearly empty, so they cost more now. In the tool's frames (a narrow
+lens at 260 m, which inflates triangles - palms filling the frame take their fine levels), all the
+changed far copies together: 306 -> 640 draws, 0.14 M -> 0.96 M triangles; the boardwalk alone
+24 -> 68 draws (a building-shader box per shop and a material per paint colour; it was 147 until
+the shops' unshaded paint went through `PropFactory.material(c, 0.85, true)`, which is cached -
+`WeaponFX.unshaded()` makes a material per call, so nothing painted with it ever merged), the arena
+16 -> 66, Redondo 6 -> 28. In the city (`tools/geo_count.gd`, 800x600, opengl3; `AB=FarLandmark_*`
+hides every far copy for a second count):
+
+| view | before | after | far copies alone, before -> after |
+|---|---|---|---|
+| the coast from the south, `--spawn=-850,700,0,-6,70` (boardwalk, pier, cafe, canals, Redondo far) | 1.259 M tris, 1,289 draws | 1.262 M, 1,348 | 25 k -> 28 k tris, 227 -> 286 draws |
+| downtown from the south, `--spawn=2300,1750,0,-6,60` (arena district, towers far) | 4.183 M, 2,899 | 4.193 M, 2,914 | 17 k -> 27 k, 192 -> 207 |
+
+**Stills** (shots/far-landmarks, opengl3): 01-11 noon and 12-17 21:00, each landmark's detailed |
+far copy before and after from one camera; 18 a downtown tower, unchanged.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the pairs are opengl3, and the colour
+space trap applies to anything plain-coloured (both copies use the same materials now, so they
+should move together). Draw calls: plain-colour boxes still merge per colour (and the boardwalk's
+far shops are a building-shader box each); folding colours into vertex colours in `merge_meshes()`
+would bring every far copy down to a few draws but changes a shared util and its colour space, so
+it is left. Other landmarks still paint with `WeaponFX.unshaded()` (the mall, the cafe's bulbs):
+harmless near, a draw each in a far copy. MacArthur Park's fountain plume
+(particles) is near only; the far jet is the column. The Rando Pier (IoU 0.65) is PierPark's own
+low-detail builders and was left alone; the Manhattan pier (0.69) keeps its far copy (its
+furniture is thin). The masjid's far merlons are not built (its brightness stays 1.22). South Bay
+mall at night 0.68 (the detailed lot's paint and lights). The tool skips the canals and the
+airfield lights (no far copy to compare).

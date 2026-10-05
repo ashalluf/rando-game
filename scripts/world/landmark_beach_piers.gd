@@ -231,7 +231,12 @@ static func build_redondo(anchor: Vector2, parent: Node3D, statics: StaticBody3D
 	_rd_deck(parent, statics, pts, anchor, timber, batch, detailed)
 	_rd_piles(batch, pts, detailed)
 	if not detailed:
-		_rd_far_shops(parent, pts, deck_top)
+		# The far copy's shops are the detailed copy's (the same path, flags and rolls) less their
+		# small parts: a single long bar in the first shop colour read as a white wall that turned
+		# into a row of painted shops with signs and awnings at the hand-over.
+		var near_pts := _rd_path(anchor, RD_ARC_STEPS, RD_STRAIGHT_STEPS)
+		_rd_shops(parent, null, near_pts, _rd_shop_flags(near_pts.size() - 1, rng), deck_top, rng, true)
+		_rd_sign(parent, near_pts, deck_top)
 		_rd_car_park(parent, statics, anchor, plan, false)
 		batch.build(parent)
 		return
@@ -491,7 +496,7 @@ static func _rd_shop_flags(segments: int, rng: RandomNumberGenerator) -> Array[b
 
 ## Shops along the lagoon side of the deck, one or two storeys apiece. The three under the
 ## ROUNDWOOD hoarding are always two, because that is what its legs stand on.
-static func _rd_shops(parent: Node3D, statics: StaticBody3D, pts: PackedVector2Array, flags: Array[bool], deck_top: float, rng: RandomNumberGenerator) -> void:
+static func _rd_shops(parent: Node3D, statics: StaticBody3D, pts: PackedVector2Array, flags: Array[bool], deck_top: float, rng: RandomNumberGenerator, far: bool = false) -> void:
 	for i in flags.size():
 		if not flags[i]:
 			continue
@@ -503,12 +508,13 @@ static func _rd_shops(parent: Node3D, statics: StaticBody3D, pts: PackedVector2A
 		var off := RD_DECK_W * 0.5 - RD_SHOP_D * 0.5
 		var at := mid + inner * off
 		var tall := absi(i - RD_SIGN_SEGMENT) <= 1 or rng.randf() > RD_SHOP_SINGLE_CHANCE
-		_rd_shop(parent, statics, Vector3(at.x, deck_top, at.y), _yaw(d), a.distance_to(b) - 1.6, rng, tall)
+		_rd_shop(parent, statics, Vector3(at.x, deck_top, at.y), _yaw(d), a.distance_to(b) - 1.6, rng, tall, far)
 
 
 ## One shop block. Built inside a yawed pivot so every part is in easy local coordinates: +X along
 ## the pier, +Z toward the promenade (the shopfront side), -Z toward the lagoon edge.
-static func _rd_shop(parent: Node3D, statics: StaticBody3D, at: Vector3, yaw: float, length: float, rng: RandomNumberGenerator, tall: bool) -> void:
+## `far`: the far copy's, without the awning posts and the balcony.
+static func _rd_shop(parent: Node3D, statics: StaticBody3D, at: Vector3, yaw: float, length: float, rng: RandomNumberGenerator, tall: bool, far: bool = false) -> void:
 	var wall := PropFactory.material(SHOP_COLORS[rng.randi() % SHOP_COLORS.size()], 0.9)
 	var trim := TRIM_COLORS[rng.randi() % TRIM_COLORS.size()]
 	var pivot := _pivot(parent, at, yaw)
@@ -531,10 +537,10 @@ static func _rd_shop(parent: Node3D, statics: StaticBody3D, at: Vector3, yaw: fl
 	pivot.add_child(roof_node)
 	# Shopfront, sign band, awning and its posts.
 	_obox(pivot, null, Vector3(length - 1.4, RD_SHOP_H1 - 1.5, 0.3), Vector3(0.0, (RD_SHOP_H1 - 1.5) * 0.5 + 0.25, front + 0.1), Vector3.ZERO, glass, false)
-	_obox(pivot, null, Vector3(length - 0.6, 0.85, 0.35), Vector3(0.0, RD_SHOP_H1 - 0.5, front + 0.2), Vector3.ZERO, WeaponFX.unshaded(trim), false)
+	_obox(pivot, null, Vector3(length - 0.6, 0.85, 0.35), Vector3(0.0, RD_SHOP_H1 - 0.5, front + 0.2), Vector3.ZERO, PropFactory.material(trim, 0.85, true), false)
 	var awning := _obox(pivot, null, Vector3(length - 0.9, 0.14, 2.2), Vector3(0.0, RD_SHOP_H1 - 1.35, front + 1.1), Vector3.ZERO, PropFactory.material(trim, 0.85), false)
 	awning.rotation.x = 0.16
-	for sx: float in [-0.5, 0.5]:
+	for sx: float in ([] if far else [-0.5, 0.5]):
 		_cyl_node(pivot, 0.07, RD_SHOP_H1 - 1.5, 5, Vector3(sx * (length - 1.4), (RD_SHOP_H1 - 1.5) * 0.5, front + 2.0), dark)
 	# Upper windows and the narrow balcony rail in front of them, on the two-storey ones.
 	if tall:
@@ -542,11 +548,12 @@ static func _rd_shop(parent: Node3D, statics: StaticBody3D, at: Vector3, yaw: fl
 		for k in bays:
 			var bx := (float(k) + 0.5) / bays - 0.5
 			_obox(pivot, null, Vector3(1.3, 1.7, 0.25), Vector3(bx * (length - 1.2), RD_SHOP_H1 + upper * 0.55, front - 0.2), Vector3.ZERO, glass, false)
+	if tall and not far:
 		_obox(pivot, null, Vector3(length - 0.5, 0.12, 1.2), Vector3(0.0, RD_SHOP_H1 + 0.06, front + 0.2), Vector3.ZERO, dark, false)
 		_obox(pivot, null, Vector3(length - 0.5, 0.1, 0.1), Vector3(0.0, RD_SHOP_H1 + 0.95, front + 0.75), Vector3.ZERO, dark, false)
 	# Roughly a third of them get a hoarding standing on the roof.
 	if rng.randf() < 0.36:
-		_obox(pivot, null, Vector3(length * 0.7, 2.4, 0.22), Vector3(0.0, eave + RD_ROOF_RISE + 1.2, 0.3), Vector3.ZERO, WeaponFX.unshaded(trim.lightened(0.15)), false)
+		_obox(pivot, null, Vector3(length * 0.7, 2.4, 0.22), Vector3(0.0, eave + RD_ROOF_RISE + 1.2, 0.3), Vector3.ZERO, PropFactory.material(trim.lightened(0.15), 0.85, true), false)
 		for sx: float in [-0.34, 0.34]:
 			_obox(pivot, null, Vector3(0.16, RD_ROOF_RISE + 1.0, 0.16), Vector3(sx * length, eave + RD_ROOF_RISE * 0.5 + 0.2, 0.3), Vector3.ZERO, dark, false)
 	# One rotated collision box for the whole block.
@@ -558,23 +565,6 @@ static func _rd_shop(parent: Node3D, statics: StaticBody3D, at: Vector3, yaw: fl
 		shape.position = at + Vector3(0.0, eave * 0.5, 0.0)
 		shape.rotation.y = yaw
 		statics.add_child(shape)
-
-
-## A single long bar of shop-coloured boxes for the far copy, so the horseshoe still reads as
-## built-up rather than as a bare deck.
-static func _rd_far_shops(parent: Node3D, pts: PackedVector2Array, deck_top: float) -> void:
-	var wall := PropFactory.material(SHOP_COLORS[0], 0.9)
-	var roof := PropFactory.material(TIMBER_DARK, 0.85)
-	for i in pts.size() - 1:
-		var a := pts[i]
-		var b := pts[i + 1]
-		var d := (b - a).normalized()
-		var inner := Vector2(d.y, -d.x)
-		var at := (a + b) * 0.5 + inner * (RD_DECK_W * 0.5 - RD_SHOP_D * 0.5)
-		var length := a.distance_to(b) + 0.6
-		var yaw := _yaw(d)
-		_obox(parent, null, Vector3(length, RD_SHOP_H1 + RD_SHOP_H2, RD_SHOP_D), Vector3(at.x, deck_top + (RD_SHOP_H1 + RD_SHOP_H2) * 0.5, at.y), Vector3(0.0, yaw, 0.0), wall, false)
-		_obox(parent, null, Vector3(length, 0.9, RD_SHOP_D + 0.5), Vector3(at.x, deck_top + RD_SHOP_H1 + RD_SHOP_H2 + 0.45, at.y), Vector3(0.0, yaw, 0.0), roof, false)
 
 
 ## Fishing rails: the outer edge everywhere except the segment the stair drops through, and the

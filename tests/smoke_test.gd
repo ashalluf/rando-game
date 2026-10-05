@@ -2267,6 +2267,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/web_build_checks.gd").new().run(self, city)
 	# The Forward+ review of those four (tests/fwd_review_c_checks.gd): the map scales with the window.
 	await load("res://tests/fwd_review_c_checks.gd").new().run(self, city)
+	# The landmarks' far copies (tests/far_landmarks_checks.gd): the detailed copies' palms and trees.
+	load("res://tests/far_landmarks_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

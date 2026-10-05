@@ -189,6 +189,8 @@ static func _arena(s: Rect2, y0: float, parent: Node3D, statics: StaticBody3D, d
 
 	if detailed:
 		_arena_detail(g, batch, parent, c, r0, r_top, r_drum, y0, ya, s, statics)
+	else:
+		_arena_paving_palms(g, batch, s, y0)
 		# The name on the drum, on the side facing the freeway and the far side of the city.
 		_arc_letters(batch, "arena_ltr", ARENA_NAME, c, r_drum + Vector2.ONE * 0.35, y0 + (GLASS_TOP + DRUM_TOP) * 0.5 + 1.0, 4.2, PI * 0.75)
 	# LED screens on the drum: the big one over the main doors faces the corner plaza.
@@ -209,36 +211,37 @@ static func _arena(s: Rect2, y0: float, parent: Node3D, statics: StaticBody3D, d
 	_arena_grounds(g, batch, parent, statics, s, c, r0, y0, detailed)
 	g.commit(parent, "Arena")
 	g.commit_collision(statics)
+	if not detailed:
+		ArenaGrounds._far_shadows(batch)
 	batch.build(parent)
 	_occluder(parent, [[Vector3(c.x, y0 + DRUM_TOP * 0.5, c.y), Vector3(r0.x * 1.35, DRUM_TOP - 2.0, r0.y * 1.35)]])
 
 
 ## The rest of the arena block (ArenaGrounds): the car park west of the bowl, the star plaza on its
 ## north front, planted beds with palms along Figueroa, a grove at the north-west corner and the
-## service drive with a planted berm along the south. The car park is built far as well (it is a
-## big building); the planting only near.
+## service drive with a planted berm along the south. The car park, the grove and the beds' trees
+## and palms are built far as well (ArenaGrounds' `far` mode: what reads from a few hundred
+## metres); the figures, benches and shrubs only near.
 static func _arena_grounds(g: LandmarkGeo, batch: MultiMeshBatch, parent: Node3D, statics: StaticBody3D, s: Rect2, c: Vector2, r0: Vector2,
 		y0: float, detailed: bool) -> void:
 	var reach := r0 + Vector2.ONE * PODIUM_OUT
 	var garage := _arena_garage(s, c, r0)
 	if garage.size.x > 30.0 and garage.size.y > 40.0:
 		ArenaGrounds.garage(g, batch, parent, statics, garage, GARAGE_LEVELS, y0, detailed, 4471, 3)
-	if not detailed:
-		return
 	# The star plaza: bronze figures on plinths across the arena's north front, inside the ring
 	# the crowd walks (crowds()).
 	var front_z := (s.position.y + c.y - reach.y) * 0.5
-	for i in 5:
+	for i in (5 if detailed else 0):
 		var fx := lerpf(c.x - reach.x * 0.45, c.x + reach.x * 0.45, float(i) / 4.0)
 		ArenaGrounds.sculpture(g, statics, Vector2(fx, front_z + (3.0 if i % 2 == 1 else -3.0)), y0, 3301 + i * 17)
 	# A grove at the north-west corner, between the plaza and the car park.
 	var grove := Rect2(Vector2(s.position.x + 4.0, s.position.y + 5.0), Vector2(garage.end.x - s.position.x - 6.0, garage.position.y - s.position.y - 12.0))
 	if grove.size.x > 12.0 and grove.size.y > 8.0:
-		ArenaGrounds.bosque(g, batch, grove, y0, 14.0, 51)
+		ArenaGrounds.bosque(g, batch, grove, y0, 14.0, 51, not detailed)
 	# Raised beds with palms along Figueroa, south of the corner plaza.
 	var east := Rect2(Vector2(c.x + reach.x + 5.0, c.y - reach.y * 0.35), Vector2(ARENA_EAST_SETBACK - 12.0, s.end.y - 10.0 - (c.y - reach.y * 0.35)))
 	if east.size.x > 3.0:
-		ArenaGrounds.bed(g, batch, statics, Rect2(east.position + Vector2(east.size.x * 0.5 - 3.0, 0.0), Vector2(6.0, east.size.y)), y0, 61, 14.0, true)
+		ArenaGrounds.bed(g, batch, statics, Rect2(east.position + Vector2(east.size.x * 0.5 - 3.0, 0.0), Vector2(6.0, east.size.y)), y0, 61, 14.0, true, true, not detailed)
 	# The service drive along the south: asphalt with a painted edge, and a planted berm between
 	# it and the street, broken where the trucks turn in.
 	var south := Rect2(Vector2(garage.end.x + 6.0, c.y + reach.y + 4.0), Vector2(s.end.x - garage.end.x - 10.0, s.end.y - c.y - reach.y - 6.0))
@@ -250,8 +253,8 @@ static func _arena_grounds(g: LandmarkGeo, batch: MultiMeshBatch, parent: Node3D
 		var berm_d := minf(8.0, south.end.y - berm_z - 1.0)
 		if berm_d > 3.0:
 			var half := (south.size.x - 16.0) * 0.5
-			ArenaGrounds.bed(g, batch, statics, Rect2(Vector2(south.position.x, berm_z), Vector2(half, berm_d)), y0, 71, 10.0)
-			ArenaGrounds.bed(g, batch, statics, Rect2(Vector2(south.position.x + half + 16.0, berm_z), Vector2(half, berm_d)), y0, 73, 10.0)
+			ArenaGrounds.bed(g, batch, statics, Rect2(Vector2(south.position.x, berm_z), Vector2(half, berm_d)), y0, 71, 10.0, false, true, not detailed)
+			ArenaGrounds.bed(g, batch, statics, Rect2(Vector2(south.position.x + half + 16.0, berm_z), Vector2(half, berm_d)), y0, 73, 10.0, false, true, not detailed)
 
 
 ## The car park's footprint on the arena block: west of the bowl, from behind the grove to the
@@ -265,6 +268,17 @@ static func _arena_garage(s: Rect2, c: Vector2, r0: Vector2) -> Rect2:
 
 ## The arena's near detail: glass fins, a transom, entrance canopies, doors, rooftop plant,
 ## the plaza paving, palms, masts and their lights.
+## Plaza paving over the whole site, just proud of the block's pavement, and the palms down the
+## avenue side: detailed and far alike (the far copy's palms cast no shadow, ArenaGrounds).
+static func _arena_paving_palms(g: LandmarkGeo, batch: MultiMeshBatch, s: Rect2, y0: float) -> void:
+	g.use("paving", LandmarkMats.paving("pavers", 2.5, Color(0.92, 0.90, 0.87), 4411, 3.0, 0.25))
+	g.cap("paving", LandmarkGeo.ccw(_rect_poly(s)), y0 + 0.03)
+	for i in 6:
+		var z := lerpf(s.position.y + 20.0, s.end.y - 4.0, float(i) / 5.0)
+		var v := i % PropFactory.PALM_VARIANTS
+		batch.add("palm_%d" % v, PropFactory.palm(v), Transform3D(Basis(Vector3.UP, float(i) * 1.3), Vector3(s.end.x - 2.2, y0, z)), Color(1.0, 1.0, 1.0))
+
+
 static func _arena_detail(g: LandmarkGeo, batch: MultiMeshBatch, parent: Node3D, c: Vector2, r0: Vector2, r_top: Vector2, r_drum: Vector2,
 		y0: float, ya: float, s: Rect2, statics: StaticBody3D) -> void:
 	# Mullion fins leaning with the glass, every few metres round the plaza sides.
@@ -308,14 +322,8 @@ static func _arena_detail(g: LandmarkGeo, batch: MultiMeshBatch, parent: Node3D,
 		var rho := 0.55
 		var yr := y0 + DRUM_TOP + 0.6 + ROOF_RISE * (1.0 - rho * rho)
 		g.box("metal", Vector3(p.x, yr + 0.9, p.y), Vector3(rng.randf_range(3.0, 5.0), 1.9, rng.randf_range(2.2, 3.0)), Color(0.66, 0.68, 0.70), LandmarkGeo.yaw(-t), 0.08)
-	# Plaza paving over the whole site, just proud of the block's pavement.
-	g.use("paving", LandmarkMats.paving("pavers", 2.5, Color(0.92, 0.90, 0.87), 4411, 3.0, 0.25))
-	g.cap("paving", LandmarkGeo.ccw(_rect_poly(s)), y0 + 0.03)
-	# Palms down the avenue side, masts on the corner plaza.
-	for i in 6:
-		var z := lerpf(s.position.y + 20.0, s.end.y - 4.0, float(i) / 5.0)
-		var v := i % PropFactory.PALM_VARIANTS
-		batch.add("palm_%d" % v, PropFactory.palm(v), Transform3D(Basis(Vector3.UP, float(i) * 1.3), Vector3(s.end.x - 2.2, y0, z)), Color(1.0, 1.0, 1.0))
+	_arena_paving_palms(g, batch, s, y0)
+	# Masts on the corner plaza.
 	var mast := PropFactory.cylinder("lm_mast", 0.2, 1.0, STEEL_DARK, 0.13, 10)
 	for q: Vector2 in [Vector2(s.end.x - 6.0, s.position.y + 6.0), Vector2(s.end.x - 20.0, s.position.y + 5.0), Vector2(s.end.x - 5.0, s.position.y + 20.0)]:
 		_mast(batch, Vector3(q.x, y0, q.y), 12.0, mast)
@@ -468,6 +476,8 @@ static func _live_plaza(s: Rect2, y0: float, parent: Node3D, statics: StaticBody
 
 	if detailed:
 		_plaza_detail(g, batch, parent, p, nb, eb, y0, statics)
+	else:
+		_plaza_far(g, batch, p, y0)
 	g.commit(parent, "StarlightPlaza")
 	batch.build(parent)
 	_occluder(parent, [[Vector3(th.get_center().x - 2.0, y0 + th_h * 0.5, th.get_center().y), Vector3(th.size.x - 4.0, th_h, th.size.y)],
@@ -534,6 +544,27 @@ static func _plaza_detail(g: LandmarkGeo, batch: MultiMeshBatch, parent: Node3D,
 		if cx > nb.end.x - 3.0:
 			break
 		batch.add("live_cafe", cafe, Transform3D(Basis(Vector3.UP, float(i) * 0.9), Vector3(cx, y0 + 0.04, nb.end.y + 6.0)))
+
+
+## The plaza's far copy: its paving and the trees _plaza_detail() plants (the same rolls, so the
+## same trees in the same places), which are what the plaza is from a few hundred metres.
+static func _plaza_far(g: LandmarkGeo, batch: MultiMeshBatch, p: Rect2, y0: float) -> void:
+	g.use("paving", LandmarkMats.paving("paving", 2.2, Color(0.62, 0.60, 0.60), 5521, 2.4, 0.2))
+	g.cap("paving", LandmarkGeo.ccw(_rect_poly(p)), y0 + 0.03)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7741
+	for i in 3:
+		var z := p.position.y + 10.0 + float(i) * (p.size.y - 16.0) / 2.0
+		for side: float in [0.0, 1.0]:
+			var x := lerpf(p.position.x + 3.0, p.end.x - 3.0, side)
+			var v := 1 + (i + int(side)) % 3
+			var sc := PropFactory.city_tree_scale(v, rng.randf_range(6.5, 8.5))
+			batch.add("tree_%d" % v, PropFactory.model_tree(v), Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(sc, sc, sc)), Vector3(x, y0 + 0.7, z)),
+				Color(1.0, 1.0, 1.0), Color(rng.randf(), rng.randf(), rng.randf(), rng.randf_range(0.4, 1.0)))
+	var gz := _plaza_grove_z(p)
+	if gz < p.end.y - 12.0:
+		ArenaGrounds.bosque(g, batch, Rect2(Vector2(p.position.x + 8.0, gz), Vector2(p.size.x - 16.0, p.end.y - gz - 4.0)), y0, 12.0, 83, true)
+	ArenaGrounds._far_shadows(batch)
 
 
 # ============================================================================================
