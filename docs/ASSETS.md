@@ -324,6 +324,26 @@ invented for this game; no real carrier's scheme, mark or name.
 | Cone, apron floodlight mast, elevated edge light, inset light | `AirportKit.cone()` etc. | 90, 178, 76, 50 | the apron, the runways and taxiways | 2026-10-04 |
 | Perimeter fence (post + barbed outrigger, chain-link panel), blast fence panel, localizer element, glide-slope mast, windsock, PAPI unit | `AirportKit.fence_post()` etc. | 72 + 4, 88, 106, 222, 170, 54 | the field's edges and navaids | 2026-10-04 |
 
+## Street furniture (built in code)
+
+The pavement furniture (2026-10-05, fleet task "street-furniture") is generated at run time by
+`scripts/world/street_furniture.gd` - no model files - on `shaders/street_furniture.gdshader`.
+The bench ads are `assets/textures/street_furniture/bench_ads.jpg`, drawn by
+`tools/make_bench_ads.py` (PIL, the system's DejaVu / Liberation fonts): every advertiser, name and
+phone number (555 numbers) is invented for this game.
+
+| Mesh | Built by | Triangles (finest; generated LODs below) | Used for | Added |
+|---|---|---|---|---|
+| LA wet-barrel fire hydrant | `StreetFurniture.hydrant()` | ~3.3k | one a block (CityChunk) | 2026-10-05 |
+| Single-space smart meter | `StreetFurniture.meter()` | ~0.7k | metered kerbs (StreetDetail) | 2026-10-05 |
+| Pay station with solar mast | `StreetFurniture.pay_station()` | ~0.5k | 18 % of metered spaces | 2026-10-05 |
+| Concrete bus bench, painted ad back | `StreetFurniture.ad_bench()` | ~0.4k | half the bus stops | 2026-10-05 |
+| Perforated downtown bin | `StreetFurniture.mesh_bin()` | ~1.9k | TrashCan downtown, midtown, campus | 2026-10-05 |
+| 96-gallon residential cart | `StreetFurniture.cart()` | ~1.3k | kerbs on collection day | 2026-10-05 |
+| Galvanised inverted-U bike rack | `StreetFurniture.bike_rack()` | ~1.0k | bike racks (StreetDetail) | 2026-10-05 |
+| Precast kerb planter (+ a Poly Haven shrub) | `StreetFurniture.planter()` | ~0.2k | planters (CityChunk) | 2026-10-05 |
+| Bench ad atlas, 8 ads, 1024 x 2560 | `tools/make_bench_ads.py` | - | the ad benches | 2026-10-05 |
+
 ## The hero (Blender + MPFB2, CC0 assets)
 
 `assets/models/hero.glb` (and the `hero_hero_*` textures Godot extracts from it, plus the

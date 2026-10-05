@@ -137,14 +137,15 @@ void vertex() {
 // bleeding down from the chips, grime from the pavement.
 vec3 sf_worn_paint(vec3 paint, float wear, out float rough, out float metal) {
 	vec3 p = v_local * vec3(1.0, 1.0, 1.0) + v_seed * 17.0;
-	float keep = sf_keep(0.01);
+	float keep = sf_keep(0.005);
 	// Sun and age: the paint chalks, lightens and loses its colour.
 	float lum = dot(paint, vec3(0.2126, 0.7152, 0.0722));
 	vec3 col = mix(paint, mix(vec3(lum), paint, 0.55) * 1.12 + 0.02, wear * 0.55);
 	// Chips: where a fine noise passes a threshold that drops with wear, more on edges and low down.
-	float n = sf_fbm(p * 38.0);
+	// Two scales: fine flecks everywhere, and a coarse field that gathers them into worn patches.
+	float n = sf_fbm(p * 85.0) * 0.7 + sf_fbm(p * 9.0 + 5.0) * 0.3;
 	float edge = 1.0 - abs(v_lnormal.y);
-	float chip_t = 1.0 - wear * chip_gain * (0.28 + 0.1 * edge + 0.12 * (1.0 - smoothstep(0.0, 0.3, v_local.y)));
+	float chip_t = 1.0 - wear * chip_gain * (0.27 + 0.1 * edge + 0.14 * (1.0 - smoothstep(0.0, 0.3, v_local.y)));
 	float chip = smoothstep(chip_t, chip_t + 0.03, n) * keep + (1.0 - keep) * clamp((1.0 - chip_t) * 0.6, 0.0, 0.3);
 	float rustn = sf_fbm(p * 11.0 + 3.0);
 	vec3 iron = mix(vec3(0.035, 0.032, 0.03), vec3(0.16, 0.06, 0.022), smoothstep(0.35, 0.7, rustn));

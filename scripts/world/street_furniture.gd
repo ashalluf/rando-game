@@ -66,7 +66,7 @@ const PAY_STATION_SHARE := 0.18
 const BENCH_STOP_SHARE := 0.5
 
 ## LA hydrant paints (sRGB) and their odds: mostly the yellow, some silver, a few faded.
-const HYDRANT_PAINTS := [Color(0.86, 0.68, 0.10), Color(0.86, 0.68, 0.10), Color(0.86, 0.68, 0.10), Color(0.70, 0.71, 0.70), Color(0.90, 0.82, 0.52)]
+const HYDRANT_PAINTS := [Color(0.80, 0.62, 0.11), Color(0.82, 0.64, 0.10), Color(0.78, 0.6, 0.12), Color(0.70, 0.71, 0.70), Color(0.90, 0.82, 0.52)]
 ## Meter head paints: the city's dark grey and a silver.
 const METER_PAINTS := [Color(0.30, 0.32, 0.34), Color(0.52, 0.54, 0.55), Color(0.24, 0.25, 0.27)]
 ## Mesh bin paints: black and a deep green.
@@ -138,18 +138,58 @@ static func rack_custom(seed: int, at: Vector3) -> Color:
 	return Color(0.0, 0.0, 0.0, 0.2 + 0.6 * _h01([seed, "rack", roundi(at.x * 10.0), roundi(at.z * 10.0)]))
 
 
-## A kerb planter's instances (CityChunk._build_clutter): the box, soil and a shrub.
+## A kerb planter's instances (CityChunk._build_clutter): the box, soil and its planting.
 static func planter_instances(seed: int, xf: Transform3D) -> Array:
 	if not enabled:
 		return [["planter", PropFactory.model_planter(), xf]]
 	var h := _h01([seed, "planter", roundi(xf.origin.x * 10.0), roundi(xf.origin.z * 10.0)])
 	var out := [["planter", planter(), xf, Color.WHITE, Color(0.0, 0.0, 0.0, 0.2 + 0.6 * _fr(h * 11.3))]]
-	var bush := PropFactory.model_bush(int(h * 4.0) % 4)
-	var box := bush.get_aabb()
-	var s := 0.78 / maxf(0.01, maxf(box.size.x, box.size.z * 1.9))
-	var leaf := Color(0.9, 1.0, 0.85).lerp(Color(1.1, 1.05, 0.8), _fr(h * 2.9))
-	out.append(["planter_shrub", bush, Transform3D(xf.basis * Basis(Vector3.UP, h * TAU).scaled(Vector3(s, s, s)), xf.origin + Vector3(0.0, 0.43, 0.0)), leaf])
+	out.append_array(planting(int(h * PLANTER_PLANTS) % PLANTER_PLANTS, xf, h))
 	return out
+
+
+## How many plantings a planter can have (planter_plant()).
+const PLANTER_PLANTS := 5
+
+
+## A planter's planting, laid in the soil by its own position: ClimbingPlants' accent plants (the
+## agave, aloe, red-hot poker, lavender and lantana of LA's drought-tolerant beds) on their own
+## shader and atlas, one batch per planting a chunk.
+static func planting(pick: int, xf: Transform3D, _h: float) -> Array:
+	return [["planter_plant%d" % pick, planter_plant(pick), Transform3D(xf.basis, xf.origin + xf.basis * Vector3(0.0, 0.43, 0.0))]]
+
+
+static func planter_plant(pick: int) -> Mesh:
+	var key := "planter_plant%d" % pick
+	if _meshes.has(key):
+		return _meshes[key]
+	var acc := ClimbingPlants.Acc.new()
+	acc.fade = 90.0
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(["planter_plant", pick])
+	match pick:
+		0:
+			ClimbingPlants._rosette(acc, Vector3(0.0, 0.0, 0.0), rng, 20, 0.36, 0.13, ClimbingPlants.C_AGAVE[0], 0.4, 1.3)
+			for x in [-0.34, 0.34]:
+				ClimbingPlants._rosette(acc, Vector3(x, 0.0, 0.03), rng, 13, 0.17, 0.065, ClimbingPlants.C_ALOE, 0.75, 1.45)
+		1:
+			for x in [-0.3, 0.0, 0.3]:
+				ClimbingPlants._rosette(acc, Vector3(x, 0.0, rng.randf_range(-0.05, 0.05)), rng, 15, 0.22, 0.075, ClimbingPlants.C_ALOE, 0.75, 1.45)
+		2:
+			for x in [-0.3, 0.0, 0.3]:
+				ClimbingPlants._clump(acc, Vector3(x, 0.0, rng.randf_range(-0.04, 0.04)), rng, ClimbingPlants.C_LAVENDER, rng.randf_range(0.36, 0.44), rng.randf_range(0.36, 0.46), 3)
+		3:
+			for x in [-0.22, 0.22]:
+				ClimbingPlants._mound(acc, Vector3(x, 0.0, 0.0), rng, ClimbingPlants.C_LANTANA[int(x > 0.0)], 0.36)
+		_:
+			ClimbingPlants._clump(acc, Vector3(0.0, 0.0, 0.0), rng, ClimbingPlants.C_STRAPS, 0.5, 0.42, 3)
+			for k in 4:
+				ClimbingPlants._cross(acc, Vector3(rng.randf_range(-0.12, 0.12), 0.0, rng.randf_range(-0.08, 0.08)), rng, ClimbingPlants.C_POKER, 0.16, rng.randf_range(0.6, 0.8), 2, 1.0)
+			for x in [-0.32, 0.32]:
+				ClimbingPlants._clump(acc, Vector3(x, 0.0, 0.0), rng, ClimbingPlants.C_LAVENDER, 0.28, 0.32, 3)
+	var mesh := acc.mesh(ClimbingPlants.material())
+	_meshes[key] = mesh
+	return mesh
 
 
 ## Which mesh a TrashCan wears in this district: 1 the downtown mesh bin, 0 the old can.
@@ -300,6 +340,8 @@ static func warm() -> void:
 	cart()
 	bike_rack()
 	planter()
+	for i in PLANTER_PLANTS:
+		planter_plant(i)
 
 
 static func material() -> ShaderMaterial:
@@ -451,12 +493,21 @@ static func ad_bench() -> Mesh:
 	var end := PackedVector2Array([Vector2(-0.24, 0.0), Vector2(0.24, 0.0), Vector2(0.27 + lean, 1.06), Vector2(0.16 + lean, 1.06), Vector2(0.12, 0.43), Vector2(-0.24, 0.39)])
 	for sx in [-0.85, 0.85]:
 		g.extrude(end, 0.12, Vector3(sx - 0.06, 0.0, 0.0), _profile_basis(), conc, K_CONCRETE)
-	# The seat slab, its front edge rounded over.
-	g.cbox(Vector3(0.0, 0.39, -0.03), Basis(), Vector3(1.86, 0.065, 0.46), 0.02, conc, K_CONCRETE)
-	# The back rest, leaning back on the ends.
-	var back_basis := Basis(Vector3.RIGHT, atan2(lean, 0.63))
+	# The seat slab, its edges rounded over (a profile in (z, y) run the bench's length).
+	g.extrude(_rrect(0.46, 0.068, 0.026, 3), 1.86, Vector3(-0.93, 0.424, -0.03), _profile_basis(), conc, K_CONCRETE)
+	# The back rest, leaning back on the ends, its edges rounded too.
+	var tilt := atan2(lean, 0.63)
+	var back_basis := Basis(Vector3.RIGHT, tilt)
 	var bc := Vector3(0.0, 0.79, 0.15 + lean * 0.58)
-	g.cbox(bc + back_basis * Vector3(0.0, -0.29, 0.0), back_basis, Vector3(1.84, 0.58, 0.075), 0.015, conc, K_CONCRETE)
+	var prof := PackedVector2Array()
+	for q in _rrect(0.075, 0.58, 0.022, 3):
+		prof.append(Vector2(q.x * cos(tilt) + q.y * sin(tilt), -q.x * sin(tilt) + q.y * cos(tilt)))
+	g.extrude(prof, 1.84, Vector3(-0.92, bc.y, bc.z), _profile_basis(), conc, K_CONCRETE)
+	# Bolt heads where the back rest meets each end.
+	for sx in [-0.86, 0.86]:
+		for dy in [-0.14, 0.14]:
+			var bp := bc + back_basis * Vector3(0.0, dy, 0.0)
+			g.lathe(Vector3(sx + signf(sx) * 0.06, bp.y, bp.z), Basis(Vector3(0, 0, 1), -PI * 0.5 * signf(sx)), [Vector2(0.0, 0.0), Vector2(0.016, 0.0), Vector2(0.016, 0.008), Vector2(0.0, 0.01)], 6, Color(0.4, 0.38, 0.35), K_GALV, false)
 	var front := back_basis * Vector3(0, 0, -1)
 	g.panel(bc + back_basis * Vector3(0.0, 0.0, -0.0385), Vector2(1.76, 0.52), front, K_AD, Color.WHITE, 0.0, back_basis * Vector3.UP)
 	g.panel(bc + back_basis * Vector3(0.0, 0.0, 0.0385), Vector2(1.76, 0.52), -front, K_AD, Color.WHITE, 1.0, back_basis * Vector3.UP)

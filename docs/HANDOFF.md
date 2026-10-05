@@ -8571,3 +8571,66 @@ abrupt. A connector car spawned when nobody can be taken pops in (only farther t
 the player). Sound: no rolling-traffic emitter of its own (Ambience's freeway emitter reads
 segments_in(), so it does hear the connectors). The far city draws the connectors as unbanked
 deck boxes.
+
+## 9d?. Street furniture: LA's hydrants, meters, bus benches, bins, carts, racks and planters, 2026-10-05 (agent branch `wt/street-furniture`; VISUAL_ROADMAP "?")
+
+**What.** The pavement furniture was Poly Haven scans (a red generic hydrant, a wooden planter
+box, a park bench, a corrugated can), a box-and-cylinder meter and a grey hoop: a generic city.
+Now `StreetFurniture` (`scripts/world/street_furniture.gd`) builds Los Angeles's own pieces in
+code, at real size, on one shader (`shaders/street_furniture.gdshader`):
+
+- **Fire hydrant**: the squat LA wet barrel - bolted flange, a short swelled barrel, the band and
+  the bonnet with its pentagon operating nut, a 4" pumper outlet and two 2.5" hose outlets (caps
+  with grip lugs and nuts, chains to eyes on the barrel, stem bosses), a stencilled number. Yellow
+  (three shades), silver or a faded cream; the aged roll (the old `aged` flag) chalks the paint and
+  chips it to dark iron with rust round the chips and runs below. It now turns its pumper to the
+  street (the rolled spin is still drawn, so nothing after it moves).
+- **Parking meter**: a single-space smart meter - black post on a bolted plate, the grey head with
+  a domed top, the display, keypad, card slot, coin slot, a "pay" label, the solar cell, the back
+  door and its lock. **Pay station** (`PAY_STATION_SHARE` 18 % of metered spaces, a hash): cabinet
+  on a concrete plinth, sloped head, the lit screen, a 12-key pad, card reader with its light, coin
+  and receipt slots, the instruction panel, a blue "P" plate and the solar panel on its mast.
+- **Bus bench with a painted ad back**: cast concrete ends (an L in profile), a rounded seat slab
+  and a back rest leaning 15 degrees, bolted; the ad painted on both faces from
+  `assets/textures/street_furniture/bench_ads.jpg` (`tools/make_bench_ads.py`: eight INVENTED
+  advertisers - two realtors, injury lawyers, abogados, bail bonds, a dentist, a taco stand, the
+  bench company's own "your ad here" - with 555 numbers), sun-faded, peeling and grimy with wear.
+  Half the bus stops (`BENCH_STOP_SHARE`, a hash of seed + place) are now this bench and the stop
+  sign with no shelter, as so many LA stops are; the rest keep the shelter (and Billboards' lightbox).
+  The bench stop is the same `bus_stop` prop (its id, its seat for CrowdLife, facing the road).
+- **Downtown bin**: perforated powder-coated steel you see the black liner through (holes cut by
+  the shader where they are bigger than a pixel, averaged into a darker sheet past that), four
+  straps, the rim with the bag folded over it, a rain bonnet on four posts. It is the TrashCan's
+  mesh in DOWNTOWN, MIDTOWN and CAMPUS (`bin_style()`; the can is still the same physics prop,
+  rolled the same).
+- **Residential carts**: 96-gallon carts (tapered body, lip, domed lid overhanging with its front
+  lip and hinge, moulded ribs, the handle bar on brackets, the axle and wheels, a hot-stamped lid)
+  in black, blue and green, out at the kerb in pairs and threes on the block's COLLECTION DAY
+  (`collection_day()`: a hash of seed + block, Monday to Friday; today is `DayNight.day_count`, so
+  a block's carts are out one game day in seven) in SUBURBS and BEACHTOWN, fronts to the street,
+  kept clear of the trees, lamps, hydrants and other props already there. They are props with ids
+  of their own (`cart_<n>`, `_own_prop()`: CityChunk's record without its counter), so nothing
+  else's id moves; they break like any prop (prop-destruction owns the effect).
+- **Bike rack**: the galvanised inverted U (spangle, white rust with age) on bolted flanges.
+- **Kerb planter**: precast concrete, a rim and a reveal line, soil, and one of the leafy shrubs.
+
+**How it hangs together.** Every piece is ONE mesh (positions, normals, COLOR = rgb paint + kind in
+the alpha, UV in metres or 0..1 for a label, the ad or a screen, UV2.x the label id) through
+`ImporterMesh.generate_lods()` and `PropFactory._build_shadow_proxy()`, so a batch per kind a
+chunk draws distant pieces coarse and casts from a lighter twin. Per instance, INSTANCE_CUSTOM is
+the paint (sRGB) and the wear. The hooks are where the old pieces were made: `CityChunk`'s
+hydrant and planter lines and the TrashCan's style, `StreetDetail`'s racks, meters and bus
+shelter, and `StreetDetail.build_block()` calling `build_carts()`. Every roll is a hash.
+`STREET_FURNITURE=0` in the environment is the A/B (the old meshes, no pay stations, no bench
+stops, no carts); `CARTS=all` puts every block's carts out (stills, tests).
+
+**Trap (cost an hour).** The kind rides in COLOR.a and is compared exactly in the fragment; an
+interpolated 8.0 is 7.9999995 at some pixels of the Compatibility renderer, those fell through
+every branch and drew white specks all over the carts and the bin (it looked like shadow acne).
+Round the kind in the fragment (`floor(v_kind + 0.5)`).
+
+**Look and measure.** `tools/glshot/furniture_shot.gd` lines every piece up on a pavement in
+seconds (`OLD=1` the old meshes in the same places, `NIGHT=1`, `WEAR`, `WET`, `AD`, `DEBUG=1
+CULL=0` paints front faces by normal and back faces red). `tools/street_furniture_probe.gd` lists
+the pieces of the FULL chunks round a point with an EYE for each. Checks:
+`tests/street_furniture_checks.gd`.

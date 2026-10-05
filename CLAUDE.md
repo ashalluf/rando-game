@@ -1980,6 +1980,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Shopping plazas, big-box stores, fast-food and gas-station pads are `Commercial`
   (`scripts/world/commercial.gd`); block kinds `MALL` and `BIGBOX` and the `pads` odds live in
   `CityPlan.DISTRICTS`. Shop names are original, never brands.
+- Street furniture (2026-10-05, docs/HANDOFF.md "Street furniture"): `StreetFurniture`
+  (`scripts/world/street_furniture.gd`) builds in code at real size the LA wet-barrel hydrant,
+  the smart meter and the pay station, the concrete bus bench with a painted ad back (invented
+  advertisers, 555 numbers: `tools/make_bench_ads.py` -> `bench_ads.jpg`), the perforated downtown
+  bin (a TrashCan's mesh by district), the residential carts on a block's collection day, the
+  galvanised U rack and the kerb planter - one shader (`street_furniture.gdshader`: kind in
+  COLOR.a x 16, paint and wear in INSTANCE_CUSTOM; round the kind in the fragment, an interpolated
+  8.0 reads 7.9999), one batch per kind a chunk, generated LODs and shadow twins. Same calls, ids,
+  rolls and collision as the old pieces; pay stations, bench stops and carts are hashes; carts
+  are props with their own ids (`cart_<n>`, `_own_prop()`). `STREET_FURNITURE=0` is the A/B,
+  `CARTS=all` every block's carts out. Look with `tools/glshot/furniture_shot.gd` (seconds;
+  `OLD=1` the before), find pieces with `tools/street_furniture_probe.gd`; checks
+  `tests/street_furniture_checks.gd`.
 - Port (roadmap #35, 2026-09-27): the container terminal (`MacroMap.port_rect`) is
   `CityChunk._build_port()` laying out `PortKit` (`scripts/world/port_kit.gd`), all built in code.
   **The old port's rolls stay** on the block rng in the old order (rows, columns, the 30 % truck

@@ -289,6 +289,18 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Street furniture as code-built models (HANDOFF "Street furniture").** The
+  pavement's hydrants, meters, benches, bins, racks and planters were Poly Haven scans and
+  primitives that read as a generic city, not Los Angeles. Decisions: build LA's own pieces in
+  code at real size (the squat wet-barrel hydrant, the single-space smart meter and pay station,
+  the concrete bus bench with a painted ad back, the perforated downtown bin, the 96-gallon carts)
+  on one shader, one batch per kind a chunk; swap only the MESHES at the old calls so every prop
+  id, roll and collision shape stays (the hydrant now turns its pumper to the street with the
+  rolled spin still drawn); the new pieces (pay stations, ad-bench stops, carts) are hashes of seed
+  + place, and the carts get prop ids of their own so nothing else's id moves. Carts come out on a
+  block's collection day (a hash, Monday to Friday, `DayNight.day_count`), not every day.
+  `STREET_FURNITURE=0` is the A/B. Break effects stay with prop-destruction.
+
 - **2026-10-05 City acoustics: spaces, gunfire echo, footsteps by surface, the newest systems'
   sounds (HANDOFF "City acoustics").** The city had one street-canyon reverb, no echo, no
   footsteps, and the bus, the light rail, the river and the parks were silent. Decisions: the

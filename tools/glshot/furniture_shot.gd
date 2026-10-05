@@ -39,9 +39,9 @@ func _initialize() -> void:
 	e.sky = sky
 	e.background_mode = Environment.BG_SKY
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	e.ambient_light_energy = 0.45 if not night else 0.25
+	e.ambient_light_energy = 0.35 if not night else 0.25
 	e.tonemap_mode = Environment.TONE_MAPPER_AGX
-	e.tonemap_exposure = 1.25 if not night else 1.6
+	e.tonemap_exposure = 0.95 if not night else 1.6
 	e.glow_enabled = night
 	env.environment = e
 	stage.add_child(env)
@@ -49,7 +49,7 @@ func _initialize() -> void:
 	RenderingServer.global_shader_parameter_set("night_factor", 1.0 if night else 0.0)
 	RenderingServer.global_shader_parameter_set("road_wetness", float(OS.get_environment("WET")) if OS.get_environment("WET") != "" else 0.0)
 	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-42.0, 145.0, 0.0)
+	sun.rotation_degrees = Vector3(-38.0, -32.0, 0.0)
 	sun.light_energy = 1.3 if not night else 0.03
 	sun.shadow_enabled = OS.get_environment("NOSHADOW") != "1"
 	stage.add_child(sun)
@@ -90,6 +90,12 @@ func _initialize() -> void:
 		for k in 3:
 			_place(stage, sf.call("bike_rack"), Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(x + 11.6, top, -1.6 + k * 0.8)), Color(0, 0, 0, wear))
 		var pl: Array = sf.call("planter_instances", 7, Transform3D(face, Vector3(x + 13.4, top, -1.2)))
+		if OS.get_environment("PLANTS") == "1":
+			pl = []
+			for k in int(sf.get("PLANTER_PLANTS")):
+				var pxf := Transform3D(face, Vector3(x + 12.6 + k * 1.3, top, -2.4))
+				pl.append(["planter", sf.call("planter"), pxf, Color.WHITE, Color(0, 0, 0, 0.3)])
+				pl.append_array(sf.call("planting", k, pxf, 0.3))
 		for inst in pl:
 			_place(stage, inst[1], inst[2], inst[4] if inst.size() > 4 else Color.BLACK, inst[3] if inst.size() > 3 else Color.WHITE)
 		for n in ["hydrant", "meter", "pay_station", "ad_bench", "mesh_bin", "cart", "bike_rack", "planter"]:
