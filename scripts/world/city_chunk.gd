@@ -509,6 +509,7 @@ func _finish_build() -> void:
 		if text_key.begins_with("text_"):
 			_batch.set_no_shadow(text_key)
 	_add_shop_spill()
+	Occluders.collect(self)
 	LotFill.commit(self)
 	YardFill.commit(self)
 	HouseKit.commit(self)
@@ -525,6 +526,7 @@ func _finish_build() -> void:
 	if _mm_nodes.has("lod_box"):
 		(_mm_nodes["lod_box"] as MultiMeshInstance3D).material_override = PropFactory.building_lod_material()
 	_build_occluder()
+	Occluders.build(self)
 	# The build's own samples go; pedestrians walking the pavement (Pedestrian._ground_y) fill
 	# back only the few cells along their ring.
 	_relief_lattice.clear()

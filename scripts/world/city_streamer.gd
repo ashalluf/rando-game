@@ -1066,6 +1066,7 @@ func _build_ground() -> void:
 	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_ground.add_child(mesh)
 	add_child(_ground)
+	MountainOccluder.attach(self, plan.macro, macro_span)
 	_ground_body = StaticBody3D.new()
 	_ground_body.name = "GroundBody"
 	_ground_body.collision_layer = 1

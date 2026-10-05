@@ -44,6 +44,8 @@ extends SceneTree
 ## SHOTS="x,y,z,yaw,pitch@hour[@fov];..." then takes more EYE shots from the same load, saved as OUT
 ## with _1, _2, ... (SHOT_FRAMES frames each to stream in; GEO_n lines give each one's cost). An empty camera ("@21.5") is the last
 ## shot's camera at another hour.
+## OCCLUSION=0 renders with occlusion culling off; OCCLUDERS=0 without the extra occluders
+## (Occluders: hill terrain, freeway decks, river banks, sound walls, the far mountains).
 ## EYE=x,y,z,yaw,pitch puts a free camera at a true world point; with EYE_AGL=1 its y is metres
 ## above the ground there.
 ## Every shot also prints the frame's cost (GEO: triangles, draw calls, objects, split into the
@@ -106,6 +108,10 @@ func _initialize() -> void:
 	if OS.get_environment("DIFF") == "1":
 		ProjectSettings.set_setting("rendering/limits/time/time_rollover_secs", 0.000001)
 		seed(12345)
+	# OCCLUSION=0 renders without occlusion culling (city_shot.gd's switch): diffed with DIFF=1
+	# against a normal shot, anything in one and not the other was culled in plain sight.
+	if OS.get_environment("OCCLUSION") == "0":
+		get_root().use_occlusion_culling = false
 	# MERGE_STATIC=0: the chunks' solid boxes and the far landmarks' boxes one node each, as
 	# before they were merged (the A/B of that change). Through the script resources, not the
 	# class names: CityChunk uses autoloads, and this script compiles before they exist.
