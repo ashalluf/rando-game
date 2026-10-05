@@ -366,6 +366,8 @@ func plan_only() -> Dictionary:
 	else:
 		finish = _rng.randi_range(0, Finish.size() - 1) as Finish
 	window_style = _pick_window_style()
+	if window_style_force >= 0:
+		window_style = window_style_force as WindowStyle
 	# Roof covering, picked per building: mostly white membrane on modern blocks, gravel on
 	# older ones, bitumen on the rest.
 	var roof_roll := _rng.randf()
@@ -392,6 +394,8 @@ func _layout_parts() -> void:
 	match shape:
 		Shape.SLAB:
 			var size := Vector3(lot.x * _rng.randf_range(0.7, 1.0), _rng.randf_range(h_lo, minf(h_hi, 40.0)), lot.y * _rng.randf_range(0.7, 1.0))
+			if fill_lot:
+				size = Vector3(lot.x, size.y, lot.y)
 			_add_part(size, Vector2.ZERO, 0.0)
 		Shape.TOWER:
 			var w := minf(lot.x, lot.y) * _rng.randf_range(0.45, 0.7)
@@ -609,6 +613,8 @@ func _pick_style() -> Dictionary:
 			colors = GLASS_COLORS
 		_:
 			colors = FLAT_COLORS
+	if not palette_override.is_empty():
+		colors = palette_override
 	var facade: Color = colors[_rng.randi() % colors.size()]
 	facade = facade.lightened(_rng.randf_range(-0.08, 0.08))
 	var pitch_by_style := [2.6, 2.2, 1.8, 1.6]
@@ -666,7 +672,7 @@ func part_grid(part: Dictionary, style: Dictionary) -> Dictionary:
 	# height, so the two have to be asked for from the same place.
 	var base_h := 0.0 if parking else _base_course_height(size, style, storefront, on_ground)
 	var crown := -1.0
-	if size.y > 22.0 and finish != Finish.GLASS and shape != Shape.WAREHOUSE and not parking:
+	if size.y > 22.0 and roof_bands and finish != Finish.GLASS and shape != Shape.WAREHOUSE and not parking:
 		crown = size.y - 1.6 * floor_h
 	return {"storefront": storefront, "rows": rows, "floor_h": floor_h, "cols_x": cols_x, "cols_z": cols_z,
 		"cut_x": cut_x, "cut_z": cut_z, "base_h": base_h, "crown": crown, "parking": parking, "on_ground": on_ground}
@@ -782,6 +788,7 @@ func _part_material(style: Dictionary) -> ShaderMaterial:
 		mat.set_shader_parameter("garage_entry", Vector2(float(entry.face), float(entry.col)))
 	mat.set_shader_parameter("shop_span", _shop_spans())
 	mat.set_shader_parameter("shop_rooms", shop_room_codes())
+	mat.set_shader_parameter("shop_frame_force", shop_frame_force)
 	mat.set_shader_parameter("tower_height", height)
 	# Whether the raised shop names are drawn (never on the web): the shader only turns boards
 	# dark for channel letters where there are letters to light.
@@ -948,6 +955,19 @@ const SHOP_NAMES := ["PHARMACY", "NAILS & SPA", "DRY CLEAN", "PHONE FIX", "LIQUO
 ## handed a `name_pool` of indices into SHOP_NAMES (Broadway.dress()).
 const BASE_SHOP_NAMES := 30
 var name_pool: PackedInt32Array = PackedInt32Array()
+## Historic core (HistoricCore.dress()): a palette the facade colour is picked from instead of the
+## finish's (the same roll), a SLAB that fills its lot, the kit's window surround and cornice
+## forced ("none": none; "" Building's own pick), the window style forced, no stone base course,
+## no box cornice and crown bands (the facade brings its own), and every shop's frame finish
+## forced (an index into SHOP_FRAME_COLORS; -1 the shop's own roll). Inert at their defaults.
+var palette_override: Array = []
+var fill_lot: bool = false
+var kit_surround_force: String = ""
+var kit_cornice_force: String = ""
+var window_style_force: int = -1
+var allow_base_course: bool = true
+var roof_bands: bool = true
+var shop_frame_force: int = -1
 ## Cap height of a shop sign, in metres.
 const SIGN_HEIGHT := 0.40
 ## How far out from the wall the sign sits, and how far a sign still draws.
@@ -1216,7 +1236,7 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		cornice_scale = clampf(fit, 0.6, cornice_scale)
 		var drop := float(KIT_CORNICE_DROP[cornice_piece]) * cornice_scale
 		cornice_lift = clampf(drop + 0.04 - clear, 0.0, KIT_CORNICE_MAX_LIFT)
-	if has_cornice:
+	if has_cornice and roof_bands:
 		if kit_cornice:
 			# The moulding stands for the two bands below near the camera. Past its distance this
 			# one band is what is left of it, sized to sit wholly inside the moulding
@@ -1767,6 +1787,10 @@ func _pick_kit(style: Dictionary) -> void:
 				_kit_surround = "surround_brick_a" if _kit_hash("surround") < 0.55 else "surround_brick_b"
 			else:
 				_kit_surround = "surround_stucco"
+	if kit_cornice_force != "":
+		_kit_cornice = "" if kit_cornice_force == "none" else kit_cornice_force
+	if kit_surround_force != "":
+		_kit_surround = "" if kit_surround_force == "none" else kit_surround_force
 	var facade: Color = style.facade
 	if finish == Finish.BRICK:
 		_kit_trim = KIT_STONES[absi(hash([seed, "kit trim"])) % KIT_STONES.size()]
@@ -2002,7 +2026,7 @@ static func _band_xform(a: Vector3, n: Vector3, at: Vector3, length: float, b: A
 func _base_course_height(size: Vector3, style: Dictionary, storefront: float, at_ground: bool) -> float:
 	if not at_ground or not allow_storefront or finish == Finish.GLASS or shape == Shape.WAREHOUSE:
 		return 0.0
-	if size.y < 12.0:
+	if size.y < 12.0 or not allow_base_course:
 		return 0.0
 	return minf(storefront + float(style.floor) * (2.0 if size.y > 30.0 else 1.0), size.y * 0.34)
 

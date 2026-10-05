@@ -2779,6 +2779,8 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	building.finish_options.assign(CityPlan.lot_finishes(district, boost))
 	# Broadway's 1920s commercial blocks (masonry, the height limit, its own shop names).
 	Broadway.dress(self, lot, building)
+	# The historic core's beaux-arts blocks on Spring St and Main St (HistoricCore; hash-seeded).
+	HistoricCore.dress(self, lot, building)
 	var g := _gy(center.x, center.y)
 	var gmin := g
 	var half: Vector2 = lot.size * 0.5
@@ -2807,6 +2809,7 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 		elif YardFill.wanted(self, district):
 			YardFill.record_lot(self, lot, building)
 		Billboards.on_building(self, lot, building, district)
+		HistoricCore.after_building(self, lot, building)
 	else:
 		# Far away: just the boxes, in the facade color, no props. They do get plain box
 		# collision so a fast car cannot drive into a footprint and get shot through the
@@ -2843,6 +2846,7 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 		elif YardFill.wanted(self, district):
 			YardFill.record_lot(self, lot, building)
 		Billboards.on_building(self, lot, building, district)
+		HistoricCore.after_building(self, lot, building, lod_style)
 		building.free()
 		building_count += 1
 

@@ -54,6 +54,8 @@ uniform int roof_style = 0;
 // Building picks these and places the shop signs in the world from the same numbers, so the
 // names line up with the sign bands drawn here.
 uniform vec4 shop_span = vec4(3.0, 3.0, 3.0, 3.0);
+// Every shop's frame finish forced (Building.shop_frame_force; the historic core's bronze), -1 none.
+uniform int shop_frame_force = -1;
 // The room behind each of a face's first seven shops (x = face 1 .. w = face 4), four bits a
 // shop: its kind + 1 (shop_interior.gdshaderinc's ROOM_*), which Building takes from the shop's
 // name so a BAKERY's glass shows a counter and tables. 0 leaves it to shop_room_kind()'s hash.
@@ -940,7 +942,7 @@ void fragment() {
 			float lap_v = 0.012 / sf_h;
 			shop_frame = !glass && !bulkhead && fv < 0.74 + 0.06 / sf_h && fv >= low - 0.045 / sf_h
 				&& (abs(fu - 0.5) >= 0.44 || fv >= 0.74 || fv <= low + lap_v);
-			frame_col = shop_frame_color(shop_frame_index(shop_key));
+			frame_col = shop_frame_color(shop_frame_force >= 0 ? uint(shop_frame_force) : shop_frame_index(shop_key));
 			win_c = vec2(0.5, (low + 0.74) * 0.5);
 			win_h = vec2(0.44, (0.74 - low) * 0.5);
 			// About 62 % open after dark.

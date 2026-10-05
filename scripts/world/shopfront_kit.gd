@@ -639,7 +639,7 @@ static func storefront_face(b: Building, kit: MultiMeshBatch, face_id: int, fc: 
 	var blade_byte := roundi(b.kit_blade_chance * 256.0)
 	for run in runs:
 		var key := b.shop_key(face_id, run)
-		var colour: Color = FRAME_COLORS[frame_index(key)]
+		var colour: Color = FRAME_COLORS[frame_index(key) if b.shop_frame_force < 0 else b.shop_frame_force]
 		var door_i := door_index(key, span_i)
 		var rec := recessed(key)
 		var split := centre_mullion(key)
