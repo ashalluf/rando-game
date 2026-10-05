@@ -211,9 +211,11 @@ func _rider(city: Node3D, plan: CityPlan, lane: Vector3i) -> void:
 	if TrafficSignals.is_signal(plan, ix, iz):
 		var stopper := cyc.place_rider(axis, index, 1, span.y - 14.0, MicroMesh.Kind.CRUISER, 4.0, 11)
 		var line_at := span.y + 0.6
-		for i in 150:
+		for i in 420:
 			TrafficSignals.force(plan, ix, iz, axis, TrafficSignals.Light.RED, 1.0)
 			await _t.get_tree().physics_frame
+			if i > 120 and is_instance_valid(stopper) and stopper.ride_speed < 0.05:
+				break
 		var at := stopper.position.z if axis == 0 else stopper.position.x
 		var data: Dictionary = {}
 		for r: Dictionary in cyc.riders():

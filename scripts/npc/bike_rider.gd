@@ -46,6 +46,8 @@ var _mat: ShaderMaterial
 var _sk: Skeleton3D
 var _order := PackedInt32Array()
 var _parent_of := PackedInt32Array()
+## Each bone and everything under it, in solve order (a turn re-runs only that subtree).
+var _subtree: Array[PackedInt32Array] = []
 var _base_rot: Array[Quaternion] = []
 var _base_pos: Array[Vector3] = []
 var _rot: Array[Quaternion] = []
@@ -252,6 +254,16 @@ func _prepare_pose() -> void:
 		_base_pos[b] = _sk.get_bone_pose_position(b)
 		_parent_of[b] = _sk.get_bone_parent(b)
 	_order = RoughSleeper._bone_order(_sk)
+	_subtree.resize(n)
+	for b in n:
+		var sub := PackedInt32Array()
+		for o in _order:
+			var x := o
+			while x >= 0 and x != b:
+				x = _parent_of[x]
+			if x == b:
+				sub.append(o)
+		_subtree[b] = sub
 	for bone: String in ["Hips", "Spine02", "Spine01", "Spine", "neck", "Head", "headfront",
 			"LeftUpLeg", "LeftLeg", "LeftFoot", "LeftToeBase", "RightUpLeg", "RightLeg", "RightFoot", "RightToeBase",
 			"LeftShoulder", "LeftArm", "LeftForeArm", "LeftHand", "RightShoulder", "RightArm", "RightForeArm", "RightHand"]:
@@ -338,7 +350,10 @@ func _set_glob_basis(b: int, basis: Basis) -> void:
 ## Rotates bone `b` (and with it everything under it) by `q` in skeleton space.
 func _turn(b: int, q: Quaternion) -> void:
 	_set_glob_basis(b, Basis(q) * _glob[b].basis)
-	_fk()
+	for o in _subtree[b]:
+		var p := _parent_of[o]
+		var local := Transform3D(Basis(_rot[o]), _hips_pos if o == _b.Hips else _base_pos[o])
+		_glob[o] = _glob[p] * local if p >= 0 else local
 
 
 ## Two-bone solve: bones a -> b -> c, the end of c's parent... c's origin to `target`, the middle
@@ -490,8 +505,24 @@ func _physics_process(delta: float) -> void:
 	# The pose every step near the player, less often further out (the cycle is what reads).
 	_pose_tick += 1
 	var stride := 1 if _lod_stride <= 1 else (2 if _lod_stride == 2 else 4)
-	if not _posed or _pose_tick % stride == 0:
+	if not _posed or (_pose_tick % stride == 0 and _in_view()):
 		_pose()
+
+
+## Whether the camera can see this rider (checked every few ticks: a rider behind the camera
+## keeps its last pose).
+var _view_t: int = 0
+var _view_ok: bool = true
+
+
+func _in_view() -> bool:
+	_view_t -= 1
+	if _view_t <= 0:
+		_view_t = 6
+		var cam := get_viewport().get_camera_3d()
+		var p := global_position + Vector3.UP
+		_view_ok = cam == null or p.distance_to(cam.global_position) < 4.0 or (not cam.is_position_behind(p) and cam.is_position_in_frustum(p))
+	return _view_ok
 
 
 ## Poses the rig at once (stills, tests: no physics step needed).

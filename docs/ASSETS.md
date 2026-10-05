@@ -593,6 +593,17 @@ Commons file. Cut, filtered, peak-normalised mono OGGs; loudest-50 ms levels in
 | Rue Keyenveld - Sparrows (Flavien Gillié) | https://archive.org/details/aporee_71526_83445 | Public Domain Mark 1.0 | `sparrow_0` 3.85-5.90; `sparrow_1` 8.95-10.95 | 2026-10-04 |
 | Seagull Chatter, The Hague (Thijs Geritz) | https://archive.org/details/aporee_10517_42365 | Public Domain Mark 1.0 | `gull_close_0` 60.55-62.60; `gull_close_1` 105.20-107.80 | 2026-10-04 |
 
+## Micromobility (built in code)
+
+The shared e-scooters, the BASIN BIKE share bikes, docks and solar kiosk, the bike racks, the bike
+lanes' delineator posts and the riders' road bike, beach cruiser and longtail cargo bike
+(2026-10-05) are generated at run time by `scripts/world/micro_mesh.gd` on
+`shaders/micromobility.gdshader`, and the lane paint (green, lines, hatching, the bike stencil and
+arrow) is drawn by `shaders/bike_lane.gdshader` - no model files, no textures. The riders' helmets
+are built round each crowd rig's head by `scripts/npc/bike_helmet.gd` from CrowdHatTable. The
+scooter operators (SKOOTA, KWIKR) and the share scheme (BASIN BIKE) are invented for this game;
+no real operator's name, colours or mark.
+
 ## Fonts
 
 | Font | Source URL | License | Used for | Added |

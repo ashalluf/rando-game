@@ -63,6 +63,8 @@ var _relief: Dictionary = {}
 var _query := PhysicsShapeQueryParameters3D.new()
 var _query_box := BoxShape3D.new()
 var _staged: bool = false
+## Stills: MICRO_HOLD=1 keeps every rider where it was put (pedalling on the spot).
+var _hold: bool = OS.get_environment("MICRO_HOLD") == "1"
 ## Seconds since the riders were last checked for obstacles (a quarter second apart).
 var _probe_t: float = 0.0
 
@@ -122,9 +124,9 @@ func _survey() -> void:
 	var me := player_at()
 	var keep: Array = []
 	for r: Dictionary in _riders:
-		var node: BikeRider = r.node
-		if not is_instance_valid(node):
+		if not is_instance_valid(r.node):
 			continue
+		var node: BikeRider = r.node
 		var d := Vector2(node.position.x - me.x, node.position.z - me.z).length()
 		var gone := d > despawn_radius or (bool(r.ended) and not _seen(node.position, 70.0))
 		# Riders placed by hand (tests, stills) stay until they are knocked off or freed.
@@ -343,7 +345,8 @@ func _ride(r: Dictionary, delta: float, probe: bool) -> void:
 	v = maxf(v, 0.0)
 	if dv < -0.3:
 		node.coast(0.6)
-	s += float(dir) * v * delta
+	if not _hold:
+		s += float(dir) * v * delta
 	# Past the crossing's middle: onto the next stretch.
 	if (s - jc) * float(dir) > 0.0:
 		r.k = int(r.k) + dir
