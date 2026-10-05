@@ -8690,7 +8690,10 @@ Cost after the merge (opengl3 GEO, 1280 x 720, `BALLPARK=0` -> the park, triangl
 same three EYEs from one load each): aerial noon 1.39 M / 552 -> 1.41 M / 322; the bowl from centre
 field at 15:00 3.50 M / 915 -> 3.48 M / 684; the night game from the west hill 1.45 M / 556 ->
 1.44 M / 524. The headless check after the merge: 1,380 of 1,381 (the one failure is fleet/base's
-known minimap line), 702 s, 3.2 GB peak.
+known minimap line), 702 s, 3.2 GB peak. After merging origin/main (the lead's minimap fix, which then passes)
+two more runs each failed two DIFFERENT physics-timing checks outside the park, each passing in the
+other runs: the car-damage wreck settling (2.73 m over the deck against 2.6) with the roof-rain
+splash, then the ambulance crew's stretcher and departure. 1,379 of 1,381 both times, no error lines.
 
 **The stadium** (`BallparkBuild`, world space, cached per level; the near set is built on the
 loading screen alongside the far copy, ~350 ms, so the chunk that streams it in does not stall).
