@@ -18,6 +18,13 @@ func _initialize() -> void:
 	var seed0 := int(OS.get_environment("SEED0")) if OS.get_environment("SEED0") != "" else 1000
 	var build := OS.get_environment("BUILD") == "1"
 	var counts := {}
+	# The palms and shrubs are built once for the whole city (the street palms warm them), so
+	# warm them here too: the timing is the pieces.
+	var PF = load("res://scripts/world/prop_factory.gd")
+	for v in PF.PALM_VARIANTS:
+		PF.palm(v)
+	for v in 4:
+		PF.model_shrub(v)
 	var planned := 0
 	var tris := 0
 	var built := 0
@@ -56,4 +63,5 @@ func _initialize() -> void:
 	print("ROOFTOPS %d buildings %.0f-%.0f m, lot %.0f: %d with pieces %s (%.1f ms total)" % [n, hmin, hmax, lot, planned, counts, ms])
 	if build and built > 0:
 		print("ROOFTOPS mean triangles a building with pieces: %d" % (tris / built))
+		print("ROOFTOPS build time by piece (ms): ", (R.timing as Dictionary).keys().map(func(k): return "%s %.1f" % [k, float(R.timing[k]) / 1000.0]))
 	quit()

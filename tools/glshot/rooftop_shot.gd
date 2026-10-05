@@ -80,13 +80,20 @@ func _initialize() -> void:
 	var elev := float(_env_int("ELEV", 14))
 	var yaw := deg_to_rad(float(_env_int("YAW", 35)))
 	var look_y := float(_env_int("LOOKY", 1))
-	if feat == "bmu":
-		# Out past the facade the machine works, looking back at it.
-		var nrm: Vector2 = [Vector2(1, 0), Vector2(0, 1), Vector2(-1, 0), Vector2(0, -1)][int(piece.side)]
-		yaw = atan2(nrm.x, nrm.y) + deg_to_rad(float(_env_int("YAW", 35)))
-		if bool(piece.get("hang", false)):
-			look_y = -float(piece.depth) * 0.6
 	cam.look_at_from_position(at + Vector3(sin(yaw) * dist, elev, cos(yaw) * dist), at + Vector3(0, look_y, 0))
+	if feat == "bmu":
+		# Out past the facade the machine works on, level with the cradle (or the jib), looking
+		# back at it a little from the side.
+		var nrm: Vector2 = [Vector2(1, 0), Vector2(0, 1), Vector2(-1, 0), Vector2(0, -1)][int(piece.side)]
+		var n3 := Vector3(nrm.x, 0, nrm.y)
+		var t3 := Vector3(-nrm.y, 0, nrm.x)
+		var target := at + n3 * (float(piece.reach) + 0.6)
+		if bool(piece.get("hang", false)):
+			# Halfway down to the cradle, so the jib and the cradle are both in the frame.
+			target.y += (3.0 - float(piece.depth)) * 0.5
+		else:
+			target.y += 2.5
+		cam.look_at_from_position(target + n3 * dist + t3 * dist * 0.45 + Vector3(0, elev, 0), target)
 	cam.fov = float(_env_int("FOV", 55))
 	cam.far = 3000.0
 	cam.current = true

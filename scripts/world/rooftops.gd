@@ -103,6 +103,8 @@ const PENT_METAL := [Color(0.62, 0.63, 0.63), Color(0.50, 0.52, 0.53), Color(0.7
 ## The air traffic's helicopter (Helicopter.MODEL; named by path: Helicopter needs the autoloads).
 const HELI_MODEL := "res://assets/models/helicopter.glb"
 
+## Microseconds spent building each kind of piece (tools/rooftop_probe.gd prints it).
+static var timing: Dictionary = {}
 static var _glass_material: StandardMaterial3D = null
 static var _material: ShaderMaterial = null
 static var _heli_scene: PackedScene = null
@@ -525,6 +527,7 @@ static func build(b: Building) -> void:
 	for f: Dictionary in p.feats:
 		var at2: Vector2 = f.at
 		var origin := Vector3(c.x + at2.x, top, c.z + at2.y)
+		var t0 := Time.get_ticks_usec()
 		match f.kind:
 			"helipad":
 				_helipad(b, g, f, origin, p, plants)
@@ -538,6 +541,8 @@ static func build(b: Building) -> void:
 				_mast(g, f, origin)
 			"bmu":
 				_bmu(g, f, origin, p)
+		timing[f.kind] = int(timing.get(f.kind, 0)) + Time.get_ticks_usec() - t0
+	var t1 := Time.get_ticks_usec()
 	var mesh := ArrayMesh.new()
 	var arr := g.arrays()
 	if not arr.is_empty():
@@ -567,6 +572,7 @@ static func build(b: Building) -> void:
 		holder.name = "RoofPlanting"
 		b.add_child(holder)
 		batch.build(holder)
+	timing["commit"] = int(timing.get("commit", 0)) + Time.get_ticks_usec() - t1
 	b.set_meta("rooftops_tris", g.tri_count() + glass.tri_count())
 	b.set_meta("rooftops", p)
 
@@ -737,8 +743,9 @@ static func _helipad(b: Building, g: RooftopGeo, f: Dictionary, origin: Vector3,
 	# A foam extinguisher cabinet by the access, red.
 	var cab_n := _side_normal(stair if stair >= 0 else int(f.turn) % 4)
 	var cab := Vector3(cab_n.x, 0, cab_n.y) * (hd - 0.5) + Vector3(-cab_n.y, 0, cab_n.x) * (hd - 2.6) + Vector3(0, rise + 0.45, 0)
-	g.box(cab, Vector3(0.5, 0.9, 0.5), Color(0.72, 0.08, 0.06), 0)
-	g.box(cab + Vector3(0, 0.15, 0) + Vector3(cab_n.x, 0, cab_n.y) * -0.26, Vector3(0.3, 0.3, 0.02) if absf(cab_n.y) > 0.5 else Vector3(0.02, 0.3, 0.3), Color(0.9, 0.9, 0.86), 0)
+	cab.y -= 0.12
+	g.box(cab, Vector3(0.38, 0.66, 0.38), Color(0.62, 0.07, 0.05), 0)
+	g.box(cab + Vector3(0, 0.1, 0) + Vector3(cab_n.x, 0, cab_n.y) * -0.2, Vector3(0.24, 0.24, 0.02) if absf(cab_n.y) > 0.5 else Vector3(0.02, 0.24, 0.24), Color(0.9, 0.9, 0.86), 0)
 	# The stair (or a caged ladder) up from the roof to the deck.
 	if stair >= 0:
 		_stair(g, stair, hd, rise)
@@ -785,15 +792,40 @@ static func _stair(g: RooftopGeo, side: int, hd: float, rise: float) -> void:
 
 
 ## A parked helicopter: the air traffic's model (assets/models/helicopter.glb) in a private
-## livery, rotors still and tied fore and aft. Its own node (it is a model), drawn to 400 m.
+## livery, rotors still, the blades parked at 45 degrees to the boom. ONE mesh a livery (its parts
+## merged by material, cached), drawn to 380 m; where the renderer keeps no mesh data (headless)
+## the model's own nodes stand in.
 static func _parked_helicopter(b: Building, at: Vector3, quarter: int, livery: int) -> void:
+	var xf := Transform3D(Basis(Vector3.UP, -PI * 0.5 * float(quarter) + PI * 0.25), at)
+	var mesh := _heli_mesh(livery)
+	if mesh != null:
+		var mi := MeshInstance3D.new()
+		mi.name = "ParkedHelicopter"
+		mi.mesh = mesh
+		mi.transform = xf
+		mi.visibility_range_end = 380.0
+		b.add_child(mi)
+		return
+	var inst := _heli_instance(livery)
+	if inst == null:
+		return
+	inst.name = "ParkedHelicopter"
+	inst.transform = xf
+	b.add_child(inst)
+
+
+static var _heli_meshes: Dictionary = {}
+
+
+## The model, its police and news parts taken off, painted in livery `livery`.
+static func _heli_instance(livery: int) -> Node3D:
 	if _heli_scene == null:
 		if not ResourceLoader.exists(HELI_MODEL):
-			return
+			return null
 		_heli_scene = load(HELI_MODEL)
 	var inst := _heli_scene.instantiate() as Node3D
 	if inst == null:
-		return
+		return null
 	for nm: String in ["LiveryPolice", "LiveryNews", "Searchlight", "CameraBall"]:
 		var gone := inst.find_child(nm, true, false)
 		if gone:
@@ -808,19 +840,93 @@ static func _parked_helicopter(b: Building, at: Vector3, quarter: int, livery: i
 		var mi := n as MeshInstance3D
 		if mi == null or mi.mesh == null:
 			continue
-		mi.visibility_range_end = 420.0
+		mi.visibility_range_end = 380.0
 		for si in mi.mesh.get_surface_count():
 			var src := mi.mesh.surface_get_material(si)
 			var key := src.resource_name if src else ""
 			if mats.has(key):
 				mi.set_surface_override_material(si, mats[key])
-	# Blades parked at 45 degrees off the boom, the way they are tied down.
 	var rotor := inst.find_child("MainRotor", true, false) as Node3D
 	if rotor:
 		rotor.rotate_object_local(Vector3.UP, PI * 0.25)
-	inst.name = "ParkedHelicopter"
-	inst.transform = Transform3D(Basis(Vector3.UP, -PI * 0.5 * float(quarter) + PI * 0.25), at)
-	b.add_child(inst)
+	return inst
+
+
+## The painted model merged into one mesh, one surface per material (cached per livery), or
+## null where the meshes hold no data.
+static func _heli_mesh(livery: int) -> ArrayMesh:
+	if _heli_meshes.has(livery):
+		return _heli_meshes[livery]
+	var inst := _heli_instance(livery)
+	if inst == null:
+		return null
+	var groups := {}   # material -> [verts, normals, uvs, indices]
+	var order: Array = []
+	var ok := true
+	for n in inst.find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		if mi == null or mi.mesh == null:
+			continue
+		var t := mi.transform
+		var par := mi.get_parent()
+		while par != null and par != inst:
+			if par is Node3D:
+				t = (par as Node3D).transform * t
+			par = par.get_parent()
+		var nb := t.basis.inverse().transposed()
+		for si in mi.mesh.get_surface_count():
+			var arr := mi.mesh.surface_get_arrays(si)
+			if arr.is_empty() or arr[Mesh.ARRAY_VERTEX] == null or (arr[Mesh.ARRAY_VERTEX] as PackedVector3Array).is_empty():
+				ok = false
+				break
+			var mat: Material = mi.get_surface_override_material(si)
+			if mat == null:
+				mat = mi.mesh.surface_get_material(si)
+			if not groups.has(mat):
+				groups[mat] = [PackedVector3Array(), PackedVector3Array(), PackedVector2Array(), PackedInt32Array()]
+				order.append(mat)
+			var g: Array = groups[mat]
+			var vs: PackedVector3Array = g[0]
+			var ns: PackedVector3Array = g[1]
+			var us: PackedVector2Array = g[2]
+			var ids: PackedInt32Array = g[3]
+			var base := vs.size()
+			var src_v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+			for v in src_v:
+				vs.append(t * v)
+			var src_n = arr[Mesh.ARRAY_NORMAL]
+			for k in src_v.size():
+				ns.append((nb * (src_n[k] as Vector3)).normalized() if src_n != null else Vector3.UP)
+			var src_u = arr[Mesh.ARRAY_TEX_UV]
+			for k in src_v.size():
+				us.append(src_u[k] if src_u != null else Vector2.ZERO)
+			var src_i = arr[Mesh.ARRAY_INDEX]
+			if src_i != null:
+				for k: int in src_i:
+					ids.append(base + k)
+			else:
+				for k in src_v.size():
+					ids.append(base + k)
+			groups[mat] = [vs, ns, us, ids]
+		if not ok:
+			break
+	inst.free()
+	if not ok or order.is_empty():
+		_heli_meshes[livery] = null
+		return null
+	var mesh := ArrayMesh.new()
+	for mat: Material in order:
+		var g: Array = groups[mat]
+		var out := []
+		out.resize(Mesh.ARRAY_MAX)
+		out[Mesh.ARRAY_VERTEX] = g[0]
+		out[Mesh.ARRAY_NORMAL] = g[1]
+		out[Mesh.ARRAY_TEX_UV] = g[2]
+		out[Mesh.ARRAY_INDEX] = g[3]
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, out)
+		mesh.surface_set_material(mesh.get_surface_count() - 1, mat)
+	_heli_meshes[livery] = mesh
+	return mesh
 
 
 static var _heli_paints: Dictionary = {}
@@ -1264,7 +1370,7 @@ static func _bmu(g: RooftopGeo, f: Dictionary, origin: Vector3, p: Dictionary) -
 		var cy := 3.0 - depth
 		var cz := reach + 0.65
 		for x: float in [-1.2, 1.2]:
-			g.beam(jib_end + Vector3(x, -0.3, 0), Vector3(0.3 + x, cy + 1.15, cz), 0.018, 0.018, DARK_STEEL, 1)
+			g.beam(jib_end + Vector3(x, -0.3, 0), Vector3(0.3 + x, cy + 1.15, cz), 0.03, 0.03, DARK_STEEL, 1)
 		_cradle(g, Vector3(0.3, cy, cz), cradle_len)
 	else:
 		# Parked on the roof behind the machine, on its trolley.
