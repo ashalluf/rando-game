@@ -5,10 +5,10 @@ two are the source of truth; the handoff is the narrative (state, workflow, gotc
 for a session on any account. Update all of them whenever a design decision changes. Every
 session starts with no memory.
 
-**State on 2026-10-05 (takeover):** `main` is build 345. Thirty-one more fleet branches are merged
-but not yet on main: `wt/integration-a` (gated apart from one flaky check whose fix is `82a664c`)
-and `wt/integration-b` (out of memory at city load, needs a bisect). Start at docs/HANDOFF.md
-section 000000; the fleet tooling is in `tools/fleet/`.
+**State on 2026-10-05 (fleet wave 2):** `main` is integration-a (19 fleet branches) plus fixes,
+gated green. A second fleet of 100 sessions is running (`fleet/brief`: BRIEF.md, tasks.tsv,
+sessions.tsv; each on `wt/<slug>`, stills on `shots/<slug>`); integration-b's memory bug is fixed
+on `wt/oom-fix`. Start at docs/HANDOFF.md section 0000000; the fleet tooling is in `tools/fleet/`.
 
 ## Project summary
 
