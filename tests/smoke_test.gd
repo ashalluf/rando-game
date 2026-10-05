@@ -2323,6 +2323,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The street's signs (tests/street_signs_checks.gd): the stroke font, the kit, stops facing their
 	# traffic, blades on the posts and poles, mast-arm name signs, school zones, nothing else moved.
 	load("res://tests/street_signs_checks.gd").new().run(self, city)
+	# Street lamps (tests/street_lamps_checks.gd): the kit against its table, the pick per street,
+	# the arms over the road, the lamps' pools and omnis, and the same prop ids with the kit off.
+	load("res://tests/street_lamps_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

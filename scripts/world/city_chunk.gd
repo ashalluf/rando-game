@@ -3521,7 +3521,7 @@ func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGen
 		while t < length - 4.0:
 			var p := a + dir * t + inward
 			if not Alleys.in_mouth(plan, ix, iz, p) and not Broadway.lamp(self, p, inward):
-				_add_lamp(Vector3(p.x, SIDEWALK_TOP, p.y))
+				_add_lamp(Vector3(p.x, SIDEWALK_TOP, p.y), -inward)
 			t += lamp_spacing
 		t = tree_spacing * 0.75
 		while t < length - 4.0:
@@ -3863,7 +3863,12 @@ const LAMP_POOL_SIZE := 13.0
 const LAMP_LIGHT_HEIGHT := 3.5
 
 
-func _add_lamp(at: Vector3) -> void:
+## `facing`: the unit direction from the lamp to its street (ZERO in a park, plaza or car park);
+## StreetLamps picks the lamp from it and turns its arm over the road.
+func _add_lamp(at: Vector3, facing: Vector2 = Vector2.ZERO) -> void:
+	if StreetLamps.enabled:
+		_add_street_lamp(at, facing)
+		return
 	# The pool of light on the pavement rides in the same batch as the lamp, so shooting the
 	# lamp out takes its light with it. It is additive and unshaded, and the only thing lighting
 	# the street on the web build.
@@ -3890,6 +3895,41 @@ func _add_lamp(at: Vector3) -> void:
 	light.omni_range = 11.0
 	light.omni_attenuation = 1.4
 	# Sodium or LED by where it stands, as the far streets' glow says (NightCity.lamp_led()).
+	light.light_color = NightCity.lamp_light(Vector2(at.x, at.z))
+	light.light_energy = 0.0
+	light.shadow_enabled = false
+	light.distance_fade_enabled = true
+	light.distance_fade_begin = 45.0
+	light.distance_fade_length = 15.0
+	light.add_to_group("lamp_light")
+	add_child(light)
+
+
+## The real lamp (StreetLamps, a model per type): the same prop slot, pool and OmniLight3D as
+## the old post, the pool and the light moved under / into the lamp's head.
+func _add_street_lamp(at: Vector3, facing: Vector2) -> void:
+	var lp := StreetLamps.place(plan, at, facing)
+	var head := Vector3.ZERO
+	for l: Vector3 in lp.lights:
+		head += l
+	head /= float(lp.lights.size())
+	var size: float = lp.pool
+	var pool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(size, 1.0, size)), Vector3(head.x, at.y + 0.09, head.z))
+	var box: Vector3 = lp.box
+	_add_prop("lamp", at, Color(0.28, 0.29, 0.32), [
+		[lp.key, lp.mesh, lp.xform, lp.paint, lp.custom],
+		["lamp_pool", PropFactory.light_pool(), pool, StreetLamps.pool_color(lp.type, Vector2(at.x, at.z))],
+	], [[box, at + Vector3(0.0, box.y * 0.5, 0.0), 0.0]])
+	_batch.set_no_shadow("lamp_pool")
+	if level != Level.FULL:
+		return
+	var light := OmniLight3D.new()
+	light.position = head + Vector3(0.0, _gy(at.x, at.z) - 0.25, 0.0)
+	light.omni_range = lp.range
+	# A high head: the decay eased toward the old 3.5 m post's light under it (d^-a at h equal to
+	# 3.5^-1.4), but never below 1.1 - eased all the way, a cobra's light reached two lanes at
+	# full strength and blew the road out.
+	light.omni_attenuation = maxf(1.4 * log(LAMP_LIGHT_HEIGHT) / log(maxf(head.y - at.y - 0.25, LAMP_LIGHT_HEIGHT)), 1.1)
 	light.light_color = NightCity.lamp_light(Vector2(at.x, at.z))
 	light.light_energy = 0.0
 	light.shadow_enabled = false

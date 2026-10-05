@@ -177,6 +177,24 @@ fields). Original design; no real signal maker's hardware or symbol artwork is c
 | `sig_button` | 328 | push-button station with its sign | 2026-09-24 |
 | `sig_cabinet` | 740 | signal controller cabinet on a concrete pad | 2026-09-24 |
 
+## Street lamps (our own tool, no external source)
+
+`assets/models/street_lamps.glb` is written by `tools/make_street_lamps.py`, run headless in Blender
+4.2 (`blender -b --factory-startup --python tools/make_street_lamps.py`, or the `bpy==4.2.0` wheel
+from PyPI); the script is the model and the `.glb` is build output (rerun it, then `godot
+--headless --path . --import`). One node per type, one material; no textures - the surfaces are
+`shaders/street_lamp.gdshader` (procedural galvanising spangle, painted iron, die-cast aluminium,
+spun concrete with aggregate, glass, opal acrylic, LED dots). Original designs in the Los Angeles
+idiom; no real maker's luminaire or city standard is copied.
+
+| Node | Triangles | Used for | Added |
+| --- | --- | --- | --- |
+| `sl_cobra` | 2,908 | cobra-head on an 8.4 m tapered galvanised pole, davit arm, drop-glass refractor, photocell | 2026-10-05 |
+| `sl_twin` | 4,368 | downtown twin-globe ornamental: octagonal plinth, fluted cast-iron post, leaf collar, scrolled cross-arm, two opal globes | 2026-10-05 |
+| `sl_lantern` | 1,504 | midtown single-lantern ornamental: fluted post, hexagonal lantern with hipped roof | 2026-10-05 |
+| `sl_post` | 1,408 | residential post-top on a spun-concrete pole, prismatic cylinder luminaire | 2026-10-05 |
+| `sl_mast` | 2,556 | mast-arm LED: 9.4 m galvanised pole, straight arm, slim LED head with fins | 2026-10-05 |
+
 ## Procedurally generated cars (our own tools, no external source)
 
 Not downloaded and not Meshy: these are written by Python generators in `tools/` using `bpy`

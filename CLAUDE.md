@@ -128,7 +128,8 @@ build. To export locally, install the macOS template from the 4.7.2 `export_temp
 - All feel-related numbers (jump height, gravity, speed, air control, camera distance, gun force,
   explosion radius, ...) are `@export` variables grouped at the top of each script with a one-line
   `##` doc comment so they are easy to find and tune.
-- Buildings, lamps, signs and trees are still primitives and code (next in line for real assets).
+- Buildings, signs and trees are still primitives and code (next in line for real assets); street
+  lamps are a Blender-built kit (Street lamps note).
   Street props are CC0 Poly Haven models: download the 1K glTF from `api.polyhaven.com/files/<id>`,
   pack it with `python3 tools/pack_gltf.py <id>.gltf assets/models/prop_<name>.glb`, get the mesh
   through `PropFactory.model_<name>()` (which uses `PropFactory.model_mesh()` to pick the variant
@@ -1516,6 +1517,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`plan_poles()`) is pure, so LOD chunks and the far city keep the tall signs' heads as lit
   PANEL boxes and a MAST (`block_step()`). `BOULEVARD_SIGNS=0` is the A/B; kit stills
   `tools/glshot/sign_shot.gd`, framing `tools/sign_probe.gd`; checks `tests/signage_checks.gd`.
+- Street lamps (2026-10-05, HANDOFF "Street lamps"): `StreetLamps` (`scripts/world/street_lamps.gd`)
+  over `assets/models/street_lamps.glb` from `tools/make_street_lamps.py` (Blender headless; the
+  `bpy` 4.2 wheel works where download.blender.org is blocked): COBRA, downtown TWIN globe,
+  midtown LANTERN, residential POST-top, mast-arm LED (MAST), real size, arms along +x. ONE
+  material (`shaders/street_lamp.gdshader`, the part in UV2.x, a lit face's falloff in UV2.y;
+  paint in the instance COLOR, LED flag and wear in INSTANCE_CUSTOM), one batch per type a chunk
+  (`lamp_<type>`), LODs and shadow twin from `PropFactory.model_mesh()`, `TRI_BUDGET`
+  `street_lamps.glb:<node>`. `pick()` is a hash of seed + road + district (both kerbs alike) and
+  NightCity's LED roll (MAST only on LED patches); `CityChunk._add_lamp(at, facing)` keeps the
+  prop slot, pool and `lamp_light` omni, moved under / into the head (attenuation eased by the
+  head's height). Change a type's size -> `TYPES` / `HEIGHTS` (checked). `STREET_LAMPS=0` is the
+  A/B; `tools/glshot/lamp_shot.gd` the lineup; `tools/street_lamps/probe.gd` EYEs; checks
+  `tests/street_lamps_checks.gd` (`tools/street_lamps/checks_only.tscn` alone).
 - Night lighting: the city has no real lights except the sun, so at night it was pitch black.
   Every street lamp now carries an `OmniLight3D` in the `lamp_light` group (FULL chunks only,
   distance-faded, no shadows) whose energy `DayNight` sets from `night_factor` on a 0.35 s tick

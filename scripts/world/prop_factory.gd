@@ -1360,6 +1360,10 @@ const TRI_BUDGET := {
 	"traffic_signal.glb:sig_head": 2200, "traffic_signal.glb:sig_bracket": 150,
 	"traffic_signal.glb:sig_ped": 1000, "traffic_signal.glb:sig_button": 350,
 	"traffic_signal.glb:sig_cabinet": 800,
+	# Street lamps (tools/make_street_lamps.py, StreetLamps). Guards at about each type's count.
+	"street_lamps.glb:sl_cobra": 3000, "street_lamps.glb:sl_twin": 4500,
+	"street_lamps.glb:sl_lantern": 1800, "street_lamps.glb:sl_post": 1600,
+	"street_lamps.glb:sl_mast": 2800,
 }
 
 
