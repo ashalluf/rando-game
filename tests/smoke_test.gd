@@ -1821,6 +1821,9 @@ func _test_city() -> void:
 	# Building damage (tests/building_damage_checks.gd): crazed and shattered panes, scars, a blast
 	# hole, the caps, restore on rebuild, sanctuaries and the towers' own materials.
 	await load("res://tests/building_damage_checks.gd").new().run(self, city)
+	# Public schools (tests/schools_checks.gd): placement, pure plans, the closed street, one school
+	# mesh a chunk, partitioned far slabs, the school bus parked and at the bell.
+	await load("res://tests/schools_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

@@ -2374,6 +2374,8 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 				steps.append(_build_park.bind(rect, rng))
 		CityPlan.BlockKind.SCHOOL:
 			steps.append(func() -> void: Parks.build(self, block))
+			# A public school (Schools; its own hash-seeded plan, any level).
+			steps.append_array(Schools.steps(self, block))
 		CityPlan.BlockKind.PLAZA:
 			steps.append(_build_plaza.bind(rect, rng))
 		CityPlan.BlockKind.MALL:
@@ -2620,7 +2622,8 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 		return
 	var car := Vehicle.random_car(rng)
 	if (plan.macro and Landmarks.covers(plan, Vector2(spot[0].x, spot[0].z), 3.0)) or BigVehicles.in_stop_zone(plan, Vector2(spot[0].x, spot[0].z)) \
-			or FireStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or PoliceStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)):
+			or FireStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or PoliceStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
+			or Schools.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)):
 		# After the rolls, so the chunk rng runs the same whether or not the spot is used. A bus
 		# stop's kerb is kept clear for the bus (BigVehicles), a fire station's for its engines.
 		car.free()

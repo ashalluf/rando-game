@@ -8,12 +8,13 @@ extends VehicleBody3D
 ## rolls them - TrafficManager spawns them on purpose. FIRE_ENGINE and AMBULANCE (Emergency) come
 ## last for the same reason: only EmergencyCar builds them. The second wave of everyday bodies
 ## (tools/make_more_cars.py: the hatchback, the full-size SUV, the minivan, the taxi, the old
-## beater) comes after them, again so that no older index moves.
-enum BodyType { SEDAN, PICKUP, VAN, SPORTS, SUPER, SPIDER, HYPER, TRACK, CROSSOVER, BUS, BOX_TRUCK, SEMI, FIRE_ENGINE, AMBULANCE, HATCHBACK, SUV, MINIVAN, TAXI, BEATER }
+## beater) comes after them, again so that no older index moves, and the school bus (Schools)
+## after those.
+enum BodyType { SEDAN, PICKUP, VAN, SPORTS, SUPER, SPIDER, HYPER, TRACK, CROSSOVER, BUS, BOX_TRUCK, SEMI, FIRE_ENGINE, AMBULANCE, HATCHBACK, SUV, MINIVAN, TAXI, BEATER, SCHOOL_BUS }
 enum Addon { NONE, ROOF_RACK, SPOILER, LIGHT_BAR }
 
 ## Original names. Nothing here is or imitates a real manufacturer's model.
-const BODY_NAMES := ["Sedan", "Pickup", "Van", "Sports", "Vantari", "Vantari Aperta", "Kestrel", "Kestrel RS", "Crossover", "City Bus", "Box Truck", "Semi", "Fire Engine", "Ambulance", "Hatchback", "SUV", "Minivan", "Taxi", "Beater"]
+const BODY_NAMES := ["Sedan", "Pickup", "Van", "Sports", "Vantari", "Vantari Aperta", "Kestrel", "Kestrel RS", "Crossover", "City Bus", "Box Truck", "Semi", "Fire Engine", "Ambulance", "Hatchback", "SUV", "Minivan", "Taxi", "Beater", "School Bus"]
 ## Generated body models per type (see docs/ASSETS.md). Missing files fall back to the box car.
 const BODY_MODELS := {
 	BodyType.SEDAN: "res://assets/models/road_sedan.glb",
@@ -35,6 +36,7 @@ const BODY_MODELS := {
 	BodyType.MINIVAN: "res://assets/models/road_minivan.glb",
 	BodyType.TAXI: "res://assets/models/road_taxi.glb",
 	BodyType.BEATER: "res://assets/models/road_beater.glb",
+	BodyType.SCHOOL_BUS: "res://assets/models/road_school_bus.glb",
 }
 ## Belt line (bottom of the side glass, as a fraction of body height) for a single-texture body
 ## whose texture does not darken the windows, so the paint shader finds glass by shape. No body
@@ -61,6 +63,8 @@ const BODY_ODDS := {
 	# Nor the emergency apparatus (Emergency sends them).
 	BodyType.FIRE_ENGINE: 0, BodyType.AMBULANCE: 0,
 	BodyType.HATCHBACK: 70, BodyType.SUV: 80, BodyType.MINIVAN: 55, BodyType.TAXI: 0, BodyType.BEATER: 35,
+	# Nor the school bus (Schools parks them and sends them out at the bell).
+	BodyType.SCHOOL_BUS: 0,
 }
 ## How a 0-999 roll maps onto BODY_ODDS: [end of the range (exclusive), type], in roll order. Every
 ## old type keeps the START of the range it had before the second wave and gives the end of it to
@@ -119,6 +123,9 @@ const WHEEL_POSE := {
 	BodyType.MINIVAN: {"x": 0.852, "front": -1.570, "rear": 1.460, "y": 0.168, "r": 0.358, "w": 0.235, "baked": true},
 	BodyType.TAXI: {"x": 0.797, "front": -1.495, "rear": 1.335, "y": 0.168, "r": 0.345, "w": 0.235, "baked": true},
 	BodyType.BEATER: {"x": 0.745, "front": -1.436, "rear": 1.184, "y": 0.145, "r": 0.310, "w": 0.195, "baked": true},
+	# The school bus (tools/make_school_bus.py prints these; Schools).
+	BodyType.SCHOOL_BUS: {"x": 0.985, "front": -3.512, "rear": 2.728, "y": 0.200, "r": 0.500, "w": 0.300, "baked": true,
+			"axles": [[-3.512, false], [2.728, true]], "dual_x": 0.885, "dual_gap": 0.330},
 }
 ## The sizes above deliberately land on six distinct (radius, section width) pairs across the
 ## eight body types. Every extra pair is another five meshes (one per spoke pattern) times two
@@ -1586,6 +1593,9 @@ func _dims() -> Dictionary:
 			return {"length": 5.181, "width": 2.02, "lamp_y": 0.66, "tail_y": 1.11, "chassis_h": 0.8, "cabin": Vector2(-1.6, 3.6), "cabin_h": 0.9, "wheel_z": 1.52, "wheel_front": 1.570, "wheel_rear": 1.460, "track": 1.70, "tyre_r": 0.352, "ride": -0.171, "road": -0.190}
 		BodyType.BEATER:
 			return {"length": 4.793, "width": 1.76, "lamp_y": 0.435, "tail_y": 0.635, "chassis_h": 0.7, "cabin": Vector2(-1.0, 2.3), "cabin_h": 0.65, "wheel_z": 1.31, "wheel_front": 1.436, "wheel_rear": 1.184, "track": 1.49, "tyre_r": 0.329, "ride": -0.148, "road": -0.165}
+		BodyType.SCHOOL_BUS:
+			return {"length": 12.795, "width": 2.44, "lamp_y": 0.56, "tail_y": 1.06, "chassis_h": 1.0, "cabin": Vector2(-6.1, 12.2), "cabin_h": 1.3, "wheel_z": 3.1, "wheel_front": 3.512, "wheel_rear": 2.728, "track": 1.97, "tyre_r": 0.461, "ride": -0.273, "road": -0.300,
+					"light_len": 12.36, "light_z": 0.0}
 		BodyType.SPORTS:
 			return {"length": 4.6, "width": 1.9, "chassis_h": 0.55, "cabin": Vector2(-0.9, 2.0), "cabin_h": 0.55, "wheel_z": 1.45, "track": 1.64, "tyre_r": 0.34, "ride": -0.30}
 		BodyType.SUPER, BodyType.SPIDER:
@@ -1756,7 +1766,7 @@ func _cabin_seats() -> int:
 		return 1
 	if not _npc_driver or _abandoned():
 		return 0
-	if body_type == BodyType.BUS:
+	if body_type == BodyType.BUS or body_type == BodyType.SCHOOL_BUS:
 		# The driver alone up front; the passengers are the bus's rows (CarCabin).
 		return 1
 	if body_type == BodyType.TAXI:

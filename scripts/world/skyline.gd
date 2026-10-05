@@ -615,6 +615,11 @@ func _add_plate(k: Vector2i, zone: int, ground: Array, ch: CityChunk) -> void:
 	var roads := zone == MacroMap.Zone.CITY
 	var wx: float = _plan.road_width(CityPlan.AXIS_X, k.x + 1) if roads else 0.0
 	var wz: float = _plan.road_width(CityPlan.AXIS_Z, k.y + 1) if roads else 0.0
+	# A street a high school closed (Schools) is campus, not asphalt, from afar too.
+	if roads and not _plan.road_open(CityPlan.AXIS_X, k.x + 1, area.get_center().y):
+		wx = 0.0
+	if roads and not _plan.road_open(CityPlan.AXIS_Z, k.y + 1, area.get_center().x):
+		wz = 0.0
 	var bands: Array = []
 	if not roads:
 		for i in range(1, ground.size()):

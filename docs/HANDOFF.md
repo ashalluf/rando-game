@@ -7967,3 +7967,109 @@ walk it now), `before_` / `after_downtown` (the bookmark).
   walk pose and the Cycles previews, not in motion in the game.
 - The headscarf has been judged by eye in opengl3 and Cycles; nobody who wears one has looked
   at it. Worth asking.
+
+## 9ch. Public schools, playing fields and the school bus, 2026-10-05 (agent branch `wt/schools`; VISUAL_ROADMAP #76)
+
+Number is provisional (the next free one after 9bt when this was rebased; the lead renumbers on merge).
+
+**The brief** (lead, from the owner's "make the graphics a million times better"): LA's
+neighbourhoods are full of public schools - elementary schools with portable classrooms on blocks,
+big high schools with football stadiums - and yellow school buses. Place them from a hash of seed +
+map cell (FireStation's approach) in the suburbs, midtown and the beach town, claiming blocks AFTER
+the existing rolls and clear of Parks' claims; no scaled-down crowd rigs as children. CLAUDE.md's
+"Public schools" note is the reference; this is the story.
+
+**Placement.** `Schools.decide(plan, cell)`: a cell of 640 m has a school at `ODDS` 0.8; up to
+three hashed points are tried; the block under a point (its centre in the cell) must be plain
+city ground nobody claimed (`_eligible()`: Parks' list plus the river, and no Parks role). A
+`HIGH_ODDS` 0.4 cell first tries a ROW of three, then two, blocks along x or z (`_row_fits()`:
+every block in the cell, the streets between local (<= 15.5 m) and not a pinned real road, the
+site 72-192 x 175-320 m). The hook is ONE line at the end of `CityPlan.block()` (after the block is
+cached): `Schools.apply()` marks the block SCHOOL with grounds `school_e` / `school_h`; inside a
+decision it is a no-op (`_deciding`) and the decision marks its blocks itself, so a block is never
+seen undecided and nothing recurses (only blocks in the deciding cell are asked for). The streets
+between a high school's blocks close through ONE line in `CityPlan.road_open()`
+(`Schools.road_closed()`: a lazy per (axis, road, block) cache; open again in the crossings at
+both ends, so the cross streets and their junctions stay). Default seed, a 12 km window: 22
+schools, 4 of them high schools (two on three blocks); `WHY` in the probe counts what cells lose
+(mostly not city ground, then ineligible blocks, then blocks too small or stretched by pinned roads).
+
+**Layouts** (pure, `plan_for_school()`, in the site's street frame: `s` along the front street, the
+widest one; `d` in from it; mirrored by a hash). ELEMENTARY: a 4.5 m front lawn with trees, the
+marquee sign and the flagpole; the office (glazed front, entry canopy, the name in standing letters)
+by a 6 m entry gate; classroom wings of 28-46 m along the front, alternating one and two storeys,
+covered walkways on the yard side (a balcony walk and stair on two storeys); a side wing down one
+edge whose yard end is a primed blank wall for the murals pass (`K_MURAL`); the staff car park
+(LotFill's); then the blacktop: a row of 2-5 portables up on blocks with skirts, T1-11 siding, a
+heat pump and an ADA ramp with rails, numbered; a grass field with a kickball diamond (Parks'
+kind 2 from its home corner) and backstop; two basketball courts; four-square / hopscotch games
+with tetherball poles; the painted map (new park-ground kind 13: the lower 48 outlined, patched in
+five colours, a star on Los Angeles, a compass rose); the lunch shelter with steel-frame tables; a
+play structure and swings on poured rubber; up to ten tree wells; chain-link round the yard. HIGH:
+the stadium at one end (Parks' `_track()` - 300-400 m by the site, the football field inside at
+regulation or scaled, the end zones in the school colour - bleachers and a press box on the home
+side, a scoreboard behind an end zone, six 26 m light standards whose lenses glow only on a game
+night, `pl.game_night`, with light pools on the field); along the front two-storey classroom wings,
+the office and the auditorium (glazed lobby, canopy, a fly tower with the name on it); behind them
+the gym (a gable standing-seam roof, clerestory, HOME OF THE <mascot>), tennis courts, two courts,
+a lawn quad with trees and benches, the lunch shelter, a car park, two portables.
+
+**Drawing.** Every ground piece is Parks' (`Parks._ground()` into `ch._park`: the Parks ground
+mesh, no new draw), clipped to the chunk's owned rect (`_gp()`) so a stadium across a closed street
+is built half by each chunk with its lines running through the cut. Sports kit goes into the Parks
+walls mesh (ParkKit). The buildings, signs, flag, scoreboard and light standards are ONE new mesh a
+chunk (`SchoolWalls`, `shaders/school_walls.gdshader`, kinds `SchoolKit.K_*`): each wall face its
+own window layout (`SchoolKit.wall()`: UV2.y = style + 16 x whole bays, centred), and behind every
+window a classroom traced per pixel - back wall with a whiteboard and cork boards, cubbies, posters,
+VCT floor with rows of desks, an acoustic ceiling with troffers, a blind per room; lit by day,
+`room_night_share` of rooms lit after dark - the glass mirroring `sky_tint` by Fresnel. Letters are
+`FreewayKit.text_geo()` flat triangles; the LED board's message and the scoreboard digits glow. A
+closed street gets a pavement slab (collision) from the chunk that owns it, and Skyline no longer
+paints a closed street on the far plate (one line in `_add_plate()`; this also stops it painting
+MacArthur Park's closed streets). LOD and the far city: the ground as partitioned slabs, the
+buildings, portables, stands and light standards as far boxes (the auditorium's fly tower its own).
+
+**The school bus.** `tools/make_school_bus.py` (Blender 4.2, on make_big_vehicles; about ten
+seconds): a 40 ft Type D (transit-style, the kind California districts run): flat face, two-piece
+windscreen under the SCHOOL BUS sign between eight-way warning lamps (a new `amber` slot), the
+folding entrance door ahead of the setback front axle, 10-11 split-sash windows a side, three rub
+rails, the STOP arm folded on the driver's side, the crossing arm on the bumper, the rear
+emergency door between two windows, roof hatches, RANDO UNIFIED SCHOOL DISTRICT on both flanks
+(Blender's built-in font), 54k triangles + a 10k far twin. `BodyType.SCHOOL_BUS` is appended after
+the second wave of cars (BODY_ODDS 0, not in ROLL_MAP); BigVehicles makes it (yellow paint,
+`MASS_SCALE` 7, the bus's 60 m far-twin distance); CarCabin draws its rows EMPTY (`empty_rows`).
+Parked: 1-3 in each school's loading zone on the front kerb (`bus_spots()`, real drivable
+Vehicles under the city root, like parked cars; `keeps_clear()` keeps parked cars off the zone and
+off a closed street). In traffic: `TrafficManager._street_kind()` asks `Schools.traffic_bus()`
+(BUS_SHARE 7 % of street spawns within 1.4 km of a school between 6:48-8:36 and 14:12-16:12,
+reusing the roll it already made, so no traffic roll moves).
+
+**Frame cost** (`still_shot.gd` GEO, opengl3, the Jacaranda elementary school, `SCHOOLS=0` the
+before; the first EYE of a run is taken before the ring has streamed and is left out):
+
+| view | with schools | without (the block's buildings) |
+|---|---|---|
+| aerial from the south-east, 35 m | 5.65 M tris, 3,229 draws | 6.39 M tris, 3,604 draws |
+| aerial from the east, 60 m | 2.74 M tris, 1,672 draws | 3.41 M tris, 2,085 draws |
+
+A school is cheaper than the block of buildings it replaces (fewer Building nodes, its ground in the
+Parks mesh). One chunk's school mesh: 1.5-6k triangles (checks; 160k budget); the high school's
+three FULL chunks 6.0k, 1.5k and 0.7k.
+
+**Stills** (opengl3, on `shots/schools`): `elem_street_noon` (Jacaranda from the street: the
+office, the marquee, a parked bus), `elem_aerial` / `elem_aerial_before` (the same EYE with
+`SCHOOLS=0`), `elem_yard` (on the blacktop), `elem_street_night`, `hs_stadium_night` (Spring High
+at 20:18, the field lit), `hs_stadium_noon`, `hs_buses` (three buses at the kerb),
+`hs_three_blocks` (Sunset Ridge High over two closed streets), `bus_front3` / `bus_rear3` /
+`bus_side` (Cycles previews of the model). EYEs: Jacaranda street `EYE_AGL=1
+EYE=1022.8,1.7,-422.4,61.7,-4`, aerial `1060,60,-480,90,-30`; Spring High night
+`2235,60,3700,55,-26@20.3`, buses `2222,2.2,3690,75,-6`; `tools/schools/probe.gd` prints one for
+every school.
+
+**Not done / not verified.** No people on the campuses at all (the brief: no children; staff were
+optional and left out). The warning lamps and STOP arm do not flash or swing (a parked bus is
+loading nobody). The school bus in traffic is checked by its rule, not seen in a still. Forward+
+not judged: the traced classrooms, the brick and the stadium lights under AgX need the Mac. A
+school claimed a block that a fire station's cell may have wanted (FireStation then finds no lot
+there and its cell has no station). Skyline's far plate under a school is one average colour
+(red track, asphalt), as a rec park's is. The murals pass paints the primed walls (`K_MURAL`).

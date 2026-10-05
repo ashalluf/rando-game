@@ -415,6 +415,23 @@ already mapped so milestone 2 is script-only.
   bodies, which drop the hair; its wearer never rolls a hat; the camp figures stay on the first
   twelve rigs, so the loading screen does not bake forty more poses; no new rig is a police or
   fire crew model. Cost in docs/HANDOFF.md 9cg.
+- **2026-10-05 Public schools and the school bus (VISUAL_ROADMAP #76, HANDOFF 9ch).** LA's
+  neighbourhoods are full of schools and the game had only Parks' few campuses. `Schools` puts one
+  in most 640 m map cells of the suburbs, midtown and the beach town from a hash of seed + cell, on
+  a block nobody else claimed, AFTER every roll (so no seed moves). Decisions: (1) an elementary
+  school is one block; a high school is a row of two or three blocks with the local streets
+  between them CLOSED (through `CityPlan.road_open()`, as MacArthur Park closes its roads) - one
+  block is never big enough for a stadium, and that is how LA's high schools sit on the grid;
+  (2) the ground and the sports kit reuse Parks' ground and walls meshes (no new draws for them),
+  the buildings are one new mesh a chunk with a traced classroom behind every window; (3) NO
+  CHILDREN anywhere - the brief ruled out scaled-down adult rigs, so the campus has the empty look
+  of a school in class time and the school buses' rows are empty; (4) the school bus is a
+  Blender-built Type D (the transit-style bus California districts run), a new
+  `BodyType.SCHOOL_BUS`: parked in each school's kerb loading zone as real, drivable Vehicles, and
+  in street traffic near schools at the morning and afternoon bell only; (5) every name is
+  invented (school names, mascots, RANDO UNIFIED SCHOOL DISTRICT); a mural wall is left primed for
+  the murals pass.
+
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it

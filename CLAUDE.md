@@ -1828,6 +1828,45 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   physics) dribbled and shot at the rim on a court with players. No children (no child rigs).
   `PARKS=0` in the environment is the A/B (before the plan is made). Checks:
   `tests/park_checks.gd`; coverage: `tools/lot_coverage.gd` rows `REC` / `SCHOOL`, kind `sport`.
+  **Public schools** (`Schools`, `scripts/world/schools.gd` + `SchoolKit`,
+  `scripts/world/school_kit.gd`, 2026-10-05, docs/HANDOFF.md 9ch): on top of Parks' campuses, a
+  school per `Schools.CELL` (640 m) map cell from a hash of seed + cell (FireStation's approach,
+  `TRIES` points a cell): `CityPlan.block()` hands each block it makes to `Schools.apply()` AFTER
+  every roll and Parks' role, and the cell's decision (`decide()`, cached by seed) marks its blocks
+  `BlockKind.SCHOOL` with grounds `"school_e"` / `"school_h"` (so `lots()` is empty). Only blocks
+  whose centre is in the cell are ever asked for, with apply() off while a decision runs
+  (`_deciding`), so nothing recurses and a block is decided before anyone sees it. Eligible: plain
+  BUILDINGS or PARK blocks in SUBURBS / MIDTOWN / BEACHTOWN no one else claimed (Parks' role,
+  sites, landmarks, the replica, the river, the freeway, the light rail, the approach). An
+  ELEMENTARY school is one block (wings of 1-2 storeys with covered walkways, the office by the
+  entry gate, a side wing with a primed end wall left for the murals pass, portables up on blocks
+  with ramps, blacktop courts, yard games and a painted map (`Schools.G_MAP`, kind 13 in
+  park_ground.gdshader), the lunch shelter, a play structure, a grass field with a kickball diamond
+  and backstop, the marquee sign, the flagpole, chain-link); a HIGH school is a ROW of 2-3 blocks
+  (`_row_fits()`: local, unpinned streets) whose streets between are CLOSED
+  (`Schools.road_closed()` from `CityPlan.road_open()`, and a pavement slab across them from the
+  chunk that owns the street) - the stadium (Parks' `_track()`, bleachers, press box, scoreboard,
+  `SchoolKit.light_standard()`s lit on a game night, `pl.game_night`), two-storey classroom wings,
+  the office, the auditorium with its fly tower, the gym, tennis, courts, a quad, a car park.
+  Plans are PURE (`plan_for()` / `plan_for_school()`, laid in the site's street frame). A high
+  school spans chunks: every ground piece is clipped to the chunk's owned rect (`_gp()`: the frame
+  and so the painted lines carry across the cut) and every upright piece is built by the chunk its
+  anchor is in. Ground and sports kit go into the Parks meshes (`ch._park`, committed by
+  `Parks.commit()`), the buildings, signs, flag, scoreboard and light standards into ONE mesh a
+  chunk (`SchoolWalls`, `shaders/school_walls.gdshader`: stucco, brick, T1-11, glass with a
+  TRACED CLASSROOM behind every window - whiteboard, cork boards, desks, troffers, a blind per room
+  - letters from `FreewayKit.text_geo()`, LED boards, the waving flag; window layout per wall face
+  in UV2.y = style + 16 x bays, `SchoolKit.wall()`). LOD and the far city: slabs and far boxes.
+  Names are invented (`SCHOOL_NAMES` or the front street's), mascots invented. **No children**:
+  the campus is empty (the brief: crowd rigs scaled down are not children). **The school bus**:
+  `BodyType.SCHOOL_BUS` (appended), a Type D built by `tools/make_school_bus.py` (Blender, on
+  make_big_vehicles; `RANDO UNIFIED SCHOOL DISTRICT` in the model), parked in each school's loading
+  zone as real Vehicles (`Schools.park_buses()`, `bus_spots()`; `keeps_clear()` keeps parked cars
+  off it and off a closed street) and joining street traffic within `BUS_REACH` of a school during
+  `BUS_HOURS` (`Schools.traffic_bus()` from `TrafficManager._street_kind()`, reusing its roll);
+  CarCabin draws its rows empty. `SCHOOLS=0` in the environment is the A/B; probe
+  `tools/schools/probe.gd` (every school, its facilities, bus spots and an EYE); checks
+  `tests/schools_checks.gd`.
   Shopping plazas, big-box stores, fast-food and gas-station pads are `Commercial`
   (`scripts/world/commercial.gd`); block kinds `MALL` and `BIGBOX` and the `pads` odds live in
   `CityPlan.DISTRICTS`. Shop names are original, never brands.

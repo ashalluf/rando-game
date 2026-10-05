@@ -385,6 +385,8 @@ static func _paint(box: Array, r: Rect2, kind: int) -> void:
 ## SCHOOL.
 static func _grounds(plan: CityPlan, bx: int, bz: int, b: Dictionary, grid: float) -> Dictionary:
 	var pl := Parks.plan_for(plan, bx, bz)
+	if pl.is_empty():
+		pl = Schools.coverage_plan(plan, bx, bz)
 	var inner: Rect2 = (b.rect as Rect2).grow(-plan.sidewalk_width)
 	var gx := maxi(1, int(inner.size.x / grid))
 	var gz := maxi(1, int(inner.size.y / grid))
