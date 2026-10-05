@@ -1789,6 +1789,9 @@ func _test_city() -> void:
 	# The city at night from the air (tests/night_city_checks.gd): the far traffic and lit-office
 	# hours, the sodium / LED lamp patches near and far, the LOD decks' traffic skin.
 	load("res://tests/night_city_checks.gd").new().run(self, city)
+	# The pier park (tests/pier_park_checks.gd): layout, the coaster's track and ride, the walks, the
+	# park in its chunk, solid decks and rides, shots, the train on the clock, the crowd, the far wheel.
+	await load("res://tests/pier_park_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

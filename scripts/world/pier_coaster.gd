@@ -358,27 +358,21 @@ static func _track_mesh(deck: float, detailed_build: bool) -> ArrayMesh:
 				g.tube(walk + b.x * -0.35, walk + b.x * -0.35 + Vector3.UP * 1.0, 0.025, 0.025, SUPPORT, 4)
 			s += 1.0
 		g.sweep(rail_pts, 0.03, SUPPORT, 4)
-	# Supports: a column (two splayed and braced where the track is high) every SUPPORT_STEP.
+	# Supports: a column (two splayed and braced where the track is high) every few metres.
 	g.kind = PierMesh.K_PAINT
-	var ss := 3.0
 	var sides := 8 if detailed_build else 4
-	while ss < length:
-		var h := height_at(ss)
-		var p := point(ss, deck)
-		var b := frame(ss, deck)
-		var spine := p - b.y * SPINE_DROP
-		var foot := Vector3(spine.x, deck, spine.z)
-		if h < 2.6:
-			g.tube(foot, spine, 0.16, 0.16, SUPPORT, sides)
-		elif h < 8.0:
-			g.tube(foot, spine, 0.24, 0.2, SUPPORT, sides)
-			if detailed_build:
+	for sp: Array in supports(deck):
+		var spine: Vector3 = sp[0]
+		var feet: Array = sp[1]
+		var h := spine.y - deck
+		if feet.size() == 1:
+			var foot: Vector3 = feet[0]
+			g.tube(foot, spine, 0.16 if h < 2.0 else 0.24, 0.16 if h < 2.0 else 0.2, SUPPORT, sides)
+			if detailed_build and h >= 2.0:
 				g.abox(foot + Vector3(0, 0.1, 0), Vector3(0.8, 0.2, 0.8), Color(0.6, 0.6, 0.6))
 		else:
-			var side := Vector3(b.x.x, 0.0, b.x.z).normalized()
-			var spread := 0.12 * h
-			var fa := foot + side * spread
-			var fb := foot - side * spread
+			var fa: Vector3 = feet[0]
+			var fb: Vector3 = feet[1]
 			g.tube(fa, spine, 0.24, 0.18, SUPPORT, sides)
 			g.tube(fb, spine, 0.24, 0.18, SUPPORT, sides)
 			if detailed_build:
@@ -387,10 +381,31 @@ static func _track_mesh(deck: float, detailed_build: bool) -> ArrayMesh:
 				g.tube(fa.lerp(spine, 0.35), fb.lerp(spine, 0.65), 0.06, 0.06, SUPPORT, 4)
 				g.abox(fa + Vector3(0, 0.1, 0), Vector3(0.8, 0.2, 0.8), Color(0.6, 0.6, 0.6))
 				g.abox(fb + Vector3(0, 0.1, 0), Vector3(0.8, 0.2, 0.8), Color(0.6, 0.6, 0.6))
-		ss += 4.0 if h < 8.0 else 5.0
 	if detailed_build:
 		_station(g, deck)
 	return g.build_mesh()
+
+
+## The track's supports: [spine point, [feet on the deck]] - one column where the track is low, a
+## splayed and braced pair across it where it is high. The checks keep the crowd's walks off them.
+static func supports(deck: float) -> Array:
+	_ensure()
+	var out: Array = []
+	var ss := 3.0
+	while ss < length:
+		var h := height_at(ss)
+		var p := point(ss, deck)
+		var b := frame(ss, deck)
+		var spine := p - b.y * SPINE_DROP
+		var foot := Vector3(spine.x, deck, spine.z)
+		if h < 8.0:
+			out.append([spine, [foot]])
+		else:
+			var side := Vector3(b.x.x, 0.0, b.x.z).normalized()
+			var spread := 0.12 * h
+			out.append([spine, [foot + side * spread, foot - side * spread]])
+		ss += 4.0 if h < 8.0 else 5.0
+	return out
 
 
 ## The station: a raised loading platform along the track with a canopy, the name board, the

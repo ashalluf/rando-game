@@ -57,13 +57,14 @@ const LAMP_STEP := 26.0
 const LAMP_COUNT := 10
 const LAMP_Z := 11.4
 
-## Food stands: [x, z, facing yaw, name, kind] (kind picks the giant prop on the roof).
+## Food stands: [x, z, yaw the serving window faces, name, kind] (kind picks the giant prop on the
+## roof).
 const STANDS: Array = [
-	[-26.0, -9.6, 0.0, "SALT & SPUD", "fries"],
-	[-38.0, 9.6, PI, "PINK FOG CANDY", "candy"],
-	[-52.0, -9.6, 0.0, "STICK SHACK", "corndog"],
-	[-186.0, -9.6, 0.0, "SQUEEZE PLAY", "lemon"],
-	[-197.0, 47.0, -PI * 0.5, "FUNNEL CLOUD", "funnel"],
+	[-26.0, -9.6, PI, "SALT & SPUD", "fries"],
+	[-38.0, 9.6, 0.0, "PINK FOG CANDY", "candy"],
+	[-52.0, -9.6, PI, "STICK SHACK", "corndog"],
+	[-186.0, -9.6, PI, "SQUEEZE PLAY", "lemon"],
+	[-201.5, 47.0, -PI * 0.5, "FUNNEL CLOUD", "funnel"],
 ]
 ## Game booths along the north strip: [x, name, prize colour].
 const BOOTHS: Array = [
@@ -75,16 +76,16 @@ const BOOTHS: Array = [
 ]
 const BOOTH_Z := -15.6
 ## Picnic tables under umbrellas at the west end of the platform.
-const TABLES: Array[Vector2] = [Vector2(-198.0, 22.0), Vector2(-198.0, 31.0), Vector2(-190.0, 56.0), Vector2(-199.5, 56.5)]
+const TABLES: Array[Vector2] = [Vector2(-198.0, 22.0), Vector2(-198.0, 31.0), Vector2(-186.0, 57.5), Vector2(-199.5, 56.5)]
 
 ## The crowd's walk graph (park frame XZ) and its edges: the promenade, the way under the
 ## coaster's lift into the loop, round the wheel and the carousel, the food court, the coaster
 ## queue. Nothing on an edge passes through a ride, a building or a stand (checked).
 const WALK_NODES: Array[Vector2] = [
 	Vector2(-4, 0), Vector2(-25, 1), Vector2(-45, -1), Vector2(-62, 0), Vector2(-80, -4), Vector2(-100, 2),
-	Vector2(-120, -4), Vector2(-135, 4), Vector2(-150, -3), Vector2(-170, 2), Vector2(-195, 0), Vector2(-225, -2),
-	Vector2(-255, 2), Vector2(-272, 0), Vector2(-135, 18), Vector2(-135, 25), Vector2(-158, 25), Vector2(-112, 25),
-	Vector2(-128, 46), Vector2(-150, 48), Vector2(-97, 30), Vector2(-196, 17), Vector2(-196, 38), Vector2(-196, 55),
+	Vector2(-120, -4), Vector2(-137.8, 4), Vector2(-150, -3), Vector2(-170, 2), Vector2(-195, 0), Vector2(-225, -2),
+	Vector2(-255, 2), Vector2(-272, 0), Vector2(-137.8, 18), Vector2(-137.8, 25), Vector2(-158, 25), Vector2(-112, 25),
+	Vector2(-128, 46), Vector2(-150, 48), Vector2(-94, 28), Vector2(-192, 17), Vector2(-191, 38), Vector2(-192, 52),
 	Vector2(-82, 14), Vector2(-70, 9)]
 const WALK_EDGES: Array[Vector2i] = [
 	Vector2i(0, 1), Vector2i(1, 2), Vector2i(2, 3), Vector2i(3, 4), Vector2i(4, 5), Vector2i(5, 6), Vector2i(6, 7),
@@ -174,13 +175,13 @@ static func route(origin: Vector2, from: Vector2, to: Vector2) -> PackedVector2A
 ## the bumper cars, each food stand and each game booth.
 static func queue_spots() -> Array:
 	var out: Array = []
-	for i in 6:
+	for i in 5:
 		out.append([Vector2(-149.6, 27.4 + float(i) * 0.8), PI])
 		out.append([Vector2(-150.9, 27.8 + float(i) * 0.8), PI])
 	for i in 7:
 		out.append([Vector2(-88.0 + float(i) * 0.85, 13.7), PI * 0.5])
 	for i in 5:
-		out.append([Vector2(-94.6 + float(i) * 0.85, 39.6), PI * 0.5])
+		out.append([Vector2(-94.2 + float(i) * 0.85, 39.6), PI * 0.5])
 	for i in 4:
 		out.append([Vector2(-110.0 + float(i) * 0.9, -11.6), 0.0])
 	for s: Array in STANDS:
@@ -216,6 +217,25 @@ static func benches() -> Array:
 
 
 # --- Build ------------------------------------------------------------------------------------
+
+## Builds the detailed meshes on the loading screen (the pier, the wheel, the coaster, the
+## carousel, the bumper cars and the train are ~0.4 s of GDScript), so the chunk that streams the
+## pier in does not stall on them. Returns no materials: they are .gdshader files the loading
+## screen already compiles.
+static func warm() -> Array:
+	if not _cache.has("near"):
+		_cache["near"] = _static_mesh(true)
+	if not FerrisWheel._meshes.has("near"):
+		FerrisWheel._meshes["near"] = [FerrisWheel._static_mesh(true), FerrisWheel._turning_mesh(true)]
+	PierCoaster._ensure()
+	if not PierCoaster._track_meshes.has("near"):
+		PierCoaster._track_meshes["near"] = PierCoaster._track_mesh(DECK_TOP, true)
+	if PierCoaster._car_meshes.is_empty():
+		PierCoaster._car_meshes = [PierCoaster._car_mesh(true), PierCoaster._car_mesh(false)]
+	if not PierCarousel._meshes.has("near"):
+		PierCarousel._meshes["near"] = [PierCarousel._base(true), PierCarousel._turning(true)]
+	return []
+
 
 static func build(anchor: Vector2, parent: Node3D, _statics: StaticBody3D, _plan: CityPlan, detailed: bool) -> void:
 	var park := Node3D.new()
