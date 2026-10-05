@@ -6343,6 +6343,11 @@ rail, five (three) lighting arms with fixtures.
   white fringe showing the poster under them, the vinyl's sheen and edge ripples, mesh vinyl's
   perforations, welds and hem, rain run-off, the lightbox, LED slides every 8 s with the dot pitch,
   and the fixtures' night wash.
+- **Frame cost** (`tools/geo_count.gd`, opengl3 800x600, `BILLBOARDS=0` vs on): midtown bulletin
+  block `--spawn=1030,1662,52,20,2` 4.894 M tris / 4,392 draws -> 4.914 M / 4,434 (+0.4 % / +1.0 %);
+  by the 110 `--spawn=1893,640,0,14,2` 3.624 M / 3,574 -> 3.636 M / 3,618 (+0.3 % / +1.2 %). A
+  bulletin unit is ~1.9k triangles (frame) + 0.5k (legs) + 2 (face); a chunk with boards adds 3-9
+  batches plus their shadow passes.
 - **Tools**: `tools/billboard_probe.tscn -- --spawn=x,z` (headless: counts the boards in the far
   captures round a point, lists the monopoles, the strip roads and the shelters, and with
   `BB_DEBUG=1` every face with an EYE); `tools/glshot/block_shot.tscn` gained `NIGHT=1` (a crude
