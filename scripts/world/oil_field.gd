@@ -40,7 +40,7 @@ const ROAD_BANK := 8.0
 const MAX_GRADE := 0.125
 const STEP := 6.0
 ## A pad's bank (its cut or fill down to the hill).
-const PAD_BANK := 9.0
+const PAD_BANK := 11.0
 ## Pumpjacks: their spacing on a pad (m, at scale 1) and their size range.
 const WELL_PITCH := 13.5
 const SCALE_RANGE := Vector2(0.78, 1.18)
@@ -77,7 +77,8 @@ var base_h := 0.0
 var roads: Array = []
 ## The fence gates where a spoke road meets the perimeter: [{"p": Vector2 (on the fence line), "side": 0 -Z, 1 +Z, 2 -X, 3 +X}]
 var gates: Array = []
-## [{"c": Vector2, "r": float, "h": float (relief), "kind": Pad, "dir": Vector2 (along the road),
+## [{"c": Vector2, "hx", "hz" (half sizes along the road and back from it), "r" (the larger),
+##   "h": float (relief), "kind": Pad, "dir": Vector2 (along the road),
 ##   "out": Vector2 (away from the road), "wells": [{"p", "yaw", "scale", "phase", "spm", "paint"}],
 ##   "lease": String, "id": int}]
 var pads: Array = []
@@ -167,22 +168,32 @@ func _d(p: Vector2) -> float:
 	return d + _noise.get_noise_2dv(p * 1.7) * 0.07
 
 
-## The hill before any grading: a broad crest with flanks falling away, spurs and gullies cut down
-## them (both strongest mid-flank), metres of relief.
+## The hill before any grading: a broad crest with flanks falling away, spurs wandering down
+## them, and the drainages cut down the flanks RADIALLY (a ring of creases running downhill from
+## the crest, their spacing and line wobbled by the noise) - a closed-contour noise cut into pits.
 func hill(p: Vector2) -> float:
 	var d := _d(p)
 	var prof := 1.0 - smoothstep(0.16, 1.0, d)
 	var flank := sin(clampf(prof, 0.0, 1.0) * PI)
-	var spur := _noise.get_noise_2dv(p) * 0.09
-	var gully := pow(1.0 - absf(_ridge.get_noise_2dv(p)), 5.0) * 0.08
-	var rise := clampf(prof + (spur - gully) * flank, 0.0, 1.15)
+	var spur := _noise.get_noise_2dv(p) * 0.08
+	var rise := clampf(prof + (spur - _gully(p, d) * 0.055) * flank, 0.0, 1.15)
 	return base_h + PEAK * rise
+
+
+## The drainages' depth share at `p` (0 a spur .. 1 a gully's floor): creases radiating from the
+## crest, `GULLIES` round it.
+const GULLIES := 11.0
+func _gully(p: Vector2, d: float) -> float:
+	var q := (p - centre) / half
+	var a := atan2(q.y, q.x) + _ridge.get_noise_2dv(p) * 0.22 + d * 0.5
+	return pow(1.0 - absf(sin(a * GULLIES * 0.5)), 2.5)
 
 
 ## The gully strength at `p` (0 open slope .. 1 gully floor), for the ground's drainage colour.
 func drainage(p: Vector2) -> float:
-	var flank := sin(clampf(1.0 - smoothstep(0.16, 1.0, _d(p)), 0.0, 1.0) * PI)
-	return clampf(pow(1.0 - absf(_ridge.get_noise_2dv(p)), 5.0) * flank * 1.6, 0.0, 1.0)
+	var d := _d(p)
+	var flank := sin(clampf(1.0 - smoothstep(0.16, 1.0, d), 0.0, 1.0) * PI)
+	return clampf(pow(_gully(p, d), 1.4) * flank * 1.5, 0.0, 1.0)
 
 
 ## The relief with the field folded in (MacroMap._relief_at()): the city's own outside the site,
@@ -221,10 +232,9 @@ func graded(p: Vector2) -> float:
 		h = lerpf(h, road_h, 1.0 - smoothstep(ROAD_HALF + 0.6, ROAD_HALF + ROAD_BANK, best))
 	for k: int in _pad_cells.get(cell, []):
 		var pd: Dictionary = pads[k]
-		var dist := p.distance_to(pd.c)
-		var r: float = pd.r
-		if dist < r + PAD_BANK:
-			h = lerpf(h, pd.h, 1.0 - smoothstep(r, r + PAD_BANK, dist))
+		var dist := pad_dist(pd, p)
+		if dist < PAD_BANK:
+			h = lerpf(h, pd.h, 1.0 - smoothstep(0.0, PAD_BANK, dist))
 	return h
 
 
@@ -446,23 +456,26 @@ func _plan_pads() -> void:
 			var dir := (pts[i + 1] - pts[i - 1]).normalized()
 			var side := 1.0 if _h01([seed, "oil_side", ri, i]) < 0.5 else -1.0
 			var kind := Pad.WELLS
-			var r := 0.0
 			var wells := 1 + int(_h01([seed, "oil_nwell", ri, i]) * 2.6)
+			# Half sizes: along the road, and back from it.
+			var hx := 1.5 + float(wells) * WELL_PITCH * 0.5
+			var hz := 7.0
 			if rig_slots > 0 and bool(rd.ring) and _h01([seed, "oil_rig", ri, i]) < 0.12 and count > 3:
 				kind = Pad.RIG
-				r = 19.0
+				hx = 28.0
+				hz = 16.0
 			elif count % BATTERY_EVERY == BATTERY_EVERY - 1:
 				kind = Pad.BATTERY
-				r = 16.0
-			else:
-				r = 4.5 + float(wells) * WELL_PITCH * 0.5
+				hx = 18.0
+				hz = 10.5
+			var r := maxf(hx, hz)
 			var placed := false
 			for flip in 2:
 				var s := side * (1.0 if flip == 0 else -1.0)
 				var out := dir.orthogonal() * s
-				var c := pts[i] + out * (ROAD_HALF + r + 1.5)
-				if _pad_fits(c, r, fence, ri, i):
-					var pd := {"c": c, "r": r, "h": lerpf(hs[i], hill(c), 0.55), "kind": kind, "dir": dir, "out": out,
+				var c := pts[i] + out * (ROAD_HALF + hz + 1.5)
+				if _pad_fits(c, r, hx, hz, dir, out, fence, ri, i):
+					var pd := {"c": c, "r": r, "hx": hx, "hz": hz, "h": lerpf(hs[i], hill(c), 0.7), "kind": kind, "dir": dir, "out": out,
 						"wells": [], "id": pads.size(), "lease": LEASES[absi(hash([seed, "oil_lease", ri, i / 20])) % LEASES.size()]}
 					if kind == Pad.WELLS:
 						_wells_on(pd, wells)
@@ -475,24 +488,32 @@ func _plan_pads() -> void:
 			i += (int(r * 2.0 / STEP) + 2 + int(_h01([seed, "oil_gap", ri, i]) * 4.0)) if placed else 2
 
 
-func _pad_fits(c: Vector2, r: float, fence: Rect2, ri: int, i: int) -> bool:
-	if not fence.grow(-(r + EDGE_BLEND * 0.6)).has_point(c):
-		return false
+func _pad_fits(c: Vector2, r: float, hx: float, hz: float, dir: Vector2, out: Vector2, fence: Rect2, ri: int, i: int) -> bool:
+	var probe := {"c": c, "hx": hx, "hz": hz, "dir": dir, "out": out}
+	for k in 4:
+		var corner := c + dir * hx * (1.0 if k % 2 == 0 else -1.0) + out * hz * (1.0 if k < 2 else -1.0)
+		if not fence.grow(-EDGE_BLEND * 0.6).has_point(corner):
+			return false
 	for pd: Dictionary in pads:
-		if c.distance_to(pd.c) < r + float(pd.r) + 7.0:
+		if c.distance_to(pd.c) < r + float(pd.r) + 4.0:
 			return false
 	# Clear of every road but where it hangs off its own.
 	for rj in roads.size():
 		var pts: PackedVector2Array = roads[rj].pts
-		for k in pts.size() - 1:
-			if rj == ri and absi(k - i) <= 1:
+		for k in pts.size():
+			if rj == ri and absi(k - i) <= int(hx / STEP) + 1:
 				continue
-			var a := pts[k]
-			var ab := pts[k + 1] - a
-			var t := clampf((c - a).dot(ab) / maxf(ab.length_squared(), 1e-6), 0.0, 1.0)
-			if c.distance_to(a + ab * t) < r + ROAD_HALF + 1.0:
+			if pad_dist(probe, pts[k]) < ROAD_HALF + 1.5:
 				return false
 	return true
+
+
+## Signed distance from `p` to a pad's levelled rectangle (corners rounded 2 m; negative inside).
+static func pad_dist(pd: Dictionary, p: Vector2) -> float:
+	var d := p - (pd.c as Vector2)
+	var u := absf(d.dot(pd.dir)) - float(pd.hx) + 2.0
+	var v := absf(d.dot(pd.out)) - float(pd.hz) + 2.0
+	return Vector2(maxf(u, 0.0), maxf(v, 0.0)).length() + minf(maxf(u, v), 0.0) - 2.0
 
 
 ## The pumpjacks on a wells pad, in a row along the road, each facing the same way (horsehead
@@ -534,7 +555,7 @@ func _index() -> void:
 	for k in pads.size():
 		var pd: Dictionary = pads[k]
 		var c: Vector2 = pd.c
-		var rr: float = float(pd.r) + PAD_BANK + 1.0
+		var rr: float = Vector2(pd.hx, pd.hz).length() + PAD_BANK + 1.0
 		for cx in range(floori((c.x - rr) / CELL), floori((c.x + rr) / CELL) + 1):
 			for cz in range(floori((c.y - rr) / CELL), floori((c.y + rr) / CELL) + 1):
 				var key := Vector2i(cx, cz)
@@ -557,7 +578,7 @@ func wells() -> Array:
 # --- Single wells in the city ------------------------------------------------------------------------
 
 ## Share of lots in each district that are a fenced well site instead of what they would hold.
-const LOT_SHARE := {CityPlan.District.INDUSTRIAL: 0.035, CityPlan.District.SUBURBS: 0.011}
+const LOT_SHARE := {CityPlan.District.INDUSTRIAL: 0.035, CityPlan.District.SUBURBS: 0.02}
 ## A lot this small or narrower holds no well site (a pumpjack and its fence need ~11 x 6 m).
 const LOT_MIN := Vector2(13.0, 13.0)
 
@@ -578,22 +599,35 @@ static func lot_well(plan: CityPlan, lot: Dictionary, district: int) -> Dictiona
 	if _h01([plan.seed, "oil_lot", s]) >= float(LOT_SHARE[district]):
 		return {}
 	var c: Vector2 = lot.center
+	if plan.macro.zone_at(c) != MacroMap.Zone.CITY:
+		return {}
 	if plan.macro.oil != null and (plan.macro.oil.rect as Rect2).grow(300.0).has_point(c):
 		return {}
 	if plan.macro.freeway != null and plan.macro.freeway.blocks_rect(Rect2(c - size * 0.5, size), 2.0):
 		return {}
-	# The pumpjack along the lot's longer side, the fence a metre and a half in from the lot.
+	# The pumpjacks along the lot's longer side, a row of them on a big industrial lot, the fence a
+	# metre and a half in from the lot.
 	var along_x := size.x >= size.y
 	var dir := Vector2(1.0, 0.0) if along_x else Vector2(0.0, 1.0)
 	if _h01([plan.seed, "oil_lot_flip", s]) < 0.5:
 		dir = -dir
-	var room := maxf(size.x, size.y) - 3.0
-	var sc := clampf(room / (OilKit.LENGTH * 1.15), 0.62, 1.0)
-	var spm := lerpf(SPM_RANGE.x, SPM_RANGE.y, _h01([plan.seed, "oil_lot_spm", s]))
-	if _h01([plan.seed, "oil_lot_idle", s]) < IDLE_SHARE:
-		spm = 0.0
-	var p := c + dir * OilKit.LENGTH * sc * 0.42
+	var long := maxf(size.x, size.y)
+	var short := minf(size.x, size.y)
+	var sc := clampf((long - 3.0) / (OilKit.LENGTH * 1.15), 0.62, 1.0)
+	var rows := 1
+	if district == CityPlan.District.INDUSTRIAL and short >= 26.0:
+		rows = mini(3, int(short / 13.0))
+	var wells: Array = []
+	var side := Vector2(-dir.y, dir.x)
+	for k in rows:
+		var spm := lerpf(SPM_RANGE.x, SPM_RANGE.y, _h01([plan.seed, "oil_lot_spm", s, k]))
+		if _h01([plan.seed, "oil_lot_idle", s, k]) < IDLE_SHARE:
+			spm = 0.0
+		var off := (float(k) - float(rows - 1) * 0.5) * 11.0
+		wells.append({"p": c + dir * OilKit.LENGTH * sc * 0.42 + side * off, "yaw": atan2(-dir.y, dir.x), "scale": sc,
+			"phase": _h01([plan.seed, "oil_lot_phase", s, k]), "spm": spm,
+			"paint": absi(hash([plan.seed, "oil_lot_paint", s])) % OilKit.PAINTS.size()})
 	var pad := Rect2(c - size * 0.5, size).grow(-1.5)
-	return {"p": p, "yaw": atan2(-dir.y, dir.x), "scale": sc, "phase": _h01([plan.seed, "oil_lot_phase", s]), "spm": spm,
-		"paint": absi(hash([plan.seed, "oil_lot_paint", s])) % OilKit.PAINTS.size(),
-		"pad": pad, "tank": minf(size.x, size.y) >= 18.0 and _h01([plan.seed, "oil_lot_tank", s]) < 0.6, "dir": dir}
+	var first: Dictionary = wells[0]
+	return {"p": first.p, "yaw": first.yaw, "scale": sc, "wells": wells,
+		"pad": pad, "tank": short >= 18.0 and rows < 3 and _h01([plan.seed, "oil_lot_tank", s]) < 0.6, "dir": dir}

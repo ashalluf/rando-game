@@ -127,7 +127,11 @@ void fragment() {
 		albedo = inst * dark * (0.88 + 0.16 * n1);
 		float chalk = smoothstep(0.45, 0.9, vnoise(UV * 0.8 + 3.0)) * 0.12 * (1.0 + wear);
 		albedo = mix(albedo, vec3(0.78, 0.76, 0.72), chalk);
-		float rust = smoothstep(0.72 - 0.18 * wear, 0.95, vnoise(UV * 4.3 + 7.0) * 0.75 + n2 * 0.25) + low * 0.25 * wear;
+		// Rust in fine flecks and runs down the faces (streaks: stretched along the face's height),
+		// thicker low down and on a worn unit.
+		float fleck = smoothstep(0.86 - 0.08 * wear, 0.97, vnoise(UV * 13.0 + 7.0) * 0.7 + n2 * 0.3);
+		float run = smoothstep(0.78, 0.96, vnoise(vec2(UV.x * 9.0, UV.y * 1.2) + 3.0)) * (0.35 + 0.4 * wear);
+		float rust = fleck + run * 0.6 + low * 0.3 * wear;
 		albedo = mix(albedo, vec3(0.34, 0.19, 0.11), clamp(rust, 0.0, 0.8));
 		float grease = smoothstep(0.7, 0.95, vnoise(vec2(UV.x * 6.0, UV.y * 0.6) + 11.0)) * 0.5;
 		albedo *= 1.0 - grease * 0.55;

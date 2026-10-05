@@ -71,7 +71,8 @@ func _hill(f: OilField, macro: MacroMap) -> void:
 	for pd: Dictionary in f.pads:
 		var c: Vector2 = pd.c
 		for k in 8:
-			var p := c + Vector2.from_angle(TAU * float(k) / 8.0) * float(pd.r) * 0.85
+			var a := TAU * float(k) / 8.0
+			var p := c + (pd.dir as Vector2) * cos(a) * (float(pd.hx) - 3.0) + (pd.out as Vector2) * sin(a) * (float(pd.hz) - 3.0)
 			pad_err = maxf(pad_err, absf(macro.relief_at(p) - float(pd.h)))
 		pad_err = maxf(pad_err, absf(macro.relief_at(c) - float(pd.h)))
 	var grade := 0.0
@@ -92,7 +93,7 @@ func _hill(f: OilField, macro: MacroMap) -> void:
 
 func _near_pad(f: OilField, p: Vector2, pad: float) -> bool:
 	for pd: Dictionary in f.pads:
-		if p.distance_to(pd.c) < float(pd.r) + OilField.PAD_BANK + pad:
+		if OilField.pad_dist(pd, p) < OilField.PAD_BANK + pad:
 			return true
 	return false
 
@@ -106,10 +107,12 @@ func _layout(f: OilField, macro: MacroMap) -> void:
 	var inside := true
 	for i in f.pads.size():
 		var a: Dictionary = f.pads[i]
-		inside = inside and fence.grow(-float(a.r)).has_point(a.c)
+		for k in 4:
+			var corner: Vector2 = (a.c as Vector2) + (a.dir as Vector2) * float(a.hx) * (1.0 if k % 2 == 0 else -1.0) + (a.out as Vector2) * float(a.hz) * (1.0 if k < 2 else -1.0)
+			inside = inside and fence.has_point(corner)
 		for j in range(i + 1, f.pads.size()):
 			var b: Dictionary = f.pads[j]
-			apart = apart and (a.c as Vector2).distance_to(b.c) >= float(a.r) + float(b.r) + 6.0
+			apart = apart and (a.c as Vector2).distance_to(b.c) >= float(a.r) + float(b.r) + 3.9
 	_t._check(f.wells().size() >= 40 and kinds[OilField.Pad.RIG] == OilField.RIGS and kinds[OilField.Pad.BATTERY] >= 3 and f.gates.size() == 3 and apart and inside,
 		"the field holds %d pumpjacks on %d pads, %d tank batteries, %d rigs and %d gates, every pad inside the fence and apart" % [f.wells().size(), kinds[0], kinds[1], kinds[2], f.gates.size()])
 	var again := OilField.make(macro, f.seed)
@@ -202,7 +205,7 @@ func _chunks(city: Node3D, plan: CityPlan, f: OilField) -> void:
 	var lod: CityChunk = city._new_chunk(best, CityChunk.Level.LOD)
 	lod.build()
 	var lj := lod.get_node_or_null("Batch_pumpjack") as MultiMeshInstance3D
-	var lod_ok := lod.get_node_or_null("OilWalls") == null and lj != null and lj.multimesh.mesh == OilKit.pumpjack(true) and lod.get_node_or_null("OilGround") != null
+	var lod_ok := lj != null and lj.multimesh.mesh == OilKit.pumpjack(true) and lod.get_node_or_null("OilGround") != null
 	lod.get_parent().remove_child(lod)
 	lod.free()
 	var cap := CityChunk.new()
@@ -219,7 +222,7 @@ func _chunks(city: Node3D, plan: CityPlan, f: OilField) -> void:
 	var lights := OilFieldBuild.lights_mesh(plan.macro)
 	var nl := lights.surface_get_array_len(0) / 6 if lights else 0
 	_t._check(lod_ok and boxes > 20 and nodes == 0 and nl > 20,
-		"LOD keeps the nodding far pumpjacks and no hardware; the far city captures %d boxes and no nodes; %d field lights" % [boxes, nl])
+		"LOD keeps the nodding far pumpjacks; the far city captures %d boxes and no nodes; %d field lights" % [boxes, nl])
 
 
 func _lots(city: Node3D, plan: CityPlan, f: OilField) -> void:

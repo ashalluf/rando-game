@@ -271,7 +271,7 @@ func _build_near() -> void:
 	var py := PIVOT.y
 	# --- Still: the foundation, the base, the Samson post, the gearbox, the motor, the wellhead.
 	_part(0)
-	_box(Vector3(-5.9, -0.05, 0.0), Vector3(9.8, 0.6, 2.6), K_CONCRETE, Color(0.72, 0.71, 0.68))
+	_box(Vector3(-5.9, -0.05, 0.0), Vector3(9.8, 0.6, 2.6), K_CONCRETE, Color(0.58, 0.57, 0.54))
 	# Two I-beam rails of the base and their cross members.
 	for z: float in [-0.62, 0.62]:
 		_box(Vector3(-6.0, 0.29, z), Vector3(9.0, 0.08, 0.3), K_PAINT_DARK)
@@ -324,7 +324,7 @@ func _build_near() -> void:
 		var z := -0.35 + float(i) * 0.16
 		_cyl(Vector3(-9.75, 1.36, z), Vector3(-9.75, 1.36, z + 0.05), 0.42, 14, K_PLAIN, Color(0.25, 0.3, 0.32), false)
 	_box(Vector3(-9.75, 1.86, -0.05), Vector3(0.36, 0.22, 0.3), K_PLAIN, Color(0.24, 0.28, 0.3))
-	_box(Vector3(-8.75, 1.45, 0.7), Vector3(2.5, 1.25, 0.18), K_SAFETY, SAFETY)
+	_box(Vector3(-8.75, 1.45, 0.7), Vector3(2.5, 1.25, 0.18), K_PAINT_DARK)
 	_cyl(Vector3(-9.75, 1.36, 0.36), Vector3(-9.75, 1.36, 0.58), 0.2, 10, K_STEEL, DARK)
 	# The wellhead: casing, flanges, the flow tee with its valves, the stuffing box, the flowline.
 	_cyl(Vector3(0, -0.3, 0), Vector3(0, 0.55, 0), 0.19, 12, K_PLAIN, Color(0.42, 0.4, 0.37))

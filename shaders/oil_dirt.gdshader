@@ -108,6 +108,9 @@ void fragment() {
 			rough = 0.9;
 		}
 	}
+	// Ragged up close; from the air (a pixel over ~15 cm) a clean edge, or the dither reads as dots.
+	float far_edge = smoothstep(0.08, 0.2, fw);
+	edge_cover = mix(edge_cover, step(0.5, edge_cover), far_edge);
 	if (edge_cover < bayer4(FRAGCOORD.xy)) {
 		discard;
 	}

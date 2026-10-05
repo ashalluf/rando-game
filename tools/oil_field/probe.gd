@@ -45,16 +45,18 @@ func _ready() -> void:
 	for pd: Dictionary in f.pads:
 		if int(pd.kind) != 0:
 			print("  pad kind=%d c=%s r=%.1f h=%.1f EYE=%.0f,%.0f" % [pd.kind, pd.c, pd.r, pd.h, (pd.c as Vector2).x, (pd.c as Vector2).y])
-	# EYEs for close-ups: the first wells, seen side on from 16 m at 3 m over the ground.
-	var ws := f.wells()
-	for i in mini(6, ws.size()):
-		var w: Dictionary = ws[i]
+	# EYEs for close-ups: the first wells, seen from their lease road at 1.7 m over the ground.
+	for pi in mini(8, f.pads.size()):
+		var pd: Dictionary = f.pads[pi]
+		if (pd.wells as Array).is_empty():
+			continue
+		var w: Dictionary = pd.wells[0]
 		var fwd := Vector2(cos(float(w.yaw)), -sin(float(w.yaw)))
 		var mid: Vector2 = (w.p as Vector2) - fwd * 5.0 * float(w.scale)
-		var side := Vector2(-fwd.y, fwd.x)
-		var eye := mid + side * 16.0 + fwd * 4.0
+		var eye: Vector2 = (pd.c as Vector2) - (pd.out as Vector2) * (float(pd.hz) + OilField.ROAD_HALF + 1.0) + (pd.dir as Vector2) * 6.0
+		var i := pi
 		var d := mid - eye
-		print("  well %d EYE=%.1f,3,%.1f,%.1f,-2 (EYE_AGL=1) spm=%.1f" % [i, eye.x, eye.y, rad_to_deg(atan2(-d.x, -d.y)), w.spm])
+		print("  well %d EYE=%.1f,1.7,%.1f,%.1f,3 (EYE_AGL=1) spm=%.1f dist=%.1f" % [i, eye.x, eye.y, rad_to_deg(atan2(-d.x, -d.y)), w.spm, d.length()])
 	var claimed := 0
 	var by: Dictionary = {}
 	for ix in range(-30, 30):
@@ -66,7 +68,17 @@ func _ready() -> void:
 					claimed += 1
 					var d := CityPlan.district_name(int(b.district))
 					by[d] = int(by.get(d, 0)) + 1
-					if int(by[d]) <= 3:
-						print("  lot well %s at %s EYE=%.0f,%.0f" % [d, w.p, (w.p as Vector2).x, (w.p as Vector2).y])
+					if int(by[d]) <= 4:
+						var r: Rect2 = b.rect
+						var c: Vector2 = lot.center
+						var gaps := [c.y - r.position.y, r.end.y - c.y, c.x - r.position.x, r.end.x - c.x]
+						var nrm := [Vector2(0, -1), Vector2(0, 1), Vector2(-1, 0), Vector2(1, 0)]
+						var k := 0
+						for q in 4:
+							if float(gaps[q]) < float(gaps[k]):
+								k = q
+						var eye: Vector2 = c + (nrm[k] as Vector2) * (float(gaps[k]) + 9.0) + Vector2(-(nrm[k] as Vector2).y, (nrm[k] as Vector2).x) * 6.0
+						var dd: Vector2 = c - eye
+						print("  lot well %s at %s lot %s EYE=%.1f,1.7,%.1f,%.1f,6 (EYE_AGL=1)" % [d, w.p, lot.size, eye.x, eye.y, rad_to_deg(atan2(-dd.x, -dd.y))])
 	print("claimed lots=", claimed, " ", by)
 	get_tree().quit()

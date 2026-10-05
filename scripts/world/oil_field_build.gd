@@ -275,26 +275,27 @@ static func _ccw_from_above(q: Array) -> bool:
 	return (b - a).cross(c - a).y > 0.0
 
 
-## A pad's gravel: rings from the centre out past the levelled edge onto the bank.
+## A pad's gravel: a grid over its levelled rectangle and a metre past it onto the bank, laid on the
+## ground; UV.x is 1 at the levelled edge (the shader rags it), UV.y marks a pad with wells.
 func _pad_ground(pd: Dictionary) -> void:
 	var c: Vector2 = pd.c
-	var r: float = pd.r + 1.0
-	var segs := 28
-	var rings := [0.0, 0.45, 0.8, 1.0, 1.12]
+	var dir: Vector2 = pd.dir
+	var out: Vector2 = pd.out
+	var hx: float = float(pd.hx) + 1.2
+	var hz: float = float(pd.hz) + 1.2
+	var nu := maxi(2, ceili(hx * 2.0 / 3.0))
+	var nv := maxi(2, ceili(hz * 2.0 / 3.0))
 	var oily := 1.0 if int(pd.kind) == OilField.Pad.WELLS else 0.0
-	for k in rings.size() - 1:
-		for s in segs:
-			var a0 := TAU * float(s) / float(segs)
-			var a1 := TAU * float(s + 1) / float(segs)
-			var r0: float = rings[k] * r
-			var r1: float = rings[k + 1] * r
-			var p := [c + Vector2(cos(a0), sin(a0)) * r0, c + Vector2(cos(a0), sin(a0)) * r1,
-				c + Vector2(cos(a1), sin(a1)) * r1, c + Vector2(cos(a1), sin(a1)) * r0]
+	for j in nv:
+		for i in nu:
 			var q: Array = []
 			var uvs: Array = []
-			for pp: Vector2 in p:
+			for k in 4:
+				var a := -hx + 2.0 * hx * float(i + (1 if k == 1 or k == 2 else 0)) / float(nu)
+				var b := -hz + 2.0 * hz * float(j + (1 if k >= 2 else 0)) / float(nv)
+				var pp := c + dir * a + out * b
 				q.append(Vector3(pp.x, _ground_y(pp.x, pp.y) + DIRT_LIFT + 0.01, pp.y))
-				uvs.append(Vector2(pp.distance_to(c) / (r - 1.0), oily))
+				uvs.append(Vector2(1.0 + OilField.pad_dist(pd, pp) / 8.0, oily))
 			if _ccw_from_above(q):
 				_dquad(q, uvs, Vector2(1.0, 0.0))
 			else:
@@ -367,14 +368,14 @@ func _well_pad(pd: Dictionary) -> void:
 		OilKit.pipe(walls, base + Vector3(0, 0.9, 0), base + Vector3(0, 0.12, 0), 0.03, OilKit.GALV, 6, IndustrialKit.K_GALV)
 		# The flowline from the wellhead out to the road's pipe rack.
 		var fl := p + Vector2(fwd.y, -fwd.x) * (-0.95 * sc) + fwd * 2.2 * sc
-		var road_p: Vector2 = (pd.c as Vector2) - out * (float(pd.r) + 1.5 - (OilField.ROAD_HALF + 1.0 - PIPE_OFFSET)) + dir * (float(k) - 0.5) * 1.2
+		var road_p: Vector2 = (pd.c as Vector2) - out * (float(pd.hz) + 0.5) + dir * (float(k) - 0.5) * 1.2
 		var y0 := _ground_y(fl.x, fl.y) + 0.25
 		OilKit.pipe(walls, Vector3(fl.x, y0, fl.y), Vector3(road_p.x, _ground_y(road_p.x, road_p.y) + 0.25, road_p.y), 0.07, Color(0.32, 0.31, 0.3), 6)
 		k += 1
 	# The lease sign at the pad's entrance: the lease and the well numbers.
 	var first: int = absi(hash([f.seed, "oil_wellno", pd.id])) % 80 + 1
 	var label := "%s  %d" % [pd.lease, first] if (pd.wells as Array).size() == 1 else "%s  %d-%d" % [pd.lease, first, first + (pd.wells as Array).size() - 1]
-	var sp: Vector2 = (pd.c as Vector2) - out * (float(pd.r) - 0.6) + dir * (float(pd.r) - 1.0)
+	var sp: Vector2 = (pd.c as Vector2) - out * (float(pd.hz) - 0.6) + dir * (float(pd.hx) - 1.0)
 	OilKit.sign(walls, _at(sp), -out, [label, OilField.OPERATOR], 1.3, 0.8, 0.9)
 
 
@@ -389,18 +390,13 @@ func _battery(pd: Dictionary) -> void:
 	var pitch := r * 2.0 + 1.0
 	var row_c := c + out * 3.2
 	var y := _ground_y(c.x, c.y)
-	if not full:
-		for k in n:
-			var p := row_c + dir * (float(k) - float(n - 1) * 0.5) * pitch
-			ch._batch.add("lod_box", PropFactory.unit_box(), Transform3D(Basis().scaled(Vector3(r * 1.8, h, r * 1.8)), Vector3(p.x, CityChunk.SIDEWALK_TOP + h * 0.5, p.y)),
-				paint, Color(0.0, 0.0, 0.0, 1.0))
-		return
 	var o3 := Vector3(out.x, 0, out.y)
 	var d3 := Vector3(dir.x, 0, dir.y)
 	for k in n:
 		var p := row_c + dir * (float(k) - float(n - 1) * 0.5) * pitch
 		OilKit.tank(walls, Vector3(p.x, y, p.y), r, h, paint * lerpf(0.94, 1.04, OilField._h01([f.seed, "oil_tk", pd.id, k])), o3 if k == 0 else -o3)
-		ch._add_shape(Vector3(r * 1.7, h, r * 1.7), Vector3(p.x, y + h * 0.5, p.y))
+		if full:
+			ch._add_shape(Vector3(r * 1.7, h, r * 1.7), Vector3(p.x, y + h * 0.5, p.y))
 	# The containment berm round the row: a low concrete wall.
 	var hl := float(n) * pitch * 0.5 + 1.6
 	var hw := r + 2.0
@@ -452,7 +448,7 @@ func _battery(pd: Dictionary) -> void:
 	OilKit.pipe(walls, Vector3(man0.x, y + 1.0, man0.y), Vector3(man1.x, y + 1.0, man1.y), 0.1, Color(0.32, 0.31, 0.3), 8)
 	OilKit.pipe(walls, Vector3(man0.x, y + 1.0, man0.y), Vector3(sep.x, sy + 1.0, sep.y), 0.1, Color(0.32, 0.31, 0.3), 8)
 	OilKit.pipe(walls, Vector3(sep.x, sy + 2.0, sep.y), Vector3(ht.x, hy + 1.6, ht.y), 0.09, Color(0.32, 0.31, 0.3), 8)
-	OilKit.sign(walls, _at(c - out * (float(pd.r) - 0.8) + dir * 5.0), -out, ["NO SMOKING - FLAMMABLE", "H2S GAS MAY BE PRESENT", OilField.OPERATOR], 1.6, 1.1, 0.9)
+	OilKit.sign(walls, _at(c - out * (float(pd.hz) - 0.8) + dir * 5.0), -out, ["NO SMOKING - FLAMMABLE", "H2S GAS MAY BE PRESENT", OilField.OPERATOR], 1.6, 1.1, 0.9)
 	_pool(row_c - out * (r + 1.0), 16.0, 1.0)
 
 
@@ -462,17 +458,13 @@ func _rig(pd: Dictionary) -> void:
 	var out: Vector2 = pd.out
 	var y := _ground_y(c.x, c.y)
 	var paint := OilKit.RIG_RED if OilField._h01([f.seed, "oil_rig_paint", pd.id]) < 0.5 else OilKit.RIG_CREAM
-	var mast_c := c + out * 2.0
+	var mast_c := c + dir * 6.0 + out * 2.0
 	var deck := 6.2
 	var mast_h := 36.0
-	if not full:
-		ch._batch.add("lod_box", PropFactory.unit_box(), Transform3D(Basis().scaled(Vector3(9.0, deck, 9.0)), Vector3(mast_c.x, CityChunk.SIDEWALK_TOP + deck * 0.5, mast_c.y)),
-			Color(0.35, 0.33, 0.3), Color(0.0, 0.0, 0.0, 1.0))
-		ch._batch.add("lod_box", PropFactory.unit_box(), Transform3D(Basis().scaled(Vector3(2.6, mast_h, 2.6)), Vector3(mast_c.x, CityChunk.SIDEWALK_TOP + deck + mast_h * 0.5, mast_c.y)),
-			paint, Color(0.0, 0.0, 0.0, 1.0))
-		return
-	var o3 := Vector3(out.x, 0, out.y)
-	var d3 := Vector3(dir.x, 0, dir.y)
+	# The rig's own frame: its V-door, ramp, catwalk and pipe racks run down the pad toward -dir
+	# (`-o3`), the mud tanks the other way, the generators and the trailer to either side (`d3`).
+	var o3 := Vector3(dir.x, 0, dir.y)
+	var d3 := Vector3(out.x, 0, out.y)
 	var basis := Basis(d3, Vector3.UP, d3.cross(Vector3.UP)).orthonormalized()
 	var at := Vector3(mast_c.x, y, mast_c.y)
 	# Substructure: four box legs, cross bracing, the drill floor.
@@ -484,10 +476,12 @@ func _rig(pd: Dictionary) -> void:
 	IndustrialKit.box(walls, Transform3D(basis, at + Vector3(0, deck + 0.2, 0)), Vector3(9.4, 0.4, 9.4), IndustrialKit.K_STEEL, Color(0.4, 0.39, 0.37), 0.0, 0)
 	for e: Array in [[-1.0, -1.0, 1.0, -1.0], [1.0, -1.0, 1.0, 1.0], [-1.0, 1.0, -1.0, -1.0]]:
 		OilKit.railing(walls, at + d3 * float(e[0]) * 4.6 + o3 * float(e[1]) * 4.6 + Vector3(0, deck + 0.4, 0), at + d3 * float(e[2]) * 4.6 + o3 * float(e[3]) * 4.6 + Vector3(0, deck + 0.4, 0), OilKit.SAFETY)
-	ch._add_shape_xf(Vector3(9.4, deck + 0.4, 9.4), Transform3D(basis, at + Vector3(0, (deck + 0.4) * 0.5, 0)))
+	if full:
+		ch._add_shape_xf(Vector3(9.4, deck + 0.4, 9.4), Transform3D(basis, at + Vector3(0, (deck + 0.4) * 0.5, 0)))
 	# The mast over the rotary, its V-door toward the road.
 	OilKit.derrick(walls, at + Vector3(0, deck + 0.4, 0), 6.0, mast_h, paint, -o3)
-	ch._add_shape(Vector3(3.0, mast_h, 3.0), at + Vector3(0, deck + mast_h * 0.5, 0))
+	if full:
+		ch._add_shape(Vector3(3.0, mast_h, 3.0), at + Vector3(0, deck + mast_h * 0.5, 0))
 	# The doghouse on the floor, the drawworks, the V-door ramp down to the pipe racks.
 	IndustrialKit.box(walls, Transform3D(basis, at + d3 * 3.0 + o3 * 2.4 + Vector3(0, deck + 1.65, 0)), Vector3(2.8, 2.5, 3.6), IndustrialKit.K_TRAILER, Color(0.85, 0.84, 0.8))
 	IndustrialKit.box(walls, Transform3D(basis, at - d3 * 2.6 + o3 * 1.6 + Vector3(0, deck + 1.2, 0)), Vector3(2.4, 1.6, 2.6), IndustrialKit.K_STEEL, paint * 0.7)
@@ -590,7 +584,7 @@ func _pipes_and_poles() -> void:
 
 func _in_pad(p: Vector2, pad: float) -> bool:
 	for pd: Dictionary in f.pads:
-		if p.distance_to(pd.c) < float(pd.r) + pad:
+		if OilField.pad_dist(pd, p) < pad:
 			return true
 	return false
 
@@ -686,7 +680,7 @@ func _commit() -> void:
 		dm.mesh = dirt.commit()
 		dm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		ch.add_child(dm)
-	if full:
+	if walls != null:
 		walls.set_material(IndustrialKit.walls_material())
 		var arrays := walls.commit_to_arrays()
 		if arrays.size() > 0 and arrays[Mesh.ARRAY_VERTEX] != null and (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() > 0:
@@ -764,7 +758,7 @@ func _capture() -> void:
 			var row := (pd.c as Vector2) + (pd.out as Vector2) * 3.2
 			(cap.boxes as Array).append([Transform3D(Basis(Vector3.UP, atan2(-dir.y, dir.x)).scaled(Vector3(24.0, 7.0, 5.4)), Vector3(row.x, g + 3.5, row.y)), Color(0.55, 0.52, 0.44)])
 		elif int(pd.kind) == OilField.Pad.RIG:
-			var m := (pd.c as Vector2) + (pd.out as Vector2) * 2.0
+			var m := (pd.c as Vector2) + (pd.dir as Vector2) * 6.0 + (pd.out as Vector2) * 2.0
 			(cap.boxes as Array).append([Transform3D(Basis().scaled(Vector3(9.0, 6.2, 9.0)), Vector3(m.x, g + 3.1, m.y)), Color(0.35, 0.33, 0.3)])
 			(cap.boxes as Array).append([Transform3D(Basis().scaled(Vector3(2.2, 36.0, 2.2)), Vector3(m.x, g + 6.2 + 18.0, m.y)), Color(0.6, 0.25, 0.18)])
 
@@ -816,22 +810,24 @@ static func lights_mesh(macro: MacroMap) -> ArrayMesh:
 					var w0 := row - dir * (float(n - 1) * 0.5 * pitch + 0.8)
 					var w1 := row + dir * (float(n - 1) * 0.5 * pitch + 0.8)
 					var lp := w0.lerp(w1, float(k) / 2.0) + out * 0.5
-					specs.append([Vector3(lp.x, y + 7.0 + 0.35 + 1.75, lp.y), warm, 0.9, 4])
+					specs.append([Vector3(lp.x, y + lerpf(6.4, 7.6, OilField._h01([f.seed, "oil_tank_h", pd.id])) + 0.35 + 1.95, lp.y), warm, 1.4, 4])
 			OilField.Pad.RIG:
-				var m := c + out * 2.0
+				var m := c + dir * 6.0 + out * 2.0
 				var base := y + 6.6
-				for l in 5:
-					var hh := 6.0 + float(l) * 6.5
+				# Work lights up every leg of the mast, the floodlights on the floor, the red light
+				# on the crown: a rig at night is lit top to bottom.
+				for l in 7:
+					var hh := 3.0 + float(l) * 5.4
 					var wdt := lerpf(6.0, 1.44, hh / 36.0) * 0.5
 					for corner: Vector2 in [Vector2(-1, -1), Vector2(1, 1), Vector2(1, -1), Vector2(-1, 1)]:
-						if (l + int(corner.x + 2.0)) % 2 == 1:
+						if (l + int(corner.x + 2.0) + int(corner.y + 2.0)) % 2 == 1:
 							continue
 						var q := m + (dir * corner.x + out * corner.y) * (wdt + 0.3)
-						specs.append([Vector3(q.x, base + hh, q.y), white, 1.4, 4])
-				specs.append([Vector3(m.x, base + 37.2, m.y), red, 1.3, 2])
+						specs.append([Vector3(q.x, base + hh, q.y), white, 2.0, 4])
+				specs.append([Vector3(m.x, base + 37.2, m.y), red, 2.0, 2])
 				for k in 4:
 					var q := m + Vector2(cos(float(k) * PI * 0.5), sin(float(k) * PI * 0.5)) * 4.8
-					specs.append([Vector3(q.x, base + 0.9, q.y), white, 1.0, 4])
+					specs.append([Vector3(q.x, base + 0.9, q.y), white, 1.6, 4])
 	for g: Dictionary in f.gates:
 		var p: Vector2 = g.p
 		specs.append([Vector3(p.x, gy.call(p) + 4.2, p.y), warm, 0.8, 4])
@@ -866,13 +862,15 @@ static func build_lot(c: CityChunk, lot: Dictionary, w: Dictionary) -> Rect2:
 	var full := c.level == CityChunk.Level.FULL and not c.capturing
 	var mesh := OilKit.pumpjack(not full)
 	var wear := OilField._h01([c.plan.seed, "oil_lot_wear", lot.seed])
-	c._batch.add("pumpjack", mesh, well_xform(w, CityChunk.SIDEWALK_TOP + 0.05), Color.WHITE, well_custom(w, 0.4 + 0.5 * wear))
+	for u: Dictionary in w.wells:
+		c._batch.add("pumpjack", mesh, well_xform(u, CityChunk.SIDEWALK_TOP + 0.05), Color.WHITE, well_custom(u, 0.4 + 0.5 * wear))
+		if c.capturing:
+			var g := CityChunk.SIDEWALK_TOP + c._gy((u.p as Vector2).x, (u.p as Vector2).y)
+			var fwd := Vector2(cos(float(u.yaw)), -sin(float(u.yaw)))
+			var sc: float = u.scale
+			var bm := (u.p as Vector2) + fwd * ((OilKit.PIVOT.x - 0.5) * sc)
+			(c.captured.boxes as Array).append([Transform3D(Basis(Vector3.UP, float(u.yaw)).scaled(Vector3(8.0 * sc, 0.9 * sc, 0.6 * sc)), Vector3(bm.x, g + 6.6 * sc, bm.y)), Color(0.42, 0.43, 0.4)])
 	if c.capturing:
-		var g := CityChunk.SIDEWALK_TOP + c._gy((w.p as Vector2).x, (w.p as Vector2).y)
-		var fwd := Vector2(cos(float(w.yaw)), -sin(float(w.yaw)))
-		var sc: float = w.scale
-		var bm := (w.p as Vector2) + fwd * ((OilKit.PIVOT.x - 0.5) * sc)
-		(c.captured.boxes as Array).append([Transform3D(Basis(Vector3.UP, float(w.yaw)).scaled(Vector3(8.0 * sc, 0.9 * sc, 0.6 * sc)), Vector3(bm.x, g + 6.6 * sc, bm.y)), Color(0.42, 0.43, 0.4)])
 		return pad
 	var b := OilFieldBuild.new()
 	b.ch = c
@@ -902,9 +900,10 @@ static func build_lot(c: CityChunk, lot: Dictionary, w: Dictionary) -> Rect2:
 	c.add_child(dm)
 	if not full:
 		return pad
-	var sc: float = w.scale
-	var fwd := Vector2(cos(float(w.yaw)), -sin(float(w.yaw)))
-	c._add_shape(Vector3(9.6 * sc, 2.6 * sc, 2.4 * sc), b._at((w.p as Vector2) + fwd * (-5.6 * sc), 1.3 * sc), float(w.yaw))
+	for u: Dictionary in w.wells:
+		var sc: float = u.scale
+		var fwd := Vector2(cos(float(u.yaw)), -sin(float(u.yaw)))
+		c._add_shape(Vector3(9.6 * sc, 2.6 * sc, 2.4 * sc), b._at((u.p as Vector2) + fwd * (-5.6 * sc), 1.3 * sc), float(u.yaw))
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st.set_smooth_group(-1)
