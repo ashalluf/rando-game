@@ -562,7 +562,7 @@ already mapped so milestone 2 is script-only.
   (4) No medians: the plan has none, and adding them is a street-layout change outside this
   feature. Names invented.
 - **2026-10-05 Construction: tower sites with cranes, house frames, road works (VISUAL_ROADMAP
-  #100, HANDOFF 9dd).** A real city is always being built, and the game's never was. `Construction`
+  #91, HANDOFF 9cv).** A real city is always being built, and the game's never was. `Construction`
   claims a share of downtown and midtown blocks' best tall lot for a tower going up (its Building
   is freed before its own rolls run), a share of HouseKit's lots for a timber frame on the house's
   own plan, and at most one parking-lane closure a chunk for road works - every decision a hash of
@@ -577,8 +577,8 @@ already mapped so milestone 2 is script-only.
   away. Workers reuse StreetVendor (a placed, standing pedestrian) with ApronCrew's hi-vis and a
   hard hat modelled round each rig's head like FireHelmet.
 
-- **2026-10-05 Boulevard signs: pole signs, window vinyl, banners and street plates (VISUAL_ROADMAP #102,
-  HANDOFF 9df).** LA's commercial streets read as signs everywhere and ours had shop bands
+- **2026-10-05 Boulevard signs: pole signs, window vinyl, banners and street plates (VISUAL_ROADMAP #93,
+  HANDOFF 9cx).** LA's commercial streets read as signs everywhere and ours had shop bands
   and billboards only. Pole signs stand in the gap between two buildings (or a car park's front
   corner), 0.35 m behind the pavement, their heads along the gap, so no facade can meet one and no
   rng is touched; one atlas of invented art and one shader for every kind, one batch per kind a
@@ -688,7 +688,7 @@ already mapped so milestone 2 is script-only.
   down the banks, the bed and the low-flow channel have collision (a car down a ramp is a smoke
   check). Everything is code at real size; the far city gets boxes.
 
-- **2026-10-05 Hospitals: campuses the ambulances drive their patients to (HANDOFF 9dg).** The
+- **2026-10-05 Hospitals: campuses the ambulances drive their patients to (HANDOFF 9cy).** The
   ambulances had nowhere to go: a crew loaded the patient and the unit drove off to be pooled.
   `Hospital` places a few campuses across the map (a hash of seed + 1.5 km cell, the first
   suitable block among its candidates) and one medical centre in Westlake west of downtown, as
@@ -1081,7 +1081,7 @@ already mapped so milestone 2 is script-only.
   really blank (sound, yard and campus walls, freeway columns, the clear bands StreetWear's
   `_paintable()` finds on a Building) - never over glass, so a Building gets ghost signs and
   friezes in its bands, not wall-sized murals (no Building face is windowless). Transparent, drawn
-  before the street wear so tags land on top; FULL chunks only. docs/HANDOFF.md 9de (murals);
+  before the street wear so tags land on top; FULL chunks only. docs/HANDOFF.md 9cw (murals);
   CLAUDE.md "Murals".
 
 - **2026-10-05 The cumulus read as photographs, not paintings (owner's review of wt/sky).** Flat

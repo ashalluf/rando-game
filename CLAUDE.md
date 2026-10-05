@@ -1309,7 +1309,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   in linear (color_space). `BILLBOARDS=0` in the environment is the A/B; `BB_DEBUG=1` prints
   each face with an EYE; `tools/billboard_probe.tscn -- --spawn=x,z` counts the boards round a
   point. Checks: `tests/billboard_checks.gd`.
-- Murals (2026-10-05, VISUAL_ROADMAP #101, docs/HANDOFF.md 9de murals): `Murals`
+- Murals (2026-10-05, VISUAL_ROADMAP #92, docs/HANDOFF.md 9cw murals): `Murals`
   (`scripts/world/murals.gd`, static; one build step after StreetWear that queues its work as the
   last step before the finish, so YardFill's deferred walls exist) paints big scenes on walls that
   are really blank - YardFill's tall stucco / sound / concrete / brick walls (`ch._yard_walls`,
@@ -1329,7 +1329,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   safe) in the shader header. `MURALS=0` is the A/B. Look: `tools/glshot/mural_shot.gd` (seconds),
   `MURAL_DEBUG=1 tools/murals/probe.gd -- --spawn=x,z` (placements with EYEs). Checks:
   `tests/murals_checks.gd`.
-- Boulevard signs (2026-10-05, docs/HANDOFF.md 9df): `BoulevardSigns`
+- Boulevard signs (2026-10-05, docs/HANDOFF.md 9cx): `BoulevardSigns`
   (`scripts/world/boulevard_signs.gd`, static; meshes `SignKit`, `scripts/world/sign_kit.gd`; ONE
   shader `shaders/boulevard_sign.gdshader`; ONE atlas `assets/textures/boulevard_signs/sign_atlas.png`
   from `tools/make_sign_art.py`, which also writes `SignArtTable`). Tall POLE SIGNS on MIDTOWN
@@ -1625,7 +1625,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   kerb in front of a gate (`keeps_clear()`). `POLICE_STATIONS=0` in the environment turns them off
   (the A/B). Stills: `tools/glshot/block_shot.tscn` EYEs and `tools/glshot/police_station_shot.gd`
   (the gate sequence); checks: `tests/police_station_checks.gd`.
-- Hospitals (2026-10-05, "hospitals the ambulances go to"; HANDOFF 9dg). `Hospital`
+- Hospitals (2026-10-05, "hospitals the ambulances go to"; HANDOFF 9cy). `Hospital`
   (`scripts/world/hospital.gd`, static) is WHERE, worked out like FireStation's stations: the map
   in `CELL` 1500 m squares, a hash of seed + cell picks up to `CANDIDATES` points, the first whose
   block passes `_suitable()` (big enough - `MIN_INNER` inside the pavement -, MIDTOWN / SUBURBS /
@@ -3929,8 +3929,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `Pedestrian.warm_far_mesh()`: ~12 ms a hat, ~10 ms of hair a kind on this box). Look with
   `tools/glshot/crowd_lineup.gd` `HATS=cap,beanie,bucket,police` (`HAT_PICKS=` the colourways);
   checks: `tests/crowd_hat_checks.gd`.
-- Construction (VISUAL_ROADMAP #100, 2026-10-05: "a real city is always being built"; HANDOFF
-  9dd). `Construction` (`scripts/world/construction.gd`, static) plans and builds three things,
+- Construction (VISUAL_ROADMAP #91, 2026-10-05: "a real city is always being built"; HANDOFF
+  9cv). `Construction` (`scripts/world/construction.gd`, static) plans and builds three things,
   every decision a hash of seed + place taken AFTER every roll the city makes: **tower sites**
   (`tower_site(plan, bx, bz)`, pure, cached: `TOWER_BLOCK_ODDS` of DOWNTOWN / MIDTOWN BUILDINGS
   blocks, the block's lot at least `TOWER_MIN_LOT` with a planned building over

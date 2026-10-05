@@ -9379,7 +9379,7 @@ ramp may sit beside a parked car of the neighbouring chunk. Blue zones carry no 
 symbol. The paving shader's joints are in world space, so a heaved slab lines up with them only
 until the next origin shift.
 
-## 9dd. Construction: tower sites with cranes, timber house frames, road works, 2026-10-05 (agent branch `wt/construction`; VISUAL_ROADMAP #100)
+## 9cv. Construction: tower sites with cranes, timber house frames, road works, 2026-10-05 (agent branch `wt/construction`; VISUAL_ROADMAP #91)
 
 The brief (lead, from "make the graphics a million times better"): a real city is always being
 built. High-rise sites downtown and in midtown with a tower crane, timber-frame houses in the
@@ -9490,7 +9490,7 @@ on the slab. Road works never close a travel lane (by design) and nothing knocks
 (no industrial or campus building sites); the far city's frame is plain plant boxes (no netting or
 glass reflection out there).
 
-## 9de. Murals, ghost signs, painted crosswalks and cabinets, 2026-10-05 (agent branch `wt/murals`; VISUAL_ROADMAP #101)
+## 9cw. Murals, ghost signs, painted crosswalks and cabinets, 2026-10-05 (agent branch `wt/murals`; VISUAL_ROADMAP #92)
 
 LA is a city of murals; the city had the Arts District's abstract warehouse murals (Industrial)
 and StreetWear's tags and posters, and nothing else painted. `Murals`
@@ -9563,7 +9563,7 @@ banks and under the bridges (the river has its own graffiti); a coarse tint of b
 chunks. NEEDS MAC CHECK: the paint under Forward+ (colours go through color_space, judged on
 opengl3 only).
 
-## 9df. Boulevard signs: pole signs, motel neon, window vinyl, banners and street plates, 2026-10-05 (agent branch `wt/signage`; VISUAL_ROADMAP #102)
+## 9cx. Boulevard signs: pole signs, motel neon, window vinyl, banners and street plates, 2026-10-05 (agent branch `wt/signage`; VISUAL_ROADMAP #93)
 
 The brief: the visual noise of LA's commercial boulevards. Billboards (9bo), shop sign bands,
 blade signs and channel letters (Building / ShopfrontKit) and A-frames (StreetClutter) already
@@ -9626,7 +9626,7 @@ existed; the plazas' own pylon is Commercial's (the roadside session's file, unt
   houses). The vinyl floats 12 cm in front of the traced glass (seen at a grazing angle). Signs do
   not light the street (emission only). Banner and plate posts are not in the LOD/far city.
 
-## 9dg. Hospitals: the ER the ambulances drive to, 2026-10-05 (agent branch `wt/hospital`; VISUAL_ROADMAP #94)
+## 9cy. Hospitals: the ER the ambulances drive to, 2026-10-05 (agent branch `wt/hospital`; VISUAL_ROADMAP #94)
 
 **What.** The ambulances had nowhere to take anyone: a crew loaded the patient and the unit drove
 off to be pooled. Now a few hospital campuses stand across the map and one large medical centre
