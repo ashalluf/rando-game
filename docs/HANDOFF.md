@@ -8698,5 +8698,9 @@ its ring scaled about the corner with their margin, the minimap's canvas kept at
 bar over the scaled minimap, the full map's marks layer scaled to the window and a mark landing
 where the map draws its place, and the splash shader's colour-space lines.
 
-**Frame cost.** No geometry added or removed (a vertex colour and shader lines on Broadway, a 2D
-transform on the HUD): see the GEO numbers in the session's final report.
+**Frame cost** (`tools/geo_count.gd`, opengl3 + Xvfb, 800x600, `--spawn=2984,170,180,4,2
+--hour=21`, Broadway south from 6th): 5,198,316 triangles and 2,980 draws before and after - no
+geometry added or removed (a vertex colour and shader lines on Broadway, a 2D transform on the
+HUD). Gate: 1,372 checks passed, peak 3.2 GB RSS. (A first run failed the ambulance stretcher pair
+once - a paramedic sunk 0.6 m under the road at (92, 33), nowhere near this work - and passed on
+the rerun: flaky, worth watching.)
