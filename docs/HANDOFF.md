@@ -8646,3 +8646,14 @@ deco storefront sign bands are the shader's stand-in strips (no TextMesh names).
 billboards or the facade kit on deco buildings. The theatre's auditorium side walls are plain
 plaster. Palms are planted per lot; a frontage split between deco and ordinary lots keeps its
 street trees on the ordinary part. No medians (the plan has none).
+
+**Brought up to date with fleet/base (wave 2).** Merged with no code changes beyond the hooks: the
+deco step sits after the sidewalk furniture and before Broadway's in `_block_steps()`, its checks
+after the four-level stack's in the smoke test. One fix from review: the plan now leaves the lots a
+fire station, a police station or a Broadway palace claims (`_build_lot()` asks those first, so a
+deco plan there was never built but could still take the block's one theatre). Gate on the merge:
+1,379 of 1,380 (the known "the map draws no closed road" only), peak ~3.2 GB. Frame cost on the
+merged branch, `EYE=690,1.7,318,-70,4` noon: 5.33 M / 3,078 draws (`DECO=0`) -> 5.02 M / 2,554; the
+corner `715,1.7,312,-147,10`: 4.62 M / 2,086 -> 4.70 M / 1,874. Stills 10-18 on `shots/wilshire-deco`.
+Not done: deco walls take no BuildingDamage (they are not `Building` nodes, so rounds leave no
+crazed panes on them); still unseen on Forward+.
