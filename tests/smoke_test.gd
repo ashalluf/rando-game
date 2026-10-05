@@ -2228,6 +2228,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The four-level stack (tests/stack_interchange_checks.gd): levels, separations, grades, banks,
 	# columns, the chunk's meshes, and the connector traffic handed to and from the freeway's.
 	await load("res://tests/stack_interchange_checks.gd").new().run(self, city)
+	# Shop-window vinyl (tests/shop_vinyl_checks.gd): the font's text table is Building's names.
+	load("res://tests/shop_vinyl_checks.gd").new().run(self, city)
 	# Service alleys (tests/alley_checks.gd): the band on the lot grid's seam, the runs clear of the
 	# buildings, one ground and one upright mesh a chunk, the mouths clear, nothing else moved.
 	load("res://tests/alley_checks.gd").new().run(self, city)

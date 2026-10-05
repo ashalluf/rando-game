@@ -8940,6 +8940,90 @@ one a job, in the crowd cap (a full smoke run's cap can leave the court empty).
 AgX and bloom, the gilt) - Mac eyes needed; the hall has no interior; there are no
 Chinese characters on the signs (the default font has none; the signs use English names only,
 as many real ones do alongside characters); a deep lot's blank party walls are plain stucco.
+
+## 9eq. Shop-window vinyl: real words on the glass, 2026-10-05 (agent branch `wt/shop-vinyl`; VISUAL_ROADMAP #136)
+
+**What it was.** `building.gdshader`'s `shop_decal()` put lettering across about 40 % of the display
+windows and an OPEN plate on the doors, drawn by `fake_glyph()`: sixteen invented capitals picked
+by hash, so every window spelled gibberish ("TSHNEENA") and the door plates said nothing. From the
+pavement it was the most obviously fake thing on a shopping street.
+
+**What it is.** A real stroke font and real text, all in the shader:
+
+- `tools/make_vinyl_font.py` writes `shaders/vinyl_lettering.gdshaderinc` (GENERATED: rerun it after
+  changing `Building.SHOP_NAMES` or the phrases; `--preview out.png` renders the font with the same
+  distance field in PIL, in a second). 50 glyphs - A-Z, tabular 0-9, `& - . , : ' / ! $ % ( ) # +` -
+  as centre-line segments on a grid six units tall (arcs sampled to at most 16 segments a glyph),
+  packed four coordinates to a uint (327 uints); the text five 6-bit codes to a uint (182 uints for 92
+  strings). `vt_ink()` walks the string to the glyph under the pixel (proportional advances), takes
+  the distance to its segments, and draws a round-capped stroke of a chosen weight with an optional
+  keyline (the gold leaf's dark edge); antialiased by the pixel size the caller passes (`px_m`, no
+  derivatives in branches) and faded to the text's average ink once the stroke is under a pixel.
+- The text table is `Building.SHOP_NAMES` in order (string i is name i) and then the phrases. `@` in
+  a phrase is a digit of the shop's own hash (salt 60 + the digit's index): `CALL 555-01@@`,
+  `(213) 555-01@@` (the fictional 555-01xx range), `SINCE 19@@`, `EST. 19@@`, the door's `@@@@`.
+- The shader knows each shop's NAME: `Building.shop_name_codes()` packs `shop_names()` for each
+  face's first `SHOP_ROOM_SLOTS` (7) shops as index + 1 in six bits (`shop_names_a`: shops 0-4,
+  `shop_names_b`: 5-6), exactly like `shop_rooms`. 0 is unknown (shop 7 on, the landmark towers, which
+  never set it): that bay says a phrase instead (NOW OPEN, OPEN 7 DAYS, GRAND OPENING, OPEN LATE).
+- Layout (`shop_decal()`, sizes are real vinyl's): 59 % of shops (salt 20 < 150) put their NAME across
+  the bay before the door, 11-19 cm caps at 1.76 m, white, gold leaf with a keyline or red, bold or
+  regular (salts 23, 50, 55), with a 5.5 cm line under it two times in three (salt 52); another bay of
+  the shop gets a promo at eye height (salts 53-54), big and red (SALE, 50% OFF, CLOSING SALE), middle
+  (GRAND OPENING, NEW ARRIVALS, WASH & FOLD ...) or 8.5 cm; the posters keep their place and get a
+  promo as their headline. **The lines and promos are the shop's ROOM KIND's** (lead review: a BANK
+  said FREE ESTIMATES): `VT_TAG` / `VT_PROMO`, eight each per kind, written by the generator from
+  `TAGS` / `PROMOS`, every entry checked against `FITS` (which kinds a phrase may stand in the window
+  of - a BANK kind is also the dentist, the tax office and the money-transfer counter, a BARBER the
+  nail salon and the tattooist, so a kind's lines fit every name under it): a laundromat says WASH &
+  FOLD / COIN LAUNDRY, a cafe FREE WIFI / FRESH DAILY, a restaurant CATERING / WE DELIVER, a barber
+  WALK-INS WELCOME, clothing ALTERATIONS / NEW ARRIVALS, a bank-kind office MON-FRI 9-5 / FREE
+  CONSULTATION / BY APPOINTMENT, only retail and clothing a SALE, plus the generic phone / year /
+  FAMILY OWNED lines anyone may carry. The kind is the room the shader already draws behind the glass
+  (`room_kind`: from the name for the first seven shops, else its hash), so the words and the room agree.
+  On the door: a gold street number on the transom (salt 56), the HOURS card with two or three real
+  lines from five schedules (salt 57: MON-FRI 9-6 / SAT 10-5 / SUN CLOSED, OPEN 24 HOURS, ...), and
+  the OPEN plate now says OPEN. Text is fitted: a line never runs wider than its share of the pane.
+- `SHOP_VINYL=0` in the environment (`Building.vinyl_enabled` -> the `shop_vinyl` uniform) leaves the
+  glass bare: the A/B.
+
+**Cost.** Everything outside a line's box is a few compares (the box test comes first); inside one, a
+walk of up to 19 characters and up to 16 segment distances for one glyph - only on the pixels of the
+letters' boxes. No textures, no new draws or triangles.
+
+**Checks** (`tests/shop_vinyl_checks.gd`, loaded by one line in the smoke test): the generated table
+starts with `Building.SHOP_NAMES` and every name decodes back to itself; the phrase numbers
+shop_decal() uses name the phrases it means; '0' is code 27 (the hash digits) and every glyph fits the
+segment loop; every kind's lines and promos fit it (VT_FITS) and, by a table written in the check
+itself, no trade's line (WASH & FOLD, SALE, WALK-INS WELCOME, FREE WIFI, ATM INSIDE, MON-FRI 9-5 ...)
+stands in another kind's window and FREE ESTIMATES nowhere; `shop_name_codes()` decodes to
+`shop_names()` on three seeds; building.gdshader includes the font, takes the codes, picks by kind
+and no longer has `fake_glyph`. The lettering reads left to right from outside on every wall: a check models the shader's u
+formulas (u grows to the left of someone facing the wall on +X, -X, +Z and -Z, and round a tower's
+positive-area outline) against the pane's x running from the high end of u; stills 20-23 show the
+four faces of one building. (A mirrored-letters report from another branch's still was the OLD
+fake_glyph code, which that branch still carries; it goes when this branch is merged.)
+
+**Frame cost.** No geometry, draws or textures added (geo_count unchanged by construction).
+Fragment cost on a frame filled with storefronts (`building_shot.gd BENCH=40`, llvmpipe, 1280x720,
+`CAM_POS=-4,1.8,15 CAM_FOV=70`, two runs each): old shader 102.7 / 98.1 ms, new 96.3 / 100.0 ms,
+`SHOP_VINYL=0` 101.0 / 102.1 ms - within the noise.
+
+**Stills** (shots/shop-vinyl; opengl3, not the Mac's Forward+): before / after pairs of the BANK,
+CAMERA / PIZZA, SHOE REPAIR / OPTICAL and BAKERY / LIQUOR storefronts in midtown (EYEs round
+(900-970, 255-300) with `EYE_AGL=1`), the street at noon and 21:00, a DRY CLEAN close-up from
+`building_shot.gd`, and the font preview.
+
+**Gate.** 1,370 checks pass on the merged head (one earlier run on it lost the two ambulance
+stretcher checks in `emergency_checks.gd` - a physics-timing flake, the next run passed them;
+nothing here touches them).
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the gold leaf and the keyline are judged
+on opengl3 only. Shops past the seventh on a face and the landmark towers' storefronts have no name
+(a phrase instead). A name runs straight across its bay and through a centre mullion where the shop
+has one (real vinyl is usually laid out round it). Text is caps only; no lower case, no script or
+arched layouts, no card-scheme stickers (they would be brands). The hours lines (2 cm) only resolve
+within a couple of metres; past that they fade to grey lines by design.
 ## 9cn. Photographic cumulus, 2026-10-05 (agent branch `wt/sky`, fleet wave 2; VISUAL_ROADMAP row "?")
 
 **Why.** The owner's review of the last sky stills: the volumetric cumulus read stylised -
