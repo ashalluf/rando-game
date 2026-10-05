@@ -1708,6 +1708,7 @@ func _test_city() -> void:
 	# Car lamps and headlights (tests/car_lights_checks.gd): parked dark, brake, indicators,
 	# hazards, reverse, and CarLights' budgeted spot lights.
 	await load("res://tests/car_lights_checks.gd").new().run(self, city)
+	await load("res://tests/driving_fx_checks.gd").new().run(self, city) # skid marks, smoke, sparks (DrivingFX)
 	# The big vehicles (tests/big_vehicle_checks.gd): the bus, the box truck and the semi built,
 	# hit, the trailer's swing, the bus lines and stops, a bus at its stop, a queue behind a semi.
 	await load("res://tests/big_vehicle_checks.gd").new().run(self, city)
