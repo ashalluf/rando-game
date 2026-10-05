@@ -60,6 +60,7 @@ func run(t: Node, city: Node3D) -> void:
 		await _scrape()
 		await _ring()
 		await _exhaust(player, city)
+		await _orphan()
 		if weather:
 			weather.set("_wet_hold", hold)
 			weather.set("wetness", wet)
@@ -318,3 +319,32 @@ func _exhaust(player: Player, city: Node3D) -> void:
 	player.exit_vehicle()
 	dn.set("hour", hour)
 	await _clear()
+
+
+## A DrivingFX whose deferred add was dropped (its level freed first) is not taken for "made, add
+## pending" for ever: the next car makes another. Staged in a disabled holder of its own, so the
+## new node never ticks or touches the city's cars, and the real one is put back after.
+func _orphan() -> void:
+	var real := DrivingFX._inst
+	var made := DrivingFX._made_frame
+	var holder := Node3D.new()
+	holder.name = "DrivingFXOrphanCheck"
+	holder.process_mode = Node.PROCESS_MODE_DISABLED
+	_tree.root.add_child(holder)
+	var fake := DrivingFX.new()
+	DrivingFX._inst = fake
+	DrivingFX._made_frame = Engine.get_process_frames()
+	DrivingFX.ensure(holder)
+	var kept := DrivingFX._inst == fake
+	DrivingFX._made_frame = Engine.get_process_frames() - 5
+	DrivingFX.ensure(holder)
+	var remade := not is_instance_valid(fake) and DrivingFX._inst != null
+	await _tree.process_frame
+	await _tree.process_frame
+	var added := DrivingFX._inst != null and is_instance_valid(DrivingFX._inst) and DrivingFX._inst.get_parent() == holder
+	_check(kept, "a DrivingFX made this frame and not yet added counts as made")
+	_check(remade and added, "one whose add never ran is freed and made again")
+	DrivingFX._inst = real
+	DrivingFX._made_frame = made
+	holder.queue_free()
+	await _tree.process_frame

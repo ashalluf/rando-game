@@ -51,6 +51,9 @@ enum Surface { ASPHALT, DIRT, SAND }
 @export var burnout_speed: float = 9.0
 ## How much a full-throttle launch counts as slip (m/s at standstill).
 @export var burnout_slip: float = 13.0
+## Share of that a plain full-throttle launch gets (no handbrake): a chirp and a puff, not a
+## burnout every time the car pulls away.
+@export var launch_spin: float = 0.45
 
 @export_group("Skid marks")
 ## Segments in the ring (the web gets 40 %).
@@ -478,9 +481,12 @@ func _tick_wheels(car: Vehicle, wet: float, smoke: Array, dust: Array, screech: 
 	var spin := 0.0
 	if throttle > 0.5 and absf(speed_fwd) < burnout_speed:
 		spin = (throttle - 0.5) / 0.5 * (1.0 - absf(speed_fwd) / burnout_speed)
-		# The handbrake held against the throttle is the burnout proper: the car stays put.
+		# The handbrake held against the throttle is the burnout proper: the car stays put. Without
+		# it an ordinary launch only chirps (nitro, throttle over 1, still lights them up).
 		if car.brake >= car.handbrake_force * 0.9:
 			spin = maxf(spin, minf(throttle, 1.0))
+		else:
+			spin *= launch_spin
 	var lock := 0.0
 	if car.brake >= minf(car.brake_force, car.handbrake_force) * 0.9 and v.length() > 3.0:
 		lock = v.length() * (0.6 if car.brake < car.brake_force * 0.9 else 0.85)
