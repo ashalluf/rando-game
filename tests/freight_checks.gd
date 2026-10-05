@@ -116,6 +116,7 @@ func _roads(city: Node3D, plan: CityPlan, line: FreightRail) -> void:
 			FreightRail.Junction.BRIDGE, FreightRail.Junction.CROSSING:
 				ok = ok and plan.road_open(CityPlan.AXIS_Z, k, line.avenue_x + line.avenue_width * 0.5 + 2.0)
 	_check(ok and severed >= 2, "the ramps sever %d cross streets at the avenue; decks and crossings stay open" % severed)
+	_check(line.junction_kind(line.yard_s) == FreightRail.Junction.CLOSED, "the yard's south street is severed, never a crossing")
 	var tm: TrafficManager = null
 	for n in city.get_children():
 		if n is TrafficManager:
@@ -246,6 +247,21 @@ func _chunks(city: Node3D, plan: CityPlan, line: FreightRail) -> void:
 	chunk.build()
 	_check(chunk.has_node("FreightStructure") and chunk.has_node("FreightTrack") and chunk.has_node("FreightBody") and chunk.has_node("FreightTies"),
 		"a FULL trench chunk builds the structure, the track, its ties and collision")
+	var ties := chunk.get_node("FreightTies") as MultiMeshInstance3D
+	_check(ties.multimesh.use_colors, "the ties' MultiMesh carries instance colours (Compatibility's COLOR)")
+	# No wall collision stands on a deck: every wall box's top is at or under the soffit there.
+	var wall_ok := true
+	for j in line.junctions:
+		if int(j.kind) != FreightRail.Junction.BRIDGE:
+			continue
+		var soffit: float = chunk._gy(line.avenue_x, float(j.z)) + CityChunk.ROAD_TOP - FreightKit.DECK_DEPTH
+		for cs in chunk.get_node("FreightBody").get_children():
+			if cs is CollisionShape3D and (cs as CollisionShape3D).shape is BoxShape3D:
+				var o: Vector3 = (cs as CollisionShape3D).position
+				var sz: Vector3 = ((cs as CollisionShape3D).shape as BoxShape3D).size
+				if absf(o.z - float(j.z)) < float(j.w) * 0.5 - 0.5 and absf(absf(o.x - line.avenue_x) - (FreightRail.TRENCH_HALF + FreightRail.TRENCH_WALL * 0.5)) < 0.05:
+					wall_ok = wall_ok and o.y + sz.y * 0.5 < soffit + 0.05
+	_check(wall_ok, "the trench walls' collision stops under every deck (no wall across a bridged street)")
 	var verts := 0
 	var finite := true
 	for nm: String in ["FreightStructure", "FreightTrack"]:

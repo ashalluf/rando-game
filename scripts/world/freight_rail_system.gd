@@ -27,6 +27,8 @@ extends Node3D
 @export var strike_reach: float = 1.4
 @export var strike_launch: float = 1.15
 @export var strike_damage: float = 11.0
+## How near the player a lead unit must be before it looks for what stands in front of it (m).
+@export var strike_query_range: float = 400.0
 ## Collision boxes on the cars within this distance of the player, at most `bodies`.
 @export var body_range: float = 70.0
 @export var bodies: int = 18
@@ -55,6 +57,10 @@ var _horn: AudioStreamPlayer3D
 var _horn_blast: AudioStreamPlayer3D
 var _horn_n := -1
 var _struck_at := -10.0
+## When each collider was last struck (instance id -> seconds), so a strike lands once.
+var _struck: Dictionary = {}
+var _strike_box := BoxShape3D.new()
+var _strike_q := PhysicsShapeQueryParameters3D.new()
 const CAP := 160
 const BOX_CAP := 260
 const FAR_CAP := 300
@@ -62,6 +68,9 @@ const FAR_CAP := 300
 
 func _ready() -> void:
 	name = "FreightRail"
+	_strike_q.shape = _strike_box
+	_strike_q.collision_mask = 8 | 4
+	_strike_q.collide_with_areas = false
 
 
 func _setup() -> bool:
@@ -297,40 +306,55 @@ static func _commit(mm: MultiMesh, buf: PackedFloat32Array, n: int, cap: int) ->
 
 # --- Collision -----------------------------------------------------------------------------------
 
-## Boxes on the nearest cars. A body that moves to a different car is teleported (no velocity from
-## it), one that stays with its car moves with sync_to_physics, so whoever stands on it rides.
+## Boxes on the nearest cars. A body keeps its car while the car stays among the nearest (it
+## moves with sync_to_physics, so whoever stands on it rides); only a body whose car left is
+## teleported to a newcomer, so a passing train no longer shuffles the bodies along it.
 func _bodies(near: Array) -> void:
 	near.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
-	var used := 0
+	var wanted: Dictionary = {}
+	for e: Array in near:
+		if wanted.size() >= _body_pool.size() or float(e[0]) >= body_range:
+			break
+		wanted[[int((e[3] as Dictionary).n), int(e[4])]] = e
+	var free: Array[int] = []
 	for i in _body_pool.size():
-		var body := _body_pool[i]
-		if i < near.size() and float(near[i][0]) < body_range:
-			var e: Array = near[i]
-			var xf: Transform3D = e[1]
-			var t: int = e[2]
-			var st: Dictionary = e[3]
-			var key := [int(st.n), int(e[4])]
-			var env := FreightStock.envelope(t)
-			var h := env.y - 0.9
-			if t == FreightRail.Car.WELL:
-				h = 5.3
-			var local := global_transform.affine_inverse() * Transform3D(xf.basis, WorldState.to_local(xf.origin + xf.basis.y * (0.9 + h * 0.5)))
-			if _body_key[i] != key:
-				var cs: CollisionShape3D = body.get_child(0)
-				(cs.shape as BoxShape3D).size = Vector3(env.x, h, env.z - 0.5)
-				body.sync_to_physics = false
-				body.transform = local
-				_body_key[i] = key
-			elif not body.transform.is_equal_approx(local):
-				# Moved only when the car moves: a body set where it already stands in a step of no
-				# time (Engine.time_scale 0) gets a velocity of 0 / 0.
-				body.sync_to_physics = true
-				body.transform = local
-			body.collision_layer = 4
-			used += 1
+		var key = _body_key[i]
+		if key != null and wanted.has(key):
+			_place_body(i, wanted[key], false)
+			wanted.erase(key)
 		else:
-			body.collision_layer = 0
-			_body_key[i] = null
+			free.append(i)
+	for key in wanted.keys():
+		if free.is_empty():
+			break
+		var i: int = free.pop_back()
+		_body_key[i] = key
+		_place_body(i, wanted[key], true)
+	for i: int in free:
+		_body_pool[i].collision_layer = 0
+		_body_key[i] = null
+
+
+func _place_body(i: int, e: Array, fresh: bool) -> void:
+	var body := _body_pool[i]
+	var xf: Transform3D = e[1]
+	var t: int = e[2]
+	var env := FreightStock.envelope(t)
+	var h := env.y - 0.9
+	if t == FreightRail.Car.WELL:
+		h = 5.3
+	var local := global_transform.affine_inverse() * Transform3D(xf.basis, WorldState.to_local(xf.origin + xf.basis.y * (0.9 + h * 0.5)))
+	if fresh:
+		var cs: CollisionShape3D = body.get_child(0)
+		(cs.shape as BoxShape3D).size = Vector3(env.x, h, env.z - 0.5)
+		body.sync_to_physics = false
+		body.transform = local
+	elif not body.transform.is_equal_approx(local):
+		# Moved only when the car moves: a body set where it already stands in a step of no
+		# time (Engine.time_scale 0) gets a velocity of 0 / 0.
+		body.sync_to_physics = true
+		body.transform = local
+	body.collision_layer = 4
 
 
 # --- Strikes and sound ---------------------------------------------------------------------------
@@ -356,18 +380,25 @@ func _strikes(leads: Array, pw: Vector3) -> void:
 				if _player.has_method("take_damage"):
 					_player.take_damage(v * strike_damage, WorldState.to_local(front), "train")
 				Sfx.play("freight_horn", WorldState.to_local(front), 2.0)
+		# Cars and people only exist round the player: a lead unit far off asks nothing.
+		if pw.distance_to(front) > strike_query_range:
+			continue
+		var now := Time.get_ticks_msec() * 0.001
 		var space := get_world_3d().direct_space_state
-		var q := PhysicsShapeQueryParameters3D.new()
-		var box := BoxShape3D.new()
-		box.size = Vector3(3.0, 3.0, reach + 0.8)
-		q.shape = box
-		q.collision_mask = 8 | 4
-		q.collide_with_areas = false
-		q.transform = Transform3D(xf.basis, WorldState.to_local(front + fwd * (reach * 0.5) + Vector3.UP * 1.6))
-		for hit in space.intersect_shape(q, 8):
+		_strike_box.size = Vector3(3.0, 3.0, reach + 0.8)
+		_strike_q.transform = Transform3D(xf.basis, WorldState.to_local(front + fwd * (reach * 0.5) + Vector3.UP * 1.6))
+		for hit in space.intersect_shape(_strike_q, 8):
 			var who: Object = hit.get("collider")
 			if who == null or (who is Node and (who as Node).is_in_group("rail_vehicle")):
 				continue
+			# Once a strike: whatever the train hit stays in front of it for a few ticks, and a
+			# shove and a crash every tick added up to hundreds of m/s and a wreck every time.
+			var id := who.get_instance_id()
+			if now - float(_struck.get(id, -10.0)) < 1.5:
+				continue
+			if _struck.size() > 256:
+				_struck.clear()
+			_struck[id] = now
 			Police.innocent = true
 			if who is Vehicle:
 				var car := who as Vehicle
@@ -375,7 +406,9 @@ func _strikes(leads: Array, pw: Vector3) -> void:
 				if car.is_traffic():
 					car.drop_out_of_traffic(shove)
 				else:
-					car.linear_velocity += shove
+					car.hold_crash_watch()
+					var keep := car.linear_velocity - fwd * car.linear_velocity.dot(fwd)
+					car.linear_velocity = keep + shove
 				car.take_hit(0, v * 3.0, fwd, WorldState.to_local(front), Vehicle.HIT_CRASH)
 			elif who.has_method("knock"):
 				who.knock(fwd * v * 1.6 + Vector3.UP * v * 0.5)

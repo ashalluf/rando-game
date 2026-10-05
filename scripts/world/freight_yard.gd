@@ -408,7 +408,15 @@ func _cars_step() -> void:
 ## A well car's containers in the car's own frame (origin on the rails at its middle): a 53 ft
 ## or 40 ft box in the well (now and then two 20s), a 53 ft high-cube on top of most, from the
 ## car's look. [[Transform3D, paint, custom]] - the yard's standing cars and the trains share it.
+static var _well_cache: Dictionary = {}
+
+
 static func well_boxes(look: int) -> Array:
+	# Cached per look: FreightRailSystem asks for every detailed well car every frame.
+	if _well_cache.has(look):
+		return _well_cache[look]
+	if _well_cache.size() > 4096:
+		_well_cache.clear()
 	var out: Array = []
 	var floor_y := 0.36
 	var pick := absi(look) % 7
@@ -423,6 +431,7 @@ static func well_boxes(look: int) -> Array:
 		top_y = floor_y + (PortKit.H_HC if high else PortKit.H_STD)
 	if (absi(look) >> 5) % 6 != 0:
 		out.append(_local_box(Vector3(0.0, top_y, 0.0), look * 31 + 7, true, true, true))
+	_well_cache[look] = out
 	return out
 
 

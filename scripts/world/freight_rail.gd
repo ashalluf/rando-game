@@ -227,6 +227,9 @@ func _resolve(p: CityPlan) -> bool:
 	var ea := DowntownReal.named(CityPlan.AXIS_X, YARD_EAST)
 	east_x = float(ea[0]) if not ea.is_empty() else avenue_x + 500.0
 	east_index = plan._nearest_road(CityPlan.AXIS_X, east_x)
+	# The yard is the one block between the two avenues (yard_block(), road_open()).
+	if east_index != avenue_index + 1:
+		return false
 	yard_n = plan._nearest_road(CityPlan.AXIS_Z, float(ROUTE.yard[0]))
 	yard_s = plan._nearest_road(CityPlan.AXIS_Z, float(ROUTE.yard[1]))
 	if yard_s <= yard_n + 1:
@@ -327,6 +330,9 @@ func _find_junctions() -> void:
 		var kind := Junction.COVERED
 		if k < yard_s:
 			kind = Junction.YARD
+		elif k == yard_s:
+			# The yard's south street: road_open() severs it at the avenue whatever its width.
+			kind = Junction.CLOSED
 		else:
 			# Worst over the junction's width (and a margin either side).
 			var lo := INF

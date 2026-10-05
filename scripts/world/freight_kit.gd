@@ -376,7 +376,19 @@ func _segment(sa: float, sb: float) -> void:
 		FreightRail.Mode.GRADE:
 			_median(sa, sb)
 		_:
-			_trench(sa, sb)
+			# Split at the decks' edges: a stretch is under a deck or open all along, or a
+			# parapet runs up to 2 m onto the deck and the next stretch leaves the trench open.
+			var cuts: Array[float] = [sa]
+			for j in fr.junctions:
+				if int(j.kind) != FreightRail.Junction.BRIDGE:
+					continue
+				for e: float in [float(j.s) - float(j.w) * 0.5, float(j.s) + float(j.w) * 0.5]:
+					if e > sa + 0.05 and e < sb - 0.05:
+						cuts.append(e)
+			cuts.sort()
+			cuts.append(sb)
+			for c in cuts.size() - 1:
+				_trench(cuts[c], cuts[c + 1])
 	# The crossover: a third track from the east main to the west one.
 	if sb > fr.s_xo and sa < fr.s_xo + FreightRail.XO_LEN:
 		var s0 := maxf(sa, fr.s_xo)
@@ -427,14 +439,17 @@ func _trench(sa: float, sb: float) -> void:
 				kind_color(WALL_COL, S_BARRIER), Vector2(za, PARAPET), Vector2(zb, PARAPET), Vector2(zb, 0.0), Vector2(za, 0.0), Vector2(1.0, 0.0))
 			if full:
 				_fence_panel(Vector3(x + side * (TH + W * 0.5), top_a, za), Vector3(x + side * (TH + W * 0.5), top_b, zb), sa)
-		if full and fmod(sa + (8.0 if side > 0.0 else 24.0), WALL_LIGHT_EVERY) < SEG and fa < sta - 4.0:
+		if full and is_zero_approx(fmod(sa, SEG)) and fmod(sa + (8.0 if side > 0.0 else 24.0), WALL_LIGHT_EVERY) < SEG and fa < sta - 4.0:
 			_wall_light(Vector3(xi, fa + 5.6, (za + zb) * 0.5), side)
 	# Collision: each wall and the floor, one box a stretch.
 	var zm := (za + zb) * 0.5
 	var hgt := maxf(sta, stb) + PARAPET + FENCE - minf(fa, fb)
+	if not under.is_empty():
+		# Under a deck the wall stops at the soffit: a full-height box stood on the cross street.
+		hgt = float(under.soffit) - minf(fa, fb)
 	for side: float in [-1.0, 1.0]:
-		_shapes.append([Vector3(W, hgt, SEG + 0.05), Transform3D(Basis(), Vector3(x + side * (TH + W * 0.5), minf(fa, fb) + hgt * 0.5, zm))])
-	_shapes.append([Vector3(TH * 2.0, 0.4, SEG + 0.05), Transform3D(Basis(), Vector3(x, (fa + fb) * 0.5 - 0.2, zm))])
+		_shapes.append([Vector3(W, hgt, zb - za + 0.05), Transform3D(Basis(), Vector3(x + side * (TH + W * 0.5), minf(fa, fb) + hgt * 0.5, zm))])
+	_shapes.append([Vector3(TH * 2.0, 0.4, zb - za + 0.05), Transform3D(Basis(), Vector3(x, (fa + fb) * 0.5 - 0.2, zm))])
 	# Track on its bed.
 	var mains: Array = [x - H, x + H]
 	ballast(mains, za, zb, ya, yb, fa, fb, 1.0)
@@ -547,8 +562,6 @@ func _features_step() -> void:
 				_crossing(j)
 			FreightRail.Junction.CLOSED:
 				_severed(j)
-		if int(j.k) == fr.yard_s:
-			_severed(j)
 	if full:
 		for sig: Dictionary in signals(fr):
 			if _owns(fr.point(float(sig.s), float(sig.off))):
@@ -858,11 +871,22 @@ func _commit_step() -> void:
 		var buf: PackedFloat32Array = pair[0]
 		if buf.is_empty():
 			continue
+		# With white instance colours: a MultiMesh without use_colors hands the Compatibility
+		# renderer's shader a COLOR that is not the vertex colour (the ties' kind rides in it).
+		var n := buf.size() / 12
+		var cbuf := PackedFloat32Array()
+		cbuf.resize(n * 16)
+		for i in n:
+			for f in 12:
+				cbuf[i * 16 + f] = buf[i * 12 + f]
+			for f in 4:
+				cbuf[i * 16 + 12 + f] = 1.0
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
 		mm.mesh = pair[1]
-		mm.instance_count = buf.size() / 12
-		mm.buffer = buf
+		mm.instance_count = n
+		mm.buffer = cbuf
 		var mmi := MultiMeshInstance3D.new()
 		mmi.name = pair[2]
 		mmi.multimesh = mm
