@@ -1696,7 +1696,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Shopping plazas, big-box stores, fast-food and gas-station pads are `Commercial`
   (`scripts/world/commercial.gd`); block kinds `MALL` and `BIGBOX` and the `pads` odds live in
   `CityPlan.DISTRICTS`. Shop names are original, never brands.
-- Service alleys (2026-10-05, VISUAL_ROADMAP #59, docs/HANDOFF.md 9bq): the backs of downtown
+- Service alleys (2026-10-05, VISUAL_ROADMAP #63, docs/HANDOFF.md 9bu): the backs of downtown
   (outside the financial core: skyline boost under `Alleys.MAX_BOOST`) and midtown blocks.
   `Alleys` (`scripts/world/alleys.gd`) and `AlleyKit` (`scripts/world/alley_kit.gd`). **The band
   is pure**: `Alleys.spec(plan, bx, bz)` (cached) puts it on the lot grid's seam across the

@@ -289,8 +289,8 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
-- **2026-10-05 Service alleys down the backs of downtown and midtown blocks (VISUAL_ROADMAP #59,
-  HANDOFF 9bq).** Los Angeles' commercial blocks are two rows of lots back to back with an alley
+- **2026-10-05 Service alleys down the backs of downtown and midtown blocks (VISUAL_ROADMAP #63,
+  HANDOFF 9bu).** Los Angeles' commercial blocks are two rows of lots back to back with an alley
   between; here that strip was LotFill's forecourt paving and planters, and every building wore
   shops on all four faces. Decisions: (1) the alley's BAND is pure (the lot grid's seam, from
   `CityPlan.lots()` alone) so LotFill, the parked cars and the pavement props keep off it while
