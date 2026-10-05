@@ -6765,3 +6765,72 @@ Narrows into the valley. The far city's land slabs on a river block step every 8
 channel's edge (under a pixel past ~500 m). Sediment bars and reeds are FULL only. The Coral Line
 (9bk, not on main when this was written) does not reach the river; the rail bridge carries a
 freight spur that ends at buffer stops past the bank roads.
+
+## 9b?. What a blast leaves behind: trees on fire, smoke columns, craters, car alarms, 2026-10-05 (agent branch `wt/explosions`)
+
+The fleet task: "what a big blast leaves behind". A rocket used to leave a 14-second scorch and
+nothing else. Now (CLAUDE.md, "What a blast leaves behind"):
+
+- **Trees burn.** `TreeFire` (`scripts/world/tree_fire.gd`) is told every street tree and palm a
+  FULL chunk draws (two lines round `_batch.build()` in CityChunk: `collect()` reads the batch
+  data before it is built, `attach()` keeps the built nodes), so it needs no physics shapes. A
+  blast lights the crowns in reach (odds falling with distance, not a roof blast's street tree),
+  a burning car an overhanging crown (CarDamage._burning, polled every 2 s), a burning crown its
+  neighbours (every 3.5 s, 30 %, crowns within 3.5 m). A burning crown is the car fire's own
+  material and ramps scaled up: tongues out of the whole crown, rolling billows over it, burning
+  bits falling, embers drifting down the wind, black smoke, a flickering light (desktop) and the
+  fire loop; 24-36 s for a palm, 36-54 s for a broadleaf, then 30 s of smoulder. A third of the
+  way in, under the flames, the instance is hidden and drawn from a CHARRED copy: the same mesh
+  and LODs with burnt materials (palms: `foliage.gdshader`'s new `burnt` uniform burns the
+  fronds back from the tips in 25 cm cells and chars everything; trees: foliage_tex with
+  `thin_max` 0.88 and the instance's custom.x 1, dark brown leaves, bark x0.15). It stays charred
+  (`WorldState.charred`, applied when the chunk is built again). Cap 8 burning (4 on the web).
+- **Smoke columns.** The TreeFire node clusters every fire once a second (a tree 2, a palm 1.5,
+  a burning car 1, a wreck still burning 0.8; 45 m merge) and a cluster of weight 2 gets a
+  `SmokeColumn`: one mesh of 72 quads (36 on the web), every puff placed in
+  `shaders/smoke_column.gdshader` from TIME - rising, slowing, widening, bending over down
+  Weather's `rain_wind` and spreading into a sheet at the top; 320 m for a tree, up to 650 m for
+  a big fire. Lit by hand: the puff texture's billows, a round normal per puff turned to the sun,
+  the sky's tint as fill, the city's glow under it at night and the fire on its foot. It comes up
+  over 25 s and clears over 70 s once nothing feeds it. Cap 4.
+- **Craters and rubble.** `BlastAftermath.crater()`: generated 256 px albedo and normal maps
+  (pit, broken rim, radial cracks, soot streaks) as a Decal on Forward+ and a lit cut-out quad on
+  Compatibility, 14 heaved asphalt slabs round the rim (one MultiMesh), 5 minutes, cap 14.
+  Rubble: 9 rigid chunks of road (lit wedges, asphalt on top, base course on the sides),
+  PhysicsBudget debris for 3 minutes, cap 60 (`make_room()` first). A car's own explosion
+  scorches but digs no pit (the wreck sits on it).
+- **Dust and leaves.** A low wave of street dust rolling out to 3.2 radii after the fireball,
+  dust and grit shaken off every roof the twelve rays from above find within 4 radii (desktop),
+  and leaves (shreds of frond off a palm) torn off the six nearest trees and fluttering down for
+  ~8 s.
+- **Car alarms.** `CarAlarm` (`scripts/vehicles/car_alarm.gd`): 72 % of empty parked cars (a hash
+  of the car) have one; a blast within 4 radii (staggered by distance) or a hit on the car sets it
+  off: one of three real CC0 recordings (Sfx `car_alarm`: a pulsing siren, a multi-tone warble
+  cycle, a horn honking), 24-46 s, hazards flashing (`Vehicle.alarm_left`, which turns a parked
+  car's lamps on with the hazard state), cap 7. Never a driven, traffic, police, emergency car,
+  wreck or aircraft.
+
+**Shared files touched (small, local):** `explosion.gd` (one call at the end of blast()),
+`city_chunk.gd` (two lines round `_batch.build()`), `vehicle.gd` (`alarm_left`, two lines in the
+lamps, one in take_hit()), `world_state.gd` (`charred`), `sfx.gd` (one entry in each table and a
+synth fallback), `foliage.gdshader` (`burnt`, 0 on every living palm), `loading_screen.gd` (warm
+the crater maps and leaf materials), `smoke_test.gd` (one line), `still_shot.gd` (the AFTERMATH
+block).
+
+**Stills** (shots/explosions; opengl3, not the Mac's Forward+): `aftermath_palms` (a rocket by a
+palm row, the fireball and a crown catching), `aftermath_burning` (the row alight at 22:00),
+`aftermath_charred` (the row burnt out next morning beside living palms), `aftermath_column` (the
+column from 1.4 km across the basin), `aftermath_crater` (the crater and slabs in the road).
+`AFTERMATH=palms|burning|charred|column|crater` on still_shot.gd stages each
+(`tools/glshot/aftermath_stage.gd`: the nearest palm row, a camera no crown blocks; `AF_NOFIRE=1`
+the same frame with nothing staged).
+
+**Frame cost:** FRAMECOST
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the crater decal, the fire's light on
+the charred trunks, the column under AgX and auto exposure need eyes. Only street trees and
+palms burn (the batches `tree_<n>` / `palm_<n>`): park groves of landmarks, hill trees, bushes
+and LOD / far-city trees do not, and a charred tree goes back to green past the FULL ring (the LOD
+chunks and the far city do not know about it). The crater is a mark plus slabs, not a hole in the
+road mesh. No glass crunch underfoot. Smoke columns are built only round fires near the player
+(the fires themselves live in the streamed chunks); they do not cast shadows.

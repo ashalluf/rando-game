@@ -61,20 +61,26 @@ static func stage(tree: SceneTree, kind: String, cam: Camera3D) -> String:
 	var e_ground := _ground(tree, eye)
 	eye.y = (e_ground.y if e_ground != Vector3.INF else centre.y) + up
 	var look := centre + Vector3.UP * 7.0
+	# AF_NOFIRE=1: the same frame with nothing staged (the frame-cost A/B).
+	var stage_it := OS.get_environment("AF_NOFIRE") != "1"
 	match kind:
 		"palms":
-			Explosion.blast(tree.current_scene, blast_at, 9.0, 30.0, 0.0)
+			if stage_it:
+				Explosion.blast(tree.current_scene, blast_at, 9.0, 30.0, 0.0)
 		"burning":
 			for h: Array in row:
-				TreeFire.ignite(tree.current_scene, h[0], h[1], _f("AF_BURN", 0.45))
+				if stage_it:
+					TreeFire.ignite(tree.current_scene, h[0], h[1], _f("AF_BURN", 0.45))
 			look = centre + Vector3.UP * 9.0
 		"charred":
-			BlastAftermath.crater(tree.current_scene, blast_at - Vector3.UP * 0.4, Vector3.UP, 9.0)
-			for h: Array in row:
-				TreeFire.char_tree(h[0], h[1])
+			if stage_it:
+				BlastAftermath.crater(tree.current_scene, blast_at - Vector3.UP * 0.4, Vector3.UP, 9.0)
+				for h: Array in row:
+					TreeFire.char_tree(h[0], h[1])
 		"column":
 			for h: Array in TreeFire.trees_near(centre, 40.0):
-				TreeFire.ignite(tree.current_scene, h[0], h[1], 0.4)
+				if stage_it:
+					TreeFire.ignite(tree.current_scene, h[0], h[1], 0.4)
 			var mgr := TreeFire.manager(tree)
 			mgr._update_columns(1.0)
 			for c: SmokeColumn in mgr.columns():
@@ -89,7 +95,8 @@ static func stage(tree: SceneTree, kind: String, cam: Camera3D) -> String:
 			eye.y = (g2.y if g2 != Vector3.INF else centre.y) + _f("AF_EYE_HEIGHT", 60.0)
 			look = centre + Vector3.UP * 220.0
 		"crater":
-			Explosion.blast(tree.current_scene, blast_at, 9.0, 30.0, 0.0)
+			if stage_it:
+				Explosion.blast(tree.current_scene, blast_at, 9.0, 30.0, 0.0)
 			eye = blast_at + across * 7.0 + along * 3.0 + Vector3.UP * 5.0
 			look = blast_at
 	var d := look - eye
