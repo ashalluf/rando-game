@@ -1204,12 +1204,28 @@ func _test_city() -> void:
 				if pooled:
 					break
 				await _ticks(1)
+			# A body that comes to rest on a parked car, a bench or a planter has no street under
+			# it within reach, and by design gets no pool there (Ragdoll._ground_under). Which
+			# person the rifle drops, and where they land, depends on the frame timing: on a loaded
+			# CI runner (build 335) the shot body ended up on top of something.
+			var off_ground := 0
+			var bleeding := 0
 			if not pooled:
 				for n in get_tree().get_nodes_in_group("debris"):
 					if n is Ragdoll and not (n as Ragdoll).bodies.is_empty():
-						var rb: RigidBody3D = (n as Ragdoll).bodies[0]
-						printerr("blood: no pool - ragdoll at %s, speed %.2f, age %.1f" % [str(rb.global_position.snapped(Vector3.ONE * 0.1)), rb.linear_velocity.length(), float(n.get("_age"))])
-			_check(pooled, "a body shot down bleeds into a pool under it")
+						var doll := n as Ragdoll
+						var rb: RigidBody3D = doll.bodies[0]
+						var pelvis: Vector3 = doll._pelvis()
+						var on_street := not doll._ground_under(pelvis).is_empty()
+						if doll.bleed > 0.0:
+							bleeding += 1
+							if not on_street:
+								off_ground += 1
+						printerr("blood: no pool - ragdoll at %s, speed %.2f, age %.1f, bleed %.1f, street under it %s" % [
+							str(rb.global_position.snapped(Vector3.ONE * 0.1)), rb.linear_velocity.length(),
+							float(n.get("_age")), doll.bleed, on_street])
+			_check(pooled or (bleeding > 0 and off_ground == bleeding),
+				"a body shot down bleeds into a pool under it" + ("" if pooled else " (none: it lies on top of something, %d of %d)" % [off_ground, bleeding]))
 			var stained := false
 			for n in get_tree().get_nodes_in_group("debris"):
 				var mat: Variant = n.get("_stain_mat") if n is Ragdoll else null
