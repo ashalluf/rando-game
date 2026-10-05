@@ -2095,6 +2095,12 @@ func _build_mansions() -> void:
 		if HillHomeKit.enabled:
 			# The house, its pad, walls and site (HillHomeKit); the driveway is drawn here.
 			var gate_at := HillHomeKit.build(self, m)
+			if level != Level.FULL and not capturing and EstateFar.enabled:
+				# Its garden, court, pool glow and lamps on the same plan (EstateFar), one batch.
+				for part: Array in EstateFar.parts(plan, m, true):
+					_batch.add("estate_far", EstateFar.mesh(), part[0], part[1], part[2])
+				# Its lamps grow with distance in the vertex shader: no shadow pass.
+				_batch.set_no_shadow("estate_far")
 			var drive_from: Vector2 = m.get("drive_from", m.pos)
 			if level == Level.FULL and drive_from.distance_to(gate_at) > 1.0:
 				_drive_strip(drive_st, drive_from, gate_at, ESTATE_DRIVE_WIDTH)
@@ -2107,6 +2113,13 @@ func _build_mansions() -> void:
 		rng.seed = m.seed
 		var basis := Basis(Vector3.UP, yaw)
 		var at := Vector3(pos.x, h, pos.y)
+		if level != Level.FULL and EstateFar.enabled:
+			# Far: the estate's parts and lamps (EstateFar) on the real terrain, one batch.
+			for part: Array in EstateFar.parts(plan, m, true):
+				_batch.add("estate_far", EstateFar.mesh(), part[0], part[1], part[2])
+			# Its lamps grow with distance in the vertex shader: no shadow pass.
+			_batch.set_no_shadow("estate_far")
+			continue
 		var pad_mat := PropFactory.pbr("pavers", 3.0, Color(0.93, 0.9, 0.85))
 		_merge_box_xf(pad_mat, Transform3D(basis.scaled_local(ESTATE_PAD), at + Vector3(0.0, ESTATE_PAD.y * 0.5, 0.0)))
 		if level != Level.FULL:
@@ -2115,6 +2128,11 @@ func _build_mansions() -> void:
 			continue
 		_add_shape(ESTATE_PAD, at + Vector3(0.0, ESTATE_PAD.y * 0.5, 0.0), yaw)
 		var top := h + ESTATE_PAD.y
+		if EstateFar.enabled:
+			# The garden: lawn down both sides of the motor court and behind the house, as the far
+			# estates (EstateFar) draw it, so the paving is the court and not the whole pad.
+			for piece: Array in EstateFar.LAWN_PIECES:
+				_merge_box_xf(PropFactory.lawn(Color(0.36, 0.48, 0.24), 6173, 0.4, 0.0), Transform3D(basis.scaled_local(piece[1]), at + basis * (piece[0] as Vector3) + Vector3(0.0, ESTATE_PAD.y, 0.0)))
 		# House: a wide low villa on the back half of the pad.
 		var house := BUILDING_SCENE.instantiate() as Building
 		house.seed = m.seed

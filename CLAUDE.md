@@ -2718,6 +2718,18 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/ridges/probe.tscn` (`OUT=` draws a map; clearances per span), compile with
   `tools/ridges/compile.gd`, test the wire shader alone with `tools/ridges/wire_test.tscn`.
   Checks: `tests/ridges_checks.gd`.
+- Far estates (2026-10-05, docs/HANDOFF.md "Hillside estates at night"): past the FULL chunks
+  (LOD chunks and Skyline) `EstateFar.parts(plan, m, real)` (pure, hashes of the seed) adds to
+  HillHomeKit's house, from `HillHomeKit.plan_home()`: the pad's garden over the pavers, the
+  motor court, the pool's glow, gate / door / garden / driveway lamps, and in the far city the
+  plan's trees - unit boxes on `shaders/far_estate.gdshader` (kind + 8 when on the real terrain +
+  a variant in INSTANCE_CUSTOM.g, the height over its reference in .r). A far part is seated by
+  far_canopy's estate rule (its own origin, `seat_sink` 0.8 = `FAR_SINK`; ground-hugging parts
+  lift it back; plane_height() is far_canopy's, checked), so it stays on the far house. Skyline
+  keeps them in a fourth list (`est`, node `EstateLights_*`); LOD chunks in `Batch_estate_far`
+  (shadowless: lamps grow to `lamp_min_angle`). HILL_HOMES=0 draws the old villa's whole estate
+  (`_box_parts()`). `ESTATE_NIGHT=0` is the A/B; probe `tools/estate_night/probe.tscn`; checks
+  `tests/estate_night_checks.gd`.
 - Freeways (owner, 2026-09-21: "every street is just straight, there's no highways"): `Freeway`
   (`scripts/world/freeway.gd`) plans three long **curved** routes across the basin - Coast, Cross
   and Valley - as seeded polylines with a smoothed, grade-limited deck height, exactly the shape
