@@ -33,6 +33,7 @@ func run(t: Node, city: Node3D) -> void:
 		police.set("enabled", false)
 	var started_ms := Time.get_ticks_msec()
 	_moods()
+	_turn_in_clear()
 	_traffic.staged = true
 	_clear_traffic()
 	await _bus_pass()
@@ -204,6 +205,24 @@ func _moods() -> void:
 
 ## A bus at its stop in the kerb lane and a car coming up behind it: the car signals, moves to the
 ## other lane once it is clear, passes the bus, and is never inside it.
+## A car turning into a lane finds room by the cars' ends, not their centres: a bus whose centre
+## is 7.5 m ahead has its rear 6.4 m behind that, so the old centre-to-centre test let a turning
+## car land inside it (CI 355). Placed values only, no frames.
+func _turn_in_clear() -> void:
+	var bus := Vehicle.new()
+	var car := Vehicle.new()
+	bus.traffic = {"along": 107.5, "half": 6.35, "rear": 6.35}
+	car.traffic = {"along": 0.0, "half": 2.3, "rear": 2.3}
+	var groups := {7: [bus]}
+	var behind_bus := not _traffic._group_clear(groups, 7, 100.0, 2.3 + 4.4, car, 1)
+	bus.traffic.along = 122.0
+	var room := _traffic._group_clear(groups, 7, 100.0, 2.3 + 4.4, car, 1)
+	bus.free()
+	car.free()
+	_check(behind_bus and room,
+		"a car turns in behind a bus only clear of its rear (blocked 7.5 m behind its centre %s, clear 22 m behind %s)" % [behind_bus, room])
+
+
 func _bus_pass() -> void:
 	var s := _find_stop()
 	if s.is_empty():
