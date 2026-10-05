@@ -34,6 +34,10 @@ const HOLD_FRAMES := 3
 
 static var enabled: bool = OS.get_environment("WARM_REHEARSAL") != "0"
 static var _keeper: Node3D
+## The car bodies and crowd rigs held for the session: freed with the last car or person of a
+## kind, Godot drops the scene from its cache and the next one reads the .glb from disk again
+## (and recompiles its meshes' pipelines) in the middle of a frame.
+static var _resident: Array = []
 
 
 ## Runs the rehearsal in front of `cam`. `scene` is where the city lives (effects are parented
@@ -45,6 +49,7 @@ static func run(scene: Node, cam: Camera3D, progress: Callable = Callable(), log
 	var tree := scene.get_tree()
 	var t_all := Time.get_ticks_usec()
 	keep_decal_atlas(scene)
+	keep_models()
 	var bus_was := AudioServer.is_bus_mute(0)
 	AudioServer.set_bus_mute(0, true)
 	var innocent_was: bool = Police.innocent
@@ -91,6 +96,17 @@ static func run(scene: Node, cam: Camera3D, progress: Callable = Callable(), log
 	AudioServer.set_bus_mute(0, bus_was)
 	if log_times:
 		print("WARM rehearsal total %d ms" % ((Time.get_ticks_usec() - t_all) / 1000))
+
+
+## Loads and holds every car body and crowd rig for the session (see `_resident`). Idempotent.
+static func keep_models() -> void:
+	if not _resident.is_empty():
+		return
+	var paths: Array = Vehicle.BODY_MODELS.values()
+	paths.append_array(Pedestrian.MODELS)
+	for path: String in paths:
+		if ResourceLoader.exists(path):
+			_resident.append(load(path))
 
 
 ## One hidden Decal per texture the game ever decals or projects, kept for the session (see the

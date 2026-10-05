@@ -3744,6 +3744,23 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   everything that moves by itself hidden - two plain runs differ in 41 % of their pixels) and
   compare with `tools/glshot/img_diff.py`. **Trap:** on the Compatibility renderer a MultiMesh's
   INSTANCE_CUSTOM and instance COLOR arrive as half floats; never put a position in them.
+- First-use stutters (2026-10-05, docs/HANDOFF.md "First-use stutters"): Forward+ builds a
+  pipeline per shader AND vertex format and pass, so the loading screen's one-quad-per-shader
+  warm-up never covered a car body, a skinned person or a particle system; they compiled on
+  first sight (lavapipe: the first cars' frame 20 s against 1.2 s, the first rifle burst 10.6 s).
+  `WarmRehearsal` (`scripts/ui/warm_rehearsal.gd`, from `LoadingScreen.run()` after the far
+  city) stages the REAL things behind the shade for a few frames - every body type, police and
+  emergency cars, a shot-up burning car, people shot and dismembered, the weapon effects, a
+  rocket, the headlight cookie, copies of the idle rain / boost particles - then frees them and
+  every plain node they left in the scene (master bus muted, `Police.innocent`). It also keeps
+  every decal texture in the decal atlas for the session (`keep_decal_atlas()`: Godot drops a
+  texture when its last decal goes and repacks the WHOLE atlas when it comes back) and holds the
+  car bodies and crowd rigs loaded (`keep_models()`). Anything new that first appears mid-play
+  (a new effect, body, particle system or decal texture) goes into a stage there, or into
+  `atlas_textures()`. `WARM_REHEARSAL=0` is the A/B, `WARM_LOG=1` prints each step's cost.
+  Measure with `tools/shader_warm/run_probe.sh` (the test room under the city environment on
+  lavapipe; `ENV_LITE=1`, or lavapipe runs out of memory - it keeps every pipeline it compiles).
+  Checks: `tests/shader_warm_checks.gd`.
 - Road surfaces use `shaders/road.gdshader` (via `PropFactory.road()`, picked in
   `CityChunk._road_look`): tiled asphalt plus world-space mottling, resurfacing patches on a
   jittered grid with darker seams, ridged-noise cracks and sparse oil staining, so the road never

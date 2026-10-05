@@ -61,10 +61,23 @@ func _ready() -> void:
 			n.owner = null
 			level.add_child(n)
 	city.free()
+	# ENV_LITE=1: no SDFGI, volumetric fog or SSIL - fewer pipelines per surface, so a run fits
+	# lavapipe's memory (it keeps every pipeline it compiles). The A/B stays fair: both sides lite.
+	if _env("ENV_LITE", "0") == "1":
+		var we := level.get_node_or_null("WorldEnvironment") as WorldEnvironment
+		if we and we.environment:
+			we.environment = we.environment.duplicate()
+			we.environment.sdfgi_enabled = false
+			we.environment.volumetric_fog_enabled = false
+			we.environment.ssil_enabled = false
 	get_tree().root.add_child(level)
 	_world = level
 	await get_tree().process_frame
 	await get_tree().process_frame
+	# The city's Weather, idle (clear) as the game starts: the rain event wakes it.
+	var weather: Node = load("res://scripts/world/weather.gd").new()
+	weather.name = "Weather"
+	add_child(weather)
 	_player = get_tree().get_first_node_in_group("player") as Node3D
 	_cam = get_viewport().get_camera_3d()
 	if _env("PHYS", "1") == "1":
@@ -327,12 +340,7 @@ func _ev_rain() -> void:
 	var sun := _world.get_node_or_null("Sun") as DirectionalLight3D
 	if sun:
 		sun.light_energy = 1.0
-	var w: Node = load("res://scripts/world/weather.gd").new()
-	w.name = "Weather"
-	_hold().add_child(w)
-	for i in 2:
-		await get_tree().process_frame
-	w.call("force_state", 2, true)
+	get_node("Weather").call("force_state", 2, true)
 
 
 func _ev_landmarks() -> void:
