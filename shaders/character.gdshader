@@ -190,6 +190,16 @@ const vec3 FABRIC_SHEEN = vec3(0.16, 0.06, 0.1);
 uniform float skin_sss = 0.0;
 uniform vec3 skin_backlight : source_color = vec3(1.0, 0.7, 0.58);
 uniform float eye_roughness = 0.06;
+// Under a hat (CrowdHat.fit_face, on a copy of the look's material): in the zone of the face the
+// hat leaves bare (hat_face_mask over hat_face_rect, both in atlas UV), a texel clearly darker
+// than its mirror image across the face (u' = dot(vec3(uv, 1), hat_face_u), v' likewise) takes
+// the mirror's - the scalp painted under a fringe that hung over one eye, which the dropped
+// fringe would leave as a black eye. Symmetric paint (skin, brows, stubble) is left alone.
+uniform float hat_face = 0.0;
+uniform vec4 hat_face_rect = vec4(0.0, 0.0, 1.0, 1.0);
+uniform sampler2D hat_face_mask : hint_default_black, filter_linear;
+uniform vec3 hat_face_u = vec3(1.0, 0.0, 0.0);
+uniform vec3 hat_face_v = vec3(0.0, 1.0, 0.0);
 
 // Height up the body, 0 at the soles and 1 at the crown.
 varying float v_height;
@@ -279,6 +289,32 @@ void vertex() {
 
 void fragment() {
 	vec3 base = texture(albedo_tex, UV).rgb;
+	float face_fix = 0.0;
+	if (hat_face > 0.5) {
+		// Sampled whatever the mask says (a uniform branch keeps the derivatives defined).
+		vec2 mq = (UV - hat_face_rect.xy) / hat_face_rect.zw;
+		float inside = step(0.0, mq.x) * step(0.0, mq.y) * step(mq.x, 1.0) * step(mq.y, 1.0);
+		float zone = texture(hat_face_mask, clamp(mq, vec2(0.0), vec2(1.0))).r * inside;
+		vec2 muv = vec2(dot(vec3(UV, 1.0), hat_face_u), dot(vec3(UV, 1.0), hat_face_v));
+		vec3 other = texture(albedo_tex, muv).rgb;
+		// The test runs on the neighbourhood (three mips up, ~8 texels), so a speckled grey paint
+		// goes as a whole and the weight has no texel-sized edges: the two sides must differ in
+		// colour, and the mirror's must be the more skin-like (saturated and bright - black and
+		// grey hair paint are neither, skin is both).
+		vec3 nb = texture(albedo_tex, UV, 3.0).rgb;
+		vec3 no = texture(albedo_tex, muv, 3.0).rgb;
+		if (value_is_linear > 0.5) {
+			nb = sqrt(max(nb, vec3(0.0)));
+			no = sqrt(max(no, vec3(0.0)));
+		}
+		float lo = dot(no, vec3(0.299, 0.587, 0.114));
+		vec3 hb = rgb_to_hsv(nb);
+		vec3 ho = rgb_to_hsv(no);
+		float apart = length(nb - no) / max(lo, 0.05);
+		float skinlier = (ho.y * 1.5 + ho.z) - (hb.y * 1.5 + hb.z);
+		face_fix = zone * smoothstep(0.06, 0.18, apart) * smoothstep(0.02, 0.10, skinlier);
+		base = mix(base, other, face_fix);
+	}
 	vec3 hsv = rgb_to_hsv(base);
 
 	// Skin is warm AND reasonably saturated AND bright. All three are needed: hue alone lets
@@ -307,6 +343,10 @@ void fragment() {
 		head = 0.0;
 		lower = COLOR.g / max(c, 1e-4);
 		is_other = clamp(1.0 - is_cloth - is_skin - is_hair - eye, 0.0, 1.0);
+		// Where the face fix put skin back, the painted scalp's vertices are skin.
+		float back = is_hair * face_fix;
+		is_hair -= back;
+		is_skin += back;
 	} else {
 		float hue_dist = abs(fract(hsv.x - skin_hue + 0.5) - 0.5);
 		float warm = 1.0 - smoothstep(cloth_guard, cloth_guard * 2.0, hue_dist);

@@ -5770,14 +5770,42 @@ skin there (they now take the crown's columns: the report's last two contacts).
 
 **Not done / next:** the hats cast no shadow (the brief's rule): the brim does not shade the
 eyes, which is now the biggest tell left up close - a SHADOWS_ONLY twin of the bill within ~15 m
-would cost one shadow draw per near wearer; a dropped fringe leaves the painted scalp as a dark
-smudge over a brow on crowd_h and crowd_c (the character shader could fade the hair region under
-a hat's front edge, or the brim's shadow would hide it); a one-piece head of hair (c, g, h, l)
+would cost one shadow draw per near wearer; a little of the painted hairline still shows under
+the bucket hat's front edge on crowd_c (symmetric paint, see the follow-up below); a one-piece head of hair (c, g, h, l)
 goes whole - splitting a piece by region (drop the part in front of the face below the band,
 press the rest) would keep their hair at the back and sides; the cards of very thick hair would need `"hide"` (no rig has it); hats never come off (shot or
 blasted off, a cap could be debris); the warm could run on worker threads during the city build
 instead of adding ~0.8 s; no cap is worn backwards or tilted; the bucket hat's brim does not
 droop with the wind. Rerun `tools/crowd/hat_fit.gd` whenever a crowd rig is rebuilt.
+
+**Follow-up, 2026-10-05: the black eye under a hat.** Where a fringe hung over one eye, the body
+atlas has the scalp painted in the hair colour under it (it is the far bodies' hair); with the
+fringe dropped under a hat, crowd_h (black) and crowd_c (grey) read as having a black eye at 2 m.
+A hat wearer's body now draws on a copy of its look material (`CrowdHat.fit_face()`, from
+`dress()` and RoughSleeper's `_wear_hat()`, which swaps in the worn look after the hat) with
+`character.gdshader`'s `hat_face` on: in the face's zone below the band (`FACE_HALF` / `_LOW` /
+`_HIGH` round the eyes, faded over `FACE_FADE`) a texel whose neighbourhood (three mips up)
+differs from its MIRROR IMAGE across the face and is the less skin-like (saturation x 1.5 plus
+value) takes the mirror's texel; symmetric paint (skin, brows, stubble, the hairline) is left
+alone. `face_fix()` measures it per rig once, at rest in the head frame: every head vertex near
+the zone paired with the vertex at its mirror position (the rigs are exactly symmetric: 0.0 mm),
+the mirror fitted as a reflection across a line in the atlas (a doubled-angle mean of the pairs'
+differences and the median of their midpoints, refitted on the inliers; 0.1-0.5 px RMS on all
+twelve rigs - a least-squares affine was dragged off by the few seam copies on other islands),
+the face island (inlier vertices, the midline's on the line, within 0.15 x 0.25 UV of their
+median - crowd_i and crowd_k have a small symmetric island elsewhere on the same line) and the
+zone rasterised into a 128 px mask over its UV rect (a triangle with one island corner counts:
+asking for three left holes, each a black speck). Uniforms `hat_face_rect`, `hat_face_mask`,
+`hat_face_u` / `_v`; one material copy per look material (~45 ms a rig on the loading screen,
+through `warm()`). Nothing changes without mesh data (headless) or where the mirror does not fit
+(a warning names the rig). The probe that lays the fix out on the atlas on the CPU and the
+previews are in the session's scratchpad (`caps/face_probe.gd`, `caps/face/`). Stills
+(before = the fringe dropped, after = this): `build/hat_face/face_h_front.jpg`,
+`face_c_front.jpg`, `face_h_up.jpg`, `face_c_up.jpg` and the whole lineup `close_front.jpg`,
+`close_up.jpg`, `close_q.jpg` in the worktree (ignored, not committed). Left: a faint seam on
+crowd_h's cheek where the mirrored skin meets the original, and on crowd_c the grey stipple of
+the hairline between the brows under the brim edge (symmetric, so nothing to mirror).
+
 ## 9bh. The industrial district as Los Angeles industry, 2026-10-04 (agent branch `wt/industrial`; VISUAL_ROADMAP #48)
 
 The brief: INDUSTRIAL (east of the 110 below z 2300 down to the port, and the Arts District east

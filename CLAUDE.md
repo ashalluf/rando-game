@@ -2431,7 +2431,11 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   ponytail through the opening, a braid) left alone, triangles left wholly inside and the cards
   that would hang in front of the face (a fringe) dropped; one copy per hair mesh, rig and kind.
   No mesh data (the headless check) or a rig marked `"hide"` (hair too thick to press) hides the
-  cards as before. `Pedestrian._add_accessory()` makes the same three `_style` rolls as the box
+  cards as before. A dropped fringe leaves the scalp painted under it (a black eye on crowd_h
+  and crowd_c), so a hat wearer's body draws on a copy of its material with `hat_face` on
+  (`CrowdHat.fit_face()` / `face_fix()`, docs/HANDOFF.md 9bg follow-up): below the band, a
+  texel less skin-like than its mirror image across the face takes the mirror's (the mirror is a
+  reflection in the atlas fitted per rig from the head's own mirror vertex pairs). `Pedestrian._add_accessory()` makes the same three `_style` rolls as the box
   hats did (CampFigure.seed_for() depends on them; a bucket hat is the top tenth of the old cap
   roll), the ragdoll a hatted person becomes wears it too (`_dress_doll()`), a rough sleeper's is
   the worn colourway (`material(kind, pick, true)`: dulled, faded, grime), `PoliceOfficer` uses
