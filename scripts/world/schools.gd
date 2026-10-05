@@ -693,13 +693,15 @@ static func _plan_high(pl: Dictionary, rng: RandomNumberGenerator) -> void:
 	var s_aud: Vector2 = sx.call(cl - aud_w, cl)
 	var aud_d := minf(AUD.y, D * 0.45)
 	fac.append(_bld("auditorium", _lr(fr, s_aud.x, s_aud.y, b0, b0 + aud_d), -(fr.d as Vector2), 1, {"fly": true}))
-	fac.append({"t": "lawn", "r": _lr(fr, 0.0, cl, 0.0, SETBACK), "gate_s": (s_gate.x + s_gate.y) * 0.5})
+	var s_campus: Vector2 = sx.call(0.0, cl)
+	fac.append({"t": "lawn", "r": _lr(fr, s_campus.x, s_campus.y, 0.0, SETBACK), "gate_s": (s_gate.x + s_gate.y) * 0.5})
 	for f: Dictionary in fac:
 		if f.t != "track" and f.t != "bleachers":
 			placed.append(f.r)
-	var campus := _lr(fr, 0.0, cl, b0, D).grow(-1.0)
+	var campus := _lr(fr, s_campus.x, s_campus.y, b0, D).grow(-1.0)
 	pl.yard = campus
-	var back_corner := _lp(fr, 0.0 if not flip else A, D)
+	var back_corner := _lp(fr, A if flip else 0.0, D)
+	var mid_s := (s_campus.x + s_campus.y) * 0.5
 	# The gym at the back, the biggest box on the campus.
 	var gym := Parks._fit(campus, placed, GYM.x, GYM.y, 4.0, true, back_corner)
 	if not gym.is_empty():
@@ -711,7 +713,7 @@ static func _plan_high(pl: Dictionary, rng: RandomNumberGenerator) -> void:
 		placed.append(r)
 	var tennis_done := false
 	for m in [4, 3, 2]:
-		var fit := Parks._fit(campus, placed, Parks.TEN_ENCLOSURE.x, Parks.TEN_ENCLOSURE.y * m, 3.0, true, _lp(fr, A * 0.5, D))
+		var fit := Parks._fit(campus, placed, Parks.TEN_ENCLOSURE.x, Parks.TEN_ENCLOSURE.y * m, 3.0, true, _lp(fr, mid_s, D))
 		if not fit.is_empty():
 			var f := Parks._fac("tennis", fit.r, Parks._along_x(fit.r, Parks.TEN_ENCLOSURE.x))
 			f.n = m
@@ -721,12 +723,12 @@ static func _plan_high(pl: Dictionary, rng: RandomNumberGenerator) -> void:
 			tennis_done = true
 			break
 	for sz: Vector2 in [Vector2(44.0, 36.0), Vector2(36.0, 30.0), Vector2(30.0, 24.0)]:
-		var fit := Parks._fit(campus, placed, sz.x, sz.y, 3.0, true, _lp(fr, 0.0 if flip else cl, D))
+		var fit := Parks._fit(campus, placed, sz.x, sz.y, 3.0, true, _lp(fr, s_campus.y if not flip else s_campus.x, D))
 		if not fit.is_empty():
 			fac.append({"t": "parking", "r": fit.r})
 			placed.append(fit.r)
 			break
-	var court := Parks._fit(campus, placed, Parks.BB_COURT.x + Parks.BB_CLEAR * 2.0, (Parks.BB_COURT.y + Parks.BB_CLEAR * 2.0) * 2.0, 2.0, true, _lp(fr, cl * 0.5, D * 0.6))
+	var court := Parks._fit(campus, placed, Parks.BB_COURT.x + Parks.BB_CLEAR * 2.0, (Parks.BB_COURT.y + Parks.BB_CLEAR * 2.0) * 2.0, 2.0, true, _lp(fr, mid_s, D * 0.6))
 	if not court.is_empty():
 		var f := Parks._fac("basketball", court.r, Parks._along_x(court.r, Parks.BB_COURT.x + Parks.BB_CLEAR * 2.0))
 		f.n = 2
@@ -734,7 +736,14 @@ static func _plan_high(pl: Dictionary, rng: RandomNumberGenerator) -> void:
 		f.pal = 0
 		fac.append(f)
 		placed.append(f.r)
-	var lunch := Parks._fit(campus, placed, 20.0, 11.0, 3.0, true, _lp(fr, cl * 0.5, b0 + bd + 6.0))
+	# The quad: a lawn behind the classrooms with trees and benches, the lunch shelter by it.
+	for sz: Vector2 in [Vector2(34.0, 22.0), Vector2(26.0, 18.0), Vector2(20.0, 14.0)]:
+		var q := Parks._fit(campus, placed, sz.x, sz.y, 3.0, true, _lp(fr, mid_s, b0 + bd + WALKWAY + 4.0))
+		if not q.is_empty():
+			fac.append(Parks._fac("quad", q.r, q.long_x))
+			placed.append(q.r)
+			break
+	var lunch := Parks._fit(campus, placed, 20.0, 11.0, 3.0, true, _lp(fr, mid_s, b0 + bd + 6.0))
 	if not lunch.is_empty():
 		fac.append(Parks._fac("lunch", lunch.r, lunch.long_x))
 		placed.append(lunch.r)
@@ -821,8 +830,8 @@ static func _st(ch: CityChunk) -> SurfaceTool:
 static func _ground_step(ch: CityChunk, pl: Dictionary) -> void:
 	var site: Rect2 = pl.site
 	var holes: Array = []
-	var fill_kind := Parks.G_DECK if pl.high else Parks.G_ASPHALT
-	var fill_far: Color = Parks.FAR_DECK if pl.high else ch.style.asphalt
+	var fill_kind := Parks.G_ASPHALT
+	var fill_far: Color = ch.style.asphalt
 	for f: Dictionary in pl.fac:
 		var r: Rect2 = f.r
 		holes.append(r)
@@ -873,6 +882,12 @@ static func _ground_step(ch: CityChunk, pl: Dictionary) -> void:
 					_gr(ch, r, Parks.G_ASPHALT, ch.style.asphalt)
 			"portables":
 				_gr(ch, r, Parks.G_ASPHALT, ch.style.asphalt)
+			"quad":
+				# A lawn inside a concrete walk.
+				var inner := r.grow(-2.0)
+				_gr(ch, inner, Parks.G_LAWN, ch.style.grass, 0.4)
+				for piece in Parks.minus(r, [inner]):
+					_gr(ch, piece, Parks.G_DECK, Parks.FAR_DECK)
 	for piece in Parks.minus(site, holes, 0.3):
 		_gr(ch, piece, fill_kind, fill_far)
 	# The closed streets between a high school's blocks: a pavement slab kerb to kerb (it carries
@@ -1154,6 +1169,17 @@ static func _kit_step(ch: CityChunk, pl: Dictionary) -> void:
 						var a: float = -f.L * 0.5 + 1.0 + (float(i) + 0.5) * (f.L - 2.0) / float(cols)
 						var b: float = -f.W * 0.5 + 1.0 + (float(j) + 0.5) * (f.W - 2.0) / float(rows)
 						SchoolKit.lunch_table(st, Parks._fxf(ch, f, a, b, f.u), (pl.colour as Color).lightened(0.35))
+			"quad":
+				if full and _mine(ch, r.get_center()):
+					var rng := RandomNumberGenerator.new()
+					rng.seed = hash([ch.plan.seed, pl.cell, "quad"])
+					var inner := r.grow(-3.2)
+					for c: Vector2 in [inner.position, Vector2(inner.end.x, inner.position.y), inner.end, Vector2(inner.position.x, inner.end.y)]:
+						ch._add_tree(Vector3(c.x, CityChunk.SIDEWALK_TOP + Parks.LIFT, c.y), rng)
+					var u: Vector2 = f.u
+					for sgn: float in [-1.0, 1.0]:
+						var bp := Parks.fp(f, 0.0, sgn * (f.W * 0.5 - 1.0))
+						ch._add_bench(Vector3(bp.x, CityChunk.SIDEWALK_TOP + Parks.LIFT, bp.y), atan2(u.x, u.y) + (PI * 0.5 if sgn > 0.0 else -PI * 0.5))
 			"games":
 				if full and _mine(ch, r.get_center()):
 					# Tetherball poles at the games' end.
