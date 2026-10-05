@@ -7873,3 +7873,97 @@ collision (you cannot walk in) or the shadow; the room behind is traced, not mod
 for every hole of a building. Towers get no holes or rims; a tower's records go on its detailed
 copy only, so its far copy shows it whole. The roof takes no damage. Panes on a cut (chamfered)
 corner never break. Glass shards are not physics; the litter is laid at once for a blast.
+
+## 9cg. More people: eight more rigs in the crowd, 2026-10-05 (agent branch `wt/more-people`; VISUAL_ROADMAP #75)
+
+On a downtown pavement with 200+ people the twelve crowd rigs repeated within a glance. Eight
+more, `crowd_m..t`, with the same pipeline (`tools/crowd/build.sh`) and contract (24 bones, one
+Body surface with region colours, the Hair mesh, metric UV2, three clips), chosen for what the
+twelve lacked:
+
+| rig | person | wears |
+| --- | --- | --- |
+| m | white man, 70s, tall, thin, a little stooped (neck targets), thin grey hair | navy windbreaker (our zip jacket, finally worn), stone chinos |
+| n | South Asian woman, 60s, short (1.46 m), heavy, short grey hair | crew-neck cardigan (knit, button band, buttons), navy midi A-line skirt |
+| o | Black teenage boy, slim, 1.75 m | pullover hoodie (hood down, drawcords, kangaroo pocket, rib hem / cuffs), black joggers with rib cuffs |
+| p | white teenage girl, slim, auburn ponytail | fitted lilac tee, olive A-line skirt above the knee |
+| q | Latino man, 30s, tall (1.83 m), heavy | navy pique polo (short placket, three buttons, rib cuffs), khaki chino shorts |
+| r | young North African woman | dusty rose hijab-style headscarf, long loose cream tee, navy wide trousers |
+| s | Filipino man, 30s, very short (1.49 m), stocky | hi-vis vest (reflective bands and braces) over a heather tee, charcoal work trousers, boots |
+| t | very tall Black woman (1.94 m), braid | red-striped shirt with the sleeves rolled, black slim trousers |
+
+### New garments (tools/crowd/garments.py, garment_paint.py)
+
+- **Jacket options**: `collar` stand / rib / hood, `closure` zip / buttons / none, `pocket` welt /
+  kangaroo / none, `knit` (stockinette painted in body coordinates). The hood worn down
+  (`hood_down()`) is swept round the neckline: a soft roll round the neck that folds over and lies
+  on the shoulder blades ONLY round the back. The first one spread the fold from the sides and was
+  a sailor's collar over both shoulders.
+- **Shirt options**: `sleeve: short` (cuffs measured on the upper arm), `placket_len`, `pique`,
+  rib cuffs: the polo.
+- **Joggers**: a trousers style, roomy, ending above the ankle, with rib cuffs (`leg_cuffs()`),
+  an elastic waistband painted gathered, and no fly or belt loops. The fold field stacks at the
+  ankle like the hero's track pant (`ankle_stack` 0.9).
+- **Skirt**: one band SWEPT round a vertical axis from the waist (metric UVs, painted by
+  position), its radius measured by rays on the pelvis and legs ONLY: with the arms in it, the
+  hanging hands made two square wings at the hips. It falls from the hips' widest ring (never in)
+  and flares by `flare`. Weights are both thighs and the hips, blurred round it (`weight_blur`,
+  `hip_share`); with a 0.11 flare the stride stays inside a midi skirt in the walk.
+- **Vest**: the top's shell without sleeves over the tee, the armholes cut down the sides past a
+  4 cm strap (the first cut left ragged wings on the shoulders), region `keep` (never recoloured).
+- **Headscarf** (`scarf`, region `keep`, built last): a shell off the head, neck and shoulders.
+  Three things that each looked wrong until fixed: grown along the normals it wrapped every fold of
+  the ear, so the head part lies on a SPHERICAL envelope of the skull with the ear vertices left
+  out (their holes in the shell filled) and the ear skin deleted under it (`build_character.py`);
+  a vertical-plane hem on the drape is a sawtooth where it crosses the near-horizontal shoulder,
+  so the drape's edge is cut by DISTANCE from the base of the neck, sector by sector; and the
+  oval face opening (`cut_oval()`) runs along the underside of the jaw (lower, the throat showed).
+  The throat is bridged from the jaw by an Envelope hung from the chin.
+- A vest or a scarf deletes the top it hides (`hide_under`, margin 8 cm); an empty part is dropped.
+- `PX_PER_M` density for a swept garment's UVs (the skirt), not the shell density.
+
+### Game code
+
+`Pedestrian.MODELS` has twenty. `Pedestrian.NO_HAT_MODELS` (crowd_r): the hat rolls are still
+made, so nothing after them moves, but no hat is put on. `Encampment.FIGURE_POOL` 12: the camp
+figures (baked per model and pose on the loading screen) stay on the first twelve rigs. No new
+rig is in `OFFICER_MODELS` (and so not an emergency crew): m is too old, o / p too young, q wears
+shorts, s's vest is never recoloured, n / p / r wear skirts or a scarf. The life clips
+(`tools/crowd/life_clips.gd`) and the hat table (`tools/crowd/hat_fit.gd`, REPORT: 0 head
+vertices through any hat on the new rigs) were redone for them; the old rows did not move. The
+smoke test wants 20 rigs and checks NO_HAT_MODELS.
+
+### Cost (this box, opengl3, `--quality=0`)
+
+| | before (12 rigs) | after (20 rigs) |
+| --- | --- | --- |
+| downtown_noon SPLIT (1280x720): frame | 7,613,433 tris, 4,069 draws | 7,729,097 (+1.5 %), 4,069 draws |
+| - pedestrians | 431,054 (126,735 shadow), 377 draws | 546,840 (142,105 shadow), 377 draws |
+| pavement EYE `2377,1.7,905,8,-4` | 6,105,092 | 6,206,610 (+1.7 %), same draws |
+| pavement EYE `2377,1.7,860,172,-4` | 5,674,914 | 5,706,982 (+0.6 %), same draws |
+| loading screen, people (`people_load_bench.gd`) | 3,327 ms (12 rigs 2,345 + 60 camp figures 980) | 5,207 ms (20 rigs 4,173 + 60 camp figures 1,034) |
+
+Per rig at LOD 0 the new eight average 13.2k body + 2.9k hair against the twelve's 12.2k + 2.5k,
+so the expected cost of a near person is +4 % (15.3k against 14.7k averaged over all twenty);
+the downtown_noon pedestrians' +27 % is mostly which rigs happened to stand nearest the camera
+(different rolls with a longer MODELS list). Their importer LODs fall as the old rigs' do.
+The loading screen pays ~230 ms a new rig (limbs, welded mid / far bodies, hats).
+
+### Stills (branch `shots/more-people`)
+
+`lineup_front` / `lineup_q3` (all twenty), `new8_front` / `new8_q3` / `new8_heads` (the eight
+close), `before_` / `after_pavement_1` (the pavement south of the downtown bookmark: n and m
+walk it now), `before_` / `after_downtown` (the bookmark).
+
+### Not done
+
+- A blazer over a tee (asked for as an option) and a dress were not built; the skirt is the dress's
+  lower half and a jacket with lapels is the next garment worth building (9av's note too).
+- Bodies run 12.3-13.9k triangles, a little over the twelve's 10.5-12.9k; the knobs are each
+  garment's `tris`.
+- Small things up close: a thin dark line between p's tee hem and her skirt, a fold line where the
+  scarf's head part meets the throat, a few frayed points on the scarf's drape edge, q reads
+  "solid" more than heavy. The skirts' and the scarf's walk has only been seen in the lineup's
+  walk pose and the Cycles previews, not in motion in the game.
+- The headscarf has been judged by eye in opengl3 and Cycles; nobody who wears one has looked
+  at it. Worth asking.

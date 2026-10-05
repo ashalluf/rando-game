@@ -81,6 +81,10 @@ const PEOPLE_STEPS := SKID_MAX_SLEEPERS + SKID_PUSHERS + 1
 const MAX_FIGURES := 9
 const SKID_MAX_FIGURES := 18
 const FIGURE_MODELS := 3
+## The figures are dressed from the first this-many of Pedestrian.MODELS only (the twelve of
+## 2026-09-27): each model is five baked poses on the loading screen (~65 ms a model), and the
+## eight added on 2026-10-05 walk the streets but would add half a second to the wait here.
+const FIGURE_POOL := 12
 ## The web build (lower crowd caps everywhere) draws this share of them.
 const WEB_FIGURE_SHARE := 0.5
 const FIGURE_DRAW_DISTANCE := 110.0
@@ -377,7 +381,7 @@ static func _thin(list: Array, cap: int) -> Array:
 ## camp laid them. Drawn merged (CampFigureMesh) where there is mesh data; always its body.
 static func _add_figures(chunk: CityChunk, rect: Rect2, list: Array) -> void:
 	var plan: CityPlan = chunk.plan
-	var n := Pedestrian.MODELS.size()
+	var n := mini(Pedestrian.MODELS.size(), FIGURE_POOL)
 	var first := absi(hash([plan.seed, "camp_models", chunk.ix, chunk.iz]))
 	var models: Array = []
 	for i in mini(FIGURE_MODELS, n):
