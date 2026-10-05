@@ -495,6 +495,7 @@ func _finish_build() -> void:
 	HouseKit.commit(self)
 	Industrial.commit(self)
 	Parks.commit(self)
+	DecoBoulevard.commit(self)
 	_commit_far_ground()
 	_commit_boxes()
 	_mm_nodes = _batch.build(self)
@@ -2339,6 +2340,9 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 					_add_grass(_lawn_rect, 0.85, 0.0, _lot_rects))
 	if level == Level.FULL:
 		steps.append(_build_sidewalk_props.bind(rect, params, rng, district))
+		# Midtown's deco boulevard: mature palms on its kerbs, the night pools (DecoBoulevard), after
+		# the furniture they keep clear of.
+		steps.append(func() -> void: DecoBoulevard.block_step(self, block))
 		# Downtown encampments (Encampment), after the furniture they keep clear of. Its own
 		# hash-seeded rolls: the block's rng is untouched, so the cars and the crowd are unmoved.
 		var camps: int = Encampment.block_flags(plan, ix, iz) if block.kind == CityPlan.BlockKind.BUILDINGS else 0
@@ -2665,6 +2669,9 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 		# The lawn's blades and the street trees keep off the house, not the whole lot.
 		_lot_rects.pop_back()
 		_build_house(lot, district)
+		return
+	# A deco building on a midtown boulevard (DecoBoulevard: hash-seeded, the pad roll is made).
+	if DecoBoulevard.build_lot(self, lot):
 		return
 	var building := BUILDING_SCENE.instantiate() as Building
 	building.seed = lot.seed
