@@ -194,6 +194,8 @@ func _warm_shaders() -> void:
 	effects.append_array(PortKit.warm())
 	# The street vendors' trucks, carts and umbrellas (StreetVendors), built in code.
 	effects.append_array(StreetVendors.warm())
+	# The billboards' faces and steel (Billboards), only ever drawn through the chunks' batches.
+	effects.append_array(Billboards.warm())
 	# Car damage: the flames, the glass cubes and the engine smoke (CarDamage).
 	effects.append_array(CarDamage.warm_materials())
 	# The boost's streaks of air (BoostTrail), so the first boost does not stall.

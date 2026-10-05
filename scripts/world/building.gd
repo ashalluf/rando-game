@@ -2483,7 +2483,10 @@ func _build_prop(kind: String, at: Vector3) -> void:
 			var yaw := (PI * 0.5 if _roof_rng.randf() < 0.5 else 0.0) + (PI if _roof_rng.randf() < 0.5 else 0.0)
 			rolls.yaw = yaw
 			rolls.color = panel_color
-			if _roof_plan_only:
+			# The ad on it (a hash: FarBuilding's far box agrees), and Billboards builds the real
+			# poster structure here when it is on (its own batches and collision).
+			rolls.ad = Billboards.roof_poster_ad(seed, at)
+			if _roof_plan_only or Billboards.enabled:
 				return
 			# Laid out square to its own frame, which stands at `at` turned by `yaw`.
 			var pivot := Transform3D(Basis.from_euler(Vector3(0.0, yaw, 0.0)), at)

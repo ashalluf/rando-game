@@ -1757,6 +1757,9 @@ func _test_city() -> void:
 	# trucks, yards and rail spurs - bare share before and after, the plans, one mesh each, nothing
 	# else in the block moved, the far boxes.
 	load("res://tests/industrial_checks.gd").new().run(self, city)
+	# Billboards (tests/billboard_checks.gd): the atlas, the boards as props in one batch per kind,
+	# the far boxes, the monopoles pure and clear of the decks, nothing else in the block moved.
+	load("res://tests/billboard_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

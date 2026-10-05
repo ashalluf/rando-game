@@ -906,10 +906,29 @@ void fragment() {
 			rough = 0.2;
 			spec = 0.5;
 		} else if (kind == 4) {
-			// A billboard: its paint with a band of the advertiser's colour across it.
-			float vv = local_pos.y + 0.5;
-			albedo = mix(c, c * vec3(0.55, 0.60, 0.70), step(0.45, vv) * step(vv, 0.78)) * top_lit;
-			rough = 0.5;
+			if (custom.b > 0.25) {
+				// A billboard face (Billboards): the ad's mean colour, its frame dark round it and
+				// on the back; lit by its fixtures after dark (b 1), an LED board self-lit (b 2),
+				// a supergraphic unlit (b 0.5).
+				vec2 fl = abs(local_pos.xy) * 2.0;
+				bool front = n.z > 0.5;
+				float frame = front ? step(1.0 - 0.32 / max(box_size.x, 0.1), fl.x) + step(1.0 - 0.32 / max(box_size.y, 0.1), fl.y) : 1.0;
+				albedo = mix(c, vec3(0.06), clamp(frame, 0.0, 1.0));
+				rough = 0.45;
+				if (front && frame < 0.5) {
+					if (custom.b > 1.5) {
+						albedo = vec3(0.03);
+						emission += c * mix(1.5, 0.9, lamp_factor);
+					} else if (custom.b > 0.75) {
+						emission += c * 0.9 * lamp_factor;
+					}
+				}
+			} else {
+				// A billboard: its paint with a band of the advertiser's colour across it.
+				float vv = local_pos.y + 0.5;
+				albedo = mix(c, c * vec3(0.55, 0.60, 0.70), step(0.45, vv) * step(vv, 0.78)) * top_lit;
+				rough = 0.5;
+			}
 		}
 		if (kind == 2 && box_size.y - (local_pos.y + 0.5) * box_size.y < 0.6) {
 			// The beacon on the tip, unshaded red like the near one, and brighter after dark.
