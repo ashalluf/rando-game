@@ -233,6 +233,13 @@ class Gear extends Node3D:
 		holder = h
 		rigs = r
 		_setup()
+		# SERVICE_WORK=<0..1> (tools/glshot/car_shot.gd close-ups): every gear shown at work, the
+		# arm that far through its lift, the bed that far down.
+		if OS.get_environment("SERVICE_WORK") != "":
+			_show_work.call_deferred(clampf(float(OS.get_environment("SERVICE_WORK")), 0.0, 1.0))
+
+	func _show_work(_u: float) -> void:
+		pass
 
 	func _setup() -> void:
 		pass
@@ -349,6 +356,18 @@ class GarbageArm extends Gear:
 
 	func _process(delta: float) -> void:
 		advance(delta)
+
+	func _show_work(u: float) -> void:
+		if boom == null:
+			return
+		# A cart standing at the kerb 1.2 m of boom out, then the lift run to `u` of the way.
+		var space := rig_space(boom)
+		var at := pivot_rest + Vector3(ServiceVehicles.BIN_OUT + 1.2, -ServiceVehicles.BIN_DOWN, 0.0)
+		var kerb := space.global_transform * Transform3D(Basis(), at)
+		if begin(kerb, 0, Callable(), Callable()):
+			while t >= 0.0 and t < T_EXT + T_GRAB + T_LIFT * u:
+				advance(1.0 / 60.0)
+			set_process(false)
 
 	## Steps the cycle by `dt` seconds (the tests call it directly).
 	func advance(dt: float) -> void:
@@ -525,6 +544,9 @@ class SweeperGear extends Gear:
 		add_child(p)
 		return p
 
+	func _show_work(_u: float) -> void:
+		set_working(true)
+
 	func set_working(on: bool) -> void:
 		if on == working:
 			return
@@ -581,6 +603,9 @@ class TowBed extends Gear:
 		if winch:
 			winch.stop()
 
+	func _show_work(x: float) -> void:
+		pose(x)
+
 	## 0 level and home, 1 slid back and tilted to the road.
 	func pose(x: float) -> void:
 		u = clampf(x, 0.0, 1.0)
@@ -614,6 +639,9 @@ class IceCreamGear extends Gear:
 				var src := m.mesh.surface_get_material(si)
 				if src != null and String(src.resource_name).begins_with("beacon_amber"):
 					_beacon_surfaces.append([m, si])
+
+	func _show_work(_u: float) -> void:
+		set_standing(true)
 
 	func set_music(on: bool) -> void:
 		if chime == null:

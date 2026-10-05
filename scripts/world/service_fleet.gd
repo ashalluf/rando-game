@@ -948,8 +948,16 @@ func stage_for_shot(scene: String, cam: Camera3D) -> String:
 					(gear as ServiceVehicles.SweeperGear).set_working(true)
 					for i in 40:
 						(gear as ServiceVehicles.SweeperGear)._process(1.0 / 60.0)
-					# From the middle of the road ahead of it, onto its kerb-side corner and brooms.
-					return _eye(at - across * side * 0.8 + along_v * float(dir) * 11.0, 1.5, at + across * side * 4.2 + along_v * float(dir) * 1.0, 0.6)
+					# From the road ahead of it and out toward the middle, onto its kerb-side corner
+					# and brooms (worked out from where the truck really stands).
+					await get_tree().physics_frame
+					var cw3 := WorldState.to_world(car.global_position)
+					var c2 := Vector2(cw3.x, cw3.z)
+					var f3 := -car.global_basis.z
+					var r3 := car.global_basis.x
+					var f2v := Vector2(f3.x, f3.z).normalized()
+					var r2v := Vector2(r3.x, r3.z).normalized()
+					return _eye(c2 + f2v * 10.5 - r2v * 3.2, 1.3, c2 + f2v * 2.5 + r2v * 1.0, 0.5)
 				"ice_cream":
 					car.traffic.hazard = false
 					(gear as ServiceVehicles.IceCreamGear).set_standing(true)
