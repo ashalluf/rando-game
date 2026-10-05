@@ -441,6 +441,8 @@ func begin_build() -> void:
 		_steps.append(ClimbingPlants.build.bind(self))
 		# Murals, ghost signs, painted crosswalks and cabinets (Murals): hash-seeded, last.
 		_steps.append(Murals.build.bind(self))
+		# Pole signs, window vinyl, banners and street plates (BoulevardSigns; hash-seeded, last).
+		_steps.append(BoulevardSigns.build.bind(self))
 	_steps.append(_finish_build)
 
 
@@ -2410,6 +2412,8 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 			steps.append(func() -> void:
 				if _lawn_rect.size.x > 1.0:
 					_add_grass(_lawn_rect, 0.85, 0.0, _lot_rects))
+	# The tall pole signs' far boxes (BoulevardSigns; LOD and the far city's capture only).
+	steps.append(func() -> void: BoulevardSigns.block_step(self, block))
 	if level == Level.FULL:
 		steps.append(_build_sidewalk_props.bind(rect, params, rng, district))
 		# Broadway's goods on the pavement and its street clock (Broadway; hash-seeded).

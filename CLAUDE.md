@@ -1281,6 +1281,25 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   safe) in the shader header. `MURALS=0` is the A/B. Look: `tools/glshot/mural_shot.gd` (seconds),
   `MURAL_DEBUG=1 tools/murals/probe.gd -- --spawn=x,z` (placements with EYEs). Checks:
   `tests/murals_checks.gd`.
+- Boulevard signs (2026-10-05, docs/HANDOFF.md 9cp): `BoulevardSigns`
+  (`scripts/world/boulevard_signs.gd`, static; meshes `SignKit`, `scripts/world/sign_kit.gd`; ONE
+  shader `shaders/boulevard_sign.gdshader`; ONE atlas `assets/textures/boulevard_signs/sign_atlas.png`
+  from `tools/make_sign_art.py`, which also writes `SignArtTable`). Tall POLE SIGNS on MIDTOWN
+  boulevard frontage (the gap between two buildings, or a surface car park's front corner; a
+  second one at a SUBURBS / MIDTOWN plaza or big box): strip-mall tenant pylons, Googie motels
+  (chasing bulbs - UV.x is the bulb's place in the chase -, a VACANCY box whose NO is lit by flag
+  bit 1, plates), liquor / check-cashing cabinets, a tyre shop's. Window VINYL and sign-band
+  BANNERS per shop from StreetWear's parts (picked by the shop's name), LAMP-POST BANNER pairs on
+  hashed boulevards (instances join the lamp's prop record), stacked parking / street-cleaning /
+  no-stopping PLATES on posts along every BUILDINGS kerb, a bus-zone post by each shelter,
+  wayfinding. Printed faces carry their SLOT in UV.x (2 x slot + 0..1); the slot names an atlas
+  family and which of INSTANCE_CUSTOM.r / .g picks the cell (`sg_cell()`), all small integers
+  (exact as half floats). The grid lives in three places (`BoulevardSigns.FAMILIES`,
+  `SignArtTable.FAMILIES`, the shader's `FAMS`; checked). Hashes only; the FULL build is the
+  chunk's last step (after StreetWear), our props are marked `"sg"` in their record; the plan
+  (`plan_poles()`) is pure, so LOD chunks and the far city keep the tall signs' heads as lit
+  PANEL boxes and a MAST (`block_step()`). `BOULEVARD_SIGNS=0` is the A/B; kit stills
+  `tools/glshot/sign_shot.gd`, framing `tools/sign_probe.gd`; checks `tests/signage_checks.gd`.
 - Night lighting: the city has no real lights except the sun, so at night it was pitch black.
   Every street lamp now carries an `OmniLight3D` in the `lamp_light` group (FULL chunks only,
   distance-faded, no shadows) whose energy `DayNight` sets from `night_factor` on a 0.35 s tick

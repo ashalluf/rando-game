@@ -1840,6 +1840,9 @@ func _test_city() -> void:
 	load("res://tests/construction_checks.gd").new().run(self, city)
 	# Murals (tests/murals_checks.gd): ghost signs, friezes, wall and column murals, crosswalks, cabinets.
 	load("res://tests/murals_checks.gd").new().run(self, city)
+	# Boulevard signs (tests/signage_checks.gd): the atlas grid, pole signs as props in one batch
+	# per kind, plates and vinyl, nothing else in the block moved, the far boxes.
+	load("res://tests/signage_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
