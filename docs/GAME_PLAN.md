@@ -342,6 +342,16 @@ already mapped so milestone 2 is script-only.
   Decision: one queue on the chunk, drained one step at a time when the finish is reached; no pass
   re-inserts itself. City load peak 1.44 GB.
 
+- **2026-10-05 Road hardware is code on one shader, hash-placed per road (HANDOFF "Road
+  hardware").** The carriageway carried one scanned manhole and box grates. Decisions: covers,
+  valves, inlets, cuts, plates, markers and Botts' dots are built in code at real size (a glTF per
+  piece would be nine materials and no shared wet look) on one shader with the kind in the vertex
+  alpha and the pattern / height / size per instance, one shadowless batch per kind a chunk; a
+  cover's proud or sunk height is one mesh moved by UV2 weights; the cast patterns are shader
+  relief, not geometry; avenues' lane lines are Botts' dots (LA's classic unpainted lanes) because
+  the game never painted them; placement is a hash of seed + road + slot, kept clear of the road
+  ends (crosswalks, stop lines, arrows) and the rail trackway; with it on the old grates, inlets
+  and scanned manholes are skipped (their rolls were private). `ROAD_DETAIL=0` is the A/B.
 - **2026-10-05 City acoustics: spaces, gunfire echo, footsteps by surface, the newest systems'
   sounds (HANDOFF "City acoustics").** The city had one street-canyon reverb, no echo, no
   footsteps, and the bus, the light rail, the river and the parks were silent. Decisions: the

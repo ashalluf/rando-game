@@ -1900,6 +1900,8 @@ func _test_city() -> void:
 	# Vacant lots and gravel car parks (tests/vacant_lots_checks.gd): the pure plan's share per
 	# district, each plan inside its cell, a FULL chunk's two meshes and weed batches, the A/B, LOD.
 	load("res://tests/vacant_lots_checks.gd").new().run(self, city)
+	# The road's hardware (tests/road_detail_checks.gd): covers, inlets, cuts, plates, markers.
+	load("res://tests/road_detail_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

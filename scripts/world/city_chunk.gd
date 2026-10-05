@@ -2352,7 +2352,7 @@ func _mark_road(along_z: bool, center: float, width: float, a: float, b: float, 
 		var t := mh.randf_range(a + 4.0, b - 4.0)
 		var lane := (width * 0.25) * (1.0 if mh.randf() < 0.5 else -1.0)
 		var pos := Vector3(center + lane, ROAD_TOP - 0.025, t) if along_z else Vector3(t, ROAD_TOP - 0.025, center + lane)
-		if _in_cuts(cuts, pos):
+		if _in_cuts(cuts, pos) or RoadHardware.enabled:
 			continue
 		_batch.add("manhole", PropFactory.model_manhole(), Transform3D(Basis(Vector3.UP, mh.randf_range(0.0, TAU)), pos))
 	if avenue:
