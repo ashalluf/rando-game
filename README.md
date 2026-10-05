@@ -16,3 +16,11 @@ SUNSPIRE PICTURES, an invented Hollywood studio lot in midtown under the ridge s
 - 11_after_backlot_night_2130: the New York street at night, lit windows and cast-iron lamps.
 - 12_after_aerial_golden_hour_backlot_bracing_1820: stages 4 and 8 and the backlot from the east, the false fronts' plywood backs and raked bracing.
 - 13_after_aerial_flat_lot_noon: the final build from the south-west (the lot flattened over its own rect).
+
+## After the lead's review (same views re-shot)
+- 14_review_gate_street_noon: the gate and the office block's new frame and glass by day.
+- 15_review_backlot_real_cars_1000: the backlot street with real parked Vehicle bodies.
+- 16_review_stage_doors_1700: stages 8 and 9, elephant doors framed and braced, stucco control joints.
+- 17_review_gate_night_curtain_glass_2130: the office windows on curtain_glass, traced offices lit at night (no checkerboard).
+- 18_review_elephant_door_red_light_close_1100: a ribbed-metal stage: the door's stiffeners, brace, track brackets, bollards, the caged red light, its bell and the STAGE 8 warning plate.
+- 19_review_aerial_noon: the lot from the south-west after the changes.
