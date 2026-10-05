@@ -5,10 +5,12 @@ two are the source of truth; the handoff is the narrative (state, workflow, gotc
 for a session on any account. Update all of them whenever a design decision changes. Every
 session starts with no memory.
 
-**State on 2026-10-05 (fleet wave 2):** `main` is integration-a (19 fleet branches) plus fixes,
-gated green. A second fleet of 100 sessions is running (`fleet/brief`: BRIEF.md, tasks.tsv,
-sessions.tsv; each on `wt/<slug>`, stills on `shots/<slug>`); integration-b's memory bug is fixed
-on `wt/oom-fix`. Start at docs/HANDOFF.md section 0000000; the fleet tooling is in `tools/fleet/`.
+**State on 2026-10-05 (fleet wave 2):** `main` is integration-a (19 fleet branches) plus wave 2's
+batch 1 (sky, alleys, stadium, rooftops, wilshire-deco, far-corners, cemetery, kerbs), gated green.
+`fleet/batch2` (integration-b with its memory fix) and `fleet/batch3` (fwd-review-a, road-detail,
+perf-audit, reservoir, ridges, service-vehicles) are queued behind it. A fleet of 100 sessions is
+running (`fleet/brief`: BRIEF.md, tasks.tsv, sessions.tsv; each on `wt/<slug>`, stills on
+`shots/<slug>`). Start at docs/HANDOFF.md section 0000000; the fleet tooling is in `tools/fleet/`.
 
 ## Project summary
 
@@ -316,7 +318,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`render_mode use_half_res_pass`, guarded by `CURRENT_RENDERER`; the full pass composites
   `HALF_RES_COLOR`, rgb premultiplied, a = transmittance), dithered per frame (TAA resolves it).
   Shape: a weather map (`assets/textures/sky/cloud_weather.png`, R where, G how tall) gives each
-  column, a dome over a flat base, eaten by a 64^3 Perlin-Worley (`cloud_shape3d.png`; both by
+  column, a dome over a flat base that REMAPS a 64^3 Perlin-Worley (the noise is the cloud; the dome says how much survives, so margins and crowns are turrets), its margin torn by Worley fbm scaled to ~3 pixels at that distance, coverage moved by region (a 4x read of the map) (`cloud_shape3d.png`; both by
   `tools/sky/make_cloud_noise.py`, imported as Images and turned into textures by
   `SkyExtras.textures()`); light: four taps toward the sun (or the moon), three octaves of multiple
   scattering, a dual-lobe phase, powder, ambient from the sky above and the ground / city below;
@@ -326,7 +328,10 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   turns the columns into a flat stratus ceiling (weather). Compatibility and Forward+ below
   MEDIUM keep the painted 2D cumulus (`painted_cumulus()`), and the mid deck is thinned next to the
   volume. Cost on lavapipe, 1280x720 sky-only: +0 to +4 % of the frame (`tools/sky/sky_shot.gd`
-  BENCH, `SHADER=` the A/B). The half pass also carries the sky-space crepuscular rays
+  BENCH, `SHADER=` the A/B). **Photographic shape** (HANDOFF 9cn): flat base cut at the
+  condensation level with sideways-only billows near it, crown thinned so billows make turrets,
+  warped footprints and downwind lean, a 4x-finer fragment population (`fcol`), three-octave
+  torn edges and fractus; five-tap light march and an ambient occluded in dense cores. The half pass also carries the sky-space crepuscular rays
   (`sky_rays()`: eight weather fetches toward the sun; Forward+ only). **Contrails**: SkyExtras
   flies `contrail_jets` airliners straight across at 9-12 km (not AirTraffic's, which fly under
   1.5 km); a trail is ONE segment (head minus (heading x speed - wind) x age), passed as
@@ -1721,6 +1726,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`shaders/street_clutter.gdshader`: paint from INSTANCE_CUSTOM, printed front pages, covers and
   chalk from the vertex alpha), one draw per kind a chunk. StreetDetail still makes the news
   boxes' old rng rolls and hands them over; everything else is hash-seeded.
+  **Kerbs** (`Kerbs`, `scripts/world/kerbs.gd`, 2026-10-05): a FULL block's pavement is an
+  inner slab (`_block_surface`) plus a ring `RING` 2.6 m wide built by Kerbs in the pavement's own
+  material with one trimesh collision: corner ramps cut in line with the crosswalks (dome pads),
+  driveway aprons where YardFill's drives meet the kerb, dirt tree wells, root-heaved slabs; then
+  ONE marks mesh per 64 m tile (`shaders/kerb_marks.gdshader`: zone paint red / yellow / green /
+  white / blue with stencils, house numbers in SUBURBS / BEACHTOWN, domes, dirt, the `tree_grate`
+  batch's cast-iron grate, cracks). Built as steps after the pavement furniture; nothing is cut
+  under an upright prop; red kerbs and aprons keep this chunk's own parked cars off
+  (`blocks_parking()`); it replaces StreetDetail's `_kerb_paint` there. LOD and far keep the plain
+  slab. Hash-seeded. `KERBS=0` is the A/B; probe `tools/kerbs/probe.tscn`; checks
+  `tests/kerbs_checks.gd` (`tools/kerbs/checks_only.tscn` alone).
   **Street wear** (`StreetWear`, `scripts/world/street_wear.gd`, a build step of every FULL
   chunk after everything it lies on): spray tags, throw-ups and roller letters with buff-out
   patches over some, wheat-paste runs and flyers, stickers on lamp / signal / utility poles and
@@ -1980,6 +1996,47 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Shopping plazas, big-box stores, fast-food and gas-station pads are `Commercial`
   (`scripts/world/commercial.gd`); block kinds `MALL` and `BIGBOX` and the `pads` odds live in
   `CityPlan.DISTRICTS`. Shop names are original, never brands.
+- Service alleys (2026-10-05, docs/HANDOFF.md "Service alleys"): the backs of downtown
+  (outside the financial core: skyline boost under `Alleys.MAX_BOOST`) and midtown blocks.
+  `Alleys` (`scripts/world/alleys.gd`) and `AlleyKit` (`scripts/world/alley_kit.gd`). **The band
+  is pure**: `Alleys.spec(plan, bx, bz)` (cached) puts it on the lot grid's seam across the
+  block's long axis (`HALF_BAND` 3.6 m either side; `ODDS` per district, a hash; never on a site,
+  a landmark's square, the runway clear zone, a block with a freeway corridor lot, a fire
+  or a police station), from `CityPlan.lots()` alone, so the lots' own builders keep off it while they are
+  built: `LotFill.after_building()` lays its paving on `Alleys.trim()` of the cell and keeps its
+  forecourt furniture off `keep_out()` and the lot's `back_strip()` (the building's back to the
+  band: the alley's service ground), `LotFill.surface_lot()` trims the car park, the parked cars
+  skip `keeps_clear()` (red kerb at the mouths) and the pavement's lamps, trees and bushes skip
+  `in_mouth()` - **after their rolls** (a tree or bush is planted into a scratch MultiMeshBatch so
+  the block rng runs the same). `CityChunk` sets `Building.back_face` (`Alleys.back_face()`, 1 +X,
+  2 -X, 3 +Z, 4 -Z): that face's vertices carry no storefront flag (`_append_part()`), and it gets
+  no piers, kit storefront, shop names, spill, awnings or canopy - the alley face is the
+  building's back, not another row of shops. **The runs are not pure**: `Alleys.block_step()`
+  (after the lots, every level) walks the band from each mouth while the buildings LotFill
+  recorded (`record()`) leave `MIN_WIDTH` (3.2 m) clear on a straight line (`runs()`, up to
+  `WIDTH` 6.1), so a run can stop short (a dead end). FULL: ONE ground mesh (`AlleyGround`,
+  `shaders/alley_ground.gdshader`, no shadow; kinds `G_*` in COLOR.r 16ths, UV the alley's own
+  frame (along, across)): concrete or (a hash of the run) asphalt round a concrete V-gutter
+  ribbon, slab joints, cracks, dug-up patches with sealant, oil in the wheel paths, grit and
+  leaves at the walls, a cast-iron grate every ~24 m, speed bumps, NO PARKING stencils (TextMesh
+  triangles conformed to the crown), aprons across the pavement and a wedge down to the road;
+  and ONE casting upright mesh (`AlleyWalls`) on IndustrialKit's material and writers
+  (`IndustrialKit.place()`), dressed by `AlleyKit.dress()` along every building back within 16 m
+  of the run: steel doors under caged bulkhead lamps (`alley_pool` light pools, a few
+  `lamp_light` omnis, `MAX_LAMPS` / `MAX_LIGHTS`), docks with steel stairs and roll-ups, fire
+  escapes with drop ladders, condensers on brackets, panels, and on the ground a weighted walk -
+  dumpsters stencilled with invented haulers (`Alleys.HAULERS`), grease bins, carts, pallets,
+  crates, meters, a mattress - with a lane of `AlleyKit.LANE` kept clear; gates at some mouths;
+  a box van backed in; wooden poles, wires, transformers and service drops on StreetDetail's own
+  batches; StreetWear's tags and grime on the alley walls (`StreetWear._walls()` handed the
+  centre line as a kerb, one cap with the street's); a cook on a smoke break (`AlleyCook`, a
+  StreetVendor with a cigarette, in the crowd cap). dress() only DECIDES (a couple of ms) and
+  queues each prop's SurfaceTool writes as its own time-sliced build step. LOD chunks and the far
+  city's capture lay the band, the runs and the back strips as concrete slabs (`FAR_COLOR`).
+  Every roll is a hash of seed + block / run / face, never a chunk, block or Building rng.
+  `ALLEYS=0` in the environment is the A/B; `tools/alleys/probe.tscn` lists alleys (`WALLED=`
+  walled-in ones, an EYE each) and builds one block (`BUILD=bx,bz`: props by kind, triangles;
+  `ALLEY_TIME=1` the steps' times); checks `tests/alley_checks.gd`.
 - Roadside commerce (2026-10-05, docs/HANDOFF.md "Roadside commerce"): the commercial pads
   (`Commercial.build_pad`) are `Roadside` (`scripts/world/roadside.gd`, kit `roadside_kit.gd`,
   `shaders/roadside.gdshader`): gas stations, car washes, auto / tyre shops, a Googie coffee shop,
@@ -2866,6 +2923,43 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `SHOP_NAMES`, Broadway's appended after the first `BASE_SHOP_NAMES`; nothing else's roll moves).
   `BROADWAY=0` is the A/B; `tools/broadway_probe.gd` lists the palaces with EYEs; checks
   `tests/broadway_checks.gd`.
+- The ballpark in the ravine (2026-10-05, docs/HANDOFF.md "The ballpark in the ravine"): the FORM of LA's
+  famous hillside ballpark, in its real place - home plate's real point through
+  `DowntownReal.game_xz()`, 2.9 km grid-north of Pershing Square on the embayed hills above the
+  110 / 101 junction, facing the real centre field (game north, 6.4 degrees west) - with an
+  invented name (SUNRIDGE BALLPARK) and no team, sponsor or logo. **The data is `Ballpark`**
+  (`scripts/world/ballpark.gd`): the frame (`HOME`, `FWD`, `RIGHT`; `world(u, v)`, `local()`),
+  the regulation field (`BASE`, `RUBBER`, `fence_r()`: 330 / 375 / 395 ft), the four `TIERS`
+  (front offset from the foul lines, height, rows, rake, how far down the lines, the pastel seat
+  colour, how full), the pavilions and scoreboards, the SITE (a rounded rectangle in local u, v)
+  cut into the hills at fixed levels - the lower pad `PAD_Y` and the upper terrace
+  `TERRACE_RISE` over it behind home, joined by a planted slope - with 1:1 cut / 1:1.5 fill banks
+  out to `BANK_REACH` (`carve()`, folded into `MacroMap.height_at()` before the hill roads), and
+  the lots (`LOT_*`, `ground_kind()`, `stall_car()`, `poles()`, `palm_spots()`). `covers()` keeps
+  the hills' scatter, planting (`CityChunk._near_pad`), shells (`shell_marks()`) and Skyline's far
+  oaks off it. Two roads, appended to HillRoads after everything else (`Ballpark.add_roads()`, so
+  no roll moves; the hill chunks draw and carve them): Sunridge Dr north to the valley floor,
+  Stadium Way switchbacking down the south face to Hill St (ground-following, grade-limited to
+  `ROAD_GRADE`, never climbing on the way down). **The meshes are `BallparkBuild`**
+  (`scripts/world/ballpark_build.gd`), in world space, cached per level ("near" / "far", the near
+  set built on the loading screen with the far copy): the tiers' stepped rows (real geometry), parapets,
+  fascias, soffits, lit concourses, facades and end walls; the pavilions under zig-zag folded-plate
+  roofs, the stretched-hexagon scoreboards on legs, light banks on the roof lines with a glare
+  sprite per lens (`aircraft_lights.gdshader`, kind 4); the field as a polar grid; the outfield
+  wall, foul poles, dugouts, backstop net, batter's eye, bridges from the terrace; the plaza and
+  lots as one grid following the levels. Shaders: `ballpark_struct` (kind in the vertex alpha),
+  `ballpark_seats` (the crowd: a riser shows the torso of whoever sits in the row below, the
+  tread their head and the seat or a lap; under a pixel the tier's average), `ballpark_field`
+  (lines, dirt, the mow, analytic and box-filtered), `ballpark_lot` (stall rows, medians,
+  planting, the plaza, and the parked cars PAINTED into the very stalls `Ballpark.stall_car()`
+  fills with 3D cars near - the integer hash is the same lowbias32, checked), `ballpark_glow` (the
+  night game's haze, integrated along the view ray through an ellipsoid, cut by the depth
+  texture). **The night game is emitted**: every surface the banks see adds its albedo times the
+  flood term (`bp_flood()`, off `lamp_factor`); three OmniLights in `lamp_light` light the field
+  on desktop. Shader copies of Ballpark's numbers are checked (`tests/ballpark_checks.gd`).
+  `BALLPARK=0` in the environment leaves it out (the A/B; it also restores the hills).
+  Probe: `tools/stadium/probe.gd` (ground, cut and fill, the roads' earthwork), timing
+  `tools/stadium/bench.gd`.
 - Westlake (owner, 2026-09-24: "MacArthur Park and a bunch of homeless tents up on random
   streets in downtown and people slumped over"): the first **replica area** on the street grid.
   **The park is ON** (`LandmarkMacArthurPark.enabled`, since 2026-09-24 evening; it was held off
@@ -2996,6 +3090,22 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   cooldown spent. Rockets that reach it fizzle (`Rocket.fizzle()`), and bullet holes and scorch
   marks skip it whoever fired. Never route a new weapon around `Weapon.tick()`, and give any new
   place of worship the same zone.
+- Memorial parks (2026-10-05, fleet task "cemetery"; docs/HANDOFF.md, the memorial park section):
+  `Cemetery` (`scripts/world/cemetery.gd`) claims a 2 x 2 (or 2 x 1) group of SUBURBS blocks per
+  `CELL` (1.5 km) from hashes and the ROADS alone (`decide()`: never `CityPlan.block()`, so the
+  answer is order-independent; Parks' role checked through `_rolled_kind()`), marks them PARK with
+  grounds "cemetery" in `CityPlan.block()` BEFORE Schools' hook and closes the inner streets
+  (`road_closed()` in `road_open()`). The plan is pure (`plan_for()`): a rise (`height()`), a
+  loop drive, a Mission chapel by the gate, a classical mausoleum on the crown, an old section,
+  trees, the stones (`graves()`, ~3,000). `CemeteryBuild` builds each chunk's part (the hook is
+  the top of `CityChunk._block_steps()`, which it replaces): lawn mesh, drive, wall with the
+  cut-out iron fence (`cemetery_fence.gdshader`), the lit gate with the name in gilt letters,
+  LandmarkGeo buildings, one batch per stone kind (`CemeteryKit`, `cemetery_stone.gdshader`),
+  code-built cypresses (`cemetery_cypress.gdshader`), lanterns, visitors (`CemeteryVisitor`),
+  the outer pavement's lamps and trees. **A sanctuary**: all collision in one sanctuary body, a
+  zone over each chunk's part at FULL and LOD; nothing breaks. `CEMETERY=0` is the A/B; probes
+  `tools/cemetery/probe.gd` (`EYES=` heights on the rise) and `build_probe.gd`; checks
+  `tests/cemetery_checks.gd` (`tools/cemetery/checks_only.tscn` alone).
 - Autoload `WorldState`: `world_offset` (local + offset = true world position, use `to_world()` /
   `to_local()`) and the destroyed-prop registry (`mark_destroyed`, `is_destroyed`).
 - Anything that must survive origin re-centering has to be a 3D child of the scene root (the
@@ -3168,6 +3278,73 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   frame cost is ALU on storefront glass pixels only. Judge with `building_shot.gd` (`NIGHT=1`,
   `BENCH=n`) and `still_shot.gd` `EYE=`/`SHOTS=` from the pavement; `tools/glshot/shop_probe.gd`
   (headless) lists the storefronts near a point with an EYE for each face.
+- Tower roofs (2026-10-05, "tower roofs are what the player sees most while flying"):
+  `Rooftops` (`scripts/world/rooftops.gd`, static) puts on a building's highest roof (not a
+  podium) a raised HELIPAD (towers from `PAD_MIN_HEIGHT` 75 m, `PAD_SHARE`: steel deck
+  `PAD_RISE` over the plant on columns that skip what stands under them, the touchdown paint, green
+  perimeter lights and floods, a safety-net shelf, a windsock, the access stair, a parked
+  helicopter in a private livery on `HELI_SHARE`), a POOL DECK or a ROOF GARDEN (a traced pool,
+  loungers, umbrellas, glass balustrade, a cabana bar with its lit invented name, string lights,
+  potted palms; RoofGoer people on the deck, `scripts/npc/roof_goer.gd`, in the crowd cap - lawn,
+  planters, pergola), a louvred MECHANICAL PENTHOUSE, a TELECOM MAST and on glass towers a
+  WINDOW-WASHING MACHINE on rails, its cradle parked or hanging part-way down the facade. **The
+  plan is pure** (`plan(b)`: the parts, the plant Building already placed - `roof_props` - and
+  hashes of seed + "rooftops"; never `_rng` or `_roof_rng`), so a generating building and its far
+  boxes (`FarBuilding.boxes()` after `roof_plan()`) plan the same roof. Pieces stand off the
+  plant they may not cover (bulkheads, tanks, cooling towers, signs, spires; a pad only off spires
+  and tanks) and IN PLACE of the small plant (`HIDEABLE`: units, ducts, solar, skylights; and an
+  antenna under a pad): `hidden()` names those props, `clear_plant()` takes them off the near
+  building after `_build_roof_props()` (each prop's primitives start at its `rolls.prims`), and
+  FarBuilding skips them - their rolls are still made, nothing moves. The kit's own roof plant is
+  handed the pieces' rects (`keep_out()`, its private stream). Drawn as ONE mesh a building
+  (`RooftopGeo` -> `shaders/rooftop.gdshader`: kind in the vertex alpha /32 - the pad's paint from
+  UV, the net cut out and dithered under a pixel, louvres, decking, pavers, turf, lamps,
+  bulbs and signs lit by `lamp_factor`; the pool TRACED in the mesh's own space, UV = building
+  space from the pool's centre, UV2 its half size) plus a glass surface, the planting in one
+  MultiMeshBatch, collision on the building. Far: `FarBuilding.Plant.HELIPAD` / `POOL`, painted on
+  the box top by `building_lod.gdshader`. LandmarkDowntown towers whose real roofs are flat carry a
+  `"helipad"` row in `TOWERS` (local centre on the roof, deck, turn; `Rooftops.landmark_helipad()`).
+  `ROOFTOPS=0` is the A/B. Look with `tools/glshot/rooftop_shot.gd` (`FEAT=helipad|pool|garden|
+  penthouse|mast|bmu`, `NIGHT=1`, `GOLDEN=1`, seconds), find them in the city with
+  `tools/rooftops/find.gd -- --at=x,z --radius=m` (an EYE per pad and pool), count with
+  `tools/rooftop_probe.gd`. Checks: `tests/rooftops_checks.gd`.
+- Wilshire deco (VISUAL_ROADMAP #86, 2026-10-05, docs/HANDOFF.md "Wilshire's deco boulevard"):
+  `DecoBoulevard` (`scripts/world/deco_boulevard.gd`) gives midtown's boulevard frontage its
+  1920s-30s character. A MIDTOWN BUILDINGS block's edge lot whose cell faces a road
+  `BOULEVARD_WIDTH` (24 m) or wider is deco by a hash (`WILSHIRE_ODDS` 0.75 on Wilshire - pinned
+  real street, its midtown stretch runs x ~500-1600 between MacArthur Park and the 110 -,
+  `ODDS` 0.3 on other boulevards) and builds one of five kinds instead of its Building: a zigzag
+  moderne TOWER (three-storey base, a shaft set back twice, piers on every bay line, majors rising
+  into stepped finials, chevron spandrels, zigzag friezes, a fluted lantern crown, ziggurat steps
+  and a spire; lots planned 26 m+), a streamline CORNER on a block corner (glass block round the
+  curve, ribbon windows, speed lines, a canopy with downlights and a neon strip, a pylon fin with
+  the name in neon; under `CORNER_MAX_HEIGHT`), a THEATRE (`THEATRE_BLOCKS` of blocks, one a
+  block; fluted pilasters, stepped tower, vertical blade sign, marquee with readerboards and
+  chasing bulbs, an OmniLight under it at night on desktop), deco APARTMENTS (stepped centre bay
+  and pediment, portal, the name over the door: gilt by day, lit at night) and Spanish COURTYARD
+  apartments (three stucco wings, clay gables, a tiled fountain, an arched gate with the name,
+  LotFill's planting and two palms inside). **The plan is pure** (`block_plans()` / `lot_plan()`,
+  hashes of seed + lot, cached by block): the planned Building is never made, the pad roll is
+  spent before `CityChunk._build_lot()` asks, so nothing else on the block moves. Every lot's
+  massing (`massing()`) is what the LOD chunks and the far city draw - **plain `lod_box`es on
+  building_lod's OLD path** (facade colour + window style, INSTANCE_CUSTOM.a 0), not FarBuilding's
+  coded copy - and what the collision (`DecoBody`, one box a massing box) and the occluder are.
+  `DecoBuild` (`scripts/world/deco_build.gd`) writes a FULL chunk's deco into ONE ornament mesh
+  (`DecoOrnament`, `shaders/deco_ornament.gdshader`: kind in COLOR.a as a code in 4/255 steps,
+  plus 32 for floodlit crown surfaces; paint in display numbers; UV face metres; UV2 a panel's
+  size; TANGENT the face's +u - terracotta, glaze, chevron / sunburst / zigzag / fluting relief,
+  metal, glass block lit at night, neon, bulbs, readerboards, clay tile, Spanish tile, water) and
+  one walls mesh per palette (`DecoWalls_<key>`) on **building.gdshader with `uv_facade` AND
+  `part_attributes` on**: Building's CUSTOM0-3 layout per vertex, UV.x metres along a face (a
+  whole number of bays, so the piers and spandrels DecoBuild places line up with the shader's
+  windows: PUNCHED glass is 0.27-0.77 of a storey), UV.y the face index (100+ blank) - so the
+  windows keep their traced rooms, lit offices and storefronts. Building frame: x along the
+  street, +z toward it, front at z 0 (`frame_xform()`). Mature palms on the kerb in front
+  (`block_step()`, after the sidewalk furniture, clear of it by `PALM_CLEAR`), night pools in
+  their own `deco_spill` batch. The plan has no medians, so none are built. Names are invented
+  (the checks hold a list of the real boulevard's out). `DECO=0` in the environment is the A/B;
+  `tools/deco_probe.gd -- --spawn=x,z,0,0` lists the deco round a point with an EYE each;
+  checks `tests/wilshire_deco_checks.gd`.
 - Characters: every rig (pedestrians, ragdolls, the player) renders through
   `shaders/character.gdshader` via `Pedestrian.prepare_rig(inst, look)`. The source models ship
   one flat 1K colour texture and a glTF material with full white emission and double specular,
@@ -3909,6 +4086,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the LOD ring and times their build (`FAR_CODED=0|1`). The old path (no code) still draws the
   replica houses, estates, slabs and plates: its window grid sampled with a view-direction offset,
   per-room brightness, slab-edge bands, reveal shading and a vertical gradient.
+- Cut corners on the far boxes (2026-10-05, docs/HANDOFF.md "Cut corners on the far boxes"):
+  a chamfered part (`part_grid()` cut_x > 0) is three instances of the unit box in the `lod_box`
+  batch - its own entry as the middle piece, two end pieces appended after the plant (so part i
+  stays box i) - with the piece in INSTANCE_CUSTOM.r (`FarBuilding.PIECE_*`);
+  `building_lod.gdshader`'s vertex stage pulls the corners in by one bay (the code's cols) and
+  gives the cut faces their normals. Every piece computes a corner by the same expression, or the
+  roof cracks. No new mesh or draw (+24 triangles a cut part). `FAR_CORNERS=0` is the A/B;
+  `far_building_shot.gd CHAMFER=1`; checks `tests/far_corners_checks.gd` (mirror the reshape).
 - **Four measurement traps, each of which has already cost a session.** All fail by reporting
   success, which is the worst way to fail.
   1. **Godot serves a CACHED import of a `.glb`.** Rebuild a model, render it, and you are
