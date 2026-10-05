@@ -6,8 +6,8 @@ not the Mac's Forward+. Docs: docs/HANDOFF.md, the freight rail section (VISUAL_
 | File | What | How |
 |---|---|---|
 | crossing_gates_down.jpg | A train over Maple St, gates down, from the pavement | `FREIGHT_CROSS=0:0:-25 FREIGHT_HOLD=1 EYE=3428,14.5,4478,50,-4`, 15:00 |
-| stack_train_golden_hour.jpg | A double-stack train over Pacific Blvd at golden hour, gates down | `FREIGHT_CROSS=1:...`, ~18:00 |
-| stack_train_aerial.jpg | The same train from the air | same load |
+| stack_train_golden_hour.jpg | A double-stack train over Pacific Blvd at golden hour, gates down | `FREIGHT_CROSS=1:0:-18`, EYE 3418,12.4,4529,76,-2, 17:48 |
+| stack_train_aerial.jpg | The same train from the air | EYE 3446,40,4562,48,-32, 17:48 |
 | trench_from_above.jpg | The trench under decked cross streets, a manifest in it | `FREIGHT_KIND=0 FREIGHT_S=1400:0:-25`, EYE 3412,38,3640,20,-28 |
 | trench_close.jpg | Looking down into the trench by a bridged junction | EYE 3400,24,3500,10,-50 |
 | trench_night.jpg | The trench at night | 20:30 |
