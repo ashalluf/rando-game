@@ -16,13 +16,15 @@ render_mode blend_mix, depth_draw_never, cull_back, diffuse_burley, specular_sch
 // flaking.
 //
 // * The mesh is a unit quad (x -0.5..0.5, y -0.5..0.5, facing +Z); the instance basis is
-//   (right * w, up * h, normal * w), so a piece's size in metres is the basis' column lengths.
+//   (right * w, up * h, normal * W): a piece's size in metres is the first two columns' lengths,
+//   and the third's is the WHOLE design's width W (a flat quad does not care how it is scaled
+//   along its normal, and a transform is exact on both renderers where instance colours are not:
+//   a width in COLOR came back clamped to 1, and every panel of a wall drew the whole design).
 // * INSTANCE_CUSTOM: r = mode * 16 + scene, g = seed 0..1, b = this piece's left edge in metres
 //   within the whole design (a mural split into panels between pilasters, a crosswalk in strips)
 //   or the ghost sign's atlas cell, a = substrate + 8 * wear (0..7). Small integers and 0..1, so
 //   they survive Compatibility's half-float instance data.
-// * Instance COLOR: modes 0, 2, 3, 4: r = the whole design's width (metres), g = age (0 fresh,
-//   1 old). Mode 1 (ghost sign): rgb = the wall's colour (sRGB, for the patch painted over part of
+// * Instance COLOR: modes 0, 2, 3, 4: g = age (0 fresh, 1 old). Mode 1 (ghost sign): rgb = the wall's colour (sRGB, for the patch painted over part of
 //   it), a = age. Instance colours arrive raw on both renderers.
 // * Modes: 0 a mural (scene 0-5), 1 a ghost sign, 2 a painted crosswalk (scene = pattern),
 //   3 a painted cabinet face (scene 0-5, small), 4 a frieze (a folk band along a wall).
@@ -74,7 +76,7 @@ const vec3 GHOST_SECOND[4] = vec3[4](vec3(0.62, 0.12, 0.10), vec3(0.10, 0.10, 0.
 
 varying flat vec4 v_col;
 varying flat vec4 v_custom;
-varying flat vec2 v_size;
+varying flat vec3 v_size;
 
 float mh(vec2 p) {
 	p = fract(p * vec2(123.34, 456.21));
@@ -559,7 +561,7 @@ vec3 paint_scene(float sc, vec2 p, vec2 S, float s, float px) {
 void vertex() {
 	v_col = COLOR;
 	v_custom = INSTANCE_CUSTOM;
-	v_size = vec2(length(MODEL_MATRIX[0].xyz), length(MODEL_MATRIX[1].xyz));
+	v_size = vec3(length(MODEL_MATRIX[0].xyz), length(MODEL_MATRIX[1].xyz), length(MODEL_MATRIX[2].xyz));
 	vec4 vp = MODELVIEW_MATRIX * vec4(VERTEX, 1.0);
 	POSITION = PROJECTION_MATRIX * vec4(vp.xyz * (1.0 - depth_pull), 1.0);
 }
@@ -628,7 +630,7 @@ void fragment() {
 	} else if (mode > 1.5 && mode < 2.5) {
 		// A painted crosswalk: `sc` is the district's pattern. x runs across the road, y across
 		// the crossing; white edge lines along both long sides, as the code wants.
-		float W = max(v_col.r, v_size.x);
+		float W = max(v_size.z, v_size.x);
 		vec2 q = p + vec2(v_custom.b, 0.0);
 		float edge = step(min(q.y, v_size.y - q.y), 0.3);
 		float y = clamp((q.y - 0.3) / max(v_size.y - 0.6, 0.1), 0.0, 1.0);
@@ -665,7 +667,7 @@ void fragment() {
 		grain = 1.3;
 	} else {
 		// A mural (mode 0), a cabinet's painted wrap (3) or a frieze (4).
-		float W = max(v_col.r, v_size.x);
+		float W = max(v_size.z, v_size.x);
 		vec2 S = vec2(W, v_size.y);
 		vec2 q = p + vec2(v_custom.b, 0.0);
 		vec2 qw = q + warp * (mode > 2.5 && mode < 3.5 ? 0.3 : 1.0);

@@ -55,6 +55,15 @@ func _initialize() -> void:
 		xf.append(Transform3D(Basis(Vector3.RIGHT * w, Vector3.UP * h, Vector3.BACK * w), c))
 		cols.append(Color(w, age, 0.0, 1.0))
 		cus.append(mur.call("custom", mur.MODE_MURAL, i, fmod(seed01 + i * 0.13, 1.0), 0.0, 0, wear))
+	if OS.get_environment("PANELS") != "":
+		# One design over four 6 m panels (a sound wall between pilasters): PANELS=<scene>.
+		xf.clear()
+		cols.clear()
+		cus.clear()
+		for i in 4:
+			xf.append(Transform3D(Basis(Vector3.RIGHT * 5.4, Vector3.UP * 4.0, Vector3.BACK * 24.0), Vector3(-30.0 + i * 6.0 + 3.0, 2.4, 0.01)))
+			cols.append(Color(0.0, age, 0.0, 1.0))
+			cus.append(mur.call("custom", mur.MODE_MURAL, int(OS.get_environment("PANELS")), seed01, i * 6.0 + 0.3, 3, wear))
 	# A frieze along the top.
 	xf.append(Transform3D(Basis(Vector3.RIGHT * 60.0, Vector3.UP * 1.2, Vector3.BACK * 60.0), Vector3(0.0, 7.0, 0.01)))
 	cols.append(Color(60.0, age, 0.0, 1.0))

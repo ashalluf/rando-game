@@ -203,7 +203,9 @@ static func _put(ctx: Dictionary, mode: int, scene: int, center: Vector3, basis:
 		return -1
 	var chunk: CityChunk = ctx.chunk
 	var at := center - Vector3(0.0, chunk._gy(center.x, center.z), 0.0)
-	var col := color if mode == MODE_GHOST else Color(design_w, age, 0.0, 1.0)
+	var col := color if mode == MODE_GHOST else Color(0.0, age, 0.0, 1.0)
+	# The whole design's width rides the basis' normal column (see the shader header).
+	basis.z = basis.z.normalized() * maxf(design_w, 0.05)
 	var index := chunk._batch.add(KEY, mesh(), Transform3D(basis, at), col, custom(mode, scene, seed01, offset, substrate, wear))
 	ctx.count = int(ctx.count) + 1
 	(ctx.points as Array).append(Vector2(center.x, center.z))

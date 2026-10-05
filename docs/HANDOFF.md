@@ -7077,7 +7077,9 @@ nothing else moves - the checks build blocks with it off and on):**
   to the prop's record so the wrap goes with the cabinet.
 - Never within a place of worship's reach (StreetWear's `_worship_near`), cap `MAX_PER_CHUNK`.
 
-**Drawn**: ONE quad mesh, ONE MultiMesh ("mural") a FULL chunk on `shaders/mural.gdshader`,
+**Drawn**: ONE quad mesh, ONE MultiMesh ("mural") a FULL chunk on `shaders/mural.gdshader` (a design
+split in pieces carries its whole width in the basis' normal column: a width in the instance colour
+was clamped to 1),
 transparent with `render_priority` -1 (so StreetWear's tags land on top of a mural), no shadows,
 faded by `DRAW_DISTANCE` (230 m: past the FULL ring anyway; nothing in LOD chunks or the far
 city). The shader PAINTS every picture from the seed - sunset coast with palms and a striped sun,
@@ -7090,6 +7092,13 @@ work, no lettering but the ghost signs. Ghost signs are `assets/textures/murals/
 (`tools/make_murals.py`, PIL: sixteen INVENTED period ads as R field / G lettering / B shadow and
 rules masks), coloured in faded period paints, flaking off, part painted over in the wall's own
 colour. Instance data in the shader header (half-float safe). `MURALS=0` is the A/B.
+
+**Frame cost** (`tools/geo_count.gd`, opengl3, `AB=Batch_mural`, the same frozen frame with the
+murals hidden): the painted junction east of Pershing Square (`--spawn=2610,-150,180,-5`)
+3,721,392 tris / 3,459 draws with, 3,721,707 / 3,461 without; a ghost-sign block
+(`--spawn=2990,-174,-90,10`) 3,111,659 / 3,268 with, 3,111,649 / 3,268 without - flat (one draw a
+chunk that paints anything, two triangles an instance; the cost is pixel shading on the murals).
+Smoke test: 933 checks pass.
 
 **Look / measure**: `tools/glshot/mural_shot.gd` (every scene, ghost signs, crosswalks and
 cabinets on test walls, seconds; SEED, AGE, WEAR); `MURAL_DEBUG=1 tools/murals/probe.gd -- --spawn=x,z`
