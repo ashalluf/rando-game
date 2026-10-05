@@ -1,6 +1,6 @@
 class_name FreewayStack
 extends RefCounted
-## The four-level stack where the 110 meets the 101 north-west of downtown (VISUAL_ROADMAP #59):
+## The four-level stack where the 110 meets the 101 north-west of downtown (VISUAL_ROADMAP #63):
 ## the two main lines at levels 1 and 4 and the four directional LEFT-turn connectors at levels 2
 ## and 3, each a long sweeping curve on tall single columns with hammerheads, banked into the
 ## turn. This file is the PLAN (pure data, no nodes): Freeway.build() calls prepare() once the
