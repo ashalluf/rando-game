@@ -29,7 +29,21 @@ const MODELS := [
 	"res://assets/models/crowd_j.glb",
 	"res://assets/models/crowd_k.glb",
 	"res://assets/models/crowd_l.glb",
+	# 2026-10-05: eight more so a busy pavement stops repeating faces and builds - the old and the
+	# young, very short and very tall, heavier builds, more complexions and more clothes (see
+	# docs/ASSETS.md and tools/crowd/crowd_config.json for who each one is).
+	"res://assets/models/crowd_m.glb",
+	"res://assets/models/crowd_n.glb",
+	"res://assets/models/crowd_o.glb",
+	"res://assets/models/crowd_p.glb",
+	"res://assets/models/crowd_q.glb",
+	"res://assets/models/crowd_r.glb",
+	"res://assets/models/crowd_s.glb",
+	"res://assets/models/crowd_t.glb",
 ]
+## Rigs that never wear a hat: their head is already covered (crowd_r's headscarf). The hat rolls
+## are still made for them, so every roll after them is the same as anyone's.
+const NO_HAT_MODELS := ["res://assets/models/crowd_r.glb"]
 ## Ground speed (m/s) the walk clip is authored for at speed_scale 1: how fast a planted foot
 ## travels backwards under the in-place clip (tools/crowd/clip_probe.tscn, 0.70-0.77 on every
 ## rig). It was taken as 1.3, so every walker's feet slid forward at half the body's speed.
@@ -527,6 +541,9 @@ func _add_accessory(inst: Node3D) -> void:
 		return
 	if kind != Accessory.PACK:
 		if skel.find_bone("Head") < 0:
+			return
+		if _model_path in NO_HAT_MODELS:
+			_style.randi()
 			return
 		_hat = kind
 		_hat_pick = _style.randi()
@@ -1393,8 +1410,6 @@ func _physics_process(delta: float) -> void:
 		_post_pose(delta)
 	if _life_ok:
 		_life_pose(delta)
-	if not errand.is_empty():
-		StreetErrands.pose(self, delta)
 
 
 func _walk(delta: float) -> void:
@@ -1409,9 +1424,6 @@ func _walk(delta: float) -> void:
 			_scream_in = -1.0
 			if _cross != Cross.CROSSING:
 				_go_to(_random_ring_point(_sidewalk))
-	# On an errand (StreetErrands: a bus, a shop, a parked car, over the road mid-block).
-	if (_life_near or not errand.is_empty()) and StreetErrands.walk(self, delta, panicking):
-		return
 	# Standing still: waiting at a kerb, looking in a window, checking a phone. A crowd where
 	# every single person walks without ever stopping reads as a conveyor belt.
 	if _pause_left > 0.0:
@@ -2313,7 +2325,7 @@ func _crossable(plan: CityPlan, rect: Rect2, far_kerb: Vector2) -> bool:
 		return false
 	# Not onto a river block: its pavement ring runs into the channel.
 	var kb := plan.chunk_index_at(rect.get_center())
-	if plan.river_block(kb.x, kb.y):
+	if plan.river_block(kb.x, kb.y) or plan.marina_block(kb.x, kb.y):
 		return false
 	return not Landmarks.covers(plan, far_kerb, 1.0)
 
@@ -2417,7 +2429,6 @@ func _walk_crossing(delta: float, panicking: bool) -> void:
 func _exit_tree() -> void:
 	_leave_crosswalk()
 	_end_act(true)
-	StreetErrands.release(self)
 
 
 ## The spot on this block's pavement ring farthest from the threat, out of a handful: fleeing
@@ -2550,8 +2561,6 @@ var _props: Dictionary = {}
 var _skel_unit: float = 100.0
 var _hip_bone: int = -1
 var _leg_bones := PackedInt32Array()
-## The errand under way (StreetErrands: its steps and where it is in them), {} for none.
-var errand: Dictionary = {}
 
 
 ## Rolls what this person carries and whether they jog or walk a dog (from the seed, so the same
@@ -2641,9 +2650,6 @@ func _try_life(at_spawn: bool) -> bool:
 			_start_stand(_life.randf_range(4.0, 10.0))
 			return true
 		return false
-	# Somewhere to go (StreetErrands): a bus, a shop, a parked car, over the road mid-block.
-	if StreetErrands.try_start(self, at_spawn):
-		return true
 	# A street vendor's queue nearby (StreetVendors): some stop and wait at the cart or the truck.
 	if _plan_queue(at_spawn):
 		return true

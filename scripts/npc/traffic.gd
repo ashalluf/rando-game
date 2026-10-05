@@ -180,6 +180,9 @@ func _street_kind(axis: int, index: int, at: Vector2) -> int:
 	var roll := _rng.randf()
 	if BigVehicles.route_of(plan, axis, index) != 0 and roll < BigVehicles.BUS_SHARE_ON_ROUTE:
 		return BigVehicles.BUS
+	# A school bus near a school at the bell (Schools; the roll above, reused, spends no roll).
+	if Schools.traffic_bus(plan, at, fposmod(roll * 7.31, 1.0), Schools.hour_now(self)):
+		return Vehicle.BodyType.SCHOOL_BUS
 	roll = _rng.randf()
 	var k := 3.0 if plan.district_at(at) == CityPlan.District.INDUSTRIAL else 1.0
 	if roll < BigVehicles.STREET_SEMI_SHARE * k:
@@ -383,6 +386,11 @@ func _board_line(car: Vehicle, axis: int, index: int, dir: int) -> void:
 	if fit:
 		fit.show_line(line, BigVehicles.destination(plan, axis, index, dir))
 		fit.set_doors(false)
+	elif not car.is_node_ready():
+		# A bus built just now gets its fittings in its _ready() (Vehicle._add_body_model ->
+		# BigVehicles.fit), which runs when _enter_at() adds it - after this - and would put its
+		# signs out again: board it once more as soon as it has them.
+		car.ready.connect(_board_line.bind(car, axis, index, dir), CONNECT_ONE_SHOT)
 
 
 ## True when nothing in lane (axis, index, dir, lane) is within `clear` metres of `along`.
@@ -582,22 +590,6 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 					bus_shift = BigVehicles.STOP_SHIFT
 				if v < 0.25 and to_stop < 1.2:
 					_bus_dwell(car, t, key, delta)
-	# Pulling in to a kerb space (StreetErrands): the space is a stop, like a bus's, and the car
-	# eases over into it; standing in it, it is parked and its driver gets out.
-	if t.has("park_at"):
-		var to_park := (float(t.park_at) - along) * float(dir)
-		acc = minf(acc, _idm(v, v0, to_park, 0.0, 0.05))
-		room = minf(room, to_park + 0.05)
-		still = minf(still, to_park - 0.1)
-		bus_shift = maxf(bus_shift, float(t.park_shift) * clampf((30.0 - to_park) / 22.0, 0.0, 1.0))
-		if v < 0.3 and to_park < 1.5 and float(t.get("shift", 0.0)) > float(t.park_shift) - 0.1 and StreetErrands.park_here(self, car):
-			return
-	# A jaywalker in this lane ahead (StreetErrands): braked for, and now and then honked at.
-	var jay := StreetErrands.jaywalker_gap(car, axis, index, dir, along, half, plan.road_pos(axis, index) + float(t.lane), v)
-	if jay < INF:
-		acc = minf(acc, maxf(_idm(v, v0, jay, 0.0, 1.0), -brake_max))
-		room = minf(room, jay + 0.5)
-		still = minf(still, jay - 0.5)
 	# The player, on foot or in a car, standing in this lane ahead.
 	if not _player_block.is_empty():
 		var rel: Vector3 = (_player_block[0] as Vector3) - (t.wp as Vector3)
