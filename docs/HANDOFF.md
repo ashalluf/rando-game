@@ -51,10 +51,30 @@ The owner asked for "100 parallel agents, Opus 5.5 strictly, screenshots along t
   taken out of it**: it redraws the far estates (EstateFar), but hill-homes' `HillHomeKit` owns
   every estate's house now (FULL, LOD and the far city), and `_build_mansions()` / `Skyline._add_hills()` go to HillHomeKit first, so
   EstateFar never drew and two of its checks failed; its session builds it on HillHomeKit's plan.
-- **Queued:** `fleet/batch5` = batch 4 + road-detail's follow-up, memory-audit (a 4,000 MB peak
-  budget for the merged city), shader-warm, load-time (a disk cache keyed on every script's md5), occluders,
-  gate-speed (`SHARDS=n` on headless_check.sh), texture-budget, reflection-probes, web-build,
-  fwd-review-c, far-landmarks, civic-buildings, scooters, driving-fx and traffic-ai.
+- **Batch 5 is on `main`** (15:54): batch 4 + road-detail's follow-up, memory-audit (a 4,000 MB
+  peak budget for the merged city; the whole smoke test now peaks at 3.06 GB, was 3.7),
+  shader-warm, load-time (a disk cache keyed on every script's md5), occluders, gate-speed
+  (`SHARDS=n` on headless_check.sh), texture-budget, reflection-probes, web-build, fwd-review-c,
+  far-landmarks, civic-buildings, scooters, driving-fx and traffic-ai. Gate: 2,088 passed, 0
+  failed in 3 shards (2.2-2.4 GB each). Batch 4's CI run (350) had failed on the paramedic check;
+  its fix is here. Six fixes came with it:
+  - **Paramedics** (the intermittent "the other brings the stretcher" on every branch since
+    batch 1): `Emergency._door_spot()` put a crew spawn at road height + 5 cm, and the kerb side's
+    is on the pavement - since Kerbs a hollow trimesh ring a kerb higher - so a medic put just
+    under it fell to the GroundBody (y 0) wherever the street stands on relief, and walked about
+    five metres under the street. Each spot is brought onto the surface under it (`_on_surface()`).
+  - **Parked cars**: a spot kept clear (a kerb cut, a bus stop, a station's gate) returned before
+    the car's facing roll and without counting, unlike a spot a vendor or the market takes, so
+    anything that moved a keep-clear spot shifted every car after it on the block. The facing is
+    rolled first and a kept-clear spot counts (the market's "rolls nothing" check).
+  - A chunk leaving the tree drops its parked cars from PhysicsBudget's count at once
+    (`CityChunk._drop_cars()`), not a frame later.
+  - The yard plan's lot records are kept with the fill off too (`YardFill.records()`), so
+    BoulevardSigns' posts keep off the same driveways either way (`Kerbs.possible_cuts()`).
+  - A scooter cluster that slides round a stand keeps its gutter scooter's planned kerb.
+  - The crowd-cap trim skips walkers marked `no_trim` (the loading screen's rehearsal, the dog
+    check), which it freed under them a frame after they were placed.
+
 - **Usage limit, 12:42-13:09:** 20 sessions stopped on the account's five-hour limit with the
   seven-day one at a warning; the lead resumed the eight nearest done (road-wear, olvera,
   shop-vinyl, historic-core, roadside, film-studio, chinatown, street-lamps) and left the rest.

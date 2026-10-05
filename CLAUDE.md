@@ -6,11 +6,13 @@ for a session on any account. Update all of them whenever a design decision chan
 session starts with no memory.
 
 **State on 2026-10-05 (fleet wave 2):** `main` is integration-a (19 fleet branches) plus wave 2's
-batches 1-4, gated green: batch 1 (sky, alleys, stadium, rooftops, wilshire-deco, far-corners,
+batches 1-5, gated green: batch 1 (sky, alleys, stadium, rooftops, wilshire-deco, far-corners,
 cemetery, kerbs), integration-b (12 branches, through oom-fix's memory fix), batch 3
-(fwd-review-a, road-detail, perf-audit, reservoir, ridges, service-vehicles) and batch 4
-(service-vehicles' rebuilt bodies, farmers-market, freight-trains, fwd-review-b). `fleet/batch5`
-is queued behind it (docs/HANDOFF.md 0000000). A fleet of 100 sessions is running
+(fwd-review-a, road-detail, perf-audit, reservoir, ridges, service-vehicles), batch 4
+(service-vehicles' rebuilt bodies, farmers-market, freight-trains, fwd-review-b) and batch 5 (15
+branches: memory, load time, shader warm-up, occluders, gate shards, scooters, traffic AI, driving
+effects, civic buildings, ...). `fleet/batch6` is queued behind it (docs/HANDOFF.md 0000000).
+`SHARDS=3 tests/headless_check.sh` runs the smoke test in three processes (~10 min, ~2.4 GB each). A fleet of 100 sessions is running
 (`fleet/brief`: BRIEF.md, tasks.tsv, sessions.tsv; each on `wt/<slug>`, stills on
 `shots/<slug>`). Start at docs/HANDOFF.md section 0000000; the fleet tooling is in `tools/fleet/`.
 
