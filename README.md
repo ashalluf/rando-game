@@ -1,4 +1,4 @@
-# shots/birds (HANDOFF 9bh, VISUAL_ROADMAP #47)
+# shots/birds (HANDOFF 9bk, VISUAL_ROADMAP #53)
 
 opengl3 stills, 1280x720, `tools/glshot/still_shot.gd` (10:30), and the `bird_shot.gd` lineup.
 
