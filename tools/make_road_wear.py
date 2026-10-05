@@ -8,7 +8,7 @@ Writes, all 2048 x 2048, 5 x 5 cells of 409.6 px with each stamp drawn at 400 px
   assets/textures/road_wear/road_wear_color.png  RGB albedo (sRGB, as the road's own texture is
                                                  read: what the feature looks like under a road
                                                  tint of 1), A coverage
-  assets/textures/road_wear/road_wear_nrm.png    R / G the surface slope along the stamp's +u /
+  assets/textures/road_wear/road_wear_slope.png    R / G the surface slope along the stamp's +u /
                                                  +v (0.5 flat, our own convention, NOT a GL normal
                                                  map), B ambient occlusion (cavity)
   assets/textures/road_wear/road_wear_data.png   R height (0.5 the road; +-HEIGHT_RANGE metres),
@@ -1018,7 +1018,7 @@ def main():
         w = np.maximum(w, (w_b > 1e-4).astype(np.float32))
     save = lambda arr, name, mode: Image.fromarray((np.clip(arr, 0, 1) * 255 + 0.5).astype(np.uint8), mode).save(os.path.join(OUT, name), optimize=True)
     save(color, "road_wear_color.png", "RGBA")
-    save(nrm, "road_wear_nrm.png", "RGB")
+    save(nrm, "road_wear_slope.png", "RGB")
     save(data, "road_wear_data.png", "RGBA")
     # A preview of every stamp for the docs.
     prev = Image.fromarray((np.clip(color[..., :3] * color[..., 3:4] + 0.25 * (1 - color[..., 3:4]), 0, 1) * 255).astype(np.uint8)).resize((1024, 1024))

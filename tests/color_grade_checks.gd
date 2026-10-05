@@ -96,6 +96,11 @@ func _curves(grade: RefCounted) -> void:
 
 func _live(day: Node, grade: RefCounted, env: Environment) -> void:
 	var hour: float = day.get("hour")
+	# On a clear day: a check before this one can leave the weather grey (marine at noon is the
+	# flatter look, and read as the curve not following the clock).
+	var held := {"weather_darken": day.get("weather_darken"), "marine": day.get("marine"), "santa_ana": day.get("santa_ana")}
+	for k in held:
+		day.set(k, 0.0)
 	day.set("hour", 12.0)
 	day.call("_apply")
 	var noon_sat := env.adjustment_saturation
@@ -117,5 +122,7 @@ func _live(day: Node, grade: RefCounted, env: Environment) -> void:
 	_t._check(env.adjustment_saturation == 0.5 and env.adjustment_color_correction == other,
 		"grade: photo mode's filter is left alone")
 	env.adjustment_color_correction = mine
+	for k in held:
+		day.set(k, held[k])
 	day.set("hour", hour)
 	day.call("_apply")

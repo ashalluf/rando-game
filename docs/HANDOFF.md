@@ -13275,7 +13275,7 @@ inverse, make derivatives or variations up to thousands".
 
 **The library** (`tools/make_road_wear.py`, PIL + numpy, about 40 s, reproducible): 25 stamps in
 ONE atlas of three 2048 px maps (`assets/textures/road_wear/`, 5 x 5 cells of 409.6 px, each stamp
-drawn at 400 px): `road_wear_color` (albedo + coverage), `road_wear_nrm` (the surface slope along
+drawn at 400 px): `road_wear_color` (albedo + coverage), `road_wear_slope` (the surface slope along
 the stamp's u / v + cavity AO - our own convention, not a GL normal map) and `road_wear_data`
 (height +-0.12 m, roughness, water, erosion order). Cut from the CC0 scans already in the repo
 (Asphalt033, GravelConcrete03, DryGroundRocks, Concrete034) and procedural shapes: potholes

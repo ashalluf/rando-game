@@ -62,6 +62,10 @@ func _lights_of(found: Dictionary) -> Dictionary:
 		day.set("hour", 21.0)
 	var chunk: CityChunk = _city._new_chunk(found.block, CityChunk.Level.FULL)
 	chunk.build()
+	# DayNight refreshes the lamps on a 0.35 s tick unless the level moves; if the clock was at
+	# night already, thirty fast headless frames may not reach the tick.
+	if day:
+		day.set("_lamp_timer", 0.0)
 	for i in 30:
 		await _tree.process_frame
 	var out := {"all": 0, "omni": 0, "grouped": 0, "lit": 0}

@@ -834,7 +834,9 @@ static func _lights(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
 			l.distance_fade_enabled = true
 			l.distance_fade_begin = 120.0
 			l.distance_fade_length = 40.0
+			# Hidden as DayNight hides a dark lamp, so its lamp tick shows it after dark.
 			l.visible = false
+			l.set_meta("dark_hidden", true)
 			l.add_to_group("lamp_light")
 			ch.add_child(l)
 			n_omni += 1

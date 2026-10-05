@@ -3,8 +3,8 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://y1v2ep638d6h"
-path.s3tc="res://.godot/imported/road_wear_nrm.png-05f3159984d7da0f39270f7e039113de.s3tc.ctex"
-path.etc2="res://.godot/imported/road_wear_nrm.png-05f3159984d7da0f39270f7e039113de.etc2.ctex"
+path.s3tc="res://.godot/imported/road_wear_slope.png-74e0d4866b5501218001d2dc8e1ef9c4.s3tc.ctex"
+path.etc2="res://.godot/imported/road_wear_slope.png-74e0d4866b5501218001d2dc8e1ef9c4.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
@@ -12,8 +12,8 @@ metadata={
 
 [deps]
 
-source_file="res://assets/textures/road_wear/road_wear_nrm.png"
-dest_files=["res://.godot/imported/road_wear_nrm.png-05f3159984d7da0f39270f7e039113de.s3tc.ctex", "res://.godot/imported/road_wear_nrm.png-05f3159984d7da0f39270f7e039113de.etc2.ctex"]
+source_file="res://assets/textures/road_wear/road_wear_slope.png"
+dest_files=["res://.godot/imported/road_wear_slope.png-74e0d4866b5501218001d2dc8e1ef9c4.s3tc.ctex", "res://.godot/imported/road_wear_slope.png-74e0d4866b5501218001d2dc8e1ef9c4.etc2.ctex"]
 
 [params]
 

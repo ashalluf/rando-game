@@ -506,8 +506,11 @@ static func pullout_candidates(tm: TrafficManager) -> Array:
 		if not list is Array:
 			continue
 		for c in list:
+			# A chunk's list keeps a car someone freed (a wreck cleared, an errand's car gone).
+			if not is_instance_valid(c):
+				continue
 			var car := c as Vehicle
-			if car == null or not is_instance_valid(car) or not car.is_inside_tree() or not car.visible:
+			if car == null or not car.is_inside_tree() or not car.visible:
 				continue
 			var d := car.global_position.distance_to(pp)
 			if d < PULLOUT_RANGE.x or d > PULLOUT_RANGE.y:

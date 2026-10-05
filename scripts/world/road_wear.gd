@@ -603,7 +603,7 @@ static func material() -> ShaderMaterial:
 	_material = ShaderMaterial.new()
 	_material.shader = load("res://shaders/road_wear.gdshader")
 	_material.set_shader_parameter("wear_color", load("res://assets/textures/road_wear/road_wear_color.png"))
-	_material.set_shader_parameter("wear_nrm", load("res://assets/textures/road_wear/road_wear_nrm.png"))
+	_material.set_shader_parameter("wear_nrm", load("res://assets/textures/road_wear/road_wear_slope.png"))
 	_material.set_shader_parameter("wear_data", load("res://assets/textures/road_wear/road_wear_data.png"))
 	_material.set_shader_parameter("grid", float(RoadWearTable.GRID))
 	_material.set_shader_parameter("span", float(RoadWearTable.STAMP_PX) / (float(RoadWearTable.ATLAS_PX) / float(RoadWearTable.GRID)))

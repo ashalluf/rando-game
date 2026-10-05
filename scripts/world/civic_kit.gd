@@ -1088,7 +1088,9 @@ static func _night(node: Node3D, _g: CivicGeo, res: Dictionary) -> void:
 		o.distance_fade_enabled = true
 		o.distance_fade_begin = 110.0
 		o.distance_fade_length = 40.0
+		# Hidden as DayNight hides a dark lamp, so its lamp tick shows it after dark.
 		o.visible = false
+		o.set_meta("dark_hidden", true)
 		o.add_to_group("lamp_light")
 		node.add_child(o)
 

@@ -1061,7 +1061,10 @@ static func _lights(node: Node3D, s: Dictionary, P: Callable, floods: Array[Vect
 		l.distance_fade_enabled = true
 		l.distance_fade_begin = 120.0
 		l.distance_fade_length = 40.0
+		# Dark until DayNight's lamp tick lights it: hidden as DayNight hides a dark lamp, so its
+		# tick shows it again (it leaves a light anything else hid alone).
 		l.visible = false
+		l.set_meta("dark_hidden", true)
 		l.add_to_group("lamp_light")
 		node.add_child(l)
 
