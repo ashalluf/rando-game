@@ -8571,3 +8571,81 @@ abrupt. A connector car spawned when nobody can be taken pops in (only farther t
 the player). Sound: no rolling-traffic emitter of its own (Ambience's freeway emitter reads
 segments_in(), so it does hear the connectors). The far city draws the connectors as unbanked
 deck boxes.
+
+## 9d?. A grade per hour (G4, wt/color-grade)
+
+**What.** The look LUT (`adjustment_color_correction`, the contrast curve AgX needs after it; the
+Look note) was one curve for every hour. Measured on the old curve, golden hour came out mauve
+(street mids 76/60/64 RGB, shadows 34/23/24), the blue hour magenta (48/31/40) and the night's mids
+blue with a lifted black (p5 7, the base curve's floor is 9/255). Now `HourGrade`
+(`scripts/world/hour_grade.gd`) owns the curve: `DayNight._ready()` makes it (it puts its own
+GradientTexture1D on the Environment and keeps the city.tscn gradient as the BASE), and
+`DayNight._apply()` hands it the sun's elevation, `golden`, `weather_darken`, `marine` and
+`santa_ana` every frame. It blends seven `LOOKS` over the base - DAY (crisper: S-curve 0.22, a
+deeper toe), GOLDEN (warm mids and highlights, blue pulled out of the shadows), BLUE (red pulled
+down through the mids: the magenta becomes blue; lamp highlights stay warm), NIGHT (toe -50 % with
+red and blue pulled a little more than green - the lavender -, saturation 1.16), MARINE (saturation
+1.04, flatter, cool), OVERCAST, SANTA_ANA - weighted by `weights()` (golden = DayNight's golden
+outside the blue hour; blue = the sun 0-8 degrees down; night from 6 degrees down; the weather
+looks on top) and rebuilds the 33-point gradient and the saturation only when the blend moves by
+`EPSILON` (every few seconds of play). Each look is saturation, an S-curve mix, per-channel mid
+gamma, a toe gain that fades as (1-v)^5 and a highlight tint that keeps white white. Photo mode's
+filter is a curve that is not ours, so the grade writes nothing while one is on; leaving it puts
+our curve and saturation back (a saturation within `EPSILON` of the blend is kept exactly as set:
+the photo-mode check compares with `==`). **Trap:** a reloaded city (the pause menu's Rebuild, the
+smoke test's second city) gets the SAME Environment resource, already wearing the grade; the base
+gradient and our texture are kept on it as metas (`hour_grade_base`, `hour_grade_tex`) so a new
+HourGrade shares them - without that it graded the graded curve again, and the first city's
+grade stopped writing (its texture was no longer the Environment's).
+`tools/grade/checks_only.tscn` runs photo mode's and the grade's checks alone in two minutes
+(`TWO_CITIES=1`, `HOUR=17.4` reproduce both cases).
+
+**Switches.** `HOUR_GRADE=0` is the old single curve (the A/B; DayNight makes no HourGrade).
+`GRADE_RAW=1` is an identity curve and saturation 1: the tonemapper's own output. A still taken
+with it and graded in numpy (`apply()`: saturation as Godot's mean-mix, then the curve per channel)
+matches the engine's graded still within 1-2 levels, so a look can be tuned offline on raw stills
+in seconds instead of a city load per try (scripts in this section's session were throwaway;
+the maths is `HourGrade.channel()`).
+
+**Forward+.** The city does not fit lavapipe, so `tools/glshot/grade_shot.tscn` builds the FULL
+blocks round an EYE (`BLOCKS=1`: 3 x 3, ~11 GB on lavapipe - 5 x 5 downtown went past 11 GB and
+was killed) with the city's WorldEnvironment, Sun and DayNight and the player camera's attributes,
+and saves one frame per hour in `HOURS=`.
+
+**Numbers** (luminance p1/p5/p50/p95/p99, old curve -> per-hour grade).
+opengl3 (the web's renderer), downtown street `EYE=2359.4,2,880,0,12` (Flower at Olympic, north):
+noon 24/30/130/181/201 -> 18/24/133/186/206; 17:36 17/23/65/139/149 -> 14/19/62/144/155 (mids
+76/60/64 -> 75/57/48 RGB: mauve to warm); 18:18 7/8/38/117/190 -> 4/4/30/112/190 (mids 48/31/40 ->
+27/28/41: magenta to blue); 22:00 7/7/34/130/201 -> 3/3/24/129/204 (shadows 7/7/12 -> 2/3/5).
+Aerial `EYE=1450,140,2150,-38,-10`: noon 33/39/130/202/211 -> 27/31/130/208/217, 17:36
+30/39/97/154/178 -> 26/35/97/160/184, 22:00 7/8/50/138/182 -> 3/3/40/139/185. Marine at 8:00 /
+10:00 (street and aerial): percentiles within 1, saturation 1.32 -> ~1.05 (greyer).
+Forward+ (lavapipe, grade_shot, the same street, 3 x 3 blocks; the graded numbers are the raw
+frames through the curve, which matches the engine within 1-2 levels): noon 28/39/125/190/204 ->
+21/31/124/196/210; 17:36 27/37/81/177/190 -> 23/32/78/183/196 (shadows 56/46/52 -> 52/42/36: the
+lavender gone); 18:18 21/29/67/144/202 -> 15/21/57/140/204; 22:00 16/23/62/158/213 ->
+9/14/53/159/216. Against CLAUDE.md's midday target (p5/p50/p95 87/123/175 for an aerial): p50 is
+on it (124 Forward+, 130 opengl3); p95 runs 20-30 over and p5 far under on these frames, which are
+street canyons with dense shadow and (opengl3) an aerial on the other renderer - the grade did not
+cause either and was not bent to hide them.
+
+**Frame cost.** None measurable: the GEO lines of every before / after still are identical
+(aerial noon 3,231,292 tris / 1,639 draws both ways); the curve is a 33-point Gradient and a
+256-texel upload every few seconds.
+
+**Checks** (`tests/color_grade_checks.gd`): DayNight made its HourGrade and the Environment wears
+its curve; noon is the day look alone, golden hour / the blue hour / midnight / the marine layer
+are their looks; every look's curve rises and keeps black and white; night's toe deeper than the
+old curve's and no more lavender than the day's; golden hour warmer and the blue hour cooler than
+noon; the marine look greyer and flatter; the live curve follows the clock; photo mode's filter
+is left alone.
+
+**Stills** (shots/color-grade): opengl3 before / after per hour on the street, the hills, the
+aerial and the marine layer; Forward+ (grade_shot) street per hour.
+
+**Not done / not verified.** The Mac's Forward+ city is not seen (only 3 x 3 blocks on lavapipe:
+no far city, no fog depth, no traffic). Rain and storm (OVERCAST) were not rendered, only checked
+by the weights; Santa Ana not rendered. The night opengl3 street is dark (p50 24): if the web's
+nights read murky, lift NIGHT's `gamma` toward 0.95 before touching the toe. The sky keeps its
+violet twilight band at 18:18 (it is the sky's colour, not the grade's; the city under it is
+blue now). Photo mode's filters are built from the curve of the hour they were picked at.

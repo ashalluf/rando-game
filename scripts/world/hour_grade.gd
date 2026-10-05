@@ -48,6 +48,9 @@ const LOOKS := {
 ## Points in the rebuilt gradient (the texture is 256 texels; 33 points is under a texel apart
 ## in what they can move).
 const POINTS := 33
+## Where the base gradient and our texture are kept on the Environment.
+const META_BASE := &"hour_grade_base"
+const META_TEX := &"hour_grade_tex"
 ## How far the blended numbers must move before the gradient is rebuilt.
 const EPSILON := 0.0015
 
@@ -69,6 +72,14 @@ func _init(env: Environment) -> void:
 	_env = env
 	if env == null:
 		return
+	# A reloaded city (the pause menu's Rebuild, a test's second city) gets the SAME Environment
+	# resource, already wearing the grade: the base and the texture live on the Environment, so a
+	# second HourGrade shares them instead of grading the graded curve again.
+	if env.has_meta(META_TEX) and env.has_meta(META_BASE):
+		_tex = env.get_meta(META_TEX)
+		_base = env.get_meta(META_BASE)
+		env.adjustment_color_correction = _tex
+		return
 	var tex := env.adjustment_color_correction as GradientTexture1D
 	if tex == null or tex.gradient == null:
 		return
@@ -76,7 +87,9 @@ func _init(env: Environment) -> void:
 	_base = tex.gradient.duplicate() as Gradient
 	_tex = GradientTexture1D.new()
 	_tex.width = tex.width
-	_tex.gradient = Gradient.new()
+	_tex.gradient = _base.duplicate() as Gradient
+	env.set_meta(META_BASE, _base)
+	env.set_meta(META_TEX, _tex)
 	env.adjustment_color_correction = _tex
 
 
@@ -174,5 +187,10 @@ func update(elevation: float, golden: float, weather_darken: float, marine: floa
 	_last = key
 	current = look
 	_sat_set = 1.0 if raw else float(look["sat"])
-	_env.adjustment_saturation = _sat_set
+	# A saturation already within EPSILON of ours (photo mode leaving puts its snapshot back) is
+	# kept as it is: the same look, and whoever set it reads back exactly what they wrote.
+	if absf(_env.adjustment_saturation - _sat_set) < EPSILON:
+		_sat_set = _env.adjustment_saturation
+	else:
+		_env.adjustment_saturation = _sat_set
 	_tex.gradient = gradient_for(_base, look, raw)
