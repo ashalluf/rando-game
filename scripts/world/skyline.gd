@@ -751,7 +751,8 @@ func _add_city_trees(k: Vector2i, b: Dictionary, ch: CityChunk) -> void:
 	var palms := ch._palm_street
 	var jacaranda := ch._jacaranda_street
 	var spots: Array[Vector2] = []
-	if b.kind == CityPlan.BlockKind.PARK:
+	# A rec park's fields and courts (Parks) are open ground: its trees ring it, as the kerb rows do.
+	if b.kind == CityPlan.BlockKind.PARK and not b.has("grounds"):
 		var inner := rect.grow(-4.0)
 		var n := int(inner.get_area() / PARK_TREE_AREA)
 		for i in n:

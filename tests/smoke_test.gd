@@ -1768,6 +1768,9 @@ func _test_city() -> void:
 	# trucks, yards and rail spurs - bare share before and after, the plans, one mesh each, nothing
 	# else in the block moved, the far boxes.
 	load("res://tests/industrial_checks.gd").new().run(self, city)
+	# Rec parks and school campuses (tests/park_checks.gd): roles, pure plans at regulation sizes,
+	# one ground and one walls mesh a chunk, people under the cap, partitioned far slabs.
+	load("res://tests/park_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

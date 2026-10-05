@@ -158,6 +158,8 @@ var _yard_cars: int = 0
 ## Industrial's (the INDUSTRIAL district's warehouses and yards): its lot entries, footprints and
 ## the meshes and counts it is building (Industrial._state()).
 var _ind: Dictionary = {}
+## The rec park's or school's meshes in the making (Parks._state()).
+var _park: Dictionary = {}
 
 ## Dissolve state, driven by CityStreamer when this chunk is being replaced by a detailed one.
 ## Block index the streaming window was centred on when this chunk was built. Only used to
@@ -474,6 +476,7 @@ func _finish_build() -> void:
 	YardFill.commit(self)
 	HouseKit.commit(self)
 	Industrial.commit(self)
+	Parks.commit(self)
 	_commit_far_ground()
 	_commit_boxes()
 	_mm_nodes = _batch.build(self)
@@ -2249,7 +2252,16 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 	var steps: Array[Callable] = [_block_surface.bind(block, params, rng)]
 	match block.kind:
 		CityPlan.BlockKind.PARK:
-			steps.append(_build_park.bind(rect, rng))
+			if Parks.wanted(self, block):
+				# A rec park (Parks: its own hash-seeded layout). The lawn roll is still made, so the
+				# block's stream starts where the old park's did.
+				steps.append(func() -> void:
+					_lawn_color(rng)
+					Parks.build(self, block))
+			else:
+				steps.append(_build_park.bind(rect, rng))
+		CityPlan.BlockKind.SCHOOL:
+			steps.append(func() -> void: Parks.build(self, block))
 		CityPlan.BlockKind.PLAZA:
 			steps.append(_build_plaza.bind(rect, rng))
 		CityPlan.BlockKind.MALL:
@@ -2298,6 +2310,8 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 				steps.append(func() -> void: StreetVendors.spawn_vendor(self, i))
 		steps.append_array(_park_car_steps(rect, rng, params))
 		steps.append_array(_pedestrian_steps(rect, rng, params, Encampment.PATH_KEEP + 1.0 if camps & Encampment.FACES else -1.0))
+		# The rec park's or school's people (Parks; their own stream, after the block's walkers).
+		steps.append_array(Parks.people_steps(self, block))
 	return steps
 
 

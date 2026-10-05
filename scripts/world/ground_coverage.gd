@@ -16,11 +16,13 @@ extends RefCounted
 ##   garden    a house's yard, a courtyard, a walk street, a pocket park, the campus's walks, quads,
 ##             lawns and service yards (YardFill)
 ##   row       the freeway's right of way, out to its cells (YardFill)
+##   sport     a rec park's fields, courts, playground, pool and walks, a school's track, fields,
+##             courts and asphalt yard (Parks; their buildings are built, their car parks parking)
 ##   works     an industrial block's truck courts, dock aprons, storage yards, drive strips,
 ##             setbacks and rail spur (Industrial)
 ## A pad lot (Commercial.build_pad(), rolled from the chunk's own rng) is counted as its building.
 
-const KINDS := ["bare", "built", "yard", "forecourt", "parking", "garden", "row", "works"]
+const KINDS := ["bare", "built", "yard", "forecourt", "parking", "garden", "row", "works", "sport"]
 const BARE := 0
 const BUILT := 1
 const YARD := 2
@@ -29,6 +31,7 @@ const PARKING := 4
 const GARDEN := 5
 const ROW := 6
 const WORKS := 7
+const SPORT := 8
 const DISTRICT_NAMES := ["DOWNTOWN", "MIDTOWN", "SUBURBS", "INDUSTRIAL", "CAMPUS", "BEACHTOWN"]
 const SHAPE_NAMES := ["SLAB", "TOWER", "STEPPED", "PODIUM_TOWER", "L_SHAPE", "SETBACK", "CROWN", "WAREHOUSE"]
 
@@ -66,6 +69,7 @@ static func report(seed_value: int, area: Rect2, fill: int, grid: float = 1.0) -
 			if res.is_empty():
 				continue
 			var rows: Array[String] = [res.row]
+			rows.append_array(res.get("extra", []))
 			if res.freeway:
 				rows.append("FREEWAY")
 				rows.append("ROW_CELLS")
@@ -73,7 +77,7 @@ static func report(seed_value: int, area: Rect2, fill: int, grid: float = 1.0) -
 				rows.append("MACARTHUR_SE")
 			for row in rows:
 				if not tot.has(row):
-					tot[row] = {"blocks": 0, "cells": 0, "lots": 0.0, "lots_n": 0, "lot_built": 0.0, "k": [0, 0, 0, 0, 0, 0, 0, 0]}
+					tot[row] = {"blocks": 0, "cells": 0, "lots": 0.0, "lots_n": 0, "lot_built": 0.0, "k": [0, 0, 0, 0, 0, 0, 0, 0, 0]}
 				var t: Dictionary = tot[row]
 				t.blocks += 1
 				t.lots += float(res.lots)
@@ -151,6 +155,8 @@ static func _plaza(box: Array, rect: Rect2) -> void:
 static func block(plan: CityPlan, bx: int, bz: int, fill: int, grid: float = 1.0) -> Dictionary:
 	var b: Dictionary = plan.block(bx, bz)
 	var brect: Rect2 = b.rect
+	if b.has("grounds") and fill >= 3 and plan.zone_at(brect.get_center()) == MacroMap.Zone.CITY:
+		return _grounds(plan, bx, bz, b, grid)
 	if int(b.kind) != CityPlan.BlockKind.BUILDINGS or b.has("site") or plan.zone_at(brect.get_center()) != MacroMap.Zone.CITY:
 		return {}
 	# Before the yard pass a plaza beside MacArthur Park was a plaza.
@@ -316,13 +322,13 @@ static func block(plan: CityPlan, bx: int, bz: int, fill: int, grid: float = 1.0
 			_paint(box, pc[0], WORKS)
 		if not (bp.spur as Dictionary).is_empty():
 			_paint(box, bp.spur.rect, WORKS)
-	var counts := [0, 0, 0, 0, 0, 0, 0, 0]
+	var counts := [0, 0, 0, 0, 0, 0, 0, 0, 0]
 	var painted: PackedByteArray = box[0]
 	for k in painted.size():
 		counts[painted[k]] += 1
 	out["k"] = counts
 	# The same counted inside the right of way's cells alone (the ROW row).
-	var row_k := [0, 0, 0, 0, 0, 0, 0, 0]
+	var row_k := [0, 0, 0, 0, 0, 0, 0, 0, 0]
 	if not corridor.is_empty():
 		var grid_info := YardFill.lot_grid(plan, bx, bz, plan.lots(bx, bz))
 		var cells_r: Array[Rect2] = []
@@ -368,3 +374,44 @@ static func _paint(box: Array, r: Rect2, kind: int) -> void:
 			if kind == BUILT or cells[k] == BARE:
 				cells[k] = kind
 	box[0] = cells
+
+
+## A rec park or a school campus (Parks' pure plan): its buildings, stands and shelters built, its
+## car park parking, everything else - fields, courts, the track, the pool, the yard, the walk -
+## sport, and a rec park's lawn round them garden. Counted in its district's row and in REC or
+## SCHOOL.
+static func _grounds(plan: CityPlan, bx: int, bz: int, b: Dictionary, grid: float) -> Dictionary:
+	var pl := Parks.plan_for(plan, bx, bz)
+	var inner: Rect2 = (b.rect as Rect2).grow(-plan.sidewalk_width)
+	var gx := maxi(1, int(inner.size.x / grid))
+	var gz := maxi(1, int(inner.size.y / grid))
+	var cells := PackedByteArray()
+	cells.resize(gx * gz)
+	var box := [cells, inner, grid, gx, gz]
+	cells = PackedByteArray()
+	for f: Dictionary in pl.fac:
+		var r: Rect2 = f.r
+		match f.t:
+			"rec_centre":
+				_paint(box, r.grow(-1.0), BUILT)
+				_paint(box, r, SPORT)
+			"wing":
+				_paint(box, Parks._strip(r, int(f.front), Parks.WING_DEPTH), BUILT)
+				_paint(box, r, SPORT)
+			"bungalow", "bleachers", "picnic", "lunch":
+				_paint(box, r, BUILT)
+			"parking":
+				_paint(box, r, PARKING)
+			_:
+				_paint(box, r, SPORT)
+	if pl.role == "rec":
+		_paint(box, inner, GARDEN)
+	else:
+		_paint(box, inner, SPORT)
+	var counts := [0, 0, 0, 0, 0, 0, 0, 0, 0]
+	var painted: PackedByteArray = box[0]
+	for k in painted.size():
+		counts[painted[k]] += 1
+	var row: String = DISTRICT_NAMES[int(b.district)]
+	return {"row": row, "extra": ["REC" if pl.role == "rec" else "SCHOOL"], "freeway": false, "cells": gx * gz, "lots": 0.0, "lots_n": 0,
+		"lot_built": 0.0, "shapes": {}, "podiums": {}, "k": counts, "row_k": [0, 0, 0, 0, 0, 0, 0, 0, 0]}

@@ -5,7 +5,7 @@ extends RefCounted
 ## Pure data, no nodes. CityStreamer builds CityChunks from it around the player.
 
 enum District { DOWNTOWN, MIDTOWN, SUBURBS, INDUSTRIAL, CAMPUS, BEACHTOWN }
-enum BlockKind { BUILDINGS, PARK, PLAZA, MALL, BIGBOX }
+enum BlockKind { BUILDINGS, PARK, PLAZA, MALL, BIGBOX, SCHOOL }
 enum Intersection { PLAIN, STOP_SIGNS, SIGNALS, ROUNDABOUT }
 
 const DISTRICT_NAMES := ["Downtown", "Midtown", "Suburbs", "Industrial", "Campus", "Beach Town"]
@@ -364,7 +364,19 @@ func block(ix: int, iz: int) -> Dictionary:
 	if kind == BlockKind.PLAZA and macro and _beside_site(ix, iz):
 		kind = BlockKind.BUILDINGS
 		was_plaza = true
+	# Rec parks (sports fields, courts, a pool) and school campuses (Parks): from a hash of the seed
+	# and the block, AFTER every roll and override, so the block seed and everything built from it
+	# is what it was. A school is its own kind (no lots, no houses); a rec park is a PARK.
+	var grounds := ""
+	if macro and Parks.enabled:
+		grounds = Parks.role_for(self, ix, iz, rect, district, kind)
+		if grounds == "school":
+			kind = BlockKind.SCHOOL
+		elif grounds != "":
+			kind = BlockKind.PARK
 	var result := {"rect": rect, "ix": ix, "iz": iz, "district": district, "kind": kind, "seed": rng.randi()}
+	if grounds != "":
+		result["grounds"] = grounds
 	if was_plaza:
 		result["was_plaza"] = true
 	# Ground a landmark owns outright (a replica area's site): the chunk builds that instead.
@@ -617,8 +629,9 @@ func _lot_grid(ix: int, iz: int, dropped: Variant) -> Array[Dictionary]:
 				typed.assign(replica_lots)
 			return typed
 	var b := block(ix, iz)
-	# A landmark's site builds its own ground; nothing of the block's is built there.
-	if b.has("site"):
+	# A landmark's site builds its own ground; nothing of the block's is built there. Nor on a rec
+	# park or a school campus (Parks lays those out).
+	if b.has("site") or b.has("grounds"):
 		return []
 	var rect: Rect2 = b.rect
 	# The whole block is a landmark's site (see Landmarks.claims()): nothing else is built on it,
