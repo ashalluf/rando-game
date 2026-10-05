@@ -6386,3 +6386,82 @@ ground and usually clear the low ones; a flock circling a downtown plaza can pas
 corner); the Forward+ look (SSS-less feathers, the sheen, backlight) is unjudged - only opengl3
 stills were taken. Needs the owner's eyes on the Mac: the plumage's brightness under AgX (the
 flying birds read very pale from below), and the flap rates at 60 fps.
+## 9bm. Fire engines and ambulances that answer the chaos, 2026-10-04 (agent branch `wt/emergency`; VISUAL_ROADMAP #55)
+
+The brief: the player blows up cars and knocks people down all day and only the police ever
+came. Now the city sends fire and medics. CLAUDE.md "Emergency services" is the reference; this
+is the story.
+
+- **Bodies** (`tools/make_emergency_vehicles.py`, Blender 4.2, importing `make_big_vehicles.py`
+  and through it `make_road_cars.py`; a helper agent built them and judged them in Cycles
+  previews). A Type 1 pumper, 10.04 m: a flat-faced custom crew cab with a raised rear roof, a
+  chrome-trimmed grille, an extended chrome bumper with a mechanical Q-siren and horns, a light
+  bar across the cab's front edge, a pump panel each side behind the cab (gauges, valves, the
+  steamer), roll-up compartment doors, a hose bed with folded hose, ladders racked over the kerb
+  side, a tailboard, chevrons; 35k triangles + a 10k far twin. A Type III ambulance, 6.97 m: a van
+  cab cut off behind the B-pillar with a module box, entry door and rear doors with windows,
+  compartments, corner warning lamps, scene lights, striping and rear chevrons; 23k + 10k. New
+  slots: `beacon_red`, `beacon_white` (the game flashes them), `stripe`, `satin` (roll-ups, pump
+  panel, ladders, diamond plate) and `hose`. They are Vehicle body types 12 and 13 and
+  `BigVehicles.is_big()` (truck wheels from WHEEL_POSE `axles`, mass x12 / x4.5).
+- **Dispatch** (`Emergency`, a node in `city.tscn` like Police). Calls: a car burning or a wreck
+  still in flames (CarDamage's own lists), a big blast with no fire at it, a fresh body (a Ragdoll
+  in the debris group). A unit goes `response_delay` later, out of the nearest fire station (its
+  bay doors roll up and it starts on the street in front) or along a street out of sight. Lane
+  driving is PoliceCar's (copied: the cruiser carries the police's groups and crimes), siren and
+  the wig-wag on; the traffic pulls over (`TrafficManager._siren_list()` takes `emergency_unit`).
+  It pulls up at `StreetRoute.kerb_stop()` stood off the scene and stays kinematic there. A wreck
+  burns for 14 s on its own; one with an engine coming is held burning (`CarDamage.hold_fire()`)
+  so there is a fire to put out. A burning car still explodes on its fuse - that is the game.
+- **Crews** (`EmergencyCrew`, Pedestrians): three firefighters (nozzle, backup, pump operator) in
+  turnout tan with a helmet built round each rig's head (`FireHelmet`, from CrowdHatTable), two
+  paramedics in blue and navy. The nozzle stands off the fire on the line from the pump panel; the
+  hose is a tube laid from the panel along the street to the hands, the water streaks on a
+  particle system (`hose_water.gdshader`), spray where it lands; `CarDamage.douse()` ->
+  `extinguish()` (flames out, a burst of steam, the smoke pale and dying; a burning car is left
+  smoking, a wreck stays a wreck). A paramedic kneels at the body with a bag; the other fetches the
+  cot from the back, pushes it to the body, loads it (the ragdoll goes, a blanketed patient lies on
+  the cot) and wheels it back. Then they climb in and the unit leaves; unseen, it is pooled.
+  Shooting or knocking a responder is a crime like anyone's (Pedestrian.knock); their bodies are
+  not calls. Kneel / hose / push poses are RoughSleeper's aim tables solved per rig over the idle.
+  A CharacterBody3D does not step: blocked kerbs stopped every crew member dead in the first runs,
+  so they step up 0.34 m where there is room, and board when pressed against the wrong side of
+  their unit.
+- **Fire stations** (`FireStation`): one per 850 m cell where a hash says so and the block under
+  the hashed point is ordinary buildings in a station district, on that block's biggest deep edge
+  lot clear of the freeway (`CityChunk._build_lot()` asks after its own rolls). A brick firehouse,
+  two sectional bay doors (their own nodes, `open_door()`), a lit bay interior, an apron and a ramp
+  across the pavement to the kerb, STATION nn and RANDO CITY FIRE DEPT over the doors, a flagpole;
+  parked cars keep off its kerb (`keeps_clear()`); one `lod_box` far away. 10 stations in the 49
+  cells round the spawn.
+- **The bus's front** (from 9bi's stills): a bus's traced cabin is daylit (`CarCabin.BUS_DAYLIGHT`
+  2.2, and more of it through the glass) and its far twin starts at 60 m, not a car's 30.
+- **Sounds**: `siren_yelp` (the ambulance) and `fire_horn` (the engine's air horn every few
+  seconds on a call) are SYNTHESISED fallbacks only: the CC0 recording found for them (Wikimedia
+  Commons `File:Whelen.ogg`, CC0, "Whelen emergency siren tones Wail/Yelp/Piercer used on a Fire
+  Engine") could not be downloaded - upload.wikimedia.org answered 429 to every request from this
+  box all session. Fetch it, cut a yelp loop and a piercer/horn one-shot, add them to Sfx.SAMPLES
+  with their SAMPLE_LOUDNESS_DB and a row in docs/ASSETS.md. The engine's own siren is the
+  existing police wail pitched down.
+- **Frame cost** (`tools/geo_count.gd`, opengl3 800x600): downtown avenue
+  `--spawn=2359.4,880,0,12,2`, main vs this branch: 5.090 M tris / 3,734 draws -> 5.090 M / 3,734
+  (no station or call in view: flat). In front of Station 79 `--spawn=2894.05,397,-152.1,8.28,1.7`,
+  `FIRE_STATIONS=0` vs on: 4.18 M / 4,262 -> 3.48 M / 4,259 (the firehouse replaces a taller
+  building; part of the difference is traffic). A unit on a call adds its body (35k / 23k near,
+  10k far twin, one draw a slot: 12 / 11 surfaces near), four truck-wheel rigs, two lens materials
+  and, per crew member, a crowd rig; a hose is one tube mesh and two particle systems. Units and
+  crews exist only while a call is open (caps 2 engines, 2 ambulances).
+- **Checks**: `tests/emergency_checks.gd`, 34 (builds, lights, a hit, extinguish, the stations
+  pure / chunk / far city, an engine at a wreck puts it out and leaves, an ambulance takes a body
+  and leaves, a unit sent through the streets with its siren that the traffic sees, a responder
+  down is not a call, the sounds). The emergency checks run about 80 s of the smoke test.
+- **Stills** (`shots/emergency`): fire day and night, the hose, a paramedic at a body, a fire
+  station, close-ups of both bodies, the bus front before and after.
+- **Not done / not verified**: no Forward+ look (NEEDS MAC CHECK: the lenses and the roof light at
+  night under AgX and glow, the hose water, the turnout gear and helmets); the siren yelp and the
+  air horn are synthesised (see Sounds); no nozzle mesh in the hands (the stream starts at them);
+  the stretcher and the bag are simple code boxes; the unit's lane driving is a copy of PoliceCar's
+  (a fix to one does not reach the other); a unit knocked off the lanes only rejoins them upright
+  and still; encampments and parked cars keep off a station's apron, other street clutter is not
+  checked; there are no ladder trucks, police at fire scenes or traffic cones; the bus's daylit
+  cabin is judged on opengl3 only.

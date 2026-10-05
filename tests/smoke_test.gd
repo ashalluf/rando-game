@@ -114,6 +114,10 @@ func _test_city() -> void:
 	var police_node: Node = city.get_node_or_null("Police")
 	if police_node:
 		police_node.set("enabled", false)
+	# The fire engines and ambulances likewise sit out everything but their own checks.
+	var emergency_node: Node = city.get_node_or_null("Emergency")
+	if emergency_node:
+		emergency_node.set("enabled", false)
 	await _ticks(30)
 	var plan: CityPlan = city.plan
 	var lod_r: int = city.lod_radius_blocks
@@ -1713,6 +1717,10 @@ func _test_city() -> void:
 	# The city's birds (tests/bird_checks.gd): meshes, survey, a flock flushed and landing,
 	# alarms, shots and blasts.
 	await load("res://tests/bird_checks.gd").new().run(self, city)
+	# The fire department and the ambulances (tests/emergency_checks.gd): both units, putting a car
+	# fire out, the fire stations, an engine at a burning wreck, an ambulance at a body, a unit sent
+	# through the streets with its siren.
+	await load("res://tests/emergency_checks.gd").new().run(self, city)
 	# The ambience mixer (tests/ambience_checks.gd): layers per place, hour and weather, fades,
 	# ducks, buses. Mixer state only - the Dummy audio driver plays nothing.
 	await load("res://tests/ambience_checks.gd").new().run(self, city)

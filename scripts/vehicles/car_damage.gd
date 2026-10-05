@@ -166,6 +166,13 @@ var _fire_sound: AudioStreamPlayer3D
 var _fire_size: float = -1.0
 var _flick: float = 0.5
 var _staged: bool = false
+## Emergency: held burning until (s, the ticks clock), and water on the fire so far (s).
+var _hold_until: float = 0.0
+var _doused: float = 0.0
+## Seconds of hose on the fire that put it out (a wreck takes 40 % longer).
+@export var douse_seconds: float = 5.0
+## Set once a fire here was put out (Emergency, the checks).
+var extinguished: bool = false
 ## While a still is staged, hits leave marks but do not move the health.
 var _stage_hold: bool = false
 ## Car body-space box and features (metres).
@@ -1112,7 +1119,11 @@ func _process(delta: float) -> void:
 		if _fuse <= 0.0:
 			explode()
 	elif state == State.WRECK:
-		_wreck_t += delta
+		# Held burning while a fire engine is on its way (Emergency): the wreck's clock waits.
+		if _flames and _held():
+			_wreck_t = minf(_wreck_t + delta, wreck_fire_seconds * 0.5)
+		else:
+			_wreck_t += delta
 		if _flames and _wreck_t > wreck_fire_seconds:
 			_stop_fire()
 		elif _flames:
@@ -1152,6 +1163,65 @@ func _stop_fire() -> void:
 		_fire_sound.queue_free()
 		_fire_sound = null
 	_burning.erase(self)
+
+
+## True while this car is in flames: burning, or a wreck whose fire has not died or been put out.
+func on_fire() -> bool:
+	return state == State.BURNING or (state == State.WRECK and _flames != null)
+
+
+## Keeps a burnt-out wreck burning for up to `seconds` more (0 lets it go): Emergency holds a
+## fire it has sent an engine to, so there is still a fire when the engine gets there. The wreck
+## stays in the world as long (its debris clock is pushed back with it).
+func hold_fire(seconds: float) -> void:
+	_hold_until = Time.get_ticks_msec() / 1000.0 + seconds if seconds > 0.0 else 0.0
+	if seconds > 0.0 and car != null and car.has_meta("spawn_time"):
+		var age := Time.get_ticks_msec() / 1000.0 - float(car.get_meta("spawn_time"))
+		car.set_meta("debris_life", maxf(float(car.get_meta("debris_life", wreck_lifetime)), age + seconds + 60.0))
+
+
+func _held() -> bool:
+	return Time.get_ticks_msec() / 1000.0 < _hold_until
+
+
+## Water on the fire (a hose, EmergencyCrew), `seconds` of it: past `douse_seconds` the fire is out.
+func douse(seconds: float) -> void:
+	if not on_fire():
+		return
+	_doused += seconds
+	if _doused >= douse_seconds * (1.4 if state == State.WRECK else 1.0):
+		extinguish()
+
+
+## Puts the fire out: the flames die, a burst of steam goes up and the smoke turns grey-white and
+## thins out over the next minute; the damage stays. A burning car is left smoking (it can be set
+## alight again), a wreck stays a wreck.
+func extinguish() -> void:
+	if not on_fire():
+		return
+	extinguished = true
+	_hold_until = 0.0
+	_doused = 0.0
+	var at: Vector3 = _bonnet() + Vector3(0.0, 0.4, 0.0)
+	_stop_fire()
+	if state == State.BURNING:
+		state = State.SMOKING
+		health = max_health * fire_at + 1.0
+		_fuse = -1.0
+		car._update_occupant()
+	else:
+		# The smoke runs its course from here (_process: wreck_smoke_seconds after the fire).
+		_wreck_t = wreck_fire_seconds
+	if _smoke != null and is_instance_valid(_smoke):
+		# Steam and wet smoke: pale, thinner, slower.
+		_smoke.color = Color(0.55, 0.55, 0.56, 0.75)
+		_smoke.initial_velocity_max = 1.6
+	if is_inside_tree():
+		var steam_at: Vector3 = car.global_transform * at
+		WeaponFX._puff_layer(WeaponFX.fx_parent(car), steam_at, WeaponFX._count(12), 1.6, 2.4,
+				1.0, 3.0, 1.5, WeaponFX._ramp([Color(1, 1, 1, 0.0), Color(1, 1, 1, 0.55), Color(1, 1, 1, 0.0)]),
+				false, 40.0, 1.0, Basis(), 0.0, 0.2, 1.0, true)
+	set_process(true)
 
 
 ## Goes up: the player (if driving) is thrown out first, the blast is the player's crime unless

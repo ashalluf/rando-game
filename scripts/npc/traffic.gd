@@ -753,9 +753,15 @@ func _group_clear(groups: Dictionary, key: int, along: float, clear: float) -> b
 	return true
 
 
-## Police cruisers on the lanes with their sirens going.
+## Police cruisers on the lanes with their sirens going, and fire engines and ambulances on a
+## call (Emergency's units, group "emergency_unit").
 func _siren_list() -> Array:
 	var out: Array = []
+	for e in get_tree().get_nodes_in_group("emergency_unit"):
+		var u := e as EmergencyCar
+		if u and u.is_inside_tree() and u.siren_running() and u.traffic.has("axis"):
+			var uw := WorldState.to_world(u.global_position)
+			out.append([int(u.traffic.axis), int(u.traffic.index), int(u.traffic.dir), uw.z if int(u.traffic.axis) == CityPlan.AXIS_X else uw.x])
 	if _police == null or not is_instance_valid(_police):
 		_police = get_tree().get_first_node_in_group("wanted") as Police
 	if _police == null or _police.stars <= 0:

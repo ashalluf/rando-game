@@ -2490,9 +2490,10 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	if count[0] >= max_cars or rng.randf() > 0.55 or not PhysicsBudget.can_spawn():
 		return
 	var car := Vehicle.random_car(rng)
-	if (plan.macro and Landmarks.covers(plan, Vector2(spot[0].x, spot[0].z), 3.0)) or BigVehicles.in_stop_zone(plan, Vector2(spot[0].x, spot[0].z)):
+	if (plan.macro and Landmarks.covers(plan, Vector2(spot[0].x, spot[0].z), 3.0)) or BigVehicles.in_stop_zone(plan, Vector2(spot[0].x, spot[0].z)) \
+			or FireStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)):
 		# After the rolls, so the chunk rng runs the same whether or not the spot is used. A bus
-		# stop's kerb is kept clear for the bus (BigVehicles).
+		# stop's kerb is kept clear for the bus (BigVehicles), a fire station's for its engines.
 		car.free()
 		return
 	var holder: Node = get_parent() if get_parent() else self
@@ -2585,6 +2586,10 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	# which let the corner of a big lot stand well into the deck and its pillars.
 	if _under_freeway(center, 14.0) or _lot_under_freeway(lot):
 		_build_corridor_lot(lot)
+		return
+	# A fire station's lot (FireStation: one lot in a cell, hash-seeded; the pad roll above is made).
+	if FireStation.claims(plan, ix, iz, lot):
+		FireStation.build_lot(self, lot)
 		return
 	var fill := LotFill.wanted(self, district)
 	# A surface car park (CityPlan.lots() "parking"; the pad roll above is still made).

@@ -371,6 +371,20 @@ func _initialize() -> void:
 		for i in _env_int("BIG_FRAMES", 40):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
+	# EMERGENCY=fire|hose|medic|station: a fire engine and an ambulance at work in front of the
+	# camera, or the nearest fire station (Emergency.stage_for_shot), framed by a free camera.
+	var em_env := OS.get_environment("EMERGENCY")
+	if em_env != "" and current_scene and current_scene.get_node_or_null("Emergency"):
+		var em_eye: String = await current_scene.get_node("Emergency").call("stage_for_shot", em_env, get_root().get_camera_3d())
+		if em_eye != "":
+			OS.set_environment("EYE", em_eye)
+		print("EMERGENCY %s eye %s" % [em_env, em_eye])
+		_eye(player, fov)
+		if current_scene.has_method("update_streaming"):
+			current_scene.call("update_streaming", true)
+		for i in _env_int("EMERGENCY_FRAMES", 30):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
 	# Then all but freeze the clock for the last frames: a software frame takes seconds, and at
 	# normal speed everything that moves - people, traffic, leaves, fire - smears under TAA.
 	# Held still, TAA and the GI converge on one instant, as crisp as it is on the Mac.

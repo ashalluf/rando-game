@@ -1130,6 +1130,69 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Stills: `BIG=bus` (a bus at the stop nearest the camera, doors open, a pavement EYE), `BIG=semi
   BIG_ROUTE=110` on `still_shot.gd`, `STREET=queue STREET_BIG=10` (a box truck in the queue),
   `car_shot.gd --each=9,10,11` (`BUS_DOORS=1`). Checks: `tests/big_vehicle_checks.gd`.
+- Emergency services (2026-10-04, "fire engines and ambulances that answer the chaos"; HANDOFF
+  9bm). `Emergency` (`scripts/npc/emergency.gd`) is a node in `city.tscn` (group `emergency`),
+  built like Police: every `scan_interval` it opens CALLS within `call_radius` of the player -
+  `fire` (a car in `CarDamage._burning` / `_wrecks` still `on_fire()`: an engine), `blast`
+  (`Explosion.blast_count` moved, no fire call within `merge_radius`: an engine stands by
+  `stand_by_seconds`), `down` (a fresh `Ragdoll` in PhysicsBudget's debris group, not a responder's:
+  an ambulance; its debris clock is pushed back while the call is open) - and after
+  `response_delay` sends a unit (`send()`, caps `max_engines` / `max_ambulances`, pooled) out of
+  the nearest fire station within `station_reach` (`FireStation.exit_lane()`, the bay doors roll
+  up) or along a street out of sight like a cruiser. A wreck with an engine on the way is held
+  burning (`CarDamage.hold_fire()`), or there would be nothing left to put out. **`EmergencyCar`**
+  (`scripts/npc/emergency_car.gd`, extends Vehicle; body types FIRE_ENGINE 12 / AMBULANCE 13,
+  `BODY_ODDS` 0, `BigVehicles.is_big()`) drives the lanes kinematically with PoliceCar's lane
+  geometry and StreetRoute routing (the code is copied, not shared: PoliceCar carries the police's
+  groups and crimes), siren on (`siren` wail for the engine plus a `fire_horn` blast every few
+  seconds, `siren_yelp` for the ambulance) - TrafficManager's `_siren_list()` takes the group
+  `emergency_unit` too, so traffic pulls over - and pulls up at `StreetRoute.kerb_stop()` stood off
+  the scene (`engine_stand_off` 14 m, `ambulance_stand_off` 7 m), STILL kinematic (ON_SCENE), then
+  `Emergency.deploy_crew()`. Hit, it goes physical like any car; leaving, it is put back on the
+  nearest lane if it stands upright and still (`_back_to_lanes()`: wheels off BEFORE the freeze).
+  Its warning lenses are the model's `beacon_red` / `beacon_white` slots on
+  `shaders/emergency_lights.gdshader` (a wig-wag worked out from each lens's mesh-space position:
+  left / right banks half a cycle apart, front / rear a quarter; red held to green 0.1 and 2.6x,
+  or AgX turns it salmon), the `stripe` slot a retroreflective material, an OmniLight3D on the roof
+  at night (desktop). **`EmergencyCrew`** (`scripts/npc/emergency_crew.gd`, extends Pedestrian, so
+  shot / knocked / ragdolled and a crime like anyone, `responder` group, NOT `pedestrian`): GO ->
+  WORK -> RETURN; jobs NOZZLE (stands `nozzle_distance` off the fire on the line from the pump
+  panel, a hose laid as a tube mesh, `shaders/hose_water.gdshader` streaks on
+  CPUParticles3D `particle_flag_align_y`, spray where it lands; `Emergency.water_on()` ->
+  `CarDamage.douse()` -> `extinguish()` past `douse_seconds`: flames out, steam, the smoke goes
+  pale and runs its course, a burning car is left SMOKING and a wreck stays a wreck), BACKUP, PUMP,
+  PATIENT (kneels at the body with a bag for `treat_seconds`), STRETCHER (fetches the cot from the
+  back, pushes it to the body, loads it - the ragdoll is freed, a blanketed patient lies on the cot -
+  and wheels it back). Uniforms through the character shader's garment split
+  (`uniform_material()`: turnout tan, paramedic blue / navy) on PoliceOfficer's rigs; kneel, hose
+  and push are RoughSleeper-style aim tables solved per rig over the idle (`POSES`); a CharacterBody
+  does not step, so a crew member blocked while moving steps up 0.34 m when there is room (kerbs).
+  The helmet is **`FireHelmet`** (`scripts/npc/fire_helmet.gd`): a shell with a ridge, a duckbill
+  brim and a brass-rimmed leather front shield built round each rig's head from CrowdHatTable
+  (`CrowdHat.head_for()`), yellow (a white one for 1 in 8), hair hidden under it. A responder's
+  ragdoll carries meta `responder` (never another call). **`FireStation`**
+  (`scripts/world/fire_station.gd`, static): the map is cut into `CELL` 850 m squares, a hash of
+  seed + cell says whether one has a station (`ODDS`) and where; the block there, if it is
+  BUILDINGS in a station district (not the downtown core or a landmark's), gives up its biggest
+  edge lot that is `MIN_LOT` deep and clear of the freeway - `CityChunk._build_lot()` asks
+  `FireStation.claims()` after its corridor check and the pad roll, so no roll moves. FULL: a
+  two-storey brick firehouse (one mesh, a surface per material), two sectional bay doors as their
+  own nodes (`open_door()` tweens them up `DOOR_TIME`, holds, closes), a bay interior with lights,
+  an apron and a ramp across the pavement to the kerb, "STATION nn" and the department's name
+  (TextMesh), a flagpole, one collision box, the occluder; LOD / far city: one `lod_box` (old path,
+  rotated). Names are original (`RANDO CITY FIRE DEPT`, `RCFD` on the cab doors, `BASIN MEDICAL` on
+  the box): never a real department's or company's. Bodies: `tools/make_emergency_vehicles.py`
+  (Blender, imports `make_big_vehicles.py`; `build/car_src/.../blender -b --factory-startup -P
+  tools/make_emergency_vehicles.py -- fire_engine ambulance [--render]`, then `--import`); slots
+  beyond the cars' are `beacon_red`, `beacon_white`, `stripe`, `satin` (roll-ups, pump panel,
+  ladders, diamond plate: chrome would mirror them) and `hose`; kerb side +X. Stills:
+  `EMERGENCY=fire|hose|medic|station` on `still_shot.gd` (`Emergency.stage_for_shot()`: a wreck
+  burning on the kerb ahead of the camera, an engine with its hose on, an ambulance at a body,
+  crews posed at once); close-ups `car_shot.gd --each=12,13,1` (`LIGHTS=0` dark). Checks:
+  `tests/emergency_checks.gd` (the smoke test keeps `Emergency.enabled` off elsewhere). The bus's
+  windscreen (same pass): `CarCabin.BUS_DAYLIGHT` lights a bus's traced cabin 2.2x (and lets more of
+  it through the glass) and a bus's far twin starts at 60 m (`BigVehicles.tune()`), since from the
+  pavement at noon its front read as a black slab.
 - Character arms: the generated clips were authored for arms that hang straight, but each
   generated rig is bound in whatever pose its mesh came out in (A-pose, or a palms-up shrug
   with the forearms raised), and the clips drive the arm bones as if that were the rest pose -

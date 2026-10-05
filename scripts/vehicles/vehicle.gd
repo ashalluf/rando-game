@@ -5,12 +5,13 @@ extends VehicleBody3D
 
 ## CROSSOVER is last so every older index (and every seed that rolled one) keeps its meaning.
 ## BUS, BOX_TRUCK and SEMI (BigVehicles) come after it for the same reason; random_car() never
-## rolls them - TrafficManager spawns them on purpose.
-enum BodyType { SEDAN, PICKUP, VAN, SPORTS, SUPER, SPIDER, HYPER, TRACK, CROSSOVER, BUS, BOX_TRUCK, SEMI }
+## rolls them - TrafficManager spawns them on purpose. FIRE_ENGINE and AMBULANCE (Emergency) come
+## last for the same reason: only EmergencyCar builds them.
+enum BodyType { SEDAN, PICKUP, VAN, SPORTS, SUPER, SPIDER, HYPER, TRACK, CROSSOVER, BUS, BOX_TRUCK, SEMI, FIRE_ENGINE, AMBULANCE }
 enum Addon { NONE, ROOF_RACK, SPOILER, LIGHT_BAR }
 
 ## Original names. Nothing here is or imitates a real manufacturer's model.
-const BODY_NAMES := ["Sedan", "Pickup", "Van", "Sports", "Vantari", "Vantari Aperta", "Kestrel", "Kestrel RS", "Crossover", "City Bus", "Box Truck", "Semi"]
+const BODY_NAMES := ["Sedan", "Pickup", "Van", "Sports", "Vantari", "Vantari Aperta", "Kestrel", "Kestrel RS", "Crossover", "City Bus", "Box Truck", "Semi", "Fire Engine", "Ambulance"]
 ## Generated body models per type (see docs/ASSETS.md). Missing files fall back to the box car.
 const BODY_MODELS := {
 	BodyType.SEDAN: "res://assets/models/road_sedan.glb",
@@ -25,6 +26,8 @@ const BODY_MODELS := {
 	BodyType.BUS: "res://assets/models/road_bus.glb",
 	BodyType.BOX_TRUCK: "res://assets/models/road_box_truck.glb",
 	BodyType.SEMI: "res://assets/models/road_semi.glb",
+	BodyType.FIRE_ENGINE: "res://assets/models/road_fire_engine.glb",
+	BodyType.AMBULANCE: "res://assets/models/road_ambulance.glb",
 }
 ## Belt line (bottom of the side glass, as a fraction of body height) for a single-texture body
 ## whose texture does not darken the windows, so the paint shader finds glass by shape. No body
@@ -44,6 +47,8 @@ const BODY_ODDS := {
 	BodyType.CROSSOVER: 220,
 	# Never rolled: the traffic spawns its buses and trucks on purpose (BigVehicles).
 	BodyType.BUS: 0, BodyType.BOX_TRUCK: 0, BodyType.SEMI: 0,
+	# Nor the emergency apparatus (Emergency sends them).
+	BodyType.FIRE_ENGINE: 0, BodyType.AMBULANCE: 0,
 }
 ## Where a generated wheel sits in body space, per body type: `x` half-track, `front` / `rear`
 ## the axle positions along the car, `y` the hub height, `r` the tyre radius and `w` the section
@@ -75,6 +80,11 @@ const WHEEL_POSE := {
 	BodyType.SEMI: {"x": 1.035, "front": -3.176, "rear": 2.984, "y": 0.210, "r": 0.510, "w": 0.290, "baked": true,
 			"axles": [[-3.176, false], [2.324, true], [3.644, true]], "dual_x": 0.920, "dual_gap": 0.320,
 			"trailer_axles": [[12.75], [14.0]]},
+	# The emergency apparatus (tools/make_emergency_vehicles.py prints these; EmergencyCar).
+	BodyType.FIRE_ENGINE: {"x": 1.035, "front": -3.480, "rear": 1.520, "y": 0.220, "r": 0.530, "w": 0.315, "baked": true,
+			"axles": [[-3.480, false], [1.520, true]], "dual_x": 0.905, "dual_gap": 0.335},
+	BodyType.AMBULANCE: {"x": 0.870, "front": -2.613, "rear": 1.407, "y": 0.160, "r": 0.380, "w": 0.235, "baked": true,
+			"axles": [[-2.613, false], [1.407, true]], "dual_x": 0.775, "dual_gap": 0.255},
 }
 ## The sizes above deliberately land on six distinct (radius, section width) pairs across the
 ## eight body types. Every extra pair is another five meshes (one per spoke pattern) times two
@@ -1455,6 +1465,12 @@ func _dims() -> Dictionary:
 					"kingpin": Vector3(0.0, 0.92, 2.874), "trailer_axle": 13.375, "trailer_rear": 15.25, "trailer_floor": -0.18,
 					"light_len": 22.584, "light_z": 6.838,
 					"letter_at": Vector3(1.31, 1.48, 7.175), "letter_size": 0.62}
+		BodyType.FIRE_ENGINE:
+			return {"length": 10.04, "width": 2.5, "lamp_y": 0.82, "tail_y": 0.84, "chassis_h": 1.0, "cabin": Vector2(-5.0, 10.0), "cabin_h": 1.5, "wheel_z": 2.5, "wheel_front": 3.48, "wheel_rear": 1.52, "track": 2.07, "tyre_r": 0.49, "ride": -0.281, "road": -0.310,
+					"letter_at": Vector3(1.262, 1.02, -2.39), "letter_size": 0.30}
+		BodyType.AMBULANCE:
+			return {"length": 6.974, "width": 2.35, "lamp_y": 0.595, "tail_y": 0.92, "chassis_h": 0.9, "cabin": Vector2(-3.4, 6.9), "cabin_h": 1.3, "wheel_z": 2.0, "wheel_front": 2.613, "wheel_rear": 1.407, "track": 1.74, "tyre_r": 0.35, "ride": -0.199, "road": -0.220,
+					"letter_at": Vector3(1.178, 1.55, 2.037), "letter_size": 0.20}
 		BodyType.SPORTS:
 			return {"length": 4.6, "width": 1.9, "chassis_h": 0.55, "cabin": Vector2(-0.9, 2.0), "cabin_h": 0.55, "wheel_z": 1.45, "track": 1.64, "tyre_r": 0.34, "ride": -0.30}
 		BodyType.SUPER, BodyType.SPIDER:

@@ -24,7 +24,8 @@ const SEMI := Vehicle.BodyType.SEMI
 
 ## Mass relative to a car (1200 kg): engine, brakes and suspension are scaled with it so the
 ## handling numbers keep their meaning. A laden bus is ~13 t, a box truck 8 t, a rig 15-30 t.
-const MASS_SCALE := {BUS: 8.0, BOX_TRUCK: 5.5, SEMI: 11.0}
+const MASS_SCALE := {BUS: 8.0, BOX_TRUCK: 5.5, SEMI: 11.0, Vehicle.BodyType.FIRE_ENGINE: 12.0,
+		Vehicle.BodyType.AMBULANCE: 4.5}
 
 ## The transit agency (invented): its name on the skirt, its colours.
 const AGENCY := "BASIN TRANSIT"
@@ -88,7 +89,8 @@ static var _letter_mat: Dictionary = {}
 
 
 static func is_big(type: int) -> bool:
-	return type == BUS or type == BOX_TRUCK or type == SEMI
+	return type == BUS or type == BOX_TRUCK or type == SEMI or type == Vehicle.BodyType.FIRE_ENGINE \
+			or type == Vehicle.BodyType.AMBULANCE
 
 
 # --- Making one ----------------------------------------------------------------------------------
@@ -139,6 +141,10 @@ static func tune(car: Vehicle) -> void:
 	car.top_speed = 30.0
 	car.enter_radius = 6.0
 	car.crash_min_dv = 6.0
+	# A bus's windscreen is two metres of glass with the cabin behind it: its far twin (no glass
+	# slot) drew it as a black slab from the 30 m a car's hands over at.
+	if car.body_type == BUS:
+		car.body_far_distance = 60.0
 
 
 ## After the body model is placed (Vehicle._add_body_model): the trailer onto its pivot, the bus's
@@ -363,7 +369,8 @@ static func wheel_material(type: int) -> Material:
 		return _wheel_cache[key]
 	var base := PropFactory.wheel_material(0)
 	var mat := base.duplicate() as ShaderMaterial
-	if type != SEMI:
+	# Polished discs on the semi and the fire engine; painted steel on the rest.
+	if type != SEMI and type != Vehicle.BodyType.FIRE_ENGINE:
 		mat.set_shader_parameter("c_face", Vector3(0.78, 0.78, 0.76))
 		mat.set_shader_parameter("m_face", Vector2(0.0, 0.42))
 		mat.set_shader_parameter("c_barrel", Vector3(0.55, 0.55, 0.54))
