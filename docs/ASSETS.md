@@ -45,6 +45,7 @@ Quaternius). Record every pack here.
 | Fabric031 | https://ambientcg.com/a/Fabric031 | CC0 1.0 | encampment kit: blankets and quilts (`camp_wool`) | 2026-09-24 |
 | Plastic006 | https://ambientcg.com/a/Plastic006 | CC0 1.0 | encampment kit: trash-bag film (`camp_plastic`) | 2026-09-24 |
 | Climbing plants and garden accents atlas (`assets/textures/climbers/climbers_albedo.png`, `climbers_normal.png`) | original, painted procedurally by `tools/make_climbers.py` (parametric leaf outlines, bracts, flowers, agave / aloe blades; no photo or third-party art) | project | `ClimbingPlants` (bougainvillea, ivy, creeping fig, star jasmine, wisteria, grape, trumpet vine, agave, aloe, red-hot poker, lavender, lantana) | 2026-10-05 |
+| Street HDRI for reflections (`assets/textures/sky/street_hdri.png`, 1024 x 512 RGBA: the scene relative to its street's mean, its own sky cut out in alpha; made by `tools/reflections/make_street_hdri.py` from the 2K .hdr, fetched from the three.js mirror `raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/equirectangular/san_giuseppe_bridge_2k.hdr` because polyhaven.com is blocked here) | Poly Haven `san_giuseppe_bridge`, https://polyhaven.com/a/san_giuseppe_bridge | CC0 1.0 | `sky.gdshader` `street_hdri` (Forward+ only): what reflections out of every reflection probe's reach mirror under the horizon | 2026-10-05 |
 
 Texture sets are from ambientCG and Poly Haven (both CC0 1.0 Universal, no attribution required,
 attribution given anyway). Only the Color, NormalGL and Roughness maps at 1K are kept, under `assets/textures/<Set>/`.
@@ -176,6 +177,24 @@ fields). Original design; no real signal maker's hardware or symbol artwork is c
 | `sig_button` | 328 | push-button station with its sign | 2026-09-24 |
 | `sig_cabinet` | 740 | signal controller cabinet on a concrete pad | 2026-09-24 |
 
+## Street lamps (our own tool, no external source)
+
+`assets/models/street_lamps.glb` is written by `tools/make_street_lamps.py`, run headless in Blender
+4.2 (`blender -b --factory-startup --python tools/make_street_lamps.py`, or the `bpy==4.2.0` wheel
+from PyPI); the script is the model and the `.glb` is build output (rerun it, then `godot
+--headless --path . --import`). One node per type, one material; no textures - the surfaces are
+`shaders/street_lamp.gdshader` (procedural galvanising spangle, painted iron, die-cast aluminium,
+spun concrete with aggregate, glass, opal acrylic, LED dots). Original designs in the Los Angeles
+idiom; no real maker's luminaire or city standard is copied.
+
+| Node | Triangles | Used for | Added |
+| --- | --- | --- | --- |
+| `sl_cobra` | 2,908 | cobra-head on an 8.4 m tapered galvanised pole, davit arm, drop-glass refractor, photocell | 2026-10-05 |
+| `sl_twin` | 4,368 | downtown twin-globe ornamental: octagonal plinth, fluted cast-iron post, leaf collar, scrolled cross-arm, two opal globes | 2026-10-05 |
+| `sl_lantern` | 1,504 | midtown single-lantern ornamental: fluted post, hexagonal lantern with hipped roof | 2026-10-05 |
+| `sl_post` | 1,408 | residential post-top on a spun-concrete pole, prismatic cylinder luminaire | 2026-10-05 |
+| `sl_mast` | 2,556 | mast-arm LED: 9.4 m galvanised pole, straight arm, slim LED head with fins | 2026-10-05 |
+
 ## Procedurally generated cars (our own tools, no external source)
 
 Not downloaded and not Meshy: these are written by Python generators in `tools/` using `bpy`
@@ -204,6 +223,12 @@ class instead.
 | `tools/make_emergency_vehicles.py` | `road_fire_engine.glb` | 35k tris + 10k far twin (Type 1 pumper: crew cab, pump panel, roll-ups, hose bed, ladders, light bar, Q-siren; original, no department's marks) | `BodyType.FIRE_ENGINE` (EmergencyCar) | 2026-10-04 |
 | `tools/make_emergency_vehicles.py` | `road_ambulance.glb` | 23k tris + 10k far twin (Type III: cutaway cab, modular box, striping, chevrons, warning lamps; original) | `BodyType.AMBULANCE` (EmergencyCar) | 2026-10-04 |
 | `tools/make_school_bus.py` | `road_school_bus.glb` | 54k tris + 10k far twin (Type D transit-style school bus: split-sash windows, eight-way warning lamps, rub rails, STOP arm, crossing arm, rear emergency door, the invented RANDO UNIFIED SCHOOL DISTRICT lettering; Blender's built-in font; original, no maker's shapes or badges) | `BodyType.SCHOOL_BUS` (Schools) | 2026-10-05 |
+| `tools/make_service_vehicles.py` | `road_garbage.glb` | 44k tris + 10k far twin (side loader on the box truck's cab: hopper, ribbed packer body, tailgate, the arm as `rig_boom` / `rig_lift`; original, no fleet's marks) | `BodyType.GARBAGE_TRUCK` (ServiceVehicles) | 2026-10-05 |
+| `tools/make_service_vehicles.py` | `road_sweeper.glb` | 47k tris + 10k far twin (debris hopper, water tank, gutter brooms `rig_brush_r/l`, main broom `rig_broom`; original) | `BodyType.STREET_SWEEPER` | 2026-10-05 |
+| `tools/make_service_vehicles.py` | `road_tow.glb` | 40k tris + 10k far twin (rollback deck `rig_bed` with headboard and winch, toolboxes, wheel-lift; original) | `BodyType.TOW_TRUCK` | 2026-10-05 |
+| `tools/make_service_vehicles.py` | `road_ice_cream.glb` | 22k tris + 10k far twin (the ambulance's cutaway cab with a box: serving window, awning, menu boards, cone sign, horn; original) | `BodyType.ICE_CREAM_TRUCK` | 2026-10-05 |
+| code (`ServiceSounds`) | the service vehicles' sounds | synthesised at load: hydraulic whine, a cart's bang, brushes, winch, and the ice-cream chime - an original tune (`ServiceSounds.TUNE`) | ServiceVehicles | 2026-10-05 |
+| code (`KerbBins.mesh()`) | the wheelie carts | 582 / 24 tris, built in code, `shaders/kerb_bin.gdshader` | ServiceFleet | 2026-10-05 |
 
 The `hifi_*` pair are a different construction from the `exo_*` ones and are the direction to
 carry forward. Each body is ONE all-quad control cage indexed by (longitudinal station, position
@@ -337,9 +362,8 @@ phone number (555 numbers) is invented for this game.
 | LA wet-barrel fire hydrant | `StreetFurniture.hydrant()` | ~3.3k | one a block (CityChunk) | 2026-10-05 |
 | Single-space smart meter | `StreetFurniture.meter()` | ~0.7k | metered kerbs (StreetDetail) | 2026-10-05 |
 | Pay station with solar mast | `StreetFurniture.pay_station()` | ~0.5k | 18 % of metered spaces | 2026-10-05 |
-| Concrete bus bench, painted ad back | `StreetFurniture.ad_bench()` | ~0.4k | half the bus stops | 2026-10-05 |
+| Concrete bus bench, painted ad back | `StreetFurniture.ad_bench()` | ~0.3k | beside a third of the bus shelters | 2026-10-05 |
 | Perforated downtown bin | `StreetFurniture.mesh_bin()` | ~1.9k | TrashCan downtown, midtown, campus | 2026-10-05 |
-| 96-gallon residential cart | `StreetFurniture.cart()` | ~1.3k | kerbs on collection day | 2026-10-05 |
 | Galvanised inverted-U bike rack | `StreetFurniture.bike_rack()` | ~1.0k | bike racks (StreetDetail) | 2026-10-05 |
 | Precast kerb planter (+ a Poly Haven shrub) | `StreetFurniture.planter()` | ~0.2k | planters (CityChunk) | 2026-10-05 |
 | Bench ad atlas, 8 ads, 1024 x 2560 | `tools/make_bench_ads.py` | - | the ad benches | 2026-10-05 |
@@ -476,6 +500,9 @@ to each `.glb` on import (`prop_<name>_<map>.jpg` + `.import`); those are commit
 | car alarm dying out (ramas26), a real car alarm cycling its tones | https://freesound.org/people/ramas26/sounds/165257/ | CC0 1.0 | `assets/audio/car_alarm_0` (15.3-22.6 s of the HQ preview: the pulsing tone) and `car_alarm_1` (24.6-57.2 s: the multi-tone warble cycle); high-passed 300 Hz, levelled to -20 dBFS RMS, the last 0.4 s cross-faded into the first, mono 44.1 kHz Vorbis (CarAlarm) | 2026-10-05 |
 | 230707 Car alarm horn honks, roof, EM272s Toronto (TRP) | https://freesound.org/people/TRP/sounds/717865/ | CC0 1.0 | `assets/audio/car_alarm_2` (1.4-38.4 s of the HQ preview: a horn honking in time), high-passed 200 Hz, levelled, cross-faded into a loop, mono 44.1 kHz Vorbis (CarAlarm) | 2026-10-05 |
 | American police siren in Washington DC (lezer, via pdsounds.org) | https://commons.wikimedia.org/wiki/File:American_police_siren_i.ogg | Public domain | `assets/audio/siren_0` (one wail cycle, 17.62-22.78 s of the recording, band-passed 380 Hz - 6 kHz, level flattened, cross-faded into a seamless loop, mono 44.1 kHz; the Ogg Skeleton track dropped) | 2026-09-24 |
+| Chrysler LHS tire squeal 03 / 04 (04-25-2009).wav (audible-edge), a real sedan's tyres squealing | https://freesound.org/people/audible-edge/sounds/71738/ and https://freesound.org/people/audible-edge/sounds/71739/ | CC0 1.0 | `assets/audio/skid_0..2` (71739 3.0-8.4 s and 8.6-14.2 s, 71738 5.8-10.2 s of the HQ previews; the last 0.4 s cross-faded into the first, levelled to -20 dBFS RMS, mono 44.1 kHz Vorbis): DrivingFX's squeal | 2026-10-05 |
+| Metal Grinding; Light (amholma) | https://freesound.org/people/amholma/sounds/344352/ | CC0 1.0 | `assets/audio/scrape_0` (2.0-13.5 s, 0.5 s cross-fade loop, -22 dBFS RMS, mono 44.1 kHz Vorbis): a car body grinding on the road or a wall | 2026-10-05 |
+| BACKFIRE.ogg (CeebFrack) | https://freesound.org/people/CeebFrack/sounds/105351/ | CC0 1.0 | `assets/audio/backfire_0` (0.0-0.9 s, the tail faded, mono 44.1 kHz Vorbis): an exhaust backfire on a hard lift-off | 2026-10-05 |
 | jacaranda_tree | `tree_jacaranda.glb` | 60k tris, 10.2 MB | street and park trees; recoloured to lavender blossom (see shaders/foliage_tex.gdshader) | 2026-09-21 |
 | island_tree_03 | `tree_d.glb` | 38k tris, 3.6 MB | street and park trees | 2026-09-21 |
 | fir_tree_01 | `tree_fir.glb` | 54k tris, 5.2 MB | hill conifers | 2026-09-21 |
@@ -558,6 +585,7 @@ side ("left/right" below), or by the loop against itself half a turn later (bird
 | Car horn beep beep two beeps honk honk (AmishRob) | https://freesound.org/s/423990/ | CC0 1.0 | `horn_far_2` 0.05-0.70 s | 2026-09-24 |
 | 05 Horn.wav (15HPanska_Ruttner_Jan) | https://freesound.org/s/461679/ | CC0 1.0 | `horn_far_3` 0.45-2.50 s | 2026-09-24 |
 | Car Horn Honk.wav (DeVern) | https://freesound.org/s/349922/ | CC0 1.0 | `horn_far_4` 1.40-3.10 s | 2026-09-24 |
+| The same five recordings (keweldog, MicktheMicGuy, AmishRob, 15HPanska_Ruttner_Jan, DeVern) | https://freesound.org/s/182474/ (and 434878, 423990, 461679, 349922) | CC0 1.0 | `car_horn_0..4` (taps and double taps), `car_horn_long_0..2` (leaning on the horn); cut close and unfiltered by `tools/traffic_horns.py` for the traffic's honks (TrafficAI) | 2026-10-05 |
 | Angry big dog barking - Far [d15].wav (v23) | https://freesound.org/s/440865/ | CC0 1.0 | `dog_0` 0.70-2.80 s; `dog_1` 4.95-7.10 s; `dog_2` 8.55-9.90 s | 2026-09-24 |
 | distant_dog.wav (Heigh-hoo) | https://freesound.org/s/54545/ | CC0 1.0 | `dog_3` 2.85-5.35 s | 2026-09-24 |
 | bus coach ext pull up brake air release idle.wav (kyles) | https://freesound.org/s/454420/ | CC0 1.0 | `bus_hiss_0` 3.90-6.40 s; `bus_hiss_1` 10.60-12.80 s | 2026-09-24 |
@@ -659,6 +687,50 @@ and 733737, measured as perfectly steady synthesized tones, so making our own wa
 | Jack Hammer breaking up concrete (short burst) (thomaspettigrew) | https://freesound.org/s/273697/ | CC0 1.0 | `construction_0` 0.05-3.60 s, `construction_1` 3.90-7.60 s | 2026-10-05 |
 | hammering 2.wav (cognito perceptu) | https://freesound.org/s/17012/ | CC0 1.0 | `construction_2` 0.00-1.55 s | 2026-10-05 |
 
+## Murals and ghost signs (our own code)
+
+| Asset | Source | License | Used for | Added |
+|---|---|---|---|---|
+| `assets/textures/murals/ghost_signs.png` (sixteen invented period ads as field / lettering / shadow masks) | Our own script `tools/make_murals.py`; lettering rasterised from the system's DejaVu (Bitstream Vera licence) and Liberation (SIL OFL 1.1) fonts, no font file ships | ours | ghost signs on old brick (`scripts/world/murals.gd`, `shaders/mural.gdshader`) | 2026-10-05 |
+| Every mural scene, frieze, crosswalk pattern and cabinet wrap | Painted procedurally in `shaders/mural.gdshader` | ours | murals | 2026-10-05 |
+
+## Los Angeles trees and accents (built in code)
+
+Ten species built at run time by `scripts/world/la_trees.gd` (2026-10-05) - no model files, no
+textures: a seeded skeleton (trunk, limbs, branches, twigs), leaf cards whose outlines, bark
+patterns and flowers are drawn by `shaders/la_tree.gdshader`. Poly Haven has none of these
+species. Original work for this game.
+
+| Mesh | Built by | Triangles (full detail / coarsest) | Used for | Added |
+|---|---|---|---|---|
+| Eucalyptus (blue gum), Italian cypress, olive, Indian laurel fig, California sycamore, coral tree; two variants each | `LaTrees.mesh()` | 6k-17k / 0.4-1.1k | street rows, parks, plazas, yards, the freeway's right of way, hill gullies, cypress pairs by houses | 2026-10-05 |
+| Bird of paradise, agave (plain and variegated), yucca, dragon tree | `LaTrees.mesh()` | 0.8k-3.5k / 20-400 | front gardens, yard beds, forecourt planters | 2026-10-05 |
+
+## Dogs (built in code; CC0 recordings)
+
+The dogs (`DogMesh`, `DogRig`; 2026-10-05) are built in code: no model file. Their coats
+(`assets/textures/dogs/*.jpg`, 14 colourways) are painted by `tools/dogs/make_dog_coats.py`
+(numpy + PIL), original. The Quaternius Shiba (`dog_shiba.glb`) they replace is removed.
+
+| File | Source | License | Cut | Date |
+|---|---|---|---|---|
+| Dog Bark (aunrea) | https://freesound.org/s/495658/ | CC0 1.0 | `bark_big_0` 0.13-0.55 s; `bark_big_1` 1.43-1.88 s; `bark_big_2` 3.45-3.87 s | 2026-10-05 |
+| Barking Dog (SuperStudioBR) | https://freesound.org/s/180977/ | CC0 1.0 | `bark_big_3` 0.69-1.11 s; `bark_big_4` 2.51-2.91 s; `bark_big_5` 10.73-11.23 s | 2026-10-05 |
+| Pomeranian Small Dog Barking.mp3 (yunjish) | https://freesound.org/s/608732/ | CC0 1.0 | `bark_small_0..4` 6.89, 8.19, 11.65, 12.81, 9.43 s (0.32-0.36 s each) | 2026-10-05 |
+| bark yelp dog small int.flac | https://freesound.org/s/452180/ | CC0 1.0 | `dog_yelp_0` 0.73-1.28 s | 2026-10-05 |
+| Dog's Yelping 7 | https://freesound.org/s/160478/ | CC0 1.0 | `dog_yelp_1` 3.13-3.75 s; `dog_yelp_2` 7.73-8.33 s | 2026-10-05 |
+
+## Micromobility (built in code)
+
+The shared e-scooters, the BASIN BIKE share bikes, docks and solar kiosk, the bike racks, the bike
+lanes' delineator posts and the riders' road bike, beach cruiser and longtail cargo bike
+(2026-10-05) are generated at run time by `scripts/world/micro_mesh.gd` on
+`shaders/micromobility.gdshader`, and the lane paint (green, lines, hatching, the bike stencil and
+arrow) is drawn by `shaders/bike_lane.gdshader` - no model files, no textures. The riders' helmets
+are built round each crowd rig's head by `scripts/npc/bike_helmet.gd` from CrowdHatTable. The
+scooter operators (SKOOTA, KWIKR) and the share scheme (BASIN BIKE) are invented for this game;
+no real operator's name, colours or mark.
+
 ## Fonts
 
 | Font | Source URL | License | Used for | Added |
@@ -671,3 +743,25 @@ and 733737, measured as perfectly steady synthesized tones, so making our own wa
 |---|---|---|---|---|
 | Coordinates of 40 landmark points (40 queries, 68 results, the first of each used) and 517 street / freeway centre-line points (53 queries) in downtown Los Angeles (93 Nominatim search queries in all, cached in `tools/downtown_relay/geocode_cache.json`) | https://nominatim.openstreetmap.org (OpenStreetMap) | © OpenStreetMap contributors (ODbL 1.0) | the fitted downtown street grid and landmark positions in `scripts/world/downtown_real.gd` | 2026-09-24 |
 | Footprint (7-point outline), height 15.7 m and start date 1993 of Masjid Omar ibn Al-Khattab, OSM way 412475901 (one Nominatim lookup) | https://nominatim.openstreetmap.org (OpenStreetMap) | © OpenStreetMap contributors (ODbL 1.0) | the replica's plan and heights in `scripts/world/landmark_masjid_omar.gd` (`W_*`, `E_*`, `REAL_LATLON`); the detail is modelled from the owner's six photographs | 2026-09-24 |
+
+## Freight rail audio and rolling stock (Wikimedia Commons CC0; code-built)
+
+The freight line's sounds (`Sfx` `freight_horn`, `freight_horn_blast`, `freight_roll`,
+`freight_engine`), added 2026-10-05. Each file's Commons page checked: licence field CC0. Cut with
+ffmpeg (mono 44.1 kHz Vorbis; the horn high-passed at 90 Hz and faded, the pass at 30-35 Hz);
+loudness in `Sfx.SAMPLE_LOUDNESS_DB` (the loops at their RMS, the horn at its loudest 50 ms). The
+horn recording is itself the grade-crossing pattern (long, long, short, long). The crossing bells
+are the light rail's `rail_bell`. The locomotives and cars (`scripts/vehicles/freight_stock.gd`)
+and the yard and track (`freight_kit.gd`, `freight_yard.gd`) are built in code: no external model.
+The containers are PortKit's. Railroad, marks and livery invented (Arroyo Pacific, APXR).
+
+| Recording (author) | Source URL | License | Clips (span used) | Added |
+|---|---|---|---|---|
+| Nathan M5 (HarveyHenkelmann, Wikimedia Commons) | https://commons.wikimedia.org/wiki/File:Nathan_M5.ogg | CC0 | `freight_horn_0` (0.35-16.9 s, the crossing pattern), `freight_horn_blast_0` (7.05-11.45 s) | 2026-10-05 |
+| Freight train passes Phelan, startles Canadian geese (Extemporalist, Wikimedia Commons) | https://commons.wikimedia.org/wiki/File:Freight_train_passes_Phelan,_startles_Canadian_geese.flac | CC0 | `freight_roll_0` (100-112 s, loop), `freight_roll_1` (266-278 s, loop), `freight_engine_0` (304-312 s, loop) | 2026-10-05 |
+
+## Road wear stamps (our own generator, from CC0 scans in the repo)
+
+| Asset | Source | License | Used for | Added |
+|---|---|---|---|---|
+| `assets/textures/road_wear/road_wear_color.png`, `_nrm.png`, `_data.png` (25 stamps, 2048 px atlas) | `tools/make_road_wear.py`: cut and recoloured from Asphalt033, GravelConcrete03, DryGroundRocks and Concrete034 (rows above: ambientCG / Poly Haven, CC0) plus procedural shapes (cracks, potholes, ruts, ripples, stains, tyre marks, paint ghosts) | CC0 sources; generated art ours | RoadWear (road, pavement and car-park wear) | 2026-10-05 |

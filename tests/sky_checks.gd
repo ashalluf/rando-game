@@ -56,6 +56,11 @@ func _source() -> void:
 			if not forward.has(true):
 				bad += 1
 	_t._check(bad == 0, "sky: every half-res reference is inside a Forward+ guard (%d outside)" % bad)
+	# The photographic cumulus (wave 2 review): a flat base, the fragments' population, three
+	# erosion octaves, the crown thinned so the billows make it.
+	_t._check(src.contains("d *= smoothstep(0.0, 0.012, hn);") and src.contains("float fcol = column(")
+		and src.contains("qe * 4.7") and src.contains("d_big *= 1.0 - 0.8 * smoothstep(0.35, 1.0, rel);"),
+		"sky: the cumulus keep their flat bases, fragments, three-octave edges and turreted crowns")
 
 
 func _noise(day: Node) -> void:
@@ -114,6 +119,10 @@ func _contrails(day: Node, extras: Node) -> void:
 	for j in jets:
 		high = high and float(j.height) >= 9000.0 and float(j.height) <= 12000.0
 	_t._check(high, "sky: the jets cruise 9-12 km up")
+	# A jet past 75 km is replaced by a new one far out (SkyExtras._fly()), so one near the end of
+	# its track would read as jumping back (CI run 351: "-144612 m in 2 s"); this one is mid-track.
+	if float(jets[0].along) > 60000.0:
+		jets[0].along = 0.0
 	var along: float = jets[0].along
 	extras.call("_fly", 2.0, Vector3.ZERO)
 	_t._check(float(jets[0].along) > along + 400.0, "sky: a jet flies on (%.0f m in 2 s)" % (float(jets[0].along) - along))

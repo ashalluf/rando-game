@@ -97,6 +97,11 @@ var _build_frame: int = -1
 ## cap lowered with spawns still queued otherwise overshoots it and the shedding that follows
 ## takes the placed cars with the rest.
 var staged: bool = false
+## Microseconds the street, loop and freeway driving took per tick, smoothed (see _physics_process).
+var drive_usec: float = 0.0
+## Counts driving passes (streets and freeway each add one), so a car is driven once a pass even
+## when the passes are run by hand (TrafficAI.advance_shot) inside one physics frame.
+var _drive_serial: int = 0
 
 
 func _ready() -> void:
@@ -113,6 +118,7 @@ func _physics_process(delta: float) -> void:
 	# The one clock every signal in the city runs on (TrafficSignals): the heads' shader and the
 	# cars below read the same value this tick.
 	TrafficSignals.advance(delta)
+	TrafficAI.clock += delta
 	_timer += delta
 	if _timer >= 0.5:
 		_timer = 0.0
@@ -121,9 +127,13 @@ func _physics_process(delta: float) -> void:
 		_maintain()
 		_maintain_freeway()
 	_run_spawns()
+	var t0 := Time.get_ticks_usec()
 	_drive_streets(delta)
 	_drive_loops(delta)
 	_drive_freeway(delta)
+	# What driving every traffic car cost this tick, smoothed (microseconds; the checks and
+	# tools/traffic_bench read it).
+	drive_usec = lerpf(drive_usec, float(Time.get_ticks_usec() - t0), 0.05)
 
 
 func _run_spawns() -> void:
@@ -254,6 +264,7 @@ func _maintain() -> void:
 	for i in mini(want - cars.size(), 12):
 		_spawn_queues[0].append(_spawn_near.bind(pw, density))
 	_maintain_loops(pw)
+	TrafficAI.maybe_pullout(self)
 
 
 func _spawn_near(pw: Vector3, density: float = 1.0) -> void:
@@ -286,6 +297,7 @@ func _spawn_near(pw: Vector3, density: float = 1.0) -> void:
 	if kind >= 0:
 		speed *= 0.8
 	car.traffic = {"axis": axis, "index": index, "dir": dir, "lane": lane, "speed": speed, "v": speed * 0.8, "half": car_half_length(car), "rear": car_rear_length(car)}
+	TrafficAI.roll_mood(car, car.traffic)
 	if kind == BigVehicles.BUS:
 		_board_line(car, axis, index, dir)
 	car.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
@@ -352,6 +364,10 @@ func place_car(axis: int, index: int, dir: int, lane_n: int, along: float, speed
 	var pos2 := Vector2(plan.road_pos(axis, index) + lane, along) if axis == CityPlan.AXIS_X else Vector2(along, plan.road_pos(axis, index) + lane)
 	var car := _new_car(kind)
 	car.traffic = {"axis": axis, "index": index, "dir": dir, "lane": lane, "speed": speed, "v": speed, "half": car_half_length(car), "rear": car_rear_length(car)}
+	# A placed car is an ordinary driver with fixed numbers, and makes no lane changes of its own
+	# unless a check asks for them (`ai`), so the checks that place cars stay exact.
+	TrafficAI.roll_mood(car, car.traffic, TrafficAI.Mood.NORMAL)
+	car.traffic.placed = true
 	if not turns:
 		car.traffic.no_turns = true
 	if kind == BigVehicles.BUS and BigVehicles.route_of(plan, axis, index) != 0:
@@ -423,7 +439,8 @@ func _lane_offset(axis: int, index: int, dir: int) -> float:
 
 func _rail_street(axis: int, index: int) -> bool:
 	var rail := LightRail.of(plan)
-	return rail != null and rail.street_rail(axis, index)
+	var freight := FreightRail.of(plan)
+	return (rail != null and rail.street_rail(axis, index)) or (freight != null and freight.street_rail(axis, index))
 
 
 func _heading(axis: int, dir: int) -> float:
@@ -458,6 +475,7 @@ func _drive_streets(delta: float) -> void:
 	if cars.is_empty():
 		return
 	var groups := {}
+	var pulling: Array[Vehicle] = []
 	for car in cars.duplicate():
 		if not is_instance_valid(car) or not car.is_traffic() or not car.is_inside_tree():
 			cars.erase(car)
@@ -475,19 +493,39 @@ func _drive_streets(delta: float) -> void:
 			cars.erase(car)
 			_retire(car)
 			continue
+		# A parked car waiting to pull out is in no queue until it goes (TrafficAI.pull_tick).
+		if t.has("pull"):
+			pulling.append(car)
+			continue
 		var key := lane_key(int(t.axis), int(t.index), int(t.dir), float(t.lane))
 		if not groups.has(key):
 			groups[key] = []
 		(groups[key] as Array).append(car)
+		# A car changing lanes is in its new lane's queue, and a ghost in the old one until it is
+		# mostly across, so the car behind it there keeps its gap (TrafficAI.start_move()).
+		if t.has("lc_key") and not t.has("lc_noghost") and float(t.get("lc_p", 1.0)) < TrafficAI.GHOST_UNTIL:
+			_join_group(groups, int(t.lc_key), car)
 	_sirens = _siren_list()
 	_player_block = _player_in_lanes()
+	_drive_serial += 1
+	var tick := _drive_serial
 	for key in groups:
 		var group: Array = groups[key]
 		var dir := float(group[0].traffic.dir)
 		if group.size() > 1:
 			group.sort_custom(func(a: Vehicle, b: Vehicle) -> bool: return float(a.traffic.along) * dir < float(b.traffic.along) * dir)
 		for k in group.size():
-			_drive_street(group[k], group[k + 1] if k + 1 < group.size() else null, delta, groups)
+			var c: Vehicle = group[k]
+			var ct: Dictionary = c.traffic
+			# A ghost (driven in its new lane), or a car that turned or changed lanes into a group
+			# not yet driven this tick: never driven twice.
+			if int(ct.get("tick", -1)) == tick or lane_key(int(ct.axis), int(ct.index), int(ct.dir), float(ct.lane)) != key:
+				continue
+			ct.tick = tick
+			_drive_street(c, group[k + 1] if k + 1 < group.size() else null, delta, groups)
+	for car in pulling:
+		if is_instance_valid(car) and car.traffic.has("pull"):
+			TrafficAI.pull_tick(self, car, groups, delta)
 
 
 func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictionary) -> void:
@@ -535,6 +573,19 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 		t.amber_go = false
 		t.sign_ok = false
 		t.sign_t = 0.0
+	# The crossing just behind: how far past it the car is (lane changes wait until it is clear).
+	var prev_index := cross_index - dir
+	var prev_pos := plan.road_pos(cross_axis, prev_index)
+	var past := (along - prev_pos) * float(dir) - plan.road_width(cross_axis, prev_index) * 0.5 - half
+	var ai := TrafficAI.enabled
+	if ai:
+		TrafficAI.street_think(self, car, leader, groups, to_centre, cw, past, delta)
+	# The driver's mood (TrafficAI.roll_mood): time gap and how late it is willing to brake.
+	var tg := float(t.get("m_gap", 1.0)) if ai else 1.0
+	var bk := float(t.get("m_brake", 1.0)) if ai else 1.0
+	# What holds the car this tick (TrafficAI reads the leader's): 0 nothing, 1 a line (light,
+	# sign, crosswalk, crossing), 2 the player, 3 a bus stop, 4 double-parked.
+	var why := 0
 	# Slow for the turn: never faster than a turn_speed arrival at the centre allows.
 	if int(t.turn) != 0 and to_centre > 0.0:
 		v0 = minf(v0, sqrt(turn_speed * turn_speed + 2.0 * brake_comfort * to_centre))
@@ -547,23 +598,49 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 		var lt: Dictionary = leader.traffic
 		var gap: float = (float(lt.along) - along) * dir - half - float(lt.get("rear", lt.get("half", 2.4)))
 		var lead_v := float(lt.get("v", 0.0))
-		acc = minf(acc, _idm(v, v0, gap, lead_v, min_gap))
+		var stand := min_gap * lerpf(1.0, tg, 0.5)
+		acc = minf(acc, _idm(v, v0, gap, lead_v, stand, tg, bk))
 		room = minf(room, gap - 0.4)
 		if lead_v < 0.3:
-			still = minf(still, gap - min_gap)
-	if to_line > -0.6 and (_must_stop(t, node, axis, to_line, v, delta) or Pedestrian.crosswalk_busy(node, axis, -dir) or LightRail.crossing_closed(node, axis)):
+			still = minf(still, gap - stand)
+		# Somebody in front who does not go on green (a dozy driver): honk once patience runs out.
+		if ai and v < 0.3 and gap < 12.0 and float(lt.get("react", 0.0)) > 0.0 and float(lt.get("react_t", 0.0)) > float(t.get("m_patience", 3.0)):
+			TrafficAI.honk(self, car, "dawdle")
+	# Changing lanes: until it is mostly across it must not run into what is ahead in the lane it
+	# is leaving either.
+	if t.has("lc_key") and not t.has("lc_noghost") and float(t.get("lc_p", 1.0)) < TrafficAI.GHOST_UNTIL:
+		var oa := TrafficAI.ahead_in(groups, int(t.lc_key), along, dir, half, car)
+		if not oa.is_empty():
+			var ogap: float = oa[1]
+			var ov := float((oa[0] as Vehicle).traffic.get("v", 0.0))
+			acc = minf(acc, _idm(v, v0, ogap, ov, min_gap * 0.6, tg, bk))
+			room = minf(room, ogap - 0.4)
+			if ov < 0.3:
+				still = minf(still, ogap - min_gap * 0.6)
+	var line_hold := to_line > -0.6 and (_must_stop(t, node, axis, to_line, v, delta) or Pedestrian.crosswalk_busy(node, axis, -dir) or LightRail.crossing_closed(node, axis) or FreightRail.crossing_closed(node, axis))
+	if line_hold:
 		acc = minf(acc, _idm(v, v0, to_line, 0.0, 0.3))
 		room = minf(room, to_line + 0.3)
 		still = minf(still, to_line - 0.3)
+		why = 1
+	# Off the line on green after the driver's reaction time, not on the same tick the light
+	# changes (a dozy one takes seconds: TrafficAI).
+	if ai:
+		if line_hold:
+			t.held = true
+		elif t.get("held", false):
+			t.held = false
+			if v < 0.6:
+				t.react = float(t.get("m_react", 0.6))
+				t.react_t = 0.0
 	# Somebody on the crosswalk on the far side of this intersection: wait in the box, short of it.
 	var to_far := to_centre + cw * 0.5 + 0.15 - half
 	if to_far > -0.4 and to_far < 40.0 and Pedestrian.crosswalk_busy(node, axis, dir):
 		acc = minf(acc, _idm(v, v0, to_far, 0.0, 0.2))
 		room = minf(room, to_far + 0.2)
 		still = minf(still, to_far - 0.2)
+		why = 1
 	# And the far crosswalk of the intersection just crossed, until the nose is over it.
-	var prev_index := cross_index - dir
-	var prev_pos := plan.road_pos(cross_axis, prev_index)
 	var to_prev_far := (prev_pos - along) * float(dir) + plan.road_width(cross_axis, prev_index) * 0.5 + 0.15 - half
 	if to_prev_far > -0.4:
 		var pnode := Vector2i(index, prev_index) if axis == CityPlan.AXIS_X else Vector2i(prev_index, index)
@@ -588,8 +665,51 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 				still = minf(still, to_stop - 0.3)
 				if to_stop < 32.0:
 					bus_shift = BigVehicles.STOP_SHIFT
+					why = 3
 				if v < 0.25 and to_stop < 1.2:
 					_bus_dwell(car, t, key, delta)
+	# A service vehicle at work (ServiceFleet: a cart, a delivery, a wreck to tow): its next stop
+	# is something standing still ahead, and it may pull toward the kerb.
+	if t.has("work"):
+		var ws := ServiceFleet.work_stop(car, t, along, v, delta)
+		if ws.x < INF:
+			acc = minf(acc, _idm(v, v0, ws.x, 0.0, 0.3))
+			room = minf(room, ws.x + 0.3)
+			still = minf(still, ws.x - 0.3)
+		bus_shift = maxf(bus_shift, ws.y)
+	# Double-parked (TrafficAI.street_think): stops at its spot on its hazards for a while, over
+	# toward the kerb, then drives on.
+	if t.has("dp_at"):
+		var to_dp := (float(t.dp_at) - along) * float(dir) - half
+		acc = minf(acc, _idm(v, v0, to_dp, 0.0, 0.3))
+		room = minf(room, to_dp + 0.3)
+		still = minf(still, to_dp - 0.3)
+		why = 4
+		if to_dp < 18.0:
+			bus_shift = maxf(bus_shift, TrafficAI.DOUBLE_PARK_SHIFT)
+		if v < 0.25 and to_dp < 2.0:
+			t.sig = 2
+			t.dp = float(t.get("dp", 0.0)) - delta
+			if float(t.dp) <= 0.0:
+				t.erase("dp_at")
+				t.erase("dp")
+				t.sig = 0
+	# Pulling in to a kerb space (StreetErrands): the space is a stop, like a bus's, and the car
+	# eases over into it; standing in it, it is parked and its driver gets out.
+	if t.has("park_at"):
+		var to_park := (float(t.park_at) - along) * float(dir)
+		acc = minf(acc, _idm(v, v0, to_park, 0.0, 0.05))
+		room = minf(room, to_park + 0.05)
+		still = minf(still, to_park - 0.1)
+		bus_shift = maxf(bus_shift, float(t.park_shift) * clampf((30.0 - to_park) / 22.0, 0.0, 1.0))
+		if v < 0.3 and to_park < 1.5 and float(t.get("shift", 0.0)) > float(t.park_shift) - 0.1 and StreetErrands.park_here(self, car):
+			return
+	# A jaywalker in this lane ahead (StreetErrands): braked for, and now and then honked at.
+	var jay := StreetErrands.jaywalker_gap(car, axis, index, dir, along, half, plan.road_pos(axis, index) + float(t.lane), v)
+	if jay < INF:
+		acc = minf(acc, maxf(_idm(v, v0, jay, 0.0, 1.0), -brake_max))
+		room = minf(room, jay + 0.5)
+		still = minf(still, jay - 0.5)
 	# The player, on foot or in a car, standing in this lane ahead.
 	if not _player_block.is_empty():
 		var rel: Vector3 = (_player_block[0] as Vector3) - (t.wp as Vector3)
@@ -600,6 +720,18 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 			acc = minf(acc, maxf(_idm(v, v0, pgap, 0.0, min_gap), -player_brake))
 			if _player_block[3]:
 				room = minf(room, pgap - 0.4)
+			if pgap < 30.0:
+				why = 2
+				if ai:
+					if _player_block[3]:
+						# The player's car blocking the lane: lean on the horn now and then.
+						if v < 0.3 and pgap < 12.0:
+							t.block_t = float(t.get("block_t", 0.0)) + delta
+							if float(t.block_t) > float(t.get("m_patience", 3.0)):
+								if TrafficAI.honk(self, car, "blocked", true):
+									t.block_t = 0.0
+					elif v > 1.5 or pgap < 10.0:
+						TrafficAI.honk(self, car, "pedestrian", v > 6.0 and pgap < 15.0)
 	# A siren behind on this carriageway: pull toward the kerb and stop until it has gone by.
 	for s: Array in _sirens:
 		if int(s[0]) == axis and int(s[1]) == index and int(s[2]) == dir:
@@ -613,11 +745,21 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 	var want_shift := maxf(siren_shift if yielding > 0.0 else 0.0, bus_shift)
 	t.shift = move_toward(float(t.get("shift", 0.0)), want_shift, delta * (1.4 if want_shift > float(t.get("shift", 0.0)) else 0.7))
 	acc = maxf(acc, -brake_max)
+	t.why = why
+	# A near miss (something cut in, somebody stepped out): braking this hard earns a long honk.
+	# Not for a stop line, a bus stop or a double-parked spot: a pushy driver brakes late for a
+	# red light, and that is nobody's fault but its own.
+	if ai and acc < -brake_comfort * 1.6 and v > 4.0 and (why == 0 or why == 2):
+		TrafficAI.honk(self, car, "near_miss", true)
 	var nv := maxf(v + acc * delta, 0.0)
 	# Closed up on something standing still: stand still too. The model on its own creeps the
 	# last few centimetres toward its gap for ever, and a queue that never quite stops reads as
 	# cars that cannot make up their minds.
 	if v < 0.8 and still < 1.2:
+		nv = 0.0
+	if float(t.get("react", 0.0)) > 0.0:
+		t.react = float(t.react) - delta
+		t.react_t = float(t.get("react_t", 0.0)) + delta
 		nv = 0.0
 	var step := nv * delta
 	if step > room:
@@ -635,7 +777,8 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 		var back_lane := _lane_offset(axis, index, -dir)
 		var at := cross_pos - dir * 0.5
 		var back_key := lane_key(axis, index, -dir, back_lane)
-		if _group_clear(groups, back_key, at, half + 4.4):
+		if _group_clear(groups, back_key, at, half + 4.4, car, -dir):
+			TrafficAI.end_move(t)
 			t.dir = -dir
 			t.lane = back_lane
 			t.turn = 0
@@ -652,13 +795,18 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 		# At the centre of the intersection: onto the cross street, if its lane has room here.
 		var new_dir: int = t.turn
 		var lane := _lane_offset(cross_axis, cross_index, new_dir)
+		# Right into the kerb lane, left into the inner one (it got into the turn lane for it).
+		if ai:
+			lane = TrafficAI.turn_lane(self, cross_axis, cross_index, new_dir, TrafficAI.turn_side(axis, dir, new_dir))
 		var at_along := wp.x if cross_axis == CityPlan.AXIS_Z else wp.z
 		var new_key := lane_key(cross_axis, cross_index, new_dir, lane)
-		if _group_clear(groups, new_key, at_along, half + 4.4):
+		if _group_clear(groups, new_key, at_along, half + 4.4, car, new_dir):
 			# Counted in its new lane at once: `groups` is built at the start of the tick, and a
 			# second car turning into the same lane in the same tick saw it empty.
 			t.along = at_along
 			_join_group(groups, new_key, car)
+			TrafficAI.end_move(t)
+			t.erase("dp_at")
 			t.axis = cross_axis
 			t.index = cross_index
 			t.dir = new_dir
@@ -680,14 +828,28 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 			car.traffic_speed = 0.0
 		else:
 			t.turn = 0
-	var lane_pos: float = plan.road_pos(axis, index) + float(t.lane) + signf(float(t.lane)) * float(t.shift)
+	# Across the road: its lane, or part way through a lane change (TrafficAI.move_tick()).
+	var lane_now := float(t.lane)
+	var lat_rate := 0.0
+	if t.has("lc_from"):
+		var m := TrafficAI.move_tick(t, nv, delta)
+		lane_now = m[0]
+		lat_rate = m[1]
+	var lane_pos: float = plan.road_pos(axis, index) + lane_now + signf(lane_now) * float(t.shift)
 	var new_wp := Vector3(lane_pos, wp.y, new_along) if axis == CityPlan.AXIS_X else Vector3(new_along, wp.y, lane_pos)
 	# Follow the city's rolling ground and pitch the nose along the slope ahead.
 	var here := _relief(Vector2(new_wp.x, new_wp.z))
 	var forward := Vector3(0.0, 0.0, dir) if axis == CityPlan.AXIS_X else Vector3(dir, 0.0, 0.0)
 	var ahead_h := _relief(Vector2(new_wp.x + forward.x * 4.0, new_wp.z + forward.z * 4.0))
 	new_wp.y = here + CityChunk.ROAD_TOP + car.road_lift()
-	_place(car, WorldState.to_local(new_wp), _heading(axis, dir), atan2(ahead_h - here, 4.0))
+	var yaw := _heading(axis, dir)
+	if lat_rate != 0.0:
+		# Nosed toward the lane it is moving into, as far as its speed lets it turn.
+		var go := maxf(nv, 2.0)
+		var lat := clampf(lat_rate, -go * 0.36, go * 0.36)
+		var vel := forward * go + (Vector3(lat, 0.0, 0.0) if axis == CityPlan.AXIS_X else Vector3(0.0, 0.0, lat))
+		yaw = atan2(-vel.x, -vel.z)
+	_place(car, WorldState.to_local(new_wp), yaw, atan2(ahead_h - here, 4.0))
 
 
 ## A bus standing at its stop: the doors open, people get on and off (DWELL), the doors close,
@@ -712,8 +874,9 @@ func _bus_dwell(car: Vehicle, t: Dictionary, key: Vector3i, delta: float) -> voi
 
 ## The Intelligent Driver Model's acceleration toward something `gap` metres ahead of the nose
 ## moving at `lead_v`, stopping `stop_gap` short of it.
-func _idm(v: float, v0: float, gap: float, lead_v: float, stop_gap: float) -> float:
-	var want := stop_gap + maxf(0.0, v * time_gap + v * (v - lead_v) / (2.0 * sqrt(accel * brake_comfort)))
+## `tg` scales the time gap and `bk` the braking the driver is comfortable with (TrafficAI moods).
+func _idm(v: float, v0: float, gap: float, lead_v: float, stop_gap: float, tg: float = 1.0, bk: float = 1.0) -> float:
+	var want := stop_gap + maxf(0.0, v * time_gap * tg + v * (v - lead_v) / (2.0 * sqrt(accel * brake_comfort * bk)))
 	var free := 1.0 - pow(v / maxf(v0, 0.1), 4.0)
 	return accel * (free - pow(want / maxf(gap, 0.05), 2.0))
 
@@ -729,7 +892,8 @@ func _must_stop(t: Dictionary, node: Vector2i, axis: int, to_line: float, v: flo
 			TrafficSignals.Light.RED:
 				return true
 			TrafficSignals.Light.AMBER:
-				if to_line > v * v / (2.0 * brake_comfort * amber_margin):
+				# A pushy driver runs ambers a careful one stops for (TrafficAI m_amber).
+				if to_line > v * v / (2.0 * brake_comfort * amber_margin * float(t.get("m_amber", 1.0))):
 					return true
 				# Too close to stop: through it, and no changing its mind half way.
 				t.amber_go = true
@@ -754,9 +918,31 @@ func _join_group(groups: Dictionary, key: int, car: Vehicle) -> void:
 
 
 ## True when no car of lane group `key` is within `clear` metres of `along` (this tick's groups).
-func _group_clear(groups: Dictionary, key: int, along: float, clear: float) -> bool:
+## With `car` and the lane's `dir`, the test is between the cars' ends, not their centres: the
+## car's own half ahead and `rear` behind, the other's `rear` behind and half ahead, the gap the
+## old rule kept between two ordinary cars left between them. Centre to centre, a car turning in behind a bus (whose rear
+## is 6.4 m behind its centre) or a semi's trailer landed inside it (CI 355: -6.7 m).
+func _group_clear(groups: Dictionary, key: int, along: float, clear: float, car: Vehicle = null, dir: int = 0) -> bool:
+	var half := 0.0
+	var rear := 0.0
+	if car != null and dir != 0:
+		half = float(car.traffic.get("half", 2.4))
+		rear = float(car.traffic.get("rear", half))
 	for other in groups.get(key, []):
-		if absf(float((other as Vehicle).traffic.along) - along) < clear:
+		var ot: Dictionary = (other as Vehicle).traffic
+		if other == car:
+			continue
+		if car == null or dir == 0:
+			if absf(float(ot.along) - along) < clear:
+				return false
+			continue
+		var d := (float(ot.along) - along) * float(dir)
+		# The gap the centre-to-centre rule kept between two ordinary cars (2.4 m halves).
+		var margin := maxf(clear - half - 2.4, 1.0)
+		if d >= 0.0:
+			if d - half - float(ot.get("rear", ot.get("half", 2.4))) < margin:
+				return false
+		elif -d - float(ot.get("half", 2.4)) - rear < margin:
 			return false
 	return true
 
@@ -1002,6 +1188,8 @@ func _maintain_freeway() -> void:
 			if car.traffic.fw == ri:
 				on_route += 1
 				taken[Vector2i(int(car.traffic.t / freeway_gap), int(car.traffic.dir))] = true
+		if TrafficAI.enabled and not staged:
+			TrafficAI.maybe_ramp_cars(self, fw, ri, here)
 		var lo := maxf(0.0, anchor - freeway_range)
 		var hi := minf(total, anchor + freeway_range)
 		var slot := int(lo / freeway_gap)
@@ -1031,7 +1219,8 @@ func _fw_anchor(ri: int, here: Vector2) -> float:
 func _spawn_freeway_car(ri: int, t: float, dir: int) -> void:
 	var fw := _freeway()
 	var width := float(fw.routes[ri].width)
-	var lane: float = Freeway.lane_fraction(width, _rng.randi() % Freeway.LANES) * float(dir)
+	var li := _rng.randi() % Freeway.LANES
+	var lane: float = Freeway.lane_fraction(width, li) * float(dir)
 	var roll := _rng.randf()
 	var kind := -1
 	if roll < BigVehicles.FREEWAY_SEMI_SHARE:
@@ -1040,13 +1229,15 @@ func _spawn_freeway_car(ri: int, t: float, dir: int) -> void:
 		kind = BigVehicles.BOX_TRUCK
 	if kind >= 0:
 		# Trucks keep to the two slow lanes, a little under the flow.
-		lane = Freeway.lane_fraction(width, Freeway.LANES - 1 - _rng.randi() % 2) * float(dir)
+		li = Freeway.LANES - 1 - _rng.randi() % 2
+		lane = Freeway.lane_fraction(width, li) * float(dir)
 	var car := _new_car(kind)
 	car.traffic = {
-		"fw": ri, "t": t, "dir": dir, "lane": lane,
+		"fw": ri, "t": t, "dir": dir, "lane": lane, "li": li,
 		"speed": freeway_speed * _rng.randf_range(0.88, 1.12) * (0.88 if kind >= 0 else 1.0),
 		"half": car_half_length(car), "rear": car_rear_length(car),
 	}
+	TrafficAI.fw_setup(car, fw, false)
 	car.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
 	car.freeze = true
 	# Placed in this node's space, then into the tree: writing global_position on a node outside
@@ -1066,6 +1257,9 @@ func place_freeway_car(ri: int, t: float, dir: int, kind: int = -1, speed: float
 	var lane: float = Freeway.lane_fraction(float(_freeway().routes[ri].width), Freeway.LANES - 1 if kind >= 0 else 1) * float(dir)
 	car.traffic = {"fw": ri, "t": t, "dir": dir, "lane": lane,
 		"speed": freeway_speed if speed < 0.0 else speed, "half": car_half_length(car), "rear": car_rear_length(car)}
+	TrafficAI.fw_setup(car, _freeway(), true)
+	car.traffic.placed = true
+	car.traffic.speed = freeway_speed if speed < 0.0 else speed
 	car.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
 	car.freeze = true
 	car.transform = global_transform.affine_inverse() * _freeway_xform(car, _freeway())
@@ -1086,8 +1280,13 @@ func _freeway_xform(car: Vehicle, fw: Freeway) -> Transform3D:
 	var p: Vector3 = at[0]
 	var d: Vector2 = at[1]
 	var half: float = float(fw.routes[car.traffic.fw].width) * 0.5
-	var nrm := Vector2(-d.y, d.x) * (float(car.traffic.lane) * half)
+	var nrm := Vector2(-d.y, d.x) * (float(car.traffic.get("lane_now", car.traffic.lane)) * half)
 	var heading: Vector2 = d * float(car.traffic.dir)
+	var lat := float(car.traffic.get("lc_lat", 0.0))
+	if lat != 0.0:
+		# Changing lanes (TrafficAI): nosed toward the new lane.
+		var go := maxf(float(car.traffic.get("v", car.traffic.speed)), 3.0)
+		heading = heading * go + Vector2(-d.y, d.x) * clampf(lat * half, -go * 0.2, go * 0.2)
 	# Nose up the grade. Placed level, a car on a sloped deck sank its front or back wheels into
 	# it, and its headlight beam - flat in the car's own frame - cut into the asphalt along a
 	# hard line a few metres ahead.
@@ -1097,23 +1296,38 @@ func _freeway_xform(car: Vehicle, fw: Freeway) -> Transform3D:
 	return Transform3D(Basis.from_euler(Vector3(atan2(ahead - behind, 5.0), atan2(-heading.x, -heading.y), 0.0)), WorldState.to_local(Vector3(p.x + nrm.x, p.y + car.road_lift(), p.z + nrm.y)))
 
 
-## Cruise, closing up on whatever is ahead in the same lane and direction.
+## Cruise, closing up on whatever is ahead in the same lane and direction; with TrafficAI, change
+## lanes to pass and to make an exit, leave by the off-ramps and join from the on-ramps.
 func _drive_freeway(delta: float) -> void:
 	if freeway_cars.is_empty():
 		return
 	var fw := _freeway()
 	if fw == null:
 		return
+	var ai := TrafficAI.enabled
 	# Group by route, direction and lane, so a car only follows the one actually in front of it.
 	var groups := {}
+	var on_ramps: Array[Vehicle] = []
 	for car in freeway_cars.duplicate():
 		if not is_instance_valid(car) or not car.is_traffic():
 			freeway_cars.erase(car)
 			continue
-		var key := Vector3(float(car.traffic.fw), float(car.traffic.dir), float(car.traffic.lane))
+		var tt: Dictionary = car.traffic
+		if tt.has("ramp"):
+			on_ramps.append(car)
+			continue
+		var key := Vector3(float(tt.fw), float(tt.dir), float(TrafficAI.fw_lane(fw, tt)) if ai else float(tt.lane))
 		if not groups.has(key):
 			groups[key] = []
 		(groups[key] as Array).append(car)
+		# A car changing lanes stays a ghost in the lane it left until it is mostly across.
+		if tt.has("lc_src") and float(tt.get("lc_p", 1.0)) < TrafficAI.GHOST_UNTIL:
+			var gk := Vector3(float(tt.fw), float(tt.dir), float(tt.lc_src))
+			if not groups.has(gk):
+				groups[gk] = []
+			(groups[gk] as Array).append(car)
+	_drive_serial += 1
+	var tick := _drive_serial
 	for key in groups:
 		var group: Array = groups[key]
 		var dir: int = int((key as Vector3).y)
@@ -1122,13 +1336,67 @@ func _drive_freeway(delta: float) -> void:
 			return (a.traffic.t < b.traffic.t) if dir > 0 else (a.traffic.t > b.traffic.t))
 		for k in group.size():
 			var car: Vehicle = group[k]
+			var tt: Dictionary = car.traffic
+			if int(tt.get("tick", -1)) == tick or tt.has("ramp"):
+				continue
+			if ai and float(TrafficAI.fw_lane(fw, tt)) != (key as Vector3).z:
+				continue
+			tt.tick = tick
 			var speed: float = car.traffic.speed
-			if k + 1 < group.size():
-				var ahead: Vehicle = group[k + 1]
-				var gap: float = absf(float(ahead.traffic.t) - float(car.traffic.t))
-				# Lengths past a car's own: a semi in front is 18 m of trailer behind its origin.
-				var extra := float(car.traffic.get("half", 2.4)) + float(ahead.traffic.get("rear", 2.4)) - 4.8
-				speed = minf(speed, maxf(0.0, (gap - freeway_gap * 0.6 - extra) * 1.4))
+			var leader: Vehicle = group[k + 1] if k + 1 < group.size() else null
+			if leader != null:
+				speed = minf(speed, _fw_follow(car, leader))
+			if ai and tt.has("lc_src") and float(tt.get("lc_p", 1.0)) < TrafficAI.GHOST_UNTIL:
+				var oa := TrafficAI.fw_ahead(groups, Vector3(float(tt.fw), float(dir), float(tt.lc_src)), float(tt.t), dir, car)
+				if not oa.is_empty():
+					speed = minf(speed, _fw_follow(car, oa[0]))
+			if ai:
+				TrafficAI.freeway_think(self, fw, car, leader, groups, delta)
+				if TrafficAI.fw_exit_tick(self, fw, car, speed, delta):
+					continue
+			tt.v = speed
 			car.traffic.t = float(car.traffic.t) + float(dir) * speed * delta
 			car.traffic_speed = speed
+			if tt.has("lc_from"):
+				var m := TrafficAI.move_tick(tt, speed, delta)
+				tt.lane_now = m[0]
+				tt.lc_lat = m[1]
+				if not tt.has("lc_from"):
+					tt.erase("lane_now")
+					tt.erase("lc_lat")
+					tt.erase("lc_src")
 			_place_freeway_car(car, fw)
+	for car in on_ramps:
+		if is_instance_valid(car):
+			TrafficAI.ramp_tick(self, fw, car, groups, delta)
+
+
+## The speed a freeway car may do behind `ahead` in its lane: closing up to freeway_gap * 0.6
+## plus the lengths past a car's own (a semi in front is 18 m of trailer behind its origin).
+func _fw_follow(car: Vehicle, ahead: Vehicle) -> float:
+	var gap: float = absf(float(ahead.traffic.t) - float(car.traffic.t))
+	var extra := float(car.traffic.get("half", 2.4)) + float(ahead.traffic.get("rear", 2.4)) - 4.8
+	return maxf(0.0, (gap - freeway_gap * 0.6 - extra) * 1.4)
+
+
+## A car joining the freeway from on-ramp `ramp` of route `ri` (TrafficAI.maybe_ramp_cars()): at
+## the ramp's foot, driving up it toward the -t carriageway.
+func _spawn_ramp_car(ri: int, ramp: Dictionary) -> void:
+	var fw := _freeway()
+	if fw == null:
+		return
+	var car := _new_car()
+	car.traffic = {"fw": ri, "t": float(ramp.t), "dir": -1, "lane": -1.0, "li": Freeway.LANES - 1,
+		"half": car_half_length(car), "rear": car_rear_length(car), "ramp": ramp, "u": 1.0, "up": true}
+	# Its own rolls are a hash, not the traffic's rng: a ramp car must not move every spawn after it.
+	var h := absi(hash([car.get_instance_id(), ri, int(TrafficAI.clock * 10.0), "ramp_car"]))
+	car.traffic.speed = freeway_speed * lerpf(0.9, 1.1, float(h % 1000) / 999.0)
+	car.traffic.v = TrafficAI.RAMP_ON_SPEED * 0.6
+	TrafficAI.roll_mood(car, car.traffic)
+	car.traffic.home = Freeway.LANES - 1 - (h / 1000) % 3
+	car.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
+	car.freeze = true
+	car.transform = global_transform.affine_inverse() * TrafficAI.ramp_xform(car)
+	add_child(car)
+	car.traffic_speed = float(car.traffic.v)
+	freeway_cars.append(car)

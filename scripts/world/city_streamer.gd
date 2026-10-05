@@ -196,6 +196,7 @@ var _view_dir: Vector2 = Vector2(0.0, -1.0)
 
 
 func _ready() -> void:
+	LoadClock.at("city scene ready begins")
 	add_to_group("city")
 	if OS.has_feature("web"):
 		max_pedestrians = mini(max_pedestrians, web_max_pedestrians)
@@ -220,12 +221,20 @@ func _ready() -> void:
 	if use_macro_map:
 		plan.macro = MacroMap.new()
 		plan.macro.seed = world_seed
+		LoadClock.start("macro map")
 		plan.macro.setup()
+		LoadClock.stop("macro map")
+	LoadClock.start("ground bake")
 	_build_ground()
+	LoadClock.stop("ground bake")
+	LoadClock.start("skyline setup")
 	_build_skyline()
+	LoadClock.stop("skyline setup")
 	_start_loading_screen()
 	_build_vignette()
+	LoadClock.start("far landmarks")
 	_build_far_landmarks()
+	LoadClock.stop("far landmarks")
 	var traffic := TrafficManager.new()
 	traffic.name = "Traffic"
 	traffic.plan = plan
@@ -247,9 +256,22 @@ func _ready() -> void:
 		stack_traffic.plan = plan
 		add_child(stack_traffic)
 	_player = get_tree().get_first_node_in_group("player") as Node3D
+	LoadClock.start("spawn and first streaming")
 	_apply_spawn_override()
+	LoadClock.start("first streaming")
 	update_streaming(true)
+	LoadClock.stop("first streaming")
 	_settle_player()
+	LoadClock.stop("spawn and first streaming")
+	# LOAD_QUIT=1 with no loading screen (headless, --noload): the load ends once the deferred far
+	# city is in (the loading screen reports its own end).
+	if get_node_or_null("LoadingScreen") == null:
+		# After the deferred far city (--noload / --nohud), or at once (headless).
+		_loaded.call_deferred()
+		if LoadClock.quit_after_load():
+			LoadClock.loaded.call_deferred(get_tree())
+	# Box-projected reflection probes in the streets round the camera (Forward+ only).
+	ReflectionProbes.ensure(self)
 
 
 ## Cheap versions of every landmark, always present, so the sign and the wheel show from anywhere.
@@ -360,6 +382,7 @@ func _build_showroom(at: Vector3, yaw: float) -> void:
 		mi.position = at + forward * 4.0 + right * (float(i) - float(props.size() - 1) * 0.5) * 1.7 + Vector3.UP * CityChunk.ROAD_TOP
 		mi.rotation.y = yaw + 0.6
 		add_child(mi)
+	LaTrees.showroom(self, at, forward, right, yaw)
 	for i in Pedestrian.MODELS.size():
 		var ped := Pedestrian.new()
 		var spot := at + forward * 5.0 + right * (float(i) - float(Pedestrian.MODELS.size() - 1) * 0.5) * 1.6
@@ -502,15 +525,17 @@ func ensure_loaded_at(local_pos: Vector3) -> void:
 
 ## Height of solid ground at a local position (terrain, or the sidewalk top in the city).
 ## Frees the pedestrians farthest from the player until the count is under max_pedestrians
-## (Quality lowers the cap at run time).
+## (Quality lowers the cap at run time). A walker with meta "no_trim" (one a test or the loading
+## screen's rehearsal staged, which uses it a frame later) counts but is never freed here.
 func trim_pedestrians() -> void:
 	var peds := get_tree().get_nodes_in_group("pedestrian")
 	var over := peds.size() - max_pedestrians
 	if over <= 0 or _player == null:
 		return
+	peds = peds.filter(func(n: Node) -> bool: return not n.has_meta("no_trim"))
 	var pp := _player.global_position
 	peds.sort_custom(func(a: Node3D, b: Node3D) -> bool: return a.global_position.distance_squared_to(pp) > b.global_position.distance_squared_to(pp))
-	for i in over:
+	for i in mini(over, peds.size()):
 		(peds[i] as Node).queue_free()
 	_crowd_frame = -1
 
@@ -722,6 +747,9 @@ func update_streaming(immediate: bool) -> void:
 	todo = stream_queue(todo)
 	var full_budget := max_full_builds_per_update if not immediate else 1000000
 	var lod_budget := max_lod_builds_per_update if not immediate else 1000000
+	# Milliseconds and counts of FULL / LOD chunks built now (immediate only), for LoadClock.
+	var built_us := [0, 0]
+	var built_n := [0, 0]
 	for k in todo:
 		if not immediate and _pending.size() >= max_pending_builds:
 			break
@@ -735,10 +763,21 @@ func update_streaming(immediate: bool) -> void:
 				continue
 			lod_budget -= 1
 		if immediate:
+			var t0 := Time.get_ticks_usec()
 			_replace_chunk(k, level)
+			var li := 0 if level == CityChunk.Level.FULL else 1
+			built_us[li] += Time.get_ticks_usec() - t0
+			built_n[li] += 1
 		else:
 			_start_build(k, level)
+	if immediate and built_n[0] + built_n[1] > 0:
+		print("LOADING chunks built now: %d FULL %d ms, %d LOD %d ms (at %d ms)" % [built_n[0],
+				built_us[0] / 1000, built_n[1], built_us[1] / 1000, Time.get_ticks_msec()])
+	if immediate:
+		LoadClock.start("far city within the immediate radius")
 	_update_skyline(immediate)
+	if immediate:
+		LoadClock.stop("far city within the immediate radius")
 
 
 ## The far city: everything within far_city_immediate_radius built now when everything is wanted
@@ -753,12 +792,20 @@ func _update_skyline(immediate: bool) -> void:
 	_skyline.trim(_eye)
 
 
+## The game is playable: from here on the far city builds without the load cache (Skyline.use_disk).
+func _loaded() -> void:
+	if _skyline:
+		_skyline.use_disk = false
+
+
 ## Builds the whole far city now. The loading screen calls it, so play starts with every block of
 ## the basin standing.
 func finish_far_city() -> void:
 	if _skyline == null:
 		return
+	LoadClock.start("far city")
 	_skyline.build_near(_eye, far_city_radius)
+	LoadClock.stop("far city")
 
 
 ## Puts the loading screen up and lets it drive the warm-up. Deferred so the rest of _ready()
@@ -783,6 +830,7 @@ func _start_loading_screen() -> void:
 	var screen := LoadingScreen.new()
 	screen.name = "LoadingScreen"
 	add_child(screen)
+	screen.finished.connect(_loaded)
 	screen.call_deferred("run", self)
 
 
@@ -983,12 +1031,24 @@ func _build_ground_material() -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/macro_ground.gdshader")
 	var size := 160 if OS.has_feature("web") else 256
-	var img := plan.macro.bake(Vector2.ZERO, macro_span, size)
+	# The bake is the same every launch for the same code, seed and switches: from disk after the
+	# first (LoadCache; ~18 s of GDScript on the build box).
+	var bake_inputs := ["macro_bake", world_seed, macro_span, size, plan.block_size_range,
+			plan.street_width, plan.avenue_width, plan.sidewalk_width, plan.downtown_radius,
+			plan.midtown_radius]
+	var cached := LoadCache.load_images("macro_bake", bake_inputs)
+	var img: Image
+	if cached.size() == 2:
+		img = cached[0]
+		plan.macro.bake_height = cached[1]
+	else:
+		img = plan.macro.bake(Vector2.ZERO, macro_span, size)
+		LoadCache.save_images("macro_bake", bake_inputs, [img, plan.macro.bake_height])
 	var tex := ImageTexture.create_from_image(img)
 	var htex := ImageTexture.create_from_image(plan.macro.bake_height)
 	_canopy_material = ShaderMaterial.new()
 	_canopy_material.shader = load("res://shaders/far_canopy.gdshader")
-	for m in [mat, _canopy_material]:
+	for m in [mat, _canopy_material, EstateFar.material()]:
 		m.set_shader_parameter("macro_tex", tex)
 		m.set_shader_parameter("macro_height_tex", htex)
 		m.set_shader_parameter("macro_centre", Vector2.ZERO)
@@ -1000,13 +1060,18 @@ func _build_ground_material() -> ShaderMaterial:
 			m.set_shader_parameter("calm_centre", plan.macro.peninsula_center)
 			m.set_shader_parameter("calm_axes", plan.macro.peninsula_axes * 1.08)
 			m.set_shader_parameter("calm_dir", plan.macro._headland_axes()[0])
-	_canopy_material.set_shader_parameter("plane_half", ground_size * 0.5)
-	_canopy_material.set_shader_parameter("plane_step", ground_step())
+		# The reservoir's basin (Reservoir): no crags through its water.
+		if plan.macro.reservoir:
+			m.set_shader_parameter("calm2_centre", Reservoir.BOX.get_center())
+			m.set_shader_parameter("calm2_axes", Reservoir.BOX.size * 0.5)
+	for m: ShaderMaterial in [_canopy_material, EstateFar.material()]:
+		m.set_shader_parameter("plane_half", ground_size * 0.5)
+		m.set_shader_parameter("plane_step", ground_step())
 	# The plane's rim hands over to the sky, and the far city fades out on the same numbers.
-	for m: ShaderMaterial in [mat, _canopy_material, PropFactory.building_lod_material(), PropFactory.building_lod_material(true)]:
+	for m: ShaderMaterial in [mat, _canopy_material, PropFactory.building_lod_material(), PropFactory.building_lod_material(true), EstateFar.material()]:
 		m.set_shader_parameter("edge_start", ground_size * 0.5 * GROUND_EDGE_FADE.x)
 		m.set_shader_parameter("edge_end", ground_size * 0.5 * GROUND_EDGE_FADE.y)
-	_far_ground_materials = [_canopy_material]
+	_far_ground_materials = [_canopy_material, EstateFar.material()]
 	mat.set_shader_parameter("near_albedo", PropFactory.texture("grass", "Color"))
 	mat.set_shader_parameter("near_normal", PropFactory.texture("grass", "NormalGL"))
 	return mat
@@ -1066,6 +1131,7 @@ func _build_ground() -> void:
 	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_ground.add_child(mesh)
 	add_child(_ground)
+	MountainOccluder.attach(self, plan.macro, macro_span)
 	_ground_body = StaticBody3D.new()
 	_ground_body.name = "GroundBody"
 	_ground_body.collision_layer = 1

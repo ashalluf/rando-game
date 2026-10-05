@@ -627,6 +627,167 @@ def quarter_fender(bm, y, z_axle, r, x0, x1, mat=TRIM, a0=15.0, a1=165.0, n=12):
         bm.faces.new(v2).material_index = mat
 
 
+# --- cab-over hardware ---------------------------------------------------------------------------
+
+def rounded_rect(a0, a1, b0, b1, r, n=3):
+    """A closed rounded rectangle [(a, b)] (counter-clockwise), `n` steps a corner."""
+    r = min(r, (a1 - a0) * 0.5 - 1e-4, (b1 - b0) * 0.5 - 1e-4)
+    out = []
+    for (ca, cb, a_start) in ((a1 - r, b0 + r, -90.0), (a1 - r, b1 - r, 0.0), (a0 + r, b1 - r, 90.0), (a0 + r, b0 + r, 180.0)):
+        for k in range(n + 1):
+            t = math.radians(a_start + 90.0 * k / n)
+            out.append((ca + math.cos(t) * r, cb + math.sin(t) * r))
+    return out
+
+
+def smooth_bevel(name, bm, width=0.012, segments=3, angle=30.0):
+    """`bm` as an object with every edge sharper than `angle` rounded off (three segments, so the
+    30 degree steps stay under the shading's 35 degree crease and the edge reads as one curve)."""
+    tidy(bm)
+    ob = new_object(name, bm)
+    mod = ob.modifiers.new("bev", 'BEVEL')
+    mod.width = width
+    mod.segments = segments
+    mod.limit_method = 'ANGLE'
+    mod.angle_limit = math.radians(angle)
+    mod.harden_normals = False
+    apply_modifiers(ob)
+    return ob
+
+
+def wrap_path(y, half, corner, back, z, n=6):
+    """A plan path across the nose at `y` from x = -half to +half whose ends turn back round a
+    `corner` radius toward the cab sides (`back` metres behind y at the tips)."""
+    pts = []
+    xs = half - corner
+    for k in range(n, -1, -1):
+        t = math.radians(90.0 * k / n)
+        pts.append(Vector((-xs - math.sin(t) * corner, y - corner + math.cos(t) * corner, z)))
+    pts.insert(0, Vector((-xs - corner, y - corner - back, z)))
+    mid = [Vector((-xs + 2.0 * xs * k / 6, y, z)) for k in range(1, 6)]
+    right = [Vector((-p.x, p.y, p.z)) for p in reversed(pts)]
+    return pts + mid + right
+
+
+def cab_hardware(s, surf, face_f, parts):
+    """The cab-over's hardware, shared by the box truck and the service trucks built on its cab:
+    a wrap-around steel bumper (a swept rounded section turning back round the corners, a step
+    tread in its top, a recessed plate, fog lamps, tow hooks), the grille (a bezel round the mouth,
+    horizontal louvres over a dark egg-crate), lamp bezels, west-coast mirrors on tube arms, a
+    sun visor, entry steps in a shroud, grab handles, door handles and wheel-arch flares. Edges
+    are bevelled so they catch the light."""
+    nose = s["nose"]
+    # The bumper's face stays where the old slab bumper's was (face_f + 0.112): the game scales a
+    # body by its length, so nothing here may reach further forward than that.
+    yb = face_f + 0.005
+    hw_cab = 1.035
+    sm = bmesh.new()    # bevelled hardware
+    tb = bmesh.new()    # tubes, lenses and fine parts (no bevel)
+
+    # Bumper: a rounded C-section swept along the nose and round the corners.
+    zc = 0.58
+    prof = rounded_rect(-0.105, 0.10, -0.16, 0.16, 0.045, 3)
+    path = wrap_path(yb + 0.02, 1.10, 0.20, 0.10, zc)
+    rc.sweep(sm, path, [(a, b) for a, b in prof], TRIM, normals=[Vector((0, 0, 1))] * len(path))
+    # Step tread pads let into its top at each end, a centre plate recess, a lower valance.
+    for side in (1.0, -1.0):
+        box_into(sm, side * 0.55, side * 0.86, yb - 0.06, yb + 0.12, zc + 0.155, zc + 0.175, CHROME)
+    box_into(sm, -0.26, 0.26, yb + 0.095, yb + 0.115, zc - 0.10, zc + 0.04, TRIM)
+    box_into(sm, -0.24, 0.24, yb + 0.113, yb + 0.121, zc - 0.085, zc + 0.025, CHROME)
+    box_into(sm, -0.98, 0.98, yb - 0.12, yb + 0.04, zc - 0.25, zc - 0.15, TRIM)
+    for side in (1.0, -1.0):
+        disc_lamp(tb, side * 0.70, yb + 0.105, zc - 0.03, 0.055, LIGHT_F, 1.0, depth=0.012, rim_mat=CHROME)
+        tube(tb, [(side * 0.40, yb + 0.06, zc - 0.17), (side * 0.40, yb + 0.105, zc - 0.20),
+                  (side * 0.40, yb + 0.10, zc - 0.28), (side * 0.40, yb + 0.05, zc - 0.28)], 0.016, TRIM, n=8)
+
+    # Grille: a bezel round the mouth, horizontal louvres in front of the dark egg-crate.
+    eggcrate(tb, -0.62, 0.62, 0.98, 1.34, face_f - 0.03, face_f - 0.09, 14, 4, thick=0.010)
+    bez = [Vector((a, face_f + 0.004, b)) for a, b in rounded_rect(-0.645, 0.645, 0.955, 1.365, 0.05, 3)]
+    bez.append(bez[0])
+    rc.sweep(sm, bez, rounded_rect(-0.022, 0.022, -0.012, 0.016, 0.008, 2), CHROME,
+             normals=[Vector((0, 1, 0))] * len(bez))
+    for k in range(5):
+        z = 1.02 + 0.07 * k
+        box_into(sm, -0.60, 0.60, face_f - 0.03, face_f - 0.005, z - 0.016, z + 0.016, TRIM if k % 2 else CHROME)
+
+    # Headlamps: the housing, the lenses, the turn lamp strip under them, and each lens in a
+    # chrome ring standing off the housing.
+    for side in (1.0, -1.0):
+        end_panel(tb, surf, 1.0, side * 0.66, side * 0.98, 1.00, 1.30, 0.012, TRIM, thickness=0.04)
+        for xc in (0.74, 0.90):
+            disc_lamp(tb, side * xc, yb + 0.012, 1.15, 0.065, LIGHT_F, 1.0)
+        end_panel(tb, surf, 1.0, side * 0.68, side * 0.96, 1.02, 1.06, 0.014, LIGHT_F, rows=1, cols=3)
+    for side in (1.0, -1.0):
+        for xc in (0.74, 0.90):
+            hit, _n = surf.end_hit(side * xc, 1.15, 1.0)
+            fy = hit.y if hit is not None else face_f
+            ring = [Vector((side * xc + math.cos(2 * math.pi * k / 16) * 0.074, fy + 0.016,
+                            1.15 + math.sin(2 * math.pi * k / 16) * 0.074)) for k in range(17)]
+            rc.sweep(tb, ring, [(math.cos(2 * math.pi * k / 6) * 0.009, math.sin(2 * math.pi * k / 6) * 0.009)
+                                 for k in range(6)], CHROME, normals=[Vector((0, 1, 0))] * len(ring))
+
+    # Sun visor over the windscreen, a shallow wedge on two brackets.
+    vz = 2.37
+    vis = [(0.0, 0.0), (0.0, 0.05), (0.20, 0.025), (0.20, 0.005)]
+    vp = [Vector((-0.96 + 1.92 * k / 8, face_f - 0.12, vz)) for k in range(9)]
+    rc.sweep(sm, vp, [(-a, b) for a, b in vis], PAINT, normals=[Vector((0, 0, 1))] * len(vp))
+    for side in (1.0, -1.0):
+        box_into(sm, side * 0.70, side * 0.74, face_f - 0.16, face_f + 0.02, vz - 0.02, vz + 0.02, TRIM)
+
+    # Mirrors: a rounded head with its glass and a convex spot mirror under it.
+    for side in (1.0, -1.0):
+        tube(tb, [(side * 1.0, nose - 0.30, 2.20), (side * 1.22, nose - 0.05, 2.25), (side * 1.24, nose + 0.05, 1.98)], 0.016, TRIM)
+        tube(tb, [(side * 1.0, nose - 0.30, 1.45), (side * 1.20, nose - 0.08, 1.42), (side * 1.24, nose + 0.04, 1.47)], 0.014, TRIM)
+        box_into(sm, side * 1.17, side * 1.31, nose - 0.02, nose + 0.08, 1.50, 1.98, TRIM)
+        box_into(tb, side * 1.185, side * 1.295, nose - 0.026, nose - 0.019, 1.53, 1.95, CHROME)
+        disc_lamp(tb, side * 1.21, nose - 0.02, 1.36, 0.070, CHROME, -1.0, depth=0.03, rim_mat=TRIM)
+        # Wipers.
+        tube(tb, [(side * 0.86, face_f + 0.01, 1.52), (side * 0.20, face_f - 0.03, 1.62)], 0.010, TRIM, n=6)
+
+    # Entry steps behind the front wheel: two treads in a shroud, a grab handle up the cab's
+    # corner pillar, a door handle.
+    fa = s["front_axle"]
+    for side in (1.0, -1.0):
+        box_into(sm, side * 0.93, side * 1.03, fa - 0.90, fa - 0.52, 0.40, 0.88, TRIM)
+        for z in (0.50, 0.78):
+            box_into(sm, side * 0.78, side * 1.04, fa - 0.87, fa - 0.55, z - 0.025, z + 0.025, CHROME)
+        tube(tb, [(side * (hw_cab + 0.005), 3.02, 0.95), (side * (hw_cab + 0.045), 3.00, 1.00),
+                  (side * (hw_cab + 0.045), 3.00, 1.85), (side * (hw_cab + 0.005), 3.02, 1.90)], 0.016, CHROME, n=8)
+        box_into(sm, side * (hw_cab - 0.005), side * (hw_cab + 0.022), 3.24, 3.40, 1.47, 1.52, CHROME)
+    # Moulded flares round the front wheel openings.
+    emv_like_flare(sm, fa, s["axle_z"], s["arch_r"], hw_cab)
+
+    tidy(tb)
+    parts.append(new_object("inserts", tb))
+    parts.append(smooth_bevel("cab_hw", sm, width=0.010, segments=3))
+    # Roof clearance lamps.
+    lb = bmesh.new()
+    for x in (-0.20, 0.0, 0.20):
+        end_panel(lb, surf, 1.0, x - 0.04, x + 0.04, 2.44, 2.48, 0.01, LIGHT_F, rows=1, cols=1)
+    parts.append(new_object("roof_lamps", lb))
+
+
+def emv_like_flare(bm, y, az, R, xs, width=0.075, proud=0.022, n=24):
+    """A moulded flare round a wheel opening on a near-flat side at |x| = xs: a half ring that
+    stands `proud` off the side, its outer edge rolled back onto the panel."""
+    for side in (1.0, -1.0):
+        rows = []
+        for k in range(n + 1):
+            a = math.radians(-8.0 + 196.0 * k / n)
+            ca, sa = math.cos(a), math.sin(a)
+            ri, ro = R + 0.005, R + width
+            rows.append([
+                Vector((side * (xs - 0.01), y + ri * ca, az + ri * sa)),
+                Vector((side * (xs + proud), y + ri * ca, az + ri * sa)),
+                Vector((side * (xs + proud), y + (ri + width * 0.6) * ca, az + (ri + width * 0.6) * sa)),
+                Vector((side * (xs + 0.002), y + ro * ca, az + ro * sa)),
+            ])
+        vs = [[bm.verts.new(p) for p in r] for r in rows]
+        for k in range(n):
+            for j in range(3):
+                quad(bm, vs[k][j], vs[k][j + 1], vs[k + 1][j + 1], vs[k + 1][j], TRIM)
+
+
 # --- the box truck ---------------------------------------------------------------------------------
 
 def box_truck():
@@ -713,33 +874,7 @@ def box_truck_details(s, sec, surf, body, parts):
     tidy(gb)
     parts.append(new_object("glass", gb))
 
-    bp = bmesh.new()
-    eggcrate(bp, -0.62, 0.62, 0.98, 1.34, face_f - 0.01, face_f - 0.07, 14, 4, thick=0.012)
-    yb = face_f
-    # Bumper, steel and heavy, wider than the cab; tow hooks; the step plate in its top.
-    box_into(bp, -1.08, 1.08, yb - 0.12, yb + 0.10, 0.42, 0.74, TRIM)
-    box_into(bp, -1.07, 1.07, yb + 0.10, yb + 0.112, 0.46, 0.70, CHROME)
-    for side in (1.0, -1.0):
-        end_panel(bp, surf, 1.0, side * 0.66, side * 0.98, 1.00, 1.30, 0.012, TRIM, thickness=0.04)
-        for xc in (0.74, 0.90):
-            disc_lamp(bp, side * xc, yb + 0.012, 1.15, 0.065, LIGHT_F, 1.0)
-        end_panel(bp, surf, 1.0, side * 0.68, side * 0.96, 1.02, 1.06, 0.014, LIGHT_F, rows=1, cols=3)
-        box_into(bp, side * 0.80, side * 0.95, yb + 0.10, yb + 0.13, 0.55, 0.62, LIGHT_F)
-        # Clearance lamps on the cab roof's front edge.
-        for x in (0.30, 0.55, 0.80) if side > 0 else (-0.30,):
-            pass
-    for x in (-0.20, 0.0, 0.20):
-        end_panel(bp, surf, 1.0, x - 0.04, x + 0.04, 2.44, 2.48, 0.01, LIGHT_F, rows=1, cols=1)
-    # Steps under each door, behind the front wheel; the mirrors; a wiper pair.
-    for side in (1.0, -1.0):
-        for z in (0.48, 0.80):
-            box_into(bp, side * 0.80, side * 1.02, s["front_axle"] - 0.86, s["front_axle"] - 0.56, z - 0.03, z + 0.03, TRIM)
-        box_into(bp, side * 0.95, side * 1.01, s["front_axle"] - 0.86, s["front_axle"] - 0.56, 0.42, 0.86, TRIM)
-        tube(bp, [(side * 1.0, nose - 0.30, 2.20), (side * 1.22, nose - 0.05, 2.25), (side * 1.24, nose + 0.05, 1.90)], 0.018, TRIM)
-        box_into(bp, side * 1.17, side * 1.31, nose + 0.0, nose + 0.08, 1.45, 1.95, TRIM)
-        box_into(bp, side * 1.18, side * 1.30, nose - 0.005, nose + 0.001, 1.48, 1.92, CHROME)
-        tube(bp, [(side * 0.86, face_f + 0.01, 1.52), (side * 0.20, face_f - 0.03, 1.62)], 0.010, TRIM, n=6)
-    parts.append(new_object("inserts", bp))
+    cab_hardware(s, surf, face_f, parts)
 
     # Panel lines: the doors.
     paths = []
@@ -766,7 +901,7 @@ def box_truck_details(s, sec, surf, body, parts):
         quarter_fender(bc, s["rear_axle"], s["axle_z"], s["wheel_r"], side * 0.60, side * 1.13)
         mudflap(bc, side * 0.85, s["rear_axle"] - 0.70, 0.22, 0.95)
     underride(bc, yr + 0.20, 0.55, hw)
-    parts.append(new_object("chassis", bc))
+    parts.append(smooth_bevel("chassis", bc, width=0.008, segments=2))
 
 
 rc.SPECS["box_truck"] = box_truck

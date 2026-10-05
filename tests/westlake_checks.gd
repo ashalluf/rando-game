@@ -189,8 +189,9 @@ func _camps(city: Node3D, plan: CityPlan, player: Node3D) -> void:
 		var people := 0
 		var figs := 0
 		for child in c.get_children():
-			# A street vendor's cart is an EncampmentItem too (StreetVendors): not a camp.
-			if child is EncampmentItem and not str(child.name).begins_with("Vendor_"):
+			# A street vendor's cart is an EncampmentItem too (StreetVendors), and so is a scooter or a
+			# share bike (Micromobility): not a camp.
+			if child is EncampmentItem and not str(child.name).begins_with("Vendor_") and not str(child.name).begins_with("Micro_"):
 				items += 1
 			elif child is RoughSleeper:
 				people += 1

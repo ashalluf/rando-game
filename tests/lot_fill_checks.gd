@@ -293,6 +293,11 @@ func _same_block(city: Node3D, k: Vector2i) -> void:
 	for s: String in without:
 		if not with.has(s):
 			missing += 1
+			print("  yard fill A/B: only without it: %s" % s)
+	if missing > 0:
+		for s: String in with:
+			if not without.has(s):
+				print("  yard fill A/B: only with it: %s" % s)
 	_t._check(no_yard and missing == 0 and with.size() >= without.size(),
 		"block %s built without the yard fill is the same block (%d of %d things moved)" % [k, missing, without.size()])
 

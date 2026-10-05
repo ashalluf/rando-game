@@ -273,7 +273,8 @@ static func _block_ok(plan: CityPlan, ix: int, iz: int) -> bool:
 			return false
 		if _is_worship(String(lm.id)) and rect.grow(WORSHIP_CLEAR + float(lm.get("radius", 0.0))).has_point(anchor):
 			return false
-	return true
+	# The places of worship on city lots (Worship) keep the same distance.
+	return Worship.near_rect(plan, rect, WORSHIP_CLEAR).is_empty()
 
 
 static func _is_worship(id: String) -> bool:
@@ -445,6 +446,8 @@ static func _occupied(chunk: CityChunk) -> Array:
 		out.append([apron, 12.0])
 	# So do a police station's forecourt and gate (PoliceStation).
 	out.append_array(PoliceStation.keep_clear_points(chunk.plan, chunk.ix, chunk.iz))
+	# And a civic building's frontage (CivicBuildings).
+	out.append_array(CivicBuildings.keep_clear_points(chunk.plan, chunk.ix, chunk.iz))
 	return out
 
 

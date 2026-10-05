@@ -182,6 +182,10 @@ var podium_kind: int = 0
 ## Set by CityChunk with podium_lot: the face that looks at the nearest street, as the shader
 ## counts faces (1 +X, 2 -X, 3 +Z, 4 -Z). A parking base's drive-in is on it (garage_entry()).
 var street_face: int = 0
+## Set by CityChunk where the lot backs onto a service alley (Alleys.back_face()): the face, counted
+## the same way, that looks at the alley. Its ground floor is the building's back - no storefront,
+## shop names, awnings or spill - not another row of shops.
+var back_face: int = 0
 ## Storey and spandrel of a parking deck (the shader's floor height and garage_spandrel), and its
 ## bay (the column pitch): ArenaGrounds' car park's numbers.
 const GARAGE_STOREY := 3.2
@@ -308,7 +312,9 @@ func generate() -> void:
 	_commit_details()
 	_build_plinth()
 	_build_roof_props()
+	Rooftops.clear_plant(self)
 	_commit_roof()
+	Rooftops.build(self)
 	_finish_kit()
 	_commit_blade_texts()
 
@@ -366,6 +372,8 @@ func plan_only() -> Dictionary:
 	else:
 		finish = _rng.randi_range(0, Finish.size() - 1) as Finish
 	window_style = _pick_window_style()
+	if window_style_force >= 0:
+		window_style = window_style_force as WindowStyle
 	# Roof covering, picked per building: mostly white membrane on modern blocks, gravel on
 	# older ones, bitumen on the rest.
 	var roof_roll := _rng.randf()
@@ -392,6 +400,8 @@ func _layout_parts() -> void:
 	match shape:
 		Shape.SLAB:
 			var size := Vector3(lot.x * _rng.randf_range(0.7, 1.0), _rng.randf_range(h_lo, minf(h_hi, 40.0)), lot.y * _rng.randf_range(0.7, 1.0))
+			if fill_lot:
+				size = Vector3(lot.x, size.y, lot.y)
 			_add_part(size, Vector2.ZERO, 0.0)
 		Shape.TOWER:
 			var w := minf(lot.x, lot.y) * _rng.randf_range(0.45, 0.7)
@@ -609,6 +619,8 @@ func _pick_style() -> Dictionary:
 			colors = GLASS_COLORS
 		_:
 			colors = FLAT_COLORS
+	if not palette_override.is_empty():
+		colors = palette_override
 	var facade: Color = colors[_rng.randi() % colors.size()]
 	facade = facade.lightened(_rng.randf_range(-0.08, 0.08))
 	var pitch_by_style := [2.6, 2.2, 1.8, 1.6]
@@ -666,7 +678,7 @@ func part_grid(part: Dictionary, style: Dictionary) -> Dictionary:
 	# height, so the two have to be asked for from the same place.
 	var base_h := 0.0 if parking else _base_course_height(size, style, storefront, on_ground)
 	var crown := -1.0
-	if size.y > 22.0 and finish != Finish.GLASS and shape != Shape.WAREHOUSE and not parking:
+	if size.y > 22.0 and roof_bands and finish != Finish.GLASS and shape != Shape.WAREHOUSE and not parking:
 		crown = size.y - 1.6 * floor_h
 	return {"storefront": storefront, "rows": rows, "floor_h": floor_h, "cols_x": cols_x, "cols_z": cols_z,
 		"cut_x": cut_x, "cut_z": cut_z, "base_h": base_h, "crown": crown, "parking": parking, "on_ground": on_ground}
@@ -782,6 +794,11 @@ func _part_material(style: Dictionary) -> ShaderMaterial:
 		mat.set_shader_parameter("garage_entry", Vector2(float(entry.face), float(entry.col)))
 	mat.set_shader_parameter("shop_span", _shop_spans())
 	mat.set_shader_parameter("shop_rooms", shop_room_codes())
+	mat.set_shader_parameter("shop_frame_force", shop_frame_force)
+	var name_codes := shop_name_codes()
+	mat.set_shader_parameter("shop_names_a", name_codes[0])
+	mat.set_shader_parameter("shop_names_b", name_codes[1])
+	mat.set_shader_parameter("shop_vinyl", vinyl_enabled)
 	mat.set_shader_parameter("tower_height", height)
 	# Whether the raised shop names are drawn (never on the web): the shader only turns boards
 	# dark for channel letters where there are letters to light.
@@ -832,12 +849,15 @@ func _append_part(arrays: Array, center: Vector3, p: Array) -> void:
 	var row1 := PackedFloat32Array([size.x, size.y, size.z, p[2]])
 	var row2 := PackedFloat32Array([p[3], p[4], p[5], p[6]])
 	var row3 := PackedFloat32Array([p[7], p[8], 1.0 if p.size() > 9 and p[9] else 0.0, 0.0])
-	for v: Vector3 in src:
+	var src_n: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var back := [Vector3.ZERO, Vector3.RIGHT, Vector3.LEFT, Vector3.BACK, Vector3.FORWARD][clampi(back_face, 0, 4)] as Vector3
+	for k in src.size():
+		var v: Vector3 = src[k]
 		verts.append(v + center)
 		c0.append(v.x)
 		c0.append(v.y)
 		c0.append(v.z)
-		c0.append(shop)
+		c0.append(0.0 if back_face > 0 and src_n[k].dot(back) > 0.7 else shop)
 		c1.append_array(row1)
 		c2.append_array(row2)
 		c3.append_array(row3)
@@ -947,7 +967,23 @@ const SHOP_NAMES := ["PHARMACY", "NAILS & SPA", "DRY CLEAN", "PHONE FIX", "LIQUO
 ## The names every building rolls from (the first BASE_SHOP_NAMES of SHOP_NAMES), unless it is
 ## handed a `name_pool` of indices into SHOP_NAMES (Broadway.dress()).
 const BASE_SHOP_NAMES := 30
+## Whether the shop glass carries its vinyl (names, hours, promos, posters); SHOP_VINYL=0 in the
+## environment is the A/B.
+static var vinyl_enabled: bool = OS.get_environment("SHOP_VINYL") != "0"
 var name_pool: PackedInt32Array = PackedInt32Array()
+## Historic core (HistoricCore.dress()): a palette the facade colour is picked from instead of the
+## finish's (the same roll), a SLAB that fills its lot, the kit's window surround and cornice
+## forced ("none": none; "" Building's own pick), the window style forced, no stone base course,
+## no box cornice and crown bands (the facade brings its own), and every shop's frame finish
+## forced (an index into SHOP_FRAME_COLORS; -1 the shop's own roll). Inert at their defaults.
+var palette_override: Array = []
+var fill_lot: bool = false
+var kit_surround_force: String = ""
+var kit_cornice_force: String = ""
+var window_style_force: int = -1
+var allow_base_course: bool = true
+var roof_bands: bool = true
+var shop_frame_force: int = -1
 ## Cap height of a shop sign, in metres.
 const SIGN_HEIGHT := 0.40
 ## How far out from the wall the sign sits, and how far a sign still draws.
@@ -1011,6 +1047,22 @@ func shop_room_codes() -> Vector4i:
 	return v
 
 
+## The shader's `shop_names_a` / `shop_names_b` (the window vinyl's names,
+## shaders/vinyl_lettering.gdshaderinc): per face, each of its first SHOP_ROOM_SLOTS shops' index
+## in SHOP_NAMES + 1 in six bits, shops 0-4 in the first, 5-6 in the second.
+func shop_name_codes() -> Array[Vector4i]:
+	var a := Vector4i()
+	var b := Vector4i()
+	for face in 4:
+		var names := shop_names(face, SHOP_ROOM_SLOTS)
+		for run in SHOP_ROOM_SLOTS:
+			if run < 5:
+				a[face] |= (names[run] + 1) << (6 * run)
+			else:
+				b[face] |= (names[run] + 1) << (6 * (run - 5))
+	return [a, b]
+
+
 ## What is behind shop `shop` on face `face_id` (1..4): the room its name says, past the coded
 ## shops the hash's (the shader's own choice, line for line). A tower lobby overrides both.
 func shop_room(face_id: int, shop: int) -> int:
@@ -1039,7 +1091,9 @@ func _shop_spans() -> Vector4:
 ## ink, 24 second poster, 25 OPEN plate, 26 scissor gate, 27 a recessed entry's stone; Building's
 ## alone: 30 blade sign, 31 its colour; the room behind the glass (shaders/shop_interior.gdshaderinc):
 ## 40 its kind, 41 which end its counter is at, 42 its walls, 43 its fittings, 44 a tower lobby,
-## 45 its depth.
+## 45 its depth; the window vinyl (shop_decal(), vinyl_lettering.gdshaderinc): 50 the name's
+## size, 51 the phrase of a shop it has no name for, 52 the line under the name, 53-54 a promo
+## (has, which), 55 the letters' weight, 56 the street number, 57 the hours, 60+ hash digits.
 ## The shader's lights for an open shop (its shop_tone()): warm, neutral, cool, pink, teal.
 const SHOP_TONES := [Color(1.0, 0.70, 0.42), Color(1.0, 0.91, 0.78), Color(0.78, 0.90, 1.0),
 	Color(1.0, 0.50, 0.80), Color(0.55, 1.0, 0.88)]
@@ -1216,7 +1270,7 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		cornice_scale = clampf(fit, 0.6, cornice_scale)
 		var drop := float(KIT_CORNICE_DROP[cornice_piece]) * cornice_scale
 		cornice_lift = clampf(drop + 0.04 - clear, 0.0, KIT_CORNICE_MAX_LIFT)
-	if has_cornice:
+	if has_cornice and roof_bands:
 		if kit_cornice:
 			# The moulding stands for the two bands below near the camera. Past its distance this
 			# one band is what is left of it, sized to sit wholly inside the moulding
@@ -1248,6 +1302,8 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		var base_h := _base_course_height(size, style, storefront, true)
 		if base_h > 0.0:
 			bands.append([bottom + base_h, 0.24, band_projection * 0.62, 0.10, accent])
+	# The canopy's two bands, on every face with shops (not the back on an alley, back_face).
+	var canopy_bands: Array = []
 	if has_canopy:
 		# One flat canopy over the pavement instead of separate awnings, with a fascia lip on
 		# its outer edge so it is not a bare slab. Its height has to agree with the shopfront
@@ -1258,8 +1314,8 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		# which the shader stops at fv 0.74 - which is where a real shop canopy goes anyway.
 		var canopy_y := bottom + storefront * canopy_height_frac
 		var reach: float = maxf(canopy_reach, 0.30)
-		bands.append([canopy_y, 0.16, reach, 0.10, accent.darkened(0.25)])
-		bands.append([canopy_y + 0.13, 0.30, reach + 0.04, -(reach - 0.22), awning_color])
+		canopy_bands.append([canopy_y, 0.16, reach, 0.10, accent.darkened(0.25)])
+		canopy_bands.append([canopy_y + 0.13, 0.30, reach + 0.04, -(reach - 0.22), awning_color])
 	# Parapet: a low wall standing on the roof edge. Nothing changes a roofline as much - a box
 	# cut off flat at the top is the oldest tell there is - and it hides the feet of the roof
 	# plant from the street. Its own list, because it is the one detail that is meant to stand
@@ -1311,6 +1367,8 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 	var face_index := -1
 	for face in faces:
 		face_index += 1
+		# No shops on the face that looks at the alley (back_face): its ground floor is the back.
+		var face_shops := storefront > 0.0 and face_index + 1 != back_face
 		var n: Vector3 = face[0]
 		var a: Vector3 = face[1]
 		var size_u: float = face[2]
@@ -1327,6 +1385,9 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		var band_len := size_u - 2.0 * cut + (0.7 if cut <= 0.0 else 0.12)
 		for b: Array in bands:
 			boxes.append([_band_xform(a, n, fc, band_len, b), b[4]])
+		if face_shops:
+			for b: Array in canopy_bands:
+				boxes.append([_band_xform(a, n, fc, band_len, b), b[4]])
 		for b: Array in cap_bands:
 			# The parapet and its cap run exactly their own projection past a square corner, so
 			# the two walls' boxes meet flush. With the bands' 0.35 m overlap they stood 0.3 m
@@ -1398,7 +1459,7 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 				# Flip the bay on alternate floors so the stair runs zigzag down the wall.
 				var flip := 1.0 if row % 2 == 0 else -1.0
 				escapes.append(Transform3D(Basis(a * (ew * flip), Vector3.UP * floor_h, n * 1.35), fc + a * eu + Vector3(0.0, ev, 0.0)))
-		if storefront > 0.0 and shape != Shape.WAREHOUSE:
+		if face_shops and shape != Shape.WAREHOUSE:
 			# A pier between shops and one at each end of the wall, running the whole height of
 			# the ground floor. The shopfront then reads as glass set back between piers rather
 			# than as a strip wrapped round a box. They stand on the shop runs the shader uses,
@@ -1421,10 +1482,12 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 			if _kit != null and ShopfrontKit.enabled:
 				ShopfrontKit.storefront_face(self, _kit, face_index + 1, fc, a, n, size_u, cols, pitch, cut, bottom,
 					storefront, spans[face_index], stops, masonry, floor_h, top, accent.lightened(0.05))
+			# Where people go in and out of the shops (StreetErrands), off the same shop rolls.
+			StreetErrands.note_shop_doors(self, face_index + 1, fc, a, n, size_u, cols, pitch, cut, bottom, spans[face_index])
 		# Shop signs. The sign band is drawn by the shader on the storefront; this puts the
 		# actual name on it, lined up with the same shop runs (`shop_span`). One per face:
 		# every run would be four names on a wall the player can only read one of.
-		if storefront > 0.0 and shape != Shape.WAREHOUSE and signs_on:
+		if face_shops and shape != Shape.WAREHOUSE and signs_on:
 			var span: float = spans[face_index]
 			var runs := int(float(cols) / span)
 			# 0.845 of the storefront up from the part's base, where the shader's sign band is.
@@ -1459,7 +1522,7 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		# The spill of each open shop's light on the pavement in front of it, on the same runs
 		# and the same rolls as the shader's lit shops (shop_key). Not gated on the web: it is
 		# an additive quad, which is what lights the web's streets anyway.
-		if storefront > 0.0 and shape != Shape.WAREHOUSE and bottom < 0.01:
+		if face_shops and shape != Shape.WAREHOUSE and bottom < 0.01:
 			var span: float = spans[face_index]
 			var runs := int(float(cols) / span)
 			for run in runs:
@@ -1514,17 +1577,17 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 						_kit_solid_box(kxf, Vector3(0.0, -0.08, 0.585), Vector3(2.24, 0.16, 1.27))
 					else:
 						balconies.append(bxf)
-		if kit_awnings_extra:
+		if kit_awnings_extra and face_shops:
 			_kit_awnings(face_index, fc, a, n, size_u, cols, pitch, cut, bottom, storefront, spans[face_index])
 		if has_awnings:
-			if _kit != null:
+			if _kit != null and face_shops:
 				_kit_awnings(face_index, fc, a, n, size_u, cols, pitch, cut, bottom, storefront, spans[face_index])
 			for col in range(skip, cols - skip):
 				if col % 2 == 1 or _rng.randf() < 0.3:
 					continue
 				# The kit hangs one awning per shop instead (above); the roll stays so every
 				# seeded draw after it lands where it always did.
-				if _kit != null:
+				if _kit != null or not face_shops:
 					continue
 				var u := -size_u * 0.5 + (col + 0.5) * pitch
 				var tilt := Basis(a, -0.35)
@@ -1551,7 +1614,7 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 				if dir.cross(Vector3.UP).dot(cn) < 0.0:
 					dir = -dir
 				var mid := (p1 + p2) * 0.5 + Vector3(center.x, 0.0, center.z)
-				for b: Array in bands:
+				for b: Array in bands + canopy_bands:
 					boxes.append([_band_xform(dir, cn, mid, clen + 0.30, b), b[4]])
 				for b: Array in cap_bands:
 					caps.append([_band_xform(dir, cn, mid, clen + 0.30, b), b[4]])
@@ -1767,6 +1830,10 @@ func _pick_kit(style: Dictionary) -> void:
 				_kit_surround = "surround_brick_a" if _kit_hash("surround") < 0.55 else "surround_brick_b"
 			else:
 				_kit_surround = "surround_stucco"
+	if kit_cornice_force != "":
+		_kit_cornice = "" if kit_cornice_force == "none" else kit_cornice_force
+	if kit_surround_force != "":
+		_kit_surround = "" if kit_surround_force == "none" else kit_surround_force
 	var facade: Color = style.facade
 	if finish == Finish.BRICK:
 		_kit_trim = KIT_STONES[absi(hash([seed, "kit trim"])) % KIT_STONES.size()]
@@ -2002,7 +2069,7 @@ static func _band_xform(a: Vector3, n: Vector3, at: Vector3, length: float, b: A
 func _base_course_height(size: Vector3, style: Dictionary, storefront: float, at_ground: bool) -> float:
 	if not at_ground or not allow_storefront or finish == Finish.GLASS or shape == Shape.WAREHOUSE:
 		return 0.0
-	if size.y < 12.0:
+	if size.y < 12.0 or not allow_base_course:
 		return 0.0
 	return minf(storefront + float(style.floor) * (2.0 if size.y > 30.0 else 1.0), size.y * 0.34)
 
@@ -2217,6 +2284,8 @@ var _roof_rng := RandomNumberGenerator.new()
 ## FarBuilding draws the far boxes from it.
 var roof_props: Array = []
 var _roof_part: int = -1
+## Where each roof prop's primitives start in _roof_prims (Rooftops.clear_plant()).
+var roof_prim_starts := PackedInt32Array()
 ## Set by roof_plan(): the rolls and the layout without a node, a mesh or a shape.
 var _roof_plan_only: bool = false
 
@@ -2243,6 +2312,7 @@ func roof_plan() -> Array:
 func _build_roof_props() -> void:
 	_roof_rng.seed = hash([seed, "roof plant"])
 	roof_props.clear()
+	roof_prim_starts.clear()
 	for i in parts.size():
 		var part: Dictionary = parts[i]
 		_roof_part = i
@@ -2318,6 +2388,8 @@ func _build_roof_props() -> void:
 func _kit_roof_plant(part_index: int, center: Vector3, top: float, area: Vector2, roof_area: float, placed: Array[Rect2]) -> void:
 	var krng := RandomNumberGenerator.new()
 	krng.seed = hash([seed, "kit roof", part_index])
+	# Off the rooftop pieces (Rooftops: a helipad, a pool deck, a penthouse...).
+	placed.append_array(Rooftops.keep_out(self, part_index))
 	var extra: Array[String] = []
 	if roof_area > 120.0:
 		for k in clampi(roundi(roof_area / 450.0), 1, 3):
@@ -2404,6 +2476,8 @@ func _build_prop(kind: String, at: Vector3) -> void:
 	# What this prop rolls for itself, for roof_props (FarBuilding draws its far box from it).
 	var rolls := {}
 	roof_props.append([kind, at, rolls, _roof_part])
+	# Where this prop's primitives start (Rooftops.clear_plant() takes a covered one away).
+	roof_prim_starts.append(_roof_prims.size())
 	match kind:
 		"ac":
 			# Real unit (Poly Haven), scaled up to rooftop size, on a concrete pad. The two

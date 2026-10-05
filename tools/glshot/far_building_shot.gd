@@ -13,6 +13,8 @@ extends SceneTree
 ## Env: OUT (path stem), DIST (metres from the row, default 200: the FULL -> LOD handoff), NIGHT=1
 ## (21:00: lamps and lit windows), HEIGHT (camera height, default 1/3 of the tallest), N (buildings,
 ## default 6), SEED0 (first seed), DOWNTOWN=1 (tall towers on podium lots: lot fill, parking decks).
+## CHAMFER=1 cuts every building's corners (Building.chamfer_chance; 0 none), FAR_CORNERS=0 the
+## far boxes' old painted piers.
 ## The light is a fixed sun and sky, not DayNight: judge the two frames against each other.
 
 const FINISHES := [0, 1, 2, 3, 0, 3, 1, 2]
@@ -73,6 +75,8 @@ func _initialize() -> void:
 			b.finish_options.assign([FINISHES[i % FINISHES.size()]])
 			b.podium_lot = downtown
 			b.plinth_depth = 0.75
+			if OS.get_environment("CHAMFER") != "":
+				b.chamfer_chance = float(OS.get_environment("CHAMFER"))
 			b.position = Vector3(x + lot.x * 0.5, 0.0, 0.0)
 		near_root.add_child(near)
 		var style: Dictionary = far.plan_only()

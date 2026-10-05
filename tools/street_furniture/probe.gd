@@ -1,8 +1,8 @@
 extends SceneTree
 ## Lists the street furniture (StreetFurniture) of the FULL chunks round a point, for framing stills:
 ##   godot --headless --path . --script tools/street_furniture/probe.gd -- --spawn=x,z,0,0
-## R=blocks (default 2), KIND=meter|pay_station|bench_stop|hydrant|cart|rack|planter to filter,
-## CARTS=all to put every block's carts out. Each line: the piece, its true-world point and an EYE
+## R=blocks (default 2), KIND=meter|pay_station|ad_bench|bus_stop|hydrant|rack|planter to
+## filter. Each line: the piece, its true-world point and an EYE
 ## for still_shot.gd 5 m along the pavement and 1.5 m in, looking at it. Classes are loaded at run
 ## time (the tool compiles before the autoloads exist). Headless: only the chunks' records are read.
 func _initialize() -> void:
@@ -31,9 +31,7 @@ func _initialize() -> void:
 				if kind == "meter":
 					for inst in r.instances:
 						kind = String(inst[0])
-				if kind == "bus_stop" and sf.call("bench_stop", plan.seed, Vector3((r.position as Vector3).x, 0.12, (r.position as Vector3).z)):
-					kind = "bench_stop"
-				if not kind in ["meter", "pay_station", "bench_stop", "bus_stop", "hydrant", "cart", "rack", "planter"]:
+				if not kind in ["meter", "pay_station", "ad_bench", "bus_stop", "hydrant", "rack", "planter"]:
 					continue
 				if want != "" and kind != want:
 					continue

@@ -270,3 +270,11 @@ signal_clock={
 "type": "float",
 "value": 0.0
 }
+probe_reach={
+"type": "float",
+"value": 0.0
+}
+road_stamp_near={
+"type": "float",
+"value": 0.0
+}

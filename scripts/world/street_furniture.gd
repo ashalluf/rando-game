@@ -10,13 +10,11 @@ extends RefCounted
 ##   top, display, keypad, card and coin slots, a "pay by app" label and the solar cell) and,
 ##   one meter in PAY_STATION_SHARE, the PAY STATION (cabinet on a plinth, screen, keypad, card
 ##   reader, receipt slot, the instruction panel, a solar panel on its mast);
-## * the BUS BENCH with a painted ad back: cast concrete ends, seat and back rest, the ad
-##   (an invented realtor, injury lawyer, bail bonds, dentist, taco stand or "your ad here", 555
-##   numbers; tools/make_bench_ads.py) painted on both faces of the back;
+## * the BUS BENCH with a painted ad back beside a third of the bus shelters: cast concrete ends,
+##   seat and back rest, the ad (an invented realtor, injury lawyer, bail bonds, dentist, taco
+##   stand or "your ad here", 555 numbers; tools/make_bench_ads.py) painted on both faces;
 ## * the perforated METAL-MESH downtown bin (a TrashCan's mesh downtown and midtown: perforated
 ##   steel wall you see the liner through, straps, a rain bonnet on four posts);
-## * the green and blue (and black) RESIDENTIAL CARTS out at the kerb on the block's collection
-##   day (suburbs and the beach town), 96-gallon carts with lid, hinge, handle and wheels;
 ## * the galvanised inverted-U BIKE RACK on bolted flanges;
 ## * the precast concrete KERB PLANTER with soil and a shrub.
 ##
@@ -29,10 +27,11 @@ extends RefCounted
 ##
 ## Placement is where StreetDetail and CityChunk already put the old pieces: the same calls, ids,
 ## rolls and collision; only the meshes change (and the hydrant's yaw, which now faces its pumper
-## to the street with the rolled spin still drawn). The new pieces - pay stations, bench stops,
-## carts - are hashes of seed + place, never a chunk or block rng; the carts are props with ids of
-## their own (`cart_<n>`), so no other prop's id moves. STREET_FURNITURE=0 in the environment is
-## the A/B (the old meshes everywhere, no carts).
+## to the street with the rolled spin still drawn). The new pieces - pay stations, the stop
+## benches - are hashes of seed + place, never a chunk or block rng; the benches are props with ids
+## of their own (`ad_bench_<n>`), so no other prop's id moves. The residential carts are KerbBins'
+## (scripts/world/kerb_bins.gd), not ours. STREET_FURNITURE=0 in the environment is the A/B (the
+## old meshes everywhere, no pay stations, no stop benches).
 
 ## Kinds (COLOR.a = (kind + 0.5) / 16), mirrored by the shader's K_* constants.
 const K_PAINT := 0      # cast iron / steel in the instance's paint, chipped and rusting with wear
@@ -62,8 +61,11 @@ const L_HYDRANT := 3.0
 const BENCH_ADS := 8
 ## Share of metered spaces that are a pay station instead of a meter head.
 const PAY_STATION_SHARE := 0.18
-## Share of bus stops that are a bench with an ad back and a sign, no shelter.
-const BENCH_STOP_SHARE := 0.5
+## Share of bus shelters that also have a concrete ad bench beside them.
+const STOP_BENCH_SHARE := 0.34
+## Where it stands from the shelter's spot: this far along the kerb (away from the stop's sign),
+## and as far in as the shelter's own bench (behind StreetErrands' queue at the kerb).
+const STOP_BENCH_ALONG := 4.2
 
 ## LA hydrant paints (sRGB) and their odds: mostly the yellow, some silver, a few faded.
 const HYDRANT_PAINTS := [Color(0.80, 0.62, 0.11), Color(0.82, 0.64, 0.10), Color(0.78, 0.6, 0.12), Color(0.70, 0.71, 0.70), Color(0.90, 0.82, 0.52)]
@@ -71,30 +73,13 @@ const HYDRANT_PAINTS := [Color(0.80, 0.62, 0.11), Color(0.82, 0.64, 0.10), Color
 const METER_PAINTS := [Color(0.30, 0.32, 0.34), Color(0.52, 0.54, 0.55), Color(0.24, 0.25, 0.27)]
 ## Mesh bin paints: black and a deep green.
 const BIN_PAINTS := [Color(0.07, 0.075, 0.08), Color(0.08, 0.17, 0.12)]
-## Residential cart bodies: black (trash), blue (recycling), green (yard waste).
-const CART_PAINTS := [Color(0.06, 0.06, 0.065), Color(0.10, 0.27, 0.58), Color(0.17, 0.38, 0.16)]
-
 ## Districts where TrashCans are the downtown mesh bin (CityPlan.District order).
 const BIN_MESH_DISTRICTS := [CityPlan.District.DOWNTOWN, CityPlan.District.MIDTOWN, CityPlan.District.CAMPUS]
-## Districts that roll their carts out (CityPlan.District order indices).
-const CART_DISTRICTS := [CityPlan.District.SUBURBS, CityPlan.District.BEACHTOWN]
-## Metres between candidate cart spots along a kerb, and the share of spots that put carts out.
-const CART_PITCH := 13.0
-const CART_SHARE := 0.62
-## How far in from the kerb line a cart stands (its front toward the street).
-const CART_INSET := 0.5
-## Most carts a chunk.
-const MAX_CARTS := 36
 ## Draw distances (m).
-const CART_DRAW_DISTANCE := 120.0
 const SMALL_DRAW_DISTANCE := 140.0
 
-## Off: the old meshes everywhere and no carts (the A/B).
+## Off: the old meshes everywhere, no pay stations, no stop benches (the A/B).
 static var enabled: bool = OS.get_environment("STREET_FURNITURE") != "0"
-## Every block's carts out, whatever the day (stills, tests): CARTS=all.
-static var force_carts: bool = OS.get_environment("CARTS") == "all"
-## Today, 0..6 (DayNight.day_count from the scene when there is one); -1 reads it.
-static var force_day: int = -1
 
 static var _meshes: Dictionary = {}
 static var _material: ShaderMaterial
@@ -203,83 +188,29 @@ static func bin_custom(at: Vector3) -> Color:
 	return Color(p.r, p.g, p.b, 0.15 + 0.6 * _fr(h * 7.7))
 
 
-## The bus stop's instances, without the stop's own sign (StreetDetail._bus_shelter): true when
-## this stop is a bench with an ad back and no shelter.
-static func bench_stop(seed: int, at: Vector3) -> bool:
-	return enabled and _h01([seed, "bench_stop", roundi(at.x), roundi(at.z)]) < BENCH_STOP_SHARE
+## A concrete bench with a painted ad beside a third of the bus shelters (StreetDetail.
+## _bus_shelter): `at` the shelter's spot, `back` its way in, `along` toward the stop's sign, `yaw`
+## as the shelter's (its local -Z toward the buildings). A prop with an id of its own and two seats
+## for CrowdLife; kept off whatever stands there already.
+static func add_stop_bench(chunk: CityChunk, at: Vector3, back: Vector3, along: Vector3, yaw: float) -> void:
+	if not enabled or chunk.level != CityChunk.Level.FULL:
+		return
+	if _h01([chunk.plan.seed, "stop_bench", roundi(at.x), roundi(at.z)]) >= STOP_BENCH_SHARE:
+		return
+	var pos := at + back * 0.55 - along * STOP_BENCH_ALONG
+	if _blocked(_obstacles(chunk), Vector2(pos.x, pos.z), 1.0):
+		return
+	var xf := Transform3D(Basis(Vector3.UP, yaw + PI), pos)
+	_own_prop(chunk, "ad_bench", pos, Color(0.66, 0.65, 0.62), [ad_bench_instance(chunk.plan.seed, xf)],
+		[[Vector3(1.9, 1.1, 0.6), pos + Vector3(0.0, 0.55, 0.0), yaw]])
+	if not chunk.prop_records.is_empty() and chunk.prop_records.back().kind == "ad_bench":
+		CrowdLife.add_seat(chunk, pos + Vector3(0.0, chunk._gy(pos.x, pos.z), 0.0), yaw + PI, chunk.prop_records.back())
 
 
 static func ad_bench_instance(seed: int, xf: Transform3D) -> Array:
 	var h := _h01([seed, "bench_ad", roundi(xf.origin.x), roundi(xf.origin.z)])
 	var ad := int(h * BENCH_ADS) % BENCH_ADS
 	return ["ad_bench", ad_bench(), xf, Color.WHITE, Color((float(ad) + 0.5) / 16.0, 0.0, 0.0, 0.15 + 0.6 * _fr(h * 13.7))]
-
-
-# --- Collection day ----------------------------------------------------------------------------
-
-## Which weekday (0..6) this block's carts go out on: a hash of seed + block, Monday to Friday.
-static func collection_day(seed: int, ix: int, iz: int) -> int:
-	return int(_h01([seed, "collect", ix, iz]) * 5.0) % 5
-
-
-## Today (0..6): DayNight's day count in the running scene, Monday at the start.
-static func today() -> int:
-	if force_day >= 0:
-		return force_day
-	var tree := Engine.get_main_loop() as SceneTree
-	var scene := tree.current_scene if tree else null
-	if scene:
-		var dn := scene.get_node_or_null("DayNight")
-		if dn and dn.get("day_count") != null:
-			return int(dn.get("day_count")) % 7
-	return 0
-
-
-static func carts_out(seed: int, ix: int, iz: int) -> bool:
-	return force_carts or collection_day(seed, ix, iz) == today()
-
-
-## The kerb's carts for one block (StreetDetail.build_block, FULL chunks): in pairs and threes on
-## the pavement at the kerb, fronts to the street, kept clear of what already stands there. Props
-## with ids of their own (`cart_<n>`), so nothing else's id moves; every roll a hash.
-static func build_carts(chunk: CityChunk, edges: Array, district: int) -> void:
-	if not enabled or chunk.level != CityChunk.Level.FULL or not CART_DISTRICTS.has(district):
-		return
-	var seed: int = chunk.plan.seed
-	if not carts_out(seed, chunk.ix, chunk.iz):
-		return
-	var top: float = CityChunk.SIDEWALK_TOP
-	var keep: Array = _obstacles(chunk)
-	var n := 0
-	for e in edges.size():
-		var a: Vector2 = edges[e][0]
-		var b: Vector2 = edges[e][1]
-		var inward: Vector2 = edges[e][2]
-		var length := a.distance_to(b)
-		var dir := (b - a) / length
-		var t := 7.0 + _h01([seed, "cart_phase", chunk.ix, chunk.iz, e]) * CART_PITCH
-		while t < length - 7.0 and n < MAX_CARTS:
-			var h := _h01([seed, "cart", chunk.ix, chunk.iz, e, int(t * 10.0)])
-			if h < CART_SHARE:
-				# Black always, then blue, then (often) green, side by side along the kerb.
-				var kinds := [0, 1] if h < CART_SHARE * 0.45 else ([0, 1, 2] if h < CART_SHARE * 0.85 else [1, 2])
-				var span := float(kinds.size()) * 0.84
-				for k in kinds.size():
-					var along := t + (float(k) - float(kinds.size() - 1) * 0.5) * 0.84
-					var p := a + dir * along + inward * CART_INSET
-					if _blocked(keep, p, 0.75):
-						continue
-					var hh := _h01([seed, "cart_k", chunk.ix, chunk.iz, e, int(along * 10.0)])
-					var yaw := atan2(inward.x, inward.y) + (hh - 0.5) * 0.35
-					var at := Vector3(p.x, top, p.y)
-					var paint: Color = CART_PAINTS[kinds[k]]
-					_own_prop(chunk, "cart", at, paint, [
-						["cart", cart(), Transform3D(Basis(Vector3.UP, yaw), at), Color.WHITE, Color(paint.r, paint.g, paint.b, 0.1 + 0.7 * _fr(hh * 7.3))],
-					], [[Vector3(0.64, 1.07, 0.74), at + Vector3(0.0, 0.535, 0.0), yaw]])
-					n += 1
-				t += span
-			t += CART_PITCH * (0.7 + 0.6 * _fr(h * 17.3))
-	chunk._batch.set_draw_distance("cart", CART_DRAW_DISTANCE)
 
 
 ## Points (x, z, radius) of what stands on the pavement already: props and tree grates.
@@ -338,7 +269,6 @@ static func warm() -> Array:
 	pay_station()
 	ad_bench()
 	mesh_bin()
-	cart()
 	bike_rack()
 	planter()
 	for i in PLANTER_PLANTS:
@@ -547,49 +477,6 @@ static func mesh_bin() -> Mesh:
 	g.lathe(Vector3.ZERO, Basis(), [Vector2(r + 0.03, 0.965), Vector2(r + 0.03, 0.985), Vector2(r - 0.02, 1.01), Vector2(r * 0.6, 1.045), Vector2(0.0, 1.055)], 40, paint, K_PAINT, true)
 	g.lathe(Vector3.ZERO, Basis(), [Vector2(0.0, 0.965), Vector2(r + 0.03, 0.965)], 40, paint, K_PAINT, false)
 	return _finish("mesh_bin", g)
-
-
-## A 96-gallon residential cart: 0.64 m wide, 0.74 deep, 1.07 tall, lid hinge at the back (+Z),
-## front toward -Z.
-static func cart() -> Mesh:
-	if _meshes.has("cart"):
-		return _meshes.cart
-	var g := Geo.new()
-	var paint := Color.WHITE
-	var lo := _rrect(0.54, 0.6, 0.07, 4)
-	var hi := _rrect(0.62, 0.70, 0.085, 4)
-	var lip := _rrect(0.655, 0.735, 0.095, 4)
-	# Body: tapered walls, the bottom, the rim's lip.
-	g.loft(lo, 0.06, Vector3(0.0, 0.0, -0.01), hi, 0.98, Vector3.ZERO, paint, K_HDPE)
-	g.loft(hi, 0.98, Vector3.ZERO, lip, 0.99, Vector3.ZERO, paint, K_HDPE)
-	g.loft(lip, 0.99, Vector3.ZERO, lip, 1.0, Vector3.ZERO, paint, K_HDPE)
-	g.cap(lo, 0.06, Vector3(0.0, 0.0, -0.01), false, paint, K_HDPE)
-	# Ribs moulded down the front and the sides.
-	for x in [-0.16, 0.16]:
-		g.box(Vector3(x, 0.52, -0.33), Basis(Vector3.RIGHT, -0.04), Vector3(0.05, 0.84, 0.03), paint, K_HDPE)
-	# The lid: a domed slab overhanging the rim, a lip down at the front, the hinge at the back.
-	var lid := _rrect(0.67, 0.76, 0.1, 4)
-	var lid_top := _rrect(0.63, 0.72, 0.08, 4)
-	g.loft(lid, 0.985, Vector3(0.0, 0.0, -0.005), lid, 1.02, Vector3(0.0, 0.0, -0.005), paint, K_HDPE)
-	g.loft(lid, 1.02, Vector3(0.0, 0.0, -0.005), lid_top, 1.045, Vector3(0.0, 0.0, -0.005), paint, K_HDPE)
-	g.cap(lid_top, 1.045, Vector3(0.0, 0.0, -0.005), true, paint, K_HDPE)
-	g.box(Vector3(0.0, 0.985, -0.395), Basis(), Vector3(0.24, 0.05, 0.03), paint, K_HDPE)
-	g.lathe(Vector3(-0.3, 1.0, 0.39), Basis(Vector3(0, 0, 1), -PI * 0.5), [Vector2(0.0, 0.0), Vector2(0.022, 0.0), Vector2(0.022, 0.6), Vector2(0.0, 0.6)], 10, paint, K_HDPE, true)
-	g.panel(Vector3(0.0, 1.0465, -0.12), Vector2(0.4, 0.22), Vector3.UP, K_LABEL, Color.WHITE, L_CART, Vector3(0, 0, -1))
-	# The handle bar across the back, on two brackets.
-	var handle := PackedVector3Array([Vector3(-0.27, 0.9, 0.36), Vector3(-0.27, 0.93, 0.42), Vector3(-0.22, 0.94, 0.44), Vector3(0.22, 0.94, 0.44), Vector3(0.27, 0.93, 0.42), Vector3(0.27, 0.9, 0.36)])
-	g.tube(handle, 0.018, 8, paint, K_HDPE)
-	# The axle, the wheels and the moulded wheel wells.
-	for sx in [-1.0, 1.0]:
-		g.box(Vector3(sx * 0.27, 0.13, 0.3), Basis(), Vector3(0.06, 0.2, 0.16), paint, K_HDPE)
-		var wb := Basis(Vector3(0, 0, 1), -PI * 0.5 * sx)
-		var c := Vector3(sx * 0.3, 0.15, 0.33)
-		g.lathe(c, wb, [Vector2(0.0, -0.032), Vector2(0.11, -0.032), Vector2(0.145, -0.026), Vector2(0.152, -0.012), Vector2(0.152, 0.012), Vector2(0.145, 0.026), Vector2(0.11, 0.032), Vector2(0.0, 0.032)], 22, Color(0.04, 0.04, 0.045), K_RUBBER, true)
-		g.lathe(c + Vector3(sx * 0.033, 0.0, 0.0), wb, [Vector2(0.0, 0.0), Vector2(0.06, 0.0), Vector2(0.05, 0.008), Vector2(0.0, 0.01)], 12, Color(0.2, 0.2, 0.21), K_RUBBER, false)
-	g.lathe(Vector3(-0.3, 0.15, 0.33), Basis(Vector3(0, 0, 1), -PI * 0.5), [Vector2(0.0, 0.0), Vector2(0.012, 0.0), Vector2(0.012, 0.6), Vector2(0.0, 0.6)], 8, Color(0.5, 0.5, 0.5), K_GALV, true)
-	# Front skid.
-	g.box(Vector3(0.0, 0.03, -0.28), Basis(), Vector3(0.4, 0.06, 0.06), paint, K_HDPE)
-	return _finish("cart", g)
 
 
 ## The galvanised inverted-U hoop, 0.6 m wide and 0.9 m tall, on two bolted flanges; its plane is

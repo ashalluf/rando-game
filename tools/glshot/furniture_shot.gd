@@ -9,7 +9,7 @@ extends SceneTree
 ## Env: OUT, CAM, LOOK (x,y,z), FOV, NIGHT=1, OLD=1 (the old meshes in the same places: the
 ## before), WEAR=0..1 (every piece's wear), WET=0..1, AD=n (the bench's ad). Layout: the kerb
 ## runs along x at z 0, the road at z > 0; pieces stand at z -0.6 from x -4, 1.4 m apart: hydrant,
-## meter, pay station, bench, bin, three carts, bike racks, planter. Prints each mesh's triangles.
+## meter, pay station, bench, bin, bike racks, planter. Prints each mesh's triangles.
 func _initialize() -> void:
 	# Classes by path, a frame in: the script is compiled before the autoloads exist.
 	await process_frame
@@ -85,9 +85,6 @@ func _initialize() -> void:
 		_place(stage, sf.call("ad_bench"), Transform3D(face, Vector3(x + 4.8, top, -1.0)), Color((ad + 0.5) / 16.0, 0.0, 0.0, wear))
 		_place(stage, sf.call("mesh_bin"), Transform3D(face, Vector3(x + 6.8, top, -0.6)), Color(0.07, 0.075, 0.08, wear))
 		for k in 3:
-			var p: Color = (sf.get("CART_PAINTS") as Array)[k]
-			_place(stage, sf.call("cart"), Transform3D(face.rotated(Vector3.UP, (k - 1) * 0.1), Vector3(x + 8.2 + k * 0.8, top, -0.5)), Color(p.r, p.g, p.b, wear))
-		for k in 3:
 			_place(stage, sf.call("bike_rack"), Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(x + 11.6, top, -1.6 + k * 0.8)), Color(0, 0, 0, wear))
 		var pl: Array = sf.call("planter_instances", 7, Transform3D(face, Vector3(x + 13.4, top, -1.2)))
 		if OS.get_environment("PLANTS") == "1":
@@ -98,7 +95,7 @@ func _initialize() -> void:
 				pl.append_array(sf.call("planting", k, pxf, 0.3))
 		for inst in pl:
 			_place(stage, inst[1], inst[2], inst[4] if inst.size() > 4 else Color.BLACK, inst[3] if inst.size() > 3 else Color.WHITE)
-		for n in ["hydrant", "meter", "pay_station", "ad_bench", "mesh_bin", "cart", "bike_rack", "planter"]:
+		for n in ["hydrant", "meter", "pay_station", "ad_bench", "mesh_bin", "bike_rack", "planter"]:
 			var m: Mesh = sf.call(n)
 			var tris := (m.surface_get_arrays(0)[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3
 			print("MESH %s: %d triangles, shadow proxy %s" % [n, tris, str(pf.call("shadow_proxy", m) != null)])

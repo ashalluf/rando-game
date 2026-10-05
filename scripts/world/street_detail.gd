@@ -37,8 +37,10 @@ const POLE_EDGE_MARGIN := 6.0
 ## Height above the pavement of the power crossarm and of the lower telecom arm.
 const POWER_ARM_HEIGHT := 8.15
 const TELCO_ARM_HEIGHT := 6.35
-## Straight pieces per cable span: more is a smoother catenary and more instances.
-const CABLE_SEGMENTS := 5
+## Straight pieces per cable span: more is a smoother catenary and more instances. Birds lands
+## crows on this very polyline (Birds.wire_point()). UtilityPoles' ribbons are two triangles a
+## piece (it was 5 when every piece was a box).
+const CABLE_SEGMENTS := 10
 ## Mid-span droop of the power and telecom cables, in metres. Telecom hangs slacker.
 const POWER_SAG := 1.1
 const TELCO_SAG := 1.7
@@ -130,7 +132,8 @@ static func build_block(chunk: CityChunk, rect: Rect2, edges: Array, params: Dic
 			var p := a + dir * (t + piece * 0.5) - inward * 0.3
 			batch.add("gutter", PropFactory.gutter(), Transform3D(Basis(Vector3.UP, yaw).scaled_local(Vector3(1.0, 1.0, piece / 4.0)), Vector3(p.x, road_top + 0.004, p.y)))
 			t += piece
-		for k in 2:
+		# RoadHardware lays its own kerb inlets (with their grates) in place of these.
+		for k in (0 if RoadHardware.enabled else 2):
 			var along := 4.0 if k == 0 else length - 4.0
 			var gp := a + dir * along - inward * 0.55
 			batch.add("grate", PropFactory.grate(), Transform3D(Basis(Vector3.UP, yaw), Vector3(gp.x, road_top + 0.006, gp.y)))
@@ -165,7 +168,9 @@ static func build_block(chunk: CityChunk, rect: Rect2, edges: Array, params: Dic
 	# mesh to its middle, leaving the crossarm and the wires floating four metres above it.
 	_overhead_lines(chunk, rect)
 	# Painted kerbs and parking meters.
-	_kerb_paint(chunk, edges, district)
+	# (Kerbs paints a block whose kerb ring it builds; its own rolls, so skipping this moves nothing.)
+	if not chunk.has_meta("kerbs"):
+		_kerb_paint(chunk, edges, district)
 	_parking_meters(chunk, edges, district)
 	# Sidewalk furniture by district.
 	var corner_count := 0
@@ -183,7 +188,8 @@ static func build_block(chunk: CityChunk, rect: Rect2, edges: Array, params: Dic
 		if rng.randf() < rack_odds:
 			var p := a + dir * rng.randf_range(8.0, length - 8.0) + inward * 1.2
 			var basis := Basis(Vector3.UP, yaw)
-			for k in 3:
+			# Not across a hospital's drive (Hospital; after the roll).
+			for k in (0 if Hospital.keeps_clear(plan, p) else 3):
 				var q := p + dir * (k - 1) * 0.8
 				chunk._add_prop("rack", Vector3(q.x, top, q.y), Color(0.3, 0.3, 0.32), [
 					["rack", StreetFurniture.rack_mesh(), Transform3D(basis, Vector3(q.x, top, q.y)), Color.WHITE, StreetFurniture.rack_custom(plan.seed, Vector3(q.x, top, q.y))],
@@ -199,7 +205,8 @@ static func build_block(chunk: CityChunk, rect: Rect2, edges: Array, params: Dic
 			news.append([p + dir * 0.55, dir, inward, paints])
 		if rng.randf() < mail_odds:
 			var p := a + dir * rng.randf_range(10.0, length - 10.0) + inward * 1.1
-			chunk._add_prop("mailbox", Vector3(p.x, top, p.y), Color(0.15, 0.3, 0.25), [
+			if not Hospital.keeps_clear(plan, p):
+				chunk._add_prop("mailbox", Vector3(p.x, top, p.y), Color(0.15, 0.3, 0.25), [
 				["mailbox", PropFactory.mailbox(), Transform3D(Basis(Vector3.UP, yaw), Vector3(p.x, top, p.y))],
 			], [[Vector3(0.6, 1.3, 0.5), Vector3(p.x, top + 0.65, p.y), yaw]])
 		corner_count += 1
@@ -219,12 +226,11 @@ static func build_block(chunk: CityChunk, rect: Rect2, edges: Array, params: Dic
 		var dir := (b - a).normalized()
 		var p := a + dir * rng.randf_range(12.0, a.distance_to(b) - 12.0) + inward * 2.0
 		_bus_shelter(chunk, p, inward, dir)
-	# Residential carts out on the block's collection day (StreetFurniture, hash-seeded, ids of
-	# their own).
-	StreetFurniture.build_carts(chunk, edges, district)
 	# News boxes, A-frame boards and gutter litter (StreetClutter), last: they keep clear of
 	# everything above and roll nothing from `rng`.
 	StreetClutter.build_block(chunk, rect, edges, district, news)
+	# The road's hardware: covers, inlets, cuts, plates, markers (RoadHardware; hash-seeded).
+	RoadHardware.build_block(chunk, rect, edges)
 
 
 ## Intersection details: stop lines, lane arrows, junction wear, street name signs, no-parking
@@ -335,6 +341,10 @@ static func _has_poles(plan: CityPlan, bix: int, biz: int, axis: int, index: int
 
 
 static func _pole_run(chunk: CityChunk, rect: Rect2, axis: int, index: int, side: int, walls: Array[Rect2]) -> void:
+	# Real hardware and ribbon wires (UtilityPoles); UTILITY_POLES=0 keeps the primitives below.
+	if UtilityPoles.enabled:
+		UtilityPoles.street_run(chunk, rect, axis, index, side, walls)
+		return
 	var plan: CityPlan = chunk.plan
 	var batch: MultiMeshBatch = chunk._batch
 	var top: float = CityChunk.SIDEWALK_TOP
@@ -442,7 +452,7 @@ static func _span(chunk: CityChunk, a: Vector3, b: Vector3, arm: Vector3) -> voi
 ## guarantees MIN_CLEARANCE (4 m) over the ground, well under a pole's 9.25 m tip, so a pole in
 ## the corridor is through the deck - along with the solid box a car can hit.
 static func _pole_blocked(chunk: CityChunk, p: Vector3) -> bool:
-	return chunk._under_freeway(Vector2(p.x, p.z), FREEWAY_CLEARANCE)
+	return chunk._under_freeway(Vector2(p.x, p.z), FREEWAY_CLEARANCE) or Hospital.keeps_clear(chunk.plan, Vector2(p.x, p.z))
 
 
 ## The pole of the neighbouring block that a wire would meet across the junction, as a one-entry
@@ -535,6 +545,11 @@ static func _lift(chunk: CityChunk, at: Vector3, height: float) -> Vector3:
 
 ## A sagging wire from a to b, approximated with CABLE_SEGMENTS straight pieces on a parabola.
 static func _catenary(batch: MultiMeshBatch, a: Vector3, b: Vector3, sag: float) -> void:
+	if UtilityPoles.enabled:
+		var kind: int = UtilityPoles.Wire.COMM if sag >= TELCO_SAG else (UtilityPoles.Wire.PRIMARY if sag >= POWER_SAG else UtilityPoles.Wire.DROP)
+		var radius: float = UtilityPoles.R_COMM[0] if sag >= TELCO_SAG else (UtilityPoles.R_PRIMARY if sag >= POWER_SAG else UtilityPoles.R_DROP)
+		UtilityPoles.add_wire(batch, a, b, sag, kind, radius)
+		return
 	var prev := a
 	for i in range(1, CABLE_SEGMENTS + 1):
 		var s := float(i) / float(CABLE_SEGMENTS)
@@ -545,6 +560,9 @@ static func _catenary(batch: MultiMeshBatch, a: Vector3, b: Vector3, sag: float)
 
 ## One straight cable piece between two true world points.
 static func _cable(batch: MultiMeshBatch, a: Vector3, b: Vector3) -> void:
+	if UtilityPoles.enabled:
+		UtilityPoles.add_wire(batch, a, b, 0.0, UtilityPoles.Wire.GUY, UtilityPoles.R_GUY)
+		return
 	var length := a.distance_to(b)
 	if length < 0.01:
 		return
@@ -706,6 +724,9 @@ static func _junction_wear(chunk: CityChunk, pos: Vector2, d: Vector2, lane: Vec
 
 ## One street-name post: two plates crossed at the top, each with its name on both faces.
 static func _name_sign(chunk: CityChunk, corner: Vector2, name_x: String, name_z: String) -> void:
+	if StreetSigns.enabled:
+		StreetSigns.name_post(chunk, corner, name_x, name_z)
+		return
 	var top: float = CityChunk.SIDEWALK_TOP
 	var at := Vector3(corner.x, top, corner.y)
 	var instances := [
@@ -748,6 +769,9 @@ static func _regulatory_signs(chunk: CityChunk, pos: Vector2, size: Vector2) -> 
 		# The band sits proud of the plate along its facing direction; flat on it the two
 		# coplanar faces would z-fight and the sign would flicker from every angle.
 		var front := basis * Vector3(0.0, 0.0, -0.02)
+		if StreetSigns.enabled:
+			StreetSigns.no_parking(chunk, at, face_x, c, i)
+			continue
 		chunk._add_prop("street_sign", at, Color(0.3, 0.3, 0.32), [
 			["sign_post", PropFactory.sign_post(), Transform3D(Basis(), at + Vector3(0.0, 1.25, 0.0))],
 			["sign_plate", PropFactory.sign_plate(), Transform3D(plate, at + Vector3(0.0, 2.15, 0.0)), Color(0.95, 0.95, 0.93)],
@@ -849,17 +873,6 @@ static func _bus_shelter(chunk: CityChunk, p: Vector2, inward: Vector2, dir: Vec
 	var at := Vector3(p.x, top, p.y)
 	var back := Vector3(inward.x, 0.0, inward.y) * 0.9
 	var along := Vector3(dir.x, 0.0, dir.y)
-	# Half the stops are a bench with a painted ad back and the sign, no shelter (StreetFurniture,
-	# hash-seeded): the same prop, its id and the seat where it was.
-	if StreetFurniture.bench_stop(chunk.plan.seed, at):
-		chunk._add_prop("bus_stop", at, Color(0.3, 0.3, 0.32), [
-			StreetFurniture.ad_bench_instance(chunk.plan.seed, Transform3D(Basis(Vector3.UP, yaw + PI), at + back * 0.55)),
-			["sign_post", PropFactory.sign_post(), Transform3D(Basis(), at + along * 2.6 + Vector3(0.0, 1.4, 0.0))],
-			["bus_sign", PropFactory.bus_sign(), Transform3D(basis, at + along * 2.6 + Vector3(0.0, 2.7, 0.0))],
-		], [[Vector3(1.9, 1.1, 0.6), at + back * 0.55 + Vector3(0.0, 0.55, 0.0), yaw]])
-		if not chunk.prop_records.is_empty() and chunk.prop_records.back().kind == "bus_stop" and chunk.level == CityChunk.Level.FULL:
-			CrowdLife.add_seat(chunk, at + back * 0.55, yaw + PI, chunk.prop_records.back())
-		return
 	var instances := [
 		["shelter_post", PropFactory.shelter_post(), Transform3D(basis, at + back + along * 1.8 + Vector3(0.0, 1.25, 0.0))],
 		["shelter_post", PropFactory.shelter_post(), Transform3D(basis, at + back - along * 1.8 + Vector3(0.0, 1.25, 0.0))],
@@ -876,3 +889,6 @@ static func _bus_shelter(chunk: CityChunk, p: Vector2, inward: Vector2, dir: Vec
 	# People waiting for the bus sit on its bench (Pedestrian's life, CrowdLife).
 	if not chunk.prop_records.is_empty() and chunk.prop_records.back().kind == "bus_stop" and chunk.level == CityChunk.Level.FULL:
 		CrowdLife.add_seat(chunk, at + back * 0.55, yaw, chunk.prop_records.back())
+	# A third of the stops also have a concrete bench with a painted ad beside the shelter
+	# (StreetFurniture: hash-seeded, props with ids of their own).
+	StreetFurniture.add_stop_bench(chunk, at, back, along, yaw)

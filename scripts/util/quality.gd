@@ -96,6 +96,8 @@ func _ready() -> void:
 		# The web build renders with the Compatibility renderer, which has none of these
 		# effects, and the headless check has no frame rate to measure; nothing to adapt.
 		set_process(false)
+		if OS.has_feature("web"):
+			_apply_web()
 	else:
 		apply_level(start_level)
 
@@ -199,6 +201,10 @@ func _apply_render() -> void:
 	CarLights.budget = [6, 3, 0, 0][int(level)]
 	CarLights.player_light = level <= Level.LOW
 	CarLights.player_shadow = level == Level.HIGH
+	# Reflection probes in the streets round the camera (Forward+ only): nine, one render a half
+	# second at HIGH; five, one a second at MEDIUM; none below.
+	ReflectionProbes.budget = [9, 5, 0, 0][int(level)]
+	ReflectionProbes.refresh_seconds = 0.5 if level == Level.HIGH else 1.0
 	var viewport := get_viewport()
 	if viewport:
 		viewport.mesh_lod_threshold = lod_threshold[i]
@@ -270,6 +276,17 @@ func _apply_population() -> void:
 	Pedestrian.lod_far = 140.0 if level <= Level.MEDIUM else 80.0
 	Pedestrian.mid_body_range = 50.0 if level <= Level.MEDIUM else 35.0
 	Pedestrian.shadow_range = 45.0 if level <= Level.MEDIUM else 20.0
+
+
+## The web build never runs apply_level() (nothing to adapt, see _ready()), so the per-pixel
+## extras that _apply_render() drops "on the web" were left at their desktop defaults there: the
+## sky's cloud_detail (five noise taps over every sky pixel) and the ground_detail global (the
+## road's second texture fetch, the drying, the mirrored city, the lawn's second sample) both
+## stayed on in the browser. Set the web's values once here; no other setting changes.
+func _apply_web() -> void:
+	if _env and _env.sky and _env.sky.sky_material is ShaderMaterial:
+		(_env.sky.sky_material as ShaderMaterial).set_shader_parameter("cloud_detail", 0.0)
+	RenderingServer.global_shader_parameter_set("ground_detail", 0.0)
 
 
 func _override() -> int:

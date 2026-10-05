@@ -138,6 +138,9 @@ func _live_queues() -> void:
 		for car in _traffic.cars:
 			if not is_instance_valid(car) or not car.is_inside_tree() or not car.traffic.has("along"):
 				continue
+			# A parked car waiting to pull out (TrafficAI) still stands in its parking spot.
+			if car.traffic.has("pull"):
+				continue
 			var key := TrafficManager.lane_key(int(car.traffic.axis), int(car.traffic.index), int(car.traffic.dir), float(car.traffic.lane))
 			if not groups.has(key):
 				groups[key] = []

@@ -45,6 +45,11 @@ uniform vec3 rigid_color : source_color = vec3(0.96, 0.96, 0.94);
 uniform float edge_start = 5040.0;
 uniform float edge_end = 6860.0;
 global uniform vec4 sky_tint;
+global uniform float lamp_factor;
+// The hillside houses' glass bands (HillHomeKit.far_boxes(), INSTANCE_CUSTOM.g): warm light
+// after dark, linear.
+uniform vec3 estate_light = vec3(1.0, 0.68, 0.36);
+uniform float estate_energy = 2.4;
 
 varying vec3 tint;
 varying float shade;
@@ -52,6 +57,7 @@ varying float shade;
 // hands it back): dithered in the fragment, collapsed at zero.
 varying float fade;
 varying float rim;
+varying float glow;
 
 
 // The plane's own offset (lift minus sink) at one of its vertices, exactly as its shader works it.
@@ -106,8 +112,15 @@ void vertex() {
 		shift = 0.0;
 		if (real < 0.999) {
 			float ground = plane_y + plane_height(origin.xz, cam);
-			// The unit box is centred on its origin, so its base is half its height below it.
-			shift = (ground - (origin.y - 0.5 * h) - bury * h) * (1.0 - real);
+			if (INSTANCE_CUSTOM.a > 0.5) {
+				// A part of a hillside house (HillHomeKit.far_boxes()): every part of an estate is
+				// seated by the same amount, its pad's top (the base less its lift) put a little
+				// into the drawn ground, so the wings, roofs and glass stay stacked.
+				shift = (ground - (origin.y - 0.5 * h - INSTANCE_CUSTOM.b * 100.0) - 0.8) * (1.0 - real);
+			} else {
+				// The unit box is centred on its origin, so its base is half its height below it.
+				shift = (ground - (origin.y - 0.5 * h) - bury * h) * (1.0 - real);
+			}
 		}
 		tint = COLOR.rgb;
 		// A canopy is darker low down and on its flanks than on top. Read before the move below,
@@ -121,6 +134,7 @@ void vertex() {
 		NORMAL = normalize(NORMAL / max(sc * sc, vec3(1e-4)));
 	}
 	fade = rigid ? 1.0 : COLOR.a;
+	glow = rigid ? 0.0 : clamp(INSTANCE_CUSTOM.g, 0.0, 1.0);
 	vec3 at = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
 	rim = smoothstep(edge_start, edge_end, length(at.xz - cam.xz));
 	if (fade < 0.004) {
@@ -143,6 +157,12 @@ void fragment() {
 	ALBEDO = (rigid ? tint * shade : cs_out(tint * shade)) * (1.0 - rim);
 	// sky_tint arrives raw on both renderers; the sky it fades into is decoded on Forward+.
 	EMISSION = cs_out(cs_srgb_to_linear(sky_tint.rgb)) * rim;
+	if (glow > 0.001) {
+		// A lit glass band: the rooms behind a hillside house's glass, warm after dark (a little
+		// sky in the glass by day).
+		float lamp = clamp(lamp_factor, 0.0, 1.0);
+		EMISSION += cs_out(estate_light * estate_energy * glow * lamp * lamp + cs_srgb_to_linear(sky_tint.rgb) * 0.12 * (1.0 - lamp)) * (1.0 - rim);
+	}
 	ROUGHNESS = 0.95;
 	SPECULAR = 0.2;
 }

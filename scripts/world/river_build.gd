@@ -47,6 +47,8 @@ const LAMP_GAP := 30.0
 ## The freight tracks along the river: their centre this far outside the fence, the ballast's
 ## half width, and a tie every TIE_GAP metres.
 const TRACK_OUT := 6.5
+## The rail tops over the yard's top (the rail boxes' tops in _track_run()).
+const RAIL_TOP := 0.355
 const BALLAST_HALF := 2.1
 const TIE_GAP := 0.62
 ## Odds that a stretch of track has a string of freight cars standing on it.
@@ -1124,12 +1126,31 @@ func _track_run(run_pts: Array, sg: float) -> void:
 		return
 	var pos := first + 4.0 + rv.h01(["cars_at"] + key) * 10.0
 	var i := 0
-	while pos + 16.0 < last - 3.0 and i < 6:
+	var off: float = run_pts[0][1]
+	while i < 6:
+		var tank := rv.h01(["tank"] + key + [i]) < 0.3
+		if FreightRail.enabled:
+			# The freight line's own rolling stock (FreightStock: boxcars, tank cars, covered
+			# hoppers) on the rail tops; the old rolls pick the car, one more its look.
+			var t: int = FreightRail.Car.TANK if tank else (FreightRail.Car.HOPPER if rv.h01(["paint"] + key + [i]) < 0.35 else FreightRail.Car.BOX)
+			var env := FreightStock.envelope(t)
+			if pos + env.z >= last - 3.0:
+				break
+			var ms := pos + env.z * 0.5
+			var pc := rv.point(ms, sg * off)
+			var dc: Vector2 = rv.at(ms)[1]
+			var look := int(rv.h01(["look"] + key + [i]) * 1048576.0)
+			var yaw := atan2(-dc.x, -dc.y) + (PI if look & 1 else 0.0)
+			ch._batch.add("fr_car_%d" % t, FreightStock.mesh(t), Transform3D(Basis(Vector3.UP, yaw), Vector3(pc.x, top_base + RAIL_TOP, pc.y)), Color(1, 1, 1), FreightStock.custom(t, look))
+			ch._add_shape(Vector3(env.x, env.y - 0.8, env.z), Vector3(pc.x, top_base + RAIL_TOP + ch._gy(pc.x, pc.y) + 0.8 + (env.y - 0.8) * 0.5, pc.y), yaw)
+			pos += env.z + 0.9
+			i += 1
+			continue
+		if pos + 16.0 >= last - 3.0:
+			break
 		var mid_s := pos + 8.1
-		var off: float = run_pts[0][1]
 		var pm := rv.point(mid_s, sg * off)
 		var d2: Vector2 = rv.at(mid_s)[1]
-		var tank := rv.h01(["tank"] + key + [i]) < 0.3
 		var paint: Color = Industrial.BOXCAR_PAINTS[int(rv.h01(["paint"] + key + [i]) * Industrial.BOXCAR_PAINTS.size()) % Industrial.BOXCAR_PAINTS.size()]
 		if tank:
 			paint = Color(0.13, 0.13, 0.13)

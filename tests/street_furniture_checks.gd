@@ -4,20 +4,20 @@ extends RefCounted
 ##
 ## Checks the meshes (every piece builds on the furniture shader inside its triangle budget, at
 ## real size, with a shadow twin), the shader's copy of the kinds, the ad atlas's rows, the pure
-## rolls (pay station and bench-stop shares, collection days Monday to Friday, the hydrant facing
-## the street, the bin by district), then builds a metered downtown block and a suburban block on
-## collection day: the new pieces are there as batches on the furniture shader, the carts are
-## props with ids of their own, and the same blocks built with the furniture off are the same
-## blocks (the same props by kind and place, the same buildings, trash cans and parked cars).
+## rolls (pay station and stop-bench shares, the hydrant facing the street, the bin by district),
+## then builds metered downtown blocks: the new pieces are batches on the furniture shader, every
+## bus stop keeps its shelter, the stop benches are props with ids of their own standing by a
+## shelter and stay gone once smashed, and the same block built with the furniture off is the same
+## block (the same props by id, kind and place, buildings, trash cans and parked cars).
 
 var _t: Node
 ## StreetFurniture's script, for the calls by name (a class cannot be .call()ed).
 var _sf: GDScript = load("res://scripts/world/street_furniture.gd")
 
 ## Most triangles a piece may have at its finest level.
-const BUDGET := {"hydrant": 5200, "meter": 2600, "pay_station": 2600, "ad_bench": 900, "mesh_bin": 4200, "cart": 3600, "bike_rack": 1000, "planter": 900}
+const BUDGET := {"hydrant": 5200, "meter": 2600, "pay_station": 2600, "ad_bench": 900, "mesh_bin": 4200, "bike_rack": 1000, "planter": 900}
 ## Height ranges (m) each piece must stand to: real sizes.
-const HEIGHTS := {"hydrant": Vector2(0.55, 0.7), "meter": Vector2(1.4, 1.55), "pay_station": Vector2(2.0, 2.3), "ad_bench": Vector2(0.95, 1.15), "mesh_bin": Vector2(0.95, 1.1), "cart": Vector2(1.0, 1.12), "bike_rack": Vector2(0.85, 0.95), "planter": Vector2(0.45, 0.52)}
+const HEIGHTS := {"hydrant": Vector2(0.55, 0.7), "meter": Vector2(1.4, 1.55), "pay_station": Vector2(2.0, 2.3), "ad_bench": Vector2(0.95, 1.15), "mesh_bin": Vector2(0.95, 1.1), "bike_rack": Vector2(0.85, 0.95), "planter": Vector2(0.45, 0.52)}
 
 
 func run(t: Node, city: Node3D) -> void:
@@ -27,7 +27,6 @@ func run(t: Node, city: Node3D) -> void:
 	_shader()
 	_rolls(plan)
 	_downtown(city, plan)
-	_carts(city, plan)
 
 
 func _meshes() -> void:
@@ -73,14 +72,10 @@ func _rolls(plan: CityPlan) -> void:
 		var at := Vector3(float(i) * 7.3, 0.12, float(i % 17) * 11.1)
 		if (StreetFurniture.meter_instance(plan.seed, at, 0.0, null)[0] as String) == "pay_station":
 			pays += 1
-		if StreetFurniture.bench_stop(plan.seed, at):
+		if _sf.call("_h01", [plan.seed, "stop_bench", roundi(at.x), roundi(at.z)]) < StreetFurniture.STOP_BENCH_SHARE:
 			benches += 1
 	_t._check(absf(float(pays) / n - StreetFurniture.PAY_STATION_SHARE) < 0.07, "about %d %% of metered spaces are pay stations (%d of %d)" % [int(StreetFurniture.PAY_STATION_SHARE * 100.0), pays, n])
-	_t._check(absf(float(benches) / n - StreetFurniture.BENCH_STOP_SHARE) < 0.09, "about half the bus stops are an ad bench without a shelter (%d of %d)" % [benches, n])
-	var days := {}
-	for i in 60:
-		days[StreetFurniture.collection_day(plan.seed, i, i * 3 - 7)] = true
-	_t._check(days.size() == 5 and not days.has(5) and not days.has(6), "collection days run Monday to Friday")
+	_t._check(absf(float(benches) / n - StreetFurniture.STOP_BENCH_SHARE) < 0.08, "about a third of the bus shelters get an ad bench beside them (%d of %d)" % [benches, n])
 	# The hydrant's pumper to the street, whatever the rolled spin.
 	var facing := true
 	for inward: Vector2 in [Vector2(0, 1), Vector2(0, -1), Vector2(1, 0), Vector2(-1, 0)]:
@@ -104,7 +99,7 @@ func _signature(chunk: CityChunk) -> Array:
 			var p: Vector3 = (car as Node3D).position
 			out.append("car %.2f %.2f" % [p.x, p.z])
 	for r in chunk.prop_records:
-		if String(r.kind) != "cart":
+		if String(r.kind) != "ad_bench":
 			out.append("%s %s %.2f %.2f" % [r.id, r.kind, (r.position as Vector3).x, (r.position as Vector3).z])
 	out.sort()
 	return out
@@ -123,6 +118,8 @@ func _free(chunk: CityChunk) -> void:
 func _downtown(city: Node3D, plan: CityPlan) -> void:
 	var centre := plan.block_index_at(plan.macro.downtown_center if plan.macro else Vector2.ZERO)
 	var found: CityChunk = null
+	var fallback: CityChunk = null
+	var fallback_key := Vector2i.ZERO
 	var key := Vector2i.ZERO
 	var tries := 0
 	for r in 4:
@@ -138,21 +135,65 @@ func _downtown(city: Node3D, plan: CityPlan) -> void:
 				var ch: CityChunk = city._new_chunk(k, CityChunk.Level.FULL)
 				ch.build()
 				var meters := 0
+				var bench := false
 				for rec: Dictionary in ch.prop_records:
 					if String(rec.kind) == "meter":
 						meters += 1
-				if meters >= 6:
-					found = ch
-					key = k
+					bench = bench or String(rec.kind) == "ad_bench"
+				# The first metered block with a stop bench, else the first metered one.
+				if meters >= 6 and (bench or fallback == null):
+					if fallback != null and fallback != ch:
+						_free(fallback)
+					fallback = ch
+					fallback_key = k
+					if bench:
+						found = ch
+						key = k
 				else:
 					_free(ch)
+	if found == null and fallback != null:
+		found = fallback
+		key = fallback_key
 	_t._check(found != null, "a metered downtown block builds")
 	if found == null:
 		return
 	var has_meter := _batch_material_ok(found, "meter")
 	_t._check(has_meter, "its meters are a batch on the furniture shader")
+	var stops: Array = []
+	var benches: Array = []
+	for rec: Dictionary in found.prop_records:
+		if String(rec.kind) == "bus_stop":
+			stops.append(rec)
+		elif String(rec.kind) == "ad_bench":
+			benches.append(rec)
+	var shelters := true
+	for rec: Dictionary in stops:
+		var has_roof := false
+		for inst in rec.instances:
+			has_roof = has_roof or String(inst[0]) == "shelter_roof"
+		shelters = shelters and has_roof
+	_t._check(shelters, "every bus stop keeps its shelter (%d stops)" % stops.size())
+	var near := true
+	for i in benches.size():
+		var b: Dictionary = benches[i]
+		var by_stop := false
+		for st: Dictionary in stops:
+			by_stop = by_stop or (b.position as Vector3).distance_to(st.position) < 6.0
+		near = near and by_stop and String(b.id) == "ad_bench_%d" % i and (b.shapes as Array).size() == 1
+	_t._check(near and (benches.is_empty() or _batch_material_ok(found, "ad_bench")),
+		"the stop benches (%d) stand by a shelter, ids of their own, one batch on the furniture shader" % benches.size())
 	var sig := _signature(found)
+	if not benches.is_empty():
+		found.break_prop(benches[0])
 	_free(found)
+	if not benches.is_empty():
+		var again: CityChunk = city._new_chunk(key, CityChunk.Level.FULL)
+		again.build()
+		var gone := true
+		for rec: Dictionary in again.prop_records:
+			gone = gone and String(rec.id) != "ad_bench_0"
+		_t._check(gone, "a smashed stop bench stays gone when its chunk is rebuilt")
+		_free(again)
 	StreetFurniture.enabled = false
 	var bare: CityChunk = city._new_chunk(key, CityChunk.Level.FULL)
 	bare.build()
@@ -160,55 +201,3 @@ func _downtown(city: Node3D, plan: CityPlan) -> void:
 	var bare_sig := _signature(bare)
 	_free(bare)
 	_t._check(sig == bare_sig, "the furniture moves nothing in a downtown block: built with the old meshes it is the same block (%d vs %d entries)" % [sig.size(), bare_sig.size()])
-
-
-func _carts(city: Node3D, plan: CityPlan) -> void:
-	var key := Vector2i(99999, 99999)
-	for r in range(2, 40):
-		for dz in range(-r, r + 1, 3):
-			for dx in range(-r, r + 1, 3):
-				if key.x != 99999 or maxi(absi(dx), absi(dz)) != r:
-					continue
-				var b := plan.block(dx, dz)
-				var c: Vector2 = (b.rect as Rect2).get_center()
-				if b.has("site") or b.has("grounds") or plan.zone_at(c) != MacroMap.Zone.CITY or plan.district_at(c) != CityPlan.District.SUBURBS:
-					continue
-				if plan.river_block(dx, dz) or plan.marina_block(dx, dz):
-					continue
-				key = Vector2i(dx, dz)
-	_t._check(key.x != 99999, "a suburban block to put carts out on")
-	if key.x == 99999:
-		return
-	StreetFurniture.force_carts = true
-	var chunk: CityChunk = city._new_chunk(key, CityChunk.Level.FULL)
-	chunk.build()
-	var carts: Array = []
-	for rec: Dictionary in chunk.prop_records:
-		if String(rec.kind) == "cart":
-			carts.append(rec)
-	var ids_ok := true
-	for i in carts.size():
-		ids_ok = ids_ok and String(carts[i].id) == "cart_%d" % i and (carts[i].shapes as Array).size() == 1
-	_t._check(carts.size() >= 4 and ids_ok and _batch_material_ok(chunk, "cart"),
-		"collection day: %d carts at the kerb as props with ids of their own, one batch on the furniture shader" % carts.size())
-	var sig := _signature(chunk)
-	# A broken cart stays broken across a rebuild.
-	if not carts.is_empty():
-		chunk.break_prop(carts[0])
-	_free(chunk)
-	var again: CityChunk = city._new_chunk(key, CityChunk.Level.FULL)
-	again.build()
-	var gone := true
-	for rec: Dictionary in again.prop_records:
-		if String(rec.kind) == "cart" and String(rec.id) == "cart_0":
-			gone = false
-	_t._check(carts.is_empty() or gone, "a smashed cart stays gone when its chunk is rebuilt")
-	_free(again)
-	StreetFurniture.force_carts = false
-	var quiet: CityChunk = city._new_chunk(key, CityChunk.Level.FULL)
-	StreetFurniture.enabled = false
-	quiet.build()
-	StreetFurniture.enabled = true
-	var quiet_sig := _signature(quiet)
-	_free(quiet)
-	_t._check(sig == quiet_sig, "the carts roll nothing from the block: built without the furniture it is the same block")

@@ -88,12 +88,14 @@ var _style: Dictionary = {}
 ## both). The hill planting draws with it, in its own MultiMesh per tile, because it has to stand
 ## on the ground the far plane actually draws rather than on MacroMap.height_at() - see the shader.
 var _canopy: ShaderMaterial
-## Tile -> {"node", "veg", "house", "colors", "veg_colors", "veg_custom", "house_colors"}, or null
+## Tile -> {"node", "veg", "house", "colors", "veg_colors", "veg_custom", "house_colors", "est",
+## "est_colors"}, or null
 ## for a tile with nothing in it (most of the map: ocean, open hillside), remembered so it is
 ## never scanned again.
 var _tiles: Dictionary = {}
-## Block -> {"tile", "b0", "bn", "v0", "vn", "h0", "hn", "hill"}: where its instances sit in its
-## tile's box MultiMesh (b), planting (v: hill scrub, street and park trees) and estates (h).
+## Block -> {"tile", "b0", "bn", "v0", "vn", "h0", "hn", "e0", "en", "hill"}: where its instances
+## sit in its tile's box MultiMesh (b), planting (v: hill scrub, street and park trees), estates (h)
+## and the estates' gardens and lamps (e: EstateFar).
 var _blocks: Dictionary = {}
 ## Block -> CityChunk.Level of the chunk standing on it. Kept for blocks whose tile is not built
 ## yet too, so a tile built later starts with the right blocks hidden.
@@ -182,7 +184,7 @@ func block_instances(block: Vector2i) -> int:
 	var b: Dictionary = _blocks.get(block, {})
 	if b.is_empty():
 		return 0
-	return int(b.bn) + int(b.vn) + int(b.hn)
+	return int(b.bn) + int(b.vn) + int(b.hn) + int(b.get("en", 0))
 
 
 ## Visibility the block is heading for: 0 where a chunk stands, 1 elsewhere.
@@ -235,6 +237,12 @@ func _apply_alpha(block: Vector2i, a: float) -> void:
 		for i in range(int(b.h0), int(b.h0) + int(b.hn)):
 			var c: Color = hcols[i]
 			hm.set_instance_color(i, Color(c.r, c.g, c.b, a))
+	if tile.get("est") and int(b.get("en", 0)) > 0:
+		var em: MultiMesh = (tile.est as MultiMeshInstance3D).multimesh
+		var ecols: Array = tile.est_colors
+		for i in range(int(b.e0), int(b.e0) + int(b.en)):
+			var c: Color = ecols[i]
+			em.set_instance_color(i, Color(c.r, c.g, c.b, a))
 
 
 ## Where a block's planting stands: on the real terrain (a LOD chunk has drawn it there) or on
@@ -270,14 +278,80 @@ func build_near(eye: Vector2, metres: float) -> void:
 			if not _tiles.has(t) and _tile_centre(t).distance_to(eye) <= metres + TILE_BLOCKS * _plan.block_size_range.y:
 				todo.append(t)
 	todo.sort_custom(func(a, b): return _tile_priority(a, eye) < _tile_priority(b, eye))
+	_open_disk()
+	var restored := 0
+	var t0 := Time.get_ticks_usec()
 	for t in todo:
 		if _work.get("t", Vector2i(1 << 30, 0)) == t:
 			while not _work_step():
 				pass
 			continue
+		if _disk.has(t):
+			_restore_tile(t, _disk[t])
+			restored += 1
+			continue
 		_begin_tile(t)
+		_recording = true
 		while not _work_step():
 			pass
+		_recording = false
+	if not todo.is_empty():
+		print("LOADING far city tiles: %d built, %d from the load cache, %d ms (at %d ms)" % [todo.size() - restored,
+				restored, (Time.get_ticks_usec() - t0) / 1000, Time.get_ticks_msec()])
+	_close_disk()
+
+
+# --- The load cache ---------------------------------------------------------------------------
+# The tiles build_near() makes (the loading screen's whole basin) are the same every launch for
+# the same code, seed and style, so their instance arrays go to disk (LoadCache) and the next
+# launch lays them straight back: ~25 s of capture builds on the build box. Only build_near()
+# reads or writes it - tiles advance() builds in play are built as before.
+
+## Only while the game is loading (CityStreamer turns it off once it is playable): a launch's
+## state is the same every time, play's is not - destruction, the tests' switches - and a tile
+## recorded then would be laid back into the next launch.
+var use_disk: bool = true
+## Tile -> what _commit_tile() took (or null for an empty tile), read from / written to disk.
+var _disk: Dictionary = {}
+var _disk_open: bool = false
+var _disk_dirty: bool = false
+## True while build_near() builds a tile, so _commit_tile() keeps a copy for the disk.
+var _recording: bool = false
+
+
+func _disk_inputs() -> Array:
+	return ["far_city", _plan.seed, _plan.block_size_range, _plan.street_width, _plan.avenue_width,
+		_plan.sidewalk_width, _plan.downtown_radius, _plan.midtown_radius, _style, TILE_BLOCKS]
+
+
+func _open_disk() -> void:
+	if _disk_open or not use_disk or not LoadCache.enabled():
+		return
+	_disk_open = true
+	var data: Variant = LoadCache.load_data("far_city", _disk_inputs())
+	if data is Dictionary:
+		_disk = data
+
+
+## Saves what was recorded and lets the copies go (they are the whole basin's arrays a second
+## time); the next build_near() reads the file again.
+func _close_disk() -> void:
+	if _disk_dirty:
+		_disk_dirty = false
+		LoadCache.save_data("far_city", _disk_inputs(), _disk)
+	_disk = {}
+	_disk_open = false
+
+
+## Lays a tile back from its cached arrays, exactly as _commit_tile() had them.
+func _restore_tile(t: Vector2i, data: Variant) -> void:
+	_begin_tile(t)
+	if data != null:
+		for key: String in data:
+			_work[key] = (data[key] as Variant).duplicate(true)
+	blocks_built += (_work.blocks as Array).size()
+	_commit_tile()
+	_work = {}
 
 
 ## Spends up to `budget_usec` building the far city, a block at a time, starting the tile that
@@ -387,7 +461,8 @@ func _begin_tile(t: Vector2i) -> void:
 		"t": t, "blocks": blocks, "next": 0, "ranges": {},
 		"xforms": [], "colors": [], "customs": [],
 		"veg": [], "veg_colors": [], "veg_custom": [],
-		"houses": [], "house_colors": [], "hills": {},
+		"houses": [], "house_colors": [], "house_custom": [], "hills": {},
+		"est": [], "est_colors": [], "est_custom": [],
 	}
 
 
@@ -411,7 +486,7 @@ func _work_step() -> bool:
 	if _work.next < blocks.size():
 		var k: Vector2i = blocks[_work.next]
 		_work.next += 1
-		_work.start = [(_work.xforms as Array).size(), (_work.veg as Array).size(), (_work.houses as Array).size()]
+		_work.start = [(_work.xforms as Array).size(), (_work.veg as Array).size(), (_work.houses as Array).size(), (_work.est as Array).size()]
 		var b := _plan.block(k.x, k.y)
 		var macro: MacroMap = _plan.macro
 		var zone: int = macro.zone_at((b.rect as Rect2).get_center()) if macro else MacroMap.Zone.CITY
@@ -445,7 +520,7 @@ func _end_block(k: Vector2i) -> void:
 	_add_freeway(k)
 	var s: Array = _work.start
 	_work.ranges[k] = [s[0], (_work.xforms as Array).size() - s[0], s[1], (_work.veg as Array).size() - s[1],
-		s[2], (_work.houses as Array).size() - s[2]]
+		s[2], (_work.houses as Array).size() - s[2], s[3], (_work.est as Array).size() - s[3]]
 	blocks_built += 1
 
 
@@ -457,10 +532,20 @@ func _notification(what: int) -> void:
 
 func _commit_tile() -> void:
 	var t: Vector2i = _work.t
+	if _recording and _disk_open:
+		var keep = null
+		if not ((_work.xforms as Array).is_empty() and (_work.veg as Array).is_empty() and (_work.houses as Array).is_empty()):
+			keep = {}
+			for key: String in ["ranges", "xforms", "colors", "customs", "veg", "veg_colors", "veg_custom", "houses", "house_colors", "hills"]:
+				# Copies: _commit_tile() and every fade after it write the blocks' alpha into these.
+				keep[key] = (_work[key] as Variant).duplicate(true)
+		_disk[t] = keep
+		_disk_dirty = true
 	var xforms: Array = _work.xforms
 	var veg: Array = _work.veg
 	var houses: Array = _work.houses
-	if xforms.is_empty() and veg.is_empty() and houses.is_empty():
+	var est: Array = _work.get("est", [])
+	if xforms.is_empty() and veg.is_empty() and houses.is_empty() and est.is_empty():
 		# Remembered as empty, so an ocean tile is never rescanned. A plain marker rather than a
 		# node: most of the map is water and open hillside.
 		_tiles[t] = null
@@ -471,7 +556,7 @@ func _commit_tile() -> void:
 	var veg_custom: Array = _work.veg_custom
 	var house_colors: Array = _work.house_colors
 	var tile := {"node": null, "veg": null, "house": null, "colors": colors, "veg_colors": veg_colors,
-		"veg_custom": veg_custom, "house_colors": house_colors}
+		"veg_custom": veg_custom, "house_colors": house_colors, "est": null, "est_colors": _work.get("est_colors", [])}
 	if not xforms.is_empty():
 		tile.node = _box_node(t, xforms, colors, customs)
 		add_child(tile.node)
@@ -482,18 +567,26 @@ func _commit_tile() -> void:
 			tile.veg = _planting_node("Planting_%d_%d" % [t.x, t.y], PropFactory.canopy_blob(), veg, veg_colors, veg_custom)
 			add_child(tile.veg)
 		if not houses.is_empty():
-			var house_custom: Array = []
-			house_custom.resize(houses.size())
-			house_custom.fill(Color(0.0, 0.0, 0.0, 0.0))
+			var house_custom: Array = _work.house_custom
+			if house_custom.size() != houses.size():
+				house_custom = []
+				house_custom.resize(houses.size())
+				house_custom.fill(Color(0.0, 0.0, 0.0, 0.0))
 			tile.house = _planting_node("Estates_%d_%d" % [t.x, t.y], PropFactory.unit_box(), houses, house_colors, house_custom)
 			add_child(tile.house)
+		if not est.is_empty():
+			# The estates' gardens, pools and lamps (EstateFar) on their own shader, seated like
+			# the houses above.
+			tile.est = _planting_node("EstateLights_%d_%d" % [t.x, t.y], PropFactory.unit_box(), est, _work.est_colors, _work.est_custom)
+			tile.est.material_override = EstateFar.material()
+			add_child(tile.est)
 	_tiles[t] = tile
 	var hills: Dictionary = _work.hills
 	for k in _work.ranges:
 		var r: Array = _work.ranges[k]
-		if int(r[1]) + int(r[3]) + int(r[5]) == 0:
+		if int(r[1]) + int(r[3]) + int(r[5]) + int(r[7]) == 0:
 			continue
-		_blocks[k] = {"tile": t, "b0": r[0], "bn": r[1], "v0": r[2], "vn": r[3], "h0": r[4], "hn": r[5], "hill": hills.has(k)}
+		_blocks[k] = {"tile": t, "b0": r[0], "bn": r[1], "v0": r[2], "vn": r[3], "h0": r[4], "hn": r[5], "e0": r[6], "en": r[7], "hill": hills.has(k)}
 		# A tile built under chunks that are already standing starts with those blocks hidden,
 		# at once: nothing is fading, they were never shown.
 		if _cover.has(k):
@@ -586,7 +679,11 @@ func _add_captured(k: Vector2i, b: Dictionary, zone: int, ch: CityChunk) -> void
 		colors.append(Color(c.r, c.g, c.b, 1.0))
 		customs.append(Color(0.0, 0.0, float(absi(hash([k, xforms.size()])) % 997) / 997.0, 1.0))
 	# A river block plants no street trees (RiverBuild lays pavement and a rail yard).
-	if zone == MacroMap.Zone.CITY and not _plan.river_block(k.x, k.y) and not _plan.marina_block(k.x, k.y):
+	# The golf course's turf, pond and trees (GolfFar) instead of the kerb rows of its closed roads.
+	if String(b.get("site", "")) == GolfCourse.ID:
+		GolfFar.add(_plan, k, ch, _work)
+	elif zone == MacroMap.Zone.CITY and not _plan.river_block(k.x, k.y) and not _plan.marina_block(k.x, k.y) \
+			and b.get("site", "") != OilField.ID:
 		_add_city_trees(k, b, ch)
 	# Container stacks in the port yard.
 	if batch.has("container"):
@@ -615,7 +712,8 @@ func _add_plate(k: Vector2i, zone: int, ground: Array, ch: CityChunk) -> void:
 	var roads := zone == MacroMap.Zone.CITY
 	var wx: float = _plan.road_width(CityPlan.AXIS_X, k.x + 1) if roads else 0.0
 	var wz: float = _plan.road_width(CityPlan.AXIS_Z, k.y + 1) if roads else 0.0
-	# A street a high school closed (Schools) is campus, not asphalt, from afar too.
+	# A street a high school or a landmark's site closed (Schools, CityPlan.road_open()) is that
+	# ground, not asphalt, from afar too.
 	if roads and not _plan.road_open(CityPlan.AXIS_X, k.x + 1, area.get_center().y):
 		wx = 0.0
 	if roads and not _plan.road_open(CityPlan.AXIS_Z, k.y + 1, area.get_center().x):
@@ -795,6 +893,12 @@ func _add_city_trees(k: Vector2i, b: Dictionary, ch: CityChunk) -> void:
 		var n := int(inner.get_area() / PARK_TREE_AREA)
 		for i in n:
 			spots.append(_spot(inner, hash([_plan.seed, "park", k, i])))
+	# A memorial park's own trees (Cemetery's plan), where the chunk's part of the site is.
+	if String(b.get("grounds", "")) == "cemetery":
+		var own := _plan.owned_rect(k.x, k.y)
+		for t: Array in Cemetery.plan_for(_plan, k.x, k.y).get("trees", []):
+			if own.has_point(t[0]):
+				spots.append(t[0])
 	# Kerb rows on every block, parks and plazas included (the FULL build lines them all).
 	var odds: float = params.get("trees", 0.5)
 	var ring := rect.grow(-1.6)
@@ -872,6 +976,8 @@ func _add_hills(rect: Rect2, macro: MacroMap) -> void:
 			var gy: float = _lattice_height(lat, p)
 			if gy < 1.5:
 				continue
+			if macro.reservoir and macro.reservoir.keep_clear(p, gy):
+				continue
 			var step: float = lat.step
 			var grad := Vector2(_lattice_height(lat, p + Vector2(step, 0.0)) - _lattice_height(lat, p - Vector2(step, 0.0)),
 				_lattice_height(lat, p + Vector2(0.0, step)) - _lattice_height(lat, p - Vector2(0.0, step))) / (2.0 * step)
@@ -901,15 +1007,49 @@ func _add_hills(rect: Rect2, macro: MacroMap) -> void:
 		return
 	var houses: Array = _work.houses
 	var house_colors: Array = _work.house_colors
+	if not _work.has("house_custom"):
+		_work["house_custom"] = []
 	for m in macro.hill_roads.mansions_in(rect):
+		if HillHomeKit.enabled:
+			# The house HillHomeKit plans on the pad, as a few boxes and a glass band per wing that
+			# far_canopy.gdshader lights after dark (INSTANCE_CUSTOM: a 1 marks an estate part, b its
+			# lift over the pad / 100, g the glow).
+			var lit := HillHomeKit.far_lit(_plan.seed, m)
+			for fb: Array in HillHomeKit.far_boxes(_plan, m):
+				houses.append(fb[0])
+				var hc: Color = fb[1]
+				house_colors.append(Color(hc.r, hc.g, hc.b, 1.0))
+				(_work.house_custom as Array).append(Color(0.0, float(fb[2]) * lit, float(fb[3]) / 100.0, 1.0))
+			if EstateFar.enabled:
+				_add_estate(m, veg, veg_colors, veg_custom)
+			continue
 		var pos: Vector2 = m.pos
 		var yaw: float = m.yaw
 		var basis := Basis(Vector3.UP, yaw)
 		# `height` is the pad's deck elevation (CityChunk._build_mansions builds on it), the house
 		# 4 m back on the pad, on its 0.4 m pad, 7.5 m tall.
 		var at := Vector3(pos.x, float(m.height), pos.y)
+		if EstateFar.enabled:
+			_add_estate(m, veg, veg_colors, veg_custom)
+			continue
 		houses.append(Transform3D(basis.scaled_local(Vector3(18.0, 7.5, 13.0)), at + basis * Vector3(0.0, 4.15, -4.0)))
 		house_colors.append(Color(0.92, 0.88, 0.8))
+		(_work.house_custom as Array).append(Color(0.0, 0.0, 0.0, 0.0))
+
+
+## An estate's garden, court, pool glow and lamps (EstateFar, the `est` node) and its trees in
+## the planting.
+func _add_estate(m: Dictionary, veg: Array, veg_colors: Array, veg_custom: Array) -> void:
+	if not _work.has("est"):
+		_work.merge({"est": [], "est_colors": [], "est_custom": []})
+	for part: Array in EstateFar.parts(_plan, m, false):
+		(_work.est as Array).append(part[0])
+		(_work.est_colors as Array).append(part[1])
+		(_work.est_custom as Array).append(part[2])
+	for tree: Array in EstateFar.trees(_plan, m):
+		veg.append(tree[0])
+		veg_colors.append(tree[1])
+		veg_custom.append(Color(0.0, 0.0, 0.0, 0.0))
 
 
 func _spot(rect: Rect2, hs: int) -> Vector2:
@@ -920,6 +1060,8 @@ func _spot(rect: Rect2, hs: int) -> Vector2:
 
 ## Is `p` on (or within a mound's reach of) a hill road or an estate pad?
 static func _on_hill_road(p: Vector2, segs: Array[Dictionary], pads: Array[Dictionary]) -> bool:
+	if Ballpark.covers(p, 6.0):
+		return true
 	for seg in segs:
 		var closest := Geometry2D.get_closest_point_to_segment(p, seg.a, seg.b)
 		if p.distance_to(closest) < float(seg.width) * 0.5 + 6.0:
