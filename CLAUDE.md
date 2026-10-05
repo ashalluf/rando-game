@@ -2610,7 +2610,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   every colour test for skin. Like limb cutting, the bake needs mesh data, so it does nothing
   under the headless dummy renderer.
   **The crowd** (owner, 2026-09-27: real people, "AAA studio PS5 quality"): `Pedestrian.MODELS`
-  is twelve rigs, `assets/models/crowd_a..l.glb`, built by **`tools/crowd/`** with the hero's
+  is twenty rigs, `assets/models/crowd_a..t.glb` (m..t added 2026-10-05: older people, teens,
+  heavier, very short and very tall builds, more complexions, a headscarf), built by **`tools/crowd/`** with the hero's
   toolchain (`tools/hero/setup.sh` fetches Blender 4.2, MPFB 2 and the CC0 MakeHuman pack):
   `tools/crowd/build.sh [names]` runs, per character of `tools/crowd/crowd_config.json`,
   `build_character.py` (Blender: the MPFB human from a phenotype, targets and skin - or a blend
@@ -2668,9 +2669,25 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   gentle with a floor (`own_ao`), being baked on a coarse shell in a pose the game never shows;
   and the fold field's ankle stack is the hero's gathered track pant, which on hemmed jeans read
   as jogger cuffs, so crowd_atlas.py scales it per trouser style (`ankle_stack` / `ankle_reach`).
-  A body in our garments is 11.7-12.9k triangles (10.5-12.7k in the library clothes). Eight
-  people wear them (a, d, e, h, i, j, k, l); b, c, f and g keep library clothes - f's tailored
-  jacket over a striped shirt read richer than our zip jacket, which is built but worn by nobody.
+  A body in our garments is 11.7-13.9k triangles (10.5-12.7k in the library clothes). Sixteen
+  people wear them (a, d, e, h..t); b, c, f and g keep library clothes. **The second set
+  (2026-10-05, docs/HANDOFF.md 9bs)**: the jacket takes `collar` (stand / rib / hood),
+  `closure` (zip / buttons / none), `pocket` (welt / kangaroo / none) and `knit` - a windbreaker
+  (m), a crew-neck cardigan (n) and a pullover hoodie with its hood DOWN (`hood_down()`: a roll
+  round the neck that folds onto the shoulder blades only round the back - spread from the sides
+  it was a sailor's collar) and drawcords (o); the shirt takes `sleeve: short`, `placket_len`,
+  `pique` and rib cuffs: the polo (q); trousers `style: joggers` (rib leg cuffs, `leg_cuffs()`,
+  an elastic waist); `skirt` (n, p) is a band SWEPT round a vertical axis from the waist, falling
+  from the hips' widest ring and flared, measured on the pelvis and legs alone (with the hands
+  in it, it stood out in two square wings), weights both thighs and the hips blurred round it;
+  `vest` (s, hi-vis, region `keep`) is the top's shell without sleeves over the tee, armholes cut
+  down the sides; `scarf` (r, hijab-style, region `keep`, built last) is a shell off the head,
+  neck and shoulders whose head part lies on a SPHERICAL envelope of the skull with the ears left
+  out (their holes filled; the ear skin is deleted under it, `build_character.py`), the throat
+  bridged from the jaw, the drape's edge cut by distance from the neck base (a vertical-plane hem
+  is a sawtooth on the shoulder), an oval face opening (`cut_oval()`). A vest or a scarf deletes
+  the top it hides (`hide_under`). `Pedestrian.NO_HAT_MODELS` (r) never wears a hat, and the
+  camp figures are dressed from the first twelve rigs only (`Encampment.FIGURE_POOL`).
   Judge with `tools/crowd/preview.sh` first (Blender Cycles, no render lock, seconds: `FLAT=1`
   geometry only, `REGION=1` which mesh is which - green on a top is the trousers, black is skin)
   and finish with `crowd_lineup.gd` (`TURN=90` shows a row in profile).

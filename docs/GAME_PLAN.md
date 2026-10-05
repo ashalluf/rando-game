@@ -289,6 +289,19 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Twenty people in the crowd, not twelve (VISUAL_ROADMAP #61).** On a downtown
+  pavement with 200+ people the same twelve bodies repeated within a glance. Eight more,
+  `crowd_m..t`, built by the same pipeline and contract, picked for what the twelve lacked: a
+  stooped older man in a windbreaker, a short older South Asian woman in a cardigan and midi skirt,
+  two teenagers (hoodie and joggers; tee and skirt), a heavy tall man in a polo and shorts, a
+  young woman in a hijab-style headscarf, a very short worker in a hi-vis vest over a tee, a very
+  tall woman in a striped shirt. The new garments (hoodie, cardigan, polo, joggers, skirt, vest,
+  headscarf) are ours, modelled on each body in tools/crowd/garments.py and painted by
+  garment_paint.py, like 9av's. Decisions: a headscarf is part of the body (region `keep`), not a
+  hair mesh - it is solid cloth that casts a shadow and must survive into the welded mid / far
+  bodies, which drop the hair; its wearer never rolls a hat; the camp figures stay on the first
+  twelve rigs, so the loading screen does not bake forty more poses; no new rig is a police or
+  fire crew model. Cost in docs/HANDOFF.md 9bs.
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it
