@@ -1227,13 +1227,20 @@ func _test_city() -> void:
 						if doll.bodies.is_empty() or doll.bleed <= 0.0:
 							continue
 						var rb: RigidBody3D = doll.bodies[0]
-						var on_street := not doll._ground_under(doll._pelvis()).is_empty()
+						# On the street means what Ragdoll._blood_step() pools on: ground on the world
+						# layer under the hips AND the hips within 0.6 m of it. The ray only sees the
+						# world layer, so a body draped over a car or a kerb cart has the road under it
+						# too, but lies too high to pool (by design).
+						var pel := doll._pelvis()
+						var gu: Dictionary = doll._ground_under(pel)
+						var lift := pel.y - float((gu.position as Vector3).y) if not gu.is_empty() else INF
+						var on_street := not gu.is_empty() and lift < 0.6
 						bled += 1
 						if not on_street:
 							off += 1
-						where += " ragdoll at %s, speed %.2f, age %.1f, bleed %.1f, street under it %s;" % [
+						where += " ragdoll at %s, speed %.2f, age %.1f, bleed %.1f, hips %.2f m over the street, on it %s;" % [
 							str(rb.global_position.snapped(Vector3.ONE * 0.1)), rb.linear_velocity.length(),
-							float(n.get("_age")), doll.bleed, on_street]
+							float(n.get("_age")), doll.bleed, lift, on_street]
 					# A body that rests on a parked car, a bench or a planter has no street under
 					# it within reach, and by design gets no pool there (Ragdoll._ground_under).
 					# Which person the rifle drops, and where they land, depends on the frame
@@ -1426,7 +1433,7 @@ func _test_city() -> void:
 				city.update_streaming(true)
 				park_chunk = city.chunks.get(k)
 				break
-	_check(park_chunk != null and park_chunk.has_node("Batch_grass") and (park_chunk.has_node("Batch_shrub_0") or park_chunk.has_node("Batch_shrub_1") or park_chunk.has_node("Batch_shrub_2") or park_chunk.has_node("Batch_shrub_3")), "a park has grass and bushes")
+	_check(park_chunk != null and park_chunk.find_children("Batch_grass_*", "", false, false).size() > 0 and (park_chunk.has_node("Batch_shrub_0") or park_chunk.has_node("Batch_shrub_1") or park_chunk.has_node("Batch_shrub_2") or park_chunk.has_node("Batch_shrub_3")), "a park has grass and bushes")
 	var day: Node = city.get_node("DayNight")
 	var h0: float = day.hour
 	await _ticks(30)
@@ -1641,6 +1648,8 @@ func _test_city() -> void:
 	await load("res://tests/crowd_hat_checks.gd").new().run(self, city)
 	# Photo mode: frozen world, its own camera, its settings, a PNG, and everything put back.
 	await load("res://tests/photo_mode_checks.gd").new().run(self, city)
+	# The dogs (DogMesh, DogRig, CrowdDog, YardDog): built breeds, the gait, walkers, yards.
+	await load("res://tests/dog_checks.gd").new().run(self, city)
 	var menu: Node = city.get_node("PauseMenu")
 	menu.open()
 	_check(get_tree().paused and menu.is_open(), "pause menu pauses the game")
@@ -1717,6 +1726,8 @@ func _test_city() -> void:
 	# The airport (tests/airport_checks.gd): gates, flyable jets, runways, the field's lights,
 	# the terminal landmarks and a FULL airport chunk's apron.
 	await load("res://tests/airport_checks.gd").new().run(self, city)
+	# The airport's ground (tests/airport_life_checks.gd): taxiing, stands, pushbacks, the apron.
+	await load("res://tests/airport_life_checks.gd").new().run(self, city)
 	# Car damage (tests/car_damage_checks.gd): holes, glass, lamps, crashes, a rocket to a wreck,
 	# blame, the caps, the driven car, a pooled cruiser - on a deck high over the street.
 	await load("res://tests/car_damage_checks.gd").new().run(self, city)
@@ -1748,6 +1759,9 @@ func _test_city() -> void:
 	# Police stations (tests/police_station_checks.gd): placement, the HQ, the build, the gate, a
 	# cruiser out of the gate onto the lane and a recalled one back in.
 	await load("res://tests/police_station_checks.gd").new().run(self, city)
+	# Hospitals (tests/hospital_checks.gd): placement, the campus chunk, an ambulance backing in.
+	await load("res://tests/hospital_checks.gd").new().run(self, city)
+	await load("res://tests/service_vehicle_checks.gd").new().run(self, city)  # service vehicles at work
 	# The ambience mixer (tests/ambience_checks.gd): layers per place, hour and weather, fades,
 	# ducks, buses. Mixer state only - the Dummy audio driver plays nothing.
 	await load("res://tests/ambience_checks.gd").new().run(self, city)
@@ -1766,6 +1780,9 @@ func _test_city() -> void:
 	# MacArthur Park and the downtown encampments (tests/westlake_checks.gd): the park builds with
 	# water and collision, camps only downtown, the people at them hold their poses, caps hold.
 	await load("res://tests/westlake_checks.gd").new().run(self, city)
+	# The valley golf course (tests/golf_checks.gd): the site and its closed roads, the layout, the
+	# turf mesh and its seams, LOD and far, the golfers and the carts.
+	await load("res://tests/golf_checks.gd").new().run(self, city)
 	# The distance (tests/distance_checks.gd): every tier of detail present, no gap ring between
 	# them out to the horizon, no block drawn twice, consistent handoff distances, and a streaming
 	# queue ordered by the view.
@@ -1777,6 +1794,8 @@ func _test_city() -> void:
 	# own facade, grid, plinth and parapet, its roof plant is the near one, both shaders light the
 	# same offices, the tiers take their share of the plant.
 	load("res://tests/far_city_checks.gd").new().run(self, city)
+	# Cut corners on the far boxes (tests/far_corners_checks.gd): three pieces per cut part, the near prism.
+	load("res://tests/far_corners_checks.gd").new().run(self, city)
 	# Masjid Omar ibn Al-Khattab and the sanctuary rule (tests/masjid_checks.gd): it streams in
 	# modelled and enterable, and no gun fires at it, across it or inside it.
 	await load("res://tests/masjid_checks.gd").new().run(self, city)
@@ -1800,6 +1819,9 @@ func _test_city() -> void:
 	# Chinatown (tests/chinatown_checks.gd): the site table on two seeds, the gate and the plaza, the
 	# street-facing shop buildings, one mesh a block, the LOD boxes, nothing moved with it off.
 	load("res://tests/chinatown_checks.gd").new().run(self, city)
+	# The ballpark in the ravine (tests/ballpark_checks.gd): its real place and facing, the site cut
+	# into the hills, its roads, the shaders' copies, the meshes and a FULL chunk building it.
+	load("res://tests/ballpark_checks.gd").new().run(self, city)
 	# The ground outside downtown and midtown (tests/lot_fill_checks.gd): beach-town yards, the
 	# campus, the freeway's right of way - bare share before and after, one mesh each, budgets, and
 	# nothing else in the block moved.
@@ -1817,6 +1839,9 @@ func _test_city() -> void:
 	# Billboards (tests/billboard_checks.gd): the atlas, the boards as props in one batch per kind,
 	# the far boxes, the monopoles pure and clear of the decks, nothing else in the block moved.
 	load("res://tests/billboard_checks.gd").new().run(self, city)
+	# Tower roofs (tests/rooftops_checks.gd): helipads, pool decks, gardens, penthouses, masts and
+	# window-washing machines planned pure, off the plant they may not cover, near = far, no roll moved.
+	load("res://tests/rooftops_checks.gd").new().run(self, city)
 	# The Los Angeles River (tests/la_river_checks.gd): the route east of downtown to Long Beach, the
 	# freeways over it, the streets closed or bridged, no lot in the corridor, the chunk's meshes and
 	# one collision body, the far city's boxes, and a car on the bed and down a ramp.
@@ -1854,6 +1879,48 @@ func _test_city() -> void:
 	# The four-level stack (tests/stack_interchange_checks.gd): levels, separations, grades, banks,
 	# columns, the chunk's meshes, and the connector traffic handed to and from the freeway's.
 	await load("res://tests/stack_interchange_checks.gd").new().run(self, city)
+	# Service alleys (tests/alley_checks.gd): the band on the lot grid's seam, the runs clear of the
+	# buildings, one ground and one upright mesh a chunk, the mouths clear, nothing else moved.
+	load("res://tests/alley_checks.gd").new().run(self, city)
+	# Wilshire's deco boulevard (tests/wilshire_deco_checks.gd): the pure plan, a deco chunk's meshes,
+	# collision and far boxes, nothing else on the block moved.
+	load("res://tests/wilshire_deco_checks.gd").new().run(self, city)
+	# Memorial parks (tests/cemetery_checks.gd): placement, purity, the closed streets, the plan,
+	# the sanctuary zone over it at FULL and LOD, nothing breakable, the far city's lawn.
+	await load("res://tests/cemetery_checks.gd").new().run(self, city)
+	# Kerbs (tests/kerbs_checks.gd): the pavement's cut ring, ramps, aprons, wells, paint, numbers.
+	load("res://tests/kerbs_checks.gd").new().run(self, city)
+	# Building sites, house frames and road works (tests/construction_checks.gd).
+	load("res://tests/construction_checks.gd").new().run(self, city)
+	# Murals (tests/murals_checks.gd): ghost signs, friezes, wall and column murals, crosswalks, cabinets.
+	load("res://tests/murals_checks.gd").new().run(self, city)
+	# Boulevard signs (tests/signage_checks.gd): the atlas grid, pole signs as props in one batch
+	# per kind, plates and vinyl, nothing else in the block moved, the far boxes.
+	load("res://tests/signage_checks.gd").new().run(self, city)
+	# The code-built Los Angeles trees and accents (tests/la_trees_checks.gd).
+	load("res://tests/la_trees_checks.gd").new().run(self, city)
+	# Car dealerships (tests/car_dealers_checks.gd): auto rows of new-car dealers and used lots, pure
+	# sites inside their blocks, the lot cars, stickers, tube men and cars for sale, nothing else moved.
+	load("res://tests/car_dealers_checks.gd").new().run(self, city)
+	# The hillside houses (tests/hill_homes_checks.gd): pure plans on every estate, a FULL chunk's
+	# meshes and body, LOD boxes, the far city's lit glass bands, and the old slab with the kit off.
+	load("res://tests/hill_homes_checks.gd").new().run(self, city)
+	# The oil field (tests/oil_field_checks.gd): the site and its closed streets, the hill, level pads
+	# and graded lease roads, the pumpjack's linkage and mesh, the chunks, the city's single wells.
+	load("res://tests/oil_field_checks.gd").new().run(self, city)
+	# Vacant lots and gravel car parks (tests/vacant_lots_checks.gd): the pure plan's share per
+	# district, each plan inside its cell, a FULL chunk's two meshes and weed batches, the A/B, LOD.
+	load("res://tests/vacant_lots_checks.gd").new().run(self, city)
+	# The road's hardware (tests/road_detail_checks.gd): covers, inlets, cuts, plates, markers.
+	load("res://tests/road_detail_checks.gd").new().run(self, city)
+	# The perf audit's cuts (tests/perf_audit_checks.gd): shadow reaches, merged models, grass cells.
+	await load("res://tests/perf_audit_checks.gd").new().run(self, city)
+	# The reservoir in the front range (tests/reservoir_checks.gd): the lake held under its rim, its
+	# shore, dam, spillway and trail on the ground, the far and detailed copies, the bathtub ring.
+	load("res://tests/reservoir_checks.gd").new().run(self, city)
+	# The ridges (tests/ridges_checks.gd): the farm, fire roads, tanks and the two power lines, every
+	# span over the ground, nothing planned before them moved, a tower's chunk and the far wires.
+	load("res://tests/ridges_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
@@ -3030,7 +3097,8 @@ func _check_switchbacks(plan: CityPlan, city: Node, hr) -> void:
 		if child is StaticBody3D and child.get("lot_size") != null:
 			names["Building"] = true
 	chunk.free()
-	_check(names.has("Driveways") and names.has("Building") and names.has("Boxes"),
+	# The house is HillHomeKit's (its meshes on one HillHomes body), or a Building with the kit off.
+	_check(names.has("Driveways") and (names.has("Building") or names.has("HillHomes")) and names.has("Boxes"),
 		"a chunk with an estate up a driveway builds its driveway, house and walls (%s)" % ", ".join(names.keys()))
 
 

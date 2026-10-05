@@ -204,6 +204,12 @@ class instead.
 | `tools/make_emergency_vehicles.py` | `road_fire_engine.glb` | 35k tris + 10k far twin (Type 1 pumper: crew cab, pump panel, roll-ups, hose bed, ladders, light bar, Q-siren; original, no department's marks) | `BodyType.FIRE_ENGINE` (EmergencyCar) | 2026-10-04 |
 | `tools/make_emergency_vehicles.py` | `road_ambulance.glb` | 23k tris + 10k far twin (Type III: cutaway cab, modular box, striping, chevrons, warning lamps; original) | `BodyType.AMBULANCE` (EmergencyCar) | 2026-10-04 |
 | `tools/make_school_bus.py` | `road_school_bus.glb` | 54k tris + 10k far twin (Type D transit-style school bus: split-sash windows, eight-way warning lamps, rub rails, STOP arm, crossing arm, rear emergency door, the invented RANDO UNIFIED SCHOOL DISTRICT lettering; Blender's built-in font; original, no maker's shapes or badges) | `BodyType.SCHOOL_BUS` (Schools) | 2026-10-05 |
+| `tools/make_service_vehicles.py` | `road_garbage.glb` | 29k tris + 10k far twin (side loader on the box truck's cab: hopper, ribbed packer body, tailgate, the arm as `rig_boom` / `rig_lift`; original, no fleet's marks) | `BodyType.GARBAGE_TRUCK` (ServiceVehicles) | 2026-10-05 |
+| `tools/make_service_vehicles.py` | `road_sweeper.glb` | 29k tris + 10k far twin (debris hopper, water tank, gutter brooms `rig_brush_r/l`, main broom `rig_broom`; original) | `BodyType.STREET_SWEEPER` | 2026-10-05 |
+| `tools/make_service_vehicles.py` | `road_tow.glb` | 26k tris + 10k far twin (rollback deck `rig_bed` with headboard and winch, toolboxes, wheel-lift; original) | `BodyType.TOW_TRUCK` | 2026-10-05 |
+| `tools/make_service_vehicles.py` | `road_ice_cream.glb` | 22k tris + 10k far twin (the ambulance's cutaway cab with a box: serving window, awning, menu boards, cone sign, horn; original) | `BodyType.ICE_CREAM_TRUCK` | 2026-10-05 |
+| code (`ServiceSounds`) | the service vehicles' sounds | synthesised at load: hydraulic whine, a cart's bang, brushes, winch, and the ice-cream chime - an original tune (`ServiceSounds.TUNE`) | ServiceVehicles | 2026-10-05 |
+| code (`KerbBins.mesh()`) | the wheelie carts | 582 / 24 tris, built in code, `shaders/kerb_bin.gdshader` | ServiceFleet | 2026-10-05 |
 
 The `hifi_*` pair are a different construction from the `exo_*` ones and are the direction to
 carry forward. Each body is ONE all-quad control cage indexed by (longitudinal station, position
@@ -638,6 +644,39 @@ and 733737, measured as perfectly steady synthesized tones, so making our own wa
 | Kids Playing (brunoboselli) | https://freesound.org/s/469613/ | CC0 1.0 | `amb_playground_0` 22.0-50.5 s | 2026-10-05 |
 | Jack Hammer breaking up concrete (short burst) (thomaspettigrew) | https://freesound.org/s/273697/ | CC0 1.0 | `construction_0` 0.05-3.60 s, `construction_1` 3.90-7.60 s | 2026-10-05 |
 | hammering 2.wav (cognito perceptu) | https://freesound.org/s/17012/ | CC0 1.0 | `construction_2` 0.00-1.55 s | 2026-10-05 |
+
+## Murals and ghost signs (our own code)
+
+| Asset | Source | License | Used for | Added |
+|---|---|---|---|---|
+| `assets/textures/murals/ghost_signs.png` (sixteen invented period ads as field / lettering / shadow masks) | Our own script `tools/make_murals.py`; lettering rasterised from the system's DejaVu (Bitstream Vera licence) and Liberation (SIL OFL 1.1) fonts, no font file ships | ours | ghost signs on old brick (`scripts/world/murals.gd`, `shaders/mural.gdshader`) | 2026-10-05 |
+| Every mural scene, frieze, crosswalk pattern and cabinet wrap | Painted procedurally in `shaders/mural.gdshader` | ours | murals | 2026-10-05 |
+
+## Los Angeles trees and accents (built in code)
+
+Ten species built at run time by `scripts/world/la_trees.gd` (2026-10-05) - no model files, no
+textures: a seeded skeleton (trunk, limbs, branches, twigs), leaf cards whose outlines, bark
+patterns and flowers are drawn by `shaders/la_tree.gdshader`. Poly Haven has none of these
+species. Original work for this game.
+
+| Mesh | Built by | Triangles (full detail / coarsest) | Used for | Added |
+|---|---|---|---|---|
+| Eucalyptus (blue gum), Italian cypress, olive, Indian laurel fig, California sycamore, coral tree; two variants each | `LaTrees.mesh()` | 6k-17k / 0.4-1.1k | street rows, parks, plazas, yards, the freeway's right of way, hill gullies, cypress pairs by houses | 2026-10-05 |
+| Bird of paradise, agave (plain and variegated), yucca, dragon tree | `LaTrees.mesh()` | 0.8k-3.5k / 20-400 | front gardens, yard beds, forecourt planters | 2026-10-05 |
+
+## Dogs (built in code; CC0 recordings)
+
+The dogs (`DogMesh`, `DogRig`; 2026-10-05) are built in code: no model file. Their coats
+(`assets/textures/dogs/*.jpg`, 14 colourways) are painted by `tools/dogs/make_dog_coats.py`
+(numpy + PIL), original. The Quaternius Shiba (`dog_shiba.glb`) they replace is removed.
+
+| File | Source | License | Cut | Date |
+|---|---|---|---|---|
+| Dog Bark (aunrea) | https://freesound.org/s/495658/ | CC0 1.0 | `bark_big_0` 0.13-0.55 s; `bark_big_1` 1.43-1.88 s; `bark_big_2` 3.45-3.87 s | 2026-10-05 |
+| Barking Dog (SuperStudioBR) | https://freesound.org/s/180977/ | CC0 1.0 | `bark_big_3` 0.69-1.11 s; `bark_big_4` 2.51-2.91 s; `bark_big_5` 10.73-11.23 s | 2026-10-05 |
+| Pomeranian Small Dog Barking.mp3 (yunjish) | https://freesound.org/s/608732/ | CC0 1.0 | `bark_small_0..4` 6.89, 8.19, 11.65, 12.81, 9.43 s (0.32-0.36 s each) | 2026-10-05 |
+| bark yelp dog small int.flac | https://freesound.org/s/452180/ | CC0 1.0 | `dog_yelp_0` 0.73-1.28 s | 2026-10-05 |
+| Dog's Yelping 7 | https://freesound.org/s/160478/ | CC0 1.0 | `dog_yelp_1` 3.13-3.75 s; `dog_yelp_2` 7.73-8.33 s | 2026-10-05 |
 
 ## Fonts
 

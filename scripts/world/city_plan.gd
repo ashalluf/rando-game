@@ -374,7 +374,14 @@ func block(ix: int, iz: int) -> Dictionary:
 			kind = BlockKind.SCHOOL
 		elif grounds != "":
 			kind = BlockKind.PARK
+	# A hospital campus (Hospital: pure geometry of the block and the seed), after every roll above.
+	var hospital := macro != null and Hospital.claims_block(self, ix, iz)
+	if hospital:
+		grounds = ""
+		kind = BlockKind.BUILDINGS
 	var result := {"rect": rect, "ix": ix, "iz": iz, "district": district, "kind": kind, "seed": rng.randi()}
+	if hospital:
+		result["hospital"] = true
 	if grounds != "":
 		result["grounds"] = grounds
 	if was_plaza:
@@ -384,6 +391,10 @@ func block(ix: int, iz: int) -> Dictionary:
 	if not site.is_empty():
 		result["site"] = site.id
 	_blocks[key] = result
+	# Memorial parks (Cemetery): a hash of the seed and a map cell, decided from this block alone,
+	# AFTER every roll above and BEFORE Schools, which then skip it (it carries grounds).
+	if macro and Cemetery.enabled:
+		Cemetery.apply(self, result)
 	# Public schools (Schools): from a hash of the seed and a map cell, AFTER every roll above, on
 	# blocks nobody else has claimed. A school block is SCHOOL with grounds "school_e" / "school_h".
 	if macro and Schools.enabled:
@@ -497,6 +508,9 @@ func road_open(axis: int, index: int, along: float) -> bool:
 		return false
 	# A street between a high school's blocks is closed (Schools: the campus covers it).
 	if macro and Schools.enabled and Schools.road_closed(self, axis, index, along):
+		return false
+	# Nor between a memorial park's blocks (Cemetery: the lawn covers it).
+	if macro and Cemetery.enabled and Cemetery.road_closed(self, axis, index, along):
 		return false
 	for s: Dictionary in sites():
 		if axis == AXIS_X:
@@ -659,7 +673,7 @@ func _lot_grid(ix: int, iz: int, dropped: Variant) -> Array[Dictionary]:
 	var b := block(ix, iz)
 	# A landmark's site builds its own ground; nothing of the block's is built there. Nor on a rec
 	# park or a school campus (Parks lays those out).
-	if b.has("site") or b.has("grounds"):
+	if b.has("site") or b.has("grounds") or b.has("hospital"):
 		return []
 	# Nor is anything built on a block the river's corridor reaches (RiverBuild lays it).
 	if river_block(ix, iz):
@@ -707,6 +721,7 @@ func _lot_grid(ix: int, iz: int, dropped: Variant) -> Array[Dictionary]:
 	if macro and params.has("core_surface_lots"):
 		surface_odds = lerpf(surface_odds, float(params.core_surface_lots), macro.skyline_boost(rect.get_center()))
 	var out: Array[Dictionary] = []
+	var ridges := Ridges.of(self)
 	for lx in nx:
 		for lz in nz:
 			var edge := lx == 0 or lz == 0 or lx == nx - 1 or lz == nz - 1
@@ -728,6 +743,9 @@ func _lot_grid(ix: int, iz: int, dropped: Variant) -> Array[Dictionary]:
 			if hit:
 				if dropped != null and not by_zone:
 					(dropped as Array).append(cell_rect)
+				continue
+			# The substation and the power line's right of way (Ridges), after every roll.
+			if ridges != null and ridges.claims_lot(self, ix, iz, lot_rect, cell_rect):
 				continue
 			var parking := false
 			if surface_odds > 0.0 and not yard and lot_size.x >= 16.0 and lot_size.y >= 14.0 \

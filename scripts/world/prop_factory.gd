@@ -1362,6 +1362,8 @@ static func model_mesh(path: String, include: PackedStringArray = [], exclude: P
 		var root: Node = scene.instantiate()
 		var importer := ImporterMesh.new()
 		_merge_into(root, root, importer, include, exclude, xform, overrides)
+		if MERGE_BY_MATERIAL.has(path.get_file()):
+			importer = _merged_by_material(importer)
 		if importer.get_surface_count() > 0:
 			importer.generate_lods(25.0, 60.0, [])
 			# A kit that ships many pieces in one file budgets them one by one ("file:node").
@@ -1380,6 +1382,67 @@ static func model_mesh(path: String, include: PackedStringArray = [], exclude: P
 		push_warning("PropFactory: missing model " + path)
 	_cache[key] = mesh
 	return mesh
+
+
+## Models whose pieces are merged into one surface per material (_merged_by_material): a node
+## of the glTF was a surface, so the bench kit drew ten surfaces (four materials) per batch - 230
+## to 320 draws a street frame - and every physics trash can four draws and four more per shadow
+## cascade. Not the trees: their LOD ladders (FoliageLod) are measured per surface.
+const MERGE_BY_MATERIAL := ["prop_bench_kit.glb", "prop_trash_can.glb"]
+
+
+## `im` with the surfaces that share a material (the same object, or the same name and albedo
+## texture: a glTF exporter writes one material twice) joined into one. Surfaces whose arrays do
+## not line up (one has UV2, another not) stay apart.
+static func _merged_by_material(im: ImporterMesh) -> ImporterMesh:
+	var groups := {}
+	var order: Array = []
+	for s in im.get_surface_count():
+		var mat := im.get_surface_material(s)
+		var key: Variant = mat
+		if mat is BaseMaterial3D:
+			var bm := mat as BaseMaterial3D
+			key = "%s|%s" % [bm.resource_name, bm.albedo_texture.resource_path if bm.albedo_texture else ""]
+		if not groups.has(key):
+			groups[key] = []
+			order.append(key)
+		(groups[key] as Array).append(s)
+	var out := ImporterMesh.new()
+	for key: Variant in order:
+		var list: Array = groups[key]
+		var first: int = list[0]
+		var merged: Array = im.get_surface_arrays(first)
+		var mergeable := list.size() > 1
+		for s: int in list.slice(1):
+			var a := im.get_surface_arrays(s)
+			for k in Mesh.ARRAY_MAX:
+				if (merged[k] == null) != (a[k] == null):
+					mergeable = false
+		if not mergeable:
+			for s: int in list:
+				out.add_surface(Mesh.PRIMITIVE_TRIANGLES, im.get_surface_arrays(s), [], {}, im.get_surface_material(s), im.get_surface_name(s))
+			continue
+		merged = merged.duplicate()
+		for k in Mesh.ARRAY_MAX:
+			if merged[k] != null:
+				merged[k] = merged[k].duplicate()
+		for s: int in list.slice(1):
+			var a := im.get_surface_arrays(s)
+			var base := (merged[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+			for k in Mesh.ARRAY_MAX:
+				if a[k] == null:
+					continue
+				if k == Mesh.ARRAY_INDEX:
+					var idx: PackedInt32Array = a[k]
+					var shifted := PackedInt32Array()
+					shifted.resize(idx.size())
+					for i in idx.size():
+						shifted[i] = idx[i] + base
+					merged[k].append_array(shifted)
+				else:
+					merged[k].append_array(a[k])
+		out.add_surface(Mesh.PRIMITIVE_TRIANGLES, merged, [], {}, im.get_surface_material(first), im.get_surface_name(first))
+	return out
 
 
 ## Shadow-only stand-ins for foliage meshes, keyed by the mesh they stand in for.
@@ -2114,7 +2177,17 @@ static func bus_sign() -> Mesh:
 	bm.size = Vector3(0.5, 0.5, 0.03)
 	st.append_from(bm, 0, Transform3D())
 	var mesh := st.commit()
-	var tm := text_mesh("BUS", 0.16)
+	# Its own lettering, not text_mesh(): at the default half-pixel curve step "BUS" was 2,400
+	# triangles on a 50 cm plate (125k downtown). Three-pixel steps at 48 px are 1 cm on 16 cm
+	# letters.
+	var tm := TextMesh.new()
+	tm.text = "BUS"
+	tm.font_size = 48
+	tm.pixel_size = 0.16 / 48.0
+	tm.depth = 0.01
+	tm.curve_step = 3.0
+	tm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tm.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	var st2 := SurfaceTool.new()
 	st2.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st2.set_material(material(Color.WHITE, 0.6))

@@ -59,11 +59,18 @@ var line: LightRail
 var _signs: Array[Dictionary] = []
 var _gates: Array[Dictionary] = []
 var _shapes: Array = []
+## The overhead wires (contact wire, messenger, droppers: 4-6.5 mm of copper and steel): no
+## cascade can draw their shadow - it came out as dotted aliasing on the street under the
+## structure - so they are their own mesh that casts none. (The sleepers and rails keep theirs:
+## from the air their shadow edges on the ballast are what makes the track read.)
+var fine := SurfaceTool.new()
+var _fine_any := false
 
 
 func _init(c: CityChunk) -> void:
 	super(c)
 	line = LightRail.of(plan)
+	fine.begin(Mesh.PRIMITIVE_TRIANGLES)
 
 
 ## Everything this chunk owns of the line, then commits it. Returns false when there was nothing.
@@ -432,7 +439,8 @@ func _wire_points(s: float, track: float) -> Array:
 
 
 func _wire(a: Vector3, b: Vector3, r: float) -> void:
-	prism(body, a, b, r, r, 3, _col(WIRE, S_STEEL), false)
+	prism(fine, a, b, r, r, 3, _col(WIRE, S_STEEL), false)
+	_fine_any = true
 
 
 ## A centre pole at s with a cantilever and a registration arm over each track.
@@ -913,6 +921,10 @@ func _substation(smp: Dictionary) -> void:
 func _commit() -> void:
 	var mi := _add("RailStructure", body.commit(), structure_material())
 	mi.add_to_group("light_rail_static")
+	if _fine_any:
+		var fm := _add("RailDetail", fine.commit(), structure_material())
+		fm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		fm.add_to_group("light_rail_static")
 	if _paint_any:
 		var pm := _add("RailSigns", paint.commit(), paint_material())
 		pm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

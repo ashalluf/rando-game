@@ -638,13 +638,31 @@ static func _water(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
 		var half := COPE_IN if far else (BED_HALF + 1.6)
 		var rect := _canal_rect(c, half)
 		var pieces: Array[Rect2] = [rect]
+		# A north-south canal's water owns the crossings, but there the way along the cross canal
+		# is open: those squares are their own pieces, tagged with the cross canal (`cross`), so
+		# the shader can mirror down whichever canal the reflected ray runs along.
+		var cross: Array[int] = [-1]
+		var holes: Array = []
+		var hole_ids: Array[int] = []
+		for oi in canals.size():
+			if int(canals[oi].axis) != int(c.axis):
+				holes.append(_canal_rect(canals[oi], half))
+				hole_ids.append(oi)
 		if int(c.axis) == 1:
-			var holes: Array = []
-			for o: Dictionary in canals:
-				if int(o.axis) == 0:
-					holes.append(_canal_rect(o, half))
 			pieces = Parks.minus(rect, holes, 0.01)
-		for piece: Rect2 in pieces:
+			cross.resize(pieces.size())
+			cross.fill(-1)
+		elif not holes.is_empty():
+			pieces = Parks.minus(rect, holes, 0.01)
+			cross.resize(pieces.size())
+			cross.fill(-1)
+			for hi in holes.size():
+				var sq: Rect2 = rect.intersection(holes[hi])
+				if sq.size.x > 0.05 and sq.size.y > 0.05:
+					pieces.append(sq)
+					cross.append(hole_ids[hi])
+		for pi in pieces.size():
+			var piece: Rect2 = pieces[pi]
 			var part := piece.intersection(area)
 			if part.size.x < 0.05 or part.size.y < 0.05:
 				continue
@@ -662,9 +680,14 @@ static func _water(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
 					var v: Vector3 = vs[k]
 					var across: float = (v.x if int(c.axis) == 0 else v.z) - float(c.c)
 					var along: float = v.z if int(c.axis) == 0 else v.x
+					var uv2 := Vector2(float(c.axis), float(ci))
+					if cross[pi] >= 0:
+						# A crossing: UV.y is the offset across the cross canal, UV2.x 2 + its index.
+						along = v.z - float(canals[cross[pi]].c)
+						uv2.x = 2.0 + float(cross[pi])
 					st.set_normal(Vector3.UP)
 					st.set_uv(Vector2(across, along))
-					st.set_uv2(Vector2(float(c.axis), float(ci)))
+					st.set_uv2(uv2)
 					st.add_vertex(v)
 			if not far:
 				_sink_volume(ch, part)

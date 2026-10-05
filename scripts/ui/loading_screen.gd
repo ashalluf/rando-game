@@ -145,6 +145,10 @@ func run(city: Node3D) -> void:
 		t_rigs += Time.get_ticks_usec() - t0
 	# The people's share of the wait (the camp figures, then every rig's limbs, welded bodies and
 	# hats), for measuring a change of models: the rest of the loading screen does not depend on them.
+	# The dogs' meshes (DogMesh, built in code: every breed's three levels and fur shells).
+	var t_dogs := Time.get_ticks_usec()
+	DogMesh.warm()
+	print("LOADING dogs: %d ms" % ((Time.get_ticks_usec() - t_dogs) / 1000))
 	print("LOADING people: %d camp figures %d ms, %d rigs %d ms" % [kinds.size(), t_camp / 1000, models.size(), t_rigs / 1000])
 	_step("Ready", 1.0)
 	await _frames(2)
@@ -204,14 +208,19 @@ func _warm_shaders() -> void:
 	effects.append_array(PortKit.warm())
 	# The street vendors' trucks, carts and umbrellas (StreetVendors), built in code.
 	effects.append_array(StreetVendors.warm())
+	effects.append_array(BoulevardSigns.warm())
 	# The billboards' faces and steel (Billboards), only ever drawn through the chunks' batches.
 	effects.append_array(Billboards.warm())
 	# The beach's towels, umbrellas, chairs, boards, the net and the tower (BeachLife).
 	effects.append_array(BeachLife.warm())
 	# The pier park's meshes (PierPark), built here rather than by the chunk that streams it in.
 	effects.append_array(PierPark.warm())
+	# The code-built Los Angeles trees and accents (LaTrees): built here, ~2 s of GDScript.
+	effects.append_array(LaTrees.warm())
 	# Car damage: the flames, the glass cubes and the engine smoke (CarDamage).
 	effects.append_array(CarDamage.warm_materials())
+	# The hillside houses' glass, pool water and site materials (HillHomeKit).
+	effects.append_array(HillHomeKit.warm())
 	# The boost's streaks of air (BoostTrail), so the first boost does not stall.
 	effects.append(BoostTrail.streak_material())
 	# What a blast leaves (BlastAftermath): the crater's maps, the slabs, the leaves.

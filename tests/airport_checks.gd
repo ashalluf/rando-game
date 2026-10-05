@@ -43,12 +43,15 @@ func _layout(macro: MacroMap) -> void:
 		spots_ok = spots_ok and not Airport.near_gate(p, 6.0) and macro.airport_rect.has_point(p)
 		for rz: float in macro.runway_zs:
 			spots_ok = spots_ok and absf(p.y - rz) > macro.runway_width * 0.5 + 10.0
-	# The first spot (the smoke test's jet) rolls east down the taxiway: 300 m clear of every stand.
+	# The first spot (the smoke test's jet) rolls down the taxiway the way it faces: 300 m clear of
+	# every stand.
 	var run_clear := true
 	var s0: Vector2 = macro.apron_spots[0][0]
+	var yaw0: float = macro.apron_spots[0][2] if (macro.apron_spots[0] as Array).size() > 2 else -PI * 0.5
+	var run_dir := Vector2(-sin(yaw0), -cos(yaw0))
 	for k in 31:
-		run_clear = run_clear and not Airport.near_gate(s0 + Vector2(float(k) * 10.0, 0.0), 12.0)
-	_t._check(spots_ok and run_clear, "the flyable jets wait off the stands and the runways, the first with a clear run east")
+		run_clear = run_clear and not Airport.near_gate(s0 + run_dir * float(k) * 10.0, 12.0) and macro.airport_rect.has_point(s0 + run_dir * float(k) * 10.0)
+	_t._check(spots_ok and run_clear, "the flyable jets wait off the stands and the runways, the first with a clear 300 m run")
 	var rws := Airport.runways(macro)
 	var arr: Array = rws[macro.arrival_runway]
 	var air_aim := macro.airport_rect.end.x - 190.0
@@ -122,7 +125,9 @@ func _landmarks(city: Node3D) -> void:
 	var parked := 0
 	for g in Airport.gates():
 		parked += 0 if bool(g.empty) else 1
-	_t._check(jets == parked and parked >= 7, "the far concourses park an airliner at every occupied gate (%d of %d)" % [jets, parked])
+	# Every stand has an instance (the empty one collapsed): AirportGround swaps them as jets come
+	# and go (tests/airport_life_checks.gd).
+	_t._check(jets == Airport.gates().size() and parked >= 7, "the far concourses hold an airliner instance for every stand (%d of %d, %d parked)" % [jets, Airport.gates().size(), parked])
 	var lights := city.get_node_or_null("FarLandmark_airfield_lights")
 	var ignored := false
 	if lights:

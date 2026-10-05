@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://becngagk13f1w"
-path="res://.godot/imported/dog_shiba.glb-845ca2d6d682904333f2138398bb2e3f.scn"
+uid="uid://chmfqenp1rl0x"
+path="res://.godot/imported/road_ice_cream.glb-d8cf65838391bf64a357d4fde165ea7b.scn"
 
 [deps]
 
-source_file="res://assets/models/dog_shiba.glb"
-dest_files=["res://.godot/imported/dog_shiba.glb-845ca2d6d682904333f2138398bb2e3f.scn"]
+source_file="res://assets/models/road_ice_cream.glb"
+dest_files=["res://.godot/imported/road_ice_cream.glb-d8cf65838391bf64a357d4fde165ea7b.scn"]
 
 [params]
 
