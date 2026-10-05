@@ -127,7 +127,8 @@ func _trains(pw: Vector3) -> void:
 	for st in trains:
 		var mid := line.sample(float(st.s) - float(st.dir) * LightRail.TRAIN_LENGTH * 0.5)
 		var p: Vector2 = mid.pos
-		var d := Vector2(pw.x, pw.z).distance_to(p)
+		# In 3D: from the air a train 300 m below is a box.
+		var d := pw.distance_to(Vector3(p.x, float(mid.y), p.y))
 		by_dist.append([d, st])
 	by_dist.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
 	var want: Dictionary = {}
