@@ -41,6 +41,9 @@ const SPEED_AVENUE := 0.55
 const SPEED_STREET := 0.22
 const PARKING_FACE := 0.5
 const YIELD_ODDS := 0.4
+## How far back from the corner along its approach a yield sign stands (metres): behind the
+## crosswalk and the corner's kerb ramp.
+const YIELD_BACK := 4.8
 const NO_TURN_RED := 0.3
 ## Parking posts: spacing along a face (metres) and how far from the face's ends they keep.
 const PARKING_SPACING := 38.0
@@ -208,6 +211,10 @@ static func build(ch: CityChunk) -> void:
 	if plan.macro and plan.macro.replica and plan.macro.replica.block_role(plan, ch.ix, ch.iz) != 0:
 		return
 	var obstacles := _obstacles(ch)
+	# Kerbs' cuts (corner ramps, driveway aprons), grown a little: no post stands in one.
+	var cuts: Array = []
+	for n: Dictionary in ((ch.get_meta("kerbs", {}) as Dictionary).get("built", {}) as Dictionary).get("notches", []):
+		cuts.append(Geometry2D.offset_polygon(n.poly, 0.4)[0] if not Geometry2D.offset_polygon(n.poly, 0.4).is_empty() else n.poly)
 	var district: int = plan.district_at(rect.get_center())
 	var faces := [
 		[CityPlan.AXIS_Z, ch.iz, Vector2i(0, -1)], [CityPlan.AXIS_Z, ch.iz + 1, Vector2i(0, 1)],
@@ -242,7 +249,7 @@ static func build(ch: CityChunk) -> void:
 		var t := 14.0 + 10.0 * _h01([plan.seed, "spd_t", axis, index, k, ch.ix, ch.iz])
 		var p := entry + d * t + inward * KERB_IN
 		if school or _h01([plan.seed, "spd", axis, index, ch.ix, ch.iz, k]) < (SPEED_AVENUE if avenue else SPEED_STREET):
-			p = _clear_spot(p, d, obstacles)
+			p = _clear_spot(p, d, obstacles, cuts)
 			if p != Vector2.INF:
 				var mesh := SignKit.school_post() if school else SignKit.speed_post(speed_for(district, avenue))
 				var at := Vector3(p.x, CityChunk.SIDEWALK_TOP, p.y)
@@ -264,7 +271,7 @@ static func build(ch: CityChunk) -> void:
 		while s < length - PARKING_END and n < 6:
 			var q := a + dir * s + inward * KERB_IN
 			s += PARKING_SPACING
-			var spot := _clear_spot(q, dir, obstacles)
+			var spot := _clear_spot(q, dir, obstacles, cuts)
 			if spot == Vector2.INF:
 				continue
 			var at := Vector3(spot.x, CityChunk.SIDEWALK_TOP, spot.y)
@@ -273,7 +280,7 @@ static func build(ch: CityChunk) -> void:
 				[[Vector3(0.2, 3.0, 0.2), at + Vector3(0.0, 1.5, 0.0), 0.0]])
 			obstacles.append(Vector3(spot.x, spot.y, CLEAR))
 			n += 1
-	_yields(ch, obstacles)
+	_yields(ch, obstacles, cuts)
 
 
 ## The speed limit for a road (mph): avenues by district, everything else 25.
@@ -290,7 +297,7 @@ static func speed_for(district: int, avenue: bool) -> int:
 
 ## Yield signs on the minor road's two approaches at an unsigned junction (the narrower road; a
 ## hash where they are as wide), on the near right corner, a step back from the corner's blades.
-static func _yields(ch: CityChunk, obstacles: Array) -> void:
+static func _yields(ch: CityChunk, obstacles: Array, cuts: Array) -> void:
 	var plan: CityPlan = ch.plan
 	var inter: Dictionary = plan.intersection(ch.ix + 1, ch.iz + 1)
 	if int(inter.kind) != CityPlan.Intersection.PLAIN or plan.junction_closed(ch.ix + 1, ch.iz + 1):
@@ -307,7 +314,16 @@ static func _yields(ch: CityChunk, obstacles: Array) -> void:
 	for i in 2:
 		var c: Vector2 = corners[i]
 		var facing := Vector3(0.0, 0.0, c.y) if ns_minor else Vector3(c.x, 0.0, 0.0)
-		var corner := pos + Vector2(c.x * (size.x * 0.5 + 1.2), c.y * (size.y * 0.5 + 1.2)) + Vector2(facing.x, facing.z) * 1.8
+		# Behind the crosswalk and its kerb ramp, stepped further back out of any cut Kerbs made on
+		# this block (moved, never dropped: the block's props are the same with Kerbs off).
+		var corner := Vector2.ZERO
+		for back: float in [YIELD_BACK, YIELD_BACK + 1.5, YIELD_BACK + 3.0, YIELD_BACK + 4.5]:
+			corner = pos + Vector2(c.x * (size.x * 0.5 + 1.2), c.y * (size.y * 0.5 + 1.2)) + Vector2(facing.x, facing.z) * back
+			var in_cut := false
+			for poly: PackedVector2Array in cuts:
+				in_cut = in_cut or Geometry2D.is_point_in_polygon(corner, poly)
+			if not in_cut:
+				break
 		var at := Vector3(corner.x, CityChunk.SIDEWALK_TOP, corner.y)
 		var mesh := SignKit.yield_post()
 		_add(ch, "stop_sign", at, [["ss_" + _key(mesh), mesh, Transform3D(Basis(Vector3.UP, atan2(facing.x, facing.z)), at), Color.WHITE, _roll([plan.seed, "yield", ch.ix, ch.iz, i])]],
@@ -317,10 +333,14 @@ static func _yields(ch: CityChunk, obstacles: Array) -> void:
 
 ## `p`, or a spot up to 4.5 m along `dir` either way that keeps clear of everything in
 ## `obstacles` (Vector3: x, z, the clearance it needs); Vector2.INF when there is none.
-static func _clear_spot(p: Vector2, dir: Vector2, obstacles: Array) -> Vector2:
+static func _clear_spot(p: Vector2, dir: Vector2, obstacles: Array, cuts: Array = []) -> Vector2:
 	for k: float in [0.0, 1.5, -1.5, 3.0, -3.0, 4.5]:
 		var q := p + dir * k
 		var ok := true
+		for poly: PackedVector2Array in cuts:
+			if Geometry2D.is_point_in_polygon(q, poly):
+				ok = false
+				break
 		for o: Vector3 in obstacles:
 			if Vector2(o.x, o.y).distance_squared_to(q) < o.z * o.z:
 				ok = false

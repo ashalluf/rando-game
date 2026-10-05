@@ -9431,7 +9431,8 @@ already decides a sign belongs.
   - stop signs on the near right corner of each approach (right-hand traffic: c.x == c.y corners
     serve the north-south road), facing the traffic they stop, with the ALL WAY plaque;
   - yields on the minor (narrower) road's two approaches at `YIELD_ODDS` of the unsigned
-    junctions, a step back from the corner;
+    junctions, behind the crosswalk (`YIELD_BACK`) and never in a kerb cut (the block signs
+    also keep out of Kerbs' corner ramps and driveway aprons);
   - per block face: a speed limit (`SPEED_AVENUE` / `SPEED_STREET`; `speed_for()`: 25 on streets,
     30 downtown, 35 midtown, 40 suburbs and industrial on avenues) 14-24 m past the crossing the
     kerb lane comes in from, facing it; the school zone sign instead on every face of or across
