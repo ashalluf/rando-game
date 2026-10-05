@@ -8655,6 +8655,13 @@ many planned towers). `ROOFTOPS=0` in the environment is the A/B. City stills us
 helicopter), `2587.2,82.5,292.4,45,-28@17.6` / `@21.5` (a pool deck at golden hour and at night),
 spawn `--spawn=2700,0,45,-30,120`.
 
+**Merged with fleet/base (2026-10-05, wave 2).** Conflicts only in the docs and in
+`LandmarkDowntown.build()` (the helipad hook and BuildingDamage's `restore_tower()` both kept).
+Review fix: the pool's Fresnel sky read `sky_tint` through `cs_in()`, which leaves it undecoded
+on Forward+; the global is raw sRGB on both renderers, so it is now `cs_srgb_to_linear()` on both
+(the Mac drew the pool's sky reflection too bright). Gate on the merged tree: 1,381 passed, 1
+failed (the known minimap "closed road" check), peak 3.1 GB.
+
 **Not done / not verified.** Forward+ (the Mac) not seen: the pool's water and glare, the pad's
 lights, the string lights and the bar sign under AgX and glow need eyes. The deck people are plain
 walkers drifting about (no crowd-life clips: no drinks, no sitting on the loungers). The window
