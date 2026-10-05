@@ -40,6 +40,35 @@ func _preset() -> void:
 	_t._check(cfg.get_value(opts, "variant/extensions_support", true) == false, "web: no GDExtension")
 	_t._check(cfg.get_value(opts, "vram_texture_compression/for_desktop", false) == true,
 		"web: desktop (S3TC) textures are exported for desktop browsers")
+	_excluded(str(cfg.get_value(web, "exclude_filter", "")))
+
+
+## The Web preset leaves out files nothing loads (the retired Meshy pedestrians, the editor
+## thumbnails: ~45 MB of the download). Nothing in scripts/ or scenes/ may load one of them.
+func _excluded(filter: String) -> void:
+	var globs: Array[String] = []
+	for g in filter.split(","):
+		if g.strip_edges() != "":
+			globs.append("res://" + g.strip_edges())
+	_t._check(globs.size() >= 2, "web: the Web preset excludes the unused rigs and thumbnails (%s)" % filter)
+	var bad: Array[String] = []
+	var re := RegEx.create_from_string("(load|ext_resource|ResourceLoader)[^\\n]*\"(res://[^\"]+)\"")
+	for path in _files("res://scripts", ".gd") + _files("res://scenes", ".tscn"):
+		for m in re.search_all(FileAccess.get_file_as_string(path)):
+			for g in globs:
+				if m.get_string(2).match(g):
+					bad.append("%s -> %s" % [path, m.get_string(2)])
+	_t._check(bad.is_empty(), "web: nothing loads a file the Web export leaves out %s" % [bad])
+
+
+func _files(dir: String, ext: String) -> Array[String]:
+	var out: Array[String] = []
+	for f in DirAccess.get_files_at(dir):
+		if f.ends_with(ext):
+			out.append(dir.path_join(f))
+	for d in DirAccess.get_directories_at(dir):
+		out.append_array(_files(dir.path_join(d), ext))
+	return out
 
 
 func _shaders() -> void:
