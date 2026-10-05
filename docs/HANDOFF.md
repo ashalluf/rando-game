@@ -8634,3 +8634,19 @@ within 70 m of the player). Police cruisers and emergency units do not use any o
 drivers). The ramps' slab starts 0.7 m below the deck top (CityChunk, unchanged); ramp cars are
 lifted back to the deck over the ramp's first metres. Freeway following is still the old spacing
 rule, not the IDM.
+
+**Second session (fleet wave 2, after merging fleet/base).** Merged cleanly in code (TrafficManager
+had only the school bus and the bus-sign fix; a school bus is a big vehicle to the AI: passed when
+slow, never double-parks). Review fixes: a car pulled over for a siren (`yield_t`) starts no lane
+change and drops one it was signalling; the near-miss honk is only for a car ahead or the player
+(`why` 0 / 2), not a pushy driver's own late braking at a red; the pull-out's speed and the ramp
+cars' speed and home lane are hashes, not the traffic rng. Checks: 18 (one new: no lane change
+while yielding); the bus pass now forces the green of the junction the car heads for (force()
+moves the one shared clock, so forcing a range of junctions only kept the last), the turn-lane
+check takes an avenue ending at signals - **a stop sign's crosswalk with a steady stream of
+walkers holds a car for ever** (seen at the spawn in a standalone run: 26 s at the line; the
+street-life rule, not changed here; worth a "cars assert themselves" pass). `tools/traffic_ai/checks.tscn`
+runs the checks alone against the city (~4 min headless). The whole smoke test took 956 s on
+this box (local `timeout 900` in headless_check.sh trips; the traffic checks are ~143 s of it).
+New stills `2N_after_fleetbase_*` on shots/traffic-ai; the merge view shows a house poking through
+the freeway deck by the on-ramp (route 0) (houses / corridor, not this branch).
