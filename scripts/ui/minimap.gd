@@ -24,6 +24,7 @@ const COLORS := {
 	"landmark": Color(1.0, 0.36, 0.3), "landmark_text": Color(1.0, 0.95, 0.9), "player": Color(0.35, 0.75, 1.0),
 	"player_glow": Color(0.35, 0.75, 1.0, 0.25), "cone": Color(1.0, 1.0, 1.0, 0.08), "car": Color(0.95, 0.95, 0.95),
 	"car_traffic": Color(0.75, 0.75, 0.8), "text": Color(0.9, 0.9, 0.9),
+	"river": Color(0.46, 0.46, 0.44), "river_water": Color(0.16, 0.3, 0.32),
 }
 
 ## The district fill colours, in CityPlan.District order. It was an anonymous literal inline in
@@ -171,6 +172,10 @@ func _draw() -> void:
 			for p: Vector2 in park.lake:
 				lake.append(world_to_map(p, center))
 			draw_colored_polygon(lake, COLORS.ocean)
+	# The Los Angeles River (LaRiver): the concrete channel, its low-flow line, and the street
+	# bridges over it.
+	if plan.macro and plan.macro.river and plan.macro.river.bounds.grow(radius).has_point(center):
+		_draw_river(plan, center, scale, radius)
 	# Shoreline and runways.
 	if plan.macro:
 		var macro: MacroMap = plan.macro
@@ -286,6 +291,31 @@ func _draw() -> void:
 ## lost the player, and every unit as a blip flashing red and blue - cruisers as bigger chips,
 ## officers on foot as dots. Clamped to the rim when they are off the map, so you can see what
 ## is coming.
+func _draw_river(plan: CityPlan, center: Vector2, scale: float, radius: float) -> void:
+	var rv: LaRiver = plan.macro.river
+	var view := Rect2(center - Vector2.ONE * radius * 1.5, Vector2.ONE * radius * 3.0)
+	var ir := rv.index_range(view, 60.0)
+	if ir.y <= ir.x:
+		return
+	var line := PackedVector2Array()
+	for i in range(ir.x, ir.y + 1, 2):
+		line.append(world_to_map(rv.pts[i], center))
+	if line.size() < 2:
+		return
+	var s_mid := rv.run[(ir.x + ir.y) / 2]
+	draw_polyline(line, COLORS.river, maxf(rv.top_half(s_mid) * 2.0 * scale, 2.0), true)
+	draw_polyline(line, COLORS.river_water, maxf(LaRiver.lf_half() * 2.0 * scale, 1.0), true)
+	for br: Dictionary in rv.bridges(plan):
+		var p: Vector2 = br.p
+		if not view.has_point(p):
+			continue
+		var u: Vector2 = br.along
+		var o: Vector2 = br.p0
+		var a := world_to_map(o + u * float(br.t0), center)
+		var b := world_to_map(o + u * float(br.t1), center)
+		draw_line(a, b, COLORS.road, maxf(float(br.width) * scale, 1.5), true)
+
+
 func _draw_police(center: Vector2, scale: float) -> void:
 	var police := get_tree().get_first_node_in_group("wanted")
 	if police == null or int(police.get("stars")) <= 0 and (police.get("cruisers") as Array).is_empty():

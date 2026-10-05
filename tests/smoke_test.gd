@@ -1768,6 +1768,10 @@ func _test_city() -> void:
 	# trucks, yards and rail spurs - bare share before and after, the plans, one mesh each, nothing
 	# else in the block moved, the far boxes.
 	load("res://tests/industrial_checks.gd").new().run(self, city)
+	# The Los Angeles River (tests/la_river_checks.gd): the route east of downtown to Long Beach, the
+	# freeways over it, the streets closed or bridged, no lot in the corridor, the chunk's meshes and
+	# one collision body, the far city's boxes, and a car on the bed and down a ramp.
+	await load("res://tests/la_river_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

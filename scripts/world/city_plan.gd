@@ -469,6 +469,9 @@ func site_at_block(ix: int, iz: int) -> Dictionary:
 ## along the road): no traffic, parking, crossings or street furniture there. The perimeter roads,
 ## the kept roads and a closed road's crossing of a kept one stay open.
 func road_open(axis: int, index: int, along: float) -> bool:
+	# A street the river crosses without a bridge ends at its bank (LaRiver.road_open()).
+	if macro and macro.river and not macro.river.road_open(self, axis, index, along):
+		return false
 	for s: Dictionary in sites():
 		if axis == AXIS_X:
 			if index <= s.ix0 or index >= s.ix1:
@@ -496,6 +499,12 @@ func road_open_at(axis: int, coord: float, along: float) -> bool:
 	return road_open(axis, _nearest_road(axis, coord), along)
 
 
+## True when chunk (ix, iz) reaches the river's corridor: it builds the river's ground, the
+## seeded block is not built (LaRiver.block_role(), RiverBuild).
+func river_block(ix: int, iz: int) -> bool:
+	return macro != null and macro.river != null and macro.river.block_role(self, ix, iz) != 0
+
+
 ## True where world XZ `p` is on a site's own ground (not on one of the roads it keeps open).
 func in_site(p: Vector2) -> bool:
 	for s: Dictionary in sites():
@@ -512,7 +521,7 @@ func in_site(p: Vector2) -> bool:
 ## True when any of the four roads meeting at intersection (ix, iz) is closed on the arm leaving
 ## it (a T where a closed road meets a site's edge), so no crossing, signal or sign is built there.
 func junction_closed(ix: int, iz: int) -> bool:
-	if sites().is_empty():
+	if sites().is_empty() and (macro == null or macro.river == null):
 		return false
 	var x := road_pos(AXIS_X, ix)
 	var z := road_pos(AXIS_Z, iz)
@@ -619,6 +628,9 @@ func _lot_grid(ix: int, iz: int, dropped: Variant) -> Array[Dictionary]:
 	var b := block(ix, iz)
 	# A landmark's site builds its own ground; nothing of the block's is built there.
 	if b.has("site"):
+		return []
+	# Nor is anything built on a block the river's corridor reaches (RiverBuild lays it).
+	if river_block(ix, iz):
 		return []
 	var rect: Rect2 = b.rect
 	# The whole block is a landmark's site (see Landmarks.claims()): nothing else is built on it,

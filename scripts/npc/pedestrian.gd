@@ -2303,6 +2303,10 @@ func _crossable(plan: CityPlan, rect: Rect2, far_kerb: Vector2) -> bool:
 		return false
 	if plan.zone_at(rect.get_center()) != MacroMap.Zone.CITY or plan.zone_at(far_kerb) != MacroMap.Zone.CITY:
 		return false
+	# Not onto a river block: its pavement ring runs into the channel.
+	var kb := plan.chunk_index_at(rect.get_center())
+	if plan.river_block(kb.x, kb.y):
+		return false
 	return not Landmarks.covers(plan, far_kerb, 1.0)
 
 
