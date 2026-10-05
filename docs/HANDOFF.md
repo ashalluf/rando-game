@@ -9232,3 +9232,108 @@ at the fence, no tongue when panting (the jaw just hangs open). Dogs are not on 
 budget separately (they follow the walkers). Yard dogs only in the suburbs and the beach town
 (YardFill's lots); hillside estates have none. The walker test of the lead runs headless (no
 mesh data), so the lead's ribbon is only seen in stills.
+
+## 9cw. Hill homes: houses on the hillside estates, 2026-10-05 (branch `wt/hill-homes`; VISUAL_ROADMAP #91)
+
+**What.** Every estate HillRoads places (402 on the default seed: the front range's switchbacks,
+the canyon roads, the peninsula's rim road and lanes) was a pad, walls, a gate, a pool and an
+18 x 9 m `Building` slab with a storefront band. Now each gets a real house planned on its pad,
+sized to it and facing the view - the pad side (not the road's) the carved ground falls off most
+past the pad's flat - in one of three Los Angeles hillside types (158 contemporary, 129
+cantilever, 115 villa on this seed):
+- **CANTILEVER**, the mid-century glass pavilion of the Hollywood Hills: one long storey of
+  floor-to-ceiling glass on the view and both sides (a solid share at the court end), a flat roof
+  on a 1.5-2.3 m overhang, jutting 3.4-7 m past the pad's edge over the bank on a steel frame
+  (edge beams, columns every <= 6.5 m in a row under the deck's edge and another under the middle of
+  a long overhang, concrete footings on the slope, X bracing in alternate bays), a 2.6 m deck with
+  a cable rail at its end, an infinity pool on the pad beside it whose far edge spills down the
+  wall into a trough, a carport by the gate; on a drop over 6 m (55 %) a glazed lower level
+  tucked under the overhang with a stair down to it.
+- **VILLA**, Spanish revival stepping down the slope: two storeys of stucco under clay hips with
+  rafter tails, a three-storey tower at the front corner with an arched loggia at the top, an
+  arched door, arched windows below and sash windows with wrought-iron balconettes above, a
+  chimney, a loggia wing a storey down the bank (arches along the view) whose flat roof is a
+  paved terrace at pad level, a second step under it on a drop over 7 m, a plain pool, a garage
+  wing by the gate.
+- **CONTEMPORARY**: stacked boxes - a ground volume (white render, stained boards or dark render)
+  with glass to the view and ribbon windows down the sides, an upper white volume slid 2-4 m
+  sideways and cantilevered 3.2-5.5 m out past it and the pad, glass to the view, ribbons on three
+  sides; an infinity pool beside it.
+
+Round all three: the pad's walls (CityChunk's rule: garden wall, retaining wall up the cut,
+retaining wall down the fill), the view side flush with the pad where the house, deck, pool or a
+stair stand at the edge and a cable rail (a stucco parapet on a villa) elsewhere; stairs down the
+bank on a concrete flight (on steel posts where the bank falls away) to a landing; terraced
+gardens below the free view edge on a drop over 2.5 m (two retaining walls with clipped hedges);
+Italian cypress along a side wall (the fir narrowed to 0.3 of its width), olives in the court and
+on the terraces (the broad city tree, small and grey-green), palms; and where the road runs more
+than 2.6 m above the pad, the garage stands up at the road on steel stilts with a stair down to
+the drive.
+
+**How.** `HillHomeKit.plan_home(plan, m)` is PURE (hashes of the seed and the estate's own seed;
+the ground through `plan.height_at()`), laid in a frame on the pad: u across, v from its uphill
+edge to the view edge at `Dp`, one of the pad's own axes, so the house squares with the walls; the
+pad runs out on the view side to the edge of the carved flat (radius - 0.6 m) unless a corner would
+stand on rising ground. `HillHomeBuild` extends HouseBuild: each wing at its own floor (`y`) and
+wall foot (`base`), its own `_openings()` (glass walls, ribbons, arches, the garage door on
+whichever face the court is), soffits under everything standing clear of the ground, glass on
+`shaders/hill_glass.gdshader`, the site work in the chunk's merged boxes. The glass shader traces a
+room behind every pane at its real size (UV in metres): floor with a rug, ceiling with recessed
+downlights, side walls, a back wall with a picture, a low sofa, a coffee table, a floor lamp, sheer
+curtains in some bays; sky-lit by day falling off inward, 82 % of rooms lit warm after dark; the
+mirror is emitted by Fresnel. The pools are `shaders/hill_pool.gdshader`: a tiled tank with
+caustics under rippling water, the sky by Fresnel, lit turquoise from below after dark.
+`CityChunk._build_mansions()` hands each estate to `HillHomeKit.build()` and keeps only the
+driveway strip; the FULL build is time-sliced into steps queued with `_run_or_defer()` (pad and
+walls, each wing, porch / chimney / collision, steel / pool / terraces, garden), the houses
+committed one mesh per material at the finish (`HillHomeKit.commit()`, one hook line), collision
+one `HillHomes` body. LOD chunks: HouseBuild's LOD boxes per wing (lit windows), clay slabs, the
+pool, the columns. The far city: `Skyline._add_hills()` takes `HillHomeKit.far_boxes()` - a box per
+wing, a clay cap on the villas, the pool, and a glass band on each wing's view face that
+`far_canopy.gdshader` lights warm after dark (84 % of estates; INSTANCE_CUSTOM.a marks an estate
+part, .b its lift over the pad, so every part of an estate is seated on the drawn ground by the
+same amount). The loading screen warms the materials (`HillHomeKit.warm()`, one line).
+
+**Trap found.** A Callable to a RefCounted's method does not keep it alive: the first time-sliced
+version queued `b.pad_job` etc., the builder was freed before the steps ran, every step errored,
+returned null and was re-run forever - the log filled the disk. The steps are lambdas that hold
+the builder. And a pad whose ground has `raw_height_at()` <= 0.5 (the mountains' feet) is not
+carved there (`MacroMap.height_at()` carves only where raw > 0.5), so part of such a pad floats
+over the relief (seen at estate 2, 7.6 m); its walls run down to the ground. Not fixed here
+(HillRoads' placement).
+
+**Frame cost** (still_shot.gd GEO lines, opengl3 1280x720, `HILL_HOMES=0` against the kit, same
+EYEs on the peninsula's north face; "before -> after"): under a cantilever at 17.8 h
+2.55 M / 1,689 draws -> 2.00 M / 1,475; the same at night 2.31 M / 1,475 -> 1.83 M / 1,309; the
+hillside from the basin (35 m up, 450 m out) 4.94 M / 2,087 -> 4.96 M / 2,089 by day and
+4.03 M / 1,645 -> 4.04 M / 1,645 at night; below a villa 0.89 M / 744 -> 0.83 M / 754; in a villa's
+court 1.75 M / 662 -> 0.98 M / 338; the far city from 1.6 km at night 1.94 M / 1,233 -> 1.95 M /
+1,233. The new houses are cheaper than the slabs they replace up close (the slab carried the
+facade kit, shop signs and storefront geometry). A FULL hill chunk with estates: 3 houses 4.8 k
+triangles of house mesh plus merged site boxes; build +50 ms a chunk on average (232 vs 187 ms,
+13 chunks, `tools/hill_homes/bench.tscn`), worst step 15 ms against 10 ms (the first chunk's
+one-off texture load aside, which the loading screen now takes).
+
+**Tools.** `tools/hill_homes/probe.tscn` (headless, seconds: every estate's plan, `EYE=1` a
+camera below each, `VIEWS=4,26` camera bookmarks - below, below2, air, court, far - for
+`tools/glshot/hill_ground_shot.tscn`, which renders the FULL hill chunks round a point in a
+minute), `tools/hill_homes/bench.tscn` (step times on and off), `tools/hill_homes/check_runner.tscn`
+(the checks alone), `tools/hill_homes/compile.gd`. `HILL_HOMES=0` in the environment is the A/B.
+Checks: `tests/hill_homes_checks.gd` (pure plans on all 402 estates, all three types, wings on the
+pad or over the view side and not overlapping at their level, garages clear of the gate, pools on
+the pad, heights; a FULL chunk's meshes, glass shader, one body, no slab, a triangle budget; LOD
+boxes; far boxes with glowing bands; the slab back with the kit off).
+
+**Stills** (shots/hill-homes; opengl3, not the Mac's Forward+): a cantilever from the slope below
+at golden hour and the same at night, the peninsula's north face of estates from the basin by day
+and at night, the far city from 1.6 km at night, a villa stepping down its slope and its court
+close up - each with the `HILL_HOMES=0` before.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the glass's traced rooms, the pool and
+the lit far bands under AgX need eyes. The estates are where HillRoads put them: many pads are
+only 5-6 m above the ground 4-9 m out (the bank's shoulder), so most cantilever columns are 3-6 m,
+not the 15-20 m stilts of the steepest lots; and several estates on the front range sit right
+beside the ridge sign's letters. The garage-at-the-road rule fires on only a few estates
+(drive grades cap most road-pad rises under 2.6 m). The houses have no interiors you can walk
+into (the rooms are traced in the glass); no people or cars at the estates; the villa has no
+shutters or tile insets; the pad's partial float at the mountains' feet (above) remains.

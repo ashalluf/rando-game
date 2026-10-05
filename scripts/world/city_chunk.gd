@@ -519,6 +519,7 @@ func _finish_build() -> void:
 	LotFill.commit(self)
 	YardFill.commit(self)
 	HouseKit.commit(self)
+	HillHomeKit.commit(self)
 	Industrial.commit(self)
 	Parks.commit(self)
 	Construction.commit(self)
@@ -2031,6 +2032,14 @@ func _build_mansions() -> void:
 	drive_st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var drives := 0
 	for m in plan.macro.hill_roads.mansions_in(owned_rect()):
+		if HillHomeKit.enabled:
+			# The house, its pad, walls and site (HillHomeKit); the driveway is drawn here.
+			var gate_at := HillHomeKit.build(self, m)
+			var drive_from: Vector2 = m.get("drive_from", m.pos)
+			if level == Level.FULL and drive_from.distance_to(gate_at) > 1.0:
+				_drive_strip(drive_st, drive_from, gate_at, ESTATE_DRIVE_WIDTH)
+				drives += 1
+			continue
 		var pos: Vector2 = m.pos
 		var h: float = m.height
 		var yaw: float = m.yaw

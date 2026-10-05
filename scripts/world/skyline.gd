@@ -387,7 +387,7 @@ func _begin_tile(t: Vector2i) -> void:
 		"t": t, "blocks": blocks, "next": 0, "ranges": {},
 		"xforms": [], "colors": [], "customs": [],
 		"veg": [], "veg_colors": [], "veg_custom": [],
-		"houses": [], "house_colors": [], "hills": {},
+		"houses": [], "house_colors": [], "house_custom": [], "hills": {},
 	}
 
 
@@ -482,9 +482,11 @@ func _commit_tile() -> void:
 			tile.veg = _planting_node("Planting_%d_%d" % [t.x, t.y], PropFactory.canopy_blob(), veg, veg_colors, veg_custom)
 			add_child(tile.veg)
 		if not houses.is_empty():
-			var house_custom: Array = []
-			house_custom.resize(houses.size())
-			house_custom.fill(Color(0.0, 0.0, 0.0, 0.0))
+			var house_custom: Array = _work.house_custom
+			if house_custom.size() != houses.size():
+				house_custom = []
+				house_custom.resize(houses.size())
+				house_custom.fill(Color(0.0, 0.0, 0.0, 0.0))
 			tile.house = _planting_node("Estates_%d_%d" % [t.x, t.y], PropFactory.unit_box(), houses, house_colors, house_custom)
 			add_child(tile.house)
 	_tiles[t] = tile
@@ -905,7 +907,20 @@ func _add_hills(rect: Rect2, macro: MacroMap) -> void:
 		return
 	var houses: Array = _work.houses
 	var house_colors: Array = _work.house_colors
+	if not _work.has("house_custom"):
+		_work["house_custom"] = []
 	for m in macro.hill_roads.mansions_in(rect):
+		if HillHomeKit.enabled:
+			# The house HillHomeKit plans on the pad, as a few boxes and a glass band per wing that
+			# far_canopy.gdshader lights after dark (INSTANCE_CUSTOM: a 1 marks an estate part, b its
+			# lift over the pad / 100, g the glow).
+			var lit := HillHomeKit.far_lit(_plan.seed, m)
+			for fb: Array in HillHomeKit.far_boxes(_plan, m):
+				houses.append(fb[0])
+				var hc: Color = fb[1]
+				house_colors.append(Color(hc.r, hc.g, hc.b, 1.0))
+				(_work.house_custom as Array).append(Color(0.0, float(fb[2]) * lit, float(fb[3]) / 100.0, 1.0))
+			continue
 		var pos: Vector2 = m.pos
 		var yaw: float = m.yaw
 		var basis := Basis(Vector3.UP, yaw)
@@ -914,6 +929,7 @@ func _add_hills(rect: Rect2, macro: MacroMap) -> void:
 		var at := Vector3(pos.x, float(m.height), pos.y)
 		houses.append(Transform3D(basis.scaled_local(Vector3(18.0, 7.5, 13.0)), at + basis * Vector3(0.0, 4.15, -4.0)))
 		house_colors.append(Color(0.92, 0.88, 0.8))
+		(_work.house_custom as Array).append(Color(0.0, 0.0, 0.0, 0.0))
 
 
 func _spot(rect: Rect2, hs: int) -> Vector2:
