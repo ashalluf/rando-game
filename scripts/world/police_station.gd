@@ -67,6 +67,13 @@ const GATE_TIME := 2.6
 const GATE_HOLD := 9.0
 ## Parked cruisers draw to here (m).
 const CAR_RANGE := 220.0
+## Night: each floodlight pole's real light (desktop): height, reach, falloff, colour.
+const FLOOD_LIGHT_Y := 8.2
+const FLOOD_RANGE := 26.0
+const FLOOD_ATTENUATION := 0.7
+const FLOOD_COLOR := Color(0.86, 0.92, 1.0)
+## The lettering's light after dark (police_station_letters.gdshader energy; 0 = unlit).
+const LETTER_GLOW := 2.4
 
 const CONCRETE := Color(0.84, 0.83, 0.79)
 const CONCRETE_DARK := Color(0.52, 0.52, 0.51)
@@ -940,6 +947,17 @@ static func _cruiser_paint(src: StandardMaterial3D, box: AABB) -> ShaderMaterial
 	return mat
 
 
+## The lit lettering: metal letters by day, glowing after dark (lamp_factor).
+static func letter_material() -> ShaderMaterial:
+	if _mats.has("letters"):
+		return _mats.letters
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/police_station_letters.gdshader")
+	m.set_shader_parameter("energy", LETTER_GLOW)
+	_mats.letters = m
+	return m
+
+
 ## The parked cruisers' light bars: dark lenses (the police lights shader with its lights off).
 static func bar_material() -> ShaderMaterial:
 	if _mats.has("bar"):
@@ -1011,12 +1029,20 @@ static func _lights(node: Node3D, s: Dictionary, P: Callable, floods: Array[Vect
 	node.add_child(wmi)
 	if OS.has_feature("web"):
 		return
-	for spec: Array in [[P.call(bu, GROUND_H + 1.2, float(lay.sb) - 4.5), Color(1.0, 0.82, 0.6), 16.0],
-			[P.call(float(lay.L) * 0.5, 8.0, (float(lay.pv0) + float(lay.pv1)) * 0.5), Color(0.85, 0.92, 1.0), 30.0]]:
+	# The entrance under the canopy, and one light per floodlight pole a little in front of its
+	# heads (they aim into the car park): the floodlit asphalt, the stall lines and the parked
+	# cruisers' white doors are what reads a station's car park at night, and one light in the
+	# middle left the cars at its edges black. Sodium-free cool white, like the heads' lenses.
+	var specs: Array = [[P.call(bu, GROUND_H + 1.2, float(lay.sb) - 4.5), Color(1.0, 0.82, 0.6), 16.0, 1.0]]
+	var mid_v := (float(lay.pv0) + float(lay.pv1)) * 0.5
+	for fs in floods:
+		specs.append([P.call(fs.x, FLOOD_LIGHT_Y, fs.y + signf(mid_v - fs.y) * 4.0), FLOOD_COLOR, FLOOD_RANGE, FLOOD_ATTENUATION])
+	for spec: Array in specs:
 		var l := OmniLight3D.new()
 		l.position = spec[0]
 		l.light_color = spec[1]
 		l.omni_range = spec[2]
+		l.omni_attenuation = spec[3]
 		l.light_energy = 0.0
 		l.shadow_enabled = false
 		l.distance_fade_enabled = true
@@ -1043,9 +1069,13 @@ static func _texts(node: Node3D, s: Dictionary, P: Callable, sx: float) -> void:
 		[DEPT, 0.2, Color(0.9, 0.88, 0.8), P.call(float(lay.ub0) + 4.5, 0.62, 1.48), 0.0, 60.0],
 		["SALLY PORT", 0.34, Color(0.95, 0.78, 0.1), P.call(float(lay.ub1) - 4.25, 4.95, float(lay.sb) + float(lay.db) + SALLY_D + 0.02), PI, 60.0],
 	]
-	for it: Array in items:
+	for i in items.size():
+		var it: Array = items[i]
 		var mi := MeshInstance3D.new()
 		mi.mesh = BigVehicles.text_mesh(it[0], it[1], it[2])
+		# The name over the canopy and the monument sign's are lit channel letters after dark.
+		if i < 3:
+			mi.material_override = letter_material()
 		mi.position = it[3]
 		mi.rotation.y = float(it[4])
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
