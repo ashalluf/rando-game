@@ -163,7 +163,9 @@ static func back_door(st: SurfaceTool, paint: Color, address: String, stoop: boo
 ## A caged bulkhead lamp at y over the ground, its conduit running up the wall.
 static func lamp(st: SurfaceTool, y: float, tint: Color) -> void:
 	_box(st, Vector3(0.0, y + 0.02, 0.06), Vector3(0.22, 0.2, 0.12), IndustrialKit.K_STEEL, Color(0.14, 0.14, 0.13))
-	_box(st, Vector3(0.0, y, 0.15), Vector3(0.17, 0.13, 0.08), IndustrialKit.K_LAMP, tint)
+	# The lens tilted out and down: its underside is the bright face (K_LAMP), so it looks into the
+	# alley rather than at the ground under it.
+	_boxr(st, Basis(Vector3.RIGHT, -PI * 0.25), Vector3(0.0, y - 0.02, 0.15), Vector3(0.17, 0.11, 0.1), IndustrialKit.K_LAMP, tint)
 	for i in 3:
 		var x := -0.07 + 0.07 * float(i)
 		_box(st, Vector3(x, y, 0.2), Vector3(0.012, 0.16, 0.012), IndustrialKit.K_STEEL, Color(0.12, 0.12, 0.11))

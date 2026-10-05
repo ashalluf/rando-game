@@ -156,7 +156,9 @@ void fragment() {
 		float cd = crack_dist(vec2(s, o) + vec2(vnoise(vec2(s, o) * 0.9), vnoise(vec2(s, o) * 0.9 + 4.0)) * 0.4, 1.1);
 		float crack = (1.0 - smoothstep(0.004, 0.004 + foot * 0.7, cd)) * fade * old * concrete;
 		float cd2 = crack_dist(vec2(s * 0.3, o * 1.4) + seed * 7.0, 2.2);
-		crack = max(crack, (1.0 - smoothstep(0.004, 0.004 + foot * 0.7, cd2)) * fade * 0.5 * step(0.55, vnoise(vec2(s * 0.2, o) + 7.0)));
+		// The long settlement cracks only here and there, and faint: as a network they drew the
+		// slabs as flagstones.
+		crack = max(crack, (1.0 - smoothstep(0.003, 0.003 + foot * 0.6, cd2)) * fade * 0.3 * smoothstep(0.62, 0.75, vnoise(vec2(s * 0.15, o * 0.5) + 7.0)));
 		albedo *= 1.0 - 0.38 * crack;
 		albedo *= 1.0 - 0.05 * old * (1.0 - fade);
 		// Asphalt patches where the alley was dug up for a pipe: across it, and in lumps.
@@ -195,14 +197,16 @@ void fragment() {
 		vec2 gq = vec2(s - gs, o);
 		if (hash12(vec2(cell, seed * 7.0 + 2.0)) < 0.7 && abs(gq.x) < 0.48 && abs(gq.y) < 0.33) {
 			float frame = step(0.42, abs(gq.x)) + step(0.27, abs(gq.y));
-			// Bars across the gutter every 9 cm, box-filtered to their average once a bar is under
-			// a few pixels (at a grazing angle they shimmered into a moire).
-			float sfw = max(fwidth(gq.x) / 0.09, 0.0005);
-			float bar = 1.0 - smoothstep(0.32 - sfw, 0.32 + sfw, abs(fract(gq.x / 0.09) - 0.5) * 2.0);
-			bar = mix(bar, 0.32, smoothstep(0.15, 0.45, sfw));
-			float slot = (1.0 - bar) * step(abs(gq.y), 0.25);
-			vec3 iron = vec3(0.13, 0.12, 0.11) * (0.8 + 0.4 * vnoise(gq * 30.0));
-			albedo = mix(iron * mix(1.0, 0.18, slot), vec3(0.2, 0.18, 0.16), clamp(frame, 0.0, 1.0));
+			// Eight slots across the grate along the flow, box-filtered to their average once a
+			// slot is under a few pixels (at a grazing angle they shimmered into a moire).
+			float gu = (gq.x + 0.4) / 0.1;
+			float sfw = max(fwidth(gu), 0.0005);
+			float gd = abs(fract(gu) - 0.5) * 2.0;
+			float slot = 1.0 - smoothstep(0.55 - sfw, 0.55 + sfw, gd);
+			slot = mix(slot, 0.55, smoothstep(0.2, 0.5, sfw));
+			slot *= step(abs(gq.x), 0.4) * step(abs(gq.y), 0.25);
+			vec3 iron = vec3(0.14, 0.13, 0.12) * (0.9 + 0.2 * vnoise(gq * 6.0));
+			albedo = mix(iron * mix(1.0, 0.3, slot), vec3(0.19, 0.17, 0.15), clamp(frame, 0.0, 1.0));
 			rough = 0.75;
 		} else {
 			// A rust bloom on the concrete round it.
