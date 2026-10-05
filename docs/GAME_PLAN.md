@@ -373,6 +373,21 @@ already mapped so milestone 2 is script-only.
   model; persistence through WorldState like destroyed props; (3) a smoke column is one mesh
   placed entirely in its shader, so a column visible across the basin is one draw; (4) car alarms
   are real CC0 recordings (Freesound), not synthesised.
+- **2026-10-05 Street errands: the pavement's comings and goings (VISUAL_ROADMAP #72, HANDOFF
+  9cd).** Crowd life (G5) gave people things to do where they stood; nobody ever went anywhere.
+  `StreetErrands` sends walkers near the player into the bus that stops at their shelter, into
+  shops by the storefront's own door bay, into parked cars that then pull out into the traffic,
+  and across the road mid-block; traffic cars pull into free kerb spaces and their drivers get out,
+  and box trucks and couriers deliver to the shops. Decisions: (1) **nobody is made or lost** -
+  going in somewhere hides a walker (no draw, no collision) and they come out of a door later, and
+  a driver getting out is one of them (or a walker from out of sight, or a new one under the cap),
+  so the crowd cap and the city's people do not change; (2) the parked car that drives off **is**
+  the traffic car (wheels off, frozen, its lane offset easing out of the kerb space), and a car
+  that parks **is** a parked physics car after, so there is no swap to see; (3) a car pulling in is
+  a stop to TrafficManager like a bus's, so the queue behind it waits; (4) the open car door is a
+  separate panel swung out of the welded body (the closed door stays drawn under it), the honest
+  limit of one-mesh car bodies; (5) all rolls on the walker's own errand stream.
+
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it

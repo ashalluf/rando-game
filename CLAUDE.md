@@ -3075,6 +3075,40 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   environment turns the layer off (the A/B). Look with `tools/crowd/crowd_lab.tscn` SCENARIO=life
   (a pavement, a wall, two benches), props, dog (CAM / LOOK / FOV place the camera); check with
   `tests/crowd_life_checks.gd`; time it with MODE=bench.
+- Street errands (2026-10-05, "the pavement's comings and goings"): `StreetErrands`
+  (`scripts/npc/street_errands.gd`, static) gives walkers within `life_range` somewhere real to
+  go, rolled from `Pedestrian._try_life()` on their own stream (`hash([seed, "errand"])`, never
+  `_life`): a BUS stop's queue (the shelter registers its six slots, `add_stop()` from
+  `BigVehicles.build_bus_stops()`, FULL chunks; they board through the front door once a bus
+  stands there with its doors open - `_bus_doors()` reads BusFittings' leaves - and the bus's
+  `dwell_need` is held while anyone is still getting on), a SHOP door (`note_shop_doors()`, called
+  by Building beside `ShopfrontKit.storefront_face()`, the same `door_index()` shop roll, so it is
+  where the kit and building.gdshader put the door; closed shops are skipped at night), a PARKED
+  CAR (round its tail to the driver's door on the road side, `ErrandCar` swings an `ErrandProps`
+  door panel in the car's paint open, they get in, the npc driver seats and the lamps come on,
+  then `pull_out()`: real wheels off BEFORE the freeze, `traffic` with `shift` = the kerb space's
+  offset so TrafficManager eases it into the lane, meta `driven` so the chunk does not free it) and
+  JAYWALKING (mid-block, `JAY_CORNER` from the corners, a gap in both parking lanes by a shape query,
+  `_road_clear()` for the crossing time; some run). The other way round, every `PARK_INTERVAL` a
+  street car in a kerb lane near the player gets `park_at` / `park_shift` (`start_parking()`, the
+  space from `free_space()`: the chunk's 8 m stall grid, a box query, no stop zone or fire station
+  apron): TrafficManager treats it as a stop like a bus's and, standing in it, calls `park_here()`
+  (out of `cars`, a physics car on its wheels, in its block's chunk's `_cars`), whose ErrandCar
+  opens the door and `spawn_driver()` puts somebody out; a box truck's driver wheels a hand truck
+  of boxes (`ErrandProps.hand_truck()`, arms by `pose()`) into a shop and back and drives off, a
+  delivery van's or a courier carries a bag. **An errand is a list of steps** on the walker
+  (`Pedestrian.errand`: goto = the ring's own walking, path = placed straight lines that step down
+  the kerb on a carriageway, face, wait_bus, board, ride, look_road, car_door, enter_car, hide,
+  inside, show, ring, truck, bag), run by `walk()` from one hook in `_walk`. **Nobody is made or
+  lost**: going in (a shop, a bus, a car) is `_hide()` - not drawn, collision layer 0, hit zone
+  off, in `_hidden` - and they come out of a door later; a parked car's driver is one of them, else
+  a walker taken from past `FAR_TAKE` of the player, else a new one under the crowd cap. Traffic
+  brakes (and now and then honks, Sfx `horn`) for anyone registered in the road
+  (`jaywalker_gap()`, from `_drive_street`, beside the parking hook). A fright or the player
+  leaving calls an errand off, except for somebody out in the road. `STREET_ERRANDS=0` is the A/B,
+  `ERRAND_DEBUG=1` prints every errand called off. Stills: `ERRAND=bus|car|jay|shop|deliver` on
+  `still_shot.gd` (`tools/street_errands/stage.gd`); checks: `tests/street_errands_checks.gd`,
+  alone in a minute with `tools/street_errands/run_checks.tscn`.
 - Headwear (2026-10-04: the old box caps "read as plastic bowls"): `CrowdHat`
   (`scripts/npc/crowd_hat.gd`) builds a six-panel cotton baseball cap (button, sweatband, a bill
   with a taped edge, a strap and slide buckle across the opening at the back), a cuffed 2x2-rib

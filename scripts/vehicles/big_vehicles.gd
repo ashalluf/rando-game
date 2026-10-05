@@ -574,6 +574,8 @@ static func build_bus_stops(chunk: CityChunk, rect: Rect2, edges: Array) -> void
 		if plan.macro and Landmarks.covers(plan, p, 3.0):
 			continue
 		StreetDetail._bus_shelter(chunk, p, inward, d2)
+		# Its queue, for the people who wait there and board (StreetErrands).
+		StreetErrands.add_stop(chunk, rect, p, inward, d2, axis, best, dir, stop)
 
 
 # --- The bus's doors, kneel and signs ------------------------------------------------------------
