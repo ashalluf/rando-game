@@ -97,10 +97,13 @@ void fragment() {
 	ROUGHNESS = mix(roughness_calm, roughness_chop, clamp(wind * 0.7 + rain * 0.5, 0.0, 1.0));
 	METALLIC = 0.0;
 	SPECULAR = 0.5;
-	vec3 sky = sky_tint.rgb * (1.0 - 0.88 * night_factor);
+	// sky_tint is sRGB numbers, raw on both renderers: decoded to the linear light this works in.
+	vec3 sky = cs_srgb_to_linear(sky_tint.rgb) * (1.0 - 0.88 * night_factor);
 	// At night the city's warm glow on the water, broken up by the chop (a faint floor: the lamps'
 	// pools and, on Forward+, SSR carry the real reflections).
 	float sparkle = clamp(length(grad) * 6.0, 0.0, 1.0);
-	vec3 glow = night_glow * lamp_factor * (0.4 + 0.6 * sparkle);
+	// Mostly where the chop catches it: at 0.4 of it everywhere the whole basin drew as one flat
+	// orange-brown sheet on Forward+ at night (its night exposure lifts it).
+	vec3 glow = night_glow * lamp_factor * (0.08 + 0.92 * sparkle * sparkle);
 	EMISSION = cs_out(sky * fres * sky_emit + glow * fres);
 }

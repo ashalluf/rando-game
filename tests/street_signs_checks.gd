@@ -1,5 +1,5 @@
 extends RefCounted
-## The street's signs (StreetSigns, SignKit, SignFont), for tests/smoke_test.gd. Loaded at run
+## The street's signs (StreetSigns, StreetSignKit, SignFont), for tests/smoke_test.gd. Loaded at run
 ## time, not named there, so it compiles after the autoloads.
 ##
 ## Checks the stroke font covers every character a street name uses, the kit's assemblies (one
@@ -48,25 +48,24 @@ func _font() -> void:
 
 func _kit() -> void:
 	var meshes := {
-		"name post": SignKit.name_post("VISTA BLVD", "600", "5TH ST", "1100"),
-		"stop": SignKit.stop_post(),
-		"stop with blades": SignKit.stop_post(["HILL AVE", "600", "WILSHIRE BLVD", "500"]),
-		"yield": SignKit.yield_post(),
-		"speed": SignKit.speed_post(35),
-		"no parking": SignKit.no_parking_post(),
-		"parking": SignKit.parking_post(1, 0, true),
-		"school": SignKit.school_post(),
-		"arm name": SignKit.arm_name("WILSHIRE BLVD", "300"),
-		"arm lanes": SignKit.arm_lanes(),
-		"no turn on red": SignKit.arm_no_turn_red(),
+		"name post": StreetSignKit.name_post("VISTA BLVD", "600", "5TH ST", "1100"),
+		"stop": StreetSignKit.stop_post(),
+		"stop with blades": StreetSignKit.stop_post(["HILL AVE", "600", "WILSHIRE BLVD", "500"]),
+		"yield": StreetSignKit.yield_post(),
+		"speed": StreetSignKit.speed_post(35),
+		"no parking": StreetSignKit.no_parking_post(),
+		"school": StreetSignKit.school_post(),
+		"arm name": StreetSignKit.arm_name("WILSHIRE BLVD", "300"),
+		"arm lanes": StreetSignKit.arm_lanes(),
+		"no turn on red": StreetSignKit.arm_no_turn_red(),
 	}
 	var bad: Array = []
 	var worst := 0
 	for k: String in meshes:
 		var m: ArrayMesh = meshes[k]
-		var tris := SignKit.triangles(m)
+		var tris := StreetSignKit.triangles(m)
 		worst = maxi(worst, tris)
-		if m.get_surface_count() != 1 or m.surface_get_material(0) != SignKit.material() or tris < 40 or tris > 4000:
+		if m.get_surface_count() != 1 or m.surface_get_material(0) != StreetSignKit.material() or tris < 40 or tris > 4000:
 			bad.append("%s (%d)" % [k, tris])
 	_t._check(bad.is_empty(), "every sign assembly is one surface on the sign shader within 4,000 triangles (worst %d; bad %s)" % [worst, str(bad)])
 	# Real sizes: the stop sign's octagon is 30 in across its flats, its bottom 7 ft up; the
@@ -75,7 +74,7 @@ func _kit() -> void:
 	_t._check(absf(stop.size.x - 0.762) < 0.05 and stop.end.y > 2.9 and stop.end.y < 3.1, "the stop sign is a 30 in octagon on a 3 m post (%.3f wide, %.2f tall)" % [stop.size.x, stop.end.y])
 	var np: AABB = (meshes["name post"] as ArrayMesh).get_aabb()
 	_t._check(np.end.y > 3.3 and np.end.y < 3.6 and np.size.x > 0.7 and np.size.z > 0.7, "the name post carries two crossed blades on top (%.2f m, %.2f x %.2f)" % [np.end.y, np.size.x, np.size.z])
-	_t._check(SignKit.split_name("VISTA BLVD") == ["VISTA", "BL"] and SignKit.split_name("5TH ST") == ["5TH", "ST"] and SignKit.split_name("ESPLANADE") == ["ESPLANADE", ""],
+	_t._check(StreetSignKit.split_name("VISTA BLVD") == ["VISTA", "BL"] and StreetSignKit.split_name("5TH ST") == ["5TH", "ST"] and StreetSignKit.split_name("ESPLANADE") == ["ESPLANADE", ""],
 		"street names split into the name and LA's short suffix")
 
 
@@ -182,9 +181,9 @@ func _signal_chunk(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 		var mesh: ArrayMesh = chunk._mm_nodes[key].multimesh.mesh if chunk._mm_nodes.has(key) else null
 		if mesh == null:
 			continue
-		if mesh == SignKit.arm_name(names[0], names[1]) or mesh == SignKit.arm_name(names[2], names[3]):
+		if mesh == StreetSignKit.arm_name(names[0], names[1]) or mesh == StreetSignKit.arm_name(names[2], names[3]):
 			arm_names += 1
-		if mesh == SignKit.pole_top_blades(names[0], names[1], names[2], names[3]):
+		if mesh == StreetSignKit.pole_top_blades(names[0], names[1], names[2], names[3]):
 			tops += 1
 	var poles := 0
 	for r: Dictionary in chunk.prop_records:
@@ -252,7 +251,7 @@ func _school(city: Node3D, plan: CityPlan) -> void:
 	chunk.build()
 	var n := 0
 	for key: String in chunk._mm_nodes:
-		if key.begins_with("ss_") and chunk._mm_nodes[key].multimesh.mesh == SignKit.school_post():
+		if key.begins_with("ss_") and chunk._mm_nodes[key].multimesh.mesh == StreetSignKit.school_post():
 			n += chunk._mm_nodes[key].multimesh.instance_count
 	_t._check(n >= 2, "a school block's faces carry the school zone sign (%d)" % n)
 	chunk.get_parent().remove_child(chunk)

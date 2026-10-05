@@ -1,5 +1,5 @@
 extends SceneTree
-## The street's signs on their own (SignKit): every assembly in a row on a pavement, lit by day
+## The street's signs on their own (StreetSignKit): every assembly in a row on a pavement, lit by day
 ## or at night (lamp_factor 1; the camera's "headlights" light the retroreflective sheeting).
 ## Seconds a frame instead of minutes for a city still.
 ##
@@ -7,8 +7,8 @@ extends SceneTree
 ##     --audio-driver Dummy --path . --script tools/street_signs/sign_shot.gd --resolution 1280x720
 ##
 ## Env: OUT, CAM, LOOK (x,y,z), FOV, NIGHT=1, BACK=1 (turn every sign round: the backs).
-## Layout along x from -9, 2.2 m apart: name post, stop with blades, yield, speed 35, no parking,
-## parking (cleaning + 2 hour), school; a mast arm at y 6.55 above with its name sign, lane-use
+## Layout along x from -9, 2.6 m apart: name post, stop with blades, yield, speed 35, no parking,
+## school; a mast arm at y 6.55 above with its name sign, lane-use
 ## sign and NO TURN ON RED. Prints each mesh's triangles.
 func _initialize() -> void:
 	var night := OS.get_environment("NIGHT") == "1"
@@ -49,7 +49,7 @@ func _initialize() -> void:
 		m.roughness = 0.9
 		g.material_override = m
 		stage.add_child(g)
-	var kit: GDScript = load("res://scripts/world/sign_kit.gd")
+	var kit: GDScript = load("res://scripts/world/street_sign_kit.gd")
 	var back := PI if OS.get_environment("BACK") == "1" else 0.0
 	var meshes: Array = [
 		kit.call("name_post", "VISTA BLVD", "600", "5TH ST", "1100"),
@@ -57,7 +57,6 @@ func _initialize() -> void:
 		kit.call("yield_post"),
 		kit.call("speed_post", 35),
 		kit.call("no_parking_post"),
-		kit.call("parking_post", 1, 0, true),
 		kit.call("school_post"),
 	]
 	for i in meshes.size():

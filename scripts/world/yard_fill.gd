@@ -973,6 +973,8 @@ static func _dress_beach_lot(ch: CityChunk, lp: Dictionary, grid: Dictionary, co
 		for k in 3:
 			var p := _fp(f, bin_u, bin_v + float(k) * 0.75)
 			_box_wall(ch, Vector3(0.62, 1.05, 0.7), Vector3(p.x, base, p.y), W_METAL, BIN_COLORS[k])
+	# Now and then a dog in the yard (DogYard: a hash share, behind the front wall or pickets, or out back).
+	DogYard.consider(ch, lp, fd >= 1.0 and roll < float(odds.edge_picket) and not lp.walk_front)
 
 
 ## Front garden planting by its look: a lawn gets a tree or a palm and a bed of shrubs along the
@@ -1679,6 +1681,8 @@ static func _shrub(ch: CityChunk, at: Vector2, rng: RandomNumberGenerator, size:
 	var sc := size * rng.randf_range(0.8, 1.2)
 	var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc, sc * rng.randf_range(0.85, 1.15), sc))
 	var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.0))
+	if LaTrees.accent_shrub(ch, Vector3(at.x, CityChunk.SIDEWALK_TOP + LIFT, at.y), LaTrees.SHRUB_ACCENT):
+		return
 	ch._batch.add("bush_%d" % pick, mesh, Transform3D(basis, Vector3(at.x, CityChunk.SIDEWALK_TOP + LIFT, at.y)), tint)
 
 

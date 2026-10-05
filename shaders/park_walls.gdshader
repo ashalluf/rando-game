@@ -92,7 +92,7 @@ void window(vec2 cell, vec2 size, vec2 id, vec3 viewdir, vec3 n, inout vec3 albe
 	float blind = step(size.y * (0.55 + 0.4 * r), cell.y) * step(0.35, r);
 	vec3 glass = vec3(0.10, 0.13, 0.15);
 	float fres = pow(1.0 - clamp(dot(viewdir, n), 0.0, 1.0), 3.0);
-	vec3 sky = disp(sky_tint.rgb);
+	vec3 sky = sky_tint.rgb;
 	vec3 g_emit = sky * (0.12 + 0.6 * fres);
 	vec3 room = mix(vec3(0.85, 0.80, 0.62), vec3(0.75, 0.85, 0.95), step(0.5, hash12(id + 9.0)));
 	float lit = step(0.45, hash12(id + 17.0)) * lamp_factor;
@@ -242,7 +242,7 @@ void fragment() {
 	} else if (k == 13) {
 		float fres = pow(1.0 - clamp(dot(normalize(VIEW), NORMAL), 0.0, 1.0), 3.0);
 		albedo = vec3(0.08, 0.10, 0.12);
-		emit = disp(sky_tint.rgb) * (0.15 + 0.6 * fres) + vec3(0.9, 0.85, 0.7) * lamp_factor * 0.8;
+		emit = sky_tint.rgb * (0.15 + 0.6 * fres) + vec3(0.9, 0.85, 0.7) * lamp_factor * 0.8;
 		rough = 0.06;
 	} else if (k == 14) {
 		// A floodlight's lens: pale by day, blazing after dark.

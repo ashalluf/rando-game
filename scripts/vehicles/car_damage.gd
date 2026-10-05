@@ -1600,7 +1600,7 @@ func _mesh_to_world(p: Vector3) -> Vector3:
 static func _tri_for(m: MeshInstance3D) -> Array:
 	if m == null or m.mesh == null:
 		return []
-	var key := m.mesh.get_rid()
+	var key := PropFactory.mesh_key(m.mesh)
 	if _tri_cache.has(key):
 		return _tri_cache[key]
 	var out := []

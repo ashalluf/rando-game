@@ -9,12 +9,15 @@ extends VehicleBody3D
 ## last for the same reason: only EmergencyCar builds them. The second wave of everyday bodies
 ## (tools/make_more_cars.py: the hatchback, the full-size SUV, the minivan, the taxi, the old
 ## beater) comes after them, again so that no older index moves, and the school bus (Schools)
-## after those.
-enum BodyType { SEDAN, PICKUP, VAN, SPORTS, SUPER, SPIDER, HYPER, TRACK, CROSSOVER, BUS, BOX_TRUCK, SEMI, FIRE_ENGINE, AMBULANCE, HATCHBACK, SUV, MINIVAN, TAXI, BEATER, SCHOOL_BUS }
+## after those; then the service vehicles (ServiceVehicles: garbage truck, street sweeper, tow
+## truck, ice-cream truck, delivery van), which only ServiceFleet sends.
+enum BodyType { SEDAN, PICKUP, VAN, SPORTS, SUPER, SPIDER, HYPER, TRACK, CROSSOVER, BUS, BOX_TRUCK, SEMI, FIRE_ENGINE, AMBULANCE, HATCHBACK, SUV, MINIVAN, TAXI, BEATER, SCHOOL_BUS,
+	GARBAGE_TRUCK, STREET_SWEEPER, TOW_TRUCK, ICE_CREAM_TRUCK, DELIVERY_VAN }
 enum Addon { NONE, ROOF_RACK, SPOILER, LIGHT_BAR }
 
 ## Original names. Nothing here is or imitates a real manufacturer's model.
-const BODY_NAMES := ["Sedan", "Pickup", "Van", "Sports", "Vantari", "Vantari Aperta", "Kestrel", "Kestrel RS", "Crossover", "City Bus", "Box Truck", "Semi", "Fire Engine", "Ambulance", "Hatchback", "SUV", "Minivan", "Taxi", "Beater", "School Bus"]
+const BODY_NAMES := ["Sedan", "Pickup", "Van", "Sports", "Vantari", "Vantari Aperta", "Kestrel", "Kestrel RS", "Crossover", "City Bus", "Box Truck", "Semi", "Fire Engine", "Ambulance", "Hatchback", "SUV", "Minivan", "Taxi", "Beater", "School Bus",
+	"Garbage Truck", "Street Sweeper", "Tow Truck", "Ice Cream Truck", "Delivery Van"]
 ## Generated body models per type (see docs/ASSETS.md). Missing files fall back to the box car.
 const BODY_MODELS := {
 	BodyType.SEDAN: "res://assets/models/road_sedan.glb",
@@ -37,6 +40,11 @@ const BODY_MODELS := {
 	BodyType.TAXI: "res://assets/models/road_taxi.glb",
 	BodyType.BEATER: "res://assets/models/road_beater.glb",
 	BodyType.SCHOOL_BUS: "res://assets/models/road_school_bus.glb",
+	BodyType.GARBAGE_TRUCK: "res://assets/models/road_garbage.glb",
+	BodyType.STREET_SWEEPER: "res://assets/models/road_sweeper.glb",
+	BodyType.TOW_TRUCK: "res://assets/models/road_tow.glb",
+	BodyType.ICE_CREAM_TRUCK: "res://assets/models/road_ice_cream.glb",
+	BodyType.DELIVERY_VAN: "res://assets/models/road_van.glb",
 }
 ## Belt line (bottom of the side glass, as a fraction of body height) for a single-texture body
 ## whose texture does not darken the windows, so the paint shader finds glass by shape. No body
@@ -65,6 +73,9 @@ const BODY_ODDS := {
 	BodyType.HATCHBACK: 70, BodyType.SUV: 80, BodyType.MINIVAN: 55, BodyType.TAXI: 0, BodyType.BEATER: 35,
 	# Nor the school bus (Schools parks them and sends them out at the bell).
 	BodyType.SCHOOL_BUS: 0,
+	# Nor the service vehicles (ServiceFleet sends them to work).
+	BodyType.GARBAGE_TRUCK: 0, BodyType.STREET_SWEEPER: 0, BodyType.TOW_TRUCK: 0, BodyType.ICE_CREAM_TRUCK: 0,
+	BodyType.DELIVERY_VAN: 0,
 }
 ## How a 0-999 roll maps onto BODY_ODDS: [end of the range (exclusive), type], in roll order. Every
 ## old type keeps the START of the range it had before the second wave and gives the end of it to
@@ -126,6 +137,17 @@ const WHEEL_POSE := {
 	# The school bus (tools/make_school_bus.py prints these; Schools).
 	BodyType.SCHOOL_BUS: {"x": 0.985, "front": -3.512, "rear": 2.728, "y": 0.200, "r": 0.500, "w": 0.300, "baked": true,
 			"axles": [[-3.512, false], [2.728, true]], "dual_x": 0.885, "dual_gap": 0.330},
+	# The service vehicles (tools/make_service_vehicles.py prints these; ServiceVehicles). The
+	# three on the box truck's chassis share its axles; the delivery van is the van.
+	BodyType.GARBAGE_TRUCK: {"x": 0.860, "front": -3.377, "rear": 2.423, "y": 0.180, "r": 0.440, "w": 0.235, "baked": true,
+			"axles": [[-3.377, false], [2.423, true]], "dual_x": 0.800, "dual_gap": 0.270},
+	BodyType.STREET_SWEEPER: {"x": 0.860, "front": -3.312, "rear": 2.488, "y": 0.180, "r": 0.440, "w": 0.235, "baked": true,
+			"axles": [[-3.312, false], [2.488, true]], "dual_x": 0.800, "dual_gap": 0.270},
+	BodyType.TOW_TRUCK: {"x": 0.860, "front": -3.699, "rear": 2.101, "y": 0.180, "r": 0.440, "w": 0.235, "baked": true,
+			"axles": [[-3.699, false], [2.101, true]], "dual_x": 0.800, "dual_gap": 0.270},
+	BodyType.ICE_CREAM_TRUCK: {"x": 0.870, "front": -2.488, "rear": 1.532, "y": 0.160, "r": 0.380, "w": 0.235, "baked": true,
+			"axles": [[-2.488, false], [1.532, true]], "dual_x": 0.775, "dual_gap": 0.255},
+	BodyType.DELIVERY_VAN: {"x": 0.865, "front": -1.971, "rear": 1.689, "y": 0.164, "r": 0.360, "w": 0.235, "baked": true},
 }
 ## The sizes above deliberately land on six distinct (radius, section width) pairs across the
 ## eight body types. Every extra pair is another five meshes (one per spoke pattern) times two
@@ -608,6 +630,7 @@ func _ready() -> void:
 	add_to_group("vehicle")
 	add_to_group("physics_prop")
 	CarLights.ensure(self)
+	DrivingFX.ensure(self)
 	set_meta("spawn_time", Time.get_ticks_msec() / 1000.0)
 	collision_layer = 4
 	collision_mask = _mask()
@@ -1196,6 +1219,12 @@ func _tick_lights(delta: float) -> void:
 ## The indicator for the turn a street car has rolled: -1 left, 1 right (a U-turn is a left,
 ## the roads drive on the right), 0 none or still far from the junction.
 func _traffic_signal() -> int:
+	if traffic.get("hazard", false):
+		return 2
+	# A lane change, a pull-out, an exit or hazards (TrafficAI's `sig`) before the turn.
+	var sig := int(traffic.get("sig", 0))
+	if sig != 0:
+		return sig
 	var turn := int(traffic.get("turn", 0))
 	if turn == 0 or not traffic.has("axis"):
 		return 0
@@ -1596,6 +1625,8 @@ func _dims() -> Dictionary:
 		BodyType.SCHOOL_BUS:
 			return {"length": 12.795, "width": 2.44, "lamp_y": 0.56, "tail_y": 1.06, "chassis_h": 1.0, "cabin": Vector2(-6.1, 12.2), "cabin_h": 1.3, "wheel_z": 3.1, "wheel_front": 3.512, "wheel_rear": 2.728, "track": 1.97, "tyre_r": 0.461, "ride": -0.273, "road": -0.300,
 					"light_len": 12.36, "light_z": 0.0}
+		BodyType.GARBAGE_TRUCK, BodyType.STREET_SWEEPER, BodyType.TOW_TRUCK, BodyType.ICE_CREAM_TRUCK, BodyType.DELIVERY_VAN:
+			return ServiceVehicles.DIMS[body_type]
 		BodyType.SPORTS:
 			return {"length": 4.6, "width": 1.9, "chassis_h": 0.55, "cabin": Vector2(-0.9, 2.0), "cabin_h": 0.55, "wheel_z": 1.45, "track": 1.64, "tyre_r": 0.34, "ride": -0.30}
 		BodyType.SUPER, BodyType.SPIDER:
@@ -1665,7 +1696,8 @@ func _add_body_model(length: float) -> bool:
 			near_meshes.append(m)
 		if nm.contains("_trailer"):
 			trailer.append(m)
-		elif nm.begins_with("door_"):
+		elif nm.begins_with("door_") or nm.begins_with("rig_"):
+			# (rig_*: a service vehicle's moving parts, ServiceVehicles.fit())
 			doors.append(m)
 		else:
 			var box := m.mesh.get_aabb()
@@ -1883,7 +1915,7 @@ func _tuck_model_wheels(inst: Node3D) -> void:
 				local = (node as Node3D).transform * local
 			node = node.get_parent()
 		to_body = to_body * local
-		var key := "body_tuck_%d_%s" % [body_type, m.mesh.get_rid()]
+		var key := "body_tuck_%d_%s" % [body_type, PropFactory.mesh_key(m.mesh)]
 		# Radially inside the brake disc, and far enough INBOARD to sit behind the dust shield
 		# as well (_wheel_face puts that at 0.52 half-widths in), so there is no line of sight to
 		# it through the spokes from any angle the player can stand at.

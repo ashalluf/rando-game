@@ -69,11 +69,14 @@ func _arrival(air: AirTraffic) -> void:
 		_t._check(absf(td.z - rz) < 0.5 and td.x > rect.position.x and td.x < rect.end.x and absf(td.y - air.runway_top) < 0.05,
 			"it touches down on the runway centre line (%.2f m off it, at x %.0f)" % [absf(td.z - rz), td.x])
 		_t._check(start_y - td.y > 100.0 and climb < 0.05, "it descends the whole way in (from %.0f m, never climbing)" % start_y)
-	# The roll-out ends in a fade at the runway end, and the jet is gone.
-	while t < 260.0 and not jet.done:
+	# The roll-out ends with the jet gone: taxied to a free stand and become its parked instance
+	# (AirportGround, stepped here too), or faded out at the runway end when no stand is free.
+	while t < 300.0 and not jet.done:
 		jet.advance(1.0 / 30.0)
+		if air.ground:
+			air.ground.advance(1.0 / 30.0)
 		t += 1.0 / 30.0
-	_t._check(jet.done, "the arrival rolls out, taxis and fades out at the runway end")
+	_t._check(jet.done, "the arrival rolls out and is gone - taxied to a stand or faded out at the runway end (%.0f s)" % t)
 	await _tree.process_frame
 
 

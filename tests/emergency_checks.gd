@@ -293,7 +293,8 @@ func _fire_call(player: Player) -> void:
 				hosed = true
 		if out_at < 0 and not car._damage.on_fire():
 			out_at = i
-		if unit.mode == EmergencyCar.Mode.LEAVING:
+		# Off with the patient: to the nearest hospital (Hospital), or away when none is in reach.
+		if unit.mode == EmergencyCar.Mode.LEAVING or unit.mode == EmergencyCar.Mode.TRANSPORT:
 			left = true
 			break
 	_check(hosed, "a firefighter lays a hose from the pump panel and puts water on it")
@@ -335,7 +336,8 @@ func _down_call(player: Player) -> void:
 			if is_instance_valid(c):
 				knelt = knelt or c._pose == "kneel"
 				cot = cot or c._stretcher != null
-		if unit.mode == EmergencyCar.Mode.LEAVING:
+		# Off with the patient: to the nearest hospital (Hospital), or away when none is in reach.
+		if unit.mode == EmergencyCar.Mode.LEAVING or unit.mode == EmergencyCar.Mode.TRANSPORT:
 			left = true
 			break
 	if not left:
@@ -345,7 +347,7 @@ func _down_call(player: Player) -> void:
 		print("doll at ", doll.bodies[0].global_position if is_instance_valid(doll) else Vector3.ZERO, " unit ", unit.global_position)
 	_check(knelt, "a paramedic kneels at the body with the bag")
 	_check(cot and inc.loaded and not is_instance_valid(doll), "the other brings the stretcher and they take the body")
-	_check(left, "they climb back in and the ambulance leaves")
+	_check(left, "they climb back in and the ambulance leaves (for a hospital, with the patient)")
 
 
 ## A unit sent from off the street: on the lanes with its siren (the traffic sees it), and at the

@@ -330,6 +330,11 @@ static func _park(s: Rect2, y0: float, parent: Node3D, statics: StaticBody3D, de
 			var hgt := 3.6 + 2.2 * sin(float(i) / float(jets - 1) * PI)
 			_jet(g, Vector3(jx, y0 + TERRACE_H + 0.62, pool.get_center().y), hgt)
 		_park_detail(g, batch, parent, s, y0, lawn, tr, statics)
+	else:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 55173
+		_park_planters(g, batch, s, y0, tr, statics, rng, true)
+		_park_lamps(batch, lawn, y0, null)
 	g.commit(parent, "CivicPark")
 	batch.build(parent)
 
@@ -352,7 +357,16 @@ static func _park_detail(g: LandmarkGeo, batch: MultiMeshBatch, parent: Node3D, 
 	var chunk: CityChunk = CivicSites.ctx.get("chunk")
 	if chunk:
 		chunk._add_grass(CivicSites.rect_to_world(CivicSites.ctx.info, lawn.grow(-0.5)), 0.9)
-	# Raised planters down both sides, planted with flowering beds, grasses and jacarandas.
+	_park_planters(g, batch, s, y0, tr, statics, rng, false)
+	# Hot-pink benches along the promenades facing the lawn, and loose chairs by the fountain and
+	# on the lower plaza - the park's signature.
+	_park_furniture(g, batch, parent, s, y0, lawn, tr, statics, rng)
+
+
+## Raised planters down both sides, planted with flowering beds, grasses and jacarandas. `far`
+## (the far copy) keeps the planters and their trees, shadowless, and makes the flowers' rolls
+## without planting them, so the trees stand where the detailed copy's do.
+static func _park_planters(g: LandmarkGeo, batch: MultiMeshBatch, s: Rect2, y0: float, tr: Rect2, statics: StaticBody3D, rng: RandomNumberGenerator, far: bool) -> void:
 	var bed_w := clampf(s.size.x * 0.12, 6.0, 10.0)
 	for side: float in [0.0, 1.0]:
 		var bx := lerpf(s.position.x + 1.0 + bed_w * 0.5, s.end.x - 1.0 - bed_w * 0.5, side)
@@ -379,16 +393,37 @@ static func _park_detail(g: LandmarkGeo, batch: MultiMeshBatch, parent: Node3D, 
 				var sc := rng.randf_range(0.8, 1.4)
 				var at := Vector3(p.x, y0 + 0.61, p.y)
 				var tint := Color(rng.randf_range(0.9, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.9, 1.1))
-				if k % 3 == 0:
+				if far:
+					rng.randf()
+				elif k % 3 == 0:
 					batch.add("gclump_1", PropFactory.model_grass_clump(1), Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(sc, sc, sc)), at), tint)
 				else:
 					batch.add("flower_%d" % lead, PropFactory.model_flower(lead), Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(sc, sc, sc)), at), tint)
 				batch.set_no_shadow("flower_%d" % lead)
 				batch.set_draw_distance("flower_%d" % lead, 150.0)
+	if far:
+		ArenaGrounds._far_shadows(batch)
+		return
 	batch.set_no_shadow("gclump_1")
 	batch.set_draw_distance("gclump_1", 135.0)
-	# Hot-pink benches along the promenades facing the lawn, and loose chairs by the fountain and
-	# on the lower plaza - the park's signature.
+
+
+## The lamps along the promenades and the pools they throw (lamp_factor: nothing by day), detailed
+## and far alike - at night the pools are what the park is from afar.
+static func _park_lamps(batch: MultiMeshBatch, lawn: Rect2, y0: float, statics: StaticBody3D) -> void:
+	var nl := maxi(2, int(lawn.size.y / 16.0))
+	for i in nl + 1:
+		var z := lawn.position.y + lawn.size.y * float(i) / float(nl)
+		for x: float in [lawn.position.x - 4.5, lawn.end.x + 4.5]:
+			batch.add("park_lamp", PropFactory.model_lamp(), Transform3D(Basis(Vector3.UP, 0.0 if x < lawn.get_center().x else PI), Vector3(x, y0, z)))
+			batch.add("park_pool", PropFactory.light_pool(), Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(13.0, 1.0, 13.0)), Vector3(x, y0 + 0.08, z)))
+			LandmarkGeo.shape_box(statics, Vector3(x, y0 + 1.95, z), Vector3(0.3, 3.9, 0.3))
+	batch.set_no_shadow("park_pool")
+	if statics == null:
+		batch.set_no_shadow("park_lamp")
+
+
+static func _park_furniture(g: LandmarkGeo, batch: MultiMeshBatch, parent: Node3D, s: Rect2, y0: float, lawn: Rect2, tr: Rect2, statics: StaticBody3D, rng: RandomNumberGenerator) -> void:
 	var bench := _pink_bench()
 	var chair := _pink_chair()
 	var nb := maxi(2, int(lawn.size.y / 8.0))
@@ -408,14 +443,7 @@ static func _park_detail(g: LandmarkGeo, batch: MultiMeshBatch, parent: Node3D, 
 		var ya := y0 + (TERRACE_H + 0.02 if near_pool else 0.04)
 		batch.add("park_chair", chair, Transform3D(Basis(Vector3.UP, rng.randf() * TAU), Vector3(p.x, ya, p.y)))
 	# Lamps along the promenades, with their pools, and a few real lights.
-	var nl := maxi(2, int(lawn.size.y / 16.0))
-	for i in nl + 1:
-		var z := lawn.position.y + lawn.size.y * float(i) / float(nl)
-		for x: float in [lawn.position.x - 4.5, lawn.end.x + 4.5]:
-			batch.add("park_lamp", PropFactory.model_lamp(), Transform3D(Basis(Vector3.UP, 0.0 if x < lawn.get_center().x else PI), Vector3(x, y0, z)))
-			batch.add("park_pool", PropFactory.light_pool(), Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(13.0, 1.0, 13.0)), Vector3(x, y0 + 0.08, z)))
-			LandmarkGeo.shape_box(statics, Vector3(x, y0 + 1.95, z), Vector3(0.3, 3.9, 0.3))
-	batch.set_no_shadow("park_pool")
+	_park_lamps(batch, lawn, y0, statics)
 	for z: float in [lawn.position.y + 6.0, lawn.end.y - 6.0]:
 		LandmarkArenaDistrict._add_light(parent, Vector3(lawn.get_center().x, y0 + 7.0, z), 24.0)
 	# The name on a low wall on the lower plaza, facing city hall across the street.
@@ -518,20 +546,25 @@ static func _concert_hall(s: Rect2, y0: float, parent: Node3D, statics: StaticBo
 		g.box("steel", base + Vector3(4.0, 13.0, -4.0), Vector3(30.0, 26.0, 36.0))
 		g.box("steel", base + Vector3(-14.0, 10.0, 12.0), Vector3(28.0, 20.0, 24.0), Color.WHITE, LandmarkGeo.yaw(0.4))
 		LandmarkGeo.shape_box(statics, base + Vector3(4.0, 13.0, -4.0), Vector3(30.0, 26.0, 36.0))
+	# A garden on the podium's north-east corner and the podium's paving, far as well (the far
+	# copy's trees shadowless): without them the far podium was its bare stone top, 1.6 times as
+	# bright as the paved one it stood in for.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 30311
+	var b := MultiMeshBatch.new()
+	for i in 6:
+		var p := Vector2(s.end.x - 5.0 - float(i % 3) * 5.0, s.position.y + 4.0 + float(i / 3) * 5.0)
+		var tv := 1 + i % 2
+		var tsc := PropFactory.city_tree_scale(tv, rng.randf_range(6.0, 8.0))
+		b.add("tree_%d" % tv, PropFactory.model_tree(tv), Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(tsc, tsc, tsc)), Vector3(p.x, top, p.y)),
+			Color.WHITE, Color(rng.randf(), rng.randf(), rng.randf(), 0.8))
+	if not detailed:
+		ArenaGrounds._far_shadows(b)
+	b.build(parent)
+	g.use("paving", LandmarkMats.paving("paving", 2.6, Color(0.86, 0.82, 0.76), 3317, 3.0, 0.2))
+	g.cap("paving", LandmarkGeo.ccw(LandmarkArenaDistrict._rect_poly(pr.grow(-0.2))), top + 0.01)
 	if detailed:
-		# A garden on the podium's north-east corner, and uplights at the foot of the sails.
-		var rng := RandomNumberGenerator.new()
-		rng.seed = 30311
-		var b := MultiMeshBatch.new()
-		for i in 6:
-			var p := Vector2(s.end.x - 5.0 - float(i % 3) * 5.0, s.position.y + 4.0 + float(i / 3) * 5.0)
-			var tv := 1 + i % 2
-			var tsc := PropFactory.city_tree_scale(tv, rng.randf_range(6.0, 8.0))
-			b.add("tree_%d" % tv, PropFactory.model_tree(tv), Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(tsc, tsc, tsc)), Vector3(p.x, top, p.y)),
-				Color.WHITE, Color(rng.randf(), rng.randf(), rng.randf(), 0.8))
-		b.build(parent)
-		g.use("paving", LandmarkMats.paving("paving", 2.6, Color(0.86, 0.82, 0.76), 3317, 3.0, 0.2))
-		g.cap("paving", LandmarkGeo.ccw(LandmarkArenaDistrict._rect_poly(pr.grow(-0.2))), top + 0.01)
+		# Uplights at the foot of the sails.
 		LandmarkArenaDistrict._add_light(parent, base + Vector3(-20.0, 4.0, 22.0), 26.0)
 	g.commit(parent, "SymphonyHallPodium")
 	LandmarkArenaDistrict._occluder(parent, [[base + Vector3(4.0, 13.0, -4.0), Vector3(26.0, 24.0, 30.0)]])
@@ -572,7 +605,9 @@ static func _museum(s: Rect2, y0: float, parent: Node3D, statics: StaticBody3D, 
 		u = g.wall("lobby", poly[i], poly[(i + 1) % poly.size()], y0, y0 + 5.2, Color.WHITE, false, u)
 	LandmarkGeo.shape_box(statics, Vector3(r.get_center().x, y0 + h * 0.5, r.get_center().y), Vector3(r.size.x - 3.0, h, r.size.y - 3.0))
 	# The veil: every face a lattice of deep splayed openings.
-	var cell := Vector2(2.3, 3.0) if detailed else Vector2(4.6, 6.0)
+	# The far copy keeps the near cells: at twice the size with the same thin frames it was a dark
+	# grid at the hand-over where the near veil is a white honeycomb (_veil_face()).
+	var cell := Vector2(2.3, 3.0)
 	var faces := [[Vector2(r.position.x, r.end.y), Vector2(r.end.x, r.end.y)], [Vector2(r.end.x, r.end.y), Vector2(r.end.x, r.position.y)],
 		[Vector2(r.end.x, r.position.y), Vector2(r.position.x, r.position.y)], [Vector2(r.position.x, r.position.y), Vector2(r.position.x, r.end.y)]]
 	for fi in faces.size():
@@ -601,9 +636,29 @@ static func _museum(s: Rect2, y0: float, parent: Node3D, statics: StaticBody3D, 
 				batch.add("tree_%d" % tv, PropFactory.model_tree(tv), Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(tsc, tsc, tsc)), Vector3(p.x, y0, p.y)),
 					Color(0.9, 0.95, 0.85), Color(rng.randf(), rng.randf(), rng.randf(), 0.7))
 		LandmarkArenaDistrict._add_light(parent, Vector3(plaza.get_center().x, y0 + 6.0, plaza.get_center().y), 24.0)
+	else:
+		_museum_far_grove(g, batch, s, r, y0)
 	g.commit(parent, "LatticeMuseum")
 	batch.build(parent)
 	LandmarkArenaDistrict._occluder(parent, [[vc, Vector3(r.size.x - 4.0, h - 6.5, r.size.y - 4.0)]])
+
+
+## The museum plaza's paving and grove for the far copy: the same trees as the detailed copy's
+## (the same rolls), shadowless.
+static func _museum_far_grove(g: LandmarkGeo, batch: MultiMeshBatch, s: Rect2, r: Rect2, y0: float) -> void:
+	var plaza := Rect2(Vector2(s.position.x, r.end.y + 1.5), Vector2(s.size.x, s.end.y - r.end.y - 1.5))
+	g.use("paving", LandmarkMats.paving("paving", 2.4, Color(0.88, 0.86, 0.82), 4471, 2.4, 0.2))
+	g.cap("paving", LandmarkGeo.ccw(LandmarkArenaDistrict._rect_poly(s)), y0 + 0.03)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 60137
+	for i in 5:
+		for j in 2:
+			var p := Vector2(plaza.position.x + 6.0 + float(i) * (plaza.size.x - 12.0) / 4.0, plaza.position.y + plaza.size.y * (0.3 + 0.45 * float(j)))
+			var tv := 3
+			var tsc := PropFactory.city_tree_scale(tv, rng.randf_range(5.5, 7.0))
+			batch.add("tree_%d" % tv, PropFactory.model_tree(tv), Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(tsc, tsc, tsc)), Vector3(p.x, y0, p.y)),
+				Color(0.9, 0.95, 0.85), Color(rng.randf(), rng.randf(), rng.randf(), 0.7))
+	ArenaGrounds._far_shadows(batch)
 
 
 ## One face of the veil from a to b (a CCW footprint edge, so it faces out): cells of `cell`
@@ -643,6 +698,13 @@ static func _veil_face(g: LandmarkGeo, a: Vector2, b: Vector2, y0: float, h: flo
 			var ob := _veil_p(f, u1 - frame, v0 + frame, 0.0)
 			var oc := _veil_p(f, u1 - frame, v1 - frame, 0.0)
 			var od := _veil_p(f, u0 + frame, v1 - frame, 0.0)
+			if not detailed:
+				# The far copy: no reveals, so the frame runs in to where they end (the opening
+				# the detailed copy leaves, seen head-on) and the veil is as white as the near one.
+				oa = _veil_p(f, u0 + frame * 1.9 + skew, v0 + frame * 2.4, 0.0)
+				ob = _veil_p(f, u1 - frame * 1.9 + skew, v0 + frame * 2.4, 0.0)
+				oc = _veil_p(f, u1 - frame * 1.9 + skew, v1 - frame, 0.0)
+				od = _veil_p(f, u0 + frame * 1.9 + skew, v1 - frame, 0.0)
 			# The face of the frame round the opening.
 			_veil_quad(g, fa, fb, ob, oa, n)
 			_veil_quad(g, fb, fc, oc, ob, n)

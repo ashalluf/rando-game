@@ -445,6 +445,8 @@ static func _occupied(chunk: CityChunk) -> Array:
 		out.append([apron, 12.0])
 	# So do a police station's forecourt and gate (PoliceStation).
 	out.append_array(PoliceStation.keep_clear_points(chunk.plan, chunk.ix, chunk.iz))
+	# And a civic building's frontage (CivicBuildings).
+	out.append_array(CivicBuildings.keep_clear_points(chunk.plan, chunk.ix, chunk.iz))
 	return out
 
 

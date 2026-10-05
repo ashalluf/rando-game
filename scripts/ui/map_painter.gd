@@ -198,6 +198,10 @@ static func draw_geo(ci: CanvasItem, v: View, plan: CityPlan, data: MapData) -> 
 		ci.draw_colored_polygon(lake, c.ocean)
 	if macro.river and macro.river.bounds.intersects(v.area):
 		_draw_river(ci, v, plan, macro.river)
+	# The reservoir in the front range (Reservoir).
+	if macro.reservoir and Reservoir.BOX.intersects(v.area):
+		for r: Rect2 in macro.reservoir.water_runs():
+			_rect(ci, v, r, c.ocean)
 	_draw_airport(ci, v, macro)
 	_draw_piers(ci, v)
 	_draw_replica(ci, v, macro)
@@ -387,8 +391,11 @@ static func _draw_hill_roads(ci: CanvasItem, v: View, hr: HillRoads) -> void:
 		var road: Dictionary = hr.roads[k]
 		if bool(road.get("drive", false)) and v.ppm < 0.35:
 			continue
+		# The ridges' pads are graded ground, not roads; their fire roads are dirt tracks (Ridges).
+		if bool(road.get("pad", false)) or (bool(road.get("fire", false)) and v.ppm < 0.35):
+			continue
 		var pts: PackedVector2Array = road.points
-		var wd: float = road.width
+		var wd: float = 1.5 if bool(road.get("fire", false)) else float(road.width)
 		var run := PackedVector2Array()
 		for i in pts.size():
 			var inside := reach.has_point(pts[i]) or (i > 0 and reach.has_point(pts[i - 1])) or (i + 1 < pts.size() and reach.has_point(pts[i + 1]))

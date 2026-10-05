@@ -1,6 +1,6 @@
 class_name StreetSigns
 extends RefCounted
-## The street's signs as real models (SignKit's meshes on `shaders/street_sign.gdshader`), placed
+## The street's signs as real models (StreetSignKit's meshes on `shaders/street_sign.gdshader`), placed
 ## where the plan already decides a sign belongs:
 ##   * green street-name blades, two crossed on a cast cap bracket, on every corner StreetDetail
 ##     names (the +X +Z corner always, the opposite one by its old hash): on their own post at an
@@ -12,8 +12,8 @@ extends RefCounted
 ##     plaque, aluminium back with its bolts) on the near right corner of each approach, facing
 ##     the traffic it stops - the old cylinder faced the junction's centre diagonally;
 ##   * yield signs on the minor road's two approaches at a share of the unsigned junctions;
-##   * speed limits (by district and road), LA's red street-cleaning and green 2-hour plates on
-##     their posts along the kerb, and the no-parking blades by the junctions (their old rolls);
+##   * speed limits (by district and road) and the no-parking blades by the junctions (their old
+##     rolls). The kerb's parking and street-cleaning plates are BoulevardSigns' (one owner);
 ##   * the school zone assembly (the crossing pentagon over SCHOOL / SPEED LIMIT 25 WHEN CHILDREN
 ##     ARE PRESENT) on every approach along a school block.
 ## The junction signs REPLACE the old props one for one inside the same `_add_prop` calls (so no
@@ -34,20 +34,16 @@ static var debug: bool = OS.get_environment("SS_DEBUG") == "1"
 const DRAW := 160.0
 const ARM_DRAW := 240.0
 const SHADOW_REACH := 30.0
-## Chances: a face carries a speed limit (avenue / street), a face is posted for parking, an
+## Chances: a face carries a speed limit (avenue / street), an
 ## unsigned junction has yield signs, an avenue's arm carries a NO TURN ON RED instead of nothing
 ## on a one-lane approach.
 const SPEED_AVENUE := 0.55
 const SPEED_STREET := 0.22
-const PARKING_FACE := 0.5
 const YIELD_ODDS := 0.4
 ## How far back from the corner along its approach a yield sign stands (metres): behind the
 ## crosswalk and the corner's kerb ramp.
 const YIELD_BACK := 4.8
 const NO_TURN_RED := 0.3
-## Parking posts: spacing along a face (metres) and how far from the face's ends they keep.
-const PARKING_SPACING := 38.0
-const PARKING_END := 16.0
 ## How far in from the kerb a post stands (metres).
 const KERB_IN := 0.55
 ## What a new sign keeps clear of (metres, centre to centre).
@@ -86,7 +82,7 @@ static func names_at(ch: CityChunk, c: Vector2) -> bool:
 	return c == Vector2(-1, -1) and StreetDetail._hash01([ch.plan.seed, "sign2", ch.ix, ch.iz]) < 0.55
 
 
-## The names in the order SignKit.crossed_blades() wants for an assembly turned by `yaw` (a
+## The names in the order StreetSignKit.crossed_blades() wants for an assembly turned by `yaw` (a
 ## multiple of 90 degrees): its upper blade runs along the assembly's local Z, which is world Z
 ## at 0 / 180 degrees and world X at +-90.
 static func _blade_order(names: Array, yaw: float) -> Array:
@@ -117,7 +113,7 @@ static func name_post(ch: CityChunk, corner: Vector2, name_x: String, name_z: St
 		ch._prop_counter += 1
 		return
 	var names := junction_names(ch)
-	var mesh := SignKit.name_post(name_x, names[1], name_z, names[3])
+	var mesh := StreetSignKit.name_post(name_x, names[1], name_z, names[3])
 	var at := Vector3(corner.x, CityChunk.SIDEWALK_TOP, corner.y)
 	ch._add_prop("street_sign", at, Color(0.3, 0.3, 0.32), [
 		["ss_" + _key(mesh), mesh, Transform3D(Basis(), at), Color.WHITE, _roll([ch.plan.seed, "np", corner])],
@@ -135,7 +131,7 @@ static func stop_corner(ch: CityChunk, at: Vector3, c: Vector2) -> void:
 	var names: Array = []
 	if names_at(ch, c):
 		names = _blade_order(junction_names(ch), yaw)
-	var mesh := SignKit.stop_post(names)
+	var mesh := StreetSignKit.stop_post(names)
 	ch._add_prop("stop_sign", at, Color(0.8, 0.12, 0.1), [
 		["ss_" + _key(mesh), mesh, Transform3D(Basis(Vector3.UP, yaw), at), Color.WHITE, _roll([ch.plan.seed, "stop", ch.ix, ch.iz, c])],
 	], [[Vector3(0.3, 2.8, 0.3), at + Vector3(0.0, 1.4, 0.0), 0.0]])
@@ -159,8 +155,8 @@ static func signal_extras(ch: CityChunk, instances: Array, at: Vector3, c: Vecto
 	for d: float in heads:
 		near = minf(near, d)
 		far = maxf(far, d)
-	var name_mesh := SignKit.arm_name(cross_name, cross_num)
-	var name_len := SignKit.blade_length(cross_name, SignKit.ARM_SIGN_CAP) * 1.05
+	var name_mesh := StreetSignKit.arm_name(cross_name, cross_num)
+	var name_len := StreetSignKit.blade_length(cross_name, StreetSignKit.ARM_SIGN_CAP) * 1.05
 	name_len = clampf(name_len, 1.5, 2.9)
 	var roll := _roll([ch.plan.seed, "arm", ch.ix, ch.iz, c])
 	var d_name := maxf(near - name_len * 0.5 - 0.7, name_len * 0.5 + 0.6)
@@ -169,14 +165,14 @@ static func signal_extras(ch: CityChunk, instances: Array, at: Vector3, c: Vecto
 		# the pole.
 		var d_ntor := near - 1.1
 		d_name = maxf(d_ntor - 0.5 - name_len * 0.5, name_len * 0.5 + 0.5)
-		var m := SignKit.arm_no_turn_red()
+		var m := StreetSignKit.arm_no_turn_red()
 		instances.append(["ss_" + _key(m), m, Transform3D(basis, at + arm_dir * d_ntor + Vector3(0.0, arm_y, 0.0)), Color.WHITE, roll])
 	instances.append(["ss_" + _key(name_mesh), name_mesh, Transform3D(basis, at + arm_dir * d_name + Vector3(0.0, arm_y, 0.0)), Color.WHITE, roll])
 	if heads.size() >= 2:
-		var m := SignKit.arm_lanes()
+		var m := StreetSignKit.arm_lanes()
 		instances.append(["ss_" + _key(m), m, Transform3D(basis, at + arm_dir * ((near + far) * 0.5) + Vector3(0.0, arm_y, 0.0)), Color.WHITE, roll])
 	if names_at(ch, c):
-		var top := SignKit.pole_top_blades(names[0], names[1], names[2], names[3])
+		var top := StreetSignKit.pole_top_blades(names[0], names[1], names[2], names[3])
 		instances.append(["ss_" + _key(top), top, Transform3D(Basis(), at), Color.WHITE, roll])
 
 
@@ -185,7 +181,7 @@ static func signal_extras(ch: CityChunk, instances: Array, at: Vector3, c: Vecto
 static func no_parking(ch: CityChunk, at: Vector3, face_x: bool, c: Vector2, i: int) -> void:
 	var toward := Vector3(0.0, 0.0, -c.y) if face_x else Vector3(-c.x, 0.0, 0.0)
 	var street := Vector3(-c.x, 0.0, 0.0) if face_x else Vector3(0.0, 0.0, -c.y)
-	var mesh := SignKit.no_parking_post()
+	var mesh := StreetSignKit.no_parking_post()
 	ch._add_prop("street_sign", at, Color(0.3, 0.3, 0.32), [
 		["ss_" + _key(mesh), mesh, Transform3D(_basis(toward, street), at), Color.WHITE, _roll([ch.plan.seed, "nopark", ch.ix, ch.iz, i])],
 	], [[Vector3(0.2, 2.6, 0.2), at + Vector3(0.0, 1.3, 0.0), 0.0]])
@@ -197,7 +193,7 @@ static func _key(m: Mesh) -> String:
 
 # --- The block's own signs (a build step) -----------------------------------------------------------
 
-## The block step: speed limits, school zones and parking posts along the four faces, yield signs
+## The block step: speed limits and school zones along the four faces, yield signs
 ## at the chunk's junction when it is unsigned. Runs once, late in a FULL chunk's build (after the
 ## street furniture it keeps clear of).
 static func build(ch: CityChunk) -> void:
@@ -251,35 +247,11 @@ static func build(ch: CityChunk) -> void:
 		if school or _h01([plan.seed, "spd", axis, index, ch.ix, ch.iz, k]) < (SPEED_AVENUE if avenue else SPEED_STREET):
 			p = _clear_spot(p, d, obstacles, cuts)
 			if p != Vector2.INF:
-				var mesh := SignKit.school_post() if school else SignKit.speed_post(speed_for(district, avenue))
+				var mesh := StreetSignKit.school_post() if school else StreetSignKit.speed_post(speed_for(district, avenue))
 				var at := Vector3(p.x, CityChunk.SIDEWALK_TOP, p.y)
 				_add(ch, "street_sign", at, [["ss_" + _key(mesh), mesh, Transform3D(Basis(Vector3.UP, yaw), at), Color.WHITE, _roll([plan.seed, "spd", ch.ix, ch.iz, k])]],
 					[[Vector3(0.2, 3.0, 0.2), at + Vector3(0.0, 1.5, 0.0), 0.0]])
 				obstacles.append(Vector3(p.x, p.y, CLEAR))
-		# Parking posts along the rest of the face (not on avenues downtown, where nobody parks).
-		if district == CityPlan.District.INDUSTRIAL or (avenue and district == CityPlan.District.DOWNTOWN):
-			continue
-		if _h01([plan.seed, "park", axis, index, ch.ix, ch.iz, k]) >= PARKING_FACE:
-			continue
-		var day := absi(hash([plan.seed, "sweep", axis, index, k % 2])) % SignKit.SWEEP_DAYS.size()
-		var hours := absi(hash([plan.seed, "sweep_h", axis, index])) % SignKit.SWEEP_HOURS.size()
-		var two_hour := district == CityPlan.District.MIDTOWN or district == CityPlan.District.DOWNTOWN or (district == CityPlan.District.BEACHTOWN and _h01([plan.seed, "2hr", axis, index]) < 0.6)
-		var mesh := SignKit.parking_post(day, hours, two_hour)
-		var dir := (b - a) / length
-		var s := PARKING_END
-		var n := 0
-		while s < length - PARKING_END and n < 6:
-			var q := a + dir * s + inward * KERB_IN
-			s += PARKING_SPACING
-			var spot := _clear_spot(q, dir, obstacles, cuts)
-			if spot == Vector2.INF:
-				continue
-			var at := Vector3(spot.x, CityChunk.SIDEWALK_TOP, spot.y)
-			var bas := _basis(Vector3(d.x, 0.0, d.y), Vector3(-inward.x, 0.0, -inward.y))
-			_add(ch, "street_sign", at, [["ss_" + _key(mesh), mesh, Transform3D(bas, at), Color.WHITE, _roll([plan.seed, "pk", ch.ix, ch.iz, k, n])]],
-				[[Vector3(0.2, 3.0, 0.2), at + Vector3(0.0, 1.5, 0.0), 0.0]])
-			obstacles.append(Vector3(spot.x, spot.y, CLEAR))
-			n += 1
 	_yields(ch, obstacles, cuts)
 
 
@@ -325,7 +297,7 @@ static func _yields(ch: CityChunk, obstacles: Array, cuts: Array) -> void:
 			if not in_cut:
 				break
 		var at := Vector3(corner.x, CityChunk.SIDEWALK_TOP, corner.y)
-		var mesh := SignKit.yield_post()
+		var mesh := StreetSignKit.yield_post()
 		_add(ch, "stop_sign", at, [["ss_" + _key(mesh), mesh, Transform3D(Basis(Vector3.UP, atan2(facing.x, facing.z)), at), Color.WHITE, _roll([plan.seed, "yield", ch.ix, ch.iz, i])]],
 			[[Vector3(0.3, 2.9, 0.3), at + Vector3(0.0, 1.45, 0.0), 0.0]])
 		obstacles.append(Vector3(corner.x, corner.y, CLEAR))
