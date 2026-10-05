@@ -161,6 +161,8 @@ func _crowd_dog(city: Node3D, chunk: Node3D) -> void:
 	p.life_range = 100000.0
 	p.look_range = 100000.0
 	p.position = Vector3(x0, chunk.ground_y(x0, z) + 0.1, z)
+	# The crowd cap's trim must not free the walker under test (CityStreamer.trim_pedestrians()).
+	p.set_meta("no_trim", true)
 	chunk.add_child(p)
 	await _ticks(40)
 	var dog: CrowdDog = p._dog as CrowdDog
@@ -201,8 +203,12 @@ func _crowd_dog(city: Node3D, chunk: Node3D) -> void:
 	q.life_range = 100000.0
 	q.look_range = 100000.0
 	q.position = Vector3(x0 + 3.0, chunk.ground_y(x0 + 3.0, z) + 0.1, z)
+	q.set_meta("no_trim", true)
 	chunk.add_child(q)
 	await _ticks(30)
+	if not is_instance_valid(q):
+		_check(false, "dogs: the second walker is still there after 30 ticks")
+		return
 	var dog2: CrowdDog = q._dog as CrowdDog
 	if dog2 == null or not is_instance_valid(dog2):
 		_check(false, "dogs: the second walker has a dog")

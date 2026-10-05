@@ -371,6 +371,15 @@ static func _place_cluster(chunk: CityChunk, edge: Array, v: Dictionary, occupie
 	var n := int(v.n)
 	var span := float(n) * 0.55
 	var id := [chunk.plan.seed, chunk.ix, chunk.iz, String(v.id)]
+	var gutter_at := int(_h01(id + ["gutter_at"]) * float(n)) if bool(v.gutter) else -1
+	# The gutter scooter keeps a parked car off its stretch of kerb (blocks_parking()). Where is the
+	# plan's, before any slide: what the cluster slides round (a vendor's stand, a market's stalls
+	# on its day) must not move a car elsewhere on the block. It lies in the gutter only if the
+	# cluster stands where planned; slid, it stands with the others.
+	if gutter_at >= 0 and float(v.t) >= 3.0 and float(v.t) + span <= length - 3.0:
+		var gutters: Array = chunk.get_meta("micro_gutter", [])
+		gutters.append(a + dir * (float(v.t) + float(gutter_at) * 0.55) - inward * 0.3)
+		chunk.set_meta("micro_gutter", gutters)
 	var start := -1.0
 	for k in 9:
 		var t: float = float(v.t) + [0.0, 1.5, -1.5, 3.0, -3.0, 4.5, -4.5, 6.0, -6.0][k]
@@ -387,7 +396,8 @@ static func _place_cluster(chunk: CityChunk, edge: Array, v: Dictionary, occupie
 			break
 	if start < 0.0:
 		return
-	var gutter_at := int(_h01(id + ["gutter_at"]) * float(n)) if bool(v.gutter) else -1
+	if start != float(v.t):
+		gutter_at = -1
 	for i in n:
 		if count[0] >= MAX_ITEMS:
 			return
@@ -414,10 +424,7 @@ static func _place_cluster(chunk: CityChunk, edge: Array, v: Dictionary, occupie
 			# Over the kerb into the gutter, lying along it.
 			q = a + dir * (start + float(i) * 0.55) - inward * 0.3
 			y = CityChunk.ROAD_TOP
-			# The parked car that would stand on it stays away (blocks_parking()).
-			var gutters: Array = chunk.get_meta("micro_gutter", [])
-			gutters.append(q)
-			chunk.set_meta("micro_gutter", gutters)
+			# The parked car that would stand on it already keeps away (micro_gutter, above).
 			yaw = atan2(-dir.x, -dir.y) + (_h01(sid + ["gyaw"]) - 0.5) * 0.6
 			roll = 1.38 if _h01(sid + ["side"]) < 0.5 else -1.38
 		# The cluster's last one leans on a street tree within reach.

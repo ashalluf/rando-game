@@ -383,7 +383,19 @@ func _door_spot(car: EmergencyCar, i: int) -> Vector3:
 		base + side * half + fwd * (length * 0.12),
 		base - side * half + fwd * (length * 0.12),
 	]
-	return spots[i % spots.size()] + Vector3.UP * 0.05
+	return _on_surface(spots[i % spots.size()]) + Vector3.UP * 0.05
+
+
+## `p` brought down (or up) onto the world-layer surface under it: a door spot is worked out at
+## road height, and the kerb side's is on the pavement - since Kerbs, a trimesh ring a kerb higher
+## that a body put just under it falls straight through, five metres down to the GroundBody where
+## the street stands on relief (the stretcher medic of the paramedic check, on every branch).
+func _on_surface(p: Vector3) -> Vector3:
+	if not is_inside_tree():
+		return p
+	var q := PhysicsRayQueryParameters3D.create(p + Vector3.UP * 1.5, p - Vector3.UP * 1.0, 1)
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	return hit.position if not hit.is_empty() else p
 
 
 ## A crew member back in their unit. With all of them in, it leaves.

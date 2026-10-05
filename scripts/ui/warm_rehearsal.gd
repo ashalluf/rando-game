@@ -211,6 +211,7 @@ static func _stage_people(holder: Node3D, ground: Vector3, fwd: Vector3, right: 
 		var local := holder.to_local(at)
 		p.setup(Rect2(local.x - 2.0, local.z - 2.0, 4.0, 4.0), 1.0, 90210 + k * 7919)
 		p.set_meta(TAG, true)
+		p.set_meta("no_trim", true)
 		holder.add_child(p)
 		p.position = local + Vector3.UP * 0.1
 		p.set("_pause_left", 30.0)
@@ -218,10 +219,12 @@ static func _stage_people(holder: Node3D, ground: Vector3, fwd: Vector3, right: 
 	for f in 2:
 		await tree.process_frame
 	# Two go down: one shot (the ragdoll, the stain, the blood), one torn apart (limbs, stumps).
-	var a: Pedestrian = peds[0]
-	a.shot(a.global_position + Vector3.UP * 1.3, fwd, fwd * 4.0, 2.0)
-	var b: Pedestrian = peds[1]
-	b.knock(fwd * 6.0 + Vector3.UP * 3.0, 3)
+	if is_instance_valid(peds[0]):
+		var a: Pedestrian = peds[0]
+		a.shot(a.global_position + Vector3.UP * 1.3, fwd, fwd * 4.0, 2.0)
+	if is_instance_valid(peds[1]):
+		var b: Pedestrian = peds[1]
+		b.knock(fwd * 6.0 + Vector3.UP * 3.0, 3)
 
 
 static func _stage_effects(holder: Node3D, ground: Vector3, fwd: Vector3, right: Vector3, tree: SceneTree) -> void:

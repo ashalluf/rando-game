@@ -192,6 +192,13 @@ static func wanted(ch: CityChunk, district: int) -> bool:
 	return enabled and ch.zone == MacroMap.Zone.CITY and district in DISTRICTS
 
 
+## Whether the chunk records its lots for the yard plan (`ch._yard_lots`): where the fill would
+## run, on or off. The plan is pure, and others ask it with the fill off too (Kerbs.possible_cuts():
+## BoulevardSigns' posts keep off the driveways, so they stand the same whether the yards are laid).
+static func records(ch: CityChunk, district: int) -> bool:
+	return ch.zone == MacroMap.Zone.CITY and district in DISTRICTS
+
+
 ## True when a lot is the freeway's right of way (CityChunk._build_lot's own test).
 static func is_corridor(plan: CityPlan, lot: Dictionary) -> bool:
 	if plan.macro == null or plan.macro.freeway == null:
