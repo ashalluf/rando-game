@@ -1137,13 +1137,18 @@ func _build_beach(block: Dictionary) -> void:
 	# gap in the beach with the sea plane showing through it (the sea chunk's water lies over its
 	# whole rect, flat at 0.15, sand or not). Over the strip the sand's landward edge dips under
 	# the road instead of standing on it (_build_sand's `strip_from`).
+	var life_z := Vector2(owned_rect().position.y, owned_rect().end.y)
 	if _replica != null:
 		_build_sand(owned_rect())
 	else:
 		var r: Rect2 = block.rect
 		var own := owned_rect()
 		_build_sand(Rect2(r.position.x, r.position.y, r.size.x, maxf(own.end.y - r.position.y, r.size.y)), r.end.y)
+		life_z = Vector2(r.position.y, maxf(own.end.y, r.end.y))
 	if level != Level.FULL:
+		# The beach's towels and umbrellas as dots of colour, the path and the courts (BeachLife).
+		if not capturing:
+			BeachLife.build_lod(self, life_z.x, life_z.y)
 		return
 	_build_surf_spray(owned_rect() if _replica != null else Rect2(block.rect.position, Vector2(block.rect.size.x, owned_rect().end.y - block.rect.position.y)))
 	var rng := RandomNumberGenerator.new()
@@ -1156,16 +1161,37 @@ func _build_beach(block: Dictionary) -> void:
 		bare = block.rect.end.y > cr.x and block.rect.position.y < cr.y
 	# Scattered across the DRY sand, which is a band that moves with the shoreline rather than
 	# the chunk's rectangle: dropping them in the rectangle put palms in the surf.
+	# BeachLife's bike path runs along the back of the sand: a palm rolled onto it is moved just off
+	# it (after its roll, so the stream does not move), and the palms and the tower are what the
+	# beach's people keep clear of.
+	var path := BeachLife.enabled and not bare and not BeachLife.kept_off(plan, (life_z.x + life_z.y) * 0.5)
+	var obstacles: Array = []
 	for i in rng.randi_range(6, 14):
 		var z := rng.randf_range(block.rect.position.y + 4.0, block.rect.end.y - 4.0)
 		var across := rng.randf_range(0.18, 0.95)
+		if path and absf(across - BeachLife.PATH_AT) < 0.05:
+			across = BeachLife.PATH_AT + (0.06 if across >= BeachLife.PATH_AT else -0.06)
 		var at := Vector3(_dry_sand_x(z, across), _sand_y(z, across), z)
 		if not bare:
 			_add_palm(at, rng)
+			obstacles.append([Vector2(at.x, at.z), 0.8])
+	var tower := {}
 	if rng.randf() < 0.6:
 		var z := rng.randf_range(block.rect.position.y + 8.0, block.rect.end.y - 8.0)
 		var across := rng.randf_range(0.1, 0.5)
-		_add_lifeguard_tower(Vector3(_dry_sand_x(z, across), _sand_y(z, across), z), rng.randf_range(0.0, TAU))
+		var spin := rng.randf_range(0.0, TAU)
+		var at := Vector3(_dry_sand_x(z, across), _sand_y(z, across), z)
+		if BeachLife.enabled:
+			# Turned to the sea (a tower watches the water), its rolled spin only a little jitter.
+			var slope := (plan.macro.coast_x(z + 2.0) - plan.macro.coast_x(z - 2.0)) / 4.0 if plan.macro else 0.0
+			var yaw := atan2(1.0, -slope) + (spin / TAU - 0.5) * 0.3
+			tower = {"at": Vector2(at.x, at.z), "yaw": yaw, "y": at.y}
+			obstacles.append([Vector2(at.x, at.z) - Vector2(-sin(yaw), -cos(yaw)) * 1.8, 4.6])
+			_batch.add("beach_tower", BeachLife.tower_mesh(), Transform3D(Basis(Vector3.UP, yaw), at))
+			_add_shape(Vector3(3.1, 4.8, 3.4), at + Basis(Vector3.UP, yaw) * Vector3(0.0, 2.4, 0.4), yaw)
+		else:
+			_add_lifeguard_tower(at, spin)
+	BeachLife.build(self, life_z.x, life_z.y, obstacles, tower)
 
 
 ## Metres of shoreline between two spray instances (shaders/surf_spray.gdshader).

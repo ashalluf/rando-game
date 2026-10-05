@@ -2869,6 +2869,53 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   staging calms the flock against the player, whom a free camera drags along). `BIRDS=0` in the
   environment removes them. Ambience's gull one-shots come from a real gull when one is in earshot
   (`Birds.gull_at()`). Checks: `tests/bird_checks.gd`.
+- Beach life (VISUAL_ROADMAP #60, 2026-10-05: "a Los Angeles beach on a warm afternoon"):
+  `BeachLife` (`scripts/world/beach_life.gd`, static) fills the sand `CityChunk._build_beach()`
+  lays. **Everything is a hash of seed + a WORLD cell of shore (`CELL_Z` 6.5 m) + the hour the
+  chunk is built at** (`hour_now()`, `force_hour`; `density()`: nobody before 6:30 or after 20:30,
+  full 13:00-16:30, a few at dusk; `weather_factor()`: half on a grey day, nearly none in rain),
+  never the block rng: `_build_beach`'s palms and tower roll exactly as before (a palm rolled onto
+  the bike path is nudged off it after its roll). `plan_stretch(plan, z0, z1, dens, obstacles)` is
+  pure (people, props, the court) and world-anchored: two halves plan what the whole does; groups
+  of 1-4 by `BANDS` across the sand, the front rows first (`shape()`), poses from `POSE_ODDS`,
+  towels, umbrellas, low chairs, coolers, totes, boogie boards, surfboards. Nothing within
+  `KEEP_OFF` of the boardwalk and the piers; the replica's coast gets people but no path or court.
+  **People are `BeachFigure`s** (`scripts/world/beach_figure.gd`, extends CampFigure): each
+  (crowd rig, pose) is baked once on a real `BeachGoer` (the camps' trick) and each suit is that
+  bake with the suit's look; a chunk's figures merge into `BeachFigureMesh` (32 m cells along the
+  shore, the middle bodies inside `near_range` 42 m, the far bodies past it and as the shadow), so
+  a chunk of ~120 people is a draw per rig per cell. Woken (shot, knocked, `CampFigure.wake_near()`
+  from an alarm, or `BeachActivity._scatter()`: up to `scatter_max` of the nearest, a few a tick)
+  they become a live `BeachGoer` (`scripts/npc/beach_goer.gd`, extends RoughSleeper) that runs up
+  the beach and walks back. **Swimwear** is `BeachGoer.swim_mesh()`: a copy of the crowd body, each
+  triangle by its rest-pose height (`TRUNKS_BAND`, `BOTTOM_BAND`, `TOP_BAND`) left in its garment
+  region (the suit: `swim_material()` colours both regions from `SUITS`) or turned into skin (the
+  skin region on one texel of the person's own neck), border vertices split; shoes are bare feet.
+  `STYLE_OF` (trunks, bikini, one-piece) per rig in `BEACH_MODELS`; no new bones or surfaces, so
+  the welds, the ragdoll (`knock()` dresses the doll again) and limb cuts work. Poses: RoughSleeper's
+  table format, `BEACH_POSES` (on the back, front, hands behind the head, sitting leaning back, a
+  low beach chair, astride a board, paddling, riding a wave side-on, skating, the volleyball arms).
+  **`BeachActivity`** (`scripts/world/beach_activity.gd`, a node per FULL beach chunk): swimmers
+  (standing bakes sunk to the chest) and surfers on boards past `Surf.break_distance()` who sit,
+  paddle in, ride a wave in side-on along the face (`Surf.crest_height()`) and paddle back out;
+  riders on the path (`BeachRider`, `scripts/npc/beach_rider.gd`: an AnimatableBody3D on the npc
+  layer, a cyclist is a flipbook of `BeachGoer.RIDE_FRAMES` bakes from `BeachFigure.ride_meshes()`
+  - each frame `BeachGoer.ride_pose()` solves both legs onto the pedals by two-bone IK and the
+  cruiser `BeachLife.bike_mesh()` is built round that frame's saddle, crank, pedals and grips - a
+  skater one bake with the board); a volleyball game on the chunk's court (four live BeachGoers
+  with `volley_home`, the ball on parabolas: pass, set, attack, misses, serves); walkers
+  (`BeachWalker`, `scripts/npc/beach_walker.gd`) carrying boards to the water and strolling the
+  wet sand; the lifeguard (a figure on the tower's deck, `LIFEGUARD_*`). A shot rider becomes a
+  live BeachGoer and the bike is thrown as an EncampmentItem. The tower is `BeachLife.tower_mesh()`
+  turned to the sea; the path a strip mesh at `PATH_AT` (`path_x()`), joints and centre line in
+  `shaders/beach_props.gdshader` (one shader for all of it; codes in the vertex alpha, paint in
+  INSTANCE_CUSTOM, `CANVAS2` mirrored and checked). `ground_at()` / `sand_y()` are the sand mesh's
+  own rows (not `_sand_y()`'s curve). LOD chunks: towels and umbrellas as dots (`build_lod()`),
+  the path and the court tapes. The loading screen bakes every rig in every pose and the riders'
+  flipbooks (`BeachFigure.kinds()`). `BEACH_LIFE=0` is the A/B; `BEACH_STAGE=z` on `still_shot.gd`
+  gathers riders and surfers there; `tools/beach/probe.gd` walks the coast (`PEOPLE=1`),
+  `tools/beach/chunks.gd` lists the built chunks, `tools/beach/checks.gd` runs the checks alone.
+  Checks: `tests/beach_life_checks.gd`.
 - The hero (owner, 2026-09-24: "Blender with real fingers from scratch AAA studio level"):
   `assets/models/hero.glb`, built by **`tools/hero/`** in Blender 4.2 with MPFB2 from CC0
   MakeHuman assets plus our own tracksuit, rib tank, rope chain, watch, ring, laced sneakers and

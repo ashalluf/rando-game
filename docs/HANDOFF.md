@@ -6835,3 +6835,84 @@ this is the story.
   seats, not three (CarCabin's cabin has a front row and one bench); the taxi is always the
   yellow checker livery; the hatch, minivan and SUV faces are plainer than a 2026 car's (one
   egg-crate or bar grille each).
+
+## 9br. The beach on a warm afternoon, 2026-10-05 (agent branch `wt/beach-life`; VISUAL_ROADMAP #60)
+
+Number is provisional (the lead renumbers on merge).
+
+**The brief** (lead, from the owner's "make the graphics a million times better"): the sand, the
+surf and the piers were there and the beach was empty. Fill it - sunbathers, swimmers and surfers,
+volleyball, a bike path with cyclists, a lifeguard - placed from seed + chunk + hour, scattering at
+gunfire, and dots of colour from the air. CLAUDE.md's "Beach life" note is the contract; this is
+the story.
+
+**What it is.**
+- `BeachLife` (`scripts/world/beach_life.gd`, static): the plan (`plan_stretch()`, pure, world
+  cells of 6.5 m of shore, groups of 1-4 in eight bands across the sand, the front rows first,
+  `density()` by hour, `weather_factor()`), the props built in code at real size (towel, beach
+  umbrella, low chair, cooler, tote, boogie board, surfboard, volleyball net and tapes, the LA
+  lifeguard tower, the ball, a skateboard, the beach cruiser), the bike path (one strip a chunk),
+  the court, the LOD dots. One shader, `shaders/beach_props.gdshader`.
+- `BeachGoer` (`scripts/npc/beach_goer.gd`, extends RoughSleeper): swimwear on the crowd rigs
+  (`swim_mesh()`: per triangle by rest-pose height, the garment bands stay garment and are coloured
+  as the suit, the rest is skin on one texel of the person's neck; border vertices split so the
+  suit's edge is clean and nothing interpolates across the atlas), the beach poses in
+  RoughSleeper's table format, the cyclist's `ride_pose()` (two-bone IK of both legs onto the
+  pedals, measured: ankles within 2 mm of their targets round the crank), volleyball moves.
+- `BeachFigure` / `BeachFigureMesh` (`scripts/world/`): the camps' static figures for the beach,
+  each (rig, pose) baked once and each suit a copy with the suit's look; merged in 32 m cells with
+  a near (middle body) and a far (far body) mesh, so ~120 people a chunk are a handful of draws.
+- `BeachActivity` (`scripts/world/beach_activity.gd`, one per FULL beach chunk): swimmers, surfers
+  (sit in the lineup past the break, paddle in, ride a wave side-on along the shore, paddle back),
+  riders and skaters (`BeachRider`, `scripts/npc/beach_rider.gd`), the volleyball rally (four live
+  BeachGoers and the ball), walkers (`BeachWalker`, boards under the arm), the scatter.
+
+**Decisions.**
+- Swimwear by rewriting the regions rather than new garments in tools/crowd/garments.py: no
+  Blender runs, no new atlases, and every system that reads the crowd rigs (welds, bakes, limb
+  cuts, ragdolls, hats) sees an ordinary rig. The cost: a bare torso is the old shirt's shell (a
+  few millimetres proud of where the body was), which nobody sees past a few metres.
+- A beach's people are figures, not rigs. Live rigs only for the volleyball players, the walkers
+  and anyone woken. Gunfire wakes the nearest up to 16 (3 a tick) and they run up the beach and
+  walk back, the way the camps do.
+- Cyclists are flipbooks (12 crank angles), each frame a bake with the bike built round it, so
+  the crank, the pedals and the feet always agree; no skeleton ticks on the path.
+- Courts are world cells of 26 m of shore with their own hash, so a court belongs to one chunk and
+  its neighbours keep their people off it too.
+- The block's own rolls are untouched: the palms are where they were (one rolled onto the path
+  is moved just off it, after its roll), the tower is where it was and keeps its roll, but is now a
+  real tower turned to the sea.
+
+**Frame cost** (opengl3 1280x720, `still_shot.gd` GEO, `--quality=0`, BEACH_LIFE=0 vs on, the
+same frame):
+
+| frame | before (BEACH_LIFE=0) | after | |
+|---|---|---|---|
+| from the sand, 15:00 (`EYE=-725,1.7,610,160,-6`) | 1,323,727 tris, 349 draws | 1,620,191 tris, 417 draws | +22 % tris, +68 draws |
+| aerial over a busy stretch (`EYE=-735,55,330,160,-32`) | 3,023,490 tris, 584 draws | 3,227,125 tris, 693 draws | +7 %, +109 draws |
+| sunset 17:45 (`EYE=-725,1.7,610,160,-4`) | 1,290,853 tris, 332 draws | 1,361,609 tris, 387 draws | +5 %, +55 draws |
+
+A beach frame was among the cheapest in the game (1.3 M against 5-8 M downtown) and stays well
+under a city frame. The draws are the prop batches (towel, umbrella, chair, cooler, tote, boards,
+net, tower - one each a chunk, umbrellas, chairs, coolers and the net with a shadow twin), the
+figure cells (a draw per rig per cell, four rigs per 200 m of shore, near or far, plus a shadow),
+and one or two per rider, surfer and swimmer. If they need to come down: merge the water people
+into their chunk's cells, and drop the coolers' and chairs' shadow twins.
+
+**Stills** (`shots/beach-life`): `beach_1500` (from the sand at 15:00, the lifeguard on his
+tower), `aerial` (a busy stretch from 55 m), `volleyball`, `bike_path` (cyclists on cruisers),
+`bike_close`, `surfers` (one riding a wave in, the lineup behind), `sunset` (17:45, a few left,
+the lifeguard still up), and the
+`*_before` frames with BEACH_LIFE=0.
+
+**Not done / not verified.**
+- Forward+ (the Mac) not seen: skin subsurface on the bare backs, the canvas backlight.
+- The far city (Skyline, past the LOD ring) draws no dots: beach blocks are not captured there.
+- Swimmers do not swim (they tread water and turn); surfers ride on their own clock, not exactly on
+  the shader's wave (it is close: the same period and speed). Nobody goes in or out of the water.
+- A bare torso is the shirt's shell; a one-piece is a band, not a cut; long hair is the painted
+  scalp on the figures (the hair cards are on the live people).
+- Cyclists and skaters ride a fixed stretch round their chunk and wrap; they do not cross into the
+  next chunk's riders. Riders do not give way to people on the path.
+- The beach under the Esplanade's bluff and the boardwalk get no path or court (their own
+  ground); the boardwalk's stretch and the piers' get no people.

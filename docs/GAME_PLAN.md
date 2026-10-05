@@ -402,6 +402,21 @@ already mapped so milestone 2 is script-only.
   species and LOD for the whole city. (4) Dead birds are no crime. (5) Sounds are public-domain
   field recordings (freesound is blocked from the build box). Cost and numbers: HANDOFF 9bl.
 
+- **2026-10-05 The beach has people: sunbathers in swimwear, surfers, a volleyball game, a bike
+  path with cyclists, a lifeguard (VISUAL_ROADMAP #60).** The sand was empty. `BeachLife` plans a
+  stretch of shore as a pure function of seed, a world cell of shore and the hour the chunk is
+  built at (busy mid-afternoon, a few at sunset, nobody at night, fewer on a grey day): groups on
+  towels by the waterline thinning toward the back, umbrellas, chairs, coolers, totes, boards.
+  The people are the camps' static figures (posed once, baked, merged per chunk in cells with a
+  near and a far body), woken into live `BeachGoer`s when shot, knocked or near gunfire - and a
+  burst of fire on the sand wakes the nearest dozen and they run. **Swimwear is a rewrite of the
+  crowd body's own regions, not new garments**: per triangle by rest-pose height the shirt and
+  trousers become skin (one texel of the person's own skin) except the swimsuit's bands, which the
+  material colours; no new bones, surfaces or Blender runs, so every crowd system still works.
+  Cyclists are a flipbook of bakes, each with both legs solved onto the pedals by two-bone IK and
+  the cruiser built round that frame's crank. The block's own rolls (palms, the tower) are
+  untouched; the tower is a real LA lifeguard tower turned to the sea. docs/HANDOFF.md 9br;
+  CLAUDE.md "Beach life".
 - **2026-10-04 The far city's buildings are coded copies of the near ones, not impostors (G7).**
   Every building past the FULL ring was its parts as boxes on a shader that GUESSED the facade
   (typology from the colour, its own grid, lit-window hash and roof roll), so a building changed
