@@ -132,6 +132,7 @@ func _full_block(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 			ledges += 1
 	_t._check(ok and ornate == hist.size() and ledges == hist.size() and lamps >= 1 and tris > 2000 * hist.size(),
 		"block %s: %d beaux-arts buildings, each a slab with its ornament (%d triangles), ledges, %d lit entrances %s" % [k, hist.size(), tris, lamps, why])
+	print("HISTORIC longest ornament build step %.1f ms" % (float(HistoricCore.max_step_us) / 1000.0))
 	# Off: the rest of the block is where it was.
 	var sig := _signature(chunk)
 	chunk.get_parent().remove_child(chunk)

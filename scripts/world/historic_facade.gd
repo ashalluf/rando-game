@@ -109,11 +109,14 @@ static func jobs(b: Building, spec: Dictionary, streets: Array[Vector3], main_n:
 	var L := layout(b, {})
 	if L.is_empty():
 		return out
-	var st := {"main": LandmarkGeo.new(), "fine": LandmarkGeo.new(), "lamps": []}
+	var st := {"main": LandmarkGeo.new(), "fine": LandmarkGeo.new(), "lamps": [], "layout": L}
 	_use(st.main, spec)
 	_use(st.fine, spec)
+	# Each face in four phases (base, order, entablature, attic and entrance), so no build step
+	# runs much past the streamer's budget.
 	for n: Vector3 in streets:
-		out.append(_face_job.bind(b, spec, L, n, streets, n == main_n, st))
+		for phase in 4:
+			out.append(_face_job.bind(b, spec, L, n, streets, n == main_n, st, phase))
 	# Returns of the cornice onto the side walls next to a street face.
 	out.append(func() -> void:
 		for n: Vector3 in [Vector3(1, 0, 0), Vector3(-1, 0, 0), Vector3(0, 0, 1), Vector3(0, 0, -1)]:
@@ -123,8 +126,9 @@ static func jobs(b: Building, spec: Dictionary, streets: Array[Vector3], main_n:
 			if f.street_end:
 				_cornices(st, L, f, f.len * 0.5 - minf(RETURN_LEN, f.len * 0.5), f.len * 0.5, false, true)
 			if f.street_start:
-				_cornices(st, L, f, -f.len * 0.5, -f.len * 0.5 + minf(RETURN_LEN, f.len * 0.5), true, false)
-		_commit(b, st))
+				_cornices(st, L, f, -f.len * 0.5, -f.len * 0.5 + minf(RETURN_LEN, f.len * 0.5), true, false))
+	out.append(_commit.bind(b, st, 0))
+	out.append(_commit.bind(b, st, 1))
 	return out
 
 
@@ -284,7 +288,7 @@ static func heights(L: Dictionary) -> Dictionary:
 # --- One face ---------------------------------------------------------------------------------
 
 static func _face_job(b: Building, spec: Dictionary, L: Dictionary, n: Vector3, streets: Array[Vector3],
-		main: bool, st: Dictionary) -> void:
+		main: bool, st: Dictionary, phase: int) -> void:
 	if not is_instance_valid(b):
 		return
 	var f := _face(L, n, streets)
@@ -303,7 +307,7 @@ static func _face_job(b: Building, spec: Dictionary, L: Dictionary, n: Vector3, 
 	var u_lo := -flen * 0.5
 	var u_hi := flen * 0.5
 	# --- The base: rustication and arches on the first floor -------------------------------------
-	if rows >= 2:
+	if phase == 0 and rows >= 2:
 		_base(fine, f, L, H, cols, p, hx)
 		_extrude(main_g, "stone", f, BELT, u_lo, u_hi, float(H.belt), s, f.street_start, f.street_end)
 	# --- The order ----------------------------------------------------------------------------
@@ -311,7 +315,7 @@ static func _face_job(b: Building, spec: Dictionary, L: Dictionary, n: Vector3, 
 	var o1: int = L.order1
 	var ob: float = H.order_bottom
 	var ot: float = H.order_top
-	if o1 >= o0 and ot - ob > 2.0:
+	if phase == 1 and o1 >= o0 and ot - ob > 2.0:
 		if o0 > 1:
 			# The shaft's string course under the colonnade, and its surrounds.
 			_extrude(main_g, "stone", f, BELT, u_lo, u_hi, ob - BELT_H * s * 0.7, s * 0.7, f.street_start, f.street_end)
@@ -325,28 +329,24 @@ static func _face_job(b: Building, spec: Dictionary, L: Dictionary, n: Vector3, 
 			for c in cols:
 				var uc := u_lo + (float(c) + 0.5) * p
 				_panel(fine, f, uc, hx * 0.92, y0, y1)
-	elif rows >= 3:
+	elif phase == 1 and rows >= 3:
 		for r in range(1, rows):
 			_surrounds(fine, f, L, r, cols, p, hx)
 	# --- The entablature and the cornice -----------------------------------------------------
+	if phase < 2:
+		return
 	var cs: float = H.cs
 	var ent: float = H.ent
 	var cor: float = H.cornice
-	_extrude(main_g, "stone", f, ARCHITRAVE, u_lo, u_hi, ent, cs, f.street_start, f.street_end)
-	var frieze0 := ent + ARCHITRAVE_H * cs
-	if cor > frieze0:
-		_slab(main_g, "stone", f, u_lo - (0.05 if f.street_start else 0.0), u_hi + (0.05 if f.street_end else 0.0),
-			frieze0, cor, -0.03, 0.05, false)
-		if main and cor - frieze0 > 0.32 and str(spec.name) != "":
-			var lh := minf((cor - frieze0) * 0.62, 0.55)
-			_text(fine, str(spec.name), f, 0.0, (frieze0 + cor) * 0.5, 0.075, lh, minf(flen - 2.0 * p, 26.0))
-	_cornices(st, L, f, u_lo, u_hi, f.street_start, f.street_end)
+	if phase == 2:
+		_entablature(st, spec, f, u_lo, u_hi, ent, cor, cs, main, flen, p)
+		return
 	# --- The attic -------------------------------------------------------------------------
 	if L.attic:
 		_attic(main_g, fine, f, L, H, spec, cols, p, hx, main)
-	# --- Quoins on a brick front's street corners -------------------------------------------
+	# --- Quoins on a brick front's corners ---------------------------------------------------
 	if spec.brick:
-		for e: Array in [[u_lo, 1.0, f.street_start], [u_hi, -1.0, f.street_end]]:
+		for e: Array in [[u_lo, 1.0], [u_hi, -1.0]]:
 			_quoins(fine, f, float(e[0]), float(e[1]), sf + 0.1, float(H.ent) - 0.05)
 	# --- The entrance ---------------------------------------------------------------------
 	if main and sf > 3.0:
@@ -360,6 +360,23 @@ static func _face_job(b: Building, spec: Dictionary, L: Dictionary, n: Vector3, 
 	body.transform = Transform3D(Basis(f.a as Vector3, Vector3.UP, f.n as Vector3), _p(f, 0.0, cor + CORNICE_H * cs * 0.5, depth * 0.5))
 	body.name = "HistoricLedge"
 	b.add_child(body)
+
+
+## The architrave, the frieze (the name on the main front) and the cornices of one face.
+static func _entablature(st: Dictionary, spec: Dictionary, f: Dictionary, u_lo: float, u_hi: float, ent: float,
+		cor: float, cs: float, main: bool, flen: float, p: float) -> void:
+	var main_g: LandmarkGeo = st.main
+	var fine: LandmarkGeo = st.fine
+	var L: Dictionary = st.layout
+	_extrude(main_g, "stone", f, ARCHITRAVE, u_lo, u_hi, ent, cs, f.street_start, f.street_end)
+	var frieze0 := ent + ARCHITRAVE_H * cs
+	if cor > frieze0:
+		_slab(main_g, "stone", f, u_lo - (0.05 if f.street_start else 0.0), u_hi + (0.05 if f.street_end else 0.0),
+			frieze0, cor, -0.03, 0.05, false)
+		if main and cor - frieze0 > 0.32 and str(spec.name) != "":
+			var lh := minf((cor - frieze0) * 0.62, 0.55)
+			_text(fine, str(spec.name), f, 0.0, (frieze0 + cor) * 0.5, 0.075, lh, minf(flen - 2.0 * p, 26.0))
+	_cornices(st, L, f, u_lo, u_hi, f.street_start, f.street_end)
 
 
 ## The first floor in channelled rustication, broken round each window under its arch, and the
@@ -810,13 +827,16 @@ static func _text(g: LandmarkGeo, s: String, f: Dictionary, u: float, y: float, 
 
 
 ## Commits the two meshes under the building, the lamps and the pool.
-static func _commit(b: Building, st: Dictionary) -> void:
+static func _commit(b: Building, st: Dictionary, part: int) -> void:
 	if not is_instance_valid(b):
 		return
-	var node := Node3D.new()
-	node.name = "Historic"
-	b.add_child(node)
-	(st.main as LandmarkGeo).commit(node, "HistoricMain", true, MAIN_DRAW)
+	if part == 0:
+		var holder := Node3D.new()
+		holder.name = "Historic"
+		b.add_child(holder)
+		(st.main as LandmarkGeo).commit(holder, "HistoricMain", true, MAIN_DRAW)
+		return
+	var node := b.get_node("Historic") as Node3D
 	(st.fine as LandmarkGeo).commit(node, "HistoricFine", false, FINE_DRAW)
 	built_count += 1
 	var lamps: Array = st.lamps

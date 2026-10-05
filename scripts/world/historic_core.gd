@@ -48,6 +48,8 @@ const NAMES := ["HALCOMBE BUILDING", "THE VARDEN", "ORCHARD NATIONAL BANK", "BEL
 static var enabled: bool = OS.get_environment("HISTORIC_CORE") != "0"
 ## How many historic Buildings have been dressed (probes and checks).
 static var dressed_count: int = 0
+## The longest ornament build step so far (microseconds; probes and checks).
+static var max_step_us: int = 0
 
 
 ## An avenue's centre line x and width (the pinned real street), or [] when it is not pinned.
@@ -212,7 +214,9 @@ static func after_building(ch: CityChunk, lot: Dictionary, building: Building, s
 			if not is_instance_valid(building):
 				return true
 			if i[0] < jobs.size():
+				var t0 := Time.get_ticks_usec()
 				(jobs[i[0]] as Callable).call()
+				max_step_us = maxi(max_step_us, Time.get_ticks_usec() - t0)
 				i[0] += 1
 			return i[0] >= jobs.size())
 	else:

@@ -8641,5 +8641,20 @@ line), city_chunk.gd (three hook lines), smoke_test.gd (one line).
 **A/B**: `HISTORIC_CORE=0` in the environment. Probe: `tools/historic/probe.gd` (every lot with
 its spec and an EYE). Checks: `tests/historic_core_checks.gd`.
 
+**Cost** (`tools/geo_count.gd`, opengl3, 1280x720, `--spawn=3113,250,-20,6`, Spring St at 7th
+looking north): 5.50 M triangles / 3,478 draws with it, 5.52 M / 3,444 with `HISTORIC_CORE=0`;
+the ornament alone (`AB=Historic*`) is 378 k triangles and 135 draws - the plainer buildings it
+dresses (no curtain walls, kit surrounds or bands) give back about as much. A block of four
+buildings is ~97 k triangles of ornament (the checks print it); each face is built in four
+deferred steps plus two commit steps (the checks print the longest, `HistoricCore.max_step_us`).
+Smoke test peak RSS 3.15 GB.
+
+**Not done / not verified**: no Forward+ look (the terracotta and the floodlit base through AgX,
+the lanterns' bloom: Mac eyes needed); the side and back walls are the plain Building (party
+walls, as on the real street); window air conditioners from the kit still hang in some
+punched windows; the far city keeps only the cornice and belt as boxes (the pilasters and arches
+are under a pixel there); the shader's shop sign board still draws behind the entrance's name
+block.
+
 **Stills** (`shots/historic-core`): see the README there. EYEs on Spring St at 7th:
 `3108,1.7,232,-55,14` (the corner), `3112,1.7,240,-75,14` (an entrance), Main St `3240,1.7,300,135,12`.
