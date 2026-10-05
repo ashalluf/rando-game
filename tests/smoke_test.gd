@@ -1786,6 +1786,9 @@ func _test_city() -> void:
 	# freeways over it, the streets closed or bridged, no lot in the corridor, the chunk's meshes and
 	# one collision body, the far city's boxes, and a car on the bed and down a ramp.
 	await load("res://tests/la_river_checks.gd").new().run(self, city)
+	# The container terminal at work (tests/port_life_checks.gd): the kit, the cranes' dual cycle,
+	# the tractors, gantries and straddle carriers, the gate and its trucks.
+	await load("res://tests/port_life_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

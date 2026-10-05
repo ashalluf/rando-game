@@ -671,6 +671,8 @@ func _port_steps(block: Dictionary) -> Array[Callable]:
 ## over the port rect and the bay, so this is ~0 - but the paint alone sampled it ~2,000 times
 ## (five a line, for the tilt), 5-15 ms a chunk.
 var _port_lift := 0.0
+## FULL port chunks: every stack pile's top (PortLife.pile()), for the moving gantries.
+var _port_piles: Array = []
 
 
 func _pgy(_x: float, _z: float) -> float:
@@ -703,6 +705,8 @@ func _port_yard(st: Dictionary) -> void:
 	st.rows = int(area.size.y / 9.0)
 	st.cols = int(area.size.x / 14.0)
 	st.origin = Vector2(area.position.x + 8.0, area.position.y + 6.0)
+	st.gate = PortLife.is_gate(plan, ix, iz)
+	_port_piles.clear()
 	var lanes: Array[int] = []
 	st.lanes = lanes
 	_port_run(func() -> void:
@@ -725,11 +729,14 @@ func _port_yard(st: Dictionary) -> void:
 					picks.append(rng.randi() % PORT_COLOR_ROLLS)
 				if p.y + PORT_ROW_OFFSET + PortKit.W * 0.5 > float(st.apron_z):
 					continue
+				# The gate's chunk holds no stacks (PortLife / PortGate; after the rolls).
+				if st.gate:
+					continue
 				_port_stack(p, height, picks, kit))
 
 
 func _port_paint(st: Dictionary) -> void:
-	if level != Level.FULL or capturing:
+	if level != Level.FULL or capturing or st.gate:
 		return
 	_port_run(func() -> void: _paint_port_yard(st.area, st.origin, st.rows, st.cols, st.lanes, st.apron_z))
 
@@ -737,8 +744,12 @@ func _port_paint(st: Dictionary) -> void:
 func _port_kit(st: Dictionary) -> void:
 	var area: Rect2 = st.area
 	var kit: RandomNumberGenerator = st.kit
+	if level == Level.FULL and not capturing:
+		PortLife.ensure(self)
 	_port_run(func() -> void:
-		if st.quay:
+		if st.gate:
+			PortGate.build(self, area)
+		elif st.quay:
 			_build_quay(area, kit)
 		else:
 			_place_rtg(area, st.origin, st.rows, st.cols, kit)
@@ -791,6 +802,7 @@ func _port_stack(p: Vector2, height: int, picks: Array[int], kit: RandomNumberGe
 		var n := height if li == 0 else clampi(height + kit.randi_range(-1, 1), 1, 4)
 		var twenty := kit.randf() < 0.22
 		var y := PORT_YARD_TOP
+		var top_index := -1
 		for h in n:
 			var hc := kit.randf() < (0.1 if twenty else 0.45)
 			var hgt := PortKit.H_HC if hc else PortKit.H_STD
@@ -801,8 +813,11 @@ func _port_stack(p: Vector2, height: int, picks: Array[int], kit: RandomNumberGe
 					var liv := _port_livery(pick if e < 0.0 else kit.randi() % PORT_COLOR_ROLLS, kit)
 					_add_container(Vector3(cx, y + hgt * 0.5, z), false, hc, row_flip != (kit.randf() < 0.2), liv, kit)
 			else:
-				_add_container(Vector3(p.x, y + hgt * 0.5, z), true, hc, row_flip != (kit.randf() < 0.15), _port_livery(pick, kit), kit)
+				top_index = _add_container(Vector3(p.x, y + hgt * 0.5, z), true, hc, row_flip != (kit.randf() < 0.15), _port_livery(pick, kit), kit)
 			y += hgt
+		if level == Level.FULL and not capturing:
+			# Each pile's top for PortLife's gantries (a 40 ft box on top can be lifted off).
+			_port_piles.append(PortLife.pile(_batch, top_index if not twenty else -1, p.x, z, y + _port_lift))
 		if level == Level.FULL:
 			_add_shape(Vector3(PortKit.L40, y - PORT_YARD_TOP, PortKit.W), Vector3(p.x, (PORT_YARD_TOP + y) * 0.5 + _pgy(p.x, z), z))
 
@@ -820,9 +835,9 @@ func _port_livery(pick: int, kit: RandomNumberGenerator) -> int:
 	return PortKit.COLOR_TO_LIVERY[pick]
 
 
-func _add_container(centre: Vector3, forty: bool, high_cube: bool, flip: bool, livery: int, kit: RandomNumberGenerator) -> void:
+func _add_container(centre: Vector3, forty: bool, high_cube: bool, flip: bool, livery: int, kit: RandomNumberGenerator) -> int:
 	var look := PortKit.container_look(livery, kit)
-	_batch.add("container", PropFactory.container(), PortKit.container_xform(centre, forty, high_cube, flip), look[0], look[1])
+	return _batch.add("container", PropFactory.container(), PortKit.container_xform(centre, forty, high_cube, flip), look[0], look[1])
 
 
 ## A painted line on the yard from `a` to `b` (plan XZ), through the road-paint batch.
@@ -877,6 +892,11 @@ func _place_rtg(area: Rect2, origin: Vector2, rows: int, cols: int, kit: RandomN
 		if p.y - reach - 2.0 < area.position.y + 0.5 or p.y + reach > area.end.y - 0.5:
 			continue
 		var xf := Transform3D(Basis(Vector3.UP, PI) if flip else Basis(), Vector3(p.x, PORT_YARD_TOP, p.y))
+		if level == Level.FULL and not capturing and PortLife.enabled:
+			# A working gantry (PortLife moves it and its box; its collision moves with it).
+			var dx := 14.0 if col + 1 < cols and p.x + 14.0 + 4.8 < area.end.x - 0.5 else -14.0
+			PortLife.mark_rtg(self, Vector3(p.x, PORT_YARD_TOP + _pgy(p.x, p.y), p.y), flip, dx, _port_piles)
+			return
 		_batch.add("rtg", PropFactory.rtg(), xf)
 		if level == Level.FULL:
 			var lift := Transform3D(Basis(), Vector3(0.0, _pgy(p.x, p.y), 0.0))
@@ -897,6 +917,9 @@ func _build_quay(area: Rect2, kit: RandomNumberGenerator) -> void:
 		if macro.zone_at(Vector2(x, qz + 30.0)) != MacroMap.Zone.OCEAN:
 			continue
 		var working := ship.x < INF and absf(x - ship.x) < 95.0
+		if working and PortLife.enabled:
+			# A working crane gantries along its rails to the bay it works.
+			x = PortLife.bay_x(x)
 		_build_sts_crane(Vector3(x, PORT_YARD_TOP, crane_z), working, ship.y - crane_z, kit, k)
 	if level != Level.FULL or capturing:
 		return
@@ -964,10 +987,17 @@ func _build_sts_crane(at: Vector3, working: bool, ship_z: float, kit: RandomNumb
 	var crane := MeshInstance3D.new()
 	# Named, so it is never mistaken for an auto-named box to merge, and a check can count it.
 	crane.name = "StsCrane%d" % index
-	crane.mesh = PortKit.sts_mesh(raised, trolley_z, spreader_y)
+	var moving := working and level == Level.FULL and PortLife.enabled
+	crane.mesh = PortKit.sts_frame_mesh() if moving else PortKit.sts_mesh(raised, trolley_z, spreader_y)
 	crane.position = base
 	add_child(crane)
-	if carrying:
+	if moving:
+		# PortLife runs its trolley, spreader and boxes (the rolls above are still made).
+		PortLife.mark_crane(self, base, ix * 2 + index)
+		if carrying:
+			PortKit.container_look(livery, kit)
+			kit.randf()
+	elif carrying:
 		_add_container(at + Vector3(0.0, spreader_y - PortKit.H_STD * 0.5 - 0.03, trolley_z), true, false, kit.randf() < 0.5, livery, kit)
 	# Its floodlights on the apron after dark.
 	_add_port_pool(at + Vector3(0.0, 0.0, 6.0), PORT_CRANE_POOL)
