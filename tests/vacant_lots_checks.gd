@@ -193,7 +193,7 @@ func _same_block(city: Node3D, k: Vector2i, cell: Rect2) -> void:
 
 
 ## The trash cans and props of the block, less what stood on the lot itself (a building's forecourt
-## bollards and lamps, its billboard).
+## bollards and lamps, its billboard) and the shops' A-frame boards.
 func _signature(chunk: CityChunk, cell: Rect2) -> Array:
 	var out: Array = []
 	for c in chunk.get_children():
@@ -202,7 +202,9 @@ func _signature(chunk: CityChunk, cell: Rect2) -> Array:
 			out.append("%s %.2f %.2f" % [c.get_class(), p.x, p.z])
 	for r in chunk.prop_records:
 		var rp: Vector3 = r.position
-		if cell.has_point(Vector2(rp.x, rp.z)):
+		# A shop's chalkboard A-frame stands in front of its shop (StreetClutter): no building, no
+		# shop, no board.
+		if cell.has_point(Vector2(rp.x, rp.z)) or String(r.kind) == "aboard":
 			continue
 		out.append("%s %.2f %.2f" % [r.kind, (r.position as Vector3).x, (r.position as Vector3).z])
 	return out
