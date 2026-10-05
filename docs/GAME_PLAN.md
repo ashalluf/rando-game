@@ -403,7 +403,7 @@ already mapped so milestone 2 is script-only.
   field recordings (freesound is blocked from the build box). Cost and numbers: HANDOFF 9bl.
 
 - **2026-10-05 The beach has people: sunbathers in swimwear, surfers, a volleyball game, a bike
-  path with cyclists, a lifeguard (VISUAL_ROADMAP #54).** The sand was empty. `BeachLife` plans a
+  path with cyclists, a lifeguard (VISUAL_ROADMAP #59).** The sand was empty. `BeachLife` plans a
   stretch of shore as a pure function of seed, a world cell of shore and the hour the chunk is
   built at (busy mid-afternoon, a few at sunset, nobody at night, fewer on a grey day): groups on
   towels by the waterline thinning toward the back, umbrellas, chairs, coolers, totes, boards.
@@ -415,7 +415,7 @@ already mapped so milestone 2 is script-only.
   material colours; no new bones, surfaces or Blender runs, so every crowd system still works.
   Cyclists are a flipbook of bakes, each with both legs solved onto the pedals by two-bone IK and
   the cruiser built round that frame's crank. The block's own rolls (palms, the tower) are
-  untouched; the tower is a real LA lifeguard tower turned to the sea. docs/HANDOFF.md 9bn;
+  untouched; the tower is a real LA lifeguard tower turned to the sea. docs/HANDOFF.md 9bq;
   CLAUDE.md "Beach life".
 - **2026-10-04 The far city's buildings are coded copies of the near ones, not impostors (G7).**
   Every building past the FULL ring was its parts as boxes on a shader that GUESSED the facade

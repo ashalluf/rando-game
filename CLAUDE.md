@@ -2842,7 +2842,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   staging calms the flock against the player, whom a free camera drags along). `BIRDS=0` in the
   environment removes them. Ambience's gull one-shots come from a real gull when one is in earshot
   (`Birds.gull_at()`). Checks: `tests/bird_checks.gd`.
-- Beach life (VISUAL_ROADMAP #54, 2026-10-05: "a Los Angeles beach on a warm afternoon"):
+- Beach life (VISUAL_ROADMAP #59, 2026-10-05: "a Los Angeles beach on a warm afternoon"):
   `BeachLife` (`scripts/world/beach_life.gd`, static) fills the sand `CityChunk._build_beach()`
   lays. **Everything is a hash of seed + a WORLD cell of shore (`CELL_Z` 6.5 m) + the hour the
   chunk is built at** (`hour_now()`, `force_hour`; `density()`: nobody before 6:30 or after 20:30,

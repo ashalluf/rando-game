@@ -6765,7 +6765,7 @@ Narrows into the valley. The far city's land slabs on a river block step every 8
 channel's edge (under a pixel past ~500 m). Sediment bars and reeds are FULL only. The Coral Line
 (9bk, not on main when this was written) does not reach the river; the rail bridge carries a
 freight spur that ends at buffer stops past the bank roads.
-## 9bn. The beach on a warm afternoon, 2026-10-05 (agent branch `wt/beach-life`; VISUAL_ROADMAP #54)
+## 9bq. The beach on a warm afternoon, 2026-10-05 (agent branch `wt/beach-life`; VISUAL_ROADMAP #59)
 
 Number is provisional (the lead renumbers on merge).
 
