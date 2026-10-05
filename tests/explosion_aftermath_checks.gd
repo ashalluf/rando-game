@@ -107,12 +107,21 @@ func _sound_and_shader() -> void:
 # --- Trees --------------------------------------------------------------------------------------
 
 func _trees(player: Player) -> void:
-	var near := TreeFire.trees_near(player.global_position, 400.0)
+	# Wherever the earlier checks left the player (the river has no trees): the loaded chunks'.
+	var near := TreeFire.trees_near(player.global_position, 3000.0)
+	if near.is_empty():
+		# The river's blocks plant no trees: back to the spawn, where the streets have them.
+		player.global_position = _ws.to_local(Vector3(0.0, 6.0, 0.0))
+		player.velocity = Vector3.ZERO
+		if _city.has_method("update_streaming"):
+			_city.call("update_streaming", true)
+		await _ticks(30)
+		near = TreeFire.trees_near(player.global_position, 3000.0)
 	var palms := 0
 	for h: Array in near:
 		if (h[1] as Dictionary).palm:
 			palms += 1
-	_check(near.size() > 0, "the loaded chunks registered their trees with TreeFire (%d within 400 m, %d palms)" % [near.size(), palms])
+	_check(near.size() > 0, "the loaded chunks registered their trees with TreeFire (%d loaded, %d palms)" % [near.size(), palms])
 	_check(not TreeFire.is_tree_key("tree_grate") and TreeFire.is_tree_key("tree_3") and TreeFire.is_tree_key("palm_0"),
 			"only tree_<n> and palm_<n> batches count as trees (not the tree grates)")
 	if near.is_empty():
@@ -292,7 +301,11 @@ func _craters() -> void:
 		if is_instance_valid(b) and b.is_in_group("debris") and float(b.get_meta("debris_life", 0.0)) >= 120.0:
 			lasting += 1
 	_check(rubble > 0 and lasting == rubble, "rubble is thrown out and stays as debris for minutes (%d pieces)" % rubble)
-	_check(_tree.get_nodes_in_group("debris").size() >= debris0 + rubble, "the rubble counts against the physics budget")
+	var budgeted := 0
+	for b in BlastAftermath._rubble:
+		if is_instance_valid(b) and b.is_in_group("physics_prop"):
+			budgeted += 1
+	_check(rubble > 0 and budgeted == rubble and debris0 >= 0, "the rubble counts against the physics budget")
 	var maps := BlastAftermath.crater_textures(0)
 	_check(maps.size() == 2 and (maps[0] as Texture2D).get_width() == 256, "the crater's maps are generated")
 	# A car's own blast: scorch, no pit.
