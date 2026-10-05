@@ -30,3 +30,7 @@ Single-building stills (tools/glshot/rooftop_shot.gd, opengl3) re-shot on the me
 | 21_merged_pool_deck_golden.jpg | FEAT=pool GOLDEN=1, same roof |
 | 22_merged_garden_mast_penthouse.jpg | FEAT=garden (seed 23758): garden, pergola, penthouse, telecom mast |
 | 23_merged_gondola_hanging.jpg | FEAT=bmu (seed 7920): cradle hanging on a glass tower |
+| 24/25_merged_downtown_500m_noon_before/after.jpg | City, ROOFTOPS=0 vs on, EYE=2950,380,250,48.5,-39 (merged tree) |
+| 26/27_merged_helipad_city_before/after.jpg | The 108 m tower's pad, EYE=2799.1,99.0,-21.2,45,-28 @11 |
+| 28/29_merged_pool_golden_before/after.jpg | Pool deck @17.6, EYE=2587.2,82.5,292.4,45,-28 |
+| 30_merged_pool_night_2130.jpg | The same pool deck at 21:30 |
