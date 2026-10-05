@@ -1728,6 +1728,9 @@ func _test_city() -> void:
 	# fire out, the fire stations, an engine at a burning wreck, an ambulance at a body, a unit sent
 	# through the streets with its siren.
 	await load("res://tests/emergency_checks.gd").new().run(self, city)
+	# Police stations (tests/police_station_checks.gd): placement, the HQ, the build, the gate, a
+	# cruiser out of the gate onto the lane and a recalled one back in.
+	await load("res://tests/police_station_checks.gd").new().run(self, city)
 	# The ambience mixer (tests/ambience_checks.gd): layers per place, hour and weather, fades,
 	# ducks, buses. Mixer state only - the Dummy audio driver plays nothing.
 	await load("res://tests/ambience_checks.gd").new().run(self, city)
