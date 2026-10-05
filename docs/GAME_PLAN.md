@@ -289,8 +289,8 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
-- **2026-10-05 Boulevard signs: pole signs, window vinyl, banners and street plates (HANDOFF
-  "Boulevard signs").** LA's commercial streets read as signs everywhere and ours had shop bands
+- **2026-10-05 Boulevard signs: pole signs, window vinyl, banners and street plates (VISUAL_ROADMAP #63,
+  HANDOFF 9bu).** LA's commercial streets read as signs everywhere and ours had shop bands
   and billboards only. Pole signs stand in the gap between two buildings (or a car park's front
   corner), 0.35 m behind the pavement, their heads along the gap, so no facade can meet one and no
   rng is touched; one atlas of invented art and one shader for every kind, one batch per kind a
