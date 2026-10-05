@@ -65,7 +65,7 @@ const WALL_SPECIES := [
 ## A wall this close to the block's edge (m) is a front wall: planted on its street side, its
 ## odds times FRONT_GAIN.
 const FRONT_REACH := 9.0
-const FRONT_GAIN := 1.8
+const FRONT_GAIN := 2.4
 ## A house face's chance of a climber (stucco walls take bougainvillea or fig, clad ones ivy).
 const HOUSE_ODDS := 0.32
 ## A low-rise Building face's chance of a creeping fig / ivy patch (most Buildings in the yard
@@ -93,7 +93,7 @@ const TILE := 64.0
 const MAX_CARDS := 7000
 const MAX_ACCENT_TRIS := 30000
 ## Time a build step may spend (us) before it hands back to the streamer.
-const STEP_BUDGET_US := 2500
+const STEP_BUDGET_US := 1500
 
 # --- Atlas (tools/make_climbers.py) -----------------------------------------------------------
 
@@ -179,22 +179,36 @@ static func build(ch: CityChunk) -> bool:
 		return true
 	var st: Dictionary = ch.get_meta("climb_state", {})
 	if st.is_empty():
+		var tb := Time.get_ticks_usec()
 		st = _begin(ch)
+		if debug:
+			print("CLIMB_BEGIN %d us" % (Time.get_ticks_usec() - tb))
 		ch.set_meta("climb_state", st)
 	var t0 := Time.get_ticks_usec()
 	var jobs: Array = st.jobs
-	st.usec = int(st.get("usec", 0))
-	while int(st.next) < jobs.size():
-		(jobs[int(st.next)] as Callable).call()
-		st.next = int(st.next) + 1
-		if Time.get_ticks_usec() - t0 > STEP_BUDGET_US:
-			st.usec = int(st.usec) + Time.get_ticks_usec() - t0
-			return false
-	var t1 := Time.get_ticks_usec()
-	_commit(ch, st)
+	while true:
+		while int(st.next) < jobs.size():
+			var tj := Time.get_ticks_usec()
+			(jobs[int(st.next)] as Callable).call()
+			if debug and Time.get_ticks_usec() - tj > 2000:
+				print("CLIMB_SLOW %s %d us" % [(jobs[int(st.next)] as Callable).get_method(), Time.get_ticks_usec() - tj])
+			st.next = int(st.next) + 1
+			if Time.get_ticks_usec() - t0 > STEP_BUDGET_US:
+				st.usec = int(st.usec) + Time.get_ticks_usec() - t0
+				st.worst = maxi(int(st.worst), Time.get_ticks_usec() - t0)
+				return false
+		if st.committing:
+			break
+		# Every plant grown: each tile's mesh is a job of its own too.
+		st.committing = true
+		for kind: String in ["leaf", "shadow", "accent"]:
+			for k: Vector2i in (st[kind] as Dictionary):
+				jobs.append(_commit_tile.bind(ch, st, kind, k))
 	st.usec = int(st.usec) + Time.get_ticks_usec() - t0
-	(ch.get_meta("climbers") as Dictionary)["usec"] = st.usec
-	(ch.get_meta("climbers") as Dictionary)["commit_usec"] = Time.get_ticks_usec() - t1
+	st.worst = maxi(int(st.worst), Time.get_ticks_usec() - t0)
+	ch.set_meta("climbers", {"counts": st.counts, "cards": st.cards, "leaf_tris": st.tris.leaf, "shadow_tris": st.tris.shadow,
+		"accent_tris": st.tris.accent, "nodes": st.nodes, "spots": st.spots, "faces": st.debug_faces, "centres": st.debug_centres,
+		"usec": st.usec, "worst_usec": st.worst})
 	ch.remove_meta("climb_state")
 	for k in ["climb_house", "climb_runs"]:
 		if ch.has_meta(k):
@@ -208,7 +222,8 @@ static func _begin(ch: CityChunk) -> Dictionary:
 	var district := int(block.district)
 	var share := float(DISTRICT_SHARE[district])
 	var st := {"jobs": [], "next": 0, "leaf": {}, "shadow": {}, "accent": {}, "counts": {}, "share": share,
-		"district": district, "ch": ch, "cards": 0, "accent_tris": 0, "spots": [], "debug_faces": [], "debug_centres": []}
+		"district": district, "ch": ch, "cards": 0, "accent_tris": 0, "spots": [], "debug_faces": [], "debug_centres": [],
+		"committing": false, "tris": {"leaf": 0, "shadow": 0, "accent": 0}, "nodes": 0, "usec": 0, "worst": 0}
 	if share <= 0.0 or ch.zone == MacroMap.Zone.HILLS:
 		return st
 	var jobs: Array = st.jobs
@@ -440,7 +455,7 @@ static func _climber(st: Dictionary, f: Dictionary, u0: float, spread: float, re
 			# The top edge is ragged too: shoots run ahead of the mass.
 			var top_edge := height * (0.82 + 0.18 * _wobble(uu * 3.0, s + 7.0))
 			var keep := (1.0 - smoothstep(0.65, 1.0, edge)) * (1.0 - smoothstep(top_edge - 0.4, top_edge, yy))
-			if uu > 0.02 and uu < length - 0.02 and yy < float(f.top) - 0.03 and rng.randf() < keep and not _in_hole(f, uu, yy, 0.04):
+			if uu > 0.02 and uu < length - 0.02 and yy < float(f.top) - 0.03 and rng.randf() < keep and not _in_hole(f, uu, yy, 0.22):
 				var mound := (1.0 - edge * edge) * (0.02 if fig else 0.09)
 				var off := (0.012 if fig else 0.03) + mound + rng.randf() * (0.008 if fig else 0.04)
 				var p := _at(f, uu, yy, off)
@@ -449,7 +464,7 @@ static func _climber(st: Dictionary, f: Dictionary, u0: float, spread: float, re
 					var axes := _flat_axes(t, n, rng.randf_range(-PI, PI))
 					var cell: int = (C_FIG[rng.randi() % 2]) if fig else (C_IVY_MAT[rng.randi() % 2])
 					var size := rng.randf_range(0.5, 0.66) if fig else rng.randf_range(0.55, 0.72)
-					_card(st, p, axes[0], axes[1], mass_n, size, size, cell, _leaf_tint(rng), 0.0, 0.06 if fig else 0.15)
+					_card(st, p, axes[0], axes[1], mass_n, size, size, cell, _leaf_tint(rng, 1.0 if fig else 1.18), 0.0, 0.06 if fig else 0.15)
 				else:
 					# A sprig standing off the mat, pointing up and out.
 					var lean := rng.randf_range(0.35, 0.9)
@@ -459,7 +474,7 @@ static func _climber(st: Dictionary, f: Dictionary, u0: float, spread: float, re
 					if ax.length_squared() < 0.01:
 						ax = t
 					var size := rng.randf_range(0.42, 0.6)
-					_card(st, p + ay * size * 0.3, ax, ay, mass_n, size, size, C_IVY[rng.randi() % 4], _leaf_tint(rng), 0.05, 0.4, 0.0, 0.04)
+					_card(st, p + ay * size * 0.3, ax, ay, mass_n, size, size, C_IVY[rng.randi() % 4], _leaf_tint(rng, 1.18), 0.05, 0.4, 0.0, 0.04)
 				cards += 1
 			u += spacing
 		y += spacing
@@ -493,6 +508,8 @@ static func _bougainvillea(st: Dictionary, f: Dictionary, u0: float, width: floa
 		var steps := maxi(1, int(h / 0.6))
 		for i in steps:
 			var yy := (float(i) + 0.5) * h / float(steps)
+			if _in_hole(f, ru, yy, 0.3):
+				continue
 			_card(st, _at(f, ru + _wobble(yy, s + k) * 0.12, yy, 0.06), t, Vector3.UP, n, 0.2, h / float(steps) * 1.15, C_WOOD, Color(1, 1, 1), 0.0, 0.03)
 			cards += 1
 	var spacing := 0.32
@@ -776,8 +793,10 @@ static func _house(st: Dictionary, fa: Array) -> void:
 	# At a corner or between two openings: the widest stretch of plain wall.
 	var u0 := _free_spot(hl, length, rng)
 	var weights := [0.6, 0.05, 0.35, 0.0] if mat == "h_wall" else [0.25, 0.6, 0.15, 0.0]
+	var first := (st.debug_centres as Array).size()
 	_plant_on(st, f, u0, weights, rng, minf(length, 4.0))
 	if debug:
+		f["cards"] = Vector2i(first, (st.debug_centres as Array).size())
 		(st.debug_faces as Array).append(f)
 
 
@@ -1137,37 +1156,31 @@ static func _mound(acc: Acc, foot: Vector3, rng: RandomNumberGenerator, cell: in
 
 # --- Commit ---------------------------------------------------------------------------------------
 
-static func _commit(ch: CityChunk, st: Dictionary) -> void:
-	var tris := {"leaf": 0, "shadow": 0, "accent": 0}
-	var nodes := 0
-	# Each tile's range is the plants' reach plus the distance from its centre to its corner;
-	# the shader fades the cards themselves out at their own distance (fade_far).
+## One tile's mesh as a node of the chunk. Each tile's range is the plants' reach plus the
+## distance from its centre to its corner; the shader fades the cards themselves out at their own
+## distance (fade_far, UV2.y).
+static func _commit_tile(ch: CityChunk, st: Dictionary, kind: String, k: Vector2i) -> void:
+	var acc: Acc = (st[kind] as Dictionary)[k]
+	if acc.tris() == 0:
+		return
+	st.tris[kind] = int(st.tris[kind]) + acc.tris()
 	var reach := TILE * 0.71
-	for kind: String in ["leaf", "shadow", "accent"]:
-		var tiles: Dictionary = st[kind]
-		for k: Vector2i in tiles:
-			var acc: Acc = tiles[k]
-			if acc.tris() == 0:
-				continue
-			tris[kind] = int(tris[kind]) + acc.tris()
-			var mi := MeshInstance3D.new()
-			mi.name = {"leaf": "Climbers", "shadow": "ClimbersShadow", "accent": "ClimberAccents"}[kind] + "_%d_%d" % [k.x, k.y]
-			mi.mesh = acc.mesh(material())
-			mi.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
-			match kind:
-				"leaf":
-					mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-					MultiMeshBatch._set_draw_distance(mi, DRAW_DISTANCE + reach)
-				"shadow":
-					mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
-					MultiMeshBatch._set_draw_distance(mi, SHADOW_DISTANCE + reach)
-				_:
-					MultiMeshBatch._set_draw_distance(mi, ACCENT_DISTANCE + reach)
-			mi.add_to_group("climbers")
-			ch.add_child(mi)
-			nodes += 1
-	ch.set_meta("climbers", {"counts": st.counts, "cards": st.cards, "leaf_tris": tris.leaf, "shadow_tris": tris.shadow,
-		"accent_tris": tris.accent, "nodes": nodes, "spots": st.spots, "faces": st.debug_faces, "centres": st.debug_centres})
+	var mi := MeshInstance3D.new()
+	mi.name = {"leaf": "Climbers", "shadow": "ClimbersShadow", "accent": "ClimberAccents"}[kind] + "_%d_%d" % [k.x, k.y]
+	mi.mesh = acc.mesh(material())
+	mi.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+	match kind:
+		"leaf":
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			MultiMeshBatch._set_draw_distance(mi, DRAW_DISTANCE + reach)
+		"shadow":
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+			MultiMeshBatch._set_draw_distance(mi, SHADOW_DISTANCE + reach)
+		_:
+			MultiMeshBatch._set_draw_distance(mi, ACCENT_DISTANCE + reach)
+	mi.add_to_group("climbers")
+	ch.add_child(mi)
+	st.nodes = int(st.nodes) + 1
 
 
 static var _material: ShaderMaterial = null

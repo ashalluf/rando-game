@@ -2134,6 +2134,35 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (it asked `height_at()` ~1,000 times in one step: a 60 ms hitch per hill chunk). Judge any of it fast with `tools/glshot/hill_ground_shot.tscn` (the real hill chunks
   round an EYE, lit by the city's environment, a minute a shot; `SHELL_DEBUG`, `NOSHELLS`,
   `PROFILE` under Forward+) and time the steps with `tools/hill_step_bench/hill_step_bench.tscn`.
+- Climbing plants (2026-10-05, "planting that grows ON things"): `ClimbingPlants`
+  (`scripts/world/climbing_plants.gd`, static) - bougainvillea (magenta, orange, white) domed out
+  from walls and spilling over their coping with canes hanging, ivy and creeping fig climbing,
+  star jasmine through chain-link / pickets / board fences, wisteria or grape on back-yard
+  pergolas (built here, timber in YardFill's walls mesh), trumpet vine up utility poles, and
+  agave, aloe, red-hot poker, lavender and lantana in YardFill's mulch and DG beds. A build step
+  of every FULL chunk (after StreetWear) that MOVES ITSELF behind the deferred steps (the yards'
+  walls are laid by them), then runs in `STEP_BUDGET_US` slices. It reads what the chunk built:
+  `ch._yard_walls` (merged into runs, `_yard_runs()`; a wall within `FRONT_REACH` of the block's
+  edge is planted on its street side, `FRONT_GAIN` more often), house faces with their openings
+  and the spans other wings hide (`house_face()`, one hook line in `HouseBuild._wing()`), LotFill's
+  car-park walls and chain-link (`note_run()`, one line in `LotFill._edge_run()`), low-rise
+  Building walls only where `StreetWear._paintable()` says plain wall, `upole` batch instances,
+  and `_yard_ground`'s decks / tiles (pergolas) and mulch / DG (accents). Leaf and bract cards
+  built in code (`_card()`: centred, bent, normal leaned toward the mass's outward direction so a
+  mass lights as a volume; wind weight in COLOR.a, flower flag UV2.x, fade distance UV2.y) from
+  ONE atlas painted by `tools/make_climbers.py` (8 x 6 cells of 256 px: sprigs for silhouettes,
+  dense MASS cells for the inside of a plant - sprigs alone read as sticks; the `C_*` cell
+  constants are the contract) on ONE shader (`shaders/climbers.gdshader`: sway by weight, alpha
+  cut lowered per mip so masses do not thin to stems, translucency, wet leaves, colour-space
+  include, a dithered fade by distance). Meshes are TILES of `TILE` (64 m) per kind - leaves
+  (no shadow), a shadows-only twin of every `SHADOW_STRIDE`-th card, accents - because a node's
+  visibility range is measured to its bounds' centre and a chunk-wide mesh on a 400 m beach
+  block vanished from its own near end. Caps `MAX_CARDS` / `MAX_ACCENT_TRIS`; shares per
+  district `DISTRICT_SHARE` (beach town 1, suburbs 0.85, downtown 0.08). LOD chunks and the far
+  city get nothing. Every roll a hash of seed + wall / face / pole / bed. `CLIMBERS=0` in the
+  environment is the A/B. Probe: `tools/climbers/climbers_probe.tscn` (headless, seconds: cards
+  per species, step time, an EYE for every plant); checks: `tests/climbing_plants_checks.gd`
+  (`tools/climbers/checks_only.tscn` runs them alone).
 - Lawns: `PropFactory.lawn()` + `shaders/lawn.gdshader`, not a plain tiled texture - a 5 m tile
   mips down to one flat green rectangle from thirty metres up, and the grass-blade multimesh only
   reaches a few dozen metres. Dry/watered patches, mower stripes angled per lawn, worn dirt, and

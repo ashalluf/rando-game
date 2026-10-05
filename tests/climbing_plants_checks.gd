@@ -68,7 +68,9 @@ func run(t: Node, city: Node3D) -> void:
 			var o: Vector3 = f.o
 			var tt: Vector3 = f.t
 			var nn: Vector3 = f.n
-			for c: Vector3 in (m.centres as Array):
+			var span: Vector2i = f.cards
+			for ci in range(span.x, span.y):
+				var c: Vector3 = (m.centres as Array)[ci]
 				var d := c - o
 				var off := d.dot(nn)
 				if off < -0.02 or off > 0.7:
@@ -77,6 +79,7 @@ func run(t: Node, city: Node3D) -> void:
 				for hl: Array in (f.holes as Array):
 					if u > float(hl[0]) + 0.25 and u < float(hl[1]) - 0.25 and d.y > float(hl[2]) + 0.25 and d.y < float(hl[3]) - 0.25:
 						in_holes += 1
+						print("  in an opening: u %.2f y %.2f off %.2f hole %s" % [u, d.y, off, hl])
 						break
 		var sig := _signature(chunk)
 		var counts: Dictionary = (m.counts as Dictionary).duplicate()
@@ -95,7 +98,15 @@ func run(t: Node, city: Node3D) -> void:
 		var bare: CityChunk = city._new_chunk(k, CityChunk.Level.FULL)
 		bare.build()
 		ClimbingPlants.enabled = true
-		off_same = off_same and _signature(bare) == sig and bare.get_tree().get_nodes_in_group("climbers").filter(func(n: Node) -> bool: return bare.is_ancestor_of(n)).is_empty()
+		var bare_sig := _signature(bare)
+		if bare_sig != sig:
+			for x in sig:
+				if not x in bare_sig:
+					print("  climbers on only: ", x)
+			for x in bare_sig:
+				if not x in sig:
+					print("  climbers off only: ", x)
+		off_same = off_same and bare_sig == sig and bare.get_tree().get_nodes_in_group("climbers").filter(func(n: Node) -> bool: return bare.is_ancestor_of(n)).is_empty()
 		bare.get_parent().remove_child(bare)
 		bare.free()
 	ClimbingPlants.debug = false
@@ -144,6 +155,9 @@ func _signature(chunk: CityChunk) -> Array:
 		var nm := String(c.name)
 		if nm.begins_with("Climber"):
 			continue
+		# Auto-generated names carry a global counter, which any extra node moves.
+		if nm.begins_with("@"):
+			nm = c.get_class()
 		var count := 0
 		if c is MultiMeshInstance3D and (c as MultiMeshInstance3D).multimesh:
 			count = (c as MultiMeshInstance3D).multimesh.instance_count

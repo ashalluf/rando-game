@@ -44,6 +44,7 @@ func _ready() -> void:
 					if int(b.district) == want and int(b.kind) == CityPlan.BlockKind.BUILDINGS and not b.has("site") and (b.rect as Rect2).size.x < 160.0 and (b.rect as Rect2).size.y < 160.0 \
 							and plan.zone_at((b.rect as Rect2).get_center()) == MacroMap.Zone.CITY and not plan.lots(k.x, k.y).is_empty():
 						keys.append(k)
+	ClimbingPlants.debug = OS.get_environment("SLOW") == "1"
 	var chunk_script: GDScript = load("res://scripts/world/city_chunk.gd")
 	for k in keys:
 		var ch = chunk_script.new()
@@ -59,7 +60,7 @@ func _ready() -> void:
 		var m: Dictionary = ch.get_meta("climbers", {})
 		var rect: Rect2 = plan.block(k.x, k.y).rect
 		print("BLOCK %s district=%d rect=%s build=%.0f ms" % [k, int(plan.block(k.x, k.y).district), rect, ms])
-		print("  usec=%s commit=%s cards=%s leaf_tris=%s shadow_tris=%s accent_tris=%s counts=%s" % [m.get("usec"), m.get("commit_usec"), m.get("cards"), m.get("leaf_tris"), m.get("shadow_tris"), m.get("accent_tris"), m.get("counts")])
+		print("  usec=%s worst_step=%s commit=%s cards=%s leaf_tris=%s shadow_tris=%s accent_tris=%s counts=%s" % [m.get("usec"), m.get("worst_usec"), 0, m.get("cards"), m.get("leaf_tris"), m.get("shadow_tris"), m.get("accent_tris"), m.get("counts")])
 		for nm in ["Climbers", "ClimbersShadow", "ClimberAccents"]:
 			var mi := ch.get_node_or_null(nm) as MeshInstance3D
 			if mi:
