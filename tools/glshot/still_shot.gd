@@ -849,7 +849,7 @@ func _light_report(label: String) -> void:
 	print("LIGHTS %s car=%d (in view %d) lamps=%d (in view %d)" % [label, counts[0], counts[1], counts[2], counts[3]])
 
 
-const SPLIT_CATEGORIES := ["Vehicle", "Pedestrian", "Building", "Trees", "Grass", "Camp", "LotFill", "StreetProps", "FarCity", "FarGround", "Landmark", "Other"]
+const SPLIT_CATEGORIES := ["Vehicle", "Pedestrian", "Building", "Trees", "Grass", "Camp", "LotFill", "Houses", "Industrial", "Parks", "River", "LightRail", "Birds", "Billboards", "Vendors", "StreetProps", "FarCity", "FarGround", "Landmark", "Other"]
 
 
 func _geo_split(player: Node3D, anchor: Vector3, hold: Vector3, boost: bool, fov: float) -> void:
@@ -876,6 +876,32 @@ func _geo_split(player: Node3D, anchor: Vector3, hold: Vector3, boost: bool, fov
 		print("SPLIT %-12s nodes %5d  tris %9d (%4.1f%%)  draws %5d  objects %5d  | shadow tris %9d draws %5d" % [
 			c, list.size(), base[0] - hidden[0], 100.0 * (base[0] - hidden[0]) / maxf(base[0], 1),
 			base[1] - hidden[1], base[2] - hidden[2], base[4] - hidden[4], base[6] - hidden[6]])
+	# OSPLIT=1: the Other and StreetProps categories again by node name stem, the 30 stems with
+	# the most estimated triangles (LOD 0 x instances) hidden one at a time.
+	if OS.get_environment("OSPLIT") == "1":
+		var stems := {}
+		var est := {}
+		for c in ["Other", "StreetProps", "LightRail", "River", "Parks", "Houses", "Industrial"]:
+			for gi: GeometryInstance3D in nodes[c]:
+				if not is_instance_valid(gi):
+					continue
+				var stem: String = c + "/" + String(gi.name).rstrip("0123456789_").replace("BatchShadow_", "Batch_")
+				if not stems.has(stem):
+					stems[stem] = []
+					est[stem] = 0
+				(stems[stem] as Array).append(gi)
+				est[stem] += _est_tris(gi)
+		var order := stems.keys()
+		order.sort_custom(func(a, b): return est[a] > est[b])
+		for k: String in order.slice(0, 30):
+			var list: Array = stems[k]
+			for gi: GeometryInstance3D in list:
+				gi.visible = false
+			var hidden := await _geo_report("  (hidden %s)" % k)
+			for gi: GeometryInstance3D in list:
+				gi.visible = true
+			print("OSPLIT %-36s nodes %5d  tris %9d  draws %5d  objects %5d  | shadow tris %9d draws %5d" % [
+				k, list.size(), base[0] - hidden[0], base[1] - hidden[1], base[2] - hidden[2], base[4] - hidden[4], base[6] - hidden[6]])
 	# The Building category again, by the kind of node under a Building: its box parts, the
 	# facade MultiMeshes, the kit batches, the shop names, the roof plant.
 	var sub := {}
@@ -1006,6 +1032,37 @@ static func _building_part_kind(gi: GeometryInstance3D) -> String:
 	return "mesh " + nm.rstrip("0123456789")
 
 
+static var _est_cache := {}
+
+
+## A rough triangle estimate (LOD 0 times instances) to rank the OSPLIT stems.
+static func _est_tris(gi: GeometryInstance3D) -> int:
+	var mesh: Mesh = null
+	var count := 1
+	if gi is MultiMeshInstance3D:
+		var mm := (gi as MultiMeshInstance3D).multimesh
+		if mm == null:
+			return 0
+		mesh = mm.mesh
+		count = mm.visible_instance_count if mm.visible_instance_count >= 0 else mm.instance_count
+	elif gi is MeshInstance3D:
+		mesh = (gi as MeshInstance3D).mesh
+	if mesh == null:
+		return 0
+	if _est_cache.has(mesh):
+		return int(_est_cache[mesh]) * count + 50
+	var t := 0
+	for i in mesh.get_surface_count():
+		var arr: Array = mesh.surface_get_arrays(i) if mesh is ArrayMesh else []
+		if arr.is_empty():
+			t += 100
+			continue
+		var idx = arr[Mesh.ARRAY_INDEX]
+		t += (idx.size() if idx != null else (arr[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()) / 3
+	_est_cache[mesh] = t
+	return t * count + 50
+
+
 func _split_category(gi: GeometryInstance3D) -> String:
 	var n: Node = gi
 	while n != null:
@@ -1013,10 +1070,15 @@ func _split_category(gi: GeometryInstance3D) -> String:
 		match cls:
 			"Building":
 				return "Building"
-			"Vehicle", "Aircraft", "PoliceCar", "AmbientJet", "Helicopter":
+			"Vehicle", "Aircraft", "PoliceCar", "AmbientJet", "Helicopter", "EmergencyCar":
 				return "Vehicle"
-			"Pedestrian", "Ragdoll", "Avatar", "Player", "PoliceOfficer", "RoughSleeper", "ReplicaWalker":
+			"Pedestrian", "Ragdoll", "Avatar", "Player", "PoliceOfficer", "RoughSleeper", "ReplicaWalker", \
+					"ApronCrew", "EmergencyCrew", "ParkGoer", "RailRider", "StreetVendor", "CrowdDog":
 				return "Pedestrian"
+			"LightRailSystem", "LightRailTrain", "RailSection", "RailGate":
+				return "LightRail"
+			"Birds":
+				return "Birds"
 			"Skyline":
 				return "FarCity"
 			"CampFigureMesh":
@@ -1039,6 +1101,20 @@ func _split_category(gi: GeometryInstance3D) -> String:
 				if nm.begins_with("LotFill") or nm.begins_with("Yard") or nm.contains("apark_car") or nm.contains("pstripe") or nm.contains("fence_") \
 						or nm.contains("fill_bronze"):
 					return "LotFill"
+				if nm.begins_with("Houses") or nm.begins_with("House") or nm.begins_with("Batch_h_") or nm.begins_with("h_"):
+					return "Houses"
+				if nm.begins_with("Industrial") or nm.contains("ind_"):
+					return "Industrial"
+				if nm.begins_with("Park") or nm.contains("park_"):
+					return "Parks"
+				if nm.begins_with("River") or nm.contains("rv_"):
+					return "River"
+				if nm.begins_with("Rail") or nm.contains("rail_"):
+					return "LightRail"
+				if nm.contains("bb_"):
+					return "Billboards"
+				if nm.contains("vend_") or nm.begins_with("Vendor"):
+					return "Vendors"
 				if nm.begins_with("Batch"):
 					return "StreetProps"
 				return "Other"
