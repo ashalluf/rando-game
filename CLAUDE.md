@@ -6,10 +6,12 @@ for a session on any account. Update all of them whenever a design decision chan
 session starts with no memory.
 
 **State on 2026-10-05 (fleet wave 2):** `main` is integration-a (19 fleet branches) plus wave 2's
-batch 1 (sky, alleys, stadium, rooftops, wilshire-deco, far-corners, cemetery, kerbs), gated green.
-`fleet/batch2` (integration-b with its memory fix) and `fleet/batch3` (fwd-review-a, road-detail,
-perf-audit, reservoir, ridges, service-vehicles) are queued behind it. A fleet of 100 sessions is
-running (`fleet/brief`: BRIEF.md, tasks.tsv, sessions.tsv; each on `wt/<slug>`, stills on
+batches 1-4, gated green: batch 1 (sky, alleys, stadium, rooftops, wilshire-deco, far-corners,
+cemetery, kerbs), integration-b (12 branches, through oom-fix's memory fix), batch 3
+(fwd-review-a, road-detail, perf-audit, reservoir, ridges, service-vehicles) and batch 4
+(service-vehicles' rebuilt bodies, farmers-market, freight-trains, fwd-review-b). `fleet/batch5`
+is queued behind it (docs/HANDOFF.md 0000000). A fleet of 100 sessions is running
+(`fleet/brief`: BRIEF.md, tasks.tsv, sessions.tsv; each on `wt/<slug>`, stills on
 `shots/<slug>`). Start at docs/HANDOFF.md section 0000000; the fleet tooling is in `tools/fleet/`.
 
 ## Project summary
