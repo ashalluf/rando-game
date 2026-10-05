@@ -6582,5 +6582,10 @@ and turf under AgX: NEEDS A MAC CHECK); no children or swimmers; the playground 
 the people's "games" are simple (pickup players run between spots, fielders stand; nobody
 throws a ball - only the basketball is scripted); the far city averages a park block into one
 plate colour (the LOD ring shows the fields); tracks are rarely 400 m (the blocks are too small);
-fences have no collision; the wreck-on-the-deck physics check failed once in three full runs
-(a toss landing at 2.70 m against a 2.6 m limit, in the test room; unrelated to parks).
+fences have no collision. Flaky checks seen across six full runs, none in parks' code: the
+wreck-on-the-deck toss once (2.70 m against a 2.6 m limit, in the test room), the bus's
+"its signs show its line" once (line 0; passed in the runs either side on the same code), and an
+error in `StreetVendors.free_queue()` (`rec is Dictionary` on a freed node) once - guarded on this
+branch (one line in scripts/world/street_vendors.gd; the vendors' owner may want to look). The
+light rail's structure keeps parks and schools off its blocks (`LightRail.blocks_rect()` /
+`cuts_in()` in `role_for()`).
