@@ -123,7 +123,9 @@ func _find_stop() -> Array:
 
 ## A two-lane open city road near the spawn with `need` metres of one block from crossing k on:
 ## [axis, index, k, dir, block start along, block end along] or [].
-func _find_avenue(need: float) -> Array:
+## `signal_end`: the junction at its +along end must have signals (a stop sign there can hold a
+## car for as long as walkers keep stepping onto its crosswalk).
+func _find_avenue(need: float, signal_end: bool = false) -> Array:
 	for r in 20:
 		for axis: int in [CityPlan.AXIS_X, CityPlan.AXIS_Z]:
 			for index: int in [r, -r]:
@@ -139,6 +141,9 @@ func _find_avenue(need: float) -> Array:
 					var road := _plan.road_pos(axis, index)
 					var q := Vector2(road, mid) if axis == CityPlan.AXIS_X else Vector2(mid, road)
 					if _plan.zone_at(q) != MacroMap.Zone.CITY or _traffic._replica_blocks(q, 6.0):
+						continue
+					var end_node := Vector2i(index, k + 1) if axis == CityPlan.AXIS_X else Vector2i(k + 1, index)
+					if signal_end and not TrafficSignals.is_signal(_plan, end_node.x, end_node.y):
 						continue
 					if _plan.road_open(axis, index, lo + 2.0) and _plan.road_open(axis, index, hi - 2.0) and _plan.road_open(axis, index, hi + 60.0) and _plan.road_open(axis, index, lo - 60.0):
 						return [axis, index, k, 1, lo, hi]
@@ -231,6 +236,12 @@ func _bus_pass() -> void:
 		var t: Dictionary = car.traffic
 		if not t.has("along"):
 			continue
+		# The seconds spent pulled over must not cost the forced green at the junction ahead.
+		# (force() sets the one shared clock, so it is the junction the car is heading for.)
+		if i == 180 and t.has("node"):
+			var jn: Vector2i = t.node
+			if TrafficSignals.is_signal(_plan, jn.x, jn.y):
+				TrafficSignals.force(_plan, jn.x, jn.y, axis, TrafficSignals.Light.GREEN, 0.05)
 		if float(t.get("yield_t", 0.0)) > 0.0 and (t.has("lc_want") or t.has("lc_from")):
 			changed_yielding = true
 		if not started and t.has("lc_from"):
@@ -298,7 +309,7 @@ func _double_park_gap() -> void:
 ## A car in the kerb lane with a left turn coming up gets into the inner lane before the junction,
 ## signalling left, and turns into the inner lane of the cross street.
 func _turn_lane() -> void:
-	var a := _find_avenue(150.0)
+	var a := _find_avenue(150.0, true)
 	if a.is_empty():
 		return
 	var axis: int = a[0]
@@ -343,7 +354,10 @@ func _turn_lane() -> void:
 				t.turn = turn
 			# TrafficSignals.force() sets the one shared clock: green for this junction as the car
 			# comes up to it, whatever the others show.
-			if to_c < 70.0 and not forced_green:
+			# Again every two seconds while it stands at the line: the forced phase runs out, and a
+			# busy crosswalk can hold the car past it.
+			var held_here := to_c < 40.0 and float(t.get("v", 0.0)) < 0.3 and i % 120 == 0
+			if (to_c < 70.0 and not forced_green) or held_here:
 				forced_green = true
 				var jn := Vector2i(index, cross_index) if axis == CityPlan.AXIS_X else Vector2i(cross_index, index)
 				if TrafficSignals.is_signal(_plan, jn.x, jn.y):
@@ -564,6 +578,8 @@ func _freeway_ramps() -> void:
 			if not car.traffic.has("lc_from") and int(car.traffic.li) == Freeway.LANES - 1 and int(car.traffic.dir) == -1:
 				settled = true
 				break
+	if not settled:
+		printerr("traffic ai: merging car never settled: valid %s in tree %s %s" % [is_instance_valid(car), is_instance_valid(car) and car.is_inside_tree(), str(car.traffic) if is_instance_valid(car) else ""])
 	_check(rose and merged and settled and int(TrafficAI.counts.get("fw_merge", 0)) > merges,
 		"a car climbs an on-ramp and merges into the outer lane of the freeway (climbed %s, merged %s, in lane %s)" % [rose, merged, settled])
 	# Off: a car in the outer lane 160 m before an off-ramp, with an exit to make.
