@@ -14,3 +14,7 @@
 ^res://assets/textures/birds/.*_(albedo|normal)\.png$ 512
 ^res://assets/models/crowd_[a-z]_hair\.png$ 512
 ^res://assets/models/crowd_[a-z]_body_nrm\.jpg$ 512
+# Knee-high plants (PropFactory.PLANTS, FLOWERS, GRASS_CLUMPS; FULL chunks only, gone by 80-95 m):
+# 1024 is ~2,000 texels a metre of leaf. 512 drops only mip 0, which a plant only reaches with the
+# camera inside a metre of it; from further every pixel is the same mip as before.
+^res://assets/models/(flower|grass|plant)_[a-z_0-9]+\.jpg$ 512
