@@ -1789,6 +1789,9 @@ func _test_city() -> void:
 	# The city at night from the air (tests/night_city_checks.gd): the far traffic and lit-office
 	# hours, the sodium / LED lamp patches near and far, the LOD decks' traffic skin.
 	load("res://tests/night_city_checks.gd").new().run(self, city)
+	# Service alleys (tests/alley_checks.gd): the band on the lot grid's seam, the runs clear of the
+	# buildings, one ground and one upright mesh a chunk, the mouths clear, nothing else moved.
+	load("res://tests/alley_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

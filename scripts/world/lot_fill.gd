@@ -286,8 +286,19 @@ static func after_building(ch: CityChunk, lot: Dictionary, bld: Building) -> voi
 			continue
 		holes.append(Rect2(centre.x + c.x - size.x * 0.5, centre.y + c.z - size.z * 0.5, size.x, size.z))
 	var paving := "paving%d" % _paving_for(ch)
-	_ground(ch, cell, paving)
+	# The block's service alley (Alleys) takes a band down the seam of the lot grid: the paving and
+	# the forecourt keep off it, and the alley is told what stands beside it.
+	Alleys.record(ch, lot, holes)
+	var back := Alleys.back_strip(ch.plan, ch.ix, ch.iz, lot, holes)
 	var keep: Array[Rect2] = holes.duplicate()
+	keep.append_array(Alleys.keep_out(ch.plan, ch.ix, ch.iz))
+	if back.size.x > 0.0:
+		keep.append(back)
+		var backs: Array[Rect2] = [back]
+		for piece: Rect2 in _minus(Alleys.trim(ch.plan, ch.ix, ch.iz, cell), backs, 0.0):
+			_ground(ch, piece, paving)
+	else:
+		_ground(ch, Alleys.trim(ch.plan, ch.ix, ch.iz, cell), paving)
 	var entry := bld.garage_entry()
 	if not entry.is_empty():
 		keep.append(_driveway(ch, cell, centre, entry))
@@ -661,7 +672,7 @@ static func _bronze(ch: CityChunk, at: Vector2, rng: RandomNumberGenerator, base
 ## chunk the stall rows either side of the aisles, the parked cars, a pay booth by the way in, light
 ## masts, and a low wall, a hedge or chain-link along its street sides.
 static func surface_lot(ch: CityChunk, lot: Dictionary) -> void:
-	_car_park(ch, _cell(lot), int(lot.seed))
+	_car_park(ch, Alleys.trim(ch.plan, ch.ix, ch.iz, _cell(lot)), int(lot.seed))
 
 
 static func _car_park(ch: CityChunk, cell: Rect2, key: int) -> void:

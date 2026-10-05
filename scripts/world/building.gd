@@ -182,6 +182,10 @@ var podium_kind: int = 0
 ## Set by CityChunk with podium_lot: the face that looks at the nearest street, as the shader
 ## counts faces (1 +X, 2 -X, 3 +Z, 4 -Z). A parking base's drive-in is on it (garage_entry()).
 var street_face: int = 0
+## Set by CityChunk where the lot backs onto a service alley (Alleys.back_face()): the face, counted
+## the same way, that looks at the alley. Its ground floor is the building's back - no storefront,
+## shop names, awnings or spill - not another row of shops.
+var back_face: int = 0
 ## Storey and spandrel of a parking deck (the shader's floor height and garage_spandrel), and its
 ## bay (the column pitch): ArenaGrounds' car park's numbers.
 const GARAGE_STOREY := 3.2
@@ -831,12 +835,15 @@ func _append_part(arrays: Array, center: Vector3, p: Array) -> void:
 	var row1 := PackedFloat32Array([size.x, size.y, size.z, p[2]])
 	var row2 := PackedFloat32Array([p[3], p[4], p[5], p[6]])
 	var row3 := PackedFloat32Array([p[7], p[8], 1.0 if p.size() > 9 and p[9] else 0.0, 0.0])
-	for v: Vector3 in src:
+	var src_n: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var back := [Vector3.ZERO, Vector3.RIGHT, Vector3.LEFT, Vector3.BACK, Vector3.FORWARD][clampi(back_face, 0, 4)] as Vector3
+	for k in src.size():
+		var v: Vector3 = src[k]
 		verts.append(v + center)
 		c0.append(v.x)
 		c0.append(v.y)
 		c0.append(v.z)
-		c0.append(shop)
+		c0.append(0.0 if back_face > 0 and src_n[k].dot(back) > 0.7 else shop)
 		c1.append_array(row1)
 		c2.append_array(row2)
 		c3.append_array(row3)
@@ -1292,6 +1299,8 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 	var face_index := -1
 	for face in faces:
 		face_index += 1
+		# No shops on the face that looks at the alley (back_face): its ground floor is the back.
+		var face_shops := storefront > 0.0 and face_index + 1 != back_face
 		var n: Vector3 = face[0]
 		var a: Vector3 = face[1]
 		var size_u: float = face[2]
@@ -1379,7 +1388,7 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 				# Flip the bay on alternate floors so the stair runs zigzag down the wall.
 				var flip := 1.0 if row % 2 == 0 else -1.0
 				escapes.append(Transform3D(Basis(a * (ew * flip), Vector3.UP * floor_h, n * 1.35), fc + a * eu + Vector3(0.0, ev, 0.0)))
-		if storefront > 0.0 and shape != Shape.WAREHOUSE:
+		if face_shops and shape != Shape.WAREHOUSE:
 			# A pier between shops and one at each end of the wall, running the whole height of
 			# the ground floor. The shopfront then reads as glass set back between piers rather
 			# than as a strip wrapped round a box. They stand on the shop runs the shader uses,
@@ -1405,7 +1414,7 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		# Shop signs. The sign band is drawn by the shader on the storefront; this puts the
 		# actual name on it, lined up with the same shop runs (`shop_span`). One per face:
 		# every run would be four names on a wall the player can only read one of.
-		if storefront > 0.0 and shape != Shape.WAREHOUSE and signs_on:
+		if face_shops and shape != Shape.WAREHOUSE and signs_on:
 			var span: float = spans[face_index]
 			var runs := int(float(cols) / span)
 			# 0.845 of the storefront up from the part's base, where the shader's sign band is.
@@ -1440,7 +1449,7 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		# The spill of each open shop's light on the pavement in front of it, on the same runs
 		# and the same rolls as the shader's lit shops (shop_key). Not gated on the web: it is
 		# an additive quad, which is what lights the web's streets anyway.
-		if storefront > 0.0 and shape != Shape.WAREHOUSE and bottom < 0.01:
+		if face_shops and shape != Shape.WAREHOUSE and bottom < 0.01:
 			var span: float = spans[face_index]
 			var runs := int(float(cols) / span)
 			for run in runs:
@@ -1495,17 +1504,17 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 						_kit_solid_box(kxf, Vector3(0.0, -0.08, 0.585), Vector3(2.24, 0.16, 1.27))
 					else:
 						balconies.append(bxf)
-		if kit_awnings_extra:
+		if kit_awnings_extra and face_shops:
 			_kit_awnings(face_index, fc, a, n, size_u, cols, pitch, cut, bottom, storefront, spans[face_index])
 		if has_awnings:
-			if _kit != null:
+			if _kit != null and face_shops:
 				_kit_awnings(face_index, fc, a, n, size_u, cols, pitch, cut, bottom, storefront, spans[face_index])
 			for col in range(skip, cols - skip):
 				if col % 2 == 1 or _rng.randf() < 0.3:
 					continue
 				# The kit hangs one awning per shop instead (above); the roll stays so every
 				# seeded draw after it lands where it always did.
-				if _kit != null:
+				if _kit != null or not face_shops:
 					continue
 				var u := -size_u * 0.5 + (col + 0.5) * pitch
 				var tilt := Basis(a, -0.35)
