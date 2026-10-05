@@ -9,3 +9,14 @@ opengl3 (Compatibility) stills via tools/glshot/still_shot.gd, 1280x720, default
 - reservoir_from_the_basin.jpg: the dam in its canyon notch west of the sign, from the city (EYE -500,35,-300,0,6 @17.3)
 - reservoir_night_shore_mirror.jpg: the night shore at the trail with the hill mirrored in the water (EYE -560,271.2,-1300,90,-6 @21.5)
 - before_fixes_aerial_box_cliff.jpg: BEFORE - an early version with a cliff where the carve met the edge of its box (fixed)
+
+## After merging fleet/base (wave 2 update, 2026-10-05)
+
+Same EYEs and hours as above, re-shot on the merged branch (opengl3, 1280x720). GEO (tris / draws, RESERVOIR=0 -> on):
+
+- 10_merged_crest_golden_hour.jpg: 2.53 M / 858 -> 2.69 M / 860
+- 11_merged_downstream_face_from_below.jpg: 1.57 M / 611 -> 1.74 M / 589
+- 12_merged_aerial_sign_hills.jpg: 2.58 M / 696 -> 2.61 M / 700
+- 13_merged_night_from_the_hills.jpg: 2.83 M / 1117 -> 2.80 M / 1110
+- 14_merged_from_the_basin.jpg: 7.79 M / 2381 -> 7.86 M / 2387
+- 15_merged_night_shore_mirror.jpg: 0.48 M / 312 -> 0.74 M / 319
