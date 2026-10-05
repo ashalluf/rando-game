@@ -28,13 +28,21 @@ static func build(parent: Node3D, at: Vector3, detailed: bool) -> Node3D:
 	parent.add_child(node)
 	var key := "near" if detailed else "far"
 	if not _meshes.has(key):
-		_meshes[key] = [_base(detailed), _turning(detailed)]
-	for i in 2:
+		_meshes[key] = _meshes_for(detailed)
+	for i in 3:
 		var mi := MeshInstance3D.new()
-		mi.name = ["Base", "Ride"][i]
+		mi.name = ["Base", "Ride", "RideLights"][i]
 		mi.mesh = _meshes[key][i]
+		if i == 2 or not detailed:
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		node.add_child(mi)
 	return node
+
+
+## [base, the turning ride, its bulbs].
+static func _meshes_for(detailed: bool) -> Array:
+	var turning := _turning(detailed)
+	return [_base(detailed), turning[0], turning[1]]
 
 
 static func material() -> ShaderMaterial:
@@ -63,9 +71,11 @@ static func _base(detailed: bool) -> ArrayMesh:
 	return g.build_mesh()
 
 
-static func _turning(detailed: bool) -> ArrayMesh:
+static func _turning(detailed: bool) -> Array:
 	var g := PierMesh.new()
 	g.use("r", material())
+	g.use("rl", material())
+	g.light_slot = "rl"
 	g.slot("r")
 	var segs := 48 if detailed else 16
 	var deck_y := 0.55
@@ -85,7 +95,21 @@ static func _turning(detailed: bool) -> ArrayMesh:
 	# Canopy: a striped cone, the rounding board round its edge with scallops, bulbs and mirrors.
 	g.kind = PierMesh.K_CANVAS
 	g.cone(Vector3.ZERO, R_CANOPY, CANOPY_Y + 0.5, 1.2, CANOPY_Y + 2.5, segs, STRIPE_A)
-	g.cone(Vector3.ZERO, R_CANOPY, CANOPY_Y + 0.5, 1.2, CANOPY_Y + 2.5, segs, STRIPE_A, true)
+	# The ceiling under it: cream boards radiating from the column, rings of bulbs.
+	g.kind = PierMesh.K_BOARDS
+	g.cone(Vector3.ZERO, R_CANOPY, CANOPY_Y + 0.5, 1.2, CANOPY_Y + 2.5, segs, Color(0.93, 0.88, 0.74), true)
+	if detailed:
+		g.kind = PierMesh.K_BULB
+		for ring in 3:
+			var f := 0.3 + 0.22 * float(ring)
+			var rr := lerpf(1.2, R_CANOPY, f)
+			var yy := lerpf(CANOPY_Y + 2.5, CANOPY_Y + 0.5, f) - 0.08
+			var nb := int(rr * 4.0)
+			for i in nb:
+				var a := TAU * (float(i) + 0.5 * float(ring)) / float(nb)
+				g.anim = float(i + ring * 7)
+				g.ellipsoid(Transform3D(Basis(), Vector3(cos(a) * rr, yy, sin(a) * rr)), Vector3(0.05, 0.05, 0.05), Color(1.0, 0.85, 0.55), 4, 2)
+		g.anim = 0.0
 	g.kind = PierMesh.K_PAINT
 	g.cone(Vector3.ZERO, 1.2, CANOPY_Y + 2.5, 0.3, CANOPY_Y + 3.3, 12, Color(0.85, 0.75, 0.30))
 	g.kind = PierMesh.K_GOLD
@@ -93,7 +117,7 @@ static func _turning(detailed: bool) -> ArrayMesh:
 	g.kind = PierMesh.K_PAINT
 	g.cone(Vector3.ZERO, R_CANOPY, CANOPY_Y - 0.3, R_CANOPY, CANOPY_Y + 0.5, segs, Color(0.92, 0.88, 0.75))
 	g.cone(Vector3.ZERO, R_CANOPY - 0.05, CANOPY_Y - 0.3, R_CANOPY - 0.05, CANOPY_Y + 0.5, segs, Color(0.92, 0.88, 0.75), true)
-	g.ring_flat(Vector3(0, CANOPY_Y - 0.3, 0), 1.2, R_CANOPY, segs, Color(0.82, 0.70, 0.45), Vector3.DOWN)
+	g.ring_flat(Vector3(0, CANOPY_Y - 0.3, 0), R_CANOPY - 0.6, R_CANOPY, segs, Color(0.90, 0.84, 0.66), Vector3.DOWN)
 	if detailed:
 		# Mirrors and painted panels round the rounding board, bulbs between them.
 		var panels := 24
@@ -143,10 +167,13 @@ static func _turning(detailed: bool) -> ArrayMesh:
 			g.tube(pos + Vector3(0, deck_y, 0), pos + Vector3(0, CANOPY_Y - 0.3, 0), 0.035 if detailed else 0.08, 0.035 if detailed else 0.08, Color.WHITE, 6 if detailed else 3)
 			g.anim = float(k + 1)
 			var xf := Transform3D(Basis(Vector3.UP, phi), pos + Vector3(0, deck_y + 1.45, 0))
+			# The horses stand in the canopy's shade: they cast nothing (the no-shadow slot).
+			g.slot("rl")
 			_horse(g, xf, k, detailed)
+			g.slot("r")
 			k += 1
 	g.anim = 0.0
-	return g.build_mesh()
+	return [g.build_mesh(["r"]), g.build_mesh(["rl"])]
 
 
 ## A carved, prancing carousel horse in its own frame (forward -Z, origin at the saddle on the

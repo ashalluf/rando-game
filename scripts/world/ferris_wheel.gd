@@ -51,19 +51,37 @@ static func build(at: Vector3, parent: Node3D, detailed: bool) -> FerrisWheel:
 	parent.add_child(wheel)
 	var key := "near" if detailed else "far"
 	if not _meshes.has(key):
-		_meshes[key] = [_static_mesh(detailed), _turning_mesh(detailed)]
+		_meshes[key] = _meshes_for(detailed)
 	var meshes: Array = _meshes[key]
-	for i in 2:
+	for i in 3:
 		var mi := MeshInstance3D.new()
-		mi.name = ["Frame", "Wheel"][i]
+		mi.name = ["Frame", "Wheel", "WheelLights"][i]
 		mi.mesh = meshes[i]
-		# The far copy is a silhouette and lights a kilometre off: its shadows are nobody's.
-		if not detailed:
+		# The far copy is a silhouette and lights a kilometre off: its shadows are nobody's; nor
+		# are the LEDs' anywhere.
+		# The near wheel's shadow is drawn by the far copy's wheel (shadows only, the same
+		# turning material): its spokes and gondolas throw the same shadow at a fifth of the cost
+		# in every cascade.
+		if not detailed or i >= 1:
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		wheel.add_child(mi)
 	if detailed:
+		if not _meshes.has("far"):
+			_meshes["far"] = _meshes_for(false)
+		var sh := MeshInstance3D.new()
+		sh.name = "WheelShadow"
+		sh.mesh = _meshes["far"][1]
+		sh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		wheel.add_child(sh)
+	if detailed:
 		wheel._add_body()
 	return wheel
+
+
+## [frame, turning wheel, its lights].
+static func _meshes_for(detailed: bool) -> Array:
+	var turning := _turning_mesh(detailed)
+	return [_static_mesh(detailed), turning[0], turning[1]]
 
 
 static func wheel_material() -> ShaderMaterial:
@@ -148,9 +166,11 @@ static func _static_mesh(detailed: bool) -> ArrayMesh:
 
 
 ## The turning wheel: hub, spokes, laced rims, cross ties, the LEDs and the gondolas.
-static func _turning_mesh(detailed: bool) -> ArrayMesh:
+static func _turning_mesh(detailed: bool) -> Array:
 	var g := PierMesh.new()
 	g.use("w", wheel_material())
+	g.use("wl", wheel_material())
+	g.light_slot = "wl"
 	g.slot("w")
 	var hub := Vector3(0.0, HUB_H, 0.0)
 	var sides := 6 if detailed else 4
@@ -228,7 +248,7 @@ static func _turning_mesh(detailed: bool) -> ArrayMesh:
 		g.anim = float(i + 1)
 		_gondola(g, pin, GONDOLA_COLORS[i % GONDOLA_COLORS.size()], detailed)
 	g.anim = 0.0
-	return g.build_mesh()
+	return [g.build_mesh(["w"]), g.build_mesh(["wl"])]
 
 
 ## An LED strip along a spoke: from r0 to r1 on direction `d`, sliding from z0 (at the flange)
@@ -293,24 +313,47 @@ static func _gondola(g: PierMesh, pin: Vector3, col: Color, detailed: bool) -> v
 	g.kind = PierMesh.K_CHROME
 	for xs: float in [-1.0, 1.0]:
 		for zs: float in [-1.0, 1.0]:
-			g.tube(Vector3(pin.x + xs * 0.75, tub_top, pin.z + zs * 0.8), Vector3(pin.x + xs * 0.75, canopy_y - 0.3, pin.z + zs * 0.8), 0.03, 0.03, STEEL, 5)
-	# The tub: a rounded shell open at the top, with a bench at each end.
+			g.tube(Vector3(pin.x + xs * 0.58, tub_top, pin.z + zs * 0.64), Vector3(pin.x + xs * 0.72, canopy_y - 0.3, pin.z + zs * 0.78), 0.03, 0.03, STEEL, 5)
+	# The tub: an oval shell open at the top (painted out, a shade darker in), a rolled lip, a
+	# floor, a bench at each end.
 	g.kind = PierMesh.K_PAINT
-	var h := tub_top - tub_bot
-	g.box(Transform3D(Basis(), Vector3(pin.x, tub_bot + 0.06, pin.z)), Vector3(1.7, 0.12, 1.8), col, 0.25)
-	for xs: float in [-1.0, 1.0]:
-		g.box(Transform3D(Basis(), Vector3(pin.x + xs * 0.81, tub_bot + h * 0.5, pin.z)), Vector3(0.08, h, 1.8), col, 0.03)
-	for zs: float in [-1.0, 1.0]:
-		g.box(Transform3D(Basis(), Vector3(pin.x, tub_bot + h * 0.5 - 0.1, pin.z + zs * 0.86)), Vector3(1.55, h - 0.2, 0.08), col, 0.03)
+	var n_seg := 16
+	var rx := 0.85
+	var rz := 0.92
+	for i in n_seg:
+		var a0 := TAU * float(i) / float(n_seg)
+		var a1 := TAU * float(i + 1) / float(n_seg)
+		var d0 := Vector3(cos(a0) * rx, 0.0, sin(a0) * rz)
+		var d1 := Vector3(cos(a1) * rx, 0.0, sin(a1) * rz)
+		var n0 := Vector3(cos(a0) / rx, 0.0, sin(a0) / rz).normalized()
+		var n1 := Vector3(cos(a1) / rx, 0.0, sin(a1) / rz).normalized()
+		# The wall tucks in toward the floor like a boat's bilge.
+		var b0 := c + d0 * 0.86 + Vector3(0, tub_bot, 0)
+		var b1 := c + d1 * 0.86 + Vector3(0, tub_bot, 0)
+		var m0 := c + d0 + Vector3(0, tub_bot + 0.3, 0)
+		var m1 := c + d1 + Vector3(0, tub_bot + 0.3, 0)
+		var t0 := c + d0 + Vector3(0, tub_top, 0)
+		var t1 := c + d1 + Vector3(0, tub_top, 0)
+		var u0 := a0 * 0.9
+		var u1 := a1 * 0.9
+		g.quad_n(b0, m0, m1, b1, (n0 - Vector3.UP * 0.6).normalized(), n0, n1, (n1 - Vector3.UP * 0.6).normalized(),
+			Vector2(u0, 0.0), Vector2(u0, 0.3), Vector2(u1, 0.3), Vector2(u1, 0.0), col)
+		g.quad_n(m0, t0, t1, m1, n0, n0, n1, n1, Vector2(u0, 0.3), Vector2(u0, 1.0), Vector2(u1, 1.0), Vector2(u1, 0.3), col)
+		g.quad_n(m0, t0, t1, m1, -n0, -n0, -n1, -n1, Vector2(u0, 0.3), Vector2(u0, 1.0), Vector2(u1, 1.0), Vector2(u1, 0.3), col.darkened(0.3))
+		g.tri(c + Vector3(0, tub_bot, 0), b0, b1, Vector3.DOWN, Vector2.ZERO, Vector2(u0, 0.0), Vector2(u1, 0.0), col)
+		g.tri(c + Vector3(0, tub_bot + 0.1, 0), b0 + Vector3(0, 0.1, 0), b1 + Vector3(0, 0.1, 0), Vector3.UP, Vector2.ZERO, Vector2(u0, 0.0), Vector2(u1, 0.0), Color(0.3, 0.3, 0.3))
+	# A white band round the middle.
+	g.cone(c, rx * 1.005, tub_bot + 0.55, rx * 1.005, tub_bot + 0.62, 16, WHITE)
 	g.kind = PierMesh.K_BOARDS
 	for xs: float in [-1.0, 1.0]:
-		g.abox(Vector3(pin.x + xs * 0.55, tub_bot + 0.45, pin.z), Vector3(0.45, 0.08, 1.6), Color(0.62, 0.45, 0.30))
-		g.abox(Vector3(pin.x + xs * 0.74, tub_bot + 0.8, pin.z), Vector3(0.07, 0.6, 1.6), Color(0.62, 0.45, 0.30))
+		g.abox(Vector3(pin.x + xs * 0.45, tub_bot + 0.45, pin.z), Vector3(0.45, 0.08, 1.3), Color(0.62, 0.45, 0.30))
+		g.abox(Vector3(pin.x + xs * 0.64, tub_bot + 0.75, pin.z), Vector3(0.07, 0.55, 1.2), Color(0.62, 0.45, 0.30))
 	g.kind = PierMesh.K_CHROME
 	var rail := PackedVector3Array()
-	for p: Vector2 in [Vector2(-0.82, -0.87), Vector2(0.82, -0.87), Vector2(0.82, 0.87), Vector2(-0.82, 0.87)]:
-		rail.append(Vector3(pin.x + p.x, tub_top + 0.04, pin.z + p.y))
-	g.sweep(rail, 0.035, STEEL, 5, true)
+	for i in n_seg:
+		var a := TAU * float(i) / float(n_seg)
+		rail.append(c + Vector3(cos(a) * rx, tub_top + 0.03, sin(a) * rz))
+	g.sweep(rail, 0.04, STEEL, 5, true)
 	g.kind = PierMesh.K_PAINT
 
 

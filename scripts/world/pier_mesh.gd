@@ -39,6 +39,9 @@ var anim: float = 0.0
 ## World-space triangles for one concave collision shape (things you stand on that are not boxes).
 var collision := PackedVector3Array()
 var collide := false
+## A slot the lights (bulbs, neon, LEDs) go to instead of the current one: the builders draw it
+## with no shadow, since a bulb's or a letter's shadow is nobody's and every cascade pays for it.
+var light_slot: String = ""
 
 
 func use(key: String, mat: Material) -> void:
@@ -79,24 +82,27 @@ func tri(a: Vector3, b: Vector3, c: Vector3, want: Vector3, ua: Vector2, ub: Vec
 		na = flat.normalized()
 		nb = na
 		nc = na
-	var vs: PackedVector3Array = _slot.v
+	var sl := _slot
+	if light_slot != "" and (kind == K_BULB or kind == K_NEON or kind == K_LED):
+		sl = _slots[light_slot]
+	var vs: PackedVector3Array = sl.v
 	vs.append(a)
 	vs.append(b)
 	vs.append(c)
-	var ns: PackedVector3Array = _slot.n
+	var ns: PackedVector3Array = sl.n
 	ns.append(na)
 	ns.append(nb)
 	ns.append(nc)
-	var us: PackedVector2Array = _slot.uv
+	var us: PackedVector2Array = sl.uv
 	us.append(ua)
 	us.append(ub)
 	us.append(uc)
-	var u2: PackedVector2Array = _slot.uv2
+	var u2: PackedVector2Array = sl.uv2
 	var d := Vector2(float(kind), anim)
 	u2.append(d)
 	u2.append(d)
 	u2.append(d)
-	var cs: PackedColorArray = _slot.col
+	var cs: PackedColorArray = sl.col
 	cs.append(col)
 	cs.append(col)
 	cs.append(col)
@@ -351,11 +357,14 @@ func commit(parent: Node3D, node_name: String, shadow: bool = true) -> MeshInsta
 static var built_triangles: int = 0
 
 
-func build_mesh() -> ArrayMesh:
-	built_triangles += triangles
+## The mesh of every slot, or only of `keys` (a mesh that casts and one that does not).
+func build_mesh(keys: Array = []) -> ArrayMesh:
 	var mesh := ArrayMesh.new()
 	for key in _order:
+		if not keys.is_empty() and not keys.has(key):
+			continue
 		var s: Dictionary = _slots[key]
+		built_triangles += (s.v as PackedVector3Array).size() / 3
 		if (s.v as PackedVector3Array).is_empty():
 			continue
 		var arrays := []

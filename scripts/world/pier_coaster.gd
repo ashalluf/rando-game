@@ -297,10 +297,18 @@ static func build(parent: Node3D, deck: float, detailed_build: bool) -> PierCoas
 	var mi := MeshInstance3D.new()
 	mi.name = "Track"
 	mi.mesh = _track_meshes[key]
-	if not detailed_build:
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	node.add_child(mi)
 	if detailed_build:
+		# The track's shadow is the far copy's track (shadows only): the same line on the deck at
+		# a fraction of the triangles in every cascade.
+		if not _track_meshes.has("far"):
+			_track_meshes["far"] = _track_mesh(deck, false)
+		var sh := MeshInstance3D.new()
+		sh.name = "TrackShadow"
+		sh.mesh = _track_meshes["far"]
+		sh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		node.add_child(sh)
 		node._add_body()
 		node._add_train()
 	return node

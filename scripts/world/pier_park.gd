@@ -93,8 +93,10 @@ const WALK_EDGES: Array[Vector2i] = [
 	Vector2i(7, 14), Vector2i(14, 15), Vector2i(15, 16), Vector2i(15, 17), Vector2i(15, 18), Vector2i(18, 19),
 	Vector2i(17, 20), Vector2i(10, 21), Vector2i(21, 22), Vector2i(22, 23), Vector2i(5, 24), Vector2i(24, 25),
 	Vector2i(3, 25), Vector2i(9, 21)]
+## The walk nodes of the midway, where most of the crowd starts.
+const MIDWAY: Array[int] = [3, 4, 5, 6, 7, 8, 15, 17, 18, 20, 24]
 ## How many people the park asks for (the crowd cap has the last word).
-const PEOPLE := 34
+const PEOPLE := 48
 
 const WHITE := Color(0.93, 0.92, 0.88)
 const TIMBER := Color(0.22, 0.17, 0.12)
@@ -226,14 +228,14 @@ static func warm() -> Array:
 	if not _cache.has("near"):
 		_cache["near"] = _static_mesh(true)
 	if not FerrisWheel._meshes.has("near"):
-		FerrisWheel._meshes["near"] = [FerrisWheel._static_mesh(true), FerrisWheel._turning_mesh(true)]
+		FerrisWheel._meshes["near"] = FerrisWheel._meshes_for(true)
 	PierCoaster._ensure()
 	if not PierCoaster._track_meshes.has("near"):
 		PierCoaster._track_meshes["near"] = PierCoaster._track_mesh(DECK_TOP, true)
 	if PierCoaster._car_meshes.is_empty():
 		PierCoaster._car_meshes = [PierCoaster._car_mesh(true), PierCoaster._car_mesh(false)]
 	if not PierCarousel._meshes.has("near"):
-		PierCarousel._meshes["near"] = [PierCarousel._base(true), PierCarousel._turning(true)]
+		PierCarousel._meshes["near"] = PierCarousel._meshes_for(true)
 	return []
 
 
@@ -245,12 +247,15 @@ static func build(anchor: Vector2, parent: Node3D, _statics: StaticBody3D, _plan
 	var key := "near" if detailed else "far"
 	if not _cache.has(key):
 		_cache[key] = _static_mesh(detailed)
-	var mi := MeshInstance3D.new()
-	mi.name = "Pier"
-	mi.mesh = _cache[key]
-	if not detailed:
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	park.add_child(mi)
+	for i in 2:
+		var mi := MeshInstance3D.new()
+		mi.name = ["Pier", "PierDetail"][i]
+		mi.mesh = _cache[key][i]
+		# The detail (piles, rails, lamps, bulbs, strings, lettering, prizes) casts nothing: every
+		# shadow cascade paid for it and a bulb's shadow is nobody's. Nor does the far copy.
+		if i == 1 or not detailed:
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		park.add_child(mi)
 	if detailed:
 		var pk := "pools"
 		if not _cache.has(pk):
@@ -287,7 +292,10 @@ static func people_steps(anchor: Vector2, chunk: CityChunk) -> Array[Callable]:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([chunk.plan.seed if chunk.plan else 0, "pier_park_people"])
 	for i in PEOPLE:
+		# Two in three start on the midway (the arch out to the games, and inside the loop).
 		var node := rng.randi() % WALK_NODES.size()
+		if rng.randf() < 0.66:
+			node = MIDWAY[rng.randi() % MIDWAY.size()]
 		steps.append(_spawn_goer.bind(chunk, anchor, node, rng.randi()))
 	return steps
 
@@ -307,17 +315,21 @@ static func _spawn_goer(chunk: CityChunk, anchor: Vector2, node: int, seed_value
 
 # --- The pier and the midway: one static mesh -------------------------------------------------
 
-static func _static_mesh(detailed: bool) -> ArrayMesh:
+## [the mesh that casts, the detail that does not].
+static func _static_mesh(detailed: bool) -> Array:
 	var g := PierMesh.new()
 	g.use("deck", PropFactory.pbr("planks", 2.4, Color(0.78, 0.70, 0.62)))
 	g.use("p", PierMesh.material("park"))
+	g.use("d", PierMesh.material("park"))
+	g.light_slot = "d"
 	_decks(g, detailed)
 	_dbg(g, "_decks")
-	g.slot("p")
+	g.slot("d")
 	_piles(g, detailed)
 	_dbg(g, "_piles")
 	_rails(g, detailed)
 	_dbg(g, "_rails")
+	g.slot("p")
 	_ramp(g, detailed)
 	_dbg(g, "_ramp")
 	_arch(g, ENTRY_ARCH_X, 11.0, Landmarks.PIER_NAME, Color(0.10, 0.32, 0.55), Color(1.0, 0.85, 0.3), detailed)
@@ -326,21 +338,23 @@ static func _static_mesh(detailed: bool) -> ArrayMesh:
 	_dbg(g, "_arcade")
 	_bumper_hall(g, detailed)
 	_dbg(g, "_bumper_hall")
+	g.slot("d")
 	_lamps(g, detailed)
 	_dbg(g, "_lamps")
 	_wheel_queue(g, detailed)
 	if detailed:
-		for s: Array in STANDS:
-			_stand(g, s)
-		for b: Array in BOOTHS:
-			_booth(g, b)
 		for b: Array in benches():
 			_bench(g, b[0], b[1])
 		for t: Vector2 in TABLES:
 			_table(g, t)
 		_strings(g)
+		g.slot("p")
+		for s: Array in STANDS:
+			_stand(g, s)
+		for b: Array in BOOTHS:
+			_booth(g, b)
 	_dbg(g, "_strings")
-	return g.build_mesh()
+	return [g.build_mesh(["deck", "p"]), g.build_mesh(["d"])]
 
 
 static func _dbg(g: PierMesh, what: String) -> void:
