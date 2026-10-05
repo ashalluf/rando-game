@@ -102,7 +102,7 @@ static func attach(chunk: CityChunk, entries: Array, nodes: Dictionary) -> void:
 	var trees: Array = []
 	for e: Array in entries:
 		trees.append(_entry(e))
-	var rec := {"chunk": weakref(chunk), "trees": trees, "nodes": nodes, "charred": {}}
+	var rec := {"key": chunk.key, "chunk": weakref(chunk), "trees": trees, "nodes": nodes, "charred": {}}
 	_chunks[chunk.key] = rec
 	var burnt: Dictionary = WorldState.charred.get(chunk.key, {})
 	if burnt.is_empty():
