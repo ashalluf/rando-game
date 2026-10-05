@@ -1227,6 +1227,12 @@ static func _ship_level(lv: int) -> Buf:
 				b.box(Vector3(lx - 0.25, SHIP_DECK_Y, sz * 13.0 - 0.25), Vector3(lx + 0.25, SHIP_CARGO_Y + 5.2, sz * 13.0 + 0.25), 1 | 2 | 16 | 32)
 			b.part = S_GRATE
 			b.box(Vector3(lx - 0.5, SHIP_CARGO_Y + 5.2, -13.4), Vector3(lx + 0.5, SHIP_CARGO_Y + 5.4, 13.4))
+			# Deck floodlights under the bridge's walkway, lighting the bays at night (PortLife
+			# lays their pools).
+			b.part = S_LAMP
+			b.color = GREY
+			for sz: float in [-8.0, 8.0]:
+				b.box(Vector3(lx - 0.3, SHIP_CARGO_Y + 4.9, sz - 0.3), Vector3(lx + 0.3, SHIP_CARGO_Y + 5.2, sz + 0.3))
 			if lv == 0:
 				b.part = S_PAINT
 				b.color = YELLOW
