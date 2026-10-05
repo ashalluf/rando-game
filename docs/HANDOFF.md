@@ -8674,3 +8674,11 @@ shadows only within 45 m. Trucks are not routed round a cart set a parked car al
 wreck within 13 m of a kerb; wrecks in a yard or a car park stay. The sweeper does not follow
 the real street-sweeping schedule. Sounds are synthesised, not recordings (the bang has Kenney's
 `hit_metal` under it).
+
+**Wave 2 update (merged with fleet/base).** The schools' `SCHOOL_BUS` took body type 19, so the
+service vehicles moved to 20-24 (GARBAGE_TRUCK 20 ... DELIVERY_VAN 24; `car_shot.gd
+--each=20,21,22,23,24`); `BigVehicles.is_big()` takes both. Review fix: `_survey_bins()` walked
+the blocks round the player one short on the +x / +z side (carts on the far edge of the radius
+were never drawn), and its dirty flag logic was dead code (it redraws every look on purpose, the
+carts' scene transforms move with each origin shift). Gate: 1,400 of 1,401 (the known minimap
+closed-road check), peak RSS 3.3 GB.
