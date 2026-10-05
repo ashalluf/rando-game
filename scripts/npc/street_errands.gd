@@ -461,9 +461,9 @@ static func _append_shop_visit(steps: Array, door: Dictionary, secs: float, truc
 	var out: Vector2 = door.out
 	var yaw := atan2(out.x, out.y)
 	steps.append({"do": "goto", "at": door.front})
-	steps.append({"do": "path", "pts": [at + out * (0.95 if truck else 0.5)], "keep_truck": truck})
+	steps.append({"do": "path", "pts": [at + out * (1.2 if truck else 0.9)], "keep_truck": truck})
 	steps.append({"do": "face", "yaw": yaw, "secs": 0.5, "keep_truck": truck})
-	steps.append({"do": "path", "pts": [at - out * 0.25], "pace": 0.8, "keep_truck": truck})
+	steps.append({"do": "path", "pts": [at + out * 0.15], "pace": 0.8, "keep_truck": truck})
 	steps.append({"do": "hide", "door": door, "secs": secs})
 
 
@@ -551,6 +551,11 @@ static func _do_goto(p: Pedestrian, step: Dictionary) -> bool:
 	if not step.get("sent", false):
 		step.sent = true
 		step.until = _now() + 90000
+		# A few metres along the same pavement: straight there, placed (the ring's own walking
+		# rounds a target off the band's edge and can stop short of it).
+		if Vector2(p.position.x, p.position.z).distance_to(at) < 6.0:
+			_next(p, {"do": "path", "pts": [at]})
+			return true
 		p._go_to(at)
 		p._pause_left = 0.0
 		p._pause_next = 0.0
@@ -564,8 +569,10 @@ static func _do_goto(p: Pedestrian, step: Dictionary) -> bool:
 	if d < float(step.get("best", INF)) - 0.2:
 		step.best = d
 		step.since = _now()
-	elif d < 3.5 and _now() - int(step.get("since", _now())) > 1500:
-		_next(p)
+	elif _now() - int(step.get("since", _now())) > 1500:
+		# Held up by something on the pavement (a lamp post, a bin, somebody standing), or the
+		# ring's walking stopped short: the rest of the way straight, placed.
+		_next(p, {"do": "path", "pts": [at]})
 		return true
 	if _now() > int(step.until):
 		# Never got there (walled in by something on the pavement): off it.
@@ -636,10 +643,11 @@ static func _do_wait_bus(p: Pedestrian, step: Dictionary, delta: float) -> void:
 
 
 static func _do_board(p: Pedestrian, step: Dictionary, delta: float) -> void:
-	var bus: Vehicle = step.bus
-	if not is_instance_valid(bus) or not bus.is_traffic():
+	var bv: Variant = step.bus
+	if not is_instance_valid(bv) or not (bv as Vehicle).is_traffic():
 		_abort(p)
 		return
+	var bus: Vehicle = bv
 	var fit := bus.get_node_or_null("BusFittings") as BigVehicles.BusFittings
 	var t: Dictionary = bus.traffic
 	# Held at the stop while anybody is still getting on.
@@ -661,12 +669,12 @@ static func _do_board(p: Pedestrian, step: Dictionary, delta: float) -> void:
 
 
 static func _do_ride(p: Pedestrian, step: Dictionary) -> void:
-	var bus: Vehicle = step.bus
-	if not is_instance_valid(bus) or not bus.is_inside_tree() or not bus.is_traffic() or _now() > int(step.until):
+	var bv: Variant = step.bus
+	if not is_instance_valid(bv) or not (bv as Vehicle).is_inside_tree() or not (bv as Vehicle).is_traffic() or _now() > int(step.until):
 		# Off the bus somewhere out of sight: one of the people inside, who come out of doors.
 		_next(p, {"do": "inside", "door": _near_door(p, p.ring.get_center(), 400.0), "until": _now() + 4000})
 		return
-	var wp := WorldState.to_world(bus.global_position)
+	var wp := WorldState.to_world((bv as Vehicle).global_position)
 	p.position = Vector3(wp.x, wp.y, wp.z)
 
 
@@ -731,7 +739,7 @@ static func _do_inside(p: Pedestrian, step: Dictionary) -> void:
 		var out: Vector2 = d.out
 		var what: int = p.errand.get("delivery", DELIVER_NONE)
 		var steps: Array = [
-			{"do": "show", "at": (d.p as Vector2) - out * 0.2, "yaw": atan2(-out.x, -out.y)},
+			{"do": "show", "at": (d.p as Vector2) + out * 0.15, "yaw": atan2(-out.x, -out.y)},
 			{"do": "ring", "ring": d.ring},
 		]
 		if what == DELIVER_TRUCK:
@@ -740,7 +748,7 @@ static func _do_inside(p: Pedestrian, step: Dictionary) -> void:
 			steps.append({"do": "bag", "on": false})
 		elif _rng_of(p).randf() < BAG_SHARE and p._carry == CrowdLife.Carry.NONE:
 			steps.append({"do": "bag", "on": true})
-		steps.append({"do": "path", "pts": [(d.p as Vector2) + out * (1.0 if what == DELIVER_TRUCK else 0.7), d.front]})
+		steps.append({"do": "path", "pts": [(d.p as Vector2) + out * (1.2 if what == DELIVER_TRUCK else 0.9), d.front]})
 		steps.append_array((p.errand.steps as Array).slice(int(p.errand.i) + 1))
 		p.errand.steps = steps
 		p.errand.i = 0
@@ -798,7 +806,10 @@ static func _let_off(bus: Vehicle) -> void:
 	var key := _stop_key(stop) if not stop.is_empty() else Vector4i.ZERO
 	var off: Array = []
 	for id: int in _hidden:
-		var p: Pedestrian = _hidden[id]
+		var pv: Variant = _hidden[id]
+		if not is_instance_valid(pv):
+			continue
+		var p: Pedestrian = pv
 		if not is_instance_valid(p) or p.errand.is_empty():
 			continue
 		var s: Dictionary = (p.errand.steps as Array)[int(p.errand.i)]
@@ -808,7 +819,10 @@ static func _let_off(bus: Vehicle) -> void:
 	for id: int in _hidden.keys():
 		if extra <= 0:
 			break
-		var p: Pedestrian = _hidden[id]
+		var pv: Variant = _hidden[id]
+		if not is_instance_valid(pv):
+			continue
+		var p: Pedestrian = pv
 		if not is_instance_valid(p) or p.errand.is_empty() or off.has(p):
 			continue
 		var s: Dictionary = (p.errand.steps as Array)[int(p.errand.i)]
@@ -1213,9 +1227,10 @@ static func _along(car: Node3D) -> Vector2:
 
 ## The bus standing at `stop` with its doors open, or [].
 static func _bus_at(stop: Dictionary) -> Array:
-	for bus: Vehicle in _buses:
-		if not is_instance_valid(bus) or not bus.is_traffic():
+	for bv: Variant in _buses:
+		if not is_instance_valid(bv) or not (bv as Vehicle).is_traffic():
 			continue
+		var bus: Vehicle = bv
 		var t: Dictionary = bus.traffic
 		if int(t.axis) != int(stop.axis) or int(t.index) != int(stop.index) or int(t.dir) != int(stop.dir):
 			continue
@@ -1310,7 +1325,7 @@ static func _to_edge(r: Rect2, p: Vector2, o: Vector2) -> float:
 
 
 static func _door_alive(door: Dictionary) -> bool:
-	return (door.chunk as WeakRef).get_ref() != null
+	return door.has("chunk") and (door.chunk as WeakRef).get_ref() != null
 
 
 ## A shop door on the walker's own block within reach, open (by night only the shops that are).
@@ -1441,7 +1456,10 @@ static func _honk(car: Node3D) -> void:
 ## Somebody hidden inside somewhere near `at` (true world XZ), taken out of the hidden pool.
 static func _from_pool(at: Vector2, reach: float) -> Pedestrian:
 	for id: int in _hidden.keys():
-		var p: Pedestrian = _hidden[id]
+		var pv: Variant = _hidden[id]
+		if not is_instance_valid(pv):
+			continue
+		var p: Pedestrian = pv
 		if not is_instance_valid(p) or p.errand.is_empty() or p._down:
 			continue
 		var s: Dictionary = (p.errand.steps as Array)[int(p.errand.i)]

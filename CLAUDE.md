@@ -5,6 +5,11 @@ two are the source of truth; the handoff is the narrative (state, workflow, gotc
 for a session on any account. Update all of them whenever a design decision changes. Every
 session starts with no memory.
 
+**State on 2026-10-05 (takeover):** `main` is build 345. Thirty-one more fleet branches are merged
+but not yet on main: `wt/integration-a` (gated apart from one flaky check whose fix is `82a664c`)
+and `wt/integration-b` (out of memory at city load, needs a bisect). Start at docs/HANDOFF.md
+section 000000; the fleet tooling is in `tools/fleet/`.
+
 ## Project summary
 
 A 3D open-world chaos sandbox built in **Godot 4.7.2** (GDScript, Forward+ renderer).

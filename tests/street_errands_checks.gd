@@ -84,6 +84,13 @@ func _walker(at: Vector2, seed_value: int) -> Pedestrian:
 	return ped
 
 
+## What a walker is up to, for a failing check's label.
+func _why(p: Pedestrian) -> String:
+	if not is_instance_valid(p):
+		return "freed"
+	return "step '%s' visible %s down %s panic %.1f near %s" % [_step(p), p.visible, p._down, p._panic_left, StreetErrands._near(p)]
+
+
 func _player_to(at: Vector2) -> void:
 	var player := _tree.get_first_node_in_group("player") as Player
 	player.global_position = _ws.to_local(Vector3(at.x, _chunk.ground_y(at.x, at.y) + 12.0, at.y))
@@ -159,7 +166,7 @@ func _bus() -> void:
 		StreetErrands._start_bus(p, stop, true)
 	await _ticks(20)
 	var waiting := riders.all(func(p: Pedestrian) -> bool: return _step(p) == "wait_bus" and p.visible)
-	_check(waiting, "errands: two walkers stand in the bus stop's queue")
+	_check(waiting, "errands: two walkers stand in the bus stop's queue (%s)" % ", ".join(riders.map(func(p: Pedestrian) -> String: return _why(p))))
 	fit.set_doors(true)
 	var boarded := false
 	for i in 60 * 12:
@@ -252,7 +259,7 @@ func _jaywalk() -> void:
 	var here := Vector2(p.position.x, p.position.z)
 	var next: Rect2 = _plan.block(0, -1).rect
 	_check(crossed and in_road and p.ring == next and next.grow(0.5).has_point(here) and not StreetErrands.on_carriageway(_plan, here),
-		"errands: the jaywalker crosses to the block opposite (at %s, ring %s)" % [here.round(), p.ring == next])
+		"errands: the jaywalker crosses to the block opposite (at %s, ring %s, %s)" % [here.round(), p.ring == next, _why(p)])
 	p.queue_free()
 	# Traffic: a walker standing in a lane 30 m ahead of a car; the car stops short of them.
 	var axis := int(look.axis)
