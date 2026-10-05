@@ -168,6 +168,9 @@ func _draw() -> void:
 		var car := node as Node3D
 		if car == null or car == mine or car.is_in_group("emergency_unit") or car.is_in_group("police_car"):
 			continue
+		# Moving traffic only: parked cars lined every kerb with chips and broke the streets up.
+		if not car.get("traffic") and car.get("driver") == null:
+			continue
 		var cw: Vector3 = _city.world_position(car.global_position)
 		var cp := Vector2(cw.x, cw.z)
 		if cp.distance_to(center) < radius * 1.3:

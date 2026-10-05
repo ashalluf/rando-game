@@ -14,14 +14,14 @@ render_mode unshaded, blend_add, depth_draw_never, cull_disabled, shadows_disabl
 uniform int kind = 0;
 uniform float height = 420.0;
 // The beam's radius near and the fraction of the distance it never gets thinner than (about
-// 2 px at 1080 lines with a 75 degree lens).
+// 4 px at 1080 lines with a 75 degree lens).
 uniform float beam_radius = 0.9;
-uniform float beam_widen = 0.0028;
-uniform float ring_radius = 6.0;
+uniform float beam_widen = 0.006;
+uniform float ring_radius = 8.0;
 uniform float ring_widen = 0.012;
 // Linear colour and energy (the HDR overshoot is what glows).
 uniform vec3 tint = vec3(0.46, 0.18, 1.0);
-uniform float energy = 2.4;
+uniform float energy = 1.8;
 
 varying float v_y;
 varying float v_dist;
@@ -48,7 +48,7 @@ void fragment() {
 		float fade = pow(1.0 - clamp(v_y, 0.0, 1.0), 1.4);
 		float rise = 0.75 + 0.25 * sin((v_y * height * 0.08 - TIME * 3.0));
 		a = core * fade * rise;
-		col = mix(col, vec3(1.0), core * core * 0.35);
+		col = mix(col, vec3(0.85, 0.75, 1.0), core * core * 0.25);
 	} else {
 		float r = length(UV * 2.0 - 1.0);
 		float ring = smoothstep(0.7, 0.8, r) * (1.0 - smoothstep(0.88, 0.97, r));
