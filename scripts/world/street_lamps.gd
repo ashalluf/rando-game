@@ -110,7 +110,7 @@ static func pick(plan: CityPlan, at: Vector2, facing: Vector2) -> int:
 		CityPlan.District.MIDTOWN:
 			if wide:
 				return Type.MAST if led and h < 0.6 else Type.COBRA
-			if h < 0.45:
+			if h < 0.55:
 				return Type.LANTERN
 			return Type.COBRA
 		CityPlan.District.CAMPUS:
