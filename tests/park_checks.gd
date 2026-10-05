@@ -60,7 +60,8 @@ func _roles(plan: CityPlan) -> Array[Vector2i]:
 	for bx in range(lo.x, hi.x + 1):
 		for bz in range(lo.y, hi.y + 1):
 			var b := plan.block(bx, bz)
-			if not b.has("grounds"):
+			# Only Parks' own roles (a public school's grounds are Schools': tests/schools_checks.gd).
+			if not b.has("grounds") or not (b.grounds in ["rec", "school"]):
 				continue
 			var rect: Rect2 = b.rect
 			if plan.zone_at(rect.get_center()) != MacroMap.Zone.CITY or not (int(b.district) in Parks.REC_DISTRICTS):

@@ -8,15 +8,15 @@ extends VehicleBody3D
 ## rolls them - TrafficManager spawns them on purpose. FIRE_ENGINE and AMBULANCE (Emergency) come
 ## last for the same reason: only EmergencyCar builds them. The second wave of everyday bodies
 ## (tools/make_more_cars.py: the hatchback, the full-size SUV, the minivan, the taxi, the old
-## beater) comes after them, again so that no older index moves; then the service vehicles
-## (ServiceVehicles: garbage truck, street sweeper, tow truck, ice-cream truck, delivery van),
-## which only ServiceFleet sends.
-enum BodyType { SEDAN, PICKUP, VAN, SPORTS, SUPER, SPIDER, HYPER, TRACK, CROSSOVER, BUS, BOX_TRUCK, SEMI, FIRE_ENGINE, AMBULANCE, HATCHBACK, SUV, MINIVAN, TAXI, BEATER,
+## beater) comes after them, again so that no older index moves, and the school bus (Schools)
+## after those; then the service vehicles (ServiceVehicles: garbage truck, street sweeper, tow
+## truck, ice-cream truck, delivery van), which only ServiceFleet sends.
+enum BodyType { SEDAN, PICKUP, VAN, SPORTS, SUPER, SPIDER, HYPER, TRACK, CROSSOVER, BUS, BOX_TRUCK, SEMI, FIRE_ENGINE, AMBULANCE, HATCHBACK, SUV, MINIVAN, TAXI, BEATER, SCHOOL_BUS,
 	GARBAGE_TRUCK, STREET_SWEEPER, TOW_TRUCK, ICE_CREAM_TRUCK, DELIVERY_VAN }
 enum Addon { NONE, ROOF_RACK, SPOILER, LIGHT_BAR }
 
 ## Original names. Nothing here is or imitates a real manufacturer's model.
-const BODY_NAMES := ["Sedan", "Pickup", "Van", "Sports", "Vantari", "Vantari Aperta", "Kestrel", "Kestrel RS", "Crossover", "City Bus", "Box Truck", "Semi", "Fire Engine", "Ambulance", "Hatchback", "SUV", "Minivan", "Taxi", "Beater",
+const BODY_NAMES := ["Sedan", "Pickup", "Van", "Sports", "Vantari", "Vantari Aperta", "Kestrel", "Kestrel RS", "Crossover", "City Bus", "Box Truck", "Semi", "Fire Engine", "Ambulance", "Hatchback", "SUV", "Minivan", "Taxi", "Beater", "School Bus",
 	"Garbage Truck", "Street Sweeper", "Tow Truck", "Ice Cream Truck", "Delivery Van"]
 ## Generated body models per type (see docs/ASSETS.md). Missing files fall back to the box car.
 const BODY_MODELS := {
@@ -39,6 +39,7 @@ const BODY_MODELS := {
 	BodyType.MINIVAN: "res://assets/models/road_minivan.glb",
 	BodyType.TAXI: "res://assets/models/road_taxi.glb",
 	BodyType.BEATER: "res://assets/models/road_beater.glb",
+	BodyType.SCHOOL_BUS: "res://assets/models/road_school_bus.glb",
 	BodyType.GARBAGE_TRUCK: "res://assets/models/road_garbage.glb",
 	BodyType.STREET_SWEEPER: "res://assets/models/road_sweeper.glb",
 	BodyType.TOW_TRUCK: "res://assets/models/road_tow.glb",
@@ -70,6 +71,8 @@ const BODY_ODDS := {
 	# Nor the emergency apparatus (Emergency sends them).
 	BodyType.FIRE_ENGINE: 0, BodyType.AMBULANCE: 0,
 	BodyType.HATCHBACK: 70, BodyType.SUV: 80, BodyType.MINIVAN: 55, BodyType.TAXI: 0, BodyType.BEATER: 35,
+	# Nor the school bus (Schools parks them and sends them out at the bell).
+	BodyType.SCHOOL_BUS: 0,
 	# Nor the service vehicles (ServiceFleet sends them to work).
 	BodyType.GARBAGE_TRUCK: 0, BodyType.STREET_SWEEPER: 0, BodyType.TOW_TRUCK: 0, BodyType.ICE_CREAM_TRUCK: 0,
 	BodyType.DELIVERY_VAN: 0,
@@ -131,6 +134,9 @@ const WHEEL_POSE := {
 	BodyType.MINIVAN: {"x": 0.852, "front": -1.570, "rear": 1.460, "y": 0.168, "r": 0.358, "w": 0.235, "baked": true},
 	BodyType.TAXI: {"x": 0.797, "front": -1.495, "rear": 1.335, "y": 0.168, "r": 0.345, "w": 0.235, "baked": true},
 	BodyType.BEATER: {"x": 0.745, "front": -1.436, "rear": 1.184, "y": 0.145, "r": 0.310, "w": 0.195, "baked": true},
+	# The school bus (tools/make_school_bus.py prints these; Schools).
+	BodyType.SCHOOL_BUS: {"x": 0.985, "front": -3.512, "rear": 2.728, "y": 0.200, "r": 0.500, "w": 0.300, "baked": true,
+			"axles": [[-3.512, false], [2.728, true]], "dual_x": 0.885, "dual_gap": 0.330},
 	# The service vehicles (tools/make_service_vehicles.py prints these; ServiceVehicles). The
 	# three on the box truck's chassis share its axles; the delivery van is the van.
 	BodyType.GARBAGE_TRUCK: {"x": 0.860, "front": -3.377, "rear": 2.423, "y": 0.180, "r": 0.440, "w": 0.235, "baked": true,
@@ -582,6 +588,8 @@ var _lamp_bits: int = 0
 var light_brake: bool = false
 var light_signal: int = 0
 var light_reverse: bool = false
+## Seconds a parked car's alarm still sounds (CarAlarm, which counts it down): its hazards flash.
+var alarm_left: float = 0.0
 ## Material key last put on the lamps, and the brake light's hold (s): a queue's stop-start
 ## creep would otherwise flicker it.
 var _light_key: int = -1
@@ -720,6 +728,7 @@ func take_hit(_shape_index: int, damage: float, dir: Vector3, at: Vector3 = Vect
 	if is_traffic() and kind != HIT_CRASH:
 		drop_out_of_traffic()
 	damage_state().hit(kind, at, dir, damage)
+	CarAlarm.on_hit(self, kind, damage)
 
 
 ## This car's damage, made now if it has none yet.
@@ -1167,7 +1176,7 @@ func _add_night_lights(dims: Dictionary) -> void:
 func lights_running() -> bool:
 	if has_meta("wreck") or is_wreck():
 		return false
-	return _cabin_seats() != 0
+	return _cabin_seats() != 0 or alarm_left > 0.0
 
 
 ## Works out what the lamps show this tick: the brake light from the brake pedal (the player)
@@ -1193,6 +1202,8 @@ func _tick_lights(delta: float) -> void:
 		sig = _traffic_signal()
 	elif _npc_driver:
 		braking = linear_velocity.length() < 1.0 or brake > 5.0
+		sig = 2
+	elif alarm_left > 0.0:
 		sig = 2
 	if braking:
 		_brake_hold = 0.35
@@ -1606,6 +1617,9 @@ func _dims() -> Dictionary:
 			return {"length": 5.181, "width": 2.02, "lamp_y": 0.66, "tail_y": 1.11, "chassis_h": 0.8, "cabin": Vector2(-1.6, 3.6), "cabin_h": 0.9, "wheel_z": 1.52, "wheel_front": 1.570, "wheel_rear": 1.460, "track": 1.70, "tyre_r": 0.352, "ride": -0.171, "road": -0.190}
 		BodyType.BEATER:
 			return {"length": 4.793, "width": 1.76, "lamp_y": 0.435, "tail_y": 0.635, "chassis_h": 0.7, "cabin": Vector2(-1.0, 2.3), "cabin_h": 0.65, "wheel_z": 1.31, "wheel_front": 1.436, "wheel_rear": 1.184, "track": 1.49, "tyre_r": 0.329, "ride": -0.148, "road": -0.165}
+		BodyType.SCHOOL_BUS:
+			return {"length": 12.795, "width": 2.44, "lamp_y": 0.56, "tail_y": 1.06, "chassis_h": 1.0, "cabin": Vector2(-6.1, 12.2), "cabin_h": 1.3, "wheel_z": 3.1, "wheel_front": 3.512, "wheel_rear": 2.728, "track": 1.97, "tyre_r": 0.461, "ride": -0.273, "road": -0.300,
+					"light_len": 12.36, "light_z": 0.0}
 		BodyType.GARBAGE_TRUCK, BodyType.STREET_SWEEPER, BodyType.TOW_TRUCK, BodyType.ICE_CREAM_TRUCK, BodyType.DELIVERY_VAN:
 			return ServiceVehicles.DIMS[body_type]
 		BodyType.SPORTS:
@@ -1779,7 +1793,7 @@ func _cabin_seats() -> int:
 		return 1
 	if not _npc_driver or _abandoned():
 		return 0
-	if body_type == BodyType.BUS:
+	if body_type == BodyType.BUS or body_type == BodyType.SCHOOL_BUS:
 		# The driver alone up front; the passengers are the bus's rows (CarCabin).
 		return 1
 	if body_type == BodyType.TAXI:

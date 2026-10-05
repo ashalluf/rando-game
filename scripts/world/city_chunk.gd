@@ -348,6 +348,11 @@ func begin_build() -> void:
 	if capturing:
 		_begin_capture(block, replica_role)
 		return
+	# The marina's blocks (Marina) build the marina, whatever their zone (MarinaBuild).
+	if plan.marina_block(ix, iz):
+		_steps.append_array(MarinaBuild.attach(self, block))
+		_steps.append(_finish_build)
+		return
 	match zone:
 		MacroMap.Zone.OCEAN:
 			_steps.append(_build_water)
@@ -418,6 +423,8 @@ func begin_build() -> void:
 				_steps.append(_add_relief_floor)
 	if replica != null and ReplicaBuilder.wanted(self):
 		_steps.append_array(ReplicaBuilder.attach(self, replica_role))
+	# The marina's channel, jetties, breakwater and highway bridge where they reach this chunk.
+	_steps.append_array(MarinaBuild.extras(self))
 	# The freeway runs over every zone: city blocks, the beach, the hills, the lot. It is built
 	# last so its deck lands on top of whatever the chunk laid down.
 	_steps.append(_build_freeway)
@@ -429,6 +436,9 @@ func begin_build() -> void:
 		# Tags, buffs, posters and stickers (StreetWear) on the walls, poles and freeway columns
 		# everything above built. Hash-seeded: the block's rng is untouched.
 		_steps.append(StreetWear.build.bind(self))
+		# Bougainvillea, ivy, fig, jasmine, vines and accent plants on what the build laid
+		# (ClimbingPlants: hash-seeded, moves itself behind the deferred steps).
+		_steps.append(ClimbingPlants.build.bind(self))
 	_steps.append(_finish_build)
 
 
@@ -438,6 +448,11 @@ func begin_build() -> void:
 ## have far versions of their own) and everything the finish step makes (nodes).
 func _begin_capture(block: Dictionary, replica_role: int = 0) -> void:
 	captured = {"ground": [], "boxes": [], "batch": {}}
+	if plan.marina_block(ix, iz):
+		_steps.append(MarinaBuild.capture.bind(self))
+		_steps.append(func() -> void: captured.batch = _batch.data())
+		return
+	_steps.append_array(MarinaBuild.extras(self))
 	match zone:
 		MacroMap.Zone.CITY:
 			# A replica block or a landmark's site does not build the seeded block, so the far
@@ -447,6 +462,8 @@ func _begin_capture(block: Dictionary, replica_role: int = 0) -> void:
 					_steps.append(RiverBuild.capture.bind(self))
 				else:
 					_steps.append_array(_block_steps(block))
+			elif block.has("site"):
+				_steps.append_array(Landmarks.capture_steps(block.site, self))
 		MacroMap.Zone.PORT:
 			_steps.append_array(_port_steps(block))
 		MacroMap.Zone.AIRPORT:
@@ -466,6 +483,8 @@ func _build_landmarks() -> void:
 			rng.seed = hash([plan.seed, lm.id, crowd[0]])
 			for step in _crowd_steps(crowd[0], crowd[1], crowd[2], rng):
 				_steps.insert(_steps.size() - 1, step)
+		for step in Landmarks.people_steps(lm, self):
+			_steps.insert(_steps.size() - 1, step)
 
 
 ## Batches that are paint on the road (shaders/road_paint.gdshader wears them).
@@ -497,7 +516,9 @@ func _finish_build() -> void:
 	Parks.commit(self)
 	_commit_far_ground()
 	_commit_boxes()
+	var fire_trees := TreeFire.collect(self, _batch)
 	_mm_nodes = _batch.build(self)
+	TreeFire.attach(self, fire_trees, _mm_nodes)
 	for paint_key: String in PAINT_KEYS:
 		if _mm_nodes.has(paint_key):
 			(_mm_nodes[paint_key] as MultiMeshInstance3D).material_override = PropFactory.road_paint_material()
@@ -671,6 +692,8 @@ func _port_steps(block: Dictionary) -> Array[Callable]:
 ## over the port rect and the bay, so this is ~0 - but the paint alone sampled it ~2,000 times
 ## (five a line, for the tilt), 5-15 ms a chunk.
 var _port_lift := 0.0
+## FULL port chunks: every stack pile's top (PortLife.pile()), for the moving gantries.
+var _port_piles: Array = []
 
 
 func _pgy(_x: float, _z: float) -> float:
@@ -703,6 +726,8 @@ func _port_yard(st: Dictionary) -> void:
 	st.rows = int(area.size.y / 9.0)
 	st.cols = int(area.size.x / 14.0)
 	st.origin = Vector2(area.position.x + 8.0, area.position.y + 6.0)
+	st.gate = PortLife.is_gate(plan, ix, iz)
+	_port_piles.clear()
 	var lanes: Array[int] = []
 	st.lanes = lanes
 	_port_run(func() -> void:
@@ -725,11 +750,14 @@ func _port_yard(st: Dictionary) -> void:
 					picks.append(rng.randi() % PORT_COLOR_ROLLS)
 				if p.y + PORT_ROW_OFFSET + PortKit.W * 0.5 > float(st.apron_z):
 					continue
+				# The gate's chunk holds no stacks (PortLife / PortGate; after the rolls).
+				if st.gate:
+					continue
 				_port_stack(p, height, picks, kit))
 
 
 func _port_paint(st: Dictionary) -> void:
-	if level != Level.FULL or capturing:
+	if level != Level.FULL or capturing or st.gate:
 		return
 	_port_run(func() -> void: _paint_port_yard(st.area, st.origin, st.rows, st.cols, st.lanes, st.apron_z))
 
@@ -737,8 +765,12 @@ func _port_paint(st: Dictionary) -> void:
 func _port_kit(st: Dictionary) -> void:
 	var area: Rect2 = st.area
 	var kit: RandomNumberGenerator = st.kit
+	if level == Level.FULL and not capturing:
+		PortLife.ensure(self)
 	_port_run(func() -> void:
-		if st.quay:
+		if st.gate:
+			PortGate.build(self, area)
+		elif st.quay:
 			_build_quay(area, kit)
 		else:
 			_place_rtg(area, st.origin, st.rows, st.cols, kit)
@@ -791,6 +823,7 @@ func _port_stack(p: Vector2, height: int, picks: Array[int], kit: RandomNumberGe
 		var n := height if li == 0 else clampi(height + kit.randi_range(-1, 1), 1, 4)
 		var twenty := kit.randf() < 0.22
 		var y := PORT_YARD_TOP
+		var top_index := -1
 		for h in n:
 			var hc := kit.randf() < (0.1 if twenty else 0.45)
 			var hgt := PortKit.H_HC if hc else PortKit.H_STD
@@ -801,8 +834,11 @@ func _port_stack(p: Vector2, height: int, picks: Array[int], kit: RandomNumberGe
 					var liv := _port_livery(pick if e < 0.0 else kit.randi() % PORT_COLOR_ROLLS, kit)
 					_add_container(Vector3(cx, y + hgt * 0.5, z), false, hc, row_flip != (kit.randf() < 0.2), liv, kit)
 			else:
-				_add_container(Vector3(p.x, y + hgt * 0.5, z), true, hc, row_flip != (kit.randf() < 0.15), _port_livery(pick, kit), kit)
+				top_index = _add_container(Vector3(p.x, y + hgt * 0.5, z), true, hc, row_flip != (kit.randf() < 0.15), _port_livery(pick, kit), kit)
 			y += hgt
+		if level == Level.FULL and not capturing:
+			# Each pile's top for PortLife's gantries (a 40 ft box on top can be lifted off).
+			_port_piles.append(PortLife.pile(_batch, top_index if not twenty else -1, p.x, z, y + _port_lift))
 		if level == Level.FULL:
 			_add_shape(Vector3(PortKit.L40, y - PORT_YARD_TOP, PortKit.W), Vector3(p.x, (PORT_YARD_TOP + y) * 0.5 + _pgy(p.x, z), z))
 
@@ -820,9 +856,9 @@ func _port_livery(pick: int, kit: RandomNumberGenerator) -> int:
 	return PortKit.COLOR_TO_LIVERY[pick]
 
 
-func _add_container(centre: Vector3, forty: bool, high_cube: bool, flip: bool, livery: int, kit: RandomNumberGenerator) -> void:
+func _add_container(centre: Vector3, forty: bool, high_cube: bool, flip: bool, livery: int, kit: RandomNumberGenerator) -> int:
 	var look := PortKit.container_look(livery, kit)
-	_batch.add("container", PropFactory.container(), PortKit.container_xform(centre, forty, high_cube, flip), look[0], look[1])
+	return _batch.add("container", PropFactory.container(), PortKit.container_xform(centre, forty, high_cube, flip), look[0], look[1])
 
 
 ## A painted line on the yard from `a` to `b` (plan XZ), through the road-paint batch.
@@ -877,6 +913,11 @@ func _place_rtg(area: Rect2, origin: Vector2, rows: int, cols: int, kit: RandomN
 		if p.y - reach - 2.0 < area.position.y + 0.5 or p.y + reach > area.end.y - 0.5:
 			continue
 		var xf := Transform3D(Basis(Vector3.UP, PI) if flip else Basis(), Vector3(p.x, PORT_YARD_TOP, p.y))
+		if level == Level.FULL and not capturing and PortLife.enabled:
+			# A working gantry (PortLife moves it and its box; its collision moves with it).
+			var dx := 14.0 if col + 1 < cols and p.x + 14.0 + 4.8 < area.end.x - 0.5 else -14.0
+			PortLife.mark_rtg(self, Vector3(p.x, PORT_YARD_TOP + _pgy(p.x, p.y), p.y), flip, dx, _port_piles)
+			return
 		_batch.add("rtg", PropFactory.rtg(), xf)
 		if level == Level.FULL:
 			var lift := Transform3D(Basis(), Vector3(0.0, _pgy(p.x, p.y), 0.0))
@@ -897,6 +938,9 @@ func _build_quay(area: Rect2, kit: RandomNumberGenerator) -> void:
 		if macro.zone_at(Vector2(x, qz + 30.0)) != MacroMap.Zone.OCEAN:
 			continue
 		var working := ship.x < INF and absf(x - ship.x) < 95.0
+		if working and PortLife.enabled:
+			# A working crane gantries along its rails to the bay it works.
+			x = PortLife.bay_x(x)
 		_build_sts_crane(Vector3(x, PORT_YARD_TOP, crane_z), working, ship.y - crane_z, kit, k)
 	if level != Level.FULL or capturing:
 		return
@@ -964,10 +1008,17 @@ func _build_sts_crane(at: Vector3, working: bool, ship_z: float, kit: RandomNumb
 	var crane := MeshInstance3D.new()
 	# Named, so it is never mistaken for an auto-named box to merge, and a check can count it.
 	crane.name = "StsCrane%d" % index
-	crane.mesh = PortKit.sts_mesh(raised, trolley_z, spreader_y)
+	var moving := working and level == Level.FULL and PortLife.enabled
+	crane.mesh = PortKit.sts_frame_mesh() if moving else PortKit.sts_mesh(raised, trolley_z, spreader_y)
 	crane.position = base
 	add_child(crane)
-	if carrying:
+	if moving:
+		# PortLife runs its trolley, spreader and boxes (the rolls above are still made).
+		PortLife.mark_crane(self, base, ix * 2 + index)
+		if carrying:
+			PortKit.container_look(livery, kit)
+			kit.randf()
+	elif carrying:
 		_add_container(at + Vector3(0.0, spreader_y - PortKit.H_STD * 0.5 - 0.03, trolley_z), true, false, kit.randf() < 0.5, livery, kit)
 	# Its floodlights on the apron after dark.
 	_add_port_pool(at + Vector3(0.0, 0.0, 6.0), PORT_CRANE_POOL)
@@ -1138,19 +1189,23 @@ func _build_beach(block: Dictionary) -> void:
 	# whole rect, flat at 0.15, sand or not). Over the strip the sand's landward edge dips under
 	# the road instead of standing on it (_build_sand's `strip_from`).
 	var life_z := Vector2(owned_rect().position.y, owned_rect().end.y)
+	# The marina's channel cuts the sand (MarinaBuild.sand_rects(): the rect less its band).
 	if _replica != null:
-		_build_sand(owned_rect())
+		for sr: Rect2 in MarinaBuild.sand_rects(self, owned_rect()):
+			_build_sand(sr)
 	else:
 		var r: Rect2 = block.rect
 		var own := owned_rect()
-		_build_sand(Rect2(r.position.x, r.position.y, r.size.x, maxf(own.end.y - r.position.y, r.size.y)), r.end.y)
+		for sr: Rect2 in MarinaBuild.sand_rects(self, Rect2(r.position.x, r.position.y, r.size.x, maxf(own.end.y - r.position.y, r.size.y))):
+			_build_sand(sr, r.end.y if sr.position.y < r.end.y - 0.5 else INF)
 		life_z = Vector2(r.position.y, maxf(own.end.y, r.end.y))
 	if level != Level.FULL:
 		# The beach's towels and umbrellas as dots of colour, the path and the courts (BeachLife).
 		if not capturing:
 			BeachLife.build_lod(self, life_z.x, life_z.y)
 		return
-	_build_surf_spray(owned_rect() if _replica != null else Rect2(block.rect.position, Vector2(block.rect.size.x, owned_rect().end.y - block.rect.position.y)))
+	for sr: Rect2 in MarinaBuild.sand_rects(self, owned_rect() if _replica != null else Rect2(block.rect.position, Vector2(block.rect.size.x, owned_rect().end.y - block.rect.position.y))):
+		_build_surf_spray(sr)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = block.seed
 	# The replica's beach under the Esplanade bluff has no palms on the sand (they are up on the
@@ -1172,7 +1227,14 @@ func _build_beach(block: Dictionary) -> void:
 		if path and absf(across - BeachLife.PATH_AT) < 0.05:
 			across = BeachLife.PATH_AT + (0.06 if across >= BeachLife.PATH_AT else -0.06)
 		var at := Vector3(_dry_sand_x(z, across), _sand_y(z, across), z)
-		if not bare:
+		# Not in the marina's channel: the same six draws _add_palm() makes, so nothing moves.
+		if not bare and MarinaBuild.on_channel(self, at, 4.0):
+			for d in 6:
+				if d == 1:
+					rng.randi()
+				else:
+					rng.randf()
+		elif not bare:
 			_add_palm(at, rng)
 			obstacles.append([Vector2(at.x, at.z), 0.8])
 	var tower := {}
@@ -1181,7 +1243,9 @@ func _build_beach(block: Dictionary) -> void:
 		var across := rng.randf_range(0.1, 0.5)
 		var spin := rng.randf_range(0.0, TAU)
 		var at := Vector3(_dry_sand_x(z, across), _sand_y(z, across), z)
-		if BeachLife.enabled:
+		if MarinaBuild.on_channel(self, at, 8.0):
+			pass # Not in the marina's channel (its rolls are made).
+		elif BeachLife.enabled:
 			# Turned to the sea (a tower watches the water), its rolled spin only a little jitter.
 			var slope := (plan.macro.coast_x(z + 2.0) - plan.macro.coast_x(z - 2.0)) / 4.0 if plan.macro else 0.0
 			var yaw := atan2(1.0, -slope) + (spin / TAU - 0.5) * 0.3
@@ -1191,6 +1255,8 @@ func _build_beach(block: Dictionary) -> void:
 			_add_shape(Vector3(3.1, 4.8, 3.4), at + Basis(Vector3.UP, yaw) * Vector3(0.0, 2.4, 0.4), yaw)
 		else:
 			_add_lifeguard_tower(at, spin)
+	# The beach's people keep out of the marina's channel and off its jetties.
+	obstacles.append_array(MarinaBuild.beach_obstacles(self))
 	BeachLife.build(self, life_z.x, life_z.y, obstacles, tower)
 
 
@@ -1540,7 +1606,9 @@ func _build_terrain() -> void:
 func _hill_segments() -> Array[Dictionary]:
 	if plan.macro == null or plan.macro.hill_roads == null:
 		return []
-	return plan.macro.hill_roads.segments_in(owned_rect())
+	var segs: Array[Dictionary] = plan.macro.hill_roads.segments_in(owned_rect())
+	# The coast highway's bridge over the marina's channel replaces its strip there (MarinaBuild).
+	return MarinaBuild.filter_segments(self, segs)
 
 
 ## Asphalt strips following the carved road beds, clipped to this chunk.
@@ -2306,6 +2374,8 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 				steps.append(_build_park.bind(rect, rng))
 		CityPlan.BlockKind.SCHOOL:
 			steps.append(func() -> void: Parks.build(self, block))
+			# A public school (Schools; its own hash-seeded plan, any level).
+			steps.append_array(Schools.steps(self, block))
 		CityPlan.BlockKind.PLAZA:
 			steps.append(_build_plaza.bind(rect, rng))
 		CityPlan.BlockKind.MALL:
@@ -2339,6 +2409,9 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 					_add_grass(_lawn_rect, 0.85, 0.0, _lot_rects))
 	if level == Level.FULL:
 		steps.append(_build_sidewalk_props.bind(rect, params, rng, district))
+		# Broadway's goods on the pavement and its street clock (Broadway; hash-seeded).
+		if Broadway.block_side(plan, ix, iz) != 0:
+			steps.append(func() -> void: Broadway.block_step(self, rect))
 		# Downtown encampments (Encampment), after the furniture they keep clear of. Its own
 		# hash-seeded rolls: the block's rng is untouched, so the cars and the crowd are unmoved.
 		var camps: int = Encampment.block_flags(plan, ix, iz) if block.kind == CityPlan.BlockKind.BUILDINGS else 0
@@ -2552,7 +2625,8 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 		return
 	var car := Vehicle.random_car(rng)
 	if (plan.macro and Landmarks.covers(plan, Vector2(spot[0].x, spot[0].z), 3.0)) or BigVehicles.in_stop_zone(plan, Vector2(spot[0].x, spot[0].z)) \
-			or FireStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)):
+			or FireStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or PoliceStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
+			or Schools.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)):
 		# After the rolls, so the chunk rng runs the same whether or not the spot is used. A bus
 		# stop's kerb is kept clear for the bus (BigVehicles), a fire station's for its engines.
 		car.free()
@@ -2652,6 +2726,14 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	if FireStation.claims(plan, ix, iz, lot):
 		FireStation.build_lot(self, lot)
 		return
+	# A police station's lots (PoliceStation: a run of lots on one street, hash-seeded; the pad roll is made).
+	if PoliceStation.claims(plan, ix, iz, lot):
+		PoliceStation.build_lot(self, lot)
+		return
+	# A Broadway movie palace (Broadway: a table of real addresses; the rolls above are made).
+	if Broadway.claims(plan, ix, iz, lot):
+		Broadway.build_lot(self, lot)
+		return
 	var fill := LotFill.wanted(self, district)
 	# A surface car park (CityPlan.lots() "parking"; the pad roll above is still made).
 	if fill and lot.get("parking", false):
@@ -2695,6 +2777,8 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	building.weathering_range = params.get("weathering", Vector2(0.2, 0.9))
 	building.shape_options.assign(CityPlan.lot_shapes(district, boost))
 	building.finish_options.assign(CityPlan.lot_finishes(district, boost))
+	# Broadway's 1920s commercial blocks (masonry, the height limit, its own shop names).
+	Broadway.dress(self, lot, building)
 	var g := _gy(center.x, center.y)
 	var gmin := g
 	var half: Vector2 = lot.size * 0.5
@@ -3192,7 +3276,8 @@ func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGen
 		var t := lamp_spacing * (0.5 if e % 2 == 0 else 0.25)
 		while t < length - 4.0:
 			var p := a + dir * t + inward
-			_add_lamp(Vector3(p.x, SIDEWALK_TOP, p.y))
+			if not Broadway.lamp(self, p, inward):
+				_add_lamp(Vector3(p.x, SIDEWALK_TOP, p.y))
 			t += lamp_spacing
 		t = tree_spacing * 0.75
 		while t < length - 4.0:
@@ -4113,7 +4198,8 @@ func _build_freeway() -> void:
 	deck_body.collision_layer = 1
 	deck_body.collision_mask = 0
 	var kit := FreewayKit.new(self)
-	var quads := kit.build_segments(segs, area)
+	# The four-level stack's connectors go into the same meshes (StackBuild).
+	var quads := kit.build_segments(segs, area) + StackBuild.build(self, kit, deck_body)
 	if quads == 0:
 		return
 	var t := Freeway.DECK_THICKNESS
@@ -4123,7 +4209,8 @@ func _build_freeway() -> void:
 		var seg_len := a.distance_to(b)
 		var mid := a.lerp(b, 0.5)
 		# Segments are claimed by the chunk their midpoint falls in, so the deck is built once.
-		if seg_len < 0.5 or not area.has_point(mid):
+		# (The stack's connectors are banked: StackBuild gives them their own boxes.)
+		if seg_len < 0.5 or not area.has_point(mid) or seg.has("link"):
 			continue
 		var ha: float = seg.ha
 		var hb: float = seg.hb
