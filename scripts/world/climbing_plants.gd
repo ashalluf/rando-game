@@ -446,7 +446,7 @@ static func _climber(st: Dictionary, f: Dictionary, u0: float, spread: float, re
 	while y < height:
 		var hy := y / height
 		# Half width at this height: narrow at the root, full by a third up, ragged.
-		var hw := spread * 0.5 * (0.25 + 0.75 * smoothstep(0.0, 0.35, hy)) * (1.0 + 0.25 * _wobble(y * 2.0, s))
+		var hw := spread * 0.5 * (0.25 + 0.75 * smoothstep(0.0, 0.35, hy)) * (1.0 + 0.4 * _wobble(y * 2.0, s))
 		var u := u0 - hw
 		while u < u0 + hw:
 			var uu := u + rng.randf_range(-0.4, 0.4) * spacing
@@ -454,7 +454,7 @@ static func _climber(st: Dictionary, f: Dictionary, u0: float, spread: float, re
 			var edge := absf(uu - u0) / maxf(hw, 0.05)
 			# The top edge is ragged too: shoots run ahead of the mass.
 			var top_edge := height * (0.82 + 0.18 * _wobble(uu * 3.0, s + 7.0))
-			var keep := (1.0 - smoothstep(0.65, 1.0, edge)) * (1.0 - smoothstep(top_edge - 0.4, top_edge, yy))
+			var keep := (1.0 - smoothstep(0.45, 1.0, edge + 0.25 * _wobble(yy * 4.0 + uu * 3.0, s + 2.0))) * (1.0 - smoothstep(top_edge - 0.5, top_edge, yy))
 			if uu > 0.02 and uu < length - 0.02 and yy < float(f.top) - 0.03 and rng.randf() < keep and not _in_hole(f, uu, yy, 0.22):
 				var mound := (1.0 - edge * edge) * (0.02 if fig else 0.09)
 				var off := (0.012 if fig else 0.03) + mound + rng.randf() * (0.008 if fig else 0.04)

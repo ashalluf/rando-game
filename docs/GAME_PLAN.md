@@ -289,6 +289,21 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Planting that grows ON things: bougainvillea, ivy, creeping fig, star jasmine,
+  pergola vines, trumpet vine and garden accents (VISUAL_ROADMAP #63, HANDOFF "Climbing plants").**
+  LA walls and fences read as bare boxes; `ClimbingPlants` grows leaf and bract cards in code on
+  the walls a FULL chunk already built (YardFill's walls and fences, house faces with their
+  openings, car-park walls, low-rise Building walls, utility poles) and builds pergolas over
+  some back-yard decks. Decisions worth knowing: cards, not models - a plant has to follow the
+  wall it is on, spill over its coping and frame its windows, which a placed model cannot; one
+  painted atlas and one shader for every species, so a chunk is a few tiles of meshes, not a
+  batch per species; the atlas needs dense MASS cells as well as sprigs (sprigs alone, at any
+  density, read as sticks and a trellis); meshes are 64 m tiles because a node's visibility range
+  is measured to its bounds' centre; the step moves itself behind the deferred steps, because
+  YardFill lays its walls in deferred steps; front walls and house fronts are planted on their
+  street side more often (people plant the front for show); nothing at LOD or in the far city.
+  Every roll is a hash of seed + wall / face / pole / bed; `CLIMBERS=0` is the A/B.
+
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it
