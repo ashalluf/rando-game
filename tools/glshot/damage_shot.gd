@@ -146,9 +146,21 @@ func _initialize() -> void:
 			if k % 3 != 1:
 				shoot.call(x - 0.15, y + floor_h)
 	elif mode == "hole":
-		ex.call("blast", b, Vector3(width * 0.12, 3.2, front + 0.6), 9.0, 30.0, 0.0)
+		# NOFX=1: the damage alone, without the explosion's fire and smoke (they hang for a minute).
+		if OS.get_environment("NOFX") == "1":
+			bd.call("blast", b, Vector3(width * 0.12, 3.2, front + 0.6), 9.0, 1.0)
+		else:
+			ex.call("blast", b, Vector3(width * 0.12, 3.2, front + 0.6), 9.0, 30.0, 0.0)
 	for i in _env_int("WAIT", 40):
 		await process_frame
+	# NOFX=1: the blast's smoke and dust cleared away (it hangs for a minute), for a look at the wall.
+	if OS.get_environment("NOFX") == "1":
+		for p: Node in get_root().find_children("*", "GeometryInstance3D", true, false):
+			if p is CPUParticles3D or p is GPUParticles3D or (p.name as String).begins_with("@"):
+				if p is CPUParticles3D or p is GPUParticles3D:
+					p.queue_free()
+		for i in 3:
+			await process_frame
 	var out := OS.get_environment("OUT")
 	if out == "":
 		out = "damage_shot.png"

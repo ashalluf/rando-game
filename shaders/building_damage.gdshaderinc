@@ -282,8 +282,11 @@ void dmg_hole_room(vec4 hole, vec3 ray, int finish, vec3 wall_col, float px, flo
 	// Embers glow in the rubble after dark (and faintly by day), breathing.
 	if (face == 1) {
 		vec2 g = floor(h.xz / 0.18);
-		float ember = step(0.93, hash21(g + s * 1.7)) * (0.6 + 0.4 * sin(TIME * (1.3 + hash21(g)) + hash21(g + 2.0) * 6.0));
-		emit += vec3(1.0, 0.32, 0.06) * ember * mix(0.4, 1.4, 1.0 - day) * (1.0 - smoothstep(1.0, 4.0, h.z));
+		float ember = step(0.88, hash21(g + s * 1.7)) * (0.6 + 0.4 * sin(TIME * (1.3 + hash21(g)) + hash21(g + 2.0) * 6.0));
+		emit += vec3(1.0, 0.32, 0.06) * ember * mix(0.5, 3.0, 1.0 - day) * (1.0 - smoothstep(1.0, 4.0, h.z));
 	}
+	// Smouldering after dark: the room glows low and orange from the embers in the rubble.
+	float smoulder = (1.0 - day) * (1.0 - smoothstep(floor_y, ceil_y, h.y) * 0.5) * (1.0 - 0.6 * depth01);
+	emit += vec3(1.0, 0.40, 0.12) * smoulder * (0.35 + 2.4 * dot(col, vec3(0.333))) * (0.85 + 0.15 * sin(TIME * 2.3 + s));
 	rough = 0.95;
 }
