@@ -208,6 +208,8 @@ var hill_roads: HillRoads
 ## The Los Angeles River's concrete channel (LaRiver): built before the hill roads and the
 ## freeway, so the land level along it is in the relief they read (terrace(), _relief_at()).
 var river: LaRiver
+## The marina between the beach town and the airport (Marina); null when it is off or has no room.
+var marina: Marina
 ## The reservoir in the front range (Reservoir): carved into raw_height_at(), so null while it is
 ## being worked out.
 var reservoir: Reservoir
@@ -314,6 +316,12 @@ func setup() -> void:
 		var rv := LaRiver.new()
 		rv.build(self, seed)
 		river = rv
+	# The marina (Marina): a pure plan from the coast and the street grid. MARINA=0 leaves it out.
+	marina = null
+	if OS.get_environment("MARINA") != "0":
+		var mr := Marina.new()
+		if mr.build(self, seed):
+			marina = mr
 	# The reservoir: its level and dam are fitted to the natural range, then its carve is folded
 	# into raw_height_at() for everything after (the hill roads plan on the carved ground).
 	# RESERVOIR=0 in the environment (or `-- --no-reservoir`) leaves it out (the A/B).
@@ -440,6 +448,9 @@ func _relief_at(pos: Vector2, raw: float) -> float:
 		var tr := river.terrace(pos)
 		if tr.y > 0.0:
 			h = lerpf(h, tr.x, tr.y)
+	# The marina's land is a terrace a bulkhead's height over the water (Marina.terrace()).
+	if marina:
+		h = marina.terrace(pos, h)
 	return h
 
 
@@ -1056,6 +1067,10 @@ func bake(centre: Vector2, span: float, size: int) -> Image:
 							col = BAKE_CAMPUS
 						_:
 							col = BAKE_SUBURB
+			# The marina's basin and channel are water to the horizon plane (it sinks there).
+			if marina and zone != Zone.OCEAN and marina.in_water(pos):
+				zone = Zone.OCEAN
+				col = BAKE_OCEAN_SHALLOW
 			if zone == Zone.OCEAN:
 				col.a = 0.0
 				bake_height.set_pixel(px, py, Color(0.0, 0.5, 0.0))
@@ -1065,9 +1080,10 @@ func bake(centre: Vector2, span: float, size: int) -> Image:
 				# The freeways, drawn last so they cross districts and hills alike.
 				if freeway and freeway.blocks(pos, BAKE_FREEWAY_MARGIN):
 					col = Color(BAKE_FREEWAY.r, BAKE_FREEWAY.g, BAKE_FREEWAY.b, col.a)
-				# The river's channel: pale concrete banks and bed, the low-flow line darker.
+				# The reservoir's water (Reservoir).
 				elif reservoir and reservoir.wet(pos):
 					col = Color(BAKE_LAKE.r, BAKE_LAKE.g, BAKE_LAKE.b, col.a)
+				# The river's channel: pale concrete banks and bed, the low-flow line darker.
 				elif river and river.in_corridor(pos, -LaRiver.CORRIDOR):
 					var nr := river.nearest(pos, 120.0)
 					col = Color(BAKE_RIVER.r, BAKE_RIVER.g, BAKE_RIVER.b, col.a)

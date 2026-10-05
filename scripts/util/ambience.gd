@@ -44,6 +44,7 @@ extends Node
 	"birds": -15.0, "crickets": -18.0, "wind": -16.0, "gale": -14.0,
 	"rain": -10.0, "rain_heavy": -12.0, "rain_roof": -11.0, "rain_car": -9.0,
 	"freeway": -9.0, "surf": -9.0, "airport": -11.0, "port": -12.0,
+	"river": -13.0, "fountain": -11.0, "playground": -15.0,
 }
 ## Crossfade time constant for the beds, seconds (real time). Bigger = slower, smoother swells.
 @export var fade_seconds: float = 2.4
@@ -74,6 +75,13 @@ extends Node
 @export var altitude_range: Vector2 = Vector2(30.0, 260.0)
 ## Emitters are parked this far from the listener in the direction of their source, metres.
 @export var emitter_distance: float = 14.0
+## The river's trickle is heard out to this far from its centre line, metres (inside the channel
+## it is held in by the walls; up on the street it is a whisper).
+@export var river_reach: float = 140.0
+## A plaza fountain splashes out to this far, metres.
+@export var fountain_reach: float = 75.0
+## Kids at a playground carry this far (by day), metres.
+@export var playground_reach: float = 150.0
 
 @export_group("Street")
 ## Walls closer than this count toward the street canyon (reverb), metres.
@@ -105,7 +113,14 @@ extends Node
 ## Ambience low-pass cutoff when covered AND walled in (under a deck between towers), Hz.
 @export var indoor_cutoff_hz: float = 2600.0
 ## World reverb wet level in the open, and extra for a full street canyon and for full cover.
+## (The spaces' presets in SPACES replaced the sum; `reverb_wet.x` is still the reset level.)
 @export var reverb_wet: Vector3 = Vector3(0.04, 0.22, 0.18)
+
+@export_group("Echo")
+## Overall level of gunfire's echo off the city, dB (on top of each space's taps).
+@export var echo_db: float = 0.0
+## A facade further than this is too far to slap a shot back, metres.
+@export var echo_wall_reach: float = 55.0
 
 @export_group("Ducking")
 ## Game bus low-pass while the weapon wheel (or any slow motion) holds time, Hz.
@@ -141,6 +156,27 @@ const LAYERS := {
 	"surf": {"sound": "amb_surf", "emitter": true, "pan": 0.55},
 	"airport": {"sound": "amb_airport", "emitter": true, "pan": 0.7},
 	"port": {"sound": "amb_port", "emitter": true, "pan": 0.7},
+	"river": {"sound": "amb_river", "emitter": true, "pan": 0.6},
+	"fountain": {"sound": "amb_fountain", "emitter": true, "pan": 0.65},
+	"playground": {"sound": "amb_playground", "emitter": true, "pan": 0.6},
+}
+
+## The acoustic spaces the probe tells apart, and the World reverb each wants: wet level, room size
+## (0..1), damping (0..1, more = darker tail), pre-delay (ms) and the reverb's own high-pass. The
+## mix blends them by space_for()'s weights. A street canyon's tail is long and bright, an alley a
+## tight flutter, a deck overhead a boomy wash, the tunnel a long dark one, a car park short and
+## hard, the beach almost dry, the hills a faint wide air.
+const SPACES := {
+	"open": {"wet": 0.03, "room": 0.35, "damp": 0.6, "delay": 30.0, "hp": 0.3},
+	"street": {"wet": 0.09, "room": 0.5, "damp": 0.55, "delay": 40.0, "hp": 0.25},
+	"canyon": {"wet": 0.22, "room": 0.78, "damp": 0.4, "delay": 70.0, "hp": 0.2},
+	"alley": {"wet": 0.24, "room": 0.42, "damp": 0.35, "delay": 22.0, "hp": 0.15},
+	"underpass": {"wet": 0.3, "room": 0.7, "damp": 0.65, "delay": 28.0, "hp": 0.05},
+	"tunnel": {"wet": 0.42, "room": 0.92, "damp": 0.55, "delay": 24.0, "hp": 0.05},
+	"garage": {"wet": 0.3, "room": 0.6, "damp": 0.3, "delay": 20.0, "hp": 0.1},
+	"channel": {"wet": 0.17, "room": 0.66, "damp": 0.45, "delay": 55.0, "hp": 0.15},
+	"beach": {"wet": 0.015, "room": 0.3, "damp": 0.8, "delay": 30.0, "hp": 0.4},
+	"hills": {"wet": 0.04, "room": 0.85, "damp": 0.75, "delay": 120.0, "hp": 0.35},
 }
 
 ## One-shots: Sfx sound, distance from the listener (m), height above it (m), falloff scale
@@ -154,6 +190,7 @@ const ONE_SHOTS := {
 	"coyote": {"sound": "coyote", "dist": Vector2(180.0, 650.0), "up": Vector2(0.0, 20.0), "unit": 90.0, "db": 0.0, "pitch": 0.06},
 	"ship_horn": {"sound": "ship_horn", "dist": Vector2(350.0, 1200.0), "up": Vector2(0.0, 15.0), "unit": 280.0, "db": 2.0, "pitch": 0.03},
 	"crane": {"sound": "crane", "dist": Vector2(120.0, 480.0), "up": Vector2(5.0, 30.0), "unit": 60.0, "db": 0.0, "pitch": 0.05},
+	"construction": {"sound": "construction", "dist": Vector2(70.0, 280.0), "up": Vector2(0.0, 25.0), "unit": 40.0, "db": -3.0, "pitch": 0.05},
 }
 
 const ONE_SHOT_VOICES := 5
@@ -169,6 +206,8 @@ var scene: Dictionary = {}
 var levels: Dictionary = {}
 var rates: Dictionary = {}
 var gains: Dictionary = {}
+## The acoustic space round the listener (space_for()): weight per SPACES name, summing to 1.
+var space: Dictionary = {"open": 1.0}
 ## Set true to stop the survey (the smoke test drives the mix itself).
 var frozen: bool = false
 ## Game-bus muffle and ambience enclosure cutoffs in use, Hz (20000 = open), and the duck, dB.
@@ -205,6 +244,11 @@ var _enclose: float = 20000.0
 var _verb_wet: float = 0.04
 var _verb_room: float = 0.4
 var _verb_delay: float = 30.0
+var _verb_damp: float = 0.55
+var _verb_hp: float = 0.25
+var _echo_sent: Dictionary = {}
+var _diesel: Array = []           # [stream, trim] of the diesel idle, for big vehicles' voices
+var _car_kind: Array = []         # per traffic voice: true while it plays the diesel
 var _bus_sent := Vector4(-1.0, -1.0, -1.0, -1.0) # what the buses were last told
 var _rng := RandomNumberGenerator.new()
 var _streamer: Node
@@ -281,6 +325,8 @@ func _build_voices() -> void:
 		add_child(v)
 		_cars.append(v)
 		_car_of.append(null)
+		_car_kind.append(false)
+	_diesel = Sfx.take("diesel_idle")
 	for i in PASS_VOICES:
 		var v := AudioStreamPlayer3D.new()
 		v.name = "Pass_%d" % i
@@ -297,7 +343,8 @@ func _build_voices() -> void:
 func _exit_tree() -> void:
 	Sfx.set_filter(Sfx.BUS_AMBIENCE, 20000.0)
 	Sfx.set_filter(Sfx.BUS_GAME, 20000.0)
-	Sfx.set_reverb(reverb_wet.x, 0.4, 30.0)
+	Sfx.set_reverb(reverb_wet.x, 0.4, 30.0, 0.55, 0.25)
+	Sfx.set_echo({})
 
 
 func _process(_delta: float) -> void:
@@ -374,9 +421,13 @@ func _apply_buses(dt: float) -> void:
 		var c := exp(lerpf(log(20000.0), log(concussion_cutoff_hz), _concussion * _blast * _blast))
 		game_target = minf(game_target, c)
 	game_cutoff = game_target
-	_verb_wet = _approach(_verb_wet, reverb_wet.x + reverb_wet.y * canyon + reverb_wet.z * cover, dt, fade_seconds)
-	_verb_room = _approach(_verb_room, 0.35 + 0.45 * maxf(canyon, cover), dt, fade_seconds)
-	_verb_delay = _approach(_verb_delay, 22.0 + 60.0 * canyon, dt, fade_seconds)
+	var want := reverb_for(space)
+	var tau := fade_seconds * 0.5
+	_verb_wet = _approach(_verb_wet, want.wet, dt, tau)
+	_verb_room = _approach(_verb_room, want.room, dt, tau)
+	_verb_delay = _approach(_verb_delay, want.delay, dt, tau)
+	_verb_damp = _approach(_verb_damp, want.damp, dt, tau)
+	_verb_hp = _approach(_verb_hp, want.hp, dt, tau)
 	# Only when something moved audibly (1 % on a cutoff, a thousandth of wet or room): most frames
 	# nothing does.
 	var moved := absf(ambience_cutoff - _bus_sent.x) > _bus_sent.x * 0.01 or absf(game_cutoff - _bus_sent.y) > _bus_sent.y * 0.01
@@ -387,7 +438,7 @@ func _apply_buses(dt: float) -> void:
 		_bus_sent = Vector4(ambience_cutoff, game_cutoff, _verb_wet, _verb_room)
 		Sfx.set_filter(Sfx.BUS_AMBIENCE, ambience_cutoff)
 		Sfx.set_filter(Sfx.BUS_GAME, game_cutoff)
-		Sfx.set_reverb(_verb_wet, _verb_room, _verb_delay)
+		Sfx.set_reverb(_verb_wet, _verb_room, _verb_delay, _verb_damp, _verb_hp)
 
 
 ## Exponential approach with time constant `tau`, frame-rate independent.
@@ -402,8 +453,13 @@ func _survey(eye: Vector3) -> void:
 	if plan == null or plan.macro == null:
 		return
 	var w := WorldState.to_world(eye)
-	scene = scene_at(w, plan.macro)
+	scene = scene_at(w, plan.macro, plan)
 	_probe(eye, scene)
+	space = space_for(scene)
+	var prof := echo_for(scene, space)
+	if prof != _echo_sent:
+		_echo_sent = prof
+		Sfx.set_echo(prof)
 	var hour: float = _daynight.hour if _daynight else 12.0
 	var night: float = _daynight.night_factor if _daynight else 0.0
 	var wx := weather_now()
@@ -425,7 +481,7 @@ func weather_now() -> Dictionary:
 ## Where a world position is, as far as sound goes. Pure MacroMap maths plus the freeway's cell
 ## index; the physics parts (canyon, cover, crowd, cars, being in a car) start at zero and are
 ## filled in by _probe() for the real listener.
-func scene_at(w: Vector3, macro: MacroMap) -> Dictionary:
+func scene_at(w: Vector3, macro: MacroMap, plan: CityPlan = null) -> Dictionary:
 	var here := Vector2(w.x, w.z)
 	var zones := PackedFloat32Array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 	var urban := 0.0
@@ -509,6 +565,7 @@ func scene_at(w: Vector3, macro: MacroMap) -> Dictionary:
 	var port := _rect_near(port_rect, here)
 	s["port"] = smoothstep(port_reach, 90.0, port.distance_to(here) + maxf(height, 0.0) * 0.3)
 	s["port_at"] = Vector3(port.x, 0.0, port.y)
+	_water_scene(s, w, macro, plan)
 	return s
 
 
@@ -546,6 +603,7 @@ func _probe(eye: Vector3, s: Dictionary) -> void:
 	var space := _space()
 	if space:
 		var walls := 0.0
+		var dists := PackedFloat32Array()
 		_ray.from = eye
 		for i in 8:
 			var a := TAU * float(i) / 8.0
@@ -553,10 +611,15 @@ func _probe(eye: Vector3, s: Dictionary) -> void:
 			var hit := space.intersect_ray(_ray)
 			if not hit.is_empty():
 				walls += 1.0 - eye.distance_to(hit.position) / canyon_reach
+				dists.append(eye.distance_to(hit.position))
+			else:
+				dists.append(INF)
+		s["walls"] = dists
 		_ray.to = eye + Vector3.UP * cover_reach
 		var up := space.intersect_ray(_ray)
 		if not up.is_empty():
 			s["cover"] = clampf(1.2 - eye.distance_to(up.position) / cover_reach, 0.0, 1.0)
+			s["ceiling"] = eye.distance_to(up.position)
 		# Walls alone are any street; tall walls are downtown, which the density says.
 		# A hillside across the valley is not a street of towers, so only built-up ground counts.
 		var z: PackedFloat32Array = s.zones
@@ -581,6 +644,233 @@ func _probe(eye: Vector3, s: Dictionary) -> void:
 	var player := _get_player()
 	if player and player.get("vehicle") != null:
 		s["in_car"] = 1.0
+
+
+## The river, the fountains, the playgrounds and the light rail's cut-and-cover near `w` (true
+## world): how loud and where each emitter is, and whether the listener is down in the river's
+## channel or the rail's tunnel or trench (both are walls of concrete with the sky or a lid above).
+## Pure plan / map maths, no physics.
+func _water_scene(s: Dictionary, w: Vector3, macro: MacroMap, plan: CityPlan) -> void:
+	var here := Vector2(w.x, w.z)
+	var height: float = s.height
+	s["river"] = 0.0
+	s["river_at"] = Vector3.INF
+	s["channel"] = 0.0
+	var rv: LaRiver = macro.river
+	if rv != null:
+		var n := rv.nearest(here, river_reach)
+		if n.w > 0.0:
+			var at: Array = rv.at(n.x)
+			var water := rv.water_at(n.x)
+			var p: Vector2 = at[0]
+			# Down in the channel the walls hold the trickle in; from the bank it is a whisper.
+			var inside := clampf((rv.top_half(n.x) - absf(n.y)) / 4.0, 0.0, 1.0) * smoothstep(1.0, 3.0, rv.top_at(n.x) - w.y)
+			s["channel"] = inside
+			var d := Vector3(p.x - here.x, (water - w.y) * 1.5, p.y - here.y).length()
+			s["river"] = smoothstep(river_reach, 6.0, d) * lerpf(0.35, 1.0, inside)
+			s["river_at"] = Vector3(p.x, water, p.y)
+	s["fountain"] = 0.0
+	s["fountain_at"] = Vector3.INF
+	s["playground"] = 0.0
+	s["playground_at"] = Vector3.INF
+	s["tunnel"] = 0.0
+	s["trench"] = 0.0
+	if plan == null:
+		return
+	var bi := plan.block_index_at(here)
+	var best_f := INF
+	var best_k := INF
+	for dx in range(-1, 2):
+		for dz in range(-1, 2):
+			var b := plan.block(bi.x + dx, bi.y + dz)
+			var r: Rect2 = b.rect
+			if int(b.kind) == CityPlan.BlockKind.PLAZA:
+				var c := r.get_center()
+				var d := c.distance_to(here)
+				if d < best_f:
+					best_f = d
+					s["fountain_at"] = Vector3(c.x, plan.macro.height_at(c), c.y)
+			if String(b.get("grounds", "")) != "":
+				for f: Dictionary in Parks.plan_for(plan, bi.x + dx, bi.y + dz).get("fac", []):
+					if f.t == "playground" or f.t == "games":
+						var c: Vector2 = f.c
+						var d := c.distance_to(here)
+						if d < best_k:
+							best_k = d
+							s["playground_at"] = Vector3(c.x, plan.macro.height_at(c), c.y)
+	if best_f < INF:
+		s["fountain"] = smoothstep(fountain_reach, 8.0, best_f + maxf(height, 0.0) * 0.5)
+	if best_k < INF:
+		s["playground"] = smoothstep(playground_reach, 15.0, best_k + maxf(height, 0.0) * 0.4)
+	var lr := LightRail.of(plan)
+	if lr != null:
+		for i in lr.indices_in(Rect2(here - Vector2.ONE * 12.0, Vector2.ONE * 24.0)):
+			var m := int(lr.mode[i])
+			if m != LightRail.Mode.TUNNEL and m != LightRail.Mode.TRENCH:
+				continue
+			if lr.pts[i].distance_to(here) > float(lr.half[i]) + 5.0:
+				continue
+			var below := smoothstep(1.0, 3.0, float(lr.street[i]) - w.y)
+			if m == LightRail.Mode.TUNNEL:
+				s["tunnel"] = maxf(float(s.tunnel), below)
+			else:
+				s["trench"] = maxf(float(s.trench), below)
+
+
+## Which acoustic space the listener stands in, as weights over SPACES (summing to 1), from the
+## scene and the probe's rays: `walls` (8 horizontal distances, INF for a miss), `cover` and
+## `ceiling` (the ray straight up), the canyon, the river channel and the light rail's tunnel and
+## trench. Pure, so the smoke test can stage each space.
+func space_for(s: Dictionary) -> Dictionary:
+	var z: PackedFloat32Array = s.zones
+	var d: PackedFloat32Array = s.get("walls", PackedFloat32Array())
+	var cover: float = s.get("cover", 0.0)
+	var ceiling: float = s.get("ceiling", INF)
+	var hits := 0
+	var narrow := 0.0
+	for i in d.size():
+		if d[i] < canyon_reach:
+			hits += 1
+		# Two facades either side within a few metres of each other and the way along open: an
+		# alley or a passage between buildings.
+		if i < 4 and d.size() == 8:
+			var gap := d[i] + d[i + 4]
+			var along := minf(d[(i + 2) % 8], d[(i + 6) % 8])
+			if gap < 16.0 and along > 18.0:
+				narrow = maxf(narrow, clampf((16.0 - gap) / 7.0, 0.0, 1.0))
+	var surround := float(hits) / 8.0
+	var w := {}
+	for k: String in SPACES:
+		w[k] = 0.0
+	var tunnel: float = s.get("tunnel", 0.0)
+	var trench: float = s.get("trench", 0.0)
+	var channel: float = s.get("channel", 0.0)
+	# A low lid with walls round it is a car park deck; a higher one (a freeway deck, a bridge)
+	# with open sides is an underpass.
+	var low := 1.0 - smoothstep(4.5, 7.0, ceiling)
+	var garage := cover * low * smoothstep(0.3, 0.7, surround)
+	var under := cover * (1.0 - garage)
+	# Under the lid it is the tunnel; where the ray up finds sky (the portal's cutting) it is the
+	# trench, walled like the river's channel.
+	trench = maxf(trench, tunnel * (1.0 - cover))
+	tunnel *= cover
+	w.tunnel = tunnel
+	var rest := 1.0 - tunnel
+	w.garage = garage * rest
+	w.underpass = under * rest * (1.0 - garage)
+	rest = maxf(rest - w.garage - w.underpass, 0.0)
+	var walled := maxf(trench, channel)
+	w.channel = walled * rest
+	rest = maxf(rest - w.channel, 0.0)
+	w.alley = narrow * rest
+	rest = maxf(rest - w.alley, 0.0)
+	var canyon: float = s.get("canyon", 0.0)
+	w.canyon = canyon * rest
+	rest = maxf(rest - w.canyon, 0.0)
+	var built := clampf(z[MacroMap.Zone.CITY] + z[MacroMap.Zone.PORT] + z[MacroMap.Zone.AIRPORT], 0.0, 1.0)
+	var beach := z[MacroMap.Zone.BEACH] + z[MacroMap.Zone.OCEAN]
+	var hills := z[MacroMap.Zone.HILLS]
+	var total := maxf(built + beach + hills, 0.001)
+	var street := built * clampf(surround * 2.0, 0.0, 1.0) * (1.0 - float(s.altitude))
+	w.street = rest * street / total
+	w.beach = rest * beach / total * (1.0 - surround)
+	w.hills = rest * hills / total * (1.0 - surround * 0.5)
+	var sum := 0.0
+	for k: String in w:
+		sum += float(w[k])
+	w.open = maxf(1.0 - sum, 0.0)
+	return w
+
+
+## The World reverb a space wants: SPACES blended by the weights.
+func reverb_for(weights: Dictionary) -> Dictionary:
+	var out := {"wet": 0.0, "room": 0.0, "damp": 0.0, "delay": 0.0, "hp": 0.0}
+	var sum := 0.0
+	for k: String in weights:
+		var wt: float = weights[k]
+		if wt <= 0.0 or not SPACES.has(k):
+			continue
+		sum += wt
+		for f: String in out:
+			out[f] = float(out[f]) + float(SPACES[k][f]) * wt
+	if sum <= 0.0:
+		return SPACES.open.duplicate()
+	for f: String in out:
+		out[f] = float(out[f]) / sum
+	return out
+
+
+## What gunfire sounds like coming back: the echo taps for Sfx (see Sfx.echo_profile). Facades
+## slap a shot back after the round trip to them (a canyon's two sides, then the flutter between
+## them); an underpass, the tunnel and a car park return a quick dense cluster; the river channel
+## a slap off the far bank; open hills a long rolling tail off slopes hundreds of metres away
+## (low-passed hard: the air takes the top off); the beach next to nothing. Directions are world
+## vectors from the listener toward what reflects. Pure.
+func echo_for(s: Dictionary, weights: Dictionary) -> Dictionary:
+	var taps: Array = []
+	var d: PackedFloat32Array = s.get("walls", PackedFloat32Array())
+	var built := float(weights.get("street", 0.0)) + float(weights.get("canyon", 0.0)) + float(weights.get("alley", 0.0))
+	if built > 0.05 and d.size() == 8:
+		# The nearest facade in each half of the circle: the two sides of the street.
+		var order: Array = []
+		for i in 8:
+			if d[i] < echo_wall_reach:
+				order.append([d[i], i])
+		order.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+		var used: Array = []
+		for o: Array in order:
+			if used.size() >= 2:
+				break
+			var i: int = o[1]
+			var clash := false
+			for u: int in used:
+				if absi(u - i) <= 1 or absi(u - i) >= 7:
+					clash = true
+			if clash:
+				continue
+			used.append(i)
+			var dist: float = o[0]
+			var a := TAU * float(i) / 8.0
+			var lvl := -9.0 - 12.0 * log(maxf(dist, 4.0) / 8.0) / log(10.0)
+			taps.append([2.0 * dist / SOUND_SPEED, echo_db + lvl + linear_to_db(clampf(built, 0.05, 1.0)), Vector3(cos(a), 0.0, sin(a))])
+		if used.size() == 2:
+			# The flutter: once more across the street and back.
+			var across := d[used[0]] + d[used[1]]
+			var canyon := float(weights.get("canyon", 0.0)) + float(weights.get("alley", 0.0))
+			taps.append([2.0 * across / SOUND_SPEED + 0.02, echo_db - 14.0 + 6.0 * canyon, Vector3.UP])
+	var cluster := float(weights.get("underpass", 0.0)) + float(weights.get("tunnel", 0.0)) + float(weights.get("garage", 0.0))
+	if cluster > 0.1:
+		var h: float = minf(float(s.get("ceiling", 8.0)), 20.0)
+		for k in 3:
+			taps.append([(2.0 * h + float(k) * 9.0) / SOUND_SPEED + 0.01, echo_db - 7.0 - 3.0 * float(k) + linear_to_db(cluster), Vector3(0.0, 1.0, 0.0).rotated(Vector3.RIGHT, float(k) - 1.0)])
+	var channel := float(weights.get("channel", 0.0))
+	if channel > 0.1:
+		# Bank to bank (the river's ~50 m, the rail trench's few metres): the narrowest pair of
+		# walls the rays found, else the river's width.
+		var across := 55.0
+		if d.size() == 8:
+			for i in 4:
+				across = minf(across, d[i] + d[i + 4])
+		var t := maxf(across, 4.0) / SOUND_SPEED
+		taps.append([t, echo_db - 8.0 + linear_to_db(channel), Vector3.LEFT])
+		taps.append([t * 2.0, echo_db - 14.0 + linear_to_db(channel), Vector3.RIGHT])
+	var hills := float(weights.get("hills", 0.0))
+	if hills > 0.1:
+		# A slope across the canyon, then the next ridge, then the far range: a rolling tail.
+		var dirs := [Vector3(1, 0, 0.3), Vector3(-0.6, 0, 1), Vector3(-1, 0, -0.4), Vector3(0.4, 0, -1), Vector3(0.9, 0, 0.8)]
+		var times := [0.45, 0.9, 1.45, 2.1, 2.9]
+		for k in times.size():
+			taps.append([float(times[k]), echo_db - 6.0 - 3.5 * float(k) + linear_to_db(hills), (dirs[k] as Vector3).normalized()])
+	var open := float(weights.get("open", 0.0)) + float(weights.get("street", 0.0)) * 0.5
+	if open > 0.3 and float(s.get("urban", 0.0)) > 0.2 and taps.size() < 3:
+		# Out in the open in the city: one long, soft return off the buildings a block away.
+		taps.append([0.55, echo_db - 15.0, Vector3.FORWARD])
+	if taps.is_empty():
+		return {}
+	# How dull the echoes are: the hills' air most, an enclosure least.
+	var cutoff := 5200.0 - 3600.0 * hills - 1200.0 * float(weights.get("beach", 0.0)) - 800.0 * channel + 1200.0 * cluster
+	var room := 0.45 + 0.4 * hills + 0.35 * cluster + 0.25 * float(weights.get("canyon", 0.0))
+	return {"taps": taps, "cutoff": clampf(cutoff, 900.0, 9000.0), "room": clampf(room, 0.2, 0.95)}
 
 
 ## Target gain per layer for a scene, hour, night factor (DayNight.night_factor) and weather.
@@ -617,11 +907,16 @@ func levels_for(s: Dictionary, hour: float, night: float, wx: Dictionary) -> Dic
 	out["surf"] = float(s.surf) * clampf(0.75 + 0.08 * float(wx.get("waves", 1.0)), 0.75, 1.4)
 	out["airport"] = float(s.airport) * lerpf(0.6, 1.0, day)
 	out["port"] = float(s.port)
+	# The river's trickle, a plaza fountain, kids at a playground in school hours and after.
+	out["river"] = float(s.get("river", 0.0)) * (1.0 - rain * 0.4) * ground
+	out["fountain"] = float(s.get("fountain", 0.0)) * ground
+	var kids := smoothstep(7.5, 9.0, hour) * (1.0 - smoothstep(18.5, 20.0, hour)) * (1.0 - rain * 0.9)
+	out["playground"] = float(s.get("playground", 0.0)) * kids * ground
 	return out
 
 
 ## One-shots per minute for a scene, hour and weather.
-func rates_for(s: Dictionary, _hour: float, night: float, wx: Dictionary) -> Dictionary:
+func rates_for(s: Dictionary, hour: float, night: float, wx: Dictionary) -> Dictionary:
 	var z: PackedFloat32Array = s.zones
 	var day := 1.0 - night
 	var ground := 1.0 - float(s.altitude)
@@ -638,6 +933,8 @@ func rates_for(s: Dictionary, _hour: float, night: float, wx: Dictionary) -> Dic
 		"coyote": night * (z[MacroMap.Zone.HILLS] + suburb * 0.25) * 0.9 * (1.0 - rain),
 		"ship_horn": float(s.port) * 0.6,
 		"crane": float(s.port) * 4.0 * lerpf(0.5, 1.0, day),
+		# Somebody is always building something in a city: working hours, weekdays or not.
+		"construction": urban * 1.4 * smoothstep(7.0, 8.0, hour) * (1.0 - smoothstep(16.5, 17.5, hour)) * (1.0 - rain * 0.7) * ground,
 	}
 
 
@@ -682,6 +979,11 @@ func fire(kind: String, eye: Vector3, w: Vector3) -> void:
 			dir = flat.normalized().rotated(Vector3.UP, _rng.randf_range(-0.6, 0.6))
 	var up: Vector2 = info.up
 	var at := eye + dir * _rng.randf_range(range_m.x, range_m.y) + Vector3.UP * _rng.randf_range(up.x, up.y)
+	# A crane's clank comes from a working crane's spreader when one is in earshot (PortLife).
+	if kind == "crane":
+		var crane := PortLife.clank_at(eye, range_m.y)
+		if crane != Vector3.INF:
+			at = crane
 	# A gull call comes from a real gull when one is in earshot (Birds), not from thin air.
 	if kind == "gull":
 		var real := Birds.gull_at(eye, range_m.y)
@@ -716,7 +1018,7 @@ func _place_emitters(eye: Vector3) -> void:
 	if scene.is_empty():
 		return
 	var w := WorldState.to_world(eye)
-	for layer: String in ["freeway", "surf", "airport", "port"]:
+	for layer: String in ["freeway", "surf", "airport", "port", "river", "fountain", "playground"]:
 		var p: AudioStreamPlayer3D = _beds[layer]
 		if not p.playing:
 			continue
@@ -724,7 +1026,7 @@ func _place_emitters(eye: Vector3) -> void:
 		var dir := Vector3.FORWARD
 		if src != Vector3.INF:
 			var d := src - w
-			if layer != "freeway":
+			if layer != "freeway" and layer != "river":
 				d.y = 0.0 # the surf, the field and the quay are all "over there", not below
 			if d.length() > 0.5:
 				dir = d.normalized()
@@ -777,6 +1079,13 @@ func _assign_traffic(eye: Vector3) -> void:
 		var car: Node3D = near[i][1] if i < near.size() else null
 		_car_of[i] = car
 		var v := _cars[i]
+		# A bus or a truck idles on its diesel; a car rolls on its tyres.
+		var big := car != null and not _diesel.is_empty() and BigVehicles.is_big(int(car.get("body_type")))
+		if big != bool(_car_kind[i]) and (big or v.stream != null):
+			_car_kind[i] = big
+			v.stop()
+			var roll: Array = Sfx.take("car_roll")
+			v.stream = _diesel[0] if big else (roll[0] if not roll.is_empty() else null)
 		if car == null or v.stream == null:
 			if v.playing:
 				v.stop()
@@ -840,6 +1149,10 @@ func _follow_traffic(eye: Vector3, _dt: float) -> void:
 		v.pitch_scale = clampf((0.75 + speed / 40.0) * doppler, 0.5, 2.0)
 		# A stopped car is an idle murmur; a fast one is tyre roar.
 		v.volume_db = _car_trim + ambience_db + car_roll_db + clampf((speed - 20.0) * 0.6, -12.0, 0.0)
+		if _car_kind[i]:
+			# The diesel: loud at idle, revving up a little as it pulls away; no tyre Doppler on top.
+			v.volume_db = float(_diesel[1]) + ambience_db + car_roll_db + 2.0 - clampf(speed * 0.15, 0.0, 3.0)
+			v.pitch_scale = clampf((0.95 + speed / 30.0) * doppler, 0.8, 1.6)
 		for k in _passes.size():
 			if _pass_of[k] == car and _passes[k].playing:
 				v.volume_db -= 8.0 # the pass-by carries it for now

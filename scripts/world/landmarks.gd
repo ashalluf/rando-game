@@ -129,6 +129,9 @@ static func _list() -> Array[Dictionary]:
 	if LandmarkMacArthurPark.enabled:
 		list.append(LandmarkMacArthurPark.entry())
 	# --- end of Westlake ------------------------------------------------------------------------
+	# The canal neighbourhood behind the boardwalk (Canals): a site like the park's.
+	if Canals.enabled:
+		list.append(Canals.entry())
 	# --- The reservoir in the front range (Reservoir, LandmarkReservoir) -------------------------
 	list.append({"id": "reservoir", "anchor": Reservoir.ANCHOR, "radius": 60.0})
 	return list
@@ -174,6 +177,15 @@ static func crowds(lm: Dictionary, plan: CityPlan) -> Array:
 	return []
 
 
+## Build steps for the people a landmark brings of its own kind (not plain pedestrians on a rect):
+## the pier park's crowd on its deck.
+static func people_steps(lm: Dictionary, chunk: CityChunk) -> Array[Callable]:
+	if lm.id == "pier":
+		return PierPark.people_steps(lm.anchor, chunk)
+	var none: Array[Callable] = []
+	return none
+
+
 ## True when world XZ `p` (grown by `pad` metres) is inside a landmark building that stands on
 ## city ground the street grid does not know about, so street things must not be put there.
 static func covers(plan: CityPlan, p: Vector2, pad: float) -> bool:
@@ -190,6 +202,16 @@ static func site_steps(site_id: String, chunk: CityChunk) -> Array[Callable]:
 	match site_id:
 		"macarthur_park":
 			return LandmarkMacArthurPark.site_steps(chunk)
+		Canals.SITE_ID:
+			return Canals.site_steps(chunk)
+	var none: Array[Callable] = []
+	return none
+
+
+## What the far city records of a site chunk (CityChunk.capturing): the canals' ground and houses.
+static func capture_steps(site_id: String, chunk: CityChunk) -> Array[Callable]:
+	if site_id == Canals.SITE_ID:
+		return Canals.capture_steps(chunk)
 	var none: Array[Callable] = []
 	return none
 
@@ -372,137 +394,9 @@ static func _build_hills_sign(anchor_xz: Vector2, parent: Node3D, statics: Stati
 
 # --- Pier -----------------------------------------------------------------------------------
 
-static func _build_pier(anchor: Vector2, parent: Node3D, statics: StaticBody3D, _plan: CityPlan, detailed: bool) -> void:
-	var deck_y := 6.0
-	var length := 280.0
-	var width := 24.0
-	var wood := Color(0.55, 0.40, 0.25)
-	var dark := Color(0.30, 0.25, 0.20)
-	# Deck runs west from the anchor (the beach end) out over the water.
-	var center := Vector3(anchor.x - length * 0.5, deck_y, anchor.y)
-	_box(parent, statics, Vector3(length, 0.8, width), center, wood, true)
-	# Ramp from the sand up to the deck.
-	var ramp_len := 30.0
-	var ramp := _box(parent, statics, Vector3(ramp_len, 0.8, 8.0), Vector3(anchor.x + ramp_len * 0.5 - 2.0, deck_y * 0.5, anchor.y), wood, true)
-	ramp.rotation.z = atan2(deck_y, ramp_len)
-	# Railings.
-	for side: float in [-1.0, 1.0]:
-		_box(parent, statics, Vector3(length, 1.0, 0.15), center + Vector3(0.0, 0.9, side * (width * 0.5 - 0.1)), dark, true)
-	# Piles.
-	var step := 12.0 if detailed else 40.0
-	var px := anchor.x - 6.0
-	while px > anchor.x - length + 4.0:
-		for side: float in [-1.0, 1.0]:
-			_cyl(parent, null, 0.5, deck_y + 2.0, Vector3(px, deck_y * 0.5 - 1.0, anchor.y + side * (width * 0.5 - 2.0)), dark)
-		px -= step
-	# Entrance arch with the name.
-	var arch_x := anchor.x - 8.0
-	for side: float in [-1.0, 1.0]:
-		_box(parent, statics, Vector3(0.8, 9.0, 0.8), Vector3(arch_x, deck_y + 4.5, anchor.y + side * 9.0), Color(0.2, 0.5, 0.7), true)
-	_box(parent, statics, Vector3(1.2, 2.4, 20.0), Vector3(arch_x, deck_y + 9.6, anchor.y), Color(0.95, 0.85, 0.3), true)
-	var label := Label3D.new()
-	label.text = PIER_NAME
-	label.font_size = 160
-	label.pixel_size = 0.02
-	label.outline_size = 24
-	label.modulate = Color(0.15, 0.15, 0.2)
-	label.position = Vector3(arch_x + 0.7, deck_y + 9.6, anchor.y)
-	label.rotation.y = PI * 0.5
-	parent.add_child(label)
-	# Ferris wheel.
-	_build_ferris_wheel(Vector3(anchor.x - 110.0, deck_y, anchor.y), parent, statics, detailed)
-	# Coaster loop near the end.
-	_build_coaster(Vector3(anchor.x - 220.0, deck_y, anchor.y), parent, statics, detailed)
-	if not detailed:
-		return
-	# Booths and lamps along the deck.
-	var colors := [Color(0.9, 0.3, 0.3), Color(0.3, 0.6, 0.9), Color(0.95, 0.75, 0.2), Color(0.5, 0.8, 0.4)]
-	for i in 6:
-		var bx := anchor.x - 30.0 - i * 12.0
-		var side := 1.0 if i % 2 == 0 else -1.0
-		var col: Color = colors[i % colors.size()]
-		_box(parent, statics, Vector3(4.0, 3.0, 3.0), Vector3(bx, deck_y + 1.9, anchor.y + side * 8.0), col, true)
-		_box(parent, null, Vector3(4.6, 0.3, 4.2), Vector3(bx, deck_y + 3.6, anchor.y + side * 7.5), col.darkened(0.3), false)
-	for i in 10:
-		var lx := anchor.x - 20.0 - i * 26.0
-		for side: float in [-1.0, 1.0]:
-			_cyl(parent, null, 0.1, 5.0, Vector3(lx, deck_y + 2.9, anchor.y + side * (width * 0.5 - 1.0)), Color(0.28, 0.29, 0.32))
-			_box(parent, null, Vector3(0.6, 0.2, 0.3), Vector3(lx, deck_y + 5.5, anchor.y + side * (width * 0.5 - 1.0)), Color(1.0, 0.95, 0.8), false)
-
-
-static func _build_ferris_wheel(at: Vector3, parent: Node3D, statics: StaticBody3D, detailed: bool) -> void:
-	var radius := 24.0
-	var hub := at + Vector3(0.0, radius + 6.0, 0.0)
-	var steel := Color(0.85, 0.2, 0.25)
-	# A-frame supports (visual) and one collision box for the whole footprint.
-	for side: float in [-1.0, 1.0]:
-		var leg := _box(parent, null, Vector3(1.2, radius + 8.0, 1.2), hub + Vector3(0.0, -(radius + 6.0) * 0.5, side * 6.0), Color(0.3, 0.3, 0.32), false)
-		leg.rotation.x = side * 0.18
-	if statics:
-		_shape(statics, Vector3(6.0, 8.0, 14.0), at + Vector3(0.0, 4.0, 0.0))
-	var wheel := FerrisWheel.new()
-	wheel.position = hub
-	parent.add_child(wheel)
-	var spokes := 12 if detailed else 6
-	for i in spokes:
-		var angle := TAU * i / spokes
-		var spoke := MeshInstance3D.new()
-		var box := BoxMesh.new()
-		box.size = Vector3(0.4, radius * 2.0, 0.4)
-		spoke.mesh = box
-		spoke.material_override = PropFactory.material(steel)
-		spoke.rotation.z = angle
-		wheel.add_child(spoke)
-	# Rim segments.
-	var segments := 24 if detailed else 12
-	for i in segments:
-		var angle := TAU * (i + 0.5) / segments
-		var seg := MeshInstance3D.new()
-		var box := BoxMesh.new()
-		box.size = Vector3(TAU * radius / segments + 0.3, 0.5, 0.5)
-		seg.mesh = box
-		seg.material_override = PropFactory.material(steel)
-		seg.position = Vector3(cos(angle), sin(angle), 0.0) * radius
-		seg.rotation.z = angle + PI * 0.5
-		wheel.add_child(seg)
-	# Gondolas hang from the rim and stay upright.
-	var gondola_colors := [Color(0.95, 0.75, 0.2), Color(0.3, 0.6, 0.9), Color(0.5, 0.8, 0.4), Color(0.9, 0.4, 0.6)]
-	for i in segments / 2:
-		var angle := TAU * i / (segments / 2)
-		var g := Node3D.new()
-		g.position = Vector3(cos(angle), sin(angle), 0.0) * radius
-		wheel.add_child(g)
-		wheel.gondolas.append(g)
-		var cab := MeshInstance3D.new()
-		var box := BoxMesh.new()
-		box.size = Vector3(2.4, 2.2, 2.4)
-		cab.mesh = box
-		cab.material_override = PropFactory.material(gondola_colors[i % gondola_colors.size()])
-		cab.position = Vector3(0.0, -1.6, 0.0)
-		g.add_child(cab)
-
-
-static func _build_coaster(at: Vector3, parent: Node3D, statics: StaticBody3D, detailed: bool) -> void:
-	var radius := 14.0
-	var rail := Color(0.95, 0.6, 0.15)
-	var center := at + Vector3(0.0, radius + 2.0, 0.0)
-	var segments := 24 if detailed else 12
-	for i in segments:
-		var angle := TAU * (i + 0.5) / segments
-		var seg := _box(parent, null, Vector3(TAU * radius / segments + 0.3, 0.5, 2.0), center + Vector3(cos(angle), sin(angle), 0.0) * radius, rail, false)
-		seg.rotation.z = angle + PI * 0.5
-	# Straight track in and out of the loop, plus supports.
-	_box(parent, statics, Vector3(60.0, 0.5, 2.0), at + Vector3(0.0, 2.0, 0.0), rail, true)
-	for i in 5:
-		_cyl(parent, null, 0.25, 2.0, at + Vector3(-28.0 + i * 14.0, 1.0, 0.0), Color(0.3, 0.3, 0.32))
-	for side: float in [-1.0, 1.0]:
-		var brace := _box(parent, null, Vector3(0.6, radius * 2.0 + 4.0, 0.6), center + Vector3(side * radius * 0.7, 0.0, 0.0), Color(0.3, 0.3, 0.32), false)
-		brace.rotation.z = -side * 0.35
-	if statics:
-		_shape(statics, Vector3(radius * 2.0 + 2.0, radius * 2.0 + 2.0, 3.0), center)
-	# A little parked train.
-	for i in 3:
-		_box(parent, null, Vector3(3.0, 1.6, 1.8), at + Vector3(-24.0 + i * 3.4, 3.1, 0.0), Color(0.2, 0.5, 0.85), false)
+## Rando Pier and its amusement park: PierPark (the deck, the midway, the rides, the crowd).
+static func _build_pier(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: CityPlan, detailed: bool) -> void:
+	PierPark.build(anchor, parent, statics, plan, detailed)
 
 
 # --- Observatory ----------------------------------------------------------------------------
@@ -796,7 +690,9 @@ static func _build_cargo_ship(anchor: Vector2, parent: Node3D, statics: StaticBo
 					batch.add("container", PropFactory.container(), PortKit.container_xform(centre, true, false, kit.randf() < 0.5), look[0], look[1])
 			if statics:
 				_shape(statics, Vector3(12.0, 2.6 * height, 7.2), at + Vector3(x, 9.0 + 1.3 * height, z))
-	batch.build(parent)
+	var ship_boxes: Dictionary = batch.build(parent)
+	if detailed and ship_boxes.has("container"):
+		(ship_boxes.container as Node).add_to_group("port_ship_boxes") # PortLife hides what its cranes work
 
 
 # --- Building-shader helpers -----------------------------------------------------------------
