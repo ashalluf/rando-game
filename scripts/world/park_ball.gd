@@ -25,6 +25,7 @@ var court_y: float = 0.3
 var _carrier: Node3D = null
 var _state: int = 0
 var _t: float = 0.0
+var _bounces: int = 0 # floor hits this dribble, for its sound
 var _hold: float = 3.0
 var _from := Vector3.ZERO
 var _to := Vector3.ZERO
@@ -82,6 +83,10 @@ func _process(delta: float) -> void:
 			var fwd := Vector3(-sin(yaw), 0.0, -cos(yaw))
 			var right := Vector3(-fwd.z, 0.0, fwd.x)
 			var bounce := absf(sin(_t * PI * dribble_rate))
+			var hits := int(_t * dribble_rate)
+			if hits != _bounces:
+				_bounces = hits
+				Sfx.play("ball_dribble", global_position, -8.0)
 			position = c.position + fwd * 0.35 + right * 0.28
 			position.y = court_y + RADIUS + bounce * dribble_height
 			if _t > _hold:
@@ -109,6 +114,7 @@ func _process(delta: float) -> void:
 				_state = 0
 				_t = 0.0
 				_carrier = _nearest(live)
+				_bounces = 0
 				_hold = _rng.randf_range(dribble_seconds.x, dribble_seconds.y)
 
 
