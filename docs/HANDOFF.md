@@ -11295,8 +11295,8 @@ steps, median 2.0 ms, p99 4.8 ms, worst 6.8-8.2 ms over three runs (the box's ow
 measured up to 3.4-8.7 ms in the same runs); before the slicing a step ran 58-67 ms (the checks)
 and up to 153 ms (one big building's fine commit). The same 2,304,706 triangles either way; the
 surface cap costs 105 surfaces over the 96 buildings (594 -> 699, about one draw a building
-near). Gate on the branch merged with main's batch 1: 1,509 passed, 0 failed; peak
-RSS 3.3 GB.
+near). Gate on the branch merged with main's batches 2 and 3, sliced: 1,805 passed, 0 failed; longest
+historic step in the checks 6.4 ms; peak RSS 3.7 GB.
 
 **Not done / not verified**: no Forward+ look (the terracotta and the floodlit base through AgX,
 the lanterns' bloom: Mac eyes needed); the side and back walls are the plain Building (party
