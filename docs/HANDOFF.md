@@ -8714,7 +8714,7 @@ inside what it stands for by construction (below).
 
 **Cost.** OccluderExtra is ~128 triangles a hill tile, 12 a deck segment, 2 a bank segment or
 wall panel; the mountain sheet is ~4-8 k triangles switched on round the camera. The sheet's setup
-is MOUNTAIN_SETUP at load. Godot's occlusion raycasting is threaded (Embree) and its cost scales
+is 137 ms at load (372 tiles on the default seed) and switching its tiles 0.3-0.5 ms a look, five looks a second. Godot's occlusion raycasting is threaded (Embree) and its cost scales
 with the buffer, not the occluder count; a chunk's OccluderExtra is built in its finish step
 (under a millisecond). No-op on the web (no Embree there), and the mountain sheet is not built on
 the web at all.
@@ -8745,3 +8745,8 @@ Building-type occluders were not added for the cargo ship, the piers or the masj
 Other branches that cut the ground (a reservoir, a stadium in a ravine) are fine as long as their
 cut is in `MacroMap.height_at()` (the tile's grid); anything drawn BELOW the hill tile's surface
 some other way would need its cells left out.
+
+**Gate** (merged with origin/main `9eecc00`): smoke test passed, 1,371 checks, 0 failed, no
+tripwire errors, peak RSS 3.18 GB. Note `tests/headless_check.sh`'s 900 s timeout is shorter than
+this box needs (it cut the run at 851 checks); the run above was the smoke scene with a 3600 s
+timeout.
