@@ -184,7 +184,7 @@ func _full(city: Node3D, plan: CityPlan, e: Dictionary, seen: Dictionary) -> voi
 	Roadside.enabled = true
 	var b2 := _layout(off)
 	_drop(off)
-	_t._check(a == b2, "the block built with Roadside off has the same buildings and parked cars (%d / %d)" % [(a[0] as Array).size(), (a[1] as Array).size()])
+	_t._check(a == b2, "the block built with Roadside off has the same buildings and parked cars (%d / %d)%s" % [(a[0] as Array).size(), (a[1] as Array).size(), _first_diff(a, b2)])
 
 
 func _drop(chunk: CityChunk) -> void:
@@ -203,3 +203,16 @@ func _layout(chunk: CityChunk) -> Array:
 		if is_instance_valid(car) and not (car as Node).is_queued_for_deletion():
 			cars.append((car as Node3D).global_position.snapped(Vector3.ONE * 0.01) if (car as Node).is_inside_tree() else (car as Node3D).position.snapped(Vector3.ONE * 0.01))
 	return [blds, cars]
+
+
+## The first building or car that differs between two layouts, for the A/B's label ("" if none).
+func _first_diff(a: Array, b: Array) -> String:
+	for i in 2:
+		var x: Array = a[i]
+		var y: Array = b[i]
+		for j in maxi(x.size(), y.size()):
+			var u = x[j] if j < x.size() else null
+			var v = y[j] if j < y.size() else null
+			if u != v:
+				return ": %s %d on %s, off %s" % ["building" if i == 0 else "car", j, str(u), str(v)]
+	return ""
