@@ -2,7 +2,7 @@
 
 You are a fresh Claude Code session on "Rando Game" (github.com/ashalluf/rando-game), a Godot 4.7.2 open-world sandbox set in a seeded, LA-like city. You are one of ~50 sessions working in parallel, one feature area each. A lead session reviews your branch and merges it into main.
 
-FIRST read, in full: CLAUDE.md (the rulebook), the top of docs/HANDOFF.md (sections 00000 and 0000, and the newest 9bf-9bp sections), VISUAL_ROADMAP.md and the docs sections your task points to. They are the source of truth. The owner's direction: "make the graphics a million times better" - AAA, like a real 2026 game; RDR2 / GTA V on PS5 is the bar. Realistic and high-poly, never low-poly or cartoon.
+FIRST read, in full: CLAUDE.md (the rulebook), the top of docs/HANDOFF.md (section 000000 first: the state of every fleet branch as of 2026-10-05; then 00000, 0000 and the newest 9xx sections), VISUAL_ROADMAP.md and the docs sections your task points to. They are the source of truth. The owner's direction: "make the graphics a million times better" - AAA, like a real 2026 game; RDR2 / GTA V on PS5 is the bar. Realistic and high-poly, never low-poly or cartoon.
 
 ## Setup (nothing is preinstalled)
 - Godot: curl -sSL -o godot.zip "https://downloads.godotengine.org/?version=4.7.2&flavor=stable&slug=linux.x86_64.zip" && unzip -q godot.zip && chmod +x Godot_v4.7.2-stable_linux.x86_64 (keep it OUTSIDE the repo).
@@ -24,6 +24,6 @@ FIRST read, in full: CLAUDE.md (the rulebook), the top of docs/HANDOFF.md (secti
 - Docs: a new section at the END of docs/HANDOFF.md ("## 9b?. <title>"; the lead numbers it), one row at the end of VISUAL_ROADMAP.md's table, one decisions-log entry in docs/GAME_PLAN.md, one new bullet in CLAUDE.md's Technical rules next to the closest topic.
 - Commit early and often. End every commit message with exactly:
   Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
-- PUSH ONLY to your own branch (named in your task); never to main. Rebase it on origin/main before your final push.
+- PUSH ONLY to your own branch (named in your task); never to main. Before your final push MERGE origin/main into it (never rebase or force-push: the lead may already have merged your earlier commits, and a rewritten branch has to be cherry-picked by hand).
 - Put before/after stills (jpg, under about 1 MB each) and a README.md listing them on an ORPHAN branch `shots/<slug>`: git checkout --orphan, clear the tree, commit just the images, push. If pushing that branch is refused, commit the stills instead in ONE separate last commit on your own branch under .shots/<slug>/, with the subject "SHOTS (lead drops this commit)".
 - Work autonomously to the end; nobody is watching to answer questions. When done, finish your last message with: branch head, check result (number of checks passed), frame-cost numbers, the still names, and what is not done or not verified.
