@@ -1,7 +1,8 @@
 extends SceneTree
 ## How long the city takes to load, headless (the dummy renderer, so the CPU side: the plan, the
 ## far city, the first chunks, the warm-ups) - from the scene entering the tree until the loading
-## screen frees itself, and how many frames that took.
+## screen frees itself, and how many frames that took. Headless there is no loading screen: the
+## city loads synchronously in its first frames, so it is the time to the sixth frame.
 ##
 ##   godot --headless --path . --audio-driver Dummy --script tools/load_probe.gd -- --spawn=x,z
 func _initialize() -> void:

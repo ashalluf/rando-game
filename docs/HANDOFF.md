@@ -7324,7 +7324,9 @@ mean ~100), `_build_lot` (one whole Building a step, mean 30 ms, a tower 60-1,10
 time a kind is built), `_build_roads` (mean 37), `_park_car` (a car build, ~39), `_build_park`
 (45), `_build_sidewalk_props` (31; 440-740 ms the first time it runs, the props' meshes and LODs
 being made). The streamer runs at least one step a frame whatever it costs, so on the Mac a FULL
-chunk arriving is a run of 10-60 ms frames. LOAD_LINE
+chunk arriving is a run of 10-60 ms frames. The load itself (`tools/load_probe.gd`, headless, downtown spawn; headless the city loads
+synchronously in its first frames, the whole far city included): 78.1 / 75.9 s on 885795c, 69.5 /
+73.0 s after (~-7 %, mostly the relief grid; two runs each, the box busy).
 
 ### The remaining top costs (after)
 
