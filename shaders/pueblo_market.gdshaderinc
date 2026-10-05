@@ -144,7 +144,13 @@ bool pm_picado_cut(vec2 uv, float pick) {
 	return cut;
 }
 
-PmSurf pm_surface(vec2 uv, float dist, bool front) {
+// How much of a pattern of `freq` cycles a metre survives when a pixel spans `px` metres: faded
+// to its average before it aliases into moire.
+float pm_keep(float freq, float px) {
+	return 1.0 - smoothstep(0.25, 0.6, freq * px);
+}
+
+PmSurf pm_surface(vec2 uv, float dist, float px) {
 	PmSurf s;
 	s.albedo = v_paint;
 	s.rough = 0.7;
@@ -159,12 +165,12 @@ PmSurf pm_surface(vec2 uv, float dist, bool front) {
 	if (k < 0.5) {
 		// Painted timber: brush marks along the board, worn paint at the edges by noise.
 		float g = pm_noise(vec2(uv.x * 3.0, uv.y * 40.0));
-		s.albedo *= mix(1.0, 0.86 + 0.2 * g, fine);
+		s.albedo *= mix(1.0, 0.86 + 0.2 * g, fine * pm_keep(40.0, px));
 		s.rough = 0.62;
 	} else if (k < 1.5) {
 		// Natural timber: grain along v, knots.
 		float g = pm_noise(vec2(uv.x * 18.0, uv.y * 1.2)) * 0.6 + pm_noise(vec2(uv.x * 60.0, uv.y * 3.0)) * 0.4;
-		s.albedo *= mix(1.0, 0.72 + 0.45 * g, fine);
+		s.albedo *= mix(1.0, 0.72 + 0.45 * g, fine * pm_keep(60.0, px));
 		s.rough = 0.78;
 	} else if (k < 2.5) {
 		// Awning canvas: wide stripes across u, the second colour cream; fading toward the top.
@@ -172,7 +178,7 @@ PmSurf pm_surface(vec2 uv, float dist, bool front) {
 		vec3 cream = cs_srgb_to_linear(vec3(0.94, 0.9, 0.8));
 		s.albedo = mix(v_paint, cream, st);
 		float weave = pm_noise(uv * vec2(140.0, 140.0));
-		s.albedo *= mix(1.0, 0.9 + 0.15 * weave, fine);
+		s.albedo *= mix(1.0, 0.9 + 0.15 * weave, fine * pm_keep(140.0, px));
 		s.rough = 0.85;
 		s.through = 0.35;
 	} else if (k < 3.5) {
@@ -183,14 +189,14 @@ PmSurf pm_surface(vec2 uv, float dist, bool front) {
 		vec3 c = cs_srgb_to_linear(pm_dye(floor(h * 10.0 + v_seed * 13.0)));
 		float sub = fract(uv.y / 0.09);
 		if (sub < 0.12 || sub > 0.88) {
-			c = cs_srgb_to_linear(pm_dye(mod(band + 8.0 + floor(v_seed * 3.0), 10.0)));
+			c = mix(c, cs_srgb_to_linear(pm_dye(mod(band + 8.0 + floor(v_seed * 3.0), 10.0))), pm_keep(1.0 / 0.011, px));
 		}
 		// Wide grounds every few bands (the dark or natural field of a real sarape).
 		if (pm_hash(vec2(floor(uv.y / 0.36), v_seed * 31.0)) < 0.35) {
 			c = mix(c, v_paint, 0.75);
 		}
 		float weave = step(0.5, fract(uv.x * 160.0)) * 0.5 + step(0.5, fract(uv.y * 160.0)) * 0.5;
-		s.albedo = c * mix(1.0, 0.85 + 0.2 * weave, fine);
+		s.albedo = c * mix(1.0, 0.85 + 0.2 * weave, fine * pm_keep(160.0, px));
 		s.rough = 0.92;
 		s.through = 0.2;
 	} else if (k < 4.5) {
@@ -199,7 +205,7 @@ PmSurf pm_surface(vec2 uv, float dist, bool front) {
 		vec3 c2 = cs_srgb_to_linear(pm_dye(floor(v_seed * 10.0) + 3.0));
 		float ring = step(0.42, band) * step(band, 0.58);
 		float dots = step(length(fract(vec2(uv.x * 9.0, uv.y * 5.0)) - 0.5), 0.18) * step(0.6, band) * step(band, 0.9);
-		s.albedo = mix(v_paint, c2, max(ring, dots * 0.9) * fine);
+		s.albedo = mix(v_paint, c2, max(ring, dots * 0.9) * fine * pm_keep(9.0, px));
 		s.rough = 0.16;
 	} else if (k < 5.5) {
 		// Terracotta: fired clay, mottled.
@@ -223,7 +229,7 @@ PmSurf pm_surface(vec2 uv, float dist, bool front) {
 	} else if (k < 9.5) {
 		// Woven straw: a diagonal plait.
 		float w = step(0.5, fract((uv.x + uv.y) * 22.0)) * 0.5 + step(0.5, fract((uv.x - uv.y) * 22.0)) * 0.5;
-		s.albedo *= mix(1.0, 0.78 + 0.3 * w, fine);
+		s.albedo *= mix(1.0, 0.78 + 0.3 * w, fine * pm_keep(44.0, px));
 		s.rough = 0.85;
 	} else if (k < 10.5) {
 		// Leather: tooled, a little sheen.
@@ -238,7 +244,7 @@ PmSurf pm_surface(vec2 uv, float dist, bool front) {
 		float flower = step(length(q), 0.33);
 		float pick = pm_hash(floor(vec2(uv.x * 9.0, uv.y * 9.0)) + v_seed * 17.0);
 		vec3 thread = cs_srgb_to_linear(pm_dye(floor(pick * 8.0)));
-		s.albedo = mix(v_paint, thread, max(hem, yoke) * flower * fine);
+		s.albedo = mix(v_paint, mix(v_paint * 0.8 + thread * 0.2, thread, flower * pm_keep(18.0, px)), max(hem, yoke) * fine);
 		s.rough = 0.9;
 		s.through = 0.15;
 	} else if (k < 12.5) {
@@ -249,7 +255,7 @@ PmSurf pm_surface(vec2 uv, float dist, bool front) {
 		float band = floor(uv.y / 0.07);
 		vec3 c = cs_srgb_to_linear(pm_dye(floor(pm_hash(vec2(band, v_seed * 53.0)) * 10.0)));
 		float ruff = pm_noise(vec2(uv.x * 45.0, uv.y * 8.0));
-		s.albedo = mix(v_paint, c, 0.85) * (0.75 + 0.35 * ruff);
+		s.albedo = mix(v_paint, c, 0.85) * mix(0.93, 0.75 + 0.35 * ruff, pm_keep(45.0, px));
 		s.rough = 0.9;
 		s.through = 0.3;
 	} else if (k < 14.5) {

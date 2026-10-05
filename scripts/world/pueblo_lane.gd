@@ -63,7 +63,7 @@ const CHURCH_H := 11.0
 const STALLS_PER_RUN := 5
 const STALL_GAP := 2.6
 ## Vendors: one at every n-th stall.
-const VENDOR_EVERY := 3
+const VENDOR_EVERY := 4
 
 ## Stucco tints the lane's buildings wear (vertex colour, multiplied into the facade's own).
 const STUCCO_TINTS := [Color(1.0, 0.97, 0.9), Color(1.0, 0.86, 0.66), Color(0.98, 0.78, 0.7),
@@ -173,9 +173,9 @@ static func crowds(info: Dictionary) -> Array:
 	var lane: Rect2 = L.lane
 	var plaza: Rect2 = L.plaza
 	var garden: Rect2 = L.garden
-	var out := [[lane.grow_individual(0.0, -1.0, 0.0, -1.0), 2.0, 22], [plaza.grow(-3.0), 5.0, 16]]
+	var out := [[lane.grow_individual(0.0, -1.0, 0.0, -1.0), 2.0, 18], [plaza.grow(-3.0), 5.0, 12]]
 	if garden.size.x > 12.0 and garden.size.y > 12.0:
-		out.append([garden.grow(-2.0), 3.0, 6])
+		out.append([garden.grow(-2.0), 3.0, 4])
 	return out
 
 
@@ -662,21 +662,21 @@ static func _church(g: LandmarkGeo, solid: PuebloMarket.Acc, parent: Node3D, sta
 		LandmarkCivicCenter._gable(g, "tile", "church", Rect2(Vector2(cx - dw * 0.5 - 1.0, zf - 1.3), Vector2(dw + 2.0, 1.3)), y0 + dh + 0.7, 0.55, false, null)
 		for sg: float in [-1.0, 1.0]:
 			g.box("timber", Vector3(cx + sg * (dw * 0.5 + 0.7), y0 + dh + 0.45, zf - 0.6), Vector3(0.25, 0.5, 1.2), Color(0.8, 0.8, 0.8))
-		g.box("dark", Vector3(cx, y0 + 10.6, zf - 0.02), Vector3(1.0, 1.5, 0.05), Color.WHITE)
-		g.box("trim", Vector3(cx, y0 + 9.75, zf - 0.15), Vector3(1.4, 0.18, 0.35), Color(0.92, 0.9, 0.84))
+		g.box("dark", Vector3(cx, y0 + 11.5, zf - 0.02), Vector3(0.9, 1.3, 0.05), Color.WHITE)
+		g.box("trim", Vector3(cx, y0 + 10.78, zf - 0.15), Vector3(1.3, 0.16, 0.35), Color(0.92, 0.9, 0.84))
 		# The round window over the door.
-		g.cylinder("dark", Vector3(cx, y0 + 8.3, zf), 0.9, 0.1, 16)
+		g.cylinder("dark", Vector3(cx, y0 + 9.1, zf), 0.9, 0.1, 16)
 		var ring := 16
 		for i in ring:
 			var a := TAU * float(i) / float(ring)
-			g.box("trim", Vector3(cx + cos(a) * 1.05, y0 + 8.3 + sin(a) * 1.05, zf - 0.1), Vector3(0.45, 0.25, 0.22), Color(0.92, 0.9, 0.84), Basis(Vector3.FORWARD, -a))
+			g.box("trim", Vector3(cx + cos(a) * 1.05, y0 + 9.1 + sin(a) * 1.05, zf - 0.1), Vector3(0.45, 0.25, 0.22), Color(0.92, 0.9, 0.84), Basis(Vector3.FORWARD, -a))
 		# A lantern either side of the door.
 		for sg: float in [-1.0, 1.0]:
 			PuebloMarket.lantern(solid, Vector3(cx + sg * 3.1, y0 + 3.2, zf), Vector3(0, 0, -1))
 		# The name over the door.
 		var batch_name := MultiMeshBatch.new()
 		batch_name.add("church_name", Signage.text_mesh(CHURCH_NAME, 0.42, Signage.Letters.PRINT),
-			Transform3D(LandmarkArenaDistrict._face(0.0, 1.0), Vector3(cx, y0 + 6.5, zf - 0.13)), Color(0.32, 0.24, 0.16))
+			Transform3D(LandmarkArenaDistrict._face(0.0, 1.0), Vector3(cx, y0 + 7.35, zf - 0.13)), Color(0.32, 0.24, 0.16))
 		batch_name.set_no_shadow("church_name")
 		batch_name.build(parent)
 	# The sanctuary zone: the nave, the front and the forecourt to the plaza's edge.

@@ -12,7 +12,7 @@ void vertex() {
 }
 
 void fragment() {
-	PmSurf s = pm_surface(UV, length(VERTEX), FRONT_FACING);
+	PmSurf s = pm_surface(UV, length(VERTEX), length(fwidth(UV)));
 	if (s.cut) {
 		discard;
 	}
