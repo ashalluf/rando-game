@@ -17,3 +17,12 @@ frames of a sequence (TrafficAI.advance_shot), so each sequence is one continuou
 Frame cost (tools/geo_count.gd, 800x600, default spawn): TRAFFIC_AI=0 3.651 M tris / 3,656 draws,
 TRAFFIC_AI=1 3.654 M / 3,660. Traffic tick (headless, 30 street + 70 freeway cars): 5.99 ms off,
 6.50 ms on.
+
+## After merging fleet/base (2026-10-05, second session)
+
+Same stills re-shot on the merged branch (opengl3, 1280x720, 16:30, default spawn), named
+`2N_after_fleetbase_<kind>_tN.jpg`:
+
+- `21..23_after_fleetbase_bus_t1..3` - a car behind a bus at its stop signals and moves over to pass (TRAFFIC=bus, steps 0.9, 0.9, 1.8 s)
+- `21..23_after_fleetbase_merge_t1..3` - a car up an on-ramp merging (TRAFFIC=merge, 1.5, 2, 2.5 s). Note: on this seed a house in the yard under the deck pokes through the freeway (houses / freeway corridor, not traffic)
+- `21..23_after_fleetbase_pullout_t1..3` - a parked car signalling, then pulling out (TRAFFIC=pullout, 1.5, 2, 2.5 s)
