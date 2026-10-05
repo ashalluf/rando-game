@@ -192,6 +192,8 @@ func _warm_shaders() -> void:
 	# The port's kit: its meshes built here (a crane is ~20 ms of GDScript a pose) and its two
 	# shaders drawn through a MultiMesh, the only way the containers and gantries are drawn.
 	effects.append_array(PortKit.warm())
+	# The street vendors' trucks, carts and umbrellas (StreetVendors), built in code.
+	effects.append_array(StreetVendors.warm())
 	# Car damage: the flames, the glass cubes and the engine smoke (CarDamage).
 	effects.append_array(CarDamage.warm_materials())
 	# The boost's streaks of air (BoostTrail), so the first boost does not stall.

@@ -317,6 +317,19 @@ already mapped so milestone 2 is script-only.
   (a snapped junction turn swings it round instead of jumping), rigid once the rig is physical;
   **turns stay snapped at the junction's centre** for every vehicle (the trailer's swing hides it
   for the semi; the bus does not turn by itself). Every company and agency name is invented.
+- **2026-10-04 Street vendors: code-built stands, hash-placed by place and hour, real people at
+  them (VISUAL_ROADMAP #52).** Nothing on the pavements sold anything. `StreetVendors` builds taco
+  trucks, fruit / elote / bacon-wrapped hot dog / paleta carts, market umbrellas and flower and
+  balloon stands in code at real size on one shader (one batch per kind a chunk), with invented
+  names and menus in real lettering (TextMesh). Who works where is a pure function of seed, block,
+  face and the hour the chunk is built at: trucks at the kerb at night (some at lunch, most on the
+  industrial blocks), carts by day, hot dogs round the arena and downtown at night, paletas in the
+  parks, the most across from MacArthur Park. The truck is a static prop that never breaks (it
+  sparks); a cart is an EncampmentItem, so it tips over and stays gone. A crowd rig works each
+  stand (`StreetVendor`, the life clips) and walkers stop at its queue (`Pedestrian._plan_queue()`).
+  The block's own random stream is untouched: a parked car in a truck's stretch is skipped after
+  its rolls and counted as parked. Trucks are not Vehicles (the big-vehicles work owns those), and
+  they do not arrive or leave while a chunk stays built - the hour is read when it builds.
 - **2026-10-04 The far city's buildings are coded copies of the near ones, not impostors (G7).**
   Every building past the FULL ring was its parts as boxes on a shader that GUESSED the facade
   (typology from the colour, its own grid, lit-window hash and roof roll), so a building changed
