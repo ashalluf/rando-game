@@ -146,14 +146,98 @@ PHRASES = [
     "FAMILY OWNED",
     "(213) 555-01@@",
     "SE HABLA ESPANOL",      # 30
-    "FREE ESTIMATES",
+    "LOCALLY OWNED",
     "EST. 19@@",
     "@@@@",                  # 33 the street number on the door's transom
     "THANK YOU",
     "PLEASE COME AGAIN",     # 35
     "NO PUBLIC RESTROOM",
     "PULL",
+    "WASH & FOLD",           # 38 from here on, lines that belong to one kind of shop
+    "COIN LAUNDRY",
+    "FRESH DAILY",           # 40
+    "DINE IN - TAKE OUT",
+    "CATERING",
+    "WE DELIVER",
+    "ALTERATIONS",
+    "NEW ARRIVALS",          # 45
+    "BY APPOINTMENT",
+    "MON-FRI 9-5",
+    "FREE CONSULTATION",
+    "GIFT CARDS",
 ]
+
+# The room kinds (Building.ShopRoom / shop_interior.gdshaderinc ROOM_*), in order.
+KINDS = ["RETAIL", "CLOTHING", "CAFE", "RESTAURANT", "LAUNDROMAT", "BARBER", "BANK", "LOBBY"]
+ALL = set(KINDS)
+SELLS = {"RETAIL", "CLOTHING"}
+FOOD = {"CAFE", "RESTAURANT"}
+# Which kinds of shop each phrase can stand in the window of: a line is only ever drawn on a kind
+# it is listed for (tests/shop_vinyl_checks.gd holds the tables below to this). A BANK kind is
+# also the dentist, the tax office and the money-transfer counter (Building.SHOP_NAME_ROOMS), a
+# BARBER the nail salon and the tattoo parlour, so a kind's lines must fit every name under it.
+FITS = {
+    "SALE": SELLS, "50% OFF": SELLS, "CLOSING SALE": SELLS, "EVERYTHING MUST GO": SELLS,
+    "NOW OPEN": ALL, "GRAND OPENING": ALL, "OPEN LATE": ALL - {"BANK"},
+    "OPEN 7 DAYS": ALL - {"BANK"}, "COME IN, WE'RE OPEN": ALL,
+    "WE ACCEPT ALL CARDS": SELLS | FOOD | {"BARBER", "LAUNDROMAT"},
+    "CASH ONLY": FOOD | {"BARBER", "LAUNDROMAT", "RETAIL"}, "ATM INSIDE": {"RETAIL"},
+    "HABLAMOS ESPANOL": ALL, "SE HABLA ESPANOL": ALL, "WALK-INS WELCOME": {"BARBER"},
+    "FREE WIFI": FOOD | {"LAUNDROMAT"}, "WASH & FOLD": {"LAUNDROMAT"}, "COIN LAUNDRY": {"LAUNDROMAT"},
+    "FRESH DAILY": {"CAFE"}, "DINE IN - TAKE OUT": FOOD, "CATERING": FOOD, "WE DELIVER": FOOD,
+    "ALTERATIONS": {"CLOTHING"}, "NEW ARRIVALS": {"CLOTHING"}, "BY APPOINTMENT": {"BARBER", "BANK"},
+    "MON-FRI 9-5": {"BANK"}, "FREE CONSULTATION": {"BANK"}, "GIFT CARDS": SELLS | FOOD | {"BARBER"},
+    "CALL 555-01@@": ALL, "(213) 555-01@@": ALL, "SINCE 19@@": ALL, "EST. 19@@": ALL,
+    "FAMILY OWNED": ALL, "LOCALLY OWNED": ALL,
+}
+# Per kind, eight lines for under the name and eight promos for another bay (repeats weight them).
+GENERIC_TAGS = ["CALL 555-01@@", "(213) 555-01@@", "SINCE 19@@", "FAMILY OWNED"]
+TAGS = {
+    "RETAIL": ["OPEN 7 DAYS", "WE ACCEPT ALL CARDS", "LOCALLY OWNED", "EST. 19@@"] + GENERIC_TAGS,
+    "CLOTHING": ["ALTERATIONS", "NEW ARRIVALS", "OPEN 7 DAYS", "EST. 19@@"] + GENERIC_TAGS,
+    "CAFE": ["FREE WIFI", "FRESH DAILY", "DINE IN - TAKE OUT", "OPEN 7 DAYS"] + GENERIC_TAGS,
+    "RESTAURANT": ["DINE IN - TAKE OUT", "CATERING", "WE DELIVER", "EST. 19@@"] + GENERIC_TAGS,
+    "LAUNDROMAT": ["WASH & FOLD", "COIN LAUNDRY", "OPEN 7 DAYS", "FREE WIFI"] + GENERIC_TAGS,
+    "BARBER": ["WALK-INS WELCOME", "BY APPOINTMENT", "OPEN 7 DAYS", "SE HABLA ESPANOL"] + GENERIC_TAGS,
+    "BANK": ["MON-FRI 9-5", "BY APPOINTMENT", "SE HABLA ESPANOL", "FREE CONSULTATION"] + GENERIC_TAGS,
+    "LOBBY": ["CALL 555-01@@", "(213) 555-01@@", "SINCE 19@@", "EST. 19@@", "LOCALLY OWNED",
+              "SE HABLA ESPANOL", "FAMILY OWNED", "CALL 555-01@@"],
+}
+PROMOS = {
+    "RETAIL": ["SALE", "50% OFF", "CLOSING SALE", "EVERYTHING MUST GO", "WE ACCEPT ALL CARDS",
+               "ATM INSIDE", "GRAND OPENING", "CASH ONLY"],
+    "CLOTHING": ["SALE", "50% OFF", "NEW ARRIVALS", "CLOSING SALE", "ALTERATIONS", "GRAND OPENING",
+                 "WE ACCEPT ALL CARDS", "GIFT CARDS"],
+    "CAFE": ["FREE WIFI", "NOW OPEN", "OPEN LATE", "FRESH DAILY", "DINE IN - TAKE OUT", "WE DELIVER",
+             "CASH ONLY", "GRAND OPENING"],
+    "RESTAURANT": ["OPEN LATE", "NOW OPEN", "CATERING", "WE DELIVER", "GRAND OPENING", "CASH ONLY",
+                   "GIFT CARDS", "HABLAMOS ESPANOL"],
+    "LAUNDROMAT": ["WASH & FOLD", "COIN LAUNDRY", "FREE WIFI", "OPEN 7 DAYS", "OPEN LATE",
+                   "CASH ONLY", "NOW OPEN", "HABLAMOS ESPANOL"],
+    "BARBER": ["WALK-INS WELCOME", "NOW OPEN", "OPEN 7 DAYS", "CASH ONLY", "GIFT CARDS",
+               "HABLAMOS ESPANOL", "GRAND OPENING", "COME IN, WE'RE OPEN"],
+    "BANK": ["HABLAMOS ESPANOL", "NOW OPEN", "BY APPOINTMENT", "FREE CONSULTATION", "MON-FRI 9-5",
+             "SE HABLA ESPANOL", "COME IN, WE'RE OPEN", "GRAND OPENING"],
+    "LOBBY": ["NOW OPEN", "HABLAMOS ESPANOL", "GRAND OPENING", "COME IN, WE'RE OPEN", "NOW OPEN",
+              "SE HABLA ESPANOL", "GRAND OPENING", "NOW OPEN"],
+}
+# Promos drawn big and red, and those at the middle size.
+LOUD = ["SALE", "50% OFF", "CLOSING SALE"]
+MID = ["GRAND OPENING", "EVERYTHING MUST GO", "NEW ARRIVALS", "WASH & FOLD"]
+
+
+def kind_tables():
+    for k in KINDS:
+        for line in TAGS[k] + PROMOS[k]:
+            assert k in FITS[line], (k, line)
+        assert len(TAGS[k]) == 8 and len(PROMOS[k]) == 8, k
+    idx = {p: i for i, p in enumerate(PHRASES)}
+    tag = [idx[p] for k in KINDS for p in TAGS[k]]
+    promo = [idx[p] for k in KINDS for p in PROMOS[k]]
+    # Per phrase, a bit per kind it fits (0: not a window line).
+    mask = [sum(1 << i for i, k in enumerate(KINDS) if k in FITS.get(p, ())) for p in PHRASES]
+    size = [2 if p in LOUD else (1 if p in MID else 0) for p in PHRASES]
+    return tag, promo, mask, size
 
 
 def shop_names():
@@ -291,6 +375,15 @@ def write():
     out.append("// The strings, for reading this file:")
     for i, s in enumerate(strings):
         out.append("//   %d %s" % (i, s))
+    tag, promo, mask, size = kind_tables()
+    out.append("// Per room kind (ROOM_*, in order), eight lines under the name and eight promos, as phrase")
+    out.append("// numbers (add VT_PHRASE0). Every line fits the kind: VT_FITS (a bit per kind) says which")
+    out.append("// kinds a phrase may stand in the window of, and the check holds the tables to it.")
+    out.append("const int VT_TAG[64] = int[](\n%s);" % fmt_list(tag, 8))
+    out.append("const int VT_PROMO[64] = int[](\n%s);" % fmt_list(promo, 8))
+    out.append("const int VT_FITS[%d] = int[](\n%s);" % (len(mask), fmt_list(mask, 16)))
+    out.append("// A promo's size: 0 small, 1 middle, 2 big and red.")
+    out.append("const int VT_PROMO_SIZE[%d] = int[](\n%s);" % (len(size), fmt_list(size, 16)))
     out.append(LIB)
     OUT.write_text("\n".join(out) + "\n")
     print("wrote", OUT.relative_to(ROOT), "-", n_g, "glyphs,", len(segs), "segments,", len(strings), "strings,",

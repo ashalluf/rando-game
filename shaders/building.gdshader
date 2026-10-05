@@ -363,15 +363,16 @@ const ivec3 HOURS_LINES[5] = ivec3[](ivec3(16, 17, 18), ivec3(19, 20, -1), ivec3
 
 // What is stuck on the inside of a shop window, in metres on the pane (`p` from its bottom corner
 // on the low edge, `pane` its size), all of it real words (vinyl_lettering.gdshaderinc): the
-// shop's NAME across the bay before the door with a line under it (a phone number in 555, "SINCE
-// 19..", "FAMILY OWNED"), a promo in another bay ("SALE", "NOW OPEN", "WE ACCEPT ALL CARDS"), a
+// shop's NAME across the bay before the door with a line under it and a promo in another bay,
+// both from its room `kind`'s own lists (VT_TAG / VT_PROMO: a laundromat says WASH & FOLD, a cafe
+// FREE WIFI, a shop SALE, never another kind's line), a
 // poster or two in one bay, and on a door the street number on the transom, the opening hours
 // and an OPEN plate. `name` is the shop's index in Building.SHOP_NAMES + 1 (0 unknown: a phrase
 // instead), `span` its bays, `door_i` the door's bay. rgb the colour, a its cover (0 where the
 // glass is clear). Finer than a pixel the letters fade to their average, or they would alias.
 // Sizes are real window vinyl's: a name 13-22 cm tall at about 1.8 m, a promo up to 30 cm, the
 // lines under it 5-6 cm, the hours 1.6 cm.
-vec4 shop_decal(vec2 p, vec2 pane, uint shop, float bay, bool door, float glass_low, float px_m, int name, float span, float door_i) {
+vec4 shop_decal(vec2 p, vec2 pane, uint shop, float bay, bool door, float glass_low, float px_m, int name, float span, float door_i, uint kind) {
 	vec4 out_c = vec4(0.0);
 	float fade = 1.0 - smoothstep(0.012, 0.03, px_m);
 	// Above the pane, below it or past its sides nothing is stuck.
@@ -395,20 +396,18 @@ vec4 shop_decal(vec2 p, vec2 pane, uint shop, float bay, bool door, float glass_
 			vec2 c = vinyl_line(s, p, cx, 1.76 - glass_low, h, pane.x * 0.84, weight, keyline, shop, px_m);
 			// The line under it: a phone number, how long it has been there, a promise.
 			if (shop_byte(shop, 52u) < 170u) {
-				int sub = VT_PHRASE0 + 26 + int(shop_byte(shop, 52u) % 7u);
+				int sub = VT_PHRASE0 + VT_TAG[int(kind) * 8 + int(shop_byte(shop, 52u) % 8u)];
 				c = max(c, vinyl_line(sub, p, cx, 1.76 - glass_low - 0.115, 0.055, pane.x * 0.7, 0.5, keyline * 0.8, shop, px_m));
 			}
 			out_c = vec4(mix(vec3(0.05), ink, c.x / max(c.x + c.y, 1e-4)), clamp(c.x + c.y, 0.0, 1.0) * 0.95);
 		} else if (vinyl && !poster_bay && shop_byte(shop, 53u) < 150u) {
 			// A promo across another bay, at eye height.
-			uint pr = shop_byte(shop, 54u) % 15u;
-			int s = VT_PHRASE0 + int(pr);
-			bool loud = pr == 0u || pr == 9u || pr == 14u || pr == 3u || pr == 12u;
-			float h = loud ? 0.30 : 0.085;
+			int pr = VT_PROMO[int(kind) * 8 + int(shop_byte(shop, 54u) % 8u)];
+			int s = VT_PHRASE0 + pr;
+			int size = VT_PROMO_SIZE[pr];
+			bool loud = size == 2;
+			float h = loud ? 0.30 : (size == 1 ? 0.16 : 0.085);
 			vec3 c_ink = loud ? vec3(0.82, 0.06, 0.05) : ink;
-			if (pr == 3u || pr == 12u) {
-				h = 0.16;
-			}
 			vec2 c = vinyl_line(s, p, cx, 1.42 - glass_low, h, pane.x * 0.8, loud ? 0.62 : 0.5, loud ? 0.0 : keyline, shop, px_m);
 			out_c = vec4(mix(vec3(0.05), c_ink, c.x / max(c.x + c.y, 1e-4)), clamp(c.x + c.y, 0.0, 1.0) * 0.95);
 		}
@@ -432,7 +431,7 @@ vec4 shop_decal(vec2 p, vec2 pane, uint shop, float bay, bool door, float glass_
 						c = art;
 					} else if (q.y < 0.36 && q.y > 0.08 && q.x > 0.12 && q.x < 0.88) {
 						// A headline over the print: one of the promos.
-						float t = vinyl_line(VT_PHRASE0 + int(h * 14.0), q * size, size.x * 0.5, 0.17, 0.04, size.x * 0.8, 0.6, 0.0, shop, px_m).x;
+						float t = vinyl_line(VT_PHRASE0 + VT_PROMO[int(kind) * 8 + int(h * 7.99)], q * size, size.x * 0.5, 0.17, 0.04, size.x * 0.8, 0.6, 0.0, shop, px_m).x;
 						float line = step(0.5, fract(q.y * 9.0)) * step(0.3, hash21(vec2(floor(q.y * 9.0), h))) * step(q.y, 0.2);
 						c = mix(paper, vec3(0.08), max(line * fade, t));
 					}
@@ -1315,7 +1314,7 @@ void fragment() {
 				// Metres from the pane's corner on ShopfrontKit's low edge (the high end of u).
 				vec2 pk = vec2((1.0 - wd.x) * pane_m.x, wd.y * pane_m.y);
 				float glass_low = (win_c.y - win_h.y) * sf_h;
-				vec4 deco = (lobby || !shop_vinyl) ? vec4(0.0) : shop_decal(pk, pane_m, shop_key, shop_bay, door_bay, glass_low, px_m, shop_name, shop_bays, shop_door_i);
+				vec4 deco = (lobby || !shop_vinyl) ? vec4(0.0) : shop_decal(pk, pane_m, shop_key, shop_bay, door_bay, glass_low, px_m, shop_name, shop_bays, shop_door_i, room_kind);
 				albedo = mix(albedo, deco.rgb, deco.a);
 				reflected *= 1.0 - 0.55 * deco.a;
 				room_raw *= 1.0 - deco.a;

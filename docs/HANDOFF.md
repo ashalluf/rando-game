@@ -8664,11 +8664,19 @@ pavement it was the most obviously fake thing on a shopping street.
   never set it): that bay says a phrase instead (NOW OPEN, OPEN 7 DAYS, GRAND OPENING, OPEN LATE).
 - Layout (`shop_decal()`, sizes are real vinyl's): 59 % of shops (salt 20 < 150) put their NAME across
   the bay before the door, 11-19 cm caps at 1.76 m, white, gold leaf with a keyline or red, bold or
-  regular (salts 23, 50, 55), with a 5.5 cm line under it two times in three (salt 52: the phone, the
-  year, FAMILY OWNED, SE HABLA ESPANOL, FREE ESTIMATES); another bay of the shop gets a promo at eye
-  height (salts 53-54): SALE / 50% OFF / CLOSING SALE in 30 cm red, GRAND OPENING / EVERYTHING MUST GO
-  at 16 cm, the rest (WE ACCEPT ALL CARDS, CASH ONLY, ATM INSIDE, WALK-INS WELCOME, FREE WIFI,
-  HABLAMOS ESPANOL ...) at 8.5 cm; the posters keep their place and get a promo as their headline.
+  regular (salts 23, 50, 55), with a 5.5 cm line under it two times in three (salt 52); another bay of
+  the shop gets a promo at eye height (salts 53-54), big and red (SALE, 50% OFF, CLOSING SALE), middle
+  (GRAND OPENING, NEW ARRIVALS, WASH & FOLD ...) or 8.5 cm; the posters keep their place and get a
+  promo as their headline. **The lines and promos are the shop's ROOM KIND's** (lead review: a BANK
+  said FREE ESTIMATES): `VT_TAG` / `VT_PROMO`, eight each per kind, written by the generator from
+  `TAGS` / `PROMOS`, every entry checked against `FITS` (which kinds a phrase may stand in the window
+  of - a BANK kind is also the dentist, the tax office and the money-transfer counter, a BARBER the
+  nail salon and the tattooist, so a kind's lines fit every name under it): a laundromat says WASH &
+  FOLD / COIN LAUNDRY, a cafe FREE WIFI / FRESH DAILY, a restaurant CATERING / WE DELIVER, a barber
+  WALK-INS WELCOME, clothing ALTERATIONS / NEW ARRIVALS, a bank-kind office MON-FRI 9-5 / FREE
+  CONSULTATION / BY APPOINTMENT, only retail and clothing a SALE, plus the generic phone / year /
+  FAMILY OWNED lines anyone may carry. The kind is the room the shader already draws behind the glass
+  (`room_kind`: from the name for the first seven shops, else its hash), so the words and the room agree.
   On the door: a gold street number on the transom (salt 56), the HOURS card with two or three real
   lines from five schedules (salt 57: MON-FRI 9-6 / SAT 10-5 / SUN CLOSED, OPEN 24 HOURS, ...), and
   the OPEN plate now says OPEN. Text is fitted: a line never runs wider than its share of the pane.
@@ -8682,8 +8690,11 @@ letters' boxes. No textures, no new draws or triangles.
 **Checks** (`tests/shop_vinyl_checks.gd`, loaded by one line in the smoke test): the generated table
 starts with `Building.SHOP_NAMES` and every name decodes back to itself; the phrase numbers
 shop_decal() uses name the phrases it means; '0' is code 27 (the hash digits) and every glyph fits the
-segment loop; `shop_name_codes()` decodes to `shop_names()` on three seeds; building.gdshader includes
-the font, takes the codes and no longer has `fake_glyph`.
+segment loop; every kind's lines and promos fit it (VT_FITS) and, by a table written in the check
+itself, no trade's line (WASH & FOLD, SALE, WALK-INS WELCOME, FREE WIFI, ATM INSIDE, MON-FRI 9-5 ...)
+stands in another kind's window and FREE ESTIMATES nowhere; `shop_name_codes()` decodes to
+`shop_names()` on three seeds; building.gdshader includes the font, takes the codes, picks by kind
+and no longer has `fake_glyph`.
 
 **Frame cost.** No geometry, draws or textures added (geo_count unchanged by construction).
 Fragment cost on a frame filled with storefronts (`building_shot.gd BENCH=40`, llvmpipe, 1280x720,

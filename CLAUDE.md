@@ -3163,6 +3163,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   decodes it). The shop's name comes from `Building.shop_name_codes()` (`shop_names_a` / `_b`,
   six bits a shop, the first `SHOP_ROOM_SLOTS`; 0 = unknown, a phrase instead: the towers). '@'
   in a phrase is a digit of the shop's hash (555-01@@, SINCE 19@@, the door's street number).
+  The line under the name and the promos come from the shop's ROOM KIND (`VT_TAG` / `VT_PROMO`,
+  the generator's `TAGS` / `PROMOS`, each held to `FITS`): never another trade's line.
   Salts 50-57, 60+. `SHOP_VINYL=0` is the A/B (bare glass). Checks: `tests/shop_vinyl_checks.gd`.
 - Characters: every rig (pedestrians, ragdolls, the player) renders through
   `shaders/character.gdshader` via `Pedestrian.prepare_rig(inst, look)`. The source models ship
