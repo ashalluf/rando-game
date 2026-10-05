@@ -12035,3 +12035,127 @@ glass hand-over at the 30 m line and at `probe_reach`'s edge (a pane can step fr
 reflection there), and dusk / night re-renders (lit windows and lamps in the mirrored street).
 Not done: probes inside the light-rail tunnel or under freeway decks are not special-cased (the
 eye at 4.2 m can sit under a deck); the hills' open box is a single 240 m box.
+
+## 9dx. The web build after the October wave, 2026-10-05 (agent branch `wt/web-build`; VISUAL_ROADMAP "?")
+
+**What was asked.** Dozens of systems landed since anyone last opened the web build (the
+Compatibility renderer in a browser, deployed to GitHub Pages): make sure it loads, runs and
+looks right, collect the browser console, fix what is web-only broken without touching the
+desktop look.
+
+**How it was checked.** The 4.7.2 web template (`web_nothreads_release.zip`, as the CI workflow
+installs it), `--export-release "Web" build/web/index.html` (18 s), served and loaded by
+`tools/webshot/webshot.js` in headless Chromium on SwiftShader (WebGL 2.0, OpenGL ES 3.0), at
+960x540, ten minutes for the city to stream before the shot, the whole console kept
+(`LOG=`). Bookmarks (web query strings, all `&weather=clear&nohud`):
+downtown `?spawn=2359.4,880,0,12,2&hour=12`, night downtown the same at `hour=21.5`, the
+Esplanade `?spawn=-441.7,3534.6,-178,-1.5&hour=12`, the hills `?spawn=300,-650,0,-6,260&hour=15`
+(the player falls to the street during the wait, so it shows the range from below), the airport
+apron `?spawn=-262,812,42,-17,40&hour=12`, the Coral Line at Pico `?spawn=2377,1532,32,-6&hour=12`,
+MacArthur Park's south side `?spawn=300,430,0,-8&hour=12`, and the showroom
+`?spawn=8,30,0,-12&showroom&hour=11`.
+
+**The console.** At every bookmark, before and after: no `SHADER ERROR`, no shader compile
+failure, no WebGL error, no global-buffer allocation error, no out-of-memory, no script error.
+Two lines only: the engine's `WARNING: Occlusion culling is disabled at build-time` (the web
+template is built without it - every chunk's occluder is idle in the browser, so the web draws
+what the occluders hide on the Mac) and Chrome's "AudioContext was not allowed to start" until
+the first click (the harness clicks once before the shot; the owner's first click does the
+same). The same scenes through `--rendering-driver opengl3_es` (the Compatibility renderer on
+Mesa's GLES 3.2, i.e. GLSL ES like WebGL2, natively, in five minutes) compile clean too.
+
+**The one web-only bug: Quality never ran on the web.** `Quality._ready()` turns itself off on
+the web ("nothing to adapt") without ever calling `apply_level()`, so every setting
+`_apply_render()` makes "on the web" was never made there. Two mattered: the sky's
+`cloud_detail` (five extra noise taps over every sky pixel - the comment and CLAUDE.md both say
+the web drops it) and the `ground_detail` global (the road's second rotated texture fetch, the
+drying, the mirrored city in puddles, the lawn's second sample, the terrain's anti-tiling) - both
+stayed at 1.0 in the browser. `Quality._apply_web()` now sets both to 0 once. Nothing else
+changes and the desktop is untouched. (`?quality=N` and the pause menu's GRAPHICS still run
+`apply_level()`, whose web branches already did the right thing.) The visible difference: the
+web sky is the simple cloud layer (rounder, whiter puffs instead of the sculpted shoulders), the
+road one texture sample.
+
+**Load and memory.** The export is `index.pck` 616.8 MB (465 S3TC textures ~500 MB - the crowd's
+2K body atlases, the hero's maps, the billboard atlas -, ~100 MB of scenes, 8 MB of audio),
+`index.wasm` 39.5 MB, `index.js` 0.28 MB. From localhost the engine starts in 6-16 s (download
+and wasm compile); the city then builds in the first frames. The JS heap after load is 1.07-1.43 GB
+(the pck lives in the tab's memory), and a Chromium tab with SwiftShader peaked at 5.7 GB RSS at
+the Coral Line (the software GPU's textures are in that number; on a Mac they are on the GPU).
+Three tabs at once on this 16 GB box crashed one ("Target crashed"), so never run more than two
+webshot.js at once. The frame rate under SwiftShader is about 35 s a frame (`FPS_SECONDS`), so
+the harness cannot measure what the cuts save; on the owner's Mac it is GPU time.
+
+**Harness artefacts, not web bugs.** At 35 s a frame the shots are taken ~20 frames in, before the
+FULL chunks round the player finish their time-sliced builds (a chunk swaps in only when complete),
+so the crowd, the lamp pools and the near furniture are thinner than the Mac sees after a second;
+the far city's dithered dissolve can still show as a dot pattern on the ground. A spawn height
+does not hold (the player falls during the wait). The hills read as bald tan piles - the same in
+the native Compatibility still, so it is the Compatibility look of the range, not the web.
+
+**On purpose, the web still differs from the desktop**: no SDFGI, SSIL, SSR, volumetric fog,
+auto exposure, TAA, depth of field or motion blur (Compatibility); no occlusion culling (the
+template); no facade kit (`Building.kit_enabled`), no shop sign letters or names, no grime or
+pavement patches and half the street wear, no hill shells, no `ground_detail` / `cloud_detail`,
+blood marks as quads not decals, no car spotlights (CarLights), lower caps (140 pedestrians, 36
+cars, 20 on the freeway, 30 on the airport loop, fewer camp figures, half the splashes and tyre
+spray), a 160 px minimap texture and a lower-resolution, half-float terrain bake, plain audio mix
+(sample playback skips the bus effects).
+
+**Checks.** `tests/web_build_checks.gd` (one line in the smoke test): the Web preset
+(single-threaded, no GDExtension, S3TC for desktop browsers), every shader with its includes at
+most `WEB_SAMPLERS` 9 texture samplers (WebGL2 guarantees 16 a fragment shader and Compatibility
+keeps up to seven for its shadow atlases, radiance, screen and depth; the most today is 7, the lot
+ground and the terrain), no `instance uniform` anywhere, and `_apply_web()` dropping the two
+details. Headless check: 933 PASS.
+
+**Tools.** `tools/webshot/webshot.js` grew `LOG=` (the whole console timestamped from page load,
+written as it comes, and the JS heap at the end), `PORT=` (two harnesses at once), `WEB_ROOT=`
+(shoot another export folder: keep the before build as `build/web_before`) and `FPS_SECONDS=`.
+
+**Not done / not verified.** The 616 MB download is the web build's biggest problem for the owner
+and is untouched: shrinking it means smaller or fewer textures (a web-only texture size limit has
+no per-platform import setting in 4.7; an export filter for the retired Meshy pedestrians would
+save ~44 MB, but `PoliceOfficer` still loads `pedestrian_d_anim.glb`). The real frame rate in a
+browser on a GPU was not measured (SwiftShader cannot); 4,000 draws a downtown frame with no
+occlusion culling is a lot for WebGL, and lowering the web's shadow distance (400 m, four
+cascades) or `mesh_lod_threshold` would be the next cuts if the owner reports it slow. Real
+street-lamp OmniLights stay on on the web (their cost there was not measured). Stills are on `shots/web-build` (before / after per bookmark).
+
+
+**Wave 2 update (fleet session web-build, 2026-10-05): the web build on the merged base.**
+`wt/web-build` merged `origin/fleet/base` (main plus integration-a's 19 branches: the sky's
+volume cumulus, the marina, the pier park, the canals, schools, the stack interchange, beach
+life, photo mode, building damage, weather, ...) and then `origin/main`; conflicts were docs and
+the smoke test's list only (both sides kept). Exported with the 4.7.2 `web_nothreads_release`
+template and loaded in headless Chromium (SwiftShader, WebGL 2.0) at downtown by day and at
+21:30, the Esplanade at dusk, the marina at 17:00, on the four-level stack's deck, the pier and
+beach at 15:00, the airport apron and the marina car park: **every bookmark loads and draws with
+the same two console lines as before** (the occlusion-culling build warning, Chrome's autoplay
+notice) - no shader, WebGL, global-buffer or script error. Statically: the new shaders stay
+within the web's texture units (most 7: lot_ground, lot_yard, terrain), none uses `instance
+uniform` (car_cabin / car_lights only say so in comments), and every Forward+-only addition is
+gated - the sky volume (`CURRENT_RENDERER`), heat haze (`OS.has_feature("web")`), the crater and
+scorch decals (`WeaponFX._decals()`). Two places that looked wrong were checked against a native
+opengl3 still of the same spawn and are identical there, so not web bugs: the marina car park
+looking north (`spawn=-735,30,0,-20`) has a flat purple / teal band over the lower half of the
+frame (a face right in front of the spawn camera; for the marina's owner), and the beach by the
+pier at 15:00 (`spawn=-925,-310,62,-4`) has flat-coloured primitive stall tables in the
+foreground and no sunbathers in that view.
+
+**The download got smaller.** The merged base's pck was 688.0 MB (617 before the wave). The Web
+preset now has `exclude_filter="assets/models/pedestrian_*, assets/models/thumbs/*"`: the nine
+retired Meshy pedestrians and their textures (nothing loads them; the police only compare a path
+string with `pedestrian_d_anim.glb`) and the editor thumbnails. pck 688.0 -> 643.5 MB (-44.5 MB,
+-6.5 %); the desktop export is untouched. `web_build_checks.gd` holds the filter and fails if any
+script or scene ever `load`s / references an excluded path. GitHub Pages refuses a site over 1 GB:
+at ~683 MB with the wasm there is room, but each wave adds ~70 MB, so the next real saving has to
+be texture size (the hero's 2K maps, the 2K crowd atlases).
+
+**Harness lesson.** A webshot needs the box to itself: alongside the headless gate on 4 cores the
+tab got its first frame at ~190 s and the screenshot timed out waiting for the next one; alone it
+takes ~8-14 minutes a bookmark (7 minutes of streaming in the WAIT). Two at once is fine on
+16 GB. Headless check after merging origin/main: SMOKE TEST PASSED (1375 checks), peak RSS
+3.17 GB (one earlier run lost "one shotgun blast throws a crate" at 0.28 m against a 0.30 m floor:
+a random pellet cone; the re-run threw it 2.30 m - worth a wider margin some day). Frame cost: no game code changed (an export filter and a check), so none was
+measured. Stills on `shots/web-build`.

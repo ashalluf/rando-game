@@ -2262,6 +2262,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Reflection probes (tests/reflection_probes_checks.gd): street boxes from the plan, one render a
 	# slot, re-renders on light and re-centre, probe_reach, the street HDRI (Forward+ only).
 	await load("res://tests/reflection_probes_checks.gd").new().run(self, city)
+	# The web build (tests/web_build_checks.gd): the Web preset, WebGL's texture units and the
+	# global buffer in every shader, and the web's own quality settings.
+	load("res://tests/web_build_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

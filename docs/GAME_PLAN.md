@@ -411,6 +411,21 @@ already mapped so milestone 2 is script-only.
   in the decal atlas for the session (it repacks whole when one returns) and every car body and
   crowd rig loaded. Measure frame times, not Godot's DRAW compile monitor, which counts 0 while a
   draw waits on a queued compile.
+- **2026-10-05 The web export leaves out what nothing loads (HANDOFF "The web build after the
+  October wave", wave 2 update).** On the merged wave-2 base the browser build still loads clean at
+  every bookmark; its pck had grown to 688 MB. The Web preset now excludes the retired Meshy
+  pedestrians and the editor thumbnails (-44.5 MB); the desktop export keeps everything. Shrinking
+  textures for the web stays the owner's call (Pages caps a site at 1 GB).
+
+- **2026-10-05 The web build checked after the October wave (HANDOFF "The web build after the October wave").**
+  Exported and loaded in headless Chromium (WebGL2 on SwiftShader) at downtown by day and night,
+  the beach, the hills, the airport, the light rail, MacArthur Park and the showroom: every one
+  loads and draws, with no shader, WebGL or global-buffer error. The one web-only bug: `Quality`
+  never runs `apply_level()` on the web, so the two per-pixel extras the code drops "on the web"
+  (the sky's `cloud_detail`, the `ground_detail` global) stayed on in the browser; the web now
+  sets them in `Quality._apply_web()`. Nothing on the desktop changes. The size of the export
+  (a 616 MB pck, mostly S3TC textures) is left as it is: shrinking it means dropping or resizing
+  textures the desktop uses, which is the owner's call.
 - **2026-10-05 City acoustics: spaces, gunfire echo, footsteps by surface, the newest systems'
   sounds (HANDOFF "City acoustics").** The city had one street-canyon reverb, no echo, no
   footsteps, and the bus, the light rail, the river and the parks were silent. Decisions: the

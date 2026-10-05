@@ -4925,6 +4925,30 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   that path has no temporal pass, so anything still wrong there is real geometry and anything
   that clears up was the harness. That is how the rain curtain's 2.2 m streaks were told apart
   from TAA ghosting.
+- The web build (2026-10-05, docs/HANDOFF.md "The web build after the October wave"): it loads and draws every bookmark with no
+  shader, WebGL or global-buffer error; the only console noise is the engine's "Occlusion culling
+  is disabled at build-time" (the web template has none, so every occluder is idle there and the
+  web draws what the occluders hide on the Mac) and Chrome's autoplay notice before the first
+  click. **`Quality` never runs `apply_level()` on the web**, so anything a level sets "for the
+  web" must also be in `Quality._apply_web()` (today: the sky's `cloud_detail` 0 and the
+  `ground_detail` global 0 - both were left ON in the browser until this pass). The export is
+  ~640 MB of pck after the wave-2 base (mostly S3TC textures; GitHub Pages caps a site at 1 GB)
+  plus a 40 MB wasm, held in the tab's memory. The Web preset's `exclude_filter` leaves out
+  files nothing loads (the retired Meshy `pedestrian_*`, `assets/models/thumbs/*`: 44.5 MB);
+  add to it rather than shipping dead assets, and the checks fail if anything loads one. A
+  tab peaked at 5.7 GB RSS under SwiftShader, so never run more than two webshot.js at once on
+  a 16 GB box (three crashed the tab). `tools/webshot/webshot.js` takes `LOG=` (the whole
+  console, timestamped, and the JS heap), `PORT=` (two at once), `WEB_ROOT=` (another export,
+  e.g. a before build) and `FPS_SECONDS=` (browser frames counted; 35 s a frame under
+  SwiftShader, so only gross changes show). A spawn height (`?spawn=x,z,yaw,pitch,y`) does not
+  hold in the harness: the player falls during the wait. Faster than the browser for a GLSL ES
+  compile check: any glshot tool with `--rendering-driver opengl3_es` (needs `libegl1
+  libgles2`), which runs the Compatibility renderer on GLES 3.2 like WebGL2 - though it takes the
+  desktop code paths, not the `OS.has_feature("web")` ones. Checks: `tests/web_build_checks.gd`
+  (the Web preset, at most `WEB_SAMPLERS` 9 texture samplers a shader with its includes - WebGL2
+  gives 16 and Compatibility keeps up to seven -, no `instance uniform`, the web quality path,
+  the exclude filter). A webshot takes ~14 minutes on a 4-core box; never share the box with
+  the headless gate (it starves the tab: the screenshot times out waiting for a frame).
 - Physics masks as constants on `Player`: `AIM_MASK` (world + props) and `BLAST_MASK` (player + props).
 - Forward is -Z. Yaw for a facing direction `d` is `atan2(-d.x, -d.z)`.
 - Commit messages: short imperative subject, body explains why and how to test. One task per
