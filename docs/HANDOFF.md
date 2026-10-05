@@ -6813,11 +6813,25 @@ the story.
   real tower turned to the sea.
 
 **Frame cost** (opengl3 1280x720, `still_shot.gd` GEO, `--quality=0`, BEACH_LIFE=0 vs on, the
-same frame): see the table at the end of this section.
+same frame):
+
+| frame | before (BEACH_LIFE=0) | after | |
+|---|---|---|---|
+| from the sand, 15:00 (`EYE=-725,1.7,610,160,-6`) | 1,323,727 tris, 349 draws | 1,620,191 tris, 417 draws | +22 % tris, +68 draws |
+| aerial over a busy stretch (`EYE=-735,55,330,160,-32`) | 3,023,490 tris, 584 draws | 3,227,125 tris, 693 draws | +7 %, +109 draws |
+| sunset 17:45 (`EYE=-725,1.7,610,160,-4`) | 1,290,853 tris, 332 draws | 1,361,609 tris, 387 draws | +5 %, +55 draws |
+
+A beach frame was among the cheapest in the game (1.3 M against 5-8 M downtown) and stays well
+under a city frame. The draws are the prop batches (towel, umbrella, chair, cooler, tote, boards,
+net, tower - one each a chunk, umbrellas, chairs, coolers and the net with a shadow twin), the
+figure cells (a draw per rig per cell, four rigs per 200 m of shore, near or far, plus a shadow),
+and one or two per rider, surfer and swimmer. If they need to come down: merge the water people
+into their chunk's cells, and drop the coolers' and chairs' shadow twins.
 
 **Stills** (`shots/beach-life`): `beach_1500` (from the sand at 15:00, the lifeguard on his
 tower), `aerial` (a busy stretch from 55 m), `volleyball`, `bike_path` (cyclists on cruisers),
-`surfers` (one riding a wave in, the lineup behind), `sunset` (19:18, a few left), and the
+`bike_close`, `surfers` (one riding a wave in, the lineup behind), `sunset` (17:45, a few left,
+the lifeguard still up), and the
 `*_before` frames with BEACH_LIFE=0.
 
 **Not done / not verified.**
