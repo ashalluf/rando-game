@@ -7040,3 +7040,78 @@ ALU in shaders that were already running.
 - The night ambient (DayNight) still lights roofs a moonlit blue-grey on opengl3; not this pass.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
+## 9b?. Police stations the cruisers come out of, 2026-10-05 (agent branch `wt/police-station`; VISUAL_ROADMAP #63)
+
+**What.** The police used to join the chase along a street 170-240 m out, from nowhere.
+`PoliceStation` (`scripts/world/police_station.gd`, static, FireStation's pattern) places a
+divisional station in every 1.5 km cell that has a suitable block, and the headquarters across
+1st St (grid-south) from City Hall; `Police` sends cruisers out of the nearest one's gate and
+brings recalled ones back in.
+
+**Where (pure).** A hash of seed + cell picks up to six points; the first block that is MIDTOWN or
+downtown off its tower core (skyline boost < 0.3), BUILDINGS, not a landmark's / park's / river's
+and not the fire station's, gives a SITE: a centred run of its lot-grid cells along one street
+(~56 x 50 m, at least 42 x 38), every cell's lot present, no courtyard lot (those build their
+garden before a claim is asked), ground within 0.9 m, clear of the freeways, the road in front
+open. `CityChunk._build_lot()` asks `claims()` after FireStation's (the pad roll is made either
+way); the first claimed lot in lots() order builds it, the rest build nothing. The HQ is the whole
+block (eight storeys). Seed 1337: seven stations within 4.5 km of downtown plus the HQ; seeds 7
+and 99: six and five, each with the HQ.
+
+**The building** (one mesh a station, a surface per material, `PoliceStation.Geo`): precast
+concrete ground floor with slot windows; upper floors of glass bands between proud spandrels with
+full-height fins every 1.6 m (`shaders/police_station_glass.gdshader`: tinted glass mirroring the
+sky by Fresnel by day, offices lit window by window after dark with ceiling panels, blinds and a
+warm or cool tube colour); a double-height glazed lobby pavilion lit all night under a
+cantilevered canopy with a lit soffit and the department's name band (RANDO CITY POLICE); a dark
+metal stair tower; roof plant; three flagpoles with invented flags; bollards and planters; a
+monument sign with the division (invented names, `DIVISIONS`). Behind it the secured car park: a
+steel palisade on the street line, the sliding gate (`Gate` node with its own AnimatableBody,
+`open_gate()`), chain-link with three strands of barbed wire round the rest, stall rows in
+double-loaded modules, the parked cruisers (one MultiMesh of the sedan's far twin in the
+black-and-white livery, `cruiser_mesh()`, plus their dark light bars; up to 18, 24 at the HQ,
+filled from the back fence forward), a fuel island under a canopy, the sally port (a covered bay
+with a roll-up door and yellow bollards), floodlight poles with additive pools, CCTV cameras, a
+34 m lattice radio mast with dishes and a blinking red beacon. Two `lamp_light` omnis (entrance,
+car park; not on the web), TextMesh lettering (not on the web). LOD and the far city: the
+building and the mast as `lod_box`es. Encampments keep off a station's frontage
+(`keep_clear_points()`), parked cars off the kerb at its gate (`keeps_clear()`).
+
+**Dispatch.** `Police._dispatch()` first asks `PoliceStation.nearest(plan, player, station_reach)`
+(520 m): with a station in reach and its drive free (`_gate_busy()`), `_dispatch_from_station()`
+starts the cruiser in the car park, slides the gate open and drives it along
+`PoliceStation.exit_path()` (up the driveway, through the gate, down the ramp across the pavement,
+round into its lane) with `PoliceCar.scripted` set (its own driving off; `_tick_drives()` moves
+it), then hands it to the lanes exactly where a street cruiser would be - from there it is an
+ordinary DISPATCH. A cruiser with a station is not despawned short of `station_reach + 150`.
+Recalled (`board()` with the stars gone) it heads for the nearest station (`_home_for()`), and
+once on the station's road level with the turn (`_maybe_enter()`; a physical one within 14 m is
+stripped and frozen, wheels first) it follows `enter_path()` through the gate and is pooled.
+
+**Checks** (`tests/police_station_checks.gd`, 18): pure and repeatable, sites inside their blocks
+on their own lots off the fire station's and the freeway, the HQ by City Hall, the chunk builds
+building, gate, collision and cruisers inside a triangle budget, the far city sees it, the gate
+slides, a cruiser drives out of the gate onto its lane (8.5 s, 0.00 m off the lane) and then the
+lanes with its siren, a recalled one turns in and is put away. Smoke test: 941 checks passed.
+
+**Frame cost** (block_shot.tscn GEO, opengl3 1280x720, `POLICE_STATIONS=0` against on, same
+eyes): the station from across the street 5.90 M -> 5.78 M triangles, 2,160 -> 2,232 draws; the car
+park from 52 m up 6.07 M -> 5.94 M, 3,540 -> 3,580; the HQ from across 1st St 2.25 M -> 1.79 M,
+1,587 -> 1,344 (the station replaces its lots' buildings). A station's own mesh is ~7 k
+triangles; each parked cruiser is the 7.9 k-triangle far twin. A whole-city geo_count would not
+finish on this box (killed after 25 min), so the numbers are block_shot's.
+
+**Tools.** `tools/glshot/police_station_shot.gd` (the city at an EYE in a lighter world; `GATE=1
+SEQ=...` a two-star dispatch out of the nearest gate shot as a sequence), `block_shot.tscn` EYEs
+for the building: the default seed's OAK GROVE station from across its street
+`EYE=3652,1.7,-1079,18,3`, its car park from above `3640,52,-1080,0,-52`, the HQ
+`3172,2.0,-792,180,6`. `POLICE_STATIONS=0` in the environment is the A/B.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the glass, the floodlights and the
+lobby under AgX need eyes. The parked cruisers are static meshes with box collision: shooting
+one does nothing and none can be stolen. No officers stand about at the station. The gate is
+shared one cruiser at a time; other units still arrive along streets. Police helicopters do not
+use the HQ (it has no helipad). Suburbs and the beach town get no stations (their lots are house
+lots planned by HouseKit/YardFill, which a claim would fight); a cell there takes a midtown
+block if one of its six points finds one, else none. The far city draws the station as two boxes,
+not its car park.
