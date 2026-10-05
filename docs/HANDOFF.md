@@ -8736,6 +8736,18 @@ gate with EYEs, then each block built FULL and LOD with its worst step; `BUILD=0
 `EYE=2994,1.7,-1755,0,14`, the plaza from the air `2950,55,-2050,10,-35`, the hall from the walk
 `2927.7,1.7,-2092,0,12`, the district from the air `2940,55,-1850,10,-32`; `NIGHT=1` for night.
 
+**Night light** (lead review: the first night street measured p50 13): the district lights like
+a street, not a row of red dots. Every other lantern cable carries a warm `lamp_light` OmniLight
+(`_light()`: energy from DayNight like any street lamp, faded 70 m, none on the web) and its pools
+are 10 x 10 m at alpha 0.7; every shop unit throws a spill pool (warm, the unit's width, 5 m onto
+the pavement) and every lot an omni under its eaves; the gate has four column floods and one
+under its board; sign boards glow (`sign_night`) and walls, beams and stone take a warm street
+wash under 11 m (`street_wash` 0.55, `wash_top`) so the lit lanterns read on the facades. Fixed on
+the way: the deferred string jobs inherited the last lot's `xf` and hung every string displaced
+(the stills before this pass show no strings over the street). Measured (still_shot, the full
+city, 21:00): up Broadway through the gate, hall from the walk, side street - see the numbers in
+the commit / report; the gate view's p50 is held down by the sky, a third of the frame.
+
 **People in the court**: 16 `PlazaGoer`s (`scripts/npc/plaza_goer.gd`, PierGoer's pattern: a
 Pedestrian kept to the court's open quarters and the walk, routed out to the walk and along it),
 one a job, in the crowd cap (a full smoke run's cap can leave the court empty).

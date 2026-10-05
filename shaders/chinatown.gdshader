@@ -32,7 +32,13 @@ global uniform float lamp_factor;
 global uniform float wind_factor;
 global uniform vec4 sky_tint;
 
-uniform float lantern_night = 4.2;
+uniform float lantern_night = 6.5;
+// After dark the street-level faces carry the light of the shops, lanterns and floods round
+// them (a wash fading out with height over the pavement: UV.y is metres up on walls, columns and
+// boards), and the enamel sign boards glow as the lit boards they are.
+uniform float street_wash = 0.55;
+uniform float wash_top = 11.0;
+uniform float sign_night = 0.55;
 uniform float lantern_day = 0.25;
 uniform float window_night = 1.6;
 uniform float shop_night = 2.4;
@@ -252,6 +258,7 @@ void fragment() {
 		col *= 0.95 + 0.08 * noise2(uv * 4.0);
 		rough = 0.32;
 		spec = 0.55;
+		emit += col * sign_night * night;
 	} else if (k == 11) {
 		float gilt = step(0.45, col.r) * step(col.b * 2.5, col.g + 0.02);
 		metal = 0.85 * gilt;
@@ -308,6 +315,12 @@ void fragment() {
 		col *= 0.92 + 0.12 * noise2(uv * vec2(1.5, 14.0));
 		rough = 0.34;
 		spec = 0.5;
+	}
+	// The street wash: walls, lacquer, stone and painted beams near the pavement.
+	if (k == 0 || k == 6 || k == 9 || (k == 2 && uv.y < 0.0)) {
+		float h = (k == 2) ? 4.0 : uv.y;
+		float wash = street_wash * night * (1.0 - smoothstep(2.5, wash_top, h)) * step(-1.0, h);
+		emit += col * vec3(1.0, 0.72, 0.48) * wash;
 	}
 	ALBEDO = cs_out(col);
 	EMISSION = cs_out(emit);

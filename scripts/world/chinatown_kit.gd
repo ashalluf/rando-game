@@ -151,7 +151,11 @@ static func block_step(ch: CityChunk, block: Dictionary) -> void:
 			g.xf = xf
 			var span: float = float(gate.width) + 4.4
 			gate_mesh(g, st, span, 1.0, Chinatown.NAME, Chinatown.GATE_NAME, xf)
-			_floods(ch, xf, span))
+			_floods(ch, xf, span)
+			for sx: float in [-1.0, 1.0]:
+				for sz: float in [-1.0, 1.0]:
+					_light(ch, xf * Vector3(sx * (span * 0.5 - 1.2), 1.4, sz * 1.6), Color(1.0, 0.78, 0.55), 12.0)
+			_light(ch, xf * Vector3(0.0, 5.6, 0.0), Color(1.0, 0.70, 0.45), 10.0))
 	_job(ch, func() -> void: _commit_main(ch))
 	_job(ch, func() -> void: _commit_fine(ch))
 
@@ -477,14 +481,32 @@ static func string_lanterns(g0: ChinatownGeo, a: Vector3, b: Vector3, sag: float
 		lantern(g, p, 0.12, 0.5 if not gold else 0.42, LANTERN_GOLD if gold else LANTERN_RED, h01([seed_value, i, "ph"]))
 
 
+## A street light of the district's (DayNight drives the group's energy; FULL desktop only).
+static func _light(ch: CityChunk, at: Vector3, col: Color, reach: float) -> void:
+	if OS.has_feature("web"):
+		return
+	var l := OmniLight3D.new()
+	l.position = at
+	l.omni_range = reach
+	l.omni_attenuation = 1.3
+	l.light_color = col
+	l.light_energy = 0.0
+	l.shadow_enabled = false
+	l.distance_fade_enabled = true
+	l.distance_fade_begin = 70.0
+	l.distance_fade_length = 20.0
+	l.add_to_group("lamp_light")
+	ch.add_child(l)
+
+
 ## Round pools of the lanterns' light under a string (night; additive, in the chunk's batch).
 static func _string_pools(ch: CityChunk, a: Vector3, b: Vector3, y: float) -> void:
 	var l := Vector2(a.x, a.z).distance_to(Vector2(b.x, b.z))
 	var n := maxi(1, int(round(l / 8.0)))
 	for i in n:
 		var p := a.lerp(b, (float(i) + 0.5) / float(n))
-		var pool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(7.5, 1.0, 7.5)), Vector3(p.x, y, p.z))
-		ch._batch.add("ct_pool", PropFactory.light_pool(Color(1.0, 1.0, 1.0), 1.3, 1.6), pool, Color(1.0, 0.34, 0.15, 0.32))
+		var pool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(10.0, 1.0, 10.0)), Vector3(p.x, y, p.z))
+		ch._batch.add("ct_pool", PropFactory.light_pool(Color(1.0, 1.0, 1.0), 1.3, 1.6), pool, Color(1.0, 0.42, 0.2, 0.7))
 
 
 ## The district's strings over the roads this chunk owns, hung between facing street lamps (their
@@ -558,9 +580,13 @@ static func _zigzag(ch: CityChunk, g: ChinatownGeo, side_a: Array, side_b: Array
 		var l := a.distance_to(b)
 		var sag := 0.35 + 0.035 * l
 		var sd := absi(hash([ch.plan.seed, tag, k])) % 1000
+		var lit := k % 2 == 0
 		_job(ch, func() -> void:
+			g.xf = Transform3D.IDENTITY
 			string_lanterns(g, a, b, sag, sd)
-			_string_pools(ch, a, b, CityChunk.ROAD_TOP + 0.08))
+			_string_pools(ch, a, b, CityChunk.ROAD_TOP + 0.08)
+			if lit:
+				_light(ch, (a + b) * 0.5 - Vector3(0, sag + 0.8, 0), Color(1.0, 0.52, 0.30), 15.0))
 		k += 1
 
 
@@ -652,7 +678,16 @@ static func _units(ch: CityChunk, st: Dictionary, xf: Transform3D, units: Array,
 		ch._occluder_boxes.append([xf, Vector3(cx, top * 0.5, -d * 0.5), Vector3(maxf(w - 0.8, 0.5), maxf(top - 0.8, 0.5), maxf(d - 1.2, 0.5))])
 		_job(ch, func() -> void:
 			g.xf = xf
-			shop_unit(g, u, d, goods))
+			shop_unit(g, u, d, goods)
+			# The shop's light on the pavement after dark.
+			var sp := xf * Vector3(cx, 0.0, 2.0)
+			var yaw := atan2(xf.basis.x.z, xf.basis.x.x)
+			ch._batch.add("ct_pool", PropFactory.light_pool(Color(1.0, 1.0, 1.0), 1.3, 1.6),
+				Transform3D(Basis(Vector3.UP, -yaw) * Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(maxf(w - 0.6, 2.0), 1.0, 5.0)),
+				Vector3(sp.x, CityChunk.SIDEWALK_TOP + 0.1, sp.z)), Color(1.0, 0.74, 0.46, 0.6)))
+	if not units.is_empty():
+		var mid := xf * Vector3(0.0, 3.4, 1.6)
+		_job(ch, func() -> void: _light(ch, mid, Color(1.0, 0.70, 0.45), 11.0))
 
 
 ## One unit of a shop building in its lot's frame.
