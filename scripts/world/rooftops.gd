@@ -220,16 +220,15 @@ static func plan(b: Building) -> Dictionary:
 				blocked.append(Rect2(got[0] - got[1] * 0.5, got[1]))
 				break
 			length -= 2.0
-	if true:
-		if not has_pad and not _has(feats, "pool") and h >= GARDEN_HEIGHTS.x and h <= GARDEN_HEIGHTS.y and _h(b, "garden") < GARDEN_SHARE:
-			var zone := Vector2(floorf(lerpf(7.0, 12.0, _h(b, "garden len"))), floorf(lerpf(5.0, 8.0, _h(b, "garden wid"))))
-			var got = _fit_any(b, "garden spot", zone, half, blocked)
-			if got == null:
-				got = _fit_any(b, "garden spot2", zone * 0.75, half, blocked)
-			if got != null:
-				feats.append({"kind": "garden", "at": got[0], "size": got[1], "swap": got[2],
-					"flip": _h(b, "garden flip") < 0.5, "tile": int(_h(b, "garden tile") * 3.0) % 3})
-				blocked.append(Rect2(got[0] - got[1] * 0.5, got[1]))
+	if not has_pad and not _has(feats, "pool") and h >= GARDEN_HEIGHTS.x and h <= GARDEN_HEIGHTS.y and _h(b, "garden") < GARDEN_SHARE:
+		var zone := Vector2(floorf(lerpf(7.0, 12.0, _h(b, "garden len"))), floorf(lerpf(5.0, 8.0, _h(b, "garden wid"))))
+		var got = _fit_any(b, "garden spot", zone, half, blocked)
+		if got == null:
+			got = _fit_any(b, "garden spot2", zone * 0.75, half, blocked)
+		if got != null:
+			feats.append({"kind": "garden", "at": got[0], "size": got[1], "swap": got[2],
+				"flip": _h(b, "garden flip") < 0.5, "tile": int(_h(b, "garden tile") * 3.0) % 3})
+			blocked.append(Rect2(got[0] - got[1] * 0.5, got[1]))
 	# 3. A mechanical penthouse with louvred screens.
 	if h >= PENT_MIN_HEIGHT and _h(b, "pent") < PENT_SHARE:
 		var zone := Vector2(floorf(lerpf(5.0, 9.0, _h(b, "pent len"))), floorf(lerpf(4.0, 6.0, _h(b, "pent wid"))))

@@ -252,7 +252,8 @@ void fragment() {
 		// The water itself, scattering a little turquoise back.
 		col += vec3(0.0, 0.05, 0.06) * (1.0 - trans.g);
 		float fres = 0.02 + 0.98 * pow(1.0 - clamp(-dot(view_l, nm), 0.0, 1.0), 5.0);
-		vec3 sky = cs_in(sky_tint.rgb);
+		// sky_tint arrives raw (sRGB) on both renderers (color_space.gdshaderinc), so decode it on both.
+		vec3 sky = cs_srgb_to_linear(sky_tint.rgb);
 		col *= 1.0 - fres;
 		emit = sky * fres * 0.9;
 		// Underwater lights after dark: the tank lit from its walls.
