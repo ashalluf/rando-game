@@ -3266,6 +3266,43 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   penthouse|mast|bmu`, `NIGHT=1`, `GOLDEN=1`, seconds), find them in the city with
   `tools/rooftops/find.gd -- --at=x,z --radius=m` (an EYE per pad and pool), count with
   `tools/rooftop_probe.gd`. Checks: `tests/rooftops_checks.gd`.
+- Wilshire deco (VISUAL_ROADMAP #86, 2026-10-05, docs/HANDOFF.md "Wilshire's deco boulevard"):
+  `DecoBoulevard` (`scripts/world/deco_boulevard.gd`) gives midtown's boulevard frontage its
+  1920s-30s character. A MIDTOWN BUILDINGS block's edge lot whose cell faces a road
+  `BOULEVARD_WIDTH` (24 m) or wider is deco by a hash (`WILSHIRE_ODDS` 0.75 on Wilshire - pinned
+  real street, its midtown stretch runs x ~500-1600 between MacArthur Park and the 110 -,
+  `ODDS` 0.3 on other boulevards) and builds one of five kinds instead of its Building: a zigzag
+  moderne TOWER (three-storey base, a shaft set back twice, piers on every bay line, majors rising
+  into stepped finials, chevron spandrels, zigzag friezes, a fluted lantern crown, ziggurat steps
+  and a spire; lots planned 26 m+), a streamline CORNER on a block corner (glass block round the
+  curve, ribbon windows, speed lines, a canopy with downlights and a neon strip, a pylon fin with
+  the name in neon; under `CORNER_MAX_HEIGHT`), a THEATRE (`THEATRE_BLOCKS` of blocks, one a
+  block; fluted pilasters, stepped tower, vertical blade sign, marquee with readerboards and
+  chasing bulbs, an OmniLight under it at night on desktop), deco APARTMENTS (stepped centre bay
+  and pediment, portal, the name over the door: gilt by day, lit at night) and Spanish COURTYARD
+  apartments (three stucco wings, clay gables, a tiled fountain, an arched gate with the name,
+  LotFill's planting and two palms inside). **The plan is pure** (`block_plans()` / `lot_plan()`,
+  hashes of seed + lot, cached by block): the planned Building is never made, the pad roll is
+  spent before `CityChunk._build_lot()` asks, so nothing else on the block moves. Every lot's
+  massing (`massing()`) is what the LOD chunks and the far city draw - **plain `lod_box`es on
+  building_lod's OLD path** (facade colour + window style, INSTANCE_CUSTOM.a 0), not FarBuilding's
+  coded copy - and what the collision (`DecoBody`, one box a massing box) and the occluder are.
+  `DecoBuild` (`scripts/world/deco_build.gd`) writes a FULL chunk's deco into ONE ornament mesh
+  (`DecoOrnament`, `shaders/deco_ornament.gdshader`: kind in COLOR.a as a code in 4/255 steps,
+  plus 32 for floodlit crown surfaces; paint in display numbers; UV face metres; UV2 a panel's
+  size; TANGENT the face's +u - terracotta, glaze, chevron / sunburst / zigzag / fluting relief,
+  metal, glass block lit at night, neon, bulbs, readerboards, clay tile, Spanish tile, water) and
+  one walls mesh per palette (`DecoWalls_<key>`) on **building.gdshader with `uv_facade` AND
+  `part_attributes` on**: Building's CUSTOM0-3 layout per vertex, UV.x metres along a face (a
+  whole number of bays, so the piers and spandrels DecoBuild places line up with the shader's
+  windows: PUNCHED glass is 0.27-0.77 of a storey), UV.y the face index (100+ blank) - so the
+  windows keep their traced rooms, lit offices and storefronts. Building frame: x along the
+  street, +z toward it, front at z 0 (`frame_xform()`). Mature palms on the kerb in front
+  (`block_step()`, after the sidewalk furniture, clear of it by `PALM_CLEAR`), night pools in
+  their own `deco_spill` batch. The plan has no medians, so none are built. Names are invented
+  (the checks hold a list of the real boulevard's out). `DECO=0` in the environment is the A/B;
+  `tools/deco_probe.gd -- --spawn=x,z,0,0` lists the deco round a point with an EYE each;
+  checks `tests/wilshire_deco_checks.gd`.
 - Characters: every rig (pedestrians, ragdolls, the player) renders through
   `shaders/character.gdshader` via `Pedestrian.prepare_rig(inst, look)`. The source models ship
   one flat 1K colour texture and a glTF material with full white emission and double specular,

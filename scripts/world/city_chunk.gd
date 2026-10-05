@@ -515,6 +515,7 @@ func _finish_build() -> void:
 	Industrial.commit(self)
 	Parks.commit(self)
 	Alleys.commit(self)
+	DecoBoulevard.commit(self)
 	_commit_far_ground()
 	_commit_boxes()
 	var fire_trees := TreeFire.collect(self, _batch)
@@ -2415,6 +2416,9 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 					_add_grass(_lawn_rect, 0.85, 0.0, _lot_rects))
 	if level == Level.FULL:
 		steps.append(_build_sidewalk_props.bind(rect, params, rng, district))
+		# Midtown's deco boulevard: mature palms on its kerbs, the night pools (DecoBoulevard), after
+		# the furniture they keep clear of.
+		steps.append(func() -> void: DecoBoulevard.block_step(self, block))
 		# Broadway's goods on the pavement and its street clock (Broadway; hash-seeded).
 		if Broadway.block_side(plan, ix, iz) != 0:
 			steps.append(func() -> void: Broadway.block_step(self, rect))
@@ -2753,6 +2757,9 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 		# The lawn's blades and the street trees keep off the house, not the whole lot.
 		_lot_rects.pop_back()
 		_build_house(lot, district)
+		return
+	# A deco building on a midtown boulevard (DecoBoulevard: hash-seeded, the pad roll is made).
+	if DecoBoulevard.build_lot(self, lot):
 		return
 	var building := BUILDING_SCENE.instantiate() as Building
 	building.seed = lot.seed

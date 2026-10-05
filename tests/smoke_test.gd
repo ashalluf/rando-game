@@ -1860,6 +1860,9 @@ func _test_city() -> void:
 	# Service alleys (tests/alley_checks.gd): the band on the lot grid's seam, the runs clear of the
 	# buildings, one ground and one upright mesh a chunk, the mouths clear, nothing else moved.
 	load("res://tests/alley_checks.gd").new().run(self, city)
+	# Wilshire's deco boulevard (tests/wilshire_deco_checks.gd): the pure plan, a deco chunk's meshes,
+	# collision and far boxes, nothing else on the block moved.
+	load("res://tests/wilshire_deco_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
