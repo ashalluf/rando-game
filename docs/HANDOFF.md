@@ -8749,5 +8749,6 @@ only: `_park_car()` stops at `PhysicsBudget.can_spawn()`, and late in the smoke 
 near that cap, so the OFF build, made while the ON chunk's cars are still queued for freeing, got
 fewer cars ("car 9 on (...), off <null>"). It passes alone; the checks now lift the cap for their
 own builds, and the label names the first building or car that differs. `tools/roadside/checks.tscn`
-runs the roadside checks alone in a few minutes. Stills on the merged tree are the `merged_*`
+runs the roadside checks alone in a few minutes. Frame cost on the merged tree (still_shot GEO, the gas
+station EYE at noon): `ROADSIDE=0` 5,123,285 triangles / 2,686 draws, on 5,084,623 / 2,559. Stills on the merged tree are the `merged_*`
 files on `shots/roadside` (same EYEs as above). Still open: everything under "Not done" above.
