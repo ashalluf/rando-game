@@ -20,9 +20,9 @@ global uniform float rain_intensity;
 #include "res://shaders/color_space.gdshaderinc"
 
 // LINEAR colours. The water over clean concrete, over the algae, and the algae mats themselves.
-uniform vec3 water_color = vec3(0.018, 0.024, 0.018);
-uniform vec3 algae_color = vec3(0.028, 0.040, 0.012);
-uniform vec3 algae_bright = vec3(0.070, 0.095, 0.020);
+uniform vec3 water_color = vec3(0.012, 0.015, 0.011);
+uniform vec3 algae_color = vec3(0.020, 0.026, 0.010);
+uniform vec3 algae_bright = vec3(0.040, 0.050, 0.016);
 uniform vec3 foam_color = vec3(0.26, 0.26, 0.23);
 // Half the sheet's width (metres; LaRiver's water edge) and how wide the algae fringe is.
 uniform float half_width = 2.45;
@@ -30,7 +30,7 @@ uniform float algae_fringe = 0.75;
 // Flow speed (m/s) the ripples and the foam are carried down at.
 uniform float flow_speed = 0.9;
 uniform float ripple = 0.65;
-uniform float sky_emit = 0.16;
+uniform float sky_emit = 0.12;
 
 varying vec2 v_uv;
 

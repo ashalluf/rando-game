@@ -168,9 +168,9 @@ void fragment() {
 		rough = 0.88;
 	} else if (kind == 2) {
 		// The notch: wet, slimy and green.
-		col = mix(col * 0.5, algae_color * (0.6 + 0.6 * detail), 0.85);
+		col = mix(col * 0.4, algae_color * (0.5 + 0.5 * detail), 0.9);
 		rough = 0.3;
-		dark = 0.3;
+		dark = 0.45;
 	} else if (kind == 3) {
 		col *= 1.0 - 0.3 * joint(uv.x, 3.05, 0.01, px);
 	} else if (kind == 4) {

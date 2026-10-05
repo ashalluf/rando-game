@@ -1237,6 +1237,14 @@ static func capture(c: CityChunk) -> void:
 	b._capture()
 
 
+## A far box with its top on its local +X face: building_lod.gdshader paints any local +-Y face
+## as a flat roof with plant on it (white membrane from the air), so a slab of ground or concrete
+## is turned to lie on its X face (as HouseKit's roof slabs are). The basis stays right-handed.
+static func _far(xf: Transform3D, col: Color) -> Array:
+	var b := xf.basis
+	return [Transform3D(Basis(b.y, -b.x, b.z), xf.origin), col]
+
+
 const FAR_LAND := Color(0.36, 0.34, 0.31)
 const FAR_ROAD := Color(0.10, 0.10, 0.105)
 const FAR_BANK := Color(0.50, 0.48, 0.44)
@@ -1339,7 +1347,7 @@ func _far_land(x0: float, x1: float, z0: float, z1: float, floor_y: float, boxes
 		var top := ch._gy(cx, zc) + CityChunk.ROAD_TOP
 		# A slab, not a block: the plate under it is sunk to the bed, and a metre hides that.
 		var h := clampf(top - floor_y, 0.5, 1.2)
-		boxes.append([Transform3D(Basis().scaled(Vector3(b - a, h, z1 - z0)), Vector3(cx, top - h * 0.5, zc)), cu[2]])
+		boxes.append(_far(Transform3D(Basis().scaled(Vector3(b - a, h, z1 - z0)), Vector3(cx, top - h * 0.5, zc)), cu[2]))
 
 
 func _far_channel(s0: float, s1: float, boxes: Array) -> void:
@@ -1354,16 +1362,16 @@ func _far_channel(s0: float, s1: float, boxes: Array) -> void:
 	var top := rv.top_at(sm)
 	var toe := rv.toe_at(sm)
 	var bed := P(sm, 0.0, toe - 0.4)
-	boxes.append([Transform3D(base.scaled_local(Vector3(bh * 2.0, 0.6, len)), bed), FAR_BED])
+	boxes.append(_far(Transform3D(base.scaled_local(Vector3(bh * 2.0, 0.6, len)), bed), FAR_BED))
 	var wat := P(sm, 0.0, rv.water_at(sm) - 0.2)
-	boxes.append([Transform3D(base.scaled_local(Vector3(LaRiver.lf_half() * 1.2, 0.5, len)), wat), FAR_WATER])
+	boxes.append(_far(Transform3D(base.scaled_local(Vector3(LaRiver.lf_half() * 1.2, 0.5, len)), wat), FAR_WATER))
 	var run_w := th - bh
 	var slope_len := sqrt(run_w * run_w + (top - toe) * (top - toe))
 	var tilt := atan2(top - toe, run_w)
 	for sg: float in [1.0, -1.0]:
 		var mid := P(sm, sg * (bh + th) * 0.5, (toe + top) * 0.5)
 		var tb := base * Basis(Vector3.BACK, tilt * sg)
-		boxes.append([Transform3D(tb.scaled_local(Vector3(slope_len + 0.6, 0.5, len)), mid - Vector3.UP * 0.25), FAR_BANK])
+		boxes.append(_far(Transform3D(tb.scaled_local(Vector3(slope_len + 0.6, 0.5, len)), mid - Vector3.UP * 0.25), FAR_BANK))
 
 
 func _far_bridge(br: Dictionary, boxes: Array) -> void:
@@ -1375,4 +1383,4 @@ func _far_bridge(br: Dictionary, boxes: Array) -> void:
 	var top := ch._gy(c.x, c.y) + CityChunk.ROAD_TOP
 	var w: float = float(br.width) + 6.0
 	var size := Vector3(w, 1.4, t1 - t0) if br.axis == CityPlan.AXIS_X else Vector3(t1 - t0, 1.4, w)
-	boxes.append([Transform3D(Basis().scaled(size), Vector3(c.x, top - 0.75, c.y)), FAR_BANK])
+	boxes.append(_far(Transform3D(Basis().scaled(size), Vector3(c.x, top - 0.75, c.y)), FAR_BANK))
