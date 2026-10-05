@@ -155,7 +155,7 @@ func _park(city: Node3D, plan: CityPlan, player: Node3D) -> void:
 		if car is RigidBody3D and (car as RigidBody3D).linear_velocity.length() > 0.5:
 			continue
 		parked_in += 1
-		printerr("westlake: a car standing in the park at %s (%s, parent %s, metas %s, traffic %s)" % [str(cw.snapped(Vector3.ONE)), car.name, str(car.get_parent().get_path()) if car.get_parent() else "none", str(car.get_meta_list()), str(car.get("traffic"))])
+		printerr("westlake: a car standing in the park at %s (%s type %d, parent %s, metas %s, traffic %s)" % [str(cw.snapped(Vector3.ONE)), car.name, int(car.get("body_type")), str(car.get_parent().get_path()) if car.get_parent() else "none", str(car.get_meta_list()), str(car.get("traffic"))])
 	_t._check(bad == 0 and parked_in == 0, "no car drives or parks inside the park (%d driving, %d standing)" % [bad, parked_in])
 
 
@@ -189,7 +189,8 @@ func _camps(city: Node3D, plan: CityPlan, player: Node3D) -> void:
 		var people := 0
 		var figs := 0
 		for child in c.get_children():
-			if child is EncampmentItem:
+			# A street vendor's cart is an EncampmentItem too (StreetVendors): not a camp.
+			if child is EncampmentItem and not str(child.name).begins_with("Vendor_"):
 				items += 1
 			elif child is RoughSleeper:
 				people += 1

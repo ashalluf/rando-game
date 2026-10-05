@@ -38,6 +38,11 @@ uniform float driver_side = -1.0;
 // Side glass: how much it lets through ahead of the front seat backs, and behind them (privacy
 // glass on the crossover, pickup and van).
 uniform vec2 side_t = vec2(0.6, 0.48);
+// A bus (CarCabin.cabin()): rows of seat pairs either side of the aisle - x the first row's seat
+// backs (z), y the pitch (signed toward the rear by the seat order), z how many rows, w the share of
+// seats taken. 0 rows: a car. And the cabin's own lights after dark (a bus's ceiling strips).
+uniform vec4 bus_rows = vec4(0.0);
+uniform float interior_lamp = 0.0;
 // How bright the cabin is, against the sky it is lit by (emitted, like the buildings' glass
 // mirror, so it follows DayNight's sky_tint into the night).
 uniform float cabin_light = 4.0;
@@ -346,6 +351,19 @@ void person(vec3 o, vec3 d, vec3 inv, float sx, float back, float fs, float who,
 // What a person's hit is coloured: skin, the top, the head (hair or a cap over the face), the
 // legs, a forearm (sleeved or bare by the seed, the hand always bare).
 vec3 person_albedo(int mat, vec4 aux, float back) {
+	if (aux.w > 1.5) {
+		// A bus passenger: colours from their seat's hash.
+		float h = fract(aux.w);
+		vec3 sk = mix(vec3(0.8, 0.56, 0.43), vec3(0.06, 0.03, 0.018), fract(h * 7.31));
+		float t = fract(h * 3.17);
+		vec3 tp = t < 0.35 ? vec3(0.03) : (t < 0.55 ? vec3(0.7, 0.7, 0.68) : vec3(fract(h * 5.1) * 0.5, fract(h * 9.3) * 0.35, fract(h * 2.7) * 0.4));
+		if (mat == CAB_HEAD) {
+			vec3 q = aux.xyz;
+			float qb = q.z * back;
+			return q.y > mix(0.42, -0.45, smoothstep(-0.3, 0.8, qb)) ? vec3(0.03, 0.02, 0.015) * (1.0 + fract(h * 11.0) * 3.0) : sk;
+		}
+		return tp;
+	}
 	bool mate = aux.w > 0.5;
 	vec3 skin = occupant_skin.rgb;
 	vec3 top = occupant_top.rgb;
@@ -422,7 +440,7 @@ vec3 cabin_view(vec3 o, vec3 d, float dist) {
 	vec3 t2 = (cabin_hi - o) * inv;
 	vec3 tf = max(t1, t2);
 	float t_exit = max(min(min(tf.x, tf.y), tf.z), 0.0);
-	vec3 sky = sky_tint.rgb + street_light * lamp_factor;
+	vec3 sky = sky_tint.rgb + street_light * lamp_factor + vec3(0.17, 0.18, 0.19) * interior_lamp * night_factor;
 	float char_ = burnt;
 	float cx = (cabin_hi.x + cabin_lo.x) * 0.5;
 	float half_w = (cabin_hi.x - cabin_lo.x) * 0.5;
@@ -452,6 +470,42 @@ vec3 cabin_view(vec3 o, vec3 d, float dist) {
 	furniture(o, inv, vec3(cabin_lo.x + 0.03, fy, seat_z.y), vec3(cabin_hi.x - 0.03, belt_y + 0.06, seat_z.y + back * 0.14), 0.85, CAB_FABRIC, best, best_n, best_shade, best_mat);
 	furniture(o, inv, vec3(cabin_lo.x + 0.03, fy, seat_z.y), vec3(cabin_hi.x - 0.03, belt_y - 0.44, seat_z.y - back * 0.5), 0.75, CAB_FABRIC, best, best_n, best_shade, best_mat);
 	furniture(o, inv, vec3(cabin_lo.x, fy, front_end), vec3(cabin_hi.x, belt_y + 0.05, front_end + back * 0.42), 0.6, CAB_DASH, best, best_n, best_shade, best_mat);
+	// A bus's rows: only those the ray can reach between the glass and where it leaves the cabin.
+	if (bus_rows.z > 0.5) {
+		float za = o.z;
+		float zb = o.z + d.z * best;
+		float ia = (za - bus_rows.x) * back / bus_rows.y;
+		float ib = (zb - bus_rows.x) * back / bus_rows.y;
+		int k0 = int(clamp(floor(min(ia, ib)), 0.0, bus_rows.z - 1.0));
+		int k1 = int(clamp(ceil(max(ia, ib)), 0.0, bus_rows.z - 1.0));
+		for (int k = k0; k <= k1 && k <= k0 + 7; k++) {
+			float zk = bus_rows.x + back * bus_rows.y * float(k);
+			for (int s = -1; s <= 1; s += 2) {
+				float fs = float(s);
+				float xa = cx + fs * 0.30;
+				float xb = cx + fs * (half_w - 0.04);
+				furniture(o, inv, vec3(xa, fy, zk), vec3(xb, belt_y + 0.02, zk + back * 0.09), 0.9, CAB_FABRIC, best, best_n, best_shade, best_mat);
+				furniture(o, inv, vec3(xa, fy, zk), vec3(xb, belt_y - 0.40, zk - back * 0.44), 0.8, CAB_FABRIC, best, best_n, best_shade, best_mat);
+				// Whoever sits in each of the pair's two seats, by a hash of the seat.
+				for (int q = 0; q < 2; q++) {
+					float px = mix(xa, xb, q == 0 ? 0.27 : 0.73);
+					float id = float(k) * 4.0 + (fs + 1.0) + float(q);
+					float h = fract(sin(id * 12.9898 + occupant_hair.a * 78.233) * 43758.5453);
+					if (h < bus_rows.w && char_ < 0.5) {
+						float sz = 0.92 + 0.14 * fract(h * 17.0);
+						vec3 hc = vec3(px, belt_y + 0.30 * sz, zk - back * 0.12);
+						ell_keep(o, d, hc, vec3(0.078, 0.105, 0.095) * sz, CAB_HEAD, 2.0 + h, best, best_n, best_shade, best_mat, best_aux);
+						cap_keep(o, d, vec3(px - 0.14 * sz, belt_y + 0.10, zk - back * 0.13), vec3(px + 0.14 * sz, belt_y + 0.10, zk - back * 0.13), 0.07 * sz, CAB_TOP, 2.0 + h, best, best_n, best_shade, best_mat, best_aux);
+						ell_keep(o, d, vec3(px, belt_y - 0.08, zk - back * 0.15), vec3(0.17, 0.2, 0.12) * sz, CAB_CHEST, 2.0 + h, best, best_n, best_shade, best_mat, best_aux);
+					}
+				}
+			}
+			// Grab poles on the aisle side of every other row.
+			if (k % 2 == 0) {
+				cap_keep(o, d, vec3(cx + 0.30, fy, zk - back * 0.5), vec3(cx + 0.30, cabin_hi.y, zk - back * 0.5), 0.016, CAB_PLASTIC, 0.0, best, best_n, best_shade, best_mat, best_aux);
+			}
+		}
+	}
 	// The centre console with the gear lever, and the screen in the middle of the dash.
 	float dash_rear = front_end + back * 0.42;
 	furniture(o, inv, vec3(cx - 0.1, fy, dash_rear - back * 0.05), vec3(cx + 0.1, belt_y - 0.36, seat_z.x + back * 0.03), 1.0, CAB_PLASTIC, best, best_n, best_shade, best_mat);

@@ -1001,6 +1001,48 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   material on the lamps); in the city `CAR_LIGHTS=1` on `still_shot.gd` forces them onto an
   opengl3 still, and every GEO line there is followed by a `LIGHTS` line (car spots and street
   lamps, on and in view). Checks: `tests/car_lights_checks.gd`.
+- Big vehicles (2026-10-04, "buses and trucks in traffic"): `BigVehicles`
+  (`scripts/vehicles/big_vehicles.gd`) - a 40 ft city bus (`BodyType.BUS`, the invented agency
+  BASIN TRANSIT: white over a teal skirt), a cab-over box truck (`BOX_TRUCK`, invented fleets on
+  the box) and a sleeper semi with a 53 ft dry van (`SEMI`). They ARE Vehicles (appended to
+  `BodyType`, `BODY_ODDS` 0 so `random_car()` never rolls them; `BigVehicles.make(type, look)`
+  builds one), so kinematic traffic, `drop_out_of_traffic()` / `take_hit()`, CarDamage, CarCabin
+  glass and drivers, CarLights, PhysicsBudget and the pools all work unchanged; `tune()` scales
+  mass (x5.5-11) with engine, brakes and suspension. Bodies: `tools/make_big_vehicles.py`
+  (Blender; imports `make_road_cars.py` and reuses its loft, booleans, raycast parts, slots and
+  far twin - run `blender -b --factory-startup -P tools/make_big_vehicles.py -- bus box_truck
+  semi [--render]`, then `--import`; it prints the WHEEL_POSE / `_dims()` rows, the sign rects,
+  the door hinges and the kingpin). Two slots more: `sign` (the bus's LED destination signs,
+  `shaders/bus_sign.gdshader`, 5 x 7 glyphs from `LedScreen.GLYPHS`, one shared material per
+  line and destination, `BigVehicles.sign_material()`) and `glass_door` (plain glass: a door
+  leaf moves, the cabin trace works in the body's space). Extra nodes by name: `door_fa/fb/ra/rb`
+  (each leaf's origin its hinge; `BusFittings` swings them open at a stop and kneels the body
+  toward the kerb), `road_semi_trailer(_far)` (origin the kingpin; `Hitch` moves it onto a pivot
+  and drags the trailer's axle toward the kingpin each tick - a tractrix - so a snapped junction
+  turn swings it round behind, `MAX_ANGLE` 1.35 rad; physical, the rig straightens and is rigid;
+  the trailer's collision is one box on the car moved with the pivot). **The body is centred and
+  scaled without the trailer or the doors** (`_add_body_model()`); a semi's `_dims()` are the
+  tractor's, with `kingpin`, `trailer_rear` (TrafficManager's `rear` extent: a car queues behind
+  the END of the trailer) and `light_len` / `light_z` (the lamp mesh runs the whole rig). Wheels:
+  WHEEL_POSE `axles` ([z, dual]) and `trailer_axles` go to `BigVehicles.add_wheels()`: truck
+  wheels (`wheel_mesh()`: tyre, painted steel or polished disc with ten hand holes, hub, nuts;
+  ~1.3k triangles near, a dual PAIR one mesh), each rig carrying its own near/far mesh at [6]/[7].
+  `_dims()` `tyre_r` for these is the PHYSICS radius, set so a parked one stands where traffic
+  stands it (car_shot.gd CONTACT). Lettering is a shared TextMesh per (name, size, colour) on each
+  side, 55 m, not on the web. **Lines and stops are worked out, never placed**:
+  `route_of(plan, axis, index)` (half the avenues, a hash), `block_stop(plan, axis, index, k,
+  dir)` (where the nose stops on the block between crossings k and k+1, far side, about every
+  other block), `in_stop_zone()` (the chunk's parked cars keep off the stop's kerb, after their
+  rolls), `build_bus_stops()` (a shelter by the front door, from `_build_sidewalk_props`, no
+  rng). TrafficManager: `_street_kind()` (on a line `BUS_SHARE_ON_ROUTE` are buses, in the kerb
+  lane, no turns of their own, signs lit; box trucks and semis a few %, x3 in INDUSTRIAL),
+  `_new_car(kind)` pools by kind, a bus treats its stop as a standing car, pulls `STOP_SHIFT`
+  toward the kerb and dwells (`_bus_dwell`: doors, kneel, `DWELL`), freeway semis and box trucks
+  in the slow lane, gaps counting `rear`. CarCabin draws a bus's rows of seat pairs and
+  passengers (`bus_rows`, `interior_lamp`: the cabin lit after dark) and seats only its driver.
+  Stills: `BIG=bus` (a bus at the stop nearest the camera, doors open, a pavement EYE), `BIG=semi
+  BIG_ROUTE=110` on `still_shot.gd`, `STREET=queue STREET_BIG=10` (a box truck in the queue),
+  `car_shot.gd --each=9,10,11` (`BUS_DOORS=1`). Checks: `tests/big_vehicle_checks.gd`.
 - Character arms: the generated clips were authored for arms that hang straight, but each
   generated rig is bound in whatever pose its mesh came out in (A-pose, or a palms-up shrug
   with the forearms raised), and the clips drive the arm bones as if that were the rest pose -
@@ -2443,6 +2485,35 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `Pedestrian.warm_far_mesh()`: ~12 ms a hat, ~10 ms of hair a kind on this box). Look with
   `tools/glshot/crowd_lineup.gd` `HATS=cap,beanie,bucket,police` (`HAT_PICKS=` the colourways);
   checks: `tests/crowd_hat_checks.gd`.
+- Street vendors (VISUAL_ROADMAP #52, 2026-10-04: "taco trucks at night, fruit carts under
+  umbrellas"): `StreetVendors` (`scripts/world/street_vendors.gd`, static) - taco trucks at the
+  kerb with a lit menu board, the serving window open under its propped flap, a lit kitchen
+  inside, a generator on the back (Sfx `generator`, a real CC0 loop); fruit and elote carts under
+  striped market umbrellas; bacon-wrapped hot dog carts with a string of bulbs; paleta push carts;
+  flower and balloon sellers at corners. Every mesh is code at real size on ONE shader
+  (`shaders/street_vendor.gdshader`: what a face is in the vertex alpha - steel, paint from
+  INSTANCE_CUSTOM.rgb, canvas stripes by the angle round the pole, lightbox, food pictures, lit
+  interior, bulbs, glass, food, LED; codes 0.05 apart), one batch per kind a chunk (`vend_*`),
+  lettering from TextMesh merged in (invented names and menus, `TRUCKS`). **The instance COLOR
+  multiplies every vertex colour** (it would tint the umbrella's pole), so the canvas's second
+  stripe is the shader's `CANVAS2[INSTANCE_CUSTOM.a * 8]` copy of `CANVAS` (checked). Placement
+  is pure (`plan_block(plan, ix, iz, hour)`): by place (`Place`: downtown, midtown, industrial
+  lunch trucks, parks, the faces across from MacArthur Park, round the arena, the beach town) and
+  face (`ODDS`), by the hour the chunk is built at (`SCHEDULE`, hashed shifts, trucks at night,
+  carts by day; `force_hour` for tests), all hashes of seed + block + face + kind. A FULL block's
+  step after the camps: a truck parks in this chunk's own parking lane (+x / +z faces only),
+  serving side to the kerb, as a `_add_prop` that never breaks (rounds spark off it as metal; its
+  collision leaves the window open, so a round through it finds the cook); the parked cars skip
+  its stretch AFTER all their rolls and count it as parked (`blocks_parking()`), so the block's
+  stream is unmoved. A cart is an `EncampmentItem` (tips over as a real body, stays gone). Night:
+  pools in the chunk's `shop_spill` batch and one `lamp_light` omni per truck / hot dog cart.
+  People: `StreetVendor` (`scripts/npc/street_vendor.gd`, a Pedestrian with the life clips) at
+  the stand, talking to whoever waits; a cart vendor flees gunfire and walks back; a truck's cook
+  is kinematic on the truck floor (`lift`) and ducks. Customers are walkers: chunk meta
+  `vendor_queue` spots, taken by `Pedestrian._plan_queue()` (no roll on a chunk without vendors).
+  `STREET_VENDORS=0` turns it off (the A/B). Look with `tools/glshot/vendor_shot.gd` (the stands
+  alone, seconds; `NIGHT=1`) and find them with `tools/vendor_probe.gd`; checks:
+  `tests/street_vendors_checks.gd`.
 - The hero (owner, 2026-09-24: "Blender with real fingers from scratch AAA studio level"):
   `assets/models/hero.glb`, built by **`tools/hero/`** in Blender 4.2 with MPFB2 from CC0
   MakeHuman assets plus our own tracksuit, rib tank, rope chain, watch, ring, laced sneakers and

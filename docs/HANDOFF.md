@@ -5936,3 +5936,143 @@ trailers at the docks, no prop batches, the pools shadowless, the warehouses in 
 wall list), the block built with Industrial off keeps every pavement prop where it was, a LOD build
 and the far city's capture draw the warehouses as far boxes. `INDUSTRIAL=0` on `still_shot.gd`,
 `block_shot.tscn` and `tools/geo_count.gd` is the A/B; `industrial_bench.tscn` times the builds.
+
+## 9bi. Buses and trucks in traffic, 2026-10-04 (agent branch `wt/big-vehicles`; VISUAL_ROADMAP #51)
+
+The brief: a real LA street has city buses, box trucks and delivery vans, and the freeways have
+semis; traffic was all cars. Now: a 40 ft city bus (the invented agency BASIN TRANSIT) running
+lines on the avenues and stopping at its stops, a cab-over box truck (invented fleets) and a
+sleeper semi with a 53 ft dry van, on the streets and the freeways. CLAUDE.md "Big vehicles" is
+the reference; this is the story.
+
+- **Bodies** (`tools/make_big_vehicles.py`, Blender 4.2 on `make_road_cars.py`'s pipeline - it
+  imports that module and reuses the loft, the booleans, the raycast parts, the slots and the far
+  twin; `--render` for Cycles previews). Bus: one flat-roofed loft (the van's ninth anchor and
+  pinned tangents) with the windscreen and the sign window cut into the domed nose cap, window
+  bands with posts and sliding vents, two plug doors on the kerb side (four leaves, own nodes),
+  roof pod, round lamps, a folded bike rack, bull-horn mirrors; 43k triangles + a 10k far twin.
+  Box truck: a cab-over loft plus a bevelled van body with rails, posts, a roll-up door, marker
+  and tail lamps, frame, tank, steps, underride bar; 26k + 10k. Semi: a long-bonnet sleeper loft
+  (the pickup's corners, the van's flat roof), chrome grille and bumper, tanks, stacks, fenders,
+  fifth wheel; 41.5k + 11k, and the trailer (swing doors with lock rods, landing gear, skirts,
+  tandem) as its own node on the kingpin, 1.8k + 3.6k. The cars' probe rays start 3-5 m out,
+  inside a 12 m bus: the module patches `Surface.end_hit` / `side_hit` / `top_hit` to start
+  further out (a dozen parts were dropped as "missed" before that).
+- **In the game** they are Vehicle body types 9-11, so nothing else needed to learn about them;
+  the work was in the contracts: the body is centred and scaled without the doors and the trailer
+  (otherwise the semi's origin sat mid-rig and a snapped turn swung the tractor 7 m sideways);
+  queues measure to a semi's trailer end (`rear`); `tyre_r` is the physics radius that makes a
+  parked one stand where traffic stands it (CONTACT -0.339 -> -0.298 for the bus); the cabin
+  measure called the bus's windscreen a LAMP (big glass at the very end below the belt) and saw no
+  windscreen at all (its normal is nearly level) - both fixed in `CarCabin`, cars unchanged.
+- **Lines and stops** are pure functions (no network, nothing streamed): `route_of()` gives about
+  half the avenues a line number, `block_stop()` a far-side stop on about every other block per
+  direction. The chunk asks the same function for the shelter and for its parked cars (none in the
+  stop's kerb zone, decided after their rolls so nothing moves); the traffic asks it where to pull
+  in. A bus at its stop: pulls 1.4 m toward the kerb, stands, doors swing open, kneels, dwells
+  7-13 s, closes, pulls out.
+- **Trailer**: a tractrix - the trailer's axle is dragged toward the kingpin each tick. Traffic
+  turns are still snapped at the junction's centre (for every vehicle), and this is what makes
+  the semi's look right: the tractor snaps, the trailer swings round behind it.
+- **Frame cost** (`tools/geo_count.gd`, opengl3 800x600, main 96f86f1 vs this branch; traffic
+  differs between runs, so part of the difference is which vehicles happen to be in view):
+  downtown avenue `--spawn=2359.4,880,0,12,2`: 4.56 M tris / 3,488 draws -> 4.92 M / 3,644
+  (+7.8 % / +4.5 %); west freeway `--spawn=200,1088,-90,-4,30`: 3.03 M / 2,923 -> 3.08 M /
+  2,949 (+1.6 % / +0.9 %); by the 110 `--spawn=1930,600,180,-5,14`: 3.72 M / 3,117 -> 3.91 M /
+  3,271 (+5.0 % / +4.9 %). Per vehicle: a near bus is ~43k + 4 wheel rigs (~1.3k each), the
+  lettering 2 draws to 55 m, door leaves 2 surfaces each (they were 4). Build: 2-3 ms warm
+  (smoke check), 40-80 ms the first time a model loads - inside `builds_per_frame` 1.
+- **Checks**: `tests/big_vehicle_checks.gd` (builds, budget, hit -> physics, the trailer's swing,
+  the pool, lines and stops, a bus at its stop, a car behind a semi at a red, a freeway semi).
+- **Stills** (`shots/big-vehicles`): bus at a stop downtown by day and night (`BIG=bus`), a box
+  truck in the queue at a red (`STREET=queue STREET_BIG=10 STREET_EYE=1`), a semi on the 110
+  (`BIG=semi BIG_ROUTE=110`), close-ups of each body (`car_shot.gd --each=9,10,11`), the bus's
+  seat rows and passengers through the side glass (`OCCUPANT=npc`).
+- **Not done / not verified**: no Forward+ look (the LED signs and the lit bus cabin at night
+  NEED A MAC CHECK); the bus's door openings show a black interior (no stairwell or floor); the
+  front indicators are clear lenses; turns are snapped (a real turning radius for long vehicles
+  would need the street traffic to drive arcs); no bus stops in the Esplanade replica's own
+  traffic (ReplicaTraffic has its own cars); the semi's lamp mesh runs straight behind the
+  tractor whatever the trailer's angle; the semis and box trucks never park.
+
+## 9bj. Street vendors: taco trucks, carts, umbrellas and the people at them, 2026-10-04 (agent branch `wt/vendors`; VISUAL_ROADMAP #52)
+
+The brief (lead, from the owner's "make the graphics a million times better"): nothing on our
+pavements sold anything. A real LA street has taco trucks at the kerb at night with a lit menu
+board, a serving window and a generator, fruit and elote carts under big striped umbrellas,
+bacon-wrapped hot dog carts outside the arena and the bars at night, paleta carts in the parks,
+flower and balloon sellers at the downtown corners. CLAUDE.md's "Street vendors" note is the
+reference; this is the story.
+
+**What it is.** `StreetVendors` (`scripts/world/street_vendors.gd`, static) builds every stand in
+code at real size - a 7 m step van (box cut round a 2.7 x 0.95 m serving window, propped flap
+with an LED strip, a lit kitchen inside: hood, plancha with meat on it, fridge, shelves; a steel
+counter outside with salsas, napkins and limes; a menu lightbox with three food pictures and
+real TextMesh lettering; the name along both sides; bonnet, grille, mirrors, wheels, tail lamps,
+a red generator on a rack behind the bumper), a fruit cart (ice tray of mango, watermelon,
+pineapple, cucumber, jicama and papaya spears, cups, chile-lime and chamoy, a cooler), an elote
+cart (the pot of corn with its lid tipped back, the esquites pot, mayo / chile / cotija / butter,
+a hand-lettered card), a hot dog cart (griddle under foil, three rows of bacon-wrapped dogs, a
+heap of onions and peppers, buns, bottles, a propane tank, a light pole with a string of bulbs, a
+cardboard sign), a paleta push cart (printed sides of ice pops, two lids, bells on the handle) and
+a flower stand (buckets of roses, sunflowers and the rest on a slatted stand, foil balloons on
+ribbons) - and a market umbrella shared by the carts. One shader (`street_vendor.gdshader`), one
+batch per kind a chunk. Names and menus are invented (`TRUCKS`: TACOS EL COMPA CHUY, MARISCOS EL
+FARO AZUL, TAQUERÍA LA ESTRELLITA, BIRRIA LA CHAPARRITA, LOS PRIMOS TACOS & MÁS, EL REY DEL
+ASADA). Triangles: truck 7.5k, fruit 4.1k, elote 2.2k, hot dog 3.9k, paleta 0.7k, flowers 7.5k.
+
+**Where and when.** `plan_block(plan, ix, iz, hour)` is pure: each face of a block is a place
+(downtown, midtown, industrial, a park, across from MacArthur Park, within 430 m of the arena, the
+beach town / near the boardwalk) and rolls each kind against `ODDS`; a hashed schedule per vendor
+(`SCHEDULE` +- 1 h; a quarter of trucks, most on the industrial blocks, work lunch) says whether it
+is working at the hour the chunk is built at. Round downtown (9 x 9 blocks) that is 28 trucks at
+21:00 and 7 at 13:00, 52 carts at 21:00 and 74 at 13:00 (smoke test). Trucks park in the chunk's
+own parking lane (+x / +z faces), serving side to the kerb, nose with the traffic; carts stand
+1.55 m in from the kerb, slid along the face to clear lamps, trees, cans and camps.
+
+**How it plays.** A shot truck sparks (a prop on StreetProps classifies as metal) and never
+breaks; a round through the window finds the cook. A cart is an `EncampmentItem`: rounds, a car or
+a blast tip it over as a real body and it stays gone. The cook (`StreetVendor`) stands on the
+truck floor (kinematic, out of the truck's collision) and ducks under the counter at gunfire; a
+cart vendor runs like anyone and walks back after. Walkers near a stand stop at its queue
+(`Pedestrian._plan_queue()`, `QUEUE_SHARE` 0.55, 12-40 s) and the vendor talks to them. After
+dark the truck lights the pavement (a pool in the chunk's `shop_spill` batch and a `lamp_light`
+omni), the hot dog cart's bulbs too. The truck's generator hums (`Sfx` "generator", a CC0 loop,
+38 m reach).
+
+**Traps.**
+- The MultiMesh instance COLOR multiplies every vertex colour in the vertex shader, so it cannot
+  carry the umbrella's second stripe without tinting the pole: the shader has the colours
+  (`CANVAS2`), picked by INSTANCE_CUSTOM.a, and the smoke test checks the copy.
+- A parked car skipped for a truck must still make every roll and count as parked: `_park_car`'s
+  cap short-circuits the rng, so a missing car moved every later roll (and the walkers after).
+- The menu lightbox face sat inside its own frame box and drew dark; and a flap tipped up 18
+  degrees hid the truck's name from the pavement (now 5).
+- The brushed-steel grain at 160 cycles a metre aliased into dark corrugation on every cart: it
+  fades to its mean under a pixel now.
+- The smoke test's shop-spill count and the camp check both counted the vendors (a pool in the
+  same batch; a cart is an EncampmentItem): the chunk now counts its pools (`vendor_pools`
+  meta) and the camp check skips `Vendor_*` items.
+
+**Cost** (`still_shot.gd` GEO, opengl3 1280x720, `--quality=0`, the same EYE with
+`STREET_VENDORS=0`): the night truck view 5,787,253 -> 5,868,306 tris (+1.4 %), 2,954 -> 2,974
+draws; the day fruit cart view 5,634,670 -> 5,860,288 (+4.0 %, mostly the vendor and the two
+customers standing in shadow range in front of the camera), 3,022 -> 3,061 draws. Cart draw
+distance then cut 150 -> 120 m and their shadows 70 -> 45 m afterwards (not re-measured). A chunk with
+vendors adds at most one draw per kind plus its shadow twin, one omni per truck or hot dog cart.
+
+**Stills** (`shots/vendors`): `truck_night` (EL REY DEL ASADA downtown at 21:00, people waiting
+at the window, the pool on the pavement), `fruit_day` (a fruit cart under its umbrella at noon,
+vendor and two customers), `paleta_park` (a paleta cart on a park's edge at 14:00, vendor and
+two customers), `stand_day` / `stand_night` / `stand_carts` (the stands alone,
+`tools/glshot/vendor_shot.gd`: the hot dog cart's bulbs and the lit truck at night), and the
+`*_before` frames with the vendors off. The arena hot dog still in the city was framed on a cart
+that its face's camp pieces had pushed out (no cart in frame); its reshoot was lost to a
+container restart - frame one with `tools/vendor_probe.gd KIND=hotdog --spawn=2300,1150,0,0`.
+
+**Not done / not verified.** The Mac (Forward+): the lightbox and kitchen emission under AgX
+and the umbrellas' backlight. Vendors appear and leave only when a chunk is built (the hour is
+read then), so standing at one corner across dusk does not bring the trucks in. No vendors on
+the boardwalk landmark itself or inside MacArthur Park (its edges only). The vendors wear the
+crowd's clothes (no apron or cap); customers do not carry food away; no steam off the elote pot
+or smoke off the griddle; the balloons are round foil only.

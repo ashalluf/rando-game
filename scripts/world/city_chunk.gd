@@ -2229,6 +2229,13 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 			# The people at the camps, one a step, before the block's walkers take the crowd cap.
 			for i in Encampment.PEOPLE_STEPS:
 				steps.append(func() -> void: Encampment.spawn_sleeper(self, rect, sleepers, i))
+		# Street vendors (StreetVendors): carts, trucks and their people. Hash-seeded by block and
+		# face and by the hour; the block's rng is untouched. Before the parked cars, which keep
+		# out of a truck's stretch of kerb.
+		if StreetVendors.wanted(self, block):
+			steps.append(func() -> void: StreetVendors.build_block(self, block))
+			for i in StreetVendors.MAX_PER_BLOCK:
+				steps.append(func() -> void: StreetVendors.spawn_vendor(self, i))
 		steps.append_array(_park_car_steps(rect, rng, params))
 		steps.append_array(_pedestrian_steps(rect, rng, params, Encampment.PATH_KEEP + 1.0 if camps & Encampment.FACES else -1.0))
 	return steps
@@ -2423,14 +2430,22 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	if count[0] >= max_cars or rng.randf() > 0.55 or not PhysicsBudget.can_spawn():
 		return
 	var car := Vehicle.random_car(rng)
-	if plan.macro and Landmarks.covers(plan, Vector2(spot[0].x, spot[0].z), 3.0):
-		# After the rolls, so the chunk rng runs the same whether or not the spot is used.
+	if (plan.macro and Landmarks.covers(plan, Vector2(spot[0].x, spot[0].z), 3.0)) or BigVehicles.in_stop_zone(plan, Vector2(spot[0].x, spot[0].z)):
+		# After the rolls, so the chunk rng runs the same whether or not the spot is used. A bus
+		# stop's kerb is kept clear for the bus (BigVehicles).
 		car.free()
 		return
 	var holder: Node = get_parent() if get_parent() else self
 	var spot_pos: Vector3 = spot[0] + Vector3(0.0, 0.3 + _gy(spot[0].x, spot[0].z), 0.0)
 	car.position = WorldState.to_local(spot_pos) if holder != self else spot_pos
 	car.rotation.y = spot[1] + (PI if rng.randf() < 0.5 else 0.0)
+	# A street vendor's truck at this stretch of kerb (StreetVendors): after every roll, so the
+	# block's stream (and the walkers after it) runs the same with or without the truck.
+	# It counts as parked, so the cap (and with it the rolls) is the same too.
+	if StreetVendors.blocks_parking(self, spot[0]):
+		car.free()
+		count[0] += 1
+		return
 	holder.add_child(car)
 	# A chunk still being built is hidden until it is finished (CityStreamer), and its cars
 	# live under the city root rather than under it, so they are hidden with it by hand.
@@ -3079,6 +3094,8 @@ func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGen
 			add_child(can)
 	_build_clutter(rect, edges, params, rng)
 	StreetDetail.build_block(self, rect, edges, params, block_district, rng)
+	# The shelters of the bus lines' stops on this block (hash-seeded, no rng).
+	BigVehicles.build_bus_stops(self, rect, edges)
 
 
 # --- Intersections ---------------------------------------------------------------------

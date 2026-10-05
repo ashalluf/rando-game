@@ -2624,6 +2624,9 @@ func _try_life(at_spawn: bool) -> bool:
 			_start_stand(_life.randf_range(4.0, 10.0))
 			return true
 		return false
+	# A street vendor's queue nearby (StreetVendors): some stop and wait at the cart or the truck.
+	if _plan_queue(at_spawn):
+		return true
 	var r := _life.randf()
 	# What kind of person this is decides what they stop for.
 	if _carry == CrowdLife.Carry.SMOKE and r < 0.75:
@@ -2750,6 +2753,34 @@ func _plan_sit(at_spawn: bool) -> bool:
 		_stage = Stage.DOING
 		_life_base = CrowdLife.SIT
 		_life_clip = CrowdLife.SIT
+	else:
+		_stage = Stage.GOING
+		_go_to(_act_spot)
+	return true
+
+
+## A free spot at a street vendor's queue on this chunk (StreetVendors), and the roll to take it:
+## walk there and wait, facing the cart or the truck's window. No roll at all on a chunk with no
+## vendors, so nobody else's life moves.
+func _plan_queue(at_spawn: bool) -> bool:
+	var parent := get_parent()
+	if parent == null or not parent.has_meta("vendor_queue"):
+		return false
+	var spot := StreetVendors.free_queue(parent, Vector2(position.x, position.z), seat_reach * (0.8 if at_spawn else 1.2))
+	if spot.is_empty() or _life.randf() > StreetVendors.QUEUE_SHARE:
+		return false
+	_act = CrowdLife.Act.STAND
+	_seat = spot
+	spot.taken = self
+	_act_spot = spot.p
+	_act_face = float(spot.yaw)
+	_act_left = _life.randf_range(StreetVendors.QUEUE_SECONDS.x, StreetVendors.QUEUE_SECONDS.y)
+	_act_beat = _life.randf_range(3.0, 8.0)
+	_life_base = _stand_clip()
+	if at_spawn:
+		_place_at(_act_spot, _act_face)
+		_stage = Stage.DOING
+		_life_clip = _life_base
 	else:
 		_stage = Stage.GOING
 		_go_to(_act_spot)

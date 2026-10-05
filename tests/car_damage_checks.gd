@@ -220,11 +220,15 @@ func _rocket_to_wreck() -> void:
 	_check(r.is_in_group("debris") and is_equal_approx(float(r.get_meta("debris_life", 0.0)), dmg.wreck_lifetime)
 			and paint != null and is_equal_approx(float(paint.get_shader_parameter("burnt")), 1.0),
 			"the wreck is burnt out and PhysicsBudget frees it after %.0f s" % dmg.wreck_lifetime)
-	# The toss happens in the frame it blows up (up to toss_speed, less whatever it already had).
+	# The toss happens in the frame it blows up: up TO toss_speed, less whatever it already had,
+	# so a wreck still rising from the rocket gains little but leaves at toss_speed or more. Judged
+	# by the gain alone, one CI run read +3.0 against a 3.0 floor (build 332).
 	var up := r.linear_velocity.y - before.y
+	var rising := r.linear_velocity.y
 	await _ticks(40)
 	var finite := r.global_position.is_finite() and r.linear_velocity.is_finite() and r.global_basis.x.is_finite()
-	_check(finite and up > 3.0, "the blast throws the wreck up (+%.1f m/s) and it stays finite" % up)
+	_check(finite and (up > 3.0 or rising > dmg.toss_speed.x - 0.5),
+			"the blast throws the wreck up (+%.1f m/s, rising at %.1f m/s) and it stays finite" % [up, rising])
 	# Still for 20 ticks running, not slow for one: the top of a bounce is slow too, and a wreck
 	# caught there read 2.79 m over the deck in a full suite run.
 	var landed := 0

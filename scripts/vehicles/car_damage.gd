@@ -198,6 +198,9 @@ func attach(to: Vehicle) -> void:
 	_ride = float(d.get("ride", car.model_bottom_y))
 	_top = car._model_top_y if car._has_model else 0.55 + float(d.chassis_h) + float(d.cabin_h)
 	_engine_z = _len * (0.22 if MID_ENGINE.has(car.body_type) else -0.34)
+	if car.body_type == Vehicle.BodyType.BUS:
+		# A city bus's engine is in the back.
+		_engine_z = _len * 0.40
 	for m in car._body_meshes:
 		if is_instance_valid(m) and not String(m.name).ends_with("_far"):
 			_mesh = m

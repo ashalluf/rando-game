@@ -304,6 +304,32 @@ already mapped so milestone 2 is script-only.
   Blender: the fit has to be per rig and is measured from the rig, which a modelled .glb per rig
   and kind (48 files to rebuild with every crowd change) would not be. Cost: ~0.8 s more on the
   loading screen here (the hats and the pressed hair for 12 rigs, built once). See HANDOFF 9bg.
+- **2026-10-04 Buses and trucks are Vehicles, and their lines and stops are worked out** (agent
+  branch `wt/big-vehicles`; docs/HANDOFF.md 9bi). A 40 ft city bus (the invented agency BASIN
+  TRANSIT), a cab-over box truck and a sleeper semi with a 53 ft trailer are three more
+  `Vehicle.BodyType`s, Blender-built on the road cars' pipeline (`tools/make_big_vehicles.py`),
+  so every car system (traffic, damage, cabin glass and drivers, lights, pools) takes them as they
+  are. Calls made: **`random_car()` never rolls them** (BODY_ODDS 0; parked kerbs stay cars, the
+  traffic spawns them on purpose); **a bus line is a whole avenue** (half the avenues, by hash),
+  stops on the far side of a corner about every other block, so there is no network to store or
+  stream and the traffic, the chunk's shelter and the clear kerb all ask the same pure function;
+  **a semi's body is its tractor** and the trailer a pivot that follows the kingpin as a tractrix
+  (a snapped junction turn swings it round instead of jumping), rigid once the rig is physical;
+  **turns stay snapped at the junction's centre** for every vehicle (the trailer's swing hides it
+  for the semi; the bus does not turn by itself). Every company and agency name is invented.
+- **2026-10-04 Street vendors: code-built stands, hash-placed by place and hour, real people at
+  them (VISUAL_ROADMAP #52).** Nothing on the pavements sold anything. `StreetVendors` builds taco
+  trucks, fruit / elote / bacon-wrapped hot dog / paleta carts, market umbrellas and flower and
+  balloon stands in code at real size on one shader (one batch per kind a chunk), with invented
+  names and menus in real lettering (TextMesh). Who works where is a pure function of seed, block,
+  face and the hour the chunk is built at: trucks at the kerb at night (some at lunch, most on the
+  industrial blocks), carts by day, hot dogs round the arena and downtown at night, paletas in the
+  parks, the most across from MacArthur Park. The truck is a static prop that never breaks (it
+  sparks); a cart is an EncampmentItem, so it tips over and stays gone. A crowd rig works each
+  stand (`StreetVendor`, the life clips) and walkers stop at its queue (`Pedestrian._plan_queue()`).
+  The block's own random stream is untouched: a parked car in a truck's stretch is skipped after
+  its rolls and counted as parked. Trucks are not Vehicles (the big-vehicles work owns those), and
+  they do not arrive or leave while a chunk stays built - the hour is read when it builds.
 - **2026-10-04 The far city's buildings are coded copies of the near ones, not impostors (G7).**
   Every building past the FULL ring was its parts as boxes on a shader that GUESSED the facade
   (typology from the colour, its own grid, lit-window hash and roof roll), so a building changed
