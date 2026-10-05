@@ -316,7 +316,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`render_mode use_half_res_pass`, guarded by `CURRENT_RENDERER`; the full pass composites
   `HALF_RES_COLOR`, rgb premultiplied, a = transmittance), dithered per frame (TAA resolves it).
   Shape: a weather map (`assets/textures/sky/cloud_weather.png`, R where, G how tall) gives each
-  column, a dome over a flat base, eaten by a 64^3 Perlin-Worley (`cloud_shape3d.png`; both by
+  column, a dome over a flat base that REMAPS a 64^3 Perlin-Worley (the noise is the cloud; the dome says how much survives, so margins and crowns are turrets), its margin torn by Worley fbm scaled to ~3 pixels at that distance, coverage moved by region (a 4x read of the map) (`cloud_shape3d.png`; both by
   `tools/sky/make_cloud_noise.py`, imported as Images and turned into textures by
   `SkyExtras.textures()`); light: four taps toward the sun (or the moon), three octaves of multiple
   scattering, a dual-lobe phase, powder, ambient from the sky above and the ground / city below;
@@ -326,7 +326,10 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   turns the columns into a flat stratus ceiling (weather). Compatibility and Forward+ below
   MEDIUM keep the painted 2D cumulus (`painted_cumulus()`), and the mid deck is thinned next to the
   volume. Cost on lavapipe, 1280x720 sky-only: +0 to +4 % of the frame (`tools/sky/sky_shot.gd`
-  BENCH, `SHADER=` the A/B). The half pass also carries the sky-space crepuscular rays
+  BENCH, `SHADER=` the A/B). **Photographic shape** (HANDOFF 9cn): flat base cut at the
+  condensation level with sideways-only billows near it, crown thinned so billows make turrets,
+  warped footprints and downwind lean, a 4x-finer fragment population (`fcol`), three-octave
+  torn edges and fractus; five-tap light march and an ambient occluded in dense cores. The half pass also carries the sky-space crepuscular rays
   (`sky_rays()`: eight weather fetches toward the sun; Forward+ only). **Contrails**: SkyExtras
   flies `contrail_jets` airliners straight across at 9-12 km (not AirTraffic's, which fly under
   1.5 km); a trail is ONE segment (head minus (heading x speed - wind) x age), passed as
