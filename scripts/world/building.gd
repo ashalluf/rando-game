@@ -782,6 +782,9 @@ func _part_material(style: Dictionary) -> ShaderMaterial:
 		mat.set_shader_parameter("garage_entry", Vector2(float(entry.face), float(entry.col)))
 	mat.set_shader_parameter("shop_span", _shop_spans())
 	mat.set_shader_parameter("shop_rooms", shop_room_codes())
+	var name_codes := shop_name_codes()
+	mat.set_shader_parameter("shop_names_a", name_codes[0])
+	mat.set_shader_parameter("shop_names_b", name_codes[1])
 	mat.set_shader_parameter("tower_height", height)
 	# Whether the raised shop names are drawn (never on the web): the shader only turns boards
 	# dark for channel letters where there are letters to light.
@@ -1011,6 +1014,22 @@ func shop_room_codes() -> Vector4i:
 	return v
 
 
+## The shader's `shop_names_a` / `shop_names_b` (the window vinyl's names,
+## shaders/vinyl_lettering.gdshaderinc): per face, each of its first SHOP_ROOM_SLOTS shops' index
+## in SHOP_NAMES + 1 in six bits, shops 0-4 in the first, 5-6 in the second.
+func shop_name_codes() -> Array[Vector4i]:
+	var a := Vector4i()
+	var b := Vector4i()
+	for face in 4:
+		var names := shop_names(face, SHOP_ROOM_SLOTS)
+		for run in SHOP_ROOM_SLOTS:
+			if run < 5:
+				a[face] |= (names[run] + 1) << (6 * run)
+			else:
+				b[face] |= (names[run] + 1) << (6 * (run - 5))
+	return [a, b]
+
+
 ## What is behind shop `shop` on face `face_id` (1..4): the room its name says, past the coded
 ## shops the hash's (the shader's own choice, line for line). A tower lobby overrides both.
 func shop_room(face_id: int, shop: int) -> int:
@@ -1039,7 +1058,9 @@ func _shop_spans() -> Vector4:
 ## ink, 24 second poster, 25 OPEN plate, 26 scissor gate, 27 a recessed entry's stone; Building's
 ## alone: 30 blade sign, 31 its colour; the room behind the glass (shaders/shop_interior.gdshaderinc):
 ## 40 its kind, 41 which end its counter is at, 42 its walls, 43 its fittings, 44 a tower lobby,
-## 45 its depth.
+## 45 its depth; the window vinyl (shop_decal(), vinyl_lettering.gdshaderinc): 50 the name's
+## size, 51 the phrase of a shop it has no name for, 52 the line under the name, 53-54 a promo
+## (has, which), 55 the letters' weight, 56 the street number, 57 the hours, 60+ hash digits.
 ## The shader's lights for an open shop (its shop_tone()): warm, neutral, cool, pink, teal.
 const SHOP_TONES := [Color(1.0, 0.70, 0.42), Color(1.0, 0.91, 0.78), Color(0.78, 0.90, 1.0),
 	Color(1.0, 0.50, 0.80), Color(0.55, 1.0, 0.88)]
