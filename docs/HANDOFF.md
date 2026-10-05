@@ -9449,10 +9449,20 @@ that do (`PuebloMarket`, 220 m) -, paper and canvas 5.6k (no shadow, 170 m), the
 before the goods were split off the shadow, which takes ~0.4 M shadow triangles off the lane view):
 the plaza 15:30 5.56 M -> 5.76 M triangles, 2,650 -> 2,753 draws; down the lane 5.35 M -> 6.24 M,
 2,279 -> 2,693 draws (the market and the people in view: it is the densest view there is); from
-the air 4.80 M -> 3.71 M, 2,467 -> 1,978 (the seeded office blocks it replaces were taller).
+the air 4.80 M -> 3.71 M, 2,467 -> 1,978 (the seeded office blocks it replaces were taller). The
+final head (goods off the shadow, the counters' risers, merged with main): the lane 6.27 M, 2,762
+draws (shadow 2.81 M); the stall close-up 3.49 M; the night plaza 6.02 M.
 
-**Stills** (shots/olvera): before / after of the plaza, the lane and the air; the church; the
-puestos close up; a sarape stall; the lane at 20:50; the plaza at night.
+**The static trap.** The first sarapes drew as RGB static: a per-piece seed carried in UV2.x and
+interpolated came out a few ulps apart from pixel to pixel, and every hash that took it turned
+that into per-pixel colour. The seed and the kind are `flat` varyings now (and the seed is
+quantised); a pattern finer than a pixel is faded to its mean (`pm_keep()`), the pinstripes are
+box-filtered exactly. `tools/pueblo_lane/stall_shot.gd` (one stall of each kind of goods, seconds,
+`DEBUG=1|2|3|4` the UV, the kind, the seed) is how it was found.
+
+**Stills** (shots/olvera; opengl3): 01/02 the plaza before / after, 03/04b the lane, 05/06 the air,
+07b the church, 08b the puestos close up, 09b a sarape stall, 10 the lane at 20:50, 11 the plaza at
+20:50.
 
 **Not done / not verified.** Forward+ (the Mac) not seen: the papel picado's BACKLIGHT, the bulbs
 and lit shops through AgX and bloom, the vines' dapple. The stalls are not breakable (bullets hit
