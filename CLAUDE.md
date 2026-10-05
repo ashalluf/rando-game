@@ -4440,6 +4440,21 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `MESH_COMPACT=0` the A/B). Measure with `tools/memory_probe.gd` (load, 2 km drive, `HOPS=`
   teleports; RSS, every static cache sized, the scene by owner, duplicate meshes) and
   `tools/peak_rss.py --trace 5 -- <cmd>` (the box has no `/usr/bin/time`).
+- Load time (2026-10-05, docs/HANDOFF.md "Load time"): `LoadClock` (`scripts/util/load_clock.gd`)
+  prints a `LOADING <stage>: ms` line per stage; `tools/load_time/load_time.sh desktop|headless`
+  runs a launch with `LOAD_QUIT=1` (quit once loaded) and greps them; `LOAD_PROFILE=1` totals
+  CityChunk's build steps by name. `LoadCache` (`scripts/util/load_cache.gd`, user://load_cache)
+  keeps what every launch computes the same way: the basin bake (MacroMap.bake()) and the far
+  city's tiles from `Skyline.build_near()` (recorded in `_commit_tile()`, copied, laid back by
+  `_restore_tile()`). The key is the md5 of every file under res://scripts, every asset's path and
+  size, every env var a script reads (the A/B switches, found by regex; `LOAD_*` excluded), the
+  user args (view-only ones like `--spawn=` excluded) and the caller's inputs: any code edit
+  misses. Only plain data goes in (never objects). `LOAD_CACHE=0` / `--no-load-cache` is the A/B.
+  Anything new that is pure (code + seed -> data) and slow at load can go through
+  `LoadCache.load_data()` / `save_data()`; anything that reads the hour, the weather or
+  WorldState cannot. The loading screen draws its shaders `shader_batch` (16) at a time and
+  gives the bar a frame only every `bar_interval_ms` of work: each frame renders the whole city
+  behind the screen (3.6 s on llvmpipe).
 - Performance: `Quality` node in the city scene (`scripts/util/quality.gd`) starts desktop at
   **HIGH** (owner, 2026-09-21: "I need it PS5 level graphics" - global illumination is the single
   biggest difference between this and a modern-looking game) and steps down to MEDIUM, LOW and

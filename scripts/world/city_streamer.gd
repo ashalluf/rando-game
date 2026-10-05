@@ -196,6 +196,7 @@ var _view_dir: Vector2 = Vector2(0.0, -1.0)
 
 
 func _ready() -> void:
+	LoadClock.at("city scene ready begins")
 	add_to_group("city")
 	if OS.has_feature("web"):
 		max_pedestrians = mini(max_pedestrians, web_max_pedestrians)
@@ -220,12 +221,20 @@ func _ready() -> void:
 	if use_macro_map:
 		plan.macro = MacroMap.new()
 		plan.macro.seed = world_seed
+		LoadClock.start("macro map")
 		plan.macro.setup()
+		LoadClock.stop("macro map")
+	LoadClock.start("ground bake")
 	_build_ground()
+	LoadClock.stop("ground bake")
+	LoadClock.start("skyline setup")
 	_build_skyline()
+	LoadClock.stop("skyline setup")
 	_start_loading_screen()
 	_build_vignette()
+	LoadClock.start("far landmarks")
 	_build_far_landmarks()
+	LoadClock.stop("far landmarks")
 	var traffic := TrafficManager.new()
 	traffic.name = "Traffic"
 	traffic.plan = plan
@@ -247,9 +256,20 @@ func _ready() -> void:
 		stack_traffic.plan = plan
 		add_child(stack_traffic)
 	_player = get_tree().get_first_node_in_group("player") as Node3D
+	LoadClock.start("spawn and first streaming")
 	_apply_spawn_override()
+	LoadClock.start("first streaming")
 	update_streaming(true)
+	LoadClock.stop("first streaming")
 	_settle_player()
+	LoadClock.stop("spawn and first streaming")
+	# LOAD_QUIT=1 with no loading screen (headless, --noload): the load ends once the deferred far
+	# city is in (the loading screen reports its own end).
+	if get_node_or_null("LoadingScreen") == null:
+		# After the deferred far city (--noload / --nohud), or at once (headless).
+		_loaded.call_deferred()
+		if LoadClock.quit_after_load():
+			LoadClock.loaded.call_deferred(get_tree())
 
 
 ## Cheap versions of every landmark, always present, so the sign and the wheel show from anywhere.
@@ -723,6 +743,9 @@ func update_streaming(immediate: bool) -> void:
 	todo = stream_queue(todo)
 	var full_budget := max_full_builds_per_update if not immediate else 1000000
 	var lod_budget := max_lod_builds_per_update if not immediate else 1000000
+	# Milliseconds and counts of FULL / LOD chunks built now (immediate only), for LoadClock.
+	var built_us := [0, 0]
+	var built_n := [0, 0]
 	for k in todo:
 		if not immediate and _pending.size() >= max_pending_builds:
 			break
@@ -736,10 +759,21 @@ func update_streaming(immediate: bool) -> void:
 				continue
 			lod_budget -= 1
 		if immediate:
+			var t0 := Time.get_ticks_usec()
 			_replace_chunk(k, level)
+			var li := 0 if level == CityChunk.Level.FULL else 1
+			built_us[li] += Time.get_ticks_usec() - t0
+			built_n[li] += 1
 		else:
 			_start_build(k, level)
+	if immediate and built_n[0] + built_n[1] > 0:
+		print("LOADING chunks built now: %d FULL %d ms, %d LOD %d ms (at %d ms)" % [built_n[0],
+				built_us[0] / 1000, built_n[1], built_us[1] / 1000, Time.get_ticks_msec()])
+	if immediate:
+		LoadClock.start("far city within the immediate radius")
 	_update_skyline(immediate)
+	if immediate:
+		LoadClock.stop("far city within the immediate radius")
 
 
 ## The far city: everything within far_city_immediate_radius built now when everything is wanted
@@ -754,12 +788,20 @@ func _update_skyline(immediate: bool) -> void:
 	_skyline.trim(_eye)
 
 
+## The game is playable: from here on the far city builds without the load cache (Skyline.use_disk).
+func _loaded() -> void:
+	if _skyline:
+		_skyline.use_disk = false
+
+
 ## Builds the whole far city now. The loading screen calls it, so play starts with every block of
 ## the basin standing.
 func finish_far_city() -> void:
 	if _skyline == null:
 		return
+	LoadClock.start("far city")
 	_skyline.build_near(_eye, far_city_radius)
+	LoadClock.stop("far city")
 
 
 ## Puts the loading screen up and lets it drive the warm-up. Deferred so the rest of _ready()
@@ -784,6 +826,7 @@ func _start_loading_screen() -> void:
 	var screen := LoadingScreen.new()
 	screen.name = "LoadingScreen"
 	add_child(screen)
+	screen.finished.connect(_loaded)
 	screen.call_deferred("run", self)
 
 
@@ -984,7 +1027,19 @@ func _build_ground_material() -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/macro_ground.gdshader")
 	var size := 160 if OS.has_feature("web") else 256
-	var img := plan.macro.bake(Vector2.ZERO, macro_span, size)
+	# The bake is the same every launch for the same code, seed and switches: from disk after the
+	# first (LoadCache; ~18 s of GDScript on the build box).
+	var bake_inputs := ["macro_bake", world_seed, macro_span, size, plan.block_size_range,
+			plan.street_width, plan.avenue_width, plan.sidewalk_width, plan.downtown_radius,
+			plan.midtown_radius]
+	var cached := LoadCache.load_images("macro_bake", bake_inputs)
+	var img: Image
+	if cached.size() == 2:
+		img = cached[0]
+		plan.macro.bake_height = cached[1]
+	else:
+		img = plan.macro.bake(Vector2.ZERO, macro_span, size)
+		LoadCache.save_images("macro_bake", bake_inputs, [img, plan.macro.bake_height])
 	var tex := ImageTexture.create_from_image(img)
 	var htex := ImageTexture.create_from_image(plan.macro.bake_height)
 	_canopy_material = ShaderMaterial.new()
