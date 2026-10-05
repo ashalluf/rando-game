@@ -63,6 +63,7 @@ const LANDMARK_NAMES := {
 	"macarthur_park": "MacArthur Park",
 	"venice_canals": "Marisol Canals",
 	"golf_course": "Valley Oaks Golf Club",
+	"oil_field": "Basin Crest Oil Field",
 }
 
 ## Pixels a landmark pin needs clear of an already-labelled one to get its own name written.

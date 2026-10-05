@@ -1860,6 +1860,9 @@ func _test_city() -> void:
 	# The hillside houses (tests/hill_homes_checks.gd): pure plans on every estate, a FULL chunk's
 	# meshes and body, LOD boxes, the far city's lit glass bands, and the old slab with the kit off.
 	load("res://tests/hill_homes_checks.gd").new().run(self, city)
+	# The oil field (tests/oil_field_checks.gd): the site and its closed streets, the hill, level pads
+	# and graded lease roads, the pumpjack's linkage and mesh, the chunks, the city's single wells.
+	load("res://tests/oil_field_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

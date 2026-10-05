@@ -9337,3 +9337,140 @@ beside the ridge sign's letters. The garage-at-the-road rule fires on only a few
 (drive grades cap most road-pad rises under 2.6 m). The houses have no interiors you can walk
 into (the rooms are traced in the glass); no people or cars at the estates; the villa has no
 shutters or tile insets; the pad's partial float at the mountains' feet (above) remains.
+
+## 9cx. The oil field: pumpjacks nodding on a bare hill in the city, 2026-10-05 (agent branch `wt/oil-fields`; VISUAL_ROADMAP #92)
+
+Number is provisional (the lead renumbers on merge).
+
+**The brief** (lead): LA's urban oil fields - the Baldwin Hills / Inglewood field, Signal Hill -
+pumpjacks nodding on bare hills in the middle of the city; dirt lease roads between the wells,
+tank batteries, pipe runs, drilling rigs, fences, warning signs, utility poles; a share of single
+pumpjacks hidden behind fences in industrial lots and between houses; the far city keeps the
+field's ground and the pumpjacks, and its lights at night. CLAUDE.md's "Oil field" note is the
+reference; this is the story.
+
+**Where.** Midtown south of the 105 and west of the 110, north-east of the airport and its
+approach: where the Baldwin Hills stand relative to the airport and downtown, the distance
+compressed like everything west of downtown. `OilField.WANT_*` asks for x 270-1050, z 1340-1890;
+CityPlan snaps that to the nearest roads (seed 1337: x 304.6-1008.8, z 1217.4-1988.7, eight
+blocks by two), closes the streets through it (`CityPlan.road_open()`, as MacArthur Park: traffic,
+police, the respawn and the minimap all know) and its blocks build the field instead of a block
+(`Landmarks.site_steps()` -> `OilFieldBuild.site_steps()`). Its entry in `Landmarks.all()` has a
+token radius (1 m) so the landmark flattening does not take the hill away.
+
+**The hill is the relief.** `OilField.apply()` is folded into `MacroMap._relief_at()` after the
+river's terrace: inside the kerb the city's relief is handed over (over `EDGE_BLEND`, 36 m) to the
+graded hill - a rounded-rectangle dome `PEAK` (46 m) over the ground round it (52 m on seed 1337),
+spurs from a low noise, drainages cut RADIALLY down the flanks (`_gully()`: eleven creases round the
+crest, their line wobbled by the noise; a ridged noise drew closed trenches round blobs, which read
+as craters from the air), the lease roads benched in (`ROAD_BANK`) and the pads levelled
+(`PAD_BANK`). Everything that stands on the relief - the ground, the perimeter streets, the far
+city's plates, the horizon bake - follows with no code of its own, and at the kerb the relief is
+the city's own (checked to 5 cm).
+
+**The plan (pure, from the seed).** Roads: a ring road round the flank at 0.6 of the way out, a
+loop round the crest, three gated spokes in from the perimeter streets meeting the ring at an angle,
+and a road up to the crest loop; every road's height is the hill under it smoothed and then
+held to `MAX_GRADE` (12.5 %) by alternating forward/backward clamps with its ends pinned (the
+street's relief at the gate, the ring's height where it joins), so the bed is cut or filled where
+the hill is steeper. Pads: walked along every road, each side by hash, fitted clear of the fence,
+of each other and of every other road; 52 pads on seed 1337 - 45 well pads (76 pumpjacks), 5 tank
+batteries, 2 drilling rigs (one on the crest). A pad's level is between its road and the hill under
+it, so on a slope it is half cut, half fill.
+
+**The pumpjack** (`OilKit.pumpjack()`, ~2.4k triangles near, ~150 far): a conventional unit at real
+proportions - concrete foundation, I-beam base, Samson post with bracing, ladder and landing, saddle
+bearing, I-beam walking beam, horsehead whose face is an arc round the pivot, equalizer, gearbox on
+its stand, two crank arms with their counterweights (warning stripe on the edge), wrist pins, pitman
+arms, brake drum and lever, motor on slide rails with its belt guard, wellhead (casing, flanges, the
+flow tee and its gate valves with red handwheels, stuffing box, gauge, flowline) inside a yellow pipe
+guard, the bridle, carrier bar and polished rod. **It moves in the vertex shader**
+(`shaders/pumpjack.gdshader`): UV2.x tags the part - the crank turns, the beam rocks about the
+saddle by `asin(-R sin(phi) / TAIL)` (the tail follows the wrist pin, so the pitman keeps its length
+to a few centimetres - checked), the pitman is rebuilt between its moving ends, the wire rope leaves
+the horsehead plumb over the well (the arc is centred on the pivot) and the carrier bar rides its
+arc's length; INSTANCE_CUSTOM carries the phase, strokes per minute (5.5-10.5; 12 % idle), wear and
+the paint index (the instance colour stays white: it multiplies every vertex colour). One MultiMesh a
+chunk; nothing per well on the CPU; the shadow pass animates too.
+
+**Everything else** is written through IndustrialKit's box / cylinder writers into ONE mesh a chunk on
+`IndustrialKit.walls_material()` (tank paint, painted and galvanised steel, chain-link, barbed wire,
+concrete, timber, lamps): tank batteries (three or four 5.5 m tanks with cone roofs, ladders and
+cages, a catwalk across the tops with railings and lamps, the stair, a concrete berm, a heater-treater
+on saddles, a separator, the manifold), drilling rigs (substructure, a lattice mast 36 m over the
+floor with the crown block, monkey board and travelling block, the doghouse, the V-door ramp to the
+catwalk, pipe racks of drill pipe, mud tanks, generator sets, a trailer), the pipe rack along every
+lease road (two lines on H supports), the flowlines from each wellhead, each motor's control panel,
+the power line round the ring roads (wooden poles, crossarms, insulators, sagging wires, now and then
+a transformer can), the perimeter chain-link with barbed wire and its three gates (leaves swung open),
+and the operator's signs (BASIN CREST OIL CO., invented; DANGER bands, lease boards, H2S, an emergency
+555 number). The ground is a grid on the hills' own terrain material (`PropFactory.terrain_material()`,
+the drainages in COLOR.g so the gullies carry brush) with trimesh collision on the terrain layer; the
+dirt lease roads (wheel tracks, a grassy crown, ragged verges) and the gravel pads (oil soaked in,
+ruts) are one shadowless mesh on `shaders/oil_dirt.gdshader`. Light pools under the batteries and rigs
+after dark.
+
+**Far.** LOD chunks: the pavement, a coarse ground on the terrain material, the dirt, the far
+pumpjacks (still nodding), the batteries and rigs (real geometry - a box mast read as a white chimney),
+a relief floor. The far city (`OilFieldBuild.capture_steps()` from `CityChunk._begin_capture()`): the
+hill as 24 m tilted slabs (lying on their X face, as the river's) in straw, scrub or dirt, and each
+pumpjack, battery and mast as boxes; Skyline plants no street trees on the field's blocks. The field's
+lights are a landmark (`Landmarks.build()` -> `OilFieldBuild.build_lights()`): one billboard mesh on the
+airfield's light material - the rigs' mast work lights and red crown lights, the batteries' catwalk
+lamps, the gates - nothing by day, seen across the basin at night, near and far alike.
+
+**Single wells in the city** (`OilField.lot_well()`, a hash of seed + lot, asked by
+`CityChunk._build_lot()` after the fire station's claim): 3.5 % of INDUSTRIAL lots (a row of up to
+three pumpjacks on a big one) and 2 % of SUBURBS lots, on city ground, never within 300 m of the
+field, not a pocket garden or a car park, not under a freeway. `OilFieldBuild.claim_lot()` lays the
+gravel, the fence with a gate and its sign, the pumpjack(s), a stock tank on some, and hands the
+fenced rect to the block step as a building's footprint (Industrial's yards and YardFill's gardens
+plan round it). No roll moves.
+
+**Tools.** `tools/oil_field/probe.tscn` (headless, seconds: the site, the crest, every road's grade and
+cut, the pads, EYEs for close-ups from the lease roads, the claimed lots with street EYEs);
+`tools/oil_field/map_probe.tscn` (an ASCII map of the basin: freeways, zones, districts, sites,
+parks - how the site was chosen); `tools/oil_field/topdown.tscn` (a hillshade of the field's relief
+with the drainages tinted, `OUT=`); `tools/oil_field/check_runner.tscn` (the oil checks alone against the
+real city scene, a couple of minutes instead of the smoke test's fifteen). `OIL_FIELD=0` in the
+environment is the A/B.
+
+**Checks** (`tests/oil_field_checks.gd`): the site is CityPlan's snapped rect on midtown city ground,
+clear of the freeways, the airport and its approach; the streets through it closed, its edges open,
+its blocks lot-free; the hill rises and meets the relief at the kerb; pads level, roads within their
+grade and on their bed; the counts, pads apart and inside the fence; the plan pure; the shader's paint
+table, the pitman's length through a turn, the stroke, the mesh's tags and bounds; a FULL chunk's
+meshes, collision and pumpjack batch, a rig chunk's hardware and pools, LOD's far pumpjacks, the
+capture's boxes, the lights mesh; the single wells (industrial and suburban, pure, away from the
+field) and an industrial chunk that builds one.
+
+**Frame cost** (`tools/glshot/still_shot.gd`, opengl3 + Xvfb 1280x720, `--quality=0`, the same
+EYEs with `OIL_FIELD=0` and on; the field replaces sixteen dense midtown blocks, so it is far
+cheaper than what stood there - the point is that it is not dearer):
+
+| EYE | before: triangles / draws | after |
+|---|---|---|
+| the south street, looking in `650,1.7,1995,0,4` (AGL) | 8.13 M / 4,849 | 3.58 M / 724 |
+| golden hour over the field to downtown `470,22,1840,-54,-3` | 8.02 M / 5,270 | 3.52 M / 1,473 |
+| aerial from the south-west `380,170,1960,-42,-24` | 5.89 M / 4,042 | 3.35 M / 1,468 |
+| a pumpjack from its lease road `858.5,1.7,1638.7,-60.3,8` | 8.63 M / 6,044 | 4.56 M / 1,812 |
+
+A FULL field chunk: the ground grid (~5-11k triangles on the terrain material), one dirt mesh,
+the hardware mesh (1-4k; 11.5k for a rig's chunk), one pumpjack MultiMesh (2.4k a unit near,
+170 far). Single wells add one pumpjack, one gravel mesh and one fence mesh to their chunk.
+
+**Stills** (`shots/oil-fields`; opengl3, not the Mac's Forward+): the hill at golden hour with the
+downtown skyline behind it (before / after), a pumpjack mid-stroke at golden hour, another from its
+lease road, the field from the air (before / after), the hill from the south street behind its
+fence (before / after), the rig and the row of pumpjacks at night, a well behind a fence in an
+industrial lot, a pumpjack on a lot between houses.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the terrain's straw and scrub, the paint
+and the dirt under AgX, the rig's lights at night NEED A MAC CHECK. No sound (a pumpjack's slow
+creak and the rig's diesels would carry well - Sfx has nothing fitting yet). No people (no roughnecks
+on the rig, no pumpers' pickups on the lease roads; traffic never drives them). The rig's mast is
+static (no pipe being run). The pumpjacks are a single design scaled 0.78-1.18 (no Mark II or
+air-balanced units). The field's edge reads as a graded bank round the hill (the hand-over ring).
+Single wells in car parks were not done (the lots are LotFill's; a claimed industrial lot reads as
+one). The far city shows the hill as tilted slabs on a planar plate: fine from the basin, stepped
+from the air within a kilometre (inside the LOD ring the real ground draws).

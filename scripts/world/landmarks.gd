@@ -135,6 +135,9 @@ static func _list() -> Array[Dictionary]:
 	# The valley's golf course (GolfCourse): an area like MacArthur Park's, nine holes and a range.
 	if GolfCourse.enabled:
 		list.append(GolfCourse.entry())
+	# The oil field (OilField): an area site whose streets are closed, its hill in the relief.
+	if OilField.enabled:
+		list.append(OilField.entry())
 	return list
 
 
@@ -207,6 +210,8 @@ static func site_steps(site_id: String, chunk: CityChunk) -> Array[Callable]:
 			return Canals.site_steps(chunk)
 		GolfCourse.ID:
 			return GolfBuild.site_steps(chunk)
+		OilField.ID:
+			return OilFieldBuild.site_steps(chunk)
 	var none: Array[Callable] = []
 	return none
 
@@ -274,6 +279,8 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, plan: C
 			LandmarkMasjidOmar.build(lm.anchor, parent, statics, plan, detailed)
 		"macarthur_park":
 			LandmarkMacArthurPark.build(lm.anchor, parent, statics, plan, detailed)
+		OilField.ID:
+			OilFieldBuild.build_lights(parent, plan)
 		# Downtown LA civic set (see all() and CivicSites).
 		"arena", "live_plaza", "live_hotel", "convention_center", "ziggurat_hall", "civic_park", "concert_hall", "lattice_museum", "pueblo_station":
 			CivicSites.build(lm.id, parent, statics, plan, detailed)

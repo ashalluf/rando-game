@@ -551,6 +551,18 @@ already mapped so milestone 2 is script-only.
   which is what makes the ranges twinkle from the basin. The estates themselves are where
   HillRoads put them (not moved), so most drops under a cantilever are 3-6 m. `HILL_HOMES=0`
   is the A/B.
+- **2026-10-05 An urban oil field: pumpjacks on a bare hill in midtown, and single wells hidden in
+  the city (VISUAL_ROADMAP #92, HANDOFF 9cx).** LA's oil fields - the Baldwin Hills, Signal Hill,
+  the pumpjacks behind fences in car parks and between houses - are one of the city's most
+  recognisable odd sights, and the game had none. Decisions: the field is a landmark AREA site
+  (its streets closed like MacArthur Park's) in midtown south of the 105, where the Baldwin Hills
+  stand relative to the airport and downtown; its hill is folded into the city's RELIEF (as the
+  river's terrace is) rather than built as terrain, so the perimeter streets, the far city and the
+  horizon follow it; the plan (roads held to 12.5 %, pads, wells) is pure from the seed; the
+  pumpjacks are ONE mesh whose crank, beam, pitman and rod are animated in the vertex shader from
+  a per-well phase and speed (nothing on the CPU, the shadows move too); everything else is code on
+  the industrial district's material; the operator is invented (BASIN CREST OIL CO.). Single wells
+  claim 3.5 % of industrial lots and 2 % of suburban ones by hash, after every roll.
 
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real

@@ -2553,6 +2553,37 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   environment is the A/B. Probe: `tools/marina/probe.gd` (headless, seconds); quick checks:
   `tools/marina/marina_check.tscn` (the marina's checks alone, a minute); checks:
   `tests/marina_checks.gd`.
+- The oil field (2026-10-05, docs/HANDOFF.md 9cx: "pumpjacks nodding on bare hills in the middle
+  of the city", the Baldwin Hills forms): `OilField` (`scripts/world/oil_field.gd`, data,
+  `MacroMap.oil`, made in `MacroMap.setup()` after the river) is a landmark AREA site (CityPlan
+  snaps `WANT_*` to the roads and closes the streets through it, as MacArthur Park; seed 1337:
+  x 305-1009, z 1217-1989, midtown south of the 105) whose hill IS the relief: `apply()` runs in
+  `MacroMap._relief_at()` after the river's terrace, handing the city's relief over to the graded
+  hill across `EDGE_BLEND` inside the kerb (a dome `PEAK` 46 m high, spurs, drainages cut RADIALLY
+  down the flanks - a ridged noise drew crater rings -, the lease roads benched in, the pads
+  levelled), so everything on the relief follows. Its landmark entry has a 1 m radius: the
+  landmark flattening would take the hill away. The plan is pure (seed only): a ring road, a crest
+  loop, three gated spokes and a road up, each held to `MAX_GRADE` 12.5 % by forward/backward clamps
+  with pinned ends; pads walked along the roads (wells, `Pad.BATTERY`, `Pad.RIG`). `OilKit`
+  (`scripts/world/oil_kit.gd`) is the hardware: **the pumpjack is ONE mesh animated in the vertex
+  shader** (`shaders/pumpjack.gdshader`: UV2.x the part - crank, beam, pitman rebuilt between its
+  ends, bridle, rod; the beam follows the wrist pin, `sin(beam) = -R sin(phi) / TAIL`; phase, strokes
+  a minute, wear and the PAINT INDEX in INSTANCE_CUSTOM - the instance colour must stay white, it
+  multiplies every vertex colour), one MultiMesh a chunk; everything else (tanks, catwalks, the rig's
+  lattice mast, pipe racks, poles and wires, fence, signs with TextMesh lettering) goes through
+  IndustrialKit's writers into ONE mesh on `IndustrialKit.walls_material()`. `OilFieldBuild`
+  (`scripts/world/oil_field_build.gd`) builds a site chunk (ground grid on the hills' terrain
+  material with trimesh collision on the terrain layer, `shaders/oil_dirt.gdshader` roads and pads,
+  no shadow), LOD (far pumpjacks still nodding, real batteries and rigs), the far capture (tilted
+  slabs on their X face, boxes; Skyline plants no street trees there) and the field's lights (the
+  landmark's build: one billboard mesh on Airport's light material). The steps are Callables on a
+  RefCounted, which they do not keep alive: the chunk holds it in meta `oil_build` (a freed builder
+  is a step that returns null forever - a hung build). Single wells: `OilField.lot_well()` (a hash
+  of the lot; INDUSTRIAL 3.5 %, SUBURBS 2 %; city ground, away from the field) asked by
+  `CityChunk._build_lot()` after the fire station's claim; `OilFieldBuild.claim_lot()` hands the
+  fenced rect to Industrial's / YardFill's block step as a footprint. The operator, BASIN CREST OIL
+  CO., and the lease names are invented. `OIL_FIELD=0` is the A/B; `tools/oil_field/probe.tscn`
+  prints the plan and EYEs; checks: `tests/oil_field_checks.gd`.
 - The horizon: everything outside the streamed chunks is the ground follower, a single plane
   14 km across (`CityStreamer.ground_size`) wearing `shaders/macro_ground.gdshader`. It is
   shaded from a 256 px image of the whole basin baked once at load by `MacroMap.bake()` (RGB is
