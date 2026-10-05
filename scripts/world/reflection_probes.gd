@@ -18,11 +18,11 @@ extends Node
 ## They are rendered ONCE (Godot spreads a probe over six frames, one face a frame) and never more
 ## than one at a time: a probe that has to move, or one whose light is stale - the hour moved
 ## `hour_step`, the lamps or the weather changed - waits for the next `refresh_seconds` slot, the
-## nearest first. A probe is hidden until it has been placed and rendered where it stands, so an
-## origin re-centre (which moves all of them) costs one probe a slot too, not all at once.
+## nearest first, and every new probe once more `settle_seconds` after its first render. A probe
+## is made where its box stands (and freed when its box is no longer wanted), so an origin
+## re-centre, which strands all of them, costs one probe a slot too.
 ##
-## Quality sets `budget` (HIGH 9, MEDIUM 5, none below), `shadows` (HIGH) and the probes'
-## `mesh_lod_threshold`. The web and the Compatibility renderer get none (`supported()`), and
+## Quality sets `budget` (HIGH 9, MEDIUM 5, none below) and `shadows` (HIGH). The web and the Compatibility renderer get none (`supported()`), and
 ## REFLECTION_PROBES=0 in the environment turns them off (the A/B). While any probe stands, the
 ## `probe_reach` shader global is the radius they cover: car_paint and building glass hand part of
 ## their faked "canyon" reflection over to the real one inside it.
@@ -57,12 +57,24 @@ static var force: bool = false
 @export var open_size: float = 240.0
 ## How far a probe's render sees (metres): the far end of a street, the towers over it.
 @export var max_distance: float = 320.0
-## Blend between neighbouring boxes (metres).
-@export var blend_distance: float = 4.0
+## Blend between neighbouring boxes (metres). A probe fades out within this of EVERY face of its
+## box, the floor too, so the floor stands `floor_drop` under the street and the blend stays under
+## it: at 4 m with the floor a metre down, a car (0.3-1.5 m up) got a fifth of its probe and a
+## lavapipe still showed no probe at all.
+@export var blend_distance: float = 1.5
+@export var floor_drop: float = 2.0
+## Seconds after a probe's first render that it is rendered once more: Godot compiles pipelines
+## in the background and skips what is still compiling, so a probe's first faces can miss the
+## buildings it was made for (on lavapipe it caught only the sky).
+@export var settle_seconds: float = 2.0
 ## A probe's own mesh LOD threshold: its faces are 256 px, so it can take coarse LODs.
 @export var probe_lod_threshold: float = 6.0
 
 const STREET_HDRI := "res://assets/textures/sky/street_hdri.png"
+## The render layer vehicles in a probe's box are moved to when it renders, which its cull mask
+## leaves out: a probe is a still, so a car in it would hang in every reflection after it drove
+## off, and the car under a probe's eye mirrored itself. Layer 20 is WeaponFX.NO_BLOOD_LAYER.
+const VEHICLE_LAYER := 1 << 18
 
 var plan: CityPlan
 ## Boxes to stand in place of the plan's (a small scene with no city: tools/reflections/probe_shot.gd),
@@ -71,7 +83,7 @@ var fixed: Array = []
 ## Probes rendered so far (tests and stills).
 var renders: int = 0
 
-## Slots: {probe, key, box (Dictionary), shown, hour, lamp, dark, offset}
+## Slots: {probe (null until made), key, box (Dictionary), shown, light [hour, lamp, dark], offset}
 var _slots: Array = []
 var _wanted: Array = []
 var _survey_t: float = 0.0
@@ -155,6 +167,9 @@ func _process(delta: float) -> void:
 		_survey_t = survey_seconds
 		_wanted = candidates(plan, Vector2(eye.x, eye.z), budget, self) if fixed.is_empty() else fixed.slice(0, budget)
 		_assign()
+	for s: Dictionary in _slots:
+		if float(s.settle) > 0.0:
+			s.settle = maxf(float(s.settle) - delta, 0.0)
 	_refresh_t -= delta
 	if _refresh_t <= 0.0 and _render_next(Vector2(eye.x, eye.z)):
 		_refresh_t = refresh_seconds
@@ -236,8 +251,8 @@ static func _open_box(p: CityPlan, key: String, rect: Rect2, h: float, at: Vecto
 static func _box(p: CityPlan, key: String, rect: Rect2, h: float, at: Vector2, cfg: ReflectionProbes) -> Dictionary:
 	var ctr := rect.get_center()
 	var ground := maxf(p.height_at(ctr), 0.0)
-	# Box from a metre under the street to h over it; the eye at eye_height.
-	var center := Vector3(ctr.x, ground - 1.0 + h * 0.5, ctr.y)
+	# Box from floor_drop under the street to h over it; the eye at eye_height.
+	var center := Vector3(ctr.x, ground - cfg.floor_drop + h * 0.5, ctr.y)
 	var origin := Vector3(0.0, ground + cfg.eye_height - center.y, 0.0)
 	var nearest := Vector2(clampf(at.x, rect.position.x, rect.end.x), clampf(at.y, rect.position.y, rect.end.y))
 	return {"key": key, "center": center, "size": Vector3(rect.size.x, h, rect.size.y), "origin": origin,
@@ -256,19 +271,11 @@ func _assign() -> void:
 			s.box = want[s.key]
 		else:
 			s.key = ""
+			_drop(s)
 	while _slots.size() < budget:
-		var probe := ReflectionProbe.new()
-		probe.name = "Probe%d" % _slots.size()
-		probe.visible = false
-		probe.update_mode = ReflectionProbe.UPDATE_ONCE
-		probe.box_projection = true
-		probe.interior = false
-		probe.ambient_mode = ReflectionProbe.AMBIENT_DISABLED
-		add_child(probe)
-		_slots.append({"probe": probe, "key": "", "box": {}, "shown": false, "light": [], "offset": Vector3.ZERO})
+		_slots.append({"probe": null, "key": "", "box": {}, "shown": false, "light": [], "offset": Vector3.ZERO, "settle": -1.0})
 	while _slots.size() > budget:
-		var s: Dictionary = _slots.pop_back()
-		(s.probe as Node).queue_free()
+		_drop(_slots.pop_back())
 	# Free slots take the wanted boxes nobody stands on (placed by _render_next, one a slot).
 	for w: Dictionary in _wanted:
 		if keep.has(w.key):
@@ -277,14 +284,18 @@ func _assign() -> void:
 			if s.key == "":
 				s.key = w.key
 				s.box = w
-				s.shown = false
-				(s.probe as ReflectionProbe).visible = false
 				keep[w.key] = true
 				break
-	for s: Dictionary in _slots:
-		if s.key == "":
-			(s.probe as ReflectionProbe).visible = false
-			s.shown = false
+
+
+## A slot's probe goes (it is made again where the slot's box is, in its turn). Never hidden and
+## shown again: a ReflectionProbe that entered the tree hidden is never rendered once shown (found
+## on lavapipe Forward+: the probe drew nothing, ONCE or ALWAYS).
+func _drop(s: Dictionary) -> void:
+	if s.probe:
+		(s.probe as Node).queue_free()
+	s.probe = null
+	s.shown = false
 
 
 ## Renders the most urgent probe: one never shown (nearest first), else one moved by a re-centre,
@@ -300,6 +311,8 @@ func _render_next(at: Vector2) -> bool:
 		var d: float = s.box.dist
 		if not s.shown or s.offset != WorldState.world_offset:
 			score = d
+		elif float(s.settle) == 0.0:
+			score = 5000.0 + d
 		elif _stale(s.light, light):
 			score = 10000.0 + d
 		if score < best_score:
@@ -307,26 +320,68 @@ func _render_next(at: Vector2) -> bool:
 			best = s
 	if best.is_empty():
 		return false
-	var probe: ReflectionProbe = best.probe
 	var box: Dictionary = best.box
-	probe.size = box.size
-	probe.origin_offset = box.origin
-	probe.max_distance = max_distance
-	probe.blend_distance = blend_distance
-	probe.enable_shadows = shadows
-	probe.mesh_lod_threshold = probe_lod_threshold
 	var pos: Vector3 = WorldState.to_local(box.center)
-	# A re-render where it already stands is a nudge (the documented way to redraw a probe that
-	# updates once): a millimetre, alternately up and down.
-	if best.shown and best.offset == WorldState.world_offset and probe.position.distance_to(pos) < 0.01:
+	# Moved by a re-centre: made again where it stands now.
+	if best.probe and best.offset != WorldState.world_offset:
+		_drop(best)
+	var probe: ReflectionProbe = best.probe
+	if probe == null:
+		probe = ReflectionProbe.new()
+		probe.name = "Probe_" + String(box.key).replace(":", "_")
+		probe.update_mode = ReflectionProbe.UPDATE_ONCE
+		probe.box_projection = true
+		probe.interior = false
+		probe.ambient_mode = ReflectionProbe.AMBIENT_DISABLED
+		probe.size = box.size
+		probe.origin_offset = box.origin
+		probe.max_distance = max_distance
+		probe.blend_distance = blend_distance
+		probe.enable_shadows = shadows
+		probe.mesh_lod_threshold = probe_lod_threshold
+		probe.position = pos
+		probe.cull_mask = 0xFFFFF & ~VEHICLE_LAYER
+		_hide_vehicles(box)
+		add_child(probe)
+		best.probe = probe
+		best.settle = settle_seconds
+	else:
+		# A re-render where it stands is a nudge (the documented way to redraw a probe that updates
+		# once): a millimetre, alternately up and down.
+		probe.enable_shadows = shadows
+		_hide_vehicles(box)
 		pos.y += 0.001 if probe.position.y <= pos.y else 0.0
-	probe.position = pos
-	probe.visible = true
+		probe.position = pos
+		best.settle = -1.0
 	best.shown = true
 	best.light = light
 	best.offset = WorldState.world_offset
 	renders += 1
 	return true
+
+
+## Moves every vehicle standing in the box (and a margin) onto VEHICLE_LAYER, once per car.
+func _hide_vehicles(box: Dictionary) -> void:
+	if not is_inside_tree():
+		return
+	var c: Vector3 = WorldState.to_local(box.center)
+	var half: Vector3 = box.size * 0.5 + Vector3(6.0, 6.0, 6.0)
+	for v in get_tree().get_nodes_in_group("vehicle"):
+		var n := v as Node3D
+		if n == null or n.has_meta("probe_layer"):
+			continue
+		var d := n.global_position - c
+		if absf(d.x) > half.x or absf(d.y) > half.y or absf(d.z) > half.z:
+			continue
+		set_vehicle_layer(n)
+
+
+## A vehicle's drawn parts on VEHICLE_LAYER (the camera, lights and shadows see every layer).
+static func set_vehicle_layer(n: Node) -> void:
+	n.set_meta("probe_layer", true)
+	for vi in n.find_children("*", "VisualInstance3D", true, false):
+		if (vi as VisualInstance3D).layers == 1:
+			(vi as VisualInstance3D).layers = VEHICLE_LAYER
 
 
 func _stale(was: Array, now: Array) -> bool:
@@ -337,14 +392,15 @@ func _stale(was: Array, now: Array) -> bool:
 	return dh > hour_step or absf(float(now[1]) - float(was[1])) > light_step or absf(float(now[2]) - float(was[2])) > light_step
 
 
-## The radius round the camera the shown probes cover (0 with none): the shaders' hand-over.
+## The radius round the camera out to the far corner of the furthest shown probe (0 with none):
+## the shaders' hand-over.
 func _publish_reach(at: Vector2) -> void:
 	var reach := 0.0
 	for s: Dictionary in _slots:
 		if s.shown and s.key != "" and s.offset == WorldState.world_offset:
 			var c: Vector3 = s.box.center
 			var sz: Vector3 = s.box.size
-			reach = maxf(reach, Vector2(c.x, c.z).distance_to(at) + minf(sz.x, sz.z) * 0.5)
+			reach = maxf(reach, Vector2(c.x, c.z).distance_to(at) + Vector2(sz.x, sz.z).length() * 0.5)
 	reach = minf(reach, max_distance)
 	if absf(reach - _reach) > 1.0:
 		_reach = reach

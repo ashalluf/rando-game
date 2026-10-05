@@ -9,7 +9,7 @@ extends SceneTree
 ##     --script tools/reflections/probe_shot.gd --resolution 960x540
 ##
 ## Env: OUT png; VIEW car (a door from the pavement) | tower (the glass tower from the street) |
-## street (down the street) | hood (the bonnet from the driver's height); HOUR (default 15);
+## street (down the street) | ball (the chrome ball in mid-street, BALL=1) | hood (the bonnet from the driver's height); HOUR (default 15);
 ## PROBES=0 no probe (the before); HDRI=0 no street HDRI under the sky's horizon; PAINT (r,g,b of
 ## the near car); FRAMES before the shot (default 40); BENCH n: n frames timed after the shot
 ## with the probe standing still, then n more while it re-renders (CPU / GPU ms a frame, BENCH
@@ -105,15 +105,29 @@ func _run() -> void:
 		pass
 	else:
 		(load("res://scripts/world/reflection_probes.gd") as GDScript).call("street_sky", env)
-	if _env("PROBES", "1") == "1":
+	if _env("RAWPROBE", "0") == "1":
+		var rp := ReflectionProbe.new()
+		rp.size = Vector3(32.0, 70.0, 180.0)
+		rp.position = Vector3(0.0, 34.0, 0.0)
+		rp.origin_offset = Vector3(0.0, -29.8, 0.0)
+		rp.box_projection = true
+		rp.update_mode = ReflectionProbe.UPDATE_ONCE if _env("RAWONCE", "0") == "1" else ReflectionProbe.UPDATE_ALWAYS
+		if _env("RAWSET", "0") == "1":
+			rp.ambient_mode = ReflectionProbe.AMBIENT_DISABLED
+			rp.enable_shadows = true
+			rp.mesh_lod_threshold = 6.0
+			rp.max_distance = 320.0
+			rp.blend_distance = 4.0
+		_top.add_child(rp)
+	elif _env("PROBES", "1") == "1":
 		var rps: GDScript = load("res://scripts/world/reflection_probes.gd")
 		rps.set("force", true)
 		_probes = rps.new()
 		_probes.name = "ReflectionProbes"
 		_top.add_child(_probes)
 		var across := 14.0 + 2.0 * (4.0 + 5.0)
-		_probes.set("fixed", [{"key": "street", "center": Vector3(0.0, -1.0 + 35.0, 0.0), "size": Vector3(across, 70.0, 180.0),
-			"origin": Vector3(0.0, 4.2 - 34.0, 0.0), "dist": 0.0}])
+		_probes.set("fixed", [{"key": "street", "center": Vector3(0.0, -2.0 + 35.0, 0.0), "size": Vector3(across, 70.0, 180.0),
+			"origin": Vector3(0.0, 4.2 - 33.0, 0.0), "dist": 0.0}])
 	# BALL=1: a chrome ball beside the car - exactly what the reflection sees there.
 	if _env("BALL", "0") == "1":
 		var ball := MeshInstance3D.new()
@@ -126,7 +140,7 @@ func _run() -> void:
 		chrome.metallic = 1.0
 		chrome.roughness = 0.02
 		ball.material_override = chrome
-		ball.position = near_car.position + Vector3(1.6, 0.4, 3.2)
+		ball.position = Vector3(0.0, 1.3, 4.0) if _env("VIEW", "car") == "ball" else near_car.position + Vector3(1.6, 0.4, 3.2)
 		_top.add_child(ball)
 	var cam := Camera3D.new()
 	cam.fov = 60.0
@@ -138,6 +152,9 @@ func _run() -> void:
 			cam.look_at_from_position(Vector3(-6.0, 1.7, 22.0), Vector3(14.0, 34.0, -21.0))
 		"street":
 			cam.look_at_from_position(Vector3(-1.5, 2.0, 30.0), Vector3(-1.0, 4.0, -40.0))
+		"ball":
+			cam.fov = 40.0
+			cam.look_at_from_position(Vector3(0.6, 1.8, 10.5), Vector3(0.0, 1.25, 4.0))
 		"hood":
 			cam.look_at_from_position(at + Vector3(0.0, 1.35, 2.6), at + Vector3(0.0, 0.7, -0.6))
 		_:
@@ -151,6 +168,10 @@ func _run() -> void:
 		await process_frame
 		if i % 5 == 0:
 			print("PROBE frame %d %d ms" % [i, Time.get_ticks_msec()])
+		if i == 8 and _probes and _env("ALWAYS", "0") == "1":
+			for c in _probes.get_children():
+				(c as ReflectionProbe).update_mode = ReflectionProbe.UPDATE_ALWAYS
+				print("PROBE always ", c.name, " ", (c as ReflectionProbe).global_position, " ", (c as ReflectionProbe).size, " visible ", (c as ReflectionProbe).visible)
 	var out := _env("OUT", "probe.png")
 	root.get_texture().get_image().save_png(out)
 	print("PROBE wrote %s hour %s probes %s renders %s" % [out, str(_day.get("hour")), str(_probes != null), str(_probes.get("renders") if _probes else 0)])

@@ -70,15 +70,22 @@ func run(t: Node, city: Node3D) -> void:
 	rp.set_process(false)
 	rp._wanted = ReflectionProbes.candidates(plan, at, 3, rp)
 	rp._assign()
-	_check(rp.get_child_count() == 3 and rp.shown_count() == 0, "reflection probes: three probes made, none shown before rendering")
+	_check(rp._slots.size() == 3 and rp.get_child_count() == 0 and rp.shown_count() == 0, "reflection probes: three slots, no probe before its turn")
 	rp._render_next(at)
 	var one: ReflectionProbe = null
 	for s: Dictionary in rp._slots:
 		if s.shown:
 			one = s.probe
-	_check(rp.shown_count() == 1 and one != null and one.visible and one.box_projection
+	_check(rp.shown_count() == 1 and rp.get_child_count() == 1 and one != null and one.visible and one.box_projection
 		and one.update_mode == ReflectionProbe.UPDATE_ONCE and one.ambient_mode == ReflectionProbe.AMBIENT_DISABLED,
 		"reflection probes: one rendered per slot, box-projected, once, no ambient")
+	_check(one != null and (one.cull_mask & ReflectionProbes.VEHICLE_LAYER) == 0, "reflection probes: vehicles' layer left out of the probe's render")
+	var car := Node3D.new()
+	var body := MeshInstance3D.new()
+	car.add_child(body)
+	ReflectionProbes.set_vehicle_layer(car)
+	_check(body.layers == ReflectionProbes.VEHICLE_LAYER and car.has_meta("probe_layer"), "reflection probes: a vehicle's meshes moved onto the vehicle layer")
+	car.free()
 	var nearest_key: String = rp._wanted[0].key
 	var shown_key := ""
 	for s: Dictionary in rp._slots:

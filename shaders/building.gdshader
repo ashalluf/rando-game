@@ -140,6 +140,14 @@ uniform float reflect_energy = 1.6;
 // How much of the city opposite the glass mirrors (0 = the old sky gradient only), and how far
 // each pane's reflection is knocked off true (see the glass branch).
 uniform float reflect_city = 1.0;
+// The reflection probes' hand-over (see the glass): the radius they cover round the camera
+// (ReflectionProbes publishes it; 0 = none, always 0 on Compatibility) and how high up a facade
+// the panes take it (the probes' boxes stop at 14-70 m).
+global uniform float probe_reach;
+uniform float probe_glass_top = 30.0;
+// How much of the faked emitted mirror the real one takes over, and the real mirror's tint (linear).
+uniform float probe_glass_take = 0.6;
+uniform vec3 probe_glass_tint = vec3(0.42, 0.47, 0.52);
 uniform float pane_bow = 0.035;
 // How far the glass sits back from the face of the wall in a punched opening (metres); the other
 // window styles scale it (see the window-depth block). 0 flattens every window onto its wall.
@@ -1392,6 +1400,20 @@ void fragment() {
 				vec3 nc = neon_color(shop_byte(shop_key, 6u) % 5u) * (1.0 - shop_bars) * shop_on;
 				emission += nc * (core * 7.0 + halo * 0.45);
 				albedo = mix(albedo, nc, core * 0.6);
+			}
+			// Inside the reflection probes' reach (ReflectionProbes, Forward+; 0 = none) and under
+			// their boxes' tops, the pane's mirror is the real street the probe rendered: the faked
+			// emitted city above gives way to a metallic, sharp lobe of the same strength, so the
+			// glass shows the facades, cars and kerbs actually across the street.
+			if (probe_reach > 0.0) {
+				float pw = (1.0 - smoothstep(probe_reach * 0.6, probe_reach, length(VERTEX)))
+					* (1.0 - smoothstep(probe_glass_top * 0.6, probe_glass_top, local_pos.y));
+				float pm = mirror * pw * (1.0 - shop_bars);
+				reflected *= 1.0 - probe_glass_take * pw;
+				// A tinted mirror, as real coated glass is: a white one read as a pale cage.
+				albedo = mix(albedo, probe_glass_tint, pm);
+				metal = mix(metal, 1.0, pm);
+				rough = mix(rough, 0.07, pw * (1.0 - shop_bars));
 			}
 			if (dmg_state > 0.5) {
 				// Broken glass. A crazed pane is a white web that kills the view through it and
