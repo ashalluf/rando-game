@@ -8,11 +8,11 @@ extends Node3D
 ## while the fire feeds it and clears over `clear` seconds once nothing does.
 
 ## Puffs in a column (fewer on the web).
-const PUFFS := 56
+const PUFFS := 72
 ## Column height (metres) for a fire of weight 2, and per unit of weight more, and its cap.
-const BASE_HEIGHT := 150.0
-const HEIGHT_PER_WEIGHT := 55.0
-const MAX_HEIGHT := 420.0
+const BASE_HEIGHT := 320.0
+const HEIGHT_PER_WEIGHT := 90.0
+const MAX_HEIGHT := 650.0
 
 static var _mesh: ArrayMesh
 static var _shader: Shader
@@ -36,7 +36,7 @@ func _ready() -> void:
 	_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_mi.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
 	# The shader moves every vertex; the box has to hold the whole plume and its lean.
-	_mi.custom_aabb = AABB(Vector3(-500.0, -20.0, -500.0), Vector3(1000.0, MAX_HEIGHT + 120.0, 1000.0))
+	_mi.custom_aabb = AABB(Vector3(-900.0, -20.0, -900.0), Vector3(1800.0, MAX_HEIGHT + 200.0, 1800.0))
 	_mat = ShaderMaterial.new()
 	_mat.shader = shader()
 	_mat.set_shader_parameter("puff_tex", WeaponFX.puff_texture())
@@ -94,14 +94,14 @@ func step(dt: float, rise: float, clear: float, wind: Vector2) -> void:
 	var shown := _height * (0.35 + 0.65 * smoothstep(0.0, 0.6, strength))
 	# Smoke rises ~8-10 m/s and the wind carries it the whole way up: the top's drift is
 	# the wind times the time it took to get there.
-	_lean = _lean.lerp(wind * (shown / 9.0) * 0.9, clampf(dt * 0.2, 0.0, 1.0))
+	_lean = _lean.lerp(wind * (shown / 9.0) * 0.6, clampf(dt * 0.2, 0.0, 1.0))
 	if _mat:
 		_mat.set_shader_parameter("height", shown)
 		_mat.set_shader_parameter("strength", smoothstep(0.0, 1.0, strength))
 		_mat.set_shader_parameter("lean", _lean)
 		_mat.set_shader_parameter("glow", _glow * clampf(fed / 2.0, 0.0, 1.0))
-		_mat.set_shader_parameter("radius_top", clampf(shown * 0.16, 18.0, 60.0))
-		_mat.set_shader_parameter("radius_base", clampf(2.0 + fed * 1.5, 3.0, 9.0))
+		_mat.set_shader_parameter("radius_top", clampf(shown * 0.17, 30.0, 110.0))
+		_mat.set_shader_parameter("radius_base", clampf(3.0 + fed * 2.0, 5.0, 12.0))
 
 
 func gone() -> bool:
