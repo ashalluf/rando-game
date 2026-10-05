@@ -384,6 +384,10 @@ func block(ix: int, iz: int) -> Dictionary:
 	if not site.is_empty():
 		result["site"] = site.id
 	_blocks[key] = result
+	# Public schools (Schools): from a hash of the seed and a map cell, AFTER every roll above, on
+	# blocks nobody else has claimed. A school block is SCHOOL with grounds "school_e" / "school_h".
+	if macro and Schools.enabled:
+		Schools.apply(self, result)
 	return result
 
 
@@ -484,6 +488,12 @@ func road_open(axis: int, index: int, along: float) -> bool:
 	# A street the river crosses without a bridge ends at its bank (LaRiver.road_open()).
 	if macro and macro.river and not macro.river.road_open(self, axis, index, along):
 		return false
+	# Nor through the marina (Marina.road_open(): its site and its channel).
+	if macro and macro.marina and not macro.marina.road_open(self, axis, index, along):
+		return false
+	# A street between a high school's blocks is closed (Schools: the campus covers it).
+	if macro and Schools.enabled and Schools.road_closed(self, axis, index, along):
+		return false
 	for s: Dictionary in sites():
 		if axis == AXIS_X:
 			if index <= s.ix0 or index >= s.ix1:
@@ -517,6 +527,11 @@ func river_block(ix: int, iz: int) -> bool:
 	return macro != null and macro.river != null and macro.river.block_role(self, ix, iz) != 0
 
 
+## True when chunk (ix, iz) is one of the marina's blocks (Marina, MarinaBuild builds it).
+func marina_block(ix: int, iz: int) -> bool:
+	return macro != null and macro.marina != null and macro.marina.owns_block(ix, iz)
+
+
 ## True where world XZ `p` is on a site's own ground (not on one of the roads it keeps open).
 func in_site(p: Vector2) -> bool:
 	for s: Dictionary in sites():
@@ -533,7 +548,7 @@ func in_site(p: Vector2) -> bool:
 ## True when any of the four roads meeting at intersection (ix, iz) is closed on the arm leaving
 ## it (a T where a closed road meets a site's edge), so no crossing, signal or sign is built there.
 func junction_closed(ix: int, iz: int) -> bool:
-	if sites().is_empty() and (macro == null or macro.river == null):
+	if sites().is_empty() and (macro == null or (macro.river == null and macro.marina == null)):
 		return false
 	var x := road_pos(AXIS_X, ix)
 	var z := road_pos(AXIS_Z, iz)
@@ -644,6 +659,8 @@ func _lot_grid(ix: int, iz: int, dropped: Variant) -> Array[Dictionary]:
 		return []
 	# Nor is anything built on a block the river's corridor reaches (RiverBuild lays it).
 	if river_block(ix, iz):
+		return []
+	if marina_block(ix, iz):
 		return []
 	var rect: Rect2 = b.rect
 	# The whole block is a landmark's site (see Landmarks.claims()): nothing else is built on it,

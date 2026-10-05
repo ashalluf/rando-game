@@ -8,7 +8,9 @@ extends CanvasLayer
 
 ## Time-of-day presets: label and hour.
 const TIMES := [["Sunrise", 6.6], ["Morning", 9.0], ["Noon", 12.0], ["Golden hour", 17.7], ["Night", 21.5]]
-const WEATHERS := ["Auto", "Clear", "Cloudy", "Rain", "Storm"]
+## Weather chips: Auto, then Weather.State in order (index - 1 is the state). Two rows.
+const WEATHERS := ["Auto", "Clear", "Cloudy", "Rain", "Storm", "Marine layer", "Santa Ana"]
+const WEATHER_ROW := 4
 const GRAPHICS := ["Auto", "High", "Medium", "Low"]
 ## The controls card: key, what it does.
 const CONTROLS := [
@@ -20,7 +22,9 @@ const CONTROLS := [
 	["1  2  3 / wheel", "Switch weapon"],
 	["Hold Tab", "Weapon wheel (slows time)"],
 	["E", "Get in or out of a car"],
+	["M", "Map: click sets a waypoint"],
 	["R", "Respawn"],
+	["P", "Photo mode"],
 	["F1", "HUD: clean, full, hidden"],
 	["F11", "Fullscreen"],
 	["In a car", "W / S drive, Space jumps, Shift nitro"],
@@ -49,6 +53,11 @@ func _ready() -> void:
 	_medium = _load_font(FONT_MEDIUM)
 	_build()
 	_root.visible = false
+	# Photo mode (scripts/ui/photo_mode.gd) lives beside the menu in the city scene.
+	if get_parent() and get_parent().get_node_or_null("PhotoMode") == null:
+		var photo := PhotoMode.new()
+		photo.name = "PhotoMode"
+		get_parent().add_child.call_deferred(photo)
 	var city := get_tree().get_first_node_in_group("city")
 	if city:
 		seed_edit.text = str(city.get("world_seed"))
@@ -240,6 +249,9 @@ func _build() -> void:
 	var weathers := _row()
 	var wgroup := ButtonGroup.new()
 	for i in WEATHERS.size():
+		if i == WEATHER_ROW:
+			column.add_child(weathers)
+			weathers = _row()
 		var b := _chip(WEATHERS[i], true)
 		b.button_group = wgroup
 		var idx := i
