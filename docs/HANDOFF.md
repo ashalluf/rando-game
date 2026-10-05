@@ -118,6 +118,14 @@ The owner asked for "100 parallel agents, Opus 5.5 strictly, screenshots along t
   half (`traffic ai: overlap` line in the log: the car at along -218.2, lc_p 0.21, v 0; the bus
   at -215.7, rear 6.35 m). A real but rare collision, not batch 8's code; handed to the
   traffic-ai session to reproduce and fix. This commit re-runs CI (the token cannot re-run jobs).
+- **CI 356 failed the swerve check** ("swerved true, closest inf, slowest 0.0"): StreetErrands'
+  `_pick_parker()` (every 10-24 s, a traffic car 16-70 m from the player pulls into a kerb space)
+  picked the check's own placed car, which parked short of the player. Errands now never parks a
+  car `place_car()` put down (`traffic.placed`) or any car on a staged street. Very likely also
+  the shard-order failures above: whether a parker fires during those checks is the clock's, not
+  the checks'. With it, traffic-ai's fix for CI 355 (`e8ae24d1`: a car turns in only clear of
+  both ends of the cars in its new lane; `c13255ab`: the street-life queue check skips a parked
+  car still waiting to pull out). `city_crowd` 112/0; plain gate before the push.
 - **Waiting:** apartments (walk-ups read as flat stucco boxes) and tower-gondolas (share towers
   with Rooftops' window-washing rig) were stopped by the usage limit and not resumed. Notes from
   the sessions: HillHomeKit's far walls read pale under moonlight (estate-night: a lamp_factor dim
