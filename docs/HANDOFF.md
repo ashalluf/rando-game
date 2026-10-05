@@ -8697,3 +8697,9 @@ and warns if nothing does); the map (minimap and full-screen, MapPainter) draws 
 `Reservoir.water_runs()` (a rect per run of wet cells; the bake alone gave it a few texels); the
 trail's fence posts cast nothing (`set_shadow_distance()` is a no-op on a code-built mesh, so they
 were casting round the whole kilometre); `probe.gd` times the build on the natural range.
+After the merge: frame cost (still_shot.gd GEO, opengl3, 1280x720, `RESERVOIR=0` -> on, the same
+six EYEs): crest 2.53 M / 858 -> 2.69 M / 860, downstream face 1.57 M / 611 -> 1.74 M / 589, aerial
+2.58 M / 696 -> 2.61 M / 700, night from the north hill 2.83 M / 1117 -> 2.80 M / 1110, from the basin
+7.79 M / 2381 -> 7.86 M / 2387, night shore 0.48 M / 312 -> 0.74 M / 319. The smoke test: 1,383
+passed, 1 failed (fleet/base's known "the map draws no closed road"), 1,027 s, peak ~3.1 GB (over
+headless_check.sh's 900 s cap on this box; run directly). Stills 10-15 on shots/reservoir.
