@@ -173,6 +173,19 @@ func _full(city: Node3D, plan: CityPlan, e: Dictionary, seen: Dictionary) -> voi
 		"a FULL chunk's pads (%s) are one roadside mesh and one shadowless ground mesh, their pieces rs_ batches, all on the roadside shader" % ", ".join(kinds))
 	_t._check(tris > 1000 and tris < PAD_TRIS * built.size(), "the chunk's %d pad(s) write %d triangles (budget %d a pad)" % [built.size(), tris, PAD_TRIS])
 	_t._check(OS.has_feature("web") or lights >= built.size(), "every pad lights its forecourt after dark (%d lamp_light)" % lights)
+	# Queued cars (the car wash's lane, the drive-thru's loop) are real parked Vehicles with a
+	# driver in and the brake lamps on, no hazards.
+	var queued := 0
+	var waiting_ok := true
+	for car in chunk.get("_cars"):
+		if is_instance_valid(car) and (car as Node).has_meta("roadside"):
+			queued += 1
+			waiting_ok = waiting_ok and car.waiting and car.light_brake and car.light_signal == 0 and car._cabin_seats() != 0
+	var wash := false
+	for b: Dictionary in built:
+		wash = wash or int(b.kind) == Roadside.Kind.CAR_WASH
+	if wash or queued > 0:
+		_t._check((queued > 0 or not wash) and waiting_ok, "the pads' queued cars are parked Vehicles with a driver seated, brake lamps on, no hazards (%d)" % queued)
 	var gas := false
 	for b: Dictionary in built:
 		gas = gas or int(b.kind) == Roadside.Kind.GAS
@@ -207,7 +220,7 @@ func _layout(chunk: CityChunk) -> Array:
 			blds.append([(c as Building).seed, (c as Node3D).position.snapped(Vector3.ONE * 0.01)])
 	var cars: Array = []
 	for car in chunk.get("_cars"):
-		if is_instance_valid(car) and not (car as Node).is_queued_for_deletion():
+		if is_instance_valid(car) and not (car as Node).is_queued_for_deletion() and not (car as Node).has_meta("roadside"):
 			cars.append((car as Node3D).global_position.snapped(Vector3.ONE * 0.01) if (car as Node).is_inside_tree() else (car as Node3D).position.snapped(Vector3.ONE * 0.01))
 	return [blds, cars]
 

@@ -328,10 +328,18 @@ void fragment() {
 		rough = mix(rough, 0.35, oil * 0.6);
 		rough = mix(rough, 0.12, clamp(road_wetness, 0.0, 1.0) * 0.8);
 	} else if (code == 3) {
-		// Painted stucco: a sand finish and soft weathering streaks under the parapet.
-		float n = rs_noise(UV * 9.0);
-		base *= 0.93 + 0.1 * n;
-		base *= 1.0 - 0.07 * rs_noise(vec2(UV.x * 1.5, UV.y * 0.2));
+		// Painted stucco: a sand finish (fine grain, faded to its mean under a pixel), trowel
+		// patches a metre or so across, repainted panels, and soft weathering streaks running down
+		// from the parapet; the paint a touch rougher where it is chalky.
+		float px = max(fwidth(UV.x), fwidth(UV.y));
+		float grain = mix(rs_noise(UV * 22.0) - 0.5, 0.0, smoothstep(0.02, 0.06, px));
+		float trowel = rs_fbm(UV * 0.9 + 3.7);
+		float patch = smoothstep(0.62, 0.7, rs_noise(floor(UV * vec2(0.35, 0.5)) + 17.0));
+		float streak = rs_noise(vec2(UV.x * 2.3, 0.5)) * smoothstep(0.35, 0.9, rs_noise(vec2(UV.x * 0.6, UV.y * 0.15 + 2.0)));
+		base *= 0.9 + 0.18 * trowel + 0.12 * grain;
+		base *= 1.0 + 0.05 * patch;
+		base *= 1.0 - 0.12 * streak;
+		rough = clamp(rough + 0.08 * (trowel - 0.5), 0.0, 1.0);
 	} else if (code == 4) {
 		// A shop window: the sky mirrored by Fresnel, the room behind traced, lit after dark.
 		vec3 N = normalize(v_wnormal);

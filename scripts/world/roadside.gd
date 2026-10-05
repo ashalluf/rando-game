@@ -64,6 +64,8 @@ const CAR_JUNK := [Color(0.42, 0.28, 0.2), Color(0.5, 0.5, 0.48), Color(0.35, 0.
 static var enabled: bool = OS.get_environment("ROADSIDE") != "0"
 ## Tools and checks: every pad built is appended here while `recording` is on.
 static var recording := false
+## Queued cars as real Vehicles on FULL chunks (LIVE_QUEUE=0: the cheap static cars, the A/B).
+static var live_queue: bool = OS.get_environment("LIVE_QUEUE") != "0"
 static var record: Array = []
 ## Tools: the triangles written and the microseconds spent on FULL pads since the last reset.
 static var built_tris := 0
@@ -352,6 +354,45 @@ static func _car(s: Site, p: Vector2, yaw: float, paint: Color = Color(-1, 0, 0)
 	var key := "apark_car_%d" % v
 	_inst(s, key, ArenaGrounds.car_mesh(v), Transform3D(Basis(Vector3.UP, yaw), Vector3(p.x, s.dy(p.x, p.y) + y + 0.005, p.y)), Color.BLACK, paint)
 	s.ch._batch.set_shadow_distance(key, LotFill.CAR_SHADOW_DISTANCE)
+
+
+## A car waiting in a queue (the drive-thru, the car wash) at frame XZ, facing `yaw`. On a FULL
+## chunk a real parked Vehicle with its driver in and its brake lamps on (Vehicle.seat_waiting_driver;
+## asleep like any parked car), built in a step of its own before the finish - a car is ~35 ms of
+## work; the cheap static car where the physics budget is spent or LIVE_QUEUE is off.
+static func _queue_car(s: Site, p: Vector2, yaw: float) -> void:
+	if not (s.full and live_queue):
+		_car(s, p, yaw)
+		return
+	var w := s.at(Vector3(p.x, 0.0, p.y))
+	var seed := hash([s.ch.plan.seed, int(w.x * 4.0), int(w.z * 4.0), "roadside_queue"])
+	var world_yaw := s.yaw + yaw
+	var ch := s.ch
+	# The fallback's rolls are made now, so the pad's own stream runs the same either way.
+	var v := 0 if s.rng.randf() < 0.55 else (2 if s.rng.randf() < 0.6 else 1)
+	var paint: Color = ArenaGrounds.CAR_PAINTS[s.rng.randi() % ArenaGrounds.CAR_PAINTS.size()]
+	var fallback := Transform3D(Basis(Vector3.UP, world_yaw), Vector3(w.x, TOP + GROUND_LIFT + 0.005, w.z))
+	ch._run_or_defer(func() -> bool:
+		if not is_instance_valid(ch):
+			return true
+		if not PhysicsBudget.can_spawn():
+			var key := "apark_car_%d" % v
+			ch._batch.add(key, ArenaGrounds.car_mesh(v), fallback, paint, Color.BLACK)
+			ch._batch.set_shadow_distance(key, LotFill.CAR_SHADOW_DISTANCE)
+			return true
+		var rng := RandomNumberGenerator.new()
+		rng.seed = seed
+		var car := Vehicle.random_car(rng)
+		car.set_meta("roadside", true)
+		var holder: Node = ch.get_parent() if ch.get_parent() else ch
+		var spot := Vector3(w.x, TOP + ch._gy(w.x, w.z) + GROUND_LIFT + 0.4, w.z)
+		car.position = WorldState.to_local(spot) if holder != ch else spot
+		car.rotation.y = world_yaw
+		holder.add_child(car)
+		car.visible = ch.visible
+		car.seat_waiting_driver(seed)
+		ch._cars.append(car)
+		return true)
 
 
 ## A shrub in the chunk's shared shrub batch.
@@ -750,7 +791,7 @@ static func _car_wash(s: Site) -> void:
 	# Cars waiting in the lane.
 	var nq := 1 + s.rng.randi() % 3
 	for k in nq:
-		_car(s, Vector2(lane_x, pay.y - 1.0 - k * 6.0), PI)
+		_queue_car(s, Vector2(lane_x, pay.y - 1.0 - k * 6.0), PI)
 	# Vacuum stations in a row along the street side, a stall either side of each.
 	var vz := -hd + 5.5
 	var vx0 := lane_x + 5.5
@@ -1159,6 +1200,18 @@ static func _fast_food(s: Site) -> void:
 	var spk := Vector2(mb.x + 2.4, back_lane_z + lane_w * 0.5 + 0.3)
 	_inst(s, "rs_spk", RoadsideKit.speaker_post(), Transform3D(Basis(), Vector3(spk.x, s.dy(spk.x, spk.y), spk.y)), Color(brand.r, brand.g, brand.b, 0.4))
 	_pool(s, Vector2(mb.x, back_lane_z), Vector2(6.0, 5.0), Color(1.0, 0.95, 0.85, 0.9))
+	# The lane-side walls: a tile wainscot, brand pilasters, the dining room's windows on the way in,
+	# wall packs, and a kerb with bollards between each wall and its lane.
+	_lane_walls(s, bld, h, brand, front, front + bd * 0.35)
+	# A lit canopy over the order point's menu board.
+	var cy0 := s.dy(mb.x, mb.y)
+	for sd: float in [-1.0, 1.0]:
+		pen.cyl(Vector3(mb.x + sd * 1.9, cy0, mb.y + 0.6), 0.07, 0.07, 3.4, K.c(Color(0.25, 0.25, 0.27), K.K_FIXED), K.RM_PAINT, 8)
+	pen.box(Vector3(mb.x, cy0 + 3.5, mb.y - 0.2), Vector3(4.4, 0.22, 2.4), K.c(brand, K.K_FIXED), K.RM_PAINT, 0.02)
+	pen.box(Vector3(mb.x, cy0 + 3.5, mb.y - 1.42), Vector3(4.4, 0.24, 0.04), K.c(brand.lightened(0.15), K.K_LIGHTBOX), K.RM_PLASTIC)
+	pen.face(Vector3(mb.x - 2.0, cy0 + 3.385, mb.y - 1.2), Vector3(mb.x + 2.0, cy0 + 3.385, mb.y - 1.2), Vector3(mb.x + 2.0, cy0 + 3.385, mb.y + 0.8), Vector3(mb.x - 2.0, cy0 + 3.385, mb.y + 0.8),
+		[Vector2(0, 0), Vector2(4.0, 0), Vector2(4.0, 2.0), Vector2(0, 2.0)], Vector3.DOWN, K.c(Color(1, 1, 1), K.K_SOFFIT), Vector2(0.25, 0.0))
+	s.ch._add_shape(Vector3(4.4, 0.25, 2.4), s.at(Vector3(mb.x, cy0 + 3.5, mb.y - 0.2)), s.yaw)
 	# The pickup window on the right wall, under a small canopy, its room lit.
 	var wz := front + bd * 0.35
 	pen.window(Vector3(bld.end.x + 0.02, 0.0, wz), Vector3(1, 0, 0), 1.6, 0.0, 1.0, 2.2, 3.0, K.Room.DINING)
@@ -1191,7 +1244,7 @@ static func _fast_food(s: Site) -> void:
 				if into < 2.6 or float(lens[k]) - into < 2.6:
 					break
 				var pos := a + dir * into
-				_car(s, pos, atan2(-dir.x, -dir.y))
+				_queue_car(s, pos, atan2(-dir.x, -dir.y))
 				break
 			acc += float(lens[k])
 	# Parking in front of the dining room, the pylon sign at the corner.
@@ -1204,6 +1257,55 @@ static func _fast_food(s: Site) -> void:
 	_frontage(s, [Vector2(lx - lane_w * 0.5 - 0.5, lx + lane_w * 0.5 + 0.5), Vector2(rx - lane_w * 0.5 - 0.5, rx + lane_w * 0.5 + 0.5)])
 	_pool(s, Vector2(bld.get_center().x, front - 3.0), Vector2(bw + 4.0, 7.0), Color(1.0, 0.92, 0.78, 1.0))
 	_light(s, Vector3(bld.get_center().x, 3.5, front - 2.0), 14.0, Color(1.0, 0.9, 0.75))
+
+
+## The drive-thru building's two side walls, which the lanes run along: a tile wainscot, brand
+## pilasters, the dining room's windows on the way in (the left wall; the right has the pickup
+## window), wall packs, and a kerb with yellow bollards between the wall and the lane.
+static func _lane_walls(s: Site, bld: Rect2, h: float, brand: Color, front: float, pickup_z: float) -> void:
+	var K := RoadsideKit
+	var pen := s.pen
+	var tile := K.c(Color(0.42, 0.2, 0.14), K.K_FIXED)
+	var yellow := K.c(Color(0.95, 0.78, 0.1), K.K_FIXED)
+	for side: float in [-1.0, 1.0]:
+		var x := bld.position.x if side < 0.0 else bld.end.x
+		var out := Vector3(side, 0.0, 0.0)
+		var z0 := front + 0.4
+		var z1 := bld.end.y - 0.4
+		var span := z1 - z0
+		var zc := (z0 + z1) * 0.5
+		# Wainscot and its cap.
+		pen.box(Vector3(x + side * 0.03, (0.95 - SKIRT) * 0.5, zc), Vector3(0.06, 0.95 + SKIRT, span + 0.8), tile, K.RM_MATTE)
+		pen.box(Vector3(x + side * 0.06, 0.97, zc), Vector3(0.08, 0.06, span + 0.8), K.c(Color(0.8, 0.79, 0.76), K.K_FIXED), K.RM_PAINT)
+		# Pilasters in the brand colour, a wall pack on every other one.
+		var n := maxi(int(span / 3.2), 2)
+		for i in n + 1:
+			var z := z0 + span * i / n
+			if side > 0.0 and absf(z - pickup_z) < 1.4:
+				continue
+			pen.box(Vector3(x + side * 0.08, (h + 0.9 - SKIRT) * 0.5, z), Vector3(0.16, h + 0.9 + SKIRT, 0.45), K.c(brand, K.K_FIXED), K.RM_PAINT, 0.02)
+			if i % 2 == 1:
+				pen.box(Vector3(x + side * 0.22, 3.3, z), Vector3(0.14, 0.2, 0.3), K.c(Color(0.2, 0.2, 0.21), K.K_FIXED), K.RM_PAINT, 0.02)
+				pen.box(Vector3(x + side * 0.3, 3.24, z), Vector3(0.02, 0.1, 0.22), K.c(Color(1.0, 0.95, 0.85), K.K_NEON), K.RM_PLASTIC)
+				_pool(s, Vector2(x + side * 1.6, z), Vector2(3.5, 3.5), Color(1.0, 0.92, 0.8, 0.5))
+			# The dining room's windows between the pilasters, on the way in.
+			if side < 0.0 and i < n:
+				var wz := z + span / n * 0.5
+				pen.window(Vector3(x - 0.04, 0.0, wz), out, span / n - 0.8, 0.0, 1.0, 2.7, bld.size.x - 1.0, K.Room.DINING)
+				pen.box(Vector3(x - 0.07, 1.0, wz), Vector3(0.12, 0.06, span / n - 0.7), K.c(Color(0.72, 0.73, 0.75), K.K_STEEL), K.RM_STEEL)
+		# The kerb along the wall, bollards on it.
+		var kx := x + side * 0.45
+		var ky := s.dy(kx, zc)
+		pen.box(Vector3(kx, ky + 0.03, zc), Vector3(0.6, 0.3, span + 1.2), K.c(Color(0.72, 0.71, 0.68), K.K_CONCRETE), K.RM_MATTE, 0.03)
+		pen.box(Vector3(kx + side * 0.29, ky + 0.12, zc), Vector3(0.03, 0.12, span + 1.2), yellow, K.RM_PAINT)
+		s.ch._add_shape(Vector3(0.6, 0.3, span + 1.2), s.at(Vector3(kx, ky + 0.03, zc)), s.yaw)
+		var nb := maxi(int(span / 2.6), 2)
+		for i in nb + 1:
+			var z := z0 - 0.4 + (span + 0.8) * i / nb
+			pen.cyl(Vector3(kx, ky + 0.18, z), 0.09, 0.09, 1.0, yellow, K.RM_PAINT, 10)
+			pen.cyl(Vector3(kx, ky + 1.18, z), 0.09, 0.05, 0.06, yellow, K.RM_PAINT, 10)
+			pen.box(Vector3(kx, ky + 0.95, z), Vector3(0.19, 0.06, 0.19), K.c(Color(0.95, 0.95, 0.93), K.K_FIXED), K.RM_PAINT)
+			s.ch._add_shape(Vector3(0.18, 1.0, 0.18), s.at(Vector3(kx, ky + 0.68, z)), s.yaw)
 
 
 ## A frame point's chunk XZ.
