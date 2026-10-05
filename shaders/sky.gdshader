@@ -112,7 +112,7 @@ uniform vec3 view_km = vec3(0.0);
 /// and the billows (km per tile of the 3D noise).
 uniform float cloud_base = 1.45;
 uniform float cloud_depth = 1.7;
-uniform float weather_tile = 26.0;
+uniform float weather_tile = 30.0;
 uniform float billow_tile = 2.0;
 /// Extinction per km of a fully dense cloud, and how bright the sun's side is (x sun colour).
 uniform float cloud_extinction = 22.0;
@@ -255,21 +255,23 @@ float cumulus(vec3 p, float lod, float detail, float coverage) {
 	// Where a cloud stands: coverage takes the threshold down. Overcast (above ~0.8) fills the
 	// map, and the columns go flat-topped and full height: a stratus ceiling.
 	float thr = 1.0 - coverage;
-	float col = smoothstep(thr, thr + 0.30, w.r);
+	float col = smoothstep(thr, thr + 0.40, w.r);
 	if (col <= 0.0) {
 		return 0.0;
 	}
 	float strat = smoothstep(0.72, 0.95, coverage);
 	// How tall this one grows: the weather map's G, and the core of a field stands taller.
-	float top = mix(mix(0.22, 0.85, w.g * w.g) * (0.35 + 0.65 * col), 1.0, strat);
+	float top = mix(mix(0.35, 1.0, w.g) * (0.5 + 0.5 * col), 1.0, strat);
 	float rel = hn / max(top, 0.05);
 	if (rel >= 1.0) {
 		return 0.0;
 	}
 	// A dome over a flat base: higher up only the column's core survives, and the base is cut
 	// sharp, which is the condensation level every cumulus in a field shares.
+	// A dome: the column's cover falls off from its middle roughly as a paraboloid, so cutting
+	// it at rel^2 gives a rounded crown (cutting at rel drew every cloud as a tent).
 	float rr = rel * rel;
-	float d = clamp((col - rr * 0.95) / max(1.0 - rr * 0.95, 0.05), 0.0, 1.0);
+	float d = clamp((sqrt(col) - rr) / max(1.0 - rr, 0.05), 0.0, 1.0);
 	d *= smoothstep(0.0, 0.035, hn);
 	// Billows: the Perlin-Worley takes bites out of it, more the higher up (the cauliflower top),
 	// hardly any at the base (which stays flat).
@@ -348,10 +350,10 @@ vec4 cumulus_march(vec3 dir, vec3 ldir, vec3 lcol, vec3 amb_top, vec3 amb_bot, v
 		p.y = o.y + t * up + t * t / (2.0 * EARTH_R);
 		p.xz += wind;
 		// Mip of the weather map: what one pixel covers out there.
-		// One level softer than that: a column sharper than the map's own texels peaks into a cone.
-		float lod = log2(max(t * pix / weather_tile * 256.0, 1.0)) + 1.0;
+		// Half a level softer than that, so a column never peaks sharper than the map's texels.
+		float lod = log2(max(t * pix / weather_tile * 256.0, 1.0)) + 0.5;
 		// How much of the fine structure a pixel resolves at this distance (1 near, 0 far).
-		float detail = 1.0 - smoothstep(0.012, 0.05, t * pix);
+		float detail = 1.0 - smoothstep(0.025, 0.1, t * pix);
 		float d = cumulus(p, lod, detail, coverage);
 		if (d > 0.002 && fine == 0) {
 			// Just came into a cloud on a coarse step: back up and come in again finely, or the
@@ -614,7 +616,7 @@ void sky() {
 			vec3 amb_top = (sky_top * 0.7 + sky_horizon * 0.5) * (1.0 - 0.6 * night_factor);
 			vec3 amb_bot = cloud_shadow * hl * 0.55 + sun_light * 0.05 * sun_key;
 			amb_top += night_glow * 0.3;
-			amb_bot += night_glow * 0.45 + city_glow_color * city_glow * 0.6;
+			amb_bot += night_glow * 0.45 + city_glow_color * city_glow * 0.3;
 			res = cumulus_march(dir, ldir, lcol, amb_top, amb_bot, airlight, coverage, jitter, pix);
 			// Under the horizon (a flying camera looking down at the deck) the march is the same.
 			if (!AT_CUBEMAP_PASS && god_rays > 0.01 && sun_up > 0.01 && up > -0.02) {
@@ -671,7 +673,13 @@ void sky() {
 		float az = dl > 1e-4 ? dot(dir.xz / dl, city_dir) : 0.0;
 		float lobe = mix(pow(max(az * 0.5 + 0.5, 0.0), 4.0), 1.0, city_wrap);
 		float rise = exp(-max(up, 0.0) / 0.075) * 0.75 + exp(-max(up, 0.0) / 0.3) * 0.25;
-		col += city_glow_color * city_glow * lobe * rise * (1.0 - below * 0.6);
+		vec3 dome = city_glow_color * city_glow * lobe * rise * (1.0 - below * 0.6);
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+		// Compatibility adds in sRGB numbers: over a dark sky a linear glow L shows as about
+		// L^(1/2.2) there, so hand it over that way or the web never sees the dome.
+		dome = pow(dome, vec3(0.4545)) * 0.6;
+#endif
+		col += dome;
 	}
 
 	// --- Smog ------------------------------------------------------------------------------
@@ -859,6 +867,8 @@ void sky() {
 				float tr = clamp(core * op * 0.95, 0.0, 1.0) * smoothstep(0.01, 0.06, up);
 				// Haze takes the far ones.
 				tr *= exp(-tt / 140.0);
+				// Out of the sun after dark, a trail is all but invisible.
+				tr *= mix(1.0, 0.12, night_factor * (1.0 - sun_hi));
 				col = mix(col, tcol, tr);
 				// The jet itself: a glint, drawn no smaller than a pixel.
 				if (c.x > 0.0) {

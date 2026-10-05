@@ -25,7 +25,7 @@ extends Node
 @export var high_wind: Vector2 = Vector2(18.0, -6.0)
 ## The light dome: how bright at full night over downtown (linear, at the horizon), and how much
 ## of it the rest of the city puts up.
-@export var dome_strength: float = 0.05
+@export var dome_strength: float = 0.08
 ## Seconds between looks at the map round the camera for the dome and the dark sky.
 @export var survey_interval: float = 1.5
 
