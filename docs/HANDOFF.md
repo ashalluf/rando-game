@@ -7107,3 +7107,30 @@ doors and lamps (and more kinds), the lamp cap holds, buildings have their back_
 (`WALLED=0.6` lists the walled-in ones with an EYE each), `BUILD=bx,bz` builds one FULL chunk and
 prints its props by kind, runs, wear and upright triangles (`ALLEY_TIME=1` the steps' times).
 `ALLEYS=0` in the environment is the A/B (still_shot.gd, block_shot.tscn, geo_count.gd).
+
+**Frame cost** (`tools/geo_count.gd`, opengl3 + Xvfb, 800x600, `ALLEYS=0` against the alleys, same
+spawn): at the downtown alley (`--spawn=2886,-508.6,-90,-3`) 2.490 M -> 2.484 M triangles, 2,864
+-> 2,823 draws (the forecourt furniture and the back faces' shop pieces the alley replaces cost
+about what it adds; the upright mesh casts from a twin that stops at `SHADOW_REACH` 140 m - before
+the twin it was +5.6 % triangles); midtown (`--spawn=-235.5,-120,180,-3`, measured before the
+twin) 5.04 M -> 5.19 M (+3.0 %), +23 draws. The still_shot frames: the downtown alley at noon
+3.59 M / 2,613 draws with the alleys, 3.61 M / 2,637 without. A FULL alley chunk: one ground and
+one upright mesh (~14-22 k triangles of props), one shadow twin, the alley pools in one batch,
+0-5 lamp lights. Build: the block step and the decisions ~2 ms a run, then one build step per
+prop (the biggest, a fire escape, a few ms); a cook is a step of its own (a rig, ~30 ms cold, as
+the vendors'). LOD / capture: a handful of slabs.
+
+**Stills** (branch `shots/alleys`; opengl3, not the Mac's Forward+): down the downtown alley at noon
+and 22:00 and back toward its mouth, the mouth from across the street by day and night, a midtown
+asphalt alley at noon and night, midtown from 260 m; `before_*` the same frames with `ALLEYS=0`.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the concrete's tone and the lamp pools
+under AgX need eyes. No traffic or police drives the alleys (they are not in the street graph);
+the player can drive them. The van and dumpsters are static (dumpsters do not tip or roll); the
+gates are always open. The buildings' backs are their ordinary windows down to the ground (no
+real back-of-house wall treatment: blank wainscot, barred windows) and the far city's coded boxes
+still draw shops on that face. Fire escapes are only on parts 11 m tall or more and do not reach
+the roof. Midtown's pocket gardens (yard lots) can line an alley on both sides, so some alleys
+run between lawns. The alley pools are one warm tint whatever the lamp's lens; the real lights take
+NightCity's district colour. Cooks wear the crowd's clothes (no whites or apron). The grate's
+slots run across the flow at a grazing angle as a faint dotted line. Birds were another session's.
