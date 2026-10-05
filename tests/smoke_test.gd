@@ -1818,6 +1818,9 @@ func _test_city() -> void:
 	# What a blast leaves (tests/explosion_aftermath_checks.gd): trees alight, charred and kept
 	# charred, smoke columns, craters and rubble, leaves, car alarms with their hazards.
 	await load("res://tests/explosion_aftermath_checks.gd").new().run(self, city)
+	# Building damage (tests/building_damage_checks.gd): crazed and shattered panes, scars, a blast
+	# hole, the caps, restore on rebuild, sanctuaries and the towers' own materials.
+	await load("res://tests/building_damage_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

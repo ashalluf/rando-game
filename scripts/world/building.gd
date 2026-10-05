@@ -279,6 +279,7 @@ func _ready() -> void:
 	add_to_group("building")
 	if not _generated:
 		generate()
+	BuildingDamage.restore(self)
 
 
 func generate() -> void:

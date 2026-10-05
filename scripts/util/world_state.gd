@@ -15,6 +15,8 @@ var _destroyed: Dictionary = {}
 ## Trees and palms burnt out (TreeFire), chunk key -> {"<batch key>:<instance>": true}: a chunk
 ## rebuilt later draws them charred.
 var charred: Dictionary = {}
+## Damage done to buildings (BuildingDamage), by building key: survives the building's chunk.
+var building_damage: Dictionary = {}
 
 
 func mark_destroyed(chunk_key: String, prop_id: String) -> void:
@@ -39,11 +41,13 @@ func reset() -> void:
 	pending_seed = -1
 	_destroyed.clear()
 	charred.clear()
+	building_damage.clear()
 
 
 func reset_destruction() -> void:
 	_destroyed.clear()
 	charred.clear()
+	building_damage.clear()
 
 
 func to_world(local: Vector3) -> Vector3:

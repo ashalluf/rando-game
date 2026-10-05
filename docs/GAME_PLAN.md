@@ -759,6 +759,14 @@ already mapped so milestone 2 is script-only.
   and the web has none. Claimed after every roll (no block seed moves; the blocks beside it lose
   a rolled plaza or rec park, as round MacArthur Park). Canals.
 
+- **2026-10-05 Buildings take damage, as data (VISUAL_ROADMAP #74).** A round crazes a window and
+  a second takes it out (shards, the glass Sfx, glass on the pavement, the room open behind the
+  frame); rounds scar stone and render; a blast blows out the windows round it and punches a hole
+  through a solid wall (a traced burnt room behind a broken edge, soot, rim and rebar, rubble).
+  Kept as a short list of records per building in WorldState, read by building.gdshader, so a
+  building keeps its damage through streaming and an undamaged one costs nothing. Never on a
+  place of worship. docs/HANDOFF.md 9cf; CLAUDE.md "Building damage".
+
 - **2026-10-04 The city answers the chaos with fire engines and ambulances (VISUAL_ROADMAP #55).**
   A burning car or wreck, a big blast or a body on the street opens a call; the nearest fire
   station (one per ~850 m cell, hash-placed on a real lot, bay doors that roll up) or a street
