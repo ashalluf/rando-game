@@ -423,6 +423,8 @@ func begin_build() -> void:
 	_steps.append(_build_freeway)
 	# The light rail (LightRail, LightRailKit): track, structure, overhead, stations, gates.
 	_steps.append(_build_light_rail)
+	# What stands on the hills (RidgeBuild): towers, masts, tanks, fire roads, the right of way.
+	_steps.append_array(RidgeBuild.attach(self))
 	if level == Level.FULL and plan.macro:
 		_steps.append(_build_landmarks)
 	if level == Level.FULL:

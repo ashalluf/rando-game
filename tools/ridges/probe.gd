@@ -1,24 +1,23 @@
-extends SceneTree
+extends Node
 ## Ridges probe (Ridges): the summits, the antenna farm, the fire roads and gates, the tanks, the
 ## lookout and domes, the substation and every tower of both lines with its span and clearance.
 ## Headless, seconds:
-##   godot --headless --path . --script tools/ridges/probe.gd     (SEED=n another seed; OUT=map.png
+##   godot --headless --path . res://tools/ridges/probe.tscn     (SEED=n another seed; OUT=map.png
 ##   also draws them over a hillshade of REGION=x0,z0,x1,z1, RES pixels on the long side)
-func _initialize() -> void:
-	var sd := int(OS.get_environment("SEED")) if OS.get_environment("SEED") != "" else 1337
+func _ready() -> void:
+	var city: Node = (load("res://scenes/levels/city.tscn") as PackedScene).instantiate()
+	if OS.get_environment("SEED") != "":
+		city.world_seed = int(OS.get_environment("SEED"))
 	var t0 := Time.get_ticks_msec()
-	var macro := MacroMap.new()
-	macro.seed = sd
-	macro.setup()
+	var plan: CityPlan = load("res://tools/ridges/ridge_shot.gd").city_plan(city)
+	var macro := plan.macro
+	city.free()
 	var t1 := Time.get_ticks_msec()
-	var plan := CityPlan.new()
-	plan.seed = sd
-	plan.macro = macro
 	var r := Ridges.of(plan)
 	print("setup %d ms, lines %d ms" % [t1 - t0, Time.get_ticks_msec() - t1])
 	if r == null:
 		print("no ridges")
-		quit()
+		get_tree().quit()
 		return
 	for i in mini(r.summits.size(), 8):
 		var s: Array = r.summits[i]
@@ -67,7 +66,7 @@ func _initialize() -> void:
 	print("claimed cells %d in %d blocks" % [claimed, r.claimed_cells.size()])
 	if OS.get_environment("OUT") != "":
 		_draw(macro, r)
-	quit()
+	get_tree().quit()
 
 
 func _draw(macro: MacroMap, r: Ridges) -> void:

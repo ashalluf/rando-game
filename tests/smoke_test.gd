@@ -1789,6 +1789,9 @@ func _test_city() -> void:
 	# The city at night from the air (tests/night_city_checks.gd): the far traffic and lit-office
 	# hours, the sodium / LED lamp patches near and far, the LOD decks' traffic skin.
 	load("res://tests/night_city_checks.gd").new().run(self, city)
+	# The ridges (tests/ridges_checks.gd): the farm, fire roads, tanks and the two power lines, every
+	# span over the ground, nothing planned before them moved, a tower's chunk and the far wires.
+	load("res://tests/ridges_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
