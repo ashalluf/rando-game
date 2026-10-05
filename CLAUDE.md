@@ -4151,6 +4151,18 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `STREET_VENDORS=0` turns it off (the A/B). Look with `tools/glshot/vendor_shot.gd` (the stands
   alone, seconds; `NIGHT=1`) and find them with `tools/vendor_probe.gd`; checks:
   `tests/street_vendors_checks.gd`.
+- Farmers' market (2026-10-05, HANDOFF "The farmers' market"): `FarmersMarket`
+  (`scripts/world/farmers_market.gd`, pure) picks one local street per `CELL` 1.7 km by hash
+  (residential / midtown blocks nobody claims) and closes it to cars from `CLOSE_INSET` past each
+  crossing (`road_closed()` in `CityPlan.road_open()`; the junctions stay junctions; the chunk
+  paves it itself, `paves()`); on its day (`DAY_ODDS`, the game starts on a Saturday) the stalls
+  go up by their own hours (`stall_state()`: GONE / FOLDED / UP). `FarmersMarketKit` builds the
+  canopies, goods, vans' places and bollards in code on `shaders/farmers_market.gdshader` (code
+  in the vertex alpha, a far level as LOD and shadow twin); `FarmersMarketBuild` lays out the
+  owner chunk (canopies and tables are EncampmentItems, browse spots in `vendor_queue`,
+  `StreetVendor`s and `MarketShopper`s, `CityChunk.market_road` puts them on the asphalt).
+  `FARMERS_MARKET=0` the A/B, `MARKET_DAY=1`, `MARKET_HOUR=h`. Probe:
+  `tools/farmers_market/probe.gd`; checks: `tests/farmers_market_checks.gd`.
 - City birds (VISUAL_ROADMAP #54, 2026-10-04: "nothing alive in the city but people"):
   `Birds` (`scripts/world/birds.gd`, a Node3D in `city.tscn`, so origin shifts carry it; birds
   live in its own space). **Nothing is per chunk**: every `survey_interval` it plans flocks round

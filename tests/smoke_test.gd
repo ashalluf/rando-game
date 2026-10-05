@@ -1911,6 +1911,9 @@ func _test_city() -> void:
 	# The ridges (tests/ridges_checks.gd): the farm, fire roads, tanks and the two power lines, every
 	# span over the ground, nothing planned before them moved, a tower's chunk and the far wires.
 	load("res://tests/ridges_checks.gd").new().run(self, city)
+	# The farmers' market (tests/farmers_market_checks.gd): markets apart on closed local streets,
+	# the layout and hours, the busy and packed-up chunk, its people on the asphalt, nothing moved.
+	load("res://tests/farmers_market_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

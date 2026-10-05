@@ -11181,3 +11181,66 @@ is blocked by the network policy, so the generators ran on PyPI's `bpy` 4.2.0 mo
 (`python3.11 -m venv bpyenv && bpyenv/bin/pip install bpy==4.2.0`, then
 `bpyenv/bin/python tools/make_big_vehicles.py -- box_truck [--render]`; it segfaults on exit
 AFTER writing the file - harmless). Stills: shots/service-vehicles 18_*.
+
+## 9dn. The farmers' market: a weekly street market of white canopies, 2026-10-05 (agent branch `wt/farmers-market`)
+
+**What.** One ordinary local street per 1.7 km map cell (by hash) is a farmers' market street:
+removable bollards across both ends, painted stall corners and numbers on the asphalt, and a sign
+with the market's day and hours. On its day (`FarmersMarket.DAY_ODDS`: mostly Saturday and Sunday;
+the game starts on a Saturday at 9:00) the growers put up two rows of 10 x 10 ft pop-up canopies
+facing an aisle down the middle, vans parked behind one row, string lights zig-zagging across the
+aisle, a grower's banner on every valance, and shoppers browsing stall to stall. Before 8 and from
+about 13:00 the stalls are setting up / packing (canopy folded, tables leant together, crates
+stacked); after about 14:30 and on every other day the street is empty but for the bollards,
+marks and sign. While packing, `HALF_STRUCK` (30 %) of the stalls still have their canopy up over
+the folded tables; every other stall in a row has its neighbours' canopies folded flat on a
+platform cart (`canopy_folded()`); the rest are already loaded (the lead's review: standing
+folded canopies read as white posts). The default seed has 5 markets in the basin (probe below); Palm St (around
+(1253, -3833)) is on Saturday.
+
+**Files.**
+- `scripts/world/farmers_market.gd` (`FarmersMarket`, static, pure): the site per cell
+  (`decide()`, `_segment()`, `_eligible()`, `_street_clear()`: MIDTOWN / SUBURBS / BEACHTOWN plain
+  BUILDINGS or PARK blocks either side, no site / grounds / school / hospital / plaza, not an
+  avenue or a pinned road, no freeway, rail, approach zone, river, marina, replica, landmark;
+  flat), the closure (`road_closed()`, CityPlan.road_open()'s hook: from `CLOSE_INSET` 2.5 m past
+  each crossing road's edge, so `junction_closed()` at 2 m keeps the junction's signals and
+  crosswalks and traffic's 3 m turn test sees the arm closed), `paves()`, `blocks_parking()`, the
+  hours (`stall_state()`, `status()`, `busyness()`), the layout (`layout()`: stalls, vans, cached).
+- `scripts/world/farmers_market_kit.gd` (`FarmersMarketKit`): every mesh in code at real size on
+  ONE shader: the canopy (telescoping legs, scissor trusses, rafters, a sagging peaked roof and
+  valance, sandbags), the folded canopy, goods tables per kind and variant (produce: 13 kinds in
+  wooden crates heaped on a dome; flowers in buckets on a stepped stand; bread on boards and a
+  rack; pantry jars, eggs, oil), the packed-up stack, the bollard, the sign post. `Geo` writes
+  packed arrays with TWO index lists: the near triangles are the surface, the far ones its one LOD
+  (and its shadow twin, registered as `PropFactory.shadow_proxy()`).
+- `scripts/world/farmers_market_build.gd` (`FarmersMarketBuild`): the chunk's steps (one hook in
+  `CityChunk._block_steps()`); FULL: bollards (one collision box each), signs, marks, every stall
+  by its state (canopy and table as `EncampmentItem`s: knocked, they fly as one body and stay
+  gone), vans (the road van's far twin, painted), ONE `MarketDetail` mesh (banners, sign lettering,
+  marks, string lights), browse spots in the chunk's `vendor_queue` (two a stall: the crowd life's
+  `_plan_queue()` stops people there), then up to 14 stallholders (`StreetVendor`) and up to 34
+  shoppers by the hour. LOD: the canopies only. The far city: nothing.
+- `scripts/npc/market_shopper.gd` (`MarketShopper`, a Pedestrian kept to the aisle; half carry a
+  tote bag, some a coffee).
+- `shaders/farmers_market.gdshader` (codes in the vertex alpha x 20; colour space via
+  `color_space.gdshaderinc`; canvas backlit; bulbs lit by `lamp_factor`).
+- Shared-file hooks: `CityPlan.road_open()` (one if), `CityChunk._build_roads()` (paves the closed
+  road), `_park_car()` (no car on it, counted as parked so the rolls do not move),
+  `ground_y()` (`market_road`: people stand on the asphalt there), `_block_steps()`, the loading
+  screen (`FarmersMarketKit.warm()`, ~150 ms), one smoke-test line.
+
+**Switches.** `FARMERS_MARKET=0` (the A/B: no market, the street open), `MARKET_DAY=1` (today is
+every market's day), `MARKET_HOUR=h`; `force_hour` / `force_day` / `force_market_day` for tests.
+
+**Tools.** `tools/farmers_market/probe.gd` (every market with an EYE, the kit's triangles and
+build time; seconds), `tools/farmers_market/checks.gd` (the checks alone, a few minutes).
+Checks: `tests/farmers_market_checks.gd` (27).
+
+**Known gaps.** The street keeps no utility poles (StreetDetail hangs no line on a closed road) and
+the prop ids after them on that chunk shift (persistence of broken props only). The market is
+built for the hour the chunk is built at; it does not set up or pack up in front of you. A
+produce table is 6-10k triangles near (the batch's far level past ~40 m); a busy market chunk adds
+~300-400k triangles in view. Not seen on Forward+: canvas translucency, the produce's sheen.
+Stills on `shots/farmers-market`.
+
