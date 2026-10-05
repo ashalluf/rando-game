@@ -289,6 +289,14 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Forward+ review A (HANDOFF "Forward+ review A").** Six integration-a features
+  (hero moves, port life, canals, photo mode, police stations, pier park) rendered on Forward+
+  under lavapipe in small scenes. Decisions: review with `block_shot.tscn` and the room tools,
+  never the whole city; fix in the features' own files only (canal water and layout, the pier's
+  pools); a feature that draws big additive pools gets its own copy of the shared pool material
+  rather than changing the street lamps'; the harness's crude night must darken every global a
+  mirror reads (`sky_tint`), or the review judges a daylit reflection.
+
 - **2026-10-05 City acoustics: spaces, gunfire echo, footsteps by surface, the newest systems'
   sounds (HANDOFF "City acoustics").** The city had one street-canyon reverb, no echo, no
   footsteps, and the bus, the light rail, the river and the parks were silent. Decisions: the

@@ -3965,6 +3965,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   that path has no temporal pass, so anything still wrong there is real geometry and anything
   that clears up was the harness. That is how the rain curtain's 2.2 m streaks were told apart
   from TAA ghosting.
+- Forward+ review of small scenes (2026-10-05, docs/HANDOFF.md "Forward+ review A"): lavapipe
+  renders `block_shot.tscn` (a few FULL blocks, ~10 min a run, ~12 GB) and the room tools
+  (`hero_moves_shot.gd`, `photo_shot.gd ROOM=1`, ~2 min) with `--rendering-driver vulkan` and
+  `VK_ICD_FILENAMES=.../lvp_icd.json`; never the whole city. block_shot's `PLAYER=1` stands a
+  player in (PortLife), and its `NIGHT=1` now also darkens `sky_tint` (mirrors read it; left at
+  the day value, canal water and the beach's swash drew a lit street at night). A big additive
+  pool at the street lamps' shared strength clips to a flat disc on Forward+: give it its own
+  copy (PierPark.POOL_*). Godot can hang on exit after block_shot's last save: kill it.
 - Physics masks as constants on `Player`: `AIM_MASK` (world + props) and `BLAST_MASK` (player + props).
 - Forward is -Z. Yaw for a facing direction `d` is `atan2(-d.x, -d.z)`.
 - Commit messages: short imperative subject, body explains why and how to test. One task per
