@@ -302,32 +302,44 @@ func setup() -> void:
 	# part is then fitted to the headland's terrain, which needs the coast.
 	# `-- --no-replica` leaves it out (the seeded city in its place), for measuring what it costs.
 	if not OS.get_cmdline_user_args().has("--no-replica"):
+		LoadClock.start("macro: replica")
 		var rep := ReplicaAreas.new()
 		rep.build(self, seed)
 		replica = rep
 		rep.fit_hill_profile()
+		LoadClock.stop("macro: replica")
 	# The river: its land level is sampled from the relief without it, then folded in.
 	# `-- --no-river` leaves it out (the A/B; RIVER=0 in the environment does the same).
 	river = null
 	if not OS.get_cmdline_user_args().has("--no-river") and OS.get_environment("RIVER") != "0":
+		LoadClock.start("macro: river")
 		var rv := LaRiver.new()
 		rv.build(self, seed)
 		river = rv
+		LoadClock.stop("macro: river")
 	# The marina (Marina): a pure plan from the coast and the street grid. MARINA=0 leaves it out.
 	marina = null
 	if OS.get_environment("MARINA") != "0":
+		LoadClock.start("macro: marina")
 		var mr := Marina.new()
 		if mr.build(self, seed):
 			marina = mr
+		LoadClock.stop("macro: marina")
+	LoadClock.start("macro: hill roads")
 	var hr := HillRoads.new()
 	hr.build(self, seed)
 	hill_roads = hr
+	LoadClock.stop("macro: hill roads")
 	# After the hill roads: the freeway's deck height follows height_at(), which needs them.
+	LoadClock.start("macro: freeway")
 	var fw := Freeway.new()
 	fw.build(self, seed)
 	freeway = fw
+	LoadClock.stop("macro: freeway")
 	# Then the front range's switchback drives and estates, which keep clear of the freeway.
+	LoadClock.start("macro: switchbacks")
 	hr.add_switchbacks(seed, fw)
+	LoadClock.stop("macro: switchbacks")
 
 
 ## X of the coast at a given Z: a gentle bay curve, bulging west around the peninsula.

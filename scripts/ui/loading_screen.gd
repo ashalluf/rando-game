@@ -32,6 +32,10 @@ var _bar: ColorRect
 var _fill: ColorRect
 var _shade: ColorRect
 var _progress: float = 0.0
+## Frames the screen has waited out and the time they took (LoadClock's report: on a software
+## renderer a frame of the city is seconds, on the Mac a few milliseconds).
+var frames_waited: int = 0
+var frame_usec: int = 0
 
 
 func _ready() -> void:
@@ -83,12 +87,15 @@ func _step(text: String, fraction: float) -> void:
 func run(city: Node3D) -> void:
 	await _frames(2)
 	_step("Compiling shaders", 0.05)
+	LoadClock.start("screen: shaders and effects")
 	await _warm_shaders()
+	LoadClock.stop("screen: shaders and effects")
 	# The people at the camps who sit, lie or slump are baked static figures (CampFigure), one
 	# per model and pose: a few tens of milliseconds each, done here rather than by the first
 	# downtown chunks.
 	var kinds: Array = CampFigure.kinds()
 	var t_camp := Time.get_ticks_usec()
+	LoadClock.start("screen: camp figures")
 	for i in kinds.size():
 		if i % 6 == 0:
 			_step("Preparing people", 0.3 + 0.25 * float(i) / float(maxi(kinds.size(), 1)))
@@ -96,9 +103,11 @@ func run(city: Node3D) -> void:
 		var k: Array = kinds[i]
 		CampFigure.mesh_for(CampFigure.seed_for(k[0], k[1], k[2]), k[1])
 	t_camp = Time.get_ticks_usec() - t_camp
+	LoadClock.stop("screen: camp figures")
 	# The beach's people (BeachFigure): every beach rig in every beach pose, and the cyclists'
 	# pedalling flipbooks, so the first beach chunk does not bake them.
 	var t_beach := Time.get_ticks_usec()
+	LoadClock.start("screen: beach figures")
 	var beach := BeachFigure.kinds()
 	for i in beach.size():
 		if i % 8 == 0:
@@ -106,9 +115,12 @@ func run(city: Node3D) -> void:
 			await _frames(1)
 		BeachFigure.warm_kind(beach[i])
 	print("LOADING beach: %d figures and flipbooks %d ms" % [beach.size(), (Time.get_ticks_usec() - t_beach) / 1000])
+	LoadClock.stop("screen: beach figures")
 	_step("Building the city", 0.55)
 	await _frames(1)
+	LoadClock.start("screen: preload world")
 	_preload_world(city)
+	LoadClock.stop("screen: preload world")
 	await _frames(2)
 	# The far city for the whole basin (Skyline), so the first look round from a rooftop sees
 	# every block out to the horizon rather than watching the far half fill in.
@@ -119,6 +131,7 @@ func run(city: Node3D) -> void:
 	await _frames(1)
 	# The hills' shrubs and oaks, cut to their triangle budgets (tenths of a second the first
 	# time), so the first hill block after the spawn does not pay for it mid-flight.
+	LoadClock.start("screen: trees")
 	PropFactory.model_chaparral()
 	for v in PropFactory.HILL_OAKS.size():
 		PropFactory.model_hill_oak(v)
@@ -130,6 +143,8 @@ func run(city: Node3D) -> void:
 		PropFactory.model_tree(v)
 	for v in PropFactory.HILL_TREES.size():
 		PropFactory.model_hill_tree(v)
+	LoadClock.stop("screen: trees")
+	LoadClock.start("screen: rigs")
 	# Cutting a character's limbs apart takes tens of milliseconds the first time for each
 	# model, which is a hitch on the first rocket into a crowd; here it is part of the wait.
 	var models: Array = Pedestrian.MODELS
@@ -146,16 +161,22 @@ func run(city: Node3D) -> void:
 	# The people's share of the wait (the camp figures, then every rig's limbs, welded bodies and
 	# hats), for measuring a change of models: the rest of the loading screen does not depend on them.
 	print("LOADING people: %d camp figures %d ms, %d rigs %d ms" % [kinds.size(), t_camp / 1000, models.size(), t_rigs / 1000])
+	LoadClock.stop("screen: rigs")
 	_step("Ready", 1.0)
 	await _frames(2)
 	await _fade_out()
+	print("LOADING screen frames: %d waited, %d ms" % [frames_waited, frame_usec / 1000])
+	LoadClock.loaded(get_tree())
 	finished.emit()
 	queue_free()
 
 
 func _frames(n: int) -> void:
+	var t0 := Time.get_ticks_usec()
 	for i in n:
 		await get_tree().process_frame
+	frames_waited += n
+	frame_usec += Time.get_ticks_usec() - t0
 
 
 ## Draws one surface per shader in front of the camera for a couple of frames. Uniform VALUES do

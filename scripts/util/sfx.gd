@@ -314,6 +314,7 @@ var echoes_played: int = 0
 
 
 func _ready() -> void:
+	LoadClock.start("sfx")
 	_rng.seed = 1
 	_install_limiter()
 	_install_buses()
@@ -328,6 +329,7 @@ func _ready() -> void:
 		p.bus = BUS_WORLD
 		add_child(p)
 		_pool.append(p)
+	LoadClock.stop("sfx")
 
 
 ## A hard limiter across the whole master bus.

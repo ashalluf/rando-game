@@ -285,7 +285,10 @@ func build() -> void:
 func build_step() -> bool:
 	if _step < _steps.size():
 		# A step that returns false has more to do and runs again next time (see _run_or_defer).
-		if _steps[_step].call() != false:
+		if LoadClock.profiling:
+			if LoadClock.profile_step(_steps[_step], level == Level.FULL):
+				_step += 1
+		elif _steps[_step].call() != false:
 			_step += 1
 	return _step >= _steps.size()
 
