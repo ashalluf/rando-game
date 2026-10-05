@@ -199,6 +199,10 @@ func _apply_render() -> void:
 	CarLights.budget = [6, 3, 0, 0][int(level)]
 	CarLights.player_light = level <= Level.LOW
 	CarLights.player_shadow = level == Level.HIGH
+	# Reflection probes in the streets round the camera (Forward+ only): nine with shadows at
+	# HIGH, five without at MEDIUM, none below.
+	ReflectionProbes.budget = [9, 5, 0, 0][int(level)]
+	ReflectionProbes.shadows = level == Level.HIGH
 	var viewport := get_viewport()
 	if viewport:
 		viewport.mesh_lod_threshold = lod_threshold[i]

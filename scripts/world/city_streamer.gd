@@ -250,6 +250,8 @@ func _ready() -> void:
 	_apply_spawn_override()
 	update_streaming(true)
 	_settle_player()
+	# Box-projected reflection probes in the streets round the camera (Forward+ only).
+	ReflectionProbes.ensure(self)
 
 
 ## Cheap versions of every landmark, always present, so the sign and the wheel show from anywhere.

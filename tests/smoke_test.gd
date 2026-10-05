@@ -1851,6 +1851,9 @@ func _test_city() -> void:
 	# The four-level stack (tests/stack_interchange_checks.gd): levels, separations, grades, banks,
 	# columns, the chunk's meshes, and the connector traffic handed to and from the freeway's.
 	await load("res://tests/stack_interchange_checks.gd").new().run(self, city)
+	# Reflection probes (tests/reflection_probes_checks.gd): street boxes from the plan, one render a
+	# slot, re-renders on light and re-centre, probe_reach, the street HDRI (Forward+ only).
+	await load("res://tests/reflection_probes_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
