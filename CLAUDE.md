@@ -1569,6 +1569,40 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   far alike) are key tables mirrored by `NightCity.LEVEL_KEYS` / `WINDOW_KEYS`. Far roof masts'
   beacons flash on their own phase (building_lod, kind 2); near ones still burn steady. Stills:
   the four EYEs in the HANDOFF section.
+- Driving effects (2026-10-05, "the feel of driving fast and badly"; HANDOFF "Driving effects"):
+  `DrivingFX` (`scripts/vehicles/driving_fx.gd`), ONE node per level, made by the first Vehicle
+  (`DrivingFX.ensure()`, the one hook in `Vehicle._ready`) as a child of the level root (the
+  city's Node3D children shift with the origin, which carries the marks). Every `scan_interval` it
+  picks up to `max_cars` PHYSICAL cars near the camera (the player's first; never kinematic
+  traffic, which has no wheels and never slides) and switches `contact_monitor` on for them only
+  (back off with the value it found when it drops them). Each tick it reads their VehicleWheel3Ds
+  (contact point, normal and body, skid info) and works the slip out itself: the contact's
+  sideways speed, a lock-up under a hard brake or the handbrake at speed, and a BURNOUT from the
+  driver's throttle on a car under `burnout_speed` (Godot's wheels roll with the ground and never
+  spin, so wheelspin is inferred, `burnout_slip`; full against the handbrake or on nitro, `launch_spin` of it on a plain pull-away). Surfaces: hill terrain (its layer) is dirt, the
+  BEACH zone sand, the rest asphalt. **Skid marks** are ONE MultiMesh ring of `mark_capacity`
+  flat quads (`shaders/skid_mark.gdshader`, a lit alpha-blended film of rubber, lit and shadowed
+  like the road; a wet road shows less of it. NOT `blend_mul`: Compatibility tonemaps every
+  material's output, so a multiplier went through AgX and every mark drew solid black there), a segment every `mark_segment` metres per tyre, the minute it was laid (mod 30) in
+  INSTANCE_CUSTOM.x, faded over `mark_life` in the shader and switched off for good by a sweep
+  (the clock wraps). Sand and dirt take a print at any speed. Not Decals: one draw for the city on
+  both renderers. **Pools** (each emitter handed to the strongest demand of the tick, kept on the
+  key it serves so a trail is not cut off): tyre smoke (lit puffs, thick on the rear in a
+  burnout; on a street wetter than `wet_spray` the same slide throws spray instead), dust / sand
+  spray / wet spray (one pool, coloured per surface), sparks off body contacts sliding faster than
+  `spark_speed` (`shaders/spark_streak.gdshader`, streaks along their velocity; dust instead on
+  dirt and sand; never off people) with an OmniLight on the strongest at night (desktop), exhaust
+  (the player's car and idling traffic within `exhaust_reach`, only when the air is cold:
+  mornings, nights, wet weather), a backfire (flame and light) on a hard lift-off from full
+  throttle at speed (`backfire_chance`), and heat haze behind the player's exhaust
+  (`shaders/exhaust_shimmer.gdshader`, Forward+ desktop only, RENDER_PRIORITY_MIN like WeaponFX's
+  shimmer). Sound: Sfx `skid` (three real squeal loops) pitched and levelled by slip, `scrape`
+  (grinding metal) per scraping car, `backfire`. The web gets half the pools and 40 % of the ring;
+  Quality LOWEST one or two emitters and no exhaust. `DRIVING_FX=0` in the environment turns it
+  off (the A/B). Stills: `DRIVE=burnout|drift|donut|scrape|sand` on `still_shot.gd`
+  (`tools/glshot/drive_fx_stage.gd`: a car driven badly in front of the camera). Checks:
+  `tests/driving_fx_checks.gd`. Trap: `ensure()` is called by every car a chunk builds in one
+  frame and the add is deferred, so "made but not yet added" must count as made (it made dozens).
 - Big vehicles (2026-10-04, "buses and trucks in traffic"): `BigVehicles`
   (`scripts/vehicles/big_vehicles.gd`) - a 40 ft city bus (`BodyType.BUS`, the invented agency
   BASIN TRANSIT: white over a teal skirt), a cab-over box truck (`BOX_TRUCK`, invented fleets on

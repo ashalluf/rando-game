@@ -12540,3 +12540,85 @@ Gate: 1,382 of 1,383 on the merge with fleet/base (the one the known closed-road
 3,731 -> 3,556 draws (the parked cars leave the lane); Hill St `2864.4,2.2,12.0,180,-8` 6.62 ->
 7.09 M; the station `2727.0,1.7,34.7,-22,-14` 6.60 -> 7.47 M (+0.75 M of it shadows within 40 m);
 a scooter cluster `2827.2,1.7,13.6,68,-14` 5.11 -> 5.54 M. Stills on `shots/scooters` (`merged_*`).
+
+## 9ec. Driving effects: skid marks, tyre smoke, sparks, dust, exhaust, the squeal, 2026-10-05 (agent branch `wt/driving-fx`; VISUAL_ROADMAP ?)
+
+Number is provisional (the next free one after 9bt when this was rebased; the lead renumbers on merge).
+
+**The brief** (lead): the feel of driving fast and badly. Before this a car could drift, burn
+out, land a jump on its floor pan or grind down a wall and leave nothing behind and make no
+sound but the engine loop. CLAUDE.md's "Driving effects" note is the reference; this is the story.
+
+**Shape.** ONE node, `DrivingFX` (`scripts/vehicles/driving_fx.gd`), made by the first Vehicle
+(`DrivingFX.ensure()`, the only hook in vehicle.gd) as a child of the level root, so origin shifts
+carry the marks. It never runs per car: every 0.2 s it picks up to six physical cars near the
+camera (the player's first) and, each physics tick, reads their wheels and body contacts. Every
+effect is a pool: six smoke emitters, four dust/spray, four spark, three exhaust, two squeal and
+two grind voices, one backfire flame and light, one spark light, one shimmer quad - a pile-up costs
+what one drift does. Kinematic traffic has no wheels and never slides, so it only ever gets idle
+exhaust on a cold morning within 26 m.
+
+**Slip.** Godot's VehicleWheel3D never spins up: its rotation follows the ground. So the slip is
+worked out from the contact: the sideways speed at the contact point (drifts, donuts, a car
+shoved sideways), `(1 - skidinfo) x speed` (the physics' own loss of grip), a lock-up under a
+hard brake or the handbrake at speed, and a burnout INFERRED from the driver's throttle on a car
+slower than `burnout_speed` (more against the handbrake). A tyre marks from `mark_slip` (2.4 m/s)
+and smokes from `smoke_slip` (4.5).
+
+**Skid marks** are one MultiMesh ring of 3,000 flat quads (1,200 on the web), one per 32 cm of a
+sliding tyre, on `shaders/skid_mark.gdshader`: a lit, alpha-blended film of rubber (albedo 0.02),
+lit and shadowed like the road. The first version was `blend_mul` (the rubber multiplying the road,
+no lighting at all): right on Forward+, but the Compatibility renderer tonemaps each material's
+output, so the multiplier went through AgX and the look curve and every mark in an opengl3 still
+was solid black tape.
+Soft shoulders, a faint tread, patchy along the road, faded over four minutes, a third as strong
+on a soaking road. Sand and dirt take a print at any rolling speed (sand / dirt tints). Decals
+were the alternative; the quads are one draw for the whole city on both renderers and hold at a
+grazing angle with a 2.5 cm lift.
+
+**What else.** Tyre smoke (lit puffs that roll out low and lift, thick on the rear tyres in a
+burnout) - on a street wetter than 0.15 the same slide throws spray instead (TyreSpray's look; its
+speed spray behind traffic is untouched). Dust off the hills' terrain (by its physics layer) and a
+sand rooster tail on the beach (the BEACH zone), heavier grains falling faster. Sparks where the
+body itself touches something while sliding faster than 4 m/s (contact_monitor is switched on for
+the watched cars only and restored when they are dropped) - streaks along their velocity, white
+to orange to red, an OmniLight on the strongest at night (desktop) - and dust instead of sparks
+on dirt and sand, nothing off people. Exhaust puffs at idle when the air is cold (mornings
+4:30-10:30, nights a little, wet weather more), pulsing like an idling engine. A backfire (30 %)
+on a hard lift-off from full throttle above 12 m/s: a bang, a lick of flame and a flash. Heat haze
+behind the player's exhaust on Forward+ desktop (a screen-reading quad at RENDER_PRIORITY_MIN).
+Sounds: real CC0 recordings (docs/ASSETS.md) - `skid` (three squeal loops of a sedan's tyres,
+volume and pitch by slip, the player's car first), `scrape` (light metal grinding, per scraping
+car), `backfire`.
+
+**Checks** (`tests/driving_fx_checks.gd`, on a deck 300 m up): the node is made once; a sideways
+slide lays marks, smokes from the pool and squeals; wet, it sprays instead and still marks; the
+burnout smokes the REAR tyres; a lift-off at speed backfires; dirt takes tracks and throws dust,
+never smoke; a car on its roof sparks and grinds, and its contact reports go back off when it is
+dropped; the ring wraps at capacity and the sweep clears old marks; a cold morning puffs the
+player's exhaust.
+
+**The traps that cost a round each:** `blend_mul` on Compatibility (above); and `ensure()` is called by every car a chunk builds in one frame and
+`add_child` is deferred, so "made, not yet added" has to count as made - the first version made a
+DrivingFX per car, each switching every car's contact reports on.
+
+**Review after the merge with fleet/base (wave 2, session `driving-fx`).** The branch was cut from
+main two commits before the fleet stopped and never reviewed. Merged `origin/fleet/base`: the
+conflicts were Sfx's sample tables (both sides' clips kept; `scrape` added to the merged
+`LOOPING`), `still_shot.gd` (AFTERMATH and DRIVE staging both kept) and the docs (this section and
+the roadmap row renumbered `?` for the lead; roadmap #63 is City acoustics now). Fixed in review:
+- `ensure()` took a parentless DrivingFX for "made, add pending" for ever. If the level it was
+  added to was freed before the deferred add ran, no later level ever got one. Now one still
+  parentless a frame after it was made is freed and made again (`_made_frame`; checked).
+- Every full-throttle pull-away from rest counted as a full burnout (13 m/s of slip: full smoke and
+  rubber whenever the player set off). A plain launch now gets `launch_spin` (0.45) of it - a
+  chirp of rubber and a puff; the brake stand (handbrake held) and a nitro launch are still full
+  burnouts.
+- `_wheel_state` and `_prev_force` grew with every car freed while it was watched; both are now
+  rebuilt for the watched cars on each scan.
+Gate after merging origin/main (9eecc007): 1,387 pass, 0 fail, no script or shader errors, peak
+3.16 GB RSS (before main's fix: 1,386 and the known minimap failure). Idle frame cost at the
+default spawn (geo_count `AB=DrivingFX`): 3,712,347 tris / 3,181 draws with the node, the same
+within 2 without it - nothing draws until a car slides. On this
+4-core box the smoke test alone takes longer than `headless_check.sh`'s 900 s timeout; run it with a
+longer `timeout` to see the end. Stills on `shots/driving-fx` (README "After the merge").

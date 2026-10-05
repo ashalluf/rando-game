@@ -630,6 +630,7 @@ func _ready() -> void:
 	add_to_group("vehicle")
 	add_to_group("physics_prop")
 	CarLights.ensure(self)
+	DrivingFX.ensure(self)
 	set_meta("spawn_time", Time.get_ticks_msec() / 1000.0)
 	collision_layer = 4
 	collision_mask = _mask()

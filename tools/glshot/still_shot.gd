@@ -98,6 +98,8 @@ extends SceneTree
 ## one of them on the old generated LODs (the simplifier's own errors, the old shadow stand-ins,
 ## no instance-scale LOD bias), saved as <OUT>_treeold.png, then back on FoliageLod's ladders.
 ## TREE_AB=2 adds the parts: no instance bias, lower shadow-twin bias, old shadows, per group.
+## DRIVE=burnout|drift|donut|scrape|sand drives a car badly in front of the camera for the driving
+## effects (tools/glshot/drive_fx_stage.gd: DRIVE_DIST, DRIVE_SIDE, DRIVE_YAW, DRIVE_TIME, ...).
 ## MOTION_BLUR=1 leaves the camera's motion blur on (Forward+ only; off by default so a still
 ## is sharp). Traffic is allowed to build freely during the warm-up, so the streets look the way they do a
 ## minute into play rather than the first second of it.
@@ -445,6 +447,10 @@ func _initialize() -> void:
 		for i in _env_int("HOSPITAL_FRAMES", 24):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
+	# DRIVE=burnout|drift|donut|scrape|sand: a car driven badly in front of the camera for
+	# DrivingFX's skid marks, smoke, sparks and sand spray (tools/glshot/drive_fx_stage.gd).
+	if OS.get_environment("DRIVE") != "" and get_root().get_camera_3d():
+		await load("res://tools/glshot/drive_fx_stage.gd").stage(self, OS.get_environment("DRIVE"), get_root().get_camera_3d())
 	# Then all but freeze the clock for the last frames: a software frame takes seconds, and at
 	# normal speed everything that moves - people, traffic, leaves, fire - smears under TAA.
 	# Held still, TAA and the GI converge on one instant, as crisp as it is on the Mac.

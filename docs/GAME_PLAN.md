@@ -823,6 +823,20 @@ already mapped so milestone 2 is script-only.
   MacroMap.setup() and every lot taken is taken after every roll, so nothing else moved. The far
   tier draws every wire and every tower's lattice as fine lines. CLAUDE.md "Ridges".
 
+- **2026-10-05 Driving fast and badly leaves marks (VISUAL_ROADMAP ?, HANDOFF
+  "Driving effects").** A car could drift, jump and roll without a trace. `DrivingFX` is one node per level
+  that watches the few physical cars near the camera and gives them skid marks, tyre smoke, spray,
+  dust, sparks, exhaust, backfires, heat haze and a real squeal. Decisions worth knowing: skid
+  marks are flat quads in ONE MultiMesh ring, a lit alpha-blended film (not `blend_mul`, which
+  the Compatibility renderer tonemaps to black), not Decals - one draw on both renderers, and at a grazing angle a 2.5 cm
+  lift holds; wheelspin is INFERRED from the driver's throttle on a slow car, because Godot's
+  VehicleWheel3D rolls with the ground and never spins; kinematic traffic gets nothing but idling
+  exhaust on a cold morning (it has no wheels and never slides), so a street of 150 cars costs
+  what the few physical ones do; `contact_monitor` is switched on only for the watched cars (it
+  costs contact reports) and restored when they are dropped. The sounds are CC0 Freesound
+  recordings (a sedan's squeal, light metal grinding, a backfire), the old `skid` synth the
+  fallback.
+
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it
