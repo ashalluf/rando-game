@@ -904,6 +904,23 @@ func _geo_split(player: Node3D, anchor: Vector3, hold: Vector3, boost: bool, fov
 			var hidden := await _geo_report("  (hidden %s)" % k)
 			for gi: GeometryInstance3D in list:
 				gi.visible = true
+			if k.contains("@"):
+				var by := {}
+				for gi: GeometryInstance3D in list:
+					var mat: Material = gi.material_override
+					if mat == null and gi is MeshInstance3D and (gi as MeshInstance3D).mesh and (gi as MeshInstance3D).mesh.get_surface_count() > 0:
+						mat = (gi as MeshInstance3D).mesh.surface_get_material(0)
+					var mk := ""
+					if mat is ShaderMaterial and (mat as ShaderMaterial).shader:
+						mk = (mat as ShaderMaterial).shader.resource_path.get_file()
+					elif mat:
+						mk = mat.get_class()
+					var pk := "%s %s" % [String(gi.get_parent().name).rstrip("0123456789_-"), mk]
+					by[pk] = int(by.get(pk, 0)) + _est_tris(gi)
+				var pks := by.keys()
+				pks.sort_custom(func(a, b): return by[a] > by[b])
+				for pk in pks.slice(0, 8):
+					print("OSPLIT   by %-40s est tris %d" % [pk, by[pk]])
 			print("OSPLIT %-36s nodes %5d  tris %9d  draws %5d  objects %5d  | shadow tris %9d draws %5d" % [
 				k, list.size(), base[0] - hidden[0], base[1] - hidden[1], base[2] - hidden[2], base[4] - hidden[4], base[6] - hidden[6]])
 	# The Building category again, by the kind of node under a Building: its box parts, the
