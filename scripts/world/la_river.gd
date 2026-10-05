@@ -77,10 +77,11 @@ const CORRIDOR := COPING_W + BANK_ROAD + FENCE_OUT + 0.45
 const TERRACE_FADE := 170.0
 ## The channel's bed never lower than this over y 0 (the GroundBody's top), metres.
 const MIN_BED := 0.62
-## Over the last MOUTH_RUN metres the walls come down to MOUTH_DEPTH and the bed to the sand.
+## Over the last MOUTH_RUN metres the walls come down to MOUTH_DEPTH and the bed's edge (by the
+## low-flow notch) to MOUTH_BED, the notch's bottom just over the sand.
 const MOUTH_RUN := 420.0
 const MOUTH_DEPTH := 2.3
-const MOUTH_BED := 0.32
+const MOUTH_BED := 0.62
 
 ## Access ramps down a bank into the channel (RiverBuild._ramp): one about every RAMP_PITCH
 ## metres, RAMP_WIDTH wide, falling at RAMP_GRADE.

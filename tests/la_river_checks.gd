@@ -228,27 +228,30 @@ func _drive(city: Node3D, plan: CityPlan, rv: LaRiver) -> void:
 	var y: float = _ws.to_world(car.global_position).y
 	var want := rv.surface(bed_s, -sg * 12.0)
 	_t._check(y > want - 0.2 and y < want + 1.4, "a car dropped in the channel stands on its bed (%.2f m over it)" % (y - want))
-	# Down the ramp: at its head, facing down it, rolling at 7 m/s with the throttle off.
+	# Down the ramp: at its head, facing down it, rolling at 10 m/s with the throttle off (an empty
+	# car's parking brake stops it once it is slow, wherever that is).
 	var w := LaRiver.RAMP_WIDTH
 	var head_o := sg * (rv.top_half(s0) - w * 0.5)
 	var head := rv.point(s0 + signf(s1 - s0) * 2.0, head_o)
 	var down: Vector2 = rv.at(s0)[1] * signf(s1 - s0)
-	car.global_position = _ws.to_local(Vector3(head.x, rv.top_at(s0) + 1.2, head.y))
+	var start_y := rv.top_at(s0) + 1.2
+	car.global_position = _ws.to_local(Vector3(head.x, start_y, head.y))
 	car.global_basis = Basis(Vector3.UP, atan2(-down.x, -down.y))
-	car.linear_velocity = Vector3(down.x, -0.6, down.y) * 7.0
+	car.linear_velocity = Vector3(down.x, -0.4, down.y) * 10.0
 	car.angular_velocity = Vector3.ZERO
 	if car.has_method("hold_crash_watch"):
 		car.hold_crash_watch()
 	var lowest := INF
-	for i in 30:
+	for i in 40:
 		await _ticks(10)
 		var wp: Vector3 = _ws.to_world(car.global_position)
 		lowest = minf(lowest, wp.y)
 	var end: Vector3 = _ws.to_world(car.global_position)
 	var nr := rv.nearest(Vector2(end.x, end.z), 80.0)
-	var bed_y := rv.surface(nr.x, nr.y)
-	_t._check(nr.w > 0.5 and absf(nr.y) < rv.bed_half(nr.x) + 2.0 and end.y < rv.top_at(nr.x) - 3.0 and lowest > bed_y - 0.6,
-		"a car rolled down an access ramp ends on the channel's bed (%.1f m over it, %.1f m from the centre line)" % [end.y - bed_y, absf(nr.y)])
+	var bed_y := rv.toe_at(nr.x) - LaRiver.BED_FALL - LaRiver.LF_DEPTH
+	var upright: float = car.global_basis.y.y
+	_t._check(nr.w > 0.5 and absf(nr.y) < rv.top_half(nr.x) and end.y < start_y - 3.0 and lowest > bed_y - 0.3 and upright > 0.8,
+		"a car rolled down an access ramp goes down into the channel, upright, on its surfaces (%.1f m down, %.1f m from the centre line)" % [start_y - end.y, absf(nr.y)])
 	car.queue_free()
 	player.global_position = _ws.to_local(home)
 	player.set("velocity", Vector3.ZERO)

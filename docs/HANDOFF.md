@@ -6465,3 +6465,105 @@ is the story.
   and still; encampments and parked cars keep off a station's apron, other street clutter is not
   checked; there are no ladder trucks, police at fire scenes or traffic cones; the bus's daylit
   cabin is judged on opengl3 only.
+
+## 9bn. The Los Angeles River: the concrete channel and its bridges, 2026-10-05 (agent branch `wt/la-river`; VISUAL_ROADMAP #56)
+
+Number is provisional (the next free one after 9bm when this was rebased; the lead renumbers on merge).
+
+**The brief** (lead, from the owner's "make the graphics a million times better"): the game had
+nothing where the real river runs - just east of downtown, past the Arts District, under the 101
+and the 10, south through Vernon to Long Beach. Build it as its concrete flood channel, with the
+arched viaducts, the freeway crossings and a rail bridge, drivable (the classic chase location),
+from the air too. CLAUDE.md's "The Los Angeles River" note is the reference; this is the story.
+
+**Where it runs, and why there.** At 1:1 from Pershing Square the real river would stand in the
+east range (the real 6th St bridge maps to x 5205; the range starts at 5000), so `LaRiver.CONTROL`
+keeps the real ORDER and compresses the distance, as the port did: 200-650 m east of Vignes past
+downtown (the Arts District between them, the river its east edge), crossing the pinned real
+streets - so the streets the real river is bridged by are bridged here too - the 101 130 m from its
+east end, the 10 where it bends for the East LA interchange, the 105 where the real one crosses it
+(Lynwood), and out across the industrial south to the bay's north shore east of the port (Long
+Beach). The 110 runs west of the real river all the way to San Pedro and never crosses it; the
+brief asked for a 110 crossing and there is none, on purpose. Default seed: 8.43 km, 1,055 centre
+points every 8 m; north end at the foot of the front range (a headwall with two box culverts:
+the Glendale Narrows' mouth stands for the river's way in), mouth at (4138, 6222).
+
+**The land, not a cut.** CityStreamer's GroundBody (a 14 km box, top y 0) is under the whole map
+and the city's ground is the relief over it, so a channel cut below 0 would put the player and
+every wheel ray on the GroundBody. Instead the land is lifted: `LaRiver.top_at()` is the city's
+relief along the centre line smoothed over +-200 m, never lower than the channel needs (bed over
+MIN_BED, 0.62 m), the bed only falling downstream; `terrace()` blends the relief to it inside the
+corridor and over 170 m outside (`MacroMap._relief_at()`; `_relief_natural()` is the relief
+without it). On this seed the land is 7.5 m along the downtown stretch and 7.1 m south of the 10 -
+the channel reads as a levee-banked river. Streets climb to it at 2-4 %, the bridges are flat
+(the street's own road slab is the deck), the freeway decks rise with it (8.4-9.5 m over the
+banks where they cross).
+
+**The grid.** `LaRiver._classify()` takes every road segment whose rect (with its end junctions)
+reaches the corridor, in runs; a run is one crossing. A BRIDGE needs one crossing of the centre
+line, under 52 degrees of skew, both ends clear; then the real bridged streets get their design
+(NAMED_BRIDGES: Cesar Chavez, 1st, 4th, 7th the arch viaduct, 6th the tied-arch ribbon, Olympic,
+Temple, Venice girders), avenues 55 %, other streets 16 %. Anything else is CLOSED: it ends at the
+bank (a row of concrete barriers, RiverBuild._stub_ends()), and because `CityPlan.road_open()`
+asks `LaRiver.road_open()`, traffic U-turns short of it, police route round it, the minimap and
+the respawn know. Default seed: 18 bridges, 178 closed segments, 130 river blocks. A river block
+(`CityPlan.river_block()`) has no lots and builds no seeded block; walkers never plan a crossing
+onto one.
+
+**What a river block builds** (RiverBuild, time-sliced: 3 channel segments, one land row, one
+prop kind, one bridge job a step; the worst step on this box ~25-45 ms against a Building's
+10-20): the channel cross section per owned 8 m segment - the low-flow notch, the bed in two
+strips, both banks, the coping - on one concrete material, the water sheet, outfall headwalls and
+pipes (and their stains, painted by the shader on the same hashed slots), sediment bars with reeds
+and shrubs, the ramps (10.5 %, a kerb wall, the coping opened at the head), the north headwall and
+the mouth's end walls and apron; then the land per 12 m cell cut exactly with Geometry2D: the bank
+roads, the closed streets' stubs, a pavement ring with street lamps, and the yard - one surface a
+block on Industrial's ground material, chain-link along the bank roads (Industrial._fence()), up to
+five storage yards and trailer drop rows (Industrial._store(), IndustrialKit.trailer), scrub, and
+the freight tracks that run along both banks in LA (ballast, ties as a batch, rails, strings of
+boxcars and tank cars); ONE trimesh RiverBody with backface collision for all of it.
+
+**The bridges** (RiverBridges, original designs in the real ones' forms, none named): ARCH - three
+open-spandrel arches on cutwater piers parallel to the current (skewed under the street), four ribs
+with spandrel columns, solid spandrel walls over the banks, a moulded fascia and cornice, a turned
+balustrade (the balusters one batch, `rv_baluster`), twin-lantern standards every 16 m, stepped
+corner pylons with lanterns; RIBBON - three spans of white tied-arch rib pairs leaning outward,
+cable hangers, an LED strip under every rib (river_lamp.gdshader, by `lamp_factor`), a steel rail
+with cable infill, slim LED poles; GIRDER - a box girder on bents of round columns under a cap
+turned to the current, a concrete barrier with a steel rail, cobra-head lamps; RAIL - plate girders
+stiffened every 1.5 m on concrete piers, the track run on over the bank roads (set in them) to
+buffer stops. Lit lamps are `lamp_light` OmniLights (every second standard) with `lamp_pool`
+pools. Freeway bents standing in the channel go down to its floor (FreewayKit, the far city's
+pillars too); no off-ramp lands in the corridor (Freeway._place_ramps(); the side still
+alternates so the other ramps stay where they were).
+
+**From the air.** LOD chunks build the same channel at a 16 m step with no props or lights and no
+relief floor (it would lie over the channel). The far city's capture (`RiverBuild.capture()`)
+records thin land slabs in 8 m z slices round the channel, the bed, the water and the banks as
+tilted boxes per 32 m, and each bridge's deck; Skyline sinks a river block's plate to the bed
+(`far_plate_drop()`) and plants no street trees on it. `MacroMap.bake()` paints the channel on the
+horizon plane; the minimap draws it and its bridges.
+
+**Shaders.** `river_concrete.gdshader` (ONE material a chunk; kind in COLOR.r/8): form-panel and
+lift joints, streaks run down the slope, old water lines, the tide line and algae at the toe,
+efflorescence, silt fans and algae strands on the bed, tyre tracks, the outfalls' rust trails
+(ihash() = LaRiver.ihash(), lowbias32, checked), board-formed bridge concrete, wet piers; graffiti
+from the street wear tag atlas (mostly throw-ups and roller letters, 3-5.5 m tall, two colours, worn,
+some buffed in a grey that never matches); rain darkens it. `river_water.gdshader`: riffles carried
+down the current and standing ones over the concrete, foam streaks, the algae fringe, the sky
+emitted by Fresnel (capped). Both include color_space.gdshaderinc and work in linear.
+
+**Checks** (`tests/la_river_checks.gd`): the route south all the way, its bed falling and over y 0,
+east of Vignes, the corridor's ground at the top level, the mouth on the bay east of the port; the
+101 / 10 / 105 cross on decks clear of the banks and the 110 never does; the real bridged streets
+bridged in all three designs; a rail bridge and the ramps; no open street drops into the channel
+unless it is a bridge and no lot in the corridor; the hashes; a FULL chunk's meshes, collision and
+lit lamps, LOD without lights or a relief floor, the capture as boxes; a car dropped on the bed
+stands on it and a car rolled down a ramp goes down into the channel upright.
+`tests/downtown_checks.gd` skips river blocks in its "nothing under a freeway" box test (their far
+boxes are the channel's banks, which the freeways cross).
+
+**Tools.** `tools/la_river/probe.gd` (headless, seconds: route, profile, bridges, ramps, rail, river
+blocks, freeway crossings), `tools/la_river/river_bench.tscn` (a chunk's build steps, FULL / LOD /
+capture), `tools/la_river/river_shot.tscn` (the river's chunks alone, `CAR=1` a sedan rolling down
+a ramp), and still_shot.gd EYEs. `RIVER=0` in the environment (or `-- --no-river`) is the A/B.

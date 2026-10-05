@@ -220,8 +220,12 @@ void fragment() {
 		float slot = floor(uv.x / tag_pitch);
 		uint tk = uint(slot + 4096.0) * 2u + uint(side + 0.5) + 104729u;
 		if (ihash01(tk) < tag_odds) {
+			// Mostly throw-ups and roller letters (cells 8-15): the river's walls carry big pieces.
 			uint cell = ihash(tk + 1u) % 16u;
-			float h = mix(2.4, 4.6, ihash01(tk + 2u));
+			if (ihash01(tk + 8u) < 0.7) {
+				cell = 8u + cell % 8u;
+			}
+			float h = mix(3.0, 5.5, ihash01(tk + 2u));
 			if (cell < 8u) {
 				h *= 0.55;
 			}

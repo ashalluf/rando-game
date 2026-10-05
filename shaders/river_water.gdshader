@@ -95,7 +95,7 @@ void fragment() {
 	vec3 nrm_view = normalize(NORMAL + (TANGENT * -grad.x + BINORMAL * -grad.y) * (1.0 - edge));
 	NORMAL = nrm_view;
 	float nv = clamp(dot(NORMAL, VIEW), 0.0, 1.0);
-	float fres = 0.02 + 0.98 * pow(1.0 - nv, 5.0);
+	float fres = min(0.02 + 0.98 * pow(1.0 - nv, 5.0), 0.55);
 	vec3 bed = mix(water_color, algae_color, 0.35 + 0.4 * rw_noise(p * 0.21));
 	vec3 mats = mix(algae_color, algae_bright, clump);
 	vec3 body = mix(bed, mats, edge);

@@ -771,13 +771,13 @@ func _yard_dress() -> void:
 		return
 	var pad := LaRiver.CORRIDOR + TRACK_OUT + BALLAST_HALF + 3.0 - LaRiver.CORRIDOR
 	var taken: Array[Rect2] = []
-	for k in 12:
+	for k in 32:
 		if taken.size() >= YARD_STORES:
 			break
 		var key := ["store", ch.ix, ch.iz, k]
 		var long_x := rv.h01(key + ["lx"]) < 0.5
-		var a := lerpf(18.0, 40.0, rv.h01(key + ["a"]))
-		var b := lerpf(12.0, 19.0, rv.h01(key + ["b"]))
+		var a := lerpf(16.0, 38.0, rv.h01(key + ["a"]))
+		var b := lerpf(11.0, 19.0, rv.h01(key + ["b"]))
 		var size := Vector2(a, b) if long_x else Vector2(b, a)
 		if size.x > yard.size.x or size.y > yard.size.y:
 			continue
@@ -1337,7 +1337,8 @@ func _far_land(x0: float, x1: float, z0: float, z1: float, floor_y: float, boxes
 			continue
 		var cx := (a + b) * 0.5
 		var top := ch._gy(cx, zc) + CityChunk.ROAD_TOP
-		var h := maxf(top - floor_y, 0.5)
+		# A slab, not a block: the plate under it is sunk to the bed, and a metre hides that.
+		var h := clampf(top - floor_y, 0.5, 1.2)
 		boxes.append([Transform3D(Basis().scaled(Vector3(b - a, h, z1 - z0)), Vector3(cx, top - h * 0.5, zc)), cu[2]])
 
 

@@ -730,6 +730,8 @@ func _add_freeway(k: Vector2i) -> void:
 		customs.append(Color(float(seg.width), 0.0, 0.0, DECK_FLAG))
 		if int(seg.index) % pillar_every == 0:
 			var ground := _plan.height_at(a)
+			if macro.river:
+				ground = minf(ground, macro.river.channel_floor(a))
 			var cap := ha - t - 0.1
 			if cap - ground > 1.5:
 				var h := cap - ground + 1.0

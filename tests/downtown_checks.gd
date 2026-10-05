@@ -281,6 +281,10 @@ func _freeways_clear(plan: CityPlan, city: Node3D) -> void:
 		var zone := plan.macro.zone_at((plan.block(k.x, k.y).rect as Rect2).get_center())
 		if zone != MacroMap.Zone.CITY and zone != MacroMap.Zone.PORT:
 			continue
+		# A river block's far boxes are its channel's banks, which the freeways do cross (LaRiver;
+		# tests/la_river_checks.gd holds their decks clear of the channel).
+		if plan.river_block(k.x, k.y):
+			continue
 		var cap := CityChunk.new()
 		cap.plan = plan
 		cap.ix = k.x
