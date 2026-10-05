@@ -132,6 +132,17 @@ static func _list() -> Array[Dictionary]:
 	# The canal neighbourhood behind the boardwalk (Canals): a site like the park's.
 	if Canals.enabled:
 		list.append(Canals.entry())
+	# The ballpark in the ravine north of downtown (Ballpark: real form, real place, invented name).
+	if Ballpark.enabled():
+		list.append(Ballpark.entry())
+	# The valley's golf course (GolfCourse): an area like MacArthur Park's, nine holes and a range.
+	if GolfCourse.enabled:
+		list.append(GolfCourse.entry())
+	# The oil field (OilField): an area site whose streets are closed, its hill in the relief.
+	if OilField.enabled:
+		list.append(OilField.entry())
+	# --- The reservoir in the front range (Reservoir, LandmarkReservoir) -------------------------
+	list.append({"id": "reservoir", "anchor": Reservoir.ANCHOR, "radius": 60.0})
 	return list
 
 
@@ -202,6 +213,10 @@ static func site_steps(site_id: String, chunk: CityChunk) -> Array[Callable]:
 			return LandmarkMacArthurPark.site_steps(chunk)
 		Canals.SITE_ID:
 			return Canals.site_steps(chunk)
+		GolfCourse.ID:
+			return GolfBuild.site_steps(chunk)
+		OilField.ID:
+			return OilFieldBuild.site_steps(chunk)
 	var none: Array[Callable] = []
 	return none
 
@@ -267,8 +282,14 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, plan: C
 			LandmarkVerdeCafe.build(lm.anchor, parent, statics, plan, detailed)
 		"masjid_omar":
 			LandmarkMasjidOmar.build(lm.anchor, parent, statics, plan, detailed)
+		"reservoir":
+			LandmarkReservoir.build(lm.anchor, parent, statics, plan, detailed)
 		"macarthur_park":
 			LandmarkMacArthurPark.build(lm.anchor, parent, statics, plan, detailed)
+		"ballpark":
+			BallparkBuild.build(parent, statics, detailed)
+		OilField.ID:
+			OilFieldBuild.build_lights(parent, plan)
 		# Downtown LA civic set (see all() and CivicSites).
 		"arena", "live_plaza", "live_hotel", "convention_center", "ziggurat_hall", "civic_park", "concert_hall", "lattice_museum", "pueblo_station":
 			CivicSites.build(lm.id, parent, statics, plan, detailed)

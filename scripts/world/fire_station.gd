@@ -77,7 +77,7 @@ static func for_cell(plan: CityPlan, cell: Vector2i) -> Dictionary:
 	var rect: Rect2 = b.rect
 	if _cell_of(rect.get_center()) != cell:
 		return out
-	if not STATION_DISTRICTS.has(int(b.district)) or int(b.kind) != CityPlan.BlockKind.BUILDINGS or b.has("site"):
+	if not STATION_DISTRICTS.has(int(b.district)) or int(b.kind) != CityPlan.BlockKind.BUILDINGS or b.has("site") or b.has("hospital"):
 		return out
 	if plan.macro and (Landmarks.claims(rect) or DowntownReal.in_extent(rect.get_center()) and int(b.district) == CityPlan.District.DOWNTOWN and _core(plan, rect)):
 		return out

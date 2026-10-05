@@ -1054,6 +1054,12 @@ func _tick_drives(delta: float) -> void:
 			continue
 		var pts: PackedVector2Array = dr.pts
 		var total := _length(pts)
+		# Out of the gate it waits on the apron for a car in its way, as a driver would (siren or
+		# not), up to a few seconds.
+		if dr.out and float(dr.get("held", 0.0)) < 6.0 and _drive_blocked(car, pts, float(dr.d)):
+			dr.held = float(dr.get("held", 0.0)) + delta
+			car.traffic_speed = 0.0
+			continue
 		dr.d = float(dr.d) + station_drive_speed * delta
 		car.traffic_speed = station_drive_speed
 		if float(dr.d) >= total:
@@ -1070,6 +1076,22 @@ func _tick_drives(delta: float) -> void:
 				_retire_car(car)
 			continue
 		car.global_transform = _drive_xf(car, dr.station, pts, float(dr.d))
+
+
+## True when a traffic car stands within a car's length of where a cruiser on a station's drive
+## is about to be.
+func _drive_blocked(car: PoliceCar, pts: PackedVector2Array, d: float) -> bool:
+	if traffic == null:
+		return false
+	var ahead := _along(pts, d + 4.5)
+	var a3 := WorldState.to_local(Vector3(ahead.x, 0.0, ahead.y))
+	for c in traffic.cars:
+		if not is_instance_valid(c) or c == car:
+			continue
+		var p: Vector3 = (c as Node3D).global_position
+		if Vector2(p.x - a3.x, p.z - a3.z).length() < 3.6:
+			return true
+	return false
 
 
 ## A recalled cruiser near its station's gate turns in: on the lanes once it is level with the

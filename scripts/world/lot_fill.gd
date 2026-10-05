@@ -286,8 +286,19 @@ static func after_building(ch: CityChunk, lot: Dictionary, bld: Building) -> voi
 			continue
 		holes.append(Rect2(centre.x + c.x - size.x * 0.5, centre.y + c.z - size.z * 0.5, size.x, size.z))
 	var paving := "paving%d" % _paving_for(ch)
-	_ground(ch, cell, paving)
+	# The block's service alley (Alleys) takes a band down the seam of the lot grid: the paving and
+	# the forecourt keep off it, and the alley is told what stands beside it.
+	Alleys.record(ch, lot, holes)
+	var back := Alleys.back_strip(ch.plan, ch.ix, ch.iz, lot, holes)
 	var keep: Array[Rect2] = holes.duplicate()
+	keep.append_array(Alleys.keep_out(ch.plan, ch.ix, ch.iz))
+	if back.size.x > 0.0:
+		keep.append(back)
+		var backs: Array[Rect2] = [back]
+		for piece: Rect2 in _minus(Alleys.trim(ch.plan, ch.ix, ch.iz, cell), backs, 0.0):
+			_ground(ch, piece, paving)
+	else:
+		_ground(ch, Alleys.trim(ch.plan, ch.ix, ch.iz, cell), paving)
 	var entry := bld.garage_entry()
 	if not entry.is_empty():
 		keep.append(_driveway(ch, cell, centre, entry))
@@ -585,6 +596,8 @@ static func _shrub(ch: CityChunk, at: Vector3, rng: RandomNumberGenerator) -> vo
 	var sc := rng.randf_range(0.9, 1.4)
 	var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc, sc, sc))
 	var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.0))
+	if LaTrees.accent_shrub(ch, at, LaTrees.PLANTER_ACCENT):
+		return
 	ch._batch.add("bush_%d" % pick, PropFactory.model_bush(pick), Transform3D(basis, at), tint)
 
 
@@ -595,7 +608,10 @@ static func _tree(ch: CityChunk, at: Vector3, rng: RandomNumberGenerator) -> voi
 	var s := PropFactory.city_tree_scale(variant, PropFactory.city_tree_height(variant, rng) * 0.8)
 	var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.05))
 	var variety := Color(rng.randf(), rng.randf(), rng.randf(), rng.randf_range(0.25, 1.0))
-	ch._batch.add("tree_%d" % variant, PropFactory.model_tree(variant), Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s, s)), at), tint, variety)
+	var yaw := rng.randf() * TAU
+	if LaTrees.lot_tree(ch, at, yaw, tint):
+		return
+	ch._batch.add("tree_%d" % variant, PropFactory.model_tree(variant), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at), tint, variety)
 
 
 ## A shallow reflecting pool over `r`: a stone kerb and a dark still surface (merged boxes).
@@ -661,7 +677,7 @@ static func _bronze(ch: CityChunk, at: Vector2, rng: RandomNumberGenerator, base
 ## chunk the stall rows either side of the aisles, the parked cars, a pay booth by the way in, light
 ## masts, and a low wall, a hedge or chain-link along its street sides.
 static func surface_lot(ch: CityChunk, lot: Dictionary) -> void:
-	_car_park(ch, _cell(lot), int(lot.seed))
+	_car_park(ch, Alleys.trim(ch.plan, ch.ix, ch.iz, _cell(lot)), int(lot.seed))
 
 
 static func _car_park(ch: CityChunk, cell: Rect2, key: int) -> void:

@@ -76,6 +76,7 @@ global uniform float ground_detail;
 // means) came out two to three times too bright, then clamped - the web's hills were paler than
 // the Mac's and nothing like the horizon plane beside them.
 #include "res://shaders/color_space.gdshaderinc"
+#include "res://shaders/reservoir_shore.gdshaderinc"
 
 varying vec3 world_pos;
 varying vec3 world_nrm;
@@ -193,6 +194,9 @@ void fragment() {
 	float stand = hill_stand(th, hill_stand_crowned(hill_stand_noise(patchy, clump, bush, fine), crowns.x, crown_fade), bush, hill_stand_edge(fine_fade, bush_fade, mid_fade));
 	float sage = hill_sage(bush, bush_fade);
 	float brush = max(stand, sage);
+	// The reservoir's bathtub ring and its drowned ground grow nothing (reservoir_shore.gdshaderinc).
+	vec3 shore = lake_shore(w, world_pos.y);
+	brush *= 1.0 - max(shore.x, shore.y);
 	// Crowns with shade between them, leaf clumps on those, the blade grain on those, and the
 	// clumps of bushes that still read from across a canyon once the crowns are gone.
 	// (Both tones average ~0.88, so a stand keeps its brightness as the crowns fade out.)
@@ -215,6 +219,11 @@ void fragment() {
 	float crag = vnoiset(w * 0.021 + 29.0);
 	float rocky = hill_rocky(slope, crag, patchy, drain, bush);
 	albedo = mix(albedo, rock, rocky);
+	// The ring: pale bleached rock and dried silt, the old waterlines across it; under the water,
+	// dark wet silt.
+	albedo = mix(albedo, lake_ring_color * clamp(luma(r) / rock_mean_luma, 0.55, 1.6) * shore.z, shore.x);
+	albedo = mix(albedo, lake_silt_color * clamp(luma(d) / dirt_mean_luma, 0.5, 1.5), shore.y);
+	rocky = max(rocky, shore.x * 0.7);
 
 	// ---- the drainage: dark canyons, lighter spur crests -------------------------------------
 	albedo *= mix(1.0, 1.0 - drain_shade, smoothstep(0.15, 0.9, drain)) * (1.0 + drain_shade * 0.3 * smoothstep(0.2, 0.8, -drain));

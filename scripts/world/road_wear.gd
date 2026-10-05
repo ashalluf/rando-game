@@ -407,6 +407,10 @@ static func _pavements(ctx: Dictionary, rect: Rect2, district: int) -> void:
 	var rng := _rng([plan.seed, "rw_pave", chunk.ix, chunk.iz])
 	var top := CityChunk.SIDEWALK_TOP + 0.004
 	var sw: float = plan.sidewalk_width
+	# Where Kerbs builds the pavement's outer ring (ramps, aprons, tree wells, heaves), the slabs'
+	# cracks keep to the inner band it leaves flat.
+	var ring: float = Kerbs.RING if Kerbs.takes(chunk, rect) else 0.0
+	var band := maxf(sw - ring, 0.5)
 	for e: Array in CityChunk._sidewalk_edges(rect):
 		var a: Vector2 = e[0]
 		var b: Vector2 = e[1]
@@ -415,9 +419,11 @@ static func _pavements(ctx: Dictionary, rect: Rect2, district: int) -> void:
 		var dir := (b - a) / length
 		var n := int(round(length * PAVEMENT_PER_M * level))
 		for i in n:
-			var p := a + dir * rng.randf_range(3.0, length - 3.0) + inward * rng.randf_range(sw * 0.35, sw * 0.7)
+			var along := rng.randf_range(3.0, length - 3.0)
+			var into := ring + band * (rng.randf_range(sw * 0.35, sw * 0.7) / sw)
+			var p := a + dir * along + inward * into
 			var name := "concrete_crack" if rng.randf() < 0.8 else "concrete_spall"
-			_stamp(ctx, rng, name, p, top, rng.randf() * TAU, Color(0.8, 0.8, 0.8), _age(rng, 0.6), false, false, sw * 0.5)
+			_stamp(ctx, rng, name, p, top, rng.randf() * TAU, Color(0.8, 0.8, 0.8), _age(rng, 0.6), false, false, minf(sw * 0.5, band * 0.6))
 
 
 # --- Instances -----------------------------------------------------------------------------------

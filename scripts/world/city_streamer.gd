@@ -360,6 +360,7 @@ func _build_showroom(at: Vector3, yaw: float) -> void:
 		mi.position = at + forward * 4.0 + right * (float(i) - float(props.size() - 1) * 0.5) * 1.7 + Vector3.UP * CityChunk.ROAD_TOP
 		mi.rotation.y = yaw + 0.6
 		add_child(mi)
+	LaTrees.showroom(self, at, forward, right, yaw)
 	for i in Pedestrian.MODELS.size():
 		var ped := Pedestrian.new()
 		var spot := at + forward * 5.0 + right * (float(i) - float(Pedestrian.MODELS.size() - 1) * 0.5) * 1.6
@@ -1000,6 +1001,10 @@ func _build_ground_material() -> ShaderMaterial:
 			m.set_shader_parameter("calm_centre", plan.macro.peninsula_center)
 			m.set_shader_parameter("calm_axes", plan.macro.peninsula_axes * 1.08)
 			m.set_shader_parameter("calm_dir", plan.macro._headland_axes()[0])
+		# The reservoir's basin (Reservoir): no crags through its water.
+		if plan.macro.reservoir:
+			m.set_shader_parameter("calm2_centre", Reservoir.BOX.get_center())
+			m.set_shader_parameter("calm2_axes", Reservoir.BOX.size * 0.5)
 	_canopy_material.set_shader_parameter("plane_half", ground_size * 0.5)
 	_canopy_material.set_shader_parameter("plane_step", ground_step())
 	# The plane's rim hands over to the sky, and the far city fades out on the same numbers.
