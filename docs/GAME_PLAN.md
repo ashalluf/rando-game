@@ -289,6 +289,17 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Car dealerships on the boulevards' auto rows (VISUAL_ROADMAP #63, HANDOFF 9bu).**
+  `CarDealers` puts runs of new-car dealers and used lots along a few avenue-wide roads in
+  MIDTOWN and the SUBURBS. Decisions: (1) placement is three hashes (road, stretch of six blocks,
+  block) and a claim of a run of edge lots asked AFTER the pad roll and the fire station, like
+  FireStation.claims(), so no lot, roll or prop elsewhere moves (checked); (2) the front row and
+  the showroom floor are real Vehicles - shootable, burnable, stealable - and the rows behind are
+  ArenaGrounds' static car bodies as unbreakable props (sparks, never debris), because a lot of
+  40-120 real cars would be 40-120 physics bodies and car builds a chunk; (3) tube men and cloth
+  move entirely in the vertex shader (a chain integrated per vertex), never on the CPU; (4) brands
+  and lots are invented, their marks simple SDF shapes checked against the real makers' badges.
+
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it

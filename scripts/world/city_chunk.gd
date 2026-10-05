@@ -2625,7 +2625,8 @@ func _lot_steps(_rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) ->
 	var district: int = plan.block(ix, iz).district
 	if HouseKit.wanted(self, district):
 		for lot: Dictionary in HouseKit.extra_lots(plan, ix, iz):
-			steps.append(_build_house.bind(lot, district))
+			if not CarDealers.covers(plan, ix, iz, lot.center):
+				steps.append(_build_house.bind(lot, district))
 	return steps
 
 
@@ -2651,6 +2652,11 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	# A fire station's lot (FireStation: one lot in a cell, hash-seeded; the pad roll above is made).
 	if FireStation.claims(plan, ix, iz, lot):
 		FireStation.build_lot(self, lot)
+		return
+	# A car dealership's site (CarDealers: a run of edge lots on an auto row, hash-seeded; the pad
+	# roll above is made, so no other lot moves).
+	if CarDealers.claims(plan, ix, iz, lot):
+		CarDealers.build_lot(self, lot)
 		return
 	var fill := LotFill.wanted(self, district)
 	# A surface car park (CityPlan.lots() "parking"; the pad roll above is still made).

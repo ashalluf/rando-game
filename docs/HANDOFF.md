@@ -7040,3 +7040,77 @@ ALU in shaders that were already running.
 - The night ambient (DayNight) still lights roofs a moonlit blue-grey on opengl3; not this pass.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
+## 9bu. Car dealerships: the auto rows of the boulevards, 2026-10-05 (agent branch `wt/car-dealers`; VISUAL_ROADMAP #63)
+
+Number is provisional (the next free one after 9bt; the lead renumbers on merge).
+
+**The brief** (lead, from the owner's "make the graphics a million times better"): LA's long
+boulevards have auto rows - runs of dealerships, a glass showroom under a portal in the brand's
+colours, a lot packed with cars nose-out to the street with prices on the windscreens, pennant
+strings, inflatable tube men, flags, a tall lit pylon; and used-car lots with an office trailer and
+hand-painted signs. Placement on a few long boulevards in MIDTOWN and the SUBURBS, claiming lots
+after every existing roll (Commercial's pads are another session's: commercial.gd untouched).
+
+**Where** (`CarDealers.site()`, pure, cached per plan and block; CLAUDE.md has the rule). Three
+hashes: an avenue-wide road is an auto row (`ROW_ODDS` 0.32), a stretch of `RUN` 6 blocks of it
+has dealers (`RUN_ODDS` 0.5), each buildings block on either side of the stretch in a dealer
+district holds one (`BLOCK_ODDS` 0.8). The block gives up a run of its edge lots along that road
+(30-74 m of frontage, a hashed start so a row does not line up at one end of every block), one row
+deep or two where the first is under 27 m and the second row has no pocket garden; never on a
+freeway, a landmark, the replica, downtown or the fire station's block. Default seed: 37 sites
+within ~1.6 km of the start (24 within 2.5 km of the origin in the probe's count were all midtown:
+the suburbs start further out), 38 % used lots. `CityChunk._build_lot()` asks `claims()` after the
+pad roll and FireStation (two lines); the anchor lot builds the dealer and the others nothing;
+`_lot_steps` keeps HouseKit's extra lots out of a site (`covers()`). Nothing else rolls: the check
+builds a dealer's block with the dealers off and on and compares everything outside the site.
+
+**A new-car dealer** (one node in the site's frame, x along the street, +z out to it): a glass
+showroom at the back (16-30 m x 11-17 m, 6.4 m) - a polished floor slab a step up, one transparent
+pane a face on mullions every 1.6 m with a transom at door height, a solid back wall with the brand
+wall and badge inside, a deep white roof with an overhang and soffit, ceiling light panels lit by
+`lamp_factor`, a reception desk and chairs, an OmniLight in `lamp_light` for the night - framed by
+a 7.2 m portal in the brand's colour standing out over the walk, its badge on the lintel and its
+soffit lit, the name on the fascia (lit letters); a service drive-through beside it where the site
+is wide (two bays, a roll-up door half down, lit inside, a canopy on two columns with SERVICE on its
+fascia); a 10.5 m brand pylon at the kerb (badge lightbox high on both faces, the name on a lit
+panel); three brand flags and a row of feather flags along the frontage; a car up on a display ramp
+at the corner. **A used lot**: a white corrugated office trailer on blocks (skirt, steps and rail,
+windows, a window AC, a roof board with the lot's name), a hand-painted board on posts at the kerb
+(name and a line: WE FINANCE, BAD CREDIT OK, ...), pennant strings criss-crossed to a mast in the
+middle and to timber posts at the back, chain-link (LotFill's fence) on the three inner sides.
+**Both**: LotFill asphalt over the site; rows of cars nose-out from 1.2 m inside the property line;
+the front row (up to 12 new, 4 used) and the showroom floor (2-3) are **real Vehicles** (meta
+`for_sale`, in the chunk's `_cars`: shot, burnt, driven off; paints a lot would carry, no
+liveries); the rest are ArenaGrounds' static `car_mesh()` bodies as unbreakable `dealer_car` props
+(rounds spark off them as metal) each with its price on the windscreen
+(`shaders/price_sticker.gdshader`: a white window card with a coloured header and seven-segment
+figures, or a used car's grease-pencil price and year in fluorescent yellow or white on the glass);
+LotFill's light poles (the street lamps' batch, no OmniLight) along the frontage and down the
+middle, with `dl_pool` LED pools; low white bollards along the street edge with a gap for the drive;
+inflatable tube men at the corners and the drive.
+
+**The moving cloth.** `shaders/tube_man.gdshader`: the body is a chain whose curvature is two
+travelling waves up the tube plus a fold just above the waist every ~9 s (the gust drops, the top
+flops, it whips back), integrated in ten steps per vertex - a tube man is ~1.5 k vertices - with
+every ring turned to the chain's angle so the tube keeps its girth through a bend; the arms are
+chains too, flapping, carried by the body's tilt at the shoulder. A painted face and a fringe at
+the top, ripstop and seams, ripples running up it, backlight through the nylon. One `dl_tube`
+batch a chunk, the instance colour the nylon, the custom data the phase and tempo.
+`shaders/dealer_flag.gdshader`: pennants, flags and feather flags flutter along their normal,
+weighted by how far a vertex is from the sewn edge (UV2.x), off `wind_factor`; one mesh a dealer,
+no shadow, drawn to 260 m.
+
+**Brands.** VELMARA (red), QUENTIS (blue), HALDRIC (green), ORIVO (orange), SUNDALE (black),
+BRAVENT (teal); marks are SDF shapes in `shaders/dealer_sign.gdshader` (a slotted hexagon ring,
+three slanted bars, a half-filled ring, a square ring on its point with a dot, a rising half sun
+over two lines, a pentagon ring over a bar) - checked to be none of the real makers' badges.
+Used lots: LUCKY STAR AUTO, BOULEVARD MOTORS, ACE AUTO MART, ... all invented.
+
+**Far.** LOD chunks and the far city (the capture) lay the asphalt and the showroom (as glazing),
+its roof and portal, the service box, the trailer and the pylon (a lit face) as roof-plant-style
+`lod_box`es - the same at both (distance_checks holds the far city to the LOD chunk box for box);
+the cars are left to the FULL ring.
+
+**Tools.** `tools/car_dealers/probe.gd` (headless, seconds: every site round a point with a STREET
+and an ABOVE EYE for still_shot.gd), `tools/car_dealers/check_only.gd` (the checks alone against the
+city, minutes; `DIFF=1` prints what differs outside a site). `CAR_DEALERS=0` is the A/B.
