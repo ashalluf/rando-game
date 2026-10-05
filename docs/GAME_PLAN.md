@@ -504,7 +504,7 @@ already mapped so milestone 2 is script-only.
   inside) and TrafficManager stops for them and keeps a rail street's cars to the outer lane. The
   car is Blender-built (tools/make_light_rail.py, an original 27 m articulated high-floor LRV).
   Far tiers: the line past the chunks is one dithered mesh owned by LightRailSystem, trains are
-  lit boxes (not a Skyline capture: the line is not a block). docs/HANDOFF.md 9bi; CLAUDE.md
+  lit boxes (not a Skyline capture: the line is not a block). docs/HANDOFF.md 9bk; CLAUDE.md
   "Light rail".
 - **2026-10-04 The front range gets its drives and estates back as switchbacks, not deeper cuts
   (VISUAL_ROADMAP #20).** The cut-bank fix (#17) trimmed every canyon road that walked straight
