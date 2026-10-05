@@ -65,7 +65,8 @@ func run(t: Node, city: Node3D) -> void:
 		var low: Vector3 = photo.call("_clamp_position", anchor + Vector3(3.0, -500.0, 0.0))
 		var g: float = float(city.call("ground_height_at", low))
 		_t._check(far.distance_to(anchor) <= float(photo.get("max_radius")) + 0.01 and low.y >= g + 0.2,
-			"the free camera stays within %.0f m of the player and above the street" % float(photo.get("max_radius")))
+			"the free camera stays within %.0f m of the player and above the street (%.1f m out, %.2f m over the street)"
+			% [float(photo.get("max_radius")), far.distance_to(anchor), low.y - g])
 
 	# Settings.
 	photo.call("set_fov", 32.0)

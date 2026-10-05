@@ -472,6 +472,14 @@ func _clamp_position(pos: Vector3) -> Vector3:
 	if city and city.has_method("ground_height_at"):
 		var g: float = city.call("ground_height_at", pos)
 		pos.y = maxf(pos.y, g + ground_clearance)
+		# Lifted onto rising ground the point can leave the sphere again: pull it in level.
+		var dy := pos.y - _anchor.y
+		var flat := Vector2(pos.x - _anchor.x, pos.z - _anchor.z)
+		var reach := sqrt(maxf(max_radius * max_radius - dy * dy, 0.0))
+		if flat.length() > reach:
+			flat = flat.limit_length(reach)
+			pos.x = _anchor.x + flat.x
+			pos.z = _anchor.z + flat.y
 	return pos
 
 
