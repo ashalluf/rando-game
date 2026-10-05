@@ -654,6 +654,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   from true world coordinates each frame, so origin shifts never touch it). Stills:
   `tools/minimap/map_shot.gd` (`SHOTS=mini;map:x,z,ppm;beacon`, `WAYPOINT=`); probe:
   `tools/minimap/probe.gd`; checks: `tests/minimap_checks.gd`.
+- HUD scale and the Forward+ review (2026-10-05, docs/HANDOFF.md "Forward+ review: weather,
+  Broadway, the stack, the map"): the minimap is laid out at 1080 lines and SCALED with the window
+  (`hud_scale()` in `scripts/ui/minimap_frame.gd`, WeaponHud's rule, about its corner; the ring
+  and the health bar follow), and the full map's marks are drawn on a 1080-line layer scaled the
+  same way - a Retina Mac's maximised window is ~2,234 lines, where a fixed 260 px minimap was a
+  quarter size. Any new HUD piece sizes itself from the viewport's height, never in fixed pixels.
+  Small Forward+ scenes with the real sky and weather: `tools/glshot/fwd_block_shot.tscn`
+  (block_shot plus DayNight and Weather; `--hour=`, `--weather=`; ~10 min and ~11 GB on lavapipe).
 - Weapon wheel (owner, 2026-09-24: "GTA style ... slows everything ... apple glass style"):
   `WeaponWheel` (`scripts/ui/weapon_wheel.gd`) is its own CanvasLayer (3) in the HUD scene, so it
   draws over the HUD and still works in HIDDEN (a nested layer ignores its parent's visibility).

@@ -2265,6 +2265,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The web build (tests/web_build_checks.gd): the Web preset, WebGL's texture units and the
 	# global buffer in every shader, and the web's own quality settings.
 	load("res://tests/web_build_checks.gd").new().run(self, city)
+	# The Forward+ review of those four (tests/fwd_review_c_checks.gd): the map scales with the window.
+	await load("res://tests/fwd_review_c_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

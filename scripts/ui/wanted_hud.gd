@@ -92,8 +92,8 @@ func _process(delta: float) -> void:
 	_bar_mat.set_shader_parameter("bar_hurt", _hurt)
 
 
-## Stars under the weapon list, the bar over the minimap (which is 260 px, 24 px from the
-## bottom-right corner in debug_hud.tscn).
+## Stars under the weapon list, the bar over the minimap (260 x 260 px, 24 px from the
+## bottom-right corner at 1080 lines, scaled with the window by MinimapFrame).
 func _layout() -> void:
 	var view := get_viewport_rect().size
 	var r := clampf(view.y * star_size * 0.5, 11.0, 30.0)
@@ -113,6 +113,15 @@ func _layout() -> void:
 	_stars_mat.set_shader_parameter("star_r", r)
 	_stars_mat.set_shader_parameter("star_gap", gap)
 	_stars_mat.set_shader_parameter("star_glow_px", r * 0.4)
-	_bar.size = bar_size
-	_bar.position = Vector2(view.x - 24.0 - bar_size.x, view.y - 24.0 - 260.0 - bar_gap - bar_size.y)
+	# Over the minimap, scaled with it (MinimapFrame scales with the window).
+	var frame := (get_parent().get_node_or_null("MinimapFrame") if get_parent() else null) as Control
+	var hs := clampf(view.y / 1080.0, 0.7, 2.0)
+	var mini := Rect2(view - Vector2.ONE * 284.0, Vector2.ONE * 260.0)
+	if frame and frame.has_method("screen_rect"):
+		mini = frame.call("screen_rect")
+		hs = frame.scale.x
+	_bar.size = bar_size * hs
+	_bar.position = Vector2(mini.end.x - _bar.size.x, mini.position.y - bar_gap * hs - _bar.size.y)
 	_bar_mat.set_shader_parameter("rect_px", _bar.size)
+	_bar_mat.set_shader_parameter("bar_corner", 8.0 * hs)
+	_bar_mat.set_shader_parameter("bar_inset", 3.0 * hs)
