@@ -711,12 +711,7 @@ static func storefront_face(b: Building, kit: MultiMeshBatch, face_id: int, fc: 
 ## hash, the same step past a repeat), so a blade sign carries its shop's name.
 static func _face_names(b: Building, face_index: int, runs: int) -> Array:
 	var out: Array = []
-	var last := -1
-	for run in runs:
-		var i := absi(hash([b.seed, "sign_name", face_index, run * 7919])) % Building.SHOP_NAMES.size()
-		if i == last:
-			i = (i + 1) % Building.SHOP_NAMES.size()
-		last = i
+	for i: int in b.shop_names(face_index, runs):
 		out.append(Building.SHOP_NAMES[i])
 	return out
 
