@@ -1178,7 +1178,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   far alike) are key tables mirrored by `NightCity.LEVEL_KEYS` / `WINDOW_KEYS`. Far roof masts'
   beacons flash on their own phase (building_lod, kind 2); near ones still burn steady. Stills:
   the four EYEs in the HANDOFF section.
-- Driving effects (2026-10-05, "the feel of driving fast and badly"; HANDOFF "Driving effects"):
+- Driving effects (2026-10-05, "the feel of driving fast and badly"; HANDOFF 9bu):
   `DrivingFX` (`scripts/vehicles/driving_fx.gd`), ONE node per level, made by the first Vehicle
   (`DrivingFX.ensure()`, the one hook in `Vehicle._ready`) as a child of the level root (the
   city's Node3D children shift with the origin, which carries the marks). Every `scan_interval` it

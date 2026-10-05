@@ -7040,9 +7040,9 @@ ALU in shaders that were already running.
 - The night ambient (DayNight) still lights roofs a moonlit blue-grey on opengl3; not this pass.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
-## 9b?. Driving effects: skid marks, tyre smoke, sparks, dust, exhaust, the squeal, 2026-10-05 (agent branch `wt/driving-fx`; VISUAL_ROADMAP #63)
+## 9bu. Driving effects: skid marks, tyre smoke, sparks, dust, exhaust, the squeal, 2026-10-05 (agent branch `wt/driving-fx`; VISUAL_ROADMAP #63)
 
-Number is provisional; the lead numbers it on merge.
+Number is provisional (the next free one after 9bt when this was rebased; the lead renumbers on merge).
 
 **The brief** (lead): the feel of driving fast and badly. Before this a car could drift, burn
 out, land a jump on its floor pan or grind down a wall and leave nothing behind and make no

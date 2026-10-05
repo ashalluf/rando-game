@@ -289,8 +289,8 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
-- **2026-10-05 Driving fast and badly leaves marks (VISUAL_ROADMAP #63, HANDOFF "Driving
-  effects").** A car could drift, jump and roll without a trace. `DrivingFX` is one node per level
+- **2026-10-05 Driving fast and badly leaves marks (VISUAL_ROADMAP #63, HANDOFF
+  9bu).** A car could drift, jump and roll without a trace. `DrivingFX` is one node per level
   that watches the few physical cars near the camera and gives them skid marks, tyre smoke, spray,
   dust, sparks, exhaust, backfires, heat haze and a real squeal. Decisions worth knowing: skid
   marks are flat quads in ONE MultiMesh ring, a lit alpha-blended film (not `blend_mul`, which
