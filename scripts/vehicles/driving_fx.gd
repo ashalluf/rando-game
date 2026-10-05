@@ -135,6 +135,9 @@ var _marks_node: MultiMeshInstance3D
 var _mark_mat: ShaderMaterial
 var _mark_next: int = 0
 var _mark_count: int = 0
+## Marks laid since the start (tests): marks_alive() drops as old marks fade, so a check that
+## compares it before and after can read a busy slide as none.
+var marks_laid: int = 0
 var _mark_birth: PackedFloat32Array = PackedFloat32Array()
 var _mark_sweep: float = 0.0
 
@@ -598,6 +601,7 @@ func _lay(st: Dictionary, at: Vector3, n: Vector3, cv: Vector3, width: float, ti
 	_marks.set_instance_color(i, Color(tint.r, tint.g, tint.b, strength))
 	_marks.set_instance_custom_data(i, Color(fmod(_clock / 60.0, 30.0), 1.0, 1.0 if patch else 0.0, 0.0 if tint == rubber_tint else (1.0 if tint == sand_tint else 0.5)))
 	_mark_birth[i] = _clock
+	marks_laid += 1
 	_marks.visible_instance_count = _mark_count
 	_marks_node.visible = true
 	return 1
