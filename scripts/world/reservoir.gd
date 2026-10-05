@@ -197,7 +197,18 @@ func build(m: MacroMap) -> void:
 		ground_grid[c] = _carve(grid_point(i, j), _nat[c], level, true, _grid_terms[c])
 		fixed += 1
 	wet_grid = _flood(ground_grid, level, true)
+	# The exact ground near the waterline can open a saddle the interpolated one closed: lower the
+	# level until the lake holds again (it used to be left with no water at all).
+	while wet_grid.is_empty() and level > MIN_LEVEL:
+		level -= 1.0
+		crest = level + FREEBOARD
+		_fit_dam()
+		_plan_spillway()
+		_refresh_grid()
+		if _spilled:
+			wet_grid = PackedByteArray()
 	if wet_grid.is_empty():
+		push_warning("Reservoir: no level between %.0f and %.0f m holds water on this seed" % [MIN_LEVEL, DESIGN_LEVEL])
 		wet_grid.resize(_nx * _nz)
 	# The dam's ends run on until the ground the tiles draw stands over the crest at the face.
 	for side in 2:
@@ -922,6 +933,24 @@ func lake_centre() -> Vector2:
 				s += grid_point(i, j)
 				n += 1
 	return s / maxf(float(n), 1.0) if n > 0 else ANCHOR
+
+
+## The water as rectangles (world XZ), one per run of wet cells along a grid row: what the maps
+## draw (MapPainter), a hundred or so rects instead of thousands of cells.
+var _water_runs: Array[Rect2] = []
+func water_runs() -> Array[Rect2]:
+	if _water_runs.is_empty():
+		for j in _nz:
+			var start := -1
+			for i in _nx + 1:
+				var w := i < _nx and wet_grid[j * _nx + i] == 1
+				if w and start < 0:
+					start = i
+				elif not w and start >= 0:
+					var p := grid_point(start, j) - Vector2(CELL, CELL) * 0.5
+					_water_runs.append(Rect2(p, Vector2(float(i - start) * CELL, CELL)))
+					start = -1
+	return _water_runs
 
 
 ## Wet area in square metres (tests, probes).

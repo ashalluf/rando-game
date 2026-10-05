@@ -198,6 +198,10 @@ static func draw_geo(ci: CanvasItem, v: View, plan: CityPlan, data: MapData) -> 
 		ci.draw_colored_polygon(lake, c.ocean)
 	if macro.river and macro.river.bounds.intersects(v.area):
 		_draw_river(ci, v, plan, macro.river)
+	# The reservoir in the front range (Reservoir).
+	if macro.reservoir and Reservoir.BOX.intersects(v.area):
+		for r: Rect2 in macro.reservoir.water_runs():
+			_rect(ci, v, r, c.ocean)
 	_draw_airport(ci, v, macro)
 	_draw_piers(ci, v)
 	_draw_replica(ci, v, macro)

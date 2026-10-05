@@ -63,6 +63,11 @@ func _land(res: Reservoir, macro: MacroMap) -> void:
 				[Vector2(box.end.x - 1.0, lerpf(box.position.y, box.end.y, t)), Vector2(box.end.x + 1.0, lerpf(box.position.y, box.end.y, t))]]:
 			jump = maxf(jump, absf(macro.raw_height_at(pair[0]) - macro.raw_height_at(pair[1])))
 	_t._check(jump < 6.0, "no cliff where the carve hands back to the range at its box (largest step over 2 m: %.1f m)" % jump)
+	var run_area := 0.0
+	for r: Rect2 in res.water_runs():
+		run_area += r.get_area()
+	_t._check(absf(run_area - res.wet_area()) < 1.0 and res.water_runs().size() < 400,
+		"the maps draw the water as %d runs covering exactly its wet cells" % res.water_runs().size())
 	_t._check(res.keep_clear(c, macro.height_at(c)) and not res.keep_clear(c + Vector2(0.0, -900.0), 300.0),
 		"keep_clear() is true on the water and false far off it")
 

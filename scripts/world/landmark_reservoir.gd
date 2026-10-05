@@ -108,7 +108,9 @@ static func build(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: 
 		parent.add_child(light)
 	batch.set_no_shadow("res_pool")
 	batch.set_no_shadow("res_fence_mesh")
-	batch.set_shadow_distance("res_fence_post", 40.0)
+	# 3 cm posts round a kilometre of trail: set_shadow_distance() does nothing on a code-built mesh
+	# (no lighter twin) and a reach is measured to the batch's centre, so they cast nothing.
+	batch.set_no_shadow("res_fence_post")
 	batch.build(parent)
 
 

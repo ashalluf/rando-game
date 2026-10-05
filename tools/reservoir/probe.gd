@@ -18,8 +18,11 @@ func _ready() -> void:
 		get_tree().quit()
 		return
 	var t1 := Time.get_ticks_usec()
+	# Timed on the natural range, as MacroMap.setup() builds it (carve() must not see itself).
 	var tmp := Reservoir.new()
+	macro.reservoir = null
 	tmp.build(macro)
+	macro.reservoir = res
 	print("BUILD %.0f ms" % ((Time.get_ticks_usec() - t1) / 1000.0))
 	print("LEVEL %.1f  crest %.1f  toe %.1f  dam height %.1f  crest length %.1f m  base %.1f m  ends %.3f %.3f  centre %s" % [res.level, res.crest, res.toe, res.crest - res.toe, res.crest_length(), res.dam_base, res.dam_a0, res.dam_a1, res.dam_centre])
 	print("LAKE area %.0f m2 (%.1f ha)  centre %s" % [res.wet_area(), res.wet_area() / 10000.0, res.lake_centre()])
