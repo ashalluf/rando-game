@@ -8698,7 +8698,14 @@ the totals and the frames line.
   before. The file is read at the start of a `build_near()`, written at its end if anything was
   recorded, and let go (it is the basin's arrays a second time). 2.2 MB for 57 tiles. Everything in a
   capture is a hash of seed + place (the time-budget loops only slice the work), and the capture
-  reads neither the hour nor the weather nor WorldState, which is what makes it cacheable.
+  reads neither the hour nor the weather nor WorldState, which is what makes it cacheable. Only
+  while LOADING (`Skyline.use_disk`, turned off by `CityStreamer._loaded()` once the loading screen
+  finishes, or after the deferred far city with no screen): play's state is not a launch's, and a
+  tile recorded in play would be laid back into the next launch. The first gate run proved the
+  point: the smoke test builds plans on other seeds, and before main's `24debca` (Schools' closed
+  roads keyed by seed) another seed's school closed a road in the main city, so a tile built
+  mid-test had a plate without its road. `tools/load_time/tile_probe.tscn` builds cached tiles
+  fresh and compares them key by key (`TILES=n`; 12 of 12 equal at load).
 - **The shader warm-up** draws `shader_batch` (16) shaders per batch and holds `warm_frames` (2)
   per batch, not per shader: 250 frames -> 16. Every shader is still drawn before play.
 - **The baking loops** (camp figures, beach figures, rigs) give the bar a frame once
