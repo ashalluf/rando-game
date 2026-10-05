@@ -17,3 +17,5 @@ Final batch (after, branch head 29a000f; `tools/road_wear/shots.sh` places, `sti
 - 15 the same at 13:00 in rain: the hollow a mirror with rain rings.
 - 16 the midtown street in rain.
 - 17 the midtown street from 30 m up.
+
+Re-shot after the lead's review (11, 13, 17): sealed cracks are short wandering runs with gaps now, not ruled lines. 13 is now the city still from 7 m (was a block_shot); its pale soft rectangles are still LotFill's lot ground, unchanged with ROAD_WEAR=0.
