@@ -1,9 +1,13 @@
 class_name Minimap
 extends Control
 ## Minimap drawn straight from the CityPlan, in a round frame that rotates so you always face up.
-## Night-mode street map: dark blocks, bright roads with outlines, terrain shading from the
-## relief, water with a shoreline, landmark pins with names, cars as heading-aligned chips, a view
-## cone and a glowing player arrow. Zooms out while driving. Cheap: ten redraws a second.
+## Night-mode street map, drawn by MapPainter (the full-screen map, WorldMap, draws the same thing
+## at any scale): the hill-shaded mountains and the sea under it (map_relief.gdshader, a child
+## drawn behind), dark blocks by district, bright streets with outlines, rec parks and schools,
+## the freeways with their route shields, the Coral Line and its stations, the river, the piers,
+## the runways, landmark glyphs with names; then the GPS route and the waypoint (WorldMap), cars as
+## heading-aligned chips, police and fire / ambulance blips, a view cone and a glowing player
+## arrow. Zooms out while driving. Cheap: ten redraws a second.
 
 ## Meters from the player to the edge of the map, on foot and in a car.
 @export var radius_m: float = 240.0
@@ -57,6 +61,7 @@ const LANDMARK_NAMES := {
 	"convention_center": "Convention Center", "civic_park": "Civic Park",
 	"concert_hall": "Symphony Hall", "lattice_museum": "The Lattice", "pueblo_station": "Pueblo Station",
 	"macarthur_park": "MacArthur Park",
+	"venice_canals": "Marisol Canals",
 }
 
 ## Pixels a landmark pin needs clear of an already-labelled one to get its own name written.
@@ -67,11 +72,23 @@ var _timer: float = 0.0
 var _player: Node3D
 var _city: Node
 var _pulse: float = 0.0
+var _relief: ColorRect
+var _relief_mat: ShaderMaterial
+## How long the last redraw took to record (us): the minimap's CPU cost, ten times a second.
+var last_draw_usec: int = 0
 
 
 func _ready() -> void:
 	clip_contents = true
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# The ground (sea, beaches, hill-shaded mountains) is a child drawn behind this control.
+	_relief = ColorRect.new()
+	_relief.name = "Relief"
+	_relief.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_relief.show_behind_parent = true
+	_relief.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_relief.color = COLORS.land
+	add_child(_relief)
 
 
 func _process(delta: float) -> void:
@@ -99,133 +116,61 @@ func _draw() -> void:
 		_player = get_tree().get_first_node_in_group("player") as Node3D
 	if _city == null:
 		_city = get_tree().get_first_node_in_group("city")
-	draw_rect(Rect2(Vector2.ZERO, size), COLORS.land)
 	if _player == null or _city == null or not _city.has_method("world_position"):
 		return
 	var plan: CityPlan = _city.get("plan")
 	if plan == null:
 		return
+	var t0 := Time.get_ticks_usec()
+	if _relief_mat == null:
+		_relief_mat = MapPainter.relief_material(_city)
+		_relief.material = _relief_mat
 	var wp3: Vector3 = _city.world_position(_player.global_position)
 	var center := Vector2(wp3.x, wp3.z)
 	var radius := _radius()
 	var scale := size.x / (radius * 2.0)
-	var idx := plan.block_index_at(center)
-	var reach := int(ceil(radius * 1.5 / plan.block_size_range.x)) + 1
 	var rig: Node3D = _player.get("camera_rig")
 	_yaw = rig.global_rotation.y if rig else 0.0
-	if rotate_with_player:
-		draw_set_transform_matrix(Transform2D(_yaw, size * 0.5) * Transform2D(0.0, -size * 0.5))
+	var yaw := _yaw if rotate_with_player else 0.0
+	var base := Transform2D(yaw, size * 0.5) * Transform2D(0.0, -size * 0.5)
+	MapPainter.set_relief_view(_relief_mat, center, scale, size, yaw)
+	var v := MapPainter.View.new()
+	v.xf = Transform2D(Vector2(scale, 0.0), Vector2(0.0, scale), size * 0.5 - center * scale)
+	v.k = scale
+	v.ppm = scale
+	v.area = Rect2(center - Vector2.ONE * radius * 1.5, Vector2.ONE * radius * 3.0)
+	v.base = base
+	v.yaw = yaw
+	v.screen = size
+	var data := MapData.of(plan)
+	data.ensure_rect(v.area)
+	draw_set_transform_matrix(base)
+	MapPainter.draw_geo(self, v, plan, data)
 
-	# Ground: zones and blocks, shaded by the relief so the hills read on the map.
-	for ix in range(idx.x - reach, idx.x + reach + 1):
-		for iz in range(idx.y - reach, idx.y + reach + 1):
-			var block := plan.block(ix, iz)
-			var rect: Rect2 = block.rect
-			var bc := rect.get_center()
-			var zone := plan.zone_at(bc)
-			var owned := _owned_rect(plan, ix, iz)
-			var shade := 1.0
-			if plan.macro:
-				var h: float = plan.macro.relief_at(bc)
-				shade = 0.9 + 0.45 * clampf(h / plan.macro.relief_height, 0.0, 1.0)
-			match zone:
-				MacroMap.Zone.OCEAN:
-					_fill(owned, COLORS.ocean_deep.lerp(COLORS.ocean, 0.5 + 0.5 * sin(bc.x * 0.01 + bc.y * 0.013)), center, scale)
-					continue
-				MacroMap.Zone.HILLS:
-					var hh: float = plan.height_at(bc)
-					_fill(owned, COLORS.hills.lightened(clampf(hh / 300.0, 0.0, 0.5)), center, scale)
-					continue
-				MacroMap.Zone.BEACH:
-					_fill(owned, COLORS.beach, center, scale)
-					_draw_roads(plan, ix, iz, center, scale)
-					continue
-				MacroMap.Zone.AIRPORT:
-					_fill(owned, COLORS.airport, center, scale)
-					continue
-				MacroMap.Zone.PORT:
-					_fill(owned, COLORS.port, center, scale)
-					continue
-			if block.has("site"):
-				# A landmark's own ground (MacArthur Park): parkland, and only the roads it keeps.
-				_fill(owned, COLORS.park, center, scale)
-				_draw_roads(plan, ix, iz, center, scale, true)
-				continue
-			_draw_roads(plan, ix, iz, center, scale)
-			var color: Color
-			match block.kind:
-				CityPlan.BlockKind.PARK:
-					color = COLORS.park
-				CityPlan.BlockKind.PLAZA:
-					color = COLORS.plaza
-				CityPlan.BlockKind.SCHOOL:
-					color = COLORS.school
-				CityPlan.BlockKind.MALL, CityPlan.BlockKind.BIGBOX:
-					color = COLORS.commercial
-				_:
-					color = DISTRICT_COLORS[block.district % DISTRICT_COLORS.size()]
-			_fill(rect.grow(-1.0), color * Color(shade, shade, shade, 1.0), center, scale)
-
-	# MacArthur Park's lake.
-	if plan.macro:
-		var park := LandmarkMacArthurPark.layout(plan)
-		if not park.is_empty() and (park.lake_bounds as Rect2).grow(radius * 1.5).has_point(center):
-			var lake := PackedVector2Array()
-			for p: Vector2 in park.lake:
-				lake.append(world_to_map(p, center))
-			draw_colored_polygon(lake, COLORS.ocean)
-	# The Los Angeles River (LaRiver): the concrete channel, its low-flow line, and the street
-	# bridges over it.
-	if plan.macro and plan.macro.river and plan.macro.river.bounds.grow(radius).has_point(center):
-		_draw_river(plan, center, scale, radius)
-	# Shoreline and runways.
+	# Shoreline.
 	if plan.macro:
 		var macro: MacroMap = plan.macro
 		var pts := PackedVector2Array()
-		var z0 := center.y - radius * 1.5
-		var z1 := center.y + radius * 1.5
-		var z := z0
-		while z <= z1:
+		var z := center.y - radius * 1.5
+		while z <= center.y + radius * 1.5:
 			pts.append(world_to_map(Vector2(macro.coast_x(z), z), center))
 			z += 20.0
 		if pts.size() > 1:
 			draw_polyline(pts, COLORS.shore, 2.0, true)
-		var ar := macro.airport_rect
-		if ar.grow(radius).has_point(center):
-			for rz in macro.runway_zs:
-				var a := world_to_map(Vector2(ar.position.x + 20.0, rz), center)
-				var b := world_to_map(Vector2(ar.end.x - 20.0, rz), center)
-				draw_line(a, b, COLORS.road_edge, macro.runway_width * scale + 2.0, true)
-				draw_line(a, b, COLORS.road, macro.runway_width * scale, true)
-			# The parallel taxiway and the concourse's arc (Airport).
-			var ta := world_to_map(Vector2(ar.position.x + 20.0, macro.taxiway_z), center)
-			var tb := world_to_map(Vector2(Airport.HANGAR_WEST_X - 10.0, macro.taxiway_z), center)
-			draw_line(ta, tb, COLORS.road, macro.taxiway_width * scale, true)
-			var arc := PackedVector2Array()
-			for i in 17:
-				var t := lerpf(-Airport.CONCOURSE_ARC, Airport.CONCOURSE_ARC, float(i) / 16.0)
-				arc.append(world_to_map(Airport.arc_point(t, Airport.CONCOURSE_RADIUS), center))
-			draw_polyline(arc, COLORS.road_edge, Airport.CONCOURSE_HALF * 2.0 * scale, true)
 
-	# Hill roads (not on the grid).
-	if plan.macro and plan.macro.hill_roads:
-		var road_reach := radius * 1.5
-		for road in plan.macro.hill_roads.roads:
-			var pts: PackedVector2Array = road.points
-			var w: float = road.width
-			for i in pts.size() - 1:
-				if pts[i].distance_to(center) > road_reach and pts[i + 1].distance_to(center) > road_reach:
-					continue
-				var a := world_to_map(pts[i], center)
-				var b := world_to_map(pts[i + 1], center)
-				draw_line(a, b, COLORS.road_edge, w * scale + 2.0, true)
-				draw_line(a, b, COLORS.hill_road, w * scale, true)
+	# The GPS route to the waypoint (WorldMap).
+	var gps := get_tree().get_first_node_in_group("world_map")
+	if gps and gps.call("has_route"):
+		MapPainter.draw_route(self, v, gps.call("route_points"), center, int(gps.call("route_index")))
 
 	# Cars as small chips pointing where they drive.
 	var mine: Node = _player.get("vehicle")
 	for node in get_tree().get_nodes_in_group("vehicle"):
 		var car := node as Node3D
-		if car == null or car == mine:
+		if car == null or car == mine or car.is_in_group("emergency_unit") or car.is_in_group("police_car"):
+			continue
+		# Moving traffic only: parked cars lined every kerb with chips and broke the streets up.
+		if not car.get("traffic") and car.get("driver") == null:
 			continue
 		var cw: Vector3 = _city.world_position(car.global_position)
 		var cp := Vector2(cw.x, cw.z)
@@ -237,41 +182,23 @@ func _draw() -> void:
 			var chip := PackedVector2Array([p + f * 3.5 + r * 1.8, p + f * 3.5 - r * 1.8, p - f * 3.5 - r * 1.8, p - f * 3.5 + r * 1.8])
 			draw_colored_polygon(chip, COLORS.car_traffic if car.get("traffic") else COLORS.car)
 
-	_draw_police(center, scale)
+	# Freeway shields, rail stations, landmark glyphs and names (upright).
+	MapPainter.draw_marks(self, v, plan, data)
 
-	# Landmarks: pins with names (names stay upright). Downtown has a tower in every block, so a
-	# name is only written where it has room: a pin closer than LABEL_ROOM pixels to one that was
-	# already labelled keeps its pin and loses its text, or the core is one smudge of letters.
-	if plan.macro:
-		var labelled: Array[Vector2] = []
-		for lm in Landmarks.all():
-			var a: Vector2 = lm.anchor
-			if a.distance_to(center) < radius * 1.4:
-				var p := world_to_map(a, center)
-				draw_circle(p, 6.0, COLORS.road_edge)
-				draw_circle(p, 4.5, COLORS.landmark)
-				draw_circle(p, 1.6, Color.WHITE)
-				var crowded := false
-				for q in labelled:
-					if q.distance_to(p) < LABEL_ROOM:
-						crowded = true
-						break
-				if crowded:
-					continue
-				labelled.append(p)
-				var label: String = LANDMARK_NAMES.get(lm.id, lm.id)
-				draw_set_transform_matrix(Transform2D(_yaw if rotate_with_player else 0.0, size * 0.5) * Transform2D(0.0, -size * 0.5) * Transform2D(0.0, p) * Transform2D(-_yaw if rotate_with_player else 0.0, Vector2.ZERO))
-				draw_string_outline(ThemeDB.fallback_font, Vector2(7.0, 4.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, 3, COLORS.road_edge)
-				draw_string(ThemeDB.fallback_font, Vector2(7.0, 4.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, COLORS.landmark_text)
-				if rotate_with_player:
-					draw_set_transform_matrix(Transform2D(_yaw, size * 0.5) * Transform2D(0.0, -size * 0.5))
-				else:
-					draw_set_transform_matrix(Transform2D())
+	var mid := size * 0.5
+	var limit := size.x * 0.5 - 12.0
+	MapPainter.draw_units(self, v, _city, _pulse, func(p: Vector2) -> Vector2: return _clamp_to_rim(p, mid, limit))
+
+	# The waypoint pin, held on the rim while it is off the map.
+	if gps and gps.call("has_waypoint"):
+		var wpt: Vector2 = gps.call("waypoint_xz")
+		var pin := _clamp_to_rim(world_to_map(wpt, center), mid, size.x * 0.5 - 16.0)
+		MapPainter.upright(self, v, pin, func(c: CanvasItem) -> void: MapPainter.waypoint_pin(c, _pulse))
 
 	# North marker rides on the rotating rim.
 	var n_pos := size * 0.5 + Vector2(0.0, -size.y * 0.5 + 14.0)
 	draw_circle(n_pos, 9.0, COLORS.road_edge)
-	draw_string(ThemeDB.fallback_font, n_pos + Vector2(-4.5, 4.5), "N", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, COLORS.text)
+	draw_string(MapPainter.font(true), n_pos + Vector2(-4.5, 4.5), "N", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, COLORS.text)
 
 	# Player: view cone, pulsing glow and arrow, drawn unrotated at the center.
 	draw_set_transform_matrix(Transform2D())
@@ -280,73 +207,10 @@ func _draw() -> void:
 	var right := Vector2(-forward.y, forward.x)
 	var cone := PackedVector2Array([c, c + (forward * 0.85 - right * 0.55).normalized() * size.x * 0.5, c + (forward * 0.85 + right * 0.55).normalized() * size.x * 0.5])
 	draw_colored_polygon(cone, COLORS.cone)
-	var glow := 10.0 + 4.0 * sin(_pulse * 4.0)
-	draw_circle(c, glow, COLORS.player_glow)
-	var tri := PackedVector2Array([c + forward * 12.0, c - forward * 8.0 + right * 8.0, c - forward * 3.5, c - forward * 8.0 - right * 8.0])
-	draw_colored_polygon(tri, COLORS.player)
-	draw_polyline(PackedVector2Array([tri[0], tri[1], tri[2], tri[3], tri[0]]), Color.WHITE, 1.5, true)
+	MapPainter.player_arrow(self, c, forward, _pulse)
 	# Inner vignette so the edge fades into the frame.
 	draw_arc(c, size.x * 0.5 - 6.0, 0.0, TAU, 96, Color(0.0, 0.0, 0.0, 0.35), 12.0, true)
-
-
-## The police (scripts/npc/police.gd): the search area round the last sighting once they have
-## lost the player, and every unit as a blip flashing red and blue - cruisers as bigger chips,
-## officers on foot as dots. Clamped to the rim when they are off the map, so you can see what
-## is coming.
-func _draw_river(plan: CityPlan, center: Vector2, scale: float, radius: float) -> void:
-	var rv: LaRiver = plan.macro.river
-	var view := Rect2(center - Vector2.ONE * radius * 1.5, Vector2.ONE * radius * 3.0)
-	var ir := rv.index_range(view, 60.0)
-	if ir.y <= ir.x:
-		return
-	var line := PackedVector2Array()
-	for i in range(ir.x, ir.y + 1, 2):
-		line.append(world_to_map(rv.pts[i], center))
-	if line.size() < 2:
-		return
-	var s_mid := rv.run[(ir.x + ir.y) / 2]
-	draw_polyline(line, COLORS.river, maxf(rv.top_half(s_mid) * 2.0 * scale, 2.0), true)
-	draw_polyline(line, COLORS.river_water, maxf(LaRiver.lf_half() * 2.0 * scale, 1.0), true)
-	for br: Dictionary in rv.bridges(plan):
-		var p: Vector2 = br.p
-		if not view.has_point(p):
-			continue
-		var u: Vector2 = br.along
-		var o: Vector2 = br.p0
-		var a := world_to_map(o + u * float(br.t0), center)
-		var b := world_to_map(o + u * float(br.t1), center)
-		draw_line(a, b, COLORS.road, maxf(float(br.width) * scale, 1.5), true)
-
-
-func _draw_police(center: Vector2, scale: float) -> void:
-	var police := get_tree().get_first_node_in_group("wanted")
-	if police == null or int(police.get("stars")) <= 0 and (police.get("cruisers") as Array).is_empty():
-		return
-	var red := Color(1.0, 0.18, 0.16)
-	var blue := Color(0.22, 0.45, 1.0)
-	if police.call("show_search_area"):
-		var sc: Vector3 = _city.world_position(police.call("search_center"))
-		var sp := world_to_map(Vector2(sc.x, sc.z), center)
-		var sr: float = float(police.call("search_radius_now")) * scale
-		var breathe := 0.5 + 0.5 * sin(_pulse * 3.0)
-		draw_circle(sp, sr, Color(red.r, red.g, red.b, 0.10 + 0.06 * breathe))
-		draw_arc(sp, sr, 0.0, TAU, 64, Color(blue.r, blue.g, blue.b, 0.55), 2.0, true)
-	var phase := fmod(_pulse * 2.2, 1.0) < 0.5
-	var limit := size.x * 0.5 - 12.0
-	var mid := size * 0.5
-	for car in police.get("cruisers"):
-		if is_instance_valid(car):
-			var cw: Vector3 = _city.world_position((car as Node3D).global_position)
-			var p := _clamp_to_rim(world_to_map(Vector2(cw.x, cw.z), center), mid, limit)
-			draw_circle(p, 6.5, COLORS.road_edge)
-			draw_circle(p, 5.0, red if phase else blue)
-			draw_circle(p, 2.0, Color.WHITE)
-	for o in police.get("officers"):
-		if is_instance_valid(o):
-			var ow: Vector3 = _city.world_position((o as Node3D).global_position)
-			var p2 := _clamp_to_rim(world_to_map(Vector2(ow.x, ow.z), center), mid, limit)
-			draw_circle(p2, 4.0, COLORS.road_edge)
-			draw_circle(p2, 2.8, blue if phase else red)
+	last_draw_usec = Time.get_ticks_usec() - t0
 
 
 func _clamp_to_rim(p: Vector2, mid: Vector2, limit: float) -> Vector2:
@@ -354,40 +218,3 @@ func _clamp_to_rim(p: Vector2, mid: Vector2, limit: float) -> Vector2:
 	if off.length() > limit:
 		off = off.normalized() * limit
 	return mid + off
-
-
-func _owned_rect(plan: CityPlan, ix: int, iz: int) -> Rect2:
-	var x0 := plan.road_pos(CityPlan.AXIS_X, ix) + plan.road_width(CityPlan.AXIS_X, ix) * 0.5
-	var x1 := plan.road_pos(CityPlan.AXIS_X, ix + 1) + plan.road_width(CityPlan.AXIS_X, ix + 1) * 0.5
-	var z0 := plan.road_pos(CityPlan.AXIS_Z, iz) + plan.road_width(CityPlan.AXIS_Z, iz) * 0.5
-	var z1 := plan.road_pos(CityPlan.AXIS_Z, iz + 1) + plan.road_width(CityPlan.AXIS_Z, iz + 1) * 0.5
-	return Rect2(x0, z0, x1 - x0, z1 - z0)
-
-
-## The two roads on this block's +X and +Z sides, as outlined antialiased lines.
-## `open_only` skips a road where it is closed through a landmark's site (CityPlan.road_open).
-func _draw_roads(plan: CityPlan, ix: int, iz: int, center: Vector2, scale: float, open_only: bool = false) -> void:
-	var rx := plan.road_pos(CityPlan.AXIS_X, ix + 1)
-	var wx := plan.road_width(CityPlan.AXIS_X, ix + 1)
-	var rz := plan.road_pos(CityPlan.AXIS_Z, iz + 1)
-	var wz := plan.road_width(CityPlan.AXIS_Z, iz + 1)
-	var owned := _owned_rect(plan, ix, iz)
-	var ax := wx > plan.street_width + 1.0
-	var az := wz > plan.street_width + 1.0
-	if not open_only or plan.road_open(CityPlan.AXIS_X, ix + 1, owned.get_center().y):
-		var a := world_to_map(Vector2(rx, owned.position.y), center)
-		var b := world_to_map(Vector2(rx, owned.end.y), center)
-		draw_line(a, b, COLORS.avenue_edge if ax else COLORS.road_edge, wx * scale + 2.0, true)
-		draw_line(a, b, COLORS.avenue if ax else COLORS.road, wx * scale, true)
-	if not open_only or plan.road_open(CityPlan.AXIS_Z, iz + 1, owned.get_center().x):
-		var a := world_to_map(Vector2(owned.position.x, rz), center)
-		var b := world_to_map(Vector2(owned.end.x, rz), center)
-		draw_line(a, b, COLORS.avenue_edge if az else COLORS.road_edge, wz * scale + 2.0, true)
-		draw_line(a, b, COLORS.avenue if az else COLORS.road, wz * scale, true)
-
-
-func _fill(world_rect: Rect2, color: Color, center: Vector2, scale: float) -> void:
-	if color.a <= 0.0:
-		return
-	var p := world_to_map(world_rect.position, center)
-	draw_rect(Rect2(p, world_rect.size * scale), color)

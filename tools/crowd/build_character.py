@@ -368,6 +368,14 @@ if cover:
                     and sum(1 for j in nbv[i] if covered[j]) >= 0.7 * len(nbv[i])]
             for i in flip:
                 covered[i] = True
+    # under a headscarf the ears are gone too: they stand off the skull further than the scarf
+    # does, and the tips poked out through it
+    if any(own(o)["garment"] == "scarf" for o in OWN):
+        _ears = body.vertex_groups.get("ears")
+        if _ears is not None:
+            for v in bm.verts:
+                if any(g.group == _ears.index and g.weight > 0.05 for g in body.data.vertices[v.index].groups):
+                    covered[v.index] = True
     # keep every face with a visible corner, then one more ring round those
     keep_v = set()
     for f in bm.faces:

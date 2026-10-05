@@ -91,6 +91,12 @@ signal stars_changed(stars: int)
 @export var spawn_max: float = 240.0
 ## Units past this distance from the player are gone (m).
 @export var despawn_distance: float = 330.0
+## Cruisers come out of the gate of the nearest police station within this distance of the
+## player (PoliceStation), and recalled ones drive back into it; further out they join along a
+## street as before (m).
+@export var station_reach: float = 520.0
+## Walking pace through a station's drive (m/s).
+@export var station_drive_speed: float = 5.5
 ## Units past this distance that nobody has seen for a few seconds are recalled and replaced by
 ## fresh ones, so a cruiser stuck three blocks back does not hold a slot (m).
 @export var recall_distance: float = 150.0
@@ -147,6 +153,9 @@ var _witness_cache: Dictionary = {}
 var _last_fire_ms: int = -100000
 ## Knock-downs waiting for the next tick to be pinned on the player or not: [kind, local, ms].
 var _pending_downs: Array = []
+## Cruisers driven along a station's drive right now: {car, pts (true world XZ), d (metres
+## along), wait (seconds before it moves), out (true: leaving the gate), station}.
+var _drives: Array = []
 var _web: bool = false
 
 
@@ -431,6 +440,7 @@ func clear() -> void:
 		_retire_officer(o)
 	cruisers.clear()
 	officers.clear()
+	_drives.clear()
 	innocent = false
 
 
@@ -626,7 +636,7 @@ func board(o: PoliceOfficer, car: PoliceCar) -> void:
 		else:
 			car.recall_crew = false
 			car.mode = PoliceCar.Mode.LEAVING
-			car.goal = _away_point()
+			car.goal = _home_for(car)
 
 
 func officer_down(o: PoliceOfficer) -> void:
@@ -730,6 +740,8 @@ func _ensure_refs() -> void:
 func _physics_process(delta: float) -> void:
 	if not _pending_downs.is_empty():
 		_resolve_downs()
+	if not _drives.is_empty() or not cruisers.is_empty():
+		_tick_drives(delta)
 	if stars == 0 and cruisers.is_empty() and officers.is_empty():
 		return
 	_ensure_refs()
@@ -822,8 +834,9 @@ func _upkeep() -> void:
 		var on_screen := cam != null and d < 320.0 and cam.is_position_in_frustum(car.global_position)
 		car.unseen_time = 0.0 if on_screen else car.unseen_time + 0.5
 		var crew_out := car.crew_aboard < car.crew_alive
-		var retire := d > despawn_distance
-		if not retire and not crew_out and car.mode != PoliceCar.Mode.DISPATCH and d > recall_distance and car.unseen_time > 3.0:
+		# A cruiser out of a station's gate (or on its way back) may be further out than that.
+		var retire := d > (despawn_distance if car.station.is_empty() else maxf(despawn_distance, station_reach + 150.0))
+		if not retire and not crew_out and car.mode != PoliceCar.Mode.DISPATCH and not car.scripted and d > recall_distance and car.unseen_time > 3.0:
 			retire = true
 		if not retire and stars == 0 and not crew_out and car.unseen_time > 2.0:
 			retire = true
@@ -904,6 +917,10 @@ func _dispatch() -> void:
 	var zone := plan.zone_at(xz)
 	if zone != MacroMap.Zone.CITY and zone != MacroMap.Zone.BEACH:
 		return
+	# Out of the nearest station's gate when there is one within reach and its drive is free.
+	var st := PoliceStation.nearest(plan, xz, station_reach)
+	if not st.is_empty() and not _gate_busy(st) and _dispatch_from_station(st, xz):
+		return
 	var cam := get_viewport().get_camera_3d()
 	var center := plan.block_index_at(xz)
 	var pick: Array = []
@@ -938,6 +955,162 @@ func _dispatch() -> void:
 	_enter_at(car, Transform3D(Basis(Vector3.UP, car._heading(pick[0], pick[2])), WorldState.to_local(Vector3(p.x, h + CityChunk.ROAD_TOP + car.road_lift(), p.y))))
 	cruisers.append(car)
 	dispatched += 1
+
+
+## A cruiser out of station `st` toward `goal` (true world XZ): it starts in the car park, the
+## gate slides open, it drives out down the driveway, across the pavement and round into the lane,
+## and from there dispatches like any other. False when the road in front is closed.
+func _dispatch_from_station(st: Dictionary, goal: Vector2) -> bool:
+	var lane_spec := PoliceStation.exit_lane(plan, st, goal)
+	if lane_spec.is_empty():
+		return false
+	var heavy := stars >= heavy_stars and dispatched % 2 == 1
+	var car := _take_car(heavy)
+	car.police = self
+	car.begin_dispatch(plan, lane_spec[0], lane_spec[1], lane_spec[2], 0.0)
+	car.goal = goal
+	car.station = st
+	var pts := PoliceStation.exit_path(plan, st, int(lane_spec[2]), float(car.traffic.lane))
+	_enter_at(car, _drive_xf(car, st, pts, 0.0))
+	car.scripted = true
+	_drives.append({"car": car, "pts": pts, "d": 0.0, "wait": PoliceStation.GATE_TIME * 0.7, "out": true, "station": st})
+	PoliceStation.open_gate(get_tree(), st)
+	cruisers.append(car)
+	dispatched += 1
+	return true
+
+
+## True while a cruiser is on station `st`'s drive (one through the gate at a time).
+func _gate_busy(st: Dictionary) -> bool:
+	for dr: Dictionary in _drives:
+		if (dr.station as Dictionary).get("key") == st.key and is_instance_valid(dr.car):
+			return true
+	return false
+
+
+## Where a recalled cruiser goes: the gate of the nearest station within reach (it drives in),
+## else a far point (it drives off and is retired once nobody sees it).
+func _home_for(car: PoliceCar) -> Vector2:
+	var wp := WorldState.to_world(car.global_position)
+	var st := PoliceStation.nearest(plan, Vector2(wp.x, wp.z), station_reach) if plan else {}
+	car.station = st
+	if st.is_empty():
+		return _away_point()
+	return st.front
+
+
+## The scene transform of a cruiser `d` metres along drive `pts` of station `st`.
+func _drive_xf(car: PoliceCar, st: Dictionary, pts: PackedVector2Array, d: float) -> Transform3D:
+	var at := _along(pts, d)
+	var ahead := _along(pts, d + 2.0)
+	var dir2 := ahead - at
+	if dir2.length() < 0.01:
+		dir2 = at - _along(pts, d - 2.0)
+	var yaw := atan2(-dir2.x, -dir2.y)
+	var h := PoliceStation.path_height(plan, st, at) + car.road_lift()
+	var h2 := PoliceStation.path_height(plan, st, ahead) + car.road_lift()
+	var pitch := atan2(h2 - h, maxf(at.distance_to(ahead), 0.5))
+	return Transform3D(Basis.from_euler(Vector3(pitch, yaw, 0.0)), WorldState.to_local(Vector3(at.x, h, at.y)))
+
+
+## The point `d` metres along polyline `pts` (clamped to its ends).
+static func _along(pts: PackedVector2Array, d: float) -> Vector2:
+	if pts.size() < 2 or d <= 0.0:
+		return pts[0] if pts.size() > 0 else Vector2.ZERO
+	var run := 0.0
+	for i in pts.size() - 1:
+		var seg := pts[i].distance_to(pts[i + 1])
+		if run + seg >= d:
+			return pts[i].lerp(pts[i + 1], (d - run) / maxf(seg, 0.0001))
+		run += seg
+	return pts[pts.size() - 1]
+
+
+static func _length(pts: PackedVector2Array) -> float:
+	var run := 0.0
+	for i in pts.size() - 1:
+		run += pts[i].distance_to(pts[i + 1])
+	return run
+
+
+## Drives the cruisers on a station's drive, and starts the drive in for a recalled one that has
+## reached its station's gate.
+func _tick_drives(delta: float) -> void:
+	for car in cruisers:
+		if not is_instance_valid(car) or car.scripted or car.mode != PoliceCar.Mode.LEAVING or car.station.is_empty() or car.driver != null:
+			continue
+		_maybe_enter(car)
+	for i in range(_drives.size() - 1, -1, -1):
+		var dr: Dictionary = _drives[i]
+		var car: PoliceCar = dr.car if is_instance_valid(dr.car) else null
+		if car == null or car.driver != null or not car.scripted or car.get_parent() != self:
+			if car != null and car.driver == null:
+				car.scripted = false
+			_drives.remove_at(i)
+			continue
+		if float(dr.wait) > 0.0:
+			dr.wait = float(dr.wait) - delta
+			car.traffic_speed = 0.0
+			continue
+		var pts: PackedVector2Array = dr.pts
+		var total := _length(pts)
+		dr.d = float(dr.d) + station_drive_speed * delta
+		car.traffic_speed = station_drive_speed
+		if float(dr.d) >= total:
+			_drives.remove_at(i)
+			car.scripted = false
+			if dr.out:
+				# Into the lane: from here it dispatches like any other cruiser.
+				var end := pts[pts.size() - 1]
+				var t: Dictionary = car.traffic
+				car.traffic_speed = station_drive_speed
+				car._place(Vector3(end.x, PoliceStation.path_height(plan, dr.station, end) + car.road_lift(), end.y),
+						car._heading(int(t.axis), int(t.dir)), 0.0)
+			else:
+				_retire_car(car)
+			continue
+		car.global_transform = _drive_xf(car, dr.station, pts, float(dr.d))
+
+
+## A recalled cruiser near its station's gate turns in: on the lanes once it is level with the
+## turn on the station's road, under physics once it is close (stripped of its wheels and frozen
+## first, never the other way round).
+func _maybe_enter(car: PoliceCar) -> void:
+	var st := car.station
+	var wp := WorldState.to_world(car.global_position)
+	var here := Vector2(wp.x, wp.z)
+	var front: Vector2 = st.front
+	if here.distance_to(front) > 24.0:
+		return
+	var axis := int(st.road[0])
+	var index := int(st.road[1])
+	var front_along := front.y if axis == CityPlan.AXIS_X else front.x
+	var along := here.y if axis == CityPlan.AXIS_X else here.x
+	var dir: int
+	var lane: float
+	if car.is_traffic():
+		var t: Dictionary = car.traffic
+		if int(t.axis) != axis or int(t.index) != index:
+			return
+		dir = int(t.dir)
+		var ahead := (front_along - along) * float(dir)
+		if ahead > 11.5 or ahead < 4.0:
+			return
+		lane = float(t.lane)
+	else:
+		if here.distance_to(front) > 14.0:
+			return
+		dir = 1 if front_along >= along else -1
+		car.strip_for_pool()
+		car.station = st
+		car.mode = PoliceCar.Mode.LEAVING
+		lane = car._lane_offset(axis, index, dir) if car._plan else 0.0
+	var path := PoliceStation.enter_path(plan, st, dir, lane)
+	var pts := PackedVector2Array([here])
+	pts.append_array(path)
+	car.scripted = true
+	_drives.append({"car": car, "pts": pts, "d": 0.0, "wait": 0.0, "out": false, "station": st})
+	PoliceStation.open_gate(get_tree(), st)
 
 
 ## Puts a cruiser at scene transform `xf`: written in this node's space before a new or pooled
