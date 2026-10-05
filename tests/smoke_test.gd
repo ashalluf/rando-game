@@ -1810,6 +1810,9 @@ func _test_city() -> void:
 	# The marina (tests/marina_checks.gd): between Venice and the airport, its roads, the boats in the
 	# basin, the highway's bridge gap, a marina chunk's meshes and boats, LOD and the capture.
 	load("res://tests/marina_checks.gd").new().run(self, city)
+	# What a blast leaves (tests/explosion_aftermath_checks.gd): trees alight, charred and kept
+	# charred, smoke columns, craters and rubble, leaves, car alarms with their hazards.
+	await load("res://tests/explosion_aftermath_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

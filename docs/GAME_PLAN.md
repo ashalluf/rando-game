@@ -363,6 +363,16 @@ already mapped so milestone 2 is script-only.
   sunk floor with collision exceptions; the bridge clears 3.9 m, so the sailboats stay inside
   (a fixed span keeps the highway drivable; a bascule is a later job).
 
+- **2026-10-05 What a big blast leaves behind (fleet task "explosions", VISUAL_ROADMAP #71).**
+  A rocket left a 14-second scorch. Now trees and palms catch (from the blast, a burning car, a
+  neighbour), burn and stay charred; big fires send smoke columns up hundreds of metres; a blast
+  leaves a crater, heaved slabs and rubble for minutes, dust off the roofs and leaves off the
+  trees; parked cars' alarms go off with their hazards. Decisions: (1) the trees are known from
+  the chunks' own batch data (no physics shapes, nothing per tree at rest); (2) a burnt tree is a
+  CHARRED COPY of the same mesh with burnt materials, swapped under the flames, rather than a new
+  model; persistence through WorldState like destroyed props; (3) a smoke column is one mesh
+  placed entirely in its shader, so a column visible across the basin is one draw; (4) car alarms
+  are real CC0 recordings (Freesound), not synthesised.
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it

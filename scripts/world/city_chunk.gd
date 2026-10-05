@@ -513,7 +513,9 @@ func _finish_build() -> void:
 	Parks.commit(self)
 	_commit_far_ground()
 	_commit_boxes()
+	var fire_trees := TreeFire.collect(self, _batch)
 	_mm_nodes = _batch.build(self)
+	TreeFire.attach(self, fire_trees, _mm_nodes)
 	for paint_key: String in PAINT_KEYS:
 		if _mm_nodes.has(paint_key):
 			(_mm_nodes[paint_key] as MultiMeshInstance3D).material_override = PropFactory.road_paint_material()

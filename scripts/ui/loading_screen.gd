@@ -214,6 +214,8 @@ func _warm_shaders() -> void:
 	effects.append_array(CarDamage.warm_materials())
 	# The boost's streaks of air (BoostTrail), so the first boost does not stall.
 	effects.append(BoostTrail.streak_material())
+	# What a blast leaves (BlastAftermath): the crater's maps, the slabs, the leaves.
+	effects.append_array(BlastAftermath.warm())
 	for mat: Material in effects:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
