@@ -335,6 +335,18 @@ func _openings(i: int, w: Dictionary, which: String, fo: Vector2, t: Vector2, le
 				continue
 			if w.get("tuck", false) and fl == 0:
 				continue
+			if h.get("glass_front", false) and length >= 4.0:
+				# A canal house's wall of glass to the water (Canals): as wide a slider as the doors
+				# leave room for, a small window either side.
+				for share: float in [0.72, 0.45]:
+					var gw := minf(length - 1.6, length * share)
+					var gc := _free_centre(taken, length, gw)
+					if gc >= 0.0:
+						out.append([gc - gw * 0.5, gc + gw * 0.5, fy + 0.05, fy + 2.55, "slider"])
+						taken.append(Vector2(gc - gw * 0.5 - 0.3, gc + gw * 0.5 + 0.3))
+						break
+				_fill(out, taken, length, fy + 0.9, fy + 2.3, face_rng, 0.6, 0.9, 2.8, "window")
+				continue
 			if w.get("arch", false) and fl == 0:
 				# The arched picture window, the type's signature.
 				var aw := minf(length - 1.4, face_rng.randf_range(1.6, 2.0))

@@ -1796,6 +1796,9 @@ func _test_city() -> void:
 	# The container terminal at work (tests/port_life_checks.gd): the kit, the cranes' dual cycle,
 	# the tractors, gantries and straddle carriers, the gate and its trucks.
 	await load("res://tests/port_life_checks.gd").new().run(self, city)
+	# The canal neighbourhood (tests/canals_checks.gd): the site and its closed streets, the pure
+	# layout, the houses facing the water, the FULL / LOD chunks and the far city's record.
+	load("res://tests/canals_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

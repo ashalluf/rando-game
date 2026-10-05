@@ -7247,3 +7247,56 @@ of sight on the far side of its loop. The gate's semis stand still (parked Vehic
 stealable, lights off); the queue does not advance. No second ship with tugs. LOD chunks keep
 the old posed cranes and static gantries, so a crane's trolley can jump at the FULL/LOD handoff.
 The straddles carry their box under a spreader one size too long (the STS spreader).
+
+## 9bx. The canals: a canal neighbourhood behind the boardwalk, 2026-10-05 (agent branch `wt/canals`; VISUAL_ROADMAP #66)
+
+**What.** MARISOL CANALS (original name; the canals are Heron, Lantern, Mariner, Juniper and
+Coral) - the form of the Venice canals on the 2 x 2 blocks inland of the boardwalk's shop strip
+(x -824..-645, z -403..0 on the default seed). Two canals north-south, three east-west, 15 m bank
+top to bank top: still, shallow water (0.6 m deep to a bed at -1.2), sloped banks planted with
+grass, reeds along the waterline and shrubs, a concrete coping, a 2.6 m walk on each side; eleven
+arched white footbridges with picket railings and two lantern posts each; 104 narrow lots facing
+their canal, each a HouseKit house (stucco boxes, mid-century, craftsman cottages in siding,
+Spanish revival, ranch; no garage, modern boxes with a wall of glass to the water), a small
+garden down to the walk behind a picket / stucco / slat fence with a gate, a paver path, flowers,
+a porch lantern; board fences between the yards and along a 5 m walk alley down the middle of the
+back-to-back islands; trees and palms in the yards; ~20 timber docks with steps down the bank and
+rowboats, kayaks (some upside down on the dock) and canoes, more boats tied to the bank. People
+walk the walks and alleys. No cars: every street inside is closed (CityPlan.road_open(), the
+MacArthur Park site mechanism); the four streets round it stay open as its residential ring.
+
+**How.** `Canals` (`scripts/world/canals.gd`) is a landmark entry with an `"area"` (no kept
+roads), so CityPlan snaps and closes it like MacArthur Park; `layout(plan)` is pure and cached,
+`site_steps()` builds a chunk's part (ground, banks, water, houses, gardens, planting, bridges,
+docks, crowd, one commit), `capture_steps()` the far city's record (hooked in
+`CityChunk._begin_capture()`, two lines, plus `Landmarks.capture_steps()`). Houses go through a
+new `HouseKit.plan_fronted()` (plan_house() split in two: the caller hands it the front) and a
+`glass_front` flag in `HouseBuild._openings()`. `CanalKit` (`scripts/world/canal_kit.gd`): the
+bridge, dock, boats and lantern are meshes built once and instanced through the chunk's batch;
+fences and railings are written into the chunk's per-material meshes. Shaders: `canal_water`
+(the mirror of the house fronts worked out as planes - day walls and windows, lit rooms and porch
+lights at night - emitted by Fresnel; still ruffle, rain rings, scum at the edges), `canal_bank`,
+`canal_boat` (paint in INSTANCE_CUSTOM), `canal_lamp`. The water is below the GroundBody: one
+Area3D a chunk lets bodies down to the bed, refcounted across chunks (`Canals._sink`).
+Shared files touched (small): landmarks.gd (entry, site/capture steps), city_chunk.gd (capture
+hook), house_kit.gd (plan_fronted), house_build.gd (glass_front), minimap.gd (one label),
+smoke_test.gd (one line), lot_fill_checks.gd (its beach-town window reaches past the site: the
+canals took a block with a walk street). The blocks beside the site lose a rolled plaza or rec park
+(`_beside_site`, as round MacArthur Park); no block seed moves.
+
+**Cost** (opengl3 stills, whole frame, same EYEs with `CANALS=0`): aerial 4.44 M tris / 2,333
+draws before -> 3.85 M / 1,948 with the canals; along a canal 5.87 M / 3,673 -> 5.02 M / 2,766
+(the beach-town blocks it replaces had a car park, a plaza of palms and street cars). A FULL canal
+chunk's own meshes are within the check's 260 k budget.
+
+**Stills** (shots/canals): `aerial` (and `aerial_before`), along Heron Canal at golden hour
+(`golden`, and `golden_before`), a footbridge from over the water (`bridge`), the same walk at
+21:00 (`night`). EYEs: aerial `-735,140,95,0,-45` (EYE_AGL=1, --hour=13); along the canal
+`-765,1.7,-120,0,-3@18.3`; the bridge `-773.9,2.6,-172,0,-5@15.5`; night `@21`. Fast loop:
+`tools/glshot/block_shot.tscn` with `EYE=-735,95,30,0,-48 BLOCKS=2`.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the water's made-up mirror is added at
+`mirror_forward` 0.55 on top of SSR there and may want tuning; the lanterns' glow under AgX. No
+ducks or animals (birds only, as briefed). Boats are static (no bob). The canals end in a headwall
+at the pavement ring (no lagoon or tide gate). The minimap draws the site as park (no water).
+Bridges carry no name plates; canal names are in code only.

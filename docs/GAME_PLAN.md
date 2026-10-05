@@ -660,6 +660,18 @@ already mapped so milestone 2 is script-only.
   queued in its lanes. All of it is worked out from a clock, never simulated, so it costs a few
   MultiMesh draws; LOD chunks keep the still poses. Lamps, beacons and deck lights at night; the
   clanks come from the real cranes. docs/HANDOFF.md (port life); CLAUDE.md "Port life".
+- **2026-10-05 A canal neighbourhood behind the boardwalk (VISUAL_ROADMAP #66).** MARISOL
+  CANALS (original name; canals Heron, Lantern, Mariner, Juniper, Coral) takes the 2 x 2 blocks
+  inland of the boardwalk as a site like MacArthur Park: the streets inside are closed (no cars),
+  the four round it stay open as its residential ring. Two canals north-south and three east-west,
+  15 m bank to bank, shallow still water below the city's ground box (bodies pass through it while
+  in the water, as at the lake), sloped planted banks, a walk each side, an arched white footbridge
+  on every stretch, docks with rowboats, kayaks and canoes. The houses are HouseKit's, fronted on
+  the canal with no garage (no street reaches them), modern boxes with a wall of glass to the
+  water; small gardens down to the walk behind picket, stucco or slat fences. The water's mirror of
+  the houses is worked out in its shader (the house fronts as planes), because SSR cannot see them
+  and the web has none. Claimed after every roll (no block seed moves; the blocks beside it lose
+  a rolled plaza or rec park, as round MacArthur Park). Canals.
 
 - **2026-10-04 The city answers the chaos with fire engines and ambulances (VISUAL_ROADMAP #55).**
   A burning car or wreck, a big blast or a body on the street opens a call; the nearest fire

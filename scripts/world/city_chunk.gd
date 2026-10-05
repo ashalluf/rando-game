@@ -447,6 +447,8 @@ func _begin_capture(block: Dictionary, replica_role: int = 0) -> void:
 					_steps.append(RiverBuild.capture.bind(self))
 				else:
 					_steps.append_array(_block_steps(block))
+			elif block.has("site"):
+				_steps.append_array(Landmarks.capture_steps(block.site, self))
 		MacroMap.Zone.PORT:
 			_steps.append_array(_port_steps(block))
 		MacroMap.Zone.AIRPORT:
