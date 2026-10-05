@@ -21,6 +21,8 @@ render_mode cull_disabled;
 // Compatibility renderer the web build uses.
 
 global uniform float wind_factor;
+// A steady wind blowing one way (Weather: the Santa Ana), world XZ, length its strength 0..1.
+global uniform vec2 wind_lean;
 /// Weather's wet-surface amount, 0 dry to 1 soaked. Wet fronds go glossy.
 global uniform float road_wetness;
 /// Points TOWARDS the sun (published by DayNight). Drives the frond-glow lobe.
@@ -55,7 +57,12 @@ uniform float leaf_roughness : hint_range(0.0, 1.0) = 0.74;
 uniform float leaf_specular : hint_range(0.0, 1.0) = 0.34;
 uniform float wet_roughness : hint_range(0.0, 1.0) = 0.22;
 
+// --- Fire (TreeFire's charred copy; 0 on every living palm) ----------------------------------
+/// 1 = burnt out: the fronds are burnt back to stubs and black ribs, the trunk charred.
+uniform float burnt : hint_range(0.0, 1.0) = 0.0;
+
 varying float leaf_out;
+varying vec3 rest_pos;
 
 
 void vertex() {
@@ -72,6 +79,7 @@ void vertex() {
 	float radial = length(VERTEX.xz);
 	vec2 around = VERTEX.xz / max(radial, 1e-4);
 	leaf_out = radial;
+	rest_pos = VERTEX;
 
 	// 1. Trunk and frond ribs: slow, wide, growing with the square of height, phase-shifted by
 	//    which side of the trunk the frond leaves from.
@@ -84,6 +92,13 @@ void vertex() {
 	float bend = h * h * bend_scale * w;
 	VERTEX.x += bend * gust_x;
 	VERTEX.z += bend * gust_z;
+	// The steady wind lays the crown over downwind, breathing with the gusts (model space: the
+	// instance may be turned and scaled).
+	if (dot(wind_lean, wind_lean) > 1e-6) {
+		vec3 lean_dir = transpose(mat3(MODEL_MATRIX)) * vec3(wind_lean.x, 0.0, wind_lean.y);
+		float lean = h * h * bend_scale * 4.0 * length(wind_lean) * (0.75 + 0.25 * sin(TIME * 0.7 + phase));
+		VERTEX.xz += normalize(lean_dir.xz + vec2(1e-6)) * lean;
+	}
 
 	// 2. Leaflets: quick, tiny, keyed to how far out along the frond the vertex sits, so the tips
 	//    shiver while the rib carrying them is still halfway through its swing.
@@ -96,6 +111,20 @@ void vertex() {
 void fragment() {
 	float wet = clamp(road_wetness, 0.0, 1.0);
 	vec3 albedo = COLOR.rgb * mix(1.0, 0.86, wet);
+	if (burnt > 0.0) {
+		// Burnt back from the tips: a leaflet out past the crown's first metre goes in 25 cm
+		// cells, the further out the likelier, leaving black ribs and stubs round the head.
+		vec3 cell = floor(rest_pos * 4.0);
+		float n = fract(sin(dot(cell, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+		float out_of = clamp((leaf_out - 0.7) / 3.5, 0.0, 1.0);
+		if (leaf_out > 0.7 && n < burnt * (0.55 + 0.45 * out_of)) {
+			discard;
+		}
+		// Charcoal, with a little of the old colour left in the ribs: never pure black, which
+		// reads as a hole in the picture.
+		vec3 coal = vec3(0.028, 0.025, 0.022) * (0.7 + 0.6 * n);
+		albedo = mix(albedo, coal, burnt * mix(0.9, 0.97, step(0.7, leaf_out)));
+	}
 	ALBEDO = albedo;
 	ROUGHNESS = mix(leaf_roughness, wet_roughness, wet);
 	SPECULAR = mix(leaf_specular, 0.85, wet);
@@ -104,7 +133,7 @@ void fragment() {
 	// loop adds it on the side facing away from each light, so a crown only glows when something
 	// is actually shining through it and nothing glows at night. Tinted by the frond's own colour,
 	// and strongest out at the leaflets, where a frond is one cell thick.
-	vec3 through = albedo * translucency * clamp(0.3 + leaf_out * 0.35, 0.0, 1.2);
+	vec3 through = albedo * translucency * (1.0 - burnt) * clamp(0.3 + leaf_out * 0.35, 0.0, 1.2);
 	// Forward scattering on top: a crown between the camera and the sun lights up far harder than
 	// one off to the side.
 	vec3 to_cam = normalize((INV_VIEW_MATRIX * vec4(VIEW, 0.0)).xyz);
