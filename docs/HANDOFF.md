@@ -7105,7 +7105,18 @@ shadow, 110 / 150 m draw distances; budgets 1,400 / 260 / 90 a chunk). The walls
 with one vacant lot is ~5k triangles. LOD chunks and the far city's capture: ONE slab per lot in
 its dirt or gravel colour, which is what makes the gaps read from the air.
 
-**Cost** (opengl3 1280x720, `--quality=0`, noon; before = `VACANT_LOTS=0`): FILLED IN BELOW.
+**Cost** (opengl3 1280x720, `--quality=0`, noon; before = `VACANT_LOTS=0`). `tools/geo_count.gd`
+(the player camera at `--spawn`, 90 frames):
+
+| Spawn | triangles | draws | objects |
+|---|---|---|---|
+| Midtown street by a vacant lot `100,-410,90,-3` | 6,939,207 -> 6,961,988 (+0.3 %) | 3,392 -> 3,269 (-3.6 %) | 12,446 -> 12,322 |
+| Arena car park `2097,600,180,-3` | 5,600,825 -> 5,613,083 (+0.2 %) | 3,465 -> 3,480 (+0.4 %) | 19,573 -> 19,603 |
+| Midtown aerial `150,-430,90,-38,75` | 4,231,930 -> 4,242,424 (+0.2 %) | 3,858 -> 3,737 (-3.1 %) | 12,901 -> 12,779 |
+
+`still_shot.gd` aerial EYE `150,75,-430,90,-38`: 3,859,563 / 3,060 -> 3,834,124 / 2,921. A vacant
+lot replaces a Building's walls, frames, roof plant and kit with its share of two meshes and the
+weed batches, so draws mostly fall; the weeds' triangles are what the counts gain.
 
 **Traps.**
 - Chain-link seen from 3 m: a wire fraction that reads right from 20 m (Industrial's 0.09 of the
