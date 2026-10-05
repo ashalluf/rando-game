@@ -208,9 +208,12 @@ func _car(here: Vector2) -> String:
 	ec._open = _envf("ERRAND_DOOR", 0.95)
 	ErrandProps.swing(ec.door, ec._open)
 	await _ticks(3)
-	# Get in a step: in the door, half through.
-	p.errand.i = 3
-	for i in 14:
+	# Held at the open door, one foot in: the rest of the errand waits.
+	var at_door: Vector2 = (geo.door_out as Vector2).lerp(geo.door_in, _envf("ERRAND_IN", 0.3))
+	p.position = Vector3(at_door.x, StreetErrands._floor(p, at_door), at_door.y)
+	p.errand.steps = [{"do": "face", "yaw": float(geo.yaw) - PI * 0.5, "secs": 1e9, "road": true}]
+	p.errand.i = 0
+	for i in 10:
 		await _tree.physics_frame
 	var fwd := StreetErrands._along(car)
 	var right := geo.right as Vector2
