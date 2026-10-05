@@ -99,6 +99,9 @@ var _build_frame: int = -1
 var staged: bool = false
 ## Microseconds the street, loop and freeway driving took per tick, smoothed (see _physics_process).
 var drive_usec: float = 0.0
+## Counts driving passes (streets and freeway each add one), so a car is driven once a pass even
+## when the passes are run by hand (TrafficAI.advance_shot) inside one physics frame.
+var _drive_serial: int = 0
 
 
 func _ready() -> void:
@@ -495,7 +498,8 @@ func _drive_streets(delta: float) -> void:
 			_join_group(groups, int(t.lc_key), car)
 	_sirens = _siren_list()
 	_player_block = _player_in_lanes()
-	var tick := Engine.get_physics_frames()
+	_drive_serial += 1
+	var tick := _drive_serial
 	for key in groups:
 		var group: Array = groups[key]
 		var dir := float(group[0].traffic.dir)
@@ -1264,7 +1268,8 @@ func _drive_freeway(delta: float) -> void:
 			if not groups.has(gk):
 				groups[gk] = []
 			(groups[gk] as Array).append(car)
-	var tick := Engine.get_physics_frames()
+	_drive_serial += 1
+	var tick := _drive_serial
 	for key in groups:
 		var group: Array = groups[key]
 		var dir: int = int((key as Vector3).y)

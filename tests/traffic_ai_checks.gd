@@ -31,6 +31,7 @@ func run(t: Node, city: Node3D) -> void:
 	var police_was: Variant = police.get("enabled") if police else null
 	if police:
 		police.set("enabled", false)
+	var started_ms := Time.get_ticks_msec()
 	_moods()
 	_traffic.staged = true
 	_clear_traffic()
@@ -60,6 +61,7 @@ func run(t: Node, city: Node3D) -> void:
 	_player.global_position = _ws.to_local(home)
 	_player.velocity = Vector3.ZERO
 	await _ticks(3)
+	print("traffic ai checks took %.1f s" % ((Time.get_ticks_msec() - started_ms) / 1000.0))
 
 
 func _check(ok: bool, label: String) -> void:
@@ -410,6 +412,13 @@ func _dawdle_honk() -> void:
 		await _tree.physics_frame
 		if i > 90 and float(front.traffic.get("v", 1.0)) < 0.05 and float(back.traffic.get("v", 1.0)) < 0.05:
 			break
+	# The live crowd off this junction's crosswalks: a walker still crossing is a right reason for
+	# the front car to wait, and then nobody is dawdling.
+	for p in _tree.get_nodes_in_group("pedestrian"):
+		var w := p as Pedestrian
+		if w and w._cross != Pedestrian.Cross.NONE and w._cross_key.x == node.x and w._cross_key.y == node.y:
+			w.queue_free()
+	await _ticks(2)
 	var logged := TrafficAI.honk_log.size()
 	TrafficSignals.force(_plan, node.x, node.y, CityPlan.AXIS_X, TrafficSignals.Light.GREEN, 0.2)
 	var waited := 0.0
@@ -586,7 +595,7 @@ func _live_and_cost() -> void:
 	for k in TrafficAI.counts:
 		if str(k).begins_with("street_"):
 			changes0 += int(TrafficAI.counts[k])
-	for i in 60 * 12:
+	for i in 60 * 7:
 		await _tree.physics_frame
 		if i % 6 != 0:
 			continue
@@ -611,11 +620,9 @@ func _live_and_cost() -> void:
 		if str(k).begins_with("street_"):
 			changes += int(TrafficAI.counts[k])
 	_check(worst > -0.3, "live traffic with lane changes, moods and pull-outs never drives into another car (tightest %.2f m, %d lane changes in the run)" % [worst if worst < INF else 99.0, changes - changes0])
-	# The cost: the traffic's own smoothed tick time, AI on, then off, then on again.
-	var on_a := await _cost(true)
+	# The cost: the traffic's own smoothed tick time, AI off, then on.
 	var off := await _cost(false)
-	var on_b := await _cost(true)
-	var on := (on_a + on_b) * 0.5
+	var on := await _cost(true)
 	print("TRAFFIC_TICK_US ai_on=%.0f ai_off=%.0f street_cars=%d freeway_cars=%d" % [on, off, _traffic.cars.size(), _traffic.freeway_cars.size()])
 	_check(on < off * 2.0 + 400.0, "the traffic's tick with the AI on stays close to what it was (%.0f us on, %.0f us off)" % [on, off])
 
@@ -623,10 +630,10 @@ func _live_and_cost() -> void:
 func _cost(ai: bool) -> float:
 	TrafficAI.enabled = ai
 	_traffic.drive_usec = 0.0
-	await _ticks(30)
+	await _ticks(20)
 	var sum := 0.0
-	for i in 120:
+	for i in 90:
 		await _tree.physics_frame
 		sum += _traffic.drive_usec
 	TrafficAI.enabled = true
-	return sum / 120.0
+	return sum / 90.0

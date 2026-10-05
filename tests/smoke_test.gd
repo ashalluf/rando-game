@@ -549,6 +549,10 @@ func _test_city() -> void:
 				var on_the_deck := 0
 				var both_ways := {}
 				for car in traffic.freeway_cars:
+					# A car on an on- or off-ramp (TrafficAI) is off the deck on purpose.
+					if car.traffic.has("ramp"):
+						on_the_deck += 1
+						continue
 					var cw: Vector3 = _world_state().to_world(car.global_position)
 					var near: Array = fw.nearest_on(car.traffic.fw, Vector2(cw.x, cw.z))
 					var deck: Vector3 = fw.point_at(car.traffic.fw, float(near[0]))[0]

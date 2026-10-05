@@ -47,7 +47,7 @@ const THINK_SECONDS := 0.5
 const GHOST_UNTIL := 0.65
 ## Distance ahead a car looks for something to pass, and how close to the next junction a car
 ## still starts a change (m past the crossing road's edge).
-const PASS_LOOK := 40.0
+const PASS_LOOK := 60.0
 const JUNCTION_KEEP := 10.0
 ## A car with a turn rolled heads for its turn lane within this distance of the junction (m).
 const TURN_LANE_REACH := 140.0
@@ -323,10 +323,10 @@ static func street_think(tm: TrafficManager, car: Vehicle, leader: Vehicle, grou
 	var v := float(t.get("v", 0.0))
 	var half := float(t.get("half", 2.4))
 	var room := to_centre - cw * 0.5 - JUNCTION_KEEP
-	# Never starting a change inside a junction (its rear still in the last one, its nose in the
+	# Never starting a change inside a junction (its nose still in the last one, or already in the
 	# next); a move may run on across one, as people do round a bus just past a corner.
 	var nose_room := to_centre - cw * 0.5 - half
-	var in_box := past < 0.0 or nose_room < 2.0
+	var in_box := past + 2.0 * half < 1.0 or nose_room < 2.0
 	var cur := lane_n(plan, axis, index, float(t.lane))
 	# Signalling: move over once there is a gap, give up after a while or near the junction.
 	if t.has("lc_want"):
@@ -1019,23 +1019,24 @@ static func stage_for_shot(tm: TrafficManager, kind: String, cam: Camera3D) -> S
 			var index: int = best[1]
 			var dir: int = best[3]
 			var stop: float = best[4]
-			_shot_greens(tm, axis, index, best[2])
 			var lanes := lanes_of(plan, axis, index)
-			var bus := tm.place_car(axis, index, dir, lanes - 1, stop - float(dir) * 3.0, 1.5, false, BigVehicles.BUS)
+			var bus := tm.place_car(axis, index, dir, lanes - 1, stop - float(dir) * 12.0, 3.0, false, BigVehicles.BUS)
 			bus.traffic.dwell_need = 60.0
-			advance_shot(tm, 4.0)
-			var car := tm.place_car(axis, index, dir, lanes - 1, stop - float(dir) * 62.0, 9.0, false)
+			advance_shot(tm, 6.0)
+			_shot_greens(tm, axis, index, int(best[2]) + (0 if dir > 0 else 1))
+			var car := tm.place_car(axis, index, dir, lanes - 1, stop - float(dir) * 70.0, 9.0, false)
 			car.traffic.ai = true
 			tm.set_meta("shot_car", car)
 			# Behind and above the car, off the kerb on its side, looking up the road at the bus.
 			var side := float(-dir if axis == CityPlan.AXIS_X else dir)
-			var lat := plan.road_pos(axis, index) + side * (plan.road_width(axis, index) * 0.5 + 2.0)
-			var along := stop - float(dir) * 88.0
+			# Over the carriageway, high behind the car, looking up the road past it at the bus.
+			var lat := plan.road_pos(axis, index) + side * 1.0
+			var along := stop - float(dir) * 74.0
 			var e := Vector2(lat, along) if axis == CityPlan.AXIS_X else Vector2(along, lat)
-			var target := Vector2(plan.road_pos(axis, index) + side * 2.0, stop - float(dir) * 20.0)
+			var target := Vector2(plan.road_pos(axis, index) + side * 3.0, stop - float(dir) * 22.0)
 			if axis != CityPlan.AXIS_X:
 				target = Vector2(target.y, target.x)
-			return _eye_string(plan, e, 7.5, target, 1.0)
+			return _eye_string(plan, e, 11.0, target, 0.0)
 		"merge":
 			var fw := tm._freeway()
 			if fw == null:
@@ -1098,15 +1099,17 @@ static func stage_for_shot(tm: TrafficManager, kind: String, cam: Camera3D) -> S
 			var w := WorldState.to_world(best_car.global_position)
 			var along := w.z if axis == CityPlan.AXIS_X else w.x
 			var lanes := lanes_of(plan, axis, index)
+			var cross := CityPlan.AXIS_Z if axis == CityPlan.AXIS_X else CityPlan.AXIS_X
+			_shot_greens(tm, axis, index, plan._index_at(cross, along) + (1 if dir > 0 else 0))
 			var passer := tm.place_car(axis, index, dir, lanes - 1, along - float(dir) * 26.0, 8.0, false)
 			tm.set_meta("shot_car", best_car)
 			tm.set_meta("shot_passer", passer)
-			# Across the road on the far pavement, a little behind, looking at the parked car.
+			# Over the far carriageway, a little behind and above, looking at the parked car.
 			var side := float(-dir if axis == CityPlan.AXIS_X else dir)
-			var lat := plan.road_pos(axis, index) - side * (plan.road_width(axis, index) * 0.5 + 1.5)
-			var e := Vector2(lat, along - float(dir) * 16.0) if axis == CityPlan.AXIS_X else Vector2(along - float(dir) * 16.0, lat)
-			var target := Vector2(w.x, w.z) + (Vector2(0.0, float(dir)) if axis == CityPlan.AXIS_X else Vector2(float(dir), 0.0)) * 6.0
-			return _eye_string(plan, e, 3.2, target, 0.8)
+			var lat := plan.road_pos(axis, index) - side * 3.0
+			var e := Vector2(lat, along - float(dir) * 13.0) if axis == CityPlan.AXIS_X else Vector2(along - float(dir) * 13.0, lat)
+			var target := Vector2(w.x, w.z) + (Vector2(0.0, float(dir)) if axis == CityPlan.AXIS_X else Vector2(float(dir), 0.0)) * 5.0
+			return _eye_string(plan, e, 4.5, target, 0.6)
 	return ""
 
 
@@ -1124,11 +1127,12 @@ static func advance_shot(tm: TrafficManager, seconds: float) -> void:
 				c._tick_lights(dt)
 
 
+## Green at junction k0 of road (axis, index) (force() sets the one shared clock, so only one
+## junction can be chosen).
 static func _shot_greens(tm: TrafficManager, axis: int, index: int, k0: int) -> void:
-	for k in range(k0 - 3, k0 + 4):
-		var node := Vector2i(index, k) if axis == CityPlan.AXIS_X else Vector2i(k, index)
-		if TrafficSignals.is_signal(tm.plan, node.x, node.y):
-			TrafficSignals.force(tm.plan, node.x, node.y, axis, TrafficSignals.Light.GREEN, 0.05)
+	var node := Vector2i(index, k0) if axis == CityPlan.AXIS_X else Vector2i(k0, index)
+	if TrafficSignals.is_signal(tm.plan, node.x, node.y):
+		TrafficSignals.force(tm.plan, node.x, node.y, axis, TrafficSignals.Light.GREEN, 0.05)
 
 
 ## "x,y,z,yaw,pitch" for a camera at `e` (true world XZ) `height` metres over the ground, looking

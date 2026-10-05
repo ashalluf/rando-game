@@ -525,6 +525,7 @@ side ("left/right" below), or by the loop against itself half a turn later (bird
 | Car horn beep beep two beeps honk honk (AmishRob) | https://freesound.org/s/423990/ | CC0 1.0 | `horn_far_2` 0.05-0.70 s | 2026-09-24 |
 | 05 Horn.wav (15HPanska_Ruttner_Jan) | https://freesound.org/s/461679/ | CC0 1.0 | `horn_far_3` 0.45-2.50 s | 2026-09-24 |
 | Car Horn Honk.wav (DeVern) | https://freesound.org/s/349922/ | CC0 1.0 | `horn_far_4` 1.40-3.10 s | 2026-09-24 |
+| The same five recordings (keweldog, MicktheMicGuy, AmishRob, 15HPanska_Ruttner_Jan, DeVern) | https://freesound.org/s/182474/ (and 434878, 423990, 461679, 349922) | CC0 1.0 | `car_horn_0..4` (taps and double taps), `car_horn_long_0..2` (leaning on the horn); cut close and unfiltered by `tools/traffic_horns.py` for the traffic's honks (TrafficAI) | 2026-10-05 |
 | Angry big dog barking - Far [d15].wav (v23) | https://freesound.org/s/440865/ | CC0 1.0 | `dog_0` 0.70-2.80 s; `dog_1` 4.95-7.10 s; `dog_2` 8.55-9.90 s | 2026-09-24 |
 | distant_dog.wav (Heigh-hoo) | https://freesound.org/s/54545/ | CC0 1.0 | `dog_3` 2.85-5.35 s | 2026-09-24 |
 | bus coach ext pull up brake air release idle.wav (kyles) | https://freesound.org/s/454420/ | CC0 1.0 | `bus_hiss_0` 3.90-6.40 s; `bus_hiss_1` 10.60-12.80 s | 2026-09-24 |

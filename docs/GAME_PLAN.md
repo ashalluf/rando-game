@@ -289,6 +289,20 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Traffic that drives like people (VISUAL_ROADMAP #63, HANDOFF 9b?, traffic-ai).**
+  The street traffic queued well but never left its lane, never reacted and never made a sound.
+  `TrafficAI` (scripts/npc/traffic_ai.gd) adds the drivers on top of TrafficManager's IDM queues
+  without touching their guarantee: lane changes on two-lane streets (round a bus at its stop, a
+  double-parked car, a slow truck; into the turn lane; a swerve round the player on foot) are
+  signalled, gap-checked ahead and behind, and the changing car counts in BOTH queues until it is
+  mostly across; a mood per car from a hash (12 % pushy, 12 % careful, 8 % dozy) scales gaps,
+  braking, ambers, speed, reaction on green and patience; honks are rate-limited and only in
+  earshot; parked cars pull out as a lane change out of the parking lane (their physics wheels off
+  first, never a frozen body with wheels); the freeway passes, keeps right and uses its ramps
+  (off-ramps for the +t traffic, on-ramps for the -t traffic, as Freeway places them). Decisions:
+  no physics queries (everything is lane maths), placed cars (tests, stills) take no lane changes
+  of their own unless asked (`ai`), and `TRAFFIC_AI=0` restores the old traffic for an A/B.
+
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it
