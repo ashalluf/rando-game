@@ -9414,6 +9414,10 @@ all single houses.
 - Midtown: one hook in `CityChunk._build_lot()` after the pad roll (`Apartments.claims()`), which
   builds it through `_build_house()`. A midtown claim lays its own lot ground (no yard pass runs
   there) through YardFill's ground and planting helpers.
+- Midtown neighbours: a DecoBoulevard lot stays deco (`DecoBoulevard.lot_plan()`); on a block
+  with a service alley the apartment plans in the cell less the band (`Alleys.trim()`), tells the
+  alley its wings (`Alleys.record()`, so the run goes round them) and keeps its lot ground off the
+  alley's back strip.
 - Odds: midtown lots under `MIDTOWN_MAX_H` (24 m) at `MIDTOWN_ODDS` (0.45); suburbs within
   `INNER_RING` (900 m) of the midtown ring or the westside centre, odds falling from `INNER_ODDS`
   (0.5) to 0. Each kind needs a yard of at least `MIN_YARD`.
@@ -9422,8 +9426,12 @@ all single houses.
   city: HouseBuild's coded wing boxes and roof slabs, plus a thin box per gallery floor.
 - `APARTMENTS=0` is the A/B.
 
-**Numbers (seed 1337, 2.6 km round downtown):** 883 buildings (podium 284, walk-up 307, Spanish
-court 200, bungalow court 92), plans pure, ~0.45 s to plan them all.
+**Numbers (seed 1337):** within 3.2 km of downtown's centre 1,292 buildings (podium 340, walk-up
+359, Spanish court 240, bungalow court 109), plans pure, ~1.2 s to plan them all. Frame cost at
+the midtown bookmark `--spawn=290,-520,105,-5` (`tools/geo_count.gd`, opengl3): 3.84 M triangles /
+3,186 draws with `APARTMENTS=0`, 4.20 M / 3,228 with the kit (+9 % / +1.3 %; the house meshes are
+0.38 M of it, shadows included - pickets and gate bars are shadowless `h_rail` strips). A block of
+ten apartments builds in 1,052 ms against 916 ms as Building boxes (headless).
 
 **Tools:** `tools/apartments/probe.gd` (counts, EYEs for `block_shot.tscn`; skips lots a pad may
 take), `tools/apartments/compile.gd`. Checks: `tests/apartments_checks.gd` (`house_checks.gd` now
