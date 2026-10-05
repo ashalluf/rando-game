@@ -754,7 +754,8 @@ static func _lamp_at(ch: CityChunk, st: SurfaceTool, along_x: bool, s: float, fa
 		light.position = Vector3(lp.x, CityChunk.SIDEWALK_TOP + Alleys.LIFT + y - 0.15 + ch._gy(lp.x, lp.y), lp.y)
 		light.omni_range = 7.5
 		light.omni_attenuation = 1.5
-		light.light_color = Color(1.0, 0.8, 0.55) if warm else Color(0.88, 0.92, 1.0)
+		# The district's lamp light (NightCity: its sodium or LED patch), like every street lamp.
+		light.light_color = NightCity.lamp_light(Vector2(lp.x, lp.y))
 		light.light_energy = 0.0
 		light.shadow_enabled = false
 		light.distance_fade_enabled = true
