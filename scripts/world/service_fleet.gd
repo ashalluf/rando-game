@@ -976,6 +976,10 @@ func stage_for_shot(scene: String, cam: Camera3D) -> String:
 					await get_tree().physics_frame
 					var dmg := wreck.damage_state()
 					dmg.become_wreck()
+					# Off the debris clock and the wreck cap now: a still's frames take seconds of
+					# wall clock each, and PhysicsBudget would free it before the shot.
+					CarDamage._wrecks.erase(wreck)
+					wreck.set_meta("debris_life", 1.0e9)
 					await get_tree().physics_frame
 					dmg.extinguish()
 					# Long enough for the last flames to die and the steam to go (the retired puffs
