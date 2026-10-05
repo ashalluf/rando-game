@@ -7665,7 +7665,12 @@ column from 1.4 km across the basin), `aftermath_crater` (the crater and slabs i
 (`tools/glshot/aftermath_stage.gd`: the nearest palm row, a camera no crown blocks; `AF_NOFIRE=1`
 the same frame with nothing staged).
 
-**Frame cost:** FRAMECOST
+**Frame cost** (still_shot.gd GEO, opengl3, 1280x720, the same staged frame with `AF_NOFIRE=1`
+against it): nothing at all while nothing burns (no node exists; the registry is a few hundred
+small dictionaries a chunk). Five palms burning at night: 5.92 M -> 6.26 M triangles (+5.7 %),
+2,761 -> 2,799 draws (the charred copies cast their own shadow, +0.26 M in the cascades, and the
+flames, embers and smoke). The smoke column frame from 1.4 km: 5.28 M -> 5.30 M, 4,457 -> 4,507
+draws (the column is ONE draw; the rest is the fires under it).
 
 **Not done / not verified.** Forward+ (the Mac) not seen: the crater decal, the fire's light on
 the charred trunks, the column under AgX and auto exposure need eyes. Only street trees and
