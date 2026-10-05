@@ -6582,6 +6582,11 @@ itself; a FULL rec park and school: one ground mesh, one walls mesh, no Building
 shadowless, a kit budget, people's spawn steps; LOD builds no meshes; the far city's capture lays
 partitioned slabs (0 overlaps) covering the site and far boxes.
 
+**Frame cost** (geo_count, opengl3 800x600, `--spawn=-420,820,0,-5 --hour=10`, on the apron facing the
+concourse, before any live jet): `AIRPORT_GROUND=0` 1,639,227 tris / 2,044 draws / 14,261 objects;
+with it 1,670,767 / 2,096 / 14,313 (+1.9 % triangles, +52 draws: the nine posable bridges and the
+vehicles). A live jet on the ground is one AmbientJet as before (model, shadow twin, lights).
+
 **Not done / not verified**: no Forward+ look (the pool trace, the floodlight glow, the acrylic
 and turf under AgX: NEEDS A MAC CHECK); no children or swimmers; the playground structure and
 the people's "games" are simple (pickup players run between spots, fielders stand; nobody
@@ -8937,3 +8942,111 @@ cars carry no windscreen price (their glass differs per body). No salesmen or cu
 lots (the crowd's ParkGoer-style roles were out of scope); the tube men's fans are silent. No
 dealers in the suburbs inside the probe's 2.5 km (the default seed's suburbs start further out;
 the rule is the same there). The brand flags are banded cloth without the badge printed on them.
+
+## 9ct. The airport's ground comes alive: taxiing jets, pushbacks, jet bridges, apron vehicles, 2026-10-05 (agent branch `wt/airport-life`; VISUAL_ROADMAP #88)
+
+Number is provisional (the next free one after 9bt; the lead renumbers on merge).
+
+**The brief** (lead): the airport (9bb) had jets in the air and a static apron - arrivals faded
+out at the runway's west end, departures faded in lined up, every stand's airliner and trucks
+stood still for ever. Make the ground alive: landed jets taxi to a free gate, departures push
+back and taxi out, gates swap between their parked instances and live jets, the apron's
+vehicles move, the jet bridges extend to an arriving jet's door, heat shimmer behind running
+engines, beacons on taxiing jets, the noise. CLAUDE.md's "Airport ground life" note is the
+reference; this is the story.
+
+**How it fits together.** `AirportGround` (a child of AirTraffic, built in its `_setup()`) owns
+the stands. A stand's state is STATIC (`g_state`, livery, bridge extension, turnaround) because
+the things drawn from it are built before any AirportGround exists and in more than one copy:
+the gate MultiMesh of both concourse copies (the far one CityStreamer always keeps and the near
+one a chunk builds) register with `register_gate_jets()` - AirportTerminal now gives EVERY stand
+an instance, the empty stand's collapsed - and each chunk's gate set (the static trucks round a
+parked jet) with `register_gate_set()`. Two kinds of change, two rules: a live jet and the stand's
+instance are the same model, scale, transform and livery (the check holds them to the
+millimetre), so that swap happens the moment it is due and nobody can see it; a gate SET appears
+or goes only while nobody looks at the stand (`watched()`: in the frustum within 950 m), since six
+trucks popping is visible. A departure asked of a stand whose trucks are drawn first asks for
+them to go (`_want_clear`) and takes another stand, or AirTraffic's old fade-in, meanwhile.
+
+**The jets.** AmbientJet got two phases, GROUND and PARKED: GROUND drives a list of legs
+(`AirportGround.leg()`: an AirRoute sampled every 2 m, driven forward or `reverse` - a pushback -
+at a speed profile worked out once from its turns (0.9 m/s2 sideways: a 25 m lead-in at 4.7 m/s),
+its stops and the next leg's start, a `tag` it must be cleared for and a `wait` at its start).
+`AirRoute.from_waypoints()` grew `step` and `room_share` for that (defaults unchanged). The flow
+is one way, so no two jets ever meet head on: arrivals land on 27L, roll out (a firmer 4.6 m/s2
+autobrake), claim a free stand at taxi speed (`claim_arrival()`), turn off into the west connector,
+hold short of 27R until they own it ("cross"), up to the taxiway, east, round the painted lead-in
+to the stop bar; departures push back tail first (the bridge drawn in first), wait while the tug
+disconnects, taxi east to the east connector, hold short of 27R, line up when they own it
+("lineup") and become ordinary departures at `AirTraffic.departure_start()` (`lineup_inset` 135 ->
+175: the line-up spot is now just west of the turn off the east connector). The departure runway
+has one owner at a time (`_owner`: a crossing arrival or a departure, released once it is across
+or 350 m past lift-off); AirTraffic's own fade-in departures only appear while nobody owns it
+(`lineup_free()`). `room_ahead()` keeps jets in single file (path points 8 m apart, 80 m ahead).
+Jets stopped by traffic for `stuck_seconds` (75) fade out - the safety valve against a deadlock I
+could not provoke but cannot prove impossible. The lead-in curves are painted from the jets' own
+route (`lead_in_route()`), so the jets follow the paint.
+
+**Two things found on the way.** (1) Every arrival touched down at the runway's FAR end: the final
+was swept 30 m either side for obstacles, which over the runway protection zone reached the 50 m
+blocks beside it, so the approach flew level at 62 m to the fence and dived at 5 degrees (the old
+check only asked for a touchdown somewhere on the runway). Over the protection zone the sweep is
+off now; touchdown is ~110 m past the aim point, which leaves room to turn off. (2) The player's
+flyable private jet (`MacroMap.apron_spots[0]`) stood on the taxiway's west end, across the path of
+every arriving jet. It waits at the taxiway's EAST end now, facing west (a 590 m run; the smoke
+test's take-off and its 300 m clear-run check follow its heading). Flyable jets standing on the
+field are obstacles anyway (`_scan_flyables()`: a way they block is not taken - the arrival rolls
+to the runway end and fades as before), and every live ground jet gets a collision exception with
+them, so an AnimatableBody taxiing never shoves the player's jet (or the smoke test's).
+
+**Lights and noise.** `aircraft_lights.gdshader` has `beacon_on` / `strobe_on` (default 1, so the
+sky is unchanged): on the ground the red beacons flash while the engines run (pushback onwards)
+and the white strobes only from the line-up; a parked live jet shows only its nav lights. The
+engine loop follows `engine_level` (off, the idle whine spooling up during the pushback, the roar
+at take-off). Heat shimmer: an open cone behind each engine (`AmbientJet.engine_spots()`, measured
+off the models: the airliner's wing pair, the private jet's tail pods) on
+`shaders/jet_exhaust.gdshader` - screen-reading, drawn first among the transparent things
+(render_priority MIN, CLAUDE.md effects trap), strength by engine level, gone past 260 m and off on
+the web.
+
+**Bridges.** `JetBridge` (one per stand in the NEAR concourse only; the far copy keeps its static
+bridges): the rotunda stays in the concourse mesh, the two tunnel sections, the cab and the drive
+column are rebuilt from `AirportGround.bridge_amount()` only while it changes (docked = exactly
+the old static bridge; retracted = 62 % of the length, swung toward the building). Its walkway
+collision is an AnimatableBody moved with it.
+
+**Vehicles** (within 1.5 km of the player, under `ApronVehicles`; `ApronKit` builds the new
+meshes on AirportKit's material): three baggage trains (tug + four carts, two MultiMeshes) round
+the service road on ONE schedule worked out from the clock (stops behind stands 13 and 17), a
+period apart, so they never meet; a live pushback tug per stand while its set is hidden (under the
+nose, pushing, backing off, home to its waiting spot); a follow-me car that pulls out onto the
+taxiway as an arrival comes off the connector, holds 55 m ahead along the jet's own legs and peels
+off before the stand; a fuel truck (under a wing) and a catering truck (backed to the rear door,
+its box rising 3.3 m on the scissor, `ApronKit.scissor()`) sent every 40 s to a parked jet whose
+own gate set lacks one (the departure waits for them); two crash tenders in their shed by the
+hangars. Missions are `Mover` programs (drives on AirRoutes with a trapezoid speed profile, waits)
+evaluated from the clock - nothing integrates. The two nearest moving vehicles carry an engine
+loop.
+
+**Stills** (opengl3, 1280x720, `/tmp/claude-0/shoot.sh` pattern in the README of `shots/airport-life`):
+`AIR=taxi AIR_DIST=72 AIR_SIDE=5 EYE=-470,3.5,815,-20,-3 --spawn=-480,840 --hour=10` (a jet on the
+taxiway, the terminal behind), `AIR=pushback AIR_DIST=34 AIR_SIDE=4 EYE=-418,9,818,-38,-7` (stand 15
+pushing back, bridge in, tug at the nose), `AIR=apron AIR_DIST=58 EYE=-405,4.5,780,58,-5` (a train
+stopped behind stand 13, the catering truck up at stand 12's door), `AIR=taxi ... EYE=-236,56,668,125,-16
+--hour=21` (the field at night from the tower).
+
+**Checks**: `tests/airport_life_checks.gd` (15; alone in a minute with
+`godot --headless --path . --script tools/airport_life/run_checks.gd`). air_traffic_checks' arrival
+now accepts either ending (to a stand, or faded at the runway end); airport_checks counts an
+instance for every stand.
+
+**Frame cost** (geo_count, opengl3 800x600, `--spawn=-420,820,0,-5 --hour=10`, on the apron facing the
+concourse, before any live jet): `AIRPORT_GROUND=0` 1,639,227 tris / 2,044 draws / 14,261 objects;
+with it 1,670,767 / 2,096 / 14,313 (+1.9 % triangles, +52 draws: the nine posable bridges and the
+vehicles). A live jet on the ground is one AmbientJet as before (model, shadow twin, lights).
+
+**Not done / not verified**: Forward+ (the shimmer was judged on opengl3 only, where it reads the
+same screen texture); the follow-me car and the crash tender are AirportKit-style boxes like the
+rest of the ground equipment; private jets still fade out at the runway end (they would park at
+the FBO by the hangars); the crash tender never drives; trains do not interact with jets crossing
+the service road (none does: jets stop short of it).

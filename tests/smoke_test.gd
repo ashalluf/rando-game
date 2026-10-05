@@ -1702,6 +1702,8 @@ func _test_city() -> void:
 	# The airport (tests/airport_checks.gd): gates, flyable jets, runways, the field's lights,
 	# the terminal landmarks and a FULL airport chunk's apron.
 	await load("res://tests/airport_checks.gd").new().run(self, city)
+	# The airport's ground (tests/airport_life_checks.gd): taxiing, stands, pushbacks, the apron.
+	await load("res://tests/airport_life_checks.gd").new().run(self, city)
 	# Car damage (tests/car_damage_checks.gd): holes, glass, lamps, crashes, a rocket to a wreck,
 	# blame, the caps, the driven car, a pooled cruiser - on a deck high over the street.
 	await load("res://tests/car_damage_checks.gd").new().run(self, city)

@@ -1197,6 +1197,46 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `airliner_livery.gdshader`, painted by region of the model in its own units (fuselage, belly,
   cheatline, windows, doors, cockpit, fin and its mark, nacelles, wings, gear). Checks:
   `tests/airport_checks.gd`. Stills: the four in docs/HANDOFF.md 9bb.
+- Airport ground life (2026-10-05, "taxiing jets, apron vehicles moving"; HANDOFF 9ct):
+  `AirportGround` (`scripts/world/airport_ground.gd`), a child of AirTraffic built in its
+  `_setup()` (`AIRPORT_GROUND=0` in the environment: none of it, the A/B). **The stands are static
+  state** (`g_state` EMPTY / INBOUND / PARKED / PUSHING, livery, bridge extension, turnaround
+  `g_ready_at`), applied to everything registered: every gate MultiMesh of both concourse copies
+  (`register_gate_jets()`, AirportTerminal adds an instance for EVERY stand, the empty one
+  collapsed) and every chunk's gate set (`register_gate_set()`, Airport._gate_service()); state
+  resets only in `ensure()` from `setup()` (a test building another seed's concourse must not
+  wipe it). A live AmbientJet and the stand's instance are the same model, transform and livery
+  (checked to the millimetre), so that swap happens whenever it is due; a gate SET (the static
+  trucks) appears or goes only while nobody looks (`watched()`). **Jets**: AmbientJet's Phase
+  GROUND / PARKED drive `ground_legs` (`AirportGround.leg()`: an AirRoute sampled every 2 m -
+  `AirRoute.from_waypoints()` now takes `step` and `room_share` - forward or `reverse` (pushback),
+  a speed profile from the turns and stops, a `tag` it must be cleared for, a `wait`). Flow is
+  one way: arrivals claim a stand at taxi speed on 27L (`claim_arrival()`), turn off into the
+  west connector, hold short of 27R until they own it ("cross"), up to the taxiway, east, round
+  the painted lead-in (`lead_in_route()`, which Airport paints too) to the stop bar, dock (bridge
+  out, engines off) and become the instance; departures (`request_departure()` from AirTraffic's
+  schedule, before its old fade-in) push back tail first with a live tug, wait for the
+  disconnect, taxi east to the east connector, hold short, line up when cleared ("lineup") at
+  `AirTraffic.departure_start()` (`lineup_inset` 175 now) and become ordinary departures. One
+  runway owner at a time (`_owner`); `room_ahead()` keeps single file; flyable Aircraft on the
+  field are obstacles (`_scan_flyables()`, which also adds collision exceptions so a ground jet
+  never shoves the player's jet), and a way they block is not taken (the arrival fades at the
+  runway end as before). Jets stopped by traffic past `stuck_seconds` fade out. Lights: the
+  shader's `beacon_on` / `strobe_on` (beacons while the engines run, strobes on the runway);
+  heat shimmer behind the engines (`shaders/jet_exhaust.gdshader`, screen-reading, render_priority
+  MIN, off on the web, `AmbientJet.engine_spots()`); engine sound by `engine_level`. **Bridges**:
+  `JetBridge` (`scripts/world/jet_bridge.gd`) in the NEAR concourse only, posed from
+  `bridge_amount()` and rebuilt only while it moves; the far copy keeps its static bridges.
+  **Vehicles** (within `vehicle_range` of the player, under `ApronVehicles`): baggage trains on a
+  clock schedule round the service road (`train_s()`, a period apart, never meeting), a live
+  tug per stand while its set is hidden, a follow-me car leading each arrival, fuel and catering
+  trucks sent to parked jets lacking one (the catering box rises on its scissor), the crash
+  tenders in their shed (`ApronKit`, `scripts/world/apron_kit.gd`, on AirportKit's material).
+  Missions and returns are `Mover` programs worked out from the clock. The approach is no longer
+  swept sideways over the runway protection zone (the sweep met the blocks beside it and every
+  touchdown was at the far end). Stills: `AIR=taxi|pushback|apron` on still_shot.gd (`AIR_SIDE` the
+  stand, `AIR_DIST` seconds in). Checks: `tests/airport_life_checks.gd` (alone in a minute:
+  `tools/airport_life/run_checks.gd`).
 - Shop signs: storefront sign bands carry real names. `Building` picks how many window bays
   make one shop per face (`_shop_spans()`, hashed from the seed, never from `_rng`) and passes
   it to the shader as `shop_span`, so the bands the shader draws and the `TextMesh` names the
@@ -1370,7 +1410,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   material on the lamps); in the city `CAR_LIGHTS=1` on `still_shot.gd` forces them onto an
   opengl3 still, and every GEO line there is followed by a `LIGHTS` line (car spots and street
   lamps, on and in view). Checks: `tests/car_lights_checks.gd`.
-- More everyday bodies (2026-10-05, "the street stops repeating"; HANDOFF 9bq):
+- More everyday bodies (2026-10-05, "the street stops repeating"; HANDOFF 9ct):
   `tools/make_more_cars.py` (imports `make_road_cars.py`; `blender -b --factory-startup -P
   tools/make_more_cars.py -- hatchback suv minivan taxi beater [--render]`, then `--import`) adds
   a 5-door compact HATCHBACK, a full-size three-row SUV (flat roof on the van's ninth anchor,
