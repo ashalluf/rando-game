@@ -1298,7 +1298,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   windscreen (same pass): `CarCabin.BUS_DAYLIGHT` lights a bus's traced cabin 2.2x (and lets more of
   it through the glass) and a bus's far twin starts at 60 m (`BigVehicles.tune()`), since from the
   pavement at noon its front read as a black slab.
-- Service vehicles (2026-10-05, "the city's working vehicles doing their jobs"; HANDOFF 9bq):
+- Service vehicles (2026-10-05, "the city's working vehicles doing their jobs"; HANDOFF 9bs):
   `ServiceVehicles` (`scripts/vehicles/service_vehicles.gd`) - a side-loader garbage truck, a
   street sweeper, a rollback tow truck, an ice-cream truck and a delivery van (BodyType
   GARBAGE_TRUCK, STREET_SWEEPER, TOW_TRUCK, ICE_CREAM_TRUCK, DELIVERY_VAN, appended, `BODY_ODDS` 0,

@@ -605,7 +605,7 @@ already mapped so milestone 2 is script-only.
   pass, along the inland foot and up the north flank. Estates got driveways, gates, retaining
   walls that follow the ground and pools beside the house. docs/HANDOFF.md 9ay.
 
-- **2026-10-05 The city's working vehicles do their jobs (VISUAL_ROADMAP #59).** On collection
+- **2026-10-05 The city's working vehicles do their jobs (VISUAL_ROADMAP #61).** On collection
   day (a hash per street and weekday) every house puts its black, blue and green carts in the
   gutter; a side-loader garbage truck per colour works down the street, stopping with its arm at
   each cart, which it grabs, lifts over the hopper, tips, and sets back - all posed parts, no
@@ -617,7 +617,7 @@ already mapped so milestone 2 is script-only.
   cars with a `work` job (one hook in TrafficManager), not a parallel driving system; carts stand
   on the stall lines between parking bays so parked cars fit round them (only a long car keeps
   off); sounds are synthesised (the tune is written for the game). Names invented.
-  docs/HANDOFF.md 9bq; CLAUDE.md "Service vehicles".
+  docs/HANDOFF.md 9bs; CLAUDE.md "Service vehicles".
 - **2026-10-05 Five more everyday car bodies, so the street stops repeating (VISUAL_ROADMAP #59).**
   A 5-door compact hatchback, a full-size three-row SUV, a minivan with sliding doors, a taxi
   (the sedan with a lit roof sign, the invented company BASIN CAB on its doors and a fare in the

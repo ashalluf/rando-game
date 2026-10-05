@@ -7040,3 +7040,94 @@ ALU in shaders that were already running.
 - The night ambient (DayNight) still lights roofs a moonlit blue-grey on opengl3; not this pass.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
+## 9bs. Service vehicles at work: garbage trucks, sweepers, tow trucks, ice-cream trucks, delivery vans, 2026-10-05 (agent branch `wt/service-vehicles`; VISUAL_ROADMAP #61)
+
+**What.** The city's working vehicles doing their jobs, as ordinary traffic cars with a job:
+
+- **Garbage day.** `KerbBins` (`scripts/world/kerb_bins.gd`, pure) plans a set of three carts -
+  black trash, blue recycling, green yard waste - for every house lot in the suburbs and the beach
+  town (`plan.lots()` + `HouseKit.extra_lots()`, the side it fronts from `YardFill.nearest_side()`),
+  standing in the gutter 18 inches off the kerb as LA puts them, a third of the lot's frontage to
+  one side, snapped onto the stall line between two parking bays (`snap_to_stall()`, the same
+  8 m grid `CityChunk._park_car_steps()` lays) so ordinary parked cars fit between sets; a pickup
+  or a van (over `LONG_CAR`) is skipped next to a set (`blocks_parking()`, after the chunk's rolls,
+  counted as parked). A street has them out on a day by `hash(seed, axis, index, weekday)`
+  (`OUT_PERCENT` 40). `ServiceFleet` keeps the weekday (it turns over when the clock passes
+  midnight) and draws the carts round the player (`bin_radius` 150 m; the moulded cart within
+  `near_bins` 45 m, 582 triangles; a 24-triangle box past it; two MultiMeshes on
+  `shaders/kerb_bin.gdshader`). A **side-loader garbage truck** per colour (LA runs a truck per
+  stream) is sent down a street with its carts out and stops with its arm at each cart of its
+  colour on its kerb: the boom slides out, the claws take the cart (the kerb cart is hidden and
+  the arm's own copy takes its exact transform, so nothing jumps), the lift swings it out, up and
+  over the hopper upside down with its lid falling open, shakes it out twice (a bang each:
+  `ServiceSounds` "bang" plus Sfx `hit_metal`), brings it back down, sets it where it stood and
+  draws in, with the hydraulic whine under every move and its hazards on.
+- **Street sweeper**: crawls along a kerb (2.2 m/s, pulled 0.9 m toward it) with the gutter
+  brooms and the main broom spinning, water spraying ahead of them, dust lifting behind, the
+  brushes hissing.
+- **Ice-cream truck** (suburbs and the beach town, 11:00-20:30): cruises playing its chime - an
+  ORIGINAL tune (`ServiceSounds.TUNE`) on a music-box timbre through a tinny horn - and stops every
+  70-170 m for 18-30 s with its amber flashers on; menu boards of original picture tiles (no
+  words, no brands) and a striped awning (`shaders/ice_cream_menu.gdshader`), a cone sign on the
+  roof.
+- **Delivery vans** (the road van in four invented courier liveries) stop in their lane -
+  double-parked - for 22-40 s with their hazards on. The courier walking to a door is
+  street-life-2's.
+- **Tow truck**: a burnt-out wreck (`CarDamage._wrecks`) whose fire is out, `tow_delay` 30 s old,
+  with the player 30-220 m away, gets a rollback sent up its street (`send_tow()`): it stops past
+  the wreck, slides its bed back and tilts it to the road, winches the wreck up it (dragged to the
+  bed's foot, then up the deck), levels the bed and drives off with it. The wreck leaves
+  `_wrecks` and the debris clock when it is sent for, loses its wheels before it is frozen (a
+  frozen VehicleBody3D with wheels is NaN), rides `TowBed.deck()` kinematic with no collision,
+  and is freed with the truck when the traffic retires it.
+
+**How.** Five body types appended to `Vehicle.BodyType` (`BODY_ODDS` 0; `BigVehicles.is_big()`
+covers them so the pools keep them apart from the ordinary cars; `ServiceVehicles.DIMS` /
+`MASS`). Bodies from `tools/make_service_vehicles.py` (Blender, on `make_emergency_vehicles.py`
+and `make_big_vehicles.py`; the garbage truck, sweeper and tow truck on the box truck's cab and
+chassis - so they share its WHEEL_POSE and axles - the ice-cream truck on the ambulance's cutaway
+cab with a shorter box; the van is `road_van.glb`). Moving parts are separate objects named
+`rig_*` with their origin on the pivot, which `Vehicle._add_body_model()` hands to `fit()` like
+the bus's doors; the far twin has them folded in at rest. Dispatch (`ServiceFleet._dispatch()`,
+every 3 s) goes through `TrafficManager.place_car()` in the kerb lane with `traffic.work` set,
+and **one block in `TrafficManager._drive_street()`** asks `ServiceFleet.work_stop()` for the next
+stop and the kerb shift. Hours, caps and speeds are exports on ServiceFleet. Knocked carts: run
+into (on foot or driving) or blown near, a cart is thrown as a `PhysicsProp` and stays gone today.
+
+**Traps.**
+1. The traffic stands a car still once it is within ~1.2 m of anything standing still in front
+   of it (`still < 1.2`), so a stop handed over as its plain distance leaves the car up to 1.2 m
+   short - the garbage arm then misses its cart. `ServiceFleet._approach()` hands a creeping gap
+   (never under 1.5 m) until the car is within 0.1 m of the stop, then -0.3 (no room): it stands
+   exactly there (0.09 m in the check).
+2. A car retired into TrafficManager's pool while still in its `cars` list comes back from the
+   pool as its own leader and crawls at 0.04 m/s. TrafficManager always erases before it retires;
+   anything else must too (the checks' `_retire()`).
+3. `_ring()` with no corner points divided by zero and put NaN vertices in the far cart, which
+   `generate_normals()` reports as "Vector3 cannot be normalized".
+
+**Checks** (`tests/service_vehicle_checks.gd`, one line in the smoke test): the five bodies build
+with their gear inside a budget and a shot one leaves the traffic; the sounds and the chime loop;
+the carts' plan is pure, in the gutter, on a stall line, one of each colour, about 40 % of streets
+a day, long cars kept off; drawn round the player; a blast throws them; the arm's whole cycle
+(taken, 4.4 m up, upside down, set back, hidden while held, folded); a truck sent down the street
+stops 0.09 m from a cart and empties it with its hazards on; a van stops double-parked with
+hazards; the sweeper works its brooms hugging the kerb; the ice-cream truck plays and stops with
+its flashers lit; a tow truck sent for a burnt-out wreck winches it on, carries it off and it goes
+with the truck. 37 checks, ~45 s.
+
+**Stills** (`SERVICE=garbage|sweeper|tow|ice_cream|delivery` on `tools/glshot/still_shot.gd`,
+`ServiceFleet.stage_for_shot()` - staged vehicles hold still with `traffic.work = "staged"`;
+`SERVICE_LIFT` 0..1 how far up the cart is). Bookmark (the suburb west of downtown with a
+collection street): `--spawn=-190,22,-90,-5 --hour=10`.
+
+FRAMECOST
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the paint, the amber flash and the menu
+boards under AgX. The courier on foot (street-life-2). The garbage truck works one kerb of one
+street and drives on (no turns into the next collection street); trucks do not leave depots. Cart
+shadows only within 45 m. Trucks are not routed round a cart set a parked car already covers
+(only long cars are kept off). No customers queue at the ice-cream truck. The tow truck needs the
+wreck within 13 m of a kerb; wrecks in a yard or a car park stay. The sweeper does not follow
+the real street-sweeping schedule. Sounds are synthesised, not recordings (the bang has Kenney's
+`hit_metal` under it).
