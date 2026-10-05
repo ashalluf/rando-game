@@ -55,6 +55,8 @@ func _geography(mr: Marina, macro: MacroMap) -> void:
 	var flat := 0.0
 	for k in 30:
 		var p := mr.site.position + mr.site.size * Vector2(fmod(float(k) * 0.37, 1.0) * 0.9 + 0.05, float(k) / 30.0 * 0.9 + 0.05)
+		# The land only: west of the sand's edge the beach keeps its own level.
+		p.x = maxf(p.x, mr.sand_x(p.y) + Marina.BANK)
 		flat = maxf(flat, absf(macro.relief_at(p) - Marina.QUAY_Y))
 	var sand := macro.relief_at(Vector2(mr.sand_x(mr.zc - 60.0) - 30.0, mr.zc - 60.0))
 	_t._check(flat < 0.01 and absf(sand) < 0.01, "the site is a terrace at %.1f m (off by %.3f) and the sand beside it keeps its own level (%.2f)" % [Marina.QUAY_Y, flat, sand])
@@ -92,7 +94,7 @@ func _grid(mr: Marina, plan: CityPlan, macro: MacroMap) -> void:
 	var raw: Array[Dictionary] = macro.hill_roads.segments_in(probe)
 	var pch := 0
 	for seg in raw:
-		if str(seg.get("name", "")) == "Pacific Coast Highway":
+		if MarinaBuild.is_pch(mr, seg):
 			pch += 1
 	var fake := CityChunk.new()
 	fake.plan = plan
@@ -100,7 +102,7 @@ func _grid(mr: Marina, plan: CityPlan, macro: MacroMap) -> void:
 	var left := 0
 	for seg in kept:
 		var mid: Vector2 = (seg.a as Vector2).lerp(seg.b, 0.5)
-		if str(seg.get("name", "")) == "Pacific Coast Highway" and mid.y > gap.x and mid.y < gap.y:
+		if MarinaBuild.is_pch(mr, seg) and mid.y > gap.x + 0.5 and mid.y < gap.y - 0.5:
 			left += 1
 	fake.free()
 	_t._check(pch > 0 and left == 0, "the coast highway's strip stops for the bridge (%d segments in the gap, none drawn)" % pch)
@@ -175,7 +177,7 @@ func _chunks(city: Node3D, plan: CityPlan, mr: Marina) -> void:
 			instances += (c as MultiMeshInstance3D).multimesh.instance_count
 	_t._check(water != null and water.material_override == MarinaBuild.water_material() and body != null and body.collision_mask == 0
 		and boats != null and groups >= 3 and instances >= most,
-		"the marina chunk %s: water, land, one collision body, %d boats in %d LOD groups" % [best, most, groups])
+		"the marina chunk %s: water, land, one collision body, %d boats in %d LOD groups (water %s body %s boats %s instances %d)" % [best, most, groups, water != null, body != null, boats != null, instances])
 	chunk.get_parent().remove_child(chunk)
 	chunk.free()
 	var lod: CityChunk = city._new_chunk(best, CityChunk.Level.LOD)

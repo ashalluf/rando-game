@@ -158,12 +158,20 @@ static func filter_segments(c: CityChunk, segs: Array[Dictionary]) -> Array[Dict
 	var gap := macro.marina.pch_gap()
 	var out: Array[Dictionary] = []
 	for seg in segs:
-		if str(seg.get("name", "")) == "Pacific Coast Highway" or seg.get("coast", false):
+		if is_pch(macro.marina, seg):
 			var mid: Vector2 = (seg.a as Vector2).lerp(seg.b, 0.5)
 			if mid.y > gap.x + 0.5 and mid.y < gap.y - 0.5:
 				continue
 		out.append(seg)
 	return out
+
+
+## True when a HillRoads segment is the coast highway's (its points are COAST_INSET in from the
+## waterline and it is COAST_WIDTH wide: segments carry no name).
+static func is_pch(mr: Marina, seg: Dictionary) -> bool:
+	var a: Vector2 = seg.a
+	var b: Vector2 = seg.b
+	return absf(float(seg.width) - HillRoads.COAST_WIDTH) < 0.01 and absf(a.x - mr.pch_x(a.y)) < 0.5 and absf(b.x - mr.pch_x(b.y)) < 0.5
 
 
 ## How far a marina block's far plate goes down: to the water.
@@ -738,7 +746,7 @@ func _boat_group(items: Array, type: int, variant: int) -> void:
 			mm.set_instance_color(i, Color.WHITE)
 			mm.set_instance_custom_data(i, items[i][1])
 		var mi := MultiMeshInstance3D.new()
-		mi.name = "Boats_%d_%d_%d" % [type, variant, lv]
+		mi.name = "Boats_%d_%d_%d_%d" % [type, variant, lv, ch.get_child_count()]
 		mi.multimesh = mm
 		mi.material_override = boat_material()
 		mi.position = centre
