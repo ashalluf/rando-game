@@ -60,7 +60,7 @@ static func estimate(tex: Texture) -> int:
 		w = (tex as Texture2D).get_width()
 		h = (tex as Texture2D).get_height()
 		fmt = (tex as Texture2D).get_format() if tex.has_method("get_format") else -1
-		mips = (tex as Texture2D).has_mipmaps()
+		mips = _mipped(tex)
 	elif tex is Texture3D:
 		w = (tex as Texture3D).get_width()
 		h = (tex as Texture3D).get_height()
@@ -78,6 +78,25 @@ static func estimate(tex: Texture) -> int:
 	if mips:
 		bytes *= 4.0 / 3.0
 	return int(bytes)
+
+
+## CompressedTexture2D.has_mipmaps() reads false even when the file carries mipmaps (it is not
+## overridden); the imported .ctex does say, and so does the image it decodes to.
+static func _mipped(tex: Texture2D) -> bool:
+	if tex.has_mipmaps():
+		return true
+	if tex is CompressedTexture2D and tex.resource_path != "":
+		var key := tex.resource_path
+		if _MIP_CACHE.has(key):
+			return _MIP_CACHE[key]
+		var img := tex.get_image()
+		var m := img != null and img.has_mipmaps()
+		_MIP_CACHE[key] = m
+		return m
+	return false
+
+
+static var _MIP_CACHE := {}
 
 
 func _run(root: Node, label: String) -> Dictionary:
@@ -131,7 +150,7 @@ func _tex(t, owner: String) -> void:
 		w = tex.get_width()
 		h = tex.get_height()
 		fmt = tex.get_format() if tex.has_method("get_format") else -1
-		mips = tex.has_mipmaps()
+		mips = _mipped(tex)
 	elif tex is Texture3D or tex is TextureLayered:
 		w = tex.get_width()
 		h = tex.get_height()

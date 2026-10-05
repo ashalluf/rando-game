@@ -1,0 +1,16 @@
+# Texture budget: the largest size (pixels, longest side) a texture is imported at.
+# One rule a line: <regex on the res:// path> <size limit>. tools/fix_texture_imports.py writes
+# process/size_limit from it (every other texture gets 0, no limit) and tests/texture_budget_checks.gd
+# fails on an .import that disagrees, so a rebuilt asset keeps its budget. The source files stay
+# full size: raise or delete a line and re-import to get the detail back. Reasons in
+# docs/HANDOFF.md, "Texture budget".
+#
+# Crowd body atlases: 2048 put ~1,200 texels on a metre of body; a person fills that many pixels
+# a metre only closer than ~0.6 m at 1080p (0.7 m at the Mac's pixel budget). 1024 is still
+# sharper than the screen from 1.2 m, the closest the chase or aim camera gets.
+^res://assets/models/crowd_[a-z]_body\.jpg$ 1024
+# Birds: a 30 cm bird on a 1024 atlas is ~0.3 mm a texel; 512 still out-resolves a bird filling
+# a 1080p screen from 0.5 m.
+^res://assets/textures/birds/.*_(albedo|normal)\.png$ 512
+^res://assets/models/crowd_[a-z]_hair\.png$ 512
+^res://assets/models/crowd_[a-z]_body_nrm\.jpg$ 512
