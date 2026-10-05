@@ -1,16 +1,18 @@
-extends SceneTree
-## Runs tests/roadside_checks.gd alone against the city (a minute, headless), for the loop:
-##   godot --headless --path . --script tools/roadside/checks.gd
+extends Node
+## Runs tests/roadside_checks.gd alone against the city (a few minutes, headless), for the loop:
+##   godot --headless --path . res://tools/roadside/checks.tscn
+## (a scene, not --script: the checks take a Node and name CityChunk, which needs the autoloads.)
 var fails := 0
 
-func _initialize() -> void:
-	change_scene_to_file("res://scenes/levels/city.tscn")
+
+func _ready() -> void:
+	var city: Node3D = (load("res://scenes/levels/city.tscn") as PackedScene).instantiate()
+	add_child(city)
 	for i in 10:
-		await process_frame
-	var city: Node3D = current_scene
+		await get_tree().process_frame
 	load("res://tests/roadside_checks.gd").new().run(self, city)
 	print("ROADSIDE CHECKS done, %d failed" % fails)
-	quit()
+	get_tree().quit()
 
 
 func _check(ok: bool, label: String) -> void:
