@@ -8401,3 +8401,90 @@ building.gd (the appended names and `name_pool` in `shop_names()`), shopfront_ki
 the terrazzo's polish) - Mac eyes needed; the palace interiors are not modelled (the doors are
 glass); the encampment pieces stand in front of some palaces (Encampment's own placement, left
 alone); the 802 / 812 palaces share a block face so the 812 one stands on the next lot south.
+
+## 9cm. The four-level stack: where the 110 meets the 101, 2026-10-05 (agent branch `wt/stack-interchange`; VISUAL_ROADMAP #81)
+
+**What.** At the real four-level interchange north-west of downtown (DowntownReal's
+`four_level_interchange`, where FREEWAY_110 and FREEWAY_101 cross) the 110 used to be lifted 7.5 m
+over the 101 by `Freeway._separate_crossings()` and the two simply crossed. Now it is a stack:
+the 110 at level 1, the 101 at level 4, and the four directional LEFT-turn connectors at levels
+2 and 3, each a long curve banked into the turn on tall single columns with hammerhead caps,
+leaving its parent edge to edge through an opening in the parent's barrier and coming back onto
+the target the same way. From the air it is a knot of curving ribbons; at night the connectors'
+davit lights run in curving rows.
+
+**Why it is tall (~26 / 34 / 42 / 50 m on the default seed).** The 101 leaves the stack westward
+on its 2 km climb to the pass at the 7 % grade limit (it was 32 m at the crossing and 48 m 224 m
+further west). A connector can only fall at the grade limit too, so one tied to that leg can never
+get under the 101 near the crossing, and one tied to the east leg (low) never over it. So
+`FreewayStack.prepare()` holds both main lines LEVEL through a window round the crossing (raise
+only, `_clear_ground`'s relaxation, nothing outside the window moves): the 101 at its height at
+the window's west end, the 110 three deck separations under it, its 231 m north stub climbing away
+past the crossings (`STUB_GRADE`) so the connectors tied to it have height in hand. Every metre of
+window on the climbing side lifts the whole stack 7 cm, so the planner tries the least extra run
+there (`climb_ext` 0 / 30 / 60 / 90 m) and the spreads of level (`SLACK`) until the connectors
+solve; the default seed solves at 30 m. With nothing feasible there is no stack and the decks
+cross the old way (a warning; `STACK=0` forces it).
+
+**The solver.** Each connector's centre line is built first (`_path()`: the parent's offset
+polyline through TOUCH / TAPER / EXT, a cubic Bezier circle of about RADIUS between the tangent
+points, the target's offset polyline back), resampled every 8 m. Its height bounds: equal to the
+parent / target on the touch runs, over the 110 and under the 101 (DECK_SEPARATION) wherever the
+footprints overlap - except beside its own parent / target in the leads - and over the street.
+The envelopes are the lowest and highest a GRADE_SOLVE-limited profile can be; the profile is its
+level clamped between them, smoothed for vertical curves and clamped again (a clamp between
+Lipschitz bounds stays Lipschitz). Then the crossing pairs (the connectors that cross go on
+different levels; the crossing graph is 2-coloured) are pushed apart where they fall short of
+LINK_SEP, the shortfall split by each one's room, until none falls short; `verify_all()` checks
+every overlapping pair and every grade at the end, and the checks call it again.
+
+**The build.** Connector segments come out of `Freeway.segments_in()` and `blocks()` like any
+deck (`route` LINK_BASE + k, `link` true), so the lots under the stack become the right of way
+(YardFill), trees and lamps keep out, the bake draws it, AirTraffic clears it, and the far city's
+deck boxes include it. FreewayKit skips them; StackBuild builds them into the chunk's same four
+freeway meshes (no extra draws), with banked collision boxes and a cylinder per column. On the
+main lines the kit opens the outer barrier and drops the edge line where a connector touches,
+skips light standards and gantries under a deck, and skips the two bents whose columns would stand
+on a lower deck; StackBuild puts single hammerhead columns under the main line instead. The far
+city (Skyline) draws the stack's columns and caps as boxes and skips the same bents.
+
+**Traffic.** `StackTraffic` drives each connector by distance (four cars a connector, two on the
+web). Hand-over both ways with TrafficManager: a freeway car within 18 m of a diverge in the right
+direction is taken now and then (`take_share`) and drifts across the open touch run into the
+connector's lane; at the end the car drifts onto the target's outer lane and joins
+`freeway_cars`. When nobody can be taken a car appears on the connector away from the player.
+
+**Tools.** `tools/stack/probe.gd` (headless, seconds: levels, connectors and their profiles,
+columns, verify, EYEs on each connector; `SEED=`), `tools/stack/compile.gd`, `STACK_DEBUG=1`
+prints the solver's tries.
+
+**Checks** (`tests/stack_interchange_checks.gd`, 20): planned with four connectors at the real
+interchange, the 110 under the 101 three separations apart, verify_all() clean (every overlapping
+pair a deck apart, no connector steeper than GRADE_SOLVE), ends tied at the deck heights, banked
+into the turn and level at the ends, never near the street, two connectors a level, no off-ramp in
+the stack, the connectors out of segments_in() / blocks(), every column clear of the decks below
+and no span over three column spacings, sound on another seed, a FULL and an LOD chunk at the
+stack building the connectors with collision, and the traffic: a connector car rides its deck and
+is handed to the freeway traffic at the end, a freeway car at a diverge is taken onto the connector.
+
+**Frame cost** (`tools/geo_count.gd`, opengl3 + Xvfb, 800x600, `--spawn=2134,-1385,45,-25,120`,
+noon, `STACK=0` against the stack): 2.96 M -> 2.87 M triangles, 2,727 -> 2,679 draws (the
+connectors are in the chunks' existing freeway meshes; the lots under the stack became right of
+way). The planner adds ~0.4 s to MacroMap.setup() (2.0 -> 2.4 s on this box), once per load.
+
+**Stills** (shots/stack-interchange; opengl3, not the Mac's Forward+): before (the 110 lifted over
+the 101's climb); the stack from the air at golden hour and straight down; driving a connector
+under the 101; under the stack at street level (the single hammerhead columns); at 21:00 and 22:00
+from a downtown tower.
+
+**Not done / not verified.** Forward+ (the Mac) not seen. The stack is TALL (~26-50 m on the
+default seed, 27-55 m on others): the 101's climb to the pass forces it; a flatter stack needs the
+101 re-profiled (its whole 2 km climb). Connector grades reach 7.4 % (GRADE_SOLVE), steeper than a
+real connector. Only the four left turns are built: no right-turn ramps, and the 110's north leg
+is still the 231 m stub that ends in the air (the real Arroyo Seco Parkway does not exist here).
+The diverge / merge is a short edge-to-edge touch run (24 m), so a car drifting across it is a
+quick lane change; the player can drive off the main line onto a connector there but it is
+abrupt. A connector car spawned when nobody can be taken pops in (only farther than 140 m from
+the player). Sound: no rolling-traffic emitter of its own (Ambience's freeway emitter reads
+segments_in(), so it does hear the connectors). The far city draws the connectors as unbanked
+deck boxes.

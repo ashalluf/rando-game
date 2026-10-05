@@ -1835,6 +1835,9 @@ func _test_city() -> void:
 	# Los Angeles weather (tests/weather_la_checks.gd): the marine layer's clock and deck, the Santa
 	# Ana's wind and brush fire, the heat haze, rain off car roofs, the roll and the pause menu.
 	load("res://tests/weather_la_checks.gd").new().run(self, city)
+	# The four-level stack (tests/stack_interchange_checks.gd): levels, separations, grades, banks,
+	# columns, the chunk's meshes, and the connector traffic handed to and from the freeway's.
+	await load("res://tests/stack_interchange_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

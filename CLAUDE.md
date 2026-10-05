@@ -2216,6 +2216,42 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   The surface street grid is still axis-aligned (`CityPlan.road_pos()` is scalar per axis and
   blocks, lots, traffic lanes and the minimap all assume axis-aligned rects); the freeways and the
   hill roads are the curved roads.
+- The four-level stack (VISUAL_ROADMAP #81, 2026-10-05, docs/HANDOFF.md, the stack section):
+  where the 110 meets the 101 at the real four-level interchange. **The plan is
+  `FreewayStack`** (`scripts/world/freeway_stack.gd`, `Freeway.stack`, made in `Freeway.build()`
+  BEFORE `_separate_crossings()`, which then leaves that crossing alone): the 110 at level 1, the
+  101 at level 4, four LEFT-turn connectors at levels 2 and 3 (the pairs that cross go on
+  different levels). **The heights are the whole problem**: the 101 leaves westward on its 2 km
+  climb to the pass at the 7 % grade limit, so both main lines are held LEVEL through a window
+  round the crossing (raise only, the `_clear_ground` relaxation) - the 110 three separations
+  under the 101, its short north stub climbing away past the crossings (`STUB_*`) - and each
+  connector's profile is solved between grade-limited envelopes (`GRADE_SOLVE`): tied to its
+  parent and target over the touch runs, over the 110 and under the 101 where their footprints
+  overlap, then the crossing pairs pushed apart (`LINK_SEP`, 7 m: 2 m girders, 5 m headroom) by
+  each one's room; `prepare()` tries extra run on the climbing leg and spreads of levels until
+  one solves, and with none there is no stack (the old crossing). On the default seed the stack
+  is ~26 / 34 / 42 / 50 m: tall, because of the climb. Geometry: a connector leaves its parent
+  EDGE TO EDGE (`TOUCH`: `open_edges` opens the parent's outer barrier there, so you can drive
+  off), runs beside it (`TAPER`, `EXT` on the legs that can be held level), curves left on a
+  Bezier circle of about `RADIUS`, and comes back the same way; points every `LINK_STEP`, `pt`
+  the parent / target run in the leads, `bank` the superelevation (left turns lift the right
+  edge). **Connector segments come out of `segments_in()` / `blocks()`** with `route` =
+  `LINK_BASE` + k and `link` true (`Freeway._line()`): lots, trees, the bake, AirTraffic, the
+  far city's decks see them with no code of their own; FreewayKit skips them and **`StackBuild`**
+  (`scripts/world/stack_build.gd`, called from `CityChunk._build_freeway()`) builds them into the
+  SAME four meshes (banked asphalt, 2 m box girder, barriers, two lanes of paint, davit lights
+  every `LIGHT_EVERY` segments in a curving row, pools) plus banked collision boxes. Columns are
+  lazy (`FreewayStack.columns(plan)`: they need the street plan): one round shaft with a
+  hammerhead every `COLUMN_SPACING`, slid off any deck below and off the carriageways; a main
+  line bent whose columns would stand on a lower deck is skipped (`skips_bent()`, FreewayKit and
+  Skyline) for a single hammerhead column; `covered` drops main-line light standards and gantries
+  under a deck. **Traffic**: `StackTraffic` (`scripts/npc/stack_traffic.gd`, the streamer's
+  child) drives each connector by `s` and hands cars over BOTH ways - a TrafficManager freeway
+  car reaching a diverge is taken (`take_share`) and drifts across the open touch run; at the
+  end the car drifts onto the target's outer lane and joins `TrafficManager.freeway_cars` - and
+  spawns away from the player when there is nobody to take. `STACK=0` in the environment builds
+  the old crossing (the A/B); `STACK_DEBUG=1` prints the solver. Probe: `tools/stack/probe.gd`;
+  compile: `tools/stack/compile.gd`; checks: `tests/stack_interchange_checks.gd`.
 - The Los Angeles River (VISUAL_ROADMAP #58, 2026-10-05, docs/HANDOFF.md 9bp): the concrete
   flood channel, as data (`LaRiver`, `scripts/world/la_river.gd`, `MacroMap.river`, built in
   `MacroMap.setup()` after the replica and BEFORE the hill roads and the freeway) and a chunk

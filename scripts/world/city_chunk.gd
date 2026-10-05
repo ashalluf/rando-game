@@ -4198,7 +4198,8 @@ func _build_freeway() -> void:
 	deck_body.collision_layer = 1
 	deck_body.collision_mask = 0
 	var kit := FreewayKit.new(self)
-	var quads := kit.build_segments(segs, area)
+	# The four-level stack's connectors go into the same meshes (StackBuild).
+	var quads := kit.build_segments(segs, area) + StackBuild.build(self, kit, deck_body)
 	if quads == 0:
 		return
 	var t := Freeway.DECK_THICKNESS
@@ -4208,7 +4209,8 @@ func _build_freeway() -> void:
 		var seg_len := a.distance_to(b)
 		var mid := a.lerp(b, 0.5)
 		# Segments are claimed by the chunk their midpoint falls in, so the deck is built once.
-		if seg_len < 0.5 or not area.has_point(mid):
+		# (The stack's connectors are banked: StackBuild gives them their own boxes.)
+		if seg_len < 0.5 or not area.has_point(mid) or seg.has("link"):
 			continue
 		var ha: float = seg.ha
 		var hb: float = seg.hb

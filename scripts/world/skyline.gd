@@ -739,7 +739,9 @@ func _add_freeway(k: Vector2i) -> void:
 		# Deck flag: building_lod.gdshader draws an asphalt carriageway on top, not a roof.
 		# .g where the segment starts in the traffic lights' period, .b the route (far_traffic).
 		customs.append(Color(float(seg.width), fmod(float(seg.index) * Freeway.STEP, NightCity.PERIOD), float(seg.route) + 1.0, DECK_FLAG))
-		if int(seg.index) % pillar_every == 0:
+		var stack: FreewayStack = macro.freeway.stack
+		if int(seg.index) % pillar_every == 0 and not seg.has("link") \
+				and not (stack and stack.skips_bent(_plan, int(seg.route), int(seg.index))):
 			var ground := _plan.height_at(a)
 			if macro.river:
 				ground = minf(ground, macro.river.channel_floor(a))
@@ -750,6 +752,23 @@ func _add_freeway(k: Vector2i) -> void:
 				xforms.append(Transform3D(pb, Vector3(a.x, ground - 1.0 + h * 0.5, a.y)))
 				colors.append(concrete * 0.94)
 				customs.append(Color(0.0, 0.0, 0.0, 1.0))
+	# The four-level stack's single columns and hammerheads (FreewayStack.columns()).
+	if macro.freeway.stack:
+		for c in macro.freeway.stack.columns(_plan):
+			var p: Vector2 = c.pos
+			if not area.has_point(p):
+				continue
+			var d: Vector2 = c.dir
+			var cr := Vector3(-d.y, 0.0, d.x)
+			var h := float(c.top) - float(c.base) + 1.0
+			xforms.append(Transform3D(Basis(cr * float(c.r) * 2.0, Vector3(0.0, h, 0.0), Vector3(d.x, 0.0, d.y) * float(c.r) * 2.0),
+				Vector3(p.x, float(c.base) - 1.0 + h * 0.5, p.y)))
+			colors.append(concrete * 0.94)
+			customs.append(Color(0.0, 0.0, 0.0, 1.0))
+			xforms.append(Transform3D(Basis(cr * float(c.cap_half) * 2.0, Vector3(0.0, 2.4, 0.0), Vector3(d.x, 0.0, d.y) * 2.2),
+				Vector3(p.x, float(c.top) - 1.2, p.y)))
+			colors.append(concrete * 0.94)
+			customs.append(Color(0.0, 0.0, 0.0, 1.0))
 
 
 ## The trees a FULL chunk plants on a city block, as canopies: rows along the kerbs at the

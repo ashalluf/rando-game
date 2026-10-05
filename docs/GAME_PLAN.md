@@ -868,6 +868,14 @@ already mapped so milestone 2 is script-only.
   LOD freeway chunk is the only new draw. docs/HANDOFF.md "The night aerial"; CLAUDE.md "Night
   aerial".
 
+- **2026-10-05 The 110 and the 101 meet in a four-level stack (VISUAL_ROADMAP #81).** At the
+  real four-level interchange the two decks used to just cross. Now the 110 is level 1 and the
+  101 level 4, with the four left-turn connectors on levels 2 and 3, banked, on single hammerhead
+  columns, lit in curving rows, leaving and joining their main lines through openings in the
+  barrier; traffic turns onto them. The stack is tall (~26-50 m) because the 101 climbs to the
+  pass at the grade limit from there: both main lines are held level through the stack (raise
+  only). docs/HANDOFF.md (the stack section); CLAUDE.md "The four-level stack".
+
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
   in the afternoon, backlighting the mountain faces the city looks at. Realism wins over the old
