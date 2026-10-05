@@ -31,6 +31,8 @@ extends RefCounted
 ## Frames each stage is held on screen. The first draw starts the specialised pipelines; the
 ## rest let the background compiles finish while the shade is still up.
 const HOLD_FRAMES := 3
+## Meta on every car and person the rehearsal makes (the checks look for any left alive).
+const TAG := &"warm_rehearsal"
 
 static var enabled: bool = OS.get_environment("WARM_REHEARSAL") != "0"
 static var _keeper: Node3D
@@ -185,6 +187,7 @@ static func _stage_cars(holder: Node3D, ground: Vector3, fwd: Vector3, right: Ve
 		var col := k % 8
 		car.position = holder.to_local(ground + fwd * (14.0 + row * 9.0) + right * (float(col) - 3.5) * 5.5 + Vector3.UP * 1.0)
 		car.collision_layer = 0
+		car.set_meta(TAG, true)
 		holder.add_child(car)
 		car.set("_npc_driver", true)
 		if car.has_method("_update_occupant"):
@@ -207,6 +210,7 @@ static func _stage_people(holder: Node3D, ground: Vector3, fwd: Vector3, right: 
 		var at := ground + fwd * (6.0 + float(k / 4) * 1.6) + right * (float(k % 4) - 1.5) * 1.3
 		var local := holder.to_local(at)
 		p.setup(Rect2(local.x - 2.0, local.z - 2.0, 4.0, 4.0), 1.0, 90210 + k * 7919)
+		p.set_meta(TAG, true)
 		holder.add_child(p)
 		p.position = local + Vector3.UP * 0.1
 		p.set("_pause_left", 30.0)

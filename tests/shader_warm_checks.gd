@@ -27,8 +27,6 @@ func run(t: Node, city: Node3D) -> void:
 	for c in scene.get_children():
 		if c.get_script() == null:
 			plain_before += 1
-	var cars_before := tree.get_nodes_in_group("vehicle").size()
-	var peds_before := tree.get_nodes_in_group("pedestrian").size()
 	var mute_before := AudioServer.is_bus_mute(0)
 	var t0 := Time.get_ticks_msec()
 	await WarmRehearsal.run(city, cam)
@@ -41,16 +39,12 @@ func run(t: Node, city: Node3D) -> void:
 		if c.get_script() == null and not c.is_queued_for_deletion():
 			plain_after += 1
 	_t._check(plain_after <= plain_before, "the rehearsal's effects leave no node in the scene (%d plain nodes before, %d after)" % [plain_before, plain_after])
-	var cars_after := 0
-	for v in tree.get_nodes_in_group("vehicle"):
-		if not (v as Node).is_queued_for_deletion():
-			cars_after += 1
-	_t._check(cars_after <= cars_before, "the rehearsal's cars are freed (%d vehicles before, %d after)" % [cars_before, cars_after])
-	var peds_after := 0
-	for p in tree.get_nodes_in_group("pedestrian"):
-		if not (p as Node).is_queued_for_deletion():
-			peds_after += 1
-	_t._check(peds_after <= peds_before, "the rehearsal's people are freed (%d before, %d after)" % [peds_before, peds_after])
+	var left := 0
+	for group in ["vehicle", "pedestrian"]:
+		for n in tree.get_nodes_in_group(group):
+			if (n as Node).has_meta(WarmRehearsal.TAG) and not (n as Node).is_queued_for_deletion():
+				left += 1
+	_t._check(left == 0, "the rehearsal's cars and people are all freed (%d left)" % left)
 	if police:
 		_t._check(int(police.get("stars")) == stars_before and is_equal_approx(float(police.get("heat")), heat_before),
 				"the rehearsal is no crime (stars %d -> %d, heat %.1f -> %.1f)" % [stars_before, int(police.get("stars")), heat_before, float(police.get("heat"))])
