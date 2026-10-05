@@ -65,6 +65,8 @@ const EDGE_LOT := 24.0
 const LOT_W := 11.5
 ## The front garden strip between the walk and the yard HouseKit plans the house in.
 const GARDEN := 1.6
+## The walk alley down the middle of a two-row island, between the back fences.
+const ALLEY := 5.0
 const NS_COUNT := 2
 const EW_COUNT := 3
 
@@ -88,7 +90,7 @@ const BANK_SHRUBS_PER_M := 0.09
 ## Walkers per metre of walkway.
 const WALKERS_PER_M := 1.0 / 45.0
 ## Trees in the yards: the share of lots with one.
-const YARD_TREE_ODDS := 0.4
+const YARD_TREE_ODDS := 0.6
 ## Draw distances.
 const BOAT_DRAW := 180.0
 const FENCE_DRAW := 160.0
@@ -166,6 +168,7 @@ static func _make_layout(plan: CityPlan) -> Dictionary:
 	zs.append(I.end.y)
 	var islands: Array[Rect2] = []
 	var lots: Array = []
+	var alleys: Array[Rect2] = []
 	for i in range(0, xs.size(), 2):
 		for j in range(0, zs.size(), 2):
 			var isl := Rect2(xs[i], zs[j], float(xs[i + 1]) - float(xs[i]), float(zs[j + 1]) - float(zs[j]))
@@ -177,12 +180,16 @@ static func _make_layout(plan: CityPlan) -> Dictionary:
 			elif col == NS_COUNT:
 				rows.append([isl, 2])
 			else:
+				# Two rows back to back with a paved walk alley between their back fences.
 				var mid := isl.position.x + isl.size.x * 0.5
-				rows.append([Rect2(isl.position.x, isl.position.y, mid - isl.position.x, isl.size.y), 2])
-				rows.append([Rect2(mid, isl.position.y, isl.end.x - mid, isl.size.y), 3])
+				var a0 := mid - ALLEY * 0.5
+				var a1 := mid + ALLEY * 0.5
+				alleys.append(Rect2(a0, isl.position.y, ALLEY, isl.size.y))
+				rows.append([Rect2(isl.position.x, isl.position.y, a0 - isl.position.x, isl.size.y), 2])
+				rows.append([Rect2(a1, isl.position.y, isl.end.x - a1, isl.size.y), 3])
 			for r: Array in rows:
 				# The back line's fence: an edge row's (on the pavement), or the west row's of two.
-				var back := col == 0 or col == NS_COUNT or int(r[1]) == 2
+				var back := true
 				_row_lots(plan, r[0], int(r[1]), lots, col, j / 2, back)
 	# Walkways: each canal's two side strips, less every corridor, the NS ones taking the corners.
 	var walks: Array[Rect2] = []
@@ -236,6 +243,7 @@ static func _make_layout(plan: CityPlan) -> Dictionary:
 				clear = false
 		lot["dock"] = clear
 	var ring: Array[Rect2] = Parks.minus(R, [I], 0.05)
+	walks.append_array(alleys)
 	return {"rect": R, "inner": I, "canals": canals, "corridors": corridors, "bands": bands, "islands": islands,
 		"lots": lots, "bridges": bridges, "walks": walks, "copes": copes, "ring": ring, "site": s}
 
@@ -764,7 +772,7 @@ static func _gardens(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
 		var lamp_at := Vector3(door.x + dir * 0.05, 0.0, door.y + 0.85)
 		CanalKit.add_porch_light(ch, lamp_at, dir, _h01([ps, s, "porch_on"]) < 0.85)
 		# A tree in the back yard now and then.
-		if trees < 6 and _h01([ps, s, "yard_tree"]) < YARD_TREE_ODDS:
+		if trees < 14 and _h01([ps, s, "yard_tree"]) < YARD_TREE_ODDS:
 			var back_x2 := cell.position.x + 2.0 if dir > 0.0 else cell.end.x - 2.0
 			var tz := cell.get_center().y + rng.randf_range(-cell.size.y * 0.25, cell.size.y * 0.25)
 			var trng := RandomNumberGenerator.new()

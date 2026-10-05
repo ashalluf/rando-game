@@ -41,7 +41,7 @@ uniform vec3 deep_color = vec3(0.008, 0.017, 0.011);
 uniform vec3 silt_color = vec3(0.030, 0.034, 0.020);
 uniform float mirror_forward = 0.55;
 uniform float mirror_gain = 0.9;
-uniform float ruffle = 0.35;
+uniform float ruffle = 0.22;
 
 varying vec3 v_local;
 varying vec2 v_canal;
