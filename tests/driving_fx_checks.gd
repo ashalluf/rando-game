@@ -137,7 +137,7 @@ func _drift() -> void:
 	var car := _car(Vector2(-20.0, 0.0))
 	await _ticks(40) # settle on the springs
 	_fx._scan_left = 0.0
-	var marks0 := _fx.marks_alive()
+	var marks0 := _fx.marks_laid
 	var smoke := [0]
 	var screech := [false]
 	var on := [0]
@@ -151,7 +151,7 @@ func _drift() -> void:
 		on[0] = maxi(on[0], lit)
 		for p: AudioStreamPlayer3D in _fx._screech:
 			screech[0] = screech[0] or p.playing)
-	var laid := _fx.marks_alive() - marks0
+	var laid := _fx.marks_laid - marks0
 	_check(laid >= 10, "a car sliding sideways lays skid marks (%d segments)" % laid)
 	_check(_fx._marks_node.material_override is ShaderMaterial and (_fx._marks_node.material_override as ShaderMaterial).shader.resource_path == "res://shaders/skid_mark.gdshader",
 			"on the skid mark shader, one MultiMesh")
@@ -179,14 +179,14 @@ func _wet_drift(city: Node3D) -> void:
 	var car := _car(Vector2(-20.0, 0.0))
 	await _ticks(40)
 	_fx._scan_left = 0.0
-	var marks0 := _fx.marks_alive()
+	var marks0 := _fx.marks_laid
 	var smoke := [0]
 	var spray := [0]
 	await _slide(car, car.global_basis.x * 12.0, 30, func():
 		smoke[0] = maxi(smoke[0], _fx.last_smoke)
 		spray[0] = maxi(spray[0], _fx.last_dust))
 	_check(smoke[0] == 0 and spray[0] > 0, "on a soaking street the slide throws spray, not smoke (smoke %d, spray %d)" % [smoke[0], spray[0]])
-	_check(_fx.marks_alive() > marks0, "and still marks the road")
+	_check(_fx.marks_laid > marks0, "and still marks the road")
 	weather.set("_wet_hold", 0.0)
 	weather.set("wetness", 0.0)
 	await _clear()
@@ -201,7 +201,7 @@ func _burnout(player: Player) -> void:
 	player.enter_vehicle(car)
 	await _ticks(2)
 	_fx._scan_left = 0.0
-	var marks0 := _fx.marks_alive()
+	var marks0 := _fx.marks_laid
 	var rear_smoke := [false]
 	Input.action_press("move_forward")
 	Input.action_press("alt_fire")
@@ -217,7 +217,7 @@ func _burnout(player: Player) -> void:
 					rear_smoke[0] = true
 	var moved := car.linear_velocity.length()
 	_check(rear_smoke[0], "a burnout (throttle against the handbrake) smokes the rear tyres")
-	_check(_fx.marks_alive() > marks0 or moved < 3.0, "and the car stands (%.1f m/s) laying rubber (%d)" % [moved, _fx.marks_alive() - marks0])
+	_check(_fx.marks_laid > marks0 or moved < 3.0, "and the car stands (%.1f m/s) laying rubber (%d)" % [moved, _fx.marks_laid - marks0])
 	Input.action_release("alt_fire")
 	Input.action_release("move_forward")
 	# A hard lift-off at speed: full throttle one tick, nothing the next, at 15 m/s, with the
@@ -254,13 +254,13 @@ func _dirt() -> void:
 	var car := _car(Vector2(-20.0, 0.0))
 	await _ticks(40)
 	_fx._scan_left = 0.0
-	var marks0 := _fx.marks_alive()
+	var marks0 := _fx.marks_laid
 	var dust := [0]
 	var smoke := [0]
 	await _slide(car, -car.global_basis.z * 14.0, 30, func():
 		dust[0] = maxi(dust[0], _fx.last_dust)
 		smoke[0] = maxi(smoke[0], _fx.last_smoke))
-	_check(_fx.marks_alive() > marks0, "on dirt a rolling tyre leaves tracks (%d)" % (_fx.marks_alive() - marks0))
+	_check(_fx.marks_laid > marks0, "on dirt a rolling tyre leaves tracks (%d)" % (_fx.marks_laid - marks0))
 	_check(dust[0] > 0 and smoke[0] == 0, "and throws dust, never smoke (dust %d, smoke %d)" % [dust[0], smoke[0]])
 	_deck.collision_layer = 1
 	await _clear()
