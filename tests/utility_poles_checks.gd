@@ -193,7 +193,8 @@ func _signature(ch: CityChunk) -> Array:
 		out.append("%s:%d" % [key, (data[key].xforms as Array).size()])
 	var kids := 0
 	for c in ch.get_children():
-		if String(c.name) != "UtilityWires" and not String(c.name).begins_with("Batch"):
+		# Climbers grow trumpet vines up some poles by a hash of the pole's foot, which moved.
+		if String(c.name) != "UtilityWires" and not String(c.name).begins_with("Batch") and not String(c.name).begins_with("Climbe"):
 			kids += 1
 	out.append("children:%d" % kids)
 	out.sort()

@@ -16,6 +16,10 @@ global uniform float road_wetness;
 
 // Narrowest a wire is drawn, in pixels across.
 uniform float min_px = 1.15;
+// A sub-pixel wire's coverage is raised to this power for its alpha: under 1 keeps a hairline
+// readable (what a camera's sharpening and the eye do to a wire against the sky) without
+// thickening it.
+uniform float coverage_gamma = 0.75;
 // Wires fade out between these distances (metres).
 uniform float fade_start = 230.0;
 uniform float fade_end = 340.0;
@@ -43,7 +47,7 @@ void vertex() {
 	float px = 2.0 * depth / (max(abs(PROJECTION_MATRIX[1][1]), 0.1) * vh);
 	float r = UV2.x;
 	float w = max(r, 0.5 * min_px * px);
-	v_alpha = (r / w) * (1.0 - smoothstep(fade_start, fade_end, depth));
+	v_alpha = pow(r / w, coverage_gamma) * (1.0 - smoothstep(fade_start, fade_end, depth));
 	v_cover = r / max(px, 1e-5);
 	VERTEX = c + side * w * UV.x;
 	NORMAL = toc;
@@ -57,11 +61,14 @@ void fragment() {
 		discard;
 	}
 	float x = clamp(UV.x, -0.999, 0.999);
-	NORMAL = normalize(v_side * x + v_toc * sqrt(1.0 - x * x));
-	float along = UV.y;
-	float ang = asin(x);
 	// How much of the wire's own pattern a pixel can show (its radius over ~1.5 px).
 	float detail = smoothstep(0.75, 2.5, v_cover);
+	// Round across the ribbon when it is wide enough to show it; a hairline faces the camera,
+	// or its grazing rim (Fresnel) is all a pixel holds and the wire turns pale against the sky.
+	float xs = x * mix(0.35, 1.0, detail);
+	NORMAL = normalize(v_side * xs + v_toc * sqrt(1.0 - xs * xs));
+	float along = UV.y;
+	float ang = asin(x);
 	vec3 alb;
 	float rough = 0.5;
 	float metal = 0.0;
@@ -103,6 +110,7 @@ void fragment() {
 	ALBEDO = cs_out(alb);
 	ROUGHNESS = rough;
 	METALLIC = metal;
+	SPECULAR = 0.35;
 	ALPHA = clamp(v_alpha, 0.0, 1.0);
 	if (debug_solid > 0.5) {
 		ALBEDO = vec3(1.0, 0.0, 0.0);

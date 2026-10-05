@@ -238,7 +238,13 @@ func _wire(_birds: Node) -> void:
 	var b := Vector3(30.0, 8.6, 0.0)
 	var ends := Birds.wire_point(a, b, 1.1, 0.0).distance_to(a) < 1e-4 and Birds.wire_point(a, b, 1.1, 1.0).distance_to(b) < 1e-4
 	var mid := Birds.wire_point(a, b, 1.1, 0.5)
-	_t._check(ends and absf(mid.y - (8.6 - 1.1 * 4.0 * 0.24)) < 1e-3, "birds: a bird on a span sits on the sagging wire StreetDetail draws (mid %.2f m)" % mid.y)
+	# StreetDetail draws the parabola in CABLE_SEGMENTS straight pieces: mid-span is on the piece
+	# that holds s = 0.5.
+	var n := StreetDetail.CABLE_SEGMENTS
+	var s0 := float(floori(0.5 * n)) / float(n)
+	var s1 := s0 + 1.0 / float(n)
+	var want := lerpf(8.6 - 1.1 * 4.0 * s0 * (1.0 - s0), 8.6 - 1.1 * 4.0 * s1 * (1.0 - s1), (0.5 - s0) / (s1 - s0))
+	_t._check(ends and absf(mid.y - want) < 1e-3, "birds: a bird on a span sits on the sagging wire StreetDetail draws (mid %.2f m)" % mid.y)
 
 
 func _info(birds: Node, id: int) -> Dictionary:
