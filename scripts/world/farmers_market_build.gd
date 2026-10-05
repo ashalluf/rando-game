@@ -196,10 +196,20 @@ static func _stall_up(ch: CityChunk, m: Dictionary, s: Dictionary, xf: Transform
 			queue.append({"p": Vector2(p.x, p.z), "yaw": atan2(front.x, front.y), "taken": null, "record": record})
 
 
+## A stall setting up or packing: its tables folded and crates stacked, and the canopy either
+## still standing over them (half struck, HALF_STRUCK of them), folded onto a cart beside the
+## stack (every other stall in a row: the cart carries its neighbour's too), or already loaded.
+const HALF_STRUCK := 0.3
+
+
 static func _stall_packed(ch: CityChunk, s: Dictionary, xf: Transform3D) -> void:
 	var v := int(s.variant) % 2
 	ch._batch.add("fm_packed_%d" % v, FarmersMarketKit.packed(v), xf * Transform3D(Basis(), Vector3(0.0, 0.0, -0.6)))
-	ch._batch.add("fm_folded", FarmersMarketKit.canopy_folded(), xf * Transform3D(Basis(Vector3.UP, 0.4), Vector3(1.15, 0.0, 0.5)), Color.WHITE, FarmersMarketKit.CANVAS[int(s.canvas)])
+	var canvas: Color = FarmersMarketKit.CANVAS[int(s.canvas)]
+	if FarmersMarket._h01([int(s.i), int(s.variant), "half_struck"]) < HALF_STRUCK:
+		ch._batch.add("fm_canopy", FarmersMarketKit.canopy(), xf, Color.WHITE, canvas)
+	elif int(s.row) % 2 == 0:
+		ch._batch.add("fm_folded", FarmersMarketKit.canopy_folded(), xf * Transform3D(Basis(Vector3.UP, 0.12), Vector3(0.1, 0.0, 0.75)), Color.WHITE, canvas)
 
 
 ## A van parked behind the stalls (the road van's far twin in a plain paint).

@@ -8647,7 +8647,10 @@ facing an aisle down the middle, vans parked behind one row, string lights zig-z
 aisle, a grower's banner on every valance, and shoppers browsing stall to stall. Before 8 and from
 about 13:00 the stalls are setting up / packing (canopy folded, tables leant together, crates
 stacked); after about 14:30 and on every other day the street is empty but for the bollards,
-marks and sign. The default seed has 5 markets in the basin (probe below); Palm St (around
+marks and sign. While packing, `HALF_STRUCK` (30 %) of the stalls still have their canopy up over
+the folded tables; every other stall in a row has its neighbours' canopies folded flat on a
+platform cart (`canopy_folded()`); the rest are already loaded (the lead's review: standing
+folded canopies read as white posts). The default seed has 5 markets in the basin (probe below); Palm St (around
 (1253, -3833)) is on Saturday.
 
 **Files.**

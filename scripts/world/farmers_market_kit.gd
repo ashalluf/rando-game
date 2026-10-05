@@ -361,8 +361,9 @@ static func canopy() -> Mesh:
 	return mesh
 
 
-## The canopy folded: legs together, the trusses closed into a bundle of parallel bars, the canvas
-## bunched over the top; it stands on its feet beside the packed tables. Origin on the ground.
+## Folded canopies on a platform cart, ready to load: two bundles lying lengthwise - the legs
+## and closed trusses side by side, the canvas wrapped round them and strapped - on a steel deck
+## with casters and a push handle. Origin on the ground under the cart, its length along x.
 static func canopy_folded() -> Mesh:
 	if _meshes.has("canopy_folded"):
 		return _meshes.canopy_folded
@@ -370,34 +371,49 @@ static func canopy_folded() -> Mesh:
 	var alu := col(Color(0.74, 0.75, 0.77), C_METAL)
 	var rm_alu := Vector2(0.38, 0.9)
 	var dark := col(Color(0.06, 0.06, 0.065), C_FIXED)
+	var steel := col(Color(0.2, 0.3, 0.52), C_FIXED)
 	var canvas := col(Color.WHITE, C_CANVAS)
-	var h := 1.62
-	g.mode = 1
-	for i in 4:
-		var x := 0.11 * (1.0 if i % 2 == 0 else -1.0)
-		var z := 0.11 * (1.0 if i < 2 else -1.0)
-		g.bar(Vector3(x, 0.02, z), Vector3(x, h, z), 0.038, alu, Vector2(0.4, 0.9))
-		g.abox(Vector3(x, 0.006, z), Vector3(0.12, 0.012, 0.12), alu, Vector2(0.4, 0.9))
-	# The closed trusses: bars side by side between the legs.
-	for k in 6:
-		var o := -0.08 + 0.032 * k
-		g.bar(Vector3(o, 0.35, 0.11), Vector3(o, h - 0.05, 0.11), 0.02, alu, Vector2(0.4, 0.9))
-		g.bar(Vector3(0.11, 0.35, o), Vector3(0.11, h - 0.05, o), 0.02, alu, Vector2(0.4, 0.9))
-	# The canvas left on the frame: gathered at the hub on top and hanging down the bundle in deep
-	# folds to about half its height, a strap round it.
-	g.ellipsoid(Transform3D(Basis(), Vector3(0, h + 0.03, 0)), Vector3(0.2, 0.08, 0.19), 10, 4, canvas, Vector2(0.85, 0.0), 6, 0.2)
-	g.cyl(Vector3(0, h * 0.5, 0), 0.24, 0.2, h * 0.5 + 0.02, 14, canvas, Vector2(0.85, 0.0), false)
-	g.cyl(Vector3(0, h * 0.5 - 0.06, 0), 0.25, 0.24, 0.06, 14, canvas, Vector2(0.85, 0.0), false)
-	g.cyl(Vector3(0, h * 0.72, 0), 0.215, 0.215, 0.04, 12, dark, Vector2(0.6, 0.0), false)
-	g.mode = 2
-	g.abox(Vector3(0, h * 0.5, 0), Vector3(0.3, h, 0.3), alu, Vector2(0.4, 0.9))
-	g.abox(Vector3(0, h - 0.25, 0), Vector3(0.45, 0.6, 0.45), canvas, Vector2(0.85, 0.0))
-	g.mode = 0
-	# Its wheeled carry bag, empty, folded flat against its foot.
-	g.box(Transform3D(Basis(Vector3.RIGHT, -0.12), Vector3(0.0, 0.42, -0.3)), Vector3(0.42, 0.8, 0.05), col(Color(0.12, 0.16, 0.13), C_CLOTH), Vector2(0.85, 0.0))
+	var deck := 0.2
+	# The cart: deck, casters, the push handle at one end.
+	g.abox(Vector3(0, deck - 0.02, 0), Vector3(1.25, 0.04, 0.62), steel, Vector2(0.5, 0.3))
+	for sx: float in [-0.55, 0.55]:
+		for sz: float in [-0.25, 0.25]:
+			g.mode = 1
+			g.bar(Vector3(sx, deck - 0.04, sz), Vector3(sx, 0.09, sz), 0.03, dark, Vector2(0.5, 0.0))
+			g.mode = 0
+			g.box(Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(sx, 0.065, sz)), Vector3(0.13, 0.04, 0.13), dark, Vector2(0.6, 0.0), false)
+	g.bar(Vector3(-0.62, deck, -0.28), Vector3(-0.68, 1.0, -0.28), 0.03, steel, Vector2(0.5, 0.3))
+	g.bar(Vector3(-0.62, deck, 0.28), Vector3(-0.68, 1.0, 0.28), 0.03, steel, Vector2(0.5, 0.3))
+	g.bar(Vector3(-0.68, 1.0, -0.29), Vector3(-0.68, 1.0, 0.29), 0.032, dark, Vector2(0.5, 0.0))
+	# Two bundles side by side, a third on top.
+	for k in 3:
+		var z := -0.15 + 0.3 * float(k % 2) if k < 2 else 0.0
+		var y := deck + 0.16 + (0.3 if k == 2 else 0.0)
+		var xf := Transform3D(Basis(Vector3.UP, 0.04 * (k - 1)), Vector3(0.04, y, z))
+		_bundle(g, xf, alu, rm_alu, canvas, dark)
 	var mesh := g.commit(0.06)
 	_meshes.canopy_folded = mesh
 	return mesh
+
+
+## One folded canopy lying along x through `xf` (its centre): the legs' feet sticking out of one
+## end, the canvas wrapped round the rest, two straps.
+static func _bundle(g: Geo, xf: Transform3D, alu: Color, rm_alu: Vector2, canvas: Color, dark: Color) -> void:
+	var length := 1.62
+	g.mode = 1
+	for i in 4:
+		var y := 0.07 * (1.0 if i % 2 == 0 else -1.0)
+		var z := 0.07 * (1.0 if i < 2 else -1.0)
+		g.bar(xf * Vector3(-length * 0.5, y, z), xf * Vector3(-length * 0.5 + 0.35, y, z), 0.038, alu, rm_alu)
+		g.box(Transform3D(xf.basis, xf * Vector3(-length * 0.5 - 0.006, y, z)), Vector3(0.012, 0.11, 0.11), alu, rm_alu, false)
+	g.mode = 0
+	# The canvas sheath: a lobed tube of fabric along the bundle, fuller toward the hub end.
+	var sheath := xf * Transform3D(Basis(Vector3.FORWARD, PI * 0.5), Vector3(0.12, 0.0, 0.0))
+	g.ellipsoid(sheath, Vector3(0.15, length * 0.5 - 0.1, 0.14), 12, 6, canvas, Vector2(0.85, 0.0), 7, 0.12)
+	for u: float in [-0.25, 0.4]:
+		g.mode = 1
+		g.box(Transform3D(xf.basis, xf * Vector3(u, 0.0, 0.0)), Vector3(0.04, 0.3, 0.29), dark, Vector2(0.6, 0.0), false)
+		g.mode = 0
 
 
 # --- Tables and goods -------------------------------------------------------------------------
