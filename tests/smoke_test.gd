@@ -1202,39 +1202,54 @@ func _test_city() -> void:
 		if hit_a_person:
 			# Up to 7 s: a body still sliding on a sloped street pools only once it is 3.5 s old
 			# (Ragdoll's fallback), and 3 s from here missed that on a loaded CI runner.
+			# The bodies are looked at WHILE they wait: debris lives debris_lifetime (12 s) and the
+			# checks above can use most of that, so a body that came to rest on a car and never
+			# pools may be freed before the wait ends, and looked at only afterwards it read as
+			# "0 of 0" (no body at all) and failed.
 			var pooled := false
-			for i in 420:
-				pooled = int(WeaponFX.blood_stats.pools) > int(blood_before.pools)
-				if pooled:
-					break
-				await _ticks(1)
-			# A body that comes to rest on a parked car, a bench or a planter has no street under
-			# it within reach, and by design gets no pool there (Ragdoll._ground_under). Which
-			# person the rifle drops, and where they land, depends on the frame timing: on a loaded
-			# CI runner (build 335) the shot body ended up on top of something.
+			var stained := false
 			var off_ground := 0
 			var bleeding := 0
-			if not pooled:
-				for n in get_tree().get_nodes_in_group("debris"):
-					if n is Ragdoll and not (n as Ragdoll).bodies.is_empty():
+			var seen := ""
+			for i in 420:
+				pooled = int(WeaponFX.blood_stats.pools) > int(blood_before.pools)
+				if i % 15 == 0 or pooled:
+					var off := 0
+					var bled := 0
+					var where := ""
+					for n in get_tree().get_nodes_in_group("debris"):
+						if not (n is Ragdoll) or (n as Node).is_queued_for_deletion():
+							continue
 						var doll := n as Ragdoll
+						var mat: Variant = doll.get("_stain_mat")
+						if mat is ShaderMaterial and float((mat as ShaderMaterial).get_shader_parameter("wound_count")) > 0.0:
+							stained = true
+						if doll.bodies.is_empty() or doll.bleed <= 0.0:
+							continue
 						var rb: RigidBody3D = doll.bodies[0]
-						var pelvis: Vector3 = doll._pelvis()
-						var on_street := not doll._ground_under(pelvis).is_empty()
-						if doll.bleed > 0.0:
-							bleeding += 1
-							if not on_street:
-								off_ground += 1
-						printerr("blood: no pool - ragdoll at %s, speed %.2f, age %.1f, bleed %.1f, street under it %s" % [
+						var on_street := not doll._ground_under(doll._pelvis()).is_empty()
+						bled += 1
+						if not on_street:
+							off += 1
+						where += " ragdoll at %s, speed %.2f, age %.1f, bleed %.1f, street under it %s;" % [
 							str(rb.global_position.snapped(Vector3.ONE * 0.1)), rb.linear_velocity.length(),
-							float(n.get("_age")), doll.bleed, on_street])
+							float(n.get("_age")), doll.bleed, on_street]
+					# A body that rests on a parked car, a bench or a planter has no street under
+					# it within reach, and by design gets no pool there (Ragdoll._ground_under).
+					# Which person the rifle drops, and where they land, depends on the frame
+					# timing: on a loaded CI runner (build 335) the shot body ended up on top of
+					# something. Keep the last look that still found a bleeding body.
+					if bled > 0:
+						off_ground = off
+						bleeding = bled
+						seen = where
+				if pooled and stained:
+					break
+				await _ticks(1)
+			if not pooled and seen != "":
+				printerr("blood: no pool -" + seen)
 			_check(pooled or (bleeding > 0 and off_ground == bleeding),
 				"a body shot down bleeds into a pool under it" + ("" if pooled else " (none: it lies on top of something, %d of %d)" % [off_ground, bleeding]))
-			var stained := false
-			for n in get_tree().get_nodes_in_group("debris"):
-				var mat: Variant = n.get("_stain_mat") if n is Ragdoll else null
-				if mat is ShaderMaterial and float((mat as ShaderMaterial).get_shader_parameter("wound_count")) > 0.0:
-					stained = true
 			_check(stained, "the shot body's clothes are stained round the wound")
 		# The shotgun sums a person's pellets into one wound, so a close blast bleeds far harder
 		# than a rifle round (Shotgun.blood_per_pellet, capped at WeaponFX.blood_strength_max).
@@ -1361,6 +1376,7 @@ func _test_city() -> void:
 	var avatar: Node = player.get_node_or_null("Visual/Avatar")
 	_check(avatar != null and avatar.find_child("AnimationPlayer", true, false) != null and not player.get_node("Visual/Body").visible, "the player wears the animated character, capsule hidden")
 	_check_hero(avatar)
+	await load("res://tests/hero_moves_checks.gd").new().run(self, player)
 	_check_crowd_rigs()
 	var traffic_node: Node3D = city.get_node("Traffic")
 	var moving: int = traffic_node.cars.size()
@@ -1623,6 +1639,8 @@ func _test_city() -> void:
 	await load("res://tests/crowd_life_checks.gd").new().run(self, city)
 	# The crowd's headwear (CrowdHat): measured heads, fitted hats, one draw each, kept on a body.
 	await load("res://tests/crowd_hat_checks.gd").new().run(self, city)
+	# Photo mode: frozen world, its own camera, its settings, a PNG, and everything put back.
+	await load("res://tests/photo_mode_checks.gd").new().run(self, city)
 	var menu: Node = city.get_node("PauseMenu")
 	menu.open()
 	_check(get_tree().paused and menu.is_open(), "pause menu pauses the game")
@@ -1721,13 +1739,21 @@ func _test_city() -> void:
 	# The city's birds (tests/bird_checks.gd): meshes, survey, a flock flushed and landing,
 	# alarms, shots and blasts.
 	await load("res://tests/bird_checks.gd").new().run(self, city)
+	# The sky (tests/sky_checks.gd): cloud noise, the moon's date, contrails, the light dome.
+	await load("res://tests/sky_checks.gd").new().run(self, city)
 	# The fire department and the ambulances (tests/emergency_checks.gd): both units, putting a car
 	# fire out, the fire stations, an engine at a burning wreck, an ambulance at a body, a unit sent
 	# through the streets with its siren.
 	await load("res://tests/emergency_checks.gd").new().run(self, city)
+	# Police stations (tests/police_station_checks.gd): placement, the HQ, the build, the gate, a
+	# cruiser out of the gate onto the lane and a recalled one back in.
+	await load("res://tests/police_station_checks.gd").new().run(self, city)
 	# The ambience mixer (tests/ambience_checks.gd): layers per place, hour and weather, fades,
 	# ducks, buses. Mixer state only - the Dummy audio driver plays nothing.
 	await load("res://tests/ambience_checks.gd").new().run(self, city)
+	# The city's acoustics (tests/audio_checks.gd): spaces and reverb, gunfire echoes, footsteps by
+	# surface, the river, fountains, playgrounds, construction, the bus's diesel.
+	await load("res://tests/audio_checks.gd").new().run(self, city)
 	# The Esplanade replica (tests/replica_checks.gd): the road, the coast, the lots, one replica
 	# chunk and its traffic.
 	await load("res://tests/replica_checks.gd").new().run(self, city)
@@ -1757,6 +1783,9 @@ func _test_city() -> void:
 	# Street-level wear (tests/street_wear_checks.gd): tags, posters and stickers on downtown
 	# blocks as one batch a chunk, none near a place of worship, nothing else in the block moved.
 	load("res://tests/street_wear_checks.gd").new().run(self, city)
+	# Climbing plants (tests/climbing_plants_checks.gd): bougainvillea, ivy, fig, jasmine, vines
+	# and accents on beach-town walls, tiles of one shader, none in a window, nothing else moved.
+	load("res://tests/climbing_plants_checks.gd").new().run(self, city)
 	# Street vendors (tests/street_vendors_checks.gd): taco trucks at night and carts by day round
 	# downtown, a batch per kind, the truck unbreakable and clear of parked cars, a cart that tips
 	# over and stays gone, queues and vendors, and nothing else in the block moved.
@@ -1765,6 +1794,9 @@ func _test_city() -> void:
 	# the front rows first, batches and figures on a FULL chunk, woken people, gunfire scattering
 	# them, the block's palms unmoved, the LOD dots, nobody at night, the cyclist's legs on the pedals.
 	load("res://tests/beach_life_checks.gd").new().run(self, city)
+	# Broadway's theatre district (tests/broadway_checks.gd): palaces on their real addresses, one
+	# sign surface each, the lanterns, goods and clock, the far boxes, nothing else in the block moved.
+	load("res://tests/broadway_checks.gd").new().run(self, city)
 	# Micromobility (tests/micromobility_checks.gd): scooters, share stations, racks, bike lanes,
 	# the parked cars out of the lanes, and a rider posed on the bike, riding, stopping, knocked off.
 	await load("res://tests/micromobility_checks.gd").new().run(self, city)
@@ -1792,6 +1824,36 @@ func _test_city() -> void:
 	# The city at night from the air (tests/night_city_checks.gd): the far traffic and lit-office
 	# hours, the sodium / LED lamp patches near and far, the LOD decks' traffic skin.
 	load("res://tests/night_city_checks.gd").new().run(self, city)
+	# The container terminal at work (tests/port_life_checks.gd): the kit, the cranes' dual cycle,
+	# the tractors, gantries and straddle carriers, the gate and its trucks.
+	await load("res://tests/port_life_checks.gd").new().run(self, city)
+	# The canal neighbourhood (tests/canals_checks.gd): the site and its closed streets, the pure
+	# layout, the houses facing the water, the FULL / LOD chunks and the far city's record.
+	load("res://tests/canals_checks.gd").new().run(self, city)
+	# The pier park (tests/pier_park_checks.gd): layout, the coaster's track and ride, the walks, the
+	# park in its chunk, solid decks and rides, shots, the train on the clock, the crowd, the far wheel.
+	await load("res://tests/pier_park_checks.gd").new().run(self, city)
+	# The marina (tests/marina_checks.gd): between Venice and the airport, its roads, the boats in the
+	# basin, the highway's bridge gap, a marina chunk's meshes and boats, LOD and the capture.
+	load("res://tests/marina_checks.gd").new().run(self, city)
+	# What a blast leaves (tests/explosion_aftermath_checks.gd): trees alight, charred and kept
+	# charred, smoke columns, craters and rubble, leaves, car alarms with their hazards.
+	await load("res://tests/explosion_aftermath_checks.gd").new().run(self, city)
+	# Building damage (tests/building_damage_checks.gd): crazed and shattered panes, scars, a blast
+	# hole, the caps, restore on rebuild, sanctuaries and the towers' own materials.
+	await load("res://tests/building_damage_checks.gd").new().run(self, city)
+	# Public schools (tests/schools_checks.gd): placement, pure plans, the closed street, one school
+	# mesh a chunk, partitioned far slabs, the school bus parked and at the bell.
+	await load("res://tests/schools_checks.gd").new().run(self, city)
+	# The map (tests/minimap_checks.gd): the basin's map data, GPS routes on open streets, the
+	# full-screen map, the waypoint, its beacon and its route.
+	await load("res://tests/minimap_checks.gd").new().run(self, city)
+	# Los Angeles weather (tests/weather_la_checks.gd): the marine layer's clock and deck, the Santa
+	# Ana's wind and brush fire, the heat haze, rain off car roofs, the roll and the pause menu.
+	load("res://tests/weather_la_checks.gd").new().run(self, city)
+	# The four-level stack (tests/stack_interchange_checks.gd): levels, separations, grades, banks,
+	# columns, the chunk's meshes, and the connector traffic handed to and from the freeway's.
+	await load("res://tests/stack_interchange_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
@@ -3094,7 +3156,12 @@ func _check_crowd_rigs() -> void:
 		if why != "":
 			bad.append(path.get_file() + ":" + why)
 		rig.queue_free()
-	_check(rigs >= 8 and bad.is_empty(), "the %d crowd rigs keep the contract (24 bones, clips, masked body with detail UV2, cut-out hair, <= 20k triangles)%s" % [rigs, "" if bad.is_empty() else " " + str(bad)])
+	_check(rigs >= 20 and bad.is_empty(), "the %d crowd rigs keep the contract (24 bones, clips, masked body with detail UV2, cut-out hair, <= 20k triangles)%s" % [rigs, "" if bad.is_empty() else " " + str(bad)])
+	# a rig whose head is covered (the headscarf) is one of the crowd, and never wears a hat
+	var no_hat_ok := true
+	for path: String in ped_script.NO_HAT_MODELS:
+		no_hat_ok = no_hat_ok and path in ped_script.MODELS
+	_check(no_hat_ok and not ped_script.NO_HAT_MODELS.is_empty(), "the hatless rigs (%s) are crowd rigs" % [ped_script.NO_HAT_MODELS])
 
 
 ## The Blender-built hero (tools/hero/): the rig contract the clips and the gun hands rely on,

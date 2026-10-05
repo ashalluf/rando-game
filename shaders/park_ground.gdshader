@@ -175,9 +175,42 @@ vec3 ten_pal(int i, int which) {
 }
 
 vec3 school_col(int i) {
-	vec3 c[6] = vec3[](vec3(0.55, 0.10, 0.12), vec3(0.10, 0.20, 0.45), vec3(0.08, 0.36, 0.20),
-		vec3(0.62, 0.40, 0.06), vec3(0.32, 0.12, 0.40), vec3(0.85, 0.42, 0.08));
-	return c[clamp(i, 0, 5)];
+	vec3 c[8] = vec3[](vec3(0.55, 0.10, 0.12), vec3(0.10, 0.20, 0.45), vec3(0.08, 0.36, 0.20),
+		vec3(0.62, 0.40, 0.06), vec3(0.32, 0.12, 0.40), vec3(0.85, 0.42, 0.08),
+		vec3(0.10, 0.36, 0.48), vec3(0.45, 0.06, 0.10));
+	return c[clamp(i, 0, 7)];
+}
+
+// The lower 48 as a schoolyard map paints it: the outline (longitude, latitude), coarse.
+const int MAP_N = 46;
+const vec2 MAP_PTS[46] = vec2[](
+	vec2(-124.7, 48.4), vec2(-123.0, 49.0), vec2(-95.2, 49.0), vec2(-89.6, 48.0), vec2(-84.8, 46.5),
+	vec2(-82.5, 45.3), vec2(-82.4, 43.0), vec2(-79.0, 43.3), vec2(-76.0, 44.3), vec2(-74.7, 45.0),
+	vec2(-71.5, 45.0), vec2(-69.2, 47.4), vec2(-67.0, 44.8), vec2(-70.7, 43.1), vec2(-70.0, 41.7),
+	vec2(-74.0, 40.6), vec2(-75.5, 38.5), vec2(-76.0, 37.0), vec2(-75.5, 35.2), vec2(-78.0, 33.8),
+	vec2(-81.0, 31.5), vec2(-80.0, 27.0), vec2(-80.4, 25.2), vec2(-81.8, 26.2), vec2(-82.8, 28.0),
+	vec2(-84.0, 30.0), vec2(-88.0, 30.4), vec2(-89.6, 29.2), vec2(-91.5, 29.5), vec2(-94.0, 29.6),
+	vec2(-97.2, 26.0), vec2(-99.5, 27.5), vec2(-101.4, 29.8), vec2(-103.0, 29.0), vec2(-104.6, 29.9),
+	vec2(-106.5, 31.8), vec2(-108.2, 31.3), vec2(-111.0, 31.3), vec2(-114.8, 32.5), vec2(-117.1, 32.5),
+	vec2(-118.5, 34.0), vec2(-120.6, 34.6), vec2(-122.5, 37.7), vec2(-124.2, 40.4), vec2(-124.5, 43.0),
+	vec2(-124.0, 46.2));
+
+// Signed distance to the outline (negative inside), in degrees.
+float map_sd(vec2 g) {
+	float d = 1e9;
+	bool inside = false;
+	for (int i = 0; i < MAP_N; i++) {
+		vec2 a = MAP_PTS[i];
+		vec2 b = MAP_PTS[(i + 1) % MAP_N];
+		vec2 pa = g - a;
+		vec2 ba = b - a;
+		float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
+		d = min(d, length(pa - ba * h));
+		if ((a.y > g.y) != (b.y > g.y) && g.x < (b.x - a.x) * (g.y - a.y) / (b.y - a.y) + a.x) {
+			inside = !inside;
+		}
+	}
+	return inside ? -d : d;
 }
 
 vec3 rubber_pal(int i, int which) {
@@ -505,9 +538,37 @@ void fragment() {
 		l = max(l, aline(length(p - vec2(0.8, 0.0)) - 1.8, 0.08));
 		c = paint(c, yellow, l, w);
 		rough = 0.9;
+	} else if (k == 13) {
+		// The painted map (Schools.G_MAP): the lower 48 on the blacktop in patches of colour with
+		// white borders, a compass rose, a star where Los Angeles is, the frame round it.
+		c = asphalt(w);
+		vec2 h = dims;
+		vec2 m = p / max(h - vec2(0.6), vec2(0.5));
+		vec2 g = vec2(-95.6 + m.x * 30.2, 37.0 - m.y * 13.6);
+		float sd = map_sd(g);
+		float fw = max(fwidth(g.x), 0.002);
+		float in_map = clamp(0.5 - sd / fw, 0.0, 1.0);
+		// The states as a jittered lattice of cells, five colours.
+		vec2 cell = floor(g / vec2(5.5, 4.2) + vec2(0.13, 0.27) * floor(g.yx / vec2(4.2, 5.5)));
+		vec3 pal[5] = vec3[](vec3(0.85, 0.58, 0.32), vec3(0.42, 0.62, 0.40), vec3(0.88, 0.80, 0.42), vec3(0.50, 0.62, 0.80), vec3(0.80, 0.50, 0.55));
+		vec3 st = pal[int(hash12(cell) * 4.999)];
+		vec2 cf = fract(g / vec2(5.5, 4.2) + vec2(0.13, 0.27) * floor(g.yx / vec2(4.2, 5.5)));
+		float border = max(aline((min(cf.x, 1.0 - cf.x)) * 5.5, 0.18), aline((min(cf.y, 1.0 - cf.y)) * 4.2, 0.18));
+		vec3 inkc = mix(st, paint_white, border);
+		c = mix(c, inkc, in_map * 0.92);
+		float l = aline(sd, 0.22);
+		l = max(l, aline(length(g - vec2(-118.2, 34.0)) - 0.55, 0.25));
+		l = max(l, rect_line(p, -h + vec2(0.25), h - vec2(0.25), 0.08));
+		// A compass rose in the corner over the ocean.
+		vec2 cr = p - vec2(-h.x + 1.3, h.y - 1.3);
+		l = max(l, aline(length(cr) - 0.7, 0.05));
+		l = max(l, aseg(cr, vec2(0.0, -0.95), vec2(0.0, 0.95), 0.06));
+		l = max(l, aseg(cr, vec2(-0.95, 0.0), vec2(0.95, 0.0), 0.06));
+		c = paint(c, paint_white, l, w);
+		rough = 0.9;
 	}
 	// Hard surfaces darken and gloss in the rain.
-	float hard = (k == 3 || k == 4 || k == 5 || k == 8 || k == 9 || k == 11) ? 1.0 : 0.0;
+	float hard = (k == 3 || k == 4 || k == 5 || k == 8 || k == 9 || k == 11 || k == 13) ? 1.0 : 0.0;
 	c *= 1.0 - 0.25 * road_wetness * hard;
 	rough = mix(rough, 0.25, road_wetness * hard * 0.7);
 	ALBEDO = to_lit(clamp(c, vec3(0.0), vec3(1.0)));

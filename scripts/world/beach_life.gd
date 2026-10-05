@@ -195,6 +195,9 @@ static func kept_off(plan: CityPlan, z: float, with_people: bool = false) -> boo
 	for k: Array in _keep_off:
 		if absf(z - float(k[0])) < float(k[1]):
 			return true
+	# The marina's channel cuts the beach (Marina): no towels, courts or path across its band.
+	if plan.macro and plan.macro.marina and absf(z - plan.macro.marina.zc) < Marina.CHANNEL_HALF + 8.0:
+		return true
 	if not with_people and plan.macro and plan.macro.replica:
 		var cr: Vector2 = plan.macro.replica.coast_range()
 		if z > cr.x - 60.0 and z < cr.y + 60.0:
@@ -563,7 +566,8 @@ static func _build_path(ch: CityChunk, z0: float, z1: float) -> void:
 			var y := sand_y(ch, p.x, p.y)
 			var top := y + (PATH_LIFT if k == 1 or k == 2 else -0.04)
 			row.append([Vector3(p.x, top, p.y), off])
-		if i > 0:
+		# The path stops at the marina's channel (it crosses on the highway's bridge's footway).
+		if i > 0 and not MarinaBuild.on_channel(ch, Vector3(x, 0.0, z - 0.5 * (z1 - z0) / steps), 0.0):
 			for k in 3:
 				var a: Array = prev[k]
 				var b: Array = prev[k + 1]

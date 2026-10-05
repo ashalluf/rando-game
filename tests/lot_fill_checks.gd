@@ -118,7 +118,9 @@ func _campus_plan(plan: CityPlan) -> void:
 func _beach_plan(plan: CityPlan) -> void:
 	var scene: PackedScene = load("res://scenes/props/building.tscn")
 	var lo: Vector2i = plan.block_index_at(Vector2(-950.0, -750.0))
-	var hi: Vector2i = plan.block_index_at(Vector2(-450.0, 600.0))
+	# To z 1450: the canal neighbourhood (Canals) took two blocks of the old window (to z 600), one
+	# with a walk street; the next one is down by the piers.
+	var hi: Vector2i = plan.block_index_at(Vector2(-450.0, 1450.0))
 	var walks := 0
 	var lots := 0
 	var drives := 0
