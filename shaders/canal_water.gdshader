@@ -15,6 +15,7 @@ render_mode cull_back, depth_draw_opaque;
 //
 // UV.x is the offset across the canal from its centre line, UV.y the coordinate along it, UV2.x
 // which way it runs (0: along z, 1: along x), UV2.y the canal's index (the hashes are per canal).
+// Where two canals cross, UV.y is the offset across the east-west canal and UV2.x is 2 + its index.
 // Everything is in the mesh's local space, which for a chunk child is true world space.
 
 #include "res://shaders/color_space.gdshaderinc"
@@ -181,7 +182,8 @@ void fragment() {
 
 	// The sky the water sees: the horizon colour, deepening upward, dimmed at night.
 	float dark = 1.0 - 0.9 * night_factor;
-	vec3 horizon = sky_tint.rgb;
+	// sky_tint arrives raw (sRGB numbers) on both renderers; this shader works in linear.
+	vec3 horizon = cs_srgb_to_linear(sky_tint.rgb);
 	vec3 zenith = horizon * vec3(0.55, 0.70, 1.0);
 	vec3 sky = mix(horizon, zenith, smoothstep(0.05, 0.6, r.y)) * dark;
 	float sun = pow(max(dot(r, normalize(sun_direction)), 0.0), 300.0) * 6.0 * dark;
@@ -189,9 +191,20 @@ void fragment() {
 	float day = clamp(dot(sky_tint.rgb, vec3(0.299, 0.587, 0.114)) / 0.74, 0.0, 1.3) * dark;
 
 	// The canal's frame: across and along components of the reflected ray.
-	float ra = axis < 0.5 ? r.x : r.z;
-	float rb = axis < 0.5 ? r.z : r.x;
-	vec3 refl = mirrored(UV.x, UV.y, ra, rb, r.y, canal, day, sky);
+	vec3 refl;
+	if (axis > 1.5) {
+		// A crossing (UV.x across the north-south canal, UV.y across the east-west one, UV2.x
+		// 2 + the east-west canal's index): the water is open both ways, so the mirror runs down
+		// whichever canal the reflected ray goes along, blended across the diagonal.
+		vec3 m_ns = mirrored(UV.x, p.y, r.x, r.z, r.y, canal, day, sky);
+		vec3 m_ew = mirrored(UV.y, p.x, r.z, r.x, r.y, axis - 2.0, day, sky);
+		float w = smoothstep(-0.15, 0.15, abs(r.x) - abs(r.z));
+		refl = mix(m_ns, m_ew, w);
+	} else {
+		float ra = axis < 0.5 ? r.x : r.z;
+		float rb = axis < 0.5 ? r.z : r.x;
+		refl = mirrored(UV.x, UV.y, ra, rb, r.y, canal, day, sky);
+	}
 
 	// The body: dark green, silt toward the banks, a scum of leaves and pollen along the edges.
 	float edge = smoothstep(3.8, 5.6, abs(UV.x));
