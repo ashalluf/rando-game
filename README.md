@@ -26,3 +26,15 @@ same eyes as 01-03 for a direct before / after.
 - 16_after_aerial_1630.jpg - the core from 90 m up at 16:30 (cornices and attics from the air)
 - 17_after_spring_corner_2030.jpg - Spring St at 7th, 20:30 (floodlit bases, lit entrance)
 - 18_before_spring_north_2100.jpg / 19_before_spring_east_face_2100.jpg - the night befores
+
+Third batch, after the lead's night review. Still 10 was block_shot's crude night (no street
+lamps, no DayNight): p5/p50/p95 9/9/58. In the city the same corner reads 7/31/144 at 20:30
+(17) and now 7/44/175 at 21:00 with the base's own light: a bronze wall lantern every 3-4 bays
+over the shop signs with a pool under each and under the entrance, and a stronger flood on the base.
+
+- 20_after2_spring_corner_2100_lanterns.jpg - the corner of 10 / 17 at 21:00 in the city (7/44/175)
+- 21_after2_entrance_2100_lanterns.jpg - the entrance at 21:00: lanterns, pools, floodlit base (7/38/184)
+- 22_after2_spring_north_2100.jpg - Spring St north at 21:00 (10/61/192; before 18: 7/49/114)
+- 23_forwardplus_entrance_day_blockscene.jpg - Forward+ (lavapipe), the entrance by day in
+  block_shot.tscn (the blocks alone, no city fill light, the face in shade: underexposed - a
+  material check, not the final look)
