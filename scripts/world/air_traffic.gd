@@ -418,6 +418,9 @@ func _cell_top(key: Vector2i) -> float:
 	for lm: Array in _landmark_boxes:
 		if (lm[0] as Rect2).intersects(cell):
 			top = maxf(top, float(lm[1]))
+	# The antenna farm's masts and the transmission towers (Ridges).
+	if macro.ridges:
+		top = maxf(top, macro.ridges.top_in(cell))
 	return top
 
 

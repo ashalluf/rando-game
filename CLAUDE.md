@@ -2422,6 +2422,56 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/glshot/hill_ground_shot.tscn`, a minute a shot): `tools/hill_homes/probe.tscn`; build
   times `tools/hill_homes/bench.tscn`; the checks alone `tools/hill_homes/check_runner.tscn`;
   checks: `tests/hill_homes_checks.gd`.
+- Ridges (2026-10-05, docs/HANDOFF.md "What stands on the hills"): what stands on the hills -
+  two 220 kV transmission lines, an antenna farm, fire roads, a fire lookout, green water tanks,
+  radar / weather domes and a substation. **Data**: `Ridges` (`scripts/world/ridges.gd`,
+  `MacroMap.ridges`; `RIDGES=0` / `-- --no-ridges` is the A/B). `build_terrain()` runs LAST in
+  `MacroMap.setup()` (after the switchbacks, so nothing planned before moves) and CARVES: fire
+  roads are HillRoads roads (`"fire": true, "draw": false`) and every pad (the farm's benches, a
+  tank's knoll, the lookout, a dome) is a short wide road (`"pad": true`), so carve(), the shells,
+  the planting and the far canopy keep off them with no code of their own. The ranges are steeper
+  than 45 degrees off their crests, so fire roads are WALKED along crests and down spurs
+  (`_walk_crest()`; A* was tried and was 7-10 s a road in GDScript), their beds hugging the ground
+  (`FIRE_GRADE` 0.75: the fire breaks bulldozed straight along the ridgelines), gated at the
+  bottom; the farm is a row of small benches stepped along the crest of the highest front-range
+  summit that takes them (the spikes do not take one big pad). Add a road or pad through
+  `_index_last()`, never `HillRoads._index()` each time (it was most of the planning time). The
+  lines need the city plan, so they are planned lazily (`Ridges.of(plan)`, like LightRail):
+  the substation on an industrial block in Vernon (`SUB_MAX`), line A east over the east range,
+  line B north-east and up it; towers by a dynamic programme over spots every `DP_STEP` along each
+  straight leg (`_leg_towers()`: fewest towers, shortest heights, every span's six conductors
+  `CLEAR` over the ground sampled under all of them; a spot moved sideways off the leg - a street,
+  a spike's flank - is measured along its TRUE line on a lazily filled corridor raster; a tower
+  may straddle a peak on `PEAK_LEG_EXT` legs). `CityPlan.lots()` asks `claims_lot()` AFTER every
+  roll (the substation and `ROW_HALF` either side of the line in INDUSTRIAL blocks) and records
+  the cells in `claimed_cells`, which is why a test must call lots() for a block before asking it.
+  **Build**: `RidgeBuild.attach(ch)` (one hook line in `CityChunk.begin_build()`): FULL chunks build
+  each tower whose foot is in them (`RidgeKit.tower_body(h, kind)`, cached per height and kind:
+  L-section angle members - two flanges, both sides, 4 triangles each - porcelain strings, the
+  peak; plus its own leg extensions and piers, `tower_legs()`; box collision you can land on),
+  the masts (orange / white guyed lattice, lattice towers, monopoles with panels and drum dishes),
+  sites, the substation, gates; FULL and LOD the dirt (`fire_road.gdshader`, UV.x > 1.5 a pad)
+  and the right of way (Industrial's weeds, dirt and storage yards, `LotFill._fence`). **Far**:
+  `RidgeSystem` (`scripts/world/ridge_system.gd`, a node in city.tscn) draws EVERY conductor (twin
+  bundles, spacers, jumpers), earth wire and guy, and every tower's, mast's and gantry's lattice
+  again as fine lines (`RidgeKit.tower_members(h, feet, true)`), on `shaders/power_wire.gdshader`:
+  ribbons turned to the camera, at least `min_px` wide, their true thickness as coverage (a 28 mm
+  conductor at 300 m is a faint line, never aliased stairs), lit as a cylinder with a glint only on
+  its reflection cone (a Kajiya-Kay highlight at a low exponent lit every horizontal wire as bright
+  as the sky - they vanished). The far solids (tanks, domes, huts, the substation) are one mesh on
+  `ridge_far_solid.gdshader`, the masts' red lights one `aircraft_lights` mesh. A FULL chunk hides
+  its pieces' far versions through a `RidgeCover` child (ids in `RidgeSystem.covered`, a texel each
+  in an R8 texture both shaders read in the vertex stage). **Traps, each a lost round**: a packed
+  array kept in a Dictionary (or passed to a function) is a COPY, so appending to it does nothing
+  (`RidgeKit.Part`, `RidgeBuild.Dirt` hold them as members); a mesh surface over 65,535 vertices
+  drew NOTHING on the Compatibility renderer (`Wires.mesh()` cuts surfaces at 60,000);
+  `VIEWPORT_SIZE` read 1 in this vertex stage, so the shader measures a pixel by projecting a
+  metre and RidgeSystem pushes `viewport_px`. Look with `tools/ridges/ridge_shot.tscn` (the real
+  chunks round a piece and the far node, a minute: `TOWER=n` / `MAST=i` / `SITE=id` / `SUB=1`,
+  `DIST`, `AZ`, `UP`, `AIM`, `GROUND=1`, `-- --hour=h`), print the plan with
+  `tools/ridges/probe.tscn` (`OUT=` draws a map; clearances per span), compile with
+  `tools/ridges/compile.gd`, test the wire shader alone with `tools/ridges/wire_test.tscn`.
+  Checks: `tests/ridges_checks.gd`.
 - Freeways (owner, 2026-09-21: "every street is just straight, there's no highways"): `Freeway`
   (`scripts/world/freeway.gd`) plans three long **curved** routes across the basin - Coast, Cross
   and Valley - as seeded polylines with a smoothed, grade-limited deck height, exactly the shape

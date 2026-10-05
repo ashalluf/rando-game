@@ -1907,6 +1907,9 @@ func _test_city() -> void:
 	# The reservoir in the front range (tests/reservoir_checks.gd): the lake held under its rim, its
 	# shore, dam, spillway and trail on the ground, the far and detailed copies, the bathtub ring.
 	load("res://tests/reservoir_checks.gd").new().run(self, city)
+	# The ridges (tests/ridges_checks.gd): the farm, fire roads, tanks and the two power lines, every
+	# span over the ground, nothing planned before them moved, a tower's chunk and the far wires.
+	load("res://tests/ridges_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

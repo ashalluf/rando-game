@@ -717,6 +717,7 @@ func _lot_grid(ix: int, iz: int, dropped: Variant) -> Array[Dictionary]:
 	if macro and params.has("core_surface_lots"):
 		surface_odds = lerpf(surface_odds, float(params.core_surface_lots), macro.skyline_boost(rect.get_center()))
 	var out: Array[Dictionary] = []
+	var ridges := Ridges.of(self)
 	for lx in nx:
 		for lz in nz:
 			var edge := lx == 0 or lz == 0 or lx == nx - 1 or lz == nz - 1
@@ -738,6 +739,9 @@ func _lot_grid(ix: int, iz: int, dropped: Variant) -> Array[Dictionary]:
 			if hit:
 				if dropped != null and not by_zone:
 					(dropped as Array).append(cell_rect)
+				continue
+			# The substation and the power line's right of way (Ridges), after every roll.
+			if ridges != null and ridges.claims_lot(self, ix, iz, lot_rect, cell_rect):
 				continue
 			var parking := false
 			if surface_odds > 0.0 and not yard and lot_size.x >= 16.0 and lot_size.y >= 14.0 \
