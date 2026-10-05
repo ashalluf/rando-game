@@ -868,6 +868,16 @@ already mapped so milestone 2 is script-only.
   and lit offices by the hour (`city_hour` global). No new node per block: an additive skin per
   LOD freeway chunk is the only new draw. docs/HANDOFF.md "The night aerial"; CLAUDE.md "Night
   aerial".
+- **2026-10-05 Murals, ghost signs, painted crosswalks and cabinets (VISUAL_ROADMAP #83).** The
+  pictures are painted procedurally in one shader from a seed (landscapes, botanical, folk
+  geometry, waves; no faces, no artist's work, no lettering) rather than drawn into an atlas,
+  because a 60 m sound wall needs centimetre detail an atlas cannot hold; only the ghost signs'
+  lettering is an atlas (invented period names). Decision: murals go only where the wall is
+  really blank (sound, yard and campus walls, freeway columns, the clear bands StreetWear's
+  `_paintable()` finds on a Building) - never over glass, so a Building gets ghost signs and
+  friezes in its bands, not wall-sized murals (no Building face is windowless). Transparent, drawn
+  before the street wear so tags land on top; FULL chunks only. docs/HANDOFF.md 9co (murals);
+  CLAUDE.md "Murals".
 
 - **2026-10-05 The 110 and the 101 meet in a four-level stack (VISUAL_ROADMAP #81).** At the
   real four-level interchange the two decks used to just cross. Now the 110 is level 1 and the

@@ -439,6 +439,8 @@ func begin_build() -> void:
 		# Bougainvillea, ivy, fig, jasmine, vines and accent plants on what the build laid
 		# (ClimbingPlants: hash-seeded, moves itself behind the deferred steps).
 		_steps.append(ClimbingPlants.build.bind(self))
+		# Murals, ghost signs, painted crosswalks and cabinets (Murals): hash-seeded, last.
+		_steps.append(Murals.build.bind(self))
 	_steps.append(_finish_build)
 
 

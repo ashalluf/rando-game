@@ -1838,6 +1838,8 @@ func _test_city() -> void:
 	await load("res://tests/stack_interchange_checks.gd").new().run(self, city)
 	# Building sites, house frames and road works (tests/construction_checks.gd).
 	load("res://tests/construction_checks.gd").new().run(self, city)
+	# Murals (tests/murals_checks.gd): ghost signs, friezes, wall and column murals, crosswalks, cabinets.
+	load("res://tests/murals_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

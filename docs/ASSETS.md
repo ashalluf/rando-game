@@ -639,6 +639,13 @@ and 733737, measured as perfectly steady synthesized tones, so making our own wa
 | Jack Hammer breaking up concrete (short burst) (thomaspettigrew) | https://freesound.org/s/273697/ | CC0 1.0 | `construction_0` 0.05-3.60 s, `construction_1` 3.90-7.60 s | 2026-10-05 |
 | hammering 2.wav (cognito perceptu) | https://freesound.org/s/17012/ | CC0 1.0 | `construction_2` 0.00-1.55 s | 2026-10-05 |
 
+## Murals and ghost signs (our own code)
+
+| Asset | Source | License | Used for | Added |
+|---|---|---|---|---|
+| `assets/textures/murals/ghost_signs.png` (sixteen invented period ads as field / lettering / shadow masks) | Our own script `tools/make_murals.py`; lettering rasterised from the system's DejaVu (Bitstream Vera licence) and Liberation (SIL OFL 1.1) fonts, no font file ships | ours | ghost signs on old brick (`scripts/world/murals.gd`, `shaders/mural.gdshader`) | 2026-10-05 |
+| Every mural scene, frieze, crosswalk pattern and cabinet wrap | Painted procedurally in `shaders/mural.gdshader` | ours | murals | 2026-10-05 |
+
 ## Fonts
 
 | Font | Source URL | License | Used for | Added |
