@@ -1377,6 +1377,15 @@ already mapped so milestone 2 is script-only.
   tweak to the base still moves every hour, and AgX with `adjustment_contrast` 1.0 stays as the
   Look note asks. Night's blacks go deeper (p5 7 -> 3 on opengl3, 23 -> 14 on Forward+).
   docs/HANDOFF.md "A grade per hour".
+- **2026-10-05 Road wear is 25 stamps multiplied, not a texture (owner: "25 max different
+  pavement wear and tears ... variations up to thousands").** One atlas of 25 stamps cut from the
+  repo's CC0 scans and procedural shapes (tools/make_road_wear.py), laid as one MultiMesh a FULL
+  chunk with every variation per instance from a hash (turn, mirror, scale, age, erosion
+  threshold, tint, a paired stamp): ~17.6 k single looks, ~139 M with pairs. Placement follows
+  the street (district, road age, bus lines, the port's trucks, wheel paths, kerb and parking
+  lanes, stop lines); potholes far rarer than cracks. Near the camera the road shader's own
+  rectangular patch grid and crack net step back for them. docs/HANDOFF.md (road wear); CLAUDE.md
+  "Road wear".
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north

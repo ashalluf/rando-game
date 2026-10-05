@@ -6,10 +6,12 @@ for a session on any account. Update all of them whenever a design decision chan
 session starts with no memory.
 
 **State on 2026-10-05 (fleet wave 2):** `main` is integration-a (19 fleet branches) plus wave 2's
-batch 1 (sky, alleys, stadium, rooftops, wilshire-deco, far-corners, cemetery, kerbs), gated green.
-`fleet/batch2` (integration-b with its memory fix) and `fleet/batch3` (fwd-review-a, road-detail,
-perf-audit, reservoir, ridges, service-vehicles) are queued behind it. A fleet of 100 sessions is
-running (`fleet/brief`: BRIEF.md, tasks.tsv, sessions.tsv; each on `wt/<slug>`, stills on
+batches 1-4, gated green: batch 1 (sky, alleys, stadium, rooftops, wilshire-deco, far-corners,
+cemetery, kerbs), integration-b (12 branches, through oom-fix's memory fix), batch 3
+(fwd-review-a, road-detail, perf-audit, reservoir, ridges, service-vehicles) and batch 4
+(service-vehicles' rebuilt bodies, farmers-market, freight-trains, fwd-review-b). `fleet/batch5`
+is queued behind it (docs/HANDOFF.md 0000000). A fleet of 100 sessions is running
+(`fleet/brief`: BRIEF.md, tasks.tsv, sessions.tsv; each on `wt/<slug>`, stills on
 `shots/<slug>`). Start at docs/HANDOFF.md section 0000000; the fleet tooling is in `tools/fleet/`.
 
 ## Project summary
@@ -4977,6 +4979,18 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the brush. Keep all of it subtle: the first
   pass used strong patch blends and dark joints and the ground read as a printed pattern rather
   than a surface.
+  **Road wear** (2026-10-05, docs/HANDOFF.md "Road wear"): `RoadWear`
+  (`scripts/world/road_wear.gd`, a FULL chunk's step beside StreetWear; `car_park()` from LotFill)
+  lays 25 stamps from ONE atlas (`tools/make_road_wear.py` -> `assets/textures/road_wear/` and
+  `RoadWearTable`: potholes, cracks, tar snakes, patches, ruts, shoving, edge break-up, oil,
+  burn-outs, paint ghosts, concrete) as ONE MultiMesh on `shaders/road_wear.gdshader`, every look
+  per instance from a hash (turn, mirror, scale, age, erosion threshold on the order map, the
+  road's tint, a paired stamp; packing in the shader header), by `road_level()` (district, road
+  age, bus line, port) along wheel paths, kerbs, parking lanes and stop lines. Potholes by
+  parallax occlusion (one step on the web), water in what is low (`data.b` 1.0 = always), a jolt
+  for the driven car (`RoadWear.bump()`). `road_stamp_near` (global) quiets road.gdshader's own
+  patch grid and cracks within 70 m. `ROAD_WEAR=0` the A/B; showroom `tools/road_wear/showroom.tscn`;
+  checks `tests/road_wear_checks.gd`.
   The "patch" batch (resurfacing patches, oil, wheel tracks, braking polish, locate paint -
   StreetDetail) wears `shaders/road_patch.gdshader`: the asphalt texture times the instance's
   grey shade (1.0 = the road) with a ragged, feathered rim, oil soaked in blotchy and

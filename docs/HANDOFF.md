@@ -32,10 +32,32 @@ The owner asked for "100 parallel agents, Opus 5.5 strictly, screenshots along t
     on and off, and the first build's parked cars (which live under the city root) outlived its
     chunk, so the second build met PhysicsBudget's cap and parked six fewer. It frees each build's
     cars now; with the cap forced 16 above the city's count the old check fails and the new passes.
-- **Queued:** `fleet/batch2` = batch 1 + integration-b through `wt/oom-fix` (its four sections
-  renumbered 9cv-9cy, rows #91-#94); `fleet/batch3` = batch 2 + fwd-review-a, road-detail,
-  perf-audit (grass in cells: the "grass" batch is "grass_<cx>_<cz>" now), reservoir, ridges,
-  service-vehicles (first head, before its cab rebuild).
+- **Batches 2 and 3 are on `main`** (14:45): `fleet/batch2` = batch 1 + integration-b through
+  `wt/oom-fix` (its four sections renumbered 9cv-9cy, rows #91-#94); `fleet/batch3` = batch 2 +
+  fwd-review-a, road-detail, perf-audit (grass in cells: the "grass" batch is "grass_<cx>_<cz>"
+  now), reservoir, ridges and service-vehicles (its first head; the rebuilt cab-over bodies are in
+  batch 4). Gate: 1,799 passed, 0 failed, peak 3.7 GB. Four fixes came with it:
+  - Ridges' fire roads and pads keep off the ballpark's cut and its graded banks
+    (`Ridges._add_fire_road()` stops short of `Ballpark.covers(p, BANK_REACH + FIRE_WIDTH)`,
+    `_site_ok()` refuses a pad there): a fire road ran down into the ravine's bank.
+  - Boulevard sign posts keep out of the corner ramps and driveway aprons Kerbs will cut, asked of
+    the plan (`Kerbs.possible_cuts()`, pure: the same polygons `_notch_poly()` cuts), so the props
+    are the same with `KERBS` on or off - which a kerbs check holds.
+  - The blood-pool check counts a body as on the street only within 0.6 m of the ground under its
+    hips, the ragdoll's own rule for pooling (a body that lands on a car roof never pools).
+  - A terrain preview the ridges branch committed by mistake is gone.
+- **Batch 4 is on `main`** (15:00): batch 3 + service-vehicles' rebuilt bodies, farmers-market,
+  freight-trains and fwd-review-b. Gate: 1,880 passed, 0 failed, peak 3.7 GB. **estate-night was
+  taken out of it**: it redraws the far estates (EstateFar), but hill-homes' `HillHomeKit` owns
+  every estate's house now (FULL, LOD and the far city), and `_build_mansions()` / `Skyline._add_hills()` go to HillHomeKit first, so
+  EstateFar never drew and two of its checks failed; its session builds it on HillHomeKit's plan.
+- **Queued:** `fleet/batch5` = batch 4 + road-detail's follow-up, memory-audit (a 4,000 MB peak
+  budget for the merged city), shader-warm, load-time (a disk cache keyed on every script's md5), occluders,
+  gate-speed (`SHARDS=n` on headless_check.sh), texture-budget, reflection-probes, web-build,
+  fwd-review-c, far-landmarks, civic-buildings, scooters, driving-fx and traffic-ai.
+- **Usage limit, 12:42-13:09:** 20 sessions stopped on the account's five-hour limit with the
+  seven-day one at a warning; the lead resumed the eight nearest done (road-wear, olvera,
+  shop-vinyl, historic-core, roadside, film-studio, chinatown, street-lamps) and left the rest.
 - **`fleet/base`** is where wave 2 started (main at the merge, before the closed-road fix).
 - **integration-b's memory** was a build livelock, found by `oom-fix`: Murals and
   ClimbingPlants each moved their step to just before a chunk's finish whenever a step stood
@@ -13095,3 +13117,87 @@ full smoke test. The branch now merges `origin/fleet/base` and reverts that reve
   `_bus_at` read it untyped first.
 
 `tools/street_errands/run_checks.tscn` runs the 28 errand checks alone in about a minute.
+
+## 9ek. Road wear: 25 stamps multiplied into thousands, 2026-10-05 (agent branch `wt/road-wear`; VISUAL_ROADMAP #130)
+
+The owner: "the streets are supposed to be detailed and have texture and potholes and look as
+unique as possible ... make like 25 max different pavement wear and tears, then from that you can
+inverse, make derivatives or variations up to thousands".
+
+**The library** (`tools/make_road_wear.py`, PIL + numpy, about 40 s, reproducible): 25 stamps in
+ONE atlas of three 2048 px maps (`assets/textures/road_wear/`, 5 x 5 cells of 409.6 px, each stamp
+drawn at 400 px): `road_wear_color` (albedo + coverage), `road_wear_nrm` (the surface slope along
+the stamp's u / v + cavity AO - our own convention, not a GL normal map) and `road_wear_data`
+(height +-0.12 m, roughness, water, erosion order). Cut from the CC0 scans already in the repo
+(Asphalt033, GravelConcrete03, DryGroundRocks, Concrete034) and procedural shapes: potholes
+(shallow, deep with broken edges, gravel-filled, holding water even dry, a cluster), alligator and
+block cracking, longitudinal and transverse cracks, a tar snake and a sealed network, ravelling,
+raised and sunken patches, a saw-cut utility patch and a trench strip, a rut with polish, edge
+break-up at the gutter, shoving at stop lines, oil and coolant drips, tyre burn-outs, a ground-off
+paint ghost, bleeding binder, a spalled and a cracked concrete panel. The generator also writes
+`scripts/world/road_wear_table.gd` (`RoadWearTable`: name, real size, depth, flags - DEEP, ALIGN,
+CONCRETE, POOLS, SURFACE, KERB), the contract the code reads. Asphalt cut from the road's own
+scan is taken down by `ROAD_REF` (the road's tint) so it sits level with the road it lies on.
+
+**The variations** (`RoadWear._stamp()`, all from a private rng of seed + road / junction / lot,
+never a chunk rng): any turn (the ALIGN stamps keep the road's axis), a mirror on either axis, a
+scale per axis within the kind's range (`KINDS`), an age (8 buckets, fresh black to dusty grey; a
+stain fades), an erosion threshold (27 levels on the stamp's order map: a pothole erodes smaller
+and more ragged, a crack network loses branches), a tint toward the road's own asphalt (instance
+colour = the road's tint, read the way `_road_look` picks it) and a pair (35 %: a partner stamp
+over the first at its own quarter turn, mirror, zoom and threshold). `RoadWear.variant_count()`:
+17,568 distinct single looks before any continuous turn or scale (25 stamps x 4 mirrors x up to 27
+thresholds x 8 ages), about 139 million with the pairs.
+
+**Placement** (`RoadWear.build()`, a FULL chunk's build step next to StreetWear; its +X and +Z
+roads, the junction between them and its pavements; `car_park()` from `LotFill._car_park`):
+`road_level()` per road = district (`DISTRICT_LEVEL`: industrial 1.4, midtown 1.0, beach town
+0.75, suburbs 0.55, downtown 0.45, campus 0.4; downtown's avenues x0.55), the road's own age
+(`FRESH_SHARE` 16 % resurfaced lately, the rest 0.6-1.45), +0.3 on a bus line, + up to 0.45 in
+industrial within 900 m of the port, never under `MIN_LEVEL`. A road gets `PER_100M` x level
+stamps per 100 m (x width / 14): half in clusters of 2-5 on the wheel paths of each travel lane
+(alligator, ruts, cracks along, ravelling, bleeding, patches, and the potholes - `POTHOLE_ODDS` x
+level squared a cluster, so potholes stay far rarer than cracks), the kerb lanes (edge break-up
+with its broken side on the kerb, ravelling), the parking lanes (oil and coolant, a burn-out),
+the longitudinal joint down the middle (sealed or open), transverse cracks across a carriageway
+every 9-24 m / level (60 % sealed), utility cuts and patches, sealed crack networks anywhere, and
+shoving and ruts before each stop line in the lanes that stop there (right-hand traffic). Wear
+comes in stretches (`_noise1` along the road). Pavements get a few concrete cracks and spalls, kept to the inner band where `Kerbs` builds the outer 2.6 m ring (ramps, aprons, tree wells).
+
+**Drawn** as ONE MultiMesh a chunk (`"road_wear"`, a flat quad `LIFT` 4.2 mm over the road,
+tilted onto the ground like the paint, no shadow, `DRAW_DISTANCE` 110 m, faded from 68 m) on
+`shaders/road_wear.gdshader`: the pair blend, the erosion, the age and tint, normals from the
+stamp's slope map in the instance's frame, AO; potholes and the broken kerb edge by **parallax
+occlusion** (14 steps inside `pom_distance` 28 m, one offset step where `ground_detail` is off -
+the web and the low levels), the ray taken into the instance's frame from the model basis (no
+inverse); wet streets darken it like the road (`wet_drying.gdshaderinc`), and what is low holds
+water (`data.b`: 0..0.8 how readily, exactly 1.0 holding it dry - kept apart because a compressed
+texture's 5-bit channels rounded 0.92 into 1.0) that mirrors the sky by Fresnel (emitted, less on
+Forward+ where SSR adds to it) with rain rings. Instance packing (exact in Compatibility's half
+floats): CUSTOM.r stamp A + 32 x (B + 1), .g flags (mirrors, B's turns, surface, deep), .b the two
+thresholds, .a B's zoom; COLOR the road tint and the age. LOD chunks and the far city draw none:
+the road shader's own procedural patches and cracks carry the distance, and near the camera they
+step back (`road_stamp_near` shader global, 1 while RoadWear is on: the 7 m grid of rectangular
+procedural patches is off within 70 m and the crack net at 45 % - both read as fake against the
+stamps).
+
+**The bump**: deep potholes (`BUMP_DEPTH` 3.5 cm) go into a static 8 m cell index (true world,
+dropped with their chunk on `tree_exiting`); `Vehicle._physics_process` calls `RoadWear.bump()`
+for the driven car: a wheel entering one gets a downward impulse at its corner (`BUMP_GAIN`, by
+depth and speed, crash watch held) and a concrete knock. A dictionary lookup a wheel a tick.
+
+**Cost**: 2 triangles a stamp and one draw a chunk; GEO at the shots.sh bookmarks before -> after
+(opengl3): see the table in the report below. VRAM: 14 MB (two 5.6 MB BC3/BC7 maps and one 2.8 MB).
+
+**Tools**: `tools/road_wear/showroom.tscn` (every stamp on a strip of real road in seconds;
+ROW=n one stamp's variations, WET / RAIN, CAM / LOOK / FOV), `tools/road_wear/probe.gd` (streets
+by district with EYEs), `tools/road_wear/chunk_probe.gd` (builds chunks round a point: counts by
+kind, levels, deep potholes; `RW_LIST=1` prints every stamp with its position),
+`tools/road_wear/shots.sh` (the stills), `tools/road_wear/checks_only.tscn` (the checks alone).
+Debug: `RW_DEBUG=1..7` (quads magenta, coverage, uv, ...), `RW_POM=0` parallax off.
+`ROAD_WEAR=0` is the A/B. Checks: `tests/road_wear_checks.gd`.
+
+**Not done / to judge**: Forward+ on the Mac (the stills are opengl3); alleys (wt/alleys is not
+merged) - `car_park()` is the pattern to call from their asphalt; the potholes' depth for a car is
+an impulse, not a real dip in the collision; the near/far handover of the procedural cracks at
+70-110 m could show as a band on a long straight.

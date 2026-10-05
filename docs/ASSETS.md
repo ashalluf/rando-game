@@ -722,3 +722,9 @@ The containers are PortKit's. Railroad, marks and livery invented (Arroyo Pacifi
 |---|---|---|---|---|
 | Nathan M5 (HarveyHenkelmann, Wikimedia Commons) | https://commons.wikimedia.org/wiki/File:Nathan_M5.ogg | CC0 | `freight_horn_0` (0.35-16.9 s, the crossing pattern), `freight_horn_blast_0` (7.05-11.45 s) | 2026-10-05 |
 | Freight train passes Phelan, startles Canadian geese (Extemporalist, Wikimedia Commons) | https://commons.wikimedia.org/wiki/File:Freight_train_passes_Phelan,_startles_Canadian_geese.flac | CC0 | `freight_roll_0` (100-112 s, loop), `freight_roll_1` (266-278 s, loop), `freight_engine_0` (304-312 s, loop) | 2026-10-05 |
+
+## Road wear stamps (our own generator, from CC0 scans in the repo)
+
+| Asset | Source | License | Used for | Added |
+|---|---|---|---|---|
+| `assets/textures/road_wear/road_wear_color.png`, `_nrm.png`, `_data.png` (25 stamps, 2048 px atlas) | `tools/make_road_wear.py`: cut and recoloured from Asphalt033, GravelConcrete03, DryGroundRocks and Concrete034 (rows above: ambientCG / Poly Haven, CC0) plus procedural shapes (cracks, potholes, ruts, ripples, stains, tyre marks, paint ghosts) | CC0 sources; generated art ours | RoadWear (road, pavement and car-park wear) | 2026-10-05 |
