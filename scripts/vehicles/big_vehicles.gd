@@ -25,7 +25,7 @@ const SEMI := Vehicle.BodyType.SEMI
 ## Mass relative to a car (1200 kg): engine, brakes and suspension are scaled with it so the
 ## handling numbers keep their meaning. A laden bus is ~13 t, a box truck 8 t, a rig 15-30 t.
 const MASS_SCALE := {BUS: 8.0, BOX_TRUCK: 5.5, SEMI: 11.0, Vehicle.BodyType.FIRE_ENGINE: 12.0,
-		Vehicle.BodyType.AMBULANCE: 4.5}
+		Vehicle.BodyType.AMBULANCE: 4.5, Vehicle.BodyType.SCHOOL_BUS: 7.0}
 
 ## The transit agency (invented): its name on the skirt, its colours.
 const AGENCY := "BASIN TRANSIT"
@@ -90,7 +90,7 @@ static var _letter_mat: Dictionary = {}
 
 static func is_big(type: int) -> bool:
 	return type == BUS or type == BOX_TRUCK or type == SEMI or type == Vehicle.BodyType.FIRE_ENGINE \
-			or type == Vehicle.BodyType.AMBULANCE
+			or type == Vehicle.BodyType.AMBULANCE or type == Vehicle.BodyType.SCHOOL_BUS
 
 
 # --- Making one ----------------------------------------------------------------------------------
@@ -119,6 +119,10 @@ static func make(type: int, look: int) -> Vehicle:
 			fleet = f[0]
 			paint = f[1]
 			trim = Vehicle._contrast_trim(paint)
+		Vehicle.BodyType.SCHOOL_BUS:
+			# National school bus yellow; the district's name is in the model (Schools).
+			paint = Schools.BUS_YELLOW
+			trim = paint
 	car.setup(type, paint, Vehicle.Addon.NONE)
 	car.setup_look(Vehicle.Finish.GLOSS, livery, trim)
 	car.wheel_style = 0
@@ -143,7 +147,7 @@ static func tune(car: Vehicle) -> void:
 	car.crash_min_dv = 6.0
 	# A bus's windscreen is two metres of glass with the cabin behind it: its far twin (no glass
 	# slot) drew it as a black slab from the 30 m a car's hands over at.
-	if car.body_type == BUS:
+	if car.body_type == BUS or car.body_type == Vehicle.BodyType.SCHOOL_BUS:
 		car.body_far_distance = 60.0
 
 
@@ -628,6 +632,8 @@ class BusFittings extends Node:
 			(s[0] as MeshInstance3D).set_surface_override_material(s[1], mat)
 
 	func set_doors(on: bool) -> void:
+		if on != want_open:
+			VehicleAudio.bus_doors(car, on) # chime, doors, kneel (vehicle_audio.gd)
 		want_open = on
 		want_kneel = on
 		set_process(true)

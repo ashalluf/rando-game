@@ -143,13 +143,20 @@ static func _range(v: Vector2, parts: Array) -> float:
 static func plan_house(plan: CityPlan, bx: int, bz: int, lot: Dictionary, district: int) -> Dictionary:
 	var grid := YardFill.lot_grid(plan, bx, bz, [lot])
 	var front := YardFill.lot_front(plan, bx, bz, lot, grid)
+	return plan_fronted(plan, lot, district, front)
+
+
+## plan_house() for a lot whose front the caller decides: `front` is {"side", "yard",
+## "walk_front"} as YardFill.lot_front() returns it, plus an optional "styles" table in
+## BEACH_STYLES' form (the canal houses, Canals, face their canal and pick their own types).
+static func plan_fronted(plan: CityPlan, lot: Dictionary, district: int, front: Dictionary) -> Dictionary:
 	var f := YardFill._frame(front.yard, int(front.side))
 	var U: float = f.U
 	var V: float = f.V
 	var s: int = lot.seed
 	var ps := plan.seed
 	var beach := district == CityPlan.District.BEACHTOWN
-	var styles: Array = BEACH_STYLES if beach else SUBURB_STYLES
+	var styles: Array = front.get("styles", BEACH_STYLES if beach else SUBURB_STYLES)
 	var roll := _h01([ps, s, "house_style"])
 	var style: int = Style.STUCCO_BOX
 	for e: Array in styles:

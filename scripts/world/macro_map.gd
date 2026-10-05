@@ -208,6 +208,8 @@ var hill_roads: HillRoads
 ## The Los Angeles River's concrete channel (LaRiver): built before the hill roads and the
 ## freeway, so the land level along it is in the relief they read (terrace(), _relief_at()).
 var river: LaRiver
+## The marina between the beach town and the airport (Marina); null when it is off or has no room.
+var marina: Marina
 ## The freeway system: curved elevated routes across the basin (see scripts/world/freeway.gd).
 var freeway: Freeway
 
@@ -328,6 +330,12 @@ func setup() -> void:
 		var rv := LaRiver.new()
 		rv.build(self, seed)
 		river = rv
+	# The marina (Marina): a pure plan from the coast and the street grid. MARINA=0 leaves it out.
+	marina = null
+	if OS.get_environment("MARINA") != "0":
+		var mr := Marina.new()
+		if mr.build(self, seed):
+			marina = mr
 	var hr := HillRoads.new()
 	hr.build(self, seed)
 	hill_roads = hr
@@ -446,6 +454,9 @@ func _relief_at(pos: Vector2, raw: float) -> float:
 		var tr := river.terrace(pos)
 		if tr.y > 0.0:
 			h = lerpf(h, tr.x, tr.y)
+	# The marina's land is a terrace a bulkhead's height over the water (Marina.terrace()).
+	if marina:
+		h = marina.terrace(pos, h)
 	return h
 
 
@@ -1057,6 +1068,10 @@ func bake(centre: Vector2, span: float, size: int) -> Image:
 							col = BAKE_CAMPUS
 						_:
 							col = BAKE_SUBURB
+			# The marina's basin and channel are water to the horizon plane (it sinks there).
+			if marina and zone != Zone.OCEAN and marina.in_water(pos):
+				zone = Zone.OCEAN
+				col = BAKE_OCEAN_SHALLOW
 			if zone == Zone.OCEAN:
 				col.a = 0.0
 				bake_height.set_pixel(px, py, Color(0.0, 0.5, 0.0))

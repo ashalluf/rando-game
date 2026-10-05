@@ -456,6 +456,7 @@ func _shoot(target: Vector3, dist: float) -> void:
 				Police.innocent = false
 			if not (c is Player):
 				WeaponFX.impact(self, hit.position, Color(1.0, 0.85, 0.5), hit.normal, c)
+				BuildingDamage.bullet(hit, dir)
 	WeaponFX.tracer(self, from, end, tracer_color)
 	WeaponFX.flash(self, from)
 	Sfx.play("shot", from, -7.0, 1.0 if heavy else 1.22)
