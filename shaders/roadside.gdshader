@@ -291,7 +291,7 @@ vec3 rs_room(float s0, float h0, float ds, float dh, float dd, float depth, int 
 			col = mix(vec3(0.85, 0.82, 0.76), mix(vec3(0.75, 0.75, 0.74), glaze, ring), racks);
 			float strip = step(2.25, h) * step(h, 2.75);
 			col = mix(col, rs_menu(vec2(fract(s / 2.5), (h - 2.25) / 0.5), floor(s / 2.5) + 9.0), strip);
-			lit = 1.2;
+			lit = 0.7;
 		} else {
 			col = vec3(0.8, 0.76, 0.7);
 		}

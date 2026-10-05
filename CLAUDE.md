@@ -1701,7 +1701,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Shopping plazas, big-box stores, fast-food and gas-station pads are `Commercial`
   (`scripts/world/commercial.gd`); block kinds `MALL` and `BIGBOX` and the `pads` odds live in
   `CityPlan.DISTRICTS`. Shop names are original, never brands.
-- Roadside commerce (2026-10-05, docs/HANDOFF.md 9bq): the commercial pads (`Commercial.build_pad`,
+- Roadside commerce (2026-10-05, docs/HANDOFF.md 9bu): the commercial pads (`Commercial.build_pad`,
   edge lots by the districts' `pads` odds) are `Roadside` (`scripts/world/roadside.gd`): gas
   stations, car washes, auto repair and tyre shops, a Googie coffee shop, fast food with a
   drive-thru and the giant-donut / giant-cup stand. **What a pad is is a hash** (`kind_for()`: seed

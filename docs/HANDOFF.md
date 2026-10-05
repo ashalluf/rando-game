@@ -7194,3 +7194,104 @@ ALU in shaders that were already running.
 - The night ambient (DayNight) still lights roofs a moonlit blue-grey on opengl3; not this pass.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
+
+## 9bu. Roadside commerce: gas stations, car washes, auto shops, a Googie coffee shop, drive-thrus and giant-donut stands, 2026-10-05 (agent branch `wt/roadside`; VISUAL_ROADMAP #63)
+
+**What.** The commercial pads (`Commercial.build_pad`: edge lots rolled by the districts' `pads`
+odds - suburbs, midtown, the beach town, the campus and industrial edges) were a white box with a
+red band and a menu sign, or a box behind a 0.7 m canopy slab. They are now `Roadside`
+(`scripts/world/roadside.gd`), six kinds of real LA roadside at real size, built in code:
+
+- **Gas station**: a canopy whose fascia runs all the way round (brand-colour lit band under a
+  white lightbox band, the invented brand's name on the long faces), the soffit a grid of
+  recessed LED panels; 2-4 concrete islands with yellow nosings and bollards, a brand-clad column
+  each, multi-product dispensers (`RoadsideKit.dispenser()`: stainless base, brand side columns,
+  screens and keypads on both faces, three lit grade buttons, nozzles in holsters on hoses looping
+  from the lit crown) as breakable `pump` props, a service stand (bin, squeegee bucket, towels);
+  a convenience store with a full storefront (the room traced: shelving gondolas and lit coolers),
+  a brand fascia with its name, ice chest and propane cage by the door, an air/water machine, stall
+  stripes, and a twin-post price sign with a lit brand head and three rows of grade + LED price
+  (seven-segment digits drawn by the shader, the 9/10 cent small; prices invented per place).
+  Brands: VELA FUEL, REDTAIL, BLUE MESA, SOLANO, HALCYON, CANYON GAS.
+- **Car wash**: a 22-34 m tunnel (windows onto a traced row of brushes and cloth, a dark sign
+  face with lit letters), inside from the entrance an LED arch, a mitter curtain, wraparound
+  brushes, a top brush, a second arch and the blower portal, lights down the ceiling, ENTER / EXIT
+  boxes; a queue lane with arrows and a pay station under a canopy with an LED soffit, cars
+  waiting; a row of vacuum stations (`RoadsideKit.vacuum()`: canister, arched boom, hoses).
+- **Auto repair / tyre shop**: a stucco shop with 2-5 bays between piers, each a roll-up door or
+  open (the door rolled into its hood, strip light, tool chest, bench, pegboard, a two-post lift
+  with a car up on it or a car on the floor), an office storefront, the name hand-painted on the
+  header band and big on the side wall (`K_SIGNPAINT`: brush strokes and flaking), stacks of
+  tyres (`RoadsideKit.tyre()`), a lean row and a rack at a tyre shop, a junked car at the side,
+  customers' cars in front.
+- **Googie coffee shop**: a folded-plate roof sweeping up and out over raked glass to a sharp lip
+  (neon along the lip and the ends, recessed downlights in the soffit), stacked-stone side wall
+  and pylon, booths traced through the glass (high-backed vinyl partitions, the counter, a menu
+  strip, pendants), COFFEE SHOP in neon in the window, a pole sign of two raked masts, a boomerang
+  lightbox ringed with chasing bulbs, and an atomic starburst of bulb-tipped spikes on top.
+- **Fast food with a drive-thru**: the brand's entrance tower and roof band, dining room
+  storefront, and a loop up one side, across the back (lit menu board, pre-sell board, speaker
+  post, all facing the lane on the driver's side) and down the other past the pickup window under
+  its lit canopy; a clearance bar at the mouth, lane lines and arrows, and a queue of static cars
+  nose to tail back from the window (never on a corner); Commercial's pylon at the corner.
+- **Stand with a giant object**: a walk-up box with service windows on three sides (the trace is
+  racks of glazed rings and a menu strip), a deep overhang with a neon line, and on the roof a
+  giant donut (a torus of dough with a sprinkled glaze, neon in the hole) or a giant paper cup
+  (sleeve, lid, COFFEE), lit by four flood fixtures; picnic tables, stalls.
+
+**How.** What a pad is is a hash of seed + lot (`kind_for()`: `ODDS`, the old pad roll as a
+nudge toward food, then `FALLBACK` among the kinds its size fits, `MIN_SIZE`). Commercial still
+makes the pad roll and its two old rolls (name, fascia) in the old order, so nothing after a pad
+moves (checked: the same block with `ROADSIDE=0` has the same buildings and parked cars); every
+roll inside a pad is a private rng of seed + lot. A pad is laid out in its own frame (`Site`,
+`frame_of()`: x along the street it faces - the nearest edge of the block's inner rect -, -z
+toward it); ground pieces (forecourt concrete, aprons over the pavement, paint) follow the relief
+per vertex, structures stand on the lot centre's sample with a `SKIRT` below. FULL: ONE casting
+mesh (`Roadside`) and ONE shadowless ground mesh (`RoadsideGround`) a chunk on
+`shaders/roadside.gdshader` (the face's kind in COLOR.a x 20, see `RoadsideKit.K_*`), committed by
+`Roadside.commit()` from `_finish_build` (one line in city_chunk.gd); the repeated pieces are
+`rs_*` batches on the same shader with the brand paint in INSTANCE_CUSTOM.rgb; parked and queued
+cars are LotFill's `apark_car_*` batch. Night: `shop_spill` pools (no new draw) and one
+`lamp_light` OmniLight3D a pad (desktop). LOD / far city: `lod_box`es for the buildings (plain
+flag) and the canopy as one `_add_slab`. Hooks touched: `commercial.gd` (the branch), one line in
+`city_chunk.gd`, one in `smoke_test.gd`.
+
+**Numbers.** Round the spawn (R 12 blocks) the capture finds 147 pads: 49 auto, 40 fast food, 24
+stands, 21 gas, 10 diners, 3 car washes (most pads are 18-31 m, too small for a car wash). A
+pad writes 2.2-7.5 k triangles into the chunk mesh (gas the heaviest) plus its batches; its build
+is 6-17 ms of GDScript in its lot step (headless; `tools/roadside_probe.tscn FULL=n`).
+**Frame cost** (`still_shot.gd` GEO, opengl3 1280x720, the same first EYE, `ROADSIDE=0` against
+on): the gas station's street view 6,085,188 -> 6,116,214 triangles (+0.5 %), 3,125 -> 3,054
+draws; the car wash's 6,375,560 -> 6,452,449 (+1.2 %), 3,990 -> 3,885 draws. Fewer draws because
+the old pads were a node per glass pane, Signage rows and merged boxes per material, and a pad is
+now two meshes and a handful of shared batches.
+
+**Tools.** `tools/roadside_probe.tscn -- --spawn=x,z` (headless; `R`, `KIND=gas|...`, `FULL=n`
+builds the first n pads' FULL chunks and times them) prints every pad with an EYE across the
+street and an AIR view for `still_shot.gd`. `ROADSIDE=0` in the environment is the A/B.
+Checks: `tests/roadside_checks.gd` (tables, invented names against a list of real brands, the
+pure pick, the capture's pads and boxes, FULL chunks with a gas station - one mesh, the ground
+mesh shadowless, rs_ batches on the shader, a night light per pad, the triangle budget, pumps as
+props - and the ROADSIDE=0 A/B).
+
+**Stills** (shots/roadside; opengl3, not the Mac's Forward+, 1280x720): the gas station at
+(-64.6, 519.2) at noon `EYE=-93,3.2,505,-118,-6` and 21:00 (`gas_night`), under its canopy at
+night `-82,2.0,512,-100,-2@21`, BLUE MESA across from the tyre shop `8,12.5,1860,-111,-3`;
+`before_gas_site_old_pad` is the same EYE with `ROADSIDE=0` (the old fast-food box); the car
+wash at (-427.6, -374.9) `-412,15,-412,170,-13` day and night and its queue lane
+`-444.6,11.6,-381,-165,-3`; the drive-thru queue at (-64.6, 1624.6) `-56,8.8,1640,-8,-6` and at
+night; the coffee shop at (-64.6, 1906.4) `-95,15.5,1895,-110,6` day and night; the tyre shop at
+(-32.2, 1624.6) `-8,7.5,1632,72,-6`; the giant-cup stand at (-64.6, 1479.6)
+`-100,4.5,1470,-104,6` day and night (the night one is before its windows were toned down); the
+midtown boulevard at x 0 from above `10,170,1690,180,-62`; the fast-food pad from above (before
+the menu boards were turned to the lane).
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the lightboxes, soffit LEDs, neon and
+the traced rooms under AgX and auto exposure need eyes (glow_night was lowered to 1.5 after the
+opengl3 stills washed the brand colours out). The FULL and LOD chunks of a block can disagree on
+whether a lot is a pad: some blocks' block rng is consumed differently before their lots at the
+two levels (seen on block (-9, 0): the capture builds a pad the FULL chunk does not) - this is
+older than this pass (the pad roll is untouched) but means the far city can show a pad that is
+not there up close. No people work the pads (no attendants, mechanics, diners at the booths); the
+car wash brushes do not spin; no pump-side customers. The fast-food building itself is still a
+fairly plain box.
