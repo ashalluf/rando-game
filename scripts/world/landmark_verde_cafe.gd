@@ -276,10 +276,16 @@ static func build(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: 
 
 
 ## The far copy: the shell, roof and parapet in the detailed copy's own materials, the two glazed
-## elevations as one storefront-glass pane each over a sill, the sign band, the awnings and the
-## two pavement trees - what reads from the hand-over distance. It used to be six flat-white
-## boxes, three times as bright as the textured stucco and dark glass it stood in for. It keeps
-## collision on the slab, the shell and the roof, so a player who flies out here lands on it.
+## elevations as one storefront-glass pane each over a sill, the signs, the awnings, the two
+## pavement trees and the night glow - what reads from the hand-over distance. It used to be six
+## flat-white boxes, three times as bright as the textured stucco and dark glass it stood in for.
+## It keeps collision on the slab, the shell and the roof, so a player who flies out here lands on
+## it.
+## The far copy's share of the night glow (_night()), measured against the detailed copy at 21:00
+## with tools/glshot/far_landmark_shot.gd.
+const FAR_GLOW := 0.8
+
+
 static func _far(parent: Node3D, statics: StaticBody3D, base: Vector3, anchor: Vector2, plan: CityPlan) -> void:
 	var w := SHELL_X1 - SHELL_X0
 	var d := SHELL_Z1 - SHELL_Z0
@@ -301,8 +307,9 @@ static func _far(parent: Node3D, statics: StaticBody3D, base: Vector3, anchor: V
 			base + Vector3(cx, WALL_H + ROOF_T * 0.5, cz), STUCCO.darkened(0.15), true).material_override = PropFactory.pbr("concrete", 2.6, Color(0.78, 0.76, 0.73))
 	Landmarks._box(parent, null, Vector3(w + ROOF_OVERHANG * 2.0, PARAPET_H, PARAPET_T),
 			base + Vector3(cx, WALL_H + ROOF_T + PARAPET_H * 0.5, SHELL_Z1 + ROOF_OVERHANG), STUCCO, false).material_override = stucco
-	Landmarks._box(parent, null, Vector3(SIGN_BAND_W, SIGN_BAND_H, 0.2),
-			base + Vector3(cx, (HEAD_H + WALL_H) * 0.5, SHELL_Z1 + 0.1), TRIM, false)
+	# The sign bands and their channel letters (lit after dark, cream by day): the cafe's name is
+	# what it is from across the street.
+	_signs(parent, base)
 	var awn := Landmarks._box(parent, null, Vector3(w + 0.4, AWNING_T, AWNING_REACH),
 			base + Vector3(cx, AWNING_Y - AWNING_DROP * 0.5, SHELL_Z1 + AWNING_REACH * 0.5), TRIM, false)
 	awn.rotation.x = atan2(AWNING_DROP, AWNING_REACH)
@@ -313,7 +320,7 @@ static func _far(parent: Node3D, statics: StaticBody3D, base: Vector3, anchor: V
 	rng.seed = SEED_SALT ^ (int(anchor.x) * 73856093) ^ (int(anchor.y) * 19349663)
 	_street(parent, base, anchor, plan, rng)
 	# The night glow on the glass, the patio and the sign (lamp_factor driven: nothing by day).
-	_night(parent, base)
+	_night(parent, base, FAR_GLOW)
 
 
 # --- Ground and shell ---------------------------------------------------------------------
@@ -775,21 +782,23 @@ static func _glow(parent: Node3D, at: Vector3, size: Vector2, yaw: float, pitch:
 	parent.add_child(mi)
 
 
-static func _night(parent: Node3D, base: Vector3) -> void:
+## `gain` scales every glow: the far copy's is lower, because in the detailed copy the patio's
+## umbrellas, tables and railings stand in front of the same light.
+static func _night(parent: Node3D, base: Vector3, gain: float = 1.0) -> void:
 	var front_len := SHELL_X1 - CORNER_PIER - SHELL_X0
 	var front_x := (SHELL_X0 + SHELL_X1 - CORNER_PIER) * 0.5
 	var side_len := SHELL_Z1 - CORNER_PIER - SHELL_Z0
 	var side_z := (SHELL_Z0 + SHELL_Z1 - CORNER_PIER) * 0.5
 	var glass_mid := (SILL_H + HEAD_H) * 0.5
 	# Warm light on the glass itself, just outside the pane so it adds over it.
-	_glow(parent, base + Vector3(front_x, glass_mid, SHELL_Z1 + 0.09), Vector2(front_len, HEAD_H - SILL_H), 0.0, 0.0, WINDOW_GLOW, true)
-	_glow(parent, base + Vector3(SHELL_X1 + 0.09, glass_mid, side_z), Vector2(side_len, HEAD_H - SILL_H), PI * 0.5, 0.0, WINDOW_GLOW, true)
+	_glow(parent, base + Vector3(front_x, glass_mid, SHELL_Z1 + 0.09), Vector2(front_len, HEAD_H - SILL_H), 0.0, 0.0, WINDOW_GLOW * gain, true)
+	_glow(parent, base + Vector3(SHELL_X1 + 0.09, glass_mid, side_z), Vector2(side_len, HEAD_H - SILL_H), PI * 0.5, 0.0, WINDOW_GLOW * gain, true)
 	# The pool that light throws onto the patio under the awning.
-	_glow(parent, base + Vector3(front_x, 0.05, SHELL_Z1 + AWNING_REACH * 0.45), Vector2(front_len + 2.0, AWNING_REACH * 1.6), 0.0, -PI * 0.5, PATIO_POOL, false)
-	_glow(parent, base + Vector3(SHELL_X1 + AWNING_REACH_SIDE * 0.45, 0.05, side_z), Vector2(AWNING_REACH_SIDE * 1.6, side_len + 2.0), 0.0, -PI * 0.5, PATIO_POOL, false)
+	_glow(parent, base + Vector3(front_x, 0.05, SHELL_Z1 + AWNING_REACH * 0.45), Vector2(front_len + 2.0, AWNING_REACH * 1.6), 0.0, -PI * 0.5, PATIO_POOL * gain, false)
+	_glow(parent, base + Vector3(SHELL_X1 + AWNING_REACH_SIDE * 0.45, 0.05, side_z), Vector2(AWNING_REACH_SIDE * 1.6, side_len + 2.0), 0.0, -PI * 0.5, PATIO_POOL * gain, false)
 	# A tighter halo behind the sign band and a little wash on the door.
-	_glow(parent, base + Vector3(front_x, (HEAD_H + WALL_H) * 0.5, SHELL_Z1 + 0.18), Vector2(SIGN_BAND_W + 1.2, SIGN_BAND_H + 0.9), 0.0, 0.0, 0.7, true)
-	_glow(parent, base + Vector3(DOOR_X, 0.05, SHELL_Z1 + 1.1), Vector2(3.0, 3.0), 0.0, -PI * 0.5, 0.8, false)
+	_glow(parent, base + Vector3(front_x, (HEAD_H + WALL_H) * 0.5, SHELL_Z1 + 0.18), Vector2(SIGN_BAND_W + 1.2, SIGN_BAND_H + 0.9), 0.0, 0.0, 0.7 * gain, true)
+	_glow(parent, base + Vector3(DOOR_X, 0.05, SHELL_Z1 + 1.1), Vector2(3.0, 3.0), 0.0, -PI * 0.5, 0.8 * gain, false)
 
 
 # --- Street -------------------------------------------------------------------------------

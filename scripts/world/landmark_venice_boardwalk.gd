@@ -258,6 +258,9 @@ static func build(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: 
 	var batch := MultiMeshBatch.new()
 	if not detailed:
 		_far(anchor, parent, plan, batch)
+		# The art wall's murals, the same panels (its rolls are the first `rng` makes in both
+		# copies): a band of colour down the walk that reads from the beach and the pier.
+		_art_wall(anchor, parent, null, plan, rng)
 		batch.build(parent)
 		return
 	_walk(anchor, parent, statics, plan, batch)
