@@ -1325,7 +1325,7 @@ static func _to_edge(r: Rect2, p: Vector2, o: Vector2) -> float:
 
 
 static func _door_alive(door: Dictionary) -> bool:
-	return (door.chunk as WeakRef).get_ref() != null
+	return door.has("chunk") and (door.chunk as WeakRef).get_ref() != null
 
 
 ## A shop door on the walker's own block within reach, open (by night only the shops that are).
