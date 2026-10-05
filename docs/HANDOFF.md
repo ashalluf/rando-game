@@ -8694,7 +8694,11 @@ ids and places with the kit off.
 **Gate** (merged with origin/main 9eecc00): 1,376 passed, 0 failed, smoke test peak 3.18 GB. One
 earlier run of the same code failed the three paramedic checks (tests/emergency_checks.gd: the
 medics stood at the kerb face short of the body); they pass alone with the kit on and off and in
-the next full run, so it reads as intermittent, but watch for it.
+the next full run, so it reads as intermittent, but watch for it. After the pool tuning: one more
+lamps-on run failed two of them (the stretcher medic pressed against the ambulance's road-side
+flank on the way to its rear door, nowhere near a lamp's collision) and a STREET_LAMPS=0 run passed
+them; so far 2 of 4 lamps-on runs and 0 of 1 lamps-off runs. Lamp collision is only a pole box on
+the pavement, so it looks like the crew's own pathing round its unit, but it is not proven.
 
 **Frame cost** (still_shot.gd's GEO, opengl3 + Xvfb 1280x720, downtown pavement
 `EYE=1867.8,1.7,635.4,175,8`, STREET_LAMPS=0 against the kit): noon 6.299 M -> 6.322 M triangles

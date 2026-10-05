@@ -15,6 +15,9 @@ var _t: Node
 func run(t: Node, city: Node3D) -> void:
 	_t = t
 	var plan: CityPlan = city.plan
+	# The checks are of the kit: run with it on whatever STREET_LAMPS says, and put it back after.
+	var was := StreetLamps.enabled
+	StreetLamps.enabled = true
 	_model()
 	_picks(plan)
 	_arms(plan)
@@ -23,6 +26,7 @@ func run(t: Node, city: Node3D) -> void:
 	_t._check(sub.x < 99999.0, "a suburban street of post-tops is found")
 	if sub.x < 99999.0:
 		_chunk(city, plan, sub, "the suburbs", StreetLamps.Type.POST)
+	StreetLamps.enabled = was
 
 
 func _model() -> void:
