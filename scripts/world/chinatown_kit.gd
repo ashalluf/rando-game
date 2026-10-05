@@ -78,6 +78,8 @@ const LANTERN_GOLD := Color(0.96, 0.62, 0.12)
 ## Where the strung lanterns hang from the street lamps' columns (m over the pavement).
 const STRING_ATTACH := 5.6
 const STRING_STEP := 1.9
+## People in the plaza's court.
+const PLAZA_PEOPLE := 16
 
 static var _mat: ShaderMaterial
 
@@ -1052,6 +1054,13 @@ static func plaza_layout(rect: Rect2, sidewalk: float) -> Dictionary:
 		"hall": Vector2(c.x, c.y - 5.0 - 13.0), "pond": Vector2(c.x, c.y + 5.0 + 11.0),
 		"north_face": inner.position.y + row_d, "south_face": inner.end.y - row_d, "row_d": row_d,
 		"gate_w": Vector2(inner.position.x + 1.6, c.y), "gate_e": Vector2(inner.end.x - 1.6, c.y),
+		# Where people walk: the walk, and the four quarters clear of the hall, the pond, the
+		# planters and the shop rows.
+		"court": [Rect2(inner.position.x + 14.0, c.y - 3.5, inner.size.x - 28.0, 7.0),
+			Rect2(inner.position.x + 14.0, inner.position.y + row_d + 3.0, maxf(c.x - 12.0 - inner.position.x - 14.0, 2.0), c.y - 6.0 - inner.position.y - row_d - 3.0),
+			Rect2(c.x + 12.0, inner.position.y + row_d + 3.0, maxf(inner.end.x - 14.0 - c.x - 12.0, 2.0), c.y - 6.0 - inner.position.y - row_d - 3.0),
+			Rect2(inner.position.x + 14.0, c.y + 6.0, maxf(c.x - 10.0 - inner.position.x - 14.0, 2.0), inner.end.y - row_d - 3.0 - c.y - 6.0),
+			Rect2(c.x + 10.0, c.y + 6.0, maxf(inner.end.x - 14.0 - c.x - 10.0, 2.0), inner.end.y - row_d - 3.0 - c.y - 6.0)],
 	}
 
 
@@ -1159,6 +1168,10 @@ static func build_plaza(ch: CityChunk, block: Dictionary) -> void:
 				g.xf = Transform3D.IDENTITY
 				string_lanterns(g, p[1], q[1], 0.5, i + 17)
 				_string_pools(ch, p[1], q[1], CityChunk.SIDEWALK_TOP + 0.1))
+	# People in the court, one a step, in the crowd cap.
+	var court: Array = L.court
+	for i in PLAZA_PEOPLE:
+		_job(ch, func() -> void: _plaza_goer(ch, court, walk_z, absi(hash([seed_value, ch.ix, ch.iz, "ct_goer", i]))))
 	# Trees in planters at the four quarters (a private rng: the block's is untouched).
 	_job(ch, func() -> void:
 		var rng := RandomNumberGenerator.new()
@@ -1171,6 +1184,18 @@ static func build_plaza(ch: CityChunk, block: Dictionary) -> void:
 			box(g, Vector3(0, 0.58, 0), Vector3(2.3, 0.04, 2.3), kc(Color(0.22, 0.42, 0.16), K_PRODUCE))
 			ch._add_tree(Vector3(p.x, CityChunk.SIDEWALK_TOP + 0.6, p.y), rng)
 		g.xf = Transform3D.IDENTITY)
+
+
+static func _plaza_goer(ch: CityChunk, court: Array, walk_z: float, seed_value: int) -> void:
+	if court.is_empty() or not ch._take_crowd_room():
+		return
+	var r: Rect2 = court[seed_value % court.size()]
+	var h := hash([seed_value, "at"])
+	var p := r.position + Vector2(float(posmod(h, 1000)) / 1000.0 * r.size.x, float(posmod(h >> 10, 1000)) / 1000.0 * r.size.y)
+	var goer := PlazaGoer.new()
+	goer.setup_plaza(court, walk_z, p, seed_value)
+	goer.position = Vector3(p.x, ch.ground_y(p.x, p.y) + 0.1, p.y)
+	ch.add_child(goer)
 
 
 static func _row_frame(ch: CityChunk, face: Vector2, out2: Vector2) -> Transform3D:

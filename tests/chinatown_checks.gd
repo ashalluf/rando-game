@@ -131,7 +131,7 @@ func _builds(city: Node3D, plan: CityPlan) -> void:
 	# The plaza.
 	var r := _build(city, pb, CityChunk.Level.FULL)
 	_t._check(r.mesh_ok and r.shapes >= 30 and r.tris > 20000 and r.tris < 260000 and r.pools > 0,
-		"the plaza builds FULL: one mesh on chinatown.gdshader (%d triangles), %d collision boxes, %d light pools" % [r.tris, r.shapes, r.pools])
+		"the plaza builds FULL: one mesh on chinatown.gdshader (%d triangles), %d collision boxes, %d light pools, %d people in the court" % [r.tris, r.shapes, r.pools, r.goers])
 	var rl := _build(city, pb, CityChunk.Level.LOD)
 	_t._check(not rl.mesh_ok and rl.lod_boxes >= 10,
 		"the plaza at LOD is boxes (%d), no mesh of its own" % rl.lod_boxes)
@@ -156,7 +156,7 @@ func _builds(city: Node3D, plan: CityPlan) -> void:
 
 
 func _build(city: Node3D, k: Vector2i, level: CityChunk.Level) -> Dictionary:
-	var out := {"mesh_ok": false, "shapes": 0, "tris": 0, "pools": 0, "lod_boxes": 0, "buildings": 0}
+	var out := {"mesh_ok": false, "shapes": 0, "tris": 0, "pools": 0, "lod_boxes": 0, "buildings": 0, "goers": 0}
 	if k.x < -9000:
 		return out
 	var tris0 := LandmarkGeo.committed_triangles
@@ -164,6 +164,9 @@ func _build(city: Node3D, k: Vector2i, level: CityChunk.Level) -> Dictionary:
 	chunk.build()
 	out.tris = LandmarkGeo.committed_triangles - tris0
 	out.buildings = chunk.building_count
+	for c in chunk.get_children():
+		if (c as Node).is_in_group("plaza_goer"):
+			out.goers += 1
 	var node := chunk.get_node_or_null("Chinatown")
 	if node:
 		var mi := node.get_node_or_null("ChinatownMesh") as MeshInstance3D
