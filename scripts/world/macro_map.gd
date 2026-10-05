@@ -208,6 +208,9 @@ var hill_roads: HillRoads
 ## The Los Angeles River's concrete channel (LaRiver): built before the hill roads and the
 ## freeway, so the land level along it is in the relief they read (terrace(), _relief_at()).
 var river: LaRiver
+## The reservoir in the front range (Reservoir): carved into raw_height_at(), so null while it is
+## being worked out.
+var reservoir: Reservoir
 ## The freeway system: curved elevated routes across the basin (see scripts/world/freeway.gd).
 var freeway: Freeway
 
@@ -311,6 +314,14 @@ func setup() -> void:
 		var rv := LaRiver.new()
 		rv.build(self, seed)
 		river = rv
+	# The reservoir: its level and dam are fitted to the natural range, then its carve is folded
+	# into raw_height_at() for everything after (the hill roads plan on the carved ground).
+	# RESERVOIR=0 in the environment (or `-- --no-reservoir`) leaves it out (the A/B).
+	reservoir = null
+	if not OS.get_cmdline_user_args().has("--no-reservoir") and OS.get_environment("RESERVOIR") != "0":
+		var res := Reservoir.new()
+		res.build(self)
+		reservoir = res
 	var hr := HillRoads.new()
 	hr.build(self, seed)
 	hill_roads = hr
@@ -566,7 +577,10 @@ func raw_height_at(pos: Vector2) -> float:
 		var rise := smoothstep(0.0, shelf_width, inland)
 		var bench := lerpf(minf(h, shelf_height + 14.0 * n2), h, rise)
 		h = lerpf(h, bench, north)
-	return maxf(h, 0.0) * _shore_mask(pos)
+	h = maxf(h, 0.0) * _shore_mask(pos)
+	if reservoir:
+		h = reservoir.carve(pos, h)
+	return h
 
 
 ## -1..1: spur crest to gully line at `pos` (see last_drain).
