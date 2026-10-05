@@ -90,13 +90,15 @@ static var _letter_mat: Dictionary = {}
 
 static func is_big(type: int) -> bool:
 	return type == BUS or type == BOX_TRUCK or type == SEMI or type == Vehicle.BodyType.FIRE_ENGINE \
-			or type == Vehicle.BodyType.AMBULANCE
+			or type == Vehicle.BodyType.AMBULANCE or ServiceVehicles.is_service(type)
 
 
 # --- Making one ----------------------------------------------------------------------------------
 
 ## A big vehicle of `type` with its livery rolled from `look` (any int). Not in the tree yet.
 static func make(type: int, look: int) -> Vehicle:
+	if ServiceVehicles.is_service(type):
+		return ServiceVehicles.make(type, look)
 	var car := Vehicle.new()
 	var paint := Color.WHITE
 	var trim := Color.WHITE
@@ -130,7 +132,7 @@ static func make(type: int, look: int) -> Vehicle:
 
 ## Scales a big vehicle's physics by its mass (from Vehicle._ready, before _build()).
 static func tune(car: Vehicle) -> void:
-	var k: float = MASS_SCALE.get(car.body_type, 1.0)
+	var k: float = MASS_SCALE.get(car.body_type, ServiceVehicles.MASS.get(car.body_type, 1.0))
 	car.mass = 1200.0 * k
 	car.engine_power *= k * 0.8
 	car.reverse_power *= k
@@ -161,6 +163,8 @@ static func fit(car: Vehicle, holder: Node3D, trailer: Array, doors: Array) -> v
 		fit_node.name = "BusFittings"
 		car.add_child(fit_node)
 		fit_node.setup(car, holder, doors)
+	if ServiceVehicles.is_service(car.body_type):
+		ServiceVehicles.fit(car, holder, doors)
 	_add_lettering(car)
 
 

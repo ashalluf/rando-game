@@ -582,6 +582,15 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 					bus_shift = BigVehicles.STOP_SHIFT
 				if v < 0.25 and to_stop < 1.2:
 					_bus_dwell(car, t, key, delta)
+	# A service vehicle at work (ServiceFleet: a cart, a delivery, a wreck to tow): its next stop
+	# is something standing still ahead, and it may pull toward the kerb.
+	if t.has("work"):
+		var ws := ServiceFleet.work_stop(car, t, along, v, delta)
+		if ws.x < INF:
+			acc = minf(acc, _idm(v, v0, ws.x, 0.0, 0.3))
+			room = minf(room, ws.x + 0.3)
+			still = minf(still, ws.x - 0.3)
+		bus_shift = maxf(bus_shift, ws.y)
 	# The player, on foot or in a car, standing in this lane ahead.
 	if not _player_block.is_empty():
 		var rel: Vector3 = (_player_block[0] as Vector3) - (t.wp as Vector3)

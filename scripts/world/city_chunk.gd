@@ -2564,7 +2564,7 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	# A street vendor's truck at this stretch of kerb (StreetVendors): after every roll, so the
 	# block's stream (and the walkers after it) runs the same with or without the truck.
 	# It counts as parked, so the cap (and with it the rolls) is the same too.
-	if StreetVendors.blocks_parking(self, spot[0]):
+	if StreetVendors.blocks_parking(self, spot[0]) or KerbBins.blocks_parking(plan, spot[0], float(car._dims().length)):
 		car.free()
 		count[0] += 1
 		return

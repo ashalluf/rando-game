@@ -58,6 +58,9 @@ extends SceneTree
 ## LIFE_REPORT=1 lists the people within 80 m of the camera doing something (crowd life), with
 ## true world positions to frame an EYE on; LIFE_FOCUS=jog|dog|talk|sit|stand|lean|window frames the
 ## nearest person doing that (LIFE_FOCUS_DIST metres off, default 5); CROWD_LIFE=0 turns the crowd's life off (the A/B).
+## SERVICE=garbage|sweeper|tow|ice_cream|delivery stages a service vehicle at work ahead of the
+## camera and moves a free camera to frame it (ServiceFleet.stage_for_shot; SERVICE_EYE=0 keeps
+## the camera, SERVICE_LIFT 0..1 how far up the garbage truck's arm has its cart).
 ## BIRD=ground|flush|wire stages birds ahead of the camera (BIRD_SPECIES, BIRD_DIST, BIRD_COUNT,
 ## BIRD_FLY; see the block before STREET); BIRDS=0 removes the birds (the A/B).
 ## ROOF_TRIS=1 prints what the rooftop units really cost (per instance, by the LOD rule).
@@ -385,6 +388,20 @@ func _initialize() -> void:
 		if current_scene.has_method("update_streaming"):
 			current_scene.call("update_streaming", true)
 		for i in _env_int("EMERGENCY_FRAMES", 30):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
+	# SERVICE=garbage|sweeper|tow|ice_cream|delivery: a service vehicle at work in front of the
+	# camera (ServiceFleet.stage_for_shot; SERVICE_LIFT 0..1 how far up the arm has the cart).
+	var svc_env := OS.get_environment("SERVICE")
+	if svc_env != "" and current_scene and current_scene.get_node_or_null("ServiceFleet"):
+		var svc_eye: String = await current_scene.get_node("ServiceFleet").call("stage_for_shot", svc_env, get_root().get_camera_3d())
+		if svc_eye != "" and OS.get_environment("SERVICE_EYE") != "0":
+			OS.set_environment("EYE", svc_eye)
+		print("SERVICE %s eye %s" % [svc_env, svc_eye])
+		_eye(player, fov)
+		if current_scene.has_method("update_streaming"):
+			current_scene.call("update_streaming", true)
+		for i in _env_int("SERVICE_FRAMES", 30):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
 	# Then all but freeze the clock for the last frames: a software frame takes seconds, and at
