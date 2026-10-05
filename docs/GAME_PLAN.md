@@ -289,6 +289,15 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 First-use stutters: rehearse the real things, keep the atlas (HANDOFF "First-use
+  stutters").** The loading screen's one-quad-per-shader warm-up compiled shaders, but Forward+
+  pipelines are per shader and VERTEX FORMAT, so the first car, person, burst or explosion still
+  waited on its own pipelines (lavapipe: first cars 20-24 s against a 1.2 s frame). Decisions:
+  stage the real objects behind the shade (`WarmRehearsal`) rather than enumerate formats; clean
+  up by freeing everything scriptless the effects parented to the scene; keep every decal texture
+  in the decal atlas for the session (it repacks whole when one returns) and every car body and
+  crowd rig loaded. Measure frame times, not Godot's DRAW compile monitor, which counts 0 while a
+  draw waits on a queued compile.
 - **2026-10-05 City acoustics: spaces, gunfire echo, footsteps by surface, the newest systems'
   sounds (HANDOFF "City acoustics").** The city had one street-canyon reverb, no echo, no
   footsteps, and the bus, the light rail, the river and the parks were silent. Decisions: the
