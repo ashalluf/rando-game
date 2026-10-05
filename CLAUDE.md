@@ -1988,7 +1988,9 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   after a pad moves. A pad is built in its street frame (`Site`). FULL: all of a chunk's pads are
   ONE casting mesh and ONE shadowless ground mesh (`Roadside.commit()`), repeated pieces `rs_*`
   batches (dispensers as `pump` props), pools in `rs_pool`, a `lamp_light` a pad under
-  `RoadsideLights`; LOD / far city: `lod_box`es and the canopy slab. Kit warmed on the loading
+  `RoadsideLights`; queued cars (drive-thru, car wash) are real parked Vehicles with a driver
+  (`_queue_car()`, `Vehicle.seat_waiting_driver()`, `LIVE_QUEUE=0` the static cars); LOD / far
+  city: `lod_box`es and the canopy slab. Kit warmed on the loading
   screen. Names and prices invented. `ROADSIDE=0` is the A/B; `tools/roadside_probe.tscn` finds
   pads; checks `tests/roadside_checks.gd` (alone: `tools/roadside/checks.tscn`).
 - Port (roadmap #35, 2026-09-27): the container terminal (`MacroMap.port_rect`) is

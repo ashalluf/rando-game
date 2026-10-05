@@ -8751,4 +8751,15 @@ fewer cars ("car 9 on (...), off <null>"). It passes alone; the checks now lift 
 own builds, and the label names the first building or car that differs. `tools/roadside/checks.tscn`
 runs the roadside checks alone in a few minutes. Frame cost on the merged tree (still_shot GEO, the gas
 station EYE at noon): `ROADSIDE=0` 5,123,285 triangles / 2,686 draws, on 5,084,623 / 2,559. Stills on the merged tree are the `merged_*`
-files on `shots/roadside` (same EYEs as above). Still open: everything under "Not done" above.
+files on `shots/roadside` (same EYEs as above). After the lead's review of those stills: the
+drive-thru's and the car wash's queued cars are real parked `Vehicle`s on FULL chunks
+(`Roadside._queue_car()`: `Vehicle.random_car()` from a hash of seed + place, built one per step
+before the finish through `_run_or_defer()`, a driver seated through CarCabin and the brake lamps on
+by `Vehicle.seat_waiting_driver()` - a new `waiting` flag keeps the hazards off -, asleep like any
+parked car, meta `roadside`, in the chunk's `_cars`); where PhysicsBudget is spent, or with
+`LIVE_QUEUE=0`, the static car as before, and its rolls are made either way. In the full gate 67 of
+82 were real, 15 fell back. The drive-thru's two lane walls and its back wall got a tile wainscot,
+brand pilasters, the dining room's windows on the way in, wall packs with pools and a kerb with
+bollards; the order point a lit canopy; the stucco a trowel mottle, sand grain, patches and streaks
+(`merged_04b` / `merged_05b`). Gate on the final head below. Still open: everything under "Not
+done" above, and the parking-stall, lift and junk cars on the pads are still the static cars.
