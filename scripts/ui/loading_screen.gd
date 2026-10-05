@@ -204,6 +204,7 @@ func _warm_shaders() -> void:
 	effects.append_array(PortKit.warm())
 	# The street vendors' trucks, carts and umbrellas (StreetVendors), built in code.
 	effects.append_array(StreetVendors.warm())
+	effects.append_array(BoulevardSigns.warm())
 	# The billboards' faces and steel (Billboards), only ever drawn through the chunks' batches.
 	effects.append_array(Billboards.warm())
 	# The beach's towels, umbrellas, chairs, boards, the net and the tower (BeachLife).
