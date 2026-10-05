@@ -8712,6 +8712,9 @@ the roadmap row renumbered `?` for the lead; roadmap #63 is City acoustics now).
   burnouts.
 - `_wheel_state` and `_prev_force` grew with every car freed while it was watched; both are now
   rebuilt for the watched cars on each scan.
-Gate: 1,386 pass, 1 fail (the known "the map draws no closed road (1)" of fleet/base). On this
+Gate after merging origin/main (9eecc007): 1,387 pass, 0 fail, no script or shader errors, peak
+3.16 GB RSS (before main's fix: 1,386 and the known minimap failure). Idle frame cost at the
+default spawn (geo_count `AB=DrivingFX`): 3,712,347 tris / 3,181 draws with the node, the same
+within 2 without it - nothing draws until a car slides. On this
 4-core box the smoke test alone takes longer than `headless_check.sh`'s 900 s timeout; run it with a
 longer `timeout` to see the end. Stills on `shots/driving-fx` (README "After the merge").
