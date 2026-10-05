@@ -57,7 +57,7 @@ const FENCE_H := 2.5
 ## Share of stalls with a cruiser in them, and the most a station parks (each is a far-twin body
 ## of ~8k triangles: the car park is the station's biggest cost).
 const FILL := 0.55
-const MAX_CARS := 12
+const MAX_CARS := 14
 const HQ_MAX_CARS := 18
 const MAST_H := 34.0
 ## How far the sally port stands out into the car park (m).
@@ -206,15 +206,19 @@ static func _site(plan: CityPlan, bi: Vector2i, whole: bool, salt: Array) -> Dic
 				site = Rect2(Vector2(inner.end.x - D, inner.position.y + float(i0) * cs.y), Vector2(D, L))
 		var mine: Array[int] = []
 		var builder := -1
+		var yard := false
 		for lot: Dictionary in lots:
 			if site.grow(-0.5).has_point(lot.center):
+				# A courtyard lot builds its garden before any claim is asked (its rolls come
+				# first): a site never takes one.
+				yard = yard or bool(lot.yard)
 				mine.append(int(lot.seed))
 				if builder == -1:
 					builder = int(lot.seed)
 		# A cell short (a landmark's square or the approach's clear zone dropped it): not here.
 		if not whole and mine.size() != ku * kv:
 			continue
-		if mine.is_empty():
+		if mine.is_empty() or yard:
 			continue
 		if plan.macro.freeway and plan.macro.freeway.blocks_rect(site.grow(4.0), 3.0):
 			continue
@@ -256,7 +260,17 @@ static func layout(L: float, D: float, hq_site: bool) -> Dictionary:
 	var pv1 := D - 0.6
 	if ub1 - ub0 < 24.0 or pv1 - pv0 < STALL_D + AISLE:
 		return {}
-	var rows := 2 if pv1 - pv0 >= STALL_D * 2.0 + AISLE else 1
+	# Stall rows down the car park: double-loaded modules (a row, the aisle, a row) from the
+	# building back, a single row and its aisle in what is left. [v0, v1, face] (-1 the car's
+	# nose toward the street, +1 away).
+	var rows: Array = []
+	var v := pv0
+	while v + STALL_D * 2.0 + AISLE <= pv1 + 0.01:
+		rows.append([v, v + STALL_D, -1.0])
+		rows.append([v + STALL_D + AISLE, v + STALL_D * 2.0 + AISLE, 1.0])
+		v += STALL_D * 2.0 + AISLE
+	if pv1 - v >= STALL_D + AISLE:
+		rows.append([pv1 - STALL_D, pv1, 1.0])
 	# The lobby pavilion's projection and the canopy's reach in front of it.
 	var lp := 3.2 if hq_site else 2.2
 	var cd := 3.4 if hq_site else 2.0
@@ -522,9 +536,7 @@ static func _build_detail(node: Node3D, s: Dictionary, sx: float, sidewalk: floa
 	var max_cars := HQ_MAX_CARS if hq_site else MAX_CARS
 	var sally_u0 := ub1 - 7.5
 	var sally_u1 := ub1 - 1.0
-	var row_specs: Array = [[pv0, pv0 + STALL_D, -1.0]]
-	if int(lay.rows) == 2:
-		row_specs.append([pv1 - STALL_D, pv1, 1.0])
+	var row_specs: Array = lay.rows
 	var fuel_u0 := 1.5
 	var fuel_u1 := fuel_u0 + 3.0 * STALL_W
 	var mast_u := du1 - 1.6
@@ -541,7 +553,7 @@ static func _build_detail(node: Node3D, s: Dictionary, sx: float, sidewalk: floa
 			idx += 1
 			if ri == 0 and cu > sally_u0 - 2.0 and cu < sally_u1 + 2.0:
 				continue
-			if ri == 0 and cu > du0 - 0.5:
+			if ri < row_specs.size() - 1 and cu > du0 - 0.5:
 				# The driveway runs on into the car park: keep its end clear.
 				continue
 			if ri == row_specs.size() - 1 and cu < fuel_u1 + 0.4:
@@ -562,8 +574,9 @@ static func _build_detail(node: Node3D, s: Dictionary, sx: float, sidewalk: floa
 				var yaw := atan2(-face.x, -face.z) + (_h01([seed_v, ri, idx, "ps_yaw"]) - 0.5) * 0.04
 				cars.append(Transform3D(Basis(Vector3.UP, yaw), P.call(cu, 0.035, cv)))
 	# Fuel island: a canopy on two columns over an island with two dispensers.
-	var fv0 := pv1 - STALL_D - 0.8
-	var fv1 := pv1 - 0.2
+	var last_row: Array = row_specs.back()
+	var fv0 := float(last_row[0]) - 0.8
+	var fv1 := float(last_row[1]) - 0.2
 	var fum := (fuel_u0 + fuel_u1) * 0.5
 	var fvm := (fv0 + fv1) * 0.5
 	B.call("concrete", fum - 0.7, fum + 0.7, 0.0, 0.2, fv0 + 0.6, fv1 - 0.6)
