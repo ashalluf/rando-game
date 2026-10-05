@@ -402,6 +402,39 @@ func _initialize() -> void:
 		for i in _env_int("EMERGENCY_FRAMES", 30):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
+	# TRAFFIC=bus|merge|pullout: a car changing lanes round a bus at its stop, a car merging from an
+	# on-ramp (from above), a parked car pulling out (TrafficAI.stage_for_shot), framed by a free
+	# camera. The staged traffic moves only when told: TRAFFIC_STEPS="s,s,..." advances it that many
+	# seconds before each still of a sequence, saved as OUT with _t1, _t2, ... added.
+	var traffic_env := OS.get_environment("TRAFFIC")
+	if traffic_env != "" and current_scene and current_scene.get_node_or_null("Traffic"):
+		var tai = load("res://scripts/npc/traffic_ai.gd")
+		var tm: Node = current_scene.get_node("Traffic")
+		var t_eye: String = tai.call("stage_for_shot", tm, traffic_env, get_root().get_camera_3d())
+		print("TRAFFIC %s eye %s" % [traffic_env, t_eye])
+		if t_eye != "":
+			OS.set_environment("EYE", t_eye)
+			OS.set_environment("EYE_AGL", "")
+		_eye(player, fov)
+		if current_scene.has_method("update_streaming"):
+			current_scene.call("update_streaming", true)
+		for i in _env_int("TRAFFIC_FRAMES", 30):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
+		var t_steps := OS.get_environment("TRAFFIC_STEPS").split(",", false)
+		for s_i in t_steps.size():
+			tai.call("advance_shot", tm, t_steps[s_i].to_float())
+			Engine.time_scale = 0.0005
+			for i in _env_int("SETTLE", 6):
+				await process_frame
+				_pose(player, anchor, hold, boost, fov)
+			Engine.time_scale = 1.0
+			var t_out := OS.get_environment("OUT").get_basename() + "_t%d.png" % (s_i + 1)
+			var t_img := get_root().get_texture().get_image()
+			if t_img:
+				t_img.save_png(t_out)
+			var sc: Variant = tm.get_meta("shot_car") if tm.has_meta("shot_car") else null
+			print("saved %s: car %s" % [t_out, str((sc as Node).get("traffic")) if sc != null and is_instance_valid(sc) else "-"])
 	# AFTERMATH=palms|burning|charred|column|crater: what a blast leaves behind, staged by the
 	# nearest palm row and framed by a free camera (tools/glshot/aftermath_stage.gd), then AF_TIME
 	# seconds of it at FX_SCALE.

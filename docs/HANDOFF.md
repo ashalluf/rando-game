@@ -12622,3 +12622,83 @@ default spawn (geo_count `AB=DrivingFX`): 3,712,347 tris / 3,181 draws with the 
 within 2 without it - nothing draws until a car slides. On this
 4-core box the smoke test alone takes longer than `headless_check.sh`'s 900 s timeout; run it with a
 longer `timeout` to see the end. Stills on `shots/driving-fx` (README "After the merge").
+
+## 9ed. Traffic that drives like people (traffic-ai, 2026-10-05)
+
+**What it was.** The street traffic queued well (IDM, signals, crosswalks, buses at stops) but
+every car stayed in the lane it spawned in for ever, sat behind a bus at its stop for its whole
+dwell, went off the line the very tick a light turned green, and never made a sound; parked cars
+never moved; the freeway's cars never changed lane and its ramps carried nobody.
+
+**What it is now.** `TrafficAI` (`scripts/npc/traffic_ai.gd`, static) on top of
+TrafficManager (`scripts/npc/traffic.gd`), with the CLAUDE.md "Traffic AI" bullet as the reference:
+
+- **Moods** per car from a hash (12 % pushy, 12 % careful, 8 % dozy, the rest normal): time gap,
+  late braking, ambers run or stopped for, speed, reaction time off the line on green, patience.
+- **Street lane changes** on two-lane streets: round a bus at its stop, a double-parked car (a
+  kerb-lane car now and then stops mid-block on its hazards for 12-26 s), a slow truck; into the
+  turn lane for its rolled turn (and turns land in the matching lane); a swerve round the player
+  standing in the road. Indicator first, a gap check ahead and behind, a smooth 3 s move (pushy
+  2.1 s, careful 3.75 s, swerve 1.3 s) with the car nosed toward the new lane; during the move the
+  car is in both lanes' queues (a ghost in the old one), so the hard "never past what is in front"
+  clamp holds in both.
+- **Honks** (CC0 recordings cut close by `tools/traffic_horns.py`: five taps, three long): a dozy
+  driver who sits through the start of the green, the player on foot in the lane, the player's
+  car blocking it, a near miss. Rate-limited city-wide and per car, only within 120 m.
+- **Pull-outs**: every 3 s, a 35 % chance that a sleeping parked car 22-110 m from the player and
+  facing its side's traffic signals, waits for the kerb lane behind it to be clear, and pulls out
+  (its physics wheels removed before it freezes; off its chunk's list, so a chunk unload no longer
+  owns it).
+- **Freeway**: lanes by index; passing (left first), keep-right to a home lane, trucks in the two
+  slow lanes; 22 % of the +t traffic leaves by the next off-ramp (signal on 250 m out, down the
+  ramp, retired at the street); on-ramps (Freeway's side -1 ramps serve the -t carriageway) get a
+  car every 7-16 s while the player is near, which climbs the ramp, waits at the merge point if
+  the outer lane has no gap, and merges as a lane change.
+
+**Checks** (`tests/traffic_ai_checks.gd`, 17; 167 s of the smoke test on this box - the whole run
+was 1,056 s here with the suite at ~890 s before them, so this box's 900 s local cap no longer
+holds; CI's runner is faster): moods and their shares; the same amber run by a
+pushy driver and stopped for by a careful one; a car behind a bus at its stop signals, moves over,
+passes, never inside it; a double-parked car on its hazards and the car behind waiting for a gap;
+the turn lane; the swerve with a honk; the dozy driver honked at; a parked car pulling out; a
+freeway pass, an on-ramp merge and an off-ramp exit; live traffic with all of it on never inside
+another car (as boxes, so a car mid-change counts against both lanes); the tick's cost on / off.
+
+**Cost.** Nothing drawn, no physics queries: all maths on the lane data the manager already has.
+`TrafficManager.drive_usec` (the street, loop and freeway driving per tick, smoothed) headless at
+the spawn with 30 street and 70 freeway cars: **5.99 ms AI off -> 6.50 ms AI on** (the checks print
+`TRAFFIC_TICK_US`; headless debug build, so read the ratio, +8 %). Frame geometry is unchanged:
+`tools/geo_count.gd` (opengl3 + Xvfb, 800x600, default spawn) `TRAFFIC_AI=0` 3.651 M triangles /
+3,656 draws / 15,244 objects, `TRAFFIC_AI=1` 3.654 M / 3,660 / 15,248 (where the cars happen to be).
+
+**Stills** (shots/traffic-ai, opengl3): `bus_t1..3` a car signalling behind a bus at its stop,
+moving over, passing it; `merge_t1..3` a car at the top of an on-ramp waiting, merging, in the lane
+(from above); `pullout_t1..3` a parked car signalling while a car passes, pulling out, away. Made
+with `TRAFFIC=bus|merge|pullout TRAFFIC_STEPS=...` on `tools/glshot/still_shot.gd`.
+
+**Not done / not verified.** Not seen on the Mac (Forward+), nor heard: horn levels in the mix
+are the loudness table's trim only. On the merge still the car crosses the deck's edge barrier: Freeway's ramps meet the deck outside
+it and the barrier is not opened there (FreewayKit, not changed here). Lane changes only on streets with two lanes each way (most
+side streets have one); no lane changes on rail streets or by buses; nobody changes lanes inside a
+junction. Off-ramp cars are retired at the foot of the ramp rather than handed to the street
+grid (the ramp's foot does not land on a lane line), and on-ramp cars appear at the foot (never
+within 70 m of the player). Police cruisers and emergency units do not use any of it (their own
+drivers). The ramps' slab starts 0.7 m below the deck top (CityChunk, unchanged); ramp cars are
+lifted back to the deck over the ramp's first metres. Freeway following is still the old spacing
+rule, not the IDM.
+
+**Second session (fleet wave 2, after merging fleet/base).** Merged cleanly in code (TrafficManager
+had only the school bus and the bus-sign fix; a school bus is a big vehicle to the AI: passed when
+slow, never double-parks). Review fixes: a car pulled over for a siren (`yield_t`) starts no lane
+change and drops one it was signalling; the near-miss honk is only for a car ahead or the player
+(`why` 0 / 2), not a pushy driver's own late braking at a red; the pull-out's speed and the ramp
+cars' speed and home lane are hashes, not the traffic rng. Checks: 18 (one new: no lane change
+while yielding); the bus pass now forces the green of the junction the car heads for (force()
+moves the one shared clock, so forcing a range of junctions only kept the last), the turn-lane
+check takes an avenue ending at signals - **a stop sign's crosswalk with a steady stream of
+walkers holds a car for ever** (seen at the spawn in a standalone run: 26 s at the line; the
+street-life rule, not changed here; worth a "cars assert themselves" pass). `tools/traffic_ai/checks.tscn`
+runs the checks alone against the city (~4 min headless). The whole smoke test took 956 s on
+this box (local `timeout 900` in headless_check.sh trips; the traffic checks are ~143 s of it).
+New stills `2N_after_fleetbase_*` on shots/traffic-ai; the merge view shows a house poking through
+the freeway deck by the on-ramp (route 0) (houses / corridor, not this branch).

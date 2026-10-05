@@ -872,6 +872,39 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   of the junction ahead of the camera, walkers on the crosswalk in front of it; `--hour=21` for
   the heads at night). Checks: `tests/street_life_checks.gd`, loaded by the smoke test like the
   air traffic's.
+- Traffic AI (2026-10-05, "traffic that drives like people"; HANDOFF 9ed): `TrafficAI`
+  (`scripts/npc/traffic_ai.gd`, static) is the drivers on top of TrafficManager's IDM queues.
+  **Moods** from a hash per car (`roll_mood()`: NORMAL, 12 % PUSHY, 12 % CAREFUL, 8 % DOZY) set
+  `m_gap` (time and standing gap), `m_brake` (late braking, in the IDM's comfort term), `m_amber`
+  (scales `amber_margin`: smaller runs more), `m_speed`, `m_react` (seconds off the line once its
+  stop line lets go: `held` -> `react`), `m_patience` (before honking), `m_eager` (how slow a truck
+  must be to pass). **Lane changes** (`street_think()`, two lanes each way only, never on a rail
+  street or for a bus): round a bus at its stop, a double-parked car (`dp_at`, hazards) or a slow
+  truck, into the turn lane for the rolled turn (right -> kerb lane, left -> inner; a turn now lands
+  in the matching lane, `turn_lane()`), and a swerve round the player on foot. Indicator first
+  (`t.sig`, which `Vehicle._traffic_signal()` returns before the turn's), then `gap_ok()` ahead
+  and behind, then `start_move()`: `t.lane` is the new lane at once and the car is ALSO a ghost in
+  its old lane's group (`lc_key`) until `GHOST_UNTIL` of the move, and it brakes for the old
+  lane's leader meanwhile - that is how both queues keep the "nose never passes what is in front"
+  clamp. `_drive_streets()` drives each car once a tick (`tick`), skipping ghosts. A move never
+  STARTS inside a junction box but may run on across one. **Pull-outs** (`maybe_pullout()` every
+  3 s, one at a time): a sleeping parked car facing its side's traffic leaves its chunk's `_cars`,
+  loses its VehicleWheel3Ds BEFORE it freezes, waits signalling (`pull`, in no queue) for a gap,
+  then pulls out as a lane change from the parking offset (`lc_noghost`). **Freeway**: lanes by
+  index (`li`, 0 the carpool lane), groups keyed by it with ghosts (`lc_src`), `freeway_think()`
+  passes left then right, keeps right to its `home` lane, trucks stay in the two slow lanes;
+  `FW_EXIT_SHARE` of the +t traffic leaves by the off-ramps (Freeway's side +1 ramps), and
+  `maybe_ramp_cars()` sends cars up the side -1 ramps, which are ON-ramps for the -t carriageway;
+  `ramp_tick()` drives the ramp (`ramp_point()`: CityChunk's eased profile, lifted back to the
+  deck top over its first metres) and merges into lane 3 when `fw_gap_ok()` (the freeway follow
+  rule's spacing) finds room, waiting at the merge point if not. **Honks** (`honk()`, Sfx
+  `car_horn` / `car_horn_long`, `tools/traffic_horns.py`): a dawdler on green, the player on foot
+  in the lane or the player's car blocking it, a near miss (braking past 1.6 x brake_comfort);
+  `MAX_HONKS` a `HONK_WINDOW` city-wide, a cooldown per car, only within `HONK_REACH`. Placed cars
+  (`place_car`, `place_freeway_car`: `placed`) are NORMAL and change no lanes unless a check sets
+  `ai`. `TRAFFIC_AI=0` is the A/B; `TrafficManager.drive_usec` is the traffic tick's cost. Stills:
+  `TRAFFIC=bus|merge|pullout TRAFFIC_STEPS=s,s,...` on `still_shot.gd` (the staged traffic moves
+  only by `advance_shot()`, saved `_t1`, `_t2`, ...). Checks: `tests/traffic_ai_checks.gd` (alone: `tools/traffic_ai/checks.tscn`).
 - Light rail (2026-10-04, "a light rail line, like LA Metro's, with its own original name, colour
   and livery"): the **Coral Line** of the invented **Basin Metro** (coral `LightRail.LINE_COLOR`,
   bullet "C"). **The line is a DATA TABLE** (`LightRail`, `scripts/world/light_rail.gd`: `ROUTE`,

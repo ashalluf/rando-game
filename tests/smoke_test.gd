@@ -851,6 +851,10 @@ func _city_terrain(city: Node3D, plan: CityPlan, player: CharacterBody3D, macro:
 				var on_the_deck := 0
 				var both_ways := {}
 				for car in traffic.freeway_cars:
+					# A car on an on- or off-ramp (TrafficAI) is off the deck on purpose.
+					if car.traffic.has("ramp"):
+						on_the_deck += 1
+						continue
 					var cw: Vector3 = _world_state().to_world(car.global_position)
 					var near: Array = fw.nearest_on(car.traffic.fw, Vector2(cw.x, cw.z))
 					var deck: Vector3 = fw.point_at(car.traffic.fw, float(near[0]))[0]
@@ -1958,6 +1962,9 @@ func _city_crowd(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# re-centring check, and every position test after that point is in a frame that disagrees
 	# with the nodes.
 	await load("res://tests/street_life_checks.gd").new().run(self, city)
+	# Traffic that drives like people (tests/traffic_ai_checks.gd): moods, lane changes round a bus,
+	# turn lanes, a swerve, honks, a pull-out, freeway passing, merges and exits.
+	await load("res://tests/traffic_ai_checks.gd").new().run(self, city)
 	# Crowd animation (VISUAL_ROADMAP #28): starts, stops, turns, stride and head look.
 	await load("res://tests/crowd_anim_checks.gd").new().run(self, city)
 	# Crowd life (GAME_PLAN G5): talking, sitting, carrying, panic over all of it.
