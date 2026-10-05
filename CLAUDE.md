@@ -2627,6 +2627,36 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   frame cost is ALU on storefront glass pixels only. Judge with `building_shot.gd` (`NIGHT=1`,
   `BENCH=n`) and `still_shot.gd` `EYE=`/`SHOTS=` from the pavement; `tools/glshot/shop_probe.gd`
   (headless) lists the storefronts near a point with an EYE for each face.
+- Tower roofs (2026-10-05, "tower roofs are what the player sees most while flying"):
+  `Rooftops` (`scripts/world/rooftops.gd`, static) puts on a building's highest roof (not a
+  podium) a raised HELIPAD (towers from `PAD_MIN_HEIGHT` 75 m, `PAD_SHARE`: steel deck
+  `PAD_RISE` over the plant on columns that skip what stands under them, the touchdown paint, green
+  perimeter lights and floods, a safety-net shelf, a windsock, the access stair, a parked
+  helicopter in a private livery on `HELI_SHARE`), a POOL DECK or a ROOF GARDEN (a traced pool,
+  loungers, umbrellas, glass balustrade, a cabana bar with its lit invented name, string lights,
+  potted palms; RoofGoer people on the deck, `scripts/npc/roof_goer.gd`, in the crowd cap - lawn,
+  planters, pergola), a louvred MECHANICAL PENTHOUSE, a TELECOM MAST and on glass towers a
+  WINDOW-WASHING MACHINE on rails, its cradle parked or hanging part-way down the facade. **The
+  plan is pure** (`plan(b)`: the parts, the plant Building already placed - `roof_props` - and
+  hashes of seed + "rooftops"; never `_rng` or `_roof_rng`), so a generating building and its far
+  boxes (`FarBuilding.boxes()` after `roof_plan()`) plan the same roof. Pieces stand off the
+  plant they may not cover (bulkheads, tanks, cooling towers, signs, spires; a pad only off spires
+  and tanks) and IN PLACE of the small plant (`HIDEABLE`: units, ducts, solar, skylights; and an
+  antenna under a pad): `hidden()` names those props, `clear_plant()` takes them off the near
+  building after `_build_roof_props()` (each prop's primitives start at its `rolls.prims`), and
+  FarBuilding skips them - their rolls are still made, nothing moves. The kit's own roof plant is
+  handed the pieces' rects (`keep_out()`, its private stream). Drawn as ONE mesh a building
+  (`RooftopGeo` -> `shaders/rooftop.gdshader`: kind in the vertex alpha /32 - the pad's paint from
+  UV, the net cut out and dithered under a pixel, louvres, decking, pavers, turf, lamps,
+  bulbs and signs lit by `lamp_factor`; the pool TRACED in the mesh's own space, UV = building
+  space from the pool's centre, UV2 its half size) plus a glass surface, the planting in one
+  MultiMeshBatch, collision on the building. Far: `FarBuilding.Plant.HELIPAD` / `POOL`, painted on
+  the box top by `building_lod.gdshader`. LandmarkDowntown towers whose real roofs are flat carry a
+  `"helipad"` row in `TOWERS` (local centre on the roof, deck, turn; `Rooftops.landmark_helipad()`).
+  `ROOFTOPS=0` is the A/B. Look with `tools/glshot/rooftop_shot.gd` (`FEAT=helipad|pool|garden|
+  penthouse|mast|bmu`, `NIGHT=1`, `GOLDEN=1`, seconds), find them in the city with
+  `tools/rooftops/find.gd -- --at=x,z --radius=m` (an EYE per pad and pool), count with
+  `tools/rooftop_probe.gd`. Checks: `tests/rooftops_checks.gd`.
 - Characters: every rig (pedestrians, ragdolls, the player) renders through
   `shaders/character.gdshader` via `Pedestrian.prepare_rig(inst, look)`. The source models ship
   one flat 1K colour texture and a glTF material with full white emission and double specular,

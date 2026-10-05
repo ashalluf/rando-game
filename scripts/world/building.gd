@@ -2200,6 +2200,8 @@ var _roof_rng := RandomNumberGenerator.new()
 ## FarBuilding draws the far boxes from it.
 var roof_props: Array = []
 var _roof_part: int = -1
+## Where each roof prop's primitives start in _roof_prims (Rooftops.clear_plant()).
+var roof_prim_starts := PackedInt32Array()
 ## Set by roof_plan(): the rolls and the layout without a node, a mesh or a shape.
 var _roof_plan_only: bool = false
 
@@ -2226,6 +2228,7 @@ func roof_plan() -> Array:
 func _build_roof_props() -> void:
 	_roof_rng.seed = hash([seed, "roof plant"])
 	roof_props.clear()
+	roof_prim_starts.clear()
 	for i in parts.size():
 		var part: Dictionary = parts[i]
 		_roof_part = i
@@ -2390,7 +2393,7 @@ func _build_prop(kind: String, at: Vector3) -> void:
 	var rolls := {}
 	roof_props.append([kind, at, rolls, _roof_part])
 	# Where this prop's primitives start (Rooftops.clear_plant() takes a covered one away).
-	rolls.prims = _roof_prims.size()
+	roof_prim_starts.append(_roof_prims.size())
 	match kind:
 		"ac":
 			# Real unit (Poly Haven), scaled up to rooftop size, on a concrete pad. The two

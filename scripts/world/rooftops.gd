@@ -96,6 +96,8 @@ const PAD_DECK := Color(0.33, 0.35, 0.35)
 const SAFETY_YELLOW := Color(0.86, 0.64, 0.10)
 const WHITE_PAINT := Color(0.88, 0.88, 0.86)
 const CONCRETE := Color(0.66, 0.65, 0.62)
+const BMU_WHITE := Color(0.90, 0.90, 0.88)
+const CRADLE_YELLOW := Color(0.86, 0.70, 0.18)
 const PENT_METAL := [Color(0.62, 0.63, 0.63), Color(0.50, 0.52, 0.53), Color(0.74, 0.72, 0.68)]
 
 ## The air traffic's helicopter (Helicopter.MODEL; named by path: Helicopter needs the autoloads).
@@ -453,13 +455,10 @@ static func clear_plant(b: Building) -> void:
 		var is_ac: bool = prop[0] == "ac"
 		var rusted: bool = rolls.get("rusted", false)
 		if hide.has(i):
-			var start: int = rolls.get("prims", -1)
+			var start: int = b.roof_prim_starts[i] if i < b.roof_prim_starts.size() else -1
 			var end := b._roof_prims.size()
-			for j in range(i + 1, b.roof_props.size()):
-				var nxt: int = (b.roof_props[j][2] as Dictionary).get("prims", -1)
-				if nxt >= 0:
-					end = nxt
-					break
+			if i + 1 < b.roof_prim_starts.size():
+				end = b.roof_prim_starts[i + 1]
 			if start >= 0:
 				for k in range(start, end):
 					drop[k] = true
@@ -735,6 +734,11 @@ static func _helipad(b: Building, g: RooftopGeo, f: Dictionary, origin: Vector3,
 	g.xf = saved
 	g.beam(mast_at + Vector3(0, 3.05, 0), hoop + wind * 0.05, 0.03, 0.03, STEEL, 1)
 	g.box(mast_at + Vector3(0, 3.25, 0), Vector3(0.18, 0.18, 0.18), Color(1.0, 0.15, 0.08), 17)
+	# A foam extinguisher cabinet by the access, red.
+	var cab_n := _side_normal(stair if stair >= 0 else int(f.turn) % 4)
+	var cab := Vector3(cab_n.x, 0, cab_n.y) * (hd - 0.5) + Vector3(-cab_n.y, 0, cab_n.x) * (hd - 2.6) + Vector3(0, rise + 0.45, 0)
+	g.box(cab, Vector3(0.5, 0.9, 0.5), Color(0.72, 0.08, 0.06), 0)
+	g.box(cab + Vector3(0, 0.15, 0) + Vector3(cab_n.x, 0, cab_n.y) * -0.26, Vector3(0.3, 0.3, 0.02) if absf(cab_n.y) > 0.5 else Vector3(0.02, 0.3, 0.3), Color(0.9, 0.9, 0.86), 0)
 	# The stair (or a caged ladder) up from the roof to the deck.
 	if stair >= 0:
 		_stair(g, stair, hd, rise)
@@ -892,6 +896,19 @@ static func _pool(b: Building, g: RooftopGeo, glass: RooftopGeo, f: Dictionary, 
 		uvs.append(Vector2(w3.x - wc.x, w3.z - wc.z))
 	g.quad(corners[0], corners[1], corners[2], corners[3], Vector3.UP, Color(0.5, 0.7, 0.75), 6, uvs[0], uvs[1], uvs[2], uvs[3])
 	g.param = Vector2.ZERO
+	# A ladder into the pool at the end away from the bar: two bent rails and treads.
+	var ladder_x := pool_min.x + 0.45 if flip > 0.0 else pool_max.x - 0.45
+	var inward := 1.0 if flip > 0.0 else -1.0
+	for lz: float in [pz - 0.3, pz + 0.3]:
+		var foot := Vector3(ladder_x + inward * 0.12, y - 0.9, lz)
+		var top_in := Vector3(ladder_x, y + 0.75, lz)
+		var top_out := Vector3(ladder_x - inward * 0.45, y + 0.75, lz)
+		g.beam(foot, Vector3(ladder_x, y + 0.1, lz), 0.035, 0.035, Color(0.86, 0.87, 0.88), 1)
+		g.beam(Vector3(ladder_x, y + 0.1, lz), top_in, 0.035, 0.035, Color(0.86, 0.87, 0.88), 1)
+		g.beam(top_in, top_out, 0.035, 0.035, Color(0.86, 0.87, 0.88), 1)
+		g.beam(top_out, top_out - Vector3(0, 0.75, 0), 0.035, 0.035, Color(0.86, 0.87, 0.88), 1)
+	for k in 3:
+		g.box(Vector3(ladder_x + inward * 0.08, y - 0.25 - float(k) * 0.28, pz), Vector3(0.08, 0.03, 0.56), Color(0.86, 0.87, 0.88), 1)
 	# Steps up from the roof at the bar end.
 	var bar_x := flip * (hx - 1.6)
 	var nsteps := 4
@@ -961,6 +978,10 @@ static func _pool(b: Building, g: RooftopGeo, glass: RooftopGeo, f: Dictionary, 
 		g.box(corner + Vector3(0, 0.3, 0), Vector3(0.9, 0.6, 0.9), Color(0.30, 0.30, 0.31), 0)
 		g.box(corner + Vector3(0, 0.61, 0), Vector3(0.8, 0.02, 0.8), Color(0.3, 0.22, 0.15), 14)
 		_add_plant(plants, "palm", palm, g.xf * Transform3D(Basis(Vector3.UP, float(absi(b.seed) % 7)).scaled(Vector3.ONE * 0.3), corner + Vector3(0, 0.6, 0)))
+	# People about the deck (RoofGoer), inside the crowd cap.
+	var deck_rect := _rect_of(g.xf, Rect2(Vector2(-hx + 0.4, -hz + 0.4), Vector2(zl - 0.8, dz1 - (-hz) - 0.8)))
+	var pool_rect := _rect_of(g.xf, Rect2(pool_min - Vector2(cop, cop), pool_max - pool_min + Vector2(cop, cop) * 2.0))
+	_spawn_goers(b, deck_rect, pool_rect, origin.y + y)
 	# Collision: the deck round the pool (the pool's floor is the roof: wade in).
 	for r: Rect2 in [Rect2(d_lo, Vector2(hx * 2.0, pool_min.y - d_lo.y)), Rect2(Vector2(-hx, pool_max.y), Vector2(hx * 2.0, dz1 - pool_max.y)),
 			Rect2(Vector2(-hx, pool_min.y), Vector2(pool_min.x + hx, width)), Rect2(Vector2(pool_max.x, pool_min.y), Vector2(hx - pool_max.x, width))]:
@@ -971,6 +992,44 @@ static func _pool(b: Building, g: RooftopGeo, glass: RooftopGeo, f: Dictionary, 
 		_box_shape(b, sz, cen)
 	g.xf = Transform3D.IDENTITY
 	glass.xf = Transform3D.IDENTITY
+
+
+## A rect of the zone's frame in building space (the frame turns by a quarter at most).
+static func _rect_of(xf: Transform3D, r: Rect2) -> Rect2:
+	var a := xf * Vector3(r.position.x, 0, r.position.y)
+	var bb := xf * Vector3(r.end.x, 0, r.end.y)
+	var lo := Vector2(minf(a.x, bb.x), minf(a.z, bb.z))
+	var hi := Vector2(maxf(a.x, bb.x), maxf(a.z, bb.z))
+	return Rect2(lo, hi - lo)
+
+
+## Two to four people on a pool deck (RoofGoer, loaded by path), in a FULL chunk's crowd cap;
+## `area` and `avoid` in building space, `deck_y` the deck's height there.
+static func _spawn_goers(b: Building, area: Rect2, avoid: Rect2, deck_y: float) -> void:
+	var chunk := b.get_parent()
+	# A chunk is in the tree (and ready) before it builds (CityStreamer._new_chunk()), so the
+	# walkers go straight in beside the building.
+	if chunk == null or not chunk.is_inside_tree() or not chunk.is_node_ready() or not chunk.has_method("_take_crowd_room") \
+			or bool(chunk.get("capturing")) or int(chunk.get("level")) != 0:
+		return
+	if _goer_script == null:
+		_goer_script = load("res://scripts/npc/roof_goer.gd")
+	var shift := Vector2(b.position.x, b.position.z)
+	var n := 2 + absi(hash([b.seed, SALT, "goers"])) % 3
+	for k in n:
+		if not chunk._take_crowd_room():
+			return
+		var ped = _goer_script.new()
+		ped.deck_y = b.position.y + deck_y + 0.02
+		ped.area = Rect2(area.position + shift, area.size)
+		ped.avoid = Rect2(avoid.position + shift, avoid.size)
+		ped.setup(Rect2(), 3.0, hash([b.seed, SALT, "goer", k]))
+		var p: Vector2 = ped._random_ring_point(3.0)
+		ped.position = Vector3(p.x, ped.deck_y, p.y)
+		chunk.add_child(ped)
+
+
+static var _goer_script: GDScript = null
 
 
 ## The fascia round a raised deck from `lo` to `hi` (zone frame), `y` high.
@@ -1260,7 +1319,14 @@ static func far_boxes(b: Building, planned = null) -> Array:
 			"mast":
 				_far(out, o + Vector3(0, (float(f.h) + 0.5) * 0.5, 0), Vector3(0.3, float(f.h) + 0.5, 0.3), Color(0.62, 0.63, 0.64), FarBuilding.Plant.BEACON_MAST, 1.0)
 			"bmu":
-				_far(out, o + Vector3(0, 1.4, 0), Vector3(sz.x * 0.45, 2.8, sz.y * 0.75), Color(0.90, 0.90, 0.88), FarBuilding.Plant.UNIT, 0.0)
+				_far(out, o + Vector3(0, 1.4, 0), Vector3(sz.x * 0.45, 2.8, sz.y * 0.75), BMU_WHITE, FarBuilding.Plant.UNIT, 0.0)
+				if f.hang:
+					# The cradle out on the facade.
+					var nrm := _side_normal(int(f.side))
+					var n3 := Vector3(nrm.x, 0.0, nrm.y)
+					var t3 := Vector3(-nrm.y, 0.0, nrm.x)
+					var cradle := o - Vector3(0, float(p.rise), 0) + n3 * (float(f.reach) + 0.65) - t3 * 0.3 + Vector3(0, 3.0 - float(f.depth) + 0.6, 0)
+					_far(out, cradle, (t3.abs() * 4.6 + n3.abs() * 0.8 + Vector3(0, 1.2, 0)), CRADLE_YELLOW, FarBuilding.Plant.UNIT, 0.0)
 	return out
 
 
