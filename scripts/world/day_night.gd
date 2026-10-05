@@ -441,8 +441,14 @@ func _apply() -> void:
 		for light in get_tree().get_nodes_in_group("lamp_light"):
 			var l := light as OmniLight3D
 			l.light_energy = want
-			if l.visible != lit:
-				l.visible = lit
+			# Only ever show a light this hid: anything else that hides one (a chunk fading out)
+			# keeps it hidden.
+			if not lit and l.visible:
+				l.visible = false
+				l.set_meta("dark_hidden", true)
+			elif lit and l.has_meta("dark_hidden"):
+				l.visible = true
+				l.remove_meta("dark_hidden")
 	RenderingServer.global_shader_parameter_set("night_factor", night_factor)
 	RenderingServer.global_shader_parameter_set("lamp_factor", lamp_factor)
 	lamp_now = lamp_factor
