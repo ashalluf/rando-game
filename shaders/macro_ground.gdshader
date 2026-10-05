@@ -1,0 +1,641 @@
+shader_type spatial;
+render_mode cull_back;
+
+// The land beyond the streamed chunks. The ground follower is one plane 14 km across shaded
+// from a small image of the whole basin baked by MacroMap.bake(): ocean to the west, the
+// mountains to the north, the airport, the city sprawl.
+//
+// That image is 256 px across 16 km, which is 62 metres a texel: every detail smaller than a
+// city block has already been thrown away before this shader ever runs, and forty per cent of
+// a wide shot is this plane. So the job here is not to display the bake, it is to SYNTHESIZE
+// everything between 62 m and about a metre back out of it - a ridged fractal with analytic
+// derivatives for the shape, a real surface normal from that fractal, slope-aware rock, scree,
+// chaparral and dry grass, drainage that runs downhill, a block-and-street grain over the
+// built-up ground, terrain that shadows itself toward the sun, and cloud shadows crawling
+// over all of it. The bake decides WHAT is where; this decides what it looks like.
+
+
+// The land height, its crags and the uniforms they read (macro_tex, macro_centre, macro_span,
+// macro_height, lift_start, lift_end, world_offset, relief_*, flats_amplitude, detail_lod) live
+// in the include, so Skyline's far planting sits on exactly this surface.
+#include "res://shaders/macro_relief.gdshaderinc"
+// Linear on both renderers (cs_in / cs_out): see the natural ground's colours below.
+#include "res://shaders/color_space.gdshaderinc"
+
+// Close to the camera the plane is the ground the player is standing on, so a real texture
+// takes over, tinted by whatever the macro map says is there.
+uniform sampler2D near_albedo : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D near_normal : hint_normal, filter_linear_mipmap, repeat_enable;
+uniform float near_scale = 6.0;
+uniform float near_fade_start = 60.0;
+uniform float near_fade_end = 340.0;
+
+// Aerial perspective: the far land washes out into the sky's own horizon colour, which DayNight
+// keeps in step with the weather and the hour.
+uniform vec3 haze_color : source_color = vec3(0.70, 0.78, 0.88);
+// Only a last touch at the very edge of the plane, to hide its rim. The Environment's own
+// aerial-perspective fog does the real distance wash, and doing it twice turned the whole basin
+// into milk: at the settings this scene uses, 3 km of air is already half haze.
+uniform float haze_start = 4500.0;
+uniform float haze_end = 7400.0;
+uniform float haze_strength : hint_range(0.0, 1.0) = 0.45;
+// Golden-hour smog (DayNight, through CityStreamer.set_ground_smog; 0 outside golden hour, which
+// skips it): lit haze under the basin's inversion lid. Far land low down goes into it and peaks
+// above `smog_lid` metres stand clear of it, which is how the mountains round Los Angeles look
+// on an evening. Depth fog alone greys a mountain evenly from foot to crest.
+uniform float smog = 0.0;
+uniform vec3 smog_color : source_color = vec3(0.64, 0.54, 0.47);
+uniform float smog_lid = 380.0;
+uniform float smog_reach = 3200.0;
+// The plane's own rim. It is 14 km across and the camera now draws to 12 km, so from any height
+// its edge was a hard line with the sky's under-horizon colour beyond it - seen from the hills as
+// a pale slab laid across the sea. Between these two horizontal distances from the camera it
+// hands over completely to the sky's horizon colour (the `sky_tint` global, which is what the
+// sky shows just under the horizon), and so do the far city's boxes and planting, on the same
+// numbers (building_lod.gdshader, far_canopy.gdshader). CityStreamer sets all three from
+// ground_size.
+uniform float edge_start = 5040.0;
+uniform float edge_end = 6860.0;
+
+uniform vec3 sun_dir = vec3(0.45, 0.72, 0.28);
+global uniform float night_factor;
+// Cleared by Quality on the web and below MEDIUM: gates the expensive half of this shader.
+global uniform float ground_detail;
+// The sky's own colour this hour, which is what actually fills the shadows outdoors.
+global uniform vec4 sky_tint;
+// Drives how fast the cloud shadows cross the basin.
+global uniform float wind_factor;
+
+
+// ---- synthesized relief -------------------------------------------------------------------
+// How many octaves the fragment shader runs. 9 reaches about 2.5 m.
+uniform int relief_octaves : hint_range(1, 10) = 9;
+// How many metres of ground one screen pixel covers per metre of distance (tan(fov/2)/height).
+uniform float pixel_angle = 0.0016;
+
+// ---- lighting -----------------------------------------------------------------------------
+// Direct sunlight on this plane. It is lit by hand past the near band: see the ALBEDO/EMISSION
+// split at the bottom for why.
+// The far plane is EMITTED past paint_start .. paint_end, so the scene's DirectionalLight never
+// touches it and this IS its sun. Keep it equal to DayNight.day_sun_energy or the land past
+// 600 m runs darker than the streamed chunks it butts against.
+uniform float sun_strength = 1.30;
+// Sky fill, the light a slope facing away from the sun actually gets.
+uniform float ambient_strength = 0.30;
+// Warm light bounced back up off the ground in front of a slope.
+uniform float bounce_strength = 0.12;
+uniform vec3 sun_color : source_color = vec3(1.0, 0.955, 0.88);
+// Steps of the ray march that asks whether this point can see the sun. 0 turns it off.
+uniform int shadow_steps : hint_range(0, 16) = 10;
+// How far along the sun direction that march looks, in metres.
+uniform float shadow_reach = 3400.0;
+// How dark a shadowed slope gets. 1.0 is the full geometric answer.
+uniform float shadow_strength : hint_range(0.0, 1.0) = 0.9;
+
+// ---- cloud shadows --------------------------------------------------------------------------
+// How much of the sun a cloud takes away. Nothing else out there moves, so these are also the
+// only thing that tells the player the horizon is a place and not a painting.
+uniform float cloud_shadow_strength : hint_range(0.0, 1.0) = 0.55;
+// Metres across one cloud.
+uniform float cloud_scale = 1500.0;
+// How much of the sky the shadowing clouds cover; higher leaves fewer, smaller shadows.
+uniform float cloud_cover : hint_range(0.0, 1.0) = 0.52;
+// Metres the cloud deck sits above the ground, which is what offsets the shadow from the cloud.
+uniform float cloud_height = 900.0;
+// Metres a second the deck drifts.
+uniform float cloud_speed = 7.0;
+
+// ---- natural ground -------------------------------------------------------------------------
+// The hills' ground is hill_splat.gdshaderinc's, included below - the near tiles' own field and
+// colours (straw_color, chaparral_color, dirt_color, rock_color, snow_color, the stand rule), with
+// the octaves a far pixel cannot resolve at their means - so there is nothing here to keep equal
+// to the terrain any more: it is the same uniform. Its colours are LINEAR albedos in plain
+// uniforms, and this shader works in linear on both renderers (color_space.gdshaderinc): the
+// bake's sRGB palette through cs_in(), the renderer's own space at the end through cs_out().
+// Until 2026-10-04 this plane kept copies of those colours AS source_color uniforms, so Forward+
+// decoded the linear numbers a second time (0.150 straw arrived as 0.020) and the far mountains
+// drew near-black olive on the Mac against the near hills' straw, while Compatibility, which
+// decodes nothing, looked right in every opengl3 still (HANDOFF 9au).
+//
+// The painted band's light is this shader's own (sun_strength and the fill above); this scales
+// its albedo so the band past paint_end comes out as bright as the renderer lights the band
+// before paint_start. Measured on Forward+ under the game's own day light (hill_ground_shot
+// DAYNIGHT=1 PAINT_AB=1, 14:00, the front range from 400 m and 900 m up): at the old 0.66 the
+// painted band drew 0.63-0.73 of the lit one, at 0.97 still 0.81-0.83 (AgX compresses: the
+// picture moves about half as far as the albedo) (HANDOFF 9au). It was tuned on opengl3 stills,
+// against a plane whose colours Forward+ was decoding twice.
+uniform float paint_gain : hint_range(0.3, 2.0) = 1.42;
+// The same for the Compatibility renderer alone (the web, the opengl3 stills), on top of
+// paint_gain: it lights the band before paint_start in sRGB numbers and treats EMISSION its own
+// way, so the two bands need their own ratio there (measured the same way, HANDOFF 9au; there
+// paint_gain is applied before the sRGB curve, so it moves the picture less than this does).
+// At 1.05 the seam with the tiles from 900 m up was 1.00 and the painted band 0.70-0.89 of the
+// lit one; at 1.36 1.27 and 0.92-1.22: this is between.
+uniform float compat_paint_gain : hint_range(0.3, 4.0) = 1.2;
+// Metres (from the camera) over which the plane hands from lit by the renderer, like the
+// streamed chunks, to painted by hand. Past the streamed ring, so the two never meet at a chunk
+// edge lit two different ways: at 200 - 600 m the hand-over fell inside it, and from the air the
+// plane's hills were a dark brown shell against the tan streamed tiles, cut along their edges.
+uniform float paint_start = 900.0;
+uniform float paint_end = 2300.0;
+// Debug: -1 as drawn; 0 the whole plane lit by the renderer, 1 the whole plane painted - the same
+// pixel both ways is how paint_gain is measured.
+uniform int paint_debug = -1;
+// The light the ground in front of a slope bounces back up into it. A hue, not an albedo.
+uniform vec3 bounce_color : source_color = vec3(0.62, 0.52, 0.34);
+// Out in the painted band, on the full normal (the crags'), the slopes where scree and then bare
+// rock take over: the craggy faces a range shows from kilometres off.
+uniform float far_rock_slope_start : hint_range(0.0, 1.0) = 0.24;
+uniform float far_rock_slope_end : hint_range(0.0, 1.0) = 0.60;
+// How strongly the drainage lines darken and brush up the gullies in the painted band.
+uniform float gully_amount : hint_range(0.0, 1.0) = 0.55;
+
+// ---- built-up ground --------------------------------------------------------------------------
+// Metres across one city block, which sets the grain of the distant sprawl.
+uniform float city_block = 104.0;
+// Metres across a street.
+uniform float city_street = 13.0;
+// One block in this many is an avenue, in each direction.
+uniform float city_avenue_every = 6.0;
+uniform vec3 city_street_color = vec3(0.0125, 0.0125, 0.0143);
+// A flat white single-ply roof. Six times the district's own value, which is why a real city
+// sparkles from the air.
+uniform vec3 white_roof_color = vec3(0.22, 0.22, 0.21);
+// How much the roofs vary block to block. This is most of what makes sprawl read as sprawl.
+uniform float roof_variation : hint_range(0.0, 1.0) = 0.62;
+// How far a block throws its shadow into the street behind it, as a fraction of a block.
+uniform float block_shadow : hint_range(0.0, 1.0) = 0.55;
+uniform vec3 canopy_color = vec3(0.022, 0.030, 0.012);
+// At night the built-up ground out there is not dark ground, it is a field of orange points.
+uniform vec3 city_light_color : source_color = vec3(1.0, 0.70, 0.36);
+uniform float city_light_strength : hint_range(0.0, 3.0) = 0.30;
+// How leafy the leafier districts get.
+uniform float canopy_amount : hint_range(0.0, 1.0) = 0.55;
+// Metres the far city's ground was stood proud of the basin floor, to fake a downtown as a
+// raised mass when nothing was drawn out there. Nothing is faked any more: the far city
+// (scripts/world/skyline.gd) draws every block of the basin as its real buildings, on the real
+// ground height, and a lifted plane only buried them - 42 m swallowed every suburb past 2.6 km.
+uniform float urban_lift = 0.0;
+// That lift only starts past the streamed chunks, or it would cut their feet off.
+uniform float urban_lift_start = 1400.0;
+uniform float urban_lift_end = 2600.0;
+// How far the roof grain slides against the street grid with the view angle. Fake parallax,
+// but it is what stops a distant city reading as a pattern printed on the floor.
+uniform float urban_parallax : hint_range(0.0, 1.0) = 0.42;
+
+// ---- sea --------------------------------------------------------------------------------------
+// How bright the glitter path along the line to the sun burns.
+uniform float sea_glitter : hint_range(0.0, 4.0) = 1.6;
+// Metres across one swell out here, where the real ocean chunks have long since stopped.
+uniform float sea_swell = 46.0;
+
+#include "res://shaders/erosion.gdshaderinc"
+#include "res://shaders/hill_splat.gdshaderinc"
+
+// The near tiles' chaparral and straw as they average from afar, once their crowns, leaf clumps,
+// tufts and bushes are under a pixel (terrain.gdshader with every fade at 0): the brush at
+// crown_tone 0.875 x leaf 0.95 x clump 0.97 of chaparral_color, the straw with the dirt between
+// its thinnest tufts (bare_between 0.7 of a faded tuft's 0.19).
+const float FAR_CHAP_TONE = 0.806;
+const float FAR_BARE_SHARE = 0.13;
+// And what is left between that estimate and the LOD tiles the plane meets, measured: with the
+// two above alone the plane drew 1.10 of the tiles beside it on both renderers (the tiles' texture
+// light and dark average a little under their means once mipped).
+const float FAR_TONE = 0.91;
+
+varying vec3 world_pos;
+
+// The light rail's portal trench (LightRailSystem sets it, TRUE world x0, z0, x1, z1): the plane
+// sinks under it, so the street's hole shows the trench and not the plane at y 0. Its vertices
+// are 44 m apart, so the dip reaches `cut_reach` metres round the cut - all under the city's own
+// ground, which covers the plane everywhere else there.
+uniform vec4 cut_rect = vec4(0.0);
+uniform float cut_sink = 16.0;
+uniform float cut_reach = 60.0;
+
+// Is this texel built-up ground? MacroMap bakes every district and apron as a near-neutral
+// grey (a city from three kilometres up is roofs, asphalt and dust, and it is the one thing
+// out there with no colour in it) and every natural cover - grass, chaparral, rock, sand - with
+// real chroma in it, so saturation alone separates them. Brightness keeps the airport's pale
+// concrete and the snowfields out of it, and slope keeps the grey rock faces out: nobody builds
+// a grid on a 30-degree hillside. Keep this in step with the BAKE_* colours in macro_map.gd.
+float built_amount(vec3 c, float slope, float height_m) {
+	float mx = max(c.r, max(c.g, c.b));
+	float mn = min(c.r, min(c.g, c.b));
+	float sat = (mx - mn) / max(mx, 0.0008);
+	float lum = dot(c, vec3(0.3333));
+	// Linear values: a district decodes to 0.083..0.180 with a saturation under 0.16, pale
+	// concrete to 0.27, port to 0.22, chaparral to 0.07 at saturation 0.76, bare rock to 0.12 at
+	// saturation 0.53, snow to 0.62. The window has moved twice as the districts were lifted out
+	// of near-black; if you change MacroMap's BAKE_* district colours, these two numbers move
+	// with them, and tests/smoke_test.gd reads them straight out of this line to check it.
+	return (1.0 - smoothstep(0.17, 0.30, sat))
+		* (1.0 - smoothstep(0.175, 0.215, lum))
+		* (1.0 - smoothstep(0.10, 0.30, slope))
+		* (1.0 - smoothstep(420.0, 700.0, height_m));
+}
+
+
+void vertex() {
+	vec3 wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	vec3 cam = (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+	vec4 m;
+	vec2 mg;
+	float wet;
+	float d;
+	float lift = far_ground_lift(wp, cam, m, mg, wet, d);
+	if (smoothstep(lift_start, lift_end, d) > 0.002) {
+		// A distant downtown is a raised mass, not a grey patch on the floor. Past the streamed
+		// chunks the plane stands the built-up ground up by a few storeys, which is what gives
+		// the far city an edge against the hills behind it.
+		float slope = clamp(length(mg) * macro_height, 0.0, 1.0);
+		lift += urban_lift * built_amount(cs_in(m.rgb), slope, m.a * macro_height)
+			* smoothstep(urban_lift_start, urban_lift_end, d) * (1.0 - wet);
+	}
+	float off = lift - far_ground_sink(d, wet);
+	if (cut_rect.z > cut_rect.x) {
+		vec2 tw = wp.xz + world_offset;
+		vec2 cq = max(max(cut_rect.xy - tw, tw - cut_rect.zw), vec2(0.0));
+		off -= cut_sink * (1.0 - smoothstep(0.0, cut_reach, length(cq)));
+	}
+	VERTEX.y += off;
+	world_pos = wp + vec3(0.0, off, 0.0);
+}
+
+
+// One block-and-street grid. Returns 1 on a street. `aa` is the pixel footprint in cell units,
+// which widens the edges until the whole grid averages out to a tint instead of sparkling.
+float street_grid(vec2 cell, float half_width, float aa) {
+	vec2 g = abs(fract(cell) - vec2(0.5));
+	float e = 0.5 - half_width;
+	return max(smoothstep(e - aa, e + aa, g.x), smoothstep(e - aa, e + aa, g.y));
+}
+
+
+// How much of the sun a cloud is taking away here. The point is projected up the sun direction
+// onto the cloud deck, so the shadow lies where a cloud at that height would actually put it,
+// and the whole deck drifts with the wind. Two octaves; it is a shadow, not a cloud.
+float cloud_shade(vec2 w, vec3 L) {
+	vec2 p = w + (L.xz / max(L.y, 0.20)) * cloud_height;
+	p += vec2(1.0, 0.35) * (TIME * cloud_speed * clamp(wind_factor, 0.2, 3.0));
+	float c = vnoise(p / cloud_scale) * 0.65 + vnoise(p / (cloud_scale * 0.37) + 19.0) * 0.35;
+	return 1.0 - cloud_shadow_strength * smoothstep(cloud_cover, cloud_cover + 0.22, c);
+}
+
+
+void fragment() {
+	vec2 w = world_pos.xz + world_offset;
+	vec2 uv = macro_uv(w);
+	vec2 mg = vec2(0.0);
+	vec4 m = macro_sample(uv, mg);
+	// The bake is an sRGB palette (MacroMap.BAKE_*): linear from here on, on either renderer.
+	m.rgb = cs_in(m.rgb);
+	// The same for every source_color input this shader does arithmetic with.
+	vec3 haze = cs_in(haze_color);
+	vec3 sun_c = cs_in(sun_color);
+	vec3 bounce_c = cs_in(bounce_color);
+	vec3 smog_c = cs_in(smog_color);
+	// The sky's horizon colour as linear light (for the fill) and in the renderer's own space (for
+	// the rim, which hands over to the sky itself). `sky_tint` is a `color` global, and those
+	// arrive RAW on both renderers (probe, HANDOFF 9au) while the sky shader's own horizon is a
+	// source_color uniform that Forward+ decodes: raw, the rim faded to a colour a stop brighter
+	// than the sky it meets, and the fill was that much too bright.
+	vec3 sky_lin = cs_srgb_to_linear(sky_tint.rgb);
+	vec3 sky_ws = cs_out(sky_lin);
+
+	vec3 eye = (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+	vec3 view = normalize(world_pos - eye);
+	float dist = length(world_pos - eye);
+	// Metres one screen pixel covers here. Everything finer than this has to be averaged away
+	// rather than drawn, or the far hills boil. A plane seen at a grazing angle - which is what
+	// the whole far half of this one is - covers far more ground per pixel along the view than
+	// across it, so the isotropic estimate under-blurs exactly where the aliasing is worst.
+	// The square root of it, not all of it: taking the full long axis is what a non-anisotropic
+	// filter would do and it blurs the ground across the view as much as along it, which at a
+	// nine-degree pitch leaves no texture anywhere in the frame. Half the exponent is the usual
+	// compromise and keeps detail where the eye actually reads it.
+	float graze = sqrt(clamp(1.0 / max(abs(view.y), 0.06), 1.0, 12.0));
+	float fp = max(dist * pixel_angle * graze, 0.02);
+	bool rich = ground_detail > 0.5;
+	vec3 L = normalize(sun_dir);
+	vec3 sky = mix(sky_lin, vec3(1.0), 0.12);
+	float water = 1.0 - step(0.0005, m.a);
+	float near = (1.0 - smoothstep(near_fade_start, near_fade_end, dist)) * (1.0 - water);
+	// How much of this point is painted by hand rather than lit by the renderer (see the split
+	// at the bottom).
+	float painted = paint_debug < 0 ? smoothstep(paint_start, paint_end, dist) : float(paint_debug);
+
+	// `base` is the unlit surface colour (linear) and `lit_ws` the light falling on it. They are
+	// kept apart because this plane is lit two different ways at once: see the ALBEDO/EMISSION
+	// split below.
+	vec3 base;
+	// `base` for the painted band: the natural ground at paint_gain.
+	vec3 base_e;
+	// The painted band's light in the space the renderer lights in: on Forward+ linear, on
+	// Compatibility the raw numbers - sun and sky colours as that renderer takes them - so the
+	// painted band is lit the way it lights the band before it (in sRGB numbers).
+	vec3 lit_ws = vec3(1.0);
+	// Light the far city makes itself, which is all there is to see out there after dark.
+	// (Its colour is city_light_color - a source_color uniform, so already in the renderer's own
+	// space, as the emission is: this is how much of it.)
+	float glow = 0.0;
+	vec3 n = vec3(0.0, 1.0, 0.0);
+	// The near hills' own roughness (terrain.gdshader), so the renderer gives both the same
+	// sheen where it lights both.
+	float rough = 0.93;
+	// The share of the renderer's direct sun this point keeps: the baked ridges' shadows, which
+	// the renderer's own shadow maps stop drawing 500 m out (see the lighting block).
+	float shade = 1.0;
+
+	if (water > 0.5) {
+		// The sea is not a flat blue field. Looked down on it is nearly black and takes its
+		// colour from the sky it reflects; there is a glare path burning along the line to the
+		// sun, and out here - well past where the real ocean chunks stop - the swell still has
+		// to break that path up into glitter rather than leave one clean mirror streak.
+		float fres = pow(1.0 - clamp(-view.y, 0.0, 1.0), 5.0);
+		// A swell normal, faded out as soon as one wave is smaller than a pixel.
+		float wl = max(fp / sea_swell, 0.0001);
+		float chop = clamp(1.0 - wl * 1.6, 0.0, 1.0);
+		vec2 sp = w / sea_swell + vec2(TIME * 0.09, TIME * 0.05);
+		vec3 s1 = noised(sp);
+		vec3 s2 = noised(sp * 2.7 + 11.0);
+		vec2 sg = (s1.yz * 0.75 + s2.yz * 0.30) * chop * 0.55;
+		n = normalize(vec3(-sg.x, 1.0, -sg.y));
+		vec3 refl = reflect(view, n);
+		float glare = pow(max(dot(refl, L), 0.0), 70.0);
+		float glint = pow(max(dot(refl, L), 0.0), 900.0) * chop;
+		base = mix(m.rgb, haze, clamp(0.10 + 0.78 * fres, 0.0, 0.92));
+		base += vec3(1.0, 0.94, 0.82) * (glare * sea_glitter + glint * sea_glitter * 6.0)
+			* (1.0 - night_factor) * cloud_shade(w, L);
+		rough = 0.22;
+		base_e = base;
+	} else {
+		// ---- the surface, at every scale between the bake's 62 m and about a metre ----------
+		// The derivative comes out of the same evaluation, so this is ONE fractal, not four.
+		float amp_m = relief_scale(w, m.a, mg);
+		int octaves = rich ? relief_octaves : 4;
+		vec3 fb = relief_fbm(w, octaves, fp);
+		// The crags only exist in the geometry past `lift_start`, so the normal only carries
+		// its full share of them past it too - a normal describing a surface the vertices never
+		// built is a surface that lights one way and silhouettes another.
+		float far = mix(0.35, 1.0, smoothstep(lift_start, lift_end, length(world_pos.xz - eye.xz)));
+		vec2 grad = mg * macro_height + fb.yz * (amp_m * far);
+		// The gullies finer than the bake's (terrain.gdshader draws the same up close).
+		vec3 ero = vec3(0.0);
+		if (rich && m.a > 0.02) {
+			float steep = smoothstep(0.08, 0.45, length(grad));
+			ero = erosion_detail(w, grad, 7.0 * steep, 55.0, fp);
+			grad += ero.xy;
+		}
+		n = normalize(vec3(-grad.x, 1.0, -grad.y));
+		float slope = 1.0 - clamp(n.y, 0.0, 1.0);
+		float height_m = m.a * macro_height + (fb.x - 0.5) * amp_m;
+		float built = built_amount(m.rgb, slope, height_m);
+
+		// ---- natural ground -------------------------------------------------------------
+		// Start from the baked district colour so the map still reads as the map, then put the
+		// slope-aware material on top. Before this everything was shaded as if it were level.
+		base = m.rgb;
+		base_e = m.rgb;
+		float land = 1.0 - built;
+		if (land > 0.004) {
+			// The near tiles' ground (hill_splat.gdshaderinc), at this world point, read off the land:
+			// grass on the open sunny slopes and the spur crests, chaparral in the folds and on the
+			// north faces, rock along the crests, dirt on the cuts. The coverage reads the land's
+			// own slope, as the tiles do off their mesh - without the crags and fine gullies, which
+			// only exist as shading, and which beside the tiles made every slope steeper than the
+			// tile next to it. Out in the painted band, the full normal: aspect and slope change
+			// from one crag to the next, and that is the mottle a range shows from kilometres off.
+			vec3 nc = normalize(mix(vec3(-mg.x * macro_height, 1.0, -mg.y * macro_height), vec3(-grad.x, 1.0, -grad.y), painted));
+			vec2 asp = hill_aspect(nc);
+			float cslope = asp.x;
+			float mdrain = texture(macro_height_tex, uv).g * 2.0 - 1.0;
+			// The splat's noises with every octave this pixel cannot resolve at its mean (`f*`: 1
+			// resolved, 0 gone - fp is metres a pixel): the 8 m clumps, the 27 m and 90 m patch
+			// octaves, the 48 m outcrop field. Each one that fades widens the stand's edge by its
+			// share of the spread (hill_stand_edge()), so a stand that runs off a streamed tile
+			// carries on across the plane, its ragged edge turning into a SHARE of brush as the
+			// pixels grow, never into blobs with a hard rim.
+			float f8 = 1.0 - smoothstep(2.0, 6.0, fp);
+			float f30 = 1.0 - smoothstep(8.0, 30.0, fp);
+			float f90 = 1.0 - smoothstep(25.0, 90.0, fp);
+			float f48 = 1.0 - smoothstep(14.0, 48.0, fp);
+			float hillv = vnoiset(w * 0.0028);
+			float patchy = mix(0.5, vnoiset(w * 0.011), f90) * 0.65 + mix(0.5, vnoiset(w * 0.037 + 13.1), f30) * 0.35;
+			float clump = mix(0.5, vnoiset(w * 0.12 + 17.0), f8);
+			float th = hill_stand_threshold(cslope, asp.y, mdrain, hillv);
+			float edge = hill_stand_edge(0.0, 0.0, f8)
+				+ (1.0 - f30) * STAND_PATCH_W * 0.35 * 0.3 + (1.0 - f90) * STAND_PATCH_W * 0.65 * 0.3;
+			float stands = hill_stand(th, hill_stand_noise(patchy, clump, 0.5, 0.5), 0.5, edge);
+			// The tiles' straw and brush as they average from afar (FAR_*), greener on some
+			// hillsides and low down (their `green`).
+			float greenv = clamp(smoothstep(0.3, 0.75, hillv) * 0.8 + (1.0 - smoothstep(60.0, 260.0, height_m)) * 0.25, 0.0, 1.0);
+			vec3 straw = mix(mix(straw_color, straw_green_color, greenv * 0.8), dirt_color, FAR_BARE_SHARE);
+			vec3 chap = chaparral_color * FAR_CHAP_TONE;
+			vec3 nat = mix(straw, chap, stands);
+			// Individual bushes, but only once they are bigger than a couple of pixels.
+			float bush = smoothstep(7.0, 2.0, fp) * smoothstep(0.45, 0.85, vnoise(w * 0.33));
+			// Only in the painted band: the near hills' tiles have no such speckle, and it
+			// darkened the plane where it meets them.
+			nat = mix(nat, chap * 0.9, bush * 0.45 * painted);
+			// Drainage. The fractal's LOW values are its valleys, so they are already where the
+			// water would run; streak a noise that is six times longer downhill than across
+			// along the fall line, and brush up what it finds.
+			vec2 fall = normalize(grad + vec2(0.0001, 0.0));
+			vec2 across = vec2(-fall.y, fall.x);
+			float streak = vnoise(vec2(dot(w, fall) * 0.0032, dot(w, across) * 0.021));
+			float gully = smoothstep(0.42, 0.10, fb.x) * smoothstep(0.35, 0.72, streak) * gully_amount;
+			// And the canyons the height field itself was cut with, which hold the densest brush
+			// and the oaks.
+			gully = max(gully, smoothstep(0.35, 0.95, mdrain) * gully_amount * 0.7);
+			// Painted band only: the tiles' canyons come from the same drainage through the
+			// stand rule (drain_brush) and drain_shade below, and this on top counted them twice
+			// where the two meet.
+			nat = mix(nat, chap * 0.92, gully * painted);
+			// Dirt and rock: the splat's own rules on the land's slope (the cuts, the scree down
+			// the steep gullies, outcrops breaking through, rock along the spur crests - crest_rock,
+			// broken by the 48 m outcrop field while it resolves, a share of rock past it); out in
+			// the painted band the crags' faces too, scree below and bare rock above.
+			float crag = mix(0.5, vnoiset(w * 0.021 + 29.0), f48);
+			float rocky = max(hill_rocky(cslope, crag, patchy, mdrain, 0.5),
+				smoothstep(far_rock_slope_start, far_rock_slope_end, slope) * painted);
+			float bare = max(hill_bare(cslope, patchy, mdrain, 0.0),
+				smoothstep(far_rock_slope_start * 0.45, far_rock_slope_start, slope) * painted * 0.7) * (1.0 - rocky);
+			nat = mix(nat, dirt_color * (0.82 + 0.36 * vnoise(w * 0.05)), bare);
+			// Bedding picked out by world height, faint: at full strength it drew every range as
+			// a stack of contour lines.
+			float strata = vnoise(vec2(dot(w, across) * 0.006, height_m * 0.055));
+			nat = mix(nat, rock_color * (0.88 + 0.24 * strata), rocky);
+			// Snow above the treeline, and not on the near-vertical faces, where it slides off.
+			float snow = smoothstep(snow_line, snow_line + 270.0, height_m)
+				* (1.0 - smoothstep(0.45, 0.8, slope));
+			nat = mix(nat, snow_color, snow);
+			// Dark canyons, lighter spur crests (the splat's drain_shade, terrain.gdshader's
+			// erosion_shade).
+			nat *= mix(1.0, 1.0 - drain_shade, smoothstep(0.15, 0.9, mdrain)) * (1.0 + drain_shade * 0.3 * smoothstep(0.2, 0.8, -mdrain));
+			nat *= 1.0 - 0.2 * clamp(ero.z, -0.5, 1.0);
+			// And the tiles' hillside-scale variation, so no two slopes are one flat tone.
+			nat *= 1.0 + (hillv - 0.5) * 2.0 * macro_variation + (patchy - 0.5) * macro_variation * 0.6;
+			nat *= FAR_TONE;
+			// Keep some of the baked map's own colour low down, so beaches, the port apron and the
+			// district tints still show through rather than every flat becoming the same gold.
+			float natural_mix = smoothstep(0.004, 0.06, m.a) * 0.88 + 0.12;
+			base = mix(base, nat, land * natural_mix);
+			base_e = mix(base_e, nat * paint_gain, land * natural_mix);
+		}
+
+		// ---- built-up ground ------------------------------------------------------------
+		if (built > 0.004) {
+			float aa = clamp(fp / city_block, 0.0015, 0.5);
+			vec2 cell = w / city_block;
+			float street = street_grid(cell, city_street * 0.5 / city_block, aa);
+			vec2 acell = cell / city_avenue_every;
+			float avenue = rich
+				? street_grid(acell, city_street * 0.9 / (city_block * city_avenue_every), aa / city_avenue_every)
+				: 0.0;
+			// The roof grain is read at an offset that grows with how obliquely this ground is
+			// being looked at, so the roofs slide against the street grid as the camera moves.
+			// It is fake parallax, but it is what stops a distant city reading as a pattern
+			// printed on the floor.
+			vec2 par = (view.xz / max(-view.y, 0.25)) * (urban_parallax * city_block * 0.35) / city_block;
+			vec2 bc = floor(cell + par);
+			float roof = hash12(bc);
+			float lot = vnoise((w + par * city_block) * 0.22)
+				* smoothstep(3.0, 9.0, city_block * 0.25 / max(fp, 0.001));
+			float tone = 1.0 + roof_variation * (roof - 0.5) * 1.5 + (lot - 0.5) * 0.34 * roof_variation;
+			// A few flat white single-ply roofs in every district; they are what makes a real
+			// city sparkle from the air.
+			float white = smoothstep(0.93, 0.985, roof) * smoothstep(0.10, 0.03, slope);
+			vec3 city = m.rgb * tone;
+			city = mix(city, white_roof_color, white * 0.75);
+			// Tree canopy between the houses. MacroMap bakes the leafier districts a shade
+			// greener than downtown, so the leafiness follows the district on its own.
+			// Linear again: the difference between a leafy district and downtown is four
+			// thousandths, which is exactly what MacroMap's palette was chosen to encode.
+			float green = clamp((m.g - m.r) * 250.0, 0.0, 1.0);
+			float canopy = smoothstep(0.42, 0.78, vnoise(w * 0.021) * 0.7 + vnoise(w * 0.09) * 0.3);
+			city = mix(city, canopy_color, canopy * canopy_amount * green * (1.0 - street));
+			// The buildings' own shadows falling into the street. Sampling the street mask again,
+			// pushed toward the sun, leaves a band on the far side of every block - which is the
+			// cheapest way to make a grid of blocks read as solid rather than as printing.
+			vec2 sd2 = L.xz;
+			float sl = max(length(sd2), 0.001);
+			vec2 push = (sd2 / sl) * (city_block * block_shadow * 0.42) / city_block;
+			float lit_mask = street_grid(cell + push, city_street * 0.5 / city_block, aa);
+			float band = clamp(lit_mask - street, 0.0, 1.0) * (1.0 - smoothstep(0.35, 0.9, night_factor));
+			city = mix(city, city_street_color, street * 0.85 + avenue * 0.5);
+			city *= 1.0 - band * 0.45;
+			base = mix(base, city, built);
+			base_e = mix(base_e, city, built);
+			// Street lights on the grid, windows on the blocks, brighter downtown than out in
+			// the suburbs. One noise tap decides which lots are lit at all, so the field reads
+			// as a scatter of points rather than as an even orange wash.
+			float windows = smoothstep(0.35, 0.80, vnoise(w * 0.09)) * (1.0 - street);
+			float lamps = street * 0.55 + avenue * 0.25;
+			// MacroMap bakes the denser districts darker, so the darker the ground the more
+			// lit it gets: downtown blazes, the far suburbs are a sparse orange dust.
+			float density = clamp((0.042 - dot(m.rgb, vec3(0.3333))) / 0.013, 0.30, 1.0);
+			glow = (city_light_strength * built * density
+				* (lamps + windows * 0.85) * smoothstep(0.08, 0.55, night_factor));
+		}
+
+		// ---- lighting ------------------------------------------------------------------
+		// Does this point see the sun? March the baked height field toward it. A range shading
+		// its own flank, and throwing a shadow across the ground behind it, is most of what
+		// makes a mountain look like a mountain rather than a painted cut-out.
+		float sun_vis = 1.0;
+		if (rich && shadow_steps > 0 && m.a > 0.0005) {
+			float horiz = max(length(L.xz), 0.05);
+			float climb = L.y / horiz;
+			vec2 step_dir = L.xz / horiz;
+			float ray_h = m.a * macro_height;
+			for (int i = 1; i <= 16; i++) {
+				if (i > shadow_steps) {
+					break;
+				}
+				// Geometric spacing: fine near the point, coarse out where only a whole range
+				// can still block the sun.
+				float t = shadow_reach * pow(float(i) / float(shadow_steps), 2.0);
+				float hs = texture(macro_height_tex, macro_uv(w + step_dir * t)).r * macro_height;
+				sun_vis = min(sun_vis, smoothstep(-8.0, 42.0, ray_h + climb * t - hs));
+			}
+			sun_vis = mix(1.0, sun_vis, shadow_strength);
+		}
+		float ridge_vis = sun_vis;
+		sun_vis *= cloud_shade(w, L);
+		float ndl = max(dot(n, L), 0.0);
+		// Sky fill from above, warm bounce from below: a slope facing away from the sun is lit
+		// by the sky and by the ground in front of it, not by a flat grey constant.
+		vec3 sun_in = sun_c * mix(vec3(1.0), sky, 0.18) * (sun_strength * ndl);
+		vec3 fill = sky * (ambient_strength * (0.55 + 0.45 * n.y))
+			+ bounce_c * (bounce_strength * max(-dot(n, vec3(L.x, -L.y, L.z)), 0.0));
+		vec3 sky_w = cs_out(sky);
+		vec3 fill_w = sky_w * (ambient_strength * (0.55 + 0.45 * n.y))
+			+ cs_out(bounce_c) * (bounce_strength * max(-dot(n, vec3(L.x, -L.y, L.z)), 0.0));
+		lit_ws = cs_out(sun_c) * mix(vec3(1.0), sky_w, 0.18) * (sun_strength * ndl) * sun_vis + fill_w;
+		// Where the renderer lights this plane its shadow maps have run out (500 m), so the
+		// ridges threw no shadow between there and the painted band. Take the direct share the
+		// march says is blocked off the albedo: not the clouds (the tiles beside it have none),
+		// and faded in past the streamed ring's edge, so no shadow stops at a tile's side.
+		float sun_l = dot(sun_in, vec3(0.3333));
+		float fill_l = dot(fill, vec3(0.3333));
+		float full = mix(1.0, (sun_l * ridge_vis + fill_l) / max(sun_l + fill_l, 0.0001),
+			smoothstep(paint_start, paint_start + 700.0, dist));
+		shade = full;
+	}
+
+	// Under the player's feet this is just ground, so the real texture takes over, tinted by
+	// whatever the macro map says is down there (sand on a beach, green on a hillside).
+	// Never blend the grass detail over open water.
+	vec3 nm = vec3(0.5, 0.5, 1.0);
+	if (near > 0.002) {
+		// Use the detail texture for its light and shade only, not its colour: it is a grass
+		// photograph, and letting its green through painted a green verge along the beach and
+		// over the sea. The synthesized ground colour stays in charge.
+		vec3 detail = cs_in(texture(near_albedo, w / near_scale).rgb);
+		float lum = dot(detail, vec3(0.3333));
+		base = mix(base, base * (0.70 + 0.62 * lum), near);
+		nm = mix(nm, texture(near_normal, w / near_scale).rgb, near);
+	}
+
+	float hz = smoothstep(haze_start, haze_end, dist) * haze_strength;
+	float dim = mix(1.0, 0.16, night_factor);
+	vec3 albedo = mix(base * shade, haze, hz) * dim;
+	// The painted band in the renderer's own space (see lit_ws).
+	vec3 emitted = mix(cs_out(base_e) * lit_ws, cs_out(haze), hz) * dim + city_light_color * (glow * (1.0 - hz));
+	if (smog > 0.002) {
+		float under = 1.0 - smoothstep(smog_lid * 0.35, smog_lid, world_pos.y);
+		float sm = smog * under * (1.0 - exp(-dist / smog_reach));
+		albedo = mix(albedo, smog_c * dim, sm);
+		emitted = mix(emitted, cs_out(smog_c) * dim, sm);
+	}
+	// Compatibility does not add EMISSION at face value (HANDOFF 9au: 0.25 emitted over a lit
+	// 0.25 albedo drew 0.35, not 0.5); this is its painted band measured against its lit one.
+	if (!cs_linear_renderer()) {
+		emitted *= compat_paint_gain;
+	}
+
+	// Beyond the detail band this plane is a painted horizon, not a surface: past the near band
+	// it is EMITTED at face value, so the sun, sky, self-shadow and cloud terms computed above
+	// are the final answer and a blue midday ambient cannot wash grass, sand and tarmac into
+	// one grey-blue. The Environment's aerial-perspective fog still does the distance wash on
+	// top of it. Nearer (paint_start) it goes through ALBEDO instead and the renderer lights it,
+	// so it matches the streamed chunks it is butted up against. Splitting the colour into an
+	// unlit `base` and a `lit` term is what lets one shader do both without double-lighting the
+	// near ground or leaving the far ground at the mercy of the ambient.
+	float rim = smoothstep(edge_start, edge_end, length(world_pos.xz - eye.xz));
+	// The albedo is linear up to here, and goes to the renderer's own space (a no-op on Forward+);
+	// the emission is in it already.
+	ALBEDO = cs_out(albedo * (1.0 - painted) * (1.0 - rim));
+	EMISSION = mix(emitted * painted, sky_ws, rim);
+	ROUGHNESS = mix(rough, 1.0, (1.0 - near) * 0.25 * painted);
+	METALLIC = 0.0;
+	// The tiles' default 0.5 where the renderer lights this plane: at 0.15 Godot also cuts the
+	// grazing sky reflection (it reads an F0 under 0.02 as occluded), and that sheen alone put
+	// the plane at two thirds of the tiles' brightness with the same albedo and normal. Back to
+	// 0.15 where it is painted, so a blue midday sky does not wash the far land grey.
+	SPECULAR = mix(mix(0.5, 0.15, painted), 0.55, water);
+	NORMAL = normalize((VIEW_MATRIX * vec4(mix(vec3(0.0, 1.0, 0.0), n, 1.0 - near * 0.85), 0.0)).xyz);
+	NORMAL_MAP = nm;
+	NORMAL_MAP_DEPTH = near * 0.7;
+}

@@ -1,0 +1,10 @@
+{
+  "name": "jet_private",
+  "prompt": "private business jet aircraft, sleek twin rear-mounted engines, swept wings, T-tail, white fuselage with a thin dark stripe, landing gear down, cockpit windows, no text or logos, nose pointing forward, ultra realistic, photorealistic, highly detailed, physically accurate materials and proportions, real-world scale, no cartoon or stylized look",
+  "credits": 30,
+  "tasks": {
+    "preview": "01a0b982-0f17-7709-bab3-76cc6c92099c",
+    "refine": "01a0b983-60c4-7116-9ac3-b30b09a0fa15"
+  },
+  "source": "Meshy (generated for this project)"
+}

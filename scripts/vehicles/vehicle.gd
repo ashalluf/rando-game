@@ -1,0 +1,2099 @@
+class_name Vehicle
+extends VehicleBody3D
+## Arcade car: bouncy, grippy, overpowered, with a nitro. Built from boxes in code with a body
+## type, a paint color and an optional add-on. Press interact next to it to drive.
+
+## CROSSOVER is last so every older index (and every seed that rolled one) keeps its meaning.
+## BUS, BOX_TRUCK and SEMI (BigVehicles) come after it for the same reason; random_car() never
+## rolls them - TrafficManager spawns them on purpose. FIRE_ENGINE and AMBULANCE (Emergency) come
+## last for the same reason: only EmergencyCar builds them. The second wave of everyday bodies
+## (tools/make_more_cars.py: the hatchback, the full-size SUV, the minivan, the taxi, the old
+## beater) comes after them, again so that no older index moves, and the school bus (Schools)
+## after those.
+enum BodyType { SEDAN, PICKUP, VAN, SPORTS, SUPER, SPIDER, HYPER, TRACK, CROSSOVER, BUS, BOX_TRUCK, SEMI, FIRE_ENGINE, AMBULANCE, HATCHBACK, SUV, MINIVAN, TAXI, BEATER, SCHOOL_BUS }
+enum Addon { NONE, ROOF_RACK, SPOILER, LIGHT_BAR }
+
+## Original names. Nothing here is or imitates a real manufacturer's model.
+const BODY_NAMES := ["Sedan", "Pickup", "Van", "Sports", "Vantari", "Vantari Aperta", "Kestrel", "Kestrel RS", "Crossover", "City Bus", "Box Truck", "Semi", "Fire Engine", "Ambulance", "Hatchback", "SUV", "Minivan", "Taxi", "Beater", "School Bus"]
+## Generated body models per type (see docs/ASSETS.md). Missing files fall back to the box car.
+const BODY_MODELS := {
+	BodyType.SEDAN: "res://assets/models/road_sedan.glb",
+	BodyType.PICKUP: "res://assets/models/road_pickup.glb",
+	BodyType.VAN: "res://assets/models/road_van.glb",
+	BodyType.SPORTS: "res://assets/models/car_sports.glb",
+	BodyType.SUPER: "res://assets/models/hifi_super_coupe.glb",
+	BodyType.SPIDER: "res://assets/models/exo_super_spider.glb",
+	BodyType.HYPER: "res://assets/models/hifi_hyper_coupe.glb",
+	BodyType.TRACK: "res://assets/models/exo_hyper_b.glb",
+	BodyType.CROSSOVER: "res://assets/models/road_crossover.glb",
+	BodyType.BUS: "res://assets/models/road_bus.glb",
+	BodyType.BOX_TRUCK: "res://assets/models/road_box_truck.glb",
+	BodyType.SEMI: "res://assets/models/road_semi.glb",
+	BodyType.FIRE_ENGINE: "res://assets/models/road_fire_engine.glb",
+	BodyType.AMBULANCE: "res://assets/models/road_ambulance.glb",
+	BodyType.HATCHBACK: "res://assets/models/road_hatchback.glb",
+	BodyType.SUV: "res://assets/models/road_suv.glb",
+	BodyType.MINIVAN: "res://assets/models/road_minivan.glb",
+	BodyType.TAXI: "res://assets/models/road_taxi.glb",
+	BodyType.BEATER: "res://assets/models/road_beater.glb",
+	BodyType.SCHOOL_BUS: "res://assets/models/road_school_bus.glb",
+}
+## Belt line (bottom of the side glass, as a fraction of body height) for a single-texture body
+## whose texture does not darken the windows, so the paint shader finds glass by shape. No body
+## needs it now: the Meshy van (panel sides, glazed only round the cab - hence GEO_GLASS_SPAN,
+## the stretch of the length with glass) was the last, and every road_* body has a glass slot.
+## Kept for any single-texture body that comes back.
+const GEO_GLASS_BELTLINE := {}
+const GEO_GLASS_SPAN := {}
+## How often each body type turns up, in parts per thousand. Exotics are deliberately rare: a
+## street where every fourth car is a hypercar reads as a toy box, and the whole reason they land
+## is that they are unusual. Must sum to 1000.
+## The compact crossover is the commonest car on a Los Angeles street, so it takes the largest
+## share, mostly from the sports car and the van. The second wave (2026-10-05: hatchbacks,
+## full-size SUVs, minivans, beaters) took 240 from everybody, most from the sports car (145 -> 85:
+## a street where one car in seven is a sports car reads as a showroom) and the panel van.
+## Taxis are not rolled here: a sedan whose look rolls a taxi job (TAXI_SHARE) IS the taxi body, so
+## every seed that parked a taxi still parks one.
+const BODY_ODDS := {
+	BodyType.SEDAN: 210, BodyType.PICKUP: 120, BodyType.VAN: 75, BodyType.SPORTS: 85,
+	BodyType.SUPER: 30, BodyType.SPIDER: 15, BodyType.HYPER: 20, BodyType.TRACK: 15,
+	BodyType.CROSSOVER: 190,
+	# Never rolled: the traffic spawns its buses and trucks on purpose (BigVehicles).
+	BodyType.BUS: 0, BodyType.BOX_TRUCK: 0, BodyType.SEMI: 0,
+	# Nor the emergency apparatus (Emergency sends them).
+	BodyType.FIRE_ENGINE: 0, BodyType.AMBULANCE: 0,
+	BodyType.HATCHBACK: 70, BodyType.SUV: 80, BodyType.MINIVAN: 55, BodyType.TAXI: 0, BodyType.BEATER: 35,
+	# Nor the school bus (Schools parks them and sends them out at the bell).
+	BodyType.SCHOOL_BUS: 0,
+}
+## How a 0-999 roll maps onto BODY_ODDS: [end of the range (exclusive), type], in roll order. Every
+## old type keeps the START of the range it had before the second wave and gives the end of it to
+## a new type, so a seed's roll that landed on, say, a sedan still lands on a sedan unless it was
+## in the slice the hatchbacks took - what a seed parks moves only where a new type now lands
+## (the smoke test checks this table against BODY_ODDS).
+const ROLL_MAP := [
+	[210, BodyType.SEDAN], [250, BodyType.HATCHBACK],
+	[370, BodyType.PICKUP], [400, BodyType.SUV],
+	[475, BodyType.VAN], [515, BodyType.MINIVAN],
+	[600, BodyType.SPORTS], [630, BodyType.SUV], [660, BodyType.HATCHBACK],
+	[690, BodyType.SUPER], [705, BodyType.BEATER],
+	[720, BodyType.SPIDER], [730, BodyType.MINIVAN],
+	[750, BodyType.HYPER], [760, BodyType.BEATER],
+	[775, BodyType.TRACK], [780, BodyType.MINIVAN],
+	[970, BodyType.CROSSOVER], [990, BodyType.SUV], [1000, BodyType.BEATER],
+]
+## Where a generated wheel sits in body space, per body type: `x` half-track, `front` / `rear`
+## the axle positions along the car, `y` the hub height, `r` the tyre radius and `w` the section
+## width (`rw` for the rear when the car runs a staggered set).
+##
+## These are deliberately NOT _dims()'s `track` and `wheel_z`, which are where the VehicleWheel3D
+## physics wheels go. A generated wheel has to sit in the ARCH of the body model and cover the
+## wheel baked into it, and the two are not the same place: on the pickup the modelled rear axle
+## is 44 cm forward of the physics one (tools/wheel_probe.py measures the contact patches, which
+## is what pins x and z down). `y` is the number that has to be eyeballed - it is the model's own
+## ride height, and a centimetre out reads as a flat tyre or a floating car - so change it from a
+## --spawn shot of a parked car, not from arithmetic.
+const WHEEL_POSE := {
+	BodyType.SEDAN: {"x": 0.797, "front": -1.495, "rear": 1.335, "y": 0.168, "r": 0.345, "w": 0.235, "baked": true},
+	BodyType.PICKUP: {"x": 0.880, "front": -1.989, "rear": 1.621, "y": 0.184, "r": 0.390, "w": 0.260, "baked": true},
+	BodyType.VAN: {"x": 0.865, "front": -1.971, "rear": 1.689, "y": 0.164, "r": 0.360, "w": 0.235, "baked": true},
+	BodyType.SPORTS: {"x": 0.803, "front": -1.400, "rear": 1.307, "y": 0.066, "r": 0.330, "w": 0.245, "cut": true, "cut_r": 0.344},
+	BodyType.SUPER: {"x": 0.850, "front": -1.320, "rear": 1.320, "y": -0.040, "r": 0.355, "w": 0.250, "rw": 0.295},
+	BodyType.SPIDER: {"x": 0.850, "front": -1.320, "rear": 1.320, "y": -0.040, "r": 0.355, "w": 0.250, "rw": 0.295},
+	BodyType.HYPER: {"x": 0.870, "front": -1.350, "rear": 1.350, "y": -0.050, "r": 0.355, "w": 0.250, "rw": 0.295},
+	BodyType.TRACK: {"x": 0.870, "front": -1.350, "rear": 1.350, "y": -0.050, "r": 0.355, "w": 0.250, "rw": 0.295},
+	BodyType.CROSSOVER: {"x": 0.800, "front": -1.351, "rear": 1.339, "y": 0.164, "r": 0.360, "w": 0.230, "baked": true},
+	# The big vehicles (tools/make_big_vehicles.py prints these): truck wheels on every axle
+	# (BigVehicles.add_wheels), duals `dual_x` out on the driven and trailer axles, one mesh a pair.
+	BodyType.BUS: {"x": 1.035, "front": -3.587, "rear": 3.263, "y": 0.200, "r": 0.500, "w": 0.300, "baked": true,
+			"axles": [[-3.587, false], [3.263, true]], "dual_x": 0.935, "dual_gap": 0.330},
+	BodyType.BOX_TRUCK: {"x": 0.860, "front": -3.397, "rear": 2.403, "y": 0.180, "r": 0.440, "w": 0.235, "baked": true,
+			"axles": [[-3.397, false], [2.403, true]], "dual_x": 0.800, "dual_gap": 0.270},
+	BodyType.SEMI: {"x": 1.035, "front": -3.176, "rear": 2.984, "y": 0.210, "r": 0.510, "w": 0.290, "baked": true,
+			"axles": [[-3.176, false], [2.324, true], [3.644, true]], "dual_x": 0.920, "dual_gap": 0.320,
+			"trailer_axles": [[12.75], [14.0]]},
+	# The emergency apparatus (tools/make_emergency_vehicles.py prints these; EmergencyCar).
+	BodyType.FIRE_ENGINE: {"x": 1.035, "front": -3.480, "rear": 1.520, "y": 0.220, "r": 0.530, "w": 0.315, "baked": true,
+			"axles": [[-3.480, false], [1.520, true]], "dual_x": 0.905, "dual_gap": 0.335},
+	BodyType.AMBULANCE: {"x": 0.870, "front": -2.613, "rear": 1.407, "y": 0.160, "r": 0.380, "w": 0.235, "baked": true,
+			"axles": [[-2.613, false], [1.407, true]], "dual_x": 0.775, "dual_gap": 0.255},
+	# The second wave (tools/make_more_cars.py prints these). The taxi is the sedan's body.
+	BodyType.HATCHBACK: {"x": 0.772, "front": -1.272, "rear": 1.358, "y": 0.148, "r": 0.318, "w": 0.215, "baked": true},
+	BodyType.SUV: {"x": 0.870, "front": -1.653, "rear": 1.417, "y": 0.190, "r": 0.405, "w": 0.275, "baked": true},
+	BodyType.MINIVAN: {"x": 0.852, "front": -1.570, "rear": 1.460, "y": 0.168, "r": 0.358, "w": 0.235, "baked": true},
+	BodyType.TAXI: {"x": 0.797, "front": -1.495, "rear": 1.335, "y": 0.168, "r": 0.345, "w": 0.235, "baked": true},
+	BodyType.BEATER: {"x": 0.745, "front": -1.436, "rear": 1.184, "y": 0.145, "r": 0.310, "w": 0.195, "baked": true},
+	# The school bus (tools/make_school_bus.py prints these; Schools).
+	BodyType.SCHOOL_BUS: {"x": 0.985, "front": -3.512, "rear": 2.728, "y": 0.200, "r": 0.500, "w": 0.300, "baked": true,
+			"axles": [[-3.512, false], [2.728, true]], "dual_x": 0.885, "dual_gap": 0.330},
+}
+## The sizes above deliberately land on six distinct (radius, section width) pairs across the
+## eight body types. Every extra pair is another five meshes (one per spoke pattern) times two
+## LODs sitting in PropFactory's cache, and a near wheel is not a small mesh.
+##
+## Body types whose own model carries a proper wheel, so nothing is generated over it. The
+## hi-fi pair are built that way: their `tyre` surface is 12,960 and 5,760 triangles under its
+## own material. Everything else needs the generated wheel for one of two reasons - the four
+## Meshy bodies model the wheel INTO the single painted surface, so it wears the car's paint and
+## clearcoat, and the exo pair spend 454 triangles on a whole tyre.
+##
+## This is not a preference, it is a fit: `tools/wheel_probe.py` measures the hi-fi tyres at
+## 0.377 m (SUPER) and 0.360 m (HYPER) in radius, and the generated wheel is 0.355. Drawing one
+## over them would leave the model's own tyre standing proud of the new one all the way round.
+const MODEL_OWN_WHEELS := [BodyType.SUPER, BodyType.HYPER]
+
+## Extra yaw per model so its nose points at -Z (Meshy models come out along +X or -X).
+## All four models come out of Meshy with the nose along +X; -PI/2 puts the nose at -Z, which is
+## the physics forward (owner, 2026-09-20: traffic drove backwards with +PI/2).
+const MODEL_YAW := {BodyType.SPORTS: -PI * 0.5}
+const PAINT_SHADER := preload("res://shaders/car_paint.gdshader")
+const TAXI_SIGN_SHADER := preload("res://shaders/taxi_sign.gdshader")
+
+## How the paint is built, not what colour it is. The clearcoat shader can express all of these
+## for free, they are just different uniform sets, and a street where every car is the same
+## metallic basecoat reads as one car repeated whatever the colours are.
+enum Finish {
+	GLOSS,    ## Solid non-metallic lacquer: fleet white, taxi yellow, safety orange.
+	METALLIC, ## The ordinary modern car: aluminium flake under clear.
+	PEARL,    ## Flake plus a second coat that only shows at grazing angles (the pearl flip).
+	DEEP,     ## Deep candy metallic: dark, very glossy, coarse flake. Reads as an expensive car.
+	MATTE,    ## Satin wrap: no lacquer at all, high roughness. Rare, and very distinctive.
+}
+## The graphic painted on top of the base colour, in body space (see car_paint.gdshader).
+enum Livery {
+	NONE,
+	RACING,   ## Twin stripes over the nose, roof and tail.
+	TWO_TONE, ## Lower body in a second colour.
+	TAXI,     ## Yellow, checker band along the doors, lit roof sign.
+	DELIVERY, ## Fleet colour with a belt band and a roof vent pod (vans).
+	SERVICE,  ## Municipal white/orange with a belt band and an amber beacon (pickups).
+}
+
+## Paint colours. The weighting IS the duplication - random_car() picks uniformly from this list,
+## so an entry twice is twice as common. Keep the shape of it: about half the cars neutral
+## (white / black / grey / silver), a sixth muted, and a real saturated third, because that is
+## the balance the owner asked for on 2026-09-21 ("more color and more gta") against the earlier
+## all-neutral car park. Flattening this into one colour per entry, or letting the saturated
+## block grow past the neutrals, turns the traffic into a bag of sweets.
+const PAINTS := [
+	# Whites and off-whites: the most common car colour on earth, and mostly solid gloss.
+	Color(0.90, 0.90, 0.89), Color(0.90, 0.90, 0.89), Color(0.84, 0.85, 0.85),
+	Color(0.93, 0.92, 0.87), Color(0.88, 0.89, 0.92),
+	# Blacks and near-blacks.
+	Color(0.055, 0.055, 0.062), Color(0.055, 0.055, 0.062), Color(0.10, 0.10, 0.12),
+	Color(0.075, 0.080, 0.090), Color(0.120, 0.115, 0.105),
+	# Greys and silvers.
+	Color(0.38, 0.39, 0.41), Color(0.38, 0.39, 0.41), Color(0.58, 0.59, 0.61),
+	Color(0.24, 0.25, 0.27), Color(0.68, 0.69, 0.70), Color(0.45, 0.47, 0.50),
+	Color(0.30, 0.32, 0.36), Color(0.62, 0.60, 0.57), Color(0.50, 0.51, 0.53),
+	Color(0.20, 0.21, 0.24),
+	# Muted colours: deep navy, dark red, forest green, beige, dark teal.
+	Color(0.10, 0.16, 0.34), Color(0.36, 0.07, 0.08), Color(0.12, 0.22, 0.16),
+	Color(0.52, 0.47, 0.40), Color(0.10, 0.22, 0.24),
+	# Saturated: the minority, but a real one. These are the cars you actually notice.
+	Color(0.72, 0.04, 0.05), Color(0.88, 0.12, 0.06), Color(0.05, 0.20, 0.72),
+	Color(0.08, 0.40, 0.85), Color(0.95, 0.76, 0.04), Color(0.93, 0.36, 0.02),
+	Color(0.03, 0.46, 0.18), Color(0.46, 0.74, 0.08), Color(0.32, 0.06, 0.55),
+	Color(0.82, 0.10, 0.42), Color(0.03, 0.55, 0.60), Color(0.75, 0.56, 0.10),
+	Color(0.56, 0.26, 0.08), Color(0.32, 0.74, 0.56),
+]
+## Finish per entry of PAINTS: same order, same grouping, same line breaks, so the two blocks
+## can be read side by side. If you add a colour, add its finish on the matching line.
+const PAINT_FINISH := [
+	# Whites.
+	Finish.GLOSS, Finish.GLOSS, Finish.METALLIC,
+	Finish.PEARL, Finish.GLOSS,
+	# Blacks.
+	Finish.DEEP, Finish.METALLIC, Finish.METALLIC,
+	Finish.DEEP, Finish.MATTE,
+	# Greys and silvers.
+	Finish.METALLIC, Finish.METALLIC, Finish.METALLIC,
+	Finish.DEEP, Finish.METALLIC, Finish.DEEP,
+	Finish.DEEP, Finish.PEARL, Finish.MATTE,
+	Finish.METALLIC,
+	# Muted.
+	Finish.DEEP, Finish.DEEP, Finish.METALLIC,
+	Finish.METALLIC, Finish.METALLIC,
+	# Saturated.
+	Finish.DEEP, Finish.GLOSS, Finish.DEEP,
+	Finish.METALLIC, Finish.GLOSS, Finish.GLOSS,
+	Finish.DEEP, Finish.GLOSS, Finish.PEARL,
+	Finish.PEARL, Finish.METALLIC, Finish.METALLIC,
+	Finish.DEEP, Finish.PEARL,
+]
+
+## Shader uniforms per finish: flake density and grain, how sharp the lacquer is, and how
+## metallic the basecoat is under it. "flake_fade" is how far away the sparkle is still worth
+## resolving. The basecoat metallic is kept low on purpose: real metallic paint is aluminium
+## flake in a COLOURED basecoat under a clear lacquer, so it keeps a broad body colour and the
+## mirror is the lacquer's job. At 0.7 / 0.88 metal the basecoat had almost no diffuse left, and
+## in a shaded street a white or silver car showed only a reflection of dark buildings and blue
+## sky - a white van measured darker than the asphalt beside it, and bluer. Gloss is solid paint.
+const FINISHES := {
+	Finish.GLOSS: {
+		"metallic": 0.0, "roughness": 0.34, "clearcoat": 0.95, "cc_rough": 0.045,
+		"flake": 0.0, "flake_scale": 190.0, "flake_fade": 9.0, "pearl": 0.0,
+	},
+	Finish.METALLIC: {
+		"metallic": 0.38, "roughness": 0.34, "clearcoat": 0.85, "cc_rough": 0.035,
+		"flake": 0.055, "flake_scale": 190.0, "flake_fade": 9.0, "pearl": 0.0,
+	},
+	Finish.PEARL: {
+		"metallic": 0.30, "roughness": 0.28, "clearcoat": 1.00, "cc_rough": 0.018,
+		"flake": 0.085, "flake_scale": 300.0, "flake_fade": 11.0, "pearl": 0.35,
+	},
+	Finish.DEEP: {
+		"metallic": 0.55, "roughness": 0.24, "clearcoat": 1.00, "cc_rough": 0.015,
+		"flake": 0.110, "flake_scale": 120.0, "flake_fade": 13.0, "pearl": 0.0,
+	},
+	Finish.MATTE: {
+		"metallic": 0.10, "roughness": 0.62, "clearcoat": 0.0, "cc_rough": 0.30,
+		"flake": 0.0, "flake_scale": 190.0, "flake_fade": 9.0, "pearl": 0.0,
+	},
+}
+
+## Shader uniforms per livery graphic. "mode" is the stripe_mode the shader switches on; widths
+## and heights are fractions of the car's own bounding box, so one table fits every body type.
+const LIVERY_GRAPHIC := {
+	Livery.RACING: {"mode": 1, "width": 0.032, "gap": 0.058},
+	Livery.TWO_TONE: {"mode": 2, "width": 0.010, "height": 0.40},
+	Livery.DELIVERY: {"mode": 3, "width": 0.075, "height": 0.46},
+	Livery.SERVICE: {"mode": 3, "width": 0.090, "height": 0.42},
+	Livery.TAXI: {"mode": 4, "width": 0.060, "height": 0.40},
+}
+
+## Share of each body type that goes out as a working vehicle instead of private paint. Vans are
+## mostly commercial in a real city, which is why that one is high; taxis and city trucks are a
+## visible minority. These do more for the "real city" read than paint variety does, so they are
+## the first numbers to raise if the streets still feel like a car park.
+const TAXI_SHARE := 0.16
+const DELIVERY_SHARE := 0.45
+const SERVICE_SHARE := 0.20
+## Share of private cars wearing a graphic. Sports cars get stripes far more often than anything
+## else; two-tone is a truck and van thing and never goes on a sports car.
+const RACING_SHARE_SPORTS := 0.26
+const RACING_SHARE_OTHER := 0.05
+const TWO_TONE_SHARE := 0.12
+
+## Fleet colours for delivery vans, with the belt band that goes with each. Flat solid gloss, the
+## way a real fleet is painted, and deliberately not in PAINTS: a livery is not private taste.
+## All invented - no real courier's colours, no logos anywhere.
+const FLEET_PAINTS := [
+	Color(0.90, 0.90, 0.88), Color(0.90, 0.90, 0.88), Color(0.36, 0.20, 0.10),
+	Color(0.06, 0.18, 0.46), Color(0.68, 0.10, 0.10), Color(0.08, 0.36, 0.22),
+]
+const FLEET_BANDS := [
+	Color(0.80, 0.10, 0.12), Color(0.10, 0.28, 0.66), Color(0.94, 0.72, 0.10),
+	Color(0.92, 0.92, 0.90), Color(0.94, 0.92, 0.88), Color(0.95, 0.80, 0.10),
+]
+## City service trucks: utility white, highways orange, water-department blue.
+const SERVICE_PAINTS := [
+	Color(0.92, 0.92, 0.90), Color(0.94, 0.48, 0.03),
+	Color(0.92, 0.92, 0.90), Color(0.15, 0.30, 0.58),
+]
+const SERVICE_BANDS := [
+	Color(0.94, 0.48, 0.03), Color(0.10, 0.10, 0.12),
+	Color(0.12, 0.34, 0.66), Color(0.94, 0.72, 0.10),
+]
+const TAXI_PAINT := Color(0.96, 0.73, 0.03)
+const TAXI_TRIM := Color(0.07, 0.07, 0.08)
+## The taxi company, invented (no real cab company's name or colours): its name on the front
+## doors and a fleet number on the rear quarters (TextMesh, like BigVehicles' fleets).
+const TAXI_COMPANY := "BASIN CAB"
+## Where the lettering goes on the taxi body, in body space: the front doors' centre over the
+## checker band, the fleet number on the rear doors, and the letter heights.
+const TAXI_NAME_AT := Vector3(0.912, 0.635, -0.42)
+const TAXI_NUMBER_AT := Vector3(0.935, 0.64, 0.93)
+const TAXI_LETTER_SIZE := 0.085
+## One in this many taxis has a fare on the back seat (CarCabin bit 2).
+const TAXI_FARE_SHARE := 0.62
+## The beater's paint: old single-stage colours, already faded (the shader's wear fades them more).
+const BEATER_PAINTS := [
+	Color(0.36, 0.09, 0.08), Color(0.62, 0.58, 0.49), Color(0.20, 0.27, 0.40), Color(0.80, 0.79, 0.75),
+	Color(0.20, 0.30, 0.22), Color(0.52, 0.53, 0.54), Color(0.42, 0.30, 0.18), Color(0.12, 0.12, 0.13),
+]
+## Its door from another car: what the junkyard had (the colours of other beaters, and primer).
+const BEATER_DOORS := [
+	Color(0.62, 0.58, 0.49), Color(0.20, 0.27, 0.40), Color(0.80, 0.79, 0.75), Color(0.36, 0.09, 0.08),
+	Color(0.42, 0.42, 0.40), Color(0.20, 0.30, 0.22),
+]
+## Where the wear goes on road_beater.glb, in the body MESH's space (x across, y up, z along with
+## the nose at -z; tools/make_more_cars.py's coordinates are (x, -z, y) of these): the left front
+## door between its shut lines, sill to belt (car_paint's wear_door: z0, z1, y0, y1), and a primer
+## patch on the right front wing over the arch (z, y, radius, side).
+const BEATER_DOOR := Vector4(-0.893, 0.180, 0.245, 0.835)
+const BEATER_PRIMER := Vector4(-1.86, 0.62, 0.15, 1.0)
+
+@export_group("Model")
+## Where the generated model's tire bottoms sit in body space (meters). Raise if the car floats.
+@export var model_bottom_y: float = -0.27
+## How far over the road a model car's collision starts (m): its underbody, with room left for
+## the suspension to compress on a landing before the box meets the road.
+@export var collision_clearance: float = 0.34
+## Past this many metres a body with a far twin (the road_* bodies: two surfaces, ~7k triangles,
+## every part but the paint in one vertex-coloured surface) draws that instead of its full model
+## (seven surfaces, ~50k triangles with its own LODs). Seven surfaces are seven draws, and seven
+## more in the depth pre-pass, per car.
+@export var body_far_distance: float = 30.0
+## Past this many meters a livery's roof prop (taxi sign, van vent, amber beacon) stops drawing.
+## It is one draw call per car and at that range it is a couple of pixels.
+@export var livery_prop_distance: float = 140.0
+
+@export_group("Wheels")
+## Past this many meters the generated wheels drop to the far mesh: about 1.4k triangles
+## instead of 11k-13k, same silhouette, no tread pattern, no brake slots, no lug nuts. Under it
+## you are close enough to count the spokes.
+@export var wheel_lod_distance: float = 30.0
+## Past this they stop drawing at all and the wheel baked into the body model shows through
+## instead, shrunk into the hub so that it is hidden behind the brake disc up close. That is the
+## far LOD and it costs nothing: it is triangles in the body's own surface, so a car past this
+## distance is the same one draw call it was before the wheels existed. A hundred and fifty
+## traffic cars times four wheels is why this number is not bigger.
+@export var wheel_draw_distance: float = 85.0
+## The body casts a shadow only inside this range (metres), and drops to coarser mesh LODs past
+## it (BODY_LOD_BIAS). Measured on a downtown street, the cars were 3.6 of 12.4 million triangles
+## a frame: four hundred and fifty generated bodies, every one drawn again into the shadow
+## cascades out to half a kilometre. A parked car's shadow at a hundred metres is a few pixels
+## under a building's.
+@export var body_shadow_distance: float = 70.0
+## Past this the brake calipers stop drawing. A caliper is a hundred triangles and at thirty
+## meters it is two pixels behind a spoke.
+@export var caliper_distance: float = 26.0
+
+@export_group("Handling")
+## Engine force at full throttle (N). Big number = silly acceleration.
+@export var engine_power: float = 7000.0
+## Engine force multiplier while holding boost.
+@export var nitro_multiplier: float = 2.2
+@export var reverse_power: float = 3500.0
+@export var brake_force: float = 80.0
+@export var handbrake_force: float = 40.0
+## Brake an empty car holds once it is down to `parking_speed`. The city rolls, and the old 2.0 -
+## a tenth of what Godot's docs call hard braking for a car this heavy - let parked cars on any
+## slope steeper than about 2 % creep off down the street: a minute after loading downtown, 91 of
+## them were rolling, some at 8 m/s. A rolling car also never sleeps, and an awake car casts four
+## suspension rays every physics step through the whole city's collision tree - measured, that
+## was 16 % of all the CPU the game used.
+@export var parking_brake: float = 40.0
+## Below this speed (m/s) an empty car holds the parking brake; above it, it coasts, so bailing
+## out of a moving car still sends it rolling on.
+@export var parking_speed: float = 1.5
+## An empty car on all four wheels slower than this (m/s) is put to sleep (see settle()).
+@export var settle_speed: float = 0.2
+## Upward speed of a car jump (m/s). Space.
+@export var jump_speed: float = 9.0
+@export var jump_cooldown: float = 0.22
+## Jump in mid-air too, as many times as you like (owner, 2026-09-21: "unlimited jumping in the
+## cars so i can fly around nonstop"). The car already goes into stabilised flight the moment it
+## leaves the ground, so an air jump is a second thrust in the same regime rather than a new
+## mode - it just keeps you up. Set false for a car that can only jump off the ground.
+@export var air_jump: bool = true
+## An air jump is worth this much of a ground jump. Under 1.0 so a held-down space bar climbs at
+## a controllable rate instead of firing you into orbit.
+@export var air_jump_factor: float = 0.72
+## Max steering angle (radians).
+@export var max_steer: float = 0.5
+## How fast the wheels turn toward the stick (higher = twitchier).
+@export var steer_speed: float = 8.0
+## Steering shrinks at speed so the car does not spin out: full steer below this speed (m/s).
+@export var steer_full_speed: float = 12.0
+@export var steer_min_factor: float = 0.35
+## Top speed (m/s); engine force fades to zero here.
+@export var top_speed: float = 55.0
+## Self-righting torque when upside down and slow on the ground.
+@export var upright_torque: float = 25000.0
+
+@export_group("Flight")
+## How long all four wheels must be off the ground before the car switches into flight. A hard
+## turn at speed, a kerb or a seam in the road can unload every wheel for a physics tick or two,
+## and switching then put the car into the banking hover on a flat road: holding the turn banked
+## it past 25 degrees mid-corner, a different amount on every run, because whether all four
+## wheels let go on the same tick is down to the solver's contact order. A real jump or launch is
+## airborne many times longer than this, so flying feels exactly as it did.
+@export var flight_grace: float = 0.18
+## Owner's rule (2026-09-20): a car in the air must fly like the player does, not tumble.
+## Leaving the ground puts the car into a stabilised hover: it holds itself level, the stick
+## aims it, and holding boost thrusts it where the camera is looking.
+## Thrust while holding boost in the air (m/s^2 of acceleration).
+@export var fly_thrust: float = 42.0
+## Speed cap while flying (m/s).
+@export var fly_max_speed: float = 62.0
+## Gravity multiplier while boosting in the air. Low value = hold boost and hover.
+@export var fly_gravity_scale: float = 0.12
+## Gravity multiplier while airborne without boost (a floaty arc, not a brick).
+@export var air_gravity_scale: float = 0.85
+## How fast the car swings to the orientation you are asking for (higher = snappier).
+@export var level_speed: float = 7.0
+## Nose pitch from the stick while airborne (radians; W noses down, S noses up).
+@export var fly_pitch_range: float = 0.75
+## Turn rate from the stick while airborne (radians per second).
+@export var fly_yaw_rate: float = 2.0
+## Fastest the car will rotate while self-levelling (radians per second).
+@export var max_turn_rate: float = 5.0
+## Bank angle the car rolls into while turning in the air (radians).
+@export var fly_bank: float = 0.5
+
+@export_group("Damage")
+## A hard crash: a change of velocity of more than this (m/s) in one physics step, sideways or
+## along the car, dents it and costs health (CarDamage.crash_damage_per_dv per m/s over it).
+## Gentle bumps and kerbs stay far under it.
+@export var crash_min_dv: float = 8.0
+## The same for a landing (straight up): cars are flown and dropped from a great height all the
+## time, so only a real slam counts.
+@export var landing_min_dv: float = 20.0
+
+@export_group("Suspension")
+## Soft springs plus a low center of mass keep the car flat and planted. Stiffer bounces.
+@export var suspension_stiffness: float = 60.0
+@export var suspension_rest_length: float = 0.35
+## Must stay smaller than the rest length or the wheels sink into the road.
+@export var suspension_travel: float = 0.2
+@export var suspension_max_force: float = 50000.0
+@export var damping_compression: float = 0.8
+@export var damping_relaxation: float = 1.2
+## Tire grip. Godot's default is 10.5; lower drifts more.
+@export var wheel_grip: float = 10.5
+## How much the tires transfer roll to the body (0 = never rolls over from cornering).
+@export var wheel_roll_influence: float = 0.1
+## Center of mass height above the wheel axles (meters). Low = stable, no wheelies.
+@export var center_of_mass_height: float = 0.1
+
+var body_type: BodyType = BodyType.SEDAN
+var addon: Addon = Addon.NONE
+var paint: Color = Color(0.85, 0.15, 0.12)
+## How the paint is built (see Finish) and what is painted on top of it (see Livery).
+var finish: Finish = Finish.METALLIC
+var livery: Livery = Livery.NONE
+## Second colour: racing stripes, the two-tone lower body, a fleet band, the taxi checker.
+var trim_color: Color = Color(0.92, 0.92, 0.93)
+## The Player driving, or null. Setting it seats him in the glass's cabin (CarCabin) in place of
+## whoever the traffic had at the wheel.
+var driver: Node3D:
+	set(v):
+		driver = v
+		if v != null:
+			_npc_driver = false
+		_update_occupant()
+## How close the player has to be to get in (meters from the origin; big for aircraft).
+var enter_radius: float = 4.5
+## Traffic state while driven by the TrafficManager (empty otherwise). A car given traffic gets a
+## driver in its cabin (a new one each time it comes out of the pool), who stays at the wheel when
+## a hit knocks it out of the traffic.
+var traffic: Dictionary = {}:
+	set(v):
+		traffic = v
+		if not v.is_empty() and driver == null and (not _npc_driver or not is_inside_tree()):
+			_npc_driver = true
+			_occupant_seed = hash([paint, body_type, wheel_style, _occupant_rolls])
+			_occupant_rolls += 1
+		_update_occupant()
+var traffic_speed: float = 0.0
+var wheels: Array[VehicleWheel3D] = []
+## Spoke pattern (PropFactory.WHEEL_FACES) and finish (PropFactory.WHEEL_KITS). -1 means "work
+## it out from the car" in _build(); random_car() sets them from its look seed instead, so a
+## given seeded car always comes back on the same wheels.
+var wheel_style: int = -1
+var wheel_kit: int = -1
+## random_car()'s look seed (0 for a car built any other way): what is per car but not rolled -
+## a taxi's fleet number, a beater's odd door.
+var look_seed: int = 0
+var _wheel_slots: Array = []
+## One entry per wheel: [steer node, wheel mesh, caliper mesh, flip basis, is front, rest y].
+var _wheel_rigs: Array = []
+var _wheel_radius: float = 0.35
+var _wheel_spin: float = 0.0
+var _wheel_near: bool = true
+var _wheel_far_end: float = 85.0
+var _wheel_meshes: Array = []
+## Hub height in body space at rest, per wheel, once the car has settled on its springs. The
+## generated wheel's WHEEL_POSE y was eyeballed from a PARKED car, so the visible wheel has to
+## follow the physics hub's travel AROUND that, not its absolute height - and what the engine
+## settles at depends on the car's mass and spring rate, so it is measured rather than derived.
+## NAN until measured; traffic cars have no VehicleWheel3D and keep it that way.
+var _susp_rest: PackedFloat32Array = PackedFloat32Array()
+var _susp_settled: int = 0
+var _last_yaw: float = 0.0
+## The camera position, looked up once per physics frame and shared by every car: a hundred and
+## fifty cars each asking the viewport for it is a hundred and fifty lookups for one answer.
+static var _focus: Vector3 = Vector3.ZERO
+static var _focus_frame: int = -1
+## Turns the generated wheels off fleet-wide, leaving the wheels baked into the body models.
+## Only tools/glshot/city_stats.gd sets it, to measure what the wheels cost in draw calls and
+## triangles at the same camera. Nothing in the game touches it.
+static var wheels_enabled: bool = true
+var _seat: Node3D
+var _exit_side: float = 1.0
+var _steer_target: float = 0.0
+var _engine_sound: AudioStreamPlayer3D
+var _jump_timer: float = 0.0
+## Heading the car holds while flying (radians). Seeded from the car when it leaves the ground.
+var _fly_yaw: float = 0.0
+var _was_airborne: bool = false
+## Seconds all four wheels have been off the ground (see flight_grace).
+var _air_time: float = 0.0
+## True when a generated body model is used: box parts then only provide collision.
+var _has_model: bool = false
+## The primitive car's collision stack (bottom, top in body y) and where it goes on a model car
+## (see _build). Equal ranges leave the boxes where they are, which is what aircraft get.
+var _fit_from := Vector2(0.0, 1.0)
+var _fit_to := Vector2(0.0, 1.0)
+## Top of the generated model in body space, measured from its own bounding box, so a roof prop
+## sits on the actual roof instead of on a guess. Only valid once _add_body_model() has run.
+var _model_top_y: float = 1.6
+## Livery roof props are one shared mesh per kind, so a hundred and fifty cars cost a hundred
+## and fifty draws, not a hundred and fifty meshes.
+static var _livery_meshes: Dictionary = {}
+
+## Kinds of hit for take_hit() (the same as CarDamage.Hit).
+const HIT_PROP := 0
+## A street car signals its turn once it is this close to the junction's centre (m).
+const TURN_SIGNAL_DISTANCE := 48.0
+const HIT_BULLET := 1
+const HIT_PELLET := 2
+const HIT_BLAST := 3
+const HIT_CRASH := 4
+## The car's damage (scripts/vehicles/car_damage.gd), made on the first hit; null on every car that
+## has never been hit, which is what keeps an undamaged car at exactly its old cost.
+var _damage: CarDamage = null
+## Last step's velocity and a few steps of grace, for the crash watch (_crash_watch()).
+var _crash_v: Vector3 = Vector3.ZERO
+var _crash_hold: int = 0
+var _night_lights: MeshInstance3D
+## Lamps CarDamage broke (bits of CarDamage.LAMP_*), kept so the glow can be rebuilt.
+var _lamp_bits: int = 0
+## What the lamps show now (see _tick_lights): brake on, indicator (-1 left, 1 right, 2 hazards),
+## reversing. Read by CarLights and the tests.
+var light_brake: bool = false
+var light_signal: int = 0
+var light_reverse: bool = false
+## Seconds a parked car's alarm still sounds (CarAlarm, which counts it down): its hazards flash.
+var alarm_left: float = 0.0
+## Material key last put on the lamps, and the brake light's hold (s): a queue's stop-start
+## creep would otherwise flicker it.
+var _light_key: int = -1
+var _brake_hold: float = 0.0
+var _prev_traffic_speed: float = 0.0
+## The body meshes wearing the cabin glass (CarCabin), and the glass surfaces on them as
+## [MeshInstance3D, surface index].
+var _glass_meshes: Array[MeshInstance3D] = []
+var _glass_slots: Array = []
+## The body type's shared cabin glass (worn while nobody is inside) and this car's own copy of it
+## (made the first time somebody is, and kept for the next time).
+var _glass_shared: ShaderMaterial
+var _glass_own: ShaderMaterial
+## Somebody from the traffic is at the wheel (see `traffic`), and who (a seed for CarCabin).
+var _npc_driver: bool = false
+var _occupant_seed: int = 0
+var _occupant_rolls: int = 0
+## What the occupant uniforms were last set to (seats and look), so they are set on a change only.
+var _occupant_key: int = -1
+
+
+func setup(type: BodyType, color: Color, extra: Addon) -> void:
+	body_type = type
+	paint = color
+	addon = extra
+
+
+## The optional second half of setup(): the finish, the livery graphic and its colour. A car set
+## up without it is a plain metallic in the body colour, which is what every old caller gets.
+## Call it before adding the car to the tree - _build() runs in _ready().
+func setup_look(paint_finish: Finish, car_livery: Livery = Livery.NONE, trim: Color = Color(0.92, 0.92, 0.93)) -> void:
+	finish = paint_finish
+	livery = car_livery
+	trim_color = trim
+
+
+func _ready() -> void:
+	add_to_group("vehicle")
+	add_to_group("physics_prop")
+	CarLights.ensure(self)
+	set_meta("spawn_time", Time.get_ticks_msec() / 1000.0)
+	collision_layer = 4
+	collision_mask = _mask()
+	mass = 1200.0
+	if BigVehicles.is_big(body_type):
+		BigVehicles.tune(self)
+	angular_damp = 0.5
+	linear_damp = 0.05
+	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
+	center_of_mass = Vector3(0.0, center_of_mass_height, 0.0)
+	_build()
+
+
+func display_name() -> String:
+	return BODY_NAMES[body_type]
+
+
+func seat_position() -> Vector3:
+	return _seat.global_position if _seat else global_position + Vector3.UP
+
+
+func exit_position() -> Vector3:
+	return global_position + global_basis.x * (2.6 * _exit_side) + Vector3.UP * 0.5
+
+
+## Places to try when getting out, best first: the door side, the other side, behind, in front,
+## and on the roof. Flattened so a car on its side or roof never points "out" into the ground.
+func exit_candidates() -> Array[Vector3]:
+	var side := Vector3(global_basis.x.x, 0.0, global_basis.x.z)
+	side = side.normalized() if side.length() > 0.2 else Vector3.RIGHT
+	var fwd := Vector3(-global_basis.z.x, 0.0, -global_basis.z.z)
+	fwd = fwd.normalized() if fwd.length() > 0.2 else Vector3.FORWARD
+	var base := global_position + Vector3.UP * 0.5
+	return [
+		base + side * (2.6 * _exit_side),
+		base - side * (2.6 * _exit_side),
+		base - fwd * 4.0,
+		base + fwd * 4.0,
+		global_position + Vector3.UP * 2.5,
+	]
+
+
+## How high this car's origin sits over the road when it rests on its springs: -`road`, the
+## body-space height of the road under a parked car (tools/glshot/car_shot.gd prints it), or
+## -`ride` for a body without one.
+## Traffic places its kinematic cars this high over the road. They used to go a flat 0.55 m over
+## the relief (0.45 m over the road top, 0.71 m over a freeway deck) whatever the body, so every
+## street car's tyres hung 15-27 cm clear of the asphalt and every freeway car's ~0.5 m.
+func road_lift() -> float:
+	var d := _dims()
+	return -float(d.get("road", d.get("ride", model_bottom_y)))
+
+
+func is_traffic() -> bool:
+	return not traffic.is_empty()
+
+
+## World, player and props for a physics car. A traffic car is kinematic - the TrafficManager
+## places it - so it needs no mask at all: it still pushes the player, props and parked cars,
+## whose own masks pair them with it, but it stops being paired with every road slab, kerb and
+## wall it drives past, which can never collide with a kinematic body anyway.
+func _mask() -> int:
+	return 0 if is_traffic() else 7
+
+
+## Something hit a traffic car hard: hand it over to physics.
+func drop_out_of_traffic(impulse: Vector3 = Vector3.ZERO) -> void:
+	if not is_traffic():
+		return
+	# Only guns and blasts knock a car out of the traffic: a crime if anybody saw it.
+	Police.car_hit(self)
+	var v := -global_basis.z * traffic_speed
+	traffic = {}
+	traffic_speed = 0.0
+	collision_mask = _mask()
+	# The generated wheels stay: they were never children of the physics wheels.
+	_add_real_wheels()
+	freeze = false
+	sleeping = false
+	linear_velocity = v
+	if impulse != Vector3.ZERO:
+		apply_central_impulse(impulse)
+
+
+## THE way anything damages a car (duck-typed like every other take_hit): `damage` is the weapon's
+## own number for a round (HIT_BULLET / HIT_PELLET) or a prop hit (HIT_PROP), the blast's falloff
+## at the car for HIT_BLAST (and `at` the blast's centre), the velocity change past crash_min_dv
+## in m/s for HIT_CRASH (`at` where it touched); `dir` is the way the round, the blast or the crash
+## went and `at` a scene point on the car (INF: its middle). A traffic car goes physical first. The
+## first hit makes the car's CarDamage, which does the rest (see there).
+func take_hit(_shape_index: int, damage: float, dir: Vector3, at: Vector3 = Vector3.INF, kind: int = HIT_PROP) -> void:
+	if not can_take_damage():
+		return
+	if at == Vector3.INF:
+		at = global_position + global_basis.y * 0.6
+	if is_traffic() and kind != HIT_CRASH:
+		drop_out_of_traffic()
+	damage_state().hit(kind, at, dir, damage)
+	CarAlarm.on_hit(self, kind, damage)
+
+
+## This car's damage, made now if it has none yet.
+func damage_state() -> CarDamage:
+	if _damage == null or not is_instance_valid(_damage):
+		_damage = CarDamage.new()
+		_damage.attach(self)
+		add_child(_damage)
+	return _damage
+
+
+## True once it has burnt out: nobody can drive it and it never takes damage again.
+func is_wreck() -> bool:
+	return _damage != null and is_instance_valid(_damage) and _damage.state == CarDamage.State.WRECK
+
+
+## Aircraft override this: the flyable jets keep their own (no) damage.
+func can_take_damage() -> bool:
+	return true
+
+
+## Skips the crash watch for `ticks` physics steps: something is about to change the car's
+## velocity on purpose (a jump, a blast, a respawn), which is not a crash.
+func hold_crash_watch(ticks: int = 2) -> void:
+	_crash_hold = maxi(_crash_hold, ticks)
+	_crash_v = linear_velocity
+
+
+## A hard crash, from the change in velocity over one physics step - no contact monitoring, so it
+## costs a car nothing but this subtraction (and a car past PhysicsBudget.vehicle_script_radius,
+## whose script is off, is not watched at all). Kinematic traffic never crashes.
+func _crash_watch() -> void:
+	if is_traffic() or freeze:
+		_crash_hold = 2
+		return
+	var v := linear_velocity
+	var dv := v - _crash_v
+	_crash_v = v
+	if _crash_hold > 0:
+		_crash_hold -= 1
+		return
+	if dv.length_squared() < crash_min_dv * crash_min_dv or not can_take_damage():
+		return
+	var up := maxf(dv.y, 0.0)
+	var side := Vector3(dv.x, minf(dv.y, 0.0), dv.z).length()
+	var over := maxf(side - crash_min_dv, up - landing_min_dv)
+	if over <= 0.0:
+		return
+	# Only a crash if the car really ran into something the way it was going: a script that sets
+	# the velocity (a respawn, a test putting a car back) is not one. One ray, only past the
+	# threshold.
+	var at := _crash_contact(-dv.normalized())
+	if at == Vector3.INF:
+		return
+	take_hit(-1, over, dv, at, HIT_CRASH)
+
+
+## What the car ran into along `dir` (the way it was going), within a metre of its body: the
+## point, or INF.
+func _crash_contact(dir: Vector3) -> Vector3:
+	if not is_inside_tree():
+		return Vector3.INF
+	var d := _dims()
+	var reach := absf(dir.dot(global_basis.x)) * float(d.width) * 0.5 + absf(dir.dot(global_basis.z)) * float(d.length) * 0.5 \
+			+ absf(dir.dot(global_basis.y)) * 0.8 + 1.0
+	var from := global_position + global_basis.y * 0.45
+	var q := PhysicsRayQueryParameters3D.create(from, from + dir * reach, 1 | 4 | 16, [get_rid()])
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	return hit.position if not hit.is_empty() else Vector3.INF
+
+
+## CarDamage broke lamps (bits of CarDamage.LAMP_*): the night glow loses them.
+func _set_lamps_broken(bits: int) -> void:
+	if _night_lights == null or not is_instance_valid(_night_lights):
+		return
+	var d := _dims()
+	var lamp_y := float(d.get("lamp_y", 0.55 + d.chassis_h * 0.62))
+	_night_lights.mesh = PropFactory.vehicle_lights(d.width, float(d.get("light_len", d.length)), lamp_y,
+			float(d.get("road", d.get("ride", model_bottom_y))), float(d.get("tail_y", lamp_y)), bits)
+	_lamp_bits = bits
+	_refresh_lights()
+
+
+## Burnt out (CarDamage.become_wreck): no lights, no engine, the tyres burnt down to the rims, the
+## rims charred.
+func _become_wreck() -> void:
+	set_meta("wreck", true)
+	_update_occupant()
+	_refresh_lights()
+	if _engine_sound:
+		_engine_sound.stop()
+	var livery := get_node_or_null("LiveryProp") as Node3D
+	if livery:
+		livery.visible = false
+	var pose := _wheel_pose()
+	var rim := 0.7
+	for w in wheels:
+		if is_instance_valid(w):
+			w.wheel_radius = maxf(float(pose.get("r", w.wheel_radius)) * rim, 0.12)
+			w.wheel_friction_slip = 1.2
+	for rig: Array in _wheel_rigs:
+		(rig[0] as Node3D).scale = Vector3(0.92, rim, rim)
+		(rig[1] as MeshInstance3D).material_override = CarDamage.wreck_wheel_material()
+		(rig[2] as MeshInstance3D).visible = false
+
+
+## Takes every mark off again (a cruiser going back into the police pool).
+func repair() -> void:
+	if _damage == null or not is_instance_valid(_damage):
+		_damage = null
+		return
+	_damage.restore()
+	remove_child(_damage)
+	_damage.queue_free()
+	_damage = null
+	_lamp_bits = 0
+	_update_occupant(true)
+
+
+func is_airborne() -> bool:
+	for w in wheels:
+		if w.is_in_contact():
+			return false
+	return true
+
+
+func _physics_process(delta: float) -> void:
+	_update_wheels(delta)
+	if driver == null:
+		if _was_airborne:
+			gravity_scale = 1.0
+			_was_airborne = false
+		engine_force = 0.0
+		brake = parking_brake if linear_velocity.length() < parking_speed else 2.0
+		steering = lerpf(steering, 0.0, 1.0 - exp(-steer_speed * delta))
+		if _engine_sound and _engine_sound.playing:
+			_engine_sound.stop()
+		return
+	if _engine_sound == null:
+		_engine_sound = Sfx.loop_player("engine_loop", -8.0)
+		add_child(_engine_sound)
+	if not _engine_sound.playing:
+		_engine_sound.play()
+	_engine_sound.pitch_scale = 0.8 + clampf(linear_velocity.length() / top_speed, 0.0, 1.0) * 1.4
+	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	var throttle := -input.y # forward is negative y on the stick
+	var speed := linear_velocity.dot(-global_basis.z)
+	var boost := nitro_multiplier if Input.is_action_pressed("boost") else 1.0
+	var fade := clampf(1.0 - absf(speed) / top_speed, 0.0, 1.0)
+	# Godot's engine_force pushes toward local +Z, which is the tail of our model, so negate it.
+	if throttle > 0.0:
+		engine_force = -throttle * engine_power * boost * (fade if boost == 1.0 else maxf(fade, 0.3))
+		brake = 0.0
+	elif throttle < 0.0:
+		if speed > 1.0:
+			engine_force = 0.0
+			brake = brake_force
+		else:
+			engine_force = -throttle * reverse_power
+			brake = 0.0
+	else:
+		engine_force = 0.0
+		brake = 1.0
+	if Input.is_action_pressed("alt_fire"):
+		brake = handbrake_force
+	_jump_timer = maxf(_jump_timer - delta, 0.0)
+	var airborne := is_airborne()
+	if Input.is_action_just_pressed("jump") and _jump_timer <= 0.0 and (not airborne or air_jump):
+		_jump_timer = jump_cooldown
+		# Straight up in world space, and kill the spin: pushing along the car's own up axis
+		# while the suspension is still unloading is what used to tip the nose over. In the air
+		# the same impulse is a hop, scaled down so a held space bar climbs steadily.
+		var boost_up := jump_speed * (air_jump_factor if airborne else 1.0)
+		# In the air, cancel any existing fall first, so a jump always gains height instead of
+		# being eaten by the speed you had picked up on the way down.
+		if airborne and linear_velocity.y < 0.0:
+			apply_central_impulse(Vector3.UP * -linear_velocity.y * mass)
+		apply_central_impulse(Vector3.UP * boost_up * mass)
+		hold_crash_watch(3)
+		angular_velocity = Vector3.ZERO
+		Sfx.play("jump", global_position, -2.0, 0.7)
+	var steer_factor := lerpf(1.0, steer_min_factor, clampf(absf(speed) / (steer_full_speed * 3.0), 0.0, 1.0))
+	_steer_target = -input.x * max_steer * steer_factor
+	steering = lerpf(steering, _steer_target, 1.0 - exp(-steer_speed * delta))
+	_air_time = _air_time + delta if is_airborne() else 0.0
+	if _air_time >= flight_grace:
+		_fly(delta, input)
+	else:
+		if _was_airborne:
+			gravity_scale = 1.0
+		_was_airborne = false
+		if global_basis.y.y < 0.2 and linear_velocity.length() < 3.0:
+			# Upside down and stuck: roll back onto the wheels.
+			var axis := global_basis.z
+			apply_torque(axis * upright_torque * signf(global_basis.x.y + 0.0001))
+
+
+## Stabilised flight. The car holds itself level and pointed where you steer instead of
+## tumbling: W / S aim the nose down / up, A / D turn (banking into it), and holding boost
+## thrusts along the camera direction with almost no gravity, exactly like the player's boost.
+func _fly(delta: float, input: Vector2) -> void:
+	if not _was_airborne:
+		# Just left the ground: carry the heading we were driving in.
+		_fly_yaw = global_rotation.y
+		_was_airborne = true
+	var flying := Input.is_action_pressed("boost")
+	gravity_scale = fly_gravity_scale if flying else air_gravity_scale
+
+	# Where the nose should point. Turning is a rate, pitch is a held angle.
+	_fly_yaw = wrapf(_fly_yaw - input.x * fly_yaw_rate * delta, -PI, PI)
+	var pitch := input.y * fly_pitch_range
+	var roll := -input.x * fly_bank
+	if flying and driver != null and driver.get("camera_rig") != null:
+		# Boosting: follow the camera, so the car flies where you look.
+		var rig: Node3D = driver.camera_rig
+		_fly_yaw = rig.global_rotation.y
+		# The rig pitches positive when looking up, and a positive pitch here noses up too.
+		pitch = rig.rotation.x
+	var target := Basis(Vector3.UP, _fly_yaw) * Basis(Vector3.RIGHT, pitch) * Basis(Vector3.BACK, roll)
+
+	# Turn the difference between where we point and where we want to point into an angular
+	# velocity, and ease into it. Torque alone leaves the car wobbling; this holds an attitude.
+	var swing := (target * global_basis.inverse()).orthonormalized()
+	var q := Quaternion(swing)
+	var angle := q.get_angle()
+	if angle > PI:
+		angle -= TAU
+	var want := (q.get_axis() * angle * level_speed) if absf(angle) > 0.0001 else Vector3.ZERO
+	# Cap the correction: a half-turn of error times the gain is a violent spin that overshoots
+	# and oscillates instead of settling.
+	if want.length() > max_turn_rate:
+		want = want.normalized() * max_turn_rate
+	angular_velocity = angular_velocity.lerp(want, 1.0 - exp(-level_speed * delta))
+
+	if flying:
+		# An impulse scaled by the step, not apply_central_force: VehicleBody3D clears the
+		# per-step force accumulator while it solves its wheels, so plain forces do nothing.
+		apply_central_impulse(-target.z * fly_thrust * mass * delta)
+		if linear_velocity.length() > fly_max_speed:
+			linear_velocity = linear_velocity.normalized() * fly_max_speed
+
+
+func _on_bumper_hit(body: Node3D) -> void:
+	var speed := traffic_speed if is_traffic() else linear_velocity.length()
+	if speed < 4.0 or body == driver:
+		return
+	var dir := -global_basis.z if is_traffic() else linear_velocity.normalized()
+	if body is Player and (body as Player).vehicle == null:
+		(body as Player).launch(dir * (8.0 + speed) + Vector3.UP * 9.0)
+	elif body.has_method("knock"):
+		body.knock(dir * (8.0 + speed * 0.6) + Vector3.UP * 6.0)
+
+
+# --- Model -----------------------------------------------------------------------------
+
+func _build() -> void:
+	var dims := _dims()
+	var length: float = dims.length
+	var width: float = dims.width
+	var chassis_h: float = dims.chassis_h
+	var cabin: Vector2 = dims.cabin # x = start z (front negative), y = length, along the car
+	var base_y := 0.55
+	_has_model = _add_body_model(length)
+	if _has_model:
+		# The collision boxes below are laid out for the primitive car, standing on base_y with
+		# the cabin on top, which put them 0.8 m over the road and the cabin box half a metre
+		# above a model's roof. Squeeze that same stack onto the model: from collision_clearance
+		# over the road (the underbody, clear of the suspension's travel) to its roof.
+		var floor_y := float(dims.get("ride", model_bottom_y)) + collision_clearance
+		_fit_from = Vector2(base_y, base_y + chassis_h + float(dims.cabin_h))
+		_fit_to = Vector2(floor_y, maxf(_model_top_y, floor_y + 0.5))
+	var trim := Color(0.12, 0.12, 0.14)
+	var glass := Color(0.35, 0.5, 0.65)
+	# Chassis.
+	_box(Vector3(width, chassis_h, length), Vector3(0.0, base_y + chassis_h * 0.5, 0.0), paint, true)
+	# Cabin.
+	var cabin_h: float = dims.cabin_h
+	_box(Vector3(width * 0.9, cabin_h, cabin.y), Vector3(0.0, base_y + chassis_h + cabin_h * 0.5, cabin.x + cabin.y * 0.5), paint, true)
+	_box(Vector3(width * 0.92, cabin_h * 0.55, cabin.y * 0.96), Vector3(0.0, base_y + chassis_h + cabin_h * 0.55, cabin.x + cabin.y * 0.5), glass, false)
+	# Bumpers, lights.
+	_box(Vector3(width * 1.02, 0.25, 0.2), Vector3(0.0, base_y + 0.15, -length * 0.5), trim, false)
+	_box(Vector3(width * 1.02, 0.25, 0.2), Vector3(0.0, base_y + 0.15, length * 0.5), trim, false)
+	for side: float in [-1.0, 1.0]:
+		_box(Vector3(0.35, 0.18, 0.06), Vector3(side * (width * 0.5 - 0.3), base_y + chassis_h * 0.7, -length * 0.5 - 0.02), Color(1.0, 0.95, 0.8), false, true)
+		_box(Vector3(0.35, 0.18, 0.06), Vector3(side * (width * 0.5 - 0.3), base_y + chassis_h * 0.7, length * 0.5 + 0.02), Color(1.0, 0.2, 0.15), false, true)
+	# Body-type extras.
+	match body_type:
+		BodyType.PICKUP:
+			_box(Vector3(width * 0.9, 0.5, length * 0.42), Vector3(0.0, base_y + chassis_h + 0.25, length * 0.28), paint.darkened(0.2), true)
+		BodyType.SPORTS:
+			_box(Vector3(width * 0.6, 0.15, 0.8), Vector3(0.0, base_y + chassis_h + 0.08, -length * 0.35), trim, false)
+	match addon:
+		Addon.ROOF_RACK:
+			_box(Vector3(width * 0.8, 0.12, cabin.y * 0.8), Vector3(0.0, base_y + chassis_h + cabin_h + 0.2, cabin.x + cabin.y * 0.5), trim, false)
+			_box(Vector3(width * 0.6, 0.5, cabin.y * 0.6), Vector3(0.0, base_y + chassis_h + cabin_h + 0.5, cabin.x + cabin.y * 0.5), Color(0.5, 0.36, 0.22), false)
+		Addon.SPOILER:
+			_box(Vector3(width * 0.95, 0.08, 0.45), Vector3(0.0, base_y + chassis_h + 0.55, length * 0.45), trim, false)
+			for side: float in [-1.0, 1.0]:
+				_box(Vector3(0.08, 0.5, 0.3), Vector3(side * width * 0.35, base_y + chassis_h + 0.28, length * 0.45), trim, false)
+		Addon.LIGHT_BAR:
+			_box(Vector3(width * 0.8, 0.14, 0.2), Vector3(0.0, base_y + chassis_h + cabin_h + 0.1, cabin.x + 0.2), trim, false)
+			for i in 6:
+				_box(Vector3(0.1, 0.1, 0.1), Vector3(-width * 0.35 + i * width * 0.14, base_y + chassis_h + cabin_h + 0.1, cabin.x + 0.08), Color(1.0, 0.95, 0.7), false, true)
+	# Seat marker (where the driver sits) and wheels.
+	_seat = Node3D.new()
+	_seat.position = Vector3(-0.4, base_y + chassis_h + 0.2, cabin.x + cabin.y * 0.4)
+	add_child(_seat)
+	# Bumper zone: fast cars knock pedestrians over and launch the player.
+	var bumper := Area3D.new()
+	bumper.collision_layer = 0
+	bumper.collision_mask = 2 | 8
+	bumper.monitorable = false # nothing looks for it; see Pedestrian._add_hit_area()
+	var bshape := CollisionShape3D.new()
+	var bbox := BoxShape3D.new()
+	bbox.size = Vector3(width + 0.4, 1.6, length + 0.8)
+	bshape.shape = bbox
+	bshape.position = Vector3(0.0, base_y + 0.6, 0.0)
+	bumper.add_child(bshape)
+	bumper.body_entered.connect(_on_bumper_hit)
+	add_child(bumper)
+	var wheel_z: float = dims.wheel_z
+	_wheel_slots = []
+	for front: bool in [true, false]:
+		for side: float in [-1.0, 1.0]:
+			# "wheel_front" / "wheel_rear" put the physics wheels under a long body's own axles,
+			# which are not symmetric about its middle (the van's front axle is 0.28 m further
+			# out than its rear one); everything else uses +-wheel_z.
+			var wz: float = float(dims.get("wheel_front", wheel_z)) if front else float(dims.get("wheel_rear", wheel_z))
+			_wheel_slots.append([Vector3(side * float(dims.get("track", 1.62)) * 0.5, base_y - 0.1, (-wz if front else wz)), front])
+	# Real VehicleWheel3D nodes on a frozen body divide by zero inside the engine, so a
+	# kinematic traffic car gets none until it goes physical (CLAUDE.md). The VISIBLE wheels are
+	# the same either way: they are plain nodes this script drives, so traffic and driven cars
+	# roll on exactly the same geometry.
+	if not is_traffic():
+		_add_real_wheels()
+	# A body whose model has its own wheel gets nothing generated over it. Without the _has_model
+	# term a missing .glb would leave that car on bare axles, since the primitive fallback body
+	# has no wheels of its own either.
+	if wheels_enabled and not (_has_model and MODEL_OWN_WHEELS.has(body_type)):
+		_add_generated_wheels()
+	_add_night_lights(dims)
+	_add_livery_props(dims)
+	_occupant_key = -1
+	_update_occupant()
+
+
+## The one piece of geometry a livery needs: a lit taxi sign, a van's roof vent pod, a service
+## truck's amber beacon. One box each, one shared mesh per kind, no shadow, and it stops drawing
+## at livery_prop_distance. Everything else about a livery is paint, so it costs nothing.
+## The height comes from the model's own bounding box (_model_top_y), and the position along the
+## car is kept close to the middle on purpose: that is inside the roof of every one of the four
+## models whichever way round the mesh was authored.
+func _add_livery_props(dims: Dictionary) -> void:
+	if body_type == BodyType.TAXI and _has_model:
+		# The taxi body carries its own lit sign (the model's taxi_sign slot); what it needs here
+		# is the company's lettering.
+		_add_taxi_lettering()
+		return
+	if livery != Livery.TAXI and livery != Livery.DELIVERY and livery != Livery.SERVICE:
+		return
+	var top := _model_top_y
+	if not _has_model:
+		top = 0.55 + float(dims.chassis_h) + float(dims.cabin_h)
+	var length: float = dims.length
+	var node := MeshInstance3D.new()
+	node.name = "LiveryProp"
+	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	node.visibility_range_end = livery_prop_distance
+	match livery:
+		Livery.TAXI:
+			node.mesh = _shared_box(&"taxi_sign", Vector3(0.62, 0.20, 0.30),
+					WeaponFX.unshaded(Color(0.99, 0.84, 0.30)))
+			node.position = Vector3(0.0, top + 0.08, length * 0.06)
+		Livery.DELIVERY:
+			node.mesh = _shared_box(&"van_vent", Vector3(0.60, 0.18, 0.78),
+					PropFactory.material(Color(0.62, 0.63, 0.64), 0.55))
+			node.position = Vector3(0.0, top + 0.07, length * 0.12)
+		Livery.SERVICE:
+			node.mesh = _shared_box(&"beacon", Vector3(0.95, 0.15, 0.22),
+					WeaponFX.unshaded(Color(1.0, 0.55, 0.06)))
+			node.position = Vector3(0.0, top + 0.06, 0.0)
+	add_child(node)
+
+
+## BASIN CAB on both front doors and the car's fleet number on both rear doors: shared TextMeshes
+## (BigVehicles.text_mesh(), one per string), no shadow, gone past BigVehicles.LETTER_DISTANCE,
+## and not on the web, like the trucks' fleet names.
+func _add_taxi_lettering() -> void:
+	if OS.has_feature("web"):
+		return
+	var number := "%d" % (100 + absi(hash([look_seed, 51])) % 800)
+	for text_at: Array in [[TAXI_COMPANY, TAXI_NAME_AT, TAXI_LETTER_SIZE], [number, TAXI_NUMBER_AT, TAXI_LETTER_SIZE * 1.3]]:
+		var mesh := BigVehicles.text_mesh(String(text_at[0]), float(text_at[2]), TAXI_TRIM)
+		var at: Vector3 = text_at[1]
+		for side: float in [1.0, -1.0]:
+			var mi := MeshInstance3D.new()
+			mi.name = "Lettering"
+			mi.mesh = mesh
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mi.visibility_range_end = BigVehicles.LETTER_DISTANCE
+			mi.basis = Basis(Vector3.UP, PI * 0.5 * side)
+			mi.position = Vector3(side * at.x, at.y, at.z)
+			add_child(mi)
+
+
+## A BoxMesh carrying its own material, built once and shared by every car that wants it.
+static func _shared_box(key: StringName, size: Vector3, mat: Material) -> BoxMesh:
+	if _livery_meshes.has(key):
+		return _livery_meshes[key]
+	var box := BoxMesh.new()
+	box.size = size
+	box.material = mat
+	_livery_meshes[key] = box
+	return box
+
+
+## Headlights, tail lights and the pool of light the beams throw on the road. All of it is the
+## additive night quad (shaders/light_pool.gdshader), so it costs no real lights and it is
+## invisible by day. The generated body models carry no lamps of their own and _box() skips
+## every primitive once a model is in use, so without this a city of cars drives around at
+## midnight completely dark.
+func _add_night_lights(dims: Dictionary) -> void:
+	var node := MeshInstance3D.new()
+	node.name = "NightLights"
+	# "lamp_y" / "tail_y" where a body's own lamps are known (the road_* bodies, whose generator
+	# prints them); the old formula put the glow a metre up on a model car.
+	var lamp_y := float(dims.get("lamp_y", 0.55 + dims.chassis_h * 0.62))
+	node.mesh = PropFactory.vehicle_lights(dims.width, float(dims.get("light_len", dims.length)), lamp_y,
+			float(dims.get("road", dims.get("ride", model_bottom_y))), float(dims.get("tail_y", lamp_y)))
+	# A semi's lamps run the whole rig (its tail lamps are on the trailer's back).
+	node.position.z = float(dims.get("light_z", 0.0))
+	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# One node per car rather than five: with a hundred and fifty cars on the road the separate
+	# quads were several hundred draw calls on their own. Past this distance the car is a few
+	# pixels and its lights are not worth one.
+	node.visibility_range_end = 160.0
+	add_child(node)
+	_night_lights = node
+	_light_key = -1
+	_refresh_lights()
+
+
+## True while somebody is at the wheel of a whole car: its lamps are on. A parked car is dark
+## (its lamps were lit like a moving car's until 2026-10-04), a wreck has none.
+func lights_running() -> bool:
+	if has_meta("wreck") or is_wreck():
+		return false
+	return _cabin_seats() != 0 or alarm_left > 0.0
+
+
+## Works out what the lamps show this tick: the brake light from the brake pedal (the player)
+## or the speed falling (traffic, which is placed, not driven), the reversing lamps, and the
+## indicators from the turn the traffic rolled for the next junction (TrafficManager keeps
+## `turn` and `to_c`, the distance to that junction's centre), hazards on a car knocked out of
+## the traffic with its driver still in it.
+func _tick_lights(delta: float) -> void:
+	if _night_lights == null:
+		return
+	var braking := false
+	var reversing := false
+	var sig := 0
+	if driver != null:
+		var speed := linear_velocity.dot(-global_basis.z)
+		braking = brake > 5.0
+		reversing = engine_force > 0.0 and speed < 1.0
+	elif is_traffic():
+		var v := traffic_speed
+		var decel := (_prev_traffic_speed - v) / maxf(delta, 0.0001)
+		braking = v < 0.3 or decel > 0.8
+		_prev_traffic_speed = v
+		sig = _traffic_signal()
+	elif _npc_driver:
+		braking = linear_velocity.length() < 1.0 or brake > 5.0
+		sig = 2
+	elif alarm_left > 0.0:
+		sig = 2
+	if braking:
+		_brake_hold = 0.35
+	else:
+		_brake_hold = maxf(_brake_hold - delta, 0.0)
+	light_brake = braking or _brake_hold > 0.0
+	light_reverse = reversing
+	light_signal = sig
+	_refresh_lights()
+
+
+## The indicator for the turn a street car has rolled: -1 left, 1 right (a U-turn is a left,
+## the roads drive on the right), 0 none or still far from the junction.
+func _traffic_signal() -> int:
+	var turn := int(traffic.get("turn", 0))
+	if turn == 0 or not traffic.has("axis"):
+		return 0
+	var to_c := float(traffic.get("to_c", INF))
+	if to_c > TURN_SIGNAL_DISTANCE or to_c < -2.0:
+		return 0
+	if turn == 2:
+		return -1
+	var dir := float(traffic.get("dir", 1))
+	var x_road := int(traffic.axis) == CityPlan.AXIS_X
+	var forward := Vector3(0.0, 0.0, dir) if x_road else Vector3(dir, 0.0, 0.0)
+	var after := Vector3(float(turn), 0.0, 0.0) if x_road else Vector3(0.0, 0.0, float(turn))
+	return 1 if after.dot(forward.cross(Vector3.UP)) > 0.0 else -1
+
+
+## True while the car's lamps are on and at least one headlamp is whole (CarLights).
+func has_headlights() -> bool:
+	return _night_lights != null and _night_lights.visible and (_lamp_bits & 3) != 3
+
+
+## How much of the headlight is left: 1 with both lamps, 0.5 with one (CarLights).
+func headlight_share() -> float:
+	return (0.5 if _lamp_bits & 1 == 0 else 0.0) + (0.5 if _lamp_bits & 2 == 0 else 0.0)
+
+
+## Where a headlight sits on the car (body space): between the lamps, just ahead of the bumper,
+## its -Z down the road dipped `dip` degrees.
+func headlight_transform(dip: float) -> Transform3D:
+	var d := _dims()
+	var lamp_y := float(d.get("lamp_y", 0.55 + d.chassis_h * 0.62))
+	return Transform3D(Basis(Vector3.RIGHT, -deg_to_rad(dip)), Vector3(0.0, lamp_y, -float(d.length) * 0.5 - 0.1))
+
+
+## Just behind the tail lamps, a little low (body space): where the player's rear glow goes.
+func tail_point() -> Vector3:
+	var d := _dims()
+	var lamp_y := float(d.get("lamp_y", 0.55 + d.chassis_h * 0.62))
+	return Vector3(0.0, float(d.get("tail_y", lamp_y)) - 0.1, float(d.get("light_len", d.length)) * 0.5 + float(d.get("light_z", 0.0)) + 0.35)
+
+
+## Puts the state on the lamps: visible while running, one of PropFactory's shared state
+## materials. Only touches the node when something changed.
+func _refresh_lights() -> void:
+	if _night_lights == null or not is_instance_valid(_night_lights):
+		return
+	var on := lights_running() and _lamp_bits != 15
+	if _night_lights.visible != on:
+		_night_lights.visible = on
+	if not on:
+		return
+	var phase := int(get_instance_id() % 4)
+	var key := int(light_brake) | (int(light_reverse) << 1) | ((light_signal + 1) << 2) | (phase << 5)
+	if key == _light_key:
+		return
+	_light_key = key
+	_night_lights.material_override = PropFactory.vehicle_light_material(light_brake, light_signal, phase, light_reverse)
+
+
+func _add_real_wheels() -> void:
+	for slot in _wheel_slots:
+		_add_wheel(slot[0], slot[1])
+	# VehicleBody3D hands its brake to the wheels it has when it is set, not to ones added later.
+	if driver == null:
+		brake = parking_brake
+
+
+## Four real wheels: tyre with a sidewall bulge and tread, rim with a lip, spokes and a dish,
+## and a brake disc and caliper behind them (PropFactory.car_wheel). They are plain nodes rather
+## than children of the VehicleWheel3D nodes for three reasons: a kinematic traffic car has no
+## VehicleWheel3D at all and still needs wheels that turn; the generated wheel goes where the
+## body model's ARCH is, which is not where the physics wheel is; and _update_wheels() can then
+## drive traffic and driven cars down one path.
+func _add_generated_wheels() -> void:
+	var pose := _wheel_pose()
+	if pose.has("axles"):
+		BigVehicles.add_wheels(self, pose)
+		return
+	if wheel_style < 0:
+		wheel_style = absi(hash([body_type, paint.to_rgba32(), 41])) % PropFactory.WHEEL_FACES.size()
+	if wheel_kit < 0:
+		wheel_kit = absi(hash([body_type, paint.to_rgba32(), 43])) % PropFactory.WHEEL_KITS.size()
+	var mat := PropFactory.wheel_material(wheel_kit)
+	_wheel_radius = float(pose.r)
+	# A body with a wheel baked into it hands over to that wheel past wheel_draw_distance - it
+	# is shrunk into the hub rather than cut out (PropFactory.tuck_body_wheels), so it is part of
+	# the body's own surface and costs no draw call at all. The exotics have no wheel in the
+	# model to hand over to - their arches were simply empty before this - so theirs have to keep
+	# drawing, and the far mesh is cheap enough that letting the rarest eighth of the fleet run
+	# to two and a half times the distance costs a handful of draws.
+	# "baked": the road_* bodies carry their far wheel in the far twin only (no tuck needed).
+	var handed_over := bool(pose.get("cut", false)) or bool(pose.get("baked", false))
+	_wheel_far_end = wheel_draw_distance if handed_over else wheel_draw_distance * 2.6
+	_wheel_meshes = []
+	for front: bool in [true, false]:
+		var w: float = float(pose.w) if front else float(pose.get("rw", pose.w))
+		_wheel_meshes.append([
+			PropFactory.car_wheel(wheel_style, float(pose.r), w, true),
+			PropFactory.car_wheel(wheel_style, float(pose.r), w, false),
+			PropFactory.car_caliper(wheel_style, float(pose.r), w),
+		])
+	for front: bool in [true, false]:
+		var kit: Array = _wheel_meshes[0 if front else 1]
+		for side: float in [-1.0, 1.0]:
+			var steer := Node3D.new()
+			steer.name = "Wheel%s%s" % ["F" if front else "R", "L" if side < 0.0 else "R"]
+			steer.position = Vector3(side * float(pose.x), float(pose.y),
+					float(pose.front) if front else float(pose.rear))
+			add_child(steer)
+			# The mesh is built with its outboard face toward +X, so the left-hand wheels are
+			# turned right round rather than mirrored with a negative scale: a negative scale
+			# flips the winding and every triangle on the wheel would be culled.
+			var flip := Basis(Vector3.UP, 0.0 if side > 0.0 else PI)
+			var mi := MeshInstance3D.new()
+			mi.mesh = kit[0]
+			mi.material_override = mat
+			mi.basis = flip
+			mi.visibility_range_end = _wheel_far_end
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			steer.add_child(mi)
+			# The caliper is bolted to the upright, so it steers but must NOT spin. Its own node
+			# is what buys that, and it is the detail that stops the whole assembly reading as
+			# one turned cylinder.
+			var cal := MeshInstance3D.new()
+			cal.mesh = kit[2]
+			cal.material_override = mat
+			cal.basis = flip
+			cal.visibility_range_end = caliper_distance
+			cal.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			steer.add_child(cal)
+			_wheel_rigs.append([steer, mi, cal, flip, front, float(pose.y)])
+	_susp_rest = PackedFloat32Array()
+	_susp_rest.resize(_wheel_rigs.size())
+	_susp_rest.fill(NAN)
+	# Seeded now, or the first frame a traffic car comes into range reads its whole heading as
+	# one frame's turn and slams the front wheels onto full lock for that frame.
+	_last_yaw = rotation.y
+
+
+## Where this car's generated wheels go. WHEEL_POSE when the body is a model (the arch is in a
+## fixed place in that model); derived from _dims() for the primitive box car, which has no
+## arches and whose wheels have always simply sat on the physics slots.
+func _wheel_pose() -> Dictionary:
+	if _has_model and WHEEL_POSE.has(body_type):
+		return WHEEL_POSE[body_type]
+	var d := _dims()
+	var r := float(d.get("tyre_r", 0.34))
+	return {
+		"x": float(d.get("track", 1.62)) * 0.5,
+		"front": -float(d.wheel_z), "rear": float(d.wheel_z),
+		# The physics slot is at base_y - 0.1 and the suspension hangs the hub below it; at rest
+		# it sits at roughly seven tenths of the rest length, which is where the wheel centre is.
+		"y": 0.55 - 0.1 - suspension_rest_length * 0.7, "r": r, "w": r * 0.66,
+	}
+
+
+## Rolls the wheels, steers the front pair and swaps the LOD mesh. One pass for traffic and
+## driven cars alike: the spin comes from the car's own speed, not from the physics wheels,
+## because a kinematic traffic car does not have any.
+## Mesh LOD bias for the body per tier (inside body_shadow_distance, out to 180 m, beyond).
+const BODY_LOD_BIAS := [1.0, 0.5, 0.25]
+## LOD bias of the body's shadow. The shadow is cast by a twin of each body mesh drawn into the
+## shadow maps only, so it can take a coarser LOD of the same model than the one you are looking
+## at: the car you see keeps every triangle, its shadow - a dark shape on the tarmac under it -
+## gets a fraction. The cars within body_shadow_distance were 0.6 million triangles of shadow a
+## frame on a downtown street.
+const BODY_SHADOW_LOD_BIAS := 0.3
+var _body_meshes: Array[MeshInstance3D] = []
+var _body_shadows: Array[MeshInstance3D] = []
+var _body_tier: int = -1
+## settle() checks in a row this car has been found slow on its wheels.
+var _settle_slow: int = 0
+## How many of them it takes (PhysicsBudget checks every quarter of a second).
+const SETTLE_CHECKS := 3
+
+
+## Puts an empty car that has come to rest on its wheels to sleep (PhysicsBudget asks four times
+## a second, from its physics tick). Godot Physics can NOT put a VehicleBody3D to sleep by itself:
+## the body is sent to sleep inside the step, but its state callback still runs after that step,
+## and VehicleBody3D's suspension calls apply_impulse on every wheel, which wakes it again. So
+## every parked car in the city was simulated every step - four suspension rays each through the
+## whole city's collision tree, 16 % of all the CPU the game used - while its `sleeping` flag read
+## true, which is why this ignores the flag. Sent to sleep here, between the callbacks and the
+## next step, the body is not integrated, so no callback comes and it stays asleep until
+## something touches it, exactly like any other sleeping body.
+## It must be found slow on SETTLE_CHECKS checks running (half a second): a car that has just
+## dropped onto its springs is still for an instant at the bottom of each bounce, and sent to
+## sleep there it stayed parked 20 cm down on squashed springs (CI 342: four of the five new
+## bodies, read 2.5 s after their drop).
+func settle() -> void:
+	if freeze or driver != null or is_traffic():
+		_settle_slow = 0
+		return
+	if linear_velocity.length() > settle_speed or angular_velocity.length() > 0.25 or wheels.is_empty():
+		_settle_slow = 0
+		return
+	for w in wheels:
+		if not w.is_in_contact():
+			_settle_slow = 0
+			return
+	_settle_slow += 1
+	if _settle_slow < SETTLE_CHECKS:
+		return
+	sleeping = true
+
+
+## Switches this car's own per-step script on or off (PhysicsBudget does it by distance). Off, the
+## body stays in the physics world and behaves exactly as before; only the wheel spin, the
+## suspension offsets on the visible wheels and the LOD bookkeeping stop, which is why the body
+## is put on its far tier first.
+func set_script_active(on: bool) -> void:
+	if on == is_physics_processing():
+		return
+	if not on:
+		_update_body_tier(INF)
+		# Nobody is near enough to see it stop, and with the script off nothing would ever set
+		# the brake again: a car left coasting would roll on down any hill for good.
+		if driver == null:
+			brake = parking_brake
+	set_physics_process(on)
+
+
+## Shadow and LOD tier for the body, from its distance to the camera's focus.
+func _update_body_tier(dist: float) -> void:
+	var tier := 0 if dist < body_shadow_distance else (1 if dist < 180.0 else 2)
+	if tier == _body_tier:
+		return
+	_body_tier = tier
+	if _body_shadows.is_empty():
+		_make_body_shadows()
+	for m in _body_meshes:
+		if is_instance_valid(m):
+			m.lod_bias = BODY_LOD_BIAS[tier]
+	for twin in _body_shadows:
+		if is_instance_valid(twin):
+			twin.visible = tier == 0
+
+
+## The shadow twins (see BODY_SHADOW_LOD_BIAS): made on the first tier update, after the wheel
+## tuck has swapped the body's mesh for its final one, with the body's own per-surface paint and
+## glass so the windows still let the light through. Children of the body mesh, so they follow it.
+func _make_body_shadows() -> void:
+	for m in _body_meshes:
+		if not is_instance_valid(m) or m.mesh == null:
+			continue
+		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var twin := MeshInstance3D.new()
+		twin.name = "Shadow"
+		twin.mesh = m.mesh
+		for si in m.mesh.get_surface_count():
+			twin.set_surface_override_material(si, m.get_surface_override_material(si))
+		twin.material_override = m.material_override
+		twin.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		twin.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+		twin.lod_bias = BODY_SHADOW_LOD_BIAS
+		twin.custom_aabb = m.custom_aabb
+		# The shadow hands over with the body: a near model's twin stops where its far twin
+		# starts, or both cast from 30 m to the shadow distance.
+		twin.visibility_range_begin = m.visibility_range_begin
+		twin.visibility_range_end = m.visibility_range_end
+		m.add_child(twin)
+		_body_shadows.append(twin)
+
+
+func _update_wheels(delta: float) -> void:
+	_crash_watch()
+	_tick_lights(delta)
+	if _wheel_rigs.is_empty():
+		if not _body_meshes.is_empty():
+			_update_body_tier(global_position.distance_to(_focus_point()))
+		return
+	# Before the range test, not after it: this is the only place it is updated, and a traffic
+	# car that spent ten seconds out of range would come back reading all of that heading change
+	# as one frame's turn and slam its front wheels onto full lock for a frame.
+	var yaw_now := rotation.y
+	var yaw_rate := wrapf(yaw_now - _last_yaw, -PI, PI) / maxf(delta, 0.0001)
+	_last_yaw = yaw_now
+	var focus := _focus_point()
+	var dist := global_position.distance_to(focus)
+	_update_body_tier(dist)
+	if dist > _wheel_far_end:
+		return
+	var near := _wheel_near
+	if dist < wheel_lod_distance * 0.9:
+		near = true
+	elif dist > wheel_lod_distance * 1.1:
+		near = false
+	if near != _wheel_near:
+		_wheel_near = near
+		for rig: Array in _wheel_rigs:
+			var mi := rig[1] as MeshInstance3D
+			mi.mesh = rig[6 if near else 7] if rig.size() > 7 else _wheel_meshes[0 if rig[4] else 1][0 if near else 1]
+			# The far wheel drops its shadow as well as its triangles: a shadow pass is a second
+			# draw call per wheel, and a wheel's own shadow at forty metres is under the car.
+			mi.cast_shadow = (GeometryInstance3D.SHADOW_CASTING_SETTING_ON if near
+					else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+	var speed := traffic_speed if is_traffic() else linear_velocity.dot(-global_basis.z)
+	_wheel_spin = fposmod(_wheel_spin - speed / maxf(_wheel_radius, 0.05) * delta, TAU)
+	var steer := steering
+	if is_traffic():
+		# No steering input on a kinematic car, so read it back off the turn it is making.
+		steer = clampf(yaw_rate * 2.7 / maxf(absf(speed), 2.5), -0.55, 0.55)
+	var spun := Basis(Vector3.RIGHT, _wheel_spin)
+	# Suspension travel. VehicleBody3D writes each VehicleWheel3D node's own position every
+	# physics step - that is the hub, moving with the spring - so the visible wheel only has to
+	# copy the offset from where that hub sits at rest. Without this the wheels are welded to
+	# the body at a fixed height, and in a game built around landing a car from two hundred
+	# metres every landing drives the tyres straight through the road.
+	var travel := wheels.size() == _wheel_rigs.size() and _susp_rest.size() == wheels.size()
+	if travel and _susp_settled < 30 and is_nan(_susp_rest[0]):
+		# "At rest" is measured, not taken from the first contact: a car usually spawns above
+		# the road and its first frame of contact is the bottom of a bounce. It is measured ONCE
+		# and then kept - re-measuring it after every landing moves the reference the travel is
+		# drawn around, and the wheels step a couple of centimetres each time the car settles.
+		var down := true
+		for w in wheels:
+			if not w.is_in_contact():
+				down = false
+				break
+		# Creeping counts, not just stopped: a car the player drives away the moment it streams
+		# in would otherwise never measure a baseline and would never get any travel at all.
+		_susp_settled = _susp_settled + 1 if down and linear_velocity.length_squared() < 4.0 else 0
+		if _susp_settled >= 30:
+			for i in wheels.size():
+				_susp_rest[i] = wheels[i].position.y
+	var limit := suspension_travel + suspension_rest_length * 0.5
+	for i in _wheel_rigs.size():
+		var rig: Array = _wheel_rigs[i]
+		var node := rig[0] as Node3D
+		node.rotation.y = steer if rig[4] else 0.0
+		if travel and not is_nan(_susp_rest[i]):
+			node.position.y = rig[5] + clampf(wheels[i].position.y - _susp_rest[i], -limit, limit)
+		(rig[1] as MeshInstance3D).basis = spun * (rig[3] as Basis)
+
+
+## The camera, once per physics frame for the whole fleet.
+static func _focus_point_from(node: Node3D) -> Vector3:
+	var frame := Engine.get_physics_frames()
+	if _focus_frame != int(frame):
+		_focus_frame = int(frame)
+		var cam := node.get_viewport().get_camera_3d()
+		if cam:
+			_focus = cam.global_position
+	return _focus
+
+
+func _focus_point() -> Vector3:
+	return _focus_point_from(self)
+
+
+## Per body type. "track" is the distance between the two wheel CENTRES and "tyre_r" the wheel
+## radius, both in metres, and both used to be one shared value that was simply wrong: wheels
+## were parked at width * 0.5 - 0.05, which on a 2.1 m body is a 2.0 m track, and the radius was
+## a flat 0.42 (an 0.84 m wheel). A real car runs a 1.55-1.75 m track on 0.63-0.72 m wheels, so
+## every body built to fit those wheels had to be flared out past 2.2 m wide and still looked
+## like it was on tractor tyres. "road" is where the road is in body space under a parked car
+## on its springs (tools/glshot/car_shot.gd prints it as CONTACT; traffic stands its cars on it,
+## road_lift()), and "ride" is where the bottom of the body model sits - the same, less however
+## far the model's lowest point is off its own ground (a road_* body's far-twin tyres stop 2 cm
+## short of it). "lamp_y" / "tail_y" put the night glows at the lamps. A van cannot
+## share a saloon's ride height without looking slammed.
+func _dims() -> Dictionary:
+	match body_type:
+		BodyType.PICKUP:
+			return {"length": 6.082, "width": 2.03, "lamp_y": 0.88, "tail_y": 0.96, "chassis_h": 0.8, "cabin": Vector2(-1.4, 1.8), "cabin_h": 0.75, "wheel_z": 1.75, "wheel_front": 1.96, "wheel_rear": 1.62, "track": 1.72, "tyre_r": 0.37, "ride": -0.185, "road": -0.206}
+		BodyType.CROSSOVER:
+			return {"length": 4.633, "width": 1.86, "lamp_y": 0.65, "tail_y": 0.85, "chassis_h": 0.75, "cabin": Vector2(-1.1, 2.6), "cabin_h": 0.8, "wheel_z": 1.34, "track": 1.60, "tyre_r": 0.36, "ride": -0.176, "road": -0.196}
+		BodyType.VAN:
+			return {"length": 5.944, "width": 2.03, "lamp_y": 0.674, "tail_y": 0.864, "chassis_h": 0.8, "cabin": Vector2(-2.0, 4.4), "cabin_h": 1.2, "wheel_z": 1.65, "wheel_front": 1.95, "wheel_rear": 1.67, "track": 1.70, "tyre_r": 0.36, "ride": -0.176, "road": -0.196}
+		BodyType.BUS:
+			return {"length": 12.704, "width": 2.59, "lamp_y": 0.48, "tail_y": 1.0, "chassis_h": 1.0, "cabin": Vector2(-6.1, 12.2), "cabin_h": 1.3, "wheel_z": 3.4, "wheel_front": 3.587, "wheel_rear": 3.263, "track": 2.07, "tyre_r": 0.461, "ride": -0.273, "road": -0.300,
+					"light_len": 12.36, "light_z": 0.11,
+					"letter_at": Vector3(1.297, 2.40, -1.39), "letter_size": 0.22}
+		BodyType.BOX_TRUCK:
+			return {"length": 8.946, "width": 2.46, "lamp_y": 0.89, "tail_y": 0.92, "chassis_h": 1.0, "cabin": Vector2(-4.4, 8.8), "cabin_h": 1.4, "wheel_z": 2.9, "wheel_front": 3.397, "wheel_rear": 2.403, "track": 1.72, "tyre_r": 0.424, "ride": -0.236, "road": -0.260,
+					"light_len": 8.82, "light_z": 0.063,
+					"letter_at": Vector3(1.236, 2.30, 1.22), "letter_size": 0.42}
+		BodyType.SEMI:
+			# The tractor is the body (its origin, its length); the trailer hangs off the kingpin
+			# (BigVehicles.Hitch), 16.15 m of it, its back end 15.25 m behind the pin.
+			return {"length": 8.908, "width": 2.49, "lamp_y": 0.82, "tail_y": 0.70, "chassis_h": 1.1, "cabin": Vector2(-4.4, 5.6), "cabin_h": 1.6, "wheel_z": 3.0, "wheel_front": 3.176, "wheel_rear": 2.984, "track": 2.07, "tyre_r": 0.463, "ride": -0.272, "road": -0.300,
+					"kingpin": Vector3(0.0, 0.92, 2.874), "trailer_axle": 13.375, "trailer_rear": 15.25, "trailer_floor": -0.18,
+					"light_len": 22.584, "light_z": 6.838,
+					"letter_at": Vector3(1.31, 1.48, 7.175), "letter_size": 0.62}
+		BodyType.FIRE_ENGINE:
+			return {"length": 10.04, "width": 2.5, "lamp_y": 0.82, "tail_y": 0.84, "chassis_h": 1.0, "cabin": Vector2(-5.0, 10.0), "cabin_h": 1.5, "wheel_z": 2.5, "wheel_front": 3.48, "wheel_rear": 1.52, "track": 2.07, "tyre_r": 0.49, "ride": -0.281, "road": -0.310,
+					"letter_at": Vector3(1.262, 1.02, -2.39), "letter_size": 0.30}
+		BodyType.AMBULANCE:
+			return {"length": 6.974, "width": 2.35, "lamp_y": 0.595, "tail_y": 0.92, "chassis_h": 0.9, "cabin": Vector2(-3.4, 6.9), "cabin_h": 1.3, "wheel_z": 2.0, "wheel_front": 2.613, "wheel_rear": 1.407, "track": 1.74, "tyre_r": 0.35, "ride": -0.199, "road": -0.220,
+					"letter_at": Vector3(1.178, 1.55, 2.037), "letter_size": 0.20}
+		BodyType.HATCHBACK:
+			return {"length": 4.358, "width": 1.835, "lamp_y": 0.49, "tail_y": 0.78, "chassis_h": 0.7, "cabin": Vector2(-1.0, 2.3), "cabin_h": 0.7, "wheel_z": 1.31, "wheel_front": 1.272, "wheel_rear": 1.358, "track": 1.54, "tyre_r": 0.343, "ride": -0.153, "road": -0.170}
+		BodyType.SUV:
+			return {"length": 5.506, "width": 2.10, "lamp_y": 0.865, "tail_y": 1.115, "chassis_h": 0.85, "cabin": Vector2(-1.2, 3.4), "cabin_h": 0.9, "wheel_z": 1.54, "wheel_front": 1.653, "wheel_rear": 1.417, "track": 1.74, "tyre_r": 0.382, "ride": -0.193, "road": -0.215}
+		BodyType.MINIVAN:
+			return {"length": 5.181, "width": 2.02, "lamp_y": 0.66, "tail_y": 1.11, "chassis_h": 0.8, "cabin": Vector2(-1.6, 3.6), "cabin_h": 0.9, "wheel_z": 1.52, "wheel_front": 1.570, "wheel_rear": 1.460, "track": 1.70, "tyre_r": 0.352, "ride": -0.171, "road": -0.190}
+		BodyType.BEATER:
+			return {"length": 4.793, "width": 1.76, "lamp_y": 0.435, "tail_y": 0.635, "chassis_h": 0.7, "cabin": Vector2(-1.0, 2.3), "cabin_h": 0.65, "wheel_z": 1.31, "wheel_front": 1.436, "wheel_rear": 1.184, "track": 1.49, "tyre_r": 0.329, "ride": -0.148, "road": -0.165}
+		BodyType.SCHOOL_BUS:
+			return {"length": 12.795, "width": 2.44, "lamp_y": 0.56, "tail_y": 1.06, "chassis_h": 1.0, "cabin": Vector2(-6.1, 12.2), "cabin_h": 1.3, "wheel_z": 3.1, "wheel_front": 3.512, "wheel_rear": 2.728, "track": 1.97, "tyre_r": 0.461, "ride": -0.273, "road": -0.300,
+					"light_len": 12.36, "light_z": 0.0}
+		BodyType.SPORTS:
+			return {"length": 4.6, "width": 1.9, "chassis_h": 0.55, "cabin": Vector2(-0.9, 2.0), "cabin_h": 0.55, "wheel_z": 1.45, "track": 1.64, "tyre_r": 0.34, "ride": -0.30}
+		BodyType.SUPER, BodyType.SPIDER:
+			return {"length": 4.55, "width": 1.98, "chassis_h": 0.5, "cabin": Vector2(-0.6, 1.6), "cabin_h": 0.5, "wheel_z": 1.32, "track": 1.70, "tyre_r": 0.35, "ride": -0.34}
+		BodyType.HYPER, BodyType.TRACK:
+			return {"length": 4.6, "width": 2.02, "chassis_h": 0.48, "cabin": Vector2(-0.6, 1.5), "cabin_h": 0.48, "wheel_z": 1.35, "track": 1.74, "tyre_r": 0.36, "ride": -0.35}
+		_:
+			# The sedan, and the taxi (the sedan's body with its roof sign). length / width / lamp heights are the model's own
+			# (tools/make_road_cars.py prints them), so it is drawn at scale 1; the physics
+			# numbers are the old ones, which the handling and the smoke test's drives are tuned on.
+			return {"length": 4.946, "width": 1.84, "lamp_y": 0.453, "tail_y": 0.775, "chassis_h": 0.7, "cabin": Vector2(-1.0, 2.4), "cabin_h": 0.7, "wheel_z": 1.5, "track": 1.62, "tyre_r": 0.34, "ride": -0.158, "road": -0.177}
+
+
+func _add_wheel(pos: Vector3, front: bool) -> void:
+	var wheel := VehicleWheel3D.new()
+	wheel.position = pos
+	wheel.use_as_traction = true
+	wheel.use_as_steering = front
+	wheel.wheel_radius = float(_dims().get("tyre_r", 0.34))
+	wheel.wheel_rest_length = suspension_rest_length
+	wheel.suspension_travel = suspension_travel
+	wheel.suspension_stiffness = suspension_stiffness
+	wheel.suspension_max_force = suspension_max_force
+	wheel.damping_compression = damping_compression
+	wheel.damping_relaxation = damping_relaxation
+	wheel.wheel_friction_slip = wheel_grip
+	wheel.wheel_roll_influence = wheel_roll_influence
+	add_child(wheel)
+	wheels.append(wheel)
+	# No mesh here any more: the visible wheel is a generated one placed in the body model's
+	# arch by _add_generated_wheels(), which is a different place from this physics slot.
+
+
+## Instances the generated body model for this type, scaled to `length` and tinted with the
+## paint (the models are textured white). Returns false when the model file does not exist.
+func _add_body_model(length: float) -> bool:
+	var path: String = BODY_MODELS.get(body_type, "")
+	if path == "" or not ResourceLoader.exists(path):
+		return false
+	var scene: PackedScene = load(path)
+	if scene == null:
+		return false
+	var inst := scene.instantiate() as Node3D
+	var holder := Node3D.new()
+	holder.name = "BodyModel"
+	holder.add_child(inst)
+	var aabb := AABB()
+	var first := true
+	var painted_mats: Array[ShaderMaterial] = []
+	# One paint material per car, shared by the full model and its far twin.
+	var painted: ShaderMaterial = null
+	var near_meshes: Array[MeshInstance3D] = []
+	var far_mesh: MeshInstance3D = null
+	var far_meshes: Array[MeshInstance3D] = []
+	# A semi's trailer and a bus's door leaves are their own nodes (BigVehicles.fit() moves them);
+	# the body is centred and scaled on everything else.
+	var trailer: Array = []
+	var doors: Array = []
+	for mi in inst.find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		_body_meshes.append(m)
+		var nm := String(m.name)
+		if nm.ends_with("_far"):
+			far_mesh = m
+			far_meshes.append(m)
+		else:
+			near_meshes.append(m)
+		if nm.contains("_trailer"):
+			trailer.append(m)
+		elif nm.begins_with("door_"):
+			doors.append(m)
+		else:
+			var box := m.mesh.get_aabb()
+			aabb = box if first else aabb.merge(box)
+			first = false
+		# Per SURFACE, not material_override. The Meshy bodies are one surface with the paint
+		# baked into the albedo, so overriding the whole instance was right for them. The
+		# generated bodies carry six named slots - paint, glass, trim, tyre, light_front,
+		# light_rear - and material_override would have painted the windows, the tyres and the
+		# headlights in body colour, which is exactly the problem the slots exist to solve.
+		for si in m.mesh.get_surface_count():
+			var mat := m.mesh.surface_get_material(si)
+			if not (mat is StandardMaterial3D):
+				continue
+			var sm := mat as StandardMaterial3D
+			# A multi-slot body paints only the slot called "paint"; a single-slot body is a
+			# Meshy car and the one surface IS the bodywork.
+			if m.mesh.get_surface_count() > 1 and not String(sm.resource_name).begins_with("paint"):
+				var part := _part_material(sm)
+				if part != null:
+					m.set_surface_override_material(si, part)
+				continue
+			if painted == null or m.mesh.get_surface_count() == 1:
+				painted = _paint_material(sm.albedo_texture, sm.normal_texture)
+				painted_mats.append(painted)
+			m.set_surface_override_material(si, painted)
+	if first:
+		return false
+	if far_mesh != null:
+		for fm in far_meshes:
+			fm.visibility_range_begin = body_far_distance
+		for m in near_meshes:
+			m.visibility_range_end = body_far_distance
+	# Longest horizontal axis is the length; scale so it matches our chassis.
+	var along_x := aabb.size.x >= aabb.size.z
+	var model_len := aabb.size.x if along_x else aabb.size.z
+	var scale_f := length / maxf(model_len, 0.01)
+	inst.scale = Vector3.ONE * scale_f
+	# The livery is painted in the mesh's own space, so the shader needs the box it lives in and
+	# which way round it was authored. Set after the loop, because the box is only complete once
+	# every surface has been merged into it.
+	for pm in painted_mats:
+		pm.set_shader_parameter("body_min", aabb.position)
+		pm.set_shader_parameter("body_size", aabb.size)
+		pm.set_shader_parameter("length_is_x", along_x)
+		# Glass from the shape where the texture does not mark it (see car_paint.gdshader).
+		if GEO_GLASS_BELTLINE.has(body_type):
+			pm.set_shader_parameter("geo_glass", true)
+			pm.set_shader_parameter("beltline", GEO_GLASS_BELTLINE[body_type])
+			pm.set_shader_parameter("glass_span", GEO_GLASS_SPAN.get(body_type, Vector2(0.0, 1.0)))
+	# inst.position below puts the bottom of the box at model_bottom_y, so the top of the car is
+	# exactly that plus the scaled height of the box. That is where a roof prop goes.
+	var bottom: float = float(_dims().get("ride", model_bottom_y))
+	_model_top_y = bottom + aabb.size.y * scale_f
+	inst.rotation.y = (MODEL_YAW.get(body_type, 0.0) if along_x else 0.0)
+	var center := aabb.get_center()
+	inst.position = -(inst.transform.basis * Vector3(center.x, aabb.position.y, center.z)) + Vector3(0.0, bottom, 0.0)
+	# Only now that the model is placed can the baked wheels be found, because WHEEL_POSE is in
+	# body space. This has to stay a second pass: the AABB above is measured on the WHOLE model,
+	# wheels and all, and taking them out first would move the bottom of the box and change the
+	# car's scale and ride height.
+	_tuck_model_wheels(inst)
+	_add_cabin_glass(holder, near_meshes)
+	add_child(holder)
+	if BigVehicles.is_big(body_type):
+		BigVehicles.fit(self, holder, trailer, doors)
+	return true
+
+
+## The glass slot of each near body mesh onto the body's shared cabin glass (CarCabin: tinted
+## glass you see the cabin through). After the wheel tuck, which swaps the meshes for their final
+## ones. The far twin has no glass slot and keeps its folded parts.
+func _add_cabin_glass(holder: Node3D, meshes: Array[MeshInstance3D]) -> void:
+	if not CarCabin.enabled:
+		return
+	for m in meshes:
+		if m.mesh == null:
+			continue
+		for si in m.mesh.get_surface_count():
+			var src := m.mesh.surface_get_material(si) as StandardMaterial3D
+			if src == null or String(src.resource_name) != "glass":
+				continue
+			var to_car := holder.transform * CarCabin.chain(m, holder)
+			var data := CarCabin.measure(body_type, m.mesh, CarCabin.context(self, to_car))
+			_glass_shared = CarCabin.glass_material(body_type, src, data)
+			m.set_surface_override_material(si, _glass_shared)
+			_glass_slots.append([m, si])
+			if not _glass_meshes.has(m):
+				_glass_meshes.append(m)
+
+
+## Who the cabin glass draws inside (CarCabin): bit 0 the driver's seat, bit 1 the front
+## passenger's. The player at the wheel; a traffic driver (and now and then a passenger), who
+## stays in a car knocked out of the traffic and gets out when it catches fire; nobody in a
+## parked car. PoliceCar seats its crew.
+func _cabin_seats() -> int:
+	if driver != null:
+		return 1
+	if not _npc_driver or _abandoned():
+		return 0
+	if body_type == BodyType.BUS or body_type == BodyType.SCHOOL_BUS:
+		# The driver alone up front; the passengers are the bus's rows (CarCabin).
+		return 1
+	if body_type == BodyType.TAXI:
+		# The cabbie alone up front, and most of the time a fare on the bench behind the
+		# passenger seat (bit 2).
+		return 5 if absi(hash([_occupant_seed, 61])) % 1000 < int(TAXI_FARE_SHARE * 1000.0) else 1
+	return 3 if CarCabin.npc_look(_occupant_seed).passenger else 1
+
+
+## True once the car is on fire or burnt out: nobody stays in it.
+func _abandoned() -> bool:
+	return _damage != null and is_instance_valid(_damage) and _damage.state >= CarDamage.State.BURNING
+
+
+## The look of whoever _cabin_seats() puts in (CarCabin.npc_look()).
+func _cabin_look() -> Dictionary:
+	if driver != null:
+		return CarCabin.player_look()
+	return CarCabin.npc_look(_occupant_seed)
+
+
+## Puts _cabin_seats() and _cabin_look() on the car's glass, when they change (`force` after the
+## glass itself changed: CarDamage swapping its own in, or taking it off again).
+func _update_occupant(force: bool = false) -> void:
+	_refresh_lights()
+	if _glass_slots.is_empty():
+		return
+	var seats := _cabin_seats()
+	var key := seats
+	if seats != 0:
+		key = seats | ((2 if driver != null else 1) << 3) | ((_occupant_seed & 0xffffff) << 5)
+	if key == _occupant_key and not force:
+		return
+	_occupant_key = key
+	_apply_occupant(seats, _cabin_look())
+
+
+## Seats `look` on the glass the car wears: CarDamage's glass once it has one; otherwise this car's
+## own copy of the body's glass when anybody is inside, and the shared one when nobody is (so a
+## street of parked cars stays one material per body type). The shadow twins keep what they have:
+## a shadow is the same whoever sits inside. Tools stage a look with it directly.
+func _apply_occupant(seats: int, look: Dictionary) -> void:
+	var dmg_glass: ShaderMaterial = _damage._glass if _damage != null and is_instance_valid(_damage) else null
+	if dmg_glass != null:
+		CarCabin.seat(dmg_glass, seats, look)
+		return
+	var mat := _glass_shared
+	if seats != 0:
+		if _glass_own == null and _glass_shared != null:
+			_glass_own = _glass_shared.duplicate() as ShaderMaterial
+		mat = _glass_own
+		CarCabin.seat(mat, seats, look)
+	for slot: Array in _glass_slots:
+		var m := slot[0] as MeshInstance3D
+		if is_instance_valid(m) and m.get_surface_override_material(slot[1]) != mat:
+			m.set_surface_override_material(slot[1], mat)
+
+
+## The glass material the car wears now (the shared one, its own copy, or CarDamage's), for tests.
+func cabin_glass() -> Material:
+	if _glass_slots.is_empty():
+		return null
+	var slot: Array = _glass_slots[0]
+	return (slot[0] as MeshInstance3D).get_surface_override_material(slot[1])
+
+
+## Who is in the car now, for tests and tools: CarCabin's seat bits (0 nobody).
+func cabin_seats() -> int:
+	return _cabin_seats() if not _glass_slots.is_empty() else 0
+
+
+## Shrinks the wheels baked into the body model down inside the generated wheel that is drawn
+## over them. See PropFactory.tuck_body_wheels() for why they cannot just be covered up, and
+## for why they are not cut out into a second mesh. Only the types that need it: the exotics'
+## own wheels sit far enough inboard that the generated wheel hides them, and reshaping a model
+## is not something to do speculatively.
+func _tuck_model_wheels(inst: Node3D) -> void:
+	var pose: Dictionary = WHEEL_POSE.get(body_type, {})
+	if not wheels_enabled or not bool(pose.get("cut", false)):
+		return
+	var r := float(pose.get("cut_r", float(pose.r) * 0.99))
+	var hw := float(pose.get("cut_w", 0.16))
+	var cuts: Array = []
+	for front: bool in [true, false]:
+		for side: float in [-1.0, 1.0]:
+			var z: float = float(pose.front) if front else float(pose.rear)
+			var hub := Vector3(side * float(pose.x), float(pose.y), z)
+			cuts.append([hub, r, hw, hw])
+			# A second, narrower cylinder reaching further OUTBOARD only. The modelled wheel's
+			# face and hub cap stand proud of the tyre's own section, so the wide cylinder alone
+			# left a button of bodywork sitting in the middle of the new rim. It cannot simply
+			# be one wider cut: at the full tyre radius that would start eating the sill and the
+			# door bottom fore and aft of the wheel. It must not reach inboard either - when it
+			# did, it took a slice out of the pickup's step panel under the front arch.
+			cuts.append([hub, r * 0.62, hw * 0.10, hw + 0.10])
+	# Where the shrunken wheel has to end up: inside the generated brake disc, which is a solid
+	# plate out to 0.76 of the rim radius and sits just inboard of the wheel's centre plane. The
+	# rim ratio is per spoke pattern, so take the smallest one - the tuck has to hide under the
+	# smallest disc any of them builds.
+	var ratio := 1.0
+	for f: Dictionary in PropFactory.WHEEL_FACES:
+		ratio = minf(ratio, float(f.rim_ratio))
+	var disc_r := float(pose.r) * ratio * 0.76
+	var gen_hw := float(pose.w) * 0.5
+	for mi in inst.find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		if m.mesh == null:
+			continue
+		var to_body := inst.transform
+		var local := Transform3D.IDENTITY
+		var node: Node = m
+		while node and node != inst:
+			if node is Node3D:
+				local = (node as Node3D).transform * local
+			node = node.get_parent()
+		to_body = to_body * local
+		var key := "body_tuck_%d_%s" % [body_type, m.mesh.get_rid()]
+		# Radially inside the brake disc, and far enough INBOARD to sit behind the dust shield
+		# as well (_wheel_face puts that at 0.52 half-widths in), so there is no line of sight to
+		# it through the spokes from any angle the player can stand at.
+		m.mesh = PropFactory.tuck_body_wheels(m.mesh, key, to_body, cuts,
+				minf(disc_r * 0.88 / maxf(r, 0.01), 0.45), 0.15, gen_hw * 0.90)
+
+
+const PARTS_SHADER := """
+shader_type spatial;
+render_mode cull_back;
+// Vertex colours from the glTF are linear already.
+void fragment() {
+	ALBEDO = COLOR.rgb;
+	ROUGHNESS = clamp(COLOR.a, 0.04, 1.0);
+	METALLIC = 0.0;
+	SPECULAR = 0.5;
+}
+"""
+
+
+## The shared stand-in for a multi-slot body's part material, or null to keep the model's own.
+## Chrome is a mirror on Forward+, and the Compatibility renderer (the web build and every
+## opengl3 screenshot) has no radiance map for a metal to reflect, so there it comes back black:
+## a bright satin grey stands in. Built once per slot and shared by every car.
+static var _part_mats: Dictionary = {}
+
+
+static func _part_material(src: StandardMaterial3D) -> Material:
+	var slot := String(src.resource_name)
+	if slot == "parts":
+		# A far twin's folded parts: albedo in the vertex colour, roughness in its alpha.
+		if not _part_mats.has(slot):
+			var sh := Shader.new()
+			sh.code = PARTS_SHADER
+			var pm := ShaderMaterial.new()
+			pm.shader = sh
+			_part_mats[slot] = pm
+		return _part_mats[slot]
+	if slot == "taxi_sign":
+		# The taxi's roof sign: lettered and lit by lamp_factor (shaders/taxi_sign.gdshader).
+		if not _part_mats.has(slot):
+			var tm := ShaderMaterial.new()
+			tm.shader = TAXI_SIGN_SHADER
+			_part_mats[slot] = tm
+		return _part_mats[slot]
+	if slot != "chrome" or PropFactory.has_reflections():
+		return null
+	if not _part_mats.has(slot):
+		var m := StandardMaterial3D.new()
+		m.resource_name = slot
+		m.albedo_color = Color(0.70, 0.71, 0.73)
+		m.metallic = 0.0
+		m.roughness = 0.28
+		_part_mats[slot] = m
+	return _part_mats[slot]
+
+
+## One car's paint: the base colour, the finish's uniform set and the livery graphic. Every car
+## gets its own ShaderMaterial (they differ per car), but they all share the one shader.
+func _paint_material(albedo: Texture2D, normal: Texture2D) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = PAINT_SHADER
+	mat.set_shader_parameter("albedo_tex", albedo)
+	mat.set_shader_parameter("paint", paint)
+	if normal:
+		mat.set_shader_parameter("normal_tex", normal)
+		mat.set_shader_parameter("has_normal", true)
+	var f: Dictionary = FINISHES.get(finish, FINISHES[Finish.METALLIC])
+	mat.set_shader_parameter("paint_metallic", f.metallic)
+	mat.set_shader_parameter("paint_roughness", f.roughness)
+	mat.set_shader_parameter("clearcoat_amount", f.clearcoat)
+	mat.set_shader_parameter("clearcoat_roughness_value", f.cc_rough)
+	mat.set_shader_parameter("flake_strength", f.flake)
+	mat.set_shader_parameter("flake_scale", f.flake_scale)
+	mat.set_shader_parameter("flake_fade_distance", f.flake_fade)
+	if float(f.pearl) > 0.0:
+		mat.set_shader_parameter("pearl_amount", f.pearl)
+		mat.set_shader_parameter("pearl_color", _pearl_tint(paint))
+	if body_type == BodyType.BEATER:
+		mat.set_shader_parameter("wear", 1.0)
+		mat.set_shader_parameter("wear_door", BEATER_DOOR)
+		mat.set_shader_parameter("wear_door_side", -1.0)
+		var door: Color = BEATER_DOORS[absi(hash([look_seed, paint, 41])) % BEATER_DOORS.size()]
+		if door.is_equal_approx(paint):
+			door = BEATER_DOORS[(BEATER_DOORS.find(door) + 1) % BEATER_DOORS.size()]
+		mat.set_shader_parameter("wear_door_color", door)
+		mat.set_shader_parameter("wear_primer", BEATER_PRIMER)
+	var g: Dictionary = LIVERY_GRAPHIC.get(livery, {})
+	if not g.is_empty():
+		mat.set_shader_parameter("stripe_mode", g.mode)
+		mat.set_shader_parameter("stripe_color", trim_color)
+		mat.set_shader_parameter("stripe_width", g.width)
+		mat.set_shader_parameter("stripe_gap", g.get("gap", 0.058))
+		mat.set_shader_parameter("stripe_height", g.get("height", 0.42))
+	return mat
+
+
+## The colour a pearl coat flips to at grazing angles: the paint's own hue nudged round, washed
+## out and lifted. On a white pearl that is the faint warm glow round the edge of the panel.
+static func _pearl_tint(base: Color) -> Color:
+	return Color.from_hsv(fposmod(base.h + 0.10, 1.0), minf(base.s * 0.5, 0.55), minf(base.v * 1.5 + 0.30, 1.0))
+
+
+func _box(size: Vector3, pos: Vector3, color: Color, collide: bool, glow: bool = false) -> void:
+	if not _has_model:
+		var mesh := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = size
+		mesh.mesh = box
+		mesh.material_override = WeaponFX.unshaded(color) if glow else PropFactory.material(color, 0.45)
+		mesh.position = pos
+		add_child(mesh)
+	if collide:
+		var k := (_fit_to.y - _fit_to.x) / maxf(_fit_from.y - _fit_from.x, 0.01)
+		size.y *= k
+		pos.y = _fit_to.x + (pos.y - _fit_from.x) * k
+		var shape := CollisionShape3D.new()
+		var bs := BoxShape3D.new()
+		bs.size = size
+		shape.shape = bs
+		shape.position = pos
+		add_child(shape)
+
+
+## A seeded random car: body type, add-on, paint, finish and livery.
+## Maps a 0-999 roll onto a body type through BODY_ODDS.
+static func _body_for_roll(roll: int) -> BodyType:
+	for row: Array in ROLL_MAP:
+		if roll < int(row[0]):
+			return row[1] as BodyType
+	return BodyType.SEDAN
+
+
+static func random_car(rng: RandomNumberGenerator) -> Vehicle:
+	var car := Vehicle.new()
+	# The look seed is read off the generator's state rather than drawn from it. Reading does not
+	# advance the stream, so the whole finish / livery pass below costs zero rng calls: one extra
+	# call here would shift every later roll in the caller's stream and move the parked cars,
+	# props and lots that the city has already been generated with (CLAUDE.md).
+	var look := hash([rng.state, 7717])
+	# ONE rng call, as before - the range widens but the stream advances identically, so every
+	# later roll in the caller's stream is untouched and the city does not move (CLAUDE.md).
+	var type := _body_for_roll(rng.randi_range(0, 999))
+	var extra := Addon.NONE
+	if rng.randf() < 0.35:
+		extra = rng.randi_range(1, Addon.size() - 1) as Addon
+	var index := rng.randi() % PAINTS.size()
+	var color: Color = PAINTS[index]
+	var fin: Finish = Finish.METALLIC
+	if index < PAINT_FINISH.size():
+		fin = PAINT_FINISH[index]
+	var livery := Livery.NONE
+	var trim := _contrast_trim(color)
+	# Working vehicles first: they replace the private paint entirely, and they are what makes a
+	# street read as a city rather than a car park.
+	var job := _roll(look, 11)
+	match type:
+		BodyType.SEDAN:
+			if job < TAXI_SHARE:
+				# The taxi is its own body (the sedan with its roof sign, BASIN CAB's lettering
+				# and a fare in the back), on the same roll the sedan's taxi livery always had.
+				type = BodyType.TAXI
+				livery = Livery.TAXI
+				color = TAXI_PAINT
+				trim = TAXI_TRIM
+				fin = Finish.GLOSS
+				extra = Addon.NONE
+		BodyType.VAN:
+			if job < DELIVERY_SHARE:
+				livery = Livery.DELIVERY
+				var fleet := absi(hash([look, 12])) % FLEET_PAINTS.size()
+				color = FLEET_PAINTS[fleet]
+				trim = FLEET_BANDS[fleet]
+				fin = Finish.GLOSS
+				extra = Addon.NONE
+		BodyType.PICKUP:
+			if job < SERVICE_SHARE:
+				livery = Livery.SERVICE
+				var kind := absi(hash([look, 13])) % SERVICE_PAINTS.size()
+				color = SERVICE_PAINTS[kind]
+				trim = SERVICE_BANDS[kind]
+				fin = Finish.GLOSS
+				extra = Addon.NONE
+		BodyType.BEATER:
+			# An old single-stage paint, faded (the paint shader's wear does the rest).
+			color = BEATER_PAINTS[absi(hash([look, 14])) % BEATER_PAINTS.size()]
+			fin = Finish.GLOSS
+			extra = Addon.NONE
+	if livery == Livery.NONE and type != BodyType.BEATER:
+		var graphic := _roll(look, 21)
+		var racing := RACING_SHARE_SPORTS if type == BodyType.SPORTS else RACING_SHARE_OTHER
+		if graphic < racing:
+			livery = Livery.RACING
+		elif type != BodyType.SPORTS and graphic < racing + TWO_TONE_SHARE:
+			livery = Livery.TWO_TONE
+	car.setup(type, color, extra)
+	car.setup_look(fin, livery, trim)
+	# Off the look seed, so it costs no rng call and cannot move anything else in the city.
+	car.wheel_style = absi(hash([look, 31])) % PropFactory.WHEEL_FACES.size()
+	car.wheel_kit = absi(hash([look, 33])) % PropFactory.WHEEL_KITS.size()
+	car.look_seed = look
+	return car
+
+
+## A 0..1 roll from a look seed. Deterministic and free: it never touches a RandomNumberGenerator,
+## so adding one of these to a generation path cannot move anything else in the world.
+static func _roll(look: int, salt: int) -> float:
+	return float(absi(hash([look, salt])) % 100000) / 100000.0
+
+
+## Stripes and bands have to read against the paint under them, so they flip with its brightness.
+static func _contrast_trim(base: Color) -> Color:
+	return Color(0.07, 0.07, 0.08) if base.get_luminance() > 0.30 else Color(0.93, 0.93, 0.92)
