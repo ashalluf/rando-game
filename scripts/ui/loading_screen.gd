@@ -37,6 +37,9 @@ var _progress: float = 0.0
 ## Frames the screen has waited out and the time they took (LoadClock's report: on a software
 ## renderer a frame of the city is seconds, on the Mac a few milliseconds).
 var frames_waited: int = 0
+## Milliseconds of work between two frames of the bar in the baking loops (see _due()).
+@export var bar_interval_ms: int = 150
+var _last_frame: int = 0
 var frame_usec: int = 0
 
 
@@ -99,7 +102,7 @@ func run(city: Node3D) -> void:
 	var t_camp := Time.get_ticks_usec()
 	LoadClock.start("screen: camp figures")
 	for i in kinds.size():
-		if i % 6 == 0:
+		if _due():
 			_step("Preparing people", 0.3 + 0.25 * float(i) / float(maxi(kinds.size(), 1)))
 			await _frames(1)
 		var k: Array = kinds[i]
@@ -112,7 +115,7 @@ func run(city: Node3D) -> void:
 	LoadClock.start("screen: beach figures")
 	var beach := BeachFigure.kinds()
 	for i in beach.size():
-		if i % 8 == 0:
+		if _due():
 			_step("Preparing the beach", 0.3 + 0.25 * float(i) / float(maxi(beach.size(), 1)))
 			await _frames(1)
 		BeachFigure.warm_kind(beach[i])
@@ -152,8 +155,9 @@ func run(city: Node3D) -> void:
 	var models: Array = Pedestrian.MODELS
 	var t_rigs := 0
 	for i in models.size():
-		_step("Preparing people (%d/%d)" % [i + 1, models.size()], 0.9 + 0.1 * float(i) / float(maxi(models.size(), 1)))
-		await _frames(1)
+		if _due():
+			_step("Preparing people (%d/%d)" % [i + 1, models.size()], 0.9 + 0.1 * float(i) / float(maxi(models.size(), 1)))
+			await _frames(1)
 		var t0 := Time.get_ticks_usec()
 		Ragdoll.warm_limbs(models[i], self)
 		# The welded bodies, and the hats fitted to this rig's head (the police cap too for the
@@ -179,6 +183,14 @@ func _frames(n: int) -> void:
 		await get_tree().process_frame
 	frames_waited += n
 	frame_usec += Time.get_ticks_usec() - t0
+	_last_frame = Time.get_ticks_usec()
+
+
+## True once `bar_interval_ms` of work has gone by since the last frame: the loops that bake
+## people hand the bar a frame by the clock, not every few items (each frame draws the city behind
+## the screen, which a fixed count paid for 40 times over for a few seconds of work).
+func _due() -> bool:
+	return Time.get_ticks_usec() - _last_frame >= bar_interval_ms * 1000
 
 
 ## Draws one surface per shader in front of the camera for a couple of frames. Uniform VALUES do
