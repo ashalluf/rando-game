@@ -2344,6 +2344,41 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   stand relative to each other, relative heights at real metres, silhouettes, crowns, facade
   character). **Names and logos stay original**: no real building, company or brand name in any
   game text or on the minimap, and no lettering on any crown. Code ids are neutral (`dt_*`).
+- Pier park (2026-10-05, "an amusement park on a pier, Santa Monica-style, original"; HANDOFF 9ca):
+  RANDO PIER (the `pier` landmark, (-940, -350)) is `PierPark` (`scripts/world/pier_park.gd`):
+  the pier plus GULLWING PARK on a platform off its south side. Everything sits in the PARK'S
+  FRAME (a node at (anchor.x, 0, anchor.y), x out to sea negative, z south) as constants:
+  decks `MAIN` / `NORTH` / `SOUTH` at `DECK_TOP` 6.4 (the three piers' deck height), the rail
+  `OUTLINE`, `WHEEL_AT`, `CAROUSEL_AT`, `ARCADE`, `BUMPER`, `STANDS`, `BOOTHS`, `TABLES`, the
+  crowd's `WALK_NODES` / `WALK_EDGES`; `tests/pier_park_checks.gd` holds them apart (nothing in
+  anything, no walk through a ride or a coaster foot). All geometry is code (`PierMesh`,
+  `scripts/world/pier_mesh.gd`: packed arrays per material slot, triangles turned to face the
+  way asked like LandmarkGeo) on ONE shader, `shaders/pier_park.gdshader`: the surface KIND per
+  vertex in UV2.x (`PierMesh.K_*`: paint, galvanised, striped canvas, bulb, LED, lit sign,
+  window, boards, rubber, neon, chrome, gold), paint in COLOR (sRGB, decoded on both renderers),
+  UV in metres; lights follow `lamp_factor`. **The rides move in the vertex shader from TIME**
+  (`ride` 1 wheel / 2 carousel / 3 bumper cars, UV2.y the gondola / horse / car index + 1):
+  `FerrisWheel` (`scripts/world/ferris_wheel.gd`, a direct child of the chunk / far holder, the
+  smoke test finds it there) turns about +Z, each gondola TRANSLATED with its pin so it hangs
+  plumb; after dark its spoke and rim LEDs run four chasing patterns (`led_pattern()`);
+  `PierCarousel` turns about +Y with its horses bobbing. The coaster, `PierCoaster` (the KELP
+  CRACKER, `scripts/world/pier_coaster.gd`), is DATA: a rounded-rectangle plan, a height
+  `PROFILE`, banking from speed; the ride is worked out once into a (time, s) table (tyres, chain
+  `LIFT`, gravity less `FRICTION`, `BRAKE_*`, `DWELL`), `lead_s(clock)` places the five cars each
+  frame (only in the detailed build), screams (Sfx `scream`) at `DROP_S`, rolls with `rail_roll`.
+  Shot, the wheel, the track and the cars are `PierRideBody` / `CarBody` in "rail_vehicle"
+  (WeaponFX: metal sparks) and keep running; you can stand on the deck, the track and the
+  platform. Shadows: lights, piles, rails, lamps and strings cast nothing; the wheel and the
+  track cast through their FAR meshes as SHADOWS_ONLY twins; the horses not at all. The crowd
+  are `PierGoer`s (`scripts/npc/pier_goer.gd`, the deck's height, routes by the walk graph),
+  spawned by `PierPark.people_steps()` through the new `Landmarks.people_steps()` hook in
+  `CityChunk._build_landmarks()`, in the crowd cap; the rides', stands' and booths' queues are
+  the chunk's `vendor_queue` spots and the benches its `life_seats`, so the life layer fills
+  them. The far copy is the same builders at low detail (4 k triangles, the LEDs 0.9 m wide so
+  the wheel reads from the beach and the hills). Meshes are cached and built on the loading
+  screen (`PierPark.warm()`). Stills: `PIER_COASTER_S=<s>` (or `PIER_COASTER=<seconds>`) holds
+  the train; EYEs in HANDOFF 9ca. Probe: `tools/pier/compile.gd` (compiles, builds near and far,
+  prints the cost, runs the layout checks; seconds, headless).
 - Downtown skyline (owner, 2026-09-24: "a 1:1 match of DTLA skyline ... It needs more
   buildings"): `LandmarkDowntown` (`scripts/world/landmark_downtown.gd`) builds nineteen `dt_*`
   landmarks, listed in ONE contiguous block at the end of `Landmarks.all()` (other branches add

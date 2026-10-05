@@ -208,6 +208,8 @@ func _warm_shaders() -> void:
 	effects.append_array(Billboards.warm())
 	# The beach's towels, umbrellas, chairs, boards, the net and the tower (BeachLife).
 	effects.append_array(BeachLife.warm())
+	# The pier park's meshes (PierPark), built here rather than by the chunk that streams it in.
+	effects.append_array(PierPark.warm())
 	# Car damage: the flames, the glass cubes and the engine smoke (CarDamage).
 	effects.append_array(CarDamage.warm_materials())
 	# The boost's streaks of air (BoostTrail), so the first boost does not stall.
