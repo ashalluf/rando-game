@@ -2458,6 +2458,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   gravel colour. No billboards are added (Billboards' own). Every colour shader includes
   `color_space.gdshaderinc`. `VACANT_LOTS=0` in the environment is the A/B; `tools/vacant_probe.gd`
   lists the lots with EYE lines; checks: `tests/vacant_lots_checks.gd`.
+- Roadside commerce (2026-10-05, docs/HANDOFF.md "Roadside commerce"): the commercial pads
+  (`Commercial.build_pad`) are `Roadside` (`scripts/world/roadside.gd`, kit `roadside_kit.gd`,
+  `shaders/roadside.gdshader`): gas stations, car washes, auto / tyre shops, a Googie coffee shop,
+  fast food with a drive-thru, the giant-donut / giant-cup stand. The kind is a hash of seed + lot
+  (`kind_for()`, falling back to what fits); Commercial's old rolls are still made, so nothing
+  after a pad moves. A pad is built in its street frame (`Site`). FULL: all of a chunk's pads are
+  ONE casting mesh and ONE shadowless ground mesh (`Roadside.commit()`), repeated pieces `rs_*`
+  batches (dispensers as `pump` props), pools in `rs_pool`, a `lamp_light` a pad under
+  `RoadsideLights`; queued cars (drive-thru, car wash) are real parked Vehicles with a driver
+  (`_queue_car()`, `Vehicle.seat_waiting_driver()`, `LIVE_QUEUE=0` the static cars); LOD / far
+  city: `lod_box`es and the canopy slab. Kit warmed on the loading
+  screen. Names and prices invented. `ROADSIDE=0` is the A/B; `tools/roadside_probe.tscn` finds
+  pads; checks `tests/roadside_checks.gd` (alone: `tools/roadside/checks.tscn`).
 - Port (roadmap #35, 2026-09-27): the container terminal (`MacroMap.port_rect`) is
   `CityChunk._build_port()` laying out `PortKit` (`scripts/world/port_kit.gd`), all built in code.
   **The old port's rolls stay** on the block rng in the old order (rows, columns, the 30 % truck

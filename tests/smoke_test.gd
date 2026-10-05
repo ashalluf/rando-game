@@ -2317,6 +2317,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The marketplace lane by Pueblo Station (tests/pueblo_lane_checks.gd): the site, the layout,
 	# near and far builds under budget, the church's sanctuary, the vendors.
 	await load("res://tests/pueblo_lane_checks.gd").new().run(self, city)
+	# Roadside commerce (tests/roadside_checks.gd): the kinds by hash, gas stations, car washes,
+	# auto shops, the diner, drive-thrus and the giant-donut stand; one mesh a chunk, nothing moved.
+	load("res://tests/roadside_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

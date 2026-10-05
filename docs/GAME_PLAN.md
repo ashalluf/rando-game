@@ -898,6 +898,16 @@ already mapped so milestone 2 is script-only.
   (off-ramps for the +t traffic, on-ramps for the -t traffic, as Freeway places them). Decisions:
   no physics queries (everything is lane maths), placed cars (tests, stills) take no lane changes
   of their own unless asked (`ai`), and `TRAFFIC_AI=0` restores the old traffic for an A/B.
+- **2026-10-05 The commercial pads are LA roadside commerce, picked by hash (VISUAL_ROADMAP #63,
+  HANDOFF 9bu).** The pads were a white box with a band and a pump canopy slab, or a box with a
+  menu sign. `Roadside` builds six real kinds at real size - gas station, car wash, auto repair /
+  tyre shop, Googie coffee shop, fast food with a drive-thru loop, and a stand with a giant donut
+  or coffee cup on its roof - in code on one shader. What a pad is comes from a hash of seed + lot
+  (falling back among the kinds that fit a small pad); the old pad roll and Commercial's two rolls
+  are still made, so nothing after a pad moves (checked: the same block with `ROADSIDE=0` has the
+  same buildings and parked cars). A FULL chunk's pads are one mesh plus one shadowless ground mesh,
+  the repeated pieces one batch a kind; LOD and the far city keep lod_boxes and the canopy slab.
+  All brands, names and prices are invented.
 
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real

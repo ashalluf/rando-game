@@ -281,6 +281,9 @@ func _warm_shaders() -> void:
 	effects.append(BoostTrail.streak_material())
 	# What a blast leaves (BlastAftermath): the crater's maps, the slabs, the leaves.
 	effects.append_array(BlastAftermath.warm())
+	# The roadside pads' repeated pieces (RoadsideKit), built here so the first pad does not stall.
+	if Roadside.enabled:
+		effects.append_array(RoadsideKit.warm())
 	for mat: Material in effects:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D

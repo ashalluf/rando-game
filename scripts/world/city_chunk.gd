@@ -570,6 +570,7 @@ func _finish_build() -> void:
 	Construction.commit(self)
 	StreetShadowReach.apply(self)
 	UtilityPoles.commit(self)
+	Roadside.commit(self)
 	_commit_far_ground()
 	_commit_boxes()
 	FreightKit.clear_road_decals(self)

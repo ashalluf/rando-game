@@ -607,6 +607,9 @@ var _glass_own: ShaderMaterial
 var _npc_driver: bool = false
 var _occupant_seed: int = 0
 var _occupant_rolls: int = 0
+## A parked car waiting in a queue with its driver in (a drive-thru, a car wash: Roadside): brake
+## lamps on, no hazards.
+var waiting: bool = false
 ## What the occupant uniforms were last set to (seats and look), so they are set on a change only.
 var _occupant_key: int = -1
 
@@ -1205,7 +1208,7 @@ func _tick_lights(delta: float) -> void:
 		sig = _traffic_signal()
 	elif _npc_driver:
 		braking = linear_velocity.length() < 1.0 or brake > 5.0
-		sig = 2
+		sig = 0 if waiting else 2
 	elif alarm_left > 0.0:
 		sig = 2
 	if braking:
@@ -2131,3 +2134,14 @@ static func _roll(look: int, salt: int) -> float:
 ## Stripes and bands have to read against the paint under them, so they flip with its brightness.
 static func _contrast_trim(base: Color) -> Color:
 	return Color(0.07, 0.07, 0.08) if base.get_luminance() > 0.30 else Color(0.93, 0.93, 0.92)
+
+
+## Seats a driver (look from `seed`) in a parked car that waits in a queue (Roadside): brake lamps
+## on, no hazards, asleep like any parked car. Call once the car is in the tree.
+func seat_waiting_driver(seed: int) -> void:
+	waiting = true
+	_npc_driver = true
+	_occupant_seed = seed
+	light_brake = true
+	light_signal = 0
+	_update_occupant()
