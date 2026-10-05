@@ -429,6 +429,10 @@ func _relief_at(pos: Vector2, raw: float) -> float:
 		var tr := river.terrace(pos)
 		if tr.y > 0.0:
 			h = lerpf(h, tr.x, tr.y)
+	# The freight corridor's land level (FreightRail.terrace()): Alameda and the yard held level.
+	var ft := FreightRail.terrace(pos)
+	if ft.y > 0.0:
+		h = lerpf(h, ft.x, ft.y)
 	return h
 
 

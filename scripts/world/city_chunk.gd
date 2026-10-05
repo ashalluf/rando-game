@@ -394,6 +394,7 @@ func begin_build() -> void:
 					_steps.append(_build_intersection.bind(plan.intersection(ix + 1, iz + 1)))
 				_steps.append(_build_freeway)
 				_steps.append(_build_light_rail)
+				_steps.append_array(FreightKit.attach(self))
 				if level == Level.FULL and plan.macro:
 					_steps.append(_build_landmarks)
 				_steps.append(_finish_build)
@@ -407,6 +408,10 @@ func begin_build() -> void:
 				_steps.append_array(RiverBuild.attach(self, block))
 				if level == Level.FULL:
 					_steps.append(_build_intersection.bind(plan.intersection(ix + 1, iz + 1)))
+			elif replica_role == 0 and FreightYard.claims(plan, ix, iz):
+				# The freight yard's blocks (FreightRail.yard_block()): its own ground and works.
+				_steps.append(_build_roads.bind(block))
+				_steps.append_array(FreightYard.attach(self))
 			elif replica_role == 0:
 				_steps.append(_build_roads.bind(block))
 				_steps.append_array(_block_steps(block))
@@ -423,6 +428,8 @@ func begin_build() -> void:
 	_steps.append(_build_freeway)
 	# The light rail (LightRail, LightRailKit): track, structure, overhead, stations, gates.
 	_steps.append(_build_light_rail)
+	# The freight line (FreightRail, FreightKit): track, trench, decks, crossings, the yard's tracks.
+	_steps.append_array(FreightKit.attach(self))
 	if level == Level.FULL and plan.macro:
 		_steps.append(_build_landmarks)
 	if level == Level.FULL:
@@ -445,6 +452,8 @@ func _begin_capture(block: Dictionary, replica_role: int = 0) -> void:
 			if replica_role == 0 and not block.has("site"):
 				if plan.river_block(ix, iz):
 					_steps.append(RiverBuild.capture.bind(self))
+				elif FreightYard.claims(plan, ix, iz):
+					_steps.append(FreightYard.capture.bind(self))
 				else:
 					_steps.append_array(_block_steps(block))
 		MacroMap.Zone.PORT:
@@ -2145,7 +2154,7 @@ func _build_roads(block: Dictionary) -> void:
 		_road_slab(Rect2(rect.position.x, rz - wz * 0.5, rect.size.x, wz), asphalt, look_z.material)
 	# The intersection square at the +X +Z corner.
 	if plan.road_open(CityPlan.AXIS_X, ix + 1, rz) or plan.road_open(CityPlan.AXIS_Z, iz + 1, rx):
-		_add_slab(Vector3(rx, ROAD_TOP * 0.5, rz), Vector3(wx, ROAD_TOP, wz), asphalt, true, look_x.material)
+		_road_slab(Rect2(rx - wx * 0.5, rz - wz * 0.5, wx, wz), asphalt, look_x.material)
 	if level == Level.FULL:
 		if open_x:
 			_mark_road(true, rx, wx, rect.position.y, rect.end.y, look_x)
@@ -2160,16 +2169,31 @@ func _road_slab(r: Rect2, asphalt: Color, material: Material) -> void:
 	var cuts: Array[Rect2] = []
 	if rail != null and not capturing and level == Level.FULL:
 		cuts = rail.cuts_in(r)
+	# The freight trench too (FreightRail.cuts_in()), at FULL and LOD: it is seen from the air.
+	var freight := FreightRail.of(plan)
+	if freight != null and not capturing:
+		cuts.append_array(freight.cuts_in(r))
 	if cuts.is_empty():
 		_add_slab(Vector3(r.get_center().x, ROAD_TOP * 0.5, r.get_center().y), Vector3(r.size.x, ROAD_TOP, r.size.y), asphalt, true, material)
 		return
-	var hole := cuts[0].intersection(r)
-	var pieces: Array[Rect2] = [
-		Rect2(r.position.x, r.position.y, hole.position.x - r.position.x, r.size.y),
-		Rect2(hole.end.x, r.position.y, r.end.x - hole.end.x, r.size.y),
-		Rect2(hole.position.x, r.position.y, hole.size.x, hole.position.y - r.position.y),
-		Rect2(hole.position.x, hole.end.y, hole.size.x, r.end.y - hole.end.y),
-	]
+	var pieces: Array[Rect2] = [r]
+	for cut in cuts:
+		var hole := cut.intersection(r)
+		if hole.size.x <= 0.0 or hole.size.y <= 0.0:
+			continue
+		var next: Array[Rect2] = []
+		for q in pieces:
+			var h := hole.intersection(q)
+			if h.size.x <= 0.0 or h.size.y <= 0.0:
+				next.append(q)
+				continue
+			next.append_array([
+				Rect2(q.position.x, q.position.y, h.position.x - q.position.x, q.size.y),
+				Rect2(h.end.x, q.position.y, q.end.x - h.end.x, q.size.y),
+				Rect2(h.position.x, q.position.y, h.size.x, h.position.y - q.position.y),
+				Rect2(h.position.x, h.end.y, h.size.x, q.end.y - h.end.y),
+			])
+		pieces = next
 	for p in pieces:
 		if p.size.x > 0.05 and p.size.y > 0.05:
 			_add_slab(Vector3(p.get_center().x, ROAD_TOP * 0.5, p.get_center().y), Vector3(p.size.x, ROAD_TOP, p.size.y), asphalt, true, material)
@@ -2234,6 +2258,9 @@ func _mark_road(along_z: bool, center: float, width: float, a: float, b: float, 
 	var cuts: Array[Rect2] = []
 	if rail != null:
 		cuts = rail.cuts_in(Rect2(center - width, a, width * 2.0, b - a) if along_z else Rect2(a, center - width, b - a, width * 2.0))
+	var freight := FreightRail.of(plan)
+	if freight != null:
+		cuts.append_array(freight.cuts_in(Rect2(center - width, a, width * 2.0, b - a) if along_z else Rect2(a, center - width, b - a, width * 2.0)))
 	# One or two manhole covers in a lane, seeded by the road position.
 	var mh := RandomNumberGenerator.new()
 	mh.seed = hash([center, a, along_z])

@@ -484,6 +484,11 @@ func road_open(axis: int, index: int, along: float) -> bool:
 	# A street the river crosses without a bridge ends at its bank (LaRiver.road_open()).
 	if macro and macro.river and not macro.river.road_open(self, axis, index, along):
 		return false
+	# The freight line closes the avenue through its yard and severs the streets its ramps cut
+	# (FreightRail.road_open()).
+	var freight := FreightRail.of(self)
+	if freight != null and not freight.road_open(axis, index, along):
+		return false
 	for s: Dictionary in sites():
 		if axis == AXIS_X:
 			if index <= s.ix0 or index >= s.ix1:
@@ -533,7 +538,7 @@ func in_site(p: Vector2) -> bool:
 ## True when any of the four roads meeting at intersection (ix, iz) is closed on the arm leaving
 ## it (a T where a closed road meets a site's edge), so no crossing, signal or sign is built there.
 func junction_closed(ix: int, iz: int) -> bool:
-	if sites().is_empty() and (macro == null or macro.river == null):
+	if sites().is_empty() and (macro == null or macro.river == null) and FreightRail.of(self) == null:
 		return false
 	var x := road_pos(AXIS_X, ix)
 	var z := road_pos(AXIS_Z, iz)
@@ -644,6 +649,10 @@ func _lot_grid(ix: int, iz: int, dropped: Variant) -> Array[Dictionary]:
 		return []
 	# Nor is anything built on a block the river's corridor reaches (RiverBuild lays it).
 	if river_block(ix, iz):
+		return []
+	# Nor on the freight yard's blocks (FreightYard lays it).
+	var freight := FreightRail.of(self)
+	if freight != null and freight.yard_block(ix, iz):
 		return []
 	var rect: Rect2 = b.rect
 	# The whole block is a landmark's site (see Landmarks.claims()): nothing else is built on it,

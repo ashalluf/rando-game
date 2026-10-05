@@ -415,7 +415,8 @@ func _lane_offset(axis: int, index: int, dir: int) -> float:
 
 func _rail_street(axis: int, index: int) -> bool:
 	var rail := LightRail.of(plan)
-	return rail != null and rail.street_rail(axis, index)
+	var freight := FreightRail.of(plan)
+	return (rail != null and rail.street_rail(axis, index)) or (freight != null and freight.street_rail(axis, index))
 
 
 func _heading(axis: int, dir: int) -> float:
@@ -543,7 +544,7 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 		room = minf(room, gap - 0.4)
 		if lead_v < 0.3:
 			still = minf(still, gap - min_gap)
-	if to_line > -0.6 and (_must_stop(t, node, axis, to_line, v, delta) or Pedestrian.crosswalk_busy(node, axis, -dir) or LightRail.crossing_closed(node, axis)):
+	if to_line > -0.6 and (_must_stop(t, node, axis, to_line, v, delta) or Pedestrian.crosswalk_busy(node, axis, -dir) or LightRail.crossing_closed(node, axis) or FreightRail.crossing_closed(node, axis)):
 		acc = minf(acc, _idm(v, v0, to_line, 0.0, 0.3))
 		room = minf(room, to_line + 0.3)
 		still = minf(still, to_line - 0.3)
