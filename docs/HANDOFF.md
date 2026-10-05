@@ -7040,3 +7040,89 @@ ALU in shaders that were already running.
 - The night ambient (DayNight) still lights roofs a moonlit blue-grey on opengl3; not this pass.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
+
+## 9bu. What stands on the hills: transmission lines, an antenna farm, fire roads, tanks, a lookout, domes, 2026-10-05 (agent branch `wt/ridges`; VISUAL_ROADMAP #63)
+
+**The ask.** "What stands on LA's hills": high-voltage lattice towers marching over the ranges and
+down through the industrial district to a substation, with sagging bundled conductors; an antenna
+farm on the highest front-range summit with red obstruction lights the whole basin sees at night;
+dirt fire roads along the crests and down the spurs, gated at the bottom; a fire lookout; round
+green water tanks on the knolls above the estates; radar / weather domes. Cheap in the LOD and far
+tiers: the towers as a lattice of fine lines, the wires faded, the red lights in the far city.
+
+**What there is now** (default seed). Two 220 kV double-circuit lines out of a substation on an
+industrial block in Vernon (a 200 x 96 m gravel yard: two dead-end gantries, transformers with
+radiator banks and bushings, SF6 breakers, bus on porcelain posts, a control house, light masts,
+chain-link): the Eastern line (13 towers) runs east across the LA River and over the east range;
+the Northern line (29 towers) runs north-east across the Arts District, climbs onto the east range
+and runs north along it to the back range. Towers are 46, 58 or 72 m, spans 90-480 m; every span's
+six conductors clear the ground by 11.8 m or more (probe). The antenna farm stands on the summit
+north of downtown (239 m; the higher front-range summits are spikes that take no benches): five
+masts on benches stepped along the crest - a 185 m and a 110 m guyed mast in aviation orange and
+white with their guys, two lattice towers, a monopole - with huts, drum dishes and ground dishes,
+red beacons and steady reds. 11 fire roads (4.4 km) with 4 gates, a lookout and two domes on
+east-range summits, three water tanks on the knolls above the estates west of the pass.
+
+**How.** See CLAUDE.md "Ridges". Data (`Ridges`) planned from the seed: the carving half
+(`build_terrain()`, last in MacroMap.setup()) and the lines half (lazily with the plan). Build
+(`RidgeBuild`, one hook line in CityChunk.begin_build()): FULL chunks build towers (cached body per
+height and kind + per-tower leg extensions), masts, sites, substation, gates; FULL and LOD the dirt
+and the right of way. Far (`RidgeSystem`, a node in city.tscn): every wire and every tower's /
+mast's lattice as fine lines in one mesh on `power_wire.gdshader`, the far solids, the red lights;
+FULL chunks hide their far pieces through `RidgeCover`. Shared files touched: macro_map.gd (3
+lines: the field and the call), city_plan.gd (2: the claim after every roll), city_chunk.gd (1 step
+line), city.tscn (the node), smoke_test.gd (1 line).
+
+**Decisions worth knowing.** (1) The ranges are steeper than 45 degrees off their crests (median
+gradient 1.07 in the east range, measured), so a graded fire road almost nowhere fits; the fire
+roads are the bulldozed fire breaks along the ridgelines and spurs, beds hugging the ground. An A*
+over the hillside found routes but took 7-10 s a road in GDScript and the earthwork check then
+trimmed them to stubs. (2) The highest front-range summits are spikes the ground falls 20-60 m
+from within 30 m, so the farm is small benches along a crest, not one pad. (3) The towers' DP must
+measure a span along its TRUE line when an end was moved sideways - the first version sampled the
+leg's line and put conductors 20-40 m into hillsides. (4) The right of way takes whole industrial
+lots (the strip is 32 m, the lots are big), so a block can lose most of its lots; it is dirt, dry
+weeds and storage yards behind chain-link, as the real corridors through Vernon are.
+
+**Traps.** Packed arrays in a Dictionary or passed to a function are copies (every Acc mesh came
+out empty). A surface over 65,535 vertices drew nothing on Compatibility. VIEWPORT_SIZE read 1 in
+the wire shader's vertex stage (every wire metres wide and all but transparent). A broad cylinder
+highlight lit every horizontal wire as bright as the sky (invisible against it).
+
+**Checks** (`tests/ridges_checks.gd`): the farm, fire roads, gates, tanks, lookout and domes; the
+substation and both lines; every span's six conductors over the ground (and no more than a sixth
+under CLEAR - 2); every tower on its feet off the streets, roads, estates, freeway and river; no lot
+left under the substation or the right of way; the fire roads and pads carved; the hill roads,
+estates and the lots of the blocks round the substation the same as the seed planned with
+RIDGES=0, the blocks that gave lots up keeping the rest roll for roll, the ground away from the
+carving unchanged; a FULL hill chunk building its tower with collision and hiding its far lines,
+an LOD chunk building none; the farm's chunk building the tallest mast and its dirt; the
+substation's chunk building the yard and no building in it; the far node's wires and red lights.
+
+**Planning cost** (this box): the carving half ~1.1 s inside MacroMap.setup() (summits 0.37 s, fire
+roads 0.46 s, tanks 0.14 s), the lines half ~2.5 s on the first lots() call (the DP ~0.9 s, its
+spot validity and corridor ~1.0 s), both on the loading screen.
+
+**Frame cost** (`still_shot.gd` GEO, opengl3 + Xvfb, 1280x720, `RIDGES=0` before / after, same eyes):
+
+| eye | before tris / draws | after tris / draws |
+|---|---|---|
+| substation, Vernon, 11:00 (`EYE=4560,2,3340,-58,22`) | 1.450 M / 951 | 1.547 M / 932 |
+| downtown, Pershing Sq., 22:00 (`2800,2,100,0,4`) | 4.743 M / 2518 | 4.793 M / 2522 |
+| line over the east range, 17:42 (`5489,30,3383,-77,16.7`) | 1.189 M / 631 | 1.256 M / 650 |
+| antenna farm's hill, 15:30 (`2212,74,-2678,-160,8.4`) | 2.306 M / 489 | 2.384 M / 562 |
+
++50 to +97 k triangles; draws -19 (the substation replaces lots) to +73 (the farm's masts, huts,
+dishes and dirt in FULL chunks). The far node is three meshes (wires - a surface per 60,000 vertices -, solids, lights).
+
+**Stills** (shots/ridges; opengl3 via tools/ridges/ridge_shot.tscn, not the Mac's Forward+):
+STILLS
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the wire glint, the galvanised steel and
+the porcelain under AgX, TAA on the fine lines. The farm is on the 239 m summit north of downtown,
+not the highest front-range summit (those are spikes the benches do not fit). Fire roads are short
+(200-980 m each) and steep; none links two summits. Droppers from the gantries to the bus, marker
+balls on spans, bird diverters, cathodic details and leg step bolts are not modelled; the
+substation's equipment is sparse next to a real one. No collision on wires; LOD chunks have no
+tower collision (the far lines stand in). The minimap draws the fire roads and the pads as hill
+roads. Planning adds ~3.5 s to the loading screen on this box.
