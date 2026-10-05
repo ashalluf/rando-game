@@ -8721,9 +8721,13 @@ boxes), recorded by capture with no far-city code.
 the block step, the lot claim, dress, the encampment condition), smoke_test.gd (one line).
 
 **Cost**: tools/geo_count.gd (opengl3, 800x600) at `--spawn=2994,-1745,0,4` (up Broadway through
-the gate): 4.01 M -> 4.09 M triangles, 3,379 -> 2,737 draws, 3,716 -> 3,052 objects. PLAZA_COST.
-Build: a district block's FULL steps are one lot each (the plaza block's hall is one step of
-~70 ms headless); LOD 15-25 ms a block.
+the gate): 4.01 M -> 4.09 M triangles, 3,379 -> 2,737 draws, 3,716 -> 3,052 objects; at the plaza (`--spawn=2927,-2090,0,4`) 2.52 M -> 2.62 M triangles,
+1,553 -> 1,089 draws.
+Build: every unit, lantern string and plaza piece is its own deferred job (`_job()`, CityChunk's
+`_run_or_defer`) and the mesh is committed after them in two jobs with the tangents already
+written per triangle (`ChinatownGeo.tri()`; SurfaceTool's index + tangents was 109 / 197 ms in
+one step): the plaza block's worst warm step is 55 ms headless, ~1.1 s over 160 steps; LOD
+15-25 ms a block.
 
 **A/B**: `CHINATOWN=0`. Probe: `tools/chinatown/probe.tscn` (headless: the blocks, claims, plaza,
 gate with EYEs, then each block built FULL and LOD with its worst step; `BUILD=0` layout only,
@@ -8732,8 +8736,11 @@ gate with EYEs, then each block built FULL and LOD with its worst step; `BUILD=0
 `EYE=2994,1.7,-1755,0,14`, the plaza from the air `2950,55,-2050,10,-35`, the hall from the walk
 `2927.7,1.7,-2092,0,12`, the district from the air `2940,55,-1850,10,-32`; `NIGHT=1` for night.
 
+**People in the court**: 16 `PlazaGoer`s (`scripts/npc/plaza_goer.gd`, PierGoer's pattern: a
+Pedestrian kept to the court's open quarters and the walk, routed out to the walk and along it),
+one a job, in the crowd cap (a full smoke run's cap can leave the court empty).
+
 **Not done / not verified**: no Forward+ look (the glazed tiles' gloss, the lanterns' red through
-AgX and bloom, the gilt) - Mac eyes needed; the plaza has the block's ordinary walkers on its
-pavement ring but no crowd of its own in the court; the hall has no interior; there are no
+AgX and bloom, the gilt) - Mac eyes needed; the hall has no interior; there are no
 Chinese characters on the signs (the default font has none; the signs use English names only,
 as many real ones do alongside characters); a deep lot's blank party walls are plain stucco.
