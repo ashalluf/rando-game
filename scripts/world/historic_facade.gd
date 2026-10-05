@@ -42,6 +42,25 @@ const RETURN_LEN := 2.0
 const LAMP_COLOR := Color(1.0, 0.80, 0.55)
 
 static var built_count: int = 0
+## How long one ornament build step may run before it yields (us), and how many triangles of the
+## fine mesh one commit slice indexes and tangents.
+const STEP_BUDGET_US := 2500
+const COMMIT_CHUNK := 800
+## The most triangles one surface of the two meshes holds (LandmarkGeo.max_surface_tris).
+const SURFACE_TRIS := 12000
+## The label of the slowest single job of the last step (HistoricCore's timing).
+static var step_label: String = ""
+## While a job runs, _later() queues loop bodies here instead of running them: they run next, in
+## order, before the job after it - so the output is the same, cut into small pieces.
+static var _deferring: bool = false
+static var _queued: Array = []
+
+
+static func _later(fn: Callable) -> void:
+	if _deferring:
+		_queued.append(fn)
+	else:
+		fn.call()
 
 
 ## The building's grid, from its one part: {"size", "center", "sf" (storefront height), "fh",
@@ -104,21 +123,23 @@ static func _face(L: Dictionary, n: Vector3, streets: Array[Vector3]) -> Diction
 
 
 ## The build jobs for a building: one per street face, then the commit.
-static func jobs(b: Building, spec: Dictionary, streets: Array[Vector3], main_n: Vector3) -> Array[Callable]:
-	var out: Array[Callable] = []
+static func jobs(b: Building, spec: Dictionary, streets: Array[Vector3], main_n: Vector3) -> Array:
+	var out: Array = []
 	var L := layout(b, {})
 	if L.is_empty():
 		return out
 	var st := {"main": LandmarkGeo.new(), "fine": LandmarkGeo.new(), "lamps": [], "pools": [], "layout": L}
 	_use(st.main, spec)
 	_use(st.fine, spec)
+	(st.main as LandmarkGeo).max_surface_tris = SURFACE_TRIS
+	(st.fine as LandmarkGeo).max_surface_tris = SURFACE_TRIS
 	# Each face in four phases (base, order, entablature, attic and entrance), so no build step
 	# runs much past the streamer's budget.
 	for n: Vector3 in streets:
 		for phase in 4:
-			out.append(_face_job.bind(b, spec, L, n, streets, n == main_n, st, phase))
+			out.append(["face %s phase %d" % [n, phase], _face_job.bind(b, spec, L, n, streets, n == main_n, st, phase)])
 	# Returns of the cornice onto the side walls next to a street face.
-	out.append(func() -> void:
+	out.append(["returns", func() -> void:
 		for n: Vector3 in [Vector3(1, 0, 0), Vector3(-1, 0, 0), Vector3(0, 0, 1), Vector3(0, 0, -1)]:
 			if streets.has(n):
 				continue
@@ -126,10 +147,39 @@ static func jobs(b: Building, spec: Dictionary, streets: Array[Vector3], main_n:
 			if f.street_end:
 				_cornices(st, L, f, f.len * 0.5 - minf(RETURN_LEN, f.len * 0.5), f.len * 0.5, false, true)
 			if f.street_start:
-				_cornices(st, L, f, -f.len * 0.5, -f.len * 0.5 + minf(RETURN_LEN, f.len * 0.5), true, false))
-	out.append(_commit.bind(b, st, 0))
-	out.append(_commit.bind(b, st, 1))
-	return out
+				_cornices(st, L, f, -f.len * 0.5, -f.len * 0.5 + minf(RETURN_LEN, f.len * 0.5), true, false)])
+	out.append(["commit main", _commit.bind(b, st, 0)])
+	out.append(["commit fine", _commit.bind(b, st, 1)])
+	# One driver: runs jobs (and what they queue) until the step's budget is spent.
+	var q: Array = out
+	var head := [0]
+	var driver := func() -> bool:
+		var t0 := Time.get_ticks_usec()
+		var worst := -1
+		while head[0] < q.size():
+			var job: Array = q[head[0]]
+			var tj := Time.get_ticks_usec()
+			_queued = []
+			_deferring = true
+			var r: Variant = (job[1] as Callable).call()
+			_deferring = false
+			var more := _queued
+			_queued = []
+			var dt := Time.get_ticks_usec() - tj
+			if dt > worst:
+				worst = dt
+				step_label = str(job[0])
+			if not (r is bool and r == false):
+				head[0] += 1
+			elif Time.get_ticks_usec() - t0 > STEP_BUDGET_US / 3:
+				# A commit slice: the next one in a step of its own.
+				break
+			for k in more.size():
+				q.insert(head[0] + k, [str(job[0]) + "/" + str(k), more[k]])
+			if Time.get_ticks_usec() - t0 > STEP_BUDGET_US:
+				break
+		return head[0] >= q.size()
+	return [["ornament", driver]]
 
 
 static func _use(g: LandmarkGeo, spec: Dictionary) -> void:
@@ -328,7 +378,7 @@ static func _face_job(b: Building, spec: Dictionary, L: Dictionary, n: Vector3, 
 			var y1 := sf + float(r + 1) * fh + 0.24 * fh
 			for c in cols:
 				var uc := u_lo + (float(c) + 0.5) * p
-				_panel(fine, f, uc, hx * 0.92, y0, y1)
+				_later(_panel.bind(fine, f, uc, hx * 0.92, y0, y1))
 	elif phase == 1 and rows >= 3:
 		for r in range(1, rows):
 			_surrounds(fine, f, L, r, cols, p, hx)
@@ -343,14 +393,14 @@ static func _face_job(b: Building, spec: Dictionary, L: Dictionary, n: Vector3, 
 		return
 	# --- The attic -------------------------------------------------------------------------
 	if L.attic:
-		_attic(main_g, fine, f, L, H, spec, cols, p, hx, main)
+		_later(_attic.bind(main_g, fine, f, L, H, spec, cols, p, hx, main))
 	# --- Quoins on a brick front's corners ---------------------------------------------------
 	if spec.brick:
 		for e: Array in [[u_lo, 1.0], [u_hi, -1.0]]:
-			_quoins(fine, f, float(e[0]), float(e[1]), sf + 0.1, float(H.ent) - 0.05)
+			_later(_quoins.bind(fine, f, float(e[0]), float(e[1]), sf + 0.1, float(H.ent) - 0.05))
 	# --- The entrance ---------------------------------------------------------------------
 	if main and sf > 3.0:
-		_entrance(st, f, L, spec, cols, p)
+		_later(_entrance.bind(st, f, L, spec, cols, p))
 	# --- Wall lanterns along the base, over the shop signs, every few bays -----------------
 	if sf > 3.0:
 		var ci := cols / 2
@@ -358,7 +408,7 @@ static func _face_job(b: Building, spec: Dictionary, L: Dictionary, n: Vector3, 
 		for k in range(every, cols, every):
 			if main and (k == ci or k == ci + 1):
 				continue
-			_sconce(st, f, u_lo + float(k) * p, sf + 0.42)
+			_later(_sconce.bind(st, f, u_lo + float(k) * p, sf + 0.42))
 	# Collision: the cornice is a ledge to stand on.
 	var depth := 1.28 * cs
 	var body := CollisionShape3D.new()
@@ -383,8 +433,8 @@ static func _entablature(st: Dictionary, spec: Dictionary, f: Dictionary, u_lo: 
 			frieze0, cor, -0.03, 0.05, false)
 		if main and cor - frieze0 > 0.32 and str(spec.name) != "":
 			var lh := minf((cor - frieze0) * 0.62, 0.55)
-			_text(fine, str(spec.name), f, 0.0, (frieze0 + cor) * 0.5, 0.075, lh, minf(flen - 2.0 * p, 26.0))
-	_cornices(st, L, f, u_lo, u_hi, f.street_start, f.street_end)
+			_later(_text.bind(fine, str(spec.name), f, 0.0, (frieze0 + cor) * 0.5, 0.075, lh, minf(flen - 2.0 * p, 26.0)))
+	_later(_cornices.bind(st, L, f, u_lo, u_hi, f.street_start, f.street_end))
 
 
 ## The first floor in channelled rustication, broken round each window under its arch, and the
@@ -402,32 +452,39 @@ static func _base(g: LandmarkGeo, f: Dictionary, L: Dictionary, H: Dictionary, c
 	var n := maxi(1, roundi((y_top - y0) / COURSE))
 	var ch := (y_top - y0) / float(n)
 	for k in n:
-		var ya := y0 + float(k) * ch
-		var yb := ya + ch - COURSE_JOINT
-		# Each window's half-width over this course (0 where the course passes under or over it).
-		var holes: Array[Vector2] = []
-		for c in cols:
-			var uc := -flen * 0.5 + (float(c) + 0.5) * p
-			var hw := 0.0
-			if yb > y_sill - 0.06 and ya < y_head:
-				hw = hx + 0.03
-			if yb > y_head and ya < y_head + rise + RING:
-				var t := clampf((maxf(ya, y_head) - y_head) / (rise + RING), 0.0, 1.0)
-				hw = maxf(hw, (r + RING) * sqrt(maxf(1.0 - t * t, 0.0)) + 0.02)
-			if hw > 0.0:
-				holes.append(Vector2(uc - hw, uc + hw))
-		var u := -flen * 0.5
-		for hole: Vector2 in holes:
-			if hole.x - u > 0.08:
-				_slab(g, "stone", f, u, hole.x, ya, yb, -0.02, RUSTIC_OUT)
-			u = hole.y
-		if flen * 0.5 - u > 0.08:
-			_slab(g, "stone", f, u, flen * 0.5, ya, yb, -0.02, RUSTIC_OUT)
+		_later(_course.bind(g, f, cols, p, hx, r, rise, y_sill, y_head, y0 + float(k) * ch, ch))
 	# Arches and sills.
 	for c in cols:
 		var uc := -flen * 0.5 + (float(c) + 0.5) * p
-		_arch(g, f, uc, y_head, r, rise)
-		_slab(g, "stone", f, uc - hx - 0.08, uc + hx + 0.08, y_sill - 0.13, y_sill - 0.02, -0.02, 0.13)
+		_later(func() -> void:
+			_arch(g, f, uc, y_head, r, rise)
+			_slab(g, "stone", f, uc - hx - 0.08, uc + hx + 0.08, y_sill - 0.13, y_sill - 0.02, -0.02, 0.13))
+
+
+## One course of the rustication, broken round each window under its arch.
+static func _course(g: LandmarkGeo, f: Dictionary, cols: int, p: float, hx: float, r: float, rise: float,
+		y_sill: float, y_head: float, ya: float, ch: float) -> void:
+	var flen: float = f.len
+	var yb := ya + ch - COURSE_JOINT
+	# Each window's half-width over this course (0 where the course passes under or over it).
+	var holes: Array[Vector2] = []
+	for c in cols:
+		var uc := -flen * 0.5 + (float(c) + 0.5) * p
+		var hw := 0.0
+		if yb > y_sill - 0.06 and ya < y_head:
+			hw = hx + 0.03
+		if yb > y_head and ya < y_head + rise + RING:
+			var t := clampf((maxf(ya, y_head) - y_head) / (rise + RING), 0.0, 1.0)
+			hw = maxf(hw, (r + RING) * sqrt(maxf(1.0 - t * t, 0.0)) + 0.02)
+		if hw > 0.0:
+			holes.append(Vector2(uc - hw, uc + hw))
+	var u := -flen * 0.5
+	for hole: Vector2 in holes:
+		if hole.x - u > 0.08:
+			_slab(g, "stone", f, u, hole.x, ya, yb, -0.02, RUSTIC_OUT)
+		u = hole.y
+	if flen * 0.5 - u > 0.08:
+		_slab(g, "stone", f, u, flen * 0.5, ya, yb, -0.02, RUSTIC_OUT)
 
 
 ## A round (or segmental, where the wall is short) arch over a window: voussoirs between the
@@ -493,15 +550,18 @@ static func _surrounds(g: LandmarkGeo, f: Dictionary, L: Dictionary, row: int, c
 	var y1 := sf + float(row) * fh + 0.77 * fh
 	var w := 0.13
 	for c in cols:
-		var uc := -flen * 0.5 + (float(c) + 0.5) * p
-		_slab(g, "stone", f, uc - hx - w, uc - hx, y0, y1 + w, -0.02, 0.06)
-		_slab(g, "stone", f, uc + hx, uc + hx + w, y0, y1 + w, -0.02, 0.06)
-		_slab(g, "stone", f, uc - hx, uc + hx, y1, y1 + w, -0.02, 0.06, false)
-		_slab(g, "stone", f, uc - hx - w - 0.06, uc + hx + w + 0.06, y0 - 0.09, y0, -0.02, 0.12)
-		if row % 2 == 0:
-			_slab(g, "stone", f, uc - hx - w - 0.10, uc + hx + w + 0.10, y1 + w, y1 + w + 0.12, -0.02, 0.16)
-		else:
-			_slab(g, "stone", f, uc - 0.11, uc + 0.11, y1 - 0.02, y1 + w + 0.12, -0.02, 0.10)
+		_later(_surround.bind(g, f, -flen * 0.5 + (float(c) + 0.5) * p, hx, w, y0, y1, row))
+
+
+static func _surround(g: LandmarkGeo, f: Dictionary, uc: float, hx: float, w: float, y0: float, y1: float, row: int) -> void:
+	_slab(g, "stone", f, uc - hx - w, uc - hx, y0, y1 + w, -0.02, 0.06)
+	_slab(g, "stone", f, uc + hx, uc + hx + w, y0, y1 + w, -0.02, 0.06)
+	_slab(g, "stone", f, uc - hx, uc + hx, y1, y1 + w, -0.02, 0.06, false)
+	_slab(g, "stone", f, uc - hx - w - 0.06, uc + hx + w + 0.06, y0 - 0.09, y0, -0.02, 0.12)
+	if row % 2 == 0:
+		_slab(g, "stone", f, uc - hx - w - 0.10, uc + hx + w + 0.10, y1 + w, y1 + w + 0.12, -0.02, 0.16)
+	else:
+		_slab(g, "stone", f, uc - 0.11, uc + 0.11, y1 - 0.02, y1 + w + 0.12, -0.02, 0.10)
 
 
 ## A recessed spandrel: a frame of four bars round a lozenge.
@@ -546,7 +606,7 @@ static func _order(main_g: LandmarkGeo, fine: LandmarkGeo, f: Dictionary, L: Dic
 			if wk < 0.26:
 				continue
 			u += (wk * 0.5 + 0.03) * (1.0 if k == 0 else -1.0)
-		_pilaster(main_g, fine, f, u, wk, ob, ot, columns and k != 0 and k != cols)
+		_later(_pilaster.bind(main_g, fine, f, u, wk, ob, ot, columns and k != 0 and k != cols))
 
 
 static func _pilaster(main_g: LandmarkGeo, fine: LandmarkGeo, f: Dictionary, u: float, w: float, y0: float, y1: float,
@@ -628,13 +688,16 @@ static func _cornices(st: Dictionary, L: Dictionary, f: Dictionary, u0: float, u
 	var off := ((mu1 - mu0) - float(m) * mstep) * 0.5
 	for i in m + 1:
 		var u := mu0 + off + float(i) * mstep
-		_slab(fine, "stone", f, u - 0.08 * cs, u + 0.08 * cs, y0 + 0.17 * cs, y0 + 0.30 * cs, 0.29 * cs, 1.0 * cs)
-		_slab(fine, "stone", f, u - 0.07 * cs, u + 0.07 * cs, y0 + 0.04 * cs, y0 + 0.30 * cs, 0.09 * cs, 0.36 * cs)
+		_later(func() -> void:
+			_slab(fine, "stone", f, u - 0.08 * cs, u + 0.08 * cs, y0 + 0.17 * cs, y0 + 0.30 * cs, 0.29 * cs, 1.0 * cs)
+			_slab(fine, "stone", f, u - 0.07 * cs, u + 0.07 * cs, y0 + 0.04 * cs, y0 + 0.30 * cs, 0.09 * cs, 0.36 * cs))
 	var dstep := 0.15 * cs
 	var dn := maxi(0, floori((u1 - u0 - 0.1) / dstep))
-	for i in dn:
-		var u := u0 + 0.05 + (float(i) + 0.5) * dstep
-		_slab(fine, "stone", f, u - 0.035 * cs, u + 0.035 * cs, y0 + 0.15 * cs, y0 + 0.25 * cs, 0.2 * cs, 0.27 * cs)
+	for i0 in range(0, dn, 8):
+		_later(func() -> void:
+			for i in range(i0, mini(dn, i0 + 8)):
+				var u := u0 + 0.05 + (float(i) + 0.5) * dstep
+				_slab(fine, "stone", f, u - 0.035 * cs, u + 0.035 * cs, y0 + 0.15 * cs, y0 + 0.25 * cs, 0.2 * cs, 0.27 * cs))
 	if L.attic:
 		var top: float = (L.size as Vector3).y
 		_extrude(main_g, "stone", f, COPING, u0, u1, top - COPING_H * cs * 0.6, cs, mitre0, mitre1)
@@ -656,9 +719,10 @@ static func _attic(main_g: LandmarkGeo, fine: LandmarkGeo, f: Dictionary, L: Dic
 	var w := clampf(pier - 0.24, 0.36, 0.78)
 	for k in range(step, cols, step):
 		var u := -flen * 0.5 + float(k) * p
-		_slab(main_g, "stone", f, u - w * 0.5, u + w * 0.5, y0, y1, -0.02, 0.10, false)
-		var r := minf(w * 0.3, (y1 - y0) * 0.22)
-		_lozenge(fine, f, u, (y0 + y1) * 0.5, r, 0.12)
+		_later(func() -> void:
+			_slab(main_g, "stone", f, u - w * 0.5, u + w * 0.5, y0, y1, -0.02, 0.10, false)
+			var r := minf(w * 0.3, (y1 - y0) * 0.22)
+			_lozenge(fine, f, u, (y0 + y1) * 0.5, r, 0.12))
 	# Urns on the parapet over the street corners.
 	var parapet_top := top + 0.85
 	for e: Array in [[-flen * 0.5 + 0.45, f.street_start], [flen * 0.5 - 0.45, f.street_end]]:
@@ -737,10 +801,11 @@ static func _entrance(st: Dictionary, f: Dictionary, L: Dictionary, spec: Dictio
 	var glass_top := sf * 0.74
 	for u: float in [u0, u1]:
 		# A pedestal, the column standing proud of the wall on a block, a capital block.
-		_slab(fine, "stone", f, u - r - 0.1, u + r + 0.1, 0.0, 0.85, -0.02, front + 0.06)
-		_slab(main_g, "stone", f, u - r * 0.8, u + r * 0.8, 0.85, glass_top - 0.3, -0.02, front - r)
-		_half_column_at(main_g, f, u, r, 0.85, glass_top - 0.3, front - r)
-		_slab(fine, "stone", f, u - r - 0.12, u + r + 0.12, glass_top - 0.3, glass_top, -0.02, front + 0.08)
+		_later(func() -> void:
+			_slab(fine, "stone", f, u - r - 0.1, u + r + 0.1, 0.0, 0.85, -0.02, front + 0.06)
+			_slab(main_g, "stone", f, u - r * 0.8, u + r * 0.8, 0.85, glass_top - 0.3, -0.02, front - r)
+			_half_column_at(main_g, f, u, r, 0.85, glass_top - 0.3, front - r)
+			_slab(fine, "stone", f, u - r - 0.12, u + r + 0.12, glass_top - 0.3, glass_top, -0.02, front + 0.08))
 	# The entablature block over the door bay, the name on it, a cornice ledge, a crest.
 	var e0 := glass_top
 	var e1 := sf + 0.5
@@ -749,7 +814,7 @@ static func _entrance(st: Dictionary, f: Dictionary, L: Dictionary, spec: Dictio
 	_slab(main_g, "stone", f, ul, ur, e0, e1, -0.02, front + 0.1)
 	_slab(main_g, "stone", f, ul - 0.14, ur + 0.14, e1, e1 + 0.2, -0.02, front + 0.32)
 	_slab(fine, "stone", f, ul + 0.1, ur - 0.1, e0 - 0.08, e0, -0.02, front + 0.04)
-	_text(fine, str(spec.name), f, uc, (e0 + e1) * 0.5, front + 0.11, minf((e1 - e0) * 0.42, 0.42), ur - ul - 0.4)
+	_later(_text.bind(fine, str(spec.name), f, uc, (e0 + e1) * 0.5, front + 0.11, minf((e1 - e0) * 0.42, 0.42), ur - ul - 0.4))
 	# A segmental pediment over it: a shallow arc of stone with a lozenge in the tympanum.
 	var span := (ur - ul) * 0.5 + 0.1
 	var rise := 0.55
@@ -850,17 +915,19 @@ static func _text(g: LandmarkGeo, s: String, f: Dictionary, u: float, y: float, 
 
 
 ## Commits the two meshes under the building, the lamps and the pool.
-static func _commit(b: Building, st: Dictionary, part: int) -> void:
+static func _commit(b: Building, st: Dictionary, part: int) -> bool:
 	if not is_instance_valid(b):
-		return
+		return true
 	if part == 0:
-		var holder := Node3D.new()
-		holder.name = "Historic"
-		b.add_child(holder)
-		(st.main as LandmarkGeo).commit(holder, "HistoricMain", true, MAIN_DRAW)
-		return
+		var holder := b.get_node_or_null("Historic") as Node3D
+		if holder == null:
+			holder = Node3D.new()
+			holder.name = "Historic"
+			b.add_child(holder)
+		return (st.main as LandmarkGeo).commit_sliced(holder, "HistoricMain", true, MAIN_DRAW, COMMIT_CHUNK)
 	var node := b.get_node("Historic") as Node3D
-	(st.fine as LandmarkGeo).commit(node, "HistoricFine", false, FINE_DRAW)
+	if not (st.fine as LandmarkGeo).commit_sliced(node, "HistoricFine", false, FINE_DRAW, COMMIT_CHUNK):
+		return false
 	built_count += 1
 	var lamps: Array = st.lamps
 	if not lamps.is_empty():
@@ -900,6 +967,7 @@ static func _commit(b: Building, st: Dictionary, part: int) -> void:
 		pool.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		pool.visibility_range_end = 140.0
 		node.add_child(pool)
+	return true
 
 
 # --- Far ------------------------------------------------------------------------------------

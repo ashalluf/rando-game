@@ -9447,7 +9447,15 @@ the block's pavement ring), builds into two LandmarkGeo meshes on the landmark f
   OmniLight and a light pool on the pavement.
 `HistoricMain` (cornices, belts, order shafts, entablature: casts shadows, drawn to 380 m) and
 `HistoricFine` (rustication, arches, surrounds, capitals, modillions, dentils, panels, letters,
-lanterns: no shadow, 170 m). Built one street face per build step (`CityChunk._run_or_defer()`).
+lanterns: no shadow, 170 m). Built as time-sliced build steps (`CityChunk._run_or_defer()`): one
+driver step runs jobs until `HistoricFacade.STEP_BUDGET_US` (2.5 ms) is spent; each face's four
+phases queue their loop bodies (`HistoricFacade._later()`: a course, an arch, a pilaster, a row of
+surrounds, a panel, eight dentils, a modillion, an attic pier, the lettering) to run next, in order,
+so the mesh is the same triangles cut into small jobs; then both meshes are committed with
+`LandmarkGeo.commit_sliced()` (SurfaceTool's index and tangents on `COMMIT_CHUNK` 800 triangles a
+call, the slices joined one array kind a call, then the surface added), and no surface holds over
+`SURFACE_TRIS` (12,000) triangles (`LandmarkGeo.max_surface_tris`: growing a vertex array to
+megabytes inside one step stalled 10-20 ms on its reallocation now and then).
 LOD chunks and the far city: each street face's cornice and belt course as plain far boxes
 (`lod_box`, no windows) beside the building's coded boxes.
 
@@ -9464,10 +9472,13 @@ looking north): 5.50 M triangles / 3,478 draws with it, 5.52 M / 3,444 with `HIS
 the ornament alone (`AB=Historic*`) is 378 k triangles and 135 draws - the plainer buildings it
 dresses (no curtain walls, kit surrounds or bands) give back about as much. A block of four
 buildings is ~97 k triangles of ornament (the checks print it); each face is built in four
-deferred steps plus two commit steps; the longest is still 58-67 ms in the headless check
-(`HistoricCore.max_step_us`, printed by the checks), well over the streamer's 4 ms budget, so a
-hitch is possible when a Spring St block streams in: split the order / cornice phases finer
-(per few bays) if the Mac shows one. Gate on the branch merged with main's batch 1: 1,509 passed, 0 failed; peak
+time-sliced steps. **Step times** (`tools/historic/steps.tscn`, headless, every historic block
+FULL, `HISTORIC_TIME=1` prints each step over 1 ms and the slowest job in it): 96 buildings, ~5,500
+steps, median 2.0 ms, p99 4.8 ms, worst 6.8-8.2 ms over three runs (the box's own noise: a 1 ms job
+measured up to 3.4-8.7 ms in the same runs); before the slicing a step ran 58-67 ms (the checks)
+and up to 153 ms (one big building's fine commit). The same 2,304,706 triangles either way; the
+surface cap costs 105 surfaces over the 96 buildings (594 -> 699, about one draw a building
+near). Gate on the branch merged with main's batch 1: 1,509 passed, 0 failed; peak
 RSS 3.3 GB.
 
 **Not done / not verified**: no Forward+ look (the terracotta and the floodlit base through AgX,

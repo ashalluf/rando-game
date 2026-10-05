@@ -48,8 +48,11 @@ const NAMES := ["HALCOMBE BUILDING", "THE VARDEN", "ORCHARD NATIONAL BANK", "BEL
 static var enabled: bool = OS.get_environment("HISTORIC_CORE") != "0"
 ## How many historic Buildings have been dressed (probes and checks).
 static var dressed_count: int = 0
-## The longest ornament build step so far (microseconds; probes and checks).
+## The longest ornament build step so far (microseconds; probes and checks) and which it was.
 static var max_step_us: int = 0
+static var max_step_label: String = ""
+## HISTORIC_TIME=1: print every ornament build step over a millisecond (tools/historic/steps.tscn).
+static var time_steps: bool = OS.get_environment("HISTORIC_TIME") == "1"
 
 
 ## An avenue's centre line x and width (the pinned real street), or [] when it is not pinned.
@@ -208,16 +211,25 @@ static func after_building(ch: CityChunk, lot: Dictionary, building: Building, s
 			var want := Vector3(signf(float(av[0]) - (lot.center as Vector2).x), 0.0, 0.0)
 			if faces.has(want):
 				main_n = want
+		# Each job is [label, Callable]; a job that returns false is called again next step (a
+		# commit cut into slices), anything else moves on.
 		var jobs := HistoricFacade.jobs(building, spec, faces, main_n)
 		var i := [0]
 		ch._run_or_defer(func() -> bool:
 			if not is_instance_valid(building):
 				return true
 			if i[0] < jobs.size():
+				var job: Array = jobs[i[0]]
 				var t0 := Time.get_ticks_usec()
-				(jobs[i[0]] as Callable).call()
-				max_step_us = maxi(max_step_us, Time.get_ticks_usec() - t0)
-				i[0] += 1
+				var r: Variant = (job[1] as Callable).call()
+				var dt := Time.get_ticks_usec() - t0
+				if dt > max_step_us:
+					max_step_us = dt
+					max_step_label = HistoricFacade.step_label
+				if time_steps and dt > 1000:
+					print("HISTORIC step %.2f ms (slowest job %s)" % [float(dt) / 1000.0, HistoricFacade.step_label])
+				if not (r is bool and r == false):
+					i[0] += 1
 			return i[0] >= jobs.size())
 	else:
 		HistoricFacade.far_boxes(ch, building, style, faces, spec)
