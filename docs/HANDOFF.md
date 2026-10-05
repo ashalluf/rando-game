@@ -6076,3 +6076,56 @@ read then), so standing at one corner across dusk does not bring the trucks in. 
 the boardwalk landmark itself or inside MacArthur Park (its edges only). The vendors wear the
 crowd's clothes (no apron or cap); customers do not carry food away; no steam off the elote pot
 or smoke off the griddle; the balloons are round foil only.
+## 9bk. The Coral Line: a light rail line, 2026-10-04 (agent branch `wt/light-rail`; VISUAL_ROADMAP #53)
+
+Number is provisional (9bf / 9bg reserved for local agents; the lead renumbers on merge).
+
+**What it is.** One light rail line, Basin Metro's Coral Line (original name, coral colour, "C"
+bullet, white / coral / black livery), as a DATA TABLE in `scripts/world/light_rail.gd`
+(`ROUTE`, `PORTAL`, `STATIONS`, speeds, timetable). Default seed: 5.2 km, 7 stations - 7TH ST /
+FLOWER (underground terminus, two stair kiosks in Flower's median), PICO / FLOWER (at grade),
+WILLOW / FLOWER and RIVER / GEORGIA (on the structure), RIVER / CREST, RIVER / LAKE, RIVER / HILL
+(at grade, the last a terminus in the beach town). Downtown on the real Flower St at 1:1: tunnel
+to a portal trench south of 11th St (s 916-1084), at grade past Pico, then the structure from
+south of Venice over the 10 (rail 28.0 m abs over a 20.5 m deck), round the corner (R 28 m) onto
+River Blvd (the default seed's 24 m boulevard that plays Exposition), over the 110 and the 105, down
+to grade at x 1381. 19 at-grade crossings, 17 gated. 4 trains (2-car articulated consists, 54.6 m),
+a 309 s headway, 618 s a trip. CLAUDE.md "Light rail" has the whole contract.
+
+**Files.** `scripts/world/light_rail.gd` (the line, pure), `light_rail_kit.gd` (a FULL chunk's works,
+extends FreewayKit), `light_rail_system.gd` (the `LightRail` node in city.tscn: clock, trains, far
+tiers, crossings, riders, strikes, sound), `rail_gate.gd`, `scripts/vehicles/light_rail_train.gd`,
+`rail_section.gd`, `scripts/npc/rail_rider.gd`; shaders `lrv_body`, `lrv_glass`, `lrv_interior`,
+`lrv_far`, `light_rail_far_line`; `tools/make_light_rail.py` (Blender, the car),
+`tools/light_rail/` (probe, compile, rail_shot); `tests/light_rail_checks.gd`. Small hooks in shared
+files: `city_chunk.gd` (`_road_slab()`, `_build_light_rail()`, `_lot_under_freeway()`,
+`_mark_road()`), `traffic.gd` (outer lane on a rail street, stop at a closed crossing),
+`weapon_fx.gd` (the `rail_vehicle` group is metal), `sfx.gd` (four names, synth fallbacks),
+`macro_ground.gdshader` (`cut_rect`: the plane sinks under the trench), `city.tscn`, `smoke_test.gd`.
+
+**Decisions worth knowing.** The structure's profile is the upper envelope of 5.8 % cones from
+every point it must clear, then eased - grade-limited by construction. Every freeway the line
+crosses at grade is crossed OVER (there was no crossing where the line "must" rise otherwise).
+Nothing per train is ticked: trips are (time, nose s) tables from the speed limits with dwells;
+the fleet fills the round trip and the phases make an arriving train the departing one (double-
+ended cars; pantographs on the swapping ends). Gates are posed from `crossing_phase()` (seconds
+closed / open), so a gate streamed in mid-closure is already down. LOD chunks build none of the
+line: the system's one far mesh draws it from 150 m out, every piece inside the FULL works'
+own, so where both draw only the detail shows. Trains past 340 m (3D) are lit boxes.
+
+**Frame cost** (opengl3 stills, `still_shot.gd`, RAIL=0 vs on, same frame): from the air over the
+line (EYE 2650,300,1500,153,-14 AGL) 2,293 -> 2,295 draws, 3.626 -> 3.632 M tris; on Flower at the
+Pico station with two trains in (EYE 2377,4,1532,32,-6) 1,989 -> 2,130 draws (+7 %), 5.52 -> 5.68 M
+tris (+3 %). rail_shot split there: works 170 k tris, riders ~35 draws, trains ~15 draws (one
+vertex-coloured body material, doors merged while shut, only the body casts).
+
+**Stills** (shots/light-rail): station by day and night with a train dwelling, a level crossing
+with the gates down and a train coming, the structure over the 110 seen from its deck, the portal
+trench, the line from the air by day and night.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the glass trace, the clearcoat body and
+the headlight spot need eyes. Police cruisers still drive lane 0 on a rail street (over the
+trackway). The trench has no collision floor of its own; the player standing in it stands on the
+GroundBody plane at y 0. Cars turning left across the line ignore it. The gong is a struck crossing
+bell (no CC0 tram gong found); nobody has listened to any clip yet. Riders board and alight but do
+not ride (they are gone at the door). The underground station has no platform below ground.

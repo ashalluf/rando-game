@@ -492,6 +492,20 @@ already mapped so milestone 2 is script-only.
   reversing lamps, as shared state materials (one draw a car still). Parked cars' lamps are off.
   An unshadowed spot cannot carry a projector in Godot (it draws nothing), so traffic beams are
   soft plain cones. docs/HANDOFF.md 9aw; CLAUDE.md "Car lights".
+- **2026-10-04 A light rail line: the Coral Line (Basin Metro, original name, colour and
+  livery).** Authored as a data table (`LightRail`: ROUTE, PORTAL, STATIONS), never placed
+  nodes: downtown it follows the real Flower St corridor at 1:1 (underground from 7th St, a
+  portal south of 11th, at grade past Pico), then an aerial structure over the 10, the 110 and the
+  105 and down the median of the seeded boulevard that plays Exposition to the beach town. The
+  structure's profile is the upper envelope of 5.8 % cones from what it must clear (grade-limited
+  by construction); the timetable is worked out from one clock (trips from the speed limits with
+  dwells, the fleet sized to the round trip, the turn-round seamless), so nothing per train is
+  ticked; crossings are closed from the same clock (gates outside downtown, signal pre-emption
+  inside) and TrafficManager stops for them and keeps a rail street's cars to the outer lane. The
+  car is Blender-built (tools/make_light_rail.py, an original 27 m articulated high-floor LRV).
+  Far tiers: the line past the chunks is one dithered mesh owned by LightRailSystem, trains are
+  lit boxes (not a Skyline capture: the line is not a block). docs/HANDOFF.md 9bk; CLAUDE.md
+  "Light rail".
 - **2026-10-04 The front range gets its drives and estates back as switchbacks, not deeper cuts
   (VISUAL_ROADMAP #20).** The cut-bank fix (#17) trimmed every canyon road that walked straight
   up the range. Roads now follow the contours (`HillRoads._add_switchbacks()`: 8.5 % legs,
