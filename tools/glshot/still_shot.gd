@@ -56,6 +56,9 @@ extends SceneTree
 ## LIFE_REPORT=1 lists the people within 80 m of the camera doing something (crowd life), with
 ## true world positions to frame an EYE on; LIFE_FOCUS=jog|dog|talk|sit|stand|lean|window frames the
 ## nearest person doing that (LIFE_FOCUS_DIST metres off, default 5); CROWD_LIFE=0 turns the crowd's life off (the A/B).
+## ERRAND=bus|car|jay|shop|deliver stages a street errand ahead of the camera (StreetErrands; see
+## tools/street_errands/stage.gd for ERRAND_PICK and the framing knobs); STREET_ERRANDS=0 turns
+## the errands off (the A/B).
 ## BIRD=ground|flush|wire stages birds ahead of the camera (BIRD_SPECIES, BIRD_DIST, BIRD_COUNT,
 ## BIRD_FLY; see the block before STREET); BIRDS=0 removes the birds (the A/B).
 ## ROOF_TRIS=1 prints what the rooftop units really cost (per instance, by the LOD rule).
@@ -383,6 +386,18 @@ func _initialize() -> void:
 		if current_scene.has_method("update_streaming"):
 			current_scene.call("update_streaming", true)
 		for i in _env_int("EMERGENCY_FRAMES", 30):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
+	# ERRAND=bus|car|jay|shop|deliver: a street errand staged in front of the camera and framed by
+	# a free camera (tools/street_errands/stage.gd; STREET_ERRANDS=0 is the A/B).
+	var errand_env := OS.get_environment("ERRAND")
+	if errand_env != "" and current_scene:
+		var er_eye: String = await load("res://tools/street_errands/stage.gd").new().stage(current_scene, errand_env, get_root().get_camera_3d())
+		if er_eye != "":
+			OS.set_environment("EYE", er_eye)
+		print("ERRAND %s eye %s" % [errand_env, er_eye])
+		_eye(player, fov)
+		for i in _env_int("ERRAND_FRAMES", 12):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
 	# Then all but freeze the clock for the last frames: a software frame takes seconds, and at

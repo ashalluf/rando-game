@@ -1393,6 +1393,8 @@ func _physics_process(delta: float) -> void:
 		_post_pose(delta)
 	if _life_ok:
 		_life_pose(delta)
+	if not errand.is_empty():
+		StreetErrands.pose(self, delta)
 
 
 func _walk(delta: float) -> void:
@@ -1407,6 +1409,9 @@ func _walk(delta: float) -> void:
 			_scream_in = -1.0
 			if _cross != Cross.CROSSING:
 				_go_to(_random_ring_point(_sidewalk))
+	# On an errand (StreetErrands: a bus, a shop, a parked car, over the road mid-block).
+	if (_life_near or not errand.is_empty()) and StreetErrands.walk(self, delta, panicking):
+		return
 	# Standing still: waiting at a kerb, looking in a window, checking a phone. A crowd where
 	# every single person walks without ever stopping reads as a conveyor belt.
 	if _pause_left > 0.0:
@@ -2409,6 +2414,7 @@ func _walk_crossing(delta: float, panicking: bool) -> void:
 func _exit_tree() -> void:
 	_leave_crosswalk()
 	_end_act(true)
+	StreetErrands.release(self)
 
 
 ## The spot on this block's pavement ring farthest from the threat, out of a handful: fleeing
@@ -2541,6 +2547,8 @@ var _props: Dictionary = {}
 var _skel_unit: float = 100.0
 var _hip_bone: int = -1
 var _leg_bones := PackedInt32Array()
+## The errand under way (StreetErrands: its steps and where it is in them), {} for none.
+var errand: Dictionary = {}
 
 
 ## Rolls what this person carries and whether they jog or walk a dog (from the seed, so the same
@@ -2630,6 +2638,9 @@ func _try_life(at_spawn: bool) -> bool:
 			_start_stand(_life.randf_range(4.0, 10.0))
 			return true
 		return false
+	# Somewhere to go (StreetErrands): a bus, a shop, a parked car, over the road mid-block.
+	if StreetErrands.try_start(self, at_spawn):
+		return true
 	# A street vendor's queue nearby (StreetVendors): some stop and wait at the cart or the truck.
 	if _plan_queue(at_spawn):
 		return true
