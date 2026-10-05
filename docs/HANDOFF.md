@@ -8640,3 +8640,12 @@ the crosswalk; lane items keep clear of the ends; the rail trackway is refused b
 lanes are not; five midtown chunks carry covers, valves, inlets, cuts, markers and dots; each kind
 one shadowless batch on the shader; nothing on the carriageway reaches a crosswalk or stop line;
 the block built without it is the same block and gets the old pieces back.
+
+**Frame cost** (`tools/geo_count.gd`, opengl3 + Xvfb, 800x600, `--spawn=1023.5,640,180,-10`, a
+midtown avenue): on 4.543 M triangles / 3,286 draws, off (`ROAD_DETAIL=0`) 4.511 M / 3,287. The
+`rh_*` batches themselves (AB=`Batch_rh_*`, 126 nodes) are 44 k triangles and 19 draws; the old
+manholes, grates and inlets they replace give most of the draws back. Net +33 k triangles (+0.7 %).
+
+**Stills**: branch `shots/road-detail` (block_shot, opengl3, before / after pairs). Not seen on
+Forward+: the iron's polish, the plates' sheen (they read a little bright and brushed on the
+Compatibility stills) and the wet look need a Mac check.
