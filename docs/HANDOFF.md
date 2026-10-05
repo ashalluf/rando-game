@@ -23,6 +23,19 @@ The owner asked for "100 parallel agents, Opus 5.5 strictly, screenshots along t
     order-dependent "the map draws no closed road (1)". `Schools.late_closed` records any road
     closed after it was answered open, and the map check prints any closed road it draws.
   - Gate on this tree: 1,362 passed, 0 failed, peak 3.2 GB, 31 minutes.
+- **Batch 1 is on `main`** (12:05): sky, alleys, stadium, rooftops, wilshire-deco, far-corners,
+  cemetery and kerbs, merged with `tools/fleet/merge_branch.py`. Gate: 1,503 passed, 0 failed,
+  ~13 minutes of smoke test. Two fixes came with it:
+  - `tests/headless_check.sh` gives the smoke test 2,400 s instead of 900: the merged city runs
+    ~1,500 checks in 13-17 minutes on a 4-core box, and three fleet branches' runs were cut short.
+  - The Wilshire deco check failed late in a long run only: it builds the same block with the deco
+    on and off, and the first build's parked cars (which live under the city root) outlived its
+    chunk, so the second build met PhysicsBudget's cap and parked six fewer. It frees each build's
+    cars now; with the cap forced 16 above the city's count the old check fails and the new passes.
+- **Queued:** `fleet/batch2` = batch 1 + integration-b through `wt/oom-fix` (its four sections
+  renumbered 9cv-9cy, rows #91-#94); `fleet/batch3` = batch 2 + fwd-review-a, road-detail,
+  perf-audit (grass in cells: the "grass" batch is "grass_<cx>_<cz>" now), reservoir, ridges,
+  service-vehicles (first head, before its cab rebuild).
 - **`fleet/base`** is where wave 2 started (main at the merge, before the closed-road fix).
 - **integration-b's memory** was a build livelock, found by `oom-fix`: Murals and
   ClimbingPlants each moved their step to just before a chunk's finish whenever a step stood
