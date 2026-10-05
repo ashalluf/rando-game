@@ -3,7 +3,8 @@
 All stills are **Forward+** (lavapipe, the renderer the Mac uses), 1280x720, 15:00, in a small
 street of real generated Buildings with the city's own Environment, sun and DayNight
 (`tools/reflections/probe_shot.gd`; SDFGI and volumetric fog off, i.e. the MEDIUM level's effects,
-because lavapipe cannot render SDFGI in minutes). "Before" is `PROBES=0 HDRI=0` (today's look).
+because lavapipe cannot render SDFGI in minutes). "Before" is `PROBES=0 HDRI=0` (today's look); "after" is
+the shipped setting (probes without shadows, the street HDRI).
 
 | File | What |
 |---|---|
