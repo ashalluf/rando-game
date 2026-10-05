@@ -20,3 +20,5 @@ All opengl3 (Compatibility renderer, what the web build draws), not the Mac's Fo
 | 14_after_beachtown_street_posttops_2100.jpg | The same at 21:00 (an LED patch) |
 | 15_after_beachtown_down_the_street_cobras_noon.jpg | Beach town, down a bigger street: cobra-heads on the far kerb |
 | 16_after_beachtown_down_the_street_cobras_2100.jpg | The same at 21:00 |
+| 17_before_beachtown_down_the_street_noon.jpg | Before (STREET_LAMPS=0) for 15: the scanned post on every kerb |
+| 18_before_beachtown_down_the_street_2100.jpg | Before for 16 at 21:00: the pools on the pavement; after, the cobras light the road under their heads |
