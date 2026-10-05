@@ -7108,7 +7108,7 @@ pavement, filmed from the kerb; `MODE=yard`: the nearest front-yard dog barking 
 `tools/dog_probe.gd` (lists the dogs round a spawn with EYEs; `FIND=1` lists suburb and beach-town
 blocks); `tools/crowd/crowd_lab.tscn SCENARIO=dog FOLLOW=1`. Beach town with dogs:
 `--spawn=-593,-102` (walkers), `--spawn=-447,556` (a pit bull in a front garden). Checks:
-`tests/dog_checks.gd` (22 checks).
+`tests/dog_checks.gd` (22 checks; staged beside the player, never moving him).
 
 **Stills** (shots/dogs; opengl3, not the Mac's Forward+): the six breeds three-quarter, side and
 front; a trot sequence; a dog walker on the beach town's pavement; a pit bull at a picket fence.
