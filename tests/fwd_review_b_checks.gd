@@ -19,7 +19,7 @@ func run(t: Node, _city: Node3D) -> void:
 		var code := (load(p) as Shader).code
 		_t._check(not code.contains("nrm = -nrm") and not code.contains("NORMAL = -NORMAL"),
 			"%s does not flip a back face's NORMAL a second time" % p.get_file())
-	for p in ["res://shaders/school_walls.gdshader"]:
+	for p in ["res://shaders/school_walls.gdshader", "res://shaders/park_ground.gdshader", "res://shaders/park_walls.gdshader"]:
 		var code := (load(p) as Shader).code
 		_t._check(not code.contains("disp(sky_tint"), "%s reads sky_tint as the display colour it is" % p.get_file())
 	var maps: Array = BlastAftermath.crater_textures(0)
