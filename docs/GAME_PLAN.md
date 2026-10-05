@@ -289,6 +289,13 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Steps that must run after the deferred ones go through `CityChunk._run_last()`
+  (HANDOFF "The integration-b OOM").** Murals and ClimbingPlants each moved their own build step
+  behind any step still waiting before the finish; merged, each found the other there and they
+  swapped forever, so integration-b's city never finished building and was OOM-killed past 10.9 GB.
+  Decision: one queue on the chunk, drained one step at a time when the finish is reached; no pass
+  re-inserts itself. City load peak 1.44 GB.
+
 - **2026-10-05 City acoustics: spaces, gunfire echo, footsteps by surface, the newest systems'
   sounds (HANDOFF "City acoustics").** The city had one street-canyon reverb, no echo, no
   footsteps, and the bus, the light rail, the river and the parks were silent. Decisions: the

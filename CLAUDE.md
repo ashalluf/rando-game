@@ -4013,6 +4013,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/glshot/hero_moves_shot.gd` (several stills a load: a clip frozen or a staged move -
   fly, fall, hit_*, draw, land_<speed>, roll, idle_*; `STEP=1` for the foot IK); checks
   `tests/hero_moves_checks.gd`.
+- Late build steps (2026-10-05, docs/HANDOFF.md "The integration-b OOM"): a pass that must run
+  after every DEFERRED step (YardFill's walls, `_run_or_defer`, crowds) queues itself with
+  `CityChunk._run_last(step)` (ClimbingPlants, Murals); `build_step()` puts those in front of the
+  finish one at a time. Never move a step "behind whatever is left" by re-inserting it: two passes
+  doing that chase each other forever, the build never ends and memory grows until the OOM killer
+  (integration-b: 10.9 GB+). Memory per stage: `tools/memory_probe/memory_probe.tscn`
+  (VmHWM / VmRSS, `PROBE_TICKS`), wrapped by `tools/memory_probe/run_probe.sh` (peak, `LIMIT_MB`
+  kill).
 - Performance: `Quality` node in the city scene (`scripts/util/quality.gd`) starts desktop at
   **HIGH** (owner, 2026-09-21: "I need it PS5 level graphics" - global illumination is the single
   biggest difference between this and a modern-looking game) and steps down to MEDIUM, LOW and

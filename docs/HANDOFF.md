@@ -9573,3 +9573,37 @@ the environment is the A/B for every tool.
 on a vacant lot (Billboards owns poles - left to it); the weeds are code-built, not scanned; no
 graffiti on the screens (StreetWear reads Building parts, which a vacant lot has none of). The
 ground's tone and the weeds' translucency are judged on opengl3 only (NEEDS MAC CHECK).
+
+## 9d?. The integration-b OOM (fleet wave 2, wt/oom-fix)
+
+**Symptom.** integration-b (integration-a plus twelve batch-3 branches) could not be gated: the
+smoke test was OOM-killed at 10.9 GB right after "city scene loads" (integration-a peaks near
+3 GB headless).
+
+**Measuring it.** `tools/memory_probe/memory_probe.tscn` loads `scenes/levels/city.tscn` as the
+smoke test does, steps `PROBE_TICKS` (300) physics frames and prints `MEM <stage> HWM / RSS /
+static / objects` from `/proc/self/status` (read line by line: /proc files report length 0, so
+`get_as_text()` returns nothing). `tools/memory_probe/run_probe.sh <godot args>` samples the RSS
+twice a second, kills the run past `LIMIT_MB` (11000) so the box survives, and prints the peak.
+
+**Bisect.** Everything on: killed at 11 GB inside `add_child` (the loading build). One switch off
+at a time: CONSTRUCTION, BOULEVARD_SIGNS, HOSPITALS, LA_TREES=0 all still past 11 GB; **MURALS=0:
+1.41 GB peak**. (The rest were not needed.)
+
+**Cause.** Not a cache: a livelock. Murals' step and ClimbingPlants' step each moved themselves to
+just before the chunk's finish whenever any step still stood between them and it (both to come
+after YardFill's deferred walls). Each branch alone was fine. Merged, each found the other there:
+the climbers moved behind the murals, the murals behind the climbers, and so on forever. `build()`
+(the loading screen's synchronous build) never returned and the step list grew a bound Callable a
+step until the OOM killer.
+
+**Fix.** `CityChunk._run_last(step)` queues a step to run after every deferred one;
+`build_step()`, on reaching the finish, inserts the queued steps one at a time in front of it
+(so a late step may still defer work of its own). `begin_build()` clears the queue. Murals'
+`build()` queues `_work` there (which now only paints); ClimbingPlants' `build(ch, late)` queues
+itself once with `late` true. Order: climbers, then murals (each branch's own order). What either
+draws is unchanged (both hash-seeded; neither consumes the block rng).
+
+**Numbers.** City load + 300 ticks, headless: killed at 11 GB before; peak RSS 1.44 GB after
+(`MEM end HWM 1477960 kB`). Full gate: see the wave-2 report (peak measured with a sampler over
+every Godot process).
