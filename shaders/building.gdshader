@@ -63,6 +63,9 @@ uniform ivec4 shop_rooms = ivec4(0);
 // shop_names_b (Building.shop_name_codes()). 0 is unknown: the glass says a phrase instead.
 uniform ivec4 shop_names_a = ivec4(0);
 uniform ivec4 shop_names_b = ivec4(0);
+// Whether anything is stuck on the shop glass at all (Building.vinyl_enabled; SHOP_VINYL=0 in the
+// environment is the A/B).
+uniform bool shop_vinyl = true;
 // The whole building's height (its tallest part's top, Building.height): a tower over 30 m has a
 // lobby at street level (the parts' own heights say nothing: a tower's ground part is often a low
 // podium tier). 0 on the landmark towers, which use their part's height.
@@ -1312,7 +1315,7 @@ void fragment() {
 				// Metres from the pane's corner on ShopfrontKit's low edge (the high end of u).
 				vec2 pk = vec2((1.0 - wd.x) * pane_m.x, wd.y * pane_m.y);
 				float glass_low = (win_c.y - win_h.y) * sf_h;
-				vec4 deco = lobby ? vec4(0.0) : shop_decal(pk, pane_m, shop_key, shop_bay, door_bay, glass_low, px_m, shop_name, shop_bays, shop_door_i);
+				vec4 deco = (lobby || !shop_vinyl) ? vec4(0.0) : shop_decal(pk, pane_m, shop_key, shop_bay, door_bay, glass_low, px_m, shop_name, shop_bays, shop_door_i);
 				albedo = mix(albedo, deco.rgb, deco.a);
 				reflected *= 1.0 - 0.55 * deco.a;
 				room_raw *= 1.0 - deco.a;

@@ -785,6 +785,7 @@ func _part_material(style: Dictionary) -> ShaderMaterial:
 	var name_codes := shop_name_codes()
 	mat.set_shader_parameter("shop_names_a", name_codes[0])
 	mat.set_shader_parameter("shop_names_b", name_codes[1])
+	mat.set_shader_parameter("shop_vinyl", vinyl_enabled)
 	mat.set_shader_parameter("tower_height", height)
 	# Whether the raised shop names are drawn (never on the web): the shader only turns boards
 	# dark for channel letters where there are letters to light.
@@ -950,6 +951,9 @@ const SHOP_NAMES := ["PHARMACY", "NAILS & SPA", "DRY CLEAN", "PHONE FIX", "LIQUO
 ## The names every building rolls from (the first BASE_SHOP_NAMES of SHOP_NAMES), unless it is
 ## handed a `name_pool` of indices into SHOP_NAMES (Broadway.dress()).
 const BASE_SHOP_NAMES := 30
+## Whether the shop glass carries its vinyl (names, hours, promos, posters); SHOP_VINYL=0 in the
+## environment is the A/B.
+static var vinyl_enabled: bool = OS.get_environment("SHOP_VINYL") != "0"
 var name_pool: PackedInt32Array = PackedInt32Array()
 ## Cap height of a shop sign, in metres.
 const SIGN_HEIGHT := 0.40

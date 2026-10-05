@@ -8571,3 +8571,51 @@ abrupt. A connector car spawned when nobody can be taken pops in (only farther t
 the player). Sound: no rolling-traffic emitter of its own (Ambience's freeway emitter reads
 segments_in(), so it does hear the connectors). The far city draws the connectors as unbanked
 deck boxes.
+
+## 9d?. Shop-window vinyl: real words on the glass, 2026-10-05 (agent branch `wt/shop-vinyl`; VISUAL_ROADMAP #?)
+
+**What it was.** `building.gdshader`'s `shop_decal()` put lettering across about 40 % of the display
+windows and an OPEN plate on the doors, drawn by `fake_glyph()`: sixteen invented capitals picked
+by hash, so every window spelled gibberish ("TSHNEENA") and the door plates said nothing. From the
+pavement it was the most obviously fake thing on a shopping street.
+
+**What it is.** A real stroke font and real text, all in the shader:
+
+- `tools/make_vinyl_font.py` writes `shaders/vinyl_lettering.gdshaderinc` (GENERATED: rerun it after
+  changing `Building.SHOP_NAMES` or the phrases; `--preview out.png` renders the font with the same
+  distance field in PIL, in a second). 50 glyphs - A-Z, tabular 0-9, `& - . , : ' / ! $ % ( ) # +` -
+  as centre-line segments on a grid six units tall (arcs sampled to at most 16 segments a glyph),
+  packed four coordinates to a uint (327 uints); the text five 6-bit codes to a uint (182 uints for 92
+  strings). `vt_ink()` walks the string to the glyph under the pixel (proportional advances), takes
+  the distance to its segments, and draws a round-capped stroke of a chosen weight with an optional
+  keyline (the gold leaf's dark edge); antialiased by the pixel size the caller passes (`px_m`, no
+  derivatives in branches) and faded to the text's average ink once the stroke is under a pixel.
+- The text table is `Building.SHOP_NAMES` in order (string i is name i) and then the phrases. `@` in
+  a phrase is a digit of the shop's own hash (salt 60 + the digit's index): `CALL 555-01@@`,
+  `(213) 555-01@@` (the fictional 555-01xx range), `SINCE 19@@`, `EST. 19@@`, the door's `@@@@`.
+- The shader knows each shop's NAME: `Building.shop_name_codes()` packs `shop_names()` for each
+  face's first `SHOP_ROOM_SLOTS` (7) shops as index + 1 in six bits (`shop_names_a`: shops 0-4,
+  `shop_names_b`: 5-6), exactly like `shop_rooms`. 0 is unknown (shop 7 on, the landmark towers, which
+  never set it): that bay says a phrase instead (NOW OPEN, OPEN 7 DAYS, GRAND OPENING, OPEN LATE).
+- Layout (`shop_decal()`, sizes are real vinyl's): 59 % of shops (salt 20 < 150) put their NAME across
+  the bay before the door, 11-19 cm caps at 1.76 m, white, gold leaf with a keyline or red, bold or
+  regular (salts 23, 50, 55), with a 5.5 cm line under it two times in three (salt 52: the phone, the
+  year, FAMILY OWNED, SE HABLA ESPANOL, FREE ESTIMATES); another bay of the shop gets a promo at eye
+  height (salts 53-54): SALE / 50% OFF / CLOSING SALE in 30 cm red, GRAND OPENING / EVERYTHING MUST GO
+  at 16 cm, the rest (WE ACCEPT ALL CARDS, CASH ONLY, ATM INSIDE, WALK-INS WELCOME, FREE WIFI,
+  HABLAMOS ESPANOL ...) at 8.5 cm; the posters keep their place and get a promo as their headline.
+  On the door: a gold street number on the transom (salt 56), the HOURS card with two or three real
+  lines from five schedules (salt 57: MON-FRI 9-6 / SAT 10-5 / SUN CLOSED, OPEN 24 HOURS, ...), and
+  the OPEN plate now says OPEN. Text is fitted: a line never runs wider than its share of the pane.
+- `SHOP_VINYL=0` in the environment (`Building.vinyl_enabled` -> the `shop_vinyl` uniform) leaves the
+  glass bare: the A/B.
+
+**Cost.** Everything outside a line's box is a few compares (the box test comes first); inside one, a
+walk of up to 19 characters and up to 16 segment distances for one glyph - only on the pixels of the
+letters' boxes. No textures, no new draws or triangles.
+
+**Checks** (`tests/shop_vinyl_checks.gd`, loaded by one line in the smoke test): the generated table
+starts with `Building.SHOP_NAMES` and every name decodes back to itself; the phrase numbers
+shop_decal() uses name the phrases it means; '0' is code 27 (the hash digits) and every glyph fits the
+segment loop; `shop_name_codes()` decodes to `shop_names()` on three seeds; building.gdshader includes
+the font, takes the codes and no longer has `fake_glyph`.

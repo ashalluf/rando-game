@@ -289,6 +289,14 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Shop-window vinyl in real words (HANDOFF "Shop-window vinyl").** The glass's lettering
+  was invented letters that spelled nothing. Decisions: a stroke font IN the shader (packed segments
+  from a generator script, a distance field) rather than a glyph texture, so the building material
+  needs no new sampler and the web build, the towers and the far fade all work as before; the shop's
+  real name reaches the shader the way its room does (six-bit codes per face from
+  `Building.shop_names()`), with phrases where it is not known; numbers are hash digits drawn inside
+  the strings (555-01xx phones, years, street numbers), so a table of fixed strings gives every shop
+  its own; every word, number and business is invented.
 - **2026-10-05 City acoustics: spaces, gunfire echo, footsteps by surface, the newest systems'
   sounds (HANDOFF "City acoustics").** The city had one street-canyon reverb, no echo, no
   footsteps, and the bus, the light rail, the river and the parks were silent. Decisions: the
