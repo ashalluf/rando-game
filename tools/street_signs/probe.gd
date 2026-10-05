@@ -54,4 +54,15 @@ func _initialize() -> void:
 		var full: int = ((load("res://scripts/world/city_chunk.gd") as GDScript).get_script_constant_map().Level as Dictionary).FULL
 		var chunk = current_scene.call("_new_chunk", Vector2i(k[0].to_int(), k[1].to_int()), full)
 		chunk.call("build")
+		# What stands within 2.5 m of each block sign once the chunk is finished (by batch node).
+		for r: Dictionary in chunk.get("prop_records"):
+			if not String(r.id).begins_with("ssign_"):
+				continue
+			var at: Vector3 = r.position
+			for nd in chunk.get_children():
+				if nd is MultiMeshInstance3D:
+					var xs: Array = chunk.get_meta("ss_debug_all", {}).get(String(nd.name).trim_prefix("Batch_"), [])
+					for x: Transform3D in xs:
+						if Vector2(x.origin.x - at.x, x.origin.z - at.z).length() < 2.5 and not String(nd.name).begins_with("Batch_ss_"):
+							print("NEAR %s %s %.2f" % [r.id, nd.name, Vector2(x.origin.x - at.x, x.origin.z - at.z).length()])
 	quit()

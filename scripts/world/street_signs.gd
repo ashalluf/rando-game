@@ -49,6 +49,7 @@ const PARKING_END := 16.0
 const KERB_IN := 0.55
 ## What a new sign keeps clear of (metres, centre to centre).
 const CLEAR := 1.3
+const CLEAR_TREE := 2.0
 ## What a new sign keeps clear of: the street's own furniture, by batch key and by prop kind -
 ## only the core furniture every block has, never another feature's (a vendor's cart, a
 ## forecourt's bench), so switching a feature off never moves a sign and its checks stay exact.
@@ -247,7 +248,7 @@ static func build(ch: CityChunk) -> void:
 				var at := Vector3(p.x, CityChunk.SIDEWALK_TOP, p.y)
 				_add(ch, "street_sign", at, [["ss_" + _key(mesh), mesh, Transform3D(Basis(Vector3.UP, yaw), at), Color.WHITE, _roll([plan.seed, "spd", ch.ix, ch.iz, k])]],
 					[[Vector3(0.2, 3.0, 0.2), at + Vector3(0.0, 1.5, 0.0), 0.0]])
-				obstacles.append(p)
+				obstacles.append(Vector3(p.x, p.y, CLEAR))
 		# Parking posts along the rest of the face (not on avenues downtown, where nobody parks).
 		if district == CityPlan.District.INDUSTRIAL or (avenue and district == CityPlan.District.DOWNTOWN):
 			continue
@@ -270,7 +271,7 @@ static func build(ch: CityChunk) -> void:
 			var bas := _basis(Vector3(d.x, 0.0, d.y), Vector3(-inward.x, 0.0, -inward.y))
 			_add(ch, "street_sign", at, [["ss_" + _key(mesh), mesh, Transform3D(bas, at), Color.WHITE, _roll([plan.seed, "pk", ch.ix, ch.iz, k, n])]],
 				[[Vector3(0.2, 3.0, 0.2), at + Vector3(0.0, 1.5, 0.0), 0.0]])
-			obstacles.append(spot)
+			obstacles.append(Vector3(spot.x, spot.y, CLEAR))
 			n += 1
 	_yields(ch, obstacles)
 
@@ -311,17 +312,17 @@ static func _yields(ch: CityChunk, obstacles: Array) -> void:
 		var mesh := SignKit.yield_post()
 		_add(ch, "stop_sign", at, [["ss_" + _key(mesh), mesh, Transform3D(Basis(Vector3.UP, atan2(facing.x, facing.z)), at), Color.WHITE, _roll([plan.seed, "yield", ch.ix, ch.iz, i])]],
 			[[Vector3(0.3, 2.9, 0.3), at + Vector3(0.0, 1.45, 0.0), 0.0]])
-		obstacles.append(corner)
+		obstacles.append(Vector3(corner.x, corner.y, CLEAR))
 
 
-## `p`, or a spot up to 4 m along `dir` either way that keeps CLEAR of everything in `obstacles`;
-## Vector2.INF when there is none.
+## `p`, or a spot up to 4.5 m along `dir` either way that keeps clear of everything in
+## `obstacles` (Vector3: x, z, the clearance it needs); Vector2.INF when there is none.
 static func _clear_spot(p: Vector2, dir: Vector2, obstacles: Array) -> Vector2:
 	for k: float in [0.0, 1.5, -1.5, 3.0, -3.0, 4.5]:
 		var q := p + dir * k
 		var ok := true
-		for o: Vector2 in obstacles:
-			if o.distance_squared_to(q) < CLEAR * CLEAR:
+		for o: Vector3 in obstacles:
+			if Vector2(o.x, o.y).distance_squared_to(q) < o.z * o.z:
 				ok = false
 				break
 		if ok:
@@ -329,15 +330,16 @@ static func _clear_spot(p: Vector2, dir: Vector2, obstacles: Array) -> Vector2:
 	return Vector2.INF
 
 
-## Where the street furniture already stands in this chunk: every prop's position and the
-## furniture batches' instances (chunk-local x, z, the space signs are placed in).
+## Where the street furniture already stands in this chunk: every core prop's position and the
+## furniture batches' instances (chunk-local x, z, the space signs are placed in), with the
+## clearance each needs (a tree's grate and trunk more than a pole).
 static func _obstacles(ch: CityChunk) -> Array:
 	var out: Array = []
 	for r: Dictionary in ch.prop_records:
 		if not OBSTACLE_KINDS.has(String(r.kind)):
 			continue
 		var p: Vector3 = r.position
-		out.append(Vector2(p.x, p.z))
+		out.append(Vector3(p.x, p.z, CLEAR))
 	var data: Dictionary = ch._batch.data()
 	for key: String in data:
 		var hit := false
@@ -347,8 +349,9 @@ static func _obstacles(ch: CityChunk) -> Array:
 				break
 		if not hit:
 			continue
+		var r := CLEAR_TREE if key.begins_with("tree") or key.begins_with("palm") else CLEAR
 		for x: Transform3D in data[key].xforms:
-			out.append(Vector2(x.origin.x, x.origin.z))
+			out.append(Vector3(x.origin.x, x.origin.z, r))
 	return out
 
 
@@ -381,6 +384,11 @@ static func _add(ch: CityChunk, kind: String, at: Vector3, instances: Array, sha
 ## and shadow reach.
 static func commit(ch: CityChunk) -> void:
 	var kept := {}
+	if debug:
+		var all := {}
+		for k2: String in ch._batch.keys():
+			all[k2] = (ch._batch.data()[k2].xforms as Array).duplicate()
+		ch.set_meta("ss_debug_all", all)
 	for key: String in ch._batch.keys():
 		if not key.begins_with("ss_"):
 			continue
