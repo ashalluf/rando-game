@@ -672,6 +672,7 @@ static func _car_park(ch: CityChunk, cell: Rect2, key: int) -> void:
 	var r := cell.grow(-1.2)
 	if r.size.x < 12.0 or r.size.y < 10.0:
 		return
+	RoadWear.car_park(ch, r, CityChunk.SIDEWALK_TOP + ASPHALT_LIFT, key)
 	# Rows run along the long side; u along the rows, v across them.
 	var along_x := r.size.x >= r.size.y
 	var U := r.size.x if along_x else r.size.y
