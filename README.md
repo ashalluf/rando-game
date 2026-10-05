@@ -18,7 +18,7 @@ All opengl3 (Compatibility renderer, what the web build draws), not the Mac's Fo
 | 12_after_midtown_lantern_2100.jpg | The same at 21:00 (sodium) |
 | 13_after_beachtown_street_posttops_noon.jpg | Beach town from the far kerb: post-tops along the side street |
 | 14_after_beachtown_street_posttops_2100.jpg | The same at 21:00 (an LED patch) |
-| 15_after_beachtown_down_the_street_cobras_noon.jpg | Beach town, down a bigger street: cobra-heads on the far kerb |
-| 16_after_beachtown_down_the_street_cobras_2100.jpg | The same at 21:00 |
+| 15_after_beachtown_down_the_street_cobras_noon.jpg | Beach town, down a bigger street: cobra-heads on the far kerb (same load as 17) |
+| 16_after_beachtown_down_the_street_cobras_2100.jpg | The same at 21:00, re-shot after the pool tuning (same load as 18; bottom third p95 196 -> 142, before the kit 101) |
 | 17_before_beachtown_down_the_street_noon.jpg | Before (STREET_LAMPS=0) for 15: the scanned post on every kerb |
 | 18_before_beachtown_down_the_street_2100.jpg | Before for 16 at 21:00: the pools on the pavement; after, the cobras light the road under their heads |
