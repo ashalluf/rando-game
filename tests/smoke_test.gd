@@ -1202,39 +1202,54 @@ func _test_city() -> void:
 		if hit_a_person:
 			# Up to 7 s: a body still sliding on a sloped street pools only once it is 3.5 s old
 			# (Ragdoll's fallback), and 3 s from here missed that on a loaded CI runner.
+			# The bodies are looked at WHILE they wait: debris lives debris_lifetime (12 s) and the
+			# checks above can use most of that, so a body that came to rest on a car and never
+			# pools may be freed before the wait ends, and looked at only afterwards it read as
+			# "0 of 0" (no body at all) and failed.
 			var pooled := false
-			for i in 420:
-				pooled = int(WeaponFX.blood_stats.pools) > int(blood_before.pools)
-				if pooled:
-					break
-				await _ticks(1)
-			# A body that comes to rest on a parked car, a bench or a planter has no street under
-			# it within reach, and by design gets no pool there (Ragdoll._ground_under). Which
-			# person the rifle drops, and where they land, depends on the frame timing: on a loaded
-			# CI runner (build 335) the shot body ended up on top of something.
+			var stained := false
 			var off_ground := 0
 			var bleeding := 0
-			if not pooled:
-				for n in get_tree().get_nodes_in_group("debris"):
-					if n is Ragdoll and not (n as Ragdoll).bodies.is_empty():
+			var seen := ""
+			for i in 420:
+				pooled = int(WeaponFX.blood_stats.pools) > int(blood_before.pools)
+				if i % 15 == 0 or pooled:
+					var off := 0
+					var bled := 0
+					var where := ""
+					for n in get_tree().get_nodes_in_group("debris"):
+						if not (n is Ragdoll) or (n as Node).is_queued_for_deletion():
+							continue
 						var doll := n as Ragdoll
+						var mat: Variant = doll.get("_stain_mat")
+						if mat is ShaderMaterial and float((mat as ShaderMaterial).get_shader_parameter("wound_count")) > 0.0:
+							stained = true
+						if doll.bodies.is_empty() or doll.bleed <= 0.0:
+							continue
 						var rb: RigidBody3D = doll.bodies[0]
-						var pelvis: Vector3 = doll._pelvis()
-						var on_street := not doll._ground_under(pelvis).is_empty()
-						if doll.bleed > 0.0:
-							bleeding += 1
-							if not on_street:
-								off_ground += 1
-						printerr("blood: no pool - ragdoll at %s, speed %.2f, age %.1f, bleed %.1f, street under it %s" % [
+						var on_street := not doll._ground_under(doll._pelvis()).is_empty()
+						bled += 1
+						if not on_street:
+							off += 1
+						where += " ragdoll at %s, speed %.2f, age %.1f, bleed %.1f, street under it %s;" % [
 							str(rb.global_position.snapped(Vector3.ONE * 0.1)), rb.linear_velocity.length(),
-							float(n.get("_age")), doll.bleed, on_street])
+							float(n.get("_age")), doll.bleed, on_street]
+					# A body that rests on a parked car, a bench or a planter has no street under
+					# it within reach, and by design gets no pool there (Ragdoll._ground_under).
+					# Which person the rifle drops, and where they land, depends on the frame
+					# timing: on a loaded CI runner (build 335) the shot body ended up on top of
+					# something. Keep the last look that still found a bleeding body.
+					if bled > 0:
+						off_ground = off
+						bleeding = bled
+						seen = where
+				if pooled and stained:
+					break
+				await _ticks(1)
+			if not pooled and seen != "":
+				printerr("blood: no pool -" + seen)
 			_check(pooled or (bleeding > 0 and off_ground == bleeding),
 				"a body shot down bleeds into a pool under it" + ("" if pooled else " (none: it lies on top of something, %d of %d)" % [off_ground, bleeding]))
-			var stained := false
-			for n in get_tree().get_nodes_in_group("debris"):
-				var mat: Variant = n.get("_stain_mat") if n is Ragdoll else null
-				if mat is ShaderMaterial and float((mat as ShaderMaterial).get_shader_parameter("wound_count")) > 0.0:
-					stained = true
 			_check(stained, "the shot body's clothes are stained round the wound")
 		# The shotgun sums a person's pellets into one wound, so a close blast bleeds far harder
 		# than a rifle round (Shotgun.blood_per_pellet, capped at WeaponFX.blood_strength_max).
