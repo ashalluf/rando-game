@@ -2742,6 +2742,10 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	if pad:
 		Commercial.build_pad(self, lot, rng)
 		return
+	# A midtown apartment building (Apartments: a hash of the lot, after the rolls above).
+	if Apartments.claims(plan, ix, iz, lot, district):
+		_build_house(lot, district)
+		return
 	# The suburbs' and the beach town's houses (HouseKit: real houses, planned purely from the lot).
 	if HouseKit.wanted(self, district):
 		# The lawn's blades and the street trees keep off the house, not the whole lot.

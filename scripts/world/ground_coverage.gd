@@ -229,6 +229,23 @@ static func block(plan: CityPlan, bx: int, bz: int, fill: int, grid: float = 1.0
 		if filled and lot.get("parking", false):
 			_paint(box, cell, PARKING)
 			continue
+		# A midtown apartment building (Apartments, the plan the chunk builds): its wings built, the
+		# rest of its cell its own garden, court and walks.
+		if fill >= 3 and Apartments.claims(plan, bx, bz, lot, district):
+			var ap := Apartments.plan_house(plan, bx, bz, lot, district)
+			_paint(box, cell, GARDEN)
+			var aground := 0.0
+			for w: Dictionary in ap.wings:
+				var wr := YardFill._fr(ap.f, (w.r as Rect2).position.x, (w.r as Rect2).position.y, (w.r as Rect2).end.x, (w.r as Rect2).end.y)
+				_paint(box, wr, BUILT)
+				aground += wr.size.x * wr.size.y
+			out.lot_built += minf(aground, size.x * size.y)
+			var ak: String = row + " apt_" + Apartments.KIND_NAMES[int(ap.apt)]
+			if not out.shapes.has(ak):
+				out.shapes[ak] = [0, 0.0]
+			out.shapes[ak][0] += 1
+			out.shapes[ak][1] += minf(aground / (size.x * size.y), 1.0)
+			continue
 		# A house of the suburbs or the beach town (HouseKit, the same pure plan the chunk builds).
 		if fill >= 2 and HouseKit.enabled and district in HouseKit.DISTRICTS:
 			var house := HouseKit.plan_house(plan, bx, bz, lot, district)
