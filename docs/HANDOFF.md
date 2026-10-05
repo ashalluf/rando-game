@@ -1,9 +1,163 @@
-# Handoff: Rando Game (written 2026-09-19; section 0000 is the newest state and the handoff to the next account, 2026-09-28)
+# Handoff: Rando Game (written 2026-09-19; section 000000 is the newest state and the handoff to the next account, 2026-10-05)
 
 This is the narrative handoff for whoever picks the project up next, from any Claude Code account
 or as a person. `CLAUDE.md` is the rulebook and `docs/GAME_PLAN.md` is the roadmap plus the
 decisions log; both stay the source of truth. This file is the story: where things stand, how
 the day-to-day work goes, what is fragile, what to do next. Read all three before touching code.
+
+## 000000. Takeover of 2026-10-05: the cloud fleet is stopped (read this first)
+
+Newest. The owner stopped all work on 2026-10-05 at about 08:10 UTC and asked for a handoff to the
+next account. Read this section, then CLAUDE.md, then the 9bp-9bt sections (the last ones merged
+to main) and, on the integration branches, 9bu-9cy.
+
+### Where everything is
+
+- **`main` = `c11fe7f`, build 345, green.** The latest release is everything through the night
+  aerial (HANDOFF 9bt). Nothing after that is on main.
+- **`wt/integration-a` = `7542234`** (pushed for you; it descends from main, so it fast-forwards).
+  It is main plus 19 fleet branches: audio, hero-moves, port-life, canals, photo-mode,
+  police-station, pier, marina, explosions, climbing-plants, building-damage, more-people,
+  perf-audit, schools, sky, minimap, weather, broadway and stack-interchange. Street errands
+  (`wt/street-life-2`) were merged and then reverted (`d1c7427`): its own jaywalker check fails
+  even merged alone onto main.
+  - Gate at `d1c7427`: 1,361 passed, 1 failed ("the map draws no closed road"). That was a real
+    order bug in `Schools.road_closed()`, fixed by `7542234`.
+  - Gate at `7542234`: stopped by the owner's stop at 905 checks. The only failures were the
+    blood-pool and stain pair, a flaky check fixed by `82a664c` (below; it cherry-picks cleanly
+    onto integration-a). Nothing else has failed on this tree.
+  - Numbering: HANDOFF sections go up to 9cm and roadmap rows up to #81.
+- **`wt/integration-b` = `82a664c`** (pushed; descends from integration-a). It adds:
+  - the follow-up commit of each rebased branch (explosions `7250e8d`, police `bd27e9e`);
+  - `tools/cpu_probe.gd.uid`;
+  - 12 more branches: construction, murals, signage, hospital, la-trees, car-dealers,
+    airport-life, golf, dogs, hill-homes, oil-fields and vacant-lots;
+  - the merge fixes listed below, and the blood-check fix `82a664c`.
+
+  **It is not gated and must not go to main as it is.** Its smoke test was OOM-killed right after
+  "city scene loads", at **10.9 GB** RSS. Integration-a's was about 3 GB. Another gate was
+  running beside it on a 15 GB box, but even alone, 11 GB would not fit a CI runner. One (or
+  more) of the 12 batch-3 branches is the cause; it is not found yet.
+
+  Numbering: HANDOFF up to 9cy, roadmap up to #93; the next free ones are **9cz / #94**.
+
+### Fixes made while merging (all on the integration branches, none on main)
+
+- **Schools close roads deterministically** (`7542234`). `Schools.road_closed()` decided only
+  the cells of the two blocks beside a road and cached "open". A high school's row can start in
+  the next cell over, so a later decision closed a road the map had already drawn. It now decides
+  the 3x3 cells round the road first.
+- **Nothing claims a hospital's block** (`4cb5d22`). `CityPlan.block()` lets a hospital take a
+  block after every other roll. Fire stations, police stations and schools now skip blocks
+  marked `"hospital"`. Before, each could claim lots on a block whose `lots()` is empty and
+  dispatch from, or bus to, a building that was never built.
+- **The far city builds the oil field** (`db98a25`). In `CityChunk`'s capture step list, the oil
+  field's case now comes before the canals' generic site case, which would have answered it with
+  nothing.
+- **Parked cars keep clear of everything.** The keep-clear chain covers bus stops, fire
+  stations, police stations, schools and hospitals.
+- **The blood check looks while it waits** (`82a664c`). The pool check waited up to 420 ticks
+  and only then looked for the body. Debris lives 12 s of real time, so on a loaded box a body
+  resting on a car (no pool by design) was freed first and read "0 of 0".
+- **New input actions:** `photo_mode` (P / pad right-stick press) and `map` (M / pad Back). No
+  clashes with existing bindings.
+- **Additive conflicts were kept both sides:** `sfx.gd` sample tables (footsteps, bus, car alarm,
+  dogs), the smoke-test lines, the `still_shot.gd` stage blocks, `CityChunk` step lists and lot
+  claims, and the `Landmarks` site cases. Read the merge commits if something looks doubled.
+
+### Do this next, in order
+
+1. **Set up** as CLAUDE.md says (Godot 4.7.2 headless, `--import`).
+2. **Ship integration-a**, one gate at a time and never two in parallel:
+   `git checkout main && git merge --ff-only origin/wt/integration-a && git cherry-pick 82a664c`.
+   Then run `tests/headless_check.sh` (25-30 min). If it is green, push main, watch the Actions
+   run and tell the owner the build number. The stills for every merged branch are on its
+   `shots/<slug>` orphan branch: send the owner a few (`tools/fleet/sheet.py` makes 2x2 sheets).
+3. **Find integration-b's memory blow-up.**
+   - Check out integration-b and run the smoke test (or just a scene that loads
+     `scenes/levels/city.tscn` and waits ~300 frames) under `/usr/bin/time -v` to read peak RSS.
+     Do it once with everything on, then with batch 3's systems switched off one at a time.
+     The switches (environment, `=0`): `CONSTRUCTION`, `MURALS`, `BOULEVARD_SIGNS`, `HOSPITALS`,
+     `LA_TREES`, `CAR_DEALERS`, `AIRPORT_GROUND`, `GOLF` / `GOLF_LIFE`, `DOGS` / `DOG_YARDS`,
+     `HILL_HOMES`, `OIL_FIELD`, `VACANT_LOTS`.
+   - Suspects by size: dogs (97 files, fur shells), la-trees (code-built trees warmed at load),
+     golf and oil-fields (big site builders).
+   - Fix the cause, gate, then `git merge origin/wt/integration-b` into main (the cherry-picked
+     `82a664c` merges as a no-op) and push.
+4. **Branches that are not merged anywhere yet.** "+n" is commits beyond integration-b. Review
+   each, then merge it with `tools/fleet/merge_branch.py` off the new main:
+   - alleys +6, scooters +5, rooftops +4, ridges +6, stadium +10, service-vehicles +13,
+     wilshire-deco +4, reservoir +6, web-build +2;
+   - perf-audit: +9 of new work after its merged tools, e.g. "beach town 7.40 -> 4.55 M
+     triangles";
+   - sky: +1, and the follow-up asked for below;
+   - street-life-2: +6. It must merge main first and fix the jaywalker check ("ends on its own
+     block") and the bus-queue check ("two walkers stand in the bus stop's queue"), and it
+     needs stills.
+   - explosions and police-station show as open only because their sessions rebased after the
+     merge; their content is in integration-a and their one new commit each is in
+     integration-b.
+   - `wt/sedan-body` (8 days old) is superseded by the Blender-built bodies; leave it.
+5. **No branch was ever pushed** for roadside, traffic-ai, driving-fx or freight-trains (they
+   pushed `shots/<slug>` stills only). Their code lives only in those sessions' cloud containers
+   on the old account and is probably lost. Redo them from the brief if the owner wants them.
+   skate-park never started.
+
+### Review notes from the stills (not fixed)
+
+- The sky's new cumulus read stylised: smooth triangular puffs at golden hour, uniform blobs at
+  noon. The sky session was asked to add ragged eroded edges, more size range and grey-violet
+  shadowed bodies, but was stopped first. `wt/sky` has one commit beyond the merge.
+- The police station night still is very dark (its shot script uses a lighter world without
+  lamps). It needs a Forward+ look.
+- The hillsides at night from the basin show the estate pads as round grey blobs (switchbacks
+  and hill-homes). Worth a look from the air.
+- Window lettering on shop glass reads as pseudo-letters ("TSHNEENA"). That is the building
+  shader's procedural vinyl, older than this work.
+- None of the 31 merged branches has been seen on the owner's Mac (Forward+). Every still was
+  opengl3 or lavapipe.
+
+### The fleet, and how to run one again
+
+- **How it ran:**
+  - Every session got the shared brief (`git show origin/fleet/brief:BRIEF.md`).
+  - Each worked on `wt/<slug>`, put stills on an orphan `shots/<slug>` and wrote a HANDOFF
+    section as `## 9b?.`.
+  - The lead merged in batches in a scratch worktree with `tools/fleet/merge_branch.py`, which:
+    - renumbers HANDOFF sections and roadmap rows;
+    - keeps both sides of additive conflicts in the docs and the files it lists, and prints them;
+    - stops on anything else.
+  - Then it gated the whole batch once with `tools/fleet/headless_check_dir.sh` and
+    fast-forwarded main.
+- **Lessons:**
+  - **Tell sessions to merge main, never rebase.** The brief says "rebase on origin/main before
+    your final push", and two branches were rewritten after they had been merged. They then had
+    to be cherry-picked by commit subject.
+  - **Read every hunk merge_branch.py keeps.** Twice it kept both sides inside an if/elif chain,
+    where the order matters (the oil field case above).
+  - **Run one gate at a time** until integration-b's memory is fixed.
+  - **Usage limits:** 50 sessions hit the five-hour usage limit at 06:31 UTC (it reset at 06:50)
+    and showed weekly-limit warnings. Twenty sessions is a saner fleet.
+  - **Check that a session pushed its code**, not just its stills. Four never pushed a branch.
+- **Tools** in `tools/fleet/`:
+  - `merge_branch.py`: set `FLEET_TRAILER` to your commit attribution.
+  - `headless_check_dir.sh` (`PROJECT=` a worktree).
+  - `gate_slot.sh`: one slot by default.
+  - `fleet_status.py`: summarises a saved `list_sessions` dump.
+  - `sheet.py`: review sheets.
+
+| slug | where its work is | stills |
+|---|---|---|
+| beach-life, npc-polish, more-cars, night-city | main | shots/ |
+| audio, hero-moves, port-life, canals, photo-mode, pier, marina, climbing-plants, building-damage, more-people, schools, minimap, weather, broadway, stack-interchange | integration-a | shots/ (audio: none) |
+| explosions, police-station | integration-a (+1 follow-up each in -b; their branches were rebased) | shots/ |
+| perf-audit | integration-a (tools) + 9 newer commits open | none |
+| sky | integration-a + 1 open, follow-up requested | shots/ |
+| construction, murals, signage, hospital, la-trees, car-dealers, airport-life, golf, dogs, hill-homes, oil-fields, vacant-lots | integration-b (not gated: OOM) | shots/ |
+| street-life-2 | open, failing its own checks | none on remote |
+| alleys, scooters, rooftops, ridges, stadium, service-vehicles, wilshire-deco, reservoir, web-build | open `wt/<slug>`, not reviewed | shots/ (web-build: none) |
+| roadside, traffic-ai, driving-fx, freight-trains | no code branch pushed (only stills) | shots/ |
+| skate-park | never started | - |
 
 ## 00000. The same day, continued (2026-09-28, the owner came back: "make the graphics a million times better")
 
