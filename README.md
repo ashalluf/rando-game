@@ -9,9 +9,10 @@ stills, seed 1337; the night ones use block_shot's crude NIGHT=1 lighting (not D
   the kerb by the blue collection boxes.
 - 06: the post office wide: brick front, flag, lawn, kerb truck.
 - 07: a mid-century branch library (glass pavilion, breeze block, stone name wall).
-- 08: a community centre (hall and wing).
+- 08 / 08b: a community centre (hall with its gable variant, wing, entry canopy) and from above.
 - 09 / 10: a city services office (pier colonnade, fins, flags) from the street and above.
 - 11 / 12 / 13: night (libraries close at 20:00: their rooms go dark but the lamps stay lit).
 
-03 and 07-10 were shot before a tuning pass (brighter stucco, darker day glass, trees off the
-modern library's glass front).
+02b, 07, 08, 08b and 09 are after a tuning pass (brighter stucco, darker day glass, trees off the
+modern library's glass front, the community hall's accent band and GYM letters); 03 and 10 are
+from before it. The office glass was darkened once more after these (not re-shot).
