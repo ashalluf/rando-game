@@ -380,7 +380,7 @@ static func _draw_hill_roads(ci: CanvasItem, v: View, hr: HillRoads) -> void:
 	if _hill_bounds.size() != hr.roads.size():
 		_hill_bounds.clear()
 		for road: Dictionary in hr.roads:
-			_hill_bounds.append(Freeway._bounds(road.points).grow(float(road.width)))
+			_hill_bounds.append(_bounds(road.points).grow(float(road.width)))
 	for k in hr.roads.size():
 		if not _hill_bounds[k].intersects(reach):
 			continue
@@ -400,6 +400,16 @@ static func _draw_hill_roads(ci: CanvasItem, v: View, hr: HillRoads) -> void:
 		_hill_run(ci, v, run, wd, c)
 
 
+## A polyline's bounds; an empty one (a hill road trimmed to nothing) is an empty rect far away.
+static func _bounds(pts: PackedVector2Array) -> Rect2:
+	if pts.is_empty():
+		return Rect2(Vector2(1e9, 1e9), Vector2.ZERO)
+	var r := Rect2(pts[0], Vector2.ZERO)
+	for p in pts:
+		r = r.expand(p)
+	return r
+
+
 static func _hill_run(ci: CanvasItem, v: View, run: PackedVector2Array, wd: float, c: Dictionary) -> void:
 	if run.size() < 2:
 		return
@@ -411,7 +421,7 @@ static func _draw_freeways(ci: CanvasItem, v: View, fw: Freeway) -> void:
 	for pass_k in 3:
 		for route: Dictionary in fw.routes:
 			var pts: PackedVector2Array = route.points
-			if not Freeway._bounds(pts).grow(80.0).intersects(v.area):
+			if not _bounds(pts).grow(80.0).intersects(v.area):
 				continue
 			var wd: float = route.width
 			match pass_k:

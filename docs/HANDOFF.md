@@ -7040,3 +7040,71 @@ ALU in shaders that were already running.
 - The night ambient (DayNight) still lights roofs a moonlit blue-grey on opengl3; not this pass.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
+
+## 9b?. The map: minimap, full-screen map, waypoint and GPS, 2026-10-05 (agent branch `wt/minimap`; VISUAL_ROADMAP #63)
+
+**What.** The minimap and a new full-screen map draw the same thing through one painter
+(`MapPainter`, `scripts/ui/map_painter.gd`). It covers: hill-shaded mountains, faint 100 m
+contours, the sea, surf and sand (`shaders/map_relief.gdshader`, painted from the horizon plane's
+own basin bake); blocks by district and kind; rec-park and school facilities (diamonds, fields,
+tracks, courts, pools) from `Parks.plan_for()`; streets and avenues with casings; hill roads; the
+Esplanade; MacArthur's lake; the LA River with its bridges; runways, taxiway and concourse; the
+three piers; freeways and their ramps with **route shields** carrying `FreewayKit.route_number()`
+(an original teal badge, never a real marker); the **Coral Line** (solid in the open, dashed
+underground) with its stations; landmark **glyphs** (tower, civic, dome, plane, ship, pier, venue,
+tree, bag, cup, rail, star) with names. The full map adds district names zoomed out and street
+names zoomed in. Both draw the GPS route, the waypoint pin, police and fire / ambulance blips
+(group `emergency_unit`) and the player arrow.
+
+**The full map** (`WorldMap`, `scripts/ui/world_map.gd`, a CanvasLayer at 4 that DebugHud adds) is
+the new `map` action: **M / pad Back**. Respawn's pad button moved from Back to **L3**, since
+Back was taken. Opening the map pauses the game (GTA style). Controls: drag to pan, wheel to
+zoom about the cursor, click to set the waypoint (click it again to clear), right click to clear,
+WASD / arrows and Q / E as keys, Space sets the waypoint at the centre. On a pad: left stick pans
+a centre cursor, the triggers zoom, A sets, X clears, B / Back closes. Esc closes it too. Panels
+use the HUD's smoked glass (`glass_hud.gdshader` mode 1): the title with the district and the
+waypoint's distance, a legend of 14 symbols, the controls, a scale bar and a north arrow, all in
+1080-line units. The ground plan is drawn once into a Node2D in world metres, and panning or
+zooming only moves it. It is redrawn when the zoom moves 35 % or the view leaves what was drawn.
+Zoomed out it holds the whole basin; zoomed in, a margin round the view.
+
+**Data.** `MapData` (`scripts/ui/map_data.gd`, `MapData.of(plan)`) holds the basin's land blocks
+(3,478 on the default seed) and their two roads as records, with a 500 m cell index. The HUD warms
+it 1.5 ms a frame from load; the whole build is ~1 s. The minimap's neighbourhood is filled first
+(`ensure_rect()`). It reads CityPlan only and rolls nothing. Closed roads (MacArthur Park's inner
+streets, the river's dead ends) are not drawn. On the map, an "avenue" is a road at least
+`avenue_width - 1` wide: downtown's real 18-22 m streets read as streets, not as a yellow mesh.
+
+**GPS.** `GpsRoute` (`scripts/ui/gps_route.gd`) is A* on a binary heap over the intersection grid.
+An edge is usable when it is `StreetRoute.drivable()` and `CityPlan.road_open()`. Avenues cost
+0.8 of a street's metre. Both ends snap to the nearest open stretch and may enter it at either
+end. The search runs time-sliced (`route_budget_us` 1.5 ms a frame), with no search box (it
+crosses the basin) and at most 40,000 nodes. Probe on the default seed: downtown to Westlake 4.2 km
+in 36 ms, downtown to the port 5.8 km in 28 ms, 6 km across midtown in 47 ms. The route is
+recomputed from where the player is once they are `off_route` (38 m) from it, and cleared within
+`arrive` (28 m). The **beacon** (`shaders/waypoint_beacon.gdshader`) is an additive, fog-free violet
+beam 420 m tall plus a pulsing ground ring, widened with distance so it never drops under ~2 px.
+It is a Node3D under the CanvasLayer, placed from true world coordinates every frame, so origin
+shifts never touch it.
+
+**Tools.** `tools/minimap/map_shot.gd`: `SHOTS=mini;map:x,z,ppm;beacon`, `WAYPOINT=x,z` or
+`WAYPOINT_AHEAD=m`, `STARS=n`. It prints `MINIMAP draw` (the minimap's CPU time per redraw) and the
+route. `tools/minimap/probe.gd` (headless, seconds) prints MapData's size and build time and a few
+GPS routes. Checks: `tests/minimap_checks.gd`.
+
+**Frame cost.** The 3D frame is unchanged: the map adds no geometry until a waypoint is set, and
+then two draws (the beam and the ring, ~70 triangles). MapData costs 1.5 ms a frame on the CPU for
+the first ~1 s after load. The minimap redraws 10 times a second as before; its draw time is in the
+stills section. The full map pauses the game.
+
+**Stills** (shots/minimap, opengl3): the minimap downtown with Flower's dashed Coral Line and the
+33 shields; the full map over the whole basin; the full map zoomed into downtown with street,
+station and tower labels; a GPS route on both; the beacon in the world.
+
+**Not done / not verified.** Forward+ (the Mac) is not seen, though everything here is 2D or
+unshaded and should match the stills. Mouse and pad input were not driven in the harness; the
+click, zoom, pause and close paths are driven by the checks through the same functions. The route
+uses the street grid only: it never takes the freeways and never routes into the hills (hill roads
+are drawn, not routed). Street names on the full map label one run per road. District labels come
+from block counts and can repeat on a long district (INDUSTRIAL shows several times zoomed out).
+Railway and river labels are in the legend only.
