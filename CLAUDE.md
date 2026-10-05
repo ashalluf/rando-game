@@ -979,7 +979,10 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   nearest cars (props layer, "rail_vehicle" group: bullets spark, the player can ride). Stills:
   `FREIGHT_CROSS=<k>:<dir>:<s before>`, `FREIGHT_S=`, `FREIGHT_YARD=`, `FREIGHT_HOLD=1`,
   `FREIGHT_KIND=0|1|2` on still_shot.gd. Probe: `tools/freight/probe.gd`; compile:
-  `tools/freight/compile.gd`. Checks: `tests/freight_checks.gd`. Known gaps: the river's own
+  `tools/freight/compile.gd`; the checks alone: `tools/freight/checks.gd`. Checks:
+  `tests/freight_checks.gd`. A strike lands once per collider (`_struck`), a car's velocity SET,
+  never added each tick (that was a wreck every time). The river yard's standing cars are
+  FreightStock's too (`RiverBuild._track_run()`). Known gaps: the river's own
   rail-bridge spur (LaRiver) is not joined to this line; Alameda's left-turners may still cross
   the median tracks at a gated crossing; the covered way's interior is not modelled.
 - Cars fly (owner, 2026-09-20: "easily fly cars around the way I fly the main character"). A

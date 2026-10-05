@@ -8648,3 +8648,29 @@ in life). The covered way's interior is not modelled (nothing is drawn past the 
 signals are static (always clear). Pedestrians never board, and trains never derail. On this 4-core
 box `tests/headless_check.sh`'s 900 s timeout is too short for the whole smoke test; it was run
 directly (the smoke test passed 1,022 checks on the rebased branch; one earlier run failed two downtown blood-pool checks on timing, which passed on the rerun).
+
+**Wave-2 review pass (merge with fleet/base, 2026-10-05).** Merged fleet/base (conflicts kept both
+sides: Sfx's loop names, the chunk's finish with TreeFire, the parked cars' keep-clears with police
+stations and schools, CityPlan's road_open / junction_closed / lots with the marina and schools, the
+relief terraces in the order river, freight, marina). A review then found and fixed:
+- **Strikes**: a lead unit shoved and crashed whatever stood in front of it every tick it stayed
+  there (~40 ticks), so every car it hit left at hundreds of m/s and exploded. Now once per
+  collider (`_struck`, 1.5 s), velocity set along the train, `hold_crash_watch()` first; the shape
+  query is cached and only lead units within `strike_query_range` (400 m) of the player ask.
+- **Walls on the decks**: the trench wall collision stood full height (2.9 m) across every bridged
+  cross street; capped at the soffit, and stretches are split at the decks' edges (a parapet ran up
+  to 2 m onto a deck and the next stretch was open beside it). Checked.
+- **Web ties**: the tie / timber MultiMeshes now carry white instance colours (`use_colors`;
+  without it Compatibility hands the shader a COLOR that is not the vertex colour). Checked.
+- The yard's south street is always CLOSED (a narrow one could come out a CROSSING with gates on a
+  severed street, and a closed one was severed twice). The line refuses a seed with a road between
+  Alameda and Vignes at the yard. Collision bodies stay on their cars instead of shuffling down a
+  passing train. Well cars' boxes cached per look (they were rebuilt with fresh rngs every frame).
+- **The river's tracks** stand the line's rolling stock: `RiverBuild._track_run()`'s boxcars and
+  tank cars were IndustrialKit boxes; now FreightStock boxcars, tank cars and covered hoppers on the
+  rail tops in the `fr_car_*` batches (the old rolls pick the car; `FREIGHT=0` keeps the old).
+- `tools/freight/checks.gd` runs the freight checks alone against the city (~4 min); `probe.gd`
+  loads the world scripts by path (they name the autoloads now).
+Not done: the Vignes x yard-south junction gets no signals (the yard chunk skips
+`_build_intersection`); `FreightRail._cache` keeps a plan per Rebuild; Alameda keeps its outer-lane
+rule over the whole map (`street_rail()` has no position). Gate: see the final report.
