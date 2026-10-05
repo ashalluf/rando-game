@@ -1353,6 +1353,10 @@ const BODY_SHADOW_LOD_BIAS := 0.3
 var _body_meshes: Array[MeshInstance3D] = []
 var _body_shadows: Array[MeshInstance3D] = []
 var _body_tier: int = -1
+## settle() checks in a row this car has been found slow on its wheels.
+var _settle_slow: int = 0
+## How many of them it takes (PhysicsBudget checks every quarter of a second).
+const SETTLE_CHECKS := 3
 
 
 ## Puts an empty car that has come to rest on its wheels to sleep (PhysicsBudget asks four times
@@ -1364,16 +1368,24 @@ var _body_tier: int = -1
 ## true, which is why this ignores the flag. Sent to sleep here, between the callbacks and the
 ## next step, the body is not integrated, so no callback comes and it stays asleep until
 ## something touches it, exactly like any other sleeping body.
+## It must be found slow on SETTLE_CHECKS checks running (half a second): a car that has just
+## dropped onto its springs is still for an instant at the bottom of each bounce, and sent to
+## sleep there it stayed parked 20 cm down on squashed springs (CI 342: four of the five new
+## bodies, read 2.5 s after their drop).
 func settle() -> void:
 	if freeze or driver != null or is_traffic():
+		_settle_slow = 0
 		return
-	if linear_velocity.length() > settle_speed or angular_velocity.length() > 0.25:
-		return
-	if wheels.is_empty():
+	if linear_velocity.length() > settle_speed or angular_velocity.length() > 0.25 or wheels.is_empty():
+		_settle_slow = 0
 		return
 	for w in wheels:
 		if not w.is_in_contact():
+			_settle_slow = 0
 			return
+	_settle_slow += 1
+	if _settle_slow < SETTLE_CHECKS:
+		return
 	sleeping = true
 
 
