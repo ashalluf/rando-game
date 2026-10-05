@@ -8587,7 +8587,9 @@ targets and shadow atlas) on the exact bookmark frame, opengl3 + Xvfb, 960x540, 
 | beach town (`--spawn=-700,600,90,-8,25`) | 403.6 MB | 296.6 MB | -107 MB (-27 %) |
 
 The frame is otherwise identical (GEO lines equal to the triangle at every bookmark; the stills
-differ only in the clouds, which run on shader time). Stills on `shots/texture-budget`.
+differ only in the clouds, which run on shader time; with `DIFF=1` - time held, people and cars
+hidden - the downtown frame is pixel-identical, maximum difference 0). Stills on
+`shots/texture-budget`.
 
 ### The audit
 
