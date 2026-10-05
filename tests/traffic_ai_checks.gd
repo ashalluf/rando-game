@@ -216,6 +216,9 @@ func _bus_pass() -> void:
 	var bus := _traffic.place_car(axis, index, dir, lanes - 1, stop - float(dir) * 9.0, 4.0, false, BigVehicles.BUS)
 	var car := _traffic.place_car(axis, index, dir, lanes - 1, stop - float(dir) * 85.0, 11.0, false)
 	car.traffic.ai = true
+	# Pulled over for a siren for its first seconds: no lane change may start while it yields.
+	car.traffic.yield_t = 2.5
+	var changed_yielding := false
 	var signalled := false
 	var lit := false
 	var started := false
@@ -226,6 +229,8 @@ func _bus_pass() -> void:
 		var t: Dictionary = car.traffic
 		if not t.has("along"):
 			continue
+		if float(t.get("yield_t", 0.0)) > 0.0 and (t.has("lc_want") or t.has("lc_from")):
+			changed_yielding = true
 		if not started and t.has("lc_from"):
 			started = true
 		if not started and int(t.get("sig", 0)) == -1:
@@ -236,6 +241,7 @@ func _bus_pass() -> void:
 			passed = true
 			break
 	var inner := TrafficAI.lane_n(_plan, axis, index, float(car.traffic.lane)) == 0
+	_check(not changed_yielding, "a car pulled over for a siren starts no lane change until it has gone by")
 	_check(signalled and lit and started, "a car behind a bus at its stop signals left first, its indicator lit, then moves over (signalled %s, lamp %s, moved %s)" % [signalled, lit, started])
 	_check(passed and inner and worst > -0.05, "it passes the bus in the other lane and is never inside it (passed %s, inner lane %s, tightest %.2f m)" % [passed, inner, worst if worst < INF else 99.0])
 

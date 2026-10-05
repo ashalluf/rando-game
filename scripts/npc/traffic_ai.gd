@@ -297,6 +297,12 @@ static func street_think(tm: TrafficManager, car: Vehicle, leader: Vehicle, grou
 		return
 	if t.has("bus") or t.has("dp_at"):
 		return
+	# Pulled over for a siren behind (TrafficManager's yield_t): stay put until it has gone by,
+	# and drop any change it was signalling for.
+	if float(t.get("yield_t", 0.0)) > 0.0:
+		if t.has("lc_want"):
+			end_move(t)
+		return
 	# Most ticks there is nothing to do: no change waiting for a gap, the think timer running, and
 	# the player not close ahead. Out before any lookup (this runs for every car every tick).
 	if not t.has("lc_want"):
@@ -583,7 +589,7 @@ static func pullout(tm: TrafficManager, car: Vehicle) -> bool:
 	var lanes := lanes_of(tm.plan, axis, index)
 	var lane := lane_offset_n(tm.plan, axis, index, dir, lanes - 1)
 	var t := {"axis": axis, "index": index, "dir": dir, "lane": lane, "v": 0.0,
-		"speed": tm._rng.randf_range(tm.speed_range.x, tm.speed_range.y) * lerpf(1.0, tm.dense_speed_factor, tm.density_at(Vector2(WorldState.to_world(car.global_position).x, WorldState.to_world(car.global_position).z))),
+		"speed": lerpf(tm.speed_range.x, tm.speed_range.y, float(absi(hash([car.get_instance_id(), "pull_speed"])) % 1000) / 999.0) * lerpf(1.0, tm.dense_speed_factor, tm.density_at(Vector2(WorldState.to_world(car.global_position).x, WorldState.to_world(car.global_position).z))),
 		"half": TrafficManager.car_half_length(car), "rear": TrafficManager.car_rear_length(car),
 		"pull": true, "park": float(road[3]), "sig": -1, "pull_t": 0.0}
 	roll_mood(car, t)

@@ -721,7 +721,9 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 	acc = maxf(acc, -brake_max)
 	t.why = why
 	# A near miss (something cut in, somebody stepped out): braking this hard earns a long honk.
-	if ai and acc < -brake_comfort * 1.6 and v > 4.0:
+	# Not for a stop line, a bus stop or a double-parked spot: a pushy driver brakes late for a
+	# red light, and that is nobody's fault but its own.
+	if ai and acc < -brake_comfort * 1.6 and v > 4.0 and (why == 0 or why == 2):
 		TrafficAI.honk(self, car, "near_miss", true)
 	var nv := maxf(v + acc * delta, 0.0)
 	# Closed up on something standing still: stand still too. The model on its own creeps the
@@ -1337,10 +1339,13 @@ func _spawn_ramp_car(ri: int, ramp: Dictionary) -> void:
 		return
 	var car := _new_car()
 	car.traffic = {"fw": ri, "t": float(ramp.t), "dir": -1, "lane": -1.0, "li": Freeway.LANES - 1,
-		"speed": freeway_speed * _rng.randf_range(0.9, 1.1), "v": TrafficAI.RAMP_ON_SPEED * 0.6,
 		"half": car_half_length(car), "rear": car_rear_length(car), "ramp": ramp, "u": 1.0, "up": true}
+	# Its own rolls are a hash, not the traffic's rng: a ramp car must not move every spawn after it.
+	var h := absi(hash([car.get_instance_id(), ri, int(TrafficAI.clock * 10.0), "ramp_car"]))
+	car.traffic.speed = freeway_speed * lerpf(0.9, 1.1, float(h % 1000) / 999.0)
+	car.traffic.v = TrafficAI.RAMP_ON_SPEED * 0.6
 	TrafficAI.roll_mood(car, car.traffic)
-	car.traffic.home = Freeway.LANES - 1 - _rng.randi() % 3
+	car.traffic.home = Freeway.LANES - 1 - (h / 1000) % 3
 	car.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
 	car.freeze = true
 	car.transform = global_transform.affine_inverse() * TrafficAI.ramp_xform(car)
