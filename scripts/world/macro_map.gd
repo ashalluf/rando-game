@@ -210,6 +210,8 @@ var hill_roads: HillRoads
 var river: LaRiver
 ## The freeway system: curved elevated routes across the basin (see scripts/world/freeway.gd).
 var freeway: Freeway
+## What stands on the hills (Ridges): fire roads and pads carved here, the lines planned with the plan.
+var ridges: Ridges
 
 var _noise: FastNoiseLite
 ## Erosion on the three ranges (not the headland, which is shaped to photographs): erosion
@@ -320,6 +322,10 @@ func setup() -> void:
 	freeway = fw
 	# Then the front range's switchback drives and estates, which keep clear of the freeway.
 	hr.add_switchbacks(seed, fw)
+	# Last: the ridges' fire roads and pads (Ridges), carved after everything above is laid out.
+	ridges = Ridges.new() if Ridges.enabled() else null
+	if ridges:
+		ridges.build_terrain(self, seed)
 
 
 ## X of the coast at a given Z: a gentle bay curve, bulging west around the peninsula.
