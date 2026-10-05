@@ -18,3 +18,15 @@ opengl3 (Compatibility) renders, not the Mac's Forward+. City stills from tools/
 | 15_gondola_hanging_glass_tower.jpg / 16_gondola_cradle_close.jpg | Window-washing machine's jib and the cradle hanging on a glass tower |
 | 17_gondola_parked_mast_garden.jpg | A machine with its cradle parked, a garden and a mast |
 | 18_telecom_mast_penthouse.jpg | Telecom mast (panels, dish, beacon) and a louvred penthouse |
+
+## After merging fleet/base (2026-10-05, wave 2)
+
+Single-building stills (tools/glshot/rooftop_shot.gd, opengl3) re-shot on the merged tree.
+
+| File | What |
+|------|------|
+| 19_merged_helipad_parked_helicopter.jpg | FEAT=helipad (seed 1, 75 m): raised pad, helicopter, net shelf, stair, windsock |
+| 20_merged_pool_deck_night.jpg | FEAT=pool NIGHT=1 (seed 79191): lit pool, string lights, mast beacon |
+| 21_merged_pool_deck_golden.jpg | FEAT=pool GOLDEN=1, same roof |
+| 22_merged_garden_mast_penthouse.jpg | FEAT=garden (seed 23758): garden, pergola, penthouse, telecom mast |
+| 23_merged_gondola_hanging.jpg | FEAT=bmu (seed 7920): cradle hanging on a glass tower |
