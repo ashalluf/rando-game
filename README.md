@@ -1,4 +1,4 @@
-# shots/parks - rec parks, schoolyards and sports grounds (branch wt/parks, HANDOFF 9bl)
+# shots/parks - rec parks, schoolyards and sports grounds (branch wt/parks, HANDOFF 9bn)
 
 All opengl3 (Compatibility) stills, 1280x720, seed 1337, `tools/glshot/still_shot.gd` unless noted.
 "Before" is the same commit with `PARKS=0`.
@@ -20,4 +20,4 @@ All opengl3 (Compatibility) stills, 1280x720, seed 1337, `tools/glshot/still_sho
 
 Coverage (`tools/lot_coverage.gd RECT=-1500,-3600,3000,5100`): REC blocks (39) bare 0 %, sport 52.8 %,
 garden 40.7 %; SCHOOL blocks (4) bare 0 %, sport 80.1 %; SUBURBS bare 8.3 -> 7.2 %.
-Frame cost: see HANDOFF 9bl (geo_count: -5 % to -41 % triangles, -2 % to -12 % draws at three spawns).
+Frame cost: see HANDOFF 9bn (geo_count: -5 % to -41 % triangles, -2 % to -12 % draws at three spawns).
