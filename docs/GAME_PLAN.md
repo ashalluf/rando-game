@@ -350,6 +350,19 @@ already mapped so milestone 2 is script-only.
   a graph that never crosses a ride; everything is code on one shader with the surface kind per
   vertex; shadows come from the rides' far meshes and lights cast none. The pier's deck height,
   lamp line and anchor did not move.
+- **2026-10-05 A small-craft marina between the beach town and the airport (VISUAL_ROADMAP #70,
+  HANDOFF 9cb).** The coast had no harbour for small boats. `Marina` (a pure plan from the coast
+  and the street grid) and `MarinaBuild` (a chunk's share) lay out the form of LA's big marina on
+  nine blocks south of Venice's boardwalk: a basin behind the sand on a raised terrace with
+  bulkheads, docks on pilings with ~160 code-built boats (BoatMesh: sailboats, motor yachts,
+  sport fishers, runabouts) bobbing in boat.gdshader, an entrance channel cut through the beach
+  between rubble jetties with lights on their heads, a detached breakwater offshore, the coast
+  highway over the channel on a bridge (its own strip gapped), towers, restaurants, car parks and
+  a boat yard with a travel lift; three runabouts motor round the channel. Decided: the basin's
+  water stands at the sea's level over the GroundBody (you wade, as in the sea) rather than a
+  sunk floor with collision exceptions; the bridge clears 3.9 m, so the sailboats stay inside
+  (a fixed span keeps the highway drivable; a bascule is a later job).
+
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it

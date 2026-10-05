@@ -586,7 +586,7 @@ func _add_captured(k: Vector2i, b: Dictionary, zone: int, ch: CityChunk) -> void
 		colors.append(Color(c.r, c.g, c.b, 1.0))
 		customs.append(Color(0.0, 0.0, float(absi(hash([k, xforms.size()])) % 997) / 997.0, 1.0))
 	# A river block plants no street trees (RiverBuild lays pavement and a rail yard).
-	if zone == MacroMap.Zone.CITY and not _plan.river_block(k.x, k.y):
+	if zone == MacroMap.Zone.CITY and not _plan.river_block(k.x, k.y) and not _plan.marina_block(k.x, k.y):
 		_add_city_trees(k, b, ch)
 	# Container stacks in the port yard.
 	if batch.has("container"):
@@ -625,6 +625,11 @@ func _add_plate(k: Vector2i, zone: int, ground: Array, ch: CityChunk) -> void:
 	var col := _ground_colour(Rect2(area.position, area.size - Vector2(wx, wz)), zone, ground, bands)
 	# A river block (LaRiver): the plate goes down under the channel's bed, in the bed's colour;
 	# the capture's boxes are its land, streets, banks and bridges (RiverBuild._capture()).
+	# A marina block (Marina): the plate is the water, at the water; the capture's boxes are the
+	# land, docks and boats on it (MarinaBuild.capture()).
+	if _plan.marina_block(k.x, k.y):
+		_plate(k, area, MarinaBuild.FAR_WATER, 0.0, 0.0, ch, MarinaBuild.far_plate_drop(ch))
+		return
 	if roads and _plan.river_block(k.x, k.y):
 		_plate(k, area, RiverBuild.FAR_BED, 0.0, 0.0, ch, RiverBuild.far_plate_drop(ch))
 		return

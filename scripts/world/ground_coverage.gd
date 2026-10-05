@@ -159,6 +159,9 @@ static func block(plan: CityPlan, bx: int, bz: int, fill: int, grid: float = 1.0
 		return _grounds(plan, bx, bz, b, grid)
 	if int(b.kind) != CityPlan.BlockKind.BUILDINGS or b.has("site") or plan.zone_at(brect.get_center()) != MacroMap.Zone.CITY:
 		return {}
+	# A marina block is the marina's own ground (MarinaBuild).
+	if plan.marina_block(bx, bz):
+		return {}
 	# Before the yard pass a plaza beside MacArthur Park was a plaza.
 	var as_plaza: bool = fill < 2 and b.get("was_plaza", false)
 	# A block a landmark claims whole (the civic set) is the landmark's own ground.
