@@ -15,7 +15,7 @@ extends RefCounted
 ## * FULL chunks: every pad of the chunk is ONE casting mesh (`Roadside`) and ONE shadowless
 ##   ground mesh (`RoadsideGround`: forecourt concrete, paint) on the shader, committed at the
 ##   finish (`commit()`); the repeated pieces are one MultiMesh a kind (`rs_*`), dispensers as
-##   breakable props. Night: the shop_spill batch for the light on the ground, a `lamp_light`
+##   breakable props. Night: the shop spill pool mesh in an `rs_pool` batch, a `lamp_light`
 ##   OmniLight3D per pad on desktop. LOD chunks and the far city (capture) get `lod_box`es for the
 ##   buildings and the canopy as a slab.
 ## All names are invented; prices too.
@@ -206,8 +206,8 @@ static func commit(ch: CityChunk) -> void:
 		return
 	var state: Dictionary = ch.get_meta("roadside")
 	ch.remove_meta("roadside")
-	for key: String in ["rs_pool"]:
-		ch._batch.set_no_shadow(key)
+	ch._batch.set_no_shadow("rs_pool")
+	ch._batch.set_draw_distance("rs_pool", CityChunk.SHOP_SPILL_DISTANCE)
 	for spec: Array in [[state.st, "Roadside", true], [state.gst, "RoadsideGround", false]]:
 		var st: SurfaceTool = spec[0]
 		var mesh := st.commit()
@@ -293,7 +293,7 @@ static func _arrow(s: Site, p: Vector2, dir: Vector2) -> void:
 	_line(s, p + dir * 1.2 + n * 0.02, p + dir * 0.2 - n * 0.7, 0.2)
 
 
-## Light on the ground after dark (the chunk's shop_spill batch, one draw), a rect of the frame.
+## Light on the ground after dark (the shop spill's mesh in the chunk's own rs_pool batch, one draw), a rect of the frame.
 static func _pool(s: Site, c: Vector2, size: Vector2, col: Color) -> void:
 	var p := s.at(Vector3(c.x, 0.0, c.y))
 	var a := s.xf.basis * Vector3(size.x, 0.0, 0.0)
@@ -305,7 +305,7 @@ static func _pool(s: Site, c: Vector2, size: Vector2, col: Color) -> void:
 		n = -n
 		up = -up
 	var xf := Transform3D(Basis(a, n, up), Vector3(p.x, TOP + 0.08 + PAINT_LIFT, p.z))
-	s.ch._batch.add("shop_spill", PropFactory.shop_spill(), xf, col)
+	s.ch._batch.add("rs_pool", PropFactory.shop_spill(), xf, col)
 
 
 ## A real light after dark (DayNight drives the `lamp_light` group), desktop only.
@@ -323,7 +323,14 @@ static func _light(s: Site, c: Vector3, reach: float, col: Color) -> void:
 	light.distance_fade_begin = 60.0
 	light.distance_fade_length = 20.0
 	light.add_to_group("lamp_light")
-	s.ch.add_child(light)
+	# Under a holder, not the chunk itself: the chunk's own lamp_light children are its street
+	# lamps (NightCity colours them by patch, and its checks count them).
+	var holder := s.ch.get_node_or_null("RoadsideLights") as Node3D
+	if holder == null:
+		holder = Node3D.new()
+		holder.name = "RoadsideLights"
+		s.ch.add_child(holder)
+	holder.add_child(light)
 
 
 ## A building box: its occluder, and on LOD / the far city a lod_box with collision.

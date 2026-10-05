@@ -1722,7 +1722,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   breakable `pump` props -, vacuum stations, tyres, menu boards, speaker posts, the air machine,
   ice chest, propane cage, service stand, two-post lift), the brand paint in INSTANCE_CUSTOM.rgb;
   cars are LotFill's static `apark_car_*` batch (the drive-thru queue, the car on the lift, the
-  junked car). Night: pools in the chunk's `shop_spill` batch and one `lamp_light` OmniLight3D a
+  junked car). Night: the shop-spill pool mesh in its own `rs_pool` batch and one `lamp_light` OmniLight3D a
   pad (desktop). LOD and the far city's capture: `lod_box`es for the buildings and the canopy as
   one `_add_slab`. Names and prices are invented (the smoke test holds them against a list of real
   brands). `ROADSIDE=0` in the environment is the A/B (the old pads). Find pads with

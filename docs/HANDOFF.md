@@ -7251,7 +7251,7 @@ mesh (`Roadside`) and ONE shadowless ground mesh (`RoadsideGround`) a chunk on
 `shaders/roadside.gdshader` (the face's kind in COLOR.a x 20, see `RoadsideKit.K_*`), committed by
 `Roadside.commit()` from `_finish_build` (one line in city_chunk.gd); the repeated pieces are
 `rs_*` batches on the same shader with the brand paint in INSTANCE_CUSTOM.rgb; parked and queued
-cars are LotFill's `apark_car_*` batch. Night: `shop_spill` pools (no new draw) and one
+cars are LotFill's `apark_car_*` batch. Night: the shop-spill pool mesh in its own `rs_pool` batch (one draw a chunk with pads) and one
 `lamp_light` OmniLight3D a pad (desktop). LOD / far city: `lod_box`es for the buildings (plain
 flag) and the canopy as one `_add_slab`. Hooks touched: `commercial.gd` (the branch), one line in
 `city_chunk.gd`, one in `smoke_test.gd`.

@@ -151,12 +151,11 @@ func _full(city: Node3D, plan: CityPlan, e: Dictionary, seen: Dictionary) -> voi
 			mesh = c
 		elif c.name == "RoadsideGround":
 			ground = c
-		elif c is MultiMeshInstance3D and String(c.name).begins_with("Batch_rs_"):
+		elif c is MultiMeshInstance3D and String(c.name).begins_with("Batch_rs_") and String(c.name) != "Batch_rs_pool":
 			rs_ok = rs_ok and (c as MultiMeshInstance3D).multimesh.mesh.surface_get_material(0) == RoadsideKit.material()
-		elif c is OmniLight3D and (c as Node).is_in_group("lamp_light"):
-			for b: Dictionary in Roadside.record:
-				var p: Vector3 = (c as Node3D).position
-				if Vector2(p.x, p.z).distance_to(b.centre) < maxf(float(b.w), float(b.d)) * 0.6:
+		elif c.name == "RoadsideLights":
+			for l in c.get_children():
+				if l is OmniLight3D and (l as Node).is_in_group("lamp_light"):
 					lights += 1
 	var kinds := []
 	for b: Dictionary in built:
