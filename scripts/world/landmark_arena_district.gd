@@ -799,8 +799,9 @@ static func _add_light(parent: Node3D, at: Vector3, reach: float = 22.0) -> void
 
 
 ## An OccluderInstance3D of boxes (centre, size), each pulled in so it never sticks out past
-## the building it stands for (see CityChunk._build_occluder()). Detailed (chunk) builds only.
-static func _occluder(parent: Node3D, boxes: Array) -> void:
+## the building it stands for (see CityChunk._build_occluder()). Detailed (chunk) builds only:
+## `detailed` 1 / 0 says which, -1 (the civic sites) reads it off CivicSites.ctx.
+static func _occluder(parent: Node3D, boxes: Array, detailed: int = -1) -> void:
 	var verts := PackedVector3Array()
 	var idx := PackedInt32Array()
 	for b: Array in boxes:
@@ -820,7 +821,7 @@ static func _occluder(parent: Node3D, boxes: Array) -> void:
 			verts.append(Vector3(c.x - hx, y, c.z + hz))
 		for f: Array in [[0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7], [4, 5, 6, 7]]:
 			idx.append_array(PackedInt32Array([o + f[0], o + f[1], o + f[2], o + f[0], o + f[2], o + f[3]]))
-	if idx.is_empty() or not CivicSites.ctx.get("detailed", false):
+	if idx.is_empty() or not (CivicSites.ctx.get("detailed", false) if detailed < 0 else detailed == 1):
 		return
 	var occ := ArrayOccluder3D.new()
 	occ.set_arrays(verts, idx)

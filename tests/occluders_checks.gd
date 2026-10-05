@@ -19,6 +19,7 @@ func run(t: Node, city: Node3D) -> void:
 	_banks(city, plan)
 	_walls()
 	_mountains(city)
+	_landmarks(plan)
 	_switch(city, plan)
 
 
@@ -168,6 +169,32 @@ func _mountains(city: Node3D) -> void:
 			worst = maxf(worst, p.y - (lo - 28.0))
 	_t._check(m.triangles > 50 and worst < 0.0 and nearest >= MountainOccluder.INNER and MountainOccluder.INNER > MountainOccluder.SINK_CLEAR,
 		"the far mountains' occluder (%d triangles round the basin) is under the horizon plane (at most %.1f m over its floor) and keeps %.0f m off the camera" % [m.triangles, worst, nearest])
+
+
+## The landmarks that had none: the airport's head house (its occluder read CivicSites' context,
+## which only the civic sites set), the mall, the observatory, the campus hall, the hangars. Built
+## for the detailed copy only.
+func _landmarks(plan: CityPlan) -> void:
+	var want := ["terminal", "south_bay_mall", "observatory", "campus_hall", "hangars"]
+	var got := []
+	var far_any := false
+	for lm: Dictionary in Landmarks.all():
+		if not String(lm.id) in want:
+			continue
+		for detailed in [true, false]:
+			var holder := Node3D.new()
+			var statics := StaticBody3D.new() if detailed else null
+			if statics:
+				holder.add_child(statics)
+			Landmarks.build(lm, holder, statics, plan, detailed)
+			var n := holder.find_children("*", "OccluderInstance3D", true, false).size()
+			if detailed and n > 0:
+				got.append(lm.id)
+			if not detailed and n > 0:
+				far_any = true
+			holder.free()
+	_t._check(got.size() == want.size() and not far_any,
+		"the head house, mall, observatory, campus hall and hangars have occluders (%s), their far copies none" % [", ".join(got)])
 
 
 ## OCCLUDERS=0: no extra occluder on a chunk.

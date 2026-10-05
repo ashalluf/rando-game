@@ -191,7 +191,7 @@ static func build_head_house(parent: Node3D, statics: StaticBody3D, macro: Macro
 		dep.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		parent.add_child(dep)
 	batch.build(parent)
-	_occluder(parent, [[Vector3((hh.position.x + hh.end.x) * 0.5, y0 + 9.0, (hh.position.y + hh.end.y) * 0.5), Vector3(hh.size.x - 4.0, 16.0, hh.size.y - 6.0)]])
+	_occluder(parent, [[Vector3((hh.position.x + hh.end.x) * 0.5, y0 + 9.0, (hh.position.y + hh.end.y) * 0.5), Vector3(hh.size.x - 4.0, 16.0, hh.size.y - 6.0)]], detailed and statics != null)
 
 
 ## A square-section strut from a to b (the tree columns' branches, the arch's ribs).
@@ -473,7 +473,7 @@ static func build_tower(parent: Node3D, statics: StaticBody3D, macro: MacroMap, 
 			_strut(g, "metal", Vector3(p.x, y0 + TOWER_CAB_TOP + 2.0, p.y), Vector3(at.x, y0 + TOWER_TOP - 0.4, at.y), 0.12, Color(0.7, 0.7, 0.72))
 	g.commit(parent, "ControlTower")
 	g.commit_collision(statics)
-	_occluder(parent, [[Vector3(at.x, y0 + TOWER_SHAFT_TOP * 0.5, at.y), Vector3(4.0, TOWER_SHAFT_TOP - 4.0, 4.0)]])
+	_occluder(parent, [[Vector3(at.x, y0 + TOWER_SHAFT_TOP * 0.5, at.y), Vector3(4.0, TOWER_SHAFT_TOP - 4.0, 4.0)]], detailed and statics != null)
 
 
 # --- The arches ---------------------------------------------------------------------------------
@@ -555,7 +555,7 @@ static func build_garage(parent: Node3D, statics: StaticBody3D, macro: MacroMap,
 	g.commit_collision(statics)
 	batch.build(parent)
 	var r := Airport.GARAGE_RECT
-	_occluder(parent, [[Vector3(r.get_center().x, y0 + 6.0, r.get_center().y), Vector3(r.size.x - 4.0, 10.0, r.size.y - 4.0)]])
+	# No occluder: a car park's decks are open between the spandrels, and what is behind them shows.
 	if detailed:
 		var sign := MeshInstance3D.new()
 		sign.name = "GarageSign"
@@ -602,5 +602,7 @@ static func build_rental(parent: Node3D, statics: StaticBody3D, macro: MacroMap,
 		parent.add_child(sign)
 
 
-static func _occluder(parent: Node3D, boxes: Array) -> void:
-	LandmarkArenaDistrict._occluder(parent, boxes)
+## Built only for the detailed copy. (It used to read CivicSites.ctx, which only the civic sites
+## set, so the airport's never were.)
+static func _occluder(parent: Node3D, boxes: Array, detailed: bool) -> void:
+	LandmarkArenaDistrict._occluder(parent, boxes, 1 if detailed else 0)

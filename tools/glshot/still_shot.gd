@@ -602,7 +602,7 @@ func _initialize() -> void:
 ## MountainOccluder hidden: the building occluders alone, the before) and with occlusion culling
 ## off, each counted (GEO<n> noextra / nocull) and saved beside the shot (_noextra / _nocull), so
 ## one load gives the A/B and the pixel diffs (tools/glshot/img_diff.py: anything in the shot
-## missing from _nocull was culled in plain sight).
+## missing from _nocull was culled in plain sight); then the occlusion buffer (_occ).
 func _occ_ab(path: String, tag: String = "") -> void:
 	var hidden: Array[Node3D] = []
 	for n in current_scene.find_children("OccluderExtra", "OccluderInstance3D", true, false):
@@ -621,6 +621,13 @@ func _occ_ab(path: String, tag: String = "") -> void:
 	await _geo_report("GEO%s nocull" % tag)
 	get_root().get_texture().get_image().save_png(path.get_basename() + "_nocull.png")
 	get_root().use_occlusion_culling = true
+	await process_frame
+	# The occlusion buffer itself (what the culler sees: every occluder's depth), for the record.
+	get_root().debug_draw = Viewport.DEBUG_DRAW_OCCLUDERS
+	await process_frame
+	await process_frame
+	get_root().get_texture().get_image().save_png(path.get_basename() + "_occ.png")
+	get_root().debug_draw = Viewport.DEBUG_DRAW_DISABLED
 	await process_frame
 
 

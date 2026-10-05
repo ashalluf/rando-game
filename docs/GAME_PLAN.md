@@ -861,6 +861,15 @@ already mapped so milestone 2 is script-only.
   barrier; traffic turns onto them. The stack is tall (~26-50 m) because the 101 climbs to the
   pass at the grade limit from there: both main lines are held level through the stack (raise
   only). docs/HANDOFF.md (the stack section); CLAUDE.md "The four-level stack".
+- **2026-10-05 Occlusion culling covers the ground, the decks, the banks and the walls, not just
+  the buildings (VISUAL_ROADMAP, the occluders row).** Only building boxes hid anything; a ridge,
+  a freeway deck overhead, the river's banks round a player in the channel and a sound wall along
+  the freeway hid nothing from the culler. Now each chunk has a second occluder for them
+  (`Occluders`), and the ranges past the chunks have one laid under the horizon plane
+  (`MountainOccluder`). Decision: every occluder lies INSIDE the solid it stands for by
+  construction (a lowest-sample sheet under the terrain and the plane, a box inside the deck, the
+  bank pushed into the earth), proved by checks, and judged by a frame rendered with and without
+  culling from the same load; nothing is sized "about right". docs/HANDOFF.md "Occluders".
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
