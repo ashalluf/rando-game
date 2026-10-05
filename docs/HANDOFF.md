@@ -8656,6 +8656,16 @@ the vendors'). LOD / capture: a handful of slabs.
 and 22:00 and back toward its mouth, the mouth from across the street by day and night, a midtown
 asphalt alley at noon and night, midtown from 260 m; `before_*` the same frames with `ALLEYS=0`.
 
+**Merged with fleet/base (2026-10-05, wave 2).** Conflicts were all hook lines: the parked-car
+test now asks FireStation, PoliceStation, Schools and Alleys; the pavement lamp is skipped across a
+mouth before Broadway is asked for its own lamp (`not Alleys.in_mouth() and not Broadway.lamp()`,
+neither rolls); the alley checks run last in the smoke test. One fix: a block with a police
+station's lots (PoliceStation, new in base) gets no alley, as a fire station's does - its apron
+and yard reach past its lots. Broadway's palaces and schools needed nothing (an unrecorded lot is a
+whole-lot obstacle to the run; a school block has grounds). Probe on the merged tree: 319 of 532
+midtown and 124 of 274 downtown BUILDINGS blocks have an alley (326 of 540 and 130 of 274
+before the merge; base's new block uses take a few). Gate: 1,386 passed, 1 failed (the known minimap closed-road line).
+
 **Not done / not verified.** Forward+ (the Mac) not seen: the concrete's tone and the lamp pools
 under AgX need eyes. No traffic or police drives the alleys (they are not in the street graph);
 the player can drive them. The van and dumpsters are static (dumpsters do not tip or roll); the
