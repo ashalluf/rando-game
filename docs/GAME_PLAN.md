@@ -862,6 +862,12 @@ already mapped so milestone 2 is script-only.
   pass at the grade limit from there: both main lines are held level through the stack (raise
   only). docs/HANDOFF.md (the stack section); CLAUDE.md "The four-level stack".
 
+- **2026-10-05 Launches cache what they compute the same way every time.** The basin bake and the
+  far city's tiles (~47 s of a launch on the build box) go to user://load_cache keyed on the md5 of
+  every script, the assets' sizes, every env switch and the seed, so any code change misses and a
+  miss is only a slower launch; the loading screen batches its shader warm-up (16 a batch, not two
+  frames each). Not cached: anything that reads the hour, the weather or WorldState, and the FULL
+  chunks (nodes, not data). LOAD_CACHE=0 is the A/B. HANDOFF "Load time".
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
   in the afternoon, backlighting the mountain faces the city looks at. Realism wins over the old

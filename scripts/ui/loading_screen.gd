@@ -38,7 +38,7 @@ var _progress: float = 0.0
 ## renderer a frame of the city is seconds, on the Mac a few milliseconds).
 var frames_waited: int = 0
 ## Milliseconds of work between two frames of the bar in the baking loops (see _due()).
-@export var bar_interval_ms: int = 150
+@export var bar_interval_ms: int = 350
 var _last_frame: int = 0
 var frame_usec: int = 0
 

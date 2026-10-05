@@ -8571,3 +8571,95 @@ abrupt. A connector car spawned when nobody can be taken pops in (only farther t
 the player). Sound: no rolling-traffic emitter of its own (Ambience's freeway emitter reads
 segments_in(), so it does hear the connectors). The far city draws the connectors as unbanked
 deck boxes.
+
+## 9d?. Load time: the launch timed stage by stage, a disk cache for the bake and the far city, fewer loading-screen frames, 2026-10-05 (agent branch `wt/load-time`)
+
+**What a launch costs, and where.** `LoadClock` (`scripts/util/load_clock.gd`) prints one
+`LOADING <stage>: <ms> ms (at <ms since start>)` line per stage: the Sfx autoload, the macro map's
+parts (replica, river, marina, hill roads, freeway, switchbacks), the ground bake, the far
+landmarks, the first streaming (FULL / LOD chunks built now, the far city within 2.5 km), each
+loading-screen stage, and the frames the screen waited out. `tools/load_time/load_time.sh
+desktop|headless` runs a launch with `LOAD_QUIT=1` (the game quits as soon as it is playable) under
+`/usr/bin/time -v` and prints the lines and the peak RSS. `LOAD_PROFILE=1` also totals CityChunk's
+build steps by method name (`LoadClock.profile_step()`), slowest first.
+
+**Measured** (fleet/base `92945c7` + the instrumentation, this 4-core box; desktop = opengl3 under
+Xvfb + llvmpipe, 1280x720, the loading screen; headless = the dummy renderer, no loading screen):
+
+| stage | desktop before | desktop after (warm cache) | headless before | headless after (warm) |
+|---|---|---|---|---|
+| engine + scripts + city.tscn until CityStreamer._ready | 9.5 s | 9.6 s | 8.9 s | 9.3 s |
+| macro map (replica 0.6, hill roads 0.4, freeway 0.5, switchbacks 0.7) | 2.6 s | 2.2 s | 2.2 s | 2.5 s |
+| ground bake (MacroMap.bake, 512 x 512) | **18.4 s** | **0.15 s** | **17.8 s** | **0.18 s** |
+| far landmarks | 0.7 s | 0.6 s | 0.6 s | 0.6 s |
+| first streaming: 18 FULL + 129 LOD chunks | 22.8 s | 22.3 s | 21.2 s | 20.7 s |
+| first streaming: far city within 2.5 km (57 tiles) | **14.2 s** | **0.15 s** | **14.2 s** | **0.09 s** |
+| screen: shaders and effects | 900.7 s (250 frames) | 114.7 s (19 frames) | - | - |
+| screen: camp figures (60) | 31.9 s | 15.4 s | - | - |
+| screen: beach figures (85) | 33.1 s | 56.8 s | - | - |
+| screen: preload world (57 FULL chunks) | 15.5 s | 20.6 s | - | - |
+| screen: far city, the rest of the basin (371 tiles) | **28.8 s** | **1.5 s** (271 cached, 100 new) | - | - |
+| screen: trees | 1.2 s | 1.4 s | - | - |
+| screen: rigs (20; 1.4-1.7 s of it work) | 80.2 s | 61.1 s | - | - |
+| **frames waited / their time** | **303 / 1,107 s** | **50 / 309 s** | - | - |
+| **total** | **1,243 s** | **404 s** | **65.8 s** | **34.3 s** |
+| peak RSS | 5.59 GB | 5.76 GB | 1.28 GB | 1.26 GB |
+
+The desktop numbers are dominated by llvmpipe drawing the city behind the screen (3.6-6 s a
+frame); on the Mac a frame is milliseconds and the WORK is what counts: 136 s before, 95 s after on
+this box (a cold cache adds the bake and the far city back: ~47 s). The camp / beach / preload rows
+moved both ways with the frames they contain (each is "work + its frames"); their work did not
+change. The beach row grew because the far city was being written beside it on a busy box - read
+the totals and the frames line.
+
+**What changed.**
+- **`LoadCache`** (`scripts/util/load_cache.gd`, `user://load_cache/`, zstd, written to a `.tmp` and
+  renamed): `load_data()` / `save_data()` of plain data (and `load_images()` / `save_images()`), the
+  two newest entries of a kind kept. The key is the md5 of: every file under `res://scripts` (the
+  `.gd` text in the editor, the `.gdc` tokens in an export), every file under `res://assets` and
+  `res://scenes` by path and size (and the executable and `.pck` by size and mtime in an export),
+  the value of every environment variable any script reads (found by a regex over the sources, so a
+  new A/B switch is covered with no list to keep; `LOAD_*` left out), the user arguments (less the
+  view-only ones: `--spawn=`, `--hour=`, `--weather=`, `--nohud`, ...), the engine build, and the
+  caller's inputs. 214 scripts + 1,783 assets fingerprinted in 60-80 ms. A miss is only a slower
+  launch. `LOAD_CACHE=0` / `-- --no-load-cache` is the A/B; the web build never uses it.
+- **The basin bake** (`CityStreamer._build_ground_material()`): keyed on the seed, span, size and
+  the plan's numbers; stores the colour image and `MacroMap.bake_height`. 1.2 MB.
+- **The far city** (`Skyline.build_near()` only - the loading screen's whole basin, teleports, the
+  headless first streaming; `advance()` in play still builds): `_commit_tile()` keeps a deep copy of
+  a tile's instance arrays (`ranges`, `xforms`, `colors`, `customs`, `veg*`, `houses`,
+  `house_colors`, `hills`; null for an empty tile) while `_recording`; `_restore_tile()` lays a
+  cached one back through the same `_commit_tile()`, so covering, alpha and seating work as
+  before. The file is read at the start of a `build_near()`, written at its end if anything was
+  recorded, and let go (it is the basin's arrays a second time). 2.2 MB for 57 tiles. Everything in a
+  capture is a hash of seed + place (the time-budget loops only slice the work), and the capture
+  reads neither the hour nor the weather nor WorldState, which is what makes it cacheable.
+- **The shader warm-up** draws `shader_batch` (16) shaders per batch and holds `warm_frames` (2)
+  per batch, not per shader: 250 frames -> 16. Every shader is still drawn before play.
+- **The baking loops** (camp figures, beach figures, rigs) give the bar a frame once
+  `bar_interval_ms` (350; the desktop "after" column was measured at 150) of work has gone by,
+  not every 4-8 items.
+
+**Proof of no visible change.** `still_shot.gd` with `DIFF=1`, three EYEs (aerial over the 110 at
+noon, Flower St at street level, the beach town at 19:30), cache OFF against cache WARM:
+0.011 % / 0 % / 0.001 % of pixels differ, max 6/255 - under what two fresh builds of the same
+frame differ by (0.022 %, max 10). Stills on `shots/load-time`. `tests/load_time_checks.gd`: the
+fingerprint, a bake byte for byte through the cache, a miss on another seed, a far-city tile built
+fresh in the test against the one in the cache byte for byte, the tile through the disk, the
+warm-up covering every shader.
+
+**Not done / not cut.**
+- **8-9 s before the first line of game code** is GDScript compiling ~130k lines (loading
+  `macro_map.gd` alone pulls in most of the class graph: 7.9 s). An export's binary tokens skip
+  the tokenizer, not the analysis. Nothing to cache from GDScript.
+- **The window is black for the first ~35 s** (the macro map, the bake on a cold cache and the
+  first streaming run inside `CityStreamer._ready()`, before the loading screen can draw). Moving
+  the first streaming into the loading screen would show the bar sooner but changes when the
+  player is placed; left alone.
+- **FULL chunks are now most of the work** (18 + 57 of them, ~42 s here; parked cars 5.8 ms each,
+  walkers 9 ms, see `LOAD_PROFILE=1`). They build nodes and bodies; not cacheable, and not
+  thread-safe to parallelise (every builder shares the plan's caches and `MacroMap.last_drain`).
+  The same is why the bake is not split over WorkerThreadPool: `height_at()` writes
+  `last_drain` and several memo caches.
+- Not measured on the Mac. A Mac launch log (Console, or running the app from Terminal) gives
+  the LOADING lines for real; the first launch after an update is cold.
