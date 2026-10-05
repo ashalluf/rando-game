@@ -156,6 +156,9 @@ func _full_chunk(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 	_t._check(on_deco == 0, "no Building stands on a deco lot")
 	var palms := _palms(chunk)
 	var sig := _signature(chunk)
+	# Its parked cars live under the city root and outlive the chunk: freed with it, or the second
+	# build meets PhysicsBudget's cap with twelve more bodies in the city and parks fewer.
+	_free_cars(chunk)
 	chunk.get_parent().remove_child(chunk)
 	chunk.free()
 	# Off: the same block, every other building and every parked car where it was.
@@ -174,8 +177,16 @@ func _full_chunk(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 			if not sig.has(x):
 				print("  deco off only: ", x)
 	_t._check(palms > bare_palms, "mature palms line the deco frontage (%d palms, %d without)" % [palms, bare_palms])
+	_free_cars(bare)
 	bare.get_parent().remove_child(bare)
 	bare.free()
+
+
+func _free_cars(chunk: CityChunk) -> void:
+	for car in chunk.get("_cars"):
+		if is_instance_valid(car):
+			(car as Node).get_parent().remove_child(car)
+			(car as Node).free()
 
 
 func _palms(chunk: CityChunk) -> int:
