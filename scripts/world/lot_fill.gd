@@ -803,6 +803,7 @@ static func _edge_run(ch: CityChunk, r: Rect2, side: int, gate: Vector2, kind: S
 			continue
 		var mid := (s.x + s.y) * 0.5
 		var c := Vector2(mid, line) if along_x else Vector2(line, mid)
+		ClimbingPlants.note_run(ch, c, len, along_x, base, WALL_HEIGHT if kind == "wall" else FENCE_HEIGHT, kind)
 		match kind:
 			"wall":
 				var size := Vector3(len, WALL_HEIGHT, 0.3) if along_x else Vector3(0.3, WALL_HEIGHT, len)

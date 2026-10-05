@@ -60,6 +60,12 @@ var routes: Array[Dictionary] = []
 ## Ramps: {"route", "index", "side", "pos": Vector2, "yaw": float, "top": float}
 var ramps: Array[Dictionary] = []
 
+## The four-level stack where the 110 meets the 101 (FreewayStack), or null.
+var stack: FreewayStack
+## Its connector ramps (stack.links): segments_in() and blocks() hand them out with the routes'
+## segments, `route` = FreewayStack.LINK_BASE + link and `link` true.
+var links: Array[Dictionary] = []
+
 var _macro: MacroMap
 var _cells: Dictionary = {}
 ## Cumulative distance to each point of each route, so traffic can be driven by distance along
@@ -136,6 +142,12 @@ func build(macro: MacroMap, seed_value: int) -> void:
 	#    the east range, whose grade trims it.
 	_add_route("10 Santa Monica Freeway", _spline(DowntownReal.freeway(DowntownReal.FREEWAY_10)), rng)
 
+	# The four-level stack (FreewayStack): planned before the crossings are separated, which then
+	# leave its two main lines alone where they cross.
+	stack = FreewayStack.new()
+	if not stack.prepare(self, macro):
+		stack = null
+	links = stack.links if stack else ([] as Array[Dictionary])
 	_separate_crossings()
 	_place_ramps(rng)
 	_index()
@@ -276,6 +288,9 @@ func _separate_crossings() -> void:
 					var t := _segments_cross(pa[i], pa[i + 1], pb[j], pb[j + 1])
 					if t < 0.0:
 						continue
+					if stack and ((a == stack.low and b == stack.high) or (a == stack.high and b == stack.low)) \
+							and pb[j].distance_to(stack.centre) < 120.0:
+						continue
 					var over: float = maxf(ha[i], ha[i + 1]) + DECK_SEPARATION
 					if over > need[j]:
 						need[j] = over
@@ -357,7 +372,8 @@ func _place_ramps(rng: RandomNumberGenerator) -> void:
 				var normal := Vector2(-seg.y, seg.x).normalized()
 				# Never down into the river's corridor (LaRiver): it would land in the channel. The
 				# side still alternates, so every other ramp is where it was.
-				if not (_macro.river and _macro.river.in_corridor(p, RAMP_RUN + 20.0)):
+				if not (_macro.river and _macro.river.in_corridor(p, RAMP_RUN + 20.0)) \
+						and not (stack and p.distance_to(stack.centre) < FreewayStack.KEEP):
 					ramps.append({
 						"route": ri, "index": i, "side": side,
 						"pos": p + normal * side * (route.width * 0.5),
@@ -378,9 +394,14 @@ func _index() -> void:
 		for i in range(1, pts.size()):
 			run[i] = run[i - 1] + pts[i].distance_to(pts[i - 1])
 		_runs.append(run)
+	var lines: Array[int] = []
 	for ri in routes.size():
-		var pts: PackedVector2Array = routes[ri].points
-		var reach: float = routes[ri].width * 0.5 + 24.0
+		lines.append(ri)
+	for k in links.size():
+		lines.append(FreewayStack.LINK_BASE + k)
+	for ri in lines:
+		var pts: PackedVector2Array = _line(ri).points
+		var reach: float = _line(ri).width * 0.5 + 24.0
 		for si in pts.size() - 1:
 			var a := pts[si]
 			var b := pts[si + 1]
@@ -392,6 +413,11 @@ func _index() -> void:
 					if not _cells.has(key):
 						_cells[key] = []
 					_cells[key].append(Vector2i(ri, si))
+
+
+## A route, or a stack connector (ri >= FreewayStack.LINK_BASE): the same keys either way.
+func _line(ri: int) -> Dictionary:
+	return links[ri - FreewayStack.LINK_BASE] if ri >= FreewayStack.LINK_BASE else routes[ri]
 
 
 ## Where the lanes are across a deck `width` wide, in metres from the centre line on either
@@ -424,13 +450,16 @@ func segments_in(rect: Rect2) -> Array[Dictionary]:
 				if seen.has(ref):
 					continue
 				seen[ref] = true
-				var route: Dictionary = routes[ref.x]
+				var route: Dictionary = _line(ref.x)
 				var pts: PackedVector2Array = route.points
-				out.append({
+				var seg := {
 					"a": pts[ref.y], "b": pts[ref.y + 1],
 					"ha": route.heights[ref.y], "hb": route.heights[ref.y + 1],
 					"width": route.width, "index": ref.y, "route": ref.x,
-				})
+				}
+				if ref.x >= FreewayStack.LINK_BASE:
+					seg["link"] = true
+				out.append(seg)
 	return out
 
 
@@ -498,7 +527,7 @@ func blocks(pos: Vector2, margin: float) -> bool:
 	if not _cells.has(key):
 		return false
 	for ref in _cells[key]:
-		var route: Dictionary = routes[ref.x]
+		var route: Dictionary = _line(ref.x)
 		var pts: PackedVector2Array = route.points
 		var a := pts[ref.y]
 		var ab := pts[ref.y + 1] - a
