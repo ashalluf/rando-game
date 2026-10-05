@@ -8805,8 +8805,10 @@ under its board; sign boards glow (`sign_night`) and walls, beams and stone take
 wash under 11 m (`street_wash` 0.55, `wash_top`) so the lit lanterns read on the facades. Fixed on
 the way: the deferred string jobs inherited the last lot's `xf` and hung every string displaced
 (the stills before this pass show no strings over the street). Measured (still_shot, the full
-city, 21:00): up Broadway through the gate, hall from the walk, side street - see the numbers in
-the commit / report; the gate view's p50 is held down by the sky, a third of the frame.
+city, 21:00), luma p5/p50/p95: up Broadway through the gate 8/35/189 (the street below the
+skyline 7/73/199; the sky is ~40 % of the frame), the hall from the walk 15/42/189, the side street
+10/52/201 - the first pass's gate was 9/13/70. Cost after the pass and the merge of main (geo_count,
+the gate view): 4.23 M -> 4.39 M triangles, 3,180 -> 2,568 draws, 3,515 -> 2,881 objects.
 
 **People in the court**: 16 `PlazaGoer`s (`scripts/npc/plaza_goer.gd`, PierGoer's pattern: a
 Pedestrian kept to the court's open quarters and the walk, routed out to the walk and along it),
