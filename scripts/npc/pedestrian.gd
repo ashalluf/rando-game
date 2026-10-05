@@ -2562,6 +2562,9 @@ func _roll_life(seed_value: int) -> void:
 	var leisure := _leisure_place()
 	_jogger = _life.randf() < (jogger_share.x if leisure else jogger_share.y)
 	_dog_walker = not _jogger and _life.randf() < (dog_share.x if leisure else dog_share.y)
+	# Only the plain crowd walks dogs: officers, crews and sleepers keep their own pace (the roll
+	# is still made, so nothing after it moves).
+	_dog_walker = _dog_walker and _lives()
 	if _jogger:
 		_carry = CrowdLife.Carry.NONE
 		walk_speed = _life.randf_range(jog_pace.x, jog_pace.y)
