@@ -2366,7 +2366,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
 - The reservoir (VISUAL_ROADMAP #?, 2026-10-05, docs/HANDOFF.md 9d?): the FORM of the
   reservoir behind the famous sign - a long irregular lake filling a canyon of the front range,
   held back by a 1920s concrete arch-gravity dam that faces the basin - named "Lake Shallufer" on
-  the minimap and nothing anywhere else. **Data**: `Reservoir` (`scripts/world/reservoir.gd`,
+  the minimap (which draws its water, `Reservoir.water_runs()` in MapPainter) and nothing anywhere else. **Data**: `Reservoir` (`scripts/world/reservoir.gd`,
   `MacroMap.reservoir`, built in `MacroMap.setup()` after the river and BEFORE the hill roads;
   `RESERVOIR=0` or `-- --no-reservoir` is the A/B). The canyon is the range's own (a natural gorge
   at x -520 west of the sign on the default seed); the lake is a DEPRESSION subtracted from the

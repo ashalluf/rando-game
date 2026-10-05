@@ -8686,3 +8686,14 @@ the water, the trail on its bench, the landmark's far and detailed copies (share
 lights, batches) inside a triangle budget, the terrain material's ring, the mirror's table, the
 shells' marks. Probe: `tools/reservoir/probe.tscn` (`OUT=` a contour map, `SEED=`, `PROBE=`, and a
 WALLS line counting carved cells over 60 degrees against the natural range's).
+
+**Brought up to date with fleet/base (2026-10-05, fleet wave 2).** Merged origin/fleet/base: the
+marina and the reservoir both build in `MacroMap.setup()` (marina first, the reservoir still before
+the hill roads), the canals' and the reservoir's landmark entries, labels and checks side by side;
+the docs renumbered for the lead (this section and the roadmap row had taken 9bu / #63, which are the
+audio pass's there). Review fixes: `Reservoir.build()` no longer leaves a seed with no water when
+reading the exact ground at the waterline opens a saddle (it lowers the level until the flood holds,
+and warns if nothing does); the map (minimap and full-screen, MapPainter) draws the lake from
+`Reservoir.water_runs()` (a rect per run of wet cells; the bake alone gave it a few texels); the
+trail's fence posts cast nothing (`set_shadow_distance()` is a no-op on a code-built mesh, so they
+were casting round the whole kilometre); `probe.gd` times the build on the natural range.
