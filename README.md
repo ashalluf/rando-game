@@ -25,3 +25,11 @@ Same opengl3 still_shot.gd frames, default seed, after merging origin/fleet/base
 | `merged/03_merged_alley_downtown_toward_mouth_noon.jpg` | Back toward the west mouth, `2960,1.7,-508.6,90,-3` |
 | `merged/04_merged_alley_mouth_from_street_noon.jpg` | The mouth from across the street, `2852,1.7,-505,-90,-1` |
 | `merged/05_merged_alley_mouth_from_street_night_2200.jpg` | The same at 22:00 |
+| `merged/06_before_ALLEYS0_downtown_noon.jpg` | Frame 01 with `ALLEYS=0`: the forecourt between two rows of shops |
+| `merged/07_before_ALLEYS0_mouth_from_street_noon.jpg` | Frame 04 with `ALLEYS=0` |
+| `merged/08_merged_alley_midtown_noon.jpg` | Midtown block -3,-1, `EYE=-235.5,1.7,-150,180,-3` |
+| `merged/09_merged_alley_midtown_night_2200.jpg` | The same at 22:00: the bulkhead lamp's pool and its real light |
+| `merged/10_before_ALLEYS0_midtown_noon.jpg` | Frame 08 with `ALLEYS=0` |
+| `merged/11_merged_midtown_aerial_alleys.jpg` | Midtown from 240 m over blocks -5,-2 / -5,-1 (`EYE=-430,240,-200,0,-82`); the old aerial spot is now a rec park and a school from fleet/base |
+| `merged/12_before_ALLEYS0_midtown_aerial.jpg` | Frame 11 with `ALLEYS=0` |
+| `merged/13_merged_old_aerial_spot_now_park_and_school.jpg` | The old aerial frame (`-260,260,-230,0,-82`) on the merged tree |
