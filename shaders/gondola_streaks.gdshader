@@ -92,5 +92,5 @@ void fragment() {
 	ROUGHNESS = mix(0.03, 0.75, clamp(foam * 1.4, 0.0, 1.0));
 	METALLIC = 0.0;
 	SPECULAR = 0.9;
-	ALPHA = clamp(max(alpha, foam * 0.42), 0.0, 0.9);
+	ALPHA = clamp(max(alpha, foam * 0.32), 0.0, 0.9);
 }

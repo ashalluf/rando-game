@@ -9460,3 +9460,23 @@ seed; the descent stays on the face, only ever goes down within a drop, uses all
 forced rig builds on the props layer as metal, with two workers; a blast swings it out without
 ever passing the glass and the crew braces; the swing settles; the ropes hang; a far rig frees
 everything; `GONDOLAS=0` builds nothing; a glass infill tower's hanging BMU carries a live cradle.
+
+**Cost.** `still_shot.gd` GEO at the cradle EYEs, 11:00, 1280x720, `GONDOLAS=0` against on (two
+rigs with crews live in the first): black twins `EYE=2291.2,69.6,204.0,18.4,7.2` 2.677 M / 1,406
+draws -> 2.720 M / 1,446 (+1.6 %, +40 draws); bronze slab `EYE=2416.5,138.2,-397.0,-161.6,7.2`
+1.399 M / 393 -> 1.435 M / 425; granite slab `EYE=2454.0,158.9,189.1,-161.6,7.2` 719 k / 166 ->
+734 k / 190. Most of it is the two crews (a crowd rig, its hair and hat each, and their shadows).
+Nothing at all past `BUILD_RANGE`; a site with nothing built is one Node3D polling the camera every
+15th physics frame. The gate peaked at 3.2 GB.
+
+**Stills** (branch `shots/tower-gondolas`, opengl3): before / after at the three EYEs above, the
+crew close up, a cradle on the black twins' glass, the swing 2.5 s after a rocket, the bronze
+slab's roof with its davits, the granite slab from 80 m, and an infill glass tower's BMU cradle
+stopped over its setback (`EYE=2222.9,165,208.8,45,-8`).
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the wet film and the soap are tuned on
+opengl3 only (they are blend-mix quads with a low roughness; SSR may add more on the Mac). The
+crew's hands are IK onto the rail and the squeegee with the idle frozen near its start: no
+dedicated wiping clip, no head turn. No sound of the hoists. The LOD ring shows Rooftops' static
+cradle box at its old depth on infill towers. Workers cannot be knocked off (on purpose); shooting
+one only swings the cradle, with no blood.
