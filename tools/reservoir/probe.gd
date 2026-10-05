@@ -27,6 +27,14 @@ func _ready() -> void:
 	for line in res.trail:
 		tl += Reservoir._length(line)
 	print("TRAIL %d lines, %.0f m" % [res.trail.size(), tl])
+	var tp := Time.get_ticks_usec()
+	var prof := res.ridge_profile()
+	print("RIDGE %.0f ms" % ((Time.get_ticks_usec() - tp) / 1000.0))
+	var parts := LandmarkReservoir.parts(res)
+	print("PARTS %.0f ms (with the ridge): water %d, dam %d, trim %d, trail %d triangles" % [parts.build_ms, parts.water_tris, parts.dam_tris, parts.trim_tris, parts.detail_tris])
+	var tm := Time.get_ticks_usec()
+	res.mask_image(256, 34.0)
+	print("MASK %.0f ms" % ((Time.get_ticks_usec() - tm) / 1000.0))
 	print("SPILL %s floors %s" % [res.spill, res.spill_floor])
 	var t2 := Time.get_ticks_usec()
 	for k in 2000:

@@ -7040,3 +7040,95 @@ ALU in shaders that were already running.
 - The night ambient (DayNight) still lights roofs a moonlit blue-grey on opengl3; not this pass.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
+## 9bq. The reservoir in the hills: a lake behind a concrete dam, 2026-10-05 (agent branch `wt/reservoir`; VISUAL_ROADMAP #59)
+
+Number is provisional (the next free one after 9bp; the lead renumbers on merge).
+
+**The brief** (lead): the form of the reservoir behind the famous sign in LA's hills, original
+names - a long irregular lake filling a canyon of the front range, held back by a concrete
+arch-gravity dam; the dam with buttresses or arches on its downstream face, a crest road with
+ornamental railings and old lamp posts, a spillway, intake towers, a stained downstream face; the
+lake still and mirroring the hills, a bathtub ring, chaparral and pines down to the water, a trail
+with chain-link, a gauge tower; and the lake visible from the basin and the air. CLAUDE.md's
+"The reservoir" note is the reference; this is the story.
+
+**Where, and why there.** The sign stands at (0, -1180) on the front range's south face, the
+observatory at (260, -1320). West of the sign, at x -520, the range has a natural canyon running
+north from a gorge at z -1200 to -1250 (walls 300-330 m, floor 190-240 m), with nothing of the
+hill roads or the switchback estates in it (they are all round the pass at x 600-1000) - the real
+reservoir is south-west of the sign too. The dam closes that gorge and faces the basin; the lake
+fills the canyon north of it. Neither landmark's view is touched: the sign is 300 m east of the
+lake's east shore and the dam is below the range's crest line.
+
+**How the land is made** (`Reservoir`, scripts/world/reservoir.gd). Cutting a bowl to a fixed
+outline gives a crater with uniform cut banks; flooding the natural canyon gives a puddle (its floor
+climbs 1:1). So the lake is a DEPRESSION subtracted from the natural mountains along three authored
+arms (the main canyon, a west arm, an east cove) plus one along the dam's upstream face: the depth
+at each arm's axis is the natural valley floor there less (level - bed), fading out over `FALL`
+(125 m; 22 m near the dam, or it lowers the walls the dam is keyed into). The banks are the range's
+own slopes, steepened, with its spurs and gullies, and the shore is where that ground crosses the
+level - it follows the contour, with coves where gullies come down. A core floor holds open water
+along each axis and lets go up the bank (it used to end in a wall where the natural ground stood
+100 m higher). The level is fitted per seed: 265 m by design, bisected down until the flood from the
+arms closes inside the box, then checked again with the dam, the shelf and the spillway in the
+ground. Default seed: level 265 m, 6.7 ha, crest 269 m, the dam 61.5 m high and 290 m along its
+crest (the real dam: 59 m, 285 m); seeds 42 and 99001 hold at 235 m / 232 m with 6.0 / 5.8 ha.
+
+The carve sits at the end of `MacroMap.raw_height_at()`, so the hill tiles and their collision,
+HillPlanting, Skyline, the far bake and `zone_at()` all read one surface (the lake bed is still
+HILLS, a hill chunk builds it). The lake's carve fades out over the last 70 m inside its box; the
+dam's terms (its footprint at the foundation, a 24 m shelf at the toe and a fill slope down to the
+natural gorge, which drops 50 m within 40 m of the toe on this seed) reach the outer box round the
+arc. The spillway is a slot round the east abutment: an approach in the lake, a weir at level +
+0.6 m (so the flood never crosses it), a channel round the dam's end and a stepped chute to the
+gorge. The trail is the carved ground's own contour 6 m over the water, smoothed, with a 4.8 m
+bench cut along it. Build cost: ~0.7 s in `MacroMap.setup()` (the natural range on a 10 m lattice,
+the level fit and the flood on a 5 m grid), and 30 us more per height inside the box.
+
+**What stands on it** (`LandmarkReservoir`, the "reservoir" landmark): the dam - the upstream face,
+the crest road between two parapets, a cornice, an arcade of round-headed blind arches under it
+(recessed, with jambs, sills, intrados and a drain spout each), a string course, the battered
+downstream face with buttress ribs every second pier, end walls into the rock; pierced balustrade
+panels between posts (one quad a panel; the openings are cut by the shader) under a coping, and a
+cast-iron lantern standard on a pedestal every two bays, staggered between the parapets; two intake
+towers in the lake off the upstream face (a round shaft, a gallery house with windows, a cornice
+and a copper dome with a finial), each on a footbridge from the crest with a steel railing; a gauge
+tower off the west trail with a staff gauge down its face, a hipped hut and a footbridge; the
+spillway's walls, weir, piers and service bridge; the apron at the toe. The materials are one
+shader (reservoir_dam.gdshader + reservoir_concrete.gdshaderinc): board-formed lifts every 1.52 m,
+contraction joints every 15.2 m, lichen blotches; down the downstream face streaks from each bay's
+drain and the joints, lime, rust under the lanterns and damp at the toe; up the upstream face the
+waterline band. The far copy (CityStreamer) and the detailed one share the meshes; the detailed one
+adds one concave collision shape, the lantern lights (`lamp_light`, every second one) and their
+pools, the trail's decomposed granite ribbon, LotFill's chain-link on the lake side and pines up the
+bank. Triangles: water 6.9 k, dam and towers 7.8 k, trim 15.8 k, trail 1.1 k; ~0.55 s to build once
+(the ridge table is most of it).
+
+**The water** (reservoir_water.gdshader) is a mirror traced against a table, because the web build
+and the opengl3 stills have no SSR and a lake's whole look is what it mirrors: per azimuth from the
+lake's middle, the distance and height of the highest ridge in that direction and whether it is the
+dam (`Reservoir.ridge_profile()`); each fragment walks its reflected ray to that ridge with its own
+parallax, so a spur across a cove sits where it should from anywhere on the shore. Sky from
+`sky_tint`; at night the basin's glow low over the dam and the crest's lanterns as streaks the
+ruffle smears. Wind patches, cat's paws, rain rings, a lap at the waterline; the body shoals to silt
+by depth (the mesh carries it). On Forward+ the mirror runs at `mirror_forward` 0.55 with SSR on top.
+
+**The bathtub ring** is painted by the hills' own shader (`reservoir_shore.gdshaderinc` in
+terrain.gdshader; the uniforms are set once by `LandmarkReservoir.apply_ground()`): from the level
+3.6 m up a pale rock-and-silt band with old waterlines and a ragged top, dark silt below, no brush
+on either, only inside the lake's mask. The shells keep off the ring, the trail, the dam and the
+spillway (`Reservoir.shell_marks()`), and the hill planting and Skyline's far oaks keep off the
+water (`keep_clear()`).
+
+**From the basin and the air.** The far copy is always there (CityStreamer's far landmarks); the
+horizon plane's bake paints the flooded cells `BAKE_LAKE` at the carved basin's height, and a second
+crag calm (`calm2_*` in macro_relief.gdshaderinc) keeps the plane's crags from standing through the
+water.
+
+**Checks** (tests/reservoir_checks.gd): the lake held inside its box and upstream of the dam with
+nothing through its water, its middle still HILLS, no step where the carve hands back to the range,
+the dam keyed into ground over its crest at both ends, the foundation and the shelf, the weir over
+the water, the trail on its bench, the landmark's far and detailed copies (shared meshes, collision,
+lights, batches) inside a triangle budget, the terrain material's ring, the mirror's table, the
+shells' marks. Probe: `tools/reservoir/probe.tscn` (`OUT=` a contour map, `SEED=`, `PROBE=`, and a
+WALLS line counting carved cells over 60 degrees against the natural range's).

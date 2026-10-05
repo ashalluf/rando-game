@@ -289,6 +289,21 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 The reservoir in the hills: a lake in a canyon of the front range behind a
+  concrete arch-gravity dam (VISUAL_ROADMAP #59, HANDOFF 9bq).** The form of the reservoir behind
+  the famous sign, with an invented name ("Lake Shallufer"). Decisions worth knowing: the canyon
+  is the range's OWN (a natural gorge west of the sign on the default seed) and the lake is a
+  depression subtracted from the natural mountains along a few authored arms, not a bowl cut
+  to a fixed outline, so the shore follows the range's contours and the banks keep its spurs and
+  gullies; the carve lives at the end of `MacroMap.raw_height_at()` so every consumer of the
+  ground agrees without code of its own; the level is FITTED per seed (bisected until the flood
+  closes inside its box, then checked again with the dam and spillway in the ground), so no seed
+  spills water over a saddle; the dam is an arc fitted to where the ground stands over its crest,
+  and downstream a fill shelf meets the toe, because the natural gorge drops 50 m within 40 m of
+  it; the water mirrors the ridge round the lake from a traced table rather than relying on SSR,
+  so the web build and the opengl3 stills see the hills in it too; the bathtub ring is painted by
+  the shared terrain shader from a lake mask (one include, off everywhere else).
+
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it

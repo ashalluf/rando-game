@@ -842,7 +842,10 @@ func mask_image(size: int, fade: float) -> Image:
 ## 0 north, clockwise seen from above toward +x), the tangent of the highest elevation angle,
 ## 1 where that ridge is the dam, and its distance (for the water's mirror): [tans, dams, dists].
 const N_RIDGE := 48
+var _ridge: Array = []
 func ridge_profile() -> Array:
+	if not _ridge.is_empty():
+		return _ridge
 	var tans := PackedFloat32Array()
 	var dams := PackedFloat32Array()
 	var dists := PackedFloat32Array()
@@ -871,7 +874,8 @@ func ridge_profile() -> Array:
 		tans.append(best)
 		dams.append(is_dam)
 		dists.append(best_d)
-	return [tans, dams, dists]
+	_ridge = [tans, dams, dists]
+	return _ridge
 
 
 ## Where the lake's mirror is measured from: the middle of the wet grid.

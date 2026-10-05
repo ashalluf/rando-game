@@ -71,7 +71,7 @@ float rc_lines(float x, float period, float width) {
 vec4 rc_concrete(vec2 uv, float face, float trim) {
 	float u = uv.x;
 	float v = uv.y;
-	vec3 base = mix(vec3(0.33, 0.31, 0.28), vec3(0.37, 0.355, 0.33), trim);
+	vec3 base = mix(vec3(0.255, 0.24, 0.215), vec3(0.29, 0.278, 0.255), trim);
 	// Pour to pour, block to block: a slow mottle and a tone per block between the joints.
 	float block = rc_hash(vec2(floor(u / 15.2), floor(v / 4.57)));
 	float tone = mix(0.9, 1.07, rc_fbm(uv * vec2(0.08, 0.12))) * mix(0.95, 1.04, block);
@@ -80,6 +80,10 @@ vec4 rc_concrete(vec2 uv, float face, float trim) {
 	float lift = rc_lines(v + 0.2, 1.52, 0.03) * (1.0 - trim);
 	float joint = rc_lines(u, 15.2, 0.05) * (1.0 - trim);
 	vec3 c = base * (tone - grain) * (1.0 - 0.28 * lift - 0.35 * joint);
+	// Lichen and soot in blotches, the weathering every exposed face of 1920s concrete carries.
+	float blot = smoothstep(0.58, 0.8, rc_fbm(uv * 0.35 + 11.0));
+	c = mix(c, c * vec3(0.72, 0.74, 0.66), blot * 0.6);
+	c *= mix(0.96, 1.03, rc_noise(uv * 2.7));
 	float rough = 0.86;
 	if (face > 0.75) {
 		// Downstream: streaks from the drains in each bay and from the joints, long dark ones

@@ -41,6 +41,7 @@ static var _ground_for: Reservoir = null
 static var _dam_mat: ShaderMaterial = null
 static var _rail_mat: ShaderMaterial = null
 static var _water_mat: ShaderMaterial = null
+static var _water_tris: int = 0
 
 
 static func build(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: CityPlan, detailed: bool) -> void:
@@ -111,6 +112,12 @@ static func build(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: 
 	batch.build(parent)
 
 
+## The cached parts (meshes, collision faces, lantern centres, triangle counts, build time) for
+## probes and the smoke test.
+static func parts(res: Reservoir) -> Dictionary:
+	return _parts(res)
+
+
 ## The shared terrain material's bathtub ring (reservoir_shore.gdshaderinc), once per reservoir.
 static func apply_ground(res: Reservoir) -> void:
 	if _ground_for == res:
@@ -167,6 +174,7 @@ static func _parts(res: Reservoir) -> Dictionary:
 	if _cache.has(key):
 		return _cache[key]
 	var t0 := Time.get_ticks_usec()
+	_water_tris = 0
 	var p := {}
 	if _water_mat == null:
 		_water_mat = ShaderMaterial.new()
@@ -179,15 +187,18 @@ static func _parts(res: Reservoir) -> Dictionary:
 	var rm := rail_material()
 	var geo := LandmarkGeo.new()
 	geo.use("dam", dm)
-	var ctx := {"res": res, "geo": geo, "lamps": []}
+	var ctx := {"res": res, "geo": geo, "lamps": [], "bridges": []}
 	_dam_body(ctx)
 	_intake_tower(ctx)
+	# A second, older and smaller tower off the dam's west half.
+	_intake_tower(ctx, 0.36, 15.0, 2.7, 3.4)
 	_spillway(ctx)
 	_apron(ctx)
 	var gauge := _gauge_site(res)
 	if not gauge.is_empty():
 		_gauge_tower(ctx, gauge)
 	p.gauge = gauge
+	p.dam_tris = geo.triangles
 	p.dam = _commit(geo)
 	var coll := geo.collision
 	# The trim: balustrades, lanterns, the footbridge's truss.
@@ -197,6 +208,7 @@ static func _parts(res: Reservoir) -> Dictionary:
 	ctx.geo = tg
 	_parapets(ctx)
 	_footbridge_truss(ctx)
+	p.trim_tris = tg.triangles
 	p.trim = _commit(tg)
 	coll.append_array(tg.collision)
 	# The trail.
@@ -204,6 +216,7 @@ static func _parts(res: Reservoir) -> Dictionary:
 	dg.use("dam", dm)
 	ctx.geo = dg
 	_trail(ctx)
+	p.detail_tris = dg.triangles
 	p.detail = _commit(dg)
 	coll.append_array(dg.collision)
 	p.collision = coll
@@ -235,6 +248,7 @@ static func _parts(res: Reservoir) -> Dictionary:
 	dm.set_shader_parameter("lamp_start", 0.0)
 	dm.set_shader_parameter("lamp_spacing", float(ctx.get("bay", BAY)) * LAMP_EVERY)
 	rm.set_shader_parameter("panel_len", float(ctx.get("panel", 2.4)))
+	p.water_tris = _water_tris
 	p.build_ms = (Time.get_ticks_usec() - t0) / 1000.0
 	_cache[key] = p
 	return p
@@ -294,6 +308,7 @@ static func _water(res: Reservoir) -> ArrayMesh:
 			var e: int = add_node.call(i, j + 1)
 			# Clockwise seen from above (Godot's front face).
 			idx.append_array(PackedInt32Array([a, b, d, a, d, e]))
+	_water_tris = idx.size() / 3
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = verts
@@ -581,28 +596,27 @@ static func _lantern(ctx: Dictionary, base: Vector3, yaw: float) -> void:
 ## The intake tower: a round shaft standing in the lake off the upstream face, a gallery house with
 ## a ring of windows, a cornice and a ribbed copper dome with a finial. Its footbridge's deck and
 ## piers are part of the structure; the truss is trim.
-static func _intake_tower(ctx: Dictionary) -> void:
+static func _intake_tower(ctx: Dictionary, along: float = 0.62, off: float = 24.0, rs: float = 4.2, hh: float = 4.8) -> void:
 	var res: Reservoir = ctx.res
 	var g: LandmarkGeo = ctx.geo
 	var R := Reservoir.DAM_RADIUS
-	var a := lerpf(res.dam_a0, res.dam_a1, 0.62)
-	var r_t := R + 24.0
+	var a := lerpf(res.dam_a0, res.dam_a1, along)
+	var r_t := R + off
 	var c2 := res.arc_point(a, r_t)
 	var c := Vector3(c2.x, 0.0, c2.y)
 	var crest := res.crest
 	var y_f := res.level - 40.0
-	var rs := 4.2
 	g.cylinder("dam", Vector3(c.x, y_f, c.z), rs, crest + 1.0 - y_f, 20, _k(K_FACE, 0.0), -1.0, true, false)
 	# Base course, house, cornice, dome.
 	var y0 := crest + 1.0
 	g.cylinder("dam", Vector3(c.x, y0, c.z), rs + 0.35, 0.6, 20, _k(K_TRIM), -1.0, true)
 	var hw := rs
-	var hh := 4.8
 	g.cylinder("dam", Vector3(c.x, y0 + 0.6, c.z), hw, hh, 20, _k(K_TRIM), -1.0, true, false)
 	# Windows: tall, round-headed in effect (a dark pane with a glass light over it), every other
 	# side of the house, standing a hair proud of the wall.
-	for k in 10:
-		var t := TAU * (float(k) + 0.25) / 10.0
+	var nwin := 10 if rs > 3.5 else 6
+	for k in nwin:
+		var t := TAU * (float(k) + 0.25) / float(nwin)
 		var n := Vector3(cos(t), 0.0, sin(t))
 		var side := Vector3(-n.z, 0.0, n.x)
 		var wc := c + n * (hw + 0.02)
@@ -612,15 +626,16 @@ static func _intake_tower(ctx: Dictionary) -> void:
 			Vector2(0.0, yb), Vector2(1.1, yb), Vector2(1.1, yt), Vector2(0.0, yt), _k(K_GLASS))
 		g.box("dam", wc + n * 0.08 + Vector3(0.0, yb - 0.1, 0.0), Vector3(1.4, 0.18, 0.3), _k(K_TRIM), Basis(Vector3.UP, atan2(-n.x, -n.z)))
 	g.cylinder("dam", Vector3(c.x, y0 + 0.6 + hh, c.z), rs + 0.55, 0.55, 20, _k(K_TRIM), rs + 0.7, true)
-	g.dome("dam", Vector2(c.x, c.z), Vector2(rs + 0.45, rs + 0.45), y0 + 0.6 + hh + 0.55, 3.0, 20, 5, _k(K_ROOF), true)
-	g.cylinder("dam", Vector3(c.x, y0 + hh + 4.1, c.z), 0.45, 0.8, 8, _k(K_ROOF), 0.3)
-	g.cylinder("dam", Vector3(c.x, y0 + hh + 4.9, c.z), 0.1, 1.1, 6, _k(K_BRASS), 0.02)
+	var rise := rs * 0.72
+	g.dome("dam", Vector2(c.x, c.z), Vector2(rs + 0.45, rs + 0.45), y0 + 0.6 + hh + 0.55, rise, 20, 5, _k(K_ROOF), true)
+	g.cylinder("dam", Vector3(c.x, y0 + hh + 1.1 + rise, c.z), 0.45 * rs / 4.2, 0.8, 8, _k(K_ROOF), 0.3 * rs / 4.2)
+	g.cylinder("dam", Vector3(c.x, y0 + hh + 1.9 + rise, c.z), 0.1, 1.1, 6, _k(K_BRASS), 0.02)
 	# The footbridge from the crest to the house: deck and piers.
 	var r_from := R - PARAPET_T
 	var r_to := r_t - hw
 	var hwb := 1.2 / R
 	var yd := crest + PLINTH_H + RAIL_TOP + COPING_H
-	ctx.bridge = [a, r_from, r_to, yd]
+	(ctx.bridges as Array).append([a, r_from, r_to, yd])
 	var ad := a - hwb
 	var ae := a + hwb
 	var out := _out(res, a)
@@ -641,15 +656,18 @@ static func _intake_tower(ctx: Dictionary) -> void:
 
 ## The footbridge's railings: a light steel truss either side of the deck.
 static func _footbridge_truss(ctx: Dictionary) -> void:
-	if not ctx.has("bridge"):
-		return
+	for br: Array in ctx.bridges:
+		_truss(ctx, br)
+
+
+static func _truss(ctx: Dictionary, br: Array) -> void:
 	var res: Reservoir = ctx.res
 	var g: LandmarkGeo = ctx.geo
 	var R := Reservoir.DAM_RADIUS
-	var a: float = ctx.bridge[0]
-	var r_from: float = ctx.bridge[1]
-	var r_to: float = ctx.bridge[2]
-	var yd: float = ctx.bridge[3]
+	var a: float = br[0]
+	var r_from: float = br[1]
+	var r_to: float = br[2]
+	var yd: float = br[3]
 	var out := _out(res, a).normalized()
 	var yaw := atan2(-out.x, -out.z)
 	var length := r_to - r_from

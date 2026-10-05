@@ -1789,6 +1789,9 @@ func _test_city() -> void:
 	# The city at night from the air (tests/night_city_checks.gd): the far traffic and lit-office
 	# hours, the sodium / LED lamp patches near and far, the LOD decks' traffic skin.
 	load("res://tests/night_city_checks.gd").new().run(self, city)
+	# The reservoir in the front range (tests/reservoir_checks.gd): the lake held under its rim, its
+	# shore, dam, spillway and trail on the ground, the far and detailed copies, the bathtub ring.
+	load("res://tests/reservoir_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

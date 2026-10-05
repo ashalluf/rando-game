@@ -29,7 +29,7 @@ void fragment() {
 	} else if (kind == K_ROAD) {
 		// Old patched asphalt between kerbs, oil down the middle of the lane, dust at the edges.
 		float n = rc_fbm(uv * 0.35);
-		alb = vec3(0.055, 0.055, 0.054) * mix(0.8, 1.25, n) * mix(0.9, 1.1, rc_noise(uv * 3.0));
+		alb = vec3(0.085, 0.08, 0.072) * mix(0.8, 1.2, n) * mix(0.9, 1.1, rc_noise(uv * 3.0));
 		float patch = smoothstep(0.62, 0.66, rc_noise(uv * 0.08 + 4.0));
 		alb = mix(alb, vec3(0.035, 0.035, 0.036), patch);
 		alb *= 1.0 - 0.45 * road_wetness;
