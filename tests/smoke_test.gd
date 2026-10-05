@@ -1711,6 +1711,10 @@ func _test_city() -> void:
 	# The big vehicles (tests/big_vehicle_checks.gd): the bus, the box truck and the semi built,
 	# hit, the trailer's swing, the bus lines and stops, a bus at its stop, a queue behind a semi.
 	await load("res://tests/big_vehicle_checks.gd").new().run(self, city)
+	# The second wave of everyday bodies (tests/more_cars_checks.gd): the hatchback, SUV, minivan,
+	# taxi and beater - the roll table, the rng stream, builds, hits, the taxi's sign and fare,
+	# the beater's wear.
+	await load("res://tests/more_cars_checks.gd").new().run(self, city)
 	# The light rail (tests/light_rail_checks.gd): the line's table, timetable, crossings, the
 	# traffic's lane and stop rules, a station chunk, the trains on the track, a strike.
 	await load("res://tests/light_rail_checks.gd").new().run(self, city)

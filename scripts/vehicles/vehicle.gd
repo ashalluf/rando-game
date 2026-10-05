@@ -6,12 +6,14 @@ extends VehicleBody3D
 ## CROSSOVER is last so every older index (and every seed that rolled one) keeps its meaning.
 ## BUS, BOX_TRUCK and SEMI (BigVehicles) come after it for the same reason; random_car() never
 ## rolls them - TrafficManager spawns them on purpose. FIRE_ENGINE and AMBULANCE (Emergency) come
-## last for the same reason: only EmergencyCar builds them.
-enum BodyType { SEDAN, PICKUP, VAN, SPORTS, SUPER, SPIDER, HYPER, TRACK, CROSSOVER, BUS, BOX_TRUCK, SEMI, FIRE_ENGINE, AMBULANCE }
+## last for the same reason: only EmergencyCar builds them. The second wave of everyday bodies
+## (tools/make_more_cars.py: the hatchback, the full-size SUV, the minivan, the taxi, the old
+## beater) comes after them, again so that no older index moves.
+enum BodyType { SEDAN, PICKUP, VAN, SPORTS, SUPER, SPIDER, HYPER, TRACK, CROSSOVER, BUS, BOX_TRUCK, SEMI, FIRE_ENGINE, AMBULANCE, HATCHBACK, SUV, MINIVAN, TAXI, BEATER }
 enum Addon { NONE, ROOF_RACK, SPOILER, LIGHT_BAR }
 
 ## Original names. Nothing here is or imitates a real manufacturer's model.
-const BODY_NAMES := ["Sedan", "Pickup", "Van", "Sports", "Vantari", "Vantari Aperta", "Kestrel", "Kestrel RS", "Crossover", "City Bus", "Box Truck", "Semi", "Fire Engine", "Ambulance"]
+const BODY_NAMES := ["Sedan", "Pickup", "Van", "Sports", "Vantari", "Vantari Aperta", "Kestrel", "Kestrel RS", "Crossover", "City Bus", "Box Truck", "Semi", "Fire Engine", "Ambulance", "Hatchback", "SUV", "Minivan", "Taxi", "Beater"]
 ## Generated body models per type (see docs/ASSETS.md). Missing files fall back to the box car.
 const BODY_MODELS := {
 	BodyType.SEDAN: "res://assets/models/road_sedan.glb",
@@ -28,6 +30,11 @@ const BODY_MODELS := {
 	BodyType.SEMI: "res://assets/models/road_semi.glb",
 	BodyType.FIRE_ENGINE: "res://assets/models/road_fire_engine.glb",
 	BodyType.AMBULANCE: "res://assets/models/road_ambulance.glb",
+	BodyType.HATCHBACK: "res://assets/models/road_hatchback.glb",
+	BodyType.SUV: "res://assets/models/road_suv.glb",
+	BodyType.MINIVAN: "res://assets/models/road_minivan.glb",
+	BodyType.TAXI: "res://assets/models/road_taxi.glb",
+	BodyType.BEATER: "res://assets/models/road_beater.glb",
 }
 ## Belt line (bottom of the side glass, as a fraction of body height) for a single-texture body
 ## whose texture does not darken the windows, so the paint shader finds glass by shape. No body
@@ -40,16 +47,37 @@ const GEO_GLASS_SPAN := {}
 ## street where every fourth car is a hypercar reads as a toy box, and the whole reason they land
 ## is that they are unusual. Must sum to 1000.
 ## The compact crossover is the commonest car on a Los Angeles street, so it takes the largest
-## share, mostly from the sports car and the van.
+## share, mostly from the sports car and the van. The second wave (2026-10-05: hatchbacks,
+## full-size SUVs, minivans, beaters) took 240 from everybody, most from the sports car (145 -> 85:
+## a street where one car in seven is a sports car reads as a showroom) and the panel van.
+## Taxis are not rolled here: a sedan whose look rolls a taxi job (TAXI_SHARE) IS the taxi body, so
+## every seed that parked a taxi still parks one.
 const BODY_ODDS := {
-	BodyType.SEDAN: 250, BodyType.PICKUP: 150, BodyType.VAN: 115, BodyType.SPORTS: 145,
-	BodyType.SUPER: 45, BodyType.SPIDER: 25, BodyType.HYPER: 30, BodyType.TRACK: 20,
-	BodyType.CROSSOVER: 220,
+	BodyType.SEDAN: 210, BodyType.PICKUP: 120, BodyType.VAN: 75, BodyType.SPORTS: 85,
+	BodyType.SUPER: 30, BodyType.SPIDER: 15, BodyType.HYPER: 20, BodyType.TRACK: 15,
+	BodyType.CROSSOVER: 190,
 	# Never rolled: the traffic spawns its buses and trucks on purpose (BigVehicles).
 	BodyType.BUS: 0, BodyType.BOX_TRUCK: 0, BodyType.SEMI: 0,
 	# Nor the emergency apparatus (Emergency sends them).
 	BodyType.FIRE_ENGINE: 0, BodyType.AMBULANCE: 0,
+	BodyType.HATCHBACK: 70, BodyType.SUV: 80, BodyType.MINIVAN: 55, BodyType.TAXI: 0, BodyType.BEATER: 35,
 }
+## How a 0-999 roll maps onto BODY_ODDS: [end of the range (exclusive), type], in roll order. Every
+## old type keeps the START of the range it had before the second wave and gives the end of it to
+## a new type, so a seed's roll that landed on, say, a sedan still lands on a sedan unless it was
+## in the slice the hatchbacks took - what a seed parks moves only where a new type now lands
+## (the smoke test checks this table against BODY_ODDS).
+const ROLL_MAP := [
+	[210, BodyType.SEDAN], [250, BodyType.HATCHBACK],
+	[370, BodyType.PICKUP], [400, BodyType.SUV],
+	[475, BodyType.VAN], [515, BodyType.MINIVAN],
+	[600, BodyType.SPORTS], [630, BodyType.SUV], [660, BodyType.HATCHBACK],
+	[690, BodyType.SUPER], [705, BodyType.BEATER],
+	[720, BodyType.SPIDER], [730, BodyType.MINIVAN],
+	[750, BodyType.HYPER], [760, BodyType.BEATER],
+	[775, BodyType.TRACK], [780, BodyType.MINIVAN],
+	[970, BodyType.CROSSOVER], [990, BodyType.SUV], [1000, BodyType.BEATER],
+]
 ## Where a generated wheel sits in body space, per body type: `x` half-track, `front` / `rear`
 ## the axle positions along the car, `y` the hub height, `r` the tyre radius and `w` the section
 ## width (`rw` for the rear when the car runs a staggered set).
@@ -85,6 +113,12 @@ const WHEEL_POSE := {
 			"axles": [[-3.480, false], [1.520, true]], "dual_x": 0.905, "dual_gap": 0.335},
 	BodyType.AMBULANCE: {"x": 0.870, "front": -2.613, "rear": 1.407, "y": 0.160, "r": 0.380, "w": 0.235, "baked": true,
 			"axles": [[-2.613, false], [1.407, true]], "dual_x": 0.775, "dual_gap": 0.255},
+	# The second wave (tools/make_more_cars.py prints these). The taxi is the sedan's body.
+	BodyType.HATCHBACK: {"x": 0.772, "front": -1.272, "rear": 1.358, "y": 0.148, "r": 0.318, "w": 0.215, "baked": true},
+	BodyType.SUV: {"x": 0.870, "front": -1.653, "rear": 1.417, "y": 0.190, "r": 0.405, "w": 0.275, "baked": true},
+	BodyType.MINIVAN: {"x": 0.852, "front": -1.570, "rear": 1.460, "y": 0.168, "r": 0.358, "w": 0.235, "baked": true},
+	BodyType.TAXI: {"x": 0.797, "front": -1.495, "rear": 1.335, "y": 0.168, "r": 0.345, "w": 0.235, "baked": true},
+	BodyType.BEATER: {"x": 0.745, "front": -1.436, "rear": 1.184, "y": 0.145, "r": 0.310, "w": 0.195, "baked": true},
 }
 ## The sizes above deliberately land on six distinct (radius, section width) pairs across the
 ## eight body types. Every extra pair is another five meshes (one per spoke pattern) times two
@@ -106,6 +140,7 @@ const MODEL_OWN_WHEELS := [BodyType.SUPER, BodyType.HYPER]
 ## the physics forward (owner, 2026-09-20: traffic drove backwards with +PI/2).
 const MODEL_YAW := {BodyType.SPORTS: -PI * 0.5}
 const PAINT_SHADER := preload("res://shaders/car_paint.gdshader")
+const TAXI_SIGN_SHADER := preload("res://shaders/taxi_sign.gdshader")
 
 ## How the paint is built, not what colour it is. The clearcoat shader can express all of these
 ## for free, they are just different uniform sets, and a street where every car is the same
@@ -255,6 +290,32 @@ const SERVICE_BANDS := [
 ]
 const TAXI_PAINT := Color(0.96, 0.73, 0.03)
 const TAXI_TRIM := Color(0.07, 0.07, 0.08)
+## The taxi company, invented (no real cab company's name or colours): its name on the front
+## doors and a fleet number on the rear quarters (TextMesh, like BigVehicles' fleets).
+const TAXI_COMPANY := "BASIN CAB"
+## Where the lettering goes on the taxi body, in body space: the front doors' centre over the
+## checker band, the fleet number on the rear doors, and the letter heights.
+const TAXI_NAME_AT := Vector3(0.912, 0.665, -0.40)
+const TAXI_NUMBER_AT := Vector3(0.912, 0.665, 0.62)
+const TAXI_LETTER_SIZE := 0.085
+## One in this many taxis has a fare on the back seat (CarCabin bit 2).
+const TAXI_FARE_SHARE := 0.62
+## The beater's paint: old single-stage colours, already faded (the shader's wear fades them more).
+const BEATER_PAINTS := [
+	Color(0.36, 0.09, 0.08), Color(0.62, 0.58, 0.49), Color(0.20, 0.27, 0.40), Color(0.80, 0.79, 0.75),
+	Color(0.20, 0.30, 0.22), Color(0.52, 0.53, 0.54), Color(0.42, 0.30, 0.18), Color(0.12, 0.12, 0.13),
+]
+## Its door from another car: what the junkyard had (the colours of other beaters, and primer).
+const BEATER_DOORS := [
+	Color(0.62, 0.58, 0.49), Color(0.20, 0.27, 0.40), Color(0.80, 0.79, 0.75), Color(0.36, 0.09, 0.08),
+	Color(0.42, 0.42, 0.40), Color(0.20, 0.30, 0.22),
+]
+## Where the wear goes on road_beater.glb, in the body MESH's space (x across, y up, z along with
+## the nose at -z; tools/make_more_cars.py's coordinates are (x, -z, y) of these): the left front
+## door between its shut lines, sill to belt (car_paint's wear_door: z0, z1, y0, y1), and a primer
+## patch on the right front wing over the arch (z, y, radius, side).
+const BEATER_DOOR := Vector4(-0.893, 0.180, 0.245, 0.835)
+const BEATER_PRIMER := Vector4(-1.86, 0.62, 0.15, 1.0)
 
 @export_group("Model")
 ## Where the generated model's tire bottoms sit in body space (meters). Raise if the car floats.
@@ -426,6 +487,9 @@ var wheels: Array[VehicleWheel3D] = []
 ## given seeded car always comes back on the same wheels.
 var wheel_style: int = -1
 var wheel_kit: int = -1
+## random_car()'s look seed (0 for a car built any other way): what is per car but not rolled -
+## a taxi's fleet number, a beater's odd door.
+var look_seed: int = 0
 var _wheel_slots: Array = []
 ## One entry per wheel: [steer node, wheel mesh, caliper mesh, flip basis, is front, rest y].
 var _wheel_rigs: Array = []
@@ -986,6 +1050,11 @@ func _build() -> void:
 ## car is kept close to the middle on purpose: that is inside the roof of every one of the four
 ## models whichever way round the mesh was authored.
 func _add_livery_props(dims: Dictionary) -> void:
+	if body_type == BodyType.TAXI and _has_model:
+		# The taxi body carries its own lit sign (the model's taxi_sign slot); what it needs here
+		# is the company's lettering.
+		_add_taxi_lettering()
+		return
 	if livery != Livery.TAXI and livery != Livery.DELIVERY and livery != Livery.SERVICE:
 		return
 	var top := _model_top_y
@@ -1010,6 +1079,27 @@ func _add_livery_props(dims: Dictionary) -> void:
 					WeaponFX.unshaded(Color(1.0, 0.55, 0.06)))
 			node.position = Vector3(0.0, top + 0.06, 0.0)
 	add_child(node)
+
+
+## BASIN CAB on both front doors and the car's fleet number on both rear doors: shared TextMeshes
+## (BigVehicles.text_mesh(), one per string), no shadow, gone past BigVehicles.LETTER_DISTANCE,
+## and not on the web, like the trucks' fleet names.
+func _add_taxi_lettering() -> void:
+	if OS.has_feature("web"):
+		return
+	var number := "%d" % (100 + absi(hash([look_seed, 51])) % 800)
+	for text_at: Array in [[TAXI_COMPANY, TAXI_NAME_AT, TAXI_LETTER_SIZE], [number, TAXI_NUMBER_AT, TAXI_LETTER_SIZE * 1.3]]:
+		var mesh := BigVehicles.text_mesh(String(text_at[0]), float(text_at[2]), TAXI_TRIM)
+		var at: Vector3 = text_at[1]
+		for side: float in [1.0, -1.0]:
+			var mi := MeshInstance3D.new()
+			mi.name = "Lettering"
+			mi.mesh = mesh
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mi.visibility_range_end = BigVehicles.LETTER_DISTANCE
+			mi.basis = Basis(Vector3.UP, PI * 0.5 * side)
+			mi.position = Vector3(side * at.x, at.y, at.z)
+			add_child(mi)
 
 
 ## A BoxMesh carrying its own material, built once and shared by every car that wants it.
@@ -1471,6 +1561,14 @@ func _dims() -> Dictionary:
 		BodyType.AMBULANCE:
 			return {"length": 6.974, "width": 2.35, "lamp_y": 0.595, "tail_y": 0.92, "chassis_h": 0.9, "cabin": Vector2(-3.4, 6.9), "cabin_h": 1.3, "wheel_z": 2.0, "wheel_front": 2.613, "wheel_rear": 1.407, "track": 1.74, "tyre_r": 0.35, "ride": -0.199, "road": -0.220,
 					"letter_at": Vector3(1.178, 1.55, 2.037), "letter_size": 0.20}
+		BodyType.HATCHBACK:
+			return {"length": 4.358, "width": 1.835, "lamp_y": 0.49, "tail_y": 0.78, "chassis_h": 0.7, "cabin": Vector2(-1.0, 2.3), "cabin_h": 0.7, "wheel_z": 1.31, "wheel_front": 1.272, "wheel_rear": 1.358, "track": 1.54, "tyre_r": 0.343, "ride": -0.153, "road": -0.170}
+		BodyType.SUV:
+			return {"length": 5.506, "width": 2.10, "lamp_y": 0.865, "tail_y": 1.115, "chassis_h": 0.85, "cabin": Vector2(-1.2, 3.4), "cabin_h": 0.9, "wheel_z": 1.54, "wheel_front": 1.653, "wheel_rear": 1.417, "track": 1.74, "tyre_r": 0.382, "ride": -0.193, "road": -0.215}
+		BodyType.MINIVAN:
+			return {"length": 5.181, "width": 2.02, "lamp_y": 0.66, "tail_y": 1.11, "chassis_h": 0.8, "cabin": Vector2(-1.6, 3.6), "cabin_h": 0.9, "wheel_z": 1.52, "wheel_front": 1.570, "wheel_rear": 1.460, "track": 1.70, "tyre_r": 0.352, "ride": -0.171, "road": -0.190}
+		BodyType.BEATER:
+			return {"length": 4.793, "width": 1.76, "lamp_y": 0.435, "tail_y": 0.635, "chassis_h": 0.7, "cabin": Vector2(-1.0, 2.3), "cabin_h": 0.65, "wheel_z": 1.31, "wheel_front": 1.436, "wheel_rear": 1.184, "track": 1.49, "tyre_r": 0.329, "ride": -0.148, "road": -0.165}
 		BodyType.SPORTS:
 			return {"length": 4.6, "width": 1.9, "chassis_h": 0.55, "cabin": Vector2(-0.9, 2.0), "cabin_h": 0.55, "wheel_z": 1.45, "track": 1.64, "tyre_r": 0.34, "ride": -0.30}
 		BodyType.SUPER, BodyType.SPIDER:
@@ -1478,7 +1576,7 @@ func _dims() -> Dictionary:
 		BodyType.HYPER, BodyType.TRACK:
 			return {"length": 4.6, "width": 2.02, "chassis_h": 0.48, "cabin": Vector2(-0.6, 1.5), "cabin_h": 0.48, "wheel_z": 1.35, "track": 1.74, "tyre_r": 0.36, "ride": -0.35}
 		_:
-			# The sedan. length / width / lamp heights are the model's own
+			# The sedan, and the taxi (the sedan's body with its roof sign). length / width / lamp heights are the model's own
 			# (tools/make_road_cars.py prints them), so it is drawn at scale 1; the physics
 			# numbers are the old ones, which the handling and the smoke test's drives are tuned on.
 			return {"length": 4.946, "width": 1.84, "lamp_y": 0.453, "tail_y": 0.775, "chassis_h": 0.7, "cabin": Vector2(-1.0, 2.4), "cabin_h": 0.7, "wheel_z": 1.5, "track": 1.62, "tyre_r": 0.34, "ride": -0.158, "road": -0.177}
@@ -1644,6 +1742,10 @@ func _cabin_seats() -> int:
 	if body_type == BodyType.BUS:
 		# The driver alone up front; the passengers are the bus's rows (CarCabin).
 		return 1
+	if body_type == BodyType.TAXI:
+		# The cabbie alone up front, and most of the time a fare on the bench behind the
+		# passenger seat (bit 2).
+		return 5 if absi(hash([_occupant_seed, 61])) % 1000 < int(TAXI_FARE_SHARE * 1000.0) else 1
 	return 3 if CarCabin.npc_look(_occupant_seed).passenger else 1
 
 
@@ -1668,7 +1770,7 @@ func _update_occupant(force: bool = false) -> void:
 	var seats := _cabin_seats()
 	var key := seats
 	if seats != 0:
-		key = seats | ((2 if driver != null else 1) << 2) | ((_occupant_seed & 0xffffff) << 4)
+		key = seats | ((2 if driver != null else 1) << 3) | ((_occupant_seed & 0xffffff) << 5)
 	if key == _occupant_key and not force:
 		return
 	_occupant_key = key
@@ -1793,6 +1895,13 @@ static func _part_material(src: StandardMaterial3D) -> Material:
 			pm.shader = sh
 			_part_mats[slot] = pm
 		return _part_mats[slot]
+	if slot == "taxi_sign":
+		# The taxi's roof sign: lettered and lit by lamp_factor (shaders/taxi_sign.gdshader).
+		if not _part_mats.has(slot):
+			var tm := ShaderMaterial.new()
+			tm.shader = TAXI_SIGN_SHADER
+			_part_mats[slot] = tm
+		return _part_mats[slot]
 	if slot != "chrome" or PropFactory.has_reflections():
 		return null
 	if not _part_mats.has(slot):
@@ -1826,6 +1935,15 @@ func _paint_material(albedo: Texture2D, normal: Texture2D) -> ShaderMaterial:
 	if float(f.pearl) > 0.0:
 		mat.set_shader_parameter("pearl_amount", f.pearl)
 		mat.set_shader_parameter("pearl_color", _pearl_tint(paint))
+	if body_type == BodyType.BEATER:
+		mat.set_shader_parameter("wear", 1.0)
+		mat.set_shader_parameter("wear_door", BEATER_DOOR)
+		mat.set_shader_parameter("wear_door_side", -1.0)
+		var door: Color = BEATER_DOORS[absi(hash([look_seed, paint, 41])) % BEATER_DOORS.size()]
+		if door.is_equal_approx(paint):
+			door = BEATER_DOORS[(BEATER_DOORS.find(door) + 1) % BEATER_DOORS.size()]
+		mat.set_shader_parameter("wear_door_color", door)
+		mat.set_shader_parameter("wear_primer", BEATER_PRIMER)
 	var g: Dictionary = LIVERY_GRAPHIC.get(livery, {})
 	if not g.is_empty():
 		mat.set_shader_parameter("stripe_mode", g.mode)
@@ -1866,11 +1984,9 @@ func _box(size: Vector3, pos: Vector3, color: Color, collide: bool, glow: bool =
 ## A seeded random car: body type, add-on, paint, finish and livery.
 ## Maps a 0-999 roll onto a body type through BODY_ODDS.
 static func _body_for_roll(roll: int) -> BodyType:
-	var run := 0
-	for t: int in BODY_ODDS:
-		run += int(BODY_ODDS[t])
-		if roll < run:
-			return t as BodyType
+	for row: Array in ROLL_MAP:
+		if roll < int(row[0]):
+			return row[1] as BodyType
 	return BodyType.SEDAN
 
 
@@ -1900,6 +2016,9 @@ static func random_car(rng: RandomNumberGenerator) -> Vehicle:
 	match type:
 		BodyType.SEDAN:
 			if job < TAXI_SHARE:
+				# The taxi is its own body (the sedan with its roof sign, BASIN CAB's lettering
+				# and a fare in the back), on the same roll the sedan's taxi livery always had.
+				type = BodyType.TAXI
 				livery = Livery.TAXI
 				color = TAXI_PAINT
 				trim = TAXI_TRIM
@@ -1921,7 +2040,12 @@ static func random_car(rng: RandomNumberGenerator) -> Vehicle:
 				trim = SERVICE_BANDS[kind]
 				fin = Finish.GLOSS
 				extra = Addon.NONE
-	if livery == Livery.NONE:
+		BodyType.BEATER:
+			# An old single-stage paint, faded (the paint shader's wear does the rest).
+			color = BEATER_PAINTS[absi(hash([look, 14])) % BEATER_PAINTS.size()]
+			fin = Finish.GLOSS
+			extra = Addon.NONE
+	if livery == Livery.NONE and type != BodyType.BEATER:
 		var graphic := _roll(look, 21)
 		var racing := RACING_SHARE_SPORTS if type == BodyType.SPORTS else RACING_SHARE_OTHER
 		if graphic < racing:
@@ -1933,6 +2057,7 @@ static func random_car(rng: RandomNumberGenerator) -> Vehicle:
 	# Off the look seed, so it costs no rng call and cannot move anything else in the city.
 	car.wheel_style = absi(hash([look, 31])) % PropFactory.WHEEL_FACES.size()
 	car.wheel_kit = absi(hash([look, 33])) % PropFactory.WHEEL_KITS.size()
+	car.look_seed = look
 	return car
 
 
