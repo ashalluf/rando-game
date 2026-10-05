@@ -8647,7 +8647,24 @@ spot validity and corridor ~1.0 s), both on the loading screen.
 dishes and dirt in FULL chunks). The far node is three meshes (wires - a surface per 60,000 vertices -, solids, lights).
 
 **Stills** (shots/ridges; opengl3 via tools/ridges/ridge_shot.tscn, not the Mac's Forward+):
-STILLS
+- `ridges_line_over_ridge_golden_hour.jpg` (+ `_BEFORE`, `RIDGES=0`): `TOWER=5 DIST=95 AZ=283 UP=6
+  AIM=0.75 FOV=62 GROUND=1 BLOCKS=2 LOD=5 -- --hour=17.7`.
+- `ridges_antenna_farm_from_basin_2200.jpg` (+ `_BEFORE`): `EYE=2350,210,-150,1.1,3.5 FOV=32 -- --hour=22`.
+- `ridges_tower_close_up.jpg`, `ridges_fire_road_from_the_air.jpg`, `ridges_substation.jpg` (`SUB=1`),
+  `ridges_antenna_farm_day.jpg` (`MAST=0`).
+- After the wave-2 merge with fleet/base: `10_merged_*` .. `14_merged_*` (same views, the commands in
+  the branch's README).
+
+**Wave 2 update (merged with fleet/base).** Conflicts were only the appended docs and the smoke
+test's check list. Fixed on review: the guy anchors' and far huts' boxes were built with
+`Basis(...).scaled()` (scale after the turn: sheared parallelograms), now rotation times scale; the
+new full-screen map (map_painter.gd) drew every ridge pad as an asphalt blob and every fire road as
+a canyon road - pads are skipped, fire roads drawn 1.5 m wide and only zoomed in. Frame cost after
+the merge (`still_shot.gd` GEO, opengl3, 1280x720, `RIDGES=0` / on): the river by the substation
+(`EYE=4560,2,3340,-58,22`, 11:00) 1.051 M / 496 -> 1.132 M / 521; the line on the east range
+(`EYE=5489,175,3383,-77,8`, 17:42; the old y 30 is inside the mountain - still_shot's EYE y is
+absolute) 0.410 M / 96 -> 0.459 M / 100. The full smoke test: 1,378 of 1,379 (the known minimap
+closed-road check), peak RSS 3.18 GB, but 1,255 s on this box, past headless_check.sh's 900 s timeout.
 
 **Not done / not verified.** Forward+ (the Mac) not seen: the wire glint, the galvanised steel and
 the porcelain under AgX, TAA on the fine lines. The farm is on the 239 m summit north of downtown,
