@@ -14,12 +14,15 @@ branches: memory, load time, shader warm-up, occluders, gate shards, scooters, t
 effects, civic buildings, ...), batch 6 (road wear, Chinatown, the historic core, the film
 studio, night estates, churches, utility poles, police stations at night, the hourly grade,
 street errands, reference cameras), batch 7 (the marketplace lane, shop-window vinyl, roadside
-businesses) and batch 8 (street signs as real models, five street lamp types). Apartments and
-tower gondolas are what is left of the started sessions (docs/HANDOFF.md 0000000).
+businesses) and batch 8 (street signs as real models, five street lamp types), plus the fixes
+for CI runs 355-357 (a turning car's room in its new lane, errands never parking a placed car,
+the car lights check's pick race). Apartments and tower gondolas are what is left of the started
+sessions (docs/HANDOFF.md 0000000).
 `SHARDS=3 tests/headless_check.sh` runs the smoke test in three processes (~10 min, ~2.4 GB each).
-A fleet of 100 sessions is running (`fleet/brief`: BRIEF.md, tasks.tsv, sessions.tsv; each on
-`wt/<slug>`, stills on `shots/<slug>`). Start at docs/HANDOFF.md section 0000000; the fleet
-tooling is in `tools/fleet/`.
+A fleet of 100 sessions was started (`fleet/brief`: BRIEF.md, tasks.tsv, sessions.tsv; each on
+`wt/<slug>`, stills on `shots/<slug>`); 61 of them are paused by the account's usage limit and
+wait for the owner. Start at docs/HANDOFF.md section 0000000; the fleet tooling is in
+`tools/fleet/`.
 
 ## Project summary
 

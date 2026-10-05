@@ -126,6 +126,15 @@ The owner asked for "100 parallel agents, Opus 5.5 strictly, screenshots along t
   the checks'. With it, traffic-ai's fix for CI 355 (`e8ae24d1`: a car turns in only clear of
   both ends of the cars in its new lane; `c13255ab`: the street-life queue check skips a parked
   car still waiting to pull out). `city_crowd` 112/0; plain gate before the push.
+- **CI 357 failed the car lights budget check** (2 of 3 lit): CarLights picks every 0.15 s of
+  game time, and a pick that fell before one of the check's cars had ticked its lamps on left a
+  slot empty past the check's fixed 40 frames. The check now forces a pick once its cars stand
+  lit and waits for the slots (`b857b521`). **CI 358 was cancelled** 15 minutes in with no log
+  (no timeout or concurrency in the workflow: a lost runner or a manual cancel). The token can
+  neither re-run a job nor dispatch the workflow (403), so this docs commit runs CI again.
+- **Four CI runs in a row (355-358) each tripped a different rare timing check**, all in tests,
+  none in play. When the next one does, look first for a live system (errands, pull-outs, the
+  pick and survey timers) acting on what a check placed, before suspecting the feature.
 - **Waiting:** apartments (walk-ups read as flat stucco boxes) and tower-gondolas (share towers
   with Rooftops' window-washing rig) were stopped by the usage limit and not resumed. Notes from
   the sessions: HillHomeKit's far walls read pale under moonlight (estate-night: a lamp_factor dim
