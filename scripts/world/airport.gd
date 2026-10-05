@@ -624,6 +624,19 @@ static func _paint_apron(ch: CityChunk, area: Rect2, macro: MacroMap) -> void:
 		# Lead-in line from the taxiway edge to the nose stop, and the stop bar across it.
 		var out := nose + n * ((tz - 1.0 - nose.y) / maxf(n.y, 0.2))
 		_line(ch, area, out, nose - n * 1.5, 0.16, top, YELLOW)
+		# The lead-in curve from the taxiway centre line (eastbound) onto it: the very route the
+		# arriving jets taxi (AirportGround.lead_in_route()), drawn up to the taxiway's edge.
+		var lead := AirportGround.lead_in_route(macro, g)
+		var prev_q: Vector2 = lead.xz[0]
+		var qi := 2
+		while qi < lead.xz.size():
+			var q: Vector2 = lead.xz[qi]
+			if q.y < tz - 1.0:
+				break
+			if absf(q.y - macro.taxiway_z) > 0.3:
+				_line(ch, area, prev_q, q, 0.16, TAXI_TOP if q.y > tz else top, YELLOW)
+			prev_q = q
+			qi += 2
 		_line(ch, area, nose - n * 1.5 - t * 2.2, nose - n * 1.5 + t * 2.2, 0.3, top, YELLOW)
 		# Stand number, read from the taxiway looking at the building.
 		_paint_text(ch, area, g.number, nose + n * 46.0, Vector2(n.y, -n.x), -n, 2.8, top, YELLOW)
@@ -811,7 +824,9 @@ static func _fixtures(ch: CityChunk, area: Rect2, macro: MacroMap) -> void:
 ## truck lifted to the rear door, a fuel truck under the wing, a power unit and cones. Which of the
 ## trucks attend a gate is its `service` roll; the positions are the stand's own frame.
 static func _gate_service(ch: CityChunk, area: Rect2, seed_value: int) -> void:
-	for g in gates():
+	var gs := gates()
+	for gi in gs.size():
+		var g: Dictionary = gs[gi]
 		var centre: Vector2 = g.centre
 		if not area.has_point(centre):
 			continue
@@ -821,8 +836,14 @@ static func _gate_service(ch: CityChunk, area: Rect2, seed_value: int) -> void:
 		# The stand's frame: x toward the jet's right (+t), z from the nose toward the tail (+n).
 		var basis := Basis(Vector3(t.x, 0.0, t.y), Vector3.UP, Vector3(n.x, 0.0, n.y))
 		var variant: int = 4 if bool(g.empty) else int(g.service)
-		ch._batch.add("ap_gate_%d" % variant, AirportKit.gate_set(variant), Transform3D(basis, Vector3(nose.x, 0.1, nose.y)))
+		var set_xf := Transform3D(basis, Vector3(nose.x, 0.1, nose.y))
+		var idx := ch._batch.add("ap_gate_%d" % variant, AirportKit.gate_set(variant), set_xf)
 		ch._batch.set_shadow_distance("ap_gate_%d" % variant, 160.0)
+		# AirportGround shows the set only while a jet stands parked here (and swaps it while
+		# nobody looks); the batch lifts its instances by the relief, so the stored copy is too.
+		if ch._batch.ground.is_valid():
+			set_xf.origin.y += float(ch._batch.ground.call(nose.x, nose.y))
+		AirportGround.register_gate_set(ch, "ap_gate_%d" % variant, idx, gi, set_xf, ch.plan.macro)
 	_staging(ch, area, seed_value)
 	_crew(ch, area, seed_value)
 

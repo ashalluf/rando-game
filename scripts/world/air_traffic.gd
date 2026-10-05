@@ -58,7 +58,9 @@ extends Node3D
 @export var max_descent_deg: float = 5.0
 @export_group("Departure")
 ## How far in from the east end of the runway a departure lines up (the hangars stand on it).
-@export var lineup_inset: float = 135.0
+## 175: the taxiing departures (AirportGround) come down the east connector (x -40) and turn
+## onto the runway, so the line-up spot is just west of that turn.
+@export var lineup_inset: float = 175.0
 ## Climb gradient after lift-off (degrees), and where the climb-out turn starts (world x).
 @export var climb_deg: float = 8.0
 @export var turn_out_x: float = -1700.0
@@ -124,6 +126,8 @@ var news_focus: Vector3 = Vector3.INF
 var forced_stars: int = -1
 ## Times a police helicopter has reported the player to the wanted system (tests read it).
 var sightings: int = 0
+## The airport's ground traffic: taxiing jets, the stands, the apron vehicles (AirportGround).
+var ground: AirportGround
 
 var _ready_done: bool = false
 var _rng := RandomNumberGenerator.new()
@@ -201,6 +205,10 @@ func _setup() -> bool:
 	runway_top = macro.tarmac_top + 0.04
 	_measure_landmarks(city)
 	_build_routes()
+	ground = AirportGround.new()
+	ground.name = "AirportGround"
+	add_child(ground)
+	ground.setup(self)
 	_ready_done = true
 	_populate()
 	return true
@@ -529,7 +537,12 @@ func helicopters(role: int = -1) -> Array[Helicopter]:
 
 
 func _room() -> bool:
-	return crafts().size() < max_aircraft
+	# Jets taxiing or standing at the airport are AirportGround's to count (max_ground_jets).
+	var n := 0
+	for c in crafts():
+		if not (c is AmbientJet and (c as AmbientJet).on_stand_or_taxi()):
+			n += 1
+	return n < max_aircraft
 
 
 func _schedule(dt: float) -> void:
@@ -542,8 +555,12 @@ func _schedule(dt: float) -> void:
 			var k := Aircraft.Kind.PRIVATE if _rng.randf() < private_share else Aircraft.Kind.AIRLINER
 			spawn_arrival(k, -1.0, "arrival_south" if _rng.randf() < 0.6 else "arrival_southwest")
 	if _departure_timer <= 0.0:
-		if _room() and _count_jets(AmbientJet.Plan.DEPARTURE) < max_departures:
-			if _lineup_hidden():
+		# An airliner pushing back from a stand first (AirportGround): the departure taxis out
+		# and lines up itself.
+		if ground and _count_jets(AmbientJet.Plan.DEPARTURE) < max_departures and _rng.randf() >= private_share and ground.request_departure():
+			_departure_timer = departure_interval + _rng.randf_range(-interval_jitter, interval_jitter)
+		elif _room() and _count_jets(AmbientJet.Plan.DEPARTURE) < max_departures:
+			if _lineup_hidden() and (ground == null or ground.lineup_free()):
 				_departure_timer = departure_interval + _rng.randf_range(-interval_jitter, interval_jitter)
 				var k := Aircraft.Kind.PRIVATE if _rng.randf() < private_share else Aircraft.Kind.AIRLINER
 				spawn_departure(k, 0.0, _rng.randf() < 0.5)
@@ -566,7 +583,7 @@ func _schedule(dt: float) -> void:
 func _count_jets(p: int) -> int:
 	var n := 0
 	for c in crafts():
-		if c is AmbientJet and (c as AmbientJet).plan == p:
+		if c is AmbientJet and (c as AmbientJet).plan == p and not (c as AmbientJet).on_stand_or_taxi():
 			n += 1
 	return n
 
@@ -614,6 +631,34 @@ func spawn_arrival(kind: Aircraft.Kind, s: float = -1.0, route_name: String = "a
 	var aim: float = r.marks.aim
 	var d := 0.0 if s < 0.0 else clampf(aim - s, 0.0, r.length)
 	return _add_jet(kind, AmbientJet.Plan.ARRIVAL, r, d)
+
+
+## Where a departure lines up (TRUE world XZ): the start of the departure routes.
+func departure_start() -> Vector2:
+	var zs := macro.runway_zs
+	return Vector2(macro.airport_rect.end.x - lineup_inset, zs[clampi(macro.departure_runway, 0, zs.size() - 1)])
+
+
+## A jet standing on the field for AirportGround to drive: drawn at once (no fade, so it can take
+## a parked instance's place seamlessly), engines off, at `at` (TRUE world) facing `yaw`.
+func spawn_ground_jet(kind: Aircraft.Kind, livery: int, at: Vector3, yaw: float) -> AmbientJet:
+	var jet := AmbientJet.new()
+	_serial += 1
+	jet.name = "Jet%d" % _serial
+	jet.traffic = self
+	jet.livery = livery
+	jet.setup(kind, AmbientJet.Plan.DEPARTURE, routes["departure_%d_left" % kind], 0.0, _rng.randi())
+	jet.fade = 0.0
+	jet.phase = AmbientJet.Phase.PARKED
+	jet.world_pos = at
+	jet.yaw = yaw
+	jet.pitch = 0.0
+	jet.roll = 0.0
+	_place_before_entry(jet)
+	add_child(jet)
+	jet.park()
+	_crafts.append(jet)
+	return jet
 
 
 ## A departure `d` metres along its route (0: lined up, fading in).
@@ -825,6 +870,10 @@ func stage(kind: String, cam: Camera3D, dist: float, side: float = 0.0) -> Ambie
 					best = d
 				d += 10.0
 			return _shown(spawn_arrival(Aircraft.Kind.AIRLINER, aim - best, "arrival_south"))
+		"taxi", "pushback", "apron":
+			# The airport's ground (AirportGround.stage()): `dist` is seconds into the move, `side`
+			# the stand.
+			return ground.stage(kind, int(side), dist) if ground else null
 		"takeoff":
 			var name := "departure_%d_left" % Aircraft.Kind.AIRLINER
 			return _shown(spawn_departure(Aircraft.Kind.AIRLINER, float(routes[name].marks.liftoff) + dist, true))
@@ -864,6 +913,8 @@ func _shown(c: AmbientCraft) -> AmbientCraft:
 
 ## Clears the sky (tests, stills).
 func clear_all() -> void:
+	if ground:
+		ground.clear()
 	for c in crafts():
 		c.remove()
 	_crafts.clear()

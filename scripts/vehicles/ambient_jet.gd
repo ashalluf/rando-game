@@ -9,7 +9,9 @@ extends AmbientCraft
 ## Uses the same models as the flyable Aircraft (Aircraft.MODELS).
 
 enum Plan { ARRIVAL, DEPARTURE, CROSSING }
-enum Phase { LINEUP, ROLL, AIRBORNE, FLARE, ROLLOUT, TAXI }
+## GROUND: driven along AirportGround's taxi legs (to a gate, a pushback, out to the runway);
+## PARKED: standing at a gate, engines off.
+enum Phase { LINEUP, ROLL, AIRBORNE, FLARE, ROLLOUT, TAXI, GROUND, PARKED }
 
 @export_group("Approach")
 ## Speed on the downwind leg, on the turn to final, over the threshold and at touchdown (m/s).
@@ -45,6 +47,15 @@ enum Phase { LINEUP, ROLL, AIRBORNE, FLARE, ROLLOUT, TAXI }
 ## How fast the bank follows the turn (1/s) and the most it banks (degrees).
 @export var bank_rate: float = 1.4
 @export var max_bank: float = 30.0
+@export_group("Ground")
+## Taxi speed on a straight (m/s, about 16 knots), the sideways acceleration a turn is taken at
+## (m/s^2: a 25 m lead-in is 4.7 m/s), and how hard it speeds up and brakes on the ground.
+@export var ground_speed: float = 8.0
+@export var turn_accel: float = 0.9
+@export var ground_accel: float = 0.6
+@export var ground_brake: float = 1.2
+## Pushback speed (m/s).
+@export var push_speed: float = 1.3
 
 var kind: Aircraft.Kind = Aircraft.Kind.AIRLINER
 var plan: Plan = Plan.ARRIVAL
@@ -58,6 +69,11 @@ var wingspan: float = 36.0
 ## Where the wheels met the runway, TRUE world (INF until they have). Read by the smoke test.
 var touchdown_world: Vector3 = Vector3.INF
 var runway_y: float = 0.14
+## Off: no heat shimmer behind the engines (the A/B; it is off on the web regardless).
+static var shimmer_enabled: bool = true
+## Heat shimmer is drawn within this distance of the camera (m).
+static var shimmer_range: float = 260.0
+static var _shimmer_shader: Shader = null
 
 var _h: float = 0.0
 var _vs: float = 0.0
@@ -66,6 +82,21 @@ var _vs_entry: float = 0.0
 var _hold_left: float = 0.0
 var _model_height: float = 8.0
 var _since_touchdown: float = 0.0
+## The airliner livery (0..Airport.LIVERIES - 1); -1 rolls one.
+var livery: int = -1
+## Ground legs (AirportGround.leg()): each {route, reverse, vmax, stop, tag, wait, prof}; the
+## leg being driven, and its distance in `d`. `ground_done` is called when the last one ends.
+var ground_legs: Array = []
+var ground_leg: int = 0
+var ground_done: Callable
+## Seconds left standing at the start of the current leg.
+var ground_wait: float = 0.0
+## 0 off .. 1 take-off thrust: the engine sound and the heat behind them follow it.
+var engine_level: float = 0.0
+var _shimmers: Array[MeshInstance3D] = []
+var _asked_ground: bool = false
+var _leg_entered: bool = false
+var _shimmer_mat: ShaderMaterial = null
 
 
 ## Sets the kind and the plan before the jet enters the tree. `start_d` is where along the route
@@ -186,10 +217,13 @@ func _build_model() -> void:
 		if kind == Aircraft.Kind.AIRLINER:
 			# An invented airline's livery, painted from the model's own shape (the model's
 			# texture reads as camouflage): AirportTerminal.livery_material().
-			var livery := AirportTerminal.livery_material(_rng.randi() % Airport.LIVERIES)
+			if livery < 0:
+				livery = _rng.randi() % Airport.LIVERIES
+			var livery_mat := AirportTerminal.livery_material(livery)
 			for mi in inst.find_children("*", "MeshInstance3D", true, false):
-				(mi as MeshInstance3D).material_override = livery
+				(mi as MeshInstance3D).material_override = livery_mat
 	_adopt_meshes(_visual)
+	_build_shimmer()
 	var h := _model_height
 	_box_shape(Vector3(length * 0.12, length * 0.12, length * 0.92), Vector3(0.0, h * 0.34, 0.0))
 	_box_shape(Vector3(wingspan, length * 0.035, length * 0.18), Vector3(0.0, h * 0.24, length * 0.06))
@@ -235,6 +269,15 @@ func _approach_speed(s: float) -> float:
 
 
 func _fly(dt: float) -> void:
+	if phase == Phase.GROUND or phase == Phase.PARKED:
+		_fly_ground(dt)
+		if done:
+			return
+		if fading_out and _step_fade(dt):
+			_finish()
+		elif not fading_out and fade > 0.0:
+			_step_fade(dt)
+		return
 	match plan:
 		Plan.ARRIVAL:
 			_fly_arrival(dt)
@@ -249,6 +292,7 @@ func _fly(dt: float) -> void:
 				_leave()
 	if done:
 		return
+	_update_shimmer()
 	if fading_out and _step_fade(dt):
 		_finish()
 	elif not fading_out and fade > 0.0:
@@ -313,14 +357,23 @@ func _fly_arrival(dt: float) -> void:
 			pitch = lerp_angle(pitch, 0.0, 1.0 - exp(-1.3 * dt))
 			# Reverse thrust roars for the first seconds of the roll.
 			set_engine(3.0 if _since_touchdown < 5.0 else -4.0, 1.08 if _since_touchdown < 5.0 else 0.8)
+			engine_level = 0.8 if _since_touchdown < 5.0 else 0.35
 			_along_runway(dt)
 			if speed <= taxi_speed + 0.05:
 				phase = Phase.TAXI
 		Phase.TAXI:
 			speed = move_toward(speed, taxi_speed, 2.0 * dt)
 			set_engine(-9.0, 0.72)
+			engine_level = 0.3
 			set_landing_lights(false)
 			_along_runway(dt)
+			# AirportGround takes an airliner off the runway to a free gate (once it has rolled
+			# out); with no gate free, or the way blocked, it fades out at the runway end as before.
+			if not _asked_ground:
+				_asked_ground = true
+				var ctl := _ground_ctl()
+				if ctl and ctl.claim_arrival(self):
+					return
 			if d >= float(route.marks.get("fade_start", route.length - 60.0)):
 				fading_out = true
 			if d >= route.length - 0.5:
@@ -333,11 +386,15 @@ func _fly_departure(dt: float) -> void:
 	match phase:
 		Phase.LINEUP:
 			set_engine(-10.0, 0.7)
+			engine_level = 0.3
 			set_landing_lights(true)
 			_along_runway(0.0)
 			velocity = Vector3.ZERO
 			pitch = 0.0
-			if fade < 0.001:
+			set_ground_lights(true, true)
+			var ctl := _ground_ctl()
+			# Held while an arrival crosses the runway it is about to roll down.
+			if fade < 0.001 and not (ctl and ctl.runway_held_for(self)):
 				_hold_left -= dt
 				if _hold_left <= 0.0:
 					phase = Phase.ROLL
@@ -345,6 +402,7 @@ func _fly_departure(dt: float) -> void:
 			speed += roll_accel * dt
 			var spool := clampf(speed / liftoff_speed, 0.0, 1.0)
 			set_engine(lerpf(-2.0, 4.0, spool), lerpf(0.85, 1.1, spool))
+			engine_level = lerpf(0.6, 1.0, spool)
 			_along_runway(dt)
 			# The nose comes up over the last few metres per second before lift-off.
 			var rot := clampf((speed - (liftoff_speed - 7.0)) / 7.0, 0.0, 1.0)
@@ -367,13 +425,208 @@ func _fly_departure(dt: float) -> void:
 					_leave()
 
 
+# --- On the ground (AirportGround) ---------------------------------------------------------
+
+## On the field under AirportGround's control (taxiing, pushing, at a stand), not yet a departure
+## lined up or an arrival rolling out.
+func on_stand_or_taxi() -> bool:
+	return phase == Phase.GROUND or phase == Phase.PARKED
+
+
+func _ground_ctl() -> AirportGround:
+	if traffic == null:
+		return null
+	var g: Variant = traffic.get("ground")
+	return g as AirportGround
+
+
+## Drives `legs` from the start of the first (AirportGround builds them; `on_done` is called
+## when the last one ends, with the jet standing).
+func start_ground(legs: Array, on_done: Callable = Callable()) -> void:
+	ground_legs = legs
+	ground_leg = 0
+	ground_done = on_done
+	d = 0.0
+	phase = Phase.GROUND
+	ground_wait = float(legs[0].get("wait", 0.0)) if not legs.is_empty() else 0.0
+	_leg_entered = false
+	set_landing_lights(false)
+	set_ground_lights(engine_level > 0.05, false)
+
+
+## Standing at a gate, engines off, lights out but the nav lights.
+func park() -> void:
+	phase = Phase.PARKED
+	speed = 0.0
+	velocity = Vector3.ZERO
+	ground_legs = []
+	engine_level = 0.0
+	set_ground_lights(false, false)
+	set_landing_lights(false)
+
+
+## Beacons (red, while the engines run) and strobes (white, on the runway).
+func set_ground_lights(beacon: bool, strobe: bool) -> void:
+	if _light_mat:
+		_light_mat.set_shader_parameter("beacon_on", 1.0 if beacon else 0.0)
+		_light_mat.set_shader_parameter("strobe_on", 1.0 if strobe else 0.0)
+
+
+## Where along the current leg the jet stands, its route and the leg itself.
+func ground_leg_data() -> Dictionary:
+	return ground_legs[ground_leg] if ground_leg < ground_legs.size() else {}
+
+
+func _fly_ground(dt: float) -> void:
+	var ctl := _ground_ctl()
+	_engine_sound()
+	if phase == Phase.PARKED or ground_leg >= ground_legs.size():
+		velocity = Vector3.ZERO
+		_update_shimmer()
+		return
+	var leg: Dictionary = ground_legs[ground_leg]
+	var r: AirRoute = leg.route
+	if not _leg_entered:
+		# At the start of a leg: its wait, then whatever it must be cleared for.
+		if ground_wait > 0.0:
+			ground_wait -= dt
+			speed = 0.0
+			_ground_pose(r, 0.0, bool(leg.reverse), dt)
+			return
+		var tag: String = leg.get("tag", "")
+		if tag != "" and ctl and not ctl.may_enter(self, tag):
+			speed = 0.0
+			_ground_pose(r, 0.0, bool(leg.reverse), dt)
+			return
+		_leg_entered = true
+	var limit := _leg_limit(leg, d)
+	# Something ahead (another jet, a flyable jet, a tagged leg it is not cleared into): stop
+	# short of it.
+	var room := ctl.room_ahead(self) if ctl else INF
+	if room < INF:
+		limit = minf(limit, sqrt(2.0 * ground_brake * maxf(room, 0.0)))
+	var acc := ground_accel if limit > speed else ground_brake * 1.6
+	speed = move_toward(speed, limit, acc * dt)
+	d += speed * dt
+	if d >= r.length - 0.02:
+		var carry := d - r.length
+		d = r.length
+		_ground_pose(r, d, bool(leg.reverse), dt)
+		ground_leg += 1
+		if bool(leg.get("stop", false)):
+			speed = 0.0
+			carry = 0.0
+		if ground_leg >= ground_legs.size():
+			speed = 0.0
+			if ground_done.is_valid():
+				ground_done.call(self)
+			return
+		d = minf(maxf(carry, 0.0), 0.5) if carry > 0.0 else 0.0
+		var nxt: Dictionary = ground_legs[ground_leg]
+		ground_wait = float(nxt.get("wait", 0.0))
+		_leg_entered = false
+		return
+	_ground_pose(r, d, bool(leg.reverse), dt)
+	_update_shimmer()
+
+
+## The speed allowed at `at` metres into `leg` (its precomputed profile: straights, turns, the
+## stop at the end and the next leg's start).
+func _leg_limit(leg: Dictionary, at: float) -> float:
+	var prof: PackedFloat32Array = leg.prof
+	var r: AirRoute = leg.route
+	var i := r.index_at(at)
+	var j := mini(i + 1, prof.size() - 1)
+	var span := maxf(r.dist[j] - r.dist[i], 0.001)
+	# Never quite zero inside a leg, or a jet that braked to its end would stop a hair short.
+	return maxf(lerpf(prof[i], prof[j], clampf((at - r.dist[i]) / span, 0.0, 1.0)), 0.35)
+
+
+func _ground_pose(r: AirRoute, at: float, reverse: bool, dt: float) -> void:
+	var smp := r.sample(at)
+	var prev := world_pos
+	var p: Vector3 = smp.pos
+	var ctl := _ground_ctl()
+	var y := ctl.surface_y(Vector2(p.x, p.z)) if ctl else runway_y
+	world_pos = Vector3(p.x, y, p.z)
+	yaw = float(smp.yaw) + (PI if reverse else 0.0)
+	pitch = lerp_angle(pitch, 0.0, 1.0 - exp(-2.0 * dt)) if dt > 0.0 else 0.0
+	roll = lerp_angle(roll, 0.0, 1.0 - exp(-3.0 * dt)) if dt > 0.0 else 0.0
+	velocity = (world_pos - prev) / dt if dt > 0.0 else Vector3.ZERO
+
+
+## The engine loop by `engine_level`: silent off, the idle whine, a roar at take-off thrust.
+func _engine_sound() -> void:
+	if engine_level <= 0.01:
+		set_engine(-60.0, 0.4)
+	else:
+		set_engine(lerpf(-22.0, -9.0, clampf(engine_level / 0.3, 0.0, 1.0)) + maxf(engine_level - 0.3, 0.0) * 18.0, lerpf(0.42, 0.72, clampf(engine_level / 0.3, 0.0, 1.0)) + maxf(engine_level - 0.3, 0.0) * 0.5)
+
+
+# --- Heat behind the engines --------------------------------------------------------------
+
+## Where each engine's exhaust is, in the jet's frame (measured off the models: the airliner's
+## wing-mounted pair, the private jet's pods either side of the tail), fitted to `length`.
+func engine_spots() -> Array[Vector3]:
+	var k := length / 38.0 if kind == Aircraft.Kind.AIRLINER else length / 20.0
+	if kind == Aircraft.Kind.AIRLINER:
+		return [Vector3(-5.0, 2.2, -0.4) * k, Vector3(5.0, 2.2, -0.4) * k]
+	return [Vector3(-1.25, 3.5, 7.7) * k, Vector3(1.25, 3.5, 7.7) * k]
+
+
+## A cone of shimmering air behind each engine (shaders/jet_exhaust.gdshader reads the screen):
+## desktop only (on the web that is a full back-buffer copy per draw), within `shimmer_range`.
+func _build_shimmer() -> void:
+	if OS.has_feature("web") or not shimmer_enabled:
+		return
+	if _shimmer_shader == null:
+		_shimmer_shader = load("res://shaders/jet_exhaust.gdshader")
+	_shimmer_mat = ShaderMaterial.new()
+	_shimmer_mat.shader = _shimmer_shader
+	_shimmer_mat.render_priority = Material.RENDER_PRIORITY_MIN
+	var cone := CylinderMesh.new()
+	cone.top_radius = 0.5
+	cone.bottom_radius = 1.0
+	cone.height = 1.0
+	cone.radial_segments = 12
+	cone.rings = 1
+	cone.cap_top = false
+	cone.cap_bottom = false
+	var scale_k := length / 38.0
+	for spot in engine_spots():
+		var mi := MeshInstance3D.new()
+		mi.name = "Exhaust%d" % _shimmers.size()
+		mi.mesh = cone
+		mi.material_override = _shimmer_mat
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+		mi.visibility_range_end = shimmer_range
+		# The cylinder's axis is Y: laid along +Z (aft), its top (the narrow end) at the nozzle.
+		var length_m := 26.0 * scale_k
+		var radius := 2.2 * scale_k
+		mi.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(radius, length_m, radius)), spot + Vector3(0.0, 0.0, length_m * 0.5))
+		mi.visible = false
+		_visual.add_child(mi)
+		_shimmers.append(mi)
+
+
+func _update_shimmer() -> void:
+	if _shimmer_mat == null:
+		return
+	var on := engine_level > 0.02 and life == Life.FLYING
+	for m in _shimmers:
+		m.visible = on
+	if on:
+		_shimmer_mat.set_shader_parameter("strength", clampf(engine_level, 0.0, 1.0))
+
+
 ## Gone for good (off the end of its route or far past the far plane): no fade needed.
 func _leave() -> void:
 	_finish()
 
 
 func _on_ground() -> bool:
-	return phase in [Phase.LINEUP, Phase.ROLL, Phase.ROLLOUT, Phase.TAXI]
+	return phase in [Phase.LINEUP, Phase.ROLL, Phase.ROLLOUT, Phase.TAXI, Phase.GROUND, Phase.PARKED]
 
 
 func _begin_fall() -> void:

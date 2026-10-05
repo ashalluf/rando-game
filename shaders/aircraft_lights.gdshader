@@ -48,6 +48,11 @@ uniform float hdr = 2.5;
 uniform float max_depth = 11000.0;
 // 0 hides the landing lights (they are only on during approach, take-off and the landing roll).
 uniform float landing_on : hint_range(0.0, 1.0) = 1.0;
+// 0 holds the anti-collision beacons dark and the strobes off (AirportGround: a jet on the
+// ground shows its red beacons only while its engines run - pushback, start-up, taxi - and its
+// white strobes only once it enters the runway; parked, both are off).
+uniform float beacon_on : hint_range(0.0, 1.0) = 1.0;
+uniform float strobe_on : hint_range(0.0, 1.0) = 1.0;
 // Airfield lights by day (kinds 4-7): a field's edge lights are off or low in daylight, and a
 // billboard dot on the apron at noon reads as a glowing bug, not a lamp.
 uniform float field_day : hint_range(0.0, 1.0) = 0.0;
@@ -101,12 +106,12 @@ void fragment() {
 	if (v_kind > 0.5 && v_kind < 1.5) {
 		// Strobe: a double flash every 1.3 s.
 		float f = fract(TIME / 1.3 + v_phase);
-		on = step(f, 0.03) + step(abs(f - 0.10), 0.015);
+		on = (step(f, 0.03) + step(abs(f - 0.10), 0.015)) * strobe_on;
 		level = max(lamp_factor, day_level * 2.0);
 	} else if (v_kind > 1.5 && v_kind < 2.5) {
 		// Beacon: a red pulse a second.
 		float f = fract(TIME + v_phase);
-		on = pow(max(sin(f * 6.2832), 0.0), 5.0);
+		on = pow(max(sin(f * 6.2832), 0.0), 5.0) * beacon_on;
 	} else if (v_kind > 2.5 && v_kind < 3.5) {
 		on = landing_on;
 		level = max(lamp_factor, day_landing);
