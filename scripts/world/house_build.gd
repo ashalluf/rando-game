@@ -229,6 +229,7 @@ func _wing(i: int, w: Dictionary) -> void:
 		if roof == "butterfly" and (which == "front" or which == "back"):
 			top = ye + _butterfly_rise(w)
 		_wall(fo, t, n, length, base, top, holes, wp[0], wp[1])
+		ClimbingPlants.house_face(ch, h, L(fo, 0.0), N(t), N(n), length, top, holes, hidden, wp[0], which)
 		if roof == "butterfly" and (which == "left" or which == "right"):
 			_butterfly_end(fo, t, n, length, ye, _butterfly_rise(w), wp[0], wp[1])
 	match roof:
