@@ -55,6 +55,13 @@ func run(_tree: SceneTree) -> void:
 			var air := c - n * (site.size.length() * 0.55)
 			var to2 := c - air
 			print("   AIR=%.1f,%.1f,%.1f,%.1f,-28" % [air.x, g + 70.0, air.y, rad_to_deg(atan2(-to2.x, -to2.y))])
+	# EYES="x,z;x,z" prints each point's height over the plan's ground with the rise (block_shot's EYE y).
+	for e in OS.get_environment("EYES").split(";", false):
+		var q := (e as String).split(",")
+		var p := Vector2(float(q[0]), float(q[1]))
+		var k := plan.block_index_at(p)
+		var pl := Cemetery.plan_for(plan, k.x, k.y)
+		print("EYE_AT %s rise %.2f" % [p, Cemetery.height(pl, p) if not pl.is_empty() else 0.0])
 	print("WHY %s" % [Cemetery.why])
 	var sizes := []
 	print("CEMETERIES %d of %d suburb blocks in %d ms" % [found, suburbs, Time.get_ticks_msec() - t0])

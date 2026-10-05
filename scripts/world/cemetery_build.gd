@@ -26,9 +26,11 @@ const LAWN_LIFT := 0.03
 ## Ground grid step (m), FULL.
 const GRID := 2.0
 ## Draw distances (m): flat markers, upright stones, monuments.
-const FLAT_DRAW := 75.0
-const UPRIGHT_DRAW := 160.0
+const FLAT_DRAW := 150.0
+const UPRIGHT_DRAW := 220.0
 const MONUMENT_DRAW := 320.0
+## Visitors a chunk may spawn (each by a hash, on a drive point inside the chunk).
+const VISITORS := 3
 ## Lantern posts lit with a real OmniLight3D: every n-th, and the gate's two.
 const LIGHT_EVERY := 2
 
@@ -62,7 +64,11 @@ static func steps(ch: CityChunk, block: Dictionary) -> Array[Callable]:
 	for i in slices:
 		out.append(func() -> void: _stones(ch, st, i, slices))
 	out.append(func() -> void: _lamps(ch, st))
+	out.append(func() -> void: _pavement(ch, st))
 	out.append(func() -> void: _commit(ch, st))
+	# A few visitors on the drive's verges, one a step, in the crowd cap.
+	for i in VISITORS:
+		out.append(func() -> void: _visitor(ch, st, i))
 	return out
 
 
@@ -451,16 +457,20 @@ static func _gate(ch: CityChunk, st: Dictionary) -> void:
 		var mid := (p0 + p1) * 0.5
 		var d := p1 - p0
 		var bb := Basis(d.normalized(), Vector3(-n.x, 0.0, -n.y).cross(d.normalized()).normalized(), Vector3(-n.x, 0.0, -n.y))
-		g.box("kit", mid, Vector3(d.length() + 0.02, 0.12, 0.08), CemeteryKit.kc(CemeteryKit.K_IRON), bb.orthonormalized())
-		g.box("kit", mid - Vector3(0, 0.55, 0), Vector3(d.length() + 0.02, 0.06, 0.06), CemeteryKit.kc(CemeteryKit.K_IRON), bb.orthonormalized())
+		g.box("kit", mid, Vector3(d.length() + 0.02, 0.16, 0.1), CemeteryKit.kc(CemeteryKit.K_IRON), bb.orthonormalized())
+		g.box("kit", mid - Vector3(0, 0.62, 0), Vector3(d.length() + 0.02, 0.1, 0.08), CemeteryKit.kc(CemeteryKit.K_IRON), bb.orthonormalized())
+		# Scrolls between the bands at every other joint.
+		if i % 2 == 1:
+			g.box("kit", mid - Vector3(0, 0.31, 0), Vector3(0.05, 0.5, 0.05), CemeteryKit.kc(CemeteryKit.K_IRON), bb.orthonormalized())
 	# Letters between the two bands, on both faces.
 	var name: String = pl.name
-	var geo := FreewayKit.text_geo(name, 0.34)
+	g.use("gilt", LandmarkMats.plain("cem_gilt", Color(0.86, 0.66, 0.30), 0.28, 1.0))
+	var geo := FreewayKit.text_geo(name, 0.46)
 	var verts: PackedVector3Array = geo[0]
 	var idx: PackedInt32Array = geo[1]
 	var width: float = geo[2]
 	var squeeze := minf(1.0, (span * 2.0 - 0.8) / maxf(width, 0.01))
-	var c_y := top_y + 0.75
+	var c_y := top_y + 0.85
 	for side: float in [1.0, -1.0]:
 		var out := Vector3(-n.x, 0.0, -n.y) * side
 		var off := Vector3(-n.x, 0.0, -n.y) * 0.035 * side
@@ -468,10 +478,11 @@ static func _gate(ch: CityChunk, st: Dictionary) -> void:
 			var ps: Array[Vector3] = []
 			for j in 3:
 				var v := verts[idx[k + j]]
-				var x := v.x * squeeze * side
+				# Seen from the street (side 1) the reader's right is -a; from inside, +a.
+				var x := -v.x * squeeze * side
 				var w := gate + a * x
 				ps.append(Vector3(w.x, c_y + v.y, w.y) + off)
-			g.tri("kit", ps[0], ps[1], ps[2], out, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, CemeteryKit.kc(CemeteryKit.K_IRON, Color(0.8, 0.8, 0.8)))
+			g.tri("gilt", ps[0], ps[1], ps[2], out, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO)
 	# The apron across the pavement to the kerb.
 	var sw := ch.plan.sidewalk_width
 	var ap := gate - n * sw * 0.5
@@ -573,15 +584,22 @@ static func _chapel(ch: CityChunk, st: Dictionary) -> void:
 	for zf: float in [1.0, -1.0]:
 		var zz := d * 0.5 * zf
 		var pts: Array[Vector2] = []
-		var n_pts := 14
+		var n_pts := 32
 		for i in n_pts + 1:
 			var t := float(i) / float(n_pts)
 			var x := lerpf(-w * 0.5, w * 0.5, t)
 			var y := eave + (ridge - eave) * (1.0 - absf(2.0 * t - 1.0))
 			if zf > 0.0:
-				# The Mission front: a scrolled parapet rising over the roof to a round crest.
-				var crest := 1.0 - pow(absf(2.0 * t - 1.0), 2.2)
-				y = eave + (ridge - eave + 1.4) * crest
+				# The Mission front: a parapet rising from low shoulders in an S-curve to a crest
+				# with a round cap, always over the roof line behind it.
+				var q := absf(2.0 * t - 1.0)
+				var crest_h := ridge - eave + 1.2
+				var f_q := 0.42 + 0.58 * smoothstep(0.62, 0.16, q)
+				if q > 0.62:
+					f_q = maxf(0.42 * smoothstep(1.02, 0.8, q), 0.14)
+				if q < 0.16:
+					f_q += 0.18 * sqrt(maxf(0.0, 1.0 - pow(q / 0.16, 2.0)))
+				y = eave + crest_h * f_q
 			pts.append(Vector2(x, y))
 		var outward := Vector3(f.x, 0.0, f.y) * zf
 		for i in n_pts:
@@ -752,7 +770,7 @@ static func _mausoleum(ch: CityChunk, st: Dictionary) -> void:
 	g.use("m_plain", LandmarkMats.facade("cem_maus_plain_" + k, "plaster_white", 2.0,
 		{"tint": Color(0.74, 0.73, 0.70), "roughness": 0.5, "grime": 0.3,
 		"base_y": floor_y, "flood_strength": 1.0, "flood_base_y": floor_y + 0.2, "flood_reach": 8.0, "flood_floor": 0.3, "flood_spacing": 3.5, "seed": 5.0}))
-	g.use("m_bronze", LandmarkMats.plain("cem_door_bronze", Color(0.22, 0.14, 0.07), 0.4, 0.85))
+	g.use("m_bronze", LandmarkMats.plain("cem_door_bronze", Color(0.36, 0.25, 0.13), 0.45, 0.45))
 	var fb := Basis(Vector3(s.x, 0.0, s.y), Vector3.UP, Vector3(f.x, 0.0, f.y))
 	# The stepped base.
 	for i in steps:
@@ -769,6 +787,15 @@ static func _mausoleum(ch: CityChunk, st: Dictionary) -> void:
 	# The bronze doors in its front.
 	var door_c: Vector2 = P.call(0.0, -d * 0.5 + cella_d + 0.04)
 	g.box("m_bronze", Vector3(door_c.x, floor_y + 1.8, door_c.y), Vector3(2.4, 3.6, 0.1), Color.WHITE, fb)
+	# Two leaves: raised panels, a meeting stile, pull rings.
+	for sx: float in [-1.0, 1.0]:
+		for py: float in [0.95, 2.55]:
+			var pc: Vector2 = P.call(sx * 0.6, -d * 0.5 + cella_d + 0.1)
+			g.box("m_bronze", Vector3(pc.x, floor_y + py, pc.y), Vector3(0.82, 1.25 if py < 2.0 else 1.55, 0.04), Color(0.8, 0.8, 0.8), fb, 0.012)
+		var rp: Vector2 = P.call(sx * 0.16, -d * 0.5 + cella_d + 0.13)
+		g.box("m_bronze", Vector3(rp.x, floor_y + 1.75, rp.y), Vector3(0.05, 0.22, 0.05), Color(1.3, 1.25, 1.1), fb)
+	var ms: Vector2 = P.call(0.0, -d * 0.5 + cella_d + 0.1)
+	g.box("m_bronze", Vector3(ms.x, floor_y + 1.8, ms.y), Vector3(0.06, 3.6, 0.05), Color(0.6, 0.6, 0.6), fb)
 	var frame_c: Vector2 = P.call(0.0, -d * 0.5 + cella_d + 0.08)
 	g.box("m_plain", Vector3(frame_c.x, floor_y + 3.8, frame_c.y), Vector3(3.3, 0.4, 0.18), Color.WHITE, fb)
 	for sx: float in [-1.0, 1.0]:
@@ -815,7 +842,7 @@ static func _mausoleum(ch: CityChunk, st: Dictionary) -> void:
 		var ps: Array[Vector3] = []
 		for j in 3:
 			var v := verts[idx[t + j]]
-			var wp := fz + s * v.x
+			var wp := fz - s * v.x
 			ps.append(Vector3(wp.x, (ent0 + ent1) * 0.5 + v.y, wp.y))
 		g.tri("m_bronze", ps[0], ps[1], ps[2], Vector3(f.x, 0.0, f.y), Vector2.ZERO, Vector2.ZERO, Vector2.ZERO)
 	# Urns on the bottom step's front corners.
@@ -856,9 +883,8 @@ static func _trees(ch: CityChunk, st: Dictionary) -> void:
 				ch._batch.add("cem_pine", PropFactory.model_hill_tree(1), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at), tint, variety)
 				trunk = 0.8
 			6:
-				var s := PropFactory.hill_tree_scale(0, h)
-				ch._batch.add("cem_cypress", PropFactory.model_hill_tree(0), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s * 0.3, s, s * 0.3)), at),
-					Color(tint.r * 0.8, tint.g * 0.85, tint.b * 0.8), variety)
+				var wide := lerpf(0.85, 1.2, r.call(10))
+				ch._batch.add("cem_cypress", CemeteryKit.cypress(), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(h * wide, h, h * wide)), at), Color.WHITE)
 				trunk = 0.4
 			7:
 				var v := hs % PropFactory.PALM_VARIANTS
@@ -948,3 +974,62 @@ static func _commit(ch: CityChunk, st: Dictionary) -> void:
 		else:
 			ch._batch.set_draw_distance(k, UPRIGHT_DRAW)
 			ch._batch.set_shadow_reach(k, 55.0)
+
+
+static func _visitor(ch: CityChunk, st: Dictionary, i: int) -> void:
+	var pl: Dictionary = st.pl
+	var road: PackedVector2Array = pl.road
+	var h := hash([pl.seed, ch.ix, ch.iz, i, "visitor"])
+	if float(absi(h) % 1000) / 1000.0 > 0.7:
+		return
+	var k := 2 + absi(hash([h, "at"])) % maxi(1, road.size() - 4)
+	var p := road[k]
+	if not _in(st, p):
+		return
+	if not ch._take_crowd_room():
+		return
+	var dir := (road[k + 1] - road[k - 1]).normalized()
+	var side := 1.0 if (h & 1) == 0 else -1.0
+	p += Vector2(-dir.y, dir.x) * side * (Cemetery.ROAD_W * 0.5 + 1.2)
+	var ped := CemeteryVisitor.new()
+	ped.pl = pl
+	ped.setup(Rect2(), 3.0, h)
+	ped.position = Vector3(p.x, ch.ground_y(p.x, p.y) + LAWN_LIFT + Cemetery.height(pl, p) + 0.1, p.y)
+	ch.add_child(ped)
+
+
+## The outer pavement round the park (the block's own furniture step does not run here): street
+## lamps and kerb trees at the street's usual rhythm, none in front of the gate. A private rng.
+const PAVEMENT_LAMP_STEP := 34.0
+const PAVEMENT_TREE_STEP := 11.0
+
+
+static func _pavement(ch: CityChunk, st: Dictionary) -> void:
+	var pl: Dictionary = st.pl
+	var site: Rect2 = pl.site
+	var sw := ch.plan.sidewalk_width
+	var kerb := site.grow(sw - 0.7)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([pl.seed, ch.ix, ch.iz, "pavement"])
+	var corners := [kerb.position, Vector2(kerb.end.x, kerb.position.y), kerb.end, Vector2(kerb.position.x, kerb.end.y)]
+	var gate: Vector2 = pl.gate
+	for e in 4:
+		var a: Vector2 = corners[e]
+		var b: Vector2 = corners[(e + 1) % 4]
+		var length := a.distance_to(b)
+		var dir := (b - a) / length
+		var n_l := int(length / PAVEMENT_LAMP_STEP)
+		for i in n_l:
+			var p := a + dir * (float(i) + 0.5) * length / float(n_l)
+			if _in(st, p) and p.distance_to(gate) > 9.0:
+				ch._add_lamp(Vector3(p.x, CityChunk.SIDEWALK_TOP, p.y))
+		var n_t := int(length / PAVEMENT_TREE_STEP)
+		for i in n_t:
+			var p := a + dir * (float(i) + 0.5) * length / float(n_t)
+			if not _in(st, p) or p.distance_to(gate) < 9.0 or rng.randf() < 0.3:
+				continue
+			# Clear of the lamps.
+			var t := fmod((float(i) + 0.5) * length / float(n_t), length / float(maxi(n_l, 1)))
+			if absf(t - length / float(maxi(n_l, 1)) * 0.5) < 3.0:
+				continue
+			ch._add_tree(Vector3(p.x, CityChunk.SIDEWALK_TOP, p.y), rng)

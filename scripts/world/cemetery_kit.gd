@@ -216,6 +216,64 @@ static func _coping(g: Acc) -> void:
 	g.box(Vector3(0.0, 0.1, hz + 0.1), Vector3(1.2, 0.22, 0.25), [K_ENGRAVED, K_SAWN, K_SAWN, K_SAWN, K_POLISH, -1])
 
 
+## An Italian cypress of unit height (scale it to the tree's height): a short trunk and a lumpy
+## flame of foliage up to a point, its widest a third of the way up, radius 0.085 of the height.
+## Rings of 14 round 26 rows, each vertex pushed out or in by a hash of its row and column (clumps
+## a metre or so across on a 10 m tree), smooth normals. On shaders/cemetery_cypress.gdshader.
+static var _cypress: ArrayMesh = null
+static var _cypress_far: ArrayMesh = null
+
+
+static func cypress(far: bool = false) -> ArrayMesh:
+	if far and _cypress_far != null:
+		return _cypress_far
+	if not far and _cypress != null:
+		return _cypress
+	var segs := 8 if far else 14
+	var rows := 10 if far else 26
+	var g := Acc.new()
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/cemetery_cypress.gdshader")
+	var bark := Color(0, 0, 0, 1)
+	var leaf := Color(1, 0, 0, 1)
+	g.lathe(Vector3.ZERO, [Vector2(0.012, 0.0), Vector2(0.010, 0.06)], 6, bark, false)
+	var ring := func(j: int) -> Array:
+		var t := float(j) / float(rows)
+		var y := 0.04 + 0.96 * t
+		var prof := pow(sin(PI * clampf(t * 0.92 + 0.04, 0.0, 1.0)), 0.75) * (1.0 - 0.35 * t)
+		var out: Array = []
+		for i in segs:
+			var a := TAU * float(i) / float(segs)
+			var lump := 1.0 + 0.22 * (float(absi(hash([j, i, 77])) % 1000) / 1000.0 - 0.5) * 2.0
+			var r := 0.085 * prof * (lump if j > 0 and j < rows else 1.0)
+			out.append(Vector3(cos(a) * r, y, sin(a) * r))
+		return out
+	var rings: Array = []
+	for j in rows + 1:
+		rings.append(ring.call(j))
+	for j in rows:
+		var r0: Array = rings[j]
+		var r1: Array = rings[j + 1]
+		for i in segs:
+			var a: Vector3 = r0[i]
+			var b: Vector3 = r0[(i + 1) % segs]
+			var c: Vector3 = r1[(i + 1) % segs]
+			var d: Vector3 = r1[i]
+			var na := Vector3(a.x, 0.25, a.z).normalized()
+			var nb := Vector3(b.x, 0.25, b.z).normalized()
+			var nc := Vector3(c.x, 0.25, c.z).normalized()
+			var nd := Vector3(d.x, 0.25, d.z).normalized()
+			var want := Vector3((a.x + b.x) * 0.5, 0.0, (a.z + b.z) * 0.5)
+			g.tri(a, b, c, want, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, leaf, na, nb, nc)
+			g.tri(a, c, d, want, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, leaf, na, nc, nd)
+	var m := g.commit(mat)
+	if far:
+		_cypress_far = m
+	else:
+		_cypress = m
+	return m
+
+
 # --- Geometry accumulator ---------------------------------------------------------------------
 
 class Acc:

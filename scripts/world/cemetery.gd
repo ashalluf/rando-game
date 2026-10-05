@@ -44,7 +44,7 @@ const MAX_CLOSED_WIDTH := 15.5
 ## The rise: crown height from the site's size, clamped (a gentle hill, 6-12 % at most).
 const HILL_SHARE := 0.045
 const HILL_MIN := 2.4
-const HILL_MAX := 6.0
+const HILL_MAX := 5.0
 ## The edge band kept level for the wall and its planting.
 const EDGE := 3.5
 const ROAD_W := 5.4
@@ -478,7 +478,8 @@ static func on_building(pl: Dictionary, p: Vector2, pad: float) -> bool:
 
 
 ## Mature trees: [world XZ, kind, height m, yaw]. Kinds: 0-4 the city broadleaf species (CITY_TREES),
-## 5 stone pine, 6 Italian cypress, 7 a palm. Rows of cypress along the entry drive, pines and
+## 6 Italian cypress (CemeteryKit.cypress()), 7 a palm (5, a hill pine, is no longer planted: the
+## scan reads as a dead tree at this size). Rows of cypress along the entry drive, pines and
 ## shade trees in loose groves over the lawn, nothing on the drive or a building.
 static func _trees(pl: Dictionary) -> Array:
 	var out: Array = []
@@ -516,8 +517,9 @@ static func _trees(pl: Dictionary) -> Array:
 			var kind := 5
 			var h := 0.0
 			if roll < 0.3:
-				kind = 5
-				h = lerpf(14.0, 20.0, hv)
+				# Old shade trees: the jacaranda and the big broadleaf grown mature.
+				kind = 4 if _h01([s, i, j, "jac"]) < 0.45 else 0
+				h = 0.0
 			elif roll < 0.48:
 				kind = 6
 				h = lerpf(9.0, 13.0, hv)
