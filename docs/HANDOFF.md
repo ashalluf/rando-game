@@ -7046,7 +7046,7 @@ ALU in shaders that were already running.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
 
-## 9b?. Broadway's theatre district: the movie palaces, 2026-10-05 (agent branch `wt/broadway`)
+## 9b?. Broadway's theatre district: the movie palaces, 2026-10-05 (agent branch `wt/broadway`; VISUAL_ROADMAP #63)
 
 The historic stretch of Broadway between 3rd St and Olympic Blvd (DowntownReal pins it 1:1 on
 every seed: x 2991, z -403 .. 1006, west blocks bx 27 and east bx 28 on seed 1337) now reads as

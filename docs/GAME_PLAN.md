@@ -289,7 +289,7 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
-- **2026-10-05 Broadway's theatre district (VISUAL_ROADMAP #59, HANDOFF "Broadway").** Downtown's
+- **2026-10-05 Broadway's theatre district (VISUAL_ROADMAP #63, HANDOFF "Broadway").** Downtown's
   Broadway between 3rd St and Olympic is pinned 1:1, so its movie palaces are placed by their REAL
   house numbers (a data table, `Broadway.THEATRES`) and take the Broadway-fronting lot of the
   seeded block there, claimed after the lot's rolls like a fire station - real forms, invented
