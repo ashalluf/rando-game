@@ -6766,7 +6766,7 @@ channel's edge (under a pixel past ~500 m). Sediment bars and reeds are FULL onl
 (9bk, not on main when this was written) does not reach the river; the rail bridge carries a
 freight spur that ends at buffer stops past the bank roads.
 
-## 9bq. More everyday car bodies: hatchback, SUV, minivan, taxi, beater, 2026-10-05 (agent branch `wt/more-cars`; VISUAL_ROADMAP #59)
+## 9bq. More everyday car bodies: hatchback, SUV, minivan, taxi, beater, 2026-10-05 (agent branch `wt/more-cars`; VISUAL_ROADMAP #61)
 
 The brief: a real LA street is full of compact hatchbacks, full-size SUVs, minivans, taxis and a
 beater or two; traffic had four Blender bodies (sedan, crossover, pickup, van), the exotics and
@@ -6916,3 +6916,87 @@ the lifeguard still up), and the
   next chunk's riders. Riders do not give way to people on the path.
 - The beach under the Esplanade's bluff and the boardwalk get no path or court (their own
   ground); the boardwalk's stretch and the piers' get no people.
+## 9b?. City acoustics: spaces, gunfire echo, footsteps, the newest systems' sounds, 2026-10-05 (agent branch `wt/audio`; VISUAL_ROADMAP #61)
+
+**What was missing.** One street-canyon reverb summed from the probe, no echo of gunfire, no
+footsteps at all (`footstep` was a name nothing played), and the bus, the light rail car, the LA
+River, plazas and parks were silent.
+
+**Spaces (reverb).** Ambience's probe already cast eight wall rays and one up; it now keeps their
+distances (`scene.walls`, `scene.ceiling`), and `_water_scene()` adds plan maths: down in the
+river's channel (`LaRiver.nearest()`, the ear under the coping), at the light rail's rails in its
+TUNNEL / TRENCH samples. `Ambience.space_for(scene)` turns that into weights over ten presets
+(`Ambience.SPACES`): tunnel (a lid over it; with sky above it is the trench, which takes the
+channel preset), car park (a lid under 4.5 m with walls round), underpass (a lid higher than 7 m),
+channel, alley (two facades within 16 m of each other with the way along open), canyon (the old
+measure), street, beach, hills, open. `reverb_for()` blends the presets and the World reverb eases
+to them over 1.2 s (wet, room, damping, pre-delay and now the reverb's own high-pass). Nothing is
+placed by hand, no Area3D.
+
+**Gunfire echo.** `echo_for()` makes the taps from the same rays: each of the two nearest facades
+in different directions slaps a shot back after its round trip (level falling with distance), then
+the flutter across; under a lid a tight cluster at the ceiling's round trip; in the river channel
+or the rail trench bank-to-bank slaps; in the hills a rolling tail at 0.45 / 0.9 / 1.45 / 2.1 /
+2.9 s, low-passed to ~1.6-2.7 kHz; out in the open city one soft return at 0.55 s; on the beach
+nothing. `Sfx.set_echo()` takes it; `Sfx.play()` of `shot`, `shotgun`, `explosion`, `rocket`
+queues delayed copies of the very take it just played on the new **Echo** bus (Game <- Echo:
+low-pass from the profile, a reverb of its own for the smear), placed toward what reflects, 3 dB
+down per doubling of the shot's distance from 15 m, none past 450 m. Police rounds echo too; no
+weapon code changed. The web plays them 4 dB lower (no bus filter there).
+
+**Footsteps.** `Footsteps` (`scripts/player/footsteps.gd`, a child of the Player): a step sounds
+when a foot comes down in the animation (each foot's height in metres over the player, the bottom
+22 % of its own swing, re-armed above the middle), so walk, run and the boosted sprint keep time
+with the clip; without a rig a stride length. Surface from a ray down every 0.2 s through the pure
+`Footsteps.surface_at()`: car / train / prop = metal, freeway / river / rail bodies = concrete,
+over the sea = wood (piers), beach = sand (wood on a pier or the boardwalk), hills = grass, roofs =
+concrete, off the block rect = asphalt, the pavement ring = concrete, parks / yards (suburbs,
+beach town) = grass, rec facilities by kind. -13 dB at a walk to -7 at a run, soft ground 2 dB
+quieter.
+
+**New sources.** Bus (`VehicleAudio.bus_doors()` from `BusFittings.set_doors()`): the two-tone
+chime, the pneumatic doors (opening hiss / closing under the warning beeper / a folding door), the
+kneel's air release; its diesel idle is the street's traffic voice (Ambience hands the `diesel_idle`
+loop to a bus or truck instead of the tyre roll, louder at idle, revving with speed). Light rail
+car (`VehicleAudio.TrainVoice`, on its middle section): the traction whine (synthesized
+`rail_motor`, pitch 0.45-1.7 with speed, loudest under acceleration or braking), the wire hum and
+crackle (`rail_hum`), the door chime on opening and again as they start to close. River: an
+emitter on the centre line (`amb_river`, `river_reach` 140 m; full only down in the channel, a
+third from the bank). Fountains: every PLAZA block (`amb_fountain`, 75 m). Playgrounds: rec parks'
+and schools' `playground` / `games` facilities (`amb_playground`, 150 m, 7:30-20:00, not in
+rain). Basketball: `ParkBall` plays `ball_dribble` on each floor hit. Construction: an Ambience
+one-shot kind (jackhammer bursts, hammering; urban density x 1.4 /min, 7:00-17:30).
+
+**Mix report** (`tools/audio_probe.tscn`, headless, default seed, noon, clear; levels are the
+beds' target gains 0..1, events per minute):
+
+| Place | Space (weights) | World reverb | Gunfire echo taps | What plays | Feet |
+|---|---|---|---|---|---|
+| Flower at Olympic (downtown) | canyon .53, street .47 | wet .16, room .65, 56 ms | 105 ms -13, 113 ms -14, flutter 239 ms -11 | city 1.0, crowd 1.0, traffic .42; horns 6, bus 1.6, construction 1.4 | asphalt |
+| Under the 110 by 5th St | underpass .57, garage .24, canyon .13 | wet .28, room .67, 32 ms | cluster 45 / 72 / 98 ms (-9..-15), facades 59 / 106 ms, flutter 186 ms | freeway 1.0, city 1.0 | asphalt |
+| A midtown pavement | street .55, canyon .27, open .18 | wet .11, room .55 | 137 ms -16, soft 550 ms -15 | city .75, crowd .33, birds .12 | concrete |
+| A plaza fountain downtown | open .63, street .21 | wet .07 | 66 ms -20, 550 ms -15 | fountain .98, city 1.0 | concrete |
+| Rec park playground | street .89 | wet .10 | 169 / 291 / 481 ms | playground 1.0, crowd .42 | asphalt (the court) |
+| LA River bed | channel 1.0 | wet .17, room .66, 55 ms | bank to bank ~0.15 / 0.3 s | river 1.0, city .55 | concrete |
+| Light rail trench south of 11th | channel 1.0 (trench) | wet .17 | the trench walls' slap | city 1.0 | asphalt (ballast not told apart) |
+| The beach | beach .78, open .22 | wet .02 | none | surf .83, wind .37, gulls 5 | sand |
+| Front range hillside | hills .69, open .31 | wet .04, room .69, 92 ms | 450 / 900 / 1450 / 2100 / 2900 ms, -9..-23, 2.7 kHz | birds .6, wind .63 | grass |
+
+**Tools.** `tools/city_audio.py` (cuts every new clip from build/audio_src/ and Kenney's zip;
+sources and spans in docs/ASSETS.md), `tools/audio_probe.tscn` (the table above; `PLACES=`,
+`HOUR=`). Checks: `tests/audio_checks.gd` (tables and stray files, the Echo bus, every space
+staged, reverb ordering and the bus following it, echo taps per space and live echoes played,
+river / fountain / playground / construction / tunnel, footstep surfaces, the player's node).
+
+**Frame cost.** No geometry, no draws: the render is unchanged. CPU: the survey adds 9 cached
+block lookups, one river nearest-point and one rail index query every 0.5 s; the footstep ray
+every 0.2 s; up to 8 echo voices.
+
+**Not done / not verified.** Nothing was heard: the headless run has the Dummy driver, so levels
+are measured numbers, not listened to - the owner's ears on the Mac decide the echo level
+(`Ambience.echo_db`), the footsteps under the chase camera (`Footsteps.walk_db` / `run_db`) and
+the tunnel's wash. The tunnel itself is not walkable today, so its preset is only staged.
+Alleys (another branch's) will classify as alleys by the ray rule; not seen in a real one here.
+Car parks classify only where a deck is low over the ear (the arena garage was not visited).
+The trench floor reads as asphalt underfoot. Echoes use the listener's surroundings for every
+shot, not the shooter's. Stills: none (sound).

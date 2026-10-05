@@ -248,6 +248,34 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `concussion_radius`, muffles the Game bus for `blast_recover_seconds`; the weapon wheel or any
   slow motion (`AudioServer.playback_speed_scale` < 0.97) muffles Game and dips the ambience.
   Crowd screams stay where they were (`Pedestrian.alarm()`); the walla drops under panic.
+- City acoustics (2026-10-05, docs/HANDOFF.md "City acoustics"): **spaces, echoes, footsteps,
+  the new sources**. Ambience's probe (eight wall rays, one up) now keeps the distances (`walls`,
+  `ceiling`) and `space_for(scene)` weighs the listener's SPACE (`Ambience.SPACES`: open, street,
+  canyon, alley - two facades within 16 m with the way along open -, underpass - a lid over 7 m -,
+  garage - a lid under 4.5 m with walls round -, tunnel / trench - `LightRail` TUNNEL / TRENCH
+  samples with the ear under the street -, channel - down in the LA River -, beach, hills);
+  `reverb_for()` blends the presets onto the World reverb (wet, room, damping, pre-delay, its own
+  high-pass; `Sfx.set_reverb()` takes the last two now). **Gunfire echo**: `echo_for()` turns the
+  same rays into taps (the two nearest facades' round trips, then the flutter across; a tight
+  cluster under a lid; the far bank in the channel; a rolling 0.45-2.9 s tail in the hills; nothing
+  on the beach), `Sfx.set_echo()`; `Sfx.play()` of any `Sfx.ECHO_NAMES` (shot, shotgun,
+  explosion, rocket) queues delayed copies of the very take on the **Echo bus** (low-pass + its
+  own tail, sends to Game), placed toward what reflects, 3 dB down per doubling of the shot's
+  distance, none past `ECHO_REACH`. No weapon code knows. **Footsteps** (`Footsteps`,
+  `scripts/player/footsteps.gd`, one line in `Player._ready()`): a step is a foot coming down in
+  the animation (each foot's height watched, a step in the bottom `contact_share` of its swing),
+  the surface `surface_at()` (pure: a car or train is metal, the freeway / river / rail concrete,
+  then the zone, the road vs the pavement ring of the block, parks, rec facilities, yards, a pier
+  over the sea wood); Sfx `footstep_<surface>`. **Sources**: river (`amb_river`, an emitter on the
+  centre line, loud only down in the channel), fountains (PLAZA blocks), playgrounds (Parks
+  facilities, school hours), `construction` one-shots (working hours, by urban density); the
+  traffic voice of a bus or truck is the `diesel_idle` loop; `VehicleAudio`
+  (`scripts/vehicles/vehicle_audio.gd`) - a bus at a stop chimes, its doors hiss and it kneels
+  (`BusFittings.set_doors()`), a light rail car carries a `TrainVoice` (synthesized `rail_motor`
+  whine pitched by speed and loudest under effort, `rail_hum` off the wire, `rail_chime` at the
+  doors); `ParkBall` plays `ball_dribble` on each floor hit. Clips are cut by
+  `tools/city_audio.py` (sources and spans in docs/ASSETS.md); `tools/audio_probe.tscn` prints
+  the space, reverb, echo taps, beds and footing at named places. Checks: `tests/audio_checks.gd`.
 - Day/night: `DayNight` node in the city scene drives the sun, the sky (`shaders/sky.gdshader`,
   a ShaderMaterial on the Environment's Sky: gradient, sun disc, FBM clouds, stars; colors set per
   hour via `set_shader_parameter`) and the `night_factor` shader global (`[shader_globals]` in

@@ -628,6 +628,8 @@ class BusFittings extends Node:
 			(s[0] as MeshInstance3D).set_surface_override_material(s[1], mat)
 
 	func set_doors(on: bool) -> void:
+		if on != want_open:
+			VehicleAudio.bus_doors(car, on) # chime, doors, kneel (vehicle_audio.gd)
 		want_open = on
 		want_kneel = on
 		set_process(true)

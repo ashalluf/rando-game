@@ -1728,6 +1728,9 @@ func _test_city() -> void:
 	# The ambience mixer (tests/ambience_checks.gd): layers per place, hour and weather, fades,
 	# ducks, buses. Mixer state only - the Dummy audio driver plays nothing.
 	await load("res://tests/ambience_checks.gd").new().run(self, city)
+	# The city's acoustics (tests/audio_checks.gd): spaces and reverb, gunfire echoes, footsteps by
+	# surface, the river, fountains, playgrounds, construction, the bus's diesel.
+	await load("res://tests/audio_checks.gd").new().run(self, city)
 	# The Esplanade replica (tests/replica_checks.gd): the road, the coast, the lots, one replica
 	# chunk and its traffic.
 	await load("res://tests/replica_checks.gd").new().run(self, city)

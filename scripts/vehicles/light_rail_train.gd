@@ -95,6 +95,9 @@ func setup(l: LightRail) -> void:
 		_roll.position = Vector3(0.0, 0.8, 0.0)
 		_roll.unit_size = 14.0
 		_roll.play()
+	var voice := VehicleAudio.TrainVoice.new() # motors, wire, door chime (vehicle_audio.gd)
+	voice.train = self
+	sections[1].add_child(voice)
 
 
 ## Which end a section is: 0 the leading cab, 1 the trailing cab, 2 a coupled cab.
