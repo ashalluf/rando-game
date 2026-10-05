@@ -205,7 +205,10 @@ func scene_point(inc: Dictionary) -> Vector3:
 	if inc.kind == KIND_FIRE and is_instance_valid(inc.car):
 		return (inc.car as Vehicle).global_position
 	if inc.kind == KIND_DOWN and is_instance_valid(inc.doll) and not (inc.doll as Ragdoll).bodies.is_empty():
-		return ((inc.doll as Ragdoll).bodies[0] as Node3D).global_position
+		# The body's middle (the hips), not its origin: a lying ragdoll's origin is its feet, and a
+		# medic sent beside the feet of a body that lay toward him was stopped by its box short of
+		# them (the kneel test missed by 9 cm in a full suite run).
+		return (inc.doll as Ragdoll)._pelvis()
 	return WorldState.to_local(inc.world)
 
 

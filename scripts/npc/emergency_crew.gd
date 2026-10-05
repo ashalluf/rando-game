@@ -95,6 +95,8 @@ var _dest := Vector3.INF
 var _face := Vector3.INF
 var _think_t: float = 0.0
 var _stuck_t: float = 0.0
+## True once this crew member stops colliding with the body it treats (_step_over_patient()).
+var _patient_ignored := false
 var _work_t: float = 0.0
 var _done_t: float = -1.0
 var _skel: Skeleton3D
@@ -425,6 +427,7 @@ func _think() -> void:
 			_face = panel
 			task = Task.WORK if global_position.distance_to(_dest) < 0.8 else Task.GO
 		Job.PATIENT:
+			_step_over_patient(inc)
 			var at := _patient_side(scene)
 			_dest = at
 			_face = scene
@@ -533,12 +536,35 @@ func _rear_point() -> Vector3:
 
 
 ## Kneeling at the patient's side, toward the unit.
+## A paramedic kneels against the body, so its box (props layer, which the crew collide with)
+## must not hold him off it.
+func _step_over_patient(inc: Dictionary) -> void:
+	var doll: Variant = inc.get("doll")
+	if _patient_ignored or not (doll is Ragdoll) or not is_instance_valid(doll):
+		return
+	for b in (doll as Ragdoll).bodies:
+		if is_instance_valid(b):
+			add_collision_exception_with(b)
+	_patient_ignored = true
+
+
 func _patient_side(scene: Vector3) -> Vector3:
 	var away := global_position - scene
 	away.y = 0.0
 	if away.length() < 0.1:
 		away = Vector3.RIGHT
-	var p := scene + away.normalized() * 0.75
+	away = away.normalized()
+	# Beside the body, not at its head or feet: off its long axis (the ragdoll's box runs 1.7 m
+	# along its local up) on the side the medic comes from.
+	var inc: Dictionary = car.incident if is_instance_valid(car) else {}
+	var doll: Variant = inc.get("doll")
+	if doll is Ragdoll and is_instance_valid(doll) and not (doll as Ragdoll).bodies.is_empty():
+		var long := ((doll as Ragdoll).bodies[0] as Node3D).global_basis.y
+		long.y = 0.0
+		if long.length() > 0.3:
+			var side := long.normalized().cross(Vector3.UP)
+			away = side * signf(side.dot(away) + 0.001)
+	var p := scene + away * 0.75
 	p.y = global_position.y
 	return p
 
