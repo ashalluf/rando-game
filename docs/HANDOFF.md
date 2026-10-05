@@ -8745,7 +8745,7 @@ service vehicles moved to 20-24 (GARBAGE_TRUCK 20 ... DELIVERY_VAN 24; `car_shot
 --each=20,21,22,23,24`); `BigVehicles.is_big()` takes both. Review fix: `_survey_bins()` walked
 the blocks round the player one short on the +x / +z side (carts on the far edge of the radius
 were never drawn), and its dirty flag logic was dead code (it redraws every look on purpose, the
-carts' scene transforms move with each origin shift). Gate: 1,400 of 1,401 (the known minimap
-closed-road check), peak RSS 3.3 GB. Frame cost re-measured at the suburb bookmark
+carts' scene transforms move with each origin shift). Gate after merging origin/main: all
+1,400 checks pass, peak RSS 3.2 GB. Frame cost re-measured at the suburb bookmark
 (`geo_count.gd`, 800x600): `SERVICE_VEHICLES=0` 3.586 M triangles / 2,695 draws -> 3.717 M / 2,702
 (+3.7 %). Stills: branch `shots/service-vehicles`, files 10-16.
