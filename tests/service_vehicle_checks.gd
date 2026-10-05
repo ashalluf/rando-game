@@ -515,7 +515,12 @@ func _tow(player: Player) -> void:
 		var moved := car.traffic_speed > 1.0
 		_check(moved, "the tow truck drives off with it")
 		_retire(car)
-		await _ticks(3)
+		# The fleet ticks its tows in _process: under load several physics steps run inside one
+		# rendered frame, so three physics ticks can pass with no tick of the fleet's.
+		for i in 30:
+			await _tree.process_frame
+			if not is_instance_valid(wreck) or wreck.is_queued_for_deletion():
+				break
 		_check(not is_instance_valid(wreck) or wreck.is_queued_for_deletion(), "the wreck goes when the tow truck leaves")
 	_fleet.spawn_back = back_was
 	_fleet.spawn_clear = clear_was
