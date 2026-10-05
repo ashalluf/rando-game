@@ -8730,8 +8730,32 @@ suburbs." Stills on `shots/cemetery`.
 
 ### Numbers
 
-FRAME_COST_PLACEHOLDER
+Frame cost, `still_shot.gd` GEO lines (opengl3, 1280x720, the same eyes and hour 13, `CEMETERY=0` the
+before - the suburb's houses, yards and parked cars that stood there):
+
+| eye | before tris / draws | after tris / draws |
+|---|---|---|
+| the gate from the street `1583.6,13.3,4138.8,-100.9,-3` | 5.12 M / 2,415 | 4.83 M / 1,606 |
+| the lawn rows to the mausoleum `1650,16.4,4148,-90,-3` | 7.10 M / 3,044 | 5.42 M / 2,476 |
+| the old section `1700,18.6,4150,-42,-7` | 6.78 M / 3,025 | 5.24 M / 2,651 |
+| aerial `1540,82,4145,-90,-26` | 2.85 M / 2,096 | 2.81 M / 1,476 |
+
+The park is cheaper than the blocks it replaces. Build (`build_probe.gd`, headless): a FULL chunk's
+steps are all under ~60 ms except the first one that loads a tree species' foliage ladder (warmed on
+the loading screen in game); its stones are ~800-1,200 instances in ~10 batches; an LOD chunk
+8-45 ms in all; the capture under 1 ms. A park is ~3,000 stones (flat markers 20 triangles, a marker
+with a vase 204, uprights 20-100, monuments 30-340).
 
 ### Not done / not verified
 
-NOT_DONE_PLACEHOLDER
+- Not seen on Forward+ (the Mac): every still is opengl3. The night look (chapel windows, gate and
+  drive lanterns, floodlit mausoleum) needs a Forward+ look; the first night still showed bright
+  lines on the fence posts and the arch, which the last commits address (kind codes mid-band, rougher
+  iron) but no night still has been taken since.
+- The rise is the park's own lawn mesh: the far city and LOD chunks draw the park flat (a lawn slab),
+  so a 5 m rise appears when the chunk turns FULL (two blocks out).
+- The far city's plates still paint the closed inner streets as roads under the lawn slab.
+- Visitors only stroll the drive; nobody stands at a grave, no flowers are laid, no funerals.
+- The outer pavement has lamps and trees but no parked cars, hydrants or bins (the block's furniture
+  step is skipped for the park's blocks).
+- The minimap paints the park as a park; it does not draw the drive or a glyph.
