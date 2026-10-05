@@ -41,7 +41,8 @@ extends SceneTree
 ## at night. STREET_EYE=1 then moves a free camera onto the pavement behind the queue, looking up
 ## it (STREET_EYE_BACK, _SIDE, _TURN, _HEIGHT, _PITCH).
 ## SHOTS="x,y,z,yaw,pitch@hour[@fov];..." then takes more EYE shots from the same load, saved as OUT
-## with _1, _2, ... (SHOT_FRAMES frames each to stream in; GEO_n lines give each one's cost).
+## with _1, _2, ... (SHOT_FRAMES frames each to stream in; GEO_n lines give each one's cost). An empty camera ("@21.5") is the last
+## shot's camera at another hour.
 ## EYE=x,y,z,yaw,pitch puts a free camera at a true world point; with EYE_AGL=1 its y is metres
 ## above the ground there.
 ## Every shot also prints the frame's cost (GEO: triangles, draw calls, objects, split into the
@@ -539,7 +540,9 @@ func _initialize() -> void:
 	for entry in shots_env.split(";", false):
 		k += 1
 		var bits := entry.split("@")
-		OS.set_environment("EYE", bits[0])
+		# An empty camera ("@21.5") keeps the last one: the same frame at another hour.
+		if bits[0] != "":
+			OS.set_environment("EYE", bits[0])
 		if bits.size() > 1 and day and bits[1] != "":
 			day.set("hour", bits[1].to_float())
 		Engine.time_scale = 1.0

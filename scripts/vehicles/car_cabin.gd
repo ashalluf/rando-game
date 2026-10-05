@@ -72,7 +72,9 @@ const DASH_DEPTH := 0.42
 const BUS_FIRST_ROW := 2.7
 const BUS_ROW_PITCH := 0.80
 const BUS_FILL := 0.42
-const BUS_LAMP := 1.0
+## (2.0, 2026-10-05: at 1.0 a bus at dusk still read as a dark windscreen from the pavement; the
+## lights come on with lamp_factor - dusk, or a storm - not night_factor.)
+const BUS_LAMP := 2.0
 ## A bus's cabin is daylit: a white ceiling and a wall of windows down each side light it far
 ## more than a car's (cabin_light times this, and the glass lets more of it through). At the car's
 ## level its whole front read as a black slab from the pavement at noon (HANDOFF 9bi's bus_stop_day).

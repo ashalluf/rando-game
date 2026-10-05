@@ -440,7 +440,7 @@ vec3 cabin_view(vec3 o, vec3 d, float dist) {
 	vec3 t2 = (cabin_hi - o) * inv;
 	vec3 tf = max(t1, t2);
 	float t_exit = max(min(min(tf.x, tf.y), tf.z), 0.0);
-	vec3 sky = sky_tint.rgb + street_light * lamp_factor + vec3(0.17, 0.18, 0.19) * interior_lamp * night_factor;
+	vec3 sky = sky_tint.rgb + street_light * lamp_factor + vec3(0.17, 0.18, 0.19) * interior_lamp * lamp_factor;
 	float char_ = burnt;
 	float cx = (cabin_hi.x + cabin_lo.x) * 0.5;
 	float half_w = (cabin_hi.x - cabin_lo.x) * 0.5;

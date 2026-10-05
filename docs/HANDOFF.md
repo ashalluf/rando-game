@@ -6765,3 +6765,53 @@ Narrows into the valley. The far city's land slabs on a river block step every 8
 channel's edge (under a pixel past ~500 m). Sediment bars and reeds are FULL only. The Coral Line
 (9bk, not on main when this was written) does not reach the river; the rail bridge carries a
 freight spur that ends at buffer stops past the bank roads.
+## 9bq. NPC polish: pigeons up close, turnout gear, paramedic uniforms, the bus windscreen, 2026-10-05 (agent branch `wt/npc-polish`; VISUAL_ROADMAP #59)
+
+The brief (lead, reviewing 9bl and 9bm): pigeons at 1-3 m read as pale low-poly facets and are
+pale from below; firefighters wear a flat tan; paramedics wear street clothes; confirm the bus's
+windscreen at noon and dusk. Each item has a before / after pair from the same camera (branch
+`shots/npc-polish`).
+
+- **Pigeons** (`BirdMesh`, `bird.gdshader`, `make_bird_textures.py`). The near body loft is 28 x 22
+  (was 24 x 18) and its normals are welded and averaged over the faces round each POSITION
+  (`_smooth_normals()`): the analytic ellipse normals were only approximate where the radii change
+  fast (breast, nape, cere), and each quad lit on its own. The folded feathers and the covert
+  sheet take the body's flank normal (`flank_normal()`, a little lifted toward the top) instead of
+  a fixed `(side, 0.4, 0)`, so the folded wing shades as part of the bird and no longer catches
+  the sky as a pale sheet. The body's scallop relief is softer (normal depth 0.4 on the body, 0.7
+  on feathers). The underwing: a wing or tail card's BACK face draws the species' underside
+  (`under_cov` coverts, `under_flight` flight feathers, `under_keep` how much of the upper
+  pattern's luminance shows, `under_mix`; in `BirdMesh.LOOKS`): a pigeon's mid-grey, a gull's
+  white with the dark tips, a sparrow's buff; the crow keeps its black. Pigeon belly srgb 0.44 ->
+  0.38, wing feather grey 0.56 -> 0.51 (atlas repainted; the white is the rump alone, where a
+  feral pigeon has it). Near pigeon 2,146 -> 2,518 triangles (budget 2,600; MID / FAR unchanged).
+- **Turnout gear and the paramedics' uniform** (`EmergencyCrew`, `character.gdshader`). The shader
+  needed to know where on the BODY a pixel is, which the crowd rigs do not carry (UV2 is metres
+  of surface per atlas rect, nothing positional). `EmergencyCrew.trim_mesh()` bakes it once per
+  rig from the bind pose (CUSTOM2 / CUSTOM3, see CLAUDE.md "Emergency services"), keeps the mesh's
+  LOD index lists by reading them back from the RenderingServer (`_surface_lods()`: a/d/f/h/j all
+  keep their 4-5 levels), costs ~35 ms a rig and is warmed on the loading screen
+  (`Pedestrian.warm_far_mesh(officer = true)`); the welded middle / far bodies are handed over
+  from the plain mesh (no stripes past 50 m: they are a few pixels there). `uniform_kind` 1:
+  khaki (TURNOUT 0.40 / 0.345 / 0.22), lime / silver / lime triple trim round both arm segments,
+  chest and back, the coat's hem and the shins, a darker yoke and wristlets, black knee patches,
+  leather gloves, the coat's sleeves over any bare forearm (half the rigs wear tees), bulk
+  (`turnout_bulk` 1.4 cm). The trim is retroreflective: at night it is emitted by `lamp_factor` x a
+  cone ahead of the camera x how squarely it faces it (`trim_retro` 1.8, `trim_reach` 45 m) -
+  the freeway kit's glint on a body. `uniform_kind` 2: navy shirt and trousers with most of the
+  rig's own pattern flattened (`cloth_shade_keep` 0.35: crowd_h's stripes read as street
+  clothes), a shoulder patch on each upper arm (gold border, blue field, a white heartbeat trace -
+  ours, not a real emblem), placket and buttons, a badge, cargo pockets with flaps on the thighs, a
+  duty belt with a buckle. Both services get black boots. The limb code is a `flat` varying:
+  interpolated, the knee between thigh (4) and shin (5) passed through every code between and drew
+  jagged lightning lines; the distance along a limb now runs on over the elbow and knee.
+- **The bus**: see the stills; NOTE_BUS.
+- **Tools**: `crowd_lineup.gd CREW=fire|medic|fire,medic NIGHT=1`; `bird_shot.gd ONLY=<pose>` (one
+  bird at the origin for a close-up); `still_shot.gd SHOTS=@21.5` (an empty camera keeps the last
+  one: the same frame at another hour from one load).
+- **Frame cost**: NOTE_GEO
+- **Checks**: bird_checks (welded body normals, an underwing for pigeon / gull / sparrow, grey
+  pigeon coverts), emergency_checks (the crews on a call wear the trim material, the two uniforms
+  are told apart, navy, the trim's night and flat-code code paths, the bake keeps the mesh when
+  there is no mesh data, the limb chains).
+- **Not done / not verified**: NOTE_TODO

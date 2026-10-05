@@ -2032,6 +2032,9 @@ static func warm_far_mesh(path: String, host: Node, officer: bool = false) -> vo
 			far_mesh(mesh, mid_triangles)
 			far_mesh(mesh, far_triangles)
 			_welds.erase(mesh)
+			if officer:
+				# The responders wear these rigs too: their uniform trim's bake (~35 ms a rig).
+				load("res://scripts/npc/emergency_crew.gd").trim_mesh(mesh, (mi as MeshInstance3D).skin, mi.get_parent() as Skeleton3D)
 	CrowdHat.warm(inst, path, officer)
 	inst.queue_free()
 
