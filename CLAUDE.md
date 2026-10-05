@@ -3454,7 +3454,10 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/glshot/micro_shot.gd` (the kit and the riders alone, seconds; `RIDERS=1`, `NIGHT=1`,
   `FALLEN=1`), `tools/micro_probe.gd` (lanes and items round a point, with EYEs), and on
   `still_shot.gd` `MICRO_RIDERS="axis,index,dir,s,kind,speed[,seed];..."` (`MICRO_HOLD=1` keeps
-  them in place, `MICRO_ONLY=1` no others). Checks: `tests/micromobility_checks.gd`.
+  them in place, `MICRO_ONLY=1` no others). Pavement items keep off Broadway's goods and clock
+  and the fire / police stations' fronts (`_occupied_more()`); no lane beside a school (its
+  buses stand in the parking lane); shadows by `set_shadow_reach()` (code meshes have no twin).
+  Checks: `tests/micromobility_checks.gd`.
 - City birds (VISUAL_ROADMAP #54, 2026-10-04: "nothing alive in the city but people"):
   `Birds` (`scripts/world/birds.gd`, a Node3D in `city.tscn`, so origin shifts carry it; birds
   live in its own space). **Nothing is per chunk**: every `survey_interval` it plans flocks round

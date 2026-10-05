@@ -278,7 +278,9 @@ static func build_block(chunk: CityChunk, block: Dictionary) -> void:
 				_place_rack(chunk, edges[int(v.face)], v, occupied, count)
 	for key: String in K_SCOOTER + [K_SHARE, K_DOCK, K_KIOSK, K_RACK, K_POST] + K_LOCKED:
 		chunk._batch.set_draw_distance(key, DRAW)
-		chunk._batch.set_shadow_distance(key, SHADOW)
+		# A reach, not set_shadow_distance(): that only reaches a lighter twin, and these code-built
+		# meshes have none, so they cast across the whole chunk (MultiMeshBatch.set_shadow_reach()).
+		chunk._batch.set_shadow_reach(key, SHADOW)
 	chunk._batch.set_no_shadow(K_POST)
 	chunk._batch.set_draw_distance(K_LANE, LANE_DRAW)
 	chunk.set_meta("micro_items", count[0])
