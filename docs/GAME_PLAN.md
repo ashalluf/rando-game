@@ -289,6 +289,17 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Shadows are cast only where the shadow map can hold them; dark lights are hidden
+  (VISUAL_ROADMAP #50).** (Frame-cost audit after the 2026-10-04 wave, docs/HANDOFF.md 9bf.) The
+  shadow passes had grown to 46 % of the downtown frame (3.49 of 7.66 M triangles). Decisions:
+  the facade kit's roofline (cornices, coping) casts its own shadow only within 80 m
+  (`MultiMeshBatch.set_shadow_reach()`), past which the band inside the moulding stands in; a
+  FULL chunk's raised ground slabs cast from their skirt and edge cells, the roads cast whole; the
+  street lamps' lights are hidden while their level is zero, because Godot clusters a light at
+  zero energy like any other. Each has an A/B switch (`SHADOW_REACH=0`, `GROUND_SHADOW=0`,
+  `LAMPS_AT_ZERO=1`). Downtown -10 % triangles (shadow -22 %), freeway -6 %, masjid -5 %, camera
+  pass unchanged; 0-0.6 % of pixels move by a few levels in thin lines. Kept out: rooftop units
+  from the shadow proxy (no measurable change), roads without shadow (paint edges lightened).
 - **2026-10-04 The crowd's hats are modelled round each rig's own head, in code (G5).** The
   old caps and beanies were a fixed tube and half-dome hung at one offset from the Head bone, so
   on most rigs the cap's band sat across the eyes or the crown perched on top, in flat saturated

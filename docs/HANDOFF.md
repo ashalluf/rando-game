@@ -5908,3 +5908,181 @@ trailers at the docks, no prop batches, the pools shadowless, the warehouses in 
 wall list), the block built with Industrial off keeps every pavement prop where it was, a LOD build
 and the far city's capture draw the warehouses as far boxes. `INDUSTRIAL=0` on `still_shot.gd`,
 `block_shot.tscn` and `tools/geo_count.gd` is the A/B; `industrial_bench.tscn` times the builds.
+
+## 9bf. Frame cost after the 2026-10-04 wave: the audit, and three cuts, 2026-10-05 (agent branch `worktree-agent-af1df0312085290fc`; VISUAL_ROADMAP #50)
+
+The brief: since 9x a lot landed (shop interiors, hills from the air, crowd garments, car lights,
+surf, switchbacks, yards, the freeway kit, the airport, crowd life, coded far buildings; houses,
+industry and headwear while this ran). Measure where the frame goes now and cut what is cheap to
+cut, with no visible loss. North star: 60 fps at 1440p on the owner's Mac, 30 the floor.
+
+### The baseline next to 9x
+
+`SPLIT=1 tools/glshot/bookmarks.sh` on main b2a6482 (before houses, industry and headwear), opengl3
+/ llvmpipe, 960x540, `--quality=0`, each bookmark at its own hour; GEO triangles include the
+shadow passes (camera / shadow), "draws" is the camera pass. Three bookmarks moved since 9x
+(downtown, the freeway and the masjid went to their 1:1 places on 2026-09-25), so 9ai's "after"
+(the same spawns, 2026-09-27) is the fair comparison for those:
+
+| Bookmark | 9x (2026-09-25) | 9ai after (same spawns) | now (b2a6482) |
+|---|---|---|---|
+| downtown_noon | 8.24 M / 4,679 (old spawn) | 6.52 M / 3,360 | 7.66 M (4.17 / 3.49) / 3,950 |
+| downtown_night_rain | 8.24 M / 4,685 (old spawn) | 6.52 M / 3,363 | 7.66 M (4.17 / 3.49) / 3,953 |
+| freeway | 8.68 M / 6,661 (old spawn) | 6.40 M / 3,646 | 6.43 M (4.21 / 2.23) / 3,935 |
+| masjid | - (old spawn) | 7.91 M / 4,258 | 8.20 M (4.46 / 3.74) / 4,940 |
+| esplanade_sunset | 3.19 M / 1,309 | - | 2.72 M (1.41 / 1.31) / 2,159 |
+| hills | 1.60 M / 1,202 (942 after the box merge) | - | 1.72 M (1.59 / 0.13) / 1,134 |
+
+Where it goes now (`SPLIT`: triangles, of which shadow, and draws):
+
+| Category | downtown_noon | freeway | masjid | esplanade_sunset | hills |
+|---|---|---|---|---|---|
+| Buildings | **2.10 M (1.42 sh)**, 1,172 | 0.74 M (0.50 sh), 1,159 | 0.97 M (0.73 sh), 1,241 | 0.14 M (0.13 sh), 228 | 0.01 M, 38 |
+| Far city (Skyline) | 1.69 M, 143 | **1.84 M**, 199 | **2.01 M**, 181 | 0.24 M, 65 | **1.20 M**, 118 |
+| Trees, palms, planting | 1.10 M (0.71 sh), 443 | 1.30 M (0.81 sh), 599 | 1.79 M (1.33 sh), 833 | **1.57 M (0.93 sh), 1,056** | 0.03 M, 61 |
+| Street props | 0.86 M (0.56 sh), 852 | 0.68 M (0.28 sh), 794 | 0.72 M (0.40 sh), 1,148 | 0.22 M (0.13 sh), 420 | 0.04 M, 138 |
+| Other (chunk ground, freeway kit, merged boxes, terrain) | 0.60 M (0.30 sh), 211 | 0.70 M (0.35 sh), 457 | **1.79 M (1.12 sh)**, 738 | 0.40 M (0.10 sh), 262 | 0.36 M (0.07 sh), 445 |
+| Vehicles | 0.51 M (0.20 sh), 280 | 0.58 M (0.24 sh), 340 | 0.55 M (0.11 sh), 441 | 0.09 M, 59 | ~0, 5 |
+| Pedestrians (+ hero) | 0.39 M (0.12 sh), 354 | 0.12 M, 125 | 0.16 M, 125 | 0.01 M, 15 | 0.07 M, 28 |
+| Camp (encampments) | 0.26 M (0.18 sh), 379 | - | - | - | - |
+| LotFill / yards | 0.10 M, 22 | 0.34 M, 72 | 0.06 M, 25 | 0.01 M, 5 | 0 |
+
+What grew most:
+- **Shadows.** The shadow passes are 46 % of the downtown frame (3.49 of 7.66 M; 2.69 of 8.24 M in
+  9x) and 46 % at the masjid. Inside the Building category, BSPLIT put 1.15 M on "kit other"
+  downtown, and the shadow census below found it: the facade kit's ROOFLINE - the parapet coping
+  (511k shadow triangles downtown) and the plain cornice (384k) - a 42-triangle 2 m run round
+  every roof within 230 m, cast into every cascade it touches (the coping's 6 cm drip line is
+  invisible past the second cascade).
+- **The far city**: 0.8-1.3 M in 9x, 1.2-2.0 M now (the coded far buildings' silhouette plant,
+  9bd, and the canopy blobs). Camera pass only, few draws; nothing cheap to cut without a change.
+- **Draws**: the esplanade's planting (1,056 draws: the hill chunks' species batches on the
+  peninsula) and the street props (850-1,150 a street frame) are the draw sinks now; the kit's
+  rooftop units (`Batch_kit_hvac`, three surfaces a building) are ~200 draws downtown for almost
+  no camera triangles.
+
+The shadow census (`perfaudit/shadow_census.gd` in the agent's scratchpad: every visible caster
+within 520 m grouped by kind, then each of the top kinds' shadows turned off on the frozen frame,
+and each kind hidden for its draws) ranked downtown's shadow pass: coping 511k, trees' shadow twins
+385k, plain cornice 384k, the chunk ground grids (`road.gdshader` MeshInstances: the block's
+pavement slab, the roads, lawns) 261k, palms' twins 159k, vehicle wheels 152k, benches' twins
+151k, rooftop units 139k + 122k, parapets and bands 103k, encampment pieces ~180k together.
+
+### Forward+: the city does not fit lavapipe any more
+
+`tools/gpu_profile.gd` on the whole city was OOM-killed twice at 12.7 GB of anonymous memory (the
+session's memory cgroup is 14.3 GB, shared with every other agent's renders, and the OOM killer
+took a second, small Godot process along with it). So there is no city per-pass table this time:
+`gpu_profile.gd` now takes `LIGHT_WORLD=1` (still_shot.gd's smaller world) for a box that can hold
+it, prints a `LIGHTS` line (positional lights inside their distance fade: lit, at zero energy,
+shadowed) and the A/B switches below; on this box the rule is now never to render the city on
+lavapipe. The lights were counted headless instead (a scratch script at the downtown spawn): 10
+street-lamp OmniLights inside their fade at noon and at night, one searchlight, CarLights' spot
+and rear light (off by day). Every positional light is unshadowed except the sun and the
+player's car spot; the freeway's under-deck lights and the airport masts are additive quads, not
+lights.
+
+### What was cut (each with its A/B switch)
+
+Measured as the lead asked: `still_shot.gd` at 1280x720, `--hour=12 --weather=clear --nohud
+--quality=0`, `DIFF=1` (cars, people, aircraft and particles hidden, so two runs render the same
+frame), "before" = `SHADOW_REACH=0 GROUND_SHADOW=0 LAMPS_AT_ZERO=1` on the same tree (e616d37 plus
+this branch: houses, industry and headwear in), "after" = the defaults. Pixel diffs by
+`tools/glshot/img_diff.py`:
+
+| Bookmark (`--spawn`) | before: tris (camera / shadow) / draws | after | change | pixels that moved |
+|---|---|---|---|---|
+| downtown `2359.4,880,0,12,2` | 7,013,501 (3,841,909 / 3,171,590) / 3,298 | 6,310,853 (3,841,909 / 2,468,942) / 3,247 | **-10.0 %** (shadow -22 %), -51 draws | 1,171 (0.13 %); 54 > 8, 5 > 32 |
+| freeway `200,1088,-90,-4,30` | 5,759,212 (3,892,417 / 1,866,793) / 3,318 | 5,417,496 (3,892,417 / 1,525,077) / 3,272 | **-5.9 %** (shadow -18 %), -46 | 1,807 (0.20 %); 208 > 8, 20 > 32 |
+| masjid `1880.7,2809.6,-31.8,-23.7,32` | 8,739,540 (4,149,800 / 4,589,738) / 5,743 | 8,312,876 (4,149,800 / 4,163,074) / 5,613 | **-4.9 %** (shadow -9.3 %), -130 | 5,402 (0.59 %); 418 > 8, 32 > 32 |
+| suburb `-290,307,-60,-3` | 7,059,843 (4,565,039 / 2,494,802) / 3,943 | 6,876,023 (4,565,039 / 2,310,982) / 3,929 | -2.6 % (shadow -7.4 %), -14 | 1,063 (0.12 %); 169 > 8, 11 > 32 |
+| Vernon `2610,3290,180,-1` | 2,323,761 (1,738,489 / 585,270) / 1,606 | 2,223,093 (1,738,489 / 484,602) / 1,598 | -4.3 % (shadow -17 %), -8 | 0 |
+| hills `300,-650,0,-6,260` | 1,919,420 (1,815,050 / 104,368) / 1,104 | the same | 0 | 7 (what two DIFF runs differ by) |
+| esplanade (the bookmark's EYE, FOV 44) | 2,476,372 (1,352,891 / 1,123,479) / 1,760 | 2,469,892 (1,352,891 / 1,116,999) / 1,760 | -0.3 % | 28, all by 1/255 |
+
+The camera pass is identical to the triangle in every view: everything came out of the shadow
+passes. Per cut (the other two off): downtown, the ground rule -175,548 shadow triangles (1,130
+pixels moved, 53 > 8) and the roofline reach -527,100; the masjid, ground -183,784 (3,406 px, 167 >
+8) and reach -242,880 (2,027 px, 252 > 8, 29 > 32). Side by side at 3x the moved pixels cannot be
+told apart by eye (`perfaudit/ab/masjid_reach_tl.png`, `masjid_kerb_triple.png`).
+
+1. **The roofline casts only near the camera** (`MultiMeshBatch.set_shadow_reach()`,
+   `Building.kit_roofline_shadow_reach` 80 m, `SHADOW_REACH=0` the A/B). The cornices and the
+   coping keep their own shadow while any run of a building's roofline is within 80 m of the camera
+   (the twin's range is the reach plus half the diagonal of the runs' bounds, since a node's range
+   is measured to the centre of its bounds); past it the cascades are 10-15 cm a texel (80-210 m)
+   and 30 cm and more (to 500 m), so the coping's 6 cm drip line cannot be drawn, and the
+   cornice's shadow is cast by the box band that has always sat inside the moulding
+   (`KIT_CORNICE_CORE`, which stays). `set_shadow_reach()` is new and generic: a batch with a
+   lighter twin keeps it with that range, one without gets a SHADOWS_ONLY twin of its own mesh; up
+   close it casts exactly what it cast before. What moves: thin lines along far rooflines and the
+   cornice shadow on far walls, 20-45/255 on single pixel rows (most in the masjid's aerial view).
+2. **A raised ground slab casts from its skirt and its edge** (`CityChunk.ground_skirt_shadows`,
+   `GROUND_SHADOW=0` the A/B). The block's pavement slab (the whole block at 2.2 m quads, ~10k
+   triangles), lawns, paths and plazas now cast through a SHADOWS_ONLY `GroundRim`: the skirt
+   (the kerb face, which draws the kerb's shadow on the road) and the ring of edge cells (so the
+   kerb top's shadow edge and its filtering are what they were); the middle of the top, which
+   nothing under it can see, casts nothing. Only slabs whose top is within `GROUND_RIM_TOP`
+   (0.5 m) of the pavement: a gas station's 0.5 m canopy is ground-grid shaped too, up in the air,
+   and keeps all of its shadow. The roads keep theirs - the first version took the road slabs out
+   too (nothing lies under a road) and the paint, stop lines and patches millimetres above them
+   came out lighter along their edges (6,075 pixels downtown, 849 > 8; `perfaudit/ab_v1/`). What
+   still moves: where something lies a centimetre or two above a slab's middle (yard ground,
+   forecourts), the slab's own depth no longer darkens its edges - acne, not a shadow - and a few
+   scattered facade pixels, from the shadow map's depth fit changing with its casters.
+3. **The street lamps' lights are hidden while they are off** (`DayNight.hide_dark_lamps`,
+   `LAMPS_AT_ZERO=1` the A/B). DayNight set their energy to 0 by day (and below MEDIUM, where
+   Quality zeroes `lamp_scale`) and left them visible, and Godot does not skip a light for having
+   no energy: Forward+ puts every light inside its distance fade into its clusters
+   (`LightStorage::update_light_buffers` checks only the fade; read in the 4.7.2 source) and the
+   Compatibility renderer into its per-object light lists. The opengl3 counters cannot see light
+   cost, so it was measured on a small Forward+ scene under lavapipe (`perfaudit/light_bench.gd`:
+   a 400 m street, two walls, a PSSM sun, 100 lamp lights at energy 0 every 12 m, ~14 inside
+   their fade): frame 146 / 143 ms with them shown, 103 / 99 ms hidden (two runs each, 7-8 GPU
+   profile samples a run, the box busy with opengl3 renders) - the opaque pass 87-88 -> 56-59 ms;
+   with volumetric fog 186 -> 172 ms. A software GPU is not the Mac, but such a light costs every
+   pixel it reaches, and downtown at noon that was 10 of them. Nothing on screen can change (they
+   were at zero).
+
+### Tried and dropped
+
+- **The rooftop air conditioners from the model's shadow proxy** (half the triangles at LOD 0, a
+  twin per building): the shadow pass counted exactly the same triangles to the unit (138,908 and
+  122,053 downtown, before and after). The units' surfaces have LODs, the counter counts a LOD'd
+  surface once per draw (measurement trap 3), and at the distances they stand from a street camera
+  the proxy's LODs and the model's are the same index arrays. No measurable gain, not kept.
+- **Roads that cast nothing**: see cut 2.
+
+### Found, not fixed
+
+- **`MultiMeshBatch.set_shadow_distance()` does nothing on a batch with no lighter twin**: the
+  distance only reaches a twin, and a code-built mesh has none. The airport's fence posts (60 m),
+  edge lights (30 m), gate sets and staging rows (160 m) and the car parks' fence posts (40 m) all
+  ask for one and cast to their draw distance instead. `set_shadow_reach()` is what they meant;
+  switching them changes the look at the airport, which no bookmark covers, so it is left.
+- **Car wheels**: 776 wheel MeshInstances (four a car, one surface each) were 152k shadow
+  triangles downtown, cast to `_wheel_far_end`. `vehicle.gd` belongs to the buses / trucks branch;
+  a shadow distance for the wheels (the body's twin already stops at `body_shadow_distance`) is the
+  next cheap cut there.
+- **Benches' shadow twin** is 151k downtown: the bench is 6.4k triangles (its `TRI_BUDGET` of 4,000
+  could not be met by the generated LODs) and its proxy 3.4k; a coarser proxy needs a look check.
+- `Batch_kit_hvac` is ~200 draws for ~800 camera triangles downtown (three surfaces a building,
+  drawn behind parapets from the street).
+
+### How to check it again
+
+    # one A/B pair (the same args both sides; before = the three switches)
+    env OUT=a.png FRAMES=45 DIFF=1 [SHADOW_REACH=0 GROUND_SHADOW=0 LAMPS_AT_ZERO=1] \
+      LIBGL_ALWAYS_SOFTWARE=1 flock -o /tmp/rando_render_gl.lock xvfb-run -a -s "-screen 0 1280x720x24" \
+      godot --rendering-driver opengl3 --display-driver x11 --audio-driver Dummy --path . \
+      --script tools/glshot/still_shot.gd --resolution 1280x720 \
+      -- --spawn=2359.4,880,0,12,2 --hour=12 --weather=clear --nohud --quality=0
+    python3 tools/glshot/img_diff.py before.png after.png heat.png
+
+The stills, heatmaps and logs of this pass are in the agent's scratchpad (`perfaudit/ab/`:
+`<bookmark>_before.png`, `_after.png`, `_heat.png`, `_diff.txt` and the logs with their GEO lines;
+`perfaudit/base/` the SPLIT baseline; `perfaudit/ab_v1/` the dropped road variant), not the repo.
+
+**Not verified**: the Mac. The cuts are shadow-pass and light-cluster work, which only the Mac's
+GPU can time; the opengl3 counters show the triangles and the lavapipe bench the lights' per-pixel
+cost in a small scene. The look was judged on opengl3 (the pixel diffs above), not on Forward+.

@@ -937,7 +937,9 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Every street lamp now carries an `OmniLight3D` in the `lamp_light` group (FULL chunks only,
   distance-faded, no shadows) whose energy `DayNight` sets from `night_factor` on a 0.35 s tick
   - not only when the value changes, or lamps that streamed in since the last change stay dark -
-  and `Quality` zeroes `DayNight.lamp_scale` below MEDIUM. The level is
+  and `Quality` zeroes `DayNight.lamp_scale` below MEDIUM; while the level is zero the lights
+  are HIDDEN (`DayNight.hide_dark_lamps`): a light at zero energy still costs every pixel it
+  reaches (Forward+'s clusters, Compatibility's light lists). The level is
   `max(night_factor, weather_darken * 0.85)`, published as the `lamp_factor` shader global, so
   the lamps come on in a storm at noon too. Alongside it, and always on, is the
   additive night quad (`shaders/light_pool.gdshader`, which reads `lamp_factor`,
@@ -2623,6 +2625,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (the physics body is untouched), and see the physics-layers note on masks. The HUD shows the level and a frame-time line (cpu / physics / gpu ms, draws,
   objects, tris): ask the owner for a screenshot of it before guessing at lag. Building window
   frames are flat quads drawn out to `Building.FRAME_DRAW_DISTANCE`.
+  **Shadows are cut where the shadow map cannot hold them** (2026-10-05, docs/HANDOFF.md 9bf:
+  the shadow passes were 46 % of the downtown frame). `MultiMeshBatch.set_shadow_reach(key, m)`
+  casts a batch only while one of its instances is within `m` of the camera (a SHADOWS_ONLY
+  twin, of the batch's own mesh when it has no lighter one); the facade kit's cornices and coping
+  use it (`Building.kit_roofline_shadow_reach`, 80 m: past it the cascades are 10 cm a texel and
+  more, and the band inside the moulding casts the cornice's shadow). **`set_shadow_distance()`
+  only reaches a lighter twin: on a code-built mesh it does nothing** (the airport's and the car
+  parks' fence posts ask for one in vain). A FULL chunk's raised ground slabs (pavement, lawns,
+  plazas within `GROUND_RIM_TOP` of the pavement) cast from their skirt and edge cells alone
+  (`GroundRim`, `CityChunk.ground_skirt_shadows`); the roads cast whole (without them the paint
+  and patches on them came out lighter along their edges). A/B: `SHADOW_REACH=0`, `GROUND_SHADOW=0`,
+  `LAMPS_AT_ZERO=1` on `still_shot.gd` and `gpu_profile.gd`. The whole city no longer fits
+  lavapipe (12.7 GB, OOM-killed with another session's process): never render it there;
+  `gpu_profile.gd LIGHT_WORLD=1` is for a bigger box.
   **Static boxes are never a node each.** `CityChunk._add_slab()` merges a chunk's solid boxes
   (big-box walls, pilasters, parapets, planters, yard pads) into one mesh per material at the
   finish (`_commit_boxes()`), and `MultiMeshBatch.merge_meshes()` does the same for the far
