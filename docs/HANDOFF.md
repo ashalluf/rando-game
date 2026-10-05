@@ -8739,3 +8739,19 @@ freewheel sound. No children on the kid seat (no child rigs). Lanes and fleets a
 only, so a green lane appears as its chunk goes FULL (the brief's "LOD nothing"). Docked bikes
 can be knocked out of their docks. The frame cost at a station with many bikes and riders close
 by was not measured separately.
+
+**Merged with fleet/base and main (wave 2, 2026-10-05).** Conflicts were only in the docs and
+the smoke test's list (both sides kept; this section renumbered `9d?`, its roadmap row `?`). What
+the merge itself needed: scooters, docks and racks now keep off Broadway's goods and street clock
+and the fire and police stations' fronts (`Micromobility._occupied_more()`, what Encampment keeps
+clear of); a stretch beside a school block has no lane (`lane_on()`: Schools' buses stand in the
+parking lane); crowd_r (headscarf, `Pedestrian.NO_HAT_MODELS`) takes no helmet. Review found one
+cost bug: the batches used `set_shadow_distance()`, which only reaches a lighter twin, so every
+scooter, dock and bike cast into every cascade; they use `set_shadow_reach(40 m)` now. The eight
+new rigs (crowd_m..t) ride every kind with the same solve (stills `merged_riders_crowd_*`).
+Gate: 1,382 of 1,383 on the merge with fleet/base (the one the known closed-road map check), peak
+3.17 GB RSS. Cost (`still_shot.gd` GEO, opengl3 1280 x 720, `--quality=0`, not DIFF-held,
+`MICROMOBILITY=0` -> on): Wilshire lane view `2623.8,2.2,312.7,-90,-8` 5.68 -> 5.33 M triangles,
+3,731 -> 3,556 draws (the parked cars leave the lane); Hill St `2864.4,2.2,12.0,180,-8` 6.62 ->
+7.09 M; the station `2727.0,1.7,34.7,-22,-14` 6.60 -> 7.47 M (+0.75 M of it shadows within 40 m);
+a scooter cluster `2827.2,1.7,13.6,68,-14` 5.11 -> 5.54 M. Stills on `shots/scooters` (`merged_*`).
