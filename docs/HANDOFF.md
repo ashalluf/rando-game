@@ -6537,4 +6537,50 @@ past 90 m). No children (there are no child rigs); no swimmers.
 - A HDR emission (the floodlight lens) must not go through the sRGB curve: `to_lit()` is applied
   to the clamped colour and the gain after.
 
-**Coverage, frame cost, stills, checks:** see the numbers below.
+**Coverage** (`tools/lot_coverage.gd`, seed 1337, `RECT=-1500,-3600,3000,5100`, the basin west of
+downtown; before `PARKS=0`). New kind `sport` (fields, courts, track, pool, yard, walks) and rows
+`REC` / `SCHOOL`; a rec park or school is counted in its district's row as well. Before, PARK
+blocks were not counted at all (lawn and trees) and the converted BUILDINGS blocks were houses.
+
+| Row | before | after |
+|---|---|---|
+| SUBURBS | 104 blocks: bare 8.3, built 30.8, garden 56.9 % | 117 blocks: bare 7.2, built 25.9, garden 53.6, sport 9.1 % |
+| MIDTOWN | 262 blocks: bare 5.1, built 41.3, forecourt 38.6 % | 276 blocks: bare 4.8, built 38.4, forecourt 35.6, sport 4.6 % |
+| BEACHTOWN | 50 blocks: bare 4.2 % | 53 blocks: bare 4.1, sport 1.8 % |
+| REC (39 blocks) | - | built 2.9, parking 3.6, garden 40.7, sport 52.8 %, bare 0 |
+| SCHOOL (4 blocks) | - | built 11.8, parking 8.1, sport 80.1 %, bare 0 |
+
+**Frame cost** (`tools/geo_count.gd`, opengl3 800x600, `--quality=0`, noon, 90 frames; before
+`PARKS=0`, the same commit; the spawns see different things before and after, which is the
+point - a rec park's fields are lighter than the old park's ~30 trees and ground cover):
+
+| Spawn | triangles | draws | objects |
+|---|---|---|---|
+| High school, the street in front `966,800,0,-12,6` | 5,573,932 -> 5,272,590 (-5.4 %) | 5,313 -> 4,662 (-12.3 %) | 21,308 -> 20,669 |
+| Rec park courts, eye level `-262,-2486,10,-6,2` | 7,679,841 -> 5,039,083 (-34 %) | 4,072 -> 3,976 (-2.4 %) | 15,985 -> 15,889 |
+| Rec park diamond, 90 m up `52,-20,0,-35,90` | 13,224,535 -> 7,747,123 (-41 %) | 6,875 -> 6,585 (-4.2 %) | 17,404 -> 17,109 |
+
+`still_shot.gd` (1280x720): the suburb aerial `EYE=1911,150,4260,0,-42` (AGL) 4,303,087 / 3,262 ->
+4,204,408 / 3,254. A FULL chunk's kit is 5.9k (the high school) to 9.3k (a full rec park)
+triangles in one mesh; the ground one mesh; the pools one batch.
+
+**Stills** (`shots/parks`): the suburb aerial before and after, a rec park aerial, the high
+school's track aerial, pickup basketball at eye level, the diamond from the bleachers, the track
+and football field, the diamond at night under the floodlights, the pool from above and at eye
+level, a playground and rec centre, the track at night.
+
+**Checks**: `tests/park_checks.gd` (13 in the smoke test): both shaders handle every kind; roles
+only on city ground in the right districts with no lots, a school is SCHOOL; every facility in its
+site, none on another, regulation sizes (court rows run the right way, 400 m at most, the
+football field inside the kerb), plans pure; counts across the basin; a jogger's oval maps onto
+itself; a FULL rec park and school: one ground mesh, one walls mesh, no Building, pools
+shadowless, a kit budget, people's spawn steps; LOD builds no meshes; the far city's capture lays
+partitioned slabs (0 overlaps) covering the site and far boxes.
+
+**Not done / not verified**: no Forward+ look (the pool trace, the floodlight glow, the acrylic
+and turf under AgX: NEEDS A MAC CHECK); no children or swimmers; the playground structure and
+the people's "games" are simple (pickup players run between spots, fielders stand; nobody
+throws a ball - only the basketball is scripted); the far city averages a park block into one
+plate colour (the LOD ring shows the fields); tracks are rarely 400 m (the blocks are too small);
+fences have no collision; the wreck-on-the-deck physics check failed once in three full runs
+(a toss landing at 2.70 m against a 2.6 m limit, in the test room; unrelated to parks).
