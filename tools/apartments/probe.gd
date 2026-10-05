@@ -1,7 +1,7 @@
 extends SceneTree
 ## The apartment kit (Apartments) on a plan, headless, seconds: how many lots it claims per district
 ## and kind, the plan's purity, and an EYE (still_shot.gd) for the first few of each kind.
-##   godot --headless --path . --script tools/apartments/probe.gd [-- SEED=n RADIUS=m]
+##   godot --headless --path . --script tools/apartments/probe.gd (env SEED=n RADIUS=m CENTER=x,z)
 
 func _initialize() -> void:
 	await process_frame
@@ -9,6 +9,9 @@ func _initialize() -> void:
 	var radius := float(OS.get_environment("RADIUS")) if OS.get_environment("RADIUS") != "" else 3200.0
 	var plan := GroundCoverage.make_plan(seed_value)
 	var centre: Vector2 = plan.macro.downtown_center
+	if OS.get_environment("CENTER") != "":
+		var c := OS.get_environment("CENTER").split(",")
+		centre = Vector2(float(c[0]), float(c[1]))
 	var lo := plan.block_index_at(centre - Vector2(radius, radius))
 	var hi := plan.block_index_at(centre + Vector2(radius, radius))
 	var counts := {}

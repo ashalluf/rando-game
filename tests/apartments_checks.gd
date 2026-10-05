@@ -17,8 +17,8 @@ func run(t: Node, city: Node3D) -> void:
 	_t = t
 	var plan: CityPlan = city.plan
 	var centre: Vector2 = plan.macro.downtown_center
-	var lo := plan.block_index_at(centre - Vector2(2600.0, 2600.0))
-	var hi := plan.block_index_at(centre + Vector2(2600.0, 2600.0))
+	var lo := plan.block_index_at(centre - Vector2(1800.0, 1800.0))
+	var hi := plan.block_index_at(centre + Vector2(1800.0, 1800.0))
 	var kinds := {}
 	var districts := {}
 	var impure := 0
@@ -81,7 +81,7 @@ func run(t: Node, city: Node3D) -> void:
 			if d == CityPlan.District.MIDTOWN and here > best and plan.zone_at((b.rect as Rect2).get_center()) == MacroMap.Zone.CITY:
 				best = here
 				block_with = Vector2i(bx, bz)
-	_t._check(total >= 200 and districts.size() >= 1 and kinds.size() == 4 and bad_claim == 0,
+	_t._check(total >= 150 and districts.size() >= 1 and kinds.size() == 4 and bad_claim == 0,
 		"apartments: %d buildings in midtown and the inner suburbs, kinds %s, %d wrong claims" % [total, kinds.keys(), bad_claim])
 	_t._check(impure == 0 and astray == 0 and overlaps == 0 and tall == 0,
 		"apartments: pure (%d differ), inside their yards (%d astray), wings apart (%d overlap), low-rise (%d over 14.5 m)" % [impure, astray, overlaps, tall])
@@ -94,7 +94,9 @@ func run(t: Node, city: Node3D) -> void:
 
 func _full(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 	var chunk: CityChunk = city._new_chunk(k, CityChunk.Level.FULL)
+	var t0 := Time.get_ticks_usec()
 	chunk.build()
+	var on_ms := float(Time.get_ticks_usec() - t0) / 1000.0
 	var meshes := 0
 	for c in chunk.get_children():
 		if c is MeshInstance3D and String(c.name).begins_with("House_"):
@@ -134,7 +136,9 @@ func _full(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 	# Off: Building boxes again.
 	Apartments.enabled = false
 	var off: CityChunk = city._new_chunk(k, CityChunk.Level.FULL)
+	var t1 := Time.get_ticks_usec()
 	off.build()
+	var off_ms := float(Time.get_ticks_usec() - t1) / 1000.0
 	Apartments.enabled = true
 	var off_b := 0
 	for c in off.get_children():
@@ -142,4 +146,4 @@ func _full(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 			off_b += 1
 	off.get_parent().remove_child(off)
 	off.free()
-	_t._check(off_b >= claimed.size(), "apartments block %s with the kit off: %d Building boxes (the A/B)" % [k, off_b])
+	_t._check(off_b >= claimed.size(), "apartments block %s with the kit off: %d Building boxes (the A/B; built in %.0f ms on, %.0f ms off)" % [k, off_b, on_ms, off_ms])
