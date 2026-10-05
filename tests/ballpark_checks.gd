@@ -137,6 +137,15 @@ func _roads(macro: MacroMap) -> void:
 			end_ok = macro.zone_at(pts[pts.size() - 1]) == MacroMap.Zone.CITY or macro.plateau_at(pts[pts.size() - 1]) > 50.0
 		_t._check(grade <= Ballpark.ROAD_GRADE + 0.001 and start_ok and end_ok and r.width == Ballpark.ROAD_WIDTH,
 			"%s: from the site's level to the city, steepest grade %.1f %%" % [rn, grade * 100.0])
+		# Where the road leaves the hills it lies on the city's ground (HillRoads.carve() cuts
+		# nothing there, so a bed off it is a ditch or a step at the zone edge).
+		var off := 0.0
+		var k := pts.size() - 1
+		while k > 0 and macro.zone_at(pts[k]) != MacroMap.Zone.HILLS:
+			k -= 1
+		for i in range(k, pts.size()):
+			off = maxf(off, absf(hs[i] - macro.height_at(pts[i])))
+		_t._check(off < 0.6, "%s meets the city on its ground (%.2f m off at worst)" % [rn, off])
 
 
 func _copies() -> void:

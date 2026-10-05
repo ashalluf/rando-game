@@ -178,7 +178,9 @@ static func covers(p: Vector2, margin: float = 0.0) -> bool:
 ## site's level; outside, the hills cut back at CUT_SLOPE (filled at FILL_SLOPE) from the level at
 ## the nearest edge, rolled in over BANK_SHOULDER and handed back to the hills by BANK_REACH.
 static func carve(p: Vector2, h: float) -> float:
-	if _enabled == 0:
+	# enabled(), not _enabled: the hill roads and the freeway ask for heights before anything
+	# else has read the switch, and an unread switch (-1) carved the hills under BALLPARK=0.
+	if not enabled():
 		return h
 	# Every height query in the game comes through here: a world-space box test first.
 	if p.x < CARVE_BOX.position.x or p.y < CARVE_BOX.position.y or p.x > CARVE_BOX.end.x or p.y > CARVE_BOX.end.y:
@@ -273,11 +275,11 @@ static func add_roads(macro: MacroMap) -> void:
 	for p: Vector2 in NORTH_DRIVE:
 		north.append(world(p.x, p.y))
 	north.append(NORTH_END)
-	_add_road(hr, macro, "Sunridge Dr", _resample(north))
+	_add_road(hr, macro, "Sunridge Dr", _resample(north), false)
 	var way := PackedVector2Array()
 	for p: Vector2 in STADIUM_WAY:
 		way.append(p)
-	_add_road(hr, macro, "Stadium Way", _resample(way))
+	_add_road(hr, macro, "Stadium Way", _resample(way), true)
 	hr._index()
 
 
@@ -293,9 +295,13 @@ static func _resample(pts: PackedVector2Array) -> PackedVector2Array:
 
 ## Heights: the site's level at the start, the natural ground (with the site cut in) at the end,
 ## and in between the ground smoothed along the road, then held within ROAD_GRADE of its
-## neighbours by passes from both ends, never climbing on the way down (the least earthwork a
-## drivable grade allows).
-static func _add_road(hr: HillRoads, macro: MacroMap, road_name: String, pts: PackedVector2Array) -> void:
+## neighbours by passes from both ends (the least earthwork a drivable grade allows). Stadium Way
+## (`descends`) never climbs on its way down; Sunridge Dr may, since the valley floor it ends on
+## stands higher than the saddle it crosses. The points off the hills (the city's ground, where
+## HillRoads.carve() cuts nothing) are pinned to that ground: held to the grade from the site
+## instead, both ends stood several metres off the city they meet - a ditch at the valley's edge
+## and a 9 m step at Hill St where the hill chunk's carved bank met the street.
+static func _add_road(hr: HillRoads, macro: MacroMap, road_name: String, pts: PackedVector2Array, descends: bool) -> void:
 	var n := pts.size()
 	var ground := PackedFloat32Array()
 	for p in pts:
@@ -317,16 +323,23 @@ static func _add_road(hr: HillRoads, macro: MacroMap, road_name: String, pts: Pa
 		if site_sd(q) < ROAD_WIDTH:
 			hs[i] = level(q)
 			pinned[i] = 1
+	# The run off the hills at the far end lies on the city's ground.
+	var i_end := n - 1
+	while i_end > 0 and macro.zone_at(pts[i_end]) != MacroMap.Zone.HILLS:
+		hs[i_end] = ground[i_end]
+		pinned[i_end] = 1
+		i_end -= 1
 	hs[n - 1] = ground[n - 1]
-	for _pass in 6:
+	pinned[n - 1] = 1
+	for _pass in 12:
 		for i in range(1, n):
 			if pinned[i] == 0:
 				var g := ROAD_GRADE * pts[i].distance_to(pts[i - 1])
-				hs[i] = clampf(hs[i], hs[i - 1] - g, hs[i - 1])
+				hs[i] = clampf(hs[i], hs[i - 1] - g, hs[i - 1] if descends else hs[i - 1] + g)
 		for i in range(n - 2, -1, -1):
 			if pinned[i] == 0:
 				var g := ROAD_GRADE * pts[i].distance_to(pts[i + 1])
-				hs[i] = clampf(hs[i], hs[i + 1], hs[i + 1] + g)
+				hs[i] = clampf(hs[i], hs[i + 1] if descends else hs[i + 1] - g, hs[i + 1] + g)
 	hr.roads.append({"name": road_name, "points": pts, "heights": hs, "width": ROAD_WIDTH,
 		"mansions": false, "planned_points": pts, "ballpark": true})
 
