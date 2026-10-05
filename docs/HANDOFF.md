@@ -7062,9 +7062,11 @@ ALU in shaders that were already running.
   over the hopper upside down with its lid falling open, shakes it out twice (a bang each:
   `ServiceSounds` "bang" plus Sfx `hit_metal`), brings it back down, sets it where it stood and
   draws in, with the hydraulic whine under every move and its hazards on.
-- **Street sweeper**: crawls along a kerb (2.2 m/s, pulled 0.9 m toward it) with the gutter
-  brooms and the main broom spinning, water spraying ahead of them, dust lifting behind, the
-  brushes hissing.
+- **Street sweeper**: on a street swept today (`KerbBins.swept()`: 12 % of streets a day by hash,
+  never a collection street; `CityChunk._park_car()` parks nothing along one, after its rolls, as
+  LA's posted sweeping hours do) it crawls down the gutter (2.2 m/s, `gutter_gap` 0.35 m off the
+  kerb, `sweep_shift()`) with the gutter brooms and the main broom spinning, water spraying ahead
+  of them, dust lifting behind, the brushes hissing.
 - **Ice-cream truck** (suburbs and the beach town, 11:00-20:30): cruises playing its chime - an
   ORIGINAL tune (`ServiceSounds.TUNE`) on a music-box timbre through a tinny horn - and stops every
   70-170 m for 18-30 s with its amber flashers on; menu boards of original picture tiles (no

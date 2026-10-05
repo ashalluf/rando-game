@@ -1325,7 +1325,9 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   black / blue / green carts in the gutter where it fronts its street, snapped to the stall line
   between two parking bays; a street's day is `hash(seed, axis, index, weekday)` (`OUT_PERCENT`);
   `CityChunk._park_car()` skips a long car next to a set (`blocks_parking()`, after its rolls,
-  counted as parked). The cart mesh is code (moulded body, rim, lid on its hinge, wheels, axle,
+  counted as parked), and every car along a street swept today (`swept()`, `SWEEP_PERCENT`,
+  never a collection street; `KerbBins.weekday` is ServiceFleet's day) - the sweeper runs those
+  streets in the gutter (`sweep_shift()`). The cart mesh is code (moulded body, rim, lid on its hinge, wheels, axle,
   handle; ~580 / 24 triangles) on `shaders/kerb_bin.gdshader`. **`ServiceFleet`**
   (`scripts/world/service_fleet.gd`, a Node3D in city.tscn) draws the carts round the player
   (two MultiMeshes, near / far), keeps the weekday (it turns over at midnight), and every

@@ -195,6 +195,24 @@ func _bins_plan(spot: Dictionary) -> void:
 	var bay := Vector3(c.x, 0.0, c.y)
 	_check(KerbBins.blocks_parking(_plan, bay, 6.1) and not KerbBins.blocks_parking(_plan, bay, 4.9),
 			"a long parked car keeps off a cart set, an ordinary one fits between")
+	# Sweeping days: a share of streets a day, never a collection street, nothing parks along one.
+	var swept := 0
+	var clash := 0
+	var swept_road := -1
+	for i in 200:
+		if KerbBins.swept(_plan, 0, i, 3):
+			swept += 1
+			swept_road = i
+			if KerbBins.street_out(_plan, 0, i, 3):
+				clash += 1
+	_check(swept > 8 and swept < 45 and clash == 0, "about %d%% of streets are swept on a day, none a collection street (%d of 200)" % [KerbBins.SWEEP_PERCENT, swept])
+	if swept_road >= 0:
+		var was_day := KerbBins.weekday
+		KerbBins.weekday = 3
+		var x := _plan.road_pos(CityPlan.AXIS_X, swept_road) + CityPlan.parking_offset(_plan.road_width(CityPlan.AXIS_X, swept_road))
+		var z := (_plan.road_pos(CityPlan.AXIS_Z, 0) + _plan.road_pos(CityPlan.AXIS_Z, 1)) * 0.5
+		_check(KerbBins.blocks_parking(_plan, Vector3(x, 0.0, z), 4.5), "nothing parks along a street swept today")
+		KerbBins.weekday = was_day
 	var colors := {}
 	for k in 3:
 		colors[KerbBins.cart_color(st, k)] = true
