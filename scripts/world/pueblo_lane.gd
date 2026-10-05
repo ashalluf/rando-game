@@ -269,27 +269,30 @@ static func _build_into(info: Dictionary, parent: Node3D, statics: StaticBody3D,
 	var batch := MultiMeshBatch.new()
 	var solid := PuebloMarket.Acc.new()
 	var thin := PuebloMarket.Acc.new()
+	# The small things - goods, bulbs, strings, lanterns, ironwork bars - cast no shadow: four
+	# cascades of 100k triangles of pots and pinatas were half a million shadow triangles.
+	var small := PuebloMarket.Acc.new()
 	_materials(g, y0)
 	_ground(g, batch, L, y0, detailed)
 	var occ: Array = []
 	for seg: Array in L.segs:
-		_row_building(g, solid, statics, L, seg, y0, detailed, occ)
-	_church(g, solid, parent, statics, L.church, y0, detailed)
-	_firehouse(g, solid, statics, L.fire, y0, detailed, occ)
+		_row_building(g, small, statics, L, seg, y0, detailed, occ)
+	_church(g, small, parent, statics, L.church, y0, detailed)
+	_firehouse(g, small, statics, L.fire, y0, detailed, occ)
 	_hotel(g, solid, statics, L.hotel, y0, detailed, occ)
 	_tick("buildings")
 	_kiosk(g, solid, statics, L.p, y0, detailed)
 	_tick("kiosk")
 	if detailed:
-		_plaza_detail(g, batch, solid, thin, statics, L, y0)
+		_plaza_detail(g, batch, small, thin, statics, L, y0)
 		_tick("plaza")
-		_lane_detail(g, solid, thin, statics, L, y0)
+		_lane_detail(g, small, thin, statics, L, y0)
 		_lane_pools(batch, L, y0)
 		_tick("lane")
 		for st: Dictionary in L.stalls:
 			var xf: Transform3D = st.xf
 			xf.origin.y = y0 + 0.05
-			PuebloMarket.stall(solid, thin, xf, int(st.goods), int(st.seed))
+			PuebloMarket.stall(solid, thin, xf, int(st.goods), int(st.seed), 0, small)
 			if statics:
 				var c := xf * Vector3(0, PuebloMarket.STALL_H * 0.5, -PuebloMarket.STALL_D * 0.5)
 				LandmarkGeo.shape_box(statics, c, Vector3(PuebloMarket.STALL_W - 0.1, PuebloMarket.STALL_H, PuebloMarket.STALL_D - 0.6), xf.basis)
@@ -303,7 +306,7 @@ static func _build_into(info: Dictionary, parent: Node3D, statics: StaticBody3D,
 		var lane: Rect2 = L.lane
 		g.box("far_vines", Vector3(lane.get_center().x, y0 + PERGOLA_H + 0.25, lane.get_center().y), Vector3(lane.size.x, 0.5, lane.size.y), Color.WHITE)
 	_tick("pergola+fill")
-	parent.set_meta("pueblo_tris", {"geo": g.triangles, "market": solid.tris(), "paper": thin.tris()})
+	parent.set_meta("pueblo_tris", {"geo": g.triangles, "market": solid.tris() + small.tris(), "small": small.tris(), "paper": thin.tris()})
 	g.commit(parent, "PuebloLane")
 	_tick("commit geo")
 	if statics:
@@ -314,6 +317,16 @@ static func _build_into(info: Dictionary, parent: Node3D, statics: StaticBody3D,
 		mi.name = "PuebloMarket"
 		mi.mesh = sm
 		mi.visibility_range_end = 220.0
+		mi.visibility_range_end_margin = 20.0
+		mi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+		parent.add_child(mi)
+	var gm := small.mesh(PuebloMarket.solid_material())
+	if gm:
+		var mi := MeshInstance3D.new()
+		mi.name = "PuebloGoods"
+		mi.mesh = gm
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.visibility_range_end = 170.0
 		mi.visibility_range_end_margin = 20.0
 		mi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 		parent.add_child(mi)

@@ -23,6 +23,7 @@ enum { K_PAINT, K_WOOD, K_CANVAS, K_SARAPE, K_GLAZE, K_CLAY, K_PAPER, K_BULB, K_
 enum Goods { SARAPES, POTTERY, PINATAS, HATS, DRESSES, CANDY, SILVER, LEATHER }
 const GOODS_COUNT := 8
 
+## A stall's frame, its awning and arms go into `solid` (it casts); `small` takes the goods.
 ## A stall's size: frontage along the lane, depth into it, height to the eaves at the back (m).
 const STALL_W := 2.4
 const STALL_D := 1.9
@@ -237,7 +238,7 @@ class Acc:
 ## One puesto into `solid` / `thin`: `xf` is its frame (origin at the middle of its front on the
 ## ground, +Z out over the aisle, +X along the lane), `goods` what it sells, `s` its seed. `lod` 1
 ## leaves the goods' small pieces out (the far copy).
-static func stall(solid: Acc, thin: Acc, xf: Transform3D, goods: int, s: int, lod: int = 0) -> void:
+static func stall(solid: Acc, thin: Acc, xf: Transform3D, goods: int, s: int, lod: int = 0, small: Acc = null) -> void:
 	var paint: Color = STALL_PAINTS[hash([s, "paint"]) % STALL_PAINTS.size()]
 	var awn: Color = AWNING_COLORS[hash([s, "awning"]) % AWNING_COLORS.size()]
 	var wood := Color(0.42, 0.29, 0.18)
@@ -288,10 +289,11 @@ static func stall(solid: Acc, thin: Acc, xf: Transform3D, goods: int, s: int, lo
 	for px: float in [-hw, hw]:
 		var p := xf * Vector3(px, front_y - 0.18 - AWNING_DROP * 0.5, 0.13 + AWNING_OUT * 0.5)
 		solid.box(Transform3D(b * Basis(Vector3.RIGHT, atan2(AWNING_DROP, AWNING_OUT)), p), Vector3(0.025, 0.025, Vector2(AWNING_OUT, AWNING_DROP).length()))
-	# A bare bulb under the awning on its flex.
-	solid.set_look(Color(1.0, 0.78, 0.45), K_BULB, h01([s, "bulb"]))
-	solid.lathe(at.call(Vector3(0, front_y - 0.42, 0.45)), [Vector2(0.0, -0.05), Vector2(0.03, -0.04), Vector2(0.035, 0.0), Vector2(0.015, 0.03), Vector2(0.012, 0.05)], 6)
-	_goods(solid, thin, xf, goods, s, lod)
+	# A bare bulb under the awning on its flex. The goods and the bulb go into `small` (no shadow).
+	var g_acc := small if small != null else solid
+	g_acc.set_look(Color(1.0, 0.78, 0.45), K_BULB, h01([s, "bulb"]))
+	g_acc.lathe(at.call(Vector3(0, front_y - 0.42, 0.45)), [Vector2(0.0, -0.05), Vector2(0.03, -0.04), Vector2(0.035, 0.0), Vector2(0.015, 0.03), Vector2(0.012, 0.05)], 6)
+	_goods(g_acc, thin, xf, goods, s, lod)
 
 
 ## The goods a stall sells, on its counter, its back wall and hanging from its awning and posts.
