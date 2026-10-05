@@ -205,6 +205,9 @@ var apron_spots: Array = [[Vector2(-560.0, 780.0), 0], [Vector2(-75.0, 712.0), 1
 
 ## Roads and mansion pads carved into the hills (built in setup()).
 var hill_roads: HillRoads
+## The Los Angeles River's concrete channel (LaRiver): built before the hill roads and the
+## freeway, so the land level along it is in the relief they read (terrace(), _relief_at()).
+var river: LaRiver
 ## The freeway system: curved elevated routes across the basin (see scripts/world/freeway.gd).
 var freeway: Freeway
 
@@ -301,6 +304,13 @@ func setup() -> void:
 		rep.build(self, seed)
 		replica = rep
 		rep.fit_hill_profile()
+	# The river: its land level is sampled from the relief without it, then folded in.
+	# `-- --no-river` leaves it out (the A/B; RIVER=0 in the environment does the same).
+	river = null
+	if not OS.get_cmdline_user_args().has("--no-river") and OS.get_environment("RIVER") != "0":
+		var rv := LaRiver.new()
+		rv.build(self, seed)
+		river = rv
 	var hr := HillRoads.new()
 	hr.build(self, seed)
 	hill_roads = hr
@@ -412,6 +422,18 @@ func relief_at(pos: Vector2) -> float:
 func _relief_at(pos: Vector2, raw: float) -> float:
 	if _relief == null:
 		setup()
+	var h := _relief_natural(pos, raw)
+	# The river's land level (LaRiver.terrace()): the corridor flat at the channel's top, handed
+	# back to the rolling relief over the terrace's fade.
+	if river:
+		var tr := river.terrace(pos)
+		if tr.y > 0.0:
+			h = lerpf(h, tr.x, tr.y)
+	return h
+
+
+## The relief without the river's terrace.
+func _relief_natural(pos: Vector2, raw: float) -> float:
 	# The valley floor is a base elevation, not rolling ground: it does not fade out near the
 	# mountains, or the city built on it would slide back down to sea level at its own edges.
 	var base := plateau_at(pos)
@@ -923,6 +945,9 @@ const BAKE_CAMPUS := Color(0.432, 0.460, 0.424)
 const BAKE_FREEWAY := Color(0.313, 0.313, 0.331)
 ## Metres either side of a route centre line that get painted.
 const BAKE_FREEWAY_MARGIN := 18.0
+## The river's concrete channel from the air, and its low-flow line (LaRiver).
+const BAKE_RIVER := Color(0.60, 0.59, 0.56)
+const BAKE_RIVER_LOW := Color(0.30, 0.33, 0.29)
 ## Metres that alpha 1.0 stands for in the baked map. The horizon plane lifts its vertices by
 ## this, so it has to cover the highest peak the back range can throw up.
 const BAKE_HEIGHT_SCALE := 1600.0
@@ -1024,6 +1049,12 @@ func bake(centre: Vector2, span: float, size: int) -> Image:
 				# The freeways, drawn last so they cross districts and hills alike.
 				if freeway and freeway.blocks(pos, BAKE_FREEWAY_MARGIN):
 					col = Color(BAKE_FREEWAY.r, BAKE_FREEWAY.g, BAKE_FREEWAY.b, col.a)
+				# The river's channel: pale concrete banks and bed, the low-flow line darker.
+				elif river and river.in_corridor(pos, -LaRiver.CORRIDOR):
+					var nr := river.nearest(pos, 120.0)
+					col = Color(BAKE_RIVER.r, BAKE_RIVER.g, BAKE_RIVER.b, col.a)
+					if absf(nr.y) < step * 0.6:
+						col = Color(BAKE_RIVER_LOW.r, BAKE_RIVER_LOW.g, BAKE_RIVER_LOW.b, col.a)
 				# Built-up ground is not one flat value from the air. The shader draws the blocks
 				# and the roofs; this only keeps one neighbourhood from reading exactly like the
 				# next. Every channel is scaled together, so the saturation the shader classifies

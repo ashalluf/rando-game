@@ -1832,6 +1832,63 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   The surface street grid is still axis-aligned (`CityPlan.road_pos()` is scalar per axis and
   blocks, lots, traffic lanes and the minimap all assume axis-aligned rects); the freeways and the
   hill roads are the curved roads.
+- The Los Angeles River (VISUAL_ROADMAP #58, 2026-10-05, docs/HANDOFF.md 9bp): the concrete
+  flood channel, as data (`LaRiver`, `scripts/world/la_river.gd`, `MacroMap.river`, built in
+  `MacroMap.setup()` after the replica and BEFORE the hill roads and the freeway) and a chunk
+  builder (`RiverBuild`, `scripts/world/river_build.gd`; bridges `RiverBridges`,
+  `scripts/world/river_bridges.gd`). **Where**: `CONTROL` points east of Vignes past downtown (the
+  Arts District between them), under the 101 near its east end, the 10 and the 105, through Vernon
+  to the bay's north shore east of the port (Long Beach) - the real river's ORDER, not its
+  distance (at 1:1 it would stand in the east range); the 110 never crosses the real river and
+  does not here. It runs south all the way (`nearest()` relies on z rising along it). **The
+  section**: bed `bed_half()` (22 m north of WIDEN_Z, 30 m south), banks at SLOPE 1.6 : 1 up
+  `depth()` (6.6 / 6.2 m), the low-flow notch (LF_*) with a WATER_DEPTH sheet, a coping kerb,
+  a BANK_ROAD maintenance road and the fence; `corridor_half()` is where the city ends.
+  **The land**: the bed must stay over the GroundBody (top y 0, under the whole map), so the
+  river does not cut down: `terrace()` is the channel's top level (`top_at()`, the relief along
+  the centre line smoothed, never under MIN_BED + depth, the bed only falling downstream), and
+  `MacroMap._relief_at()` blends the city's relief toward it inside the corridor and over
+  TERRACE_FADE outside (`_relief_natural()` is the relief without it). Everything on the relief -
+  roads, bridges (a bridged street's own road slab IS the deck), the freeway's deck height -
+  follows with no code of its own. **The grid**: `LaRiver._classify()` takes every road segment
+  whose rect (with its end junctions) reaches the corridor, in runs (a crossing); a run is a
+  BRIDGE (a single crossing of the centre line, skew under MAX_SKEW_DEG, both ends clear; the
+  real bridged streets by NAMED_BRIDGES, avenues 55 %, the rest OTHER_BRIDGE_ODDS) or CLOSED
+  (it ends at the bank: `CityPlan.road_open()` asks `LaRiver.road_open()`, so traffic, police,
+  the respawn and the minimap all know). A chunk whose owned rect reaches the corridor is a
+  **river block** (`CityPlan.river_block()`): no lots, no seeded block; CityChunk runs its own
+  `_build_roads` (the bridges' decks), `RiverBuild.attach()` and the intersection; LOD gets no
+  relief floor (it would lie over the channel). Walkers never plan a crossing onto one
+  (`Pedestrian._crossable()`). **RiverBuild** (time-sliced steps: SEGMENTS_PER_STEP segments,
+  one land row, one prop kind, one bridge job a step): the channel per owned centre-line
+  segment on ONE concrete material (`shaders/river_concrete.gdshader`: COLOR.r kind/8 - bank,
+  bed, notch, coping, wall, bridge, pier, dark -, COLOR.g the bank, UV metres along and across,
+  UV2 the height over the bed and |o|; joints, streaks, tide line, algae, outfall stains on the
+  same slots as `LaRiver.outfall_at()` (`ihash()` = the shader's lowbias32, checked), graffiti
+  from the street wear tag atlas, buffed patches), the water (`river_water.gdshader`: riffles,
+  foam streaks, algae fringe, sky emitted by Fresnel), outfall headwalls and pipes, sediment bars
+  with reeds and shrubs, ramps (RAMP_GRADE, a kerb wall, the coping opened at the head), the
+  headwall with box culverts at the north end, end walls and an apron at the mouth; the land per
+  cell, cut exactly with Geometry2D (bank roads, the closed streets' stubs with barrier rows,
+  a pavement ring with lamps, the yard - Industrial's ground and walls materials: fences
+  `Industrial._fence()`, storage yards `Industrial._store()`, trailer drop rows, freight tracks
+  with boxcars along the river TRACK_OUT past the fence); ONE trimesh `RiverBody` (backface
+  collision) for all of it. **RiverBridges**: ARCH (three open-spandrel arches on cutwater
+  piers, turned balustrade - the balusters a batch, `rv_baluster` -, twin-lantern standards,
+  stepped corner pylons), RIBBON (6th St: three spans of white tied-arch rib pairs leaning out,
+  hangers, LED strips on `river_lamp.gdshader`), GIRDER (box girder on column bents, barrier,
+  cobra heads), RAIL (plate girders, the track set in the bank roads, buffer stops); lit lamps are
+  `lamp_light` OmniLights (every LIGHT_EVERY-th) and `lamp_pool` pools. Freeway bents standing in
+  the channel go down to its floor (`FreewayKit`, `LaRiver.channel_floor()`); no off-ramp lands
+  in the corridor (`Freeway._place_ramps()`, the side still alternates). **Far**: the capture
+  (`RiverBuild.capture()`) records thin land slabs in z slices, the channel as tilted boxes and
+  the decks; Skyline sinks a river block's plate to the bed (`far_plate_drop()`) and plants no
+  street trees on it; `MacroMap.bake()` paints the channel; the minimap draws it and its bridges.
+  `RIVER=0` in the environment (or `-- --no-river`) builds the city without it (the A/B). Probe:
+  `tools/la_river/probe.gd` (route, profile, bridges, ramps, rail, river blocks, freeway
+  crossings; seconds); timing `tools/la_river/river_bench.tscn`; stills
+  `tools/la_river/river_shot.tscn` (CAR=1 a car down a ramp) and `still_shot.gd` EYEs (HANDOFF
+  9bp). Checks: `tests/la_river_checks.gd`.
 - The horizon: everything outside the streamed chunks is the ground follower, a single plane
   14 km across (`CityStreamer.ground_size`) wearing `shaders/macro_ground.gdshader`. It is
   shaded from a 256 px image of the whole basin baked once at load by `MacroMap.bake()` (RGB is

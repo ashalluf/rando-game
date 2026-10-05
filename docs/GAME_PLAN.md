@@ -289,6 +289,25 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
+  with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
+  river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it
+  out: east of Vignes past downtown with the Arts District between, under the 101, the 10 and the
+  105 (the 110 never crosses the real river, nor here), through Vernon to the bay's north shore
+  east of the port. The real river at 1:1 would stand in the east range, so the route keeps the
+  real ORDER (which streets bridge it, which freeways cross it, the Arts District on its west
+  bank) and compresses the distance, as the port already does. Decisions worth knowing: the
+  channel does not cut below the city's ground plane (the GroundBody, top y 0, is under the whole
+  map); the LAND is lifted to the channel's top along a terrace in the relief instead, so every
+  street, bridge and freeway deck follows it with no code of its own. A street the channel
+  crosses either bridges it (the real bridged streets - Cesar Chavez, 1st, 4th, 6th as the tied
+  arch "ribbon", 7th, Olympic - avenues often, others now and then) or ends at the bank behind a
+  barrier, through `CityPlan.road_open()`, so traffic and the police know. The blocks it reaches
+  build no seeded buildings: their remainder is the river's edge as it is in LA - bank roads,
+  chain-link, freight tracks with boxcars, storage yards and trailer drops. It is drivable: ramps
+  down the banks, the bed and the low-flow channel have collision (a car down a ramp is a smoke
+  check). Everything is code at real size; the far city gets boxes.
+
 - **2026-10-05 Shadows are cast only where the shadow map can hold them; dark lights are hidden
   (VISUAL_ROADMAP #50).** (Frame-cost audit after the 2026-10-04 wave, docs/HANDOFF.md 9bf.) The
   shadow passes had grown to 46 % of the downtown frame (3.49 of 7.66 M triangles). Decisions:

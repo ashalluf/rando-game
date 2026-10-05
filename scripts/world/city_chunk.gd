@@ -122,6 +122,9 @@ var built_landmarks: Array[String] = []
 var _cars: Array[Node] = []
 ## The replica area's builder for this chunk, when a replica area runs through it (ReplicaBuilder).
 var _replica: ReplicaBuilder = null
+## The river's builder for this chunk, when the river's corridor reaches its block (RiverBuild):
+## held here, its steps are bound to it.
+var _river_build: RefCounted = null
 var _batch := MultiMeshBatch.new()
 ## Per-block surface look (set by _block_surface from the district table and the block seed).
 var _tree_bias: int = -1
@@ -395,7 +398,16 @@ func begin_build() -> void:
 					_steps.append(_build_landmarks)
 				_steps.append(_finish_build)
 				return
-			if replica_role == 0:
+			if replica_role == 0 and plan.river_block(ix, iz):
+				# The Los Angeles River's corridor reaches this block (LaRiver): its streets (the
+				# ones the river closes end at the bank, the bridged ones run over it) and the
+				# river's own ground, channel and bridges instead of the seeded block. No relief
+				# floor at LOD: it would lie over the channel; RiverBuild brings its own collision.
+				_steps.append(_build_roads.bind(block))
+				_steps.append_array(RiverBuild.attach(self, block))
+				if level == Level.FULL:
+					_steps.append(_build_intersection.bind(plan.intersection(ix + 1, iz + 1)))
+			elif replica_role == 0:
 				_steps.append(_build_roads.bind(block))
 				_steps.append_array(_block_steps(block))
 				if level == Level.FULL:
@@ -431,7 +443,10 @@ func _begin_capture(block: Dictionary, replica_role: int = 0) -> void:
 			# A replica block or a landmark's site does not build the seeded block, so the far
 			# city must not record one there either.
 			if replica_role == 0 and not block.has("site"):
-				_steps.append_array(_block_steps(block))
+				if plan.river_block(ix, iz):
+					_steps.append(RiverBuild.capture.bind(self))
+				else:
+					_steps.append_array(_block_steps(block))
 		MacroMap.Zone.PORT:
 			_steps.append_array(_port_steps(block))
 		MacroMap.Zone.AIRPORT:

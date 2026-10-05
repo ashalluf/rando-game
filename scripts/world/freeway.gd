@@ -355,11 +355,14 @@ func _place_ramps(rng: RandomNumberGenerator) -> void:
 			if _macro.zone_at(p) == MacroMap.Zone.CITY:
 				var seg := pts[i + 1] - pts[i - 1]
 				var normal := Vector2(-seg.y, seg.x).normalized()
-				ramps.append({
-					"route": ri, "index": i, "side": side,
-					"pos": p + normal * side * (route.width * 0.5),
-					"yaw": atan2(-seg.x, -seg.y), "top": heights[i],
-				})
+				# Never down into the river's corridor (LaRiver): it would land in the channel. The
+				# side still alternates, so every other ramp is where it was.
+				if not (_macro.river and _macro.river.in_corridor(p, RAMP_RUN + 20.0)):
+					ramps.append({
+						"route": ri, "index": i, "side": side,
+						"pos": p + normal * side * (route.width * 0.5),
+						"yaw": atan2(-seg.x, -seg.y), "top": heights[i],
+					})
 				side = -side
 			i += int(rng.randf_range(11.0, 17.0))
 

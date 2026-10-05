@@ -476,6 +476,10 @@ func build_segments(segs: Array[Dictionary], area: Rect2) -> int:
 		_markings(a3, b3, nrm, dir, lay, idx, run0, run1, ri)
 		if idx % pillar_every == 0:
 			var ground := plan.height_at(a)
+			# A bent standing in the river's channel goes down to the channel's floor (LaRiver).
+			if plan.macro and plan.macro.river:
+				for side: float in [-1.0, 1.0]:
+					ground = minf(ground, plan.macro.river.channel_floor(a + nrm * (half * 0.26 * side)))
 			var cap := ha - Freeway.DECK_THICKNESS - 0.12
 			if cap - ground > 1.5:
 				_bent(Vector3(a.x, ground, a.y), cap, dir, nrm, half, idx / pillar_every)

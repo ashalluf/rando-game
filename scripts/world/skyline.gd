@@ -585,7 +585,8 @@ func _add_captured(k: Vector2i, b: Dictionary, zone: int, ch: CityChunk) -> void
 		var c: Color = box[1]
 		colors.append(Color(c.r, c.g, c.b, 1.0))
 		customs.append(Color(0.0, 0.0, float(absi(hash([k, xforms.size()])) % 997) / 997.0, 1.0))
-	if zone == MacroMap.Zone.CITY:
+	# A river block plants no street trees (RiverBuild lays pavement and a rail yard).
+	if zone == MacroMap.Zone.CITY and not _plan.river_block(k.x, k.y):
 		_add_city_trees(k, b, ch)
 	# Container stacks in the port yard.
 	if batch.has("container"):
@@ -622,6 +623,11 @@ func _add_plate(k: Vector2i, zone: int, ground: Array, ch: CityChunk) -> void:
 				bands.append([r.position.y, r.end.y, ground[i][3]])
 		bands.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
 	var col := _ground_colour(Rect2(area.position, area.size - Vector2(wx, wz)), zone, ground, bands)
+	# A river block (LaRiver): the plate goes down under the channel's bed, in the bed's colour;
+	# the capture's boxes are its land, streets, banks and bridges (RiverBuild._capture()).
+	if roads and _plan.river_block(k.x, k.y):
+		_plate(k, area, RiverBuild.FAR_BED, 0.0, 0.0, ch, RiverBuild.far_plate_drop(ch))
+		return
 	if bands.is_empty():
 		_plate(k, area, col, wx, wz, ch)
 		return
@@ -671,7 +677,7 @@ func _ground_colour(inner: Rect2, zone: int, ground: Array, bands: Array) -> Col
 
 
 ## One plate instance over `rect`: its top on a plane fitted to the relief under its corners.
-func _plate(k: Vector2i, rect: Rect2, col: Color, wx: float, wz: float, ch: CityChunk) -> void:
+func _plate(k: Vector2i, rect: Rect2, col: Color, wx: float, wz: float, ch: CityChunk, drop: float = 0.0) -> void:
 	var h00 := ch._gy(rect.position.x, rect.position.y)
 	var h10 := ch._gy(rect.end.x, rect.position.y)
 	var h01 := ch._gy(rect.position.x, rect.end.y)
@@ -681,7 +687,7 @@ func _plate(k: Vector2i, rect: Rect2, col: Color, wx: float, wz: float, ch: City
 	var centre_h := (h00 + h10 + h01 + h11) * 0.25
 	var c := rect.get_center()
 	var basis := Basis(Vector3(rect.size.x, slope_x, 0.0), Vector3(0.0, PLATE_DEPTH, 0.0), Vector3(0.0, slope_z, rect.size.y))
-	var top_y := centre_h + PLATE_TOP
+	var top_y := centre_h + PLATE_TOP - drop
 	(_work.xforms as Array).append(Transform3D(basis, Vector3(c.x, top_y - PLATE_DEPTH * 0.5, c.y)))
 	(_work.colors as Array).append(Color(col.r, col.g, col.b, 1.0))
 	(_work.customs as Array).append(Color(wx, wz, float(absi(hash([k, "plate", rect.position])) % 997) / 997.0, PLATE_FLAG))
@@ -724,6 +730,8 @@ func _add_freeway(k: Vector2i) -> void:
 		customs.append(Color(float(seg.width), 0.0, 0.0, DECK_FLAG))
 		if int(seg.index) % pillar_every == 0:
 			var ground := _plan.height_at(a)
+			if macro.river:
+				ground = minf(ground, macro.river.channel_floor(a))
 			var cap := ha - t - 0.1
 			if cap - ground > 1.5:
 				var h := cap - ground + 1.0
