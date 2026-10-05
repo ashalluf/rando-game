@@ -8642,3 +8642,32 @@ abrupt. A connector car spawned when nobody can be taken pops in (only farther t
 the player). Sound: no rolling-traffic emitter of its own (Ambience's freeway emitter reads
 segments_in(), so it does hear the connectors). The far city draws the connectors as unbanked
 deck boxes.
+
+## 9d?. Street errands back on: the two checks that failed after the merge, 2026-10-05 (agent branch `wt/street-life-2`, fleet wave 2)
+
+The lead merged `wt/street-life-2` (9cd) and reverted it (d1c7427): on main its own checks failed,
+the jaywalker "ends on its own block" alone and "two walkers stand in the bus stop's queue" in the
+full smoke test. The branch now merges `origin/fleet/base` and reverts that revert, then fixes:
+
+- **The jaywalker (a feature bug).** The walker stood in the errand's first goto for the whole
+  check, in a crowd-life TALK. A walker's spawn life roll comes ~0.5 s after it appears
+  (`_life_range_changed()` -> `_try_life(true)`), and a neighbour's talk recruits any free walker
+  on the ring, so a walker given an errand at birth (the check's, or a parked car's driver made
+  under the cap) could still be stopped, and the goto waited behind the act until its 90 s
+  timeout. `Pedestrian._life_free()` now needs `errand.is_empty()`, and `StreetErrands.walk()`
+  ends any act that began anyway. It only showed after the merge because fleet/base's eight new
+  crowd rigs moved the life rolls.
+- **The bus queue (the check, plus a feature hole).** The check's bus, placed at its block's stop
+  with a dwell set, was DRIVEN by the traffic, which dwells a bus at its stop and opens its doors
+  itself (`TrafficManager._bus_dwell()`); the queue then boarded at once - right in the game,
+  wrong for a check that opens the doors itself. Alone, the freshly built bus did not dwell in
+  time; in the full run the pooled bus did. The check now keeps the bus out of
+  `TrafficManager.cars` until the queue stands. The feature hole it showed: the errands took any
+  bus whose doors were over half open, which counts doors swinging shut and a bus back out of the
+  pool (its `BusFittings` do not run out of the tree, so `open` can come back stale) - now the
+  doors must be wanted open too (`fit.want_open`).
+- **140 SCRIPT ERRORs** ("assign invalid previously freed instance", `_do_ride`): a typed
+  `var bus: Vehicle = step.bus` when the bus had been freed. `_do_ride`, `_do_board` and
+  `_bus_at` read it untyped first.
+
+`tools/street_errands/run_checks.tscn` runs the 28 errand checks alone in about a minute.

@@ -387,6 +387,8 @@ already mapped so milestone 2 is script-only.
   a stop to TrafficManager like a bus's, so the queue behind it waits; (4) the open car door is a
   separate panel swung out of the welded body (the closed door stays drawn under it), the honest
   limit of one-mesh car bodies; (5) all rolls on the walker's own errand stream.
+  (Wave 2, after the revert: (6) an errand owns its walker - no crowd-life stop starts on, or
+  holds, somebody on an errand; (7) only a bus whose doors are wanted open is boarded.)
 - **2026-10-05 Planting that grows ON things: bougainvillea, ivy, creeping fig, star jasmine,
   pergola vines, trumpet vine and garden accents (VISUAL_ROADMAP #73, HANDOFF "Climbing plants").**
   LA walls and fences read as bare boxes; `ClimbingPlants` grows leaf and bract cards in code on
