@@ -7041,7 +7041,7 @@ ALU in shaders that were already running.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
 
-## 9b?. The four-level stack: where the 110 meets the 101, 2026-10-05 (agent branch `wt/stack-interchange`; VISUAL_ROADMAP #59)
+## 9b?. The four-level stack: where the 110 meets the 101, 2026-10-05 (agent branch `wt/stack-interchange`; VISUAL_ROADMAP #63)
 
 **What.** At the real four-level interchange north-west of downtown (DowntownReal's
 `four_level_interchange`, where FREEWAY_110 and FREEWAY_101 cross) the 110 used to be lifted 7.5 m
@@ -7096,3 +7096,34 @@ connector's lane; at the end the car drifts onto the target's outer lane and joi
 **Tools.** `tools/stack/probe.gd` (headless, seconds: levels, connectors and their profiles,
 columns, verify, EYEs on each connector; `SEED=`), `tools/stack/compile.gd`, `STACK_DEBUG=1`
 prints the solver's tries.
+
+**Checks** (`tests/stack_interchange_checks.gd`, 20): planned with four connectors at the real
+interchange, the 110 under the 101 three separations apart, verify_all() clean (every overlapping
+pair a deck apart, no connector steeper than GRADE_SOLVE), ends tied at the deck heights, banked
+into the turn and level at the ends, never near the street, two connectors a level, no off-ramp in
+the stack, the connectors out of segments_in() / blocks(), every column clear of the decks below
+and no span over three column spacings, sound on another seed, a FULL and an LOD chunk at the
+stack building the connectors with collision, and the traffic: a connector car rides its deck and
+is handed to the freeway traffic at the end, a freeway car at a diverge is taken onto the connector.
+
+**Frame cost** (`tools/geo_count.gd`, opengl3 + Xvfb, 800x600, `--spawn=2134,-1385,45,-25,120`,
+noon, `STACK=0` against the stack): 2.96 M -> 2.87 M triangles, 2,727 -> 2,679 draws (the
+connectors are in the chunks' existing freeway meshes; the lots under the stack became right of
+way). The planner adds ~0.4 s to MacroMap.setup() (2.0 -> 2.4 s on this box), once per load.
+
+**Stills** (shots/stack-interchange; opengl3, not the Mac's Forward+): before (the 110 lifted over
+the 101's climb); the stack from the air at golden hour and straight down; driving a connector
+under the 101; under the stack at street level (the single hammerhead columns); at 21:00 and 22:00
+from a downtown tower.
+
+**Not done / not verified.** Forward+ (the Mac) not seen. The stack is TALL (~26-50 m on the
+default seed, 27-55 m on others): the 101's climb to the pass forces it; a flatter stack needs the
+101 re-profiled (its whole 2 km climb). Connector grades reach 7.4 % (GRADE_SOLVE), steeper than a
+real connector. Only the four left turns are built: no right-turn ramps, and the 110's north leg
+is still the 231 m stub that ends in the air (the real Arroyo Seco Parkway does not exist here).
+The diverge / merge is a short edge-to-edge touch run (24 m), so a car drifting across it is a
+quick lane change; the player can drive off the main line onto a connector there but it is
+abrupt. A connector car spawned when nobody can be taken pops in (only farther than 140 m from
+the player). Sound: no rolling-traffic emitter of its own (Ambience's freeway emitter reads
+segments_in(), so it does hear the connectors). The far city draws the connectors as unbanked
+deck boxes.

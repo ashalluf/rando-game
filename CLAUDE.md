@@ -1899,7 +1899,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   The surface street grid is still axis-aligned (`CityPlan.road_pos()` is scalar per axis and
   blocks, lots, traffic lanes and the minimap all assume axis-aligned rects); the freeways and the
   hill roads are the curved roads.
-- The four-level stack (VISUAL_ROADMAP #59, 2026-10-05, docs/HANDOFF.md, the stack section):
+- The four-level stack (VISUAL_ROADMAP #63, 2026-10-05, docs/HANDOFF.md, the stack section):
   where the 110 meets the 101 at the real four-level interchange. **The plan is
   `FreewayStack`** (`scripts/world/freeway_stack.gd`, `Freeway.stack`, made in `Freeway.build()`
   BEFORE `_separate_crossings()`, which then leaves that crossing alone): the 110 at level 1, the

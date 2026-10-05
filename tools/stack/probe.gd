@@ -49,5 +49,22 @@ func _initialize() -> void:
 			var r: Vector2 = f[1]
 			var p: Vector3 = (f[0] as Vector3) + Vector3(r.x * -2.5, -2.5 * float(f[2]) + 1.3, r.y * -2.5)
 			print("EYE link %d at %.0f: %.2f,%.2f,%.2f,%.1f,%.1f" % [k, s, p.x, p.y, p.z, rad_to_deg(atan2(-d.x, -d.y)), -3.0])
+	# Decks side by side at about the same height (not an error: verify_all() catches overlaps).
+	for k in st.links.size():
+		var l: Dictionary = st.links[k]
+		var pts: PackedVector2Array = l.points
+		for i in range(0, pts.size(), 4):
+			for ri: int in [st.low, st.high]:
+				var r: Dictionary = fw.routes[ri]
+				var near := FreewayStack.line_nearest(r.points, r.heights, FreewayStack._runs(r.points), pts[i], 60.0)
+				if float(near[1]) < float(r.width) * 0.5 + 12.0 and absf(float(near[2]) - l.heights[i]) < 2.5:
+					print("BESIDE link %d s %.0f route %d dist %.1f dh %.1f" % [k, l.run[i], ri, near[1], float(near[2]) - l.heights[i]])
+			for k2 in st.links.size():
+				if k2 == k:
+					continue
+				var o: Dictionary = st.links[k2]
+				var near := FreewayStack.line_nearest(o.points, o.heights, o.run, pts[i], 30.0)
+				if float(near[1]) < 16.0 and absf(float(near[2]) - l.heights[i]) < 2.5:
+					print("BESIDE link %d s %.0f link %d dist %.1f dh %.1f" % [k, l.run[i], k2, near[1], float(near[2]) - l.heights[i]])
 	print("ramps near ", fw.ramps_in(Rect2(st.centre - Vector2.ONE * 600, Vector2.ONE * 1200)).size())
 	quit()

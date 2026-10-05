@@ -13,7 +13,7 @@ extends RefCounted
 ## street under it at night. Collision: a banked box per segment, a cylinder per column.
 
 ## A davit light every so many connector segments (FreewayStack.LINK_STEP apart).
-const LIGHT_EVERY := 4
+const LIGHT_EVERY := 5
 const CAP_DEPTH := 2.2
 const MAIN_CAP_DEPTH := 2.8
 
