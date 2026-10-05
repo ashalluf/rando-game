@@ -937,7 +937,16 @@ const SHOP_FRAME_COLORS := ShopfrontKit.FRAME_COLORS
 const SHOP_NAMES := ["PHARMACY", "NAILS & SPA", "DRY CLEAN", "PHONE FIX", "LIQUOR", "PIZZA",
 	"SUSHI", "TACOS", "COFFEE STOP", "BANK", "DONUT HOLE", "SUB STOP", "PET SHOP", "BARBER",
 	"LAUNDRY", "BOBA", "DENTAL", "TAX PRO", "SMOKE SHOP", "FLOWERS", "RECORDS", "HARDWARE",
-	"BOOKS", "BAKERY", "DELI", "OPTICAL", "SHOE REPAIR", "TATTOO", "THRIFT", "CAMERA"]
+	"BOOKS", "BAKERY", "DELI", "OPTICAL", "SHOE REPAIR", "TATTOO", "THRIFT", "CAMERA",
+	# Broadway's (Broadway.BROADWAY_SHOPS), only ever picked through `name_pool`.
+	"NOVIAS ELENA", "QUINCEANERAS", "VESTIDOS DE GALA", "TODO A 99C", "DISCOUNT CITY", "ELECTRONICA",
+	"CELULARES", "JOYERIA ORO", "ZAPATERIA", "PERFUMES", "BOTAS VAQUERAS", "TELAS FINAS",
+	"ROPA PARA TODOS", "RADIOS & TV", "RELOJES", "REGALOS", "ENVIOS DE DINERO", "JUGOS FRESCOS",
+	"BRIDAL WORLD", "LA REINA BRIDAL", "MUEBLES", "SOMBREROS", "PRECIOS BAJOS", "TODO EN OFERTA"]
+## The names every building rolls from (the first BASE_SHOP_NAMES of SHOP_NAMES), unless it is
+## handed a `name_pool` of indices into SHOP_NAMES (Broadway.dress()).
+const BASE_SHOP_NAMES := 30
+var name_pool: PackedInt32Array = PackedInt32Array()
 ## Cap height of a shop sign, in metres.
 const SIGN_HEIGHT := 0.40
 ## How far out from the wall the sign sits, and how far a sign still draws.
@@ -952,12 +961,13 @@ const SIGN_DRAW_DISTANCE := 75.0
 func shop_names(face_index: int, runs: int) -> Array[int]:
 	var out: Array[int] = []
 	var last_name := -1
+	var n := BASE_SHOP_NAMES if name_pool.is_empty() else name_pool.size()
 	for run in runs:
-		var name_i := absi(hash([seed, "sign_name", face_index, run * 7919])) % SHOP_NAMES.size()
+		var name_i := absi(hash([seed, "sign_name", face_index, run * 7919])) % n
 		if name_i == last_name:
-			name_i = (name_i + 1) % SHOP_NAMES.size()
+			name_i = (name_i + 1) % n
 		last_name = name_i
-		out.append(name_i)
+		out.append(name_i if name_pool.is_empty() else name_pool[name_i])
 	return out
 
 
@@ -974,6 +984,14 @@ const SHOP_NAME_ROOMS := {
 	"HARDWARE": ShopRoom.RETAIL, "BOOKS": ShopRoom.RETAIL, "BAKERY": ShopRoom.CAFE,
 	"DELI": ShopRoom.RESTAURANT, "OPTICAL": ShopRoom.RETAIL, "SHOE REPAIR": ShopRoom.RETAIL,
 	"TATTOO": ShopRoom.BARBER, "THRIFT": ShopRoom.CLOTHING, "CAMERA": ShopRoom.RETAIL,
+	"NOVIAS ELENA": ShopRoom.CLOTHING, "QUINCEANERAS": ShopRoom.CLOTHING, "VESTIDOS DE GALA": ShopRoom.CLOTHING,
+	"TODO A 99C": ShopRoom.RETAIL, "DISCOUNT CITY": ShopRoom.RETAIL, "ELECTRONICA": ShopRoom.RETAIL,
+	"CELULARES": ShopRoom.RETAIL, "JOYERIA ORO": ShopRoom.RETAIL, "ZAPATERIA": ShopRoom.RETAIL,
+	"PERFUMES": ShopRoom.RETAIL, "BOTAS VAQUERAS": ShopRoom.CLOTHING, "TELAS FINAS": ShopRoom.CLOTHING,
+	"ROPA PARA TODOS": ShopRoom.CLOTHING, "RADIOS & TV": ShopRoom.RETAIL, "RELOJES": ShopRoom.RETAIL,
+	"REGALOS": ShopRoom.RETAIL, "ENVIOS DE DINERO": ShopRoom.BANK, "JUGOS FRESCOS": ShopRoom.CAFE,
+	"BRIDAL WORLD": ShopRoom.CLOTHING, "LA REINA BRIDAL": ShopRoom.CLOTHING, "MUEBLES": ShopRoom.RETAIL,
+	"SOMBREROS": ShopRoom.CLOTHING, "PRECIOS BAJOS": ShopRoom.RETAIL, "TODO EN OFERTA": ShopRoom.RETAIL,
 }
 ## How many shops a face's room code holds (4 bits each, kept clear of the sign bit).
 const SHOP_ROOM_SLOTS := 7

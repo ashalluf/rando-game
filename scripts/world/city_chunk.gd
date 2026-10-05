@@ -2339,6 +2339,9 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 					_add_grass(_lawn_rect, 0.85, 0.0, _lot_rects))
 	if level == Level.FULL:
 		steps.append(_build_sidewalk_props.bind(rect, params, rng, district))
+		# Broadway's goods on the pavement and its street clock (Broadway; hash-seeded).
+		if Broadway.block_side(plan, ix, iz) != 0:
+			steps.append(func() -> void: Broadway.block_step(self, rect))
 		# Downtown encampments (Encampment), after the furniture they keep clear of. Its own
 		# hash-seeded rolls: the block's rng is untouched, so the cars and the crowd are unmoved.
 		var camps: int = Encampment.block_flags(plan, ix, iz) if block.kind == CityPlan.BlockKind.BUILDINGS else 0
@@ -2652,6 +2655,10 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	if FireStation.claims(plan, ix, iz, lot):
 		FireStation.build_lot(self, lot)
 		return
+	# A Broadway movie palace (Broadway: a table of real addresses; the rolls above are made).
+	if Broadway.claims(plan, ix, iz, lot):
+		Broadway.build_lot(self, lot)
+		return
 	var fill := LotFill.wanted(self, district)
 	# A surface car park (CityPlan.lots() "parking"; the pad roll above is still made).
 	if fill and lot.get("parking", false):
@@ -2695,6 +2702,8 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	building.weathering_range = params.get("weathering", Vector2(0.2, 0.9))
 	building.shape_options.assign(CityPlan.lot_shapes(district, boost))
 	building.finish_options.assign(CityPlan.lot_finishes(district, boost))
+	# Broadway's 1920s commercial blocks (masonry, the height limit, its own shop names).
+	Broadway.dress(self, lot, building)
 	var g := _gy(center.x, center.y)
 	var gmin := g
 	var half: Vector2 = lot.size * 0.5
@@ -3192,7 +3201,8 @@ func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGen
 		var t := lamp_spacing * (0.5 if e % 2 == 0 else 0.25)
 		while t < length - 4.0:
 			var p := a + dir * t + inward
-			_add_lamp(Vector3(p.x, SIDEWALK_TOP, p.y))
+			if not Broadway.lamp(self, p, inward):
+				_add_lamp(Vector3(p.x, SIDEWALK_TOP, p.y))
 			t += lamp_spacing
 		t = tree_spacing * 0.75
 		while t < length - 4.0:
