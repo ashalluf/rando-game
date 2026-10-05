@@ -18,7 +18,9 @@ func _initialize() -> void:
 	root.add_child(scene.instantiate())
 	for i in 5:
 		await process_frame
-	var city: Node = root.get_child(root.get_child_count() - 1)
+	var city: Node = root.find_child("City", false, false)
+	if city == null:
+		city = root.get_child(root.get_child_count() - 1)
 	var settle := int(_env("SETTLE", "400"))
 	var frames := int(_env("FRAMES", "300"))
 	for i in settle:
@@ -71,6 +73,7 @@ func _measure(frames: int) -> Array:
 	var phys := 0.0
 	var wall := 0.0
 	var t := Time.get_ticks_usec()
+	var steps0 := Engine.get_physics_frames()
 	for i in frames:
 		await process_frame
 		proc += Performance.get_monitor(Performance.TIME_PROCESS)
@@ -78,11 +81,13 @@ func _measure(frames: int) -> Array:
 		var now := Time.get_ticks_usec()
 		wall += float(now - t) / 1e6
 		t = now
-	return [proc * 1000.0 / frames, phys * 1000.0 / frames, wall * 1000.0 / frames]
+	var steps := maxi(Engine.get_physics_frames() - steps0, 1)
+	# Physics as ms per physics STEP (a slow frame runs several), process per frame.
+	return [proc * 1000.0 / frames, phys * 1000.0 / frames * float(frames) / float(steps), wall * 1000.0 / frames]
 
 
 func _print(label: String, m: Array, base: Array) -> void:
-	print("CPU %-34s process %6.2f ms  physics %6.2f ms  frame %6.2f ms  | saves process %+6.2f physics %+6.2f frame %+6.2f" % [
+	print("CPU %-34s process %6.2f ms  physics/step %6.2f ms  frame %6.2f ms  | saves process %+6.2f physics %+6.2f frame %+6.2f" % [
 		label, m[0], m[1], m[2], base[0] - m[0], base[1] - m[1], base[2] - m[2]])
 
 
