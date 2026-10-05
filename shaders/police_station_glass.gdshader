@@ -137,7 +137,7 @@ void fragment() {
 		room = mix(room, tube * 0.22, step(blind, f.y) * has_blind);
 	}
 	room *= (0.55 + 0.45 * fract(r * 13.7)) * (1.0 - mull);
-	float night = lamp_factor * night_energy * (lobby > 0.5 ? 2.2 : 1.0);
+	float night = lamp_factor * night_energy * (lobby > 0.5 ? 1.15 : 1.0);
 	float day = lobby > 0.5 ? 0.12 : 0.0;
 	vec3 emit = room * lit * (night + day * (1.0 - lamp_factor));
 	emit += sky * (0.03 + 0.97 * fres) * mirror * (1.0 - 0.7 * lamp_factor) * (1.0 - mull);

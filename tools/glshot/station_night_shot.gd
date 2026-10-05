@@ -112,6 +112,6 @@ func _ready() -> void:
 					on += 1
 					if o.global_position.distance_to(at) < 120.0:
 						near += 1
-			print("LIGHTS_%d on=%d within120=%d lamp_factor=%.2f" % [k, on, near, float(RenderingServer.global_shader_parameter_get("lamp_factor"))])
+			print("LIGHTS_%d on=%d within120=%d lamp_factor=%.2f" % [k, on, near, DayNight.lamp_now])
 	city.free()
 	get_tree().quit()
