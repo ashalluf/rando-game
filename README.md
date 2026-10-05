@@ -30,3 +30,12 @@ night (lamp globals on, no DayNight). Not Forward+.
 | 17_final_district_aerial_noon.jpg | the district's south blocks from the air |
 | 18_final_side_street_noon.jpg | a side street: a shop's side windows and blade sign |
 | 19_final_side_street_night.jpg | the same at night |
+
+## Night light pass (lead review), re-shot 12-15, 18, 19
+
+Shot with `tools/glshot/still_shot.gd` (opengl3, full city, `--spawn=2994,-1745,0,4`), EYEs:
+gate `2994,1.7,-1755,0,14`, hall `2927.7,9.8,-2095,0,10`, side street `2984,8.3,-1975,0,6`;
+21:00 and 13:00. The lantern strings now hang over the street (they were displaced in the
+earlier 12-19). Luma p5/p50/p95 at 21:00: gate 8/35/189 (the street below the skyline
+7/73/199; the night sky is ~40 % of the frame), hall 15/42/189, side street 10/52/201
+(were 9/13/70 at the gate before).
