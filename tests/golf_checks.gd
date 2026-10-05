@@ -254,12 +254,13 @@ func _golfer(city: Node3D, lay: Dictionary) -> void:
 	var moved := false
 	if skel != null and g._poses.has("top"):
 		g.set_physics_process(false)
-		var b := skel.find_bone("RightArm")
+		var b := skel.find_bone("RightHand")
 		g._apply_pose("", "", 0.0)
-		var before := skel.get_bone_pose_rotation(b)
+		var before := skel.get_bone_global_pose(b).origin
 		g._pose_at(4.3)
-		var top := skel.get_bone_pose_rotation(b)
-		moved = before.angle_to(top) > 0.3
+		var top := skel.get_bone_global_pose(b).origin
+		# The hands go from by the thighs to over the right shoulder: half a metre and more.
+		moved = before.distance_to(top) / g._skel_unit > 0.4
 	_t._check(skel == null or moved, "golf: a golfer's swing moves the bones (the top of the backswing)")
 	g._scare(g.global_position + Vector3(5.0, 0.0, 0.0))
 	_t._check(g._fled or skel == null, "golf: a frightened golfer drops the stance and runs")

@@ -7118,3 +7118,24 @@ with one or two riders. Sprinklers along the fairways and round the greens sweep
 
 **Stills** (shots/golf branch): aerial at 9:00 and at golden hour, a green with the flag from the
 fairway, a bunker, the clubhouse front and from the course, the range's tee line, the poses lab.
+
+**Frame cost** (opengl3 `still_shot.gd` GEO, 1280x720, quality 1, the same eyes with the course
+and with `GOLF=0` - which builds those blocks as ordinary suburbs):
+
+| eye | GOLF=0 tris / draws | course tris / draws |
+|---|---|---|
+| aerial over the course from the south-west, 150 m (`-430,150,-2470,-49,-24`) | 5.09 M / 5,530 | 3.54 M / 2,155 |
+| on the 9th fairway toward the green (`-26.5,2.5,-2690.7,161,-4`) | 5.10 M / 2,794 | 5.01 M / 2,230 |
+| the clubhouse from the street (`-25,3,-2535,14.5,2`) | 4.96 M / 2,642 | 3.63 M / 1,291 |
+| the clubhouse from the course (`-60,4,-2680,-167,-4`) | 5.59 M / 3,292 | 5.81 M / 2,871 |
+
+A FULL course chunk is ~6-16k turf triangles, the props mesh, a flag batch, three tree batches,
+golfers; LOD chunks a 2.5 m turf grid and half the trees; far, a handful of boxes and canopies.
+
+**Not done / to check on the Mac.** The turf's colours and the stripes' sheen were judged on the
+opengl3 stills only (Compatibility); the Forward+ look needs the Mac. The clubhouse uses HouseKit's
+residential windows and walls (its plaster reads stone-grey in shade); a clubhouse-specific facade
+(bigger glazing on the terrace, an arcade) would lift it. Golfers stand at fixed spots (they swing,
+putt and wait but do not walk to their ball); carts drive the path without stopping at tees and
+have no engine sound. Hedge planting draws from three of the bush scans; no grass blades or shells
+on the turf (the shader carries it). The aerating fountain and sprinklers are CPU particles.
