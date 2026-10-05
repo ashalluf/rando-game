@@ -183,8 +183,12 @@ func _think() -> void:
 	if state == State.ALERT:
 		# The fence point nearest him, a little in from the fence.
 		var uv := _to_uv(chunk.to_local(_player.global_position))
-		var fv := patch.position.y if fence_front else patch.end.y
-		_target = Vector2(clampf(uv.x, patch.position.x, patch.end.x), fv)
+		# The dog faces him over the fence: its middle stands its own half length plus its head
+		# back from the patch's edge, so the nose stays this side of the pickets.
+		var b := DogMesh.breed(breed)
+		var reach: float = (float(b.l) * 0.5 + float(b.hl) * 0.75) * size_scale - DogYard.INSET + 0.18
+		var fv := patch.position.y + maxf(reach, 0.0) if fence_front else patch.end.y - maxf(reach, 0.0)
+		_target = Vector2(clampf(uv.x, patch.position.x, patch.end.x), clampf(fv, patch.position.y, patch.end.y))
 
 
 func _tick_bursts(dt: float) -> void:

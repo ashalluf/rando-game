@@ -239,7 +239,7 @@ func _yard(city: Node3D, chunk: Node3D) -> void:
 			hits += 1
 		if a == b:
 			again += 1
-	_check(again == 400 and hits > 30 and hits < 110, "dogs: yard dogs are a pure hash share of the lots (%d of 400)" % hits)
+	_check(again == 400 and hits > 90 and hits < 190, "dogs: yard dogs are a pure hash share of the lots (%d of 400)" % hits)
 	# A yard dog of our own on the spawn block: it runs to its fence and barks at the player.
 	var player: Node3D = _tree.get_first_node_in_group("player")
 	var rect: Rect2 = plan.block(0, 0).rect
@@ -258,7 +258,7 @@ func _yard(city: Node3D, chunk: Node3D) -> void:
 	player.global_position = chunk.to_global(Vector3(o.x + 3.0, dog.position.y + 0.1, o.y - 6.0))
 	await _ticks(60)
 	var uv := dog._to_uv(dog.position)
-	_check(dog.state == YardDog.State.ALERT and uv.y < 1.0, "dogs: a yard dog runs to its fence when the player comes (v %.2f)" % uv.y)
+	_check(dog.state == YardDog.State.ALERT and uv.y < 1.6, "dogs: a yard dog runs to its fence when the player comes (v %.2f)" % uv.y)
 	_check(dog._bark_left > 0 or dog._burst_left > 0.0 or dog.rig.bark > 0.0, "dogs: and barks at him")
 	Police.innocent = true
 	Pedestrian.alarm(_tree, player.global_position, 30.0, 0, true, "")

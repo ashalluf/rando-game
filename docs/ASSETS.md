@@ -364,7 +364,6 @@ the nine Meshy pedestrians (`pedestrian_d..l`, rows above), which are no longer 
 | Our own garments (tee, jeans / slim / chinos / leggings / denim shorts, button shirt, zip jacket): the meshes modelled on each body (`tools/crowd/garments.py`) and every texel of their colour and relief painted procedurally, no source images (`tools/crowd/garment_paint.py`) | Our own scripts | ours |
 | Idle / walk / run clips | Retargeted from our own `pedestrian_d_anim.glb` (`tools/hero/retarget_lib.py`) | ours |
 | Everyday "life" clips (`assets/models/crowd_life/crowd_*_life.res`, one AnimationLibrary per rig): `Idle_Loop`, `Idle_Talking_Loop`, `Sitting_Enter`, `Sitting_Idle_Loop`, `Sitting_Talking_Loop`, `Sitting_Exit`, `Jog_Fwd_Loop`, `Idle_Torch_Loop` from Universal Animation Library [Standard]; `Idle_TalkingPhone_Loop`, `Idle_FoldArms_Loop`, `Consume`, `Yes`, `Idle_No_Loop`, `Idle_Rail_Loop` from Universal Animation Library 2 [Standard] (Quaternius; the free Standard downloads, License.txt in each zip: CC0 1.0). Retargeted in Godot by `tools/crowd/life_clips.gd` (the jog's leg swing scaled to a jogger's stride, the standing clips' legs settled to the rig's stance); the sources are fetched by `tools/crowd/fetch_life_clips.sh` into the ignored `build/ual_src/` and do not ship | https://quaternius.itch.io/universal-animation-library , https://quaternius.itch.io/universal-animation-library-2 | CC0 1.0 (added 2026-10-04) |
-| The dog (`assets/models/dog_shiba.glb`, `CrowdDog`): `ShibaInu.gltf` from Quaternius' Ultimate Animated Animals (glTF folder; License.txt in the pack: CC0 1.0), rewritten as a .glb by Godot's GLTFDocument, unchanged | https://quaternius.com/packs/ultimateanimatedanimals.html | CC0 1.0 (added 2026-10-04) |
 | Held props (phone, paper coffee cup, shopping bag, cigarette) | Built in code (`CrowdLife.prop_mesh()`) | ours |
 
 | Model | Person | MakeHuman assets |
@@ -592,6 +591,20 @@ Commons file. Cut, filtered, peak-normalised mono OGGs; loudest-50 ms levels in
 | File:American Crow.ogg (G McGrane) | https://commons.wikimedia.org/wiki/File:American_Crow.ogg | Public domain | `crow_3` 2.15-3.85 | 2026-10-04 |
 | Rue Keyenveld - Sparrows (Flavien Gillié) | https://archive.org/details/aporee_71526_83445 | Public Domain Mark 1.0 | `sparrow_0` 3.85-5.90; `sparrow_1` 8.95-10.95 | 2026-10-04 |
 | Seagull Chatter, The Hague (Thijs Geritz) | https://archive.org/details/aporee_10517_42365 | Public Domain Mark 1.0 | `gull_close_0` 60.55-62.60; `gull_close_1` 105.20-107.80 | 2026-10-04 |
+
+## Dogs (built in code; CC0 recordings)
+
+The dogs (`DogMesh`, `DogRig`; 2026-10-05) are built in code: no model file. Their coats
+(`assets/textures/dogs/*.jpg`, 14 colourways) are painted by `tools/dogs/make_dog_coats.py`
+(numpy + PIL), original. The Quaternius Shiba (`dog_shiba.glb`) they replace is removed.
+
+| File | Source | License | Cut | Date |
+|---|---|---|---|---|
+| Dog Bark (aunrea) | https://freesound.org/s/495658/ | CC0 1.0 | `bark_big_0` 0.13-0.55 s; `bark_big_1` 1.43-1.88 s; `bark_big_2` 3.45-3.87 s | 2026-10-05 |
+| Barking Dog (SuperStudioBR) | https://freesound.org/s/180977/ | CC0 1.0 | `bark_big_3` 0.69-1.11 s; `bark_big_4` 2.51-2.91 s; `bark_big_5` 10.73-11.23 s | 2026-10-05 |
+| Pomeranian Small Dog Barking.mp3 (yunjish) | https://freesound.org/s/608732/ | CC0 1.0 | `bark_small_0..4` 6.89, 8.19, 11.65, 12.81, 9.43 s (0.32-0.36 s each) | 2026-10-05 |
+| bark yelp dog small int.flac | https://freesound.org/s/452180/ | CC0 1.0 | `dog_yelp_0` 0.73-1.28 s | 2026-10-05 |
+| Dog's Yelping 7 | https://freesound.org/s/160478/ | CC0 1.0 | `dog_yelp_1` 3.13-3.75 s; `dog_yelp_2` 7.73-8.33 s | 2026-10-05 |
 
 ## Fonts
 

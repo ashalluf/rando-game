@@ -81,7 +81,7 @@ func _initialize() -> void:
 	var width := float(n) * spacing
 	var mid := Vector3(0.0, tallest * 0.5, 0.0)
 	var view := OS.get_environment("VIEW") if OS.get_environment("VIEW") != "" else "three"
-	var dist := maxf(width * 1.25, 1.6)
+	var dist := maxf(width * 1.25, tallest * 3.4)
 	var at := mid + Vector3(-dist * 0.55, dist * 0.22, -dist * 0.8)
 	match view:
 		"side":

@@ -55,5 +55,5 @@ func _initialize() -> void:
 			var look := w - eye
 			var yaw := rad_to_deg(atan2(-look.x, -look.z))
 			var pitch := rad_to_deg(atan2(look.y + 0.3, Vector2(look.x, look.z).length()))
-			print("%s %s %s at %.1f,%.1f,%.1f EYE=%.1f,%.1f,%.1f,%.0f,%.0f" % ["YARD" if path.ends_with("/yard_dog.gd") else "WALKER", d.breed, d.look, w.x, w.y, w.z, eye.x, eye.y, eye.z, yaw, pitch])
+			print("%s %s %s at %.1f,%.1f,%.1f EYE=%.1f,%.1f,%.1f,%.0f,%.0f" % [("YARD_FRONT" if d.get("fence_front") else "YARD_BACK") if path.ends_with("/yard_dog.gd") else "WALKER", d.breed, d.look, w.x, w.y, w.z, eye.x, eye.y, eye.z, yaw, pitch])
 	quit()

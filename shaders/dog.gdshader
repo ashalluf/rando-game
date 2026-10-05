@@ -27,7 +27,13 @@ void fragment() {
 	if (part == 0 || part == 4) {
 		// Strands drawn as fine streaks along the hair: they fade to their average below a pixel.
 		float streak = dog_hash(floor(cell * vec2(0.25, 1.0)));
-		float detail = mix(streak * 0.36 + 0.82, 1.0, smoothstep(0.6, 2.2, px));
+		float fade = smoothstep(0.6, 2.2, px);
+		float detail = mix(streak * 0.36 + 0.82, 1.0, fade);
+		// A short coat's lie: the hairs as fine ridges along the flow, in the normal (the shells are
+		// too short to show them on a smooth coat), gone once they are under a pixel.
+		float across = cell.y + dog_hash(vec2(floor(cell.x * 0.25), 7.0)) * 3.0;
+		float ridge = sin(across * 6.2832) * (1.0 - fade) * (1.0 - smoothstep(0.012, 0.03, coat_len));
+		NORMAL = normalize(NORMAL + BINORMAL * ridge * 0.22);
 		float under = mix(1.0, root_dark * 0.85 + 0.12, shells);
 		alb = coat * under * detail;
 		RIM = fur_rim * (1.0 - shells * 0.7);

@@ -6,8 +6,8 @@ extends RefCounted
 ## one behind the lot-line fences (BACK_ODDS). FULL chunks only, at most MAX_PER_CHUNK. Every roll
 ## is a hash of the plan seed and the lot (never a chunk or block rng), so nothing else moves.
 
-const FRONT_ODDS := 0.16
-const BACK_ODDS := 0.07
+const FRONT_ODDS := 0.3
+const BACK_ODDS := 0.06
 const MAX_PER_CHUNK := 3
 ## The smallest patch a dog is given (metres along the fence, in from it).
 const MIN_PATCH := Vector2(3.0, 1.8)
