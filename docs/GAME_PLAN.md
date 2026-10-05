@@ -289,6 +289,17 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Street lamps are a Blender-built LA kit, picked per street (HANDOFF "Street
+  lamps").** The scanned Poly Haven post (one European-looking lamp on every street of the basin)
+  is replaced by five Los Angeles types modelled in code at real size by
+  `tools/make_street_lamps.py`: the cobra-head, downtown's twin-globe ornamental, midtown's
+  single-lantern ornamental, the residential post-top and the mast-arm LED. Decisions: one
+  material with the part in UV2 (a lamp is one draw a type a chunk); the type is a hash of seed +
+  road + district so both kerbs and a street's whole length agree, and NightCity's existing
+  sodium / LED roll decides whether a tall lamp is a mast-arm LED, so the far streets' glow, the
+  omni's colour and the head's look never disagree; every existing lamp hook (prop slot and id,
+  pool, `lamp_light` omni) is kept and only moved to the head. Broadway keeps its own lantern.
+
 - **2026-10-05 City acoustics: spaces, gunfire echo, footsteps by surface, the newest systems'
   sounds (HANDOFF "City acoustics").** The city had one street-canyon reverb, no echo, no
   footsteps, and the bus, the light rail, the river and the parks were silent. Decisions: the

@@ -20,10 +20,10 @@ global uniform float lamp_factor;
 global uniform float road_wetness;
 
 // The lamp's own light, emitted by the lens / globes / LEDs at lamp_factor 1 (linear, HDR).
-uniform vec3 sodium_glow = vec3(1.0, 0.40, 0.09);
+uniform vec3 sodium_glow = vec3(1.0, 0.34, 0.055);
 uniform vec3 led_glow = vec3(0.86, 0.92, 1.0);
 uniform float lens_energy = 5.0;
-uniform float diffuser_energy = 2.2;
+uniform float diffuser_energy = 1.9;
 uniform float led_energy = 6.0;
 // Daylight albedos (linear).
 uniform vec3 galv_color = vec3(0.42, 0.43, 0.43);
