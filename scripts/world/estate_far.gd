@@ -172,7 +172,8 @@ static func trees(m: Dictionary) -> Array:
 		if local.z > -9.0 and absf(local.x) < 10.5:
 			local.x = signf(local.x if local.x != 0.0 else 1.0) * 11.0
 		var r := lerpf(2.4, 3.8, _h(s, ["tr", i]))
-		var th := lerpf(5.0, 8.5, _h(s, ["th", i]))
+		# Never under Skyline.HILL_OAK_HEIGHT.x: the far hills plant no low mounds (hill_air_checks).
+		var th := lerpf(6.0, 9.0, _h(s, ["th", i]))
 		var at := Vector3(pos.x, deck + th * 0.3, pos.y) + basis * local
 		var c := lerpf(0.85, 1.15, _h(s, ["tc", i]))
 		# Alpha is Skyline's dissolve, not part of the tint.

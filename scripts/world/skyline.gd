@@ -900,6 +900,9 @@ func _add_hills(rect: Rect2, macro: MacroMap) -> void:
 		return
 	var houses: Array = _work.houses
 	var house_colors: Array = _work.house_colors
+	# (A caller that sets up its own work, as a test does, may leave the estates' custom out.)
+	if not _work.has("house_custom"):
+		_work.house_custom = []
 	for m in macro.hill_roads.mansions_in(rect):
 		var pos: Vector2 = m.pos
 		var yaw: float = m.yaw
