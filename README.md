@@ -8,15 +8,17 @@ day is Saturday, the day the game starts on.
   string lights, produce, flowers and jars, shoppers browsing, stallholders.
 - 03_after_produce_stall_closeup.jpg - a produce table: crates of tomatoes, apples, lemons,
   peppers with chalk prices on a cloth.
-- 04_after_palm_st_1350_packing_up.jpg - 13:50: canopies folded, tables and crates stacked,
-  vans waiting; the painted stall marks.
+- 04_after_palm_st_1350_packing_up.jpg - 13:50 (re-shot after the lead's review): some stalls
+  half struck (canopy still up over folded tables and stacked crates), folded canopies lying on
+  platform carts, the rest already loaded; vans waiting; the painted stall marks.
 - 05_after_palm_st_0930_aerial.jpg - from 24 m: the two rows, a few coloured canopies, the vans
   behind the north row, bollards and the market's sign at the near end.
 - 06_after_pavement_vans_behind_stalls.jpg - from the pavement: the growers' vans parked along
   the kerb behind their stalls.
 - 07_after_1350_packing_up_aerial.jpg - packing up from above.
+- 09_after_1350_packing_up_vans_and_stacks.jpg - packing up beside the vans.
 - 08_after_1630_packed_up_empty_street.jpg - 16:30: everything gone but the stall marks
   (and the bollards behind the camera); every other day of the week looks like this.
 
 Frame cost at the aisle camera (still_shot GEO, opengl3): market off 5.68 M tris / 3,107 draws;
-busy 6.18 M / 3,255 (+0.49 M, +148 draws); packing up 5.76 M / 3,188.
+busy 6.18 M / 3,255 (+0.49 M, +148 draws); packing up 5.79 M / 3,193.
