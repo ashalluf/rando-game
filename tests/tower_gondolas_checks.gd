@@ -206,5 +206,5 @@ func _building(TG) -> void:
 		var s: Dictionary = rigs[0].site
 		ok = int(s.support) == 1 and float(s.top) > float(s.bottom) + 3.0 and (s.heads as Array).size() == 2 \
 			and (s.heads[0] as Vector3).distance_to(s.heads[1]) > 2.0
-	_t._check(ok, "a glass tower's hanging BMU carries a live cradle under its jib (seed %d, rigs %d, rooftop %s)" % [found, rigs.size(), str(b.get_meta("rooftops", {}).get("feats", []).filter(func(f): return f.kind == "bmu"))])
+	_t._check(ok, "a glass tower's hanging BMU carries a live cradle under its jib (seed %d)" % found)
 	b.free()

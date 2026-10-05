@@ -9,8 +9,17 @@ func run(tree: SceneTree) -> void:
 			var s: Dictionary = TG.landmark_sites(id, 1337)
 			print("TOWER ", id, " faces=", TG.faces(LD.tower(id).tiers, TG._hull_boxes(LD.tower(id).hulls), id).size(),
 				" hung=", s.hung.size(), " parked=", s.parked.size(), " stowed=", s.stowed.size())
+			var T := float(OS.get_environment("T")) if OS.get_environment("T") != "" else 0.0
+			var a: Vector2 = LD.anchor(id)
 			for site: Dictionary in s.hung:
 				print("   site m=", site.m, " n=", site.n, " top=%.1f bottom=%.1f lanes=%s" % [site.top, site.bottom, str(site.lanes)])
+				# An EYE for still_shot.gd on the cradle at clock T: 30 m out, 10 m along, a little below.
+				var p: Dictionary = TG.pose_at(site, T)
+				var c: Vector3 = Vector3(a.x, 0.0, a.y) + (site.m as Vector3) + (site.t as Vector3) * float(p.lane) + (site.n as Vector3) * TG.GAP
+				c.y = float(p.y) + 1.0
+				var eye: Vector3 = c + (site.n as Vector3) * 30.0 + (site.t as Vector3) * 10.0 + Vector3.DOWN * 4.0
+				var d: Vector3 = (c - eye).normalized()
+				print("   EYE=%.1f,%.1f,%.1f,%.1f,%.1f" % [eye.x, eye.y, eye.z, rad_to_deg(atan2(-d.x, -d.z)), rad_to_deg(asin(d.y))])
 		tree.quit()
 		return
 	var id := OS.get_environment("TOWER") if OS.get_environment("TOWER") != "" else "dt_bronze_slab"
