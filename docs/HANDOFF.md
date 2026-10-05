@@ -8611,6 +8611,10 @@ meshes; LOD ring 14,444 -> 15,556 instances, 173,328 -> 186,672 triangles. Build
 noise (36.5 / 37.4 s for the whole basin). geo_count, opengl3 800x600, the south-west aerial
 (`--spawn=1450,2150,-38,4,140`): 3,322,824 -> 3,343,992 triangles (+0.6 %), 3,197 -> 3,197
 draws, 3,883 -> 3,883 objects.
+still_shot.gd's GEO lines for the stills (shots/far-corners, opengl3 1280x720, the skyline from
+3 km south-west, 160 m up): wide 2,273,460 -> 2,315,316 triangles, telephoto 1,155,542 ->
+1,184,486, downtown from 1.2 km 720,558 -> 741,702 (+1.8 to +2.9 %); draws identical in every one
+(559, 180, 127). These views are nearly all far city, which is where the pieces are.
 
 **A/B and tools.** `FAR_CORNERS=0` in the environment draws the old boxes with painted piers.
 `tools/glshot/far_building_shot.gd CHAMFER=1` (every building cut; `DOWNTOWN=1` for towers) is
