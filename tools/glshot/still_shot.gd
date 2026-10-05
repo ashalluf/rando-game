@@ -577,6 +577,9 @@ func _initialize() -> void:
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
 		Engine.time_scale = 0.0005
+		# DIFF=1: what streamed in for this shot (people, cars, particles) is hidden too.
+		if OS.get_environment("DIFF") == "1":
+			_diff_freeze(player)
 		for i in _env_int("SETTLE", 6):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
