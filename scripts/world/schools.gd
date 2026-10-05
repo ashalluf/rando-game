@@ -163,6 +163,10 @@ static func _mark(b: Dictionary, d: Dictionary) -> void:
 
 ## The school of grid cell `cell`: {} or {"cell", "high", "blocks" (a row, west/north first),
 ## "axis" (the row runs along x: 0, z: 1), "roads" (the closed roads' indices)}. Cached per seed.
+## Roads a decision closed after road_closed() had answered "open" for them ([key, cell]; checks).
+static var late_closed: Array = []
+
+
 static func decide(plan: CityPlan, cell: Vector2i) -> Dictionary:
 	var key := Vector3i(plan.seed, cell.x, cell.y)
 	if _cells.has(key):
@@ -186,7 +190,11 @@ static func decide(plan: CityPlan, cell: Vector2i) -> Dictionary:
 		_mark(cache[k], out)
 	for i in (out.roads as Array).size():
 		var k: Vector2i = out.blocks[i]
-		_closed[Vector3i(int(out.axis), int(out.roads[i]), k.y if int(out.axis) == 0 else k.x)] = true
+		var ck := Vector3i(int(out.axis), int(out.roads[i]), k.y if int(out.axis) == 0 else k.x)
+		# A road answered "open" before the cell that closes it was decided: an order bug.
+		if _closed.has(ck) and not bool(_closed[ck]):
+			late_closed.append([ck, cell])
+		_closed[ck] = true
 	return out
 
 

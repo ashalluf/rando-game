@@ -1,9 +1,65 @@
-# Handoff: Rando Game (written 2026-09-19; section 000000 is the newest state and the handoff to the next account, 2026-10-05)
+# Handoff: Rando Game (written 2026-09-19; section 0000000 is the newest state: fleet wave 2, 2026-10-05)
 
 This is the narrative handoff for whoever picks the project up next, from any Claude Code account
 or as a person. `CLAUDE.md` is the rulebook and `docs/GAME_PLAN.md` is the roadmap plus the
 decisions log; both stay the source of truth. This file is the story: where things stand, how
 the day-to-day work goes, what is fragile, what to do next. Read all three before touching code.
+
+## 0000000. Fleet wave 2: 100 sessions (2026-10-05, from 09:24 UTC; read this first)
+
+The owner asked for "100 parallel agents, Opus 5.5 strictly, screenshots along the way".
+
+### Where everything is
+
+- **`main`** is integration-a (the 19 branches of section 000000) plus three fixes, gated:
+  - `82a664c`, the blood-pool check looks while it waits (cherry-picked);
+  - buses built fresh light their line signs (`TrafficManager._board_line()` boards a bus again
+    once it is ready: its BusFittings only exist after its `_ready()`, so every newly built bus
+    drove with dark signs; the big-vehicle check caught it when the run order handed it a fresh
+    bus);
+  - CLOSED_ROAD_NOTE
+- **`fleet/base`** is where wave 2 started (main at the merge, before the closed-road fix).
+- **`fleet/brief`** holds `BRIEF.md` (the shared rules), `tasks.tsv` (slug, kind, task) and
+  `sessions.tsv` (slug, session id). Every session works on `wt/<slug>` and puts stills on
+  `shots/<slug>`.
+- **The four "lost" branches were not lost.** roadside, traffic-ai, driving-fx and
+  freight-trains pushed `wt/<slug>` after section 000000 was written; wave 2 updates them.
+- **integration-b** is still unmerged; `oom-fix` bisects its memory.
+
+### The 100 tasks
+
+- 17 bring an existing branch up to date and gate it: oom-fix (integration-b's memory), alleys,
+  scooters, rooftops, ridges, stadium, service-vehicles, wilshire-deco, reservoir, web-build,
+  perf-audit, roadside, traffic-ai, driving-fx, freight-trains, street-life-2 (fix its two
+  failing checks) and sky (photographic cumulus).
+- 7 review or fix: three Forward+ reviews of integration-a's features (`fwd-review-a/b/c`),
+  police-night, estate-night, shop-vinyl (real words on shop glass), gate-speed.
+- 10 technical: memory-audit, texture-budget, load-time, far-landmarks, far-corners, occluders,
+  shader-warm, reflection-probes, ref-cameras (G1), color-grade (G4).
+- 66 new features: the street kit (lamps, signs, furniture, road detail, kerbs, utility poles),
+  buildings and places (apartments, historic core, churches, civic buildings, film studio,
+  farmers market, a marketplace lane, Chinatown, cemetery, a star boulevard, fashion district, a
+  walk-in store, a drive-up car park, the underground metro station, footbridges), the coast
+  (ocean traffic, an offshore island, oil islands, lighthouses, sea life, a coast highway,
+  speedboats, bonfires, beach amenities), industry and nature (refinery, power plant, rock
+  outcrops, arroyos, wildlife), people (look-at, foot IK, new garments, onlookers, car panic,
+  buskers, valets, news crews, jointed ragdolls, the crowd in the rain), vehicles (motorcycles,
+  a flyable helicopter, lowriders, real car cabins and doors, engine audio) and sandbox life
+  (stunt ramps, prop destruction, wingsuit, swimming, car radio, film shoots, yard sales,
+  backyards, freeway incidents, parklets, nightlife, fireworks, sky ads, tower gondolas, skate
+  park, a settings menu).
+
+### Notes for the lead
+
+- **Godot's download site is blocked** by this environment's network policy. Use the GitHub
+  release: `https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip`.
+  CI still uses godotengine.org, which GitHub's runners can reach.
+- **Track sessions by their pushes**, not their transcripts (`git ls-remote origin 'refs/heads/shots/*' 'refs/heads/wt/*'`):
+  a transcript page is hundreds of kilobytes. A session that reads "idle" is usually waiting on
+  its own background gate.
+- **Merge in batches** with `tools/fleet/merge_branch.py`, one gate at a time (a city is about
+  3.2 GB headless; the gate took 31 minutes here). The last fleet hit the five-hour usage limit
+  at 50 sessions; expect wave 2 to hit it too and resume when it resets.
 
 ## 000000. Takeover of 2026-10-05: the cloud fleet is stopped (read this first)
 
