@@ -7083,6 +7083,16 @@ entry points, opengl3; `MODE=storefront|office|hole|none`, `NIGHT=1`, `LIT=1`, `
 `FINISH`, `BSEED`, `CAM_POS` / `CAM_LOOK`, `DEBUG=1` prints the records). Checks:
 `tests/building_damage_checks.gd`.
 
+**Frame cost.** `tools/geo_count.gd` (opengl3 + Xvfb, 800x600, default spawn), `BUILDING_DAMAGE=0`
+against on: 3,651,452 triangles, 3,656 draws, 15,244 objects both ways (an undamaged city adds no
+node; the shader's damage code runs only where `damage_count` > 0). A damaged building adds at
+most two draws (rim, litter: a few hundred to a few thousand triangles) and its facade's fragments
+loop over its records.
+
+**Stills** (shots/building-damage; opengl3): storefront before / after / night, an office row shot
+out by day and at night, a rocket hole in a brick wall before / after / at night, a blast on a
+curtain wall.
+
 **Not done / not verified.** Forward+ (the Mac) not seen: the crack web's sparkle, the shattered
 room's brightness and the hole's room under AgX and auto exposure need eyes. Holes do not cut the
 collision (you cannot walk in) or the shadow; the room behind is traced, not modelled, and the same
