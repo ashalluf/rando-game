@@ -3061,6 +3061,32 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   for every instantiated rig (AABB, materials). Knocked pedestrians become `Ragdoll`s that keep
   the same rigged model as one tumbling body (`build_from_rig`); far pedestrians move and animate
   every 3rd / 6th physics frame (`Pedestrian.lod_mid` / `lod_far`).
+- Hero moves (VISUAL_ROADMAP #64, 2026-10-05): the hero (not the officers' crowd-rig Avatars)
+  carries a second AnimationLibrary, `moves` (`assets/models/hero_moves.res`, written by
+  `tools/hero/hero_clips.gd`: Quaternius' CC0 UAL clips retargeted in Godot like the crowd's life
+  clips, each carrying the hero Idle's finger keys, and four idle variants KEYED in the script
+  over the library's idle as overlays - turns, aims and rolls of bones in skeleton space; rerun it
+  whenever hero.glb is rebuilt, then `--import`). It is added AFTER `fix_arm_pose()` and the loop
+  pass. `Avatar._drive_moves()` picks clips: idle variants after `idle_variant_after` seconds
+  still (`moves/idle_*`; a clip's meta `free_left` says when the left hand is off the gun), the
+  walk in place to step round a turn, the sprint past `sprint_threshold`, `jump_start` on
+  `jumped()`, `jump_air` in the air, and `landed(fall, run)` by LandingFX's scale (`land_dip`
+  30, `land_hard` 60 m/s; a roll at `roll_speed`). One-shots run to their end unless movement
+  cuts them after their breakable point. **`HeroMotion`** (`scripts/player/hero_motion.gd`) is
+  the FIRST modifier on his skeleton (moves, GunTwist, GunHandsIK right, GunHandsIKLeft,
+  GunHandsTurn - the smoke test checks the order): the flight pose (legs together, left arm
+  back, head up by `look_up`), the fall pose (left arm out), the flinch (a skeleton-space vector,
+  a spring in Avatar kicked by `hit_from()` from `PlayerHealth.hit_taken`) and the foot IK (two
+  world-layer rays a physics frame while standing; hips down by the deeper foot, an analytic
+  two-bone leg solve). The arms are TWO TwoBoneIK3Ds so the left can let go by its `influence`
+  (and `GripHands.left_weight`); the gun stays in the right hand in every move: drawn up from
+  the hip on a weapon change (`draw_time`), out to the side falling (`FALL_GUN`), in against the
+  thigh in a roll / hero landing (`LOW_GUN`), ahead of the head flying (`FLY_GUN`, in the laid
+  body's frame); raising the gun (aim, fire) always wins. The flight lays the Avatar node along
+  the velocity about the hips (`fly_lay`) and banks it (`fly_bank`). Look with
+  `tools/glshot/hero_moves_shot.gd` (several stills a load: a clip frozen or a staged move -
+  fly, fall, hit_*, draw, land_<speed>, roll, idle_*; `STEP=1` for the foot IK); checks
+  `tests/hero_moves_checks.gd`.
 - Performance: `Quality` node in the city scene (`scripts/util/quality.gd`) starts desktop at
   **HIGH** (owner, 2026-09-21: "I need it PS5 level graphics" - global illumination is the single
   biggest difference between this and a modern-looking game) and steps down to MEDIUM, LOW and

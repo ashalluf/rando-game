@@ -7125,3 +7125,68 @@ Alleys (another branch's) will classify as alleys by the ray rule; not seen in a
 Car parks classify only where a deck is low over the ear (the arena garage was not visited).
 The trench floor reads as asphalt underfoot. Echoes use the listener's surroundings for every
 shot, not the shooter's. Stills: none (sound).
+
+## 9bv. The hero's moves (VISUAL_ROADMAP #64, branch wt/hero-moves)
+
+**What.** The hero had three clips (idle, walk, run) and a frozen run stride in the air. He now
+has a second AnimationLibrary, `moves` (`assets/models/hero_moves.res`, 11 clips, ~90 KB), and a
+procedural layer, `HeroMotion`, first in his skeleton's modifier stack:
+- idle variety: after `idle_variant_after` (5-9 s) standing still, one of `idle_look` (over his
+  left shoulder, then a longer look right), `idle_neck` (head over to each side with a snap, a
+  shrug), `idle_watch` (left wrist up in front of his chest, he looks down at it) or
+  `idle_stretch` (left arm overhead, a lean to the right); never the same twice running;
+- a take-off (`jump_start`, from the crouch, on every jump and mid-air jump), the air
+  (`jump_air`) and, past `fall_pose_speed`, the fall pose (left arm thrown out, the gun out to
+  his right, head down at the ground);
+- landings on LandingFX's scale: from `land_dip` (30 m/s) the knees take it (`land`, cut short
+  when he runs on), from `land_hard` (60) the hero landing (`land_hero`: down on one knee, the
+  left hand to the ground), and a hard landing at `roll_speed` (7 m/s) or faster rolls out
+  (`roll`, the in-place middle of the library's dive roll);
+- a sprint (`sprint`, gait 8.3 m/s) past `sprint_threshold` (9.5) and for every ground boost;
+- stepping round on the spot (the walk in place, as fast as the turn) when the body turns faster
+  than `turn_step_rate`;
+- a flinch from each round (`PlayerHealth.hit_taken` -> `Avatar.hit_from()`): the chest knocked
+  away from the shooter, the head a little further, on a spring (`flinch_*`) over whatever clip;
+- a draw on a weapon change: the new gun comes up from the right hip, barrel down, over
+  `draw_time` (0.42 s), the left hand joining it at the end;
+- the flight pose while boosting in the air: the whole body laid along the velocity about the
+  hips (upright climbing straight up, level flying level, head-down diving), banked into turns,
+  legs together and pointed, the left arm swept back, the head lifted to look ahead, and the
+  right fist - the gun - out ahead of the head;
+- foot IK while standing (two world-layer rays a physics frame): the hips come down by the deeper
+  foot and each leg is bent so its ankle lands on the ground under it (a capsule perched on a
+  kerb's edge stands with both feet down on the road, hips 16 cm lower).
+
+**How.** `tools/hero/hero_clips.gd` (headless, seconds) retargets Quaternius' CC0 Universal
+Animation Library 1 and 2 [Standard] onto hero.glb in Godot, the crowd life clips' world-delta
+method (never Blender's glTF import), with the hero Idle's own finger keys in every clip (the
+library maps no fingers; without them the hands go flat to the bind pose), the air clips not
+grounded, the roll's travel taken out. The free files have no look-round, stretch, watch or neck
+clips, so those four are KEYED in the script: the library's idle with overlays (turns of a bone
+about a skeleton-space axis, aims of its length, rolls about it) under eased weight envelopes;
+`idle_watch` and `idle_stretch` carry meta `free_left` (when the left hand is off the gun). The
+arms are now two TwoBoneIK3Ds (`GunHandsIK`, `GunHandsIKLeft`), so the left can let go by its
+influence (and `GripHands.left_weight`) while the right keeps the gun in every move - there is
+no holster mesh, so a "holster" is not drawn, only the draw. Raising the gun (aim, fire) always
+wins over a move. Police officers' Avatars are crowd rigs: the moves are gated on the hero
+(`_moves`), they keep the old three clips.
+
+**Cost.** No geometry, no draws (GEO in hero_shot.gd identical before and after). CPU: HeroMotion
+walks a handful of bone chains a frame, only the parts whose weight is above zero; foot IK two
+rays a physics frame while standing.
+
+**Look / check.** `tools/glshot/hero_moves_shot.gd` (several stills from one load: a clip frozen
+at a time, or a staged move - idle, fly (FLY_TURN for the bank), climb, fall, hit_front / left /
+right / back, draw, turn, sprint, aim, land_<fall speed>, roll, jump, idle_look / neck / watch /
+stretch; STEP=1 a step for the foot IK, which prints MOTION lines). `tests/hero_moves_checks.gd`
+stages each on the real player in the smoke test. Stills on shots/hero-moves.
+
+**Not done / not verified.** Nothing seen at 60 fps or on Forward+: the blend times, the flight
+lay and bank, the flinch strength and the idle-variant pacing want the owner's feel pass (all
+exports on Avatar, "Hero moves" group). The idle variants are keyed in code over the library's
+idle, not motion capture, and read a little stiff next to it. The hero landing is the library's
+NinjaJump_Land (down on one knee, a hand to the ground), not a true three-point superhero pose.
+No hit-reaction clips (Hit_Chest / Hit_Head) are used: the procedural flinch is directional and
+blends over anything, the clips are not. Foot IK is only while standing (it fades out above
+3 m/s) and keeps each foot's clip rotation (no tilt to a slope's normal). The draw has no
+holster half: the old gun vanishes at once (WeaponManager hides it) and the new one comes up.

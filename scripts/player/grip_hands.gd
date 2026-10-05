@@ -14,6 +14,10 @@ var hands: Array = []
 ## A thumb's base joint carries three more: the local roll axis, the roll angle in radians and
 ## which Weapon.thumb_wrap component it takes (0 right, 1 left).
 var fingers: Array = []
+## 0..1: how firmly the LEFT hand (the second of `hands`) and its fingers take the gun; below 1
+## they go back toward the clip's own (Avatar lets the left hand go for a stretch, the draw, the
+## flight and fall poses).
+var left_weight: float = 1.0
 
 
 func _process_modification_with_delta(_delta: float) -> void:
@@ -21,7 +25,8 @@ func _process_modification_with_delta(_delta: float) -> void:
 	if skeleton == null:
 		return
 	var to_skeleton := skeleton.global_transform.affine_inverse()
-	for pair in hands:
+	for i in hands.size():
+		var pair: Array = hands[i]
 		var bone: int = pair[0]
 		var marker := pair[1] as Node3D
 		if bone < 0 or marker == null or not is_instance_valid(marker):
@@ -31,7 +36,10 @@ func _process_modification_with_delta(_delta: float) -> void:
 			continue
 		var want := (to_skeleton * marker.global_transform).basis.orthonormalized()
 		var parent_basis := _chain(skeleton, parent).basis.orthonormalized()
-		skeleton.set_bone_pose_rotation(bone, (parent_basis.inverse() * want).get_rotation_quaternion())
+		var q := (parent_basis.inverse() * want).get_rotation_quaternion()
+		if i == 1 and left_weight < 1.0:
+			q = skeleton.get_bone_pose_rotation(bone).slerp(q, left_weight)
+		skeleton.set_bone_pose_rotation(bone, q)
 	# Then close the fingers. Each joint turns about the axis that carries its tip toward the
 	# palm, from its rest pose; the clip's own relaxed finger keys are overridden while the
 	# gun is held.
@@ -39,6 +47,8 @@ func _process_modification_with_delta(_delta: float) -> void:
 		var q := (f[1] as Quaternion) * Quaternion(f[2] as Vector3, f[3] as float)
 		if f.size() > 8: # a thumb base: rolled across the grip first (Weapon.thumb_wrap)
 			q = (f[1] as Quaternion) * Quaternion(f[6] as Vector3, f[7] as float) * Quaternion(f[2] as Vector3, f[3] as float)
+		if left_weight < 1.0 and str(f[4]).begins_with("curl_left"):
+			q = skeleton.get_bone_pose_rotation(f[0]).slerp(q, left_weight)
 		skeleton.set_bone_pose_rotation(f[0], q)
 
 
