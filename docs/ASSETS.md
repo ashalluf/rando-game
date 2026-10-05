@@ -593,6 +593,39 @@ Commons file. Cut, filtered, peak-normalised mono OGGs; loudest-50 ms levels in
 | Rue Keyenveld - Sparrows (Flavien Gillié) | https://archive.org/details/aporee_71526_83445 | Public Domain Mark 1.0 | `sparrow_0` 3.85-5.90; `sparrow_1` 8.95-10.95 | 2026-10-04 |
 | Seagull Chatter, The Hague (Thijs Geritz) | https://archive.org/details/aporee_10517_42365 | Public Domain Mark 1.0 | `gull_close_0` 60.55-62.60; `gull_close_1` 105.20-107.80 | 2026-10-04 |
 
+## City acoustics audio (Freesound CC0, Kenney CC0)
+
+The city's newer sounds (`Sfx` footsteps by surface, the bus, the light rail's chime, a basketball;
+`Ambience` river, fountain, playground and construction), added 2026-10-05. Every Freesound page
+checked by `tools/ambience_audio.py get` (its licence link the CC0 1.0 deed only, the description
+read: `415151`, a stream whose description adds a "Licence: Music by ..." credit line, was dropped
+for that). Cut by `tools/city_audio.py build` from the HQ previews (mono one-shots peak -1 dB at
+44.1 kHz; loops levelled to -22 dB RMS at 32 kHz, cross-faded; footsteps and bounces split at their
+onsets automatically, the loudest kept). Kenney's Impact Sounds (`kenney_impact-sounds.zip`,
+License.txt: CC0 1.0) re-encoded mono 44.1 kHz, peak -1 dB. The light rail's traction-motor whine
+(`rail_motor`) and wire hum (`rail_hum`) are synthesized in `Sfx` (two candidate uploads, 721022
+and 733737, measured as perfectly steady synthesized tones, so making our own was the same thing).
+`bus_kneel` reuses `bus_hiss_1` / `bus_hiss_2` (City ambience section). About 1.6 MB.
+
+| Recording (author) | Source URL | License | Clips (span used) | Added |
+|---|---|---|---|---|
+| Impact Sounds (Kenney) | https://kenney.nl/assets/impact-sounds | CC0 1.0 | `footstep_concrete_0..4` (footstep_concrete_000..004), `footstep_grass_0..4` (footstep_grass_000..004), `footstep_wood_0..4` (footstep_wood_000..004) | 2026-10-05 |
+| footsteps shoes walk road asphalt hard.flac (kyles) | https://freesound.org/s/637556/ | CC0 1.0 | `footstep_asphalt_0..3` (3.10-3.42, 4.30-4.62, 4.91-5.18, 5.46-5.68 s) | 2026-10-05 |
+| Foot_Step_grit_Sand.wav (savataivanov) | https://freesound.org/s/384082/ | CC0 1.0 | `footstep_sand_0..3` (1.67-1.87, 6.05-6.20, 9.34-9.53, 14.12-14.45 s) | 2026-10-05 |
+| Footsteps On Metal (IENBA) | https://freesound.org/s/834029/ | CC0 1.0 | `footstep_metal_0..3` (0.57-0.99, 1.09-1.51, 1.58-2.00, 3.71-4.13 s) | 2026-10-05 |
+| bus_door_opening and closing at bus stop .wav (13FPanska_Sychra_Petr) | https://freesound.org/s/379373/ | CC0 1.0 | `bus_door_0` 1.15-3.65 s (opening), `bus_door_1` 8.10-10.35 s (closing, under the warning beeper) | 2026-10-05 |
+| bus door (zombiechick) | https://freesound.org/s/380320/ | CC0 1.0 | `bus_door_2` 0.25-3.60 s | 2026-10-05 |
+| D# and F chime (Sadiquecat; a sine chime made by its author) | https://freesound.org/s/845146/ | CC0 1.0 | `bus_chime_0` 0.00-1.90 s, `bus_chime_1` 3.12-5.00 s | 2026-10-05 |
+| Bus Engine Idling (bikesnbassboi) | https://freesound.org/s/540398/ | CC0 1.0 | `diesel_idle_0` 1.0-9.3 s (7.5 s loop) | 2026-10-05 |
+| R142/R142A Door Chime (nickymastro25) | https://freesound.org/s/249835/ | CC0 1.0 | `rail_chime_0` 0.00-0.92 s | 2026-10-05 |
+| Subway MTA Door Close Chime (cbrews; a marimba chime played by its author) | https://freesound.org/s/434085/ | CC0 1.0 | `rail_chime_1` 0.00-1.70 s | 2026-10-05 |
+| basketball ext dribble bounce hard surface.flac (kyles) | https://freesound.org/s/453757/ | CC0 1.0 | `ball_dribble_0..3` (1.72-2.12, 3.25-3.65, 4.84-5.25, 22.66-23.07 s) | 2026-10-05 |
+| Stream River Water Up Close (jackthemurray) | https://freesound.org/s/433589/ | CC0 1.0 | `amb_river_0` 0.0-24.5 s (left) and 27.5-52.0 s (right) | 2026-10-05 |
+| fountain (martats) | https://freesound.org/s/156969/ | CC0 1.0 | `amb_fountain_0` 3.0-27.5 s (against itself half a turn later) | 2026-10-05 |
+| Kids Playing (brunoboselli) | https://freesound.org/s/469613/ | CC0 1.0 | `amb_playground_0` 22.0-50.5 s | 2026-10-05 |
+| Jack Hammer breaking up concrete (short burst) (thomaspettigrew) | https://freesound.org/s/273697/ | CC0 1.0 | `construction_0` 0.05-3.60 s, `construction_1` 3.90-7.60 s | 2026-10-05 |
+| hammering 2.wav (cognito perceptu) | https://freesound.org/s/17012/ | CC0 1.0 | `construction_2` 0.00-1.55 s | 2026-10-05 |
+
 ## Fonts
 
 | Font | Source URL | License | Used for | Added |

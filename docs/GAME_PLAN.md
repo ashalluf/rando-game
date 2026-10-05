@@ -289,6 +289,19 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 City acoustics: spaces, gunfire echo, footsteps by surface, the newest systems'
+  sounds (HANDOFF "City acoustics").** The city had one street-canyon reverb, no echo, no
+  footsteps, and the bus, the light rail, the river and the parks were silent. Decisions: the
+  acoustic SPACE is worked out from the probe Ambience already ran (eight wall rays, one up) plus
+  plan maths (the river's channel, the light rail's tunnel and trench), as weights over ten
+  presets blended onto the one World reverb - no reverb zones placed by hand, no Area3Ds; gunfire
+  echo is delayed copies of the shot's own take on a new Echo bus, timed from the same wall
+  distances (a slap-back downtown, a rolling tail in the hills, nothing on the beach), hooked in
+  `Sfx.play()` so no weapon changes; footsteps follow the animation's foot contacts, not a timer;
+  the light rail's motor whine and wire hum are synthesized (the CC0 candidates were synthesized
+  tones themselves, and a whine must track the train's speed). Everything new is CC0 (Freesound
+  pages checked one by one, Kenney's Impact Sounds), 1.6 MB.
+
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it

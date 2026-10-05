@@ -127,6 +127,7 @@ func _ready() -> void:
 	health = PlayerHealth.new()
 	health.name = "Health"
 	add_child(health)
+	add_child(Footsteps.new()) # footsteps by surface (scripts/player/footsteps.gd)
 
 
 func _physics_process(delta: float) -> void:
