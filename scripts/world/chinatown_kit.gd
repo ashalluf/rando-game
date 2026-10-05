@@ -577,6 +577,7 @@ static func plan_units(seed_value: int, lot_seed: int, w: float, plaza: bool = f
 			"word": pick(Chinatown.BLADE_WORDS, [seed_value, lot_seed, i, "word"]),
 			"door_left": hv.call("door") < 0.5,
 			"seed": absi(hash([seed_value, lot_seed, i])) % 100000,
+			"open_l": i == 0 and not plaza, "open_r": i == n - 1 and not plaza,
 		})
 	return out
 
@@ -649,6 +650,19 @@ static func shop_unit(g: ChinatownGeo, u: Dictionary, d: float, goods: bool) -> 
 			box(g, Vector3(wx, sill - 0.05, 0.08), Vector3(ww + 0.2, 0.1, 0.16), kc(GRANITE, K_STONE))
 			for sx: float in [-1.0, 1.0]:
 				box(g, Vector3(wx + sx * (ww * 0.5 + 0.06), sill + wh * 0.5, 0.05), Vector3(0.12, wh + 0.1, 0.1), kc(trim, K_PAINT))
+	# Windows down the open sides of the end units (a light well or the next lot's gap), the
+	# front 12 m.
+	for sx: float in [-1.0, 1.0]:
+		if not u.get("open_l" if sx < 0.0 else "open_r", false):
+			continue
+		var xs := cx + sx * (w * 0.5 + 0.03)
+		var nd := clampi(int(minf(d, 12.0) / 3.2), 1, 4)
+		for s in range(1, storeys):
+			var y0 := GROUND_STOREY + float(s - 1) * STOREY + 0.95
+			for i in nd:
+				var z := -1.8 - float(i) * 3.2
+				box(g, Vector3(xs, y0 + 0.85, z), Vector3(0.06, 1.7, 1.2), kc(trim, K_WINDOW))
+				box(g, Vector3(xs + sx * 0.03, y0 - 0.05, z), Vector3(0.12, 0.1, 1.4), kc(GRANITE, K_STONE))
 	# Corner piers up the front.
 	for sx: float in [-1.0, 1.0]:
 		box(g, Vector3(cx + sx * (w * 0.5 - 0.2), (top + GROUND_STOREY) * 0.5, 0.06), Vector3(0.4, top - GROUND_STOREY, 0.12), kc(wall * 0.88, K_WALL))

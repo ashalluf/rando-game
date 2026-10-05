@@ -120,9 +120,9 @@ void fragment() {
 			float ri = floor(uv.x / rp);
 			float rf = fract(uv.x / rp);
 			float rafter = band(rf, 0.2, 0.8, px / rp);
-			vec3 teal = vec3(0.02, 0.16, 0.12);
-			vec3 blue = vec3(0.02, 0.06, 0.20);
-			vec3 board = vec3(0.30, 0.025, 0.015);
+			vec3 teal = vec3(0.035, 0.26, 0.19);
+			vec3 blue = vec3(0.04, 0.11, 0.34);
+			vec3 board = vec3(0.42, 0.04, 0.02);
 			vec3 r_col = mod(ri, 2.0) < 0.5 ? teal : blue;
 			// A gold band and a white line a little in from the end.
 			r_col = mix(r_col, vec3(0.62, 0.42, 0.10), band(uv.y, 0.16, 0.22, 0.01));
@@ -138,7 +138,7 @@ void fragment() {
 			float avg = smoothstep(0.2, 0.7, px / rp);
 			col = mix(col, mix(board, (teal + blue) * 0.5, 0.6), avg);
 			// Darker further in under the roof.
-			col *= mix(1.0, 0.55, smoothstep(0.3, 1.6, uv.y));
+			col *= mix(1.15, 0.7, smoothstep(0.3, 1.6, uv.y));
 			nm = normalize(vec3((1.0 - avg) * (smoothstep(0.1, 0.2, rf) - smoothstep(0.8, 0.9, rf)) * 0.6 * sign(0.5 - rf), 0.0, 1.0)) * 0.5 + 0.5;
 		} else {
 			// A painted beam: -v 0..1 across it.

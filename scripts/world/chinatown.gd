@@ -141,7 +141,8 @@ static func apply(plan: CityPlan, b: Dictionary) -> void:
 		return
 	if plan.river_block(int(b.ix), int(b.iz)) or plan.marina_block(int(b.ix), int(b.iz)):
 		return
-	if b.kind == CityPlan.BlockKind.MALL or b.kind == CityPlan.BlockKind.BIGBOX:
+	# The neighbourhood is built solid: a mall, big box or bare seeded plaza rolled here is lots.
+	if b.kind == CityPlan.BlockKind.MALL or b.kind == CityPlan.BlockKind.BIGBOX or b.kind == CityPlan.BlockKind.PLAZA:
 		b.kind = CityPlan.BlockKind.BUILDINGS
 	if Vector2i(int(b.ix), int(b.iz)) == plaza_block(plan) and rect.size.x > 60.0 and rect.size.y > 60.0:
 		b.kind = CityPlan.BlockKind.PLAZA
