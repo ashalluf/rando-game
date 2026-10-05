@@ -1777,6 +1777,8 @@ func _test_city() -> void:
 	# own facade, grid, plinth and parapet, its roof plant is the near one, both shaders light the
 	# same offices, the tiers take their share of the plant.
 	load("res://tests/far_city_checks.gd").new().run(self, city)
+	# Cut corners on the far boxes (tests/far_corners_checks.gd): three pieces per cut part, the near prism.
+	load("res://tests/far_corners_checks.gd").new().run(self, city)
 	# Masjid Omar ibn Al-Khattab and the sanctuary rule (tests/masjid_checks.gd): it streams in
 	# modelled and enterable, and no gun fires at it, across it or inside it.
 	await load("res://tests/masjid_checks.gd").new().run(self, city)
@@ -1797,6 +1799,9 @@ func _test_city() -> void:
 	# Broadway's theatre district (tests/broadway_checks.gd): palaces on their real addresses, one
 	# sign surface each, the lanterns, goods and clock, the far boxes, nothing else in the block moved.
 	load("res://tests/broadway_checks.gd").new().run(self, city)
+	# The ballpark in the ravine (tests/ballpark_checks.gd): its real place and facing, the site cut
+	# into the hills, its roads, the shaders' copies, the meshes and a FULL chunk building it.
+	load("res://tests/ballpark_checks.gd").new().run(self, city)
 	# The ground outside downtown and midtown (tests/lot_fill_checks.gd): beach-town yards, the
 	# campus, the freeway's right of way - bare share before and after, one mesh each, budgets, and
 	# nothing else in the block moved.
@@ -1856,6 +1861,17 @@ func _test_city() -> void:
 	# The four-level stack (tests/stack_interchange_checks.gd): levels, separations, grades, banks,
 	# columns, the chunk's meshes, and the connector traffic handed to and from the freeway's.
 	await load("res://tests/stack_interchange_checks.gd").new().run(self, city)
+	# Service alleys (tests/alley_checks.gd): the band on the lot grid's seam, the runs clear of the
+	# buildings, one ground and one upright mesh a chunk, the mouths clear, nothing else moved.
+	load("res://tests/alley_checks.gd").new().run(self, city)
+	# Wilshire's deco boulevard (tests/wilshire_deco_checks.gd): the pure plan, a deco chunk's meshes,
+	# collision and far boxes, nothing else on the block moved.
+	load("res://tests/wilshire_deco_checks.gd").new().run(self, city)
+	# Memorial parks (tests/cemetery_checks.gd): placement, purity, the closed streets, the plan,
+	# the sanctuary zone over it at FULL and LOD, nothing breakable, the far city's lawn.
+	await load("res://tests/cemetery_checks.gd").new().run(self, city)
+	# Kerbs (tests/kerbs_checks.gd): the pavement's cut ring, ramps, aprons, wells, paint, numbers.
+	load("res://tests/kerbs_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

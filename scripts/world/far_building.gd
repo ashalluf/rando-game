@@ -41,6 +41,20 @@ extends RefCounted
 ## The coded far boxes on (CityChunk's LOD path); off draws the old shaded boxes. FAR_CODED=0 in
 ## the environment starts the game with them off: the A/B for geo_count and the stills.
 static var enabled: bool = OS.get_environment("FAR_CODED") != "0"
+## Cut corners as geometry (GAME_PLAN G7, "cut-corner geometry on the far boxes"): a chamfered
+## part (Building.part_grid()'s cut_x > 0) is drawn as three instances of the same unit box - its
+## middle (the part's own entry, the box narrowed in x by one bay at each end) and two end pieces
+## appended after everything else, each a trapezoid whose outer corners building_lod.gdshader
+## pulls in by one bay - which together are exactly the near part's octagonal prism, with the
+## true diagonal faces lit by the sun. Which piece is in INSTANCE_CUSTOM.r (PIECE_*); the cut
+## sizes are the part's own bays, already in its code. No new mesh, batch or draw: +24 triangles
+## a cut part. FAR_CORNERS=0 in the environment draws the old box with the piers painted on.
+static var corners: bool = OS.get_environment("FAR_CORNERS") != "0"
+## INSTANCE_CUSTOM.r of a coded part: the whole box, or one of a cut part's three pieces.
+const PIECE_WHOLE := 0.0
+const PIECE_MIDDLE := 1.0
+const PIECE_PLUS_X := 2.0
+const PIECE_MINUS_X := 3.0
 ## Codes ride in the off-diagonals as code * CODE_SCALE.
 const CODE_SCALE := 1.0 / 268435456.0
 ## INSTANCE_CUSTOM.a of a coded part, and of a roof plant box (building_lod.gdshader).
@@ -89,6 +103,8 @@ static func boxes(building: Building, style: Dictionary, plinth: float) -> Array
 		wall_idx = 15
 	var bseed := float(building.seed % 997) / 997.0
 	var rises: Array[float] = []
+	# A cut part's two end pieces (see `corners`), appended after the plant so part i stays box i.
+	var ends: Array = []
 	for part: Dictionary in building.parts:
 		var size: Vector3 = part.size
 		var c: Vector3 = part.center
@@ -115,8 +131,12 @@ static func boxes(building: Building, style: Dictionary, plinth: float) -> Array
 		var box := Vector3(size.x, size.y + ext + rise, size.z)
 		var centre := Vector3(c.x, bottom - ext + box.y * 0.5, c.z)
 		var colour: Color = building.part_lod_color(part)
-		out.append([Transform3D(encode(box, [a, b, cc, d, e, f2]), centre), Color(colour.r, colour.g, colour.b, 1.0),
-			Color(0.0, 0.0, bseed, PART_FLAG)])
+		var xf := Transform3D(encode(box, [a, b, cc, d, e, f2]), centre)
+		var cut := corners and float(grid.cut_x) > 0.0
+		out.append([xf, Color(colour.r, colour.g, colour.b, 1.0), Color(PIECE_MIDDLE if cut else PIECE_WHOLE, 0.0, bseed, PART_FLAG)])
+		if cut:
+			for piece: float in [PIECE_PLUS_X, PIECE_MINUS_X]:
+				ends.append([xf, Color(colour.r, colour.g, colour.b, 1.0), Color(piece, 0.0, bseed, PART_FLAG)])
 	var plant_props := building.roof_plan()
 	# The small plant a rooftop piece stands in place of (Rooftops.hidden(), as the near one).
 	var roof_pieces := Rooftops.plan(building)
@@ -133,7 +153,17 @@ static func boxes(building: Building, style: Dictionary, plinth: float) -> Array
 	# The rooftop pieces (Rooftops: helipads, pool decks, penthouses, masts), planned from the
 	# plant roof_plan() just laid, as the near building plans them.
 	out.append_array(Rooftops.far_boxes(building, roof_pieces))
+	out.append_array(ends)
 	return out
+
+
+## The footprint a cut part's three pieces draw (building_lod.gdshader's vertex reshape, in the
+## box's unit space, -0.5..0.5): the octagon, counter-clockwise from the +x face. For the checks.
+static func cut_outline(cols_x: int, cols_z: int) -> PackedVector2Array:
+	var cx := 1.0 / float(maxi(cols_x, 1))
+	var cz := 1.0 / float(maxi(cols_z, 1))
+	return PackedVector2Array([Vector2(0.5, -(0.5 - cz)), Vector2(0.5, 0.5 - cz), Vector2(0.5 - cx, 0.5), Vector2(-(0.5 - cx), 0.5),
+		Vector2(-0.5, 0.5 - cz), Vector2(-0.5, -(0.5 - cz)), Vector2(-(0.5 - cx), -0.5), Vector2(0.5 - cx, -0.5)])
 
 
 ## One roof prop as its far box or boxes: [[Transform3D (building space), Color, Color custom]].
