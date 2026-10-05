@@ -48,9 +48,11 @@ const TOWERS := {
 	"dt_sail_tower": {"real": ["900_wilshire"], "radius": 36.0, "height": 335.0, "plan": Vector2(70.0, 58.0),
 		"crown": "sloping glass sail rising east to a 35 m spire, on a stone hotel podium"},
 	"dt_five_drums": {"real": ["404_s_figueroa"], "radius": 47.0, "height": 112.0, "plan": Vector2(78.4, 91.2),
-		"crown": "flat tops; lit restaurant band near the top of the middle drum; glass lifts outside"},
+		"crown": "flat tops; lit restaurant band near the top of the middle drum; glass lifts outside",
+		"helipad": [Vector3(0.0, 110.9, 0.0), 18.0, 0]},
 	"dt_black_twins": {"real": ["515_s_flower", "555_s_flower"], "radius": 72.0, "height": 213.0, "plan": Vector2(42.0, 143.7),
-		"crown": "flat; two identical black towers across a plaza"},
+		"crown": "flat; two identical black towers across a plaza",
+		"helipad": [Vector3(-10.5, 211.9, -51.85), 16.0, 1]},
 	"dt_pyramid_crown": {"real": ["601_s_figueroa"], "radius": 22.0, "height": 218.0, "plan": Vector2(42.0, 42.0),
 		"crown": "stepped glass pyramid, lit green"},
 	"dt_spire_pyramid": {"real": ["725_s_figueroa"], "radius": 19.0, "height": 163.0, "plan": Vector2(36.0, 36.0),
@@ -58,11 +60,13 @@ const TOWERS := {
 	"dt_curved_white": {"real": ["777_s_figueroa"], "radius": 25.0, "height": 221.0, "plan": Vector2(48.0, 43.0),
 		"crown": "three curved setbacks and a lit band"},
 	"dt_bronze_slab": {"real": ["333_s_hope"], "radius": 27.0, "height": 224.0, "plan": Vector2(38.0, 52.0),
-		"crown": "flat, corners cut"},
+		"crown": "flat, corners cut",
+		"helipad": [Vector3(0.0, 222.9, -13.0), 19.0, 0]},
 	"dt_dark_glass": {"real": ["444_s_flower"], "radius": 22.0, "height": 191.0, "plan": Vector2(38.0, 42.0),
 		"crown": "two notched setbacks"},
 	"dt_granite_slab": {"real": ["707_wilshire"], "radius": 30.0, "height": 262.0, "plan": Vector2(38.2, 58.2),
-		"crown": "flat; dark mechanical band with one lit line"},
+		"crown": "flat; dark mechanical band with one lit line",
+		"helipad": [Vector3(0.0, 260.9, -14.0), 19.0, 1]},
 	"dt_park_a": {"real": ["francisco_st_tower"], "radius": 23.0, "height": 190.0, "plan": Vector2(38.0, 44.0),
 		"crown": "violet lit top; balconies winding round the tower"},
 	"dt_park_c": {"real": ["1120_s_grand"], "radius": 15.0, "height": 160.0, "plan": Vector2(29.2, 29.2),
@@ -158,6 +162,9 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, detaile
 	body.mesh = t.mesh
 	body.position = at
 	parent.add_child(body)
+	# A raised helipad on the flat roofs the real towers carry one on (Rooftops; "helipad" in TOWERS).
+	if TOWERS[id].has("helipad"):
+		Rooftops.landmark_helipad(parent, at, TOWERS[id].helipad, statics)
 	if detailed and t.detail != null:
 		var extra := MeshInstance3D.new()
 		extra.name = "Detail_" + id

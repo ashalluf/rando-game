@@ -307,7 +307,9 @@ func generate() -> void:
 	_commit_details()
 	_build_plinth()
 	_build_roof_props()
+	Rooftops.clear_plant(self)
 	_commit_roof()
+	Rooftops.build(self)
 	_finish_kit()
 	_commit_blade_texts()
 
@@ -2299,6 +2301,8 @@ func _build_roof_props() -> void:
 func _kit_roof_plant(part_index: int, center: Vector3, top: float, area: Vector2, roof_area: float, placed: Array[Rect2]) -> void:
 	var krng := RandomNumberGenerator.new()
 	krng.seed = hash([seed, "kit roof", part_index])
+	# Off the rooftop pieces (Rooftops: a helipad, a pool deck, a penthouse...).
+	placed.append_array(Rooftops.keep_out(self, part_index))
 	var extra: Array[String] = []
 	if roof_area > 120.0:
 		for k in clampi(roundi(roof_area / 450.0), 1, 3):
@@ -2385,6 +2389,8 @@ func _build_prop(kind: String, at: Vector3) -> void:
 	# What this prop rolls for itself, for roof_props (FarBuilding draws its far box from it).
 	var rolls := {}
 	roof_props.append([kind, at, rolls, _roof_part])
+	# Where this prop's primitives start (Rooftops.clear_plant() takes a covered one away).
+	rolls.prims = _roof_prims.size()
 	match kind:
 		"ac":
 			# Real unit (Poly Haven), scaled up to rooftop size, on a concrete pad. The two

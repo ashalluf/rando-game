@@ -49,7 +49,7 @@ const PLANT_FLAG := 4.0
 ## Roof plant kinds (INSTANCE_CUSTOM.r of a plant box): a solid unit, a mast drawn at least a
 ## pixel wide, a mast with an aviation beacon on its tip, glazing (skylights, solar arrays), a
 ## sign panel.
-enum Plant { UNIT, MAST, BEACON_MAST, GLAZING, PANEL }
+enum Plant { UNIT, MAST, BEACON_MAST, GLAZING, PANEL, HELIPAD, POOL }
 ## Plant the far city keeps (INSTANCE_CUSTOM.g 1): what still makes a silhouette past the LOD
 ## ring. The rest - air handlers, duct runs, solar arrays, skylights, vents - is under a pixel
 ## out there and stays in the LOD chunks only.
@@ -117,12 +117,22 @@ static func boxes(building: Building, style: Dictionary, plinth: float) -> Array
 		var colour: Color = building.part_lod_color(part)
 		out.append([Transform3D(encode(box, [a, b, cc, d, e, f2]), centre), Color(colour.r, colour.g, colour.b, 1.0),
 			Color(0.0, 0.0, bseed, PART_FLAG)])
-	for prop: Array in building.roof_plan():
+	var plant_props := building.roof_plan()
+	# The small plant a rooftop piece stands in place of (Rooftops.hidden(), as the near one).
+	var roof_pieces := Rooftops.plan(building)
+	var covered := Rooftops.hidden(building, roof_pieces)
+	for pi in plant_props.size():
+		if covered.has(pi):
+			continue
+		var prop: Array = plant_props[pi]
 		var rise: float = rises[int(prop[3])] if int(prop[3]) >= 0 and int(prop[3]) < rises.size() else 0.0
 		for pb: Array in plant(prop, building.height):
 			var xf: Transform3D = pb[0]
 			xf.origin.y += rise
 			out.append([xf, pb[1], pb[2]])
+	# The rooftop pieces (Rooftops: helipads, pool decks, penthouses, masts), planned from the
+	# plant roof_plan() just laid, as the near building plans them.
+	out.append_array(Rooftops.far_boxes(building, roof_pieces))
 	return out
 
 
