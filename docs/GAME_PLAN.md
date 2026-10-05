@@ -605,7 +605,7 @@ already mapped so milestone 2 is script-only.
   pass, along the inland foot and up the north flank. Estates got driveways, gates, retaining
   walls that follow the ground and pools beside the house. docs/HANDOFF.md 9ay.
 
-- **2026-10-05 Five more everyday car bodies, so the street stops repeating (VISUAL_ROADMAP #59).**
+- **2026-10-05 Five more everyday car bodies, so the street stops repeating (VISUAL_ROADMAP #61).**
   A 5-door compact hatchback, a full-size three-row SUV, a minivan with sliding doors, a taxi
   (the sedan with a lit roof sign, the invented company BASIN CAB on its doors and a fare in the
   back) and an older beater (a 1990s notchback with another car's door, a primer patch, a chalky
@@ -615,6 +615,15 @@ already mapped so milestone 2 is script-only.
   unless a new body took its slice, and the taxis are exactly the sedans that were taxis before.
   docs/HANDOFF.md 9bq; CLAUDE.md "More everyday bodies".
 
+- **2026-10-05 The container terminal works (VISUAL_ROADMAP #61).** The cranes over the moored
+  ship dual-cycle - a yard tractor pulls in with an export box, the spreader lifts it into the
+  ship's bay, takes an import box out of the next slot and sets it on the same chassis, the
+  tractor drives off round the yard and the crane's second tractor pulls in - the gantries
+  shuffle boxes between stacks, straddle carriers drive the aisles, and the north-west corner is a
+  truck gate (booths, an OCR portal, a canopy with an invented terminal name) with drayage semis
+  queued in its lanes. All of it is worked out from a clock, never simulated, so it costs a few
+  MultiMesh draws; LOD chunks keep the still poses. Lamps, beacons and deck lights at night; the
+  clanks come from the real cranes. docs/HANDOFF.md (port life); CLAUDE.md "Port life".
 - **2026-10-04 The city answers the chaos with fire engines and ambulances (VISUAL_ROADMAP #55).**
   A burning car or wreck, a big blast or a body on the street opens a call; the nearest fire
   station (one per ~850 m cell, hash-placed on a real lot, bay doors that roll up) or a street

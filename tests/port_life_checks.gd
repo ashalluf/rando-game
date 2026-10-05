@@ -97,7 +97,7 @@ func _cycle(plan: CityPlan) -> void:
 			lowest_over_ship = minf(lowest_over_ship, float(p.spreader_y))
 		# While the spreader is down at the chassis a tractor stands at the stop.
 		if absf(float(p.trolley_z) - float(c.lane_z)) < 0.01 and float(p.spreader_y) < float(c.yc) + 0.5:
-			if float(p.tractors[0].s) > 0.01:
+			if float(p.tractors[0].s) > 0.01 and float(p.tractors[1].s) > 0.01:
 				stand_bad += 1
 		prev = p
 		t += dt

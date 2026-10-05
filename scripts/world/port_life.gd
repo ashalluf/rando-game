@@ -94,27 +94,27 @@ var _rtgs: Array = []
 var _clank_spots: Array[Vector3] = []
 
 
-## Makes the node (once) when the first port chunk is built: a plain Node under the city root,
+## Makes the node (once per city) when the first port chunk is built: a plain Node under the city root,
 ## so nothing it draws is moved by an origin shift (it writes local positions itself).
 static func ensure(chunk: Node) -> void:
-	if not enabled or (_live != null and is_instance_valid(_live)):
+	if not enabled:
 		return
-	var tree := chunk.get_tree()
-	if tree == null:
-		return
-	var root: Node = tree.current_scene
-	if root == null or not ("plan" in root):
-		root = chunk.get_parent().get_parent() if chunk.get_parent() else null
-	if root == null or not ("plan" in root):
+	# The city root: the chunk's parent (CityStreamer), or the nearest node up with a plan.
+	var root: Node = chunk.get_parent()
+	while root != null and not ("plan" in root):
+		root = root.get_parent()
+	if root == null or not ("plan" in root) or root.has_node("PortLife") or root.has_meta("port_life_pending"):
 		return
 	var node := PortLife.new()
 	node.name = "PortLife"
-	_live = node
+	root.set_meta("port_life_pending", true)
 	root.add_child.call_deferred(node)
 
 
 func _enter_tree() -> void:
 	_live = self
+	if get_parent().has_meta("port_life_pending"):
+		get_parent().remove_meta("port_life_pending")
 
 
 func _exit_tree() -> void:
@@ -474,8 +474,11 @@ static func crane_pose(c: Dictionary, t: float) -> Dictionary:
 	out.tractors.append({"s": s_in, "look": look_in if si <= 2 else []})
 	# The tractor that served the last half drives off with its import box from the start of this
 	# one; past the far side of its loop it is carrying the next export box instead.
-	var leaving_total := h_this + SWAP_WINDOW
-	out.tractors.append({"s": drive_s(u, leaving_total, length), "look": look_old if u < leaving_total * 0.5 else look_next})
+	# It waits under the spreader until the spreader has risen clear of its box (step 0's lift).
+	var clear := float(steps[0].move_t)
+	var leaving_total := h_this + SWAP_WINDOW - clear
+	var tau := u - clear
+	out.tractors.append({"s": drive_s(tau, leaving_total, length), "look": look_old if tau < leaving_total * 0.5 else look_next})
 	return out
 
 
