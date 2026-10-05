@@ -447,6 +447,9 @@ func _begin_capture(block: Dictionary, replica_role: int = 0) -> void:
 					_steps.append(RiverBuild.capture.bind(self))
 				else:
 					_steps.append_array(_block_steps(block))
+			elif block.get("site", "") == OilField.ID:
+				# The oil field's hill, pumpjacks, tanks and masts (OilFieldBuild).
+				_steps.append_array(OilFieldBuild.capture_steps(self))
 		MacroMap.Zone.PORT:
 			_steps.append_array(_port_steps(block))
 		MacroMap.Zone.AIRPORT:
@@ -2651,6 +2654,11 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	# A fire station's lot (FireStation: one lot in a cell, hash-seeded; the pad roll above is made).
 	if FireStation.claims(plan, ix, iz, lot):
 		FireStation.build_lot(self, lot)
+		return
+	# A single pumpjack behind a fence (OilField.lot_well(): a hash of the lot; the rolls above are made).
+	var well := OilField.lot_well(plan, lot, district)
+	if not well.is_empty():
+		OilFieldBuild.claim_lot(self, lot, well, district)
 		return
 	var fill := LotFill.wanted(self, district)
 	# A surface car park (CityPlan.lots() "parking"; the pad roll above is still made).

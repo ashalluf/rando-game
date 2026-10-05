@@ -586,7 +586,7 @@ func _add_captured(k: Vector2i, b: Dictionary, zone: int, ch: CityChunk) -> void
 		colors.append(Color(c.r, c.g, c.b, 1.0))
 		customs.append(Color(0.0, 0.0, float(absi(hash([k, xforms.size()])) % 997) / 997.0, 1.0))
 	# A river block plants no street trees (RiverBuild lays pavement and a rail yard).
-	if zone == MacroMap.Zone.CITY and not _plan.river_block(k.x, k.y):
+	if zone == MacroMap.Zone.CITY and not _plan.river_block(k.x, k.y) and b.get("site", "") != OilField.ID:
 		_add_city_trees(k, b, ch)
 	# Container stacks in the port yard.
 	if batch.has("container"):

@@ -266,6 +266,8 @@ var relief_fade_height: float = 60.0
 var relief_frequency: float = 0.0026
 var _relief: FastNoiseLite
 var _landmarks: Array[Dictionary] = []
+## The oil field (OilField), or null.
+var oil: OilField = null
 
 
 func setup() -> void:
@@ -311,6 +313,9 @@ func setup() -> void:
 		var rv := LaRiver.new()
 		rv.build(self, seed)
 		river = rv
+	# The oil field's hill (OilField): a landmark area whose relief is folded in by _relief_at().
+	oil = null
+	oil = OilField.make(self, seed)
 	var hr := HillRoads.new()
 	hr.build(self, seed)
 	hill_roads = hr
@@ -429,6 +434,9 @@ func _relief_at(pos: Vector2, raw: float) -> float:
 		var tr := river.terrace(pos)
 		if tr.y > 0.0:
 			h = lerpf(h, tr.x, tr.y)
+	# The oil field's hill, its lease roads and pads graded in (OilField.apply()).
+	if oil:
+		h = oil.apply(pos, h)
 	return h
 
 
