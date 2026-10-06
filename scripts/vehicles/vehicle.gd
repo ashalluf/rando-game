@@ -1494,6 +1494,7 @@ func _make_body_shadows() -> void:
 
 
 func _update_wheels(delta: float) -> void:
+	PropBreak.smash_ahead(self, delta)
 	_crash_watch()
 	_tick_lights(delta)
 	if _wheel_rigs.is_empty():

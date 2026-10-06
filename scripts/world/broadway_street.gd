@@ -51,6 +51,7 @@ static func add_lamp(ch: CityChunk, at: Vector3, _inward: Vector2) -> void:
 	light.distance_fade_length = 15.0
 	light.add_to_group("lamp_light")
 	ch.add_child(light)
+	PropBreak.own_light(ch, light)
 
 
 ## A surface of revolution about y from `profile` ([radius, y] pairs, bottom up), `segs` sides,
