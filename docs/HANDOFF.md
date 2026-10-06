@@ -14268,7 +14268,11 @@ mailboxes and a lamp (`_court_gate()`); flat roofs get vent stacks and a scupper
 also skips the freeway's right of way, VacantLots' lots and the block's Construction tower site,
 and `Apartments.claimed_before()` (the stations, worship, Broadway, Chinatown, the dealers, a well,
 the civic buildings) keeps the probe and the checks off lots the chunk gives to someone else. The
-probe is a scene now (`tools/apartments/probe.tscn`: it needs the autoloads).
+probe is a scene now (`tools/apartments/probe.tscn`: it needs the autoloads). Frame cost after this pass,
+on main at build 359 plus this branch, the same bookmark: 3.71 M triangles / 2,572 draws with
+`APARTMENTS=0`, 4.15 M / 2,716 with the kit (+12 % / +6 %). Not cut further: the house meshes
+have no LODs (a chunk-wide mesh), so a distance cut on the pickets, surrounds and belts would need
+a second near-only surface per material - the next thing to try if midtown runs heavy.
 
 **Known gaps:** no interiors behind the glass (house_glass's traced room only); the Spanish courts'
 upper floors have no modelled stair; podium entries are a plain door; a pad (Commercial) can still
