@@ -153,16 +153,20 @@ static func deck(length: float) -> Mesh:
 			Vector3(cx + ml * 0.5 - 0.04, DECK_Y + PLANTER_H - 0.07, pz + PLANTER_D * 0.5 - 0.05),
 			Vector3(cx - ml * 0.5 + 0.04, DECK_Y + PLANTER_H - 0.07, pz + PLANTER_D * 0.5 - 0.05), Vector3.UP,
 			Color(0.16, 0.11, 0.08, A_SOIL), Vector2(0.95, 0.0))
-	# A clipped boxwood hedge along the planters: overlapping lumps, a little taller at the ends.
+	# A clipped boxwood hedge along the planters: one rounded mass the length of the run, its top
+	# and face broken by overlapping lumps (new growth since the last clip), taller at the ends.
 	var hedge_y := DECK_Y + PLANTER_H - 0.07
-	var lumps := int(floor((length - 0.2) / 0.27))
+	var leaf := Color(0.2, 0.32, 0.13, A_LEAF)
+	_box(st, Vector3(0.0, hedge_y + 0.12, pz), Vector3(length - 0.16, 0.26, PLANTER_D - 0.1), 0.11, leaf, Vector2(0.7, 0.0))
+	var lumps := int(floor((length - 0.2) / 0.16))
 	for k in lumps:
 		var x := -hx + 0.1 + (length - 0.2) * (float(k) + 0.5) / float(lumps)
 		var j := fposmod(sin(float(k) * 12.9898 + length) * 43758.5453, 1.0)
-		var end := 1.0 if k == 0 or k == lumps - 1 else 0.0
-		var r := Vector3(0.2 + 0.05 * j, 0.19 + 0.06 * j + 0.12 * end, 0.17 + 0.03 * j)
-		StreetVendors._ellipsoid(st, Vector3(x, hedge_y + r.y * 0.55, pz + (j - 0.5) * 0.05), r, Basis(Vector3.UP, j * 3.0),
-			Color(0.2, 0.32, 0.13, A_LEAF), Vector2(0.7, 0.0), 9, 6)
+		var j2 := fposmod(sin(float(k) * 78.233 + length) * 24634.6345, 1.0)
+		var end := 1.0 if k < 2 or k >= lumps - 2 else 0.0
+		var r := Vector3(0.15 + 0.05 * j, 0.1 + 0.04 * j2 + 0.08 * end, 0.15 + 0.03 * j2)
+		StreetVendors._ellipsoid(st, Vector3(x, hedge_y + 0.22 + 0.03 * j2 + 0.05 * end, pz + (j - 0.5) * 0.12), r, Basis(Vector3.UP, j * 3.0),
+			leaf, Vector2(0.7, 0.0), 7, 4)
 	# The end screens: two posts and horizontal cedar slats with gaps, a steel cap rail.
 	var sz0 := 0.12
 	var sz1 := DEPTH - PLANTER_D - 0.02

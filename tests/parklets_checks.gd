@@ -109,7 +109,7 @@ func _chunk(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 			deck = c
 	_t._check(deck != null and deck.multimesh.mesh.surface_get_material(0) == ParkletKit.material(), "the decks are a batch on the parklet shader")
 	var body := chunk.get_node_or_null("Parklets") as StaticBody3D
-	_t._check(body != null and body.get_child_count() == 4 * parklets.size() and body.collision_layer == 1 and body.collision_mask == 0,
+	_t._check(body != null and body.get_children().filter(func(n: Node) -> bool: return n is CollisionShape3D).size() == 4 * parklets.size() and body.collision_layer == 1 and body.collision_mask == 0,
 		"each deck has its collision (deck, planters, two screens) on the world layer, mask 0")
 	var blocked := 0
 	for car in chunk.get("_cars"):

@@ -14201,3 +14201,65 @@ streets' glow stands in). The lamps stand where the old ones stood, and on some 
 is beside a utility pole (StreetDetail's), which the old thin post hid better. No real light
 shaped like the cobra's cut-off (still an omni). Shot lamps break as before (debris box), no
 falling pole.
+
+## 9d?. Outdoor dining parklets, 2026-10-05 (agent branch `wt/parklets`, fleet wave 2; VISUAL_ROADMAP "?")
+
+**What.** Los Angeles restaurants and cafes build timber decks out into the parking lane in front
+of their door. Now the city's do: a deck level with the pavement, painted planters along the
+traffic side with a clipped boxwood hedge, slatted cedar screens at the ends, a festoon of bulbs
+strung between four posts, a flexible delineator at each outer corner and a rubber wheel stop
+before each end; bistro sets (round marble or square timber tables, two rattan chairs) laid for
+dinner or coffee where somebody sits; canvas umbrellas open by day and furled after 19:30.
+Diners sit on the crowd's own seated clips and talk to whoever shares their table; a waiter walks
+between the shop's door and the tables, stopping at each to take an order.
+
+**Files.** `scripts/world/parklets.gd` (plan, build, people, `blocks_parking()`),
+`scripts/world/parklet_kit.gd` (every mesh, code-built at real size), `shaders/parklet.gdshader`
+(one material: codes in the vertex alpha - decking with boards, gaps, butt joints and screws,
+cedar, canvas, powder-coated steel, bulbs, glass, china, food, boxwood, soil, marble, rattan,
+reflective sheeting, candle flame), `scripts/npc/parklet_diner.gd` (DINER / WAITER, a
+Pedestrian), `tests/parklets_checks.gd`, `tools/parklets/probe.gd`. Hooks: `Building.shop_fronts`
+(three lines in the shop-spill loop: every ground-floor shop's foot, normal, width, room, key),
+one step block in `CityChunk._block_steps()` after Micromobility, one `or` in `_park_car()`'s
+after-the-rolls check, one warm line in the loading screen, one load line in the smoke test.
+
+**Where.** A shop front whose ROOM (`Building.shop_room()`, what its glass shows) is CAFE or
+RESTAURANT, on the block's +x or +z face (the chunk's own parking lane, as the vendors' trucks),
+standing within `FRONT_REACH` of the kerb, rolls `ODDS[district]` on a hash of seed + building +
+shop key. The deck (6, 8 or 10 m, the longest that fits the shop's width + 3 m) is clamped
+`CORNER_KEEP` off the block's ends and dropped where any of five points along its lane hits a
+closed road, a bus stop, a fire / police station's kerb, a school, an alley mouth, a hospital,
+freight rail, a civic building, a landmark, the market, a red kerb or driveway, a vendor's truck,
+road works, a bike lane or another parklet. At most `MAX_PER_BLOCK`. FULL chunks only. On the
+default seed 7 parklets on the 16 chunks round Pershing Square.
+
+**Who.** `busy(room, hour)` is the share of chairs taken at the hour the chunk is built at (cafes
+breakfast to late afternoon, restaurants lunch and dinner); each chair rolls a hash with the
+hour. After dark a shop the shader shows closed (`Building.shop_open()`) has an empty, unlit deck.
+Diners are kinematic and mask 0 while seated (`Pedestrian._sit_pose()` puts the hips at
+`ParkletKit.SEAT_Y`), and `_act_beat` is held at INF so Pedestrian's bench-neighbour beat never
+fires; their own beat switches sit / sit_talk and looks at the table mate. Gunfire sends them
+running and they do not come back; the waiter does. In the crowd cap (`_take_crowd_room()`).
+
+**Rolls.** Nothing goes through `_add_prop` (the deck's collision is its own `Parklets`
+StaticBody3D: deck, planters, two screens), so the block's prop ids are the same with parklets on
+or off; the parked cars skip the stretch after every roll and count it as parked. The bistro sets
+are `EncampmentItem`s (they tip over and stay gone; the umbrella goes with them). The check builds
+the block off and on and compares buildings, props and trash cans, and that the cars are a
+superset.
+
+**Cost.** One downtown frame (opengl3, 1280x720, the wide EYE below): 4.03 M -> 4.21 M triangles
+(+4.7 %), 1,788 -> 1,819 draws; from the pavement next to it 5.20 M -> 5.38 M, 2,723 -> 2,701-2,799
+(the diners are most of it: up to a dozen crowd rigs a chunk). A 10 m deck is ~15 k triangles
+(the bulbs and the hedge), a set 1.6-2.5 k, an umbrella 0.3 k.
+
+**Stills** (`shots/parklets`): EYEs on the DONUT HOLE cafe's parklet, block 25,0:
+`EYE=2651.2,1.7,199.2,37,-8` (across the street), `2639.5,2.4,186.5,-129,-13` (the pavement),
+`2648.5,1.6,196,35,-12` (the road side), `EYE_AGL=1`, at `--hour=13` and `--hour=21`;
+`PARKLETS=0` for the before.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the bulbs' glow and the OmniLight under
+the festoon through AgX. Diners hold no cutlery and never eat (no seated eating clip in the life
+library); the waiter carries no tray and wears street clothes. The -x / -z faces' parking lanes
+belong to the neighbouring chunk and get none (as the vendors' trucks). Walkers never take a free
+chair.

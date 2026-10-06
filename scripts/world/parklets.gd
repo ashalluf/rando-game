@@ -63,6 +63,8 @@ const POOL := Color(1.0, 0.72, 0.42, 0.75)
 const K_DECK := "parklet_deck_"
 const K_SET := "parklet_set_"
 const K_UMBRELLA := "parklet_umbrella_"
+## The festoon's pool of light (its own batch: the shop spill's counts Building's pools).
+const K_POOL := "parklet_pool"
 
 ## Hours of the day to force while building (tests and stills); < 0 reads the DayNight clock.
 static var force_hour: float = -1.0
@@ -338,13 +340,16 @@ static func _build_one(chunk: CityChunk, block: Dictionary, pk: Dictionary, hour
 		var pool_at := xf * Vector3(0.0, 0.0, dpt * 0.4)
 		var pool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(length + 2.0, 1.0, 5.0) if pk.face == 1 else Vector3(5.0, 1.0, length + 2.0)),
 			Vector3(pool_at.x, CityChunk.SIDEWALK_TOP + 0.07, pool_at.z))
-		chunk._batch.add("shop_spill", PropFactory.shop_spill(), pool, POOL)
-		_add_light(chunk, xf * Vector3(0.0, ParkletKit.DECK_Y + 2.3, dpt * 0.45), 6.5 + length * 0.3)
+		chunk._batch.add(K_POOL, PropFactory.shop_spill(), pool, POOL)
+		chunk._batch.set_no_shadow(K_POOL)
+		chunk._batch.set_draw_distance(K_POOL, DECK_DRAW)
+		_add_light(chunk, body, xf * Vector3(0.0, ParkletKit.DECK_Y + 2.3, dpt * 0.45), 6.5 + length * 0.3)
 
 
 ## A warm light under the festoon, driven with the street lamps (DayNight sets the group's
-## energy; Quality turns the group off at the low levels).
-static func _add_light(chunk: CityChunk, at: Vector3, reach: float) -> void:
+## energy; Quality turns the group off at the low levels). Under the parklets' body (at the
+## chunk's origin), not the chunk: a lamp_light that is the chunk's own child is a street lamp.
+static func _add_light(chunk: CityChunk, holder: Node3D, at: Vector3, reach: float) -> void:
 	var light := OmniLight3D.new()
 	light.name = "ParkletLight"
 	light.position = at + Vector3(0.0, chunk._gy(at.x, at.z), 0.0)
@@ -357,7 +362,7 @@ static func _add_light(chunk: CityChunk, at: Vector3, reach: float) -> void:
 	light.distance_fade_begin = 45.0
 	light.distance_fade_length = 15.0
 	light.add_to_group("lamp_light")
-	chunk.add_child(light)
+	holder.add_child(light)
 
 
 ## The `index`-th diner or waiter this chunk planned (a build step each), if the crowd cap has
