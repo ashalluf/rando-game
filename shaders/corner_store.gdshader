@@ -17,6 +17,7 @@ uniform float sign_night = 2.4;
 // The ceiling's light panels and the coolers' lit backs (always on: the store is open).
 uniform float troffer_energy = 3.2;
 uniform float cooler_energy = 1.9;
+uniform float ceiling_bounce = 0.32;
 
 global uniform float lamp_factor;
 
@@ -87,8 +88,11 @@ void fragment() {
 		float foot = 1.0 - smoothstep(0.0, 0.7, uv.y + noise2(uv * vec2(1.3, 0.4)) * 0.25);
 		base *= 1.0 - 0.28 * foot;
 		base *= 0.92 + 0.08 * noise2(uv * vec2(0.5, 0.18));
-		NORMAL_MAP = texture(plaster_nrm, uv / 2.4).rgb;
-		NORMAL_MAP_DEPTH = 0.7;
+		// The plaster's relief as a slope off the face (the mesh carries no tangents).
+		vec2 nm = texture(plaster_nrm, uv / 2.4).rg * 2.0 - 1.0;
+		vec3 t = normalize(cross(NORMAL, vec3(0.0, 1.0, 0.0)) + vec3(1e-4, 0.0, 0.0));
+		vec3 b = cross(t, NORMAL);
+		NORMAL = normalize(NORMAL + (t * nm.x + b * nm.y) * 0.35);
 		rough = 0.92;
 	} else if (kind == K_PAINT) {
 		base *= 0.95 + 0.05 * noise2(uv * 3.0);
@@ -113,6 +117,9 @@ void fragment() {
 		float speck = noise2(uv * 60.0);
 		base *= mix(0.9 + 0.1 * speck, 0.82, bars);
 		rough = 0.95;
+		// The light panels' bounce off the floor and shelves: a lit ceiling, not the sky's ground
+		// colour (the ambient a ceiling sees from below is the street's brown).
+		emit = base * ceiling_bounce;
 	} else if (kind == K_TROFFER) {
 		// A lens of small square cells in a white frame.
 		float cell = max(grid_line(uv.x, 0.06, 0.006), grid_line(uv.y, 0.06, 0.006));
@@ -137,10 +144,13 @@ void fragment() {
 		rough = 0.4;
 	} else if (kind == K_SIGN) {
 		emit = base * (sign_day + sign_night * lamp);
+		// Held under 1 in its brightest channel: a red brighter than that turns salmon through AgX.
+		emit /= max(1.0, max(emit.r, max(emit.g, emit.b)));
 		base *= 0.55;
 		rough = 0.25;
 	} else if (kind == K_LETTERS) {
 		emit = base * (sign_day * 1.6 + sign_night * 1.3 * lamp);
+		emit /= max(1.0, max(emit.r, max(emit.g, emit.b)) / 1.6);
 		base *= 0.6;
 		rough = 0.3;
 	} else if (kind == K_GLOW) {

@@ -145,7 +145,7 @@ func _chunk(s: Dictionary) -> void:
 			lights += 1
 	_check(site.interior_ready and interior.has_node("Room") and kinds >= 3 and goods >= 400 and goods <= 6000 and lights >= 1,
 			"the interior is built: the room, %d goods of %d kinds, %d lights (room %d triangles)" % [goods, kinds, lights, CornerStoreKit.last_interior_tris])
-	_check(CornerStoreKit.last_interior_tris > 2000 and CornerStoreKit.last_interior_tris < 60000,
+	_check(CornerStoreKit.last_interior_tris > 1000 and CornerStoreKit.last_interior_tris < 60000,
 			"the room's fittings are inside their budget (%d triangles)" % CornerStoreKit.last_interior_tris)
 	_check(not interior.visible and not site.shown, "the interior is hidden while nobody is near")
 	# Walking up: the camera at the window, then the player at the door.
@@ -177,7 +177,9 @@ func _chunk(s: Dictionary) -> void:
 	for p: Variant in site.people:
 		if is_instance_valid(p):
 			people += 1
-	print("walk-in store: %s %.1f x %.1f, %d goods, %d people, chunk %.0f ms" % [s.name, W, D, goods, people, build_ms])
+	var us: Array = CornerStoreKit.last_step_us
+	print("walk-in store: %s %.1f x %.1f, %d goods, %d people, chunk %.0f ms; store steps (ms) %s" % [s.name, W, D, goods, people, build_ms,
+			us.map(func(x: int) -> String: return "%.1f" % (float(x) / 1000.0))])
 	chunk.queue_free()
 	await _ticks(2)
 

@@ -80,6 +80,9 @@ static var _goods_meshes: Dictionary = {}
 ## Triangles of the last interior and product build (the probe and the checks read these).
 static var last_interior_tris: int = 0
 static var last_goods: int = 0
+## Microseconds the last store spent in each build step: the lot's, shell, glass and door,
+## interior, goods, people.
+static var last_step_us: Array = [0, 0, 0, 0, 0, 0]
 
 
 # --- Materials -----------------------------------------------------------------------------------
@@ -156,10 +159,39 @@ static func _k(c: Color, kind: int) -> Color:
 	return Color(c.r, c.g, c.b, float(kind) / 32.0)
 
 
+## LandmarkGeo's surfaces as one MeshInstance3D, unindexed and without tangents (nothing here
+## is normal-mapped): LandmarkGeo.commit()'s index and tangent passes were most of a step.
+static func _commit(g: LandmarkGeo, parent: Node3D, node_name: String, shadow: bool) -> MeshInstance3D:
+	var mesh := ArrayMesh.new()
+	for key: String in g._order:
+		var sf: Dictionary = g._surfaces[key]
+		if int(sf.n) == 0:
+			continue
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = sf.v
+		arrays[Mesh.ARRAY_NORMAL] = sf.nrm
+		arrays[Mesh.ARRAY_TEX_UV] = sf.uv
+		arrays[Mesh.ARRAY_COLOR] = sf.col
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		mesh.surface_set_material(mesh.get_surface_count() - 1, sf.mat)
+	g._surfaces.clear()
+	g._order.clear()
+	if mesh.get_surface_count() == 0:
+		return null
+	var mi := MeshInstance3D.new()
+	mi.name = node_name
+	mi.mesh = mesh
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if shadow else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
+	return mi
+
+
 # --- The store -----------------------------------------------------------------------------------
 
 ## Builds store `s` into chunk `ch` at `xf` (the store's frame in the chunk).
 static func build(ch: CityChunk, s: Dictionary, lay: Dictionary, xf: Transform3D) -> void:
+	var t0 := Time.get_ticks_usec()
 	var site := CornerStoreSite.new()
 	site.name = "CornerStore_%d" % (int(s.seed) % 100000)
 	site.transform = xf
@@ -179,25 +211,33 @@ static func build(ch: CityChunk, s: Dictionary, lay: Dictionary, xf: Transform3D
 	interior.visible = false
 	site.add_child(interior)
 	site.interior = interior
-	_shell(site, body, s, lay, ch, xf)
-	_glass(site, s, lay)
-	_door(site, s, lay)
 	_collision(body, lay)
-	# The interior, the goods and the people: deferred build steps, in order.
+	last_step_us[0] = Time.get_ticks_usec() - t0
+	# The outside, the glass and door, the interior, the goods and the people: deferred build
+	# steps, in order (the chunk is swapped in only once they are all done).
 	var state := {"phase": 0}
 	ch._run_or_defer(func() -> bool:
 		if not is_instance_valid(site):
 			return true
-		match int(state.phase):
+		var ts := Time.get_ticks_usec()
+		var phase := int(state.phase)
+		match phase:
 			0:
-				_interior(site, s, lay)
+				_shell(site, body, s, lay, ch, xf)
 			1:
+				_glass(site, s, lay)
+				_door(site, s, lay)
+			2:
+				_interior(site, s, lay)
+			3:
 				_goods(site, s, lay)
 			_:
 				_people(ch, site, s, lay, xf)
 				site.interior_ready = true
-				return true
-		state.phase = int(state.phase) + 1
+		last_step_us[mini(phase + 1, 5)] = Time.get_ticks_usec() - ts
+		if phase >= 4:
+			return true
+		state.phase = phase + 1
 		return false)
 
 
@@ -259,7 +299,7 @@ static func _shell(site: CornerStoreSite, body: StaticBody3D, s: Dictionary, lay
 	_letters(g, "kit", name, Vector3(cs * (W * 0.5 + 0.226), (sy.x + sy.y) * 0.5, -side_len * 0.5 + 0.11), Vector3(0, 0, -cs), Vector3.UP, 0.48, side_len - 0.6, _k(sign_ink, K_LETTERS))
 	# Painted words down the side street wall.
 	var words := "ICE  -  COLD DRINKS  -  LOTTO  -  SNACKS"
-	_letters(g, "kit", words, Vector3(cs * (W * 0.5 + 0.006), 2.2, -D * 0.55), Vector3(0, 0, -cs), Vector3.UP, 0.34, D * 0.8, _k(sign_face * 0.85, K_STUCCO))
+	_letters(g, "kit", words, Vector3(cs * (W * 0.5 + 0.012), 2.2, -D * 0.55), Vector3(0, 0, -cs), Vector3.UP, 0.34, D * 0.8, _k(sign_face * 0.85, K_STUCCO))
 	g.box("kit", Vector3(cs * (W * 0.5 + 0.004), 2.2, -D * 0.55), Vector3(0.006, 0.56, minf(D * 0.84, (D - 1.0))), _k(Color(0.96, 0.95, 0.90), K_STUCCO))
 	# The storefront: a grille box over each opening, bars over the windows, the bulkhead's kick.
 	for o: Array in openings:
@@ -310,7 +350,7 @@ static func _shell(site: CornerStoreSite, body: StaticBody3D, s: Dictionary, lay
 		var csh := CollisionShape3D.new()
 		csh.shape = shape
 		body.add_child(csh)
-	g.commit(site, "Shell")
+	_commit(g, site, "Shell", true)
 
 
 ## The storefront's openings, far end first: [u0, u1, v0, v1, is_door]. The far window runs from
@@ -480,10 +520,10 @@ static func _glass(site: CornerStoreSite, s: Dictionary, lay: Dictionary) -> voi
 			var n := int((u1 - u0) / 1.5)
 			for i in range(1, n + 1):
 				f.box("kit", Vector3(lerpf(u0, u1, float(i) / float(n + 1)), (v0 + v1) * 0.5, z), Vector3(0.05, v1 - v0, 0.1), alu)
-	var mi := g.commit(site, "Glass", false)
+	var mi := _commit(g, site, "Glass", false)
 	if mi:
 		site.add_glass(mi, traced, clear_material())
-	f.commit(site, "Frames")
+	_commit(f, site, "Frames", true)
 
 
 ## The door: a glazed aluminium leaf on a hinge (a pivot node at the hinge), its own collision on
@@ -526,10 +566,10 @@ static func _door(site: CornerStoreSite, s: Dictionary, lay: Dictionary) -> void
 	f.box("kit", Vector3(hx, 1.05, 0.04), Vector3(0.05, 0.03, 0.06), alu)
 	f.box("kit", Vector3((lo + hi) * 0.5, 1.0, -0.06), Vector3(DW - 0.25, 0.05, 0.05), alu)
 	_letters(f, "kit", "OPEN 6AM - 2AM", Vector3((lo + hi) * 0.5, 1.55, 0.004), Vector3.RIGHT, Vector3.UP, 0.05, DW * 0.6, _k(Color(0.95, 0.95, 0.95), K_POSTER))
-	var mi := g.commit(pivot, "Leaf", false)
+	var mi := _commit(g, pivot, "Leaf", false)
 	if mi:
 		site.add_glass(mi, traced, clear_material())
-	f.commit(pivot, "LeafFrame")
+	_commit(f, pivot, "LeafFrame", true)
 	var ab := AnimatableBody3D.new()
 	ab.name = "DoorBody"
 	ab.collision_layer = 1
@@ -635,7 +675,7 @@ static func _interior(site: CornerStoreSite, s: Dictionary, lay: Dictionary) -> 
 	for zz: float in [lzc - 0.45, lzc + 0.45]:
 		g.box("kit", Vector3(lx, 2.78, zz), Vector3(0.01, 0.45, 0.01), _k(Color(0.4, 0.4, 0.4), K_STEEL))
 	last_interior_tris = g.triangles
-	g.commit(site.interior, "Room", false)
+	_commit(g, site.interior, "Room", false)
 
 
 static func _back_shelving(g: LandmarkGeo, lay: Dictionary) -> void:
@@ -844,10 +884,10 @@ static func goods_mesh(kind: int) -> ArrayMesh:
 						for k: int in order:
 							add.call(ps[k], ns[k], uvs[k], P_BODY if side > 0.0 else P_SIDE)
 		Goods.CAN:
-			_lathe(add, [[0.0, 0.0], [0.46, 0.0], [0.5, 0.05], [0.5, 0.92], [0.43, 1.0], [0.0, 1.0]], [P_CAP, P_CAP, P_LABEL, P_CAP, P_CAP], 12)
+			_lathe(add, [[0.0, 0.0], [0.5, 0.04], [0.5, 0.92], [0.43, 1.0], [0.0, 1.0]], [P_CAP, P_LABEL, P_CAP, P_CAP], 8)
 		Goods.BOTTLE:
-			_lathe(add, [[0.0, 0.0], [0.45, 0.0], [0.5, 0.06], [0.5, 0.25], [0.5, 0.6], [0.47, 0.68], [0.18, 0.86], [0.16, 0.92], [0.17, 0.94], [0.17, 1.0], [0.0, 1.0]],
-					[P_CLEAR, P_CLEAR, P_CLEAR, P_LABEL, P_CLEAR, P_CLEAR, P_CLEAR, P_CAP, P_CAP, P_CAP], 10)
+			_lathe(add, [[0.0, 0.0], [0.5, 0.05], [0.5, 0.25], [0.5, 0.6], [0.46, 0.7], [0.17, 0.88], [0.17, 1.0], [0.0, 1.0]],
+					[P_CLEAR, P_CLEAR, P_LABEL, P_CLEAR, P_CLEAR, P_CAP, P_CAP], 8)
 	st.index()
 	var m := st.commit()
 	m.surface_set_material(0, goods_material())
@@ -946,7 +986,7 @@ static func _goods(site: CornerStoreSite, s: Dictionary, lay: Dictionary) -> voi
 			_fill(acc, rng, Vector3(face - cs * 0.06, y, cz.x - 0.05), along, into, cz.x - cz.y - 0.1, room, CornerStore.COOLER_DEEP - 0.18, COOLER_MIX[k % COOLER_MIX.size()], true)
 	# The cigarette rack: rows of packs facing the counter.
 	var kz: Vector2 = lay.counter_z
-	var rfront := cs * ix1 - cs * 0.29
+	var rfront := cs * ix1 - cs * 0.335
 	var toward := Vector3(-cs, 0, 0)
 	var along_r := Vector3(0, 0, -1)
 	for r in 9:
@@ -1008,7 +1048,7 @@ static func _fill(acc: Dictionary, rng: RandomNumberGenerator, start: Vector3, a
 				return
 			var rows := 1
 			if deep:
-				rows = maxi(1, mini(3, int(depth / maxf(dd, 0.05))))
+				rows = maxi(1, mini(2, int(depth / maxf(dd, 0.05))))
 			for r in rows:
 				var c := start + along * (cur + w * 0.5) - out * (dd * 0.5 + float(r) * (dd + 0.005))
 				var xf := Transform3D(basis.scaled_local(Vector3(w, h, dd)), c)
