@@ -14260,3 +14260,23 @@ front and side sign bands as lit PANEL plant boxes; the far city captures exactl
 
 **A/B.** `WALK_IN_STORE=0` in the environment (the lot keeps its old building); `STORE_SHOW=1`
 forces every interior on (stills).
+
+**Frame cost** (still_shot.gd's GEO, opengl3 + Xvfb 1280x720, the EL SOLECITO MARKET corner,
+midtown block (2,-1), `--spawn=281,-8,0,0`, `WALK_IN_STORE=0` against on; live traffic and people
+differ run to run): across the corner at noon (`EYE=294.5,2.9,-4,40,-2`) 4.60 M -> 4.88 M
+triangles, 2,923 -> 3,151 draws; at 21:30 5.29 M -> 5.43 M, 3,622 -> 3,775. Most of the
+difference is the city behind: the lot's old building was six storeys, the store is one, so more
+of the blocks behind it are in view. The store itself is ~6 draws from outside (shell, glass,
+frames, door) and its interior none while hidden. Standing inside at noon the frame is 5.43 M /
+3,206 draws (the interior ~0.17 M of it, the rest the street through the glass and door).
+
+**Stills** (shots/walk-in-store; opengl3, NOT the Mac's Forward+): the corner before / after at
+noon and 21:30, inside by the door (coolers, gondolas), the counter with the cigarette rack and
+the cashier, inside at night.
+
+**Not done / not verified.** Forward+ not seen (the coolers' glow, the sign and the troffers
+under AgX; SSR on the floor). Pedestrians never walk in (the customer is placed); the doors are
+the player's alone. The goods are not breakable (rounds hit the shelving's collision). No ATM or
+coffee machine. The far city shows the store as a plain box (old path, not FarBuilding's code).
+Suburb stores are fewer than midtown ones (27 against 94 within 4.5 km of the origin): suburb
+corners fail on relief and park blocks more often.
