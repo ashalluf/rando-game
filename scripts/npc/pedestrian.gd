@@ -215,6 +215,7 @@ var _look_point := Vector3.INF
 var _look_threat := Vector3.INF
 var _look_hold: float = 0.0
 var _look_scan: float = 0.0
+var _look_mod: CrowdLook
 ## Moving cars near the player, [position, velocity], shared by the whole crowd and refreshed
 ## a few times a second (_nearby_cars()).
 static var _cars: Array = []
@@ -1562,6 +1563,11 @@ func _post_pose(delta: float) -> void:
 	if _look_bones.size() != 2:
 		return
 	_look_hold = maxf(_look_hold - delta, 0.0)
+	if CrowdLook.enabled and _look_mod == null:
+		_look_mod = CrowdLook.of(self, _head_skel)
+	if _look_mod:
+		_look_mod.think(delta) # the head look as a modifier (crowd_look.gd); below is CROWD_LOOK=0
+		return
 	_look_scan -= delta
 	if _look_scan <= 0.0:
 		_look_scan = 0.3 + _anim_rng.randf() * 0.25

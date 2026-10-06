@@ -25,6 +25,7 @@ static var _crater_cache: Texture2D
 static func land(player: Node3D, at: Vector3, normal: Vector3, fall: float) -> void:
 	if player == null or not player.is_inside_tree() or fall < dust_speed:
 		return
+	CrowdLook.landing(player, fall)
 	var k := clampf((fall - 47.0) / (full_speed - 47.0), 0.0, 1.0)
 	var parent := WeaponFX.fx_parent(player)
 	var up := normal.normalized() if normal.length_squared() > 0.01 else Vector3.UP

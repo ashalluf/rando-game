@@ -733,6 +733,7 @@ func take_hit(_shape_index: int, damage: float, dir: Vector3, at: Vector3 = Vect
 		drop_out_of_traffic()
 	damage_state().hit(kind, at, dir, damage)
 	CarAlarm.on_hit(self, kind, damage)
+	CrowdLook.car_hit(self, kind, damage)
 
 
 ## This car's damage, made now if it has none yet.
