@@ -77,7 +77,7 @@ var leaping: bool = false
 var water: Dictionary = {}
 
 var _player: Player
-var _mask: int = 5
+var _stripped: bool = false
 var _sea: Array = []
 var _sea_age: float = 99.0
 var _phase: float = 0.0
@@ -111,6 +111,13 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	SeaSurface.advance(delta)
+	if swimming and _player and _player.vehicle != null:
+		# Into a car from the water (a dock, a boat ramp): enter_vehicle() owns the mask now.
+		swimming = false
+		under = false
+		leaping = false
+		_stripped = false
+		water = {}
 	if _player and _player.avatar and _player.avatar.swim_pose and not swimming:
 		var sp := _player.avatar.swim_pose
 		sp.weight = move_toward(sp.weight, 0.0, delta * 4.0)
@@ -141,8 +148,21 @@ func step(delta: float) -> bool:
 		_exit()
 		return false
 	water = w
+	_strip(bool(w.solid))
 	_swim(delta, w, tp)
 	return true
+
+
+## The world layer off the player's mask (water with no floor of its own: the sea, the marina, a
+## pool) or back on.
+func _strip(on: bool) -> void:
+	if on == _stripped:
+		return
+	_stripped = on
+	if on:
+		_player.collision_mask = _player.collision_mask & ~1
+	else:
+		_player.collision_mask = _player.collision_mask | 1
 
 
 func is_swimming() -> bool:
@@ -173,9 +193,7 @@ func _enter(w: Dictionary, tp: Vector3) -> void:
 	swimming = true
 	leaping = false
 	_since_leap = 9.0
-	if bool(w.solid):
-		_mask = _player.collision_mask
-		_player.collision_mask = _player.collision_mask & ~1
+	_strip(bool(w.solid))
 	var fall := -_player.velocity.y
 	under = fall > 9.0 or tp.y < float(w.surface) - tread_depth - 0.8
 	_dived = false
@@ -201,8 +219,7 @@ func _exit() -> void:
 	swimming = false
 	under = false
 	leaping = false
-	if bool(water.get("solid", false)):
-		_player.collision_mask = _mask | 1
+	_strip(false)
 	if _player.weapon_manager:
 		_player.weapon_manager.visible = true
 	water = {}

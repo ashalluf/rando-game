@@ -14279,7 +14279,15 @@ no CC0 water recording is in the project and freesound / itch.io are out of reac
 
 **Cost.** Nothing on land beyond a zone test a tick. In the sea two to three `SeaSurface.height()`
 samples a tick (~0.3 ms), a few CPUParticles3D systems and, under the water, one full-screen pass.
-No geometry is added to any chunk (the registrations are data).
+No geometry is added to any chunk (the registrations are data). Measured (still_shot GEO, the
+same camera off Rando Pier at 15:30, opengl3): swimming 3,229,823 triangles / 2,920 draws, with
+`SWIMMING=0` (the hero standing on the water instead) 3,255,022 / 2,927 - flat.
+
+**Stills** (branch `shots/swimming`): `01_before_sea_1530` (SWIMMING=0: he runs on the sea),
+`02_after_crawl_1530`, `03_after_tread_1530`, `04_after_underwater_1530`, `05_after_dolphin_1530`,
+`06_after_park_pool_1530` (the rec pool at (129.5, -95.1) on seed 1337), `07_after_macarthur_lake_1530`,
+`08_after_dolphin_1840`. The probe (`tools/swim/probe.tscn`) prints the nearest rec pools and the
+lake's bounds for framing more.
 
 **A/B and stills.** `SWIMMING=0` in the environment: no water anywhere (SwimWater.enabled), the
 old behaviour. `SWIM_STAGE=tread|crawl|boost|under` (fakes the stick) with `SWIM_HOLD=1` (swims on

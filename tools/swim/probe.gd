@@ -7,7 +7,7 @@ extends Node
 
 func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
-	var seed_value := int(args[0]) if args.size() > 0 else 1
+	var seed_value := int(args[0]) if args.size() > 0 else 1337
 	var t0 := Time.get_ticks_usec()
 	var plan := GroundCoverage.make_plan(seed_value)
 	var m: MacroMap = plan.macro

@@ -117,7 +117,8 @@ static func foam_material() -> StandardMaterial3D:
 		m.vertex_color_use_as_albedo = true
 		m.albedo_texture = foam_texture()
 		m.roughness = 0.6
-		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		# Seen from above only: from under the water the surface's own underside is what shows.
+		m.cull_mode = BaseMaterial3D.CULL_BACK
 		_foam_mat = m
 	return _foam_mat
 
@@ -231,7 +232,7 @@ static func splash(parent: Node, at: Vector3, strength: float, up: Vector3 = Vec
 	var life := 3.2 + 0.4 * s
 	var tw := root.create_tween()
 	tw.set_parallel(true)
-	tw.tween_property(ring, "scale", Vector3.ONE * (3.5 + 2.5 * s), life).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(ring, "scale", Vector3.ONE * (3.0 + 1.6 * s), life).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.tween_property(ring, "transparency", 1.0, life).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.chain().tween_callback(root.queue_free)
 	play(parent, "splash" if s >= 0.6 else "splash_small", at, linear_to_db(clampf(0.35 + 0.3 * s, 0.2, 1.0)))
@@ -244,7 +245,7 @@ static func _ring_material() -> StandardMaterial3D:
 	if _ring_mat == null:
 		_ring_mat = foam_material().duplicate()
 		_ring_mat.albedo_texture = ring_texture()
-		_ring_mat.albedo_color = FOAM_COLOR
+		_ring_mat.albedo_color = Color(FOAM_COLOR.r, FOAM_COLOR.g, FOAM_COLOR.b, 0.6)
 		_ring_mat.vertex_color_use_as_albedo = false
 	return _ring_mat
 
