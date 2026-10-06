@@ -75,7 +75,14 @@ static var enabled: bool = OS.get_environment("PARKLETS") != "0"
 
 ## Whether this chunk's block can have parklets at all (cheap: the step is only queued if so).
 static func wanted(chunk: CityChunk, block: Dictionary) -> bool:
-	if not enabled or chunk.level != CityChunk.Level.FULL or chunk.plan == null:
+	if chunk.level != CityChunk.Level.FULL or chunk.plan == null:
+		return false
+	return wanted_block(block)
+
+
+## Whether a block (CityPlan.block()) can have parklets: plain buildings in a district with odds.
+static func wanted_block(block: Dictionary) -> bool:
+	if not enabled:
 		return false
 	if block.has("site") or block.has("grounds") or block.has("chinatown"):
 		return false
@@ -257,20 +264,21 @@ static func _build_one(chunk: CityChunk, block: Dictionary, pk: Dictionary, hour
 	var paint: Color = PLANTER_PAINT[int(_h01([plan.seed, "parklet_paint", key]) * PLANTER_PAINT.size()) % PLANTER_PAINT.size()]
 	var lit := 0.5 if open_now else 0.0
 	chunk._batch.add(K_DECK + str(int(length)), ParkletKit.deck(length), xf, Color.WHITE, Color(paint.r, paint.g, paint.b, lit + seed01))
-	# The planting: an ornamental grass or a low shrub every spot, alternating, one species each.
-	var clump := int(_h01([plan.seed, "parklet_grass", key]) * PropFactory.GRASS_CLUMPS.size()) % PropFactory.GRASS_CLUMPS.size()
+	# The planting: a row of ornamental grass (a cheap scan, 941 triangles), a clipped shrub at
+	# each end; one species of each a parklet.
+	var clump := 0
 	var shrub := int(_h01([plan.seed, "parklet_shrub", key]) * 4.0) % 4
-	var i := 0
-	for s: Vector3 in ParkletKit.plant_spots(length):
+	var spots_p := ParkletKit.plant_spots(length)
+	for i in spots_p.size():
+		var s: Vector3 = spots_p[i]
 		var h := _h01([plan.seed, "parklet_plant", key, i])
-		var sc := 0.55 + 0.2 * h
-		var pb := Basis(Vector3.UP, h * TAU).scaled(Vector3.ONE * sc)
 		var tint := Color(0.9 + 0.2 * h, 0.95 + 0.1 * h, 0.9)
-		if i % 2 == 0:
+		if i == 0 or i == spots_p.size() - 1:
+			var pb := Basis(Vector3.UP, h * TAU).scaled(Vector3.ONE * (0.5 + 0.12 * h))
 			chunk._batch.add("shrub_%d" % shrub, PropFactory.model_shrub(shrub), Transform3D(pb, xf * s), tint)
 		else:
-			chunk._batch.add("gclump_%d" % clump, PropFactory.model_grass_clump(clump), Transform3D(pb.scaled(Vector3.ONE * 1.5), xf * s), tint)
-		i += 1
+			var pb := Basis(Vector3.UP, h * TAU).scaled(Vector3.ONE * (1.25 + 0.4 * h))
+			chunk._batch.add("gclump_%d" % clump, PropFactory.model_grass_clump(clump), Transform3D(pb, xf * s), tint)
 	chunk._batch.set_draw_distance("gclump_%d" % clump, PLANT_DRAW)
 	# Collision: the deck (stood on), the planters along the road and the end screens.
 	var gy := chunk._gy(c.x, c.y)
