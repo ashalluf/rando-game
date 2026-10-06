@@ -205,7 +205,9 @@ static func step_engine(st: Dictionary, prof: Dictionary, speed: float, throttle
 	var load := th
 	if float(st.shift_t) > 0.0:
 		load = 0.1 # the throttle cut through a shift
-	if target >= red * 0.995 and th > 0.5:
+	if free_rev and speed >= 0.6:
+		target = minf(target, red * 0.96) # flying: held high, not bouncing off the limiter
+	elif target >= red * 0.995 and th > 0.5:
 		# The limiter: cuts and catches, a few times a second.
 		st.limit_t = float(st.limit_t) + dt
 		target = red * (0.95 if fmod(float(st.limit_t), 0.09) < 0.045 else 1.0)
@@ -538,7 +540,8 @@ class Voice extends Node3D:
 		_last_pos = pos
 		speed = absf(signed)
 		var a := (speed - _last_speed) / dt
-		_accel = lerpf(_accel, a, 1.0 - exp(-dt * 6.0))
+		if absf(a) < 40.0: # a teleport (staging, a re-placed car) is not a stop
+			_accel = lerpf(_accel, a, 1.0 - exp(-dt * 6.0))
 		_last_speed = speed
 		var yaw := car.global_rotation.y
 		var yaw_rate := wrapf(yaw - _last_yaw, -PI, PI) / dt

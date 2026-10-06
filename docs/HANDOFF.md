@@ -14201,3 +14201,76 @@ streets' glow stands in). The lamps stand where the old ones stood, and on some 
 is beside a utility pole (StreetDetail's), which the old thin post hid better. No real light
 shaped like the cobra's cut-off (still an omni). Shot lamps break as before (debris box), no
 falling pole.
+
+## 9d?. Engine audio: an engine per car, revved by a simulated gearbox, 2026-10-06 (agent branch `wt/engine-audio`; VISUAL_ROADMAP "?")
+
+**What it was.** One low-quality engine loop (`engine_loop_0`, GGBotNet) played only for the
+player's car and pitched linearly with speed; traffic was Ambience's tyre roll, and a bus or truck
+its `diesel_idle` loop. No gears, no idle-to-redline character, no turbo, no reversing alarm, one
+horn sound for every car.
+
+**What it is.** `EngineAudio` (`scripts/vehicles/engine_audio.gd`), one node under the root made
+by the first Vehicle (`ensure()`, next to CarLights and DrivingFX):
+- **Nearest cars only**: every `pick_interval` (0.2 s, real clock) the `voices` (4; 2 on the web)
+  running cars (`lights_running()`: somebody in the cabin) nearest the camera within `reach` (55
+  m) plus the player's car get a Voice (five loop players, turbo, beeper, squeal); voices are
+  reused, never freed. The Vehicle's own engine loop stays quiet while `covers()` (one guarded
+  block in `Vehicle._physics_process`); a voiced bus or truck drops Ambience's diesel loop
+  (`voiced()`, one line in `_follow_traffic`).
+- **Profiles** (`PROFILES`, `profile_for()`): four (sedan, hatchback, crossover, minivan, taxi,
+  beater, vans, ice-cream truck), v8 (pickup, SUV, the muscle car, any `police_car`), diesel (box
+  truck, semi, fire engine, ambulance, garbage, sweeper, tow), bus (city and school buses), v12
+  (the four exotics, turbo + blow-off), moto (V-twin; any car with meta `engine_profile` "moto" -
+  the motorcycles session can use it).
+- **Revs** (`step_engine()`, pure, unit-checked): gear ratios spread geometrically between the
+  speed first gear tops out at (`first`) and the speed top gear reaches 92 % of the redline at
+  (`top`); upshift at an rpm from 42 % to 93 % of the redline by throttle, downshift under 62 % of
+  it, a kick-down on a floored throttle, 0.24 s throttle cut and fast rpm drop through each shift,
+  clutch slip in first, a limiter that cuts and catches at the redline, free revs in the air
+  (held just under the redline, no bounce) and standing on the throttle (boost = floored).
+- **Mix** (`layer_gains()`): the on-load ladder idle / low / mid / high crossfaded equal power by
+  rpm (each loop pitched rpm / its own rpm, a per-car +-4 % character), the coasting loop faded in
+  as the load drops above idle; level + `load_db` at full load + `rev_db` at the redline. Traffic
+  throttle comes from its acceleration (position deltas: kinematic traffic has no velocity; an
+  origin shift's jump is ignored), the player's from the stick and boost.
+- **On top**: the turbo whistle spools with load x revs and dumps on a lift (blow-off on the v12
+  only); the reversing alarm on diesel and bus profiles while rolling backward or with the
+  reversing lamps on; a squeal for TRAFFIC braking harder than `squeal_decel` or cornering harder
+  than `squeal_lateral` (DrivingFX already squeals the physical cars from their real tyre slip);
+  `horn()` / `horn_spec()` - each car's own take and pitch from a hash of its look, deep on trucks
+  and buses, the air horn on semis, fire engines and garbage trucks; TrafficAI's honks go through
+  it (one guarded line, the old Sfx call is the fallback), and the player has a `horn` action (H /
+  pad d-pad down, held = leaning on it).
+
+**The sounds** are synthesised offline by `tools/engine_audio.py`, NOT recorded: the session's
+network policy blocks Freesound, OpenGameArt, Wikimedia, archive.org and Kenney, and no CC0 engine
+recording was found on GitHub (SuperTuxKart's are GPL / CC-BY-SA). The tool builds each loop from
+the physics of the sound: every cylinder's exhaust pulse at its place in the firing order (i4;
+cross-plane V8 alternating banks L R L L R L R R - the burble; i6 diesel with combustion knock;
+V12; 45-degree V-twin), a per-cylinder strength spread (the lope) and cycle-to-cycle jitter, each
+bank through a pipe comb and a muffler, a whole number of engine cycles per loop with periodic
+noise so there is no seam. 33 files, 0.7 MB. Measured: fours / V8s / V-twin carry 88-99 % of
+their energy under 1 kHz, the diesels 56 % with the knock band above it, the V12 30-77 %. Sfx
+gets them as SAMPLES with loudness entries and loop flags (fallback: the old engine tone, built
+once). **Any file can be replaced by a recording**: same name, re-measure its loudest-50 ms level
+for `SAMPLE_LOUDNESS_DB`, and put the rpm it was recorded at in `PROFILES.rpm`. That is the first
+thing to do on a session whose network reaches Freesound.
+
+**Cost.** No geometry, no draws (geo_count flat by construction). CPU: one group scan every
+0.2 s (like CarLights) and up to five voices' arithmetic a frame; audio: up to ~7 players a voice
+playing (two engine layers in a crossfade, the coasting layer, turbo, beeper, squeal), so ~20-30
+streams at worst. Sfx load +30 ms (the 33 oggs).
+
+**A/B and tools.** `ENGINE_AUDIO=0` (the old single loop on the player's car, the old horns);
+`ENGINE_AUDIO_HUD=1` shows a debug panel (each voice's profile, traffic or physical, gear, rpm,
+load, speed, the five layer gains, turbo, BEEP, SQUEAL); probe `tools/engine_audio/probe.tscn`
+(headless, seconds: each profile's run through the gears, the body-type table, missing files).
+Checks: `tests/engine_audio_checks.gd` (61 with the city: the gearbox per profile, equal power,
+the player's voice and shifts, the Vehicle's loop silent, a truck's diesel and alarm, horns).
+
+**Not done / not verified.** Nobody has LISTENED to it: the session has no audio out, so the
+loops were judged by spectrum, crest factor and seam only - an ear check on the Mac is needed,
+and the synthesised timbre will not match a recording. Not on the web build heard either.
+Motorcycles have a profile but no bodies yet. Traffic gear changes are plausible but their
+throttle is guessed from acceleration. StreetErrands' honk (`Sfx.play("horn")`) was left as it
+was. No interior (in-cabin) muffling for the player's car.
