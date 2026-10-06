@@ -22,3 +22,9 @@ The meet: Z#4 at x 810-900, z ~612 on the default seed (`LOWRIDER_MEET=1` forces
 
 Frame cost at the meet EYE (opengl3 1280x720, 21:00): LOWRIDERS=0 6.449 M triangles / 2,840 draws,
 a meet night 6.980 M / 3,102 (+8 %, +262 draws: ten cars and twenty people at a kerb that was empty).
+
+**Re-shot after the lead's review (same eyes):** the flake is ~1 mm, tilted per flake and lit only
+where its mirror catches the sun (no white specks; a faint lift past a pixel); the whitewall is a
+17 mm off-white band with the black tyre wall round it; the chrome stand-in on opengl3 is a darker
+satin, so the rim lip no longer reads as part of the whitewall. The pale splotches and crack lines
+on the road in 02 are road wear and are in 01 (LOWRIDERS=0) too: not the meet.
