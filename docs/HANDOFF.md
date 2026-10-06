@@ -14257,6 +14257,19 @@ ten apartments builds in 1,052 ms against 916 ms as Building boxes (headless).
 take), `tools/apartments/compile.gd`. Checks: `tests/apartments_checks.gd` (`house_checks.gd` now
 skips apartment lots).
 
+**Second pass (the lead's review: "the walk-ups read as flat stucco boxes"):** a deep walk-up
+(`TUCK_D` 6.4 m) can open the street end of its ground floor as tuck-under parking in dark bays
+(`h.garage` kind "tuck", so the driveway runs to it); the street face can wear a second stucco tone
+(`colors.front`, `ApartmentBuild._wall()`) and a slider onto an iron balcony per floor; every
+window on a walk-up or podium gets a head band and jambs standing proud, a sill under a slider and
+a grime streak under it (`_surround()`); a belt course runs round each floor line (`_belts()`, not
+on the gallery face); the court's mouth gets a steel picket gate between stucco piers with
+mailboxes and a lamp (`_court_gate()`); flat roofs get vent stacks and a scupper. The claim now
+also skips the freeway's right of way, VacantLots' lots and the block's Construction tower site,
+and `Apartments.claimed_before()` (the stations, worship, Broadway, Chinatown, the dealers, a well,
+the civic buildings) keeps the probe and the checks off lots the chunk gives to someone else. The
+probe is a scene now (`tools/apartments/probe.tscn`: it needs the autoloads).
+
 **Known gaps:** no interiors behind the glass (house_glass's traced room only); the Spanish courts'
 upper floors have no modelled stair; podium entries are a plain door; a pad (Commercial) can still
 take an edge lot the probe predicted as an apartment (the chunk's own rng); nothing lit at night
