@@ -38,7 +38,7 @@ uniform vec3 shelf_color = vec3(0.86, 0.86, 0.84);
 uniform float seed = 0.0;
 // How bright the room reads through the glass by day and after dark (times lamp_factor).
 uniform float energy_day = 0.55;
-uniform float energy_night = 1.15;
+uniform float energy_night = 1.7;
 
 global uniform float lamp_factor;
 
