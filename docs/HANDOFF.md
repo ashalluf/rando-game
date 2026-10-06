@@ -14291,3 +14291,29 @@ knocked physical it lies back at rest; where the meets are (open boulevards in t
 decided the same twice) and when (weekend nights only); the cruisers (their districts, more on a
 meet night); a meet chunk (the row, no parked car in it, the crowd on the pavement) and the same
 block on a Tuesday noon.
+
+**Frame cost** (still_shot.gd's GEO, opengl3 + Xvfb 1280x720, the meet at
+`EYE=826,13.0,597,-115,-10`, 21:00): LOWRIDERS=0 6.449 M triangles / 2,840 draws; a meet night
+6.980 M / 3,102 (+8 %, +262 draws). That kerb was empty before, so it is ten cars and twenty people
+added at full detail in front of the camera; anywhere without a meet nothing changes but the odd
+cruiser (an ordinary car's cost: ~50k body near, ~8k far, four 3.1k wire wheels near / 0.9k far).
+
+**Gate**: SHARDS=3 tests/headless_check.sh: shards 1 and 2 passed (909 + 730), shard 0 failed two
+dog checks ("a round into a dog sends it running", "the second walker is still there") that ran
+BEFORE the lowrider checks; city_menu alone and shard 0 alone again both passed (751): an
+intermittent dog check. Lowrider checks alone: 31 passed. Peak per shard ~2.2 GB.
+
+**Stills** (shots/lowriders, opengl3): the kerb before / after at night, the row at dusk and from
+across the street at golden hour with a hop and a three-wheel, the cars on their own (studio),
+the hop and the three-wheel, the bonnet scroll and lace roof, the flank stripe and flake, the wire
+wheel, and lowriders three-wheeling in traffic at a red.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the candy depth, the flake's winking
+and the chrome wire wheels depend on real reflections. The player cannot get into a meet car (it
+is a traffic-style kinematic car; knocked out of its row it is an ordinary physics car he can
+take) and has no hydraulics switch of his own. A meet's hydraulics are visual: the collision stays
+at rest height. The cruisers' bounce is frozen out of range (140 m) and never shown on the far
+twin (the twin is the body, so it does move with the holder, but its baked wheels go with it).
+The meet crowd stands on the pavement only (nobody in the street between the cars), no music,
+no folding chairs or coolers, no open trunks showing the pumps. Brake lamps stay off on a meet car,
+but its head and tail lamps run at night like a traffic car's (a driver sits in each).
