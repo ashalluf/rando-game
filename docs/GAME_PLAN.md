@@ -295,6 +295,17 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Onlookers: the crowd comes back after the chaos (HANDOFF "Onlookers").** After
+  the panic near a wreck, a blast or a body, people near the camera come back and stand round it
+  in a loose ring: filming on their phones (held up at eye level, the screen lit, a video light
+  after dark), pointing, a hand over the mouth, arms folded, one or two calling for help; a new
+  shot scatters them, responders arriving (or a minute or two) send them away. Decisions: built on
+  crowd life (a new `CrowdLife.Act.WATCH`, walked to round each walker's OWN pavement ring - no
+  one steps into the road to gawk), the arm poses solved per frame over the life clips (a
+  two-bone solve, as the sitters' legs) rather than new clips, plain walkers only (never
+  officers, crews, sleepers), near the camera only (`life_range`); a watched body is kept as
+  debris past its 12 s while people watch it (`BODY_HOLD`), or the crowd would come back to
+  nothing; every roll a hash; `ONLOOKERS=0` the A/B.
 - **2026-10-05 The street's signs are real models (HANDOFF "The street's signs").** The signs
   were a cylinder for a stop sign facing the junction diagonally, flat boxes with TextMesh names
   and red-banded white boxes. Decisions: built in CODE at real size (StreetSignKit; BoulevardSigns owns the kerb's parking plates), not Blender - every

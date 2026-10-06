@@ -4434,6 +4434,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `ERRAND_DEBUG=1` prints every errand called off. Stills: `ERRAND=bus|car|jay|shop|deliver` on
   `still_shot.gd` (`tools/street_errands/stage.gd`); checks: `tests/street_errands_checks.gd`,
   alone in a minute with `tools/street_errands/run_checks.tscn`.
+- Onlookers (2026-10-05, fleet "onlookers"; docs/HANDOFF.md, the onlookers section): after the
+  panic near a wreck, a blast or a body, `Onlookers` (`scripts/npc/onlookers.gd`, one Node under
+  the tree root made by the first walker with life clips) brings free walkers (`_life_free()`,
+  within `life_range`) back round it: each walks its own pavement ring to a spot in the scene's
+  distance band (`BAND`, `SPACING`), `CrowdLife.Act.WATCH`, and plays a role - FILM (phone held up
+  at eye level by a two-bone arm solve over the life clips, `film_phone_mesh()`: screen lit, video
+  light `crowd_prop.gdshader` glow 3 after dark), POINT, COVER (hand to mouth), CALL (1-2 a scene,
+  the phone clip) or GAWK (folded arms, head shakes). Scenes (true world) come from CarDamage's
+  lists, `Explosion.blast_count` and fresh Ragdolls (a watched body's debris life is held,
+  `BODY_HOLD`); quiet = no `Pedestrian.alarm` within `ALARM_REACH` for `SETTLE` s. A new shot ends
+  it (`_end_act` -> `release()`); responders (`RESPONDER_GROUPS`) or `LINGER` send them off one by
+  one. Hooks in Pedestrian: `watch`, `Onlookers.walk/pose/release/ensure`. Rolls are hashes.
+  `ONLOOKERS=0` is the A/B; stills `ONLOOKER_SCENE=body|wreck|blast` on `still_shot.gd`
+  (`tools/onlookers/stage.gd`); checks `tests/onlookers_checks.gd`.
 - Headwear (2026-10-04: the old box caps "read as plastic bowls"): `CrowdHat`
   (`scripts/npc/crowd_hat.gd`) builds a six-panel cotton baseball cap (button, sweatband, a bill
   with a taped edge, a strap and slide buckle across the opening at the back), a cuffed 2x2-rib

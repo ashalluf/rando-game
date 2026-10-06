@@ -14201,3 +14201,55 @@ streets' glow stands in). The lamps stand where the old ones stood, and on some 
 is beside a utility pole (StreetDetail's), which the old thin post hid better. No real light
 shaped like the cobra's cut-off (still an omni). Shot lamps break as before (debris box), no
 falling pole.
+
+## 9d?. Onlookers: the crowd comes back after the chaos (fleet wave 2, "onlookers")
+
+**What.** Once the panic near a wreck, a blast site or a body is over, people near the camera come
+back and stand round it in a loose ring at a distance: filming it on their phones (held up at eye
+level in front of the face, the screen lit, a white video light on the back after dark), pointing
+at it, a hand over the mouth, arms folded with a shake of the head; one or two call for help on
+the phone (the life library's phone clip). A new shot or blast scatters them (they come back once
+it is quiet again); responders arriving (Emergency's crews and units, police officers and
+cruisers within 38 m) or 70-150 s of quiet send them away one by one.
+
+**How.** `Onlookers` (`scripts/npc/onlookers.gd`), one Node under the tree root made by the first
+walker with life clips (`Onlookers.ensure()` from `Pedestrian._setup_life()`). Every 0.5 s it:
+- looks for scenes within 80 m of the player (true world positions, merged within 16 m):
+  CarDamage's `_burning` / `_wrecks`, `Explosion.blast_count`, fresh Ragdolls in PhysicsBudget's
+  debris (not responders'). A watched body's `debris_life` is raised to 75 s from when it was seen
+  (`BODY_HOLD`): bodies are debris for 12 s, less than a panic lasts, and the crowd came back to
+  nothing.
+- calls a scene quiet once `Pedestrian.alarm()`'s own record (`_last_alarm_ms` / `_at`) has had
+  nothing within 60 m for 3.5 s;
+- recruits up to two a scan per quiet scene (5-12 a scene by hash, 28 in all): walkers that are
+  `_life_free()` (or only standing about) within 55 m, nearest first. Each gets a spot on ITS OWN
+  pavement ring in the scene's band (body 4.2-10 m, wreck 6.5-13, burning 9.5-17, blast 7-15) kept
+  1.3 m from the others, walks there with the ordinary ring walk (`CrowdLife.Act.WATCH`, stage
+  GOING), turns to face the scene and plays its role.
+
+Roles (`Onlookers.Role`, by a hash of scene and person): CALL first (1-2 a scene, 14-32 s, then
+film or stare), FILM 42 %, POINT 16 %, COVER 18 %, GAWK the rest; a bag carrier never films and
+uses the other hand. The arm poses are a two-bone solve in skeleton space laid over the life clips
+(`Onlookers._arm()`, the same solve as the sitters' legs), the hand turned to a grip frame
+(`_hand_for()`: CrowdLife's grip basis is mirrored on one hand, so the target takes its
+handedness), blended in and out over about half a second. FILM puts the wrist so the phone sits
+33 cm ahead of the eyes on the line to the scene, the palm and screen to the face; half the
+filmers with a free left hand hold it in both. Beats: the phone comes down to look at it now and
+then, the pointing arm comes and goes with the talk clip, the hand goes to the mouth and back with
+a head shake, gawkers nod and shake their heads. The filming phone is its own mesh
+(`film_phone_mesh()`: brighter screen, camera bump, lens, LED) on CrowdLife's prop material;
+`crowd_prop.gdshader` glow 3 is the LED, lit by `lamp_factor`.
+
+Pedestrian hooks (one line each): `var watch`, `Onlookers.walk()` in `_walk` after the errands,
+`Onlookers.pose()` in `_physics_process` after the errands' pose, `Onlookers.release()` at the top
+of `_end_act()` (so a fright, leaving life range, being knocked or freed all release), `ensure()`
+in `_setup_life()`. `CrowdLife.Act` gains WATCH (appended).
+
+**Switches and tools.** `ONLOOKERS=0` turns it off (the A/B). `ONLOOKERS_DEBUG=1` prints scenes,
+joins and closes. Stills: `ONLOOKER_SCENE=body|wreck|blast` on `tools/glshot/still_shot.gd`
+(`tools/onlookers/stage.gd`: a scene on the pavement of the block ahead, 16 walkers added, 11 put
+in place at once; `ONLOOKER_EYE=behind|front`, `ONLOOKER_SHOTS=1` every view and the night, `ONLOOKER_FRAMES`). Checks:
+`tests/onlookers_checks.gd` (a knocked walker opens a scene, nobody watches while panicking, they
+come back into the band facing it and spaced, more than one role, a caller on the phone clip, a
+filmer's phone at eye level with the screen to the eyes, a new shot scatters them, they return,
+a responder closes the scene).
