@@ -1,12 +1,10 @@
-# Rando Game
+# walk-in-store stills
 
-A 3D open-world chaos sandbox in Godot 4.7.2. Overpowered player, unlimited guns, a seeded low-poly
-city to wreck.
+A corner convenience store the player can walk into (EL SOLECITO MARKET, midtown block (2,-1),
+default seed). opengl3 (Compatibility) stills, first batch.
 
-- `CLAUDE.md` — how the project is built and how to work in it (read first).
-- `docs/GAME_PLAN.md` — roadmap, current state, decisions log.
-- `docs/ASSETS.md` — asset sources and licenses.
-
-**Play it:** install Godot 4.7.2, clone this repo, open Godot, Import `project.godot`, press Play.
-
-**Check it headless:** `GODOT=/path/to/godot tests/headless_check.sh`
+- `01_after_outside_noon.jpg` - the store on its corner: sign band round the corner, painted words, barred windows with the traced room behind the glass, ice chest, door ramp.
+- `02_after_inside_coolers.jpg` - inside: the cooler bank down the side wall, gondolas, back shelving, troffers, tile floor.
+- `03_after_inside_counter.jpg` - the counter with the impulse rack, till, the cashier behind it, the security mirror.
+- `04_after_outside_night_2130.jpg` - the same corner at 21:30, the sign lit.
+- `05_after_inside_aisle.jpg` - the cooler aisle from the door.
