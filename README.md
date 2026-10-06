@@ -11,3 +11,7 @@ not the Mac's Forward+) and a spectrogram sheet of the synthesised loops.
   on the lane polylines read as cornering), fixed after it.
 - `03_engine_loops_spectrograms.jpg` - every loop's first second, 0-4 kHz: the four's and the
   V-twin's firing pulses at idle, the V8's low rumble, the diesels' knock, the V12's harmonics.
+- `04_hud_after_fix_freeway_traffic.jpg` - the same place with the final code (motion sensed on
+  physics ticks, squeal = speed x smoothed turning rate): a truck diesel in 8th with its turbo
+  spooled, two fours in 3rd and 5th, a V12 in 4th; coasting layers (load 0.10) carrying the cruise
+  and no false squeal.

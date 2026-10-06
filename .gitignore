@@ -1,0 +1,25 @@
+# Godot 4 cache and editor state
+.godot/
+.import/
+*.tmp
+
+# Exports and local-only files
+# export_presets.cfg is committed (no credentials in it)
+/build/
+/exports/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+node_modules/
+
+# Python bytecode from the asset tools.
+__pycache__/
+*.pyc
+
+# Claude Code agent worktrees (a background agent's working copy of the repo).
+.claude/worktrees/
+STOP

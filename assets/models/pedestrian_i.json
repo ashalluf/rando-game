@@ -1,0 +1,17 @@
+{
+  "name": "pedestrian_i",
+  "prompt": "delivery worker in his 20s: high-visibility orange vest over a dark t-shirt, cargo work trousers, safety boots, dark baseball cap, natural face, full body standing, ultra realistic, photorealistic, highly detailed, physically accurate materials and proportions, real-world scale, no cartoon or stylized look",
+  "credits": 44,
+  "tasks": {
+    "preview": "01a0caae-10cd-709a-a7c8-e1cfcd196447",
+    "refine": "01a0caaf-08e2-72c6-8c7f-29c2218197e7",
+    "rig": "01a0caaf-d8f1-71f9-9c9d-0aa278a1c05e",
+    "animations": "01a0cab0-b5b7-733b-99e0-5fde16321d6c"
+  },
+  "source": "Meshy (generated for this project)",
+  "animations": [
+    0,
+    613,
+    659
+  ]
+}
