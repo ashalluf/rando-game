@@ -166,6 +166,27 @@ uniform vec3 wear_door_color : source_color = vec3(0.5);
 uniform vec4 wear_primer = vec4(0.0, 0.0, 0.0, 1.0);
 varying vec3 paint_rest;
 
+// Custom paint (the lowriders: Lowrider.paint()), 0 on every other car, which skips all of it.
+// Candy: a tinted lacquer over a bright base, so the colour runs deep where the panel turns away
+// (a longer path through the tint, `candy_deep`) and glows face on; big metal flake fixed to the
+// body and catching the light flake by flake as you move; hand-laid pinstripes in body MESH space
+// (x across, y up, z along with the nose at -z): a double line down each flank at `pin_side`.x
+// from z .y to .z, scrolls on the bonnet (`pin_hood`: z at the cowl, z at the nose, the top's
+// lowest y, the body's half width) and the deck lid (`pin_deck`), and a patterned roof panel
+// (`pin_roof`: z front, z rear, half width, lowest y) in `pattern_color` inside a pinstriped edge.
+uniform float custom = 0.0;
+uniform vec3 candy_deep : source_color = vec3(0.10, 0.0, 0.02);
+uniform vec3 flake_tint : source_color = vec3(1.0);
+uniform vec3 pin_color : source_color = vec3(0.95, 0.80, 0.35);
+uniform vec3 pattern_color : source_color = vec3(0.75, 0.75, 0.78);
+uniform vec4 pin_side = vec4(0.0);
+uniform vec4 pin_hood = vec4(0.0);
+uniform vec4 pin_deck = vec4(0.0);
+uniform vec4 pin_roof = vec4(0.0);
+// Which scroll family the painter laid (0..3) and how much of the roof is patterned (0 none).
+uniform float pin_style = 0.0;
+uniform float pattern_amount = 0.0;
+
 varying vec3 world_pos;
 // x = along the car, y = up, z = across, all 0..1 over the body's bounding box.
 varying vec3 body_uv;
@@ -190,6 +211,54 @@ float wear_noise(vec3 p) {
 			mix(hash13(i + vec3(0, 1, 0)), hash13(i + vec3(1, 1, 0)), f.x), f.y),
 		mix(mix(hash13(i + vec3(0, 0, 1)), hash13(i + vec3(1, 0, 1)), f.x),
 			mix(hash13(i + vec3(0, 1, 1)), hash13(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}
+
+
+// Distance (metres) from (u, s) to the curve u = f(s) of a scroll family, s metres along a panel of
+// length len from its back edge. Each family is a few curves with a curl at each end.
+float lr_curve(float fam, float k, float t, float w) {
+	// t 0..1 along the panel (0 the back edge, 1 the front), w the half width there is room for.
+	float a = 1.0 - t;
+	if (fam < 0.5) {
+		// Two long lines sweeping in from the corners to a point.
+		return (k < 0.5) ? 0.035 + w * 0.62 * pow(a, 1.25) : 0.018 + w * 0.40 * pow(a, 1.7) + 0.022 * sin(t * 15.7) * a;
+	} else if (fam < 1.5) {
+		// Waves: the classic flowing double scroll.
+		return (k < 0.5) ? 0.05 + w * (0.30 + 0.18 * sin(t * 9.4)) * a : 0.03 + w * (0.20 + 0.12 * sin(t * 9.4 + 1.3)) * a;
+	} else if (fam < 2.5) {
+		// A long spear with a step.
+		return (k < 0.5) ? 0.03 + w * 0.50 * smoothstep(1.0, 0.15, t) : 0.012 + w * 0.32 * smoothstep(0.95, 0.25, t);
+	}
+	// Fans: three short lines.
+	return 0.02 + w * (0.18 + 0.20 * k) * pow(a, 0.9) * (1.0 + 0.3 * sin(t * 12.0 + k));
+}
+
+
+float lr_scroll(vec2 q, float len, float w, float fam, float px) {
+	// q.x = |x| across, q.y = metres from the back edge (0..len). The distance to each curve,
+	// divided by the slope so the line keeps its width where it runs steeply across.
+	if (q.y < 0.0 || q.y > len) {
+		return 0.0;
+	}
+	float t = q.y / max(len, 0.01);
+	float cov = 0.0;
+	float lw = 0.0024;
+	for (int i = 0; i < 2; i++) {
+		float k = float(i);
+		float e = 0.01;
+		float f = lr_curve(fam, k, t, w);
+		float d1 = (lr_curve(fam, k, min(t + e, 1.0), w) - lr_curve(fam, k, max(t - e, 0.0), w)) / (2.0 * e * len);
+		float d = abs(q.x - f) / sqrt(1.0 + d1 * d1);
+		// The line fades in from its two ends (the brush lifting off).
+		float ends = smoothstep(0.03, 0.12, t) * smoothstep(0.97, 0.86, t);
+		cov = max(cov, (1.0 - smoothstep(lw - px, lw + px, d)) * ends);
+	}
+	// A teardrop at the point and a curl at each back corner.
+	float tip = abs(length(vec2(q.x, (q.y - len * 0.90) * 0.7)) - 0.030);
+	cov = max(cov, 1.0 - smoothstep(lw - px, lw + px, tip));
+	float curl = abs(length(vec2(q.x - (0.035 + w * 0.62) - 0.035, q.y - len * 0.06)) - 0.035);
+	cov = max(cov, (1.0 - smoothstep(lw - px, lw + px, curl)) * step(fam, 0.5));
+	return cov * clamp(lw * 2.0 / max(px, 1e-5), 0.0, 1.0) * 1.6;
 }
 
 
@@ -340,6 +409,54 @@ void fragment() {
 		worn_rough = max(max(chalk, primer), rust);
 		worn_coat = mix(0.55 * (1.0 - door), 1.0, worn_rough) * wear;
 	}
+	// The lowriders' paint: candy depth, the patterned roof and the pinstripes.
+	float lr_pin = 0.0;
+	if (custom > 0.0) {
+		vec3 q = paint_rest;
+		float px = max(fwidth(q.x) + fwidth(q.z) + fwidth(q.y), 0.0004) * 0.5;
+		float ndv = clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0);
+		coat = mix(candy_deep, coat, pow(ndv, 0.75));
+		float top = smoothstep(0.55, 0.8, body_ny);
+		// The roof panel: a lace pattern faded across it, inside a pinstriped edge.
+		if (pattern_amount > 0.0 && q.y > pin_roof.w) {
+			vec2 c = vec2(abs(q.x), q.z - (pin_roof.x + pin_roof.y) * 0.5);
+			vec2 hs = vec2(pin_roof.z, abs(pin_roof.y - pin_roof.x) * 0.5);
+			vec2 dd = c - (hs - vec2(0.06));
+			float box = length(max(dd, vec2(0.0))) + min(max(dd.x, dd.y), 0.0) - 0.06;
+			float inside = (1.0 - smoothstep(-px, px, box)) * top;
+			vec2 lp = vec2(q.x, q.z) / 0.085;
+			vec2 lf = fract(lp) - 0.5;
+			float lr = length(lf);
+			float la = atan(lf.y, lf.x);
+			float petal = abs(lr - (0.30 + 0.10 * cos(6.0 * la))) - 0.035;
+			float lace = (1.0 - smoothstep(-0.02, 0.03, petal)) + (1.0 - smoothstep(0.0, 0.08, lr)) * 0.8;
+			lace *= clamp(0.03 / max(px * 12.0, 1e-4), 0.0, 1.0);
+			float fade = 0.35 + 0.65 * smoothstep(0.0, hs.x, c.x);
+			coat = mix(coat, mix(coat, pattern_color, 0.55 + 0.45 * lace) , inside * fade * pattern_amount);
+			float edge = min(abs(box + 0.012), abs(box + 0.028));
+			lr_pin = max(lr_pin, (1.0 - smoothstep(0.0022 - px, 0.0022 + px, edge)) * top * pattern_amount);
+		}
+		// Scrolls on the bonnet and the deck lid.
+		if (q.y > pin_hood.z) {
+			float len = abs(pin_hood.y - pin_hood.x);
+			lr_pin = max(lr_pin, lr_scroll(vec2(abs(q.x), (pin_hood.x - q.z)), len, pin_hood.w, pin_style, px) * top);
+		}
+		if (q.y > pin_deck.z) {
+			float len = abs(pin_deck.y - pin_deck.x);
+			lr_pin = max(lr_pin, lr_scroll(vec2(abs(q.x), (q.z - pin_deck.x)), len, pin_deck.w * 0.8, mod(pin_style + 1.0, 4.0), px) * top);
+		}
+		// The double line down each flank, tapering to a point at both ends.
+		float flank = 1.0 - smoothstep(0.35, 0.6, abs(body_ny));
+		float zs = (q.z - pin_side.y) / max(pin_side.z - pin_side.y, 0.01);
+		float taper = smoothstep(0.0, 0.08, zs) * smoothstep(1.0, 0.92, zs);
+		float rise = 0.012 * smoothstep(0.08, 0.0, zs) + 0.012 * smoothstep(0.92, 1.0, zs);
+		float l1 = abs(q.y - pin_side.x - rise);
+		float l2 = abs(q.y - pin_side.x - 0.011 + rise);
+		float side_line = max(1.0 - smoothstep(0.0018 - px, 0.0018 + px, l1), 1.0 - smoothstep(0.0012 - px, 0.0012 + px, l2) * 1.0);
+		lr_pin = max(lr_pin, side_line * flank * taper * step(0.001, pin_side.x) * clamp(0.004 / max(px, 1e-5), 0.0, 1.0));
+		lr_pin = clamp(lr_pin, 0.0, 1.0) * custom;
+		coat = mix(coat, pin_color, lr_pin);
+	}
 	vec3 painted = coat * (0.55 + 0.45 * lum * paint_brightness);
 	vec3 dark = base.rgb * 0.6;
 	ALBEDO = mix(dark, painted, body);
@@ -358,6 +475,9 @@ void fragment() {
 	rough = mix(rough, max(rough * 1.6, 0.42), worn_coat * body);
 	rough = mix(rough, 0.78, worn_rough * body);
 	metal = mix(metal, 0.0, worn_rough * body);
+	// A pinstripe is enamel laid on the lacquer: no flake under it.
+	metal = mix(metal, 0.05, lr_pin * body);
+	rough = mix(rough, 0.32, lr_pin * body);
 
 #ifdef CAR_DAMAGE
 	// --- Damage (scripts/vehicles/car_damage.gd). Clearcoat and specular are scaled at the end.
@@ -494,7 +614,17 @@ void fragment() {
 	// Aluminium flake in the basecoat: a sparse sparkle that only resolves close up, which is
 	// what sells metallic paint in a walk-up shot.
 	float near = 1.0 - smoothstep(flake_fade_distance * 0.5, flake_fade_distance, length(VERTEX));
-	if (near > 0.0 && flake_strength > 0.0) {
+	if (near > 0.0 && flake_strength > 0.0 && custom > 0.0) {
+		// Deep flake: big flakes fixed to the body (a moving car carries them), each one lit only
+		// when it faces between the eye and the light, so they wink on and off as the view moves.
+		vec3 g = paint_rest * flake_scale;
+		vec3 cell = floor(g);
+		vec3 jit = vec3(hash13(cell + 3.1), hash13(cell + 7.7), hash13(cell + 11.3)) * 0.6 + 0.2;
+		float disc = 1.0 - smoothstep(0.16, 0.28, length(fract(g) - jit));
+		float lit = hash13(cell + floor(VIEW * 7.0) * 17.0);
+		float flake = disc * step(0.45, hash13(cell + 41.0)) * smoothstep(0.55, 0.95, lit);
+		ALBEDO += flake_tint * (flake * flake_strength * body * near * (1.0 - lr_pin));
+	} else if (near > 0.0 && flake_strength > 0.0) {
 		float flake = hash13(floor(world_pos * flake_scale));
 		flake = smoothstep(0.90, 1.0, flake);
 #ifdef CAR_DAMAGE

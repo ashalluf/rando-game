@@ -187,6 +187,14 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 			var erng := RandomNumberGenerator.new()
 			car = load("res://scripts/npc/emergency_car.gd").call("make", types[i] - 12, erng)
 			car.set("lights_forced", OS.get_environment("LIGHTS") != "0")
+		elif types[i] == 25 or types[i] == 26:
+			# The lowriders (Lowrider; their candy, stripes and wheels from LOOK=n), parked as a
+			# meet car: kinematic at its ride height, so its hydraulics can work (HYDRAULICS=hop,
+			# three, dance, lift; HYD_T=seconds into it, default 1.2).
+			car = load("res://scripts/vehicles/lowrider.gd").call("make", types[i], OS.get_environment("LOOK").to_int())
+			car.set("traffic", {"axis": 0, "index": 0, "dir": 1, "lane": 0.0, "speed": 0.0, "v": 0.0, "half": 2.7, "rear": 2.7, "parked": true})
+			car.set("freeze_mode", 1)
+			car.set("freeze", true)
 		elif types[i] >= 9 and types[i] <= 11:
 			# The big vehicles (BUS 9, BOX_TRUCK 10, SEMI 11) in their own liveries.
 			car = load("res://scripts/vehicles/big_vehicles.gd").call("make", types[i], OS.get_environment("LOOK").to_int())
@@ -206,7 +214,7 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 		# Parked, like a street car: a physics body left to settle on its springs. A cruiser is
 		# kinematic until it engages, so it is stood on the road at its ride height instead.
 		car.position = Vector3((float(i) - float(types.size() - 1) * 0.5) * spacing,
-				float(car.call("road_lift")) if police or types[i] == 12 or types[i] == 13 else 0.9, 0.0)
+				float(car.call("road_lift")) if police or types[i] == 12 or types[i] == 13 or types[i] == 25 or types[i] == 26 else 0.9, 0.0)
 		world.add_child(car)
 		cars.append(car)
 	var occupant := OS.get_environment("OCCUPANT")
@@ -231,8 +239,20 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 				var sm := car.call("cabin_glass") as ShaderMaterial
 				if sm != null:
 					sm.set_shader_parameter("cabin_debug", true)
+	var hyd := OS.get_environment("HYDRAULICS")
+	for car in cars:
+		if car.get_node_or_null("Hydraulics") != null:
+			car.get_node("Hydraulics").set("mode", 0)
 	for i in 120:
 		await physics_frame
+	if hyd != "":
+		for car in cars:
+			var h: Node = car.get_node_or_null("Hydraulics")
+			if h != null:
+				h.call("perform", hyd, -1.0)
+				h.call("advance", float(OS.get_environment("HYD_T")) if OS.get_environment("HYD_T") != "" else 1.2)
+				h.set("frozen", true)
+				print("HYDRAULICS %s: corners %s" % [hyd, str(h.call("heights"))])
 	var damage := OS.get_environment("DAMAGE")
 	if damage != "":
 		for car in cars:

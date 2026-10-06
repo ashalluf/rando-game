@@ -12,12 +12,15 @@ extends VehicleBody3D
 ## after those; then the service vehicles (ServiceVehicles: garbage truck, street sweeper, tow
 ## truck, ice-cream truck, delivery van), which only ServiceFleet sends.
 enum BodyType { SEDAN, PICKUP, VAN, SPORTS, SUPER, SPIDER, HYPER, TRACK, CROSSOVER, BUS, BOX_TRUCK, SEMI, FIRE_ENGINE, AMBULANCE, HATCHBACK, SUV, MINIVAN, TAXI, BEATER, SCHOOL_BUS,
-	GARBAGE_TRUCK, STREET_SWEEPER, TOW_TRUCK, ICE_CREAM_TRUCK, DELIVERY_VAN }
+	GARBAGE_TRUCK, STREET_SWEEPER, TOW_TRUCK, ICE_CREAM_TRUCK, DELIVERY_VAN,
+	# The lowriders (Lowrider: tools/make_lowriders.py), never rolled: car meets and cruisers.
+	LOWRIDER_HARDTOP, LOWRIDER_COUPE }
 enum Addon { NONE, ROOF_RACK, SPOILER, LIGHT_BAR }
 
 ## Original names. Nothing here is or imitates a real manufacturer's model.
 const BODY_NAMES := ["Sedan", "Pickup", "Van", "Sports", "Vantari", "Vantari Aperta", "Kestrel", "Kestrel RS", "Crossover", "City Bus", "Box Truck", "Semi", "Fire Engine", "Ambulance", "Hatchback", "SUV", "Minivan", "Taxi", "Beater", "School Bus",
-	"Garbage Truck", "Street Sweeper", "Tow Truck", "Ice Cream Truck", "Delivery Van"]
+	"Garbage Truck", "Street Sweeper", "Tow Truck", "Ice Cream Truck", "Delivery Van",
+	"Hardtop Lowrider", "Coupe Lowrider"]
 ## Generated body models per type (see docs/ASSETS.md). Missing files fall back to the box car.
 const BODY_MODELS := {
 	BodyType.SEDAN: "res://assets/models/road_sedan.glb",
@@ -45,6 +48,8 @@ const BODY_MODELS := {
 	BodyType.TOW_TRUCK: "res://assets/models/road_tow.glb",
 	BodyType.ICE_CREAM_TRUCK: "res://assets/models/road_ice_cream.glb",
 	BodyType.DELIVERY_VAN: "res://assets/models/road_van.glb",
+	BodyType.LOWRIDER_HARDTOP: "res://assets/models/road_lowrider_hardtop.glb",
+	BodyType.LOWRIDER_COUPE: "res://assets/models/road_lowrider_coupe.glb",
 }
 ## Belt line (bottom of the side glass, as a fraction of body height) for a single-texture body
 ## whose texture does not darken the windows, so the paint shader finds glass by shape. No body
@@ -76,6 +81,8 @@ const BODY_ODDS := {
 	# Nor the service vehicles (ServiceFleet sends them to work).
 	BodyType.GARBAGE_TRUCK: 0, BodyType.STREET_SWEEPER: 0, BodyType.TOW_TRUCK: 0, BodyType.ICE_CREAM_TRUCK: 0,
 	BodyType.DELIVERY_VAN: 0,
+	# Nor the lowriders (Lowrider: the car meets park them, the traffic sends a few cruising).
+	BodyType.LOWRIDER_HARDTOP: 0, BodyType.LOWRIDER_COUPE: 0,
 }
 ## How a 0-999 roll maps onto BODY_ODDS: [end of the range (exclusive), type], in roll order. Every
 ## old type keeps the START of the range it had before the second wave and gives the end of it to
@@ -148,6 +155,10 @@ const WHEEL_POSE := {
 	BodyType.ICE_CREAM_TRUCK: {"x": 0.870, "front": -2.488, "rear": 1.532, "y": 0.160, "r": 0.380, "w": 0.235, "baked": true,
 			"axles": [[-2.488, false], [1.532, true]], "dual_x": 0.775, "dual_gap": 0.255},
 	BodyType.DELIVERY_VAN: {"x": 0.865, "front": -1.971, "rear": 1.689, "y": 0.164, "r": 0.360, "w": 0.235, "baked": true},
+	# The lowriders (tools/make_lowriders.py prints these): 13" wire wheels on thin whitewalls
+	# (Lowrider.add_wheels(), "wire").
+	BodyType.LOWRIDER_HARDTOP: {"x": 0.790, "front": -1.441, "rear": 1.579, "y": 0.180, "r": 0.292, "w": 0.160, "baked": true, "wire": true},
+	BodyType.LOWRIDER_COUPE: {"x": 0.740, "front": -1.337, "rear": 1.383, "y": 0.180, "r": 0.292, "w": 0.160, "baked": true, "wire": true},
 }
 ## The sizes above deliberately land on six distinct (radius, section width) pairs across the
 ## eight body types. Every extra pair is another five meshes (one per spoke pattern) times two
@@ -1077,6 +1088,8 @@ func _build() -> void:
 		_add_generated_wheels()
 	_add_night_lights(dims)
 	_add_livery_props(dims)
+	if Lowrider.is_lowrider(body_type):
+		Lowrider.attach(self)
 	_occupant_key = -1
 	_update_occupant()
 
@@ -1306,6 +1319,9 @@ func _add_generated_wheels() -> void:
 	var pose := _wheel_pose()
 	if pose.has("axles"):
 		BigVehicles.add_wheels(self, pose)
+		return
+	if pose.has("wire"):
+		Lowrider.add_wheels(self, pose)
 		return
 	if wheel_style < 0:
 		wheel_style = absi(hash([body_type, paint.to_rgba32(), 41])) % PropFactory.WHEEL_FACES.size()
@@ -1632,6 +1648,8 @@ func _dims() -> Dictionary:
 					"light_len": 12.36, "light_z": 0.0}
 		BodyType.GARBAGE_TRUCK, BodyType.STREET_SWEEPER, BodyType.TOW_TRUCK, BodyType.ICE_CREAM_TRUCK, BodyType.DELIVERY_VAN:
 			return ServiceVehicles.DIMS[body_type]
+		BodyType.LOWRIDER_HARDTOP, BodyType.LOWRIDER_COUPE:
+			return Lowrider.DIMS[body_type]
 		BodyType.SPORTS:
 			return {"length": 4.6, "width": 1.9, "chassis_h": 0.55, "cabin": Vector2(-0.9, 2.0), "cabin_h": 0.55, "wheel_z": 1.45, "track": 1.64, "tyre_r": 0.34, "ride": -0.30}
 		BodyType.SUPER, BodyType.SPIDER:
@@ -2008,6 +2026,8 @@ func _paint_material(albedo: Texture2D, normal: Texture2D) -> ShaderMaterial:
 			door = BEATER_DOORS[(BEATER_DOORS.find(door) + 1) % BEATER_DOORS.size()]
 		mat.set_shader_parameter("wear_door_color", door)
 		mat.set_shader_parameter("wear_primer", BEATER_PRIMER)
+	if Lowrider.is_lowrider(body_type):
+		Lowrider.paint(self, mat)
 	var g: Dictionary = LIVERY_GRAPHIC.get(livery, {})
 	if not g.is_empty():
 		mat.set_shader_parameter("stripe_mode", g.mode)
