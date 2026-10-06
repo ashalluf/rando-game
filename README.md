@@ -19,3 +19,8 @@ One tower alone (`tools/gondolas/gondola_shot.gd`, a plain sun and sky):
 - 12 - a glass infill tower: Rooftops' BMU on the roof, its cradle live under the jib, stopped over the setback roof (`EYE=2222.9,165,208.8,45,-8`, city)
 
 Frame cost at the black twins EYE: 2.68 M -> 2.72 M triangles, 1,406 -> 1,446 draws (two cradles with crews live).
+
+Merged with main (build 359 era, 2026-10-06), re-shot:
+- 02_after_black_twins_noon_merged - the black twins' cradle mid-facade from the air (EYE=2291.2,69.6,204.0,18.4,7.2, GONDOLA_T=1000)
+- 10_roof_davits_and_drop_merged - the bronze slab's roof, davits, cradle part way down (gondola_shot.gd VIEW=roof)
+- 13_cradle_mid_facade_from_the_street - from the pavement below the black twins (EYE_AGL=1 EYE=2268,1.8,200,-12,58, fov 60)
