@@ -5,7 +5,7 @@ extends SceneTree
 const SCRIPTS := ["res://scripts/vehicles/motorcycle.gd", "res://scripts/vehicles/ride_solver.gd",
 	"res://scripts/npc/moto_rider.gd", "res://scripts/npc/moto_helmet.gd", "res://scripts/player/hero_ride.gd",
 	"res://scripts/player/moto_throw.gd", "res://scripts/npc/traffic.gd", "res://scripts/world/city_chunk.gd",
-	"res://scripts/player/player.gd", "res://scripts/world/city_streamer.gd", "res://scripts/ui/warm_rehearsal.gd"]
+	"res://scripts/player/player.gd", "res://scripts/world/city_streamer.gd", "res://scripts/ui/warm_rehearsal.gd", "res://tests/motorcycles_checks.gd", "res://tools/moto/stage.gd"]
 
 
 func _initialize() -> void:

@@ -248,7 +248,7 @@ func _player_ride(player: Player) -> void:
 	player.enter_vehicle(m)
 	await _ticks(20)
 	var avatar := player.avatar
-	var ride := avatar.get("_skeleton").get_node_or_null("HeroRide") if avatar and avatar.get("_skeleton") else null
+	var ride: Node = avatar.get("_skeleton").get_node_or_null("HeroRide") if avatar and avatar.get("_skeleton") else null
 	var seat_err := INF
 	if ride != null:
 		var sk: Skeleton3D = avatar.get("_skeleton")
