@@ -17,3 +17,18 @@ the same corner with `WALK_IN_STORE=0` as the before:
 - `09_after_inside_counter_cigarette_rack.jpg` - the counter, impulse rack, till, the cashier, the cigarette rack.
 - `10_before_corner_night_2130.jpg` / `11_after_corner_night_2130.jpg` - the corner at 21:30.
 - `12_after_inside_night_2130.jpg` - inside at night.
+
+Third batch (v2, after the lead's review): products wear an invented packaging atlas (bands,
+abstract marks, fake lettering, barcodes, nutrition panels; muted real-world grounds), chip bags
+crinkle, facings pulled forward unevenly with sold-out gaps, price strips on every shelf edge,
+aisle signs hung from the ceiling, a lit GROCERY header, worn floor paths and dirty grout, panels
+of different ages and one tired tube, uneven lights and a cold glow off the coolers, counter
+clutter (energy shots, lighters, tip jar, receipt printer, flyers), the sign lit at night without
+the salmon wash, and the shop's light spilling onto the pavement. Befores are 06 and 10 (same eyes).
+
+- `13_v2_corner_noon.jpg` (before: 06)
+- `14_v2_inside_coolers_aisle.jpg` (first version: 08)
+- `15_v2_inside_counter.jpg` (first version: 09)
+- `16_v2_corner_night_2130.jpg` (before: 10, first version: 11)
+- `17_v2_storefront_night_2130.jpg` - from across the front street: the lit sign, the windows, the spill.
+- `18_v2_inside_night_2130.jpg` (first version: 12)
