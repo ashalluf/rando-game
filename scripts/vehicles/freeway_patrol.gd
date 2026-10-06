@@ -49,6 +49,11 @@ func _paint_material(albedo: Texture2D, normal: Texture2D) -> ShaderMaterial:
 	return mat
 
 
+## The officer alone at the wheel.
+func _cabin_seats() -> int:
+	return 1 if is_traffic() and not _abandoned() else 0
+
+
 func _cabin_look() -> Dictionary:
 	return CarCabin.police_look(false, hash([_phase, 41]))
 

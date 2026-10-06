@@ -284,9 +284,10 @@ static func _going(tau: float, v1: float, acc: float) -> float:
 
 # --- The stall's script (pure: where everything is `e` seconds into it) -------------------------------
 
-## {"car": [s, lat_k, v], "patrol": [...], "tow": [...], "bed": 0..1, "winch": 0..1, "loaded": bool,
+## {"car": [s, lat_k, v, way], "patrol": [...], "tow": [...], "bed": 0..1, "winch": 0..1, "loaded": bool,
 ## "driver": bool (standing out), "patrol_lights": bool} with s the metres along the carriageway
-## from the stall's spot (+ ahead), lat_k 0 in the slow lane .. 1 on the shoulder, v m/s; a
+## from the stall's spot (+ ahead), lat_k 0 in the slow lane .. 1 on the shoulder, v m/s, way 1
+## coming in, -1 going, 0 standing; a
 ## missing entry is not there. Lengths from the vehicles' own halves (`halves` [car, patrol, tow]).
 static func stall_pose(inc: Dictionary, e: float, halves: Array) -> Dictionary:
 	var out := {}
@@ -305,9 +306,9 @@ static func stall_pose(inc: Dictionary, e: float, halves: Array) -> Dictionary:
 	if e < 0.0:
 		var tau := -e
 		var s := -_stopping(tau, 22.0, 2.0)
-		out.car = [s, clampf(1.0 - (-s) / 55.0, 0.0, 1.0), minf(22.0, 2.0 * tau)]
+		out.car = [s, clampf(1.0 - (-s) / 55.0, 0.0, 1.0), minf(22.0, 2.0 * tau), 1]
 	elif e < leave:
-		out.car = [0.0, 1.0, 0.0]
+		out.car = [0.0, 1.0, 0.0, 0]
 	out.driver = e > 6.0 and e < bed_up
 	out.hazard = true
 	# The patrol car: up the shoulder from 260 m back, lights going, parks behind.
@@ -315,13 +316,13 @@ static func stall_pose(inc: Dictionary, e: float, halves: Array) -> Dictionary:
 	if e >= patrol_at and e < patrol_leave + LEAVE_DRIVE:
 		if e < patrol_at + PATROL_DRIVE:
 			var tau := patrol_at + PATROL_DRIVE - e
-			out.patrol = [p_stop - _stopping(tau, 25.0, 2.6), 1.0, minf(25.0, 2.6 * tau)]
+			out.patrol = [p_stop - _stopping(tau, 25.0, 2.6), 1.0, minf(25.0, 2.6 * tau), 1]
 		elif e < patrol_leave:
-			out.patrol = [p_stop, 1.0, 0.0]
+			out.patrol = [p_stop, 1.0, 0.0, 0]
 		else:
 			var go := e - patrol_leave
 			var s := _going(go, 24.0, 2.2)
-			out.patrol = [p_stop + s, clampf(1.0 - (s - 20.0) / 70.0, 0.0, 1.0), minf(24.0, 2.2 * go)]
+			out.patrol = [p_stop + s, clampf(1.0 - (s - 20.0) / 70.0, 0.0, 1.0), minf(24.0, 2.2 * go), -1]
 		out.patrol_lights = e < patrol_leave + 3.0
 	# The tow truck: up the slow lane from 280 m back, onto the shoulder past the car, stops ahead
 	# of it; the bed, the winch, back up; off along the shoulder and into the slow lane.
@@ -330,13 +331,13 @@ static func stall_pose(inc: Dictionary, e: float, halves: Array) -> Dictionary:
 		if e < tow_stop:
 			var tau := tow_stop - e
 			var s := t_stop - _stopping(tau, 20.0, 1.8)
-			out.tow = [s, clampf(1.0 - (t_stop - s) / 70.0, 0.0, 1.0), minf(20.0, 1.8 * tau)]
+			out.tow = [s, clampf(1.0 - (t_stop - s) / 70.0, 0.0, 1.0), minf(20.0, 1.8 * tau), 1]
 		elif e < leave:
-			out.tow = [t_stop, 1.0, 0.0]
+			out.tow = [t_stop, 1.0, 0.0, 0]
 		else:
 			var go := e - leave
 			var s := _going(go, 22.0, 1.6)
-			out.tow = [t_stop + s, clampf(1.0 - (s - 25.0) / 80.0, 0.0, 1.0), minf(22.0, 1.6 * go)]
+			out.tow = [t_stop + s, clampf(1.0 - (s - 25.0) / 80.0, 0.0, 1.0), minf(22.0, 1.6 * go), -1]
 		var bed := 0.0
 		if e >= bed_down and e < winch:
 			bed = (e - bed_down) / BED_SECONDS
@@ -683,10 +684,11 @@ func _place_scene(fw: Freeway, entry: Dictionary) -> void:
 		var s := float(p[0])
 		var k := float(p[1])
 		var lat := lerpf(lane_l, shoulder_l, k)
-		# Nosed toward the shoulder while it moves across.
+		# Nosed toward the shoulder (on the driver's right) coming in, away from it going out.
+		var way := int(p[3])
 		var yaw := 0.0
 		if k > 0.0 and k < 1.0 and float(p[2]) > 1.0:
-			yaw = -0.05 * float(dir) * signf(shoulder_l - lane_l) * float(dir)
+			yaw = -0.06 * float(way)
 		var xf := xform_at(fw, ri, t + s * float(dir), lat, dir, car.road_lift(), yaw)
 		if who == "car" and bool(pose.get("loaded", false)) and bed != null:
 			# Winched up the bed: from where it stood to the bed's foot, then up to its home.
@@ -708,10 +710,8 @@ func _place_scene(fw: Freeway, entry: Dictionary) -> void:
 		car.traffic_speed = maxf(float(p[2]), 0.31 if who == "car" else 0.0)
 		# Indicators: toward the shoulder coming in, away from it going out.
 		var sig := 0
-		if who != "car" and k > 0.02 and k < 0.98:
-			sig = 1 if float(p[2]) > 0.5 and _arriving(pose, who) else -1
-		if who == "car" and s < -0.5:
-			sig = 1
+		if k > 0.02 and k < 0.98 and way != 0:
+			sig = way
 		car.traffic.sig = sig
 		car.traffic.hazard = who == "car" and s >= -0.5
 		if who == "patrol":
@@ -725,11 +725,6 @@ func _place_scene(fw: Freeway, entry: Dictionary) -> void:
 				elif not winching and bed.winch.playing:
 					bed.winch.stop()
 	_place_driver(fw, entry, pose, shoulder_l)
-
-
-func _arriving(pose: Dictionary, who: String) -> bool:
-	var p: Array = pose[who]
-	return float(p[0]) < 1.0 if who == "patrol" else float(p[0]) < 30.0 and float(p[1]) > 0.0 and not bool(pose.get("loaded", false))
 
 
 ## The driver: out behind the car by the barrier, on the phone, while the car stands there.
@@ -752,7 +747,7 @@ func _place_driver(fw: Freeway, entry: Dictionary, pose: Dictionary, shoulder_l:
 		var at: Array = fw.point_at(ri, tt)
 		var hd: Vector2 = at[1]
 		# Facing back down the road, the way the help will come, a little out toward the lanes.
-		var yaw := atan2(hd.x * float(dir), hd.y * float(dir)) + 0.6 * float(dir)
+		var yaw := atan2(-hd.x * float(dir), -hd.y * float(dir)) + 0.5 * float(dir)
 		m.setup_motorist(Vector2(wp.x, wp.z), yaw, wp.y + 0.05, int(inc.seed))
 		var local := global_transform.affine_inverse() * WorldState.to_local(wp)
 		m.position = local + Vector3(0.0, 0.05, 0.0)
