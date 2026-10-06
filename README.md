@@ -7,14 +7,15 @@ fixed camera frames him). Not Forward+: the lighting is the flat Compatibility p
 - `01_before_sea_1530.jpg` - BEFORE (`SWIMMING=0`): off Rando Pier the hero runs on the sea, which
   was a floor (the city's ground box under the water).
 - `02_after_crawl_1530.jpg` - the front crawl at the surface, from above: the body prone and awash,
-  the wake's foam at his chest and the ring of foam his entry left.
+  an arm recovering over his back, drops off the stroke, a broken lace of wake trailing off his
+  shoulders (re-shot after the lead's review: the old 6-8 m foam ring is gone).
 - `03_after_tread_1530.jpg` - treading water under the pier, head and shoulders out, riding the
   drawn swell (SeaSurface: the ocean shader's Gerstner height in GDScript).
 - `04_after_underwater_1530.jpg` - under the water, 3 m down, looking up at him gliding just
   under the surface: the underwater pass (absorbed red-first by each pixel's real distance, fogged
   into the water's colour) and the pier's piles fading out.
 - `05_after_dolphin_1530.jpg` - the boost at the surface: porpoising out of the water like a
-  dolphin, streamlined, spray off him.
+  dolphin, streamlined, spray off him, a small patch of white where he went in (re-shot).
 - `06_after_park_pool_1530.jpg` - the front crawl in a rec park's 25 m pool, held in its tank.
 - `07_after_macarthur_lake_1530.jpg` - treading water in MacArthur Park's lake.
 - `08_after_dolphin_1840.jpg` - a dolphin leap's splash at dusk, the pier's lamps in the water.
