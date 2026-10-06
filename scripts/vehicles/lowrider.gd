@@ -455,6 +455,12 @@ class Hydraulics extends Node:
 		for i in 4:
 			_h[i] = down
 			_target[i] = down
+		# Stills: LOWRIDER_HYD=routine:seconds[:side] holds every lowrider that far into it.
+		var hyd := OS.get_environment("LOWRIDER_HYD").split(":")
+		if hyd.size() >= 2:
+			perform.call_deferred(hyd[0], hyd[2].to_float() if hyd.size() > 2 else 1.0)
+			advance.call_deferred(hyd[1].to_float())
+			set_deferred("frozen", true)
 
 	## Starts a routine now ("hop", "three", "dance", "lift", "bounce"): tests and stills.
 	func perform(routine: String, side: float = 1.0) -> void:

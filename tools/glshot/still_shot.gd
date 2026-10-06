@@ -1467,7 +1467,12 @@ func _stage_street(kind: String) -> void:
 				var t := mix[mixed % mix.size()]
 				mixed += 1
 				var mc: Node = vs.call("random_car", rng)
-				if t == 17:
+				if t == 25 or t == 26:
+					# A lowrider cruising (Lowrider): handed out by its own kind.
+					mc.free()
+					mc = load("res://scripts/vehicles/lowrider.gd").call("make", t, rng.randi())
+					big_kind = t
+				elif t == 17:
 					mc.call("setup", t, Color(0.96, 0.73, 0.03), 0)
 					mc.call("setup_look", 0, 3, Color(0.07, 0.07, 0.08))
 				else:
