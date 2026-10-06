@@ -365,6 +365,10 @@ func _test_city() -> void:
 	var emergency_node: Node = city.get_node_or_null("Emergency")
 	if emergency_node:
 		emergency_node.set("enabled", false)
+	# The TV news vans likewise (tests/news_crews_checks.gd turns them on for its own checks).
+	var news_node: Node = city.get_node_or_null("NewsCrews")
+	if news_node:
+		news_node.set("enabled", false)
 	await _ticks(30)
 	var plan: CityPlan = city.plan
 	var lod_r: int = city.lod_radius_blocks
@@ -2317,6 +2321,7 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The marketplace lane by Pueblo Station (tests/pueblo_lane_checks.gd): the site, the layout,
 	# near and far builds under budget, the church's sanctuary, the vendors.
 	await load("res://tests/pueblo_lane_checks.gd").new().run(self, city)
+	await load("res://tests/news_crews_checks.gd").new().run(self, city)  # TV news vans and crews at a story
 	# Roadside commerce (tests/roadside_checks.gd): the kinds by hash, gas stations, car washes,
 	# auto shops, the diner, drive-thrus and the giant-donut stand; one mesh a chunk, nothing moved.
 	load("res://tests/roadside_checks.gd").new().run(self, city)

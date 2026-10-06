@@ -405,6 +405,22 @@ func _initialize() -> void:
 		for i in _env_int("EMERGENCY_FRAMES", 30):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
+	# NEWS=wide|crew|reporter|van: a TV news van and its crew on air at a story staged ahead of the
+	# camera (NewsCrews.stage_for_shot; NEWS_STATION=0..3 picks the station), framed by a free camera.
+	var news_env := OS.get_environment("NEWS")
+	if news_env != "" and current_scene and current_scene.get_node_or_null("NewsCrews"):
+		var nc: Node = current_scene.get_node("NewsCrews")
+		var news_eye: String = await nc.call("stage_for_shot", news_env, get_root().get_camera_3d(), _env_int("NEWS_STATION", -1))
+		if news_eye != "":
+			OS.set_environment("EYE", news_eye)
+			OS.set_environment("EYE_AGL", "")
+		print("NEWS %s eye %s" % [news_env, news_eye])
+		_eye(player, fov)
+		if current_scene.has_method("update_streaming"):
+			current_scene.call("update_streaming", true)
+		for i in _env_int("NEWS_FRAMES", 30):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
 	# TRAFFIC=bus|merge|pullout: a car changing lanes round a bus at its stop, a car merging from an
 	# on-ramp (from above), a parked car pulling out (TrafficAI.stage_for_shot), framed by a free
 	# camera. The staged traffic moves only when told: TRAFFIC_STEPS="s,s,..." advances it that many
