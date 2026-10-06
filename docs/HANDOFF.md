@@ -14201,3 +14201,76 @@ streets' glow stands in). The lamps stand where the old ones stood, and on some 
 is beside a utility pole (StreetDetail's), which the old thin post hid better. No real light
 shaped like the cobra's cut-off (still an omni). Shot lamps break as before (debris box), no
 falling pole.
+
+## 9d?. The crowd in the rain (fleet wave 2, `wt/rain-crowd`)
+
+The task: "when Weather rains, people put up umbrellas (code-built, opened and held by the grip
+frame of CrowdLife, a few colours), pull hoods, hurry, shelter under awnings, bus shelters and
+doorways, and the streets empty out under a downpour; umbrellas fold when it stops. Built on crowd
+life, near the camera only."
+
+**How it hangs together.** `RainCrowd` (`scripts/npc/rain_crowd.gd`) is one small object per plain
+walker that lives (`Pedestrian.rain`, made at the end of `_setup_life()` once the life clips are
+attached; officers, crews, sleepers, vendors never get one). Weather writes `RainCrowd.level` (its
+blended `rain_level`: 0.7 rain, 1.0 storm) every frame; tests and stills force it
+(`RainCrowd.forced`). Pedestrian calls it from four lines: `indoors()` at the top of the physics
+tick (after `_update_lod`, so the camera's range still updates while someone is inside), `pace()`
+on the walking speed, `on_walk_end()` where a walk ends (before the crosswalk roll; dry it returns
+at once with no roll, so a dry city behaves exactly as before), and `pose()` after the life pose.
+Everything is gated on `_life_near` (crowd life's 60 m): far walkers walk on as in the dry.
+
+**Who does what** is `hash(seed, "rain")`: 56 % carry an umbrella (a full-size stick umbrella or
+a compact, sixteen colourways weighted to black and navy), the hooded-jacket rigs (`HOOD_RIGS`:
+crowd_m's windbreaker, crowd_o's hoodie) pull the hood up unless they wear a hat, the rest have
+nothing; each reacts at their own rain level (`REACT_LEVEL` 0.06-0.45, folds again 0.04 under it),
+so a shower starts with a few umbrellas and ends with them folding one by one.
+
+- **Umbrellas** (`RainGear`, `scripts/npc/rain_gear.gd`): code-built at real size (eight or seven
+  steel ribs on a curved dome, gores sagging between them, stretchers from the runner, ferrule,
+  rib tips, a crook or a straight grip with a wrist strap, the tie strap when furled), at
+  `OPEN_STEPS` (7) opening amounts - the ribs swing up from the shaft, the runner slides, the
+  cloth folds in - swapped through in `OPEN_SECONDS` (0.55 s) to open or fold, so there is no
+  per-instance uniform (the Compatibility global-buffer cap). ~1.8k triangles open, one draw a
+  holder, no shadow, `visibility_range_end` = life range. Held: the holding arm's upper arm and
+  forearm are aimed in skeleton space (`UPPER_ARM`, `FOREARM`, mirrored; the coffee cup's method),
+  then the umbrella node (top_level) is placed at the grip point of CrowdLife's grip frame on the
+  hand bone with its shaft leaning from the hand to `APEX_OVER_HEAD` over the head. The phone and
+  the bag take the right hand, so their carriers hold it in the left. Furled it hangs from the
+  hand like a cane. It folds to run (panic) and under cover (a bus-stop seat or a doorway).
+- **Hoods**: fitted to each rig's skull from CrowdHatTable (`RainGear.build_hood()`, the hats'
+  head frame): a loose shell (standoff 1.2 cm at the face, 1.6 at the crown, 3.4 at the back), an
+  elliptical face opening from over the brow down, a rolled hem, a drape down the nape. Pulled up
+  by turning it about the nape over 0.7 s; the hair cards hide under the same "under_hat" meta the
+  hats use. The colour is the look's recoloured top (`cloth_hue/sat/value`) or a near-black.
+- **Hurry**: `PACE` 1.1 under an umbrella, 1.22 under a hood, 1.38 with nothing (and the head
+  down, `_posture_pitch` -0.38, restored after); the walk clip's rate follows the speed.
+- **Shelter** (rain over `SHELTER_LEVEL` 0.5, at the end of a walk, 75 % of the uncovered and 12 %
+  of the covered): the nearest free seat within 35 m whose record is a bus stop's (CrowdLife's
+  seats - StreetDetail registers both places of every stop's bench with its prop record), else a
+  doorway or awning along the building line: `Pedestrian._plan_wall()`'s ray to the wall, stood
+  with the back to it (fold, idle, or the phone). Talks and open-bench sits of the uncovered end
+  when it starts. The stop is held while it rains and ends when it eases.
+- **The street empties** over `LEAVE_LEVEL` (0.6): a share (18 % at 0.6 to 55 % in a storm) walk
+  up to a doorway (`_plan_wall()` WINDOW, then 0.45 m on into it) and go in: hidden, collision
+  layer 0, hit zone off, the whole tick skipped; out again under 0.56 or once the camera has gone.
+- **Arriving mid-rain**: `settle_now()` - the first time someone comes into range within four
+  seconds of being made (their chunk streamed in) they are already as the rain left them: umbrella
+  up, hood up, in a shelter, or inside. The stills stage everyone this way.
+
+**Tools.** `RAIN_STAGE=<level>` on `still_shot.gd` (with `--weather=rain|storm`) settles the crowd
+near the player, `RAIN_FOCUS=umbrella|hood|shelter` frames the nearest one, `RAIN_REPORT=1` lists
+them; `tools/crowd/crowd_lab.tscn SCENARIO=rain` (`RAIN`, `RAIN_GEAR=umbrella|hood|none`,
+`RAIN_AFTER`) shows the gear in seconds without a city; `tools/rain_crowd/compile.gd` compiles and
+builds every mesh with its triangle count. `RAIN_CROWD=0` is the A/B. Checks:
+`tests/rain_crowd_checks.gd` (one line at the end of the smoke test's check files).
+
+**Frame cost** (opengl3, same EYE and load, rain at 15:00): RESULTS_PLACEHOLDER
+
+**Stills** (`shots/rain-crowd`, opengl3): RESULTS_STILLS
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the canopy's translucency (BACKLIGHT),
+the wet sheen and beads. No umbrella collisions between neighbours (two holders can pass through
+each other's canopies) and no canopy clearance under low awnings (a holder in a doorway folds it).
+Awnings are not detected as such: shelter is any wall the ray finds. The hood is skinned to the
+head only (a big head turn swings its drape). Far people (past 60 m) do nothing, so from the air a
+storm's streets still carry walkers. Dog walkers and joggers keep going (no umbrella).

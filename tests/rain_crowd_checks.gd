@@ -86,6 +86,7 @@ func _check_behaviour(city: Node3D, chunk: Node3D) -> void:
 	var hooded := peds[1]
 	var bare := peds[2]
 	brolly.rain.gear = RainCrowd.Gear.UMBRELLA
+	peds[5].rain.gear = RainCrowd.Gear.UMBRELLA
 	hooded.rain.gear = RainCrowd.Gear.HOOD
 	bare.rain.gear = RainCrowd.Gear.NONE
 	bare.rain.leave_roll = 1.0
@@ -116,6 +117,14 @@ func _check_behaviour(city: Node3D, chunk: Node3D) -> void:
 	_check(hair_shown == 0, "the hair is under the hood (%d cards shown)" % hair_shown)
 	_check(bare.rain.pace(false) > 1.25 and brolly.rain.pace(false) > 1.0, "everyone hurries in the rain (%.2f bare, %.2f under an umbrella)" % [bare.rain.pace(false), brolly.rain.pace(false)])
 	_check(bare._posture_pitch < -0.3, "with nothing over the head, the head goes down")
+	# Knocked down with it open: the umbrella is let go and tumbles off as debris.
+	var dropper := peds[5]
+	if dropper.rain._umbrella != null and dropper.rain._umbrella.visible:
+		var before := _tree.get_nodes_in_group(PhysicsBudget.DEBRIS_GROUP).filter(func(n): return n.name.begins_with("DroppedUmbrella")).size()
+		dropper.knock(Vector3(0.0, 2.0, 3.0))
+		await _ticks(3)
+		var after := _tree.get_nodes_in_group(PhysicsBudget.DEBRIS_GROUP).filter(func(n): return n.name.begins_with("DroppedUmbrella")).size()
+		_check(after > before, "a walker knocked down lets go of the umbrella (%d dropped)" % (after - before))
 	# Shelter: a bus stop's bench nearby is taken first.
 	var stop := Vector3(x0 + 4.0, chunk.ground_y(x0 + 4.0, z + 1.5), z + 1.5)
 	CrowdLife.add_seat(chunk, stop, 0.0, {"kind": "bus_stop", "dead": false})

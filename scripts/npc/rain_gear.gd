@@ -41,8 +41,8 @@ enum Kind { STICK, COMPACT }
 ## Per kind: ribs, rib length (m, apex to tip along the curve), shaft top (apex height over the
 ## grip), the canopy's dome (rib angle from straight up at the apex and at the tip, degrees).
 const SPECS := {
-	Kind.STICK: {"ribs": 8, "rib": 0.56, "apex": 0.74, "a0": 72.0, "a1": 112.0, "tip": 0.09},
-	Kind.COMPACT: {"ribs": 7, "rib": 0.50, "apex": 0.62, "a0": 70.0, "a1": 106.0, "tip": 0.03},
+	Kind.STICK: {"ribs": 8, "rib": 0.56, "apex": 0.74, "a0": 97.0, "a1": 130.0, "tip": 0.09},
+	Kind.COMPACT: {"ribs": 7, "rib": 0.50, "apex": 0.62, "a0": 96.0, "a1": 126.0, "tip": 0.03},
 }
 
 ## Canopy colourways: [main, second, pattern]. Pattern 0 plain, 1 alternate gores in `second`,
@@ -72,7 +72,7 @@ const HOOD_DEFAULT := Color(0.025, 0.026, 0.03)
 ## The hood: how far its cloth stands off the skull and hair (m) at the crown, at the back and
 ## round the face; the face opening's half width (radians round the head) and how high it reaches
 ## over the eyes (m); how far the drape runs down the neck (m) below the table's lowest ring.
-const HOOD_STANDOFF := Vector3(0.016, 0.034, 0.012)
+const HOOD_STANDOFF := Vector3(0.015, 0.024, 0.011)
 const HOOD_OPEN_HALF := 0.98
 const HOOD_OPEN_TOP := 0.062
 const HOOD_DRAPE := 0.13
@@ -254,14 +254,17 @@ static func build_hood(rig: String) -> ArrayMesh:
 			var crown := smoothstep(0.0, 0.9, sin(maxf(ph, 0.0)))
 			var off := lerpf(HOOD_STANDOFF.z, lerpf(HOOD_STANDOFF.x, HOOD_STANDOFF.y, back), smoothstep(0.0, 0.35, back + crown * 0.3))
 			# A soft point at the crown's back where the hood's centre seam pulls.
-			off += 0.01 * back * smoothstep(0.2, 0.9, crown) * smoothstep(0.4, 1.0, back)
+			off += 0.006 * back * smoothstep(0.2, 0.9, crown) * smoothstep(0.4, 1.0, back)
 			var d := CrowdHat.Head.dir(th, ph)
 			var q := h.c + d * (rad + off)
 			if down > 0.0:
 				# The drape: straight down the neck into the collar, eased in under the jaw at the
 				# front edges and out over the trapezius at the back.
+				# The neck is narrower than the skull: in toward it first, then out a little onto
+				# the trapezius and the collar.
 				var horiz := Vector3(d.x, 0.0, d.z).normalized()
-				q += Vector3(0.0, -down, 0.0) + horiz * down * lerpf(-0.12, 0.28, back)
+				var inward := -0.45 * minf(down, 0.075) + 0.5 * maxf(down - 0.075, 0.0) * back
+				q += Vector3(0.0, -down, 0.0) + horiz * inward
 			# The hem: the cloth rolls over near the opening's edges.
 			var edge := minf(float(c), float(cols - c))
 			var e := 1.0 - smoothstep(0.0, 2.0, edge) if half > 0.0 else 0.0

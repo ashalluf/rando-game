@@ -4356,6 +4356,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   environment turns the layer off (the A/B). Look with `tools/crowd/crowd_lab.tscn` SCENARIO=life
   (a pavement, a wall, two benches), props, dog (CAM / LOOK / FOV place the camera); check with
   `tests/crowd_life_checks.gd`; time it with MODE=bench.
+- The crowd in the rain (2026-10-06, docs/HANDOFF.md "The crowd in the rain"): `RainCrowd`
+  (`scripts/npc/rain_crowd.gd`, `Pedestrian.rain`, made in `_setup_life()`; Weather pushes
+  `RainCrowd.level` = its `rain_level`) - near the camera only (`_life_near`): umbrellas
+  (`RainGear`, `scripts/npc/rain_gear.gd`, code-built at `OPEN_STEPS` opening amounts, swapped
+  to open / fold; held up by aiming the arm in skeleton space and placed at CrowdLife's grip
+  frame each tick, top_level; `shaders/rain_gear.gdshader`, part in COLOR.a, colours as Vector3
+  linear), hoods on `HOOD_RIGS` (fitted from CrowdHatTable like the hats; the hair cards hidden
+  under the "under_hat" meta), `pace()` (hurry), `on_walk_end()` (a bus-stop seat - a life seat
+  whose record's kind is "bus_stop" - or a doorway by `_plan_wall()`; over `LEAVE_LEVEL` a share
+  go in: hidden, layer 0, hit shape off, back out under it), `settle_now()` for whoever comes into
+  range mid-rain. Rolls are `hash(seed, "rain")`. Hooks: four lines in Pedestrian, one in
+  Weather. `RAIN_CROWD=0` the A/B; `RAIN_STAGE=<level>` / `RAIN_FOCUS=` on `still_shot.gd`;
+  `crowd_lab.tscn SCENARIO=rain` (seconds); checks `tests/rain_crowd_checks.gd`.
 - Dogs (2026-10-05, "realistic dogs, so the dog walkers can come back"; docs/HANDOFF.md, the
   dogs section): built in CODE like the birds. **`DogMesh`** (`scripts/npc/dog_mesh.gd`) builds six
   breeds by proportion - labrador, German shepherd, small terrier, chihuahua, pit bull mix,

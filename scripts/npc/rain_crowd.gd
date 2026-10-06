@@ -62,10 +62,11 @@ const THINK_SECONDS := 0.5
 ## The arm that holds an umbrella up: the upper arm and forearm aimed along these (skeleton
 ## space: +Z forward, +X the rig's left, mirrored for the right arm), so the hand is in front of
 ## the chest a little toward the middle whatever the walk does.
-const UPPER_ARM := Vector3(0.18, -0.82, 0.42)
-const FOREARM := Vector3(-0.42, 0.62, 0.62)
-## Where the canopy's apex is held: over the head's top by this much, and this far forward of it.
-const APEX_OVER_HEAD := 0.34
+const UPPER_ARM := Vector3(0.18, -0.86, 0.36)
+const FOREARM := Vector3(-0.28, 0.62, 0.74)
+## Where the canopy's apex is held: over the Head bone (the base of the skull) by this much, so
+## the rim clears the crown, and this far forward of it.
+const APEX_OVER_HEAD := 0.62
 const APEX_FORWARD := 0.06
 ## The grip point in the hand's grip frame (CrowdLife.grip_basis(): x thumb, y fingers, z palm).
 const GRIP := Vector3(0.0, 0.085, 0.032)
@@ -130,7 +131,44 @@ static func make(p: Pedestrian, seed_value: int) -> RainCrowd:
 		r.gear = Gear.NONE
 	if r.gear == Gear.HOOD:
 		r.hood_color = _top_color(p)
+	p.tree_exiting.connect(r._on_exit)
 	return r
+
+
+## Knocked down (shot, run over, blown up) with the umbrella in hand: it is let go and tumbles
+## away as a light physics body (PhysicsBudget debris), open or furled as it was.
+func _on_exit() -> void:
+	if not ped._down or _umbrella == null or not _umbrella.visible or not ped.is_inside_tree():
+		return
+	var tree := ped.get_tree()
+	var parent: Node = tree.current_scene if tree.current_scene else tree.root
+	if not PhysicsBudget.make_room(1):
+		return
+	var body := RigidBody3D.new()
+	body.name = "DroppedUmbrella"
+	body.collision_layer = 0
+	body.collision_mask = 1
+	body.mass = 0.45
+	body.linear_damp = 1.2 if open > 0.5 else 0.2
+	body.angular_damp = 0.8
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	var r := RainGear.canopy_radius(kind) if open > 0.5 else 0.05
+	box.size = Vector3(r * 1.6, 0.35 if open > 0.5 else 0.9, r * 1.6)
+	shape.shape = box
+	shape.position = Vector3(0.0, RainGear.apex_height(kind) * (0.75 if open > 0.5 else 0.4), 0.0)
+	body.add_child(shape)
+	var mi := MeshInstance3D.new()
+	mi.mesh = _umbrella.mesh
+	mi.material_override = _umbrella.material_override
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	body.add_child(mi)
+	var at := _umbrella.global_transform
+	parent.add_child(body)
+	body.global_transform = at
+	body.linear_velocity = Vector3(randf_range(-1.5, 1.5), randf_range(1.0, 2.5), randf_range(-1.5, 1.5))
+	body.angular_velocity = Vector3(randf_range(-3.0, 3.0), randf_range(-2.0, 2.0), randf_range(-3.0, 3.0))
+	PhysicsBudget.register_debris(body, 25.0)
 
 
 ## The colour of the top this person's look wears (the hood is the jacket's), linear.
@@ -167,6 +205,9 @@ func indoors(delta: float) -> bool:
 	if rain_now() < LEAVE_LEVEL - HYSTERESIS or not ped._life_near or not enabled:
 		_come_out()
 		return false
+	# _update_lod still runs (it says when the camera has gone) and may turn the hit zone back on.
+	if ped._hit_shape and not ped._hit_shape.disabled:
+		ped._hit_shape.set_deferred("disabled", true)
 	return true
 
 
@@ -249,7 +290,10 @@ func pose(delta: float) -> void:
 		elif dry or not near:
 			open_to = 0.0
 		var running := ped._clip == Pedestrian.RUN_CLIP or ped._panic_left > 0.0
-		if running:
+		# Folded to run, and under a shelter's roof or in a doorway.
+		var covered := (sheltering or (ped._act == CrowdLife.Act.SIT and _bus_seat(ped._seat))) \
+			and ped._stage != Pedestrian.Stage.GOING
+		if running or covered:
 			open_to = 0.0
 		open = move_toward(open, open_to, delta / OPEN_SECONDS)
 		if not near:

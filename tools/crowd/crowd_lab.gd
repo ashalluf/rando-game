@@ -233,6 +233,10 @@ func _film() -> void:
 		"life":
 			_stage_life(rect)
 			_camera(Vector3(0.0, 2.2, -9.0), Vector3(0.0, 1.0, 1.5), 50.0)
+		"rain":
+			_stage_life(rect)
+			_stage_rain()
+			_camera(Vector3(0.0, 2.2, -9.0), Vector3(0.0, 1.0, 1.5), 50.0)
 		"crowd":
 			var rng := RandomNumberGenerator.new()
 			rng.seed = 5
@@ -329,6 +333,29 @@ func _stage_life(rect: Rect2) -> void:
 	Engine.time_scale = float(_env("TIME_SCALE", "1"))
 	if _env("DBG", "") != "":
 		add_child(load(_env("DBG", "")).new())
+
+
+## The rain scenario (RainCrowd): the life scenario's pavement, wall and benches (one of them a
+## bus stop's), the rain at RAIN (default 0.7), everyone settled as the rain leaves them.
+## RAIN_GEAR=umbrella|hood|none gives everyone that; RAIN_AFTER=s stops the rain s seconds in.
+func _stage_rain() -> void:
+	var seats: Array = get_meta("life_seats", [])
+	if not seats.is_empty():
+		seats[0].record = {"kind": "bus_stop", "dead": false}
+		seats[1].record = seats[0].record
+	RainCrowd.forced = float(_env("RAIN", "0.7"))
+	for i in 3:
+		await get_tree().physics_frame
+	var gear := {"umbrella": RainCrowd.Gear.UMBRELLA, "hood": RainCrowd.Gear.HOOD, "none": RainCrowd.Gear.NONE}
+	for p: Pedestrian in _peds:
+		if p.rain == null:
+			continue
+		if gear.has(_env("RAIN_GEAR", "")):
+			p.rain.gear = gear[_env("RAIN_GEAR", "")]
+		p.rain.settle_now()
+	if _env("RAIN_AFTER", "") != "":
+		await get_tree().create_timer(float(_env("RAIN_AFTER", "0"))).timeout
+		RainCrowd.forced = 0.0
 
 
 ## The look scenario's events, by tick: a car passes close (ticks 0-260), the player walks by
