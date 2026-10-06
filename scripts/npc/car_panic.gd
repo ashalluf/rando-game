@@ -423,7 +423,7 @@ static func _panic_tick(tm: TrafficManager, car: Vehicle, leader: Vehicle, group
 			v = move_toward(v, RESUME_SPEED, 1.8 * delta)
 			var target := lane
 			lat_rate = _lat_step(lat, target, maxf(v, 0.5) * 0.3 + RESUME_LAT * 0.5, delta)
-			if absf(target - lat) < 0.04 and v > 3.0:
+			if absf(target - lat) < 0.04:
 				_end(t)
 				t.v = v
 				car.traffic_speed = v
@@ -432,8 +432,9 @@ static func _panic_tick(tm: TrafficManager, car: Vehicle, leader: Vehicle, group
 	var step := v * delta
 	if step > 0.0:
 		var room := _room_ahead(car, leader, f)
-		if kind == Kind.KERB or float(t.lane) != float(cp.lane0):
-			room = minf(room, float(f.to_line) - 2.0)
+		if (kind == Kind.KERB or float(t.lane) != float(cp.lane0) or int(cp.ph) == Phase.BACK) and float(f.to_line) > 0.0:
+			# Never over the stop line on its own: the traffic's own rules take the junction.
+			room = minf(room, float(f.to_line) - (2.0 if kind == Kind.KERB else 0.3))
 		if step > room:
 			step = maxf(room, 0.0)
 			v = minf(v, step / delta)

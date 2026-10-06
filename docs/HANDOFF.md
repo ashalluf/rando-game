@@ -14265,7 +14265,10 @@ city load). Compile in seconds: `godot --headless --path . --script tools/car_pa
 (`CarPanic.stage_for_shot()`: the nearest one-lane street with a long block, the car and one
 behind it, a shot by the far kerb ahead; `PANIC_SIDE=near` for the kerb-side camera;
 `PANIC_STEPS="s,s,..."` advances the staged traffic, doors and drivers that many seconds before
-each still, `_p1`, `_p2`, ...). The stills are on `shots/car-panic`.
+each still, `_p1`, `_p2`, ...; `PANIC_EYE_D` / `PANIC_EYE_H` the camera's distance ahead and
+height). The stills are on `shots/car-panic`: `00_before_CAR_PANIC0...` (the same staging, nobody
+reacts), `01-04_abandon_*`, `05-07_kerb_*`, `08-09_reverse_*`, `10-12_night_2100_*`. A panicking
+car never crosses its stop line by itself (it stops short; the traffic's rules take the junction).
 
 **Not done / known gaps.** Freeway, airport-loop, replica and stack traffic do not panic (street
 traffic only). The driver's door is ErrandProps' swung panel over the closed body door (the
