@@ -2326,6 +2326,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Street lamps (tests/street_lamps_checks.gd): the kit against its table, the pick per street,
 	# the arms over the road, the lamps' pools and omnis, and the same prop ids with the kit off.
 	load("res://tests/street_lamps_checks.gd").new().run(self, city)
+	# Multi-storey car parks (tests/garage_drive_in_checks.gd): placement, the plan's grades and
+	# headroom, the structure and its collision on every deck, and a car driven up to the second deck.
+	await load("res://tests/garage_drive_in_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

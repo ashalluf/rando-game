@@ -2798,7 +2798,8 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 			or Schools.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or Alleys.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
 			or Kerbs.blocks_parking(self, spot[0]) or Hospital.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
 			or FreightRail.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
-			or CivicBuildings.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)):
+			or CivicBuildings.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
+			or CarPark.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)):
 		# After the rolls, so the chunk rng runs the same whether or not the spot is used, and it
 		# counts as a car, as the vendors' and the market's spots below do: a kerb kept clear that
 		# another feature moves (a driveway apron when a market closes the street) must not shift
@@ -2946,6 +2947,10 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	# community center; a run of lots on one street, hash-seeded, after every roll above).
 	if CivicBuildings.claims(plan, ix, iz, lot):
 		CivicBuildings.build_lot(self, lot)
+		return
+	# A multi-storey car park (CarPark: a run of lots on one street, hash-seeded, after every claim above).
+	if CarPark.claims(plan, ix, iz, lot):
+		CarPark.build_lot(self, lot)
 		return
 	var fill := LotFill.wanted(self, district)
 	# A surface car park (CityPlan.lots() "parking"; the pad roll above is still made).
