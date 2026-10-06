@@ -91,6 +91,8 @@ var vehicle: Vehicle
 var lock_on: LockOn
 ## Health, the police's bullets and going down (scripts/player/player_health.gd).
 var health: PlayerHealth
+## The wingsuit (scripts/player/wingsuit.gd), or null with WINGSUIT=0.
+var wingsuit: Wingsuit
 
 var _coyote_timer: float = 0.0
 var _jump_buffer_timer: float = 0.0
@@ -128,6 +130,7 @@ func _ready() -> void:
 	health.name = "Health"
 	add_child(health)
 	add_child(Footsteps.new()) # footsteps by surface (scripts/player/footsteps.gd)
+	wingsuit = Wingsuit.attach(self)
 	# The hero flinches away from each round (Avatar.hit_from).
 	health.hit_taken.connect(func(amount: float, from: Vector3) -> void:
 		if avatar:
@@ -163,6 +166,8 @@ func _physics_process(delta: float) -> void:
 		_takeoff_y = global_position.y
 		_current_peak = 0.0
 	_update_timers(delta, on_floor)
+	if wingsuit and wingsuit.tick(delta, on_floor):
+		return # gliding or skidding: the suit moved him (scripts/player/wingsuit.gd)
 
 	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	_boosting = Input.is_action_pressed("boost")

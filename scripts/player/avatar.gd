@@ -96,6 +96,11 @@ var _anim: AnimationPlayer
 ## The hero's materials and pose-driven wrinkles (HeroLook), null on the crowd rigs.
 var hero_look: HeroLook
 var _clip := ""
+## The wingsuit (scripts/player/wingsuit.gd) sets these while gliding: the spread (0..1), how far
+## the body is laid over (radians, a right angle level, more diving) and the roll (+ banks right).
+var glide: float = 0.0
+var glide_tilt: float = 0.0
+var glide_bank: float = 0.0
 var _lean := 0.0
 
 # Gun handling (owner, 2026-09-24: "the weapons not even in the hands"). The gun used to hang at
@@ -399,7 +404,7 @@ func hold_gun(weapon: Weapon, raised: bool, delta: float) -> void:
 	# The left hand: on the gun unless a move has it (raised, it always comes back to the gun).
 	var left := 1.0
 	if _moves:
-		left = maxf(minf(minf(_left, 1.0 - _fly), minf(1.0 - _fall, smoothstep(0.55, 1.0, _draw))), t)
+		left = maxf(minf(minf(minf(_left, 1.0 - _fly), 1.0 - glide), minf(1.0 - _fall, smoothstep(0.55, 1.0, _draw))), t)
 	_ik.active = true
 	_ik_l.active = left > 0.001
 	_ik_l.influence = left
@@ -515,6 +520,7 @@ func debug_reset() -> void:
 	_idle_t = 0.0
 	_fly = 0.0
 	_fall = 0.0
+	glide = 0.0
 	_left = 1.0
 	_tilt = 0.0
 	_bank = 0.0
@@ -557,7 +563,8 @@ func _drive_moves(delta: float, speed: float, on_floor: bool, vertical: float, b
 	else:
 		_vel_yaw_rate = lerpf(_vel_yaw_rate, 0.0, k)
 	var flying := boosting and not on_floor
-	var falling := not on_floor and not boosting and vertical < -fall_pose_speed
+	var falling := not on_floor and not boosting and vertical < -fall_pose_speed and glide < 0.01
+	var gliding := glide > 0.001
 	_fly = move_toward(_fly, 1.0 if flying else 0.0, delta * 3.0)
 	_fall = move_toward(_fall, clampf((-vertical - fall_pose_speed) / 12.0, 0.0, 1.0) if falling and _oneshot == "" else 0.0, delta * 2.5)
 	var left_target := 1.0
@@ -626,11 +633,13 @@ func _drive_moves(delta: float, speed: float, on_floor: bool, vertical: float, b
 		tilt_target = clampf(atan2(-v.z, v.y), 0.0, deg_to_rad(150.0)) * fly_lay
 	elif flying:
 		tilt_target = boost_lean
-	_tilt = lerp_angle(_tilt, tilt_target if flying else 0.0, 1.0 - exp(-6.0 * delta))
-	_bank = lerpf(_bank, clampf(-_vel_yaw_rate * fly_bank, -fly_bank_max, fly_bank_max) * _fly, 1.0 - exp(-4.0 * delta))
+	if gliding:
+		tilt_target = glide_tilt * glide
+	_tilt = lerp_angle(_tilt, tilt_target if flying or gliding else 0.0, 1.0 - exp(-6.0 * delta))
+	_bank = lerpf(_bank, clampf(-_vel_yaw_rate * fly_bank, -fly_bank_max, fly_bank_max) * _fly + glide_bank * glide, 1.0 - exp(-4.0 * delta))
 	_lean = lerpf(_lean, lean_target, 1.0 - exp(-8.0 * delta))
 	var air := 1.0 - (1.0 if on_floor else 0.0) * (1.0 - _fly)
-	var pivot := Vector3(0.0, 0.95 * clampf(_fly + air * 0.5, 0.0, 1.0), 0.0)
+	var pivot := Vector3(0.0, 0.95 * clampf(maxf(_fly, glide) + air * 0.5, 0.0, 1.0), 0.0)
 	var b := Basis(Vector3.RIGHT, -(_tilt + _lean)) * Basis(Vector3.UP, _bank)
 	transform = Transform3D(b, pivot - b * pivot)
 	# The flinch: a spring the hits kick.
@@ -638,6 +647,7 @@ func _drive_moves(delta: float, speed: float, on_floor: bool, vertical: float, b
 	_flinch += _flinch_v * delta
 	if _motion:
 		_motion.fly = _fly
+		_motion.glide = glide
 		_motion.look_up = _tilt
 		_motion.fall = _fall
 		_motion.flinch = _flinch

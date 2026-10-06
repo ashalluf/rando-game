@@ -8,6 +8,8 @@ extends SkeletonModifier3D
 ##    is laid along the velocity by Avatar, and the right fist - the gun - goes forward there.
 ##  - the fall pose (`fall`, 0..1): the left arm thrown out for balance, the head down at the
 ##    ground coming up.
+##  - the wingsuit glide (`glide`, 0..1, Wingsuit): both arms spread out wide and a little back,
+##    the legs apart in a V with the feet pointed, the head lifted along the flight like `fly`.
 ##  - the hit flinch (`flinch`): the chest knocked away from a round, a skeleton-space vector
 ##    whose direction is where the top of the spine goes and whose length is the angle (radians);
 ##    Avatar runs it as a spring. The head goes a little further than the chest.
@@ -29,16 +31,28 @@ const FALL_AIMS := [
 	["LeftArm", Vector3(0.93, 0.25, 0.12)], ["LeftForeArm", Vector3(0.8, 0.5, 0.3)],
 	["LeftHand", Vector3(0.7, 0.45, 0.55)],
 ]
+## The wingsuit's spread (scripts/player/wingsuit.gd): arms out to the sides, a little toward the
+## feet and the back, straight to the wrists; the legs a V, knees soft, toes pointed.
+const GLIDE_AIMS := [
+	["LeftArm", Vector3(0.95, -0.24, -0.12)], ["RightArm", Vector3(-0.95, -0.24, -0.12)],
+	["LeftForeArm", Vector3(0.96, -0.2, -0.06)], ["RightForeArm", Vector3(-0.96, -0.2, -0.06)],
+	["LeftHand", Vector3(0.97, -0.18, 0.04)], ["RightHand", Vector3(-0.97, -0.18, 0.04)],
+	["LeftUpLeg", Vector3(0.3, -0.95, -0.04)], ["RightUpLeg", Vector3(-0.3, -0.95, -0.04)],
+	["LeftLeg", Vector3(0.3, -0.94, -0.14)], ["RightLeg", Vector3(-0.3, -0.94, -0.14)],
+	["LeftFoot", Vector3(0.22, -0.8, -0.5)], ["RightFoot", Vector3(-0.22, -0.8, -0.5)],
+]
 ## Bone -> the child whose head gives its direction.
 const CHILD := {
 	"LeftUpLeg": "LeftLeg", "LeftLeg": "LeftFoot", "LeftFoot": "LeftToeBase",
 	"RightUpLeg": "RightLeg", "RightLeg": "RightFoot", "RightFoot": "RightToeBase",
 	"LeftArm": "LeftForeArm", "LeftForeArm": "LeftHand", "LeftHand": "LeftHandMiddle1",
+	"RightArm": "RightForeArm", "RightForeArm": "RightHand", "RightHand": "RightHandMiddle1",
 }
 
 var fly: float = 0.0
 var look_up: float = 0.0
 var fall: float = 0.0
+var glide: float = 0.0
 var flinch: Vector3 = Vector3.ZERO
 ## Metres each foot is lifted (left, right; negative lowers it) and the hips are lowered.
 var foot_lift: Vector2 = Vector2.ZERO
@@ -66,6 +80,10 @@ func _process_modification_with_delta(_delta: float) -> void:
 		_aim_set(sk, FLY_AIMS, fly)
 		for pair in [["Spine01", -0.12], ["Spine", -0.1], ["neck", -0.35], ["Head", -0.45]]:
 			_turn(sk, _bone(pair[0]), Vector3.RIGHT, look_up * float(pair[1]) * fly)
+	if glide > 0.001:
+		_aim_set(sk, GLIDE_AIMS, glide)
+		for pair in [["Spine01", -0.1], ["Spine", -0.08], ["neck", -0.3], ["Head", -0.4]]:
+			_turn(sk, _bone(pair[0]), Vector3.RIGHT, look_up * float(pair[1]) * glide)
 	if fall > 0.001:
 		_aim_set(sk, FALL_AIMS, fall)
 		_turn(sk, _bone("Head"), Vector3.RIGHT, 0.3 * fall)
