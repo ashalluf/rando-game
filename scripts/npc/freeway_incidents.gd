@@ -76,7 +76,7 @@ static var hold: bool = OS.get_environment("FW_INCIDENT_HOLD") == "1"
 static var current: FreewayIncidents
 ## Every live node, oldest first: a second city (the smoke test's seed rebuild) makes its own, and
 ## when it is freed `current` falls back to the one still in the tree.
-static var _live: Array = []
+static var _nodes: Array = []
 ## Counts for the checks: "swerve", "stop", "spawn_moved", "built_<kind>", "tow_loaded", ...
 static var counts: Dictionary = {}
 static var _forced: Array = []
@@ -361,7 +361,7 @@ static func stall_pose(inc: Dictionary, e: float, halves: Array) -> Dictionary:
 
 func _ready() -> void:
 	current = self
-	_live.append(self)
+	_nodes.append(self)
 	name = "FreewayIncidents"
 	process_physics_priority = 10
 	if clock == 0.0 and plan != null:
@@ -369,12 +369,12 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
-	_live.erase(self)
+	_nodes.erase(self)
 	if current == self:
 		current = null
-		for i in range(_live.size() - 1, -1, -1):
-			if is_instance_valid(_live[i]) and (_live[i] as Node).is_inside_tree():
-				current = _live[i]
+		for i in range(_nodes.size() - 1, -1, -1):
+			if is_instance_valid(_nodes[i]) and (_nodes[i] as Node).is_inside_tree():
+				current = _nodes[i]
 				break
 
 
