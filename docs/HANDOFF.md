@@ -14275,11 +14275,13 @@ the player's voice and shifts, the Vehicle's loop silent, a truck's diesel and a
 
 **Found by the debug panel**: freeway traffic squealed on gentle curves - kinematic cars are
 placed along lane polylines and their heading steps at every vertex, so a raw yaw rate spiked;
-the squeal now reads the sideways acceleration of a smoothed displacement velocity, and every
+the squeal now reads speed x the turning rate of the direction of travel (that rate smoothed over a
+quarter second, so neither a vertex step nor the speed regained leaving a slow junction turn reads
+as a hard corner; squeals need 8.5 m/s2 braking or cornering above 9 m/s), and every
 voice's motion is sensed once a PHYSICS tick (`Voice.sense()` from `_physics_process`), measured
 over the time since the car last moved: traffic is placed on physics ticks, so a render frame saw
 it move twice or not at all and the speed and its rate jittered. A live check stages three cars
-through the spawn junction: 0 squeals in 692 voice-frames.
+through the spawn junction (one free to turn).
 
 **Not done / not verified.** Nobody has LISTENED to it: the session has no audio out, so the
 loops were judged by spectrum, crest factor and seam only - an ear check on the Mac is needed,

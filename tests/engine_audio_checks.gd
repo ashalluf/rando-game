@@ -142,8 +142,8 @@ func _traffic() -> void:
 	if ea == null:
 		_check(false, "EngineAudio exists in the city")
 		return
-	# Three cars driving through the spawn's junction on its north-south road (turning as they
-	# like), staged so the upkeep neither sheds nor adds street cars meanwhile.
+	# Three cars driving through the spawn's junction on its north-south road (the third turning
+	# as it likes), staged so the upkeep neither sheds nor adds street cars meanwhile.
 	var tm := _city.get_node_or_null("Traffic") as TrafficManager
 	var placed: Array = []
 	if tm != null:
@@ -154,13 +154,16 @@ func _traffic() -> void:
 		var index := plan._index_at(CityPlan.AXIS_X, at.x)
 		tm.staged = true
 		for k in 3:
-			var c := tm.place_car(CityPlan.AXIS_X, index, 1 if k != 1 else -1, 0, at.z + (-45.0 + 30.0 * k) * (1.0 if k != 1 else -1.0), 11.0, true)
+			var c := tm.place_car(CityPlan.AXIS_X, index, 1 if k != 1 else -1, 0, at.z + (-45.0 + 30.0 * k) * (1.0 if k != 1 else -1.0), 11.0, k == 2)
 			if c != null:
 				placed.append(c)
 	var frames := 0
 	var squeals := 0
 	var over := 0
 	var cars := {}
+	var causes := {}
+	var peak_d := 0.0
+	var peak_l := 0.0
 	for i in 300:
 		await _tree.process_frame
 		for v in ea._voices:
@@ -170,6 +173,9 @@ func _traffic() -> void:
 			frames += 1
 			if v.squealing:
 				squeals += 1
+				causes[v.squeal_cause] = int(causes.get(v.squeal_cause, 0)) + 1
+			peak_d = maxf(peak_d, v.peak_decel)
+			peak_l = maxf(peak_l, v.peak_lat)
 			if float(v.st.rpm) > float(v.prof.redline) + 1.0:
 				over += 1
 	if tm != null:
@@ -183,7 +189,8 @@ func _traffic() -> void:
 		return
 	_check(over == 0, "live traffic: revs stay within the redline (%d voice-frames over)" % over)
 	_check(float(squeals) / float(frames) < 0.05,
-			"live traffic: %d cars voiced, squealing in %d of %d voice-frames (driving, not skidding)" % [cars.size(), squeals, frames])
+			"live traffic: %d cars voiced, squealing in %d of %d voice-frames (driving, not skidding; %s; hardest braking %.1f, cornering %.1f m/s2)" % [
+			cars.size(), squeals, frames, str(causes), peak_d, peak_l])
 
 
 func _player_car(player: Player, car: Vehicle, ea: EngineAudio) -> void:

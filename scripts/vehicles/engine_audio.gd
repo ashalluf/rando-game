@@ -57,9 +57,9 @@ static var _inst: EngineAudio
 @export var beeper_db: float = -8.0
 ## A traffic car squeals braking harder than this (m/s2) or cornering harder (lateral, m/s2) above
 ## `squeal_speed` m/s.
-@export var squeal_decel: float = 6.5
-@export var squeal_lateral: float = 7.0
-@export var squeal_speed: float = 7.0
+@export var squeal_decel: float = 8.5
+@export var squeal_lateral: float = 8.5
+@export var squeal_speed: float = 9.0
 @export var squeal_db: float = -6.0
 
 ## rpm: the idle and the three on-load loops' rpm (the coasting loop is at the mid one), as
@@ -435,6 +435,10 @@ class Voice extends Node3D:
 	var spool := 0.0
 	var beeping := false
 	var squealing := false
+	## Why it last squealed, and the hardest braking and cornering it has read (the checks).
+	var squeal_cause := ""
+	var peak_decel := 0.0
+	var peak_lat := 0.0
 	var _players: Array[AudioStreamPlayer3D] = []
 	var _trims: PackedFloat32Array = PackedFloat32Array([0, 0, 0, 0, 0])
 	var _turbo: AudioStreamPlayer3D
@@ -450,6 +454,9 @@ class Voice extends Node3D:
 	var _lat := 0.0
 	var _signed := 0.0
 	var _since := 0.0
+	var _omega := 0.0
+	var _heading := 0.0
+	var _have_heading := false
 	var _accel := 0.0
 	var _squeal := 0.0
 	var _was_boost := false
@@ -514,6 +521,8 @@ class Voice extends Node3D:
 		_signed = 0.0
 		_since = 0.0
 		speed = 0.0
+		_omega = 0.0
+		_have_heading = false
 		_accel = 0.0
 		spool = 0.0
 		_squeal = 0.0
@@ -562,14 +571,22 @@ class Voice extends Node3D:
 		if absf(a) < 40.0: # a teleport (staging, a re-placed car) is not a stop
 			_accel = lerpf(_accel, a, 1.0 - exp(-span * 6.0))
 		_last_speed = speed
-		# Sideways acceleration from a smoothed velocity: traffic is placed along lane polylines,
-		# so its heading steps at every vertex and a raw yaw rate spikes into a false squeal.
-		var prev_vel := _vel
-		_vel = _vel.lerp(vel, 1.0 - exp(-span * 5.0))
-		var dv := (_vel - prev_vel) / span
-		var side := dv - _vel.normalized() * dv.dot(_vel.normalized()) if _vel.length() > 0.5 else Vector3.ZERO
-		if side.length() < 40.0:
-			_lat = lerpf(_lat, side.length(), 1.0 - exp(-span * 4.0))
+		# Sideways acceleration = speed x how fast the direction of travel turns, the turning rate
+		# smoothed over a quarter second: traffic is placed along lane polylines and its heading
+		# steps at every vertex (a raw rate spikes), and a turn taken slowly must not squeal as
+		# the car speeds away out of it (the rate has decayed by then, the speed is the current).
+		if vel.length() > 1.0:
+			var heading := atan2(vel.x, vel.z)
+			if _have_heading:
+				var w := wrapf(heading - _heading, -PI, PI) / span
+				if absf(w) < 6.0:
+					_omega = lerpf(_omega, w, 1.0 - exp(-span * 4.0))
+			_heading = heading
+			_have_heading = true
+		else:
+			_omega = lerpf(_omega, 0.0, 1.0 - exp(-span * 4.0))
+		_vel = vel
+		_lat = absf(_omega) * speed
 
 	func tick(delta: float, owner_node: EngineAudio, is_mine: bool) -> void:
 		if car == null:
@@ -649,8 +666,13 @@ class Voice extends Node3D:
 		# A traffic car braking or cornering hard squeals (DrivingFX has the physical cars).
 		var want_sq := 0.0
 		if car.is_traffic() and speed > owner_node.squeal_speed:
-			want_sq = maxf(clampf((-_accel - owner_node.squeal_decel) / 4.0, 0.0, 1.0),
-					clampf((_lat - owner_node.squeal_lateral) / 5.0, 0.0, 1.0))
+			var brake_sq := clampf((-_accel - owner_node.squeal_decel) / 4.0, 0.0, 1.0)
+			var turn_sq := clampf((_lat - owner_node.squeal_lateral) / 5.0, 0.0, 1.0)
+			want_sq = maxf(brake_sq, turn_sq)
+			if want_sq > 0.0:
+				squeal_cause = "brake" if brake_sq >= turn_sq else "turn"
+		peak_decel = maxf(peak_decel, -_accel)
+		peak_lat = maxf(peak_lat, _lat)
 		_squeal = lerpf(_squeal, want_sq, 1.0 - exp(-dt * (12.0 if want_sq > _squeal else 5.0)))
 		squealing = _squeal > 0.05
 		if squealing and _skid.stream != null:
