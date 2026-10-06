@@ -184,5 +184,6 @@ void fragment() {
 	ALBEDO = glass;
 	ROUGHNESS = 0.12;
 	SPECULAR = 0.6;
-	EMISSION = glow;
+	// custom.b over 0.5: a felled head (PropBreak), dark.
+	EMISSION = glow * (1.0 - step(0.5, v_custom.b));
 }

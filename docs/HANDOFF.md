@@ -14238,7 +14238,8 @@ and a lamp its type through its shader's INSTANCE_CUSTOM.
   StreetProps body at its foot, swung over the way it was hit, let go past `RELEASE_ANGLE`, slamming
   down with a crash and dust. **Trap:** a box swung about its own bottom edge digs its corner into
   the pavement and stands the pole back up - the felled pole's boxes are cut `FOOT_CLEAR` off the
-  foot. Signs use their normal health for rounds and fall when it runs out.
+  foot. Signs use their normal health for rounds and fall when it runs out. A felled signal's
+  heads go dark (`traffic_signal.gdshader` reads custom.b over 0.5 as dead).
 - **mailbox / newsbox**: the box knocked over as a body and a burst of letters (envelopes drawn in
   code: stamp, postmark, address lines) or folded newspapers (masthead, photo, columns; no
   lettering) that flutter down (drag, sway, tumble) and lie flat on the pavement.
@@ -14270,5 +14271,5 @@ own). Compile: `tools/prop_break/compile.gd`. Stills on `shots/prop-destruction`
 Not done / not verified: nothing of it on Forward+ (the wet patch's mirror, the geyser under TAA
 and bloom); no water on the ground beyond the disc (the road's own `road_wetness` is global); a
 geyser does not knock a car off the road, it only floats it; bent poles are not persisted (only
-destroyed ones); signals' heads keep their timing shader on a felled pole (it lies there lit);
+destroyed ones);
 no player-on-foot smashing (boosting into a lamp stops you, as before).

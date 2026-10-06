@@ -203,7 +203,12 @@ static func _topple(ch: CityChunk, record: Dictionary, dir: Vector3) -> void:
 	var turn := _pivot(base, lean)
 	var inv := body.transform.affine_inverse()
 	for e in parts:
-		body.add_child(_copy(e, inv * turn * (e[3] as Transform3D)))
+		var piece := _copy(e, inv * turn * (e[3] as Transform3D))
+		if record.kind == "signal":
+			# A felled signal is dark (traffic_signal.gdshader reads custom.b).
+			var c: Color = e[5]
+			piece.multimesh.set_instance_custom_data(0, Color(c.r, c.g, 1.0, c.a))
+		body.add_child(piece)
 	# The collision: the prop's own boxes, in the pole's upright frame.
 	var upright := Transform3D(Basis(), base).affine_inverse()
 	var bases: Array = record.get("shape_xf", [])
