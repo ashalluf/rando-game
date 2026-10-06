@@ -867,7 +867,13 @@ static func character_spot(plan: CityPlan, bx: int, bz: int, rect: Rect2, side: 
 
 static func _spawn_character(ch: CityChunk, rect: Rect2, side: int, i: int) -> void:
 	var s := character_spot(ch.plan, ch.ix, ch.iz, rect, side, i)
-	if s.is_empty() or not ch._take_crowd_room():
+	if s.is_empty():
+		return
+	# Built without a streamer (block stills): count the chunk's room now, as the walkers would.
+	var parent := ch.get_parent()
+	if (parent == null or not parent.has_method("take_crowd_room")) and ch._crowd_room <= 0 and ch.is_inside_tree():
+		ch._count_crowd_room()
+	if not ch._take_crowd_room():
 		return
 	var ped := StreetCharacter.new()
 	ped.costume = int(s.costume)
