@@ -394,6 +394,8 @@ func _physics_process(delta: float) -> void:
 		_survey = 0.5
 		_update_live(fw)
 		_update_cms(fw)
+		if OS.get_environment("FW_INCIDENT_DEBUG") == "1":
+			_debug_print()
 	_blocks.clear()
 	_zones.clear()
 	for k in _live:
@@ -443,6 +445,19 @@ func _maybe_force(fw: Freeway) -> void:
 		force(fw, ri, t, dir, kinds[w], into, li)
 		print("FW_INCIDENT %s route %d t %.1f dir %d into %.1f" % [w, ri, t, dir, into])
 	_update_live(fw)
+
+
+## FW_INCIDENT_DEBUG=1: every live incident and where its vehicles are, each survey.
+func _debug_print() -> void:
+	for k in _live:
+		var entry: Dictionary = _live[k]
+		var line := "FWI %s e %.1f built %s" % [k, clock - float(entry.inc.start), not entry.scene.is_empty()]
+		for who in ["car", "patrol", "tow", "driver"]:
+			var v: Variant = entry.scene.get(who)
+			if v != null and is_instance_valid(v):
+				var p := WorldState.to_world((v as Node3D).global_position)
+				line += " %s(%.1f,%.1f,%.1f vis %s)" % [who, p.x, p.y, p.z, (v as Node3D).visible]
+		print(line)
 
 
 var _shot_k := 0
