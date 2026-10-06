@@ -19,7 +19,7 @@ func run(tree: SceneTree) -> void:
 				c.y = float(p.y) + 1.0
 				var eye: Vector3 = c + (site.n as Vector3) * 30.0 + (site.t as Vector3) * 10.0 + Vector3.DOWN * 4.0
 				var d: Vector3 = (c - eye).normalized()
-				print("   EYE=%.1f,%.1f,%.1f,%.1f,%.1f" % [eye.x, eye.y, eye.z, rad_to_deg(atan2(-d.x, -d.z)), rad_to_deg(asin(d.y))])
+				print("   EYE=%.1f,%.1f,%.1f,%.1f,%.1f cradle=%.1f,%.1f,%.1f n=%s" % [eye.x, eye.y, eye.z, rad_to_deg(atan2(-d.x, -d.z)), rad_to_deg(asin(d.y)), c.x, c.y, c.z, str(site.n)])
 		tree.quit()
 		return
 	var id := OS.get_environment("TOWER") if OS.get_environment("TOWER") != "" else "dt_bronze_slab"
