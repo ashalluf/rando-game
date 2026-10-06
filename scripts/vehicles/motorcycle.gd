@@ -68,6 +68,16 @@ const MOTO_PAINTS := [
 ## sport, cruiser, scooter.
 const MOTO_MIX := [[0.36, 0.22, 0.42], [0.38, 0.30, 0.32], [0.34, 0.46, 0.20], [0.26, 0.56, 0.18], [0.30, 0.18, 0.52], [0.24, 0.34, 0.42]]
 
+## Shares of the street and freeway traffic that are motorcycles (TrafficManager rolls them from
+## the top end of the roll it already makes for trucks).
+const STREET_SHARE := 0.05
+const FREEWAY_SHARE := 0.04
+## Lane filtering: the most a bike goes while it threads a queue (m/s), how slow the queue has to
+## be to start, and how far ahead the slow car may be.
+const FILTER_SPEED := 5.5
+const FILTER_QUEUE_SPEED := 3.0
+const FILTER_REACH := 26.0
+
 @export_group("Bike")
 ## How hard the roll is held to upright while it is ridden or parked (1/s).
 @export var upright_gain: float = 9.0
@@ -147,6 +157,117 @@ static func make(type: int, look: int) -> Motorcycle:
 	m.setup_look(f)
 	m.look_seed = look
 	return m
+
+
+static func traffic_factor(type: int) -> float:
+	return float(PHYS[kind_of(type)].traffic)
+
+
+## Lane filtering (TrafficManager._drive_street asks every tick, for a bike only): a bike in the
+## inner lane of a two-lane carriageway that comes up behind a slow or stopped queue threads it
+## on the line between the lanes, at walking-plus pace, to the front (the stop line still holds
+## it); it moves back into its lane once nothing in it is alongside. True while it filters: the
+## caller then ignores the car in front.
+static func filter_tick(tm: Node, bike: Motorcycle, leader: Vehicle, groups: Dictionary, _delta: float) -> bool:
+	var t: Dictionary = bike.traffic
+	var plan: CityPlan = tm.get("plan")
+	if plan == null or not enabled:
+		return false
+	var axis := int(t.axis)
+	var index := int(t.index)
+	var width := plan.road_width(axis, index)
+	var lanes := 2 if width > plan.street_width + 1.0 else 1
+	var c0 := CityPlan.lane_center(width, lanes, 0)
+	var c1 := CityPlan.lane_center(width, lanes, 1) if lanes > 1 else c0
+	var inner := lanes == 2 and absf(absf(float(t.lane)) - c0) < 0.35
+	var filtering := bool(t.get("filtering", false))
+	if not inner or int(t.get("turn", 0)) != 0 or t.has("lc_from") or t.has("bus") or t.has("pull"):
+		filtering = false if not filtering else _alongside(bike, groups)
+	else:
+		var along := float(t.along)
+		var dir := float(t.dir)
+		var slow_ahead := false
+		if leader != null and is_instance_valid(leader):
+			var lt: Dictionary = leader.traffic
+			var gap := (float(lt.along) - along) * dir
+			slow_ahead = float(lt.get("v", 0.0)) < FILTER_QUEUE_SPEED and gap < FILTER_REACH
+		if not filtering:
+			filtering = slow_ahead
+		else:
+			filtering = slow_ahead or _alongside(bike, groups)
+	t.filtering = filtering
+	t.filter_shift = (c1 - c0) * 0.5 if filtering else 0.0
+	if filtering:
+		t.v = minf(float(t.get("v", 0.0)), FILTER_SPEED)
+	return filtering
+
+
+## True while a car of the bike's own lane stands alongside it (it may not move back in yet).
+static func _alongside(bike: Motorcycle, groups: Dictionary) -> bool:
+	var t: Dictionary = bike.traffic
+	var key := TrafficManager.lane_key(int(t.axis), int(t.index), int(t.dir), float(t.lane))
+	var group: Array = groups.get(key, [])
+	var along := float(t.along)
+	for c: Vehicle in group:
+		if c == bike or not is_instance_valid(c):
+			continue
+		var ct: Dictionary = c.traffic
+		var d := (float(ct.get("along", INF)) - along) * float(t.dir)
+		if d > -float(ct.get("rear", 2.4)) - 1.4 and d < float(t.get("half", 1.0)) + float(ct.get("half", 2.4)) + 1.0:
+			return true
+	return false
+
+
+## Shares of the parked stalls that hold motorcycles instead of a car, by district (DOWNTOWN,
+## MIDTOWN, SUBURBS, INDUSTRIAL, CAMPUS, BEACHTOWN), and of those, the ones with two.
+const PARK_SHARE := [0.09, 0.08, 0.04, 0.04, 0.12, 0.12]
+const PARK_PAIR := 0.45
+
+
+## A parked car's stall (CityChunk._park_car: `spot` [position, yaw, kerb side], the car already
+## placed) handed over to motorcycles now and then: the car is freed and one bike returned in its
+## place - backed in at an angle, rear wheel to the kerb, on its side stand - and sometimes a
+## second added beside it (into `holder` and the chunk's cars). A hash of the seed and the spot,
+## after every roll the chunk makes, so nothing else on the block moves.
+static func parked_swap(chunk: Node, car: Vehicle, spot: Array, holder: Node) -> Vehicle:
+	if not enabled:
+		return car
+	var plan: CityPlan = chunk.get("plan")
+	if plan == null:
+		return car
+	var p: Vector3 = spot[0]
+	var h := absi(hash([plan.seed, roundi(p.x * 4.0), roundi(p.z * 4.0), "moto_park"]))
+	var district := int(plan.district_at(Vector2(p.x, p.z)))
+	if float(h % 10000) / 10000.0 >= float(PARK_SHARE[clampi(district, 0, PARK_SHARE.size() - 1)]):
+		return car
+	var at := car.position
+	var vis := car.visible
+	car.free()
+	var side := float(spot[2])
+	var along_x := absf(float(spot[1])) > 0.1
+	# Into the stall: the kerb is `side` across the road.
+	var kerb := Vector3(0.0, 0.0, side) if along_x else Vector3(side, 0.0, 0.0)
+	var road_dir := Vector3(1.0, 0.0, 0.0) if along_x else Vector3(0.0, 0.0, 1.0)
+	var lean := 1.0 if (h >> 8) % 2 == 0 else -1.0
+	var fwd := (-kerb + road_dir * 0.75 * lean).normalized()
+	var yaw := atan2(-fwd.x, -fwd.z)
+	var pair := float((h >> 12) % 1000) / 1000.0 < PARK_PAIR
+	var first: Motorcycle = null
+	for k in (2 if pair else 1):
+		var type := type_for(float((h >> (14 + k * 5)) % 997) / 997.0, district)
+		var m := make(type, h + k * 131)
+		var off := road_dir * ((float(k) - 0.5) * 1.5 if pair else 0.0) + kerb * 0.35
+		m.position = at + off + Vector3.UP * 0.25
+		m.rotation.y = yaw
+		m.visible = vis
+		if k == 0:
+			first = m
+		else:
+			holder.add_child(m)
+			var cars = chunk.get("_cars")
+			if cars is Array:
+				(cars as Array).append(m)
+	return first
 
 
 ## The kind of bike for a hash roll 0..1 in `district` (CityPlan.District).
@@ -312,6 +433,8 @@ func _load_model(d: Dictionary) -> bool:
 				if _paint_mat == null:
 					_paint_mat = _paint_material(null, null)
 				m.set_surface_override_material(si, _paint_mat)
+			elif slot == "glass":
+				m.set_surface_override_material(si, screen_material())
 			else:
 				var part := _part_material(src)
 				if part != null:
@@ -346,6 +469,21 @@ func _add_moto_lights(d: Dictionary) -> void:
 
 
 static var _light_meshes: Dictionary = {}
+static var _screen_mat: StandardMaterial3D
+
+
+## The screens and the dash glass: smoked and see-through (the rider's hands and the bars behind
+## a supersport's screen, the clocks under the scooter's), glossy. One material for every bike.
+static func screen_material() -> StandardMaterial3D:
+	if _screen_mat == null:
+		_screen_mat = StandardMaterial3D.new()
+		_screen_mat.resource_name = "moto_screen"
+		_screen_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_screen_mat.albedo_color = Color(0.06, 0.07, 0.08, 0.5)
+		_screen_mat.roughness = 0.04
+		_screen_mat.metallic_specular = 0.7
+		_screen_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return _screen_mat
 
 
 static func lights_mesh(k: int) -> Mesh:
@@ -636,6 +774,14 @@ func _physics_process(delta: float) -> void:
 	# shove while it is up.
 	if boosting and throttle > 0.0 and absf(speed) < top_speed * 0.6 and not airborne:
 		engine_force *= 1.08
+
+
+## PhysicsBudget turns a far bike's script off: nothing would hold it up any more, so a parked
+## one is put to sleep where it stands (it wakes, and its script comes back, when touched).
+func set_script_active(on: bool) -> void:
+	super.set_script_active(on)
+	if not on and driver == null and not is_traffic() and not fallen and linear_velocity.length() < 1.0:
+		PhysicsServer3D.body_set_state(get_rid(), PhysicsServer3D.BODY_STATE_SLEEPING, true)
 
 
 ## Drives the roll about the bike's own length toward upright (the drawn lean does the leaning).

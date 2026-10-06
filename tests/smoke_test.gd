@@ -2077,6 +2077,7 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# taxi and beater - the roll table, the rng stream, builds, hits, the taxi's sign and fare,
 	# the beater's wear.
 	await load("res://tests/more_cars_checks.gd").new().run(self, city)
+	await load("res://tests/motorcycles_checks.gd").new().run(self, city)  # motorcycles: build, ride, riders, filtering
 	# The light rail (tests/light_rail_checks.gd): the line's table, timetable, crossings, the
 	# traffic's lane and stop rules, a station chunk, the trains on the track, a strike.
 	await load("res://tests/light_rail_checks.gd").new().run(self, city)

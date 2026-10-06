@@ -371,7 +371,7 @@ def loft(bm, sections, mat, cap0=True, cap1=True, mats=None):
     return rings
 
 
-def sect(y, cx, cz, w, h, n=16, e=2.6, flat_bottom=0.0, taper_top=0.0):
+def sect(y, cx, cz, w, h, n=16, e=2.6, flat_bottom=0.0, taper_top=0.0, taper_bottom=0.0):
     """A superellipse section in the XZ plane at Y: half width w/2, half height h/2, exponent e
     (2 an ellipse, higher squarer). `taper_top` narrows the top half (a tank's ridge)."""
     pts = []
@@ -382,8 +382,10 @@ def sect(y, cx, cz, w, h, n=16, e=2.6, flat_bottom=0.0, taper_top=0.0):
         z = math.copysign(abs(s) ** (2.0 / e), s) * h * 0.5
         if z > 0:
             x *= 1.0 - taper_top * (z / (h * 0.5))
-        elif flat_bottom > 0.0:
-            z *= 1.0 - flat_bottom
+        else:
+            x *= 1.0 - taper_bottom * (-z / (h * 0.5))
+            if flat_bottom > 0.0:
+                z *= 1.0 - flat_bottom
         pts.append(Vector((cx + x, y, cz + z)))
     return pts
 
@@ -902,12 +904,12 @@ def build_sport():
     # Front fender: a short hugger in paint, a strip over the tyre.
     sects = []
     for k in range(13):
-        a = math.radians(18 + 112 * k / 12)
-        rr_f = rf + 0.028
+        a = math.radians(28 + 96 * k / 12)
+        rr_f = rf + 0.022
         cy = axf.y + rr_f * math.cos(a) * 0.98
         cz = axf.z + rr_f * math.sin(a)
         n = Vector((0, math.cos(a), math.sin(a)))
-        w = 0.135 + 0.01 * math.sin(math.pi * k / 12)
+        w = 0.118 + 0.01 * math.sin(math.pi * k / 12)
         sects.append([Vector((x, cy, cz)) + n * (0.012 * (1 - (x / (w * 0.5)) ** 2)) for x in (-w * 0.5, -w * 0.25, 0.0, w * 0.25, w * 0.5)])
     bm_f = bmesh.new()
     grid = [[bm_f.verts.new(p) for p in row] for row in sects]
@@ -1064,11 +1066,11 @@ def build_sport():
 
     # The fairing: one lofted shell from the pointed nose back past the radiator to a slanted
     # rear edge by the rider's knees; the tank stands up out of it behind the screen.
-    FAIR = [(1.010, 0.845, 0.800, 0.04), (0.985, 0.885, 0.755, 0.17), (0.94, 0.925, 0.715, 0.27),
-            (0.87, 0.970, 0.665, 0.36), (0.79, 1.005, 0.595, 0.43), (0.71, 1.020, 0.50, 0.47),
-            (0.63, 1.015, 0.40, 0.49), (0.54, 0.990, 0.33, 0.49), (0.44, 0.950, 0.295, 0.48),
-            (0.34, 0.890, 0.285, 0.46), (0.24, 0.80, 0.29, 0.44), (0.15, 0.67, 0.31, 0.42)]
-    fair = [sect(y, 0, (t + b_) * 0.5, w, t - b_, n=22, e=3.0, taper_top=0.62) for y, t, b_, w in FAIR]
+    FAIR = [(1.015, 0.840, 0.805, 0.03), (0.990, 0.878, 0.760, 0.15), (0.95, 0.918, 0.718, 0.25),
+            (0.88, 0.962, 0.668, 0.33), (0.80, 0.998, 0.600, 0.39), (0.72, 1.012, 0.505, 0.43),
+            (0.64, 1.008, 0.405, 0.45), (0.55, 0.985, 0.335, 0.455), (0.45, 0.948, 0.300, 0.45),
+            (0.35, 0.890, 0.290, 0.44), (0.25, 0.800, 0.295, 0.425), (0.16, 0.675, 0.315, 0.41)]
+    fair = [sect(y, 0, (t + b_) * 0.5, w, t - b_, n=22, e=3.3, taper_top=0.62, taper_bottom=0.30) for y, t, b_, w in FAIR]
     bmF = bmesh.new()
     loft(bmF, fair, PAINT, cap0=True, cap1=False)
     fairing = to_object("fairing", bmF)

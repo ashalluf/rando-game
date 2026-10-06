@@ -2825,6 +2825,9 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 		car.free()
 		count[0] += 1
 		return
+	# Now and then the stall holds motorcycles instead (Motorcycle.parked_swap: a hash, after
+	# every roll; it adds a second bike itself).
+	car = Motorcycle.parked_swap(self, car, spot, holder)
 	holder.add_child(car)
 	# A chunk still being built is hidden until it is finished (CityStreamer), and its cars
 	# live under the city root rather than under it, so they are hidden with it by hand.

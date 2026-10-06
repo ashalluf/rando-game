@@ -66,6 +66,7 @@ extends SceneTree
 ## SERVICE=garbage|sweeper|tow|ice_cream|delivery stages a service vehicle at work ahead of the
 ## camera and moves a free camera to frame it (ServiceFleet.stage_for_shot; SERVICE_EYE=0 keeps
 ## the camera, SERVICE_LIFT 0..1 how far up the garbage truck's arm has its cart).
+## MOTO=ride|throw|filter|parked|riders stages motorcycles (tools/moto/stage.gd has the knobs).
 ## ERRAND=bus|car|jay|shop|deliver stages a street errand ahead of the camera (StreetErrands; see
 ## tools/street_errands/stage.gd for ERRAND_PICK and the framing knobs); STREET_ERRANDS=0 turns
 ## the errands off (the A/B).
@@ -497,6 +498,18 @@ func _initialize() -> void:
 		print("ERRAND %s eye %s" % [errand_env, er_eye])
 		_eye(player, fov)
 		for i in _env_int("ERRAND_FRAMES", 12):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
+	# MOTO=ride|throw|filter|parked|riders: motorcycles staged in front of the camera
+	# (tools/moto/stage.gd: MOTO_TYPE, MOTO_LEAN, MOTO_WHEELIE, MOTO_SPEED, MOTO_FILTER_T).
+	var moto_env := OS.get_environment("MOTO")
+	if moto_env != "" and current_scene:
+		var m_eye: String = await load("res://tools/moto/stage.gd").new().stage(self, current_scene, moto_env, get_root().get_camera_3d())
+		if m_eye != "":
+			OS.set_environment("EYE", m_eye)
+		print("MOTO %s eye %s" % [moto_env, m_eye])
+		_eye(player, fov)
+		for i in _env_int("MOTO_SETTLE", 12):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
 	# Then all but freeze the clock for the last frames: a software frame takes seconds, and at
