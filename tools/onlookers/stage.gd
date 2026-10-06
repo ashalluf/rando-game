@@ -97,6 +97,8 @@ static func stage(tree: SceneTree, city: Node, kind: String, cam: Camera3D) -> S
 			dmg._staged = true
 			dmg.become_wreck()
 			ref = car
+			# Debris time is wall-clock, and a software still takes minutes a view.
+			car.set_meta("debris_life", 100000.0)
 			# A wreck is tossed when it goes up: where it comes to rest is the scene.
 			for i in 90:
 				await tree.physics_frame
