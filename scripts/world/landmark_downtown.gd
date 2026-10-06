@@ -167,6 +167,8 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, detaile
 		Rooftops.landmark_helipad(parent, at, TOWERS[id].helipad, statics)
 	if statics:
 		BuildingDamage.restore_tower(body, id)
+		# Window-washing gondolas on the flat faces, davits and parked machines on the roof (TowerGondolas).
+		TowerGondolas.landmark(parent, at, id)
 	if detailed and t.detail != null:
 		var extra := MeshInstance3D.new()
 		extra.name = "Detail_" + id
@@ -278,6 +280,7 @@ static func tower(id: String) -> Dictionary:
 		"lights": tm.light_mesh(_light_material()),
 		"occluder": occluder,
 		"hulls": tm.hulls + detail.hulls,
+		"tiers": tm.tiers,
 		"extent": tm.extent,
 		"top": tm.top,
 		"tris": tm.triangle_count(mesh) + (detail.triangle_count(extra) if extra.get_surface_count() > 0 else 0),

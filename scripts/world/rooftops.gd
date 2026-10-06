@@ -540,6 +540,8 @@ static func build(b: Building) -> void:
 				_mast(g, f, origin)
 			"bmu":
 				_bmu(g, f, origin, p)
+				# A live cradle under the jib (TowerGondolas: it washes its way down and swings when shot).
+				TowerGondolas.building_bmu(b, f, origin, p)
 		timing[f.kind] = int(timing.get(f.kind, 0)) + Time.get_ticks_usec() - t0
 	var t1 := Time.get_ticks_usec()
 	var mesh := ArrayMesh.new()
@@ -1364,7 +1366,9 @@ static func _bmu(g: RooftopGeo, f: Dictionary, origin: Vector3, p: Dictionary) -
 	# Head with two sheaves over the facade.
 	g.box(jib_end + Vector3(0, -0.15, 0), Vector3(2.8, 0.25, 0.3), white, 0)
 	var cradle_len := 4.6
-	if f.hang:
+	if f.hang and TowerGondolas.enabled:
+		pass # TowerGondolas hangs the cradle live under the head.
+	elif f.hang:
 		var depth: float = f.depth
 		var cy := 3.0 - depth
 		var cz := reach + 0.65
