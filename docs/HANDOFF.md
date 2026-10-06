@@ -14580,3 +14580,92 @@ traffic (with TRAFFIC_AI=0 cars slow and stop but do not change lanes). No incid
 connectors or the ramps. The patrol officer stays in the car; the driver does not walk to the tow
 (they vanish when the bed rises). The mattress and tread have no collision. The debris stills are
 framed from 30 m; closer framing would read better.
+
+## 9ey. Street furniture: LA's hydrants, meters, pay stations, ad benches, bins, racks and planters, 2026-10-05 (agent branch `wt/street-furniture`; VISUAL_ROADMAP "?")
+
+**What.** The pavement furniture was Poly Haven scans (a red generic hydrant, a wooden planter
+box, a corrugated can), a box-and-cylinder meter and a grey hoop: a generic city. Now
+`StreetFurniture` (`scripts/world/street_furniture.gd`) builds Los Angeles's own pieces in code, at
+real size, on one shader (`shaders/street_furniture.gdshader`):
+
+- **Fire hydrant**: the squat LA wet barrel - bolted flange, a short swelled barrel, the band and
+  the bonnet with its pentagon operating nut, a 4" pumper outlet and two 2.5" hose outlets (caps
+  with grip lugs and nuts, chains to eyes on the barrel, stem bosses), a stencilled number. Yellow
+  (three shades), silver or a faded cream; the aged roll (the old `aged` flag) chalks the paint and
+  chips it to dark iron with rust round the chips and runs below. It turns its pumper to the
+  street (the rolled spin is still drawn, so nothing after it moves).
+- **Parking meter**: a single-space smart meter - black post on a bolted plate, the grey head with
+  a domed top, display, keypad, card and coin slots, a "pay" label, the solar cell, the back door
+  and its lock. **Pay station** (`PAY_STATION_SHARE` 18 % of metered spaces, a hash; the same
+  `meter` prop): cabinet on a concrete plinth, sloped head, lit screen, a 12-key pad, card reader,
+  coin and receipt slots, the instruction panel, a blue "P" plate and the solar panel on its mast.
+- **Bus bench with a painted ad back**, beside a third of the bus shelters (`STOP_BENCH_SHARE`, a
+  hash of seed + stop; `add_stop_bench()`, called at the end of `StreetDetail._bus_shelter()`):
+  cast concrete ends (an L in profile), a rounded seat slab and a back rest leaning 15 degrees,
+  bolted; the ad painted on both faces from `assets/textures/street_furniture/bench_ads.jpg`
+  (`tools/make_bench_ads.py`: eight INVENTED advertisers - two realtors, injury lawyers, abogados,
+  bail bonds, a dentist, a taco stand, the bench company's own "your ad here" - with 555 numbers),
+  sun-faded, peeling and grimy with wear. It stands `STOP_BENCH_ALONG` (4.2 m) along the kerb from
+  the shelter, away from the stop's sign, as far in as the shelter's own bench (behind
+  StreetErrands' queue at the kerb), facing the road. It is only PLANNED there and made a prop at
+  the finish (`StreetFurniture.commit()`, one line in `CityChunk._finish_build()`), skipped where
+  anything the whole build laid stands (props, trees, camp pieces, vendors, kerb rows, cans,
+  cars): a dozen passes after StreetDetail (Encampment's kerb row, StreetClutter, StreetWear,
+  Murals, the signs) read `prop_records` to keep clear, and a bench recorded at the shelter
+  pushed a skid-row cart, a bike and the bags off the kerb in the first before/after still. A prop
+  with an id of its own (`ad_bench_<n>`, `_own_prop()`: CityChunk's record without its counter,
+  so no other id moves) and two CrowdLife seats. **The shelters are untouched** (Billboards'
+  lightbox and StreetErrands' queue use them).
+- **Downtown bin**: perforated powder-coated steel you see the black liner through (holes cut by
+  the shader where they are bigger than a pixel, averaged into a darker sheet past that), four
+  straps, the rim with the bag folded over it, a rain bonnet on four posts. It is the TrashCan's
+  mesh in DOWNTOWN, MIDTOWN and CAMPUS (`bin_style()`; still the same physics prop, rolled the
+  same, with main's draw distance).
+- **Bike rack**: the galvanised inverted U (spangle, white rust with age) on bolted flanges.
+- **Kerb planter**: precast concrete, a rim and a reveal line, soil, and one of five plantings
+  built from ClimbingPlants' accent builders (agave with aloes, three aloes, lavender, lantana,
+  red-hot poker with lavender; `planter_plant()`, ClimbingPlants' shader and atlas).
+
+**Not ours, by the lead's review:** the residential carts on collection day are KerbBins'
+(`scripts/world/kerb_bins.gd`, with a lid the garbage arm tips); this branch built its own and
+dropped them. A first version also swapped half the shelters for a bench-only stop; dropped too.
+
+**How it hangs together.** Every piece is ONE mesh (positions, normals, COLOR = rgb paint + kind in
+the alpha, UV in metres or 0..1 for a label, the ad or a screen, UV2.x the label id) through
+`ImporterMesh.generate_lods()` and `PropFactory._build_shadow_proxy()`, so a batch per kind a chunk
+draws distant pieces coarse and casts from a lighter twin. Per instance, INSTANCE_CUSTOM is the
+paint (sRGB) and the wear (the bench: the ad in .r). The hooks are where the old pieces were made:
+`CityChunk`'s hydrant and planter lines and the TrashCan's style, `StreetDetail`'s racks, meters
+and the end of the bus shelter; the meshes are built on the loading screen (`warm()`).
+`STREET_FURNITURE=0` in the environment is the A/B (the old meshes, no pay stations, no stop
+benches).
+
+**Trap (cost an hour).** The kind rides in COLOR.a and is compared exactly in the fragment; an
+interpolated 8.0 is 7.9999995 at some pixels of the Compatibility renderer, those fell through
+every branch and drew white specks all over the plastic and the bin (it looked like shadow acne).
+Round the kind in the fragment (`floor(v_kind + 0.5)`).
+
+**Look and measure.** `tools/glshot/furniture_shot.gd` lines every piece up on a pavement in
+seconds (`OLD=1` the old meshes in the same places, `NIGHT=1`, `WEAR`, `WET`, `AD`, `PLANTS=1` the
+five plantings, `DEBUG=1 CULL=0` paints front faces by normal and back faces red).
+`tools/street_furniture/probe.gd` lists the pieces of the FULL chunks round a point with an EYE.
+Checks: `tests/street_furniture_checks.gd` (`tools/street_furniture/checks_only.tscn` runs them
+alone in a minute): the meshes (one surface on the shader, budget, real height, shadow twins), the
+shader's kinds, the atlas, the shares, the hydrant facing the street, the bin by district, every
+bus stop keeping its shelter, the stop benches by a shelter with their own ids and gone once
+smashed, and a metered downtown block built the same with the furniture off (props by id, kind
+and place, buildings, cans, cars, EncampmentItems, and the camp / kerb / vendor batches' counts).
+
+**Frame cost** (`tools/geo_count.gd`, opengl3, 800x600, `--spawn=1918,795.5,97,-6,2 --hour=12.5`,
+the downtown pavement at block 20,4, `STREET_FURNITURE=0` then `1`): 4,471,498 -> 4,401,483
+triangles (-1.6 %: the Poly Haven hydrant and can scans were heavier than the code pieces with
+their LODs), 3,086 -> 3,084 draws, 3,611 -> 3,609 objects. One batch per kind a chunk, like the
+pieces they replace; the stop bench is one more batch where a chunk has one.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the galvanising, the paint's sheen and the
+ad's colours want a Mac look. Break effects are prop-destruction's; these props still break into
+the chunk's generic debris boxes. The meters, hydrants and racks keep their old placements, so
+one can stand close to one of StreetLamps' or StreetSignKit's poles where the old rolls put it
+(nothing was moved to keep every roll and id). The plaza and park benches keep the Poly Haven
+kit bench and the shelters their own bench; suburban trash cans keep the corrugated scan. The
+bench ad art is eight flat designs, no photography (no real people).

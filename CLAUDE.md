@@ -2511,6 +2511,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   city: `lod_box`es and the canopy slab. Kit warmed on the loading
   screen. Names and prices invented. `ROADSIDE=0` is the A/B; `tools/roadside_probe.tscn` finds
   pads; checks `tests/roadside_checks.gd` (alone: `tools/roadside/checks.tscn`).
+- Street furniture (2026-10-05, docs/HANDOFF.md "Street furniture"): `StreetFurniture`
+  (`scripts/world/street_furniture.gd`) builds in code at real size the LA wet-barrel hydrant,
+  the smart meter and the pay station, a concrete bench with a painted ad back beside a third of
+  the bus shelters (invented advertisers, 555 numbers: `tools/make_bench_ads.py` ->
+  `bench_ads.jpg`), the perforated downtown bin (a TrashCan's mesh by district), the galvanised U
+  rack and the kerb planter - one shader (`street_furniture.gdshader`: kind in COLOR.a x 16, paint
+  and wear in INSTANCE_CUSTOM; round the kind in the fragment, an interpolated 8.0 reads 7.9999),
+  one batch per kind a chunk, generated LODs and shadow twins. Same calls, ids, rolls and
+  collision as the old pieces; pay stations and stop benches are hashes; the benches are props
+  with their own ids (`ad_bench_<n>`, `_own_prop()`), planned at the shelter and made props only at
+  the finish (`StreetFurniture.commit()`: later passes read `prop_records`); the shelters and the kerb carts (KerbBins)
+  are not ours. `STREET_FURNITURE=0` is the A/B. Look with `tools/glshot/furniture_shot.gd`
+  (seconds; `OLD=1` the before), find pieces with `tools/street_furniture/probe.gd`; checks
+  `tests/street_furniture_checks.gd` (`tools/street_furniture/checks_only.tscn` alone).
 - Port (roadmap #35, 2026-09-27): the container terminal (`MacroMap.port_rect`) is
   `CityChunk._build_port()` laying out `PortKit` (`scripts/world/port_kit.gd`), all built in code.
   **The old port's rolls stay** on the block rng in the old order (rows, columns, the 30 % truck

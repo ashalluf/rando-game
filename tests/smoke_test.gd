@@ -2335,6 +2335,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Freeway incidents (tests/freeway_incidents_checks.gd): the schedule, a stall with its patrol
 	# car and tow, debris that traffic changes lanes round, a slowdown, the message signs.
 	await load("res://tests/freeway_incidents_checks.gd").new().run(self, city)
+	# Street furniture (tests/street_furniture_checks.gd): the meshes, the shader's kinds, the rolls,
+	# a metered block and collection day's carts built the same with the furniture off.
+	load("res://tests/street_furniture_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
