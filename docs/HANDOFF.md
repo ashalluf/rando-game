@@ -14201,3 +14201,74 @@ streets' glow stands in). The lamps stand where the old ones stood, and on some 
 is beside a utility pole (StreetDetail's), which the old thin post hid better. No real light
 shaped like the cobra's cut-off (still an omni). Shot lamps break as before (debris box), no
 falling pole.
+
+## 9d?. Street props that break like GTA (fleet wave 2, wt/prop-destruction; VISUAL_ROADMAP row "?")
+
+Every breakable street prop used to break the same way: hidden, four grey boxes thrown, Sfx
+`break`. A car hitting one stopped dead against its static box. Now `PropBreak`
+(`scripts/world/prop_break.gd`, static) breaks them by their **kind** (the `kind` CityChunk's
+`_add_prop()` records), never by their mesh - street lamps are StreetLamps' models, the
+furniture is being replaced in parallel - and the pieces are copies of the prop's own batch
+instances: `_add_prop()` now keeps each instance's mesh, final (relief-lifted) transform, colour
+and custom data in the record (`[key, index, mesh, xform, color, custom]`, read back from
+`MultiMeshBatch.data()`), and a piece is a one-instance MultiMesh, so a newsbox keeps its paint
+and a lamp its type through its shader's INSTANCE_CUSTOM.
+
+- **hydrant**: sheared off and thrown up (11 m/s, a PhysicsBudget body), the flange left standing
+  (`PropStub`), and a `HydrantGeyser` (`scripts/world/hydrant_geyser.gd`) at its foot: a column of
+  hose_water.gdshader streaks at `jet_speed` 16 m/s (13 m high), a crown of white puffs breaking
+  up, a ring of falling rain, foam at the foot, the roar (`amb_fountain` + `rain`, re-routed to the
+  World bus), and the wet ground: `shaders/wet_patch.gdshader` on a disc, darkening and mirroring
+  the sky by Fresnel (emitted, `sky_tint`), ragged-edged, rung by falling drops, spreading over
+  `patch_grow_seconds`. 45 s at full pressure, 8 s sagging (the speed sets the height), then the
+  patch dries back from its edge over 40 s and the node goes. Whoever stands in the column is
+  thrown up it (`lift_speed` 15 m/s - over the top on purpose) and loose bodies over it are lifted
+  (an impulse a step; VehicleBody3D clears forces). `max_live` 6; a new one ends the oldest. The
+  puffs dim with `DayNight.lamp_now`.
+- **bus_stop**: the first break only takes the glass (`PropBreak.survives()`): every instance
+  whose key says "glass" hidden, 340 tempered cubes (`PropShards`, single cubes and small clumps)
+  thrown off the pane's rect, the record kept alive at `FRAME_HEALTH`. Broken again, or by a car
+  over `SHELTER_SMASH_SPEED`, the frame comes down as one body per remaining piece.
+- **lamp** (and stop_sign, street_sign, signal): a hit under `LEAN_FROM` (a round) pops a lamp -
+  its pool hidden, its OmniLight freed (the record now owns it, `PropBreak.own_light()`; a shot-out
+  lamp used to keep lighting the pavement), glass tinkling from its head - and never fells it. A
+  hit between LEAN_FROM and `FALL_AT[kind]` BENDS the post at its foot (every instance and shape
+  turned about the base, more per hit); a harder one, or a bend past `MAX_LEAN`, fells it: a
+  `FallingPole` (`scripts/world/falling_pole.gd`, one body of the whole pole) hinged to the chunk's
+  StreetProps body at its foot, swung over the way it was hit, let go past `RELEASE_ANGLE`, slamming
+  down with a crash and dust. **Trap:** a box swung about its own bottom edge digs its corner into
+  the pavement and stands the pole back up - the felled pole's boxes are cut `FOOT_CLEAR` off the
+  foot. Signs use their normal health for rounds and fall when it runs out.
+- **mailbox / newsbox**: the box knocked over as a body and a burst of letters (envelopes drawn in
+  code: stamp, postmark, address lines) or folded newspapers (masthead, photo, columns; no
+  lettering) that flutter down (drag, sway, tumble) and lie flat on the pavement.
+- **meter**: snapped off and flung spinning, a stub of pipe left, coins everywhere.
+- Anything else breaks the old way.
+
+**PropShards** (`scripts/world/prop_shards.gd`): ONE MultiMesh per burst simulated in GDScript like
+the brass (a gravity arc, a ground plane at the pavement the prop stood on, bounces, rest), lying
+`LINGER` seconds, then shrinking away; `MAX_NODES` 10 bursts. **Cars smash through**:
+`PropBreak.smash_ahead()` (one line in `Vehicle._update_wheels()`, before the crash watch) runs one
+box query ahead of a physical car over `SMASH_MIN` 5 m/s each step it runs its script; a prop in
+it takes `speed x SMASH_DAMAGE`, breaks BEFORE the solver meets it (`break_prop()` now disables a
+dead prop's shapes at once), the car loses `SLOW[kind]` of its speed, takes a HIT_CRASH dent and,
+for a felled pole, passes through it (`FallingPole.pass_through()`: hinged, it is pinned to the
+world and stopped the car dead). Below the threshold, or a pole only bent, the car hits it as before.
+A destroyed prop on a rebuilt chunk leaves its stub (`PropBreak.remains()`, the `is_destroyed`
+early return in `_add_prop()`). `PROP_BREAK=0` in the environment is the A/B.
+
+Hooks in shared files (each a line or two): `CityChunk._add_prop()` (instance data, remains),
+`damage_prop()`, `break_prop()`, both lamp builders and Broadway's lamp (`own_light`),
+`Vehicle._update_wheels()`, tests/smoke_test.gd (one line), still_shot.gd (`PROPS=` staging).
+
+Look: `tools/glshot/prop_break_shot.gd` (the props alone on a pavement, seconds a frame; `BREAK=`,
+`CAPS=`, `CAR=1` drives a sedan through the hydrant and the lamp, `NIGHT=1`), in the city
+`PROPS=hydrant,lamp,... still_shot.gd` (`tools/glshot/prop_break_city_stage.gd`: PB_FIND,
+PB_TIME, PB_EYE_*). Checks: `tests/prop_destruction_checks.gd` (on a deck 300 m up, a chunk of its
+own). Compile: `tools/prop_break/compile.gd`. Stills on `shots/prop-destruction`.
+
+Not done / not verified: nothing of it on Forward+ (the wet patch's mirror, the geyser under TAA
+and bloom); no water on the ground beyond the disc (the road's own `road_wetness` is global); a
+geyser does not knock a car off the road, it only floats it; bent poles are not persisted (only
+destroyed ones); signals' heads keep their timing shader on a felled pole (it lies there lit);
+no player-on-foot smashing (boosting into a lamp stops you, as before).

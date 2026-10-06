@@ -1204,6 +1204,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   staggered by distance, `max_alarms` 7. A/B: `TREE_FIRE=0`, `BLAST_AFTERMATH=0`,
   `CAR_ALARMS=0` in the environment. Stills: `AFTERMATH=palms|burning|charred|column|crater` on
   `still_shot.gd` (`tools/glshot/aftermath_stage.gd`). Checks: `tests/explosion_aftermath_checks.gd`.
+- Street props break by KIND (2026-10-06, docs/HANDOFF.md "Street props that break like GTA"):
+  `PropBreak` (`scripts/world/prop_break.gd`) takes `damage_prop()` / `break_prop()`: a hydrant
+  leaves a `HydrantGeyser` (13 m column, wet patch, lifts the player) and a flange; a shelter loses
+  its glass to `PropShards` cubes, then its frame; a round pops a lamp (its OmniLight is the
+  record's, `own_light()`), a hard hit bends a pole, a harder one fells it (`FallingPole`, hinged
+  at its foot); mailboxes / news boxes burst into paper; meters snap off with coins. Pieces are
+  copies of the prop's own batch instances (`_add_prop()` keeps mesh, transform, colour, custom),
+  never a kind's mesh. Cars over 5 m/s smash through (`smash_ahead()` from Vehicle's step).
+  `PROP_BREAK=0` is the A/B; stills `tools/glshot/prop_break_shot.gd`, `PROPS=` on still_shot.gd;
+  checks `tests/prop_destruction_checks.gd`.
 - Building damage (2026-10-05, docs/HANDOFF.md 9cf): `BuildingDamage`
   (`scripts/world/building_damage.gd`) keeps up to `MAX_RECORDS` (32) records per building in
   `WorldState.building_damage` (key: seed and lot) - a point in the building's own space and a kind

@@ -18,7 +18,7 @@ static func stage(tree: SceneTree, kinds_env: String, cam: Camera3D) -> String:
 	var best_ch: CityChunk = null
 	var best_d := INF
 	var all: Array = []
-	for ch in _chunks(tree.current_scene):
+	for ch: CityChunk in _chunks(tree.current_scene):
 		for r: Dictionary in ch.prop_records:
 			if r.dead or not kinds.has(String(r.kind)):
 				continue

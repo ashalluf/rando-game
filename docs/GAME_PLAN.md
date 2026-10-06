@@ -1470,6 +1470,14 @@ already mapped so milestone 2 is script-only.
   real geometry on its window grid; the old 150 ft limit holds. docs/HANDOFF.md "The historic
   core"; CLAUDE.md "Historic core".
 
+- **2026-10-06 Street props break by what they ARE, GTA-style.** A hydrant knocked off sends up a
+  geyser for a while (and throws you up it), a shelter's glass bursts into tempered cubes, lamp
+  posts bend and then fall from the foot, mailboxes and news boxes burst open with paper, meters
+  snap off; a car at speed smashes through instead of stopping dead. Behaviour is keyed on the
+  prop record's kind and the pieces are copies of its own instances, so it survives the furniture
+  and lamps being re-modelled. Rounds pop a lamp but never fell it. docs/HANDOFF.md "Street props
+  that break like GTA"; CLAUDE.md "Street props break by KIND".
+
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
   in the afternoon, backlighting the mountain faces the city looks at. Realism wins over the old
