@@ -47,7 +47,6 @@ const CAR_CLEAR := 2.8
 const DECK_DRAW := 170.0
 const SET_DRAW := 95.0
 const UMBRELLA_DRAW := 140.0
-const PLANT_DRAW := 85.0
 const SHADOW_DISTANCE := 50.0
 ## Umbrella canvases (sRGB): the restaurant's colour, one per parklet.
 const CANVAS := [Color(0.93, 0.91, 0.84), Color(0.12, 0.2, 0.32), Color(0.6, 0.12, 0.1),
@@ -264,22 +263,6 @@ static func _build_one(chunk: CityChunk, block: Dictionary, pk: Dictionary, hour
 	var paint: Color = PLANTER_PAINT[int(_h01([plan.seed, "parklet_paint", key]) * PLANTER_PAINT.size()) % PLANTER_PAINT.size()]
 	var lit := 0.5 if open_now else 0.0
 	chunk._batch.add(K_DECK + str(int(length)), ParkletKit.deck(length), xf, Color.WHITE, Color(paint.r, paint.g, paint.b, lit + seed01))
-	# The planting: a row of ornamental grass (a cheap scan, 941 triangles), a clipped shrub at
-	# each end; one species of each a parklet.
-	var clump := 0
-	var shrub := int(_h01([plan.seed, "parklet_shrub", key]) * 4.0) % 4
-	var spots_p := ParkletKit.plant_spots(length)
-	for i in spots_p.size():
-		var s: Vector3 = spots_p[i]
-		var h := _h01([plan.seed, "parklet_plant", key, i])
-		var tint := Color(0.9 + 0.2 * h, 0.95 + 0.1 * h, 0.9)
-		if i == 0 or i == spots_p.size() - 1:
-			var pb := Basis(Vector3.UP, h * TAU).scaled(Vector3.ONE * (0.5 + 0.12 * h))
-			chunk._batch.add("shrub_%d" % shrub, PropFactory.model_shrub(shrub), Transform3D(pb, xf * s), tint)
-		else:
-			var pb := Basis(Vector3.UP, h * TAU).scaled(Vector3.ONE * (1.25 + 0.4 * h))
-			chunk._batch.add("gclump_%d" % clump, PropFactory.model_grass_clump(clump), Transform3D(pb, xf * s), tint)
-	chunk._batch.set_draw_distance("gclump_%d" % clump, PLANT_DRAW)
 	# Collision: the deck (stood on), the planters along the road and the end screens.
 	var gy := chunk._gy(c.x, c.y)
 	var hx := length * 0.5

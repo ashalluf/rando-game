@@ -4543,6 +4543,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `STREET_VENDORS=0` turns it off (the A/B). Look with `tools/glshot/vendor_shot.gd` (the stands
   alone, seconds; `NIGHT=1`) and find them with `tools/vendor_probe.gd`; checks:
   `tests/street_vendors_checks.gd`.
+- Parklets (fleet wave 2, docs/HANDOFF.md "Outdoor dining parklets"): `Parklets`
+  (`scripts/world/parklets.gd`) reads every FULL building's ground-floor shop fronts
+  (`Building.shop_fronts`, recorded beside `shop_pools`) and, for a CAFE or RESTAURANT room on the
+  block's +x / +z face at the back of the pavement, rolls a timber deck into the parking lane
+  (`ODDS` by district, hash of seed + shop; clear of the corners, stops, red kerbs, trucks, road
+  works, bike lanes). `ParkletKit` builds it in code on `shaders/parklet.gdshader` (deck, painted
+  planters with clipped boxwood, slatted end screens, a festoon on four posts lit after dark,
+  delineators, wheel stops; bistro sets laid or bare; umbrellas open by day, furled after 19:30).
+  Collision is its own `Parklets` StaticBody3D (never `_add_prop`: prop ids stay put); sets are
+  `EncampmentItem`s. Parked cars skip the stretch after their rolls (`blocks_parking()`).
+  `ParkletDiner` (a Pedestrian): diners seated on the life sit clips (hips solved to
+  `ParkletKit.SEAT_Y`), a waiter walking door -> table. Who sits is `busy(room, hour)`.
+  `PARKLETS=0` is the A/B; probe `tools/parklets/probe.gd`; checks `tests/parklets_checks.gd`.
 - Farmers' market (2026-10-05, HANDOFF "The farmers' market"): `FarmersMarket`
   (`scripts/world/farmers_market.gd`, pure) picks one local street per `CELL` 1.7 km by hash
   (residential / midtown blocks nobody claims) and closes it to cars from `CLOSE_INSET` past each

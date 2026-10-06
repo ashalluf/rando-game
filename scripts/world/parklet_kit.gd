@@ -3,7 +3,7 @@ extends RefCounted
 ## The pieces of an outdoor dining parklet (Parklets), built here in code at real size on one
 ## shader (shaders/parklet.gdshader): the deck with its planters, end screens, light posts, the
 ## festoon of bulbs strung between them, the delineators and wheel stops out on the road; the
-## bistro sets (a table and two chairs, laid for two or bare); the canvas umbrellas, open or
+## clipped boxwood in the planters; the bistro sets (a table and two chairs, laid for two or bare); the canvas umbrellas, open or
 ## furled. Every mesh is one surface in StreetClutter's vertex format (colour alpha = what the
 ## face is, UV in metres, UV2 = roughness and metallic), so a chunk's parklets are a handful of
 ## MultiMesh draws.
@@ -23,6 +23,7 @@ const A_BULB := 0.3
 const A_GLASS := 0.35
 const A_CHINA := 0.4
 const A_FOOD := 0.45
+const A_LEAF := 0.5
 const A_SOIL := 0.55
 const A_MARBLE := 0.6
 const A_RATTAN := 0.65
@@ -111,8 +112,7 @@ static func set_spots(length: float) -> Array:
 	return out
 
 
-## The deck of `length` metres: boards, fascia, planters (soil showing; the plants are batch
-## instances of the city's foliage), end screens, light posts and the festoon, delineators and
+## The deck of `length` metres: boards, fascia, planters with a clipped hedge, end screens, light posts and the festoon, delineators and
 ## wheel stops on the road. The planters take the instance's paint.
 static func deck(length: float) -> Mesh:
 	var key := "deck_%d" % int(length * 10.0)
@@ -153,6 +153,16 @@ static func deck(length: float) -> Mesh:
 			Vector3(cx + ml * 0.5 - 0.04, DECK_Y + PLANTER_H - 0.07, pz + PLANTER_D * 0.5 - 0.05),
 			Vector3(cx - ml * 0.5 + 0.04, DECK_Y + PLANTER_H - 0.07, pz + PLANTER_D * 0.5 - 0.05), Vector3.UP,
 			Color(0.16, 0.11, 0.08, A_SOIL), Vector2(0.95, 0.0))
+	# A clipped boxwood hedge along the planters: overlapping lumps, a little taller at the ends.
+	var hedge_y := DECK_Y + PLANTER_H - 0.07
+	var lumps := int(floor((length - 0.2) / 0.27))
+	for k in lumps:
+		var x := -hx + 0.1 + (length - 0.2) * (float(k) + 0.5) / float(lumps)
+		var j := fposmod(sin(float(k) * 12.9898 + length) * 43758.5453, 1.0)
+		var end := 1.0 if k == 0 or k == lumps - 1 else 0.0
+		var r := Vector3(0.2 + 0.05 * j, 0.19 + 0.06 * j + 0.12 * end, 0.17 + 0.03 * j)
+		StreetVendors._ellipsoid(st, Vector3(x, hedge_y + r.y * 0.55, pz + (j - 0.5) * 0.05), r, Basis(Vector3.UP, j * 3.0),
+			Color(0.2, 0.32, 0.13, A_LEAF), Vector2(0.7, 0.0), 9, 6)
 	# The end screens: two posts and horizontal cedar slats with gaps, a steel cap rail.
 	var sz0 := 0.12
 	var sz1 := DEPTH - PLANTER_D - 0.02

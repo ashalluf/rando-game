@@ -1469,6 +1469,12 @@ already mapped so milestone 2 is script-only.
   hooks, so its windows, shops, damage and coded far boxes are unchanged) with the ornament as
   real geometry on its window grid; the old 150 ft limit holds. docs/HANDOFF.md "The historic
   core"; CLAUDE.md "Historic core".
+- **2026-10-05 Cafes and restaurants build parklets into the parking lane.** A timber deck with
+  planters, screens, bistro tables, umbrellas and a festoon of bulbs, in front of a shop whose
+  ROOM is a cafe or restaurant (the same room its glass shows), rolled by a hash of the shop; the
+  parked cars skip the stretch after their rolls. Diners sit on the crowd's life clips by the hour
+  the chunk is built at; a waiter walks between the door and the tables. FULL chunks only.
+  docs/HANDOFF.md "Outdoor dining parklets"; CLAUDE.md "Parklets".
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
