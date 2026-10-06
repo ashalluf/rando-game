@@ -293,6 +293,7 @@ static func build_chunk(ch: CityChunk) -> void:
 	_commit_texts(ch)
 	_fixtures(ch, area, macro)
 	_gate_service(ch, area, seed_value)
+	HeliPads.airport_chunk(ch, area, macro)
 
 
 ## Ground kinds (ground_pieces()): the apron, the infield grass, a taxiway, a runway.

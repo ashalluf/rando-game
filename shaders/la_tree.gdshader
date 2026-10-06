@@ -1,5 +1,6 @@
 shader_type spatial;
 render_mode cull_disabled;
+#include "res://shaders/heli_downwash.gdshaderinc"
 
 // The code-built Los Angeles trees and accents (scripts/world/la_trees.gd). One shader for bark
 // and leaves: UV2.x is what a vertex is (LaTrees' B_* and L_*; a cluster card's style rides in
@@ -76,6 +77,7 @@ void vertex() {
 	float bend = h * h * bend_scale * w;
 	VERTEX.x += bend * gx;
 	VERTEX.z += bend * gz;
+	VERTEX += heli_wash_offset(MODEL_MATRIX, h, radial, around, bend_scale * 8.0, TIME, phase);
 	if (v_kind >= 8.0) {
 		// The flutter: along the leaf's normal, nothing at its stalk, most at its tip.
 		float lp = fract(UV2.y * 7.31) * 6.28;

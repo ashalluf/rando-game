@@ -380,6 +380,19 @@ func _initialize() -> void:
 		for i in _env_int("STREET_FRAMES", 8):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
+	# HELI=hover|pad: a running helicopter held over the ground ahead of the camera, or a free
+	# camera framing the helicopter pad nearest it (FlyableHeli.stage_for_shot; HELI_* there).
+	var heli_env := OS.get_environment("HELI")
+	if heli_env != "" and current_scene:
+		var heli_eye: String = load("res://scripts/vehicles/flyable_heli.gd").call("stage_for_shot", heli_env, get_root().get_camera_3d())
+		if heli_eye != "":
+			OS.set_environment("EYE", heli_eye)
+			OS.set_environment("EYE_AGL", "")
+			print("HELI eye ", heli_eye)
+			_eye(player, fov)
+		for i in _env_int("HELI_FRAMES", 40):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
 	# BIG=bus|semi: a bus standing at its stop (doors open, kneeling) or a semi on the freeway
 	# nearest the camera, and a free camera framing it (see _stage_big).
 	var big_env := OS.get_environment("BIG")

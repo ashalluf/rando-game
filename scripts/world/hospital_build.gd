@@ -722,6 +722,8 @@ static func _helipad(ch: CityChunk, st: Dictionary) -> void:
 	# The deck's own glow from the floods (an additive pool on the deck at night).
 	(st.batch as MultiMeshBatch).add("h_pool", PropFactory.light_pool(Color(1.0, 0.95, 0.85), 0.6),
 			Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(side * 1.1, 1.0, side * 1.1)), Vector3(cw.x, deck + 0.03, cw.y)))
+	# The air ambulance waiting on it (HeliPads, FlyableHeli).
+	HeliPads.hospital(st.node, Vector3(cw.x, deck, cw.y), _d(lay, 0.0, 1.0))
 
 
 ## The parking structure behind the podium (ArenaGrounds.garage, its drive-in to the back

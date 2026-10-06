@@ -14201,3 +14201,99 @@ streets' glow stands in). The lamps stand where the old ones stood, and on some 
 is beside a utility pole (StreetDetail's), which the old thin post hid better. No real light
 shaped like the cobra's cut-off (still an omni). Shot lamps break as before (debris box), no
 falling pole.
+
+## 9d?. The flyable helicopter, 2026-10-05 (agent branch `wt/heli-flyable`; VISUAL_ROADMAP "?")
+
+The task: "the player can take a helicopter from the helipads (rooftops, the hospital, the police
+HQ, the airport) and fly it - collective on jump/boost, cyclic on the move axes, yaw - with the
+rotor disc shader and rotor sound AirTraffic's Helicopter uses, a downwash that kicks dust and
+bends palms below, and crash physics. Reuse the Helicopter model."
+
+### What it is
+
+- **`FlyableHeli`** (`scripts/vehicles/flyable_heli.gd`) extends `Vehicle` with no wheels, like
+  the flyable jets extend it with theirs: the player's interact gets in and out with no new code
+  (`enter_vehicle()` unfreezes it), PhysicsBudget turns its script off when far, CarLights and
+  DrivingFX skip it (no lamps, no wheels). It wears `assets/models/helicopter.glb` with the air
+  traffic's material recipe (four liveries: private in Rooftops' colourways, police, news, an
+  invented air ambulance - white over navy, an orange band, never a cross), the rotor discs on
+  `shaders/rotor_disc.gdshader` faded in over the blades with the rotor speed, the nav lights,
+  strobes, beacons and landing light on `aircraft_lights.gdshader`, and the `rotor_loop` Sfx
+  pitched and levelled by the rotor and the load. Collision: cabin, boom, fin, two skid boxes.
+- **Flight.** `spool` (0..1) runs up over `spool_time` while somebody is at the stick and down
+  after; thrust is along the body's up, capped at `max_thrust` x spool squared. Collective: jump
+  climbs to `climb_rate`, boost descends at `descent_rate`, neither holds the height (a P loop on
+  the vertical speed, divided by the tilt so a leaning helicopter does not sink). Cyclic: the move
+  axes ask for a pitch / roll up to `max_pitch_deg` / `max_roll_deg`; the thrust tilts with it,
+  so it accelerates the way it leans, like the real thing; quadratic `drag` sets the top speed
+  (~65 m/s) and `slip_damp` makes it fly where its nose points past `coordinate_speed`. Hands off,
+  it tilts against its own drift (`brake_tilt`) and comes to a hover. Yaw: the nose turns toward
+  the camera's heading at `yaw_rate` (the mouse or the right stick steers, as the cars' flight
+  does); on the skids with the collective down it does not turn. The attitude is chased by
+  blending the angular velocity toward an axis-angle error (`attitude_response`, `max_rate`),
+  scaled by the rotor's authority.
+- **Crashes.** `_crash_watch_heli()` (a body with no wheels has no Vehicle crash watch) turns a
+  velocity change past `crash_dv` in one step into hp (`crash_damage` per m/s). Every third step
+  a thin cylinder round the hub at the blades' sweep is asked against the world and terrain: a
+  hit is a **rotor strike** - the four blades thrown as debris bodies, the disc gone, the engine
+  dead, a metal crash and a camera shake. Rounds and blasts come through `take_hit()` (hp 160:
+  smoke at half, engine dead at none). Dead in the air it spins round the mast (the tail rotor's
+  torque gone) and sinks on what is left of the rotor; it explodes on a hard impact, or
+  `burn_seconds` after settling on fire: `Explosion.blast()`, the player thrown out, charred
+  materials, fire and smoke, out of the `vehicle` group, PhysicsBudget debris for
+  `wreck_lifetime`.
+- **Downwash.** `HeliDownwash` (`scripts/vehicles/heli_downwash.gd`, the helicopter's child): a
+  ray under the hub every 0.1 s; inside `reach` (36 m) a ring of dust (`AmbientCraft`'s puff
+  material, radial acceleration outward; spray over the sea) at the ground, thicker the lower and
+  harder the rotor works; loose props (RigidBody3D, not vehicles) inside `push_radius` blown
+  outward; and the `heli_downwash` shader global (hub xyz, strength) - the strongest wash owns it.
+  `shaders/heli_downwash.gdshaderinc` is included by `foliage.gdshader` (palms), `foliage_tex`
+  (the scanned trees), `la_tree` and `grass`: within 24 m (grass 30 m) and 50 m under the hub a
+  plant leans away from under the rotor, right under it the crown is pressed down and out round
+  the trunk, everything shivers; grass lies flat in rings running outward. One branch on `w` when
+  no helicopter is low: nothing else changes.
+- **Where they wait.** `HeliSpot` (`scripts/vehicles/heli_spot.gd`) holds a helicopter's place.
+  `HeliPads` (`scripts/world/heli_pads.gd`) puts them: on every pad Rooftops parks a helicopter
+  (`HELI_SHARE`) the merged parked mesh is the **stand-in**, swapped for a real (frozen) body when
+  the player comes within 75 m and back once he is 160 m off and nobody has flown it - so a city
+  of rooftop pads costs nothing until you climb one; on half the landmark tower pads (a hash of
+  the pad: news or private); on the hospital's tower pad (the air ambulance); on a raised pad
+  (Rooftops' own kit, `landmark_helipad()`) on the police headquarters' roof (a police
+  helicopter); and on two painted pads on the airport's east apron by the hangars (news and
+  private; `AIRPORT_PADS`, picked by `tools/heli/probe.gd` clear of the gates, the parked jets,
+  the masts and the staging rows). Those few are `eager` (made when their FULL chunk is). The body
+  lives under the city root like a parked car; a flown one outlives its pad's chunk, and its spot
+  makes another when it is gone. Hooks: one line each in `Rooftops._parked_helicopter()` and
+  `landmark_helipad()`, `HospitalBuild._helipad()`, `PoliceStation.build_lot()` (the HQ only) and
+  `Airport.build_chunk()`.
+- **Camera.** While flying the chase camera sits at `camera_distance` (15 m; the player's own
+  6.5 m comes back on the way out).
+
+### Controls (for the owner)
+
+E at a helicopter gets in. Wait a couple of seconds for the rotor. Space climbs, Shift
+descends, let go of both and it holds its height. W / S / A / D tilt it (forward, back,
+sideways) and it flies that way; let go and it levels off and stops by itself. Turn with the
+mouse: the nose follows the camera. Land by holding Shift until the skids touch, then E.
+Don't put the rotor into a building.
+
+### Tunables most likely to need changing
+
+`climb_rate` 13, `descent_rate` 10, `max_pitch_deg` 26, `max_roll_deg` 24, `yaw_rate` 1.5,
+`brake_tilt` 0.02, `drag` 0.0011 (top speed), `spool_time` 3.2, `crash_dv` 9, `max_hp` 160,
+`camera_distance` 15; the wash's `reach` 36 and the shader's 24 m reach and bend gains.
+
+### Checks, stills, A/B
+
+`tests/heli_flyable_checks.gd` (one line in `smoke_test.gd`). `HELI_FLYABLE=0` builds no spots
+and no pads. Stills: `HELI=hover` (HELI_DIST, HELI_AGL, HELI_SIDE, HELI_YAW, HELI_LIVERY) and
+`HELI=pad` (HELI_SPOT, HELI_TURN, HELI_BACK, HELI_UP) on `tools/glshot/still_shot.gd`.
+
+### Not done / not verified
+
+- Never flown by a person: every feel number is from the checks' scripted inputs, not from hands
+  on a keyboard. Expect to tune.
+- No interior or pilot drawn (the canopy is the model's dark mirror glass, as the air traffic's).
+- The downwash bends the shader plants only; the hill shells, the climbers and the encampments'
+  tarps do not react.
+- Forward+ not looked at (opengl3 stills only).

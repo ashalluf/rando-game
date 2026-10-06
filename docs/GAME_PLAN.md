@@ -1469,6 +1469,14 @@ already mapped so milestone 2 is script-only.
   hooks, so its windows, shops, damage and coded far boxes are unchanged) with the ornament as
   real geometry on its window grid; the old 150 ft limit holds. docs/HANDOFF.md "The historic
   core"; CLAUDE.md "Historic core".
+- **2026-10-05 The player flies helicopters (an arcade model, not a simulator).** The air
+  traffic's model on a real body (`FlyableHeli`, a wheel-less Vehicle): jump / boost the
+  collective with an altitude hold hands off, the move axes the cyclic (it goes the way it leans,
+  and levels and stops itself when let go), the nose follows the camera; an auto-flare near the
+  ground. Crashes are real (hard knocks, rotor strikes, bullets; dead it spins, falls and
+  explodes). Rooftop pads' parked helicopters stay a merged mesh until the player is near. The
+  downwash is one shader global the plant shaders bend to. docs/HANDOFF.md "The flyable
+  helicopter".
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north

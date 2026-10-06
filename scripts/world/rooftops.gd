@@ -804,6 +804,7 @@ static func _parked_helicopter(b: Building, at: Vector3, quarter: int, livery: i
 		mi.transform = xf
 		mi.visibility_range_end = 380.0
 		b.add_child(mi)
+		HeliPads.rooftop(b, xf, livery, mi)
 		return
 	var inst := _heli_instance(livery)
 	if inst == null:
@@ -811,6 +812,7 @@ static func _parked_helicopter(b: Building, at: Vector3, quarter: int, livery: i
 	inst.name = "ParkedHelicopter"
 	inst.transform = xf
 	b.add_child(inst)
+	HeliPads.rooftop(b, xf, livery, inst)
 
 
 static var _heli_meshes: Dictionary = {}
@@ -1447,7 +1449,7 @@ static var _landmark_pads: Dictionary = {}
 ## A helipad on a LandmarkDowntown tower's flat roof (its TOWERS row's "helipad": [local centre
 ## on the roof, deck size, quarter turns]): the same pad as a Building's, on its own node at
 ## `at` (the tower's anchor), with collision on `statics` when there is one.
-static func landmark_helipad(parent: Node3D, at: Vector3, pad: Array, statics: StaticBody3D) -> void:
+static func landmark_helipad(parent: Node3D, at: Vector3, pad: Array, statics: StaticBody3D, heli_spot: bool = true) -> void:
 	if not enabled:
 		return
 	var local: Vector3 = pad[0]
@@ -1474,3 +1476,5 @@ static func landmark_helipad(parent: Node3D, at: Vector3, pad: Array, statics: S
 		cs.shape = box
 		cs.position = at + local + Vector3(0, PAD_RISE - 0.15, 0)
 		statics.add_child(cs)
+		if heli_spot:
+			HeliPads.landmark(parent, at + local + Vector3(0, PAD_RISE, 0), turn)

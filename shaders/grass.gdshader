@@ -1,5 +1,6 @@
 shader_type spatial;
 render_mode cull_disabled, depth_draw_opaque;
+#include "res://shaders/heli_downwash.gdshaderinc"
 
 // A tuft of grass blades for a MultiMesh: the blades sway with the wind, darken toward the
 // ground, and pick up translucency at the tips.
@@ -60,6 +61,7 @@ void vertex() {
 	float bend = height_t * height_t * wind_strength * w * sway;
 	VERTEX.x += bend * wind_dir.x;
 	VERTEX.z += bend * wind_dir.y;
+	VERTEX += heli_wash_grass(MODEL_MATRIX, world, height_t, max(VERTEX.y, 0.0), TIME);
 }
 
 

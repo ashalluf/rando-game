@@ -278,3 +278,7 @@ road_stamp_near={
 "type": "float",
 "value": 0.0
 }
+heli_downwash={
+"type": "vec4",
+"value": Vector4(0, -10000, 0, 0)
+}

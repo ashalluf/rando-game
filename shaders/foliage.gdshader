@@ -1,5 +1,6 @@
 shader_type spatial;
 render_mode cull_disabled;
+#include "res://shaders/heli_downwash.gdshaderinc"
 
 // Wind sway and light for the generated foliage (palms). Nothing in this city moved except the
 // grass, and a street of palms standing dead still is one of the things that reads as "model"
@@ -99,6 +100,9 @@ void vertex() {
 		float lean = h * h * bend_scale * 4.0 * length(wind_lean) * (0.75 + 0.25 * sin(TIME * 0.7 + phase));
 		VERTEX.xz += normalize(lean_dir.xz + vec2(1e-6)) * lean;
 	}
+
+	// The rotor wash of a helicopter low overhead (heli_downwash.gdshaderinc).
+	VERTEX += heli_wash_offset(MODEL_MATRIX, h, radial, around, bend_scale * 10.0, TIME, phase);
 
 	// 2. Leaflets: quick, tiny, keyed to how far out along the frond the vertex sits, so the tips
 	//    shiver while the rib carrying them is still halfway through its swing.

@@ -474,6 +474,9 @@ static func build_lot(ch: CityChunk, lot: Dictionary) -> void:
 	node.set_meta("key", s.key)
 	ch.add_child(node)
 	_build_detail(node, s, sx, ch.plan.sidewalk_width)
+	if HeliPads.station_pad(bool(lay.hq), s.key):
+		# A roof pad and its police helicopter: the HQ's, and air support on some stations (HeliPads).
+		HeliPads.police_hq(node, Vector3(sx * (bu - L * 0.5), top + 0.05, -bv), Vector2(bw, bd))
 	ch._occluder_boxes.append([xf, Vector3(sx * (bu - L * 0.5), top * 0.5, -bv), bsize - Vector3(0.6, 0.6, 0.6)])
 	ch.building_count += 1
 

@@ -1325,6 +1325,21 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Stills: `AIR=final|takeoff|news|police` on `tools/glshot/still_shot.gd` (the staged jet is
   faded in at once, `AirTraffic._shown()`). The helicopter model is `tools/make_helicopter.py`
   (Blender, headless; ASSETS.md).
+- Flyable helicopter (2026-10-05, fleet "heli-flyable", docs/HANDOFF.md "The flyable
+  helicopter"): `FlyableHeli` (`scripts/vehicles/flyable_heli.gd`) is a wheel-less Vehicle wearing
+  the air traffic's helicopter.glb, so interact gets in and out like a car. Jump = collective up,
+  boost = down, neither holds the height; move axes = cyclic (it accelerates the way the thrust
+  leans; centred, it tilts against its drift and stops); the nose follows the camera. Thrust
+  scales with the rotor's `spool`. Crashes: dv per step past `crash_dv` costs hp, a shape query
+  round the hub is a rotor strike (blades thrown, engine dead, it spins down), bullets through
+  `take_hit()`; dead, it explodes on impact (Explosion.blast, a debris wreck). `HeliDownwash`
+  kicks dust / spray under the hub and owns the `heli_downwash` shader global that
+  `shaders/heli_downwash.gdshaderinc` bends palms, trees, LA trees and grass with. `HeliSpot`
+  makes a real one where a pad has one (`HeliPads`: Rooftops' parked helicopters as stand-ins
+  within `WAKE_DISTANCE`, half the landmark tower pads, the hospital's air ambulance, a pad on the
+  police HQ's roof, two painted pads on the airport's east apron). `HELI_FLYABLE=0` is the A/B;
+  stills `HELI=hover|pad` on `still_shot.gd`; probe `tools/heli/probe.gd`; checks
+  `tests/heli_flyable_checks.gd`.
 - Airport (2026-10-04, "a major international airport, ground and air"; original - invented
   airlines, no real names or logos, a big field's FORMS). Three files. **`Airport`**
   (`scripts/world/airport.gd`, static) is the LAYOUT, all derived from MacroMap's numbers:
