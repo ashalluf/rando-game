@@ -1,0 +1,67 @@
+10:07 main pushed 9eecc00 (integration-a + 82a664c + bus fix + schools seed key + docs). Gate 1362/0, 3.2 GB. Actions run 347 id 37294525206.
+NEXT: oom-fix gate result -> gate wt/oom-fix merged onto main locally -> push (12 batch-3 branches).
+10:21 build-347 released (integration-a).
+10:40 trial merge of wt/oom-fix onto main is clean after unshallow; waiting for oom-fix final gate
+10:51 launched road-wear (session 101) on owner request
+11:03 gate-speed has SHARDS=n parallel smoke runs (3 and 4 pass the plain list) - use for lead gates once merged
+11:15 batch1 = sky alleys stadium rooftops wilshire-deco far-corners cemetery kerbs on branch batch1; gating
+11:20 review feedback sent: service-vehicles film-studio street-lamps civic-buildings shop-vinyl farmers-market apartments historic-core
+11:30 batch3 = batch2 + fwd-review-a road-detail perf-audit reservoir ridges (fleet/batch3 d643d449); batch2 gating in parallel in rando-b2
+11:45 service-vehicles bc10da3 merged into batch3 (9ef7b91e); session re-scoped to rebuild cab-over cab + service parts
+11:35 batch1 gate: 1502/1503, peak 3.32 GB; FAIL deco "rolls nothing" (12). Not reproduced alone, after alleys, or at any forced hour -> smoke rerun with diff print (bemoo1q2x)
+11:35 headless_check.sh cap 900 -> 2400 on batch1 (uncommitted); brief note pushed
+11:36 survey: 50 sessions PENDING since 09:30 (cap ~50 live); 13 finished; rooftops +11.7% helipad close-up accepted
+11:37 roadside feedback (drive-thru static cars + flat wall)
+11:55 shop-vinyl asked to fix mirrored glass lettering (seen in street-life-2 still 12)
+12:00 service-vehicles rebuild done 94b49f5 (gate 1400/0, 3.24 GB, +0.5% suburb frame) -> batch4
+BATCH4 QUEUE: service-vehicles 94b49f5 (follow-up), olvera (after 04b/09b + clean gate), fwd-review-b, estate-night, freight-trains, alleys/rooftops/kerbs/sky/cemetery re-heads?, gate-speed, texture-budget, load-time, police-night, roadside (after drive-thru fix), scooters
+12:01 shop-vinyl 5d88b79 gate 1374/0 (kind lines) -> batch4 after the mirrored-lettering fix
+12:06 farmers-market 027bf5d gate 1389/0 3.2 GB -> batch4
+12:15 batch3 fixes: ridges vs ballpark, boulevard sign posts vs kerb cuts, stray terrain_preview.png; regating (btpex819m). street-furniture told: carts belong to KerbBins, keep shelters
+12:17 film-studio re-shot dacade9a -> batch4 candidate after its report
+12:20 street-lamps owns the intermittent paramedic check failures (seen on stadium, road-detail, street-lamps)
+12:24 chinatown night too dark (9/13/70) - feedback sent; roadside drive-thru fixed 93938ad5
+12:27 build-348 released (batch 1). tower-gondolas told to share towers with Rooftops' BMU
+12:40 batch4 = batch3 + service-vehicles(rebuild) farmers-market freight-trains fwd-review-b estate-night (fleet/batch4 8b4fe11c); not gated yet
+12:45 historic-core 79e018d gate 1509/0 but 58-67 ms step -> asked to slice; street-lamps asked to fix medic pathing + 3 green gates
+14:16 batch4 rebuilt without estate-night (HillHomeKit overlap): fleet/batch4 = e4dbe61e + batch3 6e8c54c1 + freight uids; gating; batch3 regating with blood fix
+14:25 batch5 = batch4 + road-detail memory-audit shader-warm load-time occluders gate-speed texture-budget reflection-probes web-build fwd-review-c far-landmarks civic-buildings scooters driving-fx traffic-ai (fleet/batch5 621419a8); compiles 396/0; memory budget 3600->4000; gate waits
+14:33 batch3 gate 1799/0 peak 3.68 GB -> main b45c52e0 (docs: batches 2+3 on main)
+14:34 batch4 gate 1880/0 peak 3.70 GB; batch5 gate started SHARDS=3
+14:38 batch6 (in /home/user/rando-b2, branch batch6) = batch5 + fwd-review-a utility-poles churches police-night ref-cameras color-grade street-life-2; street-signs out (SignKit collision + duplicate parking plates; sent back); apartments held (flat walk-ups); tower-gondolas held (BMU)
+14:54 build-349 released (batches 2+3). batch4 9599dcbf pushed to main
+15:17 CI run 350 (batch4 on main) FAILED: paramedic stretcher (medic at y 0 under street). Root cause: door spot under Kerbs trimesh pavement. Fix 5b in batch5; told street-lamps
+15:43 batch5 fixes: drop cars, no_trim, yard records, gutter plan, crew surface, keep-clear counts; sharded regate
+15:55 batch5 on main 68a15798 (2088/0 sharded). batch6 gating sharded: batch5 + fwd-review-a utility-poles churches police-night ref-cameras color-grade street-life-2 road-wear estate-night chinatown historic-core film-studio
+16:15 CI 351 (batch5) failed: sky jet wrap flake. Fixed test -> main e37df544
+16:16 ready for batch7: olvera ae18bd5 (1526/0), shop-vinyl 16045f0 (1517/0), roadside fd571be (1527/0)
+16:28 batch6 green (2282, load-cache env flake passes alone) 9b6a567f waiting CI352; batch7 (olvera shop-vinyl roadside) gating sharded
+16:42 batch7 gate 2345/0 sharded; CI 352 failed (driving marks flake) -> fixed ea776e7e; batch6+7 pushed to main 1f3e672e
+17:07 build-353 released (main 1f3e672e = batches 1-7). local plain gate 2313/0 peak 3.1 GB
+17:25 car park oil fix -> main 6a4d7085
+17:37 batch8 (street-signs 166e30f, street-lamps dacd805, tow check fix) gating sharded in rando-b4
+18:12 build-354 released (car park). batch8 plain 2342/0 -> main b983e406; traffic-AI shard-order flake noted
+18:34 CI 355 failed (traffic overlap bus/lane change, rare, pre-existing). Sent to traffic-ai. Docs commit 8f7cd22b re-runs CI (rerun API 403)
+19:20 CI 356 failed: swerve check - StreetErrands._pick_parker parked the test's placed car. Fix: no parker on a staged street or a placed car (rando-b4). traffic-ai pushed c13255ab (turn-in clearance + street-life pull check), gating
+19:58 plain gate 2343/0 3.17 GB -> main 280638ee (errands fix + traffic-ai c13255ab); CI 357
+19:40 traffic-ai gate (no errands fix): 2341/2 - swerve (fixed by errands) + photo_mode 'leaving restores grade...' (passed in my plain gate; watch for flake)
+20:15 CI 357 failed: car lights budget 2 of 3 (pick race, test-only). Fix b857b521 (fresh pick + settle loop); car_lights part 37/0; sharded gate running
+20:35 sharded 2375/0 -> main b857b521 (CI 358)
+20:45 CI 358 cancelled at 15 min (no log; dispatch 403). Docs commit pushed to re-run CI (359)
+21:05 build-359 released (main 3840f94f = batches 1-8 + CI fixes). deploy-web queued
+23:43 WAVE 1 resumed (20): star-boulevard fashion-district parklets prop-destruction car-panic onlookers rain-crowd motorcycles lowriders engine-audio freeway-incidents coast-highway backyards garage-drive-in walk-in-store swimming heli-flyable + apartments tower-gondolas street-furniture. perf-audit done (0 ahead). brief ffb5b30f
+00:58 apartments DONE b31feff3 (2381/0 sharded, 2.49 GB; +0.44M tris +144 draws at 290,-520) -> BATCH9 queue
+BATCH9 QUEUE: apartments b31feff3
+00:58 WAVE 2 start: wingsuit (replaces apartments)
+01:16 tower-gondolas DONE 51bb02a (gates: 2 flaky on police gate / medic stretcher / dogs freed walker, alone pass) -> BATCH9; BATCH9 QUEUE: apartments b31feff3, tower-gondolas 51bb02a
+01:16 WAVE 2: stunt-ramps (replaces tower-gondolas)
+01:58 swimming DONE d6e0679 (swimming_checks 45/45; full gate 2372/0 3.17 GB before FX-only fix) -> BATCH9; BATCH9 QUEUE: apartments b31feff3, tower-gondolas 51bb02a, swimming d6e0679
+01:58 WAVE 2: car-cabins (replaces swimming)
+01:59 BATCH9 = main + apartments tower-gondolas swimming freeway-incidents street-furniture (rando-b4 batch9 46d853f8); gating SHARDS=3
+01:59 WAVE 2: ragdolls, news-crews (replace freeway-incidents, street-furniture)
+02:18 car-panic DONE 48313a4 (2385/0), prop-destruction DONE 3630cba (2399/0) -> BATCH10 QUEUE
+02:18 WAVE 2: crowd-lookat, speedboats (replace car-panic, prop-destruction)
+02:20 lowriders DONE f4904fd (78/78 parts; full 2390 w/ dog flake) -> BATCH10 QUEUE
+02:20 WAVE 2: metro-underground (replaces lowriders). BATCH10 QUEUE: car-panic 48313a4, prop-destruction 3630cba, lowriders f4904fd
+02:25 walk-in-store DONE 9b45bfb (2393/0 sharded, 2.46 GB) -> BATCH10 QUEUE (car-panic, prop-destruction, lowriders, walk-in-store)
+02:26 WAVE 2: foot-ik (replaces walk-in-store)

@@ -7,6 +7,10 @@ the day-to-day work goes, what is fragile, what to do next. Read all three befor
 
 ## 0000000. Fleet wave 2: 100 sessions (2026-10-05, from 09:24 UTC; read this first)
 
+**The newest state is docs/LEAD_HANDOFF.md** (2026-10-06): the fleet stopped on the org's monthly
+spend limit, what is merged, gated and queued, every session's last state and how to resume. This
+section is the narrative of how it got there.
+
 The owner asked for "100 parallel agents, Opus 5.5 strictly, screenshots along the way".
 
 ### Where everything is
@@ -135,9 +139,29 @@ The owner asked for "100 parallel agents, Opus 5.5 strictly, screenshots along t
 - **Four CI runs in a row (355-358) each tripped a different rare timing check**, all in tests,
   none in play. When the next one does, look first for a live system (errands, pull-outs, the
   pick and survey timers) acting on what a check placed, before suspecting the feature.
-- **Waiting:** apartments (walk-ups read as flat stucco boxes) and tower-gondolas (share towers
-  with Rooftops' window-washing rig) were stopped by the usage limit and not resumed. Notes from
-  the sessions: HillHomeKit's far walls read pale under moonlight (estate-night: a lamp_factor dim
+- **Build 359** (21:03) is main with batches 1-8 and those fixes (CI 359 green, released).
+- **Waves since 2026-10-06 00:00** (owner: "keep it going"): the brief now starts sessions from
+  `origin/main`; 20 run at a time (the weekly limit is at a warning) and each finished one is
+  replaced by a never-started one. Wave 1: apartments, tower-gondolas and street-furniture
+  resumed; star-boulevard, fashion-district, parklets, prop-destruction, car-panic, onlookers,
+  rain-crowd, motorcycles, lowriders, engine-audio, freeway-incidents, coast-highway, backyards,
+  garage-drive-in, walk-in-store, swimming, heli-flyable started; then wingsuit, stunt-ramps,
+  car-cabins, ragdolls, news-crews. Review held: star-boulevard's stars copy the real walk of
+  fame's trade dress (pink star, brass rim, charcoal, category emblem) - not merged until it is an
+  original medallion; garage-drive-in's deck cars are the 260-triangle code cars (real bodies
+  asked for); fashion-district's garments were flat cutouts; walk-in-store's products were
+  candy blocks (fixed in v2); onlookers' filming pose read as a boxer's guard.
+- **Batch 9 on main**: apartments (walk-ups with tuck-under parking, galleries, balconies;
+  +0.44 M triangles at --spawn=290,-520), tower-gondolas (live cradles on 5 landmark towers and
+  on Rooftops' BMU of glass infill towers, one cradle a tower), swimming, freeway-incidents
+  (stalls, the patrol car and tow, debris, CMS signs, slowdowns), street-furniture (hydrants,
+  meters, pay stations, racks, ad benches at a third of the shelters). Gate: 2,472 passed,
+  0 failed in 3 shards (2.58 GB a shard). The sessions' own full runs each had one unrelated
+  failure that passed alone (the dog checks' freed walker / a round into a dog, the police gate
+  turn-in, the medic stretcher): watch for them in CI.
+- **Notes from the sessions:** star-boulevard's `geo_count.gd` and `still_shot.gd` hung after
+  "LOADING far city" on its box (main thread in a WorkerThreadPool wait); the lead's own stills
+  on main load fine - check it if another session reports it. Earlier: HillHomeKit's far walls read pale under moonlight (estate-night: a lamp_factor dim
   in far_canopy's estate branch); `IndustrialKit.cyl` winds its walls inward (film-studio).
 - **Usage limit, 12:42-13:09:** 20 sessions stopped on the account's five-hour limit with the
   seven-day one at a warning; the lead resumed the eight nearest done (road-wear, olvera,

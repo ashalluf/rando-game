@@ -1,0 +1,100 @@
+COMPLETED	alleys	10-05T10:41	session_01MtXvEPL59HwaRiupLqduAU	alleys render complete; 1,387 tests pass; stills in merged/
+COMPLETED	apartments	10-06T00:58	session_017tmC2YDcoDeR9t7gkZZWDs	apartments fleet session: 13 stills, brief completed, report sent
+COMPLETED	car-panic	10-06T02:02	session_01TJXNE8KxXkGyfSks7NzaCT	car-panic feature complete: 2,385 tests green, stills on shots/car-pan
+COMPLETED	cemetery	10-05T10:57	session_01NR9LWF3c2CnSPt9VYKdV7z	cemetery perf pass: 15–21% tri reduction, frame costs confirmed, 9 sti
+COMPLETED	chinatown	10-05T15:08	session_01XqGmd488xD3WtaxQA2SAxM	chinatown night lights wired, smoke test pass, pushed at a8f2e66
+COMPLETED	civic-buildings	10-05T11:57	session_01Drzx3yPNKFUVAZAZu6ngnE	watcher cleaned up; branch e8a5537 pushed, green
+COMPLETED	driving-fx	10-05T12:08	session_01SL8298LstyhZsaFJBhD6nR	fleet session driving-fx complete; final report submitted
+COMPLETED	engine-audio	10-06T02:28	session_01PDWFGV9Rjd4Kqio2RscVYR	engine audio: squeal fix, 2,416 checks pass, stills on shots/engine-au
+COMPLETED	estate-night	10-05T15:27	session_01J8LkJVpxXTobiKAqL5ohbZ	estate-night: 4 camera views, 1,891 tests pass, stills in shots/
+COMPLETED	far-corners	10-05T10:26	session_01TWG8SyF8dyEN2LbFYhyBcK	far-corners: 1,365/1,366 checks pass, stills shot, branch ready for me
+COMPLETED	farmers-market	10-05T11:58	session_016c8wAHJJtgQ7VhZZD1xiL8	1,389 checks passed; branch 027bf5d complete
+COMPLETED	film-studio	10-05T15:03	session_014HyxqCPGSiSwHvU9qF9NLY	wt/film-studio pushed at 45f0573; lead has report
+COMPLETED	freeway-incidents	10-06T01:22	session_01Uy7U3DX1RVDJX8xK2DeAf1	freeway-incidents: 10 stills, frame cost measured, all 48 checks pass
+COMPLETED	freight-trains	10-05T11:15	session_018a15zuFt9E1KKXZ1AXTbjr	freight-trains tests 1,408 passed; 6 stills captured; 6 items noted fo
+COMPLETED	fwd-review-b	10-05T11:10	session_013BusWwhU5hzWfy9fft815Y	fwd-review-b: forward+ renderer fixes shipped, 14 stills + docs
+COMPLETED	gate-speed	10-05T11:45	session_0121sAU3RRWTe3sLUR9ro7yN	gate-speed fleet session complete; brief executed
+COMPLETED	historic-core	10-05T14:53	session_0186ieX7HA9LVGpmR8vJ3d1t	pushed to wt/historic-core@15697e7; report sent to lead
+COMPLETED	kerbs	10-05T11:01	session_01Tw8dvX5JWrtMXTFDrsb54x	fleet session kerbs: brief followed, CLA read, final report issued
+COMPLETED	load-time	10-05T11:50	session_01SBwCAjkCwoq26fex2w66tP	load-time fleet session complete; 1,372/1,372 checks pass
+COMPLETED	memory-audit	10-05T12:04	session_01PfEK4FJf9kBPJC5n6ypWu9	memory audit complete; branch wt/memory-audit final at 3667736
+COMPLETED	occluders	10-05T12:04	session_01FJBn1R7dsoetL5rqBb6RMd	occluders perf validated: 9/9 checks pass, 1371 smoke tests green, 8 s
+COMPLETED	olvera	10-05T14:20	session_01XFycCGWhUHEwyCKwPpTYHU	fleet session olvera: code ready, gate passed 1526/1526, awaiting lead
+COMPLETED	prop-destruction	10-06T02:06	session_011yTb39yvQS39LAwGJaTuHC	prop destruction shard tests 739/739 pass; stills captured; docs updat
+COMPLETED	reflection-probes	10-05T12:30	session_01T2B7v2QvFiDPvyVchAp37k	reflection-probes: 1,528 checks passed, stills on shots/reflection-pro
+COMPLETED	road-detail	10-05T11:45	session_01Tx5sQxw8mJRLUA5iQb75vw	1,372 checks passed; wt/road-detail pushed (f102c23); stills on shots/
+COMPLETED	road-wear	10-05T16:00	session_01J173nVden4nqdDJnSQXGzg	road-wear complete at ab5bef7; stills pushed to shots/road-wear
+COMPLETED	roadside	10-05T14:20	session_01TumKZCSACa37bDSKAVj96Q	gate passed 1,527 checks on fd571be; peak 3.29 GB; stills merged_00–13
+COMPLETED	rooftops	10-05T10:22	session_01DS3LUNutFcADthRq9EAEuP	rooftops feature merged; 1,382 tests pass, frame cost +3–12%, stills a
+COMPLETED	scooters	10-05T11:44	session_01UU82zmyXQAxb3ipck6JtkE	wt/scooters pushed (3ecfe5b1), all 1,383 checks pass, stills on shots/
+COMPLETED	service-vehicles	10-05T11:57	session_018rvLrcDCwabKpSEtt6HZcr	service-vehicles rebuild complete; 4 trucks modeled, stills shot
+COMPLETED	shader-warm	10-05T11:44	session_014vn6cEykYAoVqnguCHPNc3	shader-warm probe: 1,370 checks green, peak 3.0GB; stills + docs lande
+COMPLETED	shop-vinyl	10-05T14:19	session_01BsztEGZwAigdk8DDYH7meb	headless check passed 1517/1517; mirrored lettering confirmed; new tes
+COMPLETED	sky	10-05T10:21	session_018YKKy99XoJK4isxiqupXrb	sky shader merged; forward+ 2–10% perf hit, 1,363/1,363 checks pass
+COMPLETED	stadium	10-05T10:40	session_01PdB5AvZQTgUfgJikr3qXNg	ballpark geom merged, frame cost flat, 8 stills added
+COMPLETED	street-furniture	10-06T01:45	session_01XCTD65CCWUttLzTEfaRkDi	furniture checks 15/15 pass; frame cost −1.6%; stills rendered
+COMPLETED	street-lamps	10-05T17:08	session_01VtqVuHBurNAiPFZA3G6NHD	street-lamps branch pushed; headless gate 1517✓; medic fix cherry-pick
+COMPLETED	swimming	10-06T01:58	session_01EV5rtvibt6dzQ964Q5FswK	swimming feature complete: branch wt/swimming@d6e0679, 8 stills, check
+COMPLETED	traffic-ai	10-05T19:32	session_01CcjCpAQjgrSzJ5BYc2W7qA	gate run complete: 2,341✓, 2✗ (swerve fixed, photo mode pre-existing);
+COMPLETED	walk-in-store	10-06T02:25	session_01Xdu1hq2JzeqpocjNpwuie4	walk-in-store scene v2: 6 new stills, lit signage, wear detail
+COMPLETED	wilshire-deco	10-05T10:27	session_01FKYbqUNZa7PdA89zfvorXJ	wilshire-deco session complete: all 1,380 checks pass, stills pushed t
+FAILED	backyards	10-06T02:47	session_014Uv7taAnP36A6wut5NPjVv	You've hit your org's monthly spend limit · ask your admin to raise it
+FAILED	car-cabins	10-06T02:32	session_01WPBzpmbWW81kGNhJYBv5Uo	You've hit your org's monthly spend limit · ask your admin to raise it
+FAILED	churches	10-05T13:03	session_01Av2J2PZDPZdiHkTfLu7ppj	You've hit your monthly spend limit · raise it at claude.ai/settings/u
+FAILED	coast-highway	10-06T02:39	session_01TJF9XQGcifNjt6nujKjA3q	You've hit your org's monthly spend limit · ask your admin to raise it
+FAILED	color-grade	10-05T12:45	session_01BxHwJeiuoNYVnwUpFKwzpN	You've hit your monthly spend limit · raise it at claude.ai/settings/u
+FAILED	crowd-lookat	10-06T02:33	session_01XmAmHdQVAZyaLUkyLsg7T9	You've hit your org's monthly spend limit · ask your admin to raise it
+FAILED	fashion-district	10-06T02:57	session_0122DfAQWutsuNeYD69QCzm6	You've hit your org's monthly spend limit · ask your admin to raise it
+FAILED	foot-ik	10-06T02:32	session_01HkJssPcj351Q9xc1dCCkEf	You've hit your org's monthly spend limit · ask your admin to raise it
+FAILED	fwd-review-a	10-05T12:45	session_01WP7bc67T6G6e8mbrADbA6e	You've hit your monthly spend limit · raise it at claude.ai/settings/u
+FAILED	garage-drive-in	10-06T02:34	session_01KVwShRSnzxpeHWBSgjEVuG	You've hit your org's monthly spend limit · ask your admin to raise it
+FAILED	heli-flyable	10-06T02:32	session_01DD7PyGJCL1fJoetABNoTXY	You've hit your org's monthly spend limit · ask your admin to raise it
+FAILED	metro-underground	10-06T02:46	session_014AxTao9nPNrsFD5uTTD7TN	You've hit your org's monthly spend limit · ask your admin to raise it
+FAILED	motorcycles	10-06T02:36	session_017eqew7PUep9GAesBtnfmJQ	You've hit your org's monthly spend limit · ask your admin to raise it
+FAILED	news-crews	10-06T02:32	session_017XvHu1hE1xzWJ3TwubbVsY	You've hit your org's monthly spend limit · ask your admin to raise it
+FAILED	onlookers	10-06T03:04	session_01WB6ELk2Sx3abtsndGaNRgh	You've hit your org's monthly spend limit · ask your admin to raise it
+FAILED	parklets	10-06T02:39	session_01Kut8cXcijCVVrDKp5ReBBH	You've hit your org's monthly spend limit · ask your admin to raise it
+FAILED	perf-audit	10-05T13:03	session_01XfnNr6Ss2Ktud7fSDwuWBs	You've hit your monthly spend limit · raise it at claude.ai/settings/u
+FAILED	police-night	10-05T13:07	session_01SDVMjkv1m7UokppvZ3Lm3c	You've hit your monthly spend limit · raise it at claude.ai/settings/u
+FAILED	ragdolls	10-06T02:41	session_01W88srL6sxVAQ7NPkmmzQvf	You've hit your org's monthly spend limit · ask your admin to raise it
+FAILED	rain-crowd	10-06T02:48	session_016q2mWw45aVmq6aQU2uCro4	You've hit your org's monthly spend limit · ask your admin to raise it
+FAILED	ref-cameras	10-05T13:03	session_01MWAzVreTHy1ixgpSWUbvVL	You've hit your monthly spend limit · raise it at claude.ai/settings/u
+FAILED	speedboats	10-06T02:32	session_017wA9JDXbhAY3yWXnpFh27T	You've hit your org's monthly spend limit · ask your admin to raise it
+FAILED	star-boulevard	10-06T02:39	session_01N19mdCnNXDV2Zs3k3BkkUc	You've hit your org's monthly spend limit · ask your admin to raise it
+FAILED	street-life-2	10-05T12:45	session_01Bjmr3mze2sPL8zifQbScuS	You've hit your monthly spend limit · raise it at claude.ai/settings/u
+FAILED	stunt-ramps	10-06T02:50	session_01TVbcWZwc3RiqnuCpGXVzkm	You've hit your org's monthly spend limit · ask your admin to raise it
+FAILED	utility-poles	10-05T12:42	session_01NgTFUWD8LZhKkXtFSJ6yAf	You've hit your monthly spend limit · raise it at claude.ai/settings/u
+FAILED	wingsuit	10-06T02:47	session_01PwixG3tbeziYbkbHo5m4bi	You've hit your org's monthly spend limit · ask your admin to raise it
+REVIEW_READY	far-landmarks	10-05T11:58	session_011avxrKh3NdLZENYkxZp8TD	stills 01–18 verified, frame cost measured, 1,365 tests pass
+REVIEW_READY	fwd-review-c	10-05T12:27	session_016foSiERHz7mgREzZeSgxAm	fwd-review-c fleet session: stills verified, checks passing, awaiting 
+REVIEW_READY	lowriders	10-06T02:20	session_015ZTPa1HdJyJeST95E41Wy3	fixed flake & whitewall; road splotches pre-existing; awaiting lead me
+REVIEW_READY	reservoir	10-05T10:44	session_012hTWmKgMvRMp9XTYey6Fye	reservoir feature review complete; stills shot & frame cost measured
+REVIEW_READY	ridges	10-05T11:05	session_01H8MXe4ANaiPqia3Pkmju9K	smoke tests pass (1378/1378); stills pushed; Forward+ unchecked
+REVIEW_READY	street-signs	10-05T15:04	session_01Nu2PkXSaZS7SnmiudnTEE2	street-signs kit merged batch5; 2,103 gate checks, 2 failures; stills 
+REVIEW_READY	texture-budget	10-05T11:35	session_01H12HkdcsKtFDyvYAFG34wA	Deleting a line in `budget.txt` and re-importing brings the full size 
+REVIEW_READY	tower-gondolas	10-06T00:48	session_01EyszFZJJ2b6o1RS6Js4qBD	tower-gondolas: 15/15 checks pass, stills shot, merged tree gate flaky
+REVIEW_READY	web-build	10-05T12:08	session_01MEDSnfhJh5kQxCS8czMxRG	smoke test passed 1,375 checks; frame cost unmeasured; stills captured
+WORKING	arroyos	10-05T09:32	session_01U4d8B6yFZGEEkWAygi3vnY	
+WORKING	beach-amenities	10-05T09:31	session_01WAZrvX7PmX7FwnkuJMthqX	
+WORKING	bonfires	10-05T09:31	session_01FV26tH8EpV7yiwvN9tLGyW	
+WORKING	buskers	10-05T09:32	session_01Y5aLPk5GLeJgmjUgUNVN99	
+WORKING	car-radio	10-05T09:34	session_012AzFnEa6UmZ55iAzDyAN3E	
+WORKING	film-shoot	10-05T09:34	session_01QJpaaKRkvdF5g1Q1k7qNca	
+WORKING	fireworks	10-05T09:34	session_018684QtAaLTSnED5jvGCLSA	
+WORKING	footbridges	10-05T09:30	session_01Srsk1hrV81kEhCdoWXB4y8	
+WORKING	garments-2	10-05T09:32	session_012vbkuL3ZJUSJv5K11Aud7D	
+WORKING	lighthouses	10-05T09:31	session_01QS1oH4TyHsuu9zdQWoRein	
+WORKING	nightlife	10-05T09:34	session_01VU7KHoCSPrRAv3YhRTjDdN	
+WORKING	ocean-traffic	10-05T09:30	session_01VtpPg52YhZNEXNhto5D5od	
+WORKING	offshore-island	10-05T09:30	session_01P2Loax8kvVR6CDqHSiP1VD	
+WORKING	oil-islands	10-05T09:31	session_01DhcEW4bMSpjvEixQaNaVQc	
+WORKING	power-plant	10-05T09:31	session_01KM2db5z5hieJbeVqaZAUYL	
+WORKING	refinery	10-05T09:31	session_016jvisUMHyLCpRyeCKKWZ9C	
+WORKING	rock-outcrops	10-05T09:31	session_016wXsy9SAx6Xb78dScxqaEC	
+WORKING	sea-life	10-05T09:31	session_01FKKQHujpZRwpJxcRqceZbF	
+WORKING	settings-menu	10-05T09:35	session_01J11xHScwn1PKr775BVAMBZ	
+WORKING	skate-park	10-05T09:35	session_013ZMdmXcDL3DijTMpX9DaTD	
+WORKING	sky-ads	10-05T09:34	session_018L5yviW2p2knCx8UsJdtWg	
+WORKING	valets	10-05T09:32	session_014M7QTn1w7W2ahzxRxrLQWx	
+WORKING	wildlife	10-05T09:32	session_01RXNM7miDd98s8phfxdaW6o	
+WORKING	yard-sales	10-05T09:34	session_01WsPTRb3v9j7ARySA44GKzJ	

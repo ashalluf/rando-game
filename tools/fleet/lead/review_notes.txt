@@ -1,0 +1,24 @@
+service-vehicles: bodies boxy/low-poly up close (realism rule) - review before merge
+apartments: walk-ups read as plain flat stucco boxes in the first batch - check final set
+hills: front range reads as spiky cones in ridges stills (pre-existing terrain, not ridges)
+historic-core: night street very dark in 10_after_spring_corner_night (opengl3?) - check
+civic-buildings: mail truck boxy/primitive; also check its logo is original
+shop-vinyl: a BANK reads 'FREE ESTIMATES' - tag lines should fit the shop kind
+farmers-market: packed-up canopies read as odd white posts/blobs
+olvera: sarapes read as RGB static noise (09) - sent feedback
+film-studio: fixed in dacade9a (real cars, lit gate rooms, stage door detail) - basecamp trailers still boxy, ok for now
+lot_ground: car parks show pale soft rectangles (LotFill lot ground, pre-existing on main) - needs a fix
+prop-destruction: stage stills only - need it in the city (a real street, car into hydrant/lamp) and the lamp post looked like a bare white pole in 05; check
+apartments v2: better (tuck-under bays, balcony, ACs, two tones) but the street face is still mostly flat stucco; at merge review check the stair/gallery read from the street side
+walk-in-store: products candy blocks -> sent back for packaging labels, wear, lighting, night sign (00:37)
+swimming: foam ring reads as a big blurry white donut; at review check scale/softness and the stroke clip
+lowriders: flake glitter, whitewall too wide, pale blue road splotches at 21:00 (maybe main's road wear at night - verify on main if session says it's not theirs)
+motorcycles: sport bike balloon fairing -> sent back (00:56); rain-crowd: busy street re-shoot asked
+star-boulevard: star design = real walk of fame trade dress -> sent back for original medallions (01:08)
+garage-drive-in: cheap code cars on decks + flat ceiling -> sent back (01:17); swimming: foam donut + underwater wedge -> sent back (01:17)
+fashion-district: flat cutout garments -> sent back (01:31)
+street-furniture final: 2100 shots look like day (check hour); motorcycles v2 better
+star-boulevard final stills (01:53) still use the pink-star trade dress; my 01:08 note likely queued behind its turn - do NOT merge until the medallion design changes. Session reports geo_count/still_shot hang after LOADING far city on its box (WorkerThreadPool wait) - check main if others hit it
+onlookers final: boxer-guard filming pose + thin ring at wreck -> sent back (02:05)
+rain-crowd final still thin -> asked again for staged busy street (02:07)
+backyards final: after frames globally darker than before (noon and 21:00) -> sent back (02:24)

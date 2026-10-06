@@ -1,0 +1,105 @@
+alleys 0441758
+sky ad9a273
+service-vehicles 6eb3b69
+web-build 8049143
+estate-night 9a25f8b
+far-corners 0fb492f
+apartments 9e25701
+stadium a850536
+rooftops 854e64c
+texture-budget 9cf1a30
+street-lamps 61c714e
+street-furniture 32018c9
+wilshire-deco 4c7904c
+kerbs 9c63841
+ridges 2f9ec91
+service-vehicles a44928e
+historic-core f2ce51f
+reservoir a8ad132
+alleys e66a460 (midtown extras not resent)
+civic-buildings 4faad12
+chinatown 4fdab27d
+road-detail d2c118ac
+roadside 67502346
+cemetery f8bdf686
+freight-trains 2a156023
+utility-poles 4c3f73fb
+driving-fx d3088a4d
+ridges df7a0a15
+shop-vinyl eb192af6
+shader-warm 0749b9f4
+kerbs 8ac7b3d1
+far-landmarks 3c25065e
+fwd-review-b c4fffae8
+shader-warm 6ff06b7d
+reflection-probes 7a4e53dc
+farmers-market b066a83d
+load-time 1d8d1981
+cemetery 1e0b2047
+web-build 0a24266f
+ref-cameras eb627a56
+film-studio 330f5400
+street-lamps 9dcda939
+texture-budget cba5369c
+color-grade badb520a
+scooters a77d8616
+olvera 27056827
+farmers-market 290ef0a6
+driving-fx 760cfc53
+historic-core 1cb6bfce
+roadside 4567cdae
+civic-buildings a4a14146
+traffic-ai faf10584
+civic-buildings 05b
+utility-poles 853c5e85
+service-vehicles e828080c
+fwd-review-c 864f47f4
+farmers-market ca636348
+shop-vinyl e2f55f0b
+churches 3c6ef59d
+street-life-2 61b25b6e
+street-signs f32fdf52
+historic-core 9c8a62ae
+street-furniture 14dd6ab9
+film-studio dacade9a
+fwd-review-a 7f4b225b
+chinatown b4ec0cdc
+roadside 93938ad5
+tower-gondolas f3efe412
+road-wear 9c86bfb6
+police-night 5f60f022
+olvera 6cd89934
+chinatown 97b2325e
+road-wear 3e053af5
+estate-night e37134c7
+road-wear c1a58ae1
+street-lamps 592346a6
+prop-destruction 0487003a (first set: test stage)
+parklets b7c6b4cc (first before/after)
+apartments e7f89677 (v2 depth pass)
+walk-in-store 2ea1365e (first set)
+freeway-incidents a743fe26 (first set)
+swimming 1cff511d (first set)
+engine-audio 8540fcda (first set)
+lowriders 3999c342 (first set)
+onlookers a98bc599 (first set)
+tower-gondolas e4ed53b6 (merged re-shoot)
+rain-crowd ebd08563 (first set)
+motorcycles fd8b1b84 (first set)
+coast-highway cb854e3d (first set)
+star-boulevard 0c2171f7 (first set)
+freeway-incidents d31d37b7 (debris, CMS)
+garage-drive-in 047cbcc9
+swimming 9a6d2f15
+prop-destruction e8507712
+car-panic baaf60b7 (first set)
+fashion-district 24eeb8d6 (first set)
+backyards 6244114f (first set)
+lowriders 795308a0 (final)
+motorcycles 0c03660c
+street-furniture 81b98cd2
+car-panic 244214b2
+swimming 769ec075 (fixed)
+walk-in-store 92aa7414 (v2)
+rain-crowd e05552e7 (final, thin)
+lowriders 1be791ca (fixed)
