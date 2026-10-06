@@ -14286,6 +14286,19 @@ building shader's neon roll and the medallions). The characters do not pose for 
 crowd. Costumed characters were seen in the smoke test (spawned, costumed) but not framed in a
 still. LOD chunks and the far city draw no band.
 
+**Frame cost** (`tools/glshot/block_shot.tscn GEO=1`, opengl3 1280x720, the FULL blocks round the
+eye, no far city; `STAR_BOULEVARD=0` against on): along the north pavement
+`EYE=780,1.7,-2329.2,90,-6` 3.64 M -> 3.76 M triangles (+3.5 %), 1,605 -> 1,581 draws (the walk's
+buildings are held low); the palace corner `705,1.7,-2300,117,6` 1.94 M -> 1.96 M (+0.8 %),
+1,207 -> 1,295 draws (+7 %: the palace, the characters, the forecourt and the pavement batches).
+`tools/geo_count.gd` and `still_shot.gd` hung on this box after "LOADING far city" with or without
+the walk (the main thread parked in a WorkerThreadPool wait, every worker idle), so the whole-city
+numbers and city stills are not taken.
+
+**Stills** (`shots/star-boulevard`, block_shot.tscn on opengl3): the walk before / after, a star
+close up, the palace corner before / after, the marquee, the forecourt's handprint slabs, two
+characters, the boulevard from above before / after, the walk and the palace at night.
+
 **Tools.** `tools/star_boulevard/probe.tscn` (headless: the walk, its blocks, the palace, the
 characters, EYEs), `tools/star_boulevard/star_shot.gd` (a few metres of the band or the forecourt
 alone, seconds; `MODE=forecourt`), `tools/make_star_boulevard_art.py`. A/B: `STAR_BOULEVARD=0`.
