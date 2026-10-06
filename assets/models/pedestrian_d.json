@@ -1,0 +1,17 @@
+{
+  "name": "pedestrian_d",
+  "prompt": "Black man in his early 30s, casual streetwear: grey pullover hoodie, dark slim jeans, white sneakers, short cropped hair, light beard, natural relaxed face, full body standing, ultra realistic, photorealistic, highly detailed, physically accurate materials and proportions, real-world scale, no cartoon or stylized look",
+  "credits": 44,
+  "tasks": {
+    "preview": "01a0caae-1078-74b1-80e4-b3576c77f9b6",
+    "refine": "01a0caaf-0131-7730-a2f3-a770b1432a9b",
+    "rig": "01a0caaf-f6e8-70ff-b39e-819ca93b2abd",
+    "animations": "01a0cab0-abb8-76bc-8620-8517dacb16ed"
+  },
+  "source": "Meshy (generated for this project)",
+  "animations": [
+    0,
+    613,
+    659
+  ]
+}

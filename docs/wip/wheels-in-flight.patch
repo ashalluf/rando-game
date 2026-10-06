@@ -1,0 +1,1050 @@
+diff --git a/scripts/vehicles/vehicle.gd b/scripts/vehicles/vehicle.gd
+index 901c631..96282e6 100644
+--- a/scripts/vehicles/vehicle.gd
++++ b/scripts/vehicles/vehicle.gd
+@@ -26,6 +26,31 @@ const BODY_ODDS := {
+ 	BodyType.SEDAN: 300, BodyType.PICKUP: 190, BodyType.VAN: 175, BodyType.SPORTS: 215,
+ 	BodyType.SUPER: 45, BodyType.SPIDER: 25, BodyType.HYPER: 30, BodyType.TRACK: 20,
+ }
++## Where a generated wheel sits in body space, per body type: `x` half-track, `front` / `rear`
++## the axle positions along the car, `y` the hub height, `r` the tyre radius and `w` the section
++## width (`rw` for the rear when the car runs a staggered set).
++##
++## These are deliberately NOT _dims()'s `track` and `wheel_z`, which are where the VehicleWheel3D
++## physics wheels go. A generated wheel has to sit in the ARCH of the body model and cover the
++## wheel baked into it, and the two are not the same place: on the pickup the modelled rear axle
++## is 44 cm forward of the physics one (tools/wheel_probe.py measures the contact patches, which
++## is what pins x and z down). `y` is the number that has to be eyeballed - it is the model's own
++## ride height, and a centimetre out reads as a flat tyre or a floating car - so change it from a
++## --spawn shot of a parked car, not from arithmetic.
++const WHEEL_POSE := {
++	BodyType.SEDAN: {"x": 0.786, "front": -1.503, "rear": 1.378, "y": 0.093, "r": 0.330, "w": 0.230, "cut": true, "cut_r": 0.342},
++	BodyType.PICKUP: {"x": 0.847, "front": -1.788, "rear": 1.306, "y": 0.225, "r": 0.390, "w": 0.260, "cut": true, "cut_r": 0.402},
++	BodyType.VAN: {"x": 0.816, "front": -1.656, "rear": 1.539, "y": 0.175, "r": 0.360, "w": 0.230, "cut": true, "cut_r": 0.372},
++	BodyType.SPORTS: {"x": 0.803, "front": -1.400, "rear": 1.307, "y": 0.066, "r": 0.330, "w": 0.245, "cut": true, "cut_r": 0.344},
++	BodyType.SUPER: {"x": 0.850, "front": -1.320, "rear": 1.320, "y": -0.040, "r": 0.355, "w": 0.250, "rw": 0.295},
++	BodyType.SPIDER: {"x": 0.850, "front": -1.320, "rear": 1.320, "y": -0.040, "r": 0.355, "w": 0.250, "rw": 0.295},
++	BodyType.HYPER: {"x": 0.870, "front": -1.350, "rear": 1.350, "y": -0.050, "r": 0.355, "w": 0.250, "rw": 0.295},
++	BodyType.TRACK: {"x": 0.870, "front": -1.350, "rear": 1.350, "y": -0.050, "r": 0.355, "w": 0.250, "rw": 0.295},
++}
++## The sizes above deliberately land on six distinct (radius, section width) pairs across the
++## eight body types. Every extra pair is another five meshes (one per spoke pattern) times two
++## LODs sitting in PropFactory's cache, and a near wheel is not a small mesh.
++
+ ## Extra yaw per model so its nose points at -Z (Meshy models come out along +X or -X).
+ ## All four models come out of Meshy with the nose along +X; -PI/2 puts the nose at -Z, which is
+ ## the physics forward (owner, 2026-09-20: traffic drove backwards with +PI/2).
+@@ -184,6 +209,21 @@ const TAXI_TRIM := Color(0.07, 0.07, 0.08)
+ ## It is one draw call per car and at that range it is a couple of pixels.
+ @export var livery_prop_distance: float = 140.0
+ 
++@export_group("Wheels")
++## Past this many meters the generated wheels drop to the far mesh: about 1.4k triangles
++## instead of 11k-13k, same silhouette, no tread pattern, no brake slots, no lug nuts. Under it
++## you are close enough to count the spokes.
++@export var wheel_lod_distance: float = 30.0
++## Past this they stop drawing at all and the wheel baked into the body model shows through
++## instead, shrunk into the hub so that it is hidden behind the brake disc up close. That is the
++## far LOD and it costs nothing: it is triangles in the body's own surface, so a car past this
++## distance is the same one draw call it was before the wheels existed. A hundred and fifty
++## traffic cars times four wheels is why this number is not bigger.
++@export var wheel_draw_distance: float = 85.0
++## Past this the brake calipers stop drawing. A caliper is a hundred triangles and at thirty
++## meters it is two pixels behind a spoke.
++@export var caliper_distance: float = 26.0
++
+ @export_group("Handling")
+ ## Engine force at full throttle (N). Big number = silly acceleration.
+ @export var engine_power: float = 7000.0
+@@ -270,8 +310,35 @@ var enter_radius: float = 4.5
+ var traffic: Dictionary = {}
+ var traffic_speed: float = 0.0
+ var wheels: Array[VehicleWheel3D] = []
++## Spoke pattern (PropFactory.WHEEL_FACES) and finish (PropFactory.WHEEL_KITS). -1 means "work
++## it out from the car" in _build(); random_car() sets them from its look seed instead, so a
++## given seeded car always comes back on the same wheels.
++var wheel_style: int = -1
++var wheel_kit: int = -1
+ var _wheel_slots: Array = []
+-var _wheel_visuals: Array[Node3D] = []
++## One entry per wheel: [steer node, wheel mesh, caliper mesh, flip basis, is front, rest y].
++var _wheel_rigs: Array = []
++var _wheel_radius: float = 0.35
++var _wheel_spin: float = 0.0
++var _wheel_near: bool = true
++var _wheel_far_end: float = 85.0
++var _wheel_meshes: Array = []
++## Hub height in body space at rest, per wheel, once the car has settled on its springs. The
++## generated wheel's WHEEL_POSE y was eyeballed from a PARKED car, so the visible wheel has to
++## follow the physics hub's travel AROUND that, not its absolute height - and what the engine
++## settles at depends on the car's mass and spring rate, so it is measured rather than derived.
++## NAN until measured; traffic cars have no VehicleWheel3D and keep it that way.
++var _susp_rest: PackedFloat32Array = PackedFloat32Array()
++var _susp_settled: int = 0
++var _last_yaw: float = 0.0
++## The camera position, looked up once per physics frame and shared by every car: a hundred and
++## fifty cars each asking the viewport for it is a hundred and fifty lookups for one answer.
++static var _focus: Vector3 = Vector3.ZERO
++static var _focus_frame: int = -1
++## Turns the generated wheels off fleet-wide, leaving the wheels baked into the body models.
++## Only tools/glshot/city_stats.gd sets it, to measure what the wheels cost in draw calls and
++## triangles at the same camera. Nothing in the game touches it.
++static var wheels_enabled: bool = true
+ var _seat: Node3D
+ var _exit_side: float = 1.0
+ var _steer_target: float = 0.0
+@@ -359,9 +426,7 @@ func drop_out_of_traffic(impulse: Vector3 = Vector3.ZERO) -> void:
+ 	var v := -global_basis.z * traffic_speed
+ 	traffic = {}
+ 	traffic_speed = 0.0
+-	for visual in _wheel_visuals:
+-		visual.queue_free()
+-	_wheel_visuals.clear()
++	# The generated wheels stay: they were never children of the physics wheels.
+ 	_add_real_wheels()
+ 	freeze = false
+ 	sleeping = false
+@@ -378,6 +443,7 @@ func is_airborne() -> bool:
+ 
+ 
+ func _physics_process(delta: float) -> void:
++	_update_wheels(delta)
+ 	if driver == null:
+ 		if _was_airborne:
+ 			gravity_scale = 1.0
+@@ -564,17 +630,14 @@ func _build() -> void:
+ 	for front: bool in [true, false]:
+ 		for side: float in [-1.0, 1.0]:
+ 			_wheel_slots.append([Vector3(side * float(dims.get("track", 1.62)) * 0.5, base_y - 0.1, (-wheel_z if front else wheel_z)), front])
+-	if is_traffic():
+-		# Kinematic traffic: plain wheel meshes. Real VehicleWheel3D nodes on a frozen body
+-		# divide by zero inside the engine, so they are only added when the car goes physical.
+-		for slot in _wheel_slots:
+-			var visual := _wheel_mesh()
+-			visual.position = slot[0] + Vector3(0.0, -0.3, 0.0)
+-			visual.visible = not _has_model # the generated models have their own wheels
+-			add_child(visual)
+-			_wheel_visuals.append(visual)
+-	else:
++	# Real VehicleWheel3D nodes on a frozen body divide by zero inside the engine, so a
++	# kinematic traffic car gets none until it goes physical (CLAUDE.md). The VISIBLE wheels are
++	# the same either way: they are plain nodes this script drives, so traffic and driven cars
++	# roll on exactly the same geometry.
++	if not is_traffic():
+ 		_add_real_wheels()
++	if wheels_enabled:
++		_add_generated_wheels()
+ 	_add_night_lights(dims)
+ 	_add_livery_props(dims)
+ 
+@@ -645,29 +708,172 @@ func _add_real_wheels() -> void:
+ 		_add_wheel(slot[0], slot[1])
+ 
+ 
+-func _wheel_mesh() -> Node3D:
+-	var holder := Node3D.new()
+-	var mesh := MeshInstance3D.new()
+-	var cyl := CylinderMesh.new()
+-	cyl.top_radius = 0.42
+-	cyl.bottom_radius = 0.42
+-	cyl.height = 0.3
+-	cyl.radial_segments = 10
+-	mesh.mesh = cyl
+-	mesh.material_override = PropFactory.material(Color(0.1, 0.1, 0.1))
+-	mesh.rotation.z = PI * 0.5
+-	holder.add_child(mesh)
+-	var hub := MeshInstance3D.new()
+-	var hub_cyl := CylinderMesh.new()
+-	hub_cyl.top_radius = 0.22
+-	hub_cyl.bottom_radius = 0.22
+-	hub_cyl.height = 0.32
+-	hub_cyl.radial_segments = 8
+-	hub.mesh = hub_cyl
+-	hub.material_override = PropFactory.material(Color(0.75, 0.75, 0.78), 0.4)
+-	hub.rotation.z = PI * 0.5
+-	holder.add_child(hub)
+-	return holder
++## Four real wheels: tyre with a sidewall bulge and tread, rim with a lip, spokes and a dish,
++## and a brake disc and caliper behind them (PropFactory.car_wheel). They are plain nodes rather
++## than children of the VehicleWheel3D nodes for three reasons: a kinematic traffic car has no
++## VehicleWheel3D at all and still needs wheels that turn; the generated wheel goes where the
++## body model's ARCH is, which is not where the physics wheel is; and _update_wheels() can then
++## drive traffic and driven cars down one path.
++func _add_generated_wheels() -> void:
++	var pose := _wheel_pose()
++	if wheel_style < 0:
++		wheel_style = absi(hash([body_type, paint.to_rgba32(), 41])) % PropFactory.WHEEL_FACES.size()
++	if wheel_kit < 0:
++		wheel_kit = absi(hash([body_type, paint.to_rgba32(), 43])) % PropFactory.WHEEL_KITS.size()
++	var mat := PropFactory.wheel_material(wheel_kit)
++	_wheel_radius = float(pose.r)
++	# A body with a wheel baked into it hands over to that wheel past wheel_draw_distance - it
++	# is shrunk into the hub rather than cut out (PropFactory.tuck_body_wheels), so it is part of
++	# the body's own surface and costs no draw call at all. The exotics have no wheel in the
++	# model to hand over to - their arches were simply empty before this - so theirs have to keep
++	# drawing, and the far mesh is cheap enough that letting the rarest eighth of the fleet run
++	# to two and a half times the distance costs a handful of draws.
++	_wheel_far_end = wheel_draw_distance if bool(pose.get("cut", false)) else wheel_draw_distance * 2.6
++	_wheel_meshes = []
++	for front: bool in [true, false]:
++		var w: float = float(pose.w) if front else float(pose.get("rw", pose.w))
++		_wheel_meshes.append([
++			PropFactory.car_wheel(wheel_style, float(pose.r), w, true),
++			PropFactory.car_wheel(wheel_style, float(pose.r), w, false),
++			PropFactory.car_caliper(wheel_style, float(pose.r), w),
++		])
++	for front: bool in [true, false]:
++		var kit: Array = _wheel_meshes[0 if front else 1]
++		for side: float in [-1.0, 1.0]:
++			var steer := Node3D.new()
++			steer.name = "Wheel%s%s" % ["F" if front else "R", "L" if side < 0.0 else "R"]
++			steer.position = Vector3(side * float(pose.x), float(pose.y),
++					float(pose.front) if front else float(pose.rear))
++			add_child(steer)
++			# The mesh is built with its outboard face toward +X, so the left-hand wheels are
++			# turned right round rather than mirrored with a negative scale: a negative scale
++			# flips the winding and every triangle on the wheel would be culled.
++			var flip := Basis(Vector3.UP, 0.0 if side > 0.0 else PI)
++			var mi := MeshInstance3D.new()
++			mi.mesh = kit[0]
++			mi.material_override = mat
++			mi.basis = flip
++			mi.visibility_range_end = _wheel_far_end
++			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
++			steer.add_child(mi)
++			# The caliper is bolted to the upright, so it steers but must NOT spin. Its own node
++			# is what buys that, and it is the detail that stops the whole assembly reading as
++			# one turned cylinder.
++			var cal := MeshInstance3D.new()
++			cal.mesh = kit[2]
++			cal.material_override = mat
++			cal.basis = flip
++			cal.visibility_range_end = caliper_distance
++			cal.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
++			steer.add_child(cal)
++			_wheel_rigs.append([steer, mi, cal, flip, front, float(pose.y)])
++	_susp_rest = PackedFloat32Array()
++	_susp_rest.resize(_wheel_rigs.size())
++	_susp_rest.fill(NAN)
++	# Seeded now, or the first frame a traffic car comes into range reads its whole heading as
++	# one frame's turn and slams the front wheels onto full lock for that frame.
++	_last_yaw = rotation.y
++
++
++## Where this car's generated wheels go. WHEEL_POSE when the body is a model (the arch is in a
++## fixed place in that model); derived from _dims() for the primitive box car, which has no
++## arches and whose wheels have always simply sat on the physics slots.
++func _wheel_pose() -> Dictionary:
++	if _has_model and WHEEL_POSE.has(body_type):
++		return WHEEL_POSE[body_type]
++	var d := _dims()
++	var r := float(d.get("tyre_r", 0.34))
++	return {
++		"x": float(d.get("track", 1.62)) * 0.5,
++		"front": -float(d.wheel_z), "rear": float(d.wheel_z),
++		# The physics slot is at base_y - 0.1 and the suspension hangs the hub below it; at rest
++		# it sits at roughly seven tenths of the rest length, which is where the wheel centre is.
++		"y": 0.55 - 0.1 - suspension_rest_length * 0.7, "r": r, "w": r * 0.66,
++	}
++
++
++## Rolls the wheels, steers the front pair and swaps the LOD mesh. One pass for traffic and
++## driven cars alike: the spin comes from the car's own speed, not from the physics wheels,
++## because a kinematic traffic car does not have any.
++func _update_wheels(delta: float) -> void:
++	if _wheel_rigs.is_empty():
++		return
++	# Before the range test, not after it: this is the only place it is updated, and a traffic
++	# car that spent ten seconds out of range would come back reading all of that heading change
++	# as one frame's turn and slam its front wheels onto full lock for a frame.
++	var yaw_now := rotation.y
++	var yaw_rate := wrapf(yaw_now - _last_yaw, -PI, PI) / maxf(delta, 0.0001)
++	_last_yaw = yaw_now
++	var focus := _focus_point()
++	var dist := global_position.distance_to(focus)
++	if dist > _wheel_far_end:
++		return
++	var near := _wheel_near
++	if dist < wheel_lod_distance * 0.9:
++		near = true
++	elif dist > wheel_lod_distance * 1.1:
++		near = false
++	if near != _wheel_near:
++		_wheel_near = near
++		for rig: Array in _wheel_rigs:
++			var mi := rig[1] as MeshInstance3D
++			mi.mesh = _wheel_meshes[0 if rig[4] else 1][0 if near else 1]
++			# The far wheel drops its shadow as well as its triangles: a shadow pass is a second
++			# draw call per wheel, and a wheel's own shadow at forty metres is under the car.
++			mi.cast_shadow = (GeometryInstance3D.SHADOW_CASTING_SETTING_ON if near
++					else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
++	var speed := traffic_speed if is_traffic() else linear_velocity.dot(-global_basis.z)
++	_wheel_spin = fposmod(_wheel_spin - speed / maxf(_wheel_radius, 0.05) * delta, TAU)
++	var steer := steering
++	if is_traffic():
++		# No steering input on a kinematic car, so read it back off the turn it is making.
++		steer = clampf(yaw_rate * 2.7 / maxf(absf(speed), 2.5), -0.55, 0.55)
++	var spun := Basis(Vector3.RIGHT, _wheel_spin)
++	# Suspension travel. VehicleBody3D writes each VehicleWheel3D node's own position every
++	# physics step - that is the hub, moving with the spring - so the visible wheel only has to
++	# copy the offset from where that hub sits at rest. Without this the wheels are welded to
++	# the body at a fixed height, and in a game built around landing a car from two hundred
++	# metres every landing drives the tyres straight through the road.
++	var travel := wheels.size() == _wheel_rigs.size() and _susp_rest.size() == wheels.size()
++	if travel and _susp_settled < 30 and is_nan(_susp_rest[0]):
++		# "At rest" is measured, not taken from the first contact: a car usually spawns above
++		# the road and its first frame of contact is the bottom of a bounce. It is measured ONCE
++		# and then kept - re-measuring it after every landing moves the reference the travel is
++		# drawn around, and the wheels step a couple of centimetres each time the car settles.
++		var down := true
++		for w in wheels:
++			if not w.is_in_contact():
++				down = false
++				break
++		# Creeping counts, not just stopped: a car the player drives away the moment it streams
++		# in would otherwise never measure a baseline and would never get any travel at all.
++		_susp_settled = _susp_settled + 1 if down and linear_velocity.length_squared() < 4.0 else 0
++		if _susp_settled >= 30:
++			for i in wheels.size():
++				_susp_rest[i] = wheels[i].position.y
++	var limit := suspension_travel + suspension_rest_length * 0.5
++	for i in _wheel_rigs.size():
++		var rig: Array = _wheel_rigs[i]
++		var node := rig[0] as Node3D
++		node.rotation.y = steer if rig[4] else 0.0
++		if travel and not is_nan(_susp_rest[i]):
++			node.position.y = rig[5] + clampf(wheels[i].position.y - _susp_rest[i], -limit, limit)
++		(rig[1] as MeshInstance3D).basis = spun * (rig[3] as Basis)
++
++
++## The camera, once per physics frame for the whole fleet.
++static func _focus_point_from(node: Node3D) -> Vector3:
++	var frame := Engine.get_physics_frames()
++	if _focus_frame != int(frame):
++		_focus_frame = int(frame)
++		var cam := node.get_viewport().get_camera_3d()
++		if cam:
++			_focus = cam.global_position
++	return _focus
++
++
++func _focus_point() -> Vector3:
++	return _focus_point_from(self)
+ 
+ 
+ ## Per body type. "track" is the distance between the two wheel CENTRES and "tyre_r" the wheel
+@@ -709,28 +915,8 @@ func _add_wheel(pos: Vector3, front: bool) -> void:
+ 	wheel.wheel_roll_influence = wheel_roll_influence
+ 	add_child(wheel)
+ 	wheels.append(wheel)
+-	if _has_model:
+-		return # the generated models have their own wheels
+-	var mesh := MeshInstance3D.new()
+-	var cyl := CylinderMesh.new()
+-	cyl.top_radius = 0.42
+-	cyl.bottom_radius = 0.42
+-	cyl.height = 0.3
+-	cyl.radial_segments = 10
+-	mesh.mesh = cyl
+-	mesh.material_override = PropFactory.material(Color(0.1, 0.1, 0.1))
+-	mesh.rotation.z = PI * 0.5
+-	wheel.add_child(mesh)
+-	var hub := MeshInstance3D.new()
+-	var hub_cyl := CylinderMesh.new()
+-	hub_cyl.top_radius = 0.22
+-	hub_cyl.bottom_radius = 0.22
+-	hub_cyl.height = 0.32
+-	hub_cyl.radial_segments = 8
+-	hub.mesh = hub_cyl
+-	hub.material_override = PropFactory.material(Color(0.75, 0.75, 0.78), 0.4)
+-	hub.rotation.z = PI * 0.5
+-	wheel.add_child(hub)
++	# No mesh here any more: the visible wheel is a generated one placed in the body model's
++	# arch by _add_generated_wheels(), which is a different place from this physics slot.
+ 
+ 
+ ## Instances the generated body model for this type, scaled to `length` and tinted with the
+@@ -792,10 +978,68 @@ func _add_body_model(length: float) -> bool:
+ 	inst.rotation.y = (MODEL_YAW.get(body_type, 0.0) if along_x else 0.0)
+ 	var center := aabb.get_center()
+ 	inst.position = -(inst.transform.basis * Vector3(center.x, aabb.position.y, center.z)) + Vector3(0.0, bottom, 0.0)
++	# Only now that the model is placed can the baked wheels be found, because WHEEL_POSE is in
++	# body space. This has to stay a second pass: the AABB above is measured on the WHOLE model,
++	# wheels and all, and taking them out first would move the bottom of the box and change the
++	# car's scale and ride height.
++	_tuck_model_wheels(inst)
+ 	add_child(holder)
+ 	return true
+ 
+ 
++## Shrinks the wheels baked into the body model down inside the generated wheel that is drawn
++## over them. See PropFactory.tuck_body_wheels() for why they cannot just be covered up, and
++## for why they are not cut out into a second mesh. Only the types that need it: the exotics'
++## own wheels sit far enough inboard that the generated wheel hides them, and reshaping a model
++## is not something to do speculatively.
++func _tuck_model_wheels(inst: Node3D) -> void:
++	var pose: Dictionary = WHEEL_POSE.get(body_type, {})
++	if not wheels_enabled or not bool(pose.get("cut", false)):
++		return
++	var r := float(pose.get("cut_r", float(pose.r) * 0.99))
++	var hw := float(pose.get("cut_w", 0.16))
++	var cuts: Array = []
++	for front: bool in [true, false]:
++		for side: float in [-1.0, 1.0]:
++			var z: float = float(pose.front) if front else float(pose.rear)
++			var hub := Vector3(side * float(pose.x), float(pose.y), z)
++			cuts.append([hub, r, hw, hw])
++			# A second, narrower cylinder reaching further OUTBOARD only. The modelled wheel's
++			# face and hub cap stand proud of the tyre's own section, so the wide cylinder alone
++			# left a button of bodywork sitting in the middle of the new rim. It cannot simply
++			# be one wider cut: at the full tyre radius that would start eating the sill and the
++			# door bottom fore and aft of the wheel. It must not reach inboard either - when it
++			# did, it took a slice out of the pickup's step panel under the front arch.
++			cuts.append([hub, r * 0.62, hw * 0.10, hw + 0.10])
++	# Where the shrunken wheel has to end up: inside the generated brake disc, which is a solid
++	# plate out to 0.76 of the rim radius and sits just inboard of the wheel's centre plane. The
++	# rim ratio is per spoke pattern, so take the smallest one - the tuck has to hide under the
++	# smallest disc any of them builds.
++	var ratio := 1.0
++	for f: Dictionary in PropFactory.WHEEL_FACES:
++		ratio = minf(ratio, float(f.rim_ratio))
++	var disc_r := float(pose.r) * ratio * 0.76
++	var gen_hw := float(pose.w) * 0.5
++	for mi in inst.find_children("*", "MeshInstance3D", true, false):
++		var m := mi as MeshInstance3D
++		if m.mesh == null:
++			continue
++		var to_body := inst.transform
++		var local := Transform3D.IDENTITY
++		var node: Node = m
++		while node and node != inst:
++			if node is Node3D:
++				local = (node as Node3D).transform * local
++			node = node.get_parent()
++		to_body = to_body * local
++		var key := "body_tuck_%d_%s" % [body_type, m.mesh.get_rid()]
++		# Radially inside the brake disc, and far enough INBOARD to sit behind the dust shield
++		# as well (_wheel_face puts that at 0.52 half-widths in), so there is no line of sight to
++		# it through the spokes from any angle the player can stand at.
++		m.mesh = PropFactory.tuck_body_wheels(m.mesh, key, to_body, cuts,
++				minf(disc_r * 0.88 / maxf(r, 0.01), 0.45), 0.15, gen_hw * 0.90)
++
++
+ ## One car's paint: the base colour, the finish's uniform set and the livery graphic. Every car
+ ## gets its own ShaderMaterial (they differ per car), but they all share the one shader.
+ func _paint_material(albedo: Texture2D, normal: Texture2D) -> ShaderMaterial:
+@@ -918,6 +1162,9 @@ static func random_car(rng: RandomNumberGenerator) -> Vehicle:
+ 			livery = Livery.TWO_TONE
+ 	car.setup(type, color, extra)
+ 	car.setup_look(fin, livery, trim)
++	# Off the look seed, so it costs no rng call and cannot move anything else in the city.
++	car.wheel_style = absi(hash([look, 31])) % PropFactory.WHEEL_FACES.size()
++	car.wheel_kit = absi(hash([look, 33])) % PropFactory.WHEEL_KITS.size()
+ 	return car
+ 
+ 
+diff --git a/scripts/world/prop_factory.gd b/scripts/world/prop_factory.gd
+index 795a80b..fab89c7 100644
+--- a/scripts/world/prop_factory.gd
++++ b/scripts/world/prop_factory.gd
+@@ -1631,14 +1631,24 @@ const WHEEL_SLOTS := 8
+ 
+ ## Rim finish + caliper colour. Weighted by repetition the way Vehicle.PAINTS is: a real car
+ ## park is mostly silver and dark alloys, with the odd polished, bronze or gloss-black set.
++##
++## `face` is a METAL's reflectance, not a paint colour, so cast aluminium belongs near 0.9 and
++## not near 0.5: at metallic 1.0 there is no diffuse term at all and the albedo IS the whole of
++## what the wheel reflects. The first pass used paint-like values and every rim in the city came
++## out charcoal. The two finishes that are really paint over metal - gloss black and the dark
++## alloy - drop their metallic instead of darkening the reflectance.
++## A caliper lives in a cavity that gets almost no direct light, so its COLOUR is all it has to
++## separate it from the dust shield and the barrel wall behind it. The plain ones are therefore
++## a light cast-alloy grey (0.44-0.50), not the near-black a real caliper often is: at 0.26 the
++## caliper was geometrically present and visually absent, which is the same as not modelling it.
+ const WHEEL_KITS := [
+-	{"face": Color(0.72, 0.73, 0.75), "metal": 1.0, "rough": 0.28, "cal": Color(0.25, 0.26, 0.28), "cal_metal": 0.55, "cal_rough": 0.50},
+-	{"face": Color(0.72, 0.73, 0.75), "metal": 1.0, "rough": 0.28, "cal": Color(0.25, 0.26, 0.28), "cal_metal": 0.55, "cal_rough": 0.50},
+-	{"face": Color(0.33, 0.34, 0.36), "metal": 1.0, "rough": 0.36, "cal": Color(0.20, 0.21, 0.22), "cal_metal": 0.50, "cal_rough": 0.52},
+-	{"face": Color(0.33, 0.34, 0.36), "metal": 1.0, "rough": 0.36, "cal": Color(0.52, 0.10, 0.08), "cal_metal": 0.12, "cal_rough": 0.34},
+-	{"face": Color(0.88, 0.89, 0.90), "metal": 1.0, "rough": 0.15, "cal": Color(0.20, 0.21, 0.22), "cal_metal": 0.50, "cal_rough": 0.52},
+-	{"face": Color(0.09, 0.09, 0.10), "metal": 1.0, "rough": 0.22, "cal": Color(0.62, 0.43, 0.05), "cal_metal": 0.15, "cal_rough": 0.32},
+-	{"face": Color(0.45, 0.32, 0.15), "metal": 1.0, "rough": 0.33, "cal": Color(0.20, 0.21, 0.22), "cal_metal": 0.50, "cal_rough": 0.52},
++	{"face": Color(0.90, 0.91, 0.92), "metal": 1.0, "rough": 0.30, "cal": Color(0.47, 0.48, 0.50), "cal_metal": 0.45, "cal_rough": 0.45},
++	{"face": Color(0.90, 0.91, 0.92), "metal": 1.0, "rough": 0.30, "cal": Color(0.47, 0.48, 0.50), "cal_metal": 0.45, "cal_rough": 0.45},
++	{"face": Color(0.42, 0.43, 0.46), "metal": 0.75, "rough": 0.38, "cal": Color(0.44, 0.45, 0.47), "cal_metal": 0.45, "cal_rough": 0.47},
++	{"face": Color(0.42, 0.43, 0.46), "metal": 0.75, "rough": 0.38, "cal": Color(0.66, 0.12, 0.09), "cal_metal": 0.12, "cal_rough": 0.34},
++	{"face": Color(0.95, 0.96, 0.97), "metal": 1.0, "rough": 0.13, "cal": Color(0.20, 0.30, 0.62), "cal_metal": 0.14, "cal_rough": 0.34},
++	{"face": Color(0.085, 0.085, 0.095), "metal": 0.15, "rough": 0.17, "cal": Color(0.78, 0.54, 0.07), "cal_metal": 0.15, "cal_rough": 0.32},
++	{"face": Color(0.80, 0.58, 0.32), "metal": 1.0, "rough": 0.34, "cal": Color(0.44, 0.45, 0.47), "cal_metal": 0.45, "cal_rough": 0.47},
+ ]
+ 
+ ## Spoke patterns, one per WheelStyle. `n` is the spoke count; `hub` / `mid` / `rim` are the
+@@ -1649,19 +1659,118 @@ const WHEEL_KITS := [
+ ## behind the rim edge, in half-widths - this is the number that makes the rim a dish rather
+ ## than a plate; `rim_ratio` is the rim diameter over the tyre diameter (a 225/45R18 is 0.71).
+ const WHEEL_FACES := [
+-	{"n": 5, "hub": 0.94, "mid": 0.40, "rim": 0.72, "twist": 0.00, "ring": 0.0, "dish": 0.46, "rim_ratio": 0.700},
+-	{"n": 10, "hub": 0.88, "mid": 0.34, "rim": 0.58, "twist": 0.00, "ring": 0.0, "dish": 0.40, "rim_ratio": 0.720},
+-	{"n": 12, "hub": 0.78, "mid": 0.28, "rim": 0.60, "twist": 0.12, "ring": 0.62, "dish": 0.48, "rim_ratio": 0.690},
+-	{"n": 6, "hub": 0.97, "mid": 0.80, "rim": 0.93, "twist": 0.00, "ring": 0.0, "dish": 0.26, "rim_ratio": 0.640},
+-	{"n": 9, "hub": 0.90, "mid": 0.42, "rim": 0.66, "twist": 0.30, "ring": 0.0, "dish": 0.44, "rim_ratio": 0.710},
++	{"n": 5, "hub": 0.92, "mid": 0.42, "rim": 0.74, "twist": 0.00, "ring": 0.0, "dish": 0.34, "rim_ratio": 0.735},
++	{"n": 10, "hub": 0.86, "mid": 0.36, "rim": 0.60, "twist": 0.00, "ring": 0.0, "dish": 0.30, "rim_ratio": 0.750},
++	{"n": 12, "hub": 0.76, "mid": 0.30, "rim": 0.62, "twist": 0.12, "ring": 0.62, "dish": 0.36, "rim_ratio": 0.720},
++	{"n": 6, "hub": 0.97, "mid": 0.80, "rim": 0.93, "twist": 0.00, "ring": 0.0, "dish": 0.22, "rim_ratio": 0.680},
++	{"n": 9, "hub": 0.90, "mid": 0.44, "rim": 0.68, "twist": 0.30, "ring": 0.0, "dish": 0.33, "rim_ratio": 0.745},
+ ]
+ 
+ 
++## True when the renderer can actually light a metal - i.e. when there is a radiance map and
++## reflection probes behind BaseMaterial3D's metallic term. Forward+ can; the Compatibility
++## renderer, which is what the web build and every opengl3 screenshot tool runs, cannot, and a
++## metal there comes back black. The RenderingDevice is the honest test: Compatibility is the
++## one renderer that does not have one, and unlike OS.has_feature("web") it also catches a
++## desktop that fell back to OpenGL and the headless screenshot tools.
++static func has_reflections() -> bool:
++	if _cache.has("has_refl"):
++		return _cache["has_refl"]
++	var yes := RenderingServer.get_rendering_device() != null
++	_cache["has_refl"] = yes
++	return yes
++
++
++## The wheel shader. It belongs in shaders/wheel.gdshader and is only inline because this task
++## was allowed to touch two script files; move it out when there is a chance to.
++##
++## Eight material classes, one surface, one draw call. The class travels in UV.x and the vertex
++## colour carries the shading term, so the meshes stay shared between cars while the finish
++## comes off the material. The obvious alternative, one surface of rubber and one of metal,
++## doubles the draw calls of every car in the city, and at the caps in CityStreamer that is
++## hundreds of calls.
++##
++## The classes are uniforms rather than the two 8 x 1 lookup textures this started as. That is
++## not the bug fix - the bug was elsewhere, see below - but a branch that is coherent across a
++## whole spoke is cheaper than two texture fetches per wheel pixel, it cannot be filtered or
++## mipped into the wrong class, and the Compatibility fallback below is then something you can
++## read off the material instead of out of an image.
++##
++## WHY THE RIMS WERE BLACK, since it was not the metal: the hand-written vertex normals were
++## inverted, and so was the winding _wq() derived from them. Measured with
++## tools/glshot/wheel_shot.gd --mode=styles_normals, which paints the world normal into the
++## colour channels: every revolved surface and every spoke face pointed AWAY from the camera, so
++## the whole wheel was lit by ambient alone whatever its albedo said, and the flat surfaces that
++## close the wheel - hub disc, centre cap, dust shield, brake disc - were culled outright, which
++## is why a car had a body-coloured hole where its hub should be. The fix is in _wq() and in
++## car_wheel()'s generate_normals(). The Compatibility fallback is still right and still needed,
++## but on its own it moved the rim from byte 81 to byte 81; the normals moved it to 231.
++##
++## Shader code uses // comments: a ## line is a syntax error and Godot silently falls back to a
++## blank white material (CLAUDE.md).
++const WHEEL_SHADER := """
++shader_type spatial;
++render_mode cull_back, diffuse_burley, specular_schlick_ggx;
++
++// Albedo per material class. Plain vec3, not source_color: these are set from Vector3s that
++// are already linear reflectances, and letting Godot sRGB-convert them again is how a 0.90
++// aluminium turns into a 0.78 one.
++uniform vec3 c_rubber = vec3(0.05);
++uniform vec3 c_letter = vec3(0.12);
++uniform vec3 c_face = vec3(0.90);
++uniform vec3 c_barrel = vec3(0.54);
++uniform vec3 c_disc = vec3(0.60);
++uniform vec3 c_caliper = vec3(0.45);
++uniform vec3 c_cap = vec3(0.92);
++uniform vec3 c_dark = vec3(0.10);
++// x metallic, y roughness, in the same order.
++uniform vec2 m_rubber = vec2(0.0, 0.95);
++uniform vec2 m_letter = vec2(0.0, 0.62);
++uniform vec2 m_face = vec2(1.0, 0.30);
++uniform vec2 m_barrel = vec2(1.0, 0.56);
++uniform vec2 m_disc = vec2(0.35, 0.42);
++uniform vec2 m_caliper = vec2(0.45, 0.45);
++uniform vec2 m_cap = vec2(1.0, 0.22);
++uniform vec2 m_dark = vec2(0.10, 0.85);
++
++// How much of the vertex shading term is held back from the albedo. The mesh's vertex colours
++// run down to 0.30 in the barrel and the dust shield and 0.56 on a spoke flank; they are there
++// to fake the occlusion of a cavity, and the renderer shades and shadows the same geometry
++// itself, so at full strength the two multiply together and the cavities go to pitch. A fifth
++// held back keeps the modelled shading legible without crushing it. Check it with
++// tools/glshot/wheel_vertex_probe.gd (the colours as authored) and wheel_shot.gd
++// --mode=styles_debug (class and shade painted into the colour channels).
++uniform float shade_lift = 0.20;
++
++void fragment() {
++	int slot = int(clamp(UV.x * 8.0, 0.0, 7.999));
++	vec3 shade = mix(vec3(1.0), COLOR.rgb, 1.0 - shade_lift);
++	vec3 alb = c_dark;
++	vec2 mr = m_dark;
++	if (slot == 0) { alb = c_rubber; mr = m_rubber; }
++	else if (slot == 1) { alb = c_letter; mr = m_letter; }
++	else if (slot == 2) { alb = c_face; mr = m_face; }
++	else if (slot == 3) { alb = c_barrel; mr = m_barrel; }
++	else if (slot == 4) { alb = c_disc; mr = m_disc; }
++	else if (slot == 5) { alb = c_caliper; mr = m_caliper; }
++	else if (slot == 6) { alb = c_cap; mr = m_cap; }
++	ALBEDO = alb * shade;
++	METALLIC = mr.x;
++	ROUGHNESS = mr.y;
++}
++"""
++## The uniform suffixes, in WheelSlot order.
++const WHEEL_UNIFORMS := ["rubber", "letter", "face", "barrel", "disc", "caliper", "cap", "dark"]
++
++
+ ## The shared material for one wheel kit. Set it as `material_override` on the wheel and the
+ ## caliper: the meshes are cached per size and style and shared between cars, so the finish
+ ## cannot live on the mesh.
+-static func wheel_material(kit: int) -> StandardMaterial3D:
+-	var key := "wheel_mat_%d" % kit
++## `force_metal` keeps the Forward+ metal path on a renderer that cannot light it. Nothing in
++## the game passes it; tools/glshot/wheel_shot.gd does, so the two paths can be rendered side by
++## side under the same software GL and the fallback can be shown to do something.
++static func wheel_material(kit: int, force_metal: bool = false) -> ShaderMaterial:
++	var key := "wheel_mat_%d%s" % [kit, "_m" if force_metal else ""]
+ 	if _cache.has(key):
+ 		return _cache[key]
+ 	var k: Dictionary = WHEEL_KITS[posmod(kit, WHEEL_KITS.size())]
+@@ -1669,57 +1778,57 @@ static func wheel_material(kit: int) -> StandardMaterial3D:
+ 	var cal: Color = k.cal
+ 	# Albedo per slot. Rubber is 0.05, not 0.0: a real tyre is the darkest thing on a car but it
+ 	# is not black, and at 0.0 it takes no bounce light at all and reads as a hole.
++	# DISC is a brake rotor: cast iron polished to a mirror by the pads where they sweep, so the
++	# friction band is one of the BRIGHTEST things on the car, not a dark grey washer. It is
++	# deliberately far from the dust shield behind it (0.10) - the two used to sit within a few
++	# hundredths of each other and the whole cavity read as one dark mass.
+ 	var albedo := [
+ 		Color(0.052, 0.052, 0.056), Color(0.115, 0.115, 0.120), face, face * 0.60,
+-		Color(0.42, 0.41, 0.40), cal, face.lerp(Color.WHITE, 0.10), Color(0.055, 0.055, 0.060),
++		Color(0.60, 0.59, 0.57), cal, face.lerp(Color.WHITE, 0.12), Color(0.100, 0.100, 0.105),
+ 	]
+ 	# x = metallic, y = roughness.
+ 	var mr := [
+ 		Vector2(0.0, 0.95), Vector2(0.0, 0.62), Vector2(k.metal, k.rough),
+-		Vector2(k.metal, minf(float(k.rough) + 0.26, 1.0)), Vector2(0.85, 0.40),
++		Vector2(k.metal, minf(float(k.rough) + 0.26, 1.0)), Vector2(0.35, 0.42),
+ 		Vector2(k.cal_metal, k.cal_rough), Vector2(k.metal, float(k.rough) * 0.75),
+-		Vector2(0.25, 0.80),
++		Vector2(0.10, 0.85),
+ 	]
+-	var mat := StandardMaterial3D.new()
+-	mat.albedo_texture = _wheel_lut(key + "_a", albedo)
+-	var mr_tex := _wheel_lut(key + "_m", mr)
+-	mat.metallic_texture = mr_tex
+-	mat.metallic_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+-	mat.roughness_texture = mr_tex
+-	mat.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_GREEN
+-	mat.metallic = 1.0
+-	mat.roughness = 1.0
+-	# Vertex colour is the shading term, so albedo = lookup * vertex colour.
+-	mat.vertex_color_use_as_albedo = true
+-	# Nearest, and no mipmaps on the lookup: a filtered slot boundary would blend rubber into
+-	# chrome, and one wrong texel on an 8 x 1 strip is an eighth of the wheel.
+-	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
++	# --- The Compatibility renderer, which IS the shipped web build --------------------------
++	#
++	# A metal has no diffuse term at all: every photon it sends back is a reflection of its
++	# surroundings. Forward+ has a radiance map of the sky and real reflection probes to supply
++	# those, so a 0.90-reflectance rim reads as aluminium. Compatibility has neither worth the
++	# name, so the same rim reads as a black disc whatever its albedo says - which is what every
++	# wheel in the web build and in every opengl3 screenshot was doing.
++	#
++	# So on that renderer the finish is re-expressed as paint over metal: most of the reflectance
++	# is moved into a diffuse albedo (gamma-corrected, because the reflectance value is linear
++	# and a diffuse surface lit by one sun lands about there), the metallic term is cut to a
++	# sheen, and the roughness is pulled up so the specular lobe that is left spreads out instead
++	# of hunting for a highlight that is not in the environment. Forward+ is untouched.
++	if not has_reflections() and not force_metal:
++		for i in albedo.size():
++			var m: float = (mr[i] as Vector2).x
++			if m <= 0.02:
++				continue
++			var c: Color = albedo[i]
++			# The rim keeps its hue (bronze stays bronze); only the level moves.
++			albedo[i] = Color(pow(c.r, 0.62), pow(c.g, 0.62), pow(c.b, 0.62)).lerp(c, 1.0 - m)
++			mr[i] = Vector2(m * 0.22, lerpf((mr[i] as Vector2).y, 0.55, 0.55 * m))
++	if not _cache.has("wheel_shader"):
++		var sh := Shader.new()
++		sh.code = WHEEL_SHADER
++		_cache["wheel_shader"] = sh
++	var mat := ShaderMaterial.new()
++	mat.shader = _cache["wheel_shader"]
++	for i in WHEEL_SLOTS:
++		var c: Color = albedo[i]
++		mat.set_shader_parameter("c_" + WHEEL_UNIFORMS[i], Vector3(c.r, c.g, c.b))
++		mat.set_shader_parameter("m_" + WHEEL_UNIFORMS[i], mr[i])
+ 	_cache[key] = mat
+ 	return mat
+ 
+ 
+-## An 8 x 1 lookup strip. Takes Colors (albedo) or Vector2s (metallic in red, roughness in green).
+-static func _wheel_lut(key: String, values: Array) -> ImageTexture:
+-	if _cache.has(key):
+-		return _cache[key]
+-	var bytes := PackedByteArray()
+-	bytes.resize(WHEEL_SLOTS * 3)
+-	for i in WHEEL_SLOTS:
+-		var v: Variant = values[i] if i < values.size() else Color.BLACK
+-		var c := Color.BLACK
+-		if v is Color:
+-			c = v
+-		elif v is Vector2:
+-			c = Color((v as Vector2).x, (v as Vector2).y, 0.0)
+-		bytes[i * 3] = clampi(int(c.r * 255.0), 0, 255)
+-		bytes[i * 3 + 1] = clampi(int(c.g * 255.0), 0, 255)
+-		bytes[i * 3 + 2] = clampi(int(c.b * 255.0), 0, 255)
+-	var img := Image.create_from_data(WHEEL_SLOTS, 1, false, Image.FORMAT_RGB8, bytes)
+-	var tex := ImageTexture.create_from_image(img)
+-	_cache[key] = tex
+-	return tex
+-
+-
+ ## One vertex of a wheel: position, normal, shading colour and material slot.
+ static func _wv(st: SurfaceTool, p: Vector3, n: Vector3, shade: float, slot: int) -> void:
+ 	st.set_color(Color(shade, shade, shade))
+@@ -1734,8 +1843,15 @@ static func _wv(st: SurfaceTool, p: Vector3, n: Vector3, shade: float, slot: int
+ ## the winding removes the whole class of bug from geometry this fiddly.
+ static func _wq(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3,
+ 		na: Vector3, nb: Vector3, nc: Vector3, nd: Vector3, shade: float, slot: int) -> void:
++	# > 0.0, not < 0.0. Godot's front face is the one whose vertices wind CLOCKWISE, which is the
++	# opposite of the right-hand rule this test reads like - the same trap the freeway deck fell
++	# into twice (CLAUDE.md). With the comparison the other way round every surface here was
++	# built back to front: the tyre showed the inside of its far wall, and the flat ones that
++	# close the wheel - the hub disc, the centre cap, the dust shield, the brake disc - were
++	# culled outright, so you looked through the middle of the wheel and out at the bodywork
++	# behind it. On the car that is a red hole where the hub should be.
+ 	var order: Array = [[a, na], [b, nb], [c, nc], [a, na], [c, nc], [d, nd]]
+-	if (b - a).cross(c - a).dot(na + nb + nc + nd) < 0.0:
++	if (b - a).cross(c - a).dot(na + nb + nc + nd) > 0.0:
+ 		order = [[a, na], [d, nd], [c, nc], [a, na], [c, nc], [b, nb]]
+ 	for pair: Array in order:
+ 		_wv(st, pair[0], pair[1], shade, slot)
+@@ -1775,8 +1891,8 @@ static func _wheel_tread(mod: int, j: int, r: float) -> float:
+ 	if mod <= 0:
+ 		return 0.0
+ 	if mod == 1:
+-		return -r * 0.055 if (j + 1) % 4 == 0 else 0.0
+-	return -r * 0.030 if (j + (mod - 10)) % 4 == 3 else 0.0
++		return -r * 0.017 if (j + 1) % 4 == 0 else 0.0
++	return -r * 0.009 if (j + (mod - 10)) % 4 == 3 else 0.0
+ 
+ 
+ ## Revolves a profile about the X axis. `prof` rows are [x, r, slot, shade] with an optional
+@@ -1846,16 +1962,35 @@ static func car_wheel(style: int, radius: float, width: float, near: bool) -> Me
+ 	var face: Dictionary = WHEEL_FACES[posmod(style, WHEEL_FACES.size())]
+ 	var rim_r := radius * float(face.rim_ratio)
+ 	var hw := width * 0.5
+-	# 72 is not vanity: a tyre is a circle seen from the side at two metres, and the lateral
+-	# tread pattern runs on a four-segment period, so the count has to divide by four as well or
+-	# the pattern does not close round the ring.
+-	var seg := 72 if near else 20
++	# 96 is not vanity. It sets the silhouette of a circle the player stands next to, and it
++	# also sets the tread: the lateral block pattern runs on a four-segment period, so 96 gives
++	# twenty-four blocks round a 2.2 m circumference - one every nine centimetres. At 72 they
++	# were twelve centimetres apart and the tread read as a tractor tyre. The count therefore
++	# has to stay a multiple of four or the pattern does not close round the ring.
++	var seg := 96 if near else 20
+ 	var st := SurfaceTool.new()
+ 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+ 	_wheel_tyre(st, radius, rim_r, hw, seg, near)
+ 	_wheel_barrel(st, rim_r, hw, seg, near)
+ 	_wheel_brake(st, rim_r, hw, near)
+ 	_wheel_face(st, face, rim_r, hw, near)
++	# Indexed, not a raw triangle soup. A near wheel is eleven thousand triangles and the city
++	# ends up holding one per style and size; welding the shared vertices roughly halves what
++	# that costs in memory and gives the GPU a post-transform cache to work with.
++	st.index()
++	# And then the normals are REGENERATED from the welded topology. The hand-written ones were
++	# inverted: measured with tools/glshot/wheel_shot.gd --mode=styles_normals, which paints the
++	# world normal into the colour channels, every revolved surface and every spoke face came
++	# out pointing away from the camera, so the whole wheel was lit by ambient alone and read as
++	# gloss black however bright its albedo was. That is the whole of the "the rims are near
++	# black" report, and it is not the metal.
++	#
++	# Godot's own winding convention is the one thing here that cannot be got wrong, so let it
++	# decide: generate_normals() derives the normal from the winding of the triangles that were
++	# actually emitted. The authored normals are still what decides WELDING, and so which edges
++	# stay hard (a groove wall meeting the tread) and which smooth out (the barrel, the tyre
++	# round its circumference) - the smoothing survives, only the sign changes.
++	st.generate_normals()
+ 	var mesh := st.commit()
+ 	_cache[key] = mesh
+ 	return mesh
+@@ -1910,6 +2045,8 @@ static func car_caliper(style: int, radius: float, width: float) -> Mesh:
+ 		var a := s
+ 		var c := _wp(x_in - thick * 0.45, (r_in + r_out) * 0.5, a)
+ 		_box_wheel(st, c, Vector3(thick * 0.9, rim_r * 0.10, rim_r * 0.10), a, 0.55, WheelSlot.CALIPER)
++	st.index()
++	st.generate_normals()
+ 	var mesh := st.commit()
+ 	_cache[key] = mesh
+ 	return mesh
+@@ -1949,7 +2086,7 @@ static func _box_wheel(st: SurfaceTool, centre: Vector3, size: Vector3, a: float
+ static func _wheel_tyre(st: SurfaceTool, r_out: float, rim_r: float, hw: float, seg: int, detail: bool) -> void:
+ 	var sw := r_out - rim_r                     # sidewall height
+ 	var bead := rim_r + r_out * 0.055
+-	var crown_x := 0.652
++	var crown_x := 0.715
+ 	var crown := func(xf: float) -> float:
+ 		# The tread is crowned, not flat: a tyre stands on the middle of its tread.
+ 		return r_out - r_out * 0.012 * pow(absf(xf) / crown_x, 2.0)
+@@ -1961,15 +2098,15 @@ static func _wheel_tyre(st: SurfaceTool, r_out: float, rim_r: float, hw: float,
+ 		[0.975, rim_r + sw * 0.52, WheelSlot.LETTER, 1.00, 0],   # moulded lettering band
+ 		[0.930, rim_r + sw * 0.68, WheelSlot.LETTER, 0.90, 0],
+ 		[0.875, rim_r + sw * 0.84, WheelSlot.RUBBER, 0.82, 0],
+-		[0.800, r_out * 0.966, WheelSlot.RUBBER, 0.74, 1],       # shoulder, scalloped by lugs
+-		[0.725, r_out * 0.991, WheelSlot.RUBBER, 0.84, 1],
++		[0.855, r_out * 0.962, WheelSlot.RUBBER, 0.74, 1],       # shoulder, scalloped by lugs
++		[0.795, r_out * 0.990, WheelSlot.RUBBER, 0.84, 1],
+ 		[crown_x, crown.call(crown_x), WheelSlot.RUBBER, 0.94, 10],
+ 	]
+ 	if detail:
+ 		var gd := r_out * 0.028
+ 		var gw := 0.075
+ 		var rib := 0
+-		for g: float in [0.46, 0.155, -0.155, -0.46]:
++		for g: float in [0.505, 0.170, -0.170, -0.505]:
+ 			prof.append([g + gw, crown.call(g + gw), WheelSlot.RUBBER, 0.94, 10 + rib])
+ 			prof.append([g + gw * 0.55, crown.call(g) - gd, WheelSlot.RUBBER, 0.40, 0])
+ 			prof.append([g - gw * 0.55, crown.call(g) - gd, WheelSlot.RUBBER, 0.40, 0])
+@@ -1994,7 +2131,7 @@ static func _wheel_tyre(st: SurfaceTool, r_out: float, rim_r: float, hw: float,
+ ## outer skin - everything between them is under the tyre and would be paying for geometry
+ ## nobody can see.
+ static func _wheel_barrel(st: SurfaceTool, rim_r: float, hw: float, seg: int, detail: bool) -> void:
+-	var lip := rim_r * 0.105
++	var lip := rim_r * 0.055
+ 	var well := rim_r * 0.20
+ 	var shell := rim_r * 0.038
+ 	# [x in half-widths, radius]
+@@ -2139,6 +2276,14 @@ static func _wheel_face(st: SurfaceTool, face: Dictionary, rim_r: float, hw: flo
+ 				var h1: Vector3 = point.call(t1, 1.0, base) - Vector3(s1.w, 0.0, 0.0)
+ 				_wqf(st, g0, g1, h1, h0, Vector3.LEFT, 0.34, WheelSlot.DARK)
+ 	var seg := 36 if detail else 12
++	# The hub disc the spokes grow out of. Without it there is an open annulus between where the
++	# centre cap ends and where the spokes begin, and you look straight through the middle of
++	# the wheel and out the far side of the car.
++	_wheel_revolve(st, [
++		[x_hub + hw * 0.02, 0.0, WheelSlot.FACE, 0.86],
++		[x_hub - hw * 0.01, hub_r * 1.08, WheelSlot.FACE, 0.78],
++		[x_hub - hw * 0.18, hub_r * 1.08, WheelSlot.FACE, 0.52],
++	], seg)
+ 	# A concentric band laid over the spokes turns a spoke set into a mesh wheel.
+ 	if float(face.ring) > 0.0:
+ 		var rr := rim_r * float(face.ring)
+@@ -2152,6 +2297,18 @@ static func _wheel_face(st: SurfaceTool, face: Dictionary, rim_r: float, hw: flo
+ 			[xr - hw * 0.10, rr - w, WheelSlot.FACE, 0.60],
+ 			[xr, rr - w, WheelSlot.FACE, 0.88],
+ 		], seg)
++	# A dust shield closing the back of the wheel. Without it you look straight through the ring
++	# between the brake disc and the barrel and out the other side of the wheel arch, which on a
++	# car is bodywork in body colour - a red car with a red hole in the middle of its wheel.
++	# It is built at BOTH levels: the far mesh covers 30 m to 85 m, which is where most of the
++	# cars you ever see are, and an open annulus there is the same hole at a smaller size.
++	# It sits well INBOARD of the brake disc (which ends at -thick, about -0.10 half-widths) on
++	# purpose: when the two were a couple of hundredths apart the disc had a black wall directly
++	# behind it and the whole cavity read as one dark mass with no disc in it.
++	_wheel_revolve(st, [
++		[-hw * 0.52, rim_r * 0.20, WheelSlot.DARK, 0.34],
++		[-hw * 0.52, rim_r * 0.99, WheelSlot.DARK, 0.26],
++	], seg)
+ 	# Centre cap: a shallow dome standing proud of the hub, with a skirt down to the face.
+ 	var cap_r := hub_r * 0.72
+ 	var cap_x := x_hub + hw * 0.16
+@@ -2172,3 +2329,197 @@ static func _wheel_face(st: SurfaceTool, face: Dictionary, rim_r: float, hw: flo
+ 		var a := TAU * (float(i) + 0.5) / 5.0
+ 		var c := _wp(ls.x + hw * 0.05, hub_r * 1.34, a)
+ 		_box_wheel(st, c, Vector3(hw * 0.11, rim_r * 0.075, rim_r * 0.075), a, 0.80, WheelSlot.CAP)
++
++
++## NOTE: the glTF importer also builds a positions-only SHADOW MESH for every car, and
++## rebuilding the mesh through ImporterMesh throws it away, so a tucked body pays a little more
++## in the shadow pass than an untouched one. A hand-built replacement (an ArrayMesh with only
++## ARRAY_VERTEX and ARRAY_INDEX, assigned to `shadow_mesh`) was tried and taken back out: with
++## it, a city render on the Compatibility renderer segfaults inside the renderer at a downtown
++## camera, with no GDScript frame in the backtrace, and without it the same camera renders. The
++## engine expects a shadow mesh built by its own create_shadow_mesh(), which is not exposed to
++## GDScript. Do not put it back without a city render to prove it.
++
++
++## Tucks the wheels baked into a car body model away inside the generated wheel that is drawn
++## over them, and hands back one mesh with the same surfaces and the same draw-call count.
++##
++## The body models carry their wheels baked into the bodywork - on the four Meshy cars as part
++## of the single painted surface, so they come out in body colour, which is why a red car had
++## red wheels. A generated wheel cannot simply be laid over one of those: a dished rim's face
++## sits further INBOARD than the modelled wheel's face does, so the old wheel draws in front of
++## the new spokes whatever size the new wheel is.
++##
++## The first version of this cut the modelled wheel out into a SECOND MeshInstance3D that drew
++## only past the distance where the generated wheels stop. That is one extra draw call and one
++## extra object on every model car in the city, for ever, and at eighty-five metres a wheel is
++## seven pixels - so it bought nothing and was measurably the largest part of what the wheels
++## cost (+153 draws at a street camera with 444 cars in the scene). Shrinking the triangles in
++## place instead keeps them in the body's own surface: no extra draw, no extra object, the arch
++## is still not an empty hole at distance, and up close the shrunken wheel is hidden behind the
++## generated brake disc, which is a solid plate out to 0.76 of the rim radius.
++##
++## The vertices a wheel triangle uses are COPIED before they are moved. They are shared with the
++## arch lip and the sill around them, and moving them in place would drag the bodywork in after
++## the wheel.
++##
++## `to_body` maps the mesh's own space into Vehicle body space (where WHEEL_POSE lives) and
++## `cuts` is a list of [hub: Vector3, radius, half_width_inboard, half_width_outboard]. A
++## triangle is a wheel triangle if its centre lies inside one of those cylinders about the axle.
++## The arch lip survives because an arch is cut to CLEAR the tyre and so is always a few
++## centimetres outside the cut radius; the sills and the floor survive because they are most of
++## a wheelbase away from the hub in z, and because the narrow cylinder that reaches out past the
++## tyre's own section to catch the modelled hub cap reaches OUTBOARD only - reaching inboard as
++## well is what ate a piece of the pickup's step panel.
++##
++## `radial` and `axial` scale what is left about the hub and `inset` moves it inboard, in metres.
++## The mesh is rebuilt through ImporterMesh with generate_lods(25, 60) - the same numbers the
++## glTF importer itself uses, so the LOD chain is equivalent to the one it replaces - and the
++## shadow mesh is rebuilt too, because that is NOT automatic and losing it doubles what every
++## car costs in the shadow pass.
++static func tuck_body_wheels(mesh: Mesh, key: String, to_body: Transform3D, cuts: Array,
++		radial: float, axial: float, inset: float) -> Mesh:
++	if _cache.has(key):
++		return _cache[key]
++	var im := ImporterMesh.new()
++	var touched := false
++	for s in mesh.get_surface_count():
++		var arrays := mesh.surface_get_arrays(s)
++		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
++		var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
++		var mat := mesh.surface_get_material(s)
++		var sname := "s%d" % s
++		if mat != null and String(mat.resource_name) != "":
++			sname = String(mat.resource_name)
++		if idx.is_empty() or verts.is_empty():
++			im.add_surface(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, mat, sname)
++			continue
++		var from_body := to_body.affine_inverse()
++		var pos := PackedVector3Array()
++		pos.resize(verts.size())
++		for i in verts.size():
++			pos[i] = to_body * verts[i]
++		# Which cut (if any) owns each triangle, and through it each of its vertices. Both are
++		# needed: the vertex map says which hub a copy is pulled into, and the TRIANGLE map says
++		# which triangles may use the copies. Remapping every index that points at an owned
++		# vertex instead would drag the arch lip and the sill in after the wheel, which is the
++		# whole reason the vertices are copied rather than moved.
++		var owner := PackedInt32Array()
++		owner.resize(verts.size())
++		owner.fill(-1)
++		var tri := PackedInt32Array()
++		tri.resize(idx.size() / 3)
++		tri.fill(-1)
++		var hit := false
++		for t in idx.size() / 3:
++			var a := idx[t * 3]
++			var b := idx[t * 3 + 1]
++			var c := idx[t * 3 + 2]
++			var mid := (pos[a] + pos[b] + pos[c]) / 3.0
++			for ci in cuts.size():
++				var cut: Array = cuts[ci]
++				var hub: Vector3 = cut[0]
++				# Outboard is away from the car's centreline, which is the direction the hub
++				# itself lies in.
++				var dx := (mid.x - hub.x) * signf(hub.x if absf(hub.x) > 0.001 else 1.0)
++				if dx > float(cut[3]) or dx < -float(cut[2]):
++					continue
++				if Vector2(mid.y - hub.y, mid.z - hub.z).length() >= float(cut[1]):
++					continue
++				owner[a] = ci
++				owner[b] = ci
++				owner[c] = ci
++				tri[t] = ci
++				hit = true
++				break
++		if not hit:
++			im.add_surface(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, mat, sname)
++			continue
++		touched = true
++		# One copy per wheel vertex, appended past the end, moved into the hub. Every other
++		# array is copied straight across so the new vertices keep their normals and UVs.
++		var remap := PackedInt32Array()
++		remap.resize(verts.size())
++		remap.fill(-1)
++		var extra: Array[int] = []
++		for i in verts.size():
++			if owner[i] >= 0:
++				remap[i] = verts.size() + extra.size()
++				extra.append(i)
++		var out := arrays.duplicate()
++		var nv := verts.duplicate()
++		for src in extra:
++			var cut: Array = cuts[owner[src]]
++			var hub: Vector3 = cut[0]
++			var side := signf(hub.x if absf(hub.x) > 0.001 else 1.0)
++			var p := pos[src]
++			var q := Vector3(
++					hub.x + (p.x - hub.x) * axial - side * inset,
++					hub.y + (p.y - hub.y) * radial,
++					hub.z + (p.z - hub.z) * radial)
++			nv.append(from_body * q)
++		out[Mesh.ARRAY_VERTEX] = nv
++		for aid in [Mesh.ARRAY_NORMAL, Mesh.ARRAY_TANGENT, Mesh.ARRAY_COLOR, Mesh.ARRAY_TEX_UV,
++				Mesh.ARRAY_TEX_UV2, Mesh.ARRAY_BONES, Mesh.ARRAY_WEIGHTS]:
++			out[aid] = _append_rows(arrays[aid], extra)
++		var ni := idx.duplicate()
++		for t in tri.size():
++			if tri[t] < 0:
++				continue
++			for k in 3:
++				ni[t * 3 + k] = remap[ni[t * 3 + k]]
++		out[Mesh.ARRAY_INDEX] = ni
++		if OS.get_environment("TUCK_DEBUG") != "":
++			print("TUCK %s surf %d: %d/%d triangles tucked, %d vertices copied" % [
++					key, s, extra.size(), idx.size() / 3, extra.size()])
++		im.add_surface(Mesh.PRIMITIVE_TRIANGLES, out, [], {}, mat, sname)
++	var result: Mesh = mesh
++	if OS.get_environment("TUCK_DEBUG") != "" and not touched:
++		print("TUCK %s: NOTHING MATCHED (%d surfaces)" % [key, mesh.get_surface_count()])
++	if touched and im.get_surface_count() > 0:
++		im.generate_lods(25.0, 60.0, [])
++		var am := im.get_mesh()
++		if am != null:
++			result = am
++	_cache[key] = result
++	return result
++
++
++## Copies a vertex-attribute array and appends the rows named in `rows` to the end of it, so a
++## duplicated vertex carries the same normal, tangent, colour and UVs as the one it came from.
++## Tangents and bone/weight arrays are four entries per vertex, everything else one.
++static func _append_rows(src: Variant, rows: Array[int]) -> Variant:
++	if src == null:
++		return null
++	if src is PackedVector3Array:
++		var a: PackedVector3Array = (src as PackedVector3Array).duplicate()
++		for i in rows:
++			a.append(a[i])
++		return a
++	if src is PackedVector2Array:
++		var b: PackedVector2Array = (src as PackedVector2Array).duplicate()
++		for i in rows:
++			b.append(b[i])
++		return b
++	if src is PackedColorArray:
++		var c: PackedColorArray = (src as PackedColorArray).duplicate()
++		for i in rows:
++			c.append(c[i])
++		return c
++	if src is PackedFloat32Array:
++		var d: PackedFloat32Array = (src as PackedFloat32Array).duplicate()
++		var stride := 4
++		for i in rows:
++			for k in stride:
++				d.append(d[i * stride + k])
++		return d
++	if src is PackedInt32Array:
++		var e: PackedInt32Array = (src as PackedInt32Array).duplicate()
++		var stride2 := 4
++		for i in rows:
++			for k in stride2:
++				e.append(e[i * stride2 + k])
++		return e
++	return src
++
++

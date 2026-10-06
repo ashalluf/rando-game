@@ -1,0 +1,17 @@
+{
+  "name": "pedestrian_h",
+  "prompt": "white man in his 60s: tan windbreaker jacket, khaki trousers, casual walking shoes, short grey hair, natural lined face, full body standing, ultra realistic, photorealistic, highly detailed, physically accurate materials and proportions, real-world scale, no cartoon or stylized look",
+  "credits": 44,
+  "tasks": {
+    "preview": "01a0caae-1090-70c8-85e4-04657484a2bf",
+    "refine": "01a0caaf-0035-7765-a00a-1f932b3d02c7",
+    "rig": "01a0caaf-d187-7063-b448-19d88d0d5389",
+    "animations": "01a0cab0-83ae-740b-a983-0c86e28a184f"
+  },
+  "source": "Meshy (generated for this project)",
+  "animations": [
+    0,
+    613,
+    659
+  ]
+}
