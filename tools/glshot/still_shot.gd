@@ -273,6 +273,50 @@ func _initialize() -> void:
 			if fly_frames % 20 == 0:
 				print("fly: frame %d, %.2f s, %.1f m/s" % [fly_frames, flown, (player.get("velocity") as Vector3).length()])
 		print("fly: %.2f s at %.1f m/s, now at %s" % [flown, (player.get("velocity") as Vector3).length(), player.global_position])
+	# WINGSUIT=glide|fall|skid: the hero launched along the camera at WS_SPEED m/s (default 48), the suit
+	# spread (glide) or not (fall, the before) - skid: launched low and fast at WS_SPEED 55 so he
+	# touches down and skids -, the stick held at WS_INPUT ("roll,pitch", the move
+	# axes) for WS_TIME seconds of game time at FLY_SCALE; then WS_LOOK="yaw,pitch" (degrees off
+	# his heading, and up) swings the camera round him for the shot, WS_DIST metres off (and FOV).
+	var ws_mode := OS.get_environment("WINGSUIT")
+	if (ws_mode == "glide" or ws_mode == "fall" or ws_mode == "skid") and player and player.get("wingsuit") != null:
+		_flying = true
+		var suit: Node = player.get("wingsuit")
+		var rig_ws: Node3D = player.get_node("CameraRig")
+		var yaw_ws := rig_ws.global_rotation.y
+		player.set("velocity", Basis(Vector3.UP, yaw_ws) * Vector3(0.0, -6.0, -_env_float("WS_SPEED", 48.0)))
+		(player.get_node("Visual") as Node3D).rotation.y = yaw_ws
+		var stick := OS.get_environment("WS_INPUT").split(",")
+		if ws_mode == "skid":
+			player.set("velocity", Basis(Vector3.UP, yaw_ws) * Vector3(0.0, -4.0, -_env_float("WS_SPEED", 55.0)))
+		if ws_mode == "fall" and OS.get_environment("WS_DIST") != "":
+			rig_ws.set("camera_distance", _env_float("WS_DIST", 6.5))
+		if ws_mode != "fall":
+			suit.call("open")
+			suit.call("force_input", Vector2(float(stick[0]), float(stick[1])) if stick.size() == 2 else Vector2.ZERO)
+		Engine.time_scale = _env_float("FLY_SCALE", 0.125)
+		var flown_ws := 0.0
+		while flown_ws < _env_float("WS_TIME", 1.5):
+			await process_frame
+			flown_ws += get_root().get_process_delta_time()
+		print("wingsuit: %.2f s, %.1f m/s, gliding %s, at %s" % [flown_ws, (player.get("velocity") as Vector3).length(), suit.call("is_gliding"), player.global_position])
+		var gliding_ws: bool = suit.call("is_gliding")
+		if OS.get_environment("WS_DIST") != "":
+			if gliding_ws:
+				suit.set("camera_extra", _env_float("WS_DIST", 9.0) - float(suit.get("_base_distance")))
+			else:
+				rig_ws.set("camera_distance", _env_float("WS_DIST", 6.5))
+		if OS.get_environment("FOV") != "":
+			suit.set("_base_fov", _env_float("FOV", 70.0))
+			suit.set("fov_extra", 0.0)
+			rig_ws.set("camera_fov", _env_float("FOV", 70.0))
+			rig_ws.set("boost_fov_boost", 0.0)
+		var look_ws := OS.get_environment("WS_LOOK").split(",")
+		if look_ws.size() == 2:
+			var hd: float = rad_to_deg(float(suit.get("heading"))) if ws_mode != "fall" else rad_to_deg(yaw_ws)
+			suit.set("chase_after", 1.0e9)
+			rig_ws.call("set_look", hd + float(look_ws[0]), float(look_ws[1]))
+			await process_frame
 	# HUD=1 with --nohud: skip the loading screen (which --nohud does) but put the HUD back up for
 	# the shot, in its CLEAN mode - without --nohud the loading screen fills the first hundred frames.
 	if OS.get_environment("HUD") == "1" and current_scene:

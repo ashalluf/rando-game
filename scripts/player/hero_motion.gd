@@ -31,14 +31,14 @@ const FALL_AIMS := [
 	["LeftArm", Vector3(0.93, 0.25, 0.12)], ["LeftForeArm", Vector3(0.8, 0.5, 0.3)],
 	["LeftHand", Vector3(0.7, 0.45, 0.55)],
 ]
-## The wingsuit's spread (scripts/player/wingsuit.gd): arms out to the sides, a little toward the
-## feet and the back, straight to the wrists; the legs a V, knees soft, toes pointed.
+## The wingsuit's spread (scripts/player/wingsuit.gd): arms out to the sides and swept back toward
+## the feet a little (the delta of a real suit), straight to the wrists; the legs a V, knees soft, toes pointed.
 const GLIDE_AIMS := [
-	["LeftArm", Vector3(0.95, -0.24, -0.12)], ["RightArm", Vector3(-0.95, -0.24, -0.12)],
-	["LeftForeArm", Vector3(0.96, -0.2, -0.06)], ["RightForeArm", Vector3(-0.96, -0.2, -0.06)],
-	["LeftHand", Vector3(0.97, -0.18, 0.04)], ["RightHand", Vector3(-0.97, -0.18, 0.04)],
-	["LeftUpLeg", Vector3(0.3, -0.95, -0.04)], ["RightUpLeg", Vector3(-0.3, -0.95, -0.04)],
-	["LeftLeg", Vector3(0.3, -0.94, -0.14)], ["RightLeg", Vector3(-0.3, -0.94, -0.14)],
+	["LeftArm", Vector3(0.88, -0.45, -0.14)], ["RightArm", Vector3(-0.88, -0.45, -0.14)],
+	["LeftForeArm", Vector3(0.9, -0.42, -0.08)], ["RightForeArm", Vector3(-0.9, -0.42, -0.08)],
+	["LeftHand", Vector3(0.9, -0.42, 0.02)], ["RightHand", Vector3(-0.9, -0.42, 0.02)],
+	["LeftUpLeg", Vector3(0.36, -0.93, -0.04)], ["RightUpLeg", Vector3(-0.36, -0.93, -0.04)],
+	["LeftLeg", Vector3(0.36, -0.92, -0.14)], ["RightLeg", Vector3(-0.36, -0.92, -0.14)],
 	["LeftFoot", Vector3(0.22, -0.8, -0.5)], ["RightFoot", Vector3(-0.22, -0.8, -0.5)],
 ]
 ## Bone -> the child whose head gives its direction.

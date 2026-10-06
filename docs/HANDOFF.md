@@ -14201,3 +14201,57 @@ streets' glow stands in). The lamps stand where the old ones stood, and on some 
 is beside a utility pole (StreetDetail's), which the old thin post hid better. No real light
 shaped like the cobra's cut-off (still an omni). Shot lamps break as before (debris box), no
 falling pole.
+
+## 9d?. The wingsuit (2026-10-06, fleet wave 2, branch `wt/wingsuit`)
+
+The overpowered hero gets a wingsuit. Everything is the player's; nothing in the city changed.
+
+**Controls.** In the air, `wingsuit` (G / pad X, a new action at the end of `[input]`) spreads it
+if there is `open_clearance` (14 m) of air under him; so does holding jump for `hold_open_seconds`
+while falling (a double jump held through its apex opens on the way down). W / S pitch the dive and
+the flare (`trim_pitch` -14, `dive_pitch` -72, `flare_pitch` +26 degrees), A / D bank him into a
+turn, boost thrusts along the flight. Jump or G again folds it (a buffered jump hops him out).
+
+**The flight** (`Wingsuit._glide()`): an energy model, not a jetpack. Gravity in the suit is
+`glide_gravity` 14 m/s^2; the wing swings the velocity onto the attitude at `align_rate` radians
+per metre flown (faded out below the stall), which does no work, so speed only comes from the dive;
+drag is `drag` x v^2 + `drag_base`. Trimmed he settles near 30-40 m/s at a glide ratio of ~4,
+a full dive runs toward 90 m/s, a pull-up climbs and bleeds it. Turns are coordinated
+(g tan(bank) / speed x `turn_gain`). A wall hit faster than `wall_fold_speed` folds the suit with a
+thud.
+
+**Landing.** Under `flare_height` (9 m, a ray down) he flares by himself: the attitude levels
+(`flare_level`) and the sink eases to `landing_sink` (2.5 m/s) without ever going up unless the
+player pulls back himself - the first version flared into a climb and porpoised along the ground
+for seconds without touching down. Touching down slower than `run_out_speed` (26 m/s) he runs out
+at up to `run_out_keep` with the landing knees (`Avatar.landed`); faster he skids on one knee and a
+hand (`moves/land_hero`, held by driving the Avatar at speed 0), shedding `skid_decel` m/s^2 with a
+`scrape` loop, a grit burst and a dust trail, until `skid_end_speed`.
+
+**The look.** The pose is `HeroMotion.glide` (GLIDE_AIMS: arms spread and straight, legs a V,
+toes pointed, head lifted along the flight) with `Avatar.glide_tilt` (a right angle level, more
+diving) and `glide_bank` laying the body over; `Avatar` keeps the left hand off the gun and its fall
+pose off while gliding. The gun is put away while he glides (`weapon_manager.visible`) and comes
+out raised to fire or aim. `WingsuitFx` rebuilds the fabric on every `skeleton_updated`, after the
+modifiers: an arm wing each side (sleeve shoulder - elbow - wrist, body edge shoulder - hip -
+thigh, the trailing edge scalloped) and a tail wing crotch to ankles, 9 x 6 grids bowed back by
+the air and folding onto the body edge as `spread` falls - ~210 vertices, one draw.
+`shaders/wingsuit_fabric.gdshader`: charcoal ripstop panels with stitched seams billowing between
+them, an orange trailing edge and sleeve, air inlets by the shoulder, a flutter growing with speed,
+linear colours via color_space. The boost trail is off in the suit (`BoostTrail.drive(false)`) and
+the wingtips lay vapour instead: two ribbons of points in TRUE world space (origin shifts do not
+move them), camera-facing strips that widen and fade (`wingsuit_vapour.gdshader`), from
+`vapour_min` 32 m/s, thicker with boost, dimmed at night. The whoosh is the `wind` loop on the World
+bus, swelled and pitched by the airspeed. The camera pulls back `camera_extra`, widens with speed
+and swings in behind the flight after `chase_after` seconds without a look input.
+
+**Files.** `scripts/player/wingsuit.gd`, `scripts/player/wingsuit_fx.gd`, the two shaders; hooks:
+`Player` (a `wingsuit` var, `Wingsuit.attach(self)` in `_ready()`, one `if wingsuit.tick()` line
+after the timers), `Avatar` (`glide`, `glide_tilt`, `glide_bank` and four lines in
+`_drive_moves()` / `hold_gun()`), `HeroMotion` (GLIDE_AIMS, the right arm's CHILD entries),
+`project.godot` (the action), `still_shot.gd` (`WINGSUIT=glide|fall`, `WS_INPUT`, `WS_TIME`,
+`WS_SPEED`, `WS_LOOK`). `WINGSUIT=0` in the environment builds none of it.
+
+**Checks.** `tests/wingsuit_checks.gd`, in the room part (INLINE_FILES): 21 checks on the real
+player with real physics in the test room (`tools/wingsuit/checks_only.tscn` runs them alone in
+about a minute headless).

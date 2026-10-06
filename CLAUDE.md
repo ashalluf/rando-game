@@ -1979,6 +1979,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   from `slam_speed` (72, a drop of ~30 m) grit, a crater of cracks (a Decal: Forward+ only) and a
   shockwave that knocks the people, props and loose cars within `slam_radius` (a police crime
   like any knock). `post_room_shot.gd MODE=land` (`DROP`, `LAND_AFTER`) shows it.
+- Wingsuit (2026-10-06, docs/HANDOFF.md "The wingsuit"): `Wingsuit` (`scripts/player/wingsuit.gd`,
+  `Wingsuit.attach()` in `Player._ready()`; `Player._physics_process()` hands each tick to
+  `tick()`, which returns true while the suit has the body). `wingsuit` action (G / pad X) or jump
+  held `hold_open_seconds` falling, with `open_clearance` of air; W/S pitch (trim / dive / flare
+  degrees), A/D bank (turn = g tan(bank) / speed), the velocity swung onto the attitude by
+  `align_rate` (lift does no work: speed only from the dive), drag on v^2, boost thrust; an
+  automatic flare under `flare_height` that never climbs; touch-down under `run_out_speed` runs
+  out, over it skids (`skid_decel`, HeroMotion's land_hero held). Pose: `HeroMotion.glide`
+  (GLIDE_AIMS) + `Avatar.glide` / `glide_tilt` / `glide_bank`. `WingsuitFx`: the fabric rebuilt
+  from the live bones on `skeleton_updated` (`shaders/wingsuit_fabric.gdshader`) and wingtip
+  vapour ribbons in true world space (`wingsuit_vapour.gdshader`); the boost trail is off in the
+  suit. `WINGSUIT=0` is the A/B; stills `WINGSUIT=glide|fall` on `still_shot.gd` (`WS_INPUT`,
+  `WS_TIME`, `WS_LOOK`); checks `tests/wingsuit_checks.gd` (room part; alone:
+  `tools/wingsuit/checks_only.tscn`, seconds).
 - Effects: `WeaponFX` builds everything in code (tracers, muzzle flash, impacts, explosions).
   An explosion is layered: an `OmniLight3D` flash, a white-hot core, alpha-blended fireball
   puffs, slow smoke, additive sparks, a ground shockwave ring, lit debris, a scorch `Decal`
