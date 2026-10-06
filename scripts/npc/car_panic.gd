@@ -190,7 +190,7 @@ static func start(tm: TrafficManager, car: Vehicle, at: Vector3, near: float, bl
 		kind = Kind.KERB
 	if kind == Kind.KERB and not kerb_clear(tm, car, f):
 		kind = Kind.SWERVE
-	if kind == Kind.ABANDON and not _crowd_room_possible(tm, car):
+	if kind == Kind.ABANDON and force_kind < 0 and not _crowd_room_possible(tm, car):
 		kind = Kind.BRAKE
 	if kind == Kind.FLOOR and force_kind < 0 and float(t.get("v", 0.0)) < 1.0 and not f.in_box:
 		kind = Kind.BRAKE
@@ -896,14 +896,16 @@ static func stage_for_shot(tm: TrafficManager, kind: String, cam: Camera3D, side
 	tm.set_meta("shot_follower", follower)
 	# The camera: on the far pavement (or the near one), level with a point just ahead of where
 	# the car will stand, looking back at it and the car behind.
-	var cam_side := ks if side == "near" else -ks
-	var e_lat := road + cam_side * (float(f.w2) + 2.5)
-	var e_al := float(f.along) + float(dir) * 22.0
+	# Over the oncoming lane (or the car's own kerb side, `near`), up the road, a little high,
+	# looking back down at where the car will stand and the car behind it.
+	var cam_side := ks * 0.6 if side == "near" else -ks * 0.9
+	var e_lat := road + cam_side * float(f.w2)
+	var e_al := float(f.along) + float(dir) * 30.0
 	var e := Vector2(e_lat, e_al) if axis == CityPlan.AXIS_X else Vector2(e_al, e_lat)
-	var t_al := float(f.along) + float(dir) * 4.0
-	var t_lat := road + ks * 1.5
+	var t_al := float(f.along) + float(dir) * 2.0
+	var t_lat := road + ks * 1.2
 	var target := Vector2(t_lat, t_al) if axis == CityPlan.AXIS_X else Vector2(t_al, t_lat)
-	return TrafficAI._eye_string(plan, e, 2.4, target, 0.9)
+	return TrafficAI._eye_string(plan, e, float(OS.get_environment("PANIC_EYE_H")) if OS.get_environment("PANIC_EYE_H") != "" else 4.2, target, 0.6)
 
 
 ## Moves the staged traffic, the abandoned cars' doors and the drivers who ran on by `seconds`.
