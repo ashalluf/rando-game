@@ -14201,3 +14201,75 @@ streets' glow stands in). The lamps stand where the old ones stood, and on some 
 is beside a utility pole (StreetDetail's), which the old thin post hid better. No real light
 shaped like the cobra's cut-off (still an omni). Shot lamps break as before (debris box), no
 falling pole.
+
+## 9d?. Drivers react to chaos: brake, swerve, kerb, reverse, abandon and run, 2026-10-05 (agent branch `wt/car-panic`; VISUAL_ROADMAP ?)
+
+**What.** Gunfire or a blast near a street traffic car makes its driver react, GTA-style.
+`CarPanic` (`scripts/npc/car_panic.gd`, static) hears every `Pedestrian.alarm()` (one hook line,
+before the crowd's rate limit; it has its own 300 ms / 12 m one) and rolls each street traffic
+car within the alarm's radius (x0.85 for gunfire: glass and engine noise) a reaction from a hash
+of the car and the alarm, nearest first, at most `MAX_PANIC` (12) at once:
+
+- **BRAKE** - a hard stop (8.2 m/s^2 close, 5.2 at the edge of hearing), hazards 2.6-7.5 s, drive on.
+  Buses, trucks and service vehicles only ever do this.
+- **SWERVE** - brake and jink away from the threat inside the room the lane leaves (toward the
+  parked cars when the threat is across the road, in toward the centre line when it is on the
+  kerb side; half a metre on a two-lane street), sit, ease back.
+- **KERB** - only where `kerb_clear()` says so (no car parked or standing within the stretch, nobody
+  on the spot, and a shape query on world + props finds no lamp, hydrant or signal pole on the
+  pavement edge; 14 m short of the junction at least): crawl over and up with two wheels
+  (`KERB_IN` 0.3 m inside the kerb face, lifted and rolled `KERB_ROLL` as the outer wheels climb).
+  Once it is wholly out of its lane its `lane` becomes a lane nobody drives by the kerb, so it
+  leaves the lane's queue and the cars behind drive past; it comes back when `_group_clear()`
+  finds room. Else it falls back to SWERVE.
+- **REVERSE** - threat ahead: stop, back away up to 7-17 m at 3.6 m/s on the reversing lamps
+  (`traffic.rev`, one line in `Vehicle._tick_lights`), never past the car behind (1.2 m), the
+  player, or into the junction behind.
+- **ABANDON** - stop, `PanicCar` (`scripts/npc/panic_car.gd`, a node on the car) swings the
+  driver's door open (StreetErrands' `ErrandProps.door_node()`), `CarPanic.spawn_driver()` makes a
+  `Pedestrian` at the door (a FULL chunk and `take_crowd_room()`, else the reaction is a BRAKE),
+  `_scare()`d so it runs, on a StreetErrands road path round its car to the near pavement or across
+  the road to the far one, whichever is away from the threat (the traffic brakes for it as for a
+  jaywalker), then flees round its block; `_npc_driver` off, so CarCabin's traced driver goes and
+  the lamps go dark. The car stays where it stopped, door open. **The player can take it**:
+  `Player._try_enter_vehicle()` lets an abandoned traffic car through (`CarPanic.is_abandoned()`)
+  and `enter_vehicle()` calls `CarPanic.take()`, which drops it out of the traffic under
+  `Police.innocent` (nobody's crime); the door shuts behind him.
+- **FLOOR** - threat behind, or caught in a junction box: cruise speed x1.6 for 5-8 s, driven by
+  the ordinary traffic code (lights and queues still hold it).
+
+**Cars behind.** A panicking car standing in its lane carries `dp_at` and `why` 4, so on a street
+with two lanes each way TrafficAI passes it like a double-parked car. The car right behind
+honks (`TrafficAI.honk(..., "panic")`, its rate limits) after `HONK_AFTER` scaled by its mood's
+patience; on a one-lane street, behind an abandoned car or a long hold, after `ROUND_PATIENCE` it
+goes ROUND: out past the stopped car on the wrong side at a crawl (`ROUND_SIDE` 0.5 m clear of its
+flank), by at 5.5 m/s, back in. It starts only with the oncoming lane clear `ROUND_CLEAR` (95 m)
+ahead and the stopped car clear of the junction; oncoming cars within `YIELD_REACH` meanwhile
+YIELD (stop short of it until it is back).
+
+**How.** Every state is a `cp` dict in the car's traffic dict; `TrafficManager._drive_street()`
+hands a car with one to `CarPanic.street_tick()` first (one hook line) and skips the rest when it
+returns true. Everything else the traffic does is untouched. **Crime:** nothing here reports one;
+the shot or blast itself still does, as before, and so does a person hit. A panicking car never
+moves faster than 4 m/s off its lane (the bumper's knock threshold) except FLOOR on the road.
+`CAR_PANIC=0` in the environment turns it all off (the A/B).
+
+**Checks** (`tests/car_panic_checks.gd`, one line at the end of the smoke test's city files): each
+kind on a staged one-lane street (forced with `CarPanic.force_kind`), the follower driving past a
+car on the kerb, the follower honking and going round an abandoned car while a staged oncoming
+car yields, the player taking it, the switch, the cap on a blast among 18 cars, and no two cars
+inside each other throughout. `SMOKE_PARTS=car_panic_checks` runs them alone (~4 min with the
+city load). Compile in seconds: `godot --headless --path . --script tools/car_panic/compile.gd`.
+
+**Stills.** `PANIC=brake|swerve|kerb|reverse|abandon` on `tools/glshot/still_shot.gd`
+(`CarPanic.stage_for_shot()`: the nearest one-lane street with a long block, the car and one
+behind it, a shot by the far kerb ahead; `PANIC_SIDE=near` for the kerb-side camera;
+`PANIC_STEPS="s,s,..."` advances the staged traffic, doors and drivers that many seconds before
+each still, `_p1`, `_p2`, ...). The stills are on `shots/car-panic`.
+
+**Not done / known gaps.** Freeway, airport-loop, replica and stack traffic do not panic (street
+traffic only). The driver's door is ErrandProps' swung panel over the closed body door (the
+bodies have no door node). A ROUND can still meet an oncoming car that spawns inside the clear
+stretch (rare: spawns are 120 m+ from the player); it stops short (YIELD) but the passer is then
+part in its lane until it is by. Abandoned cars stay in the lane until the traffic despawns them
+(380 m) or the player takes one.

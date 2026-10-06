@@ -87,6 +87,23 @@ static var force_kind: int = -1
 static var _events: int = 0
 static var _last_ms: int = -100000
 static var _last_at: Vector3 = Vector3.INF
+static var _tm: TrafficManager
+
+
+## The city's TrafficManager (the streamer's "Traffic"; found through a traffic car when the city
+## is not the current scene, as in the smoke test), cached.
+static func traffic_of(tree: SceneTree) -> TrafficManager:
+	if _tm != null and is_instance_valid(_tm) and _tm.is_inside_tree():
+		return _tm
+	_tm = null
+	if tree.current_scene:
+		_tm = tree.current_scene.get_node_or_null("Traffic") as TrafficManager
+	if _tm == null:
+		for n in tree.get_nodes_in_group("vehicle"):
+			if n.get_parent() is TrafficManager:
+				_tm = n.get_parent() as TrafficManager
+				break
+	return _tm
 
 
 static func count(what: String) -> void:
@@ -97,14 +114,14 @@ static func count(what: String) -> void:
 
 ## Pedestrian.alarm(): a shot or a blast at `at` (scene position) heard `radius` metres off.
 static func alarm(tree: SceneTree, at: Vector3, radius: float, blast: bool) -> void:
-	if not enabled or tree == null or tree.current_scene == null:
+	if not enabled or tree == null:
 		return
 	var now := Time.get_ticks_msec()
 	if not blast and now - _last_ms < 300 and at.distance_to(_last_at) < 12.0:
 		return
 	_last_ms = now
 	_last_at = at
-	var tm := tree.current_scene.get_node_or_null("Traffic") as TrafficManager
+	var tm := traffic_of(tree)
 	if tm == null or tm.plan == null:
 		return
 	var reach := radius * (HEAR_BLAST if blast else HEAR_GUN)
@@ -424,7 +441,7 @@ static func _panic_tick(tm: TrafficManager, car: Vehicle, leader: Vehicle, group
 	cp.lat = lat
 	# Out of its lane altogether (up on the kerb): out of its lane's queue too, so the cars behind
 	# drive on past (a lane offset nobody drives, by the kerb).
-	if int(cp.ph) != Phase.BACK and absf(lat) > absf(float(cp.lane0)) + float(f.width) and float(t.lane) == float(cp.lane0):
+	if int(cp.ph) != Phase.BACK and absf(lat) > absf(float(cp.lane0)) + float(f.width) + 0.15 and float(t.lane) == float(cp.lane0):
 		t.lane = float(f.kerb_sign) * (float(f.w2) + 0.5)
 	# Standing in the lane: something to pass for the cars behind (TrafficAI reads `dp_at`), and
 	# the ones stuck behind it honk and, on a one-lane street, go round.
@@ -599,12 +616,18 @@ static func _round_tick(tm: TrafficManager, car: Vehicle, leader: Vehicle, group
 	var lat_rate := 0.0
 	var obs_ok: bool = obs is Vehicle and is_instance_valid(obs) and (obs as Vehicle).is_traffic()
 	var obs_gap := INF
-	var past_obs := false
+	var past_obs := true
+	var obs_lat := 0.0
+	var sep := 0.0
 	if obs_ok:
 		var ot: Dictionary = (obs as Vehicle).traffic
 		var d := (float(ot.along) - float(f.along)) * float(f.dir)
 		obs_gap = d - float(f.half) - float(ot.get("rear", ot.get("half", 2.4)))
 		past_obs = -d - float(f.rear) - float(ot.get("half", 2.4)) > 2.5
+		obs_lat = float(ot.get("cp", {}).get("lat", float(ot.lane)))
+		sep = float((obs as Vehicle)._dims().get("width", 1.9)) * 0.5 + float(f.width) * 0.5 + 0.15
+	# Beside it or about to be: only with the sides clear of each other.
+	var alongside := obs_ok and not past_obs and obs_gap < 0.6
 	# Oncoming cars that meet it stop and let it through.
 	if int(cp.ph) != Phase.BACK:
 		for o: Vehicle in tm.cars:
@@ -622,10 +645,6 @@ static func _round_tick(tm: TrafficManager, car: Vehicle, leader: Vehicle, group
 			# Out round it at a crawl.
 			v = move_toward(v, ROUND_CRAWL, 2.0 * delta)
 			lat_rate = _lat_step(lat, float(cp.lat_to), 1.1, delta)
-			if obs_ok:
-				var room := obs_gap - 1.0
-				if v * delta > room and absf(float(cp.lat_to) - lat) > 0.3:
-					v = maxf(room, 0.0) / delta
 			if absf(float(cp.lat_to) - lat) < 0.08:
 				cp.ph = Phase.MOVE
 			if not obs_ok or float(cp.t) > 12.0:
@@ -637,7 +656,13 @@ static func _round_tick(tm: TrafficManager, car: Vehicle, leader: Vehicle, group
 				cp.ph = Phase.BACK
 		Phase.BACK:
 			v = move_toward(v, RESUME_SPEED, 1.8 * delta)
-			lat_rate = _lat_step(lat, float(cp.lane0), 1.0, delta)
+			# Never back in across the stopped car's side: on past it first (or wait behind it).
+			if not alongside:
+				lat_rate = _lat_step(lat, float(cp.lane0), 1.0, delta)
+			elif obs_ok:
+				var keep := obs_lat + signf(lat - obs_lat) * sep
+				if absf(lat - obs_lat) < sep:
+					lat_rate = _lat_step(lat, keep, 1.0, delta)
 			if absf(float(cp.lane0) - lat) < 0.04:
 				t.sig = 0
 				_end(t)
@@ -649,13 +674,20 @@ static func _round_tick(tm: TrafficManager, car: Vehicle, leader: Vehicle, group
 	var step := v * delta
 	# The car past the stopped one (or, once back, its own leader) still holds it.
 	var room := INF
-	if int(cp.ph) == Phase.BACK:
+	if int(cp.ph) == Phase.BACK and not alongside:
 		room = _room_ahead(car, leader, f)
 	elif obs_ok:
-		var lt := TrafficAI.ahead_in(groups, TrafficManager.lane_key(int(f.axis), int(f.index), int(f.dir), float(t.lane)), float(((obs as Vehicle).traffic as Dictionary).along) + float(f.dir) * 0.1, int(f.dir), 0.0, obs)
-		if not lt.is_empty():
-			room = (float(((lt[0] as Vehicle).traffic as Dictionary).along) - float(f.along)) * float(f.dir) - float(f.half) - float((lt[0] as Vehicle).traffic.get("rear", 2.4)) - 1.0
+		# The nearest car of its lane ahead of both it and the stopped car.
+		var from := maxf(float(((obs as Vehicle).traffic as Dictionary).along) * float(f.dir), float(f.along) * float(f.dir))
+		for o in groups.get(TrafficManager.lane_key(int(f.axis), int(f.index), int(f.dir), float(t.lane)), []):
+			if o == car or o == obs or not is_instance_valid(o):
+				continue
+			var oa := float((o as Vehicle).traffic.get("along", 0.0)) * float(f.dir)
+			if oa > from:
+				room = minf(room, oa - float(f.along) * float(f.dir) - float(f.half) - float((o as Vehicle).traffic.get("rear", 2.4)) - 1.0)
 	room = minf(room, float(f.to_line) + 1.0)
+	if alongside and absf((lat + lat_rate * delta) - obs_lat) < sep:
+		room = minf(room, obs_gap - 0.5)
 	if step > room:
 		step = maxf(room, 0.0)
 		v = minf(v, step / delta)
@@ -719,7 +751,7 @@ static func is_abandoned(car: Vehicle) -> bool:
 static func take(car: Vehicle) -> void:
 	if not is_abandoned(car):
 		return
-	var tm := car.get_tree().current_scene.get_node_or_null("Traffic") as TrafficManager
+	var tm := traffic_of(car.get_tree())
 	if tm:
 		tm.cars.erase(car)
 	Police.innocent = true
@@ -731,7 +763,7 @@ static func take(car: Vehicle) -> void:
 ## across the road to the far pavement or up onto the near one, whichever is away from it, on a
 ## StreetErrands road path (the traffic brakes for them). Null without a FULL chunk or crowd room.
 static func spawn_driver(car: Vehicle, threat: Vector2) -> Pedestrian:
-	var tm := car.get_tree().current_scene.get_node_or_null("Traffic") as TrafficManager
+	var tm := traffic_of(car.get_tree())
 	if tm == null or not car.is_traffic():
 		return null
 	var plan := tm.plan
@@ -782,3 +814,108 @@ static func spawn_driver(car: Vehicle, threat: Vector2) -> Pedestrian:
 	p._scare(WorldState.to_local(Vector3(threat.x, wp.y, threat.y)))
 	count("driver")
 	return p
+
+
+# --- Stills (tools/glshot/still_shot.gd PANIC=...) -----------------------------------------------
+
+## Stages a reaction for a still near `cam` and returns a free camera for it ("x,y,z,yaw,pitch",
+## true world): the nearest one-lane street with a long block, a car driving up it with another
+## behind it, and a shot by the far kerb ahead of it; `kind` is a Kind name (brake, swerve, kerb,
+## reverse, abandon) and the reaction starts at once. The traffic's own tick is off: it moves only
+## by advance_shot(), so a sequence of stills is exact. `side` "near" puts the camera on the car's
+## kerb side.
+static func stage_for_shot(tm: TrafficManager, kind: String, cam: Camera3D, side: String = "") -> String:
+	if tm == null or cam == null:
+		return ""
+	tm.staged = true
+	for c in tm.cars.duplicate():
+		if is_instance_valid(c):
+			tm._retire(c)
+	tm.cars.clear()
+	tm.set_physics_process(false)
+	var plan := tm.plan
+	var cpos := WorldState.to_world(cam.global_position)
+	var here := Vector2(cpos.x, cpos.z)
+	var best := []
+	var bd := INF
+	var c0 := plan.block_index_at(here)
+	for axis: int in [CityPlan.AXIS_X, CityPlan.AXIS_Z]:
+		var cross := CityPlan.AXIS_Z if axis == CityPlan.AXIS_X else CityPlan.AXIS_X
+		var i0 := c0.x if axis == CityPlan.AXIS_X else c0.y
+		var k0 := c0.y if axis == CityPlan.AXIS_X else c0.x
+		for index in range(i0 - 6, i0 + 7):
+			if TrafficAI.lanes_of(plan, axis, index) >= 2 or tm._rail_street(axis, index):
+				continue
+			for k in range(k0 - 6, k0 + 7):
+				var lo := plan.road_pos(cross, k) + plan.road_width(cross, k) * 0.5
+				var hi := plan.road_pos(cross, k + 1) - plan.road_width(cross, k + 1) * 0.5
+				if hi - lo < 130.0:
+					continue
+				var road := plan.road_pos(axis, index)
+				var q := Vector2(road, (lo + hi) * 0.5) if axis == CityPlan.AXIS_X else Vector2((lo + hi) * 0.5, road)
+				if plan.zone_at(q) != MacroMap.Zone.CITY or not plan.road_open(axis, index, lo + 2.0) or not plan.road_open(axis, index, hi - 2.0):
+					continue
+				var d := q.distance_to(here)
+				if d < bd:
+					bd = d
+					best = [axis, index, lo, hi]
+	if best.is_empty():
+		return ""
+	var axis: int = best[0]
+	var index: int = best[1]
+	var lo: float = best[2]
+	var dir := 1
+	var k_name := kind.to_upper()
+	force_kind = Kind.keys().find(k_name)
+	var at := lo + 45.0
+	var car: Vehicle = null
+	# A kerb needs a clear stretch: walk up the block until one is.
+	while at < float(best[3]) - 50.0:
+		car = tm.place_car(axis, index, dir, 0, at, 9.0, false)
+		TrafficAI.advance_shot(tm, 0.05)
+		if k_name != "KERB" or kerb_clear(tm, car, _frame(tm, car)):
+			break
+		tm.cars.erase(car)
+		tm._retire(car)
+		car = null
+		at += 8.0
+	if car == null:
+		return ""
+	var follower := tm.place_car(axis, index, dir, 0, at - 24.0, 9.0, false)
+	TrafficAI.advance_shot(tm, 0.05)
+	var f := _frame(tm, car)
+	var road := float(f.road)
+	var ks := float(f.kerb_sign)
+	# The shot: by the far kerb up ahead (behind the car for nothing; ahead for a reverse).
+	var a_th := float(f.along) + float(dir) * (20.0 if k_name == "REVERSE" else 13.0)
+	var l_th := road - ks * (float(f.w2) + 2.0)
+	var th := Vector2(l_th, a_th) if axis == CityPlan.AXIS_X else Vector2(a_th, l_th)
+	start(tm, car, WorldState.to_local(Vector3(th.x, tm._relief(th) + 1.2, th.y)), 0.25, false)
+	force_kind = -1
+	tm.set_meta("shot_car", car)
+	tm.set_meta("shot_follower", follower)
+	# The camera: on the far pavement (or the near one), level with a point just ahead of where
+	# the car will stand, looking back at it and the car behind.
+	var cam_side := ks if side == "near" else -ks
+	var e_lat := road + cam_side * (float(f.w2) + 2.5)
+	var e_al := float(f.along) + float(dir) * 22.0
+	var e := Vector2(e_lat, e_al) if axis == CityPlan.AXIS_X else Vector2(e_al, e_lat)
+	var t_al := float(f.along) + float(dir) * 4.0
+	var t_lat := road + ks * 1.5
+	var target := Vector2(t_lat, t_al) if axis == CityPlan.AXIS_X else Vector2(t_al, t_lat)
+	return TrafficAI._eye_string(plan, e, 2.4, target, 0.9)
+
+
+## Moves the staged traffic, the abandoned cars' doors and the drivers who ran on by `seconds`.
+static func advance_shot(tm: TrafficManager, seconds: float) -> void:
+	var dt := 1.0 / 60.0
+	for i in int(round(seconds / dt)):
+		TrafficAI.advance_shot(tm, dt)
+		for c: Vehicle in tm.cars:
+			if not is_instance_valid(c):
+				continue
+			var pc := c.get_node_or_null("PanicCar") as PanicCar
+			if pc:
+				pc.step(dt)
+				if pc.driver != null and is_instance_valid(pc.driver):
+					pc.driver._physics_process(dt)

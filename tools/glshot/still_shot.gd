@@ -438,6 +438,39 @@ func _initialize() -> void:
 				t_img.save_png(t_out)
 			var sc: Variant = tm.get_meta("shot_car") if tm.has_meta("shot_car") else null
 			print("saved %s: car %s" % [t_out, str((sc as Node).get("traffic")) if sc != null and is_instance_valid(sc) else "-"])
+	# PANIC=brake|swerve|kerb|reverse|abandon: a driver reacting to a shot on the nearest one-lane
+	# street (CarPanic.stage_for_shot; PANIC_SIDE=near puts the camera on the car's kerb side), the
+	# traffic moved only by PANIC_STEPS="s,s,..." seconds before each still, saved as OUT with _p1,
+	# _p2, ... added.
+	var panic_env := OS.get_environment("PANIC")
+	if panic_env != "" and current_scene and current_scene.get_node_or_null("Traffic"):
+		var cpn = load("res://scripts/npc/car_panic.gd")
+		var ptm: Node = current_scene.get_node("Traffic")
+		var p_eye: String = cpn.call("stage_for_shot", ptm, panic_env, get_root().get_camera_3d(), OS.get_environment("PANIC_SIDE"))
+		print("PANIC %s eye %s" % [panic_env, p_eye])
+		if p_eye != "":
+			OS.set_environment("EYE", p_eye)
+			OS.set_environment("EYE_AGL", "")
+		_eye(player, fov)
+		if current_scene.has_method("update_streaming"):
+			current_scene.call("update_streaming", true)
+		for i in _env_int("PANIC_FRAMES", 20):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
+		var p_steps := OS.get_environment("PANIC_STEPS").split(",", false)
+		for s_i in p_steps.size():
+			cpn.call("advance_shot", ptm, p_steps[s_i].to_float())
+			Engine.time_scale = 0.0005
+			for i in _env_int("SETTLE", 6):
+				await process_frame
+				_pose(player, anchor, hold, boost, fov)
+			Engine.time_scale = 1.0
+			var p_out := OS.get_environment("OUT").get_basename() + "_p%d.png" % (s_i + 1)
+			var p_img := get_root().get_texture().get_image()
+			if p_img:
+				p_img.save_png(p_out)
+			var pc: Variant = ptm.get_meta("shot_car") if ptm.has_meta("shot_car") else null
+			print("saved %s: car %s" % [p_out, str((pc as Node).get("traffic").get("cp", {})) if pc != null and is_instance_valid(pc) and (pc as Node).get("traffic") is Dictionary else "-"])
 	# AFTERMATH=palms|burning|charred|column|crater: what a blast leaves behind, staged by the
 	# nearest palm row and framed by a free camera (tools/glshot/aftermath_stage.gd), then AF_TIME
 	# seconds of it at FX_SCALE.

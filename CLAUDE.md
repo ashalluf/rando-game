@@ -1690,6 +1690,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`tools/glshot/drive_fx_stage.gd`: a car driven badly in front of the camera). Checks:
   `tests/driving_fx_checks.gd`. Trap: `ensure()` is called by every car a chunk builds in one
   frame and the add is deferred, so "made but not yet added" must count as made (it made dozens).
+- Car panic (2026-10-05, docs/HANDOFF.md "Drivers react to chaos"): `CarPanic`
+  (`scripts/npc/car_panic.gd`) hears `Pedestrian.alarm()` and gives street traffic drivers in
+  reach a reaction (BRAKE, SWERVE, KERB only where `kerb_clear()`, REVERSE with `traffic.rev`
+  lamps, ABANDON - `PanicCar` opens the door, a running Pedestrian gets out, the player may take
+  the car via `CarPanic.take()` -, FLOOR), a `cp` state driven by `street_tick()` from one line at
+  the top of `TrafficManager._drive_street()`; cars behind honk and pass (`dp_at`) or go ROUND
+  while oncoming cars YIELD. Never a crime by itself. `CAR_PANIC=0` is the A/B; stills `PANIC=` on
+  `still_shot.gd`; checks `tests/car_panic_checks.gd`.
 - Big vehicles (2026-10-04, "buses and trucks in traffic"): `BigVehicles`
   (`scripts/vehicles/big_vehicles.gd`) - a 40 ft city bus (`BodyType.BUS`, the invented agency
   BASIN TRANSIT: white over a teal skirt), a cab-over box truck (`BOX_TRUCK`, invented fleets on

@@ -44,6 +44,11 @@ func is_open() -> bool:
 
 
 func _physics_process(delta: float) -> void:
+	step(delta)
+
+
+## One tick (CarPanic.advance_shot() calls it by hand for stills).
+func step(delta: float) -> void:
 	if not is_instance_valid(car):
 		queue_free()
 		return

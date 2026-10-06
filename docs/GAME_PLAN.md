@@ -295,6 +295,16 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Drivers react to chaos (HANDOFF "Drivers react to chaos").** A shot or a blast
+  near a street traffic car rolls its driver one of brake, swerve, kerb, reverse, abandon or
+  floor it (a hash of the car and the alarm, nearest first, capped). Decisions: built on
+  Pedestrian.alarm() and the traffic's own lanes, in one module (CarPanic) behind one hook line in
+  `_drive_street`, never in TrafficAI's lane logic; a stopped panic car reads as double-parked so
+  TrafficAI passes it on two-lane streets, and on one-lane streets the car behind goes round on
+  the wrong side only with the oncoming lane clear, oncoming cars yielding; a car only mounts a
+  kerb that is clear (parked cars, people, solid street furniture); an abandoned car keeps its
+  door open and the player can take it as nobody's crime; nothing here is a crime unless a person
+  is hit.
 - **2026-10-05 The street's signs are real models (HANDOFF "The street's signs").** The signs
   were a cylinder for a stop sign facing the junction diagonally, flat boxes with TextMesh names
   and red-banded white boxes. Decisions: built in CODE at real size (StreetSignKit; BoulevardSigns owns the kerb's parking plates), not Blender - every
