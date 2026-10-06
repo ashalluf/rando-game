@@ -54,13 +54,16 @@ func _initialize() -> void:
 				usec += Time.get_ticks_usec() - t0
 				for it: Dictionary in items:
 					var k := String(it.kind)
-					if (k == "lights" or k == "trampoline" or k == "grill_gas") and int(totals.get(k, 0)) < 3:
+					var cooks: bool = k.begins_with("grill") and float(it.seed) < 0.55
+					if (k == "lights" or k == "trampoline" or k == "loungers" or cooks) and int(totals.get(k, 0)) < 3:
 						var f: Dictionary = lp.frame
 						var at: Vector2 = (it.glow as Rect2).get_center() if k == "lights" else it.at
 						var w := YardFill._fp(f, at.x, at.y)
 						var back: Vector2 = f.v
 						var eye := w + back * 9.0
 						var yaw := rad_to_deg(atan2(back.x, back.y))
+						if cooks:
+							k += "_COOKS"
 						print("%s at %.1f,%.1f EYE=%.1f,6,%.1f,%.0f,-22" % [k.to_upper(), w.x, w.y, eye.x, eye.y, yaw])
 					totals[k] = int(totals.get(k, 0)) + 1
 					kinds[k] = int(kinds.get(k, 0)) + 1
