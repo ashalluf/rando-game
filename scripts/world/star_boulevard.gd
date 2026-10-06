@@ -513,12 +513,16 @@ static func forecourt_mesh(width: float, side: int) -> Mesh:
 		# The pylon: a stepped base, a fluted-looking shaft (two boxes), a lantern on top.
 		var px := sx * PYLON_X
 		var pz := inz * 0.8
-		BroadwayStreet._box(st, Vector3(px, 0.3, pz), Vector3(1.1, 0.6, 1.1), stone)
-		BroadwayStreet._box(st, Vector3(px, 2.6, pz), Vector3(0.8, 4.0, 0.8), Color(0.52, 0.10, 0.10))
-		BroadwayStreet._box(st, Vector3(px, 2.6, pz), Vector3(0.9, 3.6, 0.5), Color(0.62, 0.14, 0.12))
-		BroadwayStreet._box(st, Vector3(px, 4.7, pz), Vector3(1.0, 0.25, 1.0), gold)
-		BroadwayStreet._box(st, Vector3(px, 5.15, pz), Vector3(0.55, 0.65, 0.55), Color(1.0, 0.92, 0.70))
-		BroadwayStreet._box(st, Vector3(px, 5.55, pz), Vector3(0.7, 0.12, 0.7), gold)
+		# A stepped stone base, a fluted lacquer-red column with gilt bands, a gilt capital and a
+		# lantern of frosted glass under a little roof with a finial.
+		var base := Vector3(px, 0.0, pz)
+		BroadwayStreet.lathe(st, [Vector2(0.62, 0.0), Vector2(0.62, 0.22), Vector2(0.54, 0.26), Vector2(0.54, 0.46), Vector2(0.46, 0.52), Vector2(0.0, 0.52)], 8, stone, base)
+		BroadwayStreet.lathe(st, [Vector2(0.36, 0.52), Vector2(0.34, 0.9), Vector2(0.31, 4.2), Vector2(0.0, 4.2)], 16, Color(0.55, 0.07, 0.08), base, 12)
+		for by: float in [0.95, 2.4, 4.0]:
+			BroadwayStreet.lathe(st, [Vector2(0.37, by - 0.06), Vector2(0.39, by), Vector2(0.37, by + 0.06)], 16, gold, base)
+		BroadwayStreet.lathe(st, [Vector2(0.31, 4.2), Vector2(0.48, 4.42), Vector2(0.52, 4.55), Vector2(0.0, 4.56)], 12, gold, base)
+		BroadwayStreet.lathe(st, [Vector2(0.2, 4.56), Vector2(0.26, 4.72), Vector2(0.26, 5.25), Vector2(0.18, 5.35), Vector2(0.0, 5.35)], 8, Color(1.0, 0.93, 0.74), base)
+		BroadwayStreet.lathe(st, [Vector2(0.34, 5.33), Vector2(0.34, 5.38), Vector2(0.12, 5.6), Vector2(0.04, 5.75), Vector2(0.0, 5.85)], 8, gold, base)
 		# Stanchions with a velvet rope along the slabs' sides, inside the walls.
 		var n := 6
 		for k in n:
