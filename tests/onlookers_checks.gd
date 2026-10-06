@@ -128,6 +128,7 @@ func _check_scene(city: Node3D, chunk: Node3D) -> void:
 		var d := Vector2(m.global_position.x - centre.x, m.global_position.z - centre.z)
 		if d.length() < band.x - 1.0 or d.length() > band.y + 9.5:
 			off_band += 1
+			printerr("ONLOOKERS off band: %.2f m (spot %.2f m)" % [d.length(), (m.watch.spot as Vector2).distance_to(Vector2(centre.x, centre.z))])
 		var fwd := Vector2(-sin(m._visual.global_rotation.y), -cos(m._visual.global_rotation.y))
 		if fwd.dot(-d.normalized()) > 0.75:
 			facing += 1

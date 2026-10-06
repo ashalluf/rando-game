@@ -408,6 +408,9 @@ func _pick_spot(p: Pedestrian, s: Dictionary, c: Vector2) -> Vector2:
 			_:
 				q = Vector2(ring.end.x - inset, rng.randf_range(ring.position.y + 1.0, ring.end.y - 1.0))
 		var d := q.distance_to(c)
+		# Never closer than the band (the heat, the body); farther is only worse.
+		if d < band.x - 0.4:
+			continue
 		var off := maxf(band.x - d, 0.0) * 4.0 + maxf(d - band.y, 0.0)
 		if off > 9.0:
 			continue
@@ -630,9 +633,13 @@ static func pose(p: Pedestrian, delta: float) -> void:
 		return
 	var unit := p._skel_unit
 	var head := sk.get_bone_global_pose(head_b).origin
-	var up := Vector3.UP
-	var fwd := Vector3(0.0, 0.0, 1.0)
-	var left := Vector3(1.0, 0.0, 0.0)
+	# The body's own frame in skeleton space, from the world: the rigs' skeleton +Z is not the way
+	# they face on every rig (measured 45 degrees off on some), so nothing assumes it.
+	var to_sk := sk.global_basis.inverse()
+	var yaw := p._visual.global_rotation.y
+	var up := (to_sk * Vector3.UP).normalized()
+	var fwd := (to_sk * Vector3(-sin(yaw), 0.0, -cos(yaw))).normalized()
+	var left := (to_sk * Vector3(-cos(yaw), 0.0, sin(yaw))).normalized()
 	# The scene in skeleton space.
 	var node := find()
 	var s: Dictionary = w.scene
@@ -656,11 +663,11 @@ static func pose(p: Pedestrian, delta: float) -> void:
 			var phone_at := eye + dir * 0.33 * unit + left * sgn * (0.02 if bool(w.two) else 0.07) * unit - up * 0.03 * unit
 			# The hand bone is the wrist: the phone's middle is 7.5 cm along the fingers from it.
 			var wrist := phone_at - gy * 0.075 * unit - gz * 0.022 * unit
-			_arm(sk, side, wrist, up * -1.0 + left * sgn * 0.8 - fwd * 0.3, _hand_for(side, gy, gz), weight)
+			_arm(sk, side, wrist, up * -1.0 + left * sgn * 0.35 - fwd * 0.1, _hand_for(side, gy, gz), weight)
 			if bool(w.two):
 				var other := "Left" if side == "Right" else "Right"
 				var owrist := phone_at - left * sgn * 0.075 * unit - gy * 0.07 * unit - gz * 0.03 * unit
-				_arm(sk, other, owrist, up * -1.0 - left * sgn * 0.8 - fwd * 0.3, _hand_for(other, gy, gz), weight)
+				_arm(sk, other, owrist, up * -1.0 - left * sgn * 0.35 - fwd * 0.1, _hand_for(other, gy, gz), weight)
 		Role.POINT:
 			var shoulder := sk.get_bone_global_pose(sk.find_bone(side + "Arm")).origin
 			var pd := (dir + up * 0.12).normalized()
@@ -790,7 +797,7 @@ static func film_phone_mesh() -> Mesh:
 	# The camera bump on the back, toward the scene (-z of the grip is into the palm's side).
 	CrowdLife._box(st, Vector3(-0.018, 0.128, 0.0165), Vector3(0.028, 0.03, 0.0035), Color(0.14, 0.14, 0.15), 0.0)
 	CrowdLife._box(st, Vector3(-0.024, 0.132, 0.0144), Vector3(0.009, 0.009, 0.0012), Color(0.02, 0.02, 0.03), 0.0)
-	CrowdLife._box(st, Vector3(-0.011, 0.124, 0.0144), Vector3(0.006, 0.006, 0.0012), Color(1.0, 0.97, 0.9), 3.0)
+	CrowdLife._box(st, Vector3(-0.008, 0.124, 0.0144), Vector3(0.009, 0.009, 0.0012), Color(1.0, 0.97, 0.9), 3.0)
 	st.generate_normals()
 	_phone = st.commit()
 	return _phone
