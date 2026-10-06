@@ -24,6 +24,7 @@ curtain over the sand). Views: `tools/glshot/still_shot.gd` EYEs
 - 15 traffic both ways, looking south to the beach town and the pier
 - 16 cars along the open beach's shoulder, the seawall parapet
 
-Frame cost (still_shot.gd GEO, opengl3 1280x720, same view, COAST_HIGHWAY=0 / on): aerial
-2.29 M / 405 draws -> 2.11 M / 728; road level 1.28 M / 387 -> 2.11 M / 768 (most of it the
-parked cars; the before view stood inside the hill, with chunks missing their terrain).
+Frame cost (still_shot.gd GEO, opengl3 1280x720, same views, COAST_HIGHWAY=0 -> on): aerial
+from the sea 2.29 M / 405 draws -> 2.11 M / 728; road level north 1.28 M / 387 -> 2.26 M / 978;
+the beach 1.70 M / 268 -> 2.42 M / 723. Most of the added draws are the parked cars and the
+beach's people; the before was a broken coast (the road-level camera stood inside the hill).
