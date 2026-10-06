@@ -135,7 +135,7 @@ def engine(name, prof, rpm, load, seed):
                 if prof["knock"] > 0:
                     kl = int(SR * 0.004)
                     kt = np.arange(kl) / SR
-                    click = rng.standard_normal(kl) * np.exp(-kt / 0.0009) * prof["knock"] * g * (0.6 + 0.4 * load)
+                    click = rng.standard_normal(kl) * np.exp(-kt / 0.0009) * prof["knock"] * g
                     np.add.at(knock, (i0 + int(SR * 0.0015) + np.arange(kl)) % per, click)
         for b in range(nb):
             x = np.tile(exc[b], reps)
@@ -151,7 +151,7 @@ def engine(name, prof, rpm, load, seed):
         out = sosfilt(butter(2, 30.0 / (SR / 2), "high", output="sos"), out)
         if prof["knock"] > 0:
             kk = sosfilt(butter(2, [1000 / (SR / 2), 3500 / (SR / 2)], "band", output="sos"), np.tile(knock, reps))
-            out += kk * np.std(out) * 1.6 / max(np.std(kk), 1e-9) * prof["knock"]
+            out += kk * np.std(out) * 1.6 / max(np.std(kk), 1e-9) * prof["knock"] * (1.0 - 0.55 * load)
         # A sub-cycle lope: the per-cylinder spread already makes it; `sub` adds a touch of the
         # crank-rate rumble a big engine carries in its body.
         if prof["sub"] > 0:

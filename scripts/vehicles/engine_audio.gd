@@ -58,7 +58,7 @@ static var _inst: EngineAudio
 ## A traffic car squeals braking harder than this (m/s2) or cornering harder (lateral, m/s2) above
 ## `squeal_speed` m/s.
 @export var squeal_decel: float = 6.5
-@export var squeal_lateral: float = 6.0
+@export var squeal_lateral: float = 7.0
 @export var squeal_speed: float = 7.0
 @export var squeal_db: float = -6.0
 
@@ -441,7 +441,8 @@ class Voice extends Node3D:
 	var _pitch := 1.0
 	var _last_pos := Vector3.ZERO
 	var _last_speed := 0.0
-	var _last_yaw := 0.0
+	var _vel := Vector3.ZERO
+	var _lat := 0.0
 	var _accel := 0.0
 	var _squeal := 0.0
 	var _was_boost := false
@@ -501,7 +502,8 @@ class Voice extends Node3D:
 		global_position = c.global_position
 		_last_pos = c.global_position
 		_last_speed = 0.0
-		_last_yaw = c.global_rotation.y
+		_vel = Vector3.ZERO
+		_lat = 0.0
 		_accel = 0.0
 		spool = 0.0
 		_squeal = 0.0
@@ -529,23 +531,31 @@ class Voice extends Node3D:
 		# no velocity). An origin re-centre jumps the position once: ignore a jump that fast.
 		var fwd := -car.global_basis.z
 		var signed := 0.0
+		var vel := _vel
 		if car.is_traffic() or car.freeze:
 			var step := (pos - _last_pos) / dt
 			if step.length() < 90.0:
 				signed = step.dot(fwd)
+				vel = step
 			else:
 				signed = _last_speed
 		else:
 			signed = car.linear_velocity.dot(fwd)
+			vel = car.linear_velocity
 		_last_pos = pos
 		speed = absf(signed)
 		var a := (speed - _last_speed) / dt
 		if absf(a) < 40.0: # a teleport (staging, a re-placed car) is not a stop
 			_accel = lerpf(_accel, a, 1.0 - exp(-dt * 6.0))
 		_last_speed = speed
-		var yaw := car.global_rotation.y
-		var yaw_rate := wrapf(yaw - _last_yaw, -PI, PI) / dt
-		_last_yaw = yaw
+		# Sideways acceleration from a smoothed velocity: traffic is placed along lane polylines,
+		# so its heading steps at every vertex and a raw yaw rate spikes into a false squeal.
+		var prev_vel := _vel
+		_vel = _vel.lerp(vel, 1.0 - exp(-dt * 5.0))
+		var dv := (_vel - prev_vel) / dt
+		var side := dv - _vel.normalized() * dv.dot(_vel.normalized()) if _vel.length() > 0.5 else Vector3.ZERO
+		if side.length() < 40.0:
+			_lat = lerpf(_lat, side.length(), 1.0 - exp(-dt * 4.0))
 		# Throttle.
 		var throttle := 0.0
 		var boost := false
@@ -615,7 +625,7 @@ class Voice extends Node3D:
 		var want_sq := 0.0
 		if car.is_traffic() and speed > owner_node.squeal_speed:
 			want_sq = maxf(clampf((-_accel - owner_node.squeal_decel) / 4.0, 0.0, 1.0),
-					clampf((absf(yaw_rate) * speed - owner_node.squeal_lateral) / 5.0, 0.0, 1.0))
+					clampf((_lat - owner_node.squeal_lateral) / 5.0, 0.0, 1.0))
 		_squeal = lerpf(_squeal, want_sq, 1.0 - exp(-dt * (12.0 if want_sq > _squeal else 5.0)))
 		squealing = _squeal > 0.05
 		if squealing and _skid.stream != null:
