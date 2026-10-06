@@ -14308,6 +14308,14 @@ across the street at golden hour with a hop and a three-wheel, the cars on their
 the hop and the three-wheel, the bonnet scroll and lace roof, the flank stripe and flake, the wire
 wheel, and lowriders three-wheeling in traffic at a red.
 
+**After the lead's review** (shots re-taken at the same eyes): the flake was white glitter
+specks; it is now ~1 mm flakes (`flake_scale` 650), each tilted its own way and EMITTED only where
+its own mirror catches the sun (`sun_direction` global, off at night), tinted by the candy, fading
+to a faint lift once a flake is under a pixel. The whitewall is 17 mm of off-white rubber
+(`C_WHITE` 0.66) with a faint ring of dirt, and the opengl3 stand-in for chrome is a darker satin
+(the rim lip had read as part of a wide white band). The pale splotches and cracks on the road in
+the 21:00 meet still are road wear: they are in the LOWRIDERS=0 shot too.
+
 **Not done / not verified.** Forward+ (the Mac) not seen: the candy depth, the flake's winking
 and the chrome wire wheels depend on real reflections. The player cannot get into a meet car (it
 is a traffic-style kinematic car; knocked out of its row it is an ordinary physics car he can
