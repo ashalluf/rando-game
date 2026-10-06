@@ -7,6 +7,11 @@ render_mode cull_back;
 // (Compatibility: the web and every opengl3 still) a metal reads black, so `reflections` false
 // turns chrome and gold into a bright satin paint, as PropFactory.wheel_material() does.
 uniform bool reflections = true;
+varying float wheel_r;
+
+void vertex() {
+	wheel_r = length(VERTEX.yz);
+}
 
 void fragment() {
 	float k = COLOR.a;
@@ -27,9 +32,15 @@ void fragment() {
 		rough = 0.7;
 	}
 	if (!reflections && metal > 0.5) {
-		c = pow(c, vec3(0.62));
-		metal = 0.25;
-		rough = 0.34;
+		// Satin, and darker than the whitewall, or the chrome lip reads as one wide white band
+		// with it.
+		c = c * 0.62;
+		metal = 0.3;
+		rough = 0.3;
+	}
+	if (k >= 0.125 && k < 0.375) {
+		// The whitewall's dirt: greyer toward the tread and the bead.
+		c *= 0.9 + 0.06 * sin(wheel_r * 380.0);
 	}
 	ALBEDO = c;
 	METALLIC = metal;

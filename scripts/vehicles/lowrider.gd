@@ -93,9 +93,9 @@ static func paint(car: Vehicle, mat: ShaderMaterial) -> void:
 	mat.set_shader_parameter("paint_roughness", 0.15)
 	mat.set_shader_parameter("clearcoat_amount", 1.0)
 	mat.set_shader_parameter("clearcoat_roughness_value", 0.018)
-	mat.set_shader_parameter("flake_strength", 0.45)
-	mat.set_shader_parameter("flake_scale", 230.0)
-	mat.set_shader_parameter("flake_fade_distance", 9.0)
+	mat.set_shader_parameter("flake_strength", 0.9)
+	mat.set_shader_parameter("flake_scale", 650.0)
+	mat.set_shader_parameter("flake_fade_distance", 6.0)
 	var pin: Color = PINS[absi(hash([look, 2])) % PINS.size()]
 	if pin.get_luminance() < 0.12 and (c[0] as Color).get_luminance() < 0.15:
 		pin = PINS[0]
@@ -174,7 +174,8 @@ const K_CHROME := 0.5
 const K_GOLD := 0.75
 const K_DARK := 1.0
 const C_RUBBER := Color(0.045, 0.045, 0.05)
-const C_WHITE := Color(0.80, 0.80, 0.77)
+## Off-white rubber, a little dirty: a whitewall is never paper white.
+const C_WHITE := Color(0.66, 0.65, 0.61)
 const C_CHROME := Color(0.92, 0.92, 0.94)
 const C_GOLD := Color(1.0, 0.74, 0.32)
 const C_DARK := Color(0.03, 0.03, 0.035)
@@ -205,8 +206,8 @@ static func wire_wheel(radius: float, width: float, near: bool, gold: int) -> Ar
 		[hw * 0.74, radius - 0.003, C_RUBBER, K_RUBBER],
 		[hw * 0.94, radius - 0.022, C_RUBBER, K_RUBBER],
 		[hw * 0.985, side_r + 0.034, C_RUBBER, K_RUBBER],
-		[hw * 0.99, side_r + 0.026, C_WHITE, K_WHITE],
-		[hw * 0.995, side_r + 0.012, C_WHITE, K_WHITE],
+		[hw * 0.99, side_r + 0.024, C_WHITE, K_WHITE],
+		[hw * 0.995, side_r + 0.007, C_WHITE, K_WHITE],
 		[hw * 0.99, side_r + 0.006, C_RUBBER, K_RUBBER],
 		[hw * 0.84, rim + 0.012, C_RUBBER, K_RUBBER],
 	]

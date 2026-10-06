@@ -101,6 +101,8 @@ uniform float canyon_rise = 0.45;
 // mirrors IS the street, so the coat is handed back in full there: dimming a real reflection of
 // dark facades a second time made them black.
 global uniform float probe_reach;
+global uniform vec3 sun_direction;
+global uniform float night_factor;
 
 #ifdef CAR_DAMAGE
 #include "res://shaders/car_damage.gdshaderinc"
@@ -615,15 +617,26 @@ void fragment() {
 	// what sells metallic paint in a walk-up shot.
 	float near = 1.0 - smoothstep(flake_fade_distance * 0.5, flake_fade_distance, length(VERTEX));
 	if (near > 0.0 && flake_strength > 0.0 && custom > 0.0) {
-		// Deep flake: big flakes fixed to the body (a moving car carries them), each one lit only
-		// when it faces between the eye and the light, so they wink on and off as the view moves.
+		// Candy over flake: fine flakes (about a millimetre) fixed to the body (a moving car carries
+		// them), each tilted its own way, so a flake only lights where its own mirror catches the
+		// sun - a dense sparkle inside the paint's highlight, tinted by the candy over it, and
+		// nothing as separate dots from a couple of metres (it fades to a faint lift of the coat).
 		vec3 g = paint_rest * flake_scale;
 		vec3 cell = floor(g);
 		vec3 jit = vec3(hash13(cell + 3.1), hash13(cell + 7.7), hash13(cell + 11.3)) * 0.6 + 0.2;
-		float disc = 1.0 - smoothstep(0.16, 0.28, length(fract(g) - jit));
-		float lit = hash13(cell + floor(VIEW * 7.0) * 17.0);
-		float flake = disc * step(0.45, hash13(cell + 41.0)) * smoothstep(0.55, 0.95, lit);
-		ALBEDO += flake_tint * (flake * flake_strength * body * near * (1.0 - lr_pin));
+		float disc = 1.0 - smoothstep(0.18, 0.32, length(fract(g) - jit));
+		vec3 fn = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
+		vec3 fv = normalize((INV_VIEW_MATRIX * vec4(VIEW, 0.0)).xyz);
+		vec3 tilt = (vec3(hash13(cell + 1.7), hash13(cell + 5.3), hash13(cell + 9.1)) - 0.5) * 0.30;
+		vec3 fr = normalize(reflect(-fv, fn) + tilt);
+		float glint = pow(max(dot(fr, normalize(sun_direction)), 0.0), 90.0);
+		float day = smoothstep(-0.02, 0.12, sun_direction.y) * (1.0 - night_factor);
+		// Under a pixel the flakes are an average: a soft lift of the highlight, not glitter.
+		float cell_px = 1.0 / max(length(fwidth(g)), 1e-4);
+		float resolved = smoothstep(1.2, 3.0, cell_px);
+		vec3 tint = mix(flake_tint, coat * 1.6, 0.55);
+		float flake = mix(0.35 * glint, disc * glint * 4.0, resolved);
+		EMISSION += tint * (flake * flake_strength * body * near * day * (1.0 - lr_pin));
 	} else if (near > 0.0 && flake_strength > 0.0) {
 		float flake = hash13(floor(world_pos * flake_scale));
 		flake = smoothstep(0.90, 1.0, flake);
