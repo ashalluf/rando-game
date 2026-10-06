@@ -271,6 +271,11 @@ func _ready() -> void:
 		layer.add_child(_hud)
 
 
+func _physics_process(delta: float) -> void:
+	for v: Voice in _voices:
+		v.sense(delta)
+
+
 func _process(delta: float) -> void:
 	var real := delta / maxf(Engine.time_scale, 0.001)
 	var cam := get_viewport().get_camera_3d()
@@ -443,6 +448,8 @@ class Voice extends Node3D:
 	var _last_speed := 0.0
 	var _vel := Vector3.ZERO
 	var _lat := 0.0
+	var _signed := 0.0
+	var _since := 0.0
 	var _accel := 0.0
 	var _squeal := 0.0
 	var _was_boost := false
@@ -504,6 +511,9 @@ class Voice extends Node3D:
 		_last_speed = 0.0
 		_vel = Vector3.ZERO
 		_lat = 0.0
+		_signed = 0.0
+		_since = 0.0
+		speed = 0.0
 		_accel = 0.0
 		spool = 0.0
 		_squeal = 0.0
@@ -517,6 +527,50 @@ class Voice extends Node3D:
 		for p: AudioStreamPlayer3D in [_turbo, _beeper, _skid]:
 			p.stop()
 
+	## Reads the car's motion, once a physics tick (traffic is placed on physics ticks, so a render
+	## frame can see it move twice or not at all): speed, its rate, the sideways acceleration.
+	func sense(dt: float) -> void:
+		if car == null or not is_instance_valid(car) or not car.is_inside_tree():
+			return
+		var pos := car.global_position
+		var fwd := -car.global_basis.z
+		var vel := _vel
+		_since += dt
+		if car.is_traffic() or car.freeze:
+			# Kinematic: no velocity of its own. Measured over the time since it last moved (a car
+			# placed every few ticks is not stopping and starting); an origin re-centre or a
+			# teleport jumps too fast to be driving and is skipped.
+			if pos.is_equal_approx(_last_pos):
+				if _since < 0.3:
+					return
+				vel = Vector3.ZERO
+			else:
+				var step := (pos - _last_pos) / _since
+				_last_pos = pos
+				if step.length() > 90.0:
+					_since = 0.0
+					return
+				vel = step
+		else:
+			vel = car.linear_velocity
+			_last_pos = pos
+		var span := _since
+		_since = 0.0
+		_signed = vel.dot(fwd)
+		speed = absf(_signed)
+		var a := (speed - _last_speed) / span
+		if absf(a) < 40.0: # a teleport (staging, a re-placed car) is not a stop
+			_accel = lerpf(_accel, a, 1.0 - exp(-span * 6.0))
+		_last_speed = speed
+		# Sideways acceleration from a smoothed velocity: traffic is placed along lane polylines,
+		# so its heading steps at every vertex and a raw yaw rate spikes into a false squeal.
+		var prev_vel := _vel
+		_vel = _vel.lerp(vel, 1.0 - exp(-span * 5.0))
+		var dv := (_vel - prev_vel) / span
+		var side := dv - _vel.normalized() * dv.dot(_vel.normalized()) if _vel.length() > 0.5 else Vector3.ZERO
+		if side.length() < 40.0:
+			_lat = lerpf(_lat, side.length(), 1.0 - exp(-span * 4.0))
+
 	func tick(delta: float, owner_node: EngineAudio, is_mine: bool) -> void:
 		if car == null:
 			return
@@ -525,37 +579,8 @@ class Voice extends Node3D:
 			return
 		mine = is_mine
 		var dt := maxf(delta, 0.0001)
-		var pos := car.global_position
-		global_position = pos
-		# Speed: the body's for a physical car, the placed distance for kinematic traffic (it has
-		# no velocity). An origin re-centre jumps the position once: ignore a jump that fast.
-		var fwd := -car.global_basis.z
-		var signed := 0.0
-		var vel := _vel
-		if car.is_traffic() or car.freeze:
-			var step := (pos - _last_pos) / dt
-			if step.length() < 90.0:
-				signed = step.dot(fwd)
-				vel = step
-			else:
-				signed = _last_speed
-		else:
-			signed = car.linear_velocity.dot(fwd)
-			vel = car.linear_velocity
-		_last_pos = pos
-		speed = absf(signed)
-		var a := (speed - _last_speed) / dt
-		if absf(a) < 40.0: # a teleport (staging, a re-placed car) is not a stop
-			_accel = lerpf(_accel, a, 1.0 - exp(-dt * 6.0))
-		_last_speed = speed
-		# Sideways acceleration from a smoothed velocity: traffic is placed along lane polylines,
-		# so its heading steps at every vertex and a raw yaw rate spikes into a false squeal.
-		var prev_vel := _vel
-		_vel = _vel.lerp(vel, 1.0 - exp(-dt * 5.0))
-		var dv := (_vel - prev_vel) / dt
-		var side := dv - _vel.normalized() * dv.dot(_vel.normalized()) if _vel.length() > 0.5 else Vector3.ZERO
-		if side.length() < 40.0:
-			_lat = lerpf(_lat, side.length(), 1.0 - exp(-dt * 4.0))
+		global_position = car.global_position
+		var signed := _signed
 		# Throttle.
 		var throttle := 0.0
 		var boost := false
@@ -602,7 +627,7 @@ class Voice extends Node3D:
 			var lifted := want < spool - 0.35
 			spool = lerpf(spool, want, 1.0 - exp(-dt * (1.6 if want > spool else 7.0)))
 			if lifted and spool > 0.55 and prof.get("bov", false):
-				Sfx.play("eng_blowoff", pos, -6.0 if is_mine else -12.0)
+				Sfx.play("eng_blowoff", car.global_position, -6.0 if is_mine else -12.0)
 				spool *= 0.4
 			if spool > 0.03:
 				_turbo.volume_db = _turbo_trim + owner_node.turbo_db + (4.0 if is_mine else 0.0) + linear_to_db(spool)

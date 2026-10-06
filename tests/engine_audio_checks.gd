@@ -34,6 +34,7 @@ func run(t: Node, city: Node3D) -> void:
 	if police:
 		police.set("enabled", false)
 	var home: Vector3 = ws.to_world(player.global_position)
+	await _traffic()
 	_top = player.global_position + Vector3(0.0, 300.0, 0.0)
 	_build_deck()
 	player.global_position = _top + Vector3(0.0, 1.2, 30.0)
@@ -127,6 +128,62 @@ func _pure() -> void:
 		_check(worst < 0.02, "%s: the layer crossfade is equal power everywhere (worst %.3f)" % [name, worst])
 	var coast := EngineAudio.layer_gains(EngineAudio.PROFILES.four, 3500.0, 0.0)
 	_check(coast[4] > 0.95, "off the throttle above idle the coasting loop carries it")
+
+
+## Real traffic round the spawn, at the game's own tick rate: voices find it, its revs stay in
+## range, and it does not squeal while it just drives (the lane polylines' heading steps and
+## cars placed on physics ticks once made it squeal on every gentle curve).
+func _traffic() -> void:
+	var ea := EngineAudio.instance()
+	if ea == null:
+		for i in 30:
+			await _tree.physics_frame
+		ea = EngineAudio.instance()
+	if ea == null:
+		_check(false, "EngineAudio exists in the city")
+		return
+	# Three cars driving through the spawn's junction on its north-south road (turning as they
+	# like), staged so the upkeep neither sheds nor adds street cars meanwhile.
+	var tm := _city.get_node_or_null("Traffic") as TrafficManager
+	var placed: Array = []
+	if tm != null:
+		var ws: Node = _tree.root.get_node("/root/WorldState")
+		var player := _tree.get_first_node_in_group("player") as Node3D
+		var at: Vector3 = ws.to_world(player.global_position)
+		var plan: CityPlan = _city.plan
+		var index := plan._index_at(CityPlan.AXIS_X, at.x)
+		tm.staged = true
+		for k in 3:
+			var c := tm.place_car(CityPlan.AXIS_X, index, 1 if k != 1 else -1, 0, at.z + (-45.0 + 30.0 * k) * (1.0 if k != 1 else -1.0), 11.0, true)
+			if c != null:
+				placed.append(c)
+	var frames := 0
+	var squeals := 0
+	var over := 0
+	var cars := {}
+	for i in 300:
+		await _tree.process_frame
+		for v in ea._voices:
+			if v.car == null or not is_instance_valid(v.car) or not v.car.is_traffic():
+				continue
+			cars[v.car.get_instance_id()] = true
+			frames += 1
+			if v.squealing:
+				squeals += 1
+			if float(v.st.rpm) > float(v.prof.redline) + 1.0:
+				over += 1
+	if tm != null:
+		for c in placed:
+			if is_instance_valid(c) and c.is_inside_tree():
+				tm._retire(c)
+			tm.cars.erase(c)
+		tm.staged = false
+	if frames == 0:
+		_check(true, "no running traffic near the spawn this run: live traffic check skipped")
+		return
+	_check(over == 0, "live traffic: revs stay within the redline (%d voice-frames over)" % over)
+	_check(float(squeals) / float(frames) < 0.05,
+			"live traffic: %d cars voiced, squealing in %d of %d voice-frames (driving, not skidding)" % [cars.size(), squeals, frames])
 
 
 func _player_car(player: Player, car: Vehicle, ea: EngineAudio) -> void:

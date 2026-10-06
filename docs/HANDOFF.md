@@ -14265,7 +14265,7 @@ streams at worst. Sfx load +30 ms (the 33 oggs).
 `ENGINE_AUDIO_HUD=1` shows a debug panel (each voice's profile, traffic or physical, gear, rpm,
 load, speed, the five layer gains, turbo, BEEP, SQUEAL); probe `tools/engine_audio/probe.tscn`
 (headless, seconds: each profile's run through the gears, the body-type table, missing files).
-Checks: `tests/engine_audio_checks.gd` (61 with the city: the gearbox per profile, equal power,
+Checks: `tests/engine_audio_checks.gd` (63 with the city: live staged traffic, the gearbox per profile, equal power,
 the player's voice and shifts, the Vehicle's loop silent, a truck's diesel and alarm, horns).
 
 **Gate** (`SHARDS=3 tests/headless_check.sh`, 2026-10-06): 2,414 checks passed, 0 failed, peak RSS
@@ -14275,8 +14275,11 @@ the player's voice and shifts, the Vehicle's loop silent, a truck's diesel and a
 
 **Found by the debug panel**: freeway traffic squealed on gentle curves - kinematic cars are
 placed along lane polylines and their heading steps at every vertex, so a raw yaw rate spiked;
-the squeal now reads the sideways acceleration of a smoothed displacement velocity (still 03 in
-shots/engine-audio is after the fix, 02 before).
+the squeal now reads the sideways acceleration of a smoothed displacement velocity, and every
+voice's motion is sensed once a PHYSICS tick (`Voice.sense()` from `_physics_process`), measured
+over the time since the car last moved: traffic is placed on physics ticks, so a render frame saw
+it move twice or not at all and the speed and its rate jittered. A live check stages three cars
+through the spawn junction: 0 squeals in 692 voice-frames.
 
 **Not done / not verified.** Nobody has LISTENED to it: the session has no audio out, so the
 loops were judged by spectrum, crest factor and seam only - an ear check on the Mac is needed,
