@@ -295,6 +295,16 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-06 Motorcycles are Vehicles with a drawn lean (HANDOFF "Motorcycles").** A sport
+  bike, a cruiser and a scooter, Blender-built at real size (tools/make_motorcycles.py). Decisions:
+  a Vehicle subclass (BodyType appended, never rolled by random_car) so enter / exit, traffic and
+  the pools are the cars'; two centre-line physics wheels with the roll held upright on the body's
+  direct state, the lean and the wheelie DRAWN on the model (stable, cheap, and the arcade feel the
+  cars have) rather than a simulated counter-steering bike; the rider is visible - the hero
+  himself on the player's bike (a skeleton modifier), crowd rigs in full-face helmets in traffic -
+  posed by one two-bone solver; thrown off as a ragdoll in a crash; 5 % of street traffic, lane
+  filtering past stopped queues; kerb stalls swapped to bikes by hash after every roll.
+
 - **2026-10-05 The street's signs are real models (HANDOFF "The street's signs").** The signs
   were a cylinder for a stop sign facing the junction diagonally, flat boxes with TextMesh names
   and red-banded white boxes. Decisions: built in CODE at real size (StreetSignKit; BoulevardSigns owns the kerb's parking plates), not Blender - every

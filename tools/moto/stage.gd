@@ -57,7 +57,13 @@ func _ride(player: Player, throw: bool) -> String:
 	var bike := Motorcycle.make(type, int(_envf("MOTO_LOOK", 3.0)))
 	var rig := player.camera_rig
 	var yaw: float = rig.global_rotation.y if rig else 0.0
-	bike.transform = Transform3D(Basis(Vector3.UP, yaw), player.global_position + Vector3.UP * 0.4)
+	var at := player.global_position
+	var q := PhysicsRayQueryParameters3D.create(at + Vector3.UP * 3.0, at + Vector3.DOWN * 60.0, 1)
+	var hit := player.get_world_3d().direct_space_state.intersect_ray(q)
+	if not hit.is_empty():
+		at = hit.position
+	print("MOTO ground ", at, " player ", player.global_position)
+	bike.transform = Transform3D(Basis(Vector3.UP, yaw), at + Vector3.UP * 0.45)
 	_scene.add_child(bike)
 	await _ticks(20)
 	player.enter_vehicle(bike)
