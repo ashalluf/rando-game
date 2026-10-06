@@ -411,32 +411,38 @@ func _maybe_force(fw: Freeway) -> void:
 	var what := OS.get_environment("FW_INCIDENT")
 	if what == "":
 		return
+	# Several at once: FW_INCIDENT="mattress,tyre", FW_INCIDENT_AT="3:1904:1;3:1000:-1",
+	# FW_INCIDENT_LANE="2,1" (each list in step; a missing entry takes the first's).
 	var kinds := {"stall": Kind.STALL, "tyre": Kind.TYRE, "mattress": Kind.MATTRESS, "slow": Kind.SLOW}
-	if not kinds.has(what):
-		return
 	var into := OS.get_environment("FW_INCIDENT_T").to_float() if OS.get_environment("FW_INCIDENT_T") != "" else 30.0
-	var at := OS.get_environment("FW_INCIDENT_AT").split(":", false)
-	var ri := 0
-	var t := 0.0
-	var dir := 1
-	if at.size() >= 3:
-		ri = at[0].to_int()
-		t = at[1].to_float()
-		dir = at[2].to_int()
-	else:
-		var pw := WorldState.to_world(_player.global_position)
-		var best := INF
-		for r in fw.routes.size():
-			var near: Array = fw.nearest_on(r, Vector2(pw.x, pw.z))
-			if float(near[1]) < best:
-				best = float(near[1])
-				ri = r
-				t = float(near[0])
-	var li := OS.get_environment("FW_INCIDENT_LANE").to_int() if OS.get_environment("FW_INCIDENT_LANE") != "" else 2
-	var inc := force(fw, ri, t, dir, kinds[what], into, li)
-	print("FW_INCIDENT %s route %d t %.1f dir %d into %.1f" % [what, ri, t, dir, into])
+	var whats := what.split(",", false)
+	var ats := OS.get_environment("FW_INCIDENT_AT").split(";", false)
+	var lanes := OS.get_environment("FW_INCIDENT_LANE").split(",", false)
+	for n in whats.size():
+		var w := whats[n]
+		if not kinds.has(w):
+			continue
+		var at := (ats[mini(n, ats.size() - 1)] if not ats.is_empty() else "").split(":", false)
+		var ri := 0
+		var t := 0.0
+		var dir := 1
+		if at.size() >= 3:
+			ri = at[0].to_int()
+			t = at[1].to_float()
+			dir = at[2].to_int()
+		else:
+			var pw := WorldState.to_world(_player.global_position)
+			var best := INF
+			for r in fw.routes.size():
+				var near: Array = fw.nearest_on(r, Vector2(pw.x, pw.z))
+				if float(near[1]) < best:
+					best = float(near[1])
+					ri = r
+					t = float(near[0])
+		var li := lanes[mini(n, lanes.size() - 1)].to_int() if not lanes.is_empty() else 2
+		force(fw, ri, t, dir, kinds[w], into, li)
+		print("FW_INCIDENT %s route %d t %.1f dir %d into %.1f" % [w, ri, t, dir, into])
 	_update_live(fw)
-	return
 
 
 var _shot_k := 0
