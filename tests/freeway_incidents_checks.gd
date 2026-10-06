@@ -305,7 +305,11 @@ func _live_stall(node: FreewayIncidents) -> void:
 	await _ticks(3)
 	_check((tow as Node3D).global_position.distance_to(tp0) > 30.0 and (car as Node3D).global_position.distance_to(bed.deck(0.0).origin) < 1.2,
 		"freeway incidents: the tow drives off with the car on its bed (%.0f m)" % (tow as Node3D).global_position.distance_to(tp0))
-	# Over: the scene is cleared.
+	# Over: the tow and the patrol car drive on as traffic (handed over a few seconds before the
+	# incident ends), and the scene is cleared.
+	var leave := e_arrive + 1.0 + FreewayIncidents.BED_SECONDS * 2.0 + FreewayIncidents.WINCH_SECONDS + 4.0
+	_jump(inc, leave + FreewayIncidents.LEAVE_DRIVE + 6.5)
+	await _ticks(3)
 	_jump(inc, float(inc.end) - float(inc.start) + 5.0)
 	await _ticks(2)
 	node._update_live(_fw)
