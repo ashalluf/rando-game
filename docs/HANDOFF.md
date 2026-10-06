@@ -14277,7 +14277,11 @@ bus stop keeping its shelter, the stop benches by a shelter with their own ids a
 smashed, and a metered downtown block built the same with the furniture off (props by id, kind
 and place, buildings, cans, cars, EncampmentItems, and the camp / kerb / vendor batches' counts).
 
-FRAMECOST_PLACEHOLDER
+**Frame cost** (`tools/geo_count.gd`, opengl3, 800x600, `--spawn=1918,795.5,97,-6,2 --hour=12.5`,
+the downtown pavement at block 20,4, `STREET_FURNITURE=0` then `1`): 4,471,498 -> 4,401,483
+triangles (-1.6 %: the Poly Haven hydrant and can scans were heavier than the code pieces with
+their LODs), 3,086 -> 3,084 draws, 3,611 -> 3,609 objects. One batch per kind a chunk, like the
+pieces they replace; the stop bench is one more batch where a chunk has one.
 
 **Not done / not verified.** Forward+ (the Mac) not seen: the galvanising, the paint's sheen and the
 ad's colours want a Mac look. Break effects are prop-destruction's; these props still break into
