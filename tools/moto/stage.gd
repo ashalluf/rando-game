@@ -127,13 +127,13 @@ func _filter(cam: Camera3D) -> String:
 	var bp: Vector3 = _ws.to_world(bike.global_position)
 	var back := Vector3(0.0, 0.0, -dir) if axis == 0 else Vector3(-dir, 0.0, 0.0)
 	var side := Vector3(1.0, 0.0, 0.0) if axis == 0 else Vector3(0.0, 0.0, 1.0)
-	var eye := bp + back * 7.5 + side * 2.2 * float(dir)
-	var look := (bp - eye)
+	var eye := bp + back * 6.0 + side * 3.4 * float(dir)
+	var look := (bp - back * 6.0 - eye)
 	look.y = 0.0
 	var yaw := rad_to_deg(atan2(-look.x, -look.z))
 	print("MOTO filter bike %s filtering %s shift %.2f" % [str(bp), str(bike.traffic.get("filtering", false)), float(bike.traffic.get("shift", 0.0))])
 	OS.set_environment("EYE_AGL", "1")
-	return "%.2f,%.2f,%.2f,%.2f,%.2f" % [eye.x, 1.9, eye.z, yaw, -8.0]
+	return "%.2f,%.2f,%.2f,%.2f,%.2f" % [eye.x, 4.2, eye.z, yaw, -20.0]
 
 
 func _put(car: Vehicle, axis: int, index: int, along: float) -> void:
