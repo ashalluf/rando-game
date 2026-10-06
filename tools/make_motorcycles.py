@@ -65,9 +65,10 @@ SLOTS = [
     ("light_front", (0.88, 0.90, 0.94),    0.00, 0.08, 1.4),
     ("light_rear",  (0.50, 0.025, 0.030),  0.00, 0.12, 0.25),
     ("amber",       (0.80, 0.36, 0.03),    0.00, 0.12, 0.10),
+    ("livery",      (0.86, 0.86, 0.85),    0.10, 0.22, 0.0),
 ]
 (PAINT, FRAME, CHROME, METAL, DARK, TRIM, RUBBER, TYRE, SEAT, GLASS, LIGHT_F, LIGHT_R,
- AMBER) = range(len(SLOTS))
+ AMBER, LIVERY) = range(len(SLOTS))
 MATS = []
 
 
@@ -848,6 +849,200 @@ def triple_clamp(bm, head, axis, z, xs, r_leg, plate_t=0.022, mat=METAL):
                    [(r_leg * 1.28, 0.0), (r_leg * 1.28, 1.0)], mat, 20)
 
 
+
+# --- crisp bodywork: faceted hulls and panels -------------------------------------------------
+#
+# Bodywork made from soft lofts and subdivision reads as an inflated balloon. Real fairings are
+# pressed panels: flat-ish faces meeting at CREASES, laid in layers with GAPS between them. So a
+# hull is a list of stations, each a polygonal half-section (x >= 0) from the bottom centre up to
+# the top centre; the corners of the polygon are the creases. S(y, u) is the point at arc-length
+# fraction u (0 bottom centre, 1 top centre) round the section at y (stations interpolated). A
+# PANEL is a region of the hull - y from y0 to y1, u from u_lo(y) to u_hi(y) - gridded finely
+# along its creases, lifted `lift` off the hull (layering), given a turned-in edge (a real
+# panel's thickness, which is what catches the light) and mirrored to the other side. Panels
+# that run to u = 1 meet their mirror on the centre line.
+
+class Hull:
+    def __init__(self, stations):
+        # stations: [(y, [(x, z), ...] bottom centre -> top centre)], y descending or ascending.
+        self.st = sorted(stations, key=lambda s: s[0])
+
+    @staticmethod
+    def _at(sec, u):
+        pts = [Vector((x, z)) for x, z in sec]
+        lens = [(b - a).length for a, b in zip(pts, pts[1:])]
+        total = sum(lens)
+        d = u * total
+        for (a, b), L in zip(zip(pts, pts[1:]), lens):
+            if d <= L or L == lens[-1] and b == pts[-1]:
+                t = d / L if L > 1e-9 else 0.0
+                return a.lerp(b, min(max(t, 0.0), 1.0))
+            d -= L
+        return pts[-1]
+
+    def point(self, y, u, lift=0.0):
+        st = self.st
+        if y <= st[0][0]:
+            i0 = i1 = 0
+            t = 0.0
+        elif y >= st[-1][0]:
+            i0 = i1 = len(st) - 1
+            t = 0.0
+        else:
+            i1 = next(i for i, s in enumerate(st) if s[0] >= y)
+            i0 = i1 - 1
+            t = (y - st[i0][0]) / (st[i1][0] - st[i0][0])
+        a = self._at(st[i0][1], u)
+        b = self._at(st[i1][1], u)
+        p = a.lerp(b, t)
+        if lift != 0.0:
+            # Out along the section's normal (from the neighbouring u samples).
+            e = 0.004
+            q0 = self.point(y, max(u - e, 0.0))
+            q1 = self.point(y, min(u + e, 1.0))
+            tx, tz = q1.x - q0.x, q1.z - q0.z
+            n = Vector((tz, -tx))
+            if n.length > 1e-9:
+                n.normalize()
+                # x >= 0 side: the outward normal points away from the centre line.
+                if n.x < 0 and u < 0.98:
+                    n = -n
+                elif u >= 0.98 and n.y < 0:
+                    n = -n
+            return Vector((p.x + n.x * lift, y, p.y + n.y * lift))
+        return Vector((p.x, y, p.y))
+
+    def creases(self, y):
+        """The u of each corner of the section at y (so a panel grid can land on them)."""
+        st = self.st
+        i = min(range(len(st)), key=lambda k: abs(st[k][0] - y))
+        sec = [Vector(p) for p in st[i][1]]
+        lens = [(b - a).length for a, b in zip(sec, sec[1:])]
+        total = sum(lens)
+        out = []
+        acc = 0.0
+        for L in lens[:-1]:
+            acc += L
+            out.append(acc / total)
+        return out
+
+
+def _us(hull, y, lo, hi, n):
+    """u samples from lo to hi: n even steps plus every crease between them (sharp creases)."""
+    us = [lo + (hi - lo) * k / n for k in range(n + 1)]
+    for c in hull.creases(y):
+        if lo + 1e-4 < c < hi - 1e-4:
+            us.append(c)
+    us = sorted(set(round(u, 5) for u in us))
+    return us
+
+
+def panel(bm, hull, y0, y1, u_lo, u_hi, mat, lift=0.004, ny=14, nu=10, edge=0.006, mirror=True, back=TRIM,
+          y0_hi=None, y1_hi=None):
+    """A pressed panel on `hull` (see Hull): y from y0 to y1, u from u_lo(y) to u_hi(y) (numbers
+    or functions of y), lifted `lift` off the hull, with a turned-in edge `edge` deep all round
+    (its thickness), on both sides when `mirror`. Samples snap onto the hull's creases."""
+    flo = u_lo if callable(u_lo) else (lambda y, v=u_lo: v)
+    fhi = u_hi if callable(u_hi) else (lambda y, v=u_hi: v)
+    ym = (y0 + y1) * 0.5
+    cre = hull.creases(ym)
+    grid = []
+    a0 = y0 if y0_hi is None else y0_hi
+    a1 = y1 if y1_hi is None else y1_hi
+    for j in range(ny + 1):
+        row = []
+        for i in range(nu + 1):
+            # A slanted end: the panel's top edge (u_hi) may start and stop at other y's.
+            ys = y0 + (a0 - y0) * i / nu
+            ye = y1 + (a1 - y1) * i / nu
+            yy = ys + (ye - ys) * j / ny
+            lo, hi = flo(yy), fhi(yy)
+            u = lo + (hi - lo) * i / nu
+            for c in cre:
+                if 0 < i < nu and abs(u - c) < (hi - lo) / nu * 0.5:
+                    u = c
+            row.append((yy, u))
+        grid.append(row)
+    ring = [grid[0][i] for i in range(nu + 1)] + [grid[j][nu] for j in range(1, ny + 1)] + \
+           [grid[ny][i] for i in range(nu - 1, -1, -1)] + [grid[j][0] for j in range(ny - 1, 0, -1)]
+    for side in ((1.0, -1.0) if mirror else (1.0,)):
+        def P(yu, l, side=side):
+            q = hull.point(yu[0], yu[1], l)
+            return Vector((q.x * side, q.y, q.z))
+        top = [[bm.verts.new(P(yu, lift)) for yu in row] for row in grid]
+        outer = []
+        for j in range(ny):
+            for i in range(nu):
+                f = face(bm, (top[j][i], top[j][i + 1], top[j + 1][i + 1], top[j + 1][i]), mat)
+                if f:
+                    outer.append(f)
+        # Wind the outer faces outward: the normal must agree with the hull's own outward normal.
+        for f in outer:
+            c = f.calc_center_median()
+            want = Vector((c.x, 0.0, 0.0)) if abs(c.x) > 0.01 else Vector((0.0, 0.0, 1.0))
+            yu = None
+            if f.normal.dot(want) < 0.0:
+                f.normal_flip()
+        if back is not None and edge > 0.0:
+            # The unpainted inside of the moulding (seen from the saddle, through the gaps).
+            bot = [[bm.verts.new(P(yu, lift - edge)) for yu in row] for row in grid]
+            for j in range(ny):
+                for i in range(nu):
+                    f = face(bm, (bot[j][i], bot[j + 1][i], bot[j + 1][i + 1], bot[j][i + 1]), back)
+                    if f:
+                        c = f.calc_center_median()
+                        want = Vector((c.x, 0.0, 0.0)) if abs(c.x) > 0.01 else Vector((0.0, 0.0, 1.0))
+                        if f.normal.dot(want) > 0.0:
+                            f.normal_flip()
+        if edge > 0.0:
+            rv = []
+            for yu in ring:
+                rv.append(bm.verts.new(P(yu, lift - edge)))
+            tv = []
+            for yu in ring:
+                # The matching outer vertex (re-found by position: rows were made in this order).
+                tv.append(None)
+            k = 0
+            for i in range(nu + 1):
+                tv[k] = top[0][i]; k += 1
+            for j in range(1, ny + 1):
+                tv[k] = top[j][nu]; k += 1
+            for i in range(nu - 1, -1, -1):
+                tv[k] = top[ny][i]; k += 1
+            for j in range(ny - 1, 0, -1):
+                tv[k] = top[j][0]; k += 1
+            n = len(ring)
+            for k in range(n):
+                f = face(bm, (tv[k], tv[(k + 1) % n], rv[(k + 1) % n], rv[k]), mat)
+                if f:
+                    # The edge faces outward from the panel's middle.
+                    c = f.calc_center_median()
+                    mid = top[ny // 2][nu // 2].co
+                    if f.normal.dot(c - mid) < 0.0:
+                        f.normal_flip()
+
+
+def hull_cap(bm, hull, y, mat, facing, lift=0.0, n=16):
+    """Closes a hull's end at station y with one polygon (the section and its mirror), facing
+    +Y (facing 1) or -Y (facing -1)."""
+    half = [hull.point(y, k / n, lift) for k in range(n + 1)]
+    ring = half + [Vector((-p.x, p.y, p.z)) for p in reversed(half[1:-1])]
+    vs = [bm.verts.new(p) for p in ring]
+    f = face(bm, vs, mat)
+    if f and f.normal.y * facing < 0:
+        f.normal_flip()
+    return f
+
+
+def lens_quad(bm, hull, y0, y1, u_lo, u_hi, mat, rim=DARK, lift=0.006, inset=0.004, mirror=True, n=6):
+    """An angular lamp lens let into the hull: a dark surround panel and the lens inside it."""
+    panel(bm, hull, y0, y1, u_lo, u_hi, rim, lift=lift - 0.002, ny=n, nu=n, edge=0.004, mirror=mirror)
+    flo = u_lo if callable(u_lo) else (lambda y, v=u_lo: v)
+    fhi = u_hi if callable(u_hi) else (lambda y, v=u_hi: v)
+    du = 0.012
+    panel(bm, hull, y0 + inset, y1 - inset, lambda y: flo(y) + du, lambda y: fhi(y) - du, mat,
+          lift=lift + 0.001, ny=n, nu=n, edge=0.0, mirror=mirror)
+
 # ---------------------------------------------------------------------------------------------------
 # The supersport
 # ---------------------------------------------------------------------------------------------------
@@ -933,15 +1128,17 @@ def build_sport():
     for s in (-1, 1):
         path = bez(head + Vector((s * 0.04, 0.0, -0.06)), head + Vector((s * 0.15, -0.12, -0.05)),
                    Vector((s * 0.16, 0.0, 0.60)), Vector((s * 0.115, -0.18, 0.52)), 14)
-        sweep(bb, path, lambda i: rrect(0.035, 0.12 - 0.03 * i / 14, 0.012, 2), FRAME, caps=True, up=Vector((s, 0.0, 0.0)) if False else None)
+        sweep(bb, path, lambda i: rrect(0.035, 0.12 - 0.03 * i / 14, 0.012, 2), METAL, caps=True)
         # Pivot plate.
         sweep(bb, polyline([Vector((s * 0.115, -0.18, 0.56)), Vector((s * 0.12, -0.17, 0.33))], 0.03),
-              rrect(0.03, 0.09, 0.012, 2), FRAME)
+              rrect(0.03, 0.09, 0.012, 2), METAL)
     lathe_axis(bb, hs_bot, along_axis(head, axis, head.z + 0.01), [(0.032, 0.0), (0.032, 1.0)], FRAME, 20)
     # Swingarm: a braced box section from the pivot to the axle, both sides.
     for s in (-1, 1):
         path = polyline([Vector((s * 0.115, pivot.y, pivot.z)), Vector((s * 0.105, -0.45, 0.37)), Vector((s * 0.105, axr.y + 0.02, axr.z))], 0.03)
-        sweep(bb, path, lambda i, n=len(path): rrect(0.030, 0.085 - 0.03 * i / max(n - 1, 1), 0.010, 2), FRAME)
+        sweep(bb, path, lambda i, n=len(path): rrect(0.030, 0.085 - 0.03 * i / max(n - 1, 1), 0.010, 2), METAL)
+        # The swingarm's bracing: a box truss under the arm.
+        tube(bb, polyline([Vector((s * 0.105, -0.25, 0.36)), Vector((s * 0.10, -0.50, 0.29)), Vector((s * 0.10, axr.y + 0.10, axr.z - 0.02))], 0.04), 0.011, METAL, n=8)
         # Chain adjuster block.
         rbox(bb, (0.035, 0.05, 0.035), Vector((s * 0.107, axr.y, axr.z)), METAL, bevel=0.006)
     tube(bb, [axr + Vector((-0.125, 0, 0)), axr + Vector((0.125, 0, 0))], 0.012, METAL, n=12)
@@ -1002,118 +1199,139 @@ def build_sport():
     parts.append(to_object("engine", eng, sharp_deg=35.0))
     parts.append(to_object("chassis", bb, sharp_deg=35.0))
 
-    # Bodywork: the tank, the seat, the tail and the fairing, lofted and subdivided.
-    tank_secs = []
-    for k in range(9):
-        t = k / 8.0
-        y = 0.33 - 0.45 * t
-        top = 0.985 - 0.06 * t - 0.08 * (2 * t - 1) ** 4
-        bot = 0.68 + 0.08 * t
-        w = 0.25 + 0.17 * math.sin(math.pi * min(t * 1.2, 1.0)) - 0.10 * t
-        tank_secs.append(sect(y, 0, (top + bot) * 0.5, w, top - bot, n=16, e=2.8, taper_top=0.32))
+    # Bodywork: pressed panels on faceted hulls (see Hull / panel), in layers with gaps: the
+    # nose cowl with the twin angular lamps and the ram-air intake, the upper and lower side
+    # panels and the belly pan, the tank with its knee pads, the upswept tail with its LED lamp,
+    # a livery stripe running nose to tail.
+    G = 0.012  # the gap between panels, in u
+    FAIRING = Hull([
+        (1.030, [(0, 0.818), (0.004, 0.818), (0.010, 0.822), (0.014, 0.832), (0.012, 0.842), (0.006, 0.848), (0, 0.850)]),
+        (0.990, [(0, 0.768), (0.040, 0.770), (0.075, 0.786), (0.098, 0.818), (0.090, 0.858), (0.055, 0.880), (0, 0.888)]),
+        (0.930, [(0, 0.712), (0.080, 0.716), (0.130, 0.742), (0.165, 0.800), (0.150, 0.880), (0.095, 0.918), (0, 0.928)]),
+        (0.850, [(0, 0.640), (0.110, 0.645), (0.175, 0.680), (0.215, 0.780), (0.200, 0.905), (0.130, 0.958), (0, 0.970)]),
+        (0.760, [(0, 0.540), (0.130, 0.545), (0.205, 0.590), (0.240, 0.740), (0.225, 0.915), (0.150, 0.985), (0, 0.998)]),
+        (0.660, [(0, 0.430), (0.140, 0.435), (0.220, 0.490), (0.250, 0.690), (0.238, 0.905), (0.165, 0.995), (0, 1.010)]),
+        (0.540, [(0, 0.330), (0.140, 0.335), (0.222, 0.400), (0.250, 0.620), (0.240, 0.860), (0.180, 0.960), (0, 0.985)]),
+        (0.400, [(0, 0.290), (0.135, 0.295), (0.215, 0.360), (0.242, 0.560), (0.235, 0.800), (0.190, 0.900), (0, 0.940)]),
+        (0.250, [(0, 0.290), (0.125, 0.295), (0.205, 0.355), (0.230, 0.540), (0.225, 0.760), (0.190, 0.860), (0, 0.900)]),
+        (0.120, [(0, 0.300), (0.110, 0.305), (0.190, 0.360), (0.215, 0.530), (0.212, 0.720), (0.180, 0.820), (0, 0.860)]),
+    ])
+
+    def lerp_y(a, b, ya, yb):
+        return lambda y: a + (b - a) * min(max((y - ya) / (yb - ya), 0.0), 1.0)
+
+    bmF = bmesh.new()
+    cowl_lo = lerp_y(0.66, 0.44, 0.62, 1.03)
+    panel(bmF, FAIRING, 0.62, 1.03, cowl_lo, 1.0, PAINT, ny=22, nu=14)
+    side_lo = lerp_y(0.27, 0.36, 0.20, 0.80)
+    side_hi = lambda y: min(cowl_lo(y) - G, 0.72 - 0.20 * max(0.62 - y, 0.0) / 0.42) if y > 0.60 else 0.72 - 0.20 * (0.62 - y) / 0.42
+    panel(bmF, FAIRING, 0.14, 0.80, side_lo, side_hi, PAINT, ny=18, nu=12, y0_hi=0.42)
+    # Three gills let into the side panel, slanted back.
+    for k in range(3):
+        y_a = 0.40 + 0.055 * k
+        panel(bmF, FAIRING, y_a, y_a + 0.028, lambda y: side_lo(y) + 0.16, lambda y: side_lo(y) + 0.30, DARK, lift=0.0062, ny=2, nu=4, edge=0.0, back=None,
+              y0_hi=y_a + 0.06, y1_hi=y_a + 0.088)
+    # The livery: a stripe along the upper side panel, a second colour on the lower one.
+    panel(bmF, FAIRING, 0.18, 0.76, lambda y: side_lo(y) + 0.07, lambda y: side_lo(y) + 0.10, LIVERY, lift=0.0065, ny=14, nu=3, edge=0.0, back=None, y0_hi=0.24)
+    panel(bmF, FAIRING, 0.12, 0.66, 0.11, lambda y: side_lo(y) - G, FRAME, ny=14, nu=6)
+    panel(bmF, FAIRING, 0.12, 0.62, 0.0, 0.10, FRAME, ny=10, nu=4)
+    # Twin angular lamps in the nose, slanting back, and the ram-air intake between them.
+    for u0, u1 in ((0.50, 0.60),):
+        lens_quad(bmF, FAIRING, 0.905, 0.985, lerp_y(0.47, 0.54, 0.905, 0.985), lerp_y(0.66, 0.68, 0.905, 0.985), LIGHT_F, lift=0.008)
+    panel(bmF, FAIRING, 0.975, 1.03, 0.12, 0.40, DARK, lift=0.006, ny=6, nu=6, edge=0.003)
+    fairing = to_object("fairing", bmF, sharp_deg=25.0)
+    parts.append(fairing)
+
+    TANK = Hull([
+        (0.36, [(0, 0.74), (0.07, 0.74), (0.125, 0.79), (0.15, 0.87), (0.12, 0.935), (0.06, 0.958), (0, 0.962)]),
+        (0.28, [(0, 0.72), (0.08, 0.72), (0.15, 0.78), (0.185, 0.875), (0.15, 0.950), (0.075, 0.978), (0, 0.983)]),
+        (0.17, [(0, 0.71), (0.08, 0.71), (0.15, 0.77), (0.19, 0.870), (0.155, 0.948), (0.078, 0.976), (0, 0.981)]),
+        (0.05, [(0, 0.72), (0.07, 0.72), (0.125, 0.765), (0.165, 0.855), (0.135, 0.925), (0.068, 0.950), (0, 0.955)]),
+        (-0.06, [(0, 0.74), (0.06, 0.74), (0.10, 0.775), (0.13, 0.84), (0.11, 0.895), (0.055, 0.915), (0, 0.918)]),
+        (-0.14, [(0, 0.77), (0.05, 0.77), (0.08, 0.79), (0.10, 0.83), (0.085, 0.865), (0.045, 0.878), (0, 0.880)]),
+    ])
     bmt = bmesh.new()
-    loft(bmt, tank_secs, PAINT)
-    tank = to_object("tank", bmt)
-    subsurf(tank, 2)
+    panel(bmt, TANK, -0.14, 0.36, 0.08, 1.0, PAINT, lift=0.0, ny=20, nu=14, edge=0.01)
+    panel(bmt, TANK, -0.10, 0.30, 0.94, 1.0, LIVERY, lift=0.002, ny=12, nu=2, edge=0.0, back=None)
+    panel(bmt, TANK, -0.10, 0.06, 0.40, 0.56, RUBBER, lift=0.004, ny=8, nu=6, edge=0.003)
+    tank = to_object("tank", bmt, sharp_deg=25.0)
     parts.append(tank)
     # Fuel cap.
     bmc = bmesh.new()
-    lathe(bmc, [(0.0001, 0.0), (0.045, 0.0), (0.046, 0.008), (0.040, 0.012), (0.0001, 0.012)], 24, Vector((0, 0.22, 0.955)), 'Z', METAL)
+    lathe(bmc, [(0.0001, 0.0), (0.042, 0.0), (0.043, 0.006), (0.038, 0.01), (0.0001, 0.01)], 24, Vector((0, 0.20, 0.982)), 'Z', METAL)
     parts.append(to_object("cap", bmc))
-    # Rider seat, the tail and the pillion pad over it.
+    # The rider's seat: short, dished, firm.
     seat_secs = []
     for k in range(7):
         t = k / 6.0
-        y = -0.06 - 0.42 * t
-        z = 0.845 + 0.02 * t - 0.018 * math.sin(math.pi * t)
-        w = 0.20 + 0.10 * math.sin(math.pi * min(t * 1.4, 1.0))
-        seat_secs.append(sect(y, 0, z - 0.035, w, 0.075, n=16, e=3.0))
+        y = -0.08 - 0.38 * t
+        z = 0.85 + 0.015 * t - 0.012 * math.sin(math.pi * t)
+        w = 0.22 + 0.09 * math.sin(math.pi * min(t * 1.3, 1.0))
+        seat_secs.append(sect(y, 0, z - 0.045, w, 0.09, n=16, e=3.4))
     bms = bmesh.new()
     loft(bms, seat_secs, SEAT)
     seat = to_object("seat", bms)
-    subsurf(seat, 2)
+    subsurf(seat, 1)
     parts.append(seat)
-    tail_secs = []
-    for k in range(12):
-        t = k / 11.0
-        y = -0.16 - 0.76 * t
-        top = 0.80 + 0.135 * t ** 1.1
-        bot = 0.62 + 0.27 * t ** 1.1
-        w = 0.30 - 0.21 * t ** 1.4
-        tail_secs.append(sect(y, 0, (top + bot) * 0.5, w, top - bot, n=18, e=2.8, taper_top=0.25))
+
+    TAIL = Hull([
+        (-0.12, [(0, 0.60), (0.10, 0.61), (0.145, 0.67), (0.15, 0.76), (0.13, 0.80), (0, 0.81)]),
+        (-0.36, [(0, 0.62), (0.09, 0.63), (0.13, 0.69), (0.135, 0.79), (0.11, 0.83), (0, 0.84)]),
+        (-0.58, [(0, 0.69), (0.07, 0.70), (0.10, 0.74), (0.105, 0.83), (0.085, 0.87), (0, 0.878)]),
+        (-0.76, [(0, 0.78), (0.05, 0.785), (0.075, 0.81), (0.078, 0.875), (0.06, 0.905), (0, 0.912)]),
+        (-0.88, [(0, 0.855), (0.025, 0.858), (0.038, 0.87), (0.04, 0.905), (0.03, 0.925), (0, 0.93)]),
+    ])
     bml = bmesh.new()
-    loft(bml, tail_secs, PAINT)
-    tail = to_object("tail", bml)
-    subsurf(tail, 2)
+    panel(bml, TAIL, -0.88, -0.12, 0.06, 0.64, PAINT, lift=0.0, ny=18, nu=10)
+    panel(bml, TAIL, -0.88, -0.44, 0.64 + G, 1.0, PAINT, lift=0.0, ny=14, nu=6)
+    panel(bml, TAIL, -0.84, -0.20, 0.42, 0.47, LIVERY, lift=0.0025, ny=12, nu=2, edge=0.0, back=None)
+    panel(bml, TAIL, -0.88, -0.12, 0.0, 0.06, FRAME, lift=0.0, ny=10, nu=2)
+    # The LED tail lamp: a slim strip across the tail's tip and up its sides.
+    panel(bml, TAIL, -0.88, -0.85, 0.30, 0.78, LIGHT_R, lift=0.003, ny=3, nu=8, edge=0.002, back=None)
+    end = [TAIL.point(-0.88, k / 10.0) for k in range(11)]
+    ring = [Vector((p.x, p.y, p.z)) for p in end] + [Vector((-p.x, p.y, p.z)) for p in reversed(end[1:-1])]
+    vs = [bml.verts.new(p) for p in ring]
+    f = face(bml, vs, LIGHT_R)
+    if f and f.normal.y > 0:
+        f.normal_flip()
+    tail = to_object("tail", bml, sharp_deg=25.0)
     parts.append(tail)
     pill = []
     for k in range(5):
         t = k / 4.0
-        pill.append(sect(-0.50 - 0.18 * t, 0, 0.885 + 0.035 * t, 0.17 - 0.07 * t, 0.035, n=12, e=3.0))
+        pill.append(sect(-0.47 - 0.20 * t, 0, 0.848 + 0.045 * t, 0.17 - 0.07 * t, 0.035, n=12, e=3.4))
     bmp = bmesh.new()
     loft(bmp, pill, SEAT)
     pobj = to_object("pillion", bmp)
-    subsurf(pobj, 1)
     parts.append(pobj)
-    # Taillight in the tail's tip, the licence hanger under it.
+    # The licence hanger under the tail and its indicators.
     bmx = bmesh.new()
-    lamp_lens(bmx, Vector((0, -0.918, 0.912)), (0, -1, 0.25), 0.040, 0.016, 0.010, LIGHT_R)
-    sweep(bmx, polyline([Vector((0, -0.84, 0.84)), Vector((0, -0.98, 0.74)), Vector((0, -1.01, 0.66))], 0.03), lambda i: rrect(0.10 + 0.04 * i / 6.0, 0.008, 0.003, 1), TRIM)
+    sweep(bmx, polyline([Vector((0, -0.78, 0.76)), Vector((0, -0.90, 0.71)), Vector((0, -0.93, 0.64))], 0.03), lambda i: rrect(0.08 + 0.03 * i / 5.0, 0.008, 0.003, 1), TRIM)
     for s in (-1, 1):
-        tube(bmx, [Vector((s * 0.04, -0.97, 0.75)), Vector((s * 0.12, -0.98, 0.76))], 0.006, TRIM, n=8)
-        lamp_lens(bmx, Vector((s * 0.125, -0.985, 0.76)), (s * 0.3, -1, 0), 0.012, 0.012, 0.012, AMBER, segs=12)
-    parts.append(to_object("taillight", bmx))
-
-    # The fairing: one lofted shell from the pointed nose back past the radiator to a slanted
-    # rear edge by the rider's knees; the tank stands up out of it behind the screen.
-    FAIR = [(1.015, 0.840, 0.805, 0.03), (0.990, 0.878, 0.760, 0.15), (0.95, 0.918, 0.718, 0.25),
-            (0.88, 0.962, 0.668, 0.33), (0.80, 0.998, 0.600, 0.39), (0.72, 1.012, 0.505, 0.43),
-            (0.64, 1.008, 0.405, 0.45), (0.55, 0.985, 0.335, 0.455), (0.45, 0.948, 0.300, 0.45),
-            (0.35, 0.890, 0.290, 0.44), (0.25, 0.800, 0.295, 0.425), (0.16, 0.675, 0.315, 0.41)]
-    fair = [sect(y, 0, (t + b_) * 0.5, w, t - b_, n=22, e=3.3, taper_top=0.62, taper_bottom=0.30) for y, t, b_, w in FAIR]
-    bmF = bmesh.new()
-    loft(bmF, fair, PAINT, cap0=True, cap1=False)
-    fairing = to_object("fairing", bmF)
-    subsurf(fairing, 2)
-    sol = fairing.modifiers.new("sol", 'SOLIDIFY')
-    sol.thickness = 0.004
-    apply_mods(fairing)
-    parts.append(fairing)
-    # The belly pan under the engine.
-    pan = []
-    for k in range(6):
-        t = k / 5.0
-        y = 0.28 - 0.52 * t
-        pan.append(sect(y, 0, 0.22 + 0.02 * t, 0.44 - 0.12 * t, 0.16 - 0.04 * t, n=14, e=3.0))
-    bmb = bmesh.new()
-    loft(bmb, pan, PAINT)
-    belly = to_object("belly", bmb)
-    subsurf(belly, 1)
-    parts.append(belly)
-    # Screen, headlamps, nose intake, mirrors with integrated indicators.
+        tube(bmx, [Vector((s * 0.04, -0.89, 0.72)), Vector((s * 0.12, -0.90, 0.73))], 0.006, TRIM, n=8)
+        lamp_lens(bmx, Vector((s * 0.125, -0.905, 0.73)), (s * 0.3, -1, 0), 0.012, 0.012, 0.012, AMBER, segs=12)
+    parts.append(to_object("hanger", bmx))
+    # The screen: a smoked bubble rising off the cowl, its edges following the cowl's top.
     bmg = bmesh.new()
     scr = []
-    for k in range(7):
-        t = k / 6.0
-        y = 0.80 - 0.24 * t
-        z = 0.995 + 0.12 * t ** 0.9
-        w = 0.22 + 0.10 * t
-        scr.append([Vector((x * w * 0.5, y - 0.02 * x * x, z - 0.075 * x * x)) for x in (-1, -0.66, -0.33, 0, 0.33, 0.66, 1)])
+    for k in range(8):
+        t = k / 7.0
+        y = 0.80 - 0.25 * t
+        rows = []
+        for x in (-1, -0.66, -0.33, 0, 0.33, 0.66, 1):
+            base = FAIRING.point(y, 1.0 - 0.18 * abs(x), 0.004)
+            rows.append(Vector((base.x * (1 if x >= 0 else -1) * (1.0 - 0.15 * t), y, base.z + 0.002 + 0.13 * t * t ** 0.2 * (1.0 - 0.35 * x * x))))
+        scr.append(rows)
     g = [[bmg.verts.new(p) for p in row] for row in scr]
-    for i in range(6):
+    for i in range(7):
         for j in range(6):
             face(bmg, (g[i][j], g[i][j + 1], g[i + 1][j + 1], g[i + 1][j]), GLASS)
-    bmesh.ops.recalc_face_normals(bmg, faces=bmg.faces[:])
     for s in (-1, 1):
-        lamp_lens(bmg, Vector((s * 0.075, 0.952, 0.872)), (s * 0.45, 1, 0.12), 0.055, 0.020, 0.008, LIGHT_F)
-        mirror_on_stalk(bmg, Vector((s * 0.22, 0.70, 1.00)), Vector((s * 0.30, 0.66, 1.05)), 0.12, 0.05)
+        mirror_on_stalk(bmg, FAIRING.point(0.70, 0.80, 0.0) * 1.0 if s > 0 else Vector((-FAIRING.point(0.70, 0.80).x, 0.70, FAIRING.point(0.70, 0.80).z)),
+                        Vector((s * 0.30, 0.66, 1.05)), 0.12, 0.05, TRIM, CHROME)
         lamp_lens(bmg, Vector((s * 0.36, 0.680, 1.05)), (s * 0.5, 1, 0), 0.03, 0.006, 0.004, AMBER, segs=10)
-        # Side intakes in the flanks of the fairing.
-        lamp_lens(bmg, Vector((s * 0.262, 0.58, 0.62)), (s, 0.15, 0), 0.10, 0.03, 0.004, TRIM, rim_mat=DARK)
-    lamp_lens(bmg, Vector((0, 0.985, 0.835)), (0, 1, -0.2), 0.034, 0.020, 0.004, TRIM, rim_mat=DARK)
-    # Instrument panel behind the screen.
-    rbox(bmg, (0.16, 0.03, 0.09), Vector((0, 0.50, 1.00)), TRIM, bevel=0.01, rot=Matrix.Rotation(math.radians(-55), 3, Vector((1, 0, 0))))
-    rbox(bmg, (0.12, 0.006, 0.06), Vector((0, 0.488, 1.008)), GLASS, bevel=0.0, rot=Matrix.Rotation(math.radians(-55), 3, Vector((1, 0, 0))))
+    rbox(bmg, (0.16, 0.03, 0.09), Vector((0, 0.53, 0.99)), TRIM, bevel=0.01, rot=Matrix.Rotation(math.radians(-55), 3, Vector((1, 0, 0))))
+    rbox(bmg, (0.12, 0.006, 0.06), Vector((0, 0.518, 0.998)), GLASS, bevel=0.0, rot=Matrix.Rotation(math.radians(-55), 3, Vector((1, 0, 0))))
     parts.append(to_object("screen", bmg))
     # Rider pegs and hangers, the pillion pegs, the kickstand (left, folded up), the shift and
     # brake levers.
@@ -1131,7 +1349,7 @@ def build_sport():
               "wf_w": 0.122, "wr_w": 0.180,
               "seat": Vector((0, -0.24, 0.86)), "grip": Vector((0.30, 0.255, 0.835)),
               "peg": Vector((0.17, -0.31, 0.375)), "lean": 34.0, "lamp": Vector((0, 0.93, 0.92)),
-              "tail": Vector((0, -0.92, 0.912)), "width": 0.72})
+              "tail": Vector((0, -0.88, 0.89)), "width": 0.72})
     return S, body, steer, wf, wr
 
 
@@ -1156,8 +1374,13 @@ def build_cruiser():
     wire_rim(bmr, axr, 0.205, 0.090, hub_r=0.08)
     disc(bmr, axr, 0.092, 0.145, 0.095, mat_disc=METAL)
     # The belt pulley on the left.
-    lathe(bmr, [(0.06, -0.085), (0.165, -0.085), (0.172, -0.095), (0.172, -0.125), (0.165, -0.13), (0.06, -0.13)], 56, axr, 'X', DARK)
-    lathe(bmr, [(0.0001, -0.1), (0.12, -0.1), (0.12, -0.104), (0.0001, -0.104)], 40, axr, 'X', CHROME)
+    lathe(bmr, [(0.135, -0.085), (0.165, -0.085), (0.172, -0.095), (0.172, -0.125), (0.165, -0.13), (0.135, -0.13), (0.135, -0.085)], 56, axr, 'X', DARK)
+    lathe(bmr, [(0.03, -0.09), (0.055, -0.09), (0.055, -0.125), (0.03, -0.125), (0.03, -0.09)], 24, axr, 'X', CHROME)
+    for k in range(5):
+        a = math.tau * k / 5
+        p0 = axr + Vector((-0.108, 0.05 * math.cos(a), 0.05 * math.sin(a)))
+        p1 = axr + Vector((-0.108, 0.14 * math.cos(a + 0.25), 0.14 * math.sin(a + 0.25)))
+        sweep(bmr, [p0, p1], [(-0.012, -0.008), (0.012, -0.008), (0.012, 0.008), (-0.012, 0.008)], CHROME, up=Vector((1, 0, 0)))
     wr = to_object("moto_cruiser_wheel_r", bmr)
 
     bs = bmesh.new()
@@ -1192,7 +1415,7 @@ def build_cruiser():
         grip(bs, b, a, 0.0175)
         rbox(bs, (0.045, 0.05, 0.045), b + (b - a).normalized() * -0.01 + Vector((0, 0, 0)), CHROME, bevel=0.012, segs=2)
         lever(bs, b + Vector((0, 0.035, 0.0)), s, 0.17, CHROME)
-        mirror_on_stalk(bs, b + Vector((s * -0.05, 0.02, 0.02)), b + Vector((s * 0.05, 0.06, 0.20)), 0.10, 0.065, CHROME, CHROME)
+        mirror_on_stalk(bs, b + Vector((s * -0.05, 0.02, 0.02)), b + Vector((s * 0.06, 0.05, 0.13)), 0.10, 0.065, CHROME, CHROME)
     # The 7-inch headlamp in a chrome bucket on ears, a pair of bullet indicators.
     hl = Vector((0, 0.56, 0.93))
     lathe(bs, [(0.0001, -0.12), (0.06, -0.115), (0.092, -0.07), (0.101, 0.0), (0.104, 0.01), (0.104, 0.018)], 40, hl + Vector((0, 0, 0)), 'Y', CHROME)
@@ -1334,6 +1557,36 @@ def build_cruiser():
     lathe(bmc, [(0.0001, 0.023), (0.040, 0.023), (0.0001, 0.026)], 32, Vector((0, 0.16, 0.966)), 'Z', GLASS)
     for s in (-1, 1):
         lathe(bmc, [(0.0001, 0.0), (0.035, 0.0), (0.035, 0.010), (0.0001, 0.012)], 24, Vector((s * 0.08, 0.30, 0.95)), 'Z', CHROME)
+    # A pinstriped scallop down each side of the tank and a chrome winged badge in it (an
+    # original emblem: an oval boss with swept wings, no lettering).
+    def tank_x(y, z):
+        t = min(max((0.40 - y) / 0.62, 0.0), 1.0)
+        top = 0.93 + 0.03 * math.sin(math.pi * t) - 0.06 * t ** 3
+        bot = 0.73 + 0.02 * t
+        w = 0.20 + 0.20 * math.sin(math.pi * (0.15 + 0.85 * t) ** 0.8) - 0.06 * t ** 2
+        cz = (top + bot) * 0.5
+        hz = (top - bot) * 0.5
+        q = min(abs(z - cz) / hz, 0.999)
+        # The superellipse's x at that height (e 2.3), less the taper on the top half.
+        xx = (1.0 - q ** 2.3) ** (1.0 / 2.3) * w * 0.5
+        if z > cz:
+            xx *= 1.0 - 0.15 * q
+        # The subdivided surface sits a little inside the cage.
+        return xx * 0.94
+    for s_ in (-1, 1):
+        for edge_z in ((0.905, 0.84), (0.79, 0.835)):
+            pts = []
+            for k in range(25):
+                t = k / 24.0
+                y = 0.34 - 0.46 * t
+                z = edge_z[0] + (edge_z[1] - edge_z[0]) * math.sin(t * math.pi * 0.5)
+                pts.append(Vector((s_ * (tank_x(y, z) + 0.0025), y, z)))
+            sweep(bmc, pts, [(-0.004, -0.0006), (0.004, -0.0006), (0.004, 0.0006), (-0.004, 0.0006)], LIVERY, up=Vector((s_, 0.0, 0.0)))
+        c = Vector((s_ * (tank_x(0.18, 0.86) + 0.004), 0.18, 0.86))
+        lathe(bmc, [(0.0001, 0.0), (0.028, 0.0), (0.030, s_ * 0.006), (0.020, s_ * 0.010), (0.0001, s_ * 0.011)], 24, c, 'X', CHROME)
+        for wsign in (-1, 1):
+            wing = [c + Vector((0.0, wsign * 0.03, 0.006)), c + Vector((s_ * -0.004, wsign * 0.09, 0.022)), c + Vector((s_ * -0.010, wsign * 0.14, 0.018))]
+            sweep(bmc, polyline(wing, 0.012), lambda i: [(-0.007 + 0.0007 * i, -0.0015), (0.007 - 0.0007 * i, -0.0015), (0.006 - 0.0006 * i, 0.0015), (-0.006 + 0.0006 * i, 0.0015)], CHROME, up=Vector((s_, 0.0, 0.0)))
     parts.append(to_object("console", bmc))
     # Low solo seat with a raised back, and the pillion pad.
     secs = []
@@ -1455,7 +1708,7 @@ def build_scooter():
         b = Vector((s * 0.355, top.y - 0.02, top.z - 0.02))
         grip(bs2, a, b, 0.017)
         lever(bs2, a + Vector((0.0, 0.04, 0)), s, 0.15, METAL)
-        mirror_on_stalk(bs2, a + Vector((-s * 0.02, 0.02, 0.03)), a + Vector((s * 0.07, 0.03, 0.21)), 0.11, 0.07, TRIM, CHROME)
+        mirror_on_stalk(bs2, a + Vector((-s * 0.02, 0.02, 0.03)), a + Vector((s * 0.08, 0.04, 0.15)), 0.11, 0.065, TRIM, CHROME)
     lamp_lens(bs2, Vector((0, top.y + 0.085, top.z + 0.01)), (0, 1, 0.1), 0.085, 0.030, 0.012, LIGHT_F)
     rbox(bs2, (0.18, 0.03, 0.08), Vector((0, top.y - 0.05, top.z + 0.05)), TRIM, bevel=0.01, rot=Matrix.Rotation(math.radians(-50), 3, Vector((1, 0, 0))))
     rbox(bs2, (0.14, 0.004, 0.055), Vector((0, top.y - 0.066, top.z + 0.058)), GLASS, bevel=0.0, rot=Matrix.Rotation(math.radians(-50), 3, Vector((1, 0, 0))))
@@ -1475,39 +1728,48 @@ def build_scooter():
     steer = join([to_object("moto_scooter_steer", bs), hcover, to_object("hparts", bs2)], "moto_scooter_steer")
 
     parts = []
-    # The body: leg shield + floor + the shell under the seat, lofted along Y.
-    def body_sec(y):
-        # Front apron (y > 0.38): tall and thin; floor (-0.12 < y < 0.38): a low tunnel under the
-        # floorboard; rear (y < -0.12): the full shell under the seat.
-        if y > 0.40:
-            t = (y - 0.40) / 0.30
-            top = 0.98 - 0.25 * t ** 1.5
-            bot = 0.42 + 0.25 * t
-            w = 0.46 - 0.18 * t
-            return sect(y, 0, (top + bot) * 0.5, w, top - bot, n=20, e=3.2, taper_top=0.25)
-        if y > -0.12:
-            t = (0.40 - y) / 0.52
-            ramp_t = smooth((t - 0.75) * 4)
-            top = 0.47 + 0.30 * ramp_t + 0.40 * smooth((0.25 - t) * 4)
-            bot = 0.25
-            w = 0.38 + 0.02 * ramp_t
-            return sect(y, 0, (top + bot) * 0.5, w, top - bot, n=20, e=4.0, taper_top=0.1)
-        t = (-0.12 - y) / 0.78
-        top = 0.74 + 0.06 * t
-        bot = 0.30 + 0.30 * t ** 1.6
-        w = 0.40 - 0.14 * t ** 2
-        return sect(y, 0, (top + bot) * 0.5, w, top - bot, n=20, e=3.4, taper_top=0.15)
-    ys = [0.70, 0.62, 0.54, 0.46, 0.41, 0.36, 0.24, 0.10, -0.04, -0.12, -0.20, -0.32, -0.46, -0.60, -0.74, -0.86, -0.90]
+    # The body as pressed panels (Hull / panel): the leg shield with its horn grilles and front
+    # indicators, the floor tunnel with dark skirts, the rear shell with its side covers, a
+    # contrast kick strip and a chrome-look trim line, the glovebox face behind the shield.
+    G = 0.012
+    APRON = Hull([
+        (0.40, [(0, 0.42), (0.17, 0.43), (0.225, 0.50), (0.23, 0.80), (0.20, 0.93), (0.12, 0.99), (0, 1.0)]),
+        (0.52, [(0, 0.43), (0.17, 0.44), (0.23, 0.52), (0.235, 0.80), (0.205, 0.93), (0.12, 0.985), (0, 0.995)]),
+        (0.64, [(0, 0.50), (0.14, 0.51), (0.19, 0.58), (0.195, 0.78), (0.17, 0.88), (0.10, 0.93), (0, 0.94)]),
+        (0.72, [(0, 0.60), (0.06, 0.61), (0.09, 0.66), (0.09, 0.76), (0.08, 0.82), (0.045, 0.85), (0, 0.855)]),
+    ])
+    FLOOR = Hull([
+        (-0.12, [(0, 0.27), (0.15, 0.28), (0.19, 0.33), (0.195, 0.42), (0.17, 0.465), (0, 0.47)]),
+        (0.42, [(0, 0.27), (0.14, 0.28), (0.18, 0.33), (0.185, 0.42), (0.16, 0.465), (0, 0.47)]),
+    ])
+    REAR = Hull([
+        (-0.92, [(0, 0.60), (0.05, 0.61), (0.08, 0.64), (0.085, 0.71), (0.075, 0.76), (0.05, 0.785), (0, 0.79)]),
+        (-0.70, [(0, 0.47), (0.12, 0.48), (0.17, 0.55), (0.175, 0.68), (0.16, 0.75), (0.11, 0.785), (0, 0.79)]),
+        (-0.40, [(0, 0.33), (0.15, 0.34), (0.20, 0.45), (0.205, 0.64), (0.185, 0.73), (0.13, 0.770), (0, 0.775)]),
+        (-0.10, [(0, 0.30), (0.14, 0.31), (0.19, 0.40), (0.20, 0.62), (0.18, 0.72), (0.12, 0.765), (0, 0.77)]),
+    ])
     bmB = bmesh.new()
-    loft(bmB, [body_sec(y) for y in ys], PAINT)
-    shell = to_object("shell", bmB)
-    subsurf(shell, 2)
+    panel(bmB, APRON, 0.40, 0.72, 0.03, 1.0, PAINT, lift=0.0, ny=16, nu=16, edge=0.008)
+    hull_cap(bmB, APRON, 0.72, PAINT, 1)
+    hull_cap(bmB, APRON, 0.40, TRIM, -1)
+    for k in range(3):
+        panel(bmB, APRON, 0.69, 0.715, 0.70 + 0.045 * k, 0.725 + 0.045 * k, DARK, lift=0.003, ny=2, nu=2, edge=0.0, back=None)
+    lens_quad(bmB, APRON, 0.60, 0.68, 0.52, 0.60, AMBER, lift=0.004, n=4)
+    panel(bmB, FLOOR, -0.12, 0.42, 0.0, 0.55, FRAME, lift=0.0, ny=10, nu=8, edge=0.006)
+    panel(bmB, FLOOR, -0.12, 0.42, 0.55 + G, 1.0, TRIM, lift=0.0, ny=10, nu=6, edge=0.004)
+    panel(bmB, REAR, -0.92, -0.10, 0.10, 0.74, PAINT, lift=0.0, ny=20, nu=12, edge=0.008, y0_hi=-0.85)
+    panel(bmB, REAR, -0.92, -0.10, 0.74 + G, 1.0, PAINT, lift=0.0, ny=16, nu=6, edge=0.006)
+    panel(bmB, REAR, -0.88, -0.14, 0.0, 0.10 - G * 0.5, FRAME, lift=0.0, ny=12, nu=3, edge=0.005)
+    panel(bmB, REAR, -0.82, -0.18, 0.44, 0.47, LIVERY, lift=0.003, ny=14, nu=2, edge=0.0, back=None)
+    panel(bmB, REAR, -0.66, -0.30, 0.22, 0.38, DARK, lift=0.0035, ny=4, nu=4, edge=0.002, back=None, y0_hi=-0.60, y1_hi=-0.36)
+    hull_cap(bmB, REAR, -0.92, PAINT, -1)
+    hull_cap(bmB, REAR, -0.10, TRIM, 1)
+    shell = to_object("shell", bmB, sharp_deg=28.0)
     parts.append(shell)
     # Floorboard mats: rubber strips.
     bmm = bmesh.new()
     for k in range(8):
-        rbox(bmm, (0.34, 0.025, 0.006), Vector((0, -0.10 + 0.058 * k, 0.474)), RUBBER, bevel=0.002, segs=1)
-    rbox(bmm, (0.37, 0.48, 0.008), Vector((0, 0.10, 0.468)), TRIM, bevel=0.004, segs=1)
+        rbox(bmm, (0.30, 0.025, 0.006), Vector((0, -0.08 + 0.058 * k, 0.474)), RUBBER, bevel=0.002, segs=1)
     parts.append(to_object("mats", bmm))
     # Seat: long, stepped for the passenger.
     secs = []
@@ -1567,10 +1829,9 @@ def build_scooter():
             face(eng, (g[i][j], g[i][j + 1], g[i + 1][j + 1], g[i + 1][j]), TRIM)
     parts.append(to_object("engine", eng, sharp_deg=35))
     bmx = bmesh.new()
-    lamp_lens(bmx, Vector((0, -0.905, 0.68)), (0, -1, 0.2), 0.10, 0.030, 0.012, LIGHT_R)
+    lamp_lens(bmx, Vector((0, -0.922, 0.70)), (0, -1, 0.15), 0.062, 0.026, 0.010, LIGHT_R)
     for s in (-1, 1):
-        lamp_lens(bmx, Vector((s * 0.15, -0.86, 0.66)), (s * 0.5, -1, 0), 0.030, 0.015, 0.008, AMBER, segs=12)
-        lamp_lens(bmx, Vector((s * 0.205, 0.64, 0.88)), (s * 0.5, 1, 0), 0.035, 0.016, 0.008, AMBER, segs=12)
+        lamp_lens(bmx, Vector((s * 0.105, -0.86, 0.66)), (s * 0.6, -1, 0), 0.026, 0.013, 0.008, AMBER, segs=12)
     tube(bmx, bez(Vector((-0.14, -0.70, 0.82)), Vector((-0.15, -0.93, 0.84)), Vector((0.15, -0.93, 0.84)), Vector((0.14, -0.70, 0.82)), 16), 0.012, METAL, n=10)
     tube(bmx, polyline([Vector((-0.12, -0.20, 0.25)), Vector((-0.12, -0.42, 0.20))], 0.04), 0.012, DARK, n=8)
     tube(bmx, polyline([Vector((0.12, -0.20, 0.25)), Vector((0.12, -0.42, 0.20))], 0.04), 0.012, DARK, n=8)
@@ -1583,7 +1844,7 @@ def build_scooter():
               "wf_w": 0.110, "wr_w": 0.130,
               "seat": Vector((0, -0.34, 0.81)), "grip": Vector((0.32, top.y - 0.012, top.z - 0.016)),
               "peg": Vector((0.10, 0.20, 0.48)), "lean": 4.0, "lamp": Vector((0, top.y + 0.09, top.z + 0.01)),
-              "tail": Vector((0, -0.91, 0.68)), "width": 0.72})
+              "tail": Vector((0, -0.93, 0.70)), "width": 0.72})
     return S, body, steer, wf, wr
 
 

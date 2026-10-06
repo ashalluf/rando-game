@@ -35,10 +35,10 @@ static var enabled: bool = OS.get_environment("MOTORCYCLES") != "0"
 ## steering axis (through `head`, up and back), where the rider sits, holds and rests his feet,
 ## his forward lean (degrees), the lamps.
 const DIMS := [
-	{"length": 2.036, "width": 0.78, "height": 1.115, "front": Vector3(0.0, 0.300, -0.700), "rear": Vector3(0.0, 0.315, 0.700), "rf": 0.300, "rr": 0.315,
+	{"length": 2.049, "width": 0.78, "height": 1.123, "front": Vector3(0.0, 0.300, -0.700), "rear": Vector3(0.0, 0.315, 0.700), "rf": 0.300, "rr": 0.315,
 		"head": Vector3(0.0, 0.905, -0.395), "axis": Vector3(0.0, 0.9135, 0.4067),
 		"seat": Vector3(0.0, 0.855, 0.22), "grip": Vector3(0.255, 0.845, -0.36), "peg": Vector3(0.17, 0.375, 0.31), "lean": 42.0,
-		"lamp": Vector3(0.0, 0.875, -0.96), "tail": Vector3(0.0, 0.912, 0.92), "tyre_w": Vector2(0.122, 0.180), "hang": 0.09},
+		"lamp": Vector3(0.0, 0.87, -0.95), "tail": Vector3(0.0, 0.89, 0.88), "tyre_w": Vector2(0.122, 0.180), "hang": 0.09},
 	{"length": 2.428, "width": 0.84, "height": 1.361, "front": Vector3(0.0, 0.330, -0.825), "rear": Vector3(0.0, 0.330, 0.825), "rf": 0.330, "rr": 0.330,
 		"head": Vector3(0.0, 0.985, -0.335), "axis": Vector3(0.0, 0.8480, 0.5299),
 		"seat": Vector3(0.0, 0.70, 0.33), "grip": Vector3(0.325, 1.137, -0.123), "peg": Vector3(0.27, 0.37, -0.26), "lean": -8.0,
@@ -46,7 +46,7 @@ const DIMS := [
 	{"length": 1.906, "width": 0.78, "height": 1.233, "front": Vector3(0.0, 0.272, -0.665), "rear": Vector3(0.0, 0.258, 0.665), "rf": 0.272, "rr": 0.258,
 		"head": Vector3(0.0, 0.900, -0.470), "axis": Vector3(0.0, 0.8910, 0.4540),
 		"seat": Vector3(0.0, 0.80, 0.33), "grip": Vector3(0.30, 0.984, -0.409), "peg": Vector3(0.11, 0.48, -0.17), "lean": 2.0, "floor": true,
-		"lamp": Vector3(0.0, 1.010, -0.509), "tail": Vector3(0.0, 0.680, 0.910), "tyre_w": Vector2(0.110, 0.130), "hang": 0.0},
+		"lamp": Vector3(0.0, 1.010, -0.509), "tail": Vector3(0.0, 0.700, 0.930), "tyre_w": Vector2(0.110, 0.130), "hang": 0.0},
 ]
 ## Per kind: kg, engine force (N), top speed (m/s), braking, the steering lock (rad), how far the
 ## bike may wheelie (rad), and its traffic speed factor.
@@ -713,6 +713,8 @@ func _physics_process(delta: float) -> void:
 			return
 		_hold_upright(delta, 1.0)
 		return
+	if PhysicsServer3D.body_get_state(get_rid(), PhysicsServer3D.BODY_STATE_SLEEPING):
+		PhysicsServer3D.body_set_state(get_rid(), PhysicsServer3D.BODY_STATE_SLEEPING, false)
 	if _engine_sound == null:
 		_engine_sound = Sfx.loop_player("engine_loop", -10.0)
 		add_child(_engine_sound)
@@ -789,12 +791,17 @@ func set_script_active(on: bool) -> void:
 ## VehicleBody3D applies its wheels' impulses each step, so writing it back threw away the yaw the
 ## front tyre's side force had just given, and the bike would not turn at all.
 func _hold_upright(delta: float, weight: float) -> void:
+	if PhysicsServer3D.body_get_state(get_rid(), PhysicsServer3D.BODY_STATE_SLEEPING):
+		return
 	var st := PhysicsServer3D.body_get_direct_state(get_rid())
 	if st == null:
 		return
 	var bz := global_basis.z
 	var roll := asin(clampf(global_basis.x.y, -1.0, 1.0))
 	var av := st.angular_velocity
+	# Standing still and level already: nothing to hold (a write would keep it awake for good).
+	if driver == null and absf(roll) < 0.003 and av.length() < 0.02 and st.linear_velocity.length() < 0.05:
+		return
 	var along := av.dot(bz)
 	var want := -roll * upright_gain * weight
 	av += bz * (lerpf(along, want, 1.0 - exp(-12.0 * delta)) - along)
