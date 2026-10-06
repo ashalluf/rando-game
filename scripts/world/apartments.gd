@@ -58,6 +58,8 @@ const TREAD := 0.27
 const LANDING := 1.25
 ## A unit's frontage on a gallery or a street face.
 const UNIT_W := 6.6
+## How deep a walk-up's tuck-under parking runs back under its street end.
+const TUCK_D := 6.4
 
 ## Invented building names (the script letters on a parapet): plain words, never a real company.
 const NAMES := ["Casa Linda", "The Royal Palms", "Las Brisas", "Villa Serena", "The Del Rey", "Sea Breeze",
@@ -82,11 +84,19 @@ static func _offered(plan: CityPlan, lot: Dictionary, district: int) -> bool:
 	var c: Vector2 = lot.center
 	if plan.zone_at(c) != MacroMap.Zone.CITY:
 		return false
+	# The freeway's right of way is the corridor's (CityChunk builds it before any lot claim).
+	if YardFill.is_corridor(plan, lot):
+		return false
 	# A vacant lot or gravel car park (VacantLots) is claimed before this.
 	if VacantLots.kind_of(plan, plan.block_index_at(c).x, plan.block_index_at(c).y, lot) != VacantLots.NONE:
 		return false
 	if district == CityPlan.District.MIDTOWN:
 		if plan.lot_height(s, district, plan.macro.skyline_boost(c)) > MIDTOWN_MAX_H:
+			return false
+		# The block's tower site (Construction picks it among the Building lots, after this claim).
+		var k := plan.block_index_at(c)
+		var site := Construction.tower_site(plan, k.x, k.y)
+		if not site.is_empty() and int((site.lot as Dictionary).seed) == s:
 			return false
 		return _h01([plan.seed, s, "apartments"]) < MIDTOWN_ODDS
 	if district == CityPlan.District.SUBURBS:
@@ -247,12 +257,28 @@ static func _plan_walkup(h: Dictionary, ps: int, s: int, U: float, V: float, mid
 		floors.append(fl)
 	h.galleries.append({"wing": 0, "face": face, "a0": 0.0, "a1": depth, "depth": GALLERY_D, "floors": floors,
 		"rail": "picket" if _h01([ps, s, "rail"]) < 0.6 else "solid", "posts": true})
-	# Ground-floor and gallery doors along that face, one a unit.
+	# Tuck-under parking: the street end of the ground floor open to the street in bays.
+	var tuck := 0.0
+	if depth >= 18.0 and _h01([ps, s, "tuck"]) < (0.6 if midtown else 0.4):
+		tuck = TUCK_D
+		main["tuck_d"] = tuck
+		h.garage = {"wing": 0, "u0": u0 + 0.35, "u1": u0 + bw - 0.35, "kind": "tuck"}
+		h.drive = Vector2(u0 + 0.2, u0 + bw - 0.2)
+		h.drive_v = v0
+	# Ground-floor and gallery doors along that face, one a unit (none in the parking).
 	var units := maxi(1, int(depth / UNIT_W))
 	for fl in storeys:
 		for k in units:
 			var a := (float(k) + 0.3) * depth / units
+			var from_front := a if face == "right" else depth - a
+			if fl == 0 and from_front < tuck + 0.8:
+				continue
 			main.doors.append([face, a, float(fl) * STOREY])
+	# Sliders onto little iron balconies on the street face, a second stucco tone on it, a security
+	# gate across the court's mouth.
+	h["street_balc"] = _h01([ps, s, "street_balc"]) < 0.55
+	h["front_tone"] = _h01([ps, s, "front_tone"]) < 0.5
+	h["gate"] = _h01([ps, s, "gate"]) < 0.75
 	# The stair at the street end of the court, flights running back beside the galleries.
 	var stair := _stair_run(h, Vector2(wall_u, v0 + 0.6), Vector2(0, 1), out, GALLERY_D + 0.05, storeys - 1)
 	h.extra_ground.append(stair.grow(0.15))
@@ -380,6 +406,9 @@ static func _colors(h: Dictionary, ps: int, s: int) -> void:
 		h.colors.frame = h.colors.trim
 	elif kind == Kind.PODIUM or kind == Kind.WALKUP:
 		h.colors.frame = Color(0.82, 0.82, 0.80) if _h01([ps, s, "alu"]) < 0.65 else Color(0.16, 0.16, 0.16)
+	# A walk-up's street face in a second stucco tone (a deeper or paler one of the palette).
+	h.colors["front"] = HouseKit._pick([Color(0.86, 0.74, 0.60), Color(0.72, 0.78, 0.74), Color(0.93, 0.90, 0.84),
+		Color(0.80, 0.68, 0.62), Color(0.70, 0.72, 0.76), Color(0.88, 0.80, 0.62)], [ps, s, "front_c"])
 	# The accent: a contrasting stucco for the gallery fascias, stair stringers and a podium's panels.
 	h.colors["accent"] = HouseKit._pick([Color(0.20, 0.36, 0.42), Color(0.55, 0.26, 0.18), Color(0.86, 0.64, 0.30),
 		Color(0.32, 0.40, 0.32), Color(0.18, 0.18, 0.20), Color(0.94, 0.93, 0.90)], [ps, s, "accent"])
@@ -399,3 +428,13 @@ static func extra_ground(h: Dictionary) -> Array[Rect2]:
 	if c.size.x > 0.0:
 		out.append(YardFill._fr(f, c.position.x, c.position.y, c.end.x, c.end.y))
 	return out
+
+
+## Whether a system that claims lots BEFORE this one in CityChunk._build_lot() takes the lot (the
+## stations, worship, Broadway, Chinatown, the dealers, a well, the civic buildings): for the probe
+## and the checks, which must not point at a lot the chunk gives to someone else.
+static func claimed_before(plan: CityPlan, bx: int, bz: int, lot: Dictionary, district: int) -> bool:
+	return FireStation.claims(plan, bx, bz, lot) or PoliceStation.claims(plan, bx, bz, lot) \
+		or Worship.claims(plan, bx, bz, lot) or Broadway.claims(plan, bx, bz, lot) \
+		or Chinatown.claims(plan, bx, bz, lot) or CarDealers.claims(plan, bx, bz, lot) \
+		or not OilField.lot_well(plan, lot, district).is_empty() or CivicBuildings.claims(plan, bx, bz, lot)

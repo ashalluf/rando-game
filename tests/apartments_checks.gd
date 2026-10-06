@@ -107,7 +107,7 @@ func _full(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 	var claimed: Array[Rect2] = []
 	var d: int = plan.block(k.x, k.y).district
 	for lot: Dictionary in plan.lots(k.x, k.y):
-		if Apartments.claims(plan, k.x, k.y, lot, d):
+		if Apartments.claims(plan, k.x, k.y, lot, d) and not Apartments.claimed_before(plan, k.x, k.y, lot, d):
 			claimed.append(Rect2((lot.center as Vector2) - (lot.size as Vector2) * 0.5, lot.size))
 	var on_claimed := 0
 	for c in chunk.get_children():

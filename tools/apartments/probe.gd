@@ -1,10 +1,10 @@
-extends SceneTree
+extends Node
 ## The apartment kit (Apartments) on a plan, headless, seconds: how many lots it claims per district
 ## and kind, the plan's purity, and an EYE (still_shot.gd) for the first few of each kind.
-##   godot --headless --path . --script tools/apartments/probe.gd (env SEED=n RADIUS=m CENTER=x,z)
+##   godot --headless --path . res://tools/apartments/probe.tscn (env SEED=n RADIUS=m CENTER=x,z)
 
-func _initialize() -> void:
-	await process_frame
+func _ready() -> void:
+	await get_tree().process_frame
 	var seed_value := int(OS.get_environment("SEED")) if OS.get_environment("SEED") != "" else 1337
 	var radius := float(OS.get_environment("RADIUS")) if OS.get_environment("RADIUS") != "" else 3200.0
 	var plan := GroundCoverage.make_plan(seed_value)
@@ -35,12 +35,13 @@ func _initialize() -> void:
 				if var_to_str(ap.wings) != var_to_str(again.wings):
 					impure += 1
 				total += 1
-				var key := "%s %s" % [CityPlan.District.keys()[d], Apartments.KIND_NAMES[int(ap.apt)]]
+				var key := "%s %s%s" % [CityPlan.District.keys()[d], Apartments.KIND_NAMES[int(ap.apt)], " tuck" if float(ap.wings[0].get("tuck_d", 0.0)) > 0.0 else ""]
 				counts[key] = int(counts.get(key, 0)) + 1
 				if not eyes.has(key):
 					eyes[key] = []
 				# A pad (Commercial) may be rolled on an edge lot 18 m or more each way: not a lot to look at.
-				var pad_risk: bool = lot.edge and (lot.size as Vector2).x >= 18.0 and (lot.size as Vector2).y >= 18.0
+				var pad_risk: bool = (lot.edge and (lot.size as Vector2).x >= 18.0 and (lot.size as Vector2).y >= 18.0) \
+					or Apartments.claimed_before(plan, bx, bz, lot, d)
 				if (eyes[key] as Array).size() < 3 and not pad_risk:
 					var f: Dictionary = ap.f
 					# Standing in the street, 18 m out from the lot's front, looking at it.
@@ -58,4 +59,4 @@ func _initialize() -> void:
 		for e: String in eyes[k]:
 			print("   ", e)
 	print("APT total %d, impure %d, %d ms" % [total, impure, Time.get_ticks_msec() - t0])
-	quit()
+	get_tree().quit()

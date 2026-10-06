@@ -57,6 +57,20 @@ func _openings(i: int, w: Dictionary, which: String, fo: Vector2, t: Vector2, le
 	for fl in storeys:
 		var fy := float(fl) * st
 		var taken: Array[Vector2] = hidden.duplicate()
+		# Tuck-under parking: the street end of the ground floor open in bays between columns.
+		var tuck: float = w.get("tuck_d", 0.0)
+		if tuck > 0.0 and fl == 0:
+			if which == "front":
+				var nb := maxi(2, int(round((length - 0.6) / 3.1)))
+				var bw := (length - 0.6) / nb
+				for k in nb:
+					out.append([0.3 + k * bw + 0.13, 0.3 + (k + 1) * bw - 0.13, base + 0.02, 2.4, "dark"])
+				continue
+			if which != "back":
+				var t0 := 0.0 if which == "right" else length - tuck
+				if gallery_face:
+					out.append([t0 + 0.3, t0 + tuck - 0.3, base + 0.02, 2.4, "dark"])
+				taken.append(Vector2(t0 - 0.3, t0 + tuck + 0.3))
 		# The doors on this floor of this face.
 		for d: Array in w.doors:
 			if d[0] != which or absf(float(d[2]) - fy) > 0.1:
@@ -122,6 +136,13 @@ func _openings(i: int, w: Dictionary, which: String, fo: Vector2, t: Vector2, le
 			_fill(out, taken, length, fy + 1.0, fy + 2.25, r, 1.2, 1.6, 2.6, "window")
 			_ac_from(out, before, fo, t, n, r, 0.25)
 			continue
+		# A slider onto a little iron balcony in the middle of a walk-up's street face.
+		if which == "front" and fl > 0 and h.get("street_balc", false) and length >= 7.0:
+			var sw := minf(2.2, length * 0.3)
+			var c := length * 0.5
+			out.append([c - sw * 0.5, c + sw * 0.5, fy + 0.05, fy + 2.3, "slider"])
+			taken.append(Vector2(c - sw * 0.5 - 0.5, c + sw * 0.5 + 0.5))
+			_balconies.append([fo, t, n, c, fy, 0.9, sw + 0.7])
 		var before2 := out.size()
 		if which == "front" or which == "back":
 			_fill(out, taken, length, fy + 0.95, fy + 2.25, r, 1.4, 2.0, 3.0, "window")
@@ -157,6 +178,8 @@ func _opening(fo: Vector2, t: Vector2, n: Vector2, hl: Array, mat: String, cl: C
 	var kind: String = hl[4]
 	if kind != "gate" and kind != "vent":
 		super._opening(fo, t, n, hl, mat, cl)
+		if (kind == "window" or kind == "slider") and mat == "h_wall" and _trimmed():
+			_surround(fo, t, n, hl, cl)
 		return
 	var dark := hl.duplicate()
 	dark[4] = "dark"
@@ -187,6 +210,42 @@ func _opening(fo: Vector2, t: Vector2, n: Vector2, hl: Array, mat: String, cl: C
 	_box("h_metal", q0.lerp(q1, 0.5) + n * 0.05, gy0 + 1.0, gy0 + 1.3, t, n, Vector2(0.09, 0.04), rail.darkened(0.2))
 
 
+## Walk-ups and podium blocks: plain stucco walls whose openings get a surround (the 1960s
+## stucco-and-trim look) and whose floors a belt course.
+func _trimmed() -> bool:
+	return int(h.apt) == Apartments.Kind.WALKUP or int(h.apt) == Apartments.Kind.PODIUM
+
+
+## A window's surround: a head band and jambs standing proud of the wall (they catch the sun and
+## throw a shadow line), a sill under a slider, and a streak of grime under the sill.
+func _surround(fo: Vector2, t: Vector2, n: Vector2, hl: Array, cl: Color) -> void:
+	var a0: float = hl[0]
+	var a1: float = hl[1]
+	var y0: float = hl[2]
+	var y1: float = hl[3]
+	var w := a1 - a0
+	var mid := fo + t * ((a0 + a1) * 0.5)
+	var tc: Color = col.trim if _ap(["trim_tone"]) < 0.5 else cl.lightened(0.18)
+	_box("h_trim", mid + n * 0.035, y1, y1 + 0.14, t, n, Vector2(w * 0.5 + 0.12, 0.045), tc)
+	for e: float in [a0 - 0.06, a1 + 0.06]:
+		_box("h_trim", fo + t * e + n * 0.025, y0 - 0.02, y1, t, n, Vector2(0.06, 0.03), tc)
+	if String(hl[4]) == "slider" and y0 > 0.5:
+		_box("h_trim", mid + n * 0.04, y0 - 0.07, y0, t, n, Vector2(w * 0.5 + 0.08, 0.06), tc)
+	if y0 > 0.5:
+		var g := cl.darkened(0.14)
+		var q := fo + n * 0.012
+		var gy := maxf(y0 - 1.1 - _ap([a0, y0, "grime"]) * 0.6, base + 0.4)
+		_quad("h_wall", L(q + t * (a0 + 0.05), gy), L(q + t * (a1 - 0.05), gy), L(q + t * (a1 - 0.1), y0 - 0.07), L(q + t * (a0 + 0.1), y0 - 0.07), N(n), g,
+			[Vector2(a0, gy - base), Vector2(a1, gy - base), Vector2(a1, y0 - base), Vector2(a0, y0 - base)])
+
+
+## A walk-up's street face wears its second stucco tone.
+func _wall(fo: Vector2, t: Vector2, n: Vector2, length: float, y0: float, y1: float, holes: Array, mat: String, cl: Color) -> void:
+	if mat == "h_wall" and h.get("front_tone", false) and n.is_equal_approx(Vector2(0, -1)) and cl == (col.wall as Color):
+		cl = col.front
+	super._wall(fo, t, n, length, y0, y1, holes, mat, cl)
+
+
 # --- The rest --------------------------------------------------------------------------------------
 
 func full() -> void:
@@ -207,6 +266,11 @@ func full() -> void:
 		_ac(a)
 	if h.get("entry_arch", false):
 		_entry_arch()
+	if _trimmed():
+		_belts()
+	if h.get("gate", false):
+		_court_gate()
+	_roof_vents()
 	_name_sign()
 	_ground()
 
@@ -253,6 +317,75 @@ func _gallery(g: Dictionary) -> void:
 		for k in np + 1:
 			var a := lerpf(a0 + 0.12, a1 - 0.12, float(k) / np)
 			_box("h_metal", fo + t * a + n * (d - 0.1), -HouseKit.FLOOR_LIFT, top_y - 0.05, t, n, Vector2(0.06, 0.06), rail_c)
+
+
+## A belt course at each floor line round a walk-up or podium block (not on the gallery face, whose
+## slabs are the line there).
+func _belts() -> void:
+	for i in (h.wings as Array).size():
+		var w: Dictionary = h.wings[i]
+		for which: String in ["front", "back", "left", "right"]:
+			var skip := false
+			for g: Dictionary in h.galleries:
+				if int(g.wing) == i and g.face == which:
+					skip = true
+			if skip:
+				continue
+			var fc := _face(w, which)
+			var fo: Vector2 = fc[0]
+			var t: Vector2 = fc[1]
+			var n: Vector2 = fc[2]
+			var length: float = fc[3]
+			var tc: Color = (col.front as Color) if (h.get("front_tone", false) and which == "front") else (col.wall as Color)
+			for fl in range(1, int(w.storeys)):
+				var y := float(fl) * STOREY
+				_box("h_trim", fo + t * (length * 0.5) + n * 0.03, y - 0.1, y + 0.02, t, n, Vector2(length * 0.5 + 0.03, 0.035), tc.lightened(0.1))
+
+
+## A walk-up's security gate across its court's mouth: steel pickets between two stucco piers, a
+## cluster of mailboxes on the pier by the wall, a lamp over the gate.
+func _court_gate() -> void:
+	var c: Rect2 = h.court
+	if c.size.x < 2.0:
+		return
+	var v := c.position.y + 0.15
+	var u0 := c.position.x + 0.05
+	var u1 := c.end.x - 0.05
+	var top := 2.0
+	var pier_c: Color = col.wall
+	for e: float in [u0 + 0.2, u1 - 0.2]:
+		_box("h_wall", Vector2(e, v), base + 0.2, top + 0.25, Vector2(1, 0), Vector2(0, 1), Vector2(0.2, 0.2), pier_c)
+		_box("h_trim", Vector2(e, v), top + 0.25, top + 0.33, Vector2(1, 0), Vector2(0, 1), Vector2(0.25, 0.25), col.trim, true)
+	var a := Vector2(u0 + 0.4, v)
+	var b := Vector2(u1 - 0.4, v)
+	_bar("h_metal", a, b, top - 0.1, top - 0.04, 0.025, col.rail)
+	_bar("h_metal", a, b, 0.1 - HouseKit.FLOOR_LIFT, 0.16 - HouseKit.FLOOR_LIFT, 0.025, col.rail)
+	var cnt := int(a.distance_to(b) / 0.12)
+	for k in cnt + 1:
+		_picket(a.lerp(b, float(k) / maxf(cnt, 1)), -HouseKit.FLOOR_LIFT + 0.05, top + 0.08, Vector2(1, 0), Vector2(0, 1), 0.011, col.rail)
+	# The mailboxes: a grid of little bronze doors in a recessed panel on the pier toward the wall.
+	var wall_left: bool = absf(c.position.x - (h.wings[0].r as Rect2).end.x) < 0.2
+	var mu := u0 + 0.2 if wall_left else u1 - 0.2
+	_box("h_metal", Vector2(mu, v - 0.24), 0.9, 1.7, Vector2(1, 0), Vector2(0, 1), Vector2(0.17, 0.04), Color(0.52, 0.42, 0.28))
+	_box("h_metal", Vector2(mu, v - 0.6), top - 0.1, top + 0.15, Vector2(1, 0), Vector2(0, 1), Vector2(0.08, 0.08), HouseBuild.IRON_LAMP)
+	acc.shapes.append(_shape_box(Vector2((u0 + u1) * 0.5, v), u1 - u0, 0.3, base + 0.2, top + 0.2))
+
+
+## Vent stacks and a plumbing vent or two on a flat roof, a scupper through the parapet.
+func _roof_vents() -> void:
+	for w: Dictionary in h.wings:
+		if w.roof != "flat":
+			continue
+		var r: Rect2 = w.r
+		var y := float(w.storeys) * STOREY
+		for k in 2 + absi(hash([seed, r.position, "vents"])) % 3:
+			var p := Vector2(lerpf(r.position.x + 0.8, r.end.x - 0.8, _ap([k, r.position.x, "vu"])), lerpf(r.position.y + 0.8, r.end.y - 0.8, _ap([k, r.position.y, "vv"])))
+			if k % 2 == 0:
+				_box("h_metal", p, y, y + 0.55, Vector2(1, 0), Vector2(0, 1), Vector2(0.05, 0.05), Color(0.32, 0.32, 0.31))
+			else:
+				_box("h_metal", p, y, y + 0.35, Vector2(1, 0), Vector2(0, 1), Vector2(0.2, 0.2), Color(0.62, 0.62, 0.6))
+				_box("h_metal", p, y + 0.35, y + 0.42, Vector2(1, 0), Vector2(0, 1), Vector2(0.27, 0.27), Color(0.55, 0.55, 0.53))
+		_box("h_metal", Vector2(r.end.x + 0.05, r.get_center().y), y + 0.05, y + 0.2, Vector2(0, 1), Vector2(1, 0), Vector2(0.12, 0.12), Color(0.45, 0.45, 0.44))
 
 
 ## A rail from frame point a to b at floor height y: pickets under a top rail, or a stucco half wall.
