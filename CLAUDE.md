@@ -2950,6 +2950,24 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   crossings; seconds); timing `tools/la_river/river_bench.tscn`; stills
   `tools/la_river/river_shot.tscn` (CAR=1 a car down a ramp) and `still_shot.gd` EYEs (HANDOFF
   9bp). Checks: `tests/la_river_checks.gd`.
+- The coast highway (2026-10-05, docs/HANDOFF.md "The coast highway"): north of the beach town,
+  where the front range meets the sea. `CoastHighway` (`scripts/world/coast_highway.gd`,
+  `MacroMap.coast_highway`, built in `setup()` before the hill roads) is a pure plan in
+  d = x - coast_x(z): `profile()` (sand to WALL, the bench at ROAD_Y under four lanes centred on
+  HillRoads' coast highway line, a cut bluff, the mountains past REACH) folded into
+  `raw_height_at()`, `calm()` in `_relief_at()`, `beach_width()` in `beach_width_at()` (the
+  relief fade keeps `_beach_width_base()`); houses (runs by hash, styles, decks, stairs), towers,
+  stairs, parking stalls; `bed_y()` is the coast highway's own profile (what HillRoads carves).
+  `CoastHighwayBuild.attach()` replaces the zone's steps in every chunk the corridor reaches (the
+  `match` takes -1): water, the hill terrain, sand and BeachLife (no path or court there:
+  `BeachLife.kept_off()`), the four lanes and paint (the hill strip is kept for the keep-offs but
+  not drawn), seawall and apron, gutter, houses on pilings (HouseKit's materials), stairs, k-rails
+  and the slide at the north end, cobra lamps (`_add_lamp()`), real parked cars (surfers' boards
+  on a rack); keep-offs in `_near_pad()`, `_shell_marks()`, `Skyline._add_hills()`. LOD: road and
+  house boxes; the far city: the boxes. `CoastTraffic` (`scripts/npc/coast_traffic.gd`) drives
+  it both ways (queues at the closure; `staged` for checks). `COAST_HIGHWAY=0` /
+  `COAST_TRAFFIC=0` are the A/B; probe `tools/coast_highway/probe.gd`; checks
+  `tests/coast_highway_checks.gd`.
 - The marina (VISUAL_ROADMAP #70, 2026-10-05, docs/HANDOFF.md 9cb): the small-craft marina
   between the beach town and the airport, the form of LA's big man-made one, names invented.
   **Data**: `Marina` (`scripts/world/marina.gd`, `MacroMap.marina`, built in `setup()` after the

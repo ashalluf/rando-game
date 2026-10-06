@@ -14201,3 +14201,73 @@ streets' glow stands in). The lamps stand where the old ones stood, and on some 
 is beside a utility pole (StreetDetail's), which the old thin post hid better. No real light
 shaped like the cobra's cut-off (still an omni). Shot lamps break as before (debris box), no
 falling pole.
+
+## 9d?. The coast highway under the bluffs, 2026-10-05 (fleet wave 2, agent branch `wt/coast-highway`; VISUAL_ROADMAP "?")
+
+**The ask.** "A coast highway north of the beach town along the ocean (the form of PCH under the
+bluffs): a four-lane road between the sand and a cliff, beach houses on pilings over the sand on
+the ocean side with their decks and stairs, cars parked along the shoulder, lifeguard towers,
+surfers' vans", fitted to MacroMap's coast north of the pier without cutting through a district.
+
+**Where.** HillRoads' "Pacific Coast Highway" already ran the whole coast, COAST_INSET (46 m) in
+from the waterline; north of the beach town (z < ~-850 on seed 1337) the front range comes down to
+the sea and the road was a cutting climbing to 38 m in a 1:1 hillside, and the chunks there were
+broken: shrubs and rocks floating over the cut ground, a hills chunk with no terrain at all
+(the OCEAN-zoned block north of z -1267 drew only water and sand), the land standing as a cliff
+curtain over the sand. The stretch is the coast highway's own first 600 m (`z_north` = its first
+point, `shelf_full_z - 420`, to `z_south` = +600; the bench is full height to `z_full` = +470).
+Its centre line IS the coast highway's, so no other road, lot, block or freeway moves (the 10's
+end at x -900 is 170 m inland; checked: no city block, freeway or landmark on the corridor).
+
+**The land (`CoastHighway.profile()`, folded into `MacroMap.raw_height_at()`).** In d = x -
+coast_x(z): the sand at 0 up to the seawall (`WALL`, 31.6 m), a ramp behind it, the bench at
+`ROAD_Y` 4 m under the four lanes (d 35-57), a concrete gutter to the toe (58.6), then a cut bluff
+(min(natural, 1.5 m per m), which the hill road's own carve holds to 1:1 from the carriageway's
+edge, BANK_REACH out), the mountains past `REACH` (150 m, faded over 60). The relief is calmed to
+nothing over it (`calm()` in `_relief_at()`), `beach_width_at()` ends the sand at the wall (the
+relief's own fade keeps `_beach_width_base()`, so nothing past the corridor moves - checked by
+taking the plan away and comparing 80 probes). North of `z_north` the profile fades back to the
+mountains over 90 m: the slide that closed the road. South, the bench comes down to the beach
+town's level between `z_full` and `z_south`. `bed_y()` is the coast highway's profile as HillRoads
+smoothed it (what it carves), read after the hill roads exist; everything on the road sits on it.
+
+**The plan (pure, hashes of seed + place).** Runs of `RUN` 70 m: `HOUSE_ODDS` 0.6 of them a row of
+beach houses (9-14.5 m wide, 1.4-3.2 m apart, every fifth gap a public access way with a stair),
+the rest open beach; houses in four styles (white modern stucco, cedar lap, grey board and batten,
+pastel stucco), one or two storeys, a deck 2.8-4.2 m out past the sea face, a stair to the sand on
+60 %, a roof terrace on 40 %, a garage on 85 %. A lifeguard tower on every open stretch over 60 m,
+stairs down the seawall every ~110 m of open beach, parking stalls every 6.6 m on both shoulders
+(open beach 50 %, among houses 30 % and never across a garage door, bluff side 36 %), a third of
+them surfers' (a van, a pickup, an SUV or a minivan with one to three boards on a roof rack).
+
+**The chunks (`CoastHighwayBuild.attach()`).** Every chunk whose owned rect reaches the corridor
+builds its own ground in place of its zone's (`match (-1 ...)`, an empty branch): the sea, the
+hill terrain (shells, scatter, planting; all kept off the corridor by `_near_pad()`,
+`_shell_marks()` and `Skyline._add_hills()`), the sand, the spray and BeachLife's people (no path
+or court: `kept_off()`; the houses, towers and stairs as obstacles; nobody north of the slide), the
+beach town's streets south of the stretch (a BEACH block's +X / +Z roads, clipped). A piece is
+built by the chunk whose owned rect holds its centre. FULL: the asphalt (road.gdshader, UV across
+0..1 so the gutters run wet, `lamp_axis` 1), worn paint (white edge lines inside the shoulders,
+dashed lane lines on a fixed z phase, a double yellow pair at each edge of the painted median),
+the apron and seawall (a parapet where no house or stair stands), the gutter and toe kerb, the
+houses (HouseKit's materials: stucco, siding, glass with its traced room and lit windows, trim,
+doors, metal; one mesh per material a chunk; floor slab, concrete skirt, braced pilings, glazed
+sea faces, street faces with garage, door, canopy and high windows, side windows, a set-back upper
+floor or a balcony, a deck with a glass balustrade and its stair to the sand, eaves or a parapet,
+roof terraces), the access and beach stairs, fences between houses, bins, the k-rails, barricade
+and ROAD CLOSED board in front of the slide's boulders, cobra lamps on the bluff side
+(`CityChunk._add_lamp()`: the pool, the omni at night, breakable), lifeguard towers, real parked
+cars (sleeping Vehicles under the city root, the chunk's `_cars`), one `CoastBody` (boxes: the
+road, the apron, the parapet, houses, decks, stairs). LOD: the asphalt and the houses as
+`lod_box`es; the far city records the boxes. The hill strip in the stretch is kept (draw false)
+for the keep-offs and the carve.
+
+**Traffic (`CoastTraffic`, a child of the streamer).** ReplicaTraffic's way: kinematic cars by z
+on the two lanes each way (southbound on the sea side), 19-24 m/s, gaps held, spawned 160-380 m
+from the player and pooled, on past the stretch down the hill strip for 320 m; northbound cars
+queue at the closure and leave once the player is away from it. `staged` stops the upkeep for the
+checks. `COAST_TRAFFIC=0` turns it off alone.
+
+**A/B.** `COAST_HIGHWAY=0` (the old coast). Probe: `tools/coast_highway/probe.gd` (transects across
+the coast, the plan's counts, the coast highway's profile). Checks: `tests/coast_highway_checks.gd`.
+

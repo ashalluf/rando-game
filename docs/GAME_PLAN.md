@@ -1469,6 +1469,17 @@ already mapped so milestone 2 is script-only.
   hooks, so its windows, shops, damage and coded far boxes are unchanged) with the ornament as
   real geometry on its window grid; the old 150 ft limit holds. docs/HANDOFF.md "The historic
   core"; CLAUDE.md "Historic core".
+- **2026-10-05 The coast highway runs under the bluffs north of the beach town (the form of
+  PCH in Malibu, names invented).** Where the front range meets the sea the land is re-cut as a
+  data profile across the coast (sand, a seawall, a four-lane bench at 4 m, a bluff), folded into
+  `MacroMap.raw_height_at()` like the marina's terrace, so terrain, carve, zones and the far
+  ground follow with no code of their own; the chunks the corridor crosses build it in place of
+  their zone. Decisions: the existing coast highway line (HillRoads, COAST_INSET) is the centre,
+  so nothing else on the map moves; beach houses on pilings stand on the sand side of the wall in
+  hashed runs with open beach between (cars and surfers' vans on both shoulders, towers, stairs);
+  the dead end at the north is a slide with a closure; its own traffic (CoastTraffic). It also
+  fixed the old northern coast (shrubs and rocks floating over cut ground, chunks with no
+  terrain). docs/HANDOFF.md "The coast highway"; CLAUDE.md "Coast highway".
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
