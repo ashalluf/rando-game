@@ -143,15 +143,13 @@ void fragment() {
 	} else if (code == 10) {
 		// A clipped hedge (boxwood): clusters of small glossy leaves, lighter tips in the sun,
 		// dark hollows between the clusters and down at the soil.
-		vec2 lp = v_local.xz * 64.0 + v_local.y * 41.0;
+		vec2 lp = v_local.xz * 34.0 + v_local.y * 23.0;
 		float n1 = pk_noise(lp + v_seed * 7.0);
 		float n2 = pk_noise(lp * 2.3 + 11.0);
-		float fine = clamp(1.0 - px * 90.0, 0.0, 1.0);
+		float fine = clamp(1.0 - px * 45.0, 0.0, 1.0);
 		float leaf = mix(0.5, n1 * 0.6 + n2 * 0.4, fine);
 		base *= 0.55 + 0.75 * leaf;
 		base = mix(base, base * vec3(1.15, 1.2, 0.8), smoothstep(0.65, 0.9, n2) * fine);
-		float low = smoothstep(0.64, 0.95, v_local.y);
-		base *= 0.55 + 0.45 * low;
 		NORMAL_MAP = vec3(0.5 + (n1 - 0.5) * 0.9 * fine, 0.5 + (n2 - 0.5) * 0.9 * fine, 1.0);
 		rough = mix(0.75, 0.5, leaf);
 	} else if (code == 11) {

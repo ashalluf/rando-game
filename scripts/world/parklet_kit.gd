@@ -153,20 +153,10 @@ static func deck(length: float) -> Mesh:
 			Vector3(cx + ml * 0.5 - 0.04, DECK_Y + PLANTER_H - 0.07, pz + PLANTER_D * 0.5 - 0.05),
 			Vector3(cx - ml * 0.5 + 0.04, DECK_Y + PLANTER_H - 0.07, pz + PLANTER_D * 0.5 - 0.05), Vector3.UP,
 			Color(0.16, 0.11, 0.08, A_SOIL), Vector2(0.95, 0.0))
-	# A clipped boxwood hedge along the planters: one rounded mass the length of the run, its top
-	# and face broken by overlapping lumps (new growth since the last clip), taller at the ends.
-	var hedge_y := DECK_Y + PLANTER_H - 0.07
-	var leaf := Color(0.2, 0.32, 0.13, A_LEAF)
-	_box(st, Vector3(0.0, hedge_y + 0.12, pz), Vector3(length - 0.16, 0.26, PLANTER_D - 0.1), 0.11, leaf, Vector2(0.7, 0.0))
-	var lumps := int(floor((length - 0.2) / 0.16))
-	for k in lumps:
-		var x := -hx + 0.1 + (length - 0.2) * (float(k) + 0.5) / float(lumps)
-		var j := fposmod(sin(float(k) * 12.9898 + length) * 43758.5453, 1.0)
-		var j2 := fposmod(sin(float(k) * 78.233 + length) * 24634.6345, 1.0)
-		var end := 1.0 if k < 2 or k >= lumps - 2 else 0.0
-		var r := Vector3(0.15 + 0.05 * j, 0.1 + 0.04 * j2 + 0.08 * end, 0.15 + 0.03 * j2)
-		StreetVendors._ellipsoid(st, Vector3(x, hedge_y + 0.22 + 0.03 * j2 + 0.05 * end, pz + (j - 0.5) * 0.12), r, Basis(Vector3.UP, j * 3.0),
-			leaf, Vector2(0.7, 0.0), 7, 4)
+	# A clipped boxwood hedge along the planters: one clipped mass the length of the run (a
+	# rounded box in section), its surface pushed in and out by noise so it reads as foliage, not
+	# a moulding, and darkened where it is pushed in (the hollows between the clusters).
+	_hedge(st, length - 0.16, pz, DECK_Y + PLANTER_H - 0.07)
 	# The end screens: two posts and horizontal cedar slats with gaps, a steel cap rail.
 	var sz0 := 0.12
 	var sz1 := DEPTH - PLANTER_D - 0.02
@@ -225,6 +215,71 @@ static func plant_spots(length: float) -> Array:
 	for i in n:
 		out.append(Vector3(-length * 0.5 + 0.3 + (length - 0.6) * (float(i) + 0.5) / float(n), DECK_Y + PLANTER_H - 0.07, z))
 	return out
+
+
+## The hedge: a grid along x (every HEDGE_STEP) by round its section (a superellipse from the
+## soil at the front, over the top, to the soil at the back), displaced along the section's
+## normal by two octaves of value noise and tapered shut at both ends.
+const HEDGE_STEP := 0.06
+const HEDGE_W := 0.19
+const HEDGE_H := 0.3
+
+
+static func _hedge(st: SurfaceTool, run: float, pz: float, soil: float) -> void:
+	var cols := int(ceil(run / HEDGE_STEP))
+	var rows := 12
+	var grid: Array = []
+	var shade: Array = []
+	for i in cols + 1:
+		var x := -run * 0.5 + run * float(i) / float(cols)
+		var end := clampf(minf(x + run * 0.5, run * 0.5 - x) / 0.12, 0.0, 1.0)
+		var taper := sqrt(end) * 0.85 + 0.15
+		var col: Array = []
+		var sh: Array = []
+		for j in rows + 1:
+			var t := PI * float(j) / float(rows)
+			var c := cos(t)
+			var sn := sin(t)
+			var dz := signf(c) * pow(absf(c), 0.55)
+			var dy := pow(sn, 0.55)
+			var base := Vector3(x, soil + HEDGE_H * dy * taper, pz + HEDGE_W * dz * taper)
+			var n := Vector3(0.0, dy, dz).normalized()
+			var d := (_vnoise(base * 7.0) - 0.5) * 0.07 + (_vnoise(base * 19.0 + Vector3(5.1, 2.3, 7.7)) - 0.5) * 0.03
+			d *= clampf(dy * 3.0, 0.0, 1.0) * taper
+			col.append(base + n * d)
+			sh.append(clampf(0.62 + d * 8.0, 0.25, 1.0) * (0.55 + 0.45 * clampf(dy * 1.4, 0.0, 1.0)))
+		grid.append(col)
+		shade.append(sh)
+	for i in cols:
+		for j in rows:
+			var p00: Vector3 = grid[i][j]
+			var p10: Vector3 = grid[i + 1][j]
+			var p01: Vector3 = grid[i][j + 1]
+			var p11: Vector3 = grid[i + 1][j + 1]
+			var nn := (p10 - p00).cross(p01 - p00).normalized()
+			# Outward from the section's centre line.
+			var outward := (p00 + p11) * 0.5 - Vector3((p00.x + p11.x) * 0.5, soil, pz)
+			if nn.dot(outward) < 0.0:
+				nn = -nn
+			var k := (float(shade[i][j]) + float(shade[i + 1][j + 1])) * 0.5
+			StreetClutter._quad(st, p00, p10, p11, p01, nn, Color(0.2 * k, 0.32 * k, 0.13 * k, A_LEAF), Vector2(0.7, 0.0))
+
+
+static func _vnoise(p: Vector3) -> float:
+	var i := p.floor()
+	var f := p - i
+	f = f * f * (Vector3(3.0, 3.0, 3.0) - f * 2.0)
+	var v := 0.0
+	for dz in 2:
+		for dy in 2:
+			for dx in 2:
+				var w := (f.x if dx == 1 else 1.0 - f.x) * (f.y if dy == 1 else 1.0 - f.y) * (f.z if dz == 1 else 1.0 - f.z)
+				v += _vhash(int(i.x) + dx, int(i.y) + dy, int(i.z) + dz) * w
+	return v
+
+
+static func _vhash(x: int, y: int, z: int) -> float:
+	return float(absi(hash([x, y, z])) % 10007) / 10007.0
 
 
 ## A bistro set: `square` a timber-topped square table (else a round marble one), the chairs'
