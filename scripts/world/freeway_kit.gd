@@ -787,7 +787,10 @@ func _sign_pair(face_at: Vector3, out: Vector3, right: Vector3, lay: Dictionary,
 	var origin_a := face_at + right * ua + Vector3(0.0, SIGN_BOTTOM, 0.0)
 	var origin_b := face_at + right * ub + Vector3(0.0, SIGN_BOTTOM, 0.0)
 	_guide_board(Transform3D(basis, origin_a), wa, SIGN_HEIGHT, number, cardinal(heading), dests.slice(0, 2), face)
-	if exit.is_empty():
+	if exit.is_empty() and FreewayIncidents.has_cms(plan.seed, ri, idx, side):
+		# A changeable message sign over the outer lanes (FreewayIncidents puts its LED face on).
+		FreewayIncidentKit.cms_cabinet(self, Transform3D(basis, origin_b), wb)
+	elif exit.is_empty():
 		_guide_board(Transform3D(basis, origin_b), wb, SIGN_HEIGHT - 0.4, number, cardinal(heading), dests.slice(2, 3), face)
 	else:
 		_exit_board(Transform3D(basis, origin_b), wb, SIGN_HEIGHT - 0.4, exit, face)

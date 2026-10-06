@@ -666,6 +666,8 @@ func _initialize() -> void:
 		# A third field is this shot's own field of view ("x,y,z,yaw,pitch@hour@fov").
 		if bits.size() > 2:
 			fov = bits[2].to_float()
+		# Systems that stage a sequence (FreewayIncidents' FW_INCIDENT_TIMES) read which shot this is.
+		Engine.set_meta("still_shot_index", k)
 		_eye(player, fov)
 		if streamer and streamer.has_method("update_streaming"):
 			streamer.call("update_streaming", true)
