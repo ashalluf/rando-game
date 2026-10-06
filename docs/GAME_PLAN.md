@@ -1462,6 +1462,15 @@ already mapped so milestone 2 is script-only.
   drawn at least a pixel or two wide. docs/HANDOFF.md "Hillside estates at night"; CLAUDE.md
   "Far estates".
 
+- **2026-10-06 Downtown's fashion district is an overlay, not new buildings.** The blocks east of
+  Main St from 7th St to Pico keep their seeded lots and buildings; the district dresses them
+  (clothing and textile shop names already in Building.SHOP_NAMES, so the existing shop interiors
+  and window vinyl follow, awnings on every shop) and lays code-built goods at the shop fronts and
+  stalls in the block alleys south of 9th St. Chosen over a hand-placed market landmark: it streams
+  with the city, works on every seed, and the same alley data (Alleys) gives the market its walls.
+  Camps keep off the faces the goods use. docs/HANDOFF.md "The fashion district"; CLAUDE.md
+  "Fashion district".
+
 - **2026-10-05 Downtown's historic core is beaux-arts (Spring St and Main St).** Every lot
   fronting either street between 2nd and 9th St is a terracotta or brick bank / office block:
   rusticated base with arched windows, giant order, entablature with an invented name, a heavy

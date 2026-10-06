@@ -53,7 +53,7 @@ const MARKET_ODDS := 0.8
 const CORNER_CLEAR := 6.5
 const DOOR_GAP := 1.7
 const WALL_OFF := 0.08
-const MAX_WALL_DEPTH := 5.6
+const MAX_WALL_DEPTH := 9.0
 const MAX_SETS := 40
 const EMPTY_ODDS := 0.18
 ## The walkers keep to the kerb half of a district pavement (CityChunk._pedestrian_steps()).
@@ -66,20 +66,27 @@ const MAX_SELLERS := 5
 const STALL_W := 2.4
 const STALL_D := 1.5
 const MOUTH_CLEAR := 3.5
-const BOTH_SIDES_W := 5.2
+const BOTH_SIDES_W := 4.4
 const ONE_SIDE_W := 3.6
 const TARP_EVERY := Vector2(5.0, 8.0)
 const BULB_EVERY := 4.5
 const GAP_ODDS := 0.14
+## The share of a side's length a building must back for it to carry stalls, and how far beyond
+## the alley's edge a building counts (m).
+const MIN_WALLED := 0.5
+const WALL_REACH := 7.0
+## The widest service strip a stall backs across to its wall (m).
+const MAX_STRIP := 4.0
+## The aisle left between the stalls (m).
+const AISLE := 2.2
 const SHOPPERS_PER_M := 1.0 / 5.0
-const MAX_SHOPPERS := 9
+const MAX_SHOPPERS := 7
 const KEEPER_EVERY := 3
-const MAX_KEEPERS := 4
-## Draw distances (m): the goods, the stalls and tarps (seen down the alley and from above), the
-## shadows.
-const GOODS_DRAW := 85.0
-const STALL_DRAW := 130.0
-const SHADOW_DRAW := 40.0
+const MAX_KEEPERS := 3
+## Draw distances (m): the goods, the stalls and tarps (seen down the alley and from above). The
+## goods and stalls cast no shadow (see dress_market()).
+const GOODS_DRAW := 75.0
+const STALL_DRAW := 110.0
 ## The market alleys' invented names (on the banners at the mouths).
 const ALLEY_NAMES := ["CALLEJON DE LA MODA", "SANTA LUZ ALLEY", "EL BAZAR TEXTIL", "MERCADITO DEL SOL",
 	"PASAJE ESTRELLA", "THE THREAD ALLEY"]
@@ -88,6 +95,13 @@ const SHOP_POOL := ["ROPA PARA TODOS", "ROPA PARA TODOS", "TELAS FINAS", "TELAS 
 	"PRECIOS BAJOS", "PRECIOS BAJOS", "TODO EN OFERTA", "ZAPATERIA", "SOMBREROS", "BOTAS VAQUERAS",
 	"BRIDAL WORLD", "QUINCEANERAS", "VESTIDOS DE GALA", "NOVIAS ELENA", "LA REINA BRIDAL", "THRIFT",
 	"DISCOUNT CITY", "PERFUMES", "JOYERIA ORO"]
+
+## The hours the shops put their goods out (by the hour a chunk is built at, StreetVendors'
+## clock), and the hours the market alley has its people (its stalls stand all night, lit).
+const OPEN_HOURS := Vector2(7.5, 20.5)
+const MARKET_HOURS := Vector2(8.0, 22.0)
+## Tests and stills: build as at this hour (< 0: the city's clock).
+static var force_hour: float = -1.0
 
 static var _info: Dictionary = {}
 static var _pool: PackedInt32Array = PackedInt32Array()
@@ -227,7 +241,7 @@ static func _state(ch: CityChunk) -> Dictionary:
 ## mouth. Fills `sellers` with the people to stand by them.
 static func build_pavement(ch: CityChunk, block: Dictionary, sellers: Array) -> void:
 	var info := block_info(ch.plan, ch.ix, ch.iz)
-	if info.is_empty():
+	if info.is_empty() or not _open(ch, OPEN_HOURS):
 		return
 	var plan := ch.plan
 	var rect: Rect2 = block.rect
@@ -264,20 +278,23 @@ static func build_pavement(ch: CityChunk, block: Dictionary, sellers: Array) -> 
 			var depth := INF
 			if ok:
 				for q: float in [-0.45, 0.0, 0.45]:
-					var d := Encampment._wall_depth(walls, a + dir * (mid + q * len), inward)
+					var d := _wall_depth(walls, a + dir * (mid + q * len), inward)
 					if d > MAX_WALL_DEPTH:
 						ok = false
+						st.stats.rej_wall = int(st.stats.get("rej_wall", 0)) + 1
 						break
 					depth = minf(depth, d)
 			if ok and (Alleys.in_mouth(plan, ch.ix, ch.iz, kerb + inward * 2.0) or Alleys.in_mouth(plan, ch.ix, ch.iz, a + dir * (t - 1.0) + inward * 2.0) \
 					or Alleys.in_mouth(plan, ch.ix, ch.iz, a + dir * (t + len + 1.0) + inward * 2.0)):
 				ok = false
+				st.stats.rej_mouth = int(st.stats.get("rej_mouth", 0)) + 1
 			var front := kerb + inward * (depth - WALL_OFF)
 			if ok:
 				for k in 5:
 					var p := front + dir * (float(k) / 4.0 - 0.5) * len - inward * 0.6
 					if not Encampment._clear_of(occupied, p, 0.5):
 						ok = false
+						st.stats.rej_occ = int(st.stats.get("rej_occ", 0)) + 1
 						break
 			if ok:
 				_lay_set(ch, fs, v, Vector3(front.x, CityChunk.SIDEWALK_TOP, front.y), yaw, e, slot)
@@ -294,7 +311,7 @@ static func build_pavement(ch: CityChunk, block: Dictionary, sellers: Array) -> 
 	for v in FashionKit.SET_VARIANTS:
 		var key := "fd_set_%d" % v
 		ch._batch.set_draw_distance(key, GOODS_DRAW)
-		ch._batch.set_shadow_distance(key, SHADOW_DRAW)
+		ch._batch.set_no_shadow(key)
 
 
 ## One frontage set as a prop (it breaks as one: shot to pieces, the debris flies, it stays gone).
@@ -343,6 +360,11 @@ static func dress_market(ch: CityChunk, sp: Dictionary, r: Dictionary, idx: int)
 	var w: float = r.w
 	var s0: float = r.s0
 	var s1: float = r.s1
+	# Not past the district's east edge.
+	var clipped := false
+	if bool(sp.along_x) and s1 > float(info.east):
+		s1 = float(info.east)
+		clipped = true
 	if w < ONE_SIDE_W or s1 - s0 < 24.0 or ch.level != CityChunk.Level.FULL or ch.capturing:
 		return false
 	var plan := ch.plan
@@ -353,7 +375,21 @@ static func dress_market(ch: CityChunk, sp: Dictionary, r: Dictionary, idx: int)
 	var along := Vector3(1.0, 0.0, 0.0) if along_x else Vector3(0.0, 0.0, 1.0)
 	var y0 := CityChunk.SIDEWALK_TOP + Alleys.LIFT
 	var st := _state(ch)
-	var sides: Array = [-1.0, 1.0] if w >= BOTH_SIDES_W else [-1.0 if h01([plan.seed, "fd_side", ch.ix, ch.iz, idx]) < 0.5 else 1.0]
+	# A market is between two rows of buildings: a side the buildings leave open (a forecourt, a
+	# lawn, a car park) gets no stalls, and a run with neither side walled is no market.
+	var walls := _wall_rects(ch)
+	var walled: Array = []
+	for side: float in [-1.0, 1.0]:
+		if _cover(walls, along_x, s0, s1, c + side * hw, side) >= MIN_WALLED:
+			walled.append(side)
+	if OS.get_environment("FASHION_DEBUG") == "1":
+		print("FASHION market? block %d,%d run %d s %.0f..%.0f c %.1f w %.1f cover %.2f / %.2f walls %d" % [ch.ix, ch.iz, idx, s0, s1, c, w,
+			_cover(walls, along_x, s0, s1, c - hw, -1.0), _cover(walls, along_x, s0, s1, c + hw, 1.0), walls.size()])
+	if walled.is_empty():
+		return false
+	# Both sides when there is room (a side with no wall gets freestanding stalls, their gridwall
+	# backs to the open ground); else the walled side.
+	var sides: Array = [-1.0, 1.0] if w >= BOTH_SIDES_W else [walled[0] if walled.size() == 1 else (-1.0 if h01([plan.seed, "fd_side", ch.ix, ch.iz, idx]) < 0.5 else 1.0)]
 	# The utility poles AlleyKit will stand down the alley: no stall over one.
 	var poles := AlleyKit.pole_spots(ch, sp, r)
 	var people: Array = []
@@ -363,6 +399,8 @@ static func dress_market(ch: CityChunk, sp: Dictionary, r: Dictionary, idx: int)
 	run_rect = Rect2(Vector2(minf(p0.x, p1.x), minf(p0.y, p1.y)), Vector2(absf(p1.x - p0.x), absf(p1.y - p0.y)))
 	var stalls := 0
 	var keepers := 0
+	# How far the stalls stand into the alley itself at most (they back onto the walls).
+	var intrude := 0.0
 	for side: float in sides:
 		var zdir := across * -side
 		var basis := Basis(Vector3.UP.cross(zdir), Vector3.UP, zdir)
@@ -373,9 +411,23 @@ static func dress_market(ch: CityChunk, sp: Dictionary, r: Dictionary, idx: int)
 			for pole: float in pole_spots_on(poles, side):
 				if absf(pole - s) < STALL_W * 0.5 + 0.4:
 					blocked = true
-			var p := AlleyKit._wp(along_x, s, c + side * (hw - 0.04))
+			# The stall's back against the building behind the alley's edge (across its service
+			# strip, if it has one), never open ground.
+			var g := 0.0
+			for q: float in [-0.4, 0.0, 0.4]:
+				g = maxf(g, _gap(walls, along_x, s + q * STALL_W, c + side * hw, side))
+			# The aisle keeps AISLE metres: a stall stands no further into the alley than that leaves.
+			var need := maxf(0.0, STALL_D - (w - AISLE) / float(sides.size()))
+			if g == INF or g > MAX_STRIP:
+				# Open ground behind: a freestanding stall, its gridwall back to it.
+				g = need
+			elif g < need:
+				blocked = true
+			var p := AlleyKit._wp(along_x, s, c + side * (hw + g - 0.04))
 			var at := Vector3(p.x, y0, p.y)
 			var roll := h01([plan.seed, "fd_stall", ch.ix, ch.iz, idx, side, k])
+			if not blocked:
+				intrude = maxf(intrude, STALL_D - g)
 			if blocked:
 				pass
 			elif roll < GAP_ODDS:
@@ -431,7 +483,7 @@ static func dress_market(ch: CityChunk, sp: Dictionary, r: Dictionary, idx: int)
 		bi += 1
 	var name_i := absi(hash([plan.seed, "fd_alley_name", ch.ix, ch.iz])) % ALLEY_NAMES.size()
 	for end: int in [0, 1]:
-		var reaches: bool = r.m0 if end == 0 else r.m1
+		var reaches: bool = r.m0 if end == 0 else (r.m1 and not clipped)
 		if not reaches:
 			continue
 		var sm := s0 + 1.2 if end == 0 else s1 - 1.2
@@ -454,10 +506,12 @@ static func dress_market(ch: CityChunk, sp: Dictionary, r: Dictionary, idx: int)
 		light.distance_fade_length = 15.0
 		light.add_to_group("lamp_light")
 		ch.add_child(light)
-	# Shoppers strolling the aisle with their bags.
-	var n_shop := clampi(roundi((s1 - s0) * SHOPPERS_PER_M), 3, MAX_SHOPPERS)
-	var lane_half := maxf(0.3, (w - (STALL_D * 2.0 if sides.size() == 2 else STALL_D) - 0.6) * 0.5)
-	var lane_c := c + (0.0 if sides.size() == 2 else (STALL_D * 0.5 * (1.0 if sides[0] < 0.0 else -1.0)))
+	# Shoppers strolling the aisle with their bags (and the keepers: nobody after hours).
+	if not _open(ch, MARKET_HOURS):
+		people.clear()
+	var n_shop := clampi(roundi((s1 - s0) * SHOPPERS_PER_M), 3, MAX_SHOPPERS) if _open(ch, MARKET_HOURS) else 0
+	var lane_half := maxf(0.3, (w - maxf(intrude, 0.0) * float(sides.size()) - 0.6) * 0.5)
+	var lane_c := c + (0.0 if sides.size() == 2 else (maxf(intrude, 0.0) * 0.5 * (1.0 if sides[0] < 0.0 else -1.0)))
 	var spath := [AlleyKit._wp(along_x, s0 + 1.0, lane_c), AlleyKit._wp(along_x, s1 - 1.0, lane_c), lane_half, along_x]
 	for i in n_shop:
 		var sh := lerpf(s0 + 2.0, s1 - 2.0, h01([plan.seed, "fd_shop_s", ch.ix, ch.iz, idx, i]))
@@ -465,15 +519,18 @@ static func dress_market(ch: CityChunk, sp: Dictionary, r: Dictionary, idx: int)
 		var sp2 := AlleyKit._wp(along_x, sh, lane_c + off)
 		people.append({"kind": "shopper", "at": sp2, "seed": hash([plan.seed, "fd_shopper", ch.ix, ch.iz, idx, i]), "rect": run_rect, "path": spath, "floor": Alleys.LIFT})
 	for key: String in ch._batch.keys():
-		if key.begins_with("fd_stall") or key.begins_with("fd_tarp") or key.begins_with("fd_banner"):
+		# Shadows: the tarps cast over the aisle; the stalls and goods under them cast none (a
+		# chunk-wide batch's shadow reach is measured to its bounds' centre, so it would cast
+		# the whole alley into every cascade - most of the frame cost; they stand in the tarps'
+		# and the buildings' shade anyway).
+		if key.begins_with("fd_tarp"):
 			ch._batch.set_draw_distance(key, STALL_DRAW)
-			ch._batch.set_shadow_distance(key, SHADOW_DRAW * 1.5)
+		elif key.begins_with("fd_stall") or key.begins_with("fd_banner"):
+			ch._batch.set_draw_distance(key, STALL_DRAW)
+			ch._batch.set_no_shadow(key)
 		elif key == "fd_bulbs" or key.begins_with("fd_manq") or key.begins_with("fd_truck"):
 			ch._batch.set_draw_distance(key, GOODS_DRAW)
-			if key == "fd_bulbs":
-				ch._batch.set_no_shadow(key)
-			else:
-				ch._batch.set_shadow_distance(key, SHADOW_DRAW)
+			ch._batch.set_no_shadow(key)
 	st.stats.stalls = int(st.stats.stalls) + stalls
 	st.stats.tarps = int(st.stats.tarps) + ti
 	st.stats.markets = int(st.stats.markets) + 1
@@ -481,13 +538,73 @@ static func dress_market(ch: CityChunk, sp: Dictionary, r: Dictionary, idx: int)
 	markets_laid += 1
 	var mid := AlleyKit._wp(along_x, lerpf(s0, s1, 0.15), c)
 	var look := AlleyKit._wp(along_x, s1, c) - mid
-	(st.eyes as Array).push_front("%.1f,1.7,%.1f,%.0f,2" % [mid.x, mid.y, rad_to_deg(atan2(-look.x, -look.y))])
+	(st.eyes as Array).push_front("%.1f,1.7,%.1f,%.0f,2 market s %.0f..%.0f c %.1f w %.1f sides %s stalls %d" % [mid.x, mid.y, rad_to_deg(atan2(-look.x, -look.y)), s0, s1, c, w, sides, stalls])
 	st.stats.planned = int(st.stats.planned) + people.size()
 	var jobs: Array[Callable] = []
 	for i in people.size():
 		jobs.append(spawn_person.bind(ch, people, i))
 	YardFill._defer(ch, jobs)
 	return true
+
+
+## How far in from the kerb the shop wall is at `kerb_point` (Encampment's search, further in:
+## a forecourt's goods stand at the shop front too), INF when no wall is within MAX_WALL_DEPTH.
+static func _wall_depth(walls: Array[Rect2], kerb_point: Vector2, inward: Vector2) -> float:
+	for k in 28:
+		var d := 2.5 + float(k) * 0.25
+		for r: Rect2 in walls:
+			if r.has_point(kerb_point + inward * d):
+				return d
+	return INF
+
+
+## The buildings' ground parts round the alley (what the lots recorded for Alleys).
+static func _wall_rects(ch: CityChunk) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	var foot: Dictionary = Alleys._state(ch).foot
+	for k in foot:
+		for r: Rect2 in foot[k]:
+			out.append(r)
+	return out
+
+
+## How far beyond the alley's edge at `edge` (across) on `side` the first building stands at
+## `s` along it, or INF when none within WALL_REACH.
+static func _gap(walls: Array[Rect2], along_x: bool, s: float, edge: float, side: float) -> float:
+	var d := 0.05
+	while d <= WALL_REACH:
+		var q := AlleyKit._wp(along_x, s, edge + side * d)
+		for r: Rect2 in walls:
+			if r.has_point(q):
+				return maxf(d - 0.1, 0.0)
+		d += 0.25
+	return INF
+
+
+## How much of the alley's edge at `edge` (across), from s0 to s1, has a building within
+## WALL_REACH beyond it on `side` (0..1).
+static func _cover(walls: Array[Rect2], along_x: bool, s0: float, s1: float, edge: float, side: float) -> float:
+	var n := maxi(2, ceili((s1 - s0) / 1.0))
+	var hit := 0
+	for i in n:
+		var s := lerpf(s0, s1, (float(i) + 0.5) / float(n))
+		var found := false
+		for d: float in [0.3, 1.2, 2.2, 3.4, 4.6, 5.8, WALL_REACH]:
+			var q := AlleyKit._wp(along_x, s, edge + side * d)
+			for r: Rect2 in walls:
+				if r.has_point(q):
+					found = true
+					break
+			if found:
+				break
+		hit += 1 if found else 0
+	return float(hit) / float(n)
+
+
+## Whether the hour the chunk is built at falls in `hours`.
+static func _open(ch: CityChunk, hours: Vector2) -> bool:
+	var h := force_hour if force_hour >= 0.0 else StreetVendors.hour_now(ch)
+	return h >= hours.x and h < hours.y
 
 
 ## The poles on one side of a run (AlleyKit.pole_spots(): [along, across, side]) as their along

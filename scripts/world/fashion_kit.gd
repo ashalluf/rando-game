@@ -255,7 +255,7 @@ static func garment(g: Geo, cut: int, col: Color, pattern: int, w: float, len: f
 	if pattern != P_SOLID and kind == K_KNIT:
 		kind = K_CLOTH
 	var top := -0.07
-	var segs := 6
+	var segs := 6 if flat else 8
 	var rings := 5
 	var thick := 0.035 if flat else 0.05
 	if cut == Cut.JACKET or cut == Cut.HOODIE:
@@ -284,7 +284,7 @@ static func garment(g: Geo, cut: int, col: Color, pattern: int, w: float, len: f
 			var zc := cos(a) * half
 			var xc := sin(a) * thick * (1.0 + 0.6 * t * (1.0 if cut == Cut.GOWN else 0.3))
 			# Vertical folds deepen toward the hem.
-			var fold := sin(a * 3.0 + phase + t * 1.3) * 0.012 * t * (2.5 if cut == Cut.GOWN or cut == Cut.DRESS or cut == Cut.SKIRT else 1.0)
+			var fold := sin(a * 3.0 + phase + t * 1.3) * (0.008 + 0.02 * t) * (2.0 if cut == Cut.GOWN or cut == Cut.DRESS or cut == Cut.SKIRT else 1.0)
 			xc += fold * signf(sin(a) + 0.001)
 			var yy := y
 			if j == 0:
@@ -525,7 +525,7 @@ static func bolt_stand(variant: int) -> Geo:
 	# A bin of tall rolls behind (on cardboard tubes), leaning back against the wall.
 	var bin := kc(Color(0.30, 0.31, 0.32), K_PAINT)
 	g.box(Vector3(0.0, 0.25, -0.55), Vector3(W, 0.5, 0.36), bin)
-	var nr := 6
+	var nr := 5
 	for k in nr:
 		var x := -W * 0.5 + 0.12 + (W - 0.24) * (float(k) + 0.5) / float(nr)
 		var story: Array = STORIES[(variant * 2 + k) % STORIES.size()]
@@ -533,7 +533,7 @@ static func bolt_stand(variant: int) -> Geo:
 		var pr := h01([variant, k, "rp"])
 		var p := P_SOLID if pr < 0.5 else (P_FLORAL if pr < 0.65 else (P_STRIPE if pr < 0.75 else (P_SATIN if pr < 0.9 else P_PLAID)))
 		var lean := Basis(Vector3.RIGHT, -0.12 - 0.08 * h01([variant, k, "ln"])) * Basis(Vector3.FORWARD, (h01([variant, k, "lz"]) - 0.5) * 0.15)
-		_roll(g, Transform3D(lean, Vector3(x, 0.05, -0.55)), col, p, 0.06 + 0.035 * h01([variant, k, "rr"]), 1.55)
+		_roll(g, Transform3D(lean, Vector3(x, 0.05, -0.55)), col, p, 0.075 + 0.045 * h01([variant, k, "rr"]), 1.55)
 	_cache[key] = g
 	return g
 
@@ -549,7 +549,7 @@ static func roll_row(variant: int) -> Geo:
 	var x := -0.78
 	var k := 0
 	while x < 0.78 and k < n:
-		var r := 0.055 + 0.04 * h01([variant, k, "rr"])
+		var r := 0.085 + 0.06 * h01([variant, k, "rr"])
 		x += r
 		var story: Array = STORIES[(variant + k) % STORIES.size()]
 		var col: Color = story[absi(hash([variant, k, "rc"])) % story.size()]
@@ -961,7 +961,7 @@ static func stall(variant: int) -> Geo:
 	if variant % 2 == 0:
 		var rail_y := 1.75
 		g.tube(Vector3(-W * 0.5 + 0.05, rail_y, D - 0.15), Vector3(W * 0.5 - 0.05, rail_y, D - 0.15), 0.013, 6, chrome)
-		var n := 12
+		var n := 10
 		for k in n:
 			var x := -W * 0.5 + 0.15 + (W - 0.3) * (float(k) + 0.5) / float(n)
 			var sp := pick_cut(variant * 41, k, (variant + 3) % 6)

@@ -24,8 +24,11 @@ func run(t: Node, city: Node3D) -> void:
 	if keys.is_empty():
 		_t._check(false, "the fashion district has blocks on this seed")
 		return
+	FashionDistrict.force_hour = 13.0
 	_full_block(city, plan, keys)
 	_market(city, plan, keys)
+	_night(city, plan, keys)
+	FashionDistrict.force_hour = -1.0
 
 
 func _district_blocks(plan: CityPlan) -> Array[Vector2i]:
@@ -256,7 +259,7 @@ func _market(city: Node3D, plan: CityPlan, keys: Array[Vector2i]) -> void:
 		if c is OmniLight3D and (c as Node).is_in_group("lamp_light"):
 			lights += 1
 	_t._check(stalls >= 6 and in_aisle == 0 and tarps >= 2 and bulbs >= 2 and lights >= 2,
-		"block %s's market alley: %d stalls down its sides with the aisle clear, %d tarps and %d bulb strings over it, its lights" % [Vector2i(chunk.ix, chunk.iz), stalls, tarps, bulbs, lights])
+		"block %s's market alley: %d stalls down its sides with the aisle clear, %d tarps and %d bulb strings over it, %d lights" % [Vector2i(chunk.ix, chunk.iz), stalls, tarps, bulbs, lights])
 	var shoppers := 0
 	var bags := 0
 	var keepers := 0
@@ -279,3 +282,17 @@ func _market(city: Node3D, plan: CityPlan, keys: Array[Vector2i]) -> void:
 	chunk.get_parent().remove_child(chunk)
 	chunk.free()
 
+
+
+func _night(city: Node3D, plan: CityPlan, keys: Array[Vector2i]) -> void:
+	# After hours the goods are inside: no sets on the pavement (the market's stalls stay).
+	FashionDistrict.force_hour = 23.0
+	var ch: CityChunk = city._new_chunk(keys[0], CityChunk.Level.FULL)
+	ch.build()
+	var sets := 0
+	for r: Dictionary in ch.prop_records:
+		if String(r.kind) == "fd_set":
+			sets += 1
+	ch.get_parent().remove_child(ch)
+	ch.free()
+	_t._check(sets == 0, "after hours (23:00) the goods are inside: no sets on the pavement (%d)" % sets)

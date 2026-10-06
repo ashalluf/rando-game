@@ -3632,6 +3632,22 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `SHOP_NAMES`, Broadway's appended after the first `BASE_SHOP_NAMES`; nothing else's roll moves).
   `BROADWAY=0` is the A/B; `tools/broadway_probe.gd` lists the palaces with EYEs; checks
   `tests/broadway_checks.gd`.
+- Fashion district (2026-10-06, HANDOFF "The fashion district"): `FashionDistrict`
+  (`scripts/world/fashion_district.gd`) overlays the DOWNTOWN building blocks east of Main St from
+  7th St to Pico Blvd (`stretch()`, `EAST_REACH` past Alameda; `block_info()` is pure, cached per
+  plan). Hooks, one line each: `dress()` (after HistoricCore in `_build_lot()`: `name_pool` from
+  `SHOP_POOL` - names already in `Building.SHOP_NAMES`, so the clothing interiors and the vinyl know
+  them - and kit awnings on every shop), `steps()` (FULL, after Micromobility: a frontage SET per
+  shop front against the wall, `FashionKit.frontage()`, one prop with its collision boxes, sellers),
+  `dress_market()` (first line of `AlleyKit.dress()`: a district alley south of 9th St with a walled
+  side becomes stalls both sides backed onto the walls, tarps, bulb strings, banners with invented
+  names, two `lamp_light`s, keepers and `FashionShopper`s), `owns_face()` (Encampment keeps off the
+  goods' faces), `walker()` (more shopping bags), `walk_sidewalk()`. Meshes are code
+  (`scripts/world/fashion_kit.gd`, cached, built on the loading screen) on ONE shader
+  (`shaders/fashion_goods.gdshader`: kind in COLOR.a 16ths, pattern / fold in UV2, colour-space
+  include). **`set_shadow_distance()` does nothing on these code meshes: use `set_shadow_reach()`.**
+  Every roll a hash; FULL only. `FASHION=0` is the A/B; probe `tools/fashion/probe.tscn`
+  (`BUILD=1`, `AT=`, `FASHION_DEBUG=1`); checks `tests/fashion_district_checks.gd`.
 - Chinatown (2026-10-05, HANDOFF "Chinatown"): `Chinatown` (`scripts/world/chinatown.gd`) is a
   site table off the pinned streets - the district (Olive to Main, 520 m north of Cesar Chavez),
   the plaza's Hill-Broadway block, the gate over Broadway - applied LAST in `CityPlan.block()`
