@@ -14264,10 +14264,13 @@ velocity under and in the air) about the hips and lifts it so the back is awash.
 can replace the keyed strokes later (`tools/hero/hero_clips.gd` CLIPS row + a `moves/swim_*` play
 in `Avatar.swim_body()`), SwimPose's weight then only for the lay.
 
-**Effects.** A splash on every way in and out (droplets in a crown, white mist, a ring of foam
-spreading on the surface; scaled by the speed), a hand's splash at each crawl stroke, the wake
-(flat foam laid behind on the surface), a rooster tail of spray on the boost, bubbles under the
-water. Under the surface (the camera's own point): `underwater.gdshader`, a full-screen quad
+**Effects.** A splash on every way in and out (droplets in a crown, a little white mist, and for
+a real plunge only a small broken patch of foam, a metre or two, gone in two seconds), a hand's
+splash at each crawl stroke, the wake (small flat patches of lace laid off the head and shoulders,
+which stay where they were laid and spread sideways, so a moving swimmer draws a narrow V; nothing
+while treading), a rooster tail of spray on the boost, bubbles under the water (only deeper than
+1.2 m, so none break through the opaque sea). The lead's review of the first stills: the entry's
+foam ring was 6-8 m across and read as a decal donut; it is the patch above now. Under the surface (the camera's own point): `underwater.gdshader`, a full-screen quad
 (the heat haze's trick, render_priority MIN) that reads the picture AND its depth: every pixel's
 light absorbed red-first over its real distance (Beer-Lambert per channel, `absorb`), scattered
 toward the water's colour by distance (`visibility`, metres to half), darker with depth and at

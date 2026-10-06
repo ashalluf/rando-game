@@ -49,7 +49,7 @@ static func foam_texture() -> Texture2D:
 		var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
 		var noise := FastNoiseLite.new()
 		noise.seed = 7
-		noise.frequency = 0.09
+		noise.frequency = 0.035
 		noise.fractal_octaves = 3
 		for y in n:
 			for x in n:
@@ -214,8 +214,8 @@ static func splash(parent: Node, at: Vector3, strength: float, up: Vector3 = Vec
 	mist.gravity = Vector3(0, -1.5, 0)
 	mist.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
 	mist.emission_sphere_radius = 0.4
-	mist.scale_amount_min = 0.5 + 0.3 * s
-	mist.scale_amount_max = 1.0 + 0.6 * s
+	mist.scale_amount_min = 0.35 + 0.15 * s
+	mist.scale_amount_max = 0.6 + 0.35 * s
 	mist.scale_amount_curve = _grow(0.6, 1.6)
 	mist.color_ramp = _fade_ramp(0.55, Color(0.95, 0.97, 1.0))
 	mist.local_coords = false
@@ -225,14 +225,17 @@ static func splash(parent: Node, at: Vector3, strength: float, up: Vector3 = Vec
 	ring.material_override = _ring_material()
 	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	ring.position = Vector3(0, 0.03, 0)
-	ring.scale = Vector3.ONE * (1.0 + 0.5 * s)
+	ring.scale = Vector3.ONE * (0.5 + 0.2 * s)
+	# A small, broken patch of white where the body went in - a metre or two, gone in seconds -
+	# and none at all for a step in.
+	ring.visible = s >= 0.8
 	root.add_child(ring)
 	drops.emitting = true
 	mist.emitting = true
-	var life := 3.2 + 0.4 * s
+	var life := 1.8 + 0.3 * s
 	var tw := root.create_tween()
 	tw.set_parallel(true)
-	tw.tween_property(ring, "scale", Vector3.ONE * (3.0 + 1.6 * s), life).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(ring, "scale", Vector3.ONE * (1.2 + 0.6 * s), life).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.tween_property(ring, "transparency", 1.0, life).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.chain().tween_callback(root.queue_free)
 	play(parent, "splash" if s >= 0.6 else "splash_small", at, linear_to_db(clampf(0.35 + 0.3 * s, 0.2, 1.0)))
@@ -245,7 +248,7 @@ static func _ring_material() -> StandardMaterial3D:
 	if _ring_mat == null:
 		_ring_mat = foam_material().duplicate()
 		_ring_mat.albedo_texture = ring_texture()
-		_ring_mat.albedo_color = Color(FOAM_COLOR.r, FOAM_COLOR.g, FOAM_COLOR.b, 0.6)
+		_ring_mat.albedo_color = Color(FOAM_COLOR.r, FOAM_COLOR.g, FOAM_COLOR.b, 0.45)
 		_ring_mat.vertex_color_use_as_albedo = false
 	return _ring_mat
 

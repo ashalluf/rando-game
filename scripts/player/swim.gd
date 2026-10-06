@@ -197,6 +197,8 @@ func _enter(w: Dictionary, tp: Vector3) -> void:
 	var fall := -_player.velocity.y
 	under = fall > 9.0 or tp.y < float(w.surface) - tread_depth - 0.8
 	_dived = false
+	if _stage in ["crawl", "tread", "boost"]:
+		under = false # stills of the surface strokes start at the surface
 	_prone = 1.0 if Vector2(_player.velocity.x, _player.velocity.z).length() > tread_below else 0.0
 	if _player.weapon_manager:
 		_player.weapon_manager.visible = false
@@ -447,16 +449,32 @@ func _effects(delta: float, surface: float, flat: float, boosting: bool) -> void
 		var side := p.visual.global_basis.x * (0.28 if int(floor(_phase / PI)) % 2 == 0 else -0.28)
 		SwimFX.stroke(_fx_parent(), Vector3(pos.x, surface, pos.z) + fwd * 1.05 + side, clampf(flat / swim_speed, 0.4, 1.5) * (1.6 if boosting else 1.0))
 	_last_u = u
-	_wake.global_position = Vector3(pos.x, surface + 0.02, pos.z)
+	# The wake: a narrow V off the head and shoulders. The foam stays where it was laid and spreads
+	# sideways, so a moving emitter draws the V; held on the spot (stills) it drifts back instead.
+	var fwd := -p.visual.global_basis.z
+	fwd.y = 0.0
+	fwd = fwd.normalized()
+	_wake.global_position = Vector3(pos.x, surface + 0.02, pos.z) + fwd * 0.85
 	_wake.emitting = at_surface and flat > 0.6
-	_wake.initial_velocity_max = 0.3 + flat * 0.05
+	if _hold != Vector3.INF:
+		_wake.direction = -fwd
+		_wake.spread = 24.0
+		_wake.initial_velocity_min = flat * 0.55
+		_wake.initial_velocity_max = flat * 1.05
+	else:
+		_wake.direction = Vector3.UP
+		_wake.spread = 180.0
+		_wake.initial_velocity_min = 0.25
+		_wake.initial_velocity_max = 0.3 + flat * 0.05
 	_spray.global_position = Vector3(pos.x, surface + 0.1, pos.z)
 	_spray.emitting = at_surface and boosting and flat > swim_speed * 1.5
 	if _spray.emitting:
 		var back := Vector3(-p.velocity.x, 0.0, -p.velocity.z).normalized()
 		_spray.direction = (back + Vector3.UP * 0.9).normalized()
 	_bubbles.global_position = pos + Vector3.UP * 0.9
-	_bubbles.emitting = under
+	# Only deep enough that they burst before they reach the top (the sea is drawn opaque, and
+	# bubbles past it showed as specks on the water).
+	_bubbles.emitting = under and surface - (pos.y + 0.9) > 1.2
 
 
 func _splash_at(tp: Vector3, strength: float) -> void:
@@ -475,8 +493,8 @@ func _build_fx() -> void:
 	_wake = CPUParticles3D.new()
 	_wake.name = "SwimWake"
 	_wake.emitting = false
-	_wake.amount = 70
-	_wake.lifetime = 3.0
+	_wake.amount = 48
+	_wake.lifetime = 1.8
 	_wake.mesh = SwimFX._flat(1.0, SwimFX.foam_material())
 	_wake.direction = Vector3.UP
 	_wake.spread = 180.0
@@ -487,11 +505,15 @@ func _build_fx() -> void:
 	_wake.damping_min = 0.2
 	_wake.damping_max = 0.6
 	_wake.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
-	_wake.emission_sphere_radius = 0.45
-	_wake.scale_amount_min = 0.5
-	_wake.scale_amount_max = 1.0
-	_wake.scale_amount_curve = SwimFX._grow(0.5, 2.6)
-	_wake.color_ramp = SwimFX._fade_ramp(0.75, SwimFX.FOAM_COLOR)
+	_wake.emission_sphere_radius = 0.3
+	_wake.scale_amount_min = 0.3
+	_wake.scale_amount_max = 0.8
+	_wake.angle_min = 0.0
+	_wake.angle_max = 360.0
+	# Turned about the vertical (the patches lie flat on the water).
+	_wake.particle_flag_rotate_y = true
+	_wake.scale_amount_curve = SwimFX._grow(0.6, 1.6)
+	_wake.color_ramp = SwimFX._fade_ramp(0.5, SwimFX.FOAM_COLOR)
 	_wake.local_coords = false
 	_wake.top_level = true
 	add_child(_wake)
@@ -515,7 +537,7 @@ func _build_fx() -> void:
 	_bubbles.name = "SwimBubbles"
 	_bubbles.emitting = false
 	_bubbles.amount = 24
-	_bubbles.lifetime = 1.4
+	_bubbles.lifetime = 0.8
 	_bubbles.mesh = SwimFX._quad(0.06, SwimFX.bubble_material())
 	_bubbles.direction = Vector3.UP
 	_bubbles.spread = 25.0
