@@ -35,6 +35,25 @@ func _ready() -> void:
 		var w2 := SwimWater.at(m, Vector3(c.x, 0.0, c.y), 0.0, st)
 		print("SWIM marina centre %s: %s" % [str(c), str(w2)])
 	print("SWIM land (0, 0): %s" % str(SwimWater.at(m, Vector3.ZERO, 0.0, st)))
+	for zz in [-600.0, -300.0, 0.0, 300.0]:
+		print("SWIM coast_x(%.0f) = %.1f" % [zz, m.coast_x(zz)])
+	# The rec-park pools nearest the spawn (Parks' plans): an EYE for each.
+	var found := 0
+	for r in range(1, 30):
+		for iz in range(-r, r + 1):
+			for ix in range(-r, r + 1):
+				if maxi(absi(ix), absi(iz)) != r or found >= 4:
+					continue
+				var pl := Parks.plan_for(plan, ix, iz)
+				for f: Dictionary in pl.get("fac", []):
+					if str(f.get("t", "")) == "pool":
+						found += 1
+						var c: Vector2 = f.c
+						print("SWIM rec pool block (%d, %d) at (%.1f, %.1f) height %.2f long_x %s" % [ix, iz, c.x, c.y, plan.height_at(c), str((f.u as Vector2).x != 0.0)])
+	if LandmarkMacArthurPark.enabled:
+		var lay := LandmarkMacArthurPark.layout(plan)
+		if lay.has("lake_bounds"):
+			print("SWIM MacArthur lake bounds %s, height %.2f" % [str(lay.lake_bounds), plan.height_at((lay.lake_bounds as Rect2).get_center())])
 	var prof := []
 	for s in [0.0, 2.0, 3.5, 10.0, 26.0, 60.0, 200.0]:
 		prof.append("%.0f:%.2f" % [s, SeaSurface.seabed(s)])

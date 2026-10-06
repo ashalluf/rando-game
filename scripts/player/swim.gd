@@ -89,13 +89,18 @@ var _last_u: float = 0.0
 var _wake: CPUParticles3D
 var _spray: CPUParticles3D
 var _bubbles: CPUParticles3D
-var _overlay: CanvasLayer
+var _overlay: MeshInstance3D
 var _overlay_mat: ShaderMaterial
 var _underside: MeshInstance3D
 var _underside_mat: ShaderMaterial
 var _under_sound: AudioStreamPlayer
 var _stage := ""
 var _stage_t: float = 0.0
+var _under_t: float = 0.0
+## Under by his own dive (he stays under) rather than by a plunge (he comes back up).
+var _dived: bool = false
+## SWIM_HOLD=1 (stills): he swims on the spot where he went in, so a fixed camera can frame him.
+var _hold := Vector3.INF
 
 
 func _ready() -> void:
@@ -173,6 +178,7 @@ func _enter(w: Dictionary, tp: Vector3) -> void:
 		_player.collision_mask = _player.collision_mask & ~1
 	var fall := -_player.velocity.y
 	under = fall > 9.0 or tp.y < float(w.surface) - tread_depth - 0.8
+	_dived = false
 	_prone = 1.0 if Vector2(_player.velocity.x, _player.velocity.z).length() > tread_below else 0.0
 	if _player.weapon_manager:
 		_player.weapon_manager.visible = false
@@ -244,19 +250,33 @@ func _swim(delta: float, w: Dictionary, tp: Vector3) -> void:
 		# Going under, coming up.
 		if not under and deep_enough and (Input.is_action_just_pressed("dive") or _stage in ["dive", "under"]):
 			under = true
+			_dived = true
 			v.y = minf(v.y, -2.5)
 			SwimFX.stroke(_fx_parent(), Vector3(p.global_position.x, surface, p.global_position.z), 0.8)
 		if not deep_enough:
 			under = false
 		var float_d := lerpf(tread_depth, crawl_depth, _prone)
 		var head_out := feet > surface - float_d - 0.15
-		if under and head_out and v.y > 0.0 and not Input.is_action_pressed("dive") and _stage != "under":
+		if under:
+			_under_t += delta
+		else:
+			_under_t = 0.0
+		# Back at the surface once the head is out, unless he is still diving (and never in the
+		# first moments of a dive, which starts at the surface).
+		if under and head_out and _under_t > 0.6 and not Input.is_action_pressed("dive") and _stage != "under":
 			under = false
+			_dived = false
 		var speed := boost_speed if boosting else (under_speed if under else swim_speed)
 		var rate := boost_accel if boosting else accel
 		if under:
 			var look := -p.camera.global_basis.z
 			var side := p.camera.global_basis.x
+			# Under the water he swims where the camera looks, with a dead band round level so a
+			# camera looking a little down does not take him to the bottom.
+			var lp := asin(clampf(look.y, -1.0, 1.0))
+			lp = signf(lp) * maxf(absf(lp) - deg_to_rad(12.0), 0.0)
+			var flat_look := Vector3(look.x, 0.0, look.z).normalized()
+			look = (flat_look * cos(lp) + Vector3.UP * sin(lp)).normalized()
 			var want := (look * -input.y + side * input.x)
 			if want.length() > 1.0:
 				want = want.normalized()
@@ -265,8 +285,9 @@ func _swim(delta: float, w: Dictionary, tp: Vector3) -> void:
 				want.y = maxf(want.y, dive_speed)
 			elif Input.is_action_pressed("dive") or _stage == "under":
 				want.y = minf(want.y, -dive_speed)
-			elif want.length() < 0.5:
-				want.y = idle_rise # he floats back up when he lets go
+			elif want.length() < 0.5 or not _dived:
+				# He floats back up when he lets go, and after a plunge he did not ask for.
+				want.y = maxf(want.y, idle_rise)
 			# A fast entry is slowed by the water, not by his stroke.
 			if v.y < want.y - 6.0:
 				v.y = lerpf(v.y, want.y, 1.0 - exp(-entry_drag * delta))
@@ -308,6 +329,14 @@ func _swim(delta: float, w: Dictionary, tp: Vector3) -> void:
 				_splash_at(tp, 1.0)
 	p.velocity = v
 	p.move_and_slide()
+	if _stage != "" and OS.get_environment("SWIM_HOLD") == "1":
+		if _hold == Vector3.INF:
+			_hold = WorldState.to_world(p.global_position)
+		var hl := WorldState.to_local(_hold)
+		p.global_position = Vector3(hl.x, p.global_position.y, hl.z)
+		var depth := float(OS.get_environment("SWIM_DEPTH")) if OS.get_environment("SWIM_DEPTH") != "" else 3.0
+		if _stage == "under" and p.global_position.y < surface - depth:
+			_stage = "glide"
 	# Hold him over the water's floor (the sea's, the marina's, a pool's tank) and in a pool's rect.
 	var pos := p.global_position
 	var tank: Rect2 = w.get("rect", Rect2())
@@ -369,7 +398,7 @@ func _animate(delta: float, surface: float, move_dir: Vector3, boosting: bool) -
 	var rise := 0.0
 	if not under and not leaping:
 		# The body at the surface: shoulders at the water treading, the back just awash prone.
-		rise = water_line - lerpf(1.42, 1.08, _prone)
+		rise = water_line - lerpf(1.42, 0.92, _prone)
 		rise += 0.05 * sin(_phase * 2.0) * _weights[SwimPose.Stroke.TREAD]
 	var face := move_dir
 	if under or leaping:
@@ -488,17 +517,20 @@ func _build_fx() -> void:
 		(e as CPUParticles3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if DisplayServer.get_name() == "headless":
 		return
-	_overlay = CanvasLayer.new()
+	_overlay = MeshInstance3D.new()
 	_overlay.name = "Underwater"
-	_overlay.layer = -2
-	_overlay.visible = false
-	var rect := ColorRect.new()
-	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var quad := QuadMesh.new()
+	quad.size = Vector2(1.0, 1.0)
+	_overlay.mesh = quad
 	_overlay_mat = ShaderMaterial.new()
 	_overlay_mat.shader = load("res://shaders/underwater.gdshader")
-	rect.material = _overlay_mat
-	_overlay.add_child(rect)
+	_overlay_mat.render_priority = Material.RENDER_PRIORITY_MIN
+	_overlay.material_override = _overlay_mat
+	_overlay.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# The vertex stage covers the screen whatever the transform: never cull it.
+	_overlay.extra_cull_margin = 16384.0
+	_overlay.top_level = true
+	_overlay.visible = false
 	add_child(_overlay)
 	_underside = MeshInstance3D.new()
 	_underside.name = "WaterUnderside"
@@ -542,6 +574,7 @@ func _update_view() -> void:
 		# DayNight's lamp level: 0 by day, 1 at night (never read the global back from the server).
 		_overlay_mat.set_shader_parameter("light", 1.0 - 0.85 * DayNight.lamp_now)
 		_underside.global_position = Vector3(cam.global_position.x, surface_l, cam.global_position.z)
+		_overlay.global_position = cam.global_position
 		var off := WorldState.world_offset
 		_underside_mat.set_shader_parameter("world_offset", Vector2(off.x, off.z))
 		if not _under_sound.playing:
@@ -565,3 +598,4 @@ func _stage_input(delta: float) -> Vector2:
 			return Vector2.ZERO
 		_:
 			return Vector2(0.0, -1.0)
+	# "glide": under the water at SWIM_DEPTH, swimming level (the under stage hands over to it).

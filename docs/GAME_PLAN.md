@@ -295,6 +295,17 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 The hero swims (HANDOFF "Swimming").** Water was a floor: the sea, the marina
+  and the pools held him up at their painted surface and the lake let him wade. Decisions: the sea's
+  surface is worked out in GDScript from the ocean shader's own model (SeaSurface, checked against
+  the shader's source) so he rides the swell that is drawn; where the water has no real floor (the
+  sea, the marina, pools) the player's mask drops the world layer and Swim holds him over the
+  water's own floor and in a pool's tank, while the lake and the canals keep their real floors; the
+  strokes are keyed in code per frame (SwimPose), because the CC0 animation library is out of the
+  build's network reach (an itch.io download) - a UAL swim clip can replace them later; no
+  drowning and no guns in the water (overpowered, and GTA's rule); the sounds are synthesized.
+  `SWIMMING=0` is the A/B.
+
 - **2026-10-05 The street's signs are real models (HANDOFF "The street's signs").** The signs
   were a cylinder for a stop sign facing the junction diagonally, flat boxes with TextMesh names
   and red-banded white boxes. Decisions: built in CODE at real size (StreetSignKit; BoulevardSigns owns the kerb's parking plates), not Blender - every

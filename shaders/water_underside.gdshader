@@ -16,7 +16,7 @@ global uniform float night_factor;
 uniform vec3 deep_color = vec3(0.004, 0.035, 0.045);
 uniform vec3 fog_color = vec3(0.012, 0.09, 0.10);
 uniform float window_gain = 1.6;
-uniform float fog_per_m = 0.045;
+uniform float fog_per_m = 0.0;
 uniform vec2 world_offset = vec2(0.0);
 
 float hash(vec2 p) {

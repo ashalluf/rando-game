@@ -14201,3 +14201,94 @@ streets' glow stands in). The lamps stand where the old ones stood, and on some 
 is beside a utility pole (StreetDetail's), which the old thin post hid better. No real light
 shaped like the cobra's cut-off (still an omni). Shot lamps break as before (debris box), no
 falling pole.
+
+## 9d?. Swimming: the hero in the sea, the marina, the lake, the canals and pools (fleet wave 2, `wt/swimming`)
+
+The owner's brief: "The hero swims: in the ocean, the marina, pools and MacArthur Park's lake he
+floats at the surface (the ocean's Gerstner height from GDScript, as Surf mirrors it), swims with a
+stroke animation, dives under, splashes and a wake, and boosts out of the water like a dolphin;
+drowning is not a thing." Before this every one of those waters was a floor: the sea and the marina
+held him up on the city's ground box (y 0, the water drawn at 0.15), a pool is painted on paving,
+and the lake and canals let him wade on their floors.
+
+**Files.** `scripts/player/swim.gd` (`Swim`, the controller, a child of the Player),
+`scripts/player/swim_pose.gd` (`SwimPose`, the strokes), `scripts/player/swim_fx.gd` (`SwimFX`:
+splashes, wake, bubbles, synthesized sounds), `scripts/world/sea_surface.gd` (`SeaSurface`, the
+sea's height), `scripts/world/swim_water.gd` (`SwimWater`, where water is), `shaders/underwater.gdshader`
+and `shaders/water_underside.gdshader`, `tests/swimming_checks.gd`, `tools/swim/probe.tscn`.
+Hooks: Player (`swim.step()` first in the tick after the car; `is_swimming()`), WeaponManager (no
+guns in the water), Footsteps (no steps), Avatar (`swim_pose`, `swim_body()`), the `dive` input
+action (C / Ctrl / pad X, at the end of `[input]`), and one registration line in each water builder
+(MacArthur Park's lake volume, the canals' sink volumes, Parks' rec pool, LotFill's swimming pools,
+YardFill's back-yard pools). `tools/glshot/still_shot.gd` gained `EYE_KEEP_PLAYER=1`.
+
+**The sea's surface** is the ocean shader's vertex stage in GDScript (`SeaSurface.displacement()`:
+the shore distance, the shoaling taper, the wave groups, the five Gerstner swells with the lean
+pulled back for big seas, the tsunami, the surf of surf.gdshaderinc through Surf's envelope, and the
+held level near the shore), read at a point by stepping back along the horizontal displacement
+(three fixed-point steps). The sea state comes from Weather (wave_scale, surf_gain, the tsunami);
+its clock is the shader's TIME (`SeaSurface.clock`, the engine's ticks at first use, advanced by
+the scaled process delta in Swim). ~95 us a sample. The shader's uniform defaults and swell lines
+are checked against its source; change one, change both.
+
+**Where water is.** `SwimWater.at(macro, true_world_pos, t, sea)`: registered entries first (a 64 m
+grid; an entry goes when its node leaves the tree; FULL chunks only), then the marina's basin and
+channel (`Marina.in_water()`, flat at 0.15, a floor 4.5 m down), then the sea (zone OCEAN and
+seaward of the waterline; the floor the sand's own profile under the water, SAND_STEEP / SAND_LOW,
+shelving to the floor box's -13). A pool, the sea and the marina have no real floor under the
+water, so while he swims there `solid` makes Swim drop the world layer off his mask and hold him
+over the water's floor (and, in a pool, inside the tank); the lake and the canals have real floors
+under the ground box, which their own volumes already let bodies through, so the mask stays.
+
+**Swim.** He goes in when his feet come within `enter_above` of the surface (falling or standing),
+where the water is at least `min_depth` deep (the sea: past SAND_STEEP_AT offshore); a plunge
+(> 9 m/s) takes him under and `entry_drag` slows it (a 30 m fall goes ~8 m down), then he floats
+back up at `idle_rise`. At the surface the water's spring holds his feet `tread_depth` (still) or
+`crawl_depth` (moving) under the surface of the swell; under the water he swims where the camera
+looks (a 12-degree dead band round level), jump up, dive down. Jump at the surface hops out
+(`jump_out`, onto a dock or a pool's edge). Boost: `boost_speed` 17 m/s along the top, and every
+`leap_gap` a dolphin leap (`leap_up`, `leap_gravity`) - the streamline pose laid along the arc, a
+splash out and a splash in; boost with the camera pitched over `launch_pitch` bursts out into the
+ordinary boost flight. He wades out where the water gets shallower than `min_depth * 0.8`.
+**No drowning, no breath, no damage**: he is overpowered.
+
+**The strokes** are code, not a clip: the free UAL library (the life clips' source) is an itch.io
+download this build's network policy refuses, so `SwimPose` keys them per frame the way the hero's
+idle variants were keyed - each bone's length aimed at a skeleton-space direction as if he stood
+upright, worked out from a phase: the front crawl (each arm a full circle at the shoulder, the
+pull under the body with the elbow bent, the recovery high and wide, half a cycle apart; the body
+roll; the head turned to breathe every other stroke; a six-beat flutter), treading (sculling arms,
+eggbeater legs), the breaststroke under water and the streamline with a dolphin kick (boost and
+leaps). Blended by weights; `Avatar.swim_body()` lays the body (prone in the crawl, along the
+velocity under and in the air) about the hips and lifts it so the back is awash. A real swim clip
+can replace the keyed strokes later (`tools/hero/hero_clips.gd` CLIPS row + a `moves/swim_*` play
+in `Avatar.swim_body()`), SwimPose's weight then only for the lay.
+
+**Effects.** A splash on every way in and out (droplets in a crown, white mist, a ring of foam
+spreading on the surface; scaled by the speed), a hand's splash at each crawl stroke, the wake
+(flat foam laid behind on the surface), a rooster tail of spray on the boost, bubbles under the
+water. Under the surface (the camera's own point): `underwater.gdshader`, a full-screen quad
+(the heat haze's trick, render_priority MIN) that reads the picture AND its depth: every pixel's
+light absorbed red-first over its real distance (Beer-Lambert per channel, `absorb`), scattered
+toward the water's colour by distance (`visibility`, metres to half), darker with depth and at
+night, blurrier with distance, wobbling; and the surface's underside overhead
+(`water_underside.gdshader`, a plane at the surface over the camera): Snell's window of sky
+straight up, dark past the critical angle. Both work in linear on both renderers.
+Sounds are synthesized in SwimFX (noise bursts with bubble chirps; a muffled loop under the water):
+no CC0 water recording is in the project and freesound / itch.io are out of reach.
+
+**Cost.** Nothing on land beyond a zone test a tick. In the sea two to three `SeaSurface.height()`
+samples a tick (~0.3 ms), a few CPUParticles3D systems and, under the water, one full-screen pass.
+No geometry is added to any chunk (the registrations are data).
+
+**A/B and stills.** `SWIMMING=0` in the environment: no water anywhere (SwimWater.enabled), the
+old behaviour. `SWIM_STAGE=tread|crawl|boost|under` (fakes the stick) with `SWIM_HOLD=1` (swims on
+the spot, so a fixed camera frames him; `SWIM_DEPTH` for under) and `EYE_KEEP_PLAYER=1` on
+`still_shot.gd`, e.g. off Rando Pier:
+`SWIM_STAGE=crawl SWIM_HOLD=1 EYE_KEEP_PLAYER=1 FOV=50 EYE=-1005,1.6,-271,0,-6 ... -- --spawn=-1005,-280,-90,-10 --hour=15.5 --nohud`.
+
+**Not done / known gaps.** Rooftop pools (Rooftops) and hill-home pools (HillHomeBuild) are not
+registered (one line each when wanted); the river's low-flow channel is too shallow to swim; a car
+driven into the sea still rides its wheels on the ground box; the underwater view has no real
+depth fog on far geometry (the pass veils the whole picture); the strokes are keyed in code, not
+motion-captured; nothing of it has been seen on Forward+ (the Mac).
