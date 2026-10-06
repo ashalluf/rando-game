@@ -1469,6 +1469,13 @@ already mapped so milestone 2 is script-only.
   hooks, so its windows, shops, damage and coded far boxes are unchanged) with the ornament as
   real geometry on its window grid; the old 150 ft limit holds. docs/HANDOFF.md "The historic
   core"; CLAUDE.md "Historic core".
+- **2026-10-05 Back yards are lived in (suburbs and the beach town).** On YardFill's back-yard
+  plan, a hash per lot: patio dining sets under market umbrellas, gas and kettle grills smoking at
+  dinner time (the shader reads `city_hour`), string lights over the patio lit after dark, loungers
+  and floats by the pools, trampolines, washing lines, citrus trees, doghouses and dog runs, a
+  toddler's slide and wagon (no children: the crowd has no child rigs). Code-built (`BackyardKit`),
+  one batch per kind a FULL chunk; LOD chunks keep the umbrellas, trampolines and the lights' glow
+  so the yards read from the air. docs/HANDOFF.md "Backyard life"; CLAUDE.md "Backyard life".
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north

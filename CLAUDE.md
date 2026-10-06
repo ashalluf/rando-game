@@ -3303,6 +3303,18 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   environment is the A/B. Probe: `tools/climbers/climbers_probe.tscn` (headless, seconds: cards
   per species, step time, an EYE for every plant); checks: `tests/climbing_plants_checks.gd`
   (`tools/climbers/checks_only.tscn` runs them alone).
+- Backyard life (2026-10-05, docs/HANDOFF.md "Backyard life"): `Backyards`
+  (`scripts/world/backyards.gd`) furnishes the suburbs' and beach town's back yards from
+  YardFill's lot plans - `plan_lot()` is PURE (hashes of seed + lot) and keeps clear of the house,
+  the pool, YardFill's back tree and shrub strip and ClimbingPlants' pergolas (worked out the same
+  way, `pergola_rect()`). Two hook lines in `YardFill._build_beach()` (FULL: deferred after its own
+  dressing, a job a lot; LOD: umbrellas, trampolines, the lights' glow). Meshes are code
+  (`BackyardKit`) on `shaders/backyard.gdshader` (kind in COLOR.a x 16, paint in INSTANCE_CUSTOM);
+  string lights one merged mesh a chunk (`BackyardLights`, bulbs grown to a pixel from the air
+  via CUSTOM0); grill smoke `backyard_smoke.gdshader` and embers follow `city_hour`; the trampoline
+  net and dog-run chain-link `backyard_net.gdshader`. Tables, grills, trampolines and doghouses are
+  breakable props. `BACKYARDS=0` is the A/B; probe `tools/backyards/probe.gd`; checks
+  `tests/backyards_checks.gd`.
 - Lawns: `PropFactory.lawn()` + `shaders/lawn.gdshader`, not a plain tiled texture - a 5 m tile
   mips down to one flat green rectangle from thirty metres up, and the grass-blade multimesh only
   reaches a few dozen metres. Dry/watered patches, mower stripes angled per lawn, worn dirt, and

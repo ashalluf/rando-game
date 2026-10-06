@@ -13,7 +13,7 @@ func _initialize() -> void:
 			var p := arg.trim_prefix("--spawn=").split(",")
 			c = Vector2(p[0].to_float(), p[1].to_float())
 	var reach := float(OS.get_environment("R")) if OS.get_environment("R") != "" else 900.0
-	var seed_value := int(OS.get_environment("SEED")) if OS.get_environment("SEED") != "" else 1
+	var seed_value := int(OS.get_environment("SEED")) if OS.get_environment("SEED") != "" else 1337
 	var gc: GDScript = load("res://scripts/world/ground_coverage.gd")
 	var by: GDScript = load("res://scripts/world/backyards.gd")
 	var tp := Time.get_ticks_msec()

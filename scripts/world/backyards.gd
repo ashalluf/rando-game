@@ -519,9 +519,9 @@ static func _add_lights(ch: CityChunk, lp: Dictionary, district: int, it: Dictio
 ## The warm light the string lights throw on the patio after dark (an additive pool, lamp_factor).
 static func _glow(ch: CityChunk, f: Dictionary, r: Rect2, base: float) -> void:
 	var c := YardFill._fp(f, r.get_center().x, r.get_center().y)
-	var size := maxf(r.size.x, r.size.y) * 1.35
+	var size := maxf(r.size.x, r.size.y) * 1.8
 	var xf := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(size, 1.0, size)), Vector3(c.x, base + 0.04, c.y))
-	ch._batch.add("by_glow", PropFactory.light_pool(GLOW_TINT, 0.75), xf)
+	ch._batch.add("by_glow", PropFactory.light_pool(GLOW_TINT, 1.5), xf)
 
 
 ## LOD chunks: what reads from the air - umbrellas, trampolines, the lights' glow - as cheap meshes.

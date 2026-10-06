@@ -30,8 +30,8 @@ global uniform float road_wetness;
 /// The floats' material sets this: the whole instance bobs and turns on the water.
 uniform float bob = 0.0;
 /// How bright a string-light bulb is after dark (linear emission) and its colour.
-uniform float bulb_energy = 6.0;
-uniform vec3 bulb_color = vec3(1.0, 0.62, 0.28);
+uniform float bulb_energy = 4.0;
+uniform vec3 bulb_color = vec3(1.0, 0.5, 0.17);
 /// A bulb is never drawn smaller than this many pixels across (from the air), its light spread.
 uniform float bulb_min_px = 1.6;
 /// A grill's fire through the gap and the share of grills cooking at dinner time.
@@ -111,7 +111,7 @@ void vertex() {
 		float px = max(-cv.z, 0.1) * 2.0 / (PROJECTION_MATRIX[1][1] * vh);
 		float grow = clamp(bulb_min_px * px / 0.05, 1.0, 14.0);
 		VERTEX = CUSTOM0.xyz + (VERTEX - CUSTOM0.xyz) * grow;
-		v_bulb_gain = 1.0 / grow;
+		v_bulb_gain = inversesqrt(grow);
 	}
 	v_local = VERTEX;
 }

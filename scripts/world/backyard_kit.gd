@@ -289,10 +289,16 @@ static func sheet(g: G, top_l: Vector3, top_r: Vector3, drop: Vector3, nx: int, 
 
 # --- Materials -------------------------------------------------------------------------------------
 
+## BACKYARD_COOK=1 in the environment: every grill cooks in the dinner window (stills).
+static var _cook_all: bool = OS.get_environment("BACKYARD_COOK") == "1"
+
+
 static func material() -> ShaderMaterial:
 	if _material == null:
 		_material = ShaderMaterial.new()
 		_material.shader = load("res://shaders/backyard.gdshader")
+		if _cook_all:
+			_material.set_shader_parameter("cook_share", 1.0)
 	return _material
 
 
@@ -328,6 +334,8 @@ static func smoke_material() -> ShaderMaterial:
 		_smoke_material = ShaderMaterial.new()
 		_smoke_material.shader = load("res://shaders/backyard_smoke.gdshader")
 		_smoke_material.set_shader_parameter("puff", WeaponFX.puff_texture())
+		if _cook_all:
+			_smoke_material.set_shader_parameter("cook_share", 1.0)
 	return _smoke_material
 
 
@@ -1040,9 +1048,9 @@ static func _rand_dir(rng: RandomNumberGenerator) -> Vector3:
 
 
 static func _leaf_tint(rng: RandomNumberGenerator, sun: float) -> Color:
-	# Citrus leaves: darker and bluer than jasmine's.
-	var k := rng.randf_range(0.82, 1.08) * sun
-	return Color(0.82 * k, 0.9 * k, 0.86 * k)
+	# Citrus leaves: a glossy mid green, a touch yellower than jasmine's.
+	var k := rng.randf_range(0.95, 1.25) * sun
+	return Color(1.12 * k, 1.22 * k, 0.95 * k)
 
 
 # --- The dog, the toys, the posts -------------------------------------------------------------------
