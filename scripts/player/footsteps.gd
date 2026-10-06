@@ -75,7 +75,7 @@ func _find_rig() -> void:
 func _process(delta: float) -> void:
 	if _player == null or not _player.is_inside_tree():
 		return
-	if _player.get("vehicle") != null or not _player.is_on_floor():
+	if _player.get("vehicle") != null or not _player.is_on_floor() or (_player.has_method("is_swimming") and _player.is_swimming()):
 		_walked = 0.0
 		return
 	var v := _player.velocity

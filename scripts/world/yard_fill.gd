@@ -966,6 +966,7 @@ static func _dress_beach_lot(ch: CityChunk, lp: Dictionary, grid: Dictionary, co
 						_flower(ch, p, rng)
 			"pool":
 				_coping(ch, r)
+				SwimWater.add_rect(ch, r, CityChunk.SIDEWALK_TOP + LIFT - 0.05 + ch._gy(r.get_center().x, r.get_center().y), CityChunk.SIDEWALK_TOP + LIFT - 0.05 + ch._gy(r.get_center().x, r.get_center().y) - SwimWater.POOL_DEPTH, SwimWater.Kind.POOL)
 	if drive.size.x > 0.0 and _h01([plan.seed, key, "drive_car"]) < DRIVE_CAR_ODDS and ch._yard_cars < MAX_CARS:
 		var dq := _to_frame(f, drive)
 		if dq.size.y >= 5.0:

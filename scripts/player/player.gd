@@ -91,6 +91,8 @@ var vehicle: Vehicle
 var lock_on: LockOn
 ## Health, the police's bullets and going down (scripts/player/player_health.gd).
 var health: PlayerHealth
+## Swimming (scripts/player/swim.gd).
+var swim: Swim
 
 var _coyote_timer: float = 0.0
 var _jump_buffer_timer: float = 0.0
@@ -128,6 +130,9 @@ func _ready() -> void:
 	health.name = "Health"
 	add_child(health)
 	add_child(Footsteps.new()) # footsteps by surface (scripts/player/footsteps.gd)
+	swim = Swim.new() # the sea, the marina, pools, the lake (scripts/player/swim.gd)
+	swim.name = "Swim"
+	add_child(swim)
 	# The hero flinches away from each round (Avatar.hit_from).
 	health.hit_taken.connect(func(amount: float, from: Vector3) -> void:
 		if avatar:
@@ -155,6 +160,8 @@ func _physics_process(delta: float) -> void:
 		if Input.is_action_just_pressed("respawn"):
 			exit_vehicle()
 			respawn()
+		return
+	if swim and swim.step(delta):
 		return
 	if (global_position.y < fall_through_y and global_position.y > kill_y) or _under_terrain(global_position) or _under_city_ground():
 		recover_from_fall()
@@ -345,6 +352,10 @@ func exit_vehicle() -> void:
 	_ensure_ground_under(global_position)
 	if _under_terrain(global_position):
 		recover_from_fall()
+
+
+func is_swimming() -> bool:
+	return swim != null and swim.swimming
 
 
 func is_driving() -> bool:

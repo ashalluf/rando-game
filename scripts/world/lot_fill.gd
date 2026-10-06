@@ -645,6 +645,8 @@ static func _pool(ch: CityChunk, r: Rect2, base: float = CityChunk.SIDEWALK_TOP 
 		var size := Vector3(r.size.x, kerb, t) if horiz else Vector3(t, kerb, r.size.y - t * 2.0)
 		_solid(ch, Vector3(pos.x, base + kerb * 0.5, pos.y), size, Building.plinth_material())
 	_box(ch, Vector3(r.size.x - t * 2.0, 0.06, r.size.y - t * 2.0), Vector3(c.x, base + kerb - 0.12 + ch._gy(c.x, c.y), c.y), KIND_SWIM if swim else KIND_DARK)
+	if swim:
+		SwimWater.add_rect(ch, r.grow(-t), base + kerb - 0.09 + ch._gy(c.x, c.y), base + kerb - 0.09 + ch._gy(c.x, c.y) - SwimWater.POOL_DEPTH, SwimWater.Kind.POOL)
 
 
 
