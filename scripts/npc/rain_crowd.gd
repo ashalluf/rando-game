@@ -63,7 +63,7 @@ const THINK_SECONDS := 0.5
 ## space: +Z forward, +X the rig's left, mirrored for the right arm), so the hand is in front of
 ## the chest a little toward the middle whatever the walk does.
 const UPPER_ARM := Vector3(0.18, -0.86, 0.36)
-const FOREARM := Vector3(-0.28, 0.62, 0.74)
+const FOREARM := Vector3(-0.55, 0.6, 0.58)
 ## Where the canopy's apex is held: over the Head bone (the base of the skull) by this much, so
 ## the rim clears the crown, and this far forward of it.
 const APEX_OVER_HEAD := 0.62
@@ -516,7 +516,7 @@ func _place_umbrella() -> void:
 	# Open: the shaft from the grip to over the head (the canopy centred on the walker).
 	var apex := head + Vector3.UP * (APEX_OVER_HEAD * s) + fwd * APEX_FORWARD
 	var up_dir := (apex - grip).normalized()
-	up_dir = up_dir.lerp(Vector3.UP, 0.35).normalized()
+	up_dir = up_dir.lerp(Vector3.UP, 0.12).normalized()
 	# Furled: down and forward from the hand.
 	var cane := (-Vector3.UP + fwd * 0.25).normalized()
 	var dir := cane.lerp(up_dir, raise).normalized()

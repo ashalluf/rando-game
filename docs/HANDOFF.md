@@ -14264,9 +14264,19 @@ them; `tools/crowd/crowd_lab.tscn SCENARIO=rain` (`RAIN`, `RAIN_GEAR=umbrella|ho
 builds every mesh with its triangle count. `RAIN_CROWD=0` is the A/B. Checks:
 `tests/rain_crowd_checks.gd` (one line at the end of the smoke test's check files).
 
-**Frame cost** (opengl3, same EYE and load, rain at 15:00): RESULTS_PLACEHOLDER
+**Frame cost** (opengl3, the still harness's GEO line, same EYE and load, rain at 15:00):
+along the pavement (`EYE=2368.5,2.0,912,-4.5,-4`, FOV 38) 5,826,899 triangles / 2,605 draws with
+`RAIN_CROWD=0`, 5,807,637 / 2,599 with it (the umbrellas' few draws are paid back by the people
+gone in); the wider pavement view (`2362,2.2,893,-26.6,-5`) 6,156,832 / 2,946 -> 6,120,229 / 2,937.
+An umbrella is ~1.8k triangles and one draw, a hood ~1.6k; nothing past 60 m. CPU: one compare a
+tick per walker in the dry; in the rain two arm aims and a transform for each holder near the
+camera.
 
-**Stills** (`shots/rain-crowd`, opengl3): RESULTS_STILLS
+**Stills** (`shots/rain-crowd`, opengl3): `08_before_rain_along` / `09_after_rain_along` (the
+pair), `10_after_umbrella_close`, `11_after_rain_night_along`, `12_after_storm_along`, the first
+pair `01` / `02` and `03` (storm) from the wider east-pavement view, and two lab close-ups (`13`
+umbrellas held, `14` a hood up). EYEs above; `RAIN_STAGE=0.7` (rain) / `1.0` (storm),
+`--weather=rain|storm --hour=15|21`, spawn `2359.4,880,0,12,2`.
 
 **Not done / not verified.** Forward+ (the Mac) not seen: the canopy's translucency (BACKLIGHT),
 the wet sheen and beads. No umbrella collisions between neighbours (two holders can pass through
