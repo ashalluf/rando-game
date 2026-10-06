@@ -295,6 +295,20 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-06 Freeway incidents are worked out from a clock, not simulated (HANDOFF "Freeway
+  incidents").** What happens where on the freeway is a hash of seed, route, 1 km stretch,
+  direction and 480 s slot, so any system (the traffic, the message signs, a still) asks the same
+  question and gets the same answer, and nothing is rolled live. A stall is a script of positions
+  against time (the car coasting in, the patrol car, the tow, the bed and the winch), not cars
+  driven by an AI: it always plays out, and a still or a check can stand anywhere in it. Its
+  vehicles are traffic cars of the incident (kinematic, never the player's) until a hit knocks
+  one out, and once the tow drives off it and the patrol car become ordinary freeway traffic
+  rather than vanishing. The highway patrol is an invented agency with no part in the wanted
+  level (not in the police groups). Traffic only gets small hooks: a speed cap and a lane change
+  out of a blocked lane, the spawn lane, and TrafficAI's own thinking held off near a block so
+  keep-right never steers a car back into one. The message signs replace the second guide board
+  on a third of the gantry carriageways (never where an exit sign stands).
+
 - **2026-10-05 The street's signs are real models (HANDOFF "The street's signs").** The signs
   were a cylinder for a stop sign facing the junction diagonally, flat boxes with TextMesh names
   and red-banded white boxes. Decisions: built in CODE at real size (StreetSignKit; BoulevardSigns owns the kerb's parking plates), not Blender - every

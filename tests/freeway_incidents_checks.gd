@@ -162,7 +162,7 @@ func _stall_script() -> void:
 	_check(p_ok, "freeway incidents: the patrol car parks on the shoulder behind, lights on, the driver out (%s)" % str(parked.get("patrol")))
 	var w_ok := winch_mid.has("tow") and float(winch_mid.tow[0]) > 2.3 + 4.7 and float(winch_mid.bed) == 1.0 and bool(winch_mid.loaded) and float(winch_mid.winch) > 0.3 and float(winch_mid.winch) < 0.7
 	_check(w_ok, "freeway incidents: the tow parks ahead, bed down, winching the car on (%s bed %s winch %s)" % [str(winch_mid.get("tow")), str(winch_mid.get("bed")), str(winch_mid.get("winch"))])
-	var l_ok := leaving.has("tow") and float(leaving.tow[2]) > 5.0 and float(leaving.bed) == 0.0 and not leaving.has("car") and not bool(leaving.driver)
+	var l_ok := leaving.has("tow") and float(leaving.tow[2]) > 5.0 and float(leaving.bed) == 0.0 and bool(leaving.loaded) and not bool(leaving.driver)
 	_check(l_ok, "freeway incidents: the tow drives off with its bed level and the car aboard (%s)" % str(leaving.get("tow")))
 
 
@@ -310,7 +310,11 @@ func _live_stall(node: FreewayIncidents) -> void:
 	await _ticks(2)
 	node._update_live(_fw)
 	await _ticks(2)
-	_check(not is_instance_valid(car) or (car as Node).is_queued_for_deletion(), "freeway incidents: an incident's vehicles go when it is over")
+	var tow_on: bool = is_instance_valid(tow) and _traffic.freeway_cars.has(tow)
+	var car_aboard: bool = is_instance_valid(car) and (car as Node).get_parent() == tow
+	var patrol_on: bool = not is_instance_valid(patrol) or _traffic.freeway_cars.has(patrol) or (patrol as Node).is_queued_for_deletion()
+	_check(tow_on and car_aboard and patrol_on and int(FreewayIncidents.counts.get("handover_tow", 0)) > 0,
+		"freeway incidents: when it is over the tow (the car aboard) and the patrol car drive on as freeway traffic (tow %s, car aboard %s, patrol %s)" % [tow_on, car_aboard, patrol_on])
 	FreewayIncidents.clear_forced()
 
 

@@ -307,10 +307,13 @@ static func stall_pose(inc: Dictionary, e: float, halves: Array) -> Dictionary:
 		var tau := -e
 		var s := -_stopping(tau, 22.0, 2.0)
 		out.car = [s, clampf(1.0 - (-s) / 55.0, 0.0, 1.0), minf(22.0, 2.0 * tau), 1]
-	elif e < leave:
+	elif e < leave + LEAVE_DRIVE:
+		# From `leave` it rides the bed (placed off the tow's deck, not from this entry).
 		out.car = [0.0, 1.0, 0.0, 0]
 	out.driver = e > 6.0 and e < bed_up
 	out.hazard = true
+	out.handover = e >= leave + LEAVE_DRIVE
+	out.patrol_handover = e >= patrol_leave + LEAVE_DRIVE
 	# The patrol car: up the shoulder from 260 m back, lights going, parks behind.
 	var p_stop := -(hc + PATROL_GAP + hp)
 	if e >= patrol_at and e < patrol_leave + LEAVE_DRIVE:
@@ -602,6 +605,7 @@ func _tick_stall(fw: Freeway, entry: Dictionary, _delta: float) -> void:
 	var e := clock - float(inc.start)
 	var pose := stall_pose(inc, e, _halves(sc))
 	entry.pose = pose
+	_handover(fw, entry, pose)
 	var slow := Freeway.LANES - 1
 	var any_on_shoulder := false
 	for who in ["car", "patrol", "tow"]:
@@ -623,6 +627,45 @@ func _tick_stall(fw: Freeway, entry: Dictionary, _delta: float) -> void:
 		# Both carriageways slow to look.
 		_add_zone(key, {"a": t - LOOK_REACH, "b": t + 40.0, "cap": LOOK_CAP, "wave": false, "lanes": 15})
 		_add_zone(Vector2i(ri, -dir), {"a": t - LOOK_REACH * 0.6, "b": t + LOOK_REACH * 0.6, "cap": LOOK_CAP + 0.1, "wave": false, "lanes": 15})
+
+
+## The tow (with the car on its bed) and the patrol car, once their script has them driving down
+## the slow lane, become the traffic's own freeway cars: they drive on with everyone else and are
+## retired like them, out of the player's range, the car with the tow.
+func _handover(fw: Freeway, entry: Dictionary, pose: Dictionary) -> void:
+	if tm == null:
+		return
+	var inc: Dictionary = entry.inc
+	var sc: Dictionary = entry.scene
+	for who in ["tow", "patrol"]:
+		if not bool(pose.get("handover" if who == "tow" else "patrol_handover", false)) or entry.has("handed_" + who):
+			continue
+		entry["handed_" + who] = true
+		var v: Variant = sc.get(who)
+		if v == null or not is_instance_valid(v) or not _owned(v):
+			continue
+		var car := v as Vehicle
+		var last: Dictionary = entry.get("last_" + who, {})
+		if last.is_empty():
+			continue
+		if who == "tow":
+			var load: Variant = sc.get("car")
+			if load != null and is_instance_valid(load) and _owned(load):
+				(load as Vehicle).traffic = {"towed": true}
+				(load as Node).reparent(car)
+		var width := float(fw.routes[int(inc.ri)].width)
+		var li := Freeway.LANES - 1
+		car.traffic = {"fw": int(inc.ri), "t": float(last.t), "dir": int(inc.dir), "lane": Freeway.lane_fraction(width, li) * float(inc.dir),
+			"li": li, "speed": float(last.v), "v": float(last.v), "half": TrafficManager.car_half_length(car), "rear": TrafficManager.car_rear_length(car)}
+		TrafficAI.fw_setup(car, fw, true)
+		car.traffic.erase("placed")
+		car.traffic.erase("exit")
+		car.traffic.home = li
+		car.traffic_speed = float(last.v)
+		if car is FreewayPatrol:
+			(car as FreewayPatrol).lights_on = false
+		tm.freeway_cars.append(car)
+		count("handover_" + who)
 
 
 func _halves(sc: Dictionary) -> Array:
@@ -706,6 +749,7 @@ func _place_scene(fw: Freeway, entry: Dictionary) -> void:
 				count("tow_loaded")
 		car.global_transform = xf
 		car.visible = true
+		entry["last_" + who] = {"t": t + s * float(dir), "v": float(p[2])}
 		car.collision_layer = 4 if not (who == "car" and bool(pose.get("loaded", false))) else 0
 		car.traffic_speed = maxf(float(p[2]), 0.31 if who == "car" else 0.0)
 		# Indicators: toward the shoulder coming in, away from it going out.

@@ -334,6 +334,38 @@ static func cms_cabinet(kit: FreewayKit, xf: Transform3D, w: float) -> void:
 		kit.prism(kit.body, cw + out * 0.4 + up * 0.95 - right * (w * 0.5), cw + out * 0.4 + up * 0.95 + right * (w * 0.5), 0.022, 0.022, 4, steel, false)
 
 
+## A light strip of shredded tread for the shoulders' litter (FreewayKit._furniture): `l` metres
+## half-length along `ax` (unit, flat), `w` half-width along `az`, curled up at the far end and
+## sagging at the near one, lug blocks across its top as alternating shades. ~72 triangles into
+## the kit's structure mesh (S_RUBBER).
+static func shoulder_tread(kit: FreewayKit, p: Vector3, ax: Vector3, az: Vector3, l: float, w: float, seed: float) -> void:
+	var n := 6
+	var rub := FreewayKit.kind_color(Color(0.055, 0.055, 0.058), FreewayKit.S_RUBBER)
+	var lug := FreewayKit.kind_color(Color(0.085, 0.084, 0.082), FreewayKit.S_RUBBER)
+	var t := 0.02
+	var curl := 0.3 + 0.5 * seed
+	var pts := []
+	for j in n + 1:
+		var f := float(j) / n * 2.0 - 1.0
+		var lift := curl * 0.22 * maxf(f, 0.0) * maxf(f, 0.0) * l + 0.01 * (1.0 - f * f)
+		var tear := 0.015 * sin(float(j) * 2.7 + seed * 9.0)
+		pts.append(p + ax * (f * l) + Vector3(0.0, lift, 0.0) + az * tear)
+	for j in n:
+		var a: Vector3 = pts[j]
+		var b: Vector3 = pts[j + 1]
+		var up := (b - a).cross(az).normalized()
+		if up.y < 0.0:
+			up = -up
+		for k in 3:
+			var u0 := -w + 2.0 * w * float(k) / 3.0
+			var u1 := -w + 2.0 * w * float(k + 1) / 3.0
+			var col := lug if (j + k) % 2 == 0 else rub
+			kit.quad(kit.body, a + az * u0 + up * t, a + az * u1 + up * t, b + az * u1 + up * t, b + az * u0 + up * t, up, col)
+		kit.quad(kit.body, a - az * w, a + az * w, b + az * w, b - az * w, -up, rub)
+		kit.quad(kit.body, a + az * w, a + az * w + up * t, b + az * w + up * t, b + az * w, az, rub)
+		kit.quad(kit.body, a - az * w, a - az * w + up * t, b - az * w + up * t, b - az * w, -az, rub)
+
+
 ## Where the LED face of the cabinet in frame `xf` (w wide) goes: the quad's transform (scaled to
 ## the face's size, a hair in front of the bezel's inner edge).
 static func cms_face_xform(xf: Transform3D, w: float) -> Transform3D:

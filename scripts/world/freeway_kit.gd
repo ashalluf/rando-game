@@ -1006,9 +1006,8 @@ func _furniture(a3: Vector3, b3: Vector3, dir: Vector2, nrm: Vector2, lay: Dicti
 			var az := ax.cross(Vector3.UP)
 			if hash01(hk + [3]) < 0.8:
 				var l := 0.25 + 0.6 * hash01(hk + [4])
-				box(body, p, ax * l, Vector3(0.0, 0.025, 0.0), az * (0.09 + 0.05 * hash01(hk + [5])), kind_color(Color(0.06, 0.06, 0.06), S_RUBBER))
-				# Curled up at one end, the way a thrown tread lies.
-				box(body, p + ax * (l + 0.08) + Vector3(0.0, 0.07, 0.0), ax * 0.08, Vector3(0.0, 0.08, 0.0), az * 0.1, kind_color(Color(0.07, 0.07, 0.07), S_RUBBER))
+				# A strip of tread curled up at one end, the way a thrown tread lies (FreewayIncidentKit).
+				FreewayIncidentKit.shoulder_tread(self, p, ax, az, l, 0.09 + 0.05 * hash01(hk + [5]), hash01(hk + [6]))
 			else:
 				box(body, p + Vector3(0.0, 0.02, 0.0), ax * 0.45, Vector3(0.0, 0.02, 0.0), az * 0.07, kind_color(Color(0.42, 0.33, 0.22), S_PAINTED))
 
