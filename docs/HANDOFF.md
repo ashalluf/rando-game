@@ -14255,6 +14255,9 @@ it takes `speed x SMASH_DAMAGE`, breaks BEFORE the solver meets it (`break_prop(
 dead prop's shapes at once), the car loses `SLOW[kind]` of its speed, takes a HIT_CRASH dent and,
 for a felled pole, passes through it (`FallingPole.pass_through()`: hinged, it is pinned to the
 world and stopped the car dead). Below the threshold, or a pole only bent, the car hits it as before.
+Cars tagged `warm_rehearsal` (the loading screen's row, which a blast throws about) never smash:
+they broke real props, and WorldState kept them broken (its "layer 0" is reset to 4 by
+`Vehicle._ready()`). `PROP_BREAK_LOG=1` prints every break and what did it.
 A destroyed prop on a rebuilt chunk leaves its stub (`PropBreak.remains()`, the `is_destroyed`
 early return in `_add_prop()`). `PROP_BREAK=0` in the environment is the A/B.
 

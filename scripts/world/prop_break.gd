@@ -24,6 +24,8 @@ extends RefCounted
 ## `PROP_BREAK=0` in the environment turns all of it off (the A/B).
 
 static var enabled: bool = OS.get_environment("PROP_BREAK") != "0"
+## PROP_BREAK_LOG=1 prints every break (kind, chunk, prop, how), for tracing what broke what.
+static var log_breaks: bool = OS.get_environment("PROP_BREAK_LOG") == "1"
 
 ## Damage that fells a pole at once (a hit between LEAN_FROM and this bends it).
 const FALL_AT := {"lamp": 60.0, "stop_sign": 30.0, "street_sign": 30.0, "signal": 110.0}
@@ -89,6 +91,10 @@ static func survives(ch: CityChunk, record: Dictionary, dir: Vector3) -> bool:
 ## break_prop()'s second hook (the instances are hidden, the shapes going): the pieces. False
 ## for a kind this does not know, which breaks the old way.
 static func broke(ch: CityChunk, record: Dictionary, dir: Vector3) -> bool:
+	if log_breaks:
+		var who: Variant = record.get("smasher")
+		print("PROP_BREAK %s %s/%s at %s by %s" % [record.kind, ch.key, record.id, WorldState.to_world(ch.to_global(record.position)),
+				("%s layer %d meta %s" % [who.name, (who as CollisionObject3D).collision_layer, str((who as Node).get_meta_list())]) if who is CollisionObject3D and is_instance_valid(who) else "damage"])
 	match String(record.kind):
 		"hydrant":
 			_hydrant(ch, record, dir)
@@ -359,7 +365,9 @@ static var _smash_q: PhysicsShapeQueryParameters3D
 
 ## Vehicle's step hook: breaks what the car is about to hit at speed, before the solver stops it.
 static func smash_ahead(car: Vehicle, delta: float) -> void:
-	if not enabled or car.freeze or not car.is_inside_tree():
+	# A car on no collision layer touches nothing (the loading screen's rehearsal row, which a
+	# blast throws about: it smashed real props and WorldState kept them broken).
+	if not enabled or car.freeze or car.collision_layer == 0 or car.has_meta(&"warm_rehearsal") or not car.is_inside_tree():
 		return
 	var v := car.linear_velocity
 	var speed := v.length()
