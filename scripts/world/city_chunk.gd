@@ -2585,8 +2585,11 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 		# racks. Hash-seeded; after the vendors it keeps clear of, before the parked cars.
 		if Micromobility.wanted(self, block):
 			steps.append(func() -> void: Micromobility.build_block(self, block))
+		# The fashion district's goods on the pavement and their sellers (FashionDistrict; hash-seeded).
+		if FashionDistrict.wanted(self, block):
+			steps.append_array(FashionDistrict.steps(self, block))
 		steps.append_array(_park_car_steps(rect, rng, params))
-		steps.append_array(_pedestrian_steps(rect, rng, params, Encampment.PATH_KEEP + 1.0 if camps & Encampment.FACES else -1.0))
+		steps.append_array(_pedestrian_steps(rect, rng, params, FashionDistrict.walk_sidewalk(self, block, Encampment.PATH_KEEP + 1.0 if camps & Encampment.FACES else -1.0)))
 		# The rec park's or school's people (Parks; their own stream, after the block's walkers).
 		steps.append_array(Parks.people_steps(self, block))
 	return steps
@@ -2723,6 +2726,7 @@ func _spawn_walker(rect: Rect2, sidewalk: float, rng: RandomNumberGenerator) -> 
 		return
 	var ped := Pedestrian.new()
 	ped.setup(rect, sidewalk, rng.randi())
+	FashionDistrict.walker(self, ped)
 	var start := ped._random_ring_point(sidewalk)
 	ped.position = Vector3(start.x, SIDEWALK_TOP + 0.1 + _gy(start.x, start.y), start.y)
 	add_child(ped)
@@ -3003,6 +3007,8 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	Chinatown.dress(self, lot, building)
 	# The historic core's beaux-arts blocks on Spring St and Main St (HistoricCore; hash-seeded).
 	HistoricCore.dress(self, lot, building)
+	# The fashion district's clothing and textile shops under awnings (FashionDistrict; no roll).
+	FashionDistrict.dress(self, lot, building)
 	var g := _gy(center.x, center.y)
 	var gmin := g
 	var half: Vector2 = lot.size * 0.5

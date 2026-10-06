@@ -430,6 +430,9 @@ static func pole_spots(ch: CityChunk, sp: Dictionary, r: Dictionary) -> Array:
 ## One run's furniture: gates at its mouths, a van backed in, and along each side's back walls
 ## the doors, lamps, docks, fire escapes, bins, carts, meters, condensers and clutter.
 static func dress(ch: CityChunk, sp: Dictionary, r: Dictionary, idx: int) -> void:
+	# A fashion district block's market alley is stalls, not the service alley (FashionDistrict).
+	if FashionDistrict.dress_market(ch, sp, r, idx):
+		return
 	_queuing = true
 	_queue = []
 	var t0 := Time.get_ticks_usec()

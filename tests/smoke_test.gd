@@ -2168,6 +2168,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Downtown's historic core (tests/historic_core_checks.gd): beaux-arts banks and offices on Spring St
 	# and Main St, their ornament, far cornices, nothing else in the block moved.
 	load("res://tests/historic_core_checks.gd").new().run(self, city)
+	# The fashion district (tests/fashion_district_checks.gd): goods at the shop fronts, the market alley.
+	load("res://tests/fashion_district_checks.gd").new().run(self, city)
 	# The ground outside downtown and midtown (tests/lot_fill_checks.gd): beach-town yards, the
 	# campus, the freeway's right of way - bare share before and after, one mesh each, budgets, and
 	# nothing else in the block moved.
