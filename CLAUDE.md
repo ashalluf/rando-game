@@ -4822,6 +4822,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/glshot/hero_moves_shot.gd` (several stills a load: a clip frozen or a staged move -
   fly, fall, hit_*, draw, land_<speed>, roll, idle_*; `STEP=1` for the foot IK); checks
   `tests/hero_moves_checks.gd`.
+- Swimming (2026-10-05, docs/HANDOFF.md "Swimming"): `Swim` (`scripts/player/swim.gd`, the
+  player's child; `swim.step()` is the first thing in Player's tick after the car and does the whole
+  tick in water). Where water is: `SwimWater` (`scripts/world/swim_water.gd`) - the sea and the bay
+  worked out (`SeaSurface`, `scripts/world/sea_surface.gd`: ocean.gdshader's vertex stage in
+  GDScript, change one change both, the checks read the shader's source) and the marina; the lake,
+  canals and pools registered by their builders (`SwimWater.add_rect()` / `add_poly()`, one line,
+  FULL chunks only). Sea, marina and pools have no real floor under the water, so while he swims
+  there the world layer is off his mask and Swim holds him over the water's own floor and inside a
+  pool's tank. Strokes are code (`SwimPose`, second modifier after HeroMotion; crawl, tread,
+  breaststroke, streamline), the body laid by `Avatar.swim_body()`; FX and synthesized sounds
+  `SwimFX`; the underwater pass `shaders/underwater.gdshader` + `water_underside.gdshader`. Input
+  `dive` (C / Ctrl / pad X). No drowning, no guns. `SWIMMING=0` is the A/B; stills `SWIM_STAGE=
+  tread|crawl|boost|under SWIM_HOLD=1` on `still_shot.gd`; probe `tools/swim/probe.tscn`; checks
+  `tests/swimming_checks.gd`.
 - Late build steps (2026-10-05, docs/HANDOFF.md "The integration-b OOM"): a pass that must run
   after every DEFERRED step (YardFill's walls, `_run_or_defer`, crowds) queues itself with
   `CityChunk._run_last(step)` (ClimbingPlants, Murals); `build_step()` puts those in front of the
