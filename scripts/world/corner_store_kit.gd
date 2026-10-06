@@ -1150,7 +1150,8 @@ static func _people(ch: CityChunk, site: CornerStoreSite, s: Dictionary, lay: Di
 		cg.shadow_enabled = false
 		site.interior.add_child(cg)
 	# At night the shop spills its light out over the pavement (the chunk's shop_spill batch, the
-	# pools the open shops of the city's buildings throw).
+	# pools the open shops of the city's buildings throw, in a batch of its own: the city's spill
+	# is counted against the buildings' pools).
 	var spill := PropFactory.shop_spill()
 	for o: Array in _openings(lay, W):
 		var u0: float = o[0]
@@ -1158,7 +1159,9 @@ static func _people(ch: CityChunk, site: CornerStoreSite, s: Dictionary, lay: Di
 		var wide := (u1 - u0) * 1.6 + 1.0
 		var pxf := Transform3D(Basis(xf.basis.x * wide, xf.basis.z * 7.0, xf.basis.x.cross(xf.basis.z)), xf * Vector3((u0 + u1) * 0.5, 0.0, 0.2))
 		pxf.origin.y = CityChunk.SIDEWALK_TOP + 0.06
-		ch._batch.add("shop_spill", spill, pxf, Color(1.0, 0.93, 0.82, 0.85))
+		ch._batch.add("cstore_spill", spill, pxf, Color(1.0, 0.93, 0.82, 0.85))
+	ch._batch.set_no_shadow("cstore_spill")
+	ch._batch.set_draw_distance("cstore_spill", CityChunk.SHOP_SPILL_DISTANCE)
 	# The cashier behind the counter and a customer in front of it: placed, kinematic, ducking
 	# at gunfire (StreetVendor's truck cook), in the crowd cap.
 	var cs: float = lay.cs
