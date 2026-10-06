@@ -194,7 +194,7 @@ func _check_scene(city: Node3D, chunk: Node3D) -> void:
 			stragglers += 1
 	_check(stragglers == 0, "nobody is left watching a closed scene (%d)" % stragglers)
 	responder.queue_free()
-	if doll is Ragdoll and is_instance_valid(doll):
+	if is_instance_valid(doll) and doll is Ragdoll:
 		(doll as Node).queue_free()
 	_cleanup(peds)
 	await _ticks(2)
@@ -208,7 +208,7 @@ func _film_pose_ok(m: Pedestrian) -> bool:
 	var mi := ph.get_child(0) as Node3D
 	var sk := m._head_skel
 	var head := sk.global_transform * sk.get_bone_global_pose(sk.find_bone("Head")).origin
-	var phone := mi.global_transform * Vector3(0.0, 0.075, 0.022)
+	var phone := mi.global_transform * Vector3(0.0, Onlookers.PHONE_UP, 0.022)
 	var fwd := Vector3(-sin(m._visual.global_rotation.y), 0.0, -cos(m._visual.global_rotation.y))
 	var rel := phone - head
 	var ahead := rel.dot(fwd)

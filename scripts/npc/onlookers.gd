@@ -70,6 +70,9 @@ const POINT_SHARE := 0.16
 const COVER_SHARE := 0.18
 ## How long a call lasts (s), then the caller films or stares.
 const CALL_SECONDS := Vector2(14.0, 32.0)
+## How far along the fingers from the wrist the filming phone's middle is (m): held in the
+## fingers with its top half above them.
+const PHONE_UP := 0.125
 
 ## The open scenes: {id, kind, world (true), born_ms, linger, crowd, members, spots, callers,
 ## closing, ref (the car or the body)}.
@@ -134,6 +137,9 @@ func _look_for_scenes() -> void:
 	var pp := _player.global_position
 	for list: Array in [CarDamage._burning, CarDamage._wrecks]:
 		for item in list:
+			# The lists can hold a car freed this frame (a wreck's debris time ran out).
+			if item == null or not is_instance_valid(item):
+				continue
 			var car: Vehicle = (item as CarDamage).car if item is CarDamage else item as Vehicle
 			if car == null or not is_instance_valid(car) or not car.is_inside_tree() or car is EmergencyCar:
 				continue
@@ -207,7 +213,7 @@ func scene_point(s: Dictionary) -> Vector3:
 
 func _band(s: Dictionary) -> Vector2:
 	var ref: Variant = s.ref
-	if s.kind == Kind.WRECK and ref is Vehicle and is_instance_valid(ref):
+	if s.kind == Kind.WRECK and is_instance_valid(ref) and ref is Vehicle:
 		var dmg: Variant = (ref as Vehicle)._damage
 		if dmg != null and is_instance_valid(dmg) and (dmg as CarDamage).on_fire():
 			return BURNING_BAND
@@ -661,8 +667,8 @@ static func pose(p: Pedestrian, delta: float) -> void:
 			var gz := -dir
 			var gy := (up - gz * up.dot(gz)).normalized()
 			var phone_at := eye + dir * 0.33 * unit + left * sgn * (0.02 if bool(w.two) else 0.07) * unit - up * 0.03 * unit
-			# The hand bone is the wrist: the phone's middle is 7.5 cm along the fingers from it.
-			var wrist := phone_at - gy * 0.075 * unit - gz * 0.022 * unit
+			# The hand bone is the wrist: the phone's middle is PHONE_UP along the fingers from it.
+			var wrist := phone_at - gy * PHONE_UP * unit - gz * 0.022 * unit
 			_arm(sk, side, wrist, up * -1.0 + left * sgn * 0.35 - fwd * 0.1, _hand_for(side, gy, gz), weight)
 			if bool(w.two):
 				var other := "Left" if side == "Right" else "Right"
@@ -790,14 +796,16 @@ static func film_phone_mesh() -> Mesh:
 		return _phone
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	CrowdLife._box(st, Vector3(0.0, 0.075, 0.022), Vector3(0.072, 0.15, 0.008), Color(0.08, 0.08, 0.09), 0.0)
+	# Held low in the fingers, the top half (the camera) standing clear of them, as people film.
+	var c := Vector3(0.0, PHONE_UP, 0.022)
+	CrowdLife._box(st, c, Vector3(0.072, 0.15, 0.008), Color(0.08, 0.08, 0.09), 0.0)
 	# The picture on the screen: a bright, washed street (the camera app) - the screen is what
 	# a filmer's face is lit by, and what reads from behind them.
-	CrowdLife._box(st, Vector3(0.0, 0.075, 0.0265), Vector3(0.065, 0.138, 0.0012), Color(0.62, 0.66, 0.7), 1.0)
-	# The camera bump on the back, toward the scene (-z of the grip is into the palm's side).
-	CrowdLife._box(st, Vector3(-0.018, 0.128, 0.0165), Vector3(0.028, 0.03, 0.0035), Color(0.14, 0.14, 0.15), 0.0)
-	CrowdLife._box(st, Vector3(-0.024, 0.132, 0.0144), Vector3(0.009, 0.009, 0.0012), Color(0.02, 0.02, 0.03), 0.0)
-	CrowdLife._box(st, Vector3(-0.008, 0.124, 0.0144), Vector3(0.009, 0.009, 0.0012), Color(1.0, 0.97, 0.9), 3.0)
+	CrowdLife._box(st, c + Vector3(0.0, 0.0, 0.0045), Vector3(0.065, 0.138, 0.0012), Color(0.62, 0.66, 0.7), 1.0)
+	# The camera bump on the back, toward the scene (the palm's side of the phone), near the top.
+	CrowdLife._box(st, c + Vector3(-0.018, 0.053, -0.0055), Vector3(0.028, 0.03, 0.0035), Color(0.14, 0.14, 0.15), 0.0)
+	CrowdLife._box(st, c + Vector3(-0.024, 0.057, -0.0076), Vector3(0.009, 0.009, 0.0012), Color(0.02, 0.02, 0.03), 0.0)
+	CrowdLife._box(st, c + Vector3(-0.008, 0.049, -0.0076), Vector3(0.009, 0.009, 0.0012), Color(1.0, 0.97, 0.9), 3.0)
 	st.generate_normals()
 	_phone = st.commit()
 	return _phone

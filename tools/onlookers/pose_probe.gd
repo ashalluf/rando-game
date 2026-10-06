@@ -38,7 +38,7 @@ func _ready() -> void:
 			if p.has_meta("onlooker_phone"):
 				var ph: Node3D = p.get_meta("onlooker_phone")
 				var m := ph.get_child(0) as Node3D
-				var c := m.global_transform * Vector3(0, 0.075, 0.022)
+				var c := m.global_transform * Vector3(0, Onlookers.PHONE_UP, 0.022)
 				var scr := (m.global_basis * Vector3(0, 0, 1)).normalized()
 				line += " phone %s screen.toEye %.2f fingers %s" % [rel.call(c - head), scr.dot((head - c).normalized()), rel.call((m.global_basis * Vector3(0, 1, 0)).normalized())]
 			print(line)

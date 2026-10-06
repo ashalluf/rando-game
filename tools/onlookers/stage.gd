@@ -97,7 +97,12 @@ static func stage(tree: SceneTree, city: Node, kind: String, cam: Camera3D) -> S
 			dmg._staged = true
 			dmg.become_wreck()
 			ref = car
+			# A wreck is tossed when it goes up: where it comes to rest is the scene.
+			for i in 90:
+				await tree.physics_frame
 			world = WorldState.to_world(car.global_position)
+			var rest := Vector2(world.x, world.z)
+			at = rest - out * (inset + 1.4)
 		"blast":
 			okind = Onlookers.Kind.BLAST
 		_:
@@ -111,7 +116,7 @@ static func stage(tree: SceneTree, city: Node, kind: String, cam: Camera3D) -> S
 			ref = victim._doll
 			for i in 40:
 				await tree.physics_frame
-			if ref is Ragdoll and is_instance_valid(ref) and not (ref as Ragdoll).bodies.is_empty():
+			if is_instance_valid(ref) and ref is Ragdoll and not (ref as Ragdoll).bodies.is_empty():
 				world = WorldState.to_world(((ref as Ragdoll).bodies[0] as Node3D).global_position)
 				(ref as Node).set_meta("debris_life", 100000.0)
 				(ref as Node).set_meta("onlooked", true)
@@ -130,7 +135,8 @@ static func stage(tree: SceneTree, city: Node, kind: String, cam: Camera3D) -> S
 	# other views (and the first again at ONLOOKER_NIGHT, default 21.5) as SHOTS for the same load.
 	var look := Vector3(world.x, world.y + 0.9, world.z)
 	var side := Vector2(-out.y, out.x)
-	var main := _eye_at(Vector3(at.x, gy + 1.75, at.y) + Vector3(out.x, 0.0, out.y) * 11.0 + Vector3(side.x, 0.0, side.y) * 2.5, look)
+	var back := 20.0 if okind == Onlookers.Kind.WRECK else 11.0
+	var main := _eye_at(Vector3(at.x, gy + 1.75, at.y) + Vector3(out.x, 0.0, out.y) * back + Vector3(side.x, 0.0, side.y) * 2.5, look)
 	var filmer: Pedestrian = null
 	var best := INF
 	for m: Pedestrian in s.get("members", []):
