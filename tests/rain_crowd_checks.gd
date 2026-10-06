@@ -15,13 +15,19 @@ func run(t: Node, city: Node3D) -> void:
 	_t = t
 	_tree = t.get_tree()
 	_check(RainCrowd.enabled, "the rain crowd is on (RAIN_CROWD=0 is the A/B)")
+	# Crowd life is a static switch other code can leave off (a golfer once did); it is what
+	# this checks, so it is on for the checks and put back after.
+	var life_was := Pedestrian.life_enabled
+	Pedestrian.life_enabled = true
 	_check_meshes()
 	var chunk: Node3D = city.chunks.get(Vector2i(0, 0))
 	_check(chunk != null, "the spawn block's chunk is loaded for the rain crowd checks")
 	if chunk == null:
+		Pedestrian.life_enabled = life_was
 		return
 	await _check_behaviour(city, chunk)
 	RainCrowd.forced = -1.0
+	Pedestrian.life_enabled = life_was
 
 
 func _check_meshes() -> void:

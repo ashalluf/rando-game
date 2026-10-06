@@ -187,7 +187,9 @@ func setup_golfer(home: Vector2, y: float, target: Vector2, r: int, seed_value: 
 		_:
 			club = Club.IRON
 	cross_chance = 0.0
-	life_enabled = false
+	# (No `life_enabled = false` here: it is Pedestrian's STATIC switch, and set from a golfer it
+	# turned crowd life off for the whole city. A golfer never lives anyway: _lives() is only the
+	# plain pedestrian's and the replica walker's script.)
 	position = Vector3(home.x, y, home.y)
 
 

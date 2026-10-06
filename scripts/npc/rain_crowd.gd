@@ -92,6 +92,8 @@ var _think: float = 0.0
 var _seen: bool = false
 var _umbrella: MeshInstance3D
 var _step: int = -1
+## Where the umbrella was last put (world): read when it is dropped, as the person leaves the tree.
+var _last_xf := Transform3D.IDENTITY
 var _hood_mi: MeshInstance3D
 var _hood_base := Transform3D.IDENTITY
 var _hood_pivot := Vector3.ZERO
@@ -163,7 +165,7 @@ func _on_exit() -> void:
 	mi.material_override = _umbrella.material_override
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	body.add_child(mi)
-	var at := _umbrella.global_transform
+	var at := _last_xf
 	parent.add_child(body)
 	body.global_transform = at
 	body.linear_velocity = Vector3(randf_range(-1.5, 1.5), randf_range(1.0, 2.5), randf_range(-1.5, 1.5))
@@ -528,7 +530,8 @@ func _place_umbrella() -> void:
 	var zv := xv.cross(yv).normalized()
 	# A furled one hangs from the crook / top of the grip, so it sits a little lower in the hand.
 	var at := grip if raise > 0.5 else grip - yv * 0.02
-	_umbrella.global_transform = Transform3D(Basis(xv, yv, zv), at)
+	_last_xf = Transform3D(Basis(xv, yv, zv), at)
+	_umbrella.global_transform = _last_xf
 
 
 ## Turns `bone` in skeleton space so its child lies along `dir`, by `w`.
