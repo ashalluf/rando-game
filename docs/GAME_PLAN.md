@@ -295,6 +295,19 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-06 Engines are voices on the nearest cars, revved by a simulated gearbox (HANDOFF "Engine
+  audio").** Every car used to share one low-quality engine loop, played only for the player's
+  car and pitched linearly with speed; traffic was a tyre roll. Decisions: a pool of voices (4
+  traffic + the player's car, 2 on the web) re-picked by distance every 0.2 s rather than a
+  player per car; an engine per body type (six profiles), each a ladder of loops recorded at
+  fixed rpm crossfaded equal-power and pitched by rpm, the industry's standard granular-by-rpm
+  scheme, rather than one pitched loop; the revs come from a pure gearbox simulation
+  (`EngineAudio.step_engine()`, unit-checked) so shifts, kick-down and the limiter are heard;
+  the loops are SYNTHESISED offline from firing pulses (tools/engine_audio.py) because no CC0
+  engine recording was reachable from the session's network, with every file replaceable by a
+  recording under the same name. DrivingFX keeps the physical cars' squeal; EngineAudio adds one
+  only for kinematic traffic, which has no tyre slip to read.
+
 - **2026-10-05 The street's signs are real models (HANDOFF "The street's signs").** The signs
   were a cylinder for a stop sign facing the junction diagonally, flat boxes with TextMesh names
   and red-banded white boxes. Decisions: built in CODE at real size (StreetSignKit; BoulevardSigns owns the kerb's parking plates), not Blender - every

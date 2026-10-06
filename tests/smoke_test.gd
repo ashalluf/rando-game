@@ -2326,6 +2326,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Street lamps (tests/street_lamps_checks.gd): the kit against its table, the pick per street,
 	# the arms over the road, the lamps' pools and omnis, and the same prop ids with the kit off.
 	load("res://tests/street_lamps_checks.gd").new().run(self, city)
+	# Engine audio (tests/engine_audio_checks.gd): profiles and loops, the gearbox, the player's
+	# voice, a truck's diesel and reversing alarm, a horn per car.
+	await load("res://tests/engine_audio_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

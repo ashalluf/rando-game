@@ -306,6 +306,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   doors); `ParkBall` plays `ball_dribble` on each floor hit. Clips are cut by
   `tools/city_audio.py` (sources and spans in docs/ASSETS.md); `tools/audio_probe.tscn` prints
   the space, reverb, echo taps, beds and footing at named places. Checks: `tests/audio_checks.gd`.
+- Engine audio (2026-10-06, docs/HANDOFF.md "Engine audio"): `EngineAudio`
+  (`scripts/vehicles/engine_audio.gd`, one node under the root, made by the first Vehicle like
+  CarLights) voices the `voices` (4, web 2) running cars nearest the camera within `reach` plus the
+  player's car (the Vehicle's old `engine_loop` then stays quiet). Profiles by body type
+  (`profile_for()`; meta `engine_profile` overrides, "moto" for motorcycles): Sfx
+  `eng_<profile>_<idle|low|mid|high|off>`, crossfaded equal-power by rpm and pitched rpm / the
+  loop's rpm (`PROFILES.rpm`), the coasting loop as the throttle lifts. Revs come from the pure
+  `step_engine()` (gears between `first` and `top`, shifts by throttle, kick-down, clutch slip,
+  limiter, free revs in the air or on boost). Turbo / blow-off, reversing alarm (trucks, buses), a
+  squeal for kinematic traffic braking hard (DrivingFX keeps the physical cars'), `horn()` one
+  take and pitch per car (TrafficAI's honks; the player's `horn` action, H / d-pad down). The
+  loops are synthesised by `tools/engine_audio.py` (no CC0 recording was reachable) and replaceable
+  by name. `ENGINE_AUDIO=0` is the A/B, `ENGINE_AUDIO_HUD=1` the debug panel; probe
+  `tools/engine_audio/probe.tscn`; checks `tests/engine_audio_checks.gd`.
 - Day/night: `DayNight` node in the city scene drives the sun, the sky (`shaders/sky.gdshader`,
   a ShaderMaterial on the Environment's Sky: gradient, sun disc, FBM clouds, stars; colors set per
   hour via `set_shader_parameter`) and the `night_factor` shader global (`[shader_globals]` in
