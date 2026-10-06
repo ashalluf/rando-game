@@ -2326,6 +2326,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Street lamps (tests/street_lamps_checks.gd): the kit against its table, the pick per street,
 	# the arms over the road, the lamps' pools and omnis, and the same prop ids with the kit off.
 	load("res://tests/street_lamps_checks.gd").new().run(self, city)
+	# The coast highway under the bluffs (tests/coast_highway_checks.gd): its place, the bench and
+	# bluff, the houses, parking, a chunk's road, houses, collision and cars, LOD and the far city.
+	await load("res://tests/coast_highway_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

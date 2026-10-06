@@ -377,7 +377,11 @@ func begin_build() -> void:
 		_steps.append_array(MarinaBuild.attach(self, block))
 		_steps.append(_finish_build)
 		return
-	match zone:
+	# The coast highway's stretch under the bluffs (CoastHighway) builds its own ground, whatever
+	# the zone: the sea, the sand, the bench and its road, the houses, the bluff's terrain.
+	var coast_steps := CoastHighwayBuild.attach(self, block)
+	_steps.append_array(coast_steps)
+	match (-1 if not coast_steps.is_empty() else zone):
 		MacroMap.Zone.OCEAN:
 			_steps.append(_build_water)
 			# The same for the headland: its shore is an ellipse, so a chunk whose centre is at sea
@@ -410,6 +414,8 @@ func begin_build() -> void:
 			_steps.append(_build_airport)
 		MacroMap.Zone.PORT:
 			_steps.append_array(_port_steps(block))
+		-1:
+			pass # the coast highway's steps above stand in for the zone's
 		_:
 			if _owns_shoreline():
 				_steps.append(_build_beach.bind(block))
@@ -495,6 +501,8 @@ func _begin_capture(block: Dictionary, replica_role: int = 0) -> void:
 		_steps.append(func() -> void: captured.batch = _batch.data())
 		return
 	_steps.append_array(MarinaBuild.extras(self))
+	# The coast highway's houses as far boxes (CoastHighwayBuild).
+	_steps.append_array(CoastHighwayBuild.capture_steps(self))
 	match zone:
 		MacroMap.Zone.CITY:
 			# A replica block or a landmark's site does not build the seeded block, so the far
@@ -1670,7 +1678,8 @@ func _hill_segments() -> Array[Dictionary]:
 		return []
 	var segs: Array[Dictionary] = plan.macro.hill_roads.segments_in(owned_rect())
 	# The coast highway's bridge over the marina's channel replaces its strip there (MarinaBuild).
-	return MarinaBuild.filter_segments(self, segs)
+	# The coast highway's strip under the bluffs is drawn four lanes wide by CoastHighwayBuild.
+	return CoastHighwayBuild.filter_segments(self, MarinaBuild.filter_segments(self, segs))
 
 
 ## Asphalt strips following the carved road beds, clipped to this chunk.
@@ -1788,6 +1797,7 @@ func _shell_marks(area: Rect2) -> Array:
 		if r > 0.0 and not SHELL_FREE_LANDMARKS.has(lm.id) and area.grow(r + SHELL_CLEAR_SPAN).has_point(at):
 			marks.append([at, at, r])
 	marks.append_array(Ballpark.shell_marks(area))
+	marks.append_array(CoastHighwayBuild.shell_marks(self, area))
 	# The reservoir's shore, bathtub ring, trail, dam and spillway (Reservoir.shell_marks()).
 	if plan.macro and plan.macro.reservoir:
 		marks.append_array(plan.macro.reservoir.shell_marks(area.grow(SHELL_CLEAR_SPAN + 12.0)))
@@ -2010,6 +2020,9 @@ func _near_hill_road(p: Vector2, segs: Array[Dictionary], margin: float) -> bool
 
 func _near_pad(p: Vector2, pads: Array[Dictionary], margin: float) -> bool:
 	if Ballpark.covers(p, margin):
+		return true
+	# The coast highway's road, houses and sand (CoastHighway).
+	if plan.macro and plan.macro.coast_highway and plan.macro.coast_highway.covers(p, margin):
 		return true
 	for m in pads:
 		if p.distance_to(m.pos) < HillRoads.PAD_RADIUS + margin:

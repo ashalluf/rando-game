@@ -220,6 +220,8 @@ var reservoir: Reservoir
 var freeway: Freeway
 ## What stands on the hills (Ridges): fire roads and pads carved here, the lines planned with the plan.
 var ridges: Ridges
+## The coast highway under the bluffs north of the beach town (CoastHighway; COAST_HIGHWAY=0 off).
+var coast_highway: CoastHighway
 
 var _noise: FastNoiseLite
 ## Erosion on the three ranges (not the headland, which is shaped to photographs): erosion
@@ -357,6 +359,9 @@ func setup() -> void:
 		if mr.build(self, seed):
 			marina = mr
 		LoadClock.stop("macro: marina")
+	# The coast highway's bench and bluff (CoastHighway): before the hill roads, which carve the
+	# coast highway on the land it lays.
+	coast_highway = CoastHighway.make(self, seed)
 	LoadClock.start("macro: oil field, reservoir")
 	# The oil field's hill (OilField): a landmark area whose relief is folded in by _relief_at().
 	oil = null
@@ -514,6 +519,9 @@ func _relief_at(pos: Vector2, raw: float) -> float:
 	# The oil field's hill, its lease roads and pads graded in (OilField.apply()).
 	if oil:
 		h = oil.apply(pos, h)
+	# Flat under the coast highway's bench and sand (CoastHighway.calm()).
+	if coast_highway:
+		h = coast_highway.calm(pos, h)
 	return h
 
 
@@ -541,7 +549,7 @@ func _relief_natural(pos: Vector2, raw: float) -> float:
 	if fade <= 0.0:
 		return base
 	var cx := coast_x(pos.y)
-	var bw := beach_width_at(pos.y)
+	var bw := _beach_width_base(pos.y)
 	fade *= smoothstep(cx + bw + 20.0, cx + bw + 220.0, pos.x)
 	# Downtown at 1:1 lies flat: the rolling relief would put twenty-metre swells across a real
 	# street grid (and the towers flatten it round themselves anyway, in patches).
@@ -659,6 +667,9 @@ func raw_height_at(pos: Vector2) -> float:
 		var bench := lerpf(minf(h, shelf_height + 14.0 * n2), h, rise)
 		h = lerpf(h, bench, north)
 	h = maxf(h, 0.0) * _shore_mask(pos)
+	# The coast highway's sand, bench and cut bluff (CoastHighway.profile()).
+	if coast_highway and coast_highway.weight(pos.y) > 0.0:
+		h = coast_highway.profile(pos.x - coast_x(pos.y), pos.y, h)
 	if reservoir:
 		h = reservoir.carve(pos, h)
 	return h
@@ -879,6 +890,12 @@ func in_bay(pos: Vector2) -> bool:
 ## How wide the sand is at z: the replica's own beach (bluff toe to waterline) along its coast,
 ## eased back to the basin's `beach_width` over the same blend the coast uses.
 func beach_width_at(z: float) -> float:
+	var w := _beach_width_base(z)
+	# The coast highway's sand ends at its seawall (CoastHighway).
+	return coast_highway.beach_width(z, w) if coast_highway else w
+
+
+func _beach_width_base(z: float) -> float:
 	if replica == null:
 		return beach_width
 	var r := replica.coast_range()
