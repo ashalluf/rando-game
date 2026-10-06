@@ -25,6 +25,10 @@ func run(t: Node, player: CharacterBody3D) -> void:
 	var motion: Node = sk.find_child("HeroMotion", false, false) if sk else null
 	var fx: Node = w.get_node("WingsuitFx")
 	var manager: Node3D = player.get("weapon_manager")
+	# The suit's camera chase turns the view; the checks after these aim along it.
+	var rig: Node3D = player.get_node("CameraRig")
+	var look := Vector2(rad_to_deg(rig.rotation.y), rad_to_deg(rig.rotation.x))
+	var visual_yaw: float = (player.get_node("Visual") as Node3D).rotation.y
 	await _ticks(10)
 	_check(player.is_on_floor() and not bool(w.call("can_open")), "no wingsuit on the ground")
 	await _press("wingsuit")
@@ -96,6 +100,7 @@ func run(t: Node, player: CharacterBody3D) -> void:
 	var lane := _clear_lane(player, start)
 	_check(lane != Vector3.ZERO, "found a clear lane in the room for the landings")
 	if lane == Vector3.ZERO:
+		rig.call("set_look", look.x, look.y)
 		return
 	# Slow and low: he runs it out.
 	await _drop(player, start + Vector3.UP * 9.0, lane * 14.0 + Vector3.DOWN * 3.0)
@@ -124,7 +129,10 @@ func run(t: Node, player: CharacterBody3D) -> void:
 	w.call("force_input", Vector2.INF)
 	player.global_position = start
 	player.velocity = Vector3.ZERO
+	rig.call("set_look", look.x, look.y)
+	(player.get_node("Visual") as Node3D).rotation.y = visual_yaw
 	await _ticks(30)
+	_check(not bool(w.call("is_active")) and absf(float(rig.get("camera_distance")) - 6.5) < 0.01, "the suit is off and the camera back to its own distance")
 
 
 ## Puts him somewhere with a velocity, his physics running.
