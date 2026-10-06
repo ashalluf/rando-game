@@ -23,11 +23,11 @@ uniform int seed_salt = 0;
 // The number of names in the atlas (StarNames.NAMES.size()).
 uniform int name_count = 120;
 // Linear colours.
-uniform vec3 charcoal = vec3(0.022, 0.022, 0.026);
+uniform vec3 charcoal = vec3(0.026, 0.025, 0.025);
 uniform vec3 coral = vec3(0.50, 0.17, 0.14);
 uniform vec3 coral_star = vec3(0.64, 0.24, 0.20);
 uniform vec3 brass = vec3(0.66, 0.46, 0.20);
-uniform vec3 concrete = vec3(0.40, 0.37, 0.33);
+uniform vec3 concrete = vec3(0.26, 0.23, 0.19);
 uniform float terrazzo_roughness = 0.26;
 uniform float brass_roughness = 0.32;
 
@@ -63,7 +63,7 @@ float h01(int a, int b, int c) {
 // cellular field (the nearest of four jittered chips per 2.2 cm cell). Returns the chip's tone
 // change and whether we are on one.
 vec2 terrazzo(vec2 p, int salt) {
-	vec2 g = p / 0.022;
+	vec2 g = p / 0.015;
 	vec2 i = floor(g);
 	vec2 f = g - i;
 	float best = 9.0;
@@ -170,8 +170,8 @@ void fragment() {
 		vec2 tz = terrazzo(p, salt);
 		vec3 base = in_sq ? charcoal : coral;
 		// The chips: lighter in charcoal, the coral's own palette in the borders.
-		vec3 chip = in_sq ? mix(vec3(0.55, 0.54, 0.52), vec3(0.008), step(tz.x, 0.0)) : mix(vec3(0.85, 0.62, 0.55), vec3(0.20, 0.06, 0.05), step(tz.x, 0.0));
-		col = mix(base, chip * (0.6 + 0.4 * abs(tz.x)), tz.y * (in_sq ? 0.42 : 0.35));
+		vec3 chip = in_sq ? mix(vec3(0.36, 0.355, 0.35), vec3(0.008), step(tz.x, 0.0)) : mix(vec3(0.85, 0.62, 0.55), vec3(0.20, 0.06, 0.05), step(tz.x, 0.0));
+		col = mix(base, chip * (0.6 + 0.4 * abs(tz.x)), tz.y * (in_sq ? 0.34 : 0.3));
 		// Brass divider strips: between the squares and down both edges of the square row.
 		float sx = min(lx, 1.0 - lx) * CELL;
 		float sy = min(abs(p.y - EDGE), abs(p.y - EDGE - CELL));
@@ -189,7 +189,7 @@ void fragment() {
 			strip = max(strip, rim);
 			// The name across the upper star, the emblem in its ring under it.
 			int k = int(h3(n, salt, 11) % uint(max(name_count, 1)));
-			float nm = name_ink(k, 0.0, (q - vec2(-0.29, 0.085)) / vec2(0.58, 0.0725));
+			float nm = name_ink(k, 0.0, (q - vec2(-0.31, 0.07)) / vec2(0.62, 0.0775));
 			int e = int(h3(n, salt, 23) % 5u);
 			vec2 ec = q - vec2(0.0, -0.075);
 			float er = length(ec);
@@ -197,13 +197,18 @@ void fragment() {
 			float disc = 1.0 - smoothstep(0.088 - px * 0.5, 0.088 + px * 0.5, er);
 			float em = emblem_ink(e, ec / 0.16 + 0.5) * disc;
 			col = mix(col, charcoal * 1.6, disc * 0.85);
-			strip = max(strip, max(ring, max(smoothstep(0.35, 0.65, nm), smoothstep(0.35, 0.65, em))));
+			strip = max(strip, ring);
+			// The letters and the emblem: cast brass inlaid, darker in the strokes' recess.
+			float glyph = max(smoothstep(0.3, 0.6, nm), smoothstep(0.35, 0.65, em));
+			col = mix(col, brass * 0.55, glyph);
+			metal = max(metal, glyph * 0.85);
+			rough = mix(rough, 0.4, glyph);
 		}
 		// Brass: polished where feet go, darker and duller in the corners of the strokes.
 		float wear = h01(n, salt, 5);
 		vec3 b = brass * (0.85 + 0.3 * wear);
 		col = mix(col, b, strip);
-		metal = strip * 0.9;
+		metal = max(metal, strip * 0.9);
 		rough = mix(rough, brass_roughness, strip);
 		// A faint scuffed path down the middle of the band.
 		float scuff = exp(-pow((p.y - BAND * 0.5) / 0.45, 2.0));
@@ -241,7 +246,7 @@ void fragment() {
 			depth = press;
 			// The signature and the year, written with a stick in the wet concrete.
 			int k = int(h3(c.x, c.y, salt + 77) % uint(max(name_count, 1)));
-			float sg = name_ink(k, SIG_ROW0, (q - vec2(-0.40, -0.14)) / vec2(0.80, 0.10));
+			float sg = name_ink(k, SIG_ROW0, (q - vec2(-0.46, -0.16)) / vec2(0.92, 0.115));
 			depth = max(depth, smoothstep(0.3, 0.7, sg) * 0.7);
 			// Inside an impression: darker (grime collects), a little smoother.
 			// The impression's wall, as a normal from the distance's gradient.
@@ -249,7 +254,7 @@ void fragment() {
 			float wall = (1.0 - smoothstep(0.0, 0.006, abs(dh))) ;
 			nrm = normalize(vec3(-g / max(length(g), 1e-6) * wall * 0.45, 1.0));
 		}
-		col *= 1.0 - depth * 0.38;
+		col *= 1.0 - depth * 0.55;
 		rough = mix(rough, 0.72, depth);
 		col = mix(col, col * 0.62, joint);
 	}

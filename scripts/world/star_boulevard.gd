@@ -382,7 +382,7 @@ static func _band(ch: CityChunk, rect: Rect2, side: int) -> void:
 	var dir := -float(side)
 	var salt := 1 if side < 0 else 2
 	var x := span.x
-	var any := false
+	var squares := 0
 	while x < span.y - 0.5:
 		var xa := x
 		var xb := x + 1.0
@@ -401,8 +401,8 @@ static func _band(ch: CityChunk, rect: Rect2, side: int) -> void:
 			st.set_uv(uvs[i])
 			st.set_uv2(Vector2(float(salt), 0.0))
 			st.add_vertex(vs[i])
-		any = true
-	if not any:
+		squares += 1
+	if squares == 0:
 		return
 	st.generate_tangents()
 	var mi := MeshInstance3D.new()
@@ -412,6 +412,8 @@ static func _band(ch: CityChunk, rect: Rect2, side: int) -> void:
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.visibility_range_end = BAND_DRAW
 	mi.add_to_group("walk_of_fame")
+	mi.set_meta("squares", squares)
+	mi.set_meta("band_z", (z0 + z1) * 0.5)
 	ch.add_child(mi)
 
 

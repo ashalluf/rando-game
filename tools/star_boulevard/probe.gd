@@ -53,6 +53,7 @@ func _ready() -> void:
 		for bz in [int(p.road) - 1, int(p.road)]:
 			var side := StarBoulevard.block_side(plan, bx, bz)
 			var rect: Rect2 = plan.block(bx, bz).rect
+			print("BLOCK %d,%d side %+d rect %s band z %.1f" % [bx, bz, side, str(rect), StarBoulevard.kerb_z(rect, side) + (1.0 if side > 0 else -1.0) * (StarBoulevard.BAND_FROM + StarBoulevard.BAND * 0.5)])
 			var n := 0
 			for i in StarBoulevard.MAX_CHARACTERS:
 				var cs := StarBoulevard.character_spot(plan, bx, bz, rect, side, i)
