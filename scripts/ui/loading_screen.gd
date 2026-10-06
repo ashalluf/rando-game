@@ -284,6 +284,9 @@ func _warm_shaders() -> void:
 	# The roadside pads' repeated pieces (RoadsideKit), built here so the first pad does not stall.
 	if Roadside.enabled:
 		effects.append_array(RoadsideKit.warm())
+	# Backyard life's patio sets, grills, trampolines, floats and lights (BackyardKit).
+	if Backyards.enabled:
+		effects.append_array(BackyardKit.warm())
 	for mat: Material in effects:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
