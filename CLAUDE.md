@@ -1631,6 +1631,21 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `BEATER_DOORS`); every other car skips it on `wear == 0`. SUV and minivan have privacy glass
   (`CarCabin.PRIVACY_BODIES`). `car_shot.gd --each=14,15,16,17,18` (the taxi comes in its livery;
   `LOOK=n` a beater's door / a taxi's number). Checks: `tests/more_cars_checks.gd`.
+- Lowriders (2026-10-06, docs/HANDOFF.md "Lowriders"): `Lowrider` (`scripts/vehicles/lowrider.gd`),
+  `BodyType.LOWRIDER_HARDTOP` (a 1960s full-size hardtop) and `LOWRIDER_COUPE` (a 1980s coupe),
+  appended, `BODY_ODDS` 0, built by `tools/make_lowriders.py` on the road-car loft (bpy 4.2 works:
+  `pip install bpy==4.2.0`). Paint: car_paint.gdshaderinc's `custom` block (0 on every other car):
+  candy depth (`candy_deep`), body-fixed deep flake, pinstripes and a lace roof placed in MESH space
+  by `Lowrider.PAINT_PLACES` (the run's LOWRIDER lines). Wheels: WHEEL_POSE `"wire"` hands over to
+  `Lowrider.add_wheels()` (72-spoke code-built wire wheels, `shaders/wire_wheel.gdshader`, part in
+  COLOR.a). `Lowrider.Hydraulics` (a child node) springs four corner heights and moves the BodyModel
+  holder and NightLights (visual only); a corner past `stroke` lifts its wheel; a physical car lays
+  back at rest. `LowriderMeet` (`scripts/world/lowrider_meet.gd`): one boulevard kerb per `CELL` by
+  hash, Fri/Sat/Sun from 18:30, a kinematic row (`traffic` with `"parked"`) plus `MeetGoer`s, the
+  parked cars skipped after their rolls (`blocks_parking()`); `traffic_kind()` sends a few cruising
+  slow (`TrafficManager._street_kind()`, its roll reused). `LOWRIDERS=0` the A/B, `LOWRIDER_MEET=1`
+  forces meets on, `LOWRIDER_POSE=i:hop:0.7` freezes row car i mid-routine; `car_shot.gd --each=25,26
+  HYDRAULICS=hop`; probe `tools/lowrider_probe.gd`; checks `tests/lowriders_checks.gd`.
 - Night aerial (2026-10-05, VISUAL_ROADMAP #62, docs/HANDOFF.md "The night aerial"): past the
   streamed range the city's night is worked out per pixel in the far shaders, never simulated
   or placed. **Traffic lights**: `shaders/far_traffic.gdshaderinc` (`traffic_lights()`,

@@ -1216,7 +1216,8 @@ func _tick_lights(delta: float) -> void:
 	elif is_traffic():
 		var v := traffic_speed
 		var decel := (_prev_traffic_speed - v) / maxf(delta, 0.0001)
-		braking = v < 0.3 or decel > 0.8
+		# (A kerbside show car, a lowrider at its meet, has its foot off the pedal.)
+		braking = (v < 0.3 or decel > 0.8) and not traffic.get("parked", false)
 		_prev_traffic_speed = v
 		sig = _traffic_signal()
 	elif _npc_driver:

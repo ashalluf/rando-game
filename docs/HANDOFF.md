@@ -14201,3 +14201,93 @@ streets' glow stands in). The lamps stand where the old ones stood, and on some 
 is beside a utility pole (StreetDetail's), which the old thin post hid better. No real light
 shaped like the cobra's cut-off (still an omni). Shot lamps break as before (debris box), no
 falling pole.
+
+## 9d?. Lowriders: two classic bodies, candy paint, wire wheels, hydraulics and weekend cruise nights, 2026-10-06 (agent branch `wt/lowriders`)
+
+**What.** Very LA: two Blender-built classic bodies, a 1960s full-size two-door hardtop
+(`BodyType.LOWRIDER_HARDTOP`, 5.49 m: long flat bonnet and deck, a pillarless glasshouse with only
+a chrome edge between the door glass and the quarter glass, a wrapped windscreen, a sloping formal
+roof, quad round headlamps in chrome bezels either side of a barred grille, triple round tail lamps
+in a chrome tail panel, a chrome spear down each flank, rocker mouldings, blade bumpers, bullet
+mirrors) and a 1980s personal-luxury coupe (`LOWRIDER_COUPE`, 5.15 m: upright vertical-bar chrome
+grille between stacked rectangular sealed beams, long doors, a formal roof with a steep backlight,
+a broad C-pillar with an opera window and lamp, a padded half roof in the trim slot, wrap-round
+tail lamps, chrome bumpers with black rub strips). Both sit LOW (sill ~17 cm off the road) on
+13" chrome wire wheels with thin whitewalls; candy paint over deep metal flake, pinstripes and a
+lace-patterned roof; hydraulics that hop, three-wheel, dance and lift. On Friday, Saturday and
+Sunday nights a cruise night parks a row of them along one boulevard kerb per map cell with a crowd
+round them, a few working their switches; and now and then one cruises slow in the street traffic,
+bouncing. All names original; no manufacturer's shapes, badges or names.
+
+**Bodies** (`tools/make_lowriders.py`, imports make_road_cars.py / make_more_cars.py: the same
+profile-curve loft, booleans, raycast parts, seven slots and far twin). Its own detail builder
+(`lowrider_details()`: everyday_details() without a rear door, with round or stacked lamps and
+their chrome bezels, a barred or vertical-bar grille, a chrome tail panel, spears, rocker
+mouldings, dividers, the vinyl roof). ~49-51k triangles near, ~7.9k far. download.blender.org is
+blocked here; `python3.11 -m venv bpyenv && bpyenv/bin/pip install bpy==4.2.0`, then
+`bpyenv/bin/python tools/make_lowriders.py -- lowrider_hardtop lowrider_coupe [--render]` (it
+segfaults on exit AFTER writing - harmless), then `--import`. The run prints WHEEL_POSE, `_dims`
+and a LOWRIDER line per body (shoulder, bonnet, roof and deck spans) that `Lowrider.PAINT_PLACES`
+is written from.
+
+**Paint** (`car_paint.gdshaderinc`, the `custom` block; `custom` 0 on every other car skips it):
+candy depth (the colour runs to `candy_deep` where the panel turns away, the path through a
+tinted lacquer), body-FIXED flake (jittered round flakes in mesh space - the old flake used world
+space and would swim on a moving car - each lit only for some view directions so they wink as you
+move, tinted per candy), pinstripes as distance fields in mesh space: a double line down each
+flank tapering at both ends, one of four scroll families on the bonnet and the deck lid (curves
+with a teardrop and curls), and a lace-pattern roof panel in a second colour inside a double
+pinstriped rounded rectangle; pinstripes are enamel (no flake, a little rougher). Ten candies
+(apple red, tangerine, plum, cobalt, teal, lime gold, root beer, emerald, black cherry, pearl
+white with a violet flip), six stripe colours, three pattern colours, all from the car's look hash
+(`Lowrider.paint()`). Works through CarDamage's copy (the same include).
+
+**Wire wheels** (`Lowrider.wire_wheel()`, WHEEL_POSE `"wire"` -> `Lowrider.add_wheels()`): a
+155/80R13 with a thin whitewall stripe, a reversed rim (flange lip, deep chrome dish), 72 spokes
+cross-laced in three rows from the hub's two flanges to nipples in the dish, a chrome or gold hub
+and a two-eared knock-off; all-chrome, gold hub and nipples (28 %) or gold every third spoke
+(14 %). ~6k triangles near, a disc LOD far; one shader (`shaders/wire_wheel.gdshader`, part in
+COLOR.a, a satin stand-in for chrome where there are no reflections).
+
+**Hydraulics** (`Lowrider.Hydraulics`, a child node): four corner heights over rest, each a
+spring toward a target the routine sets (`laid` -6 cm laid out, `stroke` 24 cm), a hop firing the
+front pair up ballistic (2.6-4.4 m/s: 0.35-1.0 m), the rear squatting; a corner past its stroke
+takes its wheel off the road (the wheel hangs); the BodyModel holder and NightLights are moved to
+the four heights (pitch, roll, heave about the axles' middle). Visual only: collision and physics
+stay. Modes PARKED (laid out), SHOW (a meet car working the switches: hop sets of 3-7, three-wheel,
+dance, lift, rests of 5-14 s), CRUISE (traffic: laid a little, a bounce, a three-wheel or a lift
+now and then). A car knocked physical (shot, blasted) lays its body back at rest. Nothing moves
+past `reach` (140 m). Sfx `pump` at a switch, `thud` when a hop lands hard.
+
+**Meets** (`LowriderMeet`, pure like FarmersMarket): map CELL 1600 m, ODDS 0.7 by hash, TRIES
+hashed points; a block's +X / +Z road at least MIN_WIDTH 15.5 m in MIDTOWN, SUBURBS or INDUSTRIAL,
+both blocks unclaimed (no site, grounds, school, hospital, chinatown, landmark, river, marina,
+downtown's extent), the street clear (FarmersMarket._street_clear: no freeway, rail, approach,
+closure), not a market street, flat; the kerb (side) by hash. On a meet night (NIGHTS Fri/Sat/Sun,
+18:30 to 01:30, the chunk's build hour) the owner chunk's block steps (a hook before its parked
+cars) park up to 10 lowriders 6.6 m apart in the parking lane, kinematic (a `traffic` dict with
+`"parked"`: their hydraulics move them, nothing simulates them, their brake lamps stay off; a hit
+knocks one out like any traffic car), 40 % in SHOW; and up to 20 `MeetGoer`s
+(`scripts/npc/meet_goer.gd`, a Pedestrian with the life clips, in the crowd cap) on the pavement
+facing the cars, a third with their phone out filming, all watching whichever car is putting on a
+show, running from gunfire and walking back. The parked cars that would stand in the row are
+skipped AFTER their rolls (`blocks_parking()`), so the block is the same block on any other night.
+**Cruisers**: `TrafficManager._street_kind()` asks `LowriderMeet.traffic_kind()` after its own
+picks, reusing its roll (no new roll): CRUISE_SHARE 0.6 % of street cars in those districts, 3 %
+on a meet night, at 60 % of a street car's speed; a pooled lowrider is never handed out as an
+ordinary car (`_new_car()`), its look from a hash (the street's rng is not spent).
+
+**A/B and tools.** `LOWRIDERS=0` (no meets, no cruisers); `LOWRIDER_MEET=1` holds every meet on;
+`LOWRIDER_POSE=i:routine:seconds[,...]` freezes row car i mid-routine for a still;
+`tools/glshot/car_shot.gd --each=25,26` (`LOOK=n` the look, `HYDRAULICS=hop|three|dance|lift`,
+`HYD_T=` seconds in); `tools/lowrider_probe.gd -- --spawn=x,z,0,0` lists the meets with EYEs
+(the nearest to the spawn: Z#4 at x 810-900, z ~612, ten cars, `EYE=826,13.0,597,-115,-10`).
+
+**Checks** (`tests/lowriders_checks.gd`): the tables and that nothing rolls them; the wire wheel's
+budgets; both bodies built (model, glass, far twin, wire wheels, hydraulics, the custom paint) and
+their build time; a hop throws the nose and its wheels off the road and comes back down laid on its
+wheels; a three-wheel lifts one front wheel with the rear across laid; the body rolls and pitches;
+knocked physical it lies back at rest; where the meets are (open boulevards in their districts,
+decided the same twice) and when (weekend nights only); the cruisers (their districts, more on a
+meet night); a meet chunk (the row, no parked car in it, the crowd on the pavement) and the same
+block on a Tuesday noon.

@@ -486,10 +486,10 @@ def lowrider_coupe():
             "pieces": [
                 # Wide wrap-round lamps across the tail panel, a chrome bar through them and a
                 # reversing lamp inboard, the plate between them.
-                ("glass", (0.20, 0.915, 0.600, 0.800, 2, 12)),
-                ("red", (0.33, 0.905, 0.612, 0.788, 2, 10)),
+                ("glass", (0.20, 0.885, 0.600, 0.800, 2, 12)),
+                ("red", (0.33, 0.875, 0.612, 0.788, 2, 10)),
                 ("clear", (0.21, 0.32, 0.630, 0.770, 2, 2)),
-                ("chrome", (0.20, 0.915, 0.694, 0.706, 1, 12)),
+                ("chrome", (0.20, 0.885, 0.694, 0.706, 1, 12)),
             ],
         },
         "rear_bumper": (0.310, 0.465, 0.055, CHROME),

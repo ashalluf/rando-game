@@ -295,6 +295,17 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-06 Lowriders (HANDOFF "Lowriders").** Two classic bodies (a 1960s hardtop, a 1980s
+  coupe) on the road-car loft in Blender, appended body types never rolled. Decisions: the candy,
+  flake, pinstripes and patterned roof are a `custom` block in the shared car paint include (one
+  uniform branch for every other car) placed in MESH space, not a per-car texture; the wire wheels
+  are built in code like the other generated wheels (72 spokes; a disc far); the hydraulics are
+  VISUAL (the body model and its lamps move, a wheel lifts once its corner passes the stroke; the
+  physics body does not), and a meet car is kinematic like a traffic car, so a row of ten costs no
+  simulation and a hit still turns one into a physics car. Meets are worked out per map cell by
+  hash on boulevards in midtown, the suburbs and the industrial east, weekend nights only, and skip
+  the block's parked cars after their rolls; cruisers reuse the traffic's last roll.
+
 - **2026-10-05 The street's signs are real models (HANDOFF "The street's signs").** The signs
   were a cylinder for a stop sign facing the junction diagonally, flat boxes with TextMesh names
   and red-banded white boxes. Decisions: built in CODE at real size (StreetSignKit; BoulevardSigns owns the kerb's parking plates), not Blender - every

@@ -2326,6 +2326,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Street lamps (tests/street_lamps_checks.gd): the kit against its table, the pick per street,
 	# the arms over the road, the lamps' pools and omnis, and the same prop ids with the kit off.
 	load("res://tests/street_lamps_checks.gd").new().run(self, city)
+	# Lowriders (tests/lowriders_checks.gd): the bodies, wire wheels and paint, the hydraulics, where
+	# and when the meets are, a meet's chunk (the row, the crowd, the block unmoved), the cruisers.
+	await load("res://tests/lowriders_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

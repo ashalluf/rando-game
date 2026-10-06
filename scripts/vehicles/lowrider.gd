@@ -189,7 +189,7 @@ static func wire_wheel(radius: float, width: float, near: bool, gold: int) -> Ar
 	var key := "ww_%d_%d_%d_%d" % [roundi(radius * 1000.0), roundi(width * 1000.0), int(near), gold]
 	if _cache.has(key):
 		return _cache[key]
-	var seg := 64 if near else 18
+	var seg := 48 if near else 18
 	var hw := width * 0.5
 	var rim := radius * RIM_RATIO
 	var st := SurfaceTool.new()
@@ -335,7 +335,7 @@ static func _quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector
 		st.add_vertex(pair[0])
 
 
-## A spoke: a four-sided rod from a to b.
+## A spoke: a three-sided rod from a to b (at 2 mm nobody counts its sides).
 static func _spoke(st: SurfaceTool, a: Vector3, b: Vector3, rad: float, c: Color, k: float) -> void:
 	var dirv := (b - a).normalized()
 	var u := dirv.cross(Vector3.RIGHT)
@@ -345,10 +345,10 @@ static func _spoke(st: SurfaceTool, a: Vector3, b: Vector3, rad: float, c: Color
 	var v := dirv.cross(u).normalized()
 	var col := c
 	col.a = k
-	var sides := [u, v, -u, -v]
-	for i in 4:
+	var sides := [u, (-u * 0.5 + v * 0.866), (-u * 0.5 - v * 0.866)]
+	for i in 3:
 		var s0: Vector3 = sides[i]
-		var s1: Vector3 = sides[(i + 1) % 4]
+		var s1: Vector3 = sides[(i + 1) % 3]
 		_quad(st, a + s0 * rad, b + s0 * rad, b + s1 * rad, a + s1 * rad, s0, s0, s1, s1, col)
 
 
@@ -458,8 +458,8 @@ class Hydraulics extends Node:
 
 	## Starts a routine now ("hop", "three", "dance", "lift", "bounce"): tests and stills.
 	func perform(routine: String, side: float = 1.0) -> void:
-		_side = side
 		_begin(routine)
+		_side = side
 
 	func routine() -> String:
 		return _routine
@@ -473,7 +473,7 @@ class Hydraulics extends Node:
 			return
 		var physical := not _car.is_traffic() and not _car.wheels.is_empty()
 		if physical or _car.is_wreck():
-			if _active:
+			if _active or not _body.transform.is_equal_approx(Transform3D.IDENTITY):
 				_reset()
 			return
 		var cam := get_viewport().get_camera_3d()
