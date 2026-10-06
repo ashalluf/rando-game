@@ -48,10 +48,13 @@ const POST_TOP := 2.86
 const BULB_PITCH := 0.6
 const LIGHT_SAG := 0.28
 
-## Draw distances (m from the chunk's batch centre).
-const NEAR_DRAW := 160.0
-const BIG_DRAW := 280.0
-const SHADOW_DISTANCE := 70.0
+## Draw distances (m from the chunk's batch centre) and the shadows' (their stand-ins'); the kinds
+## that cast one.
+const NEAR_DRAW := 130.0
+const BIG_DRAW := 260.0
+const SHADOW_DISTANCE := 90.0
+const SHADOWED := ["by_dining_metal", "by_dining_teak", "by_umbrella", "by_trampoline", "by_citrus_leaves", "by_citrus",
+	"by_grill_gas", "by_grill_kettle", "by_loungers", "by_doghouse"]
 const LOD_DRAW := 1400.0
 
 ## Paints (sRGB): powder coat; umbrella pads and grill enamel; floats; fruit; doghouses.
@@ -473,12 +476,13 @@ static func _finish_full(ch: CityChunk, st: Dictionary) -> void:
 	for key: String in ch._batch.keys():
 		if not key.begins_with("by_"):
 			continue
-		var big := key in ["by_umbrella", "by_trampoline", "by_citrus_leaves", "by_citrus", "by_smoke"]
+		var big := key in ["by_umbrella", "by_trampoline", "by_citrus_leaves", "by_citrus", "by_smoke", "by_dining_metal", "by_dining_teak", "by_glow"]
 		ch._batch.set_draw_distance(key, BIG_DRAW if big else NEAR_DRAW)
-		if key in ["by_smoke", "by_float_ring", "by_float_mat", "by_float_ball", "by_glow", "by_laundry"]:
-			ch._batch.set_no_shadow(key)
-		elif not big:
+		# The small things cast nothing; the rest from their stand-ins (BackyardKit), not far.
+		if key in SHADOWED:
 			ch._batch.set_shadow_distance(key, SHADOW_DISTANCE)
+		else:
+			ch._batch.set_no_shadow(key)
 	if lights.tris() > 0:
 		var mi := MeshInstance3D.new()
 		mi.name = "BackyardLights"

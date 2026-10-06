@@ -14201,3 +14201,77 @@ streets' glow stands in). The lamps stand where the old ones stood, and on some 
 is beside a utility pole (StreetDetail's), which the old thin post hid better. No real light
 shaped like the cobra's cut-off (still an omni). Shot lamps break as before (debris box), no
 falling pole.
+
+## 9d?. Backyard life in the suburbs and the beach town, 2026-10-05 (fleet wave 2, `wt/backyards`)
+
+**What.** The back yards were lawn, deck or tile with a tree and a pool: nobody lived there. Now
+`Backyards` (`scripts/world/backyards.gd`) furnishes them from YardFill's own lot plans: a patio
+dining set (powder-coated bistro set or a teak table for six) near the house or under the
+climbing plants' pergola, a market umbrella through it (eight fabric colours, some striped), a gas
+cart grill or a kettle grill against the house, string lights zig-zagging from the eave (or posts)
+to two timber posts over the table, chaise loungers beside the pool with a side table, floats on
+the pool (a swim ring, an air mattress, a beach ball) bobbing and turning, a 12 ft trampoline
+with its safety net on the lawn, a T-post washing line hung with the week's wash, one or two
+citrus trees in the back corners (orange, lemon or mandarin in fruit), a doghouse where DogYard
+put a dog out back or a chain-link dog run, and a toddler's slide, wagon and ball (no children:
+the crowd has no child rigs).
+
+**How it is placed.** `plan_lot(plan, lp, district)` is PURE - hashes of seed + lot, never a
+chunk, block or yard rng - and works in the lot's yard frame (u along the street, v back from it).
+Items go into the back zone (the house's back line to the back fence, kept `EDGE` off the fences)
+with a cheap lattice search toward a target per kind (`_find()`: at most 16 x 16 spots, no
+closures - a lambda-scored first version took 100 ms a lot). It keeps clear of the house parts,
+the drive, the pool (floats inside it), YardFill's back-lawn tree (`_plant_back()` puts it at a
+back lawn piece's centre: 4.2 m kept clear) and its shrub strip along the piece's long edge, and
+ClimbingPlants' pergolas (`pergola_rect()` is ClimbingPlants._pergola()'s own rng and first roll;
+a dining set goes under one, without an umbrella or lights). Shares per district (suburbs /
+beach town) are the consts at the top. ~0.22 ms a lot.
+
+**How it is drawn.** Two hook lines in `YardFill._build_beach()`. FULL: deferred after YardFill's
+own dressing jobs (so every existing prop keeps its id; checked), one time-sliced job a lot and a
+finishing job. Each kind is ONE MultiMesh batch a chunk (`by_*`), code-built in `BackyardKit`
+(`scripts/world/backyard_kit.gd`) on `shaders/backyard.gdshader` (what a face is in COLOR.a x 16:
+paint, fabric palette, galvanised, enamel, bulb, ember, jump mat, laundry, peel, timber, canvas,
+vinyl, rubber, stainless, water; paint and the fabric index in INSTANCE_CUSTOM; linear colour
+arithmetic through color_space.gdshaderinc). The chunk's string lights are ONE merged mesh
+(`BackyardLights`), each bulb's centre in CUSTOM0 so the shader keeps it ~1.6 px wide from the
+air; under each set an additive `by_glow` pool (`PropFactory.light_pool`). Bulbs follow
+`lamp_factor`; the grill smoke (`shaders/backyard_smoke.gdshader`, a billboard plume from TIME on
+one quad batch, the custom AABB set) and the fire showing at the grill's lid seam follow
+`city_hour`: 55 % of households cook, each in its own window between 17:06 and ~21:30 - no
+rebuild, no CPU. `BACKYARD_COOK=1` makes every grill cook (stills). Trampoline net and the dog
+run's chain-link are `shaders/backyard_net.gdshader` (cut-out threads blurred to their cover under
+a pixel, dithered). Tables, grills, loungers, trampolines and doghouses are breakable props
+(`patio`, `grill`, `trampoline`, `doghouse`). LOD chunks lay only what reads from the air: a low
+umbrella cone, a trampoline disc and the lights' glow. The far city's capture gets none.
+
+**Cost.** Shadows come from stand-ins of a few dozen triangles registered in
+`PropFactory._shadow_proxies` (dining sets, umbrellas, trampolines, citrus, grills, loungers,
+doghouses; the rest cast nothing), to 90 m. First version: the 150 m aerial +34 % triangles
+(every mesh full detail into every cascade); after trimming the kit 25-45 % and the stand-ins,
+same frames (`still_shot.gd`, opengl3, BACKYARDS=0 vs on):
+
+| frame | before | after |
+|---|---|---|
+| 150 m over block (21,31), noon `EYE=2097,150,4278,0,-55` | 2,907,359 / 1,387 | 3,091,309 / 1,408 (+6.3 % / +1.5 %) |
+| 45 m, noon `EYE=2097,45,4218,0,-50` | 3,632,066 / 1,569 | 3,767,837 / 1,622 (+3.7 % / +3.4 %) |
+| patio, noon `EYE=1513.8,6,3987.6,0,-22` (6 m AGL) | 7,504,474 / 2,759 | 7,608,360 / 2,847 (+1.4 % / +3.2 %) |
+| 40 m over the patio, 21:00 `EYE=1513.8,40,4012,0,-55` | 5,079,004 / 2,501 | 5,024,733 / 2,560 (-1.1 % / +2.4 %) |
+
+(triangles / draws; EYE heights above the ground with `EYE_AGL=1`.) A FULL suburb block
+(seed 1337, (21,35)) gets 181 pieces in 64 of 74 yards, 18 batch kinds.
+
+**Tools.** `tools/backyards/probe.gd` (headless, seconds: counts per kind, the plan time, the
+busiest blocks with EYEs, and EYEs at string lights, trampolines, loungers and grills that cook;
+`SEED`, `R`); `tools/backyards/compile.gd`. Checks: `tests/backyards_checks.gd` (kit budgets,
+purity, clearance, a FULL chunk on / off A/B, LOD, capture). `BACKYARDS=0` is the A/B.
+
+**Stills** (shots/backyards; opengl3, not the Mac's Forward+): the 150 m and 45 m aerials at noon
+and 21:00 before / after, one patio at noon, 18:30 (the grill smoking) and 21:00, a trampoline, a
+pool with loungers, the 40 m night aerial over the patio.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the bulbs' and embers' bloom through AgX,
+the smoke under TAA. No people in the yards (a baked figure on a lounger, BeachFigure-style,
+would be the next step), no hot tubs, fire pits or veg beds. String lights hook onto the house's
+back wall at a fixed 2.55 m (not the real eave of a two-storey house). The pieces stand at the
+yard's level and do not follow a slope inside a lot. A trampoline does not bounce the player.

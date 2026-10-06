@@ -341,8 +341,52 @@ static func smoke_material() -> ShaderMaterial:
 
 static func _cached(key: String, maker: Callable) -> Mesh:
 	if not _meshes.has(key):
-		_meshes[key] = maker.call()
+		var m: Mesh = maker.call()
+		_meshes[key] = m
+		# What casts a shadow casts it from a stand-in of a few dozen triangles (the batch draws it
+		# as its SHADOWS_ONLY twin: MultiMeshBatch.build(), PropFactory.shadow_proxy()).
+		var proxy := _shadow_stand_in(key)
+		if proxy:
+			PropFactory._shadow_proxies[m] = proxy
 	return _meshes[key]
+
+
+## A shadow stand-in for a kit mesh, or null (Backyards keeps the small things' shadows off).
+static func _shadow_stand_in(key: String) -> Mesh:
+	var g := G.new()
+	var k := col(Color.WHITE, K_FIXED)
+	match key:
+		"dining_metal":
+			cyl(g, Vector3(0, 0.7, 0), Vector3(0, 0.73, 0), 0.53, 0.53, 10, k)
+			cyl(g, Vector3(0, 0.0, 0), Vector3(0, 0.7, 0), 0.05, 0.05, 4, k, false)
+			for i in 4:
+				var a := TAU * float(i) / 4.0
+				block(g, Vector3(sin(a), 0, cos(a)) * 0.82, Vector3(0.5, 0.95, 0.5), k, a)
+		"dining_teak":
+			block(g, Vector3(0, 0.0, 0), Vector3(1.8, 0.74, 0.9), k)
+			for z: float in [-0.8, 0.8]:
+				block(g, Vector3(0, 0, z), Vector3(1.5, 0.9, 0.45), k)
+		"umbrella":
+			return get_mesh("umbrella_lod")
+		"trampoline":
+			return get_mesh("trampoline_lod")
+		"citrus_leaves":
+			ellipsoid(g, Vector3(0, 1.75, 0), Vector3(1.2, 0.95, 1.2), 4, 8, k)
+		"citrus":
+			cyl(g, Vector3(0, 0, 0), Vector3(0, 0.9, 0), 0.08, 0.06, 4, k, false)
+		"grill_gas":
+			block(g, Vector3.ZERO, Vector3(1.3, 1.15, 0.55), k)
+		"grill_kettle":
+			block(g, Vector3.ZERO, Vector3(0.6, 1.0, 0.6), k)
+		"loungers":
+			for x: float in [-0.72, 0.72]:
+				block(g, Vector3(x, 0.0, -0.3), Vector3(0.66, 0.4, 1.4), k)
+				box(g, Transform3D(Basis(Vector3.RIGHT, -0.87), Vector3(x, 0.6, 0.62)), Vector3(0.66, 0.08, 0.68), k)
+		"doghouse":
+			block(g, Vector3.ZERO, Vector3(0.9, 0.95, 1.1), k)
+		_:
+			return null
+	return g.mesh(material())
 
 
 ## Every mesh, built now (the loading screen); returns the materials to draw once.
@@ -394,12 +438,12 @@ static func _sling_chair(g: G, xf: Transform3D) -> void:
 		var x := s * w * 0.5
 		# Each side frame: front leg up, the arm back, the rear leg down, the back post up.
 		tube(g, [xf * Vector3(x, 0.0, -0.24), xf * Vector3(x, 0.62, -0.25), xf * Vector3(x, 0.66, -0.18),
-			xf * Vector3(x, 0.66, 0.2), xf * Vector3(x, 0.0, 0.26)], r, 6, paint)
-		tube(g, [xf * Vector3(x, seat - 0.04, -0.22), xf * Vector3(x, seat - 0.06, 0.2), xf * Vector3(x, 0.98, 0.34)], r, 6, paint)
+			xf * Vector3(x, 0.66, 0.2), xf * Vector3(x, 0.0, 0.26)], r, 4, paint)
+		tube(g, [xf * Vector3(x, seat - 0.04, -0.22), xf * Vector3(x, seat - 0.06, 0.2), xf * Vector3(x, 0.98, 0.34)], r, 4, paint)
 	# Cross rails.
-	tube(g, [xf * Vector3(-w * 0.5, seat - 0.04, -0.22), xf * Vector3(w * 0.5, seat - 0.04, -0.22)], r, 6, paint)
-	tube(g, [xf * Vector3(-w * 0.5, 0.98, 0.34), xf * Vector3(w * 0.5, 0.98, 0.34)], r, 6, paint)
-	tube(g, [xf * Vector3(-w * 0.5, 0.12, 0.24), xf * Vector3(w * 0.5, 0.12, 0.24)], r * 0.8, 6, paint)
+	tube(g, [xf * Vector3(-w * 0.5, seat - 0.04, -0.22), xf * Vector3(w * 0.5, seat - 0.04, -0.22)], r, 4, paint)
+	tube(g, [xf * Vector3(-w * 0.5, 0.98, 0.34), xf * Vector3(w * 0.5, 0.98, 0.34)], r, 4, paint)
+	tube(g, [xf * Vector3(-w * 0.5, 0.12, 0.24), xf * Vector3(w * 0.5, 0.12, 0.24)], r * 0.8, 4, paint)
 	# The slings: sagging cloth between the rails.
 	var nx := 4
 	for part in 2:
@@ -437,7 +481,7 @@ static func _dining_metal() -> Mesh:
 	# The top: a pressed-steel disc with a rolled rim, a ring of slots read in the shader as a
 	# darker band (the vertex shade), the hole in the middle.
 	var R := 0.535
-	cyl(g, Vector3(0, top - 0.025, 0), Vector3(0, top, 0), R, R, 28, paint, false)
+	cyl(g, Vector3(0, top - 0.025, 0), Vector3(0, top, 0), R, R, 20, paint, false)
 	var rings := [0.03, 0.12, 0.22, 0.33, 0.42, 0.5, R]
 	for k in rings.size() - 1:
 		var shade := 0.82 if k % 2 == 1 else 1.0
@@ -446,31 +490,31 @@ static func _dining_metal() -> Mesh:
 		var a1: float = rings[k + 1]
 		var ring_a: Array[int] = []
 		var ring_b: Array[int] = []
-		for i in 29:
-			var t := TAU * float(i) / 28.0
+		for i in 21:
+			var t := TAU * float(i) / 20.0
 			var o := Vector3(cos(t), 0, sin(t))
 			ring_a.append(g.vert(o * a0 + Vector3(0, top, 0), Vector3.UP, c2, Vector2(o.x, o.z) * a0))
 			ring_b.append(g.vert(o * a1 + Vector3(0, top, 0), Vector3.UP, c2, Vector2(o.x, o.z) * a1))
-		for i in 28:
+		for i in 20:
 			g.quad(ring_a[i], ring_a[i + 1], ring_b[i + 1], ring_b[i], Vector3.UP)
 	# The underside.
 	var ub: Array[int] = []
 	var cu := g.vert(Vector3(0, top - 0.025, 0), Vector3.DOWN, paint)
-	for i in 29:
-		var t := TAU * float(i) / 28.0
+	for i in 21:
+		var t := TAU * float(i) / 20.0
 		ub.append(g.vert(Vector3(cos(t) * R, top - 0.025, sin(t) * R), Vector3.DOWN, paint))
-	for i in 28:
+	for i in 20:
 		g.tri(cu, ub[i], ub[i + 1], Vector3.DOWN)
 	# Four splayed legs and a ring between them.
 	for k in 4:
 		var a := TAU * (float(k) + 0.5) / 4.0
 		var o := Vector3(cos(a), 0, sin(a))
-		tube(g, [o * 0.42 + Vector3(0, top - 0.02, 0), o * 0.46 + Vector3(0, top - 0.25, 0), o * 0.5 + Vector3(0, 0.0, 0)], 0.014, 6, paint)
+		tube(g, [o * 0.42 + Vector3(0, top - 0.02, 0), o * 0.46 + Vector3(0, top - 0.25, 0), o * 0.5 + Vector3(0, 0.0, 0)], 0.014, 4, paint)
 	var ring: Array = []
 	for i in 17:
 		var t := TAU * float(i) / 16.0
 		ring.append(Vector3(cos(t) * 0.475, 0.2, sin(t) * 0.475))
-	tube(g, ring, 0.008, 5, paint)
+	tube(g, ring, 0.008, 3, paint)
 	# Four chairs round it, not quite square to it.
 	var turns := [0.05, -0.08, 0.12, -0.03]
 	var dists := [0.78, 0.84, 0.76, 0.9]
@@ -551,17 +595,17 @@ static func _umbrella(lod: bool) -> Mesh:
 			g.tri(ci, ring[i], ring[i + 1], Vector3.UP)
 		cyl(g, Vector3(0, 0, 0), Vector3(0, apex, 0), 0.03, 0.03, 4, pole, false)
 		return g.mesh(material())
-	cyl(g, Vector3(0, 0.0, 0), Vector3(0, apex + 0.08, 0), 0.019, 0.019, 10, pole, false)
+	cyl(g, Vector3(0, 0.0, 0), Vector3(0, apex + 0.08, 0), 0.019, 0.019, 6, pole, false)
 	# The base: a cast disc.
-	cyl(g, Vector3(0, 0.0, 0), Vector3(0, 0.07, 0), 0.26, 0.2, 18, col(Color(0.16, 0.16, 0.17), K_PAINT), true)
+	cyl(g, Vector3(0, 0.0, 0), Vector3(0, 0.07, 0), 0.26, 0.2, 10, col(Color(0.16, 0.16, 0.17), K_PAINT), true)
 	# Hub, crank, finial.
 	cyl(g, Vector3(0, apex - 0.08, 0), Vector3(0, apex + 0.02, 0), 0.04, 0.035, 10, pole)
 	cyl(g, Vector3(0, 1.25, 0), Vector3(0, 1.38, 0), 0.03, 0.03, 8, pole)
 	ellipsoid(g, Vector3(0, apex + 0.12, 0), Vector3(0.05, 0.07, 0.05), 4, 8, col(Color(0.5, 0.36, 0.22), K_WOOD))
 	var canvas := col(Color.WHITE, K_CANVAS)
 	var under := col(Color(0.72, 0.72, 0.72), K_CANVAS)
-	var nr := 5
-	var na := 4
+	var nr := 4
+	var na := 3
 	for k in ribs:
 		var a0 := TAU * float(k) / float(ribs)
 		var a1 := TAU * float(k + 1) / float(ribs)
@@ -601,13 +645,13 @@ static func _umbrella(lod: bool) -> Mesh:
 				nn = -nn
 			var cols: Array[int] = []
 			var bots: Array[int] = []
-			for i in 7:
-				var s := float(i) / 6.0
+			for i in 5:
+				var s := float(i) / 4.0
 				var p := oa.lerp(ob, s)
 				var drop := 0.11 + 0.05 * sin(s * PI)
 				cols.append(g.vert(p, nn, canvas if face == 0 else under, Vector2(s * oa.distance_to(ob), 0), part))
 				bots.append(g.vert(p + Vector3(0, -drop, 0), nn, canvas if face == 0 else under, Vector2(s * oa.distance_to(ob), drop), part))
-			for i in 6:
+			for i in 4:
 				g.quad(cols[i], cols[i + 1], bots[i + 1], bots[i], nn)
 	return g.mesh(material())
 
@@ -670,12 +714,12 @@ static func _grill_gas() -> Mesh:
 	box(g, panel, Vector3(0.66, 0.1, 0.02), steel)
 	for i in 4:
 		var x := lerpf(-0.22, 0.22, float(i) / 3.0)
-		cyl(g, panel * Vector3(x, 0, -0.01), panel * Vector3(x, 0, -0.045), 0.022, 0.02, 8, rubber)
+		cyl(g, panel * Vector3(x, 0, -0.01), panel * Vector3(x, 0, -0.045), 0.022, 0.02, 5, rubber)
 	block(g, Vector3(0, 0.76, 0.02), Vector3(0.66, 0.2, 0.46), black)
 	# The hood: half a cylinder along x, end caps, a handle bar, a thermometer.
 	var c := Vector3(0, 0.96, 0.02)
 	var hr := 0.23
-	var segs := 10
+	var segs := 7
 	var row0: Array[int] = []
 	var row1: Array[int] = []
 	for i in segs + 1:
@@ -718,9 +762,9 @@ static func _grill_kettle() -> Mesh:
 	var black := col(Color(0.1, 0.1, 0.1), K_RUBBER)
 	var c := Vector3(0, 0.72, 0)
 	var r := 0.29
-	ellipsoid(g, c, Vector3(r, r * 0.88, r), 6, 20, enamel, Vector2.ZERO, -1.0, 0.0)
-	ellipsoid(g, c + Vector3(0, 0.02, 0), Vector3(r + 0.004, r * 0.85, r + 0.004), 6, 20, enamel, Vector2.ZERO, 0.0, 1.0)
-	cyl(g, c + Vector3(0, -0.004, 0), c + Vector3(0, 0.022, 0), r - 0.004, r - 0.004, 20, col(Color.WHITE, K_EMBER), false)
+	ellipsoid(g, c, Vector3(r, r * 0.88, r), 4, 14, enamel, Vector2.ZERO, -1.0, 0.0)
+	ellipsoid(g, c + Vector3(0, 0.02, 0), Vector3(r + 0.004, r * 0.85, r + 0.004), 4, 14, enamel, Vector2.ZERO, 0.0, 1.0)
+	cyl(g, c + Vector3(0, -0.004, 0), c + Vector3(0, 0.022, 0), r - 0.004, r - 0.004, 14, col(Color.WHITE, K_EMBER), false)
 	tube(g, [c + Vector3(-0.08, r * 0.85 + 0.04, 0), c + Vector3(-0.08, r * 0.85 + 0.07, 0), c + Vector3(0.08, r * 0.85 + 0.07, 0), c + Vector3(0.08, r * 0.85 + 0.04, 0)], 0.012, 6, black)
 	cyl(g, c + Vector3(0.1, r * 0.8, 0.08), c + Vector3(0.1, r * 0.8 + 0.03, 0.08), 0.04, 0.035, 10, steel)
 	for k in 3:
@@ -762,7 +806,7 @@ static func _trampoline(lod: bool) -> Mesh:
 	var pad := col(Color.WHITE, K_GLOSS)
 	var y := 0.88
 	var R := 1.83
-	var segs := 10 if lod else 40
+	var segs := 10 if lod else 28
 	# The mat and the pad (an annulus, a rolled outer edge).
 	var ci := g.vert(Vector3(0, y - 0.03, 0), Vector3.UP, mat, Vector2.ZERO)
 	var mr: Array[int] = []
@@ -787,25 +831,25 @@ static func _trampoline(lod: bool) -> Mesh:
 		return g.mesh(material())
 	# The frame ring, the legs, the net poles.
 	var ring: Array = []
-	for i in 41:
-		var t := TAU * float(i) / 40.0
+	for i in 29:
+		var t := TAU * float(i) / 28.0
 		ring.append(Vector3(cos(t) * R, y - 0.12, sin(t) * R))
-	tube(g, ring, 0.024, 8, galv)
+	tube(g, ring, 0.024, 5, galv)
 	for k in 6:
 		var a := TAU * float(k) / 6.0
 		var o := Vector3(cos(a), 0, sin(a))
 		var side := o.cross(Vector3.UP)
-		tube(g, [o * R + side * 0.22 + Vector3(0, y - 0.12, 0), o * (R + 0.02) + side * 0.24 + Vector3(0, 0.0, 0)], 0.02, 6, galv)
-		tube(g, [o * R - side * 0.22 + Vector3(0, y - 0.12, 0), o * (R + 0.02) - side * 0.24 + Vector3(0, 0.0, 0)], 0.02, 6, galv)
-		tube(g, [o * (R + 0.02) + side * 0.26 + Vector3(0, 0.02, 0), o * (R + 0.02) - side * 0.26 + Vector3(0, 0.02, 0)], 0.02, 6, galv)
+		tube(g, [o * R + side * 0.22 + Vector3(0, y - 0.12, 0), o * (R + 0.02) + side * 0.24 + Vector3(0, 0.0, 0)], 0.02, 4, galv)
+		tube(g, [o * R - side * 0.22 + Vector3(0, y - 0.12, 0), o * (R + 0.02) - side * 0.24 + Vector3(0, 0.0, 0)], 0.02, 4, galv)
+		tube(g, [o * (R + 0.02) + side * 0.26 + Vector3(0, 0.02, 0), o * (R + 0.02) - side * 0.26 + Vector3(0, 0.02, 0)], 0.02, 4, galv)
 		var foam := col(Color(0.08, 0.08, 0.09), K_RUBBER)
 		var b := TAU * (float(k) + 0.5) / 6.0
 		var ob := Vector3(cos(b), 0, sin(b))
-		tube(g, [ob * 1.86 + Vector3(0, y - 0.1, 0), ob * 1.86 + Vector3(0, y + 0.9, 0), ob * 1.8 + Vector3(0, y + 1.6, 0), ob * 1.7 + Vector3(0, y + 1.82, 0)], 0.028, 8, foam)
+		tube(g, [ob * 1.86 + Vector3(0, y - 0.1, 0), ob * 1.86 + Vector3(0, y + 0.9, 0), ob * 1.8 + Vector3(0, y + 1.6, 0), ob * 1.7 + Vector3(0, y + 1.82, 0)], 0.028, 5, foam)
 	# The top rope and the net.
 	var top: Array = []
-	for i in 49:
-		var t := TAU * float(i) / 48.0
+	for i in 33:
+		var t := TAU * float(i) / 32.0
 		var sag := 0.06 * absf(sin(t * 3.0))
 		top.append(Vector3(cos(t) * 1.72, y + 1.82 - sag, sin(t) * 1.72))
 	tube(g, top, 0.008, 4, col(Color(0.1, 0.1, 0.1), K_RUBBER))
@@ -818,8 +862,8 @@ static func _trampoline(lod: bool) -> Mesh:
 		for j in ny + 1:
 			var tv := float(j) / float(ny)
 			var row: Array[int] = []
-			for i in 49:
-				var t := TAU * float(i) / 48.0 + door
+			for i in 33:
+				var t := TAU * float(i) / 32.0 + door
 				var sag := 0.06 * absf(sin((t - door) * 3.0)) * tv
 				var rr := lerpf(1.84, 1.72, tv * tv)
 				var o := Vector3(cos(t), 0, sin(t))
@@ -828,8 +872,8 @@ static func _trampoline(lod: bool) -> Mesh:
 				row.append(nt.vert(p, nn, Color(0.06, 0.06, 0.065, 1.0), Vector2((t - door) * rr, p.y - y), Vector2(0, tv)))
 			grid.append(row)
 		for j in ny:
-			for i in 48:
-				var o := Vector3(cos(TAU * (float(i) + 0.5) / 48.0 + door), 0, sin(TAU * (float(i) + 0.5) / 48.0 + door))
+			for i in 32:
+				var o := Vector3(cos(TAU * (float(i) + 0.5) / 32.0 + door), 0, sin(TAU * (float(i) + 0.5) / 32.0 + door))
 				nt.quad(grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i], -o if face == 0 else o)
 	nt.add_to(mesh, net_material())
 	return mesh
@@ -840,7 +884,7 @@ static func _trampoline(lod: bool) -> Mesh:
 ## A swim ring (instance paint with white bands), floating: its middle at the water line.
 static func _float_ring() -> Mesh:
 	var g := G.new()
-	torus(g, Vector3(0, 0.05, 0), 0.43, 0.16, 28, 12, col(Color.WHITE, K_VINYL), 8)
+	torus(g, Vector3(0, 0.05, 0), 0.43, 0.16, 24, 8, col(Color.WHITE, K_VINYL), 8)
 	# The valve.
 	cyl(g, Vector3(0.43, 0.2, 0), Vector3(0.43, 0.23, 0), 0.02, 0.018, 8, col(Color(0.95, 0.95, 0.93), K_GLOSS))
 	return g.mesh(float_material())
@@ -860,8 +904,8 @@ static func _float_mat() -> Mesh:
 		var u2 := Vector2(float(i % 2), 0)
 		# A sausage: a cylinder with rounded ends.
 		var grid: Array = []
-		var ring_n := 10
-		var len_n := 8
+		var ring_n := 8
+		var len_n := 6
 		for j in len_n + 1:
 			var t := float(j) / float(len_n)
 			var z := lerpf(-L * 0.5, L * 0.5, t)
@@ -922,8 +966,8 @@ static func _laundry() -> Mesh:
 	var arm := 0.45
 	for s: float in [-1.0, 1.0]:
 		var x := s * L * 0.5
-		cyl(g, Vector3(x, 0, 0), Vector3(x, H + 0.04, 0), 0.03, 0.03, 8, galv, true)
-		cyl(g, Vector3(x, H, -arm), Vector3(x, H, arm), 0.022, 0.022, 8, galv, true)
+		cyl(g, Vector3(x, 0, 0), Vector3(x, H + 0.04, 0), 0.03, 0.03, 6, galv, true)
+		cyl(g, Vector3(x, H, -arm), Vector3(x, H, arm), 0.022, 0.022, 5, galv, true)
 		cyl(g, Vector3(x, 0, 0), Vector3(x, 0.04, 0), 0.09, 0.09, 10, col(Color(0.6, 0.6, 0.58), K_FIXED))
 	var line_col := col(Color(0.9, 0.9, 0.88), K_FIXED)
 	var lines := [-0.36, 0.0, 0.36]
@@ -1001,14 +1045,14 @@ static func _citrus(leaves: bool) -> Mesh:
 		var acc := ClimbingPlants.Acc.new()
 		acc.fade = 160.0
 		# Inner masses for body, then sprigs over the surface for the silhouette.
-		for i in 70:
+		for i in 50:
 			var o := _rand_dir(rng)
 			o.y = o.y * 0.9
 			var p := c + o * rad * rng.randf_range(0.35, 0.72)
 			var ay := (o + Vector3.UP * 0.4).normalized()
 			var ax := ay.cross(o if absf(o.dot(ay)) < 0.95 else Vector3.RIGHT).normalized()
 			ClimbingPlants._card_into(acc, p, ax, ay, o, 1.0, 1.0, ClimbingPlants.C_JASMINE_MASS, _leaf_tint(rng, 0.78), 0.1, 0.3, 0.0, 0.0)
-		for i in 420:
+		for i in 300:
 			var o := _rand_dir(rng)
 			if o.y < -0.55:
 				o.y = -0.55 + rng.randf() * 0.2
@@ -1018,7 +1062,7 @@ static func _citrus(leaves: bool) -> Mesh:
 			var ax := ay.cross(o).normalized()
 			if ax.length_squared() < 0.01:
 				ax = Vector3.RIGHT
-			var s := rng.randf_range(0.42, 0.62)
+			var s := rng.randf_range(0.48, 0.7)
 			var cell: int = ClimbingPlants.C_JASMINE[rng.randi() % 2]
 			ClimbingPlants._card_into(acc, p, ax, ay, o, s, s * 1.1, cell, _leaf_tint(rng, lerpf(0.72, 1.05, o.y * 0.5 + 0.5)), 0.2, 0.6, 0.0, 0.05)
 		return acc.mesh(ClimbingPlants.material())
@@ -1036,7 +1080,7 @@ static func _citrus(leaves: bool) -> Mesh:
 			continue
 		var p := c + o * rad * rng.randf_range(0.86, 1.0)
 		var r := rng.randf_range(0.04, 0.05)
-		ellipsoid(g, p, Vector3(r, r * 1.05, r), 3, 6, fruit)
+		ellipsoid(g, p, Vector3(r, r * 1.05, r), 2, 5, fruit)
 	return g.mesh(material())
 
 
@@ -1197,12 +1241,12 @@ static func string_run(g: G, a: Vector3, b: Vector3, sag: float, pitch: float) -
 		var p := a.lerp(b, t) + Vector3.DOWN * (4.0 * t * (1.0 - t) * sag)
 		# The socket, then the bulb (an S14 shape: a short fat drop).
 		var sock := p + Vector3.DOWN * 0.05
-		cyl(g, p, sock, 0.012, 0.014, 5, col(Color(0.06, 0.06, 0.06), K_RUBBER), false)
+		cyl(g, p, sock, 0.012, 0.014, 3, col(Color(0.06, 0.06, 0.06), K_RUBBER), false)
 		var bc := sock + Vector3.DOWN * 0.045
 		var cu := Vector4(bc.x, bc.y, bc.z, 1.0)
 		var bulb := col(Color(1.0, 0.86, 0.6), K_BULB)
-		var rows := 3
-		var segs := 6
+		var rows := 2
+		var segs := 5
 		var grid: Array = []
 		for j in rows + 1:
 			var lat := lerpf(-PI * 0.5, PI * 0.5, float(j) / float(rows))
