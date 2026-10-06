@@ -2585,6 +2585,8 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 		# racks. Hash-seeded; after the vendors it keeps clear of, before the parked cars.
 		if Micromobility.wanted(self, block):
 			steps.append(func() -> void: Micromobility.build_block(self, block))
+		# The walk of fame (StarBoulevard): the stars, the souvenir goods, the buses, the characters.
+		steps.append_array(StarBoulevard.steps(self, block))
 		steps.append_array(_park_car_steps(rect, rng, params))
 		steps.append_array(_pedestrian_steps(rect, rng, params, Encampment.PATH_KEEP + 1.0 if camps & Encampment.FACES else -1.0))
 		# The rec park's or school's people (Parks; their own stream, after the block's walkers).
@@ -2816,7 +2818,7 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	# It counts as parked, so the cap (and with it the rolls) is the same too.
 	if StreetVendors.blocks_parking(self, spot[0]) or Construction.blocks_parking(self, spot[0]) \
 			or KerbBins.blocks_parking(plan, spot[0], float(car._dims().length)) \
-			or FarmersMarket.blocks_parking(plan, spot[0]):
+			or FarmersMarket.blocks_parking(plan, spot[0]) or StarBoulevard.blocks_parking(plan, spot[0]):
 		car.free()
 		count[0] += 1
 		return
@@ -2928,6 +2930,10 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	if Broadway.claims(plan, ix, iz, lot):
 		Broadway.build_lot(self, lot)
 		return
+	# The walk of fame's movie palace behind its forecourt (StarBoulevard; hash-chosen, after the rolls).
+	if StarBoulevard.claims(plan, ix, iz, lot):
+		StarBoulevard.build_lot(self, lot)
+		return
 	# A Chinatown shop building (Chinatown: the district's street-facing lots, hash-seeded).
 	if Chinatown.claims(plan, ix, iz, lot):
 		Chinatown.build_lot(self, lot)
@@ -3003,6 +3009,8 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	Chinatown.dress(self, lot, building)
 	# The historic core's beaux-arts blocks on Spring St and Main St (HistoricCore; hash-seeded).
 	HistoricCore.dress(self, lot, building)
+	# The walk of fame's low souvenir-strip blocks (StarBoulevard; hash-chosen).
+	StarBoulevard.dress(self, lot, building)
 	var g := _gy(center.x, center.y)
 	var gmin := g
 	var half: Vector2 = lot.size * 0.5
@@ -3522,6 +3530,7 @@ func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGen
 			var p := a + dir * t + inward
 			if not Alleys.in_mouth(plan, ix, iz, p) and not Broadway.lamp(self, p, inward):
 				_add_lamp(Vector3(p.x, SIDEWALK_TOP, p.y), -inward)
+				StarBoulevard.lamp(self, p, inward)
 			t += lamp_spacing
 		t = tree_spacing * 0.75
 		while t < length - 4.0:

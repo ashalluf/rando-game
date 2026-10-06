@@ -75,7 +75,8 @@ static func pavilion_width(spec: Dictionary, frontage: float) -> float:
 
 static func build(ch: CityChunk, p: Dictionary) -> void:
 	var spec: Dictionary = p.spec
-	var f := frame(ch, p)
+	# A caller may hand its own frame (StarBoulevard's palace, set back behind its forecourt).
+	var f: Array = p.frame if p.has("frame") else frame(ch, p)
 	var xf: Transform3D = f[0]
 	var w: float = f[1]
 	var d: float = f[2]
@@ -253,7 +254,7 @@ static func _ground_storey(g: LandmarkGeo, spec: Dictionary, w: float, tw: float
 			if Broadway.h01([seed_value, "shop_board", shop_i]) < 0.35:
 				board = Color(0.93, 0.90, 0.80)
 			g.box("sign", Vector3(cx, 5.45, 0.18), Vector3(inner - 0.1, 0.85, 0.12), kc(board, K_ENAMEL))
-			var names: Array = Broadway.BROADWAY_SHOPS
+			var names: Array = spec.get("shops", Broadway.BROADWAY_SHOPS)
 			var name: String = names[(int(Broadway.h01([seed_value, "shop_name"]) * 997.0) + shop_i * 7) % names.size()]
 			var ink := Color(1.0, 0.9, 0.2) if board.v < 0.7 else Color(0.6, 0.06, 0.06)
 			text(g, name, Transform3D(Basis(), Vector3(cx, 5.45, 0.25)), 0.5, inner - 0.6, kc(ink, K_ENAMEL), Vector3.BACK)
