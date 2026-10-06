@@ -14228,7 +14228,12 @@ real size, on one shader (`shaders/street_furniture.gdshader`):
   bail bonds, a dentist, a taco stand, the bench company's own "your ad here" - with 555 numbers),
   sun-faded, peeling and grimy with wear. It stands `STOP_BENCH_ALONG` (4.2 m) along the kerb from
   the shelter, away from the stop's sign, as far in as the shelter's own bench (behind
-  StreetErrands' queue at the kerb), facing the road, skipped where another prop stands; a prop
+  StreetErrands' queue at the kerb), facing the road. It is only PLANNED there and made a prop at
+  the finish (`StreetFurniture.commit()`, one line in `CityChunk._finish_build()`), skipped where
+  anything the whole build laid stands (props, trees, camp pieces, vendors, kerb rows, cans,
+  cars): a dozen passes after StreetDetail (Encampment's kerb row, StreetClutter, StreetWear,
+  Murals, the signs) read `prop_records` to keep clear, and a bench recorded at the shelter
+  pushed a skid-row cart, a bike and the bags off the kerb in the first before/after still. A prop
   with an id of its own (`ad_bench_<n>`, `_own_prop()`: CityChunk's record without its counter,
   so no other id moves) and two CrowdLife seats. **The shelters are untouched** (Billboards'
   lightbox and StreetErrands' queue use them).
@@ -14269,7 +14274,8 @@ Checks: `tests/street_furniture_checks.gd` (`tools/street_furniture/checks_only.
 alone in a minute): the meshes (one surface on the shader, budget, real height, shadow twins), the
 shader's kinds, the atlas, the shares, the hydrant facing the street, the bin by district, every
 bus stop keeping its shelter, the stop benches by a shelter with their own ids and gone once
-smashed, and a metered downtown block built the same with the furniture off.
+smashed, and a metered downtown block built the same with the furniture off (props by id, kind
+and place, buildings, cans, cars, EncampmentItems, and the camp / kerb / vendor batches' counts).
 
 FRAMECOST_PLACEHOLDER
 

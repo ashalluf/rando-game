@@ -8,7 +8,8 @@ extends RefCounted
 ## then builds metered downtown blocks: the new pieces are batches on the furniture shader, every
 ## bus stop keeps its shelter, the stop benches are props with ids of their own standing by a
 ## shelter and stay gone once smashed, and the same block built with the furniture off is the same
-## block (the same props by id, kind and place, buildings, trash cans and parked cars).
+## block (the same props by id, kind and place, buildings, trash cans, parked cars, camp pieces
+## and kerb rows).
 
 var _t: Node
 ## StreetFurniture's script, for the calls by name (a class cannot be .call()ed).
@@ -91,13 +92,18 @@ func _rolls(plan: CityPlan) -> void:
 func _signature(chunk: CityChunk) -> Array:
 	var out: Array = []
 	for c in chunk.get_children():
-		if c is Building or c is TrashCan or c is Vehicle:
+		if c is Building or c is TrashCan or c is Vehicle or c is EncampmentItem:
 			var p: Vector3 = (c as Node3D).position
 			out.append("%s %.2f %.2f" % [c.get_class(), p.x, p.z])
 	for car in chunk.get("_cars"):
 		if is_instance_valid(car):
 			var p: Vector3 = (car as Node3D).position
 			out.append("car %.2f %.2f" % [p.x, p.z])
+	# The camps and the kerb rows: the passes that keep clear of the props.
+	var data: Dictionary = chunk._batch.data()
+	for k: String in data:
+		if k.begins_with("camp_") or k.begins_with("kerb") or k.begins_with("vend_"):
+			out.append("batch %s %d" % [k, (data[k].xforms as Array).size()])
 	for r in chunk.prop_records:
 		if String(r.kind) != "ad_bench":
 			out.append("%s %s %.2f %.2f" % [r.id, r.kind, (r.position as Vector3).x, (r.position as Vector3).z])

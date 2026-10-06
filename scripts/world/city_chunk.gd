@@ -571,6 +571,8 @@ func _finish_build() -> void:
 	DecoBoulevard.commit(self)
 	Construction.commit(self)
 	StreetSigns.commit(self)
+	# The stop benches StreetDetail planned (StreetFurniture): props only now, clear of it all.
+	StreetFurniture.commit(self)
 	StreetShadowReach.apply(self)
 	UtilityPoles.commit(self)
 	Roadside.commit(self)

@@ -190,21 +190,42 @@ static func bin_custom(at: Vector3) -> Color:
 
 ## A concrete bench with a painted ad beside a third of the bus shelters (StreetDetail.
 ## _bus_shelter): `at` the shelter's spot, `back` its way in, `along` toward the stop's sign, `yaw`
-## as the shelter's (its local -Z toward the buildings). A prop with an id of its own and two seats
-## for CrowdLife; kept off whatever stands there already.
+## as the shelter's (its local -Z toward the buildings). Only PLANNED here: the bench becomes a
+## prop at the finish (commit()), because a dozen later passes (kerbs, clutter, the camps, wear,
+## murals, signs) read the chunk's prop records to keep clear of them, and a bench recorded this
+## early moved their choices.
 static func add_stop_bench(chunk: CityChunk, at: Vector3, back: Vector3, along: Vector3, yaw: float) -> void:
 	if not enabled or chunk.level != CityChunk.Level.FULL:
 		return
 	if _h01([chunk.plan.seed, "stop_bench", roundi(at.x), roundi(at.z)]) >= STOP_BENCH_SHARE:
 		return
 	var pos := at + back * 0.55 - along * STOP_BENCH_ALONG
-	if _blocked(_obstacles(chunk), Vector2(pos.x, pos.z), 1.0):
+	var queued: Array = chunk.get_meta("stop_benches", [])
+	queued.append([pos, yaw])
+	chunk.set_meta("stop_benches", queued)
+
+
+## The planned stop benches as props (CityChunk._finish_build, before the batches build): each
+## kept off everything the whole build put on the pavement, an id of its own, two seats for
+## CrowdLife.
+static func commit(chunk: CityChunk) -> void:
+	var queued: Array = chunk.get_meta("stop_benches", [])
+	if queued.is_empty():
 		return
-	var xf := Transform3D(Basis(Vector3.UP, yaw + PI), pos)
-	_own_prop(chunk, "ad_bench", pos, Color(0.66, 0.65, 0.62), [ad_bench_instance(chunk.plan.seed, xf)],
-		[[Vector3(1.9, 1.1, 0.6), pos + Vector3(0.0, 0.55, 0.0), yaw]])
-	if not chunk.prop_records.is_empty() and chunk.prop_records.back().kind == "ad_bench":
-		CrowdLife.add_seat(chunk, pos + Vector3(0.0, chunk._gy(pos.x, pos.z), 0.0), yaw + PI, chunk.prop_records.back())
+	chunk.remove_meta("stop_benches")
+	var keep := _obstacles(chunk)
+	for q: Array in queued:
+		var pos: Vector3 = q[0]
+		var yaw: float = q[1]
+		if _blocked(keep, Vector2(pos.x, pos.z), 1.0):
+			continue
+		keep.append(Vector3(pos.x, pos.z, 1.0))
+		var xf := Transform3D(Basis(Vector3.UP, yaw + PI), pos)
+		var before := chunk.prop_records.size()
+		_own_prop(chunk, "ad_bench", pos, Color(0.66, 0.65, 0.62), [ad_bench_instance(chunk.plan.seed, xf)],
+			[[Vector3(1.9, 1.1, 0.6), pos + Vector3(0.0, 0.55, 0.0), yaw]])
+		if chunk.prop_records.size() > before:
+			CrowdLife.add_seat(chunk, pos + Vector3(0.0, chunk._gy(pos.x, pos.z), 0.0), yaw + PI, chunk.prop_records.back())
 
 
 static func ad_bench_instance(seed: int, xf: Transform3D) -> Array:
@@ -220,10 +241,13 @@ static func _obstacles(chunk: CityChunk) -> Array:
 		var p: Vector3 = r.position
 		out.append(Vector3(p.x, p.z, 0.6))
 	var data: Dictionary = chunk._batch.data()
-	for key: String in ["tree_grate", "bush", "palm_0", "palm_1", "palm_2"]:
-		if data.has(key):
+	for key: String in data:
+		if key in ["tree_grate", "bush", "palm_0", "palm_1", "palm_2"] or key.begins_with("camp_") or key.begins_with("vend_") or key.begins_with("kerb"):
 			for x: Transform3D in data[key].xforms:
-				out.append(Vector3(x.origin.x, x.origin.z, 1.0))
+				out.append(Vector3(x.origin.x, x.origin.z, 1.0 if not key.begins_with("camp_") else 0.8))
+	for c in chunk.get_children():
+		if c is TrashCan or c is PhysicsProp or c is EncampmentItem or c is Vehicle:
+			out.append(Vector3((c as Node3D).position.x, (c as Node3D).position.z, 1.2 if c is Vehicle else 0.6))
 	return out
 
 
