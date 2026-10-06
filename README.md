@@ -15,3 +15,10 @@ The meet: Z#4 at x 810-900, z ~612 on the default seed (`LOWRIDER_MEET=1` forces
 - 11 - bonnet pinstripe scroll and the lace-patterned roof
 - 12 - the flank's double pinstripe and the deep flake
 - 13 - the 13" wire wheel: 72 spokes, gold hub and knock-off, thin whitewall
+- 14_meet_golden_hour_hop_threewheel_1736 - from the kerb across, 17:36: a hardtop mid-hop (left), a coupe three-wheeling, the crowd on the pavement (`EYE=829,7.7,600.5,-161,-2`)
+- 15_meet_close_night_2112 - the same at 21:12
+- 16_meet_row_across_street_1736 - the row from across the boulevard at 17:36 (`EYE=846,8.4,600,-150,-6`)
+- 17_cruising_in_traffic_threewheel_1724 - lowriders in the street traffic at a red, three-wheeling (STREET=queue STREET_MIX=25,8,26,0,25 LOWRIDER_HYD=three:2.0:1)
+
+Frame cost at the meet EYE (opengl3 1280x720, 21:00): LOWRIDERS=0 6.449 M triangles / 2,840 draws,
+a meet night 6.980 M / 3,102 (+8 %, +262 draws: ten cars and twenty people at a kerb that was empty).
