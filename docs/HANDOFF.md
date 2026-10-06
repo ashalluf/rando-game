@@ -14268,6 +14268,16 @@ load, speed, the five layer gains, turbo, BEEP, SQUEAL); probe `tools/engine_aud
 Checks: `tests/engine_audio_checks.gd` (61 with the city: the gearbox per profile, equal power,
 the player's voice and shifts, the Vehicle's loop silent, a truck's diesel and alarm, horns).
 
+**Gate** (`SHARDS=3 tests/headless_check.sh`, 2026-10-06): 2,414 checks passed, 0 failed, peak RSS
+2,392 MB a shard; the run was marked failed by one SCRIPT ERROR in `tests/dog_checks.gd:180`
+(a dog walker freed during its 90-tick wait, outside this area): `SMOKE_PARTS=dog_checks` passes
+16 / 16 alone with this branch both with and without `ENGINE_AUDIO=0`, so it is that check's race.
+
+**Found by the debug panel**: freeway traffic squealed on gentle curves - kinematic cars are
+placed along lane polylines and their heading steps at every vertex, so a raw yaw rate spiked;
+the squeal now reads the sideways acceleration of a smoothed displacement velocity (still 03 in
+shots/engine-audio is after the fix, 02 before).
+
 **Not done / not verified.** Nobody has LISTENED to it: the session has no audio out, so the
 loops were judged by spectrum, crest factor and seam only - an ear check on the Mac is needed,
 and the synthesised timbre will not match a recording. Not on the web build heard either.
