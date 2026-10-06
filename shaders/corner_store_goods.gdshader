@@ -1,17 +1,20 @@
 // The corner store's products (CornerStoreKit's MultiMeshes: boxes, cans, bottles, bags, packs).
-// The mesh is white with what each vertex is in its alpha (CornerStoreKit.P_*: the printed body,
-// the label band, a cap or lid, clear plastic over the drink); the instance COLOR (sRGB, it
-// multiplies the vertex colour) is the pack's main colour, INSTANCE_CUSTOM.r the second colour's
-// hue, .g the design, .b how light the second colour is. UV runs round / across the pack (u) and
-// up it (v), 0..1. Works in linear on both renderers.
+// The mesh is white with what each vertex is in its alpha (CornerStoreKit.P_*: the printed front,
+// a label band, a cap or lid, clear plastic over the drink, a side). The print is a cell of the
+// packaging atlas (tools/walk_in_store/make_goods_atlas.py: 8 x 8 invented packs) picked by
+// INSTANCE_CUSTOM.r (cell / 64); .b is a fade (sun, age), .g a crinkle phase for bags. The instance
+// COLOR (sRGB, it multiplies the vertex colour) is the drink's colour behind clear plastic and the
+// caps' paint. UV runs across the pack (u) and up it (v), 0..1. Linear on both renderers.
 shader_type spatial;
 render_mode cull_back;
 
 #include "res://shaders/color_space.gdshaderinc"
 
+uniform sampler2D labels : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
+
 varying flat int part;
-varying vec3 second;
-varying float design;
+varying vec2 cell0;
+varying float fade;
 
 const int P_BODY = 0;
 const int P_LABEL = 1;
@@ -19,62 +22,46 @@ const int P_CAP = 2;
 const int P_CLEAR = 3;
 const int P_SIDE = 4;
 
-vec3 hue(float h) {
-	vec3 c = 0.5 + 0.5 * cos(6.2832 * (h + vec3(0.0, 0.33, 0.67)));
-	return mix(vec3(dot(c, vec3(0.333))), c, 0.8);
-}
-
 void vertex() {
 	part = int(round(COLOR.a * 8.0));
-	second = hue(INSTANCE_CUSTOM.r) * mix(0.25, 1.0, INSTANCE_CUSTOM.b);
-	design = INSTANCE_CUSTOM.g;
+	float c = floor(INSTANCE_CUSTOM.r * 64.0 + 0.5);
+	cell0 = vec2(mod(c, 8.0), floor(c / 8.0)) / 8.0;
+	fade = INSTANCE_CUSTOM.b;
 }
 
-float box_mask(vec2 p, vec2 lo, vec2 hi) {
-	vec2 fw = max(fwidth(p), vec2(1e-4));
-	vec2 a = smoothstep(lo - fw, lo + fw, p) * (1.0 - smoothstep(hi - fw, hi + fw, p));
-	return a.x * a.y;
+vec3 print_at(vec2 uv) {
+	// Inset by a texel or two so the mips never reach the next cell.
+	vec2 q = clamp(uv, vec2(0.012), vec2(0.988));
+	return cs_in(texture(labels, cell0 + vec2(q.x, 1.0 - q.y) / 8.0).rgb);
 }
 
 void fragment() {
-	vec3 main = cs_srgb_to_linear(COLOR.rgb);
-	vec3 sec = second;
+	vec3 tint = cs_srgb_to_linear(COLOR.rgb);
 	vec2 uv = UV;
-	vec3 c = main;
-	float rough = 0.42;
+	vec3 c;
+	float rough = 0.45;
 	float metal = 0.0;
-	// Under a pixel a pack is its average: the print fades as the pack shrinks.
-	float fine = 1.0 - smoothstep(0.03, 0.12, max(fwidth(uv.x), fwidth(uv.y)));
-	if (part == P_BODY || part == P_LABEL) {
-		int d = int(design * 4.0);
-		float m = 0.0;
-		if (d == 0) {
-			m = box_mask(uv, vec2(0.0, 0.32), vec2(1.0, 0.62));
-		} else if (d == 1) {
-			m = 1.0 - smoothstep(0.2, 0.23, length((uv - vec2(0.5, 0.58)) * vec2(1.0, 1.4)));
-		} else if (d == 2) {
-			m = box_mask(uv, vec2(0.0, 0.72), vec2(1.0, 0.86)) + box_mask(uv, vec2(0.0, 0.1), vec2(1.0, 0.18));
-		} else {
-			m = box_mask(uv, vec2(0.12, 0.2), vec2(0.88, 0.78));
-		}
-		// A white name panel and a few lines of small print.
-		float name = box_mask(uv, vec2(0.18, 0.66), vec2(0.82, 0.78)) * step(0.5, fract(design * 7.3));
-		float print = box_mask(uv, vec2(0.15, 0.06), vec2(0.85, 0.12)) * step(0.5, fract(uv.x * 14.0));
-		c = mix(c, sec, clamp(m, 0.0, 1.0) * mix(0.5, 1.0, fine));
-		c = mix(c, vec3(0.86), name * fine);
-		c = mix(c, vec3(0.08), print * fine * 0.6);
-		rough = part == P_LABEL ? 0.32 : 0.45;
-	} else if (part == P_CAP) {
-		c = sec * 0.9 + 0.05;
-		rough = 0.35;
-		metal = 0.3;
-	} else if (part == P_CLEAR) {
-		// The drink seen through the bottle: the main colour, darker and glossy.
-		c = main * 0.55;
-		rough = 0.08;
+	if (part == P_BODY) {
+		c = print_at(fract(uv));
+	} else if (part == P_LABEL) {
+		// Round packs wrap the label: u runs 0..2 round, so the print repeats on the back.
+		c = print_at(vec2(fract(uv.x), uv.y));
+		rough = 0.32;
 	} else if (part == P_SIDE) {
-		c = mix(main, sec, 0.35) * 0.85;
+		// A box's side: the print's ground carried round, with a strip of small print.
+		c = print_at(vec2(0.04, uv.y));
+		c *= 0.82;
+	} else if (part == P_CAP) {
+		c = mix(tint, print_at(vec2(0.5, 0.92)), 0.35) * 0.85;
+		rough = 0.3;
+		metal = 0.25;
+	} else {
+		// The drink through the bottle: its own colour, darker and glossy.
+		c = tint * 0.5;
+		rough = 0.06;
 	}
+	// Faded packs at the front of a sunny shelf.
+	c = mix(c, vec3(dot(c, vec3(0.33))) * 1.08, fade * 0.35);
 	ALBEDO = cs_out(c);
 	ROUGHNESS = rough;
 	METALLIC = metal;

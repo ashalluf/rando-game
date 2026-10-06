@@ -35,6 +35,7 @@ const K_NEON := 18
 const K_CHROME := 19
 const K_ROOF := 20
 const K_WIRE := 21
+const K_PRICE := 22
 
 # Product parts in corner_store_goods.gdshader (the vertex alpha x 8).
 const P_BODY := 0
@@ -70,9 +71,14 @@ const FAMILIES := {
 	"jar": [Goods.CAN, Vector2(0.08, 0.10), Vector2(0.12, 0.17), Vector2(0.08, 0.10)],
 	"pack": [Goods.BOX, Vector2(0.055, 0.056), Vector2(0.086, 0.088), Vector2(0.022, 0.023)],
 	"candy": [Goods.BOX, Vector2(0.03, 0.05), Vector2(0.12, 0.16), Vector2(0.015, 0.02)],
+	"cereal": [Goods.BOX, Vector2(0.19, 0.21), Vector2(0.28, 0.31), Vector2(0.06, 0.07)],
+	"detergent": [Goods.BOTTLE, Vector2(0.15, 0.17), Vector2(0.27, 0.31), Vector2(0.10, 0.12)],
+	"tub": [Goods.CAN, Vector2(0.11, 0.13), Vector2(0.07, 0.10), Vector2(0.11, 0.13)],
 }
-const BACK_MIX := [["bag", "bag"], ["box", "bag"], ["box", "jar"], ["can", "jar"], ["big_bottle", "box"]]
-const GONDOLA_MIX := [["can", "jar", "box"], ["box", "small", "can"], ["bag", "box"], ["bag", "small"]]
+const BACK_MIX := [["bag", "bag", "small"], ["cereal", "box", "bag"], ["box", "jar", "tub"], ["can", "jar", "tub"], ["detergent", "big_bottle", "box"]]
+const GONDOLA_MIX := [["can", "jar", "box", "tub"], ["box", "small", "can"], ["bag", "cereal", "box"], ["bag", "small", "jar"]]
+## The signs hung over the aisles (generic words, no brands).
+const AISLE_SIGNS := ["SNACKS", "CANDY", "GROCERY", "HOUSEHOLD", "CHIPS & DIPS", "CEREAL", "CANNED FOOD", "PET FOOD", "BAKERY"]
 const COOLER_MIX := [["case", "jug"], ["big_bottle", "jug"], ["bottle", "tall_can"], ["bottle", "can"], ["tall_can", "bottle"]]
 
 static var _materials: Dictionary = {}
@@ -103,6 +109,7 @@ static func goods_material() -> ShaderMaterial:
 		return _materials.goods
 	var m := ShaderMaterial.new()
 	m.shader = load("res://shaders/corner_store_goods.gdshader")
+	m.set_shader_parameter("labels", load("res://assets/textures/corner_store/goods_labels.jpg"))
 	_materials.goods = m
 	return m
 
@@ -674,6 +681,23 @@ static func _interior(site: CornerStoreSite, s: Dictionary, lay: Dictionary) -> 
 	_letters(g, "kit", "LOTTO", Vector3(lx - cs * 0.045, 2.45, lzc), Vector3(0, 0, cs), Vector3.UP, 0.2, 1.0, _k(Color(0.75, 0.06, 0.05), K_LETTERS))
 	for zz: float in [lzc - 0.45, lzc + 0.45]:
 		g.box("kit", Vector3(lx, 2.78, zz), Vector3(0.01, 0.45, 0.01), _k(Color(0.4, 0.4, 0.4), K_STEEL))
+	# Signs hung from the ceiling over each aisle's front end, and a header over the back wall.
+	var sd: int = s.seed
+	var gz2: Vector2 = lay.g_z
+	var gi := 0
+	for gx: float in lay.gondolas:
+		var word: String = AISLE_SIGNS[(sd + gi * 3) % AISLE_SIGNS.size()]
+		var sc := Vector3(gx, 2.42, gz2.x - 0.4)
+		g.box("kit", sc, Vector3(1.0, 0.3, 0.02), _k(Color(0.95, 0.95, 0.92), K_POSTER))
+		g.box("kit", sc + Vector3(0, 0.13, 0), Vector3(1.0, 0.04, 0.025), _k(Color(0.8, 0.1, 0.1), K_POSTER))
+		_letters(g, "kit", word, sc + Vector3(0, -0.02, 0.012), Vector3.RIGHT, Vector3.UP, 0.12, 0.9, _k(Color(0.12, 0.12, 0.14), K_POSTER))
+		_letters(g, "kit", word, sc + Vector3(0, -0.02, -0.012), Vector3.LEFT, Vector3.UP, 0.12, 0.9, _k(Color(0.12, 0.12, 0.14), K_POSTER))
+		for dx: float in [-0.4, 0.4]:
+			g.box("kit", sc + Vector3(dx, 0.37, 0), Vector3(0.006, 0.45, 0.006), _k(Color(0.5, 0.5, 0.5), K_STEEL))
+		gi += 1
+	var hb := Vector3((ix0 + ix1) * 0.5, 2.38, iz0 + 0.03)
+	g.box("kit", hb, Vector3(minf(3.0, ix1 - ix0 - 1.0), 0.32, 0.03), _k(Color(0.1, 0.32, 0.6), K_SIGN))
+	_letters(g, "kit", "GROCERY", hb + Vector3(0, 0, 0.018), Vector3.RIGHT, Vector3.UP, 0.18, 2.6, _k(Color.WHITE, K_LETTERS))
 	last_interior_tris = g.triangles
 	_commit(g, site.interior, "Room", false)
 
@@ -689,7 +713,7 @@ static func _back_shelving(g: LandmarkGeo, lay: Dictionary) -> void:
 	g.box("kit", Vector3((ix0 + ix1) * 0.5, 0.06, iz0 + d * 0.5), Vector3(w, 0.12, d), _k(SHELF_TONE * 0.6, K_SHELF))
 	for y: float in BACK_SHELVES:
 		g.box("kit", Vector3((ix0 + ix1) * 0.5, y - 0.012, iz0 + d * 0.5), Vector3(w, 0.024, d), shelf)
-		g.box("kit", Vector3((ix0 + ix1) * 0.5, y + 0.005, iz0 + d - 0.005), Vector3(w, 0.04, 0.012), _k(Color(0.96, 0.96, 0.94), K_SHELF))
+		g.box("kit", Vector3((ix0 + ix1) * 0.5, y + 0.005, iz0 + d - 0.005), Vector3(w, 0.04, 0.012), _k(Color(0.96, 0.96, 0.94), K_PRICE))
 	var n := maxi(int(w / 1.22), 1)
 	for i in n + 1:
 		g.box("kit", Vector3(lerpf(ix0 + 0.02, ix1 - 0.02, float(i) / float(n)), 1.05, iz0 + d * 0.5), Vector3(0.03, 2.1, d), shelf)
@@ -706,7 +730,7 @@ static func _gondola(g: LandmarkGeo, gx: float, gz: Vector2, gh: float) -> void:
 	for y: float in GONDOLA_SHELVES:
 		g.box("kit", Vector3(gx, y - 0.012, zc), Vector3(CornerStore.GONDOLA_W, 0.024, L), shelf)
 		for sx: float in [-1.0, 1.0]:
-			g.box("kit", Vector3(gx + sx * (half - 0.006), y + 0.005, zc), Vector3(0.012, 0.04, L), _k(Color(0.96, 0.96, 0.94), K_SHELF))
+			g.box("kit", Vector3(gx + sx * (half - 0.006), y + 0.005, zc), Vector3(0.012, 0.04, L), _k(Color(0.96, 0.96, 0.94), K_PRICE))
 	for zz: float in [gz.x - 0.015, gz.y + 0.015]:
 		g.box("kit", Vector3(gx, gh * 0.5, zz), Vector3(CornerStore.GONDOLA_W, gh, 0.03), shelf)
 	g.box("kit", Vector3(gx, gh + 0.015, zc), Vector3(CornerStore.GONDOLA_W + 0.02, 0.03, L + 0.02), shelf)
@@ -786,6 +810,18 @@ static func _counter(g: LandmarkGeo, s: Dictionary, lay: Dictionary) -> void:
 	g.box("kit", Vector3(cx, ty + 0.2, sc_z), Vector3(0.28, 0.4, 0.62), _k(Color(0.10, 0.10, 0.12), K_SHELF))
 	g.quad("clear", Vector3(cx + cust * 0.141, ty + 0.02, sc_z - 0.3), Vector3(cx + cust * 0.141, ty + 0.38, sc_z - 0.3), Vector3(cx + cust * 0.141, ty + 0.38, sc_z + 0.3), Vector3(cx + cust * 0.141, ty + 0.02, sc_z + 0.3),
 			Vector3(cust, 0, 0), Vector2(0, 0), Vector2(0, 1), Vector2(1, 1), Vector2(1, 0), Color.WHITE)
+	# Clutter on the counter: an energy-shot display, a lighter tray, a gum stand, a tip jar,
+	# the receipt printer, a stack of flyers (their goods are in _goods()).
+	var cl := _k(Color(0.9, 0.9, 0.88), K_SHELF)
+	g.box("kit", Vector3(cx + cust * 0.12, ty + 0.06, zc - 0.05), Vector3(0.18, 0.12, 0.22), _k(Color(0.12, 0.12, 0.12), K_SHELF))
+	g.box("kit", Vector3(cx + cust * 0.12, ty + 0.18, zc - 0.05 - 0.1), Vector3(0.18, 0.12, 0.02), _k(Color(0.95, 0.75, 0.1), K_POSTER))
+	g.box("kit", Vector3(cx + cust * 0.15, ty + 0.025, zc + L * 0.36), Vector3(0.12, 0.05, 0.2), cl)
+	g.box("kit", Vector3(cx + cs * 0.05, ty + 0.06, till_z + 0.3), Vector3(0.12, 0.12, 0.14), _k(Color(0.16, 0.16, 0.17), K_RUBBER), Basis(), 0.01)
+	g.box("kit", Vector3(cx + cust * 0.05, ty + 0.012, zc + L * 0.05), Vector3(0.22, 0.024, 0.3), _k(Color(0.9, 0.88, 0.8), K_POSTER))
+	var jar := Vector3(cx + cust * 0.18, ty, till_z - 0.45)
+	g.cylinder("clear", jar, 0.055, 0.13, 12, Color.WHITE)
+	g.cylinder("kit", jar + Vector3(0, 0.002, 0), 0.05, 0.035, 10, _k(Color(0.55, 0.45, 0.25), K_CHROME))
+	g.cylinder("kit", jar + Vector3(0, 0.13, 0), 0.058, 0.012, 12, _k(Color(0.2, 0.2, 0.2), K_RUBBER))
 	# The cigarette rack on the wall behind the cashier, its lit header.
 	var wall := cs * ix1
 	var rx := wall - cs * 0.15
@@ -862,27 +898,29 @@ static func goods_mesh(kind: int) -> ArrayMesh:
 		Goods.BOX:
 			_box_faces(add, Vector3(-0.5, 0.0, -0.5), Vector3(0.5, 1.0, 0.5), P_BODY, P_SIDE)
 		Goods.BAG:
-			# A pillow: the front and back puffed out in the middle, crimped flat at the top and bottom.
-			var cols := 4
-			var rows := 5
+			# A pillow: the front and back puffed out in the middle, crimped flat and serrated at the
+			# top and bottom, the film crinkled (a fixed hash per grid node, so shared corners agree).
+			var cols := 5
+			var rows := 7
+			var node := func(i: int, j: int, side: float) -> Array:
+				var u := float(i) / cols
+				var v := float(j) / rows
+				var puff := sin(PI * u) * sin(PI * clampf((v - 0.07) / 0.86, 0.0, 1.0))
+				var h1 := float(absi(hash([i, j, side, "crinkle"])) % 1000) / 1000.0 - 0.5
+				var h2 := float(absi(hash([j, i, side, "crinkle2"])) % 1000) / 1000.0 - 0.5
+				var edge := j == 0 or j == rows
+				var y := v + (0.012 * (1.0 if i % 2 == 0 else -1.0) if edge else 0.0)
+				var p := Vector3(u - 0.5 + h2 * 0.03 * puff, y, side * 0.5 * maxf(puff * (1.0 + h1 * 0.35), 0.02))
+				var n := Vector3(-cos(PI * u) * 0.6 + h2 * 0.6, h1 * 0.5, side).normalized()
+				return [p, n, Vector2(u if side > 0.0 else 1.0 - u, v)]
 			for side: float in [1.0, -1.0]:
 				for i in cols:
 					for j in rows:
-						var q := [Vector2(i, j), Vector2(i + 1, j), Vector2(i + 1, j + 1), Vector2(i, j + 1)]
-						var ps: Array[Vector3] = []
-						var ns: Array[Vector3] = []
-						var uvs: Array[Vector2] = []
-						for k in 4:
-							var e: Vector2 = q[k]
-							var u := e.x / cols
-							var v := e.y / rows
-							var puff := sin(PI * u) * sin(PI * clampf((v - 0.06) / 0.88, 0.0, 1.0))
-							ps.append(Vector3(u - 0.5, v, side * 0.5 * maxf(puff, 0.02)))
-							ns.append(Vector3(-cos(PI * u) * 0.6, 0.0, side).normalized())
-							uvs.append(Vector2(u if side > 0.0 else 1.0 - u, v))
+						var q := [node.call(i, j, side), node.call(i + 1, j, side), node.call(i + 1, j + 1, side), node.call(i, j + 1, side)]
 						var order := [0, 2, 1, 0, 3, 2] if side > 0.0 else [0, 1, 2, 0, 2, 3]
 						for k: int in order:
-							add.call(ps[k], ns[k], uvs[k], P_BODY if side > 0.0 else P_SIDE)
+							var e: Array = q[k]
+							add.call(e[0], e[1], e[2], P_BODY if side > 0.0 else P_SIDE)
 		Goods.CAN:
 			_lathe(add, [[0.0, 0.0], [0.5, 0.04], [0.5, 0.92], [0.43, 1.0], [0.0, 1.0]], [P_CAP, P_LABEL, P_CAP, P_CAP], 8)
 		Goods.BOTTLE:
@@ -990,7 +1028,7 @@ static func _goods(site: CornerStoreSite, s: Dictionary, lay: Dictionary) -> voi
 	var toward := Vector3(-cs, 0, 0)
 	var along_r := Vector3(0, 0, -1)
 	for r in 9:
-		_fill(acc, rng, Vector3(rfront, 1.275 + float(r) * 0.11, kz.x - 0.02), along_r, toward, kz.x - kz.y - 0.04, 0.095, 0.1, ["pack"], true, 0.004)
+		_fill(acc, rng, Vector3(rfront, 1.275 + float(r) * 0.11, kz.x - 0.02), along_r, toward, kz.x - kz.y - 0.04, 0.095, 0.1, ["pack"], true, 0.004, true)
 	# Candy on the impulse rack, facing the customer.
 	var cust := -cs
 	var cface: float = float(lay.counter_x) + cust * CornerStore.COUNTER_DEEP * 0.5
@@ -999,7 +1037,12 @@ static func _goods(site: CornerStoreSite, s: Dictionary, lay: Dictionary) -> voi
 	# Scratch tickets: two rows of bright rolls behind the case's glass.
 	var sc_z := kz.x - 0.4
 	for row in 2:
-		_fill(acc, rng, Vector3(float(lay.counter_x) + cust * 0.12, 0.995 + float(row) * 0.18, sc_z + 0.28), Vector3(0, 0, -1), Vector3(cust, 0, 0), 0.56, 0.15, 0.2, ["candy"], true, 0.01)
+		_fill(acc, rng, Vector3(float(lay.counter_x) + cust * 0.12, 0.995 + float(row) * 0.18, sc_z + 0.28), Vector3(0, 0, -1), Vector3(cust, 0, 0), 0.56, 0.15, 0.2, ["candy"], true, 0.01, true)
+	# Energy shots, lighters and gum on the counter.
+	var es := Vector3(float(lay.counter_x) + cust * 0.12, 1.035, kz.y * 0.0 + (kz.x + kz.y) * 0.5 + 0.05)
+	_fill(acc, rng, es + Vector3(0, 0, 0.1), Vector3(0, 0, -1), Vector3(cust, 0, 0), 0.2, 0.1, 0.16, ["tall_can"], true, 0.004, true)
+	var lt := Vector3(float(lay.counter_x) + cust * 0.15, 1.025, (kz.x + kz.y) * 0.5 + (kz.x - kz.y) * 0.36)
+	_fill(acc, rng, lt + Vector3(0.05 * cust, 0, 0.09), Vector3(0, 0, -1), Vector3(cust, 0, 0), 0.18, 0.07, 0.1, ["candy"], true, 0.003, true)
 	last_goods = 0
 	for kind: int in acc:
 		var a: Dictionary = acc[kind]
@@ -1026,7 +1069,7 @@ static func _goods(site: CornerStoreSite, s: Dictionary, lay: Dictionary) -> voi
 ## fronts at `start` facing `out`, standing on the shelf, at most `room` tall and `depth` deep.
 ## Families from `mix` in runs of 2-6 identical packs. `deep` adds a second row behind (coolers).
 static func _fill(acc: Dictionary, rng: RandomNumberGenerator, start: Vector3, along: Vector3, out: Vector3, length: float,
-		room: float, depth: float, mix: Array, deep: bool = false, gap: float = 0.012) -> void:
+		room: float, depth: float, mix: Array, deep: bool = false, gap: float = 0.012, tidy: bool = false) -> void:
 	# A right-handed frame facing `out` (a mirrored one would turn the packs inside out).
 	var basis := Basis(Vector3.UP.cross(out), Vector3.UP, out)
 	var cur := 0.0
@@ -1038,20 +1081,33 @@ static func _fill(acc: Dictionary, rng: RandomNumberGenerator, start: Vector3, a
 		var dd := minf(rng.randf_range((fam[3] as Vector2).x, (fam[3] as Vector2).y), depth)
 		if h < 0.05:
 			return
-		var main := product_color(rng.randf())
+		# The print is a cell of the atlas; the colour only tints what is behind clear plastic and
+		# the caps, mostly near white.
+		var main := product_color(rng.randf()).lerp(Color(0.95, 0.94, 0.9), 0.35)
 		if kind == Goods.BOTTLE and w > 0.14:
 			main = Color(0.95, 0.95, 0.93)
-		var custom := Color(rng.randf(), rng.randf(), rng.randf_range(0.4, 1.0), 0.0)
+		var custom := Color(float(rng.randi() % 64) / 64.0, rng.randf(), rng.randf_range(0.0, 0.5) if rng.randf() < 0.3 else 0.0, 0.0)
 		var n := rng.randi_range(2, 6)
 		for i in n:
 			if cur + w > length:
 				return
+			# Sold out: a gap the width of a facing now and then.
+			if not tidy and rng.randf() < 0.07:
+				cur += w + gap
+				continue
 			var rows := 1
 			if deep:
 				rows = maxi(1, mini(2, int(depth / maxf(dd, 0.05))))
+			# Facings pulled forward unevenly (the back ones bought first).
+			var pull := rng.randf_range(0.0, 0.05) if rng.randf() < 0.6 else rng.randf_range(0.05, maxf(0.06, depth - dd))
+			pull = minf(pull, maxf(0.0, depth - float(rows) * (dd + 0.005)))
+			var skew := rng.randf_range(-0.06, 0.06)
+			if tidy:
+				pull = 0.0
+				skew = 0.0
 			for r in rows:
-				var c := start + along * (cur + w * 0.5) - out * (dd * 0.5 + float(r) * (dd + 0.005))
-				var xf := Transform3D(basis.scaled_local(Vector3(w, h, dd)), c)
+				var c := start + along * (cur + w * 0.5) - out * (dd * 0.5 + pull + float(r) * (dd + 0.005))
+				var xf := Transform3D(basis.rotated(Vector3.UP, skew).scaled_local(Vector3(w, h, dd)), c)
 				if not acc.has(kind):
 					acc[kind] = {"xf": [], "col": [], "custom": []}
 				(acc[kind].xf as Array).append(xf)
@@ -1067,17 +1123,42 @@ static func _people(ch: CityChunk, site: CornerStoreSite, s: Dictionary, lay: Di
 	# The interior's lights (always on: the store is open), hidden with it.
 	var W: float = s.W
 	var D: float = s.D
-	var n_lights := 1 if OS.has_feature("web") else 2
-	for i in n_lights:
+	var spots_l: Array = [[Vector3(0.0, CornerStore.CEILING - 0.25, -D * 0.25), 1.15], [Vector3(-W * 0.2, CornerStore.CEILING - 0.25, -D * 0.62), 0.8],
+		[Vector3(W * 0.22, CornerStore.CEILING - 0.25, -D * 0.7), 1.0]]
+	if OS.has_feature("web"):
+		spots_l = [[Vector3(0.0, CornerStore.CEILING - 0.3, -D * 0.5), 1.1]]
+	for i in spots_l.size():
 		var l := OmniLight3D.new()
 		l.name = "Light%d" % i
-		l.position = Vector3(0.0, CornerStore.CEILING - 0.3, -D * (0.3 + 0.4 * float(i)) if n_lights > 1 else -D * 0.5)
-		l.omni_range = maxf(W, D) * (0.75 if n_lights > 1 else 1.0)
-		l.light_energy = 1.1
+		l.position = spots_l[i][0]
+		l.omni_range = maxf(W, D) * 0.6
+		l.omni_attenuation = 1.4
+		l.light_energy = float(spots_l[i][1])
 		l.light_color = Color(1.0, 0.95, 0.88)
 		l.shadow_enabled = false
 		l.light_specular = 0.4
 		site.interior.add_child(l)
+	# The coolers throw a cold glow on the aisle in front of them.
+	if int(lay.n_doors) > 0 and not OS.has_feature("web"):
+		var cz: Vector2 = lay.cooler_z
+		var cg := OmniLight3D.new()
+		cg.name = "CoolerGlow"
+		cg.position = Vector3(float(lay.cooler_face) + float(lay.cs) * 0.5, 1.2, (cz.x + cz.y) * 0.5)
+		cg.omni_range = absf(cz.x - cz.y) * 0.6 + 1.0
+		cg.light_energy = 0.6
+		cg.light_color = Color(0.85, 0.93, 1.0)
+		cg.shadow_enabled = false
+		site.interior.add_child(cg)
+	# At night the shop spills its light out over the pavement (the chunk's shop_spill batch, the
+	# pools the open shops of the city's buildings throw).
+	var spill := PropFactory.shop_spill()
+	for o: Array in _openings(lay, W):
+		var u0: float = o[0]
+		var u1: float = o[1]
+		var wide := (u1 - u0) * 1.6 + 1.0
+		var pxf := Transform3D(Basis(xf.basis.x * wide, xf.basis.z * 7.0, xf.basis.x.cross(xf.basis.z)), xf * Vector3((u0 + u1) * 0.5, 0.0, 0.2))
+		pxf.origin.y = CityChunk.SIDEWALK_TOP + 0.06
+		ch._batch.add("shop_spill", spill, pxf, Color(1.0, 0.93, 0.82, 0.85))
 	# The cashier behind the counter and a customer in front of it: placed, kinematic, ducking
 	# at gunfire (StreetVendor's truck cook), in the crowd cap.
 	var cs: float = lay.cs
