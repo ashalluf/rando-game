@@ -14253,3 +14253,20 @@ in place at once; `ONLOOKER_EYE=behind|front`, `ONLOOKER_SHOTS=1` every view and
 come back into the band facing it and spaced, more than one role, a caller on the phone clip, a
 filmer's phone at eye level with the screen to the eyes, a new shot scatters them, they return,
 a responder closes the scene).
+
+**A bug found on the way (golf).** `scripts/npc/golfer.gd` set `life_enabled = false` in its
+setup. That is Pedestrian's STATIC switch, so the first golfer to spawn turned crowd life off for
+the whole city (every walker after it stopped talking, sitting, carrying and, now, gathering).
+The onlookers checks caught it when the shard dealt them after golf's. A golfer never lives
+anyway (`_lives()` is false for its script), so the line is gone; golf's checks still pass.
+
+**Frame cost** (still_shot.gd's GEO, opengl3 + Xvfb 1280x720, the default spawn's staged body
+scene from the road, ONLOOKERS=0 against on): 6.108 M -> 6.132 M triangles (+0.4 %), 2,648 ->
+2,675 draws (each held phone is one small draw, at most 28 onlookers); CPU: one scan every 0.5 s
+(the debris and pedestrian groups) and an arm solve per posed onlooker per tick.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the video light's bloom and the screen
+glow through AgX. The ring is each walker's own pavement ring, so round a scene in the road the
+crowd stands along both kerbs rather than in a closed circle (nobody steps into traffic to look).
+No crowd-lookat integration beyond the head look crowd life already does. Only plain walkers
+(and ReplicaWalkers) come; beach-goers, park-goers and the market's shoppers do not.
