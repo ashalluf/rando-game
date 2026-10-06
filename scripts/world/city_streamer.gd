@@ -364,8 +364,9 @@ func _build_showroom(at: Vector3, yaw: float) -> void:
 	var forward := Vector3(-sin(yaw), 0.0, -cos(yaw))
 	var right := forward.cross(Vector3.UP)
 	for i in Vehicle.BodyType.size():
-		var car := Vehicle.new()
-		car.setup(i as Vehicle.BodyType, Vehicle.PAINTS[i * 2 % Vehicle.PAINTS.size()], Vehicle.Addon.NONE)
+		var car: Vehicle = Motorcycle.make(i, i) if Motorcycle.is_moto(i) else Vehicle.new()
+		if not Motorcycle.is_moto(i):
+			car.setup(i as Vehicle.BodyType, Vehicle.PAINTS[i * 2 % Vehicle.PAINTS.size()], Vehicle.Addon.NONE)
 		car.position = at + forward * 12.0 + right * (float(i) - 1.5) * 6.0 + Vector3.UP * 1.0
 		car.rotation.y = yaw + PI * 0.5
 		add_child(car)

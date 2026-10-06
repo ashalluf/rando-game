@@ -326,6 +326,9 @@ func enter_vehicle(car: Vehicle) -> void:
 	if avatar:
 		avatar.hold_gun(null, false, 0.0)
 	global_position = car.seat_position()
+	# A motorcycle shows its rider: the hero sits on it (Motorcycle.mount_rider).
+	if car.has_method("mount_rider"):
+		car.mount_rider(self)
 
 
 func exit_vehicle() -> void:
@@ -335,6 +338,8 @@ func exit_vehicle() -> void:
 	vehicle = null
 	_driving = false
 	car.driver = null
+	if car.has_method("dismount_rider"):
+		car.dismount_rider(self)
 	visible = true
 	collision_layer = 2
 	collision_mask = 5

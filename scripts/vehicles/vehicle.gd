@@ -12,12 +12,15 @@ extends VehicleBody3D
 ## after those; then the service vehicles (ServiceVehicles: garbage truck, street sweeper, tow
 ## truck, ice-cream truck, delivery van), which only ServiceFleet sends.
 enum BodyType { SEDAN, PICKUP, VAN, SPORTS, SUPER, SPIDER, HYPER, TRACK, CROSSOVER, BUS, BOX_TRUCK, SEMI, FIRE_ENGINE, AMBULANCE, HATCHBACK, SUV, MINIVAN, TAXI, BEATER, SCHOOL_BUS,
-	GARBAGE_TRUCK, STREET_SWEEPER, TOW_TRUCK, ICE_CREAM_TRUCK, DELIVERY_VAN }
+	GARBAGE_TRUCK, STREET_SWEEPER, TOW_TRUCK, ICE_CREAM_TRUCK, DELIVERY_VAN,
+	# Motorcycles (Motorcycle: two wheels, a rider on top). Never rolled by random_car().
+	MOTO_SPORT, MOTO_CRUISER, MOTO_SCOOTER }
 enum Addon { NONE, ROOF_RACK, SPOILER, LIGHT_BAR }
 
 ## Original names. Nothing here is or imitates a real manufacturer's model.
 const BODY_NAMES := ["Sedan", "Pickup", "Van", "Sports", "Vantari", "Vantari Aperta", "Kestrel", "Kestrel RS", "Crossover", "City Bus", "Box Truck", "Semi", "Fire Engine", "Ambulance", "Hatchback", "SUV", "Minivan", "Taxi", "Beater", "School Bus",
-	"Garbage Truck", "Street Sweeper", "Tow Truck", "Ice Cream Truck", "Delivery Van"]
+	"Garbage Truck", "Street Sweeper", "Tow Truck", "Ice Cream Truck", "Delivery Van",
+	"Sport Bike", "Cruiser", "Scooter"]
 ## Generated body models per type (see docs/ASSETS.md). Missing files fall back to the box car.
 const BODY_MODELS := {
 	BodyType.SEDAN: "res://assets/models/road_sedan.glb",
@@ -45,6 +48,9 @@ const BODY_MODELS := {
 	BodyType.TOW_TRUCK: "res://assets/models/road_tow.glb",
 	BodyType.ICE_CREAM_TRUCK: "res://assets/models/road_ice_cream.glb",
 	BodyType.DELIVERY_VAN: "res://assets/models/road_van.glb",
+	BodyType.MOTO_SPORT: "res://assets/models/moto_sport.glb",
+	BodyType.MOTO_CRUISER: "res://assets/models/moto_cruiser.glb",
+	BodyType.MOTO_SCOOTER: "res://assets/models/moto_scooter.glb",
 }
 ## Belt line (bottom of the side glass, as a fraction of body height) for a single-texture body
 ## whose texture does not darken the windows, so the paint shader finds glass by shape. No body
@@ -76,6 +82,8 @@ const BODY_ODDS := {
 	# Nor the service vehicles (ServiceFleet sends them to work).
 	BodyType.GARBAGE_TRUCK: 0, BodyType.STREET_SWEEPER: 0, BodyType.TOW_TRUCK: 0, BodyType.ICE_CREAM_TRUCK: 0,
 	BodyType.DELIVERY_VAN: 0,
+	# Nor the motorcycles (Motorcycle: TrafficManager and the kerbs place them).
+	BodyType.MOTO_SPORT: 0, BodyType.MOTO_CRUISER: 0, BodyType.MOTO_SCOOTER: 0,
 }
 ## How a 0-999 roll maps onto BODY_ODDS: [end of the range (exclusive), type], in roll order. Every
 ## old type keeps the START of the range it had before the second wave and gives the end of it to
