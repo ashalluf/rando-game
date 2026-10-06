@@ -14280,3 +14280,19 @@ the player's alone. The goods are not breakable (rounds hit the shelving's colli
 coffee machine. The far city shows the store as a plain box (old path, not FarBuilding's code).
 Suburb stores are fewer than midtown ones (27 against 94 within 4.5 km of the origin): suburb
 corners fail on relief and park blocks more often.
+
+**Second pass after the lead's review.** Packaging: every product wears a cell of
+`assets/textures/corner_store/goods_labels.jpg` (8 x 8 invented packs from
+`tools/walk_in_store/make_goods_atlas.py`: muted real-world grounds - white, black, red, brown,
+kraft, navy -, print bands, abstract marks, fake lettering, barcodes, nutrition panels), picked by
+INSTANCE_CUSTOM.r; more shapes (cereal boxes, detergent jugs, tubs), crinkled chip bags, facings
+pulled forward unevenly and turned a little, sold-out gaps, price strips (`K_PRICE`) on every
+shelf lip. Room: wear paths, heel scuffs and dirty grout on the floor; light panels of different
+ages with now and then a tired tube; three omnis of different strength plus a cold glow off the
+coolers; aisle signs hung from the ceiling and a lit GROCERY header; the counter cluttered
+(energy shots, lighters, a tip jar, the receipt printer, flyers). Night: the sign face is lit
+bright, red held off AgX's salmon by a green share (it reads red-orange, as a real lightbox
+does); the traced room glows brighter through the glass (`energy_night` 1.7); each window throws
+a pool on the pavement (`cstore_spill`, its own batch: the city's spill check counts the
+buildings' pools). Gate after it: 2,393 passed, 0 failed (3 shards, peak 2.46 GB). Stills 13-18
+on shots/walk-in-store.
