@@ -88,9 +88,10 @@ func _throw(frame: Transform3D, box: AABB, count: int, push: Vector3, spread: fl
 		_phase[i] = rng.randf() * TAU
 		match kind:
 			Kind.GLASS:
-				_size[i] = rng.randf_range(0.55, 1.45)
-				var g := rng.randf_range(0.82, 1.0)
-				colors[i] = Color(g * 0.86, g * 0.95, g * 0.93)
+				# Mostly single cubes, some still stuck together in clumps of a few centimetres.
+				_size[i] = rng.randf_range(0.7, 1.5) if rng.randf() < 0.75 else rng.randf_range(2.0, 4.2)
+				var g := rng.randf_range(0.85, 1.0)
+				colors[i] = Color(g * 0.86, g * 0.97, g * 0.93)
 			Kind.COIN:
 				_size[i] = rng.randf_range(0.8, 1.15)
 				colors[i] = Color(0.78, 0.6, 0.32) if rng.randf() < 0.3 else Color(0.74, 0.74, 0.76)
@@ -231,7 +232,7 @@ static func _mesh(k: Kind) -> Mesh:
 			m = q
 		_:
 			var q := QuadMesh.new()
-			q.size = Vector2(0.3, 0.38)
+			q.size = Vector2(0.26, 0.32)
 			q.material = _paper_material(true)
 			m = q
 	_meshes[k] = m
@@ -242,12 +243,13 @@ static func _glass_material() -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
 	# Green-edged safety glass: dark body, all its look in the sparkle off the faces.
-	mat.albedo_color = Color(0.42, 0.52, 0.5)
-	mat.metallic = 0.35
-	mat.roughness = 0.04
-	mat.metallic_specular = 0.9
+	mat.albedo_color = Color(0.62, 0.74, 0.7)
+	mat.metallic = 0.15
+	mat.roughness = 0.12
+	mat.metallic_specular = 1.0
 	mat.rim_enabled = true
-	mat.rim = 0.4
+	mat.rim = 0.8
+	mat.rim_tint = 0.2
 	return mat
 
 

@@ -40,6 +40,9 @@ var _patch_mat: ShaderMaterial
 var _roar: AudioStreamPlayer3D
 var _hiss: AudioStreamPlayer3D
 var _bodies: Array = []
+## The unshaded puffs' materials, dimmed with the night (the streaks dim themselves).
+var _puff_mats: Array = []
+var _night_t: float = 0.0
 var _query_t: float = 0.0
 var _stopped: bool = false
 
@@ -183,6 +186,7 @@ func _puffs(amount: int, life: float, v0: float, v1: float, spread: float, size:
 		mat.proximity_fade_enabled = true
 		mat.proximity_fade_distance = 0.6
 	quad.material = mat
+	_puff_mats.append(mat)
 	p.mesh = quad
 	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	p.local_coords = false
@@ -219,6 +223,13 @@ func _physics_process(delta: float) -> void:
 		if _hiss:
 			_hiss.volume_db = Sfx.master_volume_db + linear_to_db(maxf(p, 0.02))
 		_lift(delta, p)
+	_night_t -= delta
+	if _night_t <= 0.0:
+		_night_t = 0.5
+		var night := clampf(DayNight.lamp_now, 0.0, 1.0)
+		var l := lerpf(1.0, 0.2, night)
+		for m: StandardMaterial3D in _puff_mats:
+			m.albedo_color = Color(l, l, l)
 	var grow := clampf(_t / patch_grow_seconds, 0.0, 1.0)
 	_patch_mat.set_shader_parameter("radius01", 0.08 + 0.92 * (1.0 - pow(1.0 - grow, 2.0)))
 	_patch_mat.set_shader_parameter("rain", _pressure)

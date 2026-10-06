@@ -63,6 +63,8 @@ extends SceneTree
 ## nearest person doing that (LIFE_FOCUS_DIST metres off, default 5); CROWD_LIFE=0 turns the crowd's life off (the A/B).
 ## AFTERMATH=palms|burning|charred|column|crater stages what a blast leaves by the nearest palm
 ## row (tools/glshot/aftermath_stage.gd: AF_FIND, AF_TIME, AF_EYE_DIST, AF_FAR, ...).
+## PROPS=hydrant,lamp,bus_stop,mailbox,meter,newsbox breaks street props round the nearest of the
+## first kind and frames them (tools/glshot/prop_break_city_stage.gd: PB_FIND, PB_TIME, PB_EYE_*).
 ## SERVICE=garbage|sweeper|tow|ice_cream|delivery stages a service vehicle at work ahead of the
 ## camera and moves a free camera to frame it (ServiceFleet.stage_for_shot; SERVICE_EYE=0 keeps
 ## the camera, SERVICE_LIFT 0..1 how far up the garbage truck's arm has its cart).
@@ -455,6 +457,20 @@ func _initialize() -> void:
 		while af_t < _env_float("AF_TIME", 0.3):
 			await process_frame
 			af_t += get_root().get_process_delta_time()
+	# PROPS=hydrant,lamp,bus_stop,...: street props broken round the nearest of the first kind
+	# (tools/glshot/prop_break_city_stage.gd), framed by a free camera, then PB_TIME seconds of it.
+	var pb_env := OS.get_environment("PROPS")
+	if pb_env != "" and current_scene:
+		var pb_eye: String = load("res://tools/glshot/prop_break_city_stage.gd").stage(self, pb_env, get_root().get_camera_3d())
+		if pb_eye != "" and OS.get_environment("PB_KEEP_EYE") != "1":
+			OS.set_environment("EYE", pb_eye)
+		print("PROPS %s eye %s" % [pb_env, pb_eye])
+		_eye(player, fov)
+		Engine.time_scale = _env_float("FX_SCALE", 0.375)
+		var pb_t := 0.0
+		while pb_t < _env_float("PB_TIME", 1.0):
+			await process_frame
+			pb_t += get_root().get_process_delta_time()
 	# SERVICE=garbage|sweeper|tow|ice_cream|delivery: a service vehicle at work in front of the
 	# camera (ServiceFleet.stage_for_shot; SERVICE_LIFT 0..1 how far up the arm has the cart).
 	var svc_env := OS.get_environment("SERVICE")
