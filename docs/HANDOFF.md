@@ -14277,7 +14277,7 @@ behind, hazards, the bar, the driver, the CMS behind telling of it, the slow lan
 tow parked ahead bed down, the car on its bed, the driver gone, the tow driving off with it, both
 vehicles handed to the traffic); a mattress in its lane, a car changing lanes round it and never
 through it, a spawn moved out of its lane; a slowdown slowing a car; the switch off changing
-nothing. `SMOKE_PARTS=freeway_incidents_checks`: 48 passed, 0 failed (~6 min with the city load).
+nothing. `SMOKE_PARTS=freeway_incidents_checks`: 48 passed, 0 failed (~6 min with the city load). Full gate (SHARDS=3) on this branch: 2,407 passed, 0 failed, peak 2.39 GB a shard.
 
 **Stills** (shots/freeway-incidents, opengl3, the 110 by downtown at route 3 t 1904):
 `01`-`04` and `09` the stall (coasting in, patrol car behind, the tow winching, the tow loaded
@@ -14286,3 +14286,19 @@ the CMS by day ("STALLED VEHICLE / RIGHT SHOULDER / AHEAD"), `08` its second pag
 `00_before_*` the same views with FREEWAY_INCIDENTS=0. EYEs: behind the stall
 `1951.0,11.7,252.3,166.8,-3.8`, ahead `1946.0,12.5,308.1,0.1,-3.8`, the CMS
 `2028.7,14.5,-237.0,-6,0` (FOV 30), with `--spawn=1975,270,175,-6 --hour=14`.
+
+**Frame cost** (`still_shot.gd` GEO lines, opengl3 1280x720, same EYEs, traffic differs run to
+run): the stall view 5.34 M triangles / 2,961 draws with FREEWAY_INCIDENTS=0, 5.92 M / 3,105 with
+the stall in it (the three vehicles, the driver, their shadows); the debris view 5.50 M / 2,694 ->
+5.28 M / 2,707; the CMS view 3.64 M / 1,247 -> 3.66 M / 1,260 (the LED face is one quad and a draw).
+Driving cost: `drive()` is a dictionary lookup for a car on a carriageway with no incident, a few
+comparisons a block otherwise; nothing is queried from physics.
+
+**Not done / not verified.** Not seen on Forward+ (the Mac): the CMS amber under AgX, the patrol
+bar at night. The stall's vehicles are scripted, not driven: a car the player parks on the
+shoulder in their path is not avoided (the tow drives through it; shooting it knocks it out of the
+script like any traffic car). The incidents' blocks act only on TrafficAI's lane-indexed freeway
+traffic (with TRAFFIC_AI=0 cars slow and stop but do not change lanes). No incidents on the stack's
+connectors or the ramps. The patrol officer stays in the car; the driver does not walk to the tow
+(they vanish when the bed rises). The mattress and tread have no collision. The debris stills are
+framed from 30 m; closer framing would read better.
