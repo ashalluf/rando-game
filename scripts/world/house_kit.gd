@@ -109,7 +109,7 @@ const BRICK := Color(1.0, 1.0, 1.0)
 const MATS := ["h_wall", "h_siding", "h_brick", "h_trim", "h_door", "h_metal", "h_dark", "h_roof", "h_shingle",
 	"h_flat", "glass", "h_solar", "h_breeze"]
 ## Surfaces whose shadow is only cascade fill (they lie on or in something that casts already).
-const NO_SHADOW := ["glass", "h_solar", "h_dark", "h_breeze"]
+const NO_SHADOW := ["glass", "h_solar", "h_dark", "h_breeze", "h_rail"]
 
 
 static func wanted(ch: CityChunk, district: int) -> bool:
@@ -141,6 +141,10 @@ static func _range(v: Vector2, parts: Array) -> float:
 ## "door_v", "chimney": {"wing", "end", "mat"} or {}, "solar", "vents", "breeze" (Rect2 or zero),
 ## "roof_mat", "shingle_kind", "pitch", "eave", "colors": {...}, "height"}.
 static func plan_house(plan: CityPlan, bx: int, bz: int, lot: Dictionary, district: int) -> Dictionary:
+	# An apartment building of the inner suburbs or midtown (Apartments: a hash of the lot, after its rolls).
+	var apt := Apartments.plan_house(plan, bx, bz, lot, district)
+	if not apt.is_empty():
+		return apt
 	var grid := YardFill.lot_grid(plan, bx, bz, [lot])
 	var front := YardFill.lot_front(plan, bx, bz, lot, grid)
 	return plan_fronted(plan, lot, district, front)
@@ -588,6 +592,7 @@ static func ground_parts(h: Dictionary) -> Array[Rect2]:
 	if not (h.porch as Dictionary).is_empty():
 		var pr: Rect2 = h.porch.r
 		out.append(YardFill._fr(f, pr.position.x, pr.position.y, pr.end.x, pr.end.y))
+	out.append_array(Apartments.extra_ground(h))
 	return out
 
 
@@ -617,7 +622,7 @@ static func _acc(ch: CityChunk) -> Acc:
 ## Builds one lot's house into the chunk: FULL into the chunk's house meshes, LOD and capture as
 ## the city's LOD boxes and roof slabs.
 static func build(ch: CityChunk, h: Dictionary) -> void:
-	var b := HouseBuild.new()
+	var b: HouseBuild = ApartmentBuild.new() if h.has("apt") else HouseBuild.new()
 	b.setup(ch, h)
 	if ch.level == CityChunk.Level.FULL and not ch.capturing:
 		b.acc = _acc(ch)
@@ -667,6 +672,9 @@ static func material(name: String) -> Material:
 	match name:
 		"h_wall", "h_trim", "h_door", "h_metal", "h_dark", "h_flat", "glass":
 			m = ReplicaHouses.material(name)
+		"h_rail":
+			# An apartment's pickets and bars (ApartmentBuild): the metal, drawn without a shadow.
+			m = ReplicaHouses.material("h_metal")
 		"h_roof":
 			var sm := ReplicaHouses.material(name) as StandardMaterial3D
 			# HouseKit writes roof UVs in metres (along the eave, up the slope).

@@ -42,6 +42,9 @@ func _house_lots(plan: CityPlan, bx: int, bz: int) -> Array:
 		# A lot the chunk may roll a commercial pad on (its own rng) is left out of the counts.
 		if lot.edge and pads > 0.0 and size.x >= 18.0 and size.y >= 18.0:
 			continue
+		# An apartment building (Apartments) is checked by tests/apartments_checks.gd.
+		if not Apartments.plan_house(plan, bx, bz, lot, b.district).is_empty():
+			continue
 		out.append(lot)
 	return out
 
