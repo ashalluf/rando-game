@@ -50,6 +50,8 @@ const ROAD_LIFT := 0.26
 const NORTH_FADE := 90.0
 const SOUTH_FULL := 470.0
 const SOUTH_END := 600.0
+## How far down the coast highway's strip past the stretch its traffic drives (CoastTraffic).
+const TRAFFIC_RUN_ON := 320.0
 ## The closure: k-rails across the road, the slide's rocks on it, CLOSURE metres from the end.
 const CLOSURE := 34.0
 
@@ -72,15 +74,17 @@ const STYLE_ODDS := [0.36, 0.26, 0.2, 0.18]
 ## the houses, and the share of the parked cars that are surfers' (a van, a pickup, an SUV with
 ## boards).
 const STALL := 6.6
-const PARK_OPEN := 0.62
+const PARK_OPEN := 0.5
 const PARK_HOUSES := 0.3
-const PARK_INLAND := 0.45
+const PARK_INLAND := 0.36
 const SURF_SHARE := 0.32
 ## Lifeguard towers on the open beach: one per open stretch at least TOWER_MIN long, TOWER_D in.
-const TOWER_MIN := 90.0
+const TOWER_MIN := 60.0
 const TOWER_D := 9.0
 ## Beach stairs on open stretches, about every STAIR_EVERY metres.
 const STAIR_EVERY := 110.0
+## Street lamps on the bluff side, every LAMP_EVERY metres of z (a fixed phase, so chunks agree).
+const LAMP_EVERY := 52.0
 
 var seed: int = 0
 var macro: MacroMap
@@ -175,7 +179,7 @@ func _load_profile() -> void:
 		var pts: PackedVector2Array = r.points
 		var hs: PackedFloat32Array = r.heights
 		for i in pts.size():
-			if pts[i].y > z_south + 60.0:
+			if pts[i].y > z_south + TRAFFIC_RUN_ON + 60.0:
 				break
 			_pch_z.append(pts[i].y)
 			_pch_h.append(hs[i])

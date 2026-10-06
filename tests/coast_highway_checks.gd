@@ -28,6 +28,7 @@ func run(t: Node, city: Node3D) -> void:
 	_t._check(BeachLife.kept_off(plan, (ch.z_north + ch.z_full) * 0.5) and not BeachLife.kept_off(plan, (ch.z_north + ch.z_full) * 0.5, true),
 		"the beach under the houses has people but no bike path or court")
 	await _chunks(city, plan, ch)
+	await _traffic(city, ch)
 
 
 func _geography(ch: CoastHighway, plan: CityPlan, macro: MacroMap) -> void:
@@ -216,3 +217,43 @@ func _chunks(city: Node3D, plan: CityPlan, ch: CoastHighway) -> void:
 	var nodes := cap.get_child_count()
 	cap.free()
 	_t._check(lod_ok and nodes == 0, "LOD builds the road with no collision or cars; the far city records the houses and no nodes (%d records)" % boxes)
+
+
+## A car on each carriageway drives its lane its own way, on the asphalt; northbound ones queue at
+## the closure.
+func _traffic(city: Node3D, ch: CoastHighway) -> void:
+	var tr := city.get_node_or_null("CoastTraffic")
+	_t._check(tr != null, "the coast highway carries its own traffic (CoastTraffic)")
+	if tr == null:
+		return
+	tr.staged = true
+	var s0 := (ch.z_north + ch.z_full) * 0.5
+	var south: Vehicle = tr.spawn(s0, 1, 1, true)
+	var north: Vehicle = tr.spawn(s0 + 60.0, -1, 0, true)
+	for i in 30:
+		await _t.get_tree().physics_frame
+	var ok := true
+	var info := ""
+	for pair: Array in [[south, 1, 1], [north, -1, 0]]:
+		var car: Vehicle = pair[0]
+		if car == null or not is_instance_valid(car):
+			ok = false
+			continue
+		var w := WorldState.to_world(car.global_position)
+		var s: float = car.traffic.s
+		var moved := (s - (s0 if pair[1] == 1 else s0 + 60.0)) * float(pair[1])
+		var d := w.x - ch.macro.coast_x(w.z) - CoastTraffic.lane_d(pair[1], pair[2])
+		ok = ok and moved > 3.0 and absf(d) < 0.3 and absf(w.z - s) < 0.5 and w.y > ch.road_y(s) - 0.5
+		info += " dir %d moved %.1f off-lane %.2f" % [pair[1], moved, d]
+	_t._check(ok, "coast traffic drives its lanes both ways on the asphalt (%s)" % info)
+	# Northbound at the closure: it stops short of the k-rails.
+	var q: Vehicle = tr.spawn(tr.s_min() + 20.0, -1, 1, true)
+	for i in 120:
+		await _t.get_tree().physics_frame
+	var stopped: bool = q != null and is_instance_valid(q) and float(q.traffic.s) > tr.s_min() - 1.0 and float(q.traffic.speed) < 0.5
+	_t._check(stopped, "a northbound car stops at the slide's closure (s %.1f, closure %.1f)" % [float(q.traffic.s) if q and is_instance_valid(q) else NAN, tr.s_min()])
+	for car in [south, north, q]:
+		if car and is_instance_valid(car):
+			tr.cars.erase(car)
+			car.queue_free()
+	tr.staged = false

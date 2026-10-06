@@ -570,7 +570,7 @@ static func _house(chunk: CityChunk, c: CoastHighway, g: Geo, hs: Dictionary) ->
 	# Siding style rides in COLOR.a (house_siding.gdshader): cedar is stained tongue and groove,
 	# board is board and batten.
 	if wall_key == "h_siding":
-		wall_col.a = 0.1 if style == CoastHighway.Style.CEDAR else 0.5
+		wall_col.a = 0.9 if style == CoastHighway.Style.CEDAR else 0.5
 	var frame_col := FRAME_DARK if style == CoastHighway.Style.WHITE or style == CoastHighway.Style.BOARD else FRAME_WHITE
 	var blind: Color = BLINDS[int(hs.seed) % BLINDS.size()]
 	var b := xf.basis
@@ -659,14 +659,21 @@ static func _house(chunk: CityChunk, c: CoastHighway, g: Geo, hs: Dictionary) ->
 	# The roof: membrane, the parapet round it, a terrace rail on some.
 	var rd := depth - (1.6 if floors == 2 and int(hs.seed) % 3 == 0 else 0.0)
 	g.quad("h_flat", P.call(-hw, top, 0.0), P.call(hw, top, 0.0), P.call(hw, top, rd), P.call(-hw, top, rd), Vector3.UP, Color(0.72, 0.71, 0.68))
-	for e: Array in [[-hw, 0.0, hw, 0.0, street], [-hw, rd, hw, rd, sea], [-hw, 0.0, -hw, rd, -side], [hw, 0.0, hw, rd, side]]:
-		var pa: Vector3 = P.call(e[0], top, e[1])
-		var pb: Vector3 = P.call(e[2], top, e[3])
-		var up := Vector3.UP * ROOF_PARAPET
-		g.quad(wall_key, pa, pb, pb + up, pa + up, e[4], wall_col, _muv(0.0, top, pa.distance_to(pb), top + ROOF_PARAPET))
-		g.quad(wall_key, pa + up, pb + up, pb + up - (e[4] as Vector3) * 0.2, pa + up - (e[4] as Vector3) * 0.2, Vector3.UP, wall_col, _muv(0.0, 0.0, pa.distance_to(pb), 0.2))
+	if style == CoastHighway.Style.CEDAR or style == CoastHighway.Style.BOARD:
+		# A flat roof on deep eaves: a thin slab overhanging every side, its fascia dark.
+		var ov := 0.7
+		g.box("h_trim", Transform3D(b, P.call(0.0, top + 0.14, rd * 0.5)), Vector3(hw + ov, 0.14, rd * 0.5 + ov), frame_col if style == CoastHighway.Style.CEDAR else Color(0.2, 0.21, 0.22))
+		g.quad("h_flat", P.call(-hw - ov, top + 0.285, -ov), P.call(hw + ov, top + 0.285, -ov), P.call(hw + ov, top + 0.285, rd + ov), P.call(-hw - ov, top + 0.285, rd + ov), Vector3.UP, Color(0.72, 0.71, 0.68))
+	else:
+		for e: Array in [[-hw, 0.0, hw, 0.0, street], [-hw, rd, hw, rd, sea], [-hw, 0.0, -hw, rd, -side], [hw, 0.0, hw, rd, side]]:
+			var pa: Vector3 = P.call(e[0], top, e[1])
+			var pb: Vector3 = P.call(e[2], top, e[3])
+			var up := Vector3.UP * ROOF_PARAPET
+			g.quad(wall_key, pa, pb, pb + up, pa + up, e[4], wall_col, _muv(0.0, top, pa.distance_to(pb), top + ROOF_PARAPET))
+			g.quad(wall_key, pa + up, pb + up, pb + up - (e[4] as Vector3) * 0.2, pa + up - (e[4] as Vector3) * 0.2, Vector3.UP, wall_col, _muv(0.0, 0.0, pa.distance_to(pb), 0.2))
 	if bool(hs.roof_deck):
-		_rail(g, P, b, -hw + 0.3, hw - 0.3, top + ROOF_PARAPET, rd - 0.3, sea)
+		var eaves := style == CoastHighway.Style.CEDAR or style == CoastHighway.Style.BOARD
+		_rail(g, P, b, -hw + 0.3, hw - 0.3, top + (0.285 if eaves else ROOF_PARAPET), rd - 0.3, sea)
 	# A chimney flue or a vent stack, and a rooftop unit.
 	g.box("h_metal", Transform3D(b, P.call(hw * 0.4, top + 0.5, rd * 0.3)), Vector3(0.18, 0.5, 0.18), Color(0.5, 0.5, 0.5))
 	# The deck: planks on joists past the sea face, a glass balustrade round it, a stair to the sand.
@@ -897,6 +904,65 @@ static func _furniture(chunk: CityChunk) -> void:
 		var slope := atan2(rise, run)
 		g.boxes.append([Transform3D(b * Basis(Vector3.RIGHT, slope), P.call(0.0, (top + foot) * 0.5 - 0.15, run * 0.5)), Vector3(hw, 0.12, sqrt(rise * rise + run * run) * 0.5)])
 	_closure(chunk, c, g)
+	_fences_and_bins(chunk, c, g)
+	_lamps(chunk, c)
+
+
+## Between two houses of a run a timber fence with a gate closes the gap on the wall line; in front
+## of most houses a pair of wheelie bins stands on the apron.
+static func _fences_and_bins(chunk: CityChunk, c: CoastHighway, g: Geo) -> void:
+	var r := chunk.owned_rect()
+	for i in c.houses.size():
+		var hs: Dictionary = c.houses[i]
+		var zc := float(hs.zc)
+		var y := c.road_y(zc) + 0.02
+		if i + 1 < c.houses.size():
+			var nx: Dictionary = c.houses[i + 1]
+			var z0 := float(hs.z1)
+			var z1 := float(nx.z0)
+			var mid := (z0 + z1) * 0.5
+			var access := false
+			for s: Dictionary in c.stairs:
+				if absf(float(s.z) - mid) < 2.5:
+					access = true
+			if z1 - z0 < 4.0 and z1 > z0 + 0.3 and not access and r.has_point(c.at(CoastHighway.WALL, mid)):
+				var wood := Color(0.50, 0.42, 0.34, 0.5)
+				var d := CoastHighway.WALL + 0.12
+				var land: Vector2 = c.frame(mid)[0]
+				var n3 := Vector3(land.x, 0.0, land.y)
+				var a := _p(c, d, z0, y)
+				var b := _p(c, d, z1, y)
+				var top := Vector3.UP * 1.85
+				g.quad("h_siding", a, b, b + top, a + top, n3, wood, _muv(0.0, 1.0, z1 - z0, 2.85))
+				g.quad("h_siding", a, b, b + top, a + top, -n3, wood, _muv(0.0, 1.0, z1 - z0, 2.85))
+				g.quad("h_trim", a + top, b + top, b + top + n3 * 0.08, a + top + n3 * 0.08, Vector3.UP, Color(0.36, 0.30, 0.24))
+				g.boxes.append([Transform3D(Basis(Vector3.UP, c.sea_yaw(mid)), (a + b) * 0.5 + Vector3.UP * 0.92), Vector3(0.06, 0.92, (z1 - z0) * 0.5).abs()])
+		# The bins: two by the garage, lids shut.
+		if c.h01(["bins", int(hs.key)]) < 0.6 and r.has_point(c.at(CoastHighway.WALL - float(hs.depth) * 0.5, zc)):
+			var gz := c.garage_z(hs) if bool(hs.garage) else zc
+			var side := 1.0 if gz < zc else -1.0
+			for k in 2:
+				var bz := gz + side * (2.1 + float(k) * 0.75)
+				if bz < float(hs.z0) + 0.4 or bz > float(hs.z1) - 0.4:
+					continue
+				var col: Color = [Color(0.10, 0.11, 0.12), Color(0.12, 0.30, 0.55), Color(0.18, 0.40, 0.20)][(int(hs.key) + k) % 3]
+				var p := c.at(CoastHighway.WALL + 0.55, bz)
+				var bb := Basis(Vector3.UP, c.sea_yaw(bz))
+				g.box("h_trim", Transform3D(bb, Vector3(p.x, y + 0.5, p.y)), Vector3(0.34, 0.5, 0.3), col)
+				g.box("h_trim", Transform3D(bb, Vector3(p.x, y + 1.03, p.y)), Vector3(0.36, 0.03, 0.33), col.darkened(0.2))
+
+
+## Cobra-head street lamps on the bluff side's gutter, their arms out over the road: the chunk's
+## own lamp prop (CityChunk._add_lamp(): the pool, the light at night, breakable).
+static func _lamps(chunk: CityChunk, c: CoastHighway) -> void:
+	var r := chunk.owned_rect()
+	var z := ceilf((c.z_north + CoastHighway.CLOSURE + 8.0) / CoastHighway.LAMP_EVERY) * CoastHighway.LAMP_EVERY
+	while z < c.z_full:
+		if r.has_point(c.at(CoastHighway.CENTRE, z)):
+			var p := c.at(CoastHighway.TOE - 0.4, z)
+			var land: Vector2 = c.frame(z)[0]
+			chunk._add_lamp(Vector3(p.x, c.road_y(z) + 0.05, p.y), -land)
+		z += CoastHighway.LAMP_EVERY
 
 
 ## The north end: the slide's rocks across the road and the k-rails and barricade in front of them.
