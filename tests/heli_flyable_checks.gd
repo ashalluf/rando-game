@@ -30,11 +30,12 @@ func run(t: Node, city: Node3D) -> void:
 	await _spot(city, player, ws)
 	if player.call("is_driving"):
 		player.call("exit_vehicle")
+	for h in _tree.get_nodes_in_group("flyable_heli"):
+		(h as Node).queue_free()
+	await _frames(2)
 	player.global_position = ws.call("to_local", was)
 	player.set("velocity", Vector3.ZERO)
 	city.call("update_streaming", true)
-	for h in _tree.get_nodes_in_group("flyable_heli"):
-		(h as Node).queue_free()
 	await _frames(2)
 
 

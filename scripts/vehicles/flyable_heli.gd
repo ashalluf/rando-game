@@ -152,6 +152,8 @@ var _cam_driver: Node = null
 var _cam_keep: float = -1.0
 
 static var _disc_shader: Shader
+static var _livery_mats: Dictionary = {}
+static var _blade_mat: StandardMaterial3D
 static var _light_shader: Shader
 static var _charred: StandardMaterial3D
 static var _cyl: CylinderShape3D
@@ -283,14 +285,19 @@ func _paint(inst: Node) -> void:
 		cols = [cols[0], cols[1], cols[2], cols[1]]
 	else:
 		cols = LIVERY_COLORS[heli_livery]
-	var mats := {
-		"paint": _lacquer(cols[0]),
-		"paint2": _lacquer(cols[1]),
-		"stripe": _lacquer(cols[2]),
-		"decal_police": _flat(cols[3], 0.45),
-		"decal_news": _flat(cols[3], 0.45),
-		"glass": _glass(),
-	}
+	# Shared per colourway (and kept): a helicopter freed while its rotor still turns must not take
+	# its materials with it under instances the renderer has yet to update.
+	var way := str(cols)
+	if not _livery_mats.has(way):
+		_livery_mats[way] = {
+			"paint": _lacquer(cols[0]),
+			"paint2": _lacquer(cols[1]),
+			"stripe": _lacquer(cols[2]),
+			"decal_police": _flat(cols[3], 0.45),
+			"decal_news": _flat(cols[3], 0.45),
+			"glass": _glass(),
+		}
+	var mats: Dictionary = _livery_mats[way]
 	for n in inst.find_children("*", "MeshInstance3D", true, false):
 		var mi := n as MeshInstance3D
 		if mi == null or mi.mesh == null:
@@ -428,6 +435,14 @@ func is_airborne() -> bool:
 
 func is_wreck() -> bool:
 	return exploded
+
+
+## PhysicsBudget stops a far, empty car's script: a helicopter still turning its rotor, burning,
+## falling or flying off on its own keeps it (only one sitting quiet on its skids lets it go).
+func set_script_active(on: bool) -> void:
+	var busy := not exploded and (spool > 0.0 or hold_running or air_seconds > 0.0 or _burn_left >= 0.0 \
+			or (engine_dead and not freeze))
+	super.set_script_active(on or busy)
 
 
 ## Seats the right-hand pilot's seat for CarCabin: nobody is drawn (the canopy is a dark mirror).
@@ -618,7 +633,7 @@ func _exit_tree() -> void:
 			rig.camera_distance = _cam_keep
 	_cam_driver = null
 	if _wash:
-		_wash.clear()
+		_wash.clear(true)
 
 
 # --- Sound and wash ---------------------------------------------------------------------------
@@ -709,7 +724,9 @@ func _throw_blades() -> void:
 	if parent == null:
 		return
 	var hub := global_transform * _hub_local
-	var mat := _flat(Color(0.08, 0.08, 0.09), 0.6)
+	if _blade_mat == null:
+		_blade_mat = _flat(Color(0.08, 0.08, 0.09), 0.6)
+	var mat := _blade_mat
 	for i in 4:
 		var a := TAU * float(i) / 4.0 + global_rotation.y
 		var piece := RigidBody3D.new()

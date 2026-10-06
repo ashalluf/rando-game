@@ -84,7 +84,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
-	clear()
+	clear(true)
 
 
 ## One tick: `hub` (scene frame) and the rotor's strength 0..1.
@@ -150,15 +150,19 @@ func _publish(hub: Vector3, k: float) -> void:
 		clear()
 
 
-## Takes this wash off the ground and out of the shader global.
-func clear() -> void:
+## Takes this wash off the ground and out of the shader global (`leaving`: the node is on its way
+## out of the tree, so nothing is touched on it and the global is reset after the frame's frees).
+func clear(leaving: bool = false) -> void:
 	ground_strength = 0.0
-	if _dust and is_instance_valid(_dust):
+	if not leaving and _dust and is_instance_valid(_dust):
 		_dust.emitting = false
 	if _owner_id == get_instance_id():
 		_owner_id = 0
 		_owner_k = 0.0
-		RenderingServer.global_shader_parameter_set("heli_downwash", Vector4(0.0, -10000.0, 0.0, 0.0))
+		if leaving:
+			RenderingServer.global_shader_parameter_set.call_deferred("heli_downwash", Vector4(0.0, -10000.0, 0.0, 0.0))
+		else:
+			RenderingServer.global_shader_parameter_set("heli_downwash", Vector4(0.0, -10000.0, 0.0, 0.0))
 
 
 func _push_props(at: Vector3, k: float) -> void:
