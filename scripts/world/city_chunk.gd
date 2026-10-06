@@ -2585,6 +2585,13 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 		# racks. Hash-seeded; after the vendors it keeps clear of, before the parked cars.
 		if Micromobility.wanted(self, block):
 			steps.append(func() -> void: Micromobility.build_block(self, block))
+		# Outdoor dining parklets (Parklets): decks in the parking lane before cafes and restaurants,
+		# their diners and waiters. Hash-seeded; after the vendors, road works and bike lanes they
+		# keep clear of, before the parked cars, which keep off their stretch.
+		if Parklets.wanted(self, block):
+			steps.append(func() -> void: Parklets.build_block(self, block))
+			for i in Parklets.MAX_PEOPLE:
+				steps.append(func() -> void: Parklets.spawn_person(self, i))
 		steps.append_array(_park_car_steps(rect, rng, params))
 		steps.append_array(_pedestrian_steps(rect, rng, params, Encampment.PATH_KEEP + 1.0 if camps & Encampment.FACES else -1.0))
 		# The rec park's or school's people (Parks; their own stream, after the block's walkers).
@@ -2816,7 +2823,7 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	# It counts as parked, so the cap (and with it the rolls) is the same too.
 	if StreetVendors.blocks_parking(self, spot[0]) or Construction.blocks_parking(self, spot[0]) \
 			or KerbBins.blocks_parking(plan, spot[0], float(car._dims().length)) \
-			or FarmersMarket.blocks_parking(plan, spot[0]):
+			or FarmersMarket.blocks_parking(plan, spot[0]) or Parklets.blocks_parking(self, spot[0]):
 		car.free()
 		count[0] += 1
 		return

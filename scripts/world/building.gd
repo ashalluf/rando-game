@@ -202,6 +202,9 @@ var plinth_in_chunk: bool = false
 ## this building's space: a flat quad for PropFactory.shop_spill(), centred on the foot of the
 ## shopfront. The chunk batches them (CityChunk._add_shop_spill()); its y is ignored.
 var shop_pools: Array = []
+## Every ground-floor shop's front, open or not, as [foot of the shopfront (building space),
+## outward normal, width, ShopRoom, shop key] (Parklets reads the cafes and restaurants).
+var shop_fronts: Array = []
 
 var _rng := RandomNumberGenerator.new()
 var _generated: bool = false
@@ -1529,6 +1532,9 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 				var key := shop_key(face_index + 1, run)
 				# A tower's lobby is lit all night; every pool is its room's colour (room_tone()).
 				var lobby := shop_is_lobby(key, run, runs, maxf(height, size.y))
+				var front_along := size_u * 0.5 - (float(run) + 0.5) * span * pitch
+				if Parklets.enabled and absf(front_along) <= size_u * 0.5 - cut:
+					shop_fronts.append([fc + a * front_along, n, span * pitch, ShopRoom.LOBBY if lobby else shop_room(face_index + 1, run), key])
 				if not shop_open(key) and not lobby:
 					continue
 				var u_s := (float(run) + 0.5) * span * pitch
