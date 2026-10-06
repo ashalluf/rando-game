@@ -2947,6 +2947,11 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	if CivicBuildings.claims(plan, ix, iz, lot):
 		CivicBuildings.build_lot(self, lot)
 		return
+	# A corner store the player can walk into (CornerStore: a corner lot in MIDTOWN / SUBURBS,
+	# hash-seeded, after every roll and claim above).
+	if CornerStore.claims(plan, ix, iz, lot):
+		CornerStore.build_lot(self, lot)
+		return
 	var fill := LotFill.wanted(self, district)
 	# A surface car park (CityPlan.lots() "parking"; the pad roll above is still made).
 	if fill and lot.get("parking", false):
