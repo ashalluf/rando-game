@@ -14479,3 +14479,104 @@ registered (one line each when wanted); the river's low-flow channel is too shal
 driven into the sea still rides its wheels on the ground box; the underwater view has no real
 depth fog on far geometry (the pass veils the whole picture); the strokes are keyed in code, not
 motion-captured; nothing of it has been seen on Forward+ (the Mac).
+
+## 9ex. Freeway incidents: stalls, debris, slowdowns and message signs, 2026-10-06 (agent branch `wt/freeway-incidents`; VISUAL_ROADMAP ?)
+
+**What.** The freeway's everyday incidents, worked out from a clock, never rolled live
+(`FreewayIncidents`, `scripts/npc/freeway_incidents.gd`, a child of the Traffic node):
+
+- **A stalled car.** It coasts out of the slow lane onto the outer shoulder (right indicator,
+  brake lights) and stops on its hazards; its driver (`FreewayMotorist`, a crowd rig on the phone,
+  a StreetVendor that never leaves its spot: gunfire makes it crouch, not run off the viaduct)
+  stands behind it by the barrier. A **BASIN HIGHWAY PATROL** car (`FreewayPatrol`,
+  `scripts/vehicles/freeway_patrol.gd`, an invented agency: the cruiser's black-and-white livery
+  and its red/blue light bar, the agency's name on the doors, an officer at the wheel, no siren and
+  no part in the wanted level) comes up the shoulder 260 m back, parks behind with its bar
+  flashing. A **rollback tow truck** (ServiceVehicles' TOW body and its TowBed, any of its four
+  invented fleets) comes up the slow lane, pulls onto the shoulder ahead, slides and tilts its bed,
+  winches the car up it (ServiceFleet's tow moves), levels the bed and drives off down the
+  shoulder and into the slow lane with the car aboard and the driver in its cab; the patrol car
+  follows. Traffic in the slow lane moves over past the scene (or slows to half), and both
+  carriageways slow to look.
+- **Debris in a lane**: a truck tyre's shredded tread (2-5 pieces, `FreewayIncidentKit.tread_mesh()`:
+  curled strips with their lugs, torn ends and the steel belt's wires) or a queen mattress
+  (`mattress_mesh()`, `shaders/fw_mattress.gdshader`: quilting, border, piping, grime and a tyre
+  print). A car in that lane changes lanes round it (TrafficAI's gap test, a quick 2.6 s move,
+  away from the shoulder first) or stops short and waits for a gap; never through it. The lanes
+  beside it slow a little.
+- **Slowdowns**: 500-1,200 m of a carriageway where traffic crawls in waves that run upstream
+  (22-62 % of its speed), for a few minutes, then clears.
+- **Changeable message signs** on a third of the gantry carriageways that have no exit sign
+  (`has_cms()`, a hash): FreewayKit's gantry hook builds the CMS cabinet (housing, black bezel,
+  sun hood, louvres, catwalk) in place of the second guide board at every level; near the player
+  (`CMS_REACH`) FreewayIncidents puts its LED face on (`shaders/freeway_cms.gdshader`: 3 lines of
+  20 amber 5 x 7 characters, two pages alternating, round LEDs that merge to a glow past a
+  pixel). The message is the nearest incident ahead on its carriageway within 4.2 km ("STALLED
+  VEHICLE / RIGHT SHOULDER / 2 MILES AHEAD" then "MOVE OVER / OR SLOW DOWN", "DEBRIS ON ROADWAY /
+  LANE 2", "OBJECT IN ROAD / LANE 3 BLOCKED", "SLOW TRAFFIC / EXPECT DELAYS"), else travel times
+  to two of FreewayKit's invented destinations, else a safety message.
+
+**How.** Every route is cut into `ZONE` (1 km) stretches per direction, and time into `PERIOD`
+(480 s) slots phased per stretch; `incident(fw, seed, route, zone, dir, slot)` is pure: what (20 %
+stall, 11 % tyre, 7 % mattress, 12 % slowdown, the rest quiet), where (`t` along the route, never
+within `END_KEEP` of the ends, never within `RAMP_KEEP` of a ramp of its own carriageway, never on
+the stack's touch runs or under its decks: `site_ok()`), when inside the slot, the debris lane and
+the stall's timings. On the default seed about two stalls, one tyre, half a mattress and two
+slowdowns run somewhere at any moment. The node surveys every 0.5 s: incidents within the
+traffic's reach of the player are live (their blocks reach the traffic), those within
+`BUILD_REACH` (750 m) get their scene. The stall is a script, `stall_pose(inc, seconds, halves)`
+(pure): every vehicle's metres along the shoulder, how far across from the slow lane, its speed,
+coming / going; the bed and the winch. Every vehicle is a FreewayIncidents traffic car (`traffic`
+holds `fw_incident`: kinematic, no wheels, never the player's to take); a hit knocks it out of
+the traffic like any car and from then on it is not ours.
+
+Hooks (small, at the end of what they touch): `TrafficManager._ready()` adds the node;
+`_drive_freeway()` asks `FreewayIncidents.drive()` for each car's speed after its following
+(blocks: hard ones a car stops short of, soft ones it slows past; zones: the look-around and the
+slowdown's waves; a lane change out of a blocked lane; TrafficAI's own lane thinking held off
+near a block, and an exit dropped, so keep-right never steers a car back into one);
+`_spawn_freeway_car()` asks `spawn_lane()`; `FreewayKit._sign_pair()` asks `has_cms()`;
+`tools/glshot/still_shot.gd`'s SHOTS loop sets an Engine meta with the shot's index.
+
+**Switches and tools.** `FREEWAY_INCIDENTS=0` turns all of it off (no node, no cabinets, the hooks
+return what they were given). Stills: `FW_INCIDENT=stall|tyre|mattress|slow`, `FW_INCIDENT_AT=<route>:<t>:<dir>`
+(else the nearest route point to the player), `FW_INCIDENT_T=<seconds into it>`,
+`FW_INCIDENT_HOLD=1` (the clock stands still), `FW_INCIDENT_TIMES=a,b,...` (one time per SHOTS
+entry), `FW_INCIDENT_ONLY=1` (only the forced one). `tools/freeway_incidents/probe.tscn` prints
+the routes, how many incidents run, the CMS gantries near `AT=x,z` with their messages and EYEs,
+and incident spots with EYEs (behind, side, ahead, debris); `compile.tscn` compiles the scripts in
+seconds.
+
+**Checks** (`tests/freeway_incidents_checks.gd`, one line at the end of the smoke test's city
+files): the schedule pure, its shares, every incident inside its route and slot and never by a
+ramp of its own carriageway, the CMS share; the stall's script at four moments; the kit's meshes
+and the CMS lettering; live on the deck, a forced stall (car on the shoulder with the patrol car
+behind, hazards, the bar, the driver, the CMS behind telling of it, the slow lane moving over, the
+tow parked ahead bed down, the car on its bed, the driver gone, the tow driving off with it, both
+vehicles handed to the traffic); a mattress in its lane, a car changing lanes round it and never
+through it, a spawn moved out of its lane; a slowdown slowing a car; the switch off changing
+nothing. `SMOKE_PARTS=freeway_incidents_checks`: 48 passed, 0 failed (~6 min with the city load). Full gate (SHARDS=3) on this branch: 2,407 passed, 0 failed, peak 2.39 GB a shard.
+
+**Stills** (shots/freeway-incidents, opengl3, the 110 by downtown at route 3 t 1904):
+`01`-`04` and `09` the stall (coasting in, patrol car behind, the tow winching, the tow loaded
+from ahead, gone), `05` the mattress, `06` tyre tread with a car signalling out of its lane, `07`
+the CMS by day ("STALLED VEHICLE / RIGHT SHOULDER / AHEAD"), `08` its second page at 21:00,
+`00_before_*` the same views with FREEWAY_INCIDENTS=0. EYEs: behind the stall
+`1951.0,11.7,252.3,166.8,-3.8`, ahead `1946.0,12.5,308.1,0.1,-3.8`, the CMS
+`2028.7,14.5,-237.0,-6,0` (FOV 30), with `--spawn=1975,270,175,-6 --hour=14`.
+
+**Frame cost** (`still_shot.gd` GEO lines, opengl3 1280x720, same EYEs, traffic differs run to
+run): the stall view 5.34 M triangles / 2,961 draws with FREEWAY_INCIDENTS=0, 5.92 M / 3,105 with
+the stall in it (the three vehicles, the driver, their shadows); the debris view 5.50 M / 2,694 ->
+5.28 M / 2,707; the CMS view 3.64 M / 1,247 -> 3.66 M / 1,260 (the LED face is one quad and a draw).
+Driving cost: `drive()` is a dictionary lookup for a car on a carriageway with no incident, a few
+comparisons a block otherwise; nothing is queried from physics.
+
+**Not done / not verified.** Not seen on Forward+ (the Mac): the CMS amber under AgX, the patrol
+bar at night. The stall's vehicles are scripted, not driven: a car the player parks on the
+shoulder in their path is not avoided (the tow drives through it; shooting it knocks it out of the
+script like any traffic car). The incidents' blocks act only on TrafficAI's lane-indexed freeway
+traffic (with TRAFFIC_AI=0 cars slow and stop but do not change lanes). No incidents on the stack's
+connectors or the ramps. The patrol officer stays in the car; the driver does not walk to the tow
+(they vanish when the bed rises). The mattress and tread have no collision. The debris stills are
+framed from 30 m; closer framing would read better.

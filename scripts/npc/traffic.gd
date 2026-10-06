@@ -106,6 +106,11 @@ var _drive_serial: int = 0
 
 func _ready() -> void:
 	_rng.seed = 99
+	if FreewayIncidents.enabled:
+		var fwi := FreewayIncidents.new()
+		fwi.plan = plan
+		fwi.tm = self
+		add_child(fwi)
 
 
 func _physics_process(delta: float) -> void:
@@ -1231,6 +1236,10 @@ func _spawn_freeway_car(ri: int, t: float, dir: int) -> void:
 		# Trucks keep to the two slow lanes, a little under the flow.
 		li = Freeway.LANES - 1 - _rng.randi() % 2
 		lane = Freeway.lane_fraction(width, li) * float(dir)
+	var free_li := FreewayIncidents.spawn_lane(ri, t, dir, li)
+	if free_li != li:
+		li = free_li
+		lane = Freeway.lane_fraction(width, li) * float(dir)
 	var car := _new_car(kind)
 	car.traffic = {
 		"fw": ri, "t": t, "dir": dir, "lane": lane, "li": li,
@@ -1350,6 +1359,7 @@ func _drive_freeway(delta: float) -> void:
 				var oa := TrafficAI.fw_ahead(groups, Vector3(float(tt.fw), float(dir), float(tt.lc_src)), float(tt.t), dir, car)
 				if not oa.is_empty():
 					speed = minf(speed, _fw_follow(car, oa[0]))
+			speed = FreewayIncidents.drive(self, fw, car, speed, groups, delta)
 			if ai:
 				TrafficAI.freeway_think(self, fw, car, leader, groups, delta)
 				if TrafficAI.fw_exit_tick(self, fw, car, speed, delta):
