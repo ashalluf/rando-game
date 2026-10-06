@@ -1,0 +1,49 @@
+extends SceneTree
+# Headless probe of the 1:1 downtown: grid, towers, civic sites, freeways, timings.
+func _initialize() -> void:
+	var t0 := Time.get_ticks_msec()
+	var m := MacroMap.new()
+	m.seed = 1337
+	m.setup()
+	print("macro setup ms ", Time.get_ticks_msec() - t0)
+	var plan := CityPlan.new()
+	plan.seed = 1337
+	plan.macro = m
+	for axis in 2:
+		var names := ""
+		var lo := plan._index_at(axis, -2500.0)
+		var hi := plan._index_at(axis, 4500.0)
+		for i in range(lo, hi + 1):
+			names += "%s@%.0f(%.0f) " % [plan.road_name(axis, i), plan.road_pos(axis, i), plan.road_width(axis, i)]
+		print("AXIS ", axis, ": ", names)
+	for id: String in LandmarkDowntown.TOWERS:
+		var a := LandmarkDowntown.anchor(id)
+		var r := LandmarkDowntown.real_xz(id)
+		var t: Dictionary = LandmarkDowntown.tower(id)
+		print("TOWER %-18s anchor (%.1f, %.1f) real (%.1f, %.1f) off %.1f  extent %s plan %s" % [id, a.x, a.y, r.x, r.y, a.distance_to(r), (t.extent as Rect2).size, LandmarkDowntown.TOWERS[id].plan])
+	for id: String in CivicSites.ORDER:
+		var info := CivicSites.site(plan, id)
+		print("CIVIC %-18s centre %s world %s off %.1f" % [id, info.centre, info.world, (info.centre as Vector2).distance_to(CivicSites.real_xz(id))])
+	for r: Dictionary in m.freeway.routes:
+		var pts: PackedVector2Array = r.points
+		var hmax := 0.0
+		for h in r.heights:
+			hmax = maxf(hmax, h)
+		print("ROUTE %s %s -> %s n=%d len=%.0f maxdeck=%.0f" % [r.name, pts[0], pts[pts.size() - 1], pts.size(), float(pts.size()) * 24.0, hmax])
+	for p: Vector2 in [DowntownReal.point("200_n_spring"), DowntownReal.point("800_n_alameda"), DowntownReal.point("1111_s_figueroa"), m.downtown_center, Vector2(300, 300), Vector2(0, 0)]:
+		print("AT %s zone %s district %s raw %.1f h %.1f boost %.2f" % [p, MacroMap.zone_name(m.zone_at(p)), CityPlan.district_name(m.district_at(p)), m.raw_height_at(p), m.height_at(p), m.skyline_boost(p)])
+	var t1 := Time.get_ticks_msec()
+	var lots := 0
+	var tall := 0
+	var ext := DowntownReal.game_extent()
+	var a := plan.block_index_at(ext.position)
+	var b := plan.block_index_at(ext.end)
+	for ix in range(a.x, b.x + 1):
+		for iz in range(a.y, b.y + 1):
+			var blk := plan.block(ix, iz)
+			for lot in plan.lots(ix, iz):
+				lots += 1
+				if plan.lot_height(lot.seed, blk.district, m.skyline_boost(lot.center)) > 130.0:
+					tall += 1
+	print("replica blocks %d x %d, lots %d, over 130 m %d (%d ms)" % [b.x - a.x + 1, b.y - a.y + 1, lots, tall, Time.get_ticks_msec() - t1])
+	quit()

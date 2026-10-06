@@ -1,0 +1,4013 @@
+extends Node
+## Headless smoke test, run as a scene so every autoload exists before it compiles.
+## Loads the test room and the city, drives the player with simulated input and checks
+## movement, weapons, buildings, streaming, NPCs, cars and polish. Exit code 0 = pass.
+## Run:  godot --headless --path . res://tests/smoke_test.tscn
+
+const LEVEL_PATH := "res://scenes/levels/test_box.tscn"
+
+var _failures: PackedStringArray = []
+var _checks := 0
+## SMOKE_PROFILE=1 prints a TIME line (wall seconds, resident memory, frame) after every check,
+## which is how the gate's time is split by section (tools/gate/profile.py).
+var _profile := OS.get_environment("SMOKE_PROFILE") == "1"
+
+
+## The most resident memory this process has had, in MB (Linux; 0 elsewhere).
+func _peak_rss_mb() -> int:
+	var f := FileAccess.open("/proc/self/status", FileAccess.READ)
+	if f == null:
+		return 0
+	while not f.eof_reached():
+		var line := f.get_line()
+		if line.begins_with("VmHWM:"):
+			return int(line.substr(6).strip_edges().split(" ")[0]) / 1024
+	return 0
+
+
+## Resident memory of this process in MB (Linux; 0 elsewhere).
+func _rss_mb() -> int:
+	var f := FileAccess.open("/proc/self/status", FileAccess.READ)
+	if f == null:
+		return 0
+	# Line by line: /proc reports a length of 0, so get_as_text() reads nothing.
+	while not f.eof_reached():
+		var line := f.get_line()
+		if line.begins_with("VmRSS:"):
+			return int(line.substr(6).strip_edges().split(" ")[0]) / 1024
+	return 0
+
+
+func _ready() -> void:
+	# Watchdog: a broken test must never hang the check. Game time, and under the 600 s wall-clock
+	# timeout in headless_check.sh; the police checks added about 30 s to a run that was already
+	# close to the old 300, and the distance checks (tests/distance_checks.gd) about 20 more.
+	# SMOKE_WATCHDOG=seconds raises it for a run on a box shared with other heavy jobs, where the
+	# same checks take longer in wall time (the gate's own timeout has to be raised with it).
+	var watchdog := float(OS.get_environment("SMOKE_WATCHDOG")) if OS.get_environment("SMOKE_WATCHDOG") != "" else 840.0
+	get_tree().create_timer(watchdog).timeout.connect(func():
+		printerr("SMOKE TEST TIMED OUT")
+		get_tree().quit(2))
+	_choose_parts()
+	# Deferred: the root is still busy adding this scene during _ready().
+	_run.call_deferred()
+
+
+## PARTS and shards. The run is cut into parts: "room" (the test room, the weapons, the building
+## samples), the city's own sections (_city_streaming() ... _city_files(), run in this order after
+## one city load) and, inside "city_files", every check file it loads (tests/*_checks.gd). A
+## whole run does all of them, exactly as before. SMOKE_SHARD=i/n (tests/headless_check.sh
+## SHARDS=n runs n of these side by side) does the i-th of n shares, dealt by PART_COST, longest
+## first, to the least loaded share: each share loads its own city, so the parts must not lean on
+## each other's state (the shards' pass / fail lists together are the whole run's).
+## SMOKE_PARTS=room,city_cars,bird_checks runs just those (a quick loop on one area).
+## A check file that is not in this share is swapped for a stub before city_files runs (a script
+## taken over at its path, so load() returns it), which leaves smoke_test's list of files as it is.
+const CITY_PARTS := ["city_streaming", "city_terrain", "city_landmarks", "city_cars", "city_people",
+	"city_polish", "city_crowd", "city_menu"]
+## Check files called from inside a city part (they go with that part, never on their own).
+const INLINE_FILES := ["downtown_checks", "hero_moves_checks", "street_life_checks",
+	"crowd_anim_checks", "crowd_life_checks", "crowd_hat_checks", "photo_mode_checks"]
+## Wall seconds each part took in a whole run on the 4-core fleet box (SMOKE_PROFILE=1 prints
+## them as PART lines); a file missing here counts DEFAULT_COST. Only the deal depends on them.
+const PART_COST := {
+	"room": 30.0, "city_streaming": 59.7, "city_terrain": 17.9, "city_landmarks": 39.0,
+	"city_cars": 64.5, "city_people": 8.8, "city_polish": 27.1, "city_crowd": 72.4,
+	"city_menu": 42.1, "civic_checks": 1.4, "air_traffic_checks": 3.3, "airport_checks": 11.8,
+	"car_damage_checks": 13.5, "car_cabin_checks": 1.5, "car_lights_checks": 9.7,
+	"big_vehicle_checks": 34.7, "more_cars_checks": 4.1, "light_rail_checks": 1.8,
+	"bird_checks": 0.4, "sky_checks": 0.0, "emergency_checks": 80.6,
+	"police_station_checks": 64.9, "ambience_checks": 0.5, "audio_checks": 2.2,
+	"replica_checks": 0.5, "surf_checks": 0.5, "freeway_kit_checks": 0.9, "westlake_checks": 22.3,
+	"distance_checks": 21.9, "hill_air_checks": 0.1, "far_city_checks": 0.3,
+	"masjid_checks": 15.3, "street_wear_checks": 9.9, "climbing_plants_checks": 1.4,
+	"street_vendors_checks": 1.1, "beach_life_checks": 0.9, "broadway_checks": 1.6,
+	"lot_fill_checks": 3.4, "house_checks": 1.7, "industrial_checks": 1.2, "park_checks": 0.5,
+	"billboard_checks": 4.1, "la_river_checks": 15.6, "night_city_checks": 3.0,
+	"port_life_checks": 20.8, "canals_checks": 0.8, "pier_park_checks": 17.7,
+	"marina_checks": 0.2, "explosion_aftermath_checks": 9.4, "building_damage_checks": 0.1,
+	"schools_checks": 1.3, "minimap_checks": 0.5, "weather_la_checks": 0.1,
+	"stack_interchange_checks": 6.0
+}
+const DEFAULT_COST := 6.0
+## Every share pays for its own city load on top of its parts.
+const CITY_LOAD_COST := 60.0
+var _parts := {} # part or check file name -> true; empty = everything
+var _buildings_done := false
+var _ran := {} # the city parts this run has started, for _stage()
+var _home_look := Vector2(INF, INF) # the camera's yaw and pitch when the city has loaded
+var _proxies := {} # check file path -> [the real script, its name, run()'s argument count]
+
+
+func _choose_parts() -> void:
+	var listed := OS.get_environment("SMOKE_PARTS")
+	var shard := OS.get_environment("SMOKE_SHARD")
+	if listed != "":
+		for part in listed.split(",", false):
+			_parts[part.strip_edges()] = true
+	elif shard != "":
+		var index := int(shard.get_slice("/", 0))
+		var count := maxi(int(shard.get_slice("/", 1)), 1)
+		var shares := shard_plan(count)
+		for part in shares[clampi(index, 0, count - 1)]:
+			_parts[part] = true
+	else:
+		return
+	var known := all_parts()
+	for part in _parts:
+		if not known.has(part):
+			_check(false, "SMOKE_PARTS names a part that does not exist: %s" % part)
+	printerr("SMOKE PARTS %s" % ",".join(_parts.keys()))
+
+
+## Every part, then every check file city_files loads, by name.
+static func all_parts() -> Array:
+	var names: Array = ["room"]
+	names.append_array(CITY_PARTS)
+	for file in DirAccess.get_files_at("res://tests"):
+		if file.ends_with("_checks.gd") and not INLINE_FILES.has(file.get_basename()):
+			names.append(file.get_basename())
+	return names
+
+
+## The n shares: the parts, longest first, each to the share that would finish first (a city part
+## or file also brings the share's city load). Deterministic, so every shard deals the same.
+static func shard_plan(count: int) -> Array:
+	var names := all_parts()
+	names.sort_custom(func(a, b):
+		var ca: float = PART_COST.get(a, DEFAULT_COST)
+		var cb: float = PART_COST.get(b, DEFAULT_COST)
+		return ca > cb or (ca == cb and a < b))
+	var shares: Array = []
+	var busy: Array = []
+	var has_city: Array = []
+	for i in count:
+		shares.append([])
+		busy.append(0.0)
+		has_city.append(false)
+	for part in names:
+		var cost: float = PART_COST.get(part, DEFAULT_COST)
+		var is_city: bool = part != "room"
+		var best := 0
+		var best_end := INF
+		for i in count:
+			var end: float = busy[i] + cost + (CITY_LOAD_COST if is_city and not has_city[i] else 0.0)
+			if end < best_end - 0.001:
+				best = i
+				best_end = end
+		shares[best].append(part)
+		busy[best] = best_end
+		has_city[best] = has_city[best] or is_city
+	return shares
+
+
+func _want(part: String) -> bool:
+	if _parts.is_empty():
+		return true
+	if part == "city_files":
+		for key in _parts:
+			if not CITY_PARTS.has(key) and key != "room":
+				return true
+		return false
+	return _parts.has(part)
+
+
+func _wants_city() -> bool:
+	if _parts.is_empty():
+		return true
+	for key in _parts:
+		if key != "room":
+			return true
+	return false
+
+
+func _part_begin(part: String) -> int:
+	if not _parts.is_empty():
+		await _stage(part)
+	if part == "city_files" and (_profile or not _parts.is_empty()):
+		_wrap_files()
+	return Time.get_ticks_msec()
+
+
+## A share's part whose predecessor ran elsewhere starts from the spawn with the streaming
+## settled, as the city's first part does, not wherever this share's last part left the player.
+func _stage(part: String) -> void:
+	var order: Array = ["setup"]
+	order.append_array(CITY_PARTS)
+	order.append("city_files")
+	var before: String = order[order.find(part) - 1]
+	_ran[part] = true
+	if before != "setup" and not _ran.has(before):
+		await stage_home()
+
+
+## The player back at the spawn, streaming settled round it.
+func stage_home() -> void:
+	var city: Node = get_tree().root.get_node_or_null("City")
+	var player := get_tree().get_first_node_in_group("player") as CharacterBody3D
+	if city == null or player == null:
+		return
+	player.global_position = _world_state().to_local(Vector3(0.0, 2.0, 0.0))
+	player.velocity = Vector3.ZERO
+	# Looking the way the city first set the camera (a file aims down the view: the rocket at a
+	# helicopter 55 m ahead hit whatever building the last file had the camera turned to).
+	var rig: Node = player.get_node_or_null("CameraRig")
+	if rig and _home_look.x != INF:
+		rig.call("set_look", rad_to_deg(_home_look.x), rad_to_deg(_home_look.y))
+	city.update_streaming(true)
+	await _ticks(30)
+
+
+func _part_end(part: String, began: int) -> void:
+	printerr("PART %s %.1f s" % [part, (Time.get_ticks_msec() - began) / 1000.0])
+
+
+## Before city_files: every check file it loads is swapped for a script taken over at its path,
+## so load() returns that instead. In a share, a file of another share becomes a stub with an
+## empty run(), and a file of this share a proxy that first puts the player back at the spawn
+## (stage_home(): a file's result must not depend on which files the deal put before it) and
+## then runs the real one. With SMOKE_PROFILE=1 the proxy also prints a PART line with the file's
+## time (how PART_COST is measured).
+func _wrap_files() -> void:
+	var source: String = (get_script() as GDScript).source_code
+	for part in all_parts():
+		if part == "room" or CITY_PARTS.has(part):
+			continue
+		var path := "res://tests/%s.gd" % part
+		var proxy := GDScript.new()
+		if not _parts.is_empty() and not _parts.has(part):
+			proxy.source_code = "extends RefCounted\nfunc run(_a = null, _b = null, _c = null, _d = null) -> void:\n\tpass\n"
+		else:
+			var real: GDScript = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE)
+			var argc := 2
+			for method in real.get_script_method_list():
+				if method.name == "run":
+					argc = method.args.size()
+			# Only a file the list awaits is staged: a plain call does not wait for a coroutine, and
+			# those files check data, not the world round the player.
+			var awaited: bool = source.contains('await load("%s")' % path)
+			_proxies[path] = [real, part, argc, awaited and not _parts.is_empty()]
+			# The proxy finds the real script through the smoke test, which every file is handed first.
+			proxy.source_code = """extends RefCounted
+func run(a = null, b = null, c = null, d = null) -> void:
+	var spec: Array = a._proxies["%s"]
+	if spec[3]:
+		await a.stage_home()
+	var t := Time.get_ticks_msec()
+	await spec[0].new().callv("run", [a, b, c, d].slice(0, spec[2]))
+	if a._profile:
+		printerr("PART %%s %%.1f s" %% [spec[1], (Time.get_ticks_msec() - t) / 1000.0])
+""" % path
+		proxy.reload()
+		proxy.take_over_path(path)
+
+
+func _run() -> void:
+	if not _want("room"):
+		if _wants_city():
+			await _test_city()
+		_finish()
+		return
+	var packed: PackedScene = load(LEVEL_PATH)
+	_check(packed != null, "level scene loads")
+	if packed == null:
+		_finish()
+		return
+	var level := packed.instantiate()
+	get_tree().root.add_child(level)
+	_check(get_tree().root.get_node_or_null("PhysicsBudget") != null, "PhysicsBudget autoload present")
+
+	await _ticks(30)
+	var player := get_tree().get_first_node_in_group("player") as CharacterBody3D
+	_check(player != null, "player found in group 'player'")
+	if player == null:
+		_finish()
+		return
+	_check(player.is_on_floor(), "player stands on the ground after settling")
+	var props := get_tree().get_nodes_in_group("physics_prop").size()
+	_check(props >= 50, "crates spawned (%d)" % props)
+
+	# Walk forward for one second.
+	var start := player.global_position
+	Input.action_press("move_forward")
+	var walk_speed := await _run_and_measure_speed(player, 60)
+	Input.action_release("move_forward")
+	var moved := Vector2(player.global_position.x - start.x, player.global_position.z - start.z).length()
+	_check(moved > 6.0, "moving forward covers ground (%.1f m in 1 s)" % moved)
+	_check(player.global_position.z < start.z, "forward is -Z relative to the camera")
+	_check(absf(walk_speed - player.walk_speed) < 1.0, "walk speed reaches %.1f (target %.1f)" % [walk_speed, player.walk_speed])
+	await _ticks(30)
+
+	# Boost is much faster than running (run back the other way so nothing is in the path).
+	Input.action_press("move_back")
+	Input.action_press("boost")
+	var boost_speed := await _run_and_measure_speed(player, 90)
+	# The boost's trail (BoostTrail: vapour, wake, streaks, dust) runs while boosting at speed.
+	var trail: Node = player.get_node_or_null("BoostTrail")
+	var trailing: bool = trail != null and bool(trail.call("is_trailing"))
+	Input.action_release("boost")
+	Input.action_release("move_back")
+	_check(boost_speed > player.walk_speed + 15.0 and boost_speed <= player.boost_max_speed + 0.5,
+		"boost speed reaches %.1f (cap %.1f)" % [boost_speed, player.boost_max_speed])
+	await _ticks(2)
+	_check(trailing and not bool(trail.call("is_trailing")), "the boost trail runs while boosting and stops on release")
+	await _ticks(90)
+
+	# Full jump, holding the button through the apex.
+	var ground_y := player.global_position.y
+	var peak := await _jump_and_measure(player, ground_y)
+	_check(peak > player.jump_height * 0.75 and peak < player.jump_height * 1.25,
+		"ground jump peaks at %.1f m (target %.1f)" % [peak, player.jump_height])
+	await _wait_for_floor(player, 400)
+	_check(player.is_on_floor(), "player lands after the jump")
+	_check(absf(player.last_jump_peak - peak) < 0.5, "HUD jump peak %.1f matches measured %.1f" % [player.last_jump_peak, peak])
+
+	# Double jump goes higher than a single jump.
+	var peak2 := await _double_jump_and_measure(player, player.global_position.y)
+	_check(peak2 > peak + player.double_jump_height * 0.5,
+		"double jump peaks at %.1f m (single %.1f)" % [peak2, peak])
+	await _wait_for_floor(player, 400)
+
+	# Respawn returns to the start.
+	Input.action_press("respawn")
+	await _ticks(2)
+	Input.action_release("respawn")
+	_check(player.global_position.distance_to(Vector3(0, 1, 0)) < 2.0, "respawn returns to spawn")
+
+	await _check_camera_post(player)
+	await _test_weapons(player)
+	_test_buildings()
+	level.free() # Free now, so the city scene cannot pick up this level's player.
+	await get_tree().process_frame
+	if _wants_city():
+		await _test_city()
+	# (In a whole run the building checks finish during the city's load; alone, wait for them.)
+	while not _buildings_done:
+		await get_tree().process_frame
+	_finish()
+
+
+func _test_city() -> void:
+	var packed: PackedScene = load("res://scenes/levels/city.tscn")
+	_check(packed != null, "city scene loads")
+	if packed == null:
+		return
+	# Untyped on purpose: naming CityStreamer here would compile it before the autoloads exist.
+	var city: Node3D = packed.instantiate()
+	get_tree().root.add_child(city)
+	# The police sit out everything but their own checks (_test_police): the checks below shoot,
+	# blast and run people over, and a wanted level would send cruisers and officers into the
+	# middle of the traffic and crowd counts they measure.
+	var police_node: Node = city.get_node_or_null("Police")
+	if police_node:
+		police_node.set("enabled", false)
+	# The fire engines and ambulances likewise sit out everything but their own checks.
+	var emergency_node: Node = city.get_node_or_null("Emergency")
+	if emergency_node:
+		emergency_node.set("enabled", false)
+	await _ticks(30)
+	var plan: CityPlan = city.plan
+	var lod_r: int = city.lod_radius_blocks
+	var load_r: int = city.load_radius_blocks
+	var counts: Vector2i = city.chunk_counts()
+	# Both rings stop where ordinary rings of blocks would (full_reach_metres(), lod_reach_metres()):
+	# the real downtown's streets are pinned across the whole map (DowntownReal), so round the spawn
+	# the blocks are up to 440 m deep, and the outer blocks of a ring are a coarser tier.
+	var spawn_body := get_tree().get_first_node_in_group("player") as Node3D
+	var here_xz: Vector3 = _world_state().to_world(spawn_body.global_position)
+	var here_k: Vector2i = plan.block_index_at(Vector2(here_xz.x, here_xz.z))
+	var want_full := 0
+	var want_lod := 0
+	for dx in range(-lod_r, lod_r + 1):
+		for dz in range(-lod_r, lod_r + 1):
+			var kk := Vector2i(here_k.x + dx, here_k.y + dz)
+			var dist := float(city._block_distance(kk, Vector2(here_xz.x, here_xz.z)))
+			var ring := maxi(absi(dx), absi(dz))
+			if ring <= load_r and (ring <= 1 or dist <= float(city.full_reach_metres())):
+				want_full += 1
+			elif dist <= float(city.lod_reach_metres()):
+				want_lod += 1
+	_check(absi(counts.x - want_full) <= 2 and want_full >= 9, "%d full-detail chunks around the player (%d wanted inside %.0f m)" % [counts.x, want_full, city.full_reach_metres()])
+	# (Within a few: the streamer measures from the led focus and keeps a LOD chunk 150 m past the
+	# reach before retiring it, so the edge of the ring can differ by a block or two.)
+	_check(absi(counts.y - want_lod) <= 4 and want_lod >= 80, "%d far LOD chunks (%d wanted inside %.0f m)" % [counts.y, want_lod, city.lod_reach_metres()])
+	_check(city.building_count() >= 100, "city has buildings (%d)" % city.building_count())
+	# The facade kit goes on the buildings of the full-detail chunks. Counted from the batches'
+	# instance counts, which are real under --headless (the transforms are not: they read back
+	# as identity there, see CLAUDE.md).
+	var kit_buildings := 0
+	var kit_pieces := 0
+	var kit_kinds := {}
+	for k in city.chunks:
+		for child in (city.chunks[k] as Node).get_children():
+			if child is Building:
+				var n := _kit_count(child, "Batch_kit_")
+				if n > 0:
+					kit_buildings += 1
+				kit_pieces += n
+				for grand in (child as Node).get_children():
+					if grand is MultiMeshInstance3D and str(grand.name).begins_with("Batch_kit_"):
+						kit_kinds[str(grand.name).trim_prefix("Batch_kit_").get_slice("_", 0)] = true
+	_check(kit_buildings >= 20 and kit_pieces >= 1000 and kit_kinds.size() >= 4,
+		"full-detail chunks carry the facade kit (%d buildings, %d pieces, kinds %s)" % [kit_buildings, kit_pieces, ",".join(kit_kinds.keys())])
+	var districts := {}
+	var kinds := {}
+	var inter_kinds := {}
+	for k in city.chunks:
+		var block := plan.block(k.x, k.y)
+		districts[block.district] = true
+		kinds[block.kind] = true
+		inter_kinds[plan.intersection(k.x + 1, k.y + 1).kind] = true
+	_check(districts.size() >= 3, "loaded area spans %d districts" % districts.size())
+	_check(kinds.size() >= 2, "parks or plazas as well as buildings (%d kinds)" % kinds.size())
+	_check(inter_kinds.size() >= 2, "%d intersection types" % inter_kinds.size())
+	_check(plan.district_at(Vector2.ZERO) == CityPlan.District.MIDTOWN, "spawn is in midtown")
+	var player := get_tree().get_first_node_in_group("player") as CharacterBody3D
+	_check(player != null and player.is_on_floor(), "player stands at the center intersection")
+	var start_ground: float = city.ground_height_at(player.global_position)
+	_check(player.global_position.y > start_ground - 0.6, "player starts on top of the rolling ground (y %.1f, ground %.1f)" % [player.global_position.y, start_ground])
+	_check(not city.under_city_ground(player.global_position) and city.under_city_ground(player.global_position - Vector3(0.0, 4.0, 0.0)), "under-ground detection works at the spawn")
+	var cans := 0
+	for node in get_tree().get_nodes_in_group("physics_prop"):
+		if node is TrashCan:
+			cans += 1
+	_check(cans > 0, "trash cans are physics props (%d)" % cans)
+	_check_street_clutter(city)
+
+	# The rest of the city's checks are PARTS (see _want()): one function each, run in order,
+	# so a sharded run (tests/headless_check.sh SHARDS=n) can give each process its share.
+	var macro: MacroMap = plan.macro
+	# city_cars empties the street of traffic and city_people puts the cap back.
+	var traffic_mgr: Node3D = city.get_node("Traffic")
+	var traffic_cap: int = traffic_mgr.max_cars
+	var home_rig: Node = player.get_node_or_null("CameraRig")
+	if home_rig:
+		_home_look = Vector2(float(home_rig.get("_yaw")), float(home_rig.get("_pitch")))
+	if _want("city_streaming"):
+		var t_city_streaming: int = await _part_begin("city_streaming")
+		await _city_streaming(city, plan, player)
+		_part_end("city_streaming", t_city_streaming)
+	if _want("city_terrain"):
+		var t_city_terrain: int = await _part_begin("city_terrain")
+		await _city_terrain(city, plan, player, macro)
+		_part_end("city_terrain", t_city_terrain)
+	if _want("city_landmarks"):
+		var t_city_landmarks: int = await _part_begin("city_landmarks")
+		await _city_landmarks(city, plan, player, macro)
+		_part_end("city_landmarks", t_city_landmarks)
+	if _want("city_cars"):
+		var t_city_cars: int = await _part_begin("city_cars")
+		await _city_cars(city, plan, player, macro)
+		_part_end("city_cars", t_city_cars)
+		if not _want("city_people"):
+			traffic_mgr.max_cars = traffic_cap
+	if _want("city_people"):
+		var t_city_people: int = await _part_begin("city_people")
+		await _city_people(city, plan, player, traffic_cap, traffic_mgr)
+		_part_end("city_people", t_city_people)
+	if _want("city_polish"):
+		var t_city_polish: int = await _part_begin("city_polish")
+		await _city_polish(city, plan, player)
+		_part_end("city_polish", t_city_polish)
+	if _want("city_crowd"):
+		var t_city_crowd: int = await _part_begin("city_crowd")
+		await _city_crowd(city, plan, player)
+		_part_end("city_crowd", t_city_crowd)
+	if _want("city_menu"):
+		var t_city_menu: int = await _part_begin("city_menu")
+		await _city_menu(city, plan, player, packed)
+		_part_end("city_menu", t_city_menu)
+	if _want("city_files"):
+		var t_city_files: int = await _part_begin("city_files")
+		await _city_files(city, plan, player)
+		_part_end("city_files", t_city_files)
+	if not _want("city_files"):
+		city.queue_free()
+		_world_state().reset()
+
+
+func _city_streaming(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
+	# Breaking a lamp: it disappears, drops debris, and is remembered.
+	var home_key: Vector2i = plan.block_index_at(Vector2.ZERO)
+	var home_chunk: Node3D = city.chunks[home_key]
+	var lamp: Dictionary = {}
+	for record in home_chunk.prop_records:
+		if record.kind == "lamp":
+			lamp = record
+			break
+	_check(not lamp.is_empty(), "home chunk has a lamp to break")
+	var lamp_id: String = lamp.get("id", "")
+	if not lamp.is_empty():
+		home_chunk.damage_prop(lamp, 999.0, Vector3.UP)
+		await _ticks(2)
+		_check(lamp.dead and _world_state().is_destroyed(home_chunk.key, lamp_id), "lamp breaks and is recorded as destroyed")
+		_check(get_tree().get_nodes_in_group("debris").size() >= 3, "broken lamp drops debris")
+
+	# Walk far away: chunks stream, the old home chunk becomes LOD or unloads.
+	var far := Vector3(700.0, 2.0, 0.0)
+	player.global_position = far
+	player.velocity = Vector3.ZERO
+	city.update_streaming(true)
+	var far_key: Vector2i = plan.block_index_at(Vector2(far.x, far.z))
+	_check(city.chunks.has(far_key) and city.chunks[far_key].level == 0, "chunk under the player is full detail after moving 700 m")
+	_check(not city.chunks.has(home_key) or city.chunks[home_key].level == 1, "home chunk is no longer full detail")
+
+	# Origin re-centering: the world shifts so the player is back near zero.
+	await get_tree().physics_frame
+	player.global_position = Vector3(1200.0, 2.0, 0.0)
+	city.recenter()
+	_check(_world_state().world_offset.x > 1100.0 and player.global_position.length() < 5.0, "world re-centered (offset %.0f m)" % _world_state().world_offset.x)
+	_check(city.district_name_at(player.global_position) != "Downtown", "district lookup uses world coordinates after re-centering")
+	city.update_streaming(true)
+	var here: Vector2i = plan.block_index_at(Vector2(_world_state().world_offset.x, 0.0))
+	_check(city.chunks.has(here) and city.chunks[here].level == 0, "chunks stream correctly after re-centering")
+	_check(city.chunks[here].position.is_equal_approx(-_world_state().world_offset), "chunk nodes sit at minus the world offset")
+
+	# Come home: the lamp is still gone.
+	player.global_position = _world_state().to_local(Vector3(0.0, 2.0, 0.0))
+	city.update_streaming(true)
+	var home_again: Node3D = city.chunks.get(home_key)
+	_check(home_again != null and home_again.level == 0, "home chunk rebuilt at full detail")
+	if home_again and not lamp_id.is_empty():
+		_check(not home_again.has_prop(lamp_id), "destroyed lamp stays destroyed after the chunk is rebuilt")
+
+	# The big-picture map: ocean west, beach at the coast, hills north, flat city at the origin.
+	var macro: MacroMap = plan.macro
+	_check(macro != null, "city uses the macro map")
+	if macro:
+		_check(macro.zone_at(Vector2.ZERO) == MacroMap.Zone.CITY and macro.raw_height_at(Vector2.ZERO) == 0.0, "origin is city, not mountain")
+		_check(macro.relief_at(Vector2.ZERO) >= 0.0 and macro.relief_at(Vector2.ZERO) <= macro.relief_height and macro.height_at(Vector2.ZERO) == macro.relief_at(Vector2.ZERO), "city relief is bounded and part of height_at")
+		var relief_max := 0.0
+		for x in range(-600, 1100, 100):
+			for z in range(-800, 900, 100):
+				var p := Vector2(x, z)
+				if macro.zone_at(p) == MacroMap.Zone.CITY:
+					relief_max = maxf(relief_max, macro.relief_at(p))
+		_check(relief_max > 4.0, "the city actually rolls (max relief %.1f m)" % relief_max)
+		var malls := 0
+		var bigboxes := 0
+		var mall_block: Dictionary = {}
+		for bx in range(-12, 13):
+			for bz in range(-12, 13):
+				var b := plan.block(bx, bz)
+				if b.kind == CityPlan.BlockKind.MALL:
+					malls += 1
+					if mall_block.is_empty() and plan.zone_at((b.rect as Rect2).get_center()) == MacroMap.Zone.CITY:
+						mall_block = b
+				elif b.kind == CityPlan.BlockKind.BIGBOX:
+					bigboxes += 1
+		_check(malls > 0 and bigboxes > 0, "the plan has shopping plazas (%d) and big-box stores (%d)" % [malls, bigboxes])
+		if not mall_block.is_empty():
+			var mc: Vector2 = (mall_block.rect as Rect2).get_center()
+			player.global_position = _world_state().to_local(Vector3(mc.x, 3.0, mc.y))
+			player.velocity = Vector3.ZERO
+			city.update_streaming(true)
+			await _ticks(5)
+			var mall_chunk = city.chunks.get(Vector2i(mall_block.ix, mall_block.iz))
+			_check(mall_chunk != null and mall_chunk.level == 0 and mall_chunk.prop_records.size() > 0, "a shopping plaza chunk builds with its signs and props")
+		_check(macro.relief_at(macro.airport_rect.get_center()) == 0.0 and macro.relief_at(Landmarks.all()[3].anchor) == 0.0, "airport and landmarks stay flat")
+		_check(macro.zone_at(Vector2(-2500.0, 0.0)) == MacroMap.Zone.OCEAN, "far west is ocean")
+		# built_amount() in macro_ground.gdshader tells city from open country by the baked
+		# colour alone - low saturation AND low luminance, in linear light. Both halves of that
+		# window live in two files, so brightening a district past it silently stops the city
+		# being drawn on the horizon plane. Re-run the classifier here on every palette entry.
+		# The luminance window is read out of the shader rather than written here a second time:
+		# this guard exists precisely because that number and the palette have to move together.
+		var built_src: String = (load("res://shaders/macro_ground.gdshader") as Shader).code
+		var built_win := PackedFloat32Array([0.100, 0.130])
+		var built_re := RegEx.new()
+		built_re.compile("smoothstep\\(([0-9.]+), *([0-9.]+), *lum\\)")
+		var built_m := built_re.search(built_src)
+		if built_m:
+			built_win = PackedFloat32Array([built_m.get_string(1).to_float(), built_m.get_string(2).to_float()])
+		var built_ok := built_m != null
+		var built_why := "" if built_m else " window not found in macro_ground.gdshader"
+		for entry in [["downtown", MacroMap.BAKE_DOWNTOWN, true], ["midtown", MacroMap.BAKE_MIDTOWN, true],
+				["industrial", MacroMap.BAKE_INDUSTRIAL, true], ["suburb", MacroMap.BAKE_SUBURB, true],
+				["campus", MacroMap.BAKE_CAMPUS, true], ["freeway", MacroMap.BAKE_FREEWAY, true],
+				["concrete", MacroMap.BAKE_CONCRETE, false], ["port", MacroMap.BAKE_PORT, false],
+				["rock", MacroMap.BAKE_ROCK, false], ["scrub", MacroMap.BAKE_SCRUB, false],
+				["grass", MacroMap.BAKE_GRASS, false], ["snow", MacroMap.BAKE_SNOW, false],
+				["sand", MacroMap.BAKE_SAND, false]]:
+			var c: Color = (entry[1] as Color).srgb_to_linear()
+			var mx: float = maxf(c.r, maxf(c.g, c.b))
+			var mn: float = minf(c.r, minf(c.g, c.b))
+			var sat: float = (mx - mn) / maxf(mx, 0.0008)
+			var lum: float = (c.r + c.g + c.b) / 3.0
+			var built: float = (1.0 - smoothstep(0.17, 0.30, sat)) * (1.0 - smoothstep(built_win[0], built_win[1], lum))
+			var want: bool = entry[2]
+			if (built > 0.5) != want:
+				built_ok = false
+				built_why += " %s=%.2f" % [entry[0], built]
+		_check(built_ok, "the baked palette still separates city from country%s" % built_why)
+		# Ground albedo. Every ground tint in the project multiplies a PHOTOGRAPHED texture whose
+		# own mean already IS the real reflectance of that material, and both `uniform vec3 tint
+		# : source_color` and StandardMaterial3D.albedo_color are sRGB-decoded by Godot - so
+		# Color(0.40) multiplies by 0.133, not by 0.40. Written as if it were linear, the whole
+		# city laid its roads at 0.0065..0.017 and its pavements at 0.05..0.08: five to fifteen
+		# times darker than anything real, which is what made the basin a dark sheet from the
+		# air. These means are measured off the committed texture files with
+		#   python3 -c "from PIL import Image; import numpy as np; im=np.asarray(Image.open('assets/textures/Asphalt033/Asphalt033_1K-JPG_Color.jpg').convert('RGB')).astype(float)/255; l=np.where(im<=0.04045, im/12.92, ((im+0.055)/1.055)**2.4); print((0.2126*l[:,:,0]+0.7152*l[:,:,1]+0.0722*l[:,:,2]).mean())"
+		# and they only change if the asset changes.
+		var tex_mean := {"asphalt": 0.0849, "asphalt_aerial": 0.1300, "sidewalk": 0.1024,
+				"pavers": 0.1939, "paving": 0.2951, "concrete": 0.4818}
+		var albedo_of := func(set_key: String, tint: Color) -> float:
+			var lum := 0.2126 * tint.r + 0.7152 * tint.g + 0.0722 * tint.b
+			var linear: float = lum / 12.92 if lum <= 0.04045 else pow((lum + 0.055) / 1.055, 2.4)
+			return float(tex_mean.get(set_key, 0.2)) * linear
+		var albedo_why := ""
+		for tint: Color in CityChunk.ROAD_TINTS:
+			# Asphalt is 0.05-0.12 in daylight; the coarser aerial set lands higher for the same
+			# tint, which is a newly surfaced street, so the window has to hold both.
+			var a: float = albedo_of.call("asphalt", tint)
+			var b: float = albedo_of.call("asphalt_aerial", tint)
+			if a < 0.030 or b > 0.140:
+				albedo_why += " road(%.3f,%.3f)" % [a, b]
+		for d in CityPlan.District.size():
+			for row in (CityPlan.DISTRICTS[d] as Dictionary).get("paving", []):
+				var a: float = albedo_of.call(str(row[0]), row[2] as Color)
+				# Concrete pavement is 0.20-0.40. Anything under 0.15 is darker than the road
+				# beside it, which is the tell that a tint was written as if it were linear.
+				if a < 0.15 or a > 0.45:
+					albedo_why += " %s.%s(%.3f)" % [CityPlan.district_name(d), str(row[0]), a]
+		_check(albedo_why == "", "ground surfaces have a physical albedo%s" % albedo_why)
+		# The airport drop-off: the lane paths the traffic manager drives, the kerb the crowd
+		# stands on and the road Landmarks builds under them were three independent sets of
+		# coordinates. They are one set now (MacroMap.terminal_road / terminal_curb /
+		# terminal_loops), but nothing in code forces the lanes to lie ON the road - so check it,
+		# because a drop-off lane off the edge of its own asphalt is cars driving on tarmac and
+		# nothing errors.
+		var lane_why := ""
+		for loop: PackedVector2Array in macro.terminal_loops:
+			for pt in loop:
+				if not macro.terminal_road.grow(1.0).has_point(pt):
+					lane_why += " (%.0f,%.0f)" % [pt.x, pt.y]
+		if not macro.terminal_road.grow(1.0).encloses(macro.terminal_curb.grow(-4.0)) \
+				and not macro.terminal_road.intersects(macro.terminal_curb):
+			lane_why += " kerb off the road"
+		_check(lane_why == "", "the airport drop-off lanes lie on the drop-off road%s" % lane_why)
+		# Height and zone have to agree on where the water starts. They did not around the
+		# headland - the coast bulge is a function of z alone and the peninsula is a circle - so
+		# the waterline cut across a 100 m cliff and left a sail of hillside hanging over the
+		# sea off the Redondo pier. Probe the whole coast, and the bay, for land in the water.
+		var offshore_max := 0.0
+		var offshore_at := Vector2.ZERO
+		for zi in range(-30, 40):
+			var pz := float(zi) * 90.0
+			for xi in range(1, 9):
+				var pp := Vector2(macro.coast_x(pz) - float(xi) * 25.0, pz)
+				var ph: float = macro.raw_height_at(pp)
+				if ph > offshore_max:
+					offshore_max = ph
+					offshore_at = pp
+		for zi in range(0, 20):
+			for xi in range(0, 14):
+				var pp := Vector2(-1200.0 + float(xi) * 110.0, macro.bay_z + 60.0 + float(zi) * 90.0)
+				if not macro.in_bay(pp):
+					continue
+				var ph: float = macro.raw_height_at(pp)
+				if ph > offshore_max:
+					offshore_max = ph
+					offshore_at = pp
+		_check(offshore_max < 4.0, "no land stands out of the water (%.1f m at %.0f,%.0f)" % [offshore_max, offshore_at.x, offshore_at.y])
+		_check(macro.zone_at(Vector2(macro.coast_x(0.0) + 30.0, 0.0)) == MacroMap.Zone.BEACH, "just inland of the coast is beach")
+		_check(macro.zone_at(Vector2(0.0, -1600.0)) == MacroMap.Zone.HILLS and macro.height_at(Vector2(0.0, -1600.0)) > 80.0, "far north is hills (%.0f m)" % macro.height_at(Vector2(0.0, -1600.0)))
+		_check(macro.district_at(macro.downtown_center) == CityPlan.District.DOWNTOWN, "downtown is where the map says")
+		# Stand on the beach: sand, palms, no buildings.
+		var beach := Vector3(macro.coast_x(0.0) + 30.0, 2.0, 0.0)
+		player.global_position = _world_state().to_local(beach)
+		city.update_streaming(true)
+		var beach_key: Vector2i = plan.block_index_at(Vector2(beach.x, beach.z))
+		var beach_chunk: Node3D = city.chunks.get(beach_key)
+		var beach_palms := false
+		if beach_chunk:
+			for child in beach_chunk.get_children():
+				if child.name.begins_with("Batch_palm_"):
+					beach_palms = true
+		_check(beach_chunk != null and beach_chunk.zone == MacroMap.Zone.BEACH and beach_chunk.building_count == 0 and beach_palms, "beach chunk has palms and no buildings")
+		# Stand in the hills: terrain tile with collision under the player.
+		var hill := Vector3(0.0, 0.0, -1400.0)
+		hill.y = macro.height_at(Vector2(hill.x, hill.z)) + 3.0
+		player.global_position = _world_state().to_local(hill)
+		player.velocity = Vector3.ZERO
+		city.update_streaming(true)
+		var hill_key: Vector2i = plan.block_index_at(Vector2(hill.x, hill.z))
+		var hill_chunk: Node3D = city.chunks.get(hill_key)
+		_check(hill_chunk != null and hill_chunk.zone == MacroMap.Zone.HILLS and hill_chunk.has_node("Terrain"), "hill chunk has a terrain tile")
+		_check_hill_planting(hill_chunk, plan)
+		_check_hill_shells(hill_chunk, city, plan)
+		_check_hill_props_grounded(city, plan)
+		await _wait_for_floor(player, 240)
+		var ground_h: float = _world_state().to_world(player.global_position).y
+		_check(player.is_on_floor() and ground_h > 20.0, "player stands on the hills at %.0f m" % ground_h)
+		# Hill roads: a boulevard plus canyon roads and estate loops, carved flat into the terrain.
+		var hr = macro.hill_roads
+		_check(hr != null and hr.roads.size() >= 12 and hr.mansions.size() >= 20, "hill roads and mansions planned (%d roads, %d lots)" % [hr.roads.size() if hr else 0, hr.mansions.size() if hr else 0])
+		if hr:
+			_check_switchbacks(plan, city, hr)
+		if hr:
+			var road0: Dictionary = hr.roads[0]
+			var rp: Vector2 = road0.points[6]
+			var rh: float = road0.heights[6]
+			_check(absf(plan.height_at(rp) - rh) < 0.05, "terrain is carved to the road bed (%.1f vs %.1f m)" % [plan.height_at(rp), rh])
+			var road_spot := Vector3(rp.x, rh + 2.0, rp.y)
+			player.global_position = _world_state().to_local(road_spot)
+			player.velocity = Vector3.ZERO
+			city.update_streaming(true)
+			var road_chunk: Node3D = city.chunks.get(plan.block_index_at(rp))
+			_check(road_chunk != null and road_chunk.has_node("HillRoad"), "the chunk under Sunset Drive has an asphalt strip")
+			await _wait_for_floor(player, 240)
+			_check(player.is_on_floor() and absf(_world_state().to_world(player.global_position).y - rh) < 1.0, "player stands on the hill road (y %.1f, road %.1f)" % [_world_state().to_world(player.global_position).y, rh])
+			player.global_position = _world_state().to_local(hill)
+			player.velocity = Vector3.ZERO
+			city.update_streaming(true)
+			await _ticks(5)
+		# Far (LOD) hill chunks keep terrain collision so a fast car cannot drop through them.
+		var lod_hill_with_collision := false
+		for chunk in city.chunks.values():
+			if chunk.zone == MacroMap.Zone.HILLS and chunk.level != chunk.Level.FULL and chunk.has_node("TerrainBody"):
+				lod_hill_with_collision = true
+				break
+		_check(lod_hill_with_collision, "far hill chunks have terrain collision")
+		# Ending up under a hill (any height) lifts you back onto the surface.
+		var under: Vector3 = _world_state().to_local(Vector3(hill.x, 0.5, hill.z))
+		player.global_position = under
+		player.velocity = Vector3.ZERO
+		await _ticks(30)
+		# Against the ground where the player is now: the eroded flanks are steep enough (the
+		# test spot is ~50 degrees) that he slides a few metres downhill after the lift.
+		var lifted: Vector3 = _world_state().to_world(player.global_position)
+		var ground_there: float = macro.height_at(Vector2(lifted.x, lifted.z))
+		_check(lifted.y > ground_there - 3.0, "player under a hill is lifted onto it (y %.0f, ground %.0f)" % [lifted.y, ground_there])
+
+
+func _city_terrain(city: Node3D, plan: CityPlan, player: CharacterBody3D, macro: MacroMap) -> void:
+	# The basin is ringed by mountains, and the inland valley is a city floor at altitude.
+	if macro:
+		var front_h: float = macro.raw_height_at(Vector2(200.0, macro.hills_full_z))
+		var back_h: float = macro.raw_height_at(Vector2(200.0, macro.back_full_z))
+		var east_h: float = macro.raw_height_at(Vector2(macro.east_full_x, 300.0))
+		_check(front_h > 200.0 and back_h > front_h and east_h > 200.0,
+			"the basin is ringed by mountains (front %.0f, back %.0f, east %.0f m)" % [front_h, back_h, east_h])
+		# The valley floor is past valley_to_z: the window between it and valley_from_z is the
+		# front range's own flank, and sampling there reads the mountain, not the valley.
+		var valley := Vector2(300.0, macro.valley_to_z - 400.0)
+		var valley_h: float = macro.height_at(valley)
+		_check(macro.zone_at(valley) == MacroMap.Zone.CITY and valley_h > 80.0 and macro.raw_height_at(valley) == 0.0,
+			"the inland valley is city built on a plateau at %.0f m" % valley_h)
+		# The pass: a canyon through the front range, so the valley is reachable on the ground.
+		var pass_z: float = (macro.hills_full_z + macro.valley_from_z) * 0.5
+		var in_pass: float = macro.raw_height_at(Vector2(macro.pass_center_x, pass_z))
+		# The west flank: east of the pass the range steps back above downtown (MacroMap.embay_at).
+		var on_flank: float = macro.raw_height_at(Vector2(macro.pass_center_x - 1100.0, pass_z))
+		_check(in_pass < 120.0 and on_flank > in_pass * 3.0,
+			"a pass is cut through the front range (%.0f m in it, %.0f m beside it)" % [in_pass, on_flank])
+		_check(macro.plateau_at(Vector2.ZERO) == 0.0 and macro.plateau_at(macro.airport_rect.get_center()) == 0.0,
+			"the basin floor and the airport stay at sea level")
+
+	# The freeway: long curved routes on an elevated deck, with ramps down to the streets.
+	if macro:
+		var fw = macro.freeway
+		_check(fw != null and fw.routes.size() >= 3 and fw.ramps.size() >= 6,
+			"freeway routes and ramps planned (%d routes, %d ramps)" % [fw.routes.size() if fw else 0, fw.ramps.size() if fw else 0])
+		if fw:
+			# Every route curves: a straight line would have a constant heading.
+			# Measured as the most the heading ever turns from the start's, not end against end:
+			# the real 110 (DowntownReal) leaves and meets the port heading the same way.
+			var bends := 0
+			for route: Dictionary in fw.routes:
+				var pts: PackedVector2Array = route.points
+				var h0: float = (pts[1] - pts[0]).angle()
+				var turned := 0.0
+				for i in pts.size() - 1:
+					turned = maxf(turned, absf(angle_difference(h0, (pts[i + 1] - pts[i]).angle())))
+				if turned > 0.12:
+					bends += 1
+			_check(bends == fw.routes.size(), "every freeway route curves (%d of %d)" % [bends, fw.routes.size()])
+			# The deck rides above the ground, on a drivable grade.
+			var route0: Dictionary = fw.routes[0]
+			var pts0: PackedVector2Array = route0.points
+			var hs0: PackedFloat32Array = route0.heights
+			var clear := true
+			var steep := false
+			for i in pts0.size():
+				if hs0[i] - macro.height_at(pts0[i]) < 2.5:
+					clear = false
+				if i > 0 and absf(hs0[i] - hs0[i - 1]) > Freeway.MAX_GRADE * pts0[i].distance_to(pts0[i - 1]) + 0.01:
+					steep = true
+			_check(clear and not steep, "the deck clears the ground the whole way at a drivable grade")
+			# Stand under the deck: the chunk builds it, and nothing is built in its corridor.
+			var deck_i := int(pts0.size() * 0.5)
+			var deck_xz: Vector2 = pts0[deck_i]
+			var deck_spot := Vector3(deck_xz.x, macro.height_at(deck_xz) + 2.0, deck_xz.y)
+			player.global_position = _world_state().to_local(deck_spot)
+			player.velocity = Vector3.ZERO
+			city.update_streaming(true)
+			await _ticks(5)
+			var deck_chunk: Node3D = city.chunks.get(plan.block_index_at(deck_xz))
+			var deck_built := false
+			for chunk in city.chunks.values():
+				if chunk.has_node("FreewayDeck") and chunk.has_node("FreewayBody"):
+					deck_built = true
+					break
+			_check(deck_built, "a chunk under the freeway builds the deck and its collision")
+			# The corridor has to exist and be narrow: a grid over the basin should be mostly clear.
+			var blocked := 0
+			var sampled := 0
+			for gx in range(-12, 13):
+				for gz in range(-12, 13):
+					sampled += 1
+					if fw.blocks(Vector2(gx * 130.0, gz * 130.0), 0.0):
+						blocked += 1
+			_check(fw.blocks(deck_xz, 0.0) and blocked > 0 and blocked * 6 < sampled,
+				"the freeway corridor is narrow (%d of %d samples under a deck)" % [blocked, sampled])
+			if deck_chunk:
+				var under_count := 0
+				for child in deck_chunk.get_children():
+					if child is Building and fw.blocks(Vector2(_world_state().to_world(child.global_position).x, _world_state().to_world(child.global_position).z), 0.0):
+						under_count += 1
+				_check(under_count == 0, "no buildings stand under the deck")
+			# Traffic on the deck: stand on the freeway and cars should appear, on it and moving.
+			var traffic = city.get_node_or_null("Traffic")
+			if traffic:
+				var on_deck := Vector3(deck_xz.x, fw.point_at(0, pts0.size() * 0.5 * 24.0)[0].y + 2.0, deck_xz.y)
+				var t_mid: float = fw.length_of(0) * 0.5
+				var mid_pt: Vector3 = fw.point_at(0, t_mid)[0]
+				on_deck = Vector3(mid_pt.x, mid_pt.y + 2.0, mid_pt.z)
+				player.global_position = _world_state().to_local(on_deck)
+				player.velocity = Vector3.ZERO
+				city.update_streaming(true)
+				await _ticks(70)
+				# One new car a frame (TrafficManager.builds_per_frame): wait, bounded, for both
+				# directions to have arrived.
+				for i in 30:
+					var dirs := {}
+					for car in traffic.freeway_cars:
+						dirs[int(car.traffic.dir)] = true
+					if dirs.size() >= 2:
+						break
+					await _ticks(10)
+				_check(traffic.freeway_cars.size() > 0, "cars cruise the freeway deck (%d)" % traffic.freeway_cars.size())
+				var on_the_deck := 0
+				var both_ways := {}
+				for car in traffic.freeway_cars:
+					# A car on an on- or off-ramp (TrafficAI) is off the deck on purpose.
+					if car.traffic.has("ramp"):
+						on_the_deck += 1
+						continue
+					var cw: Vector3 = _world_state().to_world(car.global_position)
+					var near: Array = fw.nearest_on(car.traffic.fw, Vector2(cw.x, cw.z))
+					var deck: Vector3 = fw.point_at(car.traffic.fw, float(near[0]))[0]
+					if float(near[1]) < fw.routes[car.traffic.fw].width * 0.5 and absf(cw.y - deck.y) < 3.0:
+						on_the_deck += 1
+					both_ways[int(car.traffic.dir)] = true
+				_check(on_the_deck == traffic.freeway_cars.size(),
+					"every freeway car is on the deck, not beside or under it (%d of %d)"
+						% [on_the_deck, traffic.freeway_cars.size()])
+				_check(both_ways.size() == 2, "the freeway runs both ways (%d directions)" % both_ways.size())
+			var back_home := Vector3(0.0, 0.0, 0.0)
+			back_home.y = macro.height_at(Vector2.ZERO) + 3.0
+			player.global_position = _world_state().to_local(back_home)
+			player.velocity = Vector3.ZERO
+			city.update_streaming(true)
+			await _ticks(5)
+
+	# The campus district and its main hall.
+	if macro:
+		_check(macro.district_at(macro.campus_center) == CityPlan.District.CAMPUS and CityPlan.district_name(CityPlan.District.CAMPUS) == "Campus", "campus district around the university")
+		# Every table that is indexed by district must have an entry for every district. Adding a
+		# district and missing one of these is an out-of-bounds read on a code path that only
+		# runs when the player happens to stand in the new district, which is exactly the kind
+		# of defect that reaches a build.
+		var per_district := {
+			"CityPlan.DISTRICTS": CityPlan.DISTRICTS.size(),
+			"DISTRICT_NAMES": CityPlan.DISTRICT_NAMES.size(),
+			"StreetDetail.POLE_ODDS": StreetDetail.POLE_ODDS.size(),
+			"StreetDetail.LOADING_ODDS": StreetDetail.LOADING_ODDS.size(),
+			"StreetDetail.METER_ODDS": StreetDetail.METER_ODDS.size(),
+			"StreetClutter.BOARD_ODDS": StreetClutter.BOARD_ODDS.size(),
+			"StreetClutter.LITTER_PER_M": StreetClutter.LITTER_PER_M.size(),
+		}
+		var short_tables := ""
+		for table_name in per_district:
+			if int(per_district[table_name]) != CityPlan.District.size():
+				short_tables += " %s=%d" % [table_name, int(per_district[table_name])]
+		_check(short_tables == "", "every per-district table covers all %d districts%s" % [CityPlan.District.size(), short_tables])
+		# And every district really does produce a block: DISTRICTS is keyed by the enum, so a
+		# missing key is a silent failure rather than a crash.
+		var missing_district := ""
+		for d in CityPlan.District.size():
+			if not CityPlan.DISTRICTS.has(d):
+				missing_district += " %d" % d
+		_check(missing_district == "", "every district has generation parameters%s" % missing_district)
+		# The coast towns: the place readout has to change as you drive the highway.
+		var town_names := {}
+		for town in MacroMap.COAST_TOWNS:
+			var probe := Vector2(macro.coast_x(float(town[0]) + 40.0) + 90.0, float(town[0]) + 40.0)
+			town_names[macro.place_name(probe)] = true
+		_check(town_names.size() >= 6, "the coast is a chain of named towns (%d distinct)" % town_names.size())
+		# The beach must be ABOVE the sea, not under it. The sand is a ramp from below the waves
+		# up to the town, and if its waterline height drops under the sea surface the whole
+		# beach floods - which looks, from the air, exactly like a beach at high tide, so it is
+		# the kind of defect that survives a screenshot.
+		_check(CityChunk.SAND_EDGE > 0.16 and CityChunk.SAND_HIGH > CityChunk.SAND_EDGE and CityChunk.SAND_LOW < 0.0,
+				"the sand rises out of the water (low %.2f, edge %.2f, high %.2f)" % [CityChunk.SAND_LOW, CityChunk.SAND_EDGE, CityChunk.SAND_HIGH])
+		# And every landmark the map lists has a label on the minimap: the fallback prints the
+		# raw id, so a missing one ships as "venice_boardwalk" written across the map.
+		var unlabelled := ""
+		for lm in Landmarks.all():
+			if not Minimap.LANDMARK_NAMES.has(lm.id):
+				unlabelled += " " + str(lm.id)
+		_check(unlabelled == "", "every landmark has a minimap label%s" % unlabelled)
+		# The flat zones (airport, port, harbour) are checked by zone_at() BEFORE the coastline,
+		# so a rect whose west edge reaches past the waterline wins and lays tarmac out over the
+		# sea. The airport did exactly that for a long time. Walk each rect's seaward edge and
+		# assert it stays inland of the sand.
+		var wet_rects := ""
+		for named_rect in [["airport", macro.airport_rect], ["port", macro.port_rect]]:
+			var r: Rect2 = named_rect[1]
+			for k in 9:
+				var z: float = r.position.y + r.size.y * float(k) / 8.0
+				if r.position.x < macro.coast_x(z) + macro.beach_width:
+					wet_rects += " %s@z%.0f" % [str(named_rect[0]), z]
+					break
+		_check(wet_rects == "", "no flat zone reaches past the waterline%s" % wet_rects)
+		# --- Numbers that live in two files ---------------------------------------------------
+		# An audit of the project turned up fifteen pairs of constants that have to agree across
+		# a file boundary with nothing in code connecting them. Drift is always silent - no
+		# error, no crash, just a wrong picture - so the ones whose failure would be visible get
+		# a guard here. Read the second copy out of the source rather than writing it a third
+		# time: a guard that repeats the number is one more copy to keep in step.
+		var shader_nums := func(src: String, decl: String) -> PackedFloat32Array:
+			var out := PackedFloat32Array()
+			var at := src.find(decl)
+			if at < 0:
+				return out
+			var end := src.find(";", at)
+			var body := src.substr(at + decl.length(), end - at - decl.length())
+			for part in body.replace("vec3(", "").replace(")", "").split(","):
+				out.append(part.strip_edges().to_float())
+			return out
+		# Past handover_start the ocean chunks stop drawing their own water and RE-DRAW the far
+		# plane's, from their own copy of MacroMap's sea palette decoded to linear. Re-tune the
+		# bake without touching the shader and the streamed water keeps painting the old colour:
+		# a hard-edged rectangle of differently coloured sea about 500 m across, locked to the
+		# player, following him round the bay. That is the exact failure ocean.gdshader's own
+		# header spends twenty-five lines on.
+		var sea_src: String = (load("res://shaders/ocean.gdshader") as Shader).code
+		var sea_why := ""
+		for pair in [["uniform vec3 deep_color =", MacroMap.BAKE_OCEAN_DEEP],
+				["uniform vec3 shelf_color =", MacroMap.BAKE_OCEAN_SHALLOW],
+				["uniform vec3 bake_surf_color =", MacroMap.BAKE_SURF]]:
+			var want: Color = (pair[1] as Color).srgb_to_linear()
+			var got: PackedFloat32Array = shader_nums.call(sea_src, pair[0])
+			if got.size() != 3:
+				sea_why += " %s missing" % str(pair[0])
+				continue
+			for i in 3:
+				var w: float = [want.r, want.g, want.b][i]
+				if absf(got[i] - w) > maxf(0.0002, w * 0.06):
+					sea_why += " %s[%d]=%.5f want %.5f" % [str(pair[0]).substr(13), i, got[i], w]
+		var surf_w: PackedFloat32Array = shader_nums.call(sea_src, "uniform float bake_surf_width =")
+		if surf_w.size() != 1 or absf(surf_w[0] - MacroMap.BAKE_SURF_WIDTH) > 0.5:
+			sea_why += " bake_surf_width"
+		_check(sea_why == "", "the ocean shader still paints MacroMap's baked sea%s" % sea_why)
+		# The coastline the ocean shader draws its shore effects against is MacroMap.coast_x()
+		# written out a second time in GLSL. If they disagree the surf line, the shallow water
+		# and the sand stop being in the same place.
+		var coast_why := ""
+		for pair in [["coast_base_x", macro.coast_base_x], ["coast_wobble", macro.coast_wobble],
+				["coast_period", macro.coast_period], ["peninsula_axis_a", macro.peninsula_axes.x],
+				["peninsula_axis_b", macro.peninsula_axes.y], ["peninsula_bearing", macro.peninsula_axis_bearing],
+				["bay_z", macro.bay_z], ["bay_east_x", macro.bay_east_x],
+				["coast_table_blend", macro.replica_coast_blend]]:
+			var got: PackedFloat32Array = shader_nums.call(sea_src, "uniform float %s =" % str(pair[0]))
+			if got.size() != 1 or absf(got[0] - float(pair[1])) > 0.5:
+				coast_why += " %s=%s want %.0f" % [str(pair[0]), str(got), float(pair[1])]
+		_check(coast_why == "", "the ocean shader's coastline matches MacroMap's%s" % coast_why)
+		# built_amount() in macro_ground.gdshader stops calling ground "city" above 420 m, so the
+		# inland valley floor the city is built on has to stay well under that or the whole
+		# valley district quietly vanishes from the horizon plane.
+		var ground_src: String = (load("res://shaders/macro_ground.gdshader") as Shader).code
+		_check(ground_src.contains("smoothstep(420.0, 700.0, height_m)") and macro.valley_height < 360.0,
+				"the inland valley stays inside the horizon shader's height gate (%.0f m)" % macro.valley_height)
+		# The pavement top is written out in the chunk that lays it and again in the commercial
+		# blocks that stand on it; a shopfront half a step above its own kerb is the result.
+		var chunk_consts: Dictionary = (load("res://scripts/world/city_chunk.gd") as GDScript).get_script_constant_map()
+		var comm_consts: Dictionary = (load("res://scripts/world/commercial.gd") as GDScript).get_script_constant_map()
+		_check(is_equal_approx(float(chunk_consts["SIDEWALK_TOP"]), float(comm_consts["TOP"])),
+				"shopfronts stand on the same pavement top the chunk lays (%.2f / %.2f)" % [chunk_consts["SIDEWALK_TOP"], comm_consts["TOP"]])
+		# Per-index tables against their enums. This is the shape of bug that shipped as
+		# "Out of bounds get index '5'" when BEACHTOWN joined CityPlan.District: a table one
+		# row short of its enum either crashes or silently reads the wrong row.
+		var table_why := ""
+		if MacroMap.ZONE_NAMES.size() != MacroMap.Zone.size():
+			table_why += " MacroMap.ZONE_NAMES"
+		if Minimap.DISTRICT_COLORS.size() != CityPlan.District.size():
+			table_why += " Minimap.DISTRICT_COLORS"
+		var veh_consts: Dictionary = (load("res://scripts/vehicles/vehicle.gd") as GDScript).get_script_constant_map()
+		var body_types: int = (veh_consts["BodyType"] as Dictionary).size()
+		if (veh_consts["BODY_NAMES"] as Array).size() != body_types:
+			table_why += " Vehicle.BODY_NAMES"
+		if (veh_consts["BODY_MODELS"] as Dictionary).size() != body_types:
+			table_why += " Vehicle.BODY_MODELS"
+		var body_odds: Dictionary = veh_consts["BODY_ODDS"]
+		var odds_sum := 0
+		for k in body_odds:
+			odds_sum += int(body_odds[k])
+		if body_odds.size() != body_types or odds_sum != 1000:
+			table_why += " Vehicle.BODY_ODDS(%d rows, sums %d)" % [body_odds.size(), odds_sum]
+		var wx_consts: Dictionary = (load("res://scripts/world/weather.gd") as GDScript).get_script_constant_map()
+		var wx_states: int = (wx_consts["State"] as Dictionary).size()
+		if (wx_consts["STATE_NAMES"] as Array).size() != wx_states:
+			table_why += " Weather.STATE_NAMES"
+		var wx_node: Node = city.get_node_or_null("Weather")
+		if wx_node:
+			for named in [["odds", wx_node.odds], ["wave_scale_by_state", wx_node.wave_scale_by_state],
+					["fog_by_state", wx_node.fog_by_state], ["volumetric_by_state", wx_node.volumetric_by_state]]:
+				if (named[1] as PackedFloat32Array).size() != wx_states:
+					table_why += " Weather.%s" % str(named[0])
+		var q_consts: Dictionary = (load("res://scripts/util/quality.gd") as GDScript).get_script_constant_map()
+		var q_levels: int = (q_consts["Level"] as Dictionary).size()
+		var q_node: Node = city.get_node_or_null("Quality")
+		if q_node:
+			for named in [["render_scale", q_node.render_scale], ["population", q_node.population],
+					["shadow_distance", q_node.shadow_distance], ["lod_threshold", q_node.lod_threshold],
+					["pixel_budget", q_node.pixel_budget]]:
+				if (named[1] as PackedFloat32Array).size() != q_levels:
+					table_why += " Quality.%s" % str(named[0])
+		_check(table_why == "", "every per-index table has a row per enum member%s" % table_why)
+		_check(city.has_node("FarLandmark_campus_hall"), "far version of the campus hall exists")
+
+
+func _city_landmarks(city: Node3D, plan: CityPlan, player: CharacterBody3D, macro: MacroMap) -> void:
+	# Landmarks: far versions always exist; the detailed one appears when its chunk is loaded.
+	if macro:
+		_check(city.has_node("FarLandmark_sign") and city.has_node("FarLandmark_pier") and city.has_node("FarLandmark_observatory"), "far versions of the sign, pier and observatory exist")
+		# The boardwalk's shop strip follows the shore across the ends of straight streets, and
+		# cars parked there spawned inside a shop and were pushed out onto its roof.
+		var bw: Vector2 = _landmark_anchor("venice_boardwalk")
+		var shop_mid: Vector3 = LandmarkVeniceBoardwalk._at(bw, plan, LandmarkVeniceBoardwalk.SHOP_FRONT_X + LandmarkVeniceBoardwalk.SHOP_DEPTH * 0.5, 150.0, 0.0)
+		var walk_mid: Vector3 = LandmarkVeniceBoardwalk._at(bw, plan, 0.0, 150.0, 0.0)
+		_check(Landmarks.covers(plan, Vector2(shop_mid.x, shop_mid.z), 0.0) and not Landmarks.covers(plan, Vector2(walk_mid.x, walk_mid.z), 0.0), "street parking keeps out of the boardwalk shops")
+		var pier_anchor: Vector2 = _landmark_anchor("pier")
+		player.global_position = _world_state().to_local(Vector3(pier_anchor.x + 10.0, 3.0, pier_anchor.y))
+		player.velocity = Vector3.ZERO
+		city.update_streaming(true)
+		var pier_key: Vector2i = plan.block_index_at(pier_anchor)
+		var pier_chunk: Node3D = city.chunks.get(pier_key)
+		_check(pier_chunk != null and pier_chunk.built_landmarks.has("pier"), "pier chunk built the detailed pier")
+		_check(not city.get_node("FarLandmark_pier").visible, "far pier is hidden while the detailed pier is loaded")
+		var wheel_found := false
+		for child in pier_chunk.get_children():
+			if child is FerrisWheel:
+				wheel_found = true
+		_check(wheel_found, "the pier has a Ferris wheel")
+		# Stand on the deck: it is solid.
+		player.global_position = _world_state().to_local(Vector3(pier_anchor.x - 60.0, 9.0, pier_anchor.y))
+		player.velocity = Vector3.ZERO
+		await _wait_for_floor(player, 120)
+		var deck_y: float = _world_state().to_world(player.global_position).y
+		_check(player.is_on_floor() and deck_y > 5.0, "player stands on the pier deck at %.1f m" % deck_y)
+
+	# Skyline, airport, port.
+	if macro:
+		_check(macro.zone_at(Vector2(-350.0, 800.0)) == MacroMap.Zone.AIRPORT and macro.height_at(Vector2(-350.0, 800.0)) == 0.0, "airport zone is flat")
+		_check(macro.zone_at(macro.port_rect.get_center()) == MacroMap.Zone.PORT and macro.zone_at(macro.harbor_rect.get_center()) == MacroMap.Zone.OCEAN, "port sits on a harbor")
+		await _test_downtown(city, plan, player)
+		# Downtown at 1:1 (DowntownReal): the real grid, the real distances, the real frame.
+		await load("res://tests/downtown_checks.gd").new().run(self, city)
+		var runway := Vector2(-300.0, macro.runway_zs[0])
+		player.global_position = _world_state().to_local(Vector3(runway.x, 2.0, runway.y))
+		city.update_streaming(true)
+		var airport_chunk: Node3D = city.chunks.get(plan.block_index_at(runway))
+		# The field's ground is a partition merged into the chunk's boxes (Airport.ground_pieces()).
+		var has_runway := false
+		if airport_chunk:
+			for piece: Array in Airport.ground_pieces(macro, airport_chunk.owned_rect()):
+				has_runway = has_runway or int(piece[2]) == Airport.G_RUNWAY
+		_check(airport_chunk != null and airport_chunk.zone == MacroMap.Zone.AIRPORT and has_runway and airport_chunk.building_count == 0, "airport chunk has a runway and no buildings")
+		# The terminal drop-off: a loop of crawling cars and a crowd on the curb.
+		var curb_c: Vector2 = macro.terminal_curb.get_center()
+		player.global_position = _world_state().to_local(Vector3(curb_c.x, 2.0, curb_c.y + 20.0))
+		city.update_streaming(true)
+		var loop_mgr: Node3D = city.get_node("Traffic")
+		# Traffic builds at most one new car a frame (TrafficManager.builds_per_frame), so the jam
+		# forms over a few frames rather than in one; give it a bounded while to get there.
+		for i in 40:
+			await _ticks(10)
+			if loop_mgr.loop_cars.size() >= 20:
+				break
+		_check(loop_mgr.loop_cars.size() >= 20, "airport drop-off loop is jammed (%d cars)" % loop_mgr.loop_cars.size())
+		var curb_people := 0
+		for ped in get_tree().get_nodes_in_group("pedestrian"):
+			var wp: Vector3 = _world_state().to_world(ped.global_position)
+			if macro.terminal_curb.grow(6.0).has_point(Vector2(wp.x, wp.z)):
+				curb_people += 1
+		_check(curb_people >= 15, "crowd on the terminal curb (%d)" % curb_people)
+		if loop_mgr.loop_cars.size() > 0:
+			var lc: Node3D = loop_mgr.loop_cars[0]
+			var lp0: Vector3 = lc.global_position
+			await _ticks(60)
+			_check(is_instance_valid(lc) and lc.global_position.distance_to(lp0) > 1.0, "loop cars crawl forward")
+		var port := macro.port_rect.get_center()
+		player.global_position = _world_state().to_local(Vector3(port.x, 2.0, port.y))
+		city.update_streaming(true)
+		var port_chunk: Node3D = city.chunks.get(plan.block_index_at(port))
+		_check(port_chunk != null and port_chunk.zone == MacroMap.Zone.PORT and port_chunk.has_node("Batch_container"), "port chunk has container stacks")
+		# The container kit (PortKit): an ISO 40 ft box with its LOD ladder and a box shadow
+		# twin; 20 ft pairs among the stacks (the same mesh at L20 / L40 in x); the stacks
+		# stand on the yard, not in it.
+		var cmesh: Mesh = PropFactory.container()
+		var cbox: AABB = cmesh.get_aabb()
+		var clods: Array = RenderingServer.mesh_get_surface(cmesh.get_rid(), 0).get("lods", [])
+		_check(cbox.size.is_equal_approx(Vector3(PortKit.L40, PortKit.H_STD, PortKit.W)) and clods.size() == 2 and PropFactory.shadow_proxy(cmesh) != null,
+			"containers are ISO 40 ft boxes with a two-step LOD ladder and a shadow twin (%s, %d LODs)" % [cbox.size, clods.size()])
+		if port_chunk != null and port_chunk.has_node("Batch_container"):
+			var cmm: MultiMesh = (port_chunk.get_node("Batch_container") as MultiMeshInstance3D).multimesh
+			_check(cmm.instance_count > 60 and cmm.use_custom_data, "port chunk stacks %d containers with livery data" % cmm.instance_count)
+		# The quay: every chunk along the harbour carries ship-to-shore cranes.
+		var quay_cranes := 0
+		var quay_chunks := 0
+		for ch in city.chunks.values():
+			if ch.zone == MacroMap.Zone.PORT and macro.zone_at(Vector2(ch.owned_rect().get_center().x, ch.owned_rect().end.y + 30.0)) == MacroMap.Zone.OCEAN:
+				quay_chunks += 1
+				for n in ch.get_children():
+					if String(n.name).begins_with("StsCrane"):
+						quay_cranes += 1
+		_check(quay_chunks == 0 or quay_cranes == quay_chunks * 2, "every quay chunk stands two gantry cranes (%d on %d)" % [quay_cranes, quay_chunks])
+
+
+func _city_cars(city: Node3D, plan: CityPlan, player: CharacterBody3D, macro: MacroMap) -> void:
+	# Cars: parked in the streets, drivable.
+	player.global_position = _world_state().to_local(Vector3(0.0, 2.0, 0.0))
+	player.velocity = Vector3.ZERO
+	city.update_streaming(true)
+	await _ticks(10)
+	var cars: Array = []
+	for c in get_tree().get_nodes_in_group("vehicle"):
+		if not c.is_traffic():
+			cars.append(c)
+	_check(cars.size() >= 5, "parked cars spawned (%d)" % cars.size())
+	# A quiet street for the driving checks: no traffic and no crowd nearby (both are tested
+	# below), otherwise a passing car or a knocked pedestrian can pin the test car.
+	var traffic_mgr: Node3D = city.get_node("Traffic")
+	var traffic_cap: int = traffic_mgr.max_cars
+	var home_rig: Node = player.get_node_or_null("CameraRig")
+	if home_rig:
+		_home_look = Vector2(float(home_rig.get("_yaw")), float(home_rig.get("_pitch")))
+	traffic_mgr.max_cars = 0
+	for c in traffic_mgr.cars.duplicate():
+		if is_instance_valid(c):
+			c.queue_free()
+	traffic_mgr.cars.clear()
+	if cars.size() > 0:
+		for ped in get_tree().get_nodes_in_group("pedestrian"):
+			if ped.global_position.distance_to(cars[0].global_position) < 90.0:
+				ped.queue_free()
+	await _ticks(2)
+	if cars.size() > 0:
+		# Always a sedan. cars[0] is the first parked car in the group's node order, which is the
+		# order the chunks happened to finish building in - so from run to run the drive and turn
+		# checks got a sedan, a van or a sports car, and the same two seconds of throttle measured
+		# anything from 7 to 21 m. (0 is Vehicle.BodyType.SEDAN; the class uses an autoload, so
+		# this script cannot name it.)
+		var car: Node3D = cars[0]
+		for c in cars:
+			if int(c.body_type) == 0:
+				car = c
+				break
+		var types := {}
+		for c in cars:
+			types[c.body_type] = true
+		_check(types.size() >= 2, "cars come in %d body types" % types.size())
+		# Put the test car on a known straight road (the +X road of block 0,0, heading -Z) and
+		# clear every other car nearby, so the drive and turn checks never depend on what happened
+		# to be parked ahead. The road is 14+ m wide and runs the whole block length.
+		var road_x: float = plan.road_pos(CityPlan.AXIS_X, 1)
+		var block0: Dictionary = plan.block(0, 0)
+		# The road sits on the rolling relief, so ask the city how high it is there (the car used
+		# to be dropped at y 0.6, under the slab, and drove on the ground follower plane).
+		var road_xz := Vector2(road_x, (block0.rect as Rect2).end.y - 6.0)
+		var road_start := Vector3(road_xz.x, city.ground_height_at(_world_state().to_local(Vector3(road_xz.x, 0.0, road_xz.y))) + 0.6, road_xz.y)
+		for c in get_tree().get_nodes_in_group("vehicle"):
+			if c != car and not c.is_traffic() and c.global_position.distance_to(_world_state().to_local(road_start)) < 140.0:
+				c.queue_free()
+		car.global_position = _world_state().to_local(road_start)
+		car.rotation = Vector3.ZERO
+		car.linear_velocity = Vector3.ZERO
+		car.angular_velocity = Vector3.ZERO
+		await _ticks(20)
+		player.global_position = car.global_position + Vector3(2.5, 0.5, 0.0)
+		player.velocity = Vector3.ZERO
+		await _ticks(5)
+		await _press("interact")
+		_check(player.is_driving() and player.vehicle == car, "interact gets into the nearest car")
+		var start: Vector3 = car.global_position
+		var nose: Vector3 = -car.global_basis.z
+		Input.action_press("move_forward")
+		# Where the two seconds go, so a short drive says why: the tick it first moved, the speed
+		# it ended at, and whether its script was on and its wheels down when the throttle went in.
+		var script_on: bool = car.is_physics_processing()
+		var wheels0 := 0
+		for w in car.wheels:
+			if w.is_in_contact():
+				wheels0 += 1
+		var first_move := -1
+		for i in 120:
+			await get_tree().physics_frame
+			if first_move < 0 and car.linear_velocity.length() > 0.5:
+				first_move = i
+		var driven: float = (car.global_position - start).dot(nose)
+		_check(driven > 8.0, "car drives toward its headlights %.1f m in 2 s (body type %d, moving from tick %d, %.1f m/s at the end, script %s, %d wheels down)" % [
+			driven, int(car.body_type), first_move, car.linear_velocity.length(), "on" if script_on else "OFF", wheels0])
+		var yaw0: float = car.rotation.y
+		Input.action_press("move_right")
+		await _ticks(45)
+		Input.action_release("move_right")
+		Input.action_release("move_forward")
+		var turned: float = wrapf(car.rotation.y - yaw0, -PI, PI)
+		var planted := 0
+		for w in car.wheels:
+			if w.is_in_contact():
+				planted += 1
+		_check(turned < -0.15 and car.global_basis.y.y > 0.9, "D turns the car right (%.2f rad) and it stays flat (%d wheels down)" % [turned, planted])
+		await _ticks(30)
+		# Space makes the car jump. Wait for all four wheels to be down first: a car only jumps
+		# from the ground, and after the turn test it is still settling (airborne cars now fall
+		# at reduced gravity, so settling takes longer than it used to).
+		for i in 180:
+			await get_tree().physics_frame
+			if not car.is_airborne() and absf(car.linear_velocity.y) < 0.4:
+				break
+		var car_y0: float = car.global_position.y
+		var top_y: float = car_y0
+		var worst_tilt := 0.0
+		Input.action_press("jump")
+		for i in 40:
+			await get_tree().physics_frame
+			top_y = maxf(top_y, car.global_position.y)
+			worst_tilt = maxf(worst_tilt, 1.0 - car.global_basis.y.y)
+		Input.action_release("jump")
+		_check(top_y > car_y0 + 1.0, "Space makes the car jump (%.1f m)" % (top_y - car_y0))
+		# Owner, 2026-09-20: the nose must not tip over on a jump.
+		_check(worst_tilt < 0.1, "the car stays level through a jump (worst tilt %.3f)" % worst_tilt)
+
+		# Flight: hold boost in the air and the car climbs where the camera looks, staying level.
+		car.global_position += Vector3(0.0, 14.0, 0.0)
+		car.linear_velocity = Vector3.ZERO
+		car.angular_velocity = Vector3(2.0, 1.0, 2.0) # give it a tumble to recover from
+		player.camera_rig.set_look(0.0, 35.0)
+		await _ticks(4)
+		var fly_y0: float = car.global_position.y
+		Input.action_press("boost")
+		var fly_tilt := 0.0
+		for i in 70:
+			await get_tree().physics_frame
+			if i > 25:
+				fly_tilt = maxf(fly_tilt, 1.0 - car.global_basis.y.y)
+		Input.action_release("boost")
+		_check(car.global_position.y > fly_y0 + 3.0, "boost flies the car upward (%.1f m gained)" % (car.global_position.y - fly_y0))
+		_check(fly_tilt < 0.45, "the flying car stabilises itself instead of tumbling (tilt %.2f)" % fly_tilt)
+		# Put the car back on the known-clear stretch of road it started from. Leaving it
+		# wherever the flight ended means the exit test runs next to whatever happens to be
+		# there, which changes every time the world's seeded layout shifts.
+		car.global_position = _world_state().to_local(road_start)
+		car.rotation = Vector3.ZERO
+		car.linear_velocity = Vector3.ZERO
+		car.angular_velocity = Vector3.ZERO
+		for i in 180:
+			await get_tree().physics_frame
+			if not car.is_airborne() and absf(car.linear_velocity.y) < 0.4:
+				break
+		await _ticks(20)
+		await _press("interact")
+		_check(not player.is_driving() and player.visible and player.global_position.distance_to(car.global_position) < 5.0, "interact gets out next to the car")
+		if macro:
+			# A car that ends up under a hill gets lifted onto the surface while you drive it.
+			await _ticks(30)
+			# Stand on the roof: always free, whatever the car parked next to.
+			player.global_position = car.global_position + Vector3.UP * 2.5
+			player.velocity = Vector3.ZERO
+			await _ticks(3)
+			await _press("interact")
+			_check(player.is_driving(), "interact gets back in")
+			var hill_xz := Vector2(0.0, -1400.0)
+			var hill_h: float = macro.height_at(hill_xz)
+			car.global_position = _world_state().to_local(Vector3(hill_xz.x, 0.5, hill_xz.y))
+			car.linear_velocity = Vector3.ZERO
+			await get_tree().physics_frame
+			city.update_streaming(true)
+			var lifted := false
+			for i in 120:
+				await get_tree().physics_frame
+				if _world_state().to_world(car.global_position).y > hill_h - 3.0:
+					lifted = true
+					break
+			var car_w: Vector3 = _world_state().to_world(car.global_position)
+			_check(lifted, "car under a hill is lifted onto it (y %.0f of %.0f)" % [car_w.y, hill_h])
+			# Getting out of a car lying on its side never puts you in the ground.
+			await _ticks(90)
+			var side_t := car.global_transform
+			side_t.basis = Basis(Vector3.FORWARD, PI * 0.5) * side_t.basis
+			side_t.origin.y += 1.0
+			car.global_transform = side_t
+			car.linear_velocity = Vector3.ZERO
+			car.angular_velocity = Vector3.ZERO
+			await _ticks(20)
+			player.exit_vehicle() # the E key itself is covered above; this isolates the placement
+			await _ticks(20)
+			var out_w: Vector3 = _world_state().to_world(player.global_position)
+			var ground_here: float = macro.height_at(Vector2(out_w.x, out_w.z))
+			var apart: float = player.global_position.distance_to(car.global_position)
+			# (Both slide down the slope a bit, so the distance check is loose.)
+			_check(not player.is_driving() and out_w.y > ground_here - 2.0, "getting out of a car on its side lands above ground (y %.0f, hill %.0f, %.0f m from the car, driving %s)" % [out_w.y, ground_here, apart, player.is_driving()])
+			player.global_position = _world_state().to_local(Vector3(0.0, 2.0, 0.0))
+			player.velocity = Vector3.ZERO
+			city.update_streaming(true)
+		# Falling through the world lifts you back onto loaded ground where you are.
+		var far_spot := Vector3(2600.0, -20.0, 300.0)
+		player.global_position = _world_state().to_local(far_spot)
+		player.velocity = Vector3(0, -30, 0)
+		await _ticks(40)
+		var back_w: Vector3 = _world_state().to_world(player.global_position)
+		_check(back_w.y > -1.0 and Vector2(back_w.x, back_w.z).distance_to(Vector2(far_spot.x, far_spot.z)) < 20.0, "falling through the world recovers in place (y %.1f)" % back_w.y)
+		await _wait_for_floor(player, 240)
+		_check(player.is_on_floor(), "and lands on solid ground")
+		player.global_position = _world_state().to_local(Vector3(0.0, 2.0, 0.0))
+		player.velocity = Vector3.ZERO
+		city.update_streaming(true)
+
+	# Jets: taxi down the runway under throttle, then pull up and fly.
+	if macro:
+		var apron: Vector2 = macro.apron_spots[0][0]
+		player.global_position = _world_state().to_local(Vector3(apron.x, 3.0, apron.y + 7.0))
+		player.velocity = Vector3.ZERO
+		city.update_streaming(true)
+		await _ticks(15)
+		var jet: Node3D = null
+		for node in get_tree().get_nodes_in_group("vehicle"):
+			if node is Aircraft and node.global_position.distance_to(player.global_position) < 40.0:
+				jet = node
+		_check(jet != null, "a jet waits on the apron")
+		if jet:
+			await _press("interact")
+			_check(player.is_driving() and player.vehicle == jet, "interact climbs into the jet (%s)" % jet.display_name())
+			Input.action_press("boost")
+			await _ticks(330)
+			var ground_speed: float = jet.linear_velocity.length()
+			var y_before: float = _world_state().to_world(jet.global_position).y
+			_check(ground_speed > 30.0, "full throttle rolls the jet down the field (%.0f m/s, y %.1f)" % [ground_speed, y_before])
+			Input.action_press("move_back")
+			var top_y := y_before
+			for i in 300:
+				await get_tree().physics_frame
+				top_y = maxf(top_y, _world_state().to_world(jet.global_position).y)
+			Input.action_release("move_back")
+			Input.action_release("boost")
+			_check(top_y > 25.0, "pulling up takes off (peak %.0f m)" % top_y)
+			await _ticks(20)
+			player.exit_vehicle()
+			player.global_position = _world_state().to_local(Vector3(0.0, 2.0, 0.0))
+			player.velocity = Vector3.ZERO
+			city.update_streaming(true)
+			await _ticks(5)
+
+
+func _city_people(city: Node3D, plan: CityPlan, player: CharacterBody3D, traffic_cap: int, traffic_mgr: Node3D) -> void:
+	# Pedestrians and traffic.
+	traffic_mgr.max_cars = traffic_cap
+	player.global_position = _world_state().to_local(Vector3(0.0, 2.0, 0.0))
+	player.velocity = Vector3.ZERO
+	city.update_streaming(true)
+	await _ticks(130)
+	var peds := get_tree().get_nodes_in_group("pedestrian")
+	_check(peds.size() >= 10 and peds.size() <= city.max_pedestrians, "pedestrians on the sidewalks (%d)" % peds.size())
+	if peds.size() > 0:
+		# The nearest one, not peds[0]: the ragdoll lives in the pedestrian's chunk, and the first
+		# in the group can be in a chunk at the edge of the window that is swapped for its far
+		# version a tick later, taking the ragdoll with it.
+		var ped: Node3D = peds[0]
+		for p: Node3D in peds:
+			if not p.is_queued_for_deletion() and p.global_position.distance_to(player.global_position) < ped.global_position.distance_to(player.global_position):
+				ped = p
+		var before_dolls := {}
+		for n in get_tree().get_nodes_in_group("debris"):
+			if n is Ragdoll:
+				before_dolls[n.get_instance_id()] = true
+		ped.knock(Vector3(5.0, 8.0, 0.0))
+		await _ticks(3)
+		# Other ragdolls come and go (traffic, debris timeouts); look for one that is new.
+		var new_dolls := 0
+		for n in get_tree().get_nodes_in_group("debris"):
+			if n is Ragdoll and not before_dolls.has(n.get_instance_id()):
+				new_dolls += 1
+		_check(not is_instance_valid(ped) or ped.is_queued_for_deletion(), "knocked pedestrian is removed")
+		_check(new_dolls >= 1, "a ragdoll takes its place")
+		# The ragdoll is the same rigged character, not a box body (owner, 2026-09-20).
+		var rigged_doll := false
+		for n in get_tree().get_nodes_in_group("debris"):
+			if n is Ragdoll and not before_dolls.has(n.get_instance_id()) and n.find_child("Skeleton3D", true, false) != null:
+				rigged_doll = true
+		_check(rigged_doll, "the ragdoll keeps the pedestrian's real model")
+		# Bullets hurt people: the AK-47 ray must hit the npc layer and knock the target over.
+		# The nearest ones: past Pedestrian.physics_range a pedestrian's hit zone is switched off.
+		# A lamp post, a car or a bin between the muzzle and the target takes the bullet instead,
+		# so try the nearest few until one shot lands on somebody.
+		var targets: Array = []
+		for p in peds:
+			if is_instance_valid(p) and not (p as Node).is_queued_for_deletion():
+				targets.append(p)
+		targets.sort_custom(func(a: Node3D, b: Node3D) -> bool: return a.global_position.distance_to(player.global_position) < b.global_position.distance_to(player.global_position))
+		var rifle: Node = player.weapon_manager.get_node_or_null("AssaultRifle")
+		if rifle == null:
+			for w in player.weapon_manager.get_children():
+				if w is AssaultRifle:
+					rifle = w
+		var hit_a_person := false
+		var struck_id: int = 0
+		var blood_before: Dictionary = WeaponFX.blood_stats.duplicate()
+		for target: Node3D in targets.slice(0, 5):
+			# Fire from close range and follow whoever the bullet actually hits: the crowd is
+			# dense enough now that a long shot often passes through somebody else first.
+			var from: Vector3 = target.global_position + Vector3(0.0, 1.0, 0.0) + Vector3(-2.5, 0.0, 0.0)
+			var hit: Dictionary = rifle.fire_ray(from, Vector3.RIGHT)
+			var struck: Node = hit.get("collider") as Node
+			while struck != null and not (struck is Pedestrian):
+				struck = struck.get_parent()
+			# Decide what we hit before awaiting: knocking it over frees the node.
+			if struck is Pedestrian:
+				hit_a_person = true
+				struck_id = struck.get_instance_id()
+				break
+		if not targets.is_empty():
+			await _ticks(3)
+			var gone := hit_a_person and (not is_instance_valid(instance_from_id(struck_id)) or (instance_from_id(struck_id) as Node).is_queued_for_deletion())
+			_check(hit_a_person and gone, "an AK-47 bullet knocks a pedestrian down")
+			# Blood (owner, 2026-09-24: "I want more blood when people get shot"): the round that
+			# put them down came out of the far side as a spray, and the drops marked the ground.
+			_check(hit_a_person and int(WeaponFX.blood_stats.exit_sprays) > int(blood_before.exit_sprays),
+				"a rifle hit on a pedestrian throws an exit spray")
+			_check(hit_a_person and int(WeaponFX.blood_stats.splats) > int(blood_before.splats),
+				"the spray lands as blood splats (%d)" % (int(WeaponFX.blood_stats.splats) - int(blood_before.splats)))
+		# Gunfire scares people (owner, 2026-09-23: "NPCs screaming"): the ones near it run.
+		# Not anybody standing where the body just shot is flying: a ragdoll that reaches them
+		# knocks them over (their hit zone), and a body on the ground has no speed to measure.
+		var flying: Array = []
+		for n in get_tree().get_nodes_in_group("debris"):
+			if n is Ragdoll:
+				flying.append((n as Node3D).global_position)
+		var runner: Node3D = null
+		for p in get_tree().get_nodes_in_group("pedestrian"):
+			var in_path := false
+			for at: Vector3 in flying:
+				in_path = in_path or (p as Node3D).global_position.distance_to(at) < 10.0
+			if is_instance_valid(p) and not (p as Node).is_queued_for_deletion() and not p.get("_down") and not in_path:
+				if runner == null or (p as Node3D).global_position.distance_to(player.global_position) < runner.global_position.distance_to(player.global_position):
+					runner = p
+		if runner != null:
+			Pedestrian.alarm(get_tree(), runner.global_position + Vector3(3.0, 0.0, 0.0), 15.0, 2, true)
+			# Half a second: people now turn and pull away (Pedestrian.run_accel) rather than
+			# jump to a sprint on the tick the shot goes off.
+			await _ticks(30)
+			var flat_speed := Vector2(runner.velocity.x, runner.velocity.z).length() if is_instance_valid(runner) else 0.0
+			_check(is_instance_valid(runner) and float(runner.get("_panic_left")) > 0.0 and flat_speed > float(runner.get("walk_speed")) * 1.5,
+				"a gunshot sends the people near it running (%.1f m/s)" % flat_speed)
+		# GTA-style aim (owner, 2026-09-24: "aiming that auto locks onto targets"): look roughly
+		# at somebody, hold aim with the AK, and the lock takes them and the shot goes at them.
+		# The nearest few in turn, because a lamp post or a car can stand in the line of sight.
+		var lock: Node = player.get("lock_on")
+		var manager: Node = player.get("weapon_manager")
+		manager.equip(0)
+		var locked: Node3D = null
+		var aim_ok := false
+		var candidates: Array = []
+		for p in get_tree().get_nodes_in_group("pedestrian"):
+			if is_instance_valid(p) and not (p as Node).is_queued_for_deletion() and not p.get("_down"):
+				candidates.append(p)
+		candidates.sort_custom(func(a: Node3D, b: Node3D) -> bool: return a.global_position.distance_to(player.global_position) < b.global_position.distance_to(player.global_position))
+		var tried := 0
+		var took := "nothing"
+		for cand: Node3D in candidates.slice(0, 10):
+			# A few degrees off, so the lock has to find them rather than be handed them.
+			player.get("camera_rig").look_at_point(cand.global_position + Vector3(0.6, 1.2, 0.0))
+			Input.action_press("alt_fire")
+			for i in 8:
+				await get_tree().process_frame
+			locked = lock.get("target")
+			tried += 1
+			took = locked.get_class() if locked else "nothing"
+			# The lock takes a person first but a traffic car when no person is in the cone with
+			# a clear line (a slow CI box thins the crowd): that is the next candidate's turn,
+			# not a failure of the lock.
+			if locked != null and not (locked is Pedestrian):
+				locked = null
+			if locked != null:
+				var aim: Dictionary = player.get_aim()
+				var to_target: Vector3 = (locked.global_position + Vector3.UP * 1.2 - aim.origin).normalized()
+				aim_ok = aim.get("target") == locked and (aim.direction as Vector3).dot(to_target) > 0.995
+				break
+			Input.action_release("alt_fire")
+			await get_tree().process_frame
+		_check(locked is Pedestrian and aim_ok, "holding aim locks onto a pedestrian and the shot goes at them (%d tried, last lock %s)" % [tried, took])
+		Input.action_release("alt_fire")
+		for i in 3:
+			await get_tree().process_frame
+		_check(lock.get("target") == null and not lock.get("aiming"), "letting go of aim drops the lock")
+		# The body the rifle put down stains round its wounds and bleeds into a pool under it once
+		# it lies still (a few seconds; the checks above have used some of them).
+		if hit_a_person:
+			# Up to 7 s: a body still sliding on a sloped street pools only once it is 3.5 s old
+			# (Ragdoll's fallback), and 3 s from here missed that on a loaded CI runner.
+			# The bodies are looked at WHILE they wait: debris lives debris_lifetime (12 s) and the
+			# checks above can use most of that, so a body that came to rest on a car and never
+			# pools may be freed before the wait ends, and looked at only afterwards it read as
+			# "0 of 0" (no body at all) and failed.
+			var pooled := false
+			var stained := false
+			var off_ground := 0
+			var bleeding := 0
+			var seen := ""
+			for i in 420:
+				pooled = int(WeaponFX.blood_stats.pools) > int(blood_before.pools)
+				if i % 15 == 0 or pooled:
+					var off := 0
+					var bled := 0
+					var where := ""
+					for n in get_tree().get_nodes_in_group("debris"):
+						if not (n is Ragdoll) or (n as Node).is_queued_for_deletion():
+							continue
+						var doll := n as Ragdoll
+						var mat: Variant = doll.get("_stain_mat")
+						if mat is ShaderMaterial and float((mat as ShaderMaterial).get_shader_parameter("wound_count")) > 0.0:
+							stained = true
+						if doll.bodies.is_empty() or doll.bleed <= 0.0:
+							continue
+						var rb: RigidBody3D = doll.bodies[0]
+						# On the street means what Ragdoll._blood_step() pools on: ground on the world
+						# layer under the hips AND the hips within 0.6 m of it. The ray only sees the
+						# world layer, so a body draped over a car or a kerb cart has the road under it
+						# too, but lies too high to pool (by design).
+						var pel := doll._pelvis()
+						var gu: Dictionary = doll._ground_under(pel)
+						var lift := pel.y - float((gu.position as Vector3).y) if not gu.is_empty() else INF
+						var on_street := not gu.is_empty() and lift < 0.6
+						bled += 1
+						if not on_street:
+							off += 1
+						where += " ragdoll at %s, speed %.2f, age %.1f, bleed %.1f, hips %.2f m over the street, on it %s;" % [
+							str(rb.global_position.snapped(Vector3.ONE * 0.1)), rb.linear_velocity.length(),
+							float(n.get("_age")), doll.bleed, lift, on_street]
+					# A body that rests on a parked car, a bench or a planter has no street under
+					# it within reach, and by design gets no pool there (Ragdoll._ground_under).
+					# Which person the rifle drops, and where they land, depends on the frame
+					# timing: on a loaded CI runner (build 335) the shot body ended up on top of
+					# something. Keep the last look that still found a bleeding body.
+					if bled > 0:
+						off_ground = off
+						bleeding = bled
+						seen = where
+				if pooled and stained:
+					break
+				await _ticks(1)
+			if not pooled and seen != "":
+				printerr("blood: no pool -" + seen)
+			_check(pooled or (bleeding > 0 and off_ground == bleeding),
+				"a body shot down bleeds into a pool under it" + ("" if pooled else " (none: it lies on top of something, %d of %d)" % [off_ground, bleeding]))
+			_check(stained, "the shot body's clothes are stained round the wound")
+		# The shotgun sums a person's pellets into one wound, so a close blast bleeds far harder
+		# than a rifle round (Shotgun.blood_per_pellet, capped at WeaponFX.blood_strength_max).
+		var shotgun: Node = null
+		for w in player.weapon_manager.get_children():
+			if w is Shotgun:
+				shotgun = w
+		if shotgun:
+			var standing: Array = []
+			for p in get_tree().get_nodes_in_group("pedestrian"):
+				# Upright walkers only: a rough sleeper (is_posed) sits or lies, and a chest-high
+				# blast over them lands two or three pellets, so which of them happened to be
+				# nearest decided the check.
+				if is_instance_valid(p) and not (p as Node).is_queued_for_deletion() and not p.get("_down") and not p.has_method("is_posed"):
+					standing.append(p)
+			standing.sort_custom(func(a: Node3D, b: Node3D) -> bool: return a.global_position.distance_to(player.global_position) < b.global_position.distance_to(player.global_position))
+			var volley_bleed := 0.0
+			var victim := "nobody"
+			for cand: Node3D in standing.slice(0, 5):
+				shotgun._fire({"origin": cand.global_position + Vector3(-2.5, 1.2, 0.0), "direction": Vector3.RIGHT})
+				# The strongest of up to five tries: the shot is fired 2.5 m off the walker, and a
+				# lamp post or news box in between can take most of one volley (a 0.45 - one
+				# pellet - on a busy street). What is checked is that the pellets sum.
+				var doll: Variant = cand.get("_doll")
+				if doll is Ragdoll and float((doll as Ragdoll).bleed) > volley_bleed:
+					volley_bleed = float((doll as Ragdoll).bleed)
+					victim = str(cand.name)
+				if volley_bleed > 1.5:
+					break
+			_check(volley_bleed > 1.5, "a close shotgun blast is one heavy wound (strength %.2f, a rifle round is 1; %s)" % [volley_bleed, victim])
+		# Every kind of mark stays under its cap when a crowd is emptied into at once: 120 heavy
+		# wounds and 16 pools in one frame, with the per-moment budget lifted so all of them count.
+		var budget_was: int = WeaponFX.blood_budget
+		WeaponFX.blood_budget = 1000
+		var spot: Vector3 = player.global_position + Vector3(4.0, 1.2, 0.0)
+		for i in 120:
+			WeaponFX.blood(player, spot + Vector3(randf_range(-2.0, 2.0), 0.0, randf_range(-2.0, 2.0)),
+				Vector3(1.0, randf_range(-0.2, 0.2), randf_range(-0.6, 0.6)), 3.0)
+		for i in 16:
+			WeaponFX.blood_pool(player, spot - Vector3(0.0, 1.2, 0.0), Vector3.UP, 2.0)
+		WeaponFX.blood_budget = budget_was
+		await _ticks(1)
+		var bc: Dictionary = WeaponFX.blood_counts()
+		_check(int(bc.splats) > 0 and int(bc.systems) <= WeaponFX.blood_system_max and int(bc.splats) <= WeaponFX.blood_splat_max
+			and int(bc.walls) <= WeaponFX.blood_wall_max and int(bc.pools) <= WeaponFX.blood_pool_max,
+			"blood stays under its caps after a flood of wounds (%s)" % bc)
+	# Quality levels scale the population, not just the effects (owner: "still super laggy").
+	var quality_node: Node = city.get_node("Quality")
+	var full_cap: int = city.max_pedestrians
+	quality_node.apply_level(3)
+	await _ticks(3)
+	_check(city.max_pedestrians < full_cap and get_tree().get_nodes_in_group("pedestrian").size() <= city.max_pedestrians + 2, "lowest quality trims the crowd to %d (was cap %d)" % [city.max_pedestrians, full_cap])
+	quality_node.apply_level(0)
+	# Characters: every rig wears the character shader, and a crowd shows several outfits and
+	# several heights rather than three models copied (owner, 2026-09-20).
+	var shaded := 0
+	var outfits := {}
+	var heights := {}
+	for ped in get_tree().get_nodes_in_group("pedestrian"):
+		for mi in (ped as Node).find_children("*", "MeshInstance3D", true, false):
+			var ov := (mi as MeshInstance3D).material_override
+			if str(mi.name).begins_with("Hair"):
+				continue # a crowd rig's hair cards, on their own shader
+			if ov is ShaderMaterial and ov.get_shader_parameter("cloth_hue") != null:
+				# (not a held prop's material: CrowdLife.prop_material())
+				shaded += 1
+				outfits[Vector3(ov.get_shader_parameter("cloth_hue"), ov.get_shader_parameter("cloth_sat"), ov.get_shader_parameter("cloth_strength"))] = true
+		var vis: Node3D = (ped as Node).get("_visual")
+		if vis:
+			heights[snappedf(vis.scale.y, 0.01)] = true
+	_check(shaded > 10, "pedestrians use the character shader (%d)" % shaded)
+	# Every character model has to arrive wearing something. One of the generated rigs came back
+	# as bare skin from head to foot, and because the garment recolour only touches pixels that
+	# are already off the skin hue, it walked the city as a naked orange mannequin. Measured as
+	# how much of the texture sits away from its own average colour: a clothed character has
+	# hair, shoes and fabric well off its skin tone (0.31 and 0.71 for the two in use), a nude
+	# one is all one tone (0.001). Hue alone will not do it - brown clothing is a skin hue.
+	var dressed := true
+	var worst := 1.0
+	# Loaded by path: naming the class here would pull in a script that uses an autoload.
+	var ped_script: GDScript = load("res://scripts/npc/pedestrian.gd")
+	for path in ped_script.MODELS:
+		var rig: Node = (load(path) as PackedScene).instantiate()
+		var tex: Texture2D = null
+		for mi in rig.find_children("*", "MeshInstance3D", true, false):
+			var m := (mi as MeshInstance3D).mesh.surface_get_material(0) as StandardMaterial3D
+			if m and m.albedo_texture:
+				tex = m.albedo_texture
+				break
+		rig.free()
+		if tex == null:
+			continue
+		var img := tex.get_image()
+		if img.is_compressed():
+			img.decompress()
+		var step := maxi(img.get_width() / 96, 1)
+		var mean := Color(0, 0, 0)
+		var total := 0
+		for y in range(0, img.get_height(), step):
+			for x in range(0, img.get_width(), step):
+				mean += img.get_pixel(x, y)
+				total += 1
+		mean /= maxf(float(total), 1.0)
+		var away := 0
+		for y in range(0, img.get_height(), step):
+			for x in range(0, img.get_width(), step):
+				var c := img.get_pixel(x, y)
+				if Vector3(c.r - mean.r, c.g - mean.g, c.b - mean.b).length() > 0.18:
+					away += 1
+		var ratio := float(away) / maxf(float(total), 1.0)
+		worst = minf(worst, ratio)
+		if ratio < 0.10:
+			dressed = false
+	_check(dressed, "every character model is wearing clothes (plainest is %.0f%% off its own skin tone)" % (worst * 100.0))
+	_check(outfits.size() >= 5, "the crowd wears %d different outfits" % outfits.size())
+	var tones := {}
+	for ped in get_tree().get_nodes_in_group("pedestrian"):
+		for mi in (ped as Node).find_children("*", "MeshInstance3D", true, false):
+			var ov2 := (mi as MeshInstance3D).material_override
+			if ov2 is ShaderMaterial and not str(mi.name).begins_with("Hair"):
+				tones[ov2.get_shader_parameter("skin_tint")] = true
+	_check(tones.size() >= 4, "the crowd has %d skin tones" % tones.size())
+	_check(heights.size() >= 5, "the crowd has %d different heights" % heights.size())
+	var avatar: Node = player.get_node_or_null("Visual/Avatar")
+	_check(avatar != null and avatar.find_child("AnimationPlayer", true, false) != null and not player.get_node("Visual/Body").visible, "the player wears the animated character, capsule hidden")
+	_check_hero(avatar)
+	await load("res://tests/hero_moves_checks.gd").new().run(self, player)
+	_check_crowd_rigs()
+	var traffic_node: Node3D = city.get_node("Traffic")
+	var moving: int = traffic_node.cars.size()
+	_check(moving >= 4, "traffic cars are driving (%d)" % moving)
+	if moving > 0:
+		# The nearest car in the tree, not cars[0]: that one can be the next to leave range
+		# and go back to the pool within the second, out of the tree, where its position is
+		# garbage (it read as 1,077 m in one second) and every transform read logs an error.
+		var tcar: Node3D = null
+		for c in traffic_node.cars:
+			var car := c as Node3D
+			if car and car.is_inside_tree() and (tcar == null or car.global_position.distance_to(player.global_position) < tcar.global_position.distance_to(player.global_position)):
+				tcar = car
+		var p0: Vector3 = tcar.global_position
+		# Every car's start, not just the nearest one's: since the signals went in, the nearest
+		# car can simply be waiting at a red for the whole second.
+		var starts := {}
+		for c in traffic_node.cars:
+			if is_instance_valid(c) and (c as Node3D).is_inside_tree():
+				starts[c] = (c as Node3D).global_position
+		await _ticks(60)
+		var live := is_instance_valid(tcar) and tcar.is_inside_tree()
+		var farthest := 0.0
+		for c in starts:
+			if is_instance_valid(c) and (c as Node3D).is_inside_tree():
+				farthest = maxf(farthest, (c as Node3D).global_position.distance_to(starts[c]))
+		_check(farthest > 4.0, "traffic cars drive (the farthest moved %.1f m in 1 s, %d cars)" % [farthest, starts.size()])
+		if live:
+			tcar.drop_out_of_traffic(Vector3(0.0, 4000.0, 0.0))
+			await _ticks(2)
+			_check(not tcar.is_traffic() and not tcar.freeze, "a hit traffic car becomes a physics car")
+
+
+func _city_polish(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
+	# Polish: grass in parks, day/night, sounds, pause menu, seed rebuild.
+	var park_chunk: Node3D = null
+	for k in city.chunks:
+		var c: Node3D = city.chunks[k]
+		if c.level == 0 and plan.block(k.x, k.y).kind == CityPlan.BlockKind.PARK and c.zone == MacroMap.Zone.CITY:
+			park_chunk = c
+			break
+	if park_chunk == null:
+		# Walk to any park nearby so one gets built in full detail.
+		for k in city.chunks:
+			var blk := plan.block(k.x, k.y)
+			if blk.kind == CityPlan.BlockKind.PARK and plan.zone_at((blk.rect as Rect2).get_center()) == MacroMap.Zone.CITY:
+				var c2: Vector2 = (blk.rect as Rect2).get_center()
+				player.global_position = _world_state().to_local(Vector3(c2.x, 2.0, c2.y))
+				city.update_streaming(true)
+				park_chunk = city.chunks.get(k)
+				break
+	_check(park_chunk != null and park_chunk.find_children("Batch_grass_*", "", false, false).size() > 0 and (park_chunk.has_node("Batch_shrub_0") or park_chunk.has_node("Batch_shrub_1") or park_chunk.has_node("Batch_shrub_2") or park_chunk.has_node("Batch_shrub_3")), "a park has grass and bushes")
+	var day: Node = city.get_node("DayNight")
+	var h0: float = day.hour
+	await _ticks(30)
+	_check(day.hour > h0, "the clock advances (%s)" % day.clock_text())
+	day.hour = 23.0
+	day._apply()
+	_check(day.night_factor > 0.9, "night raises night_factor (%.2f)" % day.night_factor)
+	# Night lighting. Before this the streets were pitch black: the city had no light sources at
+	# all except the sun, and the first attempt at lamps left every light that streamed in after
+	# the level last changed sitting at zero energy, so the check forces night and then reads the
+	# lights back rather than trusting that they were set.
+	day.hour = 23.0
+	day._apply()
+	await _ticks(2)
+	day._apply()
+	var lamp_lights := get_tree().get_nodes_in_group("lamp_light")
+	var lit_lamps := 0
+	for l in lamp_lights:
+		if (l as OmniLight3D).light_energy > 0.5:
+			lit_lamps += 1
+	_check(lamp_lights.size() > 20 and lit_lamps == lamp_lights.size(), "street lamps light up at night (%d of %d)" % [lit_lamps, lamp_lights.size()])
+	var pools := 0
+	for n in city.find_children("Batch_lamp_pool", "MultiMeshInstance3D", true, false):
+		pools += (n as MultiMeshInstance3D).multimesh.instance_count
+	_check(pools > 20, "lamps throw a pool of light on the pavement (%d)" % pools)
+	# Open shops throw theirs too: one batch per chunk, one pool per open shop Building reports.
+	var spill := 0
+	var spill_want := 0
+	for n in city.find_children("Batch_shop_spill", "MultiMeshInstance3D", true, false):
+		spill += (n as MultiMeshInstance3D).multimesh.instance_count
+	for b in get_tree().get_nodes_in_group("building"):
+		# Not `is CityChunk`: the test must not name a class that uses an autoload (CLAUDE.md).
+		if (b as Node).get_parent() != null and (b as Node).get_parent().has_method("build_step"):
+			spill_want += (b.get("shop_pools") as Array).size()
+	# The street vendors' trucks and hot dog carts light the pavement through the same batch.
+	for k in city.chunks:
+		spill_want += int((city.chunks[k] as Node).get_meta("vendor_pools", 0))
+	# At most: a chunk still building has its buildings but not yet its batches.
+	_check(spill > 10 and spill <= spill_want, "open shops spill light on the pavement (%d of %d)" % [spill, spill_want])
+	# Every car carries its headlights, tail lights and road beam as one mesh (one draw, not
+	# five - there are up to 150 cars on the road).
+	var car_lights := 0
+	var cars_seen := 0
+	for car in traffic_cars_for_lights(city):
+		cars_seen += 1
+		var lights: Node = (car as Node).get_node_or_null("NightLights")
+		if lights and (lights as MeshInstance3D).mesh and (lights as MeshInstance3D).mesh.surface_get_material(0) is ShaderMaterial:
+			car_lights += 1
+	_check(cars_seen > 0 and car_lights == cars_seen, "cars carry head and tail lights (%d of %d)" % [car_lights, cars_seen])
+	day.hour = 12.0
+	day._apply()
+	_check(day.night_factor < 0.05, "noon clears it")
+	var sfx: Node = get_tree().root.get_node("/root/Sfx")
+	_check(sfx.has("shot") and sfx.has("explosion") and sfx.has("engine_loop"), "sound effects are synthesized")
+	_check(sfx.has("rain") and sfx.has("thunder"), "rain and thunder are synthesized")
+	# Weather: force a storm and watch the waves, wind and rain follow.
+	var weather = city.get_node_or_null("Weather")
+	_check(weather != null, "city has a Weather node")
+	if weather:
+		weather.state = 3
+		weather._previous = 3
+		weather.blend = 1.0
+		for i in 3:
+			weather._process(0.1)
+		_check(weather.wave_scale > 3.0, "a storm raises the ocean's wave scale (%.1f)" % weather.wave_scale)
+		_check(weather._rain.emitting, "a storm turns the rain on")
+		_check(city.get_node("DayNight").weather_darken > 0.5, "a storm darkens the sky")
+		_check(weather.wetness > 0.0 and weather.drying == 0.0, "rain wets the streets evenly (wetness %.2f, drying %.2f)" % [weather.wetness, weather.drying])
+		weather.state = 0
+		weather._previous = 0
+		weather.blend = 1.0
+		for i in 3:
+			weather._process(0.1)
+		_check(not weather._rain.emitting, "clear weather turns the rain off")
+		_check(weather.drying > 0.0, "the streets start drying unevenly once the rain stops (drying %.2f)" % weather.drying)
+		var spray = weather.get_node_or_null("TyreSpray")
+		_check(spray != null, "Weather builds the tyre spray pool")
+		if spray:
+			spray.wetness = 1.0
+			spray._scan(1.0)
+			spray._process(0.016)
+			spray.wetness = 0.0
+			spray._process(0.3)
+			var dry_quiet := true
+			for p in spray._pool:
+				dry_quiet = dry_quiet and not p.emitting
+			_check(dry_quiet, "no tyre spray on a dry street")
+	# Ground surfaces are textured: either a triplanar PBR material or the road/pavement wear
+	# shader, which carries its own albedo texture.
+	var road_textured := false
+	var ground_worn := false
+	var home_full: Node3D = city.chunks.get(plan.block_index_at(Vector2.ZERO))
+	if home_full:
+		for child in home_full.get_children():
+			if not (child is MeshInstance3D):
+				continue
+			var ov: Material = (child as MeshInstance3D).material_override
+			if ov is StandardMaterial3D:
+				var m := ov as StandardMaterial3D
+				if m.albedo_texture != null and m.uv1_triplanar:
+					road_textured = true
+			elif ov is ShaderMaterial:
+				var sm := ov as ShaderMaterial
+				if sm.get_shader_parameter("albedo_tex") != null:
+					road_textured = true
+					ground_worn = true
+	_check(road_textured, "roads and sidewalks use real textures")
+	_check(ground_worn, "roads and pavements use the wear shader")
+	# Everything outside the streamed chunks is the ground follower, and it has to be painted
+	# from the baked map of the basin, not left as a flat green plane whose edge is the horizon.
+	var follower: Node = city.get_node_or_null("Ground")
+	var macro_ok := false
+	var macro_land := 0
+	var macro_water := 0
+	if follower:
+		for child in follower.get_children():
+			if child is MeshInstance3D and (child as MeshInstance3D).material_override is ShaderMaterial:
+				var gm := (child as MeshInstance3D).material_override as ShaderMaterial
+				var tex: Texture2D = gm.get_shader_parameter("macro_tex")
+				if tex:
+					macro_ok = true
+					var mi := tex.get_image()
+					if mi.is_compressed():
+						mi.decompress()
+					for y in range(0, mi.get_height(), 7):
+						for x in range(0, mi.get_width(), 7):
+							if mi.get_pixel(x, y).a > 0.0005:
+								macro_land += 1
+							else:
+								macro_water += 1
+	_check(macro_ok and city.ground_size >= 10000.0, "the horizon is the baked macro map on a %.0f m plane" % (city.ground_size if follower else 0.0))
+	# Both have to be in there: alpha is exactly zero on water and never zero on land, and the
+	# shader tells the sea apart by that.
+	_check(macro_land > 100 and macro_water > 100, "the baked map has land and sea (%d / %d samples)" % [macro_land, macro_water])
+	_check(PropFactory.texture("brick", "Color") != null and PropFactory.texture("rock", "NormalGL") != null, "texture sets load")
+	# The HUD starts clean: crosshair, minimap and weapons, no wall of developer text. F1 cycles
+	# clean -> full -> hidden.
+	var hud: CanvasLayer = city.get_node("DebugHud")
+	_check(hud.visible and not hud.get_node("Stats").visible and not hud.get_node("Hints").visible,
+		"the HUD starts clean (no stats, no hints)")
+	hud.mode = 1
+	hud._apply_mode()
+	_check(hud.visible and hud.get_node("Stats").visible, "F1 brings the stats back")
+	hud.mode = 2
+	hud._apply_mode()
+	_check(not hud.visible, "F1 again hides the HUD")
+	hud.mode = 0
+	hud._apply_mode()
+	var minimap: Control = city.get_node("DebugHud/MinimapFrame/Minimap")
+	_check(minimap != null and minimap.world_to_map(Vector2(0.0, -100.0), Vector2.ZERO).y < minimap.size.y * 0.5, "minimap exists and north is up")
+	# Palms: a real generated tree (trunk, feathered fronds, skirt, coconuts) and palm-lined
+	# blocks somewhere in the loaded city (owner, 2026-09-20: "it's Cali, put palm trees").
+	var palm_mesh: Mesh = PropFactory.palm(0)
+	var palm_idx = palm_mesh.surface_get_arrays(0)[Mesh.ARRAY_INDEX]
+	var palm_tris: int = (palm_idx as PackedInt32Array).size() / 3 if palm_idx != null else (palm_mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() / 3
+	_check(palm_mesh.get_surface_count() == 1 and palm_tris > 400, "the palm is one generated mesh (%d triangles)" % palm_tris)
+	var palm_blocks := 0
+	for k in city.chunks:
+		for child in city.chunks[k].get_children():
+			if child.name.begins_with("Batch_palm_"):
+				palm_blocks += 1
+				break
+	_check(palm_blocks > 0, "palm-lined blocks in the loaded city (%d)" % palm_blocks)
+	_check_palm_ladder()
+	_check_foliage_ladders()
+	# A batch of a laddered plant scales its LOD edges by its biggest instance (MultiMeshBatch):
+	# street trees are always planted at a height of their own, never at 1.0.
+	var biased := 0
+	var tree_batches := 0
+	for n in city.find_children("Batch_tree_*", "MultiMeshInstance3D", true, false):
+		var mmi := n as MultiMeshInstance3D
+		if mmi.multimesh and mmi.multimesh.mesh and mmi.multimesh.mesh.has_meta("foliage_ladder"):
+			tree_batches += 1
+			if not is_equal_approx(mmi.lod_bias, 1.0) and mmi.lod_bias > 0.2 and mmi.lod_bias < 5.0:
+				biased += 1
+	_check(tree_batches > 0 and biased == tree_batches, "street-tree batches scale their LOD edges by their biggest tree (%d of %d)" % [biased, tree_batches])
+	minimap.queue_redraw()
+	await _ticks(3)
+	var env: Environment = city.get_node("WorldEnvironment").environment
+	_check(env.sdfgi_enabled and env.ssao_enabled and env.glow_enabled and env.tonemap_mode == Environment.TONE_MAPPER_AGX, "environment has GI, AO, glow and AgX filmic tonemapping")
+	# The realism pass: bounce light, sky-coloured ambient and aerial perspective haze. The
+	# threshold used to be 0.5, which quietly made the washed-out look a requirement: at 0.7 the
+	# far half of every wide shot lerped into flat sky blue. The guard is that the effect is
+	# still THERE, not that it is turned up.
+	_check(env.ssil_enabled and env.fog_aerial_perspective > 0.15 and env.fog_height_density > 0.0, "environment has indirect light and aerial-perspective haze")
+	# The grade. Contrast is what a frame lives on, and all three of these have been lost once:
+	# a LUT the tonemapper runs every pixel through, a key light that out-runs the sky fill by a
+	# real margin, and shadows that reach further than three blocks.
+	_check(env.adjustment_enabled and env.adjustment_color_correction != null, "the frame is graded through a colour LUT")
+	var day_node: Node = city.get_node("DayNight")
+	day_node._process(0.0)
+	_check(env.ambient_light_source == Environment.AMBIENT_SOURCE_SKY, "ambient light comes from the sky, not a flat colour")
+	var key_ratio: float = day_node.day_sun_energy / maxf(day_node.day_ambient_energy, 0.001)
+	_check(key_ratio > 2.5, "the sun out-runs the sky fill (%.1fx)" % key_ratio)
+	var qual: Node = city.get_node_or_null("Quality")
+	if qual:
+		var reach: float = qual.shadow_distance[0]
+		_check(reach >= 500.0, "shadows reach across the city on HIGH (%.0f m)" % reach)
+	await _test_police(city, player)
+
+
+func _city_crowd(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
+	# Street life (signals, queues, crosswalks, the police's street routes): its own file, like
+	# the air traffic's, so it compiles after the autoloads (tests/street_life_checks.gd). Here,
+	# before the seed-rebuild check below: the second city it builds resets the shared
+	# WorldState.world_offset to zero under this one, which is still shifted from the
+	# re-centring check, and every position test after that point is in a frame that disagrees
+	# with the nodes.
+	await load("res://tests/street_life_checks.gd").new().run(self, city)
+	# Traffic that drives like people (tests/traffic_ai_checks.gd): moods, lane changes round a bus,
+	# turn lanes, a swerve, honks, a pull-out, freeway passing, merges and exits.
+	await load("res://tests/traffic_ai_checks.gd").new().run(self, city)
+	# Crowd animation (VISUAL_ROADMAP #28): starts, stops, turns, stride and head look.
+	await load("res://tests/crowd_anim_checks.gd").new().run(self, city)
+	# Crowd life (GAME_PLAN G5): talking, sitting, carrying, panic over all of it.
+	await load("res://tests/crowd_life_checks.gd").new().run(self, city)
+	# Street errands: bus queues, shop doors, parked cars, jaywalkers (StreetErrands).
+	await load("res://tests/street_errands_checks.gd").new().run(self, city)
+	# The crowd's headwear (CrowdHat): measured heads, fitted hats, one draw each, kept on a body.
+	await load("res://tests/crowd_hat_checks.gd").new().run(self, city)
+
+
+func _city_menu(city: Node3D, plan: CityPlan, player: CharacterBody3D, packed: PackedScene) -> void:
+	# Photo mode: frozen world, its own camera, its settings, a PNG, and everything put back.
+	await load("res://tests/photo_mode_checks.gd").new().run(self, city)
+	# The dogs (DogMesh, DogRig, CrowdDog, YardDog): built breeds, the gait, walkers, yards.
+	await load("res://tests/dog_checks.gd").new().run(self, city)
+	var menu: Node = city.get_node("PauseMenu")
+	menu.open()
+	_check(get_tree().paused and menu.is_open(), "pause menu pauses the game")
+	# Its pickers: rain held at once (and the streets soaked), then back to rolling; a graphics
+	# level held, then back to adapting; the clock jumped.
+	var menu_weather: Node = city.get_node_or_null("Weather")
+	var menu_day: Node = city.get_node_or_null("DayNight")
+	if menu_weather and menu_day:
+		var saved_weather := {}
+		for key in ["state", "_previous", "blend", "wetness", "drying", "_forced", "_timer"]:
+			saved_weather[key] = menu_weather.get(key)
+		var was_hour: float = float(menu_day.get("hour"))
+		var was_quality: int = int(city.get_node("Quality").get("level"))
+		var was_quality_forced: bool = bool(city.get_node("Quality").call("is_forced"))
+		menu.call("_set_weather", 3)
+		var rain_held: bool = int(menu_weather.get("state")) == 2 and bool(menu_weather.call("is_forced")) and float(menu_weather.get("wetness")) > 0.5
+		menu.call("_set_weather", 0)
+		menu.call("_set_hour", 21.5)
+		var night_now: bool = absf(float(menu_day.get("hour")) - 21.5) < 0.01
+		# The level in force now, held (a lower one would trim the crowd under the later checks).
+		menu.call("_set_graphics", was_quality + 1)
+		var low_held: bool = int(city.get_node("Quality").get("level")) == was_quality and bool(city.get_node("Quality").call("is_forced"))
+		_check(rain_held and not bool(menu_weather.call("is_forced")) and night_now and low_held,
+			"the pause menu holds the weather, jumps the clock and holds a graphics level")
+		for key in saved_weather:
+			menu_weather.set(key, saved_weather[key])
+		menu_day.set("hour", was_hour)
+		city.get_node("Quality").set("_forced", was_quality_forced)
+	menu.close()
+	_check(not get_tree().paused, "resume unpauses")
+	_world_state().pending_seed = 4321
+	# The second city's _ready() resets the shared world offset to zero under this one. Put it
+	# back after, or every check below runs in a frame the far chunks built before this point
+	# disagree with - which stood their relief floors over MacArthur Park's lake, 380 m away.
+	var saved_offset: Vector3 = _world_state().world_offset
+	var city2: Node3D = packed.instantiate()
+	get_tree().root.add_child(city2)
+	await get_tree().process_frame
+	_check(city2.world_seed == 4321 and _world_state().pending_seed == -1, "a pending seed rebuilds the city with that seed")
+	_check(city2.plan.road_pos(0, 3) != plan.road_pos(0, 3), "a different seed gives a different city")
+	city2.queue_free()
+	_world_state().world_offset = saved_offset
+
+	# Same seed, same plan.
+	var a := CityPlan.new()
+	a.seed = 777
+	var b := CityPlan.new()
+	b.seed = 777
+	_check(a.road_pos(0, 5) == b.road_pos(0, 5) and a.road_pos(1, -4) == b.road_pos(1, -4) and a.block(3, -2).rect == b.block(3, -2).rect and a.block(3, -2).kind == b.block(3, -2).kind and a.intersection(2, 2).kind == b.intersection(2, 2).kind, "same seed gives the same city plan")
+	# Basis.scaled() is a LEFT multiply, so its factors land on the WORLD axes after the
+	# rotation, not on the mesh's own. Every flat additive quad in the game (lamp pools, pier
+	# pools) is a +Z QuadMesh tipped -90 degrees about X, and written the obvious way round -
+	# .scaled(SIZE, SIZE, 1) - the second SIZE is spent on the normal and the pool comes out a
+	# one-metre-deep bar. Measure the transform's real world extents rather than trust the
+	# argument order. Uses the live constants so a retune moves the assertion with it.
+	var cc: GDScript = load("res://scripts/world/city_chunk.gd")
+	var pool_size: float = cc.get_script_constant_map().get("LAMP_POOL_SIZE", 0.0)
+	var pool_basis := Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(pool_size, 1.0, pool_size))
+	# A unit QuadMesh spans local X and Y; its world footprint is what has to be square.
+	var span_a := pool_basis * Vector3(1.0, 0.0, 0.0)
+	var span_b := pool_basis * Vector3(0.0, 1.0, 0.0)
+	var normal := pool_basis * Vector3(0.0, 0.0, 1.0)
+	_check(pool_size > 1.0 and absf(span_a.length() - pool_size) < 0.01 and absf(span_b.length() - pool_size) < 0.01,
+		"lamp light pool is square in world space (%.1f x %.1f m, wants %.1f)" % [span_a.length(), span_b.length(), pool_size])
+	_check(absf(normal.length() - 1.0) < 0.01 and absf(normal.y) > 0.99, "lamp light pool lies flat with a unit normal")
+
+
+func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
+	# The downtown civic landmarks (arena district, civic centre): their own file, like the air
+	# traffic's (tests/civic_checks.gd).
+	await load("res://tests/civic_checks.gd").new().run(self, city)
+
+	# Air traffic: its checks live in their own file, loaded here so it compiles after the
+	# autoloads (tests/air_traffic_checks.gd).
+	await load("res://tests/air_traffic_checks.gd").new().run(self, city)
+	# The airport (tests/airport_checks.gd): gates, flyable jets, runways, the field's lights,
+	# the terminal landmarks and a FULL airport chunk's apron.
+	await load("res://tests/airport_checks.gd").new().run(self, city)
+	# The airport's ground (tests/airport_life_checks.gd): taxiing, stands, pushbacks, the apron.
+	await load("res://tests/airport_life_checks.gd").new().run(self, city)
+	# Car damage (tests/car_damage_checks.gd): holes, glass, lamps, crashes, a rocket to a wreck,
+	# blame, the caps, the driven car, a pooled cruiser - on a deck high over the street.
+	await load("res://tests/car_damage_checks.gd").new().run(self, city)
+	# Car glass and who sits behind it (tests/car_cabin_checks.gd): the shared cabin glass, the
+	# traffic's drivers, the player at the wheel, a cruiser's crew, the tints.
+	await load("res://tests/car_cabin_checks.gd").new().run(self, city)
+	# Car lamps and headlights (tests/car_lights_checks.gd): parked dark, brake, indicators,
+	# hazards, reverse, and CarLights' budgeted spot lights.
+	await load("res://tests/car_lights_checks.gd").new().run(self, city)
+	await load("res://tests/driving_fx_checks.gd").new().run(self, city) # skid marks, smoke, sparks (DrivingFX)
+	# The big vehicles (tests/big_vehicle_checks.gd): the bus, the box truck and the semi built,
+	# hit, the trailer's swing, the bus lines and stops, a bus at its stop, a queue behind a semi.
+	await load("res://tests/big_vehicle_checks.gd").new().run(self, city)
+	# The second wave of everyday bodies (tests/more_cars_checks.gd): the hatchback, SUV, minivan,
+	# taxi and beater - the roll table, the rng stream, builds, hits, the taxi's sign and fare,
+	# the beater's wear.
+	await load("res://tests/more_cars_checks.gd").new().run(self, city)
+	# The light rail (tests/light_rail_checks.gd): the line's table, timetable, crossings, the
+	# traffic's lane and stop rules, a station chunk, the trains on the track, a strike.
+	await load("res://tests/light_rail_checks.gd").new().run(self, city)
+	# The freight line (tests/freight_checks.gd): the Alameda corridor, its yard and its trains.
+	await load("res://tests/freight_checks.gd").new().run(self, city)
+	# The city's birds (tests/bird_checks.gd): meshes, survey, a flock flushed and landing,
+	# alarms, shots and blasts.
+	await load("res://tests/bird_checks.gd").new().run(self, city)
+	# The sky (tests/sky_checks.gd): cloud noise, the moon's date, contrails, the light dome.
+	await load("res://tests/sky_checks.gd").new().run(self, city)
+	# The fire department and the ambulances (tests/emergency_checks.gd): both units, putting a car
+	# fire out, the fire stations, an engine at a burning wreck, an ambulance at a body, a unit sent
+	# through the streets with its siren.
+	await load("res://tests/emergency_checks.gd").new().run(self, city)
+	# Police stations (tests/police_station_checks.gd): placement, the HQ, the build, the gate, a
+	# cruiser out of the gate onto the lane and a recalled one back in.
+	await load("res://tests/police_station_checks.gd").new().run(self, city)
+	# Hospitals (tests/hospital_checks.gd): placement, the campus chunk, an ambulance backing in.
+	await load("res://tests/hospital_checks.gd").new().run(self, city)
+	await load("res://tests/service_vehicle_checks.gd").new().run(self, city)  # service vehicles at work
+	# Neighbourhood civic buildings (tests/civic_buildings_checks.gd): placement, claims, each kind
+	# built near and far.
+	await load("res://tests/civic_buildings_checks.gd").new().run(self, city)
+	# A police station at night (tests/police_night_checks.gd): its lights, lettering and glass.
+	await load("res://tests/police_night_checks.gd").new().run(self, city)
+	# The ambience mixer (tests/ambience_checks.gd): layers per place, hour and weather, fades,
+	# ducks, buses. Mixer state only - the Dummy audio driver plays nothing.
+	await load("res://tests/ambience_checks.gd").new().run(self, city)
+	# The city's acoustics (tests/audio_checks.gd): spaces and reverb, gunfire echoes, footsteps by
+	# surface, the river, fountains, playgrounds, construction, the bus's diesel.
+	await load("res://tests/audio_checks.gd").new().run(self, city)
+	# The Esplanade replica (tests/replica_checks.gd): the road, the coast, the lots, one replica
+	# chunk and its traffic.
+	await load("res://tests/replica_checks.gd").new().run(self, city)
+	# The surf and the beach (tests/surf_checks.gd): the surf model against the weather, no swell
+	# through the sand, the shader mirrors, the piers' lights, a shoreline chunk's sand and spray.
+	await load("res://tests/surf_checks.gd").new().run(self, city)
+	# The freeway kit (tests/freeway_kit_checks.gd): the lane layout traffic drives, the signs,
+	# dots, markers, lamps and pools a deck chunk builds, FULL and LOD, inside their budgets.
+	await load("res://tests/freeway_kit_checks.gd").new().run(self, city)
+	# MacArthur Park and the downtown encampments (tests/westlake_checks.gd): the park builds with
+	# water and collision, camps only downtown, the people at them hold their poses, caps hold.
+	await load("res://tests/westlake_checks.gd").new().run(self, city)
+	# The valley golf course (tests/golf_checks.gd): the site and its closed roads, the layout, the
+	# turf mesh and its seams, LOD and far, the golfers and the carts.
+	await load("res://tests/golf_checks.gd").new().run(self, city)
+	# The distance (tests/distance_checks.gd): every tier of detail present, no gap ring between
+	# them out to the horizon, no block drawn twice, consistent handoff distances, and a streaming
+	# queue ordered by the view.
+	await load("res://tests/distance_checks.gd").new().run(self, city)
+	# The mountains from the air (tests/hill_air_checks.gd): the hill ground works in linear on
+	# both renderers, the horizon plane paints the tiles' own field, the far tier no brush mounds.
+	load("res://tests/hill_air_checks.gd").new().run(self, city)
+	# The far city's buildings (tests/far_city_checks.gd): a far box decodes to its near building's
+	# own facade, grid, plinth and parapet, its roof plant is the near one, both shaders light the
+	# same offices, the tiers take their share of the plant.
+	load("res://tests/far_city_checks.gd").new().run(self, city)
+	# Cut corners on the far boxes (tests/far_corners_checks.gd): three pieces per cut part, the near prism.
+	load("res://tests/far_corners_checks.gd").new().run(self, city)
+	# Masjid Omar ibn Al-Khattab and the sanctuary rule (tests/masjid_checks.gd): it streams in
+	# modelled and enterable, and no gun fires at it, across it or inside it.
+	await load("res://tests/masjid_checks.gd").new().run(self, city)
+	# Street-level wear (tests/street_wear_checks.gd): tags, posters and stickers on downtown
+	# blocks as one batch a chunk, none near a place of worship, nothing else in the block moved.
+	load("res://tests/street_wear_checks.gd").new().run(self, city)
+	# Climbing plants (tests/climbing_plants_checks.gd): bougainvillea, ivy, fig, jasmine, vines
+	# and accents on beach-town walls, tiles of one shader, none in a window, nothing else moved.
+	load("res://tests/climbing_plants_checks.gd").new().run(self, city)
+	# Street vendors (tests/street_vendors_checks.gd): taco trucks at night and carts by day round
+	# downtown, a batch per kind, the truck unbreakable and clear of parked cars, a cart that tips
+	# over and stays gone, queues and vendors, and nothing else in the block moved.
+	load("res://tests/street_vendors_checks.gd").new().run(self, city)
+	# The beach (tests/beach_life_checks.gd): sunbathers by the hour, a pure world-anchored plan,
+	# the front rows first, batches and figures on a FULL chunk, woken people, gunfire scattering
+	# them, the block's palms unmoved, the LOD dots, nobody at night, the cyclist's legs on the pedals.
+	load("res://tests/beach_life_checks.gd").new().run(self, city)
+	# Broadway's theatre district (tests/broadway_checks.gd): palaces on their real addresses, one
+	# sign surface each, the lanterns, goods and clock, the far boxes, nothing else in the block moved.
+	load("res://tests/broadway_checks.gd").new().run(self, city)
+	# Chinatown (tests/chinatown_checks.gd): the site table on two seeds, the gate and the plaza, the
+	# street-facing shop buildings, one mesh a block, the LOD boxes, nothing moved with it off.
+	load("res://tests/chinatown_checks.gd").new().run(self, city)
+	# The ballpark in the ravine (tests/ballpark_checks.gd): its real place and facing, the site cut
+	# into the hills, its roads, the shaders' copies, the meshes and a FULL chunk building it.
+	load("res://tests/ballpark_checks.gd").new().run(self, city)
+	# Micromobility (tests/micromobility_checks.gd): scooters, share stations, racks, bike lanes,
+	# the parked cars out of the lanes, and a rider posed on the bike, riding, stopping, knocked off.
+	await load("res://tests/micromobility_checks.gd").new().run(self, city)
+	# Downtown's historic core (tests/historic_core_checks.gd): beaux-arts banks and offices on Spring St
+	# and Main St, their ornament, far cornices, nothing else in the block moved.
+	load("res://tests/historic_core_checks.gd").new().run(self, city)
+	# The ground outside downtown and midtown (tests/lot_fill_checks.gd): beach-town yards, the
+	# campus, the freeway's right of way - bare share before and after, one mesh each, budgets, and
+	# nothing else in the block moved.
+	load("res://tests/lot_fill_checks.gd").new().run(self, city)
+	# The suburbs' and the beach town's houses (tests/house_checks.gd): pure plans inside their
+	# yards, the drive ending at the garage door, one mesh per material, roof slabs for the far city.
+	load("res://tests/house_checks.gd").new().run(self, city)
+	# The industrial district (tests/industrial_checks.gd): tilt-up warehouses with docks and
+	# trucks, yards and rail spurs - bare share before and after, the plans, one mesh each, nothing
+	# else in the block moved, the far boxes.
+	load("res://tests/industrial_checks.gd").new().run(self, city)
+	# Rec parks and school campuses (tests/park_checks.gd): roles, pure plans at regulation sizes,
+	# one ground and one walls mesh a chunk, people under the cap, partitioned far slabs.
+	load("res://tests/park_checks.gd").new().run(self, city)
+	# Billboards (tests/billboard_checks.gd): the atlas, the boards as props in one batch per kind,
+	# the far boxes, the monopoles pure and clear of the decks, nothing else in the block moved.
+	load("res://tests/billboard_checks.gd").new().run(self, city)
+	# Tower roofs (tests/rooftops_checks.gd): helipads, pool decks, gardens, penthouses, masts and
+	# window-washing machines planned pure, off the plant they may not cover, near = far, no roll moved.
+	load("res://tests/rooftops_checks.gd").new().run(self, city)
+	# The Los Angeles River (tests/la_river_checks.gd): the route east of downtown to Long Beach, the
+	# freeways over it, the streets closed or bridged, no lot in the corridor, the chunk's meshes and
+	# one collision body, the far city's boxes, and a car on the bed and down a ramp.
+	await load("res://tests/la_river_checks.gd").new().run(self, city)
+	# The city at night from the air (tests/night_city_checks.gd): the far traffic and lit-office
+	# hours, the sodium / LED lamp patches near and far, the LOD decks' traffic skin.
+	load("res://tests/night_city_checks.gd").new().run(self, city)
+	# The container terminal at work (tests/port_life_checks.gd): the kit, the cranes' dual cycle,
+	# the tractors, gantries and straddle carriers, the gate and its trucks.
+	await load("res://tests/port_life_checks.gd").new().run(self, city)
+	# The canal neighbourhood (tests/canals_checks.gd): the site and its closed streets, the pure
+	# layout, the houses facing the water, the FULL / LOD chunks and the far city's record.
+	load("res://tests/canals_checks.gd").new().run(self, city)
+	# The film studio lot (tests/film_studio_checks.gd): the site in midtown, the pure layout of
+	# numbered stages, backlot, bungalows and basecamp, the FULL / LOD chunks and the far city's record.
+	load("res://tests/film_studio_checks.gd").new().run(self, city)
+	# The pier park (tests/pier_park_checks.gd): layout, the coaster's track and ride, the walks, the
+	# park in its chunk, solid decks and rides, shots, the train on the clock, the crowd, the far wheel.
+	await load("res://tests/pier_park_checks.gd").new().run(self, city)
+	# The marina (tests/marina_checks.gd): between Venice and the airport, its roads, the boats in the
+	# basin, the highway's bridge gap, a marina chunk's meshes and boats, LOD and the capture.
+	load("res://tests/marina_checks.gd").new().run(self, city)
+	# What a blast leaves (tests/explosion_aftermath_checks.gd): trees alight, charred and kept
+	# charred, smoke columns, craters and rubble, leaves, car alarms with their hazards.
+	await load("res://tests/explosion_aftermath_checks.gd").new().run(self, city)
+	# Building damage (tests/building_damage_checks.gd): crazed and shattered panes, scars, a blast
+	# hole, the caps, restore on rebuild, sanctuaries and the towers' own materials.
+	await load("res://tests/building_damage_checks.gd").new().run(self, city)
+	# Public schools (tests/schools_checks.gd): placement, pure plans, the closed street, one school
+	# mesh a chunk, partitioned far slabs, the school bus parked and at the bell.
+	await load("res://tests/schools_checks.gd").new().run(self, city)
+	# The map (tests/minimap_checks.gd): the basin's map data, GPS routes on open streets, the
+	# full-screen map, the waypoint, its beacon and its route.
+	await load("res://tests/minimap_checks.gd").new().run(self, city)
+	# Los Angeles weather (tests/weather_la_checks.gd): the marine layer's clock and deck, the Santa
+	# Ana's wind and brush fire, the heat haze, rain off car roofs, the roll and the pause menu.
+	load("res://tests/weather_la_checks.gd").new().run(self, city)
+	# The four-level stack (tests/stack_interchange_checks.gd): levels, separations, grades, banks,
+	# columns, the chunk's meshes, and the connector traffic handed to and from the freeway's.
+	await load("res://tests/stack_interchange_checks.gd").new().run(self, city)
+	# Shop-window vinyl (tests/shop_vinyl_checks.gd): the font's text table is Building's names.
+	load("res://tests/shop_vinyl_checks.gd").new().run(self, city)
+	# Service alleys (tests/alley_checks.gd): the band on the lot grid's seam, the runs clear of the
+	# buildings, one ground and one upright mesh a chunk, the mouths clear, nothing else moved.
+	load("res://tests/alley_checks.gd").new().run(self, city)
+	# Wilshire's deco boulevard (tests/wilshire_deco_checks.gd): the pure plan, a deco chunk's meshes,
+	# collision and far boxes, nothing else on the block moved.
+	load("res://tests/wilshire_deco_checks.gd").new().run(self, city)
+	# Memorial parks (tests/cemetery_checks.gd): placement, purity, the closed streets, the plan,
+	# the sanctuary zone over it at FULL and LOD, nothing breakable, the far city's lawn.
+	await load("res://tests/cemetery_checks.gd").new().run(self, city)
+	# Kerbs (tests/kerbs_checks.gd): the pavement's cut ring, ramps, aprons, wells, paint, numbers.
+	load("res://tests/kerbs_checks.gd").new().run(self, city)
+	# Building sites, house frames and road works (tests/construction_checks.gd).
+	load("res://tests/construction_checks.gd").new().run(self, city)
+	# Murals (tests/murals_checks.gd): ghost signs, friezes, wall and column murals, crosswalks, cabinets.
+	load("res://tests/murals_checks.gd").new().run(self, city)
+	# Boulevard signs (tests/signage_checks.gd): the atlas grid, pole signs as props in one batch
+	# per kind, plates and vinyl, nothing else in the block moved, the far boxes.
+	load("res://tests/signage_checks.gd").new().run(self, city)
+	# The code-built Los Angeles trees and accents (tests/la_trees_checks.gd).
+	load("res://tests/la_trees_checks.gd").new().run(self, city)
+	# Car dealerships (tests/car_dealers_checks.gd): auto rows of new-car dealers and used lots, pure
+	# sites inside their blocks, the lot cars, stickers, tube men and cars for sale, nothing else moved.
+	load("res://tests/car_dealers_checks.gd").new().run(self, city)
+	# The hillside houses (tests/hill_homes_checks.gd): pure plans on every estate, a FULL chunk's
+	# meshes and body, LOD boxes, the far city's lit glass bands, and the old slab with the kit off.
+	load("res://tests/hill_homes_checks.gd").new().run(self, city)
+	# The oil field (tests/oil_field_checks.gd): the site and its closed streets, the hill, level pads
+	# and graded lease roads, the pumpjack's linkage and mesh, the chunks, the city's single wells.
+	load("res://tests/oil_field_checks.gd").new().run(self, city)
+	# Vacant lots and gravel car parks (tests/vacant_lots_checks.gd): the pure plan's share per
+	# district, each plan inside its cell, a FULL chunk's two meshes and weed batches, the A/B, LOD.
+	load("res://tests/vacant_lots_checks.gd").new().run(self, city)
+	# The road's hardware (tests/road_detail_checks.gd): covers, inlets, cuts, plates, markers.
+	load("res://tests/road_detail_checks.gd").new().run(self, city)
+	# The perf audit's cuts (tests/perf_audit_checks.gd): shadow reaches, merged models, grass cells.
+	await load("res://tests/perf_audit_checks.gd").new().run(self, city)
+	# The reservoir in the front range (tests/reservoir_checks.gd): the lake held under its rim, its
+	# shore, dam, spillway and trail on the ground, the far and detailed copies, the bathtub ring.
+	load("res://tests/reservoir_checks.gd").new().run(self, city)
+	# The ridges (tests/ridges_checks.gd): the farm, fire roads, tanks and the two power lines, every
+	# span over the ground, nothing planned before them moved, a tower's chunk and the far wires.
+	load("res://tests/ridges_checks.gd").new().run(self, city)
+	# The farmers' market (tests/farmers_market_checks.gd): markets apart on closed local streets,
+	# the layout and hours, the busy and packed-up chunk, its people on the asphalt, nothing moved.
+	load("res://tests/farmers_market_checks.gd").new().run(self, city)
+	# Forward+ review traps (tests/fwd_review_b_checks.gd): back-face normals, normal-map green, sky_tint.
+	load("res://tests/fwd_review_b_checks.gd").new().run(self, city)
+	# Memory (tests/memory_audit_checks.gd): the peak resident memory budget, and the audit's cuts.
+	load("res://tests/memory_audit_checks.gd").new().run(self, city)
+	# The loading screen's rehearsal (tests/shader_warm_checks.gd): it leaves nothing behind.
+	await load("res://tests/shader_warm_checks.gd").new().run(self, city)
+	# Load time (tests/load_time_checks.gd): the disk cache's bakes byte for byte, the shader warm-up.
+	load("res://tests/load_time_checks.gd").new().run(self, city)
+	# The extra occluders (tests/occluders_checks.gd): hill terrain, decks, banks, sound walls and
+	# the far mountains, each inside what it stands for.
+	await load("res://tests/occluders_checks.gd").new().run(self, city)
+	# The texture budget (tests/texture_budget_checks.gd): imports, size limits, no duplicates.
+	load("res://tests/texture_budget_checks.gd").new().run(self)
+	# Reflection probes (tests/reflection_probes_checks.gd): street boxes from the plan, one render a
+	# slot, re-renders on light and re-centre, probe_reach, the street HDRI (Forward+ only).
+	await load("res://tests/reflection_probes_checks.gd").new().run(self, city)
+	# The web build (tests/web_build_checks.gd): the Web preset, WebGL's texture units and the
+	# global buffer in every shader, and the web's own quality settings.
+	load("res://tests/web_build_checks.gd").new().run(self, city)
+	# The Forward+ review of those four (tests/fwd_review_c_checks.gd): the map scales with the window.
+	await load("res://tests/fwd_review_c_checks.gd").new().run(self, city)
+	# The landmarks' far copies (tests/far_landmarks_checks.gd): the detailed copies' palms and trees.
+	load("res://tests/far_landmarks_checks.gd").new().run(self, city)
+	# The Forward+ review A fixes (tests/fwd_review_a_checks.gd): the canals' crossing water, the pier's pools.
+	load("res://tests/fwd_review_a_checks.gd").new().run(self, city)
+	# Overhead utilities (tests/utility_poles_checks.gd): hardware budgets, pure runs, the birds'
+	# spans on the middle primary, ribbon wires, a drop to nearly every house, nothing else rolled.
+	load("res://tests/utility_poles_checks.gd").new().run(self, city)
+	# Places of worship (tests/worship_checks.gd): placement, sanctuary zones, one chunk of each kind.
+	await load("res://tests/worship_checks.gd").new().run(self, city)
+	# The reference cameras (tests/ref_cameras_checks.gd): the table and the shot script.
+	load("res://tests/ref_cameras_checks.gd").new().run(self, city)
+	# The per-hour grade (tests/color_grade_checks.gd): the look LUT follows the hour and weather.
+	load("res://tests/color_grade_checks.gd").new().run(self, city)
+	# Road wear (tests/road_wear_checks.gd): the 25-stamp library and its atlas, thousands of looks,
+	# wear by district and road age, one batch a chunk, potholes rarer than cracks, the car bump.
+	load("res://tests/road_wear_checks.gd").new().run(self, city)
+	# The hillside estates past the FULL chunks (tests/estate_night_checks.gd): parts, lamps, seat.
+	load("res://tests/estate_night_checks.gd").new().run(self, city)
+	# The marketplace lane by Pueblo Station (tests/pueblo_lane_checks.gd): the site, the layout,
+	# near and far builds under budget, the church's sanctuary, the vendors.
+	await load("res://tests/pueblo_lane_checks.gd").new().run(self, city)
+	# Roadside commerce (tests/roadside_checks.gd): the kinds by hash, gas stations, car washes,
+	# auto shops, the diner, drive-thrus and the giant-donut stand; one mesh a chunk, nothing moved.
+	load("res://tests/roadside_checks.gd").new().run(self, city)
+	# The street's signs (tests/street_signs_checks.gd): the stroke font, the kit, stops facing their
+	# traffic, blades on the posts and poles, mast-arm name signs, school zones, nothing else moved.
+	load("res://tests/street_signs_checks.gd").new().run(self, city)
+	# Street lamps (tests/street_lamps_checks.gd): the kit against its table, the pick per street,
+	# the arms over the road, the lamps' pools and omnis, and the same prop ids with the kit off.
+	load("res://tests/street_lamps_checks.gd").new().run(self, city)
+	# The corner store you can walk into (tests/walk_in_store_checks.gd): placement, the build near
+	# and far, the interior shown and the door opening as you walk up, nothing else on the block moved.
+	await load("res://tests/walk_in_store_checks.gd").new().run(self, city)
+
+	city.queue_free()
+	_world_state().reset()
+
+
+## The wanted level and the police (owner, 2026-09-24: "a police and star system"). Every class
+## involved uses an autoload, so none of them is named as a type here: the Police node and its
+## units are untyped and reached through the scene.
+## The downtown skyline (LandmarkDowntown): every named tower exists at its real height, stands
+## inside its block clear of the road and the pavement - on this seed and on another, because the
+## downtown grid is pinned - has a far copy for the skyline, and builds in detail with collision
+## where it stands; the infill between the towers is dense and never out-tops them.
+func _test_downtown(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
+	var towers: Array = []
+	for lm in Landmarks.all():
+		if LandmarkDowntown.is_tower(lm.id):
+			towers.append(lm)
+	_check(towers.size() == LandmarkDowntown.TOWERS.size(), "every downtown tower is in the landmark list (%d of %d)" % [towers.size(), LandmarkDowntown.TOWERS.size()])
+	var wrong := ""
+	var off_block := ""
+	var no_far := ""
+	var tallest := ""
+	var tallest_h := 0.0
+	var other := CityPlan.new()
+	other.seed = 4242
+	other.block_size_range = plan.block_size_range
+	other.street_width = plan.street_width
+	other.avenue_width = plan.avenue_width
+	other.sidewalk_width = plan.sidewalk_width
+	for lm in towers:
+		var t: Dictionary = LandmarkDowntown.tower(lm.id)
+		var want: float = LandmarkDowntown.TOWERS[lm.id].height
+		if absf(float(t.top) - want) > 1.5:
+			wrong += " %s %.1f/%.0f" % [lm.id, t.top, want]
+		# The table's plan is what was built: the one table has to stay the truth.
+		var built: Vector2 = (t.extent as Rect2).size
+		var tabled: Vector2 = LandmarkDowntown.TOWERS[lm.id].plan
+		if absf(built.x - tabled.x) > 1.0 or absf(built.y - tabled.y) > 1.0:
+			wrong += " %s plan %s/%s" % [lm.id, built, tabled]
+		if float(t.top) > tallest_h:
+			tallest_h = t.top
+			tallest = lm.id
+		var fp: Rect2 = LandmarkDowntown.footprint(lm)
+		# Inside the block's rect less its pavement, on this seed and on another one.
+		for p: CityPlan in [plan, other]:
+			var key := p.block_index_at(fp.get_center())
+			var rect: Rect2 = p.block(key.x, key.y).rect
+			if not rect.grow(-p.sidewalk_width + 0.05).encloses(fp):
+				off_block += " %s(seed %d)" % [lm.id, p.seed]
+		if not city.has_node("FarLandmark_" + str(lm.id)):
+			no_far += " " + str(lm.id)
+	_check(wrong == "", "downtown towers stand at their real heights, on the plans the table gives%s" % wrong)
+	_check(off_block == "", "every downtown tower stays inside its block, off the road and pavement%s" % off_block)
+	_check(no_far == "", "every downtown tower has a far copy for the skyline%s" % no_far)
+	_check(tallest == "dt_sail_tower" and absf(float(LandmarkDowntown.tower("dt_crown_cylinder").top) - 310.0) < 1.5,
+		"the sail tower tops the skyline (%s, %.0f m), the round crown second" % [tallest, tallest_h])
+	# The pinned grid: another seed has the same downtown roads, with the same widths.
+	var pins_ok := true
+	for axis in 2:
+		for pin: Array in CityPlan.pinned_roads()[axis]:
+			var i := other._index_at(axis, float(pin[0]) + 0.01)
+			if absf(other.road_pos(axis, i) - float(pin[0])) > 0.01 or absf(other.road_width(axis, i) - float(pin[1])) > 0.01:
+				pins_ok = false
+	_check(pins_ok, "the downtown street grid is the same on another seed")
+	# The infill between the towers (every block the core rects touch): plenty of it tall, none of it
+	# taller than the named towers.
+	var macro: MacroMap = plan.macro
+	var tall := 0
+	var top_infill := 0.0
+	var core_blocks := {}
+	for r: Rect2 in macro.downtown_core:
+		var lo := plan.block_index_at(r.position)
+		var hi := plan.block_index_at(r.end)
+		for ix in range(lo.x, hi.x + 1):
+			for iz in range(lo.y, hi.y + 1):
+				core_blocks[Vector2i(ix, iz)] = true
+	for key: Vector2i in core_blocks:
+		var b := plan.block(key.x, key.y)
+		for lot in plan.lots(key.x, key.y):
+			var h := plan.lot_height(lot.seed, b.district, macro.skyline_boost(lot.center))
+			top_infill = maxf(top_infill, h)
+			if h >= 100.0:
+				tall += 1
+	_check(tall >= 10 and top_infill < 212.0, "the core infill is dense and stays under the towers (%d lots over 100 m, tallest %.0f m)" % [tall, top_infill])
+	# Built in detail where it stands: collision on the roof, the far copy hidden meanwhile, no
+	# seeded building inside any tower.
+	var crown: Vector2 = _landmark_anchor("dt_crown_cylinder")
+	player.global_position = _world_state().to_local(Vector3(crown.x + 45.0, 2.0, crown.y + 45.0))
+	player.velocity = Vector3.ZERO
+	city.update_streaming(true)
+	var crown_chunk: Node3D = city.chunks.get(plan.block_index_at(crown))
+	_check(crown_chunk != null and crown_chunk.built_landmarks.has("dt_crown_cylinder") and not city.get_node("FarLandmark_dt_crown_cylinder").visible,
+		"the downtown chunk built the round crown tower in detail")
+	await _ticks(3)
+	var space := player.get_world_3d().direct_space_state
+	var from: Vector3 = _world_state().to_local(Vector3(crown.x, 420.0, crown.y))
+	var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(from, from + Vector3(0.0, -400.0, 0.0), 1))
+	var roof: float = _world_state().to_world(hit.position).y if hit.has("position") else -1.0
+	_check(roof > 295.0, "the round crown tower is solid to its roof (hit at %.0f m)" % roof)
+	var overlaps := ""
+	for k in city.chunks:
+		for child in (city.chunks[k] as Node).get_children():
+			if not (child is Building):
+				continue
+			var b := child as Building
+			var foot := Rect2(Vector2(b.position.x, b.position.z) - b.footprint * 0.5, b.footprint)
+			for lm in towers:
+				if foot.intersects(LandmarkDowntown.footprint(lm).grow(-0.5)):
+					overlaps += " %s" % lm.id
+	_check(overlaps == "", "no seeded building stands inside a downtown tower%s" % overlaps)
+
+
+func _test_police(city: Node3D, player: Player) -> void:
+	var police: Node = city.get_node_or_null("Police")
+	_check(police != null and police.is_in_group("wanted") and get_tree().get_first_node_in_group("wanted") == police, "the city has a Police node in the 'wanted' group")
+	if police == null:
+		return
+	var ws := _world_state()
+	var health: Node = player.get("health")
+	_check(health != null and is_equal_approx(float(health.health), float(health.max_health)), "the player has health (%.0f)" % (float(health.health) if health else 0.0))
+	var sfx: Node = get_tree().root.get_node_or_null("/root/Sfx")
+	_check(sfx != null and sfx.has("siren"), "there is a siren sound")
+	# Short fuses so the whole chase fits in seconds: cruisers join close and fast, and nobody
+	# loses the player until the decay check asks for it.
+	var saved := {}
+	for key in ["lose_seconds", "flash_seconds", "dispatch_interval", "first_dispatch_delay", "spawn_min", "spawn_max"]:
+		saved[key] = police.get(key)
+	police.set("lose_seconds", 60.0)
+	police.set("dispatch_interval", 0.5)
+	police.set("first_dispatch_delay", 0.0)
+	police.set("spawn_min", 90.0)
+	police.set("spawn_max", 125.0)
+	police.call("clear")
+	police.set("enabled", true)
+	if player.is_driving():
+		player.exit_vehicle()
+	player.global_position = ws.to_local(Vector3(0.0, 2.0, 0.0))
+	player.velocity = Vector3.ZERO
+	city.update_streaming(true)
+	await _ticks(20)
+	# Somebody in earshot, standing still.
+	var ped_script: GDScript = load("res://scripts/npc/pedestrian.gd")
+	var witness: Node3D = ped_script.new()
+	witness.setup(Rect2(player.global_position.x + 4.0, player.global_position.z - 2.0, 4.0, 4.0), 1.0, 4242)
+	city.add_child(witness)
+	witness.global_position = player.global_position + Vector3(6.0, 0.3, 0.0)
+	witness.set("_pause_left", 60.0)
+	await _ticks(4)
+	# 1. Shooting where people can hear it: the rifle, pointed at the sky so nobody is hit.
+	var manager: Node = player.get("weapon_manager")
+	manager.equip(0)
+	player.get("camera_rig").set_look(0.0, 60.0)
+	Input.action_press("fire")
+	for i in 90:
+		await get_tree().physics_frame
+		if int(police.stars) >= 1:
+			break
+	Input.action_release("fire")
+	_check(int(police.stars) >= 1 and float(police.heat) > 0.0, "shooting where people can hear it raises the wanted level (%d stars, heat %.1f)" % [int(police.stars), float(police.heat)])
+	var hud: Node = city.get_node_or_null("DebugHud/WantedHud")
+	await _ticks(20)
+	_check(hud != null and hud.get_node("Stars").visible, "the stars show on the HUD")
+	# 1b. The shotgun has its own pellet path; somebody it drops in front of a witness is a crime
+	# all the same (the knock is pinned on the shot a tick later, see Police.knocked_down).
+	var heat_before := float(police.heat)
+	var victim: Node3D = ped_script.new()
+	victim.setup(Rect2(player.global_position.x - 2.0, player.global_position.z - 7.0, 4.0, 4.0), 1.0, 4343)
+	city.add_child(victim)
+	victim.global_position = player.global_position + Vector3(0.0, 0.3, -5.0)
+	victim.set("_pause_left", 60.0)
+	await _ticks(4)
+	player.get("camera_rig").look_at_point(victim.global_position + Vector3.UP * 1.1)
+	manager.equip(2)
+	await _ticks(2)
+	await _press("fire")
+	await _ticks(6)
+	var victim_down: bool = not is_instance_valid(victim) or victim.is_queued_for_deletion() or bool(victim.get("_down"))
+	_check(victim_down and float(police.heat) >= heat_before + float(police.heat_assault) - 0.01,
+		"a shotgun blast into somebody in front of a witness counts (heat %.1f -> %.1f)" % [heat_before, float(police.heat)])
+	manager.equip(0)
+	# 2. Cruisers join out on the street and drive in.
+	police.call("set_wanted", 2)
+	var first_d := -1.0
+	var closest := INF
+	var engaged := false
+	var livery_ok := false
+	var bar_ok := false
+	var caps_ok := true
+	# 1500 physics frames at most (25 s); the loop leaves as soon as a crew is out. 720 was
+	# enough here and not on CI's slower box, where a cruiser was still 83 m out, short of its
+	# 70 m engage range, when time ran out (build 239).
+	for i in 1500:
+		await get_tree().physics_frame
+		if i % 20 == 0:
+			police.call("report_sighting") # stands in for the helicopter keeping eyes on
+		var cars: Array = police.get("cruisers")
+		if cars.size() > int(police.call("cruiser_cap")) or (police.get("officers") as Array).size() > int(police.call("officer_cap")):
+			caps_ok = false
+		if cars.is_empty():
+			continue
+		var car: Node3D = cars[0]
+		if not is_instance_valid(car):
+			continue
+		var d := car.global_position.distance_to(player.global_position)
+		if first_d < 0.0:
+			first_d = d
+			bar_ok = car.get_node_or_null("LightBar") != null
+			for mi in car.find_children("*", "MeshInstance3D", true, false):
+				for si in (mi as MeshInstance3D).get_surface_override_material_count():
+					var m := (mi as MeshInstance3D).get_surface_override_material(si) as ShaderMaterial
+					if m and m.get_shader_parameter("stripe_mode") == 5:
+						livery_ok = true
+		closest = minf(closest, d)
+		if int(car.get("mode")) != 0:
+			engaged = true
+		if engaged and closest < 45.0 and (police.get("officers") as Array).size() > 0:
+			break
+	_check(first_d > 60.0, "the first cruiser joins out on the street (%.0f m away)" % first_d)
+	_check(bar_ok and livery_ok, "cruisers wear the black-and-white livery and a light bar")
+	_check(first_d > 0.0 and closest < first_d - 30.0 and engaged, "cruisers drive in and engage (%.0f m -> %.0f m)" % [first_d, closest])
+	minimap_redraw(city)
+	# 3. Officers get out and shoot; the player takes damage. A cruiser parked across the
+	# street makes sure somebody has a clear line even if the first car stopped round a corner.
+	var street: Vector3 = ws.to_world(player.global_position) + Vector3(0.0, 0.0, -20.0)
+	police.call("spawn_cruiser", street + Vector3(0.0, 1.0, 0.0), PI * 0.5, "parked")
+	# What this checks is that officers' rounds reach and hurt the player, not how often they
+	# hit: at the default accuracy a round at 20 m lands about 3 times in 10, and the five or
+	# six rounds that fit in the window all missed on CI 286 (0.7^5, one run in six). So the
+	# officers aim well here, and the window is longer; the accuracy goes back after.
+	var saved_accuracy: float = float(police.get("accuracy_base"))
+	police.set("accuracy_base", 4.0)
+	var hurt := false
+	for i in 900:
+		await get_tree().physics_frame
+		if i % 20 == 0:
+			police.call("report_sighting")
+		if float(health.health) < float(health.max_health) - 0.5:
+			hurt = true
+			break
+	police.set("accuracy_base", saved_accuracy)
+	var officers: Array = police.get("officers")
+	_check(officers.size() > 0, "officers get out of their cruisers (%d)" % officers.size())
+	if officers.size() > 0:
+		var o: Node = officers[0]
+		var navy := false
+		for mi in o.find_children("*", "MeshInstance3D", true, false):
+			var ov := (mi as MeshInstance3D).material_override as ShaderMaterial
+			if ov and ov.get_shader_parameter("cloth_strength") != null and float(ov.get_shader_parameter("cloth_value")) < 0.3 and absf(float(ov.get_shader_parameter("cloth_hue")) - 0.62) < 0.06:
+				navy = true
+		_check(o.is_in_group("police") and not o.is_in_group("pedestrian") and navy, "officers wear navy and are not part of the crowd")
+		var cap := o.find_child("Hat", true, false) as MeshInstance3D
+		var cap_mat := cap.material_override as ShaderMaterial if cap else null
+		_check(bool(o.get("heavy")) or (cap_mat != null and int(cap_mat.get_shader_parameter("kind")) == 3),
+			"an officer wears the peaked cap fitted to their head (CrowdHat)")
+	var officer_script: GDScript = load("res://scripts/npc/police_officer.gd")
+	_check(hurt, "officers shoot and the player takes damage (%.0f of %.0f; %d rounds, %d hit)" % [float(health.health), float(health.max_health), int(officer_script.get("rounds_fired")), int(officer_script.get("rounds_hit"))])
+	_check(caps_ok, "the units on the street stay inside the star caps")
+	# 4. Caps at five stars.
+	police.call("set_wanted", 5)
+	var worst := Vector2i.ZERO
+	for i in 150:
+		await get_tree().physics_frame
+		if i % 20 == 0:
+			police.call("report_sighting")
+		# Roadblocks are placed on their own budget, outside the per-star cruiser cap.
+		var nc := 0
+		for car in police.get("cruisers"):
+			if is_instance_valid(car) and not car.get("roadblock"):
+				nc += 1
+		var no: int = (police.get("officers") as Array).size()
+		worst = Vector2i(maxi(worst.x, nc - int(police.call("cruiser_cap"))), maxi(worst.y, no - int(police.call("officer_cap"))))
+	_check(worst.x <= 0 and worst.y <= 0, "five stars stays inside the caps (%d cruisers, %d officers over)" % [worst.x, worst.y])
+	# 5. Going down: slow motion, a respawn on a street away from the fight, stars cleared.
+	health.set("collapse_seconds", 0.4)
+	health.set("downed_seconds", 1.2)
+	var died_at: Vector3 = ws.to_world(player.global_position)
+	player.take_damage(1.0e6)
+	_check(bool(health.downed) and Engine.time_scale < 1.0 and player.is_downed(), "at zero health the player goes down in slow motion")
+	for i in 900:
+		await get_tree().process_frame
+		if not bool(health.downed):
+			break
+	await _ticks(3)
+	var stood: Vector3 = ws.to_world(player.global_position)
+	_check(not bool(health.downed) and is_equal_approx(float(health.health), float(health.max_health)) and Engine.time_scale == 1.0, "the player gets up again with full health at full speed")
+	_check(int(police.stars) == 0 and (police.get("cruisers") as Array).is_empty() and (police.get("officers") as Array).is_empty(),
+		"going down clears the stars and the police (%d stars, %d cruisers, %d officers)" % [int(police.stars), (police.get("cruisers") as Array).size(), (police.get("officers") as Array).size()])
+	_check(Vector2(stood.x - died_at.x, stood.z - died_at.z).length() > 30.0 and player.is_physics_processing() and player.get("visual").visible, "the player stands up on a street corner away from the fight (%.0f m)" % Vector2(stood.x - died_at.x, stood.z - died_at.z).length())
+	# 6. Out of sight, the stars flash and drop one at a time. Nobody is sent this time, so
+	# nobody can see the player.
+	police.set("enabled", false)
+	police.set("lose_seconds", 1.6)
+	police.set("flash_seconds", 0.4)
+	police.call("set_wanted", 2)
+	var levels := {}
+	var flashed := false
+	var searching := false
+	for i in 300:
+		await get_tree().physics_frame
+		levels[int(police.stars)] = true
+		flashed = flashed or bool(police.flashing)
+		searching = searching or bool(police.call("show_search_area"))
+		if int(police.stars) == 0:
+			break
+	_check(flashed and searching and int(police.stars) == 0 and levels.has(1), "out of sight the stars flash and drop one at a time (saw %s)" % str(levels.keys()))
+	for key in saved:
+		police.set(key, saved[key])
+	police.call("clear")
+	if is_instance_valid(witness):
+		witness.queue_free()
+	await _ticks(2)
+
+
+func minimap_redraw(city: Node) -> void:
+	var minimap: Node = city.get_node_or_null("DebugHud/MinimapFrame/Minimap")
+	if minimap:
+		minimap.queue_redraw()
+
+
+func _test_buildings() -> void:
+	var buildings := get_tree().get_nodes_in_group("building")
+	_check(buildings.size() >= 8, "city block has buildings (%d)" % buildings.size())
+	var looks := {}
+	var all_solid := true
+	var all_shaded := true
+	for node in buildings:
+		var b := node as Building
+		if b == null:
+			continue
+		looks[[b.shape, b.finish, b.window_style]] = true
+		var shapes := 0
+		var shaded := 0
+		for child in b.get_children():
+			if child is CollisionShape3D:
+				shapes += 1
+			if child is MeshInstance3D and (child as MeshInstance3D).material_override is ShaderMaterial:
+				shaded += 1
+		all_solid = all_solid and shapes > 0
+		all_shaded = all_shaded and shaded > 0
+		_check(b.height >= 4.0 and b.footprint.x > 2.0, "building %d has size %.0f x %.0f x %.0f m (%s)" % [b.seed % 1000, b.footprint.x, b.height, b.footprint.y, Building.Shape.keys()[b.shape]])
+	_check(all_solid, "every building has collision")
+	_check(all_shaded, "every building uses the building shader")
+	# Windows show a traced fake room behind the glass, not a painted gradient. The uniforms
+	# are left at their defaults by Building, so check the shader declares them.
+	var uniforms := {}
+	for u in Building.SHADER.get_shader_uniform_list():
+		uniforms[u.name] = true
+	_check(uniforms.has("room_depth") and uniforms.has("interior_enabled"), "the building shader does interior mapping")
+	# Glass reflects the sky above the horizon and the street below it, and the room behind it
+	# is dark against daylight. Without both, every pane reads as a beige card over the opening.
+	_check(uniforms.has("sky_zenith") and uniforms.has("street_reflect") and uniforms.has("reflect_strength"),
+		"window glass reflects sky and street")
+	_check(uniforms.has("interior_exposure"), "rooms behind the glass are exposed for daylight outside")
+	var framed := 0
+	var frames_fit := true
+	for b in get_tree().get_nodes_in_group("building"):
+		if b.has_node("Frames") and b.get_node("Frames").multimesh.instance_count > 0:
+			framed += 1
+			# Frames and cornices must sit on the walls, never float above the roof (build 64 bug).
+			var frame_top: float = (b.get_node("Frames").multimesh.get_aabb() as AABB).end.y
+			if frame_top > b.height + 0.5:
+				frames_fit = false
+			# The bands share their MultiMesh with the parapet, which does stand above the roof,
+			# so the building keeps the bands' own top.
+			if float(b.get("details_top")) > b.height + 0.5:
+				frames_fit = false
+	_check(framed > 0, "buildings carry real window frames (%d)" % framed)
+	# Shop names on the storefront sign bands, lined up with the shader's shop runs.
+	var named := 0
+	var sign_nodes := 0
+	for b in get_tree().get_nodes_in_group("building"):
+		var found := false
+		for child in (b as Node).get_children():
+			if child is MeshInstance3D and str((child as Node).name).begins_with("Sign"):
+				sign_nodes += 1
+				found = true
+		if found:
+			named += 1
+	_check(named > 3 and sign_nodes > named, "storefronts carry shop names (%d signs on %d buildings)" % [sign_nodes, named])
+	# Street level at night: Building rolls each shop's night (open, its light, its sign) with the
+	# shader's own integer hash, and the palettes are written twice, so read the shader's copies
+	# out of its source. A drift here puts a pink spill in front of a white shop, or a pool of light
+	# in front of a shuttered one.
+	var night_why := ""
+	for pair: Array in [["shop_tone", Building.SHOP_TONES], ["neon_color", Building.NEON_COLORS], ["letter_color", Building.LETTER_COLORS],
+			["shop_frame_color", Building.SHOP_FRAME_COLORS]]:
+		var at := Building.SHADER.code.find("vec3 %s(uint" % pair[0])
+		var body := Building.SHADER.code.substr(at, Building.SHADER.code.find("\n}", at) - at)
+		var vx := RegEx.new()
+		vx.compile("vec3\\(([0-9.]+), ([0-9.]+), ([0-9.]+)\\)")
+		var found := vx.search_all(body)
+		var want: Array = pair[1]
+		if at < 0 or found.size() != want.size():
+			night_why += " %s has %d colours" % [pair[0], found.size()]
+			continue
+		for i in want.size():
+			var c: Color = want[i]
+			var m: RegExMatch = found[i]
+			if absf(m.get_string(1).to_float() - c.r) + absf(m.get_string(2).to_float() - c.g) + absf(m.get_string(3).to_float() - c.b) > 1e-4:
+				night_why += " %s[%d]" % [pair[0], i]
+	for needle: String in ["747796405u", "2891336453u", "2246822519u", "3266489917u", "shop_byte(shop_key, 1u) < 158u"]:
+		if Building.SHADER.code.find(needle) < 0:
+			night_why += " no %s" % needle
+	# The GDScript side of the hash, against values worked out by hand in 32-bit unsigned maths.
+	if Building.shop_hash(12345, 1) != 2844175535 or Building.shop_byte(4294967295, 11) != 174:
+		night_why += " hash drifted"
+	_check(night_why == "", "Building rolls each shop's night the way the shader does%s" % night_why)
+	# What is behind the glass (shop_interior.gdshaderinc): Building rolls each shop's room and
+	# finds the towers' lobbies the way the shader does, so a lobby's pool of light on the
+	# pavement stands in front of a lobby. The thresholds and the lobby rule are read back out of
+	# the shader's source, and the rooms along the scene's streets must come in every kind.
+	var room_why := ""
+	var inc := FileAccess.get_file_as_string("res://shaders/shop_interior.gdshaderinc")
+	var at_kind := inc.find("uint shop_room_kind(uint key)")
+	var kind_body := inc.substr(at_kind, inc.find("\n}", at_kind) - at_kind)
+	var bx := RegEx.new()
+	bx.compile("if \\(b < ([0-9]+)u\\) return ROOM_")
+	var bytes: Array = []
+	for m: RegExMatch in bx.search_all(kind_body):
+		bytes.append(m.get_string(1).to_int())
+	if at_kind < 0 or kind_body.find("shop_byte(key, 40u)") < 0 or bytes != Building.SHOP_ROOM_BYTES:
+		room_why += " kind thresholds %s" % str(bytes)
+	for needle: String in ["#include \"res://shaders/shop_interior.gdshaderinc\"", "max(tower_height, pt_size.y) > 30.0",
+			"shop_id == floor((n_shops - 1.0) * 0.5) && shop_byte(shop_key, 44u) < 192u", "room_kind = ROOM_LOBBY;"]:
+		if Building.SHADER.code.find(needle) < 0:
+			room_why += " no %s" % needle
+	var kinds := {}
+	var lobbies := 0
+	for name: String in Building.SHOP_NAMES:
+		if not Building.SHOP_NAME_ROOMS.has(name):
+			room_why += " %s has no room" % name
+	for b in get_tree().get_nodes_in_group("building"):
+		for face in 4:
+			for shop in 9:
+				var key: int = b.shop_key(face + 1, shop)
+				kinds[b.shop_room(face + 1, shop)] = true
+				if Building.shop_is_lobby(key, shop, 9, 60.0):
+					lobbies += 1
+		# The shader's copy: the walls' material carries every face's rooms by name.
+		var walls := b.get_node_or_null("Walls") as MeshInstance3D
+		if walls and walls.material_override is ShaderMaterial:
+			var codes: Vector4i = (walls.material_override as ShaderMaterial).get_shader_parameter("shop_rooms")
+			for face in 4:
+				for shop in Building.SHOP_ROOM_SLOTS:
+					if (codes[face] >> (4 * shop)) & 15 != b.shop_room(face + 1, shop) + 1:
+						room_why += " %s face %d shop %d" % [b.name, face + 1, shop]
+	if kinds.size() != Building.ShopRoom.LOBBY or lobbies == 0:
+		room_why += " %d kinds, %d lobbies" % [kinds.size(), lobbies]
+	if Building.shop_is_lobby(12345, 2, 6, 20.0):
+		room_why += " a low part has a lobby"
+	_check(room_why == "", "shops have rooms of every kind behind their glass, rolled the way the shader rolls them%s" % room_why)
+	var spills := 0
+	var spill_closed := 0
+	for b in get_tree().get_nodes_in_group("building"):
+		for pool: Array in b.get("shop_pools"):
+			spills += 1
+			if (pool[1] as Color).a <= 0.0:
+				spill_closed += 1
+	_check(spills > 0 and spill_closed == 0, "open shops put a pool of their light on the pavement (%d)" % spills)
+	var with_balconies := 0
+	for b in get_tree().get_nodes_in_group("building"):
+		if (b.has_node("Balconies") and b.get_node("Balconies").multimesh.instance_count > 0) or _kit_count(b, "Batch_kit_balcony") > 0:
+			with_balconies += 1
+	_check(with_balconies > 0, "some buildings have balconies (%d)" % with_balconies)
+	# Fire escapes only go on brick blocks, and the handful of buildings in the test room are
+	# rarely brick, so build a deterministic sample rather than sampling whatever is loaded.
+	var escape_scene: PackedScene = load("res://scenes/props/building.tscn")
+	var sample: Array = []
+	for si in range(1, 13):
+		var eb: Building = escape_scene.instantiate()
+		eb.seed = si
+		eb.lot_size = Vector2(30.0, 30.0)
+		eb.min_height = 26.0
+		eb.max_height = 40.0
+		eb.finish_options.assign([Building.Finish.BRICK])
+		# Well away from anything: these are solid bodies, and at the origin they sit exactly
+		# where the city spawns the player.
+		eb.position = Vector3(4000.0 + float(si) * 60.0, 0.0, 4000.0)
+		add_child(eb)
+		sample.append(eb)
+	await _ticks(2)
+	var with_escapes := 0
+	# The facade kit on the same brick sample: a surround at every window frame (they are
+	# placed in the same loop, so the counts must match exactly), a moulded cornice, and the
+	# lowest landing of every fire escape carrying the drop ladder.
+	var surrounds_match := true
+	var surrounded := 0
+	var corniced := 0
+	var ladders_ok := true
+	for eb in sample:
+		if (eb.has_node("FireEscape") and eb.get_node("FireEscape").multimesh.instance_count > 0) or _kit_count(eb, "Batch_kit_fe_") > 0:
+			with_escapes += 1
+		# The building's one frames node (its mesh is the building's own thin section now,
+		# ShopfrontKit.window_frame(), so it is found by name).
+		var frames_n := 0
+		for fc in eb.get_children():
+			if fc is MultiMeshInstance3D and str((fc as Node).name).begins_with("Frames"):
+				frames_n += (fc as MultiMeshInstance3D).multimesh.instance_count
+		var surround_n := _kit_count(eb, "Batch_kit_surround")
+		if surround_n > 0:
+			surrounded += 1
+			if surround_n != frames_n:
+				surrounds_match = false
+		if _kit_count(eb, "Batch_kit_cornice") > 0:
+			corniced += 1
+		var landings := _kit_count(eb, "Batch_kit_fe_")
+		if landings > 0 and _kit_count(eb, "Batch_kit_fe_bottom") < 1:
+			ladders_ok = false
+		eb.free()
+	_check(with_escapes >= 4, "brick blocks get fire escapes (%d of 12)" % with_escapes)
+	_check(surrounded >= 10 and surrounds_match, "brick windows get the kit's stone surrounds, one per frame (%d of 12)" % surrounded)
+	_check(corniced >= 10, "brick blocks get a moulded cornice (%d of 12)" % corniced)
+	_check(ladders_ok, "every kit fire escape ends in a drop ladder")
+	# Every kit piece loads with its geometry and wears the kit shader. The mesh AABB is kept on
+	# the resource, so it is real under --headless.
+	var kit_ok := true
+	var kit_why := ""
+	for piece: String in PropFactory.KIT_PIECES:
+		var km := PropFactory.facade_kit(piece)
+		if km == null or km.get_surface_count() == 0 or km.get_aabb().size.length() < 0.2:
+			kit_ok = false
+			kit_why += " %s missing" % piece
+			continue
+		for s in km.get_surface_count():
+			var sm := km.surface_get_material(s) as ShaderMaterial
+			if sm == null or not str(sm.shader.resource_path).begins_with("res://shaders/facade_kit"):
+				kit_ok = false
+				kit_why += " %s surface %d not on the kit shader" % [piece, s]
+	_check(kit_ok, "every facade kit piece loads on the kit shader%s" % kit_why)
+	# The roofline runs are 2 m and centred, which is what the mitre in the kit shader assumes.
+	var run_box := PropFactory.facade_kit("cornice_classic").get_aabb()
+	_check(absf(run_box.position.x + 1.0) < 0.005 and absf(run_box.end.x - 1.0) < 0.005, "cornice runs span x -1..1 (%.3f..%.3f)" % [run_box.position.x, run_box.end.x])
+	# Surrounds line up with the windows the shader draws only if Building's window rects are
+	# the shader's. Read the shader's copies out of its source rather than writing them a third time.
+	var rx := RegEx.new()
+	rx.compile("abs\\(fu - ([0-9.]+)\\) < ([0-9.]+) && abs\\(fv - ([0-9.]+)\\) < ([0-9.]+)")
+	var shader_rects: Array = []
+	for m in rx.search_all(Building.SHADER.code):
+		shader_rects.append([m.get_string(1).to_float(), m.get_string(3).to_float(), m.get_string(2).to_float(), m.get_string(4).to_float()])
+	var rects_ok := true
+	for style in [Building.WindowStyle.PUNCHED, Building.WindowStyle.NARROW]:
+		var mine: Array = Building.WINDOW_RECTS[style]
+		var hit := false
+		for sr: Array in shader_rects:
+			if absf(sr[0] - mine[0]) < 1e-4 and absf(sr[1] - mine[1]) < 1e-4 and absf(sr[2] - mine[2]) < 1e-4 and absf(sr[3] - mine[3]) < 1e-4:
+				hit = true
+		rects_ok = rects_ok and hit
+	_check(rects_ok and shader_rects.size() >= 2, "Building.WINDOW_RECTS matches the shader's punched and slot windows (%d found)" % shader_rects.size())
+	# The kit must not move anything the building's seeded rolls placed: the same brick block
+	# with the kit off and on puts its rooftop units and shop names in exactly the same spots.
+	var same := true
+	var kit_was := Building.kit_enabled
+	for si in [3, 7, 11]:
+		var spots: Array = []
+		for on in [false, true]:
+			Building.kit_enabled = on
+			var kb: Building = escape_scene.instantiate()
+			kb.seed = si
+			kb.lot_size = Vector2(30.0, 30.0)
+			kb.min_height = 26.0
+			kb.max_height = 40.0
+			kb.finish_options.assign([Building.Finish.BRICK])
+			kb.position = Vector3(5000.0, 0.0, 5000.0)
+			add_child(kb)
+			var found: Array = []
+			for child in kb.get_children():
+				if child is MeshInstance3D and str((child as Node).name).begins_with("Sign"):
+					found.append((child as MeshInstance3D).position)
+			# The rooftop units are one MultiMesh per model, which reads back as identity under
+			# --headless, so the building keeps where it put them.
+			found.append_array(kb.roof_unit_spots)
+			spots.append(found)
+			kb.free()
+		same = same and spots[0] == spots[1] and not (spots[0] as Array).is_empty()
+	Building.kit_enabled = kit_was
+	_check(same, "the facade kit leaves the seeded layout alone (roof units and shop names unmoved)")
+	_test_shopfront_kit(escape_scene)
+	_check(frames_fit, "window frames and cornices stay within the building height")
+	_check(looks.size() >= 5, "buildings vary (%d distinct looks)" % looks.size())
+
+	# Same seed, same building.
+	var a := Building.new()
+	a.seed = 4242
+	get_tree().root.add_child(a)
+	var c := Building.new()
+	c.seed = 4242
+	get_tree().root.add_child(c)
+	_check(a.footprint == c.footprint and a.height == c.height and a.shape == c.shape, "same seed gives the same building")
+	a.queue_free()
+	c.queue_free()
+	_buildings_done = true
+
+
+## The real storefronts and curtain-wall caps (ShopfrontKit): they go on with the kit and only
+## with it, they stand where the shader paints the same frames (the same integer rolls, the same
+## layout numbers), and the anchored slicing puts a door's members where a door's members go on
+## any width. A MultiMesh reads back empty headless, so the building counts what it laid.
+func _test_shopfront_kit(scene: PackedScene) -> void:
+	var why := ""
+	var kit_was := Building.kit_enabled
+	for on in [false, true]:
+		Building.kit_enabled = on
+		var shops := 0
+		var caps := 0
+		var blades := 0
+		for si in [3, 7, 11, 19]:
+			for fin in [Building.Finish.BRICK, Building.Finish.GLASS]:
+				var kb: Building = scene.instantiate()
+				kb.seed = si
+				kb.lot_size = Vector2(30.0, 30.0)
+				kb.min_height = 26.0
+				kb.max_height = 40.0
+				kb.finish_options.assign([fin])
+				kb.position = Vector3(5000.0, 0.0, 5000.0)
+				add_child(kb)
+				shops += kb.shop_piece_count
+				caps += kb.cap_piece_count
+				for child in kb.get_children():
+					if str((child as Node).name).begins_with("BladeText"):
+						blades += 1
+				kb.free()
+		if on and (shops < 40 or caps < 40):
+			why += " kit on: %d storefront pieces, %d caps" % [shops, caps]
+		if not on and (shops + caps + blades) > 0:
+			why += " kit off still laid %d pieces" % (shops + caps + blades)
+		if on:
+			print("shopfront kit: %d storefront pieces, %d caps, %d blade-sign name meshes on 8 blocks" % [shops, caps, blades])
+	Building.kit_enabled = kit_was
+	# The shader's copies of the storefront rolls and layout numbers.
+	var code := Building.SHADER.code
+	for needle: String in ["fv = (v - pt_base_y) / sf_h", "shop_byte(shop_key, 15u)",
+			"shop_byte(shop_key, 16u) < %du" % ShopfrontKit.RECESS_BYTE, "shop_byte(shop_key, 17u) < %du" % ShopfrontKit.MULLION_BYTE,
+			"pane_m.x >= %.2f && shop_byte(shop_key, 18u) < %du" % [ShopfrontKit.SINGLE_MIN_WIDTH, ShopfrontKit.SINGLE_BYTE],
+			"b < 77u ? 0u : (b < 141u ? 1u : (b < 205u ? 2u : (b < 230u ? 3u : 4u)))",
+			"p.y > %.2f && p.y < %.2f" % [ShopfrontKit.TRANSOM_LOW, ShopfrontKit.TRANSOM_HIGH],
+			"float low = door_bay ? 0.0 : %.2f;" % ShopfrontKit.GLASS_LOW, "abs(fu - 0.5) < %.2f" % ShopfrontKit.GLASS_HALF,
+			"abs(fv - %.2f) < 0.0125 || abs(fv - %.2f) < 0.0125" % [ShopfrontKit.CURTAIN_SILL, ShopfrontKit.CURTAIN_HEAD]]:
+		if code.find(needle) < 0:
+			why += " shader lacks '%s'" % needle
+	var kit_inc := FileAccess.get_file_as_string("res://shaders/facade_kit.gdshaderinc")
+	if kit_inc.find("float kit_anchor(") < 0 or kit_inc.find("cull_distance") < 0:
+		why += " the kit shader has no anchors"
+	# The door on a 1.9 x 3.33 m opening, placed the way the kit shader places it: the meeting
+	# stiles stay at the middle, the transom at door-head height above the threshold, the jambs
+	# outside the opening.
+	var door := ShopfrontKit.mesh("door")
+	var ex := (1.9 - 1.0) * 0.5
+	var ey := (3.33 - 1.0) * 0.5
+	var transom_lo := 1e9
+	var gap := 1e9
+	var meeting := false
+	var outer := 0.0
+	for si in door.get_surface_count():
+		var arr := door.surface_get_arrays(si)
+		var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var uv2s: PackedVector2Array = arr[Mesh.ARRAY_TEX_UV2]
+		for i in verts.size():
+			var code_i := int(uv2s[i].y - 0.5)
+			var p := ShopfrontKit.place(verts[i], code_i, ex, ey, 0.0)
+			var y_up := p.y + 0.5 + ey
+			# The pair meets in the middle whatever the width: a 6 mm gap between the leaves,
+			# and each meeting stile's outer edge 60 mm off the centre line.
+			if code_i & ShopfrontKit.OPT_NOT_G and p != Vector3.ZERO:
+				gap = minf(gap, absf(p.x))
+				if absf(absf(p.x) - ShopfrontKit.MEETING) < 0.001:
+					meeting = true
+			if code_i < 16 and y_up > 2.3 and y_up < 2.6 and absf(p.x) < 1.0:
+				transom_lo = minf(transom_lo, y_up)
+			outer = maxf(outer, absf(p.x))
+	if absf(gap - 0.003) > 0.001 or not meeting or absf(transom_lo - ShopfrontKit.TRANSOM_LOW) > 0.005 \
+			or absf(outer - (0.95 + ShopfrontKit.JAMB)) > 0.02:
+		why += " door placed wrong (gap %.3f, meeting stile %s, transom %.3f, outer %.3f)" % [gap, meeting, transom_lo, outer]
+	# Every piece placed on a made-up wall (20 m, ten 2 m bays, a 4.5 m storefront, six 3.5 m
+	# floors above) and run through the kit shader's placement with the INSTANCE_CUSTOM it was
+	# given: the storefront stays in the storefront and on the wall, the blade signs between it
+	# and the roof, the caps on the curtain wall between the storefront and the roof. (A cap
+	# added with MultiMeshBatch's default custom, Color.BLACK, is sliced a metre up by its alpha
+	# and stood a whole band above the roof.)
+	var probe_b: Building = scene.instantiate()
+	probe_b.seed = 7
+	var batch := MultiMeshBatch.new()
+	var wall_top := 4.5 + 6.0 * 3.5
+	var stops: Array[float] = [10.0, 4.0, -2.0, -8.0, -10.0]
+	ShopfrontKit.storefront_face(probe_b, batch, 1, Vector3(0.0, 0.0, 10.0), Vector3(1, 0, 0), Vector3(0, 0, 1), 20.0, 10, 2.0, 0.0,
+		0.0, 4.5, 3.0, stops, true, 3.5, wall_top, Color.GRAY)
+	ShopfrontKit.curtain_face(probe_b, batch, Vector3(0.0, 0.0, 10.0), Vector3(1, 0, 0), Vector3(0, 0, 1), 20.0, 10, 2.0, 0.0,
+		0.0, 4.5, 3.5, 6, wall_top, Color.GRAY)
+	var data := batch.data()
+	for key: String in data:
+		var d: Dictionary = data[key]
+		var lo_y := 4.5 - 0.02 if key.begins_with("kit_cap") else (4.5 + 0.2 if key == "kit_shop_blade" else -0.06)
+		var hi_y := wall_top - 0.29 if key.begins_with("kit_cap") else (wall_top if key == "kit_shop_blade" else 4.5)
+		var worst := ""
+		var m: Mesh = d.mesh
+		for i in (d.xforms as Array).size():
+			var xf: Transform3D = d.xforms[i]
+			var c: Color = d.custom[i]
+			for si in m.get_surface_count():
+				var arr := m.surface_get_arrays(si)
+				var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+				var uv2s: PackedVector2Array = arr[Mesh.ARRAY_TEX_UV2]
+				for vi in verts.size():
+					var pl := ShopfrontKit.place(verts[vi], int(uv2s[vi].y - 0.5), c.b, c.a, c.g, c.r)
+					if pl == Vector3.ZERO:
+						continue
+					var wp := xf * pl
+					if wp.y < lo_y or wp.y > hi_y or absf(wp.x) > 10.6 or wp.z < 9.99:
+						worst = " %s at %s" % [key, wp]
+		if worst != "":
+			why += worst
+	probe_b.free()
+	_check(why == "", "real storefronts and curtain-wall caps go on with the kit, where the shader paints them%s" % why)
+
+
+func _test_weapons(player: Player) -> void:
+	var manager := player.weapon_manager
+	_check(manager != null and manager.weapons.size() == 3, "three weapons loaded")
+	if manager == null:
+		return
+	_check(manager.current is AssaultRifle, "starts with the AK-47")
+	await _press("weapon_2")
+	_check(manager.current is RocketLauncher, "weapon_2 selects the rocket launcher")
+	await _press("weapon_3")
+	_check(manager.current is Shotgun, "weapon_3 selects the shotgun")
+	await _press("next_weapon")
+	_check(manager.current is AssaultRifle, "next_weapon wraps around to the AK-47")
+
+	# Weapon wheel (owner, 2026-09-24): hold it and time slows, point at a gun, let go to equip.
+	# Looked up untyped: WeaponWheel is a class this script must not name.
+	var wheel = get_tree().get_first_node_in_group("weapon_wheel")
+	_check(wheel != null, "the HUD has a weapon wheel")
+	if wheel:
+		Input.action_press("weapon_wheel")
+		await _ticks(3)
+		_check(wheel.is_open() and manager.wheel_open, "holding weapon_wheel opens the wheel")
+		# The ease runs on the real clock, so wait on the real clock.
+		await get_tree().create_timer(0.3, true, false, true).timeout
+		_check(Engine.time_scale < 0.3 and AudioServer.playback_speed_scale < 0.7,
+			"the open wheel slows time (%.2f) and audio (%.2f)" % [Engine.time_scale, AudioServer.playback_speed_scale])
+		# Mouse movement steers the wheel's cursor and never reaches the camera.
+		var yaw_before: float = player.camera_rig.get("_yaw")
+		var motion := InputEventMouseMotion.new()
+		motion.relative = Vector2(220.0, 0.0)
+		Input.parse_input_event(motion)
+		await _ticks(2)
+		_check(wheel.highlighted() == 1, "moving the mouse right points at the rocket launcher (segment %d)" % wheel.highlighted())
+		_check(is_equal_approx(player.camera_rig.get("_yaw"), yaw_before), "the camera does not turn while the wheel is open")
+		var cooldown_before: float = manager.current.get("_cooldown")
+		Input.action_press("fire")
+		await _ticks(3)
+		Input.action_release("fire")
+		_check(manager.current.get("_cooldown") <= cooldown_before, "the gun does not fire while the wheel is open")
+		Input.action_release("weapon_wheel")
+		await _ticks(3)
+		_check(manager.current is RocketLauncher and not wheel.is_open() and not manager.wheel_open,
+			"releasing the wheel equips the highlighted rocket launcher")
+		await get_tree().create_timer(0.3, true, false, true).timeout
+		_check(Engine.time_scale == 1.0 and AudioServer.playback_speed_scale == 1.0,
+			"time and audio are back to normal after the wheel closes (%.2f, %.2f)" % [Engine.time_scale, AudioServer.playback_speed_scale])
+		await _press("weapon_wheel")
+		await _ticks(3)
+		_check(manager.current is RocketLauncher, "letting go with the cursor in the centre keeps the current gun")
+		# Let the clock ease back first: a tap is timed in real seconds, the ticks are not.
+		await get_tree().create_timer(0.3, true, false, true).timeout
+		# The gamepad's left bumper: a quick tap still steps back one gun, a hold opens the wheel.
+		var bumper := InputEventJoypadButton.new()
+		bumper.button_index = JOY_BUTTON_LEFT_SHOULDER
+		bumper.pressed = true
+		Input.parse_input_event(bumper)
+		await _ticks(3)
+		_check(not wheel.is_open(), "a bumper tap does not open the wheel")
+		var bumper_up := bumper.duplicate() as InputEventJoypadButton
+		bumper_up.pressed = false
+		Input.parse_input_event(bumper_up)
+		await _ticks(3)
+		_check(manager.current is AssaultRifle and not wheel.is_open(), "a quick bumper tap steps to the previous weapon")
+		Input.parse_input_event(bumper)
+		await get_tree().create_timer(0.35, true, false, true).timeout
+		_check(wheel.is_open(), "holding the bumper opens the wheel")
+		Input.parse_input_event(bumper_up)
+		await get_tree().create_timer(0.3, true, false, true).timeout
+		_check(manager.current is AssaultRifle and not wheel.is_open() and Engine.time_scale == 1.0,
+			"releasing the bumper in the centre keeps the AK-47 and restores time")
+
+	# AK-47: shoot the crate wall and see a crate move.
+	var wall_crate := _nearest_crate(Vector3(-14.0, 2.5, -4.0))
+	_check(wall_crate != null, "found a crate in the wall")
+	if wall_crate:
+		var before := wall_crate.global_position
+		player.camera_rig.look_at_point(wall_crate.global_position)
+		await _ticks(2)
+		Input.action_press("fire")
+		await _ticks(45)
+		Input.action_release("fire")
+		await _ticks(30)
+		var moved := wall_crate.global_position.distance_to(before)
+		_check(moved > 0.15, "AK-47 bullets shove crates (crate moved %.2f m)" % moved)
+
+	# Rocket launcher: blast the pyramid and see crates fly.
+	await _press("weapon_2")
+	var pile_crate := _nearest_crate(Vector3(18.0, 2.0, -6.0))
+	if pile_crate:
+		var pile_before := pile_crate.global_position
+		player.camera_rig.look_at_point(pile_crate.global_position)
+		await _ticks(2)
+		await _press("fire")
+		await _ticks(150)
+		var flew := pile_crate.global_position.distance_to(pile_before)
+		_check(flew > 1.0, "rocket explosion scatters the pyramid (crate moved %.2f m)" % flew)
+	# The explosion has to be more than a couple of spheres: a real light flash, layered
+	# billboarded fire / smoke / spark particles and a shockwave ring.
+	var fx_before := _count_fx()
+	WeaponFX.explosion(self, player.global_position + Vector3(0.0, 1.0, 14.0), 8.0)
+	await _ticks(2)
+	var fx_after := _count_fx()
+	_check(fx_after.lights > fx_before.lights, "an explosion lights the scene (%d flash lights)" % fx_after.lights)
+	_check(fx_after.particles - fx_before.particles >= 4, "an explosion has layered particles (%d systems)" % (fx_after.particles - fx_before.particles))
+	_check(player.camera_rig._shake > 0.0, "a nearby explosion shakes the camera")
+
+	# Shotgun (owner, 2026-09-24: "lose the gravity gun, give us a shotgun"): one blast of pellets
+	# throws a crate, then the pump strokes back and home and a spent shell flies out.
+	await _press("weapon_3")
+	var gun := manager.current as Shotgun
+	_check(gun != null and gun.lock_on, "weapon_3 is the shotgun, and it takes GTA-style aim")
+	var crate := _nearest_crate(Vector3(-14.0, 1.0, 0.0))
+	if crate and gun:
+		player.global_position = crate.global_position + Vector3(5.0, 0.6, 0.0)
+		player.velocity = Vector3.ZERO
+		await _ticks(5)
+		player.camera_rig.look_at_point(crate.global_position)
+		await _ticks(2)
+		var crate_at := crate.global_position
+		var shells_before := get_tree().get_nodes_in_group("spent_shell").size()
+		await _press("fire")
+		var pumped := 0.0
+		for i in 40:
+			await _ticks(1)
+			pumped = maxf(pumped, gun.pump_amount())
+		_check(pumped > 0.9, "the pump strokes back after the shot (%.2f of its travel)" % pumped)
+		_check(gun.pump_amount() == 0.0, "and slides home again")
+		_check(get_tree().get_nodes_in_group("spent_shell").size() > shells_before, "the pump throws a spent shell")
+		var shoved := crate.global_position.distance_to(crate_at)
+		_check(shoved > 0.3, "one shotgun blast throws a crate (%.2f m)" % shoved)
+		# Every pellet goes down the rifle's hit path: a prop hit straight on gets the impulse.
+		# The blast just threw this crate, so put it back and let it stand still first: a pellet
+		# fired at a crate still tumbling behind the others hit whichever one was in the way.
+		crate.global_position = crate_at
+		crate.linear_velocity = Vector3.ZERO
+		crate.angular_velocity = Vector3.ZERO
+		for i in 2:
+			await get_tree().physics_frame
+		var hit: Dictionary = gun.fire_pellet(player.camera_rig.global_position, (crate.global_position - player.camera_rig.global_position).normalized())
+		_check(not hit.is_empty() and hit.collider == crate, "a single pellet hits the crate it is aimed at (hit %s)" % (hit.collider.name if not hit.is_empty() and hit.collider else "nothing"))
+
+
+## Counts the explosion effect nodes currently alive in the scene.
+func _count_fx() -> Dictionary:
+	var lights := 0
+	var particles := 0
+	for child in get_tree().current_scene.get_children():
+		if child is OmniLight3D:
+			lights += 1
+		elif child is CPUParticles3D:
+			particles += 1
+	return {"lights": lights, "particles": particles}
+
+
+func _nearest_crate(near: Vector3) -> RigidBody3D:
+	var best: RigidBody3D = null
+	var best_dist := INF
+	for node in get_tree().get_nodes_in_group("physics_prop"):
+		var body := node as RigidBody3D
+		if body == null:
+			continue
+		var d := body.global_position.distance_to(near)
+		if d < best_dist:
+			best_dist = d
+			best = body
+	return best
+
+
+func _press(action: String) -> void:
+	Input.action_press(action)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	Input.action_release(action)
+	await get_tree().physics_frame
+
+
+func _run_and_measure_speed(player: CharacterBody3D, ticks: int) -> float:
+	var top := 0.0
+	for i in ticks:
+		await get_tree().physics_frame
+		top = maxf(top, player.horizontal_speed())
+	return top
+
+
+func _jump_and_measure(player: CharacterBody3D, ground_y: float) -> float:
+	var peak := 0.0
+	Input.action_press("jump")
+	for i in 240:
+		await get_tree().physics_frame
+		peak = maxf(peak, player.global_position.y - ground_y)
+		if player.velocity.y <= 0.0 and i > 2:
+			break
+	Input.action_release("jump")
+	return peak
+
+
+func _double_jump_and_measure(player: CharacterBody3D, ground_y: float) -> float:
+	var peak := 0.0
+	Input.action_press("jump")
+	for i in 240:
+		await get_tree().physics_frame
+		peak = maxf(peak, player.global_position.y - ground_y)
+		if player.velocity.y <= 0.0 and i > 2:
+			break
+	Input.action_release("jump")
+	await get_tree().physics_frame
+	Input.action_press("jump")
+	for i in 240:
+		await get_tree().physics_frame
+		peak = maxf(peak, player.global_position.y - ground_y)
+		if player.velocity.y <= 0.0 and i > 2:
+			break
+	Input.action_release("jump")
+	return peak
+
+
+## The hills' planting stands where the terrain shader paints brush: HillPlanting mirrors the
+## shader's numbers (read back out of its source here), a FULL hill chunk plants chaparral on
+## the painted stands and nothing on rock or bare cuts, and the north faces carry more brush.
+func _check_hill_planting(chunk: Node3D, plan: CityPlan) -> void:
+	# The splat's numbers live in hill_splat.gdshaderinc, which terrain.gdshader and the hill
+	# shells both include.
+	var src := FileAccess.get_file_as_string("res://shaders/terrain.gdshader") + FileAccess.get_file_as_string("res://shaders/hill_splat.gdshaderinc")
+	var mismatched: Array[String] = []
+	for uname: String in HillPlanting.MIRRORED:
+		var re := RegEx.create_from_string("uniform float " + uname + "\\b[^=]*=\\s*([0-9.]+)")
+		var m := re.search(src)
+		if m == null or absf(m.get_string(1).to_float() - float(HillPlanting.MIRRORED[uname])) > 1e-6:
+			mismatched.append(uname)
+	for cname: String in HillPlanting.MIRRORED_CONSTS:
+		var re := RegEx.create_from_string("const float " + cname + "\\s*=\\s*([0-9.]+)")
+		var m := re.search(src)
+		if m == null or absf(m.get_string(1).to_float() - float(HillPlanting.MIRRORED_CONSTS[cname])) > 1e-6:
+			mismatched.append(cname)
+	_check(mismatched.is_empty(), "HillPlanting mirrors terrain.gdshader's numbers (%s)" % (", ".join(mismatched) if mismatched else "all match"))
+	if chunk == null:
+		return
+	var planted: Dictionary = chunk.get("hill_planting")
+	var points: Array = planted.get("points", [])
+	var chaparral := 0
+	var on_brush := 0
+	var on_rock := 0
+	for rec in points:
+		var p: Vector2 = rec[0]
+		# The slope and drainage off the chunk's own tile - the surface the shader paints (its
+		# normal is the mesh's, the drainage its vertex colour) and the planting reads. Measured
+		# exactly over 2 m instead, the eroded slopes differ from the drawn 5 m grid by enough
+		# to put a shrub the painted ground calls brush on "rock".
+		var th := func(q: Vector2) -> float: return chunk.call("_terrain_height", q, "heights")
+		var grad := Vector2(th.call(p + Vector2(2.0, 0.0)) - th.call(p - Vector2(2.0, 0.0)),
+			th.call(p + Vector2(0.0, 2.0)) - th.call(p - Vector2(0.0, 2.0))) * 0.25
+		var g := HillPlanting.ground(p, grad, true, chunk.call("_terrain_height", p, "drains"))
+		if float(g.rocky) > 0.45 or float(g.bare) > 0.55:
+			on_rock += 1
+		if rec[1] == "chaparral":
+			chaparral += 1
+			if float(g.brush) > 0.3:
+				on_brush += 1
+	_check(chaparral >= 20 and chunk.has_node("Batch_hill_chaparral"), "a hill chunk plants chaparral stands (%d shrubs, %d oaks, %d lone shrubs)" % [chaparral, planted.get("oak", 0), planted.get("sage", 0)])
+	_check(on_rock == 0, "nothing planted on rock or bare cuts (%d of %d)" % [on_rock, points.size()])
+	_check(on_brush >= chaparral * 0.75, "the chaparral stands on the painted brush (%d of %d)" % [on_brush, chaparral])
+	# The field itself: the shaded side is brush, the sunny side grass.
+	var north_brush := 0.0
+	var south_brush := 0.0
+	for i in 400:
+		var w := Vector2(float(i % 20) * 37.0, float(i / 20) * 41.0)
+		north_brush += float(HillPlanting.ground(w, Vector2(0.0, 0.5)).brush)
+		south_brush += float(HillPlanting.ground(w, Vector2(0.0, -0.5)).brush)
+	_check(north_brush > south_brush * 1.3, "north faces carry more brush than south faces (%.0f vs %.0f of 400)" % [north_brush, south_brush])
+
+
+## The hill shells (HillShells, hill_shells.gdshader): a FULL hill chunk draws its terrain mesh
+## again as HillShells.LAYERS lifted layers, one MultiMesh of identity instances, casting no
+## shadow; the layers are stored so every power-of-two prefix is spread evenly up the canopy
+## (the distance LOD draws a prefix); fewer layers further out and none past the fade; the shells
+## share the terrain's splat; and they keep off the hill roads (the terrain's COLOR.b).
+func _check_hill_shells(chunk: Node3D, city: Node, plan: CityPlan) -> void:
+	var shells: MultiMeshInstance3D = chunk.get_node_or_null("HillShells") if chunk else null
+	var terrain: MeshInstance3D = chunk.get_node_or_null("Terrain") if chunk else null
+	var ok: bool = shells != null and terrain != null and shells.multimesh != null \
+		and shells.multimesh.instance_count == HillShells.LAYERS and shells.multimesh.mesh == terrain.mesh \
+		and shells.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF and shells.is_in_group("hill_shells")
+	_check(ok, "a FULL hill chunk grows shells from its terrain mesh (%d layers, no shadow)" % (shells.multimesh.instance_count if shells and shells.multimesh else 0))
+	var spread := true
+	for prefix: int in [2, 4, 8, HillShells.LAYERS]:
+		var hs: Array[float] = []
+		for k in prefix:
+			hs.append(HillShells.layer_height(k))
+		hs.sort()
+		for k in prefix:
+			spread = spread and absf(hs[k] - (float(k) + 0.5) / float(prefix)) < 0.5 / float(prefix) + 1e-4 \
+				and (k == 0 or absf(hs[k] - hs[k - 1] - 1.0 / float(prefix)) < 1e-4)
+	_check(spread, "every power-of-two prefix of the shell layers is spread evenly up the canopy")
+	_check(HillShells.layers_at(0.0) == HillShells.LAYERS and HillShells.layers_at(55.0) < HillShells.LAYERS \
+		and HillShells.layers_at(55.0) > 0 and HillShells.layers_at(200.0) == 0, "the shells draw fewer layers with distance and none far out")
+	var shell_src := FileAccess.get_file_as_string("res://shaders/hill_shells.gdshader")
+	var terrain_src := FileAccess.get_file_as_string("res://shaders/terrain.gdshader")
+	var inc := "#include \"res://shaders/hill_splat.gdshaderinc\""
+	_check(shell_src.contains(inc) and terrain_src.contains(inc) and shell_src.contains("hill_stand(") and terrain_src.contains("hill_stand(") and shell_src.contains("hill_crowns(") and terrain_src.contains("hill_crowns("),
+		"the shells and the terrain paint from the same splat")
+	# Keep-out: build a chunk a hill road crosses up to its terrain and read the mesh's COLOR.b.
+	var hr = plan.macro.hill_roads if plan.macro else null
+	var road_chunk = null
+	var probe := Vector2.INF
+	if hr:
+		for road in hr.roads:
+			var pts: PackedVector2Array = road.get("points", PackedVector2Array())
+			if pts.size() < 8 or not road.get("draw", true):
+				continue
+			var mid := pts[pts.size() / 2]
+			var k: Vector2i = plan.block_index_at(mid)
+			if plan.zone_at((plan.block(k.x, k.y).rect as Rect2).get_center()) != MacroMap.Zone.HILLS:
+				continue
+			road_chunk = load("res://scripts/world/city_chunk.gd").new()
+			road_chunk.plan = plan
+			road_chunk.ix = k.x
+			road_chunk.iz = k.y
+			road_chunk.level = 0
+			road_chunk.style = city.chunk_style()
+			road_chunk.begin_build()
+			while road_chunk._terrain_mesh == null and road_chunk._step < road_chunk._steps.size() - 1:
+				road_chunk.build_step()
+			probe = mid
+			break
+	if road_chunk == null or road_chunk._terrain_mesh == null:
+		_check(false, "a hill road chunk to check the shells' keep-out on")
+		if road_chunk:
+			road_chunk.free()
+		return
+	var arr: Array = (road_chunk._terrain_mesh as Mesh).surface_get_arrays(0)
+	var on_road := 0
+	var road_bad := 0
+	var clear_bad := 0
+	var clear_n := 0
+	if arr.size() > 0:
+		var vs: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var cs: PackedColorArray = arr[Mesh.ARRAY_COLOR]
+		var segs: Array = road_chunk._hill_segments()
+		var marks: Array = road_chunk._shell_marks(road_chunk.owned_rect())
+		for i in vs.size():
+			var p := Vector2(vs[i].x, vs[i].z)
+			var inside := false
+			for seg in segs:
+				if p.distance_to(Geometry2D.get_closest_point_to_segment(p, seg.a, seg.b)) < float(seg.width) * 0.5:
+					inside = true
+			var free := true
+			for m: Array in marks:
+				if p.distance_to(Geometry2D.get_closest_point_to_segment(p, m[0], m[1])) < float(m[2]) + 0.5:
+					free = false
+			if inside:
+				on_road += 1
+				if cs[i].b >= 0.5:
+					road_bad += 1
+			elif free and vs[i].y > 1.5:
+				clear_n += 1
+				if cs[i].b <= 0.5:
+					clear_bad += 1
+	road_chunk.free()
+	_check(on_road > 0 and road_bad == 0 and clear_n > 0 and clear_bad == 0,
+		"the shells keep off the hill road at %.0f,%.0f (%d road vertices, %d marked to grow; %d of %d clear ones barred)" % [probe.x, probe.y, on_road, road_bad, clear_bad, clear_n])
+
+
+## The front range's switchback drives and their estates (HillRoads, roadmap #20): there are
+## enough of them and they turn in hairpins; every one is graded as #17's cut banks require -
+## held to its grade, its banks meeting the ground at every point, and the ground carved round it
+## almost never steeper than 60 degrees; estates stand clear of each other and of every road;
+## and a chunk holding an estate up a driveway builds its driveway, walls and house.
+func _check_switchbacks(plan: CityPlan, city: Node, hr) -> void:
+	var drives: Array = []
+	var pins := 0
+	var grade_bad := 0
+	var earth_bad := 0
+	for road in hr.roads:
+		if not road.get("switchback", false):
+			continue
+		drives.append(road)
+		pins += int(road.get("hairpins", 0))
+		var pts: PackedVector2Array = road.points
+		var hs: PackedFloat32Array = road.heights
+		for i in range(1, pts.size()):
+			var limit := (HillRoads.JUNCTION_GRADE if i <= 2 else HillRoads.MAX_GRADE) * pts[i].distance_to(pts[i - 1]) + 0.01
+			if absf(hs[i] - hs[i - 1]) > limit:
+				grade_bad += 1
+			# The drives are laid out on a 12 m lattice of the ground (HillRoads.GCACHE_STEP), so
+			# the exact ground is allowed a metre and a half more slack than the layout had.
+			if hr._earthwork_ok(pts, hs, i, float(road.width) * 0.5, false, pts[0], HillRoads.EARTHWORK_SLACK + 1.5) != 0:
+				earth_bad += 1
+	var front := 0
+	for m in hr.mansions:
+		if (m.pos as Vector2).y < -700.0 and (m.pos as Vector2).y > -2600.0:
+			front += 1
+	_check(drives.size() >= 8 and pins >= 5 and front >= 70,
+		"the front range has switchback drives and estates again (%d drives, %d hairpins, %d estates)" % [drives.size(), pins, front])
+	_check(grade_bad == 0 and earth_bad == 0, "every switchback is held to its grade and graded into the hill (%d steps too steep, %d points whose banks miss the ground)" % [grade_bad, earth_bad])
+	# The ground carved round the first few drives, on an 8 m grid: the cut-bank fix's measure.
+	var carved := 0
+	var steep := 0
+	var seen := {}
+	for road in drives.slice(0, 6):
+		var pts: PackedVector2Array = road.points
+		var reach: float = float(road.width) * 0.5 + HillRoads.BANK_REACH
+		for i in pts.size() - 1:
+			var a := pts[i]
+			var b := pts[i + 1]
+			var lo := Vector2(minf(a.x, b.x), minf(a.y, b.y)) - Vector2.ONE * reach
+			var hi := Vector2(maxf(a.x, b.x), maxf(a.y, b.y)) + Vector2.ONE * reach
+			for cx in range(floori(lo.x / 8.0), floori(hi.x / 8.0) + 1):
+				for cz in range(floori(lo.y / 8.0), floori(hi.y / 8.0) + 1):
+					if seen.has(Vector2i(cx, cz)):
+						continue
+					seen[Vector2i(cx, cz)] = true
+					var p := Vector2((cx + 0.5) * 8.0, (cz + 0.5) * 8.0)
+					var raw := plan.macro.raw_height_at(p)
+					if raw <= 0.5 or absf(plan.height_at(p) - raw - plan.macro.relief_at(p)) < 0.25:
+						continue
+					carved += 1
+					var g := Vector2(plan.height_at(p + Vector2(2, 0)) - plan.height_at(p - Vector2(2, 0)),
+						plan.height_at(p + Vector2(0, 2)) - plan.height_at(p - Vector2(0, 2))) / 4.0
+					if g.length() > tan(deg_to_rad(60.0)):
+						steep += 1
+	_check(carved > 500 and steep <= carved * 0.015, "the ground carved round the switchbacks is graded, not cliffs (%d of %d cells steeper than 60 degrees)" % [steep, carved])
+	# Estates on the drives: clear of each other and of the roads.
+	var overlap := 0
+	var on_road := 0
+	var with_drive: Dictionary = {}
+	var mine: Array = []
+	for m in hr.mansions:
+		if m.has("radius"):
+			mine.append(m)
+	for i in mine.size():
+		var a: Dictionary = mine[i]
+		for j in range(i + 1, mine.size()):
+			var b: Dictionary = mine[j]
+			if (a.pos as Vector2).distance_to(b.pos) < float(a.radius) + float(b.radius) + 1.0:
+				overlap += 1
+		for seg in hr.segments_in(Rect2(a.pos - Vector2.ONE * 40.0, Vector2.ONE * 80.0)):
+			if seg.drive:
+				continue
+			var d := (a.pos as Vector2).distance_to(Geometry2D.get_closest_point_to_segment(a.pos, seg.a, seg.b))
+			if d < float(a.radius) + float(seg.width) * 0.5 + 1.0:
+				on_road += 1
+		if with_drive.is_empty() and (a.drive_from as Vector2).distance_to(a.pos) > float(a.radius) + 10.0:
+			with_drive = a
+	_check(mine.size() > 0 and overlap == 0 and on_road == 0, "estates on the drives stand clear of each other and of the roads (%d estates, %d overlaps, %d on a road)" % [mine.size(), overlap, on_road])
+	if with_drive.is_empty():
+		_check(false, "an estate up a driveway to build")
+		return
+	var k: Vector2i = plan.block_index_at(with_drive.pos)
+	var chunk = load("res://scripts/world/city_chunk.gd").new()
+	chunk.plan = plan
+	chunk.ix = k.x
+	chunk.iz = k.y
+	chunk.level = 0
+	chunk.style = city.chunk_style()
+	chunk.begin_build()
+	var guard := 0
+	while not chunk.build_step() and guard < 400:
+		guard += 1
+	var names := {}
+	for child in chunk.get_children():
+		names[String(child.name).rstrip("0123456789")] = true
+		if child is StaticBody3D and child.get("lot_size") != null:
+			names["Building"] = true
+	chunk.free()
+	# The house is HillHomeKit's (its meshes on one HillHomes body), or a Building with the kit off.
+	_check(names.has("Driveways") and (names.has("Building") or names.has("HillHomes")) and names.has("Boxes"),
+		"a chunk with an estate up a driveway builds its driveway, house and walls (%s)" % ", ".join(names.keys()))
+
+
+## A hill chunk's rocks, shrubs and planting stand on the terrain it draws. They are placed at
+## MacroMap.height_at(), which already includes the relief, and the chunk's batch used to add the
+## relief again: on the valley flank (the plateau under the front range's inland side) every
+## prop floated 15-135 m over the ground. Built to just before its finish, so the batch is still
+## data (MultiMesh transforms read back as identity under --headless).
+func _check_hill_props_grounded(city: Node, plan: CityPlan) -> void:
+	var macro := plan.macro
+	var spot := Vector2.INF
+	for p: Vector2 in [Vector2(0.0, -1800.0), Vector2(450.0, -1700.0), Vector2(-500.0, -1900.0), Vector2(800.0, -1850.0)]:
+		var bk: Vector2i = plan.block_index_at(p)
+		var rect: Rect2 = plan.block(bk.x, bk.y).rect
+		if macro.zone_at(rect.get_center()) == MacroMap.Zone.HILLS and macro.relief_at(p) > 20.0:
+			spot = p
+			break
+	_check(spot != Vector2.INF, "a hill chunk stands on raised relief to check its props on")
+	if spot == Vector2.INF:
+		return
+	var k: Vector2i = plan.block_index_at(spot)
+	var ch = load("res://scripts/world/city_chunk.gd").new()
+	ch.plan = plan
+	ch.ix = k.x
+	ch.iz = k.y
+	ch.level = 0
+	ch.style = city.chunk_style()
+	ch.begin_build()
+	while ch._step < ch._steps.size() - 1:
+		ch.build_step()
+	var count := 0
+	var worst := 0.0
+	var data: Dictionary = ch._batch.data()
+	for key: String in data:
+		for xf: Transform3D in data[key].xforms:
+			count += 1
+			# Against the surface the chunk draws (its tile grid, which is also what it collides
+			# with): on the carved road banks and the sharpest gullies the exact height is a few
+			# metres off the 3 m grid, and a prop on the exact height would float or sink by that.
+			var dy: float = xf.origin.y - float(ch._terrain_height(Vector2(xf.origin.x, xf.origin.z)))
+			if absf(dy) > absf(worst):
+				worst = dy
+	ch.free()
+	_check(count > 100 and absf(worst) < 3.0, "hill props stand on the ground over %.0f m of relief (%d props, worst %+.1f m)" % [macro.relief_at(spot), count, worst])
+
+
+func _wait_for_floor(player: CharacterBody3D, max_ticks: int) -> void:
+	for i in max_ticks:
+		await get_tree().physics_frame
+		if player.is_on_floor():
+			await _ticks(5)
+			return
+
+
+## Autoloads are looked up at runtime: naming them here would compile this script too early.
+func _world_state() -> Node:
+	return get_tree().root.get_node("/root/WorldState")
+
+
+func traffic_cars_for_lights(city: Node) -> Array:
+	var out: Array = []
+	var traffic: Node = city.get_node_or_null("Traffic")
+	if traffic:
+		for c in traffic.cars:
+			out.append(c)
+			if out.size() >= 3:
+				break
+	return out
+
+
+## The crowd rigs built by tools/crowd (MPFB humans in CC0 MakeHuman clothes): the contract every
+## crowd system relies on - the 24 bones and three clips, one skinned Body carrying the region
+## colours the character shader recolours by, the hair cards on a mesh of their own and on their
+## own shader, and the triangle budget (LOD0 under 20k with the hair).
+func _check_crowd_rigs() -> void:
+	var ped_script: GDScript = load("res://scripts/npc/pedestrian.gd")
+	var names := ["Hips", "LeftUpLeg", "LeftLeg", "LeftFoot", "LeftToeBase", "RightUpLeg", "RightLeg", "RightFoot",
+		"RightToeBase", "Spine02", "Spine01", "Spine", "LeftShoulder", "LeftArm", "LeftForeArm", "LeftHand",
+		"RightShoulder", "RightArm", "RightForeArm", "RightHand", "neck", "Head", "head_end", "headfront"]
+	var rigs := 0
+	var bad: Array = []
+	for path: String in ped_script.MODELS:
+		if not path.get_file().begins_with("crowd_"):
+			continue
+		rigs += 1
+		var rig: Node3D = (load(path) as PackedScene).instantiate()
+		add_child(rig)
+		ped_script.prepare_rig(rig, 1)
+		var sk: Skeleton3D = rig.find_child("Skeleton3D", true, false)
+		var anim: AnimationPlayer = rig.find_child("AnimationPlayer", true, false)
+		var why := ""
+		if sk == null or sk.get_bone_count() != names.size():
+			why += " bones %d" % (sk.get_bone_count() if sk else 0)
+		else:
+			for n in names:
+				if sk.find_bone(n) < 0:
+					why += " no " + n
+		if anim == null or not (anim.has_animation("Idle") and anim.has_animation("Casual_Walk_inplace") and anim.has_animation("run_fast_3_inplace")):
+			why += " clips"
+		var tris := 0
+		var body_ok := false
+		var hair_ok := true
+		for mi: MeshInstance3D in rig.find_children("*", "MeshInstance3D", true, false):
+			for sidx in mi.mesh.get_surface_count():
+				tris += mi.mesh.surface_get_array_index_len(sidx) / 3
+			var ov := mi.material_override as ShaderMaterial
+			if ped_script.is_hair(mi):
+				hair_ok = ov != null and str(ov.shader.resource_path).ends_with("crowd_hair.gdshader") \
+					and mi.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			elif mi.skin != null:
+				body_ok = mi.mesh.get_surface_count() == 1 and mi.mesh.surface_get_format(0) & Mesh.ARRAY_FORMAT_COLOR != 0 \
+					and ov != null and float(ov.get_shader_parameter("region_mask")) > 0.5
+				# the metric UV2 the tiling pores and weave ride on, and the detail itself
+				if mi.mesh.surface_get_format(0) & Mesh.ARRAY_FORMAT_TEX_UV2 == 0 or ov == null \
+						or float(ov.get_shader_parameter("detail_strength")) <= 0.0 or ov.get_shader_parameter("detail_tex") == null:
+					why += " detail (UV2, detail_tex)"
+		if not body_ok:
+			why += " body (one surface, region colours, masked look)"
+		if not hair_ok:
+			why += " hair material"
+		if tris > 20000:
+			why += " %d triangles" % tris
+		if why != "":
+			bad.append(path.get_file() + ":" + why)
+		rig.queue_free()
+	_check(rigs >= 20 and bad.is_empty(), "the %d crowd rigs keep the contract (24 bones, clips, masked body with detail UV2, cut-out hair, <= 20k triangles)%s" % [rigs, "" if bad.is_empty() else " " + str(bad)])
+	# a rig whose head is covered (the headscarf) is one of the crowd, and never wears a hat
+	var no_hat_ok := true
+	for path: String in ped_script.NO_HAT_MODELS:
+		no_hat_ok = no_hat_ok and path in ped_script.MODELS
+	_check(no_hat_ok and not ped_script.NO_HAT_MODELS.is_empty(), "the hatless rigs (%s) are crowd rigs" % [ped_script.NO_HAT_MODELS])
+
+
+## The Blender-built hero (tools/hero/): the rig contract the clips and the gun hands rely on,
+## and HeroLook's dressing - the hero shaders with their hero_x_* maps, the shadow twin, and the
+## pose-driven folds. Untyped: Avatar and HeroLook are fine, but keep to get() like the rest.
+func _check_hero(avatar: Node) -> void:
+	if avatar == null:
+		_check(false, "the hero is built")
+		return
+	var sk: Skeleton3D = avatar.find_child("Skeleton3D", true, false)
+	var names := ["Hips", "LeftUpLeg", "LeftLeg", "LeftFoot", "LeftToeBase", "RightUpLeg", "RightLeg", "RightFoot",
+		"RightToeBase", "Spine02", "Spine01", "Spine", "LeftShoulder", "LeftArm", "LeftForeArm", "LeftHand",
+		"RightShoulder", "RightArm", "RightForeArm", "RightHand", "neck", "Head", "head_end", "headfront",
+		"RightHandIndex1", "RightHandIndex3", "RightHandThumb1", "LeftHandMiddle3", "LeftHandPinky1", "LeftHandThumb3"]
+	var missing: Array = []
+	for n in names:
+		if sk == null or sk.find_bone(n) < 0:
+			missing.append(n)
+	_check(sk != null and missing.is_empty() and sk.get_bone_count() >= 54, "the hero's rig has the crowd's bones and 30 finger bones (%d bones, missing %s)" % [sk.get_bone_count() if sk else 0, missing])
+	var anim: AnimationPlayer = avatar.find_child("AnimationPlayer", true, false)
+	var clips_ok := anim != null and anim.has_animation("Idle") and anim.has_animation("Casual_Walk_inplace") and anim.has_animation("run_fast_3_inplace")
+	_check(clips_ok, "the hero carries the three shared clips")
+	var look = avatar.get("hero_look")
+	_check(look != null, "HeroLook dressed the hero")
+	if look == null:
+		return
+	var skin: ShaderMaterial = look.skin
+	var cloth: ShaderMaterial = look.cloth
+	var maps_ok: bool = skin != null and cloth != null and look.hair != null \
+		and skin.get_shader_parameter("mask_tex") != null and skin.get_shader_parameter("detail_tex") != null \
+		and cloth.get_shader_parameter("bent_tex") != null and cloth.get_shader_parameter("wrinkle_mask") != null \
+		and cloth.get_shader_parameter("pile_tex") != null
+	_check(maps_ok, "skin, hair and tracksuit are on the hero shaders with their hero_x maps")
+	var twin: MeshInstance3D = look.shadow_twin
+	var body_cast := -1
+	for mi in avatar.find_children("*", "MeshInstance3D", true, false):
+		if mi != twin and str(mi.name).begins_with("hero_mesh"):
+			body_cast = (mi as MeshInstance3D).cast_shadow
+	_check(twin != null and twin.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY and body_cast == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "the hero's shadow comes from his light twin")
+	var w: Vector4 = cloth.get_shader_parameter("wrinkle_weights") if cloth else Vector4.ZERO
+	_check(w.x + w.y + w.z + w.w > 0.05, "the tracksuit's folds follow the pose (weights %s)" % w)
+	var twist_ok := false
+	if sk:
+		for c in sk.get_children():
+			if c.get_class() == "SkeletonModifier3D" and c.get_script() != null and str(c.get_script().resource_path).ends_with("aim_twist.gd"):
+				twist_ok = true
+	_check(twist_ok, "the aiming stance twist sits on the hero's skeleton")
+
+
+## Street clutter (StreetClutter): news boxes and magazine racks, A-frames and gutter litter
+## are batched (one single-surface mesh on the clutter shader per kind), cheap, and the boxes and
+## boards are breakable props with a shape each.
+func _check_street_clutter(city: Node) -> void:
+	var instances := {}
+	var bad_mesh := ""
+	for n in city.find_children("Batch_sc_*", "MultiMeshInstance3D", true, false):
+		var mm := (n as MultiMeshInstance3D).multimesh
+		var kind := str(n.name).trim_prefix("Batch_")
+		instances[kind] = int(instances.get(kind, 0)) + mm.instance_count
+		var mesh := mm.mesh
+		var tris: int = mesh.surface_get_array_len(0) / 3 if mesh and mesh.get_surface_count() > 0 else 0
+		var budget := 500 if kind.begins_with(StreetClutter.K_LITTER) else 1000
+		if mesh == null or mesh.get_surface_count() != 1 or not (mesh.surface_get_material(0) is ShaderMaterial) or tris > budget or tris < 50:
+			bad_mesh += " %s(%d tris)" % [kind, tris]
+	var litter := 0
+	for k in instances:
+		if str(k).begins_with(StreetClutter.K_LITTER):
+			litter += int(instances[k])
+	_check(int(instances.get(StreetClutter.K_NEWS, 0)) + int(instances.get(StreetClutter.K_RACK, 0)) > 5 and litter > 50,
+		"streets carry news boxes, racks and gutter litter (%s)" % str(instances))
+	_check(bad_mesh == "", "street clutter meshes are one clutter-shader surface within budget%s" % bad_mesh)
+	var boxed := 0
+	var shapeless := 0
+	for chunk in city.get_children():
+		if chunk.get("prop_records") == null:
+			continue
+		for r in chunk.prop_records:
+			if r.kind == "newsbox" or r.kind == "aboard":
+				boxed += 1
+				if r.shapes.is_empty():
+					shapeless += 1
+	_check(boxed > 5 and shapeless == 0, "news boxes and A-frames are breakable props with shapes (%d, %d without)" % [boxed, shapeless])
+
+
+## Instances in a building's facade-kit batches (MultiMeshBatch names them Batch_<key>) whose
+## node names start with `prefix`.
+func _kit_count(b: Node, prefix: String) -> int:
+	var n := 0
+	for child in b.get_children():
+		if child is MultiMeshInstance3D and str(child.name).begins_with(prefix):
+			n += (child as MultiMeshInstance3D).multimesh.instance_count
+	return n
+
+
+## The camera's post (CameraPost, VISUAL_ROADMAP #12): the motion blur is never built here (the
+## headless dummy renderer has no RenderingDevice), the effect constructs as a harmless no-op
+## without one, and the depth of field moves between its three states - the ambient far blur,
+## the aim blur (hold alt_fire) and the weapon wheel's - and Quality's say turns it off.
+## Looked up untyped: CameraPost reads WorldState, which this script must not name.
+func _check_camera_post(player: Player) -> void:
+	var post = player.get_node_or_null("CameraRig/Post")
+	_check(post != null and post.is_in_group("camera_post"), "the camera rig has its Post node")
+	if post == null:
+		return
+	var cam: Camera3D = player.camera
+	_check(post.effect == null and cam.compositor == null,
+		"no motion blur compositor without a RenderingDevice (headless)")
+	var mb: CompositorEffect = load("res://scripts/util/motion_blur_effect.gd").new()
+	_check(not mb.get("ready") and not mb.enabled and mb.needs_motion_vectors,
+		"MotionBlurEffect constructs disabled where it cannot run")
+	var attrs := cam.attributes as CameraAttributesPractical
+	await _real_seconds(0.1)
+	_check(attrs.dof_blur_far_enabled and is_equal_approx(attrs.dof_blur_amount, post.dof_amount),
+		"ambient far blur on at HIGH (amount %.3f)" % attrs.dof_blur_amount)
+	# Aim: a gentle blur past what the crosshair is on.
+	Input.action_press("alt_fire")
+	await _real_seconds(0.5)
+	var aim_amount := attrs.dof_blur_amount
+	var aim_far := attrs.dof_blur_far_distance
+	Input.action_release("alt_fire")
+	_check(player.lock_on != null and absf(aim_amount - post.aim_dof_amount) < 0.002
+		and aim_far > post.aim_dof_margin_min and aim_far < post.dof_ground_distance,
+		"holding aim blurs past the focus (amount %.3f from %.1f m)" % [aim_amount, aim_far])
+	await _real_seconds(0.5)
+	_check(absf(attrs.dof_blur_amount - post.dof_amount) < 0.002, "letting go of aim eases back")
+	# The weapon wheel: a stronger blur of the world past the player.
+	Input.action_press("weapon_wheel")
+	await _real_seconds(0.4)
+	var wheel_amount := attrs.dof_blur_amount
+	var wheel_far := attrs.dof_blur_far_distance
+	Input.action_release("weapon_wheel")
+	_check(absf(wheel_amount - post.wheel_dof_amount) < 0.002 and absf(wheel_far - post.wheel_dof_distance) < 0.5,
+		"the weapon wheel blurs the world (amount %.3f from %.1f m)" % [wheel_amount, wheel_far])
+	for i in 60:
+		if Engine.time_scale == 1.0:
+			break
+		await _real_seconds(0.05)
+	await _real_seconds(0.3)
+	_check(Engine.time_scale == 1.0 and absf(attrs.dof_blur_amount - post.dof_amount) < 0.002,
+		"closing the wheel restores time and the ambient blur")
+	# Quality: MEDIUM keeps the aim / wheel blur but drops the ambient one; LOW drops it all.
+	post.apply_quality(1)
+	await _real_seconds(0.1)
+	_check(not attrs.dof_blur_far_enabled and post.motion_blur_allowed, "MEDIUM: no ambient far blur, motion blur allowed")
+	post.apply_quality(2)
+	Input.action_press("alt_fire")
+	await _real_seconds(0.4)
+	Input.action_release("alt_fire")
+	_check(not attrs.dof_blur_far_enabled and not post.motion_blur_allowed, "LOW: no depth of field or motion blur")
+	post.apply_quality(0)
+	await _real_seconds(0.4)
+
+
+## Waits real seconds (the weapon wheel slows game time, and the post eases on the real clock).
+func _real_seconds(seconds: float) -> void:
+	await get_tree().create_timer(seconds, true, false, true).timeout
+
+
+func _ticks(n: int) -> void:
+	for i in n:
+		await get_tree().physics_frame
+
+
+## The scanned trees' measured ladders (FoliageLod; the table tools/foliage_lods.gd writes):
+## every model still matches its table entry (a re-exported model or a new engine's simplifier
+## has to re-run the tool), each surface carries the table's levels as LODs at the table's edges
+## with fewer triangles each step, the shadow twin starts where FoliageLod.shadow_level() says,
+## and every THINNED level is the same canopy - its outline within its edge, its textured cover
+## (area times the atlas' own cut-out, sampled per triangle) within 2 % of level 0's and its
+## tone within 2.5 %.
+func _check_foliage_ladders() -> void:
+	var faults: Array[String] = []
+	var worst := {"cover": 0.0, "tone": 0.0}
+	var thin_levels := 0
+	var images := {}
+	for f: String in PropFactory.foliage_ladder_files():
+		var entry: Dictionary = FoliageLodTable.TABLE.get(f, {})
+		var mesh: Mesh = PropFactory._foliage_mesh(f)
+		if entry.is_empty() or not mesh.has_meta("foliage_ladder"):
+			faults.append("%s is not on its ladder" % f)
+			continue
+		var shadow: Mesh = PropFactory.shadow_proxy(mesh)
+		var surfaces: Array = entry.surfaces
+		for s in mesh.get_surface_count():
+			var spec: Dictionary = surfaces[s]
+			var surf := RenderingServer.mesh_get_surface(mesh.get_rid(), s)
+			var lods: Array = surf.get("lods", [])
+			var levels: Array = spec.levels
+			# The levels, then the counter's copy of the last one (FoliageLod.COUNTER_EDGE).
+			var per_index: float = float((surf.get("index_data", PackedByteArray()) as PackedByteArray).size()) / maxf(float(surf.get("index_count", 1)), 1.0)
+			var before_counter: int = (lods[-2]["index_data"] as PackedByteArray).size() if lods.size() > 1 else (surf.get("index_data", PackedByteArray()) as PackedByteArray).size()
+			if lods.size() != levels.size() + 1 or int(surf.get("index_count", 0)) / 3 != int(spec.tris) \
+					or not is_equal_approx(float(lods[-1]["edge_length"]), FoliageLod.COUNTER_EDGE) \
+					or (lods[-1]["index_data"] as PackedByteArray).size() != before_counter - int(3.0 * per_index):
+				faults.append("%s s%d has %d LODs for %d levels" % [f, s, lods.size(), levels.size()])
+				continue
+			var arrays := mesh.surface_get_arrays(s)
+			var vx: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV] if arrays[Mesh.ARRAY_TEX_UV] != null else PackedVector2Array()
+			var wide := vx.size() > 65535
+			var img := _albedo_image(mesh.surface_get_material(s), images)
+			var ref := _cover_stats(vx, uv, arrays[Mesh.ARRAY_INDEX], img)
+			var outline := FoliageLod.outline(vx, arrays[Mesh.ARRAY_INDEX])
+			var prev := int(spec.tris)
+			for l in levels.size():
+				var idx := _lod_indices(lods[l]["index_data"], wide)
+				var tris := idx.size() / 3
+				var edge := float(levels[l][3])
+				if not is_equal_approx(float(lods[l]["edge_length"]), edge) or tris != int(levels[l][2]) or tris >= prev:
+					faults.append("%s s%d LOD %d (edge %.3f, %d tris after %d)" % [f, s, l, lods[l]["edge_length"], tris, prev])
+				prev = tris
+				if levels[l][0] != "thin":
+					continue
+				# A thinned level's outline stays within its departure (FoliageLod.outline()).
+				var drift := FoliageLod.outline_drift(outline, FoliageLod.outline(vx, idx))
+				if drift > edge + 0.002:
+					faults.append("%s s%d LOD %d outline moved %.3f m (edge %.3f)" % [f, s, l, drift, edge])
+				thin_levels += 1
+				var st := _cover_stats(vx, uv, idx, img)
+				var cover: float = absf(st.cover / maxf(ref.cover, 1e-9) - 1.0)
+				var tone: float = absf(st.tone.get_luminance() / maxf(ref.tone.get_luminance(), 1e-6) - 1.0)
+				worst.cover = maxf(worst.cover, cover)
+				worst.tone = maxf(worst.tone, tone)
+				if cover > 0.02 or tone > 0.025:
+					faults.append("%s s%d thin %d: cover %+.3f, tone %+.3f" % [f, s, levels[l][1], cover, tone])
+			var first: int = FoliageLod.shadow_level(levels, PropFactory.foliage_planted_scale(f))
+			if first >= 0:
+				var ss := RenderingServer.mesh_get_surface(shadow.get_rid(), s) if shadow else {}
+				if ss.is_empty() or int(ss.get("index_count", 0)) / 3 != int(levels[first][2]) or (ss.get("lods", []) as Array).size() != levels.size() - first:
+					faults.append("%s s%d shadow twin" % [f, s])
+	_check(faults.is_empty() and thin_levels > 20, "every scanned tree carries its measured LOD ladder; %d thinned levels keep the canopy (worst cover %.1f %%, tone %.1f %%) %s" % [
+		thin_levels, worst.cover * 100.0, worst.tone * 100.0, faults])
+
+
+## A surface's source albedo (the JPG the import came from, read raw: the imported texture is
+## VRAM-compressed), or null. Cached per path.
+func _albedo_image(mat: Material, cache: Dictionary) -> Image:
+	var tex: Texture2D = null
+	if mat is ShaderMaterial:
+		tex = (mat as ShaderMaterial).get_shader_parameter("albedo_tex")
+	elif mat is BaseMaterial3D:
+		tex = (mat as BaseMaterial3D).albedo_texture
+	if tex == null or tex.resource_path == "":
+		return null
+	if not cache.has(tex.resource_path):
+		cache[tex.resource_path] = Image.load_from_file(ProjectSettings.globalize_path(tex.resource_path))
+	return cache[tex.resource_path]
+
+
+## LOD index bytes as indices (16-bit below 65,536 vertices, 32-bit above).
+func _lod_indices(bytes: PackedByteArray, wide: bool) -> PackedInt32Array:
+	if wide:
+		return bytes.to_int32_array()
+	var out := PackedInt32Array()
+	out.resize(bytes.size() / 2)
+	for i in out.size():
+		out[i] = bytes.decode_u16(i * 2)
+	return out
+
+
+## Textured cover of some triangles - area times the atlas' cut-out at each triangle's UV centre
+## (the black background the leaves were shot on counts as nothing, as in foliage_tex.gdshader) -
+## its mean colour, and the triangles' bounds.
+func _cover_stats(vx: PackedVector3Array, uv: PackedVector2Array, ix: PackedInt32Array, img: Image) -> Dictionary:
+	var cover := 0.0
+	var tone := Color(0.0, 0.0, 0.0, 0.0)
+	var box := AABB(vx[ix[0]], Vector3.ZERO)
+	var w := img.get_width() if img else 1
+	var h := img.get_height() if img else 1
+	for t in range(0, ix.size(), 3):
+		var a := vx[ix[t]]
+		var b := vx[ix[t + 1]]
+		var c := vx[ix[t + 2]]
+		box = box.expand(a).expand(b).expand(c)
+		var area := 0.5 * (b - a).cross(c - a).length()
+		var col := Color.WHITE
+		if img and not uv.is_empty():
+			var m := (uv[ix[t]] + uv[ix[t + 1]] + uv[ix[t + 2]]) / 3.0
+			col = img.get_pixel(posmod(int(m.x * w), w), posmod(int(m.y * h), h))
+		var k := area * FoliageLod.cutout(col)
+		cover += k
+		tone += col * k
+	return {"cover": cover, "tone": tone / maxf(cover, 1e-9), "box": box}
+
+
+## The palms' hand-built LOD ladder (PropFactory.PALM_LEVELS): every variant carries each
+## coarser level as a LOD at its own error, fewer triangles each step, with a shadow twin that
+## starts at PALM_SHADOW_LEVEL; and every level is the same tree - the same crown extents, leaf
+## area and tone - which only holds while each level draws the same random numbers in the same
+## order (skip one and every frond after it moves).
+func _check_palm_ladder() -> void:
+	var levels: Array = PropFactory.PALM_LEVELS
+	var faults: Array[String] = []
+	var far_share := 0.0
+	for v in PropFactory.PALM_VARIANTS:
+		var mesh: Mesh = PropFactory.palm(v)
+		var surf := RenderingServer.mesh_get_surface(mesh.get_rid(), 0)
+		var lods: Array = surf.get("lods", [])
+		if lods.size() != levels.size() - 1:
+			faults.append("palm %d has %d LODs" % [v, lods.size()])
+			continue
+		var bytes_per_index: float = float((surf.get("index_data", PackedByteArray()) as PackedByteArray).size()) / maxf(float(surf.get("index_count", 1)), 1.0)
+		var prev := int(surf.get("index_count", 0)) / 3
+		for l in lods.size():
+			var tris := int((lods[l]["index_data"] as PackedByteArray).size() / bytes_per_index) / 3
+			if not is_equal_approx(float(lods[l]["edge_length"]), float(levels[l + 1].edge)) or tris >= prev:
+				faults.append("palm %d LOD %d (edge %.2f, %d tris after %d)" % [v, l, lods[l]["edge_length"], tris, prev])
+			prev = tris
+		far_share = maxf(far_share, float(prev) / maxf(float(surf.get("index_count", 0)) / 3.0, 1.0))
+		var shadow: Mesh = PropFactory.shadow_proxy(mesh)
+		var shadow_surf := RenderingServer.mesh_get_surface(shadow.get_rid(), 0) if shadow else {}
+		if shadow == null or (shadow_surf.get("lods", []) as Array).size() != levels.size() - 1 - PropFactory.PALM_SHADOW_LEVEL:
+			faults.append("palm %d shadow twin" % v)
+		var ref := _palm_level_stats(v, 0)
+		for l in range(1, levels.size()):
+			var st := _palm_level_stats(v, l)
+			var drift: float = maxf((st.box.position - ref.box.position).abs()[(st.box.position - ref.box.position).abs().max_axis_index()],
+				(st.box.end - ref.box.end).abs()[(st.box.end - ref.box.end).abs().max_axis_index()])
+			var tone_ratio: float = st.tone.g / ref.tone.g
+			if drift > float(levels[l].edge) or absf(st.area / ref.area - 1.0) > 0.08 or absf(tone_ratio - 1.0) > 0.025:
+				faults.append("palm %d level %d drifts %.2f m, area %.2f, tone %.3f" % [v, l, drift, st.area / ref.area, tone_ratio])
+	_check(faults.is_empty() and far_share < 0.02, "every palm carries its own LOD ladder down to %.1f %% of its triangles, each level the same tree %s" % [far_share * 100.0, faults])
+
+
+## A palm level's extents, leaf area and area-weighted tone.
+func _palm_level_stats(variant: int, level: int) -> Dictionary:
+	var arr: Array = PropFactory._palm_level(variant, PropFactory.PALM_LEVELS[level])
+	var vx: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+	var ix: PackedInt32Array = arr[Mesh.ARRAY_INDEX]
+	var col: PackedColorArray = arr[Mesh.ARRAY_COLOR]
+	var area := 0.0
+	var tone := Color(0.0, 0.0, 0.0, 0.0)
+	var box := AABB(vx[ix[0]], Vector3.ZERO)
+	for t in range(0, ix.size(), 3):
+		var a := 0.5 * (vx[ix[t + 1]] - vx[ix[t]]).cross(vx[ix[t + 2]] - vx[ix[t]]).length()
+		area += a
+		tone += col[ix[t]] * a
+		for k in 3:
+			box = box.expand(vx[ix[t + k]])
+	return {"area": area, "tone": tone / maxf(area, 0.0001), "box": box}
+
+
+func _check(ok: bool, label: String) -> void:
+	_checks += 1
+	# printerr: unbuffered, so progress is visible even if the run is killed.
+	printerr("%s %s" % ["PASS" if ok else "FAIL", label])
+	if _profile:
+		printerr("TIME %.2f s, rss %d MB, frame %d" % [Time.get_ticks_msec() / 1000.0, _rss_mb(), Engine.get_process_frames()])
+	if not ok:
+		_failures.append(label)
+
+
+func _finish() -> void:
+	printerr("SMOKE TIME %.1f s, peak rss %d MB" % [Time.get_ticks_msec() / 1000.0, _peak_rss_mb()])
+	if _failures.is_empty():
+		print("SMOKE TEST PASSED (%d checks)" % _checks)
+		get_tree().quit(0)
+	else:
+		printerr("SMOKE TEST FAILED: %d of %d checks" % [_failures.size(), _checks])
+		get_tree().quit(1)
+
+
+## A landmark's anchor BY ID. This used to be Landmarks.all()[1] and [3], which quietly tied the
+## test to the order of that array: adding a landmark anywhere but the end shifted the indices
+## and the test then teleported the player to the wrong place and reported that the pier and the
+## crown tower had not been built. The landmark it means is the one it names.
+func _landmark_anchor(id: String) -> Vector2:
+	for lm in Landmarks.all():
+		if lm.id == id:
+			return lm.anchor
+	_check(false, "landmark '%s' exists" % id)
+	return Vector2.ZERO
