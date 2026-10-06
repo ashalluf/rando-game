@@ -295,6 +295,12 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 One building you can walk into: the corner store (HANDOFF "The corner store").**
+  Corner lots in MIDTOWN and the SUBURBS, by hash after every other lot claim, hold a one-storey
+  convenience store with real interior geometry (shelving, gondolas, coolers, counter, cigarette
+  rack, ~3k code-built products, a cashier). The interior is only drawn while the camera or the
+  player is within 5 m of the storefront; otherwise the glass traces the same room from the same
+  layout numbers, so the facade matches the inside. `WALK_IN_STORE=0` turns it off.
 - **2026-10-05 The street's signs are real models (HANDOFF "The street's signs").** The signs
   were a cylinder for a stop sign facing the junction diagonally, flat boxes with TextMesh names
   and red-banded white boxes. Decisions: built in CODE at real size (StreetSignKit; BoulevardSigns owns the kerb's parking plates), not Blender - every
