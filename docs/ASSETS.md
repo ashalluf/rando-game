@@ -746,3 +746,9 @@ The containers are PortKit's. Railroad, marks and livery invented (Arroyo Pacifi
 | Asset | Source | License | Used for | Added |
 |---|---|---|---|---|
 | `assets/textures/road_wear/road_wear_color.png`, `_nrm.png`, `_data.png` (25 stamps, 2048 px atlas) | `tools/make_road_wear.py`: cut and recoloured from Asphalt033, GravelConcrete03, DryGroundRocks and Concrete034 (rows above: ambientCG / Poly Haven, CC0) plus procedural shapes (cracks, potholes, ruts, ripples, stains, tyre marks, paint ghosts) | CC0 sources; generated art ours | RoadWear (road, pavement and car-park wear) | 2026-10-05 |
+
+## Walk of fame lettering (our own generator)
+
+| Asset | Source | License | Used for | Added |
+|---|---|---|---|---|
+| `assets/textures/star_boulevard/walk_atlas.png` (1024 x 2048, names, signatures, emblems) | `tools/make_star_boulevard_art.py` (PIL); glyphs rendered offline from DejaVu Serif Bold (Bitstream Vera licence) and Liberation Serif Italic / Bold Italic (SIL OFL); emblems drawn in code; every name invented | ours (fonts permit rendered output) | the walk of fame's stars and forecourt slabs | 2026-10-05 |

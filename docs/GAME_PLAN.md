@@ -1470,6 +1470,13 @@ already mapped so milestone 2 is script-only.
   real geometry on its window grid; the old 150 ft limit holds. docs/HANDOFF.md "The historic
   core"; CLAUDE.md "Historic core".
 
+- **2026-10-05 One midtown boulevard is a walk of fame.** A hash of the seed picks an east-west
+  midtown boulevard with plain blocks both sides; its pavements get terrazzo stars with INVENTED
+  names (never a real person), its frontage low souvenir-strip blocks, one movie palace behind a
+  forecourt of handprint slabs, costumed characters in ORIGINAL costumes (never a copyrighted
+  character) and sightseeing buses. Everything after the existing rolls; STAR_BOULEVARD=0 the
+  A/B. docs/HANDOFF.md "The walk of fame"; CLAUDE.md "Walk of fame".
+
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
   in the afternoon, backlighting the mountain faces the city looks at. Realism wins over the old

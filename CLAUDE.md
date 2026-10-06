@@ -4136,6 +4136,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   penthouse|mast|bmu`, `NIGHT=1`, `GOLDEN=1`, seconds), find them in the city with
   `tools/rooftops/find.gd -- --at=x,z --radius=m` (an EYE per pad and pool), count with
   `tools/rooftop_probe.gd`. Checks: `tests/rooftops_checks.gd`.
+- Walk of fame (2026-10-05, docs/HANDOFF.md "The walk of fame"): `StarBoulevard`
+  (`scripts/world/star_boulevard.gd`) - a hash-chosen midtown east-west boulevard (`plan_for()`,
+  pure, cached; seed 1337: Canyon Blvd) whose pavements get a band of terrazzo stars 2.6-4.0 m in
+  from the kerb (`shaders/walk_of_fame.gdshader`, names / emblems from
+  `assets/textures/star_boulevard/walk_atlas.png` by `tools/make_star_boulevard_art.py`, all
+  INVENTED), a movie palace (BroadwayTheatre on a frame set back behind a forecourt of handprint
+  slabs, two lots deep), low souvenir-strip blocks (`dress()`: `name_pool`, never new SHOP_NAMES -
+  the vinyl's 6-bit table is nearly full), goods, feather flags, neon star medallions on the
+  lamps, `StreetCharacter`s in ORIGINAL costumes and sightseeing buses at a kept-clear kerb. Five
+  hook lines in city_chunk.gd, after every roll. `STAR_BOULEVARD=0` the A/B; probe
+  `tools/star_boulevard/probe.tscn`; checks `tests/star_boulevard_checks.gd`.
 - Wilshire deco (VISUAL_ROADMAP #86, 2026-10-05, docs/HANDOFF.md "Wilshire's deco boulevard"):
   `DecoBoulevard` (`scripts/world/deco_boulevard.gd`) gives midtown's boulevard frontage its
   1920s-30s character. A MIDTOWN BUILDINGS block's edge lot whose cell faces a road
