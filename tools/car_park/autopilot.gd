@@ -15,6 +15,12 @@ var arrive: float = 2.6
 var done: bool = false
 ## Furthest point reached (an index into path).
 var reached: int = 0
+## Ticks spent pushing without moving, and ticks left backing up out of it (a three-point turn).
+var _blocked: int = 0
+var _backing: int = 0
+var _back_steer: float = 0.0
+## How many times it had to back up.
+var backups: int = 0
 
 
 func setup(points: PackedVector3Array) -> void:
@@ -55,6 +61,24 @@ func step(car: Node3D) -> bool:
 	var ang := fwd.signed_angle_to(to.normalized(), Vector3.UP)
 	var steer := clampf(-ang * 2.4, -1.0, 1.0)
 	var vel: float = (car as RigidBody3D).linear_velocity.dot(-car.global_basis.z) if car is RigidBody3D else 0.0
+	# Backing up out of a corner it could not make: the wheels turned the other way.
+	if _backing > 0:
+		_backing -= 1
+		_press("move_forward", 0.0)
+		_press("move_back", 0.8)
+		_press("move_right", maxf(_back_steer, 0.0))
+		_press("move_left", maxf(-_back_steer, 0.0))
+		return false
+	if absf(vel) < 0.4:
+		_blocked += 1
+	else:
+		_blocked = 0
+	if _blocked > 75:
+		_blocked = 0
+		_backing = 100
+		backups += 1
+		_back_steer = -signf(steer) if absf(steer) > 0.05 else 1.0
+		return false
 	var want := speed * (1.0 - 0.6 * clampf(absf(ang) / 1.0, 0.0, 1.0))
 	# Reversing out of a corner it cannot make: back up straight.
 	var thr := clampf((want - vel) * 0.7, -1.0, 1.0)

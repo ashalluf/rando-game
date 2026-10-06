@@ -1818,6 +1818,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`CivicGeo`: walls cut round arched / square openings, hip and gable roofs) with
   `shaders/civic_glass.gdshader` tracing the room behind each pane; LOD / far: coded boxes.
   `CIVIC=0` the A/B; probe `tools/civic/probe.gd`; checks `tests/civic_buildings_checks.gd`.
+- Multi-storey car parks (2026-10-06, "a car park the player can drive up"; HANDOFF "Multi-storey
+  car parks"): `CarPark` (`scripts/world/car_park.gd`, pure: a hash per `CELL`, a site of whole
+  lots on one street of a DOWNTOWN-off-core / MIDTOWN block nothing else claims, `claims()` asked
+  LAST in `_build_lot()`; `layout()`, `ramp_rise()`, `drive_path()`) and `CarParkBuild` (one mesh,
+  one trimesh body for every deck, ramp, wall, column and parked car; `car_park_deck.gdshader`
+  draws stalls, tracks and oil; `CarParkGate` arms lift for the player; LOD / far: storey boxes).
+  Stacked straight ramps in a walled strip, U-turns in the end zones; two-way, the exit beside the
+  entry. Keep-clear hooks: `_park_car()`, Encampment, Micromobility. `CAR_PARKS=0` is the A/B;
+  `tools/car_park/probe.gd`, `drive_shot.gd` (an autopilot drives up for stills); checks
+  `tests/garage_drive_in_checks.gd`.
 - Police stations (2026-10-05, "police stations the cruisers come out of"; HANDOFF 9bz):
   `PoliceStation` (`scripts/world/police_station.gd`, static). WHERE is worked out like
   FireStation's, never placed: `CELL` 1500 m squares, a hash of seed + cell, up to `TRIES` hashed

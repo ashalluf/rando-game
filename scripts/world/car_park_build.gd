@@ -130,13 +130,15 @@ static func _structure(g: Geo, ch: CityChunk, s: Dictionary, xf: Transform3D) ->
 	var PAR := CarPark.PARAPET
 	var cols: Array = lay.cols
 	var col_v: Array = lay.col_v
-	# --- Slabs and deck tops, every level (0 the ground, `decks` the roof).
+	# --- Slabs and deck tops, every level (0 the ground, `decks` the roof). Their soffits and the
+	# beams' are painted white, as real car parks paint them to make the most of the light.
 	for k in decks + 1:
 		var y := F * float(k)
 		var roof := k == decks
 		if k == 0:
 			g.box("concrete", Vector3(e0, -0.9, 0.0), Vector3(ls, 0.0, ds), true, true)
 		else:
+			g.bottom_key = "ceiling"
 			# The slab, with the ramp strip open from r0 to r1.
 			g.box("concrete", Vector3(e0, y - SL, 0.0), Vector3(ls, y, s0), true, true)
 			g.box("concrete", Vector3(e0, y - SL, s0), Vector3(r0, y, s1), true, true)
@@ -146,6 +148,7 @@ static func _structure(g: Geo, ch: CityChunk, s: Dictionary, xf: Transform3D) ->
 			else:
 				g.box("concrete", Vector3(e0, y - SL, s1), Vector3(ls, y, ds), true, true)
 		_deck_tops(g, lay, y, roof)
+		g.bottom_key = "ceiling"
 		# Downstand beams under every deck over the ground, across v at each column line.
 		if k >= 1:
 			for cu: float in cols:
@@ -160,6 +163,7 @@ static func _structure(g: Geo, ch: CityChunk, s: Dictionary, xf: Transform3D) ->
 					g.box("concrete", Vector3(bu0, y - SL - CarPark.BEAM, s1), Vector3(bu0 + 0.4, y - SL, ds), false)
 				else:
 					g.box("concrete", Vector3(bu0, y - SL - CarPark.BEAM, 0.0), Vector3(bu0 + 0.4, y - SL, ds), false)
+		g.bottom_key = ""
 		# Columns up to the next deck, with the level's band and a hazard foot.
 		if k < decks:
 			var top := F * float(k + 1) - SL - CarPark.BEAM
@@ -311,7 +315,7 @@ static func _ramp(g: Geo, lay: Dictionary, k: int) -> void:
 		var ba := 0.0 if k == 0 else ya - RAMP_SLAB
 		var bb := 0.0 if k == 0 else yb - RAMP_SLAB
 		if k > 0:
-			g.quad("concrete", [Vector3(ua, ba, s0), Vector3(ub, bb, s0), Vector3(ub, bb, s1), Vector3(ua, ba, s1)], -up, [], Vector2.ZERO, true)
+			g.quad("ceiling", [Vector3(ua, ba, s0), Vector3(ub, bb, s0), Vector3(ub, bb, s1), Vector3(ua, ba, s1)], -up, [], Vector2.ZERO, true)
 	if k == 0:
 		# The wedge's end, facing on along the strip.
 		var r1: float = lay.r1
@@ -747,6 +751,14 @@ static func material(key: String) -> Material:
 				m = PropFactory.pbr("concrete", 3.0, CONCRETE_DARK.lerp(CONCRETE, 0.6))
 			"precast":
 				m = PropFactory.pbr("concrete", 2.5, CONCRETE)
+			"ceiling":
+				# Painted white, and lit from below by the fittings and the bright deck (a soffit
+				# under a slab sees no sky: without this it drew as a brown-black lid).
+				var cm := PropFactory.pbr("plaster_white", 3.0, Color(0.93, 0.93, 0.9)).duplicate() as StandardMaterial3D
+				cm.emission_enabled = true
+				cm.emission = Color(0.93, 0.93, 0.9)
+				cm.emission_energy_multiplier = 0.16
+				m = cm
 			"coping":
 				m = PropFactory.material(Color(0.62, 0.62, 0.6), 0.8)
 			"roofing":
@@ -856,6 +868,8 @@ class Geo:
 	var _s: Dictionary = {}
 	var col := PackedVector3Array()
 	var car_faces := PackedVector3Array()
+	## The material boxes' bottom faces take when set (the decks' painted soffits).
+	var bottom_key := ""
 
 	func _surf(key: String) -> CpSurf:
 		if not _s.has(key):
@@ -929,7 +943,7 @@ class Geo:
 				continue
 			if no_bottom and n == Vector3.DOWN:
 				continue
-			quad(key, [f[1], f[2], f[3], f[4]], n, [], Vector2.ZERO, collide)
+			quad(bottom_key if n == Vector3.DOWN and bottom_key != "" else key, [f[1], f[2], f[3], f[4]], n, [], Vector2.ZERO, collide)
 
 	## A deck's top over [lo.x, hi.x] x [lo.z, hi.z] at lo.y: `kind` and `roof` into UV2, UV in
 	## metres - x along u from `origin.x`, y across: from `origin.y` (a drive's centre, or a stall

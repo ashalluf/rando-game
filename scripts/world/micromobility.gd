@@ -295,6 +295,7 @@ static func _occupied_more(chunk: CityChunk) -> Array:
 	if apron != Vector2.INF:
 		out.append([apron, 12.0])
 	out.append_array(PoliceStation.keep_clear_points(chunk.plan, chunk.ix, chunk.iz))
+	out.append_array(CarPark.keep_clear_points(chunk.plan, chunk.ix, chunk.iz))
 	var data: Dictionary = chunk._batch.data()
 	for key: String in ["bw_rack", "bw_gown", "bw_table"]:
 		if data.has(key):

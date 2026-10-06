@@ -8,8 +8,8 @@ var prefix: String
 var n_shot: int = 0
 
 
-func run(t: SceneTree) -> void:
-	tree = t
+func run(st: SceneTree) -> void:
+	tree = st
 	out_dir = OS.get_environment("OUT_DIR") if OS.get_environment("OUT_DIR") != "" else "build/carpark"
 	prefix = OS.get_environment("PREFIX")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://" + out_dir) if not out_dir.begins_with("/") else out_dir)
@@ -51,8 +51,11 @@ func run(t: SceneTree) -> void:
 	var xf := CarParkBuild.frame_xform(plan, s)
 	var local_xf := Transform3D(xf.basis, ws.call("to_local", xf.origin))
 	# 1. The structure from across the street.
-	var across := local_xf * Vector3(float(lay.ls) * 0.72, 1.7, -plan.sidewalk_width * 2.0 - plan.road_width(int(s.road[0]), int(s.road[1])) - 3.0)
+	var across := local_xf * Vector3(float(lay.ls) * 0.9, 1.7, -float(lay.v0) - plan.sidewalk_width - plan.road_width(int(s.road[0]), int(s.road[1])) * 0.6)
 	_aim(across, local_xf * Vector3(float(lay.ls) * 0.42, float(lay.height) * 0.42, 6.0), 60.0)
+	var ew: Vector3 = ws.call("to_world", cam.global_position)
+	var ef := -cam.global_basis.z
+	print("DRIVE exterior EYE=%.2f,%.2f,%.2f,%.1f,%.1f" % [ew.x, ew.y, ew.z, rad_to_deg(atan2(-ef.x, -ef.z)), rad_to_deg(asin(ef.y))])
 	await _shot("exterior")
 	if OS.get_environment("NO_DRIVE") == "1":
 		return
@@ -72,7 +75,15 @@ func run(t: SceneTree) -> void:
 	var decks := int(lay.decks)
 	var gy0: float = (ws.call("to_local", Vector3(0.0, CarPark.ground_y(plan, s), 0.0)) as Vector3).y
 	# Shots by where the car has got to on the path (index) or how high it is.
-	var shots := [[5, "barrier", "side"], [9, "ramp_up", "chase"], [13, "deck2", "chase"], [path.size() - 6, "top_ramp", "chase"],
+	var first_up := 0
+	var last_ramp := 0
+	for j in path.size():
+		var h := path[j].y - gy0
+		if first_up == 0 and h > CarPark.FLOOR - 0.05:
+			first_up = j
+		if h < CarPark.FLOOR * float(decks) - 0.1:
+			last_ramp = j
+	var shots := [[5, "barrier", "side"], [first_up - 1, "ramp_up", "chase"], [first_up + 6, "deck2", "chase"], [last_ramp, "top_ramp", "chase"],
 		[path.size() - 1, "roof", "roof"]]
 	var next := 0
 	Engine.max_physics_steps_per_frame = 24

@@ -14201,3 +14201,81 @@ streets' glow stands in). The lamps stand where the old ones stood, and on some 
 is beside a utility pole (StreetDetail's), which the old thin post hid better. No real light
 shaped like the cobra's cut-off (still an omni). Shot lamps break as before (debris box), no
 falling pole.
+
+## 9d?. Multi-storey car parks you can drive up, 2026-10-06 (fleet wave 2, `wt/garage-drive-in`; VISUAL_ROADMAP "?")
+
+The task: "A multi-storey car park the player can drive up: real ramps, decks with stalls and parked
+cars, columns, low ceilings with lights, an exit down, barriers at the entry ... collision on every
+deck. Drive a car up in a still sequence."
+
+**Decision: standalone structures, not LotFill's podiums.** A parking podium is one part of a
+tower's Building, its decks traced in `building.gdshader` behind a box collider with a tower
+standing on it; making it drivable would mean replacing the podium with real geometry under a tower
+the Building lays out round it. So the car parks are their own sites, in LotFill's districts
+(DOWNTOWN off the tower core, MIDTOWN), the way the fire and police stations are: the podiums keep
+drawing as before.
+
+**Where** (`CarPark`, `scripts/world/car_park.gd`, pure): the city in `CELL` 640 m squares; a hash
+of seed + cell (`ODDS`) and up to `TRIES` hashed points; the first block that is plain BUILDINGS,
+off the core (`MAX_BOOST`), not a site / grounds / hospital / landmark / river block / the runway
+zone, and has no police station, fire station, alley (`Alleys.spec`) or tower going up
+(`Construction.tower_site`) gives a SITE: a centred run of its lot cells along one street
+(`SITE_TARGET` 60 x 46 m, `SITE_MIN` / `SITE_MAX`), every lot present and not taken by anything
+`_build_lot()` asks before it (`_taken()`: yards, surface lots, the freeway corridor, the stations,
+worship, Broadway, Chinatown, the dealers, the civic buildings, an oil well), clear of the
+freeways, the ground within `MAX_RELIEF`. `CityChunk._build_lot()` asks `CarPark.claims()` after
+every other claim (the pad roll is made either way), and the site's first lot builds it. 11 car
+parks in the 9 km window round downtown on the default seed (2 in midtown, 2-3 decks; 9 downtown,
+3-6 decks).
+
+**The plan** (`CarPark.layout()`, pure; the site's street frame, u along the street): a stair and
+lift CORE at the low-u end (`CORE` 5 m), END ZONE E0 (`END` 7.4 m: the entry and exit lanes at the
+ground with the island, ticket and pay machines and two barrier arms; a cross aisle on every deck),
+the middle, END ZONE E1. Across v: a MODULE (a 5.2 m stall row, a 6.8 m two-way aisle, a stall
+row) on the street, the RAMP STRIP (7 m between walls) behind it, and on a deep site a second
+module. Every level's straight ramp sits in the strip from u_r0 (E0's end) to u_r1 (`RAMP_LEN`
+24 m), stacked one storey apart, so the clearance between ramps is constant: `ramp_rise()` climbs
+`FLOOR` 3.05 m at 14.9 % with vertical curves of `RAMP_EASE` 3.5 m at both ends. A car on deck k
+takes the ramp at E0 toward +u, arrives on deck k + 1 past u_r1, U-turns in E1 into the aisle,
+drives back to E0, U-turns onto the next ramp. The exit down is the same ramps (two-way) to the
+ground and out of the exit lane beside the entry. Decks: 3-6 over the ground downtown, 2-4 in
+midtown; floor to floor 3.05, slab 0.24, downstand beams 0.42 - 2.39 m under a beam, the entry's
+clearance bar at 2.13 m ("CLEARANCE 7'0\"").
+
+**The structure** (`CarParkBuild`, `scripts/world/car_park_build.gd`): one node in the frame,
+one mesh (a surface per material) and ONE trimesh StaticBody (world layer, mask 0, backface
+collision: every slab, ramp, wall, column, kerb, the apron and every parked car's box):
+- decks' tops on `shaders/car_park_deck.gdshader`: UV is band metres, UV2 the band's kind (drive,
+  stall row, ramp) and the roof flag; stall lines, a yellow dashed centre line, polished and
+  darkened wheel tracks, an oil stain under every engine (nose-in parking), tyre scuffs at the
+  stall mouths, grime along the back wall, grip grooves on the ramps, the roof wet in the rain;
+- slabs with the strip open over the ramp, downstand beams on the column lines, columns with the
+  level's colour band and a hazard foot (`LEVEL_COLORS`), precast spandrels per bay with a coping,
+  the strip's walls (`_strip_walls()`: the deck's upstand plus whatever of the ramp's own parapet
+  it does not cover, so the wall is solid near the deck and opens up where the ramp has climbed
+  past), the roof's parapet round the last ramp's opening;
+- ceiling fittings down every aisle, across the end zones, along the strip lane and on the ramp
+  walls, lit day and night; roof light poles; night pools on the decks (`light_pool`);
+- the core (glazed stair slot on the street face, a lit lobby door, a steel door and a lit EXIT
+  sign onto every deck, the lift overrun, the lit blue P panel), the island, machines, bollards,
+  the clearance bar on its chains, the ENTER / EXIT board, a lit PARK blade sign, the apron (a
+  flared kerb ramp off the road, flat over the pavement, up the setback), hedges in planters;
+- parked cars: ArenaGrounds' static cars in the stalls (`FILL` 0.68, the roof `ROOF_FILL` 0.4),
+  hashed per stall, MultiMeshes (inside: no shadow; the roof's cast);
+- `CarParkGate` arms (`scripts/world/car_park_gate.gd`): lift when the player, on foot or at the
+  wheel, is within `reach` 7.5 m; no collision (an arm a car can hook launches it);
+- lettering (TextMesh, not on the web): the operator's name (`OPERATORS`, invented), LEVEL n on the
+  core wall per deck, UP at each ramp's foot, ENTER / EXIT, P, PARK.
+LOD and the far city: a dark band and a concrete spandrel box per storey and the core
+(`_build_far()`, the old far-box path, plain).
+
+**Kept clear**: the kerb in front of the entry (`CarPark.keeps_clear()`, one line in
+`CityChunk._park_car()`), the driveway across the pavement (`keep_clear_points()`, one line each in
+Encampment's and Micromobility's keep-clear lists - a camp was the first thing that blocked a car).
+
+**Tools**: `tools/car_park/probe.gd` (headless, seconds: every car park with size, decks and an
+EYE); `tools/car_park/drive_shot.gd` (opengl3: the exterior, then the player drives a car up with
+`tools/car_park/autopilot.gd` - pure pursuit on the player's own Input actions along
+`CarPark.drive_path()` - with stills at the barrier, on the first ramp, on deck 2, on the top ramp
+and on the roof; 3D is switched off between shots so the drive runs at full physics speed);
+`CAR_PARKS=0` is the A/B. Checks: `tests/garage_drive_in_checks.gd`.

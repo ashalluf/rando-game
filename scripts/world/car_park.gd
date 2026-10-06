@@ -33,7 +33,7 @@ const DISTRICTS := [CityPlan.District.DOWNTOWN, CityPlan.District.MIDTOWN]
 const MAX_BOOST := 0.55
 ## Site: frontage x depth (m) aimed for, at least, at most.
 const SITE_TARGET := Vector2(60.0, 46.0)
-const SITE_MIN := Vector2(47.0, 26.5)
+const SITE_MIN := Vector2(51.0, 26.5)
 const SITE_MAX := Vector2(92.0, 76.0)
 ## Ground within this of level over the site (m).
 const MAX_RELIEF := 0.9
@@ -46,7 +46,7 @@ const WALL := 0.25
 const STRIP := 7.0
 const MODULE := STALL_D * 2.0 + AISLE
 const CORE := 5.0
-const END := 7.4
+const END := 9.0
 const RAMP_LEN := 24.0
 ## The ramp's vertical curves at each end (m along it; the grade is half the ramp's there).
 const RAMP_EASE := 3.5
@@ -379,6 +379,20 @@ static func keeps_clear(plan: CityPlan, p: Vector2) -> bool:
 	return absf(along) < END * 0.5 + 5.5 and lat > -1.0 and lat < plan.sidewalk_width + w * 0.5 + 0.5
 
 
+## Points (true world XZ) and radii that pavement clutter (camps, scooters) keeps clear of: the
+## driveway across the pavement to the entry, flares and all.
+static func keep_clear_points(plan: CityPlan, bx: int, bz: int) -> Array:
+	var s := on_block(plan, bx, bz)
+	if s.is_empty():
+		return []
+	var lay: Dictionary = s.layout
+	var mid: float = float(lay.u0) + float(lay.e0) + END * 0.5
+	var out: Array = []
+	for du: float in [-6.0, -2.0, 2.0, 6.0]:
+		out.append([world_xz(s, mid + du, -plan.sidewalk_width * 0.5), 4.5])
+	return out
+
+
 ## The way a car drives up: true world points (x, height over the structure's ground deck, z)
 ## from the road in front of the entry, in past the barrier, round each deck and up each ramp to
 ## the roof. `to_deck` stops on that deck. For the checks and the stills' autopilot.
@@ -395,8 +409,15 @@ static func drive_path(plan: CityPlan, s: Dictionary, to_deck: int = -1) -> Pack
 	var lane_in: float = float(lay.entry_u) - u0
 	var strip_c := (float(lay.s0) + float(lay.s1)) * 0.5
 	var aisle_c := WALL + STALL_D + AISLE * 0.5
-	var e1c: float = float(lay.m1) + END * 0.5
-	var e0c: float = float(lay.e0) + END * 0.5 + 0.6
+	var r0: float = lay.r0
+	var r1: float = lay.r1
+	var m1: float = lay.m1
+	# Arcs as points every 30 degrees (u = cu + R cos a, v = cv + R sin a), degrees a0 to a1.
+	var arc := func(cu: float, cv: float, R: float, a0: float, a1: float, y: float) -> void:
+		var n := maxi(2, int(absf(a1 - a0) / 30.0))
+		for j in range(1, n + 1):
+			var a := deg_to_rad(lerpf(a0, a1, float(j) / float(n)))
+			P.call(cu + R * cos(a), y, cv + R * sin(a))
 	# On the road in front, the kerb lane, a little up the street, then the turn in.
 	P.call(lane_in - 30.0, 0.0, -v0 - plan.sidewalk_width - w * 0.25)
 	P.call(lane_in - 12.0, 0.0, -v0 - plan.sidewalk_width - w * 0.25)
@@ -404,24 +425,29 @@ static func drive_path(plan: CityPlan, s: Dictionary, to_deck: int = -1) -> Pack
 	P.call(lane_in, 0.0, -v0 + 0.2)
 	P.call(lane_in, 0.0, 1.0)
 	P.call(lane_in, 0.0, ARM_V + 3.0)
-	P.call(lane_in, 0.0, strip_c - 4.5)
-	P.call(float(lay.r0) - 1.0, 0.0, strip_c)
+	# Over to the end zone's far side, then a right-hand sweep onto the ramp's foot.
+	var R := 5.4
+	var sx := r0 + 0.6 - R
+	P.call(lerpf(lane_in, sx, 0.6), 0.0, ARM_V + 7.5)
+	P.call(sx, 0.0, strip_c - R)
+	arc.call(sx + R, strip_c - R, R, 180.0, 90.0, 0.0)
+	var cv := (strip_c + aisle_c) * 0.5
+	var RU := (strip_c - aisle_c) * 0.5
 	for k in decks:
 		var y := FLOOR * float(k)
-		P.call(float(lay.r0) + 2.0, y, strip_c)
-		P.call(float(lay.r0) + RAMP_LEN * 0.5, y + ramp_rise(RAMP_LEN * 0.5), strip_c)
-		P.call(float(lay.r1) + 1.0, y + FLOOR, strip_c)
+		P.call(r0 + 3.0, y + ramp_rise(3.0 - 0.6), strip_c)
+		P.call(r0 + RAMP_LEN * 0.5, y + ramp_rise(RAMP_LEN * 0.5), strip_c)
+		P.call(r1 + 1.5, y + FLOOR, strip_c)
 		if k == decks - 1:
-			P.call(float(lay.r1) + 6.0, y + FLOOR, strip_c)
+			P.call(r1 + 7.0, y + FLOOR, strip_c)
 			break
-		# On round the loop: to E1, into the aisle, back down it to E0, into the strip.
-		P.call(e1c - 1.0, y + FLOOR, strip_c - 1.5)
-		P.call(e1c, y + FLOOR, aisle_c + 2.0)
-		P.call(e1c - 4.5, y + FLOOR, aisle_c)
-		P.call(e0c + 4.5, y + FLOOR, aisle_c)
-		P.call(e0c, y + FLOOR, aisle_c + 3.0)
-		P.call(e0c + 0.5, y + FLOOR, strip_c - 1.5)
-		P.call(float(lay.r0) - 1.0, y + FLOOR, strip_c)
+		# On round the loop: a U-turn in E1 into the aisle, back down it, a U-turn in E0 onto the
+		# next ramp.
+		P.call(m1 - 1.0, y + FLOOR, strip_c)
+		arc.call(m1, cv, RU, 90.0, -90.0, y + FLOOR)
+		P.call((r0 + m1) * 0.5, y + FLOOR, aisle_c)
+		P.call(r0, y + FLOOR, aisle_c)
+		arc.call(r0, cv, RU, -90.0, -270.0, y + FLOOR)
 	return out
 
 
