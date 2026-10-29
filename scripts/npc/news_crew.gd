@@ -85,6 +85,7 @@ var _dest := Vector3.INF
 var _face := Vector3.INF
 var _think_t: float = 0.0
 var _stuck_t: float = 0.0
+var _return_t: float = 0.0
 var _duck_left: float = 0.0
 var _duck_at := Vector3.INF
 var _alarm_seen: int = 0
@@ -434,7 +435,11 @@ func _think() -> void:
 		var door := _door()
 		_dest = door
 		_face = Vector3.INF
-		if global_position.distance_to(door) < 1.4 or (_stuck_t > 1.0 and global_position.distance_to(van.global_position) < 4.0):
+		_return_t += 0.3
+		# At the door; or held up beside the van (a parked car in the way); or long on the way and
+		# out of sight (never stranded on the pavement).
+		var by_van := _flat_to(van.global_position) < float(van._dims().length) * 0.5 + 2.0
+		if _flat_to(door) < 1.4 or (_stuck_t > 0.8 and by_van) or (_return_t > 30.0 and unseen_time > 1.0):
 			service.board(self, van)
 		return
 	if spot == Vector3.INF:
