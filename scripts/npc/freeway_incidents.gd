@@ -54,6 +54,15 @@ const PATROL_GAP := 4.5
 const TOW_GAP := 1.2
 ## How far the scene (vehicles, people, debris) is built from the player (m), and the faces.
 const BUILD_REACH := 750.0
+## Road flares the patrol officer lays behind the patrol car once it has parked: a taper from the
+## shoulder out to the slow lane's edge line, one every FLARE_EVERY seconds, FLARE_STEP metres
+## apart, burning till the patrol car is gone.
+## FREEWAY_FLARE_LIGHT=0 leaves the flares' omni out (the A/B of its cost).
+static var FREEWAY_FLARE_LIGHT := OS.get_environment("FREEWAY_FLARE_LIGHT") != "0"
+const FLARE_AFTER := 3.0
+const FLARE_EVERY := 1.4
+const FLARE_STEP := 9.0
+const FLARE_BACK := 6.0
 const CMS_REACH := 520.0
 const CMS_LOOK := 4200.0
 ## A gantry carries a CMS on this share of its carriageways (has_cms()).
@@ -327,6 +336,9 @@ static func stall_pose(inc: Dictionary, e: float, halves: Array) -> Dictionary:
 			var s := _going(go, 24.0, 2.2)
 			out.patrol = [p_stop + s, clampf(1.0 - (s - 20.0) / 70.0, 0.0, 1.0), minf(24.0, 2.2 * go), -1]
 		out.patrol_lights = e < patrol_leave + 3.0
+		var flare_at := patrol_at + PATROL_DRIVE + FLARE_AFTER
+		if e >= flare_at and e < patrol_leave + LEAVE_DRIVE:
+			out.flares = mini(flare_count(inc), int((e - flare_at) / FLARE_EVERY) + 1)
 	# The tow truck: up the slow lane from 280 m back, onto the shoulder past the car, stops ahead
 	# of it; the bed, the winch, back up; off along the shoulder and into the slow lane.
 	var t_stop := hc + TOW_GAP + ht
@@ -352,6 +364,22 @@ static func stall_pose(inc: Dictionary, e: float, halves: Array) -> Dictionary:
 		out.winch = clampf((e - winch) / WINCH_SECONDS, 0.0, 1.0)
 		out.loaded = e >= winch
 	return out
+
+
+## How many flares stall `inc` gets (5-7).
+static func flare_count(inc: Dictionary) -> int:
+	return 5 + absi(int(inc.get("seed", 0))) % 3
+
+
+## Flare k of stall `inc`: [metres along the shoulder from the car (behind is negative), 0..1 from
+## the shoulder's middle out to the slow lane's edge line].
+static func flare_spot(inc: Dictionary, k: int, halves: Array) -> Vector2:
+	var hc := float(halves[0])
+	var hp := float(halves[1])
+	var n := flare_count(inc)
+	var s := -(hc + PATROL_GAP + 2.0 * hp + FLARE_BACK + FLARE_STEP * float(k))
+	s += (h01([inc.get("seed", 0), k, "fs"]) - 0.5) * 1.6
+	return Vector2(s, clampf(float(k) / float(maxi(n - 1, 1)) + (h01([inc.get("seed", 0), k, "fl"]) - 0.5) * 0.12, 0.0, 1.0))
 
 
 # --- The node -----------------------------------------------------------------------------------------
@@ -565,6 +593,7 @@ func _build_scene(fw: Freeway, entry: Dictionary) -> void:
 			tow.freeze = true
 			_enter(fw, tow, inc, -800.0)
 			sc.tow = tow
+			sc.flares = _build_flares(inc)
 			count("built_stall")
 	_place_scene(fw, entry)
 
@@ -580,7 +609,7 @@ func _enter(fw: Freeway, car: Vehicle, inc: Dictionary, s: float) -> void:
 
 func _clear_scene(entry: Dictionary) -> void:
 	var sc: Dictionary = entry.scene
-	for k in ["debris", "car", "patrol", "tow", "driver"]:
+	for k in ["debris", "car", "patrol", "tow", "driver", "flares"]:
 		var n: Variant = sc.get(k)
 		if n != null and is_instance_valid(n) and _owned(n as Node):
 			(n as Node).queue_free()
@@ -790,6 +819,79 @@ func _place_scene(fw: Freeway, entry: Dictionary) -> void:
 				elif not winching and bed.winch.playing:
 					bed.winch.stop()
 	_place_driver(fw, entry, pose, shoulder_l)
+	_place_flares(fw, entry, pose)
+
+
+## The flare line's node: every flare built hidden, and on desktop a red omni that the flares
+## light the deck and the cars with after dark.
+func _build_flares(inc: Dictionary) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Flares"
+	add_child(root)
+	var smoke := not OS.has_feature("web")
+	for k in flare_count(inc):
+		var f := FreewayIncidentKit.flare_node(hash([inc.seed, k, "flare"]), smoke)
+		f.visible = false
+		root.add_child(f)
+	if not OS.has_feature("web") and FREEWAY_FLARE_LIGHT:
+		var l := OmniLight3D.new()
+		l.name = "FlareLight"
+		l.light_color = Color(1.0, 0.16, 0.08)
+		l.omni_range = 16.0
+		l.omni_attenuation = 1.4
+		l.shadow_enabled = false
+		l.light_energy = 0.0
+		l.visible = false
+		l.distance_fade_enabled = true
+		l.distance_fade_begin = 120.0
+		l.distance_fade_length = 40.0
+		root.add_child(l)
+	count("built_flares")
+	return root
+
+
+func _place_flares(fw: Freeway, entry: Dictionary, pose: Dictionary) -> void:
+	var inc: Dictionary = entry.inc
+	var sc: Dictionary = entry.scene
+	var root: Variant = sc.get("flares")
+	if root == null or not is_instance_valid(root):
+		return
+	var ri := int(inc.ri)
+	var dir := int(inc.dir)
+	var t := float(inc.t)
+	var lo := lay(fw, ri)
+	var mid := shoulder_lat(fw, ri, dir)
+	var edge := (float(lo.edge) + 0.25) * float(dir)
+	var shown := int(pose.get("flares", 0))
+	var halves := _halves(sc)
+	var light: OmniLight3D = null
+	var lit := 0
+	var centre := Vector3.ZERO
+	for c in (root as Node3D).get_children():
+		if c is OmniLight3D:
+			light = c
+			continue
+		var k := c.get_index()
+		var f := c as Node3D
+		f.visible = k < shown
+		if not f.visible:
+			continue
+		var sp := flare_spot(inc, k, halves)
+		var xf := xform_at(fw, ri, t + sp.x * float(dir), lerpf(mid, edge, sp.y), dir, 0.0, (h01([inc.seed, k, "fy"]) - 0.5) * 2.4)
+		f.global_transform = xf
+		centre += xf.origin
+		lit += 1
+	if lit > 0:
+		FreewayIncidentKit.flare_material(0).set_shader_parameter("viewport_px", get_viewport().get_visible_rect().size)
+	if light != null:
+		var night := DayNight.lamp_now
+		light.visible = lit > 0 and night > 0.05
+		if light.visible:
+			light.global_position = centre / float(lit) + Vector3(0.0, 0.6, 0.0)
+			light.light_energy = night * (1.6 + 0.35 * sin(clock * 11.0) + 0.2 * sin(clock * 27.0))
+	if lit > 0 and not entry.get("counted_flares", false):
+		entry.counted_flares = true
+		count("flares_lit")
 
 
 ## The driver: out behind the car by the barrier, on the phone, while the car stands there.

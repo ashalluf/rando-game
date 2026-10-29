@@ -27,6 +27,10 @@ static var _mattress_mat: ShaderMaterial
 static var _cms_tex: Dictionary = {}
 static var _cms_shader: Shader
 static var _face_mesh: QuadMesh
+static var _flare_stick: ArrayMesh
+static var _flare_glow: Array = []
+static var _flare_quad: QuadMesh
+static var _flare_ground: PlaneMesh
 
 
 # --- Tyre tread ----------------------------------------------------------------------------------
@@ -411,3 +415,148 @@ static func _strand(st: SurfaceTool, a: Vector3, b: Vector3, r: float, col: Colo
 		var p: Vector3 = corners[k]
 		var q: Vector3 = corners[(k + 1) % 4]
 		_quad(st, a + p, a + q, b + q, b + p, col, (p + q).normalized())
+
+
+# --- Road flares -------------------------------------------------------------------------------
+
+## One burning road flare lying on the deck (a fusee: 0.3 m of red paper tube on a wire stand,
+## the striker end burning white-hot), as a node: the stick, its glow and red pool
+## (shaders/fw_flare.gdshader) and a thin wisp of pink-lit smoke. `smoke` false leaves the smoke
+## out (the web, LOWEST). Origin on the deck; the stick lies along z, burning at -z.
+static func flare_node(seed: int, smoke: bool) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Flare"
+	var stick := MeshInstance3D.new()
+	stick.mesh = _stick_mesh()
+	stick.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	stick.visibility_range_end = 120.0
+	root.add_child(stick)
+	var glow := MeshInstance3D.new()
+	glow.name = "Glow"
+	glow.mesh = _quad_mesh()
+	glow.material_override = flare_material(0)
+	glow.position = Vector3(0.0, 0.12, -0.17)
+	glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	glow.extra_cull_margin = 4.0
+	root.add_child(glow)
+	var pool := MeshInstance3D.new()
+	pool.name = "Pool"
+	pool.mesh = _ground_mesh()
+	pool.material_override = flare_material(1)
+	pool.position = Vector3(0.0, 0.03, -0.17)
+	pool.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	pool.visibility_range_end = 260.0
+	root.add_child(pool)
+	if smoke:
+		var p := CPUParticles3D.new()
+		p.name = "Smoke"
+		p.amount = 14
+		p.lifetime = 3.4
+		p.preprocess = 3.4
+		p.randomness = 0.6
+		p.local_coords = false
+		p.position = Vector3(0.0, 0.08, -0.17)
+		p.mesh = _quad_mesh_smoke()
+		p.material_override = WeaponFX.smoke_material()
+		p.direction = Vector3(0.0, 1.0, 0.0)
+		p.spread = 14.0
+		p.initial_velocity_min = 0.25
+		p.initial_velocity_max = 0.55
+		p.gravity = Vector3(0.35, 0.28, 0.1)
+		p.damping_min = 0.05
+		p.damping_max = 0.15
+		p.scale_amount_min = 0.12
+		p.scale_amount_max = 0.2
+		var grow := Curve.new()
+		grow.max_value = 8.0
+		grow.add_point(Vector2(0.0, 1.0))
+		grow.add_point(Vector2(1.0, 7.0))
+		p.scale_amount_curve = grow
+		var ramp := Gradient.new()
+		ramp.set_color(0, Color(1.0, 0.62, 0.62, 0.42))
+		ramp.set_color(1, Color(0.82, 0.78, 0.8, 0.0))
+		ramp.add_point(0.25, Color(0.95, 0.8, 0.82, 0.3))
+		p.color_ramp = ramp
+		p.custom_aabb = AABB(Vector3(-4.0, -0.5, -4.0), Vector3(8.0, 6.0, 8.0))
+		p.visibility_range_end = 140.0
+		p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		p.seed = absi(seed) % 100000
+		root.add_child(p)
+	return root
+
+
+## The flare's light material: 0 the glow, 1 the pool (shared).
+static func flare_material(mode: int) -> ShaderMaterial:
+	if _flare_glow.is_empty():
+		var sh: Shader = load("res://shaders/fw_flare.gdshader")
+		for m in 2:
+			var mat := ShaderMaterial.new()
+			mat.shader = sh
+			mat.set_shader_parameter("mode", float(m))
+			_flare_glow.append(mat)
+	return _flare_glow[mode]
+
+
+static func _quad_mesh() -> QuadMesh:
+	if _flare_quad == null:
+		_flare_quad = QuadMesh.new()
+		_flare_quad.size = Vector2(2.0, 2.0)
+	return _flare_quad
+
+
+static var _smoke_quad: QuadMesh
+static func _quad_mesh_smoke() -> QuadMesh:
+	if _smoke_quad == null:
+		_smoke_quad = QuadMesh.new()
+		_smoke_quad.size = Vector2(1.0, 1.0)
+	return _smoke_quad
+
+
+static func _ground_mesh() -> PlaneMesh:
+	if _flare_ground == null:
+		_flare_ground = PlaneMesh.new()
+		_flare_ground.size = Vector2(5.0, 5.0)
+	return _flare_ground
+
+
+## The stick: a red paper tube with a cap, the burning end a white-hot slag bead, the wire stand.
+## ~150 triangles, vertex coloured (the bead emits through the material's vertex-colour glow).
+static func _stick_mesh() -> ArrayMesh:
+	if _flare_stick != null:
+		return _flare_stick
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var paper := Color(0.42, 0.035, 0.03)
+	var cap := Color(0.06, 0.06, 0.06)
+	var slag := Color(0.55, 0.5, 0.45)
+	var r := 0.019
+	var n := 10
+	var y0 := r + 0.012
+	var z0 := -0.15
+	var z1 := 0.15
+	for i in n:
+		var a0 := TAU * float(i) / n
+		var a1 := TAU * float(i + 1) / n
+		var p0 := Vector3(cos(a0) * r, y0 + sin(a0) * r, 0.0)
+		var p1 := Vector3(cos(a1) * r, y0 + sin(a1) * r, 0.0)
+		var nn := Vector3(cos((a0 + a1) * 0.5), sin((a0 + a1) * 0.5), 0.0)
+		_quad(st, p0 + Vector3(0, 0, z0), p1 + Vector3(0, 0, z0), p1 + Vector3(0, 0, z1), p0 + Vector3(0, 0, z1), paper, nn)
+		# The plastic cap over the far end.
+		_quad(st, p0 + Vector3(0, 0, z1), p1 + Vector3(0, 0, z1), p1 * 0.6 + Vector3(0, y0 * 0.4, z1 + 0.012), p0 * 0.6 + Vector3(0, y0 * 0.4, z1 + 0.012), cap, Vector3.BACK)
+		# The burning end: a bead of slag growing out of the tube.
+		var c := Vector3(0.0, y0, z0 - 0.012)
+		for v: Vector3 in [p0 + Vector3(0, 0, z0), p1 + Vector3(0, 0, z0), c]:
+			st.set_color(slag)
+			st.set_uv(Vector2(v.x, v.z))
+			st.add_vertex(v)
+	# The wire stand: a V under the burning end so it lies tilted.
+	_strand(st, Vector3(-0.05, 0.0, z0 + 0.02), Vector3(0.0, y0, z0 + 0.03), 0.0018, cap)
+	_strand(st, Vector3(0.05, 0.0, z0 + 0.02), Vector3(0.0, y0, z0 + 0.03), 0.0018, cap)
+	st.generate_normals()
+	_flare_stick = st.commit()
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.roughness = 0.7
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_flare_stick.surface_set_material(0, mat)
+	return _flare_stick

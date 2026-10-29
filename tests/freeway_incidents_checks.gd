@@ -148,7 +148,7 @@ func _schedule() -> void:
 ## The stall's script, pure: on the shoulder from the start, the patrol car parked behind it, the
 ## tow parked ahead, its bed down and the car winched on, then everyone off down the road.
 func _stall_script() -> void:
-	var inc := {"patrol": 30.0, "tow": 100.0}
+	var inc := {"patrol": 30.0, "tow": 100.0, "seed": 4242}
 	var halves := [2.3, 2.5, 4.7]
 	var coast := FreewayIncidents.stall_pose(inc, -6.0, halves)
 	var parked := FreewayIncidents.stall_pose(inc, 80.0, halves)
@@ -164,6 +164,17 @@ func _stall_script() -> void:
 	_check(w_ok, "freeway incidents: the tow parks ahead, bed down, winching the car on (%s bed %s winch %s)" % [str(winch_mid.get("tow")), str(winch_mid.get("bed")), str(winch_mid.get("winch"))])
 	var l_ok := leaving.has("tow") and float(leaving.tow[2]) > 5.0 and float(leaving.bed) == 0.0 and bool(leaving.loaded) and not bool(leaving.driver)
 	_check(l_ok, "freeway incidents: the tow drives off with its bed level and the car aboard (%s)" % str(leaving.get("tow")))
+	# The flares: none while the car coasts in, the whole line once the patrol car has stood a
+	# while, laid behind it in a taper from the shoulder's middle out to the edge line.
+	var n := FreewayIncidents.flare_count(inc)
+	var spots_ok := true
+	var last := Vector2(INF, -1.0)
+	for k in n:
+		var sp := FreewayIncidents.flare_spot(inc, k, halves)
+		spots_ok = spots_ok and sp.x < float(parked.patrol[0]) - 2.5 - 2.0 and sp.x < last.x and sp.y >= last.y - 0.13 and sp.y >= 0.0 and sp.y <= 1.0
+		last = sp
+	_check(not coast.has("flares") and int(parked.get("flares", 0)) == n and n >= 5 and spots_ok,
+		"freeway incidents: %d road flares laid behind the parked patrol car in a taper (coasting %s, parked %s)" % [n, str(coast.get("flares")), str(parked.get("flares"))])
 
 
 ## The kit: the tread and the mattress inside their budgets and at their real size; the message
@@ -254,6 +265,18 @@ func _live_stall(node: FreewayIncidents) -> void:
 	_check(int((car as Vehicle).light_signal) == 2 or (car as Vehicle).traffic.get("hazard", false), "freeway incidents: the stalled car's hazards are on")
 	_check((patrol as FreewayPatrol).lights_on, "freeway incidents: the patrol car's light bar flashes at the scene")
 	_check(not (tow as Node3D).visible, "freeway incidents: the tow truck is not there yet")
+	var flares: Variant = sc.get("flares")
+	var lit := 0
+	var flares_behind := true
+	if flares != null and is_instance_valid(flares):
+		for f in (flares as Node3D).get_children():
+			if f is OmniLight3D or not (f as Node3D).visible:
+				continue
+			lit += 1
+			var fp := _ws.to_world((f as Node3D).global_position) as Vector3
+			var fs := (Vector2(fp.x, fp.z) - Vector2(pp.x, pp.z)).dot((_fw.point_at(ri, t)[1] as Vector2))
+			flares_behind = flares_behind and fs < -2.0 and absf(fp.y - pp.y) < 1.5
+	_check(lit == FreewayIncidents.flare_count(inc) and flares_behind, "freeway incidents: the road flares burn on the shoulder behind the patrol car (%d lit, behind %s)" % [lit, flares_behind])
 	# A CMS behind it on that carriageway tells of it.
 	var told := false
 	var every := int(round(Freeway.GANTRY_SPACING / Freeway.STEP))
