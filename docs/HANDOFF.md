@@ -14377,3 +14377,57 @@ crew's hands are IK onto the rail and the squeegee with the idle frozen near its
 dedicated wiping clip, no head turn. No sound of the hoists. The LOD ring shows Rooftops' static
 cradle box at its old depth on infill towers. Workers cannot be knocked off (on purpose); shooting
 one only swings the cradle, with no blood.
+
+## 9d?. Motorcycles: a sport bike, a cruiser and a scooter, in traffic, at the kerbs and under the hero, 2026-10-06 (agent branch `wt/motorcycles`; VISUAL_ROADMAP "?")
+
+**What.** Three original bikes, Blender-built at real size by `tools/make_motorcycles.py` (a
+600-class supersport with pressed panels on faceted hulls - nose cowl, twin angular lamps,
+ram-air intake, gills, an LED tail, aluminium twin spars -, a big V-twin cruiser with a
+pinstriped tank and a chrome winged badge, a 150-class scooter with a panelled body and a floor).
+Each `.glb` holds `_body`, `_steer` (origin on the rake axis), `_wheel_f`, `_wheel_r` and a
+`_far` twin; the script prints the numbers `Motorcycle.DIMS` holds (axles, tyre radii, steering
+axis, seat, grips, pegs, lamps). Run it with Blender 4.2 or the PyPI `bpy` wheel:
+`python3 tools/make_motorcycles.py [sport cruiser scooter] [--render]`, then `--import`.
+
+**How it rides.** `Motorcycle` (`scripts/vehicles/motorcycle.gd`) extends Vehicle (BodyType
+MOTO_SPORT / MOTO_CRUISER / MOTO_SCOOTER appended, BODY_ODDS 0, so `random_car()` never rolls
+them), so interact / exit, kinematic traffic, `drop_out_of_traffic()`, `take_hit()`, CarLights,
+DrivingFX, PhysicsBudget's settle and the pools work unchanged. Two VehicleWheel3Ds on the centre
+line; the ROLL is held upright on the body's direct state (`_hold_upright()`): writing
+`angular_velocity` back from `_physics_process` killed every turn, because RigidBody3D syncs it
+before VehicleBody3D adds the wheels' impulses. The lean (atan(v x yaw rate / g), `max_lean`),
+the wheelie on boost (`PHYS[*].wheelie`) and the side stand are DRAWN on the `Pose` node about the
+contact patches; in the air it is `Vehicle._fly()`, the cars' stabilised flight. Nobody aboard and
+knocked, it is `fallen` (the hold lets go and it lies on its side); a rider stands it up. Damage is
+its own (no CarDamage: no cabin, panes or doors): rounds spark, `max_health` or a blast explodes it.
+
+**The rider.** `RideSolver` (`scripts/vehicles/ride_solver.gd`: hips to the seat, two-bone arms
+to the grips, legs to the pegs, a boot down when stopped) poses a `MotoRider`
+(`scripts/npc/moto_rider.gd`, a BikeRider in a `MotoHelmet`, full-face, fitted from
+CrowdHatTable) in traffic, and the hero himself on the player's bike (`HeroRide`,
+`scripts/player/hero_ride.gd`, the LAST modifier on his skeleton; Player's enter / exit call
+`mount_rider()` / `dismount_rider()`: two lines). A crash over `throw_dv` (11 m/s change in a
+step), a landing on the side, a blast or a hit throws him off: a ragdoll (`MotoThrow`,
+`scripts/player/moto_throw.gd`), the hero back on his feet where his body stopped.
+
+**Traffic and kerbs.** TrafficManager takes `STREET_SHARE` (5 %) / `FREEWAY_SHARE` (4 %) from
+the top of the roll it already makes for trucks, kind by district (`MOTO_MIX`), pools by kind. A
+bike behind a queue slower than `FILTER_QUEUE_SPEED` filters between the lanes at up to
+`FILTER_SPEED` (`filter_tick()`, `filter_shift` sideways), never closer than ~1.15 m to a car. At the
+kerb `parked_swap()` (one hook line in `CityChunk._park_car()`, after every roll) turns a stall
+into one or two bikes backed in on their stands, by a hash of the stall.
+
+**Tunables most likely to need changing:** `upright_gain` 9, `max_lean` 0.82, `lean_rate` 6,
+`throw_dv` 11, `PHYS` (mass, power, top speed, brake, steer lock, wheelie) per kind,
+`STREET_SHARE`, `FILTER_SPEED`.
+
+**A/B and tools.** `MOTORCYCLES=0`. Stills: `MOTO=ride|throw|parked|filter` on `still_shot.gd`
+(`tools/moto/stage.gd`), `tools/moto/moto_shot.tscn` (the three with riders, side / 3/4, night);
+probe `tools/moto/moto_probe.tscn`; compile `tools/moto/compile.gd`. Checks:
+`tests/motorcycles_checks.gd` (tables, builds, parked asleep on its stand, riding: speed, turn and
+lean, wheelie, flight; the traffic rider's seat and grips; the throw; the pool; the player's ride
+and throw; the kerb hash; lane filtering). Stills on `shots/motorcycles`.
+
+**Not done.** Not seen on Forward+ (every still is opengl3 or Cycles). No engine sound of its own
+(the `engine-audio` area's; it uses the cars' loop). Police do not chase on bikes. The hero's ride
+pose has no clip of its own (solved over the idle).
