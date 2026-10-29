@@ -168,6 +168,15 @@ static func lot_fronts(plan: CityPlan, bx: int, bz: int, side: int, lot: Diction
 	return c.y - s.y * 0.5 < inner.position.y + 3.0
 
 
+## True when `lot` is one of the walk's frontage lots: a souvenir-strip building, never a vacant
+## lot or an apartment block (VacantLots.kind_of() and Apartments ask; pure).
+static func strip_lot(plan: CityPlan, bx: int, bz: int, lot: Dictionary) -> bool:
+	if not enabled:
+		return false
+	var side := block_side(plan, bx, bz)
+	return side != 0 and lot_fronts(plan, bx, bz, side, lot)
+
+
 static func _claimed(plan: CityPlan, bx: int, bz: int, lot: Dictionary) -> bool:
 	return FireStation.claims(plan, bx, bz, lot) or PoliceStation.claims(plan, bx, bz, lot) \
 			or Worship.claims(plan, bx, bz, lot) or Broadway.claims(plan, bx, bz, lot) \
@@ -865,8 +874,13 @@ static func character_spot(plan: CityPlan, bx: int, bz: int, rect: Rect2, side: 
 	var z := kerb_z(rect, side) + inz * (BAND_FROM + BAND * 0.5)
 	var to := Vector2(0.0, -inz)
 	return {"at": Vector2(x, z), "yaw": atan2(-to.x, -to.y),
-		"costume": absi(hash([plan.seed, bx, bz, "sb_costume", i])) % StreetCharacter.COSTUMES.size(),
+		# One costume per slot of a face, stepped round the table (3 is prime to its 7): no twins.
+		"costume": (absi(hash([plan.seed, bx, bz, "sb_costume"])) + i * 3) % StreetCharacter.COSTUMES.size(),
 		"seed": absi(hash([plan.seed, bx, bz, "sb_char_seed", i]))}
+
+
+## Where the photo-takers stand round a character: (metres along, metres out toward the street).
+const PHOTO_SPOTS := [Vector2(-0.4, 2.3), Vector2(1.3, 2.0)]
 
 
 static func _spawn_character(ch: CityChunk, rect: Rect2, side: int, i: int) -> void:
@@ -885,6 +899,16 @@ static func _spawn_character(ch: CityChunk, rect: Rect2, side: int, i: int) -> v
 	var at: Vector2 = s.at
 	ped.position = Vector3(at.x, ch.ground_y(at.x, at.y) + 0.05, at.y)
 	ch.add_child(ped)
+	# Tourists stop in front of a character for a photo (the chunk's "vendor_queue": the crowd's
+	# life layer stands them there, phones up; a spot dies with the character).
+	var queue: Array = ch.get_meta("vendor_queue", [])
+	var to := Vector2(0.0, 1.0 if side < 0 else -1.0)
+	for k in PHOTO_SPOTS.size():
+		var o: Vector2 = PHOTO_SPOTS[k]
+		var p := at + Vector2(o.x, 0.0) + to * o.y
+		var look := at - p
+		queue.append({"p": p, "yaw": atan2(-look.x, -look.y), "taken": null, "record": ped})
+	ch.set_meta("vendor_queue", queue)
 
 
 ## The sightseeing company (invented): a BigVehicles bus in its own livery and lettering.

@@ -15,6 +15,16 @@ func _ready() -> void:
 	var plan := CityPlan.new()
 	plan.seed = seed_value
 	plan.macro = m
+	var tr := Time.get_ticks_usec()
+	LightRail.of(plan)
+	print("RAIL us %d" % (Time.get_ticks_usec() - tr))
+	tr = Time.get_ticks_usec()
+	var lo := plan.block_index_at(StarBoulevard.SEARCH.position)
+	var hi := plan.block_index_at(StarBoulevard.SEARCH.end)
+	for bx in range(lo.x, hi.x + 1):
+		for bz in range(lo.y, hi.y + 1):
+			plan.block(bx, bz)
+	print("BLOCKS us %d" % (Time.get_ticks_usec() - tr))
 	var t0 := Time.get_ticks_usec()
 	var p: Dictionary = StarBoulevard.plan_for(plan)
 	print("PLAN us %d" % (Time.get_ticks_usec() - t0))
@@ -30,7 +40,16 @@ func _ready() -> void:
 			var sd := StarBoulevard.block_side(plan, k, bz)
 			for lot: Dictionary in plan.lots(k, bz):
 				if StarBoulevard.lot_fronts(plan, k, bz, sd, lot):
-					print("  LOT %d,%d %s size %s parking %s" % [k, bz, str(lot.center), str(lot.size), str(lot.get("parking", false))])
+					var who := "building"
+					if VacantLots.kind_of(plan, k, bz, lot) != VacantLots.NONE:
+						who = "vacant"
+					elif Apartments.claims(plan, k, bz, lot, plan.district_at(lot.center)):
+						who = "apartments"
+					elif not DecoBoulevard.lot_plan(plan, k, bz, lot).is_empty():
+						who = "deco"
+					elif not Construction.tower_site(plan, k, bz).is_empty() and int((Construction.tower_site(plan, k, bz).lot as Dictionary).seed) == int(lot.seed):
+						who = "construction"
+					print("  LOT %d,%d %s size %s parking %s -> %s" % [k, bz, str(lot.center), str(lot.size), str(lot.get("parking", false)), who])
 	var pal: Dictionary = p.palace
 	if not pal.is_empty():
 		var lot: Dictionary = pal.lot
