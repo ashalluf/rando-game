@@ -1089,6 +1089,12 @@ static func _pool(b: Building, g: RooftopGeo, glass: RooftopGeo, f: Dictionary, 
 	var deck_rect := _rect_of(g.xf, Rect2(Vector2(-hx + 0.4, -hz + 0.4), Vector2(zl - 0.8, dz1 - (-hz) - 0.8)))
 	var pool_rect := _rect_of(g.xf, Rect2(pool_min - Vector2(cop, cop), pool_max - pool_min + Vector2(cop, cop) * 2.0))
 	_spawn_goers(b, deck_rect, pool_rect, origin.y + y)
+	# Swimmable (Swim): the water over the roof it stands on, in the chunk's space.
+	var wpoly := PackedVector2Array()
+	for q: Vector3 in corners:
+		var cq: Vector3 = b.transform * (g.xf * q)
+		wpoly.append(Vector2(cq.x, cq.z))
+	SwimWater.add_poly(b, wpoly, (b.transform * (g.xf * Vector3(px, water_y, pz))).y, (b.transform * origin).y, SwimWater.Kind.TANK)
 	# Collision: the deck round the pool (the pool's floor is the roof: wade in).
 	for r: Rect2 in [Rect2(d_lo, Vector2(hx * 2.0, pool_min.y - d_lo.y)), Rect2(Vector2(-hx, pool_max.y), Vector2(hx * 2.0, dz1 - pool_max.y)),
 			Rect2(Vector2(-hx, pool_min.y), Vector2(pool_min.x + hx, width)), Rect2(Vector2(pool_max.x, pool_min.y), Vector2(hx - pool_max.x, width))]:

@@ -83,6 +83,21 @@ func _check_water(m: MacroMap) -> void:
 		var c := sum / float(m.marina.basin.size())
 		var w := SwimWater.at(m, Vector3(c.x, 0.0, c.y), 2.0, st)
 		_check(int(w.get("kind", 0)) == SwimWater.Kind.MARINA, "and the marina's basin")
+	if m.reservoir:
+		var r: Reservoir = m.reservoir
+		var deep := Vector2.INF
+		var deep_bed := INF
+		for j in range(0, r._nz, 2):
+			for i in range(0, r._nx, 2):
+				if r.wet_grid[j * r._nx + i] == 1:
+					var q := r.grid_point(i, j)
+					var bed := m.height_at(q)
+					if bed < deep_bed:
+						deep_bed = bed
+						deep = q
+		var w := SwimWater.at(m, Vector3(deep.x, 0.0, deep.y), 2.0, st) if deep_bed < INF else {}
+		_check(int(w.get("kind", 0)) == SwimWater.Kind.RESERVOIR and absf(float(w.surface) - r.level) < 0.01 and float(w.floor) < r.level - 2.0,
+			"and the reservoir, at its level over its bed (%s m deep)" % (str(snappedf(r.level - deep_bed, 0.1)) if deep_bed < INF else "-"))
 	SwimWater.enabled = false
 	var off := SwimWater.at(m, Vector3(m.coast_x(300.0) - 120.0, 0.0, 300.0), 2.0, st)
 	SwimWater.enabled = true

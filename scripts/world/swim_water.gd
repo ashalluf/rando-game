@@ -13,7 +13,9 @@ extends RefCounted
 ## Entries live in a 64 m grid of true world cells and go when their node leaves the tree.
 ## `SWIMMING=0` in the environment: no water anywhere (the A/B).
 
-enum Kind { NONE, SEA, MARINA, LAKE, CANAL, POOL }
+## TANK: a pool whose floor is real (a roof deck's pool: the roof under it), so nothing is passed
+## through; worked out like the lake. RESERVOIR: the lake behind the dam, its bed the hills.
+enum Kind { NONE, SEA, MARINA, LAKE, CANAL, POOL, TANK, RESERVOIR }
 
 const CELL := 64.0
 ## How deep a pool is drawn to be (its painted tank), metres under its surface.
@@ -95,6 +97,11 @@ static func at(m: MacroMap, p: Vector3, t: float, sea: Array) -> Dictionary:
 		return {}
 	if m.marina and m.marina.in_water(xz):
 		return {"kind": Kind.MARINA, "surface": Marina.WATER_Y, "floor": -4.5, "solid": true, "rect": Rect2(), "s": 0.0}
+	# The reservoir: its level over the carved bed (real hill ground, so nothing passed through).
+	if m.reservoir and m.reservoir.wet(xz):
+		var bed := m.height_at(xz)
+		if bed < m.reservoir.level - 0.05:
+			return {"kind": Kind.RESERVOIR, "surface": m.reservoir.level, "floor": bed, "solid": false, "rect": Rect2(), "s": 0.0}
 	if m.zone_at(xz) != MacroMap.Zone.OCEAN:
 		return {}
 	var sd := SeaSurface.shore_distance(m, xz)

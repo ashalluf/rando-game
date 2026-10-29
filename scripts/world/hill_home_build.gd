@@ -479,6 +479,9 @@ func _pool() -> void:
 	# The water: COLOR.g the depth it reads as (0..1 over 2.5 m), UV metres.
 	_quad("hh_water", WY(u0, v0, wy), WY(u1, v0, wy), WY(u1, wv1, wy), WY(u0, wv1, wy), Vector3.UP, Color(0.0, 0.85, 0.0, 1.0),
 		[Vector2(0, 0), Vector2(u1 - u0, 0), Vector2(u1 - u0, wv1 - v0), Vector2(0, wv1 - v0)])
+	# Swimmable (Swim): a painted tank like the yard pools, its floor the pad's.
+	SwimWater.add_poly(ch, PackedVector2Array([Vector2(WY(u0, v0, 0).x, WY(u0, v0, 0).z), Vector2(WY(u1, v0, 0).x, WY(u1, v0, 0).z),
+		Vector2(WY(u1, v1, 0).x, WY(u1, v1, 0).z), Vector2(WY(u0, v1, 0).x, WY(u0, v1, 0).z)]), wy, wy - SwimWater.POOL_DEPTH, SwimWater.Kind.POOL)
 	# Loungers on the court side of the pool.
 	var n := 2 + absi(hash([seed, "loungers"])) % 2
 	for k in n:
