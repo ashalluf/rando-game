@@ -177,6 +177,7 @@ func _physics_process(delta: float) -> void:
 
 	# How fast we are coming down, for what the landing does to the ground (LandingFX).
 	var fall_speed := -velocity.y
+	PropBreak.smash_player(self, delta)
 	move_and_slide()
 	_push_props(delta)
 	_track_jump_peak(on_floor, is_on_floor())

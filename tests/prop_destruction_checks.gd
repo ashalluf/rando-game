@@ -48,6 +48,7 @@ func run(t: Node, city: Node3D) -> void:
 	await _boxes()
 	await _meter()
 	await _smash()
+	await _player_smash(player)
 	await _remains()
 	await _off()
 
@@ -234,6 +235,33 @@ func _smash() -> void:
 	for g in ch.get_children():
 		if g is HydrantGeyser:
 			(g as HydrantGeyser).end_now()
+
+
+func _player_smash(player: Player) -> void:
+	var ch := _chunk()
+	var at := Vector3(20.0, 0.0, -30.0)
+	var lp := StreetLamps.place(null, at, Vector2(0.0, 1.0), 0)
+	ch._add_prop("lamp", at, Color(0.28, 0.29, 0.32), [[lp.key, lp.mesh, lp.xform, lp.paint, lp.custom]],
+			[[lp.box, at + Vector3(0.0, (lp.box as Vector3).y * 0.5, 0.0), 0.0]])
+	var r: Dictionary = ch.prop_records.back()
+	_build(ch)
+	var foot := ch.to_global(at)
+	player.global_position = foot + Vector3(-12.0, 0.1, 0.0)
+	player.velocity = Vector3.ZERO
+	await _ticks(2)
+	var speed_after := 0.0
+	for i in 60:
+		await _tree.physics_frame
+		if r.dead:
+			break
+		player.velocity = Vector3(40.0, player.velocity.y, 0.0)
+	await _ticks(2)
+	speed_after = Vector2(player.velocity.x, player.velocity.z).length()
+	await _ticks(10)
+	_check(r.dead and _first(ch, "FallingPole") != null, "the player boosting into a lamp fells it")
+	_check(player.global_position.x > foot.x + 2.0, "and goes on through it (%.1f m/s after, %.1f m past)" % [speed_after, player.global_position.x - foot.x])
+	player.global_position = _top + Vector3(30.0, 1.2, 30.0)
+	player.velocity = Vector3.ZERO
 
 
 func _remains() -> void:

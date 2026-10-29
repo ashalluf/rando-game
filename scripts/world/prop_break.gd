@@ -376,14 +376,27 @@ static func smash_ahead(car: Vehicle, delta: float) -> void:
 	var d: Dictionary = car._dims()
 	if _smash_q == null:
 		_smash_q = PhysicsShapeQueryParameters3D.new()
-		_smash_q.shape = _smash_box
 		_smash_q.collision_mask = 1
+	_smash_q.shape = _smash_box
 	_smash_box.size = Vector3(float(d.width), 1.3, float(d.length))
 	var xf := car.global_transform.orthonormalized()
 	xf.origin += xf.basis.y * 0.45 + v * delta * 1.5
 	_smash_q.transform = xf
-	_smash_q.exclude = [car.get_rid()]
-	var hits := car.get_world_3d().direct_space_state.intersect_shape(_smash_q, 6)
+	for hit in _smash_hits(car, v, speed):
+		var record: Dictionary = hit[0]
+		var ch: CityChunk = hit[1]
+		car.hold_crash_watch(2)
+		car.linear_velocity = v * (1.0 - float(SLOW.get(record.kind, 0.1)))
+		var at := ch.to_global(record.position) + Vector3.UP * 0.6
+		car.take_hit(-1, speed * DENT_SHARE, v / speed, at, Vehicle.HIT_CRASH)
+
+
+## The props in `_smash_q` (set up by the caller) that `body` moving at `v` breaks or strips of
+## glass this step: [record, chunk] each.
+static func _smash_hits(body: PhysicsBody3D, v: Vector3, speed: float) -> Array:
+	_smash_q.exclude = [body.get_rid()]
+	var out: Array = []
+	var hits := body.get_world_3d().direct_space_state.intersect_shape(_smash_q, 6)
 	for hit in hits:
 		var sp := hit.collider as StreetProps
 		if sp == null or sp.chunk == null:
@@ -393,14 +406,52 @@ static func smash_ahead(car: Vehicle, delta: float) -> void:
 			continue
 		var glass_before: bool = record.get("glass_gone", false)
 		record["smash_speed"] = speed
-		record["smasher"] = car
+		record["smasher"] = body
 		var ch := sp.chunk as CityChunk
 		ch.damage_prop(record, speed * SMASH_DAMAGE, v / speed)
 		if record.dead or record.get("glass_gone", false) != glass_before:
-			car.hold_crash_watch(2)
-			car.linear_velocity = v * (1.0 - float(SLOW.get(record.kind, 0.1)))
-			var at := ch.to_global(record.position) + Vector3.UP * 0.6
-			car.take_hit(-1, speed * DENT_SHARE, v / speed, at, Vehicle.HIT_CRASH)
+			out.append([record, ch])
+	return out
+
+
+# --- The player smashes through on foot -------------------------------------------------------
+
+## The slowest the player smashes through (m/s): over the run speed, so only a boost, a dive or a
+## fall does. Damage per m/s and what share of the speed each prop takes off are the cars'.
+const PLAYER_SMASH_MIN := 18.0
+## The player's own share of SLOW (an overpowered body keeps most of its momentum).
+const PLAYER_SLOW_SHARE := 0.35
+## Camera shake per smash, plus per m/s over PLAYER_SMASH_MIN.
+const PLAYER_SHAKE := 0.12
+const PLAYER_SHAKE_PER_MS := 0.008
+static var _player_box := BoxShape3D.new()
+
+## Player's step hook (before move_and_slide()): a boosting player breaks what he is about to
+## hit, keeps going through it, and the camera kicks. Below PLAYER_SMASH_MIN he stops as before.
+static func smash_player(player: CharacterBody3D, delta: float) -> void:
+	if not enabled or not player.is_inside_tree() or player.collision_layer == 0:
+		return
+	var v := player.velocity
+	var speed := v.length()
+	if speed < PLAYER_SMASH_MIN:
+		return
+	if _smash_q == null:
+		_smash_q = PhysicsShapeQueryParameters3D.new()
+		_smash_q.collision_mask = 1
+	_player_box.size = Vector3(1.0, 1.7, 1.0)
+	_smash_q.shape = _player_box
+	_smash_q.transform = Transform3D(Basis(), player.global_position + Vector3.UP * 0.95 + v * delta * 1.5)
+	var hits := _smash_hits(player, v, speed)
+	_smash_q.shape = _smash_box
+	if hits.is_empty():
+		return
+	var slow := 0.0
+	for hit in hits:
+		slow = maxf(slow, float(SLOW.get((hit[0] as Dictionary).kind, 0.1)))
+	player.velocity = v * (1.0 - slow * PLAYER_SLOW_SHARE)
+	var rig: Variant = player.get("camera_rig")
+	if rig is Object and is_instance_valid(rig) and rig.has_method("shake"):
+		rig.shake(PLAYER_SHAKE + (speed - PLAYER_SMASH_MIN) * PLAYER_SHAKE_PER_MS)
 
 
 ## The prop record a StreetProps shape belongs to (empty if none).
