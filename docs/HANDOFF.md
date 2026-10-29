@@ -14466,3 +14466,12 @@ one can stand close to one of StreetLamps' or StreetSignKit's poles where the ol
 (nothing was moved to keep every roll and id). The plaza and park benches keep the Poly Haven
 kit bench and the shelters their own bench; suburban trash cans keep the corrugated scan. The
 bench ad art is eight flat designs, no photography (no real people).
+
+**Wave 3 (2026-10-29).** Merged origin/main (95bd13f: apartments, tower gondolas); only the docs and
+the smoke test's hook lines conflicted. The painted pieces read as fresh toys at the wear they
+roll, so: `sf_worn_paint()` shows an OLDER COAT (silver, cream or oxide red, by `v_seed`) in
+mid-scale patches (a 24 / 6 per-metre fbm, a threshold 0.17 + 0.16 x wear under the chips', lower
+on edges) before the deep chips reach the iron; dust settles on faces toward the sky
+(`v_lnormal.y`, by wear, gone in the wet); and a fresh hydrant rolls wear 0.16-0.4 (was 0-0.12;
+the aged roll unchanged). Stills 35-38 on shots/street-furniture (`furniture_shot.gd WEAR=0.28` /
+`0.3`, the before is the stashed shader). Not seen on Forward+.
