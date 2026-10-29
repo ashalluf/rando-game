@@ -2188,6 +2188,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Tower roofs (tests/rooftops_checks.gd): helipads, pool decks, gardens, penthouses, masts and
 	# window-washing machines planned pure, off the plant they may not cover, near = far, no roll moved.
 	load("res://tests/rooftops_checks.gd").new().run(self, city)
+	# Window-washing gondolas (tests/tower_gondolas_checks.gd): sites on real faces, the descent, the swing.
+	load("res://tests/tower_gondolas_checks.gd").new().run(self, city)
 	# The Los Angeles River (tests/la_river_checks.gd): the route east of downtown to Long Beach, the
 	# freeways over it, the streets closed or bridged, no lot in the corridor, the chunk's meshes and
 	# one collision body, the far city's boxes, and a car on the bed and down a ramp.
@@ -2329,6 +2331,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The corner store you can walk into (tests/walk_in_store_checks.gd): placement, the build near
 	# and far, the interior shown and the door opening as you walk up, nothing else on the block moved.
 	await load("res://tests/walk_in_store_checks.gd").new().run(self, city)
+	# Apartments (tests/apartments_checks.gd): midtown and inner-suburb walk-ups, courts and podiums.
+	load("res://tests/apartments_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
