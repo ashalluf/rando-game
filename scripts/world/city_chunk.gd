@@ -2958,6 +2958,10 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	# A vacant lot or a gravel car park (VacantLots: a hash of seed + lot, after every roll above).
 	if VacantLots.build_lot(self, lot):
 		return
+	# A midtown apartment building (Apartments: a hash of the lot, after the rolls above).
+	if Apartments.claims(plan, ix, iz, lot, district):
+		_build_house(lot, district)
+		return
 	# The suburbs' and the beach town's houses (HouseKit: real houses, planned purely from the lot).
 	if HouseKit.wanted(self, district):
 		# The lawn's blades and the street trees keep off the house, not the whole lot.
