@@ -95,7 +95,8 @@ static func hydrant_instances(seed: int, aged: bool, spin: float, at: Vector3, i
 		return [["hydrant_aged" if aged else "hydrant", PropFactory.model_hydrant(aged), Transform3D(Basis(Vector3.UP, spin), at)]]
 	var h := _h01([seed, "hydrant", roundi(at.x * 10.0), roundi(at.z * 10.0)])
 	var paint: Color = HYDRANT_PAINTS[int(h * HYDRANT_PAINTS.size()) % HYDRANT_PAINTS.size()]
-	var wear := (0.55 + 0.4 * _fr(h * 7.31)) if aged else 0.12 * _fr(h * 3.7)
+	# A fresh one is still a few years out: scuffed, chipped at the outlets, a coat over an older one.
+	var wear := (0.55 + 0.4 * _fr(h * 7.31)) if aged else 0.16 + 0.24 * _fr(h * 3.7)
 	# The pumper (local -Z) to the street: the street is -inward.
 	var yaw := atan2(inward.x, inward.y) + (_fr(h * 13.1) - 0.5) * 0.5
 	return [["hydrant_aged" if aged else "hydrant", hydrant(), Transform3D(Basis(Vector3.UP, yaw), at), Color.WHITE, Color(paint.r, paint.g, paint.b, wear)]]

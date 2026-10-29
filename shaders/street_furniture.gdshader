@@ -153,6 +153,14 @@ vec3 sf_worn_paint(vec3 paint, float wear, out float rough, out float metal) {
 	float halo = smoothstep(chip_t - 0.1, chip_t, n) * (1.0 - chip) * wear;
 	float run = smoothstep(0.62, 0.9, sf_fbm(vec3(p.x * 30.0, p.y * 4.0, p.z * 30.0))) * wear * 0.6 * keep;
 	col = mix(col, col * vec3(0.62, 0.42, 0.28), clamp(halo * 0.8 + run, 0.0, 1.0));
+	// Repainted over the years: a shallower chip shows the coat under this one (an old silver,
+	// cream or red, per piece) before the deep ones reach the iron.
+	float coat_t = chip_t - 0.17 - 0.16 * wear - 0.06 * edge;
+	float nc = sf_fbm(p * 24.0 + 2.7) * 0.6 + sf_fbm(p * 6.0 + 9.1) * 0.4;
+	float coat = smoothstep(coat_t, coat_t + 0.04, nc) * keep + (1.0 - keep) * clamp((1.0 - coat_t) * 0.5, 0.0, 0.35);
+	float pick = fract(v_seed * 7.13);
+	vec3 under = pick < 0.45 ? vec3(0.42, 0.43, 0.42) : (pick < 0.75 ? vec3(0.62, 0.58, 0.47) : vec3(0.34, 0.07, 0.05));
+	col = mix(col, under, clamp(coat - chip, 0.0, 1.0) * step(0.08, wear));
 	col = mix(col, iron, chip);
 	rough = mix(mix(0.42, 0.72, wear), 0.8, chip);
 	metal = 0.0;
@@ -359,6 +367,11 @@ void fragment() {
 		float g = (1.0 - smoothstep(0.0, 0.32, v_local.y)) * (0.12 + 0.4 * wear) * grime_gain;
 		g *= 0.7 + 0.6 * sf_noise(v_local * 18.0);
 		alb = mix(alb, alb * vec3(0.55, 0.5, 0.44), clamp(g, 0.0, 1.0));
+		// Dust and soot settle on whatever faces the sky (a bonnet, a cap, a seat), in drifts.
+		float up = smoothstep(0.45, 0.95, v_lnormal.y);
+		float dust = up * (0.1 + 0.35 * wear) * grime_gain * (0.55 + 0.9 * sf_fbm(v_local * 9.0 + v_seed * 5.0));
+		alb = mix(alb, vec3(0.3, 0.28, 0.25), clamp(dust * (1.0 - road_wetness), 0.0, 0.45));
+		rough = mix(rough, 0.85, clamp(dust, 0.0, 1.0) * 0.5);
 	}
 	// Rain: darker porous faces, a film of water on what faces the sky.
 	float wet = clamp(road_wetness, 0.0, 1.0);
