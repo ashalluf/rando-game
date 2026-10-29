@@ -295,6 +295,13 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Apartments: the first per-style kit (G2; HANDOFF "Apartment buildings").** Midtown's
+  low-rise lots and the inner suburbs get LA stucco apartments - walk-ups with galleries and open
+  stairs, bungalow courts, Spanish courts, podium blocks - instead of storefront boxes and single
+  houses. Decisions: the plan takes HouseKit's shape so the house kit's emitters, YardFill's yards,
+  the LOD boxes and the coverage probe all work unchanged (one hook in plan_house, one in
+  _build_lot); claims come after every existing roll and are hashes of the lot; no new materials.
+  Midtown keeps 55 % of its low lots as storefront Buildings so street life keeps its shops.
 - **2026-10-05 The street's signs are real models (HANDOFF "The street's signs").** The signs
   were a cylinder for a stop sign facing the junction diagonally, flat boxes with TextMesh names
   and red-banded white boxes. Decisions: built in CODE at real size (StreetSignKit; BoulevardSigns owns the kerb's parking plates), not Blender - every

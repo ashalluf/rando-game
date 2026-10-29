@@ -14201,3 +14201,80 @@ streets' glow stands in). The lamps stand where the old ones stood, and on some 
 is beside a utility pole (StreetDetail's), which the old thin post hid better. No real light
 shaped like the cobra's cut-off (still an omni). Shot lamps break as before (debris box), no
 falling pole.
+## 9eu. Apartment buildings: walk-ups, bungalow courts, Spanish courts and podium blocks, 2026-10-05 (agent branch `wt/apartments`; VISUAL_ROADMAP #140)
+
+G2's first per-style kit: Los Angeles stucco apartments in MIDTOWN and the inner SUBURBS. Before,
+every midtown low-rise lot was a `Building` box with a storefront band and the inner suburbs were
+all single houses.
+
+**The four kinds** (`Apartments.Kind`, `scripts/world/apartments.gd`):
+- WALKUP: a two- or three-storey bar running back from the street, its units opening off
+  cantilevered galleries (concrete slab, accent fascia, iron pickets or a stucco half wall, steel
+  posts to the ground, a canopy over the top one) along a side court, reached by open steel stairs
+  (stringers, concrete treads, pipe rails, a landing per floor, flights in a straight run). Flat
+  roof behind a parapet or a low hip in clay or shingle. Wall air conditioners with drip stains.
+- BUNGALOW_COURT: two rows of one-storey cottages facing across a planted court (centre walk,
+  lawns, mulch beds, palms at the mouth and the end), a wider cottage across the end; stoops with
+  little canopies; stucco or siding, gable or hip roofs.
+- SPANISH_COURT: two or three storeys of white stucco in a U round a tiled court with
+  YardFill's fountain, clay hip roofs, arched windows on the ground floor, casement grids with
+  wrought-iron balconies above, arched doors, a stucco street wall with an arch and a lantern.
+- PODIUM (midtown only): four storeys, the parking level behind a steel-bar garage gate and
+  breeze-block vents, three floors of flats with sliders and iron balconies, wall ACs.
+- Names in metal letters on a flat parapet (`Apartments.NAMES`, invented: "Los Robles", "Casa
+  Linda"...), merged into the house metal mesh (`FreewayKit.text_geo()`).
+
+**How it hooks in (all after every existing roll):**
+- The plan has HouseKit's shape (frame, wings, door, garage, drive), plus `galleries`, `stairs`,
+  `court`, `extra_ground`, `own_ground`. It is PURE (hashes of seed + lot).
+- Suburbs: `HouseKit.plan_house()` asks `Apartments.plan_house()` first, so the chunk, YardFill's
+  yards, GroundCoverage and the checks all see the same building. `HouseKit.ground_parts()` adds
+  the court and stairs (YardFill keeps off them); `HouseKit.build()` uses `ApartmentBuild` for an
+  apartment plan.
+- Midtown: one hook in `CityChunk._build_lot()` after the pad roll (`Apartments.claims()`), which
+  builds it through `_build_house()`. A midtown claim lays its own lot ground (no yard pass runs
+  there) through YardFill's ground and planting helpers.
+- Midtown neighbours: a DecoBoulevard lot stays deco (`DecoBoulevard.lot_plan()`); on a block
+  with a service alley the apartment plans in the cell less the band (`Alleys.trim()`), tells the
+  alley its wings (`Alleys.record()`, so the run goes round them) and keeps its lot ground off the
+  alley's back strip.
+- Odds: midtown lots under `MIDTOWN_MAX_H` (24 m) at `MIDTOWN_ODDS` (0.45); suburbs within
+  `INNER_RING` (900 m) of the midtown ring or the westside centre, odds falling from `INNER_ODDS`
+  (0.5) to 0. Each kind needs a yard of at least `MIN_YARD`.
+- FULL: everything in the chunk's house meshes (one per material, no new materials or shaders),
+  collision on the Houses body (gallery slabs, stair ramps, landings, balconies). LOD and the far
+  city: HouseBuild's coded wing boxes and roof slabs, plus a thin box per gallery floor.
+- `APARTMENTS=0` is the A/B.
+
+**Numbers (seed 1337):** within 3.2 km of downtown's centre 1,292 buildings (podium 340, walk-up
+359, Spanish court 240, bungalow court 109), plans pure, ~1.2 s to plan them all. Frame cost at
+the midtown bookmark `--spawn=290,-520,105,-5` (`tools/geo_count.gd`, opengl3): 3.84 M triangles /
+3,186 draws with `APARTMENTS=0`, 4.20 M / 3,228 with the kit (+9 % / +1.3 %; the house meshes are
+0.38 M of it, shadows included - pickets and gate bars are shadowless `h_rail` strips). A block of
+ten apartments builds in 1,052 ms against 916 ms as Building boxes (headless).
+
+**Tools:** `tools/apartments/probe.gd` (counts, EYEs for `block_shot.tscn`; skips lots a pad may
+take), `tools/apartments/compile.gd`. Checks: `tests/apartments_checks.gd` (`house_checks.gd` now
+skips apartment lots).
+
+**Second pass (the lead's review: "the walk-ups read as flat stucco boxes"):** a deep walk-up
+(`TUCK_D` 6.4 m) can open the street end of its ground floor as tuck-under parking in dark bays
+(`h.garage` kind "tuck", so the driveway runs to it); the street face can wear a second stucco tone
+(`colors.front`, `ApartmentBuild._wall()`) and a slider onto an iron balcony per floor; every
+window on a walk-up or podium gets a head band and jambs standing proud, a sill under a slider and
+a grime streak under it (`_surround()`); a belt course runs round each floor line (`_belts()`, not
+on the gallery face); the court's mouth gets a steel picket gate between stucco piers with
+mailboxes and a lamp (`_court_gate()`); flat roofs get vent stacks and a scupper. The claim now
+also skips the freeway's right of way, VacantLots' lots and the block's Construction tower site,
+and `Apartments.claimed_before()` (the stations, worship, Broadway, Chinatown, the dealers, a well,
+the civic buildings) keeps the probe and the checks off lots the chunk gives to someone else. The
+probe is a scene now (`tools/apartments/probe.tscn`: it needs the autoloads). Frame cost after this pass,
+on main at build 359 plus this branch, the same bookmark: 3.71 M triangles / 2,572 draws with
+`APARTMENTS=0`, 4.15 M / 2,716 with the kit (+12 % / +6 %). Not cut further: the house meshes
+have no LODs (a chunk-wide mesh), so a distance cut on the pickets, surrounds and belts would need
+a second near-only surface per material - the next thing to try if midtown runs heavy.
+
+**Known gaps:** no interiors behind the glass (house_glass's traced room only); the Spanish courts'
+upper floors have no modelled stair; podium entries are a plain door; a pad (Commercial) can still
+take an edge lot the probe predicted as an apartment (the chunk's own rng); nothing lit at night
+beyond the house kit's lamps and windows.

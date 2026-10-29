@@ -2277,6 +2277,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   lot rects (`YardFill.walk_for()`, pure), so a house knows it fronts one before the block step.
   `HouseKit.enabled` false (the A/B; `HOUSES=0` on `still_shot.gd`) builds `Building` boxes on
   the house lots again. Checks: `tests/house_checks.gd`.
+  **Nor is every low lot a box or a house** (`Apartments` + `ApartmentBuild`, 2026-10-05,
+  docs/HANDOFF.md "Apartment buildings"): midtown lots under 24 m and the inner suburbs get LA
+  apartments - WALKUP (galleries, open stairs), BUNGALOW_COURT, SPANISH_COURT, PODIUM - as plans
+  in HouseKit's form (claimed in `HouseKit.plan_house()` and one `_build_lot()` hook after the pad
+  roll), built by HouseBuild's emitters into the house meshes; `APARTMENTS=0` is the A/B; checks
+  `tests/apartments_checks.gd`, probe `tools/apartments/probe.tscn`.
   **Nor is an industrial block** (`Industrial`, `scripts/world/industrial.gd` +
   `IndustrialKit`, `scripts/world/industrial_kit.gd`, 2026-10-04; INDUSTRIAL bare 40 % -> 0 %,
   docs/HANDOFF.md 9bh). East of the 110 down to the port (Vernon, the Alameda corridor) and east
