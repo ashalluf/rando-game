@@ -1,9 +1,50 @@
-# Handoff: Rando Game (written 2026-09-19; section 0000000 is the newest state: fleet wave 2, 2026-10-05)
+# Handoff: Rando Game (written 2026-09-19; section 00000000 is the newest state: fleet wave 3, 2026-10-29)
 
 This is the narrative handoff for whoever picks the project up next, from any Claude Code account
 or as a person. `CLAUDE.md` is the rulebook and `docs/GAME_PLAN.md` is the roadmap plus the
 decisions log; both stay the source of truth. This file is the story: where things stand, how
 the day-to-day work goes, what is fragile, what to do next. Read all three before touching code.
+
+## 00000000. Fleet wave 3 (2026-10-29; read this first)
+
+The owner: "this needs to start looking like GTA 6" and "keep working until I say STOP".
+
+- **`main` = `95bd13f`** (builds 360 / 361): everything of section 0000000 plus `wt/apartments`
+  (HANDOFF 9eu, roadmap #140) and `wt/tower-gondolas` (9ev, #141), each gated green with
+  `SHARDS=3 tests/headless_check.sh` (2,381 and 2,396 checks, 0 failed).
+- **Wave 3 is 23 cloud sessions** (tag `rando-wave3`), each on `wt/<slug>` with stills on
+  `shots/<slug>`, briefed with `fleet/brief`'s BRIEF.md plus wave-3 overrides (base on main
+  95bd13f; a paused branch merges main and finishes; owner's bar "GTA 6"). 21 finish wave 2's
+  paused tasks; two are new: `rock-outcrops` (the mountains read as smooth tan humps from the
+  basin) and `facades-gta` (generated buildings read as boxes in flat window grids; its task text
+  is in its session prompt). Roster (slug, session):
+  - `street-furniture` `session_01Q7NKz19z1PwJ4x56JtVr6K` (resume)
+  - `star-boulevard` `session_01Q7NKyxMv2pxLeD8Qt8g9AU` (resume)
+  - `walk-in-store` `session_01Q7NKywFH9Scd8sAvZgcbQS` (resume)
+  - `garage-drive-in` `session_01Q7NKyzNbm97g9P3AkcWUmc` (resume)
+  - `fashion-district` `session_01Q7NKz1v1f7sh824t5HwbRm` (resume)
+  - `coast-highway` `session_01Q7NKyz5HDr4HtqP2AgmB6q` (resume)
+  - `motorcycles` `session_01Q7NKyxLVDCcxsoPsrgHAHG` (resume)
+  - `lowriders` `session_01Q7NKyxSeHn4jsqpEZ6Natu` (resume)
+  - `car-panic` `session_01Q7NKz1XvdGKKQZezoZxRfM` (resume)
+  - `onlookers` `session_01Q7NKyzBdCsbV2EbZqbqdmL` (resume)
+  - `freeway-incidents` `session_01Q7NKyzx8sjyPQzQkqomtvT` (resume)
+  - `heli-flyable` `session_01Q7NKyydpmWXUujfF322PSE` (resume)
+  - `swimming` `session_01Q7NKyxXuZ2HdyYyfDSj6WT` (resume)
+  - `wingsuit` `session_01Q7NKz1G1uGGNSMorRgr375` (resume)
+  - `prop-destruction` `session_01Q7NKyzREFyCX9xf6BhkxcW` (resume)
+  - `parklets` `session_01Q7NKyxAdsyLRMYEwNPfGtz` (resume)
+  - `backyards` `session_01Q7NKyyrn8VHLuN8kcfPVHa` (resume)
+  - `rain-crowd` `session_01Q7NKz1hc3AB5Vfya419KMG` (resume)
+  - `news-crews` `session_01Q7NKywVfLKD4tXuQ3dVzVb` (resume)
+  - `crowd-lookat` `session_01Q7NKz1LdUALdLyvkqfKcyf` (resume)
+  - `engine-audio` `session_01Q7NKz1FiJ5a8imtWE3QHmz` (resume)
+  - `rock-outcrops` `session_01Q7NKz1dppYF3oKNgiPBcvD` (new)
+  - `facades-gta` `session_01Q7NKyz5XbXuSzP8dsPgX9x` (new)
+- The lead merges finished branches in batches (`tools/fleet/merge_branch.py`), gates each batch,
+  pushes main, and launches the remaining `tasks.tsv` areas as slots free up.
+- 1,000 agents is not possible here: a gate run is ~2.4 GB a shard on a 15 GB box, and the
+  account's usage limit stopped the last fleet at ~50 sessions.
 
 ## 0000000. Fleet wave 2: 100 sessions (2026-10-05, from 09:24 UTC; read this first)
 
