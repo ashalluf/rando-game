@@ -34,3 +34,5 @@ now made at the chunk's finish, so the camps' kerb rows and the other passes kee
 
 City stills: `tools/glshot/still_shot.gd` with `DIFF=1` (people, cars and particles hidden so both sides
 render the same frame), `STREET_FURNITURE=0` for every "before".
+| 35 / 36 | wave 3, hydrant close-up at wear 0.28: before / after (an older silver coat under the chips, dust on the bonnet) |
+| 37 / 38 | wave 3, the lineup at wear 0.3: before / after |
