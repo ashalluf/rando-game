@@ -11,7 +11,7 @@ extends Node3D
 ## Measure the crowd's CPU per physics tick (headless is fine, nothing here renders):
 ##   MODE=bench N=100 godot --headless --path . tools/crowd/crowd_lab.tscn
 ##
-## SCENARIO: dog (two dog walkers; FOLLOW=1 walks the camera beside the first), life (people talking, sitting, leaning, on the phone: CrowdLife), turn (walk, then an about-turn; side-on camera over a 0.5 m grid, so a sliding
+## SCENARIO: heads (the crowd look: a crash, a boost past, a busker, a blast), dog (two dog walkers; FOLLOW=1 walks the camera beside the first), life (people talking, sitting, leaning, on the phone: CrowdLife), turn (walk, then an about-turn; side-on camera over a 0.5 m grid, so a sliding
 ## foot shows against the lines), look (people at the kerb as a car passes, the player walks
 ## by and a shot goes off), crowd (thirty people wandering a block's pavement), start (a
 ## standing person sets off and stops again). STEP (ticks between frames, default 12), FRAMES
@@ -205,6 +205,25 @@ func _film() -> void:
 			add_child(_car)
 			_player.position = Vector3(14.0, 0.0, 9.0)
 			_camera(Vector3(0.0, 2.6, 7.5), Vector3(0.0, 1.2, 0.0), 34.0)
+		"heads":
+			# The crowd look (CrowdLook): six people at the kerb facing the road and the camera, and
+			# things happening round them (_stage_heads): a car crash off to the left, the player
+			# boosting past behind them, a busker to the right, a blast far off on the left.
+			for i in 6:
+				var p := _spawn(rect, Vector2(-3.4 + 1.4 * i, 0.5 * float(i % 2)), 31 + i * 9, (model + i * 3) % Pedestrian.MODELS.size())
+				p.set("_pause_left", 1000.0)
+				p.life_range = 0.0
+				(p.get("_visual") as Node3D).rotation.y = PI + 0.25 * float(i % 3 - 1)
+				p.call("_play_idle")
+				p.set("_speed", 0.0)
+			_car = MeshInstance3D.new()
+			var cbox := BoxMesh.new()
+			cbox.size = Vector3(4.4, 1.4, 1.9)
+			_car.mesh = cbox
+			_car.position = Vector3(-200.0, 0.7, 4.2)
+			add_child(_car)
+			_player.position = Vector3(0.0, 0.0, 16.0) # behind the camera: in the look range, out of shot
+			_camera(Vector3(0.6, 1.7, 6.6), Vector3(0.6, 1.4, 0.0), 50.0)
 		"props":
 			# One person per carry, standing in a row facing the camera (WALK=1: walking at it).
 			var kinds := [CrowdLife.Carry.CALL, CrowdLife.Carry.TEXT, CrowdLife.Carry.CUP, CrowdLife.Carry.BAG, CrowdLife.Carry.SMOKE]
@@ -271,6 +290,16 @@ func _film() -> void:
 				# A camera walking alongside the first walker, at the dog's side (FOLLOW=1).
 				var w: Pedestrian = _dog_legs[0]
 				_camera(w.position + Vector3(0.6, 1.05, -3.4), w.position + Vector3(0.4, 0.55, -0.6), 38.0)
+			if _scenario == "heads":
+				_stage_heads(_tick)
+				if OS.get_environment("DEBUG") == "1" and _tick % 30 == 0:
+					var hl := "tick %d:" % _tick
+					for p in _peds:
+						var m: Node = p.get("_look_mod")
+						hl += " [%s yaw %.0f chest %.0f pitch %.0f]" % [CrowdLook.Kind.keys()[m._kind] if m else "-",
+							rad_to_deg(m.yaw) if m else rad_to_deg(p.get("_look_yaw")), rad_to_deg(m.chest) if m else 0.0,
+							rad_to_deg(m.pitch) if m else rad_to_deg(p.get("_look_pitch"))]
+					print(hl)
 			if _scenario == "look":
 				_stage_look(_tick)
 				if OS.get_environment("DEBUG") == "1" and _tick % 30 == 0:
@@ -347,6 +376,38 @@ func _stage_look(tick: int) -> void:
 		_player.position = Vector3(-14.0, 0.0, 9.0)
 	if tick == 560:
 		Pedestrian.alarm(get_tree(), Vector3(9.0, 1.0, 3.0), 30.0, 0, false, "")
+
+
+## The heads scenario's events, by tick: a car skids in from the left and crashes (60), the
+## player boosts past behind the row (300-360), a busker starts up on the right (480), a blast far
+## off to the left (720). Posted as CrowdLook events, so the lab needs no physics car or blast.
+var _busker: Node3D
+func _stage_heads(tick: int) -> void:
+	var dt := 1.0 / 60.0
+	if tick < 60:
+		_car.position = Vector3(-30.0 + 21.0 * float(tick) / 60.0, 0.7, 5.0)
+	if tick == 60:
+		_car.rotation.y = 0.5
+		CrowdLook.notice(_car.global_position, CrowdLook.Kind.CRASH, CrowdLook.CRASH_RANGE, 3.0, _car, 1.2)
+	if tick >= 300 and tick < 360:
+		_player.position = Vector3(-30.0 + float(tick - 300) * dt * 60.0, 1.5, -3.0)
+		if tick == 300:
+			CrowdLook.notice(_player.global_position, CrowdLook.Kind.BOOST, CrowdLook.BOOST_RANGE, 1.2, _player)
+	if tick == 360:
+		_player.position = Vector3(0.0, 0.0, 16.0)
+	if tick == 480:
+		_busker = MeshInstance3D.new()
+		var cyl := CylinderMesh.new()
+		cyl.top_radius = 0.25
+		cyl.bottom_radius = 0.3
+		cyl.height = 1.7
+		(_busker as MeshInstance3D).mesh = cyl
+		_busker.position = Vector3(6.5, 0.85, 3.2)
+		_busker.add_to_group("crowd_look_magnet")
+		_busker.set_meta("look_range", 14.0)
+		add_child(_busker)
+	if tick == 720:
+		CrowdLook.notice(Vector3(-40.0, 6.0, -20.0), CrowdLook.Kind.BLAST, CrowdLook.BLAST_RANGE, 3.5, null, 1.0)
 
 
 ## Foot skate: people walking a long straight leg at their own pace; each tick, the lower of

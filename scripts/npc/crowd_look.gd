@@ -82,6 +82,8 @@ const SIREN_RANGE := 70.0
 const FIRE_RANGE := 30.0
 const MAGNET_RANGE := 12.0
 const PASSER_RANGE := 4.5
+## A passer-by is glanced at only while one of the two walks faster than this (m/s).
+const PASSER_SPEED := 0.4
 ## How long a posted event lasts (seconds) unless given.
 const EVENT_LIFE := 3.5
 
@@ -470,6 +472,10 @@ func _quiet_candidates(eye: Vector3, _now_s: float, weigh: Callable, best_score:
 			continue
 		var at := o.global_position
 		if at.distance_squared_to(me) > PASSER_RANGE * PASSER_RANGE:
+			continue
+		# A passer-by passes: somebody standing beside you all along is not glanced at again and
+		# again (one of the two must be walking).
+		if float(o.get("_speed")) < PASSER_SPEED and float(ped.get("_speed")) < PASSER_SPEED:
 			continue
 		var s: float = weigh.call(Kind.PASSER, at + Vector3.UP * 1.55, PASSER_RANGE, 1.0, o.get_instance_id())
 		# Only some people glance at each passer-by, and not every time they pass.
