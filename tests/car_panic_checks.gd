@@ -182,9 +182,20 @@ func _brake(road: Array) -> void:
 	var stop_at := INF
 	var hazard := false
 	var resumed := false
+	var fx := DrivingFX.instance()
+	var marks0: int = fx.marks_laid if fx else 0
+	var dive := 0.0
+	var rock := 0.0
+	var squeal := false
 	for i in 60 * 14:
 		await _tree.physics_frame
 		var t: Dictionary = car.traffic
+		var bd: Dictionary = t.get("bd", {})
+		if not bd.is_empty():
+			dive = minf(dive, float(bd.p))
+			if stop_at < INF:
+				rock = maxf(rock, float(bd.p))
+		squeal = squeal or car.get_node_or_null("PanicSkid") != null
 		if stop_at == INF and float(t.get("v", 1.0)) <= 0.0:
 			stop_at = (_along(car, axis) - a0) * float(road[2])
 		hazard = hazard or t.get("hazard", false)
@@ -193,6 +204,9 @@ func _brake(road: Array) -> void:
 			break
 	_check(reacted and stop_at < 13.0 and hazard and resumed,
 		"a driver near a shot brakes hard, stands on the hazards and drives on (reacted %s, stopped in %.1f m, hazards %s, drove on %s)" % [reacted, stop_at, hazard, resumed])
+	var marks: int = (fx.marks_laid - marks0) if fx else -1
+	_check(dive < -0.02 and dive > -CarPanic.DIVE_MAX - 0.01 and rock > 0.002 and squeal and (fx == null or marks >= 8),
+		"the hard stop dives the nose, rocks back as it stops, squeals and lays tyre marks (dive %.3f rad, rock %.3f, squeal %s, marks %d)" % [dive, rock, squeal, marks])
 
 
 ## A swerve away from the threat and back into the lane.

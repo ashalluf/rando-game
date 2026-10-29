@@ -66,6 +66,19 @@ const FLOOR_SECONDS := Vector2(5.0, 8.0)
 ## ABANDON: seconds after the car stands before the door opens.
 const DOOR_DELAY := Vector2(0.35, 1.1)
 ## Cars behind: how close and how long stopped before they honk, and before one goes round (s).
+## The body on its springs under a panic stop (CarPanic._body_motion): rad of nose-down pitch
+## per m/s^2 of deceleration (8 m/s^2 is about 2 degrees), its cap, the spring and its damping
+## ratio (under 1: the car rocks back once as it stops), how fast a swerve's turn eases in, and
+## the roll into it.
+const DIVE_PER_ACCEL := 0.0042
+const DIVE_MAX := 0.045
+const DIVE_STIFFNESS := 70.0
+const DIVE_DAMPING := 0.32
+const YAW_EASE := 7.0
+const SWAY_ROLL := 0.012
+## Tyre marks and the squeal under a hard panic stop: from this speed (m/s) and this deceleration.
+const SKID_SPEED := 6.0
+const SKID_DECEL := 6.3
 const BEHIND_REACH := 16.0
 const HONK_AFTER := 1.2
 const ROUND_PATIENCE := 3.5
@@ -375,6 +388,9 @@ static func _panic_tick(tm: TrafficManager, car: Vehicle, leader: Vehicle, group
 	t.rev = false
 	match int(cp.ph):
 		Phase.STOP:
+			if not cp.has("sk") and v > SKID_SPEED and float(cp.decel) >= SKID_DECEL:
+				cp.sk = true
+				PanicSkid.on(car, float(cp.decel))
 			var crawl := KERB_CRAWL if kind == Kind.KERB and absf(lat_to - lat) > 0.05 else 0.0
 			if v > crawl:
 				v = maxf(v - float(cp.decel) * delta, crawl)
@@ -527,10 +543,42 @@ static func _place(tm: TrafficManager, car: Vehicle, f: Dictionary, step: float,
 		yaw = atan2(-vel.x, -vel.z)
 	# The kerb is on the car's right: that side up.
 	var roll := KERB_ROLL * over * (1.0 if signf(lat) == float(f.kerb_sign) else -1.0)
+	# The body on its springs: the nose dives under the hard stop and rocks back as it stops, and
+	# the turn into a swerve is eased in rather than snapped.
+	var body := _body_motion(t, v, yaw - tm._heading(axis, dir), car.get_physics_process_delta_time())
+	yaw = tm._heading(axis, dir) + body.y
 	t.wp = wp
-	car.global_transform = Transform3D(Basis.from_euler(Vector3(atan2(ahead_h - here, 4.0), yaw, roll)), WorldState.to_local(wp))
+	car.global_transform = Transform3D(Basis.from_euler(Vector3(atan2(ahead_h - here, 4.0) + body.x, yaw, roll + body.z)), WorldState.to_local(wp))
 	if not car.is_physics_processing():
 		car._tick_lights(car.get_physics_process_delta_time())
+
+
+## Spring-mass body motion for a placed panic car: x the pitch (nose down under braking,
+## `DIVE_PER_ACCEL` rad per m/s^2, rocking back past level as it stops), y the eased yaw offset
+## toward `yaw_to`, z a little roll into the swerve. State in `t.bd` (cleared by `_end`).
+static func _body_motion(t: Dictionary, v: float, yaw_to: float, delta: float) -> Vector3:
+	if delta <= 0.0:
+		delta = 1.0 / 60.0
+	var bd: Dictionary = t.get("bd", {})
+	if bd.is_empty():
+		bd = {"v": v, "p": 0.0, "pw": 0.0, "y": yaw_to, "yr": 0.0}
+		t.bd = bd
+	var accel := (v - float(bd.v)) / delta
+	bd.v = v
+	# Positive v forward: deceleration (or accelerating backwards) puts the nose down.
+	var want := clampf(accel * DIVE_PER_ACCEL, -DIVE_MAX, DIVE_MAX)
+	var k := DIVE_STIFFNESS
+	var pw := float(bd.pw) + ((want - float(bd.p)) * k - float(bd.pw) * 2.0 * DIVE_DAMPING * sqrt(k)) * delta
+	var p := float(bd.p) + pw * delta
+	bd.pw = pw
+	bd.p = p
+	var y0 := float(bd.y)
+	var y := lerp_angle(y0, yaw_to, 1.0 - exp(-YAW_EASE * delta))
+	bd.y = y
+	var yr := (wrapf(y - y0, -PI, PI)) / delta
+	bd.yr = lerpf(float(bd.yr), yr, 1.0 - exp(-8.0 * delta))
+	var roll := clampf(-float(bd.yr) * absf(v) * SWAY_ROLL, -0.04, 0.04)
+	return Vector3(p, y, roll)
 
 
 ## The cars stuck behind a car standing in their lane: they honk, and on a street with one lane
@@ -736,6 +784,7 @@ static func _end(t: Dictionary) -> void:
 	t.erase("hazard")
 	t.erase("rev")
 	t.erase("cpw")
+	t.erase("bd")
 	if t.has("dp_at") and not t.has("dp"):
 		t.erase("dp_at")
 
