@@ -1377,6 +1377,13 @@ already mapped so milestone 2 is script-only.
   seed-rolled one, as the canals and MacArthur Park are (Landmarks.all() is built before any
   seed); everything inside is hashed from the seed. docs/HANDOFF.md "The film studio lot".
 
+- **2026-10-05 Window washers work the downtown towers.** Suspended cradles with two workers
+  hang from davits on the landmark towers' flat faces and from the BMU jibs Rooftops puts on glass
+  infill towers, and wash their way down floor by floor on the clock (a drop takes about an hour),
+  leaving the glass wet behind them. Shooting one swings it; the crew crouches and hangs on - they
+  do not fall (the world is realistic, the player is the chaos). Only built near the camera.
+  docs/HANDOFF.md "Window-washing gondolas"; CLAUDE.md "Window-washing gondolas".
+
 - **2026-10-05 The cumulus read as photographs, not paintings (owner's review of wt/sky).** Flat
   bases at a shared condensation level, crowns thinned so the billows build them into turrets,
   footprints warped and tops sheared, a second population of fragments, three-octave torn edges
