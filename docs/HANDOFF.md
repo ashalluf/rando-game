@@ -14201,6 +14201,182 @@ streets' glow stands in). The lamps stand where the old ones stood, and on some 
 is beside a utility pole (StreetDetail's), which the old thin post hid better. No real light
 shaped like the cobra's cut-off (still an omni). Shot lamps break as before (debris box), no
 falling pole.
+## 9eu. Apartment buildings: walk-ups, bungalow courts, Spanish courts and podium blocks, 2026-10-05 (agent branch `wt/apartments`; VISUAL_ROADMAP #140)
+
+G2's first per-style kit: Los Angeles stucco apartments in MIDTOWN and the inner SUBURBS. Before,
+every midtown low-rise lot was a `Building` box with a storefront band and the inner suburbs were
+all single houses.
+
+**The four kinds** (`Apartments.Kind`, `scripts/world/apartments.gd`):
+- WALKUP: a two- or three-storey bar running back from the street, its units opening off
+  cantilevered galleries (concrete slab, accent fascia, iron pickets or a stucco half wall, steel
+  posts to the ground, a canopy over the top one) along a side court, reached by open steel stairs
+  (stringers, concrete treads, pipe rails, a landing per floor, flights in a straight run). Flat
+  roof behind a parapet or a low hip in clay or shingle. Wall air conditioners with drip stains.
+- BUNGALOW_COURT: two rows of one-storey cottages facing across a planted court (centre walk,
+  lawns, mulch beds, palms at the mouth and the end), a wider cottage across the end; stoops with
+  little canopies; stucco or siding, gable or hip roofs.
+- SPANISH_COURT: two or three storeys of white stucco in a U round a tiled court with
+  YardFill's fountain, clay hip roofs, arched windows on the ground floor, casement grids with
+  wrought-iron balconies above, arched doors, a stucco street wall with an arch and a lantern.
+- PODIUM (midtown only): four storeys, the parking level behind a steel-bar garage gate and
+  breeze-block vents, three floors of flats with sliders and iron balconies, wall ACs.
+- Names in metal letters on a flat parapet (`Apartments.NAMES`, invented: "Los Robles", "Casa
+  Linda"...), merged into the house metal mesh (`FreewayKit.text_geo()`).
+
+**How it hooks in (all after every existing roll):**
+- The plan has HouseKit's shape (frame, wings, door, garage, drive), plus `galleries`, `stairs`,
+  `court`, `extra_ground`, `own_ground`. It is PURE (hashes of seed + lot).
+- Suburbs: `HouseKit.plan_house()` asks `Apartments.plan_house()` first, so the chunk, YardFill's
+  yards, GroundCoverage and the checks all see the same building. `HouseKit.ground_parts()` adds
+  the court and stairs (YardFill keeps off them); `HouseKit.build()` uses `ApartmentBuild` for an
+  apartment plan.
+- Midtown: one hook in `CityChunk._build_lot()` after the pad roll (`Apartments.claims()`), which
+  builds it through `_build_house()`. A midtown claim lays its own lot ground (no yard pass runs
+  there) through YardFill's ground and planting helpers.
+- Midtown neighbours: a DecoBoulevard lot stays deco (`DecoBoulevard.lot_plan()`); on a block
+  with a service alley the apartment plans in the cell less the band (`Alleys.trim()`), tells the
+  alley its wings (`Alleys.record()`, so the run goes round them) and keeps its lot ground off the
+  alley's back strip.
+- Odds: midtown lots under `MIDTOWN_MAX_H` (24 m) at `MIDTOWN_ODDS` (0.45); suburbs within
+  `INNER_RING` (900 m) of the midtown ring or the westside centre, odds falling from `INNER_ODDS`
+  (0.5) to 0. Each kind needs a yard of at least `MIN_YARD`.
+- FULL: everything in the chunk's house meshes (one per material, no new materials or shaders),
+  collision on the Houses body (gallery slabs, stair ramps, landings, balconies). LOD and the far
+  city: HouseBuild's coded wing boxes and roof slabs, plus a thin box per gallery floor.
+- `APARTMENTS=0` is the A/B.
+
+**Numbers (seed 1337):** within 3.2 km of downtown's centre 1,292 buildings (podium 340, walk-up
+359, Spanish court 240, bungalow court 109), plans pure, ~1.2 s to plan them all. Frame cost at
+the midtown bookmark `--spawn=290,-520,105,-5` (`tools/geo_count.gd`, opengl3): 3.84 M triangles /
+3,186 draws with `APARTMENTS=0`, 4.20 M / 3,228 with the kit (+9 % / +1.3 %; the house meshes are
+0.38 M of it, shadows included - pickets and gate bars are shadowless `h_rail` strips). A block of
+ten apartments builds in 1,052 ms against 916 ms as Building boxes (headless).
+
+**Tools:** `tools/apartments/probe.gd` (counts, EYEs for `block_shot.tscn`; skips lots a pad may
+take), `tools/apartments/compile.gd`. Checks: `tests/apartments_checks.gd` (`house_checks.gd` now
+skips apartment lots).
+
+**Second pass (the lead's review: "the walk-ups read as flat stucco boxes"):** a deep walk-up
+(`TUCK_D` 6.4 m) can open the street end of its ground floor as tuck-under parking in dark bays
+(`h.garage` kind "tuck", so the driveway runs to it); the street face can wear a second stucco tone
+(`colors.front`, `ApartmentBuild._wall()`) and a slider onto an iron balcony per floor; every
+window on a walk-up or podium gets a head band and jambs standing proud, a sill under a slider and
+a grime streak under it (`_surround()`); a belt course runs round each floor line (`_belts()`, not
+on the gallery face); the court's mouth gets a steel picket gate between stucco piers with
+mailboxes and a lamp (`_court_gate()`); flat roofs get vent stacks and a scupper. The claim now
+also skips the freeway's right of way, VacantLots' lots and the block's Construction tower site,
+and `Apartments.claimed_before()` (the stations, worship, Broadway, Chinatown, the dealers, a well,
+the civic buildings) keeps the probe and the checks off lots the chunk gives to someone else. The
+probe is a scene now (`tools/apartments/probe.tscn`: it needs the autoloads). Frame cost after this pass,
+on main at build 359 plus this branch, the same bookmark: 3.71 M triangles / 2,572 draws with
+`APARTMENTS=0`, 4.15 M / 2,716 with the kit (+12 % / +6 %). Not cut further: the house meshes
+have no LODs (a chunk-wide mesh), so a distance cut on the pickets, surrounds and belts would need
+a second near-only surface per material - the next thing to try if midtown runs heavy.
+
+**Known gaps:** no interiors behind the glass (house_glass's traced room only); the Spanish courts'
+upper floors have no modelled stair; podium entries are a plain door; a pad (Commercial) can still
+take an edge lot the probe predicted as an apartment (the chunk's own rng); nothing lit at night
+beyond the house kit's lamps and windows.
+
+## 9ev. Window-washing gondolas on the downtown towers, 2026-10-05 (agent branch `wt/tower-gondolas`; VISUAL_ROADMAP #141)
+
+**What.** Suspended window-washing cradles on the downtown glass towers: a 4.6 m cradle (grating
+floor, toe boards, top and mid rails, mesh panels with the invented contractor BASIN HEIGHTS
+WINDOW CO., an end stirrup at each end with its traction hoist, rollers against the glass, a
+bucket, a hose coil, a spare squeegee) hanging on four wire ropes from a pair of roof davits or a
+building maintenance unit's jib, two workers in workwear and hard hats on orange lanyards to the
+roof, one squeegeeing the pane in S strokes while the other holds the rail. It works its way down
+the face a floor at a time (`STEP` 3.6 m at `DOWN_SPEED` 0.22 m/s, `WASH_SECONDS` 34 at each
+stop), the washed glass wet above it, drips below, soap on the pane being worked; at the foot it is
+winched back up (`UP_SPEED`) and the crew moves the davits to the next lane. A 216 m drop is about
+an hour. On the roofs: davit sockets with stowed arms along a hung face and, on some towers, a
+parked BMU on another face (Rooftops' own `_bmu()` geometry, cradle parked).
+
+**Builds on wt/rooftops** (lead's note): Rooftops' window-washing machine on a glass infill tower
+with `hang` no longer draws its static cradle; its jib heads carry the live one
+(`TowerGondolas.building_bmu()`, one hook line in `Rooftops.build()` and one branch in `_bmu()`).
+The drop runs down past every part the cradle's column does not meet to the first roof it would
+land on (min 4 m). `GONDOLAS=0` puts the static cradle back.
+
+**Where (pure).** `TowerGondolas.faces(tiers, hulls)` over a LandmarkDowntown tower: every flat
+prism tier (`TowerMesh.tiers`, recorded by one line in `prism()` and handed out by
+`LandmarkDowntown.tower()`) with a parapet, each straight edge at least `MIN_FACE` 7 m with roof at
+least 3 m deep behind it, nothing (any collision hull, the landmark's helipad) on the davit spots,
+the drop carried down through flush tiers below and stopped over anything standing out of the face
+(the column `GAP + 0.3` out, both cradle ends, against every hull), at least `MIN_DROP` 24 m.
+`landmark_sites(id, seed)` picks by hash (`TOWER_SHARE`, up to `MAX_PER_TOWER` faces facing
+different ways, a parked BMU on `PARKED_BMU_SHARE` where the face is axis-aligned and the roof 7 m
+deep) and lays lanes `LANE_PITCH` apart along the face. Default seed: 7 cradles on 5 towers (black
+twins x2, bronze slab x2 - one on a chamfer -, granite slab, park b, park c); the round, sloped and
+crowned towers carry none.
+
+**Live only near the camera.** One `GondolaRig` node per site (identity under the tower's landmark
+node or the Building, so origin shifts and chunk unloads carry it), polling the camera a few times
+a second: the cradle, ropes, davits and water within `BUILD_RANGE` 420 m (at most `MAX_LIVE` 6),
+the crew within `WORKER_RANGE` 160 m (at most `max_workers()` 4 rigs, 2 on the web); freed again
+60 / 30 m past. Nothing in the LOD ring or the far city (the landmark towers are FULL-only here;
+Rooftops' far boxes still draw a static cradle box for the infill at its old depth - a jump at the
+FULL/LOD line, a few pixels).
+
+**The swing.** The cradle is an AnimatableBody3D on the props layer (mask 0, `sync_to_physics`
+off so a re-centre is not a velocity, group "rail_vehicle": metal sparks and pings). `take_hit()`
+(rifle 10, pellets, a rocket's blast up to 120) kicks a pendulum out from the glass and along it
+(period from the rope length: ~28 s on 200 m of rope), a quicker twist (1.5 rad/s) and a roll
+between the hoists (2.3 rad/s), all lightly damped; the rollers stop it at the glass (it bounces
+off, never through) and the twist is limited by how far out it hangs. While it is shaken the crew
+crouch 22 cm with both hands on the front rail (two-bone IK on both arms and legs, feet held on the
+floor) and one of them yells (Sfx `scream`, a 4 s cooldown). They never fall: the world is
+realistic, the player is the chaos. Shooting a worker hits the cradle's body (their own boxes on
+it), so it swings too.
+
+**Workers.** Crowd rigs with trousers (`WORKER_MODELS`; crowd_s keeps its own hi-vis vest) in
+workwear through the character shader's garment split (`uniform_material()`: grey-blue or hi-vis
+orange shirt, dark work trousers), the idle held near its start (the clip swings the shoulders 60
+degrees), a hard hat modelled round each rig's own head from CrowdHatTable through FireHelmet's
+shell (`hat_mesh()`: a ridge, a short front peak, a narrow rim; white, yellow, orange), hair
+hidden under it. Facing the glass: the rigs face +Z, so the worker's root turns PI and its left
+is +X in the root's frame (the elbow and knee poles depend on it).
+
+**Water.** One quad on the facade (`shaders/gondola_streaks.gdshader`, blend mix, no shadow):
+the wet film above (darker and glossier, drying unevenly upward, runs where the squeegee's ends
+left water), soap on the pane being worked (`soap` from the stop's progress), drips running down
+below (`drip_len`), faded out by 120 m. Linear on both renderers (color_space include).
+
+**Tools.** `tools/gondolas/gondola_shot.gd` (one landmark tower alone with its rigs forced live, a
+sun and a sky, under a minute: `TOWER`, `SITE`, `VIEW=near|side|below|roof|far|close` or
+`CAM=out,up,along`, `T` the clock, `HIT=n|blast`, `SHOT_AFTER`, `NIGHT=1`; `LIST=1 T=` prints every
+tower's sites with a city EYE for each). `tools/gondolas/checks_only.gd` runs the checks alone
+(seconds). `GONDOLA_T=` sets the clock for stills. Trap found on the way: a RefCounted helper that
+`await`s must be held by something, or it is freed mid-await and never resumes (the shot tool hung
+silently).
+
+**Checks** (`tests/tower_gondolas_checks.gd`, 13): sites pure and on real faces (on a tier's
+edge, roof behind, every lane's column clear of every hull); 3+ towers / 4+ cradles on the default
+seed; the descent stays on the face, only ever goes down within a drop, uses all three states; a
+forced rig builds on the props layer as metal, with two workers; a blast swings it out without
+ever passing the glass and the crew braces; the swing settles; the ropes hang; a far rig frees
+everything; `GONDOLAS=0` builds nothing; a glass infill tower's hanging BMU carries a live cradle.
+
+**Cost.** `still_shot.gd` GEO at the cradle EYEs, 11:00, 1280x720, `GONDOLAS=0` against on (two
+rigs with crews live in the first): black twins `EYE=2291.2,69.6,204.0,18.4,7.2` 2.677 M / 1,406
+draws -> 2.720 M / 1,446 (+1.6 %, +40 draws); bronze slab `EYE=2416.5,138.2,-397.0,-161.6,7.2`
+1.399 M / 393 -> 1.435 M / 425; granite slab `EYE=2454.0,158.9,189.1,-161.6,7.2` 719 k / 166 ->
+734 k / 190. Most of it is the two crews (a crowd rig, its hair and hat each, and their shadows).
+Nothing at all past `BUILD_RANGE`; a site with nothing built is one Node3D polling the camera every
+15th physics frame. The gate peaked at 3.2 GB.
+
+**Stills** (branch `shots/tower-gondolas`, opengl3): before / after at the three EYEs above, the
+crew close up, a cradle on the black twins' glass, the swing 2.5 s after a rocket, the bronze
+slab's roof with its davits, the granite slab from 80 m, and an infill glass tower's BMU cradle
+stopped over its setback (`EYE=2222.9,165,208.8,45,-8`).
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the wet film and the soap are tuned on
+opengl3 only (they are blend-mix quads with a low roughness; SSR may add more on the Mac). The
+crew's hands are IK onto the rail and the squeegee with the idle frozen near its start: no
+dedicated wiping clip, no head turn. No sound of the hoists. The LOD ring shows Rooftops' static
+cradle box at its old depth on infill towers. Workers cannot be knocked off (on purpose); shooting
+one only swings the cradle, with no blood.
 
 ## 9d?. Street furniture: LA's hydrants, meters, pay stations, ad benches, bins, racks and planters, 2026-10-05 (agent branch `wt/street-furniture`; VISUAL_ROADMAP "?")
 
