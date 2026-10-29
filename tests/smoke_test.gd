@@ -2188,6 +2188,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Tower roofs (tests/rooftops_checks.gd): helipads, pool decks, gardens, penthouses, masts and
 	# window-washing machines planned pure, off the plant they may not cover, near = far, no roll moved.
 	load("res://tests/rooftops_checks.gd").new().run(self, city)
+	# Window-washing gondolas (tests/tower_gondolas_checks.gd): sites on real faces, the descent, the swing.
+	load("res://tests/tower_gondolas_checks.gd").new().run(self, city)
 	# The Los Angeles River (tests/la_river_checks.gd): the route east of downtown to Long Beach, the
 	# freeways over it, the streets closed or bridged, no lot in the corridor, the chunk's meshes and
 	# one collision body, the far city's boxes, and a car on the bed and down a ramp.
@@ -2326,6 +2328,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Street lamps (tests/street_lamps_checks.gd): the kit against its table, the pick per street,
 	# the arms over the road, the lamps' pools and omnis, and the same prop ids with the kit off.
 	load("res://tests/street_lamps_checks.gd").new().run(self, city)
+	# Apartments (tests/apartments_checks.gd): midtown and inner-suburb walk-ups, courts and podiums.
+	load("res://tests/apartments_checks.gd").new().run(self, city)
 	# Drivers react to chaos (tests/car_panic_checks.gd): brake, swerve, kerb, reverse, abandon, go round.
 	await load("res://tests/car_panic_checks.gd").new().run(self, city)
 
