@@ -306,6 +306,13 @@ already mapped so milestone 2 is script-only.
   officers, crews, sleepers), near the camera only (`life_range`); a watched body is kept as
   debris past its 12 s while people watch it (`BODY_HOLD`), or the crowd would come back to
   nothing; every roll a hash; `ONLOOKERS=0` the A/B.
+- **2026-10-05 Apartments: the first per-style kit (G2; HANDOFF "Apartment buildings").** Midtown's
+  low-rise lots and the inner suburbs get LA stucco apartments - walk-ups with galleries and open
+  stairs, bungalow courts, Spanish courts, podium blocks - instead of storefront boxes and single
+  houses. Decisions: the plan takes HouseKit's shape so the house kit's emitters, YardFill's yards,
+  the LOD boxes and the coverage probe all work unchanged (one hook in plan_house, one in
+  _build_lot); claims come after every existing roll and are hashes of the lot; no new materials.
+  Midtown keeps 55 % of its low lots as storefront Buildings so street life keeps its shops.
 - **2026-10-05 The street's signs are real models (HANDOFF "The street's signs").** The signs
   were a cylinder for a stop sign facing the junction diagonally, flat boxes with TextMesh names
   and red-banded white boxes. Decisions: built in CODE at real size (StreetSignKit; BoulevardSigns owns the kerb's parking plates), not Blender - every
@@ -1380,6 +1387,13 @@ already mapped so milestone 2 is script-only.
   water tower, a backlot New York street of false fronts, basecamp. A fixed area rather than a
   seed-rolled one, as the canals and MacArthur Park are (Landmarks.all() is built before any
   seed); everything inside is hashed from the seed. docs/HANDOFF.md "The film studio lot".
+
+- **2026-10-05 Window washers work the downtown towers.** Suspended cradles with two workers
+  hang from davits on the landmark towers' flat faces and from the BMU jibs Rooftops puts on glass
+  infill towers, and wash their way down floor by floor on the clock (a drop takes about an hour),
+  leaving the glass wet behind them. Shooting one swings it; the crew crouches and hangs on - they
+  do not fall (the world is realistic, the player is the chaos). Only built near the camera.
+  docs/HANDOFF.md "Window-washing gondolas"; CLAUDE.md "Window-washing gondolas".
 
 - **2026-10-05 The cumulus read as photographs, not paintings (owner's review of wt/sky).** Flat
   bases at a shared condensation level, crowns thinned so the billows build them into turrets,
