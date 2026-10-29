@@ -14467,3 +14467,11 @@ and the synthesised timbre will not match a recording. Not on the web build hear
 Motorcycles have a profile but no bodies yet. Traffic gear changes are plausible but their
 throttle is guessed from acceleration. StreetErrands' honk (`Sfx.play("horn")`) was left as it
 was. No interior (in-cabin) muffling for the player's car.
+
+**Wave 3 (2026-10-29).** Merged origin/main (95bd13f: apartments, tower gondolas). Sourcing tried
+again: OpenGameArt and archive.org now answer, Freesound, Kenney and Pixabay still do not. What
+they hold under CC0 / public domain is the GGBotNet pack already in (64 kb/s, one loop of unknown
+rpm), pauliuw's two 20 s loops whose pitch wanders 80-220 Hz (no fixed rpm to place on a ladder),
+domasx2's racing loops (marked CC0 but built from sampling+ material: left out) and street field
+recordings - so the synthesised ladder stays. StreetErrands' honk now goes through
+`EngineAudio.horn()` like TrafficAI's (each car its own horn; the old Sfx call is the fallback).
