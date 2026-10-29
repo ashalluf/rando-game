@@ -30,6 +30,13 @@ var door_open: float = 0.0
 var door_target: float = 0.0
 ## Force the interior shown or hidden (-1 decides by distance); stills and checks.
 var force_show: int = -1
+## The products on the shelves, one record per goods MultiMesh (CornerStoreKit._goods(); the
+## shelves' body knocks them off, CornerStoreBody).
+var goods: Array = []
+## Until when (ticks ms) the store shows its interior from `shot_reach`: it is being shot up.
+var shot_until: int = 0
+## How near the camera or the player shows the interior while it is being shot up (m).
+@export var shot_reach: float = 70.0
 var _glass: Array = [] # [GeometryInstance3D, traced, clear]
 var _wait: float = 0.0
 var _player: Node3D
@@ -71,8 +78,9 @@ func evaluate(probes: Array, player_at: Variant) -> void:
 		want = force_show == 1
 	else:
 		var r := reach + (hysteresis if shown else 0.0)
+		var shot := Time.get_ticks_msec() < shot_until
 		for q: Vector3 in probes:
-			if near_store(to_local(q), r):
+			if near_store(to_local(q), r) or (shot and global_position.distance_to(q) < shot_reach):
 				want = true
 	if player_at is Vector3:
 		var lp := to_local(player_at as Vector3)

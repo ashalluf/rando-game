@@ -177,6 +177,24 @@ func _chunk(s: Dictionary) -> void:
 	for p: Variant in site.people:
 		if is_instance_valid(p):
 			people += 1
+	# Shooting up the shelves (CornerStoreBody): a round into the back wall's middle shelf knocks
+	# products off, throws some as bodies and shows the interior from across the street.
+	var body := site.get_node("Body") as CornerStoreBody
+	var aim := site.to_global(Vector3(0.0, 1.1, float(lay.iz0) + CornerStore.BACK_SHELF - 0.05))
+	var dir := (site.global_basis * Vector3(0, 0, -1)).normalized()
+	var before_alive := 0
+	for g: Dictionary in site.goods:
+		before_alive += Array(g.alive).count(1)
+	var off := body.hit_at(aim, dir, 10.0)
+	var after_alive := 0
+	for g: Dictionary in site.goods:
+		after_alive += Array(g.alive).count(1)
+	var outside_far := site.to_global(Vector3(0.0, 1.6, 40.0))
+	site.evaluate([outside_far], outside_far)
+	_check(off >= 1 and before_alive - after_alive == off and site.shown,
+			"a round into the back shelf knocks %d products off and shows the interior from across the street" % off)
+	_check(body.hit_at(site.to_global(Vector3(0.0, 1.5, 3.0)), dir, 10.0) == 0, "a round outside the room knocks nothing off")
+	site.shot_until = 0
 	var us: Array = CornerStoreKit.last_step_us
 	print("walk-in store: %s %.1f x %.1f, %d goods, %d people, chunk %.0f ms; store steps (ms) %s" % [s.name, W, D, goods, people, build_ms,
 			us.map(func(x: int) -> String: return "%.1f" % (float(x) / 1000.0))])

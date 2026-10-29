@@ -208,7 +208,8 @@ static func build(ch: CityChunk, s: Dictionary, lay: Dictionary, xf: Transform3D
 	site.store = s
 	site.lay = lay
 	ch.add_child(site)
-	var body := StaticBody3D.new()
+	var body := CornerStoreBody.new()
+	body.site = site
 	body.name = "Body"
 	body.collision_layer = 1
 	body.collision_mask = 0
@@ -1063,6 +1064,11 @@ static func _goods(site: CornerStoreSite, s: Dictionary, lay: Dictionary) -> voi
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		site.interior.add_child(mmi)
 		last_goods += xs.size()
+		# What CornerStoreBody knocks off the shelves when they are shot.
+		var alive := PackedByteArray()
+		alive.resize(xs.size())
+		alive.fill(1)
+		site.goods.append({"kind": kind, "mm": mm, "xf": xs, "col": a.col, "custom": a.custom, "alive": alive})
 
 
 ## Fills a shelf run with facings: from `start` along `along` for `length` metres, the packs'
