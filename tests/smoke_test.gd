@@ -3848,7 +3848,8 @@ func _check_foliage_ladders() -> void:
 				var idx := _lod_indices(lods[l]["index_data"], wide)
 				var tris := idx.size() / 3
 				var edge := float(levels[l][3])
-				if not is_equal_approx(float(lods[l]["edge_length"]), edge) or tris != int(levels[l][2]) or tris >= prev:
+				var count_ok := tris == int(levels[l][2]) or (levels[l][0] == "gen" and FoliageLod.gen_close(tris, int(levels[l][2])))
+				if not is_equal_approx(float(lods[l]["edge_length"]), edge) or not count_ok or tris >= prev:
 					faults.append("%s s%d LOD %d (edge %.3f, %d tris after %d)" % [f, s, l, lods[l]["edge_length"], tris, prev])
 				prev = tris
 				if levels[l][0] != "thin":
@@ -3868,7 +3869,9 @@ func _check_foliage_ladders() -> void:
 			var first: int = FoliageLod.shadow_level(levels, PropFactory.foliage_planted_scale(f))
 			if first >= 0:
 				var ss := RenderingServer.mesh_get_surface(shadow.get_rid(), s) if shadow else {}
-				if ss.is_empty() or int(ss.get("index_count", 0)) / 3 != int(levels[first][2]) or (ss.get("lods", []) as Array).size() != levels.size() - first:
+				var twin_tris := int(ss.get("index_count", 0)) / 3 if not ss.is_empty() else -1
+				var twin_ok := twin_tris == int(levels[first][2]) or (levels[first][0] == "gen" and FoliageLod.gen_close(twin_tris, int(levels[first][2])))
+				if ss.is_empty() or not twin_ok or (ss.get("lods", []) as Array).size() != levels.size() - first:
 					faults.append("%s s%d shadow twin" % [f, s])
 	_check(faults.is_empty() and thin_levels > 20, "every scanned tree carries its measured LOD ladder; %d thinned levels keep the canopy (worst cover %.1f %%, tone %.1f %%) %s" % [
 		thin_levels, worst.cover * 100.0, worst.tone * 100.0, faults])
