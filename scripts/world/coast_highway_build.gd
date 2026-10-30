@@ -633,15 +633,32 @@ static func _house(chunk: CityChunk, c: CoastHighway, g: Geo, hs: Dictionary) ->
 				var dx := gz + (2.6 if gz < 0.0 else -2.6)
 				if absf(dx) < hw - 0.8:
 					holes.append([dx - 0.5, y0, dx + 0.5, y0 + 2.25, "door"])
+				# A high window in the widest stretch of wall the garage and the door leave.
+				var used: Array = []
+				for h: Array in holes:
+					used.append([float(h[0]) - 0.45, float(h[2]) + 0.45])
+				used.sort_custom(func(p: Array, q: Array) -> bool: return p[0] < q[0])
+				var best := [0.0, 0.0]
+				var at := -hw + 0.5
+				for u: Array in used + [[hw - 0.5, hw]]:
+					if float(u[0]) - at > best[1] - best[0]:
+						best = [at, float(u[0])]
+					at = maxf(at, float(u[1]))
+				if best[1] - best[0] >= 1.4:
+					holes.append([best[0], y0 + 1.55, minf(best[1], best[0] + 3.2), y0 + 2.3, "window"])
 			else:
 				holes.append([-0.55, y0, 0.55, y0 + 2.25, "door"])
 				holes.append([1.4, y0 + 1.6, minf(hw - 0.6, 4.4), y0 + 2.5, "window"])
 		else:
-			# High windows over the road.
-			var nwin := maxi(1, int(w / 4.5))
-			for k in nwin:
-				var cxw := lerpf(-hw, hw, (float(k) + 0.5) / nwin)
-				holes.append([cxw - 0.9, y0 + 1.3, cxw + 0.9, y0 + 2.5, "window"])
+			# Over the road: half the houses a long clerestory ribbon (privacy from the highway,
+			# the light in), the rest tall windows in a row.
+			if (int(hs.seed) >> 3) % 2 == 0 and w > 7.0:
+				holes.append([-hw + 1.0, y0 + 1.75, hw - 1.0, y0 + 2.55, "window"])
+			else:
+				var nwin := maxi(2, int(w / 3.4))
+				for k in nwin:
+					var cxw := lerpf(-hw, hw, (float(k) + 0.5) / nwin)
+					holes.append([cxw - 0.7, y0 + 0.9, cxw + 0.7, y0 + 2.55, "window"])
 		_wall_holes(g, P, b, wall_key, wall_col, -hw, hw, y0, y1, 0.0, street, holes, frame_col, blind, int(hs.seed) + f * 7, GARAGE[int(hs.seed / 7) % GARAGE.size()])
 		for sx: float in [-1.0, 1.0]:
 			var sh: Array = []
