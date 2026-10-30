@@ -131,7 +131,7 @@ void fragment() {
 	} else if (k < 5.5) {
 		// Dirt.
 		vec3 tex = disp(cs_in(texture(dirt_tex, uv * 0.3).rgb));
-		col = mix(tex, tex * vec3(0.95, 0.86, 0.72), 0.5) * vcol * 1.15;
+		col = tex * vcol;
 		float ruts = smoothstep(0.35, 0.05, abs(abs(uv.x) - 0.78)) * (0.6 + 0.4 * vnoise(uv * vec2(2.0, 0.6)));
 		col *= mix(1.0, 0.78, ruts);
 		bump = vec2(sign(uv.x) * (abs(uv.x) - 0.78) * ruts * 0.8, 0.0);

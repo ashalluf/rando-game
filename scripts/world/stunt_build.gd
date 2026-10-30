@@ -57,7 +57,7 @@ static func piece(s: Dictionary, ground: Callable = Callable()) -> Array:
 			return StuntKit.loop(float(s.r), float(s.w), float(s.shift), float(s.run), s.paint)
 		StuntRamps.Kind.DIRT:
 			var g := ground if ground.is_valid() else func(_x: float, _z: float) -> float: return 0.0
-			return StuntKit.dirt(s.jumps, float(s.w), g, Color(0.95, 0.88, 0.78))
+			return StuntKit.dirt(s.jumps, float(s.w), g, Color(0.92, 0.90, 0.86))
 	return []
 
 
