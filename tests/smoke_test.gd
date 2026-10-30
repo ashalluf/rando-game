@@ -2328,6 +2328,7 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Street lamps (tests/street_lamps_checks.gd): the kit against its table, the pick per street,
 	# the arms over the road, the lamps' pools and omnis, and the same prop ids with the kit off.
 	load("res://tests/street_lamps_checks.gd").new().run(self, city)
+	await load("res://tests/onlookers_checks.gd").new().run(self, city) # the crowd back round a body after the panic (Onlookers)
 	# Apartments (tests/apartments_checks.gd): midtown and inner-suburb walk-ups, courts and podiums.
 	load("res://tests/apartments_checks.gd").new().run(self, city)
 	# Street furniture (tests/street_furniture_checks.gd): the meshes, the shader's kinds, the rolls,
