@@ -1,4 +1,4 @@
-[gd_scene load_steps=26 format=3]
+[gd_scene load_steps=27 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/city_streamer.gd" id="1_city"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="2_player"]
@@ -22,6 +22,7 @@
 [ext_resource type="Script" path="res://scripts/npc/news_crews.gd" id="31_news"]
 [ext_resource type="Script" path="res://scripts/world/wildlife.gd" id="31_wildlife"]
 [ext_resource type="Script" path="res://scripts/world/fireworks.gd" id="31_fireworks"]
+[ext_resource type="Script" path="res://scripts/world/sea_life.gd" id="31_sea_life"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("6_sky")
@@ -167,6 +168,9 @@ script = ExtResource("31_news")
 
 [node name="Wildlife" type="Node3D" parent="."]
 script = ExtResource("31_wildlife")
+
+[node name="SeaLife" type="Node3D" parent="."]
+script = ExtResource("31_sea_life")
 
 [node name="DebugHud" parent="." instance=ExtResource("3_hud")]
 

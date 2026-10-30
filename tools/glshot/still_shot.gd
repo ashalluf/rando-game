@@ -74,6 +74,7 @@ extends SceneTree
 ## ERRAND=bus|car|jay|shop|deliver stages a street errand ahead of the camera (StreetErrands; see
 ## tools/street_errands/stage.gd for ERRAND_PICK and the framing knobs); STREET_ERRANDS=0 turns
 ## the errands off (the A/B).
+## SEA=dolphin|pelican|dive|whale|sealion stages the life in the water ahead (SEA_DIST, SEA_T).
 ## BIRD=ground|flush|wire stages birds ahead of the camera (BIRD_SPECIES, BIRD_DIST, BIRD_COUNT,
 ## BIRD_FLY; see the block before STREET); BIRDS=0 removes the birds (the A/B).
 ## TEX_REPORT=1 prints the frame's textures and their video memory (tools/texture_budget/tex_census.gd).
@@ -429,6 +430,16 @@ func _initialize() -> void:
 	if wild_env != "" and current_scene:
 		await load("res://tools/wildlife/stage.gd").stage(self, current_scene, wild_env, get_root().get_camera_3d())
 		_pose(player, anchor, hold, boost, fov)
+	# SEA=dolphin|pelican|dive|whale|sealion: the life in the water (SeaLife.stage_for_shot) SEA_DIST
+	# metres ahead of the camera on the water, SEA_T seconds before the moment (a dive: before the
+	# splash); the clock is then held by the freeze. SEA_LIFE=0 removes all of it.
+	var sea_env := OS.get_environment("SEA")
+	if sea_env != "" and current_scene and current_scene.get_node_or_null("SeaLife"):
+		var sea_node := current_scene.get_node("SeaLife")
+		sea_node.call("stage_for_shot", sea_env, get_root().get_camera_3d(), _env_float("SEA_DIST", 40.0), _env_float("SEA_T", 0.4))
+		for i in 2:
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
 	# STREET=queue|crossing: a signalised junction ahead of the camera, a queue at its red, and
 	# for `crossing` people out on the crosswalk in front of it (see _stage_street).
 	var street_env := OS.get_environment("STREET")
@@ -1225,7 +1236,7 @@ func _light_report(label: String) -> void:
 	print("LIGHTS %s car=%d (in view %d) lamps=%d (in view %d)" % [label, counts[0], counts[1], counts[2], counts[3]])
 
 
-const SPLIT_CATEGORIES := ["Vehicle", "Pedestrian", "Building", "Trees", "Grass", "Camp", "LotFill", "Houses", "Industrial", "Parks", "River", "LightRail", "Birds", "Billboards", "Vendors", "PhysProps", "StreetProps", "FarCity", "FarGround", "Landmark", "Other"]
+const SPLIT_CATEGORIES := ["Vehicle", "Pedestrian", "Building", "Trees", "Grass", "Camp", "LotFill", "Houses", "Industrial", "Parks", "River", "LightRail", "Birds", "SeaLife", "Billboards", "Vendors", "PhysProps", "StreetProps", "FarCity", "FarGround", "Landmark", "Other"]
 
 
 func _geo_split(player: Node3D, anchor: Vector3, hold: Vector3, boost: bool, fov: float) -> void:
@@ -1472,6 +1483,8 @@ func _split_category(gi: GeometryInstance3D) -> String:
 				return "LightRail"
 			"Birds":
 				return "Birds"
+			"SeaLife":
+				return "SeaLife"
 			"TrashCan", "PhysicsProp":
 				return "PhysProps"
 			"Skyline":

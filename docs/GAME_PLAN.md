@@ -321,6 +321,12 @@ already mapped so milestone 2 is script-only.
   street stations' 3 m cannot take escalators), so LightRail spreads the tracks wider there only
   while the station is on; the city's ground box is passed through by a collision exception (the
   lake's rule), not cut; the trains in the tunnel are drawn only while the player is down there.
+- **2026-10-30 Life in the water is worked out from the clock, never simulated (HANDOFF "Life in
+  the water").** Dolphins, pelicans, the buoys' sea lions and a rare grey whale are pure functions
+  of `SeaLife.clock` and hashes of seed + kind + time window + 600 m coast stretch, so any moment
+  can be drawn without the one before, stills and checks just move the clock, and no other roll in
+  the city moves. Code-built meshes at real size, one MultiMesh per kind and level, motion in the
+  vertex shader; `SEA_LIFE=0` is the A/B.
 
 - **2026-10-29 Facades are worked out per pane, not per building (owner: "start looking like GTA
   6").** Glass varies pane by pane and floor by floor, blinds hang at their own heights, the glass

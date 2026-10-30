@@ -5185,6 +5185,25 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   staging calms the flock against the player, whom a free camera drags along). `BIRDS=0` in the
   environment removes them. Ambience's gull one-shots come from a real gull when one is in earshot
   (`Birds.gull_at()`). Checks: `tests/bird_checks.gd`.
+- Life in the water (2026-10-30, fleet "sea-life"; docs/HANDOFF.md "Life in the water"): `SeaLife`
+  (`scripts/world/sea_life.gd`, a Node3D in city.tscn) - dolphin pods arcing beyond the break line,
+  brown pelican lines gliding over the swell with one climbing, folding and plunging, sea lions
+  hauled out on two harbour buoys (`BUOYS`: the harbour and the bay) and barking, a grey whale's
+  blow, back and flukes far out, rarely. **Nothing is simulated**: every animal is a pure function
+  of `SeaLife.clock` and hashes of seed + kind + time window + coast stretch (`SEG` 600 m; `pod()`,
+  `line()`, `whale()`, then `dolphins_at()` / `pelicans_at()` / `whale_at()` / `lions_at()`), the
+  coast is `MacroMap.coast_x()` (sea to the west), the break line `Surf.break_distance()`, the water
+  height `SeaSurface.height()` once a pod or line a frame; worked out only within `COAST_REACH` of
+  the coast. Meshes are code at real size (`SeaLifeMesh`, near + far levels; part code in COLOR.a /
+  16, linear albedo in COLOR.rgb; **Godot's front faces are clockwise**: `Geo.tri()` orients each
+  triangle from a reference point inside the part), ONE MultiMesh per kind and level on
+  `shaders/sea_life.gdshader` (tail beats, wingbeats and folds, head lifts and jaws from
+  INSTANCE_CUSTOM), splashes and the blow on `shaders/sea_spray.gdshader` (an age the vertex stage
+  flies; the clump seed in UV2 - a MultiMesh without instance colours hands Compatibility a zero
+  COLOR). Sounds synthesised (`SeaSounds`). `Pedestrian.alarm()` -> `SeaLife.startle()` and blasts
+  send the sea lions in for a minute or so. `SEA_LIFE=0` is the A/B. Stills: `SEA="kind@x,z,lead;..."`
+  on `still_shot.gd` (holds the clock), the kit alone `tools/sea_life/kit_shot.tscn`, the plan
+  `tools/sea_life/probe.tscn`; checks `tests/sea_life_checks.gd`.
 - Beach life (VISUAL_ROADMAP #60, 2026-10-05: "a Los Angeles beach on a warm afternoon"):
   `BeachLife` (`scripts/world/beach_life.gd`, static) fills the sand `CityChunk._build_beach()`
   lays. **Everything is a hash of seed + a WORLD cell of shore (`CELL_Z` 6.5 m) + the hour the
