@@ -5090,6 +5090,21 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `ParkletDiner` (a Pedestrian): diners seated on the life sit clips (hips solved to
   `ParkletKit.SEAT_Y`), a waiter walking door -> table. Who sits is `busy(room, hour)`.
   `PARKLETS=0` is the A/B; probe `tools/parklets/probe.gd`; checks `tests/parklets_checks.gd`.
+- Night life (fleet wave 3, docs/HANDOFF.md "Night life"): `NightLife`
+  (`scripts/world/nightlife.gd`) reads the same shop fronts (recorded when Parklets OR NightLife is
+  on): an open RESTAURANT is a bar or (hash) a club, a tower LOBBY a club, on DOWNTOWN / MIDTOWN /
+  BEACHTOWN blocks with no camps, fashion goods or Broadway racks (`ODDS`, hash of seed + shop).
+  The line runs along the wall toward the farther corner (`slot_spot()`), `queue_size(kind, hour)`
+  from the hour the chunk is built at. `NightLifeKit` (code, `shaders/nightlife.gdshader`, kind in
+  COLOR.a / 20): club canopy, bar lightbox, stanchions and velvet rope, the premiere carpet and
+  barriers, the searchlight cart. `NightGoer` (a Pedestrian: QUEUE / BOUNCER / SMOKER / FAN): the
+  door admits the head (hidden inside, back to the tail later). `NightPickups` (a node under the
+  scene) gives a kerb-lane street car the door as its `dp_at` double-park stop and sends somebody
+  out to it. A Broadway palace's premiere (hash per night, one a block) and a club's opening get
+  `SkyBeam`s (volumetric spot on Forward+ HIGH, `nightlife_beam.gdshader` cone elsewhere); LOD
+  chunks keep the premiere beams. Nothing takes the kerb or a prop id. `NIGHTLIFE=0` is the A/B
+  (`NIGHTLIFE_ODDS=1`, `NIGHTLIFE_PREMIERE=1` for stills); probe `tools/nightlife/probe.gd`;
+  checks `tests/nightlife_checks.gd`.
 - Street performers (2026-10-30, HANDOFF "Street performers"): `Buskers`
   (`scripts/world/buskers.gd`, static; `plan_block()` pure: hashes of seed + block + face + the
   hour, one act a block, two on a plaza, breakdancers only on plazas) - guitar with an open case,

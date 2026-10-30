@@ -18613,3 +18613,114 @@ its shredded generated LOD, the welded mesh).
 - `Quality` does not scale RockFar (no fewer tors at LOW / LOWEST); the web draws all of them.
 - A tor in the LOD band between the LOD ring and NEAR_RANGE that no chunk claims is seated on the
   plane, which is still flat there (it can sit low until a chunk claims it).
+
+## 9gt. Night life (fleet wave 3, branch `wt/nightlife`)
+
+The task: "queues outside clubs and bars on busy blocks after 21:00 (people standing in a line along
+the wall, a bouncer and a velvet rope, a lit entrance), sky-sweeping searchlights at a premiere at
+the movie palaces or a club opening (beams on Forward+ HIGH volumetric, a drawn beam elsewhere like
+the helicopter's), taxis and ride-hail pickups double-parked with hazards."
+
+**Where the venues come from.** `NightLife` (`scripts/world/nightlife.gd`) reads the shop fronts
+every FULL Building records (`Building.shop_fronts`, Parklets' list; `building.gd` now records them
+when Parklets OR NightLife is on). A RESTAURANT that is open at night (`Building.shop_open()`, so
+its glass is lit) is a bar or, by a hash (`CLUB_SHARE` per district), a club; a tower LOBBY is a
+club (the rooftop kind, its line at the lobby door). `ODDS` per shop by district (DOWNTOWN 0.32,
+MIDTOWN 0.3, BEACHTOWN 0.34), at most `MAX_PER_BLOCK` 2 a block, `MIN_APART` 18 m apart, never a
+parklet's shop, never on a block with camps (Encampment), the fashion district's goods or
+Broadway's racks, never where the pavement is under `MIN_PAVE` 3.1 m or the line would turn a
+corner (`CORNER_KEEP`). The line runs along the wall toward the farther corner, `MAX_RUN` 14.5 m;
+`slot_spot(v, i)` is where person i stands (jittered by hash), `line_room()` how many fit. Every
+roll is a hash of the seed and the shop's key; nothing uses the block rng, nothing goes through
+`_add_prop` (prop ids unmoved), nothing takes the kerb (parked cars unmoved): the check builds the
+block with it off and compares buildings, prop ids and parked cars.
+
+**When.** From the hour the chunk is built at, like the parklets and vendors. `open_at()`: clubs
+21:30-03:00, bars 17:00-02:00. `queue_size()`: a club's line grows from 21:30, is long from 22:30 to
+01:00 (up to 15), gone by 03:00; a bar's up to 5 from 21:00. (The first ramp ran to 23:00, and the
+22:00 stills had three people at each rope.) The rope goes out for a club or a bar
+with 3+ waiting. `night_hour()` makes a night one clock (01:00 = 25). The night's number is
+DayNight's `day_count` (the day before, before 06:00): a club's opening (`OPENING_ODDS` 0.18) and a
+Broadway palace's premiere (`PREMIERE_ODDS` 0.34, 19:30-01:00, one premiere a block) are hashes of
+the seed, the venue / palace and the night.
+
+**The hardware** (`NightLifeKit`, code-built at real size on ONE shader, `shaders/nightlife.gdshader`,
+kind in COLOR.a x 20: polished metal, velvet, canopy paint, LED, downlight, carpet, rubber, paint,
+lens, lightbox, galvanised; the accent in INSTANCE_CUSTOM.rgb, open in .a): the club's cantilevered
+canopy (3.6 x 2.5 m at 3.05 m, chrome tie rods, six downlights, an LED edge in one of four colours,
+a portal round the door with an LED reveal, a runner), the bar's projecting lightbox on a bracket
+and two sconces, the stanchion-and-velvet rope line (`rope_line(posts, side, metal)`, brass or
+chrome), the premiere's carpet with gold stanchions and two rows of bike-rack crowd barriers, and
+the searchlight cart (trailer chassis, generator housing, turntable) with its yoke and drum as
+separate meshes. Names are TextMesh lettering on `shaders/nightlife_sign.gdshader` (the venue's
+colour, lit after dark), invented (`CLUB_NAMES`, `BAR_NAMES`). An OmniLight3D in `lamp_light` under
+each open entrance (not on the web) and a pool in `nl_pool`. Batches `nl_club_<led>`, `nl_bar`,
+`nl_rope_*`, `nl_premiere_*`, `nl_cart`, `nl_pool`; everything under a `NightLife` holder node.
+
+**The people** (`NightGoer`, `scripts/npc/night_goer.gd`, a Pedestrian with the life clips):
+QUEUE (standing in their slot on the phone, texting, talking to the next in line, arms folded),
+BOUNCER (the waiters' black outfit, 12 % broader, at the rope's gap, watches the player within
+`watch_range`, never runs), SMOKER (outside bars), FAN (behind a premiere's barriers, phones out,
+nodding). Placed kinematic (mask 0). The line is a loop: every `period` (club 18-42 s, bar 10-26 s)
+the head walks to the door and is hidden (no body, no hit zone) for `INSIDE_SECONDS`; the rest
+shuffle up a place (`_reslot()`); later they come out round the corner to the tail, or out of the
+door to a waiting car. Gunfire breaks the line (they run, then rejoin the tail); the bouncer holds.
+The bouncers, the first `SCENE_PEOPLE` 10 of a line and a premiere's fans spawn even when the crowd
+cap is full (still counted) and carry `no_trim`: in the first stills the ropes stood nearly empty
+and the premiere had no fans, because a still renders at ~1 fps, Quality steps down, and
+`CityStreamer.trim_pedestrians()` frees the walkers farthest from the player first - the venues'.
+
+**Pickups** (`NightPickups`, `scripts/npc/night_pickups.gd`, one node under the scene made by the
+first venue chunk): every 0.5 s, for an open venue within 260 m of the player, now and then
+(`gap_seconds`, `call_chance`, hashes of the venue and the minute) a free street car in the kerb lane
+of the road in front, heading so the door is on its kerb side, 28-170 m short of it (a TAXI first)
+gets `dp_at` = the door: TrafficManager's own double-park (it pulls over toward the parked cars,
+stops on its hazards, TrafficAI passes it). Standing there, somebody hidden inside comes out of the
+door, crosses to its kerb side and gets in (hidden); the car's `dp` is held while they cross and cut
+short once they are in, and it drives on. Nobody inside: it waits its time and leaves. Never a
+placed (staged) car, a bus, a working or panicking car.
+
+**Searchlights** (`SkyBeam`, `scripts/world/sky_beam.gd`): on the cart's turntable, the yoke turns
+and the drum tilts on the physics clock from a hash (each swings `swing` 38 degrees about its own
+heading, 52-84 degrees up, its own periods), so a premiere's four cross and part. After dark only
+(`DayNight.lamp_now`). The beam is a 1.7 km cone on `shaders/nightlife_beam.gdshader` (additive,
+brightest at the lens, faded along its length and at its silhouette, fog off); where volumetric fog
+is on (Forward+ desktop HIGH, the helicopter's test) a SpotLight3D's volumetric energy draws the
+first `fog_reach` 850 m and the cone starts past it (`near_start`). LOD chunks build a premiere's
+beams alone (no cart, no carpet), so they show from across the basin; the far city has none.
+
+**Hooks**: one line in `CityChunk._block_steps` after the parklets (FULL), one before the FULL
+branch (LOD: the beams), `building.gd` records shop fronts when either system is on,
+`loading_screen.gd` warms the kit. `NIGHTLIFE=0` is the A/B; `NIGHTLIFE_ODDS=1` makes every candidate
+a venue, `NIGHTLIFE_PREMIERE=1` puts tonight's premieres and openings on. Probe:
+`tools/nightlife/probe.gd -- --spawn=x,z,0,0 --hour=22.5` (venues, people, beams, EYEs; `PALACES=1`
+every palace). Kit alone: `tools/nightlife/kit_shot.gd` (seconds). Compile: `tools/nightlife/compile.gd`.
+Checks: `tests/nightlife_checks.gd`.
+
+**Stills** (`shots/nightlife`, opengl3 1280x720, `--hour=22 --quality=0`, `--spawn=2735,58,46,0`,
+the default seed's own venues and night 0's premiere; the odd numbers are `NIGHTLIFE=0`): `01`/`02`
+AFTERGLOW (club) `EYE=2675.0,2.2,197.2,-4,6`, `03`/`04` HALCYON (club, a tower lobby)
+`EYE=2737.6,2.2,45.8,86,6`, `05`/`06` the AURORA's premiere on Broadway `EYE=2996,7,34,90,-12`,
+`07`/`08` the beams over downtown `EYE=3330,140,330,120,2` (FOV 55).
+
+**Frame cost** (`still_shot.gd` GEO, the same EYEs, before -> after): AFTERGLOW 3.62 M triangles /
+1,661 draws -> 3.91 M / 1,733; HALCYON 3.05 M / 1,250 -> 3.30 M / 1,313 (both mostly the line's
+11-14 people and their shadows; the entrance, rope, sign and pool are 4-5 draws a venue); the
+premiere 3.33 M / 1,621 -> 3.51 M / 1,728 (twelve fans, four carts and drums, the carpet); the
+aerial 3.38 M / 1,584 -> 3.37 M / 1,592 (eight beams, a draw each). CPU: a NightGoer is a placed
+Pedestrian (kinematic, mask 0); NightPickups looks at the venue list twice a second and scans the
+traffic list only when a call is due.
+
+**Checks**: `SMOKE_PARTS=nightlife_checks`: 45 passed, 0 failed (29 of them night life's). Full gate
+(`SHARDS=3`, merged with main 2026-10-30): 3,515 of 3,516 passed, peak 2.99 GB a shard; the one
+failure was sea life's "the pod leaps clear" (top 2.62 m against its 2.6 m bound, in shard 0 after
+other checks), which passes alone on this branch (`SMOKE_PARTS=sea_life_checks`, top 2.32 m).
+
+**Not done / not verified.** Not seen on Forward+ (the Mac): the volumetric beams on HIGH (the
+fog's reach and energy are guesses: `fog_reach`, `fog_energy`), the LED and sign glow under AgX.
+No natural pickup is in a still (they are rolled on a clock; the check stages one). The far city
+draws no beams (only FULL and LOD chunks). The bouncers do not stop the player or anybody else;
+people in line do not leave when it rains (RainCrowd gives them umbrellas). A tower lobby's club
+has its line at the lobby door with the tower's street number over it. `StreetErrands._from_far()`
+now skips walkers marked `no_trim` (it borrowed people standing in a line - and would have
+borrowed a test's staged walkers - to drive parked cars away).
