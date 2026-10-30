@@ -3503,6 +3503,12 @@ already mapped so milestone 2 is script-only.
   (black leaf atlas, dark sprigs) is replaced on the stands by a code-built chaparral mound
   (HillShrub, LaTrees' machinery). HILL_GROUND_3=0 puts everything back.
 - 2026-10-30 (wave 3, crowd-variety): six more adults (crowd_aa..af) appended to Pedestrian.MODELS - a suit and tie, a blazer, a work shirt, a cardigan, a gym tank, wide trousers - with the tailored jacket, the necktie, the tank and wide trousers added to tools/crowd/garments.py. Appended, so every earlier rig keeps its index; a person's roll picks among 32 now (CROWD_VARIETY=0: the old 26).
+- **2026-10-30 Every check file starts from a clean city.** The smoke test snapshots the city
+  after its setup and puts it back (statics, weather, hour, staged traffic, the units' switches,
+  destruction, onlookers, wrecks, debris, time scale, the player) before every check file and city
+  part, in one process as in a shard, so a check's result no longer depends on what ran before it
+  (`tests/gate_reset.gd`; `SMOKE_SHUFFLE=<seed>` is the proof). Chosen over patching each order bug
+  where it surfaced. CI runs `SHARDS=auto`.
 
 ## Correction: what build 135 (0ce833f) actually contained
 
