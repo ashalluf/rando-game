@@ -41,15 +41,46 @@ vec2 ws_hash2(vec2 p) {
 }
 
 
+float ws_noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(ws_hash(i), ws_hash(i + vec2(1.0, 0.0)), f.x),
+		mix(ws_hash(i + vec2(0.0, 1.0)), ws_hash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+
+
+// The drying half of ws_wet(): how wet a spot holding `hold` still is once the rain has stopped.
+float ws_dry(float hold) {
+	float w = clamp(road_wetness, 0.0, 1.0);
+	float t = (1.0 - clamp(hold, 0.0, 1.0)) * 0.85;
+	return smoothstep(t, t + 0.18, w) * smoothstep(0.005, 0.06, w);
+}
+
+
 // How wet a surface is that holds `hold` of the water (0 dries first, 1 last). While it rains it is
 // just `road_wetness`, like the street; drying, a spot is wet while the water left is over its
 // threshold, so a wall dries from its sunny, open parts first and its streaks and ledges last - the
 // same rule as the street's drying (wet_drying.gdshaderinc), in step with it.
 float ws_wet(float hold) {
+	return mix(clamp(road_wetness, 0.0, 1.0), ws_dry(hold), clamp(road_drying, 0.0, 1.0));
+}
+
+
+// A wall in the rain (building.gdshader, building_lod.gdshader: the near and the far city draw
+// the same): `down` metres under the wall's top (< 0 unknown: a tower's curved faces), `up` metres
+// over its foot, `streak` 0..1 how much water runs down this column (under a sill, off the coping).
+// The rain wets a facade from the top down - the front reaches further the longer it rains
+// (`road_wetness`) and runs ahead down the streaks - with the splash zone at the foot wet at once;
+// drying, the open wall goes first and the streaks and the foot last.
+float ws_wall(float down, float up, float streak) {
 	float w = clamp(road_wetness, 0.0, 1.0);
-	float t = (1.0 - clamp(hold, 0.0, 1.0)) * 0.85;
-	float drying = smoothstep(t, t + 0.18, w) * smoothstep(0.005, 0.06, w);
-	return mix(w, drying, clamp(road_drying, 0.0, 1.0));
+	float reach = w * 34.0 + streak * w * 16.0 + 1.5;
+	float front = down < 0.0 ? smoothstep(0.0, 0.25, w) : 1.0 - smoothstep(reach - 3.0, reach, down);
+	float splash = (1.0 - smoothstep(0.35, 0.9, up)) * smoothstep(0.0, 0.15, w);
+	float raining = max(front * mix(0.8, 1.0, streak), splash);
+	float drying = ws_dry(0.2 + 0.55 * streak + 0.3 * (1.0 - smoothstep(0.3, 1.2, up)));
+	return mix(raining, drying, clamp(road_drying, 0.0, 1.0));
 }
 
 

@@ -216,3 +216,23 @@ static func _box(st: SurfaceTool, to_mesh: Transform3D, at: Vector3, d: Vector3,
 			st.set_color(col)
 			st.set_normal(nm)
 			st.add_vertex(to_mesh * (q[i] as Vector3))
+
+
+# --- Mirrors of shaders/car_wipers.gdshaderinc (the checks hold the two together) -----------------
+
+## One sweep's time (s): WIPER_STROKE.
+const STROKE := 0.48
+
+
+## wiper_period(): the cycle at rain `rain` (fast in a downpour, intermittent in a drizzle).
+static func period(rain: float) -> float:
+	return lerpf(3.6, 1.12, smoothstep(0.25, 0.7, rain))
+
+
+## wiper_angle(): the blades' angle up from parked at time `t` for phase `phase`, rain `rain`.
+static func angle_at(t: float, phase: float, rain: float, on: bool = true) -> float:
+	if not on or rain < 0.02:
+		return 0.0
+	var p := period(rain)
+	var c := fposmod(t + phase * p, p)
+	return SWEEP * (smoothstep(0.0, STROKE, c) - smoothstep(STROKE, 2.0 * STROKE, c))

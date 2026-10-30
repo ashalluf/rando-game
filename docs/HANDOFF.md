@@ -17610,3 +17610,69 @@ call that sent it off, depending on where earlier parts left the camera), and
 `tests/car_cabin_checks.gd` leaves out traffic cars CarPanic's drivers abandoned (nobody in them by
 design; "street cars have a driver" came out 94/95 in some gate runs). Gate: `SHARDS=3`, 3,041
 checks, 0 failed, peak RSS 2.89 GB a shard.
+
+## 9d?. The wet world: rain on everything that is not a road (fleet wave 3, `wt/wet-world`)
+
+The roads got wet in rain and nothing else did. Now the rest of the world takes the same water,
+from the globals Weather already publishes (`road_wetness`, `road_drying`, `rain_intensity`) and
+dries with the street. Everything is shader code; no textures, no new nodes except one wiper mesh
+per car.
+
+- **`shaders/wet_surface.gdshaderinc`** (no samplers): `ws_on()` (the ONE branch a dry city pays
+  in every including shader: `road_wetness > WS_DRY && wet_world > 0.5`), `ws_wet(hold)` (while it
+  rains `road_wetness`; drying, a spot holding less dries first - the street's rule, so it is in
+  step), `ws_dry()`, `ws_rain()` (rain now, 0 once drying), `ws_beads()` (two skewed lattices of
+  domed beads, rim AA'd by the pixel, unresolved = their area), `ws_runs()` (wandering threads with a
+  drop and a trail running down), `ws_wall(down, up, streak)` (a facade wets from the TOP DOWN - the
+  front reaches `34 x wetness` m, `16 x` more down a streak - the foot is splashed at once; drying,
+  open wall first, streaks and the foot last), `ws_frame()`, `ws_noise()`. Never include it with
+  `wet_drying.gdshaderinc` (both declare `road_drying`).
+- **Cars**: `car_paint.gdshaderinc` - the coat 20 % deeper under its film, beads in the body MESH's
+  frame (a moving car carries them; metres from `length(MODEL_MATRIX[0].xyz)`, more on the bonnet,
+  roof and boot), runs down the doors while it rains, a full clearcoat at 0.03 roughness on any
+  wet body (even a worn one). The far twin's parts (`Vehicle.PARTS_SHADER`) darken and gloss too.
+  Glass (`car_glass_wet.gdshaderinc`, in `car_glass` and `car_glass_damage` on whole panes): beads
+  that dim and grey the traced cabin behind them and show the sky in their lower half, runs down
+  the side glass. **Wipers**: `CarWipers` (`scripts/vehicles/car_wipers.gd`) builds, once per body
+  type, a tandem pair (pivot caps, arms, blades, rubber) from CarCabin's windscreen pane (its frame
+  in car space, the bulge from the mesh's glass vertices where there is mesh data), as ONE
+  MeshInstance3D under the car's first glass mesh with no transform of its own (so its space is the
+  glass shader's), shadowless, gone at `body_far_distance`. `car_wiper.gdshader` turns each blade
+  about its pivot in the screen's plane by `wiper_angle()` (`car_wipers.gdshaderinc`: a stroke
+  0.48 s each way, the cycle 1.12 s in a downpour to 3.6 s in a drizzle, parked when it is not
+  raining); the glass works out the same angle (`wiper_since()`: when a blade last passed this
+  point, the stroke's smoothstep inverted by Newton) and keeps the swept arcs clear, the beads
+  coming back over the cycle. Materials are shared: per body type one parked and `PHASES` (4)
+  running copies; a car somebody drives (CarCabin seat bit 0: traffic, the player, cruisers) runs a
+  phase bucket from its occupant seed and its own glass copy gets the same phase
+  (`CarWipers.sync()`, one line in `Vehicle._apply_occupant()`); a parked car's wipers rest. Hooks:
+  one line in `_add_cabin_glass()`, two in `_apply_occupant()`.
+- **Buildings**: `building.gdshader` - the wall branch hands its pixel's `u`, pitch, top distance
+  and glass flag to one block before the output: walls darken to 0.56 by `ws_wall()` with streak
+  columns (a hash per 0.7 m column plus the column under every window), rougher-to-glossy; glass
+  gets threads of water (the emitted mirror dimmed along them); roofs go dark and glossy with ponds
+  (`ws_noise`) where water stands. `building_lod.gdshader` (the LOD chunks and the far city) applies
+  the same `ws_wall()` on its box (the streaks faded to their mean under a pixel), roofs, plates and
+  decks dark and glossy - so the far city wets and dries in step. Landmark towers (`uv_facade`) wet
+  all over at once (no known top).
+- **Awnings, cornices, sills** (`facade_kit.gdshaderinc`, which the storefront kit shares) and the
+  tower roofs (`rooftop.gdshader`: decks, pads, paving, ponds; canvas, cushions and lawn soaked).
+- **People**: `character.gdshader` - whatever faces the sky and the shoulders and head soak first:
+  cloth to 0.56, hair to 0.72 and glossy (0.22), skin a little shinier; `crowd_hair.gdshader` wet
+  hair darker and glossy; the hero's velour (`hero_cloth`, the pile flattened, less sheen) and hair.
+  Umbrella carriers are not exempt (the look material is shared per look).
+- **Trees and palms** were already wet and glossy from `road_wetness` (foliage, foliage_tex,
+  la_tree) and dry with it; untouched.
+- **Switch**: `WET_WORLD=0` in the environment (the A/B): `WetWorld` (`scripts/world/wet_world.gd`)
+  puts the `wet_world` shader global (project.godot) to 0 from `Weather._ready()` and no wipers are
+  built. `WetWorld.wall()` / `dry()` and `CarWipers.angle_at()` / `period()` mirror the shaders (the
+  checks read the shader lines).
+- **Tools**: `car_shot.gd WET=wetness[,rain[,drying]]` (e.g. `WET=1,1 OCCUPANT=npc` - a driven car
+  in a downpour, its wipers going); in the city `--weather=rain` / `storm` on `still_shot.gd`.
+- **Checks**: `tests/wet_world_checks.gd` (sources, mirrors, the wall rule, the switch, the wipers
+  on a deck in the air: parked vs driven, phase shared with the glass, pivots on the screen's foot).
+- **Cost**: FRAMECOST
+- **Unverified**: Forward+ (the Mac): the beads and runs are normal bends, so they live on the
+  renderer's reflections (SSR, the probes), which the opengl3 stills do not have - judge the glass
+  and the lacquer there. The wiper blades on every body type (checked on the sedan in stills; the
+  geometry is fitted per body from the windscreen box, so a bus or an exotic may sit a little off).

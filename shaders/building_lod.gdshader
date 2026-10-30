@@ -180,6 +180,7 @@ uniform bool facade_variety = false;
 // building.gdshader's window_recess (its punched and slot windows' depth), for the far reveal.
 uniform float window_recess_far = 0.20;
 #include "res://shaders/far_traffic.gdshaderinc"
+#include "res://shaders/wet_surface.gdshaderinc"
 
 // --- Coded parts (FarBuilding) ---
 // Building's numbers the code does not carry: its storefront height (Building.storefront_height),
@@ -1665,6 +1666,25 @@ void fragment() {
 		// The emitted mirror, faded to its facade average on the same schedule, or the panes
 		// would buzz at distance in emission after the albedo had stopped.
 		emission += refl_emit * mix(glaze_frac, glass, mix(0.30, 1.0, band_fade));
+	}
+
+	// ---- Rain (wet_surface.gdshaderinc): the near walls' rule (ws_wall) on the same box, the
+	// streak columns faded to their average under a pixel; roofs, plates and decks dark and glossy.
+	// The far city wets and dries in step with the near one. Dry, one branch.
+	if (ws_on()) {
+		if (n.y > 0.5 || (custom.a > 1.5 && custom.a < 3.5)) {
+			float wet = ws_wet(0.5);
+			albedo *= mix(1.0, 0.7, wet);
+			rough = mix(rough, 0.22, wet);
+		} else if (abs(n.y) < 0.5) {
+			float hs = ws_hash(vec2(floor(u / 0.7), bseed * 13.0 + (n.x + 2.0 * n.z) * 5.0));
+			float streak = mix(0.3, clamp(smoothstep(0.6, 0.92, hs) + 0.25, 0.0, 1.0), smoothstep(1.0, 0.25, mpp));
+			float down = (0.5 - local_pos.y) * box_size.y;
+			float up = (local_pos.y + 0.5) * box_size.y;
+			float wet = ws_wall(down, up, streak);
+			albedo *= mix(1.0, 0.6, wet * (0.75 + 0.25 * streak));
+			rough = mix(rough, 0.35, wet);
+		}
 	}
 
 	float rim = smoothstep(edge_start, edge_end, length(world_pos.xz - (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xz));

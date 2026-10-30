@@ -424,6 +424,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `light_volumetric_fog_energy` down in bad weather - rain thickens the volumetric fog seventy
   times, and lit by the moonlight fill it hung over the street as a pale grey veil. At 88 %
   cloud the sky IS the clouds, so the night cloud colour is what decides it.
+- The wet world (2026-10-30, docs/HANDOFF.md "The wet world"): everything that is not a road takes
+  the rain from the road's globals through `shaders/wet_surface.gdshaderinc` (no samplers; call it
+  only behind `if (ws_on())`, the one dry branch; never with wet_drying.gdshaderinc): car paint and
+  glass bead and run (`car_glass_wet.gdshaderinc`), `CarWipers` sweeps a code-built pair per body
+  type on driven cars (shared phase materials; the glass clears the same arcs), walls darken top
+  down by `ws_wall()` near (building) and far (building_lod) alike, roofs / awnings / rooftops
+  gloss, the crowd and the hero soak. `WET_WORLD=0` is the A/B (`wet_world` global, `WetWorld`);
+  `car_shot.gd WET=1,1`; checks `tests/wet_world_checks.gd`.
 - Los Angeles weather (2026-10-05, "beyond clear / overcast / rain / storm"): `Weather.State`
   gains MARINE ("June gloom") and SANTA_ANA (appended: every per-state table has six rows, the
   pause menu's chips are Auto + one per state in order, `--weather=marine|santa_ana`, aliases in

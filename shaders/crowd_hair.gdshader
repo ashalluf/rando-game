@@ -26,6 +26,8 @@ uniform float anisotropy = 0.55;
 // A worn look (RoughSleeper): duller, drier hair.
 uniform float grime = 0.0;
 
+#include "res://shaders/wet_surface.gdshaderinc"
+
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
 }
@@ -43,4 +45,11 @@ void fragment() {
 	ANISOTROPY = anisotropy * (1.0 - grime);
 	ANISOTROPY_FLOW = vec2(0.0, 1.0);
 	BACKLIGHT = vec3(0.12) * col;
+	if (ws_on()) {
+		// Rain (wet_surface.gdshaderinc): wet hair is darker, clumped and glossy.
+		float wet = ws_wet(0.6);
+		ALBEDO *= mix(1.0, 0.62, wet);
+		ROUGHNESS = mix(ROUGHNESS, 0.2, wet);
+		SPECULAR = mix(SPECULAR, 0.5, wet);
+	}
 }

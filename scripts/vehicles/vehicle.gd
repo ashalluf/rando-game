@@ -1970,11 +1970,18 @@ const PARTS_SHADER := """
 shader_type spatial;
 render_mode cull_back;
 // Vertex colours from the glTF are linear already.
+#include "res://shaders/wet_surface.gdshaderinc"
 void fragment() {
 	ALBEDO = COLOR.rgb;
 	ROUGHNESS = clamp(COLOR.a, 0.04, 1.0);
 	METALLIC = 0.0;
 	SPECULAR = 0.5;
+	if (ws_on()) {
+		// Rain (WetWorld): the far twin's parts wet like the near body's.
+		float w = ws_wet(0.3);
+		ALBEDO *= mix(1.0, 0.85, w);
+		ROUGHNESS = mix(ROUGHNESS, ROUGHNESS * 0.5, w);
+	}
 }
 """
 

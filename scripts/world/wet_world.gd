@@ -20,3 +20,24 @@ static func install() -> void:
 static func set_enabled(on: bool) -> void:
 	enabled = on
 	install()
+
+
+# --- Mirrors of shaders/wet_surface.gdshaderinc (the checks hold the two together) ----------------
+
+## ws_dry(): how wet a spot holding `hold` still is with `w` of the water left, once drying.
+static func dry(hold: float, w: float) -> float:
+	w = clampf(w, 0.0, 1.0)
+	var t := (1.0 - clampf(hold, 0.0, 1.0)) * 0.85
+	return smoothstep(t, t + 0.18, w) * smoothstep(0.005, 0.06, w)
+
+
+## ws_wall(): a wall's wetness `down` metres under its top, `up` over its foot, on a column that
+## carries `streak` of the water, at wetness `w` and drying `d`.
+static func wall(down: float, up: float, streak: float, w: float, d: float) -> float:
+	w = clampf(w, 0.0, 1.0)
+	var reach := w * 34.0 + streak * w * 16.0 + 1.5
+	var front := smoothstep(0.0, 0.25, w) if down < 0.0 else 1.0 - smoothstep(reach - 3.0, reach, down)
+	var splash := (1.0 - smoothstep(0.35, 0.9, up)) * smoothstep(0.0, 0.15, w)
+	var raining := maxf(front * lerpf(0.8, 1.0, streak), splash)
+	var drying := dry(0.2 + 0.55 * streak + 0.3 * (1.0 - smoothstep(0.3, 1.2, up)), w)
+	return lerpf(raining, drying, clampf(d, 0.0, 1.0))
