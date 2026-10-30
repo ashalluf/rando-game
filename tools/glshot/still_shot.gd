@@ -421,6 +421,12 @@ func _initialize() -> void:
 				_pose(player, anchor, hold, boost, fov)
 		else:
 			print("BIRD: no Birds node or camera")
+	# WILD=coyote,deer,...: the urban wildlife in a row ahead of the camera (tools/wildlife/stage.gd:
+	# WILD_DIST, WILD_SPACING, WILD_TURN, WILD_POSE stand|graze|sit|walk|trot|flee, WILD_FRAMES).
+	var wild_env := OS.get_environment("WILD")
+	if wild_env != "" and current_scene:
+		await load("res://tools/wildlife/stage.gd").stage(self, current_scene, wild_env, get_root().get_camera_3d())
+		_pose(player, anchor, hold, boost, fov)
 	# STREET=queue|crossing: a signalised junction ahead of the camera, a queue at its red, and
 	# for `crossing` people out on the crosswalk in front of it (see _stage_street).
 	var street_env := OS.get_environment("STREET")

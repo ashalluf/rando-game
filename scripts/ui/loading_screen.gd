@@ -179,6 +179,8 @@ func run(city: Node3D) -> void:
 	# The dogs' meshes (DogMesh, built in code: every breed's three levels and fur shells).
 	var t_dogs := Time.get_ticks_usec()
 	DogMesh.warm()
+	if Wildlife.on():
+		WildSpecies.warm()
 	print("LOADING dogs: %d ms" % ((Time.get_ticks_usec() - t_dogs) / 1000))
 	print("LOADING people: %d camp figures %d ms, %d rigs %d ms" % [kinds.size(), t_camp / 1000, models.size(), t_rigs / 1000])
 	LoadClock.stop("screen: rigs")

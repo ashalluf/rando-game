@@ -4777,6 +4777,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/glshot/dog_shot.gd` (a lineup: `BREEDS`, `VIEW` side / front / three / rear / top,
   `POSE` stand / walk / trot / gallop / sit / sniff / look / bark / fear, `LOD`, `SEQ` frames)
   and `tools/crowd/crowd_lab.tscn SCENARIO=dog`; checks: `tests/dog_checks.gd`.
+- Urban wildlife (2026-10-30, docs/HANDOFF.md "Urban wildlife"): coyotes, mule deer, raccoons, fox
+  squirrels, cottontails ARE DogMesh bodies (`WildSpecies.SPECIES`, DogMesh.BREEDS' format plus
+  `tail_pose` / `bound` / `pronk` / `gait`, found by `DogMesh.breed()` after the dogs; coats from
+  `tools/wildlife/make_wild_coats.py` on the dogs' chart; antlers `WildSpecies.antler_mesh()`),
+  `WildAnimal` (extends Dog: idle / wander / route / alert, bolts from the player, a gun or a hit,
+  no gore) placed by `Wildlife` (city.tscn, like Birds; `plan_cell()` pure: seed + 46 m cell + half
+  hour, zone, block, `WildSpecies.activity()`). `WILDLIFE=0` the A/B; off in the smoke test but in
+  its checks (`tests/wildlife_checks.gd`); stills `WILD=` on still_shot.gd, spots `tools/wildlife/probe.gd`.
 - Street errands (2026-10-05, "the pavement's comings and goings"): `StreetErrands`
   (`scripts/npc/street_errands.gd`, static) gives walkers within `life_range` somewhere real to
   go, rolled from `Pedestrian._try_life()` on their own stream (`hash([seed, "errand"])`, never
