@@ -106,8 +106,40 @@ func _initialize() -> void:
 		sky_mat.sky_horizon_color = Color(0.04, 0.035, 0.03)
 		sky_mat.ground_horizon_color = Color(0.03, 0.025, 0.02)
 		sky_mat.ground_bottom_color = Color(0.01, 0.01, 0.01)
+	# PAINT_ENV (car-paint-2): `golden` a low warm sun and an evening sky; `street` adds two rows
+	# of facades either side (something for the lacquer to mirror; lit windows at night).
+	var paint_env := OS.get_environment("PAINT_ENV")
+	if paint_env.contains("golden"):
+		sky_mat.sky_top_color = Color(0.20, 0.30, 0.52)
+		sky_mat.sky_horizon_color = Color(0.95, 0.62, 0.36)
+		sky_mat.ground_horizon_color = Color(0.40, 0.30, 0.24)
+		sky_mat.ground_bottom_color = Color(0.12, 0.10, 0.09)
+		sky_mat.sun_angle_max = 8.0
 	sky.sky_material = sky_mat
 	env.sky = sky
+	if paint_env.contains("street"):
+		var frng := RandomNumberGenerator.new()
+		frng.seed = 77
+		for side in [-1.0, 1.0]:
+			var z := -60.0
+			while z < 60.0:
+				var w := frng.randf_range(9.0, 22.0)
+				var h := frng.randf_range(5.0, 16.0)
+				var fb := MeshInstance3D.new()
+				var bm := BoxMesh.new()
+				bm.size = Vector3(10.0, h, w - 0.6)
+				fb.mesh = bm
+				var fmat := StandardMaterial3D.new()
+				var tone := frng.randf_range(0.35, 0.75)
+				fmat.albedo_color = Color(tone, tone * 0.96, tone * 0.9)
+				fmat.roughness = 0.85
+				if night:
+					fmat.emission_enabled = true
+					fmat.emission = Color(1.0, 0.75, 0.45) * frng.randf_range(0.0, 0.25)
+				fb.material_override = fmat
+				fb.position = Vector3(side * 23.0, h * 0.5, z + w * 0.5)
+				world.add_child(fb)
+				z += w
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	env.tonemap_mode = Environment.TONE_MAPPER_AGX
@@ -131,6 +163,11 @@ func _initialize() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-44.0, -130.0, 0.0)
 	sun.light_energy = 0.05 if night else 1.4
+	if paint_env.contains("golden"):
+		sun.rotation_degrees = Vector3(-9.0, -112.0, 0.0)
+		sun.light_color = Color(1.0, 0.70, 0.45)
+		sun.light_energy = 1.6
+	RenderingServer.global_shader_parameter_set("sun_direction", sun.basis.z)
 	sun.shadow_enabled = true
 	world.add_child(sun)
 	if night:
@@ -228,7 +265,15 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 				if types[i] == 18:
 					car.set("look_seed", OS.get_environment("LOOK").to_int())
 			if types[i] != 17 and (finish >= 0 or livery > 0):
-				car.call("setup_look", maxi(finish, 1), livery, Color(0.07, 0.07, 0.08))
+				var trim := Color(0.07, 0.07, 0.08)
+				if OS.get_environment("TRIM") != "":
+					trim = Color(OS.get_environment("TRIM"))
+				car.call("setup_look", maxi(finish, 1), livery, trim)
+			# FLIP=#rrggbb: a new paint's pearl flip / candy depth (CarPaint2); LOOK=n its look seed.
+			if OS.get_environment("FLIP") != "":
+				car.set("paint_flip", Color(OS.get_environment("FLIP")))
+			if OS.get_environment("LOOK") != "" and types[i] != 17 and types[i] != 18:
+				car.set("look_seed", OS.get_environment("LOOK").to_int())
 		# Parked, like a street car: a physics body left to settle on its springs. A cruiser is
 		# kinematic until it engages, so it is stood on the road at its ride height instead.
 		car.position = Vector3((float(i) - float(types.size() - 1) * 0.5) * spacing,

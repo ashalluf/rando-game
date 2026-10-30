@@ -2661,6 +2661,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The third perf audit (tests/perf_audit_3_checks.gd): cache trims, the crowd feet's stagger,
 	# the sea's life idling inland, the night haze's daytime early-out.
 	await load("res://tests/perf_audit_3_checks.gd").new().run(self, city)
+	# Car paint, second pass (tests/car_paint_2_checks.gd, CarPaint2): rolls by hash only, the switch,
+	# the shader's paint2 uniforms, the materials, a car's condition.
+	load("res://tests/car_paint_2_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
