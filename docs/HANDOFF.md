@@ -14589,6 +14589,310 @@ on edges) before the deep chips reach the iron; dust settles on faces toward the
 (`v_lnormal.y`, by wear, gone in the wet); and a fresh hydrant rolls wear 0.16-0.4 (was 0-0.12;
 the aged roll unchanged). Stills 35-38 on shots/street-furniture (`furniture_shot.gd WEAR=0.28` /
 `0.3`, the before is the stashed shader). Not seen on Forward+.
+
+## 9ey. Street props that break like GTA (fleet wave 2, wt/prop-destruction; VISUAL_ROADMAP row "?")
+
+Every breakable street prop used to break the same way: hidden, four grey boxes thrown, Sfx
+`break`. A car hitting one stopped dead against its static box. Now `PropBreak`
+(`scripts/world/prop_break.gd`, static) breaks them by their **kind** (the `kind` CityChunk's
+`_add_prop()` records), never by their mesh - street lamps are StreetLamps' models, the
+furniture is being replaced in parallel - and the pieces are copies of the prop's own batch
+instances: `_add_prop()` now keeps each instance's mesh, final (relief-lifted) transform, colour
+and custom data in the record (`[key, index, mesh, xform, color, custom]`, read back from
+`MultiMeshBatch.data()`), and a piece is a one-instance MultiMesh, so a newsbox keeps its paint
+and a lamp its type through its shader's INSTANCE_CUSTOM.
+
+- **hydrant**: sheared off and thrown up (11 m/s, a PhysicsBudget body), the flange left standing
+  (`PropStub`), and a `HydrantGeyser` (`scripts/world/hydrant_geyser.gd`) at its foot: a column of
+  hose_water.gdshader streaks at `jet_speed` 16 m/s (13 m high), a crown of white puffs breaking
+  up, a ring of falling rain, foam at the foot, the roar (`amb_fountain` + `rain`, re-routed to the
+  World bus), and the wet ground: `shaders/wet_patch.gdshader` on a disc, darkening and mirroring
+  the sky by Fresnel (emitted, `sky_tint`), ragged-edged, rung by falling drops, spreading over
+  `patch_grow_seconds`. 45 s at full pressure, 8 s sagging (the speed sets the height), then the
+  patch dries back from its edge over 40 s and the node goes. Whoever stands in the column is
+  thrown up it (`lift_speed` 15 m/s - over the top on purpose) and loose bodies over it are lifted
+  (an impulse a step; VehicleBody3D clears forces). `max_live` 6; a new one ends the oldest. The
+  puffs dim with `DayNight.lamp_now`.
+- **bus_stop**: the first break only takes the glass (`PropBreak.survives()`): every instance
+  whose key says "glass" hidden, 340 tempered cubes (`PropShards`, single cubes and small clumps)
+  thrown off the pane's rect, the record kept alive at `FRAME_HEALTH`. Broken again, or by a car
+  over `SHELTER_SMASH_SPEED`, the frame comes down as one body per remaining piece.
+- **lamp** (and stop_sign, street_sign, signal): a hit under `LEAN_FROM` (a round) pops a lamp -
+  its pool hidden, its OmniLight freed (the record now owns it, `PropBreak.own_light()`; a shot-out
+  lamp used to keep lighting the pavement), glass tinkling from its head - and never fells it. A
+  hit between LEAN_FROM and `FALL_AT[kind]` BENDS the post at its foot (every instance and shape
+  turned about the base, more per hit); a harder one, or a bend past `MAX_LEAN`, fells it: a
+  `FallingPole` (`scripts/world/falling_pole.gd`, one body of the whole pole) hinged to the chunk's
+  StreetProps body at its foot, swung over the way it was hit, let go past `RELEASE_ANGLE`, slamming
+  down with a crash and dust. **Trap:** a box swung about its own bottom edge digs its corner into
+  the pavement and stands the pole back up - the felled pole's boxes are cut `FOOT_CLEAR` off the
+  foot. Signs use their normal health for rounds and fall when it runs out. A felled signal's
+  heads go dark (`traffic_signal.gdshader` reads custom.b over 0.5 as dead).
+- **mailbox / newsbox**: the box knocked over as a body and a burst of letters (envelopes drawn in
+  code: stamp, postmark, address lines) or folded newspapers (masthead, photo, columns; no
+  lettering) that flutter down (drag, sway, tumble) and lie flat on the pavement.
+- **meter**: snapped off and flung spinning, a stub of pipe left, coins everywhere.
+- Anything else breaks the old way.
+
+**PropShards** (`scripts/world/prop_shards.gd`): ONE MultiMesh per burst simulated in GDScript like
+the brass (a gravity arc, a ground plane at the pavement the prop stood on, bounces, rest), lying
+`LINGER` seconds, then shrinking away; `MAX_NODES` 10 bursts. **Cars smash through**:
+`PropBreak.smash_ahead()` (one line in `Vehicle._update_wheels()`, before the crash watch) runs one
+box query ahead of a physical car over `SMASH_MIN` 5 m/s each step it runs its script; a prop in
+it takes `speed x SMASH_DAMAGE`, breaks BEFORE the solver meets it (`break_prop()` now disables a
+dead prop's shapes at once), the car loses `SLOW[kind]` of its speed, takes a HIT_CRASH dent and,
+for a felled pole, passes through it (`FallingPole.pass_through()`: hinged, it is pinned to the
+world and stopped the car dead). Below the threshold, or a pole only bent, the car hits it as before.
+Cars tagged `warm_rehearsal` (the loading screen's row, which a blast throws about) never smash:
+they broke real props, and WorldState kept them broken (its "layer 0" is reset to 4 by
+`Vehicle._ready()`). `PROP_BREAK_LOG=1` prints every break and what did it.
+A destroyed prop on a rebuilt chunk leaves its stub (`PropBreak.remains()`, the `is_destroyed`
+early return in `_add_prop()`). `PROP_BREAK=0` in the environment is the A/B.
+
+Hooks in shared files (each a line or two): `CityChunk._add_prop()` (instance data, remains),
+`damage_prop()`, `break_prop()`, both lamp builders and Broadway's lamp (`own_light`),
+`Vehicle._update_wheels()`, tests/smoke_test.gd (one line), still_shot.gd (`PROPS=` staging).
+
+Look: `tools/glshot/prop_break_shot.gd` (the props alone on a pavement, seconds a frame; `BREAK=`,
+`CAPS=`, `CAR=1` drives a sedan through the hydrant and the lamp, `NIGHT=1`), in the city
+`PROPS=hydrant,lamp,... still_shot.gd` (`tools/glshot/prop_break_city_stage.gd`: PB_FIND,
+PB_TIME, PB_EYE_*). Checks: `tests/prop_destruction_checks.gd` (on a deck 300 m up, a chunk of its
+own). Compile: `tools/prop_break/compile.gd`. Stills on `shots/prop-destruction`.
+
+Not done / not verified: nothing of it on Forward+ (the wet patch's mirror, the geyser under TAA
+and bloom); no water on the ground beyond the disc (the road's own `road_wetness` is global); a
+geyser does not knock a car off the road, it only floats it; bent poles are not persisted (only
+destroyed ones);
+~~no player-on-foot smashing~~ (done in wave 3, below).
+
+**Wave 3 (finish).** Merged origin/main (95bd13f) in. The player smashes through on foot:
+`PropBreak.smash_player()` (one line before `move_and_slide()` in `Player._physics_process()`)
+runs the cars' box query (`_smash_hits()`, now shared) ahead of a player over `PLAYER_SMASH_MIN`
+18 m/s - a boost, a dive, a fall; never a run (12 m/s) - so boosting into a lamp fells it and he
+flies on with `1 - PLAYER_SLOW_SHARE x SLOW[kind]` of his speed (checked: 40 m/s in, 33.8 out),
+the camera kicks (`PLAYER_SHAKE`), and the felled pole lets him pass (`smasher`). The geyser
+reads as water, not needles: the falling rain is 300 fine drops (3.5 cm x 55 cm streaks at 0.42)
+instead of 140 broad sticks, a mist sheath tears off the column on the way up (`_mist`), the
+crown's puffs are bigger; and it lifts a body where it stands over the main, not at its centre,
+so a car driven over a geyser rises by one side and tips away.
+
+## 9ez. Engine audio: an engine per car, revved by a simulated gearbox, 2026-10-06 (agent branch `wt/engine-audio`; VISUAL_ROADMAP "?")
+
+**What it was.** One low-quality engine loop (`engine_loop_0`, GGBotNet) played only for the
+player's car and pitched linearly with speed; traffic was Ambience's tyre roll, and a bus or truck
+its `diesel_idle` loop. No gears, no idle-to-redline character, no turbo, no reversing alarm, one
+horn sound for every car.
+
+**What it is.** `EngineAudio` (`scripts/vehicles/engine_audio.gd`), one node under the root made
+by the first Vehicle (`ensure()`, next to CarLights and DrivingFX):
+- **Nearest cars only**: every `pick_interval` (0.2 s, real clock) the `voices` (4; 2 on the web)
+  running cars (`lights_running()`: somebody in the cabin) nearest the camera within `reach` (55
+  m) plus the player's car get a Voice (five loop players, turbo, beeper, squeal); voices are
+  reused, never freed. The Vehicle's own engine loop stays quiet while `covers()` (one guarded
+  block in `Vehicle._physics_process`); a voiced bus or truck drops Ambience's diesel loop
+  (`voiced()`, one line in `_follow_traffic`).
+- **Profiles** (`PROFILES`, `profile_for()`): four (sedan, hatchback, crossover, minivan, taxi,
+  beater, vans, ice-cream truck), v8 (pickup, SUV, the muscle car, any `police_car`), diesel (box
+  truck, semi, fire engine, ambulance, garbage, sweeper, tow), bus (city and school buses), v12
+  (the four exotics, turbo + blow-off), moto (V-twin; any car with meta `engine_profile` "moto" -
+  the motorcycles session can use it).
+- **Revs** (`step_engine()`, pure, unit-checked): gear ratios spread geometrically between the
+  speed first gear tops out at (`first`) and the speed top gear reaches 92 % of the redline at
+  (`top`); upshift at an rpm from 42 % to 93 % of the redline by throttle, downshift under 62 % of
+  it, a kick-down on a floored throttle, 0.24 s throttle cut and fast rpm drop through each shift,
+  clutch slip in first, a limiter that cuts and catches at the redline, free revs in the air
+  (held just under the redline, no bounce) and standing on the throttle (boost = floored).
+- **Mix** (`layer_gains()`): the on-load ladder idle / low / mid / high crossfaded equal power by
+  rpm (each loop pitched rpm / its own rpm, a per-car +-4 % character), the coasting loop faded in
+  as the load drops above idle; level + `load_db` at full load + `rev_db` at the redline. Traffic
+  throttle comes from its acceleration (position deltas: kinematic traffic has no velocity; an
+  origin shift's jump is ignored), the player's from the stick and boost.
+- **On top**: the turbo whistle spools with load x revs and dumps on a lift (blow-off on the v12
+  only); the reversing alarm on diesel and bus profiles while rolling backward or with the
+  reversing lamps on; a squeal for TRAFFIC braking harder than `squeal_decel` or cornering harder
+  than `squeal_lateral` (DrivingFX already squeals the physical cars from their real tyre slip);
+  `horn()` / `horn_spec()` - each car's own take and pitch from a hash of its look, deep on trucks
+  and buses, the air horn on semis, fire engines and garbage trucks; TrafficAI's honks go through
+  it (one guarded line, the old Sfx call is the fallback), and the player has a `horn` action (H /
+  pad d-pad down, held = leaning on it).
+
+**The sounds** are synthesised offline by `tools/engine_audio.py`, NOT recorded: the session's
+network policy blocks Freesound, OpenGameArt, Wikimedia, archive.org and Kenney, and no CC0 engine
+recording was found on GitHub (SuperTuxKart's are GPL / CC-BY-SA). The tool builds each loop from
+the physics of the sound: every cylinder's exhaust pulse at its place in the firing order (i4;
+cross-plane V8 alternating banks L R L L R L R R - the burble; i6 diesel with combustion knock;
+V12; 45-degree V-twin), a per-cylinder strength spread (the lope) and cycle-to-cycle jitter, each
+bank through a pipe comb and a muffler, a whole number of engine cycles per loop with periodic
+noise so there is no seam. 33 files, 0.7 MB. Measured: fours / V8s / V-twin carry 88-99 % of
+their energy under 1 kHz, the diesels 56 % with the knock band above it, the V12 30-77 %. Sfx
+gets them as SAMPLES with loudness entries and loop flags (fallback: the old engine tone, built
+once). **Any file can be replaced by a recording**: same name, re-measure its loudest-50 ms level
+for `SAMPLE_LOUDNESS_DB`, and put the rpm it was recorded at in `PROFILES.rpm`. That is the first
+thing to do on a session whose network reaches Freesound.
+
+**Cost.** No geometry, no draws (geo_count flat by construction). CPU: one group scan every
+0.2 s (like CarLights) and up to five voices' arithmetic a frame; audio: up to ~7 players a voice
+playing (two engine layers in a crossfade, the coasting layer, turbo, beeper, squeal), so ~20-30
+streams at worst. Sfx load +30 ms (the 33 oggs).
+
+**A/B and tools.** `ENGINE_AUDIO=0` (the old single loop on the player's car, the old horns);
+`ENGINE_AUDIO_HUD=1` shows a debug panel (each voice's profile, traffic or physical, gear, rpm,
+load, speed, the five layer gains, turbo, BEEP, SQUEAL); probe `tools/engine_audio/probe.tscn`
+(headless, seconds: each profile's run through the gears, the body-type table, missing files).
+Checks: `tests/engine_audio_checks.gd` (63 with the city: live staged traffic, the gearbox per profile, equal power,
+the player's voice and shifts, the Vehicle's loop silent, a truck's diesel and alarm, horns).
+
+**Gate** (`SHARDS=3 tests/headless_check.sh`, 2026-10-06, final code): 2,416 checks passed, 0
+failed, peak RSS 2,403 MB a shard. The run is still marked failed by one SCRIPT ERROR in
+`tests/dog_checks.gd:180` (a dog walker freed during its 90-tick wait, outside this area), which
+appeared in both 3-shard runs. Shard 0 run ALONE passes clean both with this branch's engine audio
+on (751 checks) and with `ENGINE_AUDIO=0` (751), and `SMOKE_PARTS=dog_checks` passes alone either
+way: it shows only under the three shards' CPU contention, so it is that check's timing race.
+
+**Found by the debug panel**: freeway traffic squealed on gentle curves - kinematic cars are
+placed along lane polylines and their heading steps at every vertex, so a raw yaw rate spiked;
+the squeal now reads speed x the turning rate of the direction of travel (that rate smoothed over a
+quarter second, so neither a vertex step nor the speed regained leaving a slow junction turn reads
+as a hard corner; squeals need 8.5 m/s2 braking or cornering above 9 m/s), and every
+voice's motion is sensed once a PHYSICS tick (`Voice.sense()` from `_physics_process`), measured
+over the time since the car last moved: traffic is placed on physics ticks, so a render frame saw
+it move twice or not at all and the speed and its rate jittered. A live check stages three cars
+through the spawn junction (one free to turn).
+
+**Not done / not verified.** Nobody has LISTENED to it: the session has no audio out, so the
+loops were judged by spectrum, crest factor and seam only - an ear check on the Mac is needed,
+and the synthesised timbre will not match a recording. Not on the web build heard either.
+Motorcycles have a profile but no bodies yet. Traffic gear changes are plausible but their
+throttle is guessed from acceleration. StreetErrands' honk (`Sfx.play("horn")`) was left as it
+was. No interior (in-cabin) muffling for the player's car.
+
+**Wave 3 (2026-10-29).** Merged origin/main (95bd13f: apartments, tower gondolas). Sourcing tried
+again: OpenGameArt and archive.org now answer, Freesound, Kenney and Pixabay still do not. What
+they hold under CC0 / public domain is the GGBotNet pack already in (64 kb/s, one loop of unknown
+rpm), pauliuw's two 20 s loops whose pitch wanders 80-220 Hz (no fixed rpm to place on a ladder),
+domasx2's racing loops (marked CC0 but built from sampling+ material: left out) and street field
+recordings - so the synthesised ladder stays. StreetErrands' honk now goes through
+`EngineAudio.horn()` like TrafficAI's (each car its own horn; the old Sfx call is the fallback). Gate
+(`SHARDS=3`, on 95bd13f + this branch): 2,442 of 2,443 checks passed, peak RSS 2,473 MB a shard;
+the one failure was TrafficAI's swerve check (`traffic_ai_checks.gd:435`: the placed car stood
+still short of the player, no swerve, no honk). Shard 1 rerun alone passes, with engine audio on
+AND with `ENGINE_AUDIO=0` (867 / 867 each, the swerve check running: swerved, 2.6 m clear,
+honked), so it is that check's timing under three shards' CPU contention, not this branch.
+Beware: `SMOKE_PARTS=traffic_ai_checks` alone silently SKIPS the swerve check (no avenue found
+from that start), so it proves nothing about it.
+
+## 9fa. Swimming: the hero in the sea, the marina, the lake, the canals and pools (fleet wave 2, `wt/swimming`)
+
+The owner's brief: "The hero swims: in the ocean, the marina, pools and MacArthur Park's lake he
+floats at the surface (the ocean's Gerstner height from GDScript, as Surf mirrors it), swims with a
+stroke animation, dives under, splashes and a wake, and boosts out of the water like a dolphin;
+drowning is not a thing." Before this every one of those waters was a floor: the sea and the marina
+held him up on the city's ground box (y 0, the water drawn at 0.15), a pool is painted on paving,
+and the lake and canals let him wade on their floors.
+
+**Files.** `scripts/player/swim.gd` (`Swim`, the controller, a child of the Player),
+`scripts/player/swim_pose.gd` (`SwimPose`, the strokes), `scripts/player/swim_fx.gd` (`SwimFX`:
+splashes, wake, bubbles, synthesized sounds), `scripts/world/sea_surface.gd` (`SeaSurface`, the
+sea's height), `scripts/world/swim_water.gd` (`SwimWater`, where water is), `shaders/underwater.gdshader`
+and `shaders/water_underside.gdshader`, `tests/swimming_checks.gd`, `tools/swim/probe.tscn`.
+Hooks: Player (`swim.step()` first in the tick after the car; `is_swimming()`), WeaponManager (no
+guns in the water), Footsteps (no steps), Avatar (`swim_pose`, `swim_body()`), the `dive` input
+action (C / Ctrl / pad X, at the end of `[input]`), and one registration line in each water builder
+(MacArthur Park's lake volume, the canals' sink volumes, Parks' rec pool, LotFill's swimming pools,
+YardFill's back-yard pools). `tools/glshot/still_shot.gd` gained `EYE_KEEP_PLAYER=1`.
+
+**The sea's surface** is the ocean shader's vertex stage in GDScript (`SeaSurface.displacement()`:
+the shore distance, the shoaling taper, the wave groups, the five Gerstner swells with the lean
+pulled back for big seas, the tsunami, the surf of surf.gdshaderinc through Surf's envelope, and the
+held level near the shore), read at a point by stepping back along the horizontal displacement
+(three fixed-point steps). The sea state comes from Weather (wave_scale, surf_gain, the tsunami);
+its clock is the shader's TIME (`SeaSurface.clock`, the engine's ticks at first use, advanced by
+the scaled process delta in Swim). ~95 us a sample. The shader's uniform defaults and swell lines
+are checked against its source; change one, change both.
+
+**Where water is.** `SwimWater.at(macro, true_world_pos, t, sea)`: registered entries first (a 64 m
+grid; an entry goes when its node leaves the tree; FULL chunks only), then the marina's basin and
+channel (`Marina.in_water()`, flat at 0.15, a floor 4.5 m down), then the sea (zone OCEAN and
+seaward of the waterline; the floor the sand's own profile under the water, SAND_STEEP / SAND_LOW,
+shelving to the floor box's -13). A pool, the sea and the marina have no real floor under the
+water, so while he swims there `solid` makes Swim drop the world layer off his mask and hold him
+over the water's floor (and, in a pool, inside the tank); the lake and the canals have real floors
+under the ground box, which their own volumes already let bodies through, so the mask stays.
+
+**Swim.** He goes in when his feet come within `enter_above` of the surface (falling or standing),
+where the water is at least `min_depth` deep (the sea: past SAND_STEEP_AT offshore); a plunge
+(> 9 m/s) takes him under and `entry_drag` slows it (a 30 m fall goes ~8 m down), then he floats
+back up at `idle_rise`. At the surface the water's spring holds his feet `tread_depth` (still) or
+`crawl_depth` (moving) under the surface of the swell; under the water he swims where the camera
+looks (a 12-degree dead band round level), jump up, dive down. Jump at the surface hops out
+(`jump_out`, onto a dock or a pool's edge). Boost: `boost_speed` 17 m/s along the top, and every
+`leap_gap` a dolphin leap (`leap_up`, `leap_gravity`) - the streamline pose laid along the arc, a
+splash out and a splash in; boost with the camera pitched over `launch_pitch` bursts out into the
+ordinary boost flight. He wades out where the water gets shallower than `min_depth * 0.8`.
+**No drowning, no breath, no damage**: he is overpowered.
+
+**The strokes** are code, not a clip: the free UAL library (the life clips' source) is an itch.io
+download this build's network policy refuses, so `SwimPose` keys them per frame the way the hero's
+idle variants were keyed - each bone's length aimed at a skeleton-space direction as if he stood
+upright, worked out from a phase: the front crawl (each arm a full circle at the shoulder, the
+pull under the body with the elbow bent, the recovery high and wide, half a cycle apart; the body
+roll; the head turned to breathe every other stroke; a six-beat flutter), treading (sculling arms,
+eggbeater legs), the breaststroke under water and the streamline with a dolphin kick (boost and
+leaps). Blended by weights; `Avatar.swim_body()` lays the body (prone in the crawl, along the
+velocity under and in the air) about the hips and lifts it so the back is awash. A real swim clip
+can replace the keyed strokes later (`tools/hero/hero_clips.gd` CLIPS row + a `moves/swim_*` play
+in `Avatar.swim_body()`), SwimPose's weight then only for the lay.
+
+**Effects.** A splash on every way in and out (droplets in a crown, a little white mist, and for
+a real plunge only a small broken patch of foam, a metre or two, gone in two seconds), a hand's
+splash at each crawl stroke, the wake (small flat patches of lace laid off the head and shoulders,
+which stay where they were laid and spread sideways, so a moving swimmer draws a narrow V; nothing
+while treading), a rooster tail of spray on the boost, bubbles under the water (only deeper than
+1.2 m, so none break through the opaque sea). The lead's review of the first stills: the entry's
+foam ring was 6-8 m across and read as a decal donut; it is the patch above now. Under the surface (the camera's own point): `underwater.gdshader`, a full-screen quad
+(the heat haze's trick, render_priority MIN) that reads the picture AND its depth: every pixel's
+light absorbed red-first over its real distance (Beer-Lambert per channel, `absorb`), scattered
+toward the water's colour by distance (`visibility`, metres to half), darker with depth and at
+night, blurrier with distance, wobbling; and the surface's underside overhead
+(`water_underside.gdshader`, a plane at the surface over the camera): Snell's window of sky
+straight up, dark past the critical angle. Both work in linear on both renderers.
+Sounds are synthesized in SwimFX (noise bursts with bubble chirps; a muffled loop under the water):
+no CC0 water recording is in the project and freesound / itch.io are out of reach.
+
+**Cost.** Nothing on land beyond a zone test a tick. In the sea two to three `SeaSurface.height()`
+samples a tick (~0.3 ms), a few CPUParticles3D systems and, under the water, one full-screen pass.
+No geometry is added to any chunk (the registrations are data). Measured (still_shot GEO, the
+same camera off Rando Pier at 15:30, opengl3): swimming 3,229,823 triangles / 2,920 draws, with
+`SWIMMING=0` (the hero standing on the water instead) 3,255,022 / 2,927 - flat.
+
+**Stills** (branch `shots/swimming`): `01_before_sea_1530` (SWIMMING=0: he runs on the sea),
+`02_after_crawl_1530`, `03_after_tread_1530`, `04_after_underwater_1530`, `05_after_dolphin_1530`,
+`06_after_park_pool_1530` (the rec pool at (129.5, -95.1) on seed 1337), `07_after_macarthur_lake_1530`,
+`08_after_dolphin_1840`. The probe (`tools/swim/probe.tscn`) prints the nearest rec pools and the
+lake's bounds for framing more.
+
+**A/B and stills.** `SWIMMING=0` in the environment: no water anywhere (SwimWater.enabled), the
+old behaviour. `SWIM_STAGE=tread|crawl|boost|under` (fakes the stick) with `SWIM_HOLD=1` (swims on
+the spot, so a fixed camera frames him; `SWIM_DEPTH` for under) and `EYE_KEEP_PLAYER=1` on
+`still_shot.gd`, e.g. off Rando Pier:
+`SWIM_STAGE=crawl SWIM_HOLD=1 EYE_KEEP_PLAYER=1 FOV=50 EYE=-1005,1.6,-271,0,-6 ... -- --spawn=-1005,-280,-90,-10 --hour=15.5 --nohud`.
+
+**Wave 3 (finishing the task, merged onto main 95bd13f).** More water: the reservoir behind the
+dam is worked out like the marina (`Reservoir.wet()` on its 5 m grid, the surface its fitted
+`level`, the floor `height_at()` - the carved hills, real ground, so nothing is passed through:
+`Kind.RESERVOIR`), the golf pond registers in its chunks (a dug bed 1.3 m deep, the turf's
+collision under it), the rooftop pool decks register as `Kind.TANK` (a pool whose floor is real:
+the roof, 0.95 m down; the world stays on his mask, so a roof pool never drops him through the
+tower) and the hill homes' pools as ordinary painted pools. `still_shot.gd EYE_KEEP_PLAYER=1` prints
+where he is and the water he swims in once. Still `09_after_reservoir_crawl_1630`:
+`SWIM_STAGE=crawl SWIM_HOLD=1 EYE_KEEP_PLAYER=1 FOV=50 EYE=-524.5,266.4,-1308,200,-12 ... --
+--spawn=-522,-1302,180,-8,264 --hour=16.5 --nohud` (spawn under the level: a still's frozen clock
+never lets him fall the last metre in).
+
+**Not done / known gaps.** The river's low-flow channel is too shallow to swim; a car driven into
+the sea still rides its wheels on the ground box; the strokes are keyed in code, not
+motion-captured (the UAL swim clips are still out of this network's reach); nothing of it has been
+seen on Forward+ (the Mac).
 ## 9d?. The crowd's heads: people look at what happens round them, 2026-10-29 (agent branch `wt/crowd-lookat`; VISUAL_ROADMAP #?)
 
 VISUAL_ROADMAP #28 (wt/crowd-anim) gave the near crowd a head turn in `Pedestrian._post_pose()`:
