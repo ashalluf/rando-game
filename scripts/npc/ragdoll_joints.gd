@@ -38,6 +38,12 @@ static var settle_max: float = 8.0
 ## Shared spin of a flung doll (rad/s, each axis up to this) and the extra flail of each limb.
 static var tumble_spin: float = 2.5
 static var limb_flail: float = 4.0
+## Each part's inertia as an even sphere this many times its rod's (0: Godot's own from the shapes),
+## its radius of gyration at least sqrt(`inertia_floor`) metres.
+static var inertia_gain: float = float(OS.get_environment("RAGDOLL_INERTIA")) if OS.get_environment("RAGDOLL_INERTIA") != "" else 3.0
+static var inertia_floor: float = 0.02
+## No part spins faster than this (rad/s). A limb flung hard turns ~25.
+static var max_spin: float = 30.0
 
 ## The jointed dolls alive now, oldest first (instance ids).
 static var _active: Array[int] = []
@@ -156,6 +162,12 @@ static func attach(rag: Node3D, body: RigidBody3D, rig: Node3D, anim: AnimationP
 		var seg := xf.affine_inverse() * end
 		seg *= 1.0 + float(p.extend)
 		_add_shape(rb, p, seg, xf, fwd)
+		if inertia_gain > 0.0:
+			# Even, generous inertia: the light parts (the head, the forearms) with their own tiny
+			# inertia spun up to 60-90 rad/s on landing and the joint solver diverged from there.
+			var r: float = (p.size as Vector2).x
+			var k := maxf(seg.length_squared() / 12.0 + r * r * 0.5, inertia_floor)
+			rb.inertia = Vector3.ONE * rb.mass * k * inertia_gain
 		if FEET.has(p.name):
 			var f: Array = FEET[p.name]
 			var a := xf.affine_inverse() * (world.call(f[0]) as Transform3D).origin
@@ -330,6 +342,14 @@ func gap() -> float:
 			continue
 		worst = maxf(worst, (par.global_transform * (a[2] as Vector3)).distance_to(ch.global_position))
 	return worst
+
+
+## Caps every part's spin (Ragdoll._physics_process, before each step): past ~100 rad/s Godot
+## Physics' point constraints diverge and a doll flies apart.
+func clamp_spin() -> void:
+	for rb in bodies():
+		if rb.angular_velocity.length_squared() > max_spin * max_spin:
+			rb.angular_velocity = rb.angular_velocity.normalized() * max_spin
 
 
 ## The part nearest `at` (world): a round shoves the arm it went through, not the hips.
