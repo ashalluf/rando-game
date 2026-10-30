@@ -503,6 +503,7 @@ func _apply() -> void:
 		_sky.set_shader_parameter("twilight_band_height", lerpf(twilight_band_height.x, twilight_band_height.y, deep))
 		# Rays are at their most obvious with a low sun behind broken cloud.
 		_sky.set_shader_parameter("god_rays", god_rays * (0.45 + 0.55 * dusk) * (1.0 - night_factor) * (1.0 - weather_darken * 0.6))
+		SunsetSky.apply(_sky, elevation, weather_darken, marine)
 		# Under the horizon is the far haze the ground plane fades into, not a grey floor.
 		_sky.set_shader_parameter("ground_color", horizon.lerp(Color(0.32, 0.34, 0.37), 0.30))
 		# The ground follower's horizon has to wash out into the same colour the sky meets it
