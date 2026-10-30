@@ -2667,6 +2667,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Lawns close up (tests/lawns_closeup_checks.gd, LawnsCloseup): the lawn field shared by the
 	# ground and the blades, the tuft, the parkways and weeds, nothing else moved.
 	load("res://tests/lawns_closeup_checks.gd").new().run(self, city)
+	# Traffic that moves like cars (tests/traffic_motion_checks.gd, TrafficMotion): the body's dive,
+	# squat and lean, the steering held at a stop, the queue beat, the switch, the cost.
+	await load("res://tests/traffic_motion_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
