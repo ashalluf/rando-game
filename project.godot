@@ -235,6 +235,11 @@ rain_intensity={
 "value": 0.0
 }
 
+wet_world={
+"type": "float",
+"value": 1.0
+}
+
 night_factor={
 "type": "float",
 "value": 0.0
