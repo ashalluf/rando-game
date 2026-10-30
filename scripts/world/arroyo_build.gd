@@ -26,12 +26,12 @@ const COBBLES := Vector2i(2, 5)
 const BOULDER_BANK := 0.32
 const BOULDER_BED := 0.07
 ## Bank planting odds per segment side, scaled by the bed's width (1 at 6 m).
-const WILLOW := 0.16
-const MULEFAT := 0.32
-const SYCAMORE := 0.05
+const WILLOW := 0.24
+const MULEFAT := 0.55
+const SYCAMORE := 0.06
 ## Caps a chunk.
-const MAX_TREES := 22
-const MAX_SHRUBS := 70
+const MAX_TREES := 30
+const MAX_SHRUBS := 160
 const MAX_COBBLES := 520
 const MAX_CULVERTS := 3
 ## A culvert needs this much road over the toes, and the gap it bridges at most this long.
@@ -584,11 +584,14 @@ func _banks() -> void:
 					at_list.append([p, "willow"])
 			elif roll < (SYCAMORE + WILLOW + MULEFAT) * wide and shrubs < MAX_SHRUBS:
 				# Mule fat: bright green shrubs crowding the bank's foot.
-				var p := a.lerp(b, t) + nrm * side * (hw + lerpf(0.2, 1.8, size))
-				if _bank_ok(p, segs_here, 0.2):
-					var sc := lerpf(1.3, 2.4, size) / chap_h
-					ch._batch.add("hill_chaparral", chap, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(sc * 1.2, sc, sc * 1.2)), Vector3(p.x, ground(p) - 0.15, p.y)),
-						Color(1.5, 1.95, 1.05), Color(_h01([seed, li, pi, side, "m1"]) * 0.3, _h01([seed, li, pi, side, "m2"]), 0.9, 0.0))
+				# A clump of one to three along the bank's foot.
+				for k in 1 + int(_h01([seed, li, pi, side, "mn"]) * 2.99):
+					var p := a.lerp(b, fposmod(t + k * 0.37, 1.0)) + nrm * side * (hw + lerpf(0.2, 2.2, _h01([seed, li, pi, side, k, "mo"])))
+					if shrubs >= MAX_SHRUBS or not _bank_ok(p, segs_here, 0.2):
+						continue
+					var sc := lerpf(1.3, 2.6, _h01([seed, li, pi, side, k, "ms"])) / chap_h
+					ch._batch.add("hill_chaparral", chap, Transform3D(Basis(Vector3.UP, yaw + k * 1.9).scaled(Vector3(sc * 1.25, sc, sc * 1.25)), Vector3(p.x, ground(p) - 0.15, p.y)),
+						Color(1.5, 1.95, 1.05), Color(_h01([seed, li, pi, side, k, "m1"]) * 0.3, _h01([seed, li, pi, side, k, "m2"]), 0.9, 0.0))
 					shrubs += 1
 					at_list.append([p, "mulefat"])
 	ch.set_meta("arroyo_banks", at_list)

@@ -18,8 +18,8 @@ uniform sampler2D sand_normal : hint_normal, filter_linear_mipmap_anisotropic, r
 uniform sampler2D gravel_albedo : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D gravel_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
 // Linear albedos (plain uniforms: see color_space.gdshaderinc).
-uniform vec3 sand_color = vec3(0.30, 0.27, 0.22);
-uniform vec3 thread_color = vec3(0.24, 0.215, 0.18);
+uniform vec3 sand_color = vec3(0.255, 0.235, 0.20);
+uniform vec3 thread_color = vec3(0.19, 0.172, 0.145);
 uniform vec3 debris_color = vec3(0.12, 0.10, 0.075);
 uniform float sand_scale = 2.6;
 uniform float gravel_scale = 1.7;
@@ -110,7 +110,10 @@ void fragment() {
 	float px = max(fwidth(w.x) + fwidth(w.y), 0.002);
 
 	// The ragged edge: the bank's soil eats in, and the bed spills out in fans.
-	float rag = (fbm(w * 0.45) - 0.5) * 2.0 * edge_rag + (vnoise(w * 2.3) - 0.5) * 0.45;
+	// Bulges (bars and scour at the bends, a few metres wider or narrower over tens of metres),
+	// then the ragged fringe.
+	float bulge = (fbm(w * 0.045 + COLOR.b * 7.0) - 0.5) * 2.0 * half_w * 0.55;
+	float rag = bulge + (fbm(w * 0.45) - 0.5) * 2.0 * edge_rag * (0.6 + half_w * 0.2) + (vnoise(w * 2.3) - 0.5) * 0.5;
 	float e = edge + rag;
 	// Dither the last few centimetres (TAA resolves it; it keeps the cut from a ruler line).
 	float dith = hash12(FRAGCOORD.xy + fract(TIME) * 61.0) - 0.5;
@@ -138,7 +141,7 @@ void fragment() {
 	// Gravel bars: patches of the gravel texture, more toward the edges and in drifts along the
 	// flow, thinning where the thread runs.
 	float bars = fbm(vec2(q.x * 0.12, q.y * 0.45) + COLOR.b * 13.0);
-	float gravel = smoothstep(0.42, 0.62, bars + (1.0 - inside) * 0.35 - thread * 0.4);
+	float gravel = smoothstep(0.36, 0.58, bars + (1.0 - inside) * 0.4 - thread * 0.35);
 	vec3 grv_t = cs_in(texture(gravel_albedo, w / gravel_scale).rgb);
 	vec3 grv = sand_color * vec3(0.95, 0.96, 1.0) * (luma(grv_t) / max(gravel_mean_luma, 0.01));
 	grv = mix(grv, grv * (grv_t / max(luma(grv_t), 0.01)), 0.3);
@@ -147,8 +150,8 @@ void fragment() {
 	// Cobbles: two sizes, on the bars and along the thread's banks; faded to their mean under a
 	// few pixels (a ten-centimetre stone at sixty metres is a speck).
 	float cob_fade = 1.0 - smoothstep(0.03, 0.09, px);
-	vec4 c1 = cobbles(q, 0.55, 0.35 + gravel * 0.45);
-	vec4 c2 = cobbles(q * 1.0 + 31.7, 0.24, 0.25 + gravel * 0.5);
+	vec4 c1 = cobbles(q, 0.55, 0.45 + gravel * 0.45);
+	vec4 c2 = cobbles(q * 1.0 + 31.7, 0.24, 0.35 + gravel * 0.5);
 	vec4 cb = c1.x > 0.0 ? c1 : c2;
 	float stone = smoothstep(0.0, 0.18, cb.x) * cob_fade * (0.35 + 0.65 * max(gravel, 1.0 - thread));
 	// Granite greys, a tan, now and then a rose or a dark diorite.
@@ -159,7 +162,10 @@ void fragment() {
 	rock *= 0.82 + 0.3 * sqrt(clamp(cb.x, 0.0, 1.0));
 	col = mix(col, rock, stone);
 	// The stones' mean where they are too small to see: a speckled grey over the sand.
-	col = mix(col, col * 0.93 + vec3(0.012), (1.0 - cob_fade) * gravel * 0.6);
+	col = mix(col, col * 0.8 + vec3(0.008), (1.0 - cob_fade) * (0.35 + gravel * 0.65));
+	// Silt and organic stains in slow patches (what reads from the air as a creek, not a trail).
+	float stain = smoothstep(0.5, 0.8, fbm(w * 0.18 + 3.1));
+	col = mix(col, col * vec3(0.72, 0.70, 0.66), stain * 0.6);
 
 	// Debris lines: twigs, leaves and dried algae left along the flood's edges.
 	float drift = abs(fract((-e) / max(half_w * 0.6, 0.8) + vnoise(q * vec2(0.08, 0.5)) * 0.8) - 0.5);

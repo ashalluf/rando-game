@@ -91,4 +91,74 @@ func _ready() -> void:
 		var pitch := -rad_to_deg(atan2(y - plan.height_at(p), 110.0))
 		print("WASH %d at %s width %.1f  AIR_EYE=%.1f,%.1f,%.1f,%.0f,%.0f  LOW_EYE=%.1f,%.1f,%.1f,%.0f,-8" % [e[0], p.round(), net.lines[e[0]].w[e[1]], cam.x, y, cam.y, yaw, pitch,
 			p.x + flow.x * 25.0, plan.height_at(p + flow * 25.0) + 4.0, p.y + flow.y * 25.0, yaw])
+	# Hill roads overlooking a wash: a drawn road 25-70 m off a wide wash and 6-40 m over it.
+	var shown := 0
+	for li in net.lines.size():
+		if shown >= most:
+			break
+		var ws: PackedFloat32Array = net.lines[li].w
+		var line: PackedVector2Array = net.lines[li].pts
+		for i in range(0, line.size(), 8):
+			if ws[i] < 3.5 or line[i].distance_to(at) > radius:
+				continue
+			var p := Arroyos.snapped(net, li, i)
+			if not Arroyos.natural(plan, p, 0.3):
+				continue
+			var hp := plan.height_at(p)
+			var over := {}
+			for seg: Dictionary in hr.segments_in(Rect2(p, Vector2.ZERO).grow(70.0)):
+				if not seg.draw:
+					continue
+				var rq := Geometry2D.get_closest_point_to_segment(p, seg.a, seg.b)
+				var d := rq.distance_to(p)
+				var rise := plan.height_at(rq) - hp
+				if d > 25.0 and d < 70.0 and rise > 6.0 and rise < 40.0:
+					over = {"q": rq, "d": d, "rise": rise}
+			if over.is_empty():
+				continue
+			var q: Vector2 = over.q
+			var dir := (p - q).normalized()
+			var yaw := rad_to_deg(atan2(-dir.x, -dir.y))
+			var pitch := -rad_to_deg(atan2(float(over.rise) + 1.7, float(over.d)))
+			print("OVERLOOK wash %d width %.1f  ROAD_EYE=%.1f,%.1f,%.1f,%.0f,%.0f" % [li, ws[i], q.x, plan.height_at(q) + 1.7, q.y, yaw, pitch + 6.0])
+			shown += 1
+			break
+	# Culverts, seen from below the outlet looking back up at the headwall.
+	var cshown := 0
+	var seen := {}
+	for li in net.lines.size():
+		if cshown >= most:
+			break
+		var line: PackedVector2Array = net.lines[li].pts
+		for i in range(0, line.size() - 3, 3):
+			if line[i].distance_to(at) > radius:
+				continue
+			var hit := false
+			for seg: Dictionary in hr.segments_in(Rect2(line[i], Vector2.ZERO).expand(line[i + 3]).grow(6.0)):
+				if seg.draw and Geometry2D.segment_intersects_segment(line[i], line[i + 3], seg.a, seg.b) != null:
+					hit = true
+			if not hit:
+				continue
+			var k := plan.block_index_at(line[i])
+			if seen.has(k):
+				continue
+			seen[k] = true
+			var ch := CityChunk.new()
+			ch.plan = plan
+			ch.ix = k.x
+			ch.iz = k.y
+			ch.level = CityChunk.Level.FULL
+			var ab := ArroyoBuild.new()
+			ab.ch = ch
+			while not ab._field():
+				pass
+			for c: Dictionary in ab.culverts:
+				var o: Vector2 = c.outlet
+				var axis: Vector2 = (c.outlet - c.inlet).normalized()
+				var eye := o + axis * 9.0
+				var yaw := rad_to_deg(atan2(axis.x, axis.y))
+				print("CULVERT wash %d chunk %s width %.1f  EYE=%.1f,%.1f,%.1f,%.0f,6" % [li, k, c.width, eye.x, plan.height_at(eye) + 1.6, eye.y, yaw])
+				cshown += 1
+			ch.free()
+			break
 	get_tree().quit()
