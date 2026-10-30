@@ -15,7 +15,7 @@ uniform vec3 cloth_color = vec3(0.018, 0.019, 0.022);
 uniform vec3 seam_color = vec3(0.008, 0.008, 0.009);
 uniform vec3 accent_color = vec3(0.78, 0.16, 0.025);
 uniform float accent_width = 0.09;
-uniform float roughness_cloth = 0.42;
+uniform float roughness_cloth = 0.58;
 
 varying float v_edge;
 varying float v_tail;
@@ -63,10 +63,10 @@ void fragment() {
 	col = mix(col, vec3(0.004), inlet * 0.85);
 	ALBEDO = cs_out(col);
 	ROUGHNESS = mix(roughness_cloth, 0.75, seam + inlet);
-	SPECULAR = 0.45;
-	if (!FRONT_FACING) {
-		NORMAL = -NORMAL;
-	}
+	SPECULAR = 0.4;
+	// No FRONT_FACING flip: on a cull_disabled material Godot has already turned NORMAL toward
+	// the camera on a back face (CLAUDE.md, fwd-review-b); flipped again, the underside lit as if
+	// it faced away and mirrored the sky as pale plastic.
 	// The cloth lets a little light through, red-orange where the accent is.
 	BACKLIGHT = cs_out(mix(vec3(0.02), accent_color * 0.35, accent));
 }
