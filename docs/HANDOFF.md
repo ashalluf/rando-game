@@ -20358,3 +20358,65 @@ the IDM and line-hold logic; a per-car memo of the relief cell would be exact. (
 animation advance per physics tick (~8 ms a step downtown). (4) The far city is still the biggest
 camera cost at every bookmark (0.7-2.4 M triangles). (5) Not seen on the Mac or Forward+; the web
 build not exported. Stills: `shots/perf-audit-2`.
+
+## 9ho. The hills' planted volume: thousands of shrubs on the stands, oak clumps in the hollows (fleet wave 3, `wt/hill-planting-2`, 2026-10-30)
+
+After hill-ground-3 the front range had the right pattern (stands as masses following the land)
+but from the air and along a ridge it still read as a painted tan-and-olive sheet with a few specks:
+the FULL chunks' HillShrubs stop at 160 m, the LOD ring planted nothing, and a stand is paint.
+Built on hill-ground-3 (9hb). Stills on
+`shots/hill-planting-2`.
+
+**The clump** (`HillScatter`, `scripts/world/hill_scatter.gd`): three lumpy domes built in code,
+3.4 m wide and 1.9 m tall at scale 1, on ONE vertex buffer with three levels - 63 triangles (7
+segments, a shoulder ring), 15 (each dome a cone with a dome's normals), 6 (one mound) - at
+measured edges `EDGES` 0.12 / 0.36 m (scaled by the batch's biggest instance, the `foliage_ladder`
+rule). Vertex colour R is the light reaching it (the buried base ring dark). Its look is all
+`shaders/hill_scatter.gdshader`: world-space value noise at 2.2 cells a metre for leaf clumps and
+the dark pockets between them, a finer octave, dead grey-brown twigs on some clumps, the clumps
+tilting the normal (so a dome lights as a heap), a little backlight, a stiff wind sway; every
+detail fades to its mean under a pixel. Colours are linear plain uniforms through
+`color_space.gdshaderinc` (leaves 0.026-0.080 linear green, between the painted stand's 0.046 and
+the HillShrub's 0.084-0.132, so a stand reads as lit tops over shaded masses: at 0.05-0.12 on the
+opengl3 stills they were pale specks; at 0.016-0.052 on Forward+ near-black ink blots next to the
+shrubs - judged on lavapipe, the Mac's renderer).
+
+**Where** (`HillScatter.step()`, one step after `_plant_hills` in the HILLS step list, FULL and LOD,
+never in capture): a world grid (4 m FULL, 6 m LOD; points jittered by a hash of seed + cell, so
+neighbouring chunks agree and nothing doubles at a border), each point asked
+`HillPlanting.ground()` off the tile's own heights, drains and (FULL) rills - the field the
+terrain paints - and kept only on the stand core (`brush` >= 0.55), never on rock, cuts, roads,
+pads, creek beds (`ArroyoBuild.in_bed`) or the reservoir. Scaled 1.0-1.6 (FULL: a shrub or two) or
+1.9-3.0 (LOD: a knot of them), leaned a little into the slope and pressed in at its downhill side.
+A FULL chunk at (0, -1400) takes 1,206 clumps of 2,692 points; a LOD chunk ~450. Time-sliced at
+`STEP_BUDGET_US` 3.5 ms.
+
+**Drawn**: `hill_scatter_full` per FULL chunk to `FULL_DRAW` 300 m, dithered in between
+`FULL_FADE` 70-100 m from the camera (interleaved gradient noise; TAA resolves it; at 38-58 m the clumps showed up close as faceted rocks) so nearer the
+code-built shrubs and the shells carry the stand; `hill_scatter_lod` per LOD chunk to `LOD_DRAW`
+720 m, no fade. No shadows: a stand's shade is the painted brush under it and each clump's own dark
+base (a shadow twin of a thousand clumps a chunk in four cascades was the cost this budget had no
+room for).
+
+**Oak clumps**: an oak planted in a hollow (`_plant_hills`) gets one or two companions 5.5-9.5 m off
+(`OAK_CLUMP_ODDS` 0.75, hashes of the oak's place, after every roll: the row stream is untouched),
+on the tile's ground and off roads, pads and beds (`hill_planting.oak_clump` counts them: +11 on 49
+at the check's chunk); the far tier does the same with its canopy blobs (`far_oak_clump()` from
+`Skyline._add_hills`).
+
+**Cost** (hills bookmark, `--spawn=300,-650,0,-6,260 --hour=15`, opengl3 GEO): 2,795,260 tris /
+1,287 draws before (`HILL_PLANTING_2=0`), 2,851,177 / 1,302 after. That GEO counts a LOD'd batch
+as ONE instance (measurement trap 3), so `HILL_SCATTER_LEVEL=n` builds the clump with only level n
+and no LODs: 2,914,432 with every visible clump at level 1 (+4.3 % over before) and 3,095,680 at
+level 0 (+10.7 %, the bound nobody draws: ~3,800 clumps in view). The real mix is under the level-1
+figure. Draws +15 (+1.2 %). Hill flight (`tools/flight_bench.gd` ROUTE=b FIXED=1, headless CPU, the whole build and draw prep): 189.2 ms CPU a frame before, 187.8 after (mean 184.5 / 182.8 ms, p95 274 / 255 - noise on a shared box: flat). A FULL chunk spends 196 ms on its scatter in 47 steps of at most 3.5 ms.
+
+**A/B and tools**: `HILL_PLANTING_2=0` (no scatter, no oak companions; the old planting exactly -
+the check builds the chunk both ways and compares every point). `HILL_SCATTER_LEVEL=0|1|2` for the
+true cost. Look with `tools/glshot/hill_ground_shot.tscn EYE=300,120,-950,0,-12 BLOCKS=1 LOD=3
+DAYNIGHT=1 GROUND=1 -- --hour=15` (a minute on opengl3). Checks: `tests/hill_planting_2_checks.gd`.
+
+**Not done / to check on the Mac**: the clumps' tone on Forward+ in the city (lavapipe small scene
+only); the dither band at 70-100 m on Forward+ with TAA; past the LOD ring (840 m) the stands are
+paint as before - a far-city scatter (Skyline) was not added; palms and pines round the estates are
+HillHomeKit's / EstateFar's as they were; HillShrubs still cast no shadow.
