@@ -1280,8 +1280,8 @@ func _build_beach(block: Dictionary) -> void:
 		# The beach's towels and umbrellas as dots of colour, the path and the courts (BeachLife).
 		if not capturing:
 			BeachLife.build_lod(self, life_z.x, life_z.y)
-		BeachAmenities.build_lod(self, life_z.x, life_z.y)
 			Bonfires.build_lod(self, life_z.x, life_z.y)
+		BeachAmenities.build_lod(self, life_z.x, life_z.y)
 		return
 	for sr: Rect2 in MarinaBuild.sand_rects(self, owned_rect() if _replica != null else Rect2(block.rect.position, Vector2(block.rect.size.x, owned_rect().end.y - block.rect.position.y))):
 		_build_surf_spray(sr)
