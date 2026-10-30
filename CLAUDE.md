@@ -3663,6 +3663,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (it asked `height_at()` ~1,000 times in one step: a 60 ms hitch per hill chunk). Judge any of it fast with `tools/glshot/hill_ground_shot.tscn` (the real hill chunks
   round an EYE, lit by the city's environment, a minute a shot; `SHELL_DEBUG`, `NOSHELLS`,
   `PROFILE` under Forward+) and time the steps with `tools/hill_step_bench/hill_step_bench.tscn`.
+- The hills' ground, wave 3 (2026-10-30, docs/HANDOFF.md "Hills without leopard spots, again"):
+  the leopard spots were the fine erosion orders' NORMAL (erosion.gdshaderinc, 7 m deep, cells out
+  of phase: braids of pits) - now `erosion_amp` 3 m and `erosion_jitter` 0.45 / `erosion_branch` 0.8,
+  rills. Stands: the stand octaves are uniforms (`stand_*_w`, patch-dominant) and `hill_rill_th(rill,
+  w)` puts brush down each rill (terrain and plane from `ero.z`, the shells from the tile's COLOR.a,
+  `CityChunk._tile_rills`, sampled with the heights; HillPlanting.rill() is the CPU port);
+  `stand_gaps` 0.15 (bright holes in a stand). `HillShrub` (scripts/world/hill_shrub.gd) is the
+  stands' code-built shrub on LaTrees' emitter, `hill_shrub_<v>` batches to `SHRUB_DISTANCE` 160 m.
+  `HILL_GROUND_3=0` puts the old numbers back (`HillGround3.apply()` on the three materials);
+  `tools/hill_ground_3/topdown.gd` maps the stands in seconds; hill_ground_shot `TERRAIN_DEBUG=1`
+  paints brush / bare / rock; checks `tests/hill_ground_3_checks.gd`.
 - Overhead utilities (2026-10-05, docs/HANDOFF.md "Overhead utilities"): `UtilityPoles`
   (`scripts/world/utility_poles.gd`) builds the line StreetDetail decides on (`_pole_run()` hands
   it over): tapered wooden poles, a crossarm on the pole's face with braces and porcelain pins, a
