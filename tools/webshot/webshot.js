@@ -37,13 +37,18 @@ const OLD_CHROME = (() => {
   if (process.env.LOG) fs.writeFileSync(process.env.LOG, '');
   page.on('console', m => note(`${stamp()} [${m.type()}] ${m.text()}`));
   page.on('pageerror', e => note(`${stamp()} [pageerror] ${e.message}`));
+  if (process.env.PROBE === '1') {
+    // PROBE=1: probe.js tallies Web Audio buffers, worklets and WebGL uploads ([probe] lines).
+    await page.addInitScript({path: path0.join(__dirname, 'probe.js')});
+  }
   await page.goto(`http://127.0.0.1:${PORT}/index.html` + (process.env.QS || ''));
   await page.waitForTimeout(parseInt(process.env.WAIT || '25000'));
   // NOCLICK=1 skips the click (no mouse capture, no Web Audio start): the A/B for anything the
   // first click sets off.
+  // BUTTON=middle clicks with another button (captures the mouse, fires nothing).
   // KEY=<name> presses an unbound key instead (a user gesture: Web Audio starts, nothing fires).
   if (process.env.KEY) await page.keyboard.press(process.env.KEY);
-  else if (process.env.NOCLICK !== '1') await page.mouse.click(parseInt(process.env.VW || '960') / 2, parseInt(process.env.VH || '540') / 2);
+  else if (process.env.NOCLICK !== '1') await page.mouse.click(parseInt(process.env.VW || '960') / 2, parseInt(process.env.VH || '540') / 2, {button: process.env.BUTTON || 'left'});
 
   await page.waitForTimeout(1500);
 
