@@ -3028,6 +3028,25 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `FootbridgeBuild` (one hook after `_build_freeway` and one in the capture; the owner chunk is the
   span centre's; planting in `clear` rects collapsed via `_run_last`). `FOOTBRIDGES=0` the A/B;
   `tools/footbridges/probe.tscn`, `bridge_shot.tscn`; checks `tests/footbridges_checks.gd`.
+- Freeway incidents (fleet wave 2, docs/HANDOFF.md "Freeway incidents"): `FreewayIncidents`
+  (`scripts/npc/freeway_incidents.gd`, the Traffic node's child) works out from its own clock and a
+  hash per route, 1 km stretch, direction and 480 s slot (`incident()`, pure; `site_ok()` keeps
+  off the ramps of that carriageway, the route ends and the stack) a STALL (a car coasts onto the
+  shoulder on its hazards, its driver `FreewayMotorist` out on the phone, a BASIN HIGHWAY PATROL
+  car `FreewayPatrol` - invented - parks behind with its bar flashing, ServiceVehicles' rollback
+  tow winches the car on and both drive on as ordinary freeway traffic: `stall_pose()` is the
+  script), TYRE tread or a MATTRESS in a lane (`FreewayIncidentKit`), or a SLOW stretch. Traffic
+  hook: `drive()` in `_drive_freeway()` (hard blocks stopped short of, soft ones slowed past,
+  look-around and slowdown zones, a lane change out of a blocked lane, TrafficAI's thinking held
+  off near one), `spawn_lane()` in `_spawn_freeway_car()`. CMS: `has_cms()` (a hash) makes
+  FreewayKit build a message cabinet in place of the second guide board; near the player the node
+  puts its LED face on (`shaders/freeway_cms.gdshader`) saying what is ahead, travel times or a
+  safety line. Behind a parked patrol car a taper of burning road flares (`flare_spot()`,
+  `FreewayIncidentKit.flare_node()`, `shaders/fw_flare.gdshader`: a glow never under 3 px, a red
+  pool, smoke, one red omni at night on desktop - `FREEWAY_FLARE_LIGHT=0`).
+  `FREEWAY_INCIDENTS=0` is the A/B; stills `FW_INCIDENT=stall|tyre|mattress|slow`
+  (`FW_INCIDENT_AT`, `_T`, `_HOLD`, `_TIMES` per SHOTS entry); probe
+  `tools/freeway_incidents/probe.tscn`; checks `tests/freeway_incidents_checks.gd`.
 - The four-level stack (VISUAL_ROADMAP #81, 2026-10-05, docs/HANDOFF.md, the stack section):
   where the 110 meets the 101 at the real four-level interchange. **The plan is
   `FreewayStack`** (`scripts/world/freeway_stack.gd`, `Freeway.stack`, made in `Freeway.build()`

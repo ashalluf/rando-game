@@ -2402,6 +2402,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The walk of fame (tests/star_boulevard_checks.gd): the hash-chosen boulevard, the stars, the
 	# palace behind its forecourt, souvenirs, costumed characters, sightseeing buses, nothing moved.
 	load("res://tests/star_boulevard_checks.gd").new().run(self, city)
+	# Freeway incidents (tests/freeway_incidents_checks.gd): the schedule, a stall with its patrol
+	# car and tow, debris that traffic changes lanes round, a slowdown, the message signs.
+	await load("res://tests/freeway_incidents_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
