@@ -1427,6 +1427,7 @@ func _physics_process(delta: float) -> void:
 		StreetErrands.pose(self, delta)
 	if not watch.is_empty():
 		Onlookers.pose(self, delta)
+	CrowdFeet.tick(self, delta)
 
 
 func _walk(delta: float) -> void:
@@ -2155,6 +2156,7 @@ static func alarm(tree: SceneTree, at: Vector3, radius: float, screams: int, for
 		return
 	# The birds hear every shot and blast first (they startle further than people do).
 	Birds.startle(at, radius)
+	SeaLife.startle(at, radius)
 	# And the dogs (Dog): a lead dog barks with its tail tucked, a yard dog runs for the house.
 	Dog.startle_all(tree, at, radius)
 	# And the drivers (CarPanic): brake, swerve, up the kerb, back away, or get out and run.
@@ -2610,6 +2612,8 @@ var errand: Dictionary = {}
 var watch: Dictionary = {}
 ## The crowd in the rain (RainCrowd: umbrellas, hoods, hurrying, shelter), null for nobody.
 var rain: RainCrowd
+## Foot placement on uneven ground (CrowdFeet), made on first use near the camera.
+var foot_ik: CrowdFeet
 
 
 ## Rolls what this person carries and whether they jog or walk a dog (from the seed, so the same

@@ -698,10 +698,14 @@ func _feet(delta: float, planted: bool) -> void:
 			var bi := _skeleton.find_bone(foot)
 			var at := _skeleton.to_global(_skeleton.get_bone_global_pose(bi).origin)
 			var from := Vector3(at.x, base + 0.6, at.z)
-			var q := PhysicsRayQueryParameters3D.create(from, from - Vector3(0, 0.6 + foot_ik_reach + 0.05, 0), 1)
+			var q := PhysicsRayQueryParameters3D.create(from, from - Vector3(0, 0.6 + foot_ik_reach + 0.05, 0), 1 | CrowdFeet.FEET_LAYER)
 			if _player:
 				q.exclude = [(_player as CollisionObject3D).get_rid()]
 			var hit := space.intersect_ray(q) if space else {}
+			if not hit.is_empty() and CrowdFeet._passes(hit):
+				# A walkable ramp over steps: the treads under it (CrowdFeet.FEET_LAYER).
+				q.from = hit.position - Vector3(0, 0.002, 0)
+				hit = space.intersect_ray(q)
 			lifts.append(clampf((hit.position.y - base) if hit else 0.0, -foot_ik_reach, foot_ik_reach))
 		want = Vector2(lifts[0], lifts[1])
 		drop = maxf(0.0, -minf(want.x, want.y))

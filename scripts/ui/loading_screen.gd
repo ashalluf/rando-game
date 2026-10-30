@@ -125,6 +125,12 @@ func run(city: Node3D) -> void:
 			_step("Preparing the beach", 0.3 + 0.25 * float(i) / float(maxi(beach.size(), 1)))
 			await _frames(1)
 		BeachFigure.warm_kind(beach[i])
+	# The people round the beach fires at night (BonfireFigure: clothed), and the rings' meshes.
+	Bonfires.warm()
+	for k: Array in BonfireFigure.kinds():
+		if _due():
+			await _frames(1)
+		BonfireFigure.warm_kind(k)
 	print("LOADING beach: %d figures and flipbooks %d ms" % [beach.size(), (Time.get_ticks_usec() - t_beach) / 1000])
 	LoadClock.stop("screen: beach figures")
 	_step("Building the city", 0.55)
@@ -179,6 +185,8 @@ func run(city: Node3D) -> void:
 	# The dogs' meshes (DogMesh, built in code: every breed's three levels and fur shells).
 	var t_dogs := Time.get_ticks_usec()
 	DogMesh.warm()
+	if Wildlife.on():
+		WildSpecies.warm()
 	print("LOADING dogs: %d ms" % ((Time.get_ticks_usec() - t_dogs) / 1000))
 	print("LOADING people: %d camp figures %d ms, %d rigs %d ms" % [kinds.size(), t_camp / 1000, models.size(), t_rigs / 1000])
 	LoadClock.stop("screen: rigs")
@@ -263,13 +271,18 @@ func _warm_shaders() -> void:
 	effects.append_array(StreetVendors.warm())
 	# The parklets' decks, bistro sets and umbrellas (Parklets), built in code.
 	effects.append_array(Parklets.warm())
+	# The valet stands' podiums, key boxes, signs and cones (Valets), built in code.
+	effects.append_array(Valets.warm())
 	effects.append_array(BoulevardSigns.warm())
 	FarmersMarketKit.warm()
 	effects.append(FarmersMarketKit.material())
+	# The film shoots' trailers, lights and set (FilmShootKit), built in code.
+	effects.append_array(FilmShootKit.warm())
 	# The billboards' faces and steel (Billboards), only ever drawn through the chunks' batches.
 	effects.append_array(Billboards.warm())
 	# The beach's towels, umbrellas, chairs, boards, the net and the tower (BeachLife).
 	effects.append_array(BeachLife.warm())
+	effects.append_array(BeachAmenities.warm()) # restrooms, the stand, the gym, showers, drums
 	# The pier park's meshes (PierPark), built here rather than by the chunk that streams it in.
 	effects.append_array(PierPark.warm())
 	# The code-built Los Angeles trees and accents (LaTrees): built here, ~2 s of GDScript.
@@ -295,6 +308,9 @@ func _warm_shaders() -> void:
 	# Backyard life's patio sets, grills, trampolines, floats and lights (BackyardKit).
 	if Backyards.enabled:
 		effects.append_array(BackyardKit.warm())
+	# Yard sales' tables, goods, racks and signs (YardSaleKit).
+	if YardSales.enabled:
+		effects.append_array(YardSaleKit.warm())
 	for mat: Material in effects:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D

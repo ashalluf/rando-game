@@ -503,6 +503,17 @@ to each `.glb` on import (`prop_<name>_<map>.jpg` + `.import`); those are commit
 | Female Scream 1 (AuraVoice) | https://opengameart.org/content/female-scream-1 | CC0 1.0 | `assets/audio/scream_4` | 2026-09-23 |
 | Male grunt/yelling sounds | https://opengameart.org/content/male-gruntyelling-sounds | CC0 1.0 (dual CC0 / OGA-BY) | `assets/audio/scream_5..11` (yell11, yell2, 3yell13, 3yell1, 3yell14, 2yell5, 1yell4) | 2026-09-23 |
 | Grunts: male death and pain | https://opengameart.org/content/grunts-male-death-and-pain | CC0 1.0 | `assets/audio/yelp_0..3` | 2026-09-23 |
+| Musopen: The Complete Chopin Collection (Musopen) | https://archive.org/details/musopen-chopin | CC0 1.0 (public-domain works, recordings released CC0) | `assets/audio/radio/velvet_0` (Waltz Op. 64 no. 1), `velvet_1` (Waltz Op. 70 no. 1); car radio VELVET HOUR, titled in game "Waltz in D-flat / G-flat Major" by an invented pianist | 2026-10-30 |
+| The Open Goldberg Variations (Kimiko Ishizaka) | https://archive.org/details/OpenGoldbergVariations | CC0 1.0 | `assets/audio/radio/velvet_2` (31, Aria da capo, first 110 s) | 2026-10-30 |
+| Chill Lofi Inspired (omfgdude) | https://opengameart.org/content/chill-lofi-inspired | CC0 1.0 | `assets/audio/radio/palm_0` (PALM STATIC "Window Seat") | 2026-10-30 |
+| Lofi compilation (tad) | https://opengameart.org/content/lofi-compilation | CC0 1.0 | `assets/audio/radio/palm_1` (Cat caffe), `palm_2` (A cup of tea), first 110 s | 2026-10-30 |
+| Night Prowler (Section 31) | https://opengameart.org/content/night-prowler | CC0 1.0 | `assets/audio/radio/neon_0` (NEON FREEWAY "Sodium Lights"), first 110 s | 2026-10-30 |
+| Cyberpunk Moonlight Sonata (Joth) | https://opengameart.org/content/cyberpunk-moonlight-sonata | CC0 1.0 | `assets/audio/radio/neon_1` (v2) | 2026-10-30 |
+| The Rush (tebruno99) | https://opengameart.org/content/the-rush | CC0 1.0 | `assets/audio/radio/neon_2`, first 110 s | 2026-10-30 |
+| Enchanted Tiki 86 (cynicmusic) | https://opengameart.org/content/enchanted-tiki-86 | CC0 1.0 | `assets/audio/radio/tiki_0` (TIKI SUNSET "Lagoon Lanterns") | 2026-10-30 |
+| Gone Fishin' (memoraphile) | https://opengameart.org/content/gone-fishin | CC0 1.0 (dual CC0 / CC-BY / OGA-BY) | `assets/audio/radio/tiki_1` | 2026-10-30 |
+| Another August (cynicmusic) | https://opengameart.org/content/another-august | CC0 1.0 | `assets/audio/radio/tiki_2`, first 110 s | 2026-10-30 |
+| code (`tools/radio/make_radio.py`) | the car radio's idents and tuning static | synthesised, original: `assets/audio/radio/ident_velvet/palm/neon/tiki`, `static`; every track above cut, faded, levelled (EBU R128, -17 LUFS) and encoded there (48 kbit/s, 32 kHz) from `tools/radio/fetch_radio.sh`'s downloads | CarRadio | 2026-10-30 |
 | Man hurt sounds | https://opengameart.org/content/man-hurt-sounds | CC0 1.0 | `assets/audio/yelp_4..6` | 2026-09-23 |
 | Fleshy bone break/snap SFX | https://opengameart.org/content/fleshy-bone-breaksnap-sfx | CC0 1.0 | `assets/audio/gore_0..4` (Wet Break 1, 3, 5, 7, 9) | 2026-09-23 |
 | 8 wet squish, slurp impacts | https://opengameart.org/content/8-wet-squish-slurp-impacts | CC0 1.0 | `assets/audio/gore_5..6` | 2026-09-23 |
@@ -548,6 +559,10 @@ to each `.glb` on import (`prop_<name>_<map>.jpg` + `.import`); those are commit
 | tree_small_02 | `tree_c.glb` | 40k (from 2.0M) | street and park trees | 2026-09-19 |
 | namaqualand_boulder_02 | `rock_a.glb` | 3.5k (from 98k) | hill boulders (flat) | 2026-09-19 |
 | namaqualand_boulder_04 | `rock_b.glb` | 3.5k (from 59k) | hill boulders (tall) | 2026-09-19 |
+| namaqualand_cliff_02 | `rock_tor_a.glb` (+ `rock_tor_a_mid.glb`, welded, geometry only, `tools/rocks/make_rock_lods.py`) | 9k (from 194k); welded 1.8k | crest tors (RockKit, `rock_outcrop.gdshader` recolours it) | 2026-10-30 |
+| namaqualand_cliff_01 | `rock_tor_b.glb` (+ `rock_tor_b_mid.glb`) | 7k (from 94k); welded 1.8k | tors and outcrops | 2026-10-30 |
+| mountainside | `rock_face_a.glb` (+ `rock_face_a_mid.glb`) | 8k (from 153k); welded 1.8k | rock faces on the steepest slopes | 2026-10-30 |
+| namaqualand_boulder_05 | `rock_boulder_c.glb` | 2.4k (from 90k) | scree and cut-bank boulders | 2026-10-30 |
 | wild_rooibos_bush (5 variants) | `plant_rooibos.glb` | 1k to 13k | dry scrub on the hills | 2026-09-19 |
 | grass_medium_02 (5 variants) | `grass_tuft.glb` | 0.7k to 2.5k | grass tufts on the hills | 2026-09-19 |
 | exterior_aircon_unit (clean + rusted) | `prop_ac.glb` | 9.5k per variant | rooftop air conditioning units | 2026-09-20 |
@@ -724,6 +739,8 @@ species. Original work for this game.
 The dogs (`DogMesh`, `DogRig`; 2026-10-05) are built in code: no model file. Their coats
 (`assets/textures/dogs/*.jpg`, 14 colourways) are painted by `tools/dogs/make_dog_coats.py`
 (numpy + PIL), original. The Quaternius Shiba (`dog_shiba.glb`) they replace is removed.
+The urban wildlife (`WildSpecies`, 2026-10-30) is built the same way; its six coats
+(`assets/textures/dogs/wild_*.jpg`) are painted by `tools/wildlife/make_wild_coats.py`, original.
 
 | File | Source | License | Cut | Date |
 |---|---|---|---|---|

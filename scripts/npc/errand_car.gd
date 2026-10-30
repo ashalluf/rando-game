@@ -105,7 +105,8 @@ func _physics_process(delta: float) -> void:
 					want_open = false
 					deliver = 0
 			if _driver != null and want_open and (_t > 2.6 or not is_instance_valid(_driver) \
-					or (_driver as Node3D).global_position.distance_to(door.global_position) > 2.2):
+					or ((_driver as Node3D).is_inside_tree() and door.is_inside_tree() \
+					and (_driver as Node3D).global_position.distance_to(door.global_position) > 2.2)):
 				want_open = false
 			if _tried and not want_open and _open <= 0.0 and _t > 0.5:
 				if deliver != 0 and _driver != null:

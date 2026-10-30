@@ -32,6 +32,10 @@ func _ready() -> void:
 	add_child(weapon_hud)
 	move_child(weapon_hud, weapon_label.get_index())
 	weapon_label.visible = false
+	if CarRadio.enabled: # the car radio's station card (scripts/ui/radio_hud.gd)
+		var radio_hud := RadioHud.new()
+		radio_hud.name = "RadioHud"
+		add_child(radio_hud)
 	# The full-screen map (M / pad Back), the waypoint and its GPS route: its own CanvasLayer, so
 	# it shows whatever mode the HUD is in.
 	var world_map := WorldMap.new()
