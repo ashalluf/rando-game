@@ -620,6 +620,9 @@ static func _draw_landmarks(ci: CanvasItem, v: View, taken: Array[Rect2]) -> voi
 		var id := str(lm.id)
 		if id in MINOR and not show_minor:
 			continue
+		# The breakwater's 15 landmark pieces are one structure, not 15 places (Lighthouses).
+		if id.begins_with(Lighthouses.SEG_PREFIX):
+			continue
 		# The downtown towers are a cluster of glyphs from the basin; one name stands for them.
 		if id.begins_with("dt_") and v.full and v.ppm < 0.22:
 			continue

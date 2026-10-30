@@ -685,7 +685,9 @@ def pattern(pt, B, P, spec, zone, mpp):
         def F(t):
             return np.floor(t) * width + np.minimum(t - np.floor(t), width)
         return np.clip((F(t + W * 0.5) - F(t - W * 0.5)) / W, 0.0, 1.0)
-    if kind == "stripes":
+    if kind in ("dots", "floral"):
+        print_motifs(pt, u, v, pat, mpp)
+    elif kind == "stripes":
         pt.tint(bars(u, per, w), c2, pat.get("strength", 0.9))
     else:
         # a check: warp and weft bars, darker where they cross (twill-like)
@@ -695,6 +697,61 @@ def pattern(pt, B, P, spec, zone, mpp):
         pt.tint(a * b, pat.get("cross", c2), pat.get("strength", 0.7))
         if pat.get("fine"):
             pt.tint(bars(u + per * 0.5, per, 0.08) + bars(v + per * 0.5, per, 0.08), pat["fine"], 0.5)
+
+
+def print_motifs(pt, u, v, pat, mpp):
+    """A printed cloth (a dress): dots on a half-drop grid, or a small floral - five-petal flowers
+    with a darker eye and two leaves each, scattered by a hash - in body-following coordinates.
+    Each motif is box-filtered over its texel (soft edge = the texel's footprint), and where a
+    motif is under a couple of texels it fades to its average tint, so a far body is a tinted
+    cloth rather than sparkle."""
+    per = pat.get("period", 0.03)
+    c2 = pat.get("color", [236, 230, 214])
+    strength = pat.get("strength", 0.9)
+    # half-drop grid: every other column shifted half a period
+    cu = np.floor(u / per)
+    vv = v / per + 0.5 * (cu % 2)
+    cv = np.floor(vv)
+    fu = u / per - cu - 0.5
+    fv = vv - cv - 0.5
+    ci, cj = cu.astype(np.int64), cv.astype(np.int64)
+    jx = _hash3(ci, cj, np.zeros_like(ci), 3) - 0.5
+    jy = _hash3(ci, cj, np.zeros_like(ci), 4) - 0.5
+    aw = np.maximum(mpp / per, 1e-4)
+    if pat.get("type") == "dots":
+        r = pat.get("size", 0.005) / per
+        d = np.hypot(fu - 0.12 * jx, fv - 0.12 * jy)
+        cov = np.clip((r - d) / aw + 0.5, 0.0, 1.0)
+        mean = math.pi * r * r
+        fade = sstep(0.25 * r, 0.6 * r, aw)
+        pt.tint(cov * (1 - fade) + mean * fade, c2, strength)
+        return
+    # floral
+    fu = fu - 0.22 * jx
+    fv = fv - 0.22 * jy
+    rot = _hash3(ci, cj, np.ones_like(ci), 5) * TAU
+    ang = np.arctan2(fv, fu) + rot
+    rad = np.hypot(fu, fv)
+    R = pat.get("size", 0.32)
+    petal = R * (0.42 + 0.58 * np.abs(np.cos(2.5 * ang)) ** 0.45)
+    cov = np.clip((petal - rad) / aw + 0.5, 0.0, 1.0)
+    eye = np.clip((R * 0.22 - rad) / aw + 0.5, 0.0, 1.0)
+    # two leaves opposite each other, past the petals
+    la = rot + 0.9
+    lx = fu * np.cos(la) + fv * np.sin(la)
+    ly = -fu * np.sin(la) + fv * np.cos(la)
+    leaf = np.zeros_like(rad)
+    for sgn in (1.0, -1.0):
+        qx = (lx - sgn * R * 1.25) / (R * 0.5)
+        qy = ly / (R * 0.2)
+        dl = np.hypot(qx, qy) - 1.0
+        leaf = np.maximum(leaf, np.clip(-dl * R * 0.3 / aw + 0.5, 0.0, 1.0))
+    leaf *= 1.0 - cov
+    fade = sstep(0.12 * R, 0.35 * R, aw)
+    mean_f, mean_l = 0.55 * math.pi * R * R, 0.25 * math.pi * R * R
+    pt.tint(leaf * (1 - fade) + mean_l * fade, pat.get("color2", [120, 150, 110]), strength * 0.85)
+    pt.tint(cov * (1 - fade) + mean_f * fade, c2, strength)
+    pt.tint(eye * (1 - fade), pat.get("eye", [214, 176, 70]), strength)
 
 
 def paint_shirt(pt, B, X, pidx, parts, L, spec):
@@ -707,6 +764,13 @@ def paint_shirt(pt, B, X, pidx, parts, L, spec):
     zone[cuffs] = np.where(P[cuffs, 0] > 0, 1, 2)
     pattern(sub, B, P, spec, zone, X.mpp[sel_all])
     sub.shade(1.0 + 0.04 * fbm(P, 0.025, 2, seed=51))
+    if spec.get("work"):
+        # cotton duck: a tight plain weave of heavy yarn with slub streaks, a little worn pale
+        mp = X.mpp[sel_all]
+        fade = 1.0 - sstep(0.0007, 0.0014, mp)
+        wv = np.cos(TAU * (P[:, 0] + P[:, 1]) / 0.0016) * np.cos(TAU * P[:, 2] / 0.0016)
+        sub.h += 0.00012 * wv * fade
+        sub.shade(1.0 + 0.04 * wv * fade + 0.06 * fbm(P * np.array([4.0, 4.0, 0.4]), 0.03, 2, seed=151))
     if spec.get("pique"):
         # pique knit (a polo): a fine honeycomb of cells, faded to its average under a texel
         mp = X.mpp[sel_all]
@@ -740,6 +804,8 @@ def paint_shirt(pt, B, X, pidx, parts, L, spec):
             seam(sm, sd, mpp[m], side=-1.0, along=Q[:, 0] + Q[:, 1], rows=(0.0025,), thread=thread, groove=0.0003, ridge=0.0, dark=0.22)
             seam(sm, np.where(sd < 0.0, Q[:, 1] - (top - 0.022), 1.0), mpp[m], side=1.0, along=Q[:, 0], rows=(0.0,), thread=thread, groove=0.0002, ridge=0.0, dark=0.06)
             sm.commit()
+    if spec.get("work"):
+        paint_work_pockets(sub, B, P, th, mpp, L, spec, thread)
     # the hems
     d = edge_dist(P, L["hems"], "hem")
     hem_band(sub, d, 0.009, mpp, rows=(0.006,), thread=thread, along=th * rr)
@@ -754,6 +820,13 @@ def paint_shirt(pt, B, X, pidx, parts, L, spec):
             continue
         g = X.G[m]
         s = _Sub(pt, m)
+        if kind == "collar" and spec.get("collar_color"):
+            # a work jacket's corduroy collar: wales along it, in its own colour
+            s.tint(np.ones(m.sum()), spec["collar_color"], 1.0)
+            wale = np.cos(TAU * g[:, 1] / 0.0028)
+            fade = 1.0 - sstep(0.0008, 0.0016, X.mpp[m])
+            s.h += 0.00035 * wale * fade
+            s.shade(1.0 + 0.12 * wale * fade - 0.04 * (1 - fade))
         if kind == "placket":
             w = float(spec.get("placket_w", 0.034))
             vv = g[:, 1] - np.median(g[:, 1])
@@ -772,6 +845,74 @@ def paint_shirt(pt, B, X, pidx, parts, L, spec):
                 s.h -= 0.00015 * r
                 s.shade(1.0 - 0.12 * r)
         s.commit()
+
+
+def quilt_t(B, P, zone, L):
+    """garments.quilt_coords(): metres up the torso from the hem, or down each sleeve from the
+    shoulder joint (then on along the forearm); and 1 on a sleeve."""
+    t = P[:, 2] - L["z_hem"]
+    kind = np.zeros(len(P), int)
+    for k, (side, sg) in enumerate((("Left", 1.0), ("Right", -1.0))):
+        on = zone == k + 1
+        if not on.any():
+            continue
+        sh, el, wr = B.B(side + "Arm"), B.B(side + "ForeArm"), B.B(side + "Hand")
+        L1 = np.linalg.norm(el - sh)
+        a1 = (el - sh) / L1
+        a2 = (wr - el) / np.linalg.norm(wr - el)
+        s1 = (P[on] - sh) @ a1
+        s2 = (P[on] - el) @ a2
+        t[on] = np.where(s2 > 0.0, L1 + s2, s1)
+        kind[on] = 1
+    return t, kind
+
+
+def paint_quilt(sub, B, P, zone, mpp, L, thread):
+    """A puffer's shell: ripstop nylon over down. The channel stitching where the shell is
+    pinched (garments.quilt() bulged the geometry between the same lines), the cloth puckered
+    into short creases that run off each stitch line, the baffle rounded in the height field, the
+    ripstop grid, and the sheen's mottle."""
+    Q = L["quilt"]
+    t, kind = quilt_t(B, P, zone, L)
+    per = np.where(kind == 1, Q["per_s"], Q["per"])
+    f = t / per
+    dn = (f - np.round(f)) * per                    # signed metres to the nearest stitch line
+    frac = f - np.floor(f)
+    # the baffle's roundness (the normal map adds the curvature the shell is too coarse to hold)
+    sub.h += 0.0045 * (np.sin(math.pi * frac) ** 0.5 - 0.6)
+    # the pinch and its stitch row
+    w = np.maximum(0.0012, 0.7 * mpp)
+    pinch = gauss(dn, 0.004)
+    sub.h -= 0.0016 * pinch
+    sub.shade(1.0 - 0.35 * gauss(dn, 0.0035) - 0.12 * gauss(dn, 0.009))
+    row = gauss(dn, w * 0.6)
+    th, rr = B.azimuth(P)
+    along = th * rr
+    for k, (side, sg) in enumerate((("Left", 1.0), ("Right", -1.0))):
+        on = zone == k + 1
+        if on.any():
+            _, rd, _, ax = B.limb(P[on], side + "Arm", side + "ForeArm")
+            fw = np.array([0.0, -1.0, 0.0]) - ax * (-ax[1])
+            fw /= np.linalg.norm(fw)
+            lat = np.cross(ax, fw)
+            along[on] = np.arctan2(rd @ lat, rd @ fw) * 0.05
+    dash = 0.55 + 0.45 * np.cos(TAU * along / 0.004) ** 2
+    if thread is not None:
+        sub.tint(row * dash, thread, 0.7)
+    else:
+        sub.shade(1.0 - 0.15 * row * dash)
+    # puckers: short creases running off each stitch line into the baffle, irregular in pitch
+    jit = fbm(P, 0.03, 2, seed=141) * 0.02
+    puck = np.cos(TAU * (along + jit) / 0.016)
+    near = gauss(np.abs(dn), 0.013) * (1.0 - sstep(0.0012, 0.0024, mpp))
+    sub.h += 0.0007 * puck * near
+    sub.shade(1.0 + 0.08 * puck * near)
+    # ripstop: a fine grid of heavier threads, faded under a texel
+    fade = 1.0 - sstep(0.0007, 0.0014, mpp)
+    grid = np.maximum(gauss(((P[:, 0] + P[:, 1]) / 0.005) % 1.0 - 0.5, 0.06), gauss((P[:, 2] / 0.005) % 1.0 - 0.5, 0.06))
+    sub.shade(1.0 - 0.05 * grid * fade)
+    # nylon sheen mottle, a little brighter on the baffles' crowns
+    sub.shade(1.0 + 0.06 * fbm(P, 0.05, 2, seed=143) + 0.05 * (np.sin(math.pi * frac) - 0.6))
 
 
 def paint_jacket(pt, B, X, pidx, parts, L, spec):
@@ -796,6 +937,8 @@ def paint_jacket(pt, B, X, pidx, parts, L, spec):
         st = col * (0.6 + 0.4 * vv)
         sub.h += 0.00035 * (st - 0.6) * fade
         sub.shade(1.0 + 0.06 * (st - 0.6) * fade)
+    if spec.get("puffer") and "quilt" in L:
+        paint_quilt(sub, B, P, X.zone[shell], mpp, L, thread)
     if spec.get("pocket") == "kangaroo":
         # the hoodie's kangaroo pocket: a patch across the front over the band, open at both slanted sides
         top, bot = hip + spec.get("pocket_top", 0.19), hip + 0.012
@@ -983,6 +1126,120 @@ def paint_scarf(pt, B, X, pidx, parts, L, spec):
     sub.commit()
 
 
+def paint_work_pockets(sub, B, P, th, mpp, L, spec, thread):
+    """A work jacket's patch pockets: two on the chest under the flaps garments.py built, two big
+    ones low on the front, each a patch of doubled cloth with triple-needle topstitching."""
+    hip = B.B("LeftUpLeg")[2]
+    pockets = []
+    for z_f, x0, x1 in L.get("flaps", []):
+        a, b = sorted((x0, x1))
+        pockets.append((a + 0.004, b - 0.004, z_f - 0.135, z_f))
+    for sg in (1.0, -1.0):
+        a, b = sorted((sg * 0.04, sg * 0.165))
+        pockets.append((a, b, L["z_hem"] + 0.035, L["z_hem"] + 0.2))
+    front = np.cos(th) > 0.15
+    for x0, x1, z0, z1 in pockets:
+        m = front & (P[:, 0] > x0 - 0.02) & (P[:, 0] < x1 + 0.02) & (P[:, 2] > z0 - 0.02) & (P[:, 2] < z1 + 0.02)
+        if not m.any():
+            continue
+        Q = np.stack([P[m, 0], P[m, 2]], 1)
+        poly = np.array([(x0, z1), (x1, z1), (x1, z0 + 0.012), (x1 - 0.012, z0), (x0 + 0.012, z0), (x0, z0 + 0.012)])
+        sd = poly_sdf(Q, poly)
+        sm = _Sub(sub, m)
+        sm.h += 0.0007 * (1.0 - sstep(-0.0015, 0.0005, sd))
+        seam(sm, sd, mpp[m], side=-1.0, along=Q[:, 0] + Q[:, 1], rows=(0.002, 0.006), thread=thread, groove=0.0004, ridge=0.0, dark=0.25)
+        # the mouth: a hemmed top edge (a shadow line where the pocket stands open a little)
+        top = np.where(sd < 0.0, Q[:, 1] - (z1 - 0.02), 1.0)
+        seam(sm, top, mpp[m], side=1.0, along=Q[:, 0], rows=(0.0,), thread=thread, groove=0.0002, ridge=0.0, dark=0.05)
+        sm.commit()
+
+
+def paint_patches(pt, X, pidx, parts, spec, thread):
+    """Sewn-on patches (garments.patch(): cargo pockets and their flaps): stitch rows a few mm in
+    from the patch's edges, a box pleat down a cargo pocket's middle, a snap on each flap."""
+    for k in pidx:
+        kind = parts[k]["part"]
+        if kind not in ("cargo", "flap"):
+            continue
+        m = X.part == k
+        if not m.any():
+            continue
+        g = X.G[m]
+        mp = X.mpp[m]
+        s = _Sub(pt, m)
+        u, v = g[:, 0], g[:, 1]
+        u0, u1, v0, v1 = u.min(), u.max(), v.min(), v.max()
+        de = np.minimum(np.minimum(u - u0, u1 - u), np.minimum(v - v0, v1 - v))
+        for off in (0.004, 0.008):
+            r = gauss(de - off, np.maximum(0.0006, 0.6 * mp))
+            s.h -= 0.0002 * r
+            if thread is not None:
+                s.tint(r, thread, 0.8)
+            else:
+                s.shade(1.0 - 0.15 * r)
+        s.shade(1.0 - 0.25 * gauss(de, 0.0015))
+        if kind == "cargo":
+            # garments.surface_patch(): u runs across the pocket, v up it
+            um = 0.5 * (u0 + u1)
+            s.h -= 0.0012 * gauss(u - um, 0.002)
+            s.shade(1.0 - 0.3 * gauss(u - um, 0.0018))
+            for sgn in (-1.0, 1.0):
+                s.h += 0.0006 * gauss(u - um - sgn * 0.012, 0.006)
+        else:
+            um, vm = 0.5 * (u0 + u1), 0.5 * (v0 + v1)
+            r = np.hypot(u - um, v - vm)
+            snap = 1.0 - sstep(0.0045, 0.0055, r)
+            s.tint(snap, spec.get("snap_color", [70, 66, 58]), 1.0)
+            s.h += 0.001 * snap
+        s.commit()
+
+
+def paint_dress(pt, B, X, pidx, parts, L, spec):
+    """A dress: the print over the whole cloth (body-following coordinates, so it runs down the
+    bodice and on round the skirt), then the bodice's seams, hems and neckline facing, and the
+    skirt's hem and side seams (paint_skirt, its print left to this)."""
+    sel_all = np.isin(X.part, pidx)
+    skirt_k = [k for k in pidx if "skirt" in parts[k]["name"]]
+    bod_k = [k for k in pidx if k not in skirt_k]
+    P = X.P[sel_all]
+    sub = _Sub(pt, sel_all)
+    sub.shade(1.0 + 0.04 * fbm(P, 0.025, 2, seed=171))
+    pattern(sub, B, P, spec, X.zone[sel_all], X.mpp[sel_all])
+    sub.commit()
+    thread = spec.get("thread")
+    if skirt_k:
+        sk = dict(spec)
+        sk.pop("pattern", None)
+        Ls = L["skirt"]
+        paint_skirt(pt, B, X, skirt_k, parts, Ls, sk)
+    shell = np.isin(X.part, bod_k)
+    if not shell.any():
+        return
+    paint_top_seams(pt, B, X, shell, L, spec, thread, "tee")
+    Pb = X.P[shell]
+    mpp = X.mpp[shell]
+    sub = _Sub(pt, shell)
+    th, rr = B.azimuth(Pb)
+    d = edge_dist(Pb, L["hems"], "hem")
+    hem_band(sub, d, 0.012, mpp, rows=(0.008,), thread=thread, along=th * rr)
+    d = edge_dist(Pb, L["hems"], "sleeve")
+    hem_band(sub, d, 0.014, mpp, rows=(0.010,), thread=thread, along=Pb[:, 2])
+    d = edge_dist(Pb, L["hems"], "neck")
+    hem_band(sub, d, 0.012, mpp, rows=(0.008,), thread=thread, along=Pb[:, 0], roll=0.0003)
+    # bust darts: short tapering tucks up from the waist toward the bust each side
+    ch = B.B("Spine")
+    for sg in (1.0, -1.0):
+        x0 = sg * 0.085
+        m = (np.cos(th) > 0.3) & (np.abs(Pb[:, 0] - x0) < 0.02) & (Pb[:, 2] < ch[2] - 0.02)
+        if m.any():
+            tz = sstep(L["z_waist"], ch[2] - 0.03, Pb[:, 2])
+            dd = np.where(m, np.abs(Pb[:, 0] - x0), 1.0)
+            k = gauss(dd, 0.0025) * (1.0 - tz)
+            sub.h -= 0.0006 * k
+            sub.shade(1.0 - 0.12 * k)
+    sub.commit()
+
+
 def paint_rib_cuffs(pt, X, pidx, parts):
     for k in pidx:
         if parts[k]["part"] not in ("cuff", "band"):
@@ -1035,6 +1292,7 @@ def paint(name, size):
         elif kind == "trousers":
             paint_trousers(pt, B, X, shell, L, spec, color)
             paint_rib_cuffs(pt, X, pidx, parts)
+            paint_patches(pt, X, pidx, parts, spec, spec.get("thread"))
         elif kind in PAINTERS:
             PAINTERS[kind](pt, B, X, pidx, parts, L, spec)
         # "other" parts (buttons, zips) keep their own colour
@@ -1068,4 +1326,4 @@ def paint(name, size):
     return alb, X.cov, nrm.astype(np.float32), X.cov
 
 
-PAINTERS = {"shirt": paint_shirt, "jacket": paint_jacket, "skirt": paint_skirt, "vest": paint_vest, "scarf": paint_scarf}
+PAINTERS = {"dress": paint_dress, "shirt": paint_shirt, "jacket": paint_jacket, "skirt": paint_skirt, "vest": paint_vest, "scarf": paint_scarf}

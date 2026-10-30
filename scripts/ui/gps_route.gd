@@ -77,7 +77,9 @@ static func snap(p_plan: CityPlan, p: Vector2) -> Dictionary:
 		var i0 := p_plan._index_at(axis, across)
 		var cross_axis := CityPlan.AXIS_Z if axis == CityPlan.AXIS_X else CityPlan.AXIS_X
 		var j := p_plan._index_at(cross_axis, along)
-		for index: int in [i0, i0 + 1]:
+		# The two roads either side first; further out for a point inside a big closed site (a
+		# refinery, a park) whose nearest roads are all closed. Farther roads only win on distance.
+		for index: int in range(i0 - 5, i0 + 7):
 			var road := p_plan.road_pos(axis, index)
 			var d := absf(across - road)
 			if d >= best_d:
