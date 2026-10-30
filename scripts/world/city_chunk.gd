@@ -2988,6 +2988,8 @@ func _park_extra(spot: Array, extra: int, ecount: Array) -> void:
 	if _kerb_taken(spot, car):
 		car.free()
 		return
+	# Fills whatever the pass left empty, so it moves with anything that takes a kerb spot.
+	car.set_meta("busy_extra", true)
 	var holder: Node = get_parent() if get_parent() else self
 	var spot_pos: Vector3 = at + Vector3(0.0, 0.3 + _gy(at.x, at.z), 0.0)
 	car.position = WorldState.to_local(spot_pos) if holder != self else spot_pos
