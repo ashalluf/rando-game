@@ -1430,6 +1430,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   windscreen dust (`screen_dust`) on the shared cabin glass. `CAR_DETAIL=0` the A/B; `CAR_GRIME=`
   and views `plate|nose|wheel|arch` on car_shot.gd; probe `tools/car_detail_probe.gd`; checks
   `tests/car_detail_checks.gd`.
+- Car paint, second pass (2026-10-30, docs/HANDOFF.md "Car paint that reads as photographed"):
+  `CarPaint2` (`scripts/vehicles/car_paint_2.gd`, two hooks in Vehicle) and the `paint2` block of
+  car_paint.gdshaderinc (every uniform 0 by default: other materials and `CAR_PAINT_2=0` keep the
+  old shader bit for bit). In the lacquer: a world-fixed skyline per reflected azimuth cuts the sky
+  mirror where a ray meets a building and EMITS facades with windows and the street there (the
+  hard horizon line across a door, on both renderers; handed to the probes inside their reach);
+  orange peel (normal and coat roughness at mm scale, a softer mirror once under a pixel); flake
+  glints per pixel-sized cell fixed to the body (sun only, sun-facing only); candy, satin wraps,
+  contrast roofs (`stripe_mode` 6, `Livery.CONTRAST_ROOF`, `ROOF_LINE` per body), dust / pollen
+  films and oxidised single-stage paint. New finishes `CANDY`, `TRICOAT`, `SATIN` and the livery
+  are APPENDED; new paints and roofs are hashes of the look seed after every roll (`PAINTS` is
+  untouched, the rng spent as before). Take fwidth() outside the paint2 branches (`p2_*`).
+  Stills `PAINT_ENV=golden,street`, `FLIP=`, `TRIM=`, `CAR_COND=dust,oxide[,pollen]` on
+  car_shot.gd; checks `tests/car_paint_2_checks.gd`.
 - Car cabins (2026-10-30, docs/HANDOFF.md "Car cabins"): the car the player drives, empty parked
   cars within `CarInteriors.near_range` (7.5 m) of him and a car that lost a door get real
   geometry (`CarInteriors`, one node under the root; `CarInterior` on the car's near body mesh):

@@ -3745,3 +3745,9 @@ none of either.
   the far box already carried in INSTANCE_CUSTOM.b, so the street and the hills agree. Fixtures are
   geometry, their light additive quads in four batches a chunk; real lights only on the nearest
   porches on Forward+ desktop.
+- **2026-10-30 - Car paint, second pass (car-paint-2, HANDOFF "Car paint that reads as
+  photographed").** Decisions: the street a car mirrors is a world-fixed skyline per reflected
+  azimuth that cuts the sky's mirror and emits facades and the road (both renderers; the probes
+  take over near the camera); flake is sampled per pixel-sized cell fixed to the body; new
+  finishes, the contrast-roof livery and a car's condition are appended and rolled by hashes of
+  the look seed after every roll, so no existing roll moves and CAR_PAINT_2=0 is the old look.

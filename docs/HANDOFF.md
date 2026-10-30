@@ -21462,3 +21462,66 @@ the house. Now:
 `HOUSE_NIGHTS=0` is the A/B. Checks: `tests/house_nights_checks.gd` (the include mirrors the
 numbers and hash; the shares; near / far keys through half floats; pools; the chunk off / on; the
 fixtures mesh and glow batches shadowless; porches registered; every pane keyed; LOD builds none).
+
+## 9if. Car paint that reads as photographed (car-paint-2)
+
+Wave 3 task `car-paint-2` (owner's bar: "make it look like GTA 6"). Branch `wt/car-paint-2`,
+stills on `shots/car-paint-2`.
+
+**What was wrong.** Reviewed with `car_shot.gd` close-ups on lavapipe Forward+ and opengl3, noon,
+golden hour and night: on a door the lacquer mirrored the open sky (the radiance map) dimmed by
+a smooth ramp near the horizon, so a flank was the same colour all the way down - no street line,
+nothing that bends over the curves. The flake was `ALBEDO +=` a world-space hash (it slid over a
+moving car and crawled), no orange peel, and every car came off the same few finishes, all new.
+
+**What it does** (`CarPaint2`, `scripts/vehicles/car_paint_2.gd`; the `paint2` block of
+`shaders/car_paint.gdshaderinc`; every new uniform defaults to 0, so every material Vehicle does
+not set up - car parks, police stations, lowriders - and `CAR_PAINT_2=0` compile and draw the old
+shader bit for bit):
+- **The street in the lacquer.** A world-fixed skyline per azimuth of the reflected ray (22-36
+  buildings round the horizon, 3-30 degrees up, a gap now and then; the pattern changes every
+  70 m of true world) cuts the clearcoat's sky mirror where a ray meets a building, with a
+  one-pixel edge - the hard horizon line across a door that photographs of cars always have - and
+  EMITS what is there instead (facades in their own tones, rows of windows with the sky in them by
+  day and lit rooms after dark, the street under the horizon with the bright far-kerb line), by
+  Fresnel and the coat's strength. Inside the reflection probes' reach both hand over to the real
+  probe. Same on both renderers (the web has no reflections of its own).
+- **Orange peel**: the coat's roughness and the normal ripple at 6 and 2.4 mm within ~3 m (the
+  reflection crawls like real lacquer), a slightly softer mirror past that; every coat 28 %
+  crisper than before.
+- **Flake**: aluminium flakes ~0.7 mm, fixed to the body, sampled in cells the size of a pixel
+  (two LOD levels blended): a pixel is one draw of the flakes it covers, so it sparkles round the
+  sun's highlight from 1 to ~10 m and never crawls; discs inside their cell up close. Emitted, so
+  only on sun-facing panels in daylight (it has no shadow test).
+- **New finishes, appended** (`Vehicle.Finish.CANDY`, `TRICOAT`, `SATIN`): candy (a tinted
+  lacquer deep where the panel turns away, `candy_deep`), tri-coat and colour-shift pearls (the
+  flip colour per paint, `Vehicle.paint_flip`), satin vinyl wraps (no lacquer, a broad soft
+  sheen). `CarPaint2.PAINTS_2` (20 entries): ~10 % of private cars, ~34 % of sports cars.
+- **Contrast roofs** (`Vehicle.Livery.CONTRAST_ROOF`, appended; shader `stripe_mode` 6): the
+  pillars and roof over `ROOF_LINE[body]` in gloss black (silver-white on a dark car), on
+  crossovers 20 %, compact SUVs 24 %, EV hatches 30 %, hatchbacks 14 %, coupes 12 %, the rest a
+  few %.
+- **Condition**: a dust film on 34 % of plain cars (0.15-0.45; 12 % of them pollen), settled on
+  what faces the sky with thin run-off streaks on the flanks; oxidised single-stage paint (chalky,
+  the clear lifting off the roof and bonnet in ragged sheets with a pale rim) on every beater and
+  10 % of solid-gloss private sedans, pickups, vans, hatchbacks and minivans. Never on police,
+  emergency or show cars (`car.get_script() == Vehicle` only).
+
+**Rolls.** `PAINTS` is untouched; `random_car()` makes exactly its old rng calls (checked over
+2,500 seeds), and every new decision is a hash of the look seed after them (salts 61-63, 71-76).
+A car the hashes do not pick keeps its colour, finish, livery and trim; the A/B gives every car
+back exactly.
+
+**Cost.** No geometry, no new material per car (each car already had its own paint material).
+A paint-filled close-up on opengl3 (llvmpipe): 200-222 ms a frame either way (noise +-10 ms;
+TIME=40 on car_shot.gd, four runs). Downtown noon bookmark (`--spawn=2359.4,880,0,12,2`, DIFF=1, opengl3): 6,734,938 triangles, 3,312 draws with CAR_PAINT_2=0 and =1 alike - but no car was in that frame, so no street still was made.
+
+**Stills / tools.** `car_shot.gd` takes `PAINT_ENV=golden` (a low warm sun), `PAINT_ENV=street`
+(two rows of facades; lit windows at night), `FLIP=#rrggbb`, `TRIM=#rrggbb`, `LOOK=n` for any
+body, and `CAR_COND=dust,oxide[,pollen]` forces the condition. Checks:
+`tests/car_paint_2_checks.gd` (19).
+
+**Not done / not seen.** The skyline is a fixed pattern, not the real street (the probes are, on
+Forward+ near the camera); the flake glints have no shadow test (sun-facing only); no wrap seams or
+chrome wraps; the Meshy sports body's colour-shift pearl reads greyish on Forward+; nothing yet
+judged on the owner's Mac at 60 fps (orange peel and flake are about motion).
