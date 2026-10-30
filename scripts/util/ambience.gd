@@ -638,6 +638,8 @@ func _probe(eye: Vector3, s: Dictionary) -> void:
 		s["panic"] = float(scared) / float(maxi(people, 1))
 	var near := 0
 	for car in _traffic_cars():
+		if not (car as Node3D).is_inside_tree():
+			continue # pooled out of the tree (CoastTraffic keeps its pool off it)
 		if (car as Node3D).global_position.distance_to(eye) < 60.0:
 			near += 1
 	s["cars"] = near

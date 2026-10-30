@@ -225,6 +225,8 @@ float fbm2(vec2 p) {
 	return v * 1.34;
 }
 
+#include "res://shaders/offshore_island.gdshaderinc"
+
 // fbm sits around 0.3..0.75; stretch it to 0..1 so coverage means what it says.
 float cloud_lo(vec2 p) {
 	return clamp((fbm3(p) - 0.3) * 2.2, 0.0, 1.0);
@@ -907,6 +909,9 @@ void sky() {
 			col += st * fade;
 		}
 	}
+
+	// --- The island offshore (OffshoreIsland; over the sun, under the clouds) -----------------
+	col = island_draw(col, dir, sdir, sun_light, sun_up, pix, AT_CUBEMAP_PASS);
 
 	// --- Cirrus, contrails and the mid deck ---------------------------------------------------
 	if (up > 0.0) {
