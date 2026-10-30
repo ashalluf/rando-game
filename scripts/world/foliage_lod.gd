@@ -61,6 +61,18 @@ const SHADOW_LOD_SCALE := 0.5
 ## triangles on the freeway bookmark for a change that removes 2.6 M.
 const COUNTER_EDGE := 1.0e6
 
+## How far a "gen" level's triangle count may stray from the table and still be that level:
+## ImporterMesh.generate_lods() runs meshoptimizer, whose float maths lands a few triangles apart
+## on different CPUs (CI 360 / 361's runners built tree_fir's generated levels off by a handful
+## and the fir fell off its ladder, while this box and CI 359 matched exactly). The base count
+## stays exact, so a re-exported model is still caught; "thin" levels are ours and stay exact.
+const GEN_SLACK := 0.02
+
+
+## Whether a generated level of `actual` triangles is the table's `expected` one (GEN_SLACK).
+static func gen_close(actual: int, expected: int) -> bool:
+	return absi(actual - expected) <= maxi(4, int(ceil(expected * GEN_SLACK)))
+
 
 ## Which piece every triangle and vertex of an indexed surface belongs to: triangles that share
 ## a vertex, or a vertex POSITION (so a twig split along a UV seam is still one twig).
@@ -388,6 +400,7 @@ static func _gather(src: Variant, picked: PackedInt32Array, n: int) -> Variant:
 static func build(im: ImporterMesh, entry: Dictionary, planted: float = 1.0) -> Array:
 	var surfaces: Array = entry.get("surfaces", [])
 	if surfaces.size() != im.get_surface_count():
+		push_warning("FoliageLod: %d surfaces, the table %d" % [im.get_surface_count(), surfaces.size()])
 		return []
 	var mesh := ArrayMesh.new()
 	var shadow := ArrayMesh.new()
@@ -397,6 +410,7 @@ static func build(im: ImporterMesh, entry: Dictionary, planted: float = 1.0) -> 
 		var arrays := im.get_surface_arrays(s)
 		var base: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
 		if base.size() / 3 != int(spec.tris):
+			push_warning("FoliageLod: surface %d has %d triangles, the table %d" % [s, base.size() / 3, int(spec.tris)])
 			return []
 		var levels: Array = spec.levels
 		var info := {}
@@ -409,6 +423,7 @@ static func build(im: ImporterMesh, entry: Dictionary, planted: float = 1.0) -> 
 			if kind == "gen":
 				var l: int = lv[1]
 				if l >= im.get_surface_lod_count(s):
+					push_warning("FoliageLod: surface %d has %d generated LODs, the table asks for LOD %d" % [s, im.get_surface_lod_count(s), l])
 					return []
 				idx = im.get_surface_lod_indices(s, l)
 			else:
@@ -428,7 +443,10 @@ static func build(im: ImporterMesh, entry: Dictionary, planted: float = 1.0) -> 
 						continue
 					appended[slot] = appended[slot] + add[slot]
 				offset += (add[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
-			if idx.size() / 3 != int(lv[2]):
+			var want := int(lv[2])
+			var got := idx.size() / 3
+			if got != want and not (kind == "gen" and gen_close(got, want)):
+				push_warning("FoliageLod: surface %d level %s %d has %d triangles, the table %d" % [s, kind, lv[1], got, want])
 				return []
 			level_idx.append(idx)
 		var lods := {}
