@@ -18929,3 +18929,70 @@ against the Forward+ terrain and the cobbles' dome shading want a look; the far 
 draws no strip (LOD chunks do); fire roads (dirt, not drawn by HillRoads) cross a wash with no
 ford or culvert, the bed just stops either side; a drop inlet below a deep cut can sit under a
 tall cut face; the first launch spends ~7 s on the network on the loading screen (cached after).
+
+## 9gw. Cars, the third wave (wave 3, `cars-3`)
+
+The street still repeated its cars: nine everyday bodies over thousands of parked and moving cars.
+This adds five more 2020s Los Angeles bodies, all invented (a chevron badge, no real face):
+
+| Body | BodyType | What it is | Derived from |
+| --- | --- | --- | --- |
+| EV hatch | `EV_HATCH` (30) | compact electric hatch: closed face with a low intake only, thin lamp blades joined by a full-width light bar, flush body-colour handles, a black glass roof from the screen to the spoiler, aero blades on the doors, a full-width tail bar | the hatchback, CAB-FORWARD (`cab_forward` station map: the screen's foot 15 cm forward, the bonnet squeezed) |
+| Luxury sedan | `LUX_SEDAN` (31) | mid-size saloon: a bonnet 24 cm longer with the front axle (dash-to-axle), slim lamps over a tall chrome-barred mouth in a chrome surround, chrome rocker and belt, a fastback lip, full-width tail bar, twin tips | the sedan, everything ahead of the cowl stretched |
+| Compact SUV | `COMPACT_SUV` (32) | boxy compact: round lamps, a slatted black grille, black bumpers and cladding, roof rails, square tail lamps, a spare wheel under a hard cover on the tailgate | the full-size SUV with its rear overhang cut (2.665 -> 2.42 m) and the whole car scaled 0.93 x 0.88 x 0.88 after the build (`post_scale`): y and z alike, so the arches stay round round the scaled wheel |
+| Work truck | `WORK_TRUCK` (33) | crew-cab full-size: every chrome part blacked out, a cross-bed toolbox, a steel rack over the bed running forward to a bar on the cab roof, a yellow fibreglass extension ladder on it (an eighth slot, `ladder`), an amber strobe bar, a hitch receiver, mud flaps; 55 % in a fleet colour (`Cars3.WORK_FLEET_SHARE`, off the look seed) | the pickup, with make_road_cars' `CHROME` rebound to `TRIM` while its details run |
+| Coupe | `COUPE` (34) | 2-door sports coupe: shorter overhangs, the glasshouse dropped up to 9 cm, two long doors with the shut line hidden in the pillar, a fixed quarter light, a wide low mouth, slim lamps with one projector, a gloss black roof, a ducktail, quad tips | the sedan |
+
+**Why derived.** The loft is fussy: a change that looks harmless can leave the body non-manifold, and
+then every later boolean (windows, pockets, grooves) is "rolled back" and the car comes out with no
+panel gaps or lamp pockets (a 2 cm roof raise on the hatchback did exactly that - the log counts
+`rolled back`; all five build with none). So every body is an older spec moved by station maps
+(`piecewise()` + make_more_cars' `remap()`), the details written as data for make_more_cars'
+`everyday_details()` (which now takes a body with no `rear_door`: a two-door). Build:
+`blender -b --factory-startup -P tools/make_cars_3.py -- ev_hatch lux_sedan compact_suv work_truck coupe [--render]`
+(~20 s a body), then `godot --headless --path . --import`.
+
+**Rolls.** `BODY_ODDS` gives them 55 / 20 / 45 / 25 / 20 per thousand, taken from the END of six older
+ranges (sedan 20 -> luxury sedan, pickup 25 -> work truck, van 15 -> compact SUV, sports 20 -> coupe,
+crossover 55 -> compact SUV and EV hatch, the hatchbacks' two slices 30 -> EV hatch); every older type
+keeps its range's START. A row a new type took carries the type that had it as a THIRD entry
+(`[210, LUX_SEDAN, SEDAN]`), and `Cars3.row_type()` hands the slice back under `CARS_3=0`: with the
+switch off every roll lands exactly where the second wave put it (checked for all 1000). random_car()
+still spends one rng call for the body; the work truck's fleet paint is off the look seed.
+
+**Game side.** `scripts/vehicles/cars_3.gd` (Cars3: TYPES, DIMS, the fleet paints, `row_type()`);
+vehicle.gd gets the enum, names, models, BODY_ODDS, ROLL_MAP rows, WHEEL_POSE rows, the `_dims()`
+arm and the work truck's paint roll; CarCabin privacy glass on the compact SUV and the work truck;
+EngineAudio's V8 voice on the work truck and the coupe (the EV hatch still gets the small four: there
+is no electric voice yet). CONTACT (car_shot.gd) against `_dims().road`: -0.171 / -0.170,
+-0.176 / -0.177, -0.170 / -0.173, -0.206 / -0.206, -0.174 / -0.177.
+
+**Frame cost** (still_shot.gd GEO, opengl3, `--spawn=2359.4,880,0,12,2 --hour=15.5`, Flower St at
+Olympic): `STREET=queue STREET_EYE=1` with the queue made of the five new bodies
+(`STREET_MIX=30,31,32,33,34`) 7,347,339 triangles / 2,557 draws (Vehicle 1.30 M / 267) against the
+same queue made of the second wave's five (`STREET_MIX=14,15,16,17,18`) 7,409,248 / 2,564 (Vehicle
+1.37 M / 274): the new bodies cost what the old ones do (48-56k triangles near, 8k far twins). The
+plain frame with the city's own parked cars and traffic, `CARS_3=0` -> on: 7,219,732 / 3,797 ->
+7,202,801 / 3,787 (flat).
+
+**Checks** (`tests/cars_3_checks.gd`, 13): shares equal BODY_ODDS; every roll keeps its second-wave
+type unless a new body took it (835 kept, 165 taken), every row names its old owner and every old
+range keeps its start; `CARS_3=0` reproduces the second wave's table for all 1000 rolls and
+random_car() never rolls a new body; random_car() spends the caller's rng as before and rolls the
+five in about their shares over 3,000 seeds; most work trucks wear a fleet colour; every body has its
+model, WHEEL_POSE, dims, and its wheel's foot on the road it is stood on; privacy glass and engine
+voices; each builds with glass, far twin, lamps and four wheels (worst 0.9 ms warm), stands within
+4 cm of where traffic stands it, carries a driver in traffic and goes to physics and CarDamage when
+shot. `tests/more_cars_checks.gd`'s old-range count now counts the third wave's 135 (0 under
+`CARS_3=0`).
+
+**Not done / unverified.** Nothing seen on Forward+ (the Mac): paint, the EV's and the coupe's black
+roofs and the chrome on the luxury sedan need a look there. The EV hatch sounds like the small
+petrol four (EngineAudio has no electric voice). The work truck's ladder and rack are one body with
+the truck (they do not come off in a crash); its rack is not climbable collision beyond the car's
+boxes. The compact SUV's spare adds 0.4 m to its length, which traffic's gaps count. No car dealer
+or car park lineup was changed to show the new bodies (they turn up through random_car() and the
+traffic like the second wave's).
+
+**Gate** (`SHARDS=3`, after merging origin/main at 80883b2a): 3,555 checks, 0 failed, peak RSS 3.17 GB
+a shard. Stills on `shots/cars-3`.
