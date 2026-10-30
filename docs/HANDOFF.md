@@ -19740,3 +19740,66 @@ HeroFace stepped 30 s (blinks 5-20, shut and open, >= 12 saccades, in range), ai
 measured speed against Avatar's (8 %), zero slip across the gait, the rain uniforms. Cost: two
 more materials on the hero (the eye and lash surfaces were draws already), a few uniforms a frame.
 Stills on `shots/hero-closeup`.
+
+## 9d?. The street level up close (fleet wave 3, `wt/facades-street`)
+
+The task: standing on the pavement downtown, in midtown and along a strip of shops, the first two
+storeys are what the player sees most; make them read like GTA 6's - walls with real relief and wear
+at that range, the base and the kerb meeting the wall with grime and water marks, downpipes,
+conduit and electrical boxes, security grilles, wall lamps over doors, signage brackets,
+condensers, mail slots, door hardware, steps and thresholds, the alley face and the corner. Prefer
+shader detail on the existing walls and instancing for the props; integer rolls; draw calls flat.
+
+**What a ground floor is in this city.** The probe (`tools/facades_street/probe.gd -- --spawn=x,z`)
+says most midtown and downtown ground parts carry shops on EVERY face (Building puts a storefront
+on all four; only the alley back loses it), so the pass is mostly about storefront walls - the
+piers, the band over the shopfront, the wall above - and the walls of the low parts, hospitals,
+marina and suburban boxes that have no shops.
+
+**The shader half** (`shaders/facade_street.gdshaderinc`, in building.gdshader; uniforms
+`facade_street`, `street_back_face`, `street_ground_y`, `street_relief_*`, `street_grime_far`):
+- Relief as a HEIGHT FIELD in metres on the wall's own (u, v), sampled three times
+  (`fs_height()` / `fs_slope()`) and applied at the very end as a tilt of NORMAL in world space
+  (the wall's normal map still stacks on it, pressed 1.8x harder near the camera): stucco sand
+  float (5 mm grains, 8 cm trowel lumps, the 40 cm sweep), skip-trowel dabs on a fifth of rendered
+  buildings, smooth render on another fifth, precast's form-tie holes on a 60 cm grid and bug
+  holes, the stone base course's V-joints centred on its painted joints. Fine octaves fade with the
+  pixel's footprint, the whole of it between 14 and 55 m. Brick: the grey of its texture's mortar
+  is found by saturation and put in shade (raked joints).
+- Patched render (16 % of 1.9 x 1.4 m cells, a near-match paint, its feathered edge, smoother
+  grain) and hairline cracks off a third of the window corners on render and precast.
+- The foot of every wall on the pavement, the shops' bulkheads and the plinth band too
+  (facade_detail.gdshader's `street_foot`): ragged splash-back and rising damp 15-55 cm, its tide
+  line and salt bloom on porous walls, the contact shade, kick scuffs, hand grime and chipped
+  arrises at the corners.
+- A DOOR in one bay of 63 % of ground floors without shops (punched or slot windows, three bays or
+  more, never an end bay, never the alley back): frame, leaf (flush steel, six-panel timber, steel
+  with a wired vision light, or a perforated security screen), kick plate, lever and rose,
+  deadbolt, peephole, brass mail slot, the frame's shadow on the recessed leaf. `fs_door_col()` is
+  an integer roll (wl_hash salts 90-99 on `fs_face_key()`: shader seed, face, the wall's length in
+  quarter metres) that `FacadeStreet.door_col()` makes bit for bit, so Building leaves that bay's
+  window frame, kit surround and AC out and the lamp and step stand at it.
+- After dark: the door lamp's light on the wall round it (warm, or cool for an LED wall pack;
+  85 % lit), and the gooseneck lamps over a share of the sign boards (shop_byte salt 46 < 96) fan
+  warm light down their board.
+
+**The hardware half** (`scripts/world/facade_street.gd`, one hook per wall in
+`Building._add_facade_details()`, one `commit()` at the end of `generate()`): ONE mesh a building
+(`StreetDress`, one draw, no collision, drawn to 105 m plus half the footprint) on
+`shaders/facade_street_props.gdshader` (kind in COLOR.a x 16, paint in COLOR.rgb sRGB decoded,
+UV2.x a lit lens): downpipes at one end of 60 % of walls under 24 m (round or rectangular,
+galvanised or painted; a hopper head and scupper under the cornice, brackets every 1.8 m, a shoe
+over the plinth, or a turn into the wall above a shopfront), meter boxes and conduit on the piers
+between shops (salt 47) or a panel, meter and junction box cluster between two windows of a wall
+without shops, condensers on angle brackets with their copper line set in black insulation, window
+grilles over the ground-floor windows of 45 % of walls without shops (frame, bars every 11 cm, two
+flats; never where the kit's window AC sits), the door's step with a steel nosing and its lamp
+(caged bulkhead, gooseneck barn light, LED wall pack), goosenecks over the boards, roll-down
+shutters' housings and guide rails on the shops the shader pulls a shutter on (not under awnings
+or a canopy), thresholds at shop doors that are not recessed entries. A wall standing against
+another wing gets nothing. Every roll is a hash of the building's seed and the wall.
+
+**A/B and tools.** `FACADES_STREET=0` in the environment: the walls draw exactly as before and no
+StreetDress is built. `tools/facades_street/probe.gd -- --spawn=x,z` lists the ground walls round a
+point with an EYE for each face; `tools/facades_street/shots.sh` takes several EYE stills from one
+load (`SHOTS=`, heights above the ground). Checks: `tests/facades_street_checks.gd`.

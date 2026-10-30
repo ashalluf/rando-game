@@ -27,8 +27,14 @@ uniform sampler2D texture_metallic : hint_default_white, filter_linear_mipmap, r
 uniform sampler2D texture_roughness : hint_roughness_r, filter_linear_mipmap, repeat_enable;
 uniform float specular : hint_range(0.0, 1.0, 0.01) = 0.5;
 uniform float metallic : hint_range(0.0, 1.0, 0.01) = 0.0;
+// The street level up close (FacadeStreet): the TRUE world height of the building's foot. The
+// plinth band and anything else this low takes the splash-back, the damp and the contact shade the
+// walls behind it take (facade_street.gdshaderinc's fs_plinth()); far under, it is off.
+uniform float street_foot = -100000.0;
+varying vec3 true_pos;
 
 void vertex() {
+	true_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz + origin_shift;
 	vec4 ref = part_ref[clamp(int(INSTANCE_CUSTOM.x + 0.5), 0, 15)];
 	if (ref.w > 0.0 && MAIN_CAM_INV_VIEW_MATRIX != mat4(1.0)) {
 		if (distance(MAIN_CAM_INV_VIEW_MATRIX[3].xyz, ref.xyz - origin_shift) > ref.w) {
@@ -48,4 +54,19 @@ void fragment() {
 	vec4 roughness_texture_channel = vec4(1.0, 0.0, 0.0, 0.0);
 	float roughness_tex = dot(texture(texture_roughness, base_uv), roughness_texture_channel);
 	ROUGHNESS = roughness_tex * roughness;
+	float up = true_pos.y - street_foot;
+	if (up < 1.2) {
+		vec2 q = true_pos.xz + vec2(true_pos.z * 0.37, 0.0);
+		float along = q.x * 0.55 + q.y * 0.55;
+		float n = fract(sin(dot(floor(vec2(along, 3.0)), vec2(12.9898, 78.233))) * 43758.5453);
+		float n2 = fract(sin(dot(floor(vec2(along * 6.0, 1.0)), vec2(39.3468, 11.135))) * 24634.6345);
+		float hs = 0.18 + 0.22 * n + 0.06 * n2;
+		float damp = 1.0 - smoothstep(hs - 0.06, hs + 0.01, up);
+		float foot = 1.0 - smoothstep(0.0, 0.22, up);
+		vec3 c = ALBEDO;
+		c = mix(c, mix(c, vec3(dot(c, vec3(0.3, 0.55, 0.15))), 0.35) * 0.64, damp * 0.75);
+		c *= 1.0 - 0.38 * foot;
+		ALBEDO = c;
+		ROUGHNESS = mix(ROUGHNESS, min(ROUGHNESS, 0.8), damp);
+	}
 }
