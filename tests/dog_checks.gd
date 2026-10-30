@@ -190,7 +190,8 @@ func _crowd_dog(city: Node3D, chunk: Node3D) -> void:
 	_check(blood_after.systems == blood_before.systems and blood_after.splats == blood_before.splats, "dogs: a shot dog does not bleed (no gore on animals)")
 	if is_instance_valid(dog):
 		dog.queue_free()
-	p.queue_free()
+	if is_instance_valid(p):
+		p.queue_free()
 	await _ticks(2)
 	# A second walker: the owner goes down, the dog bolts (it is not freed with its owner).
 	var q := Pedestrian.new()

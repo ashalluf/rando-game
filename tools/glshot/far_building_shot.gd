@@ -15,6 +15,7 @@ extends SceneTree
 ## default 6), SEED0 (first seed), DOWNTOWN=1 (tall towers on podium lots: lot fill, parking decks).
 ## CHAMFER=1 cuts every building's corners (Building.chamfer_chance; 0 none), FAR_CORNERS=0 the
 ## far boxes' old painted piers.
+## CAM_POS / CAM_LOOK / FOV: a free camera (see below).
 ## The light is a fixed sun and sky, not DayNight: judge the two frames against each other.
 
 const FINISHES := [0, 1, 2, 3, 0, 3, 1, 2]
@@ -122,6 +123,13 @@ func _initialize() -> void:
 	cam.fov = 2.0 * rad_to_deg(atan((x * 0.55) / dist)) if x * 0.55 / dist > tan(deg_to_rad(20.0)) else 40.0
 	cam.far = 8000.0
 	cam.look_at_from_position(Vector3(mid.x - dist * 0.42, hgt, dist), mid, Vector3.UP)
+	# CAM_POS=x,y,z CAM_LOOK=x,y,z (metres; the row runs along +x from 0, faces +z) and FOV place
+	# the camera exactly, for a close look at one facade.
+	if OS.get_environment("CAM_POS") != "":
+		var cp := OS.get_environment("CAM_POS").split_floats(",")
+		var cl := OS.get_environment("CAM_LOOK").split_floats(",")
+		cam.fov = float(OS.get_environment("FOV")) if OS.get_environment("FOV") != "" else 50.0
+		cam.look_at_from_position(Vector3(cp[0], cp[1], cp[2]), Vector3(cl[0], cl[1], cl[2]), Vector3.UP)
 	cam.make_current()
 	var out := OS.get_environment("OUT")
 	if out == "":
