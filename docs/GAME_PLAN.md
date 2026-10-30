@@ -3562,6 +3562,14 @@ already mapped so milestone 2 is script-only.
   foliage ladders' table and shadow twins are untouched); the leaf-edge dither is Forward+ only
   (TAA), never in the shadow pass; `TREES_CLOSEUP=0` restores every shader exactly.
 
+- **2026-10-30 The beach at golden hour is a shader pass on the sand and the towers (beach-golden,
+  HANDOFF "The beach at golden hour").** Decisions: everything is a hash of true world position in
+  the shader (ripples, hummocks, footprint trails, the damp tide band and its pools, the wrack
+  line, glints, the towers' wear), so nothing rolls and no seed's beach moves; the tower's paint
+  and timber are new vertex-alpha codes on the same geometry; the sand's sky mirror takes
+  `sky_tint` through `cs_as_uniform()` (it was a stop too bright on Forward+). `BEACH_GOLDEN=0`
+  restores both shaders' old paths exactly.
+
 ## Correction: what build 135 (0ce833f) actually contained
 
 That commit's subject says "denser grass, real palm fronds, finer ground". It also shipped a

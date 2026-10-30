@@ -53,9 +53,9 @@ uniform float swash_distance = 320.0;
 // the standing pools in it mirror the sky, and how much of the sun's glow it takes at golden hour.
 uniform float band_darken = 0.18;
 uniform float band_roughness = 0.32;
-uniform float band_mirror = 0.45;
+uniform float band_mirror = 0.22;
 uniform float pool_mirror = 0.95;
-uniform float sun_glow = 0.9;
+uniform float sun_glow = 0.6;
 
 varying vec3 wpos;
 
@@ -98,8 +98,10 @@ void fragment() {
 	float band = 0.0;
 	float pool = 0.0;
 	float glint = 0.0;
+	// Metres per pixel, taken outside any branch (derivatives in divergent flow are undefined:
+	// llvmpipe hands back 0 and the ripples aliased to a corduroy at every range).
+	float px = length(fwidth(tw));
 	if (golden_on > 0.5 && dist < 260.0) {
-		float px = length(fwidth(tw));
 		float tide = reach_max + 5.0 + 3.0 * (bg_noise(vec2(tw.y * 0.05, 1.0)) - 0.5);
 		band = (1.0 - smoothstep(tide - 4.0, tide + 2.0, up)) * (1.0 - wet * 0.5);
 		// Shallow water left standing in the low-tide terrace's troughs: mirror patches.

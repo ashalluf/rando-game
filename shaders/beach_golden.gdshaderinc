@@ -10,7 +10,7 @@
 // * Hummocks: the wind's and the walkers' coarser relief, 0.6-3 m across and a few cm high, on
 //   every dry metre; it is what gives the sand texture a surface to lie on at a grazing sun.
 // * Footprints: trails of prints walked down to the water (bands along the shore, each with one
-//   wandering line of left / right prints at a 0.72 m stride) and along the wet sand near the
+//   wandering line of left / right prints at a 0.72 m stride (bands of 5 m)) and along the wet sand near the
 //   water. Each print is a heel and a toe dent with the displaced sand heaped round it, softened
 //   with age on the dry sand, crisp and holding water on the wet. Under a pixel a trail is its
 //   average, a faint darker trodden line.
@@ -21,13 +21,13 @@
 
 uniform float golden_on = 1.0;
 // Ripples: amplitude (m), wavelength range (m).
-uniform float ripple_amp = 0.0035;
+uniform float ripple_amp = 0.003;
 uniform vec2 ripple_wave = vec2(0.09, 0.15);
 // Hummocks: amplitude (m).
-uniform float hummock_amp = 0.03;
-// Footprints: depth (m) on the dry sand, how many bands (of 7 m along the shore) carry a trail.
-uniform float print_depth = 0.022;
-uniform float print_share = 0.65;
+uniform float hummock_amp = 0.05;
+// Footprints: depth (m) on the dry sand, how many bands (of 5 m along the shore) carry a trail.
+uniform float print_depth = 0.014;
+uniform float print_share = 0.5;
 // Quartz glints: how bright and how many.
 uniform float glint_gain = 6.0;
 uniform float glint_share = 0.06;
@@ -72,7 +72,7 @@ vec3 bg_ripples(vec2 p, float px, float dry) {
 		return vec3(0.0);
 	}
 	float lam = mix(ripple_wave.x, ripple_wave.y, bg_noise(p * 0.07 + 3.1));
-	float fade = 1.0 - smoothstep(0.1, 0.32, px / lam);
+	float fade = 1.0 - smoothstep(0.02, 0.06, px / lam);
 	if (fade < 0.001) {
 		return vec3(0.0);
 	}
@@ -83,7 +83,7 @@ vec3 bg_ripples(vec2 p, float px, float dry) {
 	vec2 ds = vec2(1.0, 0.0) + w1.xy * 0.35 * 1.6 + w2.xy * 1.3 * 0.18;
 	float ph = fract(s / lam);
 	// Asymmetric profile: rises over 70 % of the wavelength (to windward), falls over 30 %.
-	float k = 0.7;
+	float k = 0.62;
 	float h;
 	float dh;
 	if (ph < k) {
@@ -101,16 +101,24 @@ vec3 bg_ripples(vec2 p, float px, float dry) {
 }
 
 
+// Value noise at frequency `f` in a domain turned by `R`, with its gradient in the unturned one.
+// Turning each octave matters: a value noise's gradient carries its lattice's axes, and laid in
+// the world's axes those read as fine streaks along x and z (a corduroy) at a grazing sun.
+vec3 bg_noise_rot(vec2 p, float f, mat2 R) {
+	vec3 n = bg_noise_d(R * p * f);
+	return vec3(transpose(R) * n.xy * f, n.z);
+}
+
+
 // Coarser relief: hummocks and wind scour, everywhere on the dry sand.
 vec3 bg_hummocks(vec2 p, float px, float dry) {
 	if (golden_on < 0.5) {
 		return vec3(0.0);
 	}
-	vec3 a = bg_noise_d(p * 0.33);
-	vec3 b = bg_noise_d(p * 1.1 + 5.3);
-	vec3 c = bg_noise_d(p * 3.4 + 9.1);
-	float fc = 1.0 - smoothstep(0.08, 0.2, px);
-	vec3 r = a * vec3(0.33, 0.33, 1.0) * 1.0 + b * vec3(1.1, 1.1, 1.0) * 0.45 + c * vec3(3.4, 3.4, 1.0) * 0.18 * fc;
+	vec3 a = bg_noise_rot(p, 0.33, mat2(vec2(0.80, 0.60), vec2(-0.60, 0.80)));
+	vec3 b = bg_noise_rot(p + 5.3, 1.1, mat2(vec2(0.28, -0.96), vec2(0.96, 0.28)));
+	float fb = 1.0 - smoothstep(0.15, 0.4, px);
+	vec3 r = a + b * 0.4 * fb;
 	return r * hummock_amp * mix(0.35, 1.0, dry);
 }
 
@@ -148,8 +156,8 @@ vec3 bg_footprints(vec2 p, float px, float wet, float keep, out float trod) {
 	vec3 r = vec3(0.0);
 	float fade = 1.0 - smoothstep(0.03, 0.08, px);
 	float depth = print_depth * mix(0.75, 1.15, wet) * keep;
-	// Family A: down the beach to the water, one trail per 7 m band along the shore.
-	float band = floor(p.y / 7.0);
+	// Family A: down the beach to the water, one trail per 5 m band along the shore.
+	float band = floor(p.y / 5.0);
 	for (int i = -1; i <= 1; i++) {
 		float b = band + float(i);
 		if (bg_hash(vec2(b, 4.2)) > print_share) {
@@ -157,7 +165,7 @@ vec3 bg_footprints(vec2 p, float px, float wet, float keep, out float trod) {
 		}
 		float h2 = bg_hash(vec2(b, 9.7));
 		float h3 = bg_hash(vec2(b, 1.3));
-		float zc = (b + 0.2 + 0.6 * h2) * 7.0 + 1.6 * sin(p.x * 0.07 + h3 * 6.28) + 0.5 * sin(p.x * 0.21 + h2 * 6.28);
+		float zc = (b + 0.2 + 0.6 * h2) * 5.0 + 2.2 * sin(p.x * 0.06 + h3 * 6.28) + 0.8 * sin(p.x * 0.19 + h2 * 6.28) + 0.25 * sin(p.x * 0.7 + h3 * 3.0);
 		float d = p.y - zc;
 		if (abs(d) > 0.4) {
 			continue;
@@ -171,7 +179,8 @@ vec3 bg_footprints(vec2 p, float px, float wet, float keep, out float trod) {
 		// The walk heads for the water (-x), so the toe is at -u.
 		vec3 pr = bg_print(vec2(-q.x, q.y));
 		pr.x = -pr.x;
-		float soft = mix(age, 1.0, wet);
+		float gap = smoothstep(0.3, 0.55, bg_noise(vec2(p.x * 0.12, b * 3.1)));
+		float soft = mix(age, 1.0, wet) * gap;
 		r += pr * soft;
 		trod = max(trod, (1.0 - smoothstep(0.1, 0.25, abs(d))) * 0.6 * soft);
 	}
@@ -179,7 +188,7 @@ vec3 bg_footprints(vec2 p, float px, float wet, float keep, out float trod) {
 	float bx = floor(p.x / 9.0);
 	for (int i = -1; i <= 1; i++) {
 		float b = bx + float(i);
-		if (bg_hash(vec2(b, 17.3)) > 0.5) {
+		if (bg_hash(vec2(b, 17.3)) > 0.3) {
 			continue;
 		}
 		float h2 = bg_hash(vec2(b, 5.1));
@@ -194,7 +203,7 @@ vec3 bg_footprints(vec2 p, float px, float wet, float keep, out float trod) {
 		vec2 q = vec2(p.y - (kk + 0.5) * stride, d - side * 0.09);
 		vec3 pr = bg_print(q);
 		// Frame (u along z, v along x) back to (x, z).
-		float soft = mix(0.5, 1.0, wet);
+		float soft = mix(0.5, 1.0, wet) * smoothstep(0.3, 0.55, bg_noise(vec2(p.y * 0.1, b * 2.3)));
 		r += vec3(pr.y, pr.x, pr.z) * soft;
 		trod = max(trod, (1.0 - smoothstep(0.1, 0.25, abs(d))) * 0.6 * soft);
 	}

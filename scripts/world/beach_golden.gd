@@ -34,3 +34,8 @@ static func tower_wood() -> float:
 ## The sand material's switch (PropFactory.beach_sand_material()).
 static func dress_sand(mat: ShaderMaterial) -> void:
 	mat.set_shader_parameter("golden_on", 1.0 if enabled else 0.0)
+	# BEACH_GOLDEN_PARAMS="ripple_amp=0,print_depth=0.02": uniforms for stills and tuning.
+	for kv: String in OS.get_environment("BEACH_GOLDEN_PARAMS").split(",", false):
+		var p := kv.split("=")
+		if p.size() == 2:
+			mat.set_shader_parameter(p[0], float(p[1]))

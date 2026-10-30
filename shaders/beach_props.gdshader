@@ -169,18 +169,18 @@ void fragment() {
 		if (code == 11) {
 			float wall = 1.0 - smoothstep(0.4, 0.6, abs(nw.y));
 			float groove = (1.0 - smoothstep(0.004, 0.006 + fw * 1.5, abs(fract(horiz / 0.115) - 0.5) * 0.115)) * wall;
-			groove *= 1.0 - smoothstep(0.004, 0.012, fw);
-			base *= 1.0 - 0.32 * groove;
+			groove = mix(groove, 0.08 * wall, smoothstep(0.006, 0.03, fw));
+			base *= 1.0 - 0.3 * groove;
 			float lum = dot(base, vec3(0.3, 0.59, 0.11));
-			float fade = 0.18 + 0.32 * upf + 0.22 * bp_noise(vec2(horiz, y) * 1.3 + tw_seed * 13.0) + 0.15 * tw_seed;
-			base = mix(base, vec3(lum) * vec3(1.04, 1.02, 0.98) * 1.08, clamp(fade, 0.0, 0.75));
-			float chalk = smoothstep(0.55, 0.85, bp_noise(vec2(horiz, y) * 4.0 + 3.0)) * 0.25;
+			float fade = 0.05 + 0.25 * upf + 0.14 * bp_noise(vec2(horiz, y) * 1.3 + tw_seed * 13.0) + 0.08 * tw_seed;
+			base = mix(base, mix(base, vec3(lum), 0.5) * 1.12, clamp(fade, 0.0, 0.6));
+			float chalk = smoothstep(0.6, 0.9, bp_noise(vec2(horiz, y) * 4.0 + 3.0)) * 0.15;
 			base = mix(base, vec3(0.86, 0.86, 0.84), chalk);
-			float peel_n = bp_noise(vec2(horiz, y) * 7.0 + tw_seed * 5.0) * 0.7 + bp_noise(vec2(horiz, y) * 23.0) * 0.3;
-			float peel_bias = 0.2 * (1.0 - smoothstep(0.0, 1.2, y - 2.3)) + 0.12 * tw_seed;
-			float peel = smoothstep(0.78 - peel_bias, 0.8 - peel_bias, peel_n);
-			float lip = smoothstep(0.74 - peel_bias, 0.78 - peel_bias, peel_n) * (1.0 - peel);
-			base = mix(base, cs_srgb_to_linear(vec3(0.52, 0.50, 0.46)) * (0.8 + 0.3 * bp_noise(vec2(horiz * 30.0, y * 3.0))), peel);
+			float peel_n = bp_noise(vec2(horiz, y) * 13.0 + tw_seed * 5.0) * 0.65 + bp_noise(vec2(horiz, y) * 41.0) * 0.35;
+			float peel_bias = 0.1 * (1.0 - smoothstep(0.0, 0.5, y - 2.3)) + 0.06 * tw_seed;
+			float peel = smoothstep(0.83 - peel_bias, 0.85 - peel_bias, peel_n);
+			float lip = smoothstep(0.8 - peel_bias, 0.83 - peel_bias, peel_n) * (1.0 - peel);
+			base = mix(base, cs_srgb_to_linear(vec3(0.46, 0.45, 0.42)) * (0.8 + 0.3 * bp_noise(vec2(horiz * 30.0, y * 3.0))), peel);
 			base *= 1.0 - 0.25 * lip;
 			float streak = smoothstep(0.55, 0.9, bp_noise(vec2(horiz * 7.0, y * 0.35) + 1.7)) * wall
 				* smoothstep(3.5, 2.5, y) * (0.4 + 0.6 * bp_noise(vec2(horiz * 2.0, 0.0)));
@@ -189,7 +189,7 @@ void fragment() {
 		} else {
 			float grain = bp_noise(vec2(horiz * 45.0, y * 1.5)) * 0.6 + bp_noise(vec2(horiz * 120.0, y * 6.0)) * 0.4;
 			grain = mix(grain, 0.5, smoothstep(0.003, 0.01, fw));
-			base = cs_srgb_to_linear(mix(vec3(0.50, 0.48, 0.44), vec3(0.64, 0.62, 0.58), grain));
+			base = cs_srgb_to_linear(mix(vec3(0.40, 0.38, 0.35), vec3(0.55, 0.53, 0.49), grain));
 			float check_v = smoothstep(0.93, 0.97, bp_noise(vec2(horiz * 60.0, y * 0.6)));
 			base *= 1.0 - 0.45 * check_v;
 			float damp = 1.0 - smoothstep(0.0, 0.55 + 0.2 * bp_noise(vec2(horiz * 8.0, 0.0)), y);
