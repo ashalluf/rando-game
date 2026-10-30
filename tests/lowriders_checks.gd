@@ -38,6 +38,7 @@ func run(t: Node, city: Node3D) -> void:
 	await _ticks(3)
 	await _builds()
 	await _hydraulics()
+	_player_switch()
 	for c in _cars:
 		if is_instance_valid(c):
 			c.queue_free()
@@ -259,6 +260,39 @@ func _cruisers(plan: CityPlan) -> void:
 	_check(on > 0 and wrong == 0 and off < on, "lowriders cruise in the traffic of their districts only, more on a meet night (%d on a Saturday night, %d on a Tuesday noon, of %d)" % [on, off, n])
 
 
+## The player's switch box (Hydraulics.drive_input(), what H / D-pad up drive): a tap hops, a
+## hold lifts, a hold with A / D three-wheels to that side.
+func _player_switch() -> void:
+	var car: Vehicle = _car(Lowrider.COUPE, Vector2(18.0, 0.0), 7)
+	var h: Node = car.get_node("Hydraulics")
+	h.set("mode", Lowrider.Hydraulics.Mode.PARKED)
+	var dt := 1.0 / 60.0
+	for i in 30:
+		h.call("drive_input", false, 0.0, 0.0, dt)
+	for i in 6:
+		h.call("drive_input", true, 0.0, 0.0, dt)
+	var peak := 0.0
+	for i in 40:
+		h.call("drive_input", false, 0.0, 0.0, dt)
+		peak = maxf(peak, (h.call("heights") as PackedFloat32Array)[0])
+	var hopped := int(h.get("hops_done")) >= 1 and peak > 0.3
+	for i in 120:
+		h.call("drive_input", true, 0.0, 0.0, dt)
+	var lift: PackedFloat32Array = (h.call("heights") as PackedFloat32Array).duplicate()
+	for i in 90:
+		h.call("drive_input", true, 1.0, 0.0, dt)
+	var three: PackedFloat32Array = (h.call("heights") as PackedFloat32Array).duplicate()
+	for i in 120:
+		h.call("drive_input", false, 0.0, 0.0, dt)
+	var down: PackedFloat32Array = h.call("heights")
+	var stroke := float(h.get("stroke"))
+	var lifted := lift[0] > stroke * 0.7 and lift[3] > stroke * 0.7
+	# Steering right three-wheels on the left front (the right side drops).
+	var threed := three[0] > stroke + 0.1 and three[3] < 0.0 and three[1] < three[0]
+	_check(hopped and lifted and threed and down[0] < 0.0,
+		"the player's switch: a tap hops the nose %.2f m, a hold lifts all four (%.2f), with A / D it three-wheels (%.2f / %.2f), let go it lays down" % [peak, lift[0], three[0], three[3]])
+
+
 func _meet_chunk(city: Node3D, plan: CityPlan) -> void:
 	var meet := {}
 	for cx in range(-3, 4):
@@ -308,6 +342,17 @@ func _meet_chunk(city: Node3D, plan: CityPlan) -> void:
 		var across := at.x if int(meet.axis) == CityPlan.AXIS_X else at.y
 		stands = stands and (across - kerb) * float(meet.side) > 0.5
 	_check(spots.size() >= 6 and stands, "the meet's crowd stands on the pavement by the cars (%d spots, %d spawned in the cap)" % [spots.size(), goers])
+	var chairs := LowriderMeet.chair_spots(meet, LowriderMeet.layout(meet))
+	var seats: Array = chunk.get_meta("life_seats", [])
+	var dressed := chunk.get_node_or_null("MeetChairs") as MeshInstance3D
+	var on_kerb := true
+	for cp: Array in chairs:
+		var kerb2 := float(meet.centre) + float(meet.side) * float(meet.width) * 0.5
+		var c2: Vector2 = cp[0]
+		var across2 := c2.x if int(meet.axis) == CityPlan.AXIS_X else c2.y
+		on_kerb = on_kerb and (across2 - kerb2) * float(meet.side) > 0.5
+	_check(chairs.is_empty() or (dressed != null and on_kerb and seats.size() >= chairs.size() * 2),
+		"%d pairs of folding chairs and coolers on the kerb between the cars, each a seat for the crowd (%d seats)" % [chairs.size(), seats.size()])
 	var sig := _signature(chunk)
 	_free_chunk(chunk)
 	LowriderMeet.force_day = 2

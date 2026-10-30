@@ -38,6 +38,8 @@ const HOURS := Vector2(18.5, 1.5)
 ## People at the meet: per car, and the most a meet spawns (inside the crowd cap).
 const PEOPLE_PER_CAR := 2.2
 const MAX_PEOPLE := 20
+## The gaps in the row with a pair of folding chairs and a cooler on the kerb (of the gaps).
+const CHAIR_SHARE := 0.6
 ## Cruisers in traffic: their share of street cars (by day, on a meet night) in the districts
 ## above, and how slow they roll (of a street car's speed).
 const CRUISE_SHARE := Vector2(0.006, 0.03)
@@ -206,6 +208,7 @@ static func steps(ch: Node, plan: CityPlan, ix: int, iz: int, block_rect: Rect2)
 	var people := people_spots(plan, m, spots)
 	for i in people.size():
 		out.append(func() -> void: _spawn_person(ch, m, people[i], i, block_rect))
+	out.append(func() -> void: _dress(ch, m, spots))
 	return out
 
 
@@ -306,6 +309,61 @@ static func blocks_parking(ch: Node, spot: Vector3) -> bool:
 	var across := spot.x if axis == CityPlan.AXIS_X else spot.z
 	var along := spot.z if axis == CityPlan.AXIS_X else spot.x
 	return absf(across - float(m.lane)) < 2.5 and along > float(m.lo) and along < float(m.hi)
+
+
+# --- The kerb's dressing ------------------------------------------------------------------------
+
+## Where the folding chairs go: in the gaps between the cars, at the kerb's edge, facing the
+## street. [centre of the pair (plan space), yaw facing the street, seed, cooler side].
+static func chair_spots(m: Dictionary, spots: Array) -> Array:
+	var out := []
+	var axis := int(m.axis)
+	var side := float(m.side)
+	var kerb := float(m.centre) + side * float(m.width) * 0.5
+	for i in spots.size() - 1:
+		var s := hash([int(m.seed), i, "chairs"])
+		if _h01([s, "on"]) >= CHAIR_SHARE:
+			continue
+		var a: Vector2 = spots[i][0]
+		var b: Vector2 = spots[i + 1][0]
+		var along := ((a.y + b.y) if axis == CityPlan.AXIS_X else (a.x + b.x)) * 0.5
+		var off := kerb + side * lerpf(0.75, 1.0, _h01([s, "o"]))
+		var p := Vector2(off, along) if axis == CityPlan.AXIS_X else Vector2(along, off)
+		# Facing the street (minus side): forward is -Z, so yaw from the direction (-x, -z).
+		var face := Vector2(-side, 0.0) if axis == CityPlan.AXIS_X else Vector2(0.0, -side)
+		var yaw := atan2(-face.x, -face.y) + (_h01([s, "y"]) - 0.5) * 0.4
+		out.append([p, yaw, s, 1.0 if _h01([s, "c"]) < 0.5 else -1.0])
+	return out
+
+
+## Lays the folding chairs and coolers as ONE vertex-coloured mesh for the meet (no collision:
+## they are knee high and the crowd keeps to its spots), and registers each pair as a seat for
+## the crowd life's SIT (CrowdLife.add_seat()).
+static func _dress(ch: Node, m: Dictionary, spots: Array) -> void:
+	var places := chair_spots(m, spots)
+	if places.is_empty():
+		return
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for pl: Array in places:
+		var p: Vector2 = pl[0]
+		var y: float = float(ch.call("ground_y", p.x, p.y))
+		var xf := Transform3D(Basis(Vector3.UP, float(pl[1])), Vector3(p.x, y, p.y))
+		var s := int(pl[2])
+		for k in 2:
+			var fabric: Color = MeetKit.FABRICS[absi(hash([s, k])) % MeetKit.FABRICS.size()]
+			MeetKit.chair(st, xf * Transform3D(Basis(Vector3.UP, (_h01([s, k, "t"]) - 0.5) * 0.3),
+				Vector3(-0.55 + 1.1 * float(k), 0.0, 0.0)), fabric)
+		var cool: Color = MeetKit.COOLERS[absi(hash([s, "cool"])) % MeetKit.COOLERS.size()]
+		MeetKit.cooler(st, xf * Transform3D(Basis(Vector3.UP, 0.2), Vector3(float(pl[3]) * 1.15, 0.0, -0.15)), cool)
+		CrowdLife.add_seat(ch, Vector3(p.x, y, p.y), float(pl[1]))
+	var mi := MeshInstance3D.new()
+	mi.name = "MeetChairs"
+	mi.mesh = st.commit()
+	mi.material_override = MeetKit.material()
+	mi.visibility_range_end = 90.0
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	ch.add_child(mi)
 
 
 # --- Cruisers ----------------------------------------------------------------------------------

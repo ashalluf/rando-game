@@ -436,6 +436,15 @@ class Hydraulics extends Node:
 	var _x := 0.79
 	var _zf := -1.44
 	var _zr := 1.58
+	## The player at the wheel: tap `hydraulics` (H / D-pad up) for a hop, hold it to lift, and
+	## while it is held steer for a three-wheel to that side or W / S to lift the nose or the tail.
+	## A tap shorter than this (s) is a hop.
+	var tap_seconds: float = 0.22
+	## A player's hop also kicks the real car: an upward impulse at the front axle of this many
+	## m/s times the car's mass (the hydraulics are visual everywhere else).
+	var hop_kick: float = 1.1
+	var _driven: bool = false
+	var _held: float = -1.0
 	## Routine counts, for checks: how many hops have gone off and three-wheels been held.
 	var hops_done: int = 0
 	var three_wheels_done: int = 0
@@ -478,6 +487,13 @@ class Hydraulics extends Node:
 	func _process(delta: float) -> void:
 		if _car == null or _body == null or not Lowrider.enabled or frozen:
 			return
+		if _car.driver != null and _car.driver.is_in_group("player") and not _car.is_wreck():
+			_drive(minf(delta, 0.05))
+			return
+		if _driven:
+			_driven = false
+			_held = -1.0
+			_routine = ""
 		var physical := not _car.is_traffic() and not _car.wheels.is_empty()
 		if physical or _car.is_wreck():
 			if _active or not _body.transform.is_equal_approx(Transform3D.IDENTITY):
@@ -489,6 +505,66 @@ class Hydraulics extends Node:
 		_active = true
 		_step(minf(delta, 0.05))
 
+	## The player's switch box. Reads the input once a frame and runs the corners on it; the
+	## physical car's own wheels and suspension are left to Vehicle (only the body moves).
+	func _drive(dt: float) -> void:
+		_driven = true
+		_active = true
+		var pressed := Input.is_action_pressed("hydraulics")
+		var steer := Input.get_axis("move_left", "move_right")
+		var pitch := Input.get_axis("move_back", "move_forward")
+		drive_input(pressed, steer, pitch, dt)
+
+	## The switch logic on its own (checks drive it without the Input singleton).
+	func drive_input(pressed: bool, steer: float, pitch: float, dt: float) -> void:
+		if pressed:
+			if _held < 0.0:
+				_held = 0.0
+			_held += dt
+		var hop := false
+		if not pressed and _held >= 0.0:
+			hop = _held < tap_seconds
+			_held = -1.0
+		if _routine == "" or _routine == "player":
+			_routine = "player"
+			var lift := smoothstep(tap_seconds, tap_seconds + 0.25, _held) if _held >= 0.0 else 0.0
+			if lift > 0.0 and _held - dt < tap_seconds + 0.01 and _held >= tap_seconds:
+				_sfx("pump", 0)
+			for i in 4:
+				var t := stroke * 0.85
+				var left_side := i == 0 or i == 2
+				var front := i < 2
+				# A / D: the far side's front corner up past its stroke, the near rear dropped.
+				if absf(steer) > 0.3:
+					var up_side := steer < 0.0
+					if left_side != up_side:
+						t = (stroke + 0.20) if front else stroke * 0.35
+					else:
+						t = stroke * 0.55 if front else laid
+				elif absf(pitch) > 0.3:
+					t = (stroke * 1.05 if front == (pitch > 0.0) else laid)
+				_target[i] = lerpf(laid * 0.6, t, lift)
+			if hop:
+				_player_hop()
+		_clock += dt
+		if _routine != "player":
+			_tick_routine(dt)
+		_integrate(dt)
+
+	func _player_hop() -> void:
+		var v := hop_speed.y
+		for i in 2:
+			_v[i] = maxf(_v[i], 0.0) + v
+			_fly[i] = true
+		_v[2] -= 0.6
+		_v[3] -= 0.6
+		hops_done += 1
+		_sfx("pump", 0)
+		if _car.is_inside_tree() and not _car.wheels.is_empty() and _car.wheels[0].is_in_contact():
+			_car.hold_crash_watch(8)
+			var at := _car.global_basis * Vector3(0.0, 0.0, _zf)
+			_car.apply_impulse(_car.global_basis.y * _car.mass * hop_kick, at)
+
 	## Runs the hydraulics `seconds` on (tools and checks: a still of a hop at its peak).
 	func advance(seconds: float) -> void:
 		var t := 0.0
@@ -499,6 +575,9 @@ class Hydraulics extends Node:
 	func _step(dt: float) -> void:
 		_clock += dt
 		_tick_routine(dt)
+		_integrate(dt)
+
+	func _integrate(dt: float) -> void:
 		# Integrate in small steps: a hop is fast and the spring is stiff.
 		var steps := ceili(dt / 0.008)
 		var h := dt / float(steps)
@@ -651,7 +730,7 @@ class Hydraulics extends Node:
 			_lights.transform = xf * _lights_rest
 		# A corner past its stroke takes its wheel off the road with it.
 		var rigs: Array = _car._wheel_rigs
-		if rigs.size() == 4:
+		if rigs.size() == 4 and not _driven:
 			for i in 4:
 				var rig: Array = rigs[i]
 				(rig[0] as Node3D).position.y = float(rig[5]) + maxf(_h[i] - stroke, 0.0)
