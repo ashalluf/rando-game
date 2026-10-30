@@ -3022,6 +3022,11 @@ already mapped so milestone 2 is script-only.
   ambient 0.45, darker ground checker. The original values washed the ground out to white.
 - **2026-09-19 Push to main always.** The owner asked for all work to go directly to `main` with no
   branches or pull requests. Milestone 1 was the only PR (#1); everything after lands on `main`.
+- **2026-10-30 The crowd's third garment set, on new people only.** Puffers, a work jacket, cargo
+  shorts and dresses are built in our own garment pipeline and worn by six NEW rigs (crowd_u..z,
+  appended to Pedestrian.MODELS so no earlier index or roll moves); b, c, f and g stay in their
+  library clothes (the task: do not rebuild existing rigs). A dress is one "keep" cloth: no look
+  recolours it into a two-tone outfit.
 
 ## Correction: what build 135 (0ce833f) actually contained
 

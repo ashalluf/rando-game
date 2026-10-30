@@ -4279,8 +4279,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   gentle with a floor (`own_ao`), being baked on a coarse shell in a pose the game never shows;
   and the fold field's ankle stack is the hero's gathered track pant, which on hemmed jeans read
   as jogger cuffs, so crowd_atlas.py scales it per trouser style (`ankle_stack` / `ankle_reach`).
-  A body in our garments is 11.7-13.9k triangles (10.5-12.7k in the library clothes). Sixteen
-  people wear them (a, d, e, h..t); b, c, f and g keep library clothes. **The second set
+  A body in our garments is 11.7-15.0k triangles (10.5-12.7k in the library clothes). Twenty-two
+  people wear them (a, d, e, h..z); b, c, f and g keep library clothes. **The second set
   (2026-10-05, docs/HANDOFF.md 9cg)**: the jacket takes `collar` (stand / rib / hood),
   `closure` (zip / buttons / none), `pocket` (welt / kangaroo / none) and `knit` - a windbreaker
   (m), a crew-neck cardigan (n) and a pullover hoodie with its hood DOWN (`hood_down()`: a roll
@@ -4301,6 +4301,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Judge with `tools/crowd/preview.sh` first (Blender Cycles, no render lock, seconds: `FLAT=1`
   geometry only, `REGION=1` which mesh is which - green on a top is the trousers, black is skin)
   and finish with `crowd_lineup.gd` (`TURN=90` shows a row in profile).
+  **The third set (2026-10-30, docs/HANDOFF.md "The crowd's third garment set")**: `jacket`
+  `puffer` (fit `puffer`; `quilt()` cuts every channel line into the DECIMATED shell as an edge
+  loop and bulges between them - bulged before the decimation it was smoothed away -, and the
+  painter's `paint_quilt()` reads the same lines from `L["quilt"]`), `shirt` `work` (a duck chore
+  jacket: point collar painted as corduroy by `collar_color`, flap patches over painted pockets),
+  trousers `cargo` (bellows pockets laid ON the thigh by `surface_patch()`, a grid of rays: a flat
+  `strip()` stood off the leg as a board), `dress` (the skirt plus a bodice with `slope` 3 shaped to
+  the waist, its hem laid onto the skirt; region `keep`, so no look splits it in two; prints
+  `dots` / `floral` in `pattern()`). Worn by `crowd_u..z` (MODELS 20-25, after the rest).
   **Close-up detail** (owner, 2026-09-27: faces and garments at 2-4 m): faces are not the
   average MakeHuman head - `build_character.py` rolls MPFB's own face targets (nose, jaw, chin,
   cheeks, eyes, mouth, ears, brows, forehead; `FACE_PAIRS`, `face_var`, `face_seed`, explicit
