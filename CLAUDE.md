@@ -16,8 +16,9 @@ studio, night estates, churches, utility poles, police stations at night, the ho
 street errands, reference cameras), batch 7 (the marketplace lane, shop-window vinyl, roadside
 businesses) and batch 8 (street signs as real models, five street lamp types), plus the fixes
 for CI runs 355-357 (a turning car's room in its new lane, errands never parking a placed car,
-the car lights check's pick race). Apartments and tower gondolas are what is left of the started
-sessions (docs/HANDOFF.md 0000000).
+the car lights check's pick race), then apartments and tower gondolas (2026-10-29, build 361).
+**Wave 3 (2026-10-29)**: 23 cloud sessions finishing wave 2's paused tasks plus `rock-outcrops` and
+`facades-gta` (owner: "make it look like GTA 6"); start at docs/HANDOFF.md section 00000000.
 `SHARDS=3 tests/headless_check.sh` runs the smoke test in three processes (~10 min, ~2.4 GB each).
 A fleet of 100 sessions was started (`fleet/brief`: BRIEF.md, tasks.tsv, sessions.tsv; each on
 `wt/<slug>`, stills on `shots/<slug>`); 61 of them are paused by the account's usage limit and
@@ -2521,6 +2522,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   city: `lod_box`es and the canopy slab. Kit warmed on the loading
   screen. Names and prices invented. `ROADSIDE=0` is the A/B; `tools/roadside_probe.tscn` finds
   pads; checks `tests/roadside_checks.gd` (alone: `tools/roadside/checks.tscn`).
+- Street furniture (2026-10-05, docs/HANDOFF.md "Street furniture"): `StreetFurniture`
+  (`scripts/world/street_furniture.gd`) builds in code at real size the LA wet-barrel hydrant,
+  the smart meter and the pay station, a concrete bench with a painted ad back beside a third of
+  the bus shelters (invented advertisers, 555 numbers: `tools/make_bench_ads.py` ->
+  `bench_ads.jpg`), the perforated downtown bin (a TrashCan's mesh by district), the galvanised U
+  rack and the kerb planter - one shader (`street_furniture.gdshader`: kind in COLOR.a x 16, paint
+  and wear in INSTANCE_CUSTOM; round the kind in the fragment, an interpolated 8.0 reads 7.9999),
+  one batch per kind a chunk, generated LODs and shadow twins. Same calls, ids, rolls and
+  collision as the old pieces; pay stations and stop benches are hashes; the benches are props
+  with their own ids (`ad_bench_<n>`, `_own_prop()`), planned at the shelter and made props only at
+  the finish (`StreetFurniture.commit()`: later passes read `prop_records`); the shelters and the kerb carts (KerbBins)
+  are not ours. `STREET_FURNITURE=0` is the A/B. Look with `tools/glshot/furniture_shot.gd`
+  (seconds; `OLD=1` the before), find pieces with `tools/street_furniture/probe.gd`; checks
+  `tests/street_furniture_checks.gd` (`tools/street_furniture/checks_only.tscn` alone).
 - Port (roadmap #35, 2026-09-27): the container terminal (`MacroMap.port_rect`) is
   `CityChunk._build_port()` laying out `PortKit` (`scripts/world/port_kit.gd`), all built in code.
   **The old port's rolls stay** on the block rng in the old order (rows, columns, the 30 % truck
@@ -4467,6 +4482,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `ERRAND_DEBUG=1` prints every errand called off. Stills: `ERRAND=bus|car|jay|shop|deliver` on
   `still_shot.gd` (`tools/street_errands/stage.gd`); checks: `tests/street_errands_checks.gd`,
   alone in a minute with `tools/street_errands/run_checks.tscn`.
+- Onlookers (2026-10-05, fleet "onlookers"; docs/HANDOFF.md, the onlookers section): after the
+  panic near a wreck, a blast or a body, `Onlookers` (`scripts/npc/onlookers.gd`, one Node under
+  the tree root made by the first walker with life clips) brings free walkers (`_life_free()`,
+  within `life_range`) back round it: each walks its own pavement ring to a spot in the scene's
+  distance band (`BAND`, `SPACING`), `CrowdLife.Act.WATCH`, and plays a role - FILM (phone held up
+  at eye level by a two-bone arm solve over the life clips, `film_phone_mesh()`: screen lit, video
+  light `crowd_prop.gdshader` glow 3 after dark), POINT, COVER (hand to mouth), CALL (1-2 a scene,
+  the phone clip) or GAWK (folded arms, head shakes). Scenes (true world) come from CarDamage's
+  lists, `Explosion.blast_count` and fresh Ragdolls (a watched body's debris life is held,
+  `BODY_HOLD`); quiet = no `Pedestrian.alarm` within `ALARM_REACH` for `SETTLE` s. A new shot ends
+  it (`_end_act` -> `release()`); responders (`RESPONDER_GROUPS`) or `LINGER` send them off one by
+  one. Hooks in Pedestrian: `watch`, `Onlookers.walk/pose/release/ensure`. Rolls are hashes.
+  `ONLOOKERS=0` is the A/B; stills `ONLOOKER_SCENE=body|wreck|blast` on `still_shot.gd`
+  (`tools/onlookers/stage.gd`); checks `tests/onlookers_checks.gd`.
 - Headwear (2026-10-04: the old box caps "read as plastic bowls"): `CrowdHat`
   (`scripts/npc/crowd_hat.gd`) builds a six-panel cotton baseball cap (button, sweatband, a bill
   with a taped edge, a strap and slide buckle across the opening at the back), a cuffed 2x2-rib
