@@ -862,6 +862,18 @@ void fragment() {
 		float inner = 1.0 - smoothstep(surf_shape.w * 0.7, surf_shape.w * 1.15, shore);
 		float lace = lace_line * inner * surf_lace * (0.45 + 0.55 * exp(-back_m / 14.0)) * (front ? 0.5 : 1.0);
 		ww = clamp(max(max(bore, lip), max(feather, lace)), 0.0, 1.0) * (0.85 + 0.15 * sea);
+		// Close to, the whitewater is bubbles: the fresh face of a bore stays solid, what it leaves
+		// behind opens into a net of bubble cells and holes (the close-up pass).
+		if (rich && near_c > 0.001 && dist < 45.0 && ww > 0.01) {
+			float fresh = max(bore_face, lip);
+			vec2 bp = vec2(along, shore) / 0.24 + vec2(0.0, TIME * 0.06);
+			float cells = oc_worley(bp);
+			float cells2 = oc_worley(bp * 2.7 + 3.3);
+			float nv = oc_vnoise(bp * 0.23 + 1.7);
+			float net = smoothstep(0.04 + 0.30 * nv, 0.30 + 0.30 * nv, cells) * (0.55 + 0.45 * smoothstep(0.05, 0.35, cells2));
+			net = mix(net, 0.7, smoothstep(0.24 / 4.0, 0.24 / 1.2, px_m));
+			ww *= mix(1.0, net, (1.0 - fresh * 0.8) * 0.85 * near_c);
+		}
 		face_glow = (front ? smoothstep(0.35, 0.95, face_m) : 0.0) * steep * (1.0 - broken * 0.75)
 			* smoothstep(0.1, 0.5, menv * g);
 		// Lit through by the sun: green water filtering whatever colour the sun is, so the golden

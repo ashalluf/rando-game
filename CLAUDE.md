@@ -437,6 +437,18 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `light_volumetric_fog_energy` down in bad weather - rain thickens the volumetric fog seventy
   times, and lit by the moonlight fill it hung over the street as a pale grey veil. At 88 %
   cloud the sky IS the clouds, so the night cloud colour is what decides it.
+- The ocean close up (wave 3, docs/HANDOFF.md "The Pacific close up"): `ocean.gdshader` includes
+  `shaders/ocean_closeup.gdshaderinc`, a FRAGMENT-only pass faded with the hand-over's `detail`
+  (`near_c`), so the vertex stage (SeaSurface's mirror) and the far sea are untouched: wind-aligned
+  capillary ripples faded by the pixel footprint (`fwidth`), wind slicks and gust patches, the sun
+  glitter as three octaves of flashing facets (`oc_glint`) handed to the old lobe under a pixel,
+  light through thin wave tops (`crest_sss`), deep blue scatter looking down, the cloud base
+  mirrored, foam torn down the wind that opens into Worley lace as it ages, a foam line at hulls
+  (in `wake_foam`) and round every pier pile (`pile_a/b`, grids from `OceanCloseup.pile_grids()`,
+  pushed by Weather). The piles' waterline (weed, barnacles, wet splash zone) is
+  `shaders/waterline_wet.gdshaderinc` in pier_park.gdshader and `pile_wet.gdshader`. Still no
+  texture sampler in the ocean. `OCEAN_CLOSEUP=0` (the `ocean_closeup` shader global) is the A/B;
+  checks `tests/ocean_closeup_checks.gd`.
 - Los Angeles weather (2026-10-05, "beyond clear / overcast / rain / storm"): `Weather.State`
   gains MARINE ("June gloom") and SANTA_ANA (appended: every per-state table has six rows, the
   pause menu's chips are Auto + one per state in order, `--weather=marine|santa_ana`, aliases in

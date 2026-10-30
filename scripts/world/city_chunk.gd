@@ -411,6 +411,8 @@ func begin_build() -> void:
 				_steps.append(_build_roads.bind(block))
 			if _owns_shoreline():
 				_steps.append(_build_beach.bind(block))
+				if OceanCloseup.enabled():
+					_steps.append(_build_water.bind(true))
 			# The coast highway runs the length of the sand on the land side of it, so a beach
 			# chunk has to lay road as well; without this PCH simply stops at every beach town
 			# and picks up again where the cliffs start.
@@ -1115,8 +1117,21 @@ func _build_sts_crane(at: Vector3, working: bool, ship_z: float, kit: RandomNumb
 
 # --- Ocean, beach, hills ---------------------------------------------------------------
 
-func _build_water() -> void:
+func _build_water(seaward_only := false) -> void:
 	var area := owned_rect()
+	if seaward_only:
+		# A beach chunk's own slice of sea (OceanCloseup): from its seaward edge to a few metres
+		# under the sand past the waterline. Without it the inner surf zone off every BEACH-zone
+		# chunk was missing, and the sand's drowned face showed as a flat blue sheet.
+		if capturing:
+			return
+		var cx := -INF
+		for k in 5:
+			cx = maxf(cx, plan.macro.coast_x(lerpf(area.position.y, area.end.y, k / 4.0)))
+		var east := minf(cx + 6.0, area.end.x)
+		if east <= area.position.x + 1.0:
+			return
+		area = Rect2(area.position, Vector2(east - area.position.x, area.size.y))
 	var c := area.get_center()
 	# Waving surface (shaders/ocean.gdshader, Gerstner waves sized by the Weather node) over a
 	# solid box so the sea still holds you up. Surface at +0.15 so it sits above the ground
