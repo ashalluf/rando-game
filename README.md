@@ -13,3 +13,13 @@ Shore camera: (3950, 5, 6300) on the Long Beach waterline looking south; air: (3
 - 10 / 11 - the same two at night
 
 Frame cost (GEO, shore camera, noon): before 696,802 tris / 221 draws; after 727,098 / 231.
+
+Final set (after the screen reveals and lit slots, the interior works and the boulders round the falls):
+
+- 12 - Kestrel from the water by the falls, noon
+- 13 - Kestrel from the air, 15:00
+- 14 - dusk (18:24) from 30 m up beside the island: the floods coming on
+- 15 / 16 - the falls and the air at night (21:30)
+
+Close camera frame cost (GEO, 12): 1,464,758 tris / 263 draws (the city's FULL chunks round a
+spawn on the island included). Gate: SHARDS=3 tests/headless_check.sh, 2,696 checks, 0 failed.
