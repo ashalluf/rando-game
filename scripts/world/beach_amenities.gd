@@ -130,6 +130,31 @@ static func off(plan: CityPlan, z: float) -> bool:
 	return ch != null and z > ch.z_north - CoastHighway.NORTH_FADE - 30.0 and z < ch.z_south + 30.0
 
 
+## True where `at` is on the main shore's dry sand, where this file's model of the beach holds:
+## the BEACH zone, the basin's own coast (not the headland's cliff ring or the bay, where
+## coast_x() is not the shore a strip of sand runs along), a coast that runs along z (a steep
+## one is not a function of z), and 0.2..1 of the way across the sand.
+const MAX_SLOPE := 0.4
+static func on_shore(plan: CityPlan, at: Vector2) -> bool:
+	var macro: MacroMap = plan.macro
+	if macro.headland_west_x(at.y) < macro._main_coast_x(at.y) + 1.0 or macro.in_bay(at):
+		return false
+	if absf(macro.coast_x(at.y + 2.0) - macro.coast_x(at.y - 2.0)) / 4.0 > MAX_SLOPE:
+		return false
+	if macro.zone_at(at) != MacroMap.Zone.BEACH:
+		return false
+	var across := (at.x - macro.coast_x(at.y)) / maxf(macro.beach_width_at(at.y), 1.0)
+	return across >= 0.2 and across <= 1.0
+
+
+## A rect (half: along z, across x) all on the shore: its centre and corners.
+static func _rect_on_shore(plan: CityPlan, at: Vector2, half: Vector2) -> bool:
+	for c: Vector2 in [Vector2.ZERO, Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+		if not on_shore(plan, at + Vector2(c.y * half.y, c.x * half.x)):
+			return false
+	return true
+
+
 ## The stations of the station cells round z0..z1 (pure, no obstacles): {kind, at, yaw, k, half}.
 static func _stations(plan: CityPlan, z0: float, z1: float) -> Array:
 	var out: Array = []
@@ -238,7 +263,7 @@ static func plan_stretch(plan: CityPlan, z0: float, z1: float, obstacles: Array 
 				var clash := false
 				for bc: Dictionary in courts:
 					clash = clash or BeachLife._near_court(bc, c.at, 10.0)
-				if clash:
+				if clash or not on_shore(plan, (c.at as Vector2) + Vector2(5.0, 0.0)) or not on_shore(plan, (c.at as Vector2) - Vector2(5.0, 0.0)):
 					continue
 				blocking.append([c.at, HALF.court])
 				if mine and _clear(obstacles, c.at, Vector2(1.0, 5.4), 0.3):
@@ -246,11 +271,21 @@ static func plan_stretch(plan: CityPlan, z0: float, z1: float, obstacles: Array 
 						"paint": Color.WHITE, "half": HALF.court, "net": bool(c.net)})
 			continue
 		var at := _nudge(plan, st, obstacles if mine else [], courts)
-		if at == Vector2.INF or off(plan, at.y):
+		if at == Vector2.INF or off(plan, at.y) or not _rect_on_shore(plan, at, st.half):
 			continue
 		var half: Vector2 = st.half
 		# The lower kinds give way to where the station could stand, nudged or not.
-		blocking.append([Vector2(at.x, float(st.z)), half + Vector2(15.5, 0.0)])
+		# (the largest nudge, 15 m, plus its rack and drums beside it, under 5 m past its end).
+		var own_block := blocking.size() + 1
+		blocking.append([Vector2(at.x, float(st.z)), half + Vector2(20.5, 0.0)])
+		if String(st.kind) in ["restroom", "concession"]:
+			# And the strip along the path's edge where its rack stands (showers stand there too).
+			# Short pieces that follow the path (the coast slants: one rect would leave it).
+			var reach := half.x + 20.5
+			var n_seg := ceili(reach * 2.0 / 4.0)
+			for i in n_seg:
+				var sz: float = float(st.z) - reach + (float(i) + 0.5) * reach * 2.0 / float(n_seg)
+				blocking.append([Vector2(BeachLife.path_x(plan, sz) - BeachLife.PATH_WIDTH * 0.5 - 1.4, sz), Vector2(reach / float(n_seg), 1.3)])
 		if not mine:
 			continue
 		var hk := _hi([plan.seed, "bam_look", st.k])
@@ -258,11 +293,11 @@ static func plan_stretch(plan: CityPlan, z0: float, z1: float, obstacles: Array 
 			"restroom":
 				out.append({"kind": "restroom", "mesh": "restroom_%d" % (hk % BLOCK_COLORS.size()), "at": at, "yaw": st.yaw,
 					"paint": TRIM_PAINTS[(hk / 7) % TRIM_PAINTS.size()], "half": half})
-				_add_beside(plan, out, at, float(st.yaw), half, hk, obstacles, blocking.slice(0, blocking.size() - 1))
+				_add_beside(plan, out, at, float(st.yaw), half, hk, obstacles, blocking.slice(0, own_block))
 			"concession":
 				out.append({"kind": "concession", "mesh": "concession_%d" % (hk % STAND_NAMES.size()), "at": at, "yaw": st.yaw,
 					"paint": AWNINGS[(hk / 7) % AWNINGS.size()], "half": half})
-				_add_beside(plan, out, at, float(st.yaw), half, hk, obstacles, blocking.slice(0, blocking.size() - 1))
+				_add_beside(plan, out, at, float(st.yaw), half, hk, obstacles, blocking.slice(0, own_block))
 			"gym":
 				out.append({"kind": "gym", "mesh": "gym", "at": at, "yaw": st.yaw,
 					"paint": GYM_PAINTS[hk % GYM_PAINTS.size()], "half": half})
@@ -275,13 +310,14 @@ static func plan_stretch(plan: CityPlan, z0: float, z1: float, obstacles: Array 
 			continue
 		var f := _frame(plan, zc)
 		var at := Vector2(BeachLife.path_x(plan, zc) - BeachLife.PATH_WIDTH * 0.5 - 1.5, zc)
-		if not _free(blocking, at, HALF.shower, 1.0) or not _clear(obstacles, at, HALF.shower, 0.3):
+		if not _free(blocking, at, HALF.shower, 1.0) or not _clear(obstacles, at, HALF.shower, 0.3) or not _rect_on_shore(plan, at, HALF.shower):
 			continue
 		out.append({"kind": "shower", "mesh": "shower", "at": at, "yaw": float(f[4]), "paint": Color.WHITE, "half": HALF.shower})
 		blocking.append([at, HALF.shower])
 		if _h([plan.seed, "bam_lone_rack", k]) < LONE_RACK_ODDS:
-			var ra := at + Vector2(0.0, 4.2)
-			if _free(blocking, ra, HALF.rack, 0.5) and _clear(obstacles, ra, HALF.rack, 0.3):
+			var rz := at.y + 4.2
+			var ra := Vector2(BeachLife.path_x(plan, rz) - BeachLife.PATH_WIDTH * 0.5 - 1.3, rz)
+			if _free(blocking, ra, HALF.rack, 0.5) and _clear(obstacles, ra, HALF.rack, 0.3) and _rect_on_shore(plan, ra, HALF.rack) and not off(plan, rz):
 				out.append({"kind": "rack", "mesh": "rack", "at": ra, "yaw": float(f[4]), "paint": Color.WHITE, "half": HALF.rack})
 				blocking.append([ra, HALF.rack])
 	# The drums, in bands across the sand.
@@ -297,14 +333,16 @@ static func plan_stretch(plan: CityPlan, z0: float, z1: float, obstacles: Array 
 		if w < MIN_WIDTH * 0.8:
 			continue
 		var band: float = [0.34, 0.5, 0.7][hc % 3]
-		var at := Vector2(float(f[0]) + w * band, zc + (_h([hc, 1]) - 0.5) * CAN_CELL * 0.5)
-		if not _free(blocking, at, HALF.can, 1.0) or not _clear(obstacles, at, HALF.can, 0.4) or off(plan, at.y):
+		var cz := zc + (_h([hc, 1]) - 0.5) * CAN_CELL * 0.5
+		var at := Vector2(plan.macro.coast_x(cz) + plan.macro.beach_width_at(cz) * band, cz)
+		if not _free(blocking, at, HALF.can, 1.0) or not _clear(obstacles, at, HALF.can, 0.4) or off(plan, at.y) or not on_shore(plan, at):
 			continue
 		var paint: Color = DRUM_PAINTS[(hc / 3) % DRUM_PAINTS.size()]
 		out.append({"kind": "can", "mesh": "drum_trash", "at": at, "yaw": _h([hc, 2]) * TAU, "paint": paint, "half": HALF.can})
 		if _h([hc, 3]) < 0.3:
-			var bt := at + (f[3] as Vector2) * 0.75
-			if _free(blocking, bt, HALF.can, 1.0) and _clear(obstacles, bt, HALF.can, 0.4):
+			# Beside it along the shore, far enough apart on the axis the overlap test reads.
+			var bt := at + Vector2(0.0, 0.9)
+			if _free(blocking, bt, HALF.can, 0.1) and _clear(obstacles, bt, HALF.can, 0.4) and on_shore(plan, bt):
 				out.append({"kind": "can", "mesh": "drum_recycle", "at": bt, "yaw": _h([hc, 4]) * TAU,
 					"paint": DRUM_PAINTS[(hc / 3 + 1) % DRUM_PAINTS.size()], "half": HALF.can})
 	return out
@@ -321,14 +359,14 @@ static func _free(blocking: Array, at: Vector2, half: Vector2, margin: float) ->
 static func _add_beside(plan: CityPlan, out: Array, at: Vector2, yaw: float, half: Vector2, hk: int, obstacles: Array, blocking: Array) -> void:
 	var side := 1.0 if hk % 2 == 0 else -1.0
 	var rack := Vector2(BeachLife.path_x(plan, at.y + side * (half.x + 2.6)) - BeachLife.PATH_WIDTH * 0.5 - 1.3, at.y + side * (half.x + 2.6))
-	if _clear(obstacles, rack, HALF.rack, 0.3) and _free(blocking, rack, HALF.rack, 0.3) and not off(plan, rack.y):
+	if _clear(obstacles, rack, HALF.rack, 0.3) and _free(blocking, rack, HALF.rack, 0.3) and not off(plan, rack.y) and _rect_on_shore(plan, rack, HALF.rack):
 		out.append({"kind": "rack", "mesh": "rack", "at": rack, "yaw": yaw, "paint": Color.WHITE, "half": HALF.rack})
 	var can := Vector2(at.x - half.y + 0.4, at.y - side * (half.x + 1.4))
-	if _clear(obstacles, can, HALF.can, 0.3) and _free(blocking, can, HALF.can, 0.3) and not off(plan, can.y):
+	if _clear(obstacles, can, HALF.can, 0.3) and _free(blocking, can, HALF.can, 0.3) and not off(plan, can.y) and on_shore(plan, can):
 		out.append({"kind": "can", "mesh": "drum_trash", "at": can, "yaw": _h([hk, "c"]) * TAU,
 			"paint": DRUM_PAINTS[hk % DRUM_PAINTS.size()], "half": HALF.can})
-	var can2 := can + Vector2(0.0, -side * 0.75)
-	if _h([hk, "c2"]) < 0.6 and _clear(obstacles, can2, HALF.can, 0.3) and _free(blocking, can2, HALF.can, 0.3):
+	var can2 := can + Vector2(0.0, -side * 0.9)
+	if _h([hk, "c2"]) < 0.6 and _clear(obstacles, can2, HALF.can, 0.3) and _free(blocking, can2, HALF.can, 0.3) and on_shore(plan, can2):
 		out.append({"kind": "can", "mesh": "drum_recycle", "at": can2, "yaw": _h([hk, "c3"]) * TAU,
 			"paint": DRUM_PAINTS[(hk + 2) % DRUM_PAINTS.size()], "half": HALF.can})
 
