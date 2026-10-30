@@ -12,3 +12,4 @@ The web build (main 3192f643) in headless Chromium 1243, SwiftShader WebGL2, 960
 - 07_web_macarthur_park.jpg - MacArthur Park's south side.
 - 08_web_beach_and_pier_1500.jpg - the beach by the pier (the primitive stall tables are the same natively).
 - 09_native_opengl3_hero_dry_vs_wet.jpg - native Compatibility, the hero dry vs road_wetness 1: darker and glossier, not blue.
+- 10_web_merged_main_downtown_noon.jpg - the build after merging main (49 more commits): clean console, wasm 727 MB.
