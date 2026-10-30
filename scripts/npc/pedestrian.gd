@@ -1412,6 +1412,8 @@ func _physics_process(delta: float) -> void:
 		_life_pose(delta)
 	if not errand.is_empty():
 		StreetErrands.pose(self, delta)
+	if not watch.is_empty():
+		Onlookers.pose(self, delta)
 
 
 func _walk(delta: float) -> void:
@@ -1428,6 +1430,9 @@ func _walk(delta: float) -> void:
 				_go_to(_random_ring_point(_sidewalk))
 	# On an errand (StreetErrands: a bus, a shop, a parked car, over the road mid-block).
 	if (_life_near or not errand.is_empty()) and StreetErrands.walk(self, delta, panicking):
+		return
+	# Watching a wreck, a blast site or a body after the panic (Onlookers).
+	if not watch.is_empty() and Onlookers.walk(self, delta, panicking):
 		return
 	# Standing still: waiting at a kerb, looking in a window, checking a phone. A crowd where
 	# every single person walks without ever stopping reads as a conveyor belt.
@@ -2577,6 +2582,8 @@ var _hip_bone: int = -1
 var _leg_bones := PackedInt32Array()
 ## The errand under way (StreetErrands: its steps and where it is in them), {} for none.
 var errand: Dictionary = {}
+## This person's part at a scene they came back to look at (Onlookers), {} for none.
+var watch: Dictionary = {}
 
 
 ## Rolls what this person carries and whether they jog or walk a dog (from the seed, so the same
@@ -2653,6 +2660,7 @@ func _setup_life() -> void:
 		_leg_bones.clear()
 	if _dog_walker:
 		_dog = CrowdDog.make(self, _life.randi())
+	Onlookers.ensure(get_tree())
 
 
 ## Whether this person could start something now (and join a group).
@@ -3039,6 +3047,7 @@ func _one_shot(clip: String) -> void:
 
 ## Back to walking: from where they are (a cancelled or finished stop) to a new spot.
 func _end_act(silent: bool = false) -> void:
+	Onlookers.release(self)
 	if _act == CrowdLife.Act.NONE:
 		return
 	if not _seat.is_empty() and _seat.taken == self:

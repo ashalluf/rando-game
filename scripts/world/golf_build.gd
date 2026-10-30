@@ -354,6 +354,9 @@ static func _water(ch: CityChunk, st: Dictionary) -> void:
 					any = true
 		if any:
 			_water_node(ch, sw, true, lay, "GolfPond")
+			# Swimmable (Swim): the pond over its dug bed (the turf's own collision under it).
+			if st.full:
+				SwimWater.add_poly(ch, lay.pond, level, level - 1.3, SwimWater.Kind.LAKE)
 		var f: Vector2 = lay.fountain
 		if st.full and area.has_point(f):
 			_fountain(ch, Vector3(f.x, level, f.y))

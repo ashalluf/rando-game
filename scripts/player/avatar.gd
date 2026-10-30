@@ -181,6 +181,10 @@ func load_model(path: String, look: int = 3, tracksuit: Color = Color(0, 0, 0, 0
 		_motion = HeroMotion.new()
 		_motion.name = "HeroMotion"
 		_skeleton.add_child(_motion)
+		# The swimming strokes (Swim), right after it: the gun is put away in the water.
+		swim_pose = SwimPose.new()
+		swim_pose.name = "SwimPose"
+		_skeleton.add_child(swim_pose)
 		_rng.seed = hash(path)
 		_idle_next = _rng.randf_range(idle_variant_after.x, idle_variant_after.y)
 	_play(IDLE_CLIP, 1.0)
@@ -454,6 +458,34 @@ func _play(clip: String, speed: float) -> void:
 		_anim.play(clip, blend_time)
 		_clip = clip
 	_anim.speed_scale = speed
+
+
+# --- Swimming (Swim, scripts/player/swim.gd) ---------------------------------------------------
+
+## The strokes, keyed per frame (SwimPose); null on a crowd rig.
+var swim_pose: SwimPose
+
+
+## The body in the water: laid `lay` radians forward about the hips (PI / 2 prone, more head
+## down), turned `roll` about its own length and raised `rise` metres. The moves stand down.
+func swim_body(lay: float, roll: float, rise: float) -> void:
+	if _anim == null:
+		return
+	_oneshot = ""
+	_fly = 0.0
+	_fall = 0.0
+	_tilt = 0.0
+	_lean = 0.0
+	_low = 0.0
+	_play(IDLE_CLIP, 1.0)
+	if _motion:
+		_motion.fly = 0.0
+		_motion.fall = 0.0
+		_motion.foot_lift = Vector2.ZERO
+		_motion.hips_drop = 0.0
+	var pivot := Vector3(0.0, 0.95, 0.0)
+	var b := Basis(Vector3.RIGHT, -lay) * Basis(Vector3.UP, roll)
+	transform = Transform3D(b, pivot - b * pivot + Vector3(0.0, rise, 0.0))
 
 
 # --- The hero's moves -------------------------------------------------------------------------

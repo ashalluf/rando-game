@@ -571,6 +571,8 @@ func _finish_build() -> void:
 	DecoBoulevard.commit(self)
 	Construction.commit(self)
 	StreetSigns.commit(self)
+	# The stop benches StreetDetail planned (StreetFurniture): props only now, clear of it all.
+	StreetFurniture.commit(self)
 	StreetShadowReach.apply(self)
 	UtilityPoles.commit(self)
 	Roadside.commit(self)
@@ -3564,14 +3566,16 @@ func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGen
 		if e == hydrant_edge:
 			var p := a + dir * rng.randf_range(6.0, length - 6.0) + inward
 			var aged := rng.randf() < 0.4
-			_add_prop("hydrant", Vector3(p.x, SIDEWALK_TOP, p.y), Color(0.85, 0.15, 0.12), [
-				["hydrant_aged" if aged else "hydrant", PropFactory.model_hydrant(aged), Transform3D(Basis(Vector3.UP, rng.randf_range(0.0, TAU)), Vector3(p.x, SIDEWALK_TOP, p.y))],
-			], [[Vector3(0.3, 0.8, 0.3), Vector3(p.x, SIDEWALK_TOP + 0.4, p.y), 0.0]])
+			# StreetFurniture's LA wet barrel (the rolled spin is still drawn).
+			var spin := rng.randf_range(0.0, TAU)
+			_add_prop("hydrant", Vector3(p.x, SIDEWALK_TOP, p.y), Color(0.85, 0.15, 0.12), StreetFurniture.hydrant_instances(plan.seed, aged, spin, Vector3(p.x, SIDEWALK_TOP, p.y), inward),
+				[[Vector3(0.3, 0.8, 0.3), Vector3(p.x, SIDEWALK_TOP + 0.4, p.y), 0.0]])
 		if cans_left > 0 and rng.randf() < 0.6 and PhysicsBudget.can_spawn():
 			cans_left -= 1
 			var p := a + dir * rng.randf_range(4.0, length - 4.0) + inward * 1.3
 			var can := TrashCan.new()
 			can.rusty = rng.randf() < 0.35
+			can.style = StreetFurniture.bin_style(block_district)
 			can.position = Vector3(p.x, SIDEWALK_TOP + 0.02 + _gy(p.x, p.y), p.y)
 			can.rotation.y = rng.randf_range(0.0, TAU)
 			add_child(can)
@@ -3804,13 +3808,17 @@ func _add_prop(kind: String, at: Vector3, color: Color, instances: Array, shapes
 	var id := "%s_%d" % [kind, _prop_counter]
 	_prop_counter += 1
 	if WorldState.is_destroyed(key, id):
+		PropBreak.remains(self, kind, at)
 		return
 	var g := _gy(at.x, at.z)
 	var record := {"id": id, "kind": kind, "position": at + Vector3(0.0, g, 0.0), "color": color, "health": PROP_HEALTH.get(kind, 20.0), "instances": [], "shapes": [], "dead": false}
 	for inst in instances:
 		# A fifth entry is the instance's custom data (a signal head's timing, see _add_signal_corner).
 		var index := _batch.add(inst[0], inst[1], inst[2], inst[3] if inst.size() > 3 else Color.WHITE, inst[4] if inst.size() > 4 else Color.BLACK)
-		record.instances.append([inst[0], index])
+		# The mesh, final transform, colour and custom data too: PropBreak breaks a prop into
+		# copies of its own instances.
+		var b: Dictionary = _batch.data()[inst[0]]
+		record.instances.append([inst[0], index, b.mesh, b.xforms[index], b.colors[index], b.custom[index]])
 	for s in shapes:
 		var shape := _add_shape(s[0], s[1] + Vector3(0.0, g, 0.0), s[2])
 		if shape:
@@ -3822,6 +3830,8 @@ func _add_prop(kind: String, at: Vector3, color: Color, instances: Array, shapes
 func damage_prop(record: Dictionary, damage: float, hit_dir: Vector3) -> void:
 	if record.dead:
 		return
+	if PropBreak.enabled and PropBreak.damage(self, record, damage, hit_dir):
+		return
 	record.health -= damage
 	if record.health <= 0.0:
 		break_prop(record, hit_dir)
@@ -3830,13 +3840,19 @@ func damage_prop(record: Dictionary, damage: float, hit_dir: Vector3) -> void:
 func break_prop(record: Dictionary, hit_dir: Vector3 = Vector3.UP) -> void:
 	if record.dead:
 		return
+	if PropBreak.enabled and PropBreak.survives(self, record, hit_dir):
+		return
 	record.dead = true
 	for inst in record.instances:
 		MultiMeshBatch.hide_instance(_mm_nodes.get(inst[0]), inst[1])
 	for shape in record.shapes:
 		if is_instance_valid(shape):
+			# Out of the solver at once (a car smashing through must not meet it this step).
+			shape.disabled = true
 			shape.queue_free()
 	WorldState.mark_destroyed(key, record.id)
+	if PropBreak.enabled and PropBreak.broke(self, record, hit_dir):
+		return
 	Sfx.play("break", record.position)
 	_spawn_debris(record.position, record.color, hit_dir)
 
@@ -3916,6 +3932,7 @@ func _add_lamp(at: Vector3, facing: Vector2 = Vector2.ZERO) -> void:
 	light.distance_fade_length = 15.0
 	light.add_to_group("lamp_light")
 	add_child(light)
+	PropBreak.own_light(self, light)
 
 
 ## The real lamp (StreetLamps, a model per type): the same prop slot, pool and OmniLight3D as
@@ -3951,6 +3968,7 @@ func _add_street_lamp(at: Vector3, facing: Vector2) -> void:
 	light.distance_fade_length = 15.0
 	light.add_to_group("lamp_light")
 	add_child(light)
+	PropBreak.own_light(self, light)
 
 
 ## `yaw` is the direction the bench faces (forward is -Z).
@@ -3981,9 +3999,8 @@ func _build_clutter(_rect: Rect2, edges: Array, params: Dictionary, rng: RandomN
 		var e: Array = edges[rng.randi() % 4]
 		var yaw := atan2(-e[2].x, -e[2].y)
 		var p: Vector2 = _edge_point(e, rng, 5.0) + e[2] * 2.4
-		_add_prop("planter", Vector3(p.x, SIDEWALK_TOP, p.y), Color(0.45, 0.32, 0.2), [
-			["planter", PropFactory.model_planter(), Transform3D(Basis(Vector3.UP, yaw), Vector3(p.x, SIDEWALK_TOP, p.y))],
-		], [[Vector3(0.95, 0.45, 0.45), Vector3(p.x, SIDEWALK_TOP + 0.22, p.y), yaw]])
+		_add_prop("planter", Vector3(p.x, SIDEWALK_TOP, p.y), Color(0.45, 0.32, 0.2), StreetFurniture.planter_instances(plan.seed, Transform3D(Basis(Vector3.UP, yaw), Vector3(p.x, SIDEWALK_TOP, p.y))),
+			[[Vector3(0.95, 0.45, 0.45), Vector3(p.x, SIDEWALK_TOP + 0.22, p.y), yaw]])
 	for i in clutter:
 		var e: Array = edges[rng.randi() % 4]
 		var yaw := atan2(-e[2].x, -e[2].y) + rng.randf_range(-0.3, 0.3)
