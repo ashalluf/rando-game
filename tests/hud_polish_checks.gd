@@ -65,7 +65,7 @@ func _vehicle_names() -> void:
 	var ok := true
 	for row: Array in VehicleHud.MODELS:
 		var full := "%s %s" % [row[0], row[1]]
-		ok = ok and str(row[0]) != "" and str(row[1]) != "" and not seen.has(full)
+		ok = ok and row.size() == 3 and str(row[2]) != "" and str(row[0]) != "" and str(row[1]) != "" and not seen.has(full)
 		seen[full] = true
 	_check(ok, "model names are filled in and unique")
 	# Never a real maker (a list of the ones a player would know; the names are invented).

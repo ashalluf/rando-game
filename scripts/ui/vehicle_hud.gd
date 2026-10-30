@@ -28,19 +28,43 @@ static var forced_mph: float = 0.0
 const MPS_TO_MPH := 2.236936
 const MPS_TO_KNOTS := 1.943844
 
-## [maker, model] per Vehicle.BodyType, in its order (the checks hold the count).
+## [maker, model, class] per Vehicle.BodyType, in its order (the checks hold the count).
 const MODELS := [
-	["Quentis", "Marlow"], ["Haldric", "Sawtooth 1500"], ["Sundale", "Haulmate"], ["Bravent", "Vesper GT"],
-	["Vantari", "Fulmine"], ["Vantari", "Fulmine Aperta"], ["Kestrel", "Halcyon"], ["Kestrel", "Halcyon RS"],
-	["Orivo", "Ventra"], ["Brennard", "CityLiner 40"], ["Brennard", "Stacker 26"], ["Brennard", "Longhaul LX"],
-	["Brennard", "Pumper 1250"], ["Brennard", "Medic III"], ["Velmara", "Pippa"], ["Haldric", "Bastion"],
-	["Orivo", "Hearthway"], ["Quentis", "Marlow Cab"], ["Quentis", "Esquire '94"], ["Brennard", "Scholar D"],
-	["Brennard", "Sidewinder"], ["Brennard", "Broomhall"], ["Brennard", "Rollback 21"], ["Sundale", "Frostline"],
-	["Sundale", "Haulmate Courier"],
-	["Velmara", "Imperio '64"], ["Velmara", "Solano '84"],
-	["Torvik", "Strega 900"], ["Torvik", "Longrider"], ["Torvik", "Zippa 125"],
-	["Orivo", "Pebble e"], ["Bravent", "Meridian"], ["Velmara", "Tessa"], ["Haldric", "Sawtooth Work"],
-	["Bravent", "Vesper Coupe"],
+	["Quentis", "Marlow", "Sedan"],
+	["Haldric", "Sawtooth 1500", "Pickup"],
+	["Sundale", "Haulmate", "Van"],
+	["Bravent", "Vesper GT", "Sports"],
+	["Vantari", "Fulmine", "Supercar"],
+	["Vantari", "Fulmine Aperta", "Supercar"],
+	["Kestrel", "Halcyon", "Hypercar"],
+	["Kestrel", "Halcyon RS", "Hypercar"],
+	["Orivo", "Ventra", "Crossover"],
+	["Brennard", "CityLiner 40", "City bus"],
+	["Brennard", "Stacker 26", "Box truck"],
+	["Brennard", "Longhaul LX", "Semi"],
+	["Brennard", "Pumper 1250", "Fire engine"],
+	["Brennard", "Medic III", "Ambulance"],
+	["Velmara", "Pippa", "Hatchback"],
+	["Haldric", "Bastion", "SUV"],
+	["Orivo", "Hearthway", "Minivan"],
+	["Quentis", "Marlow Cab", "Taxi"],
+	["Quentis", "Esquire '94", "Sedan"],
+	["Brennard", "Scholar D", "School bus"],
+	["Brennard", "Sidewinder", "Garbage truck"],
+	["Brennard", "Broomhall", "Street sweeper"],
+	["Brennard", "Rollback 21", "Tow truck"],
+	["Sundale", "Frostline", "Ice cream truck"],
+	["Sundale", "Haulmate Courier", "Delivery van"],
+	["Velmara", "Imperio '64", "Lowrider"],
+	["Velmara", "Solano '84", "Lowrider"],
+	["Torvik", "Strega 900", "Motorcycle"],
+	["Torvik", "Longrider", "Motorcycle"],
+	["Torvik", "Zippa 125", "Scooter"],
+	["Orivo", "Pebble e", "Electric"],
+	["Bravent", "Meridian", "Luxury"],
+	["Velmara", "Tessa", "Compact SUV"],
+	["Haldric", "Sawtooth Work", "Work truck"],
+	["Bravent", "Vesper Coupe", "Coupe"],
 ]
 
 var _player: Node
@@ -96,8 +120,7 @@ static func names_for_type(t: int) -> PackedStringArray:
 	if t < 0 or t >= MODELS.size():
 		return PackedStringArray(["", "Vehicle", ""])
 	var row: Array = MODELS[t]
-	var cls: String = str(Vehicle.BODY_NAMES[t]).to_upper() if t < Vehicle.BODY_NAMES.size() else ""
-	return PackedStringArray([row[0], row[1], cls])
+	return PackedStringArray([row[0], row[1], str(row[2]).to_upper()])
 
 
 ## The speed shown for `mps` m/s: [value, unit]. Cars in mph, aircraft and boats in knots.
