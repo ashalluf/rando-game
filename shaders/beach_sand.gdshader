@@ -53,7 +53,7 @@ uniform float swash_distance = 320.0;
 // the standing pools in it mirror the sky, and how much of the sun's glow it takes at golden hour.
 uniform float band_darken = 0.18;
 uniform float band_roughness = 0.32;
-uniform float band_mirror = 0.22;
+uniform float band_mirror = 0.16;
 uniform float pool_mirror = 0.95;
 uniform float sun_glow = 0.6;
 
