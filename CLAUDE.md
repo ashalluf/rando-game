@@ -1753,6 +1753,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `BEATER_DOORS`); every other car skips it on `wear == 0`. SUV and minivan have privacy glass
   (`CarCabin.PRIVACY_BODIES`). `car_shot.gd --each=14,15,16,17,18` (the taxi comes in its livery;
   `LOOK=n` a beater's door / a taxi's number). Checks: `tests/more_cars_checks.gd`.
+- Cars, the third wave (2026-10-30, docs/HANDOFF.md "Cars, the third wave"): `Cars3`
+  (`scripts/vehicles/cars_3.gd`) - EV_HATCH, LUX_SEDAN, COMPACT_SUV, WORK_TRUCK, COUPE, appended to
+  BodyType, built by `tools/make_cars_3.py` (`blender -b --factory-startup -P tools/make_cars_3.py
+  -- ev_hatch lux_sedan compact_suv work_truck coupe [--render]`, then `--import`) as DERIVED specs:
+  the hatchback cab-forward, the sedan with a long bonnet or a lowered two-door glasshouse, the SUV
+  cut short and scaled after the build (`post_scale`, 0.93 x 0.88: the arches stay round), the
+  pickup with its chrome rebound to TRIM plus a toolbox, rack and ladder (an eighth slot, `ladder`).
+  Rolled through `ROLL_MAP` rows with a THIRD entry (the type that had the slice; `Cars3.row_type()`
+  hands it back under `CARS_3=0`, bit for bit). Dims in `Cars3.DIMS`; a fleet colour on most work
+  trucks (`WORK_FLEET_SHARE`, off the look seed). Trap: a loft profile edit that looks harmless (a
+  2 cm roof raise on the hatchback) can leave the body non-manifold - every later boolean is then
+  "rolled back"; check the log's count. `car_shot.gd --each=30,31,32,33,34`; checks
+  `tests/cars_3_checks.gd`.
 - Lowriders (2026-10-06, docs/HANDOFF.md "Lowriders"): `Lowrider` (`scripts/vehicles/lowrider.gd`),
   `BodyType.LOWRIDER_HARDTOP` (a 1960s full-size hardtop) and `LOWRIDER_COUPE` (a 1980s coupe),
   appended, `BODY_ODDS` 0, built by `tools/make_lowriders.py` on the road-car loft (bpy 4.2 works:
@@ -5979,6 +5992,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   material Godot has already turned NORMAL toward the camera on a back face** - never flip it again
   with `FRONT_FACING`. A generated normal map is OpenGL-style: green = the row BELOW minus the row
   above (WeaponFX's blood maps). `tests/fwd_review_b_checks.gd` holds the three.
+- And three more (fwd-review-d, 2026-10-30, HANDOFF "Forward+ review d"): a renderer-space shader
+  (no colour-space include, colours as the renderer hands them: the ocean) takes `sky_tint` through
+  `cs_as_uniform()`, never raw; **vertex colours are raw on both** (`cs_srgb_to_linear(COLOR.rgb)`,
+  never `cs_in()`); and **anything the sky draws after the Forward+ cloud volume's composite is in
+  front of it** (the offshore island is; the volume knows nothing nearer). An additive halo must
+  reach ZERO at its quad's edge: a 4 % tail, added in linear on Forward+, draws the quad.
+  `tests/fwd_review_d_checks.gd` scans every shader for the colour rules.
 - Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building),
   `tools/glshot/block_shot.tscn` (a few FULL city blocks alone, no far city: a block's ground and
   furniture) and `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real

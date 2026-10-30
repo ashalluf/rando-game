@@ -220,6 +220,11 @@ class instead.
 | `tools/make_more_cars.py` | `road_minivan.glb` | 52k tris + 8k far twin | `BodyType.MINIVAN` | 2026-10-05 |
 | `tools/make_more_cars.py` | `road_taxi.glb` | 54k tris + 8k far twin (the sedan + a lit roof sign, `taxi_sign` slot) | `BodyType.TAXI` | 2026-10-05 |
 | `tools/make_more_cars.py` | `road_beater.glb` | 51k tris + 8k far twin (a dent and a cracked, taped tail lamp in the geometry) | `BodyType.BEATER` | 2026-10-05 |
+| `tools/make_cars_3.py` | `road_ev_hatch.glb` | 52k tris + 8k far twin (the hatchback cab-forward, closed face, light bar, glass roof) | `BodyType.EV_HATCH` | 2026-10-30 |
+| `tools/make_cars_3.py` | `road_lux_sedan.glb` | 55k tris + 8k far twin (the sedan with a 24 cm longer bonnet) | `BodyType.LUX_SEDAN` | 2026-10-30 |
+| `tools/make_cars_3.py` | `road_compact_suv.glb` | 48k tris + 8k far twin (the SUV cut short and scaled to 88 %, spare wheel) | `BodyType.COMPACT_SUV` | 2026-10-30 |
+| `tools/make_cars_3.py` | `road_work_truck.glb` | 56k tris + 8k far twin (the pickup blacked out, toolbox, ladder rack, `ladder` slot) | `BodyType.WORK_TRUCK` | 2026-10-30 |
+| `tools/make_cars_3.py` | `road_coupe.glb` | 51k tris + 8k far twin (the sedan, short overhangs, roof down 9 cm, two doors) | `BodyType.COUPE` | 2026-10-30 |
 | `tools/make_lowriders.py` | `road_lowrider_hardtop.glb` | 51k tris + 8k far twin (1960s two-door hardtop, laid low; the game draws its wire wheels) | `BodyType.LOWRIDER_HARDTOP` | 2026-10-06 |
 | `tools/make_lowriders.py` | `road_lowrider_coupe.glb` | 49k tris + 8k far twin (1980s coupe with a padded half roof) | `BodyType.LOWRIDER_COUPE` | 2026-10-06 |
 | code (`Lowrider.wire_wheel()`) | the lowriders' 13" wire wheels | 72 spokes, thin whitewall, knock-off; ~6k tris near, a disc far | `Lowrider` | 2026-10-06 |
