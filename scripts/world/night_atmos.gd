@@ -28,7 +28,7 @@ extends Node
 ## (`sodium_for()`, pure). It never accumulates: it remembers what it wrote and starts from the
 ## others' value each frame (when they did not write, it puts its own change back first).
 ##
-## NIGHT_ATMOS=0 in the environment is the A/B: no halo or shaft instances, no car halo quads, no
+## NIGHT_HAZE=<0..1> holds the haze for stills. NIGHT_ATMOS=0 in the environment is the A/B: no halo or shaft instances, no car halo quads, no
 ## fog change, the global's halo gain 0.
 
 static var enabled: bool = OS.get_environment("NIGHT_ATMOS") != "0"
@@ -263,6 +263,10 @@ func _push() -> void:
 	var w := _scene_node("Weather")
 	if w:
 		haze = haze_for(int(w.get("state")), int(w.get("_previous")), float(w.get("blend")), float(w.get("rain_level")), float(w.get("marine_here")), float(w.get("wetness")))
+	# NIGHT_HAZE=<0..1> holds the haze (stills of a scene without the city's Weather node).
+	var forced := OS.get_environment("NIGHT_HAZE")
+	if forced != "":
+		haze = clampf(forced.to_float(), 0.0, 1.0)
 	_env = _environment()
 	var vol := false
 	if _env and _env.volumetric_fog_enabled and not OS.has_feature("web"):
