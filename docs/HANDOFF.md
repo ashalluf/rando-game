@@ -15606,9 +15606,21 @@ cross-section test on the tile gave blobs, never a line that runs. So `Arroyos`
 - every roll a hash of seed + line + point (+ side, + index), never a chunk, block or row rng.
 - `ARROYOS=0` in the environment: no network, no hook does anything (the A/B).
 
-**Cost** (the busiest FULL chunk on the default seed, (31, -44): 83 segments): the bed 1,665
-triangles (one draw, no shadow), 263 cobbles (three batches), 54 bank plants in existing batches;
-the arroyo steps' time and the stills' GEO lines are below.
+**Cost.** The busiest FULL chunk on the default seed, (31, -44), 83 segments: the bed 1,665
+triangles (one draw, no shadow), 480 cobbles (three batches, 120 / 56 / 24 triangles a cobble),
+151 bank plants (mule fat, willows, sycamores) in existing batches; 185 ms of arroyo build steps
+in all, sliced to 3 ms (the longest 6.7 ms; the checks fail past 15). A LOD hill chunk: one bed
+mesh (a quarter of the FULL subdivision). The network: ~7 s once (loading screen, then LoadCache).
+Frame cost, `still_shot.gd` GEO with the same cameras, ARROYOS=0 -> on (code at 977d303; the
+cobbles were 180-triangle meshes then): road over the headland wash 4.28 M / 1,627 draws -> 4.40 M
+/ 1,679; the culvert 1.58 M / 753 -> 1.71 M / 806; a second road 4.07 M / 1,608 -> 4.11 M / 1,641;
+the back-range aerials 650 k / 288 -> 689 k / 307, 617 k / 258 -> 637 k / 265, 742 k / 295 -> 815 k
+/ 326. So +1 to +10 % triangles and +7 to +53 draws (the bed per chunk FULL and LOD, three cobble
+batches and the culvert ends per FULL chunk).
+
+**An existing hang, not this branch's**: `still_shot.gd` under opengl3 + Xvfb with
+`--spawn=796,-1564` (the pass) stops after "LOADING far city" with the main thread in a condition
+wait and no CPU, with `ARROYOS=0` too (twice each way). Other spawns render fine.
 
 **Tools**: `tools/arroyos/net_probe.tscn` (OUT=, REGION=, RES=, SNAP=1: the network over a
 hillshade, the catchments tinted), `tools/arroyos/probe.tscn` (culverts on drawn roads in the hills

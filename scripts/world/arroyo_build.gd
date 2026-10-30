@@ -53,6 +53,19 @@ var _cells: Dictionary = {}
 var bed := PackedFloat32Array()
 var culverts: Array = []
 var _segs_done: bool = false
+var _segs_built: bool = false
+## Where the sliced build steps have got to.
+var _bed_st: SurfaceTool = null
+var _bed_row: int = 0
+var _bed_tris: int = 0
+var _stone_i: int = 0
+var _cobbles: int = 0
+var _bank_i: int = 0
+var _trees: int = 0
+var _shrubs: int = 0
+var _bank_at: Array = []
+## Microseconds a sliced step works before it hands the frame back.
+const STEP_BUDGET_US := 3000
 
 const CELL := 16.0
 ## Prints why each carved run did or did not get a culvert (tools/arroyos/culvert_probe).
@@ -191,7 +204,11 @@ func _field() -> bool:
 		if not _lines.has(li):
 			_lines[li] = []
 		(_lines[li] as Array).append([pi, p, w, natural])
-	_build_segments(area)
+	# The segments, then the vertex field, each a call of its own.
+	if not _segs_built:
+		_segs_built = true
+		_build_segments(area)
+		return false
 	_vertex_field(area)
 	_segs_done = true
 	return true
@@ -361,9 +378,9 @@ static func bed_material() -> ShaderMaterial:
 
 ## The tile's triangles near a bed, cut finer, drawn again on the bed shader. The pieces lie in
 ## the tile's own triangles (barycentric), so they sit exactly on the ground drawn.
-func _bed_mesh() -> void:
+func _bed_mesh() -> bool:
 	if segs.is_empty() or ch._tile_heights.is_empty():
-		return
+		return true
 	var area := ch.owned_rect()
 	var n: int = ch._tile_n
 	var cell := area.size / float(n)
@@ -371,10 +388,16 @@ func _bed_mesh() -> void:
 	var reach := BED_REACH + cell.length() * 0.5
 	if bed.is_empty():
 		_vertex_field(area)
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var tris := 0
-	for j in n:
+	if _bed_st == null:
+		_bed_st = SurfaceTool.new()
+		_bed_st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var st := _bed_st
+	var t0 := Time.get_ticks_usec()
+	while _bed_row < n:
+		if Time.get_ticks_usec() - t0 > STEP_BUDGET_US:
+			return false
+		var j := _bed_row
+		_bed_row += 1
 		for i in n:
 			var k := j * (n + 1) + i
 			if minf(minf(bed[k], bed[k + 1]), minf(bed[k + n + 1], bed[k + n + 2])) > reach:
@@ -386,10 +409,12 @@ func _bed_mesh() -> void:
 			var c: Array = corner.call(i, j + 1)
 			var d: Array = corner.call(i + 1, j + 1)
 			# The terrain's own split: (a, b, c) and (b, d, c).
-			tris += _sub_tri(st, a, b, c, sub)
-			tris += _sub_tri(st, b, d, c, sub)
+			_bed_tris += _sub_tri(st, a, b, c, sub)
+			_bed_tris += _sub_tri(st, b, d, c, sub)
+	var tris := _bed_tris
+	_bed_st = null
 	if tris == 0:
-		return
+		return true
 	var mi := MeshInstance3D.new()
 	mi.name = "ArroyoBed"
 	mi.mesh = st.commit()
@@ -397,6 +422,7 @@ func _bed_mesh() -> void:
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	ch.add_child(mi)
 	ch.set_meta("arroyo_bed_tris", tris)
+	return true
 
 
 func _sub_tri(st: SurfaceTool, a: Array, b: Array, c: Array, m: int) -> int:
@@ -476,10 +502,14 @@ func _owned(p: Vector2) -> bool:
 	return ch.owned_rect().has_point(p)
 
 
-func _stones() -> void:
+func _stones() -> bool:
 	var batch: MultiMeshBatch = ch._batch
-	var cobbles := 0
-	for s: Array in segs:
+	var t0 := Time.get_ticks_usec()
+	while _stone_i < segs.size():
+		if Time.get_ticks_usec() - t0 > STEP_BUDGET_US:
+			return false
+		var s: Array = segs[_stone_i]
+		_stone_i += 1
 		var a: Vector2 = s[0]
 		var b: Vector2 = s[1]
 		var mid := (a + b) * 0.5
@@ -493,7 +523,7 @@ func _stones() -> void:
 		var hw := (float(s[2]) + float(s[3])) * 0.25
 		var count := COBBLES.x + int(_h01([seed, li, pi, "ac"]) * (COBBLES.y - COBBLES.x + 1))
 		for k in count:
-			if cobbles >= MAX_COBBLES:
+			if _cobbles >= MAX_COBBLES:
 				break
 			var t := _h01([seed, li, pi, k, "at"])
 			var o := (_h01([seed, li, pi, k, "ao"]) - 0.5) * 2.0 * hw * 0.95
@@ -506,7 +536,7 @@ func _stones() -> void:
 			var y := ground(p) - size * 0.06
 			var xf := Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(size, size * 0.85, size * 0.85)), Vector3(p.x, y, p.y))
 			batch.add("arroyo_cobble_%d" % v, ArroyoKit.pebble(v), xf, ArroyoKit.stone_tint(tone))
-			cobbles += 1
+			_cobbles += 1
 		# Boulders: the bank's foot, now and then out in the bed.
 		for side in [-1.0, 1.0]:
 			if _h01([seed, li, pi, side, "ab"]) < BOULDER_BANK:
@@ -514,10 +544,11 @@ func _stones() -> void:
 					[seed, li, pi, side])
 		if _h01([seed, li, pi, "abb"]) < BOULDER_BED:
 			_boulder(mid + nrm * (_h01([seed, li, pi, "abbo"]) - 0.5) * hw, [seed, li, pi, "bed"])
-	ch.set_meta("arroyo_cobbles", cobbles)
+	ch.set_meta("arroyo_cobbles", _cobbles)
 	for v in 3:
 		batch.set_no_shadow("arroyo_cobble_%d" % v)
 		batch.set_draw_distance("arroyo_cobble_%d" % v, 90.0)
+	return true
 
 
 func _boulder(p: Vector2, key: Array) -> void:
@@ -538,14 +569,17 @@ func _boulder(p: Vector2, key: Array) -> void:
 
 # --- Banks -------------------------------------------------------------------------------------
 
-func _banks() -> void:
-	var trees := 0
-	var shrubs := 0
+func _banks() -> bool:
 	var segs_here := ch._hill_segments()
 	var chap := PropFactory.model_chaparral()
 	var chap_h := PropFactory.chaparral_height()
-	var at_list: Array = []
-	for s: Array in segs:
+	var at_list: Array = _bank_at
+	var t0 := Time.get_ticks_usec()
+	while _bank_i < segs.size():
+		if Time.get_ticks_usec() - t0 > STEP_BUDGET_US:
+			return false
+		var s: Array = segs[_bank_i]
+		_bank_i += 1
 		var a: Vector2 = s[0]
 		var b: Vector2 = s[1]
 		if not _owned((a + b) * 0.5):
@@ -562,40 +596,41 @@ func _banks() -> void:
 			var t := _h01([seed, li, pi, side, "bt"])
 			var yaw := _h01([seed, li, pi, side, "by"]) * TAU
 			var size := _h01([seed, li, pi, side, "bs"])
-			if roll < SYCAMORE * wide and trees < MAX_TREES:
+			if roll < SYCAMORE * wide and _trees < MAX_TREES:
 				var p := a.lerp(b, t) + nrm * side * (hw + lerpf(3.0, 6.0, size))
 				if _bank_ok(p, segs_here, 3.5):
 					var sc := LaTrees.scale_for(LaTrees.Species.SYCAMORE, lerpf(10.0, 16.0, size))
 					var v := absi(hash([seed, li, "sv"])) % LaTrees.VARIANTS
 					LaTrees._add(ch, LaTrees.Species.SYCAMORE, v, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(sc, sc, sc)), Vector3(p.x, ground(p) - 0.15, p.y)), Color(1, 1, 1))
-					trees += 1
+					_trees += 1
 					at_list.append([p, "sycamore"])
-			elif roll < (SYCAMORE + WILLOW) * wide and trees < MAX_TREES:
+			elif roll < (SYCAMORE + WILLOW) * wide and _trees < MAX_TREES:
 				# Arroyo willow: a thicket of grey-green lance leaves (the olive's leaves and pale
 				# undersides, greener and taller, in a clump of two or three).
 				var base := a.lerp(b, t) + nrm * side * (hw + lerpf(0.8, 2.6, size))
 				for k in 1 + int(_h01([seed, li, pi, side, "bn"]) * 2.5):
 					var p := base + Vector2(_h01([seed, li, pi, side, k, "wx"]) - 0.5, _h01([seed, li, pi, side, k, "wz"]) - 0.5) * 3.0
-					if not _bank_ok(p, segs_here, 1.2) or trees >= MAX_TREES:
+					if not _bank_ok(p, segs_here, 1.2) or _trees >= MAX_TREES:
 						continue
 					var sc := LaTrees.scale_for(LaTrees.Species.OLIVE, lerpf(4.0, 7.0, _h01([seed, li, pi, side, k, "wh"])))
 					var xf := Transform3D(Basis(Vector3.UP, yaw + k * 2.1).scaled(Vector3(sc * 0.8, sc * 1.15, sc * 0.8)), Vector3(p.x, ground(p) - 0.1, p.y))
 					LaTrees._add(ch, LaTrees.Species.OLIVE, absi(hash([seed, li, "wv"])) % LaTrees.VARIANTS, xf, WILLOW_TINT)
-					trees += 1
+					_trees += 1
 					at_list.append([p, "willow"])
-			elif roll < (SYCAMORE + WILLOW + MULEFAT) * wide and shrubs < MAX_SHRUBS:
+			elif roll < (SYCAMORE + WILLOW + MULEFAT) * wide and _shrubs < MAX_SHRUBS:
 				# Mule fat: bright green shrubs crowding the bank's foot.
 				# A clump of one to three along the bank's foot.
 				for k in 1 + int(_h01([seed, li, pi, side, "mn"]) * 2.99):
 					var p := a.lerp(b, fposmod(t + k * 0.37, 1.0)) + nrm * side * (hw + lerpf(0.2, 2.2, _h01([seed, li, pi, side, k, "mo"])))
-					if shrubs >= MAX_SHRUBS or not _bank_ok(p, segs_here, 0.2):
+					if _shrubs >= MAX_SHRUBS or not _bank_ok(p, segs_here, 0.2):
 						continue
 					var sc := lerpf(1.3, 2.6, _h01([seed, li, pi, side, k, "ms"])) / chap_h
 					ch._batch.add("hill_chaparral", chap, Transform3D(Basis(Vector3.UP, yaw + k * 1.9).scaled(Vector3(sc * 1.25, sc, sc * 1.25)), Vector3(p.x, ground(p) - 0.15, p.y)),
 						Color(1.5, 1.95, 1.05), Color(_h01([seed, li, pi, side, k, "m1"]) * 0.3, _h01([seed, li, pi, side, k, "m2"]), 0.9, 0.0))
-					shrubs += 1
+					_shrubs += 1
 					at_list.append([p, "mulefat"])
 	ch.set_meta("arroyo_banks", at_list)
+	return true
 
 
 const WILLOW_TINT := Color(0.86, 1.12, 0.8)
