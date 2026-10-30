@@ -30,6 +30,8 @@ extends SceneTree
 ## wheel), `OCCUPANT=none` empties a cruiser (whose crew is aboard by default); the views
 ## `driver` (in at the driver's window, the car's left), `inside` (through the windscreen,
 ## close), `street` (a pedestrian's eye 10 m off) and `chase` (behind and above) frame them; `CABIN_DEBUG=1` paints each part of the people its own flat colour.
+## `CABIN=1` builds the real cabin and doors (CarInterior; `DOOR=0..1` the driver's door open,
+## `DOOR_SIDE=1` the right, `STEER=` radians), views `open3`, `aperture`, `cockpit`.
 ## `CAR_GLASS=0` puts the car back on its model's own opaque glass (the A/B); `TIME=n` prints each
 ## view's frame time over n frames (the software renderer's fragment cost, which GEO cannot see).
 ## Nothing here may name Vehicle or PoliceCar as a TYPE: this script is compiled before the
@@ -233,6 +235,43 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 					sm.set_shader_parameter("cabin_debug", true)
 	for i in 120:
 		await physics_frame
+	# CABIN=1: the real cabin and hinged doors (CarInterior) on every car, as the player's car has
+	# them; DOOR=<0..1> how far the driver's door (the car's left) stands open, DOOR_SIDE=1 the
+	# right one instead; STEER=<radians> the road wheels' steer the steering wheel shows.
+	if OS.get_environment("CABIN") == "1":
+		var ci: GDScript = load("res://scripts/vehicles/car_interiors.gd")
+		for car in cars:
+			var rig: Node = null
+			for k in 600:
+				var inst: Node = ci.call("instance")
+				if inst != null:
+					rig = inst.call("activate", car)
+				if rig != null:
+					break
+				await physics_frame
+			print("CABIN type %d: rig %s scheme %s" % [int(car.get("body_type")), rig != null, rig.get("scheme") if rig else -1])
+			if rig == null:
+				continue
+			if occupant == "player":
+				car.call("_apply_occupant", 1, load("res://scripts/vehicles/car_cabin.gd").call("player_look"))
+			var amount := OS.get_environment("DOOR").to_float()
+			var side := 1.0 if OS.get_environment("DOOR_SIDE") == "1" else -1.0
+			var d: Dictionary = rig.call("door", side)
+			if not d.is_empty() and amount > 0.0:
+				d.open = amount
+				d.target = amount
+				d.hold = 1e9
+				rig.call("tick", 0.0)
+				d.target = 1.0
+			for n in OS.get_environment("CABIN_HIDE").split(",", false):
+				for node in rig.find_children(n, "Node3D", true, false):
+					(node as Node3D).visible = false
+			if OS.get_environment("STEER") != "":
+				var wheel: Node3D = rig.get("wheel")
+				var xf: Transform3D = rig.get("_wheel_xf")
+				wheel.transform = Transform3D(xf.basis * Basis(Vector3(0, 0, 1), -OS.get_environment("STEER").to_float() * 15.0), xf.origin)
+		for i in 6:
+			await process_frame
 	var damage := OS.get_environment("DAMAGE")
 	if damage != "":
 		for car in cars:
@@ -330,6 +369,18 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 					# A pedestrian's eye across the street, the driver's side toward it.
 					at = Vector3(-6.5, 1.7, -7.5)
 					target = Vector3(0.0, 0.8, -0.3)
+				"open3":
+					# The driver's side, three-quarter front, at the open door.
+					at = Vector3(-4.2, 1.55, -3.2)
+					target = Vector3(-0.6, 0.85, -0.2)
+				"cockpit":
+					# Inside, over the passenger's seat, at the dash and the wheel.
+					at = Vector3(0.38, 1.22, 0.55)
+					target = Vector3(-0.3, 0.88, -0.9)
+				"aperture":
+					# Square on to the open driver's door: the card, the seats, the console.
+					at = Vector3(-2.9, 1.35, 0.4)
+					target = Vector3(-0.2, 0.8, -0.2)
 				"chase":
 					# Behind and above, where the player's camera follows a car.
 					at = Vector3(1.2, 2.6, 8.5)

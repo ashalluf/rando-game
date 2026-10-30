@@ -496,6 +496,7 @@ var driver: Node3D:
 		if v != null:
 			_npc_driver = false
 		_update_occupant()
+		CarInteriors.driver_changed(self, v)
 ## How close the player has to be to get in (meters from the origin; big for aircraft).
 var enter_radius: float = 4.5
 ## Traffic state while driven by the TrafficManager (empty otherwise). A car given traffic gets a
@@ -603,6 +604,8 @@ var _glass_slots: Array = []
 ## (made the first time somebody is, and kept for the next time).
 var _glass_shared: ShaderMaterial
 var _glass_own: ShaderMaterial
+## CarInterior's glass while the car has its real cabin built (CarInteriors), else null.
+var cabin_glass_override: Material = null
 ## Somebody from the traffic is at the wheel (see `traffic`), and who (a seed for CarCabin).
 var _npc_driver: bool = false
 var _occupant_seed: int = 0
@@ -634,6 +637,7 @@ func _ready() -> void:
 	add_to_group("physics_prop")
 	CarLights.ensure(self)
 	DrivingFX.ensure(self)
+	CarInteriors.ensure(self)
 	EngineAudio.ensure(self)
 	set_meta("spawn_time", Time.get_ticks_msec() / 1000.0)
 	collision_layer = 4
@@ -734,6 +738,7 @@ func take_hit(_shape_index: int, damage: float, dir: Vector3, at: Vector3 = Vect
 		drop_out_of_traffic()
 	damage_state().hit(kind, at, dir, damage)
 	CarAlarm.on_hit(self, kind, damage)
+	CarInteriors.on_hit(self, kind, damage, dir, at)
 
 
 ## This car's damage, made now if it has none yet.
@@ -1858,7 +1863,11 @@ func _apply_occupant(seats: int, look: Dictionary) -> void:
 		CarCabin.seat(dmg_glass, seats, look)
 		return
 	var mat := _glass_shared
-	if seats != 0:
+	if cabin_glass_override is ShaderMaterial:
+		# The real cabin is built (CarInterior): its own see-through glass, people still traced.
+		mat = cabin_glass_override
+		CarCabin.seat(mat, seats, look)
+	elif seats != 0:
 		if _glass_own == null and _glass_shared != null:
 			_glass_own = _glass_shared.duplicate() as ShaderMaterial
 		mat = _glass_own
