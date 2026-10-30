@@ -20760,6 +20760,12 @@ scripted drive up Flower St with `--fixed-fps 60`: s30, s80, s150, a 35 km/h rig
 Olympic, an 80 km/h hop; `DRIVE_CAM=0` the before) and `strips.py`; stills on
 `shots/driving-camera`.
 
+Gate: `SHARDS=3`, 4,044 checks, 0 failed (1,630 s; shard peaks 2.7 / 3.4 / 3.3 GB in the run
+before, the same lists). The first run failed "boost flies the car upward": the flight check
+places the look with `set_look()` and the chase camera took the pitch back, so a placed view
+(`set_look()`, `look_at_point()`) now counts as the player's look. No frame cost to measure
+(no geometry; a few dozen flops a frame).
+
 Not done / not seen: the motion blur on Forward+ (above); a pad's look-behind shares X with the
 on-foot dive / wingsuit (both off in a car); no per-surface buzz beyond terrain (DrivingFX knows
 sand and dirt, not shared); the camera does not yet look into the corner AHEAD (GTA's slight
