@@ -396,6 +396,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`scripts/world/offshore_island.gd`, DayNight's child) pushes shape and weather (`air()`, pure:
   gone in the marine layer / rain). `ISLAND=0` is the A/B; `tools/offshore_island/island_shot.gd`
   in seconds; checks `tests/offshore_island_checks.gd`.
+- Fireworks (2026-10-30, docs/HANDOFF.md "Fireworks"): `Fireworks` (`scripts/world/fireworks.gd`,
+  a Node3D in city.tscn) puts on shows over the beach (a barge off the pier) and the ballpark
+  (beyond centre field) on some nights (`show_tonight()`: a hash of seed, night, site against
+  `ODDS`; START_HOUR..END_HOUR; none in rain). **The show is a programme, drawn on the GPU**:
+  `shaders/fireworks.gdshaderinc` cuts time into `FW_BIN` bins and a hash of (show seed, bin)
+  makes each shell (peony, willow, crossette, strobe, ring; colours, height); ONE quad mesh a site
+  for stars and rising shells (`fireworks.gdshader`), one for the smoke, one glint sheet on the
+  sea (`fireworks_water.gdshader`), all placed from the clock `now`. `Fireworks.shell()` is the
+  same plan bit for bit (change one, change both: the checks read the include) for the booms
+  (heard d / 343 m/s after the break, synthesised), the OmniLight per site (off the web) and the
+  water's brightest breaks. `FIREWORKS=0` the A/B, `=1` forces them, `FIREWORKS_T=` /
+  `FIREWORKS_HOLD=1` / `FIREWORKS_SITE=` for stills; probe `tools/fireworks/probe.tscn` (EYEs);
+  checks `tests/fireworks_checks.gd`.
 - Weather: `Weather` node in the city scene (`scripts/world/weather.gd`): states clear, overcast,
   rain, storm; drives DayNight (`cloud_extra`, `weather_darken`), fog, rain particles, wet roads
   (`PropFactory.set_wetness`), the `wind_factor`, `wave_scale` and `tsunami_scale` shader globals,
