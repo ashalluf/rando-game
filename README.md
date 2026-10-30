@@ -26,3 +26,8 @@ Not shown: the crowd leaving as responders arrive (it is in tests/onlookers_chec
 renders are too slow for an ambulance to arrive within a still). The later wreck views lost the car:
 debris time is wall-clock and a software view takes minutes (the stage tool now holds it).
 All opengl3 (Compatibility), not the Mac's Forward+.
+
+Wave 3 (after merging origin/main 95bd13f; gate green, 2,416 checks), same staging, opengl3:
+- 20_wave3_body_noon_ring_from_road.jpg - the ring from the road on the merged base.
+- 21_wave3_over_filmer_shoulder_body.jpg - over a filmer's shoulder, phone up, the body beyond.
+- 22..24_wave3_view*.jpg - the other ONLOOKER_SHOTS views (front of a filmer, night 21:30).
