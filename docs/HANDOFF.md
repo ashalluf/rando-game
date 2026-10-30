@@ -20426,3 +20426,10 @@ materials (the opengl3 terrain and the sand), which the grade cannot fix without
 their p5 moved only 6. The sun's specular on cars and glass was judged on the probe's spheres only.
 If the Mac's nights read too dark, raise `night_exposure` toward 2.45 before lifting NIGHT's toe.
 
+**Also fixed (not this area).** `tests/explosions_2_checks.gd` `_debris_lands()` read a BlastDebris
+that had finished its course and freed itself inside its 120-frame watch (a SCRIPT ERROR in shard 2
+of two gates in a row); it now measures the pieces as they fly and stops when the node goes. The
+traffic AI's swerve check failed once in one full run and passed alone (timing, not touched).
+
+**Gate.** `SHARDS=3`: 3,937 checks, 0 failed, 1,091 s, peak RSS 3,385 MB.
+
