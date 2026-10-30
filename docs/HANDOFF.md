@@ -14893,3 +14893,81 @@ never lets him fall the last metre in).
 the sea still rides its wheels on the ground box; the strokes are keyed in code, not
 motion-captured (the UAL swim clips are still out of this network's reach); nothing of it has been
 seen on Forward+ (the Mac).
+
+## 9e?. Crowd foot placement on kerbs, stairs and slopes, 2026-10-29 (agent branch `wt/foot-ik`; VISUAL_ROADMAP "Crowd foot placement")
+
+G5: "feet planted on kerbs, stairs, slopes and the hill paths instead of floating or sinking". The
+crowd's clips are authored on a flat floor at the body's origin, so a person at a kerb edge stood
+with one foot in the air over the gutter, on a slope the uphill foot went into the ground, and on
+the Esplanade's beach stairs everybody stood on the invisible walkable ramp the flight collides
+as, feet hovering over the treads. The hero already had a planted-foot IK (HeroMotion); this is
+the crowd's.
+
+**`CrowdFeet`** (`scripts/npc/crowd_feet.gd`, a RefCounted per person made on first use, held in
+`Pedestrian.foot_ik`) runs LAST in `Pedestrian._physics_process()` (one hook line, after the
+clip, the arm swing, the head, the life layer, the errands and the onlookers have posed the rig),
+so every subclass that runs the base process gets it (walkers, ParkGoers, PierGoers, vendors on
+foot, rough sleepers while they flee or push a cart, rail riders ...) and the ones that pose their
+own legs do not (posed rough sleepers, golfers, bike riders, officers and crews, which override
+the process).
+- **Sampling**: two rays a foot (ankle and ball), `world` layer plus layer 6 (below), from
+  `RAY_UP` 0.4 m over the soles' plane (`_visual`'s origin) down `REACH` 0.34 m under it, every
+  `RAY_EVERY` 2 ticks within `RAY_NEAR` 10 m of the camera and every 4 past it, staggered. A foot
+  rests on the HIGHER of its hits (a heel over a stair nosing stands on the ball; a foot across a
+  riser going up stands on the upper tread), except on one sloping surface (both normals alike and
+  tilted), where it stands over the heel's ground and is tilted to it. A hit more than `REACH`
+  above the soles (a bench seat, a planter) is not ground. Followed at `FOLLOW` 24/s.
+- **Pose**: the hips move by the lower foot's rise, less what that leg has left before it is
+  straight (`REACH_SHARE`), never more than `HIPS_UP` up; each leg is re-solved (two bones) in
+  the plane the clip bent its knee in, so the ankle lands its own rise above where the clip had it
+  - the swing foot keeps its swing; the foot keeps the clip's rotation, tilted toward the ground's
+  normal (at most `TILT_MAX`) while it is down. A bone no clip keys would pile the offset up tick
+  after tick, so whatever was written last tick is undone first if nothing rewrote it (`_restore()`).
+- **When**: within `near_range` 20 m of the CAMERA at full weight, faded to none at `far_range`
+  30 m (weight eased at 3/s); off while seated (the sit pose solves its own legs), ragdolled,
+  hidden (errands), in a truck, or when `_visual` is offset from the body (a vendor ducking).
+- **Layer 6, "foot ground"** (`CrowdFeet.FEET_LAYER`): stairs whose world-layer collision is a
+  walkable ramp (the player's body cannot climb 17 cm risers) get their real treads as static boxes
+  on layer 6, mask 0, in nobody's mask (so they pair with nothing); the ramp's shape is marked
+  `feet_pass` and the rays go on through it. `CrowdFeet.add_steps()` is called from
+  `ReplicaBuilder._stairs()` (the Esplanade's five beach stairs, FULL chunks). The hero's
+  planted-foot rays (`Avatar._feet()`) read the same layer and see through the same ramps; nothing
+  else about the hero changed.
+- `FOOT_IK=0` in the environment is the A/B.
+
+**Measured** (`tools/foot_ik/foot_lab.tscn`, headless): a walker up a 14-degree ramp, the planted
+ankle against its flat-ground height: 3.4 cm mean / 7.5 cm worst error before, 1.0 / 3.4 after;
+down it 2.3 / 6.3 -> 1.5 / 5.6. At a 15 cm kerb the foot over the edge goes from 15 cm in the air
+to on the road (hips down 15 cm: an idle stands with straight legs, so the high leg bends).
+**Cost**: no geometry, no draws (`GEO` unchanged by construction). CPU: CrowdFeet's own time,
+`MODE=bench` (40 people spread 4-32 m round the camera, this 4-core box): ~16 us a person a tick
+for people in range (rays ~8.5, solve ~1.7 on flat ground), nothing for those past 30 m. The
+whole physics step's time on this box is too noisy to see it (identical runs differ by 4 ms).
+
+**Tools**: `tools/foot_ik/foot_lab.tscn` (a kerb, a ramp, a flight of stairs with real
+Pedestrians: `SHOTS=kerb,ramp,stairs,walk` stills, headless an error report per foot and the
+walker's planted-ankle error, `MODE=bench`, `STAIR_RAMP=1` puts the steps under a walkable ramp);
+`FEET=kerb|stairs|slope` on `tools/glshot/still_shot.gd` (`tools/foot_ik/stage.gd`: `FEET_AT=x,z`,
+`FEET_STAIR=0..4`, `FEET_EYE_DIST`, `FEET_SEEDS`, `FEET_SIDE`); `tools/foot_ik/find.tscn` lists a
+block's kerb, the city's steepest relief and hill-road shoulders with a walkable grade.
+
+**Checks** (`tests/foot_ik_checks.gd`, 11, on a test site built 300 m over the spawn): a person
+near the camera gets it; at the kerb the outer foot goes down, the inner stays, the hips come down
+with the lower foot and never past it, both feet stand their flat-ground height over their own
+ground, and nothing piles up over a hundred ticks; across a slope the feet sit at two heights and
+both ankles stand the same over it; on steps under a walkable ramp the feet find the treads; it
+fades out past `far_range`; `FOOT_IK`'s switch turns it off; the treads body is layer 6 / mask 0
+with its ramp seen through.
+
+**Stills** (`shots/foot-ik`, opengl3): the kerb of block (0,0), the Esplanade's first beach stair
+from the sand, a 15 % hillside by Canyon 10, and the lab's kerb, ramp, stairs and a walk up the
+ramp, each before (`FOOT_IK=0`) and after.
+
+**Not done / not verified.** Forward+ (the Mac) not seen, though nothing here is a shader. No
+foot-roll of the toe bone (a heel on a nosing keeps the toe straight); the hips do not tilt
+(pelvic drop), so a person standing with one foot down a full kerb bends the other knee rather than
+dropping that hip. Walkers do not choose where to put their feet (no stepping onto a tread on
+purpose): on stairs a foot that lands across a riser stands on the upper tread with its heel over
+the lower one. Nobody walks the beach stairs or the hill paths in play (the stills stage them);
+crossings already step down onto the road through Kerbs' ramps. The hero's IK still runs only
+standing (HeroMotion, speed < 3 m/s), and the officers' and crews' Avatars have none.
