@@ -2,7 +2,10 @@ extends CanvasLayer
 ## Pause menu: Esc toggles it. The frozen game blurred and darkened behind a column of frosted
 ## glass type (shaders/pause_backdrop.gdshader): Resume; the time of day (jumps the clock);
 ## the weather (held, or Auto to let it roll); graphics quality (held, or Auto to adapt to the
-## frame rate); the world seed with Rebuild; Quit - and the controls on a glass card on the right.
+## frame rate); the world seed with Rebuild; Settings; Quit - and the controls on a glass card on
+## the right. SETTINGS swaps the column and the card for a settings screen (sliders and On / Off
+## chips on one wide glass card, saved through GameSettings, scripts/ui/game_settings.gd;
+## SETTINGS_MENU=0 is the A/B: no button, nothing loaded).
 ## Built in code (the scene is only the CanvasLayer); every size is in 1080-line pixels and the
 ## whole menu is scaled to the window.
 
@@ -28,6 +31,7 @@ const CONTROLS := [
 	["F1", "HUD: clean, full, hidden"],
 	["F11", "Fullscreen"],
 	["In a car", "W / S drive, Space jumps, Shift nitro"],
+	["Q / scroll", "Radio station (in a car)"],
 ]
 const FONT_SEMIBOLD := "res://assets/fonts/Inter-SemiBold.woff2"
 const FONT_MEDIUM := "res://assets/fonts/Inter-Medium.woff2"
@@ -45,6 +49,29 @@ var _graphics_buttons: Array[Button] = []
 var _semibold: Font
 var _medium: Font
 var _tween: Tween
+## The two views: the menu (column and controls card) and the settings screen.
+var _main_view: Control
+var _settings_view: Control
+## Setting key -> its control (HSlider or the On chip) and its value label.
+var settings_controls: Dictionary = {}
+var _settings_values: Dictionary = {}
+var _settings_dirty: bool = false
+var _foot: Label
+
+## The settings screen: section, then rows of [key, label, value format]. A format of "" is an
+## On / Off toggle; "x" a multiplier, "deg" degrees, "pct" a percentage.
+const SETTINGS_LAYOUT := [
+	["CONTROLS", [["mouse_sensitivity", "Look sensitivity", "x"], ["invert_y", "Invert look", ""]]],
+	["CAMERA", [["fov", "Field of view", "deg"], ["car_fov", "Field of view in cars", "deg"]]],
+	["AUDIO", [["volume_master", "Master volume", "pct"], ["volume_world", "World volume", "pct"],
+		["volume_ambience", "Ambience volume", "pct"]]],
+	["GRAPHICS", [["motion_blur", "Motion blur", ""], ["depth_of_field", "Depth of field", ""],
+		["film_grain", "Film grain", ""], ["vignette", "Vignette", ""],
+		["render_scale", "Render scale", "pct"]]],
+	["HUD", [["hud_scale", "HUD size", "pct"]]],
+]
+## How many sections go in the card's left column (the rest on the right).
+const SETTINGS_LEFT := 3
 
 
 func _ready() -> void:
@@ -61,11 +88,19 @@ func _ready() -> void:
 	var city := get_tree().get_first_node_in_group("city")
 	if city:
 		seed_edit.text = str(city.get("world_seed"))
+	# The saved settings, applied once the scene's nodes (the player, Quality, the vignette) are in.
+	# The smoke test never reads the player's own file.
+	if GameSettings.enabled():
+		if get_tree().root.get_node_or_null("SmokeTest") == null:
+			GameSettings.ensure_loaded()
+		_apply_settings.call_deferred()
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_mouse"):
-		if _open:
+		if _open and settings_open():
+			_show_settings(false) # Esc steps back out of the settings screen first
+		elif _open:
 			close()
 		else:
 			open()
@@ -81,6 +116,7 @@ func open() -> void:
 	get_tree().paused = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_sync()
+	_show_settings(false)
 	_layout()
 	_root.visible = true
 	_fade(1.0)
@@ -88,6 +124,7 @@ func open() -> void:
 
 func close() -> void:
 	_open = false
+	_save_settings()
 	get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_fade(0.0)
@@ -191,6 +228,203 @@ func _scene_node(n: String) -> Node:
 	return scene.get_node_or_null(n) if scene else null
 
 
+# --- Settings ----------------------------------------------------------------------------------
+
+func _apply_settings() -> void:
+	if is_inside_tree():
+		GameSettings.apply(get_parent())
+
+
+## Shows the settings screen (true) or the menu (false); leaving the screen saves.
+func _show_settings(on: bool) -> void:
+	if _settings_view == null:
+		return
+	if not on and _settings_view.visible:
+		_save_settings()
+	_settings_view.visible = on
+	_main_view.visible = not on
+	if _foot:
+		_foot.text = "Esc   Back" if on else "Esc   Resume"
+	if on:
+		_sync_settings()
+
+
+func settings_open() -> bool:
+	return _settings_view != null and _settings_view.visible
+
+
+## A control changed `key`: store it, apply it at once (the frozen frame shows a graphics toggle),
+## and mark the file to be written when the screen is left.
+func _setting_changed(key: String, v: Variant) -> void:
+	var stored: Variant = GameSettings.set_value(key, v)
+	_settings_dirty = true
+	_show_value(key, stored)
+	_apply_settings()
+
+
+func _save_settings() -> void:
+	if not _settings_dirty or not GameSettings.enabled():
+		return
+	_settings_dirty = false
+	GameSettings.save_file()
+
+
+func _reset_settings() -> void:
+	GameSettings.reset()
+	_settings_dirty = true
+	_sync_settings()
+	_apply_settings()
+
+
+## Puts every control at the value in force.
+func _sync_settings() -> void:
+	for key: String in settings_controls:
+		var c: Control = settings_controls[key]
+		var v: Variant = GameSettings.get_value(key)
+		if c is HSlider:
+			(c as HSlider).set_value_no_signal(float(v))
+		elif c is Button:
+			var on_chip := c as Button
+			on_chip.set_pressed_no_signal(bool(v))
+			var off_chip: Button = on_chip.get_meta("off")
+			off_chip.set_pressed_no_signal(not bool(v))
+		_show_value(key, v)
+
+
+func _show_value(key: String, v: Variant) -> void:
+	var l: Label = _settings_values.get(key)
+	if l == null:
+		return
+	match String(l.get_meta("format")):
+		"x":
+			l.text = "%.2fx" % float(v)
+		"deg":
+			l.text = "%d\u00b0" % roundi(float(v))
+		"pct":
+			l.text = "%d %%" % roundi(float(v) * 100.0)
+		_:
+			l.text = ""
+
+
+func _build_settings() -> void:
+	_settings_view = Control.new()
+	_settings_view.name = "Settings"
+	_settings_view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_settings_view.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_settings_view.visible = false
+	_frame.add_child(_settings_view)
+	var column := VBoxContainer.new()
+	column.position = Vector2(96.0, 84.0)
+	column.custom_minimum_size = Vector2(360.0, 0.0)
+	column.add_theme_constant_override("separation", 10)
+	_settings_view.add_child(column)
+	column.add_child(_label("RANDO", _semibold, 74, Color.WHITE, 6.0))
+	column.add_child(_label("SETTINGS", _medium, 17, Color(1, 1, 1, 0.62), 5.0))
+	column.add_child(_spacer(22.0))
+	var back := _big_button("Back")
+	back.name = "BackButton"
+	back.custom_minimum_size = Vector2(360.0, 58.0)
+	back.pressed.connect(func(): _show_settings(false))
+	column.add_child(back)
+	var defaults := _big_button("Reset to defaults")
+	defaults.custom_minimum_size = Vector2(360.0, 58.0)
+	defaults.add_theme_font_size_override("font_size", 20)
+	defaults.pressed.connect(_reset_settings)
+	column.add_child(defaults)
+	column.add_child(_spacer(10.0))
+	var note := _label("Changes apply at once and are saved\non this computer when you leave.",
+			_medium, 15, Color(1, 1, 1, 0.5), 0.5)
+	column.add_child(note)
+
+	var card := PanelContainer.new()
+	card.name = "SettingsCard"
+	card.add_theme_stylebox_override("panel", _glass_box(20.0, 34.0))
+	card.anchor_left = 1.0
+	card.anchor_right = 1.0
+	card.offset_left = -1300.0
+	card.offset_right = -96.0
+	card.offset_top = 150.0
+	_settings_view.add_child(card)
+	var cols := HBoxContainer.new()
+	cols.add_theme_constant_override("separation", 56)
+	card.add_child(cols)
+	var left := VBoxContainer.new()
+	var right := VBoxContainer.new()
+	for v: VBoxContainer in [left, right]:
+		v.add_theme_constant_override("separation", 12)
+		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		v.custom_minimum_size = Vector2(530.0, 0.0)
+		cols.add_child(v)
+	for si in SETTINGS_LAYOUT.size():
+		var section: Array = SETTINGS_LAYOUT[si]
+		var box := left if si < SETTINGS_LEFT else right
+		if box.get_child_count() > 0:
+			box.add_child(_spacer(10.0))
+		box.add_child(_section(String(section[0])))
+		for row: Array in section[1]:
+			box.add_child(_setting_row(String(row[0]), String(row[1]), String(row[2])))
+	_sync_settings()
+
+
+## One row: the name, then a slider and its value, or Off / On chips.
+func _setting_row(key: String, text: String, format: String) -> HBoxContainer:
+	var r := _row()
+	r.name = "Row_" + key
+	r.add_theme_constant_override("separation", 14)
+	var name_label := _label(text, _medium, 18, Color(1, 1, 1, 0.9), 0.0)
+	name_label.custom_minimum_size = Vector2(230.0, 44.0)
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	r.add_child(name_label)
+	if format == "":
+		var fill := Control.new()
+		fill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		r.add_child(fill)
+		var group := ButtonGroup.new()
+		var off := _chip("Off", true)
+		var on := _chip("On", true)
+		for b: Button in [off, on]:
+			b.button_group = group
+			b.custom_minimum_size = Vector2(84.0, 44.0)
+			r.add_child(b)
+		off.pressed.connect(func(): _setting_changed(key, false))
+		on.pressed.connect(func(): _setting_changed(key, true))
+		on.set_meta("off", off)
+		settings_controls[key] = on
+		return r
+	var range_: Array = GameSettings.RANGES[key]
+	var slider := HSlider.new()
+	slider.min_value = range_[0]
+	slider.max_value = range_[1]
+	slider.step = range_[2]
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	slider.custom_minimum_size = Vector2(180.0, 30.0)
+	slider.value_changed.connect(func(v: float): _setting_changed(key, v))
+	r.add_child(slider)
+	var value := _label("", _semibold, 17, Color.WHITE, 0.5)
+	value.custom_minimum_size = Vector2(76.0, 44.0)
+	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	value.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	value.set_meta("format", format)
+	r.add_child(value)
+	settings_controls[key] = slider
+	_settings_values[key] = value
+	return r
+
+
+## A soft white disc with a faint rim, the sliders' grabber (made once).
+func _grabber(d: int, alpha: float) -> ImageTexture:
+	var img := Image.create(d, d, false, Image.FORMAT_RGBA8)
+	var c := (d - 1) * 0.5
+	for y in d:
+		for x in d:
+			var r := Vector2(x - c, y - c).length()
+			var a := clampf(c - r + 0.5, 0.0, 1.0)
+			var shade := lerpf(1.0, 0.86, clampf((r - (c - 2.0)) / 2.0, 0.0, 1.0))
+			img.set_pixel(x, y, Color(shade, shade, shade, a * alpha))
+	return ImageTexture.create_from_image(img)
+
+
 # --- Building ----------------------------------------------------------------------------------
 
 func _build() -> void:
@@ -212,6 +446,11 @@ func _build() -> void:
 	_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_frame.theme = _theme()
 	_root.add_child(_frame)
+	_main_view = Control.new()
+	_main_view.name = "Main"
+	_main_view.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_main_view.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_frame.add_child(_main_view)
 
 	# The menu column, left.
 	var column := VBoxContainer.new()
@@ -219,7 +458,7 @@ func _build() -> void:
 	column.position = Vector2(96.0, 84.0)
 	column.custom_minimum_size = Vector2(620.0, 0.0)
 	column.add_theme_constant_override("separation", 10)
-	_frame.add_child(column)
+	_main_view.add_child(column)
 	column.add_child(_label("RANDO", _semibold, 74, Color.WHITE, 6.0))
 	column.add_child(_label("PAUSED", _medium, 17, Color(1, 1, 1, 0.62), 5.0))
 	column.add_child(_spacer(22.0))
@@ -289,6 +528,12 @@ func _build() -> void:
 	column.add_child(seed_row)
 	column.add_child(_spacer(22.0))
 
+	if GameSettings.enabled():
+		var settings := _big_button("Settings")
+		settings.name = "SettingsButton"
+		settings.pressed.connect(func(): _show_settings(true))
+		column.add_child(settings)
+
 	var quit := _big_button("Quit")
 	quit.pressed.connect(func(): get_tree().quit())
 	column.add_child(quit)
@@ -305,7 +550,7 @@ func _build() -> void:
 	card.offset_left = -560.0
 	card.offset_right = -96.0
 	card.offset_top = 150.0
-	_frame.add_child(card)
+	_main_view.add_child(card)
 	var cbox := VBoxContainer.new()
 	cbox.add_theme_constant_override("separation", 14)
 	card.add_child(cbox)
@@ -328,6 +573,9 @@ func _build() -> void:
 	foot.offset_left = 96.0
 	foot.offset_top = -64.0
 	_frame.add_child(foot)
+	_foot = foot
+	if GameSettings.enabled():
+		_build_settings()
 
 
 func _theme() -> Theme:
@@ -362,6 +610,23 @@ func _theme() -> Theme:
 	t.set_color("caret_color", "LineEdit", Color.WHITE)
 	t.set_font("font", "LineEdit", _medium)
 	t.set_font_size("font_size", "LineEdit", 18)
+	# The settings sliders: a thin frosted track, filled white up to a white disc.
+	var track := _pill(Color(1, 1, 1, 0.14))
+	track.set_corner_radius_all(3)
+	track.content_margin_top = 3.0
+	track.content_margin_bottom = 3.0
+	track.content_margin_left = 0.0
+	track.content_margin_right = 0.0
+	t.set_stylebox("slider", "HSlider", track)
+	var filled := track.duplicate() as StyleBoxFlat
+	filled.bg_color = Color(1, 1, 1, 0.86)
+	t.set_stylebox("grabber_area", "HSlider", filled)
+	var filled_hi := filled.duplicate() as StyleBoxFlat
+	filled_hi.bg_color = Color(1, 1, 1, 1.0)
+	t.set_stylebox("grabber_area_highlight", "HSlider", filled_hi)
+	t.set_icon("grabber", "HSlider", _grabber(22, 0.96))
+	t.set_icon("grabber_highlight", "HSlider", _grabber(26, 1.0))
+	t.set_stylebox("focus", "HSlider", empty)
 	return t
 
 

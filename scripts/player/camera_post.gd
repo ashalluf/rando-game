@@ -103,6 +103,8 @@ extends Node
 var motion_blur_allowed: bool = true
 var ambient_dof_allowed: bool = true
 var focus_dof_allowed: bool = true
+## The settings screen's depth of field toggle (GameSettings): off, no far blur in any state.
+var user_dof: bool = true
 ## The effect on the camera's Compositor, or null where the renderer cannot run it.
 var effect: MotionBlurEffect
 
@@ -218,9 +220,9 @@ func _update_focus(real_dt: float) -> void:
 	var want := dof_ground_distance + altitude * dof_altitude_gain
 	_ambient_distance = lerpf(_ambient_distance, want, 1.0 - exp(-dof_lerp_speed * real_dt))
 
-	var aiming := focus_dof_allowed and aim_dof_enabled and _player != null \
+	var aiming := user_dof and focus_dof_allowed and aim_dof_enabled and _player != null \
 			and _player.lock_on != null and _player.lock_on.aiming
-	var wheel := focus_dof_allowed and wheel_dof_enabled and _wheel_open()
+	var wheel := user_dof and focus_dof_allowed and wheel_dof_enabled and _wheel_open()
 	_aim_w = move_toward(_aim_w, 1.0 if aiming else 0.0, real_dt / maxf(aim_ease_seconds, 0.001))
 	_wheel_w = move_toward(_wheel_w, 1.0 if wheel else 0.0, real_dt / maxf(wheel_ease_seconds, 0.001))
 	if aiming:
@@ -231,7 +233,7 @@ func _update_focus(real_dt: float) -> void:
 
 	var far := _ambient_distance
 	var transition := _ambient_distance
-	var amount := dof_amount if ambient_dof_allowed else 0.0
+	var amount := dof_amount if ambient_dof_allowed and user_dof else 0.0
 	if _aim_w > 0.0:
 		var e := smoothstep(0.0, 1.0, _aim_w)
 		var aim_far := _focus + maxf(aim_dof_margin_min, _focus * aim_dof_margin)

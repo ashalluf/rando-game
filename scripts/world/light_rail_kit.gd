@@ -811,6 +811,9 @@ func _lift_tower(c: Vector3, r3: Vector3, d3: Vector3, half_w: float, ground: fl
 ## The underground terminus: two stair kiosks in the avenue's median either side of the street it
 ## is named for, each a glass canopy over a stair down, a parapet round it and a lit pylon.
 func _entrances(st: Dictionary) -> void:
+	# The station under them (MetroStation, MetroBuild) builds its own kiosks.
+	if MetroStation.enabled and MetroBuild.new(chunk).build():
+		return
 	var s: float = st.s
 	for end: float in [-1.0, 1.0]:
 		var smp := line.sample(s + end * 26.0)

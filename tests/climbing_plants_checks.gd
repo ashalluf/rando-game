@@ -158,6 +158,10 @@ func _signature(chunk: CityChunk) -> Array:
 		# Auto-generated names carry a global counter, which any extra node moves.
 		if nm.begins_with("@"):
 			nm = c.get_class()
+		# People: the crowd cap is one city-wide count redone once a frame, so a block built in the
+		# same frame as the two before it spawns a different number of walkers. Not a roll.
+		if c is CharacterBody3D:
+			continue
 		var count := 0
 		if c is MultiMeshInstance3D and (c as MultiMeshInstance3D).multimesh:
 			count = (c as MultiMeshInstance3D).multimesh.instance_count

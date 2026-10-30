@@ -397,6 +397,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`scripts/world/offshore_island.gd`, DayNight's child) pushes shape and weather (`air()`, pure:
   gone in the marine layer / rain). `ISLAND=0` is the A/B; `tools/offshore_island/island_shot.gd`
   in seconds; checks `tests/offshore_island_checks.gd`.
+- Fireworks (2026-10-30, docs/HANDOFF.md "Fireworks"): `Fireworks` (`scripts/world/fireworks.gd`,
+  a Node3D in city.tscn) puts on shows over the beach (a barge off the pier) and the ballpark
+  (beyond centre field) on some nights (`show_tonight()`: a hash of seed, night, site against
+  `ODDS`; START_HOUR..END_HOUR; none in rain). **The show is a programme, drawn on the GPU**:
+  `shaders/fireworks.gdshaderinc` cuts time into `FW_BIN` bins and a hash of (show seed, bin)
+  makes each shell (peony, willow, crossette, strobe, ring; colours, height); ONE quad mesh a site
+  for stars and rising shells (`fireworks.gdshader`), one for the smoke, one glint sheet on the
+  sea (`fireworks_water.gdshader`), all placed from the clock `now`. `Fireworks.shell()` is the
+  same plan bit for bit (change one, change both: the checks read the include) for the booms
+  (heard d / 343 m/s after the break, synthesised), the OmniLight per site (off the web) and the
+  water's brightest breaks. `FIREWORKS=0` the A/B, `=1` forces them, `FIREWORKS_T=` /
+  `FIREWORKS_HOLD=1` / `FIREWORKS_SITE=` for stills; probe `tools/fireworks/probe.tscn` (EYEs);
+  checks `tests/fireworks_checks.gd`.
 - Weather: `Weather` node in the city scene (`scripts/world/weather.gd`): states clear, overcast,
   rain, storm; drives DayNight (`cloud_extra`, `weather_darken`), fog, rain particles, wet roads
   (`PropFactory.set_wetness`), the `wind_factor`, `wave_scale` and `tsunami_scale` shader globals,
@@ -734,6 +747,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   streets at once; Auto lets it roll); GRAPHICS (`Quality.force_level()`; Auto adapts again);
   the seed and Rebuild (`WorldState.pending_seed` + `reload_current_scene()`); Quit - and a
   CONTROLS card on the right. `post_room_shot.gd MODE=pause` shows it in seconds.
+- Settings (2026-10-30, docs/HANDOFF.md "The settings screen"): the pause menu's Settings button
+  opens a screen of sliders and On / Off chips over `GameSettings` (`scripts/ui/game_settings.gd`,
+  static; ConfigFile at user://settings.cfg, loaded once and applied on every city load): look
+  sensitivity (a multiplier on CameraRig's exports) and invert, FOV on foot and in cars
+  (`CameraRig.car_fov`), Master / World / Ambience bus volumes, motion blur, DOF
+  (`CameraPost.user_dof`), grain and vignette (the lens layer), render scale (`Quality.user_scale`),
+  HUD size (`GameSettings.hud_scale` in every HUD piece's window scale). Defaults = the game as it
+  was. `SETTINGS_MENU=0` is the A/B; checks `tests/settings_menu_checks.gd` (a test path).
 - Photo mode (2026-10-05, `PhotoMode`, `scripts/ui/photo_mode.gd`, a CanvasLayer (6) the pause
   menu adds beside itself in the city scene): `photo_mode` (P / right stick click) pauses the tree
   AND sets `Engine.time_scale` 0 - the render step is scaled by it, so shader TIME stops too
@@ -777,6 +798,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   spaced across the crowd by `scream_gap_ms`). `Weapon.tick()` raises it at `alarm_radius` from
   the shooter (70 m for the shotgun), `Explosion.blast()` at six blast radii. One pass over the
   crowd group per alarm, rate-limited per spot, so an automatic rifle costs nothing extra.
+  **Jointed ragdolls** (2026-10-30, docs/HANDOFF.md "Jointed ragdolls"): a rigged doll within
+  `RagdollJoints.joint_range` (70 m) of the camera is eleven RigidBody3Ds (`RagdollJoints.PARTS`:
+  sized from the rig's bones, cone-twist joints at spine / neck / shoulders / hips, one-way hinges
+  at elbows / knees - Godot's hinge counts the bend NEGATIVE, measured) posed onto the skeleton by
+  `RagdollPose` (a SkeletonModifier3D before any LimbHider). `bodies[0]` is the pelvis, every part
+  a direct child of the Ragdoll (shots find the doll). At most `max_active` (6, web 3) at once, the
+  oldest frozen for a new one; still, 8 s old or left behind, it FREEZES: every part's shape onto
+  the pelvis as one compound body, the pose baked into the bone poses, joints and limbs gone.
+  Traps: a Joint3D's frame is WORLD space, set after it is in the tree (set as `transform` under
+  the turned doll, every joint pulled apart); a body made this frame meets an impulse with mass 1,
+  so the old body took a knock's impulse as its SPEED - `fling()` keeps that. `RAGDOLLS=0` is the
+  A/B; probe `tools/ragdolls/probe.tscn`, stills `tools/ragdolls/ragdoll_shot.tscn`; checks
+  `tests/ragdolls_checks.gd`.
   Dismemberment (owner, same day: "body parts limbs flying off ... from the rocket launcher"):
   `Explosion.blast()` passes `gibs` (up to 3 inside `gib_reach` of the radius) to
   `Pedestrian.knock()`, and `Ragdoll.dismember()` collapses each lost limb with a `LimbHider`
@@ -1055,6 +1089,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   seconds. Checks: `tests/light_rail_checks.gd`. Known gaps: police cruisers still drive lane 0
   (over the trackway) on a rail street; the player can stand on the invisible GroundBody plane in
   the trench.
+- The underground station (2026-10-30, docs/HANDOFF.md "The Coral Line's underground station"):
+  `MetroStation` (`scripts/world/metro_station.gd`: the plan in the station's frame - u along the
+  line, h from the street, v across - and a registry) and `MetroBuild` (`metro_build.gd`, extends
+  FreewayKit, called by `LightRailKit._entrances()` in place of the old kiosks, FULL only) build
+  the terminus under Flower at 7th: two kiosks with a stair and an escalator each, a concourse
+  (ticket machines, fare gates, maps), a bank down to a 7 m island (LightRail spreads the tracks
+  round it), the tunnel to `TUNNEL_U`; one opaque mesh on `metro_station.gdshader` (kind in
+  COLOR.a /32, the fixtures' light EMITTED, albedo kept at `ambient_keep` underground), glass,
+  a shadow-only roof, box collision, `MetroRider`s. It is 13 m under the GroundBody: `MetroZone`
+  adds the collision exception (`sink()`, `admit()` for a teleport), `Player` asks
+  `MetroStation.shelters()` before its fall-through recovery, `_road_slab()` cuts the stairwells
+  (`cuts_in()`), macro_ground's `cut_rect2` sinks the plane; LightRailSystem / LightRailTrain draw
+  tunnel trains while `MetroStation.showing`. `METRO_STATION=0` is the A/B; probe
+  `tools/metro/probe.gd`; checks `tests/metro_underground_checks.gd`.
 - Freight rail (2026-10-05, "freight trains on the industrial rail"; HANDOFF 9do): the **Arroyo
   Pacific's Harbor Subdivision** (invented railroad, mark APXR) down ALAMEDA ST (a pinned real
   street that runs the whole map). **The line is a DATA TABLE** (`FreightRail`,
@@ -1747,6 +1795,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   far alike) are key tables mirrored by `NightCity.LEVEL_KEYS` / `WINDOW_KEYS`. Far roof masts'
   beacons flash on their own phase (building_lod, kind 2); near ones still burn steady. Stills:
   the four EYEs in the HANDOFF section.
+- Car radio (2026-10-30, docs/HANDOFF.md "The car radio"): `CarRadio`
+  (`scripts/vehicles/car_radio.gd`, one node under the root made by the first Vehicle) plays four
+  invented stations (`STATIONS`: name, frequency, three CC0 / public-domain tracks with invented
+  in-game titles, a synthesised ident) from `assets/audio/radio/` (`tools/radio/fetch_radio.sh`
+  then `make_radio.py`; sources in docs/ASSETS.md, 7 MB). Each station is always on air (its own
+  clock round its loop, started at a hash); a car's station is a hash of it (cruisers off), the
+  pick stays with the car (meta `radio_station`); `radio_next` / `radio_prev` (Q, pad d-pad) and
+  the mouse wheel tune while driving; the `Radio` bus (car speaker) sends to Game. The card is
+  `RadioHud` (DebugHud). `CAR_RADIO=0` the A/B; stills `tools/radio/radio_shot.gd`; checks
+  `tests/car_radio_checks.gd`.
 - Driving effects (2026-10-05, "the feel of driving fast and badly"; HANDOFF "Driving effects"):
   `DrivingFX` (`scripts/vehicles/driving_fx.gd`), ONE node per level, made by the first Vehicle
   (`DrivingFX.ensure()`, the one hook in `Vehicle._ready`) as a child of the level root (the
@@ -3724,6 +3782,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/glshot/far_landmark_shot.gd` (near / far / empty from one camera, `IDS=`, `NIGHT=1`) and
   `far_landmark_pair.py` (silhouette IoU, far/near brightness); `tests/far_landmarks_checks.gd`
   holds the planting parity.
+- The skate park (wave 3, docs/HANDOFF.md "THE PIT"): `SkatePark` (`scripts/world/skate_park.gd`)
+  replaces the boardwalk's box park (`LandmarkVeniceBoardwalk._skate_park()` hands over; the far
+  copy too): a poured platform lifted onto the beach's berm (`origin()`, `sand_y()` - the sand is
+  up to 1.3 m there and buried the old bowl), a pool with bullnose coping and a tile band and a
+  snake run cut into the high deck (`pits()`: a rim swept down a vert + quarter-circle profile, the
+  deck a Delaunay round the rims), stairs / hubbas / rail / bank down to a terrace with a concrete
+  mini ramp, a ledge, a manual pad, a flat bar and a funbox; board-formed walls with graffiti
+  (street wear atlas), railings, planters round the boardwalk's palms, floodlights. ONE mesh on
+  `shaders/skate_park.gdshader` (kind in COLOR.a / 16), ONE concave collision shape. `surface_y()`
+  is the riding surface the geometry is built from; `SkateParkLife` samples five lines over it at
+  30 Hz (ollie / flip / grind / turn events) and plays them from its clock; skaters and spectators
+  are baked `SkaterPerson` figures that wake into live people when hit or near gunfire.
+  `SKATE_PARK=0` is the A/B, `SKATE_T=` / `SKATE_HOLD=1` the clock, `SKATE_DEBUG=1` prints EYEs;
+  probe `tools/skate_park/probe.gd`; checks `tests/skate_park_checks.gd`.
 - Pier park (2026-10-05, "an amusement park on a pier, Santa Monica-style, original"; HANDOFF 9ca):
   RANDO PIER (the `pier` landmark, (-940, -350)) is `PierPark` (`scripts/world/pier_park.gd`):
   the pier plus GULLWING PARK on a platform off its south side. Everything sits in the PARK'S
@@ -5005,6 +5077,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   with two-bone arm solves to the instrument (`Busker.two_bone()`); passers-by stop at
   `vendor_queue` spots. No audio. `BUSKERS=0` is the A/B; stills `tools/buskers/busk_shot.tscn`
   (every act alone, seconds), `tools/buskers/probe.gd` EYEs; checks `tests/buskers_checks.gd`.
+- Valet stands (2026-10-30, docs/HANDOFF.md "Valet stands"): `Valets` (`scripts/world/valets.gd`,
+  after Parklets in a FULL chunk's steps) puts a podium, key box, A-frame and umbrella
+  (`ValetKit`, on `StreetVendors.material()`) at a hotel LOBBY (hash of the Building) or a
+  RESTAURANT on a busy block, from `Building.shop_fronts`; +x / +z faces keep a 20 m zone of
+  their parking lane clear (`blocks_parking()`), -x / -z faces double-park. `ValetStand` calls
+  TrafficManager cars in (a street car in its kerb lane, else `place_car()` from the pool; tag
+  `traffic.valet`, one hook in `_drive_street()`: the drop-off is a stop, on the hazards), the
+  driver gets out (a StreetErrands walker), a `Valet` (uniformed Pedestrian) runs to the door,
+  drives off, and later brings a car back for a guest. `VALETS=0` is the A/B; stills `VALET=` on
+  `still_shot.gd`; probe `tools/valets/probe.gd`, `live.gd`; checks `tests/valets_checks.gd`.
 - Farmers' market (2026-10-05, HANDOFF "The farmers' market"): `FarmersMarket`
   (`scripts/world/farmers_market.gd`, pure) picks one local street per `CELL` 1.7 km by hash
   (residential / midtown blocks nobody claims) and closes it to cars from `CLOSE_INSET` past each
@@ -5017,6 +5099,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `StreetVendor`s and `MarketShopper`s, `CityChunk.market_road` puts them on the asphalt).
   `FARMERS_MARKET=0` the A/B, `MARKET_DAY=1`, `MARKET_HOUR=h`. Probe:
   `tools/farmers_market/probe.gd`; checks: `tests/farmers_market_checks.gd`.
+- Film shoots (2026-10-30, HANDOFF "Film shoots on location"): `FilmShoot`
+  (`scripts/world/film_shoot.gd`, pure) closes one local street per `CELL` 2.3 km by hash, the
+  farmers' market's way (its own salts; never a market's street or the chunk that builds one -
+  `road_closed()` answers false while a market decides, so the order does not matter), through
+  `CityPlan.road_open()`. Always set up: `FilmShootBuild` lays the basecamp along one kerb
+  (code-built trailers, the box truck's far body as grip / electric trucks with lift gates and
+  carts, a generator, catering), the set down the other (track and dolly, crane, HMIs, a balloon
+  light, flags, bounces, video village under a black pop-up), barricades, cones, orange notices
+  and arrow signs with invented productions; `FilmShootKit` on ONE shader
+  (`shaders/film_shoot.gdshader`, kind in COLOR.a x 20, lamps by `lamp_factor`), two `lamp_light`
+  omnis at night (desktop). People: `FilmCrew` (in black, StreetVendor), actors, `FilmExtra`
+  (MarketShopper in holding), in the crowd cap. `FILM_SHOOT=0` is the A/B; probe
+  `tools/film_shoot/probe.gd`; checks `tests/film_shoot_checks.gd`.
 - Micromobility (2026-10-05, docs/HANDOFF.md "Micromobility": "the 2026 LA street"):
   `Micromobility` (`scripts/world/micromobility.gd`, static) lays out, from hashes only (seed +
   block / face / road / crossing, never a chunk or block rng; a FULL chunk's step after the
@@ -5115,6 +5210,25 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   staging calms the flock against the player, whom a free camera drags along). `BIRDS=0` in the
   environment removes them. Ambience's gull one-shots come from a real gull when one is in earshot
   (`Birds.gull_at()`). Checks: `tests/bird_checks.gd`.
+- Life in the water (2026-10-30, fleet "sea-life"; docs/HANDOFF.md "Life in the water"): `SeaLife`
+  (`scripts/world/sea_life.gd`, a Node3D in city.tscn) - dolphin pods arcing beyond the break line,
+  brown pelican lines gliding over the swell with one climbing, folding and plunging, sea lions
+  hauled out on two harbour buoys (`BUOYS`: the harbour and the bay) and barking, a grey whale's
+  blow, back and flukes far out, rarely. **Nothing is simulated**: every animal is a pure function
+  of `SeaLife.clock` and hashes of seed + kind + time window + coast stretch (`SEG` 600 m; `pod()`,
+  `line()`, `whale()`, then `dolphins_at()` / `pelicans_at()` / `whale_at()` / `lions_at()`), the
+  coast is `MacroMap.coast_x()` (sea to the west), the break line `Surf.break_distance()`, the water
+  height `SeaSurface.height()` once a pod or line a frame; worked out only within `COAST_REACH` of
+  the coast. Meshes are code at real size (`SeaLifeMesh`, near + far levels; part code in COLOR.a /
+  16, linear albedo in COLOR.rgb; **Godot's front faces are clockwise**: `Geo.tri()` orients each
+  triangle from a reference point inside the part), ONE MultiMesh per kind and level on
+  `shaders/sea_life.gdshader` (tail beats, wingbeats and folds, head lifts and jaws from
+  INSTANCE_CUSTOM), splashes and the blow on `shaders/sea_spray.gdshader` (an age the vertex stage
+  flies; the clump seed in UV2 - a MultiMesh without instance colours hands Compatibility a zero
+  COLOR). Sounds synthesised (`SeaSounds`). `Pedestrian.alarm()` -> `SeaLife.startle()` and blasts
+  send the sea lions in for a minute or so. `SEA_LIFE=0` is the A/B. Stills: `SEA="kind@x,z,lead;..."`
+  on `still_shot.gd` (holds the clock), the kit alone `tools/sea_life/kit_shot.tscn`, the plan
+  `tools/sea_life/probe.tscn`; checks `tests/sea_life_checks.gd`.
 - Beach life (VISUAL_ROADMAP #60, 2026-10-05: "a Los Angeles beach on a warm afternoon"):
   `BeachLife` (`scripts/world/beach_life.gd`, static) fills the sand `CityChunk._build_beach()`
   lays. **Everything is a hash of seed + a WORLD cell of shore (`CELL_Z` 6.5 m) + the hour the
@@ -5298,6 +5412,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the A/B; lab `tools/foot_ik/foot_lab.tscn` (stills, a headless error report, `MODE=bench`);
   city stills `FEET=kerb|stairs|slope` on `still_shot.gd` (`tools/foot_ik/stage.gd`); places
   `tools/foot_ik/find.tscn`; checks `tests/foot_ik_checks.gd`.
+- Boats (2026-10-30, docs/HANDOFF.md "Boats"): `Boat` (`scripts/vehicles/boat.gd`, a Vehicle with
+  no wheels) - the SALTRUNNER 24 and the WAVEKITE jet ski (`BoatKit` meshes on boat.gdshader solo)
+  side-tied at the marina's east headwalk (`BoatMoorings`, one step in MarinaBuild). Floats by
+  impulses at six hull points on a plane fitted to `SwimWater` / `SeaSurface` samples; GroundBody
+  excepted over water, the world layer off its mask out at sea (the floor box), so it grounds in
+  the shallows. Never set its velocities in a tick that applies impulses (`_spin()`). The hero is
+  drawn seated (`BoatRidePose`); FX `BoatWake`. `BOATS=0` the A/B; stills `BOAT=` on still_shot.gd;
+  checks `tests/speedboats_checks.gd`.
 - Swimming (2026-10-05, docs/HANDOFF.md "Swimming"): `Swim` (`scripts/player/swim.gd`, the
   player's child; `swim.step()` is the first thing in Player's tick after the car and does the whole
   tick in water). Where water is: `SwimWater` (`scripts/world/swim_water.gd`) - the sea and the bay

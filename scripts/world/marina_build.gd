@@ -75,6 +75,8 @@ static func attach(c: CityChunk, block: Dictionary) -> Array[Callable]:
 	steps.append(b._yard_step)
 	steps.append_array(b._extra_steps())
 	steps.append(b._commit_step)
+	# The player's boats at the east headwalk (BoatMoorings), last: they roll nothing.
+	steps.append(func() -> void: BoatMoorings.build(c))
 	return steps
 
 
