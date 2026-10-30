@@ -2452,6 +2452,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Weekend yard sales (tests/yard_sales_checks.gd): the kit and its signs, when (weekends only),
 	# the pure front-yard row, a FULL chunk's sale and its corner signs, nothing else moved.
 	load("res://tests/yard_sales_checks.gd").new().run(self, city)
+	# The hills' real rock (tests/rock_outcrops_checks.gd): tors, outcrops, cut-bank boulders.
+	load("res://tests/rock_outcrops_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

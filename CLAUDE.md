@@ -2971,6 +2971,18 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/glshot/hill_ground_shot.tscn`, a minute a shot): `tools/hill_homes/probe.tscn`; build
   times `tools/hill_homes/bench.tscn`; the checks alone `tools/hill_homes/check_runner.tscn`;
   checks: `tests/hill_homes_checks.gd`.
+- Rock outcrops (2026-10-30, docs/HANDOFF.md "Rock outcrops"): real rock on the hills from CC0
+  Poly Haven scans (`RockKit`, `scripts/world/rock_kit.gd`, all on `shaders/rock_outcrop.gdshader`:
+  the scan's luminance recoloured to sandstone / granite per instance, desert varnish, dust on top,
+  dirt at the foot). `RockOutcrops` plans ~7,000 TORS from the basin bake where `HillPlanting`
+  paints rock, on crests, steep faces and summits (crags 30-80 m: the skyline from the basin;
+  LoadCache'd); `RockFar` (the streamer's child, one hook line) draws every tor at every distance
+  (near cells: the scan, one level; far cells: the welded `rock_*_mid.glb` with LODs, triplanar),
+  seated on the horizon plane unless a chunk `claim()`ed it (FULL / LOD drew the real terrain).
+  `RockBuild` (one hook in `begin_build()`): tor collision, outcrops, scree and cut-bank boulders
+  in FULL hill chunks. **Never use a scan's generated LODs**: open UV seams shred it into flakes
+  (`tools/rocks/make_rock_lods.py` welds instead). `ROCKS=0` is the A/B; `tools/rocks/rock_shot.gd`
+  the kit, `tools/rocks/probe.tscn` the plan (NEAR=, ROAD= EYEs); checks `tests/rock_outcrops_checks.gd`.
 - Ridges (2026-10-05, docs/HANDOFF.md "What stands on the hills"): what stands on the hills -
   two 220 kV transmission lines, an antenna farm, fire roads, a fire lookout, green water tanks,
   radar / weather domes and a substation. **Data**: `Ridges` (`scripts/world/ridges.gd`,
