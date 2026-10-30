@@ -37,6 +37,7 @@ func run(t: Object, city: Node3D) -> void:
 	_mirrors()
 	_wall()
 	_switch()
+	_shelter()
 	await _wipers()
 	WetWorld.set_enabled(enabled_was)
 
@@ -130,6 +131,23 @@ func _switch() -> void:
 	# The dummy renderer may keep no globals; then only the flag is checked.
 	_check((off == null or float(off) == 0.0) and (on == null or float(on) == 1.0) and WetWorld.enabled,
 		"WET_WORLD's switch drives the wet_world global (off %s, on %s)" % [off, on])
+
+
+func _shelter() -> void:
+	# A person under an open umbrella wears the sheltered copy of their look, and back when it folds.
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/character.gdshader")
+	var who := Node3D.new()
+	var mi := MeshInstance3D.new()
+	mi.material_override = mat
+	who.add_child(mi)
+	WetWorld.shelter(who, true)
+	var under := mi.material_override as ShaderMaterial
+	var again := WetWorld.sheltered_material(mat)
+	WetWorld.shelter(who, false)
+	_check(under != mat and under == again and float(under.get_shader_parameter("rain_shelter")) == 1.0
+		and mi.material_override == mat, "an open umbrella swaps the look for its one shared sheltered copy, folded back again")
+	who.free()
 
 
 func _wipers() -> void:

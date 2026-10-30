@@ -243,6 +243,8 @@ varying vec4 v_trim_b;
 varying flat float v_code;
 
 #include "res://shaders/wet_surface.gdshaderinc"
+// 1 under an open umbrella (WetWorld.shelter(): a shared sheltered copy of the look).
+uniform float rain_shelter = 0.0;
 
 
 vec3 rgb_to_hsv(vec3 c) {
@@ -655,6 +657,8 @@ void fragment() {
 		float face_up = smoothstep(-0.15, 0.75, wn.y);
 		float high = smoothstep(0.55, 0.85, v_height);
 		rain_wet = ws_wet(0.55) * clamp(face_up * 0.85 + high * 0.4, 0.0, 1.0);
+		// Under an open umbrella (WetWorld.shelter()): only the legs catch the splashes.
+		rain_wet = mix(rain_wet, ws_wet(0.55) * 0.35 * (1.0 - smoothstep(0.25, 0.5, v_height)), rain_shelter);
 		float soaks = clamp(1.0 - is_skin - eye, 0.0, 1.0);
 		ALBEDO *= mix(1.0, mix(0.56, 0.72, is_hair), rain_wet * soaks);
 	}

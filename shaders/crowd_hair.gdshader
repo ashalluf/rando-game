@@ -27,6 +27,8 @@ uniform float anisotropy = 0.55;
 uniform float grime = 0.0;
 
 #include "res://shaders/wet_surface.gdshaderinc"
+// 1 under an open umbrella (WetWorld.shelter()).
+uniform float rain_shelter = 0.0;
 
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
@@ -47,7 +49,7 @@ void fragment() {
 	BACKLIGHT = vec3(0.12) * col;
 	if (ws_on()) {
 		// Rain (wet_surface.gdshaderinc): wet hair is darker, clumped and glossy.
-		float wet = ws_wet(0.6);
+		float wet = ws_wet(0.6) * (1.0 - rain_shelter);
 		ALBEDO *= mix(1.0, 0.62, wet);
 		ROUGHNESS = mix(ROUGHNESS, 0.2, wet);
 		SPECULAR = mix(SPECULAR, 0.5, wet);

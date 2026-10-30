@@ -17661,7 +17661,9 @@ per car.
 - **People**: `character.gdshader` - whatever faces the sky and the shoulders and head soak first:
   cloth to 0.56, hair to 0.72 and glossy (0.22), skin a little shinier; `crowd_hair.gdshader` wet
   hair darker and glossy; the hero's velour (`hero_cloth`, the pile flattened, less sheen) and hair.
-  Umbrella carriers are not exempt (the look material is shared per look).
+  Under an open umbrella (RainCrowd, one line in `_show()`) a person wears the SHARED sheltered
+  copy of their look and hair (`WetWorld.shelter()` / `sheltered_material()`: `rain_shelter` 1,
+  only the legs catch splashes); folded, the look comes back. One copy per look, never per person.
 - **Trees and palms** were already wet and glossy from `road_wetness` (foliage, foliage_tex,
   la_tree) and dry with it; untouched.
 - **Switch**: `WET_WORLD=0` in the environment (the A/B): `WetWorld` (`scripts/world/wet_world.gd`)
@@ -17672,7 +17674,11 @@ per car.
   in a downpour, its wipers going); in the city `--weather=rain` / `storm` on `still_shot.gd`.
 - **Checks**: `tests/wet_world_checks.gd` (sources, mirrors, the wall rule, the switch, the wipers
   on a deck in the air: parked vs driven, phase shared with the glass, pivots on the screen's foot).
-- **Cost**: FRAMECOST
+- **Cost**: dry, one uniform branch per including shader (no sampler, no vertex work). Downtown storm
+  bookmark (still_shot.gd GEO, opengl3, WET_WORLD=0 vs on, same load): 7.458 M / 2,626 draws vs
+  7.454 M / 2,630 draws at noon; night 7.109 M / 2,547 vs 7.107 M / 2,552 - the extra draws are
+  the wiper meshes of the cars in view (one each, shadowless, 72 triangles). In rain the fragment
+  ALU grows on cars (beads, runs, the wiper arcs: two pivots), walls, roofs and people.
 - **Unverified**: Forward+ (the Mac): the beads and runs are normal bends, so they live on the
   renderer's reflections (SSR, the probes), which the opengl3 stills do not have - judge the glass
   and the lacquer there. The wiper blades on every body type (checked on the sedan in stills; the

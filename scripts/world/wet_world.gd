@@ -42,3 +42,45 @@ static func wall(down: float, up: float, streak: float, w: float, d: float) -> f
 	var raining := maxf(maxf(front * lerpf(0.8, 1.0, streak), splash), driven)
 	var drying := dry(0.2 + 0.55 * streak + 0.5 * (1.0 - smoothstep(0.3, 1.2, up)), w)
 	return lerpf(raining, drying, clampf(d, 0.0, 1.0))
+
+
+# --- Under an umbrella ------------------------------------------------------------------------------
+
+## Sheltered copies of the crowd's shared look materials (character and hair): the same material
+## with `rain_shelter` 1, so a person under an open umbrella keeps dry shoulders and hair while the
+## look stays one shared material for everybody else. Keyed by the material itself (looks live for
+## the session).
+static var _sheltered: Dictionary = {}
+
+
+## Puts `ped` (a Pedestrian) under shelter or back in the rain (RainCrowd, when an umbrella opens
+## or folds): swaps the character and crowd-hair materials on its meshes for their sheltered copies
+## or back. Cheap to call every frame: it does nothing unless the state changes.
+static func shelter(ped: Node, on: bool) -> void:
+	if ped == null or bool(ped.get_meta("wet_shelter", false)) == on:
+		return
+	ped.set_meta("wet_shelter", on)
+	for node in ped.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		var mat := mi.material_override as ShaderMaterial
+		if mat == null or mat.shader == null:
+			continue
+		var path := mat.shader.resource_path
+		if path != "res://shaders/character.gdshader" and path != "res://shaders/crowd_hair.gdshader":
+			continue
+		var is_copy := float(mat.get_shader_parameter("rain_shelter") if mat.get_shader_parameter("rain_shelter") != null else 0.0) > 0.5
+		if on and not is_copy:
+			mi.material_override = sheltered_material(mat)
+		elif not on and is_copy and mat.has_meta("wet_dry_of"):
+			mi.material_override = mat.get_meta("wet_dry_of")
+
+
+## The sheltered copy of `mat` (made once).
+static func sheltered_material(mat: ShaderMaterial) -> ShaderMaterial:
+	if _sheltered.has(mat):
+		return _sheltered[mat]
+	var c := mat.duplicate() as ShaderMaterial
+	c.set_shader_parameter("rain_shelter", 1.0)
+	c.set_meta("wet_dry_of", mat)
+	_sheltered[mat] = c
+	return c
