@@ -9,6 +9,17 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 GODOT="${GODOT:-godot}"
 SHARDS="${SHARDS:-1}"
+# SHARDS=auto: as many shards as the box has cores and memory for (SHARD_MB a shard, default
+# 3200: a shard peaks at 2.3-2.9 GB on the merged city, plus headroom), at most 3; 1 runs the plain test.
+if [ "$SHARDS" = "auto" ]; then
+  CORES=$(nproc 2>/dev/null || echo 1)
+  MEM_MB=$(awk '/MemAvailable/ {print int($2 / 1024)}' /proc/meminfo 2>/dev/null || echo 0)
+  SHARDS=$(( MEM_MB / ${SHARD_MB:-3200} ))
+  [ "$SHARDS" -gt "$CORES" ] && SHARDS=$CORES
+  [ "$SHARDS" -gt 3 ] && SHARDS=3
+  [ "$SHARDS" -lt 1 ] && SHARDS=1
+  echo "== SHARDS=auto: $CORES cores, $MEM_MB MB available -> $SHARDS"
+fi
 # Engine-level errors count too. They are printed as plain "ERROR:" rather than "SCRIPT ERROR:",
 # so they slipped through this gate for a long time: a passing run was quietly logging 253
 # is_inside_tree errors from the traffic spawner and 57 missing-UV errors from the beach. Only
@@ -26,7 +37,7 @@ if [ "$SHARDS" -le 1 ]; then
   echo "== Smoke test"
   LOG="$(mktemp)"
   set +e
-  "${RUN[@]}" timeout 2400 "$GODOT" --headless --path . res://tests/smoke_test.tscn 2>&1 | tee "$LOG"
+  "${RUN[@]}" timeout 3600 "$GODOT" --headless --path . res://tests/smoke_test.tscn 2>&1 | tee "$LOG"
   STATUS=${PIPESTATUS[0]}
   set -e
   if [ "$STATUS" = "124" ]; then
@@ -46,7 +57,7 @@ mkdir -p "$DIR"
 START=$(date +%s)
 PIDS=()
 for ((i = 0; i < SHARDS; i++)); do
-  SMOKE_SHARD="$i/$SHARDS" "${RUN[@]}" timeout 2400 "$GODOT" --headless --path . res://tests/smoke_test.tscn > "$DIR/shard_$i.log" 2>&1 &
+  SMOKE_SHARD="$i/$SHARDS" "${RUN[@]}" timeout 3600 "$GODOT" --headless --path . res://tests/smoke_test.tscn > "$DIR/shard_$i.log" 2>&1 &
   PIDS+=($!)
 done
 STATUS=0

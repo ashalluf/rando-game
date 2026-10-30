@@ -319,6 +319,7 @@ uint shop_frame_index(uint shop) {
 #include "res://shaders/facade_variety.gdshaderinc"
 // Broken panes, blast holes and soot (scripts/world/building_damage.gd).
 #include "res://shaders/building_damage.gdshaderinc"
+#include "res://shaders/wet_surface.gdshaderinc"
 
 // A door's framing, painted: `p` in metres from the opening's corner at the pavement on
 // ShopfrontKit's low edge (the high end of `u`), `w` the opening's width. The members of the
@@ -800,6 +801,12 @@ void fragment() {
 	vec4 dmg_hole = vec4(0.0);
 	float dmg_soot = 0.0;
 	vec2 dmg_pock = vec2(0.0);
+	// What the rain (wet_surface.gdshaderinc) needs of a wall pixel, set in the wall branch below.
+	bool wet_wall = false;
+	bool wet_glass = false;
+	float wet_u = 0.0;
+	float wet_pitch = 3.0;
+	float wet_down = -1.0;
 
 	if (abs(n.y) > 0.5) {
 		// Roof, with a lighter parapet ring around the edge.
@@ -1856,6 +1863,11 @@ void fragment() {
 				albedo *= 1.0 - 0.14 * weathering * (1.0 - smoothstep(0.05, 0.7, cd)) * (glass ? 0.3 : 1.0);
 			}
 		}
+		wet_wall = !dmg_in_hole;
+		wet_glass = glass;
+		wet_u = u + face_id * 37.0;
+		wet_pitch = pitch;
+		wet_down = uv_facade ? -1.0 : pt_size.y * 0.5 - local_pos.y;
 	}
 
 	// Soot round a blast (building_damage.gdshaderinc): black where it burnt, grey further out.
@@ -1896,6 +1908,36 @@ void fragment() {
 		// the paint beside it, and tying the two makes the variation read as weathering rather
 		// than as a brightness wobble.
 		rough = clamp(rough + (macro - 1.0) * 0.55, 0.0, 1.0);
+	}
+
+	// ---- Rain (wet_surface.gdshaderinc) -----------------------------------------------------
+	// A wet wall darkens from the top down, faster down the columns under the sills and off the
+	// coping, and dries the other way round; glass gets threads of water running down it; a roof
+	// goes dark and glossy with ponds standing where it sags. Dry, this is one branch.
+	if (ws_on()) {
+		if (abs(n.y) > 0.5) {
+			float pond = smoothstep(0.5, 0.85, ws_noise(local_pos.xz * 0.22 + vec2(seed * 0.37, 0.0)));
+			float wet = ws_wet(0.3 + 0.6 * pond);
+			albedo *= mix(1.0, roof_style == 1 ? 0.88 : 0.66, wet);
+			rough = mix(rough, mix(0.32, 0.04, pond), wet);
+		} else if (wet_wall) {
+			float col = floor(wet_u / 0.7);
+			float hs = ws_hash(vec2(col, seed));
+			float under_sill = 1.0 - smoothstep(0.12, 0.32, abs(fract(wet_u / max(wet_pitch, 0.5)) - 0.5));
+			float streak = clamp(smoothstep(0.6, 0.92, hs) + 0.6 * under_sill * step(0.35, hs), 0.0, 1.0);
+			streak *= 0.6 + 0.4 * ws_noise(vec2(wet_u * 2.3, world_y * 0.35));
+			// Metres over the part's foot (a landmark tower's: unknown, no splash zone).
+			float up = wet_down < 0.0 ? 10.0 : local_pos.y + pt_size.y * 0.5;
+			float wet = ws_wall(wet_down, up, streak);
+			if (wet_glass) {
+				vec2 run = ws_runs(vec2(wet_u, -world_y), 0.11, TIME, ws_rain() * 0.7, px_m);
+				emission *= 1.0 - wet * (0.12 + 0.3 * run.x);
+				rough = mix(rough, 0.1, wet * run.x);
+			} else {
+				albedo *= mix(1.0, 0.56, wet * (0.75 + 0.25 * streak));
+				rough = mix(rough, mix(0.42, 0.22, streak), wet);
+			}
+		}
 	}
 
 	ALBEDO = albedo;

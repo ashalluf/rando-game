@@ -92,9 +92,11 @@ func _events(sea: Node, plan: CityPlan) -> void:
 	var same := true
 	for n in 60:
 		for k in range(-4, 4):
-			# Fresh both times: the running node may already have this window in its cache.
+			# From a cleared cache both times: the live node keeps its own state on the cached
+			# events as the city runs, so a cached one compared with a fresh one differs depending
+			# on how long the city had run before this file (it failed in a shuffled order).
 			SeaLife.clear_cache()
-			var a: Dictionary = sea.call("pod", n, k)
+			var a: Dictionary = sea.call("pod", n, k).duplicate(true)
 			SeaLife.clear_cache()
 			var b: Dictionary = sea.call("pod", n, k)
 			same = same and a == b

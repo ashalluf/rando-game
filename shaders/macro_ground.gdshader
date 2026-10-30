@@ -26,6 +26,8 @@ render_mode cull_back;
 // takes over, tinted by whatever the macro map says is there.
 uniform sampler2D near_albedo : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D near_normal : hint_normal, filter_linear_mipmap, repeat_enable;
+// Metres deep of the first fine erosion order (terrain.gdshader's erosion_amp; hill-ground-3).
+uniform float far_erosion_amp = 3.0;
 uniform float near_scale = 6.0;
 uniform float near_fade_start = 60.0;
 uniform float near_fade_end = 340.0;
@@ -54,6 +56,11 @@ uniform float smog_reach = 3200.0;
 // sky shows just under the horizon), and so do the far city's boxes and planting, on the same
 // numbers (building_lod.gdshader, far_canopy.gdshader). CityStreamer sets all three from
 // ground_size.
+// FarRanges' far ring (FarRanges.build_ring() sets them): its distance from its own centre past
+// which it is clear of the plane, the overlap it eases back up over, and how far it sinks there.
+uniform float ring_inner = 7044.0;
+uniform float ring_seam = 220.0;
+uniform float ring_sink = 8.0;
 uniform float edge_start = 5040.0;
 uniform float edge_end = 6860.0;
 
@@ -255,6 +262,11 @@ void vertex() {
 			* smoothstep(urban_lift_start, urban_lift_end, d) * (1.0 - wet);
 	}
 	float off = lift - far_ground_sink(d, wet);
+	// FarRanges' far ring (UV2.x 1): where it runs under the plane's edge it sinks out of the way.
+	if (UV2.x > 0.5) {
+		vec2 lq = abs(VERTEX.xz);
+		off -= ring_sink * (1.0 - smoothstep(ring_inner, ring_inner + ring_seam, max(lq.x, lq.y)));
+	}
 	if (cut_rect.z > cut_rect.x) {
 		vec2 tw = wp.xz + world_offset;
 		vec2 cq = max(max(cut_rect.xy - tw, tw - cut_rect.zw), vec2(0.0));
@@ -389,9 +401,12 @@ void fragment() {
 		vec2 grad = mg * macro_height + fb.yz * (amp_m * far);
 		// The gullies finer than the bake's (terrain.gdshader draws the same up close).
 		vec3 ero = vec3(0.0);
+		// The rills' depth times the steepness, for the stand rule (hill_rill_th(), as on the tiles).
+		float rill = 0.0;
 		if (rich && m.a > 0.02) {
 			float steep = smoothstep(0.08, 0.45, length(grad));
-			ero = erosion_detail(w, grad, 7.0 * steep, 55.0, fp);
+			ero = erosion_detail(w, grad, far_erosion_amp * steep, 55.0, fp);
+			rill = ero.z * steep;
 			grad += ero.xy;
 		}
 		n = normalize(vec3(-grad.x, 1.0, -grad.y));
@@ -430,9 +445,9 @@ void fragment() {
 			float hillv = vnoiset(w * 0.0028);
 			float patchy = mix(0.5, vnoiset(w * 0.011), f90) * 0.65 + mix(0.5, vnoiset(w * 0.037 + 13.1), f30) * 0.35;
 			float clump = mix(0.5, vnoiset(w * 0.12 + 17.0), f8);
-			float th = hill_stand_threshold(cslope, asp.y, mdrain, hillv);
+			float th = hill_stand_threshold(cslope, asp.y, mdrain, hillv) + hill_rill_th(rill, w);
 			float edge = hill_stand_edge(0.0, 0.0, f8)
-				+ (1.0 - f30) * STAND_PATCH_W * 0.35 * 0.3 + (1.0 - f90) * STAND_PATCH_W * 0.65 * 0.3;
+				+ (1.0 - f30) * stand_patch_w * 0.35 * 0.3 + (1.0 - f90) * stand_patch_w * 0.65 * 0.3;
 			float stands = hill_stand(th, hill_stand_noise(patchy, clump, 0.5, 0.5), 0.5, edge);
 			// The tiles' straw and brush as they average from afar (FAR_*), greener on some
 			// hillsides and low down (their `green`).
@@ -616,6 +631,12 @@ void fragment() {
 		albedo = mix(albedo, smog_c * dim, sm);
 		emitted = mix(emitted, cs_out(smog_c) * dim, sm);
 	}
+	// The layered distance haze (macro_relief.gdshaderinc): taken off what the renderer lights and
+	// laid on as light, like fog, in both bands.
+	float rh = range_haze_amount(dist, world_pos.y);
+	vec3 rh_ws = cs_out(range_haze_color(sky_lin)) * rh;
+	albedo *= 1.0 - rh;
+	emitted = emitted * (1.0 - rh) + rh_ws;
 	// Compatibility does not add EMISSION at face value (HANDOFF 9au: 0.25 emitted over a lit
 	// 0.25 albedo drew 0.35, not 0.5); this is its painted band measured against its lit one.
 	if (!cs_linear_renderer()) {
@@ -634,7 +655,7 @@ void fragment() {
 	// The albedo is linear up to here, and goes to the renderer's own space (a no-op on Forward+);
 	// the emission is in it already.
 	ALBEDO = cs_out(albedo * (1.0 - painted) * (1.0 - rim));
-	EMISSION = mix(emitted * painted, sky_ws, rim);
+	EMISSION = mix(emitted * painted + rh_ws * (1.0 - painted), sky_ws, rim);
 	ROUGHNESS = mix(rough, 1.0, (1.0 - near) * 0.25 * painted);
 	METALLIC = 0.0;
 	// The tiles' default 0.5 where the renderer lights this plane: at 0.15 Godot also cuts the

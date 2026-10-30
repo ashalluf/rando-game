@@ -18245,6 +18245,18 @@ tuned against the checks, not hands. No AI boats (the marina's own MarinaTraffic
 still scripted). Bullets do not hole the hull visually. A boat left at sea far from the player is
 frozen where it floats (PhysicsBudget's script switch) until the player comes back.
 
+**Follow-up: the boat that flew (2026-10-30).** Run alone (`SMOKE_PARTS=speedboats_checks`), the
+open-sea check read her at 430 m, 200 m and -1099 m. `BOAT_DEBUG=1` (now: a jump in speed between
+two ticks prints `BOATJUMP` with every body within 30 m) caught a 0.2 -> 200,637 m/s step with
+`BannerBody` 2.3 m away: BannerPlane's banner body is a top-level AnimatableBody3D that entered the
+tree at the LOCAL ORIGIN - where the player stands after a re-centre - and was moved to the banner
+on the same frame, which Godot takes as the kinematic body's velocity for that step (the aircraft
+trap, `AirTraffic._place_before_entry()`). The boat was the body sitting there; a player on foot
+would have been fired off the same way. Fix in `banner_plane.gd`: the body has no collision layer
+until a physics frame after its first placement (`_banner_placed_frame`). The check now stages a
+calm sea (`Weather.force_state(0)`, the swimming checks' way) and puts a storm under her at sea for
+four seconds ("a storm comes up and she rides it").
+
 ## 9go. Life in the water: dolphins, pelicans, sea lions on the buoys, a grey whale, 2026-10-30 (fleet wave 3, branch `wt/sea-life`; VISUAL_ROADMAP "?")
 
 The sea was empty water. Now, now and then, a pod of bottlenose dolphins passes beyond the break
@@ -18407,6 +18419,101 @@ riders are baked poses swapped, not animated (a pose snaps between ride, crouch,
 no pushing; they pass through each other and through the player (scripted, like BeachRider). The
 player cannot skate. Spectators do not cheer or turn to the tricks. Graffiti uses the shared
 street wear atlas, so a piece can repeat one on a nearby wall.
+
+## 9gu. Car cabins: real interiors and hinged doors for the player's car (G6, 2026-10-30)
+
+Fleet wave 3 task `car-cabins` (branch `wt/car-cabins`, stills on `shots/car-cabins`). The traced
+cabin (CarCabin, car_cabin.gdshaderinc) stays for the city's ~300 cars. The car the player drives,
+the nearest empty parked car within 7.5 m of him on foot and any car that has lost a door get REAL
+geometry:
+
+- **Doors cut out of the body, no Blender re-run.** `CarDoorSplit` (scripts/vehicles/car_door_split.gd)
+  holds the front doors' shut lines as the Blender specs drew them (`DOORS`: `front` line, `rear`
+  (B-pillar) and `sill` in (along, height); the van's whole cab-door outline round its arch). The
+  body mesh is Blender's space turned: mesh x = x, y = height, z = -along (tools/car_cabins/
+  model_probe.gd prints it). A triangle goes to a door when its centroid is past `XMIN` on that
+  side and inside the outline below the glass (its top raised to the door glass's foot) or inside
+  the side window's hull grown by `FRAME` above it (glass, liners, seals; painted pillars and the
+  roof rail only up to `PAINT_OVER_BELT`). Parts that are not paint or glass move WHOLE by area
+  vote when they fit in the door's box (mirrors, handles), are cut per triangle when they are
+  strips or rings (`STRIP_HEIGHT`, `STRIP_WIDTH`: the belt moulding, the chrome round both
+  windows) and stay on the body otherwise (the cladding along the whole side): cut triangle by
+  triangle they tore into teeth. The body keeps its surface order (one degenerate triangle in a
+  surface it lost entirely) because the cabin glass and CarDamage address surfaces by index. A
+  job per body type, cached for the session: the arithmetic runs on a WorkerThreadPool task
+  (`threaded`, off on the web), the main thread only reads the arrays (~3.5 ms) and makes one
+  surface a frame (~1.4 ms). ~3.0-4.0k triangles a door; 70-140 ms of work a body type.
+  **The split also drops the window cutters' caps** (follow-up, 2026-10-30): `cut_windows()` in
+  make_road_cars.py leaves each cutter's inner sheet, in the `tyre` slot, ~5 cm behind every pane.
+  The old opaque glass hid it; through the clear glass it drew the whole windscreen and side glass
+  solid black from the driver's seat (and from outside). A `tyre` triangle parallel to a glass
+  triangle (`CAP_ALIGN`) within `CAP_DEPTH` / `CAP_REACH` of it is left out (`out.caps` counts
+  them); the seals, square to the glass, stay. Only the rig's split mesh changes: traffic keeps the
+  model (opaque glass in front of the caps). Stills: shots/car-cabins `15`/`16` (before / after).
+- **The cabin in code.** `CarInteriorKit` lays everything out by CarCabin's measured numbers (the
+  same formulas car_cabin.gdshaderinc traces with, so the traced driver's hands land on the real
+  rim, checked): dash and padded top falling to the windscreen's foot, binnacle and cluster,
+  centre screen on a bezel, vents, column and stalks, pedals; bolstered front seats with
+  inserts and headrests on stalks; the rear bench; console with selector and armrest; carpet,
+  toe board and tunnel; headliner, visors and mirror; B-pillar trims, quarter cards and sills,
+  and the painted jamb round each opening; per door a card (armrest, pull, latch, speaker,
+  pocket, cap) and its seal. Rounded boxes (`Geo.rbox`), tori, cylinders; ~18k triangles,
+  built on a worker thread (`request()`). ONE material, `shaders/car_interior.gdshader`: role in
+  COLOR.r, UV in metres; leather grain, perforation, cloth weave, carpet, soft-touch grain and a
+  speaker grille as heights bumped by screen derivatives (no tangents); the cluster's dials and a
+  navigation screen lit while somebody is at the wheel. Five schemes (`CarInterior.SCHEMES`:
+  charcoal cloth, black / grey / tan / oxblood leather) by a hash of the car.
+- **The rig.** `CarInterior` hangs off the car's near body mesh (mesh space): swaps the body mesh
+  for the split one, puts DoorL / DoorR pivots on the hinges (skin + card; the body's surface
+  overrides - the paint with its damage, the glass - copied every tick), the cabin and a
+  `SteeringWheel` node turned by `steering * STEER_RATIO` (15). `swing(side)` opens a door to
+  `OPEN_DEG` (66), holds `HOLD`, shuts it. `detach()` throws a door off as a PhysicsBudget debris
+  body (`LostDoor`, `DOOR_LIFE` 90 s) and the car keeps its rig (the hole stays). The glass is
+  `shaders/car_glass_open.gdshader` - transparent, tinted by each pane's own tint, the sky by
+  Fresnel, and only the PEOPLE of the trace kept, drawn opaque where the ray meets them (the hero
+  is still hidden in a car and traced) - through `Vehicle.cabin_glass_override`. Shadows: the
+  body keeps its light twin (doors shut); an open door casts its own (+110k triangles when the
+  split body cast at full detail).
+- **Who gets one.** `CarInteriors` (one node under the root, `ensure()` from Vehicle._ready):
+  every 0.2 s the player's car, the `max_parked` nearest empty parked supported cars within
+  `near_range` (+ `hysteresis` to keep), cars with a lost door; split and kit prefetched within
+  `near_range + prefetch`. Hooks in vehicle.gd (one line each): the driver setter
+  (`driver_changed`: the door on the side the player was on swings - later, if the rig is still
+  building -, and on getting out the side he is put down), `take_hit` (`on_hit`: a crash of
+  `detach_crash` (7 m/s over crash_min_dv) or a blast of `detach_blast` tears off the door on that
+  side, a big blast both), `_apply_occupant` (the override glass, occupants seated on it).
+  Supported: sedan, taxi, crossover, pickup, van (and the delivery van), hatchback, SUV, minivan,
+  beater. Not the exotics, police cars, buses, trucks or service vehicles.
+
+**Tools.** `CABIN=1 DOOR=0..1 [DOOR_SIDE=1] [STEER=r] [CABIN_HIDE=Skin,Cabin,Card]` and views
+`open3`, `aperture`, `cockpit` on tools/glshot/car_shot.gd (seconds); `CABIN_STAGE=<door>|in`
+(CABIN_EYE, CABIN_TYPE) on still_shot.gd (tools/car_cabins/cabin_stage.gd: the player at the
+nearest parked car's open door, or at its wheel seen through the open passenger door);
+tools/car_cabins/split_probe.tscn (opengl3: every body's split, the longest main-thread step per
+stage, the kit's time and triangles). `CAR_CABINS=0` is the A/B; `CABIN_DEBUG=1` prints every hit
+on a car with a rig.
+
+**Checks** (tests/car_cabins_checks.gd, ~25): the outlines, the wheel against the trace, a parked
+car's cabin coming and going, traffic and wrecks never, the door swinging on getting in and out,
+the dash powering, the wheel turning, a crash tearing the door off as debris and keeping the hole,
+CAR_CABINS off. Headless has no mesh data: the doors there are stand-ins (cards, no skin); the
+real split is checked by the probe. tests/car_cabin_checks.gd now accepts a car with its own
+cabin glass (the player stands next to the car he left).
+
+**Cost** (car_shot GEO, one sedan, opengl3): chase 40 -> 54 draws, 184k -> 233k triangles; front
+three-quarter 39 -> 53, 172k -> 221k; at the driver's window 30 -> 44, 151k -> 188k. Only the
+player's car and at most one parked car ever carry it; nothing in LOD chunks or the far city. In the city
+(Flower at Olympic, 13:00, the same EYE, still_shot SPLIT): the Vehicle category 628k -> 682k
+triangles, 98 -> 158 draws with two parked rigs up (before `max_parked` became 1).
+City frame numbers in the still list on shots/car-cabins.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: leather, the transparent glass and the
+lit cluster need a Mac look. Rear doors stay part of the body (they neither open nor come off),
+and so do the sliding doors (minivan, van). Getting in is still the old instant seat change -
+the door swings round it, the hero does not climb in. The door's window frame shows a few jagged
+liner triangles from some angles while open, and a thin strip of the belt chrome can remain
+across the opening on some bodies. Getting out of a car on the checks' high deck throws it (an
+old crash-watch quirk the cabin checks also see), which can tear a door there.
 
 ## 9gq. Stunt ramps (fleet wave 3, `wt/stunt-ramps`, 2026-10-30)
 
@@ -18917,6 +19024,722 @@ against the Forward+ terrain and the cobbles' dome shading want a look; the far 
 draws no strip (LOD chunks do); fire roads (dirt, not drawn by HillRoads) cross a wash with no
 ford or culvert, the bed just stops either side; a drop inlet below a deep cut can sit under a
 tall cut face; the first launch spends ~7 s on the network on the loading screen (cached after).
+
+## 9gw. Cars, the third wave (wave 3, `cars-3`)
+
+The street still repeated its cars: nine everyday bodies over thousands of parked and moving cars.
+This adds five more 2020s Los Angeles bodies, all invented (a chevron badge, no real face):
+
+| Body | BodyType | What it is | Derived from |
+| --- | --- | --- | --- |
+| EV hatch | `EV_HATCH` (30) | compact electric hatch: closed face with a low intake only, thin lamp blades joined by a full-width light bar, flush body-colour handles, a black glass roof from the screen to the spoiler, aero blades on the doors, a full-width tail bar | the hatchback, CAB-FORWARD (`cab_forward` station map: the screen's foot 15 cm forward, the bonnet squeezed) |
+| Luxury sedan | `LUX_SEDAN` (31) | mid-size saloon: a bonnet 24 cm longer with the front axle (dash-to-axle), slim lamps over a tall chrome-barred mouth in a chrome surround, chrome rocker and belt, a fastback lip, full-width tail bar, twin tips | the sedan, everything ahead of the cowl stretched |
+| Compact SUV | `COMPACT_SUV` (32) | boxy compact: round lamps, a slatted black grille, black bumpers and cladding, roof rails, square tail lamps, a spare wheel under a hard cover on the tailgate | the full-size SUV with its rear overhang cut (2.665 -> 2.42 m) and the whole car scaled 0.93 x 0.88 x 0.88 after the build (`post_scale`): y and z alike, so the arches stay round round the scaled wheel |
+| Work truck | `WORK_TRUCK` (33) | crew-cab full-size: every chrome part blacked out, a cross-bed toolbox, a steel rack over the bed running forward to a bar on the cab roof, a yellow fibreglass extension ladder on it (an eighth slot, `ladder`), an amber strobe bar, a hitch receiver, mud flaps; 55 % in a fleet colour (`Cars3.WORK_FLEET_SHARE`, off the look seed) | the pickup, with make_road_cars' `CHROME` rebound to `TRIM` while its details run |
+| Coupe | `COUPE` (34) | 2-door sports coupe: shorter overhangs, the glasshouse dropped up to 9 cm, two long doors with the shut line hidden in the pillar, a fixed quarter light, a wide low mouth, slim lamps with one projector, a gloss black roof, a ducktail, quad tips | the sedan |
+
+**Why derived.** The loft is fussy: a change that looks harmless can leave the body non-manifold, and
+then every later boolean (windows, pockets, grooves) is "rolled back" and the car comes out with no
+panel gaps or lamp pockets (a 2 cm roof raise on the hatchback did exactly that - the log counts
+`rolled back`; all five build with none). So every body is an older spec moved by station maps
+(`piecewise()` + make_more_cars' `remap()`), the details written as data for make_more_cars'
+`everyday_details()` (which now takes a body with no `rear_door`: a two-door). Build:
+`blender -b --factory-startup -P tools/make_cars_3.py -- ev_hatch lux_sedan compact_suv work_truck coupe [--render]`
+(~20 s a body), then `godot --headless --path . --import`.
+
+**Rolls.** `BODY_ODDS` gives them 55 / 20 / 45 / 25 / 20 per thousand, taken from the END of six older
+ranges (sedan 20 -> luxury sedan, pickup 25 -> work truck, van 15 -> compact SUV, sports 20 -> coupe,
+crossover 55 -> compact SUV and EV hatch, the hatchbacks' two slices 30 -> EV hatch); every older type
+keeps its range's START. A row a new type took carries the type that had it as a THIRD entry
+(`[210, LUX_SEDAN, SEDAN]`), and `Cars3.row_type()` hands the slice back under `CARS_3=0`: with the
+switch off every roll lands exactly where the second wave put it (checked for all 1000). random_car()
+still spends one rng call for the body; the work truck's fleet paint is off the look seed.
+
+**Game side.** `scripts/vehicles/cars_3.gd` (Cars3: TYPES, DIMS, the fleet paints, `row_type()`);
+vehicle.gd gets the enum, names, models, BODY_ODDS, ROLL_MAP rows, WHEEL_POSE rows, the `_dims()`
+arm and the work truck's paint roll; CarCabin privacy glass on the compact SUV and the work truck;
+EngineAudio's V8 voice on the work truck and the coupe (the EV hatch still gets the small four: there
+is no electric voice yet). CONTACT (car_shot.gd) against `_dims().road`: -0.171 / -0.170,
+-0.176 / -0.177, -0.170 / -0.173, -0.206 / -0.206, -0.174 / -0.177.
+
+**Frame cost** (still_shot.gd GEO, opengl3, `--spawn=2359.4,880,0,12,2 --hour=15.5`, Flower St at
+Olympic): `STREET=queue STREET_EYE=1` with the queue made of the five new bodies
+(`STREET_MIX=30,31,32,33,34`) 7,347,339 triangles / 2,557 draws (Vehicle 1.30 M / 267) against the
+same queue made of the second wave's five (`STREET_MIX=14,15,16,17,18`) 7,409,248 / 2,564 (Vehicle
+1.37 M / 274): the new bodies cost what the old ones do (48-56k triangles near, 8k far twins). The
+plain frame with the city's own parked cars and traffic, `CARS_3=0` -> on: 7,219,732 / 3,797 ->
+7,202,801 / 3,787 (flat).
+
+**Checks** (`tests/cars_3_checks.gd`, 13): shares equal BODY_ODDS; every roll keeps its second-wave
+type unless a new body took it (835 kept, 165 taken), every row names its old owner and every old
+range keeps its start; `CARS_3=0` reproduces the second wave's table for all 1000 rolls and
+random_car() never rolls a new body; random_car() spends the caller's rng as before and rolls the
+five in about their shares over 3,000 seeds; most work trucks wear a fleet colour; every body has its
+model, WHEEL_POSE, dims, and its wheel's foot on the road it is stood on; privacy glass and engine
+voices; each builds with glass, far twin, lamps and four wheels (worst 0.9 ms warm), stands within
+4 cm of where traffic stands it, carries a driver in traffic and goes to physics and CarDamage when
+shot. `tests/more_cars_checks.gd`'s old-range count now counts the third wave's 135 (0 under
+`CARS_3=0`).
+
+**Not done / unverified.** Nothing seen on Forward+ (the Mac): paint, the EV's and the coupe's black
+roofs and the chrome on the luxury sedan need a look there. The EV hatch sounds like the small
+petrol four (EngineAudio has no electric voice). The work truck's ladder and rack are one body with
+the truck (they do not come off in a crash); its rack is not climbable collision beyond the car's
+boxes. The compact SUV's spare adds 0.4 m to its length, which traffic's gaps count. No car dealer
+or car park lineup was changed to show the new bodies (they turn up through random_car() and the
+traffic like the second wave's).
+
+**Gate** (`SHARDS=3`, after merging origin/main at 80883b2a): 3,555 checks, 0 failed, peak RSS 3.17 GB
+a shard. Stills on `shots/cars-3`.
+
+## 9gx. Forward+ review d: the wave-3 features on the Mac's renderer, 2026-10-30 (fleet wave 3, session `fwd-review-d`, branch `wt/fwd-review-d`)
+
+Same method as reviews a-c (9ee, 9dp, 9dy): each wave-3 feature rendered in a SMALL scene on the
+real Forward+ pipeline under lavapipe (`fwd_block_shot.tscn`, or the feature's own shot tool with
+`--rendering-driver vulkan`), most of them against the same frame on opengl3, measured with the
+percentile one-liner; then every shader read for the colour-space traps. Stills and their README
+on `shots/fwd-review-d`.
+
+**Fixed:**
+- **The offshore island was invisible on Forward+** (still 01-03). The sky draws it "after the
+  stars, under the clouds", but on Forward+ the cumulus is a VOLUME marched in the half-res pass
+  and composited over everything drawn before it (`col * cl.a + cl.rgb`). The march does not know
+  the island is there, and at the horizon its haze and the far cloud field took the whole band:
+  at 14:00 only a sliver showed, at sunset nothing. Every cloud on a ray that meets the island is
+  BEHIND it (from under the deck, a ray low enough to meet a 1,050 m crest at 36 km reaches the
+  1.45 km cloud base past 50 km), so `sky.gdshader` now draws the island after the volume's
+  composite when the volume is on and the camera is under the deck (`island_late`); the painted
+  path (Compatibility, low levels) is unchanged.
+- **The sea was washed out on Forward+** (still 04): `ocean.gdshader` is a renderer-space shader
+  (no colour-space include) but read `sky_tint`, which is raw sRGB on both renderers, as its haze:
+  on the Mac the whole sea mirrored a sky 1.5-2x too bright (p5 52 against opengl3's 6 on the same
+  view) and stood brighter than the far plane, whose `haze_color` is decoded. Now
+  `cs_as_uniform(sky_tint.rgb)`; opengl3 is unchanged. The ocean traffic's wakes now read on it.
+- **The refinery's flares drew square halos at night** (still 05): the halo gaussian left 4 % at
+  its quad's edge, invisible in the opengl3 stills and a lit orange square added in linear over the
+  night sky. It now reaches zero at the edge, and its colour (a display colour tuned on opengl3) is
+  decoded on Forward+ (`cs_as_uniform`) - it was a disc twice the size of the opengl3 one.
+- **`sky_tint` through the wrong door** in ten more shaders: `disp(sky_tint)` (re-encoding a
+  colour never decoded: too bright on the Mac) in the refinery, the power plant, the film studio,
+  the deco ornament and industrial_walls (fwd-review-b's report); taken as linear by linear-on-both
+  shaders in the hydrant's wet patch, the swimmer's water underside, Chinatown's glass, the light
+  rail's windows and interior; the river's sky mirror written raw into EMISSION. The power plant's
+  glass band measured within 0.2 levels before / after at its bookmark (small at that angle).
+- **The corner store's red sign turned peach at night** (still 19): its lit face plus its own lit
+  albedo went through AgX at up to 1.3 and came out (247, 188, 132) against (232, 46, 19) at noon.
+  `sign_cap` 0.7, the green floor 0.1 of red, the face's albedo 0.3: now (243, 125, 64), red-orange
+  like a real lightbox.
+- `billboard_steel.gdshader` ran `cs_in()` (for textures) on its vertex colour, which is raw on
+  both: on the Mac the steel was drawn from sRGB numbers as linear (paler).
+
+**Looked at, nothing to fix (Forward+ against opengl3):** the crowd in the rain (umbrellas, the
+red canopy not salmon, hoods), the wingsuit's fabric and vapour, the motorcycles day and night,
+the footbridges day and night, the news vans, the lighthouse at night (lantern, drawn beams, the
+house's windows), the power plant by day and night (stack lights stay red), the refinery by day
+(cooling-tower plume, process units). Lowriders' candy paint had its own Forward+ pass (9ft).
+
+**Merged while this ran, read but not rendered:** oil islands, beach amenities, bonfires, buskers,
+fireworks, sea life, rock outcrops, the metro, the film shoot, sky ads, skate park, stunt ramps,
+yard sales. Their shaders pass the scan (they already decode `sky_tint`, no back-face flips); none
+was seen on Forward+. The blimp's LED panel and wildlife were not on main.
+
+**Noted, not fixed:** in `fwd_block_shot.tscn` at night the sky BELOW the horizon (seen past the
+built blocks, where the game has its horizon plane) is a maroon band on Forward+ (the city light
+dome's orange over the navy night); in the game the ground covers it. Downtown and midtown blocks
+peak over 13.6 GB on lavapipe with everything on: those scenes were rendered with the unrelated
+systems off (`LITE` list in the README).
+
+**Tools:** none committed (the wrappers that ran a render queue and killed Godot after its last
+still are described in the README). `tools/offshore_island/island_shot.gd`'s header says
+`YAW=-115`; the island is at `YAW=115` from the beach (-900, 0).
+
+**Checks** (`tests/fwd_review_d_checks.gd`, source text only, so it leans on no earlier check):
+every shader - no `disp(sky_tint`, a linear shader decodes `sky_tint` before using it as a colour,
+no `cs_in()` on COLOR; the river's mirror through `cs_out`; the ocean's haze through
+`cs_as_uniform`; the island drawn after the volume's composite; the flare halo zero at its edge.
+
+**Frame cost:** shader-only changes; no node, mesh or draw added. The island is drawn in one of two
+places, never both.
+
+## 9gy. The mid distance (fleet wave 3, `mid-city`, 2026-10-30)
+
+**The ask** (wave 3, owner: "make it look like GTA 6"): from the hills and the golden aerial the
+city 400 m - 3 km away read as scattered white boxes on tan ground with black streets. Real LA
+from Griffith Park is a grain of varied roofs under dark street and yard trees, palms, pools and
+car-lined streets in the haze.
+
+**What drew it.** Three tiers carry that distance: the LOD chunks (to `lod_reach_metres()`,
+840 m), the far city (Skyline: the LOD block build captured, plates, canopies) and the horizon
+plane. Measured with `tools/mid_city/probe.gd`: a suburb block's capture is the houses'
+`lod_box` wings and roof slabs on the block plate; the far tier planted ONLY the kerb rows (at
+the district's `trees` odds) and parks, so the yards were bare; the LOD chunks plant nothing of
+their own (Skyline's canopies stay under them). A house's flat wing top fell into the roof
+branch of building_lod.gdshader, which wears a tower's coverings (42 % bright white membrane plus
+printed rooftop plant); every clay roof was one orange (`HouseKit.CLAY_FAR`); the pitched slabs
+were drawn as board-formed concrete; YardFill's pools never reached the LOD tiers; the far
+streets were `plate_road_color` 0.033 linear (near black) and empty past the real traffic's 300 m.
+
+**What it is now** (`MidCity`, `scripts/world/mid_city.gd`; hashes of the seed and the place
+only - no chunk, block or Building rng, nothing the seed builds moves, checked):
+- **Yard trees** (`yard_trees()`, called at the end of `Skyline._add_city_trees()`): the block's
+  capture is rasterised on a 3 m grid (ground slabs bottom up: green = `far_col` green-dominant,
+  else paved; every `lod_box` and box footprint grown by `WALL_CLEAR` = standing); a jittered
+  `STEP` 7.5 m grid then plants at `ODDS` per district (suburbs 0.7, midtown 0.45, beach town
+  0.38, ...) on green ground (a suburb's or beach town's own block ground counts as green - the
+  LOD tiers lay no yard piece under 6 m), on paving at `PAVED_SHARE` of that, never on a building,
+  never under a freeway, `MAX_PER_BLOCK` 70. Crowns 3.4-6.6 m radius in `GREENS` (dark live oak /
+  ficus, olive and eucalyptus grey-green, sycamore, the odd jacaranda) and a fan palm now and then.
+  They are Skyline canopies on the real ground (custom.r 1), so they stand under a LOD chunk and
+  go under a FULL one, like the kerb rows.
+- **Kerb rows** fill `KERB_FILL` of the slots the district's roll left empty (suburbs 0.65,
+  midtown 0.55), appended after the roll's own spots (a tree's look is a hash of its index), and
+  every far crown is `KERB_DARKEN` 0.7 darker.
+- **Crowns** (far_canopy.gdshader `mid_city`): dappled - lit lumps a metre or so across on the
+  crown's true world position, faded to the mean once a pixel cannot hold them.
+- **House roofs** (HouseBuild.lod()): a wing's box carries `HOUSE_FLAG` (custom.a 0.25, the old
+  path's 0 to everything else): its flat roof wears a house's coverings (pale grey or tan cap sheet,
+  a cool white one, an old dark one), no printed plant. The pitched slabs carry `ROOF_FLAG` 1.25:
+  barrel courses for clay, tabbed courses for shingle, weathering patches, the eave's shadow and
+  the ridge cap. The far roof colour is the house's own (`roof_far()`: the clay tile under the
+  house's `colors.clay` tint, weathered a little; its shingle).
+- **Pools**: YardFill's `_ground()` hands a G_POOL piece to `MidCity.pool()` in a LOD chunk and the
+  capture: a flat `lod_box` with `POOL_FLAG` 5 (coping, turquoise, sky by Fresnel).
+- **Streets** (`shaders/far_cars.gdshaderinc`, in building_lod's plates and decks and
+  far_ground.gdshader's LOD ground): the asphalt x `mid_road_gain` 1.7; PARKED cars in 6.4 m bays
+  along both kerbs (62 % taken; a LOD chunk parks none of its own), and the MOVING cars of
+  far_traffic.gdshaderinc - the very cells, keys and speeds of `ft_lane()`, so the day's cars are
+  the night's lights - on the LOD ground past `traffic_fade_start` and everywhere on the plates and
+  decks. Paint from a car park's mix; under a couple of metres a pixel each lane is its mean.
+
+**Switches / tools.** `MID_CITY=0` is the A/B (none of it; the shaders' `mid_city` false). Probe
+(headless, seconds): `godot --headless --path . --script tools/mid_city/probe.gd -- --at=x,z --n=2`
+prints each block's capture by flag, its yard trees, pools and the planting time. Checks:
+`tests/mid_city_checks.gd` (yard trees on green ground, none in a building, the same twice, none
+off; house and roof flags, clay colours, pools; the far boxes and ground identical on and off less
+the pools; far_cars' keys are far_traffic's).
+
+**Stills** (shots/mid-city, opengl3 1280x720, 15:00 clear; before = `MID_CITY=0` on the same
+build): hills south `-200,450,-1250,180,-14`; the LOD ring west `0,150,600,90,-30`; a 150 m pass
+over the suburbs `-450,150,500,0,-25`; the golden aerial `1450,145,2150,-38,4` at 17.2.
+
+**Frame cost** (still_shot.gd GEO, same frames, off -> on): hills 3.22 M / 1,045 draws -> 4.02 M /
+1,045; LOD ring west 1.85 M / 1,180 -> 1.97 M / 1,184; suburbs pass 3.87 M / 2,439 -> 4.43 M /
+2,461; golden aerial 5.01 M / 2,874 -> 5.36 M / 2,863. Draws flat; triangles +7 to +25 % (the
+yard and kerb canopies: a canopy_blob is a few dozen triangles, ~30 k more of them in the hill
+view). Planting a block costs 0.5-2.6 ms of the far city's build (probe), inside its per-step
+budget; the far tiles are LoadCache'd like the rest.
+
+**Not done / not verified.** Not seen on Forward+ (the Mac): the canopy and roof colours under AgX,
+the pools' sky. The midtown and downtown blocks are still Building boxes on paving (FarBuilding's
+coded copies of the near buildings, untouched by design); their trees are the kerb rows and
+`PAVED_SHARE`. No haze change (the aerial fog already hands the far city over). The canopy is the
+old 6-sided blob; a cheaper or lumpier far tree mesh would win triangles back. Flight bench not
+re-measured (its run took 10 minutes a side at 314 ms a frame on this box and was cut short by
+the merge).
+
+## 9gz. The far ranges (fleet wave 3, `far-ranges`)
+
+The owner's bar is GTA 6; from the hills (refcams `hills`) and from downtown the back range and
+the east range read as rows of evenly spaced cone-shaped teeth, nothing like the San Gabriels
+(broad massive ridges, deep canyons, a few prominent summits, layers of blue haze).
+
+**What made the teeth, in order of how much.** Measured with the new probe (below) against the
+renders:
+1. **The horizon plane's rim.** The plane is 14 km across and hands over to the sky's colour from
+   5.0 to 6.9 km out (`edge_start` / `edge_end`). The back range's crest is 5-7 km from downtown and
+   the hills, so the crest dissolved into the sky and only the nearer spurs' tops stood against it,
+   each a lone cone. The probe's skyline (raw heights) was a fairly continuous wall where the render
+   drew pyramids with sky between them.
+2. **The bases.** Each range was a plateau (full height from `*_full` to the map's edge) of the map
+   noise's 830 m and 415 m octaves at +-34 % of the range's height: over three kilometres of depth
+   the skyline is whichever bump stands highest at each bearing, a summit every few hundred metres.
+3. **The erosion.** The front range's 440 m canyon spacing at a quarter of the range's height cut
+   300 m notches every 440 m through the crest itself.
+4. **The crags.** Ridged noise (1 - |n|) on the plane: creased crests, a saw along every skyline.
+The bake's B-spline and the plane's 44 m vertices were not it.
+
+**What changed** (`FarRanges`, `scripts/world/far_ranges.gd`; `FAR_RANGES=0` / `--no-far-ranges`
+is the old world exactly):
+- **Crest lines.** `MacroMap._range_heights_at()` builds the back and east ranges from
+  `FarRanges.back_base()` / `east_base()`: the OLD front face (smoothstep from start to full, and
+  the old height factor at the foot, handed over to the new one as the face rises, so the foot -
+  zone_at()'s CITY / HILLS line - does not move: 0 of 1,068 foot points change side), on up to a
+  crest `CREST_IN` (700 m) past the full line, wandering +-`CREST_WANDER` (420 m) along the range
+  (`_crest_noise`), a high shoulder, then a long fall away from the basin (`FALL` 42 % over 3.6 km).
+  Height along it is a slow massing (`_mass_noise`, 3.6 km, `MASS_GAIN` 0.35) over 7 % of the old
+  noise: a few big summits kilometres apart. Both noises are new objects seeded from the seed, so
+  nothing else's noise or rng moves. **The front range is not touched** (sign, observatory, hill
+  roads, estates, reservoir, ballpark; checked to 0.0000 m).
+- **Canyons.** `_erode()` / `_erosion_filter()` take an optional spacing and gain: the back range
+  980 m (`BACK_SPACING`) at 0.34 of its height, the east range 820 m at 0.28, finer orders 0.4 of
+  the one above (0.5 elsewhere), and `FarRanges.erosion_share()` keeps only `CREST_KEEP` (30 %) of
+  the depth on the crest and the shoulder behind it, easing back to full over 950 m: a canyon cuts
+  back into a crest as a saddle, not as a notch to its foot.
+- **The far ring.** `FarRanges.build_ring()` (one hook in `CityStreamer._build_ground()`, one in
+  `update_streaming()`): a second mesh on the plane's OWN material, out to `RING_HALF` 12.6 km at
+  twice the plane's vertex spacing, snapped to its own world grid, with a hole the plane covers
+  (130-260 m of overlap, in which the ring sinks `ring_sink` 8 m under it). The plane's rim moves
+  out to `RING_EDGE` 9.6-11.7 km (inside the camera's 12 km far plane). `ground_size`, the far city,
+  the GroundBody and everything seated on the plane (far canopy, estates, the ridge sign) are
+  unchanged; the far city's own fade (`edge_start` on building_lod / far_canopy / far_estate) still
+  runs at 5.0-6.9 km, where its data ends. Past the bake's 16 km the map is MIRRORED
+  (`macro_mirror` in `macro_uv()`), so the ranges go on as further ridgelines instead of the edge
+  row of texels smeared out. 119,528 triangles, one draw.
+- **Crags turned over** (`crag_shape` 1 in macro_relief.gdshaderinc): |n| instead of 1 - |n|,
+  round crests and creased valleys. Same amplitude, so MountainOccluder's bound holds.
+- **Layered haze** (`range_haze_amount()` / `range_haze_color()` in macro_relief.gdshaderinc,
+  taken by macro_ground, far_canopy and far_estate alike, so a clump sits in the air the slope under
+  it is in): nothing within 1.1 km (the streamed tiles), then an e-fold every 6.5 km, thinning to
+  42 % of itself by 1,250 m up; the colour is the horizon's (`sky_tint`) times `range_haze_tone`
+  (0.66, 0.78, 0.95). A ridge's foot sinks into the air in front of the next one and its crest
+  stands clear. Laid on like fog: albedo times (1 - a), the colour emitted.
+
+**Numbers.** Skylines (raw heights, `FarRanges.skyline_stats()`, 140 columns over 70 degrees):
+downtown north sharpness 1.53 -> 0.52, summits 13 -> 7; the east side 0.70 -> 0.29, 9 -> 3.
+**Frame cost** (`still_shot.gd` GEO, opengl3 1280x720, same EYEs): hills 15:00 1.79 M / 718 draws
+-> 1.91 M / 709; freeway 4.83 M / 2,348 -> 5.06 M / 2,343; downtown north 15:00 3.20 M / 1,436 ->
+3.33 M / 1,432; golden 3.28 M / 1,512 -> 3.41 M / 1,513; east 1.60 M / 816 -> 1.65 M / 810: the
+ring's ~120 k triangles, no draws. CPU: two FastNoiseLite calls more per `_range_heights_at()`.
+
+**Tools.** `tools/far_ranges/probe.tscn` (headless, seconds): `EYE=x,y,z YAW FOV W H PITCH OUT=`
+paints a panorama of `height_at()` shaded by distance and prints the skyline's summits and
+sharpness; `COLS=i,j` prints where column i's skyline comes from; `TOP=x0,z0,x1,z1,step
+TOP_OUT=file.raw` dumps raw heights as float32 for numpy. Stills: `still_shot.gd` `SHOTS=` (the
+hills refcam, golden hour, the 110, downtown north at 15:00 and 17:18, east), Forward+ on lavapipe
+with `hill_ground_shot.tscn GROUND=1 DAYNIGHT=1 EYE=600,180,-1000,0,2` (the plane and the hill
+tiles round the eye; one shot a run - two OOM'd).
+
+**Checks** (`tests/far_ranges_checks.gd`, 15): the front range unchanged; the feet unmoved; no
+walls in the bases (a crest pulled onto the full line once made a 150 m wall a few metres wide:
+`CREST_WANDER` must stay well under `CREST_IN`); both skylines fewer summits and smoother than the
+old shape (the same macro with `FarRanges.enabled` switched round single synchronous calls); the
+bake (LoadCache) is the new shape; the shaders' crag shape and haze, its numbers read from the
+include; the ring on the plane's material, its overlap, its rim inside the far plane, its grid.
+
+**Not done / not verified.** The faces still read bright and rocky from downtown at 15:00 (the
+splat's rock above 450 m and snow above `snow_line` 1150 - my summits reach ~1300 m, so a few more
+tops are white; not touched: the near tiles share it). The far city's buildings still fade to the
+sky's colour at 5-6.9 km, now over ground rather than sky (a faint pale band; a dithered fade would
+need building_lod). Not seen on the Mac: the ring's seam at 7 km at high altitude, the mirrored
+ranges past 8 km from the air. The front range (the reported spikes nearest the hills camera,
+left of frame) keeps its shape by design: its summits carry the landmarks.
+
+## 9ha. The wet world: rain on everything that is not a road (fleet wave 3, `wt/wet-world`)
+
+The roads got wet in rain and nothing else did. Now the rest of the world takes the same water,
+from the globals Weather already publishes (`road_wetness`, `road_drying`, `rain_intensity`) and
+dries with the street. Everything is shader code; no textures, no new nodes except one wiper mesh
+per car.
+
+- **`shaders/wet_surface.gdshaderinc`** (no samplers): `ws_on()` (the ONE branch a dry city pays
+  in every including shader: `road_wetness > WS_DRY && wet_world > 0.5`), `ws_wet(hold)` (while it
+  rains `road_wetness`; drying, a spot holding less dries first - the street's rule, so it is in
+  step), `ws_dry()`, `ws_rain()` (rain now, 0 once drying), `ws_beads()` (two skewed lattices of
+  domed beads, rim AA'd by the pixel, unresolved = their area), `ws_runs()` (wandering threads with a
+  drop and a trail running down), `ws_wall(down, up, streak)` (a facade wets from the TOP DOWN - the
+  front reaches `60 x wetness` m, `40 x` more down a streak, a long hard rain wets a tower all the
+  way down to 0.6 - the foot is splashed at once; drying,
+  open wall first, streaks and the foot last), `ws_frame()`, `ws_noise()`. Never include it with
+  `wet_drying.gdshaderinc` (both declare `road_drying`).
+- **Cars**: `car_paint.gdshaderinc` - the coat 20 % deeper under its film, beads in the body MESH's
+  frame (a moving car carries them; metres from `length(MODEL_MATRIX[0].xyz)`, more on the bonnet,
+  roof and boot), runs down the doors while it rains, a full clearcoat at 0.03 roughness on any
+  wet body (even a worn one). The far twin's parts (`Vehicle.PARTS_SHADER`) darken and gloss too.
+  Glass (`car_glass_wet.gdshaderinc`, in `car_glass` and `car_glass_damage` on whole panes): beads
+  that dim and grey the traced cabin behind them and show the sky in their lower half, runs down
+  the side glass. **Wipers**: `CarWipers` (`scripts/vehicles/car_wipers.gd`) builds, once per body
+  type, a tandem pair (pivot caps, arms, blades, rubber) from CarCabin's windscreen pane (its frame
+  in car space, the bulge from the mesh's glass vertices where there is mesh data), as ONE
+  MeshInstance3D under the car's first glass mesh with no transform of its own (so its space is the
+  glass shader's), shadowless, gone at `body_far_distance`. `car_wiper.gdshader` turns each blade
+  about its pivot in the screen's plane by `wiper_angle()` (`car_wipers.gdshaderinc`: a stroke
+  0.48 s each way, the cycle 1.12 s in a downpour to 3.6 s in a drizzle, parked when it is not
+  raining); the glass works out the same angle (`wiper_since()`: when a blade last passed this
+  point, the stroke's smoothstep inverted by Newton) and keeps the swept arcs clear, the beads
+  coming back over the cycle. Materials are shared: per body type one parked and `PHASES` (4)
+  running copies; a car somebody drives (CarCabin seat bit 0: traffic, the player, cruisers) runs a
+  phase bucket from its occupant seed and its own glass copy gets the same phase
+  (`CarWipers.sync()`, one line in `Vehicle._apply_occupant()`); a parked car's wipers rest. Hooks:
+  one line in `_add_cabin_glass()`, two in `_apply_occupant()`.
+- **Buildings**: `building.gdshader` - the wall branch hands its pixel's `u`, pitch, top distance
+  and glass flag to one block before the output: walls darken to 0.56 by `ws_wall()` with streak
+  columns (a hash per 0.7 m column plus the column under every window), rougher-to-glossy; glass
+  gets threads of water (the emitted mirror dimmed along them); roofs go dark and glossy with ponds
+  (`ws_noise`) where water stands. `building_lod.gdshader` (the LOD chunks and the far city) applies
+  the same `ws_wall()` on its box (the streaks faded to their mean under a pixel), roofs, plates and
+  decks dark and glossy - so the far city wets and dries in step. Landmark towers (`uv_facade`) wet
+  all over at once (no known top).
+- **Awnings, cornices, sills** (`facade_kit.gdshaderinc`, which the storefront kit shares) and the
+  tower roofs (`rooftop.gdshader`: decks, pads, paving, ponds; canvas, cushions and lawn soaked).
+- **People**: `character.gdshader` - whatever faces the sky and the shoulders and head soak first:
+  cloth to 0.56, hair to 0.72 and glossy (0.22), skin a little shinier; `crowd_hair.gdshader` wet
+  hair darker and glossy; the hero's velour (`hero_cloth`, the pile flattened, less sheen) and hair.
+  Under an open umbrella (RainCrowd, one line in `_show()`) a person wears the SHARED sheltered
+  copy of their look and hair (`WetWorld.shelter()` / `sheltered_material()`: `rain_shelter` 1,
+  only the legs catch splashes); folded, the look comes back. One copy per look, never per person.
+- **Trees and palms** were already wet and glossy from `road_wetness` (foliage, foliage_tex,
+  la_tree) and dry with it; untouched.
+- **Switch**: `WET_WORLD=0` in the environment (the A/B): `WetWorld` (`scripts/world/wet_world.gd`)
+  puts the `wet_world` shader global (project.godot) to 0 from `Weather._ready()` and no wipers are
+  built. `WetWorld.wall()` / `dry()` and `CarWipers.angle_at()` / `period()` mirror the shaders (the
+  checks read the shader lines).
+- **Tools**: `car_shot.gd WET=wetness[,rain[,drying]]` (e.g. `WET=1,1 OCCUPANT=npc` - a driven car
+  in a downpour, its wipers going); in the city `--weather=rain` / `storm` on `still_shot.gd`.
+- **Checks**: `tests/wet_world_checks.gd` (sources, mirrors, the wall rule, the switch, the wipers
+  on a deck in the air: parked vs driven, phase shared with the glass, pivots on the screen's foot).
+- **Cost**: dry, one uniform branch per including shader (no sampler, no vertex work). Downtown storm
+  bookmark (still_shot.gd GEO, opengl3, WET_WORLD=0 vs on, same load): 7.458 M / 2,626 draws vs
+  7.454 M / 2,630 draws at noon; night 7.109 M / 2,547 vs 7.107 M / 2,552 - the extra draws are
+  the wiper meshes of the cars in view (one each, shadowless, 96 triangles). In rain the fragment
+  ALU grows on cars (beads, runs, the wiper arcs: two pivots), walls, roofs and people.
+- **Unverified**: Forward+ (the Mac): the beads and runs are normal bends, so they live on the
+  renderer's reflections (SSR, the probes), which the opengl3 stills do not have - judge the glass
+  and the lacquer there. The wiper blades on every body type (checked on the sedan in stills; the
+  geometry is fitted per body from the windscreen box, so a bus or an exotic may sit a little off).
+
+## 9hb. Hills without leopard spots, again (fleet wave 3, `wt/hill-ground-3`, 2026-10-30)
+
+The hills reference still (refcams `hills`, the `hills` bookmark, 15:00) showed the near and mid
+hill ground as tan with dark LEOPARD SPOTS - dark ovals 10-30 m across, evenly over every slope -
+and no shrubs to speak of. Stills on `shots/hill-ground-3`.
+
+**What drew the spots** (found by elimination, each a one-minute `hill_ground_shot.tscn` or a
+bookmark with `HIDE=`): not the far planting (`HIDE=Planting_*`), not shadows (the opengl3 still
+draws none), not the horizon plane (`HIDE=Ground`), not the shells (`HIDE=HillShells`). The spots
+stayed over the terrain's debug colours (`TERRAIN_DEBUG=1`: brush / bare / rock) and went away with
+`TERRAIN_DEBUG=2`, which drops the fine erosion's NORMAL. They were `erosion.gdshaderinc`: the 55 m
+and 27 m gully orders drawn as shading on the tiles and the plane, 7 m deep (walls sloping ~0.8)
+with neighbouring cells' stripes half a cycle out of phase (Fewes's 0.5 jitter, 1.6 branch), so
+every gully was a braid of short pits - under a low afternoon sun, black ovals. Only the DayNight
+sun showed them; `hill_ground_shot` without `DAYNIGHT=1` lights from above and hid them.
+
+**Fix 1, the erosion**: `erosion_amp` 3 m (terrain) / `far_erosion_amp` 3 m (plane),
+`erosion_jitter` 0.45, `erosion_branch` 0.8 (uniforms in the include now). Rills run on down the
+slope: along / across the fall line the field changes 0.37 as much (0.62 before; the check).
+
+**Fix 2, stands as masses**: the stand noise was 70 % shrub-scale octaves (3 m, 1.1 m). They fade
+with distance into a SHARE of brush (`hill_stand_edge()`), so from 150 m the whole stand was a
+khaki tone with olive smudges, never a mass. The octave weights are uniforms now (`stand_*_w`:
+patch 0.5, clumps 0.14, bushes 0.18, fine 0.12, bias 0.18) and the land decides more: brush runs
+down each fine rill (`hill_rill_th(rill, w)`: erosion z times steepness, `rill_brush` 0.3, its reach
+modulated 0.2..1.4 by a ~180 m noise so the streaks come and go). The tiles and the plane take the
+rill from their own `ero.z`; the shells from the tile's COLOR.a (`CityChunk._tile_rills`, sampled
+row by row with the heights - the shells working the 32-cell noise per vertex per layer took a
+one-minute still to over ten); HillPlanting from the tile (`_terrain_rill()`) or its CPU port
+(`HillPlanting.rill()`, 34 us a call). Mean brush run along three rows of the front range 36 m
+(14 m before), 9 % of the ground in the soft middle (13 %). `stand_gaps` 0.15: the straw between a
+stand's bushes made bright round holes in every stand up close (the leopard inside out).
+
+**Fix 3, shrubs that read**: `HillShrub` (`scripts/world/hill_shrub.gd`), a code-built chaparral
+mound (several stems from a root crown, 120 clusters of grey-green sprigs to the ground, 4.2 m wide
+and 2.8 m tall native, three variants) on LaTrees' emitter, LOD ladder, shadow twin and
+`la_tree.gdshader` (5,820 -> 240 triangles). It replaces the Poly Haven searsia on the stands and as
+the lone sage (`hill_shrub_<v>` batches, drawn to `HillGround3.SHRUB_DISTANCE` 160 m, no shadow):
+the searsia's black-background atlas made every stand a scatter of dark sprigs from 20 m on.
+
+**Cost**: hills bookmark GEO (after merging main 2026-10-30 with rock-outcrops) 2,144,276 tris / 1,292 draws against 2,151,642 / 1,300 with
+`HILL_GROUND_3=0` (the shrubs past 160 m there). Build steps (`hill_step_bench`): `_sample_terrain`
+~6 more time-sliced calls a FULL chunk (worst 10 ms unchanged), planting the same.
+
+**A/B and tools**: `HILL_GROUND_3=0` (HillGround3.apply() puts the old uniforms on the terrain,
+shell and plane materials; HillPlanting and the planting go back too). `tools/hill_ground_3/
+topdown.gd` (`--at=x,z --size= --step= --out=`) maps HillPlanting's field with hillshade in five
+seconds - use it before any render; hill_ground_shot `TERRAIN_DEBUG=1|2|3`. Checks:
+`tests/hill_ground_3_checks.gd` (mirrors, rills, masses, the shrub), and the hill planting check
+reads the tile's rills and accepts the new batches.
+
+**Not done / to check on the Mac**: the stands' tone on Forward+ at the bookmark (lavapipe small
+scene only: before/after in the shots); the far tier still plants only oaks, so past 160 m the
+stands are paint (by design, HANDOFF 9au); the rills' second order comes and goes with the pixel
+footprint like the old one did, so a stand edge can shift a few metres between 40 and 150 m.
+
+## 9hc. Crowd variety: six more kinds of Los Angeles adult (2026-10-30, wave 3, `crowd-variety`)
+
+The crowd was 26 rigs, mostly in tees, jeans and casual jackets. Six more adults, built with
+`tools/crowd/` exactly as the others (MPFB phenotype, our own garments, the atlas, the retarget),
+appended to `Pedestrian.MODELS` as indices 26-31 (`crowd_aa..af`), each with a hat-table row
+(`tools/crowd/hat_fit.gd`), a life-clip and a busk-clip library:
+
+| rig | who | wears |
+|---|---|---|
+| crowd_aa | South Asian American man, 40s, tall | charcoal pinstripe two-button suit (tailored), white shirt, burgundy repp tie, slacks |
+| crowd_ab | Black woman, 30s, tall | navy one-button blazer (tailored), ivory shell (tee), charcoal knee skirt with a back vent |
+| crowd_ac | Latino man, 30s, broad | navy twill work shirt, flap pockets, rolled sleeves (shirt `work`), worn jeans, boots, beard |
+| crowd_ad | Armenian American man, 70s, heavy | oatmeal button cardigan (`over` a shirt), pale blue shirt, grey slacks |
+| crowd_ae | Samoan American man, 20s, very muscular | racer-back tank (vest `tank`), athletic shorts with a stripe |
+| crowd_af | young Vietnamese American woman | cropped camel zip jacket over a white tee, black wide-leg trousers |
+
+**New garments (tools/crowd/garments.py, painted by garment_paint.py):**
+- `tailored`: build_top_shell at the jacket fit, hip length (men to below the seat), sleeves
+  ending `cuff_above_wrist` short so the shirt cuff shows. The V front is two plane cuts from the
+  top button (`_v_point()`: between Spine02 and Spine01 by `button_t`) to the gorge at the side
+  of the neck. The lapels (`_lapel()`) are panels laid ON the front by rays from in front, outside
+  the cut edge: width rising to `lapel_w` at `notch`, a notch, then the collar's front; the roll
+  edge wraps round the cut into the opening. The collar round the back is a stand and a fall whose
+  edge is put where the coat's surface is at that height (rays onto the shell: at the edge loop's
+  own radius it sank into the back and drew a raised box). Buttons (1 woman / 2 man), flap
+  pockets (patch()). Painted: the right front's lap edge with its cutaway curve, the centre back
+  seam and vent, front darts, the breast welt, three cuff buttons, pick stitching and the lapel
+  buttonhole, an optional pinstripe (pattern()).
+- `tie`: a knot grid and a blade grid (pointed tip) cast onto the shirt under it, region `keep`
+  (its own colour, `repp` diagonal stripes or a neat print, paint_tie()).
+- `vest` with `tank`: fitted jersey, region `top`, hem cut only (cut_top's sleeve plane through the
+  shoulder joint runs across the shoulder blades of a 45-degree bind pose and left a slit each
+  side), the sleeve zones dropped, and a band inside the side plane cut off the back (a racer
+  back): behind the shoulder blade the bind pose folds the cloth back past the side plane and a
+  strip survived outside the armhole.
+- trousers `wide` (hem radius capped a little under half the ankles' spacing so the two hems never
+  meet) and `athletic` shorts (elastic waist, side stripe; painter's knit branch).
+- skirt `slit` (a back vent painted), negative flare allowed (but a pencil taper let the thighs
+  through at every stride: crowd_ab's skirt is a near-straight knee skirt with 3 cm of ease and a
+  6 cm flare).
+
+**Layering:** a `tailored` coat, or a jacket with `"over": true` (the cardigan), hides the shirt /
+tee / tie under it with `hide_under(..., ray=True)`: a vertex is covered only when a ray straight
+out from the torso axis meets the coat within 6 cm. The nearest-point test (the trousers' rule)
+took the lapels a finger's width beside the V for cover and deleted the shirt off the chest. A
+coat over trousers widens the trousers' kept margin to 11 cm (its skirts lift at every stride).
+`layer_reach` (default 8 cm; 2.5 cm for a coat or a jacket over a top) is how far a top looks for
+the layer under it: at 8 cm a jacket's sleeve found the inside of a tee's short-sleeve opening and
+stood out in a fin.
+
+**Texture budget:** `tools/texture_budget/budget.txt`'s crowd patterns take two-letter names now
+(`crowd_[a-z]{1,2}_`).
+
+**A/B:** `CROWD_VARIETY=0` leaves the six out of the pick (`Pedestrian.VARIETY_MODELS`), which is
+the crowd exactly as before (26 to choose from, the same rolls). With them in, every person's model
+roll picks among 32: the same number of rolls, so nothing else a person rolls moves, but who wears
+which rig changes, as it did when crowd_u..z were appended.
+
+**Frame cost** (downtown_noon bookmark, `--spawn=2359.4,880,0,12,2 --hour=12`, opengl3, `SPLIT=1` on
+still_shot.gd, CROWD_VARIETY=0 then on): pedestrians 500.6k -> 525.6k triangles (+5 %), 344 -> 344
+draws; the whole frame 7.67 M -> 7.66 M triangles, 3,726 -> 3,710 draws (flat: the crowd differs in
+who stands where).
+
+**Warm rehearsal:** with 32 rigs the rehearsal's eight staged people roll other rigs, and the
+shot one's blood splats landed after the cleanup (two Decals left on the scene, shader_warm's
+check). `WarmRehearsal.run()` now sweeps the scene for the effects' leftovers for `SWEEP_FRAMES`
+(12) frames after the holder goes.
+
+**Foot placement check:** `tests/foot_ik_checks.gd`'s kerb people were seed 11, which rolled crowd_z
+from 26 rigs and crowd_f from 32 (0.041 m against its 0.04 tolerance). They are seed 1310 now,
+which rolls crowd_z either way (0.006 m, with CROWD_VARIETY on and off).
+
+**Checks:** `tests/crowd_variety_checks.gd` (indices, the A/B list, hat rows, life and busk
+libraries, the config rows wearing the new garments, adults only, body budget 16.5k, a spread of
+heights); `_check_crowd_rigs` holds all 32 to the body contract.
+
+**Stills:** `shots/crowd-variety` (lineup front / side / back under street light, a downtown
+still). Known gaps: crowd_ab's V shows a sliver of the blazer's dark inside under the shell top;
+the tank has small tabs at the back of the armpits; the suit's shoulders read a little padded;
+nothing seen on Forward+ (opengl3 and Cycles previews only).
+
+## 9hd. The blast, frame by frame (2026-10-30, fleet wave 3, branch `wt/explosions-2`)
+
+Task: "take the rocket / car explosion to GTA 6 level, frame by frame". WeaponFX.explosion() is
+unchanged except its last line, which hands over to **`BlastFX`** (`scripts/weapons/blast_fx.gd`);
+`EXPLOSIONS_2=0` in the environment is the old blast alone (the A/B). What it adds, by time:
+
+- **0.00 s, the flash.** `BlastFlash`: an OmniLight at `flash_energy` 60 over `flash_reach` 7
+  radii (the old light is 14 over 4), held `flash_time`, then a flickering fire glow that rises
+  with the fireball and dies over `glow_time` 2.4 s. `BlastFlare`: an additive billboard
+  (flare texture, HDR 7/6/4.6 - yellow-white, never red-heavy: AgX turns that salmon) several
+  radii across, gone in 0.13 s. The screen flash: one ColorRect on a CanvasLayer at -1 (under the
+  HUD, the vignette's layer), additive, peak `screen_flash` scaled by distance (`screen_flash_reach`
+  radii) and by whether the camera faces it, faded in 0.16 s.
+- **0.02 s, the wave.** `BlastWave`: a sphere on `shaders/blast_wave.gdshader` expanding to
+  `wave_reach` radii in `wave_seconds`, refracting the screen in a band near its silhouette. It
+  reads the screen, so render_priority MIN (WeaponFX._shimmer's trap) and not on the web. The
+  ground kick: a fast low dust ring (lit smoke material, so it is dark at night) and grit chips.
+- **0.05 s, the fire rolls up.** `BlastFireRoll`: fire puffs thrown upward and braked by drag, so
+  they bunch into a cap that cools to soot. `fire_puff.gdshader` gained `relief` (0 = the old flat
+  puff; BlastFX sets 0.75): each lump of the billow texture is lit from the core below and shaded on
+  its top, the ball's rim darker - the self-shadowed billows.
+- **0.1 s, debris and glass.** `BlastDebris` (`scripts/weapons/blast_debris.gd`): 7 lumps (10 for
+  a fuel blast) on ballistic arcs, one world ray a physics tick each, a bounce, then burning where
+  they land for 2.5-6 s. Not physics bodies, and their flames and smoke trails are TWO emitters per
+  blast whose `emission_points` are rewritten with the pieces' positions every tick. Glass:
+  BuildingDamage already shattered panes within 0.7 radii; BlastFX._glass() adds SHATTER records to
+  the panes FACING the blast out to `glass_reach` 2.4 radii (by chance further out), on the same
+  Building records (WorldState keeps them, the facade shader draws them), shards out of the first
+  `glass_bursts` delayed by the wave's travel (d / 343 s). Towers are left to BuildingDamage.
+- **0.4 s on, the mushroom.** `BlastColumn` holds `Cap` (a burst thrown up hard and braked, piling
+  up a couple of radii over the blast) and `Stem` (fed for `column_emit` 10 s, each puff living
+  `column_life` 15 s, rising ~`column_rise`); both `local_coords` so an origin re-centre carries
+  them, `custom_aabb` for their whole travel. **`shaders/blast_smoke.gdshader`** lights every puff by
+  hand (unshaded, so both renderers agree; linear through color_space.gdshaderinc): a ball normal
+  bent by the texture's relief, `sun_direction` with a wrap and self-shadowing through dense cores,
+  `sky_tint` (decoded) from above, a ground bounce below, and while a puff is young
+  (INSTANCE_CUSTOM.y) the fire's orange on its underside. render_priority -1 (draws before the
+  fire), soft particles, faded near the lens.
+- **Cars.** CarDamage.explode() sets `BlastFX.fuel_next` around its blast: radius x1.25, a bigger
+  roll and cap, more debris; its toss is x`car_lift_gain` 1.45 (`BlastFX.lift_gain()`, 1 with the
+  switch off; the randf calls are unchanged).
+- **Caps.** `max_heavy` 3 blasts in `heavy_window` 2.5 s get the column, debris and glass; past that
+  a blast is the old one plus the flash, wave and roll. `max_columns` 3 (the oldest stops feeding),
+  `max_debris` 24 pieces alive, `max_glass_panes` 18 a blast.
+
+Look: `tools/glshot/fx_shot.gd` now takes `FX_TIMES=0.03,0.1,...` (a strip from one blast, the
+clock fast past `FX_FAST_AFTER`), `FX_CAR=1` (a parked car's own explosion), `FX_SIDE`, and prints a
+`STATS` line per frame. `tools/explosions_2/blast_room_shot.gd` is a small street (the test room, a
+floor, four Buildings) small enough for lavapipe Forward+ (~5 min a strip): `NIGHT=1`, `CAR=1`,
+`DIST`, `TIMES`. A city strip on opengl3 is ~20 min (the load). Checks:
+`tests/explosions_2_checks.gd` (47 in its part; it stages a deck 420 m up, a Building across a
+street from a blast, eight quick blasts for the caps, and frees every node the blasts add).
+
+Stills on `shots/explosions-2`: the downtown day strips before / after (opengl3) and the night
+street strip on Forward+ (lavapipe). NOT verified: the Mac at 60 fps (lavapipe runs ~1 frame a
+second, so TAA ghosts particles: judge shapes, not smears), the web build (no wave there by
+design), frame cost on a real GPU (see the STATS numbers below).
+
+## 9he. Every check file starts from a clean city: the reset between files, SMOKE_SHUFFLE, SHARDS=auto, 2026-10-30 (agent branch `wt/gate-speed-2`; VISUAL_ROADMAP #203)
+
+The smoke test had two problems: it was slow (CI ~1,350 s of game time in one process, the
+watchdog raised to 1500), and checks failed only in the single-process order because an earlier
+file left state behind (onlooker scenes round a car crash, destroyed props in WorldState, forced
+weather, statics like `Onlookers.enabled` / `RainCrowd.forced`). The lead had been patching each
+case in the file that broke (the crowd checks holding onlookers off and the weather dry, CI 366).
+
+**The reset** (`tests/gate_reset.gd`). Right after the city's setup, before the first city part,
+the smoke test takes a snapshot; before EVERY check file of city_files, and before every city
+part after the first, it puts it back and stages the player at home (`stage_home()`), in one
+process exactly as in a shard. It restores:
+- every class's static switches, read generically off every global class under res://scripts
+  (`get_property_list()` on the script, `PROPERTY_USAGE_SCRIPT_VARIABLE`): public bools, and any
+  static whose name says it forces, stages or holds (`force*`, `*_forced`, `staged`, `hold`) -
+  counters and caches are left alone (putting `_next_id` back would hand out ids twice);
+- the city's nodes: Weather (state, blend, wetness, drying, forced, timer), DayNight's hour (to
+  the snapshot's: the clock runs on its own), Quality's level and force, Traffic's cap and
+  `staged`, every city child's `enabled` / `staged` (Police, Emergency, NewsCrews, Birds,
+  OceanTraffic, CoastTraffic ...);
+- the world: WorldState's destruction, the police's stars and units (`Police.clear()`), open
+  onlooker scenes (members released through `_end_act`), wrecks and burning cars (freed: they
+  reopen scenes and stand in the next file's street), debris (bodies, rubble), time scale, the
+  audio speed, pause, the player out of any car on his feet at full health.
+A file the list does not await (a data check) gets the statics only, synchronously (none of those
+files awaits inside, checked by grep). `SMOKE_NO_RESET=1` is the A/B; `SMOKE_LEAKS=1` prints after
+each file every primitive static it changed and left changed (counters too), to find a new leak
+by name; `reset.last` says what the last reset put back.
+
+**The proof.** `SMOKE_SHUFFLE=<seed>` runs city_files' list (read off `_city_files()`'s own
+source, `city_file_list()`) in a seeded order. `tests/gate_speed_2_checks.gd` flips a static,
+the weather, the hour, staged traffic, the units' switches, destruction and the time scale and
+checks the reset puts each back, and that every check file is either on city_files' list or in
+`INLINE_FILES` - which caught three that were in neither (`traffic_ai_checks`,
+`street_errands_checks`, `dog_checks`, called from city_crowd / city_menu): the deal counted them
+as parts of their own, so a shard could believe it owned work that ran in another.
+
+**Speed.** Measured on the fleet box (4 cores, 15 GB), one process, `SMOKE_PROFILE=1`:
+| run | smoke wall | checks | fails |
+|---|---|---|---|
+| main a3db077f (before) | 2,583 s | 2,985 | 3 (photo mode restore; the ambulance's stretcher pair) |
+| this branch, before main's last merge | 2,500 s | 2,994 | 2 (photo mode, after city_crowd; the ferry's speed) |
+| this branch + main (42 more files), one process | 2,505 s | 3,464 | 1 (sea life's purity check, fixed) |
+| the same, SMOKE_SHUFFLE=7, beside the one above | 2,486 s | 3,464 | 4 (see below) |
+| SHARDS=3, the same code | 1,151 s (3 x ~1,070) | 3,496 | 5 (load flakes, see below) |
+Peak memory one process 3.8 GB, a shard 2.7-3.1 GB. Where the time goes did not change since 9du:
+the frames are compute bound (the whole city simulates every tick, ~0.1-0.2 s a frame here), and
+the waits are already condition polls. Cut: the pending-seed check built a whole second city
+(56 s) to test that `_ready()` takes the seed - it now streams one block and no far city
+(city_menu 68.7 -> 23.3 s). The reset itself costs ~8 ticks a file at home (30 when the last file
+left the player away). **`PART_COST` was badly stale** (city_crowd dealt at 72 s took 323; the
+freeway incidents, news crews, hospitals, car parks dealt at the 6 s default took 100-150 s each),
+so the shards were lopsided: refreshed from this run with `tools/gate/part_costs.py <log>`, and
+`CITY_LOAD_COST` 60 -> 120 (the load is ~2 minutes here now).
+
+**CI.** `headless_check.sh` takes `SHARDS=auto`: shards = min(cores, MemAvailable / `SHARD_MB`
+(3200), 3), printed; the workflow runs it and prints `nproc` / `free -m` first. On a private
+repo's 2-core runner that is 1 or 2 depending on the memory GitHub gives it - NOT measured: no
+runner was available from here. If CI runs out of memory with 2, set `SHARD_MB` higher in the
+workflow (or `SHARDS: 1`); with the reset, one process and the shards give the same results.
+
+**What the shuffled and sharded runs turned up.** The sea-life check compared a cached event
+with a fresh one, and the live node writes its state into the cached events as the city runs:
+it failed whenever enough had run before it (fixed: two fresh events). A boat put 1 km out at
+sea sank 489 m in one order and flew 202 m in a shard: the origin had been re-centred somewhere
+else by an earlier file, so `stage_home()` now re-centres it at the spawn (`world_offset` back to
+zero) before every file. Two more fail only on a loaded box (three Godot processes on four
+cores), with and without the reset (`SMOKE_NO_RESET=1` failed the same way 1 run in 2): the fire
+crew never leaves the engine (`emergency_checks`, "lays a hose") and the city_cars drive check
+(a car stands at 0.1 m/s). They pass alone and in one process.
+
+**Fixes the reset turned up**: the photo-mode restore check failed in one process after
+city_crowd and passed alone (main has since made it say which piece is wrong); the reset before
+every city part puts that order out of play. The ferry's 10 s speed depends on where on her
+crossing she is, i.e. on how long the city has run (main widened its bound meanwhile).
+
+Not done: the city load (~2 min a process, 19 s of it the basin bake, which LoadCache cannot hold
+across CI runs because its key covers every script) is the floor of every shard; the frame cost of
+the live city during checks is the rest.
+
+## 9hf. The hero close up: a living face, planted feet, rain on him (wave 3, branch `wt/hero-closeup`)
+
+The owner's bar is "GTA 6", and the hero is in every frame. Reviewed at the third-person distance
+and in close-ups (hero_shot.gd on opengl3 and lavapipe Forward+: day, golden hour, night under a
+lamp, rain). What read worst, and what was done:
+
+- **The face was a mannequin's.** Fixed eyes that never moved, never blinked, sclera lit as evenly
+  as the cheek. The rig has no face bones (54: the crowd's 24 + fingers) and rebuilding hero.glb
+  would break the clips, the grip fits and the hero_x_* maps, so it is done in shaders.
+  `HeroFace` (`scripts/player/hero_face.gd`, owned by HeroLook, stepped on `skeleton_updated`)
+  drives `shaders/hero_eye.gdshader` and `shaders/hero_lash.gdshader` (HeroLook puts them on the
+  hero_eyes / hero_lashes surfaces):
+  - **gaze**: fixations every 0.35-2.4 s (sometimes a long hold), each a fast saccade (~30 ms) to
+    the look point plus a random offset, a micro-tremor between; the look point is 20 m along the
+    camera's view (where the player looks), or the camera itself when it is close in front of his
+    face (and then only 45 % of fixations: he finds the lens and looks away). Each eye aims from its
+    own centre (near points converge); clamped to 32 / 24 degrees. The eyeball turns about its
+    centre in the vertex shader.
+  - **blinks**: every 2-6 s, 15 % doubles, a third of the big saccades; 70 ms closing, 30 shut,
+    130 opening. There is no lid geometry to close, so the upper lid is PAINTED onto the eyeball:
+    every fragment above the lid's edge in the head's frame (eye radii from the centre) is lid skin
+    with a lash line along the edge, and the face mesh hides the eyeball outside the opening. The
+    upper lashes swing down about the eye's centre with it (0.72 rad); the lid follows a downward
+    look.
+  - **the socket's shade**: the top of the eyeball under the upper lid and the corners darkened,
+    the clear coat weakened there; the atlas's blue swatch that landed on the tear line (a blue
+    band along every lower lid) is the pink waterline now; the lower lashes, as dense as the upper
+    ones in the texture (they read as eyeliner), keep only their strongest strands.
+  - **Trap, a lost round:** the skinned `VERTEX` of the hero is in the SKELETON's centimetres (the
+    mesh node sits under the 0.01 armature and the bind poses carry the 100x), not the mesh's
+    metres - centres computed in mesh space moved the eyeballs a metre off. Everything goes to the
+    shaders in WORLD space (`MODEL_MATRIX` in, `inverse(MODEL_MATRIX)` out), which is the same on
+    both renderers. And never `orthonormalized()` the head's deformation before using it for points.
+- **Foot sliding.** `HeroStride` (`scripts/player/hero_stride.gd`) measures a clip's speed from its
+  own planted toe (in an in-place clip the stance foot slides back at exactly the body's speed):
+  walk 0.88 m/s, run 3.17, sprint 9.44 (`tools/hero_closeup/stride_probe.gd`). Avatar played them
+  as 1.3, 5.0 and 8.3: at a 1.3 m/s walk the feet slid 0.42 m/s (32 %), the run 37 % everywhere in
+  its band, the sprint at the normal 12 m/s moonwalked 14 % backwards. Now `Avatar.hero_gait()`
+  plays each at speed / its measured speed, and the bands moved to where people change gait (a jog
+  from 2 m/s, the sprint from 6.3, where it plays at 0.67 with a sprinter's cadence); 0 % slip from
+  0.8 to 18 m/s inside the rate ranges. The officers' Avatars (crowd rigs) keep the old path.
+- **Glowing ears and fingers on Compatibility** (web, every opengl3 still): BACKLIGHT there is a
+  glow, not scattering, and lit the ears and fingers bright orange against the sun. HeroLook sets
+  the skin's `backlight_gain` 0.3 on Compatibility; Forward+ keeps its transmittance.
+- **Rain did nothing to his skin.** wet-world (merged the same day) wets the velour and the hair
+  through `wet_surface.gdshaderinc`; this branch had done both too and gave them up in the merge.
+  The skin takes the same water (`ws_wet(0.5)`): glossier (roughness down with the pores'
+  variation), a touch darker. `HeroLook.setup_wet()`; `HERO_WET=x` holds it on the skin for stills
+  (the 08 still was rendered before the merge, with this branch's own velour and hair wetting).
+- Tried and left: a root fade on the hair cards (`hero_hair.gdshader` `root_fade`, 0.22 now) for
+  the blocky hairline and temples; it helps little - the blocks are whole cards of the under-layer
+  showing at the temples and need a hair rebuild in tools/hero (not in this tree any more: only
+  hero_clips.gd, hero_config.json and render_look.py are left of tools/hero/).
+
+**Not done** (in order): the hair cards at the temples and nape (a rebuild); the idle's head hangs
+low (the clip's); no mouth or brow motion (no bones; a talk / breath pass would need shape keys);
+the tracksuit's black velour still reads flat at the street distance.
+
+Switches: `HERO_CLOSEUP=0` the whole pass (A/B), `HERO_FACE=0` the face alone; stills
+`HERO_FACE_BLINK=0..1`, `HERO_FACE_GAZE=yaw,pitch` (degrees), `HERO_WET=0..1`, and on
+`tools/glshot/hero_shot.gd` `CAM_AT=face` (the camera on the head's own facing) and
+`LIGHT=golden|night` (a low warm sun; a sodium lamp at night). Probes: `tools/hero_closeup/
+mesh_probe.gd` (the hero's surfaces, the eyeballs' centres; opengl3), `stride_probe.gd`
+(headless). Checks: `tests/hero_closeup_checks.gd` (room part): the face's materials, a fresh
+HeroFace stepped 30 s (blinks 5-20, shut and open, >= 12 saccades, in range), aiming, each clip's
+measured speed against Avatar's (8 %), zero slip across the gait, the rain uniforms. Cost: two
+more materials on the hero (the eye and lash surfaces were draws already), a few uniforms a frame.
+Stills on `shots/hero-closeup`.
 
 ## 9d?. Forward+ review e: the late wave-3 features on the Mac's renderer, 2026-10-30 (fleet wave 3, session `fwd-review-e`, branch `wt/fwd-review-e`)
 

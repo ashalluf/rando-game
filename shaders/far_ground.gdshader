@@ -12,6 +12,7 @@ render_mode specular_disabled;
 
 #include "res://shaders/street_glow.gdshaderinc"
 #include "res://shaders/far_traffic.gdshaderinc"
+#include "res://shaders/far_cars.gdshaderinc"
 
 // The street traffic is real out to about here (TrafficManager.spawn_max / despawn_distance):
 // past it the roads carry far_traffic's lights instead, faded in over this band from the camera.
@@ -20,6 +21,12 @@ uniform float traffic_fade_end = 380.0;
 // The far streets' glow against the near road's, and a junction square's (building_lod.gdshader's).
 uniform float far_glow_gain = 2.6;
 uniform float junction_glow = 0.75;
+// The mid distance (MidCity; off: MID_CITY=0): the carriageway a weathered grey rather than black
+// (building_lod.gdshader's plates take the same gain) and the cars on it by day - parked along
+// the kerbs (a LOD chunk parks none) and, past the real traffic's range, moving (far_cars).
+uniform bool mid_city = false;
+global uniform float night_factor;
+uniform float mid_road_gain = 1.7;
 
 varying vec2 plan_pos;
 varying vec2 slab_uv;
@@ -39,6 +46,23 @@ void fragment() {
 	ALBEDO = COLOR.rgb;
 	ROUGHNESS = 0.95;
 	float a = COLOR.a;
+	if (mid_city && a > 0.35) {
+		ALBEDO *= mid_road_gain;
+		int axis_d = a > 0.9 ? 1 : (a > 0.6 ? 2 : 0);
+		if (axis_d != 0) {
+			float across_p = axis_d == 1 ? plan_pos.x : plan_pos.y;
+			float across_uv = axis_d == 1 ? slab_uv.x : slab_uv.y;
+			float width = length(vec2(dFdx(across_p), dFdy(across_p))) / max(length(vec2(dFdx(across_uv), dFdy(across_uv))), 1.0e-7);
+			if (width > 8.0 && width < 60.0) {
+				float centre = (clamp(across_uv, 0.0, 1.0) - 0.5) * width;
+				float mpp = max(fwidth(plan_pos.x), fwidth(plan_pos.y));
+				float far = smoothstep(traffic_fade_start, traffic_fade_end, length(world_pos - CAMERA_POSITION_WORLD));
+				vec4 cars = street_cars(axis_d == 1 ? plan_pos.y : plan_pos.x, axis_d == 1 ? -centre : centre, width, mpp,
+					floor(across_p - centre + 0.5), far, 1.0);
+				ALBEDO = mix(ALBEDO, cars.rgb, cars.a * (1.0 - night_factor));
+			}
+		}
+	}
 	if (a > 0.1 && lamp_factor > 0.001) {
 		if (a > 0.35) {
 			int axis = a > 0.9 ? 1 : (a > 0.6 ? 2 : 0);

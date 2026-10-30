@@ -18,6 +18,9 @@ uniform vec3 tip_color : source_color = vec3(0.075, 0.062, 0.052);
 // 1: take the colour from the texture (brows); 0: from the strand atlas' shading + the colours.
 uniform float strands_from_texture = 0.0;
 uniform float alpha_cut = 0.32;
+// How far up the card (UV.y, root 0 .. tip 1) the roots fade in. Every card's root end was a hard
+// straight cut, which at the hairline and the temples drew rows of black rectangles.
+uniform float root_fade = 0.0;
 // Width of the dithered band round alpha_cut.
 uniform float dither = 0.22;
 uniform float roughness = 0.36;
@@ -34,6 +37,8 @@ void vertex() {
 	hairdata = UV2;
 }
 
+#include "res://shaders/wet_surface.gdshaderinc"
+
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
 }
@@ -47,10 +52,16 @@ void fragment() {
 	float ao = mix(1.0, clamp(hairdata.x, 0.0, 1.0), occlusion * (1.0 - strands_from_texture));
 	ALBEDO = col * ao;
 	AO = ao;
-	ALPHA = t.a;
+	ALPHA = t.a * (root_fade > 0.0 ? smoothstep(0.0, root_fade, tip) * 0.6 + 0.4 * smoothstep(0.0, root_fade * 0.35, tip) : 1.0);
 	ALPHA_SCISSOR_THRESHOLD = clamp(alpha_cut + (hash(FRAGCOORD.xy) - 0.5) * dither, 0.02, 0.98);
 	ROUGHNESS = roughness;
 	SPECULAR = specular * ao;
 	ANISOTROPY = anisotropy;
 	ANISOTROPY_FLOW = strand_flow;
+	if (ws_on()) {
+		// Rain: wet hair is darker and glossier.
+		float wet = ws_wet(0.6);
+		ALBEDO *= mix(1.0, 0.62, wet);
+		ROUGHNESS = mix(ROUGHNESS, 0.2, wet);
+	}
 }

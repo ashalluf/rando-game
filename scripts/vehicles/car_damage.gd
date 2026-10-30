@@ -1238,14 +1238,16 @@ func explode() -> void:
 	var was := Police.innocent
 	Police.innocent = blame_police
 	if car.is_inside_tree():
+		BlastFX.fuel_next = true # a fuel fireball (BlastFX), consumed by this blast
 		Explosion.blast(car, at, blast_radius, blast_launch, blast_player_launch, car)
+		BlastFX.fuel_next = false
 		if not blame_police and car.is_in_group("police_car"):
 			Police.car_hit(car)
 	Police.innocent = was
 	if car.is_inside_tree() and not car.freeze:
 		car.hold_crash_watch(4)
 		# Up to the toss speed, not on top of it: a car already flying from a rocket keeps its own arc.
-		var toss := maxf(randf_range(toss_speed.x, toss_speed.y) - maxf(car.linear_velocity.y, 0.0), 0.0)
+		var toss := maxf(randf_range(toss_speed.x, toss_speed.y) * BlastFX.lift_gain() - maxf(car.linear_velocity.y, 0.0), 0.0)
 		var side := Vector3(randf_range(-1.0, 1.0), 0.0, randf_range(-1.0, 1.0)) * 0.25
 		car.apply_central_impulse((Vector3.UP + side) * toss * car.mass)
 		car.apply_torque_impulse(Vector3(randf_range(-1, 1), randf_range(-0.4, 0.4), randf_range(-1, 1)) * car.mass * 1.6)

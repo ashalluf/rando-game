@@ -486,6 +486,8 @@ func _show(near: bool) -> void:
 		_place_umbrella()
 	elif _umbrella != null:
 		_umbrella.visible = false
+	# Dry shoulders and hair under it (the wet world's sheltered look).
+	WetWorld.shelter(ped, want_umbrella and open > 0.5)
 	# The hood.
 	var want_hood := near and gear == Gear.HOOD and hood > 0.0 and not ped._down
 	if want_hood and _hood_mi == null:

@@ -308,7 +308,7 @@ def vertex_normals(o):
     return n.reshape(-1, 3).astype(np.float64)
 
 
-def clear_of(o, bvhs, clearance, where=None, smooth=False):
+def clear_of(o, bvhs, clearance, where=None, smooth=False, reach=0.05):
     """After subdividing (Catmull-Clark pulls a convex tube in by millimetres) and decimating: every
     vertex at least `clearance` out along its own normal from what it covers (with `smooth`, as a
     smooth field: see push_smooth)."""
@@ -317,9 +317,9 @@ def clear_of(o, bvhs, clearance, where=None, smooth=False):
     if where is not None:
         N = np.where(where(P)[:, None], N, 0.0)
     if smooth:
-        set_positions(o, push_smooth(P, nbr, bvhs, clearance, N, reach=0.05))
+        set_positions(o, push_smooth(P, nbr, bvhs, clearance, N, reach=reach))
     else:
-        set_positions(o, push_out(P, bvhs, clearance, dirs=N, reach=0.05))
+        set_positions(o, push_out(P, bvhs, clearance, dirs=N, reach=reach))
 
 
 def push_smooth(P, nbr, bvhs, clearance, dirs, reach=0.08, grow=3, blur=4):
@@ -1351,7 +1351,9 @@ def build_top_shell(ctx, g, gid, kind):
     # 4. clear the (smoothed) body and whatever the top goes over
     Pn = push_out(Pn, [B.bvh_s], 0.006, dirs=nrm)
     if ctx.layers:
-        Pn = push_smooth(Pn, nbr, [bvh_of(ctx.layers)], g.get("layer_clear", 0.010), nrm)
+        # layer_reach: a coat over a top looks only that far for it (at 8 cm the jacket's sleeve
+        # found the inside of the tee's short sleeve opening and stood out from it in a fin)
+        Pn = push_smooth(Pn, nbr, [bvh_of(ctx.layers)], g.get("layer_clear", 0.010), nrm, reach=g.get("layer_reach", 0.08))
     set_positions(o, Pn)
     # which part of the top each face is (0 torso, 1 left sleeve, 2 right sleeve), for the cuts
     zl = o.data.attributes.new("zone", 'INT', 'FACE')
@@ -2052,7 +2054,7 @@ def jacket(ctx, g, gid):
     clear_of(o, [B.bvh], 0.006)
     if ctx.layers:
         # a little more over the layer under it, which is skinned differently
-        clear_of(o, [bvh_of(ctx.layers)], g.get("layer_clear", 0.010), smooth=True)
+        clear_of(o, [bvh_of(ctx.layers)], g.get("layer_clear", 0.010), smooth=True, reach=min(0.05, g.get("layer_reach", 0.05)))
     L["hems"] = top_lips(ctx, o, L, hem=(0.003, 0.012), sleeve=(0.003, 0.012))
     smooth_weights(o, g.get("shoulder_blur", 12), where=lambda c: min((c - Vector(B.B("LeftArm"))).length, (c - Vector(B.B("RightArm"))).length) < 0.17,
                    names=["LeftShoulder", "RightShoulder", "LeftArm", "RightArm", "Spine", "Spine01", "neck"])
@@ -2179,6 +2181,9 @@ TROUSERS = {
     "shorts": {"hem_r": 0.088, "ease": 0.012, "knee_ease": 0.012, "round": 0.5, "fabric": "denim", "hem": (0.006, 0.03)},
     # fleece joggers: roomy through the thigh and knee, tapered to a rib cuff over the ankle
     "joggers": {"hem_r": 0.05, "ease": 0.012, "knee_ease": 0.015, "round": 0.75, "fabric": "jersey", "hem": (0.003, 0.012)},
+    # wide-leg trousers: easy through the hip, falling straight and full from the thigh to the
+    # floor (hem_r is held off the other leg: trousers() caps it at the ankles' spacing)
+    "wide": {"hem_r": 0.112, "ease": 0.014, "knee_ease": 0.042, "round": 0.85, "fabric": "woven", "hem": (0.004, 0.035)},
 }
 
 
@@ -2196,6 +2201,12 @@ def trousers(ctx, g, gid):
     st = dict(TROUSERS[g.get("style", "jeans")])
     st.update({k: v for k, v in g.items() if k in st})
     style = g.get("style", "jeans")
+    if style == "wide":
+        # the two hems never meet between the feet: each opening a little under the half
+        # spacing of the ankles (the bind pose stands with the feet apart), made up by roundness
+        half = 0.5 * abs(B.B("LeftFoot")[0] - B.B("RightFoot")[0])
+        st["hem_r"] = min(st["hem_r"], half - 0.006)
+        print("CROWD wide trousers: hem radius %.3f (ankles %.3f apart)" % (st["hem_r"], 2 * half))
     hips = B.B("Hips")
     z_waist = hips[2] + g.get("rise", 0.05)
     tilt = g.get("waist_tilt", 0.018)   # the waistband dips at the front
@@ -2602,6 +2613,13 @@ def vest(ctx, g, gid):
     recoloured by a look)."""
     B = ctx.body
     g = dict(g)
+    if g.get("tank"):
+        # a gym tank top: fitted jersey, a scoop neck front and back, deep armholes and narrow
+        # straps, worn as the top itself (region "top": a look recolours it)
+        for k, v in (("fit", "fitted"), ("fabric", "jersey"), ("region", "top"), ("neck_front", -0.135), ("neck_back", -0.045),
+                     ("armhole_depth", 0.17), ("armhole_in", 0.062), ("layer_clear", 0.006), ("hem", -0.035), ("tris", 1300),
+                     ("neck_flare", 0.03)):
+            g.setdefault(k, v)
     g.setdefault("fit", "loose")
     g["sleeve"] = "short"
     g.setdefault("sleeve_t", 0.02)
@@ -2609,7 +2627,14 @@ def vest(ctx, g, gid):
     g.setdefault("neck_back", -0.012)
     g.setdefault("layer_clear", 0.012)
     o, L = build_top_shell(ctx, g, gid, "vest")
-    cut_top(ctx, o, L)
+    if g.get("tank"):
+        # the hem only: the sleeve-end plane through the shoulder joint, square to a 45-degree
+        # bind-pose arm, runs diagonally through the shoulder blades and left a slit in each (a
+        # vest over a tee hid them); the armholes below take the stubs away
+        z_h = L["z_hem"]
+        cut(o, (0, 0, z_h), (0, 0, 1), lambda c: c.z < z_h + 0.08, lambda c: c.z < z_h, zone=0)
+    else:
+        cut_top(ctx, o, L)
     # the armholes: down the side from the shoulder's front to under the arm, wider than a sleeve's
     sh_x = abs(B.B("LeftArm")[0])
     sh_z = B.B("LeftArm")[2]
@@ -2623,6 +2648,20 @@ def vest(ctx, g, gid):
         no = Vector((sg, 0.0, 0.0))
         cut(o, co, no, lambda c, sg=sg: (c.x * sg) > sh_x * 0.5 and c.z > sh_z - arm_depth - 0.04,
             lambda c, sg=sg, xc=xc: (c.x - xc) * sg > 0 and c.z > sh_z - arm_depth)
+    if g.get("tank"):
+        # the back of the armpit: behind the shoulder blade the bind pose folds the cloth back in
+        # past the side plane, so a strip there survived outside the armhole with a slit between;
+        # on the back a band inside the side plane goes too (a racer back; the strap over the top stays)
+        tyf = B_torso_y(B)
+        zb = sh_z - arm_depth
+        for side, sg in SIDES:
+            xi = sg * (sh_x - g.get("armhole_in", 0.038) - g.get("armhole_back", 0.05))
+            cut(o, (xi, 0.0, 0.0), (sg, 0.0, 0.0), lambda c, sg=sg: (c.x * sg) > sh_x * 0.35 and c.z > zb - 0.04,
+                lambda c, sg=sg, xi=xi: (c.x - xi) * sg > 0 and c.z > zb and c.y - tyf(c.z) > g.get("strap_depth", 0.065))
+        # the sleeve stubs' own faces go whole: past the side plane on the back they stood as a
+        # strip of cloth outside a slit, the armhole drawn twice
+        for k in (1, 2):
+            cut(o, (0.0, 0.0, -5.0), (0.0, 0.0, 1.0), lambda c: True, lambda c: True, zone=k)
     keep_largest_part(o)
     axis, cut_z, radius, ring = neck_ring_fn(ctx, L["neck_back"], L["neck_front"], L["off"] + g.get("neck_flare", 0.016))
     NECK = B.B("neck")
@@ -2637,6 +2676,22 @@ def vest(ctx, g, gid):
     if ctx.layers:
         clear_of(o, [bvh_of(ctx.layers)], g.get("layer_clear", 0.012), smooth=True)
     z_hem = L["z_hem"]
+    if g.get("tank"):
+        # stray small openings the cuts and the decimation leave in a bare shell (no layer under it
+        # to hide them) are closed before the edges are hemmed: hemmed, each was a slit
+        bm = bmesh.new()
+        bm.from_mesh(o.data)
+        small = []
+        for loop in boundary_loops(bm):
+            per = sum((loop[i].co - loop[(i + 1) % len(loop)].co).length for i in range(len(loop)))
+            if per < g.get("hole_fill", 0.3):
+                small += [e for v in loop for e in v.link_edges if e.is_boundary]
+        if small:
+            bmesh.ops.holes_fill(bm, edges=list(set(small)), sides=0)
+            bmesh.ops.triangulate(bm, faces=[f for f in bm.faces if len(f.verts) > 4])
+        print("CROWD tank: %d small openings closed" % len(small))
+        bm.to_mesh(o.data)
+        bm.free()
 
     def spec(pts):
         if np.ptp(pts[:, 0]) > 0.2 and abs(pts[:, 2].mean() - z_hem) < 0.05:
@@ -2921,8 +2976,304 @@ def scarf(ctx, g, gid):
     ctx.layers.append(o)
     return [o], L
 
+# ---- tailored jacket and tie ------------------------------------------------------------------
+def _v_point(B, g, fem):
+    """The V of a tailored front: (z of the top button, x and z of the gorge at the neck's side)."""
+    lo, mid = B.B("Spine02")[2], B.B("Spine01")[2]
+    z_btn = lo + (mid - lo) * g.get("button_t", 0.55 if fem else 0.35)
+    return z_btn
+
+
+def _lapel(ctx, o, sg, A, Bp, w_max, w_collar, notch, gid, fabric, name):
+    """One lapel: a panel of cloth laid on the jacket's front outside the V's cut edge, from the
+    top button (A, in x / z) up to the gorge by the neck (Bp): `w_max` wide at the notch, its roll
+    edge wrapped round the cut edge into the opening, its outer rim rolled down onto the front.
+    Above the notch it is the collar's front (`w_collar` wide). Metric UVs (u along, v across)."""
+    A, Bp = np.asarray(A, np.float64), np.asarray(Bp, np.float64)
+    e = Bp - A
+    S = float(np.linalg.norm(e))
+    e /= S
+    a = np.array([e[1], -e[0]])
+    if a[0] * sg < 0:
+        a = -a
+    bvh = bvh_of([o])
+    ss = sorted(set([S * k / 14 for k in range(15)] + [S * (notch + d) for d in (-0.03, -0.012, 0.0, 0.012, 0.03, 0.05)]))
+    ts = [0.0, 0.18, 0.4, 0.62, 0.82, 1.0]
+
+    def width(s):
+        f = s / S
+        if f <= notch:
+            return 0.013 + (w_max - 0.013) * float(smoothstep(0.0, notch, f)) ** 0.75
+        k = float(np.clip((f - notch) / 0.035, 0.0, 1.0))
+        return w_max * (1 - k) + w_collar * k
+    rows = []
+    for s in ss:
+        w = width(s)
+        row = []
+        for j, t in enumerate(ts):
+            q = A + e * s + a * (0.0025 + w * t)
+            hit = bvh.ray_cast(Vector((q[0], -0.6, q[1])), Vector((0.0, 1.0, 0.0)), 1.0)
+            if hit[0] is None:
+                row = None
+                break
+            n = np.array(Vector(hit[1]).normalized())
+            if n[1] > 0:
+                n = -n
+            p = np.array(hit[0])
+            lift = 0.0012 if j == len(ts) - 1 else (0.0048 if j == 0 else 0.0036 + 0.0006 * (1 - t))
+            row.append((p + n * lift, (s, w * t)))
+            if j == 0:
+                # the roll: the cloth turns round the cut edge and back inside the opening
+                rim = (p - n * 0.0045 + np.array([-a[0], 0.0, -a[1]]) * 0.0015, (s, -0.006))
+        if row is None:
+            continue
+        rows.append([rim] + row)
+    if len(rows) < 4:
+        return None
+    verts, faces, fuv = [], [], []
+    nc = len(rows[0])
+    for r in rows:
+        for p, uv in r:
+            verts.append(tuple(p))
+    for i in range(len(rows) - 1):
+        for k in range(nc - 1):
+            q = (i * nc + k, i * nc + k + 1, (i + 1) * nc + k + 1, (i + 1) * nc + k)
+            faces.append(q)
+            fuv.append([rows[i][k][1], rows[i][k + 1][1], rows[i + 1][k + 1][1], rows[i + 1][k][1]])
+    lo = mesh_with_local_uv(ctx, name, verts, faces, fuv)
+    ty = B_torso_y(ctx.body)
+    fix_winding(lo, lambda c: (0.0, ty(c.z), c.z))
+    weights_from_body(ctx, lo)
+    off_the_head(lo, 0.2)
+    smooth_weights(lo, 4)
+    mark(lo, "tailored", "lapel", "top", fabric, gid)
+    return lo
+
+
+def tailored(ctx, g, gid):
+    """A tailored jacket (a suit coat or a blazer): the shell to below the seat (a blazer to the
+    hip), set-in sleeves ending short of the wrist so the shirt cuff shows, a V front to the top
+    button cut by two planes, notched lapels laid over it (_lapel), a turn-down collar round the
+    back of the neck, one or two buttons, flap pockets at the hips; the vent, the front edge's
+    cutaway, the chest welt and the darts are painted (garment_paint.paint_tailored)."""
+    B = ctx.body
+    g = dict(g)
+    fem = ctx.cfg.get("phenotype", {}).get("gender", 0.5) < 0.5
+    for k, v in (("fit", "jacket"), ("hem", -0.13 if not fem else -0.065), ("sleeve_ease", 0.005), ("cuff_ease", 0.009),
+                 ("off_shoulder", 0.008), ("sleeve_taper", 0.4), ("tris", 2300), ("layer_clear", 0.008), ("neck_back", -0.004),
+                 ("neck_front", -0.03), ("buttons", 1 if fem else 2), ("lapel_w", 0.07 if fem else 0.08),
+                 ("slope", 1.1 if fem else 0.2), ("layer_reach", 0.025), ("cuff_above_wrist", 0.03), ("hem_hips", 0.5)):
+        g.setdefault(k, v)
+    g["sleeve"] = "long"
+    o, L = build_top_shell(ctx, g, gid, "tailored")
+    cut_top(ctx, o, L)
+    axis, cut_z, radius, ring = neck_ring_fn(ctx, L["neck_back"], L["neck_front"], L["off"] + g.get("neck_flare", 0.012))
+    NECK = B.B("neck")
+    CHEST = B.B("Spine")
+    cut_neck(o, axis, radius, L["neck_back"], L["neck_front"], NECK[1] + 0.06, NECK[1] - 0.07, CHEST[2] + 0.02)
+    keep_largest_part(o)
+    ty = B_torso_y(B)
+    z_btn = _v_point(B, g, fem)
+    x_n = radius(math.pi / 2) * g.get("gorge_x", 0.8)
+    z_n = NECK[2] + g.get("gorge_z", -0.045)
+    print("CROWD tailored: top button z %.3f (hips %.3f, chest %.3f), gorge x %.3f z %.3f" % (z_btn, B.B("Hips")[2], CHEST[2], x_n, z_n))
+    for side, sg in SIDES:
+        A = np.array([0.0, z_btn])
+        Bq = np.array([sg * x_n, z_n])
+        d = Bq - A
+        no = Vector((d[1], 0.0, -d[0])).normalized()
+        co = Vector((0.0, 0.0, z_btn))
+        ref = no.dot(Vector((0.0, 0.0, z_btn + 0.1)) - co)
+        if ref < 0:
+            no = -no
+        front = lambda c: c.y < ty(c.z)
+        cut(o, co, no, lambda c, sg=sg: front(c) and c.x * sg > -0.012 and z_btn - 0.03 < c.z < NECK[2] + 0.06,
+            lambda c, sg=sg, no=no: front(c) and c.x * sg > -0.001 and c.z > z_btn - 0.001 and no.dot(c - co) > 0)
+    keep_largest_part(o)
+    subdivide(o, 1)
+    decimate(o, g.get("tris", 2300))
+    clear_of(o, [B.bvh], 0.007)
+    if ctx.layers:
+        clear_of(o, [bvh_of(ctx.layers)], g.get("layer_clear", 0.008), smooth=True, reach=g.get("layer_reach", 0.025))
+    # the hem and the sleeve ends smoothed along themselves (decimated, they were toothed)
+    P, nbr, bound = mesh_arrays(o)
+    set_positions(o, smooth_edge(P, nbr, bound, P[:, 2] < CHEST[2] - 0.1, 8))
+    z_hem = L["z_hem"]
+
+    def spec(pts):
+        if pts[:, 2].max() > CHEST[2]:
+            return ("neck", 0.004, 0.02)
+        if abs(pts[:, 2].mean() - z_hem) < 0.04 and np.ptp(pts[:, 0]) > 0.2:
+            return ("hem", 0.004, 0.035)
+        xc = pts[:, 0].mean()
+        for side, sg in SIDES:
+            e = L["ends"][side]
+            if (xc * sg) > 0.1 and abs(np.mean((pts - np.array(e["co"])) @ np.array(e["no"]))) < 0.03:
+                return ("sleeve_" + side, 0.004, 0.04)
+        return None
+    L["hems"] = add_lips(o, spec)
+    smooth_weights(o, g.get("shoulder_blur", 12), where=lambda c: min((c - Vector(B.B("LeftArm"))).length, (c - Vector(B.B("RightArm"))).length) < 0.17,
+                   names=["LeftShoulder", "RightShoulder", "LeftArm", "RightArm", "Spine", "Spine01", "neck"])
+    off_the_head(o, 0.35)
+    # the skirts of the coat swing with the hips, not the thighs (split, the vent opened at every stride)
+    move_weight(o, list(LEG_UP), "Hips", g.get("hem_hips", 0.5))
+    fabric = g.get("fabric", "woven")
+    mark(o, "tailored", "shell", "top", fabric, gid)
+    parts = [o]
+    lapels = []
+    for side, sg in SIDES:
+        lp = _lapel(ctx, o, sg, (0.0, z_btn), (sg * x_n, z_n), g["lapel_w"], g.get("collar_w", 0.034), g.get("notch", 0.8), gid,
+                    fabric, "tailored_lapel_" + side[0])
+        if lp is not None:
+            lapels.append(lp)
+    parts += lapels
+    # the collar round the back of the neck, from gorge to gorge: a stand and a fall lying on the coat
+    edge_pts = neck_loop(o, CHEST[2])
+    ax_, ay_ = axis
+    edge = loop_by_azimuth(edge_pts, axis, 72, 2)
+    gap = math.atan2(x_n, -(NECK[1] - 0.04 - ay_)) * g.get("collar_gap_k", 0.9)
+    stand_h, fall, th = g.get("stand_h", 0.026), g.get("fall", 0.042), 0.0022
+    sbvh = bvh_of([o])
+    frames, profs = [], []
+    nf = 30
+    for j in range(nf):
+        a_ = gap + (2 * math.pi - 2 * gap) * j / (nf - 1)
+        t = a_ / (2 * math.pi) * 72
+        k0 = int(t) % 72
+        f = t - int(t)
+        r_e = edge[k0][0] * (1 - f) + edge[(k0 + 1) % 72][0] * f
+        z_e = edge[k0][1] * (1 - f) + edge[(k0 + 1) % 72][1] * f
+        d = Vector((math.sin(a_), -math.cos(a_), 0.0))
+        s_hi = B.skin_hit(np.array([ax_, ay_, z_e + stand_h]), np.array(d), 0.16)
+        r_top = min((s_hi if s_hi is not None else r_e - 0.01) + 0.009, r_e + 0.004)
+        fr = float(smoothstep(1.2, 0.0, min(a_, 2 * math.pi - a_)))
+        spread = 0.004 + 0.02 * fr
+        # the fall lies ON the coat: its edge where the shell is at that height (below the neck
+        # the back leans out, and a fall at the edge's radius sank into it as a raised box)
+        hz = z_e + stand_h - fall
+        hit = sbvh.ray_cast(Vector((ax_, ay_, hz)) + d * 0.3, -d, 0.3)
+        r_f = max((0.3 - hit[3]) if hit[0] is not None else r_e, r_e) + spread
+        frames.append((Vector((ax_, ay_, z_e)), d, Vector((0, 0, 1))))
+        profs.append([(r_e - 0.004, -0.008), (r_top - th, stand_h - 0.003), (r_top + th * 0.6, stand_h + th), (r_top + 0.008, stand_h - 0.004),
+                      (r_f, stand_h - fall), (r_f - th, stand_h - fall - th), (r_f - 0.005, stand_h - fall + 0.005),
+                      (r_top + 0.003, stand_h - 0.009)])
+    collar = sweep(ctx, "tailored_collar", frames, lambda i: profs[i], closed=False, caps=True)
+    finish_band(ctx, collar, "tailored", "collar", "top", fabric, gid, lambda c: (ax_, ay_, c.z), head=True, keep_neck=0.2)
+    parts.append(collar)
+    # buttons down the front edge, on the figure's left (+x) under the right front's lap
+    nb = int(g["buttons"])
+    zs = [z_btn - 0.012 - k * g.get("button_spacing", 0.105) for k in range(nb)]
+    hits = surface_line([o], [(g.get("button_x", 0.004), -0.6, z) for z in zs], (0.0, 1.0, 0.0))
+    if hits:
+        bt = discs(ctx, "tailored_buttons", [p + n * 0.001 for p, n in hits], [n for p, n in hits], g.get("button_r", 0.0098), 0.003, seg=10)
+        weights_from_body(ctx, bt)
+        mark(bt, "tailored", "buttons", "other", fabric, gid)
+        parts.append(bt)
+    # flap pockets either side at the hip, a hand under the lowest button
+    hip = B.B("LeftUpLeg")[2]
+    z_f = zs[-1] - g.get("pocket_drop", 0.075)
+    L["flaps"] = []
+    for sg in (1.0, -1.0):
+        xs = [sg * (0.075 + 0.1 * k / 6) for k in range(7)]
+        fl = surface_line([o], [(x, -0.6, z_f - 0.025) for x in xs], (0.0, 1.0, 0.0))
+        fo = patch(ctx, "tailored_flap_" + ("L" if sg > 0 else "R"), fl, g.get("flap_h", 0.05), 0.0028, (0.0, 0.0, 1.0),
+                   "tailored", "pflap", "top", fabric, gid)
+        if fo is not None:
+            parts.append(fo)
+        L["flaps"].append([z_f, sg * 0.075, sg * 0.175])
+    L["v"] = {"z_btn": z_btn, "x_n": x_n, "z_n": z_n, "buttons": zs, "hip": hip}
+    L["neck_ring"] = {"axis": list(axis), "ring": ring}
+    L["neck_cut"] = [L["neck_back"], L["neck_front"], NECK[1] + 0.06, NECK[1] - 0.07]
+    ctx.layers.append(o)
+    return parts, L
+
+
+def _tie_grid(ctx, bvh, rows_spec, lift_c, lift_e, rim, name):
+    """A grid laid down the front: rows_spec = [(z, half width)], nine columns across, each ray
+    cast from in front onto bvh, lifted lift_c at the centre to lift_e at the edges, the rim rim."""
+    ts = np.linspace(-1.0, 1.0, 9)
+    rows = []
+    s = 0.0
+    prev_z = None
+    for z, hw in rows_spec:
+        if prev_z is not None:
+            s += abs(prev_z - z)
+        prev_z = z
+        row = []
+        for j, t in enumerate(ts):
+            hit = bvh.ray_cast(Vector((t * hw, -0.6, z)), Vector((0.0, 1.0, 0.0)), 1.0)
+            if hit[0] is None:
+                row = None
+                break
+            n = np.array(Vector(hit[1]).normalized())
+            if n[1] > 0:
+                n = -n
+            edge = j in (0, len(ts) - 1)
+            lift = rim if edge else lift_e + (lift_c - lift_e) * (1.0 - abs(t)) ** 0.6
+            # the cloth hangs plumb off the chest: only the rays' front-facing normal lifts it
+            row.append((np.array(hit[0]) + np.array([0.0, -1.0, 0.0]) * lift, (t * hw, s)))
+        if row is not None:
+            rows.append(row)
+    if len(rows) < 3:
+        return None
+    verts, faces, fuv = [], [], []
+    nc = len(ts)
+    for r in rows:
+        verts += [tuple(p) for p, uv in r]
+    for i in range(len(rows) - 1):
+        for k in range(nc - 1):
+            faces.append((i * nc + k, i * nc + k + 1, (i + 1) * nc + k + 1, (i + 1) * nc + k))
+            fuv.append([rows[i][k][1], rows[i][k + 1][1], rows[i + 1][k + 1][1], rows[i + 1][k][1]])
+    o = mesh_with_local_uv(ctx, name, verts, faces, fuv)
+    return o
+
+
+def tie(ctx, g, gid):
+    """A necktie on the shirt under it (the last shirt built): a four-in-hand knot under the
+    collar's points and the blade hanging down the placket to the waistband, widening to its
+    pointed tip. Region "keep" (its own colour and stripe, painted by paint_tie)."""
+    B = ctx.body
+    sh = [G for G in ctx.meta["garments"] if G["type"] == "shirt"]
+    Ls = sh[-1] if sh else {"neck_front": B.B("neck")[2] - 0.062, "parts": []}
+    under = [o for o in ctx.parts if o.name in Ls.get("parts", [])] or ctx.layers[-1:]
+    bvh = bvh_of(under)
+    hip = B.B("LeftUpLeg")[2]
+    z_k0 = Ls["neck_front"] + g.get("knot_up", 0.014)
+    z_k1 = z_k0 - g.get("knot_h", 0.036)
+    z_tip = hip + g.get("tip_z", 0.085)
+    kn = [(z_k0 - (z_k0 - z_k1) * i / 6, 0.021 - 0.006 * i / 6) for i in range(7)]
+    knot = _tie_grid(ctx, bvh, kn, 0.016, 0.008, 0.004, "tie_knot")
+    rows = []
+    n = 26
+    for i in range(n + 1):
+        z = z_k1 + 0.004 - (z_k1 + 0.004 - z_tip) * i / n
+        f = i / n
+        hw = 0.5 * (g.get("w_top", 0.036) + (g.get("w_bot", 0.082) - g.get("w_top", 0.036)) * f ** 1.3)
+        rows.append((z, hw))
+    # the point: the last few centimetres close to the centre
+    w_end = rows[-1][1]
+    for k in range(1, 6):
+        rows.append((z_tip - 0.008 * k, w_end * (1 - k / 5.0) + 0.0015))
+    blade = _tie_grid(ctx, bvh, rows, 0.0068, 0.0042, 0.0018, "tie_blade")
+    ty = B_torso_y(B)
+    out = []
+    for o, part in ((knot, "knot"), (blade, "blade")):
+        if o is None:
+            continue
+        fix_winding(o, lambda c: (0.0, ty(c.z), c.z))
+        weights_from_body(ctx, o)
+        off_the_head(o, 0.15)
+        smooth_weights(o, 6)
+        mark(o, "tie", part, "keep", "woven", gid)
+        out.append(o)
+    if blade is not None:
+        ctx.layers.append(blade)
+    L = {"z_knot": [z_k0, z_k1], "z_tip": z_tip}
+    return out, L
+
+
 BUILDERS = {"dress": dress, "tee": tee, "trousers": trousers, "shirt": shirt, "jacket": jacket, "skirt": skirt, "vest": vest,
-            "scarf": scarf}
+            "scarf": scarf, "tailored": tailored, "tie": tie}
 
 
 def flatten_crotch(body, arm):
@@ -2961,7 +3312,7 @@ def flatten_crotch(body, arm):
     print("CROWD crotch flattened (%d vertices moved, at most %.1f mm)" % (int((w > 0.01).sum()), np.linalg.norm(P - V, axis=1).max() * 1000))
 
 
-def hide_under(lower, uppers, axis_y, reach=0.05, margin=0.06):
+def hide_under(lower, uppers, axis_y, reach=0.05, margin=0.06, ray=False):
     """Faces of a lower layer (trousers) that a garment over them hides, deleted: every corner
     has the upper layer within `reach` of it, outward from the torso's axis (so the waistband's
     turned lip counts as hidden too), and none lies within `margin` of a corner that shows, so a
@@ -2972,10 +3323,19 @@ def hide_under(lower, uppers, axis_y, reach=0.05, margin=0.06):
     P, nbr, bound = mesh_arrays(lower)
     covered = np.zeros(len(P), bool)
     for i, p in enumerate(P):
+        rad = np.array([p[0], p[1] - axis_y(p[2]), 0.0])
+        if ray:
+            # straight out from the torso's axis only: a shirt in a coat's V has the lapels a
+            # finger's width to its side, which the nearest-point test took for cover
+            if np.linalg.norm(rad) < 1e-6:
+                continue
+            dv = Vector(rad / np.linalg.norm(rad))
+            if bvh.ray_cast(Vector(p) + dv * 0.0005, dv, reach)[0] is not None:
+                covered[i] = True
+            continue
         loc, _n, _i, dist = bvh.find_nearest(Vector(p), reach)
         if loc is None:
             continue
-        rad = np.array([p[0], p[1] - axis_y(p[2]), 0.0])
         if np.linalg.norm(rad) > 1e-6 and (np.array(loc) - p) @ rad > 0:
             covered[i] = True
     show = P[~covered]
@@ -3028,7 +3388,7 @@ def build(body, arm, cfg, name):
         flatten_crotch(body, arm)
     ctx = Ctx(body, arm, cfg, name)
     # bottoms first, then tops in the order given (a vest after the tee it goes over), a headscarf last
-    order = sorted(range(len(cfg["outfit"])), key=lambda i: {"trousers": 0, "skirt": 0, "dress": 0, "vest": 2, "scarf": 3}.get(cfg["outfit"][i]["type"], 1))
+    order = sorted(range(len(cfg["outfit"])), key=lambda i: {"trousers": 0, "skirt": 0, "dress": 0, "tie": 1.5, "tailored": 1.8, "vest": 2, "scarf": 3}.get(cfg["outfit"][i]["type"], 1))
     for gid in order:
         g = cfg["outfit"][gid]
         objs, L = BUILDERS[g["type"]](ctx, g, gid)
@@ -3064,17 +3424,33 @@ def build(body, arm, cfg, name):
     uppers = [o for o in ctx.parts if region[o.name] == "top"]
     for lo in [o for o in ctx.parts if region[o.name] == "bottom"]:
         if uppers:
-            n = hide_under(lo, uppers, B_torso_y(ctx.body), cfg.get("hide_reach", 0.05))
+            # under a long coat the margin is wider: its skirts lift off the seat at every stride
+            coat = any(G["type"] == "tailored" for G in ctx.meta["garments"])
+            n = hide_under(lo, uppers, B_torso_y(ctx.body), cfg.get("hide_reach", 0.05), margin=0.11 if coat else 0.06)
             print("CROWD %s: %d faces hidden under the top removed, %d tris left" % (lo.name, n, tris(lo)))
     # a vest or a headscarf hides most of the top under it: those faces go too (the tee's collar
     # under a scarf, its chest under a vest), weights blended to the layer over them at the edge
     for G in ctx.meta["garments"]:
-        if G["type"] not in ("vest", "scarf"):
+        if G["type"] not in ("vest", "scarf") or G["spec"].get("tank"):
             continue
         overs = [o for o in ctx.parts if o.name in G["parts"] and json.loads(o["crowd_own"])["part"] == "shell"]
         for lo in [o for o in ctx.parts if region[o.name] == "top"]:
             n = hide_under(lo, overs, B_torso_y(ctx.body), cfg.get("hide_reach", 0.05), margin=0.08)
             print("CROWD %s: %d faces hidden under the %s removed, %d tris left" % (lo.name, n, G["type"], tris(lo)))
+    # a tailored jacket (or a cardigan marked "over") hides most of the shirt and tie under it:
+    # their shells and blades go where the coat covers them, never a collar (it stands over the
+    # coat's) - the V, the shirt collar and the cuffs below the sleeves are what show
+    for G in ctx.meta["garments"]:
+        if not (G["type"] == "tailored" or G["spec"].get("over")):
+            continue
+        overs = [o for o in ctx.parts if o.name in G["parts"] and json.loads(o["crowd_own"])["part"] == "shell"]
+        unders = [G2 for G2 in ctx.meta["garments"] if G2["gid"] != G["gid"] and G2["type"] in ("shirt", "tee", "tie")]
+        for G2 in unders:
+            for lo in [o for o in ctx.parts if o.name in G2["parts"]]:
+                if json.loads(lo["crowd_own"])["part"] in ("collar", "collar_rib", "knot", "cuff", "buttons"):
+                    continue
+                n = hide_under(lo, overs, B_torso_y(ctx.body), cfg.get("hide_reach", 0.06), margin=0.035, ray=True)
+                print("CROWD %s: %d faces hidden under the %s removed, %d tris left" % (lo.name, n, G["type"], tris(lo)))
     for o in [o for o in ctx.parts if not o.data.polygons]:
         ctx.parts.remove(o)
         bpy.data.objects.remove(o, do_unlink=True)

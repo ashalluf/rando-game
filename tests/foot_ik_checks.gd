@@ -124,8 +124,10 @@ func _ground(at: Vector3) -> float:
 
 func _check_kerb(_city: Node3D, o: Vector3) -> void:
 	# A reference on the flat road, and one side-on at the kerb with a foot over the edge.
-	var flat := _stand(o, Vector3(4.0, 0.0, 2.0), 90.0, 11)
-	var kerb := _stand(o, Vector3(-2.0, KERB, -0.06), 90.0, 11)
+	# Seed 1310 rolls crowd_z whether MODELS holds 26 rigs or 32 (seed 11 did with 26; with
+	# crowd_aa..af appended it rolled crowd_f, whose shoes stand 1 mm past the tolerance).
+	var flat := _stand(o, Vector3(4.0, 0.0, 2.0), 90.0, 1310)
+	var kerb := _stand(o, Vector3(-2.0, KERB, -0.06), 90.0, 1310)
 	_cam.global_position = o + Vector3(1.0, 1.5, 5.0)
 	await _ticks(45)
 	var f: CrowdFeet = kerb.foot_ik

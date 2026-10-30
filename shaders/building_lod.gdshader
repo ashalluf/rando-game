@@ -180,6 +180,15 @@ uniform bool facade_variety = false;
 // building.gdshader's window_recess (its punched and slot windows' depth), for the far reveal.
 uniform float window_recess_far = 0.20;
 #include "res://shaders/far_traffic.gdshaderinc"
+#include "res://shaders/far_cars.gdshaderinc"
+// The mid distance (MidCity, docs/HANDOFF.md "The mid distance"; off: MID_CITY=0): parked and
+// moving cars by day on the plates' streets and the decks (far_cars.gdshaderinc), the asphalt a
+// weathered grey rather than black, the yards' pools (INSTANCE_CUSTOM.a 5), a house's flat roof
+// (.a 0.25: a house wing) in a house's coverings and its pitched slabs (.a 1.25) as tile or
+// shingle courses. MidCity's flags; the mean road gain is mirrored by far_ground.gdshader.
+uniform bool mid_city = false;
+uniform float mid_road_gain = 1.7;
+#include "res://shaders/wet_surface.gdshaderinc"
 
 // --- Coded parts (FarBuilding) ---
 // Building's numbers the code does not carry: its storefront height (Building.storefront_height),
@@ -1089,6 +1098,19 @@ void fragment() {
 				albedo *= 1.0 - 0.14 * weather * (1.0 - smoothstep(0.05, 0.7, cdist)) * (glass ? 0.3 : 1.0);
 			}
 		}
+	} else if (custom.a > 4.5) {
+		// ------------------------------------------------------------- A yard's pool -----
+		// (MidCity.pool(): a slab in the yard, its top the water.) Turquoise lit through, a pale
+		// coping round it, the sky in it by Fresnel and a glint of the sun.
+		vec2 q = local_pos.xz * box_size.xz;
+		vec2 e = box_size.xz * 0.5 - abs(q);
+		float cop = 1.0 - smoothstep(0.28, 0.28 + max(mpp, 0.05), min(e.x, e.y));
+		float fres = pow(1.0 - clamp(-dot(to_frag, world_normal), 0.0, 1.0), 4.0);
+		vec3 water = c * (0.85 + 0.15 * smoothstep(-0.4, 0.4, sin(q.x * 2.1 + q.y * 1.3 + TIME * 0.8)) * detail(1.5, mpp));
+		albedo = mix(water, cs_as_uniform(vec3(0.82, 0.80, 0.75)), cop);
+		emission += (cs_srgb_to_linear(sky_tint.rgb) * 0.25 * fres + c * 0.12 * day) * (1.0 - cop);
+		rough = mix(0.08, 0.85, cop);
+		spec = 0.5;
 	} else if (custom.a > 3.5) {
 		// ------------------------------------------------------- Roof plant (FarBuilding) ---
 		// One box a unit, in the unit's own paint: galvanised and lighter on top, a sign's
@@ -1206,8 +1228,17 @@ void fragment() {
 			float x = abs(local_pos.x) * box_size.x;
 			float half_w = 0.5 * box_size.x;
 			float line = (1.0 - smoothstep(0.35, 0.35 + aa, x)) + smoothstep(half_w - 1.6 - aa, half_w - 1.6, x);
-			albedo = mix(deck_road_color, deck_road_color * 3.2, clamp(line, 0.0, 1.0) * 0.5);
+			vec3 deck_c = deck_road_color * (mid_city ? mid_road_gain : 1.0);
+			albedo = mix(deck_c, deck_c * 3.2, clamp(line, 0.0, 1.0) * 0.5);
 			rough = 0.9;
+			if (mid_city) {
+				// The cars on it by day (their lights by night, below): .g the segment's start in
+				// the pattern's period, .b the route; the basis' z runs backward along the route.
+				float s_day = custom.g + (0.5 - local_pos.z) * box_size.z;
+				float lane_d = min(3.6, (half_w - 0.42 - 1.2 - 1.305) / 4.0);
+				vec4 cars = deck_cars(s_day, local_pos.x * box_size.x, 1.305, lane_d, mpp, custom.b);
+				albedo = mix(albedo, cars.rgb, cars.a * day);
+			}
 			if (lamp_factor > 0.001) {
 				vec3 g = street_glow(vec2(0.0, (local_pos.z + 0.5) * box_size.z), vec2(local_pos.x + 0.5), 1);
 				emission += mix(glow_mean, g, glow_detail) * street_glow_level();
@@ -1232,7 +1263,18 @@ void fragment() {
 			float kerb_x = rx > 0.01 ? 1.0 - smoothstep(0.0, 0.6 + aa, abs(p.x - (box_size.x - rx))) : 0.0;
 			float kerb_z = rz > 0.01 ? 1.0 - smoothstep(0.0, 0.6 + aa, abs(p.y - (box_size.z - rz))) : 0.0;
 			vec3 ground = c * (0.94 + 0.12 * hash21(floor(p / 9.0) + bseed));
-			albedo = mix(ground, plate_road_color, road);
+			albedo = mix(ground, plate_road_color * (mid_city ? mid_road_gain : 1.0), road);
+			if (mid_city && road > 0.01 && !(in_x > 0.5 && in_z > 0.5)) {
+				// The cars down it by day: parked along both kerbs, moving in the lanes.
+				bool along_z = in_x > in_z;
+				float w = along_z ? rx : rz;
+				float across_m = along_z ? p.x - (box_size.x - rx * 0.5) : p.y - (box_size.z - rz * 0.5);
+				vec2 tw = world_pos.xz + origin_shift.xz;
+				float along_m = along_z ? tw.y : tw.x;
+				vec4 cars = street_cars(along_m, along_z ? -across_m : across_m, w, mpp,
+					floor((along_z ? tw.x : tw.y) - across_m + 0.5), 1.0, 1.0);
+				albedo = mix(albedo, cars.rgb, cars.a * road);
+			}
 			albedo = mix(albedo, c * 1.25, max(kerb_x, kerb_z) * 0.35 * detail(1.2, mpp));
 			rough = 0.95;
 			if (lamp_factor > 0.001 && road > 0.01) {
@@ -1273,7 +1315,16 @@ void fragment() {
 		// roofs as the detailed chunks do.
 		float rr = hash21(vec2(bseed * 91.0, 5.7));
 		vec3 surface;
-		if (rr < 0.42) {
+		if (mid_city && abs(custom.a - 0.25) < 0.05) {
+			// A house's flat roof (MidCity.HOUSE_FLAG): what LA's flat-roofed houses and dingbats
+			// wear - pale grey or tan cap sheet and gravel, a white cool roof now and then, an
+			// old dark one - never the towers' bright membrane on half of them.
+			// LINEAR, like the coverings below.
+			vec3 cover = rr < 0.38 ? vec3(0.27, 0.265, 0.25) : (rr < 0.62 ? vec3(0.31, 0.26, 0.20)
+				: (rr < 0.80 ? vec3(0.52, 0.52, 0.50) : vec3(0.075, 0.072, 0.068)));
+			surface = cover * (0.9 + 0.2 * hash21(floor(p * 0.5) + bseed) * detail(2.0, mpp));
+			rough = 0.9;
+		} else if (rr < 0.42) {
 			// White single-ply membrane, rolled in strips and welded, grey where water ponds.
 			surface = vec3(0.80, 0.80, 0.77);
 			float strip = fract(p.x * 0.5 + hash21(vec2(bseed, 2.0)));
@@ -1297,7 +1348,10 @@ void fragment() {
 
 		// Rooftop plant, printed (a flat grey roof is the loudest tell that a mid-distance city is
 		// a set of extruded rectangles). The coded parts build theirs instead (FarBuilding).
-		print_plant(p, edge, bseed, clutter_density, sun_n, mpp, surface, rough);
+		// (A house's roof carries none.)
+		if (!(mid_city && abs(custom.a - 0.25) < 0.05)) {
+			print_plant(p, edge, bseed, clutter_density, sun_n, mpp, surface, rough);
+		}
 
 		// Parapet cap, and the shade it throws on the deck just inside it.
 		vec3 cap = mix(c, vec3(0.72, 0.71, 0.69), 0.5) * 1.04;
@@ -1305,6 +1359,23 @@ void fragment() {
 		surface *= mix(1.0, 0.86, (1.0 - parapet) * (1.0 - smoothstep(parapet_width, parapet_width + 1.4, edge)));
 		albedo = surface;
 		spec = 0.15;
+	} else if (mid_city && abs(custom.a - 1.25) < 0.05) {
+		// --------------------------------------------- A house's pitched roof (MidCity) ----
+		// A tilted slab (HouseBuild._lod_roof()): u along the ridge, v up the slope from the
+		// eave. Clay (a warm colour) in barrel courses, shingle in tabbed courses; patches of
+		// weathering a metre or two across, the eave's shadow line and a ridge cap. What a
+		// pixel cannot hold fades to its mean (detail()).
+		bool clay = c_raw.r - c_raw.b > 0.22;
+		float course = clay ? 0.34 : 0.15;
+		float cv = fract(v / course);
+		float lines = smoothstep(0.0, 0.18, cv) * 0.18 + 0.82;
+		float barrel = clay ? 0.88 + 0.24 * abs(sin(u * 12.566)) : 0.96 + 0.08 * step(0.5, fract(u / 0.9 + floor(v / course) * 0.5));
+		albedo = c * mix(1.0, lines * barrel, detail(course * 2.0, mpp));
+		albedo *= 0.88 + 0.24 * hash21(vec2(floor(u / 1.6), floor(v / 1.2)) + bseed) * detail(1.4, mpp);
+		albedo *= mix(0.78, 1.0, smoothstep(0.0, 0.45, v));
+		albedo = mix(albedo, c * 1.12, smoothstep(box_size.y - 0.3, box_size.y - 0.15, v) * 0.6);
+		rough = clay ? 0.7 : 0.9;
+		spec = 0.3;
 	} else if (custom.a > 0.5) {
 		// ---------------------------------------------------------- Plinth / plain -------
 		// Board-formed concrete: horizontal form lines, a tie-hole grid, and street soot.
@@ -1668,6 +1739,25 @@ void fragment() {
 		// The emitted mirror, faded to its facade average on the same schedule, or the panes
 		// would buzz at distance in emission after the albedo had stopped.
 		emission += refl_emit * mix(glaze_frac, glass, mix(0.30, 1.0, band_fade));
+	}
+
+	// ---- Rain (wet_surface.gdshaderinc): the near walls' rule (ws_wall) on the same box, the
+	// streak columns faded to their average under a pixel; roofs, plates and decks dark and glossy.
+	// The far city wets and dries in step with the near one. Dry, one branch.
+	if (ws_on()) {
+		if (n.y > 0.5 || (custom.a > 1.5 && custom.a < 3.5)) {
+			float wet = ws_wet(0.5);
+			albedo *= mix(1.0, 0.7, wet);
+			rough = mix(rough, 0.22, wet);
+		} else if (abs(n.y) < 0.5) {
+			float hs = ws_hash(vec2(floor(u / 0.7), bseed * 13.0 + (n.x + 2.0 * n.z) * 5.0));
+			float streak = mix(0.3, clamp(smoothstep(0.6, 0.92, hs) + 0.25, 0.0, 1.0), smoothstep(1.0, 0.25, mpp));
+			float down = (0.5 - local_pos.y) * box_size.y;
+			float up = (local_pos.y + 0.5) * box_size.y;
+			float wet = ws_wall(down, up, streak);
+			albedo *= mix(1.0, 0.6, wet * (0.75 + 0.25 * streak));
+			rough = mix(rough, 0.35, wet);
+		}
 	}
 
 	float rim = smoothstep(edge_start, edge_end, length(world_pos.xz - (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xz));

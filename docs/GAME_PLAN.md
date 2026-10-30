@@ -295,6 +295,20 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-30 The blast is built frame by frame (fleet wave 3, `explosions-2`).** The rocket and
+  car explosions get a second layer on top of WeaponFX's (`BlastFX`, one call): flash light and
+  screen flash, a screen-reading pressure wave (desktop only), fire rolling upward, a LIT smoke cap
+  and column (hand-lit, unshaded, linear on both renderers, so the web and the Mac agree), burning
+  debris as script points feeding shared emitters (no physics bodies), and the windows facing the
+  blast across the street broken through BuildingDamage's own records. Caps keep a rocket barrage
+  to three full blasts in 2.5 s. `EXPLOSIONS_2=0` is the A/B.
+
+- **2026-10-30 The mid distance is planted and parked from the capture, never placed (HANDOFF "The
+  mid distance").** The far tiers' yard trees come from the LOD block build's own capture (green
+  ground, building footprints) on hashes of the seed and the place, and the far streets' cars are
+  painted per pixel - the moving ones the night lights' own cells - so nothing a seed builds
+  moves and the far city costs no new draws. House roofs out there are the house's own clay tint
+  or shingle, flagged so the far shader draws them as roofs, not as towers' membranes.
 - **2026-10-30 The night has its own street life (fleet wave 3, `nightlife`).** After 21:00 a share
   of the open restaurants and tower lobbies downtown, in midtown and the beach town are clubs and
   bars with a line along the wall behind a velvet rope, a bouncer and a lit entrance; the door
@@ -3461,6 +3475,47 @@ already mapped so milestone 2 is script-only.
   worked out once against the same surface function the concrete is built from and played from a
   clock (nothing simulated); they and the spectators are baked figures that wake into live people.
   SKATE_PARK=0 keeps the boxes.
+- **2026-10-30 The third wave of car bodies is derived, not drawn from scratch.** The EV hatch,
+  luxury sedan, compact SUV, work truck and coupe (tools/make_cars_3.py) are the older lofted
+  specs moved by station maps (cab-forward, a long bonnet, a cut overhang plus a uniform scale,
+  a lowered glasshouse) with their own faces, tails and parts, because the loft is fussy and a
+  derived one is known to build; their silhouettes still differ where a street reads them. Their
+  shares (165 per thousand) come out of the END of six older ranges, the sedan's, pickup's,
+  van's, sports car's, crossover's and the hatchback's, and `CARS_3=0` hands each slice back.
+
+- **2026-10-30 Forward+ review of the wave-3 features (fwd-review-d, HANDOFF "Forward+ review d").**
+  Decisions: anything the sky draws after the Forward+ cloud volume's composite is in front of it
+  (the island); renderer-space shaders take `sky_tint` through `cs_as_uniform()`; vertex colours are
+  decoded with `cs_srgb_to_linear()`, never `cs_in()`; a test scans every shader for these.
+- **2026-10-30 The wet world is shader-only, driven by the road's globals.** Rain on cars, walls,
+  roofs, awnings and people reads `road_wetness` / `road_drying` / `rain_intensity` through one
+  include (wet_surface.gdshaderinc) with no textures and one branch when dry, so it dries in step
+  with the street and costs the web nothing. Wipers are one shared mesh per body type turned in the
+  vertex shader, with four shared phase buckets (no per-car uniform); the glass clears its beads by
+  the same angle worked out from TIME.
+- **2026-10-30 The hills' leopard spots were the fine erosion's normal; stands are masses of the
+  land.** (hill-ground-3) The dark blobs evenly over every slope in the hills still were not the paint
+  or the planting: the 55 / 27 m erosion orders drawn as shading were 7 m deep with neighbouring
+  cells half a stripe out of phase, so each gully was a braid of pits, black under an afternoon sun.
+  Now 3 m, nearly in phase: rills. The stand noise was 70 % shrub-scale octaves, which fade with
+  distance into a share tone (khaki from 150 m); now the patch octaves, the drainage and the rills
+  themselves (brush down each rill) decide, and the bushes only rag the edges. The searsia shrub
+  (black leaf atlas, dark sprigs) is replaced on the stands by a code-built chaparral mound
+  (HillShrub, LaTrees' machinery). HILL_GROUND_3=0 puts everything back.
+- 2026-10-30 (wave 3, crowd-variety): six more adults (crowd_aa..af) appended to Pedestrian.MODELS - a suit and tie, a blazer, a work shirt, a cardigan, a gym tank, wide trousers - with the tailored jacket, the necktie, the tank and wide trousers added to tools/crowd/garments.py. Appended, so every earlier rig keeps its index; a person's roll picks among 32 now (CROWD_VARIETY=0: the old 26).
+- **2026-10-30 Every check file starts from a clean city.** The smoke test snapshots the city
+  after its setup and puts it back (statics, weather, hour, staged traffic, the units' switches,
+  destruction, onlookers, wrecks, debris, time scale, the player) before every check file and city
+  part, in one process as in a shard, so a check's result no longer depends on what ran before it
+  (`tests/gate_reset.gd`; `SMOKE_SHUFFLE=<seed>` is the proof). Chosen over patching each order bug
+  where it surfaced. CI runs `SHARDS=auto`.
+- **2026-10-30 The hero's face lives in shaders; his clips play at their feet's speed.** The rig has
+  no face bones and rebuilding it in Blender would break every clip and fit, so the blink and the
+  gaze are the eye and lash shaders (the eyeball turned about its centre, the upper lid painted onto
+  it, the upper lashes swung down) driven by HeroFace from the head bone. The walk / run / sprint
+  play at speeds measured from each clip's planted foot (HeroStride) instead of guessed numbers
+  (the walk was 1.5x off, the run 1.6x), and the gait bands moved to where people change gait.
+  Rain wets him through the street's own wetness global. HERO_CLOSEUP=0 keeps all of it off.
 - **2026-10-30 Forward+ review e: display numbers are decoded where they are handed over.** A
   colour written as display numbers in a renderer-space shader (the building shaders) goes through
   a Forward+-only decode where it is used (`fx_srgb_in()`), never by re-tuning the number; a broad
@@ -3518,3 +3573,10 @@ pink-and-orange cloud sky; palms lit from below; dense crowds and headlights. Th
 signage as a light source*, *wet road reflections*, and *sky with cloud STRUCTURE at sunset* -
 this project has shaders/neon_sign.gdshader and a `road_wetness` global already and uses almost
 none of either.
+- **2026-10-30 The far ranges are crest lines, and the far ground reaches the far plane
+  (HANDOFF "The far ranges").** The back and east ranges' bases are a front face (the old one, so
+  their feet and the city's edge do not move), a wandering crest with a few big massings and a
+  long fall behind; canyons are wider apart and only saddle the crest. The front range keeps its
+  shape (it carries the landmarks). The horizon plane stays 14 km, with a coarser ring on the same
+  material out to 12.6 km, because its rim was erasing the crests 5-7 km away; past the bake the
+  map is mirrored. FAR_RANGES=0 is the old world exactly.

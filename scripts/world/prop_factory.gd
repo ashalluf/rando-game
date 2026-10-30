@@ -176,6 +176,7 @@ static func terrain_material() -> ShaderMaterial:
 	mat.set_shader_parameter("dirt_normal", texture("hill_dirt", "NormalGL"))
 	mat.set_shader_parameter("rock_albedo", texture("hill_outcrop", "Color"))
 	mat.set_shader_parameter("rock_normal", texture("hill_outcrop", "NormalGL"))
+	HillGround3.apply(mat)
 	_cache["terrain_mat"] = mat
 	return mat
 
@@ -191,6 +192,7 @@ static func hill_shell_material() -> ShaderMaterial:
 	# The painted straw's own light and dark, so the grass carries the ground's tone.
 	mat.set_shader_parameter("grass_albedo", texture("grass", "Color"))
 	mat.set_shader_parameter("mottle_albedo", texture("hill", "Color"))
+	HillGround3.apply(mat)
 	_cache["hill_shell_mat"] = mat
 	return mat
 
@@ -1998,6 +2000,7 @@ static func far_ground_material() -> ShaderMaterial:
 		return _cache["far_ground_mat"]
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/far_ground.gdshader")
+	mat.set_shader_parameter("mid_city", MidCity.enabled)
 	_cache["far_ground_mat"] = mat
 	return mat
 
@@ -2017,6 +2020,7 @@ static func building_lod_material(far_city: bool = false) -> ShaderMaterial:
 	mat.set_shader_parameter("instance_color_is_srgb", has_reflections())
 	mat.set_shader_parameter("print_small_plant", far_city)
 	mat.set_shader_parameter("facade_variety", FacadeVariety.enabled)
+	mat.set_shader_parameter("mid_city", MidCity.enabled)
 	_cache[key] = mat
 	return mat
 
