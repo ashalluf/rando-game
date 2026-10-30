@@ -149,6 +149,9 @@ static func _list() -> Array[Dictionary]:
 		list.append(OilField.entry())
 	# --- The reservoir in the front range (Reservoir, LandmarkReservoir) -------------------------
 	list.append({"id": "reservoir", "anchor": Reservoir.ANCHOR, "radius": 60.0})
+	# The oil refinery north of the port (Refinery): an area site like the film studio's.
+	if Refinery.enabled:
+		list.append(Refinery.entry())
 	return list
 
 
@@ -227,6 +230,8 @@ static func site_steps(site_id: String, chunk: CityChunk) -> Array[Callable]:
 			return OilFieldBuild.site_steps(chunk)
 		FilmStudio.SITE_ID:
 			return FilmStudio.site_steps(chunk)
+		Refinery.SITE_ID:
+			return Refinery.site_steps(chunk)
 	var none: Array[Callable] = []
 	return none
 
@@ -237,6 +242,8 @@ static func capture_steps(site_id: String, chunk: CityChunk) -> Array[Callable]:
 		return Canals.capture_steps(chunk)
 	if site_id == FilmStudio.SITE_ID:
 		return FilmStudio.capture_steps(chunk)
+	if site_id == Refinery.SITE_ID:
+		return Refinery.capture_steps(chunk)
 	var none: Array[Callable] = []
 	return none
 

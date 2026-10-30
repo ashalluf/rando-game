@@ -290,6 +290,8 @@ func _build_far_landmarks() -> void:
 		# Far copies are built box by box (a pier, a mall, a ship are dozens of them) and never
 		# change after this: one draw per material instead of one per box.
 		MultiMeshBatch.merge_meshes(holder)
+	# The refinery's far pieces, one a block, hidden block by block under its FULL chunks.
+	RefineryFar.attach(self, plan)
 
 
 ## The far ridge sign stands on the far ground, not the real one. It is built level with the
