@@ -45,9 +45,10 @@ static func attach(ch: CityChunk) -> Array[Callable]:
 
 
 static func _claim(ch: CityChunk, ids: Array) -> void:
-	RockFar.claim(ids)
+	var seed := ch.plan.seed
+	RockFar.claim(seed, ids)
 	ch.set_meta("rock_claims", ids)
-	ch.tree_exiting.connect(func() -> void: RockFar.release(ids), CONNECT_ONE_SHOT)
+	ch.tree_exiting.connect(func() -> void: RockFar.release(seed, ids), CONNECT_ONE_SHOT)
 
 
 ## Every tor's collision: a trimesh of its welded mesh (RockKit.mid_mesh), in the tor's own transform, on

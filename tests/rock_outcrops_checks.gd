@@ -23,7 +23,7 @@ func run(t: Node, city: Node3D) -> void:
 		return
 	var tors := RockOutcrops.tors(plan)
 	_plan(plan, tors)
-	_far(tors)
+	_far(tors, city)
 	_chunks(city, plan, tors)
 
 
@@ -78,15 +78,15 @@ func _plan(plan: CityPlan, tors: Array) -> void:
 	_t._check(in_hills == tors.size() and off_roads == tors.size(),
 		"every tor is in the hills (%d of %d) and off the hill roads and estate pads (%d)" % [in_hills, tors.size(), off_roads])
 	_t._check(float(on_rock) / n > 0.6, "tors stand where the ground is painted rock or is a crest (%d of %d)" % [on_rock, tors.size()])
-	var again := RockOutcrops._plan_tors(plan)
+	var again := RockOutcrops._plan_tors(plan, RockOutcrops.bake_of(plan))
 	var same := again.size() == tors.size()
 	for i in mini(again.size(), tors.size()):
 		same = same and (again[i].pos as Vector2).is_equal_approx(tors[i].pos) and int(again[i].kind) == int(tors[i].kind)
 	_t._check(same, "the tors are the same planned twice (hashes of the seed and the place)")
 
 
-func _far(tors: Array) -> void:
-	var f := RockFar.current
+func _far(tors: Array, city: Node3D) -> void:
+	var f := city.get_node_or_null("RockFar") as RockFar
 	_t._check(f != null and f.is_inside_tree(), "the far rock node is in the city (RockFar)")
 	if f == null:
 		return
@@ -110,7 +110,6 @@ func _far(tors: Array) -> void:
 
 
 func _chunks(city: Node3D, plan: CityPlan, tors: Array) -> void:
-	var f := RockFar.current
 	# The chunk holding the most tors among a sample.
 	var counts := {}
 	for i in range(0, tors.size(), 7):
@@ -137,7 +136,7 @@ func _chunks(city: Node3D, plan: CityPlan, tors: Array) -> void:
 	var ids: Array = chunk.get_meta("rock_claims", [])
 	var claimed := not ids.is_empty()
 	for id: int in ids:
-		claimed = claimed and RockFar.is_claimed(id)
+		claimed = claimed and RockFar.is_claimed(plan.seed, id)
 	_t._check(chunk.zone == MacroMap.Zone.HILLS and body != null and body.collision_layer == 1 and body.collision_mask == 0
 		and body.get_child_count() == int(rocks.get("tors", -1)) and claimed,
 		"a FULL hill chunk %s collides and claims its tors (%d) and lays outcrops (%d), scree (%d), bank boulders (%d)"
@@ -146,7 +145,7 @@ func _chunks(city: Node3D, plan: CityPlan, tors: Array) -> void:
 	chunk.free()
 	var released := true
 	for id: int in ids:
-		released = released and not RockFar.is_claimed(id)
+		released = released and not RockFar.is_claimed(plan.seed, id)
 	_t._check(released, "the tors go back to the far seat when their chunk goes")
 	var lod: CityChunk = city._new_chunk(best, CityChunk.Level.LOD)
 	lod.build()

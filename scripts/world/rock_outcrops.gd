@@ -39,6 +39,10 @@ const BANK_STEP := 7.0
 const BANK_MIN_CUT := 1.6
 
 static var _tors_cache: Dictionary = {}
+## The bake each seed's tors were planned from (a check may bake the same macro again at another
+## size, and the city's tors stay what they were), and the one a plan in progress reads.
+static var _bakes: Dictionary = {}
+static var _img: Image = null
 
 
 static func _h01(parts: Array) -> float:
@@ -63,15 +67,21 @@ static func tors(plan: CityPlan) -> Array:
 	if cached is Array:
 		out = cached
 	else:
-		out = _plan_tors(plan)
+		out = _plan_tors(plan, macro.bake_height)
 		LoadCache.save_data("rock_tors", inputs, out)
 	_tors_cache[key] = out
+	_bakes[key] = macro.bake_height
 	return out
 
 
 ## The bake's height (metres) and drainage at a world XZ, bilinear.
+## The bake the seed's tors were planned from (null before tors() ran for it).
+static func bake_of(plan: CityPlan) -> Image:
+	return _bakes.get(plan.seed)
+
+
 static func _bake_at(macro: MacroMap, p: Vector2, span: float) -> Vector2:
-	var img := macro.bake_height
+	var img := _img if _img else macro.bake_height
 	var n := img.get_width()
 	var g := (p + Vector2(span, span) * 0.5) / span * float(n) - Vector2(0.5, 0.5)
 	var i := Vector2i(clampi(floori(g.x), 0, n - 2), clampi(floori(g.y), 0, n - 2))
@@ -85,8 +95,9 @@ static func _bake_at(macro: MacroMap, p: Vector2, span: float) -> Vector2:
 	return Vector2(h, dr)
 
 
-static func _plan_tors(plan: CityPlan) -> Array:
+static func _plan_tors(plan: CityPlan, img: Image = null) -> Array:
 	var macro: MacroMap = plan.macro
+	_img = img
 	var span := 16000.0
 	var out: Array = []
 	var marks := _keep_out_marks(plan)
@@ -143,6 +154,7 @@ static func _plan_tors(plan: CityPlan) -> Array:
 					piece["id"] = out.size()
 					out.append(piece)
 	print("RockOutcrops: %d tors planned in %.0f ms" % [out.size(), (Time.get_ticks_usec() - t0) / 1000.0])
+	_img = null
 	return out
 
 

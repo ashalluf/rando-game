@@ -21,7 +21,15 @@ const SHADOW_RANGE := 240.0
 ## Seconds between looks at which near cells to show.
 const SURVEY := 0.4
 
-static var current: RockFar = null
+## The RockFar nodes alive (a check can build a second city while the first stands); `current`
+## is the newest in the tree.
+static var _live: Array[RockFar] = []
+static var current: RockFar:
+	get:
+		for i in range(_live.size() - 1, -1, -1):
+			if is_instance_valid(_live[i]) and _live[i].is_inside_tree():
+				return _live[i]
+		return null
 ## ROCK_DEBUG=1: every survey prints what is shown and claimed.
 static var DEBUG: bool = OS.get_environment("ROCK_DEBUG") == "1"
 
@@ -39,8 +47,8 @@ var _near_shadow: Dictionary = {}
 ## Near cell (Vector2i) -> the tor ids in it.
 var _near_tors: Dictionary = {}
 var _shown: Dictionary = {}
-## Tor id -> how many chunks claim it. Static: the chunks the loading screen builds can claim
-## before this node exists, and it reads them when it does.
+## Seed -> {tor id -> how many chunks claim it}. Static: the chunks the loading screen builds can
+## claim before this node exists, and it reads them when it does.
 static var _claims: Dictionary = {}
 var _clock := 0.0
 var _materials: Array[ShaderMaterial] = []
@@ -73,7 +81,7 @@ static func attach(streamer: Node3D, plan: CityPlan, canopy: ShaderMaterial) -> 
 			(list as Array).append(m)
 	f._build()
 	streamer.add_child(f)
-	current = f
+	_live.append(f)
 	return f
 
 
@@ -125,7 +133,7 @@ func _cell(list: Array, kind: int, far: bool, label: String) -> MultiMeshInstanc
 		var t: Dictionary = list[i]
 		var xf := Transform3D(t.basis, Vector3(t.pos.x, t.y, t.pos.y))
 		mm.set_instance_transform(i, xf)
-		mm.set_instance_custom_data(i, Color(1.0 if is_claimed(int(t.id)) else 0.0, float(t.tone), float(t.sink) / 100.0, 1.0))
+		mm.set_instance_custom_data(i, Color(1.0 if is_claimed(_plan.seed, int(t.id)) else 0.0, float(t.tone), float(t.sink) / 100.0, 1.0))
 		var wb := xf * b
 		lo = lo.min(wb.position)
 		hi = hi.max(wb.end)
@@ -187,7 +195,7 @@ func survey(eye: Vector3) -> void:
 		var near_tors := 0
 		for k: Vector2i in _shown:
 			near_tors += (_near_tors[k] as Array).size()
-		print("ROCKFAR eye %s near cells %d (%d tors), claimed %d" % [e, _shown.size(), near_tors, _claims.size()])
+		print("ROCKFAR eye %s near cells %d (%d tors), claimed %d" % [e, _shown.size(), near_tors, (_claims.get(_plan.seed, {}) as Dictionary).size()])
 
 
 func _show_near(cell: Vector2i, on: bool) -> void:
@@ -218,7 +226,7 @@ func _show_near(cell: Vector2i, on: bool) -> void:
 func _write(id: int) -> void:
 	var t: Dictionary = _tors[id]
 	var s: Array = _slots[id]
-	var real := 1.0 if int(_claims.get(id, 0)) > 0 else 0.0
+	var real := 1.0 if is_claimed(_plan.seed, id) else 0.0
 	var nk: Vector3i = s[0]
 	var shown := _shown.has(Vector2i(nk.x, nk.y))
 	var data := Color(real, float(t.tone), float(t.sink) / 100.0, 1.0)
@@ -229,27 +237,37 @@ func _write(id: int) -> void:
 	((_far[s[2]] as MultiMeshInstance3D).multimesh).set_instance_custom_data(int(s[3]), data)
 
 
-## A chunk drew the real terrain under these tors (CityChunk FULL or LOD): they stand on it.
-static func claim(ids: Array) -> void:
+## A chunk drew the real terrain under these tors of seed `seed` (CityChunk FULL or LOD): they
+## stand on it.
+static func claim(seed: int, ids: Array) -> void:
+	if not _claims.has(seed):
+		_claims[seed] = {}
+	var c: Dictionary = _claims[seed]
 	for id: int in ids:
-		_claims[id] = int(_claims.get(id, 0)) + 1
-		if int(_claims[id]) == 1 and current:
-			current._write(id)
+		c[id] = int(c.get(id, 0)) + 1
+		if int(c[id]) == 1:
+			_rewrite(seed, id)
 
 
-static func release(ids: Array) -> void:
+static func release(seed: int, ids: Array) -> void:
+	var c: Dictionary = _claims.get(seed, {})
 	for id: int in ids:
-		var n := int(_claims.get(id, 0)) - 1
+		var n := int(c.get(id, 0)) - 1
 		if n <= 0:
-			_claims.erase(id)
-			if current:
-				current._write(id)
+			c.erase(id)
+			_rewrite(seed, id)
 		else:
-			_claims[id] = n
+			c[id] = n
 
 
-static func is_claimed(id: int) -> bool:
-	return int(_claims.get(id, 0)) > 0
+static func is_claimed(seed: int, id: int) -> bool:
+	return int((_claims.get(seed, {}) as Dictionary).get(id, 0)) > 0
+
+
+static func _rewrite(seed: int, id: int) -> void:
+	for f in _live:
+		if is_instance_valid(f) and f._plan and f._plan.seed == seed and id < f._tors.size():
+			f._write(id)
 
 
 ## The built near cell `k` (Vector3i cell x, z, kind), or null.
@@ -262,5 +280,4 @@ func near_shown(cell: Vector2i) -> bool:
 
 
 func _exit_tree() -> void:
-	if current == self:
-		current = null
+	_live.erase(self)
