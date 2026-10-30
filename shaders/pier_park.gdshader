@@ -23,8 +23,12 @@ shader_type spatial;
 render_mode cull_back;
 
 #include "res://shaders/color_space.gdshaderinc"
+// The piles' waterline (OceanCloseup): weed, barnacles and the wet splash zone.
+#include "res://shaders/waterline_wet.gdshaderinc"
 
 global uniform float lamp_factor;
+global uniform float ocean_closeup;
+global uniform vec3 origin_shift;
 
 uniform int ride = 0;
 uniform vec3 hub = vec3(0.0);
@@ -44,6 +48,7 @@ uniform float time_offset = 0.0;
 
 varying vec2 v_data;
 varying vec3 v_local;
+varying vec3 v_wpos;
 
 vec3 rot_z(vec3 p, float a) {
 	float c = cos(a);
@@ -63,6 +68,7 @@ float h11(float n) {
 
 void vertex() {
 	v_data = UV2;
+	v_wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	v_local = VERTEX;
 	float t = TIME + time_offset;
 	int kind = int(UV2.x + 0.5);
@@ -231,6 +237,10 @@ void fragment() {
 		alb = vec3(0.95, 0.70, 0.30);
 		metal = 1.0;
 		rough = 0.28;
+	}
+	// The piles where they stand in the sea (nothing else on the pier comes down near the water).
+	if (kind == 0 && v_wpos.y < 3.4 && ocean_closeup > 0.5) {
+		alb = wl_wet(alb, v_wpos.y, v_wpos.xz + origin_shift.xz, (v_local.x + v_local.z) * 1.7, t, rough);
 	}
 	ALBEDO = cs_out(alb);
 	EMISSION = cs_out(emit);

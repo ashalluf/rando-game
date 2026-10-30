@@ -3530,6 +3530,12 @@ already mapped so milestone 2 is script-only.
   2 m; grime, mud, scratches and brake dust ride uniforms on materials that already exist per car
   (the paint) or are shared in a few levels (the wheels), so no car gains a material. Plate format
   and county are invented. CAR_DETAIL=0 is the A/B.
+- **2026-10-30 The ocean close up is a fragment-only pass (ocean-closeup, HANDOFF "The Pacific close
+  up").** Capillary ripples, wind streaks, glitter sparkles, crest light, ageing foam and the pile
+  and hull foam lines all live in the fragment stage and fade with the hand-over's `detail`, so
+  SeaSurface (the vertex stage in GDScript) and the far sea plane need no change. Pile positions
+  are pushed as grids worked out from the piers' own constants, not found by depth (the web has no
+  depth texture).
 
 ## Correction: what build 135 (0ce833f) actually contained
 

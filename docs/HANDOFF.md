@@ -19880,3 +19880,73 @@ Build: ~0.1 ms a car at spawn (uniforms), ~1 ms when it first comes near, 3 a fr
 `MAKES` types get plates; every car gets grime); the windscreen dust is one level per body type
 (the glass material is shared per type); the grime's colours were judged on opengl3 and one
 lavapipe car_shot, not in the city on Forward+.
+
+## 9hi. The Pacific close up (wave 3, `ocean-closeup`, branch `wt/ocean-closeup`)
+
+**Ask:** the open water from the pier, the beach and a boat at water level should read like a
+current open-world game's ocean close up: fine capillary ripples and wind streaks over the swell,
+light through the wave tops, deep colour, foam that streaks and dissipates, the sun glitter as
+sparkles not a smear, the sky reflection right at grazing angles, and the pier piles and boats
+meeting the water with a foam line and wet darkening.
+
+**What it is.** `shaders/ocean_closeup.gdshaderinc`, included by `ocean.gdshader`, plus
+`OceanCloseup` (`scripts/world/ocean_closeup.gd`, uniforms and the A/B). The whole pass is in the
+FRAGMENT stage and multiplied by `near_c = closeup * detail`, so it is gone before the hand-over
+to the far sea plane starts: the vertex stage - and so `SeaSurface`, its GDScript mirror, the
+swimmer, the boats and the vessels' ride - is not touched, nor is the far plane's formula.
+- **Capillary ripples** (`oc_capillary`): a third ripple octave a few centimetres across, its
+  crests across the wind (`wind_dir`, Weather's), moving down it; faded by the pixel's own
+  footprint (`fwidth` of the world position), never a guessed distance.
+- **Wind streaks and gusts** (`oc_wind_chop`): long slick bands down the wind where the chop lies
+  flat (`streak_*`), and darker gust patches ("cat's paws", `gust_*`) running with it; a gain on
+  the existing chop.
+- **Sparkles** (`oc_glint`): three octaves of facets (`glint_cell` 0.11 m, x5.5, x30), each cell a
+  facet with its own tilt (`glint_tilt`) and a short life (`glint_life`), flashing where its tilt
+  mirrors the sun into the eye (`glint_cos`); each octave takes over where the finer one is under
+  a pixel, and past the coarsest the old `pow(ndh, glitter_sharp)` lobe carries on. The broad glare
+  lobe is cut to 40 % within 20-120 m so close to the path is sparkles on darker water.
+- **Light through the wave tops** (`crest_sss`): green-blue through thin crests in sun, not only
+  the backlit ones, strongest toward the sun and at golden hour. **Deep scatter**
+  (`deep_scatter`): the deep water's navy looking down into it (the bake's deep colour is near
+  black, which is right from the hills), gone by `scatter_fade` 210 m.
+- **Sky reflection:** a floor on n.v (a ripple tilted away at a grazing angle was a one-pixel
+  mirror: white noise along the horizon line), the horizon band a little brighter, and the cloud
+  base mirrored (`cloud_reflect`: the cloud shadows' own field up the reflected ray).
+- **Foam:** old foam torn into streaks down the wind round the whitecaps (`foam_trail`), wind
+  streaks from overcast up (they were storm-only), and all foam opening into a Worley bubble net
+  as it ages (`foam_lace`); the surf's bores keep a solid fresh face and leave a holed bubble net
+  behind them.
+- **Where hulls and piles meet the water:** a churned foam line along every pushed vessel's hull
+  (in `wake_foam()`, at any speed), and round every pier pile a white collar, a churned skirt that
+  sloshes with the swell and a trail drifting down the wind. The piles are GRIDS
+  (`OceanCloseup.pile_grids()`, from PierPark's and LandmarkBeachPiers' own constants; Redondo's
+  arc and Manhattan's head ring are left out), pushed by `Weather._push_ocean_shape()`
+  (`OceanCloseup.apply()`), not found by depth: the web has no depth texture. Foam in the shade of
+  a pier is also lit by the sky it sees (emitted).
+- **The piles themselves** (`shaders/waterline_wet.gdshaderinc`): weed and barnacles under a ragged
+  low-water line, the splash zone wet and dark up to where the waves reach, freshly washed over a
+  line riding the swell, a faint salt mark above. In pier_park.gdshader (kind 0 under 3.4 m: only
+  piles and braces reach down there) and `shaders/pile_wet.gdshader` for the Manhattan (concrete)
+  and Redondo (timber) piles (`OceanCloseup.pile_material()`, the old material with the switch off).
+- **A bug found on the way:** a BEACH-zone chunk that owns the shoreline built its sand and no sea,
+  so off every such beach the inner surf zone was missing and the sand's drowned face showed as a
+  flat blue sheet with the pier's shadow on it (stills 05/06). `CityChunk._build_water(true)` now
+  lays the chunk's own slice of sea, from its seaward edge to 6 m past the waterline (FULL and LOD,
+  not in capture); an OCEAN chunk that owns a shoreline already did this over its whole rect.
+
+**A/B:** `OCEAN_CLOSEUP=0` sets the `ocean_closeup` shader global (project.godot) to 0, keeps the
+piers' old pile materials and skips the beach chunks' sea slice. **No rng drift:** no roll was
+added or moved (the new step lays one mesh and one box; the pile grids are constants).
+
+**Web:** the ocean still samples no texture (checked); everything is gated on `ground_detail`
+(`rich`), which the web and the low levels clear, so the web draws the water as before.
+
+**Checks:** `tests/ocean_closeup_checks.gd` (source text and the plan, no scene state): the pass is
+fragment-only and faded with `detail`; no sampler; the global is declared; both pile shaders carry
+the waterline; the grids lie on the piers' piles and in the sea; the GDScript pile distance agrees
+with the shader's rule; the ocean material carries the grids; `OCEAN_CLOSEUP=0` turns it off.
+
+**Tools:** stills from the city with `tools/glshot/still_shot.gd` (EYEs below); the fast loop was
+`tools/glshot/fwd_block_shot.tscn` with `BLOCKS=3` (the pier is in reach: a minute a still on
+opengl3, the city's real sky and weather). EYEs: the pier's end `-1218,8.6,-345,90,-9`, under the
+pier `-1121,1.8,-368,180,-8`, the beach `-962,2.2,-250,92,-3`, a boat's eye `-1300,1.1,-250,90,-1.5`.
