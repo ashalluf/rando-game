@@ -20313,9 +20313,10 @@ detail), which is the noise floor for the pixel diffs below.
 | downtown noon | 7.54 M (4.92 / 2.62) / 3,280 | 6.84 M (4.22 / 2.62) / 3,280 | 63 (0.007 %), none over 3 levels |
 | hills | 2.71 M (2.52 / 0.18) / 1,246 | 2.19 M (2.00 / 0.18) / 1,240 | 1,199 (0.13 %) - the A/A noise is 1,166 |
 | MacArthur Park aerial | 6.87 M (4.34 / 2.53) / 3,927 | 6.21 M (3.68 / 2.53) / 3,921 | 7 against a second main run (999 between two main runs) |
-FREEWAY_BEACH_ROWS
+| freeway | 5.96 M (4.52 / 1.44) / 2,612 | 5.30 M (3.86 / 1.44) / 2,612 | 177 (0.019 %), 14 over 32 |
+| beach town | 3.20 M (2.02 / 1.18) / 1,308 | 2.93 M (1.75 / 1.18) / 1,308 | 174 (0.019 %), 2 over 32 |
 
-Downtown -9.3 %, hills -19 %, MacArthur -9.6 %, all camera-side (the far canopies); the shadow
+Downtown -9.3 %, freeway -11.1 %, hills -19 %, beach town -8.4 %, MacArthur -9.6 %, all camera-side (the far canopies); the shadow
 passes are unchanged in these frames.
 
 ### CPU, step times, load, memory (before)
