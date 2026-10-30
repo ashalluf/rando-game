@@ -2361,6 +2361,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The coast highway under the bluffs (tests/coast_highway_checks.gd): its place, the bench and
 	# bluff, the houses, parking, a chunk's road, houses, collision and cars, LOD and the far city.
 	await load("res://tests/coast_highway_checks.gd").new().run(self, city)
+	# The light rail's underground station (tests/metro_underground_checks.gd): the plan, the build,
+	# standing on every floor, the tunnel trains while the player is down there, the riders, the A/B.
+	await load("res://tests/metro_underground_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
