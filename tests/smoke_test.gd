@@ -2602,6 +2602,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/explosions_2_checks.gd").new().run(self, city)
 	# The reset between check files (tests/gate_speed_2_checks.gd): what it puts back, the file list.
 	load("res://tests/gate_speed_2_checks.gd").new().run(self, city)
+	# The night street's air (tests/night_atmos_checks.gd, NightAtmos): halos, shafts, the haze.
+	load("res://tests/night_atmos_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

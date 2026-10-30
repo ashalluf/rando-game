@@ -327,6 +327,13 @@ already mapped so milestone 2 is script-only.
   the front doors; only the everyday bodies (sedan, taxi, crossover, pickup, van, hatchback, SUV,
   minivan, beater); the exotics, police and big vehicles keep the traced cabin.
 
+- **2026-10-30 The night street's air is drawn, never simulated (HANDOFF "Night street
+  atmosphere").** Halos round lamp heads, shop fronts and car lamps, light cones under the lamps
+  in mist and rain, lens streaks on the lights looked at straight on and a sodium lean on the
+  street's depth fog, all sized and faded in the shaders off one global (`night_atmos`: haze,
+  shaft gain, halo gain, viewport height) that NightAtmos pushes four times a second from the
+  weather. Halos and shafts are instances of each lamp's own prop record (out with the lamp); the
+  drawn cones are skipped where Forward+'s volumetric fog already lights the air (never doubled).
 - **2026-10-30 The oil islands in the bay are a data table, not seeded (HANDOFF "The oil
   islands").** Three decorated drilling islands 600-700 m off the Long Beach sand, each a landmark
   built near and far from one builder on one shader; details are hashes of the island, so no seed

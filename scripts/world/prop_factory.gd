@@ -1150,6 +1150,15 @@ static func vehicle_lights(width: float, length: float, y: float, ground: float 
 			_light_quad(st, Vector3(x, tail_y, length * 0.5 + 0.06), Vector3(0.58, 0.0, 0.0), Vector3(0.0, 0.30, 0.0), tail, 0.0, LIGHT_TAIL)
 			_light_quad(st, Vector3(corner, tail_y, length * 0.5 + 0.07), Vector3(0.24, 0.0, 0.0), Vector3(0.0, 0.2, 0.0), amber, 0.0, turn_part)
 			_light_quad(st, Vector3(side * (width * 0.5 - 0.52), tail_y - 0.04, length * 0.5 + 0.07), Vector3(0.2, 0.0, 0.0), Vector3(0.0, 0.14, 0.0), white, 0.0, LIGHT_REVERSE)
+	# The lamps' halos in the night air (NightAtmos; car_lights.gdshader parts 6 and 7): four
+	# corners on one point, turned to the camera and sized in the shader.
+	if NightAtmos.enabled:
+		for side: float in [-1.0, 1.0]:
+			var hx := side * (width * 0.5 - 0.26)
+			if broken & (1 if side < 0.0 else 2) == 0:
+				_light_quad(st, Vector3(hx, y, -length * 0.5 - 0.14), Vector3.ZERO, Vector3.ZERO, head, 0.0, LIGHT_HALO_HEAD)
+			if broken & (4 if side < 0.0 else 8) == 0:
+				_light_quad(st, Vector3(hx, tail_y, length * 0.5 + 0.14), Vector3.ZERO, Vector3.ZERO, tail, 0.0, LIGHT_HALO_TAIL)
 	if broken & 15 == 15:
 		# Nothing left to draw: a degenerate quad keeps the mesh valid (the node is hidden).
 		_light_quad(st, Vector3.ZERO, Vector3.ZERO, Vector3.ZERO, Color(0, 0, 0, 0))
@@ -1178,6 +1187,9 @@ const LIGHT_LEFT := 2
 const LIGHT_RIGHT := 3
 const LIGHT_REVERSE := 4
 const LIGHT_ROAD_BEHIND := 5
+## The head and tail lamps' halos (NightAtmos).
+const LIGHT_HALO_HEAD := 6
+const LIGHT_HALO_TAIL := 7
 
 
 ## The lamps' material for one state of the car: `brake` on, `signal_side` (-1 left, 1 right,

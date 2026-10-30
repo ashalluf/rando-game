@@ -19740,3 +19740,76 @@ HeroFace stepped 30 s (blinks 5-20, shut and open, >= 12 saccades, in range), ai
 measured speed against Avatar's (8 %), zero slip across the gait, the rain uniforms. Cost: two
 more materials on the hero (the eye and lash surfaces were draws already), a few uniforms a frame.
 Stills on `shots/hero-closeup`.
+
+## 9hg. Night street atmosphere (2026-10-30, wave 3, branch `wt/night-atmos`)
+
+The task: "the GTA 6 night look" - glow halos round every street lamp head, shop sign and
+headlight in the air (bigger in the marine layer and rain, faint on a Santa Ana night), light
+shafts under the lamps in mist and rain (drawn, Compatibility-safe, never doubled with Forward+'s
+volumetric fog), lens streaks on the brightest points the camera looks near, and a wet sodium haze
+in the street canyon. Cheap: batched per chunk, faded by distance, nothing per lamp on the CPU.
+
+**What it is** (`NightAtmos`, `scripts/world/night_atmos.gd`):
+- **Lamp halos**: an `atmos_glow_halo` instance per light of every street lamp (a twin globe gets
+  two), in the lamp's OWN prop record (`CityChunk._night_atmos()`, appended to `_add_street_lamp()`
+  and the old `_add_lamp()` instance lists), so a popped or felled lamp hides its halo with its
+  pool: the key holds PropBreak's glow word "glow", so PropBreak never leans it or throws it as a
+  piece. FULL and LOD chunks (the LOD halos read as the rows of points a city is at night). Never
+  while capturing for the far city.
+- **Shafts**: an `atmos_beam_shaft` instance per FULL lamp (key holds "beam"), an open unit cone
+  (`NightAtmos.shaft_mesh()`) scaled from the head to the pavement, `SHAFT_FOOT` of the pool wide.
+- **Shop glows**: `atmos_shop_glow`, one per lit shop front, laid beside each shop spill pool in
+  `CityChunk._add_shop_spill()` (the same rolls: only open shops and lobbies have pools).
+- **Car halos**: four more quads in `PropFactory.vehicle_lights()` (`LIGHT_HALO_HEAD` 6 at the head
+  lamps, `LIGHT_HALO_TAIL` 7 at the tail lamps; corners on one point), billboarded in
+  `car_lights.gdshader`'s new vertex stage (which now does the model-view itself for every part,
+  `skip_vertex_transform`). A head lamp's halo shows as it faces the eye, a tail lamp's as it faces
+  away, brighter on the brake; a lamp shot out takes its halo (the `broken` bits).
+- **The shaders**: `shaders/night_halo.gdshaderinc` (the size and brightness rules, shared),
+  `night_halo.gdshader` (lamp heads: a hot core never under `core_min_px` with its light spread
+  over it, a glow whose radius and amount grow with the haze, a thin horizontal lens streak only on
+  a light within ~0.25 rad of the view axis and ~75 m; shop fronts: a broad glow, no core),
+  `night_shaft.gdshader` (brightest through the cone's middle, soft rim, fading to the ground,
+  drifting mist in true-world space, lit raindrops falling through it under `rain_intensity`).
+  All additive, `fog_disabled` (fog adds its colour to an additive quad; `nh_far()` is the air's
+  loss), collapsed in the vertex stage while `lamp_factor` is 0 (no pixels by day), shadowless.
+- **One global**, `night_atmos` (project.godot): x haze (`haze_for()`: the weather table
+  `HAZE_BY_STATE`, the rain, the marine layer at the camera, a soaked street; a Santa Ana stays
+  dry), y shaft gain (`shaft_gain_for()`: 0 where Forward+'s volumetric fog is enabled, which already
+  lights the air round the lamps' OmniLights; and at LOWEST), z halo gain (0.6 at LOWEST), w the
+  viewport height (VIEWPORT_SIZE is not reliable in a vertex stage). The node pushes it four times
+  a second; `ensure(city)` makes it under the CityStreamer from the first lamp a chunk builds.
+- **Sodium haze**: after DayNight and Weather wrote the Environment's depth fog this frame
+  (process_priority 50), the node leans `fog_light_color` toward `SODIUM_FOG` and adds a little
+  `fog_density`, by lamps x haze x how near the camera is to the street (`sodium_for()`, gone by
+  `SODIUM_TOP` 140 m up). It starts from their value every frame and puts its own change back
+  when they did not write, so it never accumulates (checked).
+
+**A/B**: `NIGHT_ATMOS=0` - no halo / shaft / shop / car halo geometry, no fog change; every prop id
+and roll the same (checked on a downtown chunk). Nothing else moved: no rng is touched.
+
+**Checks**: `tests/night_atmos_checks.gd` (one line at the end of the city checks in
+tests/smoke_test.gd; `SMOKE_PARTS=night_atmos_checks` runs it alone in ~90 s): the haze rules,
+shafts never with volumetric fog, the sodium rule, the shaders and the global, the builders, a
+downtown FULL chunk (every lamp's halo and shaft in its record, shadowless batches, a shop glow per
+lit shop, a popped lamp out), the same chunk with the A/B off, the node's push on a staged rainy
+night (the weather put back exactly), and the fog lean not piling up.
+
+**Stills** (`shots/night-atmos`): opengl3, Flower St at 21:30 and under the freeway on 5th, rain /
+clear / marine, before (`NIGHT_ATMOS=0`) and after; Forward+ (lavapipe) of a few FULL blocks with
+`fwd_block_shot.tscn`.
+
+**Trap (cost a gate run)**: a static holding the node itself (`static var _node: NightAtmos`)
+plus the static mesh cache made two of three gate shards abort AT EXIT (134 / 250) after every
+check had passed. The node is kept by instance id (`node()`), and the city node clears the cache
+in `_exit_tree()`; shard 2 then exits 0.
+
+**Not verified**: the whole city on Forward+ - `fwd_block_shot.tscn` and even `block_shot.tscn`
+are OOM-killed on lavapipe here (12.8 GB during the plan, before any chunk), so the Forward+
+stills are of `tools/night_atmos/atmos_shot.gd` (the atmosphere alone under the city's
+Environment). Halo brightness through AgX on the Mac wants a look.
+
+**Knobs**: `night_halo.gdshader` `core_gain`, `halo_gain`, `streak_gain`, `streak_len`,
+`near_fade`; `night_shaft.gdshader` `gain` (0.028), `reach`; `car_lights.gdshader` `halo_head`,
+`halo_tail`, `halo_core`, `halo_glow`, `halo_streak`; `NightAtmos.HAZE_BY_STATE`, `SODIUM_LEAN`,
+`SODIUM_DENSITY`, `LAMP_HALO`.
