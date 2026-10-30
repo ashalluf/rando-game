@@ -14270,6 +14270,10 @@ glow through AgX. The ring is each walker's own pavement ring, so round a scene 
 crowd stands along both kerbs rather than in a closed circle (nobody steps into traffic to look).
 No crowd-lookat integration beyond the head look crowd life already does. Only plain walkers
 (and ReplicaWalkers) come; beach-goers, park-goers and the market's shoppers do not.
+
+**Wave 3.** Merged with origin/main 95bd13f (the conflicts were only lists both sides appended to);
+`SHARDS=3 tests/headless_check.sh` green at 2,416 checks, peak RSS 2,494 MB a shard. Fresh stills
+20-24 on shots/onlookers show the staged body scene unchanged on the merged base.
 ## 9eu. Apartment buildings: walk-ups, bungalow courts, Spanish courts and podium blocks, 2026-10-05 (agent branch `wt/apartments`; VISUAL_ROADMAP #140)
 
 G2's first per-style kit: Los Angeles stucco apartments in MIDTOWN and the inner SUBURBS. Before,
