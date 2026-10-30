@@ -412,6 +412,7 @@ func _swerve() -> void:
 	var swerved := false
 	var closest := INF
 	var slowest := INF
+	var stop_note := ""
 	for i in 60 * 12:
 		await _tree.physics_frame
 		var t: Dictionary = car.traffic
@@ -424,6 +425,8 @@ func _swerve() -> void:
 		var lat := absf(pw.x - cw.x) if axis == CityPlan.AXIS_X else absf(pw.z - cw.z)
 		if absf(along_d) < float(t.get("half", 2.4)) + 0.4:
 			closest = minf(closest, lat)
+		if float(t.get("v", 0.0)) < 0.5 and stop_note.is_empty():
+			stop_note = _why_stopped(car, pw, axis, index)
 		slowest = minf(slowest, float(t.get("v", 0.0)))
 		if along_d * float(dir) < -10.0:
 			break
@@ -433,7 +436,28 @@ func _swerve() -> void:
 			honked = true
 	_check(swerved and closest > 1.5 and slowest > 2.0 and honked,
 		"a car swerves into the clear lane round the player standing in the road, honking, and keeps going (swerved %s, closest %.1f m to the side, slowest %.1f m/s, honked %s)" % [swerved, closest, slowest, honked])
+	if not stop_note.is_empty() and not (swerved and closest > 1.5 and slowest > 2.0 and honked):
+		printerr("traffic ai: swerve car stopped: %s" % stop_note)
 	_stand(axis, index, lo + 95.0, _plan.road_width(axis, index) * 0.5 + 5.0)
+
+
+## What held the swerve car (printed when the check fails): its own state, the player, and every
+## other street car within 40 m of it.
+func _why_stopped(car: Vehicle, pw: Vector3, axis: int, index: int) -> String:
+	var t: Dictionary = car.traffic
+	var cw: Vector3 = _ws.to_world(car.global_position)
+	var keys := {}
+	for k in t.keys():
+		if k in ["axis", "index", "dir", "lane", "along", "v", "turn", "to_c", "lc_why", "lc_key", "sig", "park_at", "dp_at", "cp", "valet", "pull", "work", "placed", "ai", "held", "forced"]:
+			keys[k] = t[k]
+	var others := []
+	for c in _traffic.cars:
+		if c != car and is_instance_valid(c):
+			var ow: Vector3 = _ws.to_world(c.global_position)
+			if ow.distance_to(cw) < 40.0:
+				var ot: Dictionary = c.traffic
+				others.append("%s lane %s along %.1f v %.1f placed %s" % [c.name, str(ot.get("lane", "?")), float(ot.get("along", 0.0)), float(ot.get("v", 0.0)), str(ot.get("placed", false))])
+	return "car %s in cars %s at %s, player %s (%.1f m), road %d/%d, %s, others %s, cars %d, staged %s" % [car.name, _traffic.cars.has(car), cw, pw, cw.distance_to(pw), axis, index, keys, others, _traffic.cars.size(), _traffic.staged]
 
 
 ## A dozy driver at the front of a red-light queue does not go on green: the car behind honks at

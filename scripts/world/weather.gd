@@ -916,6 +916,9 @@ func force_state(s: int, instant: bool = true) -> void:
 		wetness = maxf(wetness, clampf(_rain_level(state) * 1.2, 0.0, 1.0))
 	if state == State.STORM:
 		_next_flash = 2.0
+	elif instant:
+		# A sea forced calm is calm: no tsunami left running from the storm before it.
+		_tsunami_left = 0.0
 
 
 ## True while the weather is held by force_state() or --weather (not rolling on its own).

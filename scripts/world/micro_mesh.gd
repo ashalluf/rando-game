@@ -806,9 +806,16 @@ static func _begin() -> SurfaceTool:
 
 
 static func _finish(st: SurfaceTool, key: String) -> Mesh:
+	# Through ImporterMesh with generated LODs and a lighter shadow twin, like StreetFurniture's
+	# kit (perf-audit-2): a parked scooter or a docked bike drew every spoke at any range, and its
+	# shadow came from the whole mesh, ~78 k shadow triangles on a downtown street.
+	st.index()
 	st.generate_tangents()
-	var mesh := st.commit()
-	mesh.surface_set_material(0, material())
+	var im := ImporterMesh.new()
+	im.add_surface(Mesh.PRIMITIVE_TRIANGLES, st.commit_to_arrays(), [], {}, material(), key)
+	im.generate_lods(25.0, 60.0, [])
+	var mesh: ArrayMesh = im.get_mesh()
+	PropFactory._build_shadow_proxy(im, mesh)
 	_meshes[key] = mesh
 	return mesh
 
