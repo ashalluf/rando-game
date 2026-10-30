@@ -11,12 +11,13 @@ extends Pedestrian
 ## over they walk back to the podium.
 
 ## The operators' uniforms: [jacket / vest, trousers] in the crowd's garment regions (sRGB).
+## Never navy: that is the police's.
 const UNIFORMS := [
-	[Color(0.36, 0.04, 0.05), Color(0.03, 0.03, 0.035)],
+	[Color(0.55, 0.05, 0.06), Color(0.03, 0.03, 0.035)],
 	[Color(0.035, 0.035, 0.04), Color(0.03, 0.03, 0.035)],
-	[Color(0.05, 0.08, 0.2), Color(0.04, 0.04, 0.05)],
-	[Color(0.24, 0.04, 0.08), Color(0.07, 0.07, 0.08)],
-	[Color(0.86, 0.86, 0.84), Color(0.03, 0.03, 0.035)],
+	[Color(0.07, 0.24, 0.13), Color(0.04, 0.04, 0.045)],
+	[Color(0.36, 0.05, 0.1), Color(0.06, 0.06, 0.07)],
+	[Color(0.88, 0.88, 0.86), Color(0.03, 0.03, 0.035)],
 ]
 static var _uniform_mats: Dictionary = {}
 
@@ -38,12 +39,31 @@ var _beat: float = 0.0
 
 
 func setup_valet(block_rect: Rect2, seed_value: int, at: Vector2, yaw: float, uniform_index: int) -> void:
-	setup(block_rect, 4.0, seed_value)
+	setup(block_rect, 4.0, uniform_seed(seed_value))
 	# Nobody parks cars in a cap or a backpack (the crowd's own roll is still made).
 	accessory_chance = 0.0
 	home = at
 	home_yaw = yaw
 	uniform = uniform_index
+
+
+## A seed near `seed_value` whose rig (Pedestrian._add_model()'s first style roll) is one that
+## wears a uniform: the police's (trousers, short hair; the crowd's region colours recolour any
+## garment exactly, never a "keep" one like a hi-vis vest or a headscarf).
+static func uniform_seed(seed_value: int) -> int:
+	var available: Array[String] = []
+	for path: String in MODELS:
+		if ResourceLoader.exists(path):
+			available.append(path)
+	if available.is_empty():
+		return seed_value
+	for k in 400:
+		var s := hash([seed_value, "valet", k])
+		var style := RandomNumberGenerator.new()
+		style.seed = hash([s, "style"])
+		if available[style.randi() % available.size()] in PoliceOfficer.OFFICER_MODELS:
+			return s
+	return seed_value
 
 
 ## Valets get the crowd's life clips (Pedestrian only gives them to the plain crowd).

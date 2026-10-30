@@ -31,6 +31,10 @@ func _initialize() -> void:
 					fd = 0.0
 				line += " | %s q=%d serve=%d called=%d placed=%d served=%d back=%d away=%d valets=%d" % [String(s.name).trim_prefix("ValetStand_"), (s.get("queue") as Array).size(), int(s.get("serve")), int(s.get("called")), int(s.get("placed")), int(s.get("served")), int(s.get("returned")), (s.get("away") as Array).size(), (s.get("valets") as Array).size()]
 			print(line)
+			if OS.get_environment("VALET_WHO") == "1":
+				for st in stands:
+					for v in st.get("valets"):
+						print("  VALET %s at %s model %s hidden=%s" % [v.name, v.position, v.get("_model_path"), v.get("hidden")])
 		if t > secs:
 			break
 	quit()
