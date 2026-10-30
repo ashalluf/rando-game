@@ -18245,6 +18245,18 @@ tuned against the checks, not hands. No AI boats (the marina's own MarinaTraffic
 still scripted). Bullets do not hole the hull visually. A boat left at sea far from the player is
 frozen where it floats (PhysicsBudget's script switch) until the player comes back.
 
+**Follow-up: the boat that flew (2026-10-30).** Run alone (`SMOKE_PARTS=speedboats_checks`), the
+open-sea check read her at 430 m, 200 m and -1099 m. `BOAT_DEBUG=1` (now: a jump in speed between
+two ticks prints `BOATJUMP` with every body within 30 m) caught a 0.2 -> 200,637 m/s step with
+`BannerBody` 2.3 m away: BannerPlane's banner body is a top-level AnimatableBody3D that entered the
+tree at the LOCAL ORIGIN - where the player stands after a re-centre - and was moved to the banner
+on the same frame, which Godot takes as the kinematic body's velocity for that step (the aircraft
+trap, `AirTraffic._place_before_entry()`). The boat was the body sitting there; a player on foot
+would have been fired off the same way. Fix in `banner_plane.gd`: the body has no collision layer
+until a physics frame after its first placement (`_banner_placed_frame`). The check now stages a
+calm sea (`Weather.force_state(0)`, the swimming checks' way) and puts a storm under her at sea for
+four seconds ("a storm comes up and she rides it").
+
 ## 9go. Life in the water: dolphins, pelicans, sea lions on the buoys, a grey whale, 2026-10-30 (fleet wave 3, branch `wt/sea-life`; VISUAL_ROADMAP "?")
 
 The sea was empty water. Now, now and then, a pod of bottlenose dolphins passes beyond the break
