@@ -634,6 +634,7 @@ func _ready() -> void:
 	add_to_group("physics_prop")
 	CarLights.ensure(self)
 	DrivingFX.ensure(self)
+	EngineAudio.ensure(self)
 	set_meta("spawn_time", Time.get_ticks_msec() / 1000.0)
 	collision_layer = 4
 	collision_mask = _mask()
@@ -871,12 +872,16 @@ func _physics_process(delta: float) -> void:
 		if _engine_sound and _engine_sound.playing:
 			_engine_sound.stop()
 		return
-	if _engine_sound == null:
-		_engine_sound = Sfx.loop_player("engine_loop", -8.0)
-		add_child(_engine_sound)
-	if not _engine_sound.playing:
-		_engine_sound.play()
-	_engine_sound.pitch_scale = 0.8 + clampf(linear_velocity.length() / top_speed, 0.0, 1.0) * 1.4
+	if EngineAudio.covers(self): # the engine-audio pass voices it (scripts/vehicles/engine_audio.gd)
+		if _engine_sound and _engine_sound.playing:
+			_engine_sound.stop()
+	else:
+		if _engine_sound == null:
+			_engine_sound = Sfx.loop_player("engine_loop", -8.0)
+			add_child(_engine_sound)
+		if not _engine_sound.playing:
+			_engine_sound.play()
+		_engine_sound.pitch_scale = 0.8 + clampf(linear_velocity.length() / top_speed, 0.0, 1.0) * 1.4
 	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var throttle := -input.y # forward is negative y on the stick
 	var speed := linear_velocity.dot(-global_basis.z)
