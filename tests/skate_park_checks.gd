@@ -164,15 +164,27 @@ func _in_city(city: Node3D) -> void:
 	var base := SkatePark.origin(anchor, plan)
 	var palms := SkatePark.palm_spots(anchor, plan)
 	var clear := true
+	var why := ""
 	for p in palms:
 		for pit: Dictionary in SkatePark.pits():
 			if Geometry2D.is_point_in_polygon(p, pit.rim) or SkatePark._dist_to_poly(p, pit.rim) < 1.6:
 				clear = false
+				why += " %s by the %s" % [p, pit.name]
 		for name: String in SkateParkLife.lines().keys():
 			for q: Vector3 in (SkateParkLife.sample(name).pos as PackedVector3Array):
 				if Vector2(q.x, q.z).distance_to(p) < 1.3:
 					clear = false
-	_check(clear, "the boardwalk's palms in the pad (%d) stand clear of the pits and the lines" % palms.size())
+					why += " %s by the %s line" % [p, name]
+					break
+	_check(clear, "the boardwalk's palms kept on the pad (%d) stand clear of the pits and the lines%s" % [palms.size(), why])
+	var skipped := 0
+	var B := LandmarkVeniceBoardwalk
+	for row in B.PALM_ROW_X.size():
+		for i in int(B.LENGTH / B.PALM_SPACING):
+			var z := -B.LENGTH * 0.5 + (float(i) + 0.5 + float(row) * 0.5) * B.PALM_SPACING
+			if SkatePark.skips_palm(anchor, plan, B._at(anchor, plan, float(B.PALM_ROW_X[row]), z, 0.0)):
+				skipped += 1
+	_check(skipped <= 6, "the boardwalk leaves out only the palms in the park's way (%d)" % skipped)
 	var player := _tree.get_first_node_in_group("player") as CharacterBody3D
 	var ws: Node = _tree.root.get_node("/root/WorldState")
 	var home: Vector3 = ws.to_world(player.global_position)
@@ -224,13 +236,16 @@ func _in_city(city: Node3D) -> void:
 	var p0 := sk.global_position
 	life.set_clock(9.0)
 	_check(sk.global_position.distance_to(p0) > 3.0, "and rides on with it (%.1f m in 2 s)" % sk.global_position.distance_to(p0))
-	# A knocked skater becomes a live person who takes the knock.
+	# A spectator hit becomes a live person where they stood; a knocked skater leaves the line (and
+	# the person they become is knocked straight into a ragdoll).
 	var holder := root.get_parent()
-	var before := _people(holder)
 	var left := life.figures_left()
+	var spec: Node = life.spectators()[3]
+	var ped: Node = spec.wake(Vector3.ZERO)
+	_check(ped != null and ped.get_parent() == holder and ped is SkaterPerson, "a woken spectator is a live person in the chunk")
 	sk.knock(Vector3(3.0, 1.0, 0.0))
 	await _tree.process_frame
-	_check(_people(holder) == before + 1 and life.figures_left() == left - 1, "a knocked skater turns into a live person")
+	_check(life.figures_left() == left - 2 and not is_instance_valid(sk), "a knocked skater leaves the line (%d -> %d figures)" % [left, life.figures_left()])
 	# Gunfire next to the park wakes the nearest of the rest, a few a tick.
 	left = life.figures_left()
 	Pedestrian.alarm(_tree, root.global_position + Vector3(0.0, 3.0, -10.0), 40.0, 0, true, "")
@@ -246,10 +261,3 @@ func _in_city(city: Node3D) -> void:
 	player.velocity = Vector3.ZERO
 	await _tree.physics_frame
 
-
-func _people(holder: Node) -> int:
-	var n := 0
-	for c in holder.get_children():
-		if c is SkaterPerson and not c.is_queued_for_deletion():
-			n += 1
-	return n

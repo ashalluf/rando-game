@@ -88,7 +88,7 @@ const TILE_BAND := 0.16
 ## a sine of SNAKE_AMP (one and a half waves); SNAKE_HALF is half its width rim to rim. Depth from
 ## SNAKE_DEPTH.x at its head to .y at its tail; the vert is SNAKE_VERT, the rest transition.
 const SNAKE_X := -9.0
-const SNAKE_Z0 := -18.4
+const SNAKE_Z0 := -17.6
 const SNAKE_Z1 := -4.6
 const SNAKE_AMP := 1.25
 const SNAKE_WAVES := 1.0
@@ -162,6 +162,7 @@ static var _meshes: Dictionary = {}
 static var _faces: Dictionary = {}
 static var _material: ShaderMaterial
 static var _pits: Dictionary = {}
+static var _palm_cache: Dictionary = {}
 ## The site's sand under the pad, relative to the origin (lowest, and at the access ramp's foot):
 ## set by build() before the geometry, which is cached per anchor.
 static var _foot: float = WALL_FOOT
@@ -276,9 +277,14 @@ static func material() -> ShaderMaterial:
 
 # --- Pure layout -----------------------------------------------------------------------------------
 
-## The boardwalk's palms that stand inside the pad (park-local XZ): the same rolls
-## LandmarkVeniceBoardwalk._palm_rows() makes, in its order. Each gets a planter.
+## The boardwalk's palms that stand on the pad and are kept (park-local XZ): the same rolls
+## LandmarkVeniceBoardwalk._palm_rows() makes, in its order. Each gets a planter. The palm row
+## crosses the pad on a slant (the walk turns with the shore), so some land in a pit, on a line
+## or on the street pieces: those the boardwalk leaves out (skips_palm(), after their rolls).
 static func palm_spots(anchor: Vector2, plan: CityPlan) -> PackedVector2Array:
+	var key := "%d|%d" % [int(anchor.x), int(anchor.y)]
+	if _palm_cache.has(key):
+		return _palm_cache[key]
 	var out := PackedVector2Array()
 	var B := LandmarkVeniceBoardwalk
 	var base := origin(anchor, plan)
@@ -298,9 +304,51 @@ static func palm_spots(anchor: Vector2, plan: CityPlan) -> PackedVector2Array:
 				continue
 			var w := B._at(anchor, plan, x, z, 0.0)
 			var p := Vector2(w.x - base.x, w.z - base.z)
-			if absf(p.x) < HALF_W - 0.6 and absf(p.y) < HALF_L - 0.6:
+			if absf(p.x) < HALF_W + 1.0 and absf(p.y) < HALF_L + 1.0 and palm_ok(p):
 				out.append(p)
+	_palm_cache[key] = out
 	return out
+
+
+## True when the boardwalk's palm at world XZ `w` stands on the pad where it would be in the way.
+static func skips_palm(anchor: Vector2, plan: CityPlan, w: Vector3) -> bool:
+	var base := origin(anchor, plan)
+	var p := Vector2(w.x - base.x, w.z - base.z)
+	if absf(p.x) > HALF_W + 1.0 or absf(p.y) > HALF_L + 1.0:
+		return false
+	return not palm_ok(p)
+
+
+## Whether a palm (in a planter) can stand at park-local `p`: on a deck with room for the planter,
+## clear of the pits, the step, the mini ramp, the street pieces, the ramp, the poles, the
+## spectators and every skater's line.
+static func palm_ok(p: Vector2) -> bool:
+	if absf(p.x) > HALF_W - 1.4 or absf(p.y) > HALF_L - 1.4:
+		return false
+	for pit: Dictionary in pits():
+		if Geometry2D.is_point_in_polygon(p, pit.rim) or _dist_to_poly(p, pit.rim) < 1.8:
+			return false
+	var reach := MINI_FLAT * 0.5 + mini_reach() + MINI_DECK
+	var keep: Array = [Rect2(STEP_X - 1.0, -1.6, HALF_W, STEP_RUN + 3.2), Rect2(-HALF_W, -1.6, HALF_W * 2.0, 2.8),
+		Rect2(MINI_X0 - 1.3, MINI_ZC - reach - 1.3, MINI_X1 - MINI_X0 + 2.6, reach * 2.0 + 2.6),
+		Rect2(HALF_W - 2.0, ACCESS_Z.x - 1.5, 4.0, ACCESS_Z.y - ACCESS_Z.x + 3.0)]
+	for b: Array in [MANUAL, LEDGE, FUNBOX]:
+		keep.append(Rect2(float(b[0]) - 1.3, float(b[2]) - 1.3 - FUNBOX_KICK, float(b[1]) - float(b[0]) + 2.6, float(b[3]) - float(b[2]) + 2.6 + FUNBOX_KICK * 2.0))
+	keep.append(Rect2(float(FLATBAR[0]) - 1.3, float(FLATBAR[1]) - 1.3, 2.6, float(FLATBAR[2]) - float(FLATBAR[1]) + 2.6))
+	for r: Rect2 in keep:
+		if r.has_point(p):
+			return false
+	for pole: Array in POLES:
+		if (pole[0] as Vector2).distance_to(p) < 1.8:
+			return false
+	for sp: Array in SkateParkLife.SPECTATORS:
+		if (sp[0] as Vector2).distance_to(p) < 1.8:
+			return false
+	for name: String in SkateParkLife.lines().keys():
+		for q: Vector3 in (SkateParkLife.sample(name).pos as PackedVector3Array):
+			if Vector2(q.x, q.z).distance_to(p) < 1.7:
+				return false
+	return true
 
 
 ## The pool's rim, anticlockwise seen from above in (x, z), `n` points.

@@ -355,6 +355,9 @@ static func _palm_rows(anchor: Vector2, parent: Node3D, plan: CityPlan, batch: M
 			# same batch key as the street palms, so it costs no extra draw call.
 			var variant := prng.randi() % PropFactory.PALM_VARIANTS
 			var ps := clampf(h / 14.0, 0.8, 1.4)
+			# Not in the skate park's way (SkatePark: after the rolls, so nothing else moves).
+			if SkatePark.enabled and SkatePark.skips_palm(anchor, plan, _at(anchor, plan, x, z, 0.0)):
+				continue
 			batch.add("palm_%d" % variant, PropFactory.palm(variant),
 				Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(ps, ps, ps)), _at(anchor, plan, x, z, 0.0)))
 	if not detailed:

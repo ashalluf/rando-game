@@ -121,10 +121,9 @@ func _physics_process(delta: float) -> void:
 	if not _bake_queue.is_empty():
 		var job: Array = _bake_queue.pop_front()
 		figure(int(job[0]), String(job[1]))
-		for s in _skaters:
-			(s as Skater).refresh()
-		for s in _spectators:
-			(s as Spectator).refresh()
+		for s in _skaters + _spectators:
+			if is_instance_valid(s):
+				s.refresh()
 	_place_all()
 	_listen(delta)
 
@@ -132,7 +131,7 @@ func _physics_process(delta: float) -> void:
 func _place_all() -> void:
 	for s in _skaters:
 		if is_instance_valid(s):
-			(s as Skater).place(_clock)
+			s.place(_clock)
 
 
 func clock() -> float:
@@ -347,16 +346,15 @@ static func _pool_line() -> Array:
 		var spd := 5.2
 		match i:
 			10:
-				d = 0.16
+				d = 0.3
 				ev = "ollie"
-				h = 1.45
-				spd = 1.4
+				h = 1.9
 			11:
-				d = 0.2
+				d = 0.32
 			33:
-				d = 0.2
+				d = 0.3
 				ev = "ollie"
-				h = 0.35
+				h = 0.3
 			34, 35, 36:
 				d = -0.02
 				ev = "grind"
@@ -378,8 +376,8 @@ static func _snake_line() -> Array:
 	var out: Array = []
 	var z0 := SkatePark.SNAKE_Z0
 	var z1 := SkatePark.SNAKE_Z1
-	out.append([Vector2(-3.6, -17.8), 4.2, "", 0.0])
-	out.append([Vector2(-5.0, -18.6), 4.6, "", 0.0])
+	out.append([Vector2(-3.6, -17.4), 4.2, "", 0.0])
+	out.append([Vector2(-5.0, -17.8), 4.6, "ollie", 0.25])
 	var steps := 5
 	for k in steps:
 		var z := lerpf(z0 + 0.8, z1 - 0.6, float(k) / float(steps - 1))
@@ -427,6 +425,13 @@ static func sample(name: String) -> Dictionary:
 		var p2: Vector2 = b[0]
 		var p3: Vector2 = wps[(i + 2) % n][0]
 		var ev: String = a[2]
+		# Next to an air or a grind the curve runs straight in and out: pulled toward a point on
+		# the coping, a curve overshoots up the vert.
+		var flying := ["ollie", "flip", "turn", "grind"]
+		if String(b[2]) in flying:
+			p3 = p2 * 2.0 - p1
+		if String(wps[(i - 1 + n) % n][2]) in flying:
+			p0 = p1 * 2.0 - p2
 		var seg := maxi(4, int(p1.distance_to(p2) / 0.12))
 		for k in seg:
 			var f := float(k) / float(seg)
@@ -442,13 +447,36 @@ static func sample(name: String) -> Dictionary:
 	var fwd := PackedVector3Array()
 	var pose := PackedByteArray()
 	var flip := PackedFloat32Array()
+	var segs := PackedInt32Array()
 	var seg_y0 := {}
 	var seg_y1 := {}
+	var seg_speed := {}
+	var seg_h := {}
 	for i in n:
 		var a: Array = wps[i]
 		var b: Array = wps[(i + 1) % n]
-		seg_y0[i] = _base_y(a[0], wps[(i - 1 + n) % n])
-		seg_y1[i] = _base_y(b[0], a) if String(a[2]) == "grind" else _base_y(b[0], b)
+		var prev: Array = wps[(i - 1 + n) % n]
+		var nxt: Array = wps[(i + 1) % n]
+		var h0 := float(a[3]) if String(a[2]) == "grind" else (float(prev[3]) if String(prev[2]) == "grind" else 0.0)
+		var h1 := float(a[3]) if String(a[2]) == "grind" else (float(nxt[3]) if String(nxt[2]) == "grind" else 0.0)
+		seg_y0[i] = SkatePark.surface_y(a[0]) + h0
+		seg_y1[i] = SkatePark.surface_y(b[0]) + h1
+		# An air clears whatever is under its chord (a lip, a ledge's edge) by a hand at least, and
+		# takes the time a body takes to rise to its top and fall back past where it lands.
+		seg_h[i] = float(a[3])
+		if String(a[2]) in ["ollie", "flip", "turn"]:
+			var y0: float = seg_y0[i]
+			var y1: float = seg_y1[i]
+			for q in range(1, 20):
+				var fq := float(q) / 20.0
+				var under := SkatePark.surface_y((a[0] as Vector2).lerp(b[0], fq)) + 0.08 - lerpf(y0, y1, fq)
+				seg_h[i] = maxf(float(seg_h[i]), under / (4.0 * fq * (1.0 - fq)))
+			var top := maxf(y0, y1) + float(seg_h[i])
+			var t_air := sqrt(2.0 * (top - y0) / 9.8) + sqrt(2.0 * (top - y1) / 9.8)
+			var dist := (a[0] as Vector2).distance_to(b[0])
+			seg_speed[i] = minf(float(a[1]), dist / maxf(t_air, 0.05))
+		else:
+			seg_speed[i] = float(a[1])
 	var dt := 1.0 / RATE
 	var m := pts.size()
 	var j := 0
@@ -470,9 +498,9 @@ static func sample(name: String) -> Dictionary:
 		var seg_i: int = pts[j][1]
 		var f_lo: float = pts[j][2]
 		var w: Array = wps[seg_i]
-		var spd: float = w[1]
+		var spd: float = seg_speed[seg_i]
 		var ev: String = w[2]
-		var h: float = w[3]
+		var h: float = seg_h[seg_i]
 		var local_f := (s - cum[j]) / maxf(cum[j + 1] - cum[j], 0.0001)
 		var p: Vector2 = (pts[j][0] as Vector2).lerp(pts[(j + 1) % m][0], local_f)
 		var f := f_lo + local_f / maxf(float(seg_counts.get(seg_i, 1)), 1.0)
@@ -480,7 +508,9 @@ static func sample(name: String) -> Dictionary:
 		var pk := P_RIDE
 		var fl := -1.0
 		if ev == "grind":
-			y = SkatePark.surface_y(p) + h
+			# Held on the rail or the coping: its two ends' heights (a chord of a curved coping
+			# dips inside the rim, where the surface is the pool's wall).
+			y = lerpf(float(seg_y0[seg_i]), float(seg_y1[seg_i]), f)
 			pk = P_GRIND
 		elif ev in ["ollie", "flip", "turn"]:
 			y = lerpf(float(seg_y0[seg_i]), float(seg_y1[seg_i]), f) + 4.0 * h * f * (1.0 - f)
@@ -489,12 +519,27 @@ static func sample(name: String) -> Dictionary:
 			if ev == "flip":
 				fl = clampf((f - 0.12) / 0.6, 0.0, 1.0)
 		pos.append(Vector3(p.x, y, p.y))
+		segs.append(seg_i)
 		pose.append(pk)
 		flip.append(fl)
 		ups.append(Vector3.UP if pk != P_RIDE else _surface_up(p))
-		s += spd * dt
+		# Ridden, the pace is along the surface: slower across the plan where it climbs a wall.
+		var step := spd * dt
+		if not ev in ["ollie", "flip", "turn", "grind"]:
+			var q0: Vector2 = pts[j][0]
+			var q1: Vector2 = pts[(j + 1) % m][0]
+			var run := maxf(q0.distance_to(q1), 0.02)
+			var rise := SkatePark.surface_y(q1) - SkatePark.surface_y(q0)
+			step /= sqrt(1.0 + (rise / run) * (rise / run))
+		s += step
+		var seg_before := int(pts[j][1])
 		while j < m and s >= cum[j + 1]:
 			j += 1
+			# A new segment starts at its own start: a long stride must not carry a rider through
+			# the first part of a short air.
+			if j < m and int(pts[j][1]) != seg_before:
+				s = cum[j]
+				break
 	# The way it goes, from the positions; turned through the air on a "turn" (and kept level).
 	var count := pos.size()
 	for k in count:
@@ -533,15 +578,9 @@ static func sample(name: String) -> Dictionary:
 				fwd[q] = a.rotated(Vector3.UP, ang * ff)
 			k0 = k1
 		k0 += 1
-	var out := {"pos": pos, "up": sm, "fwd": fwd, "pose": pose, "flip": flip, "length": float(count) / RATE}
+	var out := {"pos": pos, "up": sm, "fwd": fwd, "pose": pose, "flip": flip, "seg": segs, "length": float(count) / RATE}
 	_tables[name] = out
 	return out
-
-
-static func _base_y(p: Vector2, wp: Array) -> float:
-	if String(wp[2]) == "grind":
-		return SkatePark.surface_y(p) + float(wp[3])
-	return SkatePark.surface_y(p)
 
 
 static func _surface_up(p: Vector2) -> Vector3:

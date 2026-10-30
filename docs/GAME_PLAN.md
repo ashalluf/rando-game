@@ -3286,6 +3286,15 @@ already mapped so milestone 2 is script-only.
   library clothes (the task: do not rebuild existing rigs). A dress is one "keep" cloth: no look
   recolours it into a two-tone outfit.
 
+- **2026-10-30 The skate park replaces the boardwalk's box park, on the berm.** THE PIT (invented
+  name) stands where LandmarkVeniceBoardwalk always put its skate park, as a code-built poured
+  platform: the sand cannot be dug (a beach is a thin mesh over the GroundBody), so the pits are cut
+  down through a high deck, as before. New: the pad is lifted onto the highest sand under it - the
+  berm crest runs right there, 1.3 m up, and had buried the old bowl's floor. Skaters ride lines
+  worked out once against the same surface function the concrete is built from and played from a
+  clock (nothing simulated); they and the spectators are baked figures that wake into live people.
+  SKATE_PARK=0 keeps the boxes.
+
 ## Correction: what build 135 (0ce833f) actually contained
 
 That commit's subject says "denser grass, real palm fronds, finer ground". It also shipped a

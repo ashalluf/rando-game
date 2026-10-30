@@ -9,12 +9,12 @@ func _initialize() -> void:
 	var t0 := Time.get_ticks_usec()
 	var g := SkatePark.Geo.new(true)
 	SkatePark._build_geo(g, PackedVector2Array([Vector2(14.0, -7.5), Vector2(14.0, 7.5)]), true)
+	var dp := SkatePark._area(SkatePark.pits()[1].rim)
+	print("SKATE snake rim z %.2f..%.2f, area %.1f" % [_min_z(SkatePark.pits()[1].rim), _max_z(SkatePark.pits()[1].rim), dp])
 	print("SKATE geometry near: %d triangles, %.1f ms" % [g.verts.size() / 3, (Time.get_ticks_usec() - t0) / 1000.0])
 	var gf := SkatePark.Geo.new(false)
 	SkatePark._build_geo(gf, PackedVector2Array(), false)
 	print("SKATE geometry far: %d triangles" % [gf.verts.size() / 3])
-	for k in ["pool", "snake"]:
-		pass
 	print("SKATE surface pool centre %.2f deck %.2f terrace %.2f stairs mid %.2f mini lip %.2f" % [
 		SkatePark.surface_y(SkatePark.POOL_C), SkatePark.surface_y(Vector2(-14.0, -21.0)),
 		SkatePark.surface_y(Vector2(0.0, 10.0)), SkatePark.surface_y(Vector2(4.0, 1.5)),
@@ -30,10 +30,26 @@ func _initialize() -> void:
 		for i in pos.size():
 			var a := pos[i]
 			var b := pos[(i + 1) % pos.size()]
-			worst_step = maxf(worst_step, Vector2(a.x, a.z).distance_to(Vector2(b.x, b.z)))
+			if a.distance_to(b) > 0.4:
+				print("  STEP %s %d: %s -> %s pose %d seg %d -> %d" % [name, i, a, b, tb.pose[i], tb.seg[i], tb.seg[(i + 1) % pos.size()]])
+			worst_step = maxf(worst_step, a.distance_to(b))
 			below = maxf(below, SkatePark.surface_y(Vector2(a.x, a.z)) - a.y)
 			if int(tb.pose[i]) == 2:
 				air += 1
 		print("SKATE line %s: %.1f s, %d samples, max step %.2f m (%.1f m/s), worst below surface %.3f m, %d air samples, %.0f ms" % [
 			name, tb.length, pos.size(), worst_step, worst_step * 30.0, below, air, (Time.get_ticks_usec() - t1) / 1000.0])
 	quit()
+
+
+func _min_z(r: PackedVector2Array) -> float:
+	var m := INF
+	for p in r:
+		m = minf(m, p.y)
+	return m
+
+
+func _max_z(r: PackedVector2Array) -> float:
+	var m := -INF
+	for p in r:
+		m = maxf(m, p.y)
+	return m

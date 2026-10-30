@@ -3686,6 +3686,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/glshot/far_landmark_shot.gd` (near / far / empty from one camera, `IDS=`, `NIGHT=1`) and
   `far_landmark_pair.py` (silhouette IoU, far/near brightness); `tests/far_landmarks_checks.gd`
   holds the planting parity.
+- The skate park (wave 3, docs/HANDOFF.md "THE PIT"): `SkatePark` (`scripts/world/skate_park.gd`)
+  replaces the boardwalk's box park (`LandmarkVeniceBoardwalk._skate_park()` hands over; the far
+  copy too): a poured platform lifted onto the beach's berm (`origin()`, `sand_y()` - the sand is
+  up to 1.3 m there and buried the old bowl), a pool with bullnose coping and a tile band and a
+  snake run cut into the high deck (`pits()`: a rim swept down a vert + quarter-circle profile, the
+  deck a Delaunay round the rims), stairs / hubbas / rail / bank down to a terrace with a concrete
+  mini ramp, a ledge, a manual pad, a flat bar and a funbox; board-formed walls with graffiti
+  (street wear atlas), railings, planters round the boardwalk's palms, floodlights. ONE mesh on
+  `shaders/skate_park.gdshader` (kind in COLOR.a / 16), ONE concave collision shape. `surface_y()`
+  is the riding surface the geometry is built from; `SkateParkLife` samples five lines over it at
+  30 Hz (ollie / flip / grind / turn events) and plays them from its clock; skaters and spectators
+  are baked `SkaterPerson` figures that wake into live people when hit or near gunfire.
+  `SKATE_PARK=0` is the A/B, `SKATE_T=` / `SKATE_HOLD=1` the clock, `SKATE_DEBUG=1` prints EYEs;
+  probe `tools/skate_park/probe.gd`; checks `tests/skate_park_checks.gd`.
 - Pier park (2026-10-05, "an amusement park on a pier, Santa Monica-style, original"; HANDOFF 9ca):
   RANDO PIER (the `pier` landmark, (-940, -350)) is `PierPark` (`scripts/world/pier_park.gd`):
   the pier plus GULLWING PARK on a platform off its south side. Everything sits in the PARK'S
