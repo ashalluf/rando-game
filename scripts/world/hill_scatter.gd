@@ -37,7 +37,7 @@ const CLUMP_W := 3.4
 const CLUMP_H := 1.9
 ## FULL clumps are dithered in between these camera distances (metres): nearer, the code-built
 ## shrubs and the shells are the stand. Drawn to (the batch's centre): FULL_DRAW, LOD_DRAW.
-const FULL_FADE := Vector2(38.0, 58.0)
+const FULL_FADE := Vector2(70.0, 100.0)
 const FULL_DRAW := 300.0
 const LOD_DRAW := 720.0
 ## Microseconds of planting a build step.

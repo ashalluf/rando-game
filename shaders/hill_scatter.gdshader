@@ -18,7 +18,7 @@ uniform vec3 leaf_dark = vec3(0.026, 0.036, 0.021);
 uniform vec3 leaf_light = vec3(0.080, 0.094, 0.054);
 uniform vec3 dead_color = vec3(0.150, 0.128, 0.090);
 // Leaf clumps per metre, and how much they tilt the normal.
-uniform float leaf_scale = 2.2;
+uniform float leaf_scale = 3.2;
 uniform float leaf_relief = 0.55;
 // Camera distances (metres) between which a clump is dithered in: 0, 0 never fades (the LOD
 // chunks' clumps). HillScatter.FULL_FADE on the FULL chunks' material.
@@ -75,11 +75,11 @@ void fragment() {
 	float n2 = vn3(p * 2.7 + vec3(7.1, 3.3, 5.9));
 	float leaf = mix(0.5, n1, amp) * 0.7 + mix(0.5, n2, amp2) * 0.3;
 	// Lit tops and shaded sides come from the renderer; the clumps and pockets from the noise.
-	float lit = clamp(0.25 + tone.x * 0.45 + (leaf - 0.5) * 1.3, 0.0, 1.0);
+	float lit = clamp(0.3 + tone.x * 0.4 + (leaf - 0.5) * 1.0, 0.0, 1.0);
 	vec3 c = mix(leaf_dark, leaf_light, lit);
 	// A few dead twigs on some clumps (chamise goes grey-brown in patches).
 	float dead = smoothstep(0.72, 0.86, vn3(p * 0.55 + vec3(19.0, 2.0, 11.0))) * step(0.55, tone.y) * mix(0.35, 1.0, amp);
-	c = mix(c, dead_color, dead * 0.7);
+	c = mix(c, dead_color, dead * 0.35);
 	// The pockets between the leaf clumps are dark; under a pixel their share is a mean.
 	c *= mix(1.0, 0.6 + 0.4 * smoothstep(0.28, 0.62, leaf), amp) * mix(1.0, 0.9, 1.0 - amp);
 	// The base in its own shade.

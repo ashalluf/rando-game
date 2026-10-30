@@ -19774,7 +19774,7 @@ A FULL chunk at (0, -1400) takes 1,206 clumps of 2,692 points; a LOD chunk ~450.
 `STEP_BUDGET_US` 3.5 ms.
 
 **Drawn**: `hill_scatter_full` per FULL chunk to `FULL_DRAW` 300 m, dithered in between
-`FULL_FADE` 38-58 m from the camera (interleaved gradient noise; TAA resolves it) so up close the
+`FULL_FADE` 70-100 m from the camera (interleaved gradient noise; TAA resolves it; at 38-58 m the clumps showed up close as faceted rocks) so nearer the
 code-built shrubs and the shells carry the stand; `hill_scatter_lod` per LOD chunk to `LOD_DRAW`
 720 m, no fade. No shadows: a stand's shade is the painted brush under it and each clump's own dark
 base (a shadow twin of a thousand clumps a chunk in four cascades was the cost this budget had no
@@ -19799,6 +19799,6 @@ true cost. Look with `tools/glshot/hill_ground_shot.tscn EYE=300,120,-950,0,-12 
 DAYNIGHT=1 GROUND=1 -- --hour=15` (a minute on opengl3). Checks: `tests/hill_planting_2_checks.gd`.
 
 **Not done / to check on the Mac**: the clumps' tone on Forward+ in the city (lavapipe small scene
-only); the dither band at 38-58 m on Forward+ with TAA; past the LOD ring (840 m) the stands are
+only); the dither band at 70-100 m on Forward+ with TAA; past the LOD ring (840 m) the stands are
 paint as before - a far-city scatter (Skyline) was not added; palms and pines round the estates are
 HillHomeKit's / EstateFar's as they were; HillShrubs still cast no shadow.

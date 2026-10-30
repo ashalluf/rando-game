@@ -3707,7 +3707,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`scripts/world/hill_scatter.gd`, one step after `_plant_hills` in both levels' HILLS list) puts
   a code-built clump (three lumpy domes, 63 / 15 / 6 triangles on one buffer, measured edges) on
   the painted stands: a 4 m world grid in FULL chunks (`hill_scatter_full`, dithered in past
-  `FULL_FADE` 38-58 m, to 300 m), a 6 m grid of bigger clumps in LOD chunks (`hill_scatter_lod`,
+  `FULL_FADE` 70-100 m, to 300 m), a 6 m grid of bigger clumps in LOD chunks (`hill_scatter_lod`,
   to 720 m: they planted nothing); `shaders/hill_scatter.gdshader` draws the leaves from world
   noise (linear, color_space). Seated by `HillPlanting.ground()` off the tile (never on rock, cuts,
   roads, pads, beds); no shadows. Oaks in hollows get companions (`oak_clump()`, `far_oak_clump()`

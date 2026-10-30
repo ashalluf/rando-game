@@ -3520,7 +3520,7 @@ already mapped so milestone 2 is script-only.
   shrubs.** (hill-planting-2) A stand is thousands of shrubs; a HillShrub is 5,800 triangles near,
   so the volume comes from a 63 / 15 / 6-triangle clump of three domes whose leaves the shader
   draws from world noise, placed on the very stand field the terrain paints, in FULL chunks (from
-  ~50 m, the real shrubs nearer) and in the LOD ring (which planted nothing). No shadows; the clumps
+  ~85 m, the real shrubs nearer) and in the LOD ring (which planted nothing). No shadows; the clumps
   are darker than the paint so a stand reads as lit tops over shaded masses. HILL_PLANTING_2=0.
 
 ## Correction: what build 135 (0ce833f) actually contained
