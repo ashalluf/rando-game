@@ -121,6 +121,15 @@ static func _frame(plan: CityPlan, z: float) -> Array:
 	return [macro.coast_x(z), macro.beach_width_at(z), land, along, atan2(land.x, land.y)]
 
 
+## True where the beach is not ours to furnish: BeachLife's kept-off stretches and the coast
+## highway's stretch under the bluffs (CoastHighwayBuild builds those chunks' sand itself).
+static func off(plan: CityPlan, z: float) -> bool:
+	if BeachLife.kept_off(plan, z):
+		return true
+	var ch: CoastHighway = plan.macro.coast_highway if plan.macro else null
+	return ch != null and z > ch.z_north - CoastHighway.NORTH_FADE - 30.0 and z < ch.z_south + 30.0
+
+
 ## The stations of the station cells round z0..z1 (pure, no obstacles): {kind, at, yaw, k, half}.
 static func _stations(plan: CityPlan, z0: float, z1: float) -> Array:
 	var out: Array = []
@@ -139,7 +148,7 @@ static func _stations(plan: CityPlan, z0: float, z1: float) -> Array:
 		if kind == "":
 			continue
 		var z := zc + (_h([plan.seed, "bam_station_z", k]) - 0.5) * STATION_CELL * 0.3
-		if BeachLife.kept_off(plan, z):
+		if off(plan, z):
 			continue
 		var f := _frame(plan, z)
 		var w: float = f[1]
@@ -237,7 +246,7 @@ static func plan_stretch(plan: CityPlan, z0: float, z1: float, obstacles: Array 
 						"paint": Color.WHITE, "half": HALF.court, "net": bool(c.net)})
 			continue
 		var at := _nudge(plan, st, obstacles if mine else [], courts)
-		if at == Vector2.INF:
+		if at == Vector2.INF or off(plan, at.y):
 			continue
 		var half: Vector2 = st.half
 		# The lower kinds give way to where the station could stand, nudged or not.
@@ -260,7 +269,7 @@ static func plan_stretch(plan: CityPlan, z0: float, z1: float, obstacles: Array 
 	# Showers (and lone racks) along the path's seaward edge.
 	for k in range(floori(z0 / SHOWER_CELL), floori(z1 / SHOWER_CELL) + 1):
 		var zc := (float(k) + 0.5) * SHOWER_CELL
-		if zc < z0 or zc >= z1 or BeachLife.kept_off(plan, zc):
+		if zc < z0 or zc >= z1 or off(plan, zc):
 			continue
 		if _h([plan.seed, "bam_shower", k]) >= SHOWER_ODDS or plan.macro.beach_width_at(zc) < MIN_WIDTH:
 			continue
@@ -278,7 +287,7 @@ static func plan_stretch(plan: CityPlan, z0: float, z1: float, obstacles: Array 
 	# The drums, in bands across the sand.
 	for k in range(floori(z0 / CAN_CELL), floori(z1 / CAN_CELL) + 1):
 		var zc := (float(k) + 0.5) * CAN_CELL
-		if zc < z0 or zc >= z1 or BeachLife.kept_off(plan, zc):
+		if zc < z0 or zc >= z1 or off(plan, zc):
 			continue
 		var hc := _hi([plan.seed, "bam_can", k])
 		if _h([hc, 0]) >= CAN_ODDS:
@@ -289,7 +298,7 @@ static func plan_stretch(plan: CityPlan, z0: float, z1: float, obstacles: Array 
 			continue
 		var band: float = [0.34, 0.5, 0.7][hc % 3]
 		var at := Vector2(float(f[0]) + w * band, zc + (_h([hc, 1]) - 0.5) * CAN_CELL * 0.5)
-		if not _free(blocking, at, HALF.can, 1.0) or not _clear(obstacles, at, HALF.can, 0.4):
+		if not _free(blocking, at, HALF.can, 1.0) or not _clear(obstacles, at, HALF.can, 0.4) or off(plan, at.y):
 			continue
 		var paint: Color = DRUM_PAINTS[(hc / 3) % DRUM_PAINTS.size()]
 		out.append({"kind": "can", "mesh": "drum_trash", "at": at, "yaw": _h([hc, 2]) * TAU, "paint": paint, "half": HALF.can})
@@ -312,10 +321,10 @@ static func _free(blocking: Array, at: Vector2, half: Vector2, margin: float) ->
 static func _add_beside(plan: CityPlan, out: Array, at: Vector2, yaw: float, half: Vector2, hk: int, obstacles: Array, blocking: Array) -> void:
 	var side := 1.0 if hk % 2 == 0 else -1.0
 	var rack := Vector2(BeachLife.path_x(plan, at.y + side * (half.x + 2.6)) - BeachLife.PATH_WIDTH * 0.5 - 1.3, at.y + side * (half.x + 2.6))
-	if _clear(obstacles, rack, HALF.rack, 0.3) and _free(blocking, rack, HALF.rack, 0.3):
+	if _clear(obstacles, rack, HALF.rack, 0.3) and _free(blocking, rack, HALF.rack, 0.3) and not off(plan, rack.y):
 		out.append({"kind": "rack", "mesh": "rack", "at": rack, "yaw": yaw, "paint": Color.WHITE, "half": HALF.rack})
 	var can := Vector2(at.x - half.y + 0.4, at.y - side * (half.x + 1.4))
-	if _clear(obstacles, can, HALF.can, 0.3) and _free(blocking, can, HALF.can, 0.3):
+	if _clear(obstacles, can, HALF.can, 0.3) and _free(blocking, can, HALF.can, 0.3) and not off(plan, can.y):
 		out.append({"kind": "can", "mesh": "drum_trash", "at": can, "yaw": _h([hk, "c"]) * TAU,
 			"paint": DRUM_PAINTS[hk % DRUM_PAINTS.size()], "half": HALF.can})
 	var can2 := can + Vector2(0.0, -side * 0.75)

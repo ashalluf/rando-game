@@ -62,7 +62,7 @@ func _plan(plan: CityPlan) -> void:
 		for c: Dictionary in courts:
 			if String(it.kind) != "court" and BeachLife._near_court(c, at, maxf((it.half as Vector2).x, (it.half as Vector2).y)):
 				off = "%s on a court at %s" % [it.kind, str(at)]
-		if BeachLife.kept_off(plan, at.y + 0.0) and String(it.kind) != "can":
+		if BeachAmenities.off(plan, at.y) and String(it.kind) != "can":
 			off = "%s on a kept-off stretch at %s" % [it.kind, str(at)]
 		var w := plan.macro.beach_width_at(at.y)
 		var across := (at.x - plan.macro.coast_x(at.y)) / maxf(w, 1.0)
@@ -104,7 +104,9 @@ func _tables() -> void:
 
 ## The z of a restroom or concession on an ordinary stretch (clear of the replica and the piers).
 func _station_z(plan: CityPlan) -> float:
-	for it: Dictionary in BeachAmenities.plan_stretch(plan, -1500.0, 2500.0):
+	# The middle of the open shore first (the far north is the coast highway's, the far south the
+	# replica's), then anywhere.
+	for it: Dictionary in BeachAmenities.plan_stretch(plan, 300.0, 1400.0) + BeachAmenities.plan_stretch(plan, -1500.0, 2500.0):
 		if String(it.kind) in ["restroom", "concession"]:
 			return (it.at as Vector2).y
 	return INF
