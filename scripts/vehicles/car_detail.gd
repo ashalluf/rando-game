@@ -180,8 +180,13 @@ static func _arm() -> void:
 
 
 static func _build_next() -> void:
-	var car: Vehicle = _queue.pop_front()
-	if not is_instance_valid(car) or not car.has_meta("car_detail") or not car.is_inside_tree():
+	# Untyped first: a car freed while it waited (a pooled or unloaded one) is a dead reference,
+	# and assigning that to a typed variable is a script error.
+	var v: Variant = _queue.pop_front()
+	if not is_instance_valid(v):
+		return
+	var car := v as Vehicle
+	if car == null or not car.has_meta("car_detail") or not car.is_inside_tree():
 		return
 	var look: int = car.get_meta("car_detail")
 	car.remove_meta("car_detail")
