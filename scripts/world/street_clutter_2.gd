@@ -708,7 +708,7 @@ static func cart() -> Mesh:
 	var wire := _c(Color(0.7, 0.71, 0.72), C_WIRE)
 	var chrome := _c(Color(0.72, 0.73, 0.74), C_FIXED)
 	var rm_c := Vector2(0.3, 1.0)
-	var plastic := _c(Color(0.6, 0.06, 0.05), C_PLASTIC)
+	var plastic := _c(Color(0.42, 0.07, 0.06), C_PLASTIC)
 	# Basket: bottom at y 0.48, tapering toward the nose (-Z).
 	var y0 := 0.48
 	var y1 := 0.98
