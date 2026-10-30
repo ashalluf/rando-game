@@ -10,6 +10,8 @@ extends RefCounted
 ##   its walls as display numbers and building.gdshader emits the mirror in the renderer's own
 ##   space, so they go through fx_srgb_in() (decoded on Forward+ only); raw, Forward+ mirrored the
 ##   street as pale beige slabs.
+## - The shop sign band's hues (building.gdshader and its far copy) are display numbers too: raw,
+##   a red lightbox was a pale red past 1 on Forward+ and AgX drew it pink. fx_srgb_in() them.
 
 var _t: Node
 
@@ -48,3 +50,9 @@ func run(t: Node, _city: Node3D) -> void:
 	var b := fv.find("vec3 fx_srgb_in(")
 	_t._check(b >= 0 and fv.find("RENDERER_COMPATIBILITY", b) > b and fv.find("RENDERER_COMPATIBILITY", b) < b + 200,
 		"fx_srgb_in() leaves Compatibility's numbers as they are")
+	for p in ["res://shaders/building.gdshader", "res://shaders/building_lod.gdshader"]:
+		var c := _code(p)
+		var at := c.find("vec3 sign_hue = mix(")
+		var dec := c.find("sign_hue = fx_srgb_in(sign_hue);")
+		var box := c.find("vec3 box = sign_hue /")
+		_t._check(at > 0 and dec > at and dec < box, "%s decodes the sign band's hues before the lightbox is made of them" % p.get_file())
