@@ -1412,6 +1412,7 @@ func _physics_process(delta: float) -> void:
 		_life_pose(delta)
 	if not errand.is_empty():
 		StreetErrands.pose(self, delta)
+	CrowdFeet.tick(self, delta)
 
 
 func _walk(delta: float) -> void:
@@ -2577,6 +2578,8 @@ var _hip_bone: int = -1
 var _leg_bones := PackedInt32Array()
 ## The errand under way (StreetErrands: its steps and where it is in them), {} for none.
 var errand: Dictionary = {}
+## Foot placement on uneven ground (CrowdFeet), made on first use near the camera.
+var foot_ik: CrowdFeet
 
 
 ## Rolls what this person carries and whether they jog or walk a dog (from the seed, so the same

@@ -499,6 +499,18 @@ func _initialize() -> void:
 		for i in _env_int("ERRAND_FRAMES", 12):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
+	# FEET=kerb|stairs|slope: people standing on uneven ground in front of a free camera
+	# (tools/foot_ik/stage.gd; FOOT_IK=0 is the before).
+	var feet_env := OS.get_environment("FEET")
+	if feet_env != "" and current_scene:
+		var ft_eye: String = await load("res://tools/foot_ik/stage.gd").new().stage(current_scene, feet_env, self, player)
+		if ft_eye != "" and OS.get_environment("EYE") == "":
+			OS.set_environment("EYE", ft_eye)
+		print("FEET %s eye %s" % [feet_env, ft_eye])
+		_eye(player, fov)
+		for i in _env_int("FEET_FRAMES", 8):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
 	# Then all but freeze the clock for the last frames: a software frame takes seconds, and at
 	# normal speed everything that moves - people, traffic, leaves, fire - smears under TAA.
 	# Held still, TAA and the GI converge on one instant, as crisp as it is on the Mac.
