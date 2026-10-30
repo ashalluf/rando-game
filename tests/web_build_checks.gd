@@ -59,6 +59,35 @@ func _excluded(filter: String) -> void:
 				if m.get_string(2).match(g):
 					bad.append("%s -> %s" % [path, m.get_string(2)])
 	_t._check(bad.is_empty(), "web: nothing loads a file the Web export leaves out %s" % [bad])
+	_excluded_by_name(globs)
+
+
+## Wave 3's cuts (old Poly Haven scans the code-built kits replaced, two exotic bodies no body
+## type uses, the Meshy sedan: ~32 MB) are reached through a directory constant plus a file name
+## (`MODEL_DIR + "prop_hydrant.glb"`), which the res:// scan above cannot see. So no script or
+## scene line outside a comment may name one of their stems, and every glob must still match a
+## file (a filter that matches nothing is stale: the file was renamed and now ships).
+func _excluded_by_name(globs: Array[String]) -> void:
+	var stems: Array[String] = []
+	var stale: Array[String] = []
+	var assets := _files("res://assets/models", "")
+	for g in globs:
+		if not assets.any(func(a: String) -> bool: return a.match(g)):
+			stale.append(g)
+		var stem := g.get_file().trim_suffix("*").trim_suffix(".glb")
+		# The retired Meshy rigs keep their own rule: the police compare one of their paths.
+		if stem != "" and not stem.begins_with("pedestrian_"):
+			stems.append(stem)
+	_t._check(stale.is_empty(), "web: every Web exclude glob still matches a file %s" % [stale])
+	var bad: Array[String] = []
+	for path in _files("res://scripts", ".gd") + _files("res://scenes", ".tscn"):
+		for line in FileAccess.get_file_as_string(path).split("\n"):
+			var code := line.get_slice("#", 0) if path.ends_with(".gd") else line
+			for st in stems:
+				if code.contains(st):
+					bad.append("%s: %s" % [path.get_file(), st])
+	_t._check(stems.size() >= 8 and bad.is_empty(),
+		"web: no script names an asset the Web export leaves out (%d stems) %s" % [stems.size(), bad])
 
 
 func _files(dir: String, ext: String) -> Array[String]:
