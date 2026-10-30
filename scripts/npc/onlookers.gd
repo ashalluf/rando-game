@@ -204,7 +204,8 @@ func open_scene(kind: int, world: Vector3, ref: Object = null) -> Dictionary:
 func scene_point(s: Dictionary) -> Vector3:
 	var ref: Variant = s.ref
 	if ref != null and is_instance_valid(ref):
-		if ref is Ragdoll and not (ref as Ragdoll).bodies.is_empty() and is_instance_valid((ref as Ragdoll).bodies[0]):
+		if ref is Ragdoll and not (ref as Ragdoll).bodies.is_empty() and is_instance_valid((ref as Ragdoll).bodies[0]) \
+				and ((ref as Ragdoll).bodies[0] as Node3D).is_inside_tree():
 			return ((ref as Ragdoll).bodies[0] as Node3D).global_position
 		if ref is Node3D and (ref as Node3D).is_inside_tree():
 			return (ref as Node3D).global_position
