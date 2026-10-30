@@ -17157,3 +17157,11 @@ the flame material's soft-particle fade on sand and the smoke's lighting need a 
 fire is visual only (no burn damage, nothing ignites it; a rocket does not scatter the logs). A
 chunk built in daylight gets no group when its ring lights later (it does on the next rebuild). No
 graffiti on the rings beyond the numbers; no s'mores sticks or guitars.
+
+**Two other checks made robust on the way** (both were exposed by the beach's content changing,
+not caused by it; `BEACH_LIFE=0` alone broke the first the same way): `tests/news_crews_checks.gd`
+holds the van "seen" while its crew wraps (the upkeep pooled an off-screen LEAVING van in the same
+call that sent it off, depending on where earlier parts left the camera), and
+`tests/car_cabin_checks.gd` leaves out traffic cars CarPanic's drivers abandoned (nobody in them by
+design; "street cars have a driver" came out 94/95 in some gate runs). Gate: `SHARDS=3`, 3,041
+checks, 0 failed, peak RSS 2.89 GB a shard.
