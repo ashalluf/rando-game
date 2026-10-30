@@ -2340,6 +2340,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Street furniture (tests/street_furniture_checks.gd): the meshes, the shader's kinds, the rolls,
 	# a metered block and collection day's carts built the same with the furniture off.
 	load("res://tests/street_furniture_checks.gd").new().run(self, city)
+	# Swimming (tests/swimming_checks.gd): the sea's swell in GDScript, the water, and the hero in it.
+	await load("res://tests/swimming_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

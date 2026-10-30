@@ -1703,6 +1703,7 @@ func _pose(player: Node3D, anchor: Vector3, hold: Vector3, boost: bool, fov: flo
 ## EYE=x,y,z,yaw,pitch: a free camera at that TRUE world point (yaw 0 looks north, 90 west, as
 ## --spawn does), the player hidden - for matching a reference photograph from a fixed viewpoint
 ## (a Street View car's lens is about 2.5 m above the road). FOV is the vertical field of view.
+## EYE_KEEP_PLAYER=1 leaves the player where he is, in the shot.
 var _eye_cam: Camera3D
 ## BOOST=fly is under way: the pose no longer pins the player.
 var _flying: bool = false
@@ -1733,6 +1734,13 @@ func _eye(player: Node3D, fov: float) -> void:
 		_eye_cam.make_current()
 	_eye_cam.fov = fov if fov > 0.0 else 45.0
 	_eye_cam.global_transform = Transform3D(Basis.from_euler(Vector3(deg_to_rad(p[4].to_float()), deg_to_rad(p[3].to_float()), 0.0)), at)
+	# EYE_KEEP_PLAYER=1: the player stays in the shot where he is (the swimming stills).
+	if OS.get_environment("EYE_KEEP_PLAYER") == "1":
+		var sw: Node = player.get("swim")
+		if not player.has_meta("eye_printed"):
+			player.set_meta("eye_printed", true)
+			print("EYE_KEEP_PLAYER at %s swimming %s water %s" % [str(player.global_position), str(sw.get("swimming") if sw else "-"), str(sw.get("water") if sw else "-")])
+		return
 	player.visible = false
 	# Keep the streaming centred where the camera is.
 	player.global_position = Vector3(at.x, player.global_position.y, at.z)
