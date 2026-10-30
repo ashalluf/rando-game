@@ -206,6 +206,8 @@ func set_look(yaw_deg: float, pitch_deg: float) -> void:
 	_yaw = deg_to_rad(yaw_deg)
 	_pitch = deg_to_rad(pitch_deg)
 	_kick_pitch = 0.0
+	if drive:
+		drive.note_look() # a placed view is the player's: the chase camera holds it, then eases back
 	_apply_rotation()
 
 
@@ -215,6 +217,8 @@ func look_at_point(point: Vector3) -> void:
 	_yaw = atan2(-dir.x, -dir.z)
 	_pitch = asin(clampf(dir.y, -1.0, 1.0))
 	_kick_pitch = 0.0
+	if drive:
+		drive.note_look()
 	_apply_rotation()
 
 
