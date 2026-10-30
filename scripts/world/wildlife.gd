@@ -137,7 +137,7 @@ func survey() -> void:
 	var keep := spawn_radius + despawn_margin
 	var count := 0
 	for id in _animals.keys():
-		var a: WildAnimal = _animals[id]
+		var a = _animals[id]
 		if not is_instance_valid(a):
 			_animals.erase(id)
 			_gone[id] = true

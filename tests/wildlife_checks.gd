@@ -170,8 +170,9 @@ func _live(city: Node3D) -> void:
 	# A bolted animal is gone once its run is over.
 	rac.flee_min_seconds = 0.1
 	rac.flee_max_seconds = 0.6
-	await _until(func() -> bool: return not is_instance_valid(rac), 120)
-	_check(not is_instance_valid(rac), "wildlife: a bolted animal is gone once it has run its course")
+	var rac_id := rac.get_instance_id()
+	await _until(func() -> bool: return not is_instance_id_valid(rac_id), 120)
+	_check(not is_instance_id_valid(rac_id), "wildlife: a bolted animal is gone once it has run its course")
 	for an in [sq, deer]:
 		if is_instance_valid(an):
 			an.queue_free()
