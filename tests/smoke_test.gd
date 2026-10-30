@@ -116,7 +116,8 @@ const PART_COST := {
 	"fwd_review_a_checks": 0.0, "fwd_review_b_checks": 0.0, "garments_2_checks": 0.0,
 	"memory_audit_checks": 0.0, "offshore_island_checks": 0.0, "perf_audit_checks": 0.0,
 	"shop_vinyl_checks": 0.0, "sky_checks": 0.0, "bonfires_checks": 3.0,
-	"cinematic_review_checks": 0.1, "sunset_clouds_checks": 0.0
+	"cinematic_review_checks": 0.1, "sunset_clouds_checks": 0.0,
+	"downtown_street_closeup_checks": 1.5
 }
 const DEFAULT_COST := 6.0
 ## Every share pays for its own city load on top of its parts.
@@ -2647,6 +2648,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/police_night_look_checks.gd").new().run(self, city)
 	# The Los Angeles sunset (tests/sunset_clouds_checks.gd, SunsetSky): the weight, the low sun's light.
 	load("res://tests/sunset_clouds_checks.gd").new().run(self, city)
+	# Downtown streets at arm's length (tests/downtown_street_closeup_checks.gd, StreetCloseup): the
+	# kerb face and arris, the concrete gutter pan, pressed paint, real lot cars, sheds, the A/B.
+	load("res://tests/downtown_street_closeup_checks.gd").new().run(self, city)
 	# The freeway close up (tests/freeway_closeup_checks.gd, FreewayCloseup): the concrete deck's
 	# UVs and lane copy, the kit's close-up pass, no geometry or rolls moved, the rush-hour fill.
 	await load("res://tests/freeway_closeup_checks.gd").new().run(self, city)

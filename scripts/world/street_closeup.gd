@@ -29,6 +29,9 @@ const ARRIS_LIFT := 0.002
 ## The pan box's centre over the road top: its 8 mm box tops out 6 mm up, over the road wear's
 ## stamps (4.2 mm) and under the pressed paint (5 mm + 4 mm: crosswalk bars cross it).
 const PAN_LIFT := 0.002
+## A pavement cafe set's clearance for the stop benches StreetFurniture lays at the finish (m):
+## the table and its chairs reach 1.3 m from the prop's centre, which was taken for a 0.6 m post.
+const CAFE_CLEAR := 1.4
 ## The road paint's thickness once pressed (m): thermoplastic is 2-3 mm.
 const PAINT_THICK := 0.004
 
@@ -77,7 +80,7 @@ static func gutter_material() -> ShaderMaterial:
 	var mat := _base()
 	mat.set_shader_parameter("albedo_tex", PropFactory.texture("sidewalk", "Color"))
 	mat.set_shader_parameter("normal_tex", PropFactory.texture("sidewalk", "NormalGL"))
-	mat.set_shader_parameter("tint", Color(0.86, 0.85, 0.82))
+	mat.set_shader_parameter("tint", Color(1.42, 1.40, 1.34))
 	mat.set_shader_parameter("tex_scale", 2.5)
 	mat.set_shader_parameter("gutter", true)
 	_mats["gutter"] = mat
@@ -258,10 +261,31 @@ static func commit_cars(ch: CityChunk, nodes: Dictionary) -> void:
 			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		for t: int in cell.near:
 			var body := CarParkBuild.real_body(t)
-			var mmi := CarParkBuild._car_mmi(body.mesh, cell.near[t], body.offset, true)
+			var mmi := _real_mmi(body.mesh, cell.near[t], body.offset)
 			mmi.name = "LotRealCars%d_%d_%d" % [t, ck.x, ck.y]
 			_seat(ch, mmi, bounds)
 			mmi.visibility_range_end = REAL_CAR_NEAR
+
+
+## The real bodies of a cell: paint per instance in the custom data (car_park_car.gdshader).
+## Instance colours are on too (white): on the Compatibility renderer a MultiMesh with custom data
+## and no colours handed the shader garbage for the paint (neon pinks and cyans in the stills).
+static func _real_mmi(mesh: Mesh, cars: Array, offset: Vector3) -> MultiMeshInstance3D:
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.use_custom_data = true
+	mm.mesh = mesh
+	mm.instance_count = cars.size()
+	for i in cars.size():
+		var c: Array = cars[i]
+		mm.set_instance_transform(i, (c[0] as Transform3D) * Transform3D(Basis(), offset))
+		var p: Color = c[1]
+		mm.set_instance_color(i, Color.WHITE)
+		mm.set_instance_custom_data(i, Color(p.r, p.g, p.b, 1.0))
+	var mmi := MultiMeshInstance3D.new()
+	mmi.multimesh = mm
+	return mmi
 
 
 ## A cell's MultiMesh in the chunk with the cell's bounds (all of a cell's groups measure their
@@ -312,3 +336,96 @@ static func clear_sheds(ch: CityChunk, nodes: Dictionary) -> int:
 					break
 	ch.set_meta("sc_shed_trees", gone)
 	return gone
+
+
+# --- Broadway's goods in front of a wall ---------------------------------------------------------
+
+## Whether the frontage behind pavement point `at` (where Broadway sets out a rack, gowns or a sale
+## table, 0.6 m past the pavement) is NOT a shop: a surface car park's wall or a vacant lot's
+## fence, which the goods stood half inside. Pure (the lot plan and VacantLots' own question).
+static func goods_blocked(plan: CityPlan, ix: int, iz: int, at: Vector2) -> bool:
+	if not enabled:
+		return false
+	for lot: Dictionary in plan.lots(ix, iz):
+		if not lot.has("cell"):
+			continue
+		var cell: Rect2 = lot.cell
+		if not cell.grow(0.8).has_point(at):
+			continue
+		if lot.get("parking", false) or VacantLots.kind_of(plan, ix, iz, lot) != VacantLots.NONE:
+			return true
+	return false
+
+
+## Broadway's folding sale table (BroadwayStreet.table_mesh(), same footprint and height): it was
+## nine saturated cubes on a board. Now a cloth over the top and down both long sides, stacks of
+## folded tees in the muted colours a wholesale table carries, two open cartons with the stock
+## standing in them, a shoebox pile, and the day-glo price card on its stake. Vertex colours on the
+## table's own material; ~1.4k triangles.
+static func sale_table_mesh(material: Material) -> Mesh:
+	if _mats.has("sale_table"):
+		return _mats["sale_table"]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var box := func(c: Vector3, s: Vector3, col: Color, yaw: float = 0.0) -> void:
+		BroadwayStreet._box(st, c, s, col, Basis(Vector3.UP, yaw))
+	var steel := Color(0.3, 0.3, 0.32)
+	for sx: float in [-0.8, 0.8]:
+		for sz: float in [-0.3, 0.3]:
+			box.call(Vector3(sz, 0.36, sx), Vector3(0.03, 0.72, 0.03), steel)
+	box.call(Vector3(0.0, 0.74, 0.0), Vector3(0.75, 0.04, 1.8), Color(0.88, 0.87, 0.84))
+	# The cloth: over the top and hanging 0.32 m down both long sides, a deep navy.
+	var cloth := Color(0.10, 0.13, 0.24)
+	box.call(Vector3(0.0, 0.766, 0.0), Vector3(0.80, 0.012, 1.86), cloth)
+	for side: float in [-1.0, 1.0]:
+		box.call(Vector3(side * 0.40, 0.61, 0.0), Vector3(0.008, 0.32, 1.86), cloth)
+	# Folded tees, stacked: a stack is one colour, its layers a hair out of line.
+	var tees := [Color(0.55, 0.55, 0.56), Color(0.12, 0.14, 0.22), Color(0.08, 0.08, 0.09), Color(0.86, 0.85, 0.82),
+		Color(0.30, 0.33, 0.22), Color(0.38, 0.12, 0.14), Color(0.62, 0.52, 0.40), Color(0.25, 0.34, 0.46)]
+	var k := 0
+	for row in 2:
+		for col in 3:
+			var c: Color = tees[(k * 3 + 1) % tees.size()]
+			var n := 4 + (k * 5) % 4
+			var cx := -0.18 + 0.34 * float(row)
+			var cz := -0.72 + 0.27 * float(col)
+			for layer in n:
+				var j := Vector3(0.008 * sin(float(layer * 7 + k)), 0.0, 0.01 * cos(float(layer * 5 + k)))
+				var shade := 0.92 + 0.08 * float((layer + k) % 2)
+				box.call(Vector3(cx, 0.784 + 0.024 * float(layer), cz) + j, Vector3(0.28, 0.022, 0.24), Color(c.r * shade, c.g * shade, c.b * shade), 0.03 * sin(float(layer + k)))
+			k += 1
+	# Two open cartons, the stock standing in them (rolled socks, boxed phone cases).
+	var kraft := Color(0.55, 0.42, 0.27)
+	for b in 2:
+		var cz := 0.18 + 0.36 * float(b)
+		var cx := 0.0
+		var h := 0.2
+		var w := Vector2(0.42, 0.30)
+		box.call(Vector3(cx, 0.776 + 0.004, cz), Vector3(w.x, 0.008, w.y), kraft.darkened(0.2))
+		for sgn: float in [-1.0, 1.0]:
+			box.call(Vector3(cx + sgn * w.x * 0.5, 0.776 + h * 0.5, cz), Vector3(0.006, h, w.y), kraft)
+			box.call(Vector3(cx, 0.776 + h * 0.5, cz + sgn * w.y * 0.5), Vector3(w.x, h, 0.006), kraft)
+			# The flaps, folded out and down a little.
+			box.call(Vector3(cx + sgn * (w.x * 0.5 + 0.06), 0.776 + h - 0.02, cz), Vector3(0.12, 0.005, w.y), kraft.lightened(0.05), 0.0)
+		# A packing tape stripe down one side.
+		box.call(Vector3(cx + w.x * 0.5 + 0.004, 0.776 + h * 0.5, cz), Vector3(0.002, h, 0.05), Color(0.72, 0.62, 0.42))
+		for m in 8:
+			var mc := Color(0.08, 0.08, 0.1) if b == 0 else ([Color(0.9, 0.9, 0.88), Color(0.15, 0.15, 0.17), Color(0.5, 0.48, 0.45)][m % 3])
+			var px := cx - 0.15 + 0.1 * float(m % 4)
+			var pz := cz - 0.07 + 0.14 * float(m / 4)
+			var mh := 0.16 if b == 0 else 0.13
+			box.call(Vector3(px, 0.78 + mh * 0.5, pz), Vector3(0.075, mh, 0.1 if b == 0 else 0.07), mc, 0.08 * float(m % 3 - 1))
+	# Shoeboxes, a short pile at the end.
+	var shoe := [Color(0.85, 0.32, 0.12), Color(0.12, 0.12, 0.13), Color(0.82, 0.80, 0.76)]
+	for s in 3:
+		box.call(Vector3(-0.15 + 0.015 * float(s % 2), 0.776 + 0.06 + 0.12 * float(s), 0.78), Vector3(0.33, 0.115, 0.2), shoe[s], 0.04 * float(s - 1))
+		box.call(Vector3(-0.15 + 0.015 * float(s % 2), 0.776 + 0.118 + 0.12 * float(s), 0.78), Vector3(0.335, 0.008, 0.205), (shoe[s] as Color).darkened(0.15), 0.04 * float(s - 1))
+	# The price card on its stake, day-glo board.
+	box.call(Vector3(0.0, 1.1, 0.95), Vector3(0.6, 0.45, 0.012), Color(0.95, 0.85, 0.15))
+	box.call(Vector3(0.0, 1.1, 0.958), Vector3(0.5, 0.09, 0.004), Color(0.75, 0.08, 0.06))
+	box.call(Vector3(0.0, 0.5, 0.95), Vector3(0.03, 1.0, 0.03), steel)
+	st.index()
+	var mesh := st.commit()
+	mesh.surface_set_material(0, material)
+	_mats["sale_table"] = mesh
+	return mesh

@@ -240,7 +240,9 @@ static func _obstacles(chunk: CityChunk) -> Array:
 	var out := []
 	for r: Dictionary in chunk.prop_records:
 		var p: Vector3 = r.position
-		out.append(Vector3(p.x, p.z, 0.6))
+		# A cafe set is two metres of table and chairs, not a post (StreetCloseup: the stop bench
+		# was laid through one).
+		out.append(Vector3(p.x, p.z, StreetCloseup.CAFE_CLEAR if StreetCloseup.enabled and String(r.get("kind", "")) == "cafe" else 0.6))
 	var data: Dictionary = chunk._batch.data()
 	for key: String in data:
 		if key in ["tree_grate", "bush", "palm_0", "palm_1", "palm_2"] or key.begins_with("camp_") or key.begins_with("vend_") or key.begins_with("kerb"):
