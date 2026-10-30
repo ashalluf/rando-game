@@ -635,6 +635,7 @@ func _ready() -> void:
 	CarLights.ensure(self)
 	DrivingFX.ensure(self)
 	EngineAudio.ensure(self)
+	CarRadio.ensure(self) # the player's car radio (scripts/vehicles/car_radio.gd)
 	set_meta("spawn_time", Time.get_ticks_msec() / 1000.0)
 	collision_layer = 4
 	collision_mask = _mask()

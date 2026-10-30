@@ -15534,3 +15534,82 @@ checks, 0 failed, peak RSS 2,506 MB a shard, 1,054 s.
 and the tarps' backlight need a Mac look. LOD chunks and the far city draw the buildings only
 (no goods past the FULL ring, by design). Garments are simple lofted sacks with tube sleeves:
 fine on a rack at 3 m, plain at 1 m.
+
+## 9d?. The car radio, 2026-10-30 (fleet wave 3, agent branch `wt/car-radio`; VISUAL_ROADMAP "?")
+
+The task: a radio for the player's car, four original stations of CC0 / public-domain music,
+next / previous on a key and the mouse wheel, a station card on the HUD, the music on the Game bus
+so slow motion muffles it like everything else.
+
+**What plays.** `CarRadio.STATIONS` (scripts/vehicles/car_radio.gd), all invented names:
+
+| Station | FM | Genre | Tracks (in game title / real source) |
+| --- | --- | --- | --- |
+| VELVET HOUR | 88.3 | classical | two Chopin waltzes (Musopen, CC0) and the Goldberg aria da capo (Open Goldberg, CC0) |
+| PALM STATIC | 97.1 | lo-fi beats | three OpenGameArt CC0 lo-fi tracks |
+| NEON FREEWAY | 104.5 | synth | Night Prowler, Cyberpunk Moonlight Sonata, The Rush (OGA, CC0) |
+| TIKI SUNSET | 92.7 | lounge / exotica | Enchanted Tiki 86, Gone Fishin', Another August (OGA, CC0) |
+
+In game every track carries an invented title and artist (the brief: no real names); the real
+authors are credited in docs/ASSETS.md. `tools/radio/fetch_radio.sh` downloads the sources into
+the ignored build/radio_src/, `tools/radio/make_radio.py` cuts each to 110 s (a 4 s fade where it
+cuts), levels it to -17 LUFS (two-pass EBU R128 loudnorm, linear) and encodes 48 kbit/s stereo
+Vorbis at 32 kHz (FM stops at 15 kHz): **7.0 MB for all twelve**. Each station also has an
+original ident synthesised in numpy (a tuned-in noise sweep, then a piano roll over strings and a
+bell / an electric-piano pair with vinyl crackle and a swung kit / a detuned saw arpeggio opening
+up with a gated snare / a vibraphone motif with shaker and bass, all through a synthetic room) and
+there is a tuning static burst. No DJ voices: no CC0 voice set was reachable (Freesound needs an
+API key) and robotic text-to-speech would not pass the bar; the brief allowed none.
+
+**How it plays.** Every station is on air all the time: its playlist is ident, track, ident,
+track, ident, track (~345 s), and it has its own clock started at a hash of the station
+(`start_offset()`), advanced at the audio's rate (real time x `AudioServer.playback_speed_scale`)
+whether anybody listens or not; while it plays the clock follows the stream's own position, and
+when it passes a segment's end the next segment starts (`segment_at()`, pure). So tuning in lands
+mid-song and a station left for a minute is a minute on. A car's station is a hash of the car
+(`default_for()`: cruisers and emergency units come on off); the player's pick is kept on the car
+(meta `radio_station`), so getting back in finds it. The dial is the four stations then OFF
+(`step_from()`). Input: `radio_next` (Q, pad d-pad right) and `radio_prev` (pad d-pad left) are new
+actions; the mouse wheel's `next_weapon` / `prev_weapon` tune too while driving (WeaponManager
+already ignores them in a car). Tuning plays the static and holds the music 0.16 s behind it;
+entering fades the music in over 0.8 s, leaving fades it out; a wreck's radio is dead.
+
+**Where it sounds.** One non-positional AudioStreamPlayer on a new `Radio` bus that sends to
+`Game` (so the wheel's and the blasts' muffle and the slowed playback act on it): a 70 Hz high-pass,
+a 14 kHz low-pass and a 2.5:1 compressor - a car speaker, not a studio. The web skips bus effects
+and plays the plain mix (like every bus). Level `radio_db` -9 dB (the tracks are at -17 LUFS),
+under the player's engine voice; tune it by ear on the Mac.
+
+**The card.** `RadioHud` (scripts/ui/radio_hud.gd), added by DebugHud after the weapon panel (so
+F1's HIDDEN hides it), is the weapon panel's smoked glass (glass_hud.gdshader mode 1) at the top
+centre, 560 x 112 at 1080 lines, scaled with the window: a disc in the station's colour with the
+frequency, the name in tracked caps, genre and slogan, a dial of five pips, a hairline, a
+five-bar spectrum bouncing while music plays, and NOW PLAYING (or UP NEXT while the ident plays)
+with the song. It slides down for `card_seconds` (4 s) after a tune or entering a car, and for
+3.2 s when a new song starts. The pause menu's CONTROLS card has a "Q / scroll" line.
+
+**Cost.** No 3D: no geometry, no draws in the world. The card is one glass rect and ~40 canvas
+draw commands, only while it is up. CPU: four clocks and a segment lookup a frame.
+
+**Files.** scripts/vehicles/car_radio.gd, scripts/ui/radio_hud.gd, assets/audio/radio/ (17 ogg),
+tools/radio/{fetch_radio.sh, make_radio.py, radio_shot.gd, compile.gd}, tests/car_radio_checks.gd.
+Hooks: one line in Vehicle._ready (`CarRadio.ensure`), four in DebugHud._ready, one in the pause
+menu's controls, two actions in project.godot, one line in tests/smoke_test.gd.
+
+**A/B and stills.** `CAR_RADIO=0` in the environment: no node, no card, the mouse wheel does
+nothing in a car (as before). `tools/radio/radio_shot.gd` (opengl3, the city): a car at the spawn,
+the chase camera, the card up for each of `SHOTS=0,1,2,3,-1`. Stills on `shots/car-radio`.
+
+**Checks** (`tests/car_radio_checks.gd`, staged on its own deck 300 m up): four distinct stations
+with three tracks over 30 s and an ident of 2-8 s each, the static; the dial order both ways; the
+loop arithmetic and its wrap; start offsets in range and stable; the files under 8 MB; the Radio
+bus sends to Game with its high- and low-pass; made once by the first car; a car's station is a
+hash, a cruiser's is off; silent on foot; entering tunes and plays on the Radio bus, asks for the
+card, now_playing() names a song; the HUD card comes up; step(), Q and the wheel move the dial and
+the car keeps the pick, the wheel switches no gun; another station's clock runs on; past a
+segment's end the next plays; leaving fades it out; back in, the same station.
+
+**Not verified.** Nobody has heard it in the game (the headless check runs the Dummy audio driver):
+the level against the engine and the city, the speaker band, the tuning burst, the crossfades are
+by numbers only. Web: ogg streams play as samples there; seeking into the middle of a song
+(`play(from)`) is expected to work but was not tried in a browser.

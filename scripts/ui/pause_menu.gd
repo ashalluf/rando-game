@@ -28,6 +28,7 @@ const CONTROLS := [
 	["F1", "HUD: clean, full, hidden"],
 	["F11", "Fullscreen"],
 	["In a car", "W / S drive, Space jumps, Shift nitro"],
+	["Q / scroll", "Radio station (in a car)"],
 ]
 const FONT_SEMIBOLD := "res://assets/fonts/Inter-SemiBold.woff2"
 const FONT_MEDIUM := "res://assets/fonts/Inter-Medium.woff2"

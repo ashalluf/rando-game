@@ -1705,6 +1705,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   far alike) are key tables mirrored by `NightCity.LEVEL_KEYS` / `WINDOW_KEYS`. Far roof masts'
   beacons flash on their own phase (building_lod, kind 2); near ones still burn steady. Stills:
   the four EYEs in the HANDOFF section.
+- Car radio (2026-10-30, docs/HANDOFF.md "The car radio"): `CarRadio`
+  (`scripts/vehicles/car_radio.gd`, one node under the root made by the first Vehicle) plays four
+  invented stations (`STATIONS`: name, frequency, three CC0 / public-domain tracks with invented
+  in-game titles, a synthesised ident) from `assets/audio/radio/` (`tools/radio/fetch_radio.sh`
+  then `make_radio.py`; sources in docs/ASSETS.md, 7 MB). Each station is always on air (its own
+  clock round its loop, started at a hash); a car's station is a hash of it (cruisers off), the
+  pick stays with the car (meta `radio_station`); `radio_next` / `radio_prev` (Q, pad d-pad) and
+  the mouse wheel tune while driving; the `Radio` bus (car speaker) sends to Game. The card is
+  `RadioHud` (DebugHud). `CAR_RADIO=0` the A/B; stills `tools/radio/radio_shot.gd`; checks
+  `tests/car_radio_checks.gd`.
 - Driving effects (2026-10-05, "the feel of driving fast and badly"; HANDOFF "Driving effects"):
   `DrivingFX` (`scripts/vehicles/driving_fx.gd`), ONE node per level, made by the first Vehicle
   (`DrivingFX.ensure()`, the one hook in `Vehicle._ready`) as a child of the level root (the

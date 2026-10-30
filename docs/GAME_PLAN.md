@@ -1608,6 +1608,19 @@ already mapped so milestone 2 is script-only.
   fixed the old northern coast (shrubs and rocks floating over cut ground, chunks with no
   terrain). docs/HANDOFF.md "The coast highway"; CLAUDE.md "Coast highway".
 
+- **2026-10-30 The player's car has a radio: four invented stations of CC0 / public-domain
+  music.** VELVET HOUR 88.3 (classical), PALM STATIC 97.1 (lo-fi), NEON FREEWAY 104.5 (synth) and
+  TIKI SUNSET 92.7 (lounge), three tracks each (cut to 110 s, levelled to -17 LUFS, 48 kbit/s at
+  32 kHz: 7 MB in all) and an original synthesised ident, no DJ voice (no CC0 voice set worth
+  shipping was reachable; the brief allowed none). Decisions: stations are always on air (each
+  loop has its own clock started at a hash, so tuning lands mid-song, GTA-style); a car's station
+  is a hash of the car, cruisers and emergency units come on off; the pick stays with the car;
+  Q / pad d-pad and the mouse wheel tune while driving (the wheel switches no gun in a car); the
+  music plays on a Radio bus (car-speaker band) sending to Game, so slow motion and blasts
+  muffle it like everything else; the card is the HUD's smoked glass at the top centre. Track
+  titles and artists in game are invented; the real sources are credited in docs/ASSETS.md.
+  `CAR_RADIO=0` is the A/B. docs/HANDOFF.md "The car radio"; CLAUDE.md "Car radio".
+
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
   in the afternoon, backlighting the mountain faces the city looks at. Realism wins over the old
