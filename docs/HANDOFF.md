@@ -15007,6 +15007,15 @@ walkers stop for a photo (`PHOTO_SPOTS`). City stills (`still_shot.gd`) still de
 4-core box after "LOADING far city" (main thread in a WorkerThreadPool wait, every worker idle:
 an engine issue, not the walk's); the stills are `tools/glshot/station_night_shot.tscn` (the
 real DayNight and lamps, the FULL chunks round the eye) on opengl3.
+Wave-3 frame cost (station_night_shot.tscn GEO, opengl3 1280x720, noon, STAR_BOULEVARD=0 -> on):
+the north pavement `780,1.7,-2329.2,90,-6` 3.78 M -> 2.90 M triangles, 1,660 -> 1,382 draws (the
+frontage's low shop blocks replace a tower and the dealer's lot); the palace corner
+`705,1.7,-2300,117,6` 2.34 M -> 2.39 M, 1,476 -> 1,645 draws; the forecourt
+`683,2.2,-2296.6,205,-14` 1.80 M -> 2.59 M, 1,056 -> 1,365 (the palace and its forecourt fill the
+view); the south walk `740,1.7,-2299,-95,-4` 3.51 M -> 3.45 M; above the boulevard
+`805,24,-2314,90,-18` 3.57 M -> 3.52 M, 2,431 -> 2,259. Night within 3 % of noon. Wave-3 stills:
+23-34 on `shots/star-boulevard` (README there). Gate after merging main eb75a10: `SHARDS=3`
+2,554 checks passed, 0 failed (shards peak 2.3-2.5 GB).
 
 **Tools.** `tools/star_boulevard/probe.tscn` (headless: the walk, its blocks, the palace, the
 characters, EYEs), `tools/star_boulevard/star_shot.gd` (a few metres of the band or the forecourt
