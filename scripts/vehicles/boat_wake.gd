@@ -30,7 +30,7 @@ func _ready() -> void:
 		_arms.append(a)
 		_spray.append(_drops(36 if not _web else 14, 0.9, SwimFX.drop_material(), Color(0.9, 0.95, 1.0, 0.75), 0.06, 0.16))
 	if not big:
-		_rooster = _drops(60 if not _web else 24, 1.1, SwimFX.mist_material(), Color(0.95, 0.97, 1.0, 0.55), 0.5, 1.4)
+		_rooster = _drops(60 if not _web else 24, 1.1, SwimFX.mist_material(), Color(1.25, 1.28, 1.3, 0.42), 0.5, 1.4)
 
 
 func _foam(n: int, life: float, box: Vector3, s0: float, s1: float) -> CPUParticles3D:
