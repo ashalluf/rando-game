@@ -295,6 +295,24 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-30 The night has its own street life (fleet wave 3, `nightlife`).** After 21:00 a share
+  of the open restaurants and tower lobbies downtown, in midtown and the beach town are clubs and
+  bars with a line along the wall behind a velvet rope, a bouncer and a lit entrance; the door
+  lets the line in one at a time and some come back out to a taxi or ride-hail car double-parked on
+  its hazards (TrafficManager's own `dp_at`). A Broadway palace has a premiere on some nights (red
+  carpet, fans behind barriers, four searchlights sweeping the sky), a club its opening (two). All
+  hashes after every existing roll; nothing takes the kerb or a prop id. NIGHTLIFE=0 the A/B.
+- **2026-10-30 The player's car has a real cabin and doors that swing (HANDOFF "Car cabins").**
+  The traced cabin stays for the city's ~300 cars; the car the player drives, the empty parked
+  cars he stands by (the nearest one, within 7.5 m) and any car that has lost a door get geometry:
+  the front doors are cut out of the body model along the shut lines the Blender run grooved
+  (a table of those lines per body, no Blender re-run, no new asset), a code-built cabin (dash,
+  cluster, screen, wheel, seats, console, carpet, headliner, door cards, jambs) laid out by the
+  numbers CarCabin already measures, see-through glass with the people still traced on it. Doors
+  swing when he gets in or out on the side he is on and come off in a hard crash or blast. Only
+  the front doors; only the everyday bodies (sedan, taxi, crossover, pickup, van, hatchback, SUV,
+  minivan, beater); the exotics, police and big vehicles keep the traced cabin.
+
 - **2026-10-30 The oil islands in the bay are a data table, not seeded (HANDOFF "The oil
   islands").** Three decorated drilling islands 600-700 m off the Long Beach sand, each a landmark
   built near and far from one builder on one shader; details are hashes of the island, so no seed
@@ -328,6 +346,26 @@ already mapped so milestone 2 is script-only.
   the city moves. Code-built meshes at real size, one MultiMesh per kind and level, motion in the
   vertex shader; `SEA_LIFE=0` is the A/B.
 
+- **2026-10-30 A stunt playground hidden in the real city (HANDOFF "Stunt ramps").** Kickers on
+  car park roofs, quarter-pipes in the river channel, a freeway ramp pair and loops on the industrial
+  right of way, a pier kicker and dirt jumps in vacant lots, each where a stunt crew would put it and
+  never on a traffic lane, every site a hash after every existing roll. Slow motion on a big launch
+  uses Engine.time_scale on the real clock, as the weapon wheel does, and yields to any other owner.
+- **2026-10-30 The hills' rock is real rock, and the ranges get crags on the skyline (fleet wave 3,
+  wt/rock-outcrops).** The lead's review of the reference stills: from the city and the freeway the
+  mountains read as smooth tan humps and cones. Photoscanned CC0 cliffs and boulders now stand where
+  the terrain paints rock - on the crests, the steepest faces and, stood up into 30-80 m spires and
+  fins, on the summits - at every distance (one node draws them all; a far rock is seated on the
+  horizon plane's drawn ground), with outcrops, scree and cut-bank boulders up close. Scans keep
+  one level: their generated LODs shred along the open UV seams, so the distance gets welded
+  copies. docs/HANDOFF.md "Rock outcrops"; `ROCKS=0` is the A/B.
+- **2026-10-30 Dry creek beds down the canyon floors (HANDOFF 9gv, arroyos).** Every major gully of
+  the ranges carries a wash: the land's own drainage (a priority-flooded D8 network over the
+  natural mountains, `Arroyos`), snapped into the real gully floor, drawn on a FULL or LOD hill tile
+  as a sandy, gravelly, cobbled bed (`shaders/arroyo_bed.gdshader`), with cobbles, boulders,
+  willow and mule-fat thickets and sycamores along it at FULL, and a concrete headwall and
+  corrugated pipe where a drawn hill road crosses it. Hashes only; the hills' planting only skips
+  the bed. `ARROYOS=0` is the A/B.
 - **2026-10-29 Facades are worked out per pane, not per building (owner: "start looking like GTA
   6").** Glass varies pane by pane and floor by floor, blinds hang at their own heights, the glass
   mirrors a street opposite with parallax, curtain walls come in three systems (flush, deep fins,
@@ -1741,6 +1779,12 @@ already mapped so milestone 2 is script-only.
   hooks, so its windows, shops, damage and coded far boxes are unchanged) with the ornament as
   real geometry on its window grid; the old 150 ft limit holds. docs/HANDOFF.md "The historic
   core"; CLAUDE.md "Historic core".
+- **2026-10-30 Weekend yard sales.** A hash of seed + lot picks the suburban and beach-town
+  houses that hold a yard sale on a Saturday, a Sunday or both, with hours; the chunk builds what
+  is out at the hour and day it is built at, on YardFill's plan of the front yard (one row of
+  tables and things, the browsers in front of it, on the pavement where the yard is shallow).
+  Hand-lettered signs come from SignFont's strokes with a wobble per glyph. FULL chunks only;
+  `YARD_SALES=0` is the A/B (docs/HANDOFF.md "Weekend yard sales").
 - **2026-10-30 An island on the horizon, drawn by the sky.** Isla Calandra (original; the form of
   the Channel Islands) stands 36 km offshore, three times past the 12 km far plane, so it is not
   a mesh: sky.gdshader follows each pixel's ray across a height field in true-world kilometres

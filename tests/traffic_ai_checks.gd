@@ -606,6 +606,10 @@ func _freeway_ramps() -> void:
 	var t0 := float(off_ramp.t) - 160.0
 	var at: Vector3 = fw.point_at(ri_off, t0)[0]
 	var exits := int(TrafficAI.counts.get("fw_exit", 0))
+	# An incident worked out from the clock near this ramp holds the drivers' thinking off (one
+	# single-process CI run): the exit is the AI's, so stage it with none.
+	var incidents_were: bool = FreewayIncidents.enabled
+	FreewayIncidents.enabled = false
 	var leaver := _traffic.place_freeway_car(ri_off, t0, 1, -1, 22.0)
 	var width := float(fw.routes[ri_off].width)
 	leaver.traffic.li = Freeway.LANES - 1
@@ -627,6 +631,7 @@ func _freeway_ramps() -> void:
 			top_y = leaver.global_position.y
 		if left and leaver.global_position.y < top_y - 4.0:
 			down = true
+	FreewayIncidents.enabled = incidents_were
 	_check(left and down and int(TrafficAI.counts.get("fw_exit", 0)) > exits, "a car with an exit leaves the freeway down the off-ramp (left %s, went down %s)" % [left, down])
 
 
