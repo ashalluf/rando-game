@@ -2342,6 +2342,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/street_furniture_checks.gd").new().run(self, city)
 	# Swimming (tests/swimming_checks.gd): the sea's swell in GDScript, the water, and the hero in it.
 	await load("res://tests/swimming_checks.gd").new().run(self, city)
+	# The oil islands in the bay (tests/oil_islands_checks.gd): siting, plan, codes, near and far.
+	load("res://tests/oil_islands_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
