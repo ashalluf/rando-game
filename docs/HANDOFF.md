@@ -20945,7 +20945,7 @@ than the old one" and "the blasts leave nothing behind (0 nodes, 7 pieces)"; sha
 street car's lane group, during the police station checks). None of it is freeway code, and
 `SMOKE_PARTS=explosions_2_checks,police_station_checks` alone passes 65 / 65 with no error.
 The 49 freeway checks (kit + close-up) pass.
-## 9hv. Perf audit 3: the frame, CPU and memory after wave 3's last ~60 branches, 2026-10-30 (fleet wave 3, agent branch `wt/perf-audit-3`; VISUAL_ROADMAP ?)
+## 9hz. Perf audit 3: the frame, CPU and memory after wave 3's last ~60 branches, 2026-10-30 (fleet wave 3, agent branch `wt/perf-audit-3`; VISUAL_ROADMAP ?)
 
 **The ask.** Re-measure the bookmarks after the ~60 features merged since perf-audit-2, find the
 regressions, cut them without changing the look, and report before / after per bookmark and system.
