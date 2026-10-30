@@ -284,6 +284,8 @@ func _warm_shaders() -> void:
 	# The roadside pads' repeated pieces (RoadsideKit), built here so the first pad does not stall.
 	if Roadside.enabled:
 		effects.append_array(RoadsideKit.warm())
+	# The street furniture's meshes and shader (StreetFurniture), only drawn through the batches.
+	effects.append_array(StreetFurniture.warm())
 	# The fashion district's goods, stalls and tarps (FashionKit), built in code.
 	if FashionDistrict.enabled:
 		effects.append_array(FashionKit.warm())
