@@ -1491,6 +1491,7 @@ already mapped so milestone 2 is script-only.
   prop record's kind and the pieces are copies of its own instances, so it survives the furniture
   and lamps being re-modelled. Rounds pop a lamp but never fell it. docs/HANDOFF.md "Street props
   that break like GTA"; CLAUDE.md "Street props break by KIND".
+  Wave 3: the overpowered hero smashes through them on foot too (over 18 m/s: a boost, never a run).
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north

@@ -14452,4 +14452,15 @@ Not done / not verified: nothing of it on Forward+ (the wet patch's mirror, the 
 and bloom); no water on the ground beyond the disc (the road's own `road_wetness` is global); a
 geyser does not knock a car off the road, it only floats it; bent poles are not persisted (only
 destroyed ones);
-no player-on-foot smashing (boosting into a lamp stops you, as before).
+~~no player-on-foot smashing~~ (done in wave 3, below).
+
+**Wave 3 (finish).** Merged origin/main (95bd13f) in. The player smashes through on foot:
+`PropBreak.smash_player()` (one line before `move_and_slide()` in `Player._physics_process()`)
+runs the cars' box query (`_smash_hits()`, now shared) ahead of a player over `PLAYER_SMASH_MIN`
+18 m/s - a boost, a dive, a fall; never a run (12 m/s) - so boosting into a lamp fells it and he
+flies on with `1 - PLAYER_SLOW_SHARE x SLOW[kind]` of his speed (checked: 40 m/s in, 33.8 out),
+the camera kicks (`PLAYER_SHAKE`), and the felled pole lets him pass (`smasher`). The geyser
+reads as water, not needles: the falling rain is 300 fine drops (3.5 cm x 55 cm streaks at 0.42)
+instead of 140 broad sticks, a mist sheath tears off the column on the way up (`_mist`), the
+crown's puffs are bigger; and it lifts a body where it stands over the main, not at its centre,
+so a car driven over a geyser rises by one side and tips away.

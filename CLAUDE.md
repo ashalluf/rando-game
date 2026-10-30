@@ -1211,7 +1211,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   record's, `own_light()`), a hard hit bends a pole, a harder one fells it (`FallingPole`, hinged
   at its foot); mailboxes / news boxes burst into paper; meters snap off with coins. Pieces are
   copies of the prop's own batch instances (`_add_prop()` keeps mesh, transform, colour, custom),
-  never a kind's mesh. Cars over 5 m/s smash through (`smash_ahead()` from Vehicle's step).
+  never a kind's mesh. Cars over 5 m/s smash through (`smash_ahead()` from Vehicle's step), the
+  player over 18 m/s too (`smash_player()`, before Player's move_and_slide).
   `PROP_BREAK=0` is the A/B; stills `tools/glshot/prop_break_shot.gd`, `PROPS=` on still_shot.gd;
   checks `tests/prop_destruction_checks.gd`.
 - Building damage (2026-10-05, docs/HANDOFF.md 9cf): `BuildingDamage`

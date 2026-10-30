@@ -33,6 +33,7 @@ var _t: float = 0.0
 var _pressure: float = 1.0
 var _jet: CPUParticles3D
 var _crown: CPUParticles3D
+var _mist: CPUParticles3D
 var _rain: CPUParticles3D
 var _foam: CPUParticles3D
 var _patch: MeshInstance3D
@@ -77,11 +78,14 @@ func _ready() -> void:
 	var web := OS.has_feature("web")
 	var k := 0.5 if web else 1.0
 	# The column: a rope of water streaks stretched along their own velocity.
-	_jet = _streaks(int(110 * k), 1.45, jet_speed * 0.94, jet_speed, 3.5, Vector2(2.6, 3.6), 0.9)
+	_jet = _streaks(int(150 * k), 1.45, jet_speed * 0.94, jet_speed, 3.0, Vector2(2.6, 3.6), 0.9, 0.15, 0.8)
+	# The mist the column tears off itself on the way up: what gives it a body, not a rope.
+	_mist = _puffs(int(60 * k), 1.3, jet_speed * 0.55, jet_speed * 0.9, 4.0, 1.1, 0.3)
 	# The crown: white puffs where the column breaks up, tumbling down as spray.
-	_crown = _puffs(int(70 * k), 2.6, jet_speed * 0.72, jet_speed * 0.92, 9.0, 1.6, 0.42)
-	# The rain falling back round it.
-	_rain = _streaks(int(140 * k), 2.6, jet_speed * 0.55, jet_speed * 0.85, 16.0, Vector2(0.6, 1.0), 0.6)
+	_crown = _puffs(int(90 * k), 2.6, jet_speed * 0.72, jet_speed * 0.92, 9.0, 2.2, 0.45)
+	# The rain falling back round it: fine drops, thin and short, many of them (as broad sticks
+	# they read as white needles thrown about).
+	_rain = _streaks(int(300 * k), 2.6, jet_speed * 0.6, jet_speed * 0.85, 11.0, Vector2(0.6, 1.0), 0.42, 0.035, 0.55)
 	# Foam and splash at the foot.
 	_foam = _puffs(int(40 * k), 0.9, 1.5, 3.2, 80.0, 0.9, 0.55)
 	_foam.position = Vector3(0.0, 0.15, 0.0)
@@ -114,7 +118,7 @@ func _loop(name_: String, db: float, pitch: float) -> AudioStreamPlayer3D:
 	return p
 
 
-func _streaks(amount: int, life: float, v0: float, v1: float, spread: float, scale: Vector2, opacity: float) -> CPUParticles3D:
+func _streaks(amount: int, life: float, v0: float, v1: float, spread: float, scale: Vector2, opacity: float, width: float, length: float) -> CPUParticles3D:
 	var p := CPUParticles3D.new()
 	p.amount = maxi(amount, 8)
 	p.lifetime = life
@@ -134,8 +138,8 @@ func _streaks(amount: int, life: float, v0: float, v1: float, spread: float, sca
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/hose_water.gdshader")
 	mat.set_shader_parameter("opacity", opacity)
-	mat.set_shader_parameter("width", 0.11)
-	mat.set_shader_parameter("streak_length", 0.8)
+	mat.set_shader_parameter("width", width)
+	mat.set_shader_parameter("streak_length", length)
 	quad.material = mat
 	p.mesh = quad
 	p.color_ramp = WeaponFX._ramp([Color(1, 1, 1, 0.95), Color(1, 1, 1, 0.85), Color(1, 1, 1, 0.0)])
@@ -216,6 +220,8 @@ func _physics_process(delta: float) -> void:
 		_jet.initial_velocity_max = jet_speed * sp
 		_crown.initial_velocity_min = jet_speed * 0.72 * sp
 		_crown.initial_velocity_max = jet_speed * 0.92 * sp
+		_mist.initial_velocity_min = jet_speed * 0.55 * sp
+		_mist.initial_velocity_max = jet_speed * 0.9 * sp
 		_rain.initial_velocity_min = jet_speed * 0.55 * sp
 		_rain.initial_velocity_max = jet_speed * 0.85 * sp
 		if _roar:
@@ -266,15 +272,21 @@ func _lift(delta: float, p: float) -> void:
 				var rb := r.collider as RigidBody3D
 				if rb and not rb.freeze and not _bodies.has(rb):
 					_bodies.append(rb)
+	# The water strikes the body where it stands over the main, not at its centre: a car driven
+	# over a geyser is lifted by one side and tips away from it.
+	var foot := global_position
 	for rb: RigidBody3D in _bodies:
 		if is_instance_valid(rb) and not rb.freeze:
 			rb.sleeping = false
-			rb.apply_central_impulse(Vector3.UP * rb.mass * 9.8 * body_lift_g * p * delta)
+			var off := foot - rb.global_position
+			off.y = 0.0
+			off = off.limit_length(1.2)
+			rb.apply_impulse(Vector3.UP * rb.mass * 9.8 * body_lift_g * p * delta, off)
 
 
 func _stop_water() -> void:
 	_stopped = true
-	for p in [_jet, _crown, _rain, _foam]:
+	for p in [_jet, _mist, _crown, _rain, _foam]:
 		if p:
 			p.emitting = false
 	for s in [_roar, _hiss]:
