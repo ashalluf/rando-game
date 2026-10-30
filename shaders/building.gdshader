@@ -204,6 +204,15 @@ uniform float garage_fill = 0.62;
 // The drive-in: face (as face_id counts them) and bay (Building.garage_entry(), which LotFill
 // lays the driveway to); 0 on the face turns it off.
 uniform vec2 garage_entry = vec2(0.0);
+// The facade pass (facade_variety.gdshaderinc; Building.facade_variety, FACADES_GTA=0 in the
+// environment is the A/B): pane and floor variety, blinds you can read from a block away, the
+// street opposite mirrored with parallax, the depth of the curtain wall's members and the drips
+// from the roofline. Off, the walls draw exactly as before.
+uniform bool facade_variety = false;
+// Within this distance the curtain wall's members are real geometry (the kit's caps and fins,
+// ShopfrontKit.curtain_face(); Building sets it to kit_mullion_distance where they are built): the
+// shader's analytic sides and shadows hand over to them there. 0: analytic everywhere.
+uniform float caps_real_until = 0.0;
 // Whichever of the two it is, flat so the numbers arrive untouched.
 varying flat vec3 pt_size;
 varying flat vec2 pt_pitch;
@@ -305,6 +314,9 @@ uint shop_frame_index(uint shop) {
 #include "res://shaders/vinyl_lettering.gdshaderinc"
 // Which offices are lit and which spandrels are pale, rolled exactly as the far boxes roll them.
 #include "res://shaders/window_lights.gdshaderinc"
+// Per-pane variety, the street opposite in the glass, the members' depth, roofline drips (shared
+// with the far boxes).
+#include "res://shaders/facade_variety.gdshaderinc"
 // Broken panes, blast holes and soot (scripts/world/building_damage.gd).
 #include "res://shaders/building_damage.gdshaderinc"
 
@@ -575,7 +587,9 @@ void vertex() {
 // a room that is lit after dark: the ceiling panels themselves, the walls brighter toward the
 // ceiling, the floor dimmest, a blind glowing from behind, and desks and partitions as dark
 // shapes against it. A lit window is that room, not a flat warm tile.
-vec3 room_interior(vec2 w, vec3 dir, float wide, float high, float deep, float room_seed, float blind_chance, out float depth_t, out float lamp) {
+// `drop_in` >= 0 hangs the blind from the facade pass's integer roll (fx_pane(): 0 none .. 1 right
+// down) instead of the room's own, so the far boxes draw the very same blinds.
+vec3 room_interior(vec2 w, vec3 dir, float wide, float high, float deep, float room_seed, float blind_chance, float drop_in, out float depth_t, out float lamp) {
 	vec3 ro = vec3(w.x * wide, w.y * high, 0.0);
 	float best = 1e9;
 	int surface = 0; // 0 back wall, 1 side wall, 2 floor, 3 ceiling
@@ -647,8 +661,13 @@ vec3 room_interior(vec2 w, vec3 dir, float wide, float high, float deep, float r
 	// Blinds, hanging just inside the glass at a height that differs room to room. Nothing says
 	// "occupied building" like a facade where every blind is pulled to a different level.
 	float drop = hash21(vec2(room_seed, 23.7));
-	if (drop > 1.0 - blind_chance) {
-		float level = 1.0 - (drop - (1.0 - blind_chance)) * 1.25;
+	bool hung = drop > 1.0 - blind_chance;
+	float level = 1.0 - (drop - (1.0 - blind_chance)) * 1.25;
+	if (drop_in >= 0.0) {
+		hung = drop_in > 0.0 && blind_chance > 0.0;
+		level = 1.0 - drop_in;
+	}
+	if (hung) {
 		if (w.y > level) {
 			vec3 blind = mix(vec3(0.80, 0.78, 0.72), vec3(0.55, 0.53, 0.50), hash21(vec2(room_seed, 31.1)));
 			// Slats.
@@ -1192,6 +1211,13 @@ void fragment() {
 			bool lit = storefront ? shop_open : window_lit(seed, face_id, row, col, lit_ratio);
 			float room_seed = hash31(vec3(col, row, face_id * 17.0 + seed)) * 97.0;
 			albedo = window_tint * (0.30 + 0.15 * hash31(vec3(row, col, face_id + seed)));
+			// The facade pass: this pane's tone, mirror and blind, and its floor's coating batch.
+			vec4 pv = vec4(1.0, 1.0, -1.0, 0.0);
+			vec3 ftint = vec3(1.0);
+			if (facade_variety && !storefront) {
+				pv = fx_pane(seed, face_id, row, col);
+				ftint = window_style == 2 ? fx_floor_tint(seed, row) : vec3(1.0);
+			}
 			vec3 to_frag = normalize(world_pos - (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz);
 			// The room as seen with no glass in the way, for a pane that is gone.
 			vec3 dmg_room = albedo * 0.3;
@@ -1217,7 +1243,7 @@ void fragment() {
 				} else {
 					// Offices are full of blinds.
 					// A pane blown out took the blind with it.
-					room = room_interior(w, ray, wide, high, room_depth, room_seed, dmg_state > 1.5 ? 0.0 : 0.72, depth_t, room_lamp);
+					room = room_interior(w, ray, wide, high, room_depth, room_seed, dmg_state > 1.5 ? 0.0 : 0.72, facade_variety ? pv.z : -1.0, depth_t, room_lamp);
 				}
 				room_raw = room;
 				// Daylight outside is many stops brighter than anything indoors, so the room
@@ -1242,6 +1268,7 @@ void fragment() {
 				// Fallback: a soft vertical gradient behind the glass.
 				albedo *= 0.85 + 0.3 * fv;
 			}
+			albedo *= pv.x * ftint;
 			// Darker toward the frame so the pane reads as set into the wall. Measured against
 			// the opening THIS style declared, not against the punched window's constants:
 			// 0.2 / 0.18 is exactly win_h - 0.07 for style 0 and for nothing else, so on a
@@ -1267,6 +1294,12 @@ void fragment() {
 			// as one sheet of plastic.
 			vec2 bow = vec2(hash31(vec3(col, row, face_id + seed * 3.1)), hash31(vec3(row, col, face_id * 7.0 + seed))) - 0.5;
 			refl = normalize(refl + vec3(bow.x, bow.y * 0.6, -bow.x) * pane_bow);
+			if (facade_variety) {
+				// And rolled glass has a wave in it, a few hundredths of a radian across a pane: what
+				// bends a straight roofline into a wobble from one pane to the next.
+				float wave = sin((fv * 1.3 + fu * 0.45) * 6.2832 + bow.x * 19.0) * 0.011;
+				refl = normalize(refl + vec3(0.0, wave, 0.0) + world_normal * (bow.y * 0.02));
+			}
 			vec3 sky_ref = mix(sky_horizon, sky_zenith, smoothstep(0.0, 0.55, refl.y));
 			if (reflect_city > 0.0) {
 				// The city opposite, mirrored. A pane reflecting one colour of "buildings" is
@@ -1290,13 +1323,28 @@ void fragment() {
 				vec3 near_wall = mix(vec3(0.16, 0.15, 0.14), vec3(0.09, 0.10, 0.12), hash21(vec2(floor(near_slot), 9.1)));
 				near_wall = mix(near_wall, near_wall * 0.5 + sky_horizon * 0.12, panes * fine * 0.85);
 				vec3 far_wall = mix(sky_horizon * 0.55, near_wall, 0.35);
-				sky_ref = mix(sky_ref, far_wall, in_far * reflect_city);
-				sky_ref = mix(sky_ref, near_wall, in_near * reflect_city);
+				if (facade_variety) {
+					// The street opposite with its parallax (fx_opposite()), the far skyline behind it.
+					// The street below the horizon is the ray meeting the street, not a blend by angle.
+					float in_far2 = 1.0 - smoothstep(far_roof - soft, far_roof + soft, refl.y);
+					sky_ref = mix(sky_ref, far_wall, in_far2 * reflect_city);
+					vec3 tan_r = normalize(world_tangent - world_normal * dot(world_tangent, world_normal)) * u_sign;
+					vec3 rw = vec3(dot(refl, tan_r), refl.y, dot(refl, world_normal));
+					float opp_hit;
+					vec3 opp = fx_opposite(rw, u, max(world_y - pt_base_y, 0.3), wl_face_row(seed, face_id, 0.0),
+						sky_ref, street_reflect, -dot(normalize(sun_direction), world_normal), px_m, opp_hit);
+					sky_ref = mix(sky_ref, opp, reflect_city);
+				} else {
+					sky_ref = mix(sky_ref, far_wall, in_far * reflect_city);
+					sky_ref = mix(sky_ref, near_wall, in_near * reflect_city);
+				}
 			}
-			sky_ref = mix(street_reflect, sky_ref, smoothstep(-0.22, 0.10, refl.y));
+			if (!facade_variety || reflect_city <= 0.0) {
+				sky_ref = mix(street_reflect, sky_ref, smoothstep(-0.22, 0.10, refl.y));
+			}
 			// Schlick: nearly transparent head on, a mirror at a glancing angle.
 			float fres = pow(1.0 - clamp(-dot(to_frag, world_normal), 0.0, 1.0), 4.0);
-			float mirror = mix(0.26, 0.90, fres) * reflect_strength * (1.0 - 0.85 * night_factor);
+			float mirror = mix(0.26, 0.90, fres) * reflect_strength * (1.0 - 0.85 * night_factor) * pv.y;
 			// A lit shop interior competes with the reflection; an empty office does not.
 			if (storefront) {
 				mirror *= 0.66;
@@ -1719,6 +1767,73 @@ void fragment() {
 			// just dimming it.
 			albedo = mix(albedo, albedo * vec3(0.46, 0.44, 0.42), dirt);
 			rough = min(1.0, rough + 0.18 * dirt);
+		}
+
+		// ---- The facade pass: the members' depth, the drips from the roofline ---------------
+		// A curtain wall's mullions, fins and slab bands stand proud of the glass: from an angle
+		// you see their sides, and the sun throws their shadows across the panes beside and
+		// under them. Near the camera the kit's caps and fins are real geometry
+		// (caps_real_until) and this hands over to them; past them, and on a building without
+		// the kit, it is worked out here as coverage (fx_member()), so a tower keeps its depth
+		// out to the far boxes, which draw the same thing. Then the dirt the rain washes down
+		// from the coping, on every wall.
+		if (facade_variety && !chamfer && !garage && !dmg_in_hole) {
+			vec3 dir_f = normalize(world_pos - (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz);
+			vec3 tan_f = normalize(world_tangent - world_normal * dot(world_tangent, world_normal)) * u_sign;
+			// The view ray into the wall and the sun, in wall space (x along +u, y up, z into / out of it).
+			vec3 vw = vec3(dot(dir_f, tan_f), dir_f.y, -dot(dir_f, world_normal));
+			vec3 sun_f = normalize(sun_direction);
+			vec3 sw = vec3(dot(sun_f, tan_f), sun_f.y, dot(sun_f, world_normal));
+			uint fkey = wl_face_row(seed, face_id, 0.0);
+			if (window_style == 2 && !storefront && vw.z > 0.02) {
+				int sys = uv_facade ? 0 : fx_system(seed, window_style);
+				vec4 mem = fx_members(sys);
+				float dist_f = length(VERTEX);
+				// The flush wall's caps are the kit's geometry near the camera; nothing stands for a fin or
+				// a slab band (a 48 cm fin is 13 cm of aliasing lines as geometry at 100 m), so those are
+				// always worked out here, the real cap standing in front of the fin's face.
+				float analytic = (caps_real_until > 0.0 && sys == 0) ? smoothstep(caps_real_until * 0.85, caps_real_until, dist_f) : 1.0;
+				float analytic_h = sys == 2 ? 1.0 : analytic;
+				float day_f = 1.0 - night_factor;
+				float lit_front = 0.38 + max(sw.z, 0.0) * day_f;
+				// Vertical: on every bay line, as wide as its front (at least the painted line).
+				float wv = max(mem.y, 0.05 * pitch);
+				float dxv = -vw.x / vw.z * mem.x;
+				float dsv = sw.z > 0.03 ? sw.x / sw.z * mem.x : 0.0;
+				vec3 cv = fx_member(fu * pitch, px_m, pitch, 0.0, wv, dxv, dsv) * analytic;
+				// Horizontal: centred on the slab line.
+				float hh = mem.w * pt_floor;
+				float dyh = -vw.y / vw.z * mem.z;
+				float dsh = sw.z > 0.03 ? sw.y / sw.z * mem.z : 0.0;
+				vec3 ch = fx_member(fv * pt_floor, px_m, pt_floor, -0.5 * hh, hh, dyh, dsh) * analytic_h;
+				// The side faces lit as what they are, against the facade's light the renderer adds.
+				float lit_v = 0.38 + max(sign(dxv) * sw.x, 0.0) * day_f;
+				float lit_h = 0.38 * (dyh < 0.0 ? 0.55 : 1.0) + max(sign(dyh) * sw.y, 0.0) * day_f;
+				vec3 band_col = mix(facade_color * 0.62 + vec3(0.012), facade_color * 1.02 + vec3(0.075), spandrel_pale(seed) ? 1.0 : 0.0);
+				vec3 col_h = sys == 2 ? band_col : mullion_color;
+				float front_v = sys == 1 ? cv.x : 0.0;
+				float front_h = sys == 2 ? ch.x : 0.0;
+				albedo = mix(albedo, mullion_color, front_v);
+				albedo = mix(albedo, col_h, front_h);
+				albedo = mix(albedo, mullion_color * clamp(lit_v / lit_front, 0.25, 1.5) * 0.85, cv.y);
+				albedo = mix(albedo, col_h * clamp(lit_h / lit_front, 0.15, 1.5), ch.y);
+				float shade = clamp(cv.z + ch.z, 0.0, 1.0) * day_f;
+				albedo *= 1.0 - 0.5 * shade;
+				emission *= 1.0 - clamp(front_v + front_h + cv.y + ch.y, 0.0, 1.0);
+				emission *= 1.0 - 0.25 * shade;
+			}
+			if (!uv_facade) {
+				// Metres down from the part's top.
+				float top_m = pt_size.y * 0.5 - local_pos.y;
+				float drip = fx_roof_drip(top_m, u, fkey) * weathering;
+				float on_glass = glass ? 0.3 : 1.0;
+				albedo *= 1.0 - 0.45 * drip * on_glass;
+				rough = min(1.0, rough + 0.12 * drip * on_glass);
+				// And water off the corners: the arris and a hand's width either side darker.
+				float face_len = face_id < 2.5 ? pt_size.z : pt_size.x;
+				float cd = min(u, face_len - u);
+				albedo *= 1.0 - 0.14 * weathering * (1.0 - smoothstep(0.05, 0.7, cd)) * (glass ? 0.3 : 1.0);
+			}
 		}
 	}
 
