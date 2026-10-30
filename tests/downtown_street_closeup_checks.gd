@@ -137,7 +137,8 @@ func _ab(on: CityChunk, off: CityChunk) -> void:
 		for i in ra.size():
 			var a: Dictionary = ra[i]
 			var b: Dictionary = rb[i]
-			same = same and a.id == b.id and (a.position as Vector3).is_equal_approx(b.position)
+			# A cafe set slides along the kerb out of a bus shelter's way (its rolls unchanged).
+			same = same and a.id == b.id and ((a.position as Vector3).is_equal_approx(b.position) or String(a.kind) == "cafe")
 	_t._check(same, "street closeup: the same props in the same places with it off (%d / %d)" % [ra.size(), rb.size()])
 	var counts := true
 	var bad := ""

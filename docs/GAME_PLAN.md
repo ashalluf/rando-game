@@ -3723,3 +3723,11 @@ none of either.
   triangles; balconies get a hand-made LOD and shadow twins; static mesh caches that grow with the
   places visited drop what only they hold (CacheTrim) instead of clearing at a size. Plain runs of
   an aerial bookmark differ by millions of triangles, so frame costs there are DIFF=1 pairs only.
+- **2026-10-30 Downtown at arm's length (downtown-street-closeup, HANDOFF "Downtown streets at
+  arm's length").** A pedestrian-eye review of downtown listed ten things that break the picture at
+  2-10 m; the worst were fixed in one file (StreetCloseup) with hooks: the kerb face gets its own
+  concrete material and a rolled arris strip, the gutter is LA's poured concrete pan, road paint is
+  pressed to 4 mm, LotFill's static cars become the real bodies' far twins within 42 m (per 24 m
+  cell), Broadway's goods keep off car parks and its sale table is real stock, trees under a
+  construction shed are taken out, cafe sets slide clear of bus shelters. Decisions: positions move
+  only after their rolls, hidden instances keep their indices, `STREET_CLOSEUP=0` is the A/B.

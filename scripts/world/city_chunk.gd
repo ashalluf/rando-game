@@ -4221,10 +4221,14 @@ func _build_clutter(_rect: Rect2, edges: Array, params: Dictionary, rng: RandomN
 	var cafes: int = params.get("cafes", 0)
 	var planters: int = params.get("planters", 0)
 	var clutter: int = params.get("clutter", 0)
+	var shelters := StreetCloseup.shelter_spots(self, edges) if cafes > 0 else []
 	for i in cafes:
-		var e: Array = edges[rng.randi() % 4]
+		var ei := rng.randi() % 4
+		var e: Array = edges[ei]
 		var yaw := atan2(-e[2].x, -e[2].y)
 		var p: Vector2 = _edge_point(e, rng, 6.0) + e[2] * 2.6
+		# Never laid through a bus shelter or its bench (StreetCloseup; after the rolls).
+		p = StreetCloseup.clear_of_shelters(edges, ei, p, shelters)
 		_add_prop("cafe", Vector3(p.x, SIDEWALK_TOP, p.y), Color(0.25, 0.25, 0.27), [
 			["cafe_set", PropFactory.model_cafe_set(), Transform3D(Basis(Vector3.UP, yaw + PI * 0.5), Vector3(p.x, SIDEWALK_TOP, p.y))],
 		], [[Vector3(0.9, 0.9, 1.7), Vector3(p.x, SIDEWALK_TOP + 0.45, p.y), yaw + PI * 0.5]])

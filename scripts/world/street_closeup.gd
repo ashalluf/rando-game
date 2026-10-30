@@ -435,3 +435,66 @@ static func sale_table_mesh(material: Material) -> Mesh:
 	mesh.surface_set_material(0, material)
 	_mats["sale_table"] = mesh
 	return mesh
+
+
+# --- Pavement cafe sets clear of the bus shelters -------------------------------------------------
+
+## How far along the kerb a cafe set keeps from a shelter's spot (m): the shelter's 4 m, its stop
+## bench beside it (StreetFurniture.STOP_BENCH_ALONG) and room to walk past.
+const SHELTER_CLEAR := 6.0
+
+## Where this block's bus shelters will stand (BigVehicles.build_bus_stops()' own sums, which run
+## later in the same step): [edge index, spot].
+static func shelter_spots(chunk: CityChunk, edges: Array) -> Array:
+	var out: Array = []
+	if not enabled:
+		return out
+	var plan: CityPlan = chunk.plan
+	for ei in edges.size():
+		var e: Array = edges[ei]
+		var a: Vector2 = e[0]
+		var b: Vector2 = e[1]
+		var inward: Vector2 = e[2]
+		var along_z := absf(a.x - b.x) < 0.01
+		var axis := CityPlan.AXIS_X if along_z else CityPlan.AXIS_Z
+		var across := a.x if along_z else a.y
+		var index := plan._index_at(axis, across - inward.x - inward.y)
+		var best := index
+		for i: int in [index - 1, index, index + 1]:
+			if absf(plan.road_pos(axis, i) - across) < absf(plan.road_pos(axis, best) - across):
+				best = i
+		var road := plan.road_pos(axis, best)
+		var s := signf(across - road)
+		var dir := int(-s) if axis == CityPlan.AXIS_X else int(s)
+		var cross := CityPlan.AXIS_Z if axis == CityPlan.AXIS_X else CityPlan.AXIS_X
+		var mid := (a.y + b.y) * 0.5 if along_z else (a.x + b.x) * 0.5
+		var k := plan._index_at(cross, mid)
+		var stop := BigVehicles.block_stop(plan, axis, best, k, dir)
+		if is_nan(stop):
+			continue
+		var at_along := stop - float(dir) * 3.5
+		out.append([ei, Vector2(across, at_along) if along_z else Vector2(at_along, across)])
+	return out
+
+
+## A cafe set's spot `p` on edge `e` (index `ei`), slid along the kerb out of SHELTER_CLEAR of any
+## shelter on that edge, staying 3 m from its ends. After every roll: only where it lands moves.
+static func clear_of_shelters(edges: Array, ei: int, p: Vector2, shelters: Array) -> Vector2:
+	var e: Array = edges[ei]
+	var a: Vector2 = e[0]
+	var b: Vector2 = e[1]
+	var length := a.distance_to(b)
+	var dir := (b - a) / maxf(length, 0.001)
+	for sh: Array in shelters:
+		if int(sh[0]) != ei:
+			continue
+		var t := (p - a).dot(dir)
+		var ts := ((sh[1] as Vector2) - a).dot(dir)
+		if absf(t - ts) >= SHELTER_CLEAR:
+			continue
+		var up := ts + SHELTER_CLEAR
+		var down := ts - SHELTER_CLEAR
+		var nt := up if (t >= ts and up <= length - 3.0) or down < 3.0 else down
+		nt = clampf(nt, 3.0, length - 3.0)
+		p += dir * (nt - t)
+	return p
