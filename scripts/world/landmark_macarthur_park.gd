@@ -691,6 +691,7 @@ static func _lake_volume(chunk: CityChunk, pieces: Array) -> void:
 	zone.collision_mask = 2 | 4
 	zone.monitorable = false
 	for poly: PackedVector2Array in pieces:
+		SwimWater.add_poly(chunk, poly, WATER_Y + chunk._gy(poly[0].x, poly[0].y), FLOOR_Y + chunk._gy(poly[0].x, poly[0].y), SwimWater.Kind.LAKE)
 		for part: PackedVector2Array in Geometry2D.decompose_polygon_in_convex(poly):
 			var pts := PackedVector3Array()
 			for q in part:
