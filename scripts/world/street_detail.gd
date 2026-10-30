@@ -192,7 +192,7 @@ static func build_block(chunk: CityChunk, rect: Rect2, edges: Array, params: Dic
 			for k in (0 if Hospital.keeps_clear(plan, p) else 3):
 				var q := p + dir * (k - 1) * 0.8
 				chunk._add_prop("rack", Vector3(q.x, top, q.y), Color(0.3, 0.3, 0.32), [
-					["rack", PropFactory.bike_rack(), Transform3D(basis, Vector3(q.x, top, q.y))],
+					["rack", StreetFurniture.rack_mesh(), Transform3D(basis, Vector3(q.x, top, q.y)), Color.WHITE, StreetFurniture.rack_custom(plan.seed, Vector3(q.x, top, q.y))],
 				], [[Vector3(0.9, 0.9, 0.1), Vector3(q.x, top + 0.45, q.y), yaw]])
 		if rng.randf() < news_odds:
 			# The rolls stay exactly as they were (the parked cars and the crowd draw from this
@@ -668,11 +668,13 @@ static func _parking_meters(chunk: CityChunk, edges: Array, district: int) -> vo
 		while t < length - 8.0:
 			var p := a + dir * t + inward * METER_INSET
 			var at := Vector3(p.x, top, p.y)
+			# A meter head or a pay station (StreetFurniture: hash-seeded, the same prop).
 			chunk._add_prop("meter", at, Color(0.32, 0.33, 0.34), [
-				["meter", _meter_mesh(), Transform3D(Basis(Vector3.UP, yaw), at)],
+				StreetFurniture.meter_instance(chunk.plan.seed, at, yaw, _meter_mesh()),
 			], [[Vector3(0.2, 1.4, 0.2), at + Vector3(0.0, 0.7, 0.0), yaw]])
 			t += METER_SPACING
 	chunk._batch.set_draw_distance("meter", METER_DRAW_DISTANCE)
+	chunk._batch.set_draw_distance("pay_station", METER_DRAW_DISTANCE)
 
 
 ## Oil where cars park and the spray-painted locate marks a resurfaced street keeps for years.
@@ -887,3 +889,6 @@ static func _bus_shelter(chunk: CityChunk, p: Vector2, inward: Vector2, dir: Vec
 	# People waiting for the bus sit on its bench (Pedestrian's life, CrowdLife).
 	if not chunk.prop_records.is_empty() and chunk.prop_records.back().kind == "bus_stop" and chunk.level == CityChunk.Level.FULL:
 		CrowdLife.add_seat(chunk, at + back * 0.55, yaw, chunk.prop_records.back())
+	# A third of the stops also have a concrete bench with a painted ad beside the shelter
+	# (StreetFurniture: hash-seeded, props with ids of their own).
+	StreetFurniture.add_stop_bench(chunk, at, back, along, yaw)

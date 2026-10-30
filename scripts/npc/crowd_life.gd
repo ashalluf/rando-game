@@ -8,7 +8,7 @@ class_name CrowdLife
 ## "Life" section; everything here is static and shared by the whole crowd.
 
 ## What somebody is doing while stopped (Pedestrian._act).
-enum Act { NONE, STAND, LEAN, WINDOW, TALK, SIT }
+enum Act { NONE, STAND, LEAN, WINDOW, TALK, SIT, WATCH }
 ## What a person carries (rolled once per person; walking, near the camera only, and standing).
 enum Carry { NONE, CALL, TEXT, CUP, BAG, SMOKE }
 ## Props held in a hand.
