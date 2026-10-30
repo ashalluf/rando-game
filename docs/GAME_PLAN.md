@@ -295,6 +295,14 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-29 Facades are worked out per pane, not per building (owner: "start looking like GTA
+  6").** Glass varies pane by pane and floor by floor, blinds hang at their own heights, the glass
+  mirrors a street opposite with parallax, curtain walls come in three systems (flush, deep fins,
+  slab bands) whose depth is drawn analytically at every range, and drips and corner water weather
+  every wall - one include shared by the near walls and the far boxes, rolled from integers so the
+  LOD line keeps them. Corners of near box parts are bevelled 22 cm. Fins as geometry were tried and
+  dropped (aliasing lines at 100 m). docs/HANDOFF.md "Facades that read as built".
+
 - **2026-10-05 Apartments: the first per-style kit (G2; HANDOFF "Apartment buildings").** Midtown's
   low-rise lots and the inner suburbs get LA stucco apartments - walk-ups with galleries and open
   stairs, bungalow courts, Spanish courts, podium blocks - instead of storefront boxes and single
