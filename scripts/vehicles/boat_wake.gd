@@ -43,6 +43,8 @@ func _foam(n: int, life: float, box: Vector3, s0: float, s1: float) -> CPUPartic
 	p.emission_box_extents = box
 	p.gravity = Vector3.ZERO
 	p.spread = 30.0
+	# Spread in the water's plane only: a cone sent half the foam down under the surface.
+	p.flatness = 1.0
 	p.initial_velocity_min = 0.2
 	p.initial_velocity_max = 0.6
 	p.damping_min = 0.3
@@ -50,7 +52,7 @@ func _foam(n: int, life: float, box: Vector3, s0: float, s1: float) -> CPUPartic
 	p.angle_min = 0.0
 	p.angle_max = 360.0
 	p.scale_amount_curve = SwimFX._grow(s0, s1)
-	p.color_ramp = _ramp(0.7)
+	p.color_ramp = _ramp(0.85)
 	p.mesh = SwimFX._flat(1.0, SwimFX.foam_material())
 	p.custom_aabb = AABB(Vector3(-60, -4, -60), Vector3(120, 10, 120))
 	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

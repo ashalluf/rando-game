@@ -4876,6 +4876,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/glshot/hero_moves_shot.gd` (several stills a load: a clip frozen or a staged move -
   fly, fall, hit_*, draw, land_<speed>, roll, idle_*; `STEP=1` for the foot IK); checks
   `tests/hero_moves_checks.gd`.
+- Boats (2026-10-30, docs/HANDOFF.md "Boats"): `Boat` (`scripts/vehicles/boat.gd`, a Vehicle with
+  no wheels) - the SALTRUNNER 24 and the WAVEKITE jet ski (`BoatKit` meshes on boat.gdshader solo)
+  side-tied at the marina's east headwalk (`BoatMoorings`, one step in MarinaBuild). Floats by
+  impulses at six hull points on a plane fitted to `SwimWater` / `SeaSurface` samples; GroundBody
+  excepted over water, the world layer off its mask out at sea (the floor box), so it grounds in
+  the shallows. Never set its velocities in a tick that applies impulses (`_spin()`). The hero is
+  drawn seated (`BoatRidePose`); FX `BoatWake`. `BOATS=0` the A/B; stills `BOAT=` on still_shot.gd;
+  checks `tests/speedboats_checks.gd`.
 - Swimming (2026-10-05, docs/HANDOFF.md "Swimming"): `Swim` (`scripts/player/swim.gd`, the
   player's child; `swim.step()` is the first thing in Player's tick after the car and does the whole
   tick in water). Where water is: `SwimWater` (`scripts/world/swim_water.gd`) - the sea and the bay

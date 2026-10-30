@@ -295,6 +295,13 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-30 Drivable boats (HANDOFF "Boats").** A speedboat and a jet ski at the marina, entered
+  like a car. Decisions: a Boat IS a Vehicle with no wheels (the enter / exit contract, the pools,
+  EngineAudio, the car's jump and flight all come free); it floats on the water that is drawn
+  (SwimWater / SeaSurface, the swimmer's mirror of the ocean shader) with impulses at six hull
+  points, never by writing velocities; its own simple damage, not CarDamage (no glass, no cabin);
+  the hero drawn seated (a boat is open), posed in code like the swim strokes. Invented names.
+
 - **2026-10-05 Onlookers: the crowd comes back after the chaos (HANDOFF "Onlookers").** After
   the panic near a wreck, a blast or a body, people near the camera come back and stand round it
   in a loose ring: filming on their phones (held up at eye level, the screen lit, a video light

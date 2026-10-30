@@ -169,6 +169,22 @@ func _check_live(city: Node3D, m: MacroMap) -> void:
 		hi = maxf(hi, tw.y)
 		off = maxf(off, absf(tw.y - surf))
 	_check(off < 0.6 and hi - lo > 0.04, "at sea she rides the drawn swell (%.2f to %.2f m, at most %.2f m off the surface)" % [lo, hi, off])
+	# Flat out for seven seconds (boost on for the last two): she stays on the water.
+	Input.action_press("move_forward")
+	var high := -INF
+	for i in 420:
+		if i == 300:
+			Input.action_press("boost")
+		await tree.physics_frame
+		high = maxf(high, (ws.call("to_world", boat.global_position) as Vector3).y)
+	Input.action_release("boost")
+	Input.action_release("move_forward")
+	_check(high < 2.5, "flat out she stays on the water (highest %.2f m, %.1f m/s)" % [high, boat.linear_velocity.length()])
+	boat.global_position = ws.call("to_local", sea)
+	boat.linear_velocity = Vector3.ZERO
+	city.call("update_streaming", true)
+	for i in 30:
+		await tree.physics_frame
 	# Steering: hard right at speed turns her to starboard.
 	Input.action_press("move_forward")
 	for i in 90:

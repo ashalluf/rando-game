@@ -61,6 +61,9 @@ extends Vehicle
 static var enabled: bool = OS.get_environment("BOATS") != "0"
 ## Metres offshore past which the world layer leaves the mask (_ground_rule()).
 const OPEN_SEA := 22.0
+## The guard's caps (m/s): the boat's own climb (a hop, the flight on boost) stays well under.
+const MAX_RISE := 35.0
+const MAX_SPEED := 90.0
 static var _debug: bool = OS.get_environment("BOAT_DEBUG") == "1"
 
 var kind: int = BoatKit.Kind.SPEEDBOAT
@@ -176,6 +179,9 @@ func _ready() -> void:
 	for st: Array in [[-0.36, 0.42], [0.0, 0.62], [0.36, 0.7]]:
 		for side: float in [-1.0, 1.0]:
 			_points.append(Vector3(side * s.y * 0.5 * float(st[1]) * 0.8, -rest_draft, float(st[0]) * half * 2.0))
+	# Over water from the first step: a hull put on the water already reaches under the ground
+	# box's top (y 0), and the depenetration would throw it in the air before the first tick.
+	_set_ground_exception(true)
 	_fx = BoatWake.new()
 	_fx.boat = self
 	add_child(_fx)
@@ -462,6 +468,13 @@ func _physics_process(delta: float) -> void:
 		_sea = SeaSurface.state(get_tree())
 		_sea_age = 0.0
 	_watch_rider()
+	# A guard against depenetration: something left overlapping the hull (a capsule, a pile) can
+	# fire a body off at hundreds of m/s. Before any impulse of this tick (a velocity written after
+	# one wipes it).
+	var lv := linear_velocity
+	if lv.y > MAX_RISE or lv.length() > MAX_SPEED:
+		lv.y = minf(lv.y, MAX_RISE)
+		linear_velocity = lv.limit_length(MAX_SPEED)
 	var plane := water_plane()
 	var xf := global_transform
 	var n_wet := 0
