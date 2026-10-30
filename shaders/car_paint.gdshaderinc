@@ -106,6 +106,7 @@ global uniform float night_factor;
 
 #ifdef CAR_DAMAGE
 #include "res://shaders/car_damage.gdshaderinc"
+#include "res://shaders/car_crumple.gdshaderinc"
 // Bullet holes: xyz the centre in mesh space, w the radius (mesh units). The first hole_count
 // entries are live; CarDamage recycles the oldest past the cap.
 uniform int hole_count = 0;
@@ -300,21 +301,23 @@ void vertex() {
 #ifdef CAR_DAMAGE
 	local_rest = VERTEX;
 	local_nrm = NORMAL;
-	if (dent_count > 0) {
-		// The normal of the dented surface, from the offset at two points either side.
+	if (dent_count > 0 || cr_any()) {
+		// The normal of the dented (and crushed: car_crumple.gdshaderinc) surface, from where
+		// two points either side moved to.
 		vec3 t;
 		vec3 b;
 		cd_frame(normalize(NORMAL), t, b);
 		float e = 0.025;
-		vec3 o0 = cd_dent_offset(VERTEX);
-		vec3 nt = t * e + cd_dent_offset(VERTEX + t * e) - o0;
-		vec3 nb = b * e + cd_dent_offset(VERTEX + b * e) - o0;
+		vec3 n0 = NORMAL;
+		vec3 o0 = cr_move(VERTEX, n0) + cd_dent_offset(VERTEX);
+		vec3 nt = cr_move(VERTEX + t * e, n0) + cd_dent_offset(VERTEX + t * e) - o0;
+		vec3 nb = cr_move(VERTEX + b * e, n0) + cd_dent_offset(VERTEX + b * e) - o0;
 		vec3 nn = cross(nb, nt);
 		if (dot(nn, NORMAL) < 0.0) {
 			nn = -nn;
 		}
 		NORMAL = normalize(nn);
-		VERTEX += o0;
+		VERTEX = o0;
 	}
 #endif
 #ifdef PAINT_FROM_CUSTOM
@@ -697,6 +700,36 @@ void fragment() {
 		metal = mix(metal, 0.0, pit * bodywork);
 		spec_keep *= 1.0 - pit * bodywork;
 		dn -= dim * 0.9 * bodywork;
+	}
+	// Crash damage (car_crumple.gdshaderinc): the paint cracks and flakes along the ridges of a
+	// crushed panel, grime gathers in the folds, and a slide along something leaves a scuffed
+	// band scored through to primer and bare steel.
+	if (crumple_count > 0) {
+		float ridge;
+		float st = cr_stress(local_rest, ridge);
+		if (st > 0.01) {
+			float flake_n = cd_noise3(local_rest * 260.0);
+			float crack = smoothstep(0.82, 0.97, ridge) * smoothstep(0.15, 0.6, st) * step(0.35, flake_n);
+			crack = mix(crack, 0.25 * smoothstep(0.15, 0.6, st), 1.0 - smoothstep(0.004, 0.012, px));
+			ALBEDO = mix(ALBEDO, ALBEDO * 0.55, smoothstep(0.0, 0.45, 1.0 - ridge) * st * 0.6 * bodywork);
+			ALBEDO = mix(ALBEDO, vec3(0.42, 0.42, 0.40), crack * bodywork);
+			rough = mix(rough, 0.6, max(crack, st * 0.4) * bodywork);
+			cc_keep *= 1.0 - max(crack, st * 0.35) * bodywork;
+		}
+	}
+	if (scrape_count > 0) {
+		vec3 sc = cr_scrape(local_rest, normalize(local_nrm), px);
+		if (sc.x > 0.001) {
+			float sn = cd_noise3(local_rest * 90.0);
+			ALBEDO = mix(ALBEDO, mix(ALBEDO, vec3(0.55), 0.35) , sc.x * 0.6 * bodywork);
+			rough = mix(rough, 0.55, sc.x * bodywork);
+			cc_keep *= 1.0 - 0.85 * sc.x * bodywork;
+			ALBEDO = mix(ALBEDO, mix(vec3(0.36, 0.36, 0.34), vec3(0.47, 0.47, 0.45), sn), sc.y * bodywork);
+			ALBEDO = mix(ALBEDO, vec3(0.62, 0.62, 0.63), sc.z * bodywork);
+			metal = mix(metal, 0.0, sc.y * bodywork);
+			metal = mix(metal, 1.0, sc.z * bodywork);
+			rough = mix(rough, 0.35, sc.z * bodywork);
+		}
 	}
 	// Glass that the texture marks (the single-texture bodies; the rest have a glass slot and
 	// car_glass_damage.gdshader): cracks round each hit, and a side whose glass is gone shows the

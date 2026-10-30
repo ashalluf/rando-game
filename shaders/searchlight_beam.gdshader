@@ -12,6 +12,22 @@ uniform vec3 tint : source_color = vec3(0.86, 0.92, 1.0);
 uniform float strength : hint_range(0.0, 2.0) = 0.22;
 // Share of the shaft length over which it fades out.
 uniform float length_fade : hint_range(0.05, 1.0) = 0.85;
+// PoliceNightLook (1, Helicopter sets it): the shaft as a column of lit haze - a hot core down
+// its axis, motes drifting through it, thicker in rain (the drops catch the light). 0 the old one.
+uniform float look = 0.0;
+global uniform float rain_intensity;
+
+float sl_hash(vec2 p) {
+	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+float sl_noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(sl_hash(i), sl_hash(i + vec2(1.0, 0.0)), f.x),
+			mix(sl_hash(i + vec2(0.0, 1.0)), sl_hash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
 
 void fragment() {
 	float along = UV.y;
@@ -19,6 +35,17 @@ void fragment() {
 	// Edge-on the cone wall is thin and reads as a hard line; face-on it is the thick of the
 	// beam. NORMAL and VIEW are both in view space.
 	float face = pow(abs(dot(normalize(NORMAL), normalize(VIEW))), 1.4);
+	float gain = 1.0;
+	if (look > 0.5) {
+		// The core: face-on the beam is thickest, so the middle of the shaft burns.
+		float core = pow(face, 5.0);
+		float motes = sl_noise(vec2(UV.x * 26.0, UV.y * 60.0 - TIME * 0.35));
+		motes = mix(0.75, 1.35, motes);
+		float wet = clamp(rain_intensity, 0.0, 1.0);
+		gain = (1.5 + 2.2 * core) * motes * (1.0 + 1.6 * wet);
+		// Brighter all the way down: the haze is lit to the ground, not just near the lamp.
+		fade = mix(fade, pow(1.0 - along, 0.7) * smoothstep(0.0, 0.03, along), 0.5);
+	}
 	ALBEDO = tint;
-	ALPHA = clamp(fade * face * strength * lamp_factor, 0.0, 1.0);
+	ALPHA = clamp(fade * face * strength * gain * lamp_factor, 0.0, 1.0);
 }

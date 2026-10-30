@@ -320,6 +320,7 @@ func generate() -> void:
 	Rooftops.build(self)
 	_finish_kit()
 	_commit_blade_texts()
+	FacadeStreet.commit(self)
 
 
 func _build_plinth() -> void:
@@ -795,6 +796,10 @@ func _part_material(style: Dictionary) -> ShaderMaterial:
 	mat.set_shader_parameter("lit_ratio", style.lit_ratio)
 	mat.set_shader_parameter("seed", float(seed % 1000))
 	mat.set_shader_parameter("roof_style", roof_style)
+	# The street level up close (FacadeStreet, shaders/facade_street.gdshaderinc).
+	mat.set_shader_parameter("facade_street", FacadeStreet.enabled and shape != Shape.WAREHOUSE)
+	mat.set_shader_parameter("street_back_face", back_face)
+	mat.set_shader_parameter("street_ground_y", position.y)
 	if podium_kind == 2:
 		mat.set_shader_parameter("garage_color", garage_concrete())
 		mat.set_shader_parameter("garage_spandrel", GARAGE_SPANDREL)
@@ -1417,6 +1422,8 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 			var slices := Color(0.0, 0.0, (w - 1.0) * 0.5, (h - 1.0) * 0.5)
 			var wall := Basis(a, Vector3.UP, n)
 			var ac_ok := _kit != null and window_style == WindowStyle.PUNCHED and residential and w >= 0.8
+			# A ground floor without shops has a door in one bay (FacadeStreet), counted the other way.
+			var door_c := FacadeStreet.door_for(self, face_index + 1, size_u, cols, bottom, storefront, pitch, floor_h)
 			for col in range(skip, cols - skip):
 				# The shader counts `u` from the other end of the wall (see the signs below), so
 				# the window's centre is mirrored: `1 - cx`, which is `cx` itself on every style
@@ -1425,6 +1432,8 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 				for row in rows:
 					var v := bottom + storefront + (row + cy) * floor_h
 					if v + h * 0.5 > top - 0.3:
+						continue
+					if row == 0 and door_c >= 0 and cols - 1 - col == door_c:
 						continue
 					if not curtain_caps:
 						frames.append(Transform3D(Basis(a * w, Vector3.UP * h, n * 0.1), fc + a * u + Vector3(0.0, v, 0.0) + n * 0.02))
@@ -1437,6 +1446,9 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 						var unit: Color = [Color(0.86, 0.85, 0.80), Color(0.78, 0.76, 0.70), Color(0.70, 0.71, 0.72)][absi(hash([seed, "ac colour", col, row])) % 3]
 						_kit.add("kit_ac_window", PropFactory.facade_kit("ac_window"),
 							Transform3D(wall, fc + a * (u + off) + Vector3(0.0, v - h * 0.5, 0.0)), unit, Color(_kit_iron, 0.0, 0.0, 0.0))
+		FacadeStreet.face(self, face_index, fc, a, n, size_u, cols, pitch, cut, bottom, storefront, floor_h, rows, top,
+			face_shops and shape != Shape.WAREHOUSE, spans[face_index], has_awnings or has_canopy or kit_awnings_extra,
+			has_balconies or (has_escape and face_index == escape_face), masonry)
 		if curtain_caps:
 			ShopfrontKit.curtain_face(self, _kit, fc, a, n, size_u, cols, pitch, cut, bottom, storefront, floor_h, rows, top, frame_color)
 		if has_escape and face_index == escape_face and cols - 2 * skip >= 2:
@@ -1783,6 +1795,8 @@ func _commit_details() -> void:
 		node.name = node_name
 		node.multimesh = mm
 		node.material_override = _detail_material(d.mesh, refs)
+		if FacadeStreet.enabled:
+			(node.material_override as ShaderMaterial).set_shader_parameter("street_foot", to_true.origin.y)
 		# A little over, so float rounding in the bounds can never cut in before the shader does.
 		node.visibility_range_end = reach + 0.5
 		if not d.shadow:
