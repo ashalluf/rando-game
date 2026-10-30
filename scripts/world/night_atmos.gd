@@ -60,7 +60,8 @@ const SODIUM_TOP := 140.0
 const DRAW_DISTANCE := 900.0
 const SHAFT_DISTANCE := 90.0
 
-static var _node: NightAtmos = null
+## The city's node, by instance id (a static holding the node itself outlived it at exit).
+static var _node_id: int = 0
 static var _meshes: Dictionary = {}
 
 ## Last values pushed (the checks read them: the dummy renderer reads globals back as null).
@@ -220,11 +221,17 @@ static func atmos_material(kind: String) -> ShaderMaterial:
 ## which holds Weather, DayNight and Quality). Called by the first lamp a chunk builds; safe to
 ## call any number of times.
 static func ensure(city: Node) -> void:
-	if not enabled or is_instance_valid(_node) or city == null:
+	if not enabled or node() != null or city == null:
 		return
-	_node = NightAtmos.new()
-	_node.name = "NightAtmos"
-	city.add_child.call_deferred(_node)
+	var n := NightAtmos.new()
+	n.name = "NightAtmos"
+	_node_id = n.get_instance_id()
+	city.add_child.call_deferred(n)
+
+
+## The city's node, or null.
+static func node() -> NightAtmos:
+	return instance_from_id(_node_id) as NightAtmos if _node_id != 0 else null
 
 
 func _ready() -> void:
@@ -233,8 +240,11 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
-	if _node == self:
-		_node = null
+	if _node_id == get_instance_id():
+		_node_id = 0
+		# The city is going (a quit or a rebuild): its chunks go with it, so the cached meshes and
+		# materials go too rather than outliving the renderer in a static at exit.
+		_meshes.clear()
 
 
 func _process(delta: float) -> void:

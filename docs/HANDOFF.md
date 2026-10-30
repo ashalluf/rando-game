@@ -18975,6 +18975,16 @@ night (the weather put back exactly), and the fog lean not piling up.
 clear / marine, before (`NIGHT_ATMOS=0`) and after; Forward+ (lavapipe) of a few FULL blocks with
 `fwd_block_shot.tscn`.
 
+**Trap (cost a gate run)**: a static holding the node itself (`static var _node: NightAtmos`)
+plus the static mesh cache made two of three gate shards abort AT EXIT (134 / 250) after every
+check had passed. The node is kept by instance id (`node()`), and the city node clears the cache
+in `_exit_tree()`; shard 2 then exits 0.
+
+**Not verified**: the whole city on Forward+ - `fwd_block_shot.tscn` and even `block_shot.tscn`
+are OOM-killed on lavapipe here (12.8 GB during the plan, before any chunk), so the Forward+
+stills are of `tools/night_atmos/atmos_shot.gd` (the atmosphere alone under the city's
+Environment). Halo brightness through AgX on the Mac wants a look.
+
 **Knobs**: `night_halo.gdshader` `core_gain`, `halo_gain`, `streak_gain`, `streak_len`,
 `near_fade`; `night_shaft.gdshader` `gain` (0.028), `reach`; `car_lights.gdshader` `halo_head`,
 `halo_tail`, `halo_core`, `halo_glow`, `halo_streak`; `NightAtmos.HAZE_BY_STATE`, `SODIUM_LEAN`,

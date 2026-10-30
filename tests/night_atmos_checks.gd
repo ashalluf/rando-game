@@ -160,7 +160,7 @@ func _chunk(city: Node3D) -> void:
 
 func _node(city: Node3D) -> void:
 	# The city's own node when it is there (the chunks made it), else one staged for the checks.
-	var node: NightAtmos = NightAtmos._node
+	var node: NightAtmos = NightAtmos.node()
 	var staged := false
 	if node == null or node.get_parent() != city:
 		node = NightAtmos.new()
