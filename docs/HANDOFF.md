@@ -19773,7 +19773,8 @@ marina and suburban boxes that have no shops.
   line and salt bloom on porous walls, the contact shade, kick scuffs, hand grime and chipped
   arrises at the corners.
 - A DOOR in one bay of 63 % of ground floors without shops (punched or slot windows, three bays or
-  more, never an end bay, never the alley back): frame, leaf (flush steel, six-panel timber, steel
+  more, storeys of 3 m or more, never an end bay, never the alley back; on a masonry wall it stands on
+  the 0.64 m plinth band with concrete steps up to it, `fs_door_sill()`): frame, leaf (flush steel, six-panel timber, steel
   with a wired vision light, or a perforated security screen), kick plate, lever and rose,
   deadbolt, peephole, brass mail slot, the frame's shadow on the recessed leaf. `fs_door_col()` is
   an integer roll (wl_hash salts 90-99 on `fs_face_key()`: shader seed, face, the wall's length in

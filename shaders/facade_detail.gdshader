@@ -33,6 +33,16 @@ uniform float metallic : hint_range(0.0, 1.0, 0.01) = 0.0;
 uniform float street_foot = -100000.0;
 varying vec3 true_pos;
 
+// A smooth 1D value noise for the damp line's ragged top.
+float fd_noise(float x) {
+	float i = floor(x);
+	float f = fract(x);
+	f = f * f * (3.0 - 2.0 * f);
+	float a = fract(sin(i * 12.9898) * 43758.5453);
+	float b = fract(sin((i + 1.0) * 12.9898) * 43758.5453);
+	return mix(a, b, f);
+}
+
 void vertex() {
 	true_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz + origin_shift;
 	vec4 ref = part_ref[clamp(int(INSTANCE_CUSTOM.x + 0.5), 0, 15)];
@@ -58,8 +68,8 @@ void fragment() {
 	if (up < 1.2) {
 		vec2 q = true_pos.xz + vec2(true_pos.z * 0.37, 0.0);
 		float along = q.x * 0.55 + q.y * 0.55;
-		float n = fract(sin(dot(floor(vec2(along, 3.0)), vec2(12.9898, 78.233))) * 43758.5453);
-		float n2 = fract(sin(dot(floor(vec2(along * 6.0, 1.0)), vec2(39.3468, 11.135))) * 24634.6345);
+		float n = fd_noise(along);
+		float n2 = fd_noise(along * 6.0 + 17.0);
 		float hs = 0.18 + 0.22 * n + 0.06 * n2;
 		float damp = 1.0 - smoothstep(hs - 0.06, hs + 0.01, up);
 		float foot = 1.0 - smoothstep(0.0, 0.22, up);

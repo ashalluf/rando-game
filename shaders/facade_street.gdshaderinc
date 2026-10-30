@@ -75,9 +75,16 @@ int fs_door_col(uint key, float cols) {
 }
 
 
-// The door's width and height (metres) in a bay of `pitch` and a storey of `fl`.
-vec2 fs_door_size(float pitch, float fl) {
-	return vec2(clamp(pitch * 0.55, 0.92, 1.05), min(2.22, fl - 0.62));
+// How far up the door's threshold is: on a masonry wall it stands on the plinth band Building puts
+// along the foot (0.64 m), with steps up to it; on a glass-finished one at the pavement.
+float fs_door_sill(int finish) {
+	return finish == 3 ? 0.0 : 0.64;
+}
+
+
+// The door's width and height (metres) in a bay of `pitch` and a storey of `fl` over its sill.
+vec2 fs_door_size(float pitch, float fl, float sill) {
+	return vec2(clamp(pitch * 0.55, 0.92, 1.05), min(2.22, fl - sill - 0.45));
 }
 
 

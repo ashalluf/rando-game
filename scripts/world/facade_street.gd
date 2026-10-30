@@ -83,9 +83,15 @@ static func door_col(key: int, cols: int) -> int:
 	return 1 + Building.shop_hash(key, 91) % (cols - 2)
 
 
+## How far up the door's threshold is (the shader's fs_door_sill()): on the plinth band of a masonry
+## wall, at the pavement on a glass-finished one.
+static func door_sill(finish: int) -> float:
+	return 0.0 if finish == Building.Finish.GLASS else 0.64
+
+
 ## The door's width and height (the shader's fs_door_size()).
-static func door_size(pitch: float, floor_h: float) -> Vector2:
-	return Vector2(clampf(pitch * 0.55, 0.92, 1.05), minf(2.22, floor_h - 0.62))
+static func door_size(pitch: float, floor_h: float, sill: float) -> Vector2:
+	return Vector2(clampf(pitch * 0.55, 0.92, 1.05), minf(2.22, floor_h - sill - 0.45))
 
 
 ## The lamp over a door: 0 a caged bulkhead, 1 a gooseneck barn light, 2 an LED wall pack.
@@ -102,7 +108,7 @@ static func door_wall(b: Building, face_id: int, bottom: float, storefront: floa
 	return enabled and b.shape != Building.Shape.WAREHOUSE \
 		and (b.window_style == Building.WindowStyle.PUNCHED or b.window_style == Building.WindowStyle.NARROW) \
 		and storefront <= 0.0 and face_id != b.back_face and bottom < 0.01 and not parking \
-		and pitch >= 1.4 and floor_h >= 2.84
+		and pitch >= 1.4 and floor_h >= 3.0
 
 
 ## The door's bay on this wall (shader col), or -1.
@@ -246,10 +252,11 @@ static func face(b: Building, face_index: int, fc: Vector3, a: Vector3, n: Vecto
 	# --- The door's lamp and step -----------------------------------------------------------
 	if dcol >= 0:
 		var along := size_u * 0.5 - (float(dcol) + 0.5) * pitch
-		var ds := door_size(pitch, floor_h)
+		var sill := door_sill(b.finish)
+		var ds := door_size(pitch, floor_h, sill)
 		var at := fc + a * along + Vector3(0.0, bottom, 0.0)
-		_step(acc, at, a, n, ds.x + 0.5)
-		_door_lamp(acc, at + Vector3(0.0, ds.y + 0.42, 0.0), a, n, lamp_kind(dkey), lamp_lit(dkey),
+		_step(acc, at, a, n, ds.x + 0.5, sill)
+		_door_lamp(acc, at + Vector3(0.0, sill + ds.y + 0.42, 0.0), a, n, lamp_kind(dkey), lamp_lit(dkey),
 			LAMP_PAINTS[absi(hash([b.seed, "fs lamp paint", fkey])) % LAMP_PAINTS.size()])
 
 	# --- Grilles over the ground-floor windows of a wall without shops ----------------------
@@ -375,11 +382,18 @@ static func commit(b: Building) -> void:
 
 # --- The pieces (all in the wall's frame: `a` along it, `n` out of it, `at` on the face) ------
 
-static func _step(acc: Acc, at: Vector3, a: Vector3, n: Vector3, width: float) -> void:
+## The steps up to a door whose threshold is `sill` over the pavement (one step at the pavement when
+## it is 0): treads 30 cm deep, the top one level with the threshold, each with a steel nosing.
+static func _step(acc: Acc, at: Vector3, a: Vector3, n: Vector3, width: float, sill: float) -> void:
 	var w := Basis(a, Vector3.UP, n)
-	acc.box(Transform3D(w, at + Vector3(0.0, 0.075, 0.0) + n * 0.21), Vector3(width, 0.15, 0.42), K_CONCRETE, Color(0.66, 0.65, 0.62))
-	# The nosing's steel edge.
-	acc.box(Transform3D(w, at + Vector3(0.0, 0.148, 0.0) + n * 0.41), Vector3(width, 0.006, 0.03), K_GALV, Color.WHITE)
+	var steps := maxi(ceili(sill / 0.17), 1)
+	var rise := maxf(sill, 0.15) / float(steps)
+	for k in steps:
+		# Step k from the top: its tread at sill - k * rise, reaching (k + 1) treads out from the wall.
+		var top := maxf(sill, 0.15) - float(k) * rise
+		var depth := 0.30 * float(k + 1) + 0.12
+		acc.box(Transform3D(w, at + Vector3(0.0, top * 0.5, 0.0) + n * (depth * 0.5)), Vector3(width + 0.1 * float(k), top, depth), K_CONCRETE, Color(0.55, 0.54, 0.51))
+		acc.box(Transform3D(w, at + Vector3(0.0, top - 0.002, 0.0) + n * (depth - 0.015)), Vector3(width + 0.1 * float(k), 0.006, 0.03), K_GALV, Color.WHITE)
 
 
 static func _door_lamp(acc: Acc, at: Vector3, a: Vector3, n: Vector3, kind: int, lit: bool, paint: Color) -> void:

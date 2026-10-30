@@ -50,8 +50,9 @@ func _rolls_match_the_shader() -> void:
 		why += " door share %.2f" % share
 	if FacadeStreet.door_col(FacadeStreet.face_key(7, 1, 18.0), 2) != -1:
 		why += " a two-bay wall has a door"
-	var size := FacadeStreet.door_size(2.6, 3.4)
-	if not size.is_equal_approx(Vector2(1.05, 2.22)) or FacadeStreet.door_size(1.5, 2.9).y > 2.29:
+	var size := FacadeStreet.door_size(2.6, 3.4, 0.0)
+	if not size.is_equal_approx(Vector2(1.05, 2.22)) or FacadeStreet.door_size(1.5, 3.1, 0.64).y > 2.02 \
+			or FacadeStreet.door_sill(Building.Finish.BRICK) != 0.64 or FacadeStreet.door_sill(Building.Finish.GLASS) != 0.0:
 		why += " door size %s" % size
 	_t._check(why == "", "street level: the door's bay and its lamp are rolled the way the shader rolls them%s" % why)
 
@@ -69,7 +70,7 @@ func _the_shader_wears_it() -> void:
 	var inc := FileAccess.get_file_as_string("res://shaders/facade_street.gdshaderinc")
 	for want: String in ["uint sd = uint(clamp(abs(b_seed), 0.0, 999.0) + 0.5);", "uint l = uint(floor(face_len * 4.0 + 0.5)) & 4095u;",
 			"return (sd * 8u + f) * 4096u + l;", "if ((wl_hash(key, 90u) >> 24u) >= 160u)", "return 1 + int(wl_hash(key, 91u) % uint(cols - 2.0 + 0.5));",
-			"return vec2(clamp(pitch * 0.55, 0.92, 1.05), min(2.22, fl - 0.62));", "return wl_hash(key, 93u) % 3u;", "return (wl_hash(key, 98u) >> 24u) < 216u;"]:
+			"return vec2(clamp(pitch * 0.55, 0.92, 1.05), min(2.22, fl - sill - 0.45));", "return finish == 3 ? 0.0 : 0.64;", "return wl_hash(key, 93u) % 3u;", "return (wl_hash(key, 98u) >> 24u) < 216u;"]:
 		if inc.find(want) < 0:
 			why += " the include lost '%s'" % want
 	if FacadeStreet.SALT_GOOSE != 46 or FacadeStreet.GOOSE_BYTE != 96:

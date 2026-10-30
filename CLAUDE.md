@@ -4591,6 +4591,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`ShopfrontKit.TextAcc`): never `SurfaceTool.append_from()` a mesh per building (a read-back
   from the renderer). Look with `tools/glshot/still_shot.gd` `EYE=` / `SHOTS=` (a third `@fov`
   field per shot); `building_shot.gd` for one building.
+- The street level up close (2026-10-30, docs/HANDOFF.md "The street level up close"): within
+  ~55 m `shaders/facade_street.gdshaderinc` (in building.gdshader) gives the walls relief as a
+  height field in metres on (u, v) applied as a tilt of NORMAL at the end (stucco grain and trowel,
+  precast tie holes, the base course's V-joints, raked brick mortar), patched render, cracks off
+  window corners, splash-back / damp / salt / scuffs at the foot (facade_detail.gdshader's
+  `street_foot` does the plinth band), and a DOOR in ground floors without shops on an integer roll
+  (`fs_door_col()` = `FacadeStreet.door_col()`, wl_hash salts 90-99; Building drops that bay's
+  frame, surround and AC); after dark door lamps and goosenecks (shop_byte salt 46) wash the wall
+  and the board. `FacadeStreet` (`scripts/world/facade_street.gd`, one hook per wall in
+  `_add_facade_details()`, `commit()` in `generate()`) builds the hardware as ONE `StreetDress`
+  mesh a building (downpipes, conduit and meters, condensers, grilles, door steps and lamps,
+  goosenecks, shutter housings, thresholds) on `facade_street_props.gdshader` (kind in COLOR.a x 16).
+  `FACADES_STREET=0` is the A/B; `tools/facades_street/probe.gd` / `shots.sh`, `building_shot.gd
+  SHOPS=0 STYLE= SHAPE=`; checks `tests/facades_street_checks.gd`.
 - Shop interiors (VISUAL_ROADMAP #14, 2026-10-04): behind every storefront's glass is ONE room
   the width of the whole shop (6-9.5 m deep, a tower lobby 13 m and double height), traced per
   pixel in `building.gdshader` by `shaders/shop_interior.gdshaderinc` (`shop_interior()`): the

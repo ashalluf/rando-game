@@ -3574,3 +3574,9 @@ none of either.
   shape (it carries the landmarks). The horizon plane stays 14 km, with a coarser ring on the same
   material out to 12.6 km, because its rim was erasing the crests 5-7 km away; past the bake the
   map is mirrored. FAR_RANGES=0 is the old world exactly.
+- **2026-10-30 The street level is detail on the walls plus one hardware mesh a building
+  (HANDOFF "The street level up close").** Relief, repairs, cracks and the grime at the foot are
+  shader work on the existing walls (no new nodes); doors in ground floors without shops are an
+  integer roll the shader and the props share, so the frame, the lamp and the step agree; the
+  hardware (downpipes, meters, condensers, grilles, lamps, housings) is ONE code-built mesh a
+  building, one draw, drawn to ~105 m. Every roll is a hash; FACADES_STREET=0 is the old city.

@@ -1084,13 +1084,13 @@ void fragment() {
 		bool fs_door_bay = false;
 		if (facade_street && !uv_facade && !chamfer && !garage && !storefront && (window_style == 0 || window_style == 3)
 				&& pt_shop < 0.5 && int(face_id) != street_back_face && abs(pt_base_y - street_ground_y) < 0.05
-				&& pt_ground - pt_base_y < 0.05 && pitch >= 1.4 && pt_floor >= 2.84) {
+				&& pt_ground - pt_base_y < 0.05 && pitch >= 1.4 && pt_floor >= 3.0) {
 			float face_len_d = face_id < 2.5 ? pt_size.z : pt_size.x;
 			fs_key = fs_face_key(seed, face_id, face_len_d);
 			int dc = fs_door_col(fs_key, floor(face_len_d / pitch + 0.5));
 			if (dc >= 0) {
 				fs_door_u = (float(dc) + 0.5) * pitch;
-				fs_ds = fs_door_size(pitch, pt_floor);
+				fs_ds = fs_door_size(pitch, pt_floor, fs_door_sill(facade_finish));
 				fs_door_bay = row == 0.0 && abs(col - float(dc)) < 0.5;
 				if (fs_door_bay) {
 					glass = false;
@@ -1849,7 +1849,7 @@ void fragment() {
 					}
 				}
 				if (fs_door_u > -999.0 && row < 0.5) {
-					vec2 dq = vec2(u - fs_door_u, v - pt_base_y);
+					vec2 dq = vec2(u - fs_door_u, v - pt_base_y - fs_door_sill(facade_finish));
 					vec2 door_tilt = vec2(0.0);
 					if (fs_door(dq, fs_ds, fs_key, px_m, 1.0 - night_factor, albedo, rough, metal, door_tilt)) {
 						fs_tilt = door_tilt * w_rel;
@@ -1895,7 +1895,7 @@ void fragment() {
 				fs_plinth(albedo, rough, v - pt_base_y, u, fs_face_len, face_id, seed, facade_finish == 3 ? 0.0 : 1.0, fade_p, px_m);
 				if (fs_door_u > -999.0 && fs_lamp_lit(fs_key)) {
 					vec3 lamp_c = fs_lamp_kind(fs_key) == 2u ? vec3(0.85, 0.92, 1.0) : vec3(1.0, 0.70, 0.40);
-					vec2 ld = vec2(u - fs_door_u, v - pt_base_y - fs_ds.y - 0.42);
+					vec2 ld = vec2(u - fs_door_u, v - pt_base_y - fs_door_sill(facade_finish) - fs_ds.y - 0.42);
 					emission += albedo * fs_lamp_wash(ld, lamp_c) * 2.8 * clamp(lamp_factor, 0.0, 1.0);
 				}
 			}
