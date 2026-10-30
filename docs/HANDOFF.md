@@ -14992,4 +14992,7 @@ Checks added: the far canopy shows past life's range, is coarse and over the hea
 the rain stops. Stills: `15_before_rain_bus_queue` / `16_after_rain_bus_queue` (EYE
 `2472,3.0,1012,4,-3`, FOV 35: the bus queue on the next avenue east, every umbrella open over the
 queue), `17_after_rain_aerial` (EYE `2365,28,975,0,-22`, FOV 55). Still not seen on Forward+.
-Far people do not go in, so from the air a storm's streets still carry walkers.
+Far people do not go in, so from the air a storm's streets still carry walkers. Gate after the
+second merge with main (eb75a10): `SHARDS=3`, 2,568 checks passed, 0 failed, peak RSS 2,481 MB per
+shard (an earlier run lost two load-timing checks - a bumper tap, a semi on the deck - which pass
+alone and on the rerun).
