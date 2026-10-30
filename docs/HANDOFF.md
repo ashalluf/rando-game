@@ -20715,23 +20715,28 @@ did - proven pixel for pixel, below.
 
 **The model** (sky.gdshader):
 - `sun_through(el, h)`: the sun as it reaches a point `h` km up at elevation `el` measured from
-  THAT point's horizon (el = the camera's sun elevation + the point's distance toward the sun /
-  R, plus 0.01 of refraction). Air masses: Rayleigh (8 km scale height, tau 0.032 / 0.074 / 0.180
-  a unit air mass) and aerosol (1.4 km, 0.085 / 0.115 / 0.150 - the basin's smog, which is what
-  takes the light past orange to red), 1 / (el + k) above the point's horizon and, below it, twice
-  the grazing path to the tangent height less the part above the point. Brightness falls with the
-  red's transmittance (floor 0.45) and goes to 0 as the tangent height goes under the ground (the
-  earth's shadow, soft over -0.5..0.4 km). Returns the colour normalised to its red, so neither
-  renderer's exposure moves it. `SunsetSky.sun_through()` is the GDScript copy; the checks read
-  the shader's optical depths and shadow line back.
+  THAT point's horizon (el = the camera's sun elevation + the point's distance toward the sun / R).
+  **The colour is an art-directed palette** by `el` (`SUNSET_PAL_E` / `SUNSET_PAL_C`, linear, red
+  1): gold-orange at sin 0.30, orange, deep orange at 0.06, red-orange on the horizon, salmon at
+  -0.05, pink at -0.10, magenta at -0.16. The first pass was a physical transmittance (Rayleigh +
+  aerosol air masses, normalised to red) and the lead's review threw it out: the sunlit cumulus came
+  out pale lemon at 17:45 and the bases went grey at 18:15. **The earth's shadow climbs on an
+  exaggerated radius** (`SUNSET_SHADOW_R` 200 km, soft over -0.4..0.5 km of tangent height, with
+  0.01 of refraction): this game's sun sinks about four times faster than LA's, and at the true
+  6,371 km a deck 2 km up lost the sun four game minutes after the street; now its bases glow
+  salmon, pink, then magenta to ~18:40. Brightness eases to 0.7 under the horizon.
+  `SunsetSky.sun_through()` / `PALETTE_*` / `SHADOW_R` are the GDScript copy; the checks read the
+  shader's stops, colours and shadow line back.
 - **Volume (Forward+)**: every lit cloud sample takes `sun_through()` at its own height and place,
   mixed by the weight - gold at 17:30, orange-red at 18:00, red on the crowns at 18:06, the
   earth's shadow then climbing the deck from the bases. Once the sun is under the street's horizon
   the light march is tipped down (to -0.2) so it leaves through the flat base: the whole base glows
   hot from below while the body above stays in its own shade - at the true 1-2 degrees the march
-  ran along inside the base and never saw the light. The ambient under the deck takes the warm
+  ran along inside the base and never saw the light. **While the weight is on the sun stays the
+  march's key light down to sin -0.2** (it used to hand over to the moon at sin -0.07, which is
+  most of why the 18:15 bases were grey). The ambient under the deck takes the warm
   horizon (twilight_warm, strongest toward the sun, x1.9 once the sun is under), the crowns the
-  violet of the twilight band. A narrow forward lobe (HG 0.86) on thin margins is the silver lining.
+  violet of the twilight band. A narrow forward lobe (HG 0.86, x0.16) on thin margins is the silver / gold lining.
 - **Rays**: fanned wider (exp(-ang^2 x 1.1)) at `sunset_rays` (0.45) in the sun's own red, NOT
   `god_rays`: DayNight multiplies that by (1 - night_factor), which is 0.3 at the sunset itself.
 - **Painted cumulus (Compatibility, the web)**: the same light at the deck's crown height
@@ -20760,6 +20765,12 @@ the evening; judge the sunset with sky_shot and still_shot SHOTS instead (refcam
 fixed here). `HOLD_TIME=1` is new on `tools/sky/sky_shot.gd` because shader TIME is real time: a shader that
 compiles slower drifts the clouds and an A/B "differs" in 15 % of its pixels; `PARAMS="a=1;b=0"`
 holds uniforms after DayNight has set them (frame_pre_draw), for experiments.
+
+**Second pass (the lead's review)**: palette, longer shadow, sun kept as key light, stronger
+lining; before / after 17:45, 18:15, 18:30 in `shots/sunset-clouds` `review_*` (Forward+ and
+opengl3): 17:45 hot orange, not lemon; 18:15 and 18:30 the bases glow salmon and pink under
+violet crowns where the first pass had grey silhouettes. Noon is still bit-identical (the gates
+did not move).
 
 **Stills** (`shots/sunset-clouds`): sky_shot every 15 min 17:30-19:30 toward the sun (yaw 90) and
 away (270), Forward+ and opengl3, before (old shader) and after; the city from the beach
