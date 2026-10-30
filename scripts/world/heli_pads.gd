@@ -173,7 +173,7 @@ static func pad_mesh() -> ArrayMesh:
 		var p01 := Vector3(cos(a0) * r1, 0.003, sin(a0) * r1)
 		var p10 := Vector3(cos(a1) * r0, 0.003, sin(a1) * r0)
 		var p11 := Vector3(cos(a1) * r1, 0.003, sin(a1) * r1)
-		for q: Vector3 in [p00, p11, p01, p00, p10, p11]:
+		for q: Vector3 in [p00, p01, p11, p00, p11, p10]:
 			st.set_color(white)
 			st.add_vertex(q)
 	var hh := half * 0.5
@@ -183,20 +183,22 @@ static func pad_mesh() -> ArrayMesh:
 	_rect(st, Vector2(-hw, -0.4), Vector2(hw, 0.4), 0.004, white)
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
+	# The colours above are sRGB, decoded on both renderers alike.
+	mat.vertex_color_is_srgb = true
 	mat.roughness = 0.85
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	st.set_material(mat)
 	_pad_mesh = st.commit()
 	return _pad_mesh
 
 
-## A flat rect facing up, wound so its front faces up (counter-clockwise seen from above).
+## A flat rect facing up, wound so its front faces up (clockwise seen from above: Godot's front
+## face; the other way round its normal was flipped down and the paint drew near black).
 static func _rect(st: SurfaceTool, a: Vector2, b: Vector2, y: float, col: Color) -> void:
 	var p00 := Vector3(a.x, y, a.y)
 	var p10 := Vector3(b.x, y, a.y)
 	var p11 := Vector3(b.x, y, b.y)
 	var p01 := Vector3(a.x, y, b.y)
-	for q: Vector3 in [p00, p11, p10, p00, p01, p11]:
+	for q: Vector3 in [p00, p10, p11, p00, p11, p01]:
 		st.set_color(col)
 		st.add_vertex(q)
 
