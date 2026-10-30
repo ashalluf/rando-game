@@ -16,8 +16,9 @@ studio, night estates, churches, utility poles, police stations at night, the ho
 street errands, reference cameras), batch 7 (the marketplace lane, shop-window vinyl, roadside
 businesses) and batch 8 (street signs as real models, five street lamp types), plus the fixes
 for CI runs 355-357 (a turning car's room in its new lane, errands never parking a placed car,
-the car lights check's pick race). Apartments and tower gondolas are what is left of the started
-sessions (docs/HANDOFF.md 0000000).
+the car lights check's pick race), then apartments and tower gondolas (2026-10-29, build 361).
+**Wave 3 (2026-10-29)**: 23 cloud sessions finishing wave 2's paused tasks plus `rock-outcrops` and
+`facades-gta` (owner: "make it look like GTA 6"); start at docs/HANDOFF.md section 00000000.
 `SHARDS=3 tests/headless_check.sh` runs the smoke test in three processes (~10 min, ~2.4 GB each).
 A fleet of 100 sessions was started (`fleet/brief`: BRIEF.md, tasks.tsv, sessions.tsv; each on
 `wt/<slug>`, stills on `shots/<slug>`); 61 of them are paused by the account's usage limit and
