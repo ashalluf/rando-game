@@ -116,7 +116,19 @@ void fragment() {
 		float joint_u = uv.x + mod(course, 2.0) * 4.8;
 		float weld = max(lines(uv.y, 2.4, 0.03), lines(joint_u, 9.6, 0.03));
 		float chalk = fbm(uv * vec2(0.08, 0.2) + param * 3.1);
-		albedo = paint * (0.9 + 0.12 * (chalk - 0.5)) * (1.0 - 0.08 * weld);
+		// Each plate its own shade (touch-up paint, sun-fade), and chalking across the shell.
+		float plate = hash12(vec2(floor(joint_u / 9.6), course) + param);
+		albedo = paint * (0.9 + 0.14 * (chalk - 0.5) + 0.06 * (plate - 0.5)) * (1.0 - 0.1 * weld);
+		// Rust weeping down from the welds: thin runs under each course's seam, a few in each metre.
+		float drip_x = floor(uv.x / 0.35);
+		float drip_on = step(0.72, hash12(vec2(drip_x, course) + param * 3.0));
+		float below = fract(uv.y / 2.4);
+		float drip = drip_on * (1.0 - smoothstep(0.0, 0.25 + 0.5 * hash12(vec2(drip_x, course + 7.0)), 1.0 - below))
+			* (1.0 - smoothstep(0.1, 0.5, abs(fract(uv.x / 0.35) - 0.5) * 2.0));
+		albedo = mix(albedo, vec3(0.44, 0.28, 0.17), 0.35 * drip * (top ? 0.0 : 1.0));
+		// The oily band round the foot, ragged on top.
+		float band_h = 0.9 + 0.8 * vnoise(vec2(uv.x * 0.15, param));
+		albedo = mix(albedo, vec3(0.24, 0.21, 0.17), 0.5 * (1.0 - smoothstep(band_h - 0.4, band_h, uv.y)) * (top ? 0.0 : 1.0));
 		if (top) {
 			albedo = paint * 0.8 * (0.85 + 0.25 * vnoise(uv * 0.3));
 		} else {

@@ -73,8 +73,10 @@ void fragment() {
 	vec3 sky = max(cs_srgb_to_linear(sky_tint), vec3(0.004));
 	// Steam is white: it takes the sky and the sun almost as they are.
 	vec3 col = vec3(0.82, 0.84, 0.86) * shade * (sky * 0.75 + vec3(1.0, 0.97, 0.92) * 1.4 * lit * day);
+	// The city's glow and the moon keep steam pale grey at night (it read as brown smoke without).
+	col += vec3(0.11, 0.11, 0.12) * shade * night_factor;
 	// After dark: the plant's lights from below, strongest at the foot of the plume.
-	col += vec3(1.0, 0.7, 0.45) * glow * lamp_factor * shade * (1.0 - v_h01 * 0.7) * (0.65 - 0.35 * n.y);
+	col += vec3(1.0, 0.78, 0.6) * glow * lamp_factor * shade * (1.0 - v_h01 * 0.7) * (0.65 - 0.35 * n.y);
 	ALBEDO = cs_out(col);
 	ALPHA = clamp(a, 0.0, 1.0);
 }
