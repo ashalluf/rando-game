@@ -432,9 +432,11 @@ func _drive_sail(dt: float) -> void:
 		tack_side = -tack_side
 		tack_left = _rng.randf_range(50.0, 150.0)
 	var want := _sail_heading()
-	# Turn toward it at a sailboat's rate (about 8 degrees a second).
+	# Turn toward it at a sailboat's rate (about 8 degrees a second); a tack is put through the
+	# wind briskly (20 degrees a second: five seconds from one close-hauled course to the other).
 	var a := heading.angle_to(want)
-	var step := clampf(a, -deg_to_rad(8.0) * dt, deg_to_rad(8.0) * dt)
+	var rate := deg_to_rad(20.0 if absf(a) > deg_to_rad(50.0) else 8.0)
+	var step := clampf(a, -rate * dt, rate * dt)
 	heading = heading.rotated(step).normalized()
 	var twa := _twa(heading)
 	var gust := 1.0 + 0.12 * sin(Time.get_ticks_msec() * 0.00031 + float(get_instance_id() % 97))
@@ -454,7 +456,7 @@ func _drive_sail(dt: float) -> void:
 	# Heel to leeward: hardest close-hauled, almost none running; down to nothing in a luff.
 	var press := clampf(sin(deg_to_rad(clampf(twa, 0.0, 180.0))) * 1.2, 0.0, 1.0) * smoothstep(25.0, 45.0, twa)
 	var want_heel := -signf(boom) * deg_to_rad(19.0) * press * gust
-	heel = lerpf(heel, want_heel, minf(dt * 0.6, 1.0))
+	heel = lerpf(heel, want_heel, minf(dt * 1.4, 1.0))
 	trim = lerpf(trim, 0.012, minf(dt, 1.0))
 
 

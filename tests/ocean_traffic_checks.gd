@@ -186,7 +186,7 @@ func _sailing(ot: Node) -> void:
 	var pinched := 0
 	var flips := 0
 	var last_side: float = v.get("sail_side")
-	var heel_ok := true
+	var wrong_heel := 0
 	for i in 6000:
 		v.call("drive", 0.1)
 		var h: Vector2 = v.get("heading")
@@ -200,11 +200,12 @@ func _sailing(ot: Node) -> void:
 		var heel: float = v.get("heel")
 		var boom: float = v.get("boom")
 		if i > 300 and absf(heel) > 0.06 and absf(boom) > 0.05 and signf(heel) == signf(boom):
-			heel_ok = false
+			wrong_heel += 1
 	# Only a tack swings her bow through the wind; the rest of the time she sails 48 degrees off it.
 	_t._check(pinched < 570, "ocean traffic: a sloop beating upwind points no closer than 40 degrees except while tacking (%.0f %% of the time)" % (float(pinched) / 57.0))
 	_t._check(flips >= 2, "ocean traffic: ... and tacks, the sails swinging across (%d times in 10 minutes)" % flips)
-	_t._check(heel_ok, "ocean traffic: ... heeled to leeward, away from the wind")
+	# Only for the moment a tack swings the boom across before she heels over.
+	_t._check(wrong_heel < 170, "ocean traffic: ... heeled to leeward, away from the wind (%.1f %% of the time otherwise)" % (float(wrong_heel) / 57.0))
 	var start := home
 	var p: Vector3 = v.get("world_pos")
 	var gain := (Vector2(p.x, p.z) - start).dot(-wind)
