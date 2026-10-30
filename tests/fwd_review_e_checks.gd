@@ -14,6 +14,10 @@ extends RefCounted
 ##   a red lightbox was a pale red past 1 on Forward+ and AgX drew it pink. fx_srgb_in() them,
 ##   and the channel letters' glow on the board (letter_color()), whose real letters' material
 ##   gets the same colours as a Color, decoded on Forward+.
+## - An additive pool adds in linear HDR on Forward+: a broad, flat one over dark asphalt clipped
+##   to a white disc (the metro kiosk). light_pool.gdshader's display_add makes Forward+ add the
+##   display-space amount decoded; FreewayKit's shared pool material (decks, light rail, freight,
+##   the kiosk) turns it on.
 
 var _t: Node
 
@@ -60,3 +64,10 @@ func run(t: Node, _city: Node3D) -> void:
 		_t._check(at > 0 and dec > at and dec < box, "%s decodes the sign band's hues before the lightbox is made of them" % p.get_file())
 	_t._check(_code("res://shaders/building.gdshader").contains("vec3 lc = fx_srgb_in(letter_color("),
 		"the channel letters' glow on the sign band is decoded like the letters' own material")
+	var lp := _code("res://shaders/light_pool.gdshader")
+	_t._check(lp.contains("uniform bool display_add = false;") and lp.contains("if (display_add)")
+		and lp.contains("CURRENT_RENDERER != RENDERER_COMPATIBILITY"),
+		"light_pool.gdshader can add its pool as display numbers on Forward+ (Compatibility untouched)")
+	var mat: ShaderMaterial = load("res://scripts/world/freeway_kit.gd").pool_material()
+	_t._check(mat != null and bool(mat.get_shader_parameter("display_add")),
+		"the freeway kit's broad pools (decks, rail, the metro kiosk) add as display numbers")
