@@ -752,6 +752,7 @@ static func _build_beach(ch: CityChunk, bp: Dictionary) -> void:
 			_pocket_park(ch, r, _rng(ch.plan, "pocket", [ch.ix, ch.iz, k]), full)
 	if not full:
 		Backyards.block(ch, bp)
+		YardSales.block(ch, bp)
 		return
 	var grid: Dictionary = bp.grid
 	var corridor_cells := {}
@@ -764,6 +765,7 @@ static func _build_beach(ch: CityChunk, bp: Dictionary) -> void:
 		jobs.append(_dress_walk.bind(ch, walk, walk_path))
 	_defer(ch, jobs)
 	Backyards.block(ch, bp)
+	YardSales.block(ch, bp)
 
 
 ## The dressing (walls, planting, props) as build steps of their own, queued before the finish
