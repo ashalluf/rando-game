@@ -2618,6 +2618,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/ocean_closeup_checks.gd").new().run(self, city)
 	# HUD polish (tests/hud_polish_checks.gd): the theme, the safe area, the place toast, the car readout.
 	await load("res://tests/hud_polish_checks.gd").new().run(self, city)
+	# Forward+ review e (tests/fwd_review_e_checks.gd): the wave-3 shaders' colour-space traps.
+	load("res://tests/fwd_review_e_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

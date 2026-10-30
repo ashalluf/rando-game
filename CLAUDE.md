@@ -6158,6 +6158,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   front of it** (the offshore island is; the volume knows nothing nearer). An additive halo must
   reach ZERO at its quad's edge: a 4 % tail, added in linear on Forward+, draws the quad.
   `tests/fwd_review_d_checks.gd` scans every shader for the colour rules.
+- And two more (fwd-review-e, 2026-10-30, HANDOFF "Forward+ review e"): **an additive unshaded
+  quad adds in linear HDR on Forward+** - a broad pool over dark asphalt that reads as a soft
+  wash on opengl3 is a flat white disc on the Mac (`light_pool.gdshader` `display_add`, on for
+  FreewayKit's pools); and a display-number shader never wraps a texture in `cs_in()` before
+  `disp()` (decoded twice on Compatibility). `tools/fwd_review/color_matrix.gd` prints the whole
+  colour-space table on either renderer in seconds; `tests/fwd_review_e_checks.gd`.
 - Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building),
   `tools/glshot/block_shot.tscn` (a few FULL city blocks alone, no far city: a block's ground and
   furniture) and `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real

@@ -20166,3 +20166,65 @@ hour is judged on the small scene only; the shimmer fix needs TAA and can only b
 on the Mac.
 
 Gate: `SHARDS=3 tests/headless_check.sh` 3,691 checks passed, 0 failed (peak RSS 3,099 MB).
+
+## 9hm. Forward+ review e: the late wave-3 features on the Mac's renderer, 2026-10-30 (fleet wave 3, session `fwd-review-e`, branch `wt/fwd-review-e`)
+
+Same method as reviews a-d: each feature in a SMALL scene on the real Forward+ pipeline under
+lavapipe (`fwd_block_shot.tscn`, `car_shot.gd`, `rock_shot.gd` with `--rendering-driver vulkan`)
+against the same frame on opengl3, measured with the percentile one-liner; stills and their
+README on `shots/fwd-review-e`. Seed 1337.
+
+**First, the trap table measured** (`tools/fwd_review/color_matrix.gd`, one quad, linear
+tonemapper, both renderers): Compatibility draws every input raw (0.80 0.70 0.55 in, the same
+out); Forward+ decodes `source_color` uniforms and textures and a Color set from script, and reads
+plain uniforms, plain textures, vertex colours and constants as LINEAR (0.91 0.86 0.78: brighter
+and paler). Light3D colours behave the same on both. CLAUDE.md's colour-space trap holds exactly.
+
+**Fixed:**
+- **The facade pass's mirrored street opposite** (`fx_opposite()`, facade_variety.gdshaderinc):
+  its wall colours are display numbers, emitted raw by the renderer-space building shaders, so on
+  the Mac every curtain wall mirrored the street as pale beige slabs with bright blue windows
+  (still 02, Flower St at noon). `fx_srgb_in()` (new, in the include) decodes them on Forward+.
+- **Shop sign bands** (building.gdshader and building_lod.gdshader): the board hues and the
+  channel letters' glow (`letter_color()`) were raw too; a red lightbox was a pale red past 1 and
+  AgX drew it pink (the lobby sign over the AFTERGLOW club, stills 08-09). Both through
+  `fx_srgb_in()`; the real letters' material already got LETTER_COLORS as a Color (decoded).
+- **Broad additive pools** (`light_pool.gdshader`): Forward+ adds in linear HDR, so FreewayKit's
+  wide flat pools over dark asphalt drew as a flat white disc (the metro kiosk at night, still 15;
+  fwd-review-a met the same on the pier). New `display_add` (off by default) makes Forward+ add the
+  display-space amount decoded; FreewayKit's shared pool material (decks, light rail, freight, the
+  kiosk) turns it on. Freeway deck at night after: still 16. Street lamp pools are unchanged.
+- **Stunt ramps** (`stunt_ramp.gdshader`): `disp(cs_in(tex))` decoded the textures twice on
+  Compatibility; every opengl3 still drew the ramps grey and dark. Forward+ was right and is
+  unchanged (still 13).
+
+**Looked at, nothing to fix (Forward+ against opengl3):** car cabins with the door open and the
+cockpit (01), the cafe parklet at night (03), the premiere's marquee and searchlights (04), the
+skate park (05), Flower St at night (07), the clubs' queues and canopy (08), the buskers' gear on
+the plaza (10), the fashion district's goods (11), an arroyo culvert and bed (12), a yard sale with
+the apartment walk-ups behind it (14), the rock outcrop kit (17).
+
+**Noted, not fixed:**
+- Bonfires at night (06): on Forward+ the sand round a lit ring is blood-orange where opengl3 is
+  warm cream. Not a shader: lights are handled alike (measured); it is the GI bounce off a large
+  saturated ground plus AgX, the same warming every big textured ground shows on Forward+ (the
+  plaza paving, 10). If the owner finds it too much, the knob is `BonfireFire.LIGHT_COLOR`.
+- The sky's city light dome reads red rather than orange on Forward+ downtown at night
+  (`city_glow_color` decoded, then AgX); fwd_block_shot shows it above the trees. The sky's.
+- One Broadway neighbour's wall draws mint render on opengl3 and red brick on Forward+ (04's day
+  pair). Not traced; it is the Compatibility side that looks wrong.
+- Not rendered: fireworks (fwd_block_shot has no Fireworks node), valets and apartments alone
+  (seen only behind the yard sale), the new car bodies (cars-3 not merged). Day stills taken after
+  the per-shot hour switch on Forward+ are dark (the sky and exposure need more frames): compare
+  stills built at their own hour.
+
+**Tools:** `fwd_block_shot.tscn` takes a sixth EYE field (that shot's hour) and `BLOCKS=home` (only
+the block under each EYE: downtown's 3 x 3 runs lavapipe out of memory at ~12.9 GB even with the
+review's LITE list); `tools/fwd_review/color_matrix.gd`.
+
+**Checks** (`tests/fwd_review_e_checks.gd`, source text plus one material): no `disp(cs_in(` in
+any shader; the stunt ramps read their textures once; `fx_opposite()`'s walls and the sign band's
+hues and letter glow go through `fx_srgb_in()`, which leaves Compatibility alone; light_pool's
+`display_add` and FreewayKit's pool material using it.
+
+**Frame cost:** shader-only changes plus one uniform; no node, mesh or draw added.

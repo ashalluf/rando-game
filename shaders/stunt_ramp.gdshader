@@ -79,7 +79,7 @@ void fragment() {
 	float grime = fbm(wpos.xz * 0.6 + wpos.y * 0.3);
 	if (k < 0.5) {
 		// Painted steel.
-		vec3 tex = disp(cs_in(texture(paint_tex, uv * 0.5).rgb));
+		vec3 tex = disp(texture(paint_tex, uv * 0.5).rgb);
 		col = vcol * mix(0.82, 1.12, tex.g);
 		// Chips: small and few, mostly near the faces' edges and low down (where a ride rubs).
 		float chip = smoothstep(0.78, 0.84, fbm(uv * 9.0 + 11.0)) * smoothstep(0.35, 0.75, vnoise(uv * 0.7 + 3.0));
@@ -115,7 +115,7 @@ void fragment() {
 		rough = 0.55;
 	} else if (k < 3.5) {
 		// Cast concrete.
-		vec3 tex = disp(cs_in(texture(concrete_tex, uv * 0.35).rgb));
+		vec3 tex = disp(texture(concrete_tex, uv * 0.35).rgb);
 		col = tex * vec3(1.02, 1.0, 0.96) * mix(0.9, 1.08, fbm(uv * 0.8));
 		float jd = abs(fract(uv.x / 2.0 + 0.5) - 0.5) * 2.0;
 		float joint = smoothstep(0.025, 0.008, jd) * smoothstep(0.04, 0.01, px);
@@ -130,7 +130,7 @@ void fragment() {
 		metal = 1.0;
 	} else if (k < 5.5) {
 		// Dirt.
-		vec3 tex = disp(cs_in(texture(dirt_tex, uv * 0.3).rgb));
+		vec3 tex = disp(texture(dirt_tex, uv * 0.3).rgb);
 		col = tex * vcol;
 		float ruts = smoothstep(0.35, 0.05, abs(abs(uv.x) - 0.78)) * (0.6 + 0.4 * vnoise(uv * vec2(2.0, 0.6)));
 		col *= mix(1.0, 0.78, ruts);
@@ -138,7 +138,7 @@ void fragment() {
 		col *= mix(1.0, 0.62, wet);
 		rough = mix(0.95, 0.55, wet * 0.8) - ruts * 0.08;
 	} else if (k < 6.5) {
-		vec3 tex = disp(cs_in(texture(plank_tex, uv * vec2(0.25, 0.25)).rgb));
+		vec3 tex = disp(texture(plank_tex, uv * vec2(0.25, 0.25)).rgb);
 		col = tex * vec3(1.0, 0.95, 0.88);
 		float sd = abs(fract(uv.y / 2.44 + 0.5) - 0.5) * 2.44;
 		float seam = smoothstep(0.02, 0.005, sd) * smoothstep(0.03, 0.005, px);
