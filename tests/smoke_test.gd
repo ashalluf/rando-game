@@ -4076,6 +4076,8 @@ func _check(ok: bool, label: String) -> void:
 
 func _finish() -> void:
 	printerr("SMOKE TIME %.1f s, peak rss %d MB" % [Time.get_ticks_msec() / 1000.0, _peak_rss_mb()])
+	if OS.get_environment("MEMORY_CENSUS") == "1":
+		load("res://tools/perf_audit_2/cache_census.gd").census()
 	if _failures.is_empty():
 		print("SMOKE TEST PASSED (%d checks)" % _checks)
 		get_tree().quit(0)

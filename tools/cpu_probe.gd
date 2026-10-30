@@ -54,6 +54,13 @@ func _initialize() -> void:
 		keys.sort_custom(func(a, b): return (by[a] as Array).size() > (by[b] as Array).size())
 		for k in keys.slice(0, int(_env("TOP_SCRIPTS", "40"))):
 			rows.append([k, "list", by[k]])
+	# BASE_OFF=Traffic,... switches those city children off for the whole run, so the rows that
+	# are left are measured against a quieter frame (the traffic is most of a headless one).
+	for key in _env("BASE_OFF", "").split(",", false):
+		var off := city.get_node_or_null(key)
+		if off:
+			off.set_process(false)
+			off.set_physics_process(false)
 	var only := _env("SYSTEMS", "").split(",", false)
 	print("PHYS active %d  pairs %d  islands %d  nodes %d" % [
 		PhysicsServer3D.get_process_info(PhysicsServer3D.INFO_ACTIVE_OBJECTS),

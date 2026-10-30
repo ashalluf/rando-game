@@ -278,12 +278,23 @@ func block_index_at(pos: Vector2) -> Vector2i:
 
 
 func _index_at(axis: int, value: float) -> int:
-	var i := 0
+	# Starts from the answer last given in this 64 m bucket rather than from road 0: the walk was
+	# O(blocks from the origin) road_pos() lookups a call (fifty at the port), and the traffic asks
+	# it several times a car a tick (perf-audit-2). road_pos() is monotonic, so the walk ends on
+	# the same road from any start, and it fills its cache contiguously, so no road is worked out
+	# in another order.
+	var bucket := floori(value / 64.0)
+	var hint: Dictionary = _index_hint[axis]
+	var i: int = hint.get(bucket, 0)
 	while value >= road_pos(axis, i + 1):
 		i += 1
 	while value < road_pos(axis, i):
 		i -= 1
+	hint[bucket] = i
 	return i
+
+
+var _index_hint: Array[Dictionary] = [{}, {}]
 
 
 ## The whole area chunk (ix, iz) owns (CityChunk): its block plus the roads on its +X and +Z

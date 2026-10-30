@@ -19,10 +19,33 @@ func run(t: Node, city: Node3D) -> void:
 	if plan == null:
 		_check(false, "perf2: the city has a plan")
 		return
+	_index_at(plan)
 	_cemetery(plan)
 	_site_bounds(plan)
 	_road_lift()
+	_micro_meshes()
+	_refinery_far(city)
 	_freeway_orphans(plan, city)
+
+
+## _index_at() from its bucket's hint is the walk from road 0 it was.
+func _index_at(plan: CityPlan) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4242
+	var bad := 0
+	for k in 3000:
+		var axis := k % 2
+		var v := rng.randf_range(-9000.0, 9000.0)
+		if k % 7 == 0:
+			v = plan.road_pos(axis, rng.randi_range(-60, 60))
+		var want := 0
+		while v >= plan.road_pos(axis, want + 1):
+			want += 1
+		while v < plan.road_pos(axis, want):
+			want -= 1
+		if plan._index_at(axis, v) != want:
+			bad += 1
+	_check(bad == 0, "perf2: _index_at() from its hint finds the road the walk from road 0 found (3000 samples, %d differ)" % bad)
 
 
 ## The old Cemetery.road_closed(), recomputed here from decide(): spans of the nine cells round
@@ -109,6 +132,55 @@ func _road_lift() -> void:
 			bad.append(type)
 		car.free()
 	_check(bad.is_empty(), "perf2: Vehicle.road_lift() kept per body type is _dims()'s, and follows a change of type %s" % [bad])
+
+
+## The micromobility kit's meshes carry a lighter shadow twin (from their generated LODs) and the
+## same triangles as before at full detail (an indexed copy of the old unindexed surface).
+func _micro_meshes() -> void:
+	var rows := []
+	var ok := true
+	for kind in [MicroMesh.Kind.SCOOTER_A, MicroMesh.Kind.SHARE]:
+		var m := MicroMesh.whole(kind)
+		var tris := _tris(m)
+		var proxy := PropFactory.shadow_proxy(m)
+		var ptris := _tris(proxy) if proxy else -1
+		rows.append([kind, tris, ptris])
+		ok = ok and tris > 500 and proxy != null and ptris > 0 and ptris < tris
+	_check(ok, "perf2: parked scooters and share bikes cast from a lighter twin (kind, tris, shadow tris %s)" % [rows])
+
+
+func _tris(m: Mesh) -> int:
+	var n := 0
+	if m == null:
+		return 0
+	for i in m.get_surface_count():
+		var a := m.surface_get_arrays(i)
+		var idx = a[Mesh.ARRAY_INDEX]
+		n += ((idx as PackedInt32Array).size() if idx != null else (a[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()) / 3
+	return n
+
+
+## The refinery's far pieces are indexed meshes (with generated LODs) whose triangles are the plant's.
+func _refinery_far(city: Node3D) -> void:
+	var far: Node = city.get_node_or_null("RefineryFar")
+	if far == null:
+		return
+	var pieces := 0
+	var indexed := 0
+	var tris := 0
+	for piece in far.get_children():
+		var mi := piece.get_node_or_null("Plant") as MeshInstance3D
+		if mi == null or mi.mesh == null:
+			continue
+		pieces += 1
+		var a := mi.mesh.surface_get_arrays(0)
+		var idx = a[Mesh.ARRAY_INDEX]
+		var verts := (a[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+		if idx != null and (idx as PackedInt32Array).size() > verts:
+			indexed += 1
+		tris += _tris(mi.mesh)
+	_check(pieces > 0 and indexed == pieces and tris > 20000,
+		"perf2: the refinery's far pieces are indexed, LOD-carrying meshes (%d of %d, %d triangles)" % [indexed, pieces, tris])
 
 
 ## A far-city capture of a freeway chunk built its deck body and dropped it out of the tree (an
