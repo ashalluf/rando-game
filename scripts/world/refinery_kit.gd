@@ -149,7 +149,7 @@ static func tube(st: SurfaceTool, a: Vector3, b: Vector3, r: float, kind: int, p
 				var q0: Vector3 = end[3]
 				var q1: Vector3 = end[4]
 				var uvc := Vector2(maxf(r, r_b), maxf(r, r_b))
-				if (q0 - c).cross(q1 - c).dot(n) > 0.0:
+				if (q0 - c).cross(q1 - c).dot(n) < 0.0:
 					_v(st, c, n, col, uvc, uv2); _v(st, q0, n, col, uvc + Vector2(cos(a0), sin(a0)) * float(end[2]), uv2); _v(st, q1, n, col, uvc + Vector2(cos(a1), sin(a1)) * float(end[2]), uv2)
 				else:
 					_v(st, c, n, col, uvc, uv2); _v(st, q1, n, col, uvc + Vector2(cos(a1), sin(a1)) * float(end[2]), uv2); _v(st, q0, n, col, uvc + Vector2(cos(a0), sin(a0)) * float(end[2]), uv2)
@@ -175,9 +175,9 @@ static func shell(st: SurfaceTool, foot: Vector3, r: float, h: float, kind: int,
 		var n1 := -d1 if inward else d1
 		var u0 := circ * float(i) / float(segs)
 		var u1 := circ * float(i + 1) / float(segs)
-		# Seen from outside, going round with the angle (toward +z from +x) is clockwise: a0 -> a1
-		# wound p00, p01, p11 faces out.
-		if not inward:
+		# Godot's front faces wind clockwise as seen: (p00, p01, p11) is counter-clockwise from
+		# outside, so the outer wall is p00, p11, p01.
+		if inward:
 			_v(st, p00, n0, col, Vector2(u0, y0), uv2); _v(st, p01, n0, col, Vector2(u0, y0 + h), uv2); _v(st, p11, n1, col, Vector2(u1, y0 + h), uv2)
 			_v(st, p00, n0, col, Vector2(u0, y0), uv2); _v(st, p11, n1, col, Vector2(u1, y0 + h), uv2); _v(st, p10, n1, col, Vector2(u1, y0), uv2)
 		else:
@@ -241,11 +241,9 @@ static func roof_cone(st: SurfaceTool, c: Vector3, r: float, rise: float, kind: 
 			var n0 := (d0 * slope.x + Vector3.UP * slope.y).normalized()
 			var n1 := (d1 * slope.x + Vector3.UP * slope.y).normalized()
 			var uv2 := Vector2(rise, 0.0)
-			_v(st, p00, n0, col, Vector2(a0 * r, y0), uv2); _v(st, p01, n0, col, Vector2(a0 * r, y1), uv2); _v(st, p11, n1, col, Vector2(a1 * r, y1), uv2)
+			_v(st, p00, n0, col, Vector2(a0 * r, y0), uv2); _v(st, p11, n1, col, Vector2(a1 * r, y1), uv2); _v(st, p01, n0, col, Vector2(a0 * r, y1), uv2)
 			if r1 > 0.001:
-				_v(st, p00, n0, col, Vector2(a0 * r, y0), uv2); _v(st, p11, n1, col, Vector2(a1 * r, y1), uv2); _v(st, p10, n1, col, Vector2(a1 * r, y0), uv2)
-			else:
-				_v(st, p00, n0, col, Vector2(a0 * r, y0), uv2); _v(st, p11, n1, col, Vector2(a1 * r, y1), uv2); _v(st, p10, n1, col, Vector2(a1 * r, y0), uv2)
+				_v(st, p00, n0, col, Vector2(a0 * r, y0), uv2); _v(st, p10, n1, col, Vector2(a1 * r, y0), uv2); _v(st, p11, n1, col, Vector2(a1 * r, y1), uv2)
 
 
 ## A sphere of radius r centred at c (latitude-longitude, `segs` round and segs / 2 up).
@@ -268,8 +266,8 @@ static func sphere(st: SurfaceTool, c: Vector3, r: float, kind: int, paint: Colo
 			var u1 := a1 * r
 			var v0 := (b0 + PI * 0.5) * r
 			var v1 := (b1 + PI * 0.5) * r
-			_v(st, c + n00 * r, n00, col, Vector2(u0, v0), uv2); _v(st, c + n01 * r, n01, col, Vector2(u0, v1), uv2); _v(st, c + n11 * r, n11, col, Vector2(u1, v1), uv2)
-			_v(st, c + n00 * r, n00, col, Vector2(u0, v0), uv2); _v(st, c + n11 * r, n11, col, Vector2(u1, v1), uv2); _v(st, c + n10 * r, n10, col, Vector2(u1, v0), uv2)
+			_v(st, c + n00 * r, n00, col, Vector2(u0, v0), uv2); _v(st, c + n11 * r, n11, col, Vector2(u1, v1), uv2); _v(st, c + n01 * r, n01, col, Vector2(u0, v1), uv2)
+			_v(st, c + n00 * r, n00, col, Vector2(u0, v0), uv2); _v(st, c + n10 * r, n10, col, Vector2(u1, v0), uv2); _v(st, c + n11 * r, n11, col, Vector2(u1, v1), uv2)
 
 
 ## A handrail run from a to b (feet at the deck), both faces, 1.1 m tall: the shader keeps the rails,
