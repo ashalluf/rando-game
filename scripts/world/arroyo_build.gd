@@ -22,7 +22,7 @@ const BED_REACH := 1.6
 const SUB_FULL := 4
 const SUB_LOD := 2
 ## Per 4 m segment: cobble clusters, boulder odds on the bank, in the bed.
-const COBBLES := Vector2i(2, 5)
+const COBBLES := Vector2i(4, 9)
 const BOULDER_BANK := 0.32
 const BOULDER_BED := 0.07
 ## Bank planting odds per segment side, scaled by the bed's width (1 at 6 m).
@@ -32,7 +32,7 @@ const SYCAMORE := 0.06
 ## Caps a chunk.
 const MAX_TREES := 30
 const MAX_SHRUBS := 160
-const MAX_COBBLES := 520
+const MAX_COBBLES := 600
 const MAX_CULVERTS := 3
 ## A culvert needs this much road over the toes, and the gap it bridges at most this long.
 const CULVERT_MIN_FILL := 1.0
@@ -498,12 +498,13 @@ func _stones() -> void:
 			var t := _h01([seed, li, pi, k, "at"])
 			var o := (_h01([seed, li, pi, k, "ao"]) - 0.5) * 2.0 * hw * 0.95
 			var p := a.lerp(b, t) + nrm * o
-			var size := lerpf(0.14, 0.42, pow(_h01([seed, li, pi, k, "as"]), 2.0))
+			var size := lerpf(0.2, 0.6, pow(_h01([seed, li, pi, k, "as"]), 1.8))
 			var v := int(_h01([seed, li, pi, k, "av"]) * 3.0) % 3
 			var yaw := _h01([seed, li, pi, k, "ay"]) * TAU
 			var tone := _h01([seed, li, pi, k, "at2"])
-			var y := ground(p) - size * 0.3
-			var xf := Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(size, size * 0.7, size * 0.85)), Vector3(p.x, y, p.y))
+			# A little sunk: their tops stand clear of the bed's lift (a few cm).
+			var y := ground(p) - size * 0.06
+			var xf := Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(size, size * 0.85, size * 0.85)), Vector3(p.x, y, p.y))
 			batch.add("arroyo_cobble_%d" % v, ArroyoKit.pebble(v), xf, ArroyoKit.stone_tint(tone))
 			cobbles += 1
 		# Boulders: the bank's foot, now and then out in the bed.
@@ -641,6 +642,6 @@ func _culverts() -> void:
 				var q := at + out * lerpf(0.8, 3.2, _h01([ch.plan.seed, c.line, c.pi, end, k, "rx"])) + Vector2(out.y, -out.x) * (_h01([ch.plan.seed, c.line, c.pi, end, k, "rz"]) - 0.5) * span
 				var sz := lerpf(0.35, 0.7, _h01([ch.plan.seed, c.line, c.pi, end, k, "rs"]))
 				ch._batch.add("arroyo_cobble_%d" % (k % 3), ArroyoKit.pebble(k % 3),
-					Transform3D(Basis(Vector3.UP, k * 1.7).scaled(Vector3(sz, sz * 0.75, sz)), Vector3(q.x, ground(q) - sz * 0.25, q.y)), ArroyoKit.stone_tint(0.3 + k * 0.1))
+					Transform3D(Basis(Vector3.UP, k * 1.7).scaled(Vector3(sz, sz * 0.75, sz)), Vector3(q.x, ground(q) - sz * 0.08, q.y)), ArroyoKit.stone_tint(0.3 + k * 0.1))
 		made += 1
 	ch.set_meta("arroyo_culverts", made)

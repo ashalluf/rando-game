@@ -18,8 +18,8 @@ uniform sampler2D sand_normal : hint_normal, filter_linear_mipmap_anisotropic, r
 uniform sampler2D gravel_albedo : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D gravel_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
 // Linear albedos (plain uniforms: see color_space.gdshaderinc).
-uniform vec3 sand_color = vec3(0.255, 0.235, 0.20);
-uniform vec3 thread_color = vec3(0.19, 0.172, 0.145);
+uniform vec3 sand_color = vec3(0.22, 0.203, 0.172);
+uniform vec3 thread_color = vec3(0.165, 0.15, 0.127);
 uniform vec3 debris_color = vec3(0.12, 0.10, 0.075);
 uniform float sand_scale = 2.6;
 uniform float gravel_scale = 1.7;
@@ -80,7 +80,7 @@ vec4 cobbles(vec2 q, float cell, float density) {
 			vec2 e = d / r;
 			float k = 1.0 - dot(e, e);
 			if (k > best.x) {
-				vec2 sl = -e / r * 0.6;
+				vec2 sl = clamp(-e * 0.35, vec2(-0.6), vec2(0.6));
 				sl = vec2(sl.x * cos(-ang) - sl.y * sin(-ang), sl.x * sin(-ang) + sl.y * cos(-ang));
 				best = vec4(k, sl, hash12(c + 3.7));
 			}
@@ -149,20 +149,21 @@ void fragment() {
 
 	// Cobbles: two sizes, on the bars and along the thread's banks; faded to their mean under a
 	// few pixels (a ten-centimetre stone at sixty metres is a speck).
-	float cob_fade = 1.0 - smoothstep(0.03, 0.09, px);
-	vec4 c1 = cobbles(q, 0.55, 0.45 + gravel * 0.45);
-	vec4 c2 = cobbles(q * 1.0 + 31.7, 0.24, 0.35 + gravel * 0.5);
+	float cob_fade = 1.0 - smoothstep(0.015, 0.05, px);
+	// Where the stones lie is patchy: a lag of cobbles on the bars, scattered stones elsewhere.
+	float patch = smoothstep(0.3, 0.75, fbm(w * 0.35 + 11.0));
+	vec4 c1 = cobbles(q, 0.32, 0.12 + patch * 0.5 + gravel * 0.25);
+	vec4 c2 = cobbles(q * 1.0 + 31.7, 0.14, 0.1 + patch * 0.45 + gravel * 0.3);
 	vec4 cb = c1.x > 0.0 ? c1 : c2;
-	float stone = smoothstep(0.0, 0.18, cb.x) * cob_fade * (0.35 + 0.65 * max(gravel, 1.0 - thread));
-	// Granite greys, a tan, now and then a rose or a dark diorite.
-	vec3 rock = mix(vec3(0.27, 0.26, 0.245), vec3(0.33, 0.29, 0.23), step(0.55, cb.w));
-	rock = mix(rock, vec3(0.30, 0.22, 0.19), step(0.86, cb.w));
-	rock = mix(rock, vec3(0.10, 0.10, 0.095), step(0.94, cb.w));
-	// Each stone lit as a dome: light from above-ish, shade at its foot.
-	rock *= 0.82 + 0.3 * sqrt(clamp(cb.x, 0.0, 1.0));
-	col = mix(col, rock, stone);
+	float stone = smoothstep(0.0, 0.45, cb.x) * cob_fade * (0.35 + 0.65 * max(gravel, 1.0 - thread));
+	// Stones of the same granite as the sand round them, a shade either way (the 3D cobbles are
+	// the stones you see; these are the pebble lag between them).
+	vec3 rock = col * mix(0.78, 1.12, cb.w);
+	rock = mix(rock, col * vec3(1.06, 0.95, 0.88), step(0.8, cb.w));
+	rock = mix(rock, col * 0.55, step(0.95, cb.w));
+	col = mix(col, rock, stone * 0.8);
 	// The stones' mean where they are too small to see: a speckled grey over the sand.
-	col = mix(col, col * 0.8 + vec3(0.008), (1.0 - cob_fade) * (0.35 + gravel * 0.65));
+	col = mix(col, col * 0.86 + vec3(0.006), (1.0 - cob_fade) * (0.2 + patch * 0.4 + gravel * 0.4));
 	// Silt and organic stains in slow patches (what reads from the air as a creek, not a trail).
 	float stain = smoothstep(0.5, 0.8, fbm(w * 0.18 + 3.1));
 	col = mix(col, col * vec3(0.72, 0.70, 0.66), stain * 0.6);
@@ -178,7 +179,7 @@ void fragment() {
 	vec3 nsand = texture(sand_normal, w / sand_scale).rgb * 2.0 - 1.0;
 	vec3 ngrv = texture(gravel_normal, w / gravel_scale).rgb * 2.0 - 1.0;
 	vec2 tex = mix(nsand.xy * 0.6, ngrv.xy, gravel) * 0.5;
-	vec2 dome = (flow * cb.y + side * cb.z) * stone * 0.9;
+	vec2 dome = (flow * cb.y + side * cb.z) * stone * 0.3;
 	// World-space bend of the vertex normal (the mesh has no UV tangents: the maps are laid on
 	// world x and z, so their tilt is a world tilt).
 	vec3 nw = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);

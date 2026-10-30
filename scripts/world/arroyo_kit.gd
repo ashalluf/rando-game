@@ -8,7 +8,7 @@ static var _cache: Dictionary = {}
 
 
 ## A rounded stone, about 1 m across at scale 1, base at y 0 (half its height is under ground
-## when placed: ArroyoBuild sinks them). Variants differ in shape; ~180 / 80 / 24 triangles in
+## when placed: ArroyoBuild sinks them). Variants differ in shape; 120 / 56 / 24 triangles in
 ## three LODs.
 static func pebble(v: int) -> Mesh:
 	var key := "pebble_%d" % v
@@ -16,7 +16,7 @@ static func pebble(v: int) -> Mesh:
 		return _cache[key]
 	var levels: Array = []
 	for l in 3:
-		levels.append(_pebble_level(v, [8, 5, 3][l], [12, 8, 4][l]))
+		levels.append(_pebble_level(v, [6, 4, 3][l], [10, 7, 4][l]))
 	# Each level has its own rings, so the LODs are index lists into one merged vertex buffer.
 	var verts := PackedVector3Array()
 	var norms := PackedVector3Array()
@@ -79,17 +79,16 @@ static func _pebble_level(v: int, rings: int, segs: int) -> Array:
 	return arr
 
 
-static var _stone_mat: StandardMaterial3D = null
+static var _stone_mat: ShaderMaterial = null
 
 
-## The cobbles' material: the rock texture world-projected, tinted per instance.
-static func stone_material() -> StandardMaterial3D:
+## The cobbles' material (shaders/arroyo_stone.gdshader): the rock scan in the stone's own space,
+## tinted per instance.
+static func stone_material() -> ShaderMaterial:
 	if _stone_mat == null:
-		# The rock scan at a quarter metre a tile (grain and pits at a cobble's size), darkened to
-		# a wet-worn granite's value; the instance tint varies it stone to stone.
-		var m: StandardMaterial3D = PropFactory.pbr("rock", 0.25, Color(0.5, 0.48, 0.45), 1.0, true).duplicate()
-		m.roughness = 0.88
-		m.metallic_specular = 0.35
+		var m := ShaderMaterial.new()
+		m.shader = load("res://shaders/arroyo_stone.gdshader")
+		m.set_shader_parameter("rock_albedo", PropFactory.texture("rock", "Color"))
 		_stone_mat = m
 	return _stone_mat
 
