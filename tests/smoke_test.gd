@@ -2408,6 +2408,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Freeway incidents (tests/freeway_incidents_checks.gd): the schedule, a stall with its patrol
 	# car and tow, debris that traffic changes lanes round, a slowdown, the message signs.
 	await load("res://tests/freeway_incidents_checks.gd").new().run(self, city)
+	# Night life (tests/nightlife_checks.gd): club and bar lines, the bouncer, the door letting the
+	# head in, a taxi double-parked for a fare, a premiere's carpet and searchlights, nothing moved.
+	await load("res://tests/nightlife_checks.gd").new().run(self, city)
 	# Street performers (tests/buskers_checks.gd): the plan, the gear, an act's chunk built the same with them off.
 	load("res://tests/buskers_checks.gd").new().run(self, city)
 	# Urban wildlife (tests/wildlife_checks.gd): coyotes, deer, raccoons, squirrels, rabbits.
@@ -2446,6 +2449,19 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# THE PIT, the boardwalk's skate park (tests/skate_park_checks.gd): the pits, the terrace, the
 	# lines on the concrete, the build and its collision, the riders on the clock, a knock, gunfire.
 	await load("res://tests/skate_park_checks.gd").new().run(self, city)
+	# Stunt ramps (tests/stunt_ramps_checks.gd): where the kickers, the quarter-pipe, the freeway pair,
+	# the loop and the dirt lines stand, their chunks, and the slow-motion moment off a lip.
+	await load("res://tests/stunt_ramps_checks.gd").new().run(self, city)
+	# Weekend yard sales (tests/yard_sales_checks.gd): the kit and its signs, when (weekends only),
+	# the pure front-yard row, a FULL chunk's sale and its corner signs, nothing else moved.
+	load("res://tests/yard_sales_checks.gd").new().run(self, city)
+	# The hills' real rock (tests/rock_outcrops_checks.gd): tors, outcrops, cut-bank boulders.
+	load("res://tests/rock_outcrops_checks.gd").new().run(self, city)
+	# Real car interiors and hinged doors (tests/car_cabins_checks.gd): the cabin by a parked car,
+	# getting in and out swings the door, the wheel turns, a crash tears a door off.
+	await load("res://tests/car_cabins_checks.gd").new().run(self, city)
+	# Dry creek beds (tests/arroyos_checks.gd): the drainage network, a FULL and a LOD hill chunk's beds, culverts.
+	load("res://tests/arroyos_checks.gd").new().run(self, city)
 	# The far ranges (tests/far_ranges_checks.gd): the back and east ranges as crest lines, their
 	# feet and the front range unmoved, the bake on the new shape, the plane's crags and layered haze.
 	load("res://tests/far_ranges_checks.gd").new().run(self, city)

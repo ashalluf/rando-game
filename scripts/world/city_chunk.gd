@@ -400,7 +400,12 @@ func begin_build() -> void:
 			# sea chunks built: its terrain ran down to sea level with no water over it.
 			if _headland_shore(false):
 				_steps.append(_build_water)
-			_steps.append_array([_sample_terrain, _mark_shell_ground, _build_terrain, _build_hill_shells, _build_hill_roads, _on_map_ground(_build_mansions), _on_map_ground(_scatter_hills), _on_map_ground(_plant_hills)])
+			_steps.append_array([_sample_terrain, _mark_shell_ground])
+			# The dry creek beds (Arroyos): the bed's field, before the mesh carries the shells' keep-out.
+			_steps.append_array(ArroyoBuild.field_steps(self))
+			_steps.append_array([_build_terrain, _build_hill_shells, _build_hill_roads, _on_map_ground(_build_mansions), _on_map_ground(_scatter_hills), _on_map_ground(_plant_hills)])
+			for step in ArroyoBuild.build_steps(self):
+				_steps.append(_on_map_ground(step))
 		MacroMap.Zone.BEACH:
 			if replica_role == 0:
 				_steps.append(_build_roads.bind(block))
@@ -467,10 +472,14 @@ func begin_build() -> void:
 	_steps.append(_build_freeway)
 	# Pedestrian bridges over the boulevards and the freeways (Footbridges, FootbridgeBuild).
 	_steps.append_array(FootbridgeBuild.attach(self))
+	# Stunt ramps, the river's quarter-pipe, the freeway pair and loop (StuntRamps, StuntBuild).
+	_steps.append_array(StuntBuild.attach(self))
 	# The light rail (LightRail, LightRailKit): track, structure, overhead, stations, gates.
 	_steps.append(_build_light_rail)
 	# What stands on the hills (RidgeBuild): towers, masts, tanks, fire roads, the right of way.
 	_steps.append_array(RidgeBuild.attach(self))
+	# The hills' real rock (RockBuild): tors claimed and collided, outcrops, cut-bank boulders.
+	_steps.append_array(RockBuild.attach(self))
 	# The freight line (FreightRail, FreightKit): track, trench, decks, crossings, the yard's tracks.
 	_steps.append_array(FreightKit.attach(self))
 	if level == Level.FULL and plan.macro:
@@ -1736,7 +1745,7 @@ func _scatter_hills() -> bool:
 			var v := rng.randi() % 2
 			var sc := rng.randf_range(0.6, 1.7)
 			var tilt := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, rng.randf_range(-0.25, 0.25))
-			_batch.add("rock_%d" % v, PropFactory.model_rock(v), Transform3D(tilt.scaled(Vector3(sc, sc, sc)), at - Vector3(0.0, 0.15 * sc, 0.0)))
+			_batch.add("rock_%d" % v, RockKit.mesh(RockKit.BOULDER_A + v) if RockOutcrops.enabled else PropFactory.model_rock(v), Transform3D(tilt.scaled(Vector3(sc, sc, sc)), at - Vector3(0.0, 0.15 * sc, 0.0)))
 			var size := (Vector3(2.4, 0.8, 1.2) if v == 0 else Vector3(2.4, 1.8, 2.4)) * sc
 			_add_shape(size, at + Vector3(0.0, size.y * 0.5 - 0.15 * sc, 0.0), yaw)
 		elif roll < 0.38:
@@ -1947,6 +1956,8 @@ func _plant_hills() -> bool:
 				continue
 			if plan.macro.reservoir and plan.macro.reservoir.keep_clear(p, h):
 				continue
+			# Nothing in a dry creek's bed (ArroyoBuild): the point still makes every roll it would.
+			var in_bed := ArroyoBuild.in_bed(self, p, 0.6)
 			var grad := Vector2(_terrain_height(p + Vector2(2.0, 0.0)) - _terrain_height(p - Vector2(2.0, 0.0)),
 				_terrain_height(p + Vector2(0.0, 2.0)) - _terrain_height(p - Vector2(0.0, 2.0))) * 0.25
 			# The drainage off the tile's own grid, as the shader gets it through the vertex colour.
@@ -1965,6 +1976,8 @@ func _plant_hills() -> bool:
 				# metres a canopy tinted below 1 drew as a black hole in the hillside.
 				var tint := Color(1.35, 1.4, 0.85).lerp(Color(1.6, 1.62, 1.0), tone)
 				var variety := Color(rng.randf(), rng.randf(), rng.randf_range(0.0, 0.5), 0.0)
+				if in_bed:
+					continue
 				# A California sycamore in the wettest hollows (LaTrees, hashes only).
 				if not LaTrees.gully_tree(self, at - Vector3(0.0, 0.1, 0.0), yaw, wet):
 					_batch.add("hill_oak_%d" % v, PropFactory.model_hill_oak(v), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at - Vector3(0.0, 0.1, 0.0)), tint, variety)
@@ -1985,6 +1998,8 @@ func _plant_hills() -> bool:
 				# Few leaves thinned out: a stand is dense. Half as wide again as tall, so the shrubs of
 				# a stand close up into one mass at no extra triangles (at 1.15 they stood apart as dots).
 				var variety := Color(rng.randf() * 0.3, rng.randf(), rng.randf(), 0.0)
+				if in_bed:
+					continue
 				_batch.add("hill_chaparral", chap, Transform3D(tilt.scaled(Vector3(s * 1.45, s, s * 1.45)), at - Vector3(0.0, 0.2 + float(g.slope) * 1.5, 0.0)), tint, variety)
 				hill_planting.chaparral += 1
 				points.append([p, "chaparral"])
@@ -1992,7 +2007,10 @@ func _plant_hills() -> bool:
 				# A lone grey-green shrub out on the straw.
 				var s := lerpf(1.0, 1.7, size) / chap_h
 				var tint := Color(1.9, 1.95, 1.6)
-				_batch.add("hill_chaparral", chap, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s * 1.1, s, s * 1.1)), at - Vector3(0.0, 0.15, 0.0)), tint, Color(rng.randf(), rng.randf(), 0.8, 0.0))
+				var sage_var := Color(rng.randf(), rng.randf(), 0.8, 0.0)
+				if in_bed:
+					continue
+				_batch.add("hill_chaparral", chap, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s * 1.1, s, s * 1.1)), at - Vector3(0.0, 0.15, 0.0)), tint, sage_var)
 				hill_planting.sage += 1
 				points.append([p, "sage"])
 	_plant_row = stop
@@ -2577,6 +2595,9 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 	# The farmers' market on this chunk's street (FarmersMarketBuild; hash-seeded, by the hour and
 	# the day; the block's rng untouched). Before the walkers, so its people get the crowd's room.
 	steps.append_array(FarmersMarketBuild.steps(self, block))
+	# A premiere's searchlight beams from an LOD chunk (NightLife; the FULL build is below).
+	if level != Level.FULL:
+		steps.append_array(NightLife.steps(self, block))
 	# A film shoot on this chunk's street (FilmShootBuild; hash-seeded, the block's rng untouched).
 	steps.append_array(FilmShootBuild.steps(self, block))
 	if level == Level.FULL:
@@ -2628,6 +2649,9 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 			steps.append(func() -> void: Parklets.build_block(self, block))
 			for i in Parklets.MAX_PEOPLE:
 				steps.append(func() -> void: Parklets.spawn_person(self, i))
+		# Night life (NightLife): club and bar lines, bouncers, a premiere's carpet and searchlights.
+		# Hash-seeded by shop and night; reads the shop fronts, takes no kerb, no block rng.
+		steps.append_array(NightLife.steps(self, block))
 		# Valet stands at hotels and busy restaurants (Valets): podium, keys, sign, their valets.
 		# Hash-seeded; after the parklets they keep clear of, before the parked cars.
 		if Valets.wanted(self, block):
@@ -3034,6 +3058,7 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 		return
 	# A vacant lot or a gravel car park (VacantLots: a hash of seed + lot, after every roll above).
 	if VacantLots.build_lot(self, lot):
+		StuntBuild.vacant_lot(self, lot)
 		return
 	# A midtown apartment building (Apartments: a hash of the lot, after the rolls above).
 	if Apartments.claims(plan, ix, iz, lot, district):

@@ -1302,6 +1302,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `restore()`, `LandmarkDowntown.build()` `restore_tower()`. Sanctuaries take none; curtain walls
   get no hole. `BUILDING_DAMAGE=0` is the A/B; stills `tools/glshot/damage_shot.gd`; checks
   `tests/building_damage_checks.gd`.
+- Car cabins (2026-10-30, docs/HANDOFF.md "Car cabins"): the car the player drives, empty parked
+  cars within `CarInteriors.near_range` (7.5 m) of him and a car that lost a door get real
+  geometry (`CarInteriors`, one node under the root; `CarInterior` on the car's near body mesh):
+  `CarDoorSplit` cuts the front doors out of the body mesh by the shut-line table `DOORS` (the
+  specs' grooves in (along, height), mesh z = -along), on a worker thread, cached per body type;
+  `CarInteriorKit` builds the cabin in code from CarCabin's measurement (`car_interior.gdshader`,
+  role in COLOR.r); the glass is `car_glass_open.gdshader` through `Vehicle.cabin_glass_override`.
+  Doors swing on get in / out (driver setter hook), tear off past `detach_crash` (take_hit hook).
+  Headless has no mesh data: stand-in doors. `CAR_CABINS=0` the A/B; stills `CABIN=1 DOOR=` on
+  car_shot.gd, `CABIN_STAGE=` on still_shot.gd; probe `tools/car_cabins/split_probe.tscn`; checks
+  `tests/car_cabins_checks.gd`.
 - Car glass and drivers (2026-09-28: "every car on the street reads as a sealed toy, and traffic
   drives itself"): `CarCabin` (`scripts/vehicles/car_cabin.gd`). Every body with a glass slot
   (the road_* bodies, the exotics; the Meshy sports car has its glass in the paint and stays
@@ -1838,6 +1849,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   dive and rock-back, eased swerve) and a hard stop squeals and lays marks (`PanicSkid`, into
   DrivingFX's ring). Never a crime by itself. `CAR_PANIC=0` is the A/B; stills `PANIC=` on
   `still_shot.gd`; checks `tests/car_panic_checks.gd`.
+- Stunt ramps (2026-10-30, docs/HANDOFF.md "Stunt ramps"): `StuntRamps` (`scripts/world/stunt_ramps.gd`,
+  pure, hashes after every roll) plans a steel kicker in a car park's roof aisle past its last light
+  pole, a concrete quarter-pipe at the toe of the LA River's bank across the bed from an access
+  ramp, a ramp pair square across a straight freeway stretch and a loop-the-loop beside one on the
+  INDUSTRIAL right of way (Footbridges' corridor tests), a kicker at RANDO PIER's sea end, and dirt
+  tabletops down a bare vacant lot's ruts. `StuntKit` builds them in code on ONE shader
+  (`shaders/stunt_ramp.gdshader`, kind in COLOR.a 16ths), `StuntBuild` (one hook in `begin_build()`,
+  one after `VacantLots.build_lot()`) puts each in the chunk owning its foot with trimesh collision
+  and collapses the planting under the freeway pieces (`_run_last`). `StuntDirector` (one node under
+  the root) watches the player's body cross a lip fast and get airborne: Engine.time_scale and the
+  audio eased to `slow_time_scale` on the REAL clock, `camera_fov` + `fov_kick`, released on landing,
+  after `max_seconds`, or as soon as anything else writes the time scale; it also presses a car onto
+  the loop's track. `STUNT_RAMPS=0` / `STUNT_SLOWMO=0` the A/B; probe `tools/stunt_ramps/probe.tscn`;
+  stills `STUNT=<kind|id>[:t]` on `still_shot.gd`; checks `tests/stunt_ramps_checks.gd`.
 - Motorcycles (2026-10-06, docs/HANDOFF.md "Motorcycles"): `Motorcycle`
   (`scripts/vehicles/motorcycle.gd`, extends Vehicle; BodyType MOTO_SPORT / MOTO_CRUISER /
   MOTO_SCOOTER appended, BODY_ODDS 0) - bodies from `tools/make_motorcycles.py` (Blender or the
@@ -2957,6 +2982,18 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/glshot/hill_ground_shot.tscn`, a minute a shot): `tools/hill_homes/probe.tscn`; build
   times `tools/hill_homes/bench.tscn`; the checks alone `tools/hill_homes/check_runner.tscn`;
   checks: `tests/hill_homes_checks.gd`.
+- Rock outcrops (2026-10-30, docs/HANDOFF.md "Rock outcrops"): real rock on the hills from CC0
+  Poly Haven scans (`RockKit`, `scripts/world/rock_kit.gd`, all on `shaders/rock_outcrop.gdshader`:
+  the scan's luminance recoloured to sandstone / granite per instance, desert varnish, dust on top,
+  dirt at the foot). `RockOutcrops` plans ~7,000 TORS from the basin bake where `HillPlanting`
+  paints rock, on crests, steep faces and summits (crags 30-80 m: the skyline from the basin;
+  LoadCache'd); `RockFar` (the streamer's child, one hook line) draws every tor at every distance
+  (near cells: the scan, one level; far cells: the welded `rock_*_mid.glb` with LODs, triplanar),
+  seated on the horizon plane unless a chunk `claim()`ed it (FULL / LOD drew the real terrain).
+  `RockBuild` (one hook in `begin_build()`): tor collision, outcrops, scree and cut-bank boulders
+  in FULL hill chunks. **Never use a scan's generated LODs**: open UV seams shred it into flakes
+  (`tools/rocks/make_rock_lods.py` welds instead). `ROCKS=0` is the A/B; `tools/rocks/rock_shot.gd`
+  the kit, `tools/rocks/probe.tscn` the plan (NEAR=, ROAD= EYEs); checks `tests/rock_outcrops_checks.gd`.
 - Ridges (2026-10-05, docs/HANDOFF.md "What stands on the hills"): what stands on the hills -
   two 220 kV transmission lines, an antenna farm, fire roads, a fire lookout, green water tanks,
   radar / weather domes and a substation. **Data**: `Ridges` (`scripts/world/ridges.gd`,
@@ -3007,6 +3044,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/ridges/probe.tscn` (`OUT=` draws a map; clearances per span), compile with
   `tools/ridges/compile.gd`, test the wire shader alone with `tools/ridges/wire_test.tscn`.
   Checks: `tests/ridges_checks.gd`.
+- Dry creek beds (2026-10-30, docs/HANDOFF.md "Dry creek beds"): `Arroyos`
+  (`scripts/world/arroyos.gd`) is the network - the natural mountains (`raw_height_at()`) on a 32 m
+  grid over every range, priority-flooded D8 (a bucket queue: the eroded ranges' pits spill),
+  catchments, every cell over `MIN_CATCH` a channel, traced head to junction, rounded, resampled
+  every `STEP`, SNAPPED per point to the lowest ground across (`snapped()`, pure: chunks agree);
+  built a slice a call, on the loading screen, kept in LoadCache. `ArroyoBuild` (hooks in the
+  HILLS step list: `field_steps()` after `_mark_shell_ground`, `build_steps()` after the planting)
+  keeps the bed on natural ground (`Arroyos.natural()`: height_at against raw + relief), lowers
+  the shells' keep-out, draws the tile's own triangles near a bed again, subdivided, on
+  `shaders/arroyo_bed.gdshader` (FULL and LOD), and at FULL lays code cobbles (`ArroyoKit.pebble`),
+  boulders, willows (LaTrees' olive, greener), mule fat, sycamores and culverts (`ArroyoKit
+  .culvert_mesh`; a drop inlet in the ditch when the road is benched). `_plant_hills` skips the bed
+  after its rolls. `ARROYOS=0` is the A/B; probes `tools/arroyos/` (`net_probe` a map,
+  `probe` culvert EYEs); checks `tests/arroyos_checks.gd`.
 - Far estates (2026-10-05, docs/HANDOFF.md "Hillside estates at night"): past the FULL chunks
   (LOD chunks and Skyline) `EstateFar.parts(plan, m, real)` (pure, hashes of the seed) adds to
   HillHomeKit's house, from `HillHomeKit.plan_home()`: the pad's garden over the pavers, the
@@ -3650,6 +3701,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   classes by path (naming them compiles the crowd into every tool that loads YardFill).
   `BACKYARDS=0` is the A/B; probe `tools/backyards/probe.gd`, fit `tools/backyards/lounger_shot.tscn`;
   checks `tests/backyards_checks.gd`.
+- Yard sales (2026-10-30, docs/HANDOFF.md "Weekend yard sales"): `YardSales`
+  (`scripts/world/yard_sales.gd`, one line after each `Backyards.block()` in YardFill) - a hash of
+  seed + lot holds a sale on Saturday / Sunday (`sale_info()`, `state_at()`: SETUP / OPEN /
+  LEFTOVER, FarmersMarket's day and hour, rain calls it off); `plan_lot()` is PURE on YardFill's
+  lot plan: one row in the front yard, the aisle in it or on the pavement where the yard is
+  shallow. `YardSaleKit` (code meshes, `shaders/yard_sale.gdshader`, kind in COLOR.a x 16, signs
+  hand-lettered from SignFont), things are EncampmentItems, corner signs taped to `upole` / lamp
+  poles, a StreetVendor seller and `YardSaleBrowser`s. FULL only. `YARD_SALES=0` is the A/B,
+  `YARD_SALE=all` every candidate today; probe `tools/yard_sales/probe.tscn`; checks
+  `tests/yard_sales_checks.gd`.
 - Lawns: `PropFactory.lawn()` + `shaders/lawn.gdshader`, not a plain tiled texture - a 5 m tile
   mips down to one flat green rectangle from thirty metres up, and the grass-blade multimesh only
   reaches a few dozen metres. Dry/watered patches, mower stripes angled per lawn, worn dirt, and
@@ -5064,6 +5125,21 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `ParkletDiner` (a Pedestrian): diners seated on the life sit clips (hips solved to
   `ParkletKit.SEAT_Y`), a waiter walking door -> table. Who sits is `busy(room, hour)`.
   `PARKLETS=0` is the A/B; probe `tools/parklets/probe.gd`; checks `tests/parklets_checks.gd`.
+- Night life (fleet wave 3, docs/HANDOFF.md "Night life"): `NightLife`
+  (`scripts/world/nightlife.gd`) reads the same shop fronts (recorded when Parklets OR NightLife is
+  on): an open RESTAURANT is a bar or (hash) a club, a tower LOBBY a club, on DOWNTOWN / MIDTOWN /
+  BEACHTOWN blocks with no camps, fashion goods or Broadway racks (`ODDS`, hash of seed + shop).
+  The line runs along the wall toward the farther corner (`slot_spot()`), `queue_size(kind, hour)`
+  from the hour the chunk is built at. `NightLifeKit` (code, `shaders/nightlife.gdshader`, kind in
+  COLOR.a / 20): club canopy, bar lightbox, stanchions and velvet rope, the premiere carpet and
+  barriers, the searchlight cart. `NightGoer` (a Pedestrian: QUEUE / BOUNCER / SMOKER / FAN): the
+  door admits the head (hidden inside, back to the tail later). `NightPickups` (a node under the
+  scene) gives a kerb-lane street car the door as its `dp_at` double-park stop and sends somebody
+  out to it. A Broadway palace's premiere (hash per night, one a block) and a club's opening get
+  `SkyBeam`s (volumetric spot on Forward+ HIGH, `nightlife_beam.gdshader` cone elsewhere); LOD
+  chunks keep the premiere beams. Nothing takes the kerb or a prop id. `NIGHTLIFE=0` is the A/B
+  (`NIGHTLIFE_ODDS=1`, `NIGHTLIFE_PREMIERE=1` for stills); probe `tools/nightlife/probe.gd`;
+  checks `tests/nightlife_checks.gd`.
 - Street performers (2026-10-30, HANDOFF "Street performers"): `Buskers`
   (`scripts/world/buskers.gd`, static; `plan_block()` pure: hashes of seed + block + face + the
   hour, one act a block, two on a plaza, breakdancers only on plazas) - guitar with an open case,

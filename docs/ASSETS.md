@@ -559,6 +559,10 @@ to each `.glb` on import (`prop_<name>_<map>.jpg` + `.import`); those are commit
 | tree_small_02 | `tree_c.glb` | 40k (from 2.0M) | street and park trees | 2026-09-19 |
 | namaqualand_boulder_02 | `rock_a.glb` | 3.5k (from 98k) | hill boulders (flat) | 2026-09-19 |
 | namaqualand_boulder_04 | `rock_b.glb` | 3.5k (from 59k) | hill boulders (tall) | 2026-09-19 |
+| namaqualand_cliff_02 | `rock_tor_a.glb` (+ `rock_tor_a_mid.glb`, welded, geometry only, `tools/rocks/make_rock_lods.py`) | 9k (from 194k); welded 1.8k | crest tors (RockKit, `rock_outcrop.gdshader` recolours it) | 2026-10-30 |
+| namaqualand_cliff_01 | `rock_tor_b.glb` (+ `rock_tor_b_mid.glb`) | 7k (from 94k); welded 1.8k | tors and outcrops | 2026-10-30 |
+| mountainside | `rock_face_a.glb` (+ `rock_face_a_mid.glb`) | 8k (from 153k); welded 1.8k | rock faces on the steepest slopes | 2026-10-30 |
+| namaqualand_boulder_05 | `rock_boulder_c.glb` | 2.4k (from 90k) | scree and cut-bank boulders | 2026-10-30 |
 | wild_rooibos_bush (5 variants) | `plant_rooibos.glb` | 1k to 13k | dry scrub on the hills | 2026-09-19 |
 | grass_medium_02 (5 variants) | `grass_tuft.glb` | 0.7k to 2.5k | grass tufts on the hills | 2026-09-19 |
 | exterior_aircon_unit (clean + rusted) | `prop_ac.glb` | 9.5k per variant | rooftop air conditioning units | 2026-09-20 |
