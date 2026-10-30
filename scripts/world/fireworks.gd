@@ -83,6 +83,8 @@ var hold: bool = false
 var booms_played: int = 0
 var crackles_played: int = 0
 var thumps_played: int = 0
+## The bins whose boom the last `_sounds()` call played.
+var last_heard: Array[int] = []
 
 var plan: CityPlan
 var _built: bool = false
@@ -237,8 +239,8 @@ static func plan_sites(p: CityPlan) -> Array:
 		if lm.id == "pier":
 			pier = lm.anchor
 	var shore: float = p.macro.coast_x(pier.y)
-	# The barge stands well past the pier's end, on open water.
-	var bx := minf(pier.x, shore) - 480.0
+	# The barge stands on open water some 500 m past the pier's end.
+	var bx := minf(pier.x, shore) - 750.0
 	var bp := Vector2(bx, pier.y)
 	var tries := 0
 	while int(p.macro.zone_at(bp)) != int(MacroMap.Zone.OCEAN) and tries < 20:
@@ -347,7 +349,7 @@ func _build_site(s: Dictionary) -> Dictionary:
 	if not OS.has_feature("web"):
 		light = OmniLight3D.new()
 		light.name = "Flash"
-		light.omni_range = 900.0
+		light.omni_range = 1200.0
 		light.omni_attenuation = 1.2
 		light.shadow_enabled = false
 		light.light_specular = 0.4
@@ -449,7 +451,7 @@ func advance_site(s: Dictionary, cam: Camera3D, wind: Vector2) -> void:
 			l.position = at / wsum
 			var mx := maxf(sum.r, maxf(sum.g, sum.b))
 			l.light_color = Color(sum.r / mx, sum.g / mx, sum.b / mx)
-			l.light_energy = minf(s.energy * 2.2, 14.0)
+			l.light_energy = minf(s.energy * 5.0, 30.0)
 	s.smoke.set_shader_parameter("flash", Vector3(s.flash.r, s.flash.g, s.flash.b))
 	s.smoke.set_shader_parameter("flash_at", at / wsum if wsum > 0.0 else Vector3(0, 200, 0))
 	if s.water:
@@ -487,6 +489,7 @@ static func flash_level(a: float, life: float, type: int) -> float:
 ## Plays every boom, crackle and launch thump whose sound reaches the listener (true world
 ## position) between the last frame and this one.
 func _sounds(s: Dictionary, ear: Vector3) -> void:
+	last_heard.clear()
 	if s.clock <= s.prev:
 		return
 	var origin: Vector3 = s.world
@@ -504,6 +507,7 @@ func _sounds(s: Dictionary, ear: Vector3) -> void:
 			if th > s.prev and th <= s.clock:
 				_play("boom", bw, ear, d, 2.0 - 4.0 * (1.0 - float(sh.size)), 0.85 + 0.25 * roll(int(sh.key), 40))
 				booms_played += 1
+				last_heard.append(b)
 			var t := int(sh.type)
 			if d < CRACKLE_REACH and (t == Type.STROBE or t == Type.WILLOW or t == Type.CROSSETTE):
 				var tc := th + (FW_SPLIT_S if t == Type.CROSSETTE else 0.35)

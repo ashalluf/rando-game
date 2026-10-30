@@ -33,19 +33,28 @@ func _ready() -> void:
 		# highest ground 1-3 km round it that sees it.
 		var target := w + Vector3(0.0, (float(s.h_min) + float(s.h_max)) * 0.5, 0.0)
 		if s.id == "beach":
-			_eye("pier", Vector3(-1100.0, 8.6, -330.0), target)
+			_eye("pier", Vector3(-1205.0, 8.6, -342.0), target)
 		var best := Vector3.ZERO
 		for a in 72:
-			for r: float in [1200.0, 1800.0, 2500.0]:
+			for r: float in [800.0, 1200.0, 1800.0, 2500.0]:
 				var q := Vector2(w.x, w.z) + Vector2(cos(TAU * a / 72.0), sin(TAU * a / 72.0)) * r
 				var h := plan.height_at(q)
-				if int(macro.zone_at(q)) == int(MacroMap.Zone.HILLS) and h > best.y and h < 400.0:
+				if int(macro.zone_at(q)) == int(MacroMap.Zone.HILLS) and h > best.y and h < 400.0 and _clear(plan, Vector3(q.x, h + 6.0, q.y), target):
 					best = Vector3(q.x, h, q.y)
 		if best.y > 0.0:
-			_eye("hill", best + Vector3(0.0, 4.0, 0.0), target)
+			_eye("hill", best + Vector3(0.0, 6.0, 0.0), target)
 		var city := Vector2(w.x, w.z) + Vector2(900.0, 600.0) if s.id == "beach" else Vector2(w.x, w.z) + Vector2(300.0, 1100.0)
 		_eye("street", Vector3(city.x, plan.height_at(city) + 1.8, city.y), target)
 	get_tree().quit()
+
+
+## Nothing of the ground stands in the way from e to t.
+func _clear(plan: CityPlan, e: Vector3, t: Vector3) -> bool:
+	for i in range(1, 40):
+		var p := e.lerp(t, float(i) / 40.0)
+		if plan.height_at(Vector2(p.x, p.z)) > p.y - 3.0:
+			return false
+	return true
 
 
 func _eye(label: String, e: Vector3, t: Vector3) -> void:

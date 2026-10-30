@@ -15575,6 +15575,13 @@ frame plays every sound whose arrival time - break plus distance over the speed 
 between the last frame and this one, from the camera's true world position), the light and the
 water's list. Change a number in the include, change it in Fireworks.
 
+**Frame cost** (still_shot.gd GEO, opengl3, 1280x720, the finale held at 134 s, `FIREWORKS=1`
+against `FIREWORKS=0` from the same eyes): +5.8k triangles and +2 to +3 draw calls a view (the
+ballpark from its terrace 1,765k -> 1,771k tris, 347 -> 349 draws; the pier 526k -> 531k, 119 ->
+122; the hills over the beach 736k -> 742k, 220 -> 223), all in the camera pass (nothing casts a
+shadow). The CPU: one plan lookup per bin in a 24 s window, cached per site. With no show the
+site nodes are hidden: nothing drawn, nothing run but the night test.
+
 **Which nights**: `show_tonight(seed, night, site)`, a hash against `ODDS` (beach 0.22, ballpark
 0.30; seed 1337: the ballpark's first is night 2, the beach's night 8), the night counted from
 noon (`night_of()`), the show from 20:45 to 23:15 (`START_HOUR`, `END_HOUR`; a game hour is two
@@ -15590,3 +15597,14 @@ weather; `FIREWORKS_SITE=beach|stadium` one; `FIREWORKS_T=<s>` starts the show c
 `fireworks_smoke.gdshader`, `fireworks_water.gdshader`, the node in `scenes/levels/city.tscn`,
 `tools/fireworks/probe.tscn` (the sites, an act by type, 60 nights, EYEs from the pier, the hills
 and the street), `tests/fireworks_checks.gd` (one line in smoke_test.gd).
+
+**Stills** (`shots/fireworks`, opengl3): the finale from the ballpark's terrace, the pier's end,
+the hills above the beach town, the sand, the hills toward the ballpark. To take them:
+`FIREWORKS=1 FIREWORKS_T=134 FIREWORKS_HOLD=1 EYE_AGL=1 EYE=2012.5,25,-2738.3,6.4,24
+SHOTS="-1205,8.6,-342,89,15@21.2@55;-104.9,199.7,-1110.7,115,2@21.2@45;-960,3,-150,75.5,10@21.2@65;
+-58.9,381.9,-1513,-55,-1@21.2@30" ... still_shot.gd -- --hour=21.2 --nohud --spawn=2012,-2738,0,0`.
+
+**Not verified**: Forward+ (lavapipe cannot hold the city; the shaders are unlit additive and
+alpha quads with no Forward+-only path, but bloom will make the breaks glow more on the Mac than
+in the stills); the web build; how the synthesised booms sound (headless audio is the Dummy
+driver); the OmniLight's look on the water on Forward+.

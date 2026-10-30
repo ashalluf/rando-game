@@ -37,7 +37,7 @@ const float FW_V0[5] = float[5](95.0, 72.0, 82.0, 80.0, 92.0);
 const float FW_DRAG[5] = float[5](1.6, 2.3, 1.2, 1.5, 1.6);
 const float FW_GRAV[5] = float[5](6.0, 5.5, 5.0, 5.0, 4.0);
 const float FW_LIFE[5] = float[5](2.3, 5.0, 2.7, 3.0, 2.1);
-const float FW_TAIL[5] = float[5](0.11, 0.42, 0.12, 0.025, 0.10);
+const float FW_TAIL[5] = float[5](0.20, 0.50, 0.14, 0.03, 0.15);
 // A crossette's comets split into four at this age.
 const float FW_SPLIT = 0.8;
 const float FW_SPLIT_V = 32.0;

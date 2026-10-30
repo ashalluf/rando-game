@@ -156,7 +156,7 @@ func _the_sites(city: Node3D) -> void:
 				var p := Vector2(w.x, w.z) + Vector2(Vector3(sh.burst).x, Vector3(sh.burst).z)
 				if int(plan.zone_at(p)) == int(MacroMap.Zone.OCEAN):
 					wet += 1
-			_t._check(int(plan.zone_at(Vector2(w.x, w.z))) == int(MacroMap.Zone.OCEAN) and float(s.shore_x) > 250.0 and float(s.shore_x) < 1200.0,
+			_t._check(int(plan.zone_at(Vector2(w.x, w.z))) == int(MacroMap.Zone.OCEAN) and float(s.shore_x) > 400.0 and float(s.shore_x) < 1200.0,
 				"fireworks: the beach show's barge is on the sea, %.0f m off the waterline" % float(s.shore_x))
 			_t._check(tot > 0 and wet == tot, "fireworks: every beach break is over the water (%d of %d)" % [wet, tot])
 		else:
@@ -216,15 +216,14 @@ func _the_node(city: Node3D) -> void:
 	var ear := bw + Vector3(1000.0, -float(Vector3(sh0.burst).y), 0.0)
 	var d := ear.distance_to(bw)
 	var th := Fireworks.heard_at(float(sh0.burst_t), d)
-	var n0: int = fw.booms_played
 	s.prev = float(sh0.burst_t)
 	s.clock = float(sh0.burst_t) + 0.3
 	fw._sounds(s, ear)
-	var early: int = fw.booms_played - n0
+	var early: bool = fw.last_heard.has(int(sh0.bin))
 	s.prev = th - 0.05
 	s.clock = th + 0.05
 	fw._sounds(s, ear)
-	_t._check(early == 0 and fw.booms_played - n0 >= 1, "fireworks: the boom is heard %.2f s after the break, not when it is seen" % (th - float(sh0.burst_t)))
+	_t._check(not early and fw.last_heard.has(int(sh0.bin)), "fireworks: the boom is heard %.2f s after the break, not when it is seen" % (th - float(sh0.burst_t)))
 	# Unstaged in the smoke test, the show goes.
 	fw.staged.erase("beach")
 	fw.hold = false

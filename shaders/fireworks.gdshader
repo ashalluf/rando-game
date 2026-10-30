@@ -28,16 +28,18 @@ uniform vec2 wind = vec2(2.0, 0.6);
 uniform float px_angle = 0.0012;
 uniform float min_px = 1.6;
 /// Star radius (metres) and brightness.
-uniform float star_radius = 0.75;
-uniform float brightness = 7.0;
+uniform float star_radius = 1.0;
+uniform float brightness = 8.0;
 /// 0..1 fades the whole show (in and out at the ends of its window).
 uniform float strength = 1.0;
 /// Distance (metres) over which the night air takes half the light.
 uniform float haze = 6500.0;
 
+const float HALO = 2.4;
+
 varying vec3 v_color;
 varying float v_alpha;
-varying float v_tail;
+varying float v_len;
 
 
 vec3 fw_hidden() {
@@ -145,6 +147,8 @@ void vertex() {
 		float r = max(radius, r_min);
 		// What the widening adds, the star gives back in brightness.
 		amt *= radius / r;
+		// The quad holds the star's glow too: HALO times its radius.
+		r *= HALO;
 		vec2 ax = hv.xy - tv.xy;
 		float len = length(ax);
 		ax = len > 1e-4 ? ax / len : vec2(0.0, 1.0);
@@ -153,7 +157,7 @@ void vertex() {
 		// y: -1 the tail end, +1 the head end; both ends rounded off by the radius.
 		vec3 base = c.y < 0.0 ? tv : hv;
 		VERTEX = base + vec3(side * c.x * r + ax * c.y * r, 0.0);
-		v_tail = len / (len + 2.0 * r);
+		v_len = len / r;
 		v_color = col;
 		v_alpha = amt * brightness * strength * exp(-0.693 * dist / haze);
 	}
@@ -162,10 +166,17 @@ void vertex() {
 
 void fragment() {
 	vec2 c = UV * 2.0 - 1.0;
-	// Across: a soft round profile with a hot core. Along: the head brightest, the tail fading.
-	float across = exp(-c.x * c.x * 3.2);
-	float along = mix(1.0, smoothstep(-1.0, 1.0, c.y), v_tail);
-	float core = exp(-c.x * c.x * 14.0) * smoothstep(0.2, 1.0, c.y);
-	vec3 col = mix(v_color, vec3(1.0, 0.96, 0.9), core * 0.6);
+	// A capsule round the streak from its tail (0) to its head (v_len), in units of the quad's
+	// half width: the star is 1 / HALO of it and a faint glow fills the rest, which is most of
+	// what a firework is on a renderer without bloom.
+	float y = (c.y + 1.0) * 0.5 * (v_len + 2.0) - 1.0;
+	float dy = y - clamp(y, 0.0, v_len);
+	float d2 = c.x * c.x + dy * dy;
+	float x2 = d2 * HALO * HALO;
+	float across = exp(-x2 * 1.4) + 0.10 * exp(-d2 * 3.0);
+	// The head burns brightest; the tail fades back along the streak.
+	float along = v_len > 0.01 ? mix(0.12, 1.0, clamp(y / v_len, 0.0, 1.0)) : 1.0;
+	float core = exp(-x2 * 6.0) * along;
+	vec3 col = mix(v_color, vec3(1.0, 0.96, 0.9), core * 0.55);
 	ALBEDO = cs_out(col * v_alpha * across * along);
 }
