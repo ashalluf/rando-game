@@ -19396,3 +19396,80 @@ per car.
   renderer's reflections (SSR, the probes), which the opengl3 stills do not have - judge the glass
   and the lacquer there. The wiper blades on every body type (checked on the sedan in stills; the
   geometry is fitted per body from the windscreen box, so a bus or an exotic may sit a little off).
+
+## 9d?. Busy streets (2026-10-30, fleet wave 3 `busy-streets`, branch `wt/busy-streets`)
+
+Street-level stills kept showing empty roads (downtown at noon, Broadway at 22:00). Measured first,
+with `tools/busy_streets/census.gd` (headless, a CENSUS line every EVERY frames: street cars moving
+and standing within 150 m of the camera and how many in a 50-degree view cone, parked cars within
+150 m, walkers within 60 m, the traffic / crowd / PhysicsBudget counts against their caps) and
+`CENSUS=1` on `still_shot.gd` (the same line for the frame that is shot). At the downtown bookmark
+(Flower at Olympic, noon) after ten minutes of play: traffic at its 150 cap, but only 26 moving and
+11 standing within 150 m, 5-9 moving in view; 6-11 parked within 150 m; 27-45 walkers within 60 m.
+What kept it low:
+- **The traffic's spawns were thrown away at load.** Every Vehicle - kinematic traffic too - counts
+  against PhysicsBudget's 500 bodies, the FULL ring's parked cars and trash cans fill it first while
+  the city streams in, and `_run_spawns()` clears every queue while `can_spawn()` is false. A still
+  (90 frames) caught the street at 30-115 of 150 cars.
+- **They were spread over the whole circle**: spawns at 60-260 m along five roads either side, kept
+  out to 380 m, so the share near the camera was about the area's.
+- **Nothing followed the hour**: 150 cars at 03:00 as at 17:00.
+- **The crowd cap was spent once**: walkers are spawned when a block is built, out of one city-wide
+  cap, and only Quality ever trimmed them; arrive late and the cap is held by blocks built earlier.
+- **The kerbs stopped at the district's "parked"** (15 downtown on ~70 spots a block).
+
+`BusyStreets` (`scripts/npc/busy_streets.gd`, static) spends the caps where the camera looks:
+- **Traffic**: 70 % (`focus_share`) of street spawns go on the roads of the camera's own block,
+  `near_min` 40 .. `focus_max` 190 m along, 72 % ahead of the camera; in the view cone never nearer
+  than `view_pop_min` 115 m - except while the street is FILLING (`spawn_burst()`: under 70 % of
+  its target, after a load or a teleport, spawns come 40 a half second instead of 12 and may land in
+  view from 40 m; the loading screen hides it). A car past `rear_reach` 230 m and out of the view
+  goes back to the pool (`retire_far()`; never while `staged`). Kinematic street traffic no longer
+  waits on PhysicsBudget (`traffic_room()`: the non-traffic bodies must still fit). The street cap
+  is `max_cars x density x hour_factor(hour)` (NightCity.traffic_level normalised: full by day,
+  0.76 at 21:30, 0.3 in the small hours), and `density_at()`'s floor is `EDGE_DENSITY` 0.32 (was
+  0.2). The traffic's own rng rolls more than before (the focused spawn): traffic was never
+  seed-fixed. The freeway and the airport loop are untouched.
+- **Crowd**: `CityChunk._pedestrian_steps()` records what each block planned (`note_crowd()`,
+  meta `busy_crowd`); once a second `balance_crowd()` tops up the FULL blocks within `crowd_reach`
+  170 m of the camera toward planned x `crowd_factor(hour)`, `crowd_per_tick` 6 a second, out of the
+  room under the cap, freeing the farthest plain walker past `crowd_far` 210 m that is out of view
+  when there is none; new walkers are rolled from a hash and put down out of the view or 45 m off.
+  After midnight (`THIN_BELOW`) it thins a near block toward its share, out of view. Only plain
+  Pedestrians are moved (`is_plain_walker()`: not officers, sleepers, vendors, someone on an errand,
+  watching, sitting or talking).
+- **Kerbs**: `_park_car_steps()` appends a `_park_extra()` step per spot after the block's own:
+  a spot the pass left undecided (it marks the ones it decides, `spot.append(true)`) gets one more
+  car when a hash of seed + spot says so (`PARK_EXTRA_ODDS` 0.16, ~6 a block), from its own rng,
+  through the same keep-clears (`_park_car()`'s two conditions moved into `_kerb_reserved()` /
+  `_kerb_taken()`, same order). No running count, so a feature taking a kerb (the film shoot, a
+  parklet, a bike lane) moves no other car - a capped count did, and broke the film shoot's A/B. No
+  block roll moves: a block keeps every car it had (checked). Downtown's real streets carry bike
+  lanes on most kerbs, so the extras show mostly in midtown and the suburbs.
+
+**Measured** (still_shot.gd opengl3 1280x720, `BUSY_STREETS=0` -> on, one load each; GEO and the
+CENSUS line at the shot): downtown noon 6.45 M tris / 3,017 draws -> 6.63 M / 3,146 (+2.8 % /
++4.3 %), cars within 150 m 27 -> 43; Broadway 22:00 (`EYE=2985,1.7,205,180,3`) 6.52 M / 3,476 ->
+6.60 M / 3,519 (+1.3 / +1.2 %), cars 24 -> 34, parked 22 -> 37; midtown Wilshire noon
+(`EYE=1100,1.7,312.7,90,2`) 5.14 M / 2,691 -> 5.35 M / 2,711 (+4.1 / +0.7 %), moving 16 -> 49,
+parked 36 -> 60; freeway bookmark 4.20 M / 1,985 -> 4.29 M / 2,039 (+2.2 / +2.7 %). The census over
+ten minutes at the downtown bookmark: 37 -> 53-61 cars within 150 m, 5-9 -> 7-17 moving in view,
+6-11 -> 13-17 parked. The street traffic tick costs what it did (the same 150 cars). Stills:
+`origin/shots/busy-streets` (README has the table).
+
+**Checks** (`tests/busy_streets_checks.gd`): the hour curves, the view cone, 400 focused spawns
+(share, range, none popping in close in view, leaning ahead), fill bursts, the A/B, the retire rule,
+the extra kerb cars (a pure hash, every car of the block kept, inside the cap, some added), and a
+near block emptied and topped up with nobody put down close in plain sight.
+
+**Not done / not verified.**
+- Never seen at 60 fps on the Mac: whether the fill-in-view after a teleport reads as pop-in, and
+  whether `rear_reach` 230 m retires cars a player turning round would miss. Tune `view_pop_min`,
+  `rear_reach`, `focus_share` in busy_streets.gd.
+- The freeway's own cap, the airport loop and ReplicaTraffic are untouched.
+- A still is one instant at 5-12 s of game time; the census numbers are the steadier measure. The
+  stills were shot with an earlier kerb rule (up to 0.4 of the district's count at 0.5 odds); the
+  final hash rule parks about as many (~6 a block).
+- `tests/ragdolls_checks.gd` is flaky on its own with this branch switched off (`BUSY_STREETS=0`:
+  2 of 3 solo runs failed, "joints hold" 0.138 m and "the body lies on the ground"); it failed once
+  in the first gate here (4.5 m gap). Not this branch's; worth a look by its owner.

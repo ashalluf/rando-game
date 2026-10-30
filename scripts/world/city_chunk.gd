@@ -2862,11 +2862,9 @@ func _park_car_steps(rect: Rect2, rng: RandomNumberGenerator, params: Dictionary
 	for spot in spots:
 		steps.append(_park_car.bind(spot, rng, max_cars, count))
 	# Fuller kerbs (BusyStreets): more cars on the spots left empty, from hashes after every roll.
-	var extra := BusyStreets.park_extra_count(max_cars)
-	if extra > 0:
-		var ecount := [0]
+	if BusyStreets.enabled:
 		for spot in spots:
-			steps.append(_park_extra.bind(spot, extra, ecount))
+			steps.append(_park_extra.bind(spot))
 	return steps
 
 
@@ -2895,15 +2893,12 @@ func _kerb_taken(spot: Array, car: Vehicle) -> bool:
 
 
 ## One more parked car on a spot the block's own pass left empty (BusyStreets, a hash per spot).
-func _park_extra(spot: Array, extra: int, ecount: Array) -> void:
-	if ecount[0] >= extra or not BusyStreets.park_extra_roll(plan.seed, spot) or not PhysicsBudget.can_spawn():
+## No running count: each spot is its own hash, so a feature that takes a kerb (a shoot, a parklet,
+## a bike lane) moves no other car, and a spot the pass decided (a car, or kept clear) is left alone.
+func _park_extra(spot: Array) -> void:
+	if spot.size() > 3 or not BusyStreets.park_extra_roll(plan.seed, spot) or not PhysicsBudget.can_spawn():
 		return
 	var at: Vector3 = spot[0]
-	for c in _cars:
-		if is_instance_valid(c):
-			var cw := WorldState.to_world((c as Node3D).global_position) if (c as Node3D).is_inside_tree() else at + Vector3(99.0, 0.0, 0.0)
-			if Vector2(cw.x - at.x, cw.z - at.z).length() < 5.0:
-				return
 	if _kerb_reserved(spot):
 		return
 	var r := BusyStreets.park_extra_rng(plan.seed, spot)
@@ -2918,7 +2913,6 @@ func _park_extra(spot: Array, extra: int, ecount: Array) -> void:
 	holder.add_child(car)
 	car.visible = visible
 	_cars.append(car)
-	ecount[0] += 1
 
 
 func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Array) -> void:
@@ -2929,6 +2923,7 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	# PhysicsBudget still caps the total, and Quality halves that cap below its top level.
 	if count[0] >= max_cars or rng.randf() > 0.55 or not PhysicsBudget.can_spawn():
 		return
+	spot.append(true) # decided by this pass (parked or kept clear): BusyStreets' extras leave it
 	var car := Vehicle.random_car(rng)
 	var flip := rng.randf() < 0.5
 	if _kerb_reserved(spot):
