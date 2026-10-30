@@ -21346,3 +21346,20 @@ screen warms the meshes. `STREET_CLUTTER_2=0` is the A/B.
 Probe: `tools/street_clutter_2/probe.gd -- --spawn=x,z,0,0` (counts per kind and block, the step's
 plan time, an EYE per kind; `HOUR=`, `DAY=`, `KIND=`, `R=`). Compile: `tools/street_clutter_2/compile.gd`.
 Checks: `tests/street_clutter_2_checks.gd` (the last city file).
+
+**Frame cost** (opengl3, `still_shot.gd DIFF=1`, people and traffic hidden; `STREET_CLUTTER_2=0` then 1,
+same cameras): downtown 21:30 wet 3.78 -> 3.99 M triangles (+5.6 %, +20 draws), 3.02 -> 3.13 M
+(+3.6 %, +18), 3.50 -> 3.52 M (+0.6 %, +16), from 6 m up 1.74 -> 1.91 M (+9.7 %, +12); downtown 10:00
+close-ups +1.0 to +2.8 % (+16 to +30 draws); midtown 21:30 +0.7 to +3.0 % (+13 to +28); the beach town
++6.3 / +9.1 % (+16 / +28) on small frames (~2 M). Most of the added triangles are SHADOW (the bag piles'
+twins, ~1,100 triangles a pile, inside `SHADOW_REACH`); lower it, or give the piles a coarse shadow
+mesh, if a bookmark needs it. The step itself plans in 2-5 ms a block (probe `plan=`).
+
+Stills on `shots/street-clutter-2` (before / after pairs, downtown night and day, midtown and the beach
+town at night, and the kit alone from `tools/street_clutter_2/kit_shot.gd`, seconds: `NIGHT=1`, `WET=`).
+
+Not done / not seen: nothing on Forward+ (the steam's alpha and the puddles' mirror want a look on the
+Mac: SSR adds to the puddles there, `mirror_forward`); the pages and the steam move off shader TIME, so
+DIFF stills show them frozen; carts and bags are drawn only (no collision, nothing to knock over);
+the flyers only go on utility poles (lamp and signal poles vary in radius); posters and droppings are
+procedural, no atlas art.
