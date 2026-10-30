@@ -14957,3 +14957,28 @@ block's role, item counts, near / far triangles and lamps per block, EYE lines);
 map of the blocks round the port: district, river, freeway, sites). Stills: block_shot.tscn
 (`EYE=2700,45,5440,-120,-18` over the process units, `EYE=3290,35,5470,100,-14` over the tank farm
 from Alameda, `NIGHT=1`).
+
+**Cost.** `still_shot.gd` GEO, 1280x720 opengl3, spawn at the plant's centre (2987, 5498), the
+aerial eye `EYE=2500,260,6000,-44,-28` at 13:00: `REFINERY=0` 2.62 M triangles / 2,313 draws ->
+on 2.06 M / 777 (the plant replaces 28 blocks of warehouses, yards and props, which cost more).
+At golden hour on the west street (`2722,1.7,5420,-95,8@17.7`): 3.41 M / 2,973 -> 2.78 M / 1,528. A
+FULL process chunk's plant mesh is ~28-32 k triangles (3-9 k on the tank side) with 90-150 lamps;
+a FULL chunk's build is 8-90 ms of GDScript, time-sliced an item a step. The far pieces are 127 k
+triangles and ~1,500 lamps in all, one plant draw + one lights draw (+ flames / steam) a block,
+built in ~1.2 s at load (not cached by LoadCache yet).
+
+**Also changed.** `GpsRoute.snap()` now looks five roads out each way (it took only the two nearest,
+so a waypoint inside a big closed site found no open road and no route; the minimap check routes to
+(3000, 5600), which the plant now covers). The minimap labels the plant "Vellard Bay Works".
+
+**Stills** (branch `shots/refinery`, opengl3): before / after aerial at noon, the aerial at 21:30,
+the flare row at night from the south street (`2850,25,5905,0,14@21`), the west street at golden
+hour, the process units and the tank farm from block_shot, the process units at night.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the flames' HDR and halo, the steam and
+the night flood on the steel are tuned on opengl3 only. No heat shimmer over the flares yet (the
+jet exhaust's screen-reading shader would do it, Forward+ desktop only). No people inside the
+fence (crews, trucks, the gate's guard), no rail spur or tank cars, no sound but the flares'. The
+plant is a fixed site on the default grid (another seed's grid snaps it, but the site is not
+re-chosen by hash). Far pieces are not in LoadCache. Shooting a tank or a column does nothing
+special (they are static collision).
