@@ -410,7 +410,7 @@ static func sale_table_mesh(material: Material) -> Mesh:
 		# A packing tape stripe down one side.
 		box.call(Vector3(cx + w.x * 0.5 + 0.004, 0.776 + h * 0.5, cz), Vector3(0.002, h, 0.05), Color(0.72, 0.62, 0.42))
 		for m in 8:
-			var mc := Color(0.08, 0.08, 0.1) if b == 0 else ([Color(0.9, 0.9, 0.88), Color(0.15, 0.15, 0.17), Color(0.5, 0.48, 0.45)][m % 3])
+			var mc: Color = Color(0.08, 0.08, 0.1) if b == 0 else ([Color(0.9, 0.9, 0.88), Color(0.15, 0.15, 0.17), Color(0.5, 0.48, 0.45)][m % 3])
 			var px := cx - 0.15 + 0.1 * float(m % 4)
 			var pz := cz - 0.07 + 0.14 * float(m / 4)
 			var mh := 0.16 if b == 0 else 0.13
