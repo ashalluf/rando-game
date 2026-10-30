@@ -20755,6 +20755,21 @@ get no BeachLife people - unchanged), the pier's lights (they follow `lamp_facto
 unchanged), haze over the water and the spray's backlight (surf_spray.gdshader already glows
 toward a low sun - unchanged). The midday sand stays pale: AgX and the grade, not the sand.
 
+**Frame cost** (opengl3 1280x720, `still_shot.gd` GEO, `--quality=0 --weather=clear`, the same
+EYEs from one load each, BEACH_GOLDEN=0 vs on): shader-only, so the geometry is the same -
+the beach bookmark `EYE=-725,1.7,610,160,-6` at 13:00 1,849,714 tris / 394 draws -> 1,857,094 /
+408 (people and bikes moved between the loads; the sand and towers add nothing); sand toward the
+sea 1,066,667 / 289 both; the pier from the beach 1,376,566 / 350 both; down the pier deck at
+18:30 1,951,568 / 1,353 both. The pixel cost is the sand's: ~6 value-noise taps and two short
+loops of trail tests a fragment within 260 m, nothing past it.
+
+**Stills** (`shots/beach-golden`, opengl3): sand toward the sea and the pier from the beach at
+13:00 / 17:45 / 18:30 before and after, the pier deck at 18:30, low over the sand toward the sun,
+the beach-life bookmark, the weathered tower close up. Forward+ (lavapipe, `fwd_block_shot.tscn`,
+960x540) pairs of the sand at 17:45 and the tower at 13:00: `fwd_*` on the same branch.
+
+**Gate**: `SHARDS=3 tests/headless_check.sh` 4,019 checks, 0 failed (peak RSS 3,428 MB a shard).
+
 **A/B**: `BEACH_GOLDEN=0` (the sand and the towers exactly as before). Checks:
 `tests/beach_golden_checks.gd` (the include and its switch, the colour-space line, the uniforms
 parse, the material follows the switch, the tower's codes are free in BeachLife's table and drawn
