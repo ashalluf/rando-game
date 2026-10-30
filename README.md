@@ -28,3 +28,14 @@ where its mirror catches the sun (no white specks; a faint lift past a pixel); t
 17 mm off-white band with the black tyre wall round it; the chrome stand-in on opengl3 is a darker
 satin, so the rim lip no longer reads as part of the whitewall. The pale splotches and crack lines
 on the road in 02 are road wear and are in 01 (LOWRIDERS=0) too: not the meet.
+
+**Wave 3 (2026-10-30, after merging main 95bd13f):**
+- 18_after_meet_chairs_coolers_golden_1736 - the kerb at golden hour: folding chairs and red coolers in the gaps between the cars (MeetKit), a hardtop hopping, a coupe three-wheeling (`EYE=829,7.7,600.5,-161,-2`)
+- 19_after_meet_chairs_night_2100 - the row from above at 21:00 (`826,13.0,597,-115,-10`; GEO 5.95 M triangles / 2,649 draws)
+- 20_after_meet_kerb_close_night_2112 - the close kerb at 21:12
+- 21_after_meet_across_street_1736 - from across the boulevard at 17:36
+- 22/23 - **Forward+** (lavapipe, `car_shot.gd`): the hardtop and the coupe's wire wheel. The candy reads deep and saturated on the flanks; the top panels mirror the harness's grey sky at a grazing angle, and the chrome is grey there for the same reason (nothing to mirror but a plain sky).
+- 24 - Forward+: an everyday sedan, the hardtop in lime gold, the hardtop in teal (`LOOK=3`, `LOOK=11`)
+
+A Forward+ still of the meet block (fwd_block_shot.tscn) does not fit this box: lavapipe passed 13.6 GB and was killed.
+The player's switch (H in a lowrider: tap a hop, hold a lift, + A / D a three-wheel) is checked, not shot (a still cannot press the key).
