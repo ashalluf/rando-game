@@ -305,6 +305,12 @@ func _sodium() -> void:
 	_base_color = col
 	_base_density = dens
 	var lamp: float = DayNight.lamp_now
+	# By day (or with no haze) the lean is nothing whatever the camera's height (street <= 1):
+	# skip the ground sample under the camera, the same answer as below (perf-audit-3).
+	if SODIUM_LEAN * clampf(lamp, 0.0, 1.0) * haze <= 0.0005:
+		_wrote_color = Color(-1, -1, -1)
+		_wrote_density = -1.0
+		return
 	var cam := get_viewport().get_camera_3d()
 	var cam_h := 0.0
 	var streamer := get_parent()

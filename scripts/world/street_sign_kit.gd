@@ -54,6 +54,9 @@ const ARM_SIGN_CAP := 0.2
 const ARM_STANDOFF := 0.17
 
 static var _cache: Dictionary = {}
+## The cache size at which _cached() next drops what nothing draws (CacheTrim).
+const TRIM_EVERY := 200
+static var _trim_at := TRIM_EVERY
 static var _material: ShaderMaterial
 
 
@@ -604,10 +607,12 @@ const SIGN_BOTTOM := 2.13
 static func _cached(key: String, build: Callable) -> ArrayMesh:
 	if _cache.has(key):
 		return _cache[key]
-	# Street names are many: let the cache start over now and then (meshes in use stay alive in
-	# their batches).
-	if _cache.size() > 1500:
-		_cache.clear()
+	# Street names are many: now and then drop the meshes no chunk draws any more (those in use
+	# stay, and a dropped one is built again, identically, when its street comes back). It used to
+	# clear at 1,500 entries, which held ~135 MB of name blades for streets long since streamed out.
+	if _cache.size() >= _trim_at:
+		CacheTrim.trim(_cache)
+		_trim_at = maxi(TRIM_EVERY, _cache.size() + TRIM_EVERY)
 	var g := Geo.new()
 	build.call(g)
 	var m := g.mesh()

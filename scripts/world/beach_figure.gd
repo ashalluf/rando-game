@@ -22,6 +22,10 @@ var suit: int = 0
 ## no mesh data), and the shadow body of each baked mesh.
 static var _beach_baked: Dictionary = {}
 static var _rides: Dictionary = {}
+## ride_meshes()' suited flipbooks, by seed, suit and paint (the bases are in _rides).
+static var _ride_suits: Dictionary = {}
+const RIDE_TRIM_EVERY := 24
+static var _ride_trim_at := RIDE_TRIM_EVERY
 static var _bake_host: Node3D
 
 
@@ -169,8 +173,10 @@ static func _in_suit(mesh: Mesh, suit_index: int, model: int) -> Mesh:
 ## turn, the rider's legs on its pedals. [] without mesh data.
 static func ride_meshes(seed: int, suit_index: int, paint: int, model: int) -> Array:
 	var key := "%d|%d|%d" % [seed, suit_index, paint]
-	if _rides.has(key):
-		return _rides[key]
+	if _ride_suits.has(key):
+		# A copy of the list: the rider's array is its own, so the frames it holds count as in
+		# use when CacheTrim weighs the cache (perf-audit-3).
+		return CacheTrim.copy(_ride_suits[key])
 	var base_key := "%d|%d" % [seed, paint]
 	if not _rides.has(base_key):
 		_rides[base_key] = []
@@ -197,8 +203,14 @@ static func ride_meshes(seed: int, suit_index: int, paint: int, model: int) -> A
 	var out: Array = []
 	for m: Mesh in _rides[base_key]:
 		out.append(_in_suit(m, suit_index, model))
-	_rides[key] = out
-	return out
+	# The suited copies are cheap to make again (arrays copied, no posing) and one is kept per
+	# rider seen, so drop the ones no rider holds any more now and then (CacheTrim); the posed
+	# bases above stay.
+	if _ride_suits.size() >= _ride_trim_at:
+		CacheTrim.trim(_ride_suits)
+		_ride_trim_at = _ride_suits.size() + RIDE_TRIM_EVERY
+	_ride_suits[key] = out
+	return CacheTrim.copy(out)
 
 
 ## A bike alone, for the one a rider leaves behind (thrown as debris): the flipbook's frame 0

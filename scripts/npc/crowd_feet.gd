@@ -67,6 +67,8 @@ var _has_truck: bool = false
 var _cam_d: float = 0.0
 static var _query: PhysicsRayQueryParameters3D
 var _tick: int = 0
+## Sampled since this foot last came into range (the first tick then samples at once).
+var _sampled := false
 var _want := Vector2.ZERO
 var _lift := Vector2.ZERO
 var _nrm_want: Array = [Vector3.UP, Vector3.UP]
@@ -85,6 +87,10 @@ static var cost_usec: int = 0
 static var cost_sample_usec: int = 0
 static var cost_apply_usec: int = 0
 static var calls: int = 0
+## Ray samples taken (two feet, two rays each, a ramp maybe one more), for the checks.
+static var samples: int = 0
+## Ticks that weighed whether to sample (a foot in range), against `samples`.
+static var sample_ticks: int = 0
 static var _cam_frame: int = -1
 static var _cam_pos := Vector3.INF
 
@@ -164,6 +170,7 @@ func _run(ped: Pedestrian, delta: float) -> void:
 	_weight = move_toward(_weight, want_w, delta * 3.0)
 	if _weight <= 0.001:
 		_written.clear()
+		_sampled = false
 		_lift = Vector2.ZERO
 		applied_lift = Vector2.ZERO
 		applied_hips = 0.0
@@ -172,7 +179,13 @@ func _run(ped: Pedestrian, delta: float) -> void:
 	var xf := _sk.global_transform
 	var base := vis.global_position.y
 	var every := RAY_EVERY if _cam_d < RAY_NEAR else RAY_EVERY_FAR
-	if _tick % every == _phase % every or _want == Vector2.ZERO and _lift == Vector2.ZERO:
+	sample_ticks += 1
+	# The first tick samples at once; after that the stagger. (It used to re-sample every tick
+	# whenever the wanted and current lifts were both exactly zero - every foot on flat ground,
+	# once the lift had decayed to zero - which cast 4 rays a person a tick: perf-audit-3.)
+	if _tick % every == _phase % every or not _sampled:
+		_sampled = true
+		samples += 1
 		var t1 := Time.get_ticks_usec()
 		_sample(ped, xf, base)
 		cost_sample_usec += Time.get_ticks_usec() - t1

@@ -31,8 +31,51 @@ func _initialize() -> void:
 		["Traffic", "node"], ["ReplicaTraffic", "node"], ["City", "self"],
 		["pedestrian", "group"], ["vehicle", "group"], ["police", "group"], ["responder", "group"],
 		["physics_prop", "group"],
+		["FreightRail", "node"], ["Ridges", "node"], ["ServiceFleet", "node"], ["Cyclists", "node"],
+		["OceanTraffic", "node"], ["NewsCrews", "node"], ["DebugHud", "node"],
+		["EngineAudio", "root"], ["CarLights", "root"], ["DrivingFX", "root"], ["Onlookers", "root"],
+		["StackTraffic", "find"], ["CoastTraffic", "find"], ["FreewayIncidents", "find"],
 	]
+	# BY_SCRIPT=1: one row per script instead, every node in the tree whose process or physics
+	# callback is on, grouped by its script file (the per-instance systems: parked and traffic
+	# cars, people, chunk helpers, modifiers' owners), biggest groups first, TOP_SCRIPTS of them.
+	if _env("BY_SCRIPT", "0") != "0":
+		rows = []
+		var by := {}
+		for n in root.find_children("*", "", true, false):
+			if not (n.is_processing() or n.is_physics_processing()):
+				continue
+			var sc: Script = n.get_script()
+			var key := sc.resource_path.get_file() if sc != null else n.get_class()
+			if not by.has(key):
+				by[key] = []
+			(by[key] as Array).append(n)
+		var keys := by.keys()
+		keys.sort_custom(func(a, b): return (by[a] as Array).size() > (by[b] as Array).size())
+		for k in keys.slice(0, int(_env("TOP_SCRIPTS", "40"))):
+			rows.append([k, "list", by[k]])
+	# BASE_OFF=Traffic,... switches those city children off for the whole run, so the rows that
+	# are left are measured against a quieter frame (the traffic is most of a headless one).
+	for key in _env("BASE_OFF", "").split(",", false):
+		var off := city.get_node_or_null(key)
+		if off:
+			off.set_process(false)
+			off.set_physics_process(false)
 	var only := _env("SYSTEMS", "").split(",", false)
+	print("PHYS active %d  pairs %d  islands %d  nodes %d" % [
+		PhysicsServer3D.get_process_info(PhysicsServer3D.INFO_ACTIVE_OBJECTS),
+		PhysicsServer3D.get_process_info(PhysicsServer3D.INFO_COLLISION_PAIRS),
+		PhysicsServer3D.get_process_info(PhysicsServer3D.INFO_ISLAND_COUNT),
+		root.get_child_count()])
+	var census := {}
+	for n in root.find_children("*", "CollisionObject3D", true, false):
+		var k := n.get_class()
+		if n is RigidBody3D and (n as RigidBody3D).sleeping:
+			k += " (asleep)"
+		if n is Area3D and not (n as Area3D).monitoring:
+			k += " (not monitoring)"
+		census[k] = int(census.get(k, 0)) + 1
+	print("BODIES ", census)
 	var base := await _measure(frames)
 	_print("all on", base, base)
 	for r in rows:
@@ -47,8 +90,21 @@ func _initialize() -> void:
 					nodes.append(n)
 			"self":
 				nodes.append(city)
+			"root":
+				for c in root.get_children():
+					if String(c.name).begins_with(key) or (c.get_script() != null and (c.get_script() as Script).get_global_name() == key):
+						nodes.append(c)
+			"find":
+				for c in root.find_children("*", "", true, false):
+					var sc: Script = c.get_script()
+					if sc != null and sc.get_global_name() == key:
+						nodes.append(c)
 			"group":
 				nodes = get_nodes_in_group(key)
+			"list":
+				for n in r[2]:
+					if is_instance_valid(n):
+						nodes.append(n)
 		if nodes.is_empty():
 			continue
 		var saved: Array = []
@@ -58,7 +114,8 @@ func _initialize() -> void:
 			n.set_physics_process(false)
 		var m := await _measure(frames)
 		for s in saved:
-			var n: Node = s[0]
+			# Untyped: a pedestrian freed while it was switched off cannot go in a typed variable.
+			var n = s[0]
 			if is_instance_valid(n):
 				n.set_process(s[1])
 				n.set_physics_process(s[2])

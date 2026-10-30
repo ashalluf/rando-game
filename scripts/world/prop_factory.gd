@@ -1310,8 +1310,32 @@ static func canopy_blob() -> Mesh:
 	mesh.height = 1.0
 	mesh.radial_segments = 6
 	mesh.rings = 2
-	_cache["canopy_blob"] = mesh
-	return mesh
+	# The same sphere less its zero-area triangles: Godot's SphereMesh repeats each pole vertex
+	# round the ring, so 12 of its 36 triangles are slivers of no area that draw nothing - a third
+	# of the far city's 110 k canopies' triangles (perf-audit-3). Same vertices, same pixels.
+	var out := without_degenerate(mesh)
+	_cache["canopy_blob"] = out
+	return out
+
+
+## `mesh` (one surface) as an ArrayMesh with its zero-area triangles left out of the index list;
+## every vertex and attribute is kept as it was, so it draws exactly the same pixels.
+static func without_degenerate(mesh: Mesh) -> ArrayMesh:
+	var arrays := mesh.surface_get_arrays(0) if mesh is ArrayMesh else (mesh as PrimitiveMesh).get_mesh_arrays()
+	var v: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var kept := PackedInt32Array()
+	for i in range(0, idx.size(), 3):
+		var a := v[idx[i]]
+		if (v[idx[i + 1]] - a).cross(v[idx[i + 2]] - a).length_squared() > 1e-18:
+			kept.append_array([idx[i], idx[i + 1], idx[i + 2]])
+	arrays[Mesh.ARRAY_INDEX] = kept
+	var out := ArrayMesh.new()
+	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var mat := mesh.surface_get_material(0)
+	if mat:
+		out.surface_set_material(0, mat)
+	return out
 
 
 static func planter() -> Mesh:
