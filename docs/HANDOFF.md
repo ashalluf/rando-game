@@ -19787,11 +19787,11 @@ at the check's chunk); the far tier does the same with its canopy blobs (`far_oa
 `Skyline._add_hills`).
 
 **Cost** (hills bookmark, `--spawn=300,-650,0,-6,260 --hour=15`, opengl3 GEO): 2,795,260 tris /
-1,287 draws before (`HILL_PLANTING_2=0`), 2,858,053 / 1,308 after. That GEO counts a LOD'd batch
+1,287 draws before (`HILL_PLANTING_2=0`), 2,851,177 / 1,302 after. That GEO counts a LOD'd batch
 as ONE instance (measurement trap 3), so `HILL_SCATTER_LEVEL=n` builds the clump with only level n
 and no LODs: 2,914,432 with every visible clump at level 1 (+4.3 % over before) and 3,095,680 at
 level 0 (+10.7 %, the bound nobody draws: ~3,800 clumps in view). The real mix is under the level-1
-figure. Draws +21 (+1.6 %). Hill flight (`tools/flight_bench.gd` ROUTE=b FIXED=1, headless CPU, the whole build and draw prep): 189.2 ms CPU a frame before, 187.8 after (mean 184.5 / 182.8 ms, p95 274 / 255 - noise on a shared box: flat). A FULL chunk spends 196 ms on its scatter in 47 steps of at most 3.5 ms.
+figure. Draws +15 (+1.2 %). Hill flight (`tools/flight_bench.gd` ROUTE=b FIXED=1, headless CPU, the whole build and draw prep): 189.2 ms CPU a frame before, 187.8 after (mean 184.5 / 182.8 ms, p95 274 / 255 - noise on a shared box: flat). A FULL chunk spends 196 ms on its scatter in 47 steps of at most 3.5 ms.
 
 **A/B and tools**: `HILL_PLANTING_2=0` (no scatter, no oak companions; the old planting exactly -
 the check builds the chunk both ways and compares every point). `HILL_SCATTER_LEVEL=0|1|2` for the
