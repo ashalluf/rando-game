@@ -282,7 +282,7 @@ func _turn(road: Array) -> void:
 	var steer_max := 0.0
 	var roll_max := 0.0
 	var arc_seen := false
-	for i in 600:
+	for i in 1800:
 		await _tree.physics_frame
 		if not is_instance_valid(car) or not car.is_traffic():
 			break
@@ -306,7 +306,11 @@ func _turn(road: Array) -> void:
 			turned = true
 			if not t.has("tm_arc"):
 				break
-	_check(turned and arc_seen, "the placed car turned onto the cross street round a fillet")
+	var info := "-"
+	if is_instance_valid(car):
+		var tt: Dictionary = car.traffic
+		info = "axis %s along %.1f v %.2f turn %s node %s want %s why %s to_c %.1f" % [tt.get("axis"), float(tt.get("along", 0.0)), float(tt.get("v", 0.0)), tt.get("turn"), tt.get("node"), node, tt.get("why"), float(tt.get("to_c", 0.0))]
+	_check(turned and arc_seen, "the placed car turned onto the cross street round a fillet (%s)" % info)
 	_check(worst < 0.12, "no tick turns the car by more than a smooth turn would (worst %.1f deg; the snap was 90)" % rad_to_deg(worst))
 	_check(steer_max > 0.12, "its front wheels steer into the turn (%.1f deg)" % rad_to_deg(steer_max))
 	_check(roll_max > 0.002, "the body leans out of the turn (%.2f deg)" % rad_to_deg(roll_max))

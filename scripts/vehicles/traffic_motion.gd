@@ -228,7 +228,10 @@ static func turn_pose(tm: TrafficManager, car: Vehicle, w: Vector3, yaw: float) 
 	var arc: Array = t.get("tm_arc", [])
 	if (turn == 1 or turn == -1) and absf(float(t.get("to_c", INF))) < ARC_LOOK:
 		var node: Vector2i = t.get("node", Vector2i(-999999, -999999))
-		if arc.is_empty() or arc[5] != node:
+		# Not while the last turn's way out is still being drawn (the next junction's turn is
+		# rolled the tick after the snap, and it can be close).
+		var drawing := not arc.is_empty() and _road_dir(axis, dir).dot(arc[2]) > 0.9
+		if (arc.is_empty() or arc[5] != node) and not drawing:
 			arc = fillet(tm, axis, int(t.index), dir, node, turn, p)
 			t.tm_arc = arc
 	if arc.is_empty():
@@ -249,6 +252,11 @@ static func turn_pose(tm: TrafficManager, car: Vehicle, w: Vector3, yaw: float) 
 		u = ((p - c).dot(f) + r) / length
 		if u <= 0.0:
 			return none
+		if float(t.get("to_c", 1.0)) < -0.5:
+			# Past the junction's centre with no snap: the logic drives it straight on.
+			t.erase("tm_arc")
+			return none
+		u = minf(u, (r + dd) / length)
 	elif here.dot(g) > 0.9:
 		u = (r + dd + (p - c).dot(g)) / length
 		if u >= 1.0:
@@ -262,6 +270,17 @@ static func turn_pose(tm: TrafficManager, car: Vehicle, w: Vector3, yaw: float) 
 	var at := o - g * (r * cos(a)) + f * (r * sin(a))
 	var h := f * cos(a) + g * sin(a)
 	return Vector4(at.x, w.y, at.y, atan2(-h.x, -h.y))
+
+
+## The logic's own position for a car whose turn is drawn round the fillet: TrafficManager reads
+## a car's position back off its transform, which is the drawn one. `drawn` is where the car is
+## now (true world); anything that moved it since (a placement, a hit) makes that the answer.
+static func logical(t: Dictionary, drawn: Vector3) -> Vector3:
+	var pair: Array = t.get("tm_logic", [])
+	if pair.size() == 2 and drawn.distance_squared_to(pair[1]) < 0.0004:
+		return pair[0]
+	t.erase("tm_logic")
+	return drawn
 
 
 ## The fillet for a car on road (axis, index) heading `dir`, at `p`, turning `turn` (+1 / -1 the
@@ -281,8 +300,10 @@ static func fillet(tm: TrafficManager, axis: int, index: int, dir: int, node: Ve
 	var e1 := (along_c - (road_new - float(dir) * plan.road_width(cross_axis, cross_index) * 0.5)) * float(dir)
 	var along_new := c.x if cross_axis == CityPlan.AXIS_Z else c.y
 	var e2 := (plan.road_pos(axis, index) + float(turn) * plan.road_width(axis, index) * 0.5 - along_new) * float(turn)
-	var r := clampf(minf(e1, e2) + ARC_EXTEND, ARC_MIN, ARC_MAX)
 	var dd := (road_new - along_c) * float(dir)
+	# (At least a metre past where the lanes meet minus the centre's lead, so the way in and the
+	# way out add up to more than the radius and the drawn turn stays continuous at both ends.)
+	var r := clampf(maxf(minf(e1, e2) + ARC_EXTEND, 1.0 - dd), ARC_MIN, ARC_MAX)
 	return [c, f, g, r, dd, node]
 
 
