@@ -250,7 +250,10 @@ func _full(city: Node3D, block: Vector2i) -> void:
 	for c in off.get_children():
 		if c is MultiMeshInstance3D:
 			off_batches[String(c.name)] = (c as MultiMeshInstance3D).multimesh.instance_count
-	var off_items := off.get_tree().get_nodes_in_group("yard_sale_item").size()
+	var off_items := 0
+	for c in off.get_children():
+		if c.is_in_group("yard_sale_item"):
+			off_items += 1
 	off.get_parent().remove_child(off)
 	off.free()
 	YardSales.enabled = true
@@ -282,7 +285,8 @@ func _full(city: Node3D, block: Vector2i) -> void:
 	for sp: Array in YardSales.block_sales(on.plan, block.x, block.y, 6, 9.5).slice(0, YardSales.MAX_PER_CHUNK):
 		planned += (sp[1].items as Array).size() + 1
 	_check(off_items == 0 and int(counts.get("sales", 0)) >= 1 and kinds >= 4,
-		"yard sales: a FULL chunk draws its sales, a batch per kind (%d kinds, %s)" % [kinds, str(counts)])
+		"yard sales: a FULL chunk draws its sales, a batch per kind (%d kinds, %d with it off, %s)" % [kinds, off_items, str(counts)])
+	planned += int(counts.get("corner_stake", 0))
 	_check(items == planned and items > 0, "yard sales: every thing out and the poster board is knockable (%d of %d)" % [items, planned])
 	_check(int(counts.get("pole_sign", 0)) + int(counts.get("corner_stake", 0)) >= 1,
 		"yard sales: signs at the block's corners (%d on poles, %d on stakes)" % [int(counts.get("pole_sign", 0)), int(counts.get("corner_stake", 0))])

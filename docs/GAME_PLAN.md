@@ -1671,6 +1671,12 @@ already mapped so milestone 2 is script-only.
   hooks, so its windows, shops, damage and coded far boxes are unchanged) with the ornament as
   real geometry on its window grid; the old 150 ft limit holds. docs/HANDOFF.md "The historic
   core"; CLAUDE.md "Historic core".
+- **2026-10-30 Weekend yard sales.** A hash of seed + lot picks the suburban and beach-town
+  houses that hold a yard sale on a Saturday, a Sunday or both, with hours; the chunk builds what
+  is out at the hour and day it is built at, on YardFill's plan of the front yard (one row of
+  tables and things, the browsers in front of it, on the pavement where the yard is shallow).
+  Hand-lettered signs come from SignFont's strokes with a wobble per glyph. FULL chunks only;
+  `YARD_SALES=0` is the A/B (docs/HANDOFF.md "Weekend yard sales").
 - **2026-10-30 An island on the horizon, drawn by the sky.** Isla Calandra (original; the form of
   the Channel Islands) stands 36 km offshore, three times past the 12 km far plane, so it is not
   a mesh: sky.gdshader follows each pixel's ray across a height field in true-world kilometres

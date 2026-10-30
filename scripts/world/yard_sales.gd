@@ -286,7 +286,9 @@ static func plan_lot(plan: CityPlan, lp: Dictionary, district: int, day: int, ho
 		var sz: Vector2 = it.size
 		u0 = minf(u0, at.x - sz.x * 0.5)
 		u1 = maxf(u1, at.x + sz.x * 0.5)
-		if ITEMS[it.kind].get("goods", false) or it.kind == "rack":
+		# A browse spot or two in front of everything but the boxes (a table, the rack, the sofa,
+		# the bike, the lamp).
+		if it.kind != "boxes" or items.size() == 1:
 			var n := 2 if sz.x > 1.2 else 1
 			for k in n:
 				var qu := at.x + (float(k) - float(n - 1) * 0.5) * 0.85
