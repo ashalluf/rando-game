@@ -19459,3 +19459,21 @@ instant 0.48), the Santa Ana turning it, every tree shader on the field with the
 Forward+ only and out of the shadow pass, every street tree's leaves marked with crown bounds in
 its crown and its bark on the occlusion map, the palm and LA materials marked, a dressed mesh
 unchanged, the switch and set_all() flipping and restoring.
+
+**Frame cost**: no mesh, LOD, shadow twin or batch changes, so the geometry is identical with the
+pass on and off by construction (the A/B is a uniform on the same materials). still_shot.gd on
+opengl3, `TREES_AB=1` (one load, the frame held): the palm boulevard from the pavement
+`GEO tris=5,091,867 draws=2,599` and the jacaranda street `GEO_1 tris=7,580,132 draws=2,671`, the
+same frames with the pass off drawing the same instances. TREE_AB on the palm boulevard (the bad
+first EYE without `EYE_AGL`, kept for the ladders' numbers): trees on their ladders 15.19 M
+triangles every instance counted against 17.83 M on the old meshes, unchanged by this pass. The
+cost is ALU only: in foliage_tex's fragment about twenty more operations (the crown terms) plus one
+hash on Forward+ beyond 0.8 mips; in its vertex stage the gust (two sines) and the crown depth; a
+derivative bump on palm trunks and LA bark. Not timed on a GPU (lavapipe frame times do not
+separate it from the scene); the owner's HUD frame line is the measure.
+**Not done**: no new leaf geometry or textures (the scans' own leaf cards are the shape); the
+golden-hour city still came out at dusk (18.3 was already past sunset at that place), so golden
+hour is judged on the small scene only; the shimmer fix needs TAA and can only be judged in motion
+on the Mac.
+
+Gate: `SHARDS=3 tests/headless_check.sh` 3,691 checks passed, 0 failed (peak RSS 3,099 MB).
