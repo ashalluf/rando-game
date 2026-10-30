@@ -3144,6 +3144,18 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   fenced rect to Industrial's / YardFill's block step as a footprint. The operator, BASIN CREST OIL
   CO., and the lease names are invented. `OIL_FIELD=0` is the A/B; `tools/oil_field/probe.tscn`
   prints the plan and EYEs; checks: `tests/oil_field_checks.gd`.
+- The oil refinery (2026-10-29, docs/HANDOFF.md "The oil refinery north of the port"): `Refinery`
+  (`scripts/world/refinery.gd`), VELLARD REFINING CO.'s BAY WORKS (invented), an area site of 4 x 7
+  INDUSTRIAL blocks north of the port (x 2739-3235, z 5167-5830 on seed 1337; CityPlan snaps and
+  closes the streets inside, like the film studio's). PURE layout (`layout(plan)`): tank farm
+  (floating-roof tanks in berms, cone tanks, spheres), process units (`Unit`: crude, FCC, coker,
+  hydrotreater), racks down the closed streets, flares, cooling towers, the gate. `RefineryKit` builds
+  it in code on ONE shader (`shaders/refinery.gdshader`, kind in COLOR.a 32nds); flames and steam are
+  shader-placed puffs (`refinery_flame` / `refinery_plume`); ~1,500 lamps are aircraft_lights
+  billboards. Godot front faces wind CLOCKWISE (the kit's discs and shells were first drawn inside
+  out). Far: `RefineryFar` (one hook in `CityStreamer._build_far_landmarks()`), a far piece a block,
+  hidden while a FULL chunk's `RefineryCover` is shown; LOD chunks lay ground only. `REFINERY=0` the
+  A/B; probe `tools/refinery/probe.tscn`; checks `tests/refinery_checks.gd`.
 - The reservoir (VISUAL_ROADMAP #105, 2026-10-05, docs/HANDOFF.md 9dk): the FORM of the
   reservoir behind the famous sign - a long irregular lake filling a canyon of the front range,
   held back by a 1920s concrete arch-gravity dam that faces the basin - named "Lake Shallufer" on

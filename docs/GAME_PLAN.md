@@ -329,6 +329,14 @@ already mapped so milestone 2 is script-only.
   officers, crews, sleepers), near the camera only (`life_range`); a watched body is kept as
   debris past its 12 s while people watch it (`BODY_HOLD`), or the crowd would come back to
   nothing; every roll a hash; `ONLOOKERS=0` the A/B.
+- **2026-10-29 An oil refinery north of the port (HANDOFF "The oil refinery north of the port").**
+  Decisions: a fixed area site like the film studio's (4 x 7 industrial blocks between the 110 and
+  Alameda, clear of the freeway, the river and the freight line), every roll inside a hash of seed
+  and place; everything code-built on one shader (no Blender: a plant is thousands of parts placed
+  from data); the far city sees it through its own far pieces (one a block, hidden block by block
+  under FULL chunks) rather than lod_boxes, because tanks and columns are round and the night
+  aerial needs its lamps, flames and steam; the lamps are billboard points (a few thousand cost one
+  draw a piece), the night glow on the steel a shader term, not lights.
 - **2026-10-05 Apartments: the first per-style kit (G2; HANDOFF "Apartment buildings").** Midtown's
   low-rise lots and the inner suburbs get LA stucco apartments - walk-ups with galleries and open
   stairs, bungalow courts, Spanish courts, podium blocks - instead of storefront boxes and single

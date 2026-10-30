@@ -2371,6 +2371,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The power plant (tests/power_plant_checks.gd): the site south of the airport, the pure layout,
 	# the line's towers and right of way, FULL / LOD chunks, the seawall, the far city, the wires.
 	load("res://tests/power_plant_checks.gd").new().run(self, city)
+	# The oil refinery north of the port (tests/refinery_checks.gd): site, layout, chunks, far pieces.
+	load("res://tests/refinery_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

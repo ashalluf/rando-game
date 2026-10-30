@@ -154,6 +154,9 @@ static func _list() -> Array[Dictionary]:
 	# The power plant on the coast south of the airport (PowerPlant): an area site, closed streets.
 	if PowerPlant.enabled:
 		list.append(PowerPlant.entry())
+	# The oil refinery north of the port (Refinery): an area site like the film studio's.
+	if Refinery.enabled:
+		list.append(Refinery.entry())
 	return list
 
 
@@ -234,6 +237,8 @@ static func site_steps(site_id: String, chunk: CityChunk) -> Array[Callable]:
 			return FilmStudio.site_steps(chunk)
 		PowerPlant.SITE_ID:
 			return PowerPlantBuild.site_steps(chunk)
+		Refinery.SITE_ID:
+			return Refinery.site_steps(chunk)
 	var none: Array[Callable] = []
 	return none
 
@@ -246,6 +251,8 @@ static func capture_steps(site_id: String, chunk: CityChunk) -> Array[Callable]:
 		return FilmStudio.capture_steps(chunk)
 	if site_id == PowerPlant.SITE_ID:
 		return PowerPlantBuild.capture_steps(chunk)
+	if site_id == Refinery.SITE_ID:
+		return Refinery.capture_steps(chunk)
 	var none: Array[Callable] = []
 	return none
 
