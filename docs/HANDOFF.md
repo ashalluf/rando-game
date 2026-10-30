@@ -18407,3 +18407,70 @@ riders are baked poses swapped, not animated (a pose snaps between ride, crouch,
 no pushing; they pass through each other and through the player (scripted, like BeachRider). The
 player cannot skate. Spectators do not cheer or turn to the tricks. Graffiti uses the shared
 street wear atlas, so a piece can repeat one on a nearby wall.
+
+## 9d?. Every check file starts from a clean city: the reset between files, SMOKE_SHUFFLE, SHARDS=auto, 2026-10-30 (agent branch `wt/gate-speed-2`; VISUAL_ROADMAP #?)
+
+The smoke test had two problems: it was slow (CI ~1,350 s of game time in one process, the
+watchdog raised to 1500), and checks failed only in the single-process order because an earlier
+file left state behind (onlooker scenes round a car crash, destroyed props in WorldState, forced
+weather, statics like `Onlookers.enabled` / `RainCrowd.forced`). The lead had been patching each
+case in the file that broke (the crowd checks holding onlookers off and the weather dry, CI 366).
+
+**The reset** (`tests/gate_reset.gd`). Right after the city's setup, before the first city part,
+the smoke test takes a snapshot; before EVERY check file of city_files, and before every city
+part after the first, it puts it back and stages the player at home (`stage_home()`), in one
+process exactly as in a shard. It restores:
+- every class's static switches, read generically off every global class under res://scripts
+  (`get_property_list()` on the script, `PROPERTY_USAGE_SCRIPT_VARIABLE`): public bools, and any
+  static whose name says it forces, stages or holds (`force*`, `*_forced`, `staged`, `hold`) -
+  counters and caches are left alone (putting `_next_id` back would hand out ids twice);
+- the city's nodes: Weather (state, blend, wetness, drying, forced, timer), DayNight's hour (to
+  the snapshot's: the clock runs on its own), Quality's level and force, Traffic's cap and
+  `staged`, every city child's `enabled` / `staged` (Police, Emergency, NewsCrews, Birds,
+  OceanTraffic, CoastTraffic ...);
+- the world: WorldState's destruction, the police's stars and units (`Police.clear()`), open
+  onlooker scenes (members released through `_end_act`), wrecks and burning cars (freed: they
+  reopen scenes and stand in the next file's street), debris (bodies, rubble), time scale, the
+  audio speed, pause, the player out of any car on his feet at full health.
+A file the list does not await (a data check) gets the statics only, synchronously (none of those
+files awaits inside, checked by grep). `SMOKE_NO_RESET=1` is the A/B; `SMOKE_LEAKS=1` prints after
+each file every primitive static it changed and left changed (counters too), to find a new leak
+by name; `reset.last` says what the last reset put back.
+
+**The proof.** `SMOKE_SHUFFLE=<seed>` runs city_files' list (read off `_city_files()`'s own
+source, `city_file_list()`) in a seeded order. `tests/gate_speed_2_checks.gd` flips a static,
+the weather, the hour, staged traffic, the units' switches, destruction and the time scale and
+checks the reset puts each back, and that every check file is either on city_files' list or in
+`INLINE_FILES` - which caught three that were in neither (`traffic_ai_checks`,
+`street_errands_checks`, `dog_checks`, called from city_crowd / city_menu): the deal counted them
+as parts of their own, so a shard could believe it owned work that ran in another.
+
+**Speed.** Measured on the fleet box (4 cores, 15 GB), one process, `SMOKE_PROFILE=1`:
+| run | smoke wall | checks | fails |
+|---|---|---|---|
+| main a3db077f (before) | 2,583 s | 2,985 | 3 (photo mode restore; the ambulance's stretcher pair) |
+| this branch, before main's last merge | 2,500 s | 2,994 | 2 (photo mode, after city_crowd; the ferry's speed) |
+(See the results table below for the final runs.) Where the time goes did not change since 9du:
+the frames are compute bound (the whole city simulates every tick, ~0.1-0.2 s a frame here), and
+the waits are already condition polls. Cut: the pending-seed check built a whole second city
+(56 s) to test that `_ready()` takes the seed - it now streams one block and no far city
+(city_menu 68.7 -> 23.3 s). The reset itself costs ~8 ticks a file at home (30 when the last file
+left the player away). **`PART_COST` was badly stale** (city_crowd dealt at 72 s took 323; the
+freeway incidents, news crews, hospitals, car parks dealt at the 6 s default took 100-150 s each),
+so the shards were lopsided: refreshed from this run with `tools/gate/part_costs.py <log>`, and
+`CITY_LOAD_COST` 60 -> 120 (the load is ~2 minutes here now).
+
+**CI.** `headless_check.sh` takes `SHARDS=auto`: shards = min(cores, MemAvailable / `SHARD_MB`
+(3200), 3), printed; the workflow runs it and prints `nproc` / `free -m` first. On a private
+repo's 2-core runner that is 1 or 2 depending on the memory GitHub gives it - NOT measured: no
+runner was available from here. If CI runs out of memory with 2, set `SHARD_MB` higher in the
+workflow (or `SHARDS: 1`); with the reset, one process and the shards give the same results.
+
+**Fixes the reset turned up**: the photo-mode restore check failed in one process after
+city_crowd and passed alone (main has since made it say which piece is wrong); the reset before
+every city part puts that order out of play. The ferry's 10 s speed depends on where on her
+crossing she is, i.e. on how long the city has run (main widened its bound meanwhile).
+
+Not done: the city load (~2 min a process, 19 s of it the basin bake, which LoadCache cannot hold
+across CI runs because its key covers every script) is the floor of every shard; the frame cost of
+the live city during checks is the rest.

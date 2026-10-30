@@ -148,17 +148,6 @@ func run(t: Node, city: Node3D) -> void:
 		"leaving photo mode restores the pause, the time scale and the camera")
 	_t._check(hour_back and weather_back and mode_back,
 		"leaving photo mode restores the clock and the weather")
-<<<<<<< HEAD
-	printerr("photo mode back: sat %s lut %s vig %s grain %s player %s hud %s bar %s" % [env.adjustment_saturation == sat_before,
-		env.adjustment_color_correction == lut_before, vig == null or vig.get_shader_parameter("strength") == vig_before,
-		vig == null or vig.get_shader_parameter("grain") == grain_before, player == null or player.visible,
-		hud == null or hud.visible == hud_before, (photo.get("_bar_a") as ColorRect).is_visible_in_tree()])
-	_t._check(env.adjustment_saturation == sat_before and env.adjustment_color_correction == lut_before
-		and (vig == null or (vig.get_shader_parameter("strength") == vig_before and vig.get_shader_parameter("grain") == grain_before))
-		and (player == null or player.visible) and (hud == null or hud.visible == hud_before)
-		and not (photo.get("_bar_a") as ColorRect).is_visible_in_tree(),
-		"leaving photo mode restores the grade, vignette, grain, player and HUD")
-=======
 	# HourGrade sets the saturation again whenever the look moves (at dusk it moves every frame),
 	# so its own current value counts as restored too.
 	var hg: Variant = day.get("grade")
@@ -178,5 +167,4 @@ func run(t: Node, city: Node3D) -> void:
 	if (photo.get("_bar_a") as ColorRect).is_visible_in_tree():
 		wrong.append("letterbox")
 	_t._check(wrong.is_empty(), "leaving photo mode restores the grade, vignette, grain, player and HUD %s" % str(wrong))
->>>>>>> origin/main
 	DirAccess.remove_absolute("user://photo_mode_test")

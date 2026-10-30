@@ -3417,6 +3417,12 @@ already mapped so milestone 2 is script-only.
   worked out once against the same surface function the concrete is built from and played from a
   clock (nothing simulated); they and the spectators are baked figures that wake into live people.
   SKATE_PARK=0 keeps the boxes.
+- **2026-10-30 Every check file starts from a clean city.** The smoke test snapshots the city
+  after its setup and puts it back (statics, weather, hour, staged traffic, the units' switches,
+  destruction, onlookers, wrecks, debris, time scale, the player) before every check file and city
+  part, in one process as in a shard, so a check's result no longer depends on what ran before it
+  (`tests/gate_reset.gd`; `SMOKE_SHUFFLE=<seed>` is the proof). Chosen over patching each order bug
+  where it surfaced. CI runs `SHARDS=auto`.
 
 ## Correction: what build 135 (0ce833f) actually contained
 
