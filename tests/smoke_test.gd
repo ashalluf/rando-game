@@ -2454,6 +2454,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/yard_sales_checks.gd").new().run(self, city)
 	# The hills' real rock (tests/rock_outcrops_checks.gd): tors, outcrops, cut-bank boulders.
 	load("res://tests/rock_outcrops_checks.gd").new().run(self, city)
+	# Busy streets (tests/busy_streets_checks.gd): the hour, the focused spawns and rear retires,
+	# the extra kerb cars (a hash, nothing moved), the near crowd topped up.
+	await load("res://tests/busy_streets_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

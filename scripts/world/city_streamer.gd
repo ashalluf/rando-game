@@ -409,6 +409,7 @@ func _process(delta: float) -> void:
 		update_streaming(false)
 	_advance_builds()
 	_advance_retiring(delta)
+	BusyStreets.crowd_tick(self, delta)
 	if _skyline:
 		_skyline.advance(_eye, int(far_city_budget_ms * 1000.0))
 
