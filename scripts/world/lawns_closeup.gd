@@ -32,6 +32,11 @@ extends RefCounted
 
 static var enabled: bool = OS.get_environment("LAWNS_CLOSEUP") != "0"
 
+## How many more tufts a lawn gets with the pass on: the close-up tuft is mown and spread, so it
+## takes more of them to make turf; paid for by the shorter GRASS_DISTANCE (the area drawn falls
+## to 56 %).
+const DENSITY_GAIN := 1.6
+
 ## How far a grass cell keeps drawing (metres to its centre) with the close-up pass on. The
 ## blades are gone by grass.gdshader's fade_end (62 m) and a cell's farthest corner is 22.6 m
 ## from its centre, so nothing drawn is lost.
@@ -64,6 +69,10 @@ const MAX_WEEDS := 900
 const SPRINKLER_ON := Vector2(4.6, 5.4)
 const SPRINKLER_OFF := Vector2(8.2, 10.4)
 
+## The close-up tuft's blades: their height against the old tuft's, and the disc they spread over.
+const MOWN := 0.75
+const SPREAD := 0.24
+
 static var _installed := false
 static var _blade: Mesh
 static var _weeds: Array = []
@@ -93,6 +102,10 @@ static func sprinkler_hours(h: float) -> float:
 ## How far the chunk's grass cells draw: the close-up distance, or the chunk's own export when off.
 static func grass_distance(old: float) -> float:
 	return minf(old, GRASS_DISTANCE) if enabled else old
+
+
+static func density_gain() -> float:
+	return DENSITY_GAIN if enabled else 1.0
 
 
 ## What a lawn material says about its lawn, for its blades: [tint (sRGB), dryness, seed index,
@@ -144,6 +157,13 @@ static func blade_mesh() -> Mesh:
 		var lean := rng.randf_range(0.24, 0.78) * height
 		var root := dir * rng.randf_range(0.0, 0.055)
 		var twist := rng.randf_range(-0.55, 0.55)
+		# Mown and spread: the old tuft was ten blades from one point, a spiky clump on a flat
+		# green; a lawn is turf, so the blades stand apart over a disc (a hash, not the stream:
+		# every blade keeps its old shape) and at mowing height.
+		height *= MOWN
+		lean *= MOWN
+		var ang := TAU * _h01([b, "spread_a"])
+		root += Vector3(cos(ang), 0.0, sin(ang)) * SPREAD * sqrt(_h01([b, "spread_r"]))
 		var u := (float(b) + 0.5) / float(nb)
 		# Three vertices a ring (left edge, midrib, right edge) twice over: the two halves keep
 		# their own normals, which is the crease.

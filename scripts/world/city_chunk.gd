@@ -3539,12 +3539,14 @@ func _add_bush(at: Vector3, rng: RandomNumberGenerator) -> void:
 ## Its own seeded rng, so adding grass never shifts the block's sequence and moves a building.
 ## `lawn` / `lawn_rect` are the lawn the grass stands on (LawnsCloseup: the blades take its field).
 func _add_grass(rect: Rect2, density: float = 1.0, keep_out: float = 0.0, blockers: Array[Rect2] = [], lawn: Material = null, lawn_rect: Rect2 = Rect2()) -> void:
-	if level != Level.FULL or rect.size.x < 2.0 or rect.size.y < 2.0:
+	var min_side := 1.0 if LawnsCloseup.enabled else 2.0
+	if level != Level.FULL or rect.size.x < min_side or rect.size.y < min_side:
 		return
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([plan.seed, ix, iz, "grass", int(rect.position.x), int(rect.position.y)])
 	var area := rect.size.x * rect.size.y
-	var count := int(clampf(area * grass_per_sqm * density * _detail(), 0.0, float(grass_max_per_patch)))
+	var thick := LawnsCloseup.density_gain()
+	var count := int(clampf(area * grass_per_sqm * density * thick * _detail(), 0.0, float(grass_max_per_patch) * thick))
 	if count <= 0:
 		return
 	var cell := 2.0

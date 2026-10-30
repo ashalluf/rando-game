@@ -74,6 +74,7 @@ global uniform float city_hour;
 varying flat vec4 lawn_info;
 varying flat vec2 root_xz;
 varying float blade_rand;
+varying float far_k;
 
 
 void vertex() {
@@ -83,6 +84,7 @@ void vertex() {
 	vec3 root = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
 	root_xz = root.xz;
 	blade_rand = 0.5;
+	far_k = 0.0;
 	if (lawn_field_on()) {
 		// Each blade its own height: UV.x is the blade's place in the tuft (LawnsCloseup's mesh).
 		blade_rand = lf_hash(vec2(INSTANCE_CUSTOM.x * 97.0, UV.x * 31.0 + 1.3));
@@ -99,6 +101,8 @@ void vertex() {
 		// Away into the ground with distance, the tip first.
 		float dist = length(root - CAMERA_POSITION_WORLD);
 		grow *= 1.0 - smoothstep(fade_start, fade_end, dist);
+		// And its shade goes to the ground's own as it goes: no darker or brighter speckle.
+		far_k = smoothstep(fade_start * 0.5, fade_end * 0.85, dist);
 		VERTEX *= max(grow, 0.0);
 	}
 	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -133,7 +137,7 @@ void fragment() {
 		// Blade by blade: a few yellowed or burnt at the tip, a few bluer and younger, each its
 		// own shade - real turf is never one green.
 		float h = height_t;
-		vec3 shade = mix(vec3(0.62, 0.66, 0.58), vec3(1.14, 1.12, 1.05), smoothstep(0.0, 0.85, h));
+		vec3 shade = mix(vec3(0.84, 0.86, 0.8), vec3(1.08, 1.06, 1.0), smoothstep(0.0, 0.85, h));
 		shade *= 0.84 + 0.32 * blade_rand;
 		float tip_burn = step(0.82, fract(blade_rand * 7.31)) * smoothstep(0.55, 1.0, h);
 		shade = mix(shade, vec3(1.45, 1.22, 0.70), tip_burn * 0.7);
@@ -141,7 +145,7 @@ void fragment() {
 		shade *= mix(vec3(1.0), vec3(0.94, 1.06, 1.1), young);
 		// Straw blades are straw all the way down, a little paler toward the tip.
 		shade = mix(shade, mix(vec3(0.9), vec3(1.12), h), dry * 0.5);
-		col *= shade;
+		col *= mix(shade, vec3(1.0), far_k);
 		// The morning's watering beads on the blades: darker and glossy.
 		float spray = city_hour < 11.0 ? lf_sprinkler(wp, lseed, city_hour) : 0.0;
 		float wet = max(clamp(road_wetness, 0.0, 1.0), spray);
@@ -153,7 +157,7 @@ void fragment() {
 		ALBEDO = lit;
 		ROUGHNESS = mix(blade_roughness, wet_roughness, wet);
 		SPECULAR = mix(blade_specular, 0.85, wet);
-		vec3 through = ALBEDO * translucency * (0.25 + 0.95 * height_t) * (1.0 - nf);
+		vec3 through = ALBEDO * translucency * (0.25 + 0.95 * height_t) * (1.0 - nf) * (1.0 - far_k);
 		vec3 to_cam_c = normalize((INV_VIEW_MATRIX * vec4(VIEW, 0.0)).xyz);
 		float facing_c = clamp(dot(to_cam_c, -normalize(sun_direction)), 0.0, 1.0);
 		BACKLIGHT = through * (1.0 + scatter_gain * pow(facing_c, scatter_sharpness));

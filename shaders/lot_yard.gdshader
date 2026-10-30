@@ -170,7 +170,7 @@ void fragment() {
 			float ls = floor(variant * 997.0) * 0.37;
 			float d2 = clamp(dry + smoothstep(0.68, 0.86, lf_noise(p * 0.42 + ls * 2.9 + 17.0)) * 0.4, 0.0, 1.0);
 			float clover = lf_clover(p, ls, d2);
-			albedo = g * mix(mix(disp(lawn_tint), disp(lawn_dry), d2), disp(lawn_tint) * vec3(0.8, 0.98, 1.1), clover * 0.75) * mottle;
+			albedo = g * mix(mix(disp(lawn_tint), disp(lawn_dry), d2), disp(lawn_tint) * vec3(0.86, 0.97, 1.03), clover * 0.6) * mottle;
 		}
 		rough = 0.95;
 		wet_k = 0.4;

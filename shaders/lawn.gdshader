@@ -136,7 +136,7 @@ void fragment() {
 				float a = ang + float(k) * 2.094;
 				leaf = max(leaf, 1.0 - smoothstep(0.17, 0.23, length(f - vec2(cos(a), sin(a)) * 0.2)));
 			}
-			col *= mix(1.0, mix(0.72, 1.18, leaf), clover * near_k);
+			col *= mix(1.0, mix(0.86, 1.1, leaf), clover * near_k);
 			nrm = mix(nrm, vec3(0.5, 0.5, 1.0), clover * near_k * 0.6);
 		}
 		// The edge along the pavement: an edged lawn has a crisp line of soil a hand wide where
@@ -149,11 +149,6 @@ void fragment() {
 		float spray = lf_sprinkler(wp, seed, city_hour);
 		col *= 1.0 - 0.18 * spray;
 		rough = mix(rough, 0.32, spray);
-		// Thatch and soil between the blades up close: the near lawn is the ground under grass,
-		// so a little darker and duller than the carpet it reads as from further off (the blades
-		// carry the bright tone there).
-		float under = (1.0 - smoothstep(4.0, 26.0, length(world_pos - CAMERA_POSITION_WORLD))) * (1.0 - wear);
-		col *= mix(1.0, 0.82 + 0.1 * thatch, under);
 		vec3 lit = alb * col;
 		float nf = clamp(night_factor, 0.0, 1.0) * night_darken;
 		float grey = dot(lit, vec3(0.299, 0.587, 0.114));

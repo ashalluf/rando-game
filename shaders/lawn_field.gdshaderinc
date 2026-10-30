@@ -117,7 +117,7 @@ float lf_sprinkler(vec2 wp, float lseed_, float hour) {
 vec3 lf_tone(vec2 wp, float lseed_, vec3 t_wet, vec3 t_dry, vec3 t_dirt, float dry, float clover, float stripe, float s_amt, float wear) {
 	vec3 col = mix(t_wet, t_dry, dry);
 	// Clover reads a cooler, bluer green than the grass round it, and a touch darker.
-	col = mix(col, t_wet * vec3(0.80, 0.98, 1.10), clover * 0.75);
+	col = mix(col, t_wet * vec3(0.86, 0.97, 1.03), clover * 0.6);
 	col *= 1.0 + stripe * s_amt;
 	return mix(col, t_dirt, wear);
 }

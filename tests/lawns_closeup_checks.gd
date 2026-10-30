@@ -94,8 +94,8 @@ func _tuft() -> void:
 	var ov := (old.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
 	var a := old.get_aabb()
 	var b := new.get_aabb()
-	_check(_tris(old) == _tris(new) and nv * 2 < ov and a.position.distance_to(b.position) < 0.002 and a.end.distance_to(b.end) < 0.002,
-		"lawns closeup: the close-up tuft is the old tuft's %d triangles on %d vertices (was %d), the same bounds" % [_tris(new), nv, ov])
+	_check(_tris(old) == _tris(new) and nv * 2 < ov and b.size.y < a.size.y * (LawnsCloseup.MOWN + 0.01) and b.size.x > a.size.x,
+		"lawns closeup: the close-up tuft is the old tuft's %d triangles on %d vertices (was %d), mown and spread (%s / %s)" % [_tris(new), nv, ov, str(b.size), str(a.size)])
 	var uvs: PackedVector2Array = new.surface_get_arrays(0)[Mesh.ARRAY_TEX_UV]
 	var ids := {}
 	for uv in uvs:
