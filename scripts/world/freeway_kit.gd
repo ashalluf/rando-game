@@ -143,6 +143,9 @@ static func structure_material() -> ShaderMaterial:
 		_structure_mat.shader = load("res://shaders/freeway_structure.gdshader")
 		_structure_mat.set_shader_parameter("concrete_tex", PropFactory.texture("concrete", "Color"))
 		_structure_mat.set_shader_parameter("concrete_rough", PropFactory.texture("concrete", "Roughness"))
+		_structure_mat.set_shader_parameter("closeup", FreewayCloseup.enabled)
+		if FreewayCloseup.enabled:
+			_structure_mat.set_shader_parameter("tag_atlas", load("res://assets/textures/street_wear/street_wear_tags.png"))
 	return _structure_mat
 
 
@@ -150,6 +153,7 @@ static func paint_material() -> ShaderMaterial:
 	if _paint_mat == null:
 		_paint_mat = ShaderMaterial.new()
 		_paint_mat.shader = load("res://shaders/freeway_paint.gdshader")
+		_paint_mat.set_shader_parameter("closeup", FreewayCloseup.enabled)
 	return _paint_mat
 
 
@@ -199,6 +203,15 @@ static func kind_color(c: Color, kind: int) -> Color:
 
 
 # --- Geometry helpers -----------------------------------------------------------------------
+
+## A vertex of the deck top: UV (metres along the route, metres across from the centre line),
+## UV2 (the half width, the lane layout: route + 1 on a main deck, 0 a ramp or a connector) for
+## FreewayCloseup's deck shader.
+func top_vertex(v: Vector3, uv: Vector2, half: float, layout: float) -> void:
+	top.set_uv(uv)
+	top.set_uv2(Vector2(half, layout))
+	top.add_vertex(v)
+
 
 ## One triangle facing `want`; the winding is fixed to match and the normal is set flat, so no
 ## caller has to think about winding (LandmarkGeo's rule).
@@ -501,8 +514,9 @@ func build_segments(segs: Array[Dictionary], area: Rect2) -> int:
 		var r0 := Vector3(a.x + e.x, ha, a.y + e.y)
 		var l1 := Vector3(b.x - e.x, hb, b.y - e.y)
 		var r1 := Vector3(b.x + e.x, hb, b.y + e.y)
+		var uvs := {l0: Vector2(run0, -half), r0: Vector2(run0, half), l1: Vector2(run1, -half), r1: Vector2(run1, half)}
 		for v: Vector3 in [l0, r1, r0, l0, l1, r1]:
-			top.add_vertex(v)
+			top_vertex(v, uvs[v], half, float(ri) + 1.0)
 		if not full:
 			_traffic_skin(l0, r0, l1, r1, dir, half, run0, seg_len, ri)
 
@@ -712,6 +726,8 @@ func _light_standard(a3: Vector3, dir: Vector2, nrm: Vector2, ri: int) -> void:
 		# The pool it throws, a little out from under the head toward the traffic lanes.
 		var pc := a3 + n3 * ((LIGHT_ARM + 3.2) * side) + Vector3(0.0, 0.07, 0.0)
 		pool(pc, d3, POOL_SIZE, Color(lamp_col.r, lamp_col.g, lamp_col.b, POOL_SODIUM if sodium else POOL_LED))
+		# Its halo in the night air (FreewayCloseup: NightAtmos's halo in the chunk's batch).
+		FreewayCloseup.lamp_halo(chunk, hc - Vector3(0.0, 0.2, 0.0), sodium)
 
 
 ## An overhead sign gantry: truss posts on both edge barriers, a box truss across the deck with
@@ -1019,8 +1035,10 @@ func _furniture(a3: Vector3, b3: Vector3, dir: Vector2, nrm: Vector2, lay: Dicti
 func ramp_piece(p0: Vector3, p1: Vector3, nrm: Vector2, width: float, run0: float, run1: float) -> void:
 	var half := width * 0.5
 	var n3 := Vector3(nrm.x, 0.0, nrm.y)
-	for v: Vector3 in [p0 - n3 * half, p1 + n3 * half, p0 + n3 * half, p0 - n3 * half, p1 - n3 * half, p1 + n3 * half]:
-		top.add_vertex(v)
+	var ends := [[p0 - n3 * half, Vector2(run0, -half)], [p1 + n3 * half, Vector2(run1, half)], [p0 + n3 * half, Vector2(run0, half)],
+		[p0 - n3 * half, Vector2(run0, -half)], [p1 - n3 * half, Vector2(run1, -half)], [p1 + n3 * half, Vector2(run1, half)]]
+	for e: Array in ends:
+		top_vertex(e[0], e[1], half, 0.0)
 	var conc := kind_color(CONCRETE, S_FASCIA)
 	var slab := PackedVector2Array([Vector2(half, 0.0), Vector2(half, -0.7), Vector2(-half, -0.7), Vector2(-half, 0.0)])
 	extrude(body, p0, p1, nrm, run0, run1, slab, Vector2(0.0, -0.35), [conc, kind_color(CONCRETE * 0.92, S_SOFFIT), conc],
@@ -1041,7 +1059,7 @@ func ramp_piece(p0: Vector3, p1: Vector3, nrm: Vector2, width: float, run0: floa
 ## Commits the meshes into `chunk`: <prefix>Deck, <prefix>Structure, <prefix>Paint, <prefix>Glow.
 func commit(road_mat: Material, prefix := "Freeway") -> void:
 	top.generate_normals()
-	_add(prefix + "Deck", top.commit(), road_mat)
+	_add(prefix + "Deck", top.commit(), FreewayCloseup.deck_material() if FreewayCloseup.enabled else road_mat)
 	_add(prefix + "Structure", body.commit(), structure_material())
 	if _paint_any:
 		var mi := _add(prefix + "Paint", paint.commit(), paint_material())

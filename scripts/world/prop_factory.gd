@@ -2348,6 +2348,7 @@ static func beach_sand_material() -> ShaderMaterial:
 	mat.set_shader_parameter("rough_tex", texture("sand", "Roughness"))
 	mat.set_shader_parameter("tint", Color(1.0, 0.95, 0.85))
 	mat.set_shader_parameter("tile_m", 2.0)
+	BeachGolden.dress_sand(mat)
 	_cache["beach_sand_mat"] = mat
 	return mat
 

@@ -54,28 +54,12 @@ var _aim_distance: float = 3.8
 var _aim_fov_drop: float = 14.0
 ## 0 in the normal view, 1 fully in the aiming view.
 var _aim_blend: float = 0.0
-## The chase camera while driving (DriveCam, scripts/player/drive_cam.gd; DRIVE_CAM=0 the A/B).
-var drive: DriveCam
-## The settings' "Driving camera shake" (GameSettings): off, no road shake or landing shake.
-var drive_shake: bool = true:
-	set(v):
-		drive_shake = v
-		if drive:
-			drive.shake_scale = 1.0 if v else 0.0
-var _drive_rot := Vector3.ZERO
-var _home_position := Vector3.ZERO
 
 
 func _ready() -> void:
 	spring_arm.spring_length = camera_distance
 	camera.fov = camera_fov
 	_pitch = deg_to_rad(start_pitch_deg)
-	_home_position = position
-	drive = DriveCam.new()
-	drive.name = "DriveCam"
-	add_child(drive)
-	drive.setup(self, spring_arm)
-	drive.shake_scale = 1.0 if drive_shake else 0.0
 	var body := get_parent() as CollisionObject3D
 	if body:
 		spring_arm.add_excluded_object(body.get_rid())
@@ -95,8 +79,6 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 		_yaw -= motion.relative.x * mouse_sensitivity
 		_pitch -= motion.relative.y * mouse_sensitivity * (-1.0 if invert_y else 1.0)
-		if drive:
-			drive.note_look()
 		_apply_rotation()
 	elif event is InputEventMouseButton and event.is_pressed() and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -110,8 +92,6 @@ func _process(delta: float) -> void:
 	if look != Vector2.ZERO and not lock_active and not look_blocked:
 		_yaw -= look.x * gamepad_look_speed * delta
 		_pitch -= look.y * gamepad_look_speed * delta * (-1.0 if invert_y else 1.0)
-		if drive:
-			drive.note_look()
 	if _kick_pitch != 0.0:
 		_kick_pitch = lerpf(_kick_pitch, 0.0, 1.0 - exp(-kick_recover_speed * delta))
 	if _shake > 0.001:
@@ -121,73 +101,18 @@ func _process(delta: float) -> void:
 	elif _shake_offset != Vector3.ZERO:
 		_shake = 0.0
 		_shake_offset = Vector3.ZERO
-	var player := get_parent() as Player
-	var chase := {}
-	if drive:
-		chase = drive.apply(_yaw, _pitch, player, delta, InputMap.has_action("look_behind") and Input.is_action_pressed("look_behind"))
-	var cw := smoothstep(0.0, 1.0, float(chase.get("weight", 0.0)))
-	if not chase.is_empty():
-		if not lock_active:
-			_yaw = float(chase.yaw)
-			_pitch = float(chase.pitch)
-		_drive_rot = chase.rot * cw
-		var pivot: Vector3 = chase.pivot
-		var home := (get_parent() as Node3D).global_transform * _home_position
-		if pivot == Vector3.INF:
-			pivot = home
-		global_position = home.lerp(pivot, cw) + Vector3.UP * float(chase.drop) * cw
-	elif _drive_rot != Vector3.ZERO or position != _home_position:
-		_drive_rot = Vector3.ZERO
-		position = _home_position
 	_apply_rotation()
 
 	_aim_blend = move_toward(_aim_blend, 1.0 if _aiming else 0.0, aim_blend_speed * delta)
 	var ease_blend := smoothstep(0.0, 1.0, _aim_blend)
 	spring_arm.spring_length = lerpf(camera_distance, _aim_distance, ease_blend)
-	if cw > 0.0:
-		spring_arm.spring_length = lerpf(spring_arm.spring_length, float(chase.distance), cw)
 	spring_arm.position.x = aim_shoulder * ease_blend
+	var player := get_parent() as Player
 	var base_fov := car_fov if car_fov > 0.0 and player and player.vehicle != null else camera_fov
 	var target_fov := base_fov - _aim_fov_drop * ease_blend
 	if player and player.is_boosting():
-		# In the chase camera the nitro's own (smaller) widening is in fov_add.
-		target_fov += boost_fov_boost * (1.0 - cw)
-	target_fov += float(chase.get("fov_add", 0.0)) * cw
-	if cw > 0.0:
-		_clamp_to_walls()
+		target_fov += boost_fov_boost
 	camera.fov = lerpf(camera.fov, target_fov, 1.0 - exp(-fov_lerp_speed * delta))
-
-
-## The spring arm resolves its length in the physics tick, but the chase camera moves the pivot
-## every frame: sweep the arm's sphere again from where the pivot is now, so for no frame does the
-## camera stand in a wall or past it.
-func _clamp_to_walls() -> void:
-	var space := get_world_3d().direct_space_state if is_inside_tree() else null
-	if space == null:
-		return
-	var from := spring_arm.global_position
-	var dir := spring_arm.global_basis.z
-	var length := spring_arm.spring_length
-	var r := maxf(drive.arm_radius if drive else 0.25, 0.05)
-	var q := PhysicsShapeQueryParameters3D.new()
-	var sphere := SphereShape3D.new()
-	sphere.radius = r
-	q.shape = sphere
-	q.transform = Transform3D(Basis(), from)
-	q.motion = dir * length
-	q.collision_mask = spring_arm.collision_mask
-	var ex: Array[RID] = []
-	var body := get_parent() as CollisionObject3D
-	if body:
-		ex.append(body.get_rid())
-	if drive and drive.car and is_instance_valid(drive.car):
-		ex.append(drive.car.get_rid())
-	q.exclude = ex
-	var frac := space.cast_motion(q)
-	var safe := length * frac[0] if frac.size() > 0 else length
-	safe = maxf(safe - spring_arm.margin * 0.5, 0.0)
-	if safe < camera.position.z:
-		camera.position.z = safe
 
 
 ## The aiming view: pulled in to `distance`, over the shoulder, `fov_drop` degrees narrower.
@@ -240,8 +165,6 @@ func set_look(yaw_deg: float, pitch_deg: float) -> void:
 	_yaw = deg_to_rad(yaw_deg)
 	_pitch = deg_to_rad(pitch_deg)
 	_kick_pitch = 0.0
-	if drive:
-		drive.note_look() # a placed view is the player's: the chase camera holds it, then eases back
 	_apply_rotation()
 
 
@@ -251,13 +174,10 @@ func look_at_point(point: Vector3) -> void:
 	_yaw = atan2(-dir.x, -dir.z)
 	_pitch = asin(clampf(dir.y, -1.0, 1.0))
 	_kick_pitch = 0.0
-	if drive:
-		drive.note_look()
 	_apply_rotation()
 
 
 func _apply_rotation() -> void:
 	_pitch = clampf(_pitch, deg_to_rad(min_pitch_deg), deg_to_rad(max_pitch_deg))
 	_yaw = wrapf(_yaw, -PI, PI)
-	rotation = Vector3(_pitch + _kick_pitch + _shake_offset.x + _drive_rot.x, _yaw + _shake_offset.y + _drive_rot.y,
-			_shake_offset.z + _drive_rot.z)
+	rotation = Vector3(_pitch + _kick_pitch + _shake_offset.x, _yaw + _shake_offset.y, _shake_offset.z)

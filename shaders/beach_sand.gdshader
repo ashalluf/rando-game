@@ -17,6 +17,8 @@ shader_type spatial;
 // blurry at grazing angles), with a floor on the roughness so the renderer adds its glint too.
 
 #include "res://shaders/surf.gdshaderinc"
+#include "res://shaders/color_space.gdshaderinc"
+#include "res://shaders/beach_golden.gdshaderinc"
 
 global uniform vec3 origin_shift;
 global uniform vec4 sky_tint;
@@ -47,6 +49,13 @@ uniform float sheet_mirror = 1.0;
 uniform vec3 lace_color = vec3(0.82, 0.85, 0.86);
 // Past this distance (metres) the swash is not worked out at all.
 uniform float swash_distance = 320.0;
+// The damp band above the swash (beach_golden): how much darker, how glossy, how strongly it and
+// the standing pools in it mirror the sky, and how much of the sun's glow it takes at golden hour.
+uniform float band_darken = 0.18;
+uniform float band_roughness = 0.32;
+uniform float band_mirror = 0.16;
+uniform float pool_mirror = 0.95;
+uniform float sun_glow = 0.6;
 
 varying vec3 wpos;
 
@@ -81,6 +90,43 @@ void fragment() {
 	float damp = max(wet * 0.9, road_wetness * 0.75);
 	alb *= 1.0 - wet_darken * damp;
 	rough = mix(rough, wet_roughness, damp);
+
+	// The postcard pass (beach_golden.gdshaderinc; golden_on 0 skips all of it): the damp band the
+	// last tide left above the swash, wind ripples and hummocks on the dry sand, footprints, the
+	// wrack line, quartz glints. Slopes are true-world (dh/dx, dh/dz), turned into the normal map
+	// through the mesh's own tangent frame so no texture convention can flip them.
+	float band = 0.0;
+	float pool = 0.0;
+	float glint = 0.0;
+	// Metres per pixel, taken outside any branch (derivatives in divergent flow are undefined:
+	// llvmpipe hands back 0 and the ripples aliased to a corduroy at every range).
+	float px = length(fwidth(tw));
+	if (golden_on > 0.5 && dist < 260.0) {
+		float tide = reach_max + 5.0 + 3.0 * (bg_noise(vec2(tw.y * 0.05, 1.0)) - 0.5);
+		band = (1.0 - smoothstep(tide - 4.0, tide + 2.0, up)) * (1.0 - wet * 0.5);
+		// Shallow water left standing in the low-tide terrace's troughs: mirror patches.
+		pool = band * smoothstep(0.58, 0.72, bg_noise(tw * vec2(0.09, 0.05) + 2.0)) * (1.0 - smoothstep(reach_max * 0.6, reach_max + 3.0, up));
+		alb *= 1.0 - band * band_darken;
+		rough = mix(rough, band_roughness, band);
+		float dry = smoothstep(tide + 2.0, tide + 12.0, up) * (1.0 - damp) * (1.0 - road_wetness);
+		float keep = smoothstep(reach_max * 0.55, reach_max + 1.5, up);
+		float prwet = 1.0 - smoothstep(tide, tide + 8.0, up);
+		float trod;
+		vec3 g = bg_ripples(tw, px, dry) + bg_hummocks(tw, px, dry) * mix(1.0, 0.4, band) + bg_footprints(tw, px, prwet, keep, trod);
+		alb *= 1.0 - 0.07 * trod;
+		// Wet prints hold a film of water; dry ones show the darker damp sand they turned up.
+		float dent = clamp(-g.z / max(print_depth, 1e-4), 0.0, 1.0);
+		alb *= 1.0 - dent * mix(0.05, 0.16, prwet);
+		rough = mix(rough, 0.18, dent * prwet * 0.7);
+		float wr = bg_wrack(tw, up, reach_max, px);
+		alb = mix(alb, cs_as_uniform(mix(vec3(0.20, 0.17, 0.10), vec3(0.11, 0.10, 0.06), bg_noise(tw * 3.0))), wr);
+		rough = mix(rough, 0.6, wr);
+		vec3 dv = (VIEW_MATRIX * vec4(-g.x, 0.0, -g.y, 0.0)).xyz;
+		nm.xy += 0.5 * vec2(dot(dv, TANGENT), dot(dv, BINORMAL)) / max(normal_scale, 0.05);
+		glint = bg_glint(tw, view_dir, normalize(sun_direction), px, dry * (1.0 - wr));
+		rough = mix(rough, 0.04, pool);
+		nm = mix(nm, vec3(0.5, 0.5, 1.0), pool * 0.8);
+	}
 
 	// The sheet: sand seen through a few centimetres of water, darker and a touch cooler, with
 	// the texture's relief drowned and a fine ripple of its own running with the flow.
@@ -123,12 +169,30 @@ void fragment() {
 	vec3 n_w = normalize(vec3(0.0, 1.0, 0.0) + vec3(nm.x - 0.5, 0.0, nm.y - 0.5) * 0.15);
 	float fres = 0.02 + 0.98 * pow(1.0 - clamp(dot(n_w, -view_dir), 0.0, 1.0), 5.0);
 	vec3 refl = reflect(view_dir, n_w);
-	vec3 sky_ref = mix(sky_tint.rgb, sky_tint.rgb * vec3(0.55, 0.72, 1.0), smoothstep(0.0, 0.55, refl.y));
+	vec3 sky = golden_on > 0.5 ? cs_as_uniform(sky_tint.rgb) : sky_tint.rgb;
+	vec3 sky_ref = mix(sky, sky * vec3(0.55, 0.72, 1.0), smoothstep(0.0, 0.55, refl.y));
 	float mirror = (sh * sheet_mirror + damp * 0.25) * (1.0 - lace);
 	vec3 sun_n = normalize(sun_direction);
-	float glint = pow(max(dot(refl, sun_n), 0.0), 400.0) * 4.0 * (1.0 - night_factor) * step(0.0, sun_n.y);
-	EMISSION = (sky_ref * fres + vec3(1.0, 0.92, 0.8) * glint * fres) * mirror;
-	ALBEDO = alb * (1.0 - fres * sh * 0.8);
+	float sun_glint = pow(max(dot(refl, sun_n), 0.0), 400.0) * 4.0 * (1.0 - night_factor) * step(0.0, sun_n.y);
+	vec3 sun_col = vec3(1.0, 0.92, 0.8);
+	if (golden_on > 0.5) {
+		// The low sun's colour, and the glow of the sky round it mirrored in the wet sand: the
+		// sunset path the sea throws up the beach.
+		float gold = (1.0 - smoothstep(0.05, 0.4, sun_n.y)) * smoothstep(-0.08, 0.0, sun_n.y);
+		sun_col = cs_as_uniform(mix(vec3(1.0, 0.95, 0.86), vec3(1.0, 0.62, 0.30), gold));
+		vec2 rh = normalize(refl.xz + vec2(1e-4, 0.0));
+		vec2 sh2 = normalize(sun_n.xz + vec2(1e-4, 0.0));
+		float toward = pow(max(dot(rh, sh2), 0.0), 6.0) * (1.0 - smoothstep(0.0, 0.35, refl.y));
+		sky_ref += sun_col * toward * gold * sun_glow;
+		float wet_mirror = band * band_mirror + pool * pool_mirror;
+		mirror = max(mirror, wet_mirror * (1.0 - lace));
+		// A broad sun path in damp sand (rougher than the sheet) on top of the sheet's sharp glint.
+		sun_glint += pow(max(dot(refl, sun_n), 0.0), mix(40.0, 600.0, pool)) * mix(0.8, 3.0, pool) * band * (1.0 - night_factor) * step(0.0, sun_n.y);
+		EMISSION = (sky_ref * fres + sun_col * sun_glint * fres) * mirror + sun_col * glint * (1.0 - night_factor);
+	} else {
+		EMISSION = (sky_ref * fres + sun_col * sun_glint * fres) * mirror;
+	}
+	ALBEDO = alb * (1.0 - fres * (sh * 0.8 + pool * 0.6));
 	ROUGHNESS = rough;
 	NORMAL_MAP = nm;
 	NORMAL_MAP_DEPTH = normal_scale;

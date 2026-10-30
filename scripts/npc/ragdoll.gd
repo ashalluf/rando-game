@@ -108,6 +108,14 @@ func build_from_rig(path: String, look: int = -1) -> bool:
 	return true
 
 
+## While jointed, no part spins past RagdollJoints.max_spin.
+func _physics_process(_delta: float) -> void:
+	if _joints == null or _joints.frozen:
+		set_physics_process(false)
+		return
+	_joints.clamp_spin()
+
+
 func _process(delta: float) -> void:
 	if bodies.is_empty():
 		return

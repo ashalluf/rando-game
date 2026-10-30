@@ -404,6 +404,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   under overcast. Look in seconds with `tools/sky/sky_shot.gd` (the city's Environment and
   DayNight, no city; HOUR, YAW, PITCH, MOONAGE, COVERAGE, CONTRAILS, DOME, DETAIL=0 the painted
   path, BENCH). Checks: `tests/sky_checks.gd`.
+- The sunset (2026-10-30, docs/HANDOFF.md "The Los Angeles sunset"): `SunsetSky`
+  (`scripts/world/sunset_sky.gd`, one hook in DayNight._apply()) hands sky.gdshader a `sunset`
+  weight on the sun's elevation alone (0 above ~19 degrees and below ~13 under, 0 in overcast:
+  every block it adds is gated, noon and night are bit-identical). While on, each cloud sample,
+  the painted deck and the cirrus are lit by `sun_through(el, h)` - the sun as it reaches THAT
+  point (local elevation tipped by the distance toward the sun; an art-directed palette orange ->
+  salmon -> pink -> magenta, `SUNSET_PAL_*`; dark once the earth's shadow reaches it, on an
+  exaggerated `SUNSET_SHADOW_R` 200 km so the bases glow ~30 game minutes past sunset; `SunsetSky.sun_through()` is the GDScript copy, the
+  checks read the shader's numbers) -; after the street's sunset the light march is tipped down
+  so the flat bases glow from below under violet crowns; cirrus keep an afterglow (broken into
+  wisps: their E-W streaks otherwise read as beams); rays fan wide (`sunset_rays`, not
+  `god_rays`, which the night factor kills); the earth's shadow and Belt of Venus rise opposite
+  the sun, a peach band toward it. `SUNSET_CLOUDS=0` is the A/B; `tools/sky/sky_shot.gd` takes
+  `PARAMS=` and `HOLD_TIME=1` (pixel diffs); checks `tests/sunset_clouds_checks.gd`.
 - The island offshore (2026-10-30, docs/HANDOFF.md "The island offshore"): Isla Calandra, 36 km
   WSW of the beach, past the far plane, so the SKY draws it (`shaders/offshore_island.gdshaderinc`,
   `island_draw()` in sky.gdshader after the stars, before the clouds): a height field in true-world
@@ -618,6 +632,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   kept low (`Vehicle.FINISHES`): the mirror is the lacquer's job. `Vehicle.PAINTS` is weighted the way
   a real car park looks (mostly white/black/grey/silver). Grass is tapered curved blades whose
   normals are bent toward up so a lawn lights as a carpet, not as a pile of lit slivers.
+- Grounded light (wave 3, `gi-review`, docs/HANDOFF.md "Grounded light"): `GiTuning`
+  (`scripts/world/gi_tuning.gd`, one table, applied by `Quality._apply_render()`) tunes SSAO /
+  SSIL / SDFGI per level and hands DayNight `gi_scale` (day SDFGI energy, x1.35 at HIGH) and
+  `sky_contribution` (0.7 below HIGH). **Godot ignores `ambient_light_energy` while
+  `ambient_light_sky_contribution` is 1.0**: by day the sky fill is turned down only through the
+  contribution. `ContactShadows` (`scripts/world/contact_shadows.gd`, one node under the root, made
+  by the first Vehicle): one MultiMesh of soft occlusion quads (`shaders/contact_shadow.gdshader`:
+  footprint + wheel blobs, alpha-blended black) under the nearest cars and loose props, faded when
+  a car leaves the ground; a "BatchContact" MultiMesh per FULL chunk under the furniture batches in
+  `CONTACT_KEYS` (MultiMeshBatch.build(); `hide_instance()` takes a broken prop's). Weaker where
+  SDFGI / SSAO already occlude. `GI_REVIEW=0` / `CONTACT_SHADOWS=0` the A/B;
+  `tools/gi_review/gi_shot.tscn` (VARIANTS= in one load, the player's auto exposure, PROFILE=1);
+  checks `tests/gi_review_checks.gd`.
 - Reflection probes (G4, 2026-10-05, docs/HANDOFF.md "Reflection probes"): `ReflectionProbes`
   (`scripts/world/reflection_probes.gd`, a Node CityStreamer adds; **Forward+ desktop only**,
   `supported()`; `REFLECTION_PROBES=0` the A/B). Box-projected `ReflectionProbe`s on the street
@@ -859,8 +886,11 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the pelvis as one compound body, the pose baked into the bone poses, joints and limbs gone.
   Traps: a Joint3D's frame is WORLD space, set after it is in the tree (set as `transform` under
   the turned doll, every joint pulled apart); a body made this frame meets an impulse with mass 1,
-  so the old body took a knock's impulse as its SPEED - `fling()` keeps that. `RAGDOLLS=0` is the
-  A/B; probe `tools/ragdolls/probe.tscn`, stills `tools/ragdolls/ragdoll_shot.tscn`; checks
+  so the old body took a knock's impulse as its SPEED - `fling()` keeps that; the light parts
+  (head, forearms) on their own tiny inertia spun to 60-90 rad/s on landing and the joints pulled
+  15-30 cm open (once flew apart), so every part gets an even inertia `inertia_gain` (3) x its rod's
+  and a `max_spin` cap (`clamp_spin()`, each physics step) - never snap parts back by teleport, it
+  fights the contacts and diverged. `RAGDOLLS=0` is the A/B (`RAGDOLL_INERTIA=0` the old inertia); probe `tools/ragdolls/probe.tscn`, stills `tools/ragdolls/ragdoll_shot.tscn`; checks
   `tests/ragdolls_checks.gd`.
   Dismemberment (owner, same day: "body parts limbs flying off ... from the rocket launcher"):
   `Explosion.blast()` passes `gibs` (up to 3 inside `gib_reach` of the radius) to
@@ -1926,16 +1956,6 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the mouse wheel tune while driving; the `Radio` bus (car speaker) sends to Game. The card is
   `RadioHud` (DebugHud). `CAR_RADIO=0` the A/B; stills `tools/radio/radio_shot.gd`; checks
   `tests/car_radio_checks.gd`.
-- The chase camera (2026-10-30, docs/HANDOFF.md "The chase camera"): `DriveCam`
-  (`scripts/player/drive_cam.gd`, made by the CameraRig) drives the rig while the player drives a
-  ground Vehicle (not Aircraft / FlyableHeli): follows the travel direction on an exact critically
-  damped spring (`follow_*`, lag capped `max_corner_lag_deg`), pitch / distance / FOV with speed
-  (`pitch_*_deg`, `speed_pullback`, `speed_fov`), road shake as sines of the clock faded above
-  `max_buzz_share` of the frame rate, kicks (bump / landing / crash) on a sub-stepped spring, free
-  look that eases back (`free_look_hold`, `recenter_seconds`), `look_behind` (C / pad X), a
-  driving blur through `blur_terms()` in CameraPost, a sphere on the spring arm. Settings "Driving
-  camera shake". `DRIVE_CAM=0` the A/B; strips `tools/driving_camera/drive_strip.gd`
-  (`--fixed-fps 60`); checks `tests/driving_camera_checks.gd`.
 - Driving effects (2026-10-05, "the feel of driving fast and badly"; HANDOFF "Driving effects"):
   `DrivingFX` (`scripts/vehicles/driving_fx.gd`), ONE node per level, made by the first Vehicle
   (`DrivingFX.ensure()`, the one hook in `Vehicle._ready`) as a child of the level root (the
@@ -3290,6 +3310,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   The surface street grid is still axis-aligned (`CityPlan.road_pos()` is scalar per axis and
   blocks, lots, traffic lanes and the minimap all assume axis-aligned rects); the freeways and the
   hill roads are the curved roads.
+- The freeway close up (wave 3, docs/HANDOFF.md "The freeway close up"): the deck top is
+  concrete (`shaders/freeway_deck.gdshader`, `FreewayCloseup.deck_material()`; UV = metres along /
+  across, UV2 = half width, route + 1 or 0 for ramps and connectors - `FreewayKit.top_vertex()`):
+  lane-wide slabs with Caltrans's skewed 12-13-19-18 ft joints, tining, wheel paths, the oil band,
+  skid marks, replaced / cracked / patched slabs, asphalt overlay stretches with reflective cracks,
+  shoulders with grit, litter, weeds and a rumble strip, water in the ruts. The kit's own shaders
+  carry a `closeup` pass (graffiti from the street wear atlas on barriers and fascias, chipped
+  arrises, white rust on the galvanising; sign boards' 12 in panel seams, clip bolts and grime,
+  marker housings with red wrong-way lenses and adhesive pads); light standards get NightAtmos
+  halos in the chunk batch (`FreewayCloseup.lamp_halo()`, relief taken off); the freeway's free
+  slots fill by the hour (`spawn_skip()`, the same one roll a slot). The lane numbers in the deck
+  shader are Freeway's (checked). `FREEWAY_CLOSEUP=0` is the A/B; checks
+  `tests/freeway_closeup_checks.gd`.
 - Footbridges (2026-10-30, docs/HANDOFF.md "Footbridges"): `Footbridges` (pure placement: boulevards
   >= 22 m by schools / parks, one freeway slot of 36 segments at a time with caged stair towers on
   the corridor lots), `FootbridgeKit` (one mesh, `shaders/footbridge.gdshader`, kind in COLOR.a / 16),
@@ -5101,6 +5134,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`_walk_clip_speed`), clamped to `CADENCE`; use `_walk_clip` / `_idle_clip`, never the
   constants, in the plain walker's code. Turns bank (`turn_lean()`), carrying hands swing less.
   `CROWD_ANIM_2=0` is the A/B; `crowd_lab.tscn SCENARIO=gaits`; checks `tests/crowd_anim_2_checks.gd`.
+- Crowd faces (2026-10-30, docs/HANDOFF.md "The crowd's faces up close"): a branch of
+  `character.gdshader` (`face_pass`, set by `CrowdFaces.apply()` from `Pedestrian.character_material()`)
+  that runs only within `CrowdFaces.REACH` (11 m) of the camera on the crowd rigs. Per rig,
+  `tools/crowd_faces/face_fit.gd` (opengl3, needs mesh data; rerun after any crowd rig rebuild) writes
+  `CrowdFaceTable` (face rect, each eye's centre and linear map from the unit eyeball to atlas UV -
+  the two eyes' UVs are MIRRORED -, upper-lid skin UVs) and a tile of `crowd_faces.png` (VRAM like every texture;
+  R blood, G cavity incl. brow roots, B oil, A lips 1 / thin skin 0.5). Eyes: the iris moved by
+  sampling at uv - J * gaze (saccades, eye contact from the head frame rebuilt from the eyeball's
+  normal), a blink painted from the upper lid (lid pixels are skin), socket shade, sclera dulled,
+  the source's red-brown irises browned. Timing per person from the instance's SCALE (a flat varying):
+  shared look materials stay shared. BACKLIGHT is held to thin skin everywhere (it lit faces orange
+  under a lamp behind). `CROWD_FACES=0` is the A/B; stills `tools/crowd_faces/face_shot.gd`; checks
+  `tests/crowd_faces_checks.gd`.
 - Crowd look (2026-10-29, "heads turn to what happens"; docs/HANDOFF.md "The crowd's heads"):
   `CrowdLook` (`scripts/npc/crowd_look.gd`), a SkeletonModifier3D a near pedestrian gets on its
   rig the first time it is within `look_range` of the player and the camera (one hook in
@@ -5577,6 +5623,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   one `bam_*` batch per mesh a chunk; LOD / far: the two buildings as plain lod_boxes.
   `BEACH_AMENITIES=0` is the A/B; probe `tools/beach_amenities/probe.gd` (EYEs); checks
   `tests/beach_amenities_checks.gd`.
+- The beach at golden hour (2026-10-30, docs/HANDOFF.md "The beach at golden hour"): `BeachGolden`
+  (`scripts/world/beach_golden.gd`) + `shaders/beach_golden.gdshaderinc` in beach_sand.gdshader:
+  the damp band above the swash and its standing pools mirror the sky (sunset glow, a broad sun
+  path), wind ripples (near only), turned-domain hummocks, footprint trails, the wrack line, quartz
+  glints, all hashes of true world position; the sky mirror via `cs_as_uniform()`. Lifeguard towers
+  wear codes 11 / 12 in beach_props.gdshader (faded, peeling paint; silvered posts). Take `fwidth()`
+  outside branches (llvmpipe gives 0 inside). `BEACH_GOLDEN=0` the A/B, `BEACH_GOLDEN_PARAMS=
+  "name=v,..."` sets sand uniforms; checks `tests/beach_golden_checks.gd`.
 - Beach bonfires (2026-10-30, docs/HANDOFF.md "Beach bonfire rings"): `Bonfires`
   (`scripts/world/bonfires.gd`, pure `rings_in()` / `group()` / `lit_at()`, hashes of seed + a
   `RING_CELL` 24 m shore cell + the night) puts precast concrete fire rings (code-built,

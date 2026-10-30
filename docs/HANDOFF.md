@@ -17964,6 +17964,26 @@ pose the walker was in when hit (a small pop, as before). No self-collision betw
 can pass through the chest). The hero's doll (PlayerHealth) uses the same path; only crowd rigs
 were probed.
 
+**Follow-up 2 (2026-10-30): joints that hold.** CI 383 read a 15 cm joint gap ("the joints hold
+while the doll tumbles", 0.153 m; another loaded gate 0.125). It was never load: the physics step
+is fixed, and the gap follows `fling()`'s random spin, so it moved with the global rng's state
+from whatever ran before. `tools/ragdolls/probe.tscn` with `SEED=n` (now prints `WORST GAP`, and
+`GAPLOG=1` / `TRACE_DOLL=i` per joint and per step) reproduced it in one process: up to 0.32 m.
+The cause: the light parts (head 9 %, forearms 2.5 % of the mass) on Godot's inertia from their
+small shapes spun up to 60-90 rad/s at landing, and the point constraints (which correct 0.3 of a
+drift a step) lost them - on seed 1 one doll diverged to 1,800 rad/s and flew apart. Tried first:
+snapping each child back onto its joint every step (and removing the separating velocity) - it
+pushed parts into the floor, the contacts answered, and seed 1 went to 3.2 m: never teleport parts.
+The fix: every part an even inertia, `inertia_gain` (3) x its rod's (L^2/12 + r^2/2, at least
+`inertia_floor` 0.02 m^2 of gyration), and `max_spin` 30 rad/s on every part before each step
+(`RagdollJoints.clamp_spin()` from `Ragdoll._physics_process`). Probe, 10 seeds x 8 dolls: worst
+0.056-0.077 m (was 0.06-0.32); the per-step cost 0.6-1.0 ms tumbling for 8 dolls, as before, and
+dolls settle sooner (2.4-2.9 s). The check is back to 0.1 m and there is a new one,
+`_check_hard_tumbles()`: four dolls with fling()'s spin at its extremes from a hash (every run the
+worst case, whatever ran before), worst gap under 0.1 m (0.056) and no part over 70 rad/s (25).
+Under a four-core CPU hog: 0.037 / 0.056 m. `RAGDOLL_INERTIA=0` is the A/B (Godot's own inertia),
+`RAGDOLL_INERTIA=<n>` any gain.
+
 ## 9gl. The Coral Line's underground station, 2026-10-30 (fleet wave 3, `wt/metro-underground`; VISUAL_ROADMAP "?")
 
 **The ask.** The light rail's underground terminus at 7th St / Flower was two stair kiosks in the
@@ -20770,78 +20790,84 @@ materials (the opengl3 terrain and the sand), which the grade cannot fix without
 their p5 moved only 6. The sun's specular on cars and glass was judged on the probe's spheres only.
 If the Mac's nights read too dark, raise `night_exposure` toward 2.45 before lifting NIGHT's toe.
 
-## 9d?. The chase camera (wave 3, driving-camera)
+## 9hu. The Los Angeles sunset: clouds lit by the low sun as it reaches them (wave 3, `sunset-clouds`, branch `wt/sunset-clouds`)
 
-The owner: "make it look like GTA 6 - and feel like it". In a car the camera used to be the
-on-foot rig unchanged: it stayed where the mouse left it, so a turn drove the car out of the frame
-and nothing told you how fast you were going. Now `DriveCam` (`scripts/player/drive_cam.gd`, a
-Node the CameraRig makes in `_ready()`) drives the rig while the player is at the wheel of any
-ground Vehicle (cars, trucks, bikes, boats; never `Aircraft` or `FlyableHeli`, which keep the old
-camera). `DRIVE_CAM=0` in the environment is the A/B.
+Owner's bar: the GTA 6 trailer's opening shot - the sun low over the Pacific, cumulus bases lit
+hot orange and pink from below with their tops in violet shadow, rays, a gold-peach-blue
+gradient, cirrus catching the last light after the sun has set, then the blue hour.
 
-- **Follow.** The view follows the way the car travels (its velocity past `velocity_follow_from`,
-  its nose when slow or reversing) on a critically damped spring (`DriveCam.spring()`, exact for
-  a step, so any frame rate lands on the same curve) whose stiffness rises with speed
-  (`follow_slow` 3.5 -> `follow_fast` 5.5). Its steady lag in a turn is the swing into the corner:
-  ~10 degrees at 60 km/h and 0.8 g, capped at `max_corner_lag_deg` 22, plus `corner_swing_deg` per
-  rad/s of yaw rate (never stored in the spring, so it does not accumulate). It leans against the
-  cornering force (`corner_roll` deg per g, max 3).
-- **Framing.** Pivot at the car's centre (`pivot_base` + per metre of length; a semi counts its
-  trailer), distance `distance_base` + `distance_per_length` x length + `speed_pullback` with speed
-  + `accel_pull` (falls back accelerating, closes in braking); pitch `pitch_slow_deg` -11 ->
-  `pitch_fast_deg` -6 (lower with speed) plus `slope_follow` of a hill; field of view +`speed_fov`
-  (7 deg) at full speed and +`nitro_fov` on the nitro (the on-foot boost FOV is faded out in the
-  car). Speed share: `speed_from` 8 m/s (30 km/h) to `speed_full` 42 (150 km/h). Measured: 30 / 80
-  / 150 km/h = 6.4 / 7.1 / 8.4 m back, pitch -11 / -9 / -6, FOV +0 / +1.6 / +7.
-- **Shake.** `road_shake(clock, ...)` is pure: two slow sway sines and three buzz sines (11.7,
-  17.3, 23.9 Hz) of the CLOCK, never a random number a frame; the buzz grows with speed squared,
-  the sway from a crawl; x`rough_gain` when a wheel is on hill terrain; any component above
-  `max_buzz_share` of the frame rate is faded out (at 20 fps the buzz is gone, the sway stays), so
-  it reads the same at 30 and 144 fps. Flat out on tarmac it moves the view 0.44 degrees at most.
-  The settings screen's new "Driving camera shake" (GameSettings `drive_shake`, CameraRig
-  `drive_shake`) turns it off.
-- **Kicks.** `_physics_process` watches the car's velocity: a vertical change past `bump_min_dv` in
-  a tick is a bump (a short dip), touch-down after more than 12 ticks with no wheel in contact a
-  landing (dip and drop by the fall speed, a rig shake past 12 m/s), a horizontal change past
-  `crash_min_dv` a crash (lurch toward the car, a rig shake). The kick is an under-damped spring
-  (`kick_omega`, `kick_damping`) sub-stepped at 240 Hz: the same thump at 30 and 144 fps.
-  A teleport (respawn, an origin shift) kicks nothing.
-- **Free look / look behind.** Mouse or stick input (`CameraRig` calls `note_look()`) hands the
-  view to the player; `free_look_hold` 1.3 s after the last input it eases back behind the car over
-  `recenter_seconds`. While boost-flying (airborne, boost held: the car flies where you look) it
-  never takes the view back. **In the air the view is always the player's** (the car flies where
-  the camera looks, Vehicle._fly()): leaving the ground hands it over as it stands, nothing
-  recentres until `air_hold` after touch-down; `set_look()` / `look_at_point()` count as the
-  player's look. `look_behind` (new action: C / pad X) swings round in
-  `look_behind_seconds` and back on release. Getting in blends from the view you had
-  (`blend_seconds`); getting out hands it back.
-- **Motion blur.** CameraPost multiplies its strength by `DriveCam.blur_terms()` (1 +
-  `blur_gain` 0.7 at full speed) and raises the soft knee by `blur_threshold_add` px while driving:
-  the car rides with the camera (only its lag and the buzz move it on screen, under the knee), so it
-  stays sharp while the road and the roadside streak. Forward+ only, like the blur itself: NOT
-  SEEN (the city does not fit lavapipe) - judge it on the Mac.
-- **Walls.** The spring arm sweeps a `arm_radius` 0.25 m sphere while driving (the ray alone can
-  slip past a corner and leave the near plane in a wall), and because the arm resolves its length
-  in the physics tick while the chase moves the pivot every frame, the rig sweeps the sphere again
-  from the pivot where it is now (`_clamp_to_walls()`). The checks spin the view round a car
-  backed up to a wall, a pillar and a low lid: the camera was never inside one or on the far side.
+**What it is.** `SunsetSky` (`scripts/world/sunset_sky.gd`, static; ONE hook line in
+`DayNight._apply()`) hands `sky.gdshader` a `sunset` weight that depends on the sun's elevation
+alone: 0 above sin 0.33 (~16:50), full from sin 0.17 (~17:20) to sin -0.10 (~18:23), 0 again by
+sin -0.23 (~18:55); times (1 - 1.5 x weather_darken) and (1 - 0.8 x marine). At 0 the shader skips
+every block it added (six `if (sunset > 0.0 ...)` gates), so noon and the night draw what they
+did - proven pixel for pixel, below.
 
-Hooks: `camera_rig.gd` (the DriveCam, `note_look()` on input, the chase result applied before
-`_apply_rotation()`, the pivot moved to the car), `camera_post.gd` (two lines, the blur terms),
-`game_settings.gd` / `pause_menu.gd` (the shake toggle, the C row on the controls card),
-`project.godot` (`look_behind`). Checks: `tests/driving_camera_checks.gd` (55, the last city file;
-alone: `SMOKE_PARTS=driving_camera_checks`). Strips: `tools/driving_camera/drive_strip.gd` (a
-scripted drive up Flower St with `--fixed-fps 60`: s30, s80, s150, a 35 km/h right turn onto
-Olympic, an 80 km/h hop; `DRIVE_CAM=0` the before) and `strips.py`; stills on
-`shots/driving-camera`.
+**The model** (sky.gdshader):
+- `sun_through(el, h)`: the sun as it reaches a point `h` km up at elevation `el` measured from
+  THAT point's horizon (el = the camera's sun elevation + the point's distance toward the sun / R).
+  **The colour is an art-directed palette** by `el` (`SUNSET_PAL_E` / `SUNSET_PAL_C`, linear, red
+  1): gold-orange at sin 0.30, orange, deep orange at 0.06, red-orange on the horizon, salmon at
+  -0.05, pink at -0.10, magenta at -0.16. The first pass was a physical transmittance (Rayleigh +
+  aerosol air masses, normalised to red) and the lead's review threw it out: the sunlit cumulus came
+  out pale lemon at 17:45 and the bases went grey at 18:15. **The earth's shadow climbs on an
+  exaggerated radius** (`SUNSET_SHADOW_R` 200 km, soft over -0.4..0.5 km of tangent height, with
+  0.01 of refraction): this game's sun sinks about four times faster than LA's, and at the true
+  6,371 km a deck 2 km up lost the sun four game minutes after the street; now its bases glow
+  salmon, pink, then magenta to ~18:40. Brightness eases to 0.7 under the horizon.
+  `SunsetSky.sun_through()` / `PALETTE_*` / `SHADOW_R` are the GDScript copy; the checks read the
+  shader's stops, colours and shadow line back.
+- **Volume (Forward+)**: every lit cloud sample takes `sun_through()` at its own height and place,
+  mixed by the weight - gold at 17:30, orange-red at 18:00, red on the crowns at 18:06, the
+  earth's shadow then climbing the deck from the bases. Once the sun is under the street's horizon
+  the light march is tipped down (to -0.2) so it leaves through the flat base: the whole base glows
+  hot from below while the body above stays in its own shade - at the true 1-2 degrees the march
+  ran along inside the base and never saw the light. **While the weight is on the sun stays the
+  march's key light down to sin -0.2** (it used to hand over to the moon at sin -0.07, which is
+  most of why the 18:15 bases were grey). The ambient under the deck takes the warm
+  horizon (twilight_warm, strongest toward the sun, x1.9 once the sun is under), the crowns the
+  violet of the twilight band. A narrow forward lobe (HG 0.86, x0.16) on thin margins is the silver / gold lining.
+- **Rays**: fanned wider (exp(-ang^2 x 1.1)) at `sunset_rays` (0.45) in the sun's own red, NOT
+  `god_rays`: DayNight multiplies that by (1 - night_factor), which is 0.3 at the sunset itself.
+- **Painted cumulus (Compatibility, the web)**: the same light at the deck's crown height
+  (cloud_base + 0.6 depth); thin margins and the sun side lit, and with the sun under the deck's
+  horizon the base lit toward the sun, the thick middle violet; the night's darkening held off while
+  the sun still lights it. Computed colours go to Compatibility through `sunset_out()` (display
+  numbers).
+- **Cirrus (both)**: lit by `sun_through(el, 9 km)` with a forward-scatter lobe, keeping the light
+  ~3 degrees longer than the street (pink-orange over the east at 18:12); the night factor no longer
+  dims them while they are lit. **Their east-west streaks run straight at the sun at sunset and
+  read as giant beams of light** (the first pass was all "rays"): broken along their length into
+  wisps by two value-noise octaves while the weight is on.
+- **The sky**: a peach band toward the sun between the gold horizon and the blue; opposite it the
+  earth's shadow (slate blue, its top at ~0.85 x the sun's depression) and the Belt of Venus over
+  it, both as multiples of the sky's own luminance there. Subtle: DayNight's own violet twilight
+  band already sits there, and the low cumulus usually hide the horizon.
 
-Gate: `SHARDS=3`, 4,044 checks, 0 failed (1,630 s; shard peaks 2.7 / 3.4 / 3.3 GB in the run
-before, the same lists). The first run failed "boost flies the car upward": the flight check
-places the look with `set_look()` and the chase camera took the pitch back, so a placed view
-(`set_look()`, `look_at_point()`) now counts as the player's look. No frame cost to measure
-(no geometry; a few dozen flops a frame).
+**Measured.** Noon (12:00, sky_shot `HOLD_TIME=1 TAA=0`, old shader vs new): **0 pixels differ**
+on both Forward+ (lavapipe) and opengl3. Cost (sky_shot BENCH=40 at 18:00 facing the sun,
+lavapipe 1280x720, two runs each): old 732 / 753 ms, new 726 / 755 ms a frame - inside the noise.
+Refcams (`--only street_noon,downtown_aerial,sunset,golden_aerial --strict`, `SUNSET_CLOUDS=0`
+vs on): street_noon and downtown_aerial 0.00 % of pixels changed, 0 shots flagged. **Trap found
+on the way:** in `--strict` the `sunset` (17:51) and `golden_aerial` (17:12) frames come out with a
+midday blue sky (golden_aerial changed 0.39 %, sunset 0.00 %), so strict refcams say nothing about
+the evening; judge the sunset with sky_shot and still_shot SHOTS instead (refcams' own issue, not
+fixed here). `HOLD_TIME=1` is new on `tools/sky/sky_shot.gd` because shader TIME is real time: a shader that
+compiles slower drifts the clouds and an A/B "differs" in 15 % of its pixels; `PARAMS="a=1;b=0"`
+holds uniforms after DayNight has set them (frame_pre_draw), for experiments.
 
-Not done / not seen: the motion blur on Forward+ (above); a pad's look-behind shares X with the
-on-foot dive / wingsuit (both off in a car); no per-surface buzz beyond terrain (DrivingFX knows
-sand and dirt, not shared); the camera does not yet look into the corner AHEAD (GTA's slight
-lead) - the lag shows the flank instead.
+**Second pass (the lead's review)**: palette, longer shadow, sun kept as key light, stronger
+lining; before / after 17:45, 18:15, 18:30 in `shots/sunset-clouds` `review_*` (Forward+ and
+opengl3): 17:45 hot orange, not lemon; 18:15 and 18:30 the bases glow salmon and pink under
+violet crowns where the first pass had grey silhouettes. Noon is still bit-identical (the gates
+did not move).
+
+**Stills** (`shots/sunset-clouds`): sky_shot every 15 min 17:30-19:30 toward the sun (yaw 90) and
+away (270), Forward+ and opengl3, before (old shader) and after; the city from the beach
+(-732, 2.1, 800, west) and over the basin from the front range (300, 260 agl, -650, south-west) on
+opengl3, `SUNSET_CLOUDS=0` vs on.
+
+**Not done / known**: the Belt of Venus is faint against DayNight's violet band (a stronger one
+would need the band retuned, which touches every dusk); the fine bright speckles inside big heaps
+on lavapipe stills are the volume's own (in the before too); the city stills are opengl3 only (the
+city does not fit lavapipe); dawn gets the same model (symmetric weight) but was not tuned.

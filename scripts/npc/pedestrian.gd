@@ -1186,6 +1186,7 @@ static func character_material(albedo: Texture2D, look: int) -> ShaderMaterial:
 			mat.set_shader_parameter("detail_tex", load(CROWD_DETAIL))
 			mat.set_shader_parameter("detail_strength", 1.0)
 		mat.set_shader_parameter("skin_sss", CROWD_SKIN_SSS)
+		CrowdFaces.apply(mat, albedo)
 	if nrm != null:
 		mat.set_shader_parameter("normal_tex", nrm)
 		mat.set_shader_parameter("normal_strength", NORMAL_STRENGTH)

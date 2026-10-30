@@ -30,6 +30,8 @@ func _run() -> void:
 	var models: Array = load("res://scripts/npc/pedestrian.gd").MODELS
 	var dolls: Array = []
 	var t0 := Time.get_ticks_usec()
+	if OS.get_environment("SEED") != "":
+		seed(int(OS.get_environment("SEED")))
 	for i in n:
 		var d := Ragdoll.new()
 		world.add_child(d)
@@ -42,6 +44,7 @@ func _run() -> void:
 	print("build ms %.1f" % ((Time.get_ticks_usec() - t0) / 1000.0))
 	var phys := 0.0
 	var wall0 := 0
+	var worst := 0.0
 	for s in steps:
 		if s == 2 or s == 302:
 			wall0 = Time.get_ticks_usec()
@@ -53,6 +56,24 @@ func _run() -> void:
 		if s < 6 and OS.get_environment("VEL") == "1":
 			print("v ", dolls[0].bodies[0].linear_velocity, " at ", dolls[0].bodies[0].global_position)
 		phys += Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)
+		for di in dolls.size():
+			var d: Ragdoll = dolls[di]
+			var g := _gap(d)
+			if g > 0.15 and OS.get_environment("GAPLOG") == "1":
+				var j: RagdollJoints = d._joints
+				for a: Array in j.anchors:
+					var e := ((a[0] as Node3D).global_transform * (a[2] as Vector3)).distance_to((a[1] as Node3D).global_position)
+					if e > 0.15:
+						print("step %d doll %d %s gap %.3f v %.1f w %.1f y %.2f" % [s, di, (a[1] as Node).name, e, (a[1] as RigidBody3D).linear_velocity.length(), (a[1] as RigidBody3D).angular_velocity.length(), (a[1] as Node3D).global_position.y])
+			worst = maxf(worst, g)
+			if di == int(OS.get_environment("TRACE_DOLL")) and OS.get_environment("TRACE_DOLL") != "" and s >= 20 and s <= 60:
+				var mw := 0.0
+				var mn := ""
+				for b: RigidBody3D in d.bodies:
+					if b.angular_velocity.length() > mw:
+						mw = b.angular_velocity.length()
+						mn = b.name
+				print("T %d gap %.3f maxw %.1f %s pelvis y %.2f v %.1f" % [s, g, mw, mn, d.bodies[0].global_position.y, d.bodies[0].linear_velocity.length()])
 		if s == 59:
 			print("physics ms/step over the first 60 steps (tumbling) %.3f" % (phys * 1000.0 / 60.0))
 		if s % 100 == 99:
@@ -69,6 +90,7 @@ func _run() -> void:
 						g += "%s %.2f  " % [(a[1] as Node).name, ((a[0] as Node3D).global_transform * (a[2] as Vector3)).distance_to((a[1] as Node3D).global_position)]
 					print(g)
 	print("physics ms/step avg %.3f" % (phys * 1000.0 / steps))
+	print("WORST GAP %.3f" % worst)
 	for d in dolls:
 		var skel: Skeleton3D = d._skeleton()
 		var head := skel.global_transform * skel.get_bone_global_pose(skel.find_bone("Head")).origin
