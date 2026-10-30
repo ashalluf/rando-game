@@ -20267,10 +20267,13 @@ one scene a process, `BLOCKS=home`.
   the rest of the ambient is day_ambient at its energy, which now acts). SDFGI energy sweep in the
   alley: x1.0 33, x1.3 + bounce 0.9 37, read_sky_light off 17 (the sky is half of it).
 - **Freeway soffit fill** (`freeway_structure.gdshader` `under_fill`, GiTuning UNDER_FILL, HIGH only
-  0.22): downward faces of the deck, caps and girders emit their albedo times a warm ground bounce by
-  day (`1 - lamp_factor`); emitted, so SDFGI bounces it onto the street under the deck. Tried first
-  and rejected: SDFGI energy x3 (soffit 18 -> 30), `sdfgi_min_cell_size` 1.6 (soffit 125, but by
-  LEAKING the sunlit deck top through a 2 m girder; the street under it stayed 15).
+  0.06): downward faces of the deck, caps and girders emit their albedo times a warm ground bounce by
+  day (`1 - lamp_factor`). Soffit 18 -> 53 (0.05; 0.09 gave 72, 0.22 gave 109 - as bright as the open
+  sky's soffit at MEDIUM). Tried first and rejected: SDFGI energy x3 (soffit 18 -> 30),
+  `sdfgi_min_cell_size` 1.6 (soffit 125, but by LEAKING the sunlit deck top through a 2 m girder; the
+  street under it stayed 15). The street UNDER the deck stays dark at HIGH (26 -> 29): the emitted
+  fill does not reach it through SDFGI in the frames measured, and `sdfgi_y_scale` 50 % gave 31 (not
+  taken: it changes every cascade). Known gap.
 - **`ContactShadows`** (`scripts/world/contact_shadows.gd`, `shaders/contact_shadow.gdshader`):
   one MultiMesh of soft occlusion quads - the footprint as a rounded rect fading `MARGIN` past the
   body, a blob under each wheel from `_dims()` track and axles - under the `budget` (48) nearest
@@ -20288,6 +20291,15 @@ one scene a process, `BLOCKS=home`.
 - A/B: `GI_REVIEW=0` (all of it: the scene's numbers, no fill, no quads), `CONTACT_SHADOWS=0` (the
   quads only). gi_shot variant tokens: `GI=0|1`, `Q=0..3`, `CS=0|1`, `GIS=`, `SKY=`, `FILL=` and
   any Environment `property=value`.
+
+**Measured after** (the same frames, the player's auto exposure; ground or region mean 0..255,
+before -> after): under the parked pickup p10 HIGH 27 -> 34, MEDIUM 57 -> 41 (the contact quad and
+the sky fill: MEDIUM now grounds the car like HIGH); the alley floor HIGH 44 -> 50 (warmer off the
+sunlit brick), MEDIUM 84 -> 81; under the 110 the soffit HIGH 18 -> 53 and the street 26 -> 29,
+MEDIUM 83 -> 76; the storefront pavement p10 HIGH 50 -> 62, MEDIUM 82 -> 76. The auto exposure
+takes back much of any uniform change (MEDIUM's 0.7 sky fill shows as 3-10 %, not 30 %): what the
+tuning buys is contrast between open and enclosed, not overall level. Compatibility (opengl3):
+the contact quads alone, the darker ground under every car and bench; stills on the shots branch.
 
 **GPU cost** (lavapipe `--gpu-profile`, shares of the frame, read the shares): SSIL 1.6-2.9 %,
 SSAO 0.8-1.5 %, SDFGI probes + render 1.2-1.8 %, before and after alike - the new numbers move

@@ -51,7 +51,7 @@ const SDFGI := {
 const SKY_FILL := [1.0, 0.7, 0.7, 0.7]
 ## The freeway structure's daylight under-fill (freeway_structure.gdshader `under_fill`): HIGH
 ## only - below it the unoccluded sky already lights a soffit like the open street.
-const UNDER_FILL := [0.22, 0.0, 0.0, 0.0]
+const UNDER_FILL := [0.06, 0.0, 0.0, 0.0]
 const AMBIENT := [1.0, 1.0, 1.0, 1.0]
 
 

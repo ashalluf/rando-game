@@ -623,7 +623,9 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   SSIL / SDFGI per level and hands DayNight `gi_scale` (day SDFGI energy, x1.35 at HIGH) and
   `sky_contribution` (0.7 below HIGH). **Godot ignores `ambient_light_energy` while
   `ambient_light_sky_contribution` is 1.0**: by day the sky fill is turned down only through the
-  contribution. `ContactShadows` (`scripts/world/contact_shadows.gd`, one node under the root, made
+  contribution; at HIGH the freeway structure emits a small daylight under-fill on its downward
+  faces (`freeway_structure.gdshader` `under_fill`: SDFGI leaves a soffit black).
+  `ContactShadows` (`scripts/world/contact_shadows.gd`, one node under the root, made
   by the first Vehicle): one MultiMesh of soft occlusion quads (`shaders/contact_shadow.gdshader`:
   footprint + wheel blobs, alpha-blended black) under the nearest cars and loose props, faded when
   a car leaves the ground; a "BatchContact" MultiMesh per FULL chunk under the furniture batches in

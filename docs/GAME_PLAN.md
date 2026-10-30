@@ -3565,9 +3565,9 @@ already mapped so milestone 2 is script-only.
   SDFGI x1.35 by day and bounce 0.9, MEDIUM and below a 0.7 sky contribution (Godot ignores
   ambient energy at contribution 1.0, so that was the only knob); every car, loose prop and piece
   of street furniture gets a soft contact quad on BOTH renderers (one MultiMesh for the dynamic set,
-  one a chunk for furniture), weaker where SDFGI / SSAO already occlude. The deep underpass at HIGH
-  stays dark: a coarser SDFGI cell leaks the sunlit deck through the soffit, so it is left for a
-  fill on the freeway kit.
+  one a chunk for furniture), weaker where SDFGI / SSAO already occlude. Under a wide freeway deck
+  SDFGI leaves the soffit black and a coarser cell leaks the sunlit deck through it, so the freeway
+  structure gets a small emitted daylight under-fill at HIGH; the street under the deck stays dark.
 
 ## Correction: what build 135 (0ce833f) actually contained
 
