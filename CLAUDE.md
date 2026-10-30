@@ -4031,6 +4031,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   are one trimesh per building (`KitSolids`). Baked AO lives in UV2.x as occlusion, and is off
   on `kit_iron`, whose thin bars bury their only vertices in the rails they meet. The kit is off
   on the web (`Building.kit_enabled`), where the boxes and painted frames stand in for it.
+- The facade pass (2026-10-29, owner: "this needs to start looking like GTA 6"; docs/HANDOFF.md
+  "Facades that read as built"): `shaders/facade_variety.gdshaderinc`, included by BOTH
+  building.gdshader and building_lod.gdshader (rolled from integers, salts 70-89, so near and far
+  agree): per-pane tone, mirror and blind (`fx_pane()`, the near room traces the same blind via
+  room_interior's `drop_in`), per-floor coating batches on curtain walls, the street opposite
+  mirrored with parallax (`fx_opposite()`: a plane of facades 18-44 m out, roofline, windows,
+  the street below; replaces the heading-keyed rows), the curtain wall's members as analytic depth
+  (`fx_member()`: side faces and sun shadows, box filtered to their averages) for three systems by
+  hash (`fx_system()` / `FacadeVariety.system()`: flush 50 %, 48 cm fins 26 %, slab bands 24 %;
+  flush hands over to the kit's real caps inside `caps_real_until`), far punched-window reveals and
+  head shadows, drips off the coping and water off the corners. Near box parts get 22 cm bevelled
+  vertical corners (`Building._bevel_arrays()`, `FacadeVariety.bevel()`; collision stays the box).
+  `FACADES_GTA=0` is the A/B; checks `tests/facades_gta_checks.gd`; look with
+  `far_building_shot.gd CAM_POS= CAM_LOOK= FOV=`.
 - Storefronts and curtain walls (owner, 2026-09-27: "next level ... AAA studio quality"): the
   kit's code-built half, `ShopfrontKit` (`scripts/world/shopfront_kit.gd`), meshes built in
   GDScript in the kit's frame and conventions, wearing `PropFactory.kit_material()` and added

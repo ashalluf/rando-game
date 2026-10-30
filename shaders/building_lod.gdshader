@@ -758,7 +758,7 @@ void fragment() {
 			if (facade_variety) {
 				vec2 bow = vec2(hash31(vec3(col, row, face_id + sd * 3.1)), hash31(vec3(row, col, face_id * 7.0 + sd))) - 0.5;
 				float wave = sin((fv * 1.3 + fu * 0.45) * 6.2832 + bow.x * 19.0) * 0.011;
-				refl = normalize(refl + (vec3(bow.x, bow.y * 0.6, -bow.x) * 0.035 + vec3(0.0, wave, 0.0) + world_normal * (bow.y * 0.02)) * cell_fade);
+				refl = normalize(refl + (vec3(bow.x, bow.y * 0.6, -bow.x) * 0.063 + vec3(0.0, wave, 0.0) + world_normal * (bow.y * 0.02)) * cell_fade);
 				if (!storefront && row >= 0.0) {
 					pv = fx_pane(sd, face_id, row, col);
 				}
@@ -866,6 +866,13 @@ void fragment() {
 				wall = mix(stone, stone * 0.55, joint);
 				rough = 0.9;
 			}
+			if (facade_variety && !storefront && (ws == 0 || ws == 3)) {
+				// The shade round each opening, as building.gdshader lays it.
+				vec2 oc = ws == 0 ? vec2(0.5, 0.52) : vec2(0.5, 0.5);
+				vec2 oh = ws == 0 ? vec2(0.27, 0.25) : vec2(0.16, 0.40);
+				float ao = fx_opening_ao(vec2((fu - oc.x) * pitch, (fv - oc.y) * floor_hp), oh * vec2(pitch, floor_hp), mpp);
+				wall *= 1.0 - 0.32 * ao;
+			}
 			if (has_crown && vp > part_h - 1.6 * floor_hp) {
 				wall *= crown_mul;
 			}
@@ -925,6 +932,10 @@ void fragment() {
 				float pale = spandrel_pale(sd) ? 1.0 : 0.0;
 				cell = mix(c * 0.62 + vec3(0.012), c * 1.02 + vec3(0.075), pale);
 				cell *= mix(1.0, 0.95 + 0.10 * hash21(vec2(col * 0.5, row) + sd), cell_fade);
+				if (facade_variety) {
+					// The near spandrel's own panel tone (its mirror's share is left at its average).
+					cell *= mix(1.0, mix(0.9, 1.1, fx_pane(sd, face_id, row, col).w), cell_fade);
+				}
 				e_cell += sky_ref * mix(0.10, 0.45, fres) * reflect_emit * reflect_energy * sky_now * (1.0 - 0.85 * night_factor) * mix(0.8, 0.45, pale);
 				rough = 0.38;
 			} else if (reveal) {
@@ -992,7 +1003,7 @@ void fragment() {
 					float side_v = cv.y;
 					float side_h = ch.y;
 					fx_cov = clamp(front_v + front_h + side_v + side_h, 0.0, 1.0);
-					fx_paint = (frame_c * (front_v + side_v * clamp(lit_v / lit_front, 0.25, 1.5) * 0.85)
+					fx_paint = (frame_c * (front_v + side_v * clamp(lit_v / lit_front, 0.25, 1.25) * 0.68)
 						+ col_h * (front_h + side_h * clamp(lit_h / lit_front, 0.15, 1.5))) / max(front_v + front_h + side_v + side_h, 1e-4);
 					// The far boxes light a paint about a quarter brighter than the near walls do (their
 					// glass too: far_pair.py); held down here so a fin tower keeps its tone across the line.

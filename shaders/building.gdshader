@@ -1293,7 +1293,7 @@ void fragment() {
 			// reflection breaks from pane to pane. Coplanar mirrors across a whole facade read
 			// as one sheet of plastic.
 			vec2 bow = vec2(hash31(vec3(col, row, face_id + seed * 3.1)), hash31(vec3(row, col, face_id * 7.0 + seed))) - 0.5;
-			refl = normalize(refl + vec3(bow.x, bow.y * 0.6, -bow.x) * pane_bow);
+			refl = normalize(refl + vec3(bow.x, bow.y * 0.6, -bow.x) * pane_bow * (facade_variety ? 1.8 : 1.0));
 			if (facade_variety) {
 				// And rolled glass has a wave in it, a few hundredths of a radian across a pane: what
 				// bends a straight roofline into a wobble from one pane to the next.
@@ -1580,10 +1580,19 @@ void fragment() {
 			albedo *= 0.95 + 0.10 * hash21(vec2(col * 0.5, row) + seed);
 			vec3 to_s = normalize(world_pos - (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz);
 			vec3 rs = reflect(to_s, world_normal);
+			float sp_var = 1.0;
+			if (facade_variety) {
+				// Each spandrel panel is its own piece of opaque glass, set a hair off true and from
+				// its own batch: the panels of a band never mirror quite the same sky.
+				vec4 sv = fx_pane(seed, face_id, row, col);
+				sp_var = mix(0.82, 1.18, sv.w);
+				albedo *= mix(0.9, 1.1, sv.w);
+				rs = normalize(rs + vec3(sv.x - 1.0, (sv.y - 1.0) * 0.5, 0.0) * 0.12);
+			}
 			vec3 sky_s = mix(street_reflect, mix(sky_horizon, sky_zenith, smoothstep(0.0, 0.55, rs.y)), smoothstep(-0.22, 0.10, rs.y));
 			float fres_s = pow(1.0 - clamp(-dot(to_s, world_normal), 0.0, 1.0), 4.0);
 			float sky_now_s = clamp(dot(sky_tint.rgb, vec3(0.299, 0.587, 0.114)) / 0.74, 0.0, 1.5);
-			emission = sky_s * mix(0.10, 0.45, fres_s) * reflect_emit * reflect_energy * sky_now_s * (1.0 - 0.85 * night_factor) * mix(0.8, 0.45, pale);
+			emission = sky_s * mix(0.10, 0.45, fres_s) * reflect_emit * reflect_energy * sky_now_s * (1.0 - 0.85 * night_factor) * mix(0.8, 0.45, pale) * sp_var;
 			rough = 0.38;
 			metal = 0.25;
 		} else if (shop_frame) {
@@ -1735,6 +1744,13 @@ void fragment() {
 				wall_nm_weight *= 0.4;
 			}
 			albedo *= mix(1.0, crown_shade, step(pt_crown, v));
+			if (facade_variety && !storefront && (window_style == 0 || window_style == 3)) {
+				// The facade pass: the shade round each opening (fx_opening_ao()).
+				vec2 oc = window_style == 0 ? vec2(0.5, 0.52) : vec2(0.5, 0.5);
+				vec2 oh = window_style == 0 ? vec2(0.27, 0.25) : vec2(0.16, 0.40);
+				float ao = fx_opening_ao(vec2((fu - oc.x) * pitch, (fv - oc.y) * pt_floor), oh * vec2(pitch, pt_floor), px_m);
+				albedo *= 1.0 - 0.32 * ao;
+			}
 
 			// --- Weathering ------------------------------------------------------------
 			// Grime is most of what separates a rendered box from a photographed building.
@@ -1815,7 +1831,7 @@ void fragment() {
 				float front_h = sys == 2 ? ch.x : 0.0;
 				albedo = mix(albedo, mullion_color, front_v);
 				albedo = mix(albedo, col_h, front_h);
-				albedo = mix(albedo, mullion_color * clamp(lit_v / lit_front, 0.25, 1.5) * 0.85, cv.y);
+				albedo = mix(albedo, mullion_color * clamp(lit_v / lit_front, 0.25, 1.25) * 0.68, cv.y);
 				albedo = mix(albedo, col_h * clamp(lit_h / lit_front, 0.15, 1.5), ch.y);
 				float shade = clamp(cv.z + ch.z, 0.0, 1.0) * day_f;
 				albedo *= 1.0 - 0.5 * shade;

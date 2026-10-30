@@ -47,7 +47,7 @@ vec3 fx_floor_tint(float b_seed, float row) {
 }
 
 
-// One pane: x its tone (0.78..1.22, mostly near 1: a pane that is a different batch, a different
+// One pane: x its tone (0.80..1.45, mostly near 1: a pane that is a different batch, a different
 // room behind it), y how strongly it mirrors (the coating's age), z where its blind hangs from the
 // top (0 none .. 1 drawn right down), w a spare roll. A floor pulls its blinds together more often
 // than not (a tenant's habit, the sunny side), so the drop mixes the pane's roll with the floor's.
@@ -59,8 +59,8 @@ vec4 fx_pane(float b_seed, float face, float row, float col) {
 	float c = wl_roll(key, 73u);
 	float d = wl_roll(key, 74u);
 	float floor_k = wl_roll(fr, 79u);
-	float tone = 1.0 + (a - 0.5) * 0.24 + (a > 0.94 ? 0.18 : 0.0);
-	float mirror = 0.86 + 0.28 * b;
+	float tone = 1.0 + (a - 0.5) * 0.40 + (a > 0.94 ? 0.25 : 0.0);
+	float mirror = 0.72 + 0.56 * b;
 	// About 60 % of panes have a blind down at all; the drop clusters by floor.
 	float drop = c < 0.40 ? 0.0 : clamp(mix((c - 0.40) / 0.60, floor_k, 0.55), 0.06, 1.0);
 	return vec4(tone, mirror, drop, d);
@@ -191,4 +191,20 @@ float fx_roof_drip(float top, float u, uint fkey) {
 	len += scupper * 6.0;
 	float body = (1.0 - smoothstep(0.0, len, top)) * smoothstep(0.0, 0.08, top);
 	return clamp(body * (0.35 + 0.65 * r) + scupper * body * 0.5, 0.0, 1.0);
+}
+
+
+// The occlusion round a punched or slot opening: the wall just outside the reveal sees less sky
+// (the reveal's own mouth, the frame, a sill's lip), and dirt collects there. `q` is the point in
+// metres from the opening's centre, `half_` its half size, `px` a pixel in metres. 0 .. 1.
+float fx_opening_ao(vec2 q, vec2 half_, float px) {
+	vec2 d2 = abs(q) - half_;
+	float d = length(max(d2, vec2(0.0))) + min(max(d2.x, d2.y), 0.0);
+	if (d < 0.0) {
+		return 0.0;
+	}
+	float reach = max(0.16, px);
+	// The head gets more (it overhangs nothing, but water and soot stain the lintel), the sill less.
+	float bias = q.y > 0.0 ? 1.15 : 0.8;
+	return exp(-d / reach) * bias * (1.0 - smoothstep(0.3, 1.0, px / max(half_.x, 0.01)));
 }
