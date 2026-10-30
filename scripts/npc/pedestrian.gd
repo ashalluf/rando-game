@@ -1398,6 +1398,8 @@ func _physics_process(delta: float) -> void:
 	if _lod_timer >= 0.5:
 		_lod_timer = 0.0
 		_update_lod()
+	if rain != null and rain.indoors(delta):
+		return
 	_lod_tick += 1
 	if _lod_stride > 1 and _lod_tick % _lod_stride != 0:
 		return
@@ -1410,6 +1412,8 @@ func _physics_process(delta: float) -> void:
 		_post_pose(delta)
 	if _life_ok:
 		_life_pose(delta)
+		if rain != null:
+			rain.pose(delta)
 	if not errand.is_empty():
 		StreetErrands.pose(self, delta)
 	if not watch.is_empty():
@@ -1490,6 +1494,8 @@ func _walk(delta: float) -> void:
 			return
 		if panicking:
 			_go_to(_flee_point())
+		elif rain != null and _life_near and rain.on_walk_end():
+			pass
 		elif _way.randf() < cross_chance and plan_crossing(-1):
 			pass
 		elif _life_near and _life.randf() < life_chance and _try_life(false):
@@ -1507,6 +1513,8 @@ func _walk(delta: float) -> void:
 		to_target = goal - here
 		stops = _route.is_empty() and not panicking and (_cross == Cross.TO_KERB or _pause_next > 0.0 or _act != CrowdLife.Act.NONE)
 	var want := _run_pace if panicking else walk_speed
+	if rain != null:
+		want *= rain.pace(panicking)
 	if stops:
 		want = minf(want, sqrt(2.0 * stop_decel * maxf(to_target.length() - 0.2, 0.0)) + 0.15)
 	var v := _steer(to_target, want, delta, panicking)
@@ -2136,6 +2144,8 @@ static func alarm(tree: SceneTree, at: Vector3, radius: float, screams: int, for
 	Birds.startle(at, radius)
 	# And the dogs (Dog): a lead dog barks with its tail tucked, a yard dog runs for the house.
 	Dog.startle_all(tree, at, radius)
+	# And the drivers (CarPanic): brake, swerve, up the kerb, back away, or get out and run.
+	CarPanic.alarm(tree, at, radius, force)
 	var now := Time.get_ticks_msec()
 	if not force and now - _last_alarm_ms < 250 and at.distance_to(_last_alarm_at) < 10.0:
 		return
@@ -2585,6 +2595,8 @@ var _leg_bones := PackedInt32Array()
 var errand: Dictionary = {}
 ## This person's part at a scene they came back to look at (Onlookers), {} for none.
 var watch: Dictionary = {}
+## The crowd in the rain (RainCrowd: umbrellas, hoods, hurrying, shelter), null for nobody.
+var rain: RainCrowd
 ## Foot placement on uneven ground (CrowdFeet), made on first use near the camera.
 var foot_ik: CrowdFeet
 
@@ -2650,6 +2662,7 @@ func _setup_life() -> void:
 	if not _life_ok:
 		_jogger = false
 		return
+	rain = RainCrowd.make(self, _life.seed)
 	var node: Node3D = _head_skel
 	var unit := 1.0
 	while node != null and node != _visual:

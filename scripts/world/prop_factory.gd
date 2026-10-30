@@ -2016,6 +2016,7 @@ static func building_lod_material(far_city: bool = false) -> ShaderMaterial:
 	# than the same building up close (see the shader). Compatibility decodes neither.
 	mat.set_shader_parameter("instance_color_is_srgb", has_reflections())
 	mat.set_shader_parameter("print_small_plant", far_city)
+	mat.set_shader_parameter("facade_variety", FacadeVariety.enabled)
 	_cache[key] = mat
 	return mat
 

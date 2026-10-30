@@ -202,6 +202,9 @@ var plinth_in_chunk: bool = false
 ## this building's space: a flat quad for PropFactory.shop_spill(), centred on the foot of the
 ## shopfront. The chunk batches them (CityChunk._add_shop_spill()); its y is ignored.
 var shop_pools: Array = []
+## Every ground-floor shop's front, open or not, as [foot of the shopfront (building space),
+## outward normal, width, ShopRoom, shop key] (Parklets reads the cafes and restaurants).
+var shop_fronts: Array = []
 
 var _rng := RandomNumberGenerator.new()
 var _generated: bool = false
@@ -734,8 +737,13 @@ func _build_part(part: Dictionary, style: Dictionary) -> void:
 		crown = position.y + bottom + float(grid.crown)
 		mat.set_shader_parameter("crown_shade", crown_shade())
 	var arrays: Array
+	# The facade pass's pencil-round corners (FacadeVariety.bevel()): the walls only, the collision
+	# and everything the wall measures from stay the box.
+	var round_off := FacadeVariety.bevel(size, minf(pitch_x, pitch_z), storefront > 0.0) if not parking else 0.0
 	if cut_x > 0.0:
 		arrays = _prism_arrays(size, cut_x, cut_z)
+	elif round_off > 0.0:
+		arrays = _bevel_arrays(size, round_off)
 	else:
 		var box := BoxMesh.new()
 		box.size = size
@@ -811,6 +819,10 @@ func _part_material(style: Dictionary) -> ShaderMaterial:
 	# stand on those lines), and rolls its spandrel pale or dark as the far shader does.
 	mat.set_shader_parameter("curtain_spandrel", window_style == WindowStyle.CURTAIN)
 	mat.set_shader_parameter("mullion_color", frame_paint())
+	# The facade pass (FacadeVariety): on, and where the kit's caps and fins stand in real geometry.
+	mat.set_shader_parameter("facade_variety", FacadeVariety.enabled)
+	var real_caps := kit_enabled and ShopfrontKit.enabled and window_style == WindowStyle.CURTAIN
+	mat.set_shader_parameter("caps_real_until", kit_mullion_distance if real_caps else 0.0)
 	_apply_wall_texture(mat, finish, shape == Shape.WAREHOUSE, style.wall_set, style.weathering)
 	_part_mat = mat
 	return mat
@@ -1529,6 +1541,9 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 				var key := shop_key(face_index + 1, run)
 				# A tower's lobby is lit all night; every pool is its room's colour (room_tone()).
 				var lobby := shop_is_lobby(key, run, runs, maxf(height, size.y))
+				var front_along := size_u * 0.5 - (float(run) + 0.5) * span * pitch
+				if Parklets.enabled and absf(front_along) <= size_u * 0.5 - cut:
+					shop_fronts.append([fc + a * front_along, n, span * pitch, ShopRoom.LOBBY if lobby else shop_room(face_index + 1, run), key])
 				if not shop_open(key) and not lobby:
 					continue
 				var u_s := (float(run) + 0.5) * span * pitch
@@ -2159,6 +2174,51 @@ static func _prism_quad(st: SurfaceTool, n: Vector3, a: Vector3, b: Vector3, c: 
 	_prism_vertex(st, n, a, ua)
 	_prism_vertex(st, n, c, uc)
 	_prism_vertex(st, n, d, ud)
+
+
+## A box part with its four vertical arrises cut back `b` each way (FacadeVariety.bevel()): the
+## cut-cornered prism, built straight into arrays (no SurfaceTool: a chunk makes hundreds of
+## these), flat normals, tangents along each wall, UVs in metres like _prism_arrays().
+static func _bevel_arrays(size: Vector3, b: float) -> Array:
+	var poly := _footprint_polygon(size, b, b)
+	var hy := size.y * 0.5
+	var verts := PackedVector3Array()
+	var norms := PackedVector3Array()
+	var tans := PackedFloat32Array()
+	var uvs := PackedVector2Array()
+	var run := 0.0
+	for i in poly.size():
+		var p0 := poly[i]
+		var p1 := poly[(i + 1) % poly.size()]
+		var e := Vector3(p1.x - p0.x, 0.0, p1.y - p0.y)
+		var wide := e.length()
+		var t := e / maxf(wide, 1e-6)
+		var nrm := Vector3.UP.cross(e).normalized()
+		var a := Vector3(p0.x, -hy, p0.y)
+		var c := Vector3(p1.x, -hy, p1.y)
+		var quad := [a, c, c + Vector3.UP * size.y, a, c + Vector3.UP * size.y, a + Vector3.UP * size.y]
+		var quv := [Vector2(run, 0.0), Vector2(run + wide, 0.0), Vector2(run + wide, size.y), Vector2(run, 0.0), Vector2(run + wide, size.y), Vector2(run, size.y)]
+		for k in 6:
+			verts.append(quad[k])
+			norms.append(nrm)
+			tans.append_array([t.x, t.y, t.z, 1.0])
+			uvs.append(quv[k])
+		run += wide
+	for i in range(1, poly.size() - 1):
+		for tri: Array in [[0, i, i + 1, hy, Vector3.UP], [0, i + 1, i, -hy, Vector3.DOWN]]:
+			for k in 3:
+				var q: Vector2 = poly[tri[k]]
+				verts.append(Vector3(q.x, tri[3], q.y))
+				norms.append(tri[4])
+				tans.append_array([1.0, 0.0, 0.0, 1.0])
+				uvs.append(q)
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = norms
+	arrays[Mesh.ARRAY_TANGENT] = tans
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	return arrays
 
 
 ## The eight corner points of a cut-cornered part, for its convex collision shape.
