@@ -2387,6 +2387,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/signage_checks.gd").new().run(self, city)
 	# The code-built Los Angeles trees and accents (tests/la_trees_checks.gd).
 	load("res://tests/la_trees_checks.gd").new().run(self, city)
+	# Street trees close up (tests/trees_closeup_checks.gd, TreesCloseup): the gust field, the switch, crowns, bark.
+	load("res://tests/trees_closeup_checks.gd").new().run(self, city)
 	# Car dealerships (tests/car_dealers_checks.gd): auto rows of new-car dealers and used lots, pure
 	# sites inside their blocks, the lot cars, stickers, tube men and cars for sale, nothing else moved.
 	load("res://tests/car_dealers_checks.gd").new().run(self, city)
@@ -2616,6 +2618,11 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/ocean_closeup_checks.gd").new().run(self, city)
 	# HUD polish (tests/hud_polish_checks.gd): the theme, the safe area, the place toast, the car readout.
 	await load("res://tests/hud_polish_checks.gd").new().run(self, city)
+	# Forward+ review e (tests/fwd_review_e_checks.gd): the wave-3 shaders' colour-space traps.
+	load("res://tests/fwd_review_e_checks.gd").new().run(self, city)
+	# The night skyline (tests/night_skyline_checks.gd, NightSkyline): office colours, cleaners'
+	# floors, crown washes and floods shared by the near walls and the far boxes, beacons out of step.
+	load("res://tests/night_skyline_checks.gd").new().run(self, city)
 	# Crash deformation (tests/crash_deform_checks.gd): crumple zones by speed, panels, wheels,
 	# scrapes, shards on the road, a real head-on, the A/B.
 	await load("res://tests/crash_deform_checks.gd").new().run(self, city)

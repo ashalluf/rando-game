@@ -20086,6 +20086,148 @@ CPU side is ~10 CPUParticles3D systems and one ray per debris piece a tick while
 The column's drift is a small acceleration (`gravity` 0.08 m/s2 sideways): at 0.45 it carried
 the column 70 m off its fire by 18 s.
 
+## 9hl. Trees close up (fleet wave 3, `trees-closeup`, 2026-10-30)
+
+The owner's bar: "make it look like GTA 6". Street trees and palms are in nearly every frame, and
+from the pavement (2-20 m) they read as flat dark cards nodding in place. This pass is shaders
+first, no mesh changes (so the FoliageLod ladders' table, the palms' ladder and every shadow twin
+are untouched, and nothing rolls differently).
+
+**What changed**
+- **Gusts that cross the street** (`shaders/tree_wind.gdshaderinc`, included by
+  `foliage_tex.gdshader`, `foliage.gdshader`, `la_tree.gdshader`): one gust field on the TRUE world
+  (`origin_shift`), running downwind at `TW_SPEED` 8.5 m/s along the Santa Ana's `wind_lean` when it
+  blows, else along the onshore breeze `TW_DIR` (west to east, a little north); peaky (short strong
+  fronts, long lulls) and ragged across the wind. It sets each tree's sway amplitude (0.55-1.5x)
+  and bows the whole crown downwind as the front passes (`gust_push`), so a gust visibly runs down a
+  row of trees. The old envelope was a sine of (x + z) per tree: every tree breathing in turn, no
+  front. `TreesCloseup.gust()` is the GDScript copy (the checks hold the numbers to the include).
+- **Leaf flutter** (foliage_tex): each leaf cluster flutters on its own phase (a hash of its rest
+  position, 0.6 m cells) and harder and faster in a gust; one phase a tree made the crown one
+  shimmering sheet.
+- **Crowns with depth** (foliage_tex, scanned trees): `TreesCloseup.dress()` (from
+  `PropFactory._tree_mesh()`) gives each model's leaf material its crown bounds from the mesh AABB
+  (`CROWN_UP` 0.62 of the height, `CROWN_HALF_HEIGHT` 0.42, `CROWN_SPREAD` 0.5: works headless, no
+  mesh data needed). From it: the core darkens (`inner_shade` 0.42, mostly as AO on the ambient),
+  the sun side's outer shell brightens (`sun_side` 0.2, by day only), the leaf normals are rounded
+  out from the crown's centre (`canopy_round_close` 0.7; was 0.45 from the trunk's foot), the
+  underside and core are pushed toward canopy-filtered green-gold (`under_filter` 0.75 - on
+  Forward+ the sky ambient painted every crown's underside slate blue), the shell is translucent and
+  the core not (`translucency_close` 0.5), clusters vary in tone (+-10 %), and the scans' leaves are
+  pulled from teal toward green (`leaf_warm` (1.0, 1.05, 0.8); never the jacaranda's blossom, which
+  keeps its violet).
+- **Alpha shimmer at 10-40 m** (foliage_tex, Forward+ only): once a leaf card's texels are under a
+  pixel (`lod` 0.8 -> 3 mips) the scissor threshold is dithered per pixel and per frame
+  (`edge_dither` 0.32), which TAA resolves as partial cover instead of pixels flipping. Not on
+  Compatibility (no temporal pass: the web and the opengl3 stills keep the plain cut) and never
+  `IN_SHADOW_PASS` (the dapples on the pavement stay crisp; the depth pre-pass evaluates the same
+  dither as the colour pass, since both read FRAGCOORD and TIME).
+- **Palms sway as one tree** (foliage.gdshader): each frond keeps only `frond_follow` (0.3) of its
+  own phase lag, growing out along the frond, so the crown swings on the trunk and the tips trail
+  it; the gust front bows it downwind, the tips streaming further. The crown's heart is shaded
+  (`inner_shade` 0.42 by `leaf_out`, as albedo and AO, and less transmission there); the trunk
+  carries leaf-scar rings and fibre bumped by screen derivatives (`bark_relief`, faded before the
+  rings alias).
+- **Bark**: the LA trees' bark (la_tree) is bumped from its own patterns (what the pattern darkened
+  is the furrow: the albedo's ratio to the plain bark colour is the height, `bark_relief` 14 mm,
+  faded with distance); the scanned trees' bark reads its ORM map's occlusion channel (the glTF
+  import left it off) and the branches' normal maps at 0.9 (they came at 0.5).
+- `TREES_CLOSEUP=0` is the A/B: every tree shader exactly as it was (each new term is multiplied
+  by or branched on `closeup`). `TreesCloseup.set_all(on)` flips it for everything already made;
+  `still_shot.gd TREES_AB=1` saves every shot again with it off (`_treesoff`), the frame held.
+
+**Tools**: `tools/trees_closeup/tree_shot.gd` - a pavement with three scanned street trees, the
+jacaranda, two palms and three LA trees, `LIGHT=noon|golden|night`, `VIEWS=`, `TAA=1`; seconds on
+opengl3, a couple of minutes a run on lavapipe Forward+. `tools/trees_closeup/probe.gd -- --spawn=x,z`
+lists blocks with palm and jacaranda streets and an EYE each (palm boulevard
+`EYE=1038.8,1.7,1549.6,-90,4` with `EYE_AGL=1`, jacaranda suburb `-447.9,1.7,1986.7,-90,4`).
+
+**Checks** (`tests/trees_closeup_checks.gd`): the include's numbers against the GDScript copy, the
+gust in 0..1 with real fronts, a front travelling downwind (riding it the mismatch is 0.04, at one
+instant 0.48), the Santa Ana turning it, every tree shader on the field with the switch, the dither
+Forward+ only and out of the shadow pass, every street tree's leaves marked with crown bounds in
+its crown and its bark on the occlusion map, the palm and LA materials marked, a dressed mesh
+unchanged, the switch and set_all() flipping and restoring.
+
+**Frame cost**: no mesh, LOD, shadow twin or batch changes, so the geometry is identical with the
+pass on and off by construction (the A/B is a uniform on the same materials). still_shot.gd on
+opengl3, `TREES_AB=1` (one load, the frame held): the palm boulevard from the pavement
+`GEO tris=5,091,867 draws=2,599` and the jacaranda street `GEO_1 tris=7,580,132 draws=2,671`, the
+same frames with the pass off drawing the same instances. TREE_AB on the palm boulevard (the bad
+first EYE without `EYE_AGL`, kept for the ladders' numbers): trees on their ladders 15.19 M
+triangles every instance counted against 17.83 M on the old meshes, unchanged by this pass. The
+cost is ALU only: in foliage_tex's fragment about twenty more operations (the crown terms) plus one
+hash on Forward+ beyond 0.8 mips; in its vertex stage the gust (two sines) and the crown depth; a
+derivative bump on palm trunks and LA bark. Not timed on a GPU (lavapipe frame times do not
+separate it from the scene); the owner's HUD frame line is the measure.
+**Not done**: no new leaf geometry or textures (the scans' own leaf cards are the shape); the
+golden-hour city still came out at dusk (18.3 was already past sunset at that place), so golden
+hour is judged on the small scene only; the shimmer fix needs TAA and can only be judged in motion
+on the Mac.
+
+Gate: `SHARDS=3 tests/headless_check.sh` 3,691 checks passed, 0 failed (peak RSS 3,099 MB).
+
+## 9hm. Forward+ review e: the late wave-3 features on the Mac's renderer, 2026-10-30 (fleet wave 3, session `fwd-review-e`, branch `wt/fwd-review-e`)
+
+Same method as reviews a-d: each feature in a SMALL scene on the real Forward+ pipeline under
+lavapipe (`fwd_block_shot.tscn`, `car_shot.gd`, `rock_shot.gd` with `--rendering-driver vulkan`)
+against the same frame on opengl3, measured with the percentile one-liner; stills and their
+README on `shots/fwd-review-e`. Seed 1337.
+
+**First, the trap table measured** (`tools/fwd_review/color_matrix.gd`, one quad, linear
+tonemapper, both renderers): Compatibility draws every input raw (0.80 0.70 0.55 in, the same
+out); Forward+ decodes `source_color` uniforms and textures and a Color set from script, and reads
+plain uniforms, plain textures, vertex colours and constants as LINEAR (0.91 0.86 0.78: brighter
+and paler). Light3D colours behave the same on both. CLAUDE.md's colour-space trap holds exactly.
+
+**Fixed:**
+- **The facade pass's mirrored street opposite** (`fx_opposite()`, facade_variety.gdshaderinc):
+  its wall colours are display numbers, emitted raw by the renderer-space building shaders, so on
+  the Mac every curtain wall mirrored the street as pale beige slabs with bright blue windows
+  (still 02, Flower St at noon). `fx_srgb_in()` (new, in the include) decodes them on Forward+.
+- **Shop sign bands** (building.gdshader and building_lod.gdshader): the board hues and the
+  channel letters' glow (`letter_color()`) were raw too; a red lightbox was a pale red past 1 and
+  AgX drew it pink (the lobby sign over the AFTERGLOW club, stills 08-09). Both through
+  `fx_srgb_in()`; the real letters' material already got LETTER_COLORS as a Color (decoded).
+- **Broad additive pools** (`light_pool.gdshader`): Forward+ adds in linear HDR, so FreewayKit's
+  wide flat pools over dark asphalt drew as a flat white disc (the metro kiosk at night, still 15;
+  fwd-review-a met the same on the pier). New `display_add` (off by default) makes Forward+ add the
+  display-space amount decoded; FreewayKit's shared pool material (decks, light rail, freight, the
+  kiosk) turns it on. Freeway deck at night after: still 16. Street lamp pools are unchanged.
+- **Stunt ramps** (`stunt_ramp.gdshader`): `disp(cs_in(tex))` decoded the textures twice on
+  Compatibility; every opengl3 still drew the ramps grey and dark. Forward+ was right and is
+  unchanged (still 13).
+
+**Looked at, nothing to fix (Forward+ against opengl3):** car cabins with the door open and the
+cockpit (01), the cafe parklet at night (03), the premiere's marquee and searchlights (04), the
+skate park (05), Flower St at night (07), the clubs' queues and canopy (08), the buskers' gear on
+the plaza (10), the fashion district's goods (11), an arroyo culvert and bed (12), a yard sale with
+the apartment walk-ups behind it (14), the rock outcrop kit (17).
+
+**Noted, not fixed:**
+- Bonfires at night (06): on Forward+ the sand round a lit ring is blood-orange where opengl3 is
+  warm cream. Not a shader: lights are handled alike (measured); it is the GI bounce off a large
+  saturated ground plus AgX, the same warming every big textured ground shows on Forward+ (the
+  plaza paving, 10). If the owner finds it too much, the knob is `BonfireFire.LIGHT_COLOR`.
+- The sky's city light dome reads red rather than orange on Forward+ downtown at night
+  (`city_glow_color` decoded, then AgX); fwd_block_shot shows it above the trees. The sky's.
+- One Broadway neighbour's wall draws mint render on opengl3 and red brick on Forward+ (04's day
+  pair). Not traced; it is the Compatibility side that looks wrong.
+- Not rendered: fireworks (fwd_block_shot has no Fireworks node), valets and apartments alone
+  (seen only behind the yard sale), the new car bodies (cars-3 not merged). Day stills taken after
+  the per-shot hour switch on Forward+ are dark (the sky and exposure need more frames): compare
+  stills built at their own hour.
+
+**Tools:** `fwd_block_shot.tscn` takes a sixth EYE field (that shot's hour) and `BLOCKS=home` (only
+the block under each EYE: downtown's 3 x 3 runs lavapipe out of memory at ~12.9 GB even with the
+review's LITE list); `tools/fwd_review/color_matrix.gd`.
+
+**Checks** (`tests/fwd_review_e_checks.gd`, source text plus one material): no `disp(cs_in(` in
+any shader; the stunt ramps read their textures once; `fx_opposite()`'s walls and the sign band's
+hues and letter glow go through `fx_srgb_in()`, which leaves Compatibility alone; light_pool's
+`display_add` and FreewayKit's pool material using it.
+
+**Frame cost:** shader-only changes plus one uniform; no node, mesh or draw added.
 ## 9d?. Cars that crumple (wave 3, branch `wt/crash-deform`; VISUAL_ROADMAP ?)
 
 The owner's bar is "GTA 6": a head-on at 60 km/h left a nearly whole car with one shader dent.

@@ -3907,6 +3907,21 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   as before). Built on the loading screen (`warm()`, ~2 s); `?showroom` lines them up. Look with
   `tools/glshot/la_tree_shot.gd` (a lineup in seconds, `SPECIES=`, `LEVEL=n`, `CAM` / `LOOK`), find
   them with `tools/la_trees_probe.gd` (`MODE=street|cypress|row`); checks: `tests/la_trees_checks.gd`.
+- Trees close up (2026-10-30, docs/HANDOFF.md "Trees close up"): `TreesCloseup`
+  (`scripts/world/trees_closeup.gd`) marks every tree material `closeup` (TREES_CLOSEUP=0 is the
+  A/B: each shader exactly as it was) and hands foliage_tex each scanned tree's crown bounds
+  (`dress()` from `_tree_mesh()`, from the mesh AABB: no mesh data needed). ONE gust field for
+  foliage_tex / foliage / la_tree (`shaders/tree_wind.gdshaderinc`, true world via `origin_shift`,
+  downwind along `wind_lean` or the onshore `TW_DIR`; `TreesCloseup.gust()` the GDScript copy -
+  change both): fronts bow each crown in turn. foliage_tex: depth from the crown bounds (core dark
+  and ambient-occluded, sun-side shell brighter, underside green-shifted by `under_filter` - the
+  sky ambient painted it slate blue -, shell translucent), leaves rounded from the crown's centre,
+  per-cluster tone and flutter, a Forward+-only per-frame dithered scissor once texels are under a
+  pixel (TAA resolves it; never `IN_SHADOW_PASS`). Palms sway as one tree (`frond_follow`), crown
+  heart shaded, trunk rings bumped by screen derivatives; LA bark bumped from its own patterns;
+  scanned bark reads its ORM occlusion. No mesh, roll or ladder change. Stills
+  `tools/trees_closeup/tree_shot.gd` (both renderers), streets `tools/trees_closeup/probe.gd`;
+  checks `tests/trees_closeup_checks.gd`.
 - Replica areas (see the technical rule): `ReplicaAreas` (`scripts/world/replica_areas.gd`,
   `MacroMap.replica`, built in `MacroMap.setup()` before the hill roads, `fit_hill_profile()`
   after) holds each area as a table - today only `ESPLANADE`: Knob Hill down the Redondo
@@ -6153,6 +6168,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   front of it** (the offshore island is; the volume knows nothing nearer). An additive halo must
   reach ZERO at its quad's edge: a 4 % tail, added in linear on Forward+, draws the quad.
   `tests/fwd_review_d_checks.gd` scans every shader for the colour rules.
+- And two more (fwd-review-e, 2026-10-30, HANDOFF "Forward+ review e"): **an additive unshaded
+  quad adds in linear HDR on Forward+** - a broad pool over dark asphalt that reads as a soft
+  wash on opengl3 is a flat white disc on the Mac (`light_pool.gdshader` `display_add`, on for
+  FreewayKit's pools); and a display-number shader never wraps a texture in `cs_in()` before
+  `disp()` (decoded twice on Compatibility). `tools/fwd_review/color_matrix.gd` prints the whole
+  colour-space table on either renderer in seconds; `tests/fwd_review_e_checks.gd`.
 - Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building),
   `tools/glshot/block_shot.tscn` (a few FULL city blocks alone, no far city: a block's ground and
   furniture) and `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real
