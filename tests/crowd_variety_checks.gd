@@ -25,6 +25,8 @@ func run(t: Node, _city: Node3D) -> void:
 		listed = listed and models.find("res://assets/models/%s.glb" % NEW[i]) == BEFORE + i
 	listed = listed and models.find("res://assets/models/crowd_z.glb") == BEFORE - 1
 	_t._check(listed, "crowd-variety: crowd_aa..af are Pedestrian.MODELS 26..31, after the twenty-six before them")
+	var ab := Array(ped.VARIETY_MODELS) == models.slice(BEFORE, BEFORE + NEW.size())
+	_t._check(ab, "crowd-variety: CROWD_VARIETY=0 leaves out exactly the six new rigs (Pedestrian.VARIETY_MODELS)")
 	var table: Dictionary = load("res://scripts/npc/crowd_hat_table.gd").TABLE
 	var rows := true
 	var libs := true

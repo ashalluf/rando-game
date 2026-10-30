@@ -3333,6 +3333,7 @@ already mapped so milestone 2 is script-only.
   appended to Pedestrian.MODELS so no earlier index or roll moves); b, c, f and g stay in their
   library clothes (the task: do not rebuild existing rigs). A dress is one "keep" cloth: no look
   recolours it into a two-tone outfit.
+- 2026-10-30 (wave 3, crowd-variety): six more adults (crowd_aa..af) appended to Pedestrian.MODELS - a suit and tie, a blazer, a work shirt, a cardigan, a gym tank, wide trousers - with the tailored jacket, the necktie, the tank and wide trousers added to tools/crowd/garments.py. Appended, so every earlier rig keeps its index; a person's roll picks among 32 now (CROWD_VARIETY=0: the old 26).
 
 ## Correction: what build 135 (0ce833f) actually contained
 
