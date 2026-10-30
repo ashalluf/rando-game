@@ -16825,3 +16825,135 @@ a ground picked per store (`MURAL_GROUNDS`), each a picture - soda bottle, ice c
 lotto star, paleta, oranges - as signed distances outlined in dark paint, brush-wobbled, sun-faded,
 with a painted drop shadow; no words, no brands. Bottles and cans are lathed at 12 sides (8 read
 faceted up close). Stills 19-23 on shots/walk-in-store.
+
+## 9fx. The walk of fame: a boulevard of stars, a movie palace, souvenirs and street characters, 2026-10-05 (agent branch `wt/star-boulevard`; VISUAL_ROADMAP ?)
+
+One boulevard through midtown, north-west of downtown under the hills, is a Hollywood-style walk
+of fame (`StarBoulevard`, `scripts/world/star_boulevard.gd`). Every name, costume, company and
+building name is invented.
+
+**Which boulevard.** `plan_for(plan)` (pure, cached per seed): every east-west road at least
+`MIN_WIDTH` (23.9 m) inside `SEARCH` (x 300..1650, z -2900..-1600) whose blocks on BOTH sides run
+`MIN_RUN` (4) or more in a row as plain MIDTOWN building blocks (no site, grounds, river,
+chinatown) is a candidate; a hash of the seed picks one and a stretch of at most `MAX_RUN` (6)
+blocks. Seed 1337: CANYON BLVD, blocks 5..8 (x 498..797, z -2314). Another seed (+7919): MEADOW
+BLVD. Nothing about the blocks moves: CityChunk asks after its own rolls through five hook lines:
+- `_build_lot()`: `StarBoulevard.claims()` / `build_lot()` after Broadway's - the palace's lot
+  and the lot straight behind it (the walk's lots are 16-25 m deep, so the palace is two lots
+  deep, 52 m on seed 1337);
+- `_build_lot()`: `StarBoulevard.dress()` after HistoricCore's - a building fronting the walk is
+  held under `HEIGHT_LIMIT` (34 m), its shops named from `STRIP_SHOPS` (Building's own names a
+  tourist strip has, through `name_pool`; Building.SHOP_NAMES is NOT extended - its window vinyl
+  is a generated table with a 6-bit name index, 54 of 63 used) and `kit_blade_chance` 0.85 (lit
+  blade signs at night);
+- `_build_sidewalk_props()`: `StarBoulevard.lamp()` after each `_add_lamp()` records the walk's
+  lamps (rolls nothing);
+- `_block_steps()`: `StarBoulevard.steps()` before the parked cars and walkers (FULL only);
+- `_park_car()`: `StarBoulevard.blocks_parking()` after the rolls (the buses' kerb; counts as
+  parked, like the vendors').
+`broadway_theatre.gd` takes two optional spec keys: `p.frame` (a caller's own frame) and
+`spec.shops` (the flanking shops' names).
+
+**The stars.** `_band()`: ONE mesh a block side, a quad strip a metre a step on the relief,
+`BAND_FROM` 2.6 m to 4.0 m in from the kerb (the plain inner pavement slab, past Kerbs' ring of
+ramps, wells and heaves), `END_CLEAR` 4.2 m short of each corner, cut at alley mouths, 8 mm over
+the pavement, no shadow, drawn to 160 m. `shaders/walk_of_fame.gdshader` draws it per pixel from
+the UV (metres along the boulevard in TRUE world, toward the reader's right as they face the
+buildings, and metres in from the kerb): coral terrazzo borders, a row of 1 m charcoal terrazzo
+squares with brass divider strips, every other square a coral star with a brass rim (iq's star
+SDF), its name in brass capitals and an emblem (film camera, television, record, microphone,
+masks) in a brass ring. Terrazzo is a cellular chip field; names and emblems come from ONE atlas,
+`assets/textures/star_boulevard/walk_atlas.png` (1024 x 2048, `tools/make_star_boulevard_art.py`,
+PIL: 120 invented names in caps, the same as signatures with a year, five emblems; it also writes
+`scripts/world/star_names.gd`); which name a star carries is an integer hash of its square and
+side (`seed_salt`). Wet streets darken and gloss it (`road_wetness`).
+
+**The palace.** THE GRAND CELESTE (`PALACE`, BroadwayTheatre's spec format: Spanish style,
+clock tower, roof sign, a V marquee "WORLD PREMIERE / THE GOLDEN HOUR / RED CARPET 7PM"), on the
+lot `_pick_palace()` chooses (the walk's frontage lots at least 24 m wide with the lot behind
+lining up, nobody else's claim, clear of the freeway and the light rail, nearest the stretch's
+middle with a hash), built by `BroadwayTheatre.build()` on a frame set back `FORECOURT` (10 m):
+LOD and the far city get its far boxes and lit sign panels for free. `_forecourt()`: the slabs
+(the same shader in forecourt mode, UV2.y 1): 1.25 m slabs with grout, three in four pressed
+with two hands (SDF palms and fingers, each pair its own size and spread), some with shoes, and a
+signature with a year from the atlas; side walls that are planters with mature palms (the chunk's
+palm batches), two red-and-gold lantern pylons at the street with light pools, brass stanchions
+with velvet ropes. One collision body.
+
+**The pavement.** `_street()`: souvenir goods along the band's building edge by hash
+(BroadwayStreet's T-shirt rack, a postcard spinner, a table of gold star trophies, snow globes,
+mugs and tees, a star-map seller's A-board), feather flags (SOUVENIRS, GIFTS, T-SHIRTS, STAR
+MAPS, FreewayKit's TextMesh geometry merged), and on every walk lamp a gold star medallion on an
+arm, ringed in neon (`shaders/star_neon.gdshader`: lamp_factor, a shimmer per medallion). One
+batch per kind.
+
+**The characters.** `StreetCharacter` (`scripts/npc/street_character.gd`, extends StreetVendor,
+so it stands at its spot, idles, folds its arms, talks to whoever stops, flees gunfire and walks
+back, and is shot, knocked and ragdolled like anyone, in the crowd cap): up to `MAX_CHARACTERS`
+a block face on the stars (`character_spot()`, pure), one of seven ORIGINAL costumes (`COSTUMES`:
+a gilded living statue and a chrome robot in painted metal, Captain Comet in teal and orange
+with a cape, the Rodeo Ranger in a felt hat, Madame Spotlight with a tiara and a white cape, the
+Visitor with green skin and antennae, the Midnight Avenger in violet with a cape). The body is
+the rig's own, repainted through the character shader's garment split (or a metal material for
+the statues); hats, helmet, tiara and antennae are built round the rig's own head from
+CrowdHatTable (CrowdHat.head_for(), FireHelmet's head frame), the cape hangs off Spine02 like the
+backpack. Never a copyrighted character.
+
+**The buses.** Two STARLINE SIGHTSEEING buses (BigVehicles' bus repainted plum with a gold band
+and the fleet's name) parked at the kerb in front of the palace (`bus_zone()`, 30 m of parking
+lane, kept clear of parked cars), real Vehicles under the city root like the parked cars.
+
+**Not done / not verified.** Forward+ (the Mac) unseen: the terrazzo's polish and the brass are
+judged on opengl3 only. Tour buses do not drive in traffic. The souvenir shops are Building's
+own names plus the flags, goods and blade signs (no per-shop neon pieces of their own beyond the
+building shader's neon roll and the medallions). The characters do not pose for photos with the
+crowd. Costumed characters were seen in the smoke test (spawned, costumed) but not framed in a
+still. LOD chunks and the far city draw no band.
+
+**Frame cost** (`tools/glshot/block_shot.tscn GEO=1`, opengl3 1280x720, the FULL blocks round the
+eye, no far city; `STAR_BOULEVARD=0` against on): along the north pavement
+`EYE=780,1.7,-2329.2,90,-6` 3.64 M -> 3.76 M triangles (+3.5 %), 1,605 -> 1,581 draws (the walk's
+buildings are held low); the palace corner `705,1.7,-2300,117,6` 1.94 M -> 1.96 M (+0.8 %),
+1,207 -> 1,295 draws (+7 %: the palace, the characters, the forecourt and the pavement batches).
+`tools/geo_count.gd` and `still_shot.gd` hung on this box after "LOADING far city" with or without
+the walk (the main thread parked in a WorkerThreadPool wait, every worker idle), so the whole-city
+numbers and city stills are not taken.
+
+**Stills** (`shots/star-boulevard`, block_shot.tscn on opengl3): the walk before / after, a star
+close up, the palace corner before / after, the marquee, the forecourt's handprint slabs, two
+characters, the boulevard from above before / after, the walk and the palace at night.
+
+**Wave 3 (merged onto main 95bd13f).** Main's later features had started taking the walk's
+frontage: an apartment block (block 8,-14) and a car dealership (BRAVENT, with its tube men, on
+the same lot) on seed 1337. Now: `StarBoulevard.strip_lot()` (pure) keeps VacantLots and
+Apartments off it (one line in each), CarDealers never makes the walk's road an auto row (it asks
+`block_side()` before caching its site, since the walk's plan asks CarDealers in turn), a
+frontage lot is any lot whose front stands within `FRONT_SLACK` (5 m) of the pavement (the lot
+grid leaves 3-4 m; at 3 m only 5 of the 9 counted), a frontage car park (`CityPlan.lots()`
+"parking") builds a shop block instead (city_chunk's surface-lot line; AirTraffic, Alleys and
+GroundCoverage follow it), and `dress()` makes every frontage building a SLAB filling its lot
+(`fill_lot`, no podium): one wall of shopfronts at the back of the pavement instead of towers on
+forecourts. A deco building may still take a frontage lot (DecoBoulevard: a theatre or a tower
+fits the walk; seed 1337 has one opposite the palace). A face's characters step round the costume
+table (no twins side by side), and each registers two `vendor_queue` spots in front of it, so
+walkers stop for a photo (`PHOTO_SPOTS`). City stills (`still_shot.gd`) still deadlock on a
+4-core box after "LOADING far city" (main thread in a WorkerThreadPool wait, every worker idle:
+an engine issue, not the walk's); the stills are `tools/glshot/station_night_shot.tscn` (the
+real DayNight and lamps, the FULL chunks round the eye) on opengl3.
+Wave-3 frame cost (station_night_shot.tscn GEO, opengl3 1280x720, noon, STAR_BOULEVARD=0 -> on):
+the north pavement `780,1.7,-2329.2,90,-6` 3.78 M -> 2.90 M triangles, 1,660 -> 1,382 draws (the
+frontage's low shop blocks replace a tower and the dealer's lot); the palace corner
+`705,1.7,-2300,117,6` 2.34 M -> 2.39 M, 1,476 -> 1,645 draws; the forecourt
+`683,2.2,-2296.6,205,-14` 1.80 M -> 2.59 M, 1,056 -> 1,365 (the palace and its forecourt fill the
+view); the south walk `740,1.7,-2299,-95,-4` 3.51 M -> 3.45 M; above the boulevard
+`805,24,-2314,90,-18` 3.57 M -> 3.52 M, 2,431 -> 2,259. Night within 3 % of noon. Wave-3 stills:
+23-34 on `shots/star-boulevard` (README there). Gate after merging main eb75a10: `SHARDS=3`
+2,554 checks passed, 0 failed (shards peak 2.3-2.5 GB). After merging main 001fd22: 2,699 checks,
+one failure outside the walk (car_damage_checks "the wreck comes down and rests on the deck", 2.72 m
+over it - the check's own note records a 2.79 m catch before); that part re-run alone passed (0.99 m)
+with the walk's checks (69 checks, 0 failed). Shards peak 2.37-2.54 GB.
+
+**Tools.** `tools/star_boulevard/probe.tscn` (headless: the walk, its blocks, the palace, the
+characters, EYEs), `tools/star_boulevard/star_shot.gd` (a few metres of the band or the forecourt
+alone, seconds; `MODE=forecourt`), `tools/make_star_boulevard_art.py`. A/B: `STAR_BOULEVARD=0`.
+Checks: `tests/star_boulevard_checks.gd`.

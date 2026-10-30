@@ -4425,6 +4425,18 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   penthouse|mast|bmu`, `NIGHT=1`, `GOLDEN=1`, seconds), find them in the city with
   `tools/rooftops/find.gd -- --at=x,z --radius=m` (an EYE per pad and pool), count with
   `tools/rooftop_probe.gd`. Checks: `tests/rooftops_checks.gd`.
+- Walk of fame (2026-10-05, docs/HANDOFF.md "The walk of fame"): `StarBoulevard`
+  (`scripts/world/star_boulevard.gd`) - a hash-chosen midtown east-west boulevard (`plan_for()`,
+  pure, cached; seed 1337: Canyon Blvd) whose pavements get a band of terrazzo stars 2.6-4.0 m in
+  from the kerb (`shaders/walk_of_fame.gdshader`, names / emblems from
+  `assets/textures/star_boulevard/walk_atlas.png` by `tools/make_star_boulevard_art.py`, all
+  INVENTED), a movie palace (BroadwayTheatre on a frame set back behind a forecourt of handprint
+  slabs, two lots deep), low souvenir-strip blocks (`dress()`: `name_pool`, never new SHOP_NAMES -
+  the vinyl's 6-bit table is nearly full), goods, feather flags, neon star medallions on the
+  lamps, `StreetCharacter`s in ORIGINAL costumes and sightseeing buses at a kept-clear kerb. Five
+  hook lines in city_chunk.gd, after every roll; the frontage (`strip_lot()`) is kept from
+  VacantLots, Apartments, CarDealers and surface car parks, and built as lot-filling SLABs. `STAR_BOULEVARD=0` the A/B; probe
+  `tools/star_boulevard/probe.tscn`; checks `tests/star_boulevard_checks.gd`.
 - Window-washing gondolas (2026-10-05, fleet "tower-gondolas"): `TowerGondolas`
   (`scripts/world/tower_gondolas.gd`, static: sites, the clock-driven descent `pose_at()`, the
   cradle / davit / squeegee / hard-hat meshes) and `GondolaRig` (`scripts/world/gondola_rig.gd`,

@@ -2399,6 +2399,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Multi-storey car parks (tests/garage_drive_in_checks.gd): placement, the plan's grades and
 	# headroom, the structure and its collision on every deck, and a car driven up to the second deck.
 	await load("res://tests/garage_drive_in_checks.gd").new().run(self, city)
+	# The walk of fame (tests/star_boulevard_checks.gd): the hash-chosen boulevard, the stars, the
+	# palace behind its forecourt, souvenirs, costumed characters, sightseeing buses, nothing moved.
+	load("res://tests/star_boulevard_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

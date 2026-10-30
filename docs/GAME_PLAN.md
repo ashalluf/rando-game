@@ -1722,6 +1722,12 @@ already mapped so milestone 2 is script-only.
   the dead end at the north is a slide with a closure; its own traffic (CoastTraffic). It also
   fixed the old northern coast (shrubs and rocks floating over cut ground, chunks with no
   terrain). docs/HANDOFF.md "The coast highway"; CLAUDE.md "Coast highway".
+- **2026-10-05 One midtown boulevard is a walk of fame.** A hash of the seed picks an east-west
+  midtown boulevard with plain blocks both sides; its pavements get terrazzo stars with INVENTED
+  names (never a real person), its frontage low souvenir-strip blocks, one movie palace behind a
+  forecourt of handprint slabs, costumed characters in ORIGINAL costumes (never a copyrighted
+  character) and sightseeing buses. Everything after the existing rolls; STAR_BOULEVARD=0 the
+  A/B. docs/HANDOFF.md "The walk of fame"; CLAUDE.md "Walk of fame".
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
