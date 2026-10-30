@@ -7,10 +7,15 @@ const MARGINS := {"coast": 150.0, "bay": 150.0, "ferry": 100.0, "tug": 60.0, "pi
 
 
 func _initialize() -> void:
+	# Loaded by path once the autoloads exist (Vessel names WorldState and Sfx).
+	await process_frame
+	var OT: GDScript = load("res://scripts/world/ocean_traffic.gd")
+	var VS: GDScript = load("res://scripts/vehicles/vessel.gd")
+	var VM: GDScript = load("res://scripts/world/vessel_mesh.gd")
 	var macro := MacroMap.new()
 	macro.seed = 1337
 	macro.setup()
-	var ot := OceanTraffic.new()
+	var ot = OT.new()
 	ot.macro = macro
 	for lm: Dictionary in Landmarks.all():
 		if (lm.id as String).ends_with("pier"):
@@ -19,13 +24,13 @@ func _initialize() -> void:
 	var bad_total := 0
 	for name: String in ot.lanes:
 		var pts: PackedVector2Array = ot.lanes[name]
-		var cum := Vessel.cumulate(pts)
+		var cum: PackedFloat32Array = VS.cumulate(pts)
 		var total: float = cum[cum.size() - 1]
 		var bad := 0
 		var first := Vector2.INF
 		var s := 0.0
 		while s < total:
-			var p := Vessel.loop_point(pts, cum, s)
+			var p: Vector2 = VS.loop_point(pts, cum, s)
 			if not ot.sea_room(p, MARGINS.get(name, 100.0)):
 				bad += 1
 				if first == Vector2.INF:
@@ -33,20 +38,20 @@ func _initialize() -> void:
 			s += 20.0
 		bad_total += bad
 		print("lane %-6s points=%d length=%.0f m off-water samples=%d first=%s" % [name, pts.size(), total, bad, first])
-	for a: Vector2 in OceanTraffic.ANCHORAGE:
+	for a: Vector2 in OT.ANCHORAGE:
 		print("anchorage ", a, " room(260)=", ot.sea_room(a, 260.0))
-	for h: Vector2 in OceanTraffic.SAIL_HOMES:
+	for h: Vector2 in OT.SAIL_HOMES:
 		print("sail home ", h, " room(300)=", ot.sea_room(h, 300.0))
 	for k in 7:
 		for v in 2:
 			var line := "kind %d v%d:" % [k, v]
 			for lv in 3:
-				var m := VesselMesh.hull(k, v, lv)
+				var m: ArrayMesh = VM.hull(k, v, lv)
 				line += " %d" % ((m.surface_get_arrays(0)[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3)
 			print(line)
 	for lv in 3:
-		var m := VesselMesh.main_sail(0, 1.0, lv)
-		var j := VesselMesh.jib(0, 1.0, lv)
+		var m: ArrayMesh = VM.main_sail(0, 1.0, lv)
+		var j: ArrayMesh = VM.jib(0, 1.0, lv)
 		print("sails lv%d main=%d jib=%d" % [lv, (m.surface_get_arrays(0)[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3, (j.surface_get_arrays(0)[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3])
 	print("PROBE off-water total=", bad_total)
 	var out := OS.get_environment("OUT")
@@ -64,16 +69,16 @@ func _initialize() -> void:
 		var cols := {"coast": Color.YELLOW, "bay": Color.ORANGE, "ferry": Color.WHITE, "tug": Color.RED, "pilot": Color.MAGENTA}
 		for name: String in ot.lanes:
 			var pts: PackedVector2Array = ot.lanes[name]
-			var cum := Vessel.cumulate(pts)
+			var cum: PackedFloat32Array = VS.cumulate(pts)
 			var s := 0.0
 			while s < cum[cum.size() - 1]:
-				var p := Vessel.loop_point(pts, cum, s)
+				var p: Vector2 = VS.loop_point(pts, cum, s)
 				var px := int((p.x - x0) / step)
 				var pz := int((p.y - z0) / step)
 				if px >= 0 and pz >= 0 and px < w and pz < h:
 					img.set_pixel(px, pz, cols.get(name, Color.GREEN))
 				s += 20.0
-		for a: Vector2 in OceanTraffic.ANCHORAGE + OceanTraffic.SAIL_HOMES:
+		for a: Vector2 in OT.ANCHORAGE + OT.SAIL_HOMES:
 			var px := int((a.x - x0) / step)
 			var pz := int((a.y - z0) / step)
 			for dx in range(-2, 3):
