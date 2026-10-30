@@ -1,0 +1,17 @@
+{
+  "name": "pedestrian_l",
+  "prompt": "Mexican American man in his 30s with warm tan brown skin, short black hair and a black moustache, work casual: plain navy blue t-shirt, tan cargo work trousers, brown leather work boots, natural face, full body standing, ultra realistic, photorealistic, highly detailed, physically accurate materials and proportions, real-world scale, no cartoon or stylized look",
+  "credits": 44,
+  "tasks": {
+    "preview": "01a0cabe-ef28-75f7-b23e-0740aae0b8ad",
+    "refine": "01a0cac0-0895-7362-bd30-5f28cc3bef59",
+    "rig": "01a0cac1-1a95-77c9-a345-bffaebb9c32f",
+    "animations": "01a0cac1-e89f-7185-bb9f-54cc7a693db5"
+  },
+  "source": "Meshy (generated for this project)",
+  "animations": [
+    0,
+    613,
+    659
+  ]
+}
