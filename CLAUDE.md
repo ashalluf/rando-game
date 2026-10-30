@@ -678,6 +678,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `python3 -c "from PIL import Image; import numpy as np; g=np.asarray(Image.open('shot.png').convert('L')).astype(float); print([round(float(np.percentile(g,p))) for p in (1,5,50,95,99)])"`.
   A midday city frame wants a p5/p50/p95 spread like 87/123/175; 78/103/137 is the washed-out
   look the grade was added to fix.
+- The night skyline (2026-10-30, docs/HANDOFF.md "The night skyline"): `window_lights.gdshaderinc`
+  also rolls each office's colour temperature (`window_temp()`), cleaners' floors lit end to end and
+  the towers' crown washes and masonry floods (`tower_wash()`), salts 65-69, for both building
+  shaders (generated buildings only); beacons flash out of step (`NightSkyline.light_phase()`,
+  `aviation_beacon.gdshader` on the near spires). GDScript copies in `NightSkyline` (checked).
+  `NIGHT_SKYLINE=0` is the A/B (the `night_skyline` global); checks `tests/night_skyline_checks.gd`.
 - The grade per hour (G4, 2026-10-05, docs/HANDOFF.md "A grade per hour"): the look LUT is no
   longer one curve. `HourGrade` (`scripts/world/hour_grade.gd`, made by `DayNight._ready()`, fed
   from `_apply()`) puts its own GradientTexture1D on the Environment and rebuilds it (33 points)

@@ -3486,6 +3486,13 @@ already mapped so milestone 2 is script-only.
   vertex shader, with four shared phase buckets (no per-car uniform); the glass clears its beads by
   the same angle worked out from TIME.
 
+- **2026-10-30 The night skyline is rolled, never placed (HANDOFF "The night skyline").** Office
+  colour temperatures, cleaners' floors, crown washes and floodlit stone are integer rolls on a
+  building's seed in window_lights.gdshaderinc (salts 65-69), called by the near walls and the far
+  boxes alike, so the LOD line never changes a lit tower; no geometry, no lights, no textures.
+  Generated buildings only - the landmark towers keep their designed crowns. Beacons take their
+  phase from where they stand, never their index.
+
 ## Correction: what build 135 (0ce833f) actually contained
 
 That commit's subject says "denser grass, real palm fronds, finer ground". It also shipped a

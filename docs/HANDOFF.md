@@ -19396,3 +19396,59 @@ per car.
   renderer's reflections (SSR, the probes), which the opengl3 stills do not have - judge the glass
   and the lacquer there. The wiper blades on every body type (checked on the sedan in stills; the
   geometry is fitted per body from the windscreen box, so a bus or an exotic may sit a little off).
+
+
+## 9d?. The night skyline (fleet wave 3, `night-skyline`, 2026-10-30)
+
+Task: downtown at night from a helicopter, the freeway and the hills should read as a jewel box.
+What it drew before: every office of a building in one `lit_color`, the same checkerboard of
+tenancies on every tower, crowns only on the landmark towers (the infill towers' tops went dark
+into the sky), stone towers black between their windows, and the aviation lights pulsing in step
+(every TowerMesh light took its phase from its index, so each tower's first beacon had phase 0;
+the near roof spires' beacons burned steady while their far boxes flashed).
+
+What changed, all behind `NIGHT_SKYLINE=0` (the A/B; `NightSkyline`,
+`scripts/world/night_skyline.gd`, pushes the `night_skyline` shader global from `DayNight._ready()`):
+
+- **Office colours** (`window_temp()` in `shaders/window_lights.gdshaderinc`, salt 66): each
+  tenancy (the same three-bay run `window_lit()` lights together) is the building's own light
+  (44 %), cool LED (22 %), neutral 4000 K (18 %), warm halogen (10 %) or a greenish old tube
+  (6 %), luminance kept. Both building shaders multiply their lit colour by it with their own seed,
+  so a tower keeps its colours across the LOD line. GDScript copy: `NightSkyline.TEMPS` /
+  `TEMP_EDGES` / `temp_index()`.
+- **Cleaners' floors**: a floor whose salt-60 roll is at least `CLEANERS_FLOOR` (0.955, ~4.5 %) is
+  lit end to end in cold fluorescent at any hour (`window_lit()` returns true there).
+- **Crown washes and floodlit stone** (`tower_wash()`, salts 65, 67, 68, 69): half the parts over
+  ~40-70 m (eased in by height) get a wash down from their top over a few storeys, scalloped by
+  fittings 3.2 m apart, in warm white, cool white or (42 %) blue, amber, rose, teal or violet - no
+  logo or lettering; 60 % of masonry walls (finish FLAT / BRICK, not curtain wall) over 22 m get
+  warm or white floods up from above the shopfront, scalloped at 4.6 m. Emitted as albedo x light
+  (glass at least 0.16), times `lamp_factor`. near: `building.gdshader` (generated buildings only:
+  `part_attributes`; the landmark towers keep their own crowns), far: `building_lod.gdshader`'s
+  coded walls, with `uq` / `vp` / `part_h` for the near shader's `u` / `v - pt_base_y` / `pt_size.y`.
+  A setback is the top of a lower part, so a stepped tower is washed at each step.
+- **Aviation lights**: TowerMesh takes each light's phase from where it stands
+  (`NightSkyline.light_phase()`), and `aircraft_lights.gdshader`'s beacon (kind 2) runs at its own
+  rate from its phase (30-50 a minute) - aircraft too; the near roof spire beacon wears
+  `shaders/aviation_beacon.gdshader` (the far mast's swell-and-fade, phased by the building's true
+  world position; colour decoded as the old unshaded material was).
+
+Not done: the haze glow over the core (SkyExtras' light dome; `night-atmos` is on the
+atmosphere), lit rooftop plant (Rooftops' pools and pads already light), the landmark crowns
+(already their own lit shapes), a marine-layer still. Not verified on Forward+ (the Mac): the
+crown and flood colours are albedo x a constant colour, so on Forward+ they come out somewhat
+deeper than in the opengl3 stills. NEEDS MAC CHECK.
+
+Frame cost (`still_shot.gd` GEO, opengl3, 1280x720; everything is shader ALU on wall pixels):
+
+| view | before tris / draws | after tris / draws |
+|---|---|---|
+| heli SW 22:00 | 3,440,643 / 1,244 | 3,439,663 / 1,242 |
+| hills N 23:00 | 4,436,642 / 1,160 | 4,436,642 / 1,160 |
+| 110 deck 22:30 | 4,531,953 / 2,440 | 4,531,953 / 2,440 |
+| heli core 00:30 | 3,508,991 / 1,467 | 3,508,991 / 1,467 |
+
+Stills: `shots/night-skyline` (01-04 before over after, 05/06 a crop). Checks:
+`tests/night_skyline_checks.gd` (the global and switch, the include's numbers against
+NightSkyline's, both shaders on the same functions, the rolls' spread, the beacons' phases).
+
