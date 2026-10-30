@@ -25,6 +25,8 @@ func run(t: Node, city: Node3D) -> void:
 	_keys()
 	var plan: CityPlan = city.plan
 	BLOCK = _house_block(plan)
+	var br: Rect2 = plan.block(BLOCK.x, BLOCK.y).rect
+	print("HOUSE_NIGHTS block %s rect %s" % [str(BLOCK), str(br)])
 	_full(city)
 	_lod(city)
 	print("HOUSE_NIGHTS_CHECKS %d ms" % (Time.get_ticks_msec() - t0))

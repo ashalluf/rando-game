@@ -21156,3 +21156,52 @@ Not done / not seen: the motion blur on Forward+ (above); a pad's look-behind sh
 on-foot dive / wingsuit (both off in a car); no per-surface buzz beyond terrain (DrivingFX knows
 sand and dirt, not shared); the camera does not yet look into the corner AHEAD (GTA's slight
 lead) - the lag shows the flank instead.
+
+## 9d?. Houses at night (wave 3, branch `wt/house-nights`; VISUAL_ROADMAP ?)
+
+The owner's bar: the suburbs and the beach town at 21:00-23:30 should feel lived-in, like GTA 6.
+Before this a house's night was `house_glass.gdshader`'s per-pane roll (42 % of panes lit one
+yellow, no curtains, nothing outside), and the far house boxes a per-cell roll that knew nothing of
+the house. Now:
+
+- **One integer per house.** `HouseNights.key(seed)` = |seed| mod 997. The far box already carried
+  exactly that in INSTANCE_CUSTOM.b (`MidCity.house_custom()`, exact as a half float, checked); the
+  near glass now carries it in UV2.x - 1 (`HouseBuild._tri()`, only on the "glass" surface, only
+  when on). `shaders/house_nights.gdshaderinc` and `HouseNights` hold the same integer hash
+  (lowbias32 of key x 7919 + salt): dark (11 %), lamp tone (warm incandescent, soft white,
+  neutral, cool LED), share of rooms lit (0.32-0.74), bedtime 22:24-24:48 off `city_hour` (then
+  28 % of that), a TV (34 % of the lived-in), porch (82 %; 35 % of dark houses, a timer),
+  carriage lamps, lit number, NICE (30 %: landscape lights). Pools: their own key (the far box's,
+  `pool_key()`), 65 % lit.
+- **Near glass** (`house_glass.gdshader`, panes with UV2 only; the replica's and the coast
+  highway's keep their old look): the room traced behind the pane with a lamp's hotspot on the back
+  wall, the ceiling lit off it, a sofa line and a picture; per room the house's tone nudged toward
+  another; sheers drawn with a gap (55 %, folds, glowing with the room behind), slatted blinds
+  (25 %), bare glass; the TV room is blue, cutting shots and flickering (`hn_tv_light()`); unlit
+  rooms show the curtain faintly. Emission is linear and handed over with `cs_out()`.
+- **Far boxes** (`building_lod.gdshader`, `house_nights` uniform set by PropFactory): a house wing
+  (custom.a 0.25) lights `hn_share()` of its windows in its tone, the TV room blue, no whole-floor
+  lighting; a yard pool box glows turquoise when its pool is on. LOD chunks and the far city both.
+- **Fixtures** (`HouseNights.dress()`, one line in `HouseKit.build()` after LaTrees): a lantern
+  beside the door, carriage lamps either side of the garage (not carports), a backlit three-digit
+  number plaque (`house_lamp.gdshader`, seven-segment digits from UV.x's integer part), on NICE
+  houses path-light posts down the front walk (skipped where the drive is in the way). All in ONE
+  shadowless "h_lamp" mesh a chunk, housings included (kind 3), so no other house surface changes.
+- **Light** (`shaders/house_glow.gdshader`, four shadowless batches `hn_pool`, `hn_uplight`,
+  `hn_scallop`, `hn_halo`, additive in DISPLAY numbers on both renderers - fwd-review-e's rule):
+  the lantern's scallop on the wall and pool on the step, the carriage lamps' scallops and a pool
+  on the drive, path-light pools, uplight cones up the facade between its bays and up both sides of
+  each cypress LaTrees planted (NICE), halos at every lamp never under 2.6 px (so a street reads
+  from the air), a turquoise glow over each lit pool. Halos draw to 900 m, the rest to 260 m.
+- **Real lights** (`HouseNightLights`, one node under the root, Forward+ desktop only): `budget`
+  OmniLights (Quality 4 / 2 / 0 / 0) on the nearest lit porches within 48 m, picked every 0.4 s
+  from the porches FULL chunks register (`add_spot()`, chunk-local; freed chunks pruned).
+- **Pools near**: YardFill gives a pool piece `HouseNights.pool_variant()` (0 the old pool, 0.25
+  off, 0.75 on) and `pool_glow()`; `lot_yard.gdshader` emits the lit water.
+- **No rng drift**: every roll is a hash of the key; nothing is added to any rng, prop list or
+  existing batch. The checks build the same FULL chunk off and on: every batch's count, every prop
+  id and every House_* mesh but the glass is the same.
+
+`HOUSE_NIGHTS=0` is the A/B. Checks: `tests/house_nights_checks.gd` (the include mirrors the
+numbers and hash; the shares; near / far keys through half floats; pools; the chunk off / on; the
+fixtures mesh and glow batches shadowless; porches registered; every pane keyed; LOD builds none).
