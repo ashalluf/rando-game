@@ -16,8 +16,9 @@ studio, night estates, churches, utility poles, police stations at night, the ho
 street errands, reference cameras), batch 7 (the marketplace lane, shop-window vinyl, roadside
 businesses) and batch 8 (street signs as real models, five street lamp types), plus the fixes
 for CI runs 355-357 (a turning car's room in its new lane, errands never parking a placed car,
-the car lights check's pick race). Apartments and tower gondolas are what is left of the started
-sessions (docs/HANDOFF.md 0000000).
+the car lights check's pick race), then apartments and tower gondolas (2026-10-29, build 361).
+**Wave 3 (2026-10-29)**: 23 cloud sessions finishing wave 2's paused tasks plus `rock-outcrops` and
+`facades-gta` (owner: "make it look like GTA 6"); start at docs/HANDOFF.md section 00000000.
 `SHARDS=3 tests/headless_check.sh` runs the smoke test in three processes (~10 min, ~2.4 GB each).
 A fleet of 100 sessions was started (`fleet/brief`: BRIEF.md, tasks.tsv, sessions.tsv; each on
 `wt/<slug>`, stills on `shots/<slug>`); 61 of them are paused by the account's usage limit and
@@ -306,6 +307,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   doors); `ParkBall` plays `ball_dribble` on each floor hit. Clips are cut by
   `tools/city_audio.py` (sources and spans in docs/ASSETS.md); `tools/audio_probe.tscn` prints
   the space, reverb, echo taps, beds and footing at named places. Checks: `tests/audio_checks.gd`.
+- Engine audio (2026-10-06, docs/HANDOFF.md "Engine audio"): `EngineAudio`
+  (`scripts/vehicles/engine_audio.gd`, one node under the root, made by the first Vehicle like
+  CarLights) voices the `voices` (4, web 2) running cars nearest the camera within `reach` plus the
+  player's car (the Vehicle's old `engine_loop` then stays quiet). Profiles by body type
+  (`profile_for()`; meta `engine_profile` overrides, "moto" for motorcycles): Sfx
+  `eng_<profile>_<idle|low|mid|high|off>`, crossfaded equal-power by rpm and pitched rpm / the
+  loop's rpm (`PROFILES.rpm`), the coasting loop as the throttle lifts. Revs come from the pure
+  `step_engine()` (gears between `first` and `top`, shifts by throttle, kick-down, clutch slip,
+  limiter, free revs in the air or on boost). Turbo / blow-off, reversing alarm (trucks, buses), a
+  squeal for kinematic traffic braking hard (DrivingFX keeps the physical cars'), `horn()` one
+  take and pitch per car (TrafficAI's honks; the player's `horn` action, H / d-pad down). The
+  loops are synthesised by `tools/engine_audio.py` (no CC0 recording was reachable) and replaceable
+  by name. `ENGINE_AUDIO=0` is the A/B, `ENGINE_AUDIO_HUD=1` the debug panel; probe
+  `tools/engine_audio/probe.tscn`; checks `tests/engine_audio_checks.gd`.
 - Day/night: `DayNight` node in the city scene drives the sun, the sky (`shaders/sky.gdshader`,
   a ShaderMaterial on the Environment's Sky: gradient, sun disc, FBM clouds, stars; colors set per
   hour via `set_shader_parameter`) and the `night_factor` shader global (`[shader_globals]` in
@@ -1204,6 +1219,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   staggered by distance, `max_alarms` 7. A/B: `TREE_FIRE=0`, `BLAST_AFTERMATH=0`,
   `CAR_ALARMS=0` in the environment. Stills: `AFTERMATH=palms|burning|charred|column|crater` on
   `still_shot.gd` (`tools/glshot/aftermath_stage.gd`). Checks: `tests/explosion_aftermath_checks.gd`.
+- Street props break by KIND (2026-10-06, docs/HANDOFF.md "Street props that break like GTA"):
+  `PropBreak` (`scripts/world/prop_break.gd`) takes `damage_prop()` / `break_prop()`: a hydrant
+  leaves a `HydrantGeyser` (13 m column, wet patch, lifts the player) and a flange; a shelter loses
+  its glass to `PropShards` cubes, then its frame; a round pops a lamp (its OmniLight is the
+  record's, `own_light()`), a hard hit bends a pole, a harder one fells it (`FallingPole`, hinged
+  at its foot); mailboxes / news boxes burst into paper; meters snap off with coins. Pieces are
+  copies of the prop's own batch instances (`_add_prop()` keeps mesh, transform, colour, custom),
+  never a kind's mesh. Cars over 5 m/s smash through (`smash_ahead()` from Vehicle's step), the
+  player over 18 m/s too (`smash_player()`, before Player's move_and_slide).
+  `PROP_BREAK=0` is the A/B; stills `tools/glshot/prop_break_shot.gd`, `PROPS=` on still_shot.gd;
+  checks `tests/prop_destruction_checks.gd`.
 - Building damage (2026-10-05, docs/HANDOFF.md 9cf): `BuildingDamage`
   (`scripts/world/building_damage.gd`) keeps up to `MAX_RECORDS` (32) records per building in
   `WorldState.building_damage` (key: seed and lot) - a point in the building's own space and a kind
@@ -2524,6 +2550,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   city: `lod_box`es and the canopy slab. Kit warmed on the loading
   screen. Names and prices invented. `ROADSIDE=0` is the A/B; `tools/roadside_probe.tscn` finds
   pads; checks `tests/roadside_checks.gd` (alone: `tools/roadside/checks.tscn`).
+- Street furniture (2026-10-05, docs/HANDOFF.md "Street furniture"): `StreetFurniture`
+  (`scripts/world/street_furniture.gd`) builds in code at real size the LA wet-barrel hydrant,
+  the smart meter and the pay station, a concrete bench with a painted ad back beside a third of
+  the bus shelters (invented advertisers, 555 numbers: `tools/make_bench_ads.py` ->
+  `bench_ads.jpg`), the perforated downtown bin (a TrashCan's mesh by district), the galvanised U
+  rack and the kerb planter - one shader (`street_furniture.gdshader`: kind in COLOR.a x 16, paint
+  and wear in INSTANCE_CUSTOM; round the kind in the fragment, an interpolated 8.0 reads 7.9999),
+  one batch per kind a chunk, generated LODs and shadow twins. Same calls, ids, rolls and
+  collision as the old pieces; pay stations and stop benches are hashes; the benches are props
+  with their own ids (`ad_bench_<n>`, `_own_prop()`), planned at the shelter and made props only at
+  the finish (`StreetFurniture.commit()`: later passes read `prop_records`); the shelters and the kerb carts (KerbBins)
+  are not ours. `STREET_FURNITURE=0` is the A/B. Look with `tools/glshot/furniture_shot.gd`
+  (seconds; `OLD=1` the before), find pieces with `tools/street_furniture/probe.gd`; checks
+  `tests/street_furniture_checks.gd` (`tools/street_furniture/checks_only.tscn` alone).
 - Port (roadmap #35, 2026-09-27): the container terminal (`MacroMap.port_rect`) is
   `CityChunk._build_port()` laying out `PortKit` (`scripts/world/port_kit.gd`), all built in code.
   **The old port's rolls stay** on the block rng in the old order (rows, columns, the 30 % truck
@@ -4470,6 +4510,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `ERRAND_DEBUG=1` prints every errand called off. Stills: `ERRAND=bus|car|jay|shop|deliver` on
   `still_shot.gd` (`tools/street_errands/stage.gd`); checks: `tests/street_errands_checks.gd`,
   alone in a minute with `tools/street_errands/run_checks.tscn`.
+- Onlookers (2026-10-05, fleet "onlookers"; docs/HANDOFF.md, the onlookers section): after the
+  panic near a wreck, a blast or a body, `Onlookers` (`scripts/npc/onlookers.gd`, one Node under
+  the tree root made by the first walker with life clips) brings free walkers (`_life_free()`,
+  within `life_range`) back round it: each walks its own pavement ring to a spot in the scene's
+  distance band (`BAND`, `SPACING`), `CrowdLife.Act.WATCH`, and plays a role - FILM (phone held up
+  at eye level by a two-bone arm solve over the life clips, `film_phone_mesh()`: screen lit, video
+  light `crowd_prop.gdshader` glow 3 after dark), POINT, COVER (hand to mouth), CALL (1-2 a scene,
+  the phone clip) or GAWK (folded arms, head shakes). Scenes (true world) come from CarDamage's
+  lists, `Explosion.blast_count` and fresh Ragdolls (a watched body's debris life is held,
+  `BODY_HOLD`); quiet = no `Pedestrian.alarm` within `ALARM_REACH` for `SETTLE` s. A new shot ends
+  it (`_end_act` -> `release()`); responders (`RESPONDER_GROUPS`) or `LINGER` send them off one by
+  one. Hooks in Pedestrian: `watch`, `Onlookers.walk/pose/release/ensure`. Rolls are hashes.
+  `ONLOOKERS=0` is the A/B; stills `ONLOOKER_SCENE=body|wreck|blast` on `still_shot.gd`
+  (`tools/onlookers/stage.gd`); checks `tests/onlookers_checks.gd`.
 - Headwear (2026-10-04: the old box caps "read as plastic bowls"): `CrowdHat`
   (`scripts/npc/crowd_hat.gd`) builds a six-panel cotton baseball cap (button, sweatband, a bill
   with a taped edge, a strap and slide buckle across the opening at the back), a cuffed 2x2-rib
@@ -4835,6 +4889,21 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/glshot/hero_moves_shot.gd` (several stills a load: a clip frozen or a staged move -
   fly, fall, hit_*, draw, land_<speed>, roll, idle_*; `STEP=1` for the foot IK); checks
   `tests/hero_moves_checks.gd`.
+- Swimming (2026-10-05, docs/HANDOFF.md "Swimming"): `Swim` (`scripts/player/swim.gd`, the
+  player's child; `swim.step()` is the first thing in Player's tick after the car and does the whole
+  tick in water). Where water is: `SwimWater` (`scripts/world/swim_water.gd`) - the sea and the bay
+  worked out (`SeaSurface`, `scripts/world/sea_surface.gd`: ocean.gdshader's vertex stage in
+  GDScript, change one change both, the checks read the shader's source), the marina and the
+  reservoir (`Reservoir.wet()` at its level, the hills its bed); the lake, the golf pond, canals,
+  pools (yard, rec, hill-home; rooftop pools are `TANK`: the roof is a real floor) registered by their builders (`SwimWater.add_rect()` / `add_poly()`, one line,
+  FULL chunks only). Sea, marina and pools have no real floor under the water, so while he swims
+  there the world layer is off his mask and Swim holds him over the water's own floor and inside a
+  pool's tank. Strokes are code (`SwimPose`, second modifier after HeroMotion; crawl, tread,
+  breaststroke, streamline), the body laid by `Avatar.swim_body()`; FX and synthesized sounds
+  `SwimFX`; the underwater pass `shaders/underwater.gdshader` + `water_underside.gdshader`. Input
+  `dive` (C / Ctrl / pad X). No drowning, no guns. `SWIMMING=0` is the A/B; stills `SWIM_STAGE=
+  tread|crawl|boost|under SWIM_HOLD=1` on `still_shot.gd`; probe `tools/swim/probe.tscn`; checks
+  `tests/swimming_checks.gd`.
 - Late build steps (2026-10-05, docs/HANDOFF.md "The integration-b OOM"): a pass that must run
   after every DEFERRED step (YardFill's walls, `_run_or_defer`, crowds) queues itself with
   `CityChunk._run_last(step)` (ClimbingPlants, Murals); `build_step()` puts those in front of the
