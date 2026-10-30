@@ -868,6 +868,8 @@ func _stairs(at: Array) -> void:
 	var c := p + l * ((edge + toe) * 0.5)
 	ramp.transform = Transform3D(Basis(dv, up, -fwd), Vector3(c.x, (top_y + bottom_y) * 0.5 - 0.15, c.y))
 	_body_node().add_child(ramp)
+	if full:
+		CrowdFeet.add_steps(chunk, ramp, p, d, l, edge, toe, top_y, bottom_y, steps, half)
 
 
 # --- Polygons ------------------------------------------------------------------------------------

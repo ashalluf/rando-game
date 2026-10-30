@@ -65,6 +65,8 @@ extends SceneTree
 ## row (tools/glshot/aftermath_stage.gd: AF_FIND, AF_TIME, AF_EYE_DIST, AF_FAR, ...).
 ## PROPS=hydrant,lamp,bus_stop,mailbox,meter,newsbox breaks street props round the nearest of the
 ## first kind and frames them (tools/glshot/prop_break_city_stage.gd: PB_FIND, PB_TIME, PB_EYE_*).
+## VALET=drop|queue|back stages the valet stand nearest the camera at work and frames it
+## (tools/valets/stage.gd: VALET_T, VALET_VIEW=kerb|across, VALET_PICK).
 ## SERVICE=garbage|sweeper|tow|ice_cream|delivery stages a service vehicle at work ahead of the
 ## camera and moves a free camera to frame it (ServiceFleet.stage_for_shot; SERVICE_EYE=0 keeps
 ## the camera, SERVICE_LIFT 0..1 how far up the garbage truck's arm has its cart).
@@ -72,6 +74,7 @@ extends SceneTree
 ## ERRAND=bus|car|jay|shop|deliver stages a street errand ahead of the camera (StreetErrands; see
 ## tools/street_errands/stage.gd for ERRAND_PICK and the framing knobs); STREET_ERRANDS=0 turns
 ## the errands off (the A/B).
+## SEA=dolphin|pelican|dive|whale|sealion stages the life in the water ahead (SEA_DIST, SEA_T).
 ## BIRD=ground|flush|wire stages birds ahead of the camera (BIRD_SPECIES, BIRD_DIST, BIRD_COUNT,
 ## BIRD_FLY; see the block before STREET); BIRDS=0 removes the birds (the A/B).
 ## TEX_REPORT=1 prints the frame's textures and their video memory (tools/texture_budget/tex_census.gd).
@@ -421,6 +424,22 @@ func _initialize() -> void:
 				_pose(player, anchor, hold, boost, fov)
 		else:
 			print("BIRD: no Birds node or camera")
+	# WILD=coyote,deer,...: the urban wildlife in a row ahead of the camera (tools/wildlife/stage.gd:
+	# WILD_DIST, WILD_SPACING, WILD_TURN, WILD_POSE stand|graze|sit|walk|trot|flee, WILD_FRAMES).
+	var wild_env := OS.get_environment("WILD")
+	if wild_env != "" and current_scene:
+		await load("res://tools/wildlife/stage.gd").stage(self, current_scene, wild_env, get_root().get_camera_3d())
+		_pose(player, anchor, hold, boost, fov)
+	# SEA=dolphin|pelican|dive|whale|sealion: the life in the water (SeaLife.stage_for_shot) SEA_DIST
+	# metres ahead of the camera on the water, SEA_T seconds before the moment (a dive: before the
+	# splash); the clock is then held by the freeze. SEA_LIFE=0 removes all of it.
+	var sea_env := OS.get_environment("SEA")
+	if sea_env != "" and current_scene and current_scene.get_node_or_null("SeaLife"):
+		var sea_node := current_scene.get_node("SeaLife")
+		sea_node.call("stage_for_shot", sea_env, get_root().get_camera_3d(), _env_float("SEA_DIST", 40.0), _env_float("SEA_T", 0.4))
+		for i in 2:
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
 	# STREET=queue|crossing: a signalised junction ahead of the camera, a queue at its red, and
 	# for `crossing` people out on the crosswalk in front of it (see _stage_street).
 	var street_env := OS.get_environment("STREET")
@@ -495,6 +514,17 @@ func _initialize() -> void:
 		for i in _env_int("NEWS_FRAMES", 30):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
+	# BOAT=speedboat|jetski|dock: the player driving a boat across the bay, or the moorings
+	# (tools/boats/stage.gd: BOAT_AT, BOAT_HEADING, BOAT_VIEW=chase|side|front|high, BOAT_BOOST,
+	# BOAT_STEER, BOAT_TICKS); the player stays in the shot.
+	var boat_env := OS.get_environment("BOAT")
+	if boat_env != "" and current_scene:
+		var b_eye: String = await load("res://tools/boats/stage.gd").stage(self, current_scene, boat_env, get_root().get_camera_3d())
+		if b_eye != "":
+			OS.set_environment("EYE", b_eye)
+			OS.set_environment("EYE_KEEP_PLAYER", "1")
+		print("BOAT %s eye %s" % [boat_env, b_eye])
+		_eye(player, fov)
 	# ONLOOKER_SCENE=body|wreck|blast: a crowd come back round a scene ahead of the camera
 	# (tools/onlookers/stage.gd: ONLOOKER_EYE=behind|front, ONLOOKER_SHOTS=1 all views, ONLOOKER_PEOPLE, ONLOOKER_COUNT;
 	# ONLOOKERS=0 the before), ONLOOKER_FRAMES for the arms to come up.
@@ -649,6 +679,18 @@ func _initialize() -> void:
 		for i in _env_int("ERRAND_FRAMES", 12):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
+	# VALET=drop|queue|back: the valet stand nearest the camera at work, framed by a free camera
+	# (tools/valets/stage.gd: VALET_T, VALET_VIEW, VALET_PICK; VALETS=0 is the A/B).
+	var valet_env := OS.get_environment("VALET")
+	if valet_env != "" and current_scene:
+		var va_eye: String = await load("res://tools/valets/stage.gd").new().stage(current_scene, valet_env, get_root().get_camera_3d())
+		if va_eye != "":
+			OS.set_environment("EYE", va_eye)
+		print("VALET %s eye %s" % [valet_env, va_eye])
+		_eye(player, fov)
+		for i in _env_int("VALET_FRAMES", 6):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
 	# RAIN_STAGE=<level>: the crowd as the rain leaves it (tools/rain_crowd/stage.gd: umbrellas,
 	# hoods, doorways, shelters; RAIN_FOCUS frames one; RAIN_CROWD=0 is the A/B).
 	if OS.get_environment("RAIN_STAGE") != "" and current_scene:
@@ -670,6 +712,18 @@ func _initialize() -> void:
 		print("MOTO %s eye %s" % [moto_env, m_eye])
 		_eye(player, fov)
 		for i in _env_int("MOTO_SETTLE", 12):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
+	# FEET=kerb|stairs|slope: people standing on uneven ground in front of a free camera
+	# (tools/foot_ik/stage.gd; FOOT_IK=0 is the before).
+	var feet_env := OS.get_environment("FEET")
+	if feet_env != "" and current_scene:
+		var ft_eye: String = await load("res://tools/foot_ik/stage.gd").new().stage(current_scene, feet_env, self, player)
+		if ft_eye != "" and OS.get_environment("EYE") == "":
+			OS.set_environment("EYE", ft_eye)
+		print("FEET %s eye %s" % [feet_env, ft_eye])
+		_eye(player, fov)
+		for i in _env_int("FEET_FRAMES", 8):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
 	# Then all but freeze the clock for the last frames: a software frame takes seconds, and at
@@ -1182,7 +1236,7 @@ func _light_report(label: String) -> void:
 	print("LIGHTS %s car=%d (in view %d) lamps=%d (in view %d)" % [label, counts[0], counts[1], counts[2], counts[3]])
 
 
-const SPLIT_CATEGORIES := ["Vehicle", "Pedestrian", "Building", "Trees", "Grass", "Camp", "LotFill", "Houses", "Industrial", "Parks", "River", "LightRail", "Birds", "Billboards", "Vendors", "PhysProps", "StreetProps", "FarCity", "FarGround", "Landmark", "Other"]
+const SPLIT_CATEGORIES := ["Vehicle", "Pedestrian", "Building", "Trees", "Grass", "Camp", "LotFill", "Houses", "Industrial", "Parks", "River", "LightRail", "Birds", "SeaLife", "Billboards", "Vendors", "PhysProps", "StreetProps", "FarCity", "FarGround", "Landmark", "Other"]
 
 
 func _geo_split(player: Node3D, anchor: Vector3, hold: Vector3, boost: bool, fov: float) -> void:
@@ -1429,6 +1483,8 @@ func _split_category(gi: GeometryInstance3D) -> String:
 				return "LightRail"
 			"Birds":
 				return "Birds"
+			"SeaLife":
+				return "SeaLife"
 			"TrashCan", "PhysicsProp":
 				return "PhysProps"
 			"Skyline":

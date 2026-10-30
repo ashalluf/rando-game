@@ -75,7 +75,7 @@ func _process(delta: float) -> void:
 
 func _layout() -> void:
 	var view := get_viewport_rect().size
-	_scale = clampf(view.y / 1080.0, 0.7, 2.0)
+	_scale = clampf(view.y / 1080.0, 0.7, 2.0) * GameSettings.hud_scale
 	var size := (panel_size * _scale).round()
 	var m := margin * _scale
 	_glass.size = size

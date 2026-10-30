@@ -320,7 +320,7 @@ func _pose(delta: float) -> void:
 		var bi: int = DogMesh.B_EAR[e]
 		_g[bi] = Transform3D(re, head_pos + rh * (r[bi] - r[DogMesh.B_HEAD]))
 	# Tail: the breed's carriage, curled, wagging; tucked in fear, swaying with the gait.
-	var tp: Array = TAIL_POSE.get(_b.tail[0], [-20.0, 5.0])
+	var tp: Array = _b.get("tail_pose", TAIL_POSE.get(_b.tail[0], [-20.0, 5.0]))
 	var base_pitch := deg_to_rad(lerpf(float(tp[0]), -80.0, fear))
 	var curl := deg_to_rad(float(tp[1]) * (1.0 - fear))
 	_wag_t += dt
@@ -361,6 +361,12 @@ func _paw_target(li: int, stride: float) -> Array:
 	var walk := [0.25, 0.75, 0.0, 0.5]
 	var trot := [0.0, 0.5, 0.5, 0.0]
 	var gal := [0.5, 0.6, 0.0, 0.1]
+	# A hop (rabbits, squirrels: the hind feet land together ahead of the front pair) or a mule
+	# deer's stot (all four together) in place of the gallop (WildSpecies).
+	if _b.get("pronk", false):
+		gal = [0.0, 0.02, 0.0, 0.02]
+	elif _b.get("bound", false):
+		gal = [0.5, 0.55, 0.0, 0.03]
 	var out := Vector3.ZERO
 	var flex := 0.0
 	var weights := [(1.0 - _trot) * (1.0 - _gallop), _trot * (1.0 - _gallop), _gallop]

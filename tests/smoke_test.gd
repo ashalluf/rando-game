@@ -114,7 +114,7 @@ const PART_COST := {
 	"far_corners_checks": 0.1, "weather_la_checks": 0.1, "color_grade_checks": 0.0,
 	"fwd_review_a_checks": 0.0, "fwd_review_b_checks": 0.0, "garments_2_checks": 0.0,
 	"memory_audit_checks": 0.0, "offshore_island_checks": 0.0, "perf_audit_checks": 0.0,
-	"shop_vinyl_checks": 0.0, "sky_checks": 0.0
+	"shop_vinyl_checks": 0.0, "sky_checks": 0.0, "bonfires_checks": 3.0
 }
 const DEFAULT_COST := 6.0
 ## Every share pays for its own city load on top of its parts.
@@ -2245,6 +2245,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# the front rows first, batches and figures on a FULL chunk, woken people, gunfire scattering
 	# them, the block's palms unmoved, the LOD dots, nobody at night, the cyclist's legs on the pedals.
 	load("res://tests/beach_life_checks.gd").new().run(self, city)
+	# Beach bonfire rings (tests/bonfires_checks.gd): rings above the tide line, lit after dusk with
+	# people round them, empty by day, the LOD pools, nothing else on the beach moved.
+	load("res://tests/bonfires_checks.gd").new().run(self, city)
 	# Broadway's theatre district (tests/broadway_checks.gd): palaces on their real addresses, one
 	# sign surface each, the lanterns, goods and clock, the far boxes, nothing else in the block moved.
 	load("res://tests/broadway_checks.gd").new().run(self, city)
@@ -2489,6 +2492,44 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Freeway incidents (tests/freeway_incidents_checks.gd): the schedule, a stall with its patrol
 	# car and tow, debris that traffic changes lanes round, a slowdown, the message signs.
 	await load("res://tests/freeway_incidents_checks.gd").new().run(self, city)
+	# Street performers (tests/buskers_checks.gd): the plan, the gear, an act's chunk built the same with them off.
+	load("res://tests/buskers_checks.gd").new().run(self, city)
+	# Urban wildlife (tests/wildlife_checks.gd): coyotes, deer, raccoons, squirrels, rabbits.
+	await load("res://tests/wildlife_checks.gd").new().run(self, city)
+	# The beach's amenities (tests/beach_amenities_checks.gd): restrooms, the stand, gyms, showers,
+	# racks, poles and drums, pure and clear of the sunbathers; the palms and tower as before.
+	load("res://tests/beach_amenities_checks.gd").new().run(self, city)
+	# The oil islands in the bay (tests/oil_islands_checks.gd): siting, plan, codes, near and far.
+	load("res://tests/oil_islands_checks.gd").new().run(self, city)
+	# Aerial advertising (tests/sky_ads_checks.gd): the blimp's loop, the banner racetracks, who
+	# flies when, the meshes and a staged blimp and tow plane shot down.
+	await load("res://tests/sky_ads_checks.gd").new().run(self, city)
+	# Crowd foot placement (tests/foot_ik_checks.gd, CrowdFeet): kerbs, slopes, steps, fade, switch.
+	await load("res://tests/foot_ik_checks.gd").new().run(self, city)
+	# The settings screen (tests/settings_menu_checks.gd): defaults, the file, every knob, the screen.
+	await load("res://tests/settings_menu_checks.gd").new().run(self, city)
+	# Fireworks (tests/fireworks_checks.gd): the shared plan, the nights, the sites, a staged show, the booms.
+	await load("res://tests/fireworks_checks.gd").new().run(self, city)
+	# The film shoot on location (tests/film_shoot_checks.gd): closed local streets apart, the
+	# basecamp and the set, the kit, the built chunk and its people, LOD, and the A/B.
+	load("res://tests/film_shoot_checks.gd").new().run(self, city)
+	# The car radio (tests/car_radio_checks.gd): four stations, the dial, on air, the card, the Radio bus.
+	await load("res://tests/car_radio_checks.gd").new().run(self, city)
+	# Jointed ragdolls (tests/ragdolls_checks.gd): parts, joints, settling, freezing, gibs, the cap.
+	await load("res://tests/ragdolls_checks.gd").new().run(self, city)
+	# The light rail's underground station (tests/metro_underground_checks.gd): the plan, the build,
+	# standing on every floor, the tunnel trains while the player is down there, the riders, the A/B.
+	await load("res://tests/metro_underground_checks.gd").new().run(self, city)
+	# Valet stands (tests/valets_checks.gd): hotels and restaurants, the podium and its zone, a car
+	# in on its hazards, a valet off in it, the car back and its guest away.
+	await load("res://tests/valets_checks.gd").new().run(self, city)
+	# Boats (tests/speedboats_checks.gd): the speedboat and jet ski at the marina, on the water.
+	await load("res://tests/speedboats_checks.gd").new().run(self, city)
+	# Life in the water (tests/sea_life_checks.gd): dolphins, pelicans, sea lions on the buoys, a whale.
+	await load("res://tests/sea_life_checks.gd").new().run(self, city)
+	# THE PIT, the boardwalk's skate park (tests/skate_park_checks.gd): the pits, the terrace, the
+	# lines on the concrete, the build and its collision, the riders on the clock, a knock, gunfire.
+	await load("res://tests/skate_park_checks.gd").new().run(self, city)
 	# The reset between check files (tests/gate_speed_2_checks.gd): what it puts back, the file list.
 	load("res://tests/gate_speed_2_checks.gd").new().run(self, city)
 
