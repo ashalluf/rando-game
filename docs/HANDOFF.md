@@ -21343,7 +21343,7 @@ back exactly.
 
 **Cost.** No geometry, no new material per car (each car already had its own paint material).
 A paint-filled close-up on opengl3 (llvmpipe): 200-222 ms a frame either way (noise +-10 ms;
-TIME=40 on car_shot.gd, four runs). The street bookmark's GEO lines are in the stills' README.
+TIME=40 on car_shot.gd, four runs). Downtown noon bookmark (`--spawn=2359.4,880,0,12,2`, DIFF=1, opengl3): 6,734,938 triangles, 3,312 draws with CAR_PAINT_2=0 and =1 alike - but no car was in that frame, so no street still was made.
 
 **Stills / tools.** `car_shot.gd` takes `PAINT_ENV=golden` (a low warm sun), `PAINT_ENV=street`
 (two rows of facades; lit windows at night), `FLIP=#rrggbb`, `TRIM=#rrggbb`, `LOOK=n` for any
