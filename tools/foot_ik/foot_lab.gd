@@ -6,7 +6,8 @@ extends Node3D
 ##     "-screen 0 1280x720x24" godot --rendering-driver opengl3 --display-driver x11 \
 ##     --audio-driver Dummy --path . --resolution 1280x720 tools/foot_ik/foot_lab.tscn
 ## FOOT_IK=0 is the before. MODE=bench (headless) times N people (default 40) walking round
-## the camera on the flat: the physics step's process time with and without (run it twice). Headless (`--headless`) it prints, per person, the feet's planted
+## the camera on the flat (4 to 32 m off it; SPREAD=0 all at 7 m): the physics step's process
+## time with and without (run it twice), and CrowdFeet's own cost a person a tick. Headless (`--headless`) it prints, per person, the feet's planted
 ## error: how far each sole is from the ground found under it (m), with and without the IK.
 ## SHOTS: kerb (three people at a 15 cm kerb edge, one foot over it), ramp (people across and
 ## along a 14-degree slope), stairs (people on 17 x 30 cm steps), walk (one walking up the ramp:
@@ -314,14 +315,21 @@ func _bench() -> void:
 	for i in n:
 		var p := Pedestrian.new()
 		var a := TAU * float(i) / float(n)
-		p.setup(Rect2(-9, -9, 18, 18), 4.0, 500 + i)
-		p.position = Vector3(cos(a) * 7.0, 0.05, sin(a) * 7.0)
+		# Spread from 4 to 32 m off the camera (SPREAD=0: all at 7 m), like a street round it.
+		var r := 7.0 if _env("SPREAD", "1") == "0" else lerpf(4.0, 32.0, float(i) / float(n))
+		p.setup(Rect2(cos(a) * r - 9, sin(a) * r - 9, 18, 18), 4.0, 500 + i)
+		p.position = Vector3(cos(a) * r, 0.05, sin(a) * r)
 		add_child(p)
 	for i in 120:
 		await get_tree().physics_frame
 	var total := 0.0
 	var ticks := 600
+	CrowdFeet.cost_usec = 0
+	CrowdFeet.cost_sample_usec = 0
+	CrowdFeet.cost_apply_usec = 0
+	CrowdFeet.calls = 0
 	for i in ticks:
 		await get_tree().physics_frame
 		total += Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)
-	print("foot_lab bench: FOOT_IK=%s N=%d physics process %.3f ms a tick" % [OS.get_environment("FOOT_IK"), n, total / ticks * 1000.0])
+	print("foot_lab bench: FOOT_IK=%s N=%d physics process %.3f ms a tick; CrowdFeet %.1f us a person a tick (rays %.1f, solve %.1f)" % [OS.get_environment("FOOT_IK"), n, total / ticks * 1000.0,
+		float(CrowdFeet.cost_usec) / maxf(CrowdFeet.calls, 1), float(CrowdFeet.cost_sample_usec) / maxf(CrowdFeet.calls, 1), float(CrowdFeet.cost_apply_usec) / maxf(CrowdFeet.calls, 1)])

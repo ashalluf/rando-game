@@ -39,6 +39,9 @@ const HIPS_UP := 0.12
 const RAY_UP := 0.4
 ## Physics ticks between ray samples (staggered by the person's id).
 const RAY_EVERY := 2
+## Past `RAY_NEAR` m from the camera, every this many.
+const RAY_EVERY_FAR := 4
+const RAY_NEAR := 10.0
 ## How straight a leg may be pulled (share of its full length) before the hips come down.
 const REACH_SHARE := 0.985
 ## How fast the lift follows a new sample (1/s).
@@ -60,6 +63,9 @@ var _legs := PackedInt32Array()
 var _ankle_rest := Vector2(0.08, 0.08)
 var _ok: bool = false
 var _phase: int = 0
+var _has_truck: bool = false
+var _cam_d: float = 0.0
+static var _query: PhysicsRayQueryParameters3D
 var _tick: int = 0
 var _want := Vector2.ZERO
 var _lift := Vector2.ZERO
@@ -74,27 +80,36 @@ var applied_hips: float = 0.0
 var debug: bool = false
 var debug_lines: PackedStringArray = []
 
+## Time spent (us) and calls, for benches and probes.
+static var cost_usec: int = 0
+static var cost_sample_usec: int = 0
+static var cost_apply_usec: int = 0
+static var calls: int = 0
 static var _cam_frame: int = -1
 static var _cam_pos := Vector3.INF
 
 
-static func tick(ped: Node, delta: float) -> void:
+static func tick(ped: Pedestrian, delta: float) -> void:
 	if not enabled:
 		return
-	var f: CrowdFeet = ped.get("foot_ik")
+	var f: CrowdFeet = ped.foot_ik
 	if f == null:
-		var sk: Skeleton3D = ped.get("_head_skel")
+		var sk: Skeleton3D = ped._head_skel
 		if sk == null:
 			return
 		f = CrowdFeet.new()
 		f._setup(sk, ped)
-		ped.set("foot_ik", f)
+		ped.foot_ik = f
+	var t0 := Time.get_ticks_usec()
 	f._run(ped, delta)
+	cost_usec += Time.get_ticks_usec() - t0
+	calls += 1
 
 
-func _setup(sk: Skeleton3D, ped: Node) -> void:
+func _setup(sk: Skeleton3D, ped: Pedestrian) -> void:
 	_sk = sk
-	_phase = absi(ped.get_instance_id()) % RAY_EVERY
+	_phase = absi(ped.get_instance_id()) % RAY_EVERY_FAR
+	_has_truck = "in_truck" in ped
 	_hips = sk.find_bone("Hips")
 	for b in ["LeftUpLeg", "LeftLeg", "LeftFoot", "LeftToeBase", "RightUpLeg", "RightLeg", "RightFoot", "RightToeBase"]:
 		_legs.append(sk.find_bone(b))
@@ -111,7 +126,7 @@ func _setup(sk: Skeleton3D, ped: Node) -> void:
 		_ankle_rest[side] = clampf(h + 0.02, 0.04, 0.16)
 
 
-static func _camera_pos(ped: Node) -> Vector3:
+static func _camera_pos(ped: Pedestrian) -> Vector3:
 	var frame := Engine.get_physics_frames()
 	if frame != _cam_frame:
 		_cam_frame = frame
@@ -122,28 +137,29 @@ static func _camera_pos(ped: Node) -> Vector3:
 
 
 ## Whether this person's feet should be planted now.
-static func _active(ped: Node) -> bool:
-	if ped.get("_down"):
+func _active(ped: Pedestrian) -> bool:
+	if ped._down:
 		return false
-	var vis: Node3D = ped.get("_visual")
+	var vis: Node3D = ped._visual
 	if vis == null or not vis.is_visible_in_tree() or absf(vis.position.y) > 0.03:
 		return false
-	if int(ped.get("_act")) == CrowdLife.Act.SIT:
+	if ped._act == CrowdLife.Act.SIT:
 		return false
-	if ped.get("in_truck") == true:
+	if _has_truck and ped.get("in_truck") == true:
 		return false
 	return true
 
 
-func _run(ped: Node, delta: float) -> void:
+func _run(ped: Pedestrian, delta: float) -> void:
 	if not _ok or not is_instance_valid(_sk):
 		return
 	_tick += 1
-	var vis: Node3D = ped.get("_visual")
+	var vis: Node3D = ped._visual
 	var cam := _camera_pos(ped)
 	var want_w := 0.0
 	if cam != Vector3.INF and _active(ped):
 		var d := cam.distance_to(vis.global_position)
+		_cam_d = d
 		want_w = 1.0 - smoothstep(near_range, far_range, d)
 	_weight = move_toward(_weight, want_w, delta * 3.0)
 	if _weight <= 0.001:
@@ -155,17 +171,22 @@ func _run(ped: Node, delta: float) -> void:
 	_restore()
 	var xf := _sk.global_transform
 	var base := vis.global_position.y
-	if _tick % RAY_EVERY == _phase or _want == Vector2.ZERO and _lift == Vector2.ZERO:
+	var every := RAY_EVERY if _cam_d < RAY_NEAR else RAY_EVERY_FAR
+	if _tick % every == _phase % every or _want == Vector2.ZERO and _lift == Vector2.ZERO:
+		var t1 := Time.get_ticks_usec()
 		_sample(ped, xf, base)
+		cost_sample_usec += Time.get_ticks_usec() - t1
 	var k := 1.0 - exp(-FOLLOW * delta)
 	_lift = _lift.lerp(_want, k)
 	for side in 2:
 		_nrm[side] = (_nrm[side] as Vector3).lerp(_nrm_want[side], k).normalized()
+	var t2 := Time.get_ticks_usec()
 	_apply(xf, base)
+	cost_apply_usec += Time.get_ticks_usec() - t2
 
 
 ## Two rays a foot (ankle and ball); the foot's ground is the higher hit.
-func _sample(ped: Node, xf: Transform3D, base: float) -> void:
+func _sample(ped: Pedestrian, xf: Transform3D, base: float) -> void:
 	var space := (ped as Node3D).get_world_3d().direct_space_state
 	if space == null:
 		return
@@ -177,9 +198,12 @@ func _sample(ped: Node, xf: Transform3D, base: float) -> void:
 			var b := _legs[side * 4 + 2 + j]
 			var at := xf * _sk.get_bone_global_pose(b).origin
 			var from := Vector3(at.x, base + RAY_UP, at.z)
-			var q := PhysicsRayQueryParameters3D.create(from, Vector3(at.x, base - REACH - 0.06, at.z), MASK)
-			q.collide_with_areas = false
-			q.collision_mask = MASK | FEET_LAYER
+			if _query == null:
+				_query = PhysicsRayQueryParameters3D.new()
+				_query.collision_mask = MASK | FEET_LAYER
+			var q := _query
+			q.from = from
+			q.to = Vector3(at.x, base - REACH - 0.06, at.z)
 			var hit := space.intersect_ray(q)
 			if not hit.is_empty() and _passes(hit):
 				# A ramp standing in for steps: on through it to the treads under it.
