@@ -2009,8 +2009,8 @@
       72
      ],
      "hem_from_knee": -0.03,
-     "flare": 0.045,
-     "ease": 0.02,
+     "flare": 0.06,
+     "ease": 0.03,
      "fabric": "woven",
      "fold_gain": 0.3,
      "weight_blur": 18,

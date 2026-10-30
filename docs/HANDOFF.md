@@ -18955,7 +18955,8 @@ appended to `Pedestrian.MODELS` as indices 26-31 (`crowd_aa..af`), each with a h
 - trousers `wide` (hem radius capped a little under half the ankles' spacing so the two hems never
   meet) and `athletic` shorts (elastic waist, side stripe; painter's knit branch).
 - skirt `slit` (a back vent painted), negative flare allowed (but a pencil taper let the thighs
-  through at every stride: crowd_ab's skirt is straight with 2 cm of ease).
+  through at every stride: crowd_ab's skirt is a near-straight knee skirt with 3 cm of ease and a
+  6 cm flare).
 
 **Layering:** a `tailored` coat, or a jacket with `"over": true` (the cardigan), hides the shirt /
 tee / tie under it with `hide_under(..., ray=True)`: a vertex is covered only when a ray straight
@@ -18978,6 +18979,11 @@ which rig changes, as it did when crowd_u..z were appended.
 still_shot.gd, CROWD_VARIETY=0 then on): pedestrians 500.6k -> 525.6k triangles (+5 %), 344 -> 344
 draws; the whole frame 7.67 M -> 7.66 M triangles, 3,726 -> 3,710 draws (flat: the crowd differs in
 who stands where).
+
+**Warm rehearsal:** with 32 rigs the rehearsal's eight staged people roll other rigs, and the
+shot one's blood splats landed after the cleanup (two Decals left on the scene, shader_warm's
+check). `WarmRehearsal.run()` now sweeps the scene for the effects' leftovers for `SWEEP_FRAMES`
+(12) frames after the holder goes.
 
 **Checks:** `tests/crowd_variety_checks.gd` (indices, the A/B list, hat rows, life and busk
 libraries, the config rows wearing the new garments, adults only, body budget 16.5k, a spread of
