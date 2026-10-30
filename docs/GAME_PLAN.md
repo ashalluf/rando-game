@@ -1540,6 +1540,12 @@ already mapped so milestone 2 is script-only.
   hooks, so its windows, shops, damage and coded far boxes are unchanged) with the ornament as
   real geometry on its window grid; the old 150 ft limit holds. docs/HANDOFF.md "The historic
   core"; CLAUDE.md "Historic core".
+- **2026-10-30 An island on the horizon, drawn by the sky.** Isla Calandra (original; the form of
+  the Channel Islands) stands 36 km offshore, three times past the 12 km far plane, so it is not
+  a mesh: sky.gdshader follows each pixel's ray across a height field in true-world kilometres
+  (curvature included) before the clouds. Blue haze by day, a silhouette against the sunset,
+  the town's lights at night, gone in the marine layer and rain. docs/HANDOFF.md "The island
+  offshore"; CLAUDE.md "The island offshore".
 
 - **2026-10-06 Street props break by what they ARE, GTA-style.** A hydrant knocked off sends up a
   geyser for a while (and throws you up it), a shelter's glass bursts into tempered cubes, lamp

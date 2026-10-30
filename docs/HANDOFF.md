@@ -14946,3 +14946,50 @@ real buildings across the street (the reflection probes still take over near the
 Forward+). Forward+ judged on a small scene under lavapipe only (the city does not fit); the
 owner's Mac should look at a downtown street at noon and the golden-hour aerial.
 
+## 9fc. The island offshore: Isla Calandra on the horizon, 2026-10-30 (agent branch `wt/offshore-island`; VISUAL_ROADMAP #148)
+
+**What it is.** A large island 30-40 km out across the Pacific (the form of the Channel
+Islands; the name is original, Isla Calandra, its one town Puerto Calandra): a 34 km long
+ridge of mountains to 1,050 m with an isthmus a third of the way along, a ragged coast and
+canyons down its flanks. From the beach town its centre is 36 km out a little south of west, so
+it fills the sunset's side of the horizon (its north point near due west, where the sun goes
+down at 18:00); from the hills, downtown and the Esplanade it is 36-42 km off.
+
+**How it is drawn.** It stands three times past the camera's 12 km far plane, so the SKY draws
+it: `shaders/offshore_island.gdshaderinc`, included by sky.gdshader, `island_draw()` called
+after the sun, moon and stars and before the cirrus, contrails and clouds (so the sun sets
+behind it, stars never show through it, clouds stand in front). The sky is drawn behind
+everything, so the city, the headland, the piers and the near sea cover it with no depth
+trick. It is a real height field in true-world KILOMETRES (`view_km`, the camera SkyExtras
+already pushes): each pixel's ray is followed across the footprint ellipse
+(`island_chord()`), the ground sampled along the chord (8 even samples plus 6 round where it
+crosses the long axis, which is what decides the skyline, so it does not crawl as you move);
+the pixel is island under the highest angle any sample makes, less the earth's curvature with
+refraction (R 7,330 km: 88 m of the shore sinks at 36 km), antialiased over a pixel. The
+first sample passed under is the surface seen: lit by the sun with a normal from the height
+field and by the sky, then laid in aerial perspective (`island_haze_km`). At dusk the air in
+front is darker than the sky behind (`island_glare`, toward a low sun), which is what makes
+it a hard silhouette against the sunset. After dark: 30 lights round the town's bay and along
+the coast road (sodium and white, a few going off through the night, twinkling) and a red
+beacon on the ridge, no smaller than a pixel, only computed near the town's bearing. Cost: a
+handful of noise evaluations per pixel inside its few-degree band; nothing anywhere else
+(`island_amount` 0 returns first). Works on Compatibility (the web) unchanged.
+
+**Weather** (`OffshoreIsland`, scripts/world/offshore_island.gd, DayNight's child next to
+SkyExtras): every frame `air()` (pure) turns Weather's state weights into the amount (clear 1,
+overcast 0.3, rain / storm / marine layer 0, Santa Ana 1), the haze distance (26 km clear, 75
+km Santa Ana, less in golden-hour smog by `golden_haze_cut`) and the lights (night_factor).
+No Weather (sky_shot) reads as clear. `ISLAND=0` / `-- --no-island` is the A/B.
+
+**Look at it:** `tools/offshore_island/island_shot.gd` (sky_shot.gd with the camera at a
+true-world EYE over a sea plane, seconds; AMOUNT / HAZE / LIGHTS hold the uniforms). In the
+city: still_shot.gd EYE `-690,2,800,113.7,0.6` (beach, EYE_AGL=1), `-441.66,2,3534.58,109,0.2`
+(Esplanade), `-600,40,-1500,117,-1.5` (the front range's west end). Checks:
+`tests/offshore_island_checks.gd` (distances, open ocean under the footprint, the town facing
+the mainland, the weather table, the wiring and the pushed uniforms).
+
+**Not done / not verified:** no Forward+ (Mac) still - opengl3 only; colours use the sky's own
+uniforms, so they should hold, but the haze under AgX and auto exposure wants a look. The marine
+layer's deck top seen from above (the hills over a white sea) hides the island entirely rather
+than letting the ridge stand out of it. No reflection of the island's lights on the sea. Not on
+the minimap (it is off its range).

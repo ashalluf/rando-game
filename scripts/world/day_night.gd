@@ -257,6 +257,11 @@ func _ready() -> void:
 		add_child(extras)
 		var streamer := get_parent()
 		extras.setup(_sky, int(streamer.get("world_seed")) if streamer and streamer.get("world_seed") != null else 0)
+		if OffshoreIsland.enabled():
+			var island := OffshoreIsland.new()
+			island.name = "OffshoreIsland"
+			add_child(island)
+			island.setup(_sky, self)
 	_apply()
 
 
