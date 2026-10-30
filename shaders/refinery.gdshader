@@ -22,9 +22,9 @@ uniform sampler2D concrete_tex : source_color, filter_linear_mipmap_anisotropic,
 uniform sampler2D dirt_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D corrugated_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 /// How bright the steel round the platform lamps glows after dark (display numbers x lamp_factor).
-uniform float flood = 0.10;
+uniform float flood = 0.24;
 /// The tanks' floodlit feet after dark.
-uniform float tank_flood = 0.16;
+uniform float tank_flood = 0.42;
 
 global uniform float road_wetness;
 global uniform float lamp_factor;
@@ -124,7 +124,9 @@ void fragment() {
 			albedo = mix(albedo, vec3(0.42, 0.27, 0.16), 0.28 * run * smoothstep(0.55, 0.95, vnoise(vec2(uv.x * 0.7, 0.3) + param)));
 			albedo *= 1.0 - 0.12 * run;
 			albedo = mix(albedo, vec3(0.18, 0.16, 0.13), 0.55 * foot * (0.6 + 0.4 * vnoise(uv * vec2(1.5, 2.0))));
-			emit += to_lit(sodium) * tank_flood * lamp_factor * exp(-uv.y / max(h * 0.5, 1.0)) * (0.55 + 0.45 * vnoise(vec2(uv.x * 0.05, param)));
+			// Each floodlight a bright fan up the shell from its foot, every ~14 m round it.
+			float fan = 0.35 + 0.65 * pow(abs(cos(uv.x / 14.0 * 3.14159 + param)), 3.0);
+			emit += to_lit(sodium) * tank_flood * lamp_factor * exp(-uv.y / max(h * 0.8, 1.0)) * fan;
 		}
 		metal = 0.2;
 		rough = 0.62;

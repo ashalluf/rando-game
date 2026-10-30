@@ -27,7 +27,7 @@ uniform float radius_top = 16.0;
 uniform vec2 lean = vec2(30.0, 10.0);
 uniform float density = 0.75;
 /// The plant's light on the plume's underside after dark.
-uniform float glow = 0.55;
+uniform float glow = 0.22;
 
 varying float v_alpha;
 varying float v_h01;
@@ -74,7 +74,7 @@ void fragment() {
 	// Steam is white: it takes the sky and the sun almost as they are.
 	vec3 col = vec3(0.82, 0.84, 0.86) * shade * (sky * 0.75 + vec3(1.0, 0.97, 0.92) * 1.4 * lit * day);
 	// After dark: the plant's lights from below, strongest at the foot of the plume.
-	col += vec3(1.0, 0.55, 0.25) * glow * lamp_factor * shade * (1.0 - v_h01 * 0.7) * (0.65 - 0.35 * n.y);
+	col += vec3(1.0, 0.7, 0.45) * glow * lamp_factor * shade * (1.0 - v_h01 * 0.7) * (0.65 - 0.35 * n.y);
 	ALBEDO = cs_out(col);
 	ALPHA = clamp(a, 0.0, 1.0);
 }

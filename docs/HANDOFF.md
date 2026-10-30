@@ -14418,3 +14418,68 @@ crew's hands are IK onto the rail and the squeegee with the idle frozen near its
 dedicated wiping clip, no head turn. No sound of the hoists. The LOD ring shows Rooftops' static
 cradle box at its old depth on infill towers. Workers cannot be knocked off (on purpose); shooting
 one only swings the cradle, with no blood.
+
+## 9d?. The oil refinery north of the port, 2026-10-29 (agent branch `wt/refinery`, fleet wave 3)
+
+**What.** VELLARD REFINING CO.'s BAY WORKS (invented company), the form of the Wilmington
+refineries: an area site of 4 x 7 industrial blocks between the 110's corridor and Alameda, the port
+along its south side (default seed: the streets at x 2739 / 3235 and z 5167 / 5830, snapped by
+CityPlan like the film studio's; every street inside is closed and is the plant's own road).
+- the TANK FARM (the east half): floating-roof crude tanks (D 24-76 m, 15-19 m shells), each in an
+  earth berm with a gravel floor - welded courses, rust runs, a spiral stair to the rim walkway and
+  the gauger's platform, the wind girder, foam chambers, the roof riding at its own fill level
+  (pontoon ring, seal, drains, puddles after rain) with the rolling ladder down to it; a block of
+  cone / dome product tanks; a row of pressure spheres on their braced legs;
+- PROCESS UNITS (the west half, `Refinery.Unit`, one a block, the first four one of each, then by
+  hash): a crude unit (the tall atmospheric column, a fat vacuum column, a stabiliser, a fired
+  heater with peep doors glowing and its stack, a four-deck steel structure), a cat cracker (a
+  seven-deck structure with the reactor riding it, the fat regenerator, the main fractionator, a
+  72 m stack), a coker (four drums on top of a 32 m structure with two drilling derricks over them)
+  and a hydrotreater (reactors, columns). Columns: concrete skirts, aluminium jacketing in lapped
+  sheets, platforms with rails on arcs every 7-9 m, caged ladders, side lines, the overhead vapour
+  line, a davit. Structures: fireproofed column feet, grated decks with rails, drums and exchangers
+  on the decks, X bracing, a stair tower;
+- PIPE RACKS down every closed street (three tiers of pipes in their line colours, T bents every
+  6 m) and along the process side's cross streets with fin-fan banks on top;
+- FLARE STACKS on the port side (72-96 m, red / white banded risers in lattice derricks, sooted
+  tips, knockout drums) with the flame and its halo (`shaders/refinery_flame.gdshader`: puffs placed
+  from TIME, additive, HDR, never under `min_angle` so a flare is a point across the basin), an
+  orange OmniLight and the `fire_loop` roar pitched down;
+- COOLING TOWERS (louvred cells, fan stacks) with steam (`shaders/refinery_plume.gdshader`: white
+  puffs that swell, drift and evaporate, lit by hand, the plant's light under them after dark);
+- the gate with its canopy and barriers, a gatehouse, offices with glass bands, the windowless
+  control room, the monument sign with the name, high-mast floodlights round the service lane;
+- after dark a city of lights: ~1,500 lamps (deck edges, platforms, stair heads, rack bents, masts,
+  red on every tall thing) as billboard points on aircraft_lights.gdshader (`L_FIELD`, nothing by
+  day), the steel near them lit warm (`flood`, two 7 m cells in three), the tanks floodlit in fans up
+  their shells (`tank_flood`), light pools under every third lamp, OmniLights on three masts a chunk.
+
+**How it is built.** `Refinery` (`scripts/world/refinery.gd`): the entry (Landmarks.all()), the
+PURE layout (`layout(plan)`, cached per plan: sub-blocks with roles - tanks / cone / spheres /
+process / cooling / flare / admin - items with an owner point, rack pieces of whole bays, berms,
+pads, roads), `write()` (every item, rack and berm owned by a rect into one SurfaceTool, detail or
+far), the chunk steps (`site_steps()`: ground, fence (Industrial's chain-link), berms, racks three a
+step, an item a step, collision, commit) and `capture_steps()` (the ground). `RefineryKit`
+(`scripts/world/refinery_kit.gd`): the hardware, code-built at real size on ONE shader
+(`shaders/refinery.gdshader`, kind in COLOR.a 32nds - the FilmStudioKit / IndustrialKit encoding,
+whose box / beam / quad / letters writers it uses - paint in COLOR.rgb as display numbers). `detail`
+false drops rails, ladders, treads, small pipes and sides. **Godot's front faces wind CLOCKWISE as
+seen** (the discs were drawn the other way first: every floating roof and grated platform was
+invisible from above and its underside showed black). **Far**: `RefineryFar`
+(`scripts/world/refinery_far.gd`, made by `CityStreamer._build_far_landmarks()`, one hook line) builds
+a far piece per block at load (~1.2 s, 127 k triangles, all lamps, flames and steam) under the
+streamer at -world_offset; a FULL site chunk leaves a `RefineryCover` (`refinery_cover.gd`) and the
+far piece of its block hides while that chunk is shown (polled every 0.2 s). LOD site chunks lay
+only the ground (gravel slab, pavement ring), so the far piece stands on it; the far city records the
+ground and Skyline plants no kerb trees there.
+
+**Hooks** (one line each): Landmarks.all() / site_steps() / capture_steps(),
+CityStreamer._build_far_landmarks(), Skyline's tree exclusion, tests/smoke_test.gd.
+`REFINERY=0` in the environment: no entry, no site, ordinary industrial blocks (the A/B).
+
+**Tools.** `tools/refinery/probe.tscn` (headless, seconds after the macro map: the site, every
+block's role, item counts, near / far triangles and lamps per block, EYE lines);
+`tools/refinery/compile.tscn` (scripts and shaders compile); `tools/refinery/map_probe.gd` (an ASCII
+map of the blocks round the port: district, river, freeway, sites). Stills: block_shot.tscn
+(`EYE=2700,45,5440,-120,-18` over the process units, `EYE=3290,35,5470,100,-14` over the tank farm
+from Alameda, `NIGHT=1`).

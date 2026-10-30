@@ -205,15 +205,15 @@ static func disc(st: SurfaceTool, c: Vector3, r: float, kind: int, paint: Color,
 		var uo1 := Vector2(d1.x, d1.z) * r + Vector2(r, r)
 		var ui0 := Vector2(d0.x, d0.z) * r_in + Vector2(r, r)
 		var ui1 := Vector2(d1.x, d1.z) * r_in + Vector2(r, r)
-		# Seen from above, a0 -> a1 runs clockwise; up faces want (i0, o1, o0) order.
+		# (Godot's front faces wind clockwise as seen: from above that is i0, o0, o1.)
 		if up:
-			_v(st, i0, n, col, ui0, uv2); _v(st, o1, n, col, uo1, uv2); _v(st, o0, n, col, uo0, uv2)
-			if r_in > 0.0:
-				_v(st, i0, n, col, ui0, uv2); _v(st, i1, n, col, ui1, uv2); _v(st, o1, n, col, uo1, uv2)
-		else:
 			_v(st, i0, n, col, ui0, uv2); _v(st, o0, n, col, uo0, uv2); _v(st, o1, n, col, uo1, uv2)
 			if r_in > 0.0:
 				_v(st, i0, n, col, ui0, uv2); _v(st, o1, n, col, uo1, uv2); _v(st, i1, n, col, ui1, uv2)
+		else:
+			_v(st, i0, n, col, ui0, uv2); _v(st, o1, n, col, uo1, uv2); _v(st, o0, n, col, uo0, uv2)
+			if r_in > 0.0:
+				_v(st, i0, n, col, ui0, uv2); _v(st, i1, n, col, ui1, uv2); _v(st, o1, n, col, uo1, uv2)
 
 
 ## A cone roof (or a dome when `dome`) over a shell of radius r at height `c.y`.
@@ -518,7 +518,7 @@ static func column(st: SurfaceTool, foot: Vector3, r: float, h: float, seed: int
 	while y < h - 1.0:
 		var arc := PI * (1.1 if detail else 2.0)
 		ring_deck(st, foot + Vector3(0.0, y, 0.0), r, r + 1.2, 12 if detail else 8, detail, a0 - arc * 0.5, a0 + arc * 0.5)
-		lights.append([foot + Vector3(0.0, y + 2.4, 0.0) + out * (r + 1.0), SODIUM if int(y) % 3 != 0 else LED, 1.0, L_FIELD])
+		lights.append([foot + Vector3(0.0, y + 2.4, 0.0) + out * (r + 1.0), SODIUM if int(y) % 3 != 0 else LED, 1.6, L_FIELD])
 		y += pitch
 	ring_deck(st, foot + Vector3(0.0, h - 0.1, 0.0), r, r + 1.1, 16 if detail else 10, detail)
 	lights.append([foot + Vector3(0.0, h + r * 0.45 + 1.8, 0.0), RED, 1.0, L_FIELD])
@@ -597,7 +597,7 @@ static func structure(st: SurfaceTool, foot: Vector3, size: Vector2, levels: int
 			for side: float in [0.0, 1.0]:
 				var lp := foot + Vector3(bx * (float(i) + 0.5), y + 2.6, dz * side + (0.3 if side < 0.5 else -0.3))
 				var cc := SODIUM if (i + lv + int(side)) % 4 != 0 else LED
-				lights.append([lp, cc, 1.1, L_FIELD])
+				lights.append([lp, cc, 1.7, L_FIELD])
 				if detail:
 					block(st, lp - Vector3(0.0, 0.2, 0.0), Vector3(0.35, 0.18, 0.35), K_LAMP, Color.WHITE, 0.0 if cc == SODIUM else 1.0)
 	# X bracing on the two short ends.

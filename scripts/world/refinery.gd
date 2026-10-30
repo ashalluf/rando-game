@@ -588,7 +588,7 @@ static func light_material() -> ShaderMaterial:
 	if _light_mat == null:
 		_light_mat = ShaderMaterial.new()
 		_light_mat.shader = load("res://shaders/aircraft_lights.gdshader")
-		_light_mat.set_shader_parameter("min_angle", 0.0042)
+		_light_mat.set_shader_parameter("min_angle", 0.0055)
 		_light_mat.set_shader_parameter("hdr", 3.0)
 		_light_mat.set_shader_parameter("day_level", 0.0)
 		_light_mat.set_shader_parameter("field_day", 0.0)
@@ -944,7 +944,7 @@ static func _commit(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
 			continue
 		if n_pool % 3 == 0:
 			var size := clampf(p.y * 0.9, 6.0, 22.0)
-			ch._batch.add("ref_pool", PropFactory.light_pool(l[1], 0.55, 2.0), Transform3D(Basis().scaled(Vector3(size, 1.0, size)), Vector3(p.x, BASE_Y + 0.04, p.z)))
+			ch._batch.add("ref_pool", PropFactory.light_pool(RefineryKit.SODIUM, 1.1, 2.0), Transform3D(Basis().scaled(Vector3(size, 1.0, size)), Vector3(p.x, BASE_Y + 0.04, p.z)))
 		n_pool += 1
 	ch._batch.set_no_shadow("ref_pool")
 	if not OS.has_feature("web"):
