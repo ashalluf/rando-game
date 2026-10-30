@@ -17141,7 +17141,14 @@ its seed). `tools/sea_life/probe.tscn` (headless) prints the meshes, the buoys w
 events due on a stretch (`Z=`, `MINUTES=`, `STAGE=dive|dolphin`). A/B: `SEA_LIFE=0`.
 
 **Cost** (opengl3, `still_shot.gd` GEO, same cameras, SEA_LIFE=0 -> on, with everything staged in
-view - the worst case): FILL_COST
+view - the worst case): beach with the dolphin pod 412k -> 435k
+triangles, 121 -> 131 draws (camera +18k, shadows +4.7k: the near animals cast through a twin of
+the far mesh); the pelican line 462k -> 474k, 191 -> 197; the harbour buoy with its sea lions by
+day 2.50 M -> 2.52 M, 866 -> 876 (by night +22 draws, within the run-to-run streaming noise); the
+dive +7k / +1; the whale +7k / +4. CPU: `tools/sea_life/probe.tscn` times 300 frames at 60 fps
+while a pod and a line pass: 0.74 ms of GDScript a frame for ~28 animals (with the 3-shard gate
+loading the box), nothing inland of `COAST_REACH`; the sea height is sampled once an event every
+0.08 s and each animal's fixed hashes are kept with its event.
 
 Stills on `shots/sea-life`. Checks: `tests/sea_life_checks.gd` (meshes in budget with their parts
 and real sizes, the shader's part list, the sounds; the events are pure and their odds right;
