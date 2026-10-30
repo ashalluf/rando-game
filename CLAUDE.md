@@ -798,6 +798,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   spaced across the crowd by `scream_gap_ms`). `Weapon.tick()` raises it at `alarm_radius` from
   the shooter (70 m for the shotgun), `Explosion.blast()` at six blast radii. One pass over the
   crowd group per alarm, rate-limited per spot, so an automatic rifle costs nothing extra.
+  **Jointed ragdolls** (2026-10-30, docs/HANDOFF.md "Jointed ragdolls"): a rigged doll within
+  `RagdollJoints.joint_range` (70 m) of the camera is eleven RigidBody3Ds (`RagdollJoints.PARTS`:
+  sized from the rig's bones, cone-twist joints at spine / neck / shoulders / hips, one-way hinges
+  at elbows / knees - Godot's hinge counts the bend NEGATIVE, measured) posed onto the skeleton by
+  `RagdollPose` (a SkeletonModifier3D before any LimbHider). `bodies[0]` is the pelvis, every part
+  a direct child of the Ragdoll (shots find the doll). At most `max_active` (6, web 3) at once, the
+  oldest frozen for a new one; still, 8 s old or left behind, it FREEZES: every part's shape onto
+  the pelvis as one compound body, the pose baked into the bone poses, joints and limbs gone.
+  Traps: a Joint3D's frame is WORLD space, set after it is in the tree (set as `transform` under
+  the turned doll, every joint pulled apart); a body made this frame meets an impulse with mass 1,
+  so the old body took a knock's impulse as its SPEED - `fling()` keeps that. `RAGDOLLS=0` is the
+  A/B; probe `tools/ragdolls/probe.tscn`, stills `tools/ragdolls/ragdoll_shot.tscn`; checks
+  `tests/ragdolls_checks.gd`.
   Dismemberment (owner, same day: "body parts limbs flying off ... from the rocket launcher"):
   `Explosion.blast()` passes `gibs` (up to 3 inside `gib_reach` of the radius) to
   `Pedestrian.knock()`, and `Ragdoll.dismember()` collapses each lost limb with a `LimbHider`

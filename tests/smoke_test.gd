@@ -2431,6 +2431,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/film_shoot_checks.gd").new().run(self, city)
 	# The car radio (tests/car_radio_checks.gd): four stations, the dial, on air, the card, the Radio bus.
 	await load("res://tests/car_radio_checks.gd").new().run(self, city)
+	# Jointed ragdolls (tests/ragdolls_checks.gd): parts, joints, settling, freezing, gibs, the cap.
+	await load("res://tests/ragdolls_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
