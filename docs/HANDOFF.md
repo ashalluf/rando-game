@@ -45,6 +45,11 @@ The owner: "this needs to start looking like GTA 6" and "keep working until I sa
   engine-audio, swimming; batch 3 facades-gta, offshore-island, rain-crowd, parklets, heli-flyable,
   car-panic, coast-highway, fashion-district (plus check fixes for CI 360-365: the tree-ladder
   slack, onlookers staging home, the ramp-merge window, the heli strike poll).
+  Batch 4: garments-2, footbridges, lighthouses, power-plant, refinery, ocean-traffic, backyards,
+  crowd-lookat, news-crews, wingsuit, lowriders, motorcycles, garage-drive-in, walk-in-store,
+  star-boulevard, freeway-incidents (body types: the lowriders are 25-26, the motorcycles 27-29),
+  plus the crowd checks holding onlookers off and the weather dry (CI 366: in one process they ran
+  after the car panic's scenes).
 - **Second launch (2026-10-30 01:33)**, eight new sessions from tasks.tsv: `oil-islands`
   `session_01Q7NKyyYRLXXTXkVJp1in4J`, `sea-life` `session_01Q7NKyzk56JBK8dNe3KVqFu`, `speedboats`
   `session_01Q7NKyyye8YuupMr7qCukxK`, `bonfires` `session_01Q7NKz1sEin5FzYhNeyFGYi`,
@@ -52,6 +57,12 @@ The owner: "this needs to start looking like GTA 6" and "keep working until I sa
   `wildlife` `session_01Q7NKz19XER5tG3sDKw5cAu`, `buskers` `session_01Q7NKyxq5QvjBEfP2ibZKng`.
   Also running from the first launch: ocean-traffic, refinery, power-plant, lighthouses,
   footbridges, foot-ik, garments-2.
+- **Third launch (2026-10-30 03:11)**: `valets` `session_01Q7NKyyWq5kvwFEeZFQChbT`, `metro-underground`
+  `session_01Q7NKywUEmDuhJHnuzsArxh`, `ragdolls` `session_01Q7NKyyNr86es5wrk6PaALi`, `car-radio`
+  `session_01Q7NKyx1B7DQZFVdS6a5HMM`, `film-shoot` `session_01Q7NKyxzFZmDDGtvDzscHGP`, `fireworks`
+  `session_01Q7NKywJ3amWBTuc88N7tC8`, `sky-ads` `session_01Q7NKyxzf8cKhouqHbkoZrM`, `car-cabins`
+  `session_01Q7NKyz8sG2hZAKXPQPov8n`. Not yet launched: yard-sales, nightlife, skate-park,
+  settings-menu, stunt-ramps.
 - The lead merges finished branches in batches (`tools/fleet/merge_branch.py`), gates each batch,
   pushes main, and launches the remaining `tasks.tsv` areas as slots free up.
 - 1,000 agents is not possible here: a gate run is ~2.4 GB a shard on a 15 GB box, and the
