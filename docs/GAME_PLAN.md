@@ -295,6 +295,12 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- 2026-10-30 (fleet wave 3, `sky-ads`): aerial advertising. The blimp and the banner planes are
+  AmbientCraft on AirRoutes (AirTraffic's model: placed on a route, never simulated; take_hit,
+  smoke, crash, wreck for free), built in code at real size on one shader. The blimp flies one
+  loop - a circle over the ballpark, one over the beach - day and night, its LED sign the night
+  look; banners only by day. The banner hangs off the ROUTE behind the plane, not off the plane,
+  so it follows a turn. Brand and banners are invented (the city's own billboard campaigns).
 - **2026-10-29 Facades are worked out per pane, not per building (owner: "start looking like GTA
   6").** Glass varies pane by pane and floor by floor, blinds hang at their own heights, the glass
   mirrors a street opposite with parallax, curtain walls come in three systems (flush, deep fins,

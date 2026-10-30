@@ -15534,3 +15534,65 @@ checks, 0 failed, peak RSS 2,506 MB a shard, 1,054 s.
 and the tarps' backlight need a Mac look. LOD chunks and the far city draw the buildings only
 (no goods past the FULL ring, by design). Garments are simple lofted sacks with tube sleeves:
 fine on a rack at 3 m, plain at 1 m.
+
+## 9d?. Aerial advertising: the FIZZLY blimp and the banner tow planes (fleet wave 3, `sky-ads`)
+
+The task: "an advertising blimp (original brand) circling over the stadium and the beach by
+day, its LED side panel lit at night, and small planes towing banner ads (invented, readable
+letters) slowly along the beach. Scripted on AirRoutes like AirTraffic, code-built at real
+size, take_hit and a crash for the chaos."
+
+**What it is.** `SkyAds` (`scripts/world/sky_ads.gd`), a Node3D AirTraffic makes as its child at
+the end of `_setup()` (one hook; `SKY_ADS=0` in the environment: none of it). It borrows the
+traffic's obstacle field (`obstacle_top()`), ground and crash callbacks, and flies:
+- **The blimp** (`AdBlimp`, `scripts/vehicles/ad_blimp.gd`, an AmbientCraft): the invented
+  FIZZLY soda (one of the city's own billboard campaigns, tools/make_billboard_art.py) on a 60 m
+  envelope 15.4 m across (a real advertising airship's size), four fins in an X, an 11 m gondola
+  with a glazed front, two ducted props on outriggers, a mooring cone and battens. Its loop
+  (`SkyAds._blimp_loop()`): a full circle (520 m) over the ballpark's field (`Ballpark.world()`),
+  the run to the beach, a full circle (620 m) over the beach at the pier, and back - 16.6 km at
+  14 m/s, about twenty minutes, 413-582 m up (at least `blimp_clearance` 170 m over every
+  obstacle, never under `blimp_floor` 320 m, airship grades of 3.5 %). It flies day and night,
+  not in rain or a storm. **The night sign**: a 30 x 5.4 m LED panel on both flanks conformed to
+  the envelope (`SkyAdMesh.K_LED`), scrolling `SkyAds.LED_LINES` in LedScreen's 5 x 7 face from a
+  text strip built in code (`SkyAds.led_texture()`, one texel a text pixel); each text pixel is
+  a 3 x 3 cluster of round LEDs, faded to its coverage under a pixel; lit by `lamp_factor`,
+  `led_day` of it by day. Livery is worked out in the shader from the envelope's UV (metres from
+  the nose, angle round it): white over a hot orange swoosh that climbs toward the tail, a red
+  pinstripe, the brand's bubbles, gore seams, nose battens; FIZZLY in 6.2 m red letters and
+  "Taste the Loud." on the swoosh are TextMesh geometry laid onto the curved hull.
+- **Banner tow planes** (`BannerPlane`, two): a two-seat high-wing taildragger at real size
+  (10.7 m span, struts, tundra tyres, yellow with a red flash), slow laps (23 m/s) of a
+  racetrack off the beach (`_banner_loop()`: the inner leg 230 m out from the waterline heading
+  north, half-circle ends, the outer leg 500 m out, z -2500..250, 150 / 175 m up, every point
+  over the sea, no turn tighter than 87 m), 9:00-18:30 (each plane's hours shifted by a hash),
+  not in rain or a storm. The banner (`SkyAdMesh.banner()`, cached per text) is a 3.6 m tall
+  cloth with TextMesh letters on both faces, each reading left to right from its own side, a
+  lead pole with its weight, a red streamer; it hangs on 55 m of rope **placed from the route
+  behind the plane** (top-level meshes, so it swings round a turn after the plane), 9 m below
+  it, and flutters in the vertex shader (a travelling wave that grows toward the tail). Texts
+  are `SkyAds.BANNERS` (invented: the city's campaigns, a proposal).
+- **Chaos**: everything is an AmbientCraft (props layer, mask 0, `take_hit()`, smoke, the
+  crash blast, a charred wreck). The blimp takes 900 hp (90 rifle rounds or eight rockets),
+  then deflates over 14 s - it sags, noses down, sinks faster, burns along its top - and blows
+  up where it comes down. A plane takes 45 hp and spins in, cutting its banner loose. The
+  banner has its own body (`BannerPlane.BannerHit`): 120 hp of rounds tear it off the rope and
+  it flutters down, the plane flying on. A craft shot down is replaced `respawn_seconds` (240 s)
+  later on its loop.
+
+**Rolls.** `SkyAds.roll(seed, key)` (a hash) places each craft on its loop at load (plus the
+clock), picks a plane's banner per flight (`banner_pick(i, n)`) and shifts its hours. Who flies
+is pure: `blimp_flies(hour, state)`, `banner_flies(i, hour, state)`. Nothing else in the city
+rolls differently.
+
+**Drawn.** ONE shader, `shaders/sky_ads.gdshader` (kind in COLOR.a / 16, paint sRGB in
+COLOR.rgb, linear via color_space.gdshaderinc; the shader's `K_*` copies are checked), one mesh
+per craft: blimp 10,208 triangles, plane 966, a banner 550-1,140. Shadow twins as AmbientCraft
+makes them. Lights: AmbientCraft's billboard nav lights, strobes and beacons.
+
+**Look / measure.**
+- Stills: `AIR=blimp|banner` on `tools/glshot/still_shot.gd` (`AIR_DIST`, `AIR_SIDE`,
+  `AIR_PICK` the banner; SkyAds.stage() puts the craft on a straight line across the view at
+  `AIR_DIST * 0.18` over the eye, creeping); the stills on `shots/sky-ads`.
+- Probe: `tools/sky_ads/probe.tscn` (routes, heights, clearances, triangles, banners; seconds).
+- Checks: `tests/sky_ads_checks.gd` (`SMOKE_PARTS=sky_ads_checks`).

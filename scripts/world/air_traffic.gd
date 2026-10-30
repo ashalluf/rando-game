@@ -128,6 +128,7 @@ var forced_stars: int = -1
 var sightings: int = 0
 ## The airport's ground traffic: taxiing jets, the stands, the apron vehicles (AirportGround).
 var ground: AirportGround
+var sky_ads: SkyAds
 
 var _ready_done: bool = false
 var _rng := RandomNumberGenerator.new()
@@ -214,6 +215,11 @@ func _setup() -> bool:
 		ground.setup(self)
 	_ready_done = true
 	_populate()
+	# Aerial advertising (SkyAds: the blimp and the banner planes); SKY_ADS=0 is the A/B.
+	if OS.get_environment("SKY_ADS") != "0":
+		sky_ads = SkyAds.new()
+		add_child(sky_ads)
+		sky_ads.setup(self)
 	return true
 
 
@@ -880,6 +886,10 @@ func stage(kind: String, cam: Camera3D, dist: float, side: float = 0.0) -> Ambie
 					best = d
 				d += 10.0
 			return _shown(spawn_arrival(Aircraft.Kind.AIRLINER, aim - best, "arrival_south"))
+		"blimp", "banner":
+			# Aerial advertising (SkyAds.stage()): `side` metres right; AIR_PICK the banner.
+			var pick := int(OS.get_environment("AIR_PICK")) if OS.get_environment("AIR_PICK") != "" else 0
+			return sky_ads.stage(kind, cam, dist, side, -1.0, pick) if sky_ads else null
 		"taxi", "pushback", "apron":
 			# The airport's ground (AirportGround.stage()): `dist` is seconds into the move, `side`
 			# the stand.

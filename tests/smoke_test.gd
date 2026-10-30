@@ -2361,6 +2361,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The coast highway under the bluffs (tests/coast_highway_checks.gd): its place, the bench and
 	# bluff, the houses, parking, a chunk's road, houses, collision and cars, LOD and the far city.
 	await load("res://tests/coast_highway_checks.gd").new().run(self, city)
+	# Aerial advertising (tests/sky_ads_checks.gd): the blimp's loop, the banner racetracks, who
+	# flies when, the meshes and a staged blimp and tow plane shot down.
+	await load("res://tests/sky_ads_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
