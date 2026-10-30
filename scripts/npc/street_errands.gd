@@ -1455,7 +1455,8 @@ static func _honk(car: Node3D) -> void:
 	if _honked.size() > 200:
 		_honked.clear()
 	if absi(hash([id, now / 5000])) % 1000 < int(HONK_SHARE * 1000.0):
-		Sfx.play("horn", car.global_position + Vector3.UP, 0.0, 0.94 + 0.1 * float(absi(hash(id)) % 100) / 100.0)
+		if not (car is Vehicle and EngineAudio.horn(car as Vehicle)): # the car's own horn (engine audio)
+			Sfx.play("horn", car.global_position + Vector3.UP, 0.0, 0.94 + 0.1 * float(absi(hash(id)) % 100) / 100.0)
 
 
 ## Somebody hidden inside somewhere near `at` (true world XZ), taken out of the hidden pool.
