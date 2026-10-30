@@ -3601,3 +3601,9 @@ none of either.
   shape (it carries the landmarks). The horizon plane stays 14 km, with a coarser ring on the same
   material out to 12.6 km, because its rim was erasing the crests 5-7 km away; past the bake the
   map is mirrored. FAR_RANGES=0 is the old world exactly.
+- 2026-10-30 (wave 3, hero-face-2): the hero's face is rebuilt with the hero pipeline rather than
+  patched in shaders alone: MPFB face targets for structure (brow ridge, cheekbones, jaw, a
+  shorter nose), the complexion baked into the maps (blood, mottling, freckles, tear troughs,
+  regional pores and roughness), brows as strand cards and twice the hair cards. The contract
+  (54 bones, clips, material names, hero_x_* maps, eye centres) is held so nothing downstream
+  moves. HERO_FACE_2=0 is the shader A/B.

@@ -20017,3 +20017,63 @@ the toasts have no gamepad glyphs; nothing seen on Forward+ (the HUD is canvas i
 glass shader, which the opengl3 stills draw the same way); the place toast is not shown in the test
 room without HUD_TOAST (it has no city); street names off the grid (freeway, hill roads, the
 Esplanade) are not named.
+
+## 9hk. The hero's face, second pass: structure, living skin, strand brows, denser hair (wave 3, branch `wt/hero-face-2`)
+
+The owner's bar is "GTA 6". After the hero close-up pass (living eyes, blinks), the face at 0.5 m
+still read as a mannequin: waxy even skin, a long featureless nose, flat painted brows, stringy
+hair cards with the scalp showing, a bright orange ear, no cheekbones, jaw or sockets. This pass
+rebuilds the hero with `tools/hero/` (the whole pipeline runs again: `tools/hero/setup.sh`, then
+`tools/hero/build.sh`, ~15 min on 4 cores) and changes his shaders. Contract kept: 54 bones, the
+clips, HeroLook's material names (hero_brows is now strand cards under the same name), the
+hero_x_* maps (one added), HeroFace's eye centres (re-measured with
+`tools/hero_closeup/mesh_probe.gd`: they moved 0.03 mm, so the constants stand).
+
+- **Structure** (`hero_config.json` targets, MPFB): a brow ridge and deeper sockets
+  (`forehead-nubian-incr`, `eyebrows-trans-forward`, hollow temples), high cheekbones over hollow
+  cheeks (`cheek-bones-incr` 0.6, `cheek-volume-decr`, `cheek-inner-decr`), a square jaw with a
+  chin cleft, a SHORTER nose with a defined tip and wings (`nose-scale-vert-decr` 0.3 instead of
+  incr 0.15, point width, flaring, nostrils), a cupid's bow and philtrum, a fuller lower lip, a
+  slight eye bag and hood, flatter ears. No eye move / scale / push target: HeroFace's centres.
+- **Skin maps** (`prep_textures.py`, the "living complexion" block, its own rng, `face_detail`
+  0 turns it off): blotchy blood under the cheeks, nose and chin with thread veins on the nose,
+  melanin mottling in 3D noise at three scales (`mottle`), the tear trough darker and cooler,
+  purple-brown lids, shaded nose wings, ~420 freckles and 7 moles (`freckles`, `moles`,
+  `face_seed`), a patchy stubble shadow, the brow roots painted under the strand brows
+  (`work/brows.json` from hair.py), ears flushed half as much (`ear_flush`). Roughness: oily
+  patches on the nose and forehead, matte cheeks, moist lips, a 4 mm mottle. New map
+  `hero_x_skin_region.png` (R pore size: nose and cheeks big, lips and lids none; G redness; B
+  cartilage), and the micro detail's B is now the pores' CAVITY (it was the normal's z, which the
+  shader rebuilds anyway).
+- **Skin shader** (`hero_skin.gdshader`, `face2` 1): pores scaled by region, specular occluded and
+  the albedo darkened a touch inside pores, a second turned read of the detail breaking the
+  roughness up (`rough_breakup`), transmittance deep red and weak (`transmit_deep`,
+  `transmit_gain2` 0.06) and only where the cartilage map says so. **The orange ear was BACKLIGHT,
+  not the transmittance**: with SSS and transmittance both off it still glowed. BACKLIGHT is the
+  Compatibility fallback; on Forward+ it doubled the real transmittance. Now `backlight_fwd` 0.05
+  of it on Forward+, 0.6 on Compatibility (times HeroLook's 0.3 there).
+- **Brows as strands** (`hair.py`): the MakeHuman brow card's mesh is replaced by 520 short strand
+  cards rooted where its texture is dense, growing up and out at the inner end, along the arch,
+  out and down at the tail, lying a millimetre or two off the skin; their atlas is 8 columns of
+  2-4 tapered hairs (`prep_textures.py`, 256 px). On the hair shader with `alpha_cut` 0.26.
+- **Hair**: under-layer 460 cards (was 180) and wider, main 440 (230), top 180 (120), hairline
+  300 (150); the atlas has 2.2x the strands, finer (`atlas_density`); 24.7k triangles (was ~12k).
+  `hero_hair.gdshader` `strand_round` bends each strand column's normal across the card, so a card
+  facing the sun no longer lights as one white plank.
+
+Switches: `HERO_FACE_2=0` is the shader A/B (the old skin shading and brow cut; the rebuilt mesh
+and maps stay - the asset A/B is `git show` of the old hero.glb). Build knobs in
+`hero_config.json`: `look.face_detail`, `mottle`, `freckles`, `moles`, `face_seed`, `ear_flush`;
+`hair.brow_cards` (0 = the MakeHuman card), `atlas_density`, `under_width`. Checks:
+`tests/hero_face_2_checks.gd` (room part: the region map on the skin, the cavity in the detail's B,
+the region map's spread and cartilage, the transmittance held down, strand brows on the hair
+shader with their atlas, 54 bones). Stills on `shots/hero-face-2` (hero_shot.gd `CAM_AT=face`,
+`YAW=25`, `CAM_DIST` 0.5 / 1.5 / 4, `LIGHT` day / golden / night, Forward+ on lavapipe and
+opengl3). Cost (hero_shot.gd's GEO line, the hero alone at 0.5 m): 150,233 -> 166,102 triangles
+(+12.6k hair cards, +4k brow strands), 31 draws either way. Gate: `SHARDS=3`, 3,708 checks, 0
+failed, peak RSS 3,149 MB (shard 1).
+
+**Not done**: the tracksuit and body below the neck are untouched; no face bones (still no mouth
+or brow motion); the skin's albedo is still MakeHuman's 2K body atlas (about 0.5 mm a texel on the
+face) - a dedicated 2K head map would be the next real step; the hair's top layer can still catch
+a bright patch at the crown against a low sun.

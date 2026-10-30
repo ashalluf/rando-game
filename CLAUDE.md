@@ -5540,6 +5540,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/hero/render.py --hero` (the same recipe in nodes) and `--pose` (see Player body). The
   crowd tracksuit code (`Pedestrian.tracksuit_material()`, `add_piping()`) is kept for dressing
   a crowd rig.
+- The hero's face, second pass (2026-10-30, docs/HANDOFF.md "The hero's face, second pass"): built
+  by `tools/hero/` again - face structure from MPFB targets in `hero_config.json` (no eye move /
+  scale targets: HeroFace's centres), the complexion baked by `prep_textures.py` (`look.face_detail`,
+  `mottle`, `freckles`, `moles`), `hero_x_skin_region.png` (pore size, redness, cartilage) and the
+  detail map's B = pore cavity, brows as strand cards (`hair.brow_cards`; the hero_brows material
+  name kept), denser hair (`atlas_density`, `strand_round` in hero_hair.gdshader). The orange ear
+  was BACKLIGHT doubling the Forward+ transmittance (`backlight_fwd`). `HERO_FACE_2=0` is the
+  shader A/B; checks `tests/hero_face_2_checks.gd`.
 - Player body: `Avatar` (`scripts/player/avatar.gd`, built by `Player._build_avatar()` from
   `avatar_model`, one of `Pedestrian.MODELS`): idle / walk / run clips picked by speed, frozen or
   slowed stride in the air, forward lean while boosting. The orange capsule in `player.tscn` is
