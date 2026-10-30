@@ -2330,6 +2330,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/street_lamps_checks.gd").new().run(self, city)
 	# Apartments (tests/apartments_checks.gd): midtown and inner-suburb walk-ups, courts and podiums.
 	load("res://tests/apartments_checks.gd").new().run(self, city)
+	# The ocean traffic (tests/ocean_traffic_checks.gd): hulls, routes on water, the fleet, sailing,
+	# wakes, a vessel sunk.
+	await load("res://tests/ocean_traffic_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

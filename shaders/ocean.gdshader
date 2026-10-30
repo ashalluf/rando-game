@@ -119,6 +119,16 @@ uniform vec4 pier_lines[10];
 uniform vec4 pier_info[10];
 uniform int pier_count = 0;
 // Brightness of a reflected lamp, and its size in metres at the lamp.
+// Wakes of the ships and boats under way (OceanTraffic.push_wakes()): per vessel its stern in TRUE
+// world XZ and its heading (unit XZ) in wake_a, its speed (m/s), beam (m), trail length (m) and
+// strength in wake_b. Drawn as foam in the fragment shader - the churned prop wash off the transom
+// and the two Kelvin arms at 19.5 degrees broken into their divergent crests, a slick of flattened
+// chop between them - on the near water and the painted far water alike. Nothing is paid while
+// wake_count is 0.
+const int WAKES = 16;
+uniform vec4 wake_a[16];
+uniform vec4 wake_b[16];
+uniform int wake_count = 0;
 uniform float pier_light = 9.0;
 uniform float pier_lamp_size = 0.55;
 // The city behind the beach, mirrored the same way off a wall of lit windows and street lamps
@@ -287,6 +297,54 @@ float vnoise(vec2 p) {
 	float c = hash12(i + vec2(0.0, 1.0));
 	float d = hash12(i + vec2(1.0, 1.0));
 	return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+
+// Wake foam at true world `w` (see the wake uniforms); `px` is a pixel's size in metres there,
+// which thin lines are widened to (and dimmed by) so a far wake reads as its average, not as
+// sparkle. `slick` is how much of the chop the wake has flattened.
+float wake_foam(vec2 w, float px, out float slick) {
+	float foam = 0.0;
+	slick = 0.0;
+	for (int i = 0; i < WAKES; i++) {
+		if (i >= wake_count) {
+			break;
+		}
+		vec4 a = wake_a[i];
+		vec4 b = wake_b[i];
+		vec2 rel = w - a.xy;
+		float along = -dot(rel, a.zw);
+		float trail = b.z;
+		float beam = b.y;
+		if (along < -beam * 0.8 || along > trail) {
+			continue;
+		}
+		float ac = abs(dot(rel, vec2(-a.w, a.z)));
+		float arm_c = beam * 0.5 + max(along, 0.0) * 0.354;
+		if (ac > arm_c + 6.0 + px * 2.0) {
+			continue;
+		}
+		float spd = b.x;
+		float run = smoothstep(0.3, 3.0, spd) * b.w * (1.0 - smoothstep(trail * 0.3, trail, along));
+		float fi = float(i) * 7.13;
+		// The prop wash: churned white water off the transom, spreading and breaking up behind.
+		float half_w = beam * 0.42 + max(along, 0.0) * 0.04;
+		float churn = vnoise(vec2(along * 0.16 - TIME * 0.5, ac * 0.45) + fi);
+		float wash = (1.0 - smoothstep(half_w * 0.35, half_w, ac))
+			* exp(-max(along, 0.0) / (18.0 + spd * 10.0))
+			* smoothstep(-beam * 0.8, 0.0, along) * (0.45 + 0.75 * churn);
+		// The Kelvin arms, broken into the divergent crests (stationary in the hull's frame).
+		float arm_w = 0.7 + along * 0.03;
+		float aw = max(arm_w, px * 1.5);
+		float arm = (1.0 - smoothstep(aw * 0.25, aw, abs(ac - arm_c))) * (arm_w / aw);
+		float lam = max(6.2831853 * spd * spd / 9.8 * 0.5, 1.2);
+		float crests = 0.5 + 0.5 * sin((along * 0.94 + ac * 0.34) * 6.2831853 / lam);
+		arm *= mix(0.35, 1.0, crests) * exp(-max(along, 0.0) / (45.0 + spd * 22.0))
+			* (0.55 + 0.6 * vnoise(vec2(along * 0.05, ac * 0.2) + fi + 3.0)) * smoothstep(0.0, beam, along);
+		foam = max(foam, max(wash, arm * 0.75) * run);
+		slick = max(slick, (1.0 - smoothstep(arm_c * 0.5, arm_c, ac)) * run * smoothstep(0.0, beam * 2.0, along));
+	}
+	return clamp(foam, 0.0, 1.0);
 }
 
 
@@ -588,6 +646,9 @@ void fragment() {
 	float storm = smoothstep(3.2, 5.6, wave_scale);
 	float wind = clamp((wind_factor - 1.0) / 4.0, 0.0, 1.0);
 	bool rich = ground_detail > 0.5;
+	// The wakes of the traffic (see wake_foam()).
+	float wake_slick = 0.0;
+	float wake = wake_count > 0 ? wake_foam(w, dist * 0.0012, wake_slick) : 0.0;
 	// How far through the hand-over to the far plane this fragment is. Everything fine - chop,
 	// foam, sub-surface - is faded out on the way, so what is left at the far end is the same
 	// smooth painted water the ground follower draws beyond the chunk edge.
@@ -623,6 +684,7 @@ void fragment() {
 	// than through NORMAL_MAP, which would need the mesh's tangents to mean something).
 	float chop = chop_strength * (0.55 + 0.75 * wind) * (1.0 - smoothstep(chop_fade * 0.35, chop_fade, dist));
 	chop *= 1.0 - 0.65 * kelp;
+	chop *= 1.0 - 0.6 * wake_slick;
 	// The fine octave is a sub-metre ripple, under a pixel well before the coarse one is, so it
 	// fades out over a third of the distance rather than alongside it.
 	float chop_fine = chop * (1.0 - smoothstep(chop_fade * 0.10, chop_fade * 0.38, dist));
@@ -815,6 +877,7 @@ void fragment() {
 		}
 	}
 	foam = clamp(foam, 0.0, 1.0) * detail * (1.0 - kelp * 0.6);
+	foam = max(foam, wake * detail);
 	ww *= detail;
 	// Foam is a rough white surface lit by the sky, not a light source: it goes darker at night
 	// and under a storm along with everything else.
@@ -922,6 +985,8 @@ void fragment() {
 		fb += vec3(1.0, 0.94, 0.82)
 			* (pow(rdl, 70.0) * far_glitter + pow(rdl, 900.0) * fchop * far_glitter * 6.0)
 			* (1.0 - night_factor) * cloud_shade(w, sun_n);
+		// The wakes reach out here too: from the hills a ship's wake is most of what shows of it.
+		fb = mix(fb, foam_color * sky_light * mix(1.0, 0.3, night_factor), wake * 0.8);
 		// The far plane shades its sea with THAT normal, so whatever specular the renderer adds
 		// on top of the painted colour matches on both sides of the seam.
 		shade_n = normalize(mix(n, far_n, painted));
