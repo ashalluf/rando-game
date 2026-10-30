@@ -17142,6 +17142,7 @@ board is thrown as debris. Code-built board: concave kicks, grip, plies, trucks,
 every line's speed and clearance). Checks: `tests/skate_park_checks.gd` (63: layout, lines,
 switch, palms, the chunk's build, rays on the floor / deck / terrace, the clock, a woken
 spectator, a knocked skater, gunfire), alone `SMOKE_PARTS=skate_park_checks` (79 with the room).
+Full gate on this branch merged with main a3db077 (`SHARDS=3`): 3,080 passed, 0 failed, peak 2.89 GB a shard.
 
 **Stills** (shots/skate-park, opengl3 1280x720, `--spawn=-960,-470,135,-10 --hour=16.5`): EYEs
 overview `-950,32,-503,135,-38`, pool `-969.8,6.0,-494.6,162,-26`, street terrace
