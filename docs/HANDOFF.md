@@ -19169,6 +19169,22 @@ clears only at 1,500), beach_figure's rides 108 MB (299), camp_figure's shadows 
 beach bakes 66 MB, dog meshes 66 MB, tree_fire's charred meshes 39 MB - the next memory cuts are
 caps on those (a lower cap on the sign cache rebuilds identical meshes; untested here).
 
+**Gate notes.** (a) A check that built a whole far-city capture chunk outside the tree and freed it
+made the process abort in the engine's teardown (SIGABRT, `peak_rss.py` reports 250, after every
+check had passed) in two of two shard runs; the check now counts the orphans the real far city left
+(none) and the abort is gone. Anything that builds chunks in a check should go through the scene.
+(b) Main 3b1f8dd fails three nightlife checks ("somebody comes out of the door and gets into it",
+"with the fare in, the car drives on", "the fare is back inside") when the parts run in shard 2's
+order in one process (`SMOKE_PARTS=<shard 2's list>`): order-dependent, the same on main and here;
+they pass alone. Not this branch's.
+(c) The final `SHARDS=3` gate on this branch (merged with main 3b1f8dd, 3,642 checks, 1,514 s,
+shard peaks 2,536 / 3,052 / 3,020 MB): 3,638 passed. Failed: those three nightlife checks (shard 2),
+"the wreck comes down and rests on the deck" (car damage; 2.65 m over the deck after 260 ticks on
+the loaded box, 1.70 m after 143 alone - it passes alone and passed in the two gates before), and
+shard 2's process aborted in teardown once more after its checks (exit 250) - so that abort is
+nondeterministic and not (only) the capture chunk: it did not happen in three other single-process
+runs of the same list (one with this branch's checks). Worth a look on main.
+
 **Not done / next.** (1) The marina's boats cast from their MID mesh out to 230 m: 508 k shadow
 triangles at the beach-town bookmark - a SHADOWS_ONLY twin of the FAR mesh for the MID tier would
 cut most of it (pre-wave-3, not touched). (2) The rest of a street car's tick: road_open's
