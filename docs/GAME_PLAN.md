@@ -3333,6 +3333,13 @@ already mapped so milestone 2 is script-only.
   appended to Pedestrian.MODELS so no earlier index or roll moves); b, c, f and g stay in their
   library clothes (the task: do not rebuild existing rigs). A dress is one "keep" cloth: no look
   recolours it into a two-tone outfit.
+- **2026-10-30 The third wave of car bodies is derived, not drawn from scratch.** The EV hatch,
+  luxury sedan, compact SUV, work truck and coupe (tools/make_cars_3.py) are the older lofted
+  specs moved by station maps (cab-forward, a long bonnet, a cut overhang plus a uniform scale,
+  a lowered glasshouse) with their own faces, tails and parts, because the loft is fussy and a
+  derived one is known to build; their silhouettes still differ where a street reads them. Their
+  shares (165 per thousand) come out of the END of six older ranges, the sedan's, pickup's,
+  van's, sports car's, crossover's and the hatchback's, and `CARS_3=0` hands each slice back.
 
 ## Correction: what build 135 (0ce833f) actually contained
 
