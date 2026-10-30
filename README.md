@@ -24,3 +24,12 @@ Frame cost (same frame, 01 vs 02, Vehicle category in still_shot SPLIT): 628k ->
 Gate on the final merge (1aa28df3): 3,508 checks, 1 fail (memory_audit's TreeFire record count, an
 order-dependent flake; it passes alone with the cabins on and off). car_shot GEO, one sedan at the
 chase camera: 40 -> 54 draws, 184k -> 233k triangles.
+
+Follow-up (black glass from inside):
+- `15_before_driver_eye_windscreen_black_noon.jpg` / `16_after_driver_eye_windscreen_clear_noon.jpg` -
+  from the driver's eye at noon (car_shot.gd CABIN=1, --cam=-0.37,1.12,-0.2). The black was the
+  window cutters' inner sheet (tyre slot) ~5 cm behind every pane, hidden by the old opaque glass;
+  CarDoorSplit now leaves it out of the rig's body mesh.
+- `17_after_cockpit_dash_through_windscreen.jpg` - the 09 view again, the world through the glass.
+- `18_after_cockpit_every_body.jpg` - the same fixed camera in pickup, van, crossover, hatchback,
+  SUV, minivan, beater (the camera is placed for the sedan, so the framing varies).
