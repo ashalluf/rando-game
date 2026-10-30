@@ -128,7 +128,7 @@ uniform vec3 sunset_peach = vec3(1.0, 0.66, 0.48);
 /// Brightness of the light the low sun puts on the cloud (x cloud_sun) and of the cirrus
 /// afterglow, and of the crepuscular rays while it is on (in place of `god_rays`, which DayNight
 /// fades out with the night factor - three degrees under, when the rays are at their best).
-uniform float sunset_cloud_gain = 1.1;
+uniform float sunset_cloud_gain = 0.95;
 uniform float sunset_cirrus_gain = 0.5;
 uniform float sunset_rays = 0.45;
 
@@ -416,8 +416,6 @@ float hg(float c, float g) {
 // the aerosol is what takes the light past orange to red in a Los Angeles evening.
 vec4 sun_through(float el, float h) {
 	h = max(h, 0.0);
-	// Refraction lifts the sun about 0.6 degrees at the horizon.
-	el += 0.01;
 	float er = exp(-h / 8.0);
 	float ea = exp(-h / 1.4);
 	float ht = el >= 0.0 ? h : h - el * el * EARTH_R * 0.5;
@@ -434,7 +432,11 @@ vec4 sun_through(float el, float h) {
 	vec3 tau = vec3(0.032, 0.074, 0.180) * mr + vec3(0.085, 0.115, 0.150) * sunset_aerosol * ma;
 	vec3 tr = exp(-tau);
 	float m = max(tr.r, 1e-4);
-	float lit = smoothstep(-0.5, 0.4, ht);
+	// Refraction lifts the sun about 0.6 degrees at the horizon: the shadow line comes later
+	// (the colour keeps the geometric air mass, or a crown that should be orange reads gold).
+	float elr = el + 0.01;
+	float htr = elr >= 0.0 ? h : h - elr * elr * EARTH_R * 0.5;
+	float lit = smoothstep(-0.5, 0.4, htr);
 	return vec4(tr / m, lit * mix(0.45, 1.0, smoothstep(0.0, 0.35, m)));
 }
 

@@ -47,7 +47,7 @@ func _source() -> void:
 	var line := "vec3(%.3f, %.3f, %.3f) * mr + vec3(%.3f, %.3f, %.3f) * sunset_aerosol * ma" % [tr.x, tr.y, tr.z, ta.x, ta.y, ta.z]
 	_t._check(src.contains(line), "sunset: sun_through()'s optical depths match SunsetSky's copy")
 	_t._check(src.contains("float ht = el >= 0.0 ? h : h - el * el * EARTH_R * 0.5;")
-		and src.contains("float lit = smoothstep(-0.5, 0.4, ht);") and src.contains("el += 0.01;"), "sunset: the shader's earth shadow is SunsetSky's")
+		and src.contains("float lit = smoothstep(-0.5, 0.4, htr);") and src.contains("float elr = el + 0.01;"), "sunset: the shader's earth shadow is SunsetSky's")
 	_t._check(src.contains("vec3 sunset_out(vec3 lin)") and src.contains("RENDERER_COMPATIBILITY"),
 		"sunset: computed colours are handed to Compatibility in display numbers")
 

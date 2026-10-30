@@ -52,7 +52,6 @@ static func apply(sky: ShaderMaterial, elevation: float, weather_darken: float, 
 ## earth's shadow). Change one, change both.
 static func sun_through(el: float, h: float, aerosol: float = 1.0) -> Color:
 	h = maxf(h, 0.0)
-	el += 0.01
 	var er := exp(-h / 8.0)
 	var ea := exp(-h / 1.4)
 	var ht := h if el >= 0.0 else h - el * el * EARTH_R * 0.5
@@ -68,5 +67,7 @@ static func sun_through(el: float, h: float, aerosol: float = 1.0) -> Color:
 	var tau := TAU_RAYLEIGH * mr + TAU_AEROSOL * aerosol * ma
 	var tr := Vector3(exp(-tau.x), exp(-tau.y), exp(-tau.z))
 	var m := maxf(tr.x, 1e-4)
-	var lit := smoothstep(-0.5, 0.4, ht)
+	var elr := el + 0.01
+	var htr := h if elr >= 0.0 else h - elr * elr * EARTH_R * 0.5
+	var lit := smoothstep(-0.5, 0.4, htr)
 	return Color(tr.x / m, tr.y / m, tr.z / m, lit * lerpf(0.45, 1.0, smoothstep(0.0, 0.35, m)))
