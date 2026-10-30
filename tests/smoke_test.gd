@@ -2475,6 +2475,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/arroyos_checks.gd").new().run(self, city)
 	# The third wave of everyday bodies (tests/cars_3_checks.gd, Cars3): rolls, the switch, builds, traffic.
 	await load("res://tests/cars_3_checks.gd").new().run(self, city)
+	# The mid distance (tests/mid_city_checks.gd): yard trees, house roofs and pools in the far tiers.
+	load("res://tests/mid_city_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

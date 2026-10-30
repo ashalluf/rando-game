@@ -19065,3 +19065,79 @@ no `cs_in()` on COLOR; the river's mirror through `cs_out`; the ocean's haze thr
 
 **Frame cost:** shader-only changes; no node, mesh or draw added. The island is drawn in one of two
 places, never both.
+
+## 9gy. The mid distance (fleet wave 3, `mid-city`, 2026-10-30)
+
+**The ask** (wave 3, owner: "make it look like GTA 6"): from the hills and the golden aerial the
+city 400 m - 3 km away read as scattered white boxes on tan ground with black streets. Real LA
+from Griffith Park is a grain of varied roofs under dark street and yard trees, palms, pools and
+car-lined streets in the haze.
+
+**What drew it.** Three tiers carry that distance: the LOD chunks (to `lod_reach_metres()`,
+840 m), the far city (Skyline: the LOD block build captured, plates, canopies) and the horizon
+plane. Measured with `tools/mid_city/probe.gd`: a suburb block's capture is the houses'
+`lod_box` wings and roof slabs on the block plate; the far tier planted ONLY the kerb rows (at
+the district's `trees` odds) and parks, so the yards were bare; the LOD chunks plant nothing of
+their own (Skyline's canopies stay under them). A house's flat wing top fell into the roof
+branch of building_lod.gdshader, which wears a tower's coverings (42 % bright white membrane plus
+printed rooftop plant); every clay roof was one orange (`HouseKit.CLAY_FAR`); the pitched slabs
+were drawn as board-formed concrete; YardFill's pools never reached the LOD tiers; the far
+streets were `plate_road_color` 0.033 linear (near black) and empty past the real traffic's 300 m.
+
+**What it is now** (`MidCity`, `scripts/world/mid_city.gd`; hashes of the seed and the place
+only - no chunk, block or Building rng, nothing the seed builds moves, checked):
+- **Yard trees** (`yard_trees()`, called at the end of `Skyline._add_city_trees()`): the block's
+  capture is rasterised on a 3 m grid (ground slabs bottom up: green = `far_col` green-dominant,
+  else paved; every `lod_box` and box footprint grown by `WALL_CLEAR` = standing); a jittered
+  `STEP` 7.5 m grid then plants at `ODDS` per district (suburbs 0.7, midtown 0.45, beach town
+  0.38, ...) on green ground (a suburb's or beach town's own block ground counts as green - the
+  LOD tiers lay no yard piece under 6 m), on paving at `PAVED_SHARE` of that, never on a building,
+  never under a freeway, `MAX_PER_BLOCK` 70. Crowns 3.4-6.6 m radius in `GREENS` (dark live oak /
+  ficus, olive and eucalyptus grey-green, sycamore, the odd jacaranda) and a fan palm now and then.
+  They are Skyline canopies on the real ground (custom.r 1), so they stand under a LOD chunk and
+  go under a FULL one, like the kerb rows.
+- **Kerb rows** fill `KERB_FILL` of the slots the district's roll left empty (suburbs 0.65,
+  midtown 0.55), appended after the roll's own spots (a tree's look is a hash of its index), and
+  every far crown is `KERB_DARKEN` 0.7 darker.
+- **Crowns** (far_canopy.gdshader `mid_city`): dappled - lit lumps a metre or so across on the
+  crown's true world position, faded to the mean once a pixel cannot hold them.
+- **House roofs** (HouseBuild.lod()): a wing's box carries `HOUSE_FLAG` (custom.a 0.25, the old
+  path's 0 to everything else): its flat roof wears a house's coverings (pale grey or tan cap sheet,
+  a cool white one, an old dark one), no printed plant. The pitched slabs carry `ROOF_FLAG` 1.25:
+  barrel courses for clay, tabbed courses for shingle, weathering patches, the eave's shadow and
+  the ridge cap. The far roof colour is the house's own (`roof_far()`: the clay tile under the
+  house's `colors.clay` tint, weathered a little; its shingle).
+- **Pools**: YardFill's `_ground()` hands a G_POOL piece to `MidCity.pool()` in a LOD chunk and the
+  capture: a flat `lod_box` with `POOL_FLAG` 5 (coping, turquoise, sky by Fresnel).
+- **Streets** (`shaders/far_cars.gdshaderinc`, in building_lod's plates and decks and
+  far_ground.gdshader's LOD ground): the asphalt x `mid_road_gain` 1.7; PARKED cars in 6.4 m bays
+  along both kerbs (62 % taken; a LOD chunk parks none of its own), and the MOVING cars of
+  far_traffic.gdshaderinc - the very cells, keys and speeds of `ft_lane()`, so the day's cars are
+  the night's lights - on the LOD ground past `traffic_fade_start` and everywhere on the plates and
+  decks. Paint from a car park's mix; under a couple of metres a pixel each lane is its mean.
+
+**Switches / tools.** `MID_CITY=0` is the A/B (none of it; the shaders' `mid_city` false). Probe
+(headless, seconds): `godot --headless --path . --script tools/mid_city/probe.gd -- --at=x,z --n=2`
+prints each block's capture by flag, its yard trees, pools and the planting time. Checks:
+`tests/mid_city_checks.gd` (yard trees on green ground, none in a building, the same twice, none
+off; house and roof flags, clay colours, pools; the far boxes and ground identical on and off less
+the pools; far_cars' keys are far_traffic's).
+
+**Stills** (shots/mid-city, opengl3 1280x720, 15:00 clear; before = `MID_CITY=0` on the same
+build): hills south `-200,450,-1250,180,-14`; the LOD ring west `0,150,600,90,-30`; a 150 m pass
+over the suburbs `-450,150,500,0,-25`; the golden aerial `1450,145,2150,-38,4` at 17.2.
+
+**Frame cost** (still_shot.gd GEO, same frames, off -> on): hills 3.22 M / 1,045 draws -> 4.02 M /
+1,045; LOD ring west 1.85 M / 1,180 -> 1.97 M / 1,184; suburbs pass 3.87 M / 2,439 -> 4.43 M /
+2,461; golden aerial 5.01 M / 2,874 -> 5.36 M / 2,863. Draws flat; triangles +7 to +25 % (the
+yard and kerb canopies: a canopy_blob is a few dozen triangles, ~30 k more of them in the hill
+view). Planting a block costs 0.5-2.6 ms of the far city's build (probe), inside its per-step
+budget; the far tiles are LoadCache'd like the rest.
+
+**Not done / not verified.** Not seen on Forward+ (the Mac): the canopy and roof colours under AgX,
+the pools' sky. The midtown and downtown blocks are still Building boxes on paving (FarBuilding's
+coded copies of the near buildings, untouched by design); their trees are the kerb rows and
+`PAVED_SHARE`. No haze change (the aerial fog already hands the far city over). The canopy is the
+old 6-sided blob; a cheaper or lumpier far tree mesh would win triangles back. Flight bench not
+re-measured (its run took 10 minutes a side at 314 ms a frame on this box and was cut short by
+the merge).
