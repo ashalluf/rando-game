@@ -85,8 +85,8 @@ static func sanitize(key: String, v: Variant) -> Variant:
 
 
 static func reset() -> void:
+	# hud_scale itself follows in apply(), which also lays the HUD out again.
 	values = DEFAULTS.duplicate()
-	hud_scale = 1.0
 
 
 ## Reads `path`; missing keys (or no file) take their defaults, bad values are sanitized.

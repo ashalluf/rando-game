@@ -55,6 +55,7 @@ var _settings_view: Control
 var settings_controls: Dictionary = {}
 var _settings_values: Dictionary = {}
 var _settings_dirty: bool = false
+var _foot: Label
 
 ## The settings screen: section, then rows of [key, label, value format]. A format of "" is an
 ## On / Off toggle; "x" a multiplier, "deg" degrees, "pct" a percentage.
@@ -241,6 +242,8 @@ func _show_settings(on: bool) -> void:
 		_save_settings()
 	_settings_view.visible = on
 	_main_view.visible = not on
+	if _foot:
+		_foot.text = "Esc   Back" if on else "Esc   Resume"
 	if on:
 		_sync_settings()
 
@@ -569,6 +572,7 @@ func _build() -> void:
 	foot.offset_left = 96.0
 	foot.offset_top = -64.0
 	_frame.add_child(foot)
+	_foot = foot
 	if GameSettings.enabled():
 		_build_settings()
 

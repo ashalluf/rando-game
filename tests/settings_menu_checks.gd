@@ -152,7 +152,8 @@ func _check_scene(city: Node3D) -> void:
 	_check(frame == null or (absf(frame.scale.x / frame_scale - 1.25) < 0.01),
 		"the HUD size scales the minimap (%.3f -> %.3f)" % [frame_scale, frame.scale.x if frame else 0.0])
 	# Depth of field off: no far blur even in the ambient state.
-	await _tree.process_frame
+	for i in 3:
+		await _tree.process_frame
 	var cam := rig.get_node_or_null("SpringArm3D/Camera3D") as Camera3D
 	var attrs := cam.attributes as CameraAttributesPractical if cam else null
 	_check(attrs == null or not attrs.dof_blur_far_enabled, "depth of field off leaves no far blur")
