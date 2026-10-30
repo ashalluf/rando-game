@@ -14668,6 +14668,15 @@ height). The stills are on `shots/car-panic`: `00_before_CAR_PANIC0...` (the sam
 reacts), `01-04_abandon_*`, `05-07_kerb_*`, `08-09_reverse_*`, `10-12_night_2100_*`. A panicking
 car never crosses its stop line by itself (it stops short; the traffic's rules take the junction).
 
+**Wave 3 gate** (merged with main at 78e6178f): `SHARDS=3` - shard 1 (with the car panic
+checks) 924 passed, shard 2 736 passed, shard 0 one failure ("dogs: the second walker is still
+there after 30 ticks"; shard 0 never runs the car panic checks), which passed on a rerun of shard
+0 alone (782 passed). The run before, two freeway checks (the on-ramp merge's lane, the semi on
+the deck) failed once each in the 3-process run and passed alone and on the next full run: load
+flakes on a 4-core box, not this branch (they are freeway; car panic touches street traffic only).
+Peak RSS 2.48 GB a shard. Frame cost: no new draw (the marks go in DrivingFX's existing ring;
+PanicSkid is one audio player on a stopping car).
+
 **Not done / known gaps.** Freeway, airport-loop, replica and stack traffic do not panic (street
 traffic only). The driver's door is ErrandProps' swung panel over the closed body door (the
 bodies have no door node). A ROUND can still meet an oncoming car that spawns inside the clear
