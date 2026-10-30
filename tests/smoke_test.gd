@@ -2342,6 +2342,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The harbour's lights (tests/lighthouses_checks.gd): the lighthouse's pad, the breakwater at sea,
 	# the gate light, the rotors' clock, the near builds and their collision, LIGHTHOUSES=0.
 	await load("res://tests/lighthouses_checks.gd").new().run(self, city)
+	# The ocean traffic (tests/ocean_traffic_checks.gd): hulls, routes on water, the fleet, sailing,
+	# wakes, a vessel sunk.
+	await load("res://tests/ocean_traffic_checks.gd").new().run(self, city)
 	# Street furniture (tests/street_furniture_checks.gd): the meshes, the shader's kinds, the rolls,
 	# a metered block and collection day's carts built the same with the furniture off.
 	load("res://tests/street_furniture_checks.gd").new().run(self, city)

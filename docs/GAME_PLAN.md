@@ -318,6 +318,17 @@ already mapped so milestone 2 is script-only.
   (Lighthouses.carve() in MacroMap.height_at()). A lantern's beam axis is its rotor node's +X, read
   off MODEL_MATRIX by the lamp and lens shaders, so nothing per frame is set from script and every
   copy turns in step off the real clock. Names invented (GULL POINT LIGHT, HARBOR GATE LIGHT).
+- **2026-10-29 The sea is worked out, like the sky's traffic (wave 3, HANDOFF "Ocean traffic").**
+  The bay and the coast get boats under way, a ferry, tugs, a pilot boat and ships at anchor, all
+  scripted (no physics), in TRUE world coordinates. Decisions: the hulls ride the swell in their
+  shader from a copy of the ocean's waves (checked against ocean.gdshader's numbers), because only
+  the shader knows TIME - a GDScript bob would drift out of phase with the water drawn round it;
+  wakes are foam the ocean shader draws from 16 uniform slots, not particles or decals (one draw,
+  both renderers, and they reach the painted far sea too); the hull below its waterline is cut
+  away past 650 m because the far sea is the horizon plane 24 m down; small craft spawn out of
+  view and only where `sea_room()` says there is water all round; sloops sail by a polar and
+  tack, never within 40 degrees of the wind. Invented names: the ferry line PACIFIC TERN.
+
 - **2026-10-05 Onlookers: the crowd comes back after the chaos (HANDOFF "Onlookers").** After
   the panic near a wreck, a blast or a body, people near the camera come back and stand round it
   in a loose ring: filming on their phones (held up at eye level, the screen lit, a video light
