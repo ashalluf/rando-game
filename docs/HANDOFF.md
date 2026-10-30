@@ -14951,3 +14951,25 @@ back on her loop `RESPAWN` (120) seconds later.
 `--script` the vessel scripts cannot compile (they name WorldState and Sfx). `OCEAN_TRAFFIC=0` is the
 A/B; `OCEAN_STAGE=x,z,yaw` puts seven boats ahead of a point for a still. Checks:
 `tests/ocean_traffic_checks.gd`.
+
+**Cost** (opengl3, 1280x720, the same cameras with `OCEAN_TRAFFIC=0` and on; GEO lines of
+`still_shot.gd`): the pier at 15:00 with the staged seven boats in view 447.8 k -> 462.3 k triangles
+(+3.3 %), 99 -> 148 draws (each vessel is a hull, two sails, its lights and their shadow passes); the
+same at night 447.8 k -> 459.5 k, 99 -> 142; the aerial over the coast 469.6 k -> 473.6 k, 110 -> 136;
+the bay with the five ships at anchor 459.6 k -> 462.8 k, 118 -> 146; the start frame 2.478 M -> 2.482 M
+triangles. Off-screen vessels cost a few vector maths a tick each. Gate: `SHARDS=3`, 2,560 checks, 0
+failed (one rerun of shard 0 for a flake in `dog_checks.gd`'s 90-tick wait - a walker freed under it -
+which passes alone and on the rerun), peak 2.47 GB a shard.
+
+**Stills** on `shots/ocean-traffic` (README there): before / after from the pier at 15:00 and 20:42,
+an aerial over the coast, the bay's anchorage at 17:36 and 21:00, and the kit scene's ferry, tug,
+pilot boat, tacking sloops and wakes. EYEs: `-1250,3.5,-300,95,-1` (pier, `OCEAN_STAGE=-1250,-330,95`),
+`-1080,55,-170,112,-13`, `2950,40,6820,175,-4`.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the wakes, the hull's sea ride and the
+waterline cut are judged on opengl3 only (SSR adds its own reflections there). The ships at anchor
+use PortKit's ship mesh on port_steel, which has no waterline cut: from far off their hull bottom sits
+over the horizon plane's band, as the moored ship's always did. No crew on deck (only the sloop's
+helmsman block), no engine-side spray particles, no sound for sailboats; the ferry never docks at a
+terminal (it slows to 4 m/s in the harbour and turns round); the tugs do not actually tow anything.
+Sailboats are only near the six `SAIL_HOMES`; the coastal lane and bay loop are the only motor routes.
