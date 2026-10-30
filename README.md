@@ -24,3 +24,19 @@ The walk of fame on Canyon Blvd (seed 1337), midtown x 498-797, z -2314.
 19. `19_before_from_above.jpg` / 20. `20_after_from_above.jpg` - over the boulevard: the palace's sign and roof sign, a sightseeing bus.
 21. `21_after_walk_night.jpg` - the walk at night (block_shot's crude NIGHT=1: no street-lamp light, so it reads very dark).
 22. `22_after_palace_night.jpg` - the palace's marquee and blade sign lit.
+
+## Wave 3 (merged onto main 95bd13f; station_night_shot.tscn on opengl3: the real DayNight, lamps on)
+
+Main's later features had put a car dealership and an apartment block on the walk; the frontage
+is now kept a souvenir strip and built as lot-filling shop blocks (no towers on forecourts, no car
+parks). STAR_BOULEVARD=0 is the "before".
+
+23. `23_before_walk_noon_wave3.jpg` / 24. `24_after_walk_noon_wave3.jpg` - the north pavement: a dealer's lot and tube man before, the stars and a wall of shopfronts after.
+25. `25_after_palace_corner_noon.jpg` - THE GRAND CELESTE behind its forecourt, characters on the stars, a sightseeing bus.
+26. `26_after_forecourt_noon.jpg` - the marquee, ticket booth and pylons over the handprint slabs.
+27. `27_after_south_walk_character_noon.jpg` - Captain Comet (original) on the south walk, souvenir goods, the THRIFT strip.
+28. `28_before_boulevard_above_noon.jpg` / 29. `29_after_boulevard_above_noon.jpg` - down Canyon Blvd from above.
+30. `30_before_walk_night_2130.jpg` / 31. `31_after_walk_night_2130.jpg` - the north pavement at 21:30.
+32. `32_after_palace_corner_night_2130.jpg` - the palace's marquee and blade sign lit.
+33. `33_after_south_walk_night_2130.jpg` - the south walk at night: lit THRIFT neon, the stars.
+34. `34_after_boulevard_above_night_2130.jpg` - the boulevard from above at night.
