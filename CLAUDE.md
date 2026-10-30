@@ -1680,6 +1680,23 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `BEATER_DOORS`); every other car skips it on `wear == 0`. SUV and minivan have privacy glass
   (`CarCabin.PRIVACY_BODIES`). `car_shot.gd --each=14,15,16,17,18` (the taxi comes in its livery;
   `LOOK=n` a beater's door / a taxi's number). Checks: `tests/more_cars_checks.gd`.
+- Lowriders (2026-10-06, docs/HANDOFF.md "Lowriders"): `Lowrider` (`scripts/vehicles/lowrider.gd`),
+  `BodyType.LOWRIDER_HARDTOP` (a 1960s full-size hardtop) and `LOWRIDER_COUPE` (a 1980s coupe),
+  appended, `BODY_ODDS` 0, built by `tools/make_lowriders.py` on the road-car loft (bpy 4.2 works:
+  `pip install bpy==4.2.0`). Paint: car_paint.gdshaderinc's `custom` block (0 on every other car):
+  candy depth (`candy_deep`), body-fixed deep flake, pinstripes and a lace roof placed in MESH space
+  by `Lowrider.PAINT_PLACES` (the run's LOWRIDER lines). Wheels: WHEEL_POSE `"wire"` hands over to
+  `Lowrider.add_wheels()` (72-spoke code-built wire wheels, `shaders/wire_wheel.gdshader`, part in
+  COLOR.a). `Lowrider.Hydraulics` (a child node) springs four corner heights and moves the BodyModel
+  holder and NightLights (visual only); a corner past `stroke` lifts its wheel; a physical car lays
+  back at rest, except the player's own lowrider: the `hydraulics` action (X / D-pad up; tap a hop
+  that also kicks the real car, hold to lift, + A / D three-wheel) runs `drive_input()`. `LowriderMeet` (`scripts/world/lowrider_meet.gd`): one boulevard kerb per `CELL` by
+  hash, Fri/Sat/Sun from 18:30, a kinematic row (`traffic` with `"parked"`) plus `MeetGoer`s, the
+  parked cars skipped after their rolls (`blocks_parking()`), folding chairs and coolers in the gaps
+  (`MeetKit`, one mesh a meet, `CrowdLife.add_seat()`); `traffic_kind()` sends a few cruising
+  slow (`TrafficManager._street_kind()`, its roll reused). `LOWRIDERS=0` the A/B, `LOWRIDER_MEET=1`
+  forces meets on, `LOWRIDER_POSE=i:hop:0.7` freezes row car i mid-routine; `car_shot.gd --each=25,26
+  HYDRAULICS=hop`; probe `tools/lowrider_probe.gd`; checks `tests/lowriders_checks.gd`.
 - Night aerial (2026-10-05, VISUAL_ROADMAP #62, docs/HANDOFF.md "The night aerial"): past the
   streamed range the city's night is worked out per pixel in the far shaders, never simulated
   or placed. **Traffic lights**: `shaders/far_traffic.gdshaderinc` (`traffic_lights()`,
@@ -1749,6 +1766,22 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   dive and rock-back, eased swerve) and a hard stop squeals and lays marks (`PanicSkid`, into
   DrivingFX's ring). Never a crime by itself. `CAR_PANIC=0` is the A/B; stills `PANIC=` on
   `still_shot.gd`; checks `tests/car_panic_checks.gd`.
+- Motorcycles (2026-10-06, docs/HANDOFF.md "Motorcycles"): `Motorcycle`
+  (`scripts/vehicles/motorcycle.gd`, extends Vehicle; BodyType MOTO_SPORT / MOTO_CRUISER /
+  MOTO_SCOOTER appended, BODY_ODDS 0) - bodies from `tools/make_motorcycles.py` (Blender or the
+  PyPI `bpy`; nodes `_body`, `_steer` (origin on the rake axis), `_wheel_f`, `_wheel_r`, `_far`).
+  Two centre-line physics wheels; the roll is held upright on the body's DIRECT STATE
+  (`_hold_upright()`: RigidBody3D's `angular_velocity` is synced before VehicleBody3D's wheel
+  impulses, so writing it back killed every turn). The lean, wheelie and side stand are drawn
+  (the `Pose` node); fallen = nobody holds it up. Riders: `RideSolver` (two-bone solves to the
+  seat, grips and pegs) on a `MotoRider` (traffic, a BikeRider, `MotoHelmet`) or the hero
+  (`HeroRide`, the LAST modifier; Player calls `mount_rider()` / `dismount_rider()`); a crash
+  over `throw_dv` throws him off (`MotoThrow`, a ragdoll, then up again). Traffic: a share of
+  TrafficManager's own roll (`STREET_SHARE`, `FREEWAY_SHARE`), lane filtering past a stopped
+  queue (`filter_tick()`, `filter_shift`); kerbs: `parked_swap()` (a hash, after every roll).
+  EngineAudio voices them as "moto" (meta `engine_profile`).
+  `MOTORCYCLES=0` the A/B; stills `MOTO=` on still_shot.gd, `tools/moto/moto_shot.tscn`; probe
+  `tools/moto/moto_probe.tscn`; checks `tests/motorcycles_checks.gd`.
 - Big vehicles (2026-10-04, "buses and trucks in traffic"): `BigVehicles`
   (`scripts/vehicles/big_vehicles.gd`) - a 40 ft city bus (`BodyType.BUS`, the invented agency
   BASIN TRANSIT: white over a teal skirt), a cab-over box truck (`BOX_TRUCK`, invented fleets on
@@ -1869,6 +1902,21 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   windscreen (same pass): `CarCabin.BUS_DAYLIGHT` lights a bus's traced cabin 2.2x (and lets more of
   it through the glass) and a bus's far twin starts at 60 m (`BigVehicles.tune()`), since from the
   pavement at noon its front read as a black slab.
+- TV news crews (2026-10-05, docs/HANDOFF.md "TV news crews"): `NewsCrews`
+  (`scripts/npc/news_crews.gd`, a node in city.tscn, group `news_crews`) opens a STORY at a blast
+  (after `blast_delay`) or a police standoff (`standoff_stars` held round one spot for
+  `standoff_seconds`), tells AirTraffic's news helicopter (`news_focus`), and sends one of four
+  invented stations' live trucks (`NewsVan`, `scripts/vehicles/news_van.gd`: the road van in fleet
+  white with the station's band and lettering, NewsKit's roof gear - a satellite dish or a 10 m
+  telescoping microwave mast - raised over `raise_seconds` on scene) along the lanes like an
+  EmergencyCar; it double-parks down the street (`layout()`, pure: reporter about
+  `report_distance` off the scene, the camera beyond them, caution tape between them and the
+  scene, the light stand) and its crew (`NewsCrew`, a Pedestrian: reporter with the station's mic
+  talking, camera operator with a shoulder camera; they kneel at gunfire and the camera turns to
+  it) goes on air for `air_seconds`, then boards and the van leaves and is pooled. Caps
+  `max_vans`; the smoke test keeps it off (`enabled`) except in `tests/news_crews_checks.gd`.
+  `NEWS_CREWS=0` is the A/B; stills `NEWS=wide|crew|reporter|van|air` (`NEWS_ALL=1`,
+  `NEWS_NIGHT=h`) on still_shot.gd, the van alone `NEWS=<station>` on car_shot.gd.
 - Civic buildings (2026-10-05, HANDOFF "Neighbourhood civic buildings"): `CivicBuildings`
   (`scripts/world/civic_buildings.gd`, static) places a Spanish or mid-century branch library, a
   post office (invented CONTINENTAL POST: flag, collection boxes, dock, mail trucks), a city
@@ -1877,6 +1925,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`CivicGeo`: walls cut round arched / square openings, hip and gable roofs) with
   `shaders/civic_glass.gdshader` tracing the room behind each pane; LOD / far: coded boxes.
   `CIVIC=0` the A/B; probe `tools/civic/probe.gd`; checks `tests/civic_buildings_checks.gd`.
+- Multi-storey car parks (2026-10-06, "a car park the player can drive up"; HANDOFF "Multi-storey
+  car parks"): `CarPark` (`scripts/world/car_park.gd`, pure: a hash per `CELL`, a site of whole
+  lots on one street of a DOWNTOWN-off-core / MIDTOWN block nothing else claims, `claims()` asked
+  LAST in `_build_lot()`; `layout()`, `ramp_rise()`, `drive_path()`) and `CarParkBuild` (one mesh,
+  one trimesh body for every deck, ramp, wall, column and parked car; `car_park_deck.gdshader`
+  draws stalls, tracks and oil; `CarParkGate` arms lift for the player; LOD / far: storey boxes).
+  Parked cars up close are the road bodies' far twins (`real_body()`, paint per instance through
+  `car_park_car.gdshader` = car_paint with `PAINT_FROM_CUSTOM`) in cells of `CELL_STALLS`, the
+  static box cars past `NEAR_DRAW`; `CAR_PARK_REAL_CARS=0` the A/B.
+  Stacked straight ramps in a walled strip, U-turns in the end zones; two-way, the exit beside the
+  entry. Keep-clear hooks: `_park_car()`, Encampment, Micromobility. `CAR_PARKS=0` is the A/B;
+  `tools/car_park/probe.gd`, `drive_shot.gd` (an autopilot drives up for stills); checks
+  `tests/garage_drive_in_checks.gd`.
 - Police stations (2026-10-05, "police stations the cruisers come out of"; HANDOFF 9bz):
   `PoliceStation` (`scripts/world/police_station.gd`, static). WHERE is worked out like
   FireStation's, never placed: `CELL` 1500 m squares, a hash of seed + cell, up to `TRIES` hashed
@@ -2038,6 +2099,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   from `slam_speed` (72, a drop of ~30 m) grit, a crater of cracks (a Decal: Forward+ only) and a
   shockwave that knocks the people, props and loose cars within `slam_radius` (a police crime
   like any knock). `post_room_shot.gd MODE=land` (`DROP`, `LAND_AFTER`) shows it.
+- Wingsuit (2026-10-06, docs/HANDOFF.md "The wingsuit"): `Wingsuit` (`scripts/player/wingsuit.gd`,
+  `Wingsuit.attach()` in `Player._ready()`; `Player._physics_process()` hands each tick to
+  `tick()`, which returns true while the suit has the body). `wingsuit` action (G / pad X) or jump
+  held `hold_open_seconds` falling, with `open_clearance` of air; W/S pitch (trim / dive / flare
+  degrees), A/D bank (turn = g tan(bank) / speed), the velocity swung onto the attitude by
+  `align_rate` (lift does no work: speed only from the dive), drag on v^2, boost thrust; an
+  automatic flare under `flare_height` that never climbs; touch-down under `run_out_speed` runs
+  out, over it skids (`skid_decel`, HeroMotion's land_hero held). Pose: `HeroMotion.glide`
+  (GLIDE_AIMS) + `Avatar.glide` / `glide_tilt` / `glide_bank`. `WingsuitFx`: the fabric rebuilt
+  from the live bones on `skeleton_updated` (`shaders/wingsuit_fabric.gdshader`) and wingtip
+  vapour ribbons in true world space (`wingsuit_vapour.gdshader`); the boost trail is off in the
+  suit. `WINGSUIT=0` is the A/B; stills `WINGSUIT=glide|fall` on `still_shot.gd` (`WS_INPUT`,
+  `WS_TIME`, `WS_LOOK`); checks `tests/wingsuit_checks.gd` (room part; alone:
+  `tools/wingsuit/checks_only.tscn`, seconds).
 - Effects: `WeaponFX` builds everything in code (tracers, muzzle flash, impacts, explosions).
   An explosion is layered: an `OmniLight3D` flash, a white-hot core, alpha-blended fireball
   puffs, slow smoke, additive sparks, a ground shockwave ring, lit debris, a scorch `Decal`
@@ -2616,6 +2691,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   loading screen (a crane pose is ~20 ms of GDScript). The ship (`cargo_ship`, now 7 m off the quay, not on it) is
   `PortKit.ship_mesh()`. Look at a change in seconds with `tools/glshot/port_shot.gd` (the kit
   alone; `SHIP=1`, `RAISED=1`, `LOD=n`, `WEAR`).
+- The harbour's lights (2026-10-29, docs/HANDOFF.md "The harbour's lights"): `Lighthouses`
+  (`scripts/world/lighthouses.gd`, data: sites, the breakwater line in `SEG_LEN` pieces, the pad
+  `carve()` in MacroMap.height_at(), `covers()` for the hills' planting) appends landmark entries
+  (`gull_point_light`, `breakwater_<k>`, `harbor_gate_light`); `LighthouseKit` builds them in code
+  (LandmarkGeo; the near meshes cached and warmed with the far copies); `LighthouseBeacon` is a
+  lantern's rotor, turned from the real clock (`LIGHTHOUSE_T=` holds it): the lens, the drawn beams
+  (`lighthouse_beam.gdshader`), the far flashing point (`lighthouse_lamp.gdshader`) and on Forward+
+  the volumetric spots hang on it and read its +X. Armour stones are 6 chipped-box shapes in
+  MultiMeshes on `armour_stone.gdshader` (`blocks` 1 = the far mound draws its own blocks).
+  `LIGHTHOUSES=0` is the A/B; probe `tools/lighthouses/probe.tscn`; checks
+  `tests/lighthouses_checks.gd`.
 - Port life (2026-10-05, "the container terminal comes alive"; docs/HANDOFF.md, the port-life
   section): `PortLife` (`scripts/world/port_life.gd`, a plain Node the first FULL port chunk adds
   under the city root, `PortLife.ensure()`) draws everything that moves, **worked out from the
@@ -2948,6 +3034,31 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   The surface street grid is still axis-aligned (`CityPlan.road_pos()` is scalar per axis and
   blocks, lots, traffic lanes and the minimap all assume axis-aligned rects); the freeways and the
   hill roads are the curved roads.
+- Footbridges (2026-10-30, docs/HANDOFF.md "Footbridges"): `Footbridges` (pure placement: boulevards
+  >= 22 m by schools / parks, one freeway slot of 36 segments at a time with caged stair towers on
+  the corridor lots), `FootbridgeKit` (one mesh, `shaders/footbridge.gdshader`, kind in COLOR.a / 16),
+  `FootbridgeBuild` (one hook after `_build_freeway` and one in the capture; the owner chunk is the
+  span centre's; planting in `clear` rects collapsed via `_run_last`). `FOOTBRIDGES=0` the A/B;
+  `tools/footbridges/probe.tscn`, `bridge_shot.tscn`; checks `tests/footbridges_checks.gd`.
+- Freeway incidents (fleet wave 2, docs/HANDOFF.md "Freeway incidents"): `FreewayIncidents`
+  (`scripts/npc/freeway_incidents.gd`, the Traffic node's child) works out from its own clock and a
+  hash per route, 1 km stretch, direction and 480 s slot (`incident()`, pure; `site_ok()` keeps
+  off the ramps of that carriageway, the route ends and the stack) a STALL (a car coasts onto the
+  shoulder on its hazards, its driver `FreewayMotorist` out on the phone, a BASIN HIGHWAY PATROL
+  car `FreewayPatrol` - invented - parks behind with its bar flashing, ServiceVehicles' rollback
+  tow winches the car on and both drive on as ordinary freeway traffic: `stall_pose()` is the
+  script), TYRE tread or a MATTRESS in a lane (`FreewayIncidentKit`), or a SLOW stretch. Traffic
+  hook: `drive()` in `_drive_freeway()` (hard blocks stopped short of, soft ones slowed past,
+  look-around and slowdown zones, a lane change out of a blocked lane, TrafficAI's thinking held
+  off near one), `spawn_lane()` in `_spawn_freeway_car()`. CMS: `has_cms()` (a hash) makes
+  FreewayKit build a message cabinet in place of the second guide board; near the player the node
+  puts its LED face on (`shaders/freeway_cms.gdshader`) saying what is ahead, travel times or a
+  safety line. Behind a parked patrol car a taper of burning road flares (`flare_spot()`,
+  `FreewayIncidentKit.flare_node()`, `shaders/fw_flare.gdshader`: a glow never under 3 px, a red
+  pool, smoke, one red omni at night on desktop - `FREEWAY_FLARE_LIGHT=0`).
+  `FREEWAY_INCIDENTS=0` is the A/B; stills `FW_INCIDENT=stall|tyre|mattress|slow`
+  (`FW_INCIDENT_AT`, `_T`, `_HOLD`, `_TIMES` per SHOTS entry); probe
+  `tools/freeway_incidents/probe.tscn`; checks `tests/freeway_incidents_checks.gd`.
 - The four-level stack (VISUAL_ROADMAP #81, 2026-10-05, docs/HANDOFF.md, the stack section):
   where the 110 meets the 101 at the real four-level interchange. **The plan is
   `FreewayStack`** (`scripts/world/freeway_stack.gd`, `Freeway.stack`, made in `Freeway.build()`
@@ -3108,6 +3219,22 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   environment is the A/B. Probe: `tools/marina/probe.gd` (headless, seconds); quick checks:
   `tools/marina/marina_check.tscn` (the marina's checks alone, a minute); checks:
   `tests/marina_checks.gd`.
+- Ocean traffic (wave 3, docs/HANDOFF.md "Ocean traffic"): `OceanTraffic`
+  (`scripts/world/ocean_traffic.gd`, a Node3D in city.tscn; its children's local space is true world)
+  runs `Vessel`s (`scripts/vehicles/vessel.gd`, AnimatableBody3D on props, mask 0, `take_hit()`:
+  burns, explodes, sinks) scripted like AirTraffic - LOOP (closed polylines: the coastal lane, the
+  bay, two ferries' crossing, a tug and the pilot boat to the anchorage), SAIL (sloops tacking 48
+  degrees off Weather's wind, boom and jib sheeted by the point of sail, heeled to leeward), HOLD (a
+  tug at the moored ship) - plus five `AnchoredShip`s in the roads (PortKit's ship, lit). Small craft
+  spawn out of view round the camera on water with room (`sea_room()`). Hulls are `VesselMesh` (the
+  sloop under sail, tug, pilot boat, catamaran ferry; BoatMesh's yachts) on `shaders/vessel.gdshader`
+  = `boat_body.gdshaderinc` with BOAT_RIDE: the hull RIDES THE SWELL in its vertex shader
+  (`sea_ride.gdshaderinc`, the ocean's own waves and groups off TIME - GDScript has no copy of
+  TIME) and loses what is under its waterline past `far_cut` (the far sea is the plane 24 m down).
+  Wakes are foam in ocean.gdshader (`wake_a/b`, 16, bow + heading, speed, beam, trail, hull length +
+  strength; `push_wakes()`). `OCEAN_TRAFFIC=0` the A/B, `OCEAN_STAGE=x,z,yaw` a staged scene for
+  stills; kit stills `tools/ocean_traffic/vessel_shot.tscn`, routes `probe.tscn`; checks
+  `tests/ocean_traffic_checks.gd`. Probes are scenes: under `--script` Vessel cannot compile.
 - The oil field (2026-10-05, docs/HANDOFF.md 9df: "pumpjacks nodding on bare hills in the middle
   of the city", the Baldwin Hills forms): `OilField` (`scripts/world/oil_field.gd`, data,
   `MacroMap.oil`, made in `MacroMap.setup()` after the river) is a landmark AREA site (CityPlan
@@ -3139,6 +3266,18 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   fenced rect to Industrial's / YardFill's block step as a footprint. The operator, BASIN CREST OIL
   CO., and the lease names are invented. `OIL_FIELD=0` is the A/B; `tools/oil_field/probe.tscn`
   prints the plan and EYEs; checks: `tests/oil_field_checks.gd`.
+- The oil refinery (2026-10-29, docs/HANDOFF.md "The oil refinery north of the port"): `Refinery`
+  (`scripts/world/refinery.gd`), VELLARD REFINING CO.'s BAY WORKS (invented), an area site of 4 x 7
+  INDUSTRIAL blocks north of the port (x 2739-3235, z 5167-5830 on seed 1337; CityPlan snaps and
+  closes the streets inside, like the film studio's). PURE layout (`layout(plan)`): tank farm
+  (floating-roof tanks in berms, cone tanks, spheres), process units (`Unit`: crude, FCC, coker,
+  hydrotreater), racks down the closed streets, flares, cooling towers, the gate. `RefineryKit` builds
+  it in code on ONE shader (`shaders/refinery.gdshader`, kind in COLOR.a 32nds); flames and steam are
+  shader-placed puffs (`refinery_flame` / `refinery_plume`); ~1,500 lamps are aircraft_lights
+  billboards. Godot front faces wind CLOCKWISE (the kit's discs and shells were first drawn inside
+  out). Far: `RefineryFar` (one hook in `CityStreamer._build_far_landmarks()`), a far piece a block,
+  hidden while a FULL chunk's `RefineryCover` is shown; LOD chunks lay ground only. `REFINERY=0` the
+  A/B; probe `tools/refinery/probe.tscn`; checks `tests/refinery_checks.gd`.
 - The reservoir (VISUAL_ROADMAP #105, 2026-10-05, docs/HANDOFF.md 9dk): the FORM of the
   reservoir behind the famous sign - a long irregular lake filling a canyon of the front range,
   held back by a 1920s concrete arch-gravity dam that faces the basin - named "Lake Shallufer" on
@@ -3412,6 +3551,22 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   environment is the A/B. Probe: `tools/climbers/climbers_probe.tscn` (headless, seconds: cards
   per species, step time, an EYE for every plant); checks: `tests/climbing_plants_checks.gd`
   (`tools/climbers/checks_only.tscn` runs them alone).
+- Backyard life (2026-10-05, docs/HANDOFF.md "Backyard life"): `Backyards`
+  (`scripts/world/backyards.gd`) furnishes the suburbs' and beach town's back yards from
+  YardFill's lot plans - `plan_lot()` is PURE (hashes of seed + lot) and keeps clear of the house,
+  the pool, YardFill's back tree and shrub strip and ClimbingPlants' pergolas (worked out the same
+  way, `pergola_rect()`). Two hook lines in `YardFill._build_beach()` (FULL: deferred after its own
+  dressing, a job a lot; LOD: umbrellas, trampolines, the lights' glow). Meshes are code
+  (`BackyardKit`) on `shaders/backyard.gdshader` (kind in COLOR.a x 16, paint in INSTANCE_CUSTOM);
+  string lights one merged mesh a chunk (`BackyardLights`, bulbs grown to a pixel from the air
+  via CUSTOM0); grill smoke `backyard_smoke.gdshader` and embers follow `city_hour`; the trampoline
+  net and dog-run chain-link `backyard_net.gdshader`. Tables, grills, trampolines and doghouses are
+  breakable props. Sunbathers on the loungers by day (wave 3): baked `YardFigure`s (BeachFigure's
+  way, BeachGoer's "lounge" pose, a swimsuit; out by `BeachLife.density()` of the build hour),
+  merged per chunk; woken they are `YardGoer`s on the yard's level. backyards.gd loads the beach
+  classes by path (naming them compiles the crowd into every tool that loads YardFill).
+  `BACKYARDS=0` is the A/B; probe `tools/backyards/probe.gd`, fit `tools/backyards/lounger_shot.tscn`;
+  checks `tests/backyards_checks.gd`.
 - Lawns: `PropFactory.lawn()` + `shaders/lawn.gdshader`, not a plain tiled texture - a 5 m tile
   mips down to one flat green rectangle from thirty metres up, and the grass-blade multimesh only
   reaches a few dozen metres. Dry/watered patches, mower stripes angled per lawn, worn dirt, and
@@ -3963,6 +4118,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the environment removes the course (the A/B), `GOLF_LIFE=0` its life. Probe:
   `tools/golf/probe.gd` (`OUT=map.png` a top-down map of the fields); poses:
   `tools/golf/golfer_lab.tscn`; checks: `tests/golf_checks.gd`.
+- Power plant (2026-10-30, docs/HANDOFF.md "The power plant on the coast"): `PowerPlant`
+  (`scripts/world/power_plant.gd`, pure layout + line), `PowerPlantKit` (code-built pieces on ONE
+  shader, `shaders/power_plant.gdshader`, kind in COLOR.a 32nds) and `PowerPlantBuild` (site
+  chunks FULL / LOD / capture, `extras()` for the seawall, the line's towers, right of way and
+  station, `landmark()` for the wires and stack lights near and far). An area site south of the
+  airport (two beach-town blocks, streets closed); the line calls Ridges' / RidgeKit's tower, span
+  and wire code and takes lots after every roll (`claims_lot()` in `CityPlan.lots()`,
+  `claims_cell()` in `HouseKit.extra_lots()`). `POWER_PLANT=0` is the A/B; probe
+  `tools/power_plant/probe.tscn` (`PP_DEBUG=1`); checks `tests/power_plant_checks.gd`.
 - The film studio lot (2026-10-05, docs/HANDOFF.md "The film studio lot"): SUNSPIRE PICTURES
   (invented, its mark a half sun behind a spire), `FilmStudio` (`scripts/world/film_studio.gd`)
   + `FilmStudioKit` (`scripts/world/film_studio_kit.gd`) on ONE shader
@@ -4234,6 +4398,23 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   frame cost is ALU on storefront glass pixels only. Judge with `building_shot.gd` (`NIGHT=1`,
   `BENCH=n`) and `still_shot.gd` `EYE=`/`SHOTS=` from the pavement; `tools/glshot/shop_probe.gd`
   (headless) lists the storefronts near a point with an EYE for each face.
+- Corner stores you walk into (2026-10-05, fleet "walk-in-store", HANDOFF "The corner store"):
+  `CornerStore` (`scripts/world/corner_store.gd`, pure: a hash of seed + block picks MIDTOWN /
+  SUBURBS blocks and a corner; the corner lot must be level, off the freeway, on open streets and
+  nobody else's; `CityChunk._build_lot()` asks `claims()` after every other claim) and
+  `CornerStoreKit` (code geometry on `shaders/corner_store.gdshader`, kind in COLOR.a / 32; goods
+  as one MultiMesh per kind on `corner_store_goods.gdshader`; interior, goods, lights and the
+  StreetVendor cashier as deferred build steps). `CornerStoreSite` keeps the interior hidden and
+  the glass on `corner_store_glass.gdshader` (the room TRACED from `CornerStore.layout()`, the
+  numbers the geometry uses) until the camera or player comes within `reach` of the storefront,
+  then shows it behind `corner_store_clear.gdshader`; the door (a hinge node + AnimatableBody3D)
+  swings in for the player. Glass colours go in as Vector3 (a Color set from script is decoded
+  again on Forward+). LOD / far: a box and a lit PANEL sign. `WALK_IN_STORE=0` is the A/B
+  (`STORE_SHOW=1` forces interiors on); probe `tools/walk_in_store/probe.tscn`; checks
+  `tests/walk_in_store_checks.gd`. Shot shelves (`CornerStoreBody`, the store's collision): the
+  packs round the player's aim point are hidden in their MultiMesh and the nearest thrown as
+  debris (`STORE_MAYHEM=0` the A/B, `STORE_SHOOT=n` stages n rounds for stills); the round's point
+  is not passed to `take_hit()`, so it is `Player.get_aim()` when that is on the body.
 - Shop-window vinyl (2026-10-05, docs/HANDOFF.md "Shop-window vinyl"): `shop_decal()` in
   `building.gdshader` writes REAL words with a stroke font, `shaders/vinyl_lettering.gdshaderinc`
   (GENERATED by `tools/make_vinyl_font.py`: glyphs as packed centre-line segments, a distance
@@ -4275,6 +4456,18 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   penthouse|mast|bmu`, `NIGHT=1`, `GOLDEN=1`, seconds), find them in the city with
   `tools/rooftops/find.gd -- --at=x,z --radius=m` (an EYE per pad and pool), count with
   `tools/rooftop_probe.gd`. Checks: `tests/rooftops_checks.gd`.
+- Walk of fame (2026-10-05, docs/HANDOFF.md "The walk of fame"): `StarBoulevard`
+  (`scripts/world/star_boulevard.gd`) - a hash-chosen midtown east-west boulevard (`plan_for()`,
+  pure, cached; seed 1337: Canyon Blvd) whose pavements get a band of terrazzo stars 2.6-4.0 m in
+  from the kerb (`shaders/walk_of_fame.gdshader`, names / emblems from
+  `assets/textures/star_boulevard/walk_atlas.png` by `tools/make_star_boulevard_art.py`, all
+  INVENTED), a movie palace (BroadwayTheatre on a frame set back behind a forecourt of handprint
+  slabs, two lots deep), low souvenir-strip blocks (`dress()`: `name_pool`, never new SHOP_NAMES -
+  the vinyl's 6-bit table is nearly full), goods, feather flags, neon star medallions on the
+  lamps, `StreetCharacter`s in ORIGINAL costumes and sightseeing buses at a kept-clear kerb. Five
+  hook lines in city_chunk.gd, after every roll; the frontage (`strip_lot()`) is kept from
+  VacantLots, Apartments, CarDealers and surface car parks, and built as lot-filling SLABs. `STAR_BOULEVARD=0` the A/B; probe
+  `tools/star_boulevard/probe.tscn`; checks `tests/star_boulevard_checks.gd`.
 - Window-washing gondolas (2026-10-05, fleet "tower-gondolas"): `TowerGondolas`
   (`scripts/world/tower_gondolas.gd`, static: sites, the clock-driven descent `pose_at()`, the
   cradle / davit / squeegee / hard-hat meshes) and `GondolaRig` (`scripts/world/gondola_rig.gd`,
@@ -4411,8 +4604,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   gentle with a floor (`own_ao`), being baked on a coarse shell in a pose the game never shows;
   and the fold field's ankle stack is the hero's gathered track pant, which on hemmed jeans read
   as jogger cuffs, so crowd_atlas.py scales it per trouser style (`ankle_stack` / `ankle_reach`).
-  A body in our garments is 11.7-13.9k triangles (10.5-12.7k in the library clothes). Sixteen
-  people wear them (a, d, e, h..t); b, c, f and g keep library clothes. **The second set
+  A body in our garments is 11.7-15.0k triangles (10.5-12.7k in the library clothes). Twenty-two
+  people wear them (a, d, e, h..z); b, c, f and g keep library clothes. **The second set
   (2026-10-05, docs/HANDOFF.md 9cg)**: the jacket takes `collar` (stand / rib / hood),
   `closure` (zip / buttons / none), `pocket` (welt / kangaroo / none) and `knit` - a windbreaker
   (m), a crew-neck cardigan (n) and a pullover hoodie with its hood DOWN (`hood_down()`: a roll
@@ -4433,6 +4626,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Judge with `tools/crowd/preview.sh` first (Blender Cycles, no render lock, seconds: `FLAT=1`
   geometry only, `REGION=1` which mesh is which - green on a top is the trousers, black is skin)
   and finish with `crowd_lineup.gd` (`TURN=90` shows a row in profile).
+  **The third set (2026-10-30, docs/HANDOFF.md "The crowd's third garment set")**: `jacket`
+  `puffer` (fit `puffer`; `quilt()` cuts every channel line into the DECIMATED shell as an edge
+  loop and bulges between them - bulged before the decimation it was smoothed away -, and the
+  painter's `paint_quilt()` reads the same lines from `L["quilt"]`), `shirt` `work` (a duck chore
+  jacket: point collar painted as corduroy by `collar_color`, flap patches over painted pockets),
+  trousers `cargo` (bellows pockets laid ON the thigh by `surface_patch()`, a grid of rays: a flat
+  `strip()` stood off the leg as a board), `dress` (the skirt plus a bodice with `slope` 3 shaped to
+  the waist, its hem laid onto the skirt; region `keep`, so no look splits it in two; prints
+  `dots` / `floral` in `pattern()`). Worn by `crowd_u..z` (MODELS 20-25, after the rest).
   **Close-up detail** (owner, 2026-09-27: faces and garments at 2-4 m): faces are not the
   average MakeHuman head - `build_character.py` rolls MPFB's own face targets (nose, jaw, chin,
   cheeks, eyes, mouth, ears, brows, forehead; `FACE_PAIRS`, `face_var`, `face_seed`, explicit
@@ -4527,6 +4729,22 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   A/B) and everyone hurries. Rolls are `hash(seed, "rain")`. Hooks: four lines in Pedestrian, one
   in Weather. `RAIN_CROWD=0` the A/B; `RAIN_STAGE=<level>` / `RAIN_FOCUS=` on `still_shot.gd`;
   `crowd_lab.tscn SCENARIO=rain` (seconds); checks `tests/rain_crowd_checks.gd`.
+- Crowd look (2026-10-29, "heads turn to what happens"; docs/HANDOFF.md "The crowd's heads"):
+  `CrowdLook` (`scripts/npc/crowd_look.gd`), a SkeletonModifier3D a near pedestrian gets on its
+  rig the first time it is within `look_range` of the player and the camera (one hook in
+  `Pedestrian._post_pose()`; subclasses with their own head poses opt out through
+  `_head_look_ok()`). `think()` (physics) picks a target from ONE shared survey a physics frame
+  (blasts via `Explosion.blast_count`, the player's boost, sirens, `CarDamage._burning`, group
+  `crowd_look_magnet` - buskers: metas `look_range` / `look_weight`) plus posted events
+  (`CrowdLook.notice()`: `Vehicle.take_hit()` crashes and shot cars, `LandingFX.land()`), scored by
+  `WEIGHT`, distance and `HEARD` (loud from behind, quiet only in the `SIGHT` cone), with dwell,
+  cooldown and stickiness; quiet glances at cars, the player and WALKING passers-by end in a
+  look-away. Critically damped, speed-capped springs (`STIFF_*`, `SPEED_*`) turn head + neck
+  (`HEAD_YAW_MAX` 72) and past `CHEST_FROM` the chest (`CHEST_YAW_MAX` 22); the pose is laid on in
+  the modifier, so it never accumulates and eases out by itself. `hold_off(ped, s)` for systems
+  that pose the head. `CROWD_LOOK=0` is the A/B (the old `_post_pose` turn). Lab:
+  `tools/crowd/crowd_lab.tscn SCENARIO=heads` (`DEBUG=1` prints the angles); checks
+  `tests/crowd_look_checks.gd`.
 - Dogs (2026-10-05, "realistic dogs, so the dog walkers can come back"; docs/HANDOFF.md, the
   dogs section): built in CODE like the birds. **`DogMesh`** (`scripts/npc/dog_mesh.gd`) builds six
   breeds by proportion - labrador, German shepherd, small terrier, chihuahua, pit bull mix,

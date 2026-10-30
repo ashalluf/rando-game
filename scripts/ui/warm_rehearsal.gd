@@ -168,6 +168,8 @@ static func _stage_cars(holder: Node3D, ground: Vector3, fwd: Vector3, right: Ve
 			car.set("lights_forced", true)
 		elif BigVehicles.is_big(t):
 			car = BigVehicles.make(t, 0)
+		elif Motorcycle.is_moto(t):
+			car = Motorcycle.make(t, 0)
 		else:
 			car = Vehicle.new()
 			car.setup(t, Color(0.55, 0.08, 0.06), 0)

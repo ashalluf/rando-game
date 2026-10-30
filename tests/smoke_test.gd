@@ -39,12 +39,12 @@ func _rss_mb() -> int:
 
 
 func _ready() -> void:
-	# Watchdog: a broken test must never hang the check. Game time, and under the 600 s wall-clock
-	# timeout in headless_check.sh; the police checks added about 30 s to a run that was already
+	# Watchdog: a broken test must never hang the check. Game time, and under the 2400 s wall-clock
+	# timeout in headless_check.sh (1500: the wave-3 batches took one process past 840); the police checks added about 30 s to a run that was already
 	# close to the old 300, and the distance checks (tests/distance_checks.gd) about 20 more.
 	# SMOKE_WATCHDOG=seconds raises it for a run on a box shared with other heavy jobs, where the
 	# same checks take longer in wall time (the gate's own timeout has to be raised with it).
-	var watchdog := float(OS.get_environment("SMOKE_WATCHDOG")) if OS.get_environment("SMOKE_WATCHDOG") != "" else 840.0
+	var watchdog := float(OS.get_environment("SMOKE_WATCHDOG")) if OS.get_environment("SMOKE_WATCHDOG") != "" else 1500.0
 	get_tree().create_timer(watchdog).timeout.connect(func():
 		printerr("SMOKE TEST TIMED OUT")
 		get_tree().quit(2))
@@ -67,7 +67,8 @@ const CITY_PARTS := ["city_streaming", "city_terrain", "city_landmarks", "city_c
 	"city_polish", "city_crowd", "city_menu"]
 ## Check files called from inside a city part (they go with that part, never on their own).
 const INLINE_FILES := ["downtown_checks", "hero_moves_checks", "street_life_checks",
-	"crowd_anim_checks", "crowd_life_checks", "crowd_hat_checks", "photo_mode_checks"]
+	"crowd_anim_checks", "crowd_life_checks", "crowd_hat_checks", "photo_mode_checks",
+	"wingsuit_checks"]
 ## Wall seconds each part took in a whole run on the 4-core fleet box (SMOKE_PROFILE=1 prints
 ## them as PART lines); a file missing here counts DEFAULT_COST. Only the deal depends on them.
 const PART_COST := {
@@ -335,6 +336,8 @@ func _run() -> void:
 	_check(player.global_position.distance_to(Vector3(0, 1, 0)) < 2.0, "respawn returns to spawn")
 
 	await _check_camera_post(player)
+	# The wingsuit (tests/wingsuit_checks.gd): spread, glide, dive, pull up, bank, fold, land.
+	await load("res://tests/wingsuit_checks.gd").new().run(self, player)
 	await _test_weapons(player)
 	_test_buildings()
 	level.free() # Free now, so the city scene cannot pick up this level's player.
@@ -365,6 +368,10 @@ func _test_city() -> void:
 	var emergency_node: Node = city.get_node_or_null("Emergency")
 	if emergency_node:
 		emergency_node.set("enabled", false)
+	# The TV news vans likewise (tests/news_crews_checks.gd turns them on for its own checks).
+	var news_node: Node = city.get_node_or_null("NewsCrews")
+	if news_node:
+		news_node.set("enabled", false)
 	await _ticks(30)
 	var plan: CityPlan = city.plan
 	var lod_r: int = city.lod_radius_blocks
@@ -1798,7 +1805,7 @@ func _city_polish(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void
 	var cars_seen := 0
 	for car in traffic_cars_for_lights(city):
 		cars_seen += 1
-		var lights: Node = (car as Node).get_node_or_null("NightLights")
+		var lights: Node = (car as Node).find_child("NightLights", true, false)  # a motorcycle's leans with it, under its Pose
 		if lights and (lights as MeshInstance3D).mesh and (lights as MeshInstance3D).mesh.surface_get_material(0) is ShaderMaterial:
 			car_lights += 1
 	_check(cars_seen > 0 and car_lights == cars_seen, "cars carry head and tail lights (%d of %d)" % [car_lights, cars_seen])
@@ -2077,6 +2084,7 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# taxi and beater - the roll table, the rng stream, builds, hits, the taxi's sign and fare,
 	# the beater's wear.
 	await load("res://tests/more_cars_checks.gd").new().run(self, city)
+	await load("res://tests/motorcycles_checks.gd").new().run(self, city)  # motorcycles: build, ride, riders, filtering
 	# The light rail (tests/light_rail_checks.gd): the line's table, timetable, crossings, the
 	# traffic's lane and stop rules, a station chunk, the trains on the track, a strike.
 	await load("res://tests/light_rail_checks.gd").new().run(self, city)
@@ -2321,6 +2329,7 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The marketplace lane by Pueblo Station (tests/pueblo_lane_checks.gd): the site, the layout,
 	# near and far builds under budget, the church's sanctuary, the vendors.
 	await load("res://tests/pueblo_lane_checks.gd").new().run(self, city)
+	await load("res://tests/news_crews_checks.gd").new().run(self, city)  # TV news vans and crews at a story
 	# Roadside commerce (tests/roadside_checks.gd): the kinds by hash, gas stations, car washes,
 	# auto shops, the diner, drive-thrus and the giant-donut stand; one mesh a chunk, nothing moved.
 	load("res://tests/roadside_checks.gd").new().run(self, city)
@@ -2330,6 +2339,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Street lamps (tests/street_lamps_checks.gd): the kit against its table, the pick per street,
 	# the arms over the road, the lamps' pools and omnis, and the same prop ids with the kit off.
 	load("res://tests/street_lamps_checks.gd").new().run(self, city)
+	# The corner store you can walk into (tests/walk_in_store_checks.gd): placement, the build near
+	# and far, the interior shown and the door opening as you walk up, nothing else on the block moved.
+	await load("res://tests/walk_in_store_checks.gd").new().run(self, city)
 	await load("res://tests/onlookers_checks.gd").new().run(self, city) # the crowd back round a body after the panic (Onlookers)
 	# Street props breaking by kind (tests/prop_destruction_checks.gd): geysers, shelter glass,
 	# bent and felled lamps, burst boxes, snapped meters, cars smashing through.
@@ -2339,6 +2351,12 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/engine_audio_checks.gd").new().run(self, city)
 	# Apartments (tests/apartments_checks.gd): midtown and inner-suburb walk-ups, courts and podiums.
 	load("res://tests/apartments_checks.gd").new().run(self, city)
+	# The harbour's lights (tests/lighthouses_checks.gd): the lighthouse's pad, the breakwater at sea,
+	# the gate light, the rotors' clock, the near builds and their collision, LIGHTHOUSES=0.
+	await load("res://tests/lighthouses_checks.gd").new().run(self, city)
+	# The ocean traffic (tests/ocean_traffic_checks.gd): hulls, routes on water, the fleet, sailing,
+	# wakes, a vessel sunk.
+	await load("res://tests/ocean_traffic_checks.gd").new().run(self, city)
 	# Street furniture (tests/street_furniture_checks.gd): the meshes, the shader's kinds, the rolls,
 	# a metered block and collection day's carts built the same with the furniture off.
 	load("res://tests/street_furniture_checks.gd").new().run(self, city)
@@ -2361,6 +2379,32 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The coast highway under the bluffs (tests/coast_highway_checks.gd): its place, the bench and
 	# bluff, the houses, parking, a chunk's road, houses, collision and cars, LOD and the far city.
 	await load("res://tests/coast_highway_checks.gd").new().run(self, city)
+	# The second garment set (tests/garments_2_checks.gd): crowd_u..z and what they wear.
+	load("res://tests/garments_2_checks.gd").new().run(self, city)
+	# Footbridges (tests/footbridges_checks.gd): placement, clearances, stairs, the kit, the chunks.
+	load("res://tests/footbridges_checks.gd").new().run(self, city)
+	# The power plant (tests/power_plant_checks.gd): the site south of the airport, the pure layout,
+	# the line's towers and right of way, FULL / LOD chunks, the seawall, the far city, the wires.
+	load("res://tests/power_plant_checks.gd").new().run(self, city)
+	# The oil refinery north of the port (tests/refinery_checks.gd): site, layout, chunks, far pieces.
+	load("res://tests/refinery_checks.gd").new().run(self, city)
+	# Backyard life (tests/backyards_checks.gd): the kit, the pure yard plan, a batch per kind, nothing else moved.
+	load("res://tests/backyards_checks.gd").new().run(self, city)
+	# The crowd's head look (tests/crowd_look_checks.gd): the modifier, heard and seen events, caps,
+	# easing, hold-off, and easing back out of range.
+	await load("res://tests/crowd_look_checks.gd").new().run(self, city)
+	# Lowriders (tests/lowriders_checks.gd): the bodies, wire wheels and paint, the hydraulics, where
+	# and when the meets are, a meet's chunk (the row, the crowd, the block unmoved), the cruisers.
+	await load("res://tests/lowriders_checks.gd").new().run(self, city)
+	# Multi-storey car parks (tests/garage_drive_in_checks.gd): placement, the plan's grades and
+	# headroom, the structure and its collision on every deck, and a car driven up to the second deck.
+	await load("res://tests/garage_drive_in_checks.gd").new().run(self, city)
+	# The walk of fame (tests/star_boulevard_checks.gd): the hash-chosen boulevard, the stars, the
+	# palace behind its forecourt, souvenirs, costumed characters, sightseeing buses, nothing moved.
+	load("res://tests/star_boulevard_checks.gd").new().run(self, city)
+	# Freeway incidents (tests/freeway_incidents_checks.gd): the schedule, a stall with its patrol
+	# car and tow, debris that traffic changes lanes round, a slowdown, the message signs.
+	await load("res://tests/freeway_incidents_checks.gd").new().run(self, city)
 	# The hills' real rock (tests/rock_outcrops_checks.gd): tors, outcrops, cut-bank boulders.
 	load("res://tests/rock_outcrops_checks.gd").new().run(self, city)
 
@@ -3667,7 +3711,7 @@ func _check_crowd_rigs() -> void:
 		if why != "":
 			bad.append(path.get_file() + ":" + why)
 		rig.queue_free()
-	_check(rigs >= 20 and bad.is_empty(), "the %d crowd rigs keep the contract (24 bones, clips, masked body with detail UV2, cut-out hair, <= 20k triangles)%s" % [rigs, "" if bad.is_empty() else " " + str(bad)])
+	_check(rigs >= 26 and bad.is_empty(), "the %d crowd rigs keep the contract (24 bones, clips, masked body with detail UV2, cut-out hair, <= 20k triangles)%s" % [rigs, "" if bad.is_empty() else " " + str(bad)])
 	# a rig whose head is covered (the headscarf) is one of the crowd, and never wears a hat
 	var no_hat_ok := true
 	for path: String in ped_script.NO_HAT_MODELS:
