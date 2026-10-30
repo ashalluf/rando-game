@@ -4379,6 +4379,22 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   environment turns the layer off (the A/B). Look with `tools/crowd/crowd_lab.tscn` SCENARIO=life
   (a pavement, a wall, two benches), props, dog (CAM / LOOK / FOV place the camera); check with
   `tests/crowd_life_checks.gd`; time it with MODE=bench.
+- Crowd look (2026-10-29, "heads turn to what happens"; docs/HANDOFF.md "The crowd's heads"):
+  `CrowdLook` (`scripts/npc/crowd_look.gd`), a SkeletonModifier3D a near pedestrian gets on its
+  rig the first time it is within `look_range` of the player and the camera (one hook in
+  `Pedestrian._post_pose()`; subclasses with their own head poses opt out through
+  `_head_look_ok()`). `think()` (physics) picks a target from ONE shared survey a physics frame
+  (blasts via `Explosion.blast_count`, the player's boost, sirens, `CarDamage._burning`, group
+  `crowd_look_magnet` - buskers: metas `look_range` / `look_weight`) plus posted events
+  (`CrowdLook.notice()`: `Vehicle.take_hit()` crashes and shot cars, `LandingFX.land()`), scored by
+  `WEIGHT`, distance and `HEARD` (loud from behind, quiet only in the `SIGHT` cone), with dwell,
+  cooldown and stickiness; quiet glances at cars, the player and WALKING passers-by end in a
+  look-away. Critically damped, speed-capped springs (`STIFF_*`, `SPEED_*`) turn head + neck
+  (`HEAD_YAW_MAX` 72) and past `CHEST_FROM` the chest (`CHEST_YAW_MAX` 22); the pose is laid on in
+  the modifier, so it never accumulates and eases out by itself. `hold_off(ped, s)` for systems
+  that pose the head. `CROWD_LOOK=0` is the A/B (the old `_post_pose` turn). Lab:
+  `tools/crowd/crowd_lab.tscn SCENARIO=heads` (`DEBUG=1` prints the angles); checks
+  `tests/crowd_look_checks.gd`.
 - Dogs (2026-10-05, "realistic dogs, so the dog walkers can come back"; docs/HANDOFF.md, the
   dogs section): built in CODE like the birds. **`DogMesh`** (`scripts/npc/dog_mesh.gd`) builds six
   breeds by proportion - labrador, German shepherd, small terrier, chihuahua, pit bull mix,

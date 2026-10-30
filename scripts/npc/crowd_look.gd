@@ -102,7 +102,7 @@ static var _boost_until: float = 0.0
 static var _camera_at := Vector3.INF # scene position of the camera, last survey
 
 ## The person this modifier belongs to, and what it holds.
-var ped: Node3D
+var ped: Pedestrian
 var chest_bones := PackedInt32Array()
 var neck: int = -1
 var head: int = -1
@@ -135,7 +135,7 @@ var _rng := RandomNumberGenerator.new()
 
 
 ## The modifier for `p`'s skeleton, made the first time (null when off or the rig lacks bones).
-static func of(p: Node3D, skel: Skeleton3D) -> CrowdLook:
+static func of(p: Pedestrian, skel: Skeleton3D) -> CrowdLook:
 	if not enabled or skel == null:
 		return null
 	for c in skel.get_children():
@@ -278,8 +278,10 @@ static func _survey_slow(tree: SceneTree, now: float) -> void:
 					and car.has_method("siren_running") and car.siren_running():
 				_post(Kind.SIREN, car, SIREN_RANGE, 1.0, now, 1.2)
 	for c in CarDamage._burning:
+		if not is_instance_valid(c):
+			continue
 		var car := c as Node3D
-		if is_instance_valid(car) and car.global_position.distance_squared_to(centre) < reach2:
+		if car and car.global_position.distance_squared_to(centre) < reach2:
 			_post(Kind.FIRE, car, FIRE_RANGE, 1.0, now, 1.0)
 	for n in tree.get_nodes_in_group("crowd_look_magnet"):
 		var m := n as Node3D
@@ -309,7 +311,7 @@ func think(delta: float) -> void:
 	held = clampf(held - delta * 2.0, 0.0, 1.0) if now > _held_until else clampf(held + delta * 4.0, 0.0, 1.0)
 	var eye := ped.global_position + Vector3.UP * 1.55 * _visual_scale()
 	var near_cam := _camera_at == Vector3.INF or eye.distance_squared_to(_camera_at) \
-		< pow(float(ped.get("look_range")) * 1.2, 2.0)
+		< pow(float(ped.look_range) * 1.2, 2.0)
 	_fade = clampf(_fade + (delta * 3.0 if near_cam else -delta * 2.0), 0.0, 1.0)
 	_dwell -= delta
 	_scan -= delta
@@ -318,9 +320,9 @@ func think(delta: float) -> void:
 		_scan = _rng.randf_range(0.22, 0.4)
 		_choose(eye, now)
 	# Where the target is now, against the way the body faces.
-	var face: float = (ped.get("_visual") as Node3D).global_rotation.y
+	var face: float = ped._visual.global_rotation.y
 	var want_yaw := 0.0
-	var want_pitch: float = ped.get("_posture_pitch")
+	var want_pitch: float = ped._posture_pitch
 	var startled := _kind <= Kind.LANDING
 	var target := _target_point()
 	if _kind == Kind.IDLE or _kind == Kind.AWAY:
@@ -345,8 +347,8 @@ func think(delta: float) -> void:
 	res = _spring(pitch, _pitch_v, want_pitch, stiff, top * 0.7, delta)
 	pitch = res.x
 	_pitch_v = res.y
-	ped.set("_look_yaw", yaw + chest)
-	ped.set("_look_pitch", pitch)
+	ped._look_yaw = yaw + chest
+	ped._look_pitch = pitch
 	active = true
 
 
@@ -362,7 +364,7 @@ static func _spring(x: float, v: float, to: float, w: float, top: float, dt: flo
 
 
 func _visual_scale() -> float:
-	var vis := ped.get("_visual") as Node3D
+	var vis := ped._visual
 	return vis.scale.y if vis else 1.0
 
 
@@ -376,7 +378,7 @@ func _target_point() -> Vector3:
 
 ## What is worth a look right now, from everything in reach, against what is held.
 func _choose(eye: Vector3, now: float) -> void:
-	var face: float = (ped.get("_visual") as Node3D).global_rotation.y
+	var face: float = ped._visual.global_rotation.y
 	var held_score := 0.0
 	if _dwell > 0.0 and _kind != Kind.IDLE and _kind != Kind.AWAY:
 		held_score = float(WEIGHT[_kind]) * STICKY
@@ -398,11 +400,11 @@ func _choose(eye: Vector3, now: float) -> void:
 			s *= REPEAT_SHARE
 		return s
 	# A threat this person ran from (Pedestrian._scare()).
-	if float(ped.get("_look_hold")) > 0.0 and ped.get("_look_threat") != Vector3.INF:
+	if float(ped._look_hold) > 0.0 and ped._look_threat != Vector3.INF:
 		var s := float(WEIGHT[Kind.THREAT])
 		if s > best_score:
 			best_score = s
-			best = [Kind.THREAT, ped.get("_look_threat"), null, 0.0, -1]
+			best = [Kind.THREAT, ped._look_threat, null, 0.0, -1]
 	for e: Array in _events:
 		var at := _to_local(e[1])
 		if is_instance_valid(e[2]) and (e[2] as Node3D).is_inside_tree():
@@ -414,8 +416,8 @@ func _choose(eye: Vector3, now: float) -> void:
 			best_score = s
 			best = [int(e[0]), at, e[2] if is_instance_valid(e[2]) else null, _lift_for(int(e[0])), int(e[7])]
 	# The life layer's own look (a talk partner, a window, a dog).
-	var life_look: Vector3 = ped.get("_life_look")
-	if life_look != Vector3.INF and int(ped.get("_act")) != 0:
+	var life_look: Vector3 = ped._life_look
+	if life_look != Vector3.INF and int(ped._act) != 0:
 		var s := float(WEIGHT[Kind.LIFE])
 		if s > best_score:
 			best_score = s
@@ -454,28 +456,30 @@ func _quiet_candidates(eye: Vector3, _now_s: float, weigh: Callable, best_score:
 		var vel: Vector3 = car[1]
 		if vel.length_squared() < 9.0:
 			continue
-		var s: float = weigh.call(Kind.CAR, at + vel * 0.12 + Vector3.UP * 0.6, float(ped.get("look_car_range")), 1.0, 0)
+		var s: float = weigh.call(Kind.CAR, at + vel * 0.12 + Vector3.UP * 0.6, float(ped.look_car_range), 1.0, 0)
 		if s > best_score:
 			best_score = s
 			best.assign([Kind.CAR, at + vel * 0.12 + Vector3.UP * 0.6, null, 0.0, 0, s])
 	var player := Pedestrian._player
 	if is_instance_valid(player):
 		var at := player.global_position + Vector3.UP * 1.5
-		var s: float = weigh.call(Kind.PLAYER, at, float(ped.get("look_player_range")), 1.0, player.get_instance_id())
+		var s: float = weigh.call(Kind.PLAYER, at, float(ped.look_player_range), 1.0, player.get_instance_id())
 		if s > best_score:
 			best_score = s
 			best.assign([Kind.PLAYER, at, player, 1.5, player.get_instance_id(), s])
 	var me := ped.global_position
 	for n in _walkers:
+		if not is_instance_valid(n): # the list is a quarter second old: freed since
+			continue
 		var o := n as Node3D
-		if o == ped or not is_instance_valid(o):
+		if o == ped or o == null:
 			continue
 		var at := o.global_position
 		if at.distance_squared_to(me) > PASSER_RANGE * PASSER_RANGE:
 			continue
 		# A passer-by passes: somebody standing beside you all along is not glanced at again and
 		# again (one of the two must be walking).
-		if float(o.get("_speed")) < PASSER_SPEED and float(ped.get("_speed")) < PASSER_SPEED:
+		if float(o.get("_speed")) < PASSER_SPEED and float(ped._speed) < PASSER_SPEED:
 			continue
 		var s: float = weigh.call(Kind.PASSER, at + Vector3.UP * 1.55, PASSER_RANGE, 1.0, o.get_instance_id())
 		# Only some people glance at each passer-by, and not every time they pass.
@@ -533,7 +537,7 @@ func _process_modification_with_delta(delta: float) -> void:
 	if skel == null or ped == null or not is_instance_valid(ped):
 		return
 	# Out of the look range nobody calls think(): ease back to the clip's pose and stop.
-	if not bool(ped.get("_look_near")):
+	if not bool(ped._look_near):
 		var k := exp(-4.0 * delta)
 		yaw *= k
 		chest *= k
@@ -547,7 +551,7 @@ func _process_modification_with_delta(delta: float) -> void:
 	var w := _fade * (1.0 - held)
 	if w <= 0.001 or absf(yaw) + absf(chest) + absf(pitch) < 0.002:
 		return
-	var vis := ped.get("_visual") as Node3D
+	var vis := ped._visual
 	var face := vis.global_rotation.y if vis else 0.0
 	var to_skel := skel.global_basis.orthonormalized().inverse()
 	var up := (to_skel * Vector3.UP).normalized()

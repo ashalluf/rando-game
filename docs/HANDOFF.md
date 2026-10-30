@@ -14377,3 +14377,84 @@ crew's hands are IK onto the rail and the squeegee with the idle frozen near its
 dedicated wiping clip, no head turn. No sound of the hoists. The LOD ring shows Rooftops' static
 cradle box at its old depth on infill towers. Workers cannot be knocked off (on purpose); shooting
 one only swings the cradle, with no blood.
+
+## 9d?. The crowd's heads: people look at what happens round them, 2026-10-29 (agent branch `wt/crowd-lookat`; VISUAL_ROADMAP #?)
+
+VISUAL_ROADMAP #28 (wt/crowd-anim) gave the near crowd a head turn in `Pedestrian._post_pose()`:
+a lerp toward the nearest moving car, else the player, else a gunshot that scared them, set
+straight on the neck and head bones. It left out most of what makes a street read alive: no
+reaction to the player's own stunts (boost, hard landings), crashes, blasts out of earshot of the
+panic radius, sirens, fires, performers; no look-away; no chest; a turn that could snap round as
+fast as the lerp allowed. This pass replaces it near the camera with `CrowdLook`.
+
+**What.** `scripts/npc/crowd_look.gd`, a `SkeletonModifier3D` (the AimTwist idea) a pedestrian
+puts on its rig the first time it is inside `look_range` (26 m) of the player AND the camera
+(`CrowdLook.of()`, from the one hook line in `_post_pose()`; far crowds never get one).
+- **Thinking** (`think()`, physics tick): ONE shared survey a physics frame for the whole crowd
+  (`_survey()`: `Explosion.blast_count` moved -> a BLAST event, the player's speed over 16 m/s ->
+  BOOST, and four times a second `_survey_slow()`: cruisers and emergency units with
+  `siren_running()`, `CarDamage._burning`, nodes in the `crowd_look_magnet` group, the walkers
+  within 40 m of the camera), plus events other systems post with `CrowdLook.notice()`:
+  `Vehicle.take_hit()` (a crash, or a car shot - one line) and `LandingFX.land()` (one line).
+  Events are kept in TRUE world coordinates, so an origin shift moves nothing. Each person scores
+  every event by `WEIGHT` (threat 12 > blast 9 > crash / landing 8 > boost 6.5 > siren 5 > fire
+  4.5 > magnet 4 > life 3.6 > player 3 > car 2.4 > passer 1.6), falloff with distance inside the
+  event's reach, and `HEARD` (loud things from any direction, quiet things only inside the
+  110-degree `SIGHT` cone). A held target must be beaten by `STICKY` x; each kind dwells its own
+  time (`DWELL`) and is worth `REPEAT_SHARE` for `COOLDOWN` s afterwards, so nobody stares at a
+  passing car for good. The life layer's own look (a talk partner, a window) and the panic
+  threat are folded in. With nothing loud on, quiet glances: a car going by close, the player
+  walking past, a passer-by (only while one of the two is WALKING - `PASSER_SPEED`; standing
+  neighbours glanced at each other forever in the first version), and 55 % of social glances end
+  in a look-away (eyes off and a little down: civil inattention); now and then an idle glance.
+  Each person rescans every 0.22-0.4 s on its own seed, so a crowd's reaction is staggered.
+- **Easing**: critically damped springs with a top speed per axis (`STIFF_CALM` 7 / `STARTLE` 13
+  per second, `SPEED_CALM` 2.6 / `STARTLE` 6.5 rad/s; startled = threat, blast, crash, landing).
+  The head and neck take the turn up to `HEAD_YAW_MAX` 72 deg (neck 40 %, head 60 %); the chest
+  (Spine01 + Spine) adds `CHEST_SHARE` of it and everything past `CHEST_FROM` 50 deg, capped at
+  `CHEST_YAW_MAX` 22; pitch -26..+20 deg about the face's right.
+- **Pose**: `_process_modification_with_delta()` turns the bones about the world's up in
+  skeleton space over whatever the clip, the life overlays and errands posed, so it never
+  accumulates and needs no restore. Out of range nobody calls `think()` and the modifier eases
+  back to the clip and switches itself off (`active` false). `held` (a fade) and
+  `CrowdLook.hold_off(ped, seconds)` are for systems that pose the head themselves.
+- Subclasses that own their heads keep opting out through `_head_look_ok()` (rough sleepers,
+  emergency crews, cyclists, golfers until they flee). `Pedestrian._look_yaw` / `_look_pitch`
+  still report the turn.
+- `CROWD_LOOK=0` in the environment is the A/B (the old `_post_pose` turn).
+
+**For other sessions** (buskers, onlookers, news crews): put the performer's node in the group
+`crowd_look_magnet` (metas `look_range`, default 12 m, and `look_weight`, default 1); post a
+one-off with `CrowdLook.notice(scene_pos, CrowdLook.Kind.CRASH/LANDING/..., reach, life, node,
+scale)`; call `CrowdLook.hold_off(ped, s)` while posing a head yourself.
+
+**Lab**: `tools/crowd/crowd_lab.tscn SCENARIO=heads` - six people at a kerb facing the road: a car
+crashes off to the left (tick 60), the player boosts past behind them (300-360), a busker starts
+on the right (480), a blast 45 m behind-left (720). `DEBUG=1` (headless is fine) prints every
+head's target kind, yaw, chest and pitch every 30 ticks; the crash turns the row 30-63 deg + chest
+5-22, the boost 43-65 over the shoulder, the blast 72 + 22 (both caps) within half a second.
+Compile check: `tools/crowd_look/compile.gd`.
+
+**Checks** (`tests/crowd_look_checks.gd`, 10, loaded by one line in the smoke test): a walker near
+the camera wears the modifier (its chunk loaded); a crash behind and to the left turns it more than 80 deg that way;
+head and chest within their caps and the chest helping; the turn eased and never faster than the
+startle speed; `_look_yaw` reports it; a magnet behind is not seen, one ahead-right is watched
+within 12 deg of its bearing; a hold-off fades it out; out of range it eases back and stops.
+
+**Cost.** No geometry, no draws (geo_count unchanged by construction). CPU, `crowd_lab MODE=bench
+N=100` headless, everyone within the look range (a worst case): 4.58 / 4.68 ms a physics tick
+with `CROWD_LOOK=0` against 5.16 / 5.28 ms on (+0.55 ms per 100 people inside 26 m; a downtown
+pavement has 20-40 there, so ~0.1-0.2 ms); at 50 m (out of range) unchanged within noise. The
+modifier's own pose step runs in the render-side skeleton update and is three to five quaternion
+products per bone for four bones; not measured separately.
+
+**Stills** (branch `shots/crowd-lookat`, opengl3 lab, each the same tick with and without):
+`01_calm`, `02_crash_left`, `03_boost_behind`, `04_busker_right`, `05_far_blast_left`
+(`*_before_after.jpg`) and `06_crash_reaction_every_10_ticks.jpg`.
+
+**Not done / not verified.** Not seen in the city or on Forward+ (the turn is bone rotation, so
+the renderer does not change it). No eyes: the crowd rigs have no eye bones, so a look is head
+and chest only. Nothing in main joins `crowd_look_magnet` yet (the buskers session's to use).
+Walkers keep walking while they look (no stop-and-stare; onlookers is its own session). The
+player's car going by fast is a CAR glance, not a BOOST. Dogs (`CrowdDog.look_at`) are not
+driven by it.
