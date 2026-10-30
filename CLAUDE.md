@@ -734,6 +734,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   streets at once; Auto lets it roll); GRAPHICS (`Quality.force_level()`; Auto adapts again);
   the seed and Rebuild (`WorldState.pending_seed` + `reload_current_scene()`); Quit - and a
   CONTROLS card on the right. `post_room_shot.gd MODE=pause` shows it in seconds.
+- Settings (2026-10-30, docs/HANDOFF.md "The settings screen"): the pause menu's Settings button
+  opens a screen of sliders and On / Off chips over `GameSettings` (`scripts/ui/game_settings.gd`,
+  static; ConfigFile at user://settings.cfg, loaded once and applied on every city load): look
+  sensitivity (a multiplier on CameraRig's exports) and invert, FOV on foot and in cars
+  (`CameraRig.car_fov`), Master / World / Ambience bus volumes, motion blur, DOF
+  (`CameraPost.user_dof`), grain and vignette (the lens layer), render scale (`Quality.user_scale`),
+  HUD size (`GameSettings.hud_scale` in every HUD piece's window scale). Defaults = the game as it
+  was. `SETTINGS_MENU=0` is the A/B; checks `tests/settings_menu_checks.gd` (a test path).
 - Photo mode (2026-10-05, `PhotoMode`, `scripts/ui/photo_mode.gd`, a CanvasLayer (6) the pause
   menu adds beside itself in the city scene): `photo_mode` (P / right stick click) pauses the tree
   AND sets `Engine.time_scale` 0 - the render step is scaled by it, so shader TIME stops too
