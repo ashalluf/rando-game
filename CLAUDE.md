@@ -4389,8 +4389,10 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   under the "under_hat" meta), `pace()` (hurry), `on_walk_end()` (a bus-stop seat - a life seat
   whose record's kind is "bus_stop" - or a doorway by `_plan_wall()`; over `LEAVE_LEVEL` a share
   go in: hidden, layer 0, hit shape off, back out under it), `settle_now()` for whoever comes into
-  range mid-rain. Rolls are `hash(seed, "rain")`. Hooks: four lines in Pedestrian, one in
-  Weather. `RAIN_CROWD=0` the A/B; `RAIN_STAGE=<level>` / `RAIN_FOCUS=` on `still_shot.gd`;
+  range mid-rain. Past it, out to `FAR_REACH` (140 m), an umbrella carrier shows a coarse open
+  canopy over the head (`RainGear.umbrella_far()`, 86 triangles, no arm pose; `RAIN_FAR=0` the
+  A/B) and everyone hurries. Rolls are `hash(seed, "rain")`. Hooks: four lines in Pedestrian, one
+  in Weather. `RAIN_CROWD=0` the A/B; `RAIN_STAGE=<level>` / `RAIN_FOCUS=` on `still_shot.gd`;
   `crowd_lab.tscn SCENARIO=rain` (seconds); checks `tests/rain_crowd_checks.gd`.
 - Dogs (2026-10-05, "realistic dogs, so the dog walkers can come back"; docs/HANDOFF.md, the
   dogs section): built in CODE like the birds. **`DogMesh`** (`scripts/npc/dog_mesh.gd`) builds six

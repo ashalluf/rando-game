@@ -14458,5 +14458,23 @@ umbrellas held, `14` a hood up). EYEs above; `RAIN_STAGE=0.7` (rain) / `1.0` (st
 the wet sheen and beads. No umbrella collisions between neighbours (two holders can pass through
 each other's canopies) and no canopy clearance under low awnings (a holder in a doorway folds it).
 Awnings are not detected as such: shelter is any wall the ray finds. The hood is skinned to the
-head only (a big head turn swings its drape). Far people (past 60 m) do nothing, so from the air a
-storm's streets still carry walkers. Dog walkers and joggers keep going (no umbrella).
+head only (a big head turn swings its drape). Dog walkers and joggers keep going (no umbrella).
+
+**Wave 3 (finished on main 95bd13f).** The branch was merged with main (only the docs and the
+smoke test's check list conflicted: both kept) and one gap closed, the one a player sees most: the
+far crowd. Past crowd life's 60 m, out to `RainCrowd.FAR_REACH` (140 m, Pedestrian's `lod_far`:
+`_lod_stride` <= 4), an umbrella carrier shows a coarse OPEN canopy over the head
+(`RainGear.umbrella_far()`: the same dome at three rows and two columns a gore plus the shaft,
+86 triangles; `_show_far()`, placed over the Head bone at `FAR_APEX_OVER_HEAD` 0.42 m, where the
+held one ends up), with no arm pose (a figure 20-50 pixels tall); it is gone while they run or
+panic and when the rain stops. `pace()` now applies at any range (far walkers hurry too); the
+shelter, going in and the hood stay near only. `RAIN_FAR=0` is the A/B. In the staged downtown
+load about 110 of ~480 far walkers carry one. Cost (opengl3 GEO, same load and EYE
+`2362,2.2,893,-26.6,-5`, FOV 60, rain at 15:00): 6,772,080 triangles / 3,435 draws with
+`RAIN_FAR=0`, 6,770,956 / 3,460 with it (+25 draws, triangles flat). `RAIN_REPORT=1` on the
+stage now also prints the far umbrellas (positions, and a count a few frames after the stage).
+Checks added: the far canopy shows past life's range, is coarse and over the head, and goes when
+the rain stops. Stills: `15_before_rain_bus_queue` / `16_after_rain_bus_queue` (EYE
+`2472,3.0,1012,4,-3`, FOV 35: the bus queue on the next avenue east, every umbrella open over the
+queue), `17_after_rain_aerial` (EYE `2365,28,975,0,-22`, FOV 55). Still not seen on Forward+.
+Far people do not go in, so from the air a storm's streets still carry walkers.
