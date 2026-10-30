@@ -1696,7 +1696,9 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   lamps, ABANDON - `PanicCar` opens the door, a running Pedestrian gets out, the player may take
   the car via `CarPanic.take()` -, FLOOR), a `cp` state driven by `street_tick()` from one line at
   the top of `TrafficManager._drive_street()`; cars behind honk and pass (`dp_at`) or go ROUND
-  while oncoming cars YIELD. Never a crime by itself. `CAR_PANIC=0` is the A/B; stills `PANIC=` on
+  while oncoming cars YIELD. A placed panic car's body rides a spring (`_body_motion()`: nose
+  dive and rock-back, eased swerve) and a hard stop squeals and lays marks (`PanicSkid`, into
+  DrivingFX's ring). Never a crime by itself. `CAR_PANIC=0` is the A/B; stills `PANIC=` on
   `still_shot.gd`; checks `tests/car_panic_checks.gd`.
 - Big vehicles (2026-10-04, "buses and trucks in traffic"): `BigVehicles`
   (`scripts/vehicles/big_vehicles.gd`) - a 40 ft city bus (`BodyType.BUS`, the invented agency

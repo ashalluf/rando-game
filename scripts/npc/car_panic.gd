@@ -966,6 +966,9 @@ static func advance_shot(tm: TrafficManager, seconds: float) -> void:
 		for c: Vehicle in tm.cars:
 			if not is_instance_valid(c):
 				continue
+			var sk := c.get_node_or_null("PanicSkid") as PanicSkid
+			if sk:
+				sk.step(dt)
 			var pc := c.get_node_or_null("PanicCar") as PanicCar
 			if pc:
 				pc.step(dt)

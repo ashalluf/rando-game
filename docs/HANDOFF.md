@@ -14414,6 +14414,16 @@ of the car and the alarm, nearest first, at most `MAX_PANIC` (12) at once:
 - **FLOOR** - threat behind, or caught in a junction box: cruise speed x1.6 for 5-8 s, driven by
   the ordinary traffic code (lights and queues still hold it).
 
+**The body on its springs** (wave 3). A panic car is placed, not driven on wheels, so it used
+to stop like a sled. `_body_motion()` runs a damped spring on the pitch from the car's own
+deceleration (`DIVE_PER_ACCEL` 0.0042 rad per m/s^2, about 2 degrees in the 8.2 m/s^2 stop,
+capped at `DIVE_MAX`; `DIVE_DAMPING` 0.32, so it rocks back past level once as it stops), eases
+a swerve's turn in (`YAW_EASE`) and rolls into it (`SWAY_ROLL`); state in `t.bd`, gone with
+`_end()`. Above `SKID_SPEED` 6 m/s with a stop of `SKID_DECEL` 6.3 m/s^2 or more, `PanicSkid`
+(`scripts/npc/panic_skid.gd`, a child of the car) squeals (Sfx `skid`, the loop pitched and
+levelled by the speed) and lays four locked-wheel marks in DrivingFX's mark ring (its `_lay()`;
+none with `DRIVING_FX=0`), fading as the car slows; it frees itself under 1.2 m/s.
+
 **Cars behind.** A panicking car standing in its lane carries `dp_at` and `why` 4, so on a street
 with two lanes each way TrafficAI passes it like a double-parked car. The car right behind
 honks (`TrafficAI.honk(..., "panic")`, its rate limits) after `HONK_AFTER` scaled by its mood's
@@ -14434,7 +14444,8 @@ moves faster than 4 m/s off its lane (the bumper's knock threshold) except FLOOR
 kind on a staged one-lane street (forced with `CarPanic.force_kind`), the follower driving past a
 car on the kerb, the follower honking and going round an abandoned car while a staged oncoming
 car yields, the player taking it, the switch, the cap on a blast among 18 cars, and no two cars
-inside each other throughout. `SMOKE_PARTS=car_panic_checks` runs them alone (~4 min with the
+inside each other throughout, and the hard stop's dive, rock, squeal and marks (dive -0.040 rad,
+rock +0.010, 76 marks). `SMOKE_PARTS=car_panic_checks` runs them alone (~4 min with the
 city load). Compile in seconds: `godot --headless --path . --script tools/car_panic/compile.gd`.
 
 **Stills.** `PANIC=brake|swerve|kerb|reverse|abandon` on `tools/glshot/still_shot.gd`

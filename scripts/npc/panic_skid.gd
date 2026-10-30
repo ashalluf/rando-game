@@ -46,6 +46,13 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	step(delta)
+
+
+## One tick (CarPanic.advance_shot() calls it by hand for stills).
+func step(delta: float) -> void:
+	if is_queued_for_deletion():
+		return
 	_age += delta
 	var v := 0.0
 	var on := is_instance_valid(car) and not car.is_wreck() and car.is_traffic() and car.traffic.has("cp")
