@@ -76,7 +76,13 @@ void fragment() {
 	vec3 nw = normalize(n + bw.x * vec3(0.0, tx.y, tx.x) + bw.y * vec3(ty.x, 0.0, ty.y) + bw.z * vec3(tz.x, tz.y, 0.0));
 	float shade = 1.0;
 	vec3 tint = cs_srgb_to_linear(COLOR.rgb) * stone_tint;
-	if (blocks > 0.5) {
+	// COLOR.a 0 is the walkway cap in the far copy: poured concrete, no blocks, no crust.
+	bool cap = COLOR.a < 0.5;
+	if (cap) {
+		tint = cs_srgb_to_linear(COLOR.rgb) * 1.4;
+		alb = mix(vec3(0.5), alb, 0.25);
+	}
+	if (blocks > 0.5 && !cap) {
 		// Cells of block_size: distance to the nearest and second-nearest jittered centre.
 		vec3 p = w / block_size;
 		vec3 ip = floor(p);
@@ -115,6 +121,9 @@ void fragment() {
 	col = mix(col, vec3(0.030, 0.034, 0.024) * (0.7 + 0.6 * wob), crust * 0.92);
 	col = mix(col, vec3(0.62, 0.61, 0.57), lime * 0.75);
 	col *= mix(1.0, 0.55, wet * (1.0 - crust));
+	if (cap) {
+		col = alb * tint * mix(1.0, 0.6, clamp(road_wetness, 0.0, 1.0));
+	}
 	ALBEDO = cs_out(col);
 	ROUGHNESS = clamp(mix(rough * 0.95, 0.18, wet * (1.0 - lime)), 0.05, 1.0);
 	NORMAL = normalize((VIEW_MATRIX * vec4(nw, 0.0)).xyz);

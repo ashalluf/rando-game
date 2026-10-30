@@ -2544,6 +2544,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   loading screen (a crane pose is ~20 ms of GDScript). The ship (`cargo_ship`, now 7 m off the quay, not on it) is
   `PortKit.ship_mesh()`. Look at a change in seconds with `tools/glshot/port_shot.gd` (the kit
   alone; `SHIP=1`, `RAISED=1`, `LOD=n`, `WEAR`).
+- The harbour's lights (2026-10-29, docs/HANDOFF.md "The harbour's lights"): `Lighthouses`
+  (`scripts/world/lighthouses.gd`, data: sites, the breakwater line in `SEG_LEN` pieces, the pad
+  `carve()` in MacroMap.height_at(), `covers()` for the hills' planting) appends landmark entries
+  (`gull_point_light`, `breakwater_<k>`, `harbor_gate_light`); `LighthouseKit` builds them in code
+  (LandmarkGeo; the near meshes cached and warmed with the far copies); `LighthouseBeacon` is a
+  lantern's rotor, turned from the real clock (`LIGHTHOUSE_T=` holds it): the lens, the drawn beams
+  (`lighthouse_beam.gdshader`), the far flashing point (`lighthouse_lamp.gdshader`) and on Forward+
+  the volumetric spots hang on it and read its +X. Armour stones are 6 chipped-box shapes in
+  MultiMeshes on `armour_stone.gdshader` (`blocks` 1 = the far mound draws its own blocks).
+  `LIGHTHOUSES=0` is the A/B; probe `tools/lighthouses/probe.tscn`; checks
+  `tests/lighthouses_checks.gd`.
 - Port life (2026-10-05, "the container terminal comes alive"; docs/HANDOFF.md, the port-life
   section): `PortLife` (`scripts/world/port_life.gd`, a plain Node the first FULL port chunk adds
   under the city root, `PortLife.ensure()`) draws everything that moves, **worked out from the

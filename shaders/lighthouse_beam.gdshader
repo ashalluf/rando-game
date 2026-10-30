@@ -15,10 +15,10 @@ render_mode unshaded, blend_add, cull_disabled, depth_draw_never, shadows_disabl
 global uniform float lamp_factor;
 // Linear colour of the light, and how bright the shaft's core is.
 uniform vec3 beam_color = vec3(1.0, 0.93, 0.78);
-uniform float strength = 0.55;
+uniform float strength = 0.16;
 // The shaft's falloff along its length (power of 1 - t) and how sharply it fades to its edges.
-uniform float length_falloff = 1.6;
-uniform float edge_power = 2.6;
+uniform float length_falloff = 2.6;
+uniform float edge_power = 5.0;
 // Metres from the camera over which the shaft fades in.
 uniform float near_fade = 18.0;
 // Extra brightness close to the lens (the hot core of the beam).

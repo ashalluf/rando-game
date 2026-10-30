@@ -295,6 +295,14 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-29 The harbour's lights (HANDOFF "The harbour's lights").** A lighthouse on the
+  headland's south-east cliff and a breakwater light at the end of a long rubble breakwater off the
+  port, both landmarks (far copy everywhere, near in the FULL chunk; the breakwater is 15 pieces so
+  the part round the player is the detailed one). Fixed geography, not seeded: the headland and the
+  port do not move with the seed. The lighthouse stands on a pad carved into the headland
+  (Lighthouses.carve() in MacroMap.height_at()). A lantern's beam axis is its rotor node's +X, read
+  off MODEL_MATRIX by the lamp and lens shaders, so nothing per frame is set from script and every
+  copy turns in step off the real clock. Names invented (GULL POINT LIGHT, HARBOR GATE LIGHT).
 - **2026-10-05 Apartments: the first per-style kit (G2; HANDOFF "Apartment buildings").** Midtown's
   low-rise lots and the inner suburbs get LA stucco apartments - walk-ups with galleries and open
   stairs, bungalow courts, Spanish courts, podium blocks - instead of storefront boxes and single

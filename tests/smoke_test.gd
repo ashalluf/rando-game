@@ -2330,6 +2330,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/street_lamps_checks.gd").new().run(self, city)
 	# Apartments (tests/apartments_checks.gd): midtown and inner-suburb walk-ups, courts and podiums.
 	load("res://tests/apartments_checks.gd").new().run(self, city)
+	# The harbour's lights (tests/lighthouses_checks.gd): the lighthouse's pad, the breakwater at sea,
+	# the gate light, the rotors' clock, the near builds and their collision, LIGHTHOUSES=0.
+	await load("res://tests/lighthouses_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

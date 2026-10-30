@@ -51,7 +51,9 @@ const PORCH_TOP := 3.95
 const LAMP_OVER_BASE := 2.0
 
 ## Armour stone shapes (chipped boxes) and how many rows a flank carries.
-const STONE_SHAPES := 6
+const STONE_SHAPES := 3
+## Armour stones are drawn to this far; past it the mound's shader draws the blocks.
+const STONE_DRAW := 260.0
 
 static var _mats: Dictionary = {}
 static var _stones: Array[Mesh] = []
@@ -631,7 +633,7 @@ static func beam_mesh(n: int, length: float) -> Mesh:
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var sides := 14
 	var rings := [0.0, 0.004, 0.02, 0.06, 0.15, 0.32, 0.55, 0.8, 1.0]
-	var spread := tan(deg_to_rad(1.9))
+	var spread := tan(deg_to_rad(1.15))
 	for k in n:
 		var yaw := TAU * float(k) / float(n)
 		var b := Basis(Vector3.UP, yaw)
@@ -1047,7 +1049,9 @@ static func build_breakwater(parent: Node3D, statics: StaticBody3D, k: int, _pla
 	var yaw := Basis(Vector3.UP, atan2(-d.y, d.x))
 	for i in slabs:
 		var m := a.lerp(b, (float(i) + 0.5) / float(slabs))
-		g.box("concrete", Vector3(m.x, cap_top - 0.7, m.y), Vector3(length / slabs - 0.03, 1.4, cw), CONCRETE, yaw, 0.04 if detailed else 0.0)
+		# Far, the cap is the mound's own surface (COLOR.a 0: armour_stone.gdshader's concrete).
+		g.box("concrete" if detailed else "core", Vector3(m.x, cap_top - 0.7, m.y), Vector3(length / slabs - 0.03, 1.4, cw),
+			CONCRETE if detailed else Color(CONCRETE.r, CONCRETE.g, CONCRETE.b, 0.0), yaw, 0.04 if detailed else 0.0)
 	if statics:
 		var body := StaticBody3D.new()
 		body.name = "BreakwaterBody_%d" % k
@@ -1105,7 +1109,7 @@ static func _armour(root: Node3D, a: Vector2, b: Vector2, s0: float, k: int) -> 
 	var ch := Lighthouses.CREST_HALF
 	var slope := Lighthouses.FACE_SLOPE
 	# Rows by horizontal offset from the crest line; the last ones are under water.
-	var rows := [2.85, 4.6, 6.4, 8.2, 10.0, 11.8]
+	var rows := [2.85, 4.6, 6.4, 8.2, 10.0]
 	var face_n := Vector3(0.0, 1.0, 0.0)
 	for side: float in [-1.0, 1.0]:
 		var fn2 := n * side
@@ -1130,6 +1134,8 @@ static func _armour(root: Node3D, a: Vector2, b: Vector2, s0: float, k: int) -> 
 				var at := Vector3(p.x, y - 0.25 * s, p.y)
 				var sh := absi(hash(key + ["k"])) % STONE_SHAPES
 				batch.add("bw_stone_%d" % sh, stone_mesh(sh), Transform3D(basis, at), _stone_tint(key))
+	for sh in STONE_SHAPES:
+		batch.set_draw_distance("bw_stone_%d" % sh, STONE_DRAW)
 	batch.build(root)
 
 
