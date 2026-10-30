@@ -17624,7 +17624,8 @@ per car.
   step), `ws_dry()`, `ws_rain()` (rain now, 0 once drying), `ws_beads()` (two skewed lattices of
   domed beads, rim AA'd by the pixel, unresolved = their area), `ws_runs()` (wandering threads with a
   drop and a trail running down), `ws_wall(down, up, streak)` (a facade wets from the TOP DOWN - the
-  front reaches `34 x wetness` m, `16 x` more down a streak - the foot is splashed at once; drying,
+  front reaches `60 x wetness` m, `40 x` more down a streak, a long hard rain wets a tower all the
+  way down to 0.6 - the foot is splashed at once; drying,
   open wall first, streaks and the foot last), `ws_frame()`, `ws_noise()`. Never include it with
   `wet_drying.gdshaderinc` (both declare `road_drying`).
 - **Cars**: `car_paint.gdshaderinc` - the coat 20 % deeper under its film, beads in the body MESH's

@@ -71,15 +71,18 @@ float ws_wet(float hold) {
 // the same): `down` metres under the wall's top (< 0 unknown: a tower's curved faces), `up` metres
 // over its foot, `streak` 0..1 how much water runs down this column (under a sill, off the coping).
 // The rain wets a facade from the top down - the front reaches further the longer it rains
-// (`road_wetness`) and runs ahead down the streaks - with the splash zone at the foot wet at once;
+// (`road_wetness`) and runs ahead down the streaks, and a long hard rain wets the whole height a
+// little - with the splash zone at the foot wet at once;
 // drying, the open wall goes first and the streaks and the foot last.
 float ws_wall(float down, float up, float streak) {
 	float w = clamp(road_wetness, 0.0, 1.0);
-	float reach = w * 34.0 + streak * w * 16.0 + 1.5;
+	float reach = w * 60.0 + streak * w * 40.0 + 1.5;
 	float front = down < 0.0 ? smoothstep(0.0, 0.25, w) : 1.0 - smoothstep(reach - 3.0, reach, down);
 	float splash = (1.0 - smoothstep(0.35, 0.9, up)) * smoothstep(0.0, 0.15, w);
-	float raining = max(front * mix(0.8, 1.0, streak), splash);
-	float drying = ws_dry(0.2 + 0.55 * streak + 0.3 * (1.0 - smoothstep(0.3, 1.2, up)));
+	// A long hard rain driven by the wind wets a tall wall all the way down, past the front.
+	float driven = 0.6 * smoothstep(0.45, 1.0, w);
+	float raining = max(max(front * mix(0.8, 1.0, streak), splash), driven);
+	float drying = ws_dry(0.2 + 0.55 * streak + 0.5 * (1.0 - smoothstep(0.3, 1.2, up)));
 	return mix(raining, drying, clamp(road_drying, 0.0, 1.0));
 }
 

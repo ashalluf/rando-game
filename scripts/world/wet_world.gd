@@ -35,9 +35,10 @@ static func dry(hold: float, w: float) -> float:
 ## carries `streak` of the water, at wetness `w` and drying `d`.
 static func wall(down: float, up: float, streak: float, w: float, d: float) -> float:
 	w = clampf(w, 0.0, 1.0)
-	var reach := w * 34.0 + streak * w * 16.0 + 1.5
+	var reach := w * 60.0 + streak * w * 40.0 + 1.5
 	var front := smoothstep(0.0, 0.25, w) if down < 0.0 else 1.0 - smoothstep(reach - 3.0, reach, down)
 	var splash := (1.0 - smoothstep(0.35, 0.9, up)) * smoothstep(0.0, 0.15, w)
-	var raining := maxf(front * lerpf(0.8, 1.0, streak), splash)
-	var drying := dry(0.2 + 0.55 * streak + 0.3 * (1.0 - smoothstep(0.3, 1.2, up)), w)
+	var driven := 0.6 * smoothstep(0.45, 1.0, w)
+	var raining := maxf(maxf(front * lerpf(0.8, 1.0, streak), splash), driven)
+	var drying := dry(0.2 + 0.55 * streak + 0.5 * (1.0 - smoothstep(0.3, 1.2, up)), w)
 	return lerpf(raining, drying, clampf(d, 0.0, 1.0))

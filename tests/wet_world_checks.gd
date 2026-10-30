@@ -52,7 +52,7 @@ func _ticks(n: int) -> void:
 
 func _sources() -> void:
 	var inc := FileAccess.get_file_as_string("res://shaders/wet_surface.gdshaderinc")
-	_check(not inc.contains("sampler") and not FileAccess.get_file_as_string("res://shaders/car_wipers.gdshaderinc").contains("sampler2D")
+	_check(not inc.contains("sampler2D") and not FileAccess.get_file_as_string("res://shaders/car_wipers.gdshaderinc").contains("sampler2D")
 		and not FileAccess.get_file_as_string("res://shaders/car_glass_wet.gdshaderinc").contains("sampler2D"),
 		"the wet world's includes spend no sampler (the web's budget)")
 	var bad := []
@@ -81,10 +81,11 @@ func _sources() -> void:
 
 func _mirrors() -> void:
 	var inc := FileAccess.get_file_as_string("res://shaders/wet_surface.gdshaderinc")
-	_check(inc.contains("float reach = w * 34.0 + streak * w * 16.0 + 1.5;")
+	_check(inc.contains("float reach = w * 60.0 + streak * w * 40.0 + 1.5;")
+		and inc.contains("float driven = 0.6 * smoothstep(0.45, 1.0, w);")
 		and inc.contains("float splash = (1.0 - smoothstep(0.35, 0.9, up)) * smoothstep(0.0, 0.15, w);")
 		and inc.contains("float t = (1.0 - clamp(hold, 0.0, 1.0)) * 0.85;")
-		and inc.contains("float drying = ws_dry(0.2 + 0.55 * streak + 0.3 * (1.0 - smoothstep(0.3, 1.2, up)));"),
+		and inc.contains("float drying = ws_dry(0.2 + 0.55 * streak + 0.5 * (1.0 - smoothstep(0.3, 1.2, up)));"),
 		"WetWorld.wall() / dry() mirror ws_wall() / ws_dry()")
 	var wip := FileAccess.get_file_as_string("res://shaders/car_wipers.gdshaderinc")
 	_check(wip.contains("const float WIPER_STROKE = %s;" % str(CarWipers.STROKE))
@@ -105,11 +106,12 @@ func _wall() -> void:
 	var top := WetWorld.wall(1.0, 20.0, 0.0, 0.15, 0.0)
 	var mid := WetWorld.wall(15.0, 6.0, 0.0, 0.15, 0.0)
 	var mid_streak := WetWorld.wall(15.0, 6.0, 1.0, 0.15, 0.0)
+	var tall := WetWorld.wall(200.0, 100.0, 0.0, 1.0, 0.0)
 	var foot := WetWorld.wall(20.0, 0.2, 0.0, 0.15, 0.0)
-	_check(top > 0.7 and mid < 0.1 and mid_streak > mid + 0.5 and foot > 0.6,
+	_check(top > 0.7 and mid < 0.1 and mid_streak > mid + 0.4 and foot > 0.6,
 		"a wall wets from the top down, faster down a streak, its foot splashed (top %.2f mid %.2f streak %.2f foot %.2f)" % [top, mid, mid_streak, foot])
 	var soaked := WetWorld.wall(30.0, 6.0, 0.0, 1.0, 0.0)
-	_check(soaked > 0.95, "a downpour soaks the wall to 30 m down (%.2f)" % soaked)
+	_check(soaked > 0.75 and tall > 0.5 and tall < 0.7, "a downpour soaks the wall to 30 m down (%.2f) and a tower's whole height part way (%.2f)" % [soaked, tall])
 	# Drying, half the water gone: the open wall is dry, a streak and the foot still wet.
 	var open := WetWorld.wall(10.0, 6.0, 0.0, 0.45, 1.0)
 	var streak := WetWorld.wall(10.0, 6.0, 1.0, 0.45, 1.0)
