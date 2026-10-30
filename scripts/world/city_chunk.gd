@@ -400,7 +400,12 @@ func begin_build() -> void:
 			# sea chunks built: its terrain ran down to sea level with no water over it.
 			if _headland_shore(false):
 				_steps.append(_build_water)
-			_steps.append_array([_sample_terrain, _mark_shell_ground, _build_terrain, _build_hill_shells, _build_hill_roads, _on_map_ground(_build_mansions), _on_map_ground(_scatter_hills), _on_map_ground(_plant_hills)])
+			_steps.append_array([_sample_terrain, _mark_shell_ground])
+			# The dry creek beds (Arroyos): the bed's field, before the mesh carries the shells' keep-out.
+			_steps.append_array(ArroyoBuild.field_steps(self))
+			_steps.append_array([_build_terrain, _build_hill_shells, _build_hill_roads, _on_map_ground(_build_mansions), _on_map_ground(_scatter_hills), _on_map_ground(_plant_hills)])
+			for step in ArroyoBuild.build_steps(self):
+				_steps.append(_on_map_ground(step))
 		MacroMap.Zone.BEACH:
 			if replica_role == 0:
 				_steps.append(_build_roads.bind(block))
@@ -1951,6 +1956,8 @@ func _plant_hills() -> bool:
 				continue
 			if plan.macro.reservoir and plan.macro.reservoir.keep_clear(p, h):
 				continue
+			# Nothing in a dry creek's bed (ArroyoBuild): the point still makes every roll it would.
+			var in_bed := ArroyoBuild.in_bed(self, p, 0.6)
 			var grad := Vector2(_terrain_height(p + Vector2(2.0, 0.0)) - _terrain_height(p - Vector2(2.0, 0.0)),
 				_terrain_height(p + Vector2(0.0, 2.0)) - _terrain_height(p - Vector2(0.0, 2.0))) * 0.25
 			# The drainage off the tile's own grid, as the shader gets it through the vertex colour.
@@ -1969,6 +1976,8 @@ func _plant_hills() -> bool:
 				# metres a canopy tinted below 1 drew as a black hole in the hillside.
 				var tint := Color(1.35, 1.4, 0.85).lerp(Color(1.6, 1.62, 1.0), tone)
 				var variety := Color(rng.randf(), rng.randf(), rng.randf_range(0.0, 0.5), 0.0)
+				if in_bed:
+					continue
 				# A California sycamore in the wettest hollows (LaTrees, hashes only).
 				if not LaTrees.gully_tree(self, at - Vector3(0.0, 0.1, 0.0), yaw, wet):
 					_batch.add("hill_oak_%d" % v, PropFactory.model_hill_oak(v), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at - Vector3(0.0, 0.1, 0.0)), tint, variety)
@@ -1989,6 +1998,8 @@ func _plant_hills() -> bool:
 				# Few leaves thinned out: a stand is dense. Half as wide again as tall, so the shrubs of
 				# a stand close up into one mass at no extra triangles (at 1.15 they stood apart as dots).
 				var variety := Color(rng.randf() * 0.3, rng.randf(), rng.randf(), 0.0)
+				if in_bed:
+					continue
 				_batch.add("hill_chaparral", chap, Transform3D(tilt.scaled(Vector3(s * 1.45, s, s * 1.45)), at - Vector3(0.0, 0.2 + float(g.slope) * 1.5, 0.0)), tint, variety)
 				hill_planting.chaparral += 1
 				points.append([p, "chaparral"])
@@ -1996,7 +2007,10 @@ func _plant_hills() -> bool:
 				# A lone grey-green shrub out on the straw.
 				var s := lerpf(1.0, 1.7, size) / chap_h
 				var tint := Color(1.9, 1.95, 1.6)
-				_batch.add("hill_chaparral", chap, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s * 1.1, s, s * 1.1)), at - Vector3(0.0, 0.15, 0.0)), tint, Color(rng.randf(), rng.randf(), 0.8, 0.0))
+				var sage_var := Color(rng.randf(), rng.randf(), 0.8, 0.0)
+				if in_bed:
+					continue
+				_batch.add("hill_chaparral", chap, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s * 1.1, s, s * 1.1)), at - Vector3(0.0, 0.15, 0.0)), tint, sage_var)
 				hill_planting.sage += 1
 				points.append([p, "sage"])
 	_plant_row = stop

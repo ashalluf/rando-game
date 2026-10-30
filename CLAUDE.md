@@ -3044,6 +3044,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/ridges/probe.tscn` (`OUT=` draws a map; clearances per span), compile with
   `tools/ridges/compile.gd`, test the wire shader alone with `tools/ridges/wire_test.tscn`.
   Checks: `tests/ridges_checks.gd`.
+- Dry creek beds (2026-10-30, docs/HANDOFF.md "Dry creek beds"): `Arroyos`
+  (`scripts/world/arroyos.gd`) is the network - the natural mountains (`raw_height_at()`) on a 32 m
+  grid over every range, priority-flooded D8 (a bucket queue: the eroded ranges' pits spill),
+  catchments, every cell over `MIN_CATCH` a channel, traced head to junction, rounded, resampled
+  every `STEP`, SNAPPED per point to the lowest ground across (`snapped()`, pure: chunks agree);
+  built a slice a call, on the loading screen, kept in LoadCache. `ArroyoBuild` (hooks in the
+  HILLS step list: `field_steps()` after `_mark_shell_ground`, `build_steps()` after the planting)
+  keeps the bed on natural ground (`Arroyos.natural()`: height_at against raw + relief), lowers
+  the shells' keep-out, draws the tile's own triangles near a bed again, subdivided, on
+  `shaders/arroyo_bed.gdshader` (FULL and LOD), and at FULL lays code cobbles (`ArroyoKit.pebble`),
+  boulders, willows (LaTrees' olive, greener), mule fat, sycamores and culverts (`ArroyoKit
+  .culvert_mesh`; a drop inlet in the ditch when the road is benched). `_plant_hills` skips the bed
+  after its rolls. `ARROYOS=0` is the A/B; probes `tools/arroyos/` (`net_probe` a map,
+  `probe` culvert EYEs); checks `tests/arroyos_checks.gd`.
 - Far estates (2026-10-05, docs/HANDOFF.md "Hillside estates at night"): past the FULL chunks
   (LOD chunks and Skyline) `EstateFar.parts(plan, m, real)` (pure, hashes of the seed) adds to
   HillHomeKit's house, from `HillHomeKit.plan_home()`: the pad's garden over the pavers, the

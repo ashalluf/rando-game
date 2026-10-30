@@ -359,6 +359,13 @@ already mapped so milestone 2 is script-only.
   horizon plane's drawn ground), with outcrops, scree and cut-bank boulders up close. Scans keep
   one level: their generated LODs shred along the open UV seams, so the distance gets welded
   copies. docs/HANDOFF.md "Rock outcrops"; `ROCKS=0` is the A/B.
+- **2026-10-30 Dry creek beds down the canyon floors (HANDOFF 9gv, arroyos).** Every major gully of
+  the ranges carries a wash: the land's own drainage (a priority-flooded D8 network over the
+  natural mountains, `Arroyos`), snapped into the real gully floor, drawn on a FULL or LOD hill tile
+  as a sandy, gravelly, cobbled bed (`shaders/arroyo_bed.gdshader`), with cobbles, boulders,
+  willow and mule-fat thickets and sycamores along it at FULL, and a concrete headwall and
+  corrugated pipe where a drawn hill road crosses it. Hashes only; the hills' planting only skips
+  the bed. `ARROYOS=0` is the A/B.
 - **2026-10-29 Facades are worked out per pane, not per building (owner: "start looking like GTA
   6").** Glass varies pane by pane and floor by floor, blinds hang at their own heights, the glass
   mirrors a street opposite with parallax, curtain walls come in three systems (flush, deep fins,
