@@ -8,3 +8,7 @@ city from `tools/glshot/still_shot.gd` unless named fwd_ (Forward+ through lavap
 - 04 / 05: the harbour mouth, before and after: the breakwater and HARBOR GATE LIGHT on its pier.
 - 06: the lighthouse at 20:50, lantern beams turning, windows lit.
 - 07 / 08: the harbour mouth at night, before and after (08's beams were too heavy and have since been toned down).
+- 09 / 10: the gate light by day and night after the cost cuts (lighter beams, the cap on the mound's surface).
+- 11: from the San Pedro side at night, 2.4 km off: the green flash of HARBOR GATE LIGHT at the left edge (clock held so the beam faces the camera, LIGHTHOUSE_T).
+- 12 / 13: the lighthouse after the fixes (lighter stone foundation, paved walks), and close up at golden hour.
+- 14 / 15 (fwd_): Forward+ through lavapipe, the small scene of the FULL chunks round each eye (tools/glshot/fwd_block_shot.tscn), 21:00: the house lit warm with its porch light and lantern; the gate light's green beam over the water.
