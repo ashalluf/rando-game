@@ -2446,6 +2446,14 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# THE PIT, the boardwalk's skate park (tests/skate_park_checks.gd): the pits, the terrace, the
 	# lines on the concrete, the build and its collision, the riders on the clock, a knock, gunfire.
 	await load("res://tests/skate_park_checks.gd").new().run(self, city)
+	# Stunt ramps (tests/stunt_ramps_checks.gd): where the kickers, the quarter-pipe, the freeway pair,
+	# the loop and the dirt lines stand, their chunks, and the slow-motion moment off a lip.
+	await load("res://tests/stunt_ramps_checks.gd").new().run(self, city)
+	# Weekend yard sales (tests/yard_sales_checks.gd): the kit and its signs, when (weekends only),
+	# the pure front-yard row, a FULL chunk's sale and its corner signs, nothing else moved.
+	load("res://tests/yard_sales_checks.gd").new().run(self, city)
+	# The hills' real rock (tests/rock_outcrops_checks.gd): tors, outcrops, cut-bank boulders.
+	load("res://tests/rock_outcrops_checks.gd").new().run(self, city)
 	# Real car interiors and hinged doors (tests/car_cabins_checks.gd): the cabin by a parked car,
 	# getting in and out swings the door, the wheel turns, a crash tears a door off.
 	await load("res://tests/car_cabins_checks.gd").new().run(self, city)

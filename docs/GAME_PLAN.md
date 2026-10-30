@@ -339,6 +339,19 @@ already mapped so milestone 2 is script-only.
   the city moves. Code-built meshes at real size, one MultiMesh per kind and level, motion in the
   vertex shader; `SEA_LIFE=0` is the A/B.
 
+- **2026-10-30 A stunt playground hidden in the real city (HANDOFF "Stunt ramps").** Kickers on
+  car park roofs, quarter-pipes in the river channel, a freeway ramp pair and loops on the industrial
+  right of way, a pier kicker and dirt jumps in vacant lots, each where a stunt crew would put it and
+  never on a traffic lane, every site a hash after every existing roll. Slow motion on a big launch
+  uses Engine.time_scale on the real clock, as the weapon wheel does, and yields to any other owner.
+- **2026-10-30 The hills' rock is real rock, and the ranges get crags on the skyline (fleet wave 3,
+  wt/rock-outcrops).** The lead's review of the reference stills: from the city and the freeway the
+  mountains read as smooth tan humps and cones. Photoscanned CC0 cliffs and boulders now stand where
+  the terrain paints rock - on the crests, the steepest faces and, stood up into 30-80 m spires and
+  fins, on the summits - at every distance (one node draws them all; a far rock is seated on the
+  horizon plane's drawn ground), with outcrops, scree and cut-bank boulders up close. Scans keep
+  one level: their generated LODs shred along the open UV seams, so the distance gets welded
+  copies. docs/HANDOFF.md "Rock outcrops"; `ROCKS=0` is the A/B.
 - **2026-10-29 Facades are worked out per pane, not per building (owner: "start looking like GTA
   6").** Glass varies pane by pane and floor by floor, blinds hang at their own heights, the glass
   mirrors a street opposite with parallax, curtain walls come in three systems (flush, deep fins,
@@ -1752,6 +1765,12 @@ already mapped so milestone 2 is script-only.
   hooks, so its windows, shops, damage and coded far boxes are unchanged) with the ornament as
   real geometry on its window grid; the old 150 ft limit holds. docs/HANDOFF.md "The historic
   core"; CLAUDE.md "Historic core".
+- **2026-10-30 Weekend yard sales.** A hash of seed + lot picks the suburban and beach-town
+  houses that hold a yard sale on a Saturday, a Sunday or both, with hours; the chunk builds what
+  is out at the hour and day it is built at, on YardFill's plan of the front yard (one row of
+  tables and things, the browsers in front of it, on the pavement where the yard is shallow).
+  Hand-lettered signs come from SignFont's strokes with a wobble per glyph. FULL chunks only;
+  `YARD_SALES=0` is the A/B (docs/HANDOFF.md "Weekend yard sales").
 - **2026-10-30 An island on the horizon, drawn by the sky.** Isla Calandra (original; the form of
   the Channel Islands) stands 36 km offshore, three times past the 12 km far plane, so it is not
   a mesh: sky.gdshader follows each pixel's ray across a height field in true-world kilometres

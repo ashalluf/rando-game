@@ -1849,6 +1849,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   dive and rock-back, eased swerve) and a hard stop squeals and lays marks (`PanicSkid`, into
   DrivingFX's ring). Never a crime by itself. `CAR_PANIC=0` is the A/B; stills `PANIC=` on
   `still_shot.gd`; checks `tests/car_panic_checks.gd`.
+- Stunt ramps (2026-10-30, docs/HANDOFF.md "Stunt ramps"): `StuntRamps` (`scripts/world/stunt_ramps.gd`,
+  pure, hashes after every roll) plans a steel kicker in a car park's roof aisle past its last light
+  pole, a concrete quarter-pipe at the toe of the LA River's bank across the bed from an access
+  ramp, a ramp pair square across a straight freeway stretch and a loop-the-loop beside one on the
+  INDUSTRIAL right of way (Footbridges' corridor tests), a kicker at RANDO PIER's sea end, and dirt
+  tabletops down a bare vacant lot's ruts. `StuntKit` builds them in code on ONE shader
+  (`shaders/stunt_ramp.gdshader`, kind in COLOR.a 16ths), `StuntBuild` (one hook in `begin_build()`,
+  one after `VacantLots.build_lot()`) puts each in the chunk owning its foot with trimesh collision
+  and collapses the planting under the freeway pieces (`_run_last`). `StuntDirector` (one node under
+  the root) watches the player's body cross a lip fast and get airborne: Engine.time_scale and the
+  audio eased to `slow_time_scale` on the REAL clock, `camera_fov` + `fov_kick`, released on landing,
+  after `max_seconds`, or as soon as anything else writes the time scale; it also presses a car onto
+  the loop's track. `STUNT_RAMPS=0` / `STUNT_SLOWMO=0` the A/B; probe `tools/stunt_ramps/probe.tscn`;
+  stills `STUNT=<kind|id>[:t]` on `still_shot.gd`; checks `tests/stunt_ramps_checks.gd`.
 - Motorcycles (2026-10-06, docs/HANDOFF.md "Motorcycles"): `Motorcycle`
   (`scripts/vehicles/motorcycle.gd`, extends Vehicle; BodyType MOTO_SPORT / MOTO_CRUISER /
   MOTO_SCOOTER appended, BODY_ODDS 0) - bodies from `tools/make_motorcycles.py` (Blender or the
@@ -2968,6 +2982,18 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/glshot/hill_ground_shot.tscn`, a minute a shot): `tools/hill_homes/probe.tscn`; build
   times `tools/hill_homes/bench.tscn`; the checks alone `tools/hill_homes/check_runner.tscn`;
   checks: `tests/hill_homes_checks.gd`.
+- Rock outcrops (2026-10-30, docs/HANDOFF.md "Rock outcrops"): real rock on the hills from CC0
+  Poly Haven scans (`RockKit`, `scripts/world/rock_kit.gd`, all on `shaders/rock_outcrop.gdshader`:
+  the scan's luminance recoloured to sandstone / granite per instance, desert varnish, dust on top,
+  dirt at the foot). `RockOutcrops` plans ~7,000 TORS from the basin bake where `HillPlanting`
+  paints rock, on crests, steep faces and summits (crags 30-80 m: the skyline from the basin;
+  LoadCache'd); `RockFar` (the streamer's child, one hook line) draws every tor at every distance
+  (near cells: the scan, one level; far cells: the welded `rock_*_mid.glb` with LODs, triplanar),
+  seated on the horizon plane unless a chunk `claim()`ed it (FULL / LOD drew the real terrain).
+  `RockBuild` (one hook in `begin_build()`): tor collision, outcrops, scree and cut-bank boulders
+  in FULL hill chunks. **Never use a scan's generated LODs**: open UV seams shred it into flakes
+  (`tools/rocks/make_rock_lods.py` welds instead). `ROCKS=0` is the A/B; `tools/rocks/rock_shot.gd`
+  the kit, `tools/rocks/probe.tscn` the plan (NEAR=, ROAD= EYEs); checks `tests/rock_outcrops_checks.gd`.
 - Ridges (2026-10-05, docs/HANDOFF.md "What stands on the hills"): what stands on the hills -
   two 220 kV transmission lines, an antenna farm, fire roads, a fire lookout, green water tanks,
   radar / weather domes and a substation. **Data**: `Ridges` (`scripts/world/ridges.gd`,
@@ -3651,6 +3677,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   classes by path (naming them compiles the crowd into every tool that loads YardFill).
   `BACKYARDS=0` is the A/B; probe `tools/backyards/probe.gd`, fit `tools/backyards/lounger_shot.tscn`;
   checks `tests/backyards_checks.gd`.
+- Yard sales (2026-10-30, docs/HANDOFF.md "Weekend yard sales"): `YardSales`
+  (`scripts/world/yard_sales.gd`, one line after each `Backyards.block()` in YardFill) - a hash of
+  seed + lot holds a sale on Saturday / Sunday (`sale_info()`, `state_at()`: SETUP / OPEN /
+  LEFTOVER, FarmersMarket's day and hour, rain calls it off); `plan_lot()` is PURE on YardFill's
+  lot plan: one row in the front yard, the aisle in it or on the pavement where the yard is
+  shallow. `YardSaleKit` (code meshes, `shaders/yard_sale.gdshader`, kind in COLOR.a x 16, signs
+  hand-lettered from SignFont), things are EncampmentItems, corner signs taped to `upole` / lamp
+  poles, a StreetVendor seller and `YardSaleBrowser`s. FULL only. `YARD_SALES=0` is the A/B,
+  `YARD_SALE=all` every candidate today; probe `tools/yard_sales/probe.tscn`; checks
+  `tests/yard_sales_checks.gd`.
 - Lawns: `PropFactory.lawn()` + `shaders/lawn.gdshader`, not a plain tiled texture - a 5 m tile
   mips down to one flat green rectangle from thirty metres up, and the grass-blade multimesh only
   reaches a few dozen metres. Dry/watered patches, mower stripes angled per lawn, worn dirt, and
