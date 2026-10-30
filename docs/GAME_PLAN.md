@@ -305,6 +305,14 @@ already mapped so milestone 2 is script-only.
   ones, and parks up to 40 % more cars on the kerb spots a block's own pass left empty (a hash per
   spot after every roll). The traffic's own rng rolls more (traffic was never seed-fixed).
   BUSY_STREETS=0 is the A/B.
+- **2026-10-30 The sunset is the sun as it reaches each cloud (fleet wave 3, `sunset-clouds`).**
+  Rather than tint the clouds by the hour, a `sunset` weight on the sun's elevation (SunsetSky)
+  switches sky.gdshader to a per-point model: Rayleigh + aerosol air masses to the point, the
+  earth's shadow by tangent height, so cumulus bases glow from below after the street's sunset,
+  crowns go violet, the cirrus keep an afterglow and the deck goes dark from the bottom up. It is 0
+  outside ~16:50-18:55 and every block it adds is gated: noon is bit-identical (proven), the cost
+  flat. SUNSET_CLOUDS=0 is the A/B.
+
 - **2026-10-30 The blast is built frame by frame (fleet wave 3, `explosions-2`).** The rocket and
   car explosions get a second layer on top of WeaponFX's (`BlastFX`, one call): flash light and
   screen flash, a screen-reading pressure wave (desktop only), fire rolling upward, a LIT smoke cap
@@ -3585,6 +3593,25 @@ already mapped so milestone 2 is script-only.
   stretches stay asphalt. Every close-up detail is a shader pass on the existing meshes (no
   geometry, no rolls), lamp halos reuse NightAtmos, and the rush hours fill the freeway through
   the existing single roll a slot. `FREEWAY_CLOSEUP=0` restores all of it.
+- **2026-10-30 The beach at golden hour is a shader pass on the sand and the towers (beach-golden,
+  HANDOFF "The beach at golden hour").** Decisions: everything is a hash of true world position in
+  the shader (ripples, hummocks, footprint trails, the damp tide band and its pools, the wrack
+  line, glints, the towers' wear), so nothing rolls and no seed's beach moves; the tower's paint
+  and timber are new vertex-alpha codes on the same geometry; the sand's sky mirror takes
+  `sky_tint` through `cs_as_uniform()` (it was a stop too bright on Forward+). `BEACH_GOLDEN=0`
+  restores both shaders' old paths exactly.
+
+- **2026-10-30 Grounded light: tune the GI per level, ground everything with contact quads
+  (gi-review, HANDOFF "Grounded light").** Measured on Forward+ (lavapipe, small scenes, the
+  player's auto exposure): HIGH's shade is SDFGI's alone and was too dark in enclosed spaces
+  (alley 33/255, underpass 13), while MEDIUM's unoccluded sky fill doubled it and flattened it.
+  Decisions: the per-level numbers live in one table (`GiTuning`) that Quality applies; HIGH gets
+  SDFGI x1.35 by day and bounce 0.9, MEDIUM and below a 0.7 sky contribution (Godot ignores
+  ambient energy at contribution 1.0, so that was the only knob); every car, loose prop and piece
+  of street furniture gets a soft contact quad on BOTH renderers (one MultiMesh for the dynamic set,
+  one a chunk for furniture), weaker where SDFGI / SSAO already occlude. The deep underpass at HIGH
+  stays dark: a coarser SDFGI cell leaks the sunlit deck through the soffit, so it is left for a
+  fill on the freeway kit.
 
 ## Correction: what build 135 (0ce833f) actually contained
 
@@ -3649,6 +3676,11 @@ none of either.
   regional pores and roughness), brows as strand cards and twice the hair cards. The contract
   (54 bones, clips, material names, hero_x_* maps, eye centres) is held so nothing downstream
   moves. HERO_FACE_2=0 is the shader A/B.
+- 2026-10-30 (wave 3, driving-camera): the car camera is a chase camera (DriveCam) that follows
+  the way the car TRAVELS on a frame-rate-independent spring with a capped corner lag, rather than
+  locking to the car's nose (a drift then shows the car sideways, as GTA does). Shake is sines of
+  the clock, never per-frame noise, so it never strobes at a low frame rate, and it can be turned
+  off in the settings. Aircraft and the helicopter keep the free camera. DRIVE_CAM=0 is the A/B.
 - **2026-10-30 The crowd walks in gaits (HANDOFF 9hp).** Instead of one walk clip for everybody,
   each plain walker gets one of six baked gaits (or the old clip) by a hash of its seed and its
   rig's phenotype, with its own pace, arms and turn rate; the play rate follows each clip's
@@ -3679,6 +3711,18 @@ none of either.
   the per-hour grade instead of a darker frame, day exposure 1.18, night exposure 2.3 with night
   bloom, the night fill and haze cool but not navy, thinner clear haze. tests/cinematic_review_checks.gd
   pins the ranges.
+- 2026-10-30 (wave 3, crowd-faces): the crowd's faces are lifted in the shader, not rebuilt: the
+  rigs, their atlases and the body contract stay as they are, and a per-rig face map plus eye frames
+  measured off the meshes (tools/crowd_faces/face_fit.gd) drive a close-up pass within 11 m of the
+  camera - living eyes (saccades, eye contact, blinks, socket shade), blood, cavities, oil, lips,
+  brow roots, finer pores. Light through skin is held to the ears and nose wings for every crowd
+  rig at every distance (free), which is what fixed the orange faces under street lamps.
+  CROWD_FACES=0 is the A/B.
+- **2026-10-30 Perf audit 3: measure aerials in DIFF pairs, trim caches by refcount (perf-audit-3,
+  HANDOFF "Perf audit 3").** The far city's canopies are drawn without the sphere's zero-area pole
+  triangles; balconies get a hand-made LOD and shadow twins; static mesh caches that grow with the
+  places visited drop what only they hold (CacheTrim) instead of clearing at a size. Plain runs of
+  an aerial bookmark differ by millions of triangles, so frame costs there are DIFF=1 pairs only.
 - 2026-10-30 (lawns close up, wave 3): the lawn and its blades are ONE field (lawn_field.gdshaderinc):
   each tuft carries its lawn's numbers and takes the ground's colour at its root, so the blades
   shrink into the lawn by 62 m with no band and the grass cells draw to 86 m instead of 115 (the

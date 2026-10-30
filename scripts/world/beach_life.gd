@@ -905,9 +905,10 @@ static func _court_lines(st: SurfaceTool) -> void:
 ## and a ramp down the back. Faces -z (the sea, once turned); the deck floor is DECK_Y up.
 const TOWER_DECK_Y := 2.35
 static func _tower(st: SurfaceTool) -> void:
-	var blue := Color(TOWER_BLUE.r, TOWER_BLUE.g, TOWER_BLUE.b, A_PLAIN)
-	var trim := Color(TOWER_TRIM.r, TOWER_TRIM.g, TOWER_TRIM.b, A_PLAIN)
-	var wood := Color(0.62, 0.6, 0.56, A_PLAIN)
+	# BeachGolden's weathered paint and timber (A_PLAIN with BEACH_GOLDEN=0).
+	var blue := Color(TOWER_BLUE.r, TOWER_BLUE.g, TOWER_BLUE.b, BeachGolden.tower_paint())
+	var trim := Color(TOWER_TRIM.r, TOWER_TRIM.g, TOWER_TRIM.b, BeachGolden.tower_paint())
+	var wood := Color(0.62, 0.6, 0.56, BeachGolden.tower_wood())
 	var glass := Color(0.25, 0.32, 0.36, A_GLASS)
 	var rm := Vector2(0.6, 0.0)
 	var dy := TOWER_DECK_Y

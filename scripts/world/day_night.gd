@@ -503,6 +503,7 @@ func _apply() -> void:
 		_sky.set_shader_parameter("twilight_band_height", lerpf(twilight_band_height.x, twilight_band_height.y, deep))
 		# Rays are at their most obvious with a low sun behind broken cloud.
 		_sky.set_shader_parameter("god_rays", god_rays * (0.45 + 0.55 * dusk) * (1.0 - night_factor) * (1.0 - weather_darken * 0.6))
+		SunsetSky.apply(_sky, elevation, weather_darken, marine)
 		# Under the horizon is the far haze the ground plane fades into, not a grey floor.
 		_sky.set_shader_parameter("ground_color", horizon.lerp(Color(0.32, 0.34, 0.37), 0.30))
 		# The ground follower's horizon has to wash out into the same colour the sky meets it
@@ -520,7 +521,7 @@ func _apply() -> void:
 		_env.glow_hdr_threshold = lerpf(day_glow_threshold, night_glow_threshold, moonlight)
 		if grade:
 			grade.update(elevation, golden, weather_darken, marine, santa_ana)
-		_env.sdfgi_energy = lerpf(day_gi_energy, night_gi_energy, moonlight)
+		_env.sdfgi_energy = lerpf(day_gi_energy * GiTuning.gi_scale, night_gi_energy, moonlight)
 		# At golden hour the distance goes the smog's brown-grey rather than dusk_fog's orange:
 		# the orange belongs to the air toward the sun, which fog_sun_scatter already adds.
 		_env.fog_light_color = day_fog.lerp(dusk_fog, dusk).lerp(smog_side, golden_fog_smog * smog) \
@@ -530,10 +531,10 @@ func _apply() -> void:
 		# outdoor lighting. At night the sky is nearly black, so we blend back toward a colour
 		# fill so the city does not go pitch dark.
 		_env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-		_env.ambient_light_sky_contribution = lerpf(1.0, 0.35, moonlight)
+		_env.ambient_light_sky_contribution = lerpf(GiTuning.sky_contribution, 0.35, moonlight)
 		_env.ambient_light_color = day_ambient.lerp(night_ambient, moonlight)
 		_env.ambient_light_energy = lerpf(day_ambient_energy, night_ambient_energy, moonlight) * (1.0 - 0.35 * weather_darken) \
-			* (1.0 + marine_ambient_gain * marine * (1.0 - moonlight))
+			* (1.0 + marine_ambient_gain * marine * (1.0 - moonlight)) * GiTuning.ambient_scale
 		# Rain haze is grey by day and, like the cloud above it, lit by the streets at night.
 		_env.fog_light_color = _env.fog_light_color.lerp(Color(0.35, 0.37, 0.4).lerp(night_storm_fog, moonlight), weather_darken)
 		if santa_ana > 0.0:

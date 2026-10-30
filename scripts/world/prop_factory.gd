@@ -898,12 +898,59 @@ static func balcony() -> Mesh:
 			var z := 0.16 + float(i) * 0.19
 			_box_into(st, Vector3(sx, 0.55, z), Vector3(0.020, 0.9, 0.013), metal)
 	st.generate_normals()
-	var mesh := st.commit()
+	# One LOD (perf-audit-3): the same vertices, indexed, and a coarse index list of the slab, the
+	# rails and the returns - the first BALCONY_SOLID boxes, 36 unindexed vertices each - without
+	# the 25 uprights, 1.3-2 cm wide. Godot takes it once BALCONY_LOD_ERROR (in the mesh's units;
+	# Building scales it by the instances' stretch through lod_bias) is under a pixel, where the
+	# uprights are a fraction of one. The 408 triangles were 34 separate boxes, which no simplifier
+	# thins: 1.34 M triangles of balconies at the MacArthur Park aerial.
+	var arrays := st.commit_to_arrays()
+	var n := (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+	var all := PackedInt32Array()
+	all.resize(n)
+	for i in n:
+		all[i] = i
+	arrays[Mesh.ARRAY_INDEX] = all
+	var lods := {}
+	if BALCONY_LOD and n == 34 * 36:
+		lods[BALCONY_LOD_ERROR] = all.slice(0, BALCONY_SOLID * 36)
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], lods)
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
 	mat.roughness = 0.8
 	mesh.surface_set_material(0, mat)
 	_cache["balcony"] = mesh
+	return mesh
+
+
+## balcony(): its first boxes that are not uprights (slab, four rails, two returns, two posts).
+const BALCONY_SOLID := 9
+## The balcony LOD's error in mesh units (an upright is 0.013-0.02 of the unit width).
+const BALCONY_LOD_ERROR := 0.06
+## BALCONY_LOD=0 in the environment builds it without its LOD (the A/B).
+static var BALCONY_LOD := OS.get_environment("BALCONY_LOD") != "0"
+
+
+## balcony() without its uprights, for its shadow past Building.BALCONY_SHADOW_NEAR: the slab,
+## the rails and the side returns and posts, the same boxes at the same places (132 triangles).
+static func balcony_shadow() -> Mesh:
+	if _cache.has("balcony_shadow"):
+		return _cache["balcony_shadow"]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var c := Color(0.5, 0.5, 0.5)
+	_box_into(st, Vector3(0.0, 0.03, 0.5), Vector3(1.04, 0.06, 1.0), c)
+	_box_into(st, Vector3(0.0, 0.98, 0.98), Vector3(1.02, 0.045, 0.05), c)
+	_box_into(st, Vector3(0.0, 0.64, 0.98), Vector3(1.0, 0.022, 0.026), c)
+	_box_into(st, Vector3(0.0, 0.30, 0.98), Vector3(1.0, 0.025, 0.03), c)
+	_box_into(st, Vector3(0.0, 0.10, 0.98), Vector3(1.0, 0.022, 0.026), c)
+	for sx: float in [-0.5, 0.5]:
+		_box_into(st, Vector3(sx, 0.98, 0.5), Vector3(0.04, 0.045, 1.0), c)
+		_box_into(st, Vector3(sx, 0.55, 0.5), Vector3(0.03, 0.9, 0.03), c)
+	st.generate_normals()
+	var mesh := st.commit()
+	_cache["balcony_shadow"] = mesh
 	return mesh
 
 
@@ -1317,8 +1364,32 @@ static func canopy_blob() -> Mesh:
 	mesh.height = 1.0
 	mesh.radial_segments = 6
 	mesh.rings = 2
-	_cache["canopy_blob"] = mesh
-	return mesh
+	# The same sphere less its zero-area triangles: Godot's SphereMesh repeats each pole vertex
+	# round the ring, so 12 of its 36 triangles are slivers of no area that draw nothing - a third
+	# of the far city's 110 k canopies' triangles (perf-audit-3). Same vertices, same pixels.
+	var out := without_degenerate(mesh)
+	_cache["canopy_blob"] = out
+	return out
+
+
+## `mesh` (one surface) as an ArrayMesh with its zero-area triangles left out of the index list;
+## every vertex and attribute is kept as it was, so it draws exactly the same pixels.
+static func without_degenerate(mesh: Mesh) -> ArrayMesh:
+	var arrays := mesh.surface_get_arrays(0) if mesh is ArrayMesh else (mesh as PrimitiveMesh).get_mesh_arrays()
+	var v: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var kept := PackedInt32Array()
+	for i in range(0, idx.size(), 3):
+		var a := v[idx[i]]
+		if (v[idx[i + 1]] - a).cross(v[idx[i + 2]] - a).length_squared() > 1e-18:
+			kept.append_array([idx[i], idx[i + 1], idx[i + 2]])
+	arrays[Mesh.ARRAY_INDEX] = kept
+	var out := ArrayMesh.new()
+	out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var mat := mesh.surface_get_material(0)
+	if mat:
+		out.surface_set_material(0, mat)
+	return out
 
 
 static func planter() -> Mesh:
@@ -2355,6 +2426,7 @@ static func beach_sand_material() -> ShaderMaterial:
 	mat.set_shader_parameter("rough_tex", texture("sand", "Roughness"))
 	mat.set_shader_parameter("tint", Color(1.0, 0.95, 0.85))
 	mat.set_shader_parameter("tile_m", 2.0)
+	BeachGolden.dress_sand(mat)
 	_cache["beach_sand_mat"] = mat
 	return mat
 

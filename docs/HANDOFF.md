@@ -20805,23 +20805,28 @@ did - proven pixel for pixel, below.
 
 **The model** (sky.gdshader):
 - `sun_through(el, h)`: the sun as it reaches a point `h` km up at elevation `el` measured from
-  THAT point's horizon (el = the camera's sun elevation + the point's distance toward the sun /
-  R, plus 0.01 of refraction). Air masses: Rayleigh (8 km scale height, tau 0.032 / 0.074 / 0.180
-  a unit air mass) and aerosol (1.4 km, 0.085 / 0.115 / 0.150 - the basin's smog, which is what
-  takes the light past orange to red), 1 / (el + k) above the point's horizon and, below it, twice
-  the grazing path to the tangent height less the part above the point. Brightness falls with the
-  red's transmittance (floor 0.45) and goes to 0 as the tangent height goes under the ground (the
-  earth's shadow, soft over -0.5..0.4 km). Returns the colour normalised to its red, so neither
-  renderer's exposure moves it. `SunsetSky.sun_through()` is the GDScript copy; the checks read
-  the shader's optical depths and shadow line back.
+  THAT point's horizon (el = the camera's sun elevation + the point's distance toward the sun / R).
+  **The colour is an art-directed palette** by `el` (`SUNSET_PAL_E` / `SUNSET_PAL_C`, linear, red
+  1): gold-orange at sin 0.30, orange, deep orange at 0.06, red-orange on the horizon, salmon at
+  -0.05, pink at -0.10, magenta at -0.16. The first pass was a physical transmittance (Rayleigh +
+  aerosol air masses, normalised to red) and the lead's review threw it out: the sunlit cumulus came
+  out pale lemon at 17:45 and the bases went grey at 18:15. **The earth's shadow climbs on an
+  exaggerated radius** (`SUNSET_SHADOW_R` 200 km, soft over -0.4..0.5 km of tangent height, with
+  0.01 of refraction): this game's sun sinks about four times faster than LA's, and at the true
+  6,371 km a deck 2 km up lost the sun four game minutes after the street; now its bases glow
+  salmon, pink, then magenta to ~18:40. Brightness eases to 0.7 under the horizon.
+  `SunsetSky.sun_through()` / `PALETTE_*` / `SHADOW_R` are the GDScript copy; the checks read the
+  shader's stops, colours and shadow line back.
 - **Volume (Forward+)**: every lit cloud sample takes `sun_through()` at its own height and place,
   mixed by the weight - gold at 17:30, orange-red at 18:00, red on the crowns at 18:06, the
   earth's shadow then climbing the deck from the bases. Once the sun is under the street's horizon
   the light march is tipped down (to -0.2) so it leaves through the flat base: the whole base glows
   hot from below while the body above stays in its own shade - at the true 1-2 degrees the march
-  ran along inside the base and never saw the light. The ambient under the deck takes the warm
+  ran along inside the base and never saw the light. **While the weight is on the sun stays the
+  march's key light down to sin -0.2** (it used to hand over to the moon at sin -0.07, which is
+  most of why the 18:15 bases were grey). The ambient under the deck takes the warm
   horizon (twilight_warm, strongest toward the sun, x1.9 once the sun is under), the crowns the
-  violet of the twilight band. A narrow forward lobe (HG 0.86) on thin margins is the silver lining.
+  violet of the twilight band. A narrow forward lobe (HG 0.86, x0.16) on thin margins is the silver / gold lining.
 - **Rays**: fanned wider (exp(-ang^2 x 1.1)) at `sunset_rays` (0.45) in the sun's own red, NOT
   `god_rays`: DayNight multiplies that by (1 - night_factor), which is 0.3 at the sunset itself.
 - **Painted cumulus (Compatibility, the web)**: the same light at the deck's crown height
@@ -20850,6 +20855,12 @@ the evening; judge the sunset with sky_shot and still_shot SHOTS instead (refcam
 fixed here). `HOLD_TIME=1` is new on `tools/sky/sky_shot.gd` because shader TIME is real time: a shader that
 compiles slower drifts the clouds and an A/B "differs" in 15 % of its pixels; `PARAMS="a=1;b=0"`
 holds uniforms after DayNight has set them (frame_pre_draw), for experiments.
+
+**Second pass (the lead's review)**: palette, longer shadow, sun kept as key light, stronger
+lining; before / after 17:45, 18:15, 18:30 in `shots/sunset-clouds` `review_*` (Forward+ and
+opengl3): 17:45 hot orange, not lemon; 18:15 and 18:30 the bases glow salmon and pink under
+violet crowns where the first pass had grey silhouettes. Noon is still bit-identical (the gates
+did not move).
 
 **Stills** (`shots/sunset-clouds`): sky_shot every 15 min 17:30-19:30 toward the sun (yaw 90) and
 away (270), Forward+ and opengl3, before (old shader) and after; the city from the beach
@@ -20934,6 +20945,217 @@ than the old one" and "the blasts leave nothing behind (0 nodes, 7 pieces)"; sha
 street car's lane group, during the police station checks). None of it is freeway code, and
 `SMOKE_PARTS=explosions_2_checks,police_station_checks` alone passes 65 / 65 with no error.
 The 49 freeway checks (kit + close-up) pass.
+## 9hz. Perf audit 3: the frame, CPU and memory after wave 3's last ~60 branches, 2026-10-30 (fleet wave 3, agent branch `wt/perf-audit-3`; VISUAL_ROADMAP ?)
+
+**The ask.** Re-measure the bookmarks after the ~60 features merged since perf-audit-2, find the
+regressions, cut them without changing the look, and report before / after per bookmark and system.
+`wt/perf-audit-2` (9hn) was NOT merged when this branch measured (main 149fbb5): its traffic,
+scooter, refinery and capture-orphan cuts are in neither column below, and this branch keeps out
+of those files. It was merged into main during this work and this branch merged main at the end,
+so the gate ran with both. Its tools (`tools/cpu_probe.gd`, `tools/memory_probe.gd`,
+`tools/perf_audit_2/cache_census.gd`, the `MEMORY_CENSUS` and TIME-line hooks in smoke_test.gd) are
+taken here byte for byte, so the two merge cleanly; on top: the probe no longer crashes on a
+pedestrian freed while switched off, and memory_probe's RSS no longer overflows to negative MB
+past 2 GB (it read /proc in bytes into a Vector2i; now kB).
+
+### The frame before (main 149fbb5; still_shot.gd SPLIT=1, opengl3 / llvmpipe, 960x540, --quality=0)
+
+| Bookmark | triangles (camera / shadow) / draws | biggest categories |
+|---|---|---|
+| downtown noon `2359.4,880,0,12,2` 12:00 | 8.44 M (5.58 / 2.85) / 3,947 | FarCity 2.61 M, Building 1.61 M (0.94 shadow), StreetProps 1.05 M, Trees 1.03 M, Other 0.80 M |
+| night street (same, 21:30 clear) | 8.45 M (5.51 / 2.94) / 3,924 | |
+| freeway `200,1088,-90,-4,30` 13:00 | 6.46 M (4.94 / 1.52) / 3,131 | FarCity 2.54 M, Trees 1.05 M, Other 0.97 M |
+| hills `300,-650,0,-6,260` 15:00 | 2.80 M (2.59 / 0.21) / 1,283 | FarCity 1.88 M (67 %), Other 0.72 M |
+| beach town `-648,60,140,-3` 12:00 | 3.37 M (2.17 / 1.20) / 1,378 | Other 1.30 M (0.67 shadow), FarCity 0.99 M, Trees 0.65 M |
+| MacArthur Park aerial `300,528,0,-35,120` 12:00 | 10.84 M (6.24 / 4.59) / 4,410 | Building 2.47 M (1.94 shadow), FarCity 2.42 M, Trees 2.18 M, Pedestrian 1.16 M |
+| the beach `-941,200,180,-4,3` 14:00 | 2.90 M (2.66 / 0.24) / 1,088 | FarCity 1.70 M, Other 0.82 M |
+
+Against perf-audit-2's downtown (7.28 M / 3,727 on the same setup) the frame grew 1.16 M, against
+9dj's 7.21 M / 3,752. **The far city is now the largest category at every bookmark but the beach
+town** (0.99-2.61 M, camera only). `tools/far_census.gd` at downtown: 110,042 far canopies
+(`PropFactory.canopy_blob()`, MidCity's yard trees added most of them) against 82,662 far boxes.
+
+**Read aerial bookmarks only as DIFF=1 pairs.** Two plain runs of the same tree at MacArthur Park
+differed by millions of triangles (pedestrians 1.16 M in one, 0.18 M in the other: who is near the
+camera at the moment of the shot), so the per-switch A/B runs there (FACADES_GTA, BUSY_STREETS,
+CROWD_VARIETY, MID_CITY off: 6.13-6.59 M) say little beyond MID_CITY's ~0.44 M. An A/A pair of
+main with DIFF=1 differs by ~1,000-1,200 pixels at the hills and MacArthur (distant hillside
+detail), which is the noise floor for the pixel diffs below.
+
+### What was cut
+
+1. **The far canopy without its slivers** (`PropFactory.canopy_blob()`,
+   `PropFactory.without_degenerate()`). Godot's SphereMesh repeats each pole vertex round the
+   ring, so 12 of the 6 x 2 sphere's 36 triangles have no area. The same vertices with those left
+   out of the index list draw the same pixels (far_canopy.gdshader moves a clump's vertices by one
+   shift, so they stay degenerate). A third of the far city's tree triangles.
+2. **Balconies** (`PropFactory.balcony()`, `Building._balcony_shadows()`): the railing is 34
+   separate boxes (408 triangles) that no simplifier thins. It now carries ONE hand-made LOD -
+   the same vertices, indexed, and an index list of its 9 slab / rail / return boxes without the
+   25 uprights (1.3-2 cm), at an error of 6 cm in mesh units scaled by the instances' stretch
+   (`lod_bias`) - and its shadow comes from twins: the drawn node casts nothing, a SHADOWS_ONLY
+   twin of the same MultiMesh within `BALCONY_SHADOW_NEAR` (45 m), one without the uprights
+   (`balcony_shadow()`, 132 triangles) past it. `BALCONY_LOD=0` / `BALCONY_SHADOW=0` the A/Bs.
+   On desktop the facade kit draws the balconies (`Batch_kit_balcony`), so this path is the web
+   build's (the kit is off there) - and, unexplained, 15 `Balconies` nodes with 1.34 M triangles
+   in the plain MacArthur run (none in the DIFF runs and none in a headless probe of the same
+   spot, `tools/perf_audit_3/balcony_probe.gd`). Worth a look: a Building generated with `_kit`
+   null on desktop would carry both.
+3. **Static mesh caches trim** (`CacheTrim`, `scripts/util/cache_trim.gd`): drops the entries only
+   the cache holds - a mesh a chunk still draws has another reference - and the same key builds
+   the same mesh again. The "only the cache" count is measured through the very calls each time
+   (GDScript's temporaries add references: 4 through a parameter, 3 for an array element), and
+   an Array value counts as in use only through a copy made by `CacheTrim.copy()` -
+   `Array.duplicate()` shares its elements copy-on-write and adds no reference. Used by
+   `StreetSignKit._cached()` (it used to clear at 1,500 entries; now it trims every 200) and
+   `BeachFigure.ride_meshes()`' suited flipbooks (`_ride_suits`; the posed bases stay).
+   memory_probe at the same six hops: street_sign_kit 40.6 -> 10.1 MB (223 -> 64 entries),
+   beach_figure rides 65.9 -> 28.2 MB (182 -> 78). RSS at the end of the probe: flat (2,687 vs
+   2,724 MB; the allocator keeps freed pages, and headless keeps every mesh's arrays twice).
+   `CACHE_TRIM=0` the A/B.
+4. **CPU, small**: `SeaLife._frame()` returns at once inland with no buoy in range and nothing
+   staged (it collected, hashed and hid every frame anywhere); `NightAtmos._sodium()` skips its
+   ground sample under the camera when `SODIUM_LEAN * lamp * haze` is under the write threshold -
+   the same answer for any camera height (checked); `CrowdFeet`'s re-sample test read
+   `a or b and c` as `a or (b and c)` and re-cast a foot's four rays every tick while both lifts
+   were exactly zero - now only the first tick after coming into range samples off the stagger.
+   **Measured honestly, the last one changes nothing at downtown** (`tools/perf_audit_3/feet_probe.gd`
+   on both trees: 72,690 foot ticks, 0.42 ms of rays and 1.2 ms of CrowdFeet a frame either way):
+   the all-zero case is rare in practice.
+
+### After: DIFF=1 pairs (main 149fbb5 vs this branch; 960x540, cars, people and particles hidden)
+
+| Bookmark | before | after | pixels that moved |
+|---|---|---|---|
+| downtown noon | 7.54 M (4.92 / 2.62) / 3,280 | 6.84 M (4.22 / 2.62) / 3,280 | 63 (0.007 %), none over 3 levels |
+| hills | 2.71 M (2.52 / 0.18) / 1,246 | 2.19 M (2.00 / 0.18) / 1,240 | 1,199 (0.13 %) - the A/A noise is 1,166 |
+| MacArthur Park aerial | 6.87 M (4.34 / 2.53) / 3,927 | 6.21 M (3.68 / 2.53) / 3,921 | 7 against a second main run (999 between two main runs) |
+| freeway | 5.96 M (4.52 / 1.44) / 2,612 | 5.30 M (3.86 / 1.44) / 2,612 | 177 (0.019 %), 14 over 32 |
+| beach town | 3.20 M (2.02 / 1.18) / 1,308 | 2.93 M (1.75 / 1.18) / 1,308 | 174 (0.019 %), 2 over 32 |
+
+Downtown -9.3 %, freeway -11.1 %, hills -19 %, beach town -8.4 %, MacArthur -9.6 %, all camera-side (the far canopies); the shadow
+passes are unchanged in these frames.
+
+### CPU, step times, load, memory (before)
+
+`tools/cpu_probe.gd` at downtown (headless, 200 frames a row, beside an llvmpipe render - read the
+rows against each other, +-50 ms): a frame 414 ms running all eight physics steps; **TrafficManager
+off: 181 ms (-233 ms)** - still the whole story, and perf-audit-2's (unmerged) cuts are aimed at it;
+every other row inside the noise. The probe then crashed on a pedestrian freed while switched off
+(fixed) before reaching the wave-3 rows. `tools/step_bench` (all twelve spots, box under load):
+the recurring over-budget step is `_block_surface`, 75-320 ms per downtown / arena block, of which
+the inner pavement slab's ground grid is all but 1-2 ms; inside that grid **the relief samples are
+~75 %** (42.7 of 57 ms for a 45 x 79 grid: ~2,800 lattice misses at ~15 us, `raw_height_at()`
+under `relief_at()`, though the relief is zero downtown). Not cut here (a relief lattice shared
+across a chunk's levels or rebuilds is the obvious next step). The first block of a run shows
+`_build_lot` at 1,000 ms: one-time warm-up the loading screen normally pays. Load headless to
+first streaming 77 s with the far city from the load cache: 12 FULL chunks 29 s (2.4 s each),
+far landmarks 8.9 s, the macro map 7.4 s (ballpark and ridges 4.5 s of it). Memory: see 3 above;
+202 unnamed StaticBody3Ds with one 27.5 x 8.4 x 17.6 m box (perf-audit-2's "~100") are orphaned at
+load and stay constant through drives and hops - a one-off, not a leak; PuebloLane's 60
+`ChurchBody` templates are by design.
+
+### Checks, tools, switches
+
+`tests/perf_audit_3_checks.gd` (one line in smoke_test.gd, after the night skyline's): CacheTrim
+drops / keeps / A/B, the sign cache keeps what is drawn and rebuilds a dropped blade the same, the
+night haze's early-out matches `sodium_for()`, SeaLife idles downtown and not on the coast, a
+rider's flipbook is handed out as its own array, the canopy's index count and box, the balcony's
+twins and its one LOD, the crowd feet's stagger over 90 ticks. Every check stages what it reads.
+Tools: `tools/perf_audit_3/feet_probe.gd`, `balcony_probe.gd`; `OSPLIT_BY=n` on still_shot.gd
+lists n parent / shader rows under an OSPLIT category (and "Chunk_21,-3" now counts as "Chunk").
+Switches: `CACHE_TRIM=0`, `BALCONY_LOD=0`, `BALCONY_SHADOW=0`.
+
+**The gate** (`SHARDS=3 tests/headless_check.sh`, this branch merged with main 3192f64): 4,048
+checks, 0 failed, 1,133 s; shard peaks 2,744 / 3,393 / 3,306 MB. A first gate before main's last
+merge failed three checks (two explosions_2 counts and one ragdoll rest height) that main fixed in
+the meantime ("this blast's own flash, and only the debris it added"; the ragdolls' even inertia);
+they failed the same way in shard 1's order on that tree and passed alone.
+
+### Not done / next
+
+(1) The far city: 110 k canopies and 83 k boxes are 1.7-2.6 M camera triangles at every bookmark;
+a canopy that collapses under a pixel in the vertex stage, or a coarser blob past a few km, would
+win the most (both change pixels; DIFF them). (2) The relief lattice in `_block_surface` (above).
+(3) The beach town's "Other" (1.30 M, 0.67 M shadow) was not split by name (OSPLIT not run there).
+(4) The balcony provenance on desktop (2 above). (5) No flight bench, no Forward+ look, no web
+export this pass; the CPU table is from a loaded box.
+
+## 9ia. The chase camera (wave 3, driving-camera)
+
+The owner: "make it look like GTA 6 - and feel like it". In a car the camera used to be the
+on-foot rig unchanged: it stayed where the mouse left it, so a turn drove the car out of the frame
+and nothing told you how fast you were going. Now `DriveCam` (`scripts/player/drive_cam.gd`, a
+Node the CameraRig makes in `_ready()`) drives the rig while the player is at the wheel of any
+ground Vehicle (cars, trucks, bikes, boats; never `Aircraft` or `FlyableHeli`, which keep the old
+camera). `DRIVE_CAM=0` in the environment is the A/B.
+
+- **Follow.** The view follows the way the car travels (its velocity past `velocity_follow_from`,
+  its nose when slow or reversing) on a critically damped spring (`DriveCam.spring()`, exact for
+  a step, so any frame rate lands on the same curve) whose stiffness rises with speed
+  (`follow_slow` 3.5 -> `follow_fast` 5.5). Its steady lag in a turn is the swing into the corner:
+  ~10 degrees at 60 km/h and 0.8 g, capped at `max_corner_lag_deg` 22, plus `corner_swing_deg` per
+  rad/s of yaw rate (never stored in the spring, so it does not accumulate). It leans against the
+  cornering force (`corner_roll` deg per g, max 3).
+- **Framing.** Pivot at the car's centre (`pivot_base` + per metre of length; a semi counts its
+  trailer), distance `distance_base` + `distance_per_length` x length + `speed_pullback` with speed
+  + `accel_pull` (falls back accelerating, closes in braking); pitch `pitch_slow_deg` -11 ->
+  `pitch_fast_deg` -6 (lower with speed) plus `slope_follow` of a hill; field of view +`speed_fov`
+  (7 deg) at full speed and +`nitro_fov` on the nitro (the on-foot boost FOV is faded out in the
+  car). Speed share: `speed_from` 8 m/s (30 km/h) to `speed_full` 42 (150 km/h). Measured: 30 / 80
+  / 150 km/h = 6.4 / 7.1 / 8.4 m back, pitch -11 / -9 / -6, FOV +0 / +1.6 / +7.
+- **Shake.** `road_shake(clock, ...)` is pure: two slow sway sines and three buzz sines (11.7,
+  17.3, 23.9 Hz) of the CLOCK, never a random number a frame; the buzz grows with speed squared,
+  the sway from a crawl; x`rough_gain` when a wheel is on hill terrain; any component above
+  `max_buzz_share` of the frame rate is faded out (at 20 fps the buzz is gone, the sway stays), so
+  it reads the same at 30 and 144 fps. Flat out on tarmac it moves the view 0.44 degrees at most.
+  The settings screen's new "Driving camera shake" (GameSettings `drive_shake`, CameraRig
+  `drive_shake`) turns it off.
+- **Kicks.** `_physics_process` watches the car's velocity: a vertical change past `bump_min_dv` in
+  a tick is a bump (a short dip), touch-down after more than 12 ticks with no wheel in contact a
+  landing (dip and drop by the fall speed, a rig shake past 12 m/s), a horizontal change past
+  `crash_min_dv` a crash (lurch toward the car, a rig shake). The kick is an under-damped spring
+  (`kick_omega`, `kick_damping`) sub-stepped at 240 Hz: the same thump at 30 and 144 fps.
+  A teleport (respawn, an origin shift) kicks nothing.
+- **Free look / look behind.** Mouse or stick input (`CameraRig` calls `note_look()`) hands the
+  view to the player; `free_look_hold` 1.3 s after the last input it eases back behind the car over
+  `recenter_seconds`. While boost-flying (airborne, boost held: the car flies where you look) it
+  never takes the view back. **In the air the view is always the player's** (the car flies where
+  the camera looks, Vehicle._fly()): leaving the ground hands it over as it stands, nothing
+  recentres until `air_hold` after touch-down; `set_look()` / `look_at_point()` count as the
+  player's look. `look_behind` (new action: C / pad X) swings round in
+  `look_behind_seconds` and back on release. Getting in blends from the view you had
+  (`blend_seconds`); getting out hands it back.
+- **Motion blur.** CameraPost multiplies its strength by `DriveCam.blur_terms()` (1 +
+  `blur_gain` 0.7 at full speed) and raises the soft knee by `blur_threshold_add` px while driving:
+  the car rides with the camera (only its lag and the buzz move it on screen, under the knee), so it
+  stays sharp while the road and the roadside streak. Forward+ only, like the blur itself: NOT
+  SEEN (the city does not fit lavapipe) - judge it on the Mac.
+- **Walls.** The spring arm sweeps a `arm_radius` 0.25 m sphere while driving (the ray alone can
+  slip past a corner and leave the near plane in a wall), and because the arm resolves its length
+  in the physics tick while the chase moves the pivot every frame, the rig sweeps the sphere again
+  from the pivot where it is now (`_clamp_to_walls()`). The checks spin the view round a car
+  backed up to a wall, a pillar and a low lid: the camera was never inside one or on the far side.
+
+Hooks: `camera_rig.gd` (the DriveCam, `note_look()` on input, the chase result applied before
+`_apply_rotation()`, the pivot moved to the car), `camera_post.gd` (two lines, the blur terms),
+`game_settings.gd` / `pause_menu.gd` (the shake toggle, the C row on the controls card),
+`project.godot` (`look_behind`). Checks: `tests/driving_camera_checks.gd` (55, the last city file;
+alone: `SMOKE_PARTS=driving_camera_checks`). Strips: `tools/driving_camera/drive_strip.gd` (a
+scripted drive up Flower St with `--fixed-fps 60`: s30, s80, s150, a 35 km/h right turn onto
+Olympic, an 80 km/h hop; `DRIVE_CAM=0` the before) and `strips.py`; stills on
+`shots/driving-camera`.
+
+Gate: the flight check ("boost flies the car upward") places the look with `set_look()` and
+boosts; the chase camera took the pitch back and it failed - in this branch's first gate and in
+main's batch 18, which had merged an earlier head and backed it out. Now a placed view counts as
+the player's look and in the air the view is always the player's. No frame cost to measure
+(no geometry; a few dozen flops a frame).
+
+Not done / not seen: the motion blur on Forward+ (above); a pad's look-behind shares X with the
+on-foot dive / wingsuit (both off in a car); no per-surface buzz beyond terrain (DrivingFX knows
+sand and dirt, not shared); the camera does not yet look into the corner AHEAD (GTA's slight
+lead) - the lag shows the flank instead.
 
 ## 9d?. Lawns close up (fleet wave 3, `wt/lawns-closeup`, 2026-10-30)
 

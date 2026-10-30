@@ -190,6 +190,8 @@ func _apply_render() -> void:
 	_env.ssil_enabled = level <= Level.MEDIUM
 	_env.ssr_enabled = level <= Level.MEDIUM
 	_env.ssao_enabled = level <= Level.LOW
+	# How the indirect light is tuned at this level (GiTuning, the GI review's table).
+	GiTuning.apply(_env, _sun, i)
 	# Glow stays on everywhere: it is cheap and it carries most of the filmic look.
 	_env.glow_enabled = true
 	if _sun:
