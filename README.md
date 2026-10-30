@@ -15,3 +15,8 @@ Before = `BEACH_GOLDEN=0`, after = the branch; the same EYEs and hours from one 
   grime runs, silvered posts)
 
 The after set was rendered with `band_mirror` 0.22; the branch ships 0.16 (a little darker band).
+
+Forward+ (lavapipe, `tools/glshot/fwd_block_shot.tscn`, 960x540, the city's DayNight; only the
+blocks round each eye): `fwd_before_*` / `fwd_after_*` - the sand toward the sea and toward the sun
+at 17:45, the tower at 13:00 (faded paint, silvered posts). The clouds differ between the two
+loads (they run on the clock).
