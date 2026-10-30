@@ -849,9 +849,38 @@ func _crash_contact(dir: Vector3) -> Vector3:
 	var reach := absf(dir.dot(global_basis.x)) * float(d.width) * 0.5 + absf(dir.dot(global_basis.z)) * float(d.length) * 0.5 \
 			+ absf(dir.dot(global_basis.y)) * 0.8 + 1.0
 	var from := global_position + global_basis.y * 0.45
+	var space := get_world_3d().direct_space_state
 	var q := PhysicsRayQueryParameters3D.create(from, from + dir * reach, 1 | 4 | 16, [get_rid()])
-	var hit := get_world_3d().direct_space_state.intersect_ray(q)
-	return hit.position if not hit.is_empty() else Vector3.INF
+	var hit := space.intersect_ray(q)
+	if not CrashDeform.enabled:
+		return hit.position if not hit.is_empty() else Vector3.INF
+	# Two more rays a third of the way to each end of the face it hit with: a pole or a car's
+	# corner is met by the nearest of them, a wall by all three (CrashDeform crushes where).
+	var side := dir.cross(global_basis.y)
+	if side.length() < 0.1:
+		side = global_basis.x
+	side = side.normalized()
+	var span := (absf(side.dot(global_basis.z)) * float(d.length) + absf(side.dot(global_basis.x)) * float(d.width)) * 0.36
+	var hits: Array = []
+	if not hit.is_empty():
+		hits.append(hit.position)
+	for o: float in [-span, span]:
+		var f2 := from + side * o
+		var h2 := space.intersect_ray(PhysicsRayQueryParameters3D.create(f2, f2 + dir * reach, 1 | 4 | 16, [get_rid()]))
+		if not h2.is_empty():
+			hits.append(h2.position)
+	if hits.is_empty():
+		return Vector3.INF
+	var near := INF
+	for p: Vector3 in hits:
+		near = minf(near, (p - from).dot(dir))
+	var sum := Vector3.ZERO
+	var n := 0
+	for p: Vector3 in hits:
+		if (p - from).dot(dir) < near + 0.15:
+			sum += p
+			n += 1
+	return sum / float(n)
 
 
 ## CarDamage broke lamps (bits of CarDamage.LAMP_*): the night glow loses them.

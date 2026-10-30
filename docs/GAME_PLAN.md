@@ -3607,3 +3607,9 @@ none of either.
   regional pores and roughness), brows as strand cards and twice the hair cards. The contract
   (54 bones, clips, material names, hero_x_* maps, eye centres) is held so nothing downstream
   moves. HERO_FACE_2=0 is the shader A/B.
+- 2026-10-30 (wave 3, crash-deform): crashes deform the car as crumple zones in the vertex
+  shaders (mesh-space uniforms, the CarDamage pattern), not as a mesh rebuilt on the CPU: an
+  undamaged car keeps its cost, every slot (paint, glass, lamps, trim, plates, far twin) moves by
+  the same function, and a crushed car is still one draw per slot. Panels spring by turning a
+  soft box of the mesh about a hinge; doors use the car-cabins rig. The collision shape stays the
+  box. CRASH_DEFORM=0 is the A/B.

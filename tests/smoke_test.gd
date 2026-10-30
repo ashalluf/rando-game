@@ -2616,6 +2616,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/ocean_closeup_checks.gd").new().run(self, city)
 	# HUD polish (tests/hud_polish_checks.gd): the theme, the safe area, the place toast, the car readout.
 	await load("res://tests/hud_polish_checks.gd").new().run(self, city)
+	# Crash deformation (tests/crash_deform_checks.gd): crumple zones by speed, panels, wheels,
+	# scrapes, shards on the road, a real head-on, the A/B.
+	await load("res://tests/crash_deform_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
