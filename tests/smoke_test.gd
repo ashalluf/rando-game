@@ -2651,6 +2651,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The beach at golden hour (tests/beach_golden_checks.gd): the sand's postcard pass behind its
 	# switch, the sky mirror's colour space, the weathered tower's codes, the same tower geometry.
 	load("res://tests/beach_golden_checks.gd").new().run(self, city)
+	# The chase camera while driving (tests/driving_camera_checks.gd, DriveCam): follow, speed, corners,
+	# free look, look behind, kicks, the blur's terms, never inside a wall.
+	await load("res://tests/driving_camera_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
