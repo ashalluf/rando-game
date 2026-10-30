@@ -31,7 +31,7 @@ extends Node3D
 ## Weather's rng, so the lightning's timing and every city roll are untouched. STORM_DRAMA=0 in
 ## the environment is the A/B (nothing is built, every hook is a no-op). STORM_FLASH=<s> forces a
 ## strike that many seconds after load, at STORM_FLASH_DIST metres toward STORM_FLASH_AZ degrees
-## (for stills).
+## (for stills); STORM_FLASH_HOLD=<level> then holds that flash (and its bolt) for the shot.
 
 static var enabled: bool = OS.get_environment("STORM_DRAMA") != "0"
 
@@ -97,6 +97,8 @@ var _offset_was := Vector3.INF
 var _litter: CPUParticles3D
 var _web: bool = OS.has_feature("web")
 var _forced_at: float = -1.0
+var _hold: float = float(OS.get_environment("STORM_FLASH_HOLD")) if OS.get_environment("STORM_FLASH_HOLD") != "" else 0.0
+var _holding: bool = false
 var _curtain_height0: float = 70.0
 
 
@@ -317,6 +319,7 @@ func drive(w: float, r: float, delta: float, player: Node3D, low: bool) -> void:
 		var dist := float(OS.get_environment("STORM_FLASH_DIST")) if OS.get_environment("STORM_FLASH_DIST") != "" else 900.0
 		var az := deg_to_rad(float(OS.get_environment("STORM_FLASH_AZ")) if OS.get_environment("STORM_FLASH_AZ") != "" else 0.0)
 		_weather.force_strike(dist, Vector3(cos(az), 0.0, sin(az)))
+		_holding = _hold > 0.0
 
 
 func _ground_y(p: Vector3) -> float:
@@ -382,6 +385,11 @@ func on_strike(dist: float, dir: Vector3) -> void:
 	bolts += 1
 
 
+## The flash this frame: Weather's flicker, or the held one of a still (STORM_FLASH_HOLD).
+func held_flash(flash: float) -> float:
+	return _hold if _holding else flash
+
+
 ## The flash's flicker this frame (Weather's), and the sky's flash direction.
 func on_flash(flash: float, sky: ShaderMaterial, dir: Vector3) -> void:
 	if _bolt_mat:
@@ -396,7 +404,7 @@ func on_flash(flash: float, sky: ShaderMaterial, dir: Vector3) -> void:
 func _drive_bolt(delta: float, _cam: Vector3) -> void:
 	if _bolt_age >= 0.0:
 		_bolt_age += delta
-		if _bolt_age > 1.2:
+		if _bolt_age > 1.2 and not _holding:
 			_bolt_age = -1.0
 			if _bolt:
 				_bolt.visible = false

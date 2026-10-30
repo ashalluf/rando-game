@@ -903,6 +903,8 @@ func _update_flash(delta: float) -> void:
 				flash = maxf(flash, p.z * (1.0 - (_strike_age - p.x) / p.y))
 		if _strike_age > _pulse_end:
 			_strike_age = -1.0
+	if _drama:
+		flash = _drama.held_flash(flash)
 	if _sky:
 		_sky.set_shader_parameter("flash", flash)
 	if _drama:
