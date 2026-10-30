@@ -12,7 +12,7 @@ extends RefCounted
 ##     drains and rills), never on rock, cuts, roads, pads, creek beds or the reservoir;
 ##   * FULL hill chunks: a 4 m world grid of clumps between the code-built shrubs (HillShrub),
 ##     dithered in past FULL_FADE so up close the real shrubs carry the stand, drawn to FULL_DRAW;
-##   * LOD hill chunks (the 7-block ring, which planted nothing): a 6.5 m grid of bigger clumps
+##   * LOD hill chunks (the 7-block ring, which planted nothing): a 6 m grid of bigger clumps
 ##     (several shrubs each) out to LOD_DRAW - "the far shrub-scatter layer between the FULL chunks
 ##     and the painted ground"; past it the painted stands are the brush as before (HANDOFF 9au);
 ##   * oak CLUMPS in the hollows: an oak planted in a hollow (CityChunk._plant_hills, Skyline's far
@@ -84,6 +84,14 @@ static func mesh() -> ArrayMesh:
 	arrays[Mesh.ARRAY_COLOR] = cols
 	arrays[Mesh.ARRAY_INDEX] = l0
 	var m := ArrayMesh.new()
+	# HILL_SCATTER_LEVEL=n (measurement only): that level alone, no LODs, so the renderer's counter
+	# counts every instance (measurement trap 3: a LOD'd batch counts as ONE instance in GEO).
+	var forced := OS.get_environment("HILL_SCATTER_LEVEL")
+	if forced != "":
+		arrays[Mesh.ARRAY_INDEX] = [l0, l1, l2][clampi(int(forced), 0, 2)]
+		m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		_mesh = m
+		return m
 	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {float(EDGES[0]): l1, float(EDGES[1]): l2})
 	m.set_meta("foliage_ladder", true)
 	_mesh = m

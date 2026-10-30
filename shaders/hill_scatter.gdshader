@@ -14,8 +14,8 @@ render_mode cull_back;
 // close to the code-built shrub's leaves (HillShrub.LEAF).
 #include "res://shaders/color_space.gdshaderinc"
 
-uniform vec3 leaf_dark = vec3(0.016, 0.024, 0.013);
-uniform vec3 leaf_light = vec3(0.052, 0.066, 0.036);
+uniform vec3 leaf_dark = vec3(0.026, 0.036, 0.021);
+uniform vec3 leaf_light = vec3(0.080, 0.094, 0.054);
 uniform vec3 dead_color = vec3(0.150, 0.128, 0.090);
 // Leaf clumps per metre, and how much they tilt the normal.
 uniform float leaf_scale = 2.2;
@@ -81,9 +81,9 @@ void fragment() {
 	float dead = smoothstep(0.72, 0.86, vn3(p * 0.55 + vec3(19.0, 2.0, 11.0))) * step(0.55, tone.y) * mix(0.35, 1.0, amp);
 	c = mix(c, dead_color, dead * 0.7);
 	// The pockets between the leaf clumps are dark; under a pixel their share is a mean.
-	c *= mix(1.0, 0.45 + 0.55 * smoothstep(0.28, 0.62, leaf), amp) * mix(1.0, 0.86, 1.0 - amp);
+	c *= mix(1.0, 0.6 + 0.4 * smoothstep(0.28, 0.62, leaf), amp) * mix(1.0, 0.9, 1.0 - amp);
 	// The base in its own shade.
-	c *= mix(0.42, 1.0, base_light);
+	c *= mix(0.5, 1.0, base_light);
 	ALBEDO = cs_out(c);
 	ROUGHNESS = roughness;
 	SPECULAR = specular;

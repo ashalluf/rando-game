@@ -3494,6 +3494,12 @@ already mapped so milestone 2 is script-only.
   themselves (brush down each rill) decide, and the bushes only rag the edges. The searsia shrub
   (black leaf atlas, dark sprigs) is replaced on the stands by a code-built chaparral mound
   (HillShrub, LaTrees' machinery). HILL_GROUND_3=0 puts everything back.
+- **2026-10-30 The hills' volume is a cheap code-built clump on the stand field, not more scanned
+  shrubs.** (hill-planting-2) A stand is thousands of shrubs; a HillShrub is 5,800 triangles near,
+  so the volume comes from a 63 / 15 / 6-triangle clump of three domes whose leaves the shader
+  draws from world noise, placed on the very stand field the terrain paints, in FULL chunks (from
+  ~50 m, the real shrubs nearer) and in the LOD ring (which planted nothing). No shadows; the clumps
+  are darker than the paint so a stand reads as lit tops over shaded masses. HILL_PLANTING_2=0.
 
 ## Correction: what build 135 (0ce833f) actually contained
 
