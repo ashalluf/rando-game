@@ -295,6 +295,14 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-29 Facades are worked out per pane, not per building (owner: "start looking like GTA
+  6").** Glass varies pane by pane and floor by floor, blinds hang at their own heights, the glass
+  mirrors a street opposite with parallax, curtain walls come in three systems (flush, deep fins,
+  slab bands) whose depth is drawn analytically at every range, and drips and corner water weather
+  every wall - one include shared by the near walls and the far boxes, rolled from integers so the
+  LOD line keeps them. Corners of near box parts are bevelled 22 cm. Fins as geometry were tried and
+  dropped (aliasing lines at 100 m). docs/HANDOFF.md "Facades that read as built".
+
 - **2026-10-05 Onlookers: the crowd comes back after the chaos (HANDOFF "Onlookers").** After
   the panic near a wreck, a blast or a body, people near the camera come back and stand round it
   in a loose ring: filming on their phones (held up at eye level, the screen lit, a video light
@@ -350,7 +358,25 @@ already mapped so milestone 2 is script-only.
   `SWIMMING=0` is the A/B. Wave 3: the reservoir (worked out from its own grid and level) and
   rooftop pools keep their real floors (the hills, the roof: a roof pool must never take the
   world off his mask 60 m up); the golf pond and hill-home pools register like the others.
+- **2026-10-06 The crowd reacts to the rain, near the camera only (HANDOFF "The crowd in the
+  rain").** When Weather rains, people within crowd life's range open code-built umbrellas held up
+  in the hand (CrowdLife's grip frame), pull up a jacket's hood (the two rigs whose top has one),
+  hurry, sit out a downpour under the bus shelters and in the doorways, and a share go indoors
+  (hidden, no collision) until it eases; umbrellas fold, each at its own moment, when it stops.
+  Built on crowd life's acts (no new clips, no new bones); everything rolled from the person's
+  seed; four hook lines in Pedestrian, one in Weather; `RAIN_CROWD=0` is the A/B. Far people walk
+  on as before (the rain and the fog hide them).
 
+- **2026-10-05 Drivers react to chaos (HANDOFF "Drivers react to chaos").** A shot or a blast
+  near a street traffic car rolls its driver one of brake, swerve, kerb, reverse, abandon or
+  floor it (a hash of the car and the alarm, nearest first, capped). Decisions: built on
+  Pedestrian.alarm() and the traffic's own lanes, in one module (CarPanic) behind one hook line in
+  `_drive_street`, never in TrafficAI's lane logic; a stopped panic car reads as double-parked so
+  TrafficAI passes it on two-lane streets, and on one-lane streets the car behind goes round on
+  the wrong side only with the oncoming lane clear, oncoming cars yielding; a car only mounts a
+  kerb that is clear (parked cars, people, solid street furniture); an abandoned car keeps its
+  door open and the player can take it as nobody's crime; nothing here is a crime unless a person
+  is hit.
 - **2026-10-05 The street's signs are real models (HANDOFF "The street's signs").** The signs
   were a cylinder for a stop sign facing the junction diagonally, flat boxes with TextMesh names
   and red-banded white boxes. Decisions: built in CODE at real size (StreetSignKit; BoulevardSigns owns the kerb's parking plates), not Blender - every
@@ -1525,6 +1551,15 @@ already mapped so milestone 2 is script-only.
   drawn at least a pixel or two wide. docs/HANDOFF.md "Hillside estates at night"; CLAUDE.md
   "Far estates".
 
+- **2026-10-06 Downtown's fashion district is an overlay, not new buildings.** The blocks east of
+  Main St from 7th St to Pico keep their seeded lots and buildings; the district dresses them
+  (clothing and textile shop names already in Building.SHOP_NAMES, so the existing shop interiors
+  and window vinyl follow, awnings on every shop) and lays code-built goods at the shop fronts and
+  stalls in the block alleys south of 9th St. Chosen over a hand-placed market landmark: it streams
+  with the city, works on every seed, and the same alley data (Alleys) gives the market its walls.
+  Camps keep off the faces the goods use. docs/HANDOFF.md "The fashion district"; CLAUDE.md
+  "Fashion district".
+
 - **2026-10-05 Downtown's historic core is beaux-arts (Spring St and Main St).** Every lot
   fronting either street between 2nd and 9th St is a terracotta or brick bank / office block:
   rusticated base with arched windows, giant order, entablature with an invented name, a heavy
@@ -1532,6 +1567,12 @@ already mapped so milestone 2 is script-only.
   hooks, so its windows, shops, damage and coded far boxes are unchanged) with the ornament as
   real geometry on its window grid; the old 150 ft limit holds. docs/HANDOFF.md "The historic
   core"; CLAUDE.md "Historic core".
+- **2026-10-30 An island on the horizon, drawn by the sky.** Isla Calandra (original; the form of
+  the Channel Islands) stands 36 km offshore, three times past the 12 km far plane, so it is not
+  a mesh: sky.gdshader follows each pixel's ray across a height field in true-world kilometres
+  (curvature included) before the clouds. Blue haze by day, a silhouette against the sunset,
+  the town's lights at night, gone in the marine layer and rain. docs/HANDOFF.md "The island
+  offshore"; CLAUDE.md "The island offshore".
 
 - **2026-10-06 Street props break by what they ARE, GTA-style.** A hydrant knocked off sends up a
   geyser for a while (and throws you up it), a shelter's glass bursts into tempered cubes, lamp
@@ -1541,6 +1582,31 @@ already mapped so milestone 2 is script-only.
   and lamps being re-modelled. Rounds pop a lamp but never fell it. docs/HANDOFF.md "Street props
   that break like GTA"; CLAUDE.md "Street props break by KIND".
   Wave 3: the overpowered hero smashes through them on foot too (over 18 m/s: a boost, never a run).
+- **2026-10-05 Cafes and restaurants build parklets into the parking lane.** A timber deck with
+  planters, screens, bistro tables, umbrellas and a festoon of bulbs, in front of a shop whose
+  ROOM is a cafe or restaurant (the same room its glass shows), rolled by a hash of the shop; the
+  parked cars skip the stretch after their rolls. Diners sit on the crowd's life clips by the hour
+  the chunk is built at; a waiter walks between the door and the tables. FULL chunks only.
+  docs/HANDOFF.md "Outdoor dining parklets"; CLAUDE.md "Parklets".
+- **2026-10-05 The player flies helicopters (an arcade model, not a simulator).** The air
+  traffic's model on a real body (`FlyableHeli`, a wheel-less Vehicle): jump / boost the
+  collective with an altitude hold hands off, the move axes the cyclic (it goes the way it leans,
+  and levels and stops itself when let go), the nose follows the camera; an auto-flare near the
+  ground. Crashes are real (hard knocks, rotor strikes, bullets; dead it spins, falls and
+  explodes). Rooftop pads' parked helicopters stay a merged mesh until the player is near. The
+  downwash is one shader global the plant shaders bend to. docs/HANDOFF.md "The flyable
+  helicopter".
+- **2026-10-05 The coast highway runs under the bluffs north of the beach town (the form of
+  PCH in Malibu, names invented).** Where the front range meets the sea the land is re-cut as a
+  data profile across the coast (sand, a seawall, a four-lane bench at 4 m, a bluff), folded into
+  `MacroMap.raw_height_at()` like the marina's terrace, so terrain, carve, zones and the far
+  ground follow with no code of their own; the chunks the corridor crosses build it in place of
+  their zone. Decisions: the existing coast highway line (HillRoads, COAST_INSET) is the centre,
+  so nothing else on the map moves; beach houses on pilings stand on the sand side of the wall in
+  hashed runs with open beach between (cars and surfers' vans on both shoulders, towers, stairs);
+  the dead end at the north is a slide with a closure; its own traffic (CoastTraffic). It also
+  fixed the old northern coast (shrubs and rocks floating over cut ground, chunks with no
+  terrain). docs/HANDOFF.md "The coast highway"; CLAUDE.md "Coast highway".
 - **2026-10-05 One midtown boulevard is a walk of fame.** A hash of the seed picks an east-west
   midtown boulevard with plain blocks both sides; its pavements get terrazzo stars with INVENTED
   names (never a real person), its frontage low souvenir-strip blocks, one movie palace behind a
