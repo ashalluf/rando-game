@@ -41,13 +41,14 @@ func _where_it_stands(city: Node3D) -> void:
 	if macro:
 		for i in 72:
 			var a := TAU * float(i) / 72.0
-			for r in [0.0, 0.5, 1.0]:
-				var p := c + OffshoreIsland.AXIS * cos(a) * OffshoreIsland.HALF_LEN * r + perp * sin(a) * OffshoreIsland.HALF_WID * r
+			for r: float in [0.0, 0.5, 1.0]:
+				var p: Vector2 = c + OffshoreIsland.AXIS * cos(a) * OffshoreIsland.HALF_LEN * r + perp * sin(a) * OffshoreIsland.HALF_WID * r
 				if int(macro.zone_at(p)) != int(MacroMap.Zone.OCEAN):
 					dry += 1
 	_t._check(macro != null and dry == 0, "the island's footprint lies over open ocean on the map (%d points on land)" % dry)
 	var town: Vector2 = OffshoreIsland.town()[0]
-	_t._check(town.length() < c.length() - 500.0, "the island's town faces the mainland (%.1f km vs the centre's %.1f km from the origin)" % [town.length() / 1000.0, c.length() / 1000.0])
+	var toward := (town - c).dot(perp) * signf(perp.dot(-c))
+	_t._check(toward > 500.0, "the island's town is on its mainland side (%.1f km off the axis toward the coast)" % [toward / 1000.0])
 
 
 ## The weather table: gone in the marine layer and the rain, faint under overcast, crisp in a
