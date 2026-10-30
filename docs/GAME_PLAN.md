@@ -3494,6 +3494,7 @@ already mapped so milestone 2 is script-only.
   themselves (brush down each rill) decide, and the bushes only rag the edges. The searsia shrub
   (black leaf atlas, dark sprigs) is replaced on the stands by a code-built chaparral mound
   (HillShrub, LaTrees' machinery). HILL_GROUND_3=0 puts everything back.
+- 2026-10-30 (wave 3, crowd-variety): six more adults (crowd_aa..af) appended to Pedestrian.MODELS - a suit and tie, a blazer, a work shirt, a cardigan, a gym tank, wide trousers - with the tailored jacket, the necktie, the tank and wide trousers added to tools/crowd/garments.py. Appended, so every earlier rig keeps its index; a person's roll picks among 32 now (CROWD_VARIETY=0: the old 26).
 
 ## Correction: what build 135 (0ce833f) actually contained
 

@@ -19452,3 +19452,84 @@ reads the tile's rills and accepts the new batches.
 scene only: before/after in the shots); the far tier still plants only oaks, so past 160 m the
 stands are paint (by design, HANDOFF 9au); the rills' second order comes and goes with the pixel
 footprint like the old one did, so a stand edge can shift a few metres between 40 and 150 m.
+
+## 9hc. Crowd variety: six more kinds of Los Angeles adult (2026-10-30, wave 3, `crowd-variety`)
+
+The crowd was 26 rigs, mostly in tees, jeans and casual jackets. Six more adults, built with
+`tools/crowd/` exactly as the others (MPFB phenotype, our own garments, the atlas, the retarget),
+appended to `Pedestrian.MODELS` as indices 26-31 (`crowd_aa..af`), each with a hat-table row
+(`tools/crowd/hat_fit.gd`), a life-clip and a busk-clip library:
+
+| rig | who | wears |
+|---|---|---|
+| crowd_aa | South Asian American man, 40s, tall | charcoal pinstripe two-button suit (tailored), white shirt, burgundy repp tie, slacks |
+| crowd_ab | Black woman, 30s, tall | navy one-button blazer (tailored), ivory shell (tee), charcoal knee skirt with a back vent |
+| crowd_ac | Latino man, 30s, broad | navy twill work shirt, flap pockets, rolled sleeves (shirt `work`), worn jeans, boots, beard |
+| crowd_ad | Armenian American man, 70s, heavy | oatmeal button cardigan (`over` a shirt), pale blue shirt, grey slacks |
+| crowd_ae | Samoan American man, 20s, very muscular | racer-back tank (vest `tank`), athletic shorts with a stripe |
+| crowd_af | young Vietnamese American woman | cropped camel zip jacket over a white tee, black wide-leg trousers |
+
+**New garments (tools/crowd/garments.py, painted by garment_paint.py):**
+- `tailored`: build_top_shell at the jacket fit, hip length (men to below the seat), sleeves
+  ending `cuff_above_wrist` short so the shirt cuff shows. The V front is two plane cuts from the
+  top button (`_v_point()`: between Spine02 and Spine01 by `button_t`) to the gorge at the side
+  of the neck. The lapels (`_lapel()`) are panels laid ON the front by rays from in front, outside
+  the cut edge: width rising to `lapel_w` at `notch`, a notch, then the collar's front; the roll
+  edge wraps round the cut into the opening. The collar round the back is a stand and a fall whose
+  edge is put where the coat's surface is at that height (rays onto the shell: at the edge loop's
+  own radius it sank into the back and drew a raised box). Buttons (1 woman / 2 man), flap
+  pockets (patch()). Painted: the right front's lap edge with its cutaway curve, the centre back
+  seam and vent, front darts, the breast welt, three cuff buttons, pick stitching and the lapel
+  buttonhole, an optional pinstripe (pattern()).
+- `tie`: a knot grid and a blade grid (pointed tip) cast onto the shirt under it, region `keep`
+  (its own colour, `repp` diagonal stripes or a neat print, paint_tie()).
+- `vest` with `tank`: fitted jersey, region `top`, hem cut only (cut_top's sleeve plane through the
+  shoulder joint runs across the shoulder blades of a 45-degree bind pose and left a slit each
+  side), the sleeve zones dropped, and a band inside the side plane cut off the back (a racer
+  back): behind the shoulder blade the bind pose folds the cloth back past the side plane and a
+  strip survived outside the armhole.
+- trousers `wide` (hem radius capped a little under half the ankles' spacing so the two hems never
+  meet) and `athletic` shorts (elastic waist, side stripe; painter's knit branch).
+- skirt `slit` (a back vent painted), negative flare allowed (but a pencil taper let the thighs
+  through at every stride: crowd_ab's skirt is a near-straight knee skirt with 3 cm of ease and a
+  6 cm flare).
+
+**Layering:** a `tailored` coat, or a jacket with `"over": true` (the cardigan), hides the shirt /
+tee / tie under it with `hide_under(..., ray=True)`: a vertex is covered only when a ray straight
+out from the torso axis meets the coat within 6 cm. The nearest-point test (the trousers' rule)
+took the lapels a finger's width beside the V for cover and deleted the shirt off the chest. A
+coat over trousers widens the trousers' kept margin to 11 cm (its skirts lift at every stride).
+`layer_reach` (default 8 cm; 2.5 cm for a coat or a jacket over a top) is how far a top looks for
+the layer under it: at 8 cm a jacket's sleeve found the inside of a tee's short-sleeve opening and
+stood out in a fin.
+
+**Texture budget:** `tools/texture_budget/budget.txt`'s crowd patterns take two-letter names now
+(`crowd_[a-z]{1,2}_`).
+
+**A/B:** `CROWD_VARIETY=0` leaves the six out of the pick (`Pedestrian.VARIETY_MODELS`), which is
+the crowd exactly as before (26 to choose from, the same rolls). With them in, every person's model
+roll picks among 32: the same number of rolls, so nothing else a person rolls moves, but who wears
+which rig changes, as it did when crowd_u..z were appended.
+
+**Frame cost** (downtown_noon bookmark, `--spawn=2359.4,880,0,12,2 --hour=12`, opengl3, `SPLIT=1` on
+still_shot.gd, CROWD_VARIETY=0 then on): pedestrians 500.6k -> 525.6k triangles (+5 %), 344 -> 344
+draws; the whole frame 7.67 M -> 7.66 M triangles, 3,726 -> 3,710 draws (flat: the crowd differs in
+who stands where).
+
+**Warm rehearsal:** with 32 rigs the rehearsal's eight staged people roll other rigs, and the
+shot one's blood splats landed after the cleanup (two Decals left on the scene, shader_warm's
+check). `WarmRehearsal.run()` now sweeps the scene for the effects' leftovers for `SWEEP_FRAMES`
+(12) frames after the holder goes.
+
+**Foot placement check:** `tests/foot_ik_checks.gd`'s kerb people were seed 11, which rolled crowd_z
+from 26 rigs and crowd_f from 32 (0.041 m against its 0.04 tolerance). They are seed 1310 now,
+which rolls crowd_z either way (0.006 m, with CROWD_VARIETY on and off).
+
+**Checks:** `tests/crowd_variety_checks.gd` (indices, the A/B list, hat rows, life and busk
+libraries, the config rows wearing the new garments, adults only, body budget 16.5k, a spread of
+heights); `_check_crowd_rigs` holds all 32 to the body contract.
+
+**Stills:** `shots/crowd-variety` (lineup front / side / back under street light, a downtown
+still). Known gaps: crowd_ab's V shows a sliver of the blazer's dark inside under the shell top;
+the tank has small tabs at the back of the armpits; the suit's shoulders read a little padded;
+nothing seen on Forward+ (opengl3 and Cycles previews only).

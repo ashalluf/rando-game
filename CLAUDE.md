@@ -4825,6 +4825,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `strip()` stood off the leg as a board), `dress` (the skirt plus a bodice with `slope` 3 shaped to
   the waist, its hem laid onto the skirt; region `keep`, so no look splits it in two; prints
   `dots` / `floral` in `pattern()`). Worn by `crowd_u..z` (MODELS 20-25, after the rest).
+  **Crowd variety (2026-10-30, docs/HANDOFF.md "Crowd variety")**: `tailored` (a suit coat or
+  blazer: the shell with a V front cut by two planes to the top button, `_lapel()` panels laid on
+  the front by front rays with a notch, a turn-down collar whose fall is laid ON the coat by rays,
+  buttons, flap pockets; vent / cutaway / darts / welt / cuff buttons painted by
+  `paint_tailored()`), `tie` (knot and blade grids on the shirt, region `keep`), `vest` `tank`
+  (racer back), trousers `wide` (hem held under half the ankles' spacing) and shorts `athletic`.
+  A coat (or a jacket with `over`) hides the shirt and tie under it by RAYS straight out from the
+  torso axis (`hide_under(ray=True)`): the nearest-point test took the lapels beside the V for
+  cover and stripped the shirt off the chest. Worn by `crowd_aa..af` (MODELS 26-31);
+  `CROWD_VARIETY=0` leaves them out (`Pedestrian.VARIETY_MODELS`); checks `tests/crowd_variety_checks.gd`.
   **Close-up detail** (owner, 2026-09-27: faces and garments at 2-4 m): faces are not the
   average MakeHuman head - `build_character.py` rolls MPFB's own face targets (nose, jaw, chin,
   cheeks, eyes, mouth, ears, brows, forehead; `FACE_PAIRS`, `face_var`, `face_seed`, explicit
