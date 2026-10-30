@@ -342,7 +342,7 @@ static func _build_blimp() -> Geo:
 			var u := lerpf(LED_FROM, LED_TO, float(k) / cols)
 			for j in rows + 1:
 				var a := a0 + span * (0.5 - float(j) / rows)
-				var p := env_point(u, a, 0.05)
+				var p := env_point(u, a, 0.12)
 				p.x *= side
 				var nn := env_normal(u, a)
 				nn.x *= side
@@ -360,7 +360,7 @@ static func _build_blimp() -> Geo:
 				var u := lerpf(LED_FROM - 0.3, LED_TO + 0.3, float(k) / cols)
 				for j in 2:
 					var a := a0 + edge * (span * 0.5 + 0.03 + 0.05 * j)
-					var p := env_point(u, a, 0.045)
+					var p := env_point(u, a, 0.11)
 					p.x *= side
 					var nn := env_normal(u, a)
 					nn.x *= side
@@ -373,7 +373,7 @@ static func _build_blimp() -> Geo:
 		var name_place := func(q: Vector2) -> Array:
 			var u := 29.0 + (q.x if side < 0.0 else -q.x)
 			var a := PI * 0.5 - 0.62 - q.y / env_radius(u)
-			var p := env_point(u, a, 0.06)
+			var p := env_point(u, a, 0.18)
 			p.x *= side
 			var nn := env_normal(u, a)
 			nn.x *= side
@@ -382,7 +382,7 @@ static func _build_blimp() -> Geo:
 		var line_place := func(q: Vector2) -> Array:
 			var u := 50.0 + (q.x if side < 0.0 else -q.x)
 			var a := PI * 0.5 + 0.55 - q.y / env_radius(u)
-			var p := env_point(u, a, 0.06)
+			var p := env_point(u, a, 0.18)
 			p.x *= side
 			var nn := env_normal(u, a)
 			nn.x *= side
