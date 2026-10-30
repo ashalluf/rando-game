@@ -2644,6 +2644,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/police_night_look_checks.gd").new().run(self, city)
 	# The Los Angeles sunset (tests/sunset_clouds_checks.gd, SunsetSky): the weight, the low sun's light.
 	load("res://tests/sunset_clouds_checks.gd").new().run(self, city)
+	# The freeway close up (tests/freeway_closeup_checks.gd, FreewayCloseup): the concrete deck's
+	# UVs and lane copy, the kit's close-up pass, no geometry or rolls moved, the rush-hour fill.
+	await load("res://tests/freeway_closeup_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

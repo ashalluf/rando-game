@@ -20860,3 +20860,77 @@ opengl3, `SUNSET_CLOUDS=0` vs on.
 would need the band retuned, which touches every dusk); the fine bright speckles inside big heaps
 on lavapipe stills are the volume's own (in the before too); the city stills are opengl3 only (the
 city does not fit lavapipe); dawn gets the same model (symmetric weight) but was not tuned.
+
+## 9hv. The freeway close up (wave 3, branch `wt/freeway-closeup`; VISUAL_ROADMAP #220)
+
+The brief: driving the 110 / 101 / 10 at speed, from the chase cam and the driver's seat, by day,
+golden hour and night, the freeway should read like a 2026 game's LA freeway. The kit (9ba) had
+the parts; what read wrong up close was the driving surface (the city's asphalt material on a
+deck that in LA is concrete), clean barriers, flat sign faces and invisible markers by day.
+
+**What changed** (`FreewayCloseup`, `scripts/world/freeway_closeup.gd`; `FREEWAY_CLOSEUP=0` is the A/B):
+- **The deck is concrete** (`shaders/freeway_deck.gdshader`). The kit's `top` vertices now carry
+  UV = (metres along the route, metres across from the centre line) and UV2 = (half width, route
+  + 1; 0 on ramps and the stack's connectors) through `FreewayKit.top_vertex()` (the kit, the
+  ramps and StackBuild). The shader rebuilds Freeway.lane_layout() from the half width (its
+  numbers are copies, checked) and draws: lane-wide slabs with transverse joints skewed 2:12 at
+  Caltrans's repeating 12-13-19-18 ft spacing, sealant and spalled edges; longitudinal tining,
+  a normal tilt faded once a groove is under ~2 pixels; per slab (hashes) a tone, replaced slabs
+  (paler, crisper), cracked ones (a corner break or a mid-slab crack), asphalt patches with a
+  tarred seam; asphalt overlay stretches (28 % of 520 m stretches a route) whose cracks mirror
+  the slab joints under them; two polished, rubber-darkened wheel paths a lane, the oil band
+  down each lane's middle, now and then two skid marks drifting across; the shoulders' grit,
+  litter, glass glitter and weeds at the barrier toe and through cracks, a milled rumble strip
+  past the outer edge line; rain darkens and glosses it and water stands in the ruts and the
+  gutters. Tangents come from screen derivatives (the deck has none). 4 samplers.
+- **The kit's shaders** take a `closeup` uniform (set from the switch): graffiti from the street
+  wear tag atlas - handstyles on the faces the traffic sees, throw-ups on the outer barrier faces
+  and running on down the fascia, some buffed -, recast barrier panels and chipped arrises, white
+  rust and grime on the galvanised steel; sign boards in metres (the board's UV against the
+  screen Jacobian) with 12 in extruded panel seams and the lip over each, clip bolts at every
+  stringer, streaks down from the top and grime along the foot, the microprismatic sheeting's
+  sparkle in the retro; raised markers drawn as housings with lens faces, a white one's back lens
+  red (it glints red to a wrong-way driver at night), on a black adhesive pad; dirt round the
+  Botts' dots; tyre grime smudges on the lines.
+- **Lamp halos**: every light standard's two heads get NightAtmos's halo in the chunk's batch
+  (`FreewayCloseup.lamp_halo()`, the batch's relief taken back off; collapses by day).
+- **Traffic by the hour**: TrafficManager's freeway fill leaves a free slot empty at
+  `FreewayCloseup.spawn_skip(hour)` (0.08 at the rush, 0.62 in the small hours; the old flat
+  0.35 when staged or switched off) - the same single roll a slot, so no rng drift. The trucks
+  already keep to the two slow lanes (BigVehicles' shares).
+
+No geometry, roll or LOD rule changed: the checks build a deck chunk's kit with the pass on and
+off and compare every vertex; the triangle budgets (tests/freeway_kit_checks.gd) are unchanged.
+
+**Checks**: `tests/freeway_closeup_checks.gd` (the lane copies, samplers, materials, the deck's
+UVs, no geometry moved, the fill by the hour).
+
+**Cost** (still_shot.gd GEO, opengl3 1280x720, one load each; traffic differs run to run): the
+freeway bookmark (`--spawn=200,1088,-90,-4,30 --hour=13 --weather=clear`) `FREEWAY_CLOSEUP=0`
+6,766,083 tris / 3,156 draws, on 6,740,195 / 3,127 (flat: no geometry is added; the halos are
+instances of the batch's existing `atmos_glow_halo` key). On the 110 by downtown, main c838ea1 ->
+this branch: drive noon 5.66 M / 2,866 -> 5.80 M / 2,833, deck close up 2.08 M / 809 -> 2.06 M /
+793, drive night 3.74 M / 1,379 -> 3.72 M / 1,394. Pixel cost: the deck shader is four texture
+fetches (two scans, two normals) and a dozen value noises against road.gdshader's own five
+fetches and noise, so the deck is about what it was.
+
+**Stills** (`shots/freeway-closeup`, README there): the 110 by downtown northbound, before /
+after at noon, chase, the gantry, the deck close up, golden hour, night, the exit sign at night,
+and a low driver's-eye view. Cameras: `--spawn=1989,160,-6,-3,12`, `EYE=1989,12.0,160,-6,-3`,
+`1989,11.6,166,-6,-28` (deck), `1993,11.7,150,-6,-5@13@75` (driver).
+
+**Not done / not verified.** Forward+ (the Mac) not rendered: the concrete's albedo (0.158
+linear) and the halo strength were judged on opengl3 only; at night the pale concrete takes more
+of the moonlight fill than the old asphalt did. The sign panel seams and bolts only show inside
+~15 m (the gantries are seen from 25 m and more, where they fade to the board). Sound walls are
+YardFill's (`lot_walls.gdshader`) and were not touched; StreetWear already tags them. No real
+weed geometry (painted only). The rush-hour fill was not measured in a still (the stills hold
+traffic as the city spawned it).
+
+**Gate** (`SHARDS=3`, merged with main 3eb7bea): 4,017 checks, 4,015 passed, shard peaks 2,685 /
+3,432 / 3,322 MB, 1,136 s. Failed in shard 1: explosions_2's "one flash light, brighter and wider
+than the old one" and "the blasts leave nothing behind (0 nodes, 7 pieces)"; shard 2 logged one
+`Invalid access to property or key 'dir'` in TrafficManager._drive_streets (traffic.gd:544, a
+street car's lane group, during the police station checks). None of it is freeway code, and
+`SMOKE_PARTS=explosions_2_checks,police_station_checks` alone passes 65 / 65 with no error.
+The 49 freeway checks (kit + close-up) pass.

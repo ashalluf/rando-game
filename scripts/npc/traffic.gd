@@ -1227,6 +1227,8 @@ func _maintain_freeway() -> void:
 		return
 	var per_route := maxi(1, max_freeway_cars / live.size())
 	var added := 0
+	# The share of free slots left empty: by the hour (FreewayCloseup), the old 0.35 when staged.
+	var skip := 0.35 if staged else FreewayCloseup.spawn_skip(BusyStreets.hour_now(self))
 	for entry in live:
 		var ri: int = entry.x
 		var anchor := float(entry.y)
@@ -1248,7 +1250,7 @@ func _maintain_freeway() -> void:
 				if on_route >= per_route or added >= 10:
 					break
 				var key := Vector2i(slot, dir)
-				if taken.has(key) or _rng.randf() < 0.35:
+				if taken.has(key) or _rng.randf() < skip:
 					continue
 				_spawn_queues[2].append(_spawn_freeway_car.bind(ri, t, dir))
 				taken[key] = true

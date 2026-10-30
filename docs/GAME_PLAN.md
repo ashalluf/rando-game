@@ -3586,6 +3586,14 @@ already mapped so milestone 2 is script-only.
   ~85 m, the real shrubs nearer) and in the LOD ring (which planted nothing). No shadows; the clumps
   are darker than the paint so a stand reads as lit tops over shaded masses. HILL_PLANTING_2=0.
 
+- **2026-10-30 The freeway's driving surface is concrete (freeway-closeup, HANDOFF "The freeway
+  close up").** LA's elevated freeways are portland cement concrete, so the deck top left the
+  city's asphalt road material for its own shader, laid out in the deck's own metres (UVs on the
+  kit's top vertices) with the lanes rebuilt from Freeway.lane_layout()'s numbers; overlay
+  stretches stay asphalt. Every close-up detail is a shader pass on the existing meshes (no
+  geometry, no rolls), lamp halos reuse NightAtmos, and the rush hours fill the freeway through
+  the existing single roll a slot. `FREEWAY_CLOSEUP=0` restores all of it.
+
 ## Correction: what build 135 (0ce833f) actually contained
 
 That commit's subject says "denser grass, real palm fronds, finer ground". It also shipped a
