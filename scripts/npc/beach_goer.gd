@@ -168,6 +168,20 @@ const BEACH_POSES := {
 		},
 		"keep": ["LeftFoot", "RightFoot"],
 	},
+	# Reclined on a chaise lounger (Backyards): the back raised 50 degrees, the hip joint 10 cm over
+	# the pad (0.39 m up), legs out flat, the hands resting on the thighs.
+	"lounge": {
+		"hips_pitch": -40.0, "hips_y": 49.0,
+		"aim": {
+			"Spine02": Vector3(0.0, 0.77, -0.64), "Spine01": Vector3(0.0, 0.79, -0.61),
+			"Spine": Vector3(0.0, 0.82, -0.57), "neck": Vector3(0.0, 0.97, 0.05),
+			"Head": Vector3(0.0, 0.9, 0.42),
+			"LeftUpLeg": Vector3(0.1, 0.02, 1.0), "LeftLeg": Vector3(0.04, -0.03, 1.0),
+			"LeftFoot": Vector3(0.18, 0.86, 0.47),
+			"LeftArm": Vector3(0.3, -0.78, 0.55), "LeftForeArm": Vector3(-0.32, -0.2, 0.93),
+		},
+		"keep": [],
+	},
 }
 
 ## Who rides the bike path (the younger rigs) and how many bike colours each has (rider_paint()).
@@ -259,7 +273,7 @@ static func beach_capsule(pose_key: String, base_pose: int, yaw: float) -> Dicti
 		"sit_lean":
 			cap.height = 1.0
 			return {"shape": cap, "position": Vector3(0.0, 0.42, 0.0) - fwd * 0.05, "rotation": Vector3.ZERO}
-		"beach_chair":
+		"beach_chair", "lounge":
 			cap.height = 1.2
 			return {"shape": cap, "position": Vector3(0.0, 0.6, 0.0), "rotation": Vector3.ZERO}
 	return RoughSleeper.pose_capsule(base_pose, yaw)

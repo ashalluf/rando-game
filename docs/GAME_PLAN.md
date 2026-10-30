@@ -302,6 +302,13 @@ already mapped so milestone 2 is script-only.
   every wall - one include shared by the near walls and the far boxes, rolled from integers so the
   LOD line keeps them. Corners of near box parts are bevelled 22 cm. Fins as geometry were tried and
   dropped (aliasing lines at 100 m). docs/HANDOFF.md "Facades that read as built".
+- **2026-10-30 Footbridges (HANDOFF "Footbridges").** Caged pedestrian overcrossings over the
+  wide boulevards by schools and parks and over the freeways. Decisions: placement is pure (hashes
+  of seed + road stretch / freeway slot), so any chunk a bridge touches agrees on it; the freeway
+  is elevated here, so its bridges climb 15-19 m in caged switchback stair towers standing on the
+  right of way (corridor lots only); boulevard stairs run along the back of the pavement; built in
+  code into one mesh and one material a bridge; planting under a bridge is collapsed after its
+  rolls, so nothing else on a seed moves.
 - **2026-10-30 Beach bonfire rings at night (HANDOFF "Beach bonfire rings").** Concrete fire
   rings in a row along the beach above the tide line (hashes per 24 m of shore, nothing else on
   the beach moves; the sunbathers keep clear of them), empty by day, about six in ten lit after
@@ -310,6 +317,43 @@ already mapped so milestone 2 is script-only.
   beach's baked figures, clothed). LOD chunks lay the pools so the coast reads as a row of fires
   from the air. `BONFIRES=0` is the A/B.
 
+- **2026-10-29 The harbour's lights (HANDOFF "The harbour's lights").** A lighthouse on the
+  headland's south-east cliff and a breakwater light at the end of a long rubble breakwater off the
+  port, both landmarks (far copy everywhere, near in the FULL chunk; the breakwater is 15 pieces so
+  the part round the player is the detailed one). Fixed geography, not seeded: the headland and the
+  port do not move with the seed. The lighthouse stands on a pad carved into the headland
+  (Lighthouses.carve() in MacroMap.height_at()). A lantern's beam axis is its rotor node's +X, read
+  off MODEL_MATRIX by the lamp and lens shaders, so nothing per frame is set from script and every
+  copy turns in step off the real clock. Names invented (GULL POINT LIGHT, HARBOR GATE LIGHT).
+- **2026-10-29 The sea is worked out, like the sky's traffic (wave 3, HANDOFF "Ocean traffic").**
+  The bay and the coast get boats under way, a ferry, tugs, a pilot boat and ships at anchor, all
+  scripted (no physics), in TRUE world coordinates. Decisions: the hulls ride the swell in their
+  shader from a copy of the ocean's waves (checked against ocean.gdshader's numbers), because only
+  the shader knows TIME - a GDScript bob would drift out of phase with the water drawn round it;
+  wakes are foam the ocean shader draws from 16 uniform slots, not particles or decals (one draw,
+  both renderers, and they reach the painted far sea too); the hull below its waterline is cut
+  away past 650 m because the far sea is the horizon plane 24 m down; small craft spawn out of
+  view and only where `sea_room()` says there is water all round; sloops sail by a polar and
+  tack, never within 40 degrees of the wind. Invented names: the ferry line PACIFIC TERN.
+
+- **2026-10-06 Motorcycles are Vehicles with a drawn lean (HANDOFF "Motorcycles").** A sport
+  bike, a cruiser and a scooter, Blender-built at real size (tools/make_motorcycles.py). Decisions:
+  a Vehicle subclass (BodyType appended, never rolled by random_car) so enter / exit, traffic and
+  the pools are the cars'; two centre-line physics wheels with the roll held upright on the body's
+  direct state, the lean and the wheelie DRAWN on the model (stable, cheap, and the arcade feel the
+  cars have) rather than a simulated counter-steering bike; the rider is visible - the hero
+  himself on the player's bike (a skeleton modifier), crowd rigs in full-face helmets in traffic -
+  posed by one two-bone solver; thrown off as a ragdoll in a crash; 5 % of street traffic, lane
+  filtering past stopped queues; kerb stalls swapped to bikes by hash after every roll.
+- **2026-10-05 One building you can walk into: the corner store (HANDOFF "The corner store").**
+  Corner lots in MIDTOWN and the SUBURBS, by hash after every other lot claim, hold a one-storey
+  convenience store with real interior geometry (shelving, gondolas, coolers, counter, cigarette
+  rack, ~3k code-built products, a cashier). The interior is only drawn while the camera or the
+  player is within 5 m of the storefront; otherwise the glass traces the same room from the same
+  layout numbers, so the facade matches the inside. `WALK_IN_STORE=0` turns it off.
+  Wave 3: shooting the shelves knocks the stock off (thrown packs, drink spray; the interior shows
+  from 70 m while it is shot up; `STORE_MAYHEM=0`), and the side wall carries a painted mural of
+  the goods (pictures only).
 - **2026-10-05 Onlookers: the crowd comes back after the chaos (HANDOFF "Onlookers").** After
   the panic near a wreck, a blast or a body, people near the camera come back and stand round it
   in a loose ring: filming on their phones (held up at eye level, the screen lit, a video light
@@ -321,6 +365,23 @@ already mapped so milestone 2 is script-only.
   officers, crews, sleepers), near the camera only (`life_range`); a watched body is kept as
   debris past its 12 s while people watch it (`BODY_HOLD`), or the crowd would come back to
   nothing; every roll a hash; `ONLOOKERS=0` the A/B.
+- **2026-10-29 An oil refinery north of the port (HANDOFF "The oil refinery north of the port").**
+  Decisions: a fixed area site like the film studio's (4 x 7 industrial blocks between the 110 and
+  Alameda, clear of the freeway, the river and the freight line), every roll inside a hash of seed
+  and place; everything code-built on one shader (no Blender: a plant is thousands of parts placed
+  from data); the far city sees it through its own far pieces (one a block, hidden block by block
+  under FULL chunks) rather than lod_boxes, because tanks and columns are round and the night
+  aerial needs its lamps, flames and steam; the lamps are billboard points (a few thousand cost one
+  draw a piece), the night glow on the steel a shader term, not lights.
+- **2026-10-29 The crowd's heads (HANDOFF "The crowd's heads").** People near the camera turn
+  their heads, and past 50 degrees a little of the chest, toward what happens round them: blasts,
+  crashes and shot cars, the player boosting past or landing hard, sirens, burning cars,
+  performers (`crowd_look_magnet`), and glance at cars, the player and passers-by with a
+  look-away. Decisions: a SkeletonModifier3D on the rig (posed after every clip and overlay, never
+  accumulating) with the thinking in the physics tick; ONE shared survey a physics frame plus
+  events other systems post, never a per-person world query; loud things are heard from behind,
+  quiet ones need sight; critically damped springs with a top speed, so a startle is fast but
+  never a snap; only within look_range of the player and the camera. `CROWD_LOOK=0` is the A/B.
 - **2026-10-05 Apartments: the first per-style kit (G2; HANDOFF "Apartment buildings").** Midtown's
   low-rise lots and the inner suburbs get LA stucco apartments - walk-ups with galleries and open
   stairs, bungalow courts, Spanish courts, podium blocks - instead of storefront boxes and single
@@ -373,6 +434,29 @@ already mapped so milestone 2 is script-only.
   Built on crowd life's acts (no new clips, no new bones); everything rolled from the person's
   seed; four hook lines in Pedestrian, one in Weather; `RAIN_CROWD=0` is the A/B. Far people walk
   on as before (the rain and the fog hide them).
+- **2026-10-06 Lowriders (HANDOFF "Lowriders").** Two classic bodies (a 1960s hardtop, a 1980s
+  coupe) on the road-car loft in Blender, appended body types never rolled. Decisions: the candy,
+  flake, pinstripes and patterned roof are a `custom` block in the shared car paint include (one
+  uniform branch for every other car) placed in MESH space, not a per-car texture; the wire wheels
+  are built in code like the other generated wheels (72 spokes; a disc far); the hydraulics are
+  VISUAL (the body model and its lamps move, a wheel lifts once its corner passes the stroke; the
+  physics body does not), and a meet car is kinematic like a traffic car, so a row of ten costs no
+  simulation and a hit still turns one into a physics car. Meets are worked out per map cell by
+  hash on boulevards in midtown, the suburbs and the industrial east, weekend nights only, and skip
+  the block's parked cars after their rolls; cruisers reuse the traffic's last roll.
+- **2026-10-06 Freeway incidents are worked out from a clock, not simulated (HANDOFF "Freeway
+  incidents").** What happens where on the freeway is a hash of seed, route, 1 km stretch,
+  direction and 480 s slot, so any system (the traffic, the message signs, a still) asks the same
+  question and gets the same answer, and nothing is rolled live. A stall is a script of positions
+  against time (the car coasting in, the patrol car, the tow, the bed and the winch), not cars
+  driven by an AI: it always plays out, and a still or a check can stand anywhere in it. Its
+  vehicles are traffic cars of the incident (kinematic, never the player's) until a hit knocks
+  one out, and once the tow drives off it and the patrol car become ordinary freeway traffic
+  rather than vanishing. The highway patrol is an invented agency with no part in the wanted
+  level (not in the police groups). Traffic only gets small hooks: a speed cap and a lane change
+  out of a blocked lane, the spawn lane, and TrafficAI's own thinking held off near a block so
+  keep-right never steers a car back into one. The message signs replace the second guide board
+  on a third of the gantry carriageways (never where an exit sign stands).
 
 - **2026-10-05 Drivers react to chaos (HANDOFF "Drivers react to chaos").** A shot or a blast
   near a street traffic car rolls its driver one of brake, swerve, kerb, reverse, abandon or
@@ -384,6 +468,16 @@ already mapped so milestone 2 is script-only.
   kerb that is clear (parked cars, people, solid street furniture); an abandoned car keeps its
   door open and the player can take it as nobody's crime; nothing here is a crime unless a person
   is hit.
+- **2026-10-06 Multi-storey car parks you can drive up (HANDOFF "Multi-storey car parks").**
+  Decisions: standalone structures on their own hash-picked sites in LotFill's districts, not the
+  parking podiums (a podium is one shader-drawn part of a tower's Building; making it drivable
+  would mean rebuilding the tower round it). Stacked straight ramps in one walled strip - the
+  simplest form that is truly drivable with a game car's turning circle and keeps a constant
+  clearance between ramps - with U-turns in the end zones and the exit down the same two-way
+  ramps. Built in code at real size (3.05 m floor to floor, 2.39 m under the beams, 14.9 % ramps
+  with eased ends), one trimesh collision body. Barrier arms lift for the player and have no
+  collision (an arm a car can hook would launch it). Parked cars are the cheap static ArenaGrounds
+  bodies with box collision, not live Vehicles. Operator names invented.
 - **2026-10-05 The street's signs are real models (HANDOFF "The street's signs").** The signs
   were a cylinder for a stop sign facing the junction diagonally, flat boxes with TextMesh names
   and red-banded white boxes. Decisions: built in CODE at real size (StreetSignKit; BoulevardSigns owns the kerb's parking plates), not Blender - every
@@ -1466,6 +1560,16 @@ already mapped so milestone 2 is script-only.
   do not fall (the world is realistic, the player is the chaos). Only built near the camera.
   docs/HANDOFF.md "Window-washing gondolas"; CLAUDE.md "Window-washing gondolas".
 
+- **2026-10-30 A gas-fired power plant on the coast south of the airport (fleet wave 3,
+  power-plant).** SEACLIFF GENERATING STATION (invented, of BASIN LIGHT & POWER) takes two
+  beach-town blocks at the 105's west end as an area site (streets closed): the old units' turbine
+  hall, boiler house and 78 m twin stacks in red and white bands with red obstruction lights, a
+  combined-cycle block, switchyard, fuel tanks, offices; a seawall and intake trestle on the sand.
+  Its line leaves on lattice towers in the ridges' style (their code called, not copied) east along
+  the 105 to a receiving station, taking the lots it crosses after every roll. A fixed area, as the
+  film studio and the canals are; everything in it is laid out from the snapped rect.
+  docs/HANDOFF.md "The power plant on the coast"; CLAUDE.md "Power plant".
+
 - **2026-10-05 The cumulus read as photographs, not paintings (owner's review of wt/sky).** Flat
   bases at a shared condensation level, crowns thinned so the billows build them into turrets,
   footprints warped and tops sheared, a second population of fragments, three-octave torn edges
@@ -1580,7 +1684,31 @@ already mapped so milestone 2 is script-only.
   (curvature included) before the clouds. Blue haze by day, a silhouette against the sunset,
   the town's lights at night, gone in the marine layer and rain. docs/HANDOFF.md "The island
   offshore"; CLAUDE.md "The island offshore".
+- **2026-10-05 Back yards are lived in (suburbs and the beach town).** On YardFill's back-yard
+  plan, a hash per lot: patio dining sets under market umbrellas, gas and kettle grills smoking at
+  dinner time (the shader reads `city_hour`), string lights over the patio lit after dark, loungers
+  and floats by the pools, trampolines, washing lines, citrus trees, doghouses and dog runs, a
+  toddler's slide and wagon (no children: the crowd has no child rigs). Code-built (`BackyardKit`),
+  one batch per kind a FULL chunk; LOD chunks keep the umbrellas, trampolines and the lights' glow
+  so the yards read from the air. docs/HANDOFF.md "Backyard life"; CLAUDE.md "Backyard life".
+  Wave 3 (2026-10-30): people on the pool and lawn loungers by day (baked sunbathers in swimwear,
+  as many as the beach's busyness of the hour lets out; shot or near gunfire, they get up and run).
+- **2026-10-06 The hero has a wingsuit, and it flies like energy, not like a jetpack.** In the
+  air G / pad X (or holding jump on the way down) spreads it; the stick pitches and rolls, speed
+  comes only from diving (gravity along the path, drag on the square of the speed) and a pull-up
+  spends it on height; boost still thrusts, because he is overpowered. He flares by himself near
+  the ground and never climbs out of a flare unless pulled back; a slow touch-down runs out, a
+  fast one is a skid on one knee. The suit's fabric is built from his live bones each frame, so
+  it follows every pose; the gun is put away while he glides and comes out to shoot.
+  docs/HANDOFF.md "The wingsuit"; CLAUDE.md "Wingsuit".
 
+- **2026-10-05 The news covers the chaos.** A big blast or a long police standoff becomes a
+  STORY: one of four invented stations (BASIN 7, SUNCOAST 4, PACIFICA 9, ONDA 34; never a real
+  broadcaster) sends its live truck, which double-parks down the street, raises its uplink and
+  puts a reporter on air in front of the scene behind caution tape, while the news helicopter
+  circles the same spot. They are people like anyone (shooting them is a crime), they kneel at
+  gunfire with the camera still rolling, and they pack up and leave after a couple of minutes.
+  docs/HANDOFF.md "TV news crews"; CLAUDE.md "TV news crews".
 - **2026-10-06 Street props break by what they ARE, GTA-style.** A hydrant knocked off sends up a
   geyser for a while (and throws you up it), a shelter's glass bursts into tempered cubes, lamp
   posts bend and then fall from the foot, mailboxes and news boxes burst open with paper, meters
@@ -1614,6 +1742,12 @@ already mapped so milestone 2 is script-only.
   the dead end at the north is a slide with a closure; its own traffic (CoastTraffic). It also
   fixed the old northern coast (shrubs and rocks floating over cut ground, chunks with no
   terrain). docs/HANDOFF.md "The coast highway"; CLAUDE.md "Coast highway".
+- **2026-10-05 One midtown boulevard is a walk of fame.** A hash of the seed picks an east-west
+  midtown boulevard with plain blocks both sides; its pavements get terrazzo stars with INVENTED
+  names (never a real person), its frontage low souvenir-strip blocks, one movie palace behind a
+  forecourt of handprint slabs, costumed characters in ORIGINAL costumes (never a copyrighted
+  character) and sightseeing buses. Everything after the existing rolls; STAR_BOULEVARD=0 the
+  A/B. docs/HANDOFF.md "The walk of fame"; CLAUDE.md "Walk of fame".
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
@@ -3153,6 +3287,11 @@ already mapped so milestone 2 is script-only.
   ambient 0.45, darker ground checker. The original values washed the ground out to white.
 - **2026-09-19 Push to main always.** The owner asked for all work to go directly to `main` with no
   branches or pull requests. Milestone 1 was the only PR (#1); everything after lands on `main`.
+- **2026-10-30 The crowd's third garment set, on new people only.** Puffers, a work jacket, cargo
+  shorts and dresses are built in our own garment pipeline and worn by six NEW rigs (crowd_u..z,
+  appended to Pedestrian.MODELS so no earlier index or roll moves); b, c, f and g stay in their
+  library clothes (the task: do not rebuild existing rigs). A dress is one "keep" cloth: no look
+  recolours it into a two-tone outfit.
 
 ## Correction: what build 135 (0ce833f) actually contained
 
