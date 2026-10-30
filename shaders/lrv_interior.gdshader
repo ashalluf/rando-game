@@ -17,7 +17,7 @@ uniform float night_light = 1.25;
 
 void fragment() {
 	float night = clamp(night_factor, 0.0, 1.0);
-	vec3 day = max(sky_tint.rgb, vec3(0.0)) * (1.0 - night * 0.92);
+	vec3 day = cs_srgb_to_linear(max(sky_tint.rgb, vec3(0.0))) * (1.0 - night * 0.92);
 	vec3 light = day * day_light + vec3(1.0, 0.93, 0.80) * night * night_light;
 	vec3 albedo = COLOR.rgb;
 	ALBEDO = cs_out(albedo * 0.2);

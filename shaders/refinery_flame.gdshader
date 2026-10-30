@@ -70,7 +70,11 @@ void fragment() {
 	vec2 c = UV * 2.0 - 1.0;
 	float r = length(c);
 	if (v_glow > 0.5) {
-		float a = exp(-r * r * 3.2) * glow_gain * strength * (1.0 + 0.6 * v_far);
+		// The gaussian less its value at the quad's edge (exp(-3.2) = 0.041), so the halo reaches
+		// nothing there: on Forward+ the 4 % left at the edge, added in linear over a night sky,
+		// drew every flare's halo as a lit orange square (fwd-review-d).
+		float g = max(exp(-r * r * 3.2) - 0.0408, 0.0) / 0.9592;
+		float a = g * glow_gain * strength * (1.0 + 0.6 * v_far);
 		ALBEDO = vec3(1.0, 0.45, 0.12) * a;
 		ALPHA = 1.0;
 	} else {

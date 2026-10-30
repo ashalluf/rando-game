@@ -102,7 +102,7 @@ void fragment() {
 	vec3 N = normalize(mnrm);
 	float ndv = clamp(dot(N, -d), 0.0, 1.0);
 	float fres = 0.04 + 0.96 * pow(1.0 - ndv, 5.0);
-	vec3 day = max(sky_tint.rgb, vec3(0.0)) * (1.0 - night_factor * 0.92);
+	vec3 day = cs_srgb_to_linear(max(sky_tint.rgb, vec3(0.0))) * (1.0 - night_factor * 0.92);
 	float night = clamp(night_factor, 0.0, 1.0);
 	// The mirror (world-space reflected ray: up is model +y, the cars stay level enough).
 	vec3 R = reflect(d, N);

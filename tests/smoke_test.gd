@@ -2289,6 +2289,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/farmers_market_checks.gd").new().run(self, city)
 	# Forward+ review traps (tests/fwd_review_b_checks.gd): back-face normals, normal-map green, sky_tint.
 	load("res://tests/fwd_review_b_checks.gd").new().run(self, city)
+	# Forward+ review d (tests/fwd_review_d_checks.gd): sky_tint and vertex colours in every shader.
+	load("res://tests/fwd_review_d_checks.gd").new().run(self, city)
 	# Memory (tests/memory_audit_checks.gd): the peak resident memory budget, and the audit's cuts.
 	load("res://tests/memory_audit_checks.gd").new().run(self, city)
 	# The loading screen's rehearsal (tests/shader_warm_checks.gd): it leaves nothing behind.
