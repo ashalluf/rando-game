@@ -7,6 +7,16 @@
 // above, so each branches off the last. After Fewes's "terrain erosion noise".
 //
 // Shader includes use // comments, like any shader file.
+//
+// How far each cell's stripe origin is jittered (in cells) and how hard a finer order turns off
+// the coarser one's walls. At 0.5 and 1.6 (Fewes's numbers, which the height's own orders still
+// use, MacroMap._erosion_cells()) neighbouring cells' stripes met half a cycle out of phase and
+// cancelled, so every gully broke into a braid of short pits - with erosion_amp 7 m on 55 m cells
+// those pits were the dark LEOPARD SPOTS evenly over every slope at an afternoon sun (HANDOFF,
+// hill-ground-3). Nearer in phase (0.45 jitter is still enough to meander) and 3 m deep they run on down the slope as rills.
+// HillGround3.apply() puts the old numbers back for the A/B (HILL_GROUND_3=0).
+uniform float erosion_jitter = 0.45;
+uniform float erosion_branch = 0.8;
 
 vec2 erosion_hash(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973));
@@ -25,7 +35,7 @@ vec3 erosion_cells(vec2 p, vec2 dir) {
 	for (int j = -2; j <= 1; j++) {
 		for (int i = -2; i <= 1; i++) {
 			vec2 o = vec2(float(i), float(j));
-			vec2 pp = fp + o - erosion_hash(ip - o) * 0.5;
+			vec2 pp = fp + o - erosion_hash(ip - o) * erosion_jitter;
 			float d2 = dot(pp, pp);
 			float w = max(exp(-d2 * 2.0) - 0.0889, 0.0);
 			float mag = dot(pp, dir) * 6.2831853;
@@ -52,7 +62,7 @@ vec3 erosion_detail(vec2 w, vec2 slope, float amp, float cell, float fp) {
 		if (vis <= 0.001) {
 			break;
 		}
-		vec2 d = slope + acc.xy * 1.6;
+		vec2 d = slope + acc.xy * erosion_branch;
 		vec2 dir = vec2(d.y, -d.x);
 		float l = length(dir);
 		dir = l > 0.00001 ? dir / l : vec2(1.0, 0.0);

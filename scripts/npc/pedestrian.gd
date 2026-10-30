@@ -48,7 +48,30 @@ const MODELS := [
 	"res://assets/models/crowd_x.glb",
 	"res://assets/models/crowd_y.glb",
 	"res://assets/models/crowd_z.glb",
+	# 2026-10-30: six more working Los Angeles adults in garments of their own: a two-button suit
+	# and tie (the tailored jacket), a blazer and pencil skirt, a work shirt, a cardigan over a
+	# shirt, a gym tank and shorts, a cropped jacket over wide trousers (crowd_config.json).
+	"res://assets/models/crowd_aa.glb",
+	"res://assets/models/crowd_ab.glb",
+	"res://assets/models/crowd_ac.glb",
+	"res://assets/models/crowd_ad.glb",
+	"res://assets/models/crowd_ae.glb",
+	"res://assets/models/crowd_af.glb",
 ]
+## The six of 2026-10-30 (tools/crowd: suit, blazer, work shirt, cardigan, gym tank, wide trousers).
+## CROWD_VARIETY=0 in the environment leaves them out (the A/B: the crowd exactly as before).
+const VARIETY_MODELS := ["res://assets/models/crowd_aa.glb", "res://assets/models/crowd_ab.glb",
+	"res://assets/models/crowd_ac.glb", "res://assets/models/crowd_ad.glb", "res://assets/models/crowd_ae.glb",
+	"res://assets/models/crowd_af.glb"]
+static var _variety := -1
+
+
+static func variety_on() -> bool:
+	if _variety < 0:
+		_variety = 0 if OS.get_environment("CROWD_VARIETY") == "0" else 1
+	return _variety == 1
+
+
 ## Rigs that never wear a hat: their head is already covered (crowd_r's headscarf). The hat rolls
 ## are still made for them, so every roll after them is the same as anyone's.
 const NO_HAT_MODELS := ["res://assets/models/crowd_r.glb"]
@@ -342,7 +365,7 @@ func _ready() -> void:
 func _add_model() -> bool:
 	var available: Array[String] = []
 	for path in MODELS:
-		if ResourceLoader.exists(path):
+		if ResourceLoader.exists(path) and not (path in VARIETY_MODELS and not variety_on()):
 			available.append(path)
 	if available.is_empty():
 		return false

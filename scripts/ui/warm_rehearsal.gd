@@ -45,6 +45,10 @@ static var _resident: Array = []
 ## Runs the rehearsal in front of `cam`. `scene` is where the city lives (effects are parented
 ## to the current scene by WeaponFX, and freed from there afterwards). `progress` is called with
 ## a 0..1 fraction and a label. Awaits frames throughout.
+## Frames the scene is swept for the effects' leftovers after the holder goes.
+const SWEEP_FRAMES := 12
+
+
 static func run(scene: Node, cam: Camera3D, progress: Callable = Callable(), log_times: bool = false) -> void:
 	if not enabled or cam == null or scene == null or not scene.is_inside_tree():
 		return
@@ -88,12 +92,16 @@ static func run(scene: Node, cam: Camera3D, progress: Callable = Callable(), log
 	# Clean up: the holder, and whatever the effects parented to the scene meanwhile (plain
 	# nodes only - a chunk the streamer added is a scripted node and stays).
 	holder.queue_free()
-	for c in fx_root.get_children():
-		if before.has(c.get_instance_id()) or c == holder:
-			continue
-		if c.get_script() == null or String(c.name).begins_with("BlastCrater"):
-			c.queue_free()
-	await tree.process_frame
+	# Swept again for a moment after: blood drops traced along their arcs are still in the air and
+	# lay their splats (Decals on the scene) as they land, some frames after the holder is gone -
+	# which rig the staged people roll decides how long they fall.
+	for f in SWEEP_FRAMES:
+		for c in fx_root.get_children():
+			if before.has(c.get_instance_id()) or c == holder or c.is_queued_for_deletion():
+				continue
+			if c.get_script() == null or String(c.name).begins_with("BlastCrater"):
+				c.queue_free()
+		await tree.process_frame
 	Police.innocent = innocent_was
 	AudioServer.set_bus_mute(0, bus_was)
 	if log_times:

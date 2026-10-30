@@ -1581,6 +1581,10 @@ var _tile_n: int = 0
 var _tile_row: int = 0
 var _tile_heights := PackedFloat32Array()
 var _tile_drains := PackedFloat32Array()
+## The fine erosion rills at each vertex of a FULL tile (HillPlanting.rill() times the steepness, the
+## terrain shader's ero.z * steep): hill_shells.gdshader's stand rule reads them from COLOR.a and the
+## planting off the grid, so neither works the 32-cell noise out again (hill-ground-3).
+var _tile_rills := PackedFloat32Array()
 ## Microseconds of sampling a call takes before it hands the frame back.
 const TERRAIN_SAMPLE_BUDGET_US := 2500
 
@@ -1595,6 +1599,7 @@ func _sample_terrain() -> bool:
 		_tile_n = (terrain_subdiv_road if has_road else terrain_subdiv) if level == Level.FULL else terrain_subdiv_lod
 		_tile_heights.resize((_tile_n + 1) * (_tile_n + 1))
 		_tile_drains.resize((_tile_n + 1) * (_tile_n + 1))
+		_tile_rills.resize((_tile_n + 1) * (_tile_n + 1))
 		_tile_row = 0
 	var n := _tile_n
 	var t0 := Time.get_ticks_usec()
@@ -1606,10 +1611,35 @@ func _sample_terrain() -> bool:
 			_tile_heights[j * (n + 1) + i] = plan.height_at(Vector2(x, z))
 			# The drainage the height_at() just above left (MacroMap.last_drain).
 			_tile_drains[j * (n + 1) + i] = plan.macro.last_drain if plan.macro else 0.0
+		# The row above now has both its neighbours: its rills (and the last row's, once sampled).
+		if j >= 1:
+			_sample_rills(j - 1)
+		if j == n:
+			_sample_rills(n)
 		_tile_row += 1
 		if Time.get_ticks_usec() - t0 > TERRAIN_SAMPLE_BUDGET_US:
 			break
 	return _tile_row > n
+
+
+## The fine rills along row `j` of the tile, off its own heights (central differences, as the
+## mesh's normals): FULL tiles only, where the shells and the planting read them.
+func _sample_rills(j: int) -> void:
+	if level != Level.FULL or not HillPlanting.rills_on():
+		return
+	var area := owned_rect()
+	var n := _tile_n
+	var dx := area.size.x / n
+	var dz := area.size.y / n
+	var j0 := maxi(j - 1, 0)
+	var j1 := mini(j + 1, n)
+	for i in n + 1:
+		var i0 := maxi(i - 1, 0)
+		var i1 := mini(i + 1, n)
+		var grad := Vector2((_tile_heights[j * (n + 1) + i1] - _tile_heights[j * (n + 1) + i0]) / (dx * (i1 - i0)),
+			(_tile_heights[j1 * (n + 1) + i] - _tile_heights[j0 * (n + 1) + i]) / (dz * (j1 - j0)))
+		var p := Vector2(area.position.x + area.size.x * i / n, area.position.y + area.size.y * j / n)
+		_tile_rills[j * (n + 1) + i] = HillPlanting.rill_th(p, grad)
 
 
 func _build_terrain() -> void:
@@ -1640,7 +1670,9 @@ func _build_terrain() -> void:
 			if not _shell_clear.is_empty():
 				keep = clampf(0.5 + _shell_clear[j * (n + 1) + i] / (2.0 * SHELL_CLEAR_SPAN), 0.0, 1.0)
 				_shell_any = _shell_any or (keep > 0.5 and h > 1.5)
-			st.set_color(Color(t, _tile_drains[j * (n + 1) + i] * 0.5 + 0.5, keep, 1.0))
+			# COLOR.a is the fine rills (_tile_rills, -1..1 as 0..1) for the shells' stand rule.
+			var rl := _tile_rills[j * (n + 1) + i] if _tile_rills.size() > j * (n + 1) + i else 0.0
+			st.set_color(Color(t, _tile_drains[j * (n + 1) + i] * 0.5 + 0.5, keep, rl * 0.5 + 0.5))
 			st.add_vertex(Vector3(x, h, z))
 	for j in n:
 		for i in n:
@@ -1656,7 +1688,7 @@ func _build_terrain() -> void:
 			st.add_index(c)
 	st.generate_normals()
 	# Kept for the planting, which reads slopes and hollows off the very surface drawn.
-	_terrain_grid = {"heights": heights, "drains": _tile_drains, "n": n, "area": area}
+	_terrain_grid = {"heights": heights, "drains": _tile_drains, "rills": _tile_rills, "n": n, "area": area}
 	var mesh := MeshInstance3D.new()
 	mesh.name = "Terrain"
 	mesh.mesh = st.commit()
@@ -1898,6 +1930,18 @@ const PLANT_ROWS_PER_STEP := 3
 
 ## The drawn terrain's height at `p` (true world XZ): the tile's own grid, bilinear, or the map
 ## off the tile.
+## The fine rills at `p` off the tile (_tile_rills), or INF where the tile has none (ground()
+## then works them out itself).
+func _terrain_rill(p: Vector2) -> float:
+	if _terrain_grid.is_empty() or (_terrain_grid.get("rills", PackedFloat32Array()) as PackedFloat32Array).size() != (_tile_n + 1) * (_tile_n + 1) \
+			or not HillPlanting.rills_on():
+		return INF
+	var area: Rect2 = _terrain_grid.area
+	if not area.grow(0.01).has_point(p):
+		return INF
+	return _terrain_height(p, "rills")
+
+
 func _terrain_height(p: Vector2, field: String = "heights") -> float:
 	if _terrain_grid.is_empty():
 		return plan.height_at(p) if field == "heights" else plan.macro.drainage_at(p)
@@ -1961,7 +2005,7 @@ func _plant_hills() -> bool:
 			var grad := Vector2(_terrain_height(p + Vector2(2.0, 0.0)) - _terrain_height(p - Vector2(2.0, 0.0)),
 				_terrain_height(p + Vector2(0.0, 2.0)) - _terrain_height(p - Vector2(0.0, 2.0))) * 0.25
 			# The drainage off the tile's own grid, as the shader gets it through the vertex colour.
-			var g := HillPlanting.ground(p, grad, true, _terrain_height(p, "drains"))
+			var g := HillPlanting.ground(p, grad, true, _terrain_height(p, "drains"), _terrain_rill(p))
 			# Nothing on the rock or the bare cuts and trails.
 			if float(g.rocky) > 0.3 or float(g.bare) > 0.4:
 				continue
@@ -2000,7 +2044,13 @@ func _plant_hills() -> bool:
 				var variety := Color(rng.randf() * 0.3, rng.randf(), rng.randf(), 0.0)
 				if in_bed:
 					continue
-				_batch.add("hill_chaparral", chap, Transform3D(tilt.scaled(Vector3(s * 1.45, s, s * 1.45)), at - Vector3(0.0, 0.2 + float(g.slope) * 1.5, 0.0)), tint, variety)
+				if HillGround3.enabled:
+					# The code-built mound (HillShrub, hill-ground-3): its leaves carry their own grey-green,
+					# so the tint is only a per-shrub lightness.
+					var hs := lerpf(hill_brush_height.x, hill_brush_height.y, size * size) / HillShrub.HEIGHT
+					_batch.add("hill_shrub_%d" % (int(tone * 30.0) % HillShrub.VARIANTS), HillShrub.mesh(int(tone * 30.0)), Transform3D(tilt.scaled(Vector3(hs * 1.45, hs, hs * 1.45)), at - Vector3(0.0, 0.1 + float(g.slope) * 1.2, 0.0)), Color(1.0, 1.0, 1.0).lerp(Color(1.18, 1.15, 1.08), tone), variety)
+				else:
+					_batch.add("hill_chaparral", chap, Transform3D(tilt.scaled(Vector3(s * 1.45, s, s * 1.45)), at - Vector3(0.0, 0.2 + float(g.slope) * 1.5, 0.0)), tint, variety)
 				hill_planting.chaparral += 1
 				points.append([p, "chaparral"])
 			elif brush < 0.35 and roll > 1.0 - hill_sage_chance:
@@ -2010,7 +2060,12 @@ func _plant_hills() -> bool:
 				var sage_var := Color(rng.randf(), rng.randf(), 0.8, 0.0)
 				if in_bed:
 					continue
-				_batch.add("hill_chaparral", chap, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s * 1.1, s, s * 1.1)), at - Vector3(0.0, 0.15, 0.0)), tint, sage_var)
+				if HillGround3.enabled:
+					# Sage and buckwheat: a small, paler mound.
+					var hs := lerpf(0.8, 1.3, size) / HillShrub.HEIGHT
+					_batch.add("hill_shrub_%d" % (int(tone * 30.0) % HillShrub.VARIANTS), HillShrub.mesh(int(tone * 30.0)), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(hs, hs, hs)), at - Vector3(0.0, 0.1, 0.0)), Color(1.45, 1.45, 1.3), sage_var)
+				else:
+					_batch.add("hill_chaparral", chap, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s * 1.1, s, s * 1.1)), at - Vector3(0.0, 0.15, 0.0)), tint, sage_var)
 				hill_planting.sage += 1
 				points.append([p, "sage"])
 	_plant_row = stop
@@ -2021,6 +2076,9 @@ func _plant_hills() -> bool:
 	# block, keep theirs.
 	_batch.set_no_shadow("hill_chaparral")
 	_batch.set_draw_distance("hill_chaparral", hill_brush_distance)
+	for v in HillShrub.VARIANTS:
+		_batch.set_no_shadow("hill_shrub_%d" % v)
+		_batch.set_draw_distance("hill_shrub_%d" % v, HillGround3.SHRUB_DISTANCE)
 	return true
 
 

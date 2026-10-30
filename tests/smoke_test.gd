@@ -68,36 +68,66 @@ const CITY_PARTS := ["city_streaming", "city_terrain", "city_landmarks", "city_c
 ## Check files called from inside a city part (they go with that part, never on their own).
 const INLINE_FILES := ["downtown_checks", "hero_moves_checks", "street_life_checks",
 	"crowd_anim_checks", "crowd_life_checks", "crowd_hat_checks", "photo_mode_checks",
-	"wingsuit_checks"]
+	"wingsuit_checks", "traffic_ai_checks", "street_errands_checks", "dog_checks", "hero_closeup_checks"]
 ## Wall seconds each part took in a whole run on the 4-core fleet box (SMOKE_PROFILE=1 prints
-## them as PART lines); a file missing here counts DEFAULT_COST. Only the deal depends on them.
+## them as PART lines; refreshed 2026-10-30 from main a3db077f, tools/gate/part_costs.py); a file missing here counts DEFAULT_COST. Only the deal depends on them.
 const PART_COST := {
-	"room": 30.0, "city_streaming": 59.7, "city_terrain": 17.9, "city_landmarks": 39.0,
-	"city_cars": 64.5, "city_people": 8.8, "city_polish": 27.1, "city_crowd": 72.4,
-	"city_menu": 42.1, "civic_checks": 1.4, "air_traffic_checks": 3.3, "airport_checks": 11.8,
-	"car_damage_checks": 13.5, "car_cabin_checks": 1.5, "car_lights_checks": 9.7,
-	"big_vehicle_checks": 34.7, "more_cars_checks": 4.1, "light_rail_checks": 1.8,
-	"bird_checks": 0.4, "sky_checks": 0.0, "emergency_checks": 80.6,
-	"police_station_checks": 64.9, "ambience_checks": 0.5, "audio_checks": 2.2,
-	"replica_checks": 0.5, "surf_checks": 0.5, "freeway_kit_checks": 0.9, "westlake_checks": 22.3,
-	"distance_checks": 21.9, "hill_air_checks": 0.1, "far_city_checks": 0.3,
-	"masjid_checks": 15.3, "street_wear_checks": 9.9, "climbing_plants_checks": 1.4,
-	"street_vendors_checks": 1.1, "beach_life_checks": 0.9, "broadway_checks": 1.6,
-	"lot_fill_checks": 3.4, "house_checks": 1.7, "industrial_checks": 1.2, "park_checks": 0.5,
-	"billboard_checks": 4.1, "la_river_checks": 15.6, "night_city_checks": 3.0,
-	"port_life_checks": 20.8, "canals_checks": 0.8, "pier_park_checks": 17.7,
-	"marina_checks": 0.2, "explosion_aftermath_checks": 9.4, "building_damage_checks": 0.1,
-	"schools_checks": 1.3, "minimap_checks": 0.5, "weather_la_checks": 0.1,
-	"stack_interchange_checks": 6.0, "bonfires_checks": 3.0
+	"city_crowd": 322.9, "freeway_incidents_checks": 152.9, "emergency_checks": 144.6,
+	"news_crews_checks": 116.9, "hospital_checks": 108.1, "garage_drive_in_checks": 101.9,
+	"police_station_checks": 100.3, "car_panic_checks": 96.8, "city_cars": 87.1,
+	"city_streaming": 82.8, "engine_audio_checks": 80.3, "city_menu": 68.7,
+	"service_vehicle_checks": 64.1, "onlookers_checks": 63.3, "heli_flyable_checks": 62.6,
+	"city_landmarks": 53.3, "swimming_checks": 49.0, "big_vehicle_checks": 47.6,
+	"distance_checks": 41.0, "city_polish": 34.9, "motorcycles_checks": 31.4,
+	"prop_destruction_checks": 30.9, "westlake_checks": 30.9, "murals_checks": 30.8, "room": 30.0,
+	"port_life_checks": 27.7, "city_terrain": 22.4, "pier_park_checks": 21.9, "masjid_checks": 18.1,
+	"la_river_checks": 17.0, "police_night_checks": 15.8, "car_lights_checks": 14.4,
+	"car_damage_checks": 14.2, "street_wear_checks": 13.4, "airport_checks": 13.1,
+	"rain_crowd_checks": 12.8, "driving_fx_checks": 12.2, "crowd_look_checks": 12.0,
+	"micromobility_checks": 11.6, "city_people": 11.1, "explosion_aftermath_checks": 11.0,
+	"stack_interchange_checks": 9.5, "coast_highway_checks": 7.5, "shader_warm_checks": 7.3,
+	"walk_in_store_checks": 7.0, "fashion_district_checks": 6.6, "worship_checks": 5.8,
+	"more_cars_checks": 5.6, "billboard_checks": 5.5, "lot_fill_checks": 5.4,
+	"road_detail_checks": 5.4, "air_traffic_checks": 5.2, "ridges_checks": 5.2,
+	"road_wear_checks": 5.0, "broadway_checks": 4.7, "roadside_checks": 4.6, "backyards_checks": 4.4,
+	"chinatown_checks": 3.3, "oil_field_checks": 3.3, "alley_checks": 3.1, "apartments_checks": 3.1,
+	"construction_checks": 2.9, "hill_homes_checks": 2.9, "la_trees_checks": 2.9,
+	"street_furniture_checks": 2.9, "utility_poles_checks": 2.9, "airport_life_checks": 2.8,
+	"kerbs_checks": 2.6, "signage_checks": 2.6, "historic_core_checks": 2.4, "night_city_checks": 2.4,
+	"footbridges_checks": 2.2, "house_checks": 2.2, "car_cabin_checks": 2.1, "civic_checks": 2.1,
+	"climbing_plants_checks": 2.1, "street_lamps_checks": 2.1, "vacant_lots_checks": 2.1,
+	"parklets_checks": 2.0, "star_boulevard_checks": 1.9, "freight_checks": 1.7,
+	"occluders_checks": 1.7, "industrial_checks": 1.6, "street_vendors_checks": 1.6,
+	"light_rail_checks": 1.5, "car_dealers_checks": 1.4, "farmers_market_checks": 1.4,
+	"lowriders_checks": 1.4, "schools_checks": 1.4, "street_signs_checks": 1.3,
+	"beach_life_checks": 1.1, "civic_buildings_checks": 1.1, "minimap_checks": 1.1,
+	"pueblo_lane_checks": 1.1, "audio_checks": 1.0, "ballpark_checks": 1.0, "freeway_kit_checks": 0.9,
+	"golf_checks": 0.9, "power_plant_checks": 0.8, "cemetery_checks": 0.7, "film_studio_checks": 0.7,
+	"park_checks": 0.7, "wilshire_deco_checks": 0.7, "canals_checks": 0.6,
+	"far_landmarks_checks": 0.6, "load_time_checks": 0.6, "reflection_probes_checks": 0.6,
+	"texture_budget_checks": 0.6, "bird_checks": 0.5, "estate_night_checks": 0.5,
+	"far_city_checks": 0.5, "surf_checks": 0.5, "ambience_checks": 0.4, "replica_checks": 0.4,
+	"reservoir_checks": 0.4, "facades_gta_checks": 0.3, "ocean_traffic_checks": 0.3,
+	"refinery_checks": 0.3, "tower_gondolas_checks": 0.3, "building_damage_checks": 0.2,
+	"fwd_review_c_checks": 0.2, "hill_air_checks": 0.2, "lighthouses_checks": 0.2,
+	"marina_checks": 0.2, "ref_cameras_checks": 0.2, "rooftops_checks": 0.2, "web_build_checks": 0.2,
+	"far_corners_checks": 0.1, "weather_la_checks": 0.1, "color_grade_checks": 0.0,
+	"fwd_review_a_checks": 0.0, "fwd_review_b_checks": 0.0, "garments_2_checks": 0.0,
+	"memory_audit_checks": 0.0, "offshore_island_checks": 0.0, "perf_audit_checks": 0.0,
+	"shop_vinyl_checks": 0.0, "sky_checks": 0.0, "bonfires_checks": 3.0
 }
 const DEFAULT_COST := 6.0
 ## Every share pays for its own city load on top of its parts.
-const CITY_LOAD_COST := 60.0
+const CITY_LOAD_COST := 120.0
 var _parts := {} # part or check file name -> true; empty = everything
 var _buildings_done := false
 var _ran := {} # the city parts this run has started, for _stage()
 var _home_look := Vector2(INF, INF) # the camera's yaw and pitch when the city has loaded
-var _proxies := {} # check file path -> [the real script, its name, run()'s argument count]
+var _proxies := {} # check file path -> [the real script, its name, run()'s argument count, awaited]
+## The reset between check files (tests/gate_reset.gd), its snapshot taken after the city's setup.
+var _reset: RefCounted = null
+## SMOKE_NO_RESET=1 runs the files without it (the A/B: the old order-dependent run).
+var _no_reset := OS.get_environment("SMOKE_NO_RESET") == "1"
 
 
 func _choose_parts() -> void:
@@ -183,9 +213,16 @@ func _wants_city() -> bool:
 
 
 func _part_begin(part: String) -> int:
-	if not _parts.is_empty():
+	# Every city part after the first starts from the clean city and the spawn too, in a whole
+	# run as in a share (the photo mode check failed only after city_crowd's state in one process).
+	if not _ran.is_empty() and part != "city_files":
+		_ran[part] = true
+		await between_files()
+	elif not _parts.is_empty():
 		await _stage(part)
-	if part == "city_files" and (_profile or not _parts.is_empty()):
+	else:
+		_ran[part] = true
+	if part == "city_files":
 		_wrap_files()
 	return Time.get_ticks_msec()
 
@@ -208,15 +245,40 @@ func stage_home() -> void:
 	var player := get_tree().get_first_node_in_group("player") as CharacterBody3D
 	if city == null or player == null:
 		return
-	player.global_position = _world_state().to_local(Vector3(0.0, 2.0, 0.0))
+	var home: Vector3 = _world_state().to_local(Vector3(0.0, 2.0, 0.0))
+	# Already at home (the last file ended there): streaming has nothing new to do, a few ticks do.
+	var near: bool = player.global_position.distance_to(home) < 40.0
+	player.global_position = home
 	player.velocity = Vector3.ZERO
+	# And the origin back at the spawn: a file that flew the player kilometres off left the world
+	# re-centred there, and a check that teleports far (a boat 1 km out at sea) then re-centres
+	# again mid-check in some orders and not others. recenter() shifts the scene so the player,
+	# now at the true spawn, is at the origin: world_offset is zero again.
+	var ws: Node = _world_state()
+	if OS.get_environment("SMOKE_NO_RECENTER") != "1" and Vector2(ws.world_offset.x, ws.world_offset.z).length() > 1.0 and city.has_method("recenter"):
+		city.call("recenter")
+		near = false
 	# Looking the way the city first set the camera (a file aims down the view: the rocket at a
 	# helicopter 55 m ahead hit whatever building the last file had the camera turned to).
 	var rig: Node = player.get_node_or_null("CameraRig")
 	if rig and _home_look.x != INF:
 		rig.call("set_look", rad_to_deg(_home_look.x), rad_to_deg(_home_look.y))
 	city.update_streaming(true)
-	await _ticks(30)
+	await _ticks(8 if near else 30)
+
+
+## Before a check file the list awaits: the city put back as the setup left it
+## (tests/gate_reset.gd) and the player at home, so no file leans on the ones before it.
+func between_files() -> void:
+	if _reset and not _no_reset:
+		_reset.full(get_tree())
+	await stage_home()
+
+
+## Before a file the list does not await (data checks): the statics only, synchronously.
+func between_files_light() -> void:
+	if _reset and not _no_reset:
+		_reset.light()
 
 
 func _part_end(part: String, began: int) -> void:
@@ -247,15 +309,19 @@ func _wrap_files() -> void:
 			# Only a file the list awaits is staged: a plain call does not wait for a coroutine, and
 			# those files check data, not the world round the player.
 			var awaited: bool = source.contains('await load("%s")' % path)
-			_proxies[path] = [real, part, argc, awaited and not _parts.is_empty()]
+			_proxies[path] = [real, part, argc, awaited]
 			# The proxy finds the real script through the smoke test, which every file is handed first.
 			proxy.source_code = """extends RefCounted
 func run(a = null, b = null, c = null, d = null) -> void:
 	var spec: Array = a._proxies["%s"]
 	if spec[3]:
-		await a.stage_home()
+		await a.between_files()
+	else:
+		a.between_files_light()
 	var t := Time.get_ticks_msec()
 	await spec[0].new().callv("run", [a, b, c, d].slice(0, spec[2]))
+	if a._reset:
+		a._reset.report(spec[1])
 	if a._profile:
 		printerr("PART %%s %%.1f s" %% [spec[1], (Time.get_ticks_msec() - t) / 1000.0])
 """ % path
@@ -338,6 +404,8 @@ func _run() -> void:
 	await _check_camera_post(player)
 	# The wingsuit (tests/wingsuit_checks.gd): spread, glide, dive, pull up, bank, fold, land.
 	await load("res://tests/wingsuit_checks.gd").new().run(self, player)
+	# The hero close up (tests/hero_closeup_checks.gd): the living face, stride-matched clips, rain.
+	await load("res://tests/hero_closeup_checks.gd").new().run(self, player)
 	await _test_weapons(player)
 	_test_buildings()
 	level.free() # Free now, so the city scene cannot pick up this level's player.
@@ -450,6 +518,9 @@ func _test_city() -> void:
 	var home_rig: Node = player.get_node_or_null("CameraRig")
 	if home_rig:
 		_home_look = Vector2(float(home_rig.get("_yaw")), float(home_rig.get("_pitch")))
+	# The clean city every check file starts from (tests/gate_reset.gd): taken here, before any part.
+	_reset = load("res://tests/gate_reset.gd").new()
+	_reset.snapshot(city)
 	if _want("city_streaming"):
 		var t_city_streaming: int = await _part_begin("city_streaming")
 		await _city_streaming(city, plan, player)
@@ -1156,8 +1227,19 @@ func _city_landmarks(city: Node3D, plan: CityPlan, player: CharacterBody3D, macr
 
 func _city_cars(city: Node3D, plan: CityPlan, player: CharacterBody3D, macro: MacroMap) -> void:
 	# Cars: parked in the streets, drivable.
-	player.global_position = _world_state().to_local(Vector3(0.0, 2.0, 0.0))
+	var home: Vector3 = _world_state().to_local(Vector3(0.0, 2.0, 0.0))
+	# Already at home (the last file ended there): streaming has nothing new to do, a few ticks do.
+	var near: bool = player.global_position.distance_to(home) < 40.0
+	player.global_position = home
 	player.velocity = Vector3.ZERO
+	# And the origin back at the spawn: a file that flew the player kilometres off left the world
+	# re-centred there, and a check that teleports far (a boat 1 km out at sea) then re-centres
+	# again mid-check in some orders and not others. recenter() shifts the scene so the player,
+	# now at the true spawn, is at the origin: world_offset is zero again.
+	var ws: Node = _world_state()
+	if OS.get_environment("SMOKE_NO_RECENTER") != "1" and Vector2(ws.world_offset.x, ws.world_offset.z).length() > 1.0 and city.has_method("recenter"):
+		city.call("recenter")
+		near = false
 	city.update_streaming(true)
 	await _ticks(10)
 	var cars: Array = []
@@ -1172,6 +1254,9 @@ func _city_cars(city: Node3D, plan: CityPlan, player: CharacterBody3D, macro: Ma
 	var home_rig: Node = player.get_node_or_null("CameraRig")
 	if home_rig:
 		_home_look = Vector2(float(home_rig.get("_yaw")), float(home_rig.get("_pitch")))
+	# The clean city every check file starts from (tests/gate_reset.gd): taken here, before any part.
+	_reset = load("res://tests/gate_reset.gd").new()
+	_reset.snapshot(city)
 	traffic_mgr.max_cars = 0
 	for c in traffic_mgr.cars.duplicate():
 		if is_instance_valid(c):
@@ -1393,8 +1478,19 @@ func _city_cars(city: Node3D, plan: CityPlan, player: CharacterBody3D, macro: Ma
 func _city_people(city: Node3D, plan: CityPlan, player: CharacterBody3D, traffic_cap: int, traffic_mgr: Node3D) -> void:
 	# Pedestrians and traffic.
 	traffic_mgr.max_cars = traffic_cap
-	player.global_position = _world_state().to_local(Vector3(0.0, 2.0, 0.0))
+	var home: Vector3 = _world_state().to_local(Vector3(0.0, 2.0, 0.0))
+	# Already at home (the last file ended there): streaming has nothing new to do, a few ticks do.
+	var near: bool = player.global_position.distance_to(home) < 40.0
+	player.global_position = home
 	player.velocity = Vector3.ZERO
+	# And the origin back at the spawn: a file that flew the player kilometres off left the world
+	# re-centred there, and a check that teleports far (a boat 1 km out at sea) then re-centres
+	# again mid-check in some orders and not others. recenter() shifts the scene so the player,
+	# now at the true spawn, is at the origin: world_offset is zero again.
+	var ws: Node = _world_state()
+	if OS.get_environment("SMOKE_NO_RECENTER") != "1" and Vector2(ws.world_offset.x, ws.world_offset.z).length() > 1.0 and city.has_method("recenter"):
+		city.call("recenter")
+		near = false
 	city.update_streaming(true)
 	await _ticks(130)
 	var peds := get_tree().get_nodes_in_group("pedestrian")
@@ -2032,6 +2128,13 @@ func _city_menu(city: Node3D, plan: CityPlan, player: CharacterBody3D, packed: P
 	# disagree with - which stood their relief floors over MacArthur Park's lake, 380 m away.
 	var saved_offset: Vector3 = _world_state().world_offset
 	var city2: Node3D = packed.instantiate()
+	# Only the seed is under test: one block streamed and no far city (a whole second city was 56 s
+	# of the run).
+	city2.set("lod_radius_blocks", 0)
+	city2.set("load_radius_blocks", 0)
+	city2.set("min_full_radius_blocks", 0)
+	city2.set("far_city_radius", 0.0)
+	city2.set("far_city_immediate_radius", 0.0)
 	get_tree().root.add_child(city2)
 	await get_tree().process_frame
 	_check(city2.world_seed == 4321 and _world_state().pending_seed == -1, "a pending seed rebuilds the city with that seed")
@@ -2064,6 +2167,13 @@ func _city_menu(city: Node3D, plan: CityPlan, player: CharacterBody3D, packed: P
 
 
 func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
+	# SMOKE_SHUFFLE=<seed>: the same files in an order shuffled by the seed (the proof that no file
+	# leans on the ones before it; tests/gate_reset.gd).
+	if OS.get_environment("SMOKE_SHUFFLE") != "":
+		await _run_files_shuffled(city, int(OS.get_environment("SMOKE_SHUFFLE")))
+		city.queue_free()
+		_world_state().reset()
+		return
 	# The downtown civic landmarks (arena district, civic centre): their own file, like the air
 	# traffic's (tests/civic_checks.gd).
 	await load("res://tests/civic_checks.gd").new().run(self, city)
@@ -2395,6 +2505,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/coast_highway_checks.gd").new().run(self, city)
 	# The second garment set (tests/garments_2_checks.gd): crowd_u..z and what they wear.
 	load("res://tests/garments_2_checks.gd").new().run(self, city)
+	# Six more kinds of adult (tests/crowd_variety_checks.gd): crowd_aa..af and what they wear.
+	load("res://tests/crowd_variety_checks.gd").new().run(self, city)
 	# Footbridges (tests/footbridges_checks.gd): placement, clearances, stairs, the kit, the chunks.
 	load("res://tests/footbridges_checks.gd").new().run(self, city)
 	# The power plant (tests/power_plant_checks.gd): the site south of the airport, the pure layout,
@@ -2482,12 +2594,52 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/far_ranges_checks.gd").new().run(self, city)
 	# The wet world (tests/wet_world_checks.gd, WetWorld, CarWipers): the shaders' water, walls, wipers.
 	await load("res://tests/wet_world_checks.gd").new().run(self, city)
+	# The hills' ground, wave 3 (tests/hill_ground_3_checks.gd): no leopard spots, stands as masses,
+	# the code-built chaparral shrub.
+	load("res://tests/hill_ground_3_checks.gd").new().run(self, city)
+	# The explosion's second pass (tests/explosions_2_checks.gd, BlastFX): flash, wave, rolling fire,
+	# the lit column, burning debris, windows blown out across the street, the caps, the car's fuel blast.
+	await load("res://tests/explosions_2_checks.gd").new().run(self, city)
+	# The reset between check files (tests/gate_speed_2_checks.gd): what it puts back, the file list.
+	load("res://tests/gate_speed_2_checks.gd").new().run(self, city)
 	# Busy streets (tests/busy_streets_checks.gd): the hour, the focused spawns and rear retires,
 	# the extra kerb cars (a hash, nothing moved), the near crowd topped up.
 	await load("res://tests/busy_streets_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
+
+
+## The check files of _city_files(), read off its own source: [path, awaited, takes the city].
+func city_file_list() -> Array:
+	var source: String = (get_script() as GDScript).source_code
+	var from := source.find("\nfunc _city_files(")
+	var to := source.find("\nfunc ", from + 10)
+	var out: Array = []
+	var re := RegEx.create_from_string("(?m)^\\t(await )?load\\(\"(res://tests/\\w+\\.gd)\"\\)\\.new\\(\\)\\.run\\(self(, city)?\\)")
+	for m in re.search_all(source.substr(from, to - from)):
+		out.append([m.get_string(2), m.get_string(1) != "", m.get_string(3) != ""])
+	return out
+
+
+## SMOKE_SHUFFLE: city_files' list in a seeded random order (awaited files still awaited).
+func _run_files_shuffled(city: Node3D, shuffle_seed: int) -> void:
+	var files := city_file_list()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = shuffle_seed
+	for i in range(files.size() - 1, 0, -1):
+		var j := rng.randi_range(0, i)
+		var tmp = files[i]
+		files[i] = files[j]
+		files[j] = tmp
+	printerr("SMOKE SHUFFLE %d: %s" % [shuffle_seed, ",".join(files.map(func(f): return str(f[0]).get_file().get_basename()))])
+	for f in files:
+		var script: Script = load(f[0])
+		var args: Array = [self, city] if f[2] else [self]
+		if f[1]:
+			await script.new().callv("run", args)
+		else:
+			script.new().callv("run", args)
 
 
 ## The wanted level and the police (owner, 2026-09-24: "a police and star system"). Every class
@@ -3455,14 +3607,14 @@ func _check_hill_planting(chunk: Node3D, plan: CityPlan) -> void:
 		var th := func(q: Vector2) -> float: return chunk.call("_terrain_height", q, "heights")
 		var grad := Vector2(th.call(p + Vector2(2.0, 0.0)) - th.call(p - Vector2(2.0, 0.0)),
 			th.call(p + Vector2(0.0, 2.0)) - th.call(p - Vector2(0.0, 2.0))) * 0.25
-		var g := HillPlanting.ground(p, grad, true, chunk.call("_terrain_height", p, "drains"))
+		var g := HillPlanting.ground(p, grad, true, chunk.call("_terrain_height", p, "drains"), chunk.call("_terrain_rill", p))
 		if float(g.rocky) > 0.45 or float(g.bare) > 0.55:
 			on_rock += 1
 		if rec[1] == "chaparral":
 			chaparral += 1
 			if float(g.brush) > 0.3:
 				on_brush += 1
-	_check(chaparral >= 20 and chunk.has_node("Batch_hill_chaparral"), "a hill chunk plants chaparral stands (%d shrubs, %d oaks, %d lone shrubs)" % [chaparral, planted.get("oak", 0), planted.get("sage", 0)])
+	_check(chaparral >= 20 and (chunk.has_node("Batch_hill_chaparral") or chunk.find_children("Batch_hill_shrub_*", "", false, false).size() > 0), "a hill chunk plants chaparral stands (%d shrubs, %d oaks, %d lone shrubs)" % [chaparral, planted.get("oak", 0), planted.get("sage", 0)])
 	_check(on_rock == 0, "nothing planted on rock or bare cuts (%d of %d)" % [on_rock, points.size()])
 	_check(on_brush >= chaparral * 0.75, "the chaparral stands on the painted brush (%d of %d)" % [on_brush, chaparral])
 	# The field itself: the shaded side is brush, the sunny side grass.
