@@ -2654,6 +2654,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The chase camera while driving (tests/driving_camera_checks.gd, DriveCam): follow, speed, corners,
 	# free look, look behind, kicks, the blur's terms, never inside a wall.
 	await load("res://tests/driving_camera_checks.gd").new().run(self, city)
+	# The GI review (tests/gi_review_checks.gd): GiTuning's numbers per level, the contact shadows.
+	await load("res://tests/gi_review_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

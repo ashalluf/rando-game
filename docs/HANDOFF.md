@@ -21150,3 +21150,73 @@ Not done / not seen: the motion blur on Forward+ (above); a pad's look-behind sh
 on-foot dive / wingsuit (both off in a car); no per-surface buzz beyond terrain (DrivingFX knows
 sand and dirt, not shared); the camera does not yet look into the corner AHEAD (GTA's slight
 lead) - the lag shows the flank instead.
+
+## 9hz. Grounded light: the GI reviewed on Forward+, contact shadows on both renderers (fleet wave 3, `gi-review`, branch `wt/gi-review`, 2026-10-30)
+
+The owner's bar ("make it look like GTA 6") is mostly indirect light: contact under every car and
+prop, AO where walls meet pavement, bounce warming a street off a sunlit facade, the dim light
+under a freeway, a shaded alley still readable. Reviewed on the real Forward+ pipeline under
+lavapipe, one small scene a process (`tools/gi_review/gi_shot.tscn`: the FULL chunk round an EYE,
+the city's WorldEnvironment / Sun / DayNight / Weather, the clock held, the player's camera
+attributes so the auto exposure adapts as the eye does, `VARIANTS=` shooting before / after and
+HIGH / MEDIUM from ONE load, `PROFILE=1` + `--gpu-profile` timing every variant through
+`tools/gi_review/profile_split.py`); opengl3 for the Compatibility side. Seed 1337, 12:00 clear.
+Two downtown blocks in one lavapipe process run the box out of memory (OOM-killed at 12.7 GB):
+one scene a process, `BLOCKS=home`.
+
+**What was wrong (measured, ground luminance 0..255 in the shade):**
+- **HIGH's shade is SDFGI's alone, and it was too dark where the sky is hidden**: a service alley
+  33 at HIGH against 57 at MEDIUM, the street under the 110 13 (pitch black, the soffit 18) against
+  85. Open shade under a parked car 18 (p10) against 42.
+- **`ambient_light_energy` does nothing by day.** Godot applies it only while
+  `ambient_light_sky_contribution` is under 1.0, and DayNight's day value was 1.0: `day_ambient_energy`
+  (0.30, "a key light that out-runs the fill", HANDOFF 1348) and `marine_ambient_gain` have never
+  acted by day. Measured: AMB 0.35 and 0.5 drew the same frame. MEDIUM's sky fill was therefore the
+  sky cubemap at full strength, unoccluded (no SDFGI): flat, blue, twice HIGH's shade, a freeway
+  soffit lit like the open street.
+- **SSAO** (radius 2.1 m, detail 0.6) was a wide soft veil with no contact; **SSIL** (radius 4 m,
+  intensity 0.5) reached a quarter of a street.
+- **Cars and street furniture floated on the Compatibility renderer** (the web, every opengl3 still):
+  no SSAO there at all.
+
+**What changed:**
+- **`GiTuning`** (`scripts/world/gi_tuning.gd`): the SSAO / SSIL / SDFGI numbers per Quality level
+  in ONE table, applied by `Quality._apply_render()` (one line). HIGH: SSAO radius 1.2, intensity
+  2.4, power 1.6, detail 1.0, light_affect 0.12; SSIL radius 6, intensity 0.8, normal rejection 0.6;
+  SDFGI bounce feedback 0.9 and the DAY energy x1.35 (`gi_scale`, DayNight's `day_gi_energy *
+  GiTuning.gi_scale`; the night value is untouched - the road glow must not bounce). MEDIUM and
+  below: SSAO light_affect 0.3 and the day sky contribution 0.7 (`sky_contribution`, DayNight;
+  the rest of the ambient is day_ambient at its energy, which now acts). SDFGI energy sweep in the
+  alley: x1.0 33, x1.3 + bounce 0.9 37, read_sky_light off 17 (the sky is half of it).
+- **Freeway soffit fill** (`freeway_structure.gdshader` `under_fill`, GiTuning UNDER_FILL, HIGH only
+  0.22): downward faces of the deck, caps and girders emit their albedo times a warm ground bounce by
+  day (`1 - lamp_factor`); emitted, so SDFGI bounces it onto the street under the deck. Tried first
+  and rejected: SDFGI energy x3 (soffit 18 -> 30), `sdfgi_min_cell_size` 1.6 (soffit 125, but by
+  LEAKING the sunlit deck top through a 2 m girder; the street under it stayed 15).
+- **`ContactShadows`** (`scripts/world/contact_shadows.gd`, `shaders/contact_shadow.gdshader`):
+  one MultiMesh of soft occlusion quads - the footprint as a rounded rect fading `MARGIN` past the
+  body, a blob under each wheel from `_dims()` track and axles - under the `budget` (48) nearest
+  cars (group "vehicle") and loose props ("physics_prop") within `reach` (70 m), drawn as an
+  alpha-blended darkening (one draw, both renderers). One node under the tree root (made by the
+  first Vehicle, like CarLights) writing TRUE global transforms every frame, so origin shifts never
+  touch it; re-picked every 0.25 s. A car's quad lies in its own contact plane (`_dims()` road),
+  tilts with it, fades when no wheel touches (jumps, flight), when it rolls over, and near `reach`;
+  wheel-less non-traffic vehicles (helicopters, jets, boats) get none. Street furniture: one
+  "BatchContact" MultiMesh per FULL chunk built in `MultiMeshBatch.build()` from the batches in
+  `CONTACT_KEYS` (bench, planter, mailbox, news boxes, cafe sets, hydrants, meters, racks), drawn to
+  70 m past its bounds; each batch node keeps `contact_twin` / `contact_base`, so `hide_instance()`
+  takes a broken prop's quad with it. Strength by renderer: 0.55 with SDFGI (HIGH), 0.9 with SSAO
+  alone (MEDIUM / LOW), 1.0 with neither (Compatibility, LOWEST).
+- A/B: `GI_REVIEW=0` (all of it: the scene's numbers, no fill, no quads), `CONTACT_SHADOWS=0` (the
+  quads only). gi_shot variant tokens: `GI=0|1`, `Q=0..3`, `CS=0|1`, `GIS=`, `SKY=`, `FILL=` and
+  any Environment `property=value`.
+
+**GPU cost** (lavapipe `--gpu-profile`, shares of the frame, read the shares): SSIL 1.6-2.9 %,
+SSAO 0.8-1.5 %, SDFGI probes + render 1.2-1.8 %, before and after alike - the new numbers move
+nothing measurable (a larger SSIL radius costs nothing in Godot: its sample count is the quality
+setting's). The quads are one transparent draw plus one a FULL chunk.
+
+**Not done / not verified:** temporal SSIL noise (lavapipe stills are static frames; a clean still
+proves nothing about shimmer); the web build was not exported (the quads use only what
+Compatibility has); a park UNDER trees (the spot picked was a rec park's courts); interiors behind
+open doors are the traced shop rooms, untouched.
