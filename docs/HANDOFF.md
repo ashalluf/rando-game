@@ -14432,3 +14432,14 @@ after the timers), `Avatar` (`glide`, `glide_tilt`, `glide_bank` and four lines 
 **Checks.** `tests/wingsuit_checks.gd`, in the room part (INLINE_FILES): 21 checks on the real
 player with real physics in the test room (`tools/wingsuit/checks_only.tscn` runs them alone in
 about a minute headless).
+
+**Wave 3 (2026-10-30).** origin/main (95bd13f) merged in; nothing broke, the 22 checks pass alone
+and in the gate. The fabric shader no longer flips NORMAL on back faces (`FRONT_FACING`: Godot
+already turns it to the camera on a `cull_disabled` material, so the underside lit as if facing
+away and mirrored the sky as pale plastic) and the ripstop is duller (roughness 0.58). Stills on
+`shots/wingsuit` (before / after over the Figueroa corridor at 17:36, from below, a dive over
+downtown at dusk; the room close-ups). City frame at the glide bookmark
+(`--spawn=1700,1800,-33,-5,260 --hour=17.6`, opengl3): 4.35 M triangles / 2,287 draws gliding
+against 4.54 M / 2,295 falling without the suit - the suit's two small dynamic meshes are lost in
+the frame-to-frame noise. Not done: the hands keep the clip's relaxed curl in the glide (a real
+pilot's are flat or on a grip toggle); the vapour and the fabric were never seen on Forward+.
