@@ -1684,14 +1684,14 @@
      "type": "trousers",
      "cargo": true,
      "color": [
-      92,
-      94,
-      62
+      64,
+      66,
+      40
      ],
      "thread": [
-      80,
-      82,
-      54
+      58,
+      60,
+      38
      ]
     },
     {
@@ -1729,9 +1729,9 @@
    "eyebrows": "eyebrow007.mhclo",
    "hair": "short03.mhclo",
    "hair_rgb": [
-    150,
-    146,
-    140
+    118,
+    114,
+    108
    ],
    "clothes": [
     "shoes04.mhclo"
