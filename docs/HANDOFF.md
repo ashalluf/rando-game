@@ -19123,10 +19123,12 @@ night (the weather put back exactly), and the fog lean not piling up.
 clear / marine, before (`NIGHT_ATMOS=0`) and after; Forward+ (lavapipe) of a few FULL blocks with
 `fwd_block_shot.tscn`.
 
-**Trap (cost a gate run)**: a static holding the node itself (`static var _node: NightAtmos`)
-plus the static mesh cache made two of three gate shards abort AT EXIT (134 / 250) after every
-check had passed. The node is kept by instance id (`node()`), and the city node clears the cache
-in `_exit_tree()`; shard 2 then exits 0.
+**Gate** (`SHARDS=3`, merged with main da77593): every night-atmosphere check passes; the
+gates had one flaky failure each outside this area (a heli rotor-strike query, a traffic swerve; main
+alone flaked a ragdoll check). Shard 2 (police stations, cars, the river ...) exits 250 at TEARDOWN
+after passing - with `NIGHT_ATMOS=0` too, so it is the shard's mix of parts, not this feature (it
+crashes before Godot's RID-leak report; main's dealing puts other parts there and exits 0). The node
+is still kept by instance id and the mesh cache dropped with the city, which is cleaner either way.
 
 **Not verified**: the whole city on Forward+ - `fwd_block_shot.tscn` and even `block_shot.tscn`
 are OOM-killed on lavapipe here (12.8 GB during the plan, before any chunk), so the Forward+
