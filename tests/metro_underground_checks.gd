@@ -221,5 +221,8 @@ func _restore(city: Node3D, player: CharacterBody3D, ws: Node, home: Vector3, sy
 		sys.step()
 	player.global_position = ws.to_local(home)
 	player.velocity = Vector3.ZERO
-	await _tree.physics_frame
-	await _tree.physics_frame
+	# Streamed back round home, so the downtown chunks this file brought in (the station's, a
+	# helipad's) are not what the next file or the teardown finds.
+	city.update_streaming(true)
+	for i in 6:
+		await _tree.physics_frame
