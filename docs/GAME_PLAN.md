@@ -3612,6 +3612,13 @@ already mapped so milestone 2 is script-only.
   one a chunk for furniture), weaker where SDFGI / SSAO already occlude. The deep underpass at HIGH
   stays dark: a coarser SDFGI cell leaks the sunlit deck through the soffit, so it is left for a
   fill on the freeway kit.
+- **2026-10-30 The web build is checked in the full Chromium, one tab, without firing (web-review-3,
+  HANDOFF "The web build after wave 3").** After ~70 merges the browser build still loads and draws
+  every bookmark with a clean console and a ~720 MB wasm heap; what broke was the harness (the
+  headless-shell Chromium never delivered a screenshot frame, two tabs no longer fit 16 GB, and its
+  click fired the rifle). No game code changed; the rule that every shader stays GLSL ES 3.00 is
+  now a check. The export stays at 600 MB of pck: the remaining "unused" assets the probe lists are
+  reached by name tables, so nothing more is excluded blind.
 
 ## Correction: what build 135 (0ce833f) actually contained
 

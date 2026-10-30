@@ -6362,6 +6362,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   gives 16 and Compatibility keeps up to seven -, no `instance uniform`, the web quality path,
   the exclude filter). A webshot takes ~14 minutes on a 4-core box; never share the box with
   the headless gate (it starves the tab: the screenshot times out waiting for a frame).
+- The web build after wave 3 (2026-10-30, docs/HANDOFF.md "The web build after wave 3"): every
+  bookmark still loads clean, wasm heap ~720 MB (the browser cap is 4 GB), pck 600 MB. Harness
+  traps: the box's Playwright now defaults to `chrome-headless-shell`, where `page.screenshot()`
+  never gets a frame from a 20 s Godot frame and a left click ballooned the tab to 6 GB - webshot.js
+  now picks the FULL Chromium under /opt/pw-browsers; ONE tab at a time (two were OOM-killed);
+  the harness's click FIRES THE RIFLE (`KEY=k` starts audio with nothing fired, `NOCLICK=1`,
+  `BUTTON=middle`); `PROBE=1` (tools/webshot/probe.js) prints the wasm heap, Web Audio buffers and
+  their callers. Shaders must stay GLSL ES 3.00: no bitfieldExtract / findMSB / textureGather /
+  fma / dFdxFine ... (`tests/web_review_3_checks.gd`).
 - Forward+ review of small scenes (2026-10-05, docs/HANDOFF.md "Forward+ review A"): lavapipe
   renders `block_shot.tscn` (a few FULL blocks, ~10 min a run, ~12 GB) and the room tools
   (`hero_moves_shot.gd`, `photo_shot.gd ROOM=1`, ~2 min) with `--rendering-driver vulkan` and

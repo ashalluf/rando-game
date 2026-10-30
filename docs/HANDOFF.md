@@ -21156,3 +21156,111 @@ Not done / not seen: the motion blur on Forward+ (above); a pad's look-behind sh
 on-foot dive / wingsuit (both off in a car); no per-surface buzz beyond terrain (DrivingFX knows
 sand and dirt, not shared); the camera does not yet look into the corner AHEAD (GTA's slight
 lead) - the lag shows the flank instead.
+
+## 9d?. The web build after wave 3, 2026-10-30 (fleet session `web-review-3`, branch `wt/web-review-3`; VISUAL_ROADMAP "?")
+
+**What was asked.** About 70 features merged on 2026-10-30. Export the web build, load it in a
+real browser and check: it loads, the console is clean, the reference bookmarks draw, the export
+stays under GitHub Pages' 1 GB, desktop-only features degrade gracefully. Fix what breaks without
+touching the desktop.
+
+**How.** main `3192f643`, the 4.7.2 `web_nothreads_release` template (as CI), `--export-release
+"Web" build/web/index.html` (36 s), `tools/webshot/webshot.js` in headless Chromium 1243
+(SwiftShader, WebGL 2.0 / GLSL ES 3.00) at 960x540, 7 minutes of streaming before the gesture,
+ONE tab at a time, `LOG=` and the new `PROBE=1` on every run. Bookmarks (all `&weather=clear&nohud`
+unless said): downtown noon `?spawn=2359.4,880,0,12,2&hour=12`, the same at `hour=21.5` (night
+street) and `hour=13&weather=rain`, the 110 `?spawn=1989,160,-6,-3&hour=12`, the hills
+`?spawn=300,-650,0,-6,260&hour=15`, MacArthur Park `?spawn=300,430,0,-8&hour=12`, the beach by the
+pier `?spawn=-925,-310,62,-4&hour=15`.
+
+**Result: the game is fine in the browser; the harness was broken.** Every bookmark loads and draws:
+
+| bookmark | console | wasm heap | JS heap at the end | frame (SwiftShader) |
+|---|---|---|---|---|
+| downtown noon | clean | 721 MB | 0.73 GB | 19.8 s |
+| downtown, a shot fired (left click) | clean | 721 MB | 0.73 GB | - |
+| night street 21:30 | clean | 721 MB | 0.72 GB | - |
+| rain 13:00 | clean | 721 MB | 0.84 GB | 20.6 s |
+| the 110 (the player falls under the deck; spawn heights do not hold here) | clean | 721 MB | 0.77 GB | - |
+| hills 15:00 | clean | 721 MB | 0.74 GB | - |
+| MacArthur Park | clean | 721 MB | 0.85 GB | - |
+| beach and pier 15:00 | clean | 721 MB | 0.77 GB | - |
+
+The beach view still has the pier's flat-coloured primitive stall tables in the foreground, as in
+wave 2 and in a native opengl3 still: a landmark's look, not the web. These runs were on main
+`3192f643`; main then moved 49 commits (contact shadows, the GI review, the beach's golden hour,
+...), merged here before the gate: their shaders pass the ES 3.00 scan and the sampler budget, and
+ContactShadows is built for both renderers, but that merge was not loaded in a browser.
+
+**The console.** At every bookmark the same lines as in wave 2 and nothing else: the template's
+`Occlusion culling is disabled at build-time`, Chrome's AudioContext autoplay notice until the
+gesture, plus four `GPU stall due to ReadPixels` performance notes (Chrome's, not errors): those
+are `Texture2D.get_image()` read-backs on the Compatibility renderer - `Pedestrian._region_means()`
+/ `_hair_mean()` (each crowd atlas the first time its rig is dressed) and `RockKit._mean_luminance()`
+- a one-off stall per atlas, not per frame. No `SHADER ERROR`, WebGL error, global-buffer error,
+script error or out-of-memory anywhere, including after a fired shot.
+
+**Memory and load.** The wasm heap (`PROBE=1` reads the module's `WebAssembly.Memory`) is 721 MB
+after load and stays there at every bookmark, after a fired shot too - the browser's cap is 4 GB.
+Renderer process ~2.2 GB, Chromium's GPU process (SwiftShader's software textures) ~3.5 GB. The
+JS heap 0.72-0.73 GB. Web Audio: 18-22 decoded sample buffers (110-141 MB) after load (the ambience
+beds); Godot's sample playback re-copies a looping bed's whole buffer on every loop restart
+(`Sample._duplicateAudioBuffer` from `SampleNode.restart`, Godot's own JS), so the count climbs
+~10 MB a bed every 20-28 s, and the garbage collector takes the old copies (renderer flat). Load,
+from localhost: the engine prints at 3 s, `LOADING spawn and first streaming` at 61.5 s of engine
+time (65 s from page load) on this 4-core box - the macro map 7.7 s, the ground bake 9.3 s, far
+landmarks 6.6 s, the first 12 FULL + 94 LOD chunks 20 s, far city tiles 6.6 s. The load cache
+missed (first launch in a fresh profile). A frame under SwiftShader is ~20 s downtown by day (it
+was ~35 s in wave 2 on the same harness; not comparable across boxes), so frame cost cannot be
+read here.
+
+**Size.** `index.pck` 599.6 MB, `index.wasm` 39.5 MB, `index.js` 0.28 MB, the rest 0.04 MB:
+**639.5 MB**, 360 MB under Pages' 1 GB (web-build-2 left it at 550 MB of pck; wave 3's 70
+features added ~50 MB). S3TC textures are 491 MB of it (588 of them; the biggest are the 4K
+sign atlas 8 MB, the hero's 2K maps, road wear, climbers, the billboard atlas). No exclusion was
+added: `tools/webshot/unused_probe.gd` lists 261 "unused" assets, but the ones checked (Fabric036,
+Grass004, Metal016, the bird normals, ...) are reached through `PropFactory.TEXTURE_SETS` keys or
+path tables the probe cannot see, so excluding them blind would ship pink materials.
+
+**Desktop-only features degrade.** Checked in code and in the stills: reflection probes, heat
+haze, car spot lights, police night strobes, motion blur / DOF, sky beams' and the searchlight's
+volumetric cones, the metro probe, decals (blood, craters, landing cracks: quads on the web), the
+cloud volume (`CURRENT_RENDERER`) and car door splitting (`CarDoorSplit.threaded` is off on the
+web, so no WorkerThreadPool task waits forever in the single-threaded build) all check
+`OS.has_feature("web")` or the RenderingDevice. No shader uses a GLSL ES 3.1+ built-in (the new
+check). `web_build_checks.gd` still holds samplers (most 7 of 9), no `instance uniform`, the
+preset and the exclude filter.
+
+**The harness, fixed.**
+- The box's Playwright is now chromium-1243, and `webshot.js`'s pinned `chromium-1194` path was
+  gone, so it fell back to Playwright's default **`chrome-headless-shell`**. There
+  `page.screenshot()` waits for a compositor frame that never arrives while a Godot frame takes
+  20 s: every shot timed out at 400 s, and after the harness's left click the renderer ballooned
+  2.3 -> 6 GB and two tabs were OOM-killed. The same click in the FULL Chromium leaves the wasm heap
+  flat at 721 MB and the renderer at 2.2 GB, so it was the shell, not the game. `webshot.js` now
+  finds the newest full `chromium-<n>/chrome-linux*/chrome` under /opt/pw-browsers (`CHROME=` still
+  overrides).
+- **One tab at a time.** A tab is ~2.2 GB renderer + ~3.5 GB GPU process now; two were killed by
+  the cgroup OOM on the 16 GB box (wave 2 ran two).
+- **The click fires the rifle** (left button = `fire`; at 20 s a frame the press and release land
+  in one frame and `is_action_just_pressed` still sees it). Stills should not start with a shot:
+  `KEY=k` presses an unbound key instead (a user gesture: Web Audio starts, nothing fires),
+  `NOCLICK=1` skips the gesture, `BUTTON=middle` captures the mouse without firing.
+- `PROBE=1` loads `tools/webshot/probe.js` before Godot: a `[probe]` line with the wasm heap, Web
+  Audio buffers (with the JS callers that made the big ones), buffer sources and worklet nodes
+  (its "gl uploads" figure counts wasm heap views and is meaningless).
+- A screenshot needs a whole frame inside `SHOT_TIMEOUT` (still 400 s by default). The rain
+  bookmark's first capture timed out although its frames are ~20 s like the dry ones (the capture
+  waits on the compositor, not a Godot frame); `SHOT_TIMEOUT=1200000` got it. A bookmark now takes
+  12-16 minutes alone.
+
+**Checks.** `tests/web_review_3_checks.gd` (one line in the smoke test): every `.gdshader` /
+`.gdshaderinc` free of GLSL ES 3.1+ and desktop-only built-ins (bitfieldExtract, findMSB,
+textureGather, fma, dFdxFine, textureQueryLod, ...) outside comments - WebGL2 is GLSL ES 3.00 and
+Godot passes built-ins through, so one compiles on the Mac and in every opengl3 still and draws a
+blank material in the browser - and the scan proven on a planted call. Gate on the merge with main: `SHARDS=3 tests/headless_check.sh` SMOKE TEST PASSED, 4,188 checks, 0 failed, 1,087 s, peak RSS 2,969 MB.
+
+**Not done / not verified.** Real frame rate in a browser on a GPU (SwiftShader cannot say); the
+ReadPixels read-backs could move to the loading screen; the 600 MB download is still the biggest
+cost for the owner (next saving: web-only smaller crowd / hero / atlas textures, which 4.7 has no
+per-platform import setting for). Stills on `shots/web-review-3`.
