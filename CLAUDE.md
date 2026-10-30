@@ -979,6 +979,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   of the junction ahead of the camera, walkers on the crosswalk in front of it; `--hour=21` for
   the heads at night). Checks: `tests/street_life_checks.gd`, loaded by the smoke test like the
   air traffic's.
+- Busy streets (2026-10-30, docs/HANDOFF.md "Busy streets"): `BusyStreets`
+  (`scripts/npc/busy_streets.gd`, static; hooks in TrafficManager `_maintain()` / `_spawn_near()` /
+  `_run_spawns()` / `density_at()`, `CityStreamer._process()`, `CityChunk._park_car_steps()` /
+  `_pedestrian_steps()`) spends the existing caps where the camera looks: `focus_share` of street
+  spawns go round the camera's block, ahead of it, never popping in inside the view nearer than
+  `view_pop_min` (except while FILLING after a load or teleport, `spawn_burst()`); cars far behind
+  and out of view go back to the pool (`retire_far()`); the street cap follows the hour
+  (`hour_factor()`, NightCity.traffic_level); street traffic no longer waits on PhysicsBudget
+  (kinematic: `traffic_room()`); near FULL blocks' walkers are topped up once a second from their
+  planned count x `crowd_factor(hour)`, freeing far out-of-view walkers for room (`balance_crowd()`);
+  the kerbs take up to `PARK_EXTRA` more parked cars on the spots their pass left empty (a hash per
+  spot, after every roll). `BUSY_STREETS=0` is the A/B; census `tools/busy_streets/census.gd`
+  (and `CENSUS=1` on still_shot.gd); checks `tests/busy_streets_checks.gd`.
 - Traffic AI (2026-10-05, "traffic that drives like people"; HANDOFF 9ed): `TrafficAI`
   (`scripts/npc/traffic_ai.gd`, static) is the drivers on top of TrafficManager's IDM queues.
   **Moods** from a hash per car (`roll_mood()`: NORMAL, 12 % PUSHY, 12 % CAREFUL, 8 % DOZY) set

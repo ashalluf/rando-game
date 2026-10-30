@@ -2803,6 +2803,7 @@ func _pedestrian_steps(rect: Rect2, rng: RandomNumberGenerator, params: Dictiona
 	if plan.macro and not params.is_empty():
 		# The downtown core is the busiest: up to twice the district's count in the middle.
 		count = roundi(count * (1.0 + plan.macro.skyline_boost(rect.get_center())))
+	BusyStreets.note_crowd(self, rect, plan.sidewalk_width if sidewalk < 0.0 else sidewalk, count)
 	return _crowd_steps(rect, plan.sidewalk_width if sidewalk < 0.0 else sidewalk, count, rng)
 
 
@@ -2922,7 +2923,64 @@ func _park_car_steps(rect: Rect2, rng: RandomNumberGenerator, params: Dictionary
 	var count := [0]
 	for spot in spots:
 		steps.append(_park_car.bind(spot, rng, max_cars, count))
+	# Fuller kerbs (BusyStreets): more cars on the spots left empty, from hashes after every roll.
+	var extra := BusyStreets.park_extra_count(max_cars)
+	if extra > 0:
+		var ecount := [0]
+		for spot in spots:
+			steps.append(_park_extra.bind(spot, extra, ecount))
 	return steps
+
+
+## The kerb spot is kept clear for something the plan puts there (a stop, a station, a school...).
+func _kerb_reserved(spot: Array) -> bool:
+	var p := Vector2(spot[0].x, spot[0].z)
+	return (plan.macro and Landmarks.covers(plan, p, 3.0)) or BigVehicles.in_stop_zone(plan, p) \
+			or FireStation.keeps_clear(plan, p) or PoliceStation.keeps_clear(plan, p) \
+			or Schools.keeps_clear(plan, p) or Alleys.keeps_clear(plan, p) \
+			or Kerbs.blocks_parking(self, spot[0]) or Hospital.keeps_clear(plan, p) \
+			or FreightRail.keeps_clear(plan, p) \
+			or CivicBuildings.keeps_clear(plan, p) \
+			or CarPark.keeps_clear(plan, p)
+
+
+## The kerb spot is taken by a feature of this chunk (a vendor's truck, works, carts, a parklet...).
+func _kerb_taken(spot: Array, car: Vehicle) -> bool:
+	return StreetVendors.blocks_parking(self, spot[0]) or Construction.blocks_parking(self, spot[0]) \
+			or KerbBins.blocks_parking(plan, spot[0], float(car._dims().length)) \
+			or FarmersMarket.blocks_parking(plan, spot[0]) or Parklets.blocks_parking(self, spot[0]) \
+			or StarBoulevard.blocks_parking(plan, spot[0]) \
+			or LowriderMeet.blocks_parking(self, spot[0]) \
+			or FilmShoot.blocks_parking(plan, spot[0]) \
+			or Valets.blocks_parking(self, spot[0]) \
+			or Micromobility.blocks_parking(self, spot[0])
+
+
+## One more parked car on a spot the block's own pass left empty (BusyStreets, a hash per spot).
+func _park_extra(spot: Array, extra: int, ecount: Array) -> void:
+	if ecount[0] >= extra or not BusyStreets.park_extra_roll(plan.seed, spot) or not PhysicsBudget.can_spawn():
+		return
+	var at: Vector3 = spot[0]
+	for c in _cars:
+		if is_instance_valid(c):
+			var cw := WorldState.to_world((c as Node3D).global_position) if (c as Node3D).is_inside_tree() else at + Vector3(99.0, 0.0, 0.0)
+			if Vector2(cw.x - at.x, cw.z - at.z).length() < 5.0:
+				return
+	if _kerb_reserved(spot):
+		return
+	var r := BusyStreets.park_extra_rng(plan.seed, spot)
+	var car := Vehicle.random_car(r)
+	if _kerb_taken(spot, car):
+		car.free()
+		return
+	var holder: Node = get_parent() if get_parent() else self
+	var spot_pos: Vector3 = at + Vector3(0.0, 0.3 + _gy(at.x, at.z), 0.0)
+	car.position = WorldState.to_local(spot_pos) if holder != self else spot_pos
+	car.rotation.y = float(spot[1]) + (PI if r.randf() < 0.5 else 0.0)
+	holder.add_child(car)
+	car.visible = visible
+	_cars.append(car)
+	ecount[0] += 1
 
 
 func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Array) -> void:
@@ -2935,13 +2993,7 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 		return
 	var car := Vehicle.random_car(rng)
 	var flip := rng.randf() < 0.5
-	if (plan.macro and Landmarks.covers(plan, Vector2(spot[0].x, spot[0].z), 3.0)) or BigVehicles.in_stop_zone(plan, Vector2(spot[0].x, spot[0].z)) \
-			or FireStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or PoliceStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
-			or Schools.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or Alleys.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
-			or Kerbs.blocks_parking(self, spot[0]) or Hospital.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
-			or FreightRail.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
-			or CivicBuildings.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
-			or CarPark.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)):
+	if _kerb_reserved(spot):
 		# After the rolls, so the chunk rng runs the same whether or not the spot is used, and it
 		# counts as a car, as the vendors' and the market's spots below do: a kerb kept clear that
 		# another feature moves (a driveway apron when a market closes the street) must not shift
@@ -2957,13 +3009,7 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	# A street vendor's truck at this stretch of kerb (StreetVendors): after every roll, so the
 	# block's stream (and the walkers after it) runs the same with or without the truck.
 	# It counts as parked, so the cap (and with it the rolls) is the same too.
-	if StreetVendors.blocks_parking(self, spot[0]) or Construction.blocks_parking(self, spot[0]) \
-			or KerbBins.blocks_parking(plan, spot[0], float(car._dims().length)) \
-			or FarmersMarket.blocks_parking(plan, spot[0]) or Parklets.blocks_parking(self, spot[0]) \
-			or StarBoulevard.blocks_parking(plan, spot[0]) \
-			or LowriderMeet.blocks_parking(self, spot[0]) \
-			or FilmShoot.blocks_parking(plan, spot[0]) \
-			or Valets.blocks_parking(self, spot[0]):
+	if _kerb_taken(spot, car):
 		car.free()
 		count[0] += 1
 		return
