@@ -2351,6 +2351,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Parklets (tests/parklets_checks.gd): decks in the parking lane before cafes and restaurants,
 	# diners seated, a waiter, cars kept off, umbrellas furled at night, nothing else moved.
 	load("res://tests/parklets_checks.gd").new().run(self, city)
+	# The flyable helicopter (tests/heli_flyable_checks.gd): the heliport's pads, get in, climb,
+	# hover, fly, yaw, the downwash, land, a rotor strike, a crash, a stand-in spot waking.
+	await load("res://tests/heli_flyable_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
