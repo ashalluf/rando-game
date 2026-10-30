@@ -20752,7 +20752,12 @@ did - proven pixel for pixel, below.
 **Measured.** Noon (12:00, sky_shot `HOLD_TIME=1 TAA=0`, old shader vs new): **0 pixels differ**
 on both Forward+ (lavapipe) and opengl3. Cost (sky_shot BENCH=40 at 18:00 facing the sun,
 lavapipe 1280x720, two runs each): old 732 / 753 ms, new 726 / 755 ms a frame - inside the noise.
-`HOLD_TIME=1` is new on `tools/sky/sky_shot.gd` because shader TIME is real time: a shader that
+Refcams (`--only street_noon,downtown_aerial,sunset,golden_aerial --strict`, `SUNSET_CLOUDS=0`
+vs on): street_noon and downtown_aerial 0.00 % of pixels changed, 0 shots flagged. **Trap found
+on the way:** in `--strict` the `sunset` (17:51) and `golden_aerial` (17:12) frames come out with a
+midday blue sky (golden_aerial changed 0.39 %, sunset 0.00 %), so strict refcams say nothing about
+the evening; judge the sunset with sky_shot and still_shot SHOTS instead (refcams' own issue, not
+fixed here). `HOLD_TIME=1` is new on `tools/sky/sky_shot.gd` because shader TIME is real time: a shader that
 compiles slower drifts the clouds and an A/B "differs" in 15 % of its pixels; `PARAMS="a=1;b=0"`
 holds uniforms after DayNight has set them (frame_pre_draw), for experiments.
 
