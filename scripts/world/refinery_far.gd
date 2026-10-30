@@ -44,7 +44,9 @@ func build(plan: CityPlan, lay: Dictionary) -> void:
 			Refinery.write(lay, area, st, false, gy, lights, flames, plumes)
 			var piece := Node3D.new()
 			piece.name = "Piece_%d_%d" % [bx, bz]
-			var mesh := st.commit()
+			# Indexed, with generated LODs (perf-audit-2): the far plant was ~25 MB of unindexed
+			# vertices drawn at full detail from anywhere - 118 k triangles from the port.
+			var mesh := _with_lods(st)
 			if mesh.get_surface_count() > 0:
 				var mi := MeshInstance3D.new()
 				mi.name = "Plant"
@@ -73,3 +75,15 @@ func _process(delta: float) -> void:
 
 func piece_count() -> int:
 	return _pieces.size()
+
+
+## The SurfaceTool's triangles, indexed and with generated LODs (the city's far meshes' recipe).
+static func _with_lods(st: SurfaceTool) -> ArrayMesh:
+	var arrays := st.commit_to_arrays()
+	if arrays.is_empty() or (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).is_empty():
+		return ArrayMesh.new()
+	st.index()
+	var im := ImporterMesh.new()
+	im.add_surface(Mesh.PRIMITIVE_TRIANGLES, st.commit_to_arrays())
+	im.generate_lods(25.0, 60.0, [])
+	return im.get_mesh()

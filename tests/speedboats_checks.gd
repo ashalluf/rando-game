@@ -185,14 +185,20 @@ func _check_live(city: Node3D, m: MacroMap) -> void:
 		weather.call("force_state", 3)
 		var worst := 0.0
 		var top_y := -INF
+		var wet_ticks := 0
 		for i in 240:
 			await tree.physics_frame
 			var tw: Vector3 = ws.call("to_world", boat.global_position)
 			top_y = maxf(top_y, tw.y)
 			if i >= 60:
 				worst = maxf(worst, absf(tw.y - SeaSurface.height(m, Vector2(tw.x, tw.z), SeaSurface.now(), boat._sea)))
-		_check(worst < 2.5 and top_y < 8.0 and boat.wet > 0.0,
-			"a storm comes up and she rides it (highest %.2f m, at most %.2f m off the surface)" % [top_y, worst])
+				# In the water most of the time: a storm sea throws her clear of a crest now and then,
+				# so the last tick alone says nothing (it failed one single-process run that way).
+				if boat.wet > 0.0:
+					wet_ticks += 1
+		var wet_share := float(wet_ticks) / 180.0
+		_check(worst < 2.5 and top_y < 8.0 and wet_share > 0.6,
+			"a storm comes up and she rides it (highest %.2f m, at most %.2f m off the surface, wet %.0f %% of the time)" % [top_y, worst, wet_share * 100.0])
 		weather.call("force_state", 0)
 		for i in 60:
 			await tree.physics_frame

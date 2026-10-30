@@ -1017,6 +1017,9 @@ func _add_hills(rect: Rect2, macro: MacroMap) -> void:
 			veg.append(Transform3D(basis.scaled(Vector3(r, th, r * 0.85)), Vector3(p.x, gy + th * 0.3, p.y)))
 			veg_colors.append(col)
 			veg_custom.append(Color(0.0, 0.0, 0.0, 0.0))
+			# Live oaks stand in clumps (HillScatter, hill-planting-2): a companion or two, hashes only.
+			if HillScatter.enabled:
+				HillScatter.far_oak_clump(_plan.seed, p, r, th, col, rect, lat, _lattice_height, veg, veg_colors, veg_custom)
 	if macro.hill_roads == null:
 		return
 	var houses: Array = _work.houses

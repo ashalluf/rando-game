@@ -202,6 +202,7 @@ func _stations_in_use() -> Array:
 
 
 func _dispatch() -> void:
+	_prune()
 	var now := _now()
 	for s in stories:
 		if s.van != null or bool(s.wrap) or now < float(s.send_at):
@@ -582,10 +583,8 @@ func _upkeep(step: float) -> void:
 	NewsKit.lamp_material().emission_energy_multiplier = 1.2 + 5.0 * night
 	if crews.is_empty():
 		hurry = false
+	_prune()
 	for v in vans.duplicate():
-		if not is_instance_valid(v):
-			vans.erase(v)
-			continue
 		var van: NewsVan = v
 		if van.driver != null:
 			vans.erase(van)
@@ -604,10 +603,10 @@ func _upkeep(step: float) -> void:
 		if retire:
 			_retire(van)
 	for cc in crews.duplicate():
-		if not is_instance_valid(cc) or (cc as NewsCrew)._down:
-			crews.erase(cc)
-			continue
 		var c: NewsCrew = cc
+		if c._down:
+			crews.erase(c)
+			continue
 		var d := c.global_position.distance_to(pp)
 		var on_screen := cam != null and d < 250.0 and cam.is_position_in_frustum(c.global_position)
 		c.unseen_time = 0.0 if on_screen else c.unseen_time + step
@@ -615,6 +614,13 @@ func _upkeep(step: float) -> void:
 		if d > despawn_distance or (van_gone and c.unseen_time > 3.0):
 			crews.erase(c)
 			c.queue_free()
+
+
+## Drops freed vans and crews from the typed lists (a node freed elsewhere - a knock, a chunk, a
+## test - must never reach erase() / has() on a typed array: that is a script error).
+func _prune() -> void:
+	vans.assign(vans.filter(func(v: Variant) -> bool: return is_instance_valid(v)))
+	crews.assign(crews.filter(func(c: Variant) -> bool: return is_instance_valid(c)))
 
 
 func _crew_in_place(van: NewsVan) -> bool:
