@@ -2328,8 +2328,20 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Street lamps (tests/street_lamps_checks.gd): the kit against its table, the pick per street,
 	# the arms over the road, the lamps' pools and omnis, and the same prop ids with the kit off.
 	load("res://tests/street_lamps_checks.gd").new().run(self, city)
+	await load("res://tests/onlookers_checks.gd").new().run(self, city) # the crowd back round a body after the panic (Onlookers)
+	# Street props breaking by kind (tests/prop_destruction_checks.gd): geysers, shelter glass,
+	# bent and felled lamps, burst boxes, snapped meters, cars smashing through.
+	await load("res://tests/prop_destruction_checks.gd").new().run(self, city)
+	# Engine audio (tests/engine_audio_checks.gd): profiles and loops, the gearbox, the player's
+	# voice, a truck's diesel and reversing alarm, a horn per car.
+	await load("res://tests/engine_audio_checks.gd").new().run(self, city)
 	# Apartments (tests/apartments_checks.gd): midtown and inner-suburb walk-ups, courts and podiums.
 	load("res://tests/apartments_checks.gd").new().run(self, city)
+	# Street furniture (tests/street_furniture_checks.gd): the meshes, the shader's kinds, the rolls,
+	# a metered block and collection day's carts built the same with the furniture off.
+	load("res://tests/street_furniture_checks.gd").new().run(self, city)
+	# Swimming (tests/swimming_checks.gd): the sea's swell in GDScript, the water, and the hero in it.
+	await load("res://tests/swimming_checks.gd").new().run(self, city)
 	# The island offshore (tests/offshore_island_checks.gd): where it stands, the weather, the sky.
 	load("res://tests/offshore_island_checks.gd").new().run(self, city)
 

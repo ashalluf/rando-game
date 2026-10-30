@@ -64,14 +64,17 @@ const COUNTER_EDGE := 1.0e6
 ## How far a "gen" level's triangle count may stray from the table and still be that level:
 ## ImporterMesh.generate_lods() runs meshoptimizer, whose float maths lands a few triangles apart
 ## on different CPUs (CI 360 / 361's runners built tree_fir's generated levels off by a handful
-## and the fir fell off its ladder, while this box and CI 359 matched exactly). The base count
-## stays exact, so a re-exported model is still caught; "thin" levels are ours and stay exact.
-const GEN_SLACK := 0.02
+## and the fir fell off its ladder, while this box and CI 359 matched exactly; CI 363's warning:
+## the fir's surface 3, LOD 4, 35 triangles for the table's 40). The smallest levels drift most and
+## draw only a few pixels tall, so the slack is 5 % or 12 triangles, whichever is more. The base
+## count stays exact, so a re-exported model is still caught; "thin" levels are ours and exact.
+const GEN_SLACK := 0.05
+const GEN_SLACK_MIN := 12
 
 
 ## Whether a generated level of `actual` triangles is the table's `expected` one (GEN_SLACK).
 static func gen_close(actual: int, expected: int) -> bool:
-	return absi(actual - expected) <= maxi(4, int(ceil(expected * GEN_SLACK)))
+	return absi(actual - expected) <= maxi(GEN_SLACK_MIN, int(ceil(expected * GEN_SLACK)))
 
 
 ## Which piece every triangle and vertex of an indexed surface belongs to: triangles that share
