@@ -20291,3 +20291,18 @@ another wing gets nothing. Every roll is a hash of the building's seed and the w
 StreetDress is built. `tools/facades_street/probe.gd -- --spawn=x,z` lists the ground walls round a
 point with an EYE for each face; `tools/facades_street/shots.sh` takes several EYE stills from one
 load (`SHOTS=`, heights above the ground). Checks: `tests/facades_street_checks.gd`.
+
+**Numbers** (still_shot.gd GEO, opengl3, the five midtown bookmarks of shots.sh, spawn 1230,690,
+FACADES_STREET=0 vs on): triangles +0.2 .. +0.4 %, draws +0.6 .. +1.3 % (one StreetDress a
+building within ~105 m, e.g. 2982 -> 3001 draws, 6.35 -> 6.37 M triangles). Shader cost: three
+height samples (~6 value noises) on wall pixels within 55 m, the door and plinth terms on the
+lowest storey only; no new samplers (the WebGL budget is unchanged), no instance uniforms.
+
+**Not done / not verified.** No Forward+ (lavapipe) still: every picture is opengl3; the relief
+is a NORMAL tilt and should read stronger under Forward+'s sun, but the Mac must look at a midtown
+pavement at noon. Most ground floors in the city carry shops, so doors are rare outside low parts,
+hospitals and the marina. The foot-of-wall terms are measured from the building's base: where a
+lot's forecourt stands higher than the base (LotFill on a slope) they are buried. No signage
+brackets beyond the goosenecks; the alley face only gets downpipes (AlleyKit dresses the rest).
+Stills: `shots/facades-street` (the 02 pair still shows shop thresholds over a masonry plinth,
+since removed).
