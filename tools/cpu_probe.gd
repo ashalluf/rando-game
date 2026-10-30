@@ -114,7 +114,8 @@ func _initialize() -> void:
 			n.set_physics_process(false)
 		var m := await _measure(frames)
 		for s in saved:
-			var n: Node = s[0]
+			# Untyped: a pedestrian freed while it was switched off cannot go in a typed variable.
+			var n = s[0]
 			if is_instance_valid(n):
 				n.set_process(s[1])
 				n.set_physics_process(s[2])
