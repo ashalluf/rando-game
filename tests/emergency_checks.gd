@@ -261,6 +261,17 @@ func _uniforms() -> void:
 func _fire_call(player: Player) -> void:
 	var at := _road_point(-45.0, 5.0)
 	player.global_position = _ws.to_local(_road_point(-80.0, -6.0)) + Vector3.UP * 1.0
+	# Clear the scene of cars an earlier part left (one process): a crew member sent to a spot on
+	# top of one never got there (gate 17, after city_people).
+	for v in _tree.get_nodes_in_group("vehicle"):
+		var vb := v as Node3D
+		if vb != null and is_instance_valid(vb) and not vb.is_queued_for_deletion() \
+				and vb.global_position.distance_to(_ws.to_local(at)) < 40.0 and vb.get("driver") == null:
+			var tr = vb.get("traffic")
+			if tr is Dictionary and not (tr as Dictionary).is_empty():
+				continue # traffic moves on; TrafficManager owns those
+			vb.queue_free()
+	await _ticks(2)
 	var car := Vehicle.random_car(RandomNumberGenerator.new())
 	car.position = _ws.to_local(at) + Vector3.UP * 0.6
 	_city.add_child(car)
