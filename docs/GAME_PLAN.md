@@ -295,6 +295,10 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-30 The oil islands in the bay are a data table, not seeded (HANDOFF "The oil
+  islands").** Three decorated drilling islands 600-700 m off the Long Beach sand, each a landmark
+  built near and far from one builder on one shader; details are hashes of the island, so no seed
+  or rng moves anything else. Like the piers they stand where the table says on every seed.
 - **2026-10-05 Onlookers: the crowd comes back after the chaos (HANDOFF "Onlookers").** After
   the panic near a wreck, a blast or a body, people near the camera come back and stand round it
   in a loose ring: filming on their phones (held up at eye level, the screen lit, a video light

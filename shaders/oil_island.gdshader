@@ -158,11 +158,19 @@ void fragment() {
 		// their tops; the sound wall has panel joints and a painted band.
 		float boards = smoothstep(0.42, 0.5, abs(fract(uv.x / 0.3) - 0.5)) * (1.0 - smoothstep(0.02, 0.06, px));
 		float streak = vnoise(vec2(uv.x * 1.3, uv.y * 0.04)) * smoothstep(0.4, 1.0, vnoise(vec2(uv.x * 0.4, 0.0)));
+		// Lift lines of the slip-formed concrete every 3.6 m, a shadowed reveal.
+		float lift = 1.0 - smoothstep(0.0, max(0.02, px * 0.5), abs(fract((y - pad_y) / 3.6) - 0.5) * 3.6 - 1.72);
 		if (v_kind == 3) {
-			alb = vec3(0.78, 0.77, 0.73) * mix(1.0, 0.93, boards) * mix(1.0, 0.86, streak * 0.6);
+			alb = vec3(0.78, 0.77, 0.73) * mix(1.0, 0.93, boards) * mix(1.0, 0.86, streak * 0.6) * mix(1.0, 0.72, lift);
 			rough = 0.8;
+			// Tall slots cut through the screens every 6.5 m, the derrick house's dark inside them,
+			// lit from within after dark.
+			float sx = abs(fract(uv.x / 6.5) - 0.5) * 6.5;
+			float slot = (1.0 - smoothstep(0.32, 0.32 + max(0.02, px), sx)) * step(pad_y + 9.0, y) * (1.0 - step(pad_y + 40.0, y));
+			alb = mix(alb, vec3(0.05, 0.05, 0.055), slot);
+			emit += vec3(1.0, 0.82, 0.55) * slot * lit * 1.4;
 		} else if (v_kind == 4) {
-			alb = paint * mix(1.0, 0.9, streak * 0.4);
+			alb = paint * mix(1.0, 0.9, streak * 0.4) * mix(1.0, 0.85, lift);
 			rough = 0.55;
 		} else {
 			float h = y - pad_y;

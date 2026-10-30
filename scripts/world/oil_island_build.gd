@@ -258,11 +258,17 @@ class _Island:
 		var grass := OilIslandBuild.col(Color(0.5, 0.5, 0.5), K_GREEN)
 		var conc := OilIslandBuild.col(CONCRETE, K_PAD)
 		# The inner pad.
+		# UVs are metres from the island's centre: world-sized numbers starve the shader's hashes.
+		var org: Vector2 = OilIslands.ISLANDS[i].anchor
 		var inner := PackedVector2Array()
 		for k in segs:
-			var q := OilIslands.to_world(i, OilIslands.ring_local(i, -t_at(k), -OilIslands.BERM_IN))
-			inner.append(q)
-		geo.cap(KEY, LandmarkGeo.ccw(inner), y0, conc, detailed)
+			inner.append(OilIslands.to_world(i, OilIslands.ring_local(i, t_at(k), -OilIslands.BERM_IN)))
+		var idx := Geometry2D.triangulate_polygon(inner)
+		for q in range(0, idx.size(), 3):
+			var a := inner[idx[q]]
+			var b := inner[idx[q + 1]]
+			var c := inner[idx[q + 2]]
+			geo.tri(KEY, Vector3(a.x, y0, a.y), Vector3(b.x, y0, b.y), Vector3(c.x, y0, c.y), Vector3.UP, a - org, b - org, c - org, conc, detailed)
 		# Coping walk on the edge and the berm: rings from the edge inward.
 		var berm_d: Array = [0.0, -OilIslands.BERM_OUT]
 		var n := 7
@@ -283,7 +289,7 @@ class _Island:
 					var cc: Vector3 = row[j + 1]
 					var d: Vector3 = prev[j + 1]
 					var cl := conc if j == 0 else grass
-					geo.quad(KEY, a, b, cc, d, Vector3.UP, Vector2(a.x, a.z), Vector2(b.x, b.z), Vector2(cc.x, cc.z), Vector2(d.x, d.z), cl, detailed)
+					geo.quad(KEY, a, b, cc, d, Vector3.UP, Vector2(a.x, a.z) - org, Vector2(b.x, b.z) - org, Vector2(cc.x, cc.z) - org, Vector2(d.x, d.z) - org, cl, detailed)
 			prev = row
 
 	# --- The sound wall: precast panels stepping in height, a painted band, both faces. --------
@@ -684,6 +690,21 @@ class _Island:
 				var v := int(OilIslands.h01(i, "bvar", id) * BOULDER_VARIANTS) % BOULDER_VARIANTS
 				batch.add("oil_boulder_%d" % v, OilIslandBuild.boulder(v), Transform3D(basis, w(p, y - 0.25 * s)),
 					Color(lerpf(0.85, 1.1, OilIslands.h01(i, "bt", id)), lerpf(0.85, 1.05, OilIslands.h01(i, "bt2", id)), lerpf(0.85, 1.0, OilIslands.h01(i, "bt3", id)), 1.0))
+		# Big stones round the falls: on the cliff's shoulders and heaped at its foot.
+		var e := OilIslands.edge_local(i, _falls_t)
+		var fn := OilIslands.edge_normal(i, _falls_t)
+		var ft := Vector2(-fn.y, fn.x)
+		var hw := OilIslands.FALLS_WIDTH * 0.5
+		for k in 28:
+			var side := -1.0 if k % 2 == 0 else 1.0
+			var along := lerpf(-15.0, 9.0, OilIslands.h01(i, "fbd", k))
+			var lat := side * (hw + lerpf(-1.0, 5.0, OilIslands.h01(i, "fbl", k)))
+			var p := e + fn * along + ft * lat
+			var y := OilIslands.FALLS_TOP if along < -8.0 else (OilIslands.PAD_Y + (OilIslands.FALLS_TOP - OilIslands.PAD_Y) * 0.45 if along < -3.0 else (OilIslands.PAD_Y if along < 0.0 else _ring_y(along)))
+			var s := lerpf(2.4, 4.2, OilIslands.h01(i, "fbs", k))
+			var v := int(OilIslands.h01(i, "fbv", k) * BOULDER_VARIANTS) % BOULDER_VARIANTS
+			var bs := Basis(Vector3.UP, OilIslands.h01(i, "fbr", k) * TAU).scaled(Vector3(s, s * 0.8, s))
+			batch.add("oil_boulder_%d" % v, OilIslandBuild.boulder(v), Transform3D(bs, w(p, y - 0.2 * s)), Color(0.9, 0.88, 0.85, 1.0))
 		for v in BOULDER_VARIANTS:
 			batch.set_shadow_reach("oil_boulder_%d" % v, 70.0)
 			batch.set_draw_distance("oil_boulder_%d" % v, BOULDER_DRAW)
