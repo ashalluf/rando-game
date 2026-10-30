@@ -255,11 +255,12 @@ static func _ground_kick(node: Node, parent: Node, at: Vector3, radius: float, p
 	var ground: Vector3 = hit.position
 	var gb := WeaponFX._basis_up(hit.normal)
 	if _ground_ramp == null:
-		_ground_ramp = WeaponFX._ramp([Color(0.40, 0.37, 0.33, 0.0), Color(0.38, 0.35, 0.31, 0.55),
-			Color(0.33, 0.31, 0.28, 0.25), Color(0.28, 0.27, 0.25, 0.0)])
+		# Linear albedo for the lit smoke material: street dust, lit by the sun or left dark at night.
+		_ground_ramp = WeaponFX._ramp([Color(0.22, 0.20, 0.17, 0.0), Color(0.20, 0.18, 0.16, 0.55),
+			Color(0.17, 0.16, 0.14, 0.25), Color(0.14, 0.13, 0.12, 0.0)])
 	WeaponFX._puff_layer(parent, ground + Vector3.UP * 0.25, WeaponFX._count(28), radius * 0.28, 0.9,
 		radius * 3.4 * push, radius * 5.0 * push, 0.4, _ground_ramp, false, 180.0, 3.4,
-		gb, 1.0, 0.3, 2.2, true)
+		gb, 1.0, 0.3, 2.2, true, null, smoke_material())
 	# Grit: lit dark chips skimming out low along the ground.
 	WeaponFX._chip_layer(parent, ground + Vector3.UP * 0.2, WeaponFX._count(26), 0.06, 0.8,
 		radius * 2.0 * push, radius * 4.0 * push, Color(0.20, 0.19, 0.17), gb, 80.0, -22.0)
