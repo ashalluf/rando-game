@@ -2329,6 +2329,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# the arms over the road, the lamps' pools and omnis, and the same prop ids with the kit off.
 	load("res://tests/street_lamps_checks.gd").new().run(self, city)
 	await load("res://tests/onlookers_checks.gd").new().run(self, city) # the crowd back round a body after the panic (Onlookers)
+	# Street props breaking by kind (tests/prop_destruction_checks.gd): geysers, shelter glass,
+	# bent and felled lamps, burst boxes, snapped meters, cars smashing through.
+	await load("res://tests/prop_destruction_checks.gd").new().run(self, city)
 	# Apartments (tests/apartments_checks.gd): midtown and inner-suburb walk-ups, courts and podiums.
 	load("res://tests/apartments_checks.gd").new().run(self, city)
 	# Street furniture (tests/street_furniture_checks.gd): the meshes, the shader's kinds, the rolls,
