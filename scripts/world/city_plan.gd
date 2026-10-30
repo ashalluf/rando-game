@@ -671,6 +671,10 @@ func _lot_grid(ix: int, iz: int, dropped: Variant) -> Array[Dictionary]:
 	# A replica block's lots are the replica's own (its frontage houses and their seeded
 	# backfill), so every tier that asks - LOD chunks, the far skyline, the air traffic's
 	# obstacle map - sees the same houses the detailed chunk builds (ReplicaAreas.block_lots()).
+	# A landmark area's block (the power plant's south block meets the replica's corridor) is the
+	# landmark's ground whoever else reaches it.
+	if macro and block(ix, iz).has("site"):
+		return []
 	if macro and macro.replica:
 		var replica_lots: Variant = macro.replica.block_lots(self, ix, iz)
 		if replica_lots != null:

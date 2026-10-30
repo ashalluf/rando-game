@@ -310,6 +310,7 @@ static func _plan_line(plan: CityPlan) -> Dictionary:
 			var w := xf * Vector3(cs.x * hb, 0.0, cs.y * hb)
 			legs.append(CityChunk.SIDEWALK_TOP + 0.05 + plan.macro.relief_at(p + Vector2(w.x, w.z)))
 		out.append({"id": i, "pos": p, "yaw": atan2(dir.x, dir.y), "base": base, "h": TOWER_H, "kind": kind, "legs": legs})
+	_clear_spans(plan, out, g)
 	var sc := station.get_center()
 	var sgantry := {"pos": Vector2(station.position.x + 6.0, sc.y), "yaw": -PI * 0.5, "base": CityChunk.SIDEWALK_TOP + 0.05 + plan.macro.relief_at(sc)}
 	var row: Array = [[gp, towers[0]]]
@@ -441,3 +442,47 @@ static func row_rects_in(plan: CityPlan, area: Rect2) -> Array:
 		if p.size.x > 1.0 and p.size.y > 1.0:
 			out.append(p)
 	return out
+
+
+## Raises towers until every span's lowest conductor clears the ground under it by CLEARANCE
+## (sampled along the span; heights in whole metres, RidgeKit caches a body per height).
+const CLEARANCE := 11.0
+const TOWER_MAX := 66.0
+
+static func _clear_spans(plan: CityPlan, towers: Array, g: Dictionary) -> void:
+	for pass_i in 6:
+		var raised := false
+		for k in range(1, towers.size()):
+			var a: Dictionary = towers[k - 1]
+			var b: Dictionary = towers[k]
+			var low := _span_low(plan, a, b)
+			if low < CLEARANCE:
+				var add := ceilf(CLEARANCE - low + 1.0)
+				for t: Dictionary in [a, b]:
+					var nh := minf(float(t.h) + add, TOWER_MAX)
+					if nh > float(t.h):
+						t.h = nh
+						raised = true
+		if not raised:
+			break
+	# The feet under each (perhaps wider) body.
+	for t: Dictionary in towers:
+		var hb: float = float(Ridges.spec(float(t.h)).base_half)
+		var xf := Basis(Vector3.UP, float(t.yaw))
+		var legs := []
+		for c in 4:
+			var cs: Vector2 = RidgeKit.CORNER_SIGNS[c]
+			var w := xf * Vector3(cs.x * hb, 0.0, cs.y * hb)
+			legs.append(CityChunk.SIDEWALK_TOP + 0.05 + plan.macro.relief_at((t.pos as Vector2) + Vector2(w.x, w.z)))
+		t.legs = legs
+
+
+static func _span_low(plan: CityPlan, a: Dictionary, b: Dictionary) -> float:
+	var pa := Ridges.attach(a, b.pos)
+	var pb := Ridges.attach(b, a.pos)
+	var low := INF
+	for ph in [0, 3]:
+		var w := Ridges.wire(pa[ph], pb[ph], 16)
+		for p: Vector3 in w:
+			low = minf(low, p.y - (CityChunk.SIDEWALK_TOP + plan.macro.relief_at(Vector2(p.x, p.z))))
+	return low

@@ -36,6 +36,9 @@ func _ready() -> void:
 		print("SEG r%s a %s b %s w %.1f y %.1f" % [sg.get("route", "?"), sg.a, sg.b, float(sg.width), float(sg.get("y", sg.get("ya", 0.0)))])
 	for rp in fw.ramps_in(Rect2(-800, 950, 1600, 300)):
 		print("RAMP ", rp.pos)
+	for ix in [-7, -6]:
+		var bl = m.replica.block_lots(plan, ix, 7) if m.replica else null
+		print("REPLICA LOTS block %d,7: %s" % [ix, "null" if bl == null else str((bl as Array).map(func(l): return l.center))])
 	print("airport ", m.airport_rect, " clear ", m.runway_clear_zone())
 	if m.replica:
 		print("replica coast ", m.replica.coast_range())

@@ -34,7 +34,7 @@ func _ready() -> void:
 	print("LINE planned in %d ms: %s" % [Time.get_ticks_msec() - t0, "none" if ln.is_empty() else "%d towers" % (ln.towers as Array).size()])
 	if not ln.is_empty():
 		for t: Dictionary in ln.towers:
-			print("  TOWER %d at %s yaw %.2f kind %d base %.2f" % [t.id, t.pos, t.yaw, t.kind, t.base])
+			print("  TOWER %d at %s yaw %.2f kind %d base %.2f h %.0f" % [t.id, t.pos, t.yaw, t.kind, t.base, t.h])
 		print("  STATION %s" % ln.station.rect)
 		var taken := 0
 		var blocks := {}
