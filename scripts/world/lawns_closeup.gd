@@ -34,8 +34,8 @@ static var enabled: bool = OS.get_environment("LAWNS_CLOSEUP") != "0"
 
 ## How many more tufts a lawn gets with the pass on: the close-up tuft is mown and spread, so it
 ## takes more of them to make turf; paid for by the shorter GRASS_DISTANCE (the area drawn falls
-## to 56 %).
-const DENSITY_GAIN := 1.6
+## to 56 %; 1.4 x 0.56 keeps a lawn-heavy frame within a few per cent).
+const DENSITY_GAIN := 1.4
 
 ## How far a grass cell keeps drawing (metres to its centre) with the close-up pass on. The
 ## blades are gone by grass.gdshader's fade_end (62 m) and a cell's farthest corner is 22.6 m

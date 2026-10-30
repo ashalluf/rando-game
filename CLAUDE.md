@@ -3894,7 +3894,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   brown spots, wear, stripes, morning sprinklers by `city_hour`) shared by lawn.gdshader and every
   grass blade: a tuft carries its lawn (COLOR the lawn's tint, INSTANCE_CUSTOM y dryness, z seed
   index / 1024, w edge metres + 16 if striped; `_add_grass(..., lawn, lawn_rect)`), so blades take
-  the ground's colour and shrink into it between 26 and 62 m (cells now draw to 86 m, 1.6x denser,
+  the ground's colour and shrink into it between 26 and 62 m (cells now draw to 86 m, 1.4x denser,
   mown and spread tufts on 200 indexed vertices). Grass parkways between kerb and walk on SUBURBS
   blocks (cut round corners and drives, one mesh a chunk, 5 cm proud), weeds in the walk's joints
   and along yard fences (`_run_last`), bark-chip mulch and clover in lot_yard. Hashes only.
