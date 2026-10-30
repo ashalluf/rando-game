@@ -14429,6 +14429,10 @@ superset.
 (the diners are most of it: up to a dozen crowd rigs a chunk). A 10 m deck is ~15 k triangles
 (the bulbs and the hedge), a set 1.6-2.5 k, an umbrella 0.3 k.
 
+**Wave 3** (resumed after the usage-limit pause): merged origin/main 95bd13f (apartments,
+gondolas), the waiter's uniform and tray, the full gate green (2,412 checks, 3 shards, peak RSS
+2,499 MB). Frame at the across-the-street EYE after the merge: 4.05 M triangles, 1,553 draws.
+
 **Stills** (`shots/parklets`): EYEs on the DONUT HOLE cafe's parklet, block 25,0:
 `EYE=2651.2,1.7,199.2,37,-8` (across the street), `2639.5,2.4,186.5,-129,-13` (the pavement),
 `2648.5,1.6,196,35,-12` (the road side), `EYE_AGL=1`, at `--hour=13` and `--hour=21`;
@@ -14436,6 +14440,10 @@ superset.
 
 **Not done / not verified.** Forward+ (the Mac) not seen: the bulbs' glow and the OmniLight under
 the festoon through AgX. Diners hold no cutlery and never eat (no seated eating clip in the life
-library); the waiter carries no tray and wears street clothes. The -x / -z faces' parking lanes
+library). The waiter now wears blacks (the crowd's garment regions, `ParkletDiner.waiter_material()`,
+no cap or pack) and carries `ParkletKit.tray()` (a steel tray with a carafe, tumblers and a plate)
+level on the left palm: the forearm turned forward like the crowd's coffee hold, the tray placed
+every frame over the wrist (`top_level`, never on the bone, so the hand's turn cannot tip it);
+put down while running or out of `life_range`. The -x / -z faces' parking lanes
 belong to the neighbouring chunk and get none (as the vendors' trucks). Walkers never take a free
 chair.
