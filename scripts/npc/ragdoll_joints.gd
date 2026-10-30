@@ -394,6 +394,7 @@ func freeze() -> void:
 	_active.erase(doll.get_instance_id())
 	var pelvis: RigidBody3D = parts.get("pelvis")
 	if pelvis == null or not is_instance_valid(pelvis):
+		doll.set("bodies", [] as Array[RigidBody3D])
 		return
 	var inv := pelvis.global_transform.affine_inverse()
 	for jn in joints:
@@ -418,6 +419,10 @@ func freeze() -> void:
 				c.reparent(pelvis, true)
 		rb.queue_free()
 	parts = {"pelvis": pelvis}
+	# The doll's own list too, now: a doll frozen by ANOTHER doll's make_room() never runs the
+	# refresh in its own _process, and kept listing the freed limbs (its ground ray then called
+	# get_rid() on them: CI 371/372).
+	doll.set("bodies", bodies())
 	# The pose baked into the skeleton's own bone poses (the clip is paused, nothing overwrites
 	# them) and the modifier gone: a frozen doll costs no skeleton work a frame.
 	var skel := pose.get_skeleton()

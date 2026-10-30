@@ -2752,7 +2752,8 @@ func _commit_roof() -> void:
 			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, _prim_surface(beacons[ck]))
 			if not _beacon_materials.has(ck):
 				_beacon_materials[ck] = WeaponFX.unshaded(beacon_colors[ck])
-			mesh.surface_set_material(mesh.get_surface_count() - 1, _beacon_materials[ck])
+			var bm: Material = NightSkyline.beacon_material(beacon_colors[ck]) if NightSkyline.enabled else _beacon_materials[ck]
+			mesh.surface_set_material(mesh.get_surface_count() - 1, bm)
 		var node := MeshInstance3D.new()
 		node.name = "RoofPlant"
 		node.mesh = mesh

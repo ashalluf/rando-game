@@ -1472,12 +1472,13 @@ void fragment() {
 					// The room itself, lit by its own ceiling: panels, a bright upper wall, a
 					// dim floor, a glowing blind, a dark desk line. It used to be one flat
 					// lit_color tile, and a tower after dark read as a checkerboard of them.
-					vec3 lit_room = room_raw * lit_color * room_lamp * glow;
+					vec3 lit_room = room_raw * lit_color * window_temp(seed, face_id, row, col) * room_lamp * glow;
 					albedo = mix(albedo, albedo * 0.35, on);
 					emission = lit_room * lit_strength * 2.0 * on;
 				} else {
-					albedo = mix(albedo, lit_color, 0.7 * on);
-					emission = lit_color * glow * lit_strength * on;
+					vec3 lit_t = lit_color * window_temp(seed, face_id, row, col);
+					albedo = mix(albedo, lit_t, 0.7 * on);
+					emission = lit_t * glow * lit_strength * on;
 				}
 				metal = mix(metal, 0.0, on);
 				rough = mix(rough, 0.5, on);
@@ -1646,6 +1647,9 @@ void fragment() {
 			vec3 sign_hue = mix(vec3(0.16, 0.18, 0.22), vec3(0.42, 0.20, 0.16), hash21(vec2(shop_seed, 5.3)));
 			sign_hue = mix(sign_hue, vec3(0.18, 0.30, 0.26), step(0.66, hash21(vec2(shop_seed, 9.1))));
 			sign_hue = mix(sign_hue, vec3(0.22, 0.20, 0.26), step(0.86, hash21(vec2(shop_seed, 2.4))));
+			// Display numbers: decoded on Forward+ (fx_srgb_in()), or a red lightbox was a pale red past 1
+			// that AgX drew pink on the Mac (fwd-review-e).
+			sign_hue = fx_srgb_in(sign_hue);
 			albedo = sign_hue;
 			// A darker lip top and bottom so the band reads as a board fixed to the wall.
 			float lip = step(fv, 0.785) + step(0.918, fv);
@@ -1680,7 +1684,9 @@ void fragment() {
 			if (sign_off) {
 				albedo *= mix(1.0, 0.7, shop_on);
 			} else if (channel) {
-				vec3 lc = letter_color(shop_byte(shop_key, 11u) % 6u);
+				// The letters' own material gets LETTER_COLORS as a Color (decoded on Forward+), so
+				// their glow here is decoded too: raw, a red sign's stand-in strip drew pink.
+				vec3 lc = fx_srgb_in(letter_color(shop_byte(shop_key, 11u) % 6u));
 				float mid = 1.0 - smoothstep(0.18, 0.34, abs((fv - 0.76) / 0.17 - 0.5));
 				float run = 1.0 - smoothstep(0.30, 0.40, abs(shop_u - 0.5));
 				// The letters stop drawing at Building.SIGN_DRAW_DISTANCE; before they go the
@@ -1899,6 +1905,15 @@ void fragment() {
 					emission += albedo * fs_lamp_wash(ld, lamp_c) * 2.8 * clamp(lamp_factor, 0.0, 1.0);
 				}
 			}
+		}
+
+		// ---- The night skyline: crown washes and floodlit stone (window_lights.gdshaderinc) ----
+		// The light a tower's own fittings throw on its walls after dark, rolled from the seed as
+		// the far boxes roll it. Generated buildings only: the landmark towers' crowns are theirs.
+		if (part_attributes && !garage && !storefront && !dmg_in_hole) {
+			vec3 wash = tower_wash(seed, pt_size.y, v - pt_base_y, u, facade_finish <= 1 && window_style != 2,
+				lamp_factor * night_skyline, 1.0 - smoothstep(0.4, 1.4, px_m));
+			emission += wash * (glass ? max(albedo, vec3(0.16)) : albedo);
 		}
 
 		// ---- The facade pass: the members' depth, the drips from the roofline ---------------

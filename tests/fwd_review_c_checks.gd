@@ -36,10 +36,10 @@ func _hud_scale(city: Node3D) -> void:
 	var r: Rect2 = frame.call("screen_rect")
 	var base: float = frame.get("base_size")
 	var margin: float = frame.get("base_margin")
-	_check(is_equal_approx(frame.scale.x, s) and is_equal_approx(ring.scale.x, s) and is_equal_approx(base, 260.0) and is_equal_approx(margin, 24.0),
-		"the minimap and its ring are scaled %.2f at %d lines (260 px at 1080)" % [s, int(view.y)])
+	_check(is_equal_approx(frame.scale.x, s) and is_equal_approx(ring.scale.x, s) and is_equal_approx(base, 260.0) and is_equal_approx(margin, HudTheme.MARGIN),
+		"the minimap and its ring are scaled %.2f at %d lines (260 px at 1080, the safe margin)" % [s, int(view.y)])
 	var drawn := frame.get_global_rect()
-	_check(drawn.end.distance_to(view - Vector2.ONE * margin * s) < 1.0 and absf(drawn.size.x - base * s) < 1.0 and r.is_equal_approx(drawn),
+	_check(drawn.end.distance_to(view - Vector2.ONE * margin * s - Vector2(HudTheme.band_inset(view), 0.0)) < 1.0 and absf(drawn.size.x - base * s) < 1.0 and r.is_equal_approx(drawn),
 		"the minimap's corner keeps its scaled margin (%s in %s)" % [str(drawn), str(view)])
 	_check(ring.get_global_rect().is_equal_approx(drawn), "the ring sits exactly on the minimap")
 	var mini := frame.get_node_or_null("Minimap") as Control

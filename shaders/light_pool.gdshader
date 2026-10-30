@@ -13,6 +13,15 @@ uniform vec3 tint : source_color = vec3(1.0, 0.84, 0.58);
 uniform float strength : hint_range(0.0, 4.0) = 1.0;
 // How hard the pool falls off from the centre. Higher is a tighter, brighter middle.
 uniform float falloff : hint_range(0.5, 6.0) = 2.4;
+// Add as Compatibility does: in DISPLAY numbers. Forward+ adds in linear HDR, where a broad pool's
+// 0.3 over dark asphalt (linear ~0.02) is a jump from display 0.15 to 0.6 - a flat white disc on
+// the Mac (the metro kiosk's and the freeway's pools, fwd-review-e). With this on, Forward+ adds the
+// display-space amount decoded, which over a dark ground is what the opengl3 still shows.
+uniform bool display_add = false;
+
+vec3 lp_to_linear(vec3 c) {
+	return mix(c / 12.92, pow((max(c, vec3(0.0)) + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c));
+}
 
 void fragment() {
 	float r = clamp(1.0 - length(UV - vec2(0.5)) * 2.0, 0.0, 1.0);
@@ -31,4 +40,12 @@ void fragment() {
 	// tail lights and its beam on the road and still be a single draw.
 	ALBEDO = tint * COLOR.rgb;
 	ALPHA = a * COLOR.a;
+#if CURRENT_RENDERER != RENDERER_COMPATIBILITY
+	if (display_add) {
+		// tint arrives decoded here (source_color): back to display numbers, the add, then decoded.
+		vec3 t = mix(tint * 12.92, 1.055 * pow(max(tint, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), tint));
+		ALBEDO = lp_to_linear(t * COLOR.rgb * clamp(ALPHA, 0.0, 1.0));
+		ALPHA = 1.0;
+	}
+#endif
 }

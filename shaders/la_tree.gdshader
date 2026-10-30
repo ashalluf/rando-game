@@ -1,6 +1,7 @@
 shader_type spatial;
 render_mode cull_disabled;
 #include "res://shaders/heli_downwash.gdshaderinc"
+#include "res://shaders/tree_wind.gdshaderinc"
 
 // The code-built Los Angeles trees and accents (scripts/world/la_trees.gd). One shader for bark
 // and leaves: UV2.x is what a vertex is (LaTrees' B_* and L_*; a cluster card's style rides in
@@ -17,6 +18,14 @@ render_mode cull_disabled;
 global uniform float wind_factor;
 global uniform float road_wetness;
 global uniform vec3 sun_direction;
+global uniform vec2 wind_lean;
+
+// --- Close up (trees-closeup, 2026-10-30; TreesCloseup). 0 = the shader as it was (the A/B) ---
+uniform float closeup : hint_range(0.0, 1.0) = 1.0;
+/// The crown's lean downwind as a gust front passes (multiples of its sway bend).
+uniform float gust_push : hint_range(0.0, 4.0) = 1.5;
+/// Bark relief: the bark patterns' own dark furrows bumped in (metres of depth at full dark).
+uniform float bark_relief : hint_range(0.0, 0.05) = 0.014;
 
 uniform float bend_scale : hint_range(0.0, 0.02) = 0.0012;
 uniform float speed : hint_range(0.0, 3.0) = 0.55;
@@ -66,7 +75,9 @@ void vertex() {
 	vec3 origin = MODEL_MATRIX[3].xyz;
 	float phase = origin.x * 0.31 + origin.z * 0.23;
 	float w = clamp(max(wind_factor, 0.25), 0.0, 3.0);
-	w *= 1.0 - gust_depth + gust_depth * (0.5 + 0.5 * sin(TIME * gust_speed + (origin.x + origin.z) * 0.013));
+	float old_env = 1.0 - gust_depth + gust_depth * (0.5 + 0.5 * sin(TIME * gust_speed + (origin.x + origin.z) * 0.013));
+	float g = tw_gust(origin.xz + origin_shift.xz, TIME, wind_lean);
+	w *= mix(old_env, 0.55 + 0.95 * g, closeup);
 	float radial = length(VERTEX.xz);
 	vec2 around = VERTEX.xz / max(radial, 1e-4);
 	float t = TIME * speed;
@@ -77,11 +88,14 @@ void vertex() {
 	float bend = h * h * bend_scale * w;
 	VERTEX.x += bend * gx;
 	VERTEX.z += bend * gz;
+	if (closeup > 0.5) {
+		VERTEX.xz += tw_dir_model(MODEL_MATRIX, wind_lean) * h * h * bend_scale * gust_push * g * clamp(w, 0.0, 3.0);
+	}
 	VERTEX += heli_wash_offset(MODEL_MATRIX, h, radial, around, bend_scale * 8.0, TIME, phase);
 	if (v_kind >= 8.0) {
 		// The flutter: along the leaf's normal, nothing at its stalk, most at its tip.
 		float lp = fract(UV2.y * 7.31) * 6.28;
-		VERTEX += NORMAL * sin(TIME * flutter_speed + lp + phase) * flutter * w * UV.y;
+		VERTEX += NORMAL * sin(TIME * flutter_speed + lp + phase) * flutter * w * UV.y * (1.0 + closeup * 1.2 * g);
 	}
 }
 
@@ -299,6 +313,22 @@ void fragment() {
 			// Green stems and stalks.
 			albedo *= 0.9 + 0.15 * vnoise(b * vec2(4.0, 1.0));
 			rough = 0.6;
+		}
+		if (closeup > 0.5 && bark_relief > 0.0) {
+			// Relief from the pattern itself: what the bark patterns darkened is the furrow, so
+			// the albedo's ratio to the plain bark colour is a height field, bumped by screen
+			// derivatives (the mesh has no tangents). Faded once a metre of bark is a few pixels.
+			float base_l = max(dot(COLOR.rgb, vec3(0.3, 0.55, 0.15)), 1e-4);
+			float hgt = clamp(dot(albedo, vec3(0.3, 0.55, 0.15)) / base_l, 0.0, 1.6) * bark_relief;
+			hgt *= 1.0 - smoothstep(0.03, 0.12, max(fwidth(b.x), fwidth(b.y)));
+			vec3 dpx = dFdx(VERTEX);
+			vec3 dpy = dFdy(VERTEX);
+			vec3 r1 = cross(dpy, NORMAL);
+			vec3 r2 = cross(NORMAL, dpx);
+			float det = dot(dpx, r1);
+			if (abs(det) > 1e-10) {
+				NORMAL = normalize(abs(det) * NORMAL - sign(det) * (dFdx(hgt) * r1 + dFdy(hgt) * r2));
+			}
 		}
 		ALBEDO = albedo * mix(1.0, 0.7, wet);
 		ROUGHNESS = mix(rough, wet_roughness + 0.2, wet);

@@ -107,6 +107,8 @@ extends SceneTree
 ## one of them on the old generated LODs (the simplifier's own errors, the old shadow stand-ins,
 ## no instance-scale LOD bias), saved as <OUT>_treeold.png, then back on FoliageLod's ladders.
 ## TREE_AB=2 adds the parts: no instance bias, lower shadow-twin bias, old shadows, per group.
+## TREES_AB=1: every shot (the first and each SHOTS one) again with the street trees' close-up
+## pass off (TreesCloseup.set_all(false)), the frame held, saved as <shot>_treesoff.png.
 ## STUNT=<kind or site id>[:t] holds a car mid-jump off the nearest stunt piece and frames it
 ## (tools/stunt_ramps/stage.gd).
 ## DRIVE=burnout|drift|donut|scrape|sand drives a car badly in front of the camera for the driving
@@ -895,6 +897,8 @@ func _initialize() -> void:
 		await _geo_report("GEO palms ladder")
 	if OS.get_environment("TREE_AB") in ["1", "2"]:
 		await _tree_ab(out)
+	if OS.get_environment("TREES_AB") == "1":
+		await _trees_ab(out)
 	if OS.get_environment("SPLIT") == "1":
 		await _geo_split(player, anchor, hold, boost, fov)
 	# SHOTS="x,y,z,yaw,pitch@hour[@fov];..." takes more EYE shots from the same load (the load is most
@@ -936,7 +940,22 @@ func _initialize() -> void:
 		await _geo_report("GEO_%d" % k)
 		if OS.get_environment("OCC_AB") == "1":
 			await _occ_ab(more, "_%d" % k)
+		if OS.get_environment("TREES_AB") == "1":
+			await _trees_ab(more)
 	quit()
+
+
+## TREES_AB=1: the same held frame again with the street trees' close-up pass off
+## (TreesCloseup.set_all(false): every tree shader as it was), saved beside the shot (_treesoff).
+func _trees_ab(path: String) -> void:
+	var tc: GDScript = load("res://scripts/world/trees_closeup.gd")
+	tc.call("set_all", false)
+	for i in 4:
+		await process_frame
+	get_root().get_texture().get_image().save_png(path.get_basename() + "_treesoff.png")
+	tc.call("set_all", true)
+	for i in 3:
+		await process_frame
 
 
 ## OCC_AB=1: the same held frame again without the extra occluders (every OccluderExtra and the
@@ -1229,6 +1248,9 @@ func _geo_report(label: String) -> Array:
 	print("%s tris=%d draws=%d objects=%d | camera tris=%d draws=%d | shadow tris=%d draws=%d" % [
 		label, c[0], c[1], c[2], c[3], c[5], c[4], c[6]])
 	_light_report(label)
+	# CENSUS=1: how busy the street round the camera is (tools/busy_streets/census.gd).
+	if OS.get_environment("CENSUS") == "1":
+		print("%s %s" % [label, load("res://tools/busy_streets/census.gd").call("census_line", self)])
 	return c
 
 

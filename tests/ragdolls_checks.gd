@@ -83,14 +83,58 @@ func _doll_of(p: Pedestrian) -> Ragdoll:
 	return d
 
 
+## A floor of the checks' own, 30 m over the junction north-west of the spawn block (nothing an
+## earlier check left on the street can be under the doll: CI 378 found one lying 0.6 m up on
+## something), `slot` floors apart. Returns its top's centre.
+func _floor(city: Node3D, chunk: Node3D, slot: int) -> Vector3:
+	var rect: Rect2 = city.plan.block(0, 0).rect
+	var at := Vector2(rect.position.x - 6.0 + float(slot) * 14.0, rect.position.y - 6.0)
+	var top: float = chunk.ground_y(at.x, at.y) + 30.0
+	var body := StaticBody3D.new()
+	body.collision_layer = 1
+	body.collision_mask = 0
+	var cs := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = Vector3(12.0, 1.0, 12.0)
+	cs.shape = bs
+	body.add_child(cs)
+	chunk.add_child(body)
+	_made.append(body)
+	# Chunk space is the walkers' (true world in the chunk's frame), as _walker places them.
+	body.position = Vector3(at.x, top - 0.5, at.y)
+	return chunk.to_global(Vector3(at.x, top, at.y))
+
+
+## A doll made the way Pedestrian.knock() makes one, standing on `at` (world) and flung.
+func _doll_at(chunk: Node3D, at: Vector3, yaw: float, impulse: Vector3) -> Ragdoll:
+	var d := Ragdoll.new()
+	chunk.add_child(d)
+	d.global_position = at
+	d.rotation.y = yaw
+	var models: Array = Pedestrian.MODELS
+	if not d.build_from_rig(models[0], 0):
+		d.build(Color.GRAY, Color.DIM_GRAY, Color.BURLYWOOD)
+	PhysicsBudget.register_debris(d)
+	d.fling(impulse)
+	_made.append(d)
+	return d
+
+
 func _check_fall(city: Node3D, chunk: Node3D) -> void:
+	# The knock path: a walker knocked down near the camera becomes a jointed doll.
 	var p := _walker(city, chunk, 6.0, 7301)
 	await _ticks(3)
-	var ground := p.global_position.y
 	p.knock(Vector3(1.0, 1.5, 2.5) * 2.0)
-	var doll := _doll_of(p)
-	_check(doll != null and doll._joints != null, "a person knocked down near the camera falls as a jointed ragdoll")
-	if doll == null or doll._joints == null:
+	var kd := _doll_of(p)
+	_check(kd != null and kd._joints != null, "a person knocked down near the camera falls as a jointed ragdoll")
+	if kd != null:
+		kd.queue_free()
+	# The fall itself, on a clear floor.
+	var ground := _floor(city, chunk, 0)
+	await _ticks(2)
+	var doll := _doll_at(chunk, ground + Vector3.UP * 0.05, 0.4, Vector3(1.0, 1.5, 2.5) * 2.0)
+	_check(doll._joints != null, "a doll made near the camera is jointed")
+	if doll._joints == null:
 		return
 	var j: RagdollJoints = doll._joints
 	_check(doll.bodies.size() == RagdollJoints.PARTS.size() and doll.bodies[0] == j.parts["pelvis"],
@@ -114,16 +158,18 @@ func _check_fall(city: Node3D, chunk: Node3D) -> void:
 		return
 	_check(worst < 0.12, "the joints hold while the doll tumbles (worst gap %.3f m)" % worst)
 	_check(froze_at >= 0, "the doll freezes into one body once it settles (after %.1f s)" % (froze_at / 60.0))
-	_check(doll.bodies.size() == 1, "a frozen doll is ONE body again (%d)" % doll.bodies.size())
+	_check(doll.bodies.size() == 1 and doll.bodies.all(func(b): return is_instance_valid(b) and not b.is_queued_for_deletion()),
+		"a frozen doll is ONE live body again (%d)" % doll.bodies.size())
 	var shapes := doll.bodies[0].get_children().filter(func(c): return c is CollisionShape3D).size()
 	_check(shapes >= RagdollJoints.PARTS.size(), "the frozen body keeps every part's shape where it fell (%d shapes)" % shapes)
+	await _ticks(1)
 	var leftover := doll.get_children().filter(func(c): return (c is RigidBody3D or c is Joint3D) and not c.is_queued_for_deletion()).size()
 	_check(leftover == 1, "the limb bodies and joints are gone once frozen (%d bodies and joints left)" % leftover)
-	# Lying down: the hips and the head within knee height of where the walker stood.
+	# Lying down on its floor: the hips and the head within knee height of it.
 	var skel := doll._skeleton()
 	var head := skel.global_transform * skel.get_bone_global_pose(skel.find_bone("Head")).origin
 	var hips := doll._pelvis()
-	_check(hips.y - ground < 0.6 and head.y - ground < 0.7, "the body lies on the ground (hips %.2f m, head %.2f m up)" % [hips.y - ground, head.y - ground])
+	_check(hips.y - ground.y < 0.6 and head.y - ground.y < 0.7, "the body lies on the ground (hips %.2f m, head %.2f m up)" % [hips.y - ground.y, head.y - ground.y])
 	_check(head.distance_to(hips) > 0.35 and head.distance_to(hips) < 1.1, "the posed skeleton holds together (head %.2f m from the hips)" % head.distance_to(hips))
 	# A round into the frozen body still bleeds, through the body it hits.
 	var from := hips + Vector3.UP * 2.0
@@ -135,11 +181,10 @@ func _check_fall(city: Node3D, chunk: Node3D) -> void:
 	_check(bled, "a round into a frozen doll finds it and it bleeds")
 
 
-## Dropped onto a car-high box on the props layer (a bonnet): it comes to rest on top.
+## Dropped onto a car-high box on the props layer (a bonnet) on a clear floor: it rests on top.
 func _check_bonnet(city: Node3D, chunk: Node3D) -> void:
-	var p := _walker(city, chunk, 14.0, 7302)
-	await _ticks(3)
-	var top := p.global_position.y + 0.95
+	var ground := _floor(city, chunk, 1)
+	var top := ground.y + 0.9
 	var box := StaticBody3D.new()
 	box.collision_layer = 4
 	box.collision_mask = 0
@@ -150,13 +195,11 @@ func _check_bonnet(city: Node3D, chunk: Node3D) -> void:
 	box.add_child(cs)
 	chunk.add_child(box)
 	_made.append(box)
-	box.global_position = p.global_position + Vector3(0.0, 0.5, 0.0)
-	p.global_position += Vector3.UP * 1.2
-	await _ticks(1)
-	p.knock(Vector3(0.0, 2.0, 0.0))
-	var doll := _doll_of(p)
-	_check(doll != null and doll._joints != null, "a doll dropped on a bonnet is jointed")
-	if doll == null or doll._joints == null:
+	box.global_position = ground + Vector3(0.0, 0.45, 0.0)
+	await _ticks(2)
+	var doll := _doll_at(chunk, ground + Vector3.UP * 1.2, 0.0, Vector3(0.0, 0.5, 0.0))
+	_check(doll._joints != null, "a doll dropped on a bonnet is jointed")
+	if doll._joints == null:
 		return
 	for i in int((RagdollJoints.settle_max + 2.0) * 60.0):
 		await _ticks(1)
@@ -201,6 +244,13 @@ func _check_cap_and_range(city: Node3D, chunk: Node3D) -> void:
 	var jointed := dolls.filter(func(d): return d != null and d._joints != null and not d._joints.frozen).size()
 	_check(RagdollJoints.active_count() <= 2 and jointed <= 2, "no more than max_active dolls are jointed at once (%d)" % jointed)
 	_check(dolls[3] != null and dolls[3]._joints != null and not dolls[3]._joints.frozen, "the newest doll gets the joints and the oldest freezes for it")
+	var stale := 0
+	for d in dolls:
+		if d != null and d._joints != null and d._joints.frozen:
+			for b in d.bodies:
+				if not is_instance_valid(b) or (b as Node).is_queued_for_deletion():
+					stale += 1
+	_check(stale == 0, "a doll frozen to make room lists only its live body (%d freed bodies listed)" % stale)
 	RagdollJoints.joint_range = 0.0
 	var far := _walker(city, chunk, 44.0, 7320)
 	await _ticks(2)

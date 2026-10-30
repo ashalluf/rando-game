@@ -189,6 +189,8 @@ static func pool_material() -> ShaderMaterial:
 		_pool_mat.set_shader_parameter("tint", Color(1.0, 1.0, 1.0))
 		_pool_mat.set_shader_parameter("strength", POOL_STRENGTH)
 		_pool_mat.set_shader_parameter("falloff", POOL_FALLOFF)
+		# Broad, flat pools: added as display numbers on Forward+ too (light_pool.gdshader).
+		_pool_mat.set_shader_parameter("display_add", true)
 	return _pool_mat
 
 
