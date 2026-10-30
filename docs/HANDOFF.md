@@ -13599,10 +13599,17 @@ so the whole estate moves as one (per part, a pad 26 m across on a 44 m plane tr
 character for character. CityStreamer hands the material the far plane's uniforms with the
 canopy's (four list entries). Colours are LINEAR, out through `cs_out()`.
 
-**Cost** (still_shot.gd GEO at the bookmarks, opengl3, 1280 x 720): front range from the basin
-1.62 M -> 1.64 M triangles, 367 draws both; Palos Verdes from the basin 1.055 M -> 1.094 M, 358 ->
-357 draws; from the air over the front range 1.269 M -> 1.295 M, 180 -> 177 draws; the downtown
-eye 2.857 M -> 2.903 M, 1,721 -> 1,722 draws. Instances, not draws: ~20-25 boxes an estate.
+**Cost** (still_shot.gd GEO at the same EYE, opengl3, before = `LIGHTHOUSES=0`, after = the final
+branch): the lighthouse from the cove 2.73 M tris / 864 draws -> 2.64 M / 860 (flat); the harbour
+mouth by day 2.51 M / 775 -> 2.73 M / 871 (+222 k / +96: ~8 near breakwater pieces of four draws -
+mound + cap, foam, two stone shapes - the far pieces at two, the gate and the far house; a sparse
+sea view where nothing else draws). The cuts that got there: two stone shapes, no row under water,
+stones only within `STONE_DRAW` 260 m (the mound's shader draws blocks past that), the cap on the
+mound's surface, the far copies' small surfaces folded into one painted-trim surface
+(`LighthouseKit.FAR_FOLD`). Build: a near breakwater piece 12 ms, the house and gate 1-2 ms from the
+cache; load +0.5 s (the warm-up, most of it first-time textures and palms). Gate (SHARDS=3) on the
+merged branch: 2,539 checks, 0 failed; one script error in shard 0 from `dog_checks.gd` (a walker
+freed under the check), which did not reproduce run alone.
 
 **Look / measure.** `tools/estate_night/probe.tscn` (headless, seconds) lists every estate and
 the eight biggest clusters with an EYE in the basin looking at each. The stills (shots/estate-night):
@@ -15715,3 +15722,76 @@ pavement does not have); no elevator towers; the freeway towers' cage roof is a 
 far box is solid (no cage silhouette past the LOD ring); the crown lamps face down and read
 faintly from the freeway at night; graffiti on the walkway itself and
 throw-ups on the girders' undersides are not drawn. Only seen on opengl3, not on Forward+.
+
+## 9fl. The harbour's lights: a lighthouse on the headland, a breakwater and its light, 2026-10-29 (agent branch `wt/lighthouses`; VISUAL_ROADMAP "?")
+
+Fleet wave 3, task `lighthouses`. Stills on `shots/lighthouses` (README there).
+
+**What it is.** Two lights and a breakwater round San Pedro Bay, the FORMS of real ones, names
+invented:
+- **GULL POINT LIGHT** (the form of Point Fermin's): a two-storey Victorian keeper's house in white
+  lap siding (HouseKit's `h_siding`), oxblood trim, a hipped shingle roof on a bracketed frieze, a
+  square tower out of the roof's middle to a railed gallery and an octagonal iron lantern with a red
+  dome, a porch on turned posts with braces and a balustrade, brick chimneys, a stone foundation, a
+  lawn with a picket fence, gravel walks and palms. On the headland's south-east rim at
+  (2174, 6656), on a pad carved level at the natural ground of its centre (17.7 m on seed 1337):
+  `Lighthouses.carve()`, one line at the end of `MacroMap.height_at()` - level to `PAD_RADIUS` 21 m,
+  cut 1:1 / filled 1:1.4 back to the ground by `PAD_REACH` 40 m. (The headland's rim there has a
+  10 m vertical step on its inland side, a terrain artefact that runs along the coast; the pad's
+  fill closes it round the lighthouse only.)
+- **The breakwater**: 1.6 km of rubble mound from inside the headland's bank east of the lighthouse
+  out across the bay a kilometre south of the harbour (`Lighthouses.BREAKWATER`), a concrete walkway
+  cap you can walk on (`CAP_TOP` 4.6 m), armour stones down both faces (three code-built chipped-box
+  shapes, ~540 a piece, MultiMeshes on `shaders/armour_stone.gdshader`: triplanar CC0 rock in TRUE
+  world metres, per-stone shade, the wet band, the black weed and mussel crust at the waterline,
+  bird lime on the tops), white water surging along both feet (`breakwater_foam.gdshader`).
+- **HARBOR GATE LIGHT** (the form of Angels Gate): a concrete pier block at the head with fenders, a
+  ladder and a pipe rail, an octagonal tower in two stages of alternating black and white faces (the
+  daymark), a corbelled gallery and a lantern; fog trumpets; rubble heaped round the pier.
+
+**How it is hung on the game.** Everything is landmark entries (`Lighthouses.entries()`, appended
+at the end of `Landmarks.all()`): `gull_point_light`, `breakwater_0..14` (`SEG_LEN` 110 m pieces, so
+the part of the breakwater round the player is the detailed one) and `harbor_gate_light`. A FULL
+chunk holding an anchor builds the piece detailed (collision, stones, porch light, spots);
+CityStreamer's far copy draws it everywhere else. The near meshes of the house and the gate are
+~120 ms of GDScript, so `LighthouseKit._place()` caches them and `warm()` builds them with the far
+copies on the loading screen (a chunk then places them in 1-2 ms). Fixed geography: nothing here
+reads the seed (the headland and the port do not move with it). The hills' scatter and planting
+and the far oaks keep off the pad and the breakwater (`Lighthouses.covers()`, one call each in
+`CityChunk._near_pad()` and `Skyline._on_hill_road()`); the landmark radius keeps the hill shells
+off the lawn.
+
+**The lights.** `LighthouseBeacon` is a lantern's rotor (a Node3D at the lamp): its yaw is worked
+out from the real clock (`angle_at()`, clockwise, `Lighthouses.LIGHTS`: Gull Point white, two
+panels, a 20 s turn = a flash every 10 s; Harbor Gate green, one panel, 15 s), so the near and far
+copies, built apart, turn in step; the pause menu and photo mode hold it. Hung on it, all along its
++X: the Fresnel lens barrel (`lighthouse_lens.gdshader`: bull's-eye panels and prism belts, the
+panel facing the eye blazing after dark), the drawn beams (`lighthouse_beam.gdshader`: open cones,
+additive, |N.V| to the shaft's middle, falling off along its length and close to the camera, hidden
+by day), the far point (`lighthouse_lamp.gdshader`: aircraft_lights' billboard that never shrinks
+under `min_angle` and is pulled inside the far plane, FLASHING when a panel points at the eye - it
+reads the beam axis off MODEL_MATRIX, so nothing per frame is set from script), and, near copies on
+Forward+ desktop only, one shadowless SpotLight3D per beam with volumetric fog energy (only shows
+where the Environment's volumetric fog is on, i.e. HIGH). `LIGHTHOUSE_T=<seconds>` holds the clock
+for stills; `LIGHTHOUSE_SPOTS=0` drops the spots.
+
+**Cost** (still_shot.gd GEO at the same EYE, opengl3, before = `LIGHTHOUSES=0`): the lighthouse from
+the cove 2.73 M tris / 864 draws -> 2.97 M / 947; the harbour mouth by day 2.51 M / 775 -> 2.98 M /
+971 and by night 2.51 M / 776 -> 2.74 M / 904 (measured before the cuts in the second commit: three
+stone shapes instead of six, no row under water, stones only within `STONE_DRAW` 260 m, the far
+pieces' cap merged into the mound's surface - a far piece is two draws, a near one six). Build: a
+near breakwater piece 12 ms, the house and gate 1-2 ms from the cache; load +0.6 s (the warm-up,
+most of it first-time textures and palms).
+
+**Look / measure.** `godot --headless --path . res://tools/lighthouses/probe.tscn` prints the pad,
+the pieces and every piece's build time and triangles (`TWICE=1` builds twice). EYEs:
+`2216,24,6696,43,-9` (the house from the cove), `2240,30,6760,25,-8` (the house over the breakwater's
+root), `3800,14,7010,55,-6` (the gate light) - add `@21` for night. Forward+ small scene:
+`tools/glshot/fwd_block_shot.tscn` with `EYE=2216,16,6696,43,-7 SHOTS="3800,8,7010,55,-5"
+BLOCKS=1 -- --hour=21` (lavapipe, ~11 GB, ~12 min). Checks: `tests/lighthouses_checks.gd`.
+
+**Not done / not verified.** No foghorn sound. The breakwater has no surf from the ocean shader (its
+`shore_distance()` table does not know it; the foam ribbon stands in). The volumetric spots were
+not seen (lavapipe's fwd_block_shot scene has no Quality node raising the fog to HIGH). The minimap
+does not draw the breakwater. NEEDS MAC CHECK: the beams and spots at night on Forward+ HIGH, and
+the flash from downtown.

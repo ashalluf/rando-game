@@ -70,6 +70,10 @@ const LANDMARK_NAMES := {
 	# The reservoir in the front range (Reservoir): an invented name.
 	"reservoir": "Lake Shallufer",
 	"pueblo_lane": "Paseo de las Golondrinas",
+	# The harbour's lights (Lighthouses): invented names. The breakwater's pieces draw no pin
+	# (MapPainter); a label each because every landmark needs one.
+	"gull_point_light": "Gull Point Light", "harbor_gate_light": "Harbor Gate Light",
+	"breakwater_0": "Breakwater", "breakwater_1": "Breakwater", "breakwater_2": "Breakwater", "breakwater_3": "Breakwater", "breakwater_4": "Breakwater", "breakwater_5": "Breakwater", "breakwater_6": "Breakwater", "breakwater_7": "Breakwater", "breakwater_8": "Breakwater", "breakwater_9": "Breakwater", "breakwater_10": "Breakwater", "breakwater_11": "Breakwater", "breakwater_12": "Breakwater", "breakwater_13": "Breakwater", "breakwater_14": "Breakwater",
 }
 
 ## Pixels a landmark pin needs clear of an already-labelled one to get its own name written.

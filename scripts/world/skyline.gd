@@ -1062,7 +1062,7 @@ func _spot(rect: Rect2, hs: int) -> Vector2:
 
 ## Is `p` on (or within a mound's reach of) a hill road or an estate pad?
 static func _on_hill_road(p: Vector2, segs: Array[Dictionary], pads: Array[Dictionary]) -> bool:
-	if Ballpark.covers(p, 6.0):
+	if Ballpark.covers(p, 6.0) or Lighthouses.covers(p, 6.0):
 		return true
 	for seg in segs:
 		var closest := Geometry2D.get_closest_point_to_segment(p, seg.a, seg.b)

@@ -149,6 +149,8 @@ static func _list() -> Array[Dictionary]:
 		list.append(OilField.entry())
 	# --- The reservoir in the front range (Reservoir, LandmarkReservoir) -------------------------
 	list.append({"id": "reservoir", "anchor": Reservoir.ANCHOR, "radius": 60.0})
+	# The harbour's lighthouse, breakwater and breakwater light (Lighthouses).
+	list.append_array(Lighthouses.entries())
 	return list
 
 
@@ -308,6 +310,8 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, plan: C
 		_:
 			if LandmarkDowntown.is_tower(lm.id):
 				LandmarkDowntown.build(lm, parent, statics, detailed)
+			elif Lighthouses.is_piece(lm.id):
+				Lighthouses.build(lm, parent, statics, plan, detailed)
 
 
 # --- Hill sign ------------------------------------------------------------------------------

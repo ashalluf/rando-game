@@ -2024,7 +2024,7 @@ func _near_hill_road(p: Vector2, segs: Array[Dictionary], margin: float) -> bool
 
 
 func _near_pad(p: Vector2, pads: Array[Dictionary], margin: float) -> bool:
-	if Ballpark.covers(p, margin):
+	if Ballpark.covers(p, margin) or Lighthouses.covers(p, margin):
 		return true
 	# The coast highway's road, houses and sand (CoastHighway).
 	if plan.macro and plan.macro.coast_highway and plan.macro.coast_highway.covers(p, margin):
