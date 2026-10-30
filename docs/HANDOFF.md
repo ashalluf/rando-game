@@ -17953,3 +17953,107 @@ fall; the physics is renderer-independent). The doll starts from the standing id
 pose the walker was in when hit (a small pop, as before). No self-collision between parts (an arm
 can pass through the chest). The hero's doll (PlayerHealth) uses the same path; only crowd rigs
 were probed.
+
+## 9gl. The Coral Line's underground station, 2026-10-30 (fleet wave 3, `wt/metro-underground`; VISUAL_ROADMAP "?")
+
+**The ask.** The light rail's underground terminus at 7th St / Flower was two stair kiosks in the
+median over nothing (LightRailKit `_entrances()`), and the trains in the tunnel were drawn by
+nobody. Build the station under them: stairs and escalators to a concourse with fare gates and
+ticket machines, a platform in the Coral Line's livery, tiled walls, signs, lights, waiting
+riders, the trains; collision to walk.
+
+**What it is.** `MetroStation` (`scripts/world/metro_station.gd`) is the plan and a registry;
+`MetroBuild` (`scripts/world/metro_build.gd`, extends FreewayKit for tri / quad / box / prism /
+letters) builds it into the FULL chunk that owns the station (LightRailKit `_entrances()` hands it
+over; with it off the old kiosks are built). Everything is in the station's frame: u along the line
+from the platform's centre (+u = +s, grid south), h from the street at the centre, v across
+(+v = the line's right). Levels: street 0, concourse ceiling -2.5, concourse floor -6.6, platform
+ceiling -7.2, platform = rail + 0.92 (rail -13.0, LightRail's tunnel depth).
+- **Kiosks** at u = -+26 in the median: a kerb island round the opening, a steel-and-glass wall on
+  three sides, a sloping glass canopy on four posts with a coral fascia (BASIN METRO and the line's
+  bullet "C"), lamps and a pool, a pylon with the bullet and the station's name. The way in faces
+  the crossing (7th St north, 8th St south).
+- **Stairs**: from the mouth (u -+31) a stair (40 risers of 0.169, a landing, steel nosings,
+  yellow tactile first and last) and a down escalator (cleats creeping in the shader, comb plates,
+  skirts, glass balustrades, black handrails) run 13.4 m inward to the concourse floor; a tiled shaft
+  round them, a bulkhead where they pass under the concourse ceiling, low walls and glass where they
+  open into the hall.
+- **Concourse** (u -+34, v -+7): terrazzo with brass-coloured divider strips and a dark border,
+  glazed tile walls with a coral band, a panelled ceiling with three light lines, columns, lit
+  system maps on the end walls, six ticket machines an end (lit screens, readers), fare gate lines
+  at u -+12 (eleven cabinets 1.3 m apart, glass paddles, green readers; aisles 1.06 m for the
+  0.45 m capsule), TO TRAINS / EXIT <street> / TRAINS / LIFT signs (enamel, the line's band, lit
+  letters).
+- **The bank** in the paid middle: a stair and two escalators down the opening u -5.8..5.8 onto the
+  island, glass round the opening, a solid tiled block under them; a glass lift at u 9.5.
+- **Platform**: a 7 m island (terrazzo, yellow tactile strips and a white line at both edges, the
+  coping and a dark refuge under it, railings at the ends), benches, bins, two departure screens and
+  four TO <terminus> signs hung from the ceiling, light lines over both edges and washers on the
+  track walls; the track walls tiled with a coral band, the station's name every 12 m and lit maps
+  between. **LightRail spreads the tracks round a 7 m island** for the tunnel station only
+  (`MetroStation.PLATFORM_WIDTH`, `LightRail._place_stations()`, 4.89 m from the centre, back to
+  2.1 m inside the drawn tunnel): the street stations' 3 m island cannot take escalators.
+- **Tracks and tunnel**: the trackbed, rails on concrete plinths following the spread, the contact
+  wire and its hangers, concrete walls and roof to u -+110 with wall lamps every 15 m, a dark cap at
+  each end.
+
+**Light.** One opaque mesh on `shaders/metro_station.gdshader` (kind in COLOR.a / 32: tile,
+terrazzo, concrete, steel, lamp, rubber, enamel, text, paint, escalator, track, rail, screen,
+tactile, dark, map, ceiling), patterns laid out in the station's frame from the model-space vertex
+(a chunk's local space is true world). Underground the fixtures' light is worked out in the shader
+(line lights in the concourse and over the platform edges, the shafts, the tunnel's lamps) and
+EMITTED, and the albedo the renderer lights is kept at `ambient_keep` (0.3): otherwise the sky's
+ambient lights a hole 13 m under the street like a shaded pavement. A shadow-only roof slab over it
+all (holes at the stairs) keeps the sun out; seven OmniLights (desktop only) light the trains and
+people while the player is inside; an interior ReflectionProbe (Forward+ desktop) gives lit
+surfaces a warm ambient and the station's own reflection. Glass is `metro_glass.gdshader`.
+
+**Under the ground box.** The station is under CityStreamer's GroundBody (top 0):
+- `MetroZone` (Area3D over the platform box and tunnel, the concourse and both stairwells to 3 m
+  over the street) adds a collision exception between a body in it and the GroundBody
+  (`MetroStation.sink()`, the lake's rule), removed on exit; `MetroStation.admit(body)` does it at
+  once for a teleport (a body stood inside the box for a step is thrown out). MetroRiders add their
+  own in `_ready()`.
+- `Player`'s fall-through recovery asks `MetroStation.shelters(true world)` first (one line).
+- `CityChunk._road_slab()` cuts the road round both stair openings (`MetroStation.cuts_in()`,
+  FULL only), and macro_ground.gdshader has a second sink rect (`cut_rect2`, set by
+  LightRailSystem from `MetroStation.cut_rect()`).
+- Collision: 144 boxes (floors, ramps under every stair and escalator, walls, ceilings so a super
+  jump stops, gates, machines, benches, the lift).
+
+**Trains.** `LightRailSystem.step()` sets `MetroStation.showing` (the focus is in a registered
+station); `_trains()` then keeps a buried train that `wants_train()` (any part within -+110 m) and
+`LightRailTrain.pose()` shows a buried section that `draws()`. From the street the tunnel stays
+nobody's. Riders board and alight there as at the street stations (`_passengers()`; alighting
+riders are MetroRiders walking to the bank's foot).
+
+**People.** `MetroRider` (`scripts/npc/metro_rider.gd`, extends RailRider): 5-9 on the platform
+(either end, clear of the bank, lift and benches), 2-4 about the concourse, in the crowd cap,
+hash-seeded counts.
+
+**Rolls.** None: the station is the line's (same on every seed). Nothing else in the chunk moves
+with it on or off (the checks build the chunk both ways and compare buildings, props and cars).
+
+**Cost.** Build ~200 ms in one step (FULL chunk only; LOD and the far city have nothing of it).
+17.1k triangles opaque, 7.4k of lettering, 186 glass, one draw each, no shadows except the roof's
+shadow-only slab and the kiosks' casting parts (312 triangles). An occluder shell
+(`MetroOccluder`: the concourse ceiling, the slab between the levels, the tunnel roof, the walls, a
+little inside the concrete and never over a stair's opening) culls the city above from down here.
+Frame cost, `still_shot.gd` opengl3 1280x720, 14:00, GEO (all / camera tris, draws):
+| view | before (METRO_STATION=0) | after |
+|---|---|---|
+| the south kiosk from the street (`EYE=2364.4,1.95,412,180,-10`) | 5.74 M / 3.74 M, 2,970 | 5.80 M / 3.78 M, 3,003 (+1 %, +33: riders, the station's meshes) |
+| on the platform (`2357.9,-10.2,424,180,-3`) | - | 4.11 M / 1.96 M, 2,244 (without the occluder 6.53 M / 4.41 M, 3,313) |
+The shadow cascades still draw the sunlit city above (2.1 M) underground.
+
+**A/B and tools.** `METRO_STATION=0` (the old kiosks, the 3 m island). Probe
+`tools/metro/probe.gd` (frame, exits, spread, build cost, EYEs). Stills:
+`tools/light_rail/rail_shot.tscn` with an EYE underground and `RAIL_AT=0:0` (a train dwelling):
+platform `EYE=2357.9,-10.3,424,180,-3`, the platform the other way `2362.6,-10.3,470,0,-3`,
+concourse `2364.9,-4.8,425,180,-4`, down the bank `2361,-4.6,444,180,-12`, the kiosk
+`2364.4,1.8,412,180,-10`. Checks: `tests/metro_underground_checks.gd` (45).
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the emitted light, the probe and the
+omnis only in opengl3 stills. The escalators do not carry you (they are ramps). No ads, no
+vending kiosks, no crowd on the stairs. Ambience's tunnel space is LightRail's own (unchanged). The
+web build has no omnis and no probe (the emitted light carries it).

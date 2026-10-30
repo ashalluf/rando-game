@@ -2359,6 +2359,7 @@ func _road_slab(r: Rect2, asphalt: Color, material: Material) -> void:
 	var cuts: Array[Rect2] = []
 	if rail != null and not capturing and level == Level.FULL:
 		cuts = rail.cuts_in(r)
+		cuts.append_array(MetroStation.cuts_in(plan, r))
 	# The freight trench too (FreightRail.cuts_in()), at FULL and LOD: it is seen from the air.
 	var freight := FreightRail.of(plan)
 	if freight != null and not capturing:

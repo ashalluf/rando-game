@@ -168,7 +168,8 @@ func _physics_process(delta: float) -> void:
 		if wingsuit and wingsuit.is_active():
 			wingsuit.close(false) # glided into the water: the suit folds, he swims
 		return
-	if (global_position.y < fall_through_y and global_position.y > kill_y) or _under_terrain(global_position) or _under_city_ground():
+	if ((global_position.y < fall_through_y and global_position.y > kill_y) or _under_terrain(global_position) or _under_city_ground()) \
+			and not MetroStation.shelters(WorldState.to_world(global_position)):
 		recover_from_fall()
 	var on_floor := is_on_floor()
 	if on_floor:

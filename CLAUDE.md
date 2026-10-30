@@ -1089,6 +1089,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   seconds. Checks: `tests/light_rail_checks.gd`. Known gaps: police cruisers still drive lane 0
   (over the trackway) on a rail street; the player can stand on the invisible GroundBody plane in
   the trench.
+- The underground station (2026-10-30, docs/HANDOFF.md "The Coral Line's underground station"):
+  `MetroStation` (`scripts/world/metro_station.gd`: the plan in the station's frame - u along the
+  line, h from the street, v across - and a registry) and `MetroBuild` (`metro_build.gd`, extends
+  FreewayKit, called by `LightRailKit._entrances()` in place of the old kiosks, FULL only) build
+  the terminus under Flower at 7th: two kiosks with a stair and an escalator each, a concourse
+  (ticket machines, fare gates, maps), a bank down to a 7 m island (LightRail spreads the tracks
+  round it), the tunnel to `TUNNEL_U`; one opaque mesh on `metro_station.gdshader` (kind in
+  COLOR.a /32, the fixtures' light EMITTED, albedo kept at `ambient_keep` underground), glass,
+  a shadow-only roof, box collision, `MetroRider`s. It is 13 m under the GroundBody: `MetroZone`
+  adds the collision exception (`sink()`, `admit()` for a teleport), `Player` asks
+  `MetroStation.shelters()` before its fall-through recovery, `_road_slab()` cuts the stairwells
+  (`cuts_in()`), macro_ground's `cut_rect2` sinks the plane; LightRailSystem / LightRailTrain draw
+  tunnel trains while `MetroStation.showing`. `METRO_STATION=0` is the A/B; probe
+  `tools/metro/probe.gd`; checks `tests/metro_underground_checks.gd`.
 - Freight rail (2026-10-05, "freight trains on the industrial rail"; HANDOFF 9do): the **Arroyo
   Pacific's Harbor Subdivision** (invented railroad, mark APXR) down ALAMEDA ST (a pinned real
   street that runs the whole map). **The line is a DATA TABLE** (`FreightRail`,
