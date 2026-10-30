@@ -56,6 +56,9 @@ global uniform float lamp_factor;
 // the spray (Surf, scripts/world/surf.gd, is the same model in GDScript).
 #include "res://shaders/surf.gdshaderinc"
 #include "res://shaders/color_space.gdshaderinc"
+// The water close up: capillary ripples, wind streaks, sparkles, ageing foam, the piles
+// (OceanCloseup; fragment only, faded out before the hand-over).
+#include "res://shaders/ocean_closeup.gdshaderinc"
 
 // --- Colour (LINEAR, not sRGB - see the hand-over note above) --------------------------------
 // The open sea, and the shelf. These two are MacroMap.BAKE_OCEAN_DEEP and BAKE_OCEAN_SHALLOW
@@ -330,6 +333,15 @@ float wake_foam(vec2 w, float px, out float slick) {
 			continue;
 		}
 		float spd = b.x;
+		// The waterline: a thin churn of foam where the hull meets the water, at any speed (the
+		// hull's half width from a rounded bow to a full stern).
+		if (closeup > 0.001 && along_b > -0.5 && along_b < hull + 0.5) {
+			float hw = beam * 0.5 * sqrt(clamp(along_b / max(hull * 0.32, 1.0), 0.0, 1.0));
+			float hd = abs(ac - hw);
+			float churn_h = oc_vnoise(vec2(along_b * 1.3 - TIME * (0.6 + spd * 0.4), ac * 0.8) + float(i) * 3.1);
+			float hug = (1.0 - smoothstep(0.05, 0.35 + 0.25 * min(spd, 4.0) + px, hd)) * smoothstep(0.25, 0.65, churn_h + 0.2);
+			foam = max(foam, hug * (0.55 + 0.25 * strength) * closeup);
+		}
 		float run = smoothstep(0.3, 3.0, spd) * strength * (1.0 - smoothstep(trail * 0.3, trail, along));
 		float fi = float(i) * 7.13;
 		// The prop wash: churned white water off the transom that spreads, breaks up and fades to
@@ -704,6 +716,14 @@ void fragment() {
 	// The fine octave is a sub-metre ripple, under a pixel well before the coarse one is, so it
 	// fades out over a third of the distance rather than alongside it.
 	float chop_fine = chop * (1.0 - smoothstep(chop_fade * 0.10, chop_fade * 0.38, dist));
+	// Wind streaks and gusts (close-up pass): glassy slicks down the wind, rougher gust patches.
+	float px_m = max(length(fwidth(w)), 0.0005);
+	float near_c = closeup * detail;
+	if (rich && near_c > 0.001 && chop > 0.001) {
+		float wgain = mix(1.0, oc_wind_chop(w, wind_dir, wind, TIME), near_c);
+		chop *= wgain;
+		chop_fine *= wgain;
+	}
 	vec2 grad = vec2(0.0);
 	// Past `chop_fade` this is zero anyway, and the far sea is most of an aerial frame: do not
 	// pay two noise fetches a pixel out there to multiply them by nothing.
@@ -715,6 +735,10 @@ void fragment() {
 		if (rich && chop_fine > 0.001) {
 			vec3 r2 = noised(rp * 2.9 + vec2(17.0, 5.0) - vec2(TIME * 0.21, TIME * 0.17));
 			grad += r2.yz * (rs * 2.9 * ripple_fine_height * chop_fine);
+			// Capillary ripples a few centimetres across, crests across the wind.
+			if (near_c > 0.001 && dist < 90.0) {
+				grad += oc_capillary(w, wind_dir, px_m, TIME) * (chop_fine / max(chop_strength, 0.01)) * near_c;
+			}
 		}
 	}
 	vec3 n = normalize(world_normal + vec3(-grad.x, 0.0, -grad.y));
@@ -741,6 +765,10 @@ void fragment() {
 	water *= mix(0.55, 1.15, clamp(sky_lum * 3.0, 0.0, 1.0));
 	// A trough has more water along the line of sight than a crest, so it is darker.
 	vec3 col = water * (0.84 + 0.28 * clamp(0.5 + 0.5 * crest, 0.0, 1.0));
+	// Deep water's own blue, seen looking down into it close to (the bake's deep colour is near
+	// black, which it is from the hills; from the pier it is navy). Gone before the hand-over.
+	col += deep_scatter * near_c * smoothstep(20.0, 220.0, max(offshore, 0.0))
+		* (1.0 - smoothstep(scatter_fade.x, scatter_fade.y, dist)) * (1.0 - kelp) * sky_light;
 	// Floating fronds over the beds, close to.
 	if (kelp > 0.01 && dist < 140.0) {
 		float fr = smoothstep(0.74, 0.86, vnoise(w * 1.3 + 2.0)) * smoothstep(140.0, 60.0, dist);
@@ -752,6 +780,17 @@ void fragment() {
 	float back = pow(max(dot(view_dir, sun_n), 0.0), 3.0);
 	float sss = back * clamp(crest, 0.0, 1.0) * sea * (1.0 + 2.0 * golden);
 	vec3 glow = sss_color * sss * (1.0 - night_factor) * detail;
+	// Light through the thin top of every wave in sun, not only the backlit ones: green-blue where
+	// the crest is high and the view crosses little water, strongest toward the sun.
+	if (near_c > 0.001) {
+		vec2 vh = normalize(view_dir.xz + vec2(0.0001, 0.0));
+		vec2 sh = normalize(sun_n.xz + vec2(0.0001, 0.0));
+		float toward = 0.35 + 0.65 * pow(clamp(dot(vh, sh) * 0.5 + 0.5, 0.0, 1.0), 2.0);
+		float thin = smoothstep(0.1, 0.85, crest) * (0.4 + 0.6 * (1.0 - clamp(dot(n, -view_dir), 0.0, 1.0)));
+		float sun_up = smoothstep(-0.02, 0.22, sun_n.y);
+		glow += crest_sss * crest_sss_gain * thin * toward * sun_up * (0.45 + 0.55 * sea)
+			* (1.0 + golden) * (1.0 - night_factor) * (1.0 - weather_dark * 0.6) * near_c;
+	}
 
 	// ---- the surf ------------------------------------------------------------------------
 	// The breaking waves' whitewater, worked out from the same model the vertex shader moved the
@@ -844,13 +883,25 @@ void fragment() {
 	// on it. Carried in ALBEDO it was multiplied by the sun, which is fine at noon and nothing at
 	// all with the sun on the horizon - the golden-hour sea was a brown-black sheet under an
 	// orange sky. (Same lesson as the building glass, CLAUDE.md.) The body colour stays lit.
-	float fres = water_f0 + (1.0 - water_f0) * pow(1.0 - clamp(dot(n, -view_dir), 0.0, 1.0), 5.0);
+	// A floor on n.v close to: a ripple tilted away from the eye at a grazing angle is a mirror of
+	// one pixel, and a field of them was sparkling white noise along the horizon line.
+	float fres = water_f0 + (1.0 - water_f0) * pow(1.0 - clamp(dot(n, -view_dir), 0.035 * near_c, 1.0), 5.0);
 	fres = clamp(fres, 0.0, fresnel_cap);
 	vec3 refl = reflect(view_dir, n);
 	// What the water is looking at: the horizon colour along the horizon, a deeper blue as the
 	// reflection tips up toward the zenith, and the sea's own colour where a steep wave face
 	// reflects something below the horizon.
 	vec3 sky_ref = mix(haze, haze * vec3(0.55, 0.72, 1.00), smoothstep(0.0, 0.55, refl.y));
+	// The horizon band of the sky is its palest: a little brighter where the reflection grazes.
+	sky_ref *= 1.0 + 0.12 * near_c * (1.0 - smoothstep(0.0, 0.18, refl.y));
+	// The cloud base mirrored (the cloud shadows' own field, seen up the reflected ray).
+	if (rich && near_c > 0.001 && refl.y > 0.03 && cloud_reflect > 0.001) {
+		vec2 cp = w + refl.xz / refl.y * cloud_height + vec2(1.0, 0.35) * (TIME * cloud_speed * clamp(wind_factor, 0.2, 3.0));
+		float cc = vnoise(cp / cloud_scale) * 0.65 + vnoise(cp / (cloud_scale * 0.37) + 19.0) * 0.35;
+		float cloud = smoothstep(cloud_cover - 0.06, cloud_cover + 0.22, cc) * (1.0 - smoothstep(0.4, 0.9, refl.y) * 0.5);
+		vec3 cloud_col = mix(haze * 1.25 + vec3(0.03), haze * 0.55, max(night_factor, weather_dark * 0.6));
+		sky_ref = mix(sky_ref, cloud_col, cloud * cloud_reflect * near_c);
+	}
 	sky_ref = mix(water * 2.0, sky_ref, smoothstep(-0.12, 0.02, refl.y));
 	vec3 body = col * (1.0 - fres);
 	vec3 mirror = sky_ref * fres * reflect_gain + glow;
@@ -868,7 +919,16 @@ void fragment() {
 		broken_path = 0.25 + 1.5 * smoothstep(0.42, 0.92, vnoise(w * 0.85 + vec2(TIME * 0.4, TIME * -0.3)));
 	}
 	vec3 sun_col = mix(vec3(1.0, 0.95, 0.84), vec3(1.0, 0.60, 0.28), golden);
-	mirror += sun_col * (glare * 0.5 + spark * 3.0 * broken_path)
+	float spark_term = spark * 3.0 * broken_path;
+	// Close to, the glitter is separate flashing facets (oc_glint), handed back to the lobe once a
+	// facet is under a pixel or two.
+	if (rich && near_c > 0.001 && sun_n.y > -0.02) {
+		vec2 gl = oc_glint(w, n, view_dir, sun_n, px_m, TIME);
+		spark_term = mix(spark_term, mix(gl.x * broken_path, spark_term, gl.y), near_c);
+	}
+	// Close to, the sun path is the sparkles on darker water, not a smooth lobe.
+	glare *= mix(1.0, 0.4, near_c * (1.0 - smoothstep(20.0, 120.0, dist)));
+	mirror += sun_col * (glare * 0.5 + spark_term)
 		* glitter * (1.0 - night_factor) * (1.0 - weather_dark) * detail * step(0.0, sun_n.y + 0.02);
 
 	// ---- foam --------------------------------------------------------------------------
@@ -876,6 +936,9 @@ void fragment() {
 	// turned whole facets of the coarse mesh white and the sea read as a cartoon. All of it is
 	// skipped once `detail` has faded it out - the far plane paints its own white water.
 	float foam = 0.0;
+	// Foam where the water meets a pile: the shade under a pier hides it from the sun, so it is
+	// also lit by the sky it sees (emitted below), as white foam in shadow is.
+	float contact = 0.0;
 	if (detail > 0.01) {
 		float fn = vnoise(w * 0.32 + vec2(TIME * 0.11, TIME * -0.08));
 		foam = smoothstep(foam_fold_lo, foam_fold_hi, fold * (0.75 + 0.5 * fn)) * sea;
@@ -884,12 +947,51 @@ void fragment() {
 		foam = max(foam, smoothstep(0.55, 1.0, crest) * sea * 0.35 * smoothstep(0.35, 0.8, fn));
 		// Spray: in a storm the wind tears the tops off the crests and lays foam out downwind in
 		// streaks. One extra noise fetch, so it is gated on the same detail global the ground uses.
-		if (rich && storm > 0.01) {
+		float streaky = max(storm, near_c * 0.35 * smoothstep(1.2, 3.0, wave_scale));
+		if (rich && streaky > 0.01) {
 			vec2 wv = normalize(wind_dir + vec2(0.0001, 0.0));
 			vec2 sp = vec2(dot(w, wv), dot(w, vec2(-wv.y, wv.x)));
 			float streak = vnoise(vec2(sp.x * 0.03 - TIME * (1.2 + 2.0 * wind), sp.y * 0.24));
 			streak = smoothstep(0.5, 0.95, streak) * smoothstep(0.3, 0.8, crest);
-			foam = max(foam, streak * storm * 0.35);
+			foam = max(foam, streak * streaky * 0.35);
+		}
+		// Old foam: past the crest that made it, it is torn into streaks down the wind and opens
+		// into lace as it ages (bubble cells whose middles clear first).
+		if (rich && near_c > 0.001) {
+			float ff = fold * (0.75 + 0.5 * fn);
+			float age = 1.0 - smoothstep(foam_fold_lo, foam_fold_hi, ff);
+			float old = smoothstep(foam_fold_lo * foam_trail, foam_fold_lo, ff) * sea;
+			vec2 wv;
+			vec2 wpp;
+			oc_wind_frame(wind_dir, wv, wpp);
+			float tear = oc_vnoise(vec2(dot(w, wv) / 7.0 - TIME * 0.25, dot(w, wpp) / 1.1));
+			foam = max(foam, old * smoothstep(0.45, 0.78, tear) * 0.55 * near_c);
+			// The piles: churned foam round every pile, sloshing with the swell.
+			if (pile_count > 0 && dist < 320.0) {
+				float pd = oc_pile_dist(w);
+				if (pd < 4.0) {
+					float slosh = 0.6 + 0.4 * sin(TIME * 1.1 + w.x * 0.07 + w.y * 0.05);
+					float pc = oc_vnoise(w * 2.2 + vec2(TIME * 0.5, -TIME * 0.35));
+					// A tight white collar where the water slaps the pile, a wider churned skirt
+					// round it, and a trail of torn foam drifting off down the wind.
+					float collar = 1.0 - smoothstep(0.05, 0.22 + 0.2 * slosh + px_m * 3.0, pd);
+					float skirt = (1.0 - smoothstep(0.0, (0.8 + 1.2 * sea) * slosh + px_m * 3.0, pd)) * mix(0.45, 1.0, smoothstep(0.2, 0.55, pc + 0.1));
+					vec2 wv2;
+					vec2 wp2;
+					oc_wind_frame(wind_dir, wv2, wp2);
+					float drift = (1.0 - smoothstep(0.0, 3.5, oc_pile_dist(w - wv2 * 1.8))) * smoothstep(0.5, 0.8, pc) * 0.6;
+					contact = max(collar, max(skirt * 0.9, drift)) * pile_foam * near_c;
+				}
+			}
+			if (dist < 90.0) {
+				float wl = oc_worley(w / 0.32 + vec2(TIME * 0.05, -TIME * 0.03));
+				float lace_v = smoothstep(0.12 + 0.40 * age, 0.45 + 0.30 * age, wl);
+				lace_v = mix(lace_v, 0.62, smoothstep(0.32 / 4.0, 0.32 / 1.5, px_m));
+				foam *= mix(1.0, lace_v, foam_lace * age * near_c);
+				// The piles' foam is fresh, churned all the time: a lighter lace.
+				contact *= mix(1.0, lace_v, 0.35 * near_c);
+			}
+			foam = max(foam, contact);
 		}
 	}
 	foam = clamp(foam, 0.0, 1.0) * detail * (1.0 - kelp * 0.6);
@@ -1012,7 +1114,8 @@ void fragment() {
 	// ambient never touch it. Hand this water over to the same deal at the same rate: the body lit
 	// and the mirror emitted while it is near, all of it painted once it is far.
 	ALBEDO = body * dim * (1.0 - painted);
-	EMISSION = mirror * (1.0 - painted) + fb * dim * painted + night_em;
+	EMISSION = mirror * (1.0 - painted) + fb * dim * painted + night_em
+		+ foam_color * haze * (0.45 * contact * detail * dim);
 	float white_all = max(foam, ww);
 	ROUGHNESS = mix(mix(0.18, 0.72, white_all), far_roughness, painted);
 	METALLIC = 0.0;

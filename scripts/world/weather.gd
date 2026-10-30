@@ -316,6 +316,7 @@ func _push_ocean_shape() -> void:
 		wind = Vector2(1.0, 0.3)
 	_ocean.set_shader_parameter("wind_dir", wind.normalized())
 	_push_pier_lights()
+	OceanCloseup.apply(_ocean)
 
 
 ## The piers' lamp rows, for the ocean shader to mirror at night (ocean.gdshader pier_lines /

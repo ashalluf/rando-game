@@ -318,3 +318,7 @@ heli_downwash={
 "type": "vec4",
 "value": Vector4(0, -10000, 0, 0)
 }
+ocean_closeup={
+"type": "float",
+"value": 1.0
+}
