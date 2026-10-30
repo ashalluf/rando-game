@@ -40,7 +40,8 @@ float vnoise(vec2 p) {
 
 void fragment() {
 	int kind = int(floor(COLOR.a * 8.0));
-	vec3 base = cs_in(COLOR.rgb);
+	// Vertex colours arrive raw on both renderers (sRGB as written): decode them, never cs_in().
+	vec3 base = cs_srgb_to_linear(COLOR.rgb);
 	vec3 col = base;
 	float rough = 0.6;
 	float metal = 0.0;

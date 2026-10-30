@@ -911,7 +911,17 @@ void sky() {
 	}
 
 	// --- The island offshore (OffshoreIsland; over the sun, under the clouds) -----------------
-	col = island_draw(col, dir, sdir, sun_light, sun_up, pix, AT_CUBEMAP_PASS);
+	// Under the cumulus VOLUME (Forward+) it is drawn after the volume instead: the march does not
+	// know the island is there, and every cloud on a ray that meets it is farther away (from under
+	// the deck, a ray low enough to meet the island reaches the cloud base past it), so composited
+	// over it the haze and clouds of the whole horizon hid it (fwd-review-d).
+	bool island_late = false;
+#if CURRENT_RENDERER != RENDERER_COMPATIBILITY
+	island_late = volume && view_km.y < cloud_base;
+#endif
+	if (!island_late) {
+		col = island_draw(col, dir, sdir, sun_light, sun_up, pix, AT_CUBEMAP_PASS);
+	}
 
 	// --- Cirrus, contrails and the mid deck ---------------------------------------------------
 	if (up > 0.0) {
@@ -998,6 +1008,9 @@ void sky() {
 	if (volume) {
 		vec4 cl = HALF_RES_COLOR;
 		col = col * cl.a + cl.rgb;
+		if (island_late) {
+			col = island_draw(col, dir, sdir, sun_light, sun_up, pix, AT_CUBEMAP_PASS);
+		}
 	} else
 #endif
 	if (up > 0.0) {

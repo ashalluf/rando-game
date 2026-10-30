@@ -3469,6 +3469,11 @@ already mapped so milestone 2 is script-only.
   shares (165 per thousand) come out of the END of six older ranges, the sedan's, pickup's,
   van's, sports car's, crossover's and the hatchback's, and `CARS_3=0` hands each slice back.
 
+- **2026-10-30 Forward+ review of the wave-3 features (fwd-review-d, HANDOFF "Forward+ review d").**
+  Decisions: anything the sky draws after the Forward+ cloud volume's composite is in front of it
+  (the island); renderer-space shaders take `sky_tint` through `cs_as_uniform()`; vertex colours are
+  decoded with `cs_srgb_to_linear()`, never `cs_in()`; a test scans every shader for these.
+
 ## Correction: what build 135 (0ce833f) actually contained
 
 That commit's subject says "denser grass, real palm fronds, finer ground". It also shipped a

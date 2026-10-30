@@ -42,7 +42,7 @@ void fragment() {
 	float up = wdir.y + (r - 0.75) * 0.06;
 	float window = smoothstep(0.62, 0.70, up);
 	float day = 1.0 - 0.85 * night_factor;
-	vec3 sky = sky_tint.rgb * window_gain * day;
+	vec3 sky = cs_srgb_to_linear(sky_tint.rgb) * window_gain * day;
 	float net = pow(clamp(1.0 - abs(r - 0.75) * 3.0, 0.0, 1.0), 4.0);
 	vec3 c = mix(deep_color * day, sky * (0.85 + 0.35 * net), window);
 	float fog = 1.0 - exp(-length(VERTEX) * fog_per_m);
