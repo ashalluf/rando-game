@@ -594,7 +594,8 @@ func _freeway_ramps() -> void:
 		rose = rose or car.global_position.y > start_y + 3.0
 		if not car.traffic.has("ramp"):
 			merged = true
-			if not car.traffic.has("lc_from") and int(car.traffic.li) == Freeway.LANES - 1 and int(car.traffic.dir) == -1:
+			# In the outer lane, or drifting into it (a slow runner can end the window mid-move).
+			if int(car.traffic.li) == Freeway.LANES - 1 and int(car.traffic.dir) == -1:
 				settled = true
 				break
 	if not settled:

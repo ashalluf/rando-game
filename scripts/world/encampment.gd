@@ -309,6 +309,9 @@ static func _faces(plan: CityPlan, ix: int, iz: int) -> Array:
 		var other: Vector2i = across[e]
 		if String(plan.block(other.x, other.y).get("site", "")) == LandmarkMacArthurPark.SITE.id:
 			odds = maxf(odds, PARK_EDGE_ODDS)
+		# The fashion district's goods stand on this face (FashionDistrict): no camp on it.
+		if FashionDistrict.owns_face(plan, ix, iz, e):
+			continue
 		if odds > 0.0 and _hash01([plan.seed, "camp_face", ix, iz, e]) < odds:
 			out.append(e)
 		if out.size() >= cap:
