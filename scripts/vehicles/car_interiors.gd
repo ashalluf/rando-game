@@ -171,10 +171,12 @@ func _physics_process(delta: float) -> void:
 	if _pick_left <= 0.0:
 		_pick_left = pick_interval
 		_pick()
-	for c: Vehicle in _exits.duplicate():
-		if not is_instance_valid(c):
-			_exits.erase(c)
+	# Untyped: a car freed since it was queued cannot be assigned to a typed variable.
+	for c_any: Variant in _exits.duplicate():
+		if not is_instance_valid(c_any):
+			_exits.erase(c_any)
 			continue
+		var c := c_any as Vehicle
 		var p := get_tree().get_first_node_in_group("player") as Node3D
 		var rig := rig_of(c)
 		if p != null and rig != null and c.driver == null:

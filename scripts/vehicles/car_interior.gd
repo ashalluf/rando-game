@@ -186,9 +186,8 @@ func _set_far(end: float) -> void:
 ## at full detail into every cascade cost ~100k triangles a frame.
 func _shadows(_on: bool) -> void:
 	for d: Dictionary in doors:
-		var m: MeshInstance3D = d.mesh
-		if m != null and is_instance_valid(m):
-			m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		if not d.lost and d.mesh != null and is_instance_valid(d.mesh):
+			(d.mesh as MeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 ## Takes it all back off the car. A car that has lost a door is never handed back (CarInteriors
@@ -263,7 +262,7 @@ func tick(delta: float) -> void:
 		# Out fast and easing to the check strap; shut with a little speed at the end.
 		var e := 1.0 - pow(1.0 - o, 2.2) if float(d.target) > 0.0 else o * o * (3.0 - 2.0 * o)
 		(d.pivot as Node3D).rotation = Vector3(0.0, deg_to_rad(OPEN_DEG) * e * float(d.side), 0.0)
-		var skin: MeshInstance3D = d.mesh
+		var skin: MeshInstance3D = d.mesh if d.mesh != null and is_instance_valid(d.mesh) else null
 		if skin != null:
 			var cast := GeometryInstance3D.SHADOW_CASTING_SETTING_ON if o > 0.02 or _holed else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			if skin.cast_shadow != cast:
@@ -289,9 +288,9 @@ func sync() -> void:
 	if not _real or body_mi == null or not is_instance_valid(body_mi):
 		return
 	for d: Dictionary in doors:
-		var m: MeshInstance3D = d.mesh
-		if m == null or not is_instance_valid(m):
+		if d.lost or d.mesh == null or not is_instance_valid(d.mesh):
 			continue
+		var m: MeshInstance3D = d.mesh
 		var map: PackedInt32Array = d.data.surf_map
 		for k in map.size():
 			var want := body_mi.get_surface_override_material(map[k])
@@ -323,7 +322,7 @@ func detach(side: float, push: Vector3) -> RigidBody3D:
 	shape.shape = box
 	shape.position = Vector3(0.0, (float(data.sill) + float(data.top)) * 0.5, -(float(data.front) + float(data.rear)) * 0.5) - (data.hinge as Vector3)
 	body.add_child(shape)
-	for part: Node in [d.mesh, d.card]:
+	for part: Variant in [d.mesh, d.card]:
 		if part != null and is_instance_valid(part):
 			(part as Node).reparent(body, false)
 	var root := car.get_parent() if car.get_parent() != null else car.get_tree().root
