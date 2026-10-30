@@ -309,6 +309,11 @@ already mapped so milestone 2 is script-only.
   painted per pixel - the moving ones the night lights' own cells - so nothing a seed builds
   moves and the far city costs no new draws. House roofs out there are the house's own clay tint
   or shingle, flagged so the far shader draws them as roofs, not as towers' membranes.
+- **2026-10-30 Per-car-per-tick work in the traffic must be O(1) (perf-audit-2).** Headless, a
+  frame is eight physics steps and TrafficManager was ~85 % of them, so the gate's wall time is
+  the traffic tick. Its answers stay exactly the same: the cuts are caches keyed per road (never
+  per metre of a moving coordinate) and a search started from a hint. The look is held by DIFF
+  pairs (116 and 86 pixels moved at downtown and the port).
 - **2026-10-30 The night has its own street life (fleet wave 3, `nightlife`).** After 21:00 a share
   of the open restaurants and tower lobbies downtown, in midtown and the beach town are clubs and
   bars with a line along the wall behind a velvet rope, a bouncer and a lit entrance; the door
@@ -3523,6 +3528,12 @@ already mapped so milestone 2 is script-only.
   play at speeds measured from each clip's planted foot (HeroStride) instead of guessed numbers
   (the walk was 1.5x off, the run 1.6x), and the gait bands moved to where people change gait.
   Rain wets him through the street's own wetness global. HERO_CLOSEUP=0 keeps all of it off.
+- **2026-10-30 Forward+ review e: display numbers are decoded where they are handed over.** A
+  colour written as display numbers in a renderer-space shader (the building shaders) goes through
+  a Forward+-only decode where it is used (`fx_srgb_in()`), never by re-tuning the number; a broad
+  additive pool adds as display numbers on Forward+ (`light_pool.gdshader` `display_add`) so the
+  Mac's night streets match the stills. The colour-space table is measured, not remembered
+  (`tools/fwd_review/color_matrix.gd`).
 
 - **2026-10-30 Car close-up detail is geometry for plates and badges, shader for dirt.** Plates
   and badges are raised geometry (one small mesh per car, built only when the car first comes
@@ -3543,6 +3554,13 @@ already mapped so milestone 2 is script-only.
   units in from the edges, and on a window wider than 21:9 inside a centred 21:9 band. Place names
   come from what the city already knows (district_name_at, road_name); car model names are invented
   per body type in `VehicleHud.MODELS` under the dealership brands. No new roll anywhere.
+
+- **2026-10-30 Street trees close up are a shader pass, not new meshes (trees-closeup, HANDOFF
+  "Trees close up").** Decisions: one gust field shared by every tree shader, laid on the true
+  world and running downwind (the Santa Ana's lean when it blows, else the onshore breeze); a
+  scanned crown's depth comes from its mesh bounds (no per-leaf data, no mesh rebuild, so the
+  foliage ladders' table and shadow twins are untouched); the leaf-edge dither is Forward+ only
+  (TAA), never in the shadow pass; `TREES_CLOSEUP=0` restores every shader exactly.
 
 ## Correction: what build 135 (0ce833f) actually contained
 

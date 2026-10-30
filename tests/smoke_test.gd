@@ -2387,6 +2387,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/signage_checks.gd").new().run(self, city)
 	# The code-built Los Angeles trees and accents (tests/la_trees_checks.gd).
 	load("res://tests/la_trees_checks.gd").new().run(self, city)
+	# Street trees close up (tests/trees_closeup_checks.gd, TreesCloseup): the gust field, the switch, crowns, bark.
+	load("res://tests/trees_closeup_checks.gd").new().run(self, city)
 	# Car dealerships (tests/car_dealers_checks.gd): auto rows of new-car dealers and used lots, pure
 	# sites inside their blocks, the lot cars, stickers, tube men and cars for sale, nothing else moved.
 	load("res://tests/car_dealers_checks.gd").new().run(self, city)
@@ -2616,6 +2618,14 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/ocean_closeup_checks.gd").new().run(self, city)
 	# HUD polish (tests/hud_polish_checks.gd): the theme, the safe area, the place toast, the car readout.
 	await load("res://tests/hud_polish_checks.gd").new().run(self, city)
+	# Forward+ review e (tests/fwd_review_e_checks.gd): the wave-3 shaders' colour-space traps.
+	load("res://tests/fwd_review_e_checks.gd").new().run(self, city)
+	# The night skyline (tests/night_skyline_checks.gd, NightSkyline): office colours, cleaners'
+	# floors, crown washes and floods shared by the near walls and the far boxes, beacons out of step.
+	load("res://tests/night_skyline_checks.gd").new().run(self, city)
+	# The second perf audit (tests/perf_audit_2_checks.gd): the cached road closures and site
+	# bounds answer as before, road_lift() per body type, no orphan freeway bodies from a capture.
+	load("res://tests/perf_audit_2_checks.gd").new().run(self, city)
 	# The police at night (tests/police_night_look_checks.gd, PoliceNightLook): one flash clock, the
 	# glow, the budgeted strobes, the wall wash, roadblock flares, the searchlight's haze.
 	await load("res://tests/police_night_look_checks.gd").new().run(self, city)
@@ -4317,13 +4327,16 @@ func _check(ok: bool, label: String) -> void:
 	# printerr: unbuffered, so progress is visible even if the run is killed.
 	printerr("%s %s" % ["PASS" if ok else "FAIL", label])
 	if _profile:
-		printerr("TIME %.2f s, rss %d MB, frame %d" % [Time.get_ticks_msec() / 1000.0, _rss_mb(), Engine.get_process_frames()])
+		printerr("TIME %.2f s, rss %d MB, frame %d, godot %d MB, orphans %d" % [Time.get_ticks_msec() / 1000.0, _rss_mb(), Engine.get_process_frames(),
+			int(Performance.get_monitor(Performance.MEMORY_STATIC)) / 1048576, int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT))])
 	if not ok:
 		_failures.append(label)
 
 
 func _finish() -> void:
 	printerr("SMOKE TIME %.1f s, peak rss %d MB" % [Time.get_ticks_msec() / 1000.0, _peak_rss_mb()])
+	if OS.get_environment("MEMORY_CENSUS") == "1":
+		load("res://tools/perf_audit_2/cache_census.gd").census()
 	if _failures.is_empty():
 		print("SMOKE TEST PASSED (%d checks)" % _checks)
 		get_tree().quit(0)

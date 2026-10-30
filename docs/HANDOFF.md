@@ -20086,6 +20086,276 @@ CPU side is ~10 CPUParticles3D systems and one ray per debris piece a tick while
 The column's drift is a small acceleration (`gravity` 0.08 m/s2 sideways): at 0.45 it carried
 the column 70 m off its fire by 18 s.
 
+## 9hl. Trees close up (fleet wave 3, `trees-closeup`, 2026-10-30)
+
+The owner's bar: "make it look like GTA 6". Street trees and palms are in nearly every frame, and
+from the pavement (2-20 m) they read as flat dark cards nodding in place. This pass is shaders
+first, no mesh changes (so the FoliageLod ladders' table, the palms' ladder and every shadow twin
+are untouched, and nothing rolls differently).
+
+**What changed**
+- **Gusts that cross the street** (`shaders/tree_wind.gdshaderinc`, included by
+  `foliage_tex.gdshader`, `foliage.gdshader`, `la_tree.gdshader`): one gust field on the TRUE world
+  (`origin_shift`), running downwind at `TW_SPEED` 8.5 m/s along the Santa Ana's `wind_lean` when it
+  blows, else along the onshore breeze `TW_DIR` (west to east, a little north); peaky (short strong
+  fronts, long lulls) and ragged across the wind. It sets each tree's sway amplitude (0.55-1.5x)
+  and bows the whole crown downwind as the front passes (`gust_push`), so a gust visibly runs down a
+  row of trees. The old envelope was a sine of (x + z) per tree: every tree breathing in turn, no
+  front. `TreesCloseup.gust()` is the GDScript copy (the checks hold the numbers to the include).
+- **Leaf flutter** (foliage_tex): each leaf cluster flutters on its own phase (a hash of its rest
+  position, 0.6 m cells) and harder and faster in a gust; one phase a tree made the crown one
+  shimmering sheet.
+- **Crowns with depth** (foliage_tex, scanned trees): `TreesCloseup.dress()` (from
+  `PropFactory._tree_mesh()`) gives each model's leaf material its crown bounds from the mesh AABB
+  (`CROWN_UP` 0.62 of the height, `CROWN_HALF_HEIGHT` 0.42, `CROWN_SPREAD` 0.5: works headless, no
+  mesh data needed). From it: the core darkens (`inner_shade` 0.42, mostly as AO on the ambient),
+  the sun side's outer shell brightens (`sun_side` 0.2, by day only), the leaf normals are rounded
+  out from the crown's centre (`canopy_round_close` 0.7; was 0.45 from the trunk's foot), the
+  underside and core are pushed toward canopy-filtered green-gold (`under_filter` 0.75 - on
+  Forward+ the sky ambient painted every crown's underside slate blue), the shell is translucent and
+  the core not (`translucency_close` 0.5), clusters vary in tone (+-10 %), and the scans' leaves are
+  pulled from teal toward green (`leaf_warm` (1.0, 1.05, 0.8); never the jacaranda's blossom, which
+  keeps its violet).
+- **Alpha shimmer at 10-40 m** (foliage_tex, Forward+ only): once a leaf card's texels are under a
+  pixel (`lod` 0.8 -> 3 mips) the scissor threshold is dithered per pixel and per frame
+  (`edge_dither` 0.32), which TAA resolves as partial cover instead of pixels flipping. Not on
+  Compatibility (no temporal pass: the web and the opengl3 stills keep the plain cut) and never
+  `IN_SHADOW_PASS` (the dapples on the pavement stay crisp; the depth pre-pass evaluates the same
+  dither as the colour pass, since both read FRAGCOORD and TIME).
+- **Palms sway as one tree** (foliage.gdshader): each frond keeps only `frond_follow` (0.3) of its
+  own phase lag, growing out along the frond, so the crown swings on the trunk and the tips trail
+  it; the gust front bows it downwind, the tips streaming further. The crown's heart is shaded
+  (`inner_shade` 0.42 by `leaf_out`, as albedo and AO, and less transmission there); the trunk
+  carries leaf-scar rings and fibre bumped by screen derivatives (`bark_relief`, faded before the
+  rings alias).
+- **Bark**: the LA trees' bark (la_tree) is bumped from its own patterns (what the pattern darkened
+  is the furrow: the albedo's ratio to the plain bark colour is the height, `bark_relief` 14 mm,
+  faded with distance); the scanned trees' bark reads its ORM map's occlusion channel (the glTF
+  import left it off) and the branches' normal maps at 0.9 (they came at 0.5).
+- `TREES_CLOSEUP=0` is the A/B: every tree shader exactly as it was (each new term is multiplied
+  by or branched on `closeup`). `TreesCloseup.set_all(on)` flips it for everything already made;
+  `still_shot.gd TREES_AB=1` saves every shot again with it off (`_treesoff`), the frame held.
+
+**Tools**: `tools/trees_closeup/tree_shot.gd` - a pavement with three scanned street trees, the
+jacaranda, two palms and three LA trees, `LIGHT=noon|golden|night`, `VIEWS=`, `TAA=1`; seconds on
+opengl3, a couple of minutes a run on lavapipe Forward+. `tools/trees_closeup/probe.gd -- --spawn=x,z`
+lists blocks with palm and jacaranda streets and an EYE each (palm boulevard
+`EYE=1038.8,1.7,1549.6,-90,4` with `EYE_AGL=1`, jacaranda suburb `-447.9,1.7,1986.7,-90,4`).
+
+**Checks** (`tests/trees_closeup_checks.gd`): the include's numbers against the GDScript copy, the
+gust in 0..1 with real fronts, a front travelling downwind (riding it the mismatch is 0.04, at one
+instant 0.48), the Santa Ana turning it, every tree shader on the field with the switch, the dither
+Forward+ only and out of the shadow pass, every street tree's leaves marked with crown bounds in
+its crown and its bark on the occlusion map, the palm and LA materials marked, a dressed mesh
+unchanged, the switch and set_all() flipping and restoring.
+
+**Frame cost**: no mesh, LOD, shadow twin or batch changes, so the geometry is identical with the
+pass on and off by construction (the A/B is a uniform on the same materials). still_shot.gd on
+opengl3, `TREES_AB=1` (one load, the frame held): the palm boulevard from the pavement
+`GEO tris=5,091,867 draws=2,599` and the jacaranda street `GEO_1 tris=7,580,132 draws=2,671`, the
+same frames with the pass off drawing the same instances. TREE_AB on the palm boulevard (the bad
+first EYE without `EYE_AGL`, kept for the ladders' numbers): trees on their ladders 15.19 M
+triangles every instance counted against 17.83 M on the old meshes, unchanged by this pass. The
+cost is ALU only: in foliage_tex's fragment about twenty more operations (the crown terms) plus one
+hash on Forward+ beyond 0.8 mips; in its vertex stage the gust (two sines) and the crown depth; a
+derivative bump on palm trunks and LA bark. Not timed on a GPU (lavapipe frame times do not
+separate it from the scene); the owner's HUD frame line is the measure.
+**Not done**: no new leaf geometry or textures (the scans' own leaf cards are the shape); the
+golden-hour city still came out at dusk (18.3 was already past sunset at that place), so golden
+hour is judged on the small scene only; the shimmer fix needs TAA and can only be judged in motion
+on the Mac.
+
+Gate: `SHARDS=3 tests/headless_check.sh` 3,691 checks passed, 0 failed (peak RSS 3,099 MB).
+
+## 9hm. Forward+ review e: the late wave-3 features on the Mac's renderer, 2026-10-30 (fleet wave 3, session `fwd-review-e`, branch `wt/fwd-review-e`)
+
+Same method as reviews a-d: each feature in a SMALL scene on the real Forward+ pipeline under
+lavapipe (`fwd_block_shot.tscn`, `car_shot.gd`, `rock_shot.gd` with `--rendering-driver vulkan`)
+against the same frame on opengl3, measured with the percentile one-liner; stills and their
+README on `shots/fwd-review-e`. Seed 1337.
+
+**First, the trap table measured** (`tools/fwd_review/color_matrix.gd`, one quad, linear
+tonemapper, both renderers): Compatibility draws every input raw (0.80 0.70 0.55 in, the same
+out); Forward+ decodes `source_color` uniforms and textures and a Color set from script, and reads
+plain uniforms, plain textures, vertex colours and constants as LINEAR (0.91 0.86 0.78: brighter
+and paler). Light3D colours behave the same on both. CLAUDE.md's colour-space trap holds exactly.
+
+**Fixed:**
+- **The facade pass's mirrored street opposite** (`fx_opposite()`, facade_variety.gdshaderinc):
+  its wall colours are display numbers, emitted raw by the renderer-space building shaders, so on
+  the Mac every curtain wall mirrored the street as pale beige slabs with bright blue windows
+  (still 02, Flower St at noon). `fx_srgb_in()` (new, in the include) decodes them on Forward+.
+- **Shop sign bands** (building.gdshader and building_lod.gdshader): the board hues and the
+  channel letters' glow (`letter_color()`) were raw too; a red lightbox was a pale red past 1 and
+  AgX drew it pink (the lobby sign over the AFTERGLOW club, stills 08-09). Both through
+  `fx_srgb_in()`; the real letters' material already got LETTER_COLORS as a Color (decoded).
+- **Broad additive pools** (`light_pool.gdshader`): Forward+ adds in linear HDR, so FreewayKit's
+  wide flat pools over dark asphalt drew as a flat white disc (the metro kiosk at night, still 15;
+  fwd-review-a met the same on the pier). New `display_add` (off by default) makes Forward+ add the
+  display-space amount decoded; FreewayKit's shared pool material (decks, light rail, freight, the
+  kiosk) turns it on. Freeway deck at night after: still 16. Street lamp pools are unchanged.
+- **Stunt ramps** (`stunt_ramp.gdshader`): `disp(cs_in(tex))` decoded the textures twice on
+  Compatibility; every opengl3 still drew the ramps grey and dark. Forward+ was right and is
+  unchanged (still 13).
+
+**Looked at, nothing to fix (Forward+ against opengl3):** car cabins with the door open and the
+cockpit (01), the cafe parklet at night (03), the premiere's marquee and searchlights (04), the
+skate park (05), Flower St at night (07), the clubs' queues and canopy (08), the buskers' gear on
+the plaza (10), the fashion district's goods (11), an arroyo culvert and bed (12), a yard sale with
+the apartment walk-ups behind it (14), the rock outcrop kit (17).
+
+**Noted, not fixed:**
+- Bonfires at night (06): on Forward+ the sand round a lit ring is blood-orange where opengl3 is
+  warm cream. Not a shader: lights are handled alike (measured); it is the GI bounce off a large
+  saturated ground plus AgX, the same warming every big textured ground shows on Forward+ (the
+  plaza paving, 10). If the owner finds it too much, the knob is `BonfireFire.LIGHT_COLOR`.
+- The sky's city light dome reads red rather than orange on Forward+ downtown at night
+  (`city_glow_color` decoded, then AgX); fwd_block_shot shows it above the trees. The sky's.
+- One Broadway neighbour's wall draws mint render on opengl3 and red brick on Forward+ (04's day
+  pair). Not traced; it is the Compatibility side that looks wrong.
+- Not rendered: fireworks (fwd_block_shot has no Fireworks node), valets and apartments alone
+  (seen only behind the yard sale), the new car bodies (cars-3 not merged). Day stills taken after
+  the per-shot hour switch on Forward+ are dark (the sky and exposure need more frames): compare
+  stills built at their own hour.
+
+**Tools:** `fwd_block_shot.tscn` takes a sixth EYE field (that shot's hour) and `BLOCKS=home` (only
+the block under each EYE: downtown's 3 x 3 runs lavapipe out of memory at ~12.9 GB even with the
+review's LITE list); `tools/fwd_review/color_matrix.gd`.
+
+**Checks** (`tests/fwd_review_e_checks.gd`, source text plus one material): no `disp(cs_in(` in
+any shader; the stunt ramps read their textures once; `fx_opposite()`'s walls and the sign band's
+hues and letter glow go through `fx_srgb_in()`, which leaves Compatibility alone; light_pool's
+`display_add` and FreewayKit's pool material using it.
+
+**Frame cost:** shader-only changes plus one uniform; no node, mesh or draw added.
+
+## 9hn. Perf audit 2: frame, CPU and memory after wave 3, 2026-10-30 (agent branch `wt/perf-audit-2`; VISUAL_ROADMAP ?)
+
+**The ask.** After wave 3 (~45 branches since 9dj / 9dq) the single-process smoke run peaked at
+3,372-3,532 MB on CI against the memory check's budget and its wall time kept climbing (CI 367 hit
+the watchdog at 1,343 s). Measure frame, CPU and memory at the bookmarks, cut the biggest costs
+without changing the look, and report before / after.
+
+**What a headless frame is.** `tools/cpu_probe.gd` at the downtown spawn: ~270 ms a frame, every
+frame running the full eight physics steps (the catch-up spiral), so game time advances 8/60 s a
+frame whatever the frame costs - **the smoke test's wall time is the physics tick's cost**. Its
+`TIME_PHYSICS_PROCESS` is the LONGEST step of the frame, not their sum (the probe's
+"physics/step" column is that max over the step count: read it x8). Switching systems off in
+turn: **TrafficManager 277 -> 45 ms a frame**, pedestrians ~60 ms (their AnimationPlayer advance
+and move_and_slide, native), everything else inside the +-30 ms noise (birds, rail, police,
+emergency, ambience, air traffic, weather, the wave-3 nodes). The binary has no symbols, so gdb
+sampling shows nothing; the traffic was timed from the inside.
+
+**The traffic tick, piece by piece** (`tools/perf_audit_2/traffic_bench.tscn`: TrafficManager's own
+tick switched off and run by hand, each part timed; the sections inside `_drive_street` came from
+temporary `Time.get_ticks_usec()` marks, not committed). Downtown, 150 street cars and
+70 on the freeway: `_drive_streets` 16.7-17.3 ms a tick (111 us a car), `_drive_freeway` 3 ms,
+`_maintain` 4 ms and `_maintain_freeway` 4.5 ms every 30 ticks. Inside a street car's tick:
+- `CityPlan.road_open()` (the outer loop's safety net, every car every tick) **29 %**, of which
+  the landmark sites' loop recomputed road_pos / road_width for every site on every call, and
+  `Cemetery.road_closed()` cached per QUARTER METRE of `along` - every moving car missed it every
+  tick, re-read nine cells' decisions, and grew the cache toward its 200,000-key cap;
+- `CityPlan._index_at()` walked from road 0 on every call (O(blocks from the origin): ~50
+  road_pos lookups at the port), and road_open's sub-checks, the junction lookup and the bus stop
+  each call it;
+- `_place()` (the transform write, ~27 descendant nodes per car) 20 %;
+- `Vehicle.road_lift()` built `_dims()`'s fifteen-key dictionary literal per car per tick.
+
+**Cut (exact: same answers, checked).**
+1. `Cemetery.road_closed()` keeps each road's closed spans per (road, probe cell) - the very spans
+   of the nine cells it read - and answers any `along` from them.
+2. `CityPlan.road_open()` keeps each site's bounds (`_site_bounds()`, keyed by site id).
+3. `CityPlan._index_at()` starts from the last answer in its 64 m bucket (`_index_hint`). road_pos
+   is monotonic and fills its cache contiguously from the nearest known road, so the walk ends on
+   the same road from any start and no road is worked out in another order.
+4. `Vehicle.road_lift()` kept per body type (`_lift_type`, `_lift`).
+5. `TrafficManager._place()` skips the write when the transform is bit-identical (a car standing in
+   a queue: ~20 % of placements downtown). A frozen kinematic body set to its own transform gets
+   zero motion either way.
+
+Street tick after: road_open 35 -> 21 (section units), the junction block 11.8 -> 7.1, the lift
+8.1 -> 2.2; `_drive_streets` ~17 -> ~13-15 ms a tick on a loaded box (the bench's absolute numbers
+move with the box; read the sections against each other).
+
+**Orphans.** `memory_probe.gd ORPHANS=1` lists the nodes out of the tree by script and name (and a
+sample of a body's first shape). A far-city capture of a freeway block built `FreewayBody` /
+`RampBody` with a shape per segment and returned early without freeing them: one more orphan body
+per capture, for the whole session (CI's exit listed 2,702 leaked GodotBody3D RIDs). Fixed. Left:
+~100 unnamed bodies with one BoxShape3D (27.5 x 8.4 x 17.6 m, in a site's local frame) made once
+at load by a far-landmark builder (not found; constant, a few kB), PuebloLane's templates (by
+design) and the vehicle pools (by design).
+
+**Frame (opengl3, still_shot.gd).** Downtown noon 7.28 M triangles / 3,727 draws on 960x540
+(9dj after: 7.21 M / 3,752): wave 3 did not grow the downtown frame. New items there: parked
+scooters 102 k (78 k shadow, 6 draws) and docked share bikes 82 k - MicroMesh was code-built
+with no LODs and no lighter twin, so a scooter drew every spoke at any range and cast from its
+full mesh. It now goes through ImporterMesh with generated LODs and `PropFactory._build_shadow_proxy()`
+(StreetFurniture's recipe). The port bookmark: the refinery's far pieces (`RefineryFar`, "Plant")
+draw 118 k triangles, unindexed with no LOD; now indexed with generated LODs (25.1 -> 14.2 MB; the
+frame there barely moves, -654 triangles: at 600 m the LODs still pick near-full detail).
+
+| DIFF pair, 1280x720 (cars, people, particles hidden) | before (main) | after | pixels that moved |
+|---|---|---|---|
+| downtown noon | 6,684,567 (4,060,842 / 2,623,723) / 3,204 | 6,458,887 (3,937,192 / 2,521,693) / 3,198 | 116 (0.013 %), 3 > 32: the scooter cluster ~40 m off |
+| port noon | 3,490,293 (3,250,047 / 240,244) / 1,388 | 3,489,639 / 1,388 | 86 (0.009 %) |
+
+**Memory.** The probe (load, 2 km drive, four hops): city loaded 1,541 -> 1,510 MB RSS, allocator
+1,374 -> 1,353 MB. Through a whole smoke run the allocator itself climbs from ~1.38 GB at load to
+~2.9 GB (the TIME lines now carry it): every teleport builds its area, and the per-kind bakes
+(camp and beach figures, rides, hats), wheels and text meshes stay - each bounded by kind, none a
+leak. A fixed mmap threshold (`MALLOC_MMAP_THRESHOLD_` 256 kB) bought 40 MB at the probe's peak:
+fragmentation is not the story. `MEMORY_CENSUS=1` prints the static caches at the end of a run
+(`tools/perf_audit_2/cache_census.gd`): prop_factory's shadow proxies and cache (~240 / ~190 MB as
+sized, the meshes counted with the scene's), street_sign_kit 59-64 MB (348 entries; it clears at
+1,500), tree_fire's chunk records 58 MB, the crowd's far meshes 45 MB, beach_figure rides 38-57 MB,
+camp_figure shadows 37-48 MB, dog meshes 36 MB.
+
+**The whole run** (single process, as CI runs it; main and this branch side by side on the same
+box, after merging main at 3b1f8dd):
+
+| | main 3b1f8dd | this branch | |
+|---|---|---|---|
+| smoke test wall time (SMOKE TIME) | 2,805.5 s | 2,734.3 s | -2.5 % |
+| checks | 3,601 (1 failed*) | 3,608 (1 failed*) | +7: tests/perf_audit_2_checks.gd |
+| peak RSS | 4,030 MB | 4,050 MB | noise (the allocator ends at ~3.0 GB either way) |
+| the hospital / police station / news crews / city_polish parts | 103 / 98 / 86 / 40 s | 101 / 94 / 48 / 37 s | the traffic-heavy parts |
+
+\* both: "the far city keeps its tiles for the load cache", which fails on any box whose
+`user://load_cache` already holds this tree's tiles (earlier runs here); CI starts empty.
+
+Read it plainly: the traffic tick lost a fifth of its cost, which is ~2-3 % of the whole run - the
+gate's time is spread over many systems and the checks' own waits, and the peak memory is what
+each teleport builds plus the per-kind bakes. Earlier, before the merge (main a3db077, 2,985
+checks), a lone single-process run of main took 1,924 s and peaked at 3,864 MB on this box.
+At the end of a full run the census lists street_sign_kit at 729 entries (135 MB as sized; it
+clears only at 1,500), beach_figure's rides 108 MB (299), camp_figure's shadows 92 MB (525),
+beach bakes 66 MB, dog meshes 66 MB, tree_fire's charred meshes 39 MB - the next memory cuts are
+caps on those (a lower cap on the sign cache rebuilds identical meshes; untested here).
+
+**Gate notes.** (a) A check that built a whole far-city capture chunk outside the tree and freed it
+made the process abort in the engine's teardown (SIGABRT, `peak_rss.py` reports 250, after every
+check had passed) in two of two shard runs; the check now counts the orphans the real far city left
+(none) and the abort is gone. Anything that builds chunks in a check should go through the scene.
+(b) Main 3b1f8dd fails three nightlife checks ("somebody comes out of the door and gets into it",
+"with the fare in, the car drives on", "the fare is back inside") when the parts run in shard 2's
+order in one process (`SMOKE_PARTS=<shard 2's list>`): order-dependent, the same on main and here;
+they pass alone. Not this branch's.
+(c) The final `SHARDS=3` gate on this branch (merged with main 3b1f8dd, 3,642 checks, 1,514 s,
+shard peaks 2,536 / 3,052 / 3,020 MB): 3,638 passed. Failed: those three nightlife checks (shard 2),
+"the wreck comes down and rests on the deck" (car damage; 2.65 m over the deck after 260 ticks on
+the loaded box, 1.70 m after 143 alone - it passes alone and passed in the two gates before), and
+shard 2's process aborted in teardown once more after its checks (exit 250) - so that abort is
+nondeterministic and not (only) the capture chunk: it did not happen in three other single-process
+runs of the same list (one with this branch's checks). Worth a look on main.
+
+**Not done / next.** (1) The marina's boats cast from their MID mesh out to 230 m: 508 k shadow
+triangles at the beach-town bookmark - a SHADOWS_ONLY twin of the FAR mesh for the MID tier would
+cut most of it (pre-wave-3, not touched). (2) The rest of a street car's tick: road_open's
+sub-checks (schools, market, river) still ~20 %, two relief samples (8 dictionary lookups) 9 %,
+the IDM and line-hold logic; a per-car memo of the relief cell would be exact. (3) Pedestrians'
+animation advance per physics tick (~8 ms a step downtown). (4) The far city is still the biggest
+camera cost at every bookmark (0.7-2.4 M triangles). (5) Not seen on the Mac or Forward+; the web
+build not exported. Stills: `shots/perf-audit-2`.
 ## 9d?. Red and blue at night (fleet wave 3, police-night)
 
 The task: a police pursuit and a roadblock at night are a signature GTA image - red and blue

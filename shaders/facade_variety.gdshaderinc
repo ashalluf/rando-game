@@ -123,6 +123,17 @@ vec3 fx_member(float x, float f, float pitch, float x0, float w, float dx, float
 // thing. `fkey` names the wall (the building and face), `sun_out` is the sun's share on the
 // opposite facade (dot(sun, -n)), `px` how many metres a pixel spans on the wall. `hit` comes back
 // 1 on a building or the street, 0 on the sky (the caller adds its far skyline there).
+// A colour written as display (sRGB) numbers, in the renderer's own space: decoded on Forward+,
+// as it is on Compatibility (what cs_as_uniform() does; building.gdshader has no colour include).
+vec3 fx_srgb_in(vec3 c) {
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+	return c;
+#else
+	return mix(c / 12.92, pow((max(c, vec3(0.0)) + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c));
+#endif
+}
+
+
 vec3 fx_opposite(vec3 rw, float u, float h, uint fkey, vec3 sky, vec3 street, float sun_out, float px, out float hit) {
 	hit = 0.0;
 	float street_w = 18.0 + 26.0 * wl_roll(fkey, 80u);
@@ -164,6 +175,9 @@ vec3 fx_opposite(vec3 rw, float u, float h, uint fkey, vec3 sky, vec3 street, fl
 	hit = 1.0;
 	// Its finish: render, stone, brick, dark glass.
 	vec3 wall = k3 < 0.3 ? vec3(0.42, 0.40, 0.36) : (k3 < 0.55 ? vec3(0.30, 0.27, 0.23) : (k3 < 0.75 ? vec3(0.24, 0.12, 0.09) : vec3(0.07, 0.08, 0.10)));
+	// Display numbers (tuned on the opengl3 stills): emitted raw, Forward+ read them as linear and
+	// mirrored the street opposite as pale beige slabs (fwd-review-e).
+	wall = fx_srgb_in(wall);
 	wall *= 0.35 + 0.85 * clamp(sun_out, 0.0, 1.0);
 	// Its windows, faded to their average once under a couple of pixels (the pixel on the opposite
 	// facade is `px` on ours times how much further the ray went).
