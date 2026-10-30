@@ -20356,3 +20356,47 @@ the IDM and line-hold logic; a per-car memo of the relief cell would be exact. (
 animation advance per physics tick (~8 ms a step downtown). (4) The far city is still the biggest
 camera cost at every bookmark (0.7-2.4 M triangles). (5) Not seen on the Mac or Forward+; the web
 build not exported. Stills: `shots/perf-audit-2`.
+
+## 9d?. The freeway close up (wave 3, branch `wt/freeway-closeup`; VISUAL_ROADMAP #?)
+
+The brief: driving the 110 / 101 / 10 at speed, from the chase cam and the driver's seat, by day,
+golden hour and night, the freeway should read like a 2026 game's LA freeway. The kit (9ba) had
+the parts; what read wrong up close was the driving surface (the city's asphalt material on a
+deck that in LA is concrete), clean barriers, flat sign faces and invisible markers by day.
+
+**What changed** (`FreewayCloseup`, `scripts/world/freeway_closeup.gd`; `FREEWAY_CLOSEUP=0` is the A/B):
+- **The deck is concrete** (`shaders/freeway_deck.gdshader`). The kit's `top` vertices now carry
+  UV = (metres along the route, metres across from the centre line) and UV2 = (half width, route
+  + 1; 0 on ramps and the stack's connectors) through `FreewayKit.top_vertex()` (the kit, the
+  ramps and StackBuild). The shader rebuilds Freeway.lane_layout() from the half width (its
+  numbers are copies, checked) and draws: lane-wide slabs with transverse joints skewed 2:12 at
+  Caltrans's repeating 12-13-19-18 ft spacing, sealant and spalled edges; longitudinal tining,
+  a normal tilt faded once a groove is under ~2 pixels; per slab (hashes) a tone, replaced slabs
+  (paler, crisper), cracked ones (a corner break or a mid-slab crack), asphalt patches with a
+  tarred seam; asphalt overlay stretches (28 % of 520 m stretches a route) whose cracks mirror
+  the slab joints under them; two polished, rubber-darkened wheel paths a lane, the oil band
+  down each lane's middle, now and then two skid marks drifting across; the shoulders' grit,
+  litter, glass glitter and weeds at the barrier toe and through cracks, a milled rumble strip
+  past the outer edge line; rain darkens and glosses it and water stands in the ruts and the
+  gutters. Tangents come from screen derivatives (the deck has none). 4 samplers.
+- **The kit's shaders** take a `closeup` uniform (set from the switch): graffiti from the street
+  wear tag atlas - handstyles on the faces the traffic sees, throw-ups on the outer barrier faces
+  and running on down the fascia, some buffed -, recast barrier panels and chipped arrises, white
+  rust and grime on the galvanised steel; sign boards in metres (the board's UV against the
+  screen Jacobian) with 12 in extruded panel seams and the lip over each, clip bolts at every
+  stringer, streaks down from the top and grime along the foot, the microprismatic sheeting's
+  sparkle in the retro; raised markers drawn as housings with lens faces, a white one's back lens
+  red (it glints red to a wrong-way driver at night), on a black adhesive pad; dirt round the
+  Botts' dots; tyre grime smudges on the lines.
+- **Lamp halos**: every light standard's two heads get NightAtmos's halo in the chunk's batch
+  (`FreewayCloseup.lamp_halo()`, the batch's relief taken back off; collapses by day).
+- **Traffic by the hour**: TrafficManager's freeway fill leaves a free slot empty at
+  `FreewayCloseup.spawn_skip(hour)` (0.08 at the rush, 0.62 in the small hours; the old flat
+  0.35 when staged or switched off) - the same single roll a slot, so no rng drift. The trucks
+  already keep to the two slow lanes (BigVehicles' shares).
+
+No geometry, roll or LOD rule changed: the checks build a deck chunk's kit with the pass on and
+off and compare every vertex; the triangle budgets (tests/freeway_kit_checks.gd) are unchanged.
+
+**Checks**: `tests/freeway_closeup_checks.gd` (the lane copies, samplers, materials, the deck's
+UVs, no geometry moved, the fill by the hour).

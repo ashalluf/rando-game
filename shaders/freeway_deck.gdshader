@@ -41,8 +41,8 @@ uniform float ramp_lane = 3.6;
 
 // LINEAR albedos: weathered concrete (warm pale grey in the sun), a replaced slab, the asphalt
 // overlay, the shoulder's grit, rubber, oil.
-uniform vec3 concrete_color = vec3(0.235, 0.228, 0.212);
-uniform vec3 fresh_color = vec3(0.300, 0.293, 0.272);
+uniform vec3 concrete_color = vec3(0.158, 0.153, 0.141);
+uniform vec3 fresh_color = vec3(0.205, 0.199, 0.184);
 uniform vec3 overlay_color = vec3(0.070, 0.068, 0.066);
 uniform vec3 patch_color = vec3(0.050, 0.049, 0.048);
 uniform vec3 grit_color = vec3(0.170, 0.150, 0.118);
@@ -55,7 +55,7 @@ uniform vec3 sealant_color = vec3(0.020, 0.020, 0.021);
 // Slab joints: the four-slab cycle (metres), the skew (along per metre across), the sealant width.
 uniform vec4 joint_cycle = vec4(3.66, 3.96, 5.79, 5.49);
 uniform float joint_skew = 0.1667;
-uniform float joint_width = 0.012;
+uniform float joint_width = 0.007;
 // Tining: groove pitch and depth (as a normal tilt).
 uniform float tine_pitch = 0.019;
 uniform float tine_tilt = 0.55;
@@ -67,8 +67,8 @@ uniform float replaced_share = 0.07;
 uniform float cracked_share = 0.14;
 uniform float patched_share = 0.05;
 // Wear in the lanes (0..1 each).
-uniform float wheel_wear = 0.55;
-uniform float oil_amount = 0.6;
+uniform float wheel_wear = 0.8;
+uniform float oil_amount = 0.85;
 uniform float skid_share = 0.16;
 uniform float grit_amount = 0.85;
 uniform float weed_share = 0.32;
@@ -218,7 +218,8 @@ void fragment() {
 	vec3 slab_col = replaced ? fresh_color : concrete_color * (0.9 + 0.2 * roll_tone);
 	// Big soft blotches: curing, staining, sun.
 	float blot = fbm(vec2(s, x) * 0.11 + route * 3.7);
-	vec3 alb = slab_col * mix(1.0, ctl, 0.55) * (0.88 + 0.24 * blot);
+	float blot2 = fbm(vec2(s, x) * 0.9 + 17.0);
+	vec3 alb = slab_col * mix(1.0, ctl, 0.7) * (0.8 + 0.32 * blot) * (0.9 + 0.2 * blot2);
 	vec2 slope = cn.xy * 0.35;
 	float rough = 0.84;
 	float tine = replaced ? 1.0 : 0.75;  // how crisp the tining is
@@ -228,7 +229,7 @@ void fragment() {
 	float crack = 0.0;
 	if (!overlay) {
 		// Sealant in the sawn joints, a little spalling (chipped edges) along them.
-		float spall = smoothstep(0.62, 0.9, vnoise(vec2(s * 4.0, x * 4.0))) * 0.045;
+		float spall = smoothstep(0.75, 0.95, vnoise(vec2(s * 4.0, x * 4.0))) * 0.02;
 		joint = max(aa_line(d_tj, joint_width + spall, px), aa_line(d_lj, joint_width * 0.8 + spall * 0.6, px));
 		if (cracked) {
 			// One crack per cracked slab: a corner break or a crack across mid-slab, wandering.
@@ -272,7 +273,7 @@ void fragment() {
 		tine *= 1.0 - patch_m;
 		rough = mix(rough, 0.8, patch_m);
 	}
-	alb = mix(alb, sealant_color, max(joint, crack * 0.85));
+	alb = mix(alb, sealant_color, max(joint * 0.6, crack * 0.75));
 
 	// --- Lane wear ----------------------------------------------------------------------------
 	float wheels = 0.0;
@@ -281,7 +282,7 @@ void fragment() {
 		// Two wheel paths at +-0.85 m: polished smooth, darkened by rubber, a little rutted.
 		float wp = 1.0 - smoothstep(0.18, 0.42, abs(abs(lc) - 0.85) + (vnoise(vec2(s * 0.2, lane_id)) - 0.5) * 0.1);
 		wheels = wp * wheel_wear * (0.75 + 0.25 * vnoise(vec2(s * 0.05, lane_id * 3.0)));
-		alb = mix(alb, alb * (overlay ? 0.78 : 0.66) + rubber_color * 0.15, wheels);
+		alb = mix(alb, alb * (overlay ? 0.72 : 0.58) + rubber_color * 0.15, wheels);
 		rough = mix(rough, overlay ? 0.6 : 0.5, wheels);
 		tine *= 1.0 - wheels * 0.8;
 		// The oil-drip band down the lane's middle: blotchy, darkest where traffic queues.
@@ -333,10 +334,10 @@ void fragment() {
 		vec2 lc2 = vec2(s, x) / 0.12;
 		vec2 li = floor(lc2);
 		float lr = hash12(li + route);
-		if (lr > 0.985 && px < 0.06) {
+		if (lr > 0.992 && px < 0.06) {
 			vec2 lf = fract(lc2) - 0.5;
 			float sp = 1.0 - smoothstep(0.2, 0.35, length(lf));
-			vec3 lcol = lr > 0.996 ? vec3(0.7, 0.68, 0.6) : (lr > 0.991 ? vec3(0.02, 0.04, 0.08) : vec3(0.3, 0.05, 0.03));
+			vec3 lcol = lr > 0.997 ? vec3(0.55, 0.53, 0.47) : (lr > 0.9945 ? vec3(0.03, 0.03, 0.035) : vec3(0.22, 0.06, 0.03));
 			alb = mix(alb, lcol, sp * (1.0 - smoothstep(0.03, 0.06, px)));
 		}
 		// Glass glitter: a pinprick sun glint now and then.
@@ -360,7 +361,7 @@ void fragment() {
 			float inside = (1.0 - smoothstep(rumble.z * 0.5 - px, rumble.z * 0.5, abs(ra - rumble.z * 0.5)))
 				* (1.0 - smoothstep(rumble.y * 0.5 - px, rumble.y * 0.5 + px, abs(rs)));
 			float fade_r = 1.0 - smoothstep(0.03, 0.12, px_s);
-			alb *= 1.0 - inside * 0.35 * fade_r - inside * 0.12 * (1.0 - fade_r);
+			alb *= 1.0 - inside * 0.16 * fade_r - inside * 0.06 * (1.0 - fade_r);
 			slope.y += sign(rs) * inside * 0.7 * fade_r;
 			grit = max(grit, inside * 0.3);
 		}
