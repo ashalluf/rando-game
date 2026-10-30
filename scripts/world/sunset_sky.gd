@@ -20,10 +20,13 @@ const RAMP_OUT := Vector2(-0.10, -0.23)
 ## The crepuscular rays while the sunset is on (sky.gdshader `sunset_rays`).
 const RAYS := 0.45
 
-## sun_through()'s optical depths a unit air mass (Rayleigh, aerosol): the shader's numbers, which
-## tests/sunset_clouds_checks.gd reads back out of sky.gdshader.
-const TAU_RAYLEIGH := Vector3(0.032, 0.074, 0.180)
-const TAU_AEROSOL := Vector3(0.085, 0.115, 0.150)
+## sun_through()'s palette (sine of the sun's elevation at the point -> linear colour) and the
+## exaggerated earth radius its shadow line climbs on: sky.gdshader's numbers, which
+## tests/sunset_clouds_checks.gd reads back out of the shader.
+const PALETTE_E: Array[float] = [0.30, 0.15, 0.06, 0.0, -0.05, -0.10, -0.16]
+const PALETTE_C: Array[Vector3] = [Vector3(1.0, 0.66, 0.36), Vector3(1.0, 0.48, 0.18), Vector3(1.0, 0.34, 0.10),
+	Vector3(1.0, 0.27, 0.13), Vector3(1.0, 0.26, 0.20), Vector3(0.95, 0.18, 0.38), Vector3(0.78, 0.16, 0.52)]
+const SHADOW_R := 200.0
 const EARTH_R := 6371.0
 
 static var enabled: bool = OS.get_environment("SUNSET_CLOUDS") != "0"
@@ -48,26 +51,15 @@ static func apply(sky: ShaderMaterial, elevation: float, weather_darken: float, 
 
 
 ## sky.gdshader's sun_through() in GDScript: the low sun as it reaches a point `h` km up at local
-## elevation `el` (sine). Returns Color(r, g, b normalised to red, a = brightness, 0 in the
-## earth's shadow). Change one, change both.
-static func sun_through(el: float, h: float, aerosol: float = 1.0) -> Color:
+## elevation `el` (sine). Returns Color(r, g, b linear, a = brightness, 0 in the earth's shadow).
+## Change one, change both.
+static func sun_through(el: float, h: float) -> Color:
 	h = maxf(h, 0.0)
-	var er := exp(-h / 8.0)
-	var ea := exp(-h / 1.4)
-	var ht := h if el >= 0.0 else h - el * el * EARTH_R * 0.5
-	var mr: float
-	var ma: float
-	if el >= 0.0:
-		mr = er / (el + 0.03)
-		ma = ea / (el + 0.05)
-	else:
-		var htc := maxf(ht, 0.0)
-		mr = (2.0 * exp(-htc / 8.0) - er) / 0.03
-		ma = (2.0 * exp(-htc / 1.4) - ea) / 0.05
-	var tau := TAU_RAYLEIGH * mr + TAU_AEROSOL * aerosol * ma
-	var tr := Vector3(exp(-tau.x), exp(-tau.y), exp(-tau.z))
-	var m := maxf(tr.x, 1e-4)
-	var elr := el + 0.01
-	var htr := h if elr >= 0.0 else h - elr * elr * EARTH_R * 0.5
-	var lit := smoothstep(-0.5, 0.4, htr)
-	return Color(tr.x / m, tr.y / m, tr.z / m, lit * lerpf(0.45, 1.0, smoothstep(0.0, 0.35, m)))
+	var c: Vector3 = PALETTE_C[0]
+	for i in range(1, PALETTE_E.size()):
+		var k := clampf((PALETTE_E[i - 1] - el) / (PALETTE_E[i - 1] - PALETTE_E[i]), 0.0, 1.0)
+		c = c.lerp(PALETTE_C[i], k)
+	var elr := minf(el + 0.01, 0.0)
+	var htr := h - elr * elr * SHADOW_R * 0.5
+	var lit := smoothstep(-0.4, 0.5, htr)
+	return Color(c.x, c.y, c.z, lit * lerpf(0.7, 1.0, smoothstep(-0.12, 0.1, el)))

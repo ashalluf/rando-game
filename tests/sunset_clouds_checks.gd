@@ -42,32 +42,42 @@ func _source() -> void:
 	# Every use of the weight sits behind the gate (or in a mix() inside one): count the gates.
 	var gates := src.count("if (sunset > 0.0")
 	_t._check(gates >= 6, "sunset: every sunset block is gated on sunset > 0 (%d gates)" % gates)
-	var tr := SunsetSky.TAU_RAYLEIGH
-	var ta := SunsetSky.TAU_AEROSOL
-	var line := "vec3(%.3f, %.3f, %.3f) * mr + vec3(%.3f, %.3f, %.3f) * sunset_aerosol * ma" % [tr.x, tr.y, tr.z, ta.x, ta.y, ta.z]
-	_t._check(src.contains(line), "sunset: sun_through()'s optical depths match SunsetSky's copy")
-	_t._check(src.contains("float ht = el >= 0.0 ? h : h - el * el * EARTH_R * 0.5;")
-		and src.contains("float lit = smoothstep(-0.5, 0.4, htr);") and src.contains("float elr = el + 0.01;"), "sunset: the shader's earth shadow is SunsetSky's")
+	var es: PackedStringArray = []
+	for e in SunsetSky.PALETTE_E:
+		es.append("%.2f" % e)
+	_t._check(src.contains("SUNSET_PAL_E[7] = float[](%s);" % ", ".join(es)), "sunset: sun_through()'s palette stops match SunsetSky's copy")
+	var cs: PackedStringArray = []
+	for c in SunsetSky.PALETTE_C:
+		cs.append("vec3(%.2f, %.2f, %.2f)" % [c.x, c.y, c.z])
+	var flat := src.replace("\n\t", " ").replace("\n", " ")
+	_t._check(flat.contains(", ".join(cs)), "sunset: sun_through()'s palette colours match SunsetSky's copy")
+	_t._check(src.contains("const float SUNSET_SHADOW_R = %.1f;" % SunsetSky.SHADOW_R)
+		and src.contains("float lit = smoothstep(-0.4, 0.5, htr);") and src.contains("float elr = min(el + 0.01, 0.0);"),
+		"sunset: the shader's earth shadow is SunsetSky's")
 	_t._check(src.contains("vec3 sunset_out(vec3 lin)") and src.contains("RENDERER_COMPATIBILITY"),
 		"sunset: computed colours are handed to Compatibility in display numbers")
 
 
 func _light() -> void:
-	var gold := SunsetSky.sun_through(0.17, 2.0)
-	_t._check(gold.g > 0.62 and gold.b > 0.25 and gold.a > 0.85,
-		"sunset: ten degrees up the sun lights a cloud gold (%s)" % str(gold))
-	var red := SunsetSky.sun_through(0.0, 1.5)
-	_t._check(red.g < 0.45 and red.b < 0.1 and red.a > 0.3, "sunset: on the horizon it is red-orange (%s)" % str(red))
-	_t._check(red.g < gold.g and red.a < gold.a, "sunset: redder and dimmer as it sinks")
-	var base := SunsetSky.sun_through(-0.04, 1.5)
-	var cirrus := SunsetSky.sun_through(-0.04, 9.0)
-	_t._check(base.a < 0.02, "sunset: the earth's shadow has the cumulus base at 2.3 degrees under (%.3f)" % base.a)
-	_t._check(cirrus.a > 0.2, "sunset: the cirrus 9 km up still glow then (%.3f)" % cirrus.a)
-	var under := SunsetSky.sun_through(-0.015, 1.5)
-	_t._check(under.a > 0.05, "sunset: a sun just under the street's horizon still lights the deck (%.3f)" % under.a)
+	var gold := SunsetSky.sun_through(0.25, 2.0)
+	_t._check(gold.g > 0.5 and gold.b > 0.2 and gold.a > 0.95,
+		"sunset: fifteen degrees up the sun lights a cloud gold-orange (%s)" % str(gold))
+	var orange := SunsetSky.sun_through(0.065, 2.0)
+	_t._check(orange.g < 0.4 and orange.b < 0.15 and orange.a > 0.9,
+		"sunset: four degrees up it is a deep orange, never lemon (%s)" % str(orange))
+	var pink := SunsetSky.sun_through(-0.07, 2.0)
+	_t._check(pink.b > pink.g and pink.r > 0.9 and pink.a > 0.5,
+		"sunset: under the horizon the bases 2 km up are lit pink (%s)" % str(pink))
+	var magenta := SunsetSky.sun_through(-0.13, 2.0)
+	_t._check(magenta.b > 0.4 and magenta.a > 0.1 and magenta.a < pink.a,
+		"sunset: then magenta, dimming as the shadow climbs (%s)" % str(magenta))
+	var low := SunsetSky.sun_through(-0.13, 0.3)
+	var cirrus := SunsetSky.sun_through(-0.13, 9.0)
+	_t._check(low.a < 0.02, "sunset: the earth's shadow has the fractus 300 m up by then (%.3f)" % low.a)
+	_t._check(cirrus.a > 0.5, "sunset: the cirrus 9 km up still glow (%.3f)" % cirrus.a)
 	# 20 km toward the sun the local horizon tips 3 mrad toward it.
-	var near := SunsetSky.sun_through(-0.038 + 20.0 / SunsetSky.EARTH_R, 2.0)
-	var far := SunsetSky.sun_through(-0.038 - 20.0 / SunsetSky.EARTH_R, 2.0)
+	var near := SunsetSky.sun_through(-0.14 + 20.0 / SunsetSky.EARTH_R, 2.0)
+	var far := SunsetSky.sun_through(-0.14 - 20.0 / SunsetSky.EARTH_R, 2.0)
 	_t._check(near.a > far.a, "sunset: a cloud toward the sun keeps the light longer than one away from it")
 
 
