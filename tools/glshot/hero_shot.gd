@@ -64,6 +64,31 @@ func _initialize() -> void:
 		sun.light_color = Color(1.0, 0.96, 0.9)
 		sun.shadow_enabled = true
 		sun.directional_shadow_max_distance = 12.0
+		# LIGHT=golden: a low warm sun and an orange sky; LIGHT=night: no sun, a dark sky and a
+		# sodium street lamp 4 m up and 2 m in front of him (the hero close-up stills).
+		match OS.get_environment("LIGHT"):
+			"golden":
+				sun.rotation_degrees = Vector3(-9.0, float(OS.get_environment("SUN_YAW")) if OS.get_environment("SUN_YAW") != "" else 35.0, 0.0)
+				sun.light_color = Color(1.0, 0.62, 0.36)
+				sun.light_energy = 1.6
+				sky_mat.sky_top_color = Color(0.36, 0.40, 0.55)
+				sky_mat.sky_horizon_color = Color(0.95, 0.62, 0.40)
+				e.ambient_light_energy = 0.35
+			"night":
+				sun.visible = false
+				sky_mat.sky_top_color = Color(0.01, 0.012, 0.025)
+				sky_mat.sky_horizon_color = Color(0.04, 0.035, 0.04)
+				sky_mat.ground_horizon_color = Color(0.03, 0.025, 0.02)
+				sky_mat.ground_bottom_color = Color(0.01, 0.01, 0.01)
+				e.ambient_light_energy = 0.25
+				e.tonemap_exposure = 2.2
+				var lamp := OmniLight3D.new()
+				lamp.light_color = Color(1.0, 0.72, 0.42)
+				lamp.light_energy = 6.0
+				lamp.omni_range = 14.0
+				lamp.shadow_enabled = true
+				lamp.position = Vector3(1.2, 4.2, -2.0)
+				stage.add_child(lamp)
 	env.environment = e
 	stage.add_child(env)
 	stage.add_child(sun)
@@ -119,13 +144,21 @@ func _initialize() -> void:
 	# CAM_Y as an offset still apply), CAM_AT=head at the head: the stance moves both about.
 	var aim_at := OS.get_environment("CAM_AT")
 	var at := [Vector3.INF]
+	# CAM_AT=face: the camera on the head's own facing (YAW orbits round it), aimed between the
+	# eyes - for the living face (HeroFace), whatever the clip does with the head.
+	var face := [Vector3.INF, Vector3.FORWARD, Vector3.UP]
 	var sk0: Skeleton3D = player.find_child("Skeleton3D", true, false)
 	if aim_at != "" and sk0:
 		sk0.skeleton_updated.connect(func() -> void:
 			var names: Array = ["RightHand", "LeftHand"] if aim_at == "hands" else ["Head", "Head"]
 			var a := sk0.to_global(sk0.get_bone_global_pose(sk0.find_bone(names[0])).origin)
 			var b := sk0.to_global(sk0.get_bone_global_pose(sk0.find_bone(names[1])).origin)
-			at[0] = (a + b) * 0.5)
+			at[0] = (a + b) * 0.5
+			if aim_at == "face":
+				var hx := sk0.global_transform * sk0.get_bone_global_pose(sk0.find_bone("Head"))
+				face[2] = hx.basis.y.normalized()
+				face[1] = hx.basis.z.normalized()
+				face[0] = hx.origin + face[2] * 0.095 + face[1] * 0.1)
 	var yaw := deg_to_rad(float(OS.get_environment("YAW")) if OS.get_environment("YAW") != "" else 90.0)
 	var walk := OS.get_environment("WALK") == "1"
 	# CAM_DIST / CAM_Y close in on the hands (default: the whole figure).
@@ -135,6 +168,9 @@ func _initialize() -> void:
 		if at[0] != Vector3.INF:
 			centre = at[0] + Vector3(0.0, float(OS.get_environment("CAM_Y")) if OS.get_environment("CAM_Y") != "" else 0.0, 0.0)
 		cam.global_position = centre + Basis(Vector3.UP, -yaw) * Vector3(0.0, 0.15 * dist / 2.6, -dist)
+		if face[0] != Vector3.INF:
+			centre = face[0]
+			cam.global_position = centre + (Basis(face[2], yaw) * face[1]) * dist
 		cam.look_at(centre, Vector3.UP)
 		cam.current = true
 	for i in 40:

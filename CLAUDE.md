@@ -5543,6 +5543,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/glshot/hero_moves_shot.gd` (several stills a load: a clip frozen or a staged move -
   fly, fall, hit_*, draw, land_<speed>, roll, idle_*; `STEP=1` for the foot IK); checks
   `tests/hero_moves_checks.gd`.
+- The hero close up (wave 3, docs/HANDOFF.md "The hero close up"): no face bones, so `HeroFace`
+  (`scripts/player/hero_face.gd`, owned by HeroLook, ticked on skeleton_updated) drives
+  `shaders/hero_eye.gdshader` / `hero_lash.gdshader`: saccades, blinks (the upper lid PAINTED onto
+  the eyeball in the head's frame, the upper lashes swung down about the eye's centre), the socket's
+  shade. Centres and frames go to the shaders in WORLD space: the skinned VERTEX is in the
+  skeleton's centimetres (the bind poses carry the rig's 100x), never the mesh's metres. Clip rates
+  are stride-matched (`HeroStride` measures each clip's planted toe; `Avatar.HERO_*_SPEED`,
+  `hero_gait()`). Rain on the skin: wet_surface.gdshaderinc's `ws_wet()` (`HeroLook.setup_wet()`; wet-world
+  does the velour and hair). `HERO_CLOSEUP=0` the A/B, `HERO_FACE=0`, stills `HERO_FACE_BLINK`,
+  `HERO_FACE_GAZE`, `HERO_WET`, `CAM_AT=face` / `LIGHT=golden|night` on hero_shot.gd; checks
+  `tests/hero_closeup_checks.gd`.
 - Crowd foot placement (G5, 2026-10-29, docs/HANDOFF.md "Crowd foot placement"): `CrowdFeet`
   (`scripts/npc/crowd_feet.gd`, one line at the end of `Pedestrian._physics_process()`, so every
   subclass that runs it gets it) plants a person's feet on what is under them within
