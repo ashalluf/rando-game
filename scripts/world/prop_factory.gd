@@ -177,6 +177,7 @@ static func terrain_material() -> ShaderMaterial:
 	mat.set_shader_parameter("rock_albedo", texture("hill_outcrop", "Color"))
 	mat.set_shader_parameter("rock_normal", texture("hill_outcrop", "NormalGL"))
 	HillGround3.apply(mat)
+	AerialReview.apply_terrain(mat)
 	_cache["terrain_mat"] = mat
 	return mat
 
@@ -2312,6 +2313,7 @@ static func ocean_material() -> ShaderMaterial:
 		return _cache["ocean_mat"]
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/ocean.gdshader")
+	AerialReview.apply_ocean(mat)
 	_cache["ocean_mat"] = mat
 	return mat
 

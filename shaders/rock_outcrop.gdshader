@@ -68,6 +68,10 @@ uniform float plane_step = 43.61;
 uniform float edge_start = 5040.0;
 uniform float edge_end = 6860.0;
 global uniform vec4 sky_tint;
+// The horizon plane's layered distance haze (macro_relief.gdshaderinc's range_haze_*), as the far
+// canopy takes it: without it every far tor was unhazed against hazed slopes, a field of brown
+// flecks over each range from the air (aerial review). AerialReview turns it off (the A/B).
+uniform bool aerial_haze = true;
 
 varying vec3 world_pos;
 varying vec3 world_nrm;
@@ -75,6 +79,7 @@ varying float foot;
 varying float tone;
 varying float rim;
 varying float cam_dist;
+varying float rhaze;
 
 
 float corner_height(vec2 xz, vec3 cam) {
@@ -141,6 +146,7 @@ void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	world_nrm = normalize(mat3(MODEL_MATRIX) * NORMAL);
 	cam_dist = length(world_pos - cam);
+	rhaze = aerial_haze ? range_haze_amount(cam_dist, world_pos.y) : 0.0;
 	rim = smoothstep(edge_start, edge_end, length(origin.xz - cam.xz));
 }
 
@@ -199,6 +205,8 @@ void fragment() {
 	}
 	ALBEDO = cs_out(col) * (1.0 - rim);
 	EMISSION = cs_out(cs_srgb_to_linear(sky_tint.rgb)) * rim;
+	ALBEDO *= 1.0 - rhaze;
+	EMISSION += cs_out(range_haze_color(cs_srgb_to_linear(sky_tint.rgb))) * (rhaze * (1.0 - rim));
 	ROUGHNESS = mix(0.82, 1.0, arm.g) * mix(1.0, 0.92, varnish);
 	SPECULAR = 0.35;
 }

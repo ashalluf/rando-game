@@ -266,6 +266,18 @@ uniform float far_specular = 0.55;
 // unbroken; approximating it leaves the rectangle there in texture instead of in colour.
 uniform float far_swell = 46.0;
 uniform float far_pixel_angle = 0.0016;
+// Aerial review (AerialReview): the painted sea worked out in LINEAR light and handed to the
+// renderer through cs_out(), as the far plane does - in the renderer's own space it was a
+// different colour on Compatibility (the web, every still) - and laid under the plane's own
+// layered distance haze (macro_relief.gdshaderinc's range_haze_*: copies, checked by
+// tests/aerial_review_checks.gd), so the two seas meet with no edge. Off: as before.
+uniform bool aerial_sea = true;
+uniform float range_haze : hint_range(0.0, 1.0) = 0.62;
+uniform float range_haze_from = 1100.0;
+uniform float range_haze_reach = 6500.0;
+uniform float range_haze_top = 1250.0;
+uniform float range_haze_keep : hint_range(0.0, 1.0) = 0.42;
+uniform vec3 range_haze_tone = vec3(0.66, 0.78, 0.95);
 uniform float cloud_shadow_strength : hint_range(0.0, 1.0) = 0.55;
 uniform float cloud_scale = 1500.0;
 uniform float cloud_cover : hint_range(0.0, 1.0) = 0.52;
@@ -1111,10 +1123,16 @@ void fragment() {
 			fb = mix(fb, bake_surf_color, (1.0 - smoothstep(0.0, bake_surf_width, offshore)) * 0.85);
 		}
 		float ffres = pow(1.0 - clamp(-view_dir.y, 0.0, 1.0), 5.0);
-		fb = mix(fb, haze, clamp(0.10 + 0.78 * ffres, 0.0, 0.92));
+		vec3 fhaze = aerial_sea
+			? mix(cs_srgb_to_linear(sky_tint.rgb), storm_horizon, weather_dark * (1.0 - night_factor * 0.6))
+			: haze;
+		fb = mix(fb, fhaze, clamp(0.10 + 0.78 * ffres, 0.0, 0.92));
 		fb += vec3(1.0, 0.94, 0.82)
 			* (pow(rdl, 70.0) * far_glitter + pow(rdl, 900.0) * fchop * far_glitter * 6.0)
 			* (1.0 - night_factor) * cloud_shade(w, sun_n);
+		if (aerial_sea) {
+			fb = cs_out(fb);
+		}
 		// The wakes reach out here too: from the hills a ship's wake is most of what shows of it.
 		fb = mix(fb, foam_color * sky_light * mix(1.0, 0.3, night_factor), wake * 0.8);
 		// The far plane shades its sea with THAT normal, so whatever specular the renderer adds
@@ -1135,5 +1153,13 @@ void fragment() {
 	// letting the renderer add its own on top of that counted it twice and turned the sea from
 	// the beach brighter than the sky over it. The far end has to match the plane's 0.55.
 	SPECULAR = mix(0.12, far_specular, painted);
+	// The far plane's layered distance haze (macro_ground.gdshader), the same amount at the same
+	// distance and height: nothing under range_haze_from, so the near sea is untouched.
+	if (aerial_sea) {
+		float rha = 1.0 - exp(-max(dist - range_haze_from, 0.0) / range_haze_reach);
+		float rh = range_haze * rha * mix(1.0, range_haze_keep, smoothstep(0.0, range_haze_top, world_pos.y));
+		ALBEDO *= 1.0 - rh;
+		EMISSION = EMISSION * (1.0 - rh) + cs_out(cs_srgb_to_linear(sky_tint.rgb) * range_haze_tone) * rh;
+	}
 	NORMAL = normalize((VIEW_MATRIX * vec4(shade_n, 0.0)).xyz);
 }
