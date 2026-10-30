@@ -14971,7 +14971,7 @@ hats), as the eight before them did.
 ### Stills (branch `shots/garments-2`)
 
 `new6_front` / `_q3` / `_side` / `_back` (Godot opengl3 lineup), `cycles_u..z` (Blender Cycles,
-front / side / back), `cycles_u_geometry` (the puffer's channels as geometry).
+front / side / back), `cycles_puffers_geometry` and `cycles_cargo_dress_geometry` (FLAT=1).
 
 ### Not done
 
@@ -14980,3 +14980,9 @@ front / side / back), `cycles_u_geometry` (the puffer's channels as geometry).
 - The work jacket's sleeves are a little full; the dresses wear the library flat shoes, which come
   with white socks; leggings on z show a sock at the ankle in profile.
 - Nothing seen on Forward+ (the Mac): the puffers' nylon and the dress prints want a look at 2-4 m.
+- In the geometry-only preview v's dress shows small dark notches at the front of the waist seam
+  (the skirt's tucked lip between the bodice hem and the skirt); it does not show in the textured
+  lineup. u's channels are shallower than z's (the shell's lower budget); the paint carries them.
+- The gate after merging origin/main (SHARDS=3): 2,539 of 2,540. The one failure, "a new shot
+  sends the onlookers running (1 stayed)" (tests/onlookers_checks.gd, merged from wt/onlookers),
+  passed both times alone (`SMOKE_PARTS=onlookers_checks`); it is not in this branch's code.
