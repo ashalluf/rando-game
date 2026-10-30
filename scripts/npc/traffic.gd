@@ -1316,6 +1316,10 @@ func _drive_freeway(delta: float) -> void:
 			freeway_cars.erase(car)
 			continue
 		var tt: Dictionary = car.traffic
+		if not tt.has("fw"):
+			# Taken over by another driver (CoastTraffic's pool, ...): no longer a freeway car.
+			freeway_cars.erase(car)
+			continue
 		if tt.has("ramp"):
 			on_ramps.append(car)
 			continue
