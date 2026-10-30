@@ -55,7 +55,10 @@ func _initialize() -> void:
 				for it: Dictionary in items:
 					var k := String(it.kind)
 					var cooks: bool = k.begins_with("grill") and float(it.seed) < 0.55
-					if (k == "lights" or k == "trampoline" or k == "loungers" or cooks) and int(totals.get(k, 0)) < 3:
+					if k == "loungers" and not (it.get("sun", []) as Array).is_empty():
+						totals["sunbathers"] = int(totals.get("sunbathers", 0)) + (it.sun as Array).size()
+						k = "loungers_sun"
+					if (k == "lights" or k == "trampoline" or k == "loungers_sun" or cooks) and int(totals.get(k, 0)) < 3:
 						var f: Dictionary = lp.frame
 						var at: Vector2 = (it.glow as Rect2).get_center() if k == "lights" else it.at
 						var w := YardFill._fp(f, at.x, at.y)

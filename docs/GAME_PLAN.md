@@ -1490,6 +1490,8 @@ already mapped so milestone 2 is script-only.
   toddler's slide and wagon (no children: the crowd has no child rigs). Code-built (`BackyardKit`),
   one batch per kind a FULL chunk; LOD chunks keep the umbrellas, trampolines and the lights' glow
   so the yards read from the air. docs/HANDOFF.md "Backyard life"; CLAUDE.md "Backyard life".
+  Wave 3 (2026-10-30): people on the pool and lawn loungers by day (baked sunbathers in swimwear,
+  as many as the beach's busyness of the hour lets out; shot or near gunfire, they get up and run).
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north

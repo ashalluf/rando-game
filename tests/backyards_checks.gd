@@ -172,9 +172,22 @@ func _full(city: Node3D) -> void:
 	off.get_parent().remove_child(off)
 	off.free()
 	Backyards.enabled = true
+	var hour_was := BeachLife.force_hour
+	BeachLife.force_hour = 14.0
 	var on: CityChunk = city._new_chunk(BLOCK, CityChunk.Level.FULL)
 	on.build()
 	Backyards.enabled = was
+	_sunbathers(on)
+	BeachLife.force_hour = 23.0
+	Backyards.enabled = true
+	var late: CityChunk = city._new_chunk(BLOCK, CityChunk.Level.FULL)
+	late.build()
+	Backyards.enabled = was
+	BeachLife.force_hour = hour_was
+	var late_figs := late.find_children("YardFigure_*", "", false, false).size()
+	_check(late_figs == 0, "backyards: nobody on the loungers at 23:00 (%d)" % late_figs)
+	late.get_parent().remove_child(late)
+	late.free()
 	var names := _children(on)
 	var kinds := 0
 	var moved: Array = []
@@ -212,6 +225,44 @@ func _full(city: Node3D) -> void:
 	_check(kept and moved.is_empty(), "backyards: with them off the chunk's other props keep their ids and its batches their counts %s" % str(moved.slice(0, 6)))
 	on.get_parent().remove_child(on)
 	on.free()
+
+
+## The sunbathers of the FULL chunk built at 14:00: one body per planned seat the beach's busyness
+## lets out, standing on the yard; woken, a YardGoer at the same height.
+func _sunbathers(on: CityChunk) -> void:
+	_check(Backyards.SUN_MODELS == BeachGoer.BEACH_MODELS and Backyards.POSE_CHAIR == RoughSleeper.Pose.CHAIR
+		and BeachGoer.BEACH_POSES.has("lounge"), "backyards: the sunbathers' copies of the beach rigs and the chair pose agree")
+	var busy := BeachLife.density(14.0) * BeachLife.weather_factor(on)
+	var planned := 0
+	var expect := 0
+	var bpd := _block_plans(on.plan, BLOCK.x, BLOCK.y)
+	var d: int = bpd.district
+	var bp: Dictionary = bpd.bp
+	for lp: Dictionary in bp.lots:
+		for it: Dictionary in Backyards.plan_lot(on.plan, lp, d):
+			for p: Array in it.get("sun", []):
+				planned += 1
+				if float(p[2]) < busy:
+					expect += 1
+	var figs := on.find_children("YardFigure_*", "", false, false)
+	var counts: Dictionary = on.get_meta("backyards", {})
+	_check(planned > 0 and figs.size() == expect and int(counts.get("sunbather", 0)) == expect,
+		"backyards: %d of %d planned sunbathers out at 14:00 (busy %.2f), a body each (%d)" % [expect, planned, busy, figs.size()])
+	var off_ground := 0
+	for f: Node3D in figs:
+		var gy := on._gy(f.position.x, f.position.z)
+		var top := f.position.y - gy - CityChunk.SIDEWALK_TOP
+		# The lounger stands on the relief at its own middle; a seat is 0.72 m off it on a slope.
+		if top < -0.1 or top > 0.25:
+			off_ground += 1
+			print("  sunbather off the yard at %.1f,%.1f: %.3f over the pavement top" % [f.position.x, f.position.z, top])
+	_check(off_ground == 0, "backyards: every sunbather's lounger stands on the yard (%d off)" % off_ground)
+	if not figs.is_empty():
+		var f: Node3D = figs[0]
+		var y := f.position.y
+		var ped: Node3D = f.call("wake")
+		var ok := ped != null and ped is YardGoer and absf(ped.position.y - y) < 0.05
+		_check(ok, "backyards: a woken sunbather is a YardGoer on the yard, not the sand (%s)" % ("%.2f vs %.2f" % [ped.position.y, y] if ped else "none"))
 
 
 func _lod(city: Node3D) -> void:

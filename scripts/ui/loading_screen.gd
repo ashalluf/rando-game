@@ -119,6 +119,7 @@ func run(city: Node3D) -> void:
 	var t_beach := Time.get_ticks_usec()
 	LoadClock.start("screen: beach figures")
 	var beach := BeachFigure.kinds()
+	beach.append_array(Backyards.figure_kinds())
 	for i in beach.size():
 		if _due():
 			_step("Preparing the beach", 0.3 + 0.25 * float(i) / float(maxi(beach.size(), 1)))

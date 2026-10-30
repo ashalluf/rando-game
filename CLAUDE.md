@@ -3319,8 +3319,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   string lights one merged mesh a chunk (`BackyardLights`, bulbs grown to a pixel from the air
   via CUSTOM0); grill smoke `backyard_smoke.gdshader` and embers follow `city_hour`; the trampoline
   net and dog-run chain-link `backyard_net.gdshader`. Tables, grills, trampolines and doghouses are
-  breakable props. `BACKYARDS=0` is the A/B; probe `tools/backyards/probe.gd`; checks
-  `tests/backyards_checks.gd`.
+  breakable props. Sunbathers on the loungers by day (wave 3): baked `YardFigure`s (BeachFigure's
+  way, BeachGoer's "lounge" pose, a swimsuit; out by `BeachLife.density()` of the build hour),
+  merged per chunk; woken they are `YardGoer`s on the yard's level. backyards.gd loads the beach
+  classes by path (naming them compiles the crowd into every tool that loads YardFill).
+  `BACKYARDS=0` is the A/B; probe `tools/backyards/probe.gd`, fit `tools/backyards/lounger_shot.tscn`;
+  checks `tests/backyards_checks.gd`.
 - Lawns: `PropFactory.lawn()` + `shaders/lawn.gdshader`, not a plain tiled texture - a 5 m tile
   mips down to one flat green rectangle from thirty metres up, and the grass-blade multimesh only
   reaches a few dozen metres. Dry/watered patches, mower stripes angled per lawn, worn dirt, and

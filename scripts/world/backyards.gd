@@ -35,6 +35,19 @@ const CITRUS_ODDS := [0.5, 0.38]
 const CITRUS_TWO := 0.3
 const DOG_RUN_ODDS := 0.07
 const TOYS_ODDS := [0.12, 0.08]
+## Someone on a pool lounger (each seat; a second one less often), while the beach is busy too
+## (BeachLife.density() of the hour the chunk is built at, times its weather): the sunbathers are
+## baked figures (YardFigure, BeachFigure's way) in a swimsuit, on the beach rigs.
+const SUN_ODDS := 0.62
+const SUN_SECOND := 0.38
+const SUN_DRAW := 160.0
+const SUN_SHADOW := 45.0
+## BeachGoer.BEACH_MODELS (the rigs that have swimwear; checked) and RoughSleeper.Pose.CHAIR, the
+## base pose the "lounge" pose is solved over.
+const SUN_MODELS := [0, 3, 4, 7, 8, 10, 11]
+const POSE_CHAIR := 3
+## Where the hip joint sits along a lounger (its local z; the back's hinge is at 0.40).
+const SEAT_Z := 0.3
 
 ## Kept clear of the yard's fences and the house (m).
 const EDGE := 0.4
@@ -75,6 +88,29 @@ const SIZE := {"dining_metal": Vector2(2.5, 2.5), "dining_teak": Vector2(3.3, 2.
 
 static func _h01(parts: Array) -> float:
 	return float(absi(hash(parts)) % 100003) / 100003.0
+
+
+## Who lies on a pool lounger pair: [[seat (-1 / +1), crowd rig (BeachGoer.BEACH_MODELS), the
+## share of the beach's busyness from which they are out (0..1)]]. Pure.
+static func _sunbathers(s: int, key: int) -> Array:
+	var out: Array = []
+	if _h01([s, key, "by_sun"]) >= SUN_ODDS:
+		return out
+	var first := -1 if _h01([s, key, "by_sseat"]) < 0.5 else 1
+	var seats := [first]
+	if _h01([s, key, "by_sun2"]) < SUN_SECOND:
+		seats.append(-first)
+	for i in seats.size():
+		var models: Array = SUN_MODELS
+		out.append([seats[i], int(models[absi(hash([s, key, "by_smodel", i])) % models.size()]), _h01([s, key, "by_sbusy", i]) * 0.85])
+	return out
+
+
+## Seat `seat` (-1 / +1) of BackyardKit's lounger pair, in the pair's space: where a reclining
+## figure (BeachGoer "lounge"; a baked figure faces -Z, the lounger's feet) stands its origin.
+static func seat_xform(seat: int) -> Transform3D:
+	var t := Transform3D(Basis(Vector3.UP, float(seat) * 0.04), Vector3(float(seat) * 0.72, 0.0, 0.0))
+	return t * Transform3D(Basis(), Vector3(0.0, 0.0, SEAT_Z))
 
 
 # --- The plan (pure) ---------------------------------------------------------------------------------
@@ -193,7 +229,7 @@ static func plan_lot(plan: CityPlan, lp: Dictionary, district: int) -> Array:
 				var face := Vector2(0.0, signf(to.y)) if absf(to.y) >= absf(to.x) else Vector2(signf(to.x), 0.0)
 				out.append({"kind": "loungers", "at": at, "yaw": 0.0, "face": face, "size": sz,
 					"paint": FRAME_PAINTS[absi(hash([s, key, "by_lframe"])) % FRAME_PAINTS.size()],
-					"fabric": absi(hash([s, key, "by_lfabric"])) % 8})
+					"fabric": absi(hash([s, key, "by_lfabric"])) % 8, "sun": _sunbathers(s, key)})
 		if _h01([s, key, "by_floats"]) < FLOAT_ODDS:
 			var n := 1 + int(_h01([s, key, "by_nfloat"]) * 2.99)
 			var kinds := ["float_ring", "float_mat", "float_ball"]
@@ -212,7 +248,8 @@ static func plan_lot(plan: CityPlan, lp: Dictionary, district: int) -> Array:
 		if at.x >= 0.0:
 			placed.append(Rect2(at - sz * 0.5, sz))
 			out.append({"kind": "loungers", "at": at, "yaw": 0.0, "size": sz,
-				"paint": FRAME_PAINTS[absi(hash([s, key, "by_lframe"])) % FRAME_PAINTS.size()], "fabric": absi(hash([s, key, "by_lfabric"])) % 8})
+				"paint": FRAME_PAINTS[absi(hash([s, key, "by_lframe"])) % FRAME_PAINTS.size()], "fabric": absi(hash([s, key, "by_lfabric"])) % 8,
+				"sun": _sunbathers(s, key)})
 	# 4. String lights over the dining set: hooked on the house, out to two posts.
 	if dining.x >= 0.0 and (pergola.size.x <= 0.0 or not pergola.has_point(dining)) and _h01([s, key, "by_lights"]) < float(LIGHTS_ODDS[beach]):
 		var lt := _lights(f, lp, zone, dining, blocked)
@@ -451,6 +488,7 @@ static func _build_lot(ch: CityChunk, lp: Dictionary, district: int, st: Diction
 						Vector3(1.2 if kind == "grill_gas" else 0.6, 1.1, 0.6))
 				"loungers":
 					_prop(ch, "patio", xf, paint, [[bk, mesh, xf, Color.WHITE, Color(paint.r, paint.g, paint.b, float(it.fabric) / 8.0 + 0.01)]], Vector3(2.1, 0.5, 2.0))
+					_sun(ch, lp, xf, it.get("sun", []), st)
 				"trampoline":
 					_prop(ch, "trampoline", xf, paint, [[bk, mesh, xf, Color.WHITE, Color(paint.r, paint.g, paint.b, 0.0)]], Vector3(3.6, 0.92, 3.6))
 				"doghouse":
@@ -492,7 +530,68 @@ static func _finish_full(ch: CityChunk, st: Dictionary) -> void:
 		mi.visibility_range_end_margin = 20.0
 		mi.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 		ch.add_child(mi)
+	if st.has("figures"):
+		ch.add_child(st.figures)
 	ch.set_meta("backyards", st.counts)
+
+
+## The sunbathers on a lounger pair (plan_lot()'s "sun"), out while the beach would be busy: baked
+## figures merged into the chunk's one figure mesh, each with its body (YardFigure).
+static func _sun(ch: CityChunk, lp: Dictionary, xf: Transform3D, sun: Array, st: Dictionary) -> void:
+	if sun.is_empty():
+		return
+	# The beach's people and their bakes are loaded by path: naming them here would compile the
+	# crowd (and its autoloads) into every tool that loads YardFill.
+	var life: GDScript = load("res://scripts/world/beach_life.gd")
+	var figure: GDScript = load("res://scripts/world/beach_figure.gd")
+	var busy := float(life.call("density", life.call("hour_now", ch))) * float(life.call("weather_factor", ch))
+	var gy := ch._gy(xf.origin.x, xf.origin.z)
+	var ring: Rect2 = lp.cell
+	for p: Array in sun:
+		if float(p[2]) >= busy:
+			continue
+		var model: int = p[1]
+		var suit: int = life.call("suit_of", ch.plan, ch.ix, ch.iz, model)
+		var seed_value: int = load("res://scripts/npc/beach_goer.gd").call("seed_for", model, 0)
+		var mesh: Mesh = figure.call("beach_mesh", seed_value, POSE_CHAIR, "lounge", suit, model)
+		var fx := xf * seat_xform(int(p[0]))
+		fx.origin.y += gy
+		if not st.has("figures"):
+			var merged := BeachFigureMesh.new()
+			merged.name = "BackyardFigures"
+			merged.draw_distance = SUN_DRAW
+			merged.shadow_distance = SUN_SHADOW
+			st.figures = merged
+		var fig = load("res://scripts/world/yard_figure.gd").new()
+		fig.name = "YardFigure_%d" % int(st.get("nfig", 0))
+		st.nfig = int(st.get("nfig", 0)) + 1
+		fig.chunk = ch
+		fig.pose = POSE_CHAIR
+		fig.beach_pose = "lounge"
+		fig.suit = suit
+		fig.seed_value = seed_value
+		fig.home = Vector2(fx.origin.x, fx.origin.z)
+		fig.yaw = fx.basis.get_euler().y
+		fig.ring = ring
+		fig.sidewalk = 1.5
+		# No mesh data (the headless check): the body alone, as BeachLife does.
+		if mesh:
+			fig.figure_mesh = st.figures
+			fig.figure_index = (st.figures as BeachFigureMesh).add_figure(mesh, load("res://scripts/world/camp_figure.gd").call("shadow_for", mesh), fx)
+		fig.transform = fx
+		ch.add_child(fig)
+		st.counts["sunbather"] = int(st.counts.get("sunbather", 0)) + 1
+
+
+## What the loading screen bakes for the yards: every beach rig reclined ([model, pose, key], as
+## BeachFigure.kinds()).
+static func figure_kinds() -> Array:
+	var out: Array = []
+	if not enabled:
+		return out
+	for m: int in SUN_MODELS:
+		out.append([m, POSE_CHAIR, "lounge"])
+	return out
 
 
 ## A breakable prop: the instances and one box (`size`, its foot at the item's origin).
