@@ -271,9 +271,13 @@ func _warm_shaders() -> void:
 	effects.append_array(StreetVendors.warm())
 	# The parklets' decks, bistro sets and umbrellas (Parklets), built in code.
 	effects.append_array(Parklets.warm())
+	# The valet stands' podiums, key boxes, signs and cones (Valets), built in code.
+	effects.append_array(Valets.warm())
 	effects.append_array(BoulevardSigns.warm())
 	FarmersMarketKit.warm()
 	effects.append(FarmersMarketKit.material())
+	# The film shoots' trailers, lights and set (FilmShootKit), built in code.
+	effects.append_array(FilmShootKit.warm())
 	# The billboards' faces and steel (Billboards), only ever drawn through the chunks' batches.
 	effects.append_array(Billboards.warm())
 	# The beach's towels, umbrellas, chairs, boards, the net and the tower (BeachLife).
@@ -304,6 +308,9 @@ func _warm_shaders() -> void:
 	# Backyard life's patio sets, grills, trampolines, floats and lights (BackyardKit).
 	if Backyards.enabled:
 		effects.append_array(BackyardKit.warm())
+	# Yard sales' tables, goods, racks and signs (YardSaleKit).
+	if YardSales.enabled:
+		effects.append_array(YardSaleKit.warm())
 	for mat: Material in effects:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D

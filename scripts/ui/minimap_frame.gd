@@ -17,7 +17,7 @@ var base_margin: float = 24.0
 
 ## The HUD's scale for a viewport this size: 1 at 1080 lines (WeaponHud's rule).
 static func hud_scale(view: Vector2) -> float:
-	return clampf(view.y / 1080.0, 0.7, 2.0)
+	return clampf(view.y / 1080.0, 0.7, 2.0) * GameSettings.hud_scale
 
 
 func _ready() -> void:
