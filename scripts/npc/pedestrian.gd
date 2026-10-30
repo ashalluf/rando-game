@@ -2133,6 +2133,7 @@ static func alarm(tree: SceneTree, at: Vector3, radius: float, screams: int, for
 		return
 	# The birds hear every shot and blast first (they startle further than people do).
 	Birds.startle(at, radius)
+	SeaLife.startle(at, radius)
 	# And the dogs (Dog): a lead dog barks with its tail tucked, a yard dog runs for the house.
 	Dog.startle_all(tree, at, radius)
 	var now := Time.get_ticks_msec()
