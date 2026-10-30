@@ -28,7 +28,7 @@ extends Node
 ## of 255 against a sky of 50 in a Forward+ aerial at 21:00): day-for-night, not a night. 0.3
 ## through night_exposure 2.3 was still ~45 % of the noon sun's key (1.3 x day_exposure 1.18): it
 ## lit every street evenly blue with crisp tree and wire shadows, and the lamp pools vanished in
-## it (the night street review, 2026-10-30: NightStreetReview.MOON, 0.13; the lamps light the
+## it (the night street review, 2026-10-30: NightStreetReview.MOON, 0.09; the lamps light the
 ## street, the moon rims it).
 @export var night_sun_energy: float = NightStreetReview.moon()
 ## Sun elevations the golden-hour tint fades out between once the sun is under the horizon

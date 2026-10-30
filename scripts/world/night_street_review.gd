@@ -11,7 +11,7 @@ static var enabled: bool = OS.get_environment("NIGHT_STREET_REVIEW") != "0"
 
 ## The moon's key (DayNight.night_sun_energy). 0.3 through night_exposure 2.3 was ~45 % of the
 ## noon sun's key: every street evenly blue with crisp tree and wire shadows, the lamps' pools lost.
-const MOON := 0.13
+const MOON := 0.09
 const MOON_OLD := 0.3
 ## StreetLamps' pools and omni ranges, scaled: at the model's own numbers a lamp lit the pavement
 ## under it and left the carriageway between lamps black.

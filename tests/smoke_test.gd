@@ -116,7 +116,7 @@ const PART_COST := {
 	"fwd_review_a_checks": 0.0, "fwd_review_b_checks": 0.0, "garments_2_checks": 0.0,
 	"memory_audit_checks": 0.0, "offshore_island_checks": 0.0, "perf_audit_checks": 0.0,
 	"shop_vinyl_checks": 0.0, "sky_checks": 0.0, "bonfires_checks": 3.0,
-	"cinematic_review_checks": 0.1
+	"cinematic_review_checks": 0.1, "night_street_review_checks": 0.1
 }
 const DEFAULT_COST := 6.0
 ## Every share pays for its own city load on top of its parts.
@@ -2645,6 +2645,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The freeway close up (tests/freeway_closeup_checks.gd, FreewayCloseup): the concrete deck's
 	# UVs and lane copy, the kit's close-up pass, no geometry or rolls moved, the rush-hour fill.
 	await load("res://tests/freeway_closeup_checks.gd").new().run(self, city)
+	# The night street review (tests/night_street_review_checks.gd, NightStreetReview): the moon, the
+	# lamps' pools, the wet reflections, the mirrors' sky in the rain, the A/B.
+	load("res://tests/night_street_review_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
