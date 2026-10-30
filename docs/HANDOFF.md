@@ -21227,3 +21227,68 @@ the switch).
 **NEEDS MAC CHECK** (none of this was seen on Forward+): the sea from 300 m at noon (the plane
 used to be lit there), the far tors' tone (tuned on opengl3 numbers; the renderers light them
 differently), the far crowns' darkness under AgX.
+
+## 9ic. Lawns close up (fleet wave 3, `wt/lawns-closeup`, 2026-10-30)
+
+The ask: ground planting at 1-30 m that reads like GTA 6 - blade-level variety, dry patches and
+clover, edges along paths and kerbs, sprinkler-wet sheen in the morning, weeds in cracks and along
+fences, real mulch, and the blades blending into the lawn shader's tone with no band.
+
+What the before showed (shots/lawns-closeup 01-12): every lawn was a flat textured green with
+tall dark-rooted ten-blade spikes stuck in it, a fixed green of their own that matched nothing,
+drawn out to 115 m (where a blade is a tenth of a pixel) and stopping in a visible row.
+
+**One field.** `shaders/lawn_field.gdshaderinc` holds the lawn's patterns as functions of true
+world XZ and the lawn's own numbers: `lf_dry()` (the old patch field exactly, plus small brown
+spots and drying along the lawn's edge), `lf_clover()`, `lf_wear()`, `lf_stripe()`,
+`lf_sprinkler()` (pop-up heads on a 7 m grid, most lawns watered, by `city_hour`: on 4.6-5.4,
+gone 8.2-10.4; `LawnsCloseup.sprinkler_hours()` mirrors it) and `lf_tone()`. lawn.gdshader and
+grass.gdshader both include it; each tuft carries its lawn in its instance data (COLOR = the
+lawn's tint x the old jitter, INSTANCE_CUSTOM y dryness, z seed index / 1024 - exact in a half
+float -, w edge metres + 16 if striped), so a blade has the colour of the ground under it times
+the grass texture's measured mean (sRGB on Compatibility, decoded on Forward+). Dry ground grows
+shorter straw blades, clover low ones, a worn patch none. Blades shrink into the ground between
+26 and 62 m and their shade goes to the ground's own; grass cells now draw to 86 m (62 + half a
+cell's diagonal < 86, checked). `_add_grass(..., lawn, lawn_rect)` takes the lawn (block lawns,
+pocket gardens, city parks pass theirs; MacArthur, the civic lawn and the rec parks get a plain
+watered look).
+
+**The tuft** (`LawnsCloseup.blade_mesh()`): the old blades from the same stream, mown (x0.75) and
+spread over a 0.24 m disc, UV.x the blade's place (each its own height and shade, burnt and young
+tips), normals per ring and indexed: 160 triangles on 200 vertices instead of 480. 1.4x the old
+density (`DENSITY_GAIN`), paid for by the shorter draw distance.
+
+**The lawn up close**: clover trefoils, straw thatch in dry patches, the edge along the pavement
+from the slab UV (an edged soil line or overgrown lap, a hash of the lawn: `edge_cut`), the
+sprinklers' darker, glossier throw.
+
+**Parkways**: on SUBURBS blocks a lawn strip from 0.22 to 1.95 m in from the kerb, 5 cm proud of
+the walk (over Kerbs' tree wells and heaves: the street trees stand in grass), cut 5.4 m from each
+corner, round every drive's apron (YardFill's drives, as Kerbs reads them) and beside bus stops;
+ONE relief-following mesh a chunk on its own lawn (no shadow), planted at 0.75 density.
+`parkway_pieces()` is pure.
+
+**Weeds**: `weed_mesh()` (crabgrass tufts, toothed rosettes, a dandelion), `lawn_weed.gdshader`
+(linear), `lawn_weed_<k>` batches to 45 m, shadowless: along the walk's seams by a lawn or
+parkway, in its joints (world-aligned, the Kerbs ring material's `joint_spacing`) and along the
+foot of YardFill's fences and walls (a `_run_last` step, so the deferred walls are down).
+`MAX_WEEDS` 900 a chunk. **Mulch**: lot_yard's bark mulch is shredded chips (elongated Voronoi
+cells, per-chip tone, dark gaps, tilted normals) faded to its average past a pixel; its lawns get
+the field's clover and spots.
+
+Every roll is a hash of seed + place; the grass's own streams are unchanged. `LAWNS_CLOSEUP=0`
+(the `lawns_closeup` global) is the A/B: both shaders take their old paths, the old tuft and
+distance, no parkways or weeds; the checks build a suburb chunk both ways and every other batch
+and prop id is identical.
+
+**Cost** (still_shot GEO, before -> after with 1.6x density; the branch ships 1.4x, so a little
+lower): suburb parkway 6.76 -> 6.83 M (+1.0 %), front lawn 6.92 -> 7.06 M (+2.1 %), park 9.27 ->
+9.98 M (+7.6 %), campus 9.34 -> 9.75 M (+4.4 %), long lawn 6.82 -> 7.02 M (+2.9 %); draws +6..+17.
+
+Tools: `tools/lawns_closeup/block.sh` (block_shot, minutes), `shots.sh` (the city, ~45 min on
+this box), `probe.gd` (lawn blocks and parks with EYEs). Checks: `tests/lawns_closeup_checks.gd`.
+Not done / not verified: no lavapipe Forward+ still (memory and time went to the city stills and
+the gate) - the colour match was built through cs_as_uniform() and needs a Mac look; the blades at
+30-60 m still read a little darker than the ground in shade; MacArthur Park's, the civic lawn's
+and the rec parks' blades use a generic lawn look, not their ground's; dappled shade is whatever
+the trees' real shadows give (nothing faked).
