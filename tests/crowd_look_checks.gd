@@ -62,6 +62,9 @@ func run(t: Node, city: Node3D) -> void:
 	var dt := 1.0 / float(Engine.physics_ticks_per_second)
 	var worst_step := 0.0
 	var prev := mod.yaw
+	# Measured from where the head was when the crash was heard: on a loaded box it can still be
+	# easing back from a glance the other way (the 3-shard gate saw -4 and -7 degrees at tick 4).
+	var start: float = mod.yaw + mod.chest
 	var early := 0.0
 	for i in 60:
 		await _tree.physics_frame
@@ -75,7 +78,7 @@ func run(t: Node, city: Node3D) -> void:
 	_check(absf(mod.yaw) <= CrowdLook.HEAD_YAW_MAX + 0.01 and absf(mod.chest) <= CrowdLook.CHEST_YAW_MAX + 0.01 and mod.chest > 0.1,
 		"the turn is capped: head %.0f (max %.0f), chest %.0f (max %.0f)" % [rad_to_deg(mod.yaw), rad_to_deg(CrowdLook.HEAD_YAW_MAX),
 			rad_to_deg(mod.chest), rad_to_deg(CrowdLook.CHEST_YAW_MAX)])
-	_check(early > 0.0 and early < total * 0.8 and worst_step <= CrowdLook.SPEED_STARTLE * dt * 1.05 + 1e-4,
+	_check(early > start and early - start < (total - start) * 0.8 and worst_step <= CrowdLook.SPEED_STARTLE * dt * 1.05 + 1e-4,
 		"the turn is eased (%.0f degrees after 4 ticks) and never faster than the startle speed (worst %.1f deg/tick)" % [
 			rad_to_deg(early), rad_to_deg(worst_step)])
 	_check(absf(ped._look_yaw - total) < 0.01, "the pedestrian's _look_yaw reports the modifier's turn")
