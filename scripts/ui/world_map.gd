@@ -589,7 +589,7 @@ func _build() -> void:
 func _panel_rects() -> Array[Rect2]:
 	var view := _root.get_viewport_rect().size
 	var s := _ui_scale()
-	var m := 24.0 * s
+	var m := HudTheme.MARGIN * s
 	var title := Rect2(Vector2(m, m), Vector2(430.0, 86.0) * s)
 	var legend_h := (54.0 + 25.0 * LEGEND.size()) * s
 	var legend := Rect2(Vector2(view.x - m - 236.0 * s, m), Vector2(236.0 * s, legend_h))
@@ -611,7 +611,7 @@ func _draw_ink() -> void:
 	var dim := Color(1, 1, 1, 0.62)
 	# Title: the map, where the player is, the waypoint's distance.
 	var t: Rect2 = rects[0]
-	c.draw_string(_semibold, t.position + Vector2(20, 36) * s, "RANDO CITY", HORIZONTAL_ALIGNMENT_LEFT, -1, int(24 * s), white)
+	HudTheme.draw_tracked(c, HudTheme.display_bold(), "RANDO CITY", t.position + Vector2(20, 42) * s, int(32 * s), 2.6 * s, white)
 	var where := ""
 	if _city and _city.has_method("district_name_at"):
 		where = str(_city.call("district_name_at", _player.global_position))
@@ -640,7 +640,7 @@ func _draw_ink() -> void:
 	var view := _root.get_viewport_rect().size
 	var metres := _nice_length(140.0 * s / ppm)
 	var px := metres * ppm
-	var a := Vector2(view.x - 24.0 * s - px, view.y - 40.0 * s)
+	var a := Vector2(view.x - HudTheme.MARGIN * s - px, view.y - (HudTheme.MARGIN + 16.0) * s)
 	c.draw_line(a + Vector2(0, 2), a + Vector2(px, 2), Color(0, 0, 0, 0.6), 6.0 * s)
 	c.draw_line(a, a + Vector2(px, 0), white, 3.0 * s)
 	c.draw_line(a + Vector2(0, -6 * s), a + Vector2(0, 4 * s), white, 2.0 * s)
@@ -650,7 +650,7 @@ func _draw_ink() -> void:
 	c.draw_string_outline(_medium, a + Vector2(px * 0.5 - tw * 0.5, -10 * s), label, HORIZONTAL_ALIGNMENT_LEFT, -1, int(13 * s), 4, Color(0, 0, 0, 0.7))
 	c.draw_string(_medium, a + Vector2(px * 0.5 - tw * 0.5, -10 * s), label, HORIZONTAL_ALIGNMENT_LEFT, -1, int(13 * s), white)
 	# North.
-	var n := Vector2(view.x - 24.0 * s - 18.0 * s, rects[1].end.y + 36.0 * s)
+	var n := Vector2(view.x - HudTheme.MARGIN * s - 18.0 * s, rects[1].end.y + 36.0 * s)
 	c.draw_circle(n, 15.0 * s, Color(0.04, 0.045, 0.055, 0.85))
 	c.draw_colored_polygon(PackedVector2Array([n + Vector2(0, -11) * s, n + Vector2(6, 5) * s, n + Vector2(0, 2) * s, n + Vector2(-6, 5) * s]), white)
 	c.draw_string(_semibold, n + Vector2(-5, 30) * s, "N", HORIZONTAL_ALIGNMENT_LEFT, -1, int(13 * s), white)
