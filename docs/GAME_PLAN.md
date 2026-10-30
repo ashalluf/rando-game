@@ -358,6 +358,14 @@ already mapped so milestone 2 is script-only.
   `SWIMMING=0` is the A/B. Wave 3: the reservoir (worked out from its own grid and level) and
   rooftop pools keep their real floors (the hills, the roof: a roof pool must never take the
   world off his mask 60 m up); the golf pond and hill-home pools register like the others.
+- **2026-10-06 The crowd reacts to the rain, near the camera only (HANDOFF "The crowd in the
+  rain").** When Weather rains, people within crowd life's range open code-built umbrellas held up
+  in the hand (CrowdLife's grip frame), pull up a jacket's hood (the two rigs whose top has one),
+  hurry, sit out a downpour under the bus shelters and in the doorways, and a share go indoors
+  (hidden, no collision) until it eases; umbrellas fold, each at its own moment, when it stops.
+  Built on crowd life's acts (no new clips, no new bones); everything rolled from the person's
+  seed; four hook lines in Pedestrian, one in Weather; `RAIN_CROWD=0` is the A/B. Far people walk
+  on as before (the rain and the fog hide them).
 
 - **2026-10-05 The street's signs are real models (HANDOFF "The street's signs").** The signs
   were a cylinder for a stop sign facing the junction diagonally, flat boxes with TextMesh names

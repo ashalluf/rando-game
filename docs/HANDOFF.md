@@ -14993,3 +14993,107 @@ uniforms, so they should hold, but the haze under AgX and auto exposure wants a 
 layer's deck top seen from above (the hills over a white sea) hides the island entirely rather
 than letting the ridge stand out of it. No reflection of the island's lights on the sea. Not on
 the minimap (it is off its range).
+
+## 9fd. The crowd in the rain (fleet wave 2, `wt/rain-crowd`)
+
+The task: "when Weather rains, people put up umbrellas (code-built, opened and held by the grip
+frame of CrowdLife, a few colours), pull hoods, hurry, shelter under awnings, bus shelters and
+doorways, and the streets empty out under a downpour; umbrellas fold when it stops. Built on crowd
+life, near the camera only."
+
+**How it hangs together.** `RainCrowd` (`scripts/npc/rain_crowd.gd`) is one small object per plain
+walker that lives (`Pedestrian.rain`, made at the end of `_setup_life()` once the life clips are
+attached; officers, crews, sleepers, vendors never get one). Weather writes `RainCrowd.level` (its
+blended `rain_level`: 0.7 rain, 1.0 storm) every frame; tests and stills force it
+(`RainCrowd.forced`). Pedestrian calls it from four lines: `indoors()` at the top of the physics
+tick (after `_update_lod`, so the camera's range still updates while someone is inside), `pace()`
+on the walking speed, `on_walk_end()` where a walk ends (before the crosswalk roll; dry it returns
+at once with no roll, so a dry city behaves exactly as before), and `pose()` after the life pose.
+Everything is gated on `_life_near` (crowd life's 60 m): far walkers walk on as in the dry.
+
+**Who does what** is `hash(seed, "rain")`: 56 % carry an umbrella (a full-size stick umbrella or
+a compact, sixteen colourways weighted to black and navy), the hooded-jacket rigs (`HOOD_RIGS`:
+crowd_m's windbreaker, crowd_o's hoodie) pull the hood up unless they wear a hat, the rest have
+nothing; each reacts at their own rain level (`REACT_LEVEL` 0.06-0.45, folds again 0.04 under it),
+so a shower starts with a few umbrellas and ends with them folding one by one.
+
+- **Umbrellas** (`RainGear`, `scripts/npc/rain_gear.gd`): code-built at real size (eight or seven
+  steel ribs on a curved dome, gores sagging between them, stretchers from the runner, ferrule,
+  rib tips, a crook or a straight grip with a wrist strap, the tie strap when furled), at
+  `OPEN_STEPS` (7) opening amounts - the ribs swing up from the shaft, the runner slides, the
+  cloth folds in - swapped through in `OPEN_SECONDS` (0.55 s) to open or fold, so there is no
+  per-instance uniform (the Compatibility global-buffer cap). ~1.8k triangles open, one draw a
+  holder, no shadow, `visibility_range_end` = life range. Held: the holding arm's upper arm and
+  forearm are aimed in skeleton space (`UPPER_ARM`, `FOREARM`, mirrored; the coffee cup's method),
+  then the umbrella node (top_level) is placed at the grip point of CrowdLife's grip frame on the
+  hand bone with its shaft leaning from the hand to `APEX_OVER_HEAD` over the head. The phone and
+  the bag take the right hand, so their carriers hold it in the left. Furled it hangs from the
+  hand like a cane. It folds to run (panic) and under cover (a bus-stop seat or a doorway).
+- **Hoods**: fitted to each rig's skull from CrowdHatTable (`RainGear.build_hood()`, the hats'
+  head frame): a loose shell (standoff 1.2 cm at the face, 1.6 at the crown, 3.4 at the back), an
+  elliptical face opening from over the brow down, a rolled hem, a drape down the nape. Pulled up
+  by turning it about the nape over 0.7 s; the hair cards hide under the same "under_hat" meta the
+  hats use. The colour is the look's recoloured top (`cloth_hue/sat/value`) or a near-black.
+- **Hurry**: `PACE` 1.1 under an umbrella, 1.22 under a hood, 1.38 with nothing (and the head
+  down, `_posture_pitch` -0.38, restored after); the walk clip's rate follows the speed.
+- **Shelter** (rain over `SHELTER_LEVEL` 0.5, at the end of a walk, 75 % of the uncovered and 12 %
+  of the covered): the nearest free seat within 35 m whose record is a bus stop's (CrowdLife's
+  seats - StreetDetail registers both places of every stop's bench with its prop record), else a
+  doorway or awning along the building line: `Pedestrian._plan_wall()`'s ray to the wall, stood
+  with the back to it (fold, idle, or the phone). Talks and open-bench sits of the uncovered end
+  when it starts. The stop is held while it rains and ends when it eases.
+- **The street empties** over `LEAVE_LEVEL` (0.6): a share (18 % at 0.6 to 55 % in a storm) walk
+  up to a doorway (`_plan_wall()` WINDOW, then 0.45 m on into it) and go in: hidden, collision
+  layer 0, hit zone off, the whole tick skipped; out again under 0.56 or once the camera has gone.
+- **Arriving mid-rain**: `settle_now()` - the first time someone comes into range within four
+  seconds of being made (their chunk streamed in) they are already as the rain left them: umbrella
+  up, hood up, in a shelter, or inside. The stills stage everyone this way.
+
+**Tools.** `RAIN_STAGE=<level>` on `still_shot.gd` (with `--weather=rain|storm`) settles the crowd
+near the player, `RAIN_FOCUS=umbrella|hood|shelter` frames the nearest one, `RAIN_REPORT=1` lists
+them; `tools/crowd/crowd_lab.tscn SCENARIO=rain` (`RAIN`, `RAIN_GEAR=umbrella|hood|none`,
+`RAIN_AFTER`) shows the gear in seconds without a city; `tools/rain_crowd/compile.gd` compiles and
+builds every mesh with its triangle count. `RAIN_CROWD=0` is the A/B. Checks:
+`tests/rain_crowd_checks.gd` (one line at the end of the smoke test's check files).
+
+**Frame cost** (opengl3, the still harness's GEO line, same EYE and load, rain at 15:00):
+along the pavement (`EYE=2368.5,2.0,912,-4.5,-4`, FOV 38) 5,826,899 triangles / 2,605 draws with
+`RAIN_CROWD=0`, 5,807,637 / 2,599 with it (the umbrellas' few draws are paid back by the people
+gone in); the wider pavement view (`2362,2.2,893,-26.6,-5`) 6,156,832 / 2,946 -> 6,120,229 / 2,937.
+An umbrella is ~1.8k triangles and one draw, a hood ~1.6k; nothing past 60 m. CPU: one compare a
+tick per walker in the dry; in the rain two arm aims and a transform for each holder near the
+camera.
+
+**Stills** (`shots/rain-crowd`, opengl3): `08_before_rain_along` / `09_after_rain_along` (the
+pair), `10_after_umbrella_close`, `11_after_rain_night_along`, `12_after_storm_along`, the first
+pair `01` / `02` and `03` (storm) from the wider east-pavement view, and two lab close-ups (`13`
+umbrellas held, `14` a hood up). EYEs above; `RAIN_STAGE=0.7` (rain) / `1.0` (storm),
+`--weather=rain|storm --hour=15|21`, spawn `2359.4,880,0,12,2`.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the canopy's translucency (BACKLIGHT),
+the wet sheen and beads. No umbrella collisions between neighbours (two holders can pass through
+each other's canopies) and no canopy clearance under low awnings (a holder in a doorway folds it).
+Awnings are not detected as such: shelter is any wall the ray finds. The hood is skinned to the
+head only (a big head turn swings its drape). Dog walkers and joggers keep going (no umbrella).
+
+**Wave 3 (finished on main 95bd13f).** The branch was merged with main (only the docs and the
+smoke test's check list conflicted: both kept) and one gap closed, the one a player sees most: the
+far crowd. Past crowd life's 60 m, out to `RainCrowd.FAR_REACH` (140 m, Pedestrian's `lod_far`:
+`_lod_stride` <= 4), an umbrella carrier shows a coarse OPEN canopy over the head
+(`RainGear.umbrella_far()`: the same dome at three rows and two columns a gore plus the shaft,
+86 triangles; `_show_far()`, placed over the Head bone at `FAR_APEX_OVER_HEAD` 0.42 m, where the
+held one ends up), with no arm pose (a figure 20-50 pixels tall); it is gone while they run or
+panic and when the rain stops. `pace()` now applies at any range (far walkers hurry too); the
+shelter, going in and the hood stay near only. `RAIN_FAR=0` is the A/B. In the staged downtown
+load about 110 of ~480 far walkers carry one. Cost (opengl3 GEO, same load and EYE
+`2362,2.2,893,-26.6,-5`, FOV 60, rain at 15:00): 6,772,080 triangles / 3,435 draws with
+`RAIN_FAR=0`, 6,770,956 / 3,460 with it (+25 draws, triangles flat). `RAIN_REPORT=1` on the
+stage now also prints the far umbrellas (positions, and a count a few frames after the stage).
+Checks added: the far canopy shows past life's range, is coarse and over the head, and goes when
+the rain stops. Stills: `15_before_rain_bus_queue` / `16_after_rain_bus_queue` (EYE
+`2472,3.0,1012,4,-3`, FOV 35: the bus queue on the next avenue east, every umbrella open over the
+queue), `17_after_rain_aerial` (EYE `2365,28,975,0,-22`, FOV 55). Still not seen on Forward+.
+Far people do not go in, so from the air a storm's streets still carry walkers. Gate after the
+second merge with main (eb75a10): `SHARDS=3`, 2,568 checks passed, 0 failed, peak RSS 2,481 MB per
+shard (an earlier run lost two load-timing checks - a bumper tap, a semi on the deck - which pass
+alone and on the rerun).
