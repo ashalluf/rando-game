@@ -14,3 +14,17 @@ roof (146 s of game time). Weather rolled to rain during the drive.
 - 06_drive_roof.jpg - on the roof deck, parked cars, light poles.
 
 (These were shot before the soffits got their painted-white emission.)
+
+# Wave 3 (2026-10-30): real parked cars, brighter soffits
+
+Same car park and drive, opengl3 / Compatibility, 1280x720, 15:00. The earlier shots 01-06 are the
+"before": the stalls held 260-triangle box cars. Now every car within 36 m is a real road body
+(sedan, crossover, hatchback, SUV, minivan) in the city's car paints; the box cars only stand in
+farther out. The painted soffits are lifted from brown-black to grey-white.
+
+- 07_after_exterior_real_cars.jpg - from the street: real cars on the ground deck.
+- 08_after_drive_barrier.jpg - the entry island, arms lifted; real cars behind.
+- 09_after_drive_ramp_up.jpg - up the first ramp; real cars on both decks beside the strip.
+- 10_after_drive_deck2_real_cars.jpg - deck 2 (compare 04_drive_deck2.jpg).
+- 11_after_drive_top_ramp.jpg - the last ramp to the roof.
+- 12_after_drive_roof_real_cars.jpg - the roof (compare 06_drive_roof.jpg).
