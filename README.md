@@ -11,3 +11,6 @@ in these stills.
 - 05: an 80 km/h hop: rising, apex, 0.06 s after touch-down (the landing dip: 6.0 m and lower),
   0.22 s after (back at 7.1 m).
 - 06-09: single frames at full size.
+- 10-11: BEFORE (`DRIVE_CAM=0`, the old free camera) at 80 km/h and in the same corner: the view
+  stays where the mouse left it, so the turn drives the car out of the shot in profile; no pull-back
+  or FOV with speed.
