@@ -3641,3 +3641,9 @@ none of either.
   regional pores and roughness), brows as strand cards and twice the hair cards. The contract
   (54 bones, clips, material names, hero_x_* maps, eye centres) is held so nothing downstream
   moves. HERO_FACE_2=0 is the shader A/B.
+- **2026-10-30 The crowd walks in gaits (HANDOFF 9hp).** Instead of one walk clip for everybody,
+  each plain walker gets one of six baked gaits (or the old clip) by a hash of its seed and its
+  rig's phenotype, with its own pace, arms and turn rate; the play rate follows each clip's
+  measured ground speed and stays in a cadence band (pace gives way, never the feet). The gaits are
+  restyled keyed from two CC0 library walks rather than more mocap: the variety budget is the
+  style table in tools/crowd/gait_clips.gd. CROWD_ANIM_2=0 is the old crowd exactly.

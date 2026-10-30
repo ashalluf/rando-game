@@ -28,6 +28,7 @@ var _peds: Array = []
 var _props_rows: Array = []
 var _dog_legs: Array = []
 var _tick: int = 0
+var _lane_z := 0.0
 var _tail: Node
 
 
@@ -256,6 +257,23 @@ func _film() -> void:
 			_stage_life(rect)
 			_stage_rain()
 			_camera(Vector3(0.0, 2.2, -9.0), Vector3(0.0, 1.0, 1.5), 50.0)
+		"gaits":
+			# One walker per gait (CrowdGait) in lanes along +x, a side-on camera keeping pace with
+			# them (GAITS=casual,brisk,... picks; CROWD_ANIM_2=0 for the before: everyone the
+			# rig's own walk). Frame strips for the foot sliding and the variety.
+			var names := _env("GAITS", "classic,casual,brisk,amble,heavy,light,formal").split(",")
+			var rigs := [0, 3, 23, 12, 16, 14, 26]
+			for i in names.size():
+				CrowdGait.forced = names[i]
+				var p := _spawn(Rect2(-60.0, -1.0 - 1.2 * i, 200.0, 40.0), Vector2(-6.0, -1.2 * i), 300 + i * 13, rigs[i % rigs.size()])
+				p.life_range = 0.0
+				p.look_range = 0.0
+				_dog_legs.append(p) # steered straight on, like the dog walkers
+			CrowdGait.forced = ""
+			_player.position = Vector3(0.0, 0.0, 60.0)
+			_lane_z = -0.6 * (names.size() - 1)
+			var back := 3.6 + 1.6 * (names.size() - 1)
+			_camera(Vector3(-2.0, 1.05, _lane_z + back), Vector3(-2.0, 0.85, _lane_z), 40.0)
 		"crowd":
 			var rng := RandomNumberGenerator.new()
 			rng.seed = 5
@@ -289,7 +307,14 @@ func _film() -> void:
 				if here.distance_to(legs[leg]) < 1.2 and leg + 1 < legs.size():
 					leg += 1
 			for p: Pedestrian in _dog_legs:
-				_steer(p, Vector2(30.0, p.position.z))
+				_steer(p, Vector2(300.0 if _scenario == "gaits" else 30.0, p.position.z))
+			if _scenario == "gaits" and not _dog_legs.is_empty():
+				var mx := 0.0
+				for p: Pedestrian in _dog_legs:
+					mx += p.position.x / _dog_legs.size()
+				var cam := get_viewport().get_camera_3d()
+				cam.position.x = mx
+				cam.look_at(Vector3(mx, 0.85, _lane_z), Vector3.UP)
 			if _scenario == "dog" and OS.get_environment("FOLLOW") == "1" and not _dog_legs.is_empty():
 				# A camera walking alongside the first walker, at the dog's side (FOLLOW=1).
 				var w: Pedestrian = _dog_legs[0]

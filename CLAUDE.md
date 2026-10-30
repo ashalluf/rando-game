@@ -5039,6 +5039,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   A/B) and everyone hurries. Rolls are `hash(seed, "rain")`. Hooks: four lines in Pedestrian, one
   in Weather. `RAIN_CROWD=0` the A/B; `RAIN_STAGE=<level>` / `RAIN_FOCUS=` on `still_shot.gd`;
   `crowd_lab.tscn SCENARIO=rain` (seconds); checks `tests/rain_crowd_checks.gd`.
+- Crowd gaits (2026-10-30, docs/HANDOFF.md "The crowd's walks"): `CrowdGait`
+  (`scripts/npc/crowd_gait.gd`, from `Pedestrian._add_model()`, plain walkers only) gives each
+  person a gait - casual, brisk, amble, heavy, light, formal, or the rig's old clip - by
+  hash([seed, "gait2"]) and the rig's phenotype, from `assets/models/crowd_gait/<rig>_gait.res`
+  (`tools/crowd/gait_clips.gd`: the UAL walks retargeted and restyled keyed with leg IK; rerun it
+  with life_clips.gd when a rig is rebuilt). Each clip's `ground_speed` meta drives the play rate
+  (`_walk_clip_speed`), clamped to `CADENCE`; use `_walk_clip` / `_idle_clip`, never the
+  constants, in the plain walker's code. Turns bank (`turn_lean()`), carrying hands swing less.
+  `CROWD_ANIM_2=0` is the A/B; `crowd_lab.tscn SCENARIO=gaits`; checks `tests/crowd_anim_2_checks.gd`.
 - Crowd look (2026-10-29, "heads turn to what happens"; docs/HANDOFF.md "The crowd's heads"):
   `CrowdLook` (`scripts/npc/crowd_look.gd`), a SkeletonModifier3D a near pedestrian gets on its
   rig the first time it is within `look_range` of the player and the camera (one hook in
