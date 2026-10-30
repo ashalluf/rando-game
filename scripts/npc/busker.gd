@@ -467,7 +467,7 @@ func _play_guitar(w: float, big: bool) -> void:
 		return
 	var s := 1.33 if big else 1.0
 	var strum := 0.0 if _in_break else sin(_t * TAU * strum_rate)
-	var r := _on("Spine01", Vector3(-0.03 * s, (-0.015 + 0.05 * strum) * s, 0.085))
+	var r := _on("Spine01", Vector3(-0.05 * s, (-0.05 + 0.05 * strum) * s, 0.07))
 	var chord := float(absi(hash([_hash, int(_t / 2.1)])) % 4) / 3.0
 	var l := _on("Spine01", Vector3(lerpf(0.42, 0.56, chord) * s, -0.04 * s, 0.01))
 	var u := _skel_unit

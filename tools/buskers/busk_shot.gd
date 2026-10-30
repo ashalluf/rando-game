@@ -112,6 +112,7 @@ func _ready() -> void:
 		var at := Vector2(12.0, -2.4)
 		_gear(Buskers.break_mesh(), at, PI)
 		var b := _busker(Buskers.Kind.BREAK, 0, at, PI, 53)
+		print("BUSK_BREAK the freeze is at %.1f s (+18 n)" % (13.5 - float(b._hash % 7) if b._hash % 7 < 13 else 0.0))
 		for i in 5:
 			var ang := PI * 0.5 + (float(i) - 2.0) * 0.62
 			var d := Vector2(0.0, 1.0).rotated(ang - PI * 0.5)
@@ -149,6 +150,9 @@ func _ready() -> void:
 			await get_tree().process_frame
 		get_viewport().get_texture().get_image().save_png("%s_%d.png" % [prefix, i])
 		print("BUSK_SHOT %s_%d.png at %.1f s" % [prefix, i, played])
+		for p in _peds:
+			if p is Busker and (p as Busker).kind == Buskers.Kind.BREAK:
+				print("BUSK_BREAK t %.2f phase %.2f clip %s" % [p._t, p._break_phase(), p._life_clip])
 	get_tree().quit()
 
 

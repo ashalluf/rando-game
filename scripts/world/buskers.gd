@@ -103,7 +103,7 @@ const RIGS := {
 	Kind.DRUMS: ["crowd_a", "crowd_b", "crowd_o", "crowd_s"],
 	Kind.BREAK: ["crowd_a", "crowd_o"],
 	Kind.STATUE: ["crowd_a", "crowd_d", "crowd_f", "crowd_i", "crowd_j", "crowd_t"],
-	Kind.MARIACHI: ["crowd_a", "crowd_f", "crowd_g", "crowd_h", "crowd_j", "crowd_s"],
+	Kind.MARIACHI: ["crowd_a", "crowd_f", "crowd_g", "crowd_h", "crowd_j"],
 }
 
 static var force_hour: float = -1.0
