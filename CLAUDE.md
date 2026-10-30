@@ -5235,6 +5235,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `MESH_COMPACT=0` the A/B). Measure with `tools/memory_probe.gd` (load, 2 km drive, `HOPS=`
   teleports; RSS, every static cache sized, the scene by owner, duplicate meshes) and
   `tools/peak_rss.py --trace 5 -- <cmd>` (the box has no `/usr/bin/time`).
+- CPU per physics tick (perf-audit-2, docs/HANDOFF.md "Perf audit 2"): headless, a frame is up to
+  eight physics steps and TrafficManager was ~85 % of them, so **anything the traffic asks per car
+  per tick must be O(1)**: `CityPlan._index_at()` starts from a per-64 m hint, `road_open()`'s
+  site bounds and `Cemetery.road_closed()`'s spans are cached per road (never per metre of
+  `along`: a moving car misses that every tick), `Vehicle.road_lift()` is kept per body type
+  (`_dims()` builds a dictionary each call), `_place()` skips a bit-identical write. Measure with
+  `tools/perf_audit_2/traffic_bench.tscn` (the tick piece by piece), `tools/cpu_probe.gd`
+  (`BY_SCRIPT=1`, `BASE_OFF=Traffic`), `memory_probe.gd ORPHANS=1` (nodes left out of the tree),
+  `SMOKE_PROFILE=1` (TIME lines carry the allocator and orphans), `MEMORY_CENSUS=1`.
 - Load time (2026-10-05, docs/HANDOFF.md "Load time"): `LoadClock` (`scripts/util/load_clock.gd`)
   prints a `LOADING <stage>: ms` line per stage; `tools/load_time/load_time.sh desktop|headless`
   runs a launch with `LOAD_QUIT=1` (quit once loaded) and greps them; `LOAD_PROFILE=1` totals
