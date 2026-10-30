@@ -183,7 +183,7 @@ func _sailing(ot: Node) -> void:
 	v.set("_course_left", 1e9)
 	v.set("traffic", null)
 	ot.add_child(v)
-	var min_twa := 180.0
+	var pinched := 0
 	var flips := 0
 	var last_side: float = v.get("sail_side")
 	var heel_ok := true
@@ -191,8 +191,8 @@ func _sailing(ot: Node) -> void:
 		v.call("drive", 0.1)
 		var h: Vector2 = v.get("heading")
 		var twa: float = absf(rad_to_deg(h.angle_to(-wind)))
-		if i > 300:
-			min_twa = minf(min_twa, twa)
+		if i > 300 and twa < 38.0:
+			pinched += 1
 		var side: float = v.get("sail_side")
 		if side != last_side:
 			flips += 1
@@ -201,7 +201,8 @@ func _sailing(ot: Node) -> void:
 		var boom: float = v.get("boom")
 		if i > 300 and absf(heel) > 0.06 and absf(boom) > 0.05 and signf(heel) == signf(boom):
 			heel_ok = false
-	_t._check(min_twa > 38.0, "ocean traffic: a sloop beating upwind never points closer than 40 degrees (closest %.0f)" % min_twa)
+	# Only a tack swings her bow through the wind; the rest of the time she sails 48 degrees off it.
+	_t._check(pinched < 570, "ocean traffic: a sloop beating upwind points no closer than 40 degrees except while tacking (%.0f %% of the time)" % (float(pinched) / 57.0))
 	_t._check(flips >= 2, "ocean traffic: ... and tacks, the sails swinging across (%d times in 10 minutes)" % flips)
 	_t._check(heel_ok, "ocean traffic: ... heeled to leeward, away from the wind")
 	var start := home

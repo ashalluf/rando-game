@@ -1,11 +1,12 @@
-extends SceneTree
+extends Node
 ## The ocean traffic's vessels on their own (VesselMesh, Vessel, AnchoredShip) on a patch of the
 ## real ocean shader, under way with their wakes, lit with the city's daylight numbers. Seconds a
 ## frame instead of minutes for a city still, so the look can be iterated:
 ##
 ##   OUT=v.png CAM=-60,12,90 LOOK=0,3,0 LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s \
 ##     "-screen 0 1280x720x24" godot --rendering-driver opengl3 --display-driver x11 \
-##     --audio-driver Dummy --path . --script tools/ocean_traffic/vessel_shot.gd --resolution 1280x720
+##     --audio-driver Dummy --path . tools/ocean_traffic/vessel_shot.tscn --resolution 1280x720
+## (a scene, so the autoloads exist before Vessel compiles)
 ##
 ## Env: OUT (png), CAM / LOOK (x,y,z), FOV, HOUR (the sun from the hour; 20+ is night: lamps on),
 ## SCENE=lineup (default: every kind abreast, under way north, with wakes) | sail (four sloops on
@@ -16,9 +17,9 @@ var _ships: Array = []
 var _ot: OceanTraffic
 
 
-func _initialize() -> void:
+func _ready() -> void:
 	var stage := Node3D.new()
-	get_root().add_child(stage)
+	add_child(stage)
 	var hour := float(OS.get_environment("HOUR")) if OS.get_environment("HOUR") != "" else 15.0
 	var night := hour >= 19.8 or hour < 5.5
 	var env := WorldEnvironment.new()
@@ -121,11 +122,11 @@ func _initialize() -> void:
 		print("vessel ", (v as Vessel).tag, " kind=", (v as Vessel).kind, " at=", (v as Vessel).world_pos, " speed=%.2f heel=%.2f boom=%.2f" % [(v as Vessel).speed, (v as Vessel).heel, (v as Vessel).boom])
 	for i in 8:
 		_ot.push_wakes()
-		await process_frame
-	var img := get_root().get_texture().get_image()
+		await get_tree().process_frame
+	var img := get_viewport().get_texture().get_image()
 	var out := OS.get_environment("OUT")
 	img.save_png(out if out != "" else "vessel_shot.png")
-	quit()
+	get_tree().quit()
 
 
 func _add(stage: Node3D, kind: int, variant: int, length: float, paint: Color, at: Vector2, dir: Vector2, sp: float) -> Vessel:

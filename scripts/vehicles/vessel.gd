@@ -418,7 +418,7 @@ func _drive_sail(dt: float) -> void:
 	_course_left -= dt
 	tack_left -= dt
 	# Keep off the shore, the piers and the headland, and do not wander too far from home.
-	var trouble := traffic != null and traffic.has_method("sea_room") and not traffic.sea_room(here + heading * 160.0, 120.0)
+	var trouble: bool = traffic != null and traffic.has_method("sea_room") and not traffic.sea_room(here + heading * 160.0, 120.0)
 	if trouble or here.distance_to(home) > home_reach or _course_left <= 0.0:
 		var away := (home - here).normalized() if here.distance_to(home) > home_reach * 0.6 else Vector2.from_angle(_rng.randf() * TAU)
 		if trouble and traffic.has_method("offshore_dir"):
@@ -464,10 +464,14 @@ func apply_pose() -> void:
 	global_transform = Transform3D(Basis.from_euler(Vector3(trim, yaw, heel)), WorldState.to_local(world_pos))
 
 
-## The stern's point in TRUE world XZ and the beam, for the wake (OceanTraffic.push_wakes()).
+## The bow's and the stern's points in TRUE world XZ and the beam, for the wake
+## (OceanTraffic.push_wakes()).
+func bow_xz() -> Vector2:
+	return Vector2(world_pos.x, world_pos.z) + heading * length * 0.48
+
+
 func stern_xz() -> Vector2:
-	var p := Vector2(world_pos.x, world_pos.z)
-	return p - heading * length * 0.48
+	return Vector2(world_pos.x, world_pos.z) - heading * length * 0.48
 
 
 func beam() -> float:

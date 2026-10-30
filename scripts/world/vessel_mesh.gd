@@ -435,16 +435,19 @@ static func _ferry(acc: BoatMesh.Acc, variant: int) -> void:
 	# The bridge deck between the hulls: its underside (the wet deck) 2.2 m over the water.
 	var z0 := length * 0.46
 	var z1 := -length * 0.4
-	acc.box(Transform3D(Basis(), Vector3(0.0, 2.85, (z0 + z1) * 0.5)), Vector3(beam - 0.4, 1.3, z0 - z1), WHITE, R.GELCOAT)
+	acc.box(Transform3D(Basis(), Vector3(0.0, 3.0, (z0 + z1) * 0.5)), Vector3(beam - 0.6, 1.0, z0 - z1), WHITE, R.GELCOAT)
+	# The bow fairing: the bridge deck's front swept down and back between the demihulls.
+	var fw := beam * 0.5 - 0.5
+	acc.quad(Vector3(-fw, 3.5, z1), Vector3(fw, 3.5, z1), Vector3(fw * 0.6, 2.6, z1 + 4.0), Vector3(-fw * 0.6, 2.6, z1 + 4.0), WHITE, R.GELCOAT, Vector3(0.0, -0.3, -1.0))
 	# The main passenger house: a long box with a raked, rounded front and a band of windows.
 	var hz0 := length * 0.42
 	var hz1 := -length * 0.3
 	var hw := beam * 0.5 - 0.3
-	_house(acc, hw, 3.5, 6.2, hz0, hz1, 2.0, Vector2(0.3, 0.86), FERRY_BAND, variant)
+	_house(acc, hw, 3.5, 6.2, hz0, hz1, 6.5, Vector2(0.3, 0.86), FERRY_BAND, variant)
 	# The upper deck: shorter, set back, and the wheelhouse forward on top of it.
 	var uz0 := length * 0.2
 	var uz1 := -length * 0.2
-	_house(acc, hw - 0.5, 6.2, 8.6, uz0, uz1, 1.6, Vector2(0.25, 0.88), FERRY_BAND, variant)
+	_house(acc, hw - 0.5, 6.2, 8.6, uz0, uz1, 4.5, Vector2(0.25, 0.88), FERRY_BAND, variant)
 	if acc.level != BoatMesh.Level.FAR:
 		# The open sun deck aft of the upper house: a rail round it.
 		for side: float in [-1.0, 1.0]:
@@ -492,8 +495,8 @@ static func _house(acc: BoatMesh.Acc, w: float, y0: float, y1: float, z0: float,
 	for b in 3:
 		var ya: float = hy[b]
 		var yb: float = hy[b + 1]
-		var ra := (ya - y0) / hgt * 0.9
-		var rb := (yb - y0) / hgt * 0.9
+		var ra := (ya - y0) / hgt * 2.4
+		var rb := (yb - y0) / hgt * 2.4
 		for i in ring.size():
 			var p := ring[i]
 			var q := ring[(i + 1) % ring.size()]
@@ -518,7 +521,7 @@ static func _house(acc: BoatMesh.Acc, w: float, y0: float, y1: float, z0: float,
 	var roof := PackedVector3Array()
 	for p in ring:
 		var fwd := clampf((z1 + nose - p.y) / maxf(nose, 0.1), 0.0, 1.0)
-		roof.append(Vector3(p.x, y1, p.y + 0.9 * fwd))
+		roof.append(Vector3(p.x, y1, p.y + 2.4 * fwd))
 	acc.fan(roof, WHITE, R.GELCOAT, Vector3.UP)
 
 

@@ -472,7 +472,8 @@ func on_vessel_lost(_v: Vessel) -> void:
 
 # --- Wakes ----------------------------------------------------------------------------------------
 
-## Hands the nearest vessels' wakes to the ocean shader (ocean.gdshader wake_a / wake_b).
+## Hands the nearest vessels' wakes to the ocean shader (ocean.gdshader wake_a / wake_b): each one's
+## bow and heading, speed, beam, trail, hull length and strength.
 func push_wakes() -> void:
 	var mat := PropFactory.ocean_material()
 	if mat == null:
@@ -498,7 +499,7 @@ func push_wakes() -> void:
 			_wake_b[i] = Vector4.ZERO
 			continue
 		var v: Vessel = list[i][1]
-		var st := v.stern_xz()
+		var bow := v.bow_xz()
 		var sp := v.speed
 		var strength := 1.0
 		match v.kind:
@@ -510,8 +511,9 @@ func push_wakes() -> void:
 			sp = 2.2
 			strength = 0.55
 		var trail := clampf(sp * 22.0 + v.length * 4.0, 40.0, 520.0)
-		_wake_a[i] = Vector4(st.x, st.y, v.heading.x, v.heading.y)
-		_wake_b[i] = Vector4(sp, v.beam(), trail, strength)
+		_wake_a[i] = Vector4(bow.x, bow.y, v.heading.x, v.heading.y)
+		# Whole metres of hull, plus the strength under 1 (ocean.gdshader decodes both).
+		_wake_b[i] = Vector4(sp, v.beam(), trail, floorf(v.length * 0.96) + clampf(strength, 0.0, 1.0) * 0.99)
 	mat.set_shader_parameter("wake_a", _wake_a)
 	mat.set_shader_parameter("wake_b", _wake_b)
 	mat.set_shader_parameter("wake_count", n)
