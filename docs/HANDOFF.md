@@ -15605,3 +15605,33 @@ with an EYE on the road), `tools/rocks/make_rock_lods.py` (the welded meshes fro
 glTFs; needs pymeshlab and `apt-get install libopengl0`). `ROCKS=0` is the A/B; `ROCK_DEBUG=1`
 prints RockFar's survey. **Trap:** a `.tscn` probe whose script fails to parse never quits (no
 _ready runs): check a script with `godot --headless --check-only --script res://...` first.
+Claims and the plan's bake are kept per seed (`RockFar._claims[seed]`, `RockOutcrops._bakes`) and
+the live nodes listed (`RockFar._live`): the smoke test builds a second city in one run and another
+check bakes the same macro again at another size.
+
+**Measured** (opengl3 GEO lines from `still_shot.gd`, `ROCKS=0` -> on, 1280x720): the ref hills
+camera 1.612 M / 442 draws -> 1.667 M / 494; golden aerial 4.904 M / 2,672 -> 4.915 M / 2,753;
+freeway 4.269 M / 2,171 -> 4.270 M / 2,222; midtown toward the sign 4.034 M / 2,054 -> 4.034 M /
+2,104; a hill road in the front range 1.834 M / 572 -> 1.867 M / 650; a summit crag from 320 m (its
+near cell's scans in view) 0.625 M / 705 -> 1.003 M / 735. Triangles stay small wherever the city
+is in view; the cost is ~50-80 draws (the far cells, three kinds each). The plan is ~4-5 s of
+GDScript at the first load (then LoadCache). Gate on the merged tree (main 001fd22 + this branch):
+2,692 passed, 0 failed in 3 shards, peak 2.57 GB a shard.
+
+**Stills** (`origin/shots/rock-outcrops`, before = `ROCKS=0`): the three ref views (hills, golden
+aerial, freeway), midtown toward the sign mountain and its 16-degree telephoto (summit crags and
+their jumbles on the skyline), a 16-degree telephoto up the front range from the freeway (rock
+spines along the crests), a cut bank's boulders, a summit crag from 320 m, and the kit (the scan,
+its shredded generated LOD, the welded mesh).
+
+**Not done / not verified.**
+- Never seen on Forward+ (lavapipe cannot take the city): the rock palette under AgX with the
+  real exposure, the far crags in the aerial haze at golden hour, the shadow twins. NEEDS MAC CHECK.
+- The far crags read lighter than the ranges in sunlight on opengl3 (`far_tone` 0.78 darkens the
+  welded mesh; tune it with `far_dust` once seen on the Mac).
+- Only the silhouette and some rock is changed: the ranges' smooth tan faces between the crags are
+  still the horizon plane's paint and crags (macro_ground.gdshader, not touched here).
+- Outcrops in FULL chunks are sparse where the painted rock is (the paint wants 60-degree slopes).
+- `Quality` does not scale RockFar (no fewer tors at LOW / LOWEST); the web draws all of them.
+- A tor in the LOD band between the LOD ring and NEAR_RANGE that no chunk claims is seated on the
+  plane, which is still flat there (it can sit low until a chunk claims it).
