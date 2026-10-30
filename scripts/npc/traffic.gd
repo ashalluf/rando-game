@@ -173,12 +173,15 @@ func _new_car(kind: int = -1) -> Vehicle:
 		if not is_instance_valid(pooled):
 			_pool.remove_at(i)
 			continue
-		if (kind < 0 and not BigVehicles.is_big(pooled.body_type)) or pooled.body_type == kind:
+		if (kind < 0 and not BigVehicles.is_big(pooled.body_type) and not Lowrider.is_lowrider(pooled.body_type)) or pooled.body_type == kind:
 			_pool.remove_at(i)
 			if pooled.has_node("Hitch"):
 				(pooled.get_node("Hitch") as BigVehicles.Hitch).straighten()
 			return pooled
 	_built_this_frame += 1
+	if Lowrider.is_lowrider(kind):
+		# A cruising lowrider (Lowrider): its look from a hash, so the street's rng runs as before.
+		return Lowrider.make(kind, absi(hash([kind, cars.size(), Engine.get_physics_frames(), "lowrider"])))
 	if kind >= 0:
 		return BigVehicles.make(kind, _rng.randi())
 	return Vehicle.random_car(_rng)
@@ -199,7 +202,8 @@ func _street_kind(axis: int, index: int, at: Vector2) -> int:
 		return BigVehicles.SEMI
 	if roll < (BigVehicles.STREET_SEMI_SHARE + BigVehicles.STREET_BOX_SHARE) * k:
 		return BigVehicles.BOX_TRUCK
-	return -1
+	# Now and then a lowrider cruising (Lowrider; the roll above, reused, spends no roll).
+	return LowriderMeet.traffic_kind(self, plan, at, roll)
 
 
 ## Takes a traffic car off the road: into the pool if there is room, freed otherwise.
@@ -296,6 +300,8 @@ func _spawn_near(pw: Vector3, density: float = 1.0) -> void:
 	var speed := _rng.randf_range(speed_range.x, speed_range.y) * lerpf(1.0, dense_speed_factor, density)
 	if kind >= 0:
 		speed *= 0.8
+	if Lowrider.is_lowrider(kind):
+		speed *= LowriderMeet.CRUISE_SPEED
 	car.traffic = {"axis": axis, "index": index, "dir": dir, "lane": lane, "speed": speed, "v": speed * 0.8, "half": car_half_length(car), "rear": car_rear_length(car)}
 	TrafficAI.roll_mood(car, car.traffic)
 	if kind == BigVehicles.BUS:

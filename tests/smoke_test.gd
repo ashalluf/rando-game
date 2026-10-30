@@ -2389,6 +2389,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The crowd's head look (tests/crowd_look_checks.gd): the modifier, heard and seen events, caps,
 	# easing, hold-off, and easing back out of range.
 	await load("res://tests/crowd_look_checks.gd").new().run(self, city)
+	# Lowriders (tests/lowriders_checks.gd): the bodies, wire wheels and paint, the hydraulics, where
+	# and when the meets are, a meet's chunk (the row, the crowd, the block unmoved), the cruisers.
+	await load("res://tests/lowriders_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

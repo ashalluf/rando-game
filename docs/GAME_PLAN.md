@@ -409,6 +409,16 @@ already mapped so milestone 2 is script-only.
   Built on crowd life's acts (no new clips, no new bones); everything rolled from the person's
   seed; four hook lines in Pedestrian, one in Weather; `RAIN_CROWD=0` is the A/B. Far people walk
   on as before (the rain and the fog hide them).
+- **2026-10-06 Lowriders (HANDOFF "Lowriders").** Two classic bodies (a 1960s hardtop, a 1980s
+  coupe) on the road-car loft in Blender, appended body types never rolled. Decisions: the candy,
+  flake, pinstripes and patterned roof are a `custom` block in the shared car paint include (one
+  uniform branch for every other car) placed in MESH space, not a per-car texture; the wire wheels
+  are built in code like the other generated wheels (72 spokes; a disc far); the hydraulics are
+  VISUAL (the body model and its lamps move, a wheel lifts once its corner passes the stroke; the
+  physics body does not), and a meet car is kinematic like a traffic car, so a row of ten costs no
+  simulation and a hit still turns one into a physics car. Meets are worked out per map cell by
+  hash on boulevards in midtown, the suburbs and the industrial east, weekend nights only, and skip
+  the block's parked cars after their rolls; cruisers reuse the traffic's last roll.
 
 - **2026-10-05 Drivers react to chaos (HANDOFF "Drivers react to chaos").** A shot or a blast
   near a street traffic car rolls its driver one of brake, swerve, kerb, reverse, abandon or
