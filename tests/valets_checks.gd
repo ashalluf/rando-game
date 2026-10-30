@@ -4,7 +4,7 @@ extends RefCounted
 ##
 ## Checks the hours (a restaurant's valets at dinner, not at 04:00; a hotel's round the clock),
 ## the kit's meshes (one surface each on the street vendors' shader, inside a triangle budget),
-## then builds FULL chunks round downtown at 20:00 until one has a stand and checks: every stand
+## then builds FULL chunks round downtown at 20:00 until one has an open stand and checks: every stand
 ## is at a hotel lobby or a restaurant, its podium on the pavement by the kerb, its zone clear of
 ## the block's corners; a kept zone has no parked car on it; the podium is a knockable body; a
 ## ValetStand is there with its valets planned; built with valets off it is the same block
@@ -75,13 +75,13 @@ func _find(city: Node3D, plan: CityPlan) -> Vector2i:
 				chunk.build()
 				var has := false
 				for s: Dictionary in chunk.get_meta("valet_stands", []):
-					has = has or (bool(s.open) and not bool(s.double))
+					has = has or bool(s.open)
 				chunk.get_parent().remove_child(chunk)
 				chunk.free()
 				if has:
 					return k
 				tried += 1
-				if tried > 16:
+				if tried > 24:
 					return Vector2i(99999, 99999)
 	return Vector2i(99999, 99999)
 
@@ -157,11 +157,12 @@ func _live(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 	_clear_traffic(traffic)
 	var chunk: CityChunk = city._new_chunk(k, CityChunk.Level.FULL)
 	chunk.build()
+	# A stand with its own kept zone if the block has one, else a double-parked one.
 	var stand: ValetStand = null
 	for n in chunk.get_children():
-		if n is ValetStand and not bool((n as ValetStand).s.double) and stand == null:
+		if n is ValetStand and (stand == null or (bool(stand.s.double) and not bool((n as ValetStand).s.double))):
 			stand = n
-	_t._check(stand != null, "valets: a kept-zone stand is at work in the chunk")
+	_t._check(stand != null, "valets: a stand is at work in the chunk")
 	if stand == null:
 		_end_live(city, traffic, player, home, chunk)
 		return
