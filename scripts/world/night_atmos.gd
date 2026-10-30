@@ -54,7 +54,7 @@ const HALO_LED := Color(0.82, 0.9, 1.0)
 ## The street's sodium haze: the most the fog colour leans to sodium, and fog density added (per
 ## metre, at full haze and lamps), and the camera height over the street where it is gone.
 const SODIUM_FOG := Color(0.62, 0.36, 0.14)
-const SODIUM_LEAN := 0.5
+const SODIUM_LEAN := 0.42
 const SODIUM_DENSITY := 0.0011
 const SODIUM_TOP := 140.0
 const DRAW_DISTANCE := 900.0
