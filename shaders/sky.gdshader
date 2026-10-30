@@ -121,15 +121,15 @@ uniform float sunset = 0.0;
 uniform float sunset_aerosol = 1.0;
 /// The earth's shadow rising opposite the sun and the Belt of Venus above it (linear multiples of
 /// the sky's own luminance there, so they hold on both renderers).
-uniform vec3 earth_shadow_tint = vec3(0.62, 0.70, 1.0);
-uniform vec3 belt_tint = vec3(1.25, 0.82, 0.92);
+uniform vec3 earth_shadow_tint = vec3(0.55, 0.64, 0.95);
+uniform vec3 belt_tint = vec3(1.45, 0.95, 1.05);
 /// The peach band between the gold horizon and the blue above it, toward the sun.
 uniform vec3 sunset_peach = vec3(1.0, 0.66, 0.48);
 /// Brightness of the light the low sun puts on the cloud (x cloud_sun) and of the cirrus
 /// afterglow, and of the crepuscular rays while it is on (in place of `god_rays`, which DayNight
 /// fades out with the night factor - three degrees under, when the rays are at their best).
 uniform float sunset_cloud_gain = 1.1;
-uniform float sunset_cirrus_gain = 0.75;
+uniform float sunset_cirrus_gain = 0.5;
 uniform float sunset_rays = 0.45;
 
 // --- Volumetric cumulus (Forward+, cloud_detail on) --------------------------------------------
@@ -416,6 +416,8 @@ float hg(float c, float g) {
 // the aerosol is what takes the light past orange to red in a Los Angeles evening.
 vec4 sun_through(float el, float h) {
 	h = max(h, 0.0);
+	// Refraction lifts the sun about 0.6 degrees at the horizon.
+	el += 0.01;
 	float er = exp(-h / 8.0);
 	float ea = exp(-h / 1.4);
 	float ht = el >= 0.0 ? h : h - el * el * EARTH_R * 0.5;
@@ -432,7 +434,7 @@ vec4 sun_through(float el, float h) {
 	vec3 tau = vec3(0.032, 0.074, 0.180) * mr + vec3(0.085, 0.115, 0.150) * sunset_aerosol * ma;
 	vec3 tr = exp(-tau);
 	float m = max(tr.r, 1e-4);
-	float lit = smoothstep(-0.2, 0.3, ht);
+	float lit = smoothstep(-0.5, 0.4, ht);
 	return vec4(tr / m, lit * mix(0.45, 1.0, smoothstep(0.0, 0.35, m)));
 }
 
@@ -725,18 +727,19 @@ vec4 painted_cumulus(vec3 dir, vec3 sdir, vec3 mdir, vec3 sun_light, float sun_u
 		// body above it, seen from under) keeps the violet of the sky away from the sun.
 		float dt = max(cloud_base - view_km.y, 0.3) / max(up, 0.03);
 		float el = sdir.y + dot(dir.xz * dt, normalize(sdir.xz + vec2(1e-5, 0.0))) / EARTH_R;
-		vec4 st = sun_through(el, cloud_base + 0.2);
+		// A painted cloud stands for the whole heap: light it at the height of its sunlit crown.
+		vec4 st = sun_through(el, cloud_base + cloud_depth * 0.6);
 		float toward = smoothstep(-0.4, 1.0, dot(normalize(dir.xz + vec2(1e-5, 0.0)), normalize(sdir.xz + vec2(1e-5, 0.0))));
 		float below_deck = smoothstep(0.04, -0.015, el);
 		float lit = clamp((1.0 - thick) * 0.55 + sunlit * 0.45, 0.0, 1.0);
-		lit = mix(lit, 0.55 + 0.45 * (1.0 - thick), below_deck) * (0.45 + 0.55 * toward);
-		vec3 hot = sunset_out(st.rgb * mix(vec3(1.0), vec3(1.0, 0.86, 0.95), below_deck)) * st.a
-			* sunset_cloud_gain * (0.75 + 0.9 * pow(max(cos_sun, 0.0), 4.0));
+		lit = mix(lit, 0.55 + 0.45 * (1.0 - thick), below_deck * toward) * (0.62 + 0.38 * toward);
+		vec3 hot = sunset_out(st.rgb * mix(vec3(1.0), vec3(1.0, 0.86, 0.95), below_deck) * st.a
+			* sunset_cloud_gain * 1.5 * (0.75 + 0.9 * pow(max(cos_sun, 0.0), 4.0)));
 		vec3 shade = mix(cloud_shadow, twilight_band, 0.5) * 0.75;
 		vec3 back = mix(shade, hot, lit);
 		back += hot * rim * 1.4 * (1.0 - below_deck * 0.5);
 		cloud = mix(cloud, back, sunset);
-		keep_lit = st.a * sunset;
+		keep_lit = smoothstep(0.0, 0.25, st.a) * sunset;
 	}
 	float mlit = pow(max(dot(dir, mdir), 0.0), 4.0) * moon_vis;
 	vec3 night_cloud = cloud * night_cloud_light + night_glow + moon_tint * mlit * 0.12;
@@ -809,6 +812,16 @@ void sky() {
 			if (ldir.y < 0.0) {
 				ldir = normalize(vec3(ldir.x, max(ldir.y, -0.04), ldir.z));
 			}
+			// Sunset: once the sun is under the street's horizon it shines UP into the flat bases.
+			// At its true angle (a degree or two) the light march runs along the base inside the
+			// cloud and never sees the light; tipped down it leaves through the base, which is
+			// what the eye sees from under the deck - the whole base lit hot from below, the
+			// body above it in its own shade.
+			float under = 0.0;
+			if (sunset > 0.0 && sun_el > -1.5) {
+				under = sunset * smoothstep(0.03, -0.012, sdir.y);
+				ldir = normalize(vec3(ldir.x, mix(ldir.y, -0.2, under), ldir.z));
+			}
 			// The ambient: the sky's own blue above, the ground's bounce and the cloud's own
 			// shade below; at night the night glow and the city's light dome under the bases.
 			float hl = dot(sky_horizon, vec3(0.299, 0.587, 0.114));
@@ -821,7 +834,7 @@ void sky() {
 				// strongest toward the sun) and what reaches the tops from above is the deep
 				// blue and violet of the sky away from it: hot bases, violet crowns.
 				float toward = smoothstep(-0.3, 1.0, dot(normalize(dir.xz + vec2(1e-5, 0.0)), normalize(sdir.xz + vec2(1e-5, 0.0))));
-				vec3 warm = twilight_warm * (0.25 + 0.75 * toward) * hl * 0.7;
+				vec3 warm = twilight_warm * (0.25 + 0.75 * toward) * hl * (0.7 + 1.2 * under);
 				amb_bot = mix(amb_bot, amb_bot * 0.6 + warm, sunset);
 				amb_top = mix(amb_top, mix(amb_top, twilight_band * hl * 1.4, 0.45), sunset);
 			}
@@ -907,7 +920,7 @@ void sky() {
 		float belt = exp(-bz * bz) * (1.0 - under);
 		float k = away * when * sunset;
 		col = mix(col, sunset_out(earth_shadow_tint) * sky_l * 0.85, clamp(under * k * 0.75, 0.0, 1.0));
-		col = mix(col, sunset_out(belt_tint) * sky_l, clamp(belt * k * 0.7, 0.0, 1.0));
+		col = mix(col, sunset_out(belt_tint) * sky_l, clamp(belt * k * 0.85, 0.0, 1.0));
 	}
 
 	// --- The city's light dome ---------------------------------------------------------------
@@ -1094,8 +1107,8 @@ void sky() {
 				vec4 st = sun_through(el, 9.0);
 				c_lit = st.a;
 				float fwd = 0.75 + 1.6 * pow(max(cos_sun, 0.0), 5.0);
-				c_after = sunset_out(st.rgb * mix(vec3(1.0), vec3(1.0, 0.82, 0.9), smoothstep(0.02, -0.04, el)))
-					* st.a * fwd * sunset_cirrus_gain;
+				c_after = sunset_out(st.rgb * mix(vec3(1.0), vec3(1.0, 0.82, 0.9), smoothstep(0.02, -0.04, el))
+					* st.a * fwd * sunset_cirrus_gain);
 				cir_night = night_factor * (1.0 - c_lit * sunset);
 			}
 			cir *= smoothstep(0.03, 0.34, up) * cirrus_amount * (1.0 - cir_night * 0.85);
@@ -1105,6 +1118,11 @@ void sky() {
 				// Lit, it outshines the sky round it; in the earth's shadow it is a grey veil.
 				vec3 dark = col * 0.8 + night_glow;
 				ccol = mix(ccol, mix(dark, c_after, c_lit), sunset);
+				// Its long east-west streaks run straight at the sun at sunset and read as beams of
+				// light: broken along their length into wisps they read as cirrus again.
+				float wisp = smoothstep(0.32, 0.72, vnoise(vec2(cuv.x * 2.4, cuv.y * 0.9) + 7.3) * 0.65
+					+ vnoise(vec2(cuv.x * 5.1, cuv.y * 2.3) + 2.1) * 0.35);
+				cir *= mix(1.0, wisp, sunset);
 			}
 			col = mix(col, ccol, cir * 0.55);
 		}
