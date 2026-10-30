@@ -26,14 +26,18 @@ func _initialize() -> void:
 
 static func census_line(tree: SceneTree, cone_deg: float = 40.0) -> String:
 	var c := census(tree, cone_deg)
-	return "CENSUS t=%.1fs moving150=%d (view %d) queued150=%d parked150=%d walkers60=%d (view %d) traffic=%d/%d freeway=%d crowd=%d/%d pool=%d" % [
+	return "CENSUS t=%.1fs moving150=%d (view %d) queued150=%d parked150=%d walkers60=%d (view %d) traffic=%d/%d freeway=%d crowd=%d/%d pool=%d bodies=%d/%d" % [
 		Time.get_ticks_msec() / 1000.0, c.moving, c.moving_view, c.queued, c.parked, c.walkers, c.walkers_view,
-		c.traffic, c.cap, c.freeway, c.crowd, c.crowd_cap, c.pool]
+		c.traffic, c.cap, c.freeway, c.crowd, c.crowd_cap, c.pool, c.bodies, c.bodies_cap]
 
 
 static func census(tree: SceneTree, cone_deg: float = 40.0) -> Dictionary:
 	var out := {"moving": 0, "moving_view": 0, "queued": 0, "parked": 0, "walkers": 0, "walkers_view": 0,
-		"traffic": 0, "cap": 0, "freeway": 0, "crowd": 0, "crowd_cap": 0, "pool": 0}
+		"traffic": 0, "cap": 0, "freeway": 0, "crowd": 0, "crowd_cap": 0, "pool": 0, "bodies": 0, "bodies_cap": 0}
+	var budget := tree.root.get_node_or_null("/root/PhysicsBudget")
+	if budget:
+		out.bodies = budget.call("active_body_count")
+		out.bodies_cap = budget.get("max_active_bodies")
 	var cam := tree.root.get_viewport().get_camera_3d()
 	var player := tree.get_first_node_in_group("player") as Node3D
 	var eye: Vector3 = cam.global_position if cam else (player.global_position if player else Vector3.ZERO)

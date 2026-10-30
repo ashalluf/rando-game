@@ -153,7 +153,7 @@ func _run_spawns() -> void:
 		_spawn_queues[0].clear()
 	if waiting == 0 or _built_this_frame >= builds_per_frame:
 		return
-	if not PhysicsBudget.can_spawn():
+	if not PhysicsBudget.can_spawn() and not BusyStreets.traffic_room(self):
 		for q: Array in _spawn_queues:
 			q.clear()
 		return
@@ -281,7 +281,7 @@ func _maintain() -> void:
 	while loop_cars.size() > max_loop_cars:
 		var extra: Vehicle = loop_cars.pop_back()
 		_retire(extra)
-	for i in mini(want - cars.size(), 12):
+	for i in mini(want - cars.size(), BusyStreets.spawn_burst(self, want)):
 		_spawn_queues[0].append(_spawn_near.bind(pw, density))
 	_maintain_loops(pw)
 	TrafficAI.maybe_pullout(self)

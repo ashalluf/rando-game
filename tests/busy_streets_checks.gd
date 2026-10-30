@@ -66,6 +66,8 @@ func _spawns(tm: TrafficManager) -> void:
 	var e := BusyStreets.eye(tm.get_tree(), tm._player)
 	var at: Vector3 = e[0]
 	var fwd: Vector3 = e[1]
+	var was_fill := BusyStreets.fill_now
+	BusyStreets.fill_now = false
 	var focused := 0
 	var in_range := 0
 	var popped := 0
@@ -93,9 +95,18 @@ func _spawns(tm: TrafficManager) -> void:
 	_check(in_range == focused, "a focused spawn is %d-%d m off the camera along its road (%d of %d)" % [BusyStreets.near_min, BusyStreets.focus_max, in_range, focused])
 	_check(popped <= focused / 50, "no focused spawn pops in close inside the view (%d of %d)" % [popped, focused])
 	_check(ahead > focused / 3, "focused spawns lean ahead of the camera (%d of %d)" % [ahead, focused])
+	# Filling (a fresh load or a teleport): bursts, and the near street may fill in plain sight.
+	var staged := tm.staged
+	tm.staged = false
+	var burst := BusyStreets.spawn_burst(tm, tm.cars.size() * 4 + 40)
+	var calm := BusyStreets.spawn_burst(tm, 0)
+	tm.staged = staged
+	_check(burst == BusyStreets.FILL_BURST and calm == 12, "an empty street fills in bursts (%d), a full one at the old pace (%d)" % [burst, calm])
+	BusyStreets.fill_now = was_fill
 	BusyStreets.enabled = false
-	_check(BusyStreets.pick_spawn(tm, rng) == Vector3.INF, "BUSY_STREETS=0 keeps the old spawn rule")
+	_check(BusyStreets.pick_spawn(tm, rng) == Vector3.INF and BusyStreets.spawn_burst(tm, 999) == 12, "BUSY_STREETS=0 keeps the old spawn rule")
 	BusyStreets.enabled = true
+	BusyStreets.fill_now = was_fill
 
 
 func _retire(tm: TrafficManager) -> void:

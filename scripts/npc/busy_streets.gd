@@ -66,7 +66,7 @@ static var crowd_per_tick: int = 6
 static var crowd_pop_min: float = 45.0
 
 ## Extra parked cars a block may add on the spots its own pass left empty (fraction of its count).
-const PARK_EXTRA := 0.6
+const PARK_EXTRA := 0.4
 ## And the share of those empty spots that get one (a hash per spot).
 const PARK_EXTRA_ODDS := 0.5
 
@@ -79,9 +79,12 @@ static func hour_factor(hour: float) -> float:
 	return clampf(NightCity.traffic_level(hour) / 0.66, 0.3, 1.0)
 
 
-## 0..1 of a block's planned walkers at `hour`: full 8:00-20:00, the evening still out, the small
-## hours a quarter.
-const CROWD_KEYS: Array[float] = [0.42, 0.28, 0.22, 0.22, 0.25, 0.4, 0.62, 0.86, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.95, 0.85, 0.72, 0.56, 0.42]
+## 0..1 of a block's planned walkers at `hour`: full 8:00-21:00, the evening still out, the small
+## hours a quarter. A near block is thinned toward it only under `THIN_BELOW` (after midnight).
+const CROWD_KEYS: Array[float] = [0.5, 0.36, 0.25, 0.22, 0.25, 0.4, 0.62, 0.86, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.96, 0.88, 0.72, 0.5]
+
+
+const THIN_BELOW := 0.55
 
 
 static func crowd_factor(hour: float) -> float:
@@ -121,6 +124,21 @@ static func in_view(at: Vector3, fwd: Vector3, p: Vector3, cone_deg: float = -1.
 
 # --- traffic --------------------------------------------------------------------------------
 
+## While the street cars are under this share of their target (a fresh load, a teleport, the hour
+## turning busy) the street is FILLING: spawns come in bursts of `FILL_BURST` a half second and may
+## land in plain sight from near_min on - the loading screen hides it, and an empty street in front
+## of the camera waiting for cars to drive in from 115 m is what every still showed.
+const FILL_BELOW := 0.7
+const FILL_BURST := 40
+static var fill_now: bool = false
+
+
+## How many street spawns TrafficManager._maintain() may queue this half second (it was 12).
+static func spawn_burst(tm: TrafficManager, want: int) -> int:
+	fill_now = enabled and not tm.staged and tm.cars.size() < roundi(want * FILL_BELOW)
+	return FILL_BURST if fill_now else 12
+
+
 ## A focused spawn for TrafficManager._spawn_near(): Vector3(axis, index, along), or
 ## Vector3.INF to keep the old rule. Rolls on the traffic's own rng (not the city's).
 static func pick_spawn(tm: TrafficManager, rng: RandomNumberGenerator) -> Vector3:
@@ -142,10 +160,22 @@ static func pick_spawn(tm: TrafficManager, rng: RandomNumberGenerator) -> Vector
 	var along := a_cam + off * sgn
 	var cross := plan.road_pos(axis, index)
 	var p := Vector3(cross, at.y, along) if axis == CityPlan.AXIS_X else Vector3(along, at.y, cross)
-	if in_view(at, fwd, p) and Vector2(p.x - at.x, p.z - at.z).length() < view_pop_min:
+	if not fill_now and in_view(at, fwd, p) and Vector2(p.x - at.x, p.z - at.z).length() < view_pop_min:
 		# In plain sight and close: push it out to where a new car is a dot down the street.
 		along = a_cam + sgn * rng.randf_range(view_pop_min, maxf(view_pop_min + 1.0, focus_max))
 	return Vector3(axis, index, along)
+
+
+## Whether the traffic may still spawn with PhysicsBudget full: traffic cars are kinematic
+## (placed, mask dropped - no simulation), and counted against the props budget the kerbs' parked
+## cars, built first as the ring streams in, used to take all of it and every queued street spawn
+## was dropped (the empty roads of the stills). The traffic's own caps bound it instead; the bodies
+## that are not traffic still have to fit the budget.
+static func traffic_room(tm: TrafficManager) -> bool:
+	if not enabled:
+		return false
+	var own := tm.cars.size() + tm.freeway_cars.size() + tm.loop_cars.size()
+	return PhysicsBudget.active_body_count() - own < PhysicsBudget.max_active_bodies
 
 
 ## Whether a street car at true world `wp` should go back to the pool to be spent nearer the
@@ -231,6 +261,8 @@ static func balance_crowd(streamer: Node3D) -> int:
 		var entry: Array = n[1]
 		var short: int = int(n[3]) - int(n[2])
 		if short < 0:
+			if factor >= THIN_BELOW:
+				continue
 			# Late at night: thin the block toward its share, out of view.
 			added -= _thin(ch, entry[0], -short, at, fwd)
 			continue

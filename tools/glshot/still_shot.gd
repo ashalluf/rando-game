@@ -1221,6 +1221,9 @@ func _geo_report(label: String) -> Array:
 	print("%s tris=%d draws=%d objects=%d | camera tris=%d draws=%d | shadow tris=%d draws=%d" % [
 		label, c[0], c[1], c[2], c[3], c[5], c[4], c[6]])
 	_light_report(label)
+	# CENSUS=1: how busy the street round the camera is (tools/busy_streets/census.gd).
+	if OS.get_environment("CENSUS") == "1":
+		print("%s %s" % [label, load("res://tools/busy_streets/census.gd").call("census_line", self)])
 	return c
 
 
