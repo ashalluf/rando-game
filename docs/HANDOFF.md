@@ -14448,3 +14448,12 @@ checks. `COAST_TRAFFIC=0` turns it off alone.
 **A/B.** `COAST_HIGHWAY=0` (the old coast). Probe: `tools/coast_highway/probe.gd` (transects across
 the coast, the plan's counts, the coast highway's profile). Checks: `tests/coast_highway_checks.gd`.
 
+
+**Wave 3 (merged with main 95bd13f).** The merge was clean apart from the smoke test's hook line
+and this file. The houses' street faces (what a driver sees) were blank stucco with two small
+windows: an upper floor now carries a long clerestory ribbon (half the houses, by the seed) or a
+row of tall windows, and the ground floor a high window in the widest wall the garage and the door
+leave. Gate: `SHARDS=3` green after guarding a free in `tests/dog_checks.gd` (the crowd had already
+freed the walker). Not done: Forward+ stills of the stretch (all stills are opengl3); the houses'
+street side has no planting or palms; the bluff's painted outcrops above the road are the hills'
+own look, untouched here.
