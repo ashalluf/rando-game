@@ -121,8 +121,10 @@ void fragment() {
 			albedo = paint * 0.8 * (0.85 + 0.25 * vnoise(uv * 0.3));
 		} else {
 			float run = streaks(uv * vec2(0.6, 1.0), h, param * 7.0);
-			albedo = mix(albedo, vec3(0.42, 0.27, 0.16), 0.28 * run * smoothstep(0.55, 0.95, vnoise(vec2(uv.x * 0.7, 0.3) + param)));
-			albedo *= 1.0 - 0.12 * run;
+			albedo = mix(albedo, vec3(0.42, 0.27, 0.16), 0.45 * run * smoothstep(0.55, 0.95, vnoise(vec2(uv.x * 0.7, 0.3) + param)));
+			albedo *= 1.0 - 0.2 * run;
+			// Grey-brown weathering under the wind girder and the rim, and the vapour line under the roof seal.
+			albedo *= 1.0 - 0.18 * smoothstep(h - 3.0, h - 0.5, uv.y) * (0.6 + 0.4 * vnoise(uv * vec2(0.3, 2.0)));
 			albedo = mix(albedo, vec3(0.18, 0.16, 0.13), 0.55 * foot * (0.6 + 0.4 * vnoise(uv * vec2(1.5, 2.0))));
 			// Each floodlight a bright fan up the shell from its foot, every ~14 m round it.
 			float fan = 0.35 + 0.65 * pow(abs(cos(uv.x / 14.0 * 3.14159 + param)), 3.0);
