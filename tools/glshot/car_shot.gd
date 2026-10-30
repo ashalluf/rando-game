@@ -9,7 +9,8 @@ extends SceneTree
 ##
 ## Writes $OUT_<view>.png per view. `--type=N` body type (0 sedan; see Vehicle.BodyType; the taxi,
 ## 17, comes in its livery, and it and the beater, 18, take their per-car look from `LOOK=n`),
-## `--views` any of front3 rear3 side front rear top close (the front wheel) far (44 m out,
+## `--views` any of front3 rear3 side front rear top close (the front wheel) plate nose wheel arch (CarDetail close-ups;
+## `CAR_GRIME=g,mud,scratch,dust` forces the grime) far (44 m out,
 ## narrow lens: the far twin), `--cam=x,y,z
 ## --look=x,y,z` for one custom view (the car's nose points -Z, its centre is the origin),
 ## `--fov=`, `--paint=#rrggbb`, `--finish=N` (Vehicle.Finish), `--livery=N` (Vehicle.Livery),
@@ -383,6 +384,21 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 				"close":
 					at = Vector3(3.2, 0.7, -3.6)
 					target = Vector3(0.9, 0.3, -1.5)
+				"plate":
+					# CarDetail: the rear plate and the badges, a walk-up from behind.
+					at = Vector3(0.9, 0.95, 4.6)
+					target = Vector3(0.0, 0.55, 2.3)
+				"nose":
+					at = Vector3(-0.9, 0.9, -4.7)
+					target = Vector3(0.0, 0.45, -2.3)
+				"wheel":
+					# The front wheel square on, close: the sidewall lettering and the brake dust.
+					at = Vector3(2.6, 0.32, -1.5)
+					target = Vector3(0.8, 0.17, -1.5)
+				"arch":
+					# The rear arch and the sill: where the grime collects.
+					at = Vector3(3.4, 0.9, 2.6)
+					target = Vector3(0.9, 0.35, 0.9)
 				"door":
 					at = Vector3(3.4, 0.95, -1.6)
 					target = Vector3(0.9, 0.45, -0.6)

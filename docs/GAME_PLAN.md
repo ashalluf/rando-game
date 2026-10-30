@@ -309,6 +309,11 @@ already mapped so milestone 2 is script-only.
   painted per pixel - the moving ones the night lights' own cells - so nothing a seed builds
   moves and the far city costs no new draws. House roofs out there are the house's own clay tint
   or shingle, flagged so the far shader draws them as roofs, not as towers' membranes.
+- **2026-10-30 Per-car-per-tick work in the traffic must be O(1) (perf-audit-2).** Headless, a
+  frame is eight physics steps and TrafficManager was ~85 % of them, so the gate's wall time is
+  the traffic tick. Its answers stay exactly the same: the cuts are caches keyed per road (never
+  per metre of a moving coordinate) and a search started from a hint. The look is held by DIFF
+  pairs (116 and 86 pixels moved at downtown and the port).
 - **2026-10-30 The night has its own street life (fleet wave 3, `nightlife`).** After 21:00 a share
   of the open restaurants and tower lobbies downtown, in midtown and the beach town are clubs and
   bars with a line along the wall behind a velvet rope, a bouncer and a lit entrance; the door
@@ -327,6 +332,13 @@ already mapped so milestone 2 is script-only.
   the front doors; only the everyday bodies (sedan, taxi, crossover, pickup, van, hatchback, SUV,
   minivan, beater); the exotics, police and big vehicles keep the traced cabin.
 
+- **2026-10-30 The night street's air is drawn, never simulated (HANDOFF "Night street
+  atmosphere").** Halos round lamp heads, shop fronts and car lamps, light cones under the lamps
+  in mist and rain, lens streaks on the lights looked at straight on and a sodium lean on the
+  street's depth fog, all sized and faded in the shaders off one global (`night_atmos`: haze,
+  shaft gain, halo gain, viewport height) that NightAtmos pushes four times a second from the
+  weather. Halos and shafts are instances of each lamp's own prop record (out with the lamp); the
+  drawn cones are skipped where Forward+'s volumetric fog already lights the air (never doubled).
 - **2026-10-30 The oil islands in the bay are a data table, not seeded (HANDOFF "The oil
   islands").** Three decorated drilling islands 600-700 m off the Long Beach sand, each a landmark
   built near and far from one builder on one shader; details are hashes of the island, so no seed
@@ -3516,6 +3528,39 @@ already mapped so milestone 2 is script-only.
   play at speeds measured from each clip's planted foot (HeroStride) instead of guessed numbers
   (the walk was 1.5x off, the run 1.6x), and the gait bands moved to where people change gait.
   Rain wets him through the street's own wetness global. HERO_CLOSEUP=0 keeps all of it off.
+- **2026-10-30 Forward+ review e: display numbers are decoded where they are handed over.** A
+  colour written as display numbers in a renderer-space shader (the building shaders) goes through
+  a Forward+-only decode where it is used (`fx_srgb_in()`), never by re-tuning the number; a broad
+  additive pool adds as display numbers on Forward+ (`light_pool.gdshader` `display_add`) so the
+  Mac's night streets match the stills. The colour-space table is measured, not remembered
+  (`tools/fwd_review/color_matrix.gd`).
+
+- **2026-10-30 Car close-up detail is geometry for plates and badges, shader for dirt.** Plates
+  and badges are raised geometry (one small mesh per car, built only when the car first comes
+  within 70 m, on two shared materials) because embossed characters and chrome need real relief at
+  2 m; grime, mud, scratches and brake dust ride uniforms on materials that already exist per car
+  (the paint) or are shared in a few levels (the wheels), so no car gains a material. Plate format
+  and county are invented. CAR_DETAIL=0 is the A/B.
+- **2026-10-30 The ocean close up is a fragment-only pass (ocean-closeup, HANDOFF "The Pacific close
+  up").** Capillary ripples, wind streaks, glitter sparkles, crest light, ageing foam and the pile
+  and hull foam lines all live in the fragment stage and fade with the hand-over's `detail`, so
+  SeaSurface (the vertex stage in GDScript) and the far sea plane need no change. Pile positions
+  are pushed as grids worked out from the piers' own constants, not found by depth (the web has no
+  depth texture).
+
+- **2026-10-30 One HUD theme (hud-polish, HANDOFF "HUD polish").** Every HUD piece takes its type,
+  scale, safe area and easing from `HudTheme`: Barlow Condensed for display lines (place names, the
+  car's model, the speed, the wordmark), Inter for the rest; the corner pieces sit 40 1080-line
+  units in from the edges, and on a window wider than 21:9 inside a centred 21:9 band. Place names
+  come from what the city already knows (district_name_at, road_name); car model names are invented
+  per body type in `VehicleHud.MODELS` under the dealership brands. No new roll anywhere.
+
+- **2026-10-30 Street trees close up are a shader pass, not new meshes (trees-closeup, HANDOFF
+  "Trees close up").** Decisions: one gust field shared by every tree shader, laid on the true
+  world and running downwind (the Santa Ana's lean when it blows, else the onshore breeze); a
+  scanned crown's depth comes from its mesh bounds (no per-leaf data, no mesh rebuild, so the
+  foliage ladders' table and shadow twins are untouched); the leaf-edge dither is Forward+ only
+  (TAA), never in the shadow pass; `TREES_CLOSEUP=0` restores every shader exactly.
 
 ## Correction: what build 135 (0ce833f) actually contained
 
@@ -3574,3 +3619,9 @@ none of either.
   shape (it carries the landmarks). The horizon plane stays 14 km, with a coarser ring on the same
   material out to 12.6 km, because its rim was erasing the crests 5-7 km away; past the bake the
   map is mirrored. FAR_RANGES=0 is the old world exactly.
+- 2026-10-30 (wave 3, hero-face-2): the hero's face is rebuilt with the hero pipeline rather than
+  patched in shaders alone: MPFB face targets for structure (brow ridge, cheekbones, jaw, a
+  shorter nose), the complexion baked into the maps (blood, mottling, freckles, tear troughs,
+  regional pores and roughness), brows as strand cards and twice the hair cards. The contract
+  (54 bones, clips, material names, hero_x_* maps, eye centres) is held so nothing downstream
+  moves. HERO_FACE_2=0 is the shader A/B.

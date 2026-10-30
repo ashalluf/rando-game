@@ -927,7 +927,7 @@ void fragment() {
 				bool lit = storefront ? shop_open : window_lit(sd, face_id, row, col, lit_ratio_p);
 				float on = storefront ? lamp_factor : night_factor;
 				if (lit && on > 0.001) {
-					vec3 light = storefront ? cs_as_uniform(shop_tone_far(shop_key)) * lit_shop_level : lit_c * window_glow(sd, face_id, row, col) * lit_room_level;
+					vec3 light = storefront ? cs_as_uniform(shop_tone_far(shop_key)) * lit_shop_level : lit_c * window_temp(sd, face_id, row, col) * window_glow(sd, face_id, row, col) * lit_room_level;
 					if (!storefront) {
 						// A lit office is lit from its ceiling (building.gdshader's traced room: the
 						// panels, the bright upper wall, a dim floor): brighter toward the head of the
@@ -954,6 +954,9 @@ void fragment() {
 				vec3 sign_hue = mix(vec3(0.16, 0.18, 0.22), vec3(0.42, 0.20, 0.16), hash21(vec2(shop_seed, 5.3)));
 				sign_hue = mix(sign_hue, vec3(0.18, 0.30, 0.26), step(0.66, hash21(vec2(shop_seed, 9.1))));
 				sign_hue = mix(sign_hue, vec3(0.22, 0.20, 0.26), step(0.86, hash21(vec2(shop_seed, 2.4))));
+				// Display numbers: decoded on Forward+ (fx_srgb_in()), or a red lightbox was a pale red past 1
+				// that AgX drew pink on the Mac (fwd-review-e).
+				sign_hue = fx_srgb_in(sign_hue);
 				cell = sign_hue;
 				vec3 box = sign_hue / max(max(sign_hue.r, max(sign_hue.g, sign_hue.b)), 0.001);
 				box = mix(box, vec3(1.0, 0.93, 0.80), step(0.66, hash21(vec2(shop_seed, 41.7))));
@@ -1093,6 +1096,12 @@ void fragment() {
 				albedo *= 1.0 - 0.45 * drip * (glass ? 0.3 : 1.0);
 				float cdist = min(uq, wall_len - uq);
 				albedo *= 1.0 - 0.14 * weather * (1.0 - smoothstep(0.05, 0.7, cdist)) * (glass ? 0.3 : 1.0);
+			}
+			if (!plinth && !parking && !storefront) {
+				// The night skyline: the crown wash and floodlit stone building.gdshader throws on
+				// the same walls, from the same rolls (window_lights.gdshaderinc).
+				vec3 wash = tower_wash(sd, part_h, vp, uq, fin <= 1 && ws != 2, lamp_factor * night_skyline, detail(2.0, mpp));
+				emission += wash * (glass ? max(albedo, vec3(0.16)) : albedo);
 			}
 		}
 	} else if (custom.a > 4.5) {

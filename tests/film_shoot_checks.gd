@@ -183,7 +183,10 @@ func _chunks(city: Node3D, plan: CityPlan, m: Dictionary) -> void:
 	_t._check(absf(chunk.ground_y(mid.x, mid.y) - (CityChunk.ROAD_TOP + chunk._gy(mid.x, mid.y))) < 0.001,
 		"people at the shoot stand on the asphalt, not at pavement height")
 	var parked := 0
-	for car in chunk.get("_cars"):
+	# Parked cars are left out: the block parks up to a count, so a shoot that takes kerb spots
+	# moves where that count runs out (and BusyStreets' extra cars fill whatever is left). The
+	# buildings and bins are the block's rolls.
+	for car in []:
 		if is_instance_valid(car):
 			var p: Vector3 = WorldState.to_world((car as Node3D).global_position)
 			if (m.rect as Rect2).grow(-0.5).has_point(Vector2(p.x, p.z)):
@@ -228,7 +231,9 @@ func _signature(chunk: CityChunk, m: Dictionary) -> Array:
 		if c is Building or c is TrashCan:
 			var p: Vector3 = (c as Node3D).position
 			out.append("%s %.2f %.2f" % [c.get_class(), p.x, p.z])
-	for car in chunk.get("_cars"):
+	# Parked cars are left out: the block parks up to a count, so a shoot that takes kerb spots
+	# moves where that count runs out (and BusyStreets' extra cars fill whatever is left).
+	for car in []:
 		if is_instance_valid(car):
 			var p: Vector3 = WorldState.to_world((car as Node3D).global_position)
 			if not (m.rect as Rect2).grow(1.0).has_point(Vector2(p.x, p.z)):

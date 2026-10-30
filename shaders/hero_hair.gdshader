@@ -30,6 +30,10 @@ uniform float anisotropy = 0.8;
 uniform vec2 strand_flow = vec2(0.0, 1.0);
 // How dark the buried layers get (UV2.x is 0.4 for the under-layer, 1 for the top).
 uniform float occlusion = 1.0;
+// How round the strands are across a card (0: a flat card, the old look) and how many strand
+// columns the atlas has across U (the hair atlas 8, the brows 8).
+uniform float strand_round = 0.0;
+uniform float strand_columns = 8.0;
 
 varying vec2 hairdata;
 
@@ -56,6 +60,14 @@ void fragment() {
 	ALPHA_SCISSOR_THRESHOLD = clamp(alpha_cut + (hash(FRAGCOORD.xy) - 0.5) * dither, 0.02, 0.98);
 	ROUGHNESS = roughness;
 	SPECULAR = specular * ao;
+	// Round the strands across the card (hero-face-2): a card is flat, and its whole width
+	// caught one highlight as a white plank. Each strand column's normal is bent across it, so
+	// the shine breaks up strand by strand as it does on real hair.
+	if (strand_round > 0.0) {
+		float cu = fract(UV.x * strand_columns) * 2.0 - 1.0;
+		float wob = sin(UV.x * 1931.0 + hairdata.y * 37.0) * 0.5;
+		NORMAL = normalize(NORMAL + TANGENT * (cu * 0.9 + wob) * strand_round);
+	}
 	ANISOTROPY = anisotropy;
 	ANISOTROPY_FLOW = strand_flow;
 	if (ws_on()) {
