@@ -118,6 +118,7 @@ class Buoy:
 	var scared_at := -1e9
 	var back_at := -1e9
 	var xf := Transform3D()
+	var xf_t := -1e9
 	var index := 0
 
 
@@ -328,12 +329,41 @@ func coast_point(z: float, s: float) -> Vector2:
 	return Vector2(macro.coast_x(z) - s, z)
 
 
+var _ok_cache: Dictionary = {}
+
 func _stretch_ok(z: float, s: float) -> bool:
+	# Cached by 20 m of coast and 10 m out: a pod asks every frame as it swims.
+	var ck := Vector2i(roundi(z / 20.0), roundi(s / 10.0))
+	if _ok_cache.has(ck):
+		return _ok_cache[ck]
+	if _ok_cache.size() > 4000:
+		_ok_cache.clear()
+	var ok := _stretch_ok_now(z, s)
+	_ok_cache[ck] = ok
+	return ok
+
+
+func _stretch_ok_now(z: float, s: float) -> bool:
 	var cx := macro.coast_x(z)
 	if absf(macro.coast_x(z + 40.0) - macro.coast_x(z - 40.0)) > 36.0:
 		return false
 	var p := Vector2(cx - s, z)
 	return macro.zone_at(p) == MacroMap.Zone.OCEAN and macro.zone_at(p + Vector2(s * 0.5, 0.0)) == MacroMap.Zone.OCEAN
+
+
+var _sea_cache: Dictionary = {}
+
+## sea_y() for an event's own point, worked out again only every 0.08 s of the clock (the swell
+## moves slowly; SeaSurface.height() is ~50 us of GDScript).
+func _sea_y_at(key: Variant, p: Vector2, t: float) -> float:
+	var c: Array = _sea_cache.get(key, [])
+	if c.size() == 3 and absf(t - float(c[0])) < 0.08 and (c[1] as Vector2).distance_squared_to(p) < 1.0:
+		return c[2]
+	if _sea_cache.size() > 256:
+		_sea_cache.clear()
+	var y := sea_y(p)
+	_sea_cache[key] = [t, p, y]
+	return y
 
 
 ## The sea's surface height at true world XZ now (y, true world).
@@ -477,19 +507,29 @@ func dolphins_at(e: Dictionary, t: float, out_splash: Array = [], sounds: Array 
 	if not e.get("forced", false) and not _stretch_ok(z, s):
 		return out
 	var c := coast_point(z, s)
-	var sy := sea_y(c)
+	var sy := _sea_y_at(["d", e.n, e.k], c, t)
 	var ahead := coast_point(z + dir * 3.0, s) - c
 	var fwd := Vector3(ahead.x, 0.0, ahead.y).normalized()
 	var off_dir := Vector3(-1.0, 0.0, 0.0) # offshore
 	var yaw := atan2(-fwd.x, -fwd.z)
 	var count: int = e.count
 	var key := [seed_value, "dol", e.n, e.k]
+	if not e.has("members"):
+		# Each dolphin's fixed numbers, hashed once and kept with the (cached) event.
+		var mem: Array = []
+		for j in count:
+			var hj0 := h01(key + [j])
+			var per := 4.2 + h01(key + [j, "p"]) * 2.6
+			mem.append([hj0, (hj0 - 0.5) * 16.0 + (3.0 if j % 2 == 0 else -3.0), (h01(key + [j, "a"]) - 0.5) * 20.0, per, h01(key + [j, "f"]) * per])
+		e["members"] = mem
+	var members: Array = e.members
 	for j in count:
-		var hj := h01(key + [j])
-		var lat := (hj - 0.5) * 16.0 + (3.0 if j % 2 == 0 else -3.0)
-		var along := (h01(key + [j, "a"]) - 0.5) * 20.0
-		var period := 4.2 + h01(key + [j, "p"]) * 2.6
-		var phase := h01(key + [j, "f"]) * period
+		var m: Array = members[j]
+		var hj: float = m[0]
+		var lat: float = m[1]
+		var along: float = m[2]
+		var period: float = m[3]
+		var phase: float = m[4]
 		if e.has("sync"):
 			# Staged: every dolphin is a few tenths into a leap at the staged moment.
 			phase = fposmod(0.75 + 0.1 * float(j) - float(e.sync), period)
@@ -558,17 +598,24 @@ func pelicans_at(e: Dictionary, t: float, out_splash: Array = [], sounds: Array 
 	var key := [seed_value, "pel", e.n, e.k]
 	var count: int = e.count
 	var lead_p := coast_point(zc + dir * v * (minf(u, run) - run * 0.5), s)
-	var sy_line := sea_y(lead_p)
+	var sy_line := _sea_y_at(["p", e.n, e.k], lead_p, t)
+	if not e.has("members"):
+		var mem: Array = []
+		for j in count:
+			mem.append([h01(key + [j]), h01(key + [j, "d"]) < DIVE_ODDS, 12.0 + h01(key + [j, "t"]) * (run - 30.0), 14.0 + h01(key + [j, "s"]) * 14.0])
+		e["members"] = mem
+	var members: Array = e.members
 	for j in count:
-		var hj := h01(key + [j])
+		var m: Array = members[j]
+		var hj: float = m[0]
 		var along0 := -float(j) * float(e.spacing) + (hj - 0.5) * 0.8
 		var lat := float(e.side) * float(j) * (1.0 + hj * 0.6)
-		var dives := h01(key + [j, "d"]) < DIVE_ODDS
-		var td := 12.0 + h01(key + [j, "t"]) * (run - 30.0)
+		var dives: bool = m[1]
+		var td: float = m[2]
 		if e.has("dive_at") and j == int(e.get("diver", 0)):
 			dives = true
 			td = float(e.dive_at)
-		var t_sit := 14.0 + h01(key + [j, "s"]) * 14.0
+		var t_sit: float = m[3]
 		var tau := u - td
 		var line_u := u
 		var y_rel := float(e.height) + 0.45 * sin(u * 0.9 + float(j) * 0.7) + (hj - 0.5) * 0.4
@@ -690,6 +737,8 @@ func whale_at(e: Dictionary, t: float, out_splash: Array = [], sounds: Array = [
 ## The buoy's transform (true world) now: riding the swell, tilted with it, swinging slowly on its
 ## mooring.
 func buoy_xform(b: Buoy, t: float) -> Transform3D:
+	if absf(t - b.xf_t) < 0.05:
+		return b.xf
 	var y := sea_y(b.at)
 	var sl := SeaSurface.slope(macro, b.at, SeaSurface.now(), _sea_state, 1.2) if not _sea_state.is_empty() else Vector2.ZERO
 	var up := Vector3(-sl.x, 1.0, -sl.y).normalized()
@@ -697,7 +746,9 @@ func buoy_xform(b: Buoy, t: float) -> Transform3D:
 	var tilt_axis := Vector3.UP.cross(up)
 	if tilt_axis.length() > 1e-4:
 		basis = Basis(tilt_axis.normalized(), Vector3.UP.angle_to(up) * 0.8) * basis
-	return Transform3D(basis, Vector3(b.at.x, y, b.at.y))
+	b.xf = Transform3D(basis, Vector3(b.at.x, y, b.at.y))
+	b.xf_t = t
+	return b.xf
 
 
 ## The sea lions on buoy b at time t: [{xf (true world), lift, turn, bark, breath}], and the
@@ -705,7 +756,6 @@ func buoy_xform(b: Buoy, t: float) -> Transform3D:
 func lions_at(b: Buoy, t: float, out_splash: Array = [], sounds: Array = [], t_prev: float = INF) -> Array:
 	var out: Array = []
 	var bx := buoy_xform(b, t)
-	b.xf = bx
 	var deck := SeaLifeMesh.BUOY_DECK_Y
 	# The bout: who barks, from when, how many times.
 	var bout := int(floor(t / BOUT_SECONDS))

@@ -37,16 +37,28 @@ func _ready() -> void:
 			var z: float = e.zc
 			print("EVENT %-8s from t %6.1f stretch %d z %.0f dir %+.0f %s" % [e.kind, e.t0, e.k, z, e.dir, "count %d" % e.count if e.has("count") else ""])
 		t += 5.0
+	# A few seconds of frames at 60 fps where a pod and a line are passing (the real per-frame cost).
+	var t_busy := 0.0
+	for tb in range(0, 1200, 5):
+		var kinds := {}
+		for e in sea.events_at(float(tb), eye):
+			kinds[e.kind] = true
+		if kinds.has("dolphin") and kinds.has("pelican"):
+			t_busy = float(tb) + 20.0
+			break
 	var tt := Time.get_ticks_usec()
 	var n := 0
-	for i in 100:
-		for e in sea.events_at(float(i) * 3.0, eye):
+	for i in 300:
+		var tf := t_busy + float(i) / 60.0
+		for e in sea.events_at(tf, eye):
 			match e.kind:
 				"dolphin":
-					n += sea.dolphins_at(e, float(i) * 3.0).size()
+					n += sea.dolphins_at(e, tf).size()
 				"pelican":
-					n += sea.pelicans_at(e, float(i) * 3.0).size()
-	print("cost: 100 frames of events %.2f ms each (%d animals)" % [float(Time.get_ticks_usec() - tt) / 100000.0, n])
+					n += sea.pelicans_at(e, tf).size()
+				"whale":
+					n += sea.whale_at(e, tf).size()
+	print("cost: 300 frames at 60 fps from t %.0f: %.3f ms each (%.1f animals a frame)" % [t_busy, float(Time.get_ticks_usec() - tt) / 300000.0, float(n) / 300.0])
 	if OS.get_environment("STAGE") != "":
 		var kind := OS.get_environment("STAGE")
 		sea.stage(kind, Vector2(-950.0, -120.0), 0.45)
