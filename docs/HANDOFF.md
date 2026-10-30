@@ -14475,6 +14475,24 @@ numbers and city stills are not taken.
 close up, the palace corner before / after, the marquee, the forecourt's handprint slabs, two
 characters, the boulevard from above before / after, the walk and the palace at night.
 
+**Wave 3 (merged onto main 95bd13f).** Main's later features had started taking the walk's
+frontage: an apartment block (block 8,-14) and a car dealership (BRAVENT, with its tube men, on
+the same lot) on seed 1337. Now: `StarBoulevard.strip_lot()` (pure) keeps VacantLots and
+Apartments off it (one line in each), CarDealers never makes the walk's road an auto row (it asks
+`block_side()` before caching its site, since the walk's plan asks CarDealers in turn), a
+frontage lot is any lot whose front stands within `FRONT_SLACK` (5 m) of the pavement (the lot
+grid leaves 3-4 m; at 3 m only 5 of the 9 counted), a frontage car park (`CityPlan.lots()`
+"parking") builds a shop block instead (city_chunk's surface-lot line; AirTraffic, Alleys and
+GroundCoverage follow it), and `dress()` makes every frontage building a SLAB filling its lot
+(`fill_lot`, no podium): one wall of shopfronts at the back of the pavement instead of towers on
+forecourts. A deco building may still take a frontage lot (DecoBoulevard: a theatre or a tower
+fits the walk; seed 1337 has one opposite the palace). A face's characters step round the costume
+table (no twins side by side), and each registers two `vendor_queue` spots in front of it, so
+walkers stop for a photo (`PHOTO_SPOTS`). City stills (`still_shot.gd`) still deadlock on a
+4-core box after "LOADING far city" (main thread in a WorkerThreadPool wait, every worker idle:
+an engine issue, not the walk's); the stills are `tools/glshot/station_night_shot.tscn` (the
+real DayNight and lamps, the FULL chunks round the eye) on opengl3.
+
 **Tools.** `tools/star_boulevard/probe.tscn` (headless: the walk, its blocks, the palace, the
 characters, EYEs), `tools/star_boulevard/star_shot.gd` (a few metres of the band or the forecourt
 alone, seconds; `MODE=forecourt`), `tools/make_star_boulevard_art.py`. A/B: `STAR_BOULEVARD=0`.

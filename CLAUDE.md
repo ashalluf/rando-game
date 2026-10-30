@@ -4151,7 +4151,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   slabs, two lots deep), low souvenir-strip blocks (`dress()`: `name_pool`, never new SHOP_NAMES -
   the vinyl's 6-bit table is nearly full), goods, feather flags, neon star medallions on the
   lamps, `StreetCharacter`s in ORIGINAL costumes and sightseeing buses at a kept-clear kerb. Five
-  hook lines in city_chunk.gd, after every roll. `STAR_BOULEVARD=0` the A/B; probe
+  hook lines in city_chunk.gd, after every roll; the frontage (`strip_lot()`) is kept from
+  VacantLots, Apartments, CarDealers and surface car parks, and built as lot-filling SLABs. `STAR_BOULEVARD=0` the A/B; probe
   `tools/star_boulevard/probe.tscn`; checks `tests/star_boulevard_checks.gd`.
 - Window-washing gondolas (2026-10-05, fleet "tower-gondolas"): `TowerGondolas`
   (`scripts/world/tower_gondolas.gd`, static: sites, the clock-driven descent `pose_at()`, the
