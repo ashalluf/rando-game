@@ -18407,3 +18407,58 @@ riders are baked poses swapped, not animated (a pose snaps between ride, crouch,
 no pushing; they pass through each other and through the player (scripted, like BeachRider). The
 player cannot skate. Spectators do not cheer or turn to the tricks. Graffiti uses the shared
 street wear atlas, so a piece can repeat one on a nearby wall.
+
+## 9gq. Stunt ramps (fleet wave 3, `wt/stunt-ramps`, 2026-10-30)
+
+A chaos-sandbox playground hidden in the real city: every piece is where a stunt crew would put
+it, and none blocks a traffic lane.
+
+- **Where** (`StuntRamps`, `scripts/world/stunt_ramps.gd`, pure, hashes of seed + place asked after
+  every existing roll; seed 1337 numbers):
+  - KICKER (4): a 5.2 m steel kicker, 1.65 m lip, in one lane of a multi-storey car park's roof
+    aisle (CarPark), between the last roof light pole and the end zone, launching over the end
+    zone and the parapet. Its foot is on the roof deck (`CarPark.ground_y + FLOOR * decks`).
+  - QPIPE (10): a concrete quarter-pipe, R 4 m to 78 degrees with a steel coping and a deck back
+    into the bank, at the toe of the LA River's bank ACROSS the bed from an access ramp's foot
+    (LaRiver.ramps()), off bridges, other ramps, sediment bars on that bank, outfalls and freeways.
+  - LAUNCH + LAND (3 pairs): a 17 m framed kicker (6.2 m lip) and a 24 m landing deck square across
+    a straight freeway stretch on the INDUSTRIAL right of way, each 11-22 m off the deck's edge.
+    Freeway slots of 10 segments (Footbridges' idea): no gantry, no stack, both pieces on corridor
+    ground (`Footbridges._tower_ground_ok()`), level, off every deck (its own route's bends
+    included), off-ramp, footbridge, light rail and freight cut.
+  - LOOP (5): a 6.4 m loop-the-loop on the same kind of ground, along the deck; the track shifts
+    5.4 m sideways over the turn so the exit runs beside the entry.
+  - PIER (1): a kicker on RANDO PIER's main deck at x -263 (park frame), launching out to sea over
+    the end rail.
+  - DIRT: tabletops (1-1.7 m, 26-33 degree takeoffs, 14-19 degree landings) down a bare VACANT lot's
+    ruts from its gate, only where the lot has no broken slab and nothing it dumped stands in the line.
+- **Build** (`StuntKit` geometry on ONE shader `shaders/stunt_ramp.gdshader`: kind in COLOR.a 16ths -
+  painted steel, diamond plate, hazard bands, concrete, coping, dirt, plywood, rubber, galvanised;
+  `StuntBuild` puts them in the chunks): one hook in `CityChunk.begin_build()` (after the
+  footbridges), one after `VacantLots.build_lot()` in `_build_lot()`. FULL: a pivot at the foot, ONE
+  mesh, a trimesh StaticBody3D (world layer, mask 0, backface collision); the freeway pieces' clear
+  rects collapse this chunk's planting after every deferred step (`_run_last`), a dirt line's lane
+  collapses the lot's weeds at once. LOD: the pair and the loop only, no collision. Nothing in the far
+  city. Triangles: kicker 582, launch 1,322, landing 2,388, quarter-pipe 152, loop 3,152.
+- **The moment** (`StuntDirector`, one node under the root, `ensure()`d by the first FULL piece):
+  each physics tick the player's body (his car, or himself) is tested against the registered lips
+  (true world); over a lip at `min_launch_speed` (11 m/s) along its forward arms it, and airborne for
+  `air_before` (0.12 s) within `arm_seconds` it starts: Engine.time_scale eased to 0.3 and the audio
+  to 0.55 on the REAL clock, the rig's `camera_fov` + 9 degrees, until the body touches down, 2.6 s
+  real pass, or anything else writes the time scale (the wheel, photo mode, the collapse): then it
+  lets go without restoring over them. It also presses the player's car onto a loop's track
+  (`loop_grip`) and toward its centre line (`loop_centre`): wheels have no downforce.
+- A/B: `STUNT_RAMPS=0` (no sites), `STUNT_SLOWMO=0` (pieces, no slow motion). Probe:
+  `tools/stunt_ramps/probe.tscn` (every site with an EYE; `DIRT=0`, `AT=`, `RADIUS=`). Stills:
+  `STUNT=<kind|site id>[:t]` on `still_shot.gd` (`tools/stunt_ramps/stage.gd`: a placed, kinematic
+  car held `t` s after the lip at `STUNT_SPEED`, or `t` of the way round a loop; `STUNT_VIEW`,
+  `STUNT_DIST`). Checks: `tests/stunt_ramps_checks.gd` (placement, purity, clearances, the kit, a
+  chunk per kind with its collision and director registration, the slow motion from synthetic ticks,
+  the A/B).
+- Cost: planning is ~260 ms once per plan (freeway slots; paid in the first chunk builds at load),
+  on top of Footbridges.near()'s own. Frame cost at the loop (opengl3, 1280x720, same eye): see the
+  stills README on `shots/stunt-ramps`.
+- **Not verified**: the feel - a real car at speed off each kicker, round the loop (the grip numbers
+  are a first guess), over the freeway pair - only the synthetic director ticks are checked; the
+  plate, concrete and paint under Forward+ (opengl3 stills only); the dirt lines' sides against a
+  lot whose relief varies more than a few decimetres.

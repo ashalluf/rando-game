@@ -467,6 +467,8 @@ func begin_build() -> void:
 	_steps.append(_build_freeway)
 	# Pedestrian bridges over the boulevards and the freeways (Footbridges, FootbridgeBuild).
 	_steps.append_array(FootbridgeBuild.attach(self))
+	# Stunt ramps, the river's quarter-pipe, the freeway pair and loop (StuntRamps, StuntBuild).
+	_steps.append_array(StuntBuild.attach(self))
 	# The light rail (LightRail, LightRailKit): track, structure, overhead, stations, gates.
 	_steps.append(_build_light_rail)
 	# What stands on the hills (RidgeBuild): towers, masts, tanks, fire roads, the right of way.
@@ -3034,6 +3036,7 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 		return
 	# A vacant lot or a gravel car park (VacantLots: a hash of seed + lot, after every roll above).
 	if VacantLots.build_lot(self, lot):
+		StuntBuild.vacant_lot(self, lot)
 		return
 	# A midtown apartment building (Apartments: a hash of the lot, after the rolls above).
 	if Apartments.claims(plan, ix, iz, lot, district):

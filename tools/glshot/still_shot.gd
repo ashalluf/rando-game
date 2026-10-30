@@ -107,6 +107,8 @@ extends SceneTree
 ## one of them on the old generated LODs (the simplifier's own errors, the old shadow stand-ins,
 ## no instance-scale LOD bias), saved as <OUT>_treeold.png, then back on FoliageLod's ladders.
 ## TREE_AB=2 adds the parts: no instance bias, lower shadow-twin bias, old shadows, per group.
+## STUNT=<kind or site id>[:t] holds a car mid-jump off the nearest stunt piece and frames it
+## (tools/stunt_ramps/stage.gd).
 ## DRIVE=burnout|drift|donut|scrape|sand drives a car badly in front of the camera for the driving
 ## effects (tools/glshot/drive_fx_stage.gd: DRIVE_DIST, DRIVE_SIDE, DRIVE_YAW, DRIVE_TIME, ...).
 ## RAIN_STAGE=<level> settles the crowd as that rain leaves it (tools/rain_crowd/stage.gd:
@@ -667,6 +669,18 @@ func _initialize() -> void:
 	# DrivingFX's skid marks, smoke, sparks and sand spray (tools/glshot/drive_fx_stage.gd).
 	if OS.get_environment("DRIVE") != "" and get_root().get_camera_3d():
 		await load("res://tools/glshot/drive_fx_stage.gd").stage(self, OS.get_environment("DRIVE"), get_root().get_camera_3d())
+	# STUNT=<kind or site id>[:t]: a car caught mid-jump off the stunt piece nearest the camera
+	# (tools/stunt_ramps/stage.gd: STUNT_SPEED, STUNT_VIEW=side|chase|front, STUNT_DIST, STUNT_BODY).
+	var stunt_env := OS.get_environment("STUNT")
+	if stunt_env != "" and current_scene and get_root().get_camera_3d():
+		var st_eye: String = load("res://tools/stunt_ramps/stage.gd").stage(self, stunt_env, get_root().get_camera_3d())
+		if st_eye != "" and OS.get_environment("STUNT_EYE") != "0":
+			OS.set_environment("EYE", st_eye)
+		print("STUNT %s eye %s" % [stunt_env, st_eye])
+		_eye(player, fov)
+		for i in _env_int("STUNT_FRAMES", 8):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
 	# ERRAND=bus|car|jay|shop|deliver: a street errand staged in front of the camera and framed by
 	# a free camera (tools/street_errands/stage.gd; STREET_ERRANDS=0 is the A/B).
 	var errand_env := OS.get_environment("ERRAND")

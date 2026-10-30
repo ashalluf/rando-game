@@ -2446,6 +2446,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# THE PIT, the boardwalk's skate park (tests/skate_park_checks.gd): the pits, the terrace, the
 	# lines on the concrete, the build and its collision, the riders on the clock, a knock, gunfire.
 	await load("res://tests/skate_park_checks.gd").new().run(self, city)
+	# Stunt ramps (tests/stunt_ramps_checks.gd): where the kickers, the quarter-pipe, the freeway pair,
+	# the loop and the dirt lines stand, their chunks, and the slow-motion moment off a lip.
+	await load("res://tests/stunt_ramps_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
