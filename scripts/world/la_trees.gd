@@ -140,6 +140,7 @@ static func material(sp: int) -> ShaderMaterial:
 		return _mats[sp]
 	var m := ShaderMaterial.new()
 	m.shader = load("res://shaders/la_tree.gdshader")
+	TreesCloseup.mark(m)
 	var p: Dictionary = _params(sp, 0)
 	m.set_shader_parameter("bend_scale", float(p.get("bend", 0.0012)))
 	m.set_shader_parameter("flutter", float(p.get("flutter", 0.03)))

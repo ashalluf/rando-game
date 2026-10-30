@@ -411,6 +411,8 @@ func begin_build() -> void:
 				_steps.append(_build_roads.bind(block))
 			if _owns_shoreline():
 				_steps.append(_build_beach.bind(block))
+				if OceanCloseup.enabled():
+					_steps.append(_build_water.bind(true))
 			# The coast highway runs the length of the sand on the land side of it, so a beach
 			# chunk has to lay road as well; without this PCH simply stops at every beach town
 			# and picks up again where the cliffs start.
@@ -632,7 +634,11 @@ func _add_shop_spill() -> void:
 				var xf: Transform3D = b.transform * (pool[0] as Transform3D)
 				xf.origin.y = SIDEWALK_TOP + 0.06
 				_batch.add("shop_spill", mesh, xf, pool[1])
+				var glow: Variant = NightAtmos.shop_part(xf, pool[1], SIDEWALK_TOP)
+				if glow != null:
+					_batch.add(glow[0], glow[1], glow[2], glow[3], glow[4])
 	_batch.set_no_shadow("shop_spill")
+	NightAtmos.finish_batch(_batch)
 	_batch.set_draw_distance("shop_spill", SHOP_SPILL_DISTANCE)
 
 
@@ -1115,8 +1121,21 @@ func _build_sts_crane(at: Vector3, working: bool, ship_z: float, kit: RandomNumb
 
 # --- Ocean, beach, hills ---------------------------------------------------------------
 
-func _build_water() -> void:
+func _build_water(seaward_only := false) -> void:
 	var area := owned_rect()
+	if seaward_only:
+		# A beach chunk's own slice of sea (OceanCloseup): from its seaward edge to a few metres
+		# under the sand past the waterline. Without it the inner surf zone off every BEACH-zone
+		# chunk was missing, and the sand's drowned face showed as a flat blue sheet.
+		if capturing:
+			return
+		var cx := -INF
+		for k in 5:
+			cx = maxf(cx, plan.macro.coast_x(lerpf(area.position.y, area.end.y, k / 4.0)))
+		var east := minf(cx + 6.0, area.end.x)
+		if east <= area.position.x + 1.0:
+			return
+		area = Rect2(area.position, Vector2(east - area.position.x, area.size.y))
 	var c := area.get_center()
 	# Waving surface (shaders/ocean.gdshader, Gerstner waves sized by the Weather node) over a
 	# solid box so the sea still holds you up. Surface at +0.15 so it sits above the ground
@@ -2799,6 +2818,7 @@ func _pedestrian_steps(rect: Rect2, rng: RandomNumberGenerator, params: Dictiona
 	if plan.macro and not params.is_empty():
 		# The downtown core is the busiest: up to twice the district's count in the middle.
 		count = roundi(count * (1.0 + plan.macro.skyline_boost(rect.get_center())))
+	BusyStreets.note_crowd(self, rect, plan.sidewalk_width if sidewalk < 0.0 else sidewalk, count)
 	return _crowd_steps(rect, plan.sidewalk_width if sidewalk < 0.0 else sidewalk, count, rng)
 
 
@@ -2918,7 +2938,66 @@ func _park_car_steps(rect: Rect2, rng: RandomNumberGenerator, params: Dictionary
 	var count := [0]
 	for spot in spots:
 		steps.append(_park_car.bind(spot, rng, max_cars, count))
+	# Fuller kerbs (BusyStreets): more cars on the spots left empty, from hashes after every roll.
+	var extra := BusyStreets.park_extra_count(max_cars)
+	if extra > 0:
+		var ecount := [0]
+		for spot in spots:
+			steps.append(_park_extra.bind(spot, extra, ecount))
 	return steps
+
+
+## The kerb spot is kept clear for something the plan puts there (a stop, a station, a school...).
+func _kerb_reserved(spot: Array) -> bool:
+	var p := Vector2(spot[0].x, spot[0].z)
+	return (plan.macro and Landmarks.covers(plan, p, 3.0)) or BigVehicles.in_stop_zone(plan, p) \
+			or FireStation.keeps_clear(plan, p) or PoliceStation.keeps_clear(plan, p) \
+			or Schools.keeps_clear(plan, p) or Alleys.keeps_clear(plan, p) \
+			or Kerbs.blocks_parking(self, spot[0]) or Hospital.keeps_clear(plan, p) \
+			or FreightRail.keeps_clear(plan, p) \
+			or CivicBuildings.keeps_clear(plan, p) \
+			or CarPark.keeps_clear(plan, p)
+
+
+## The kerb spot is taken by a feature of this chunk (a vendor's truck, works, carts, a parklet...).
+func _kerb_taken(spot: Array, car: Vehicle) -> bool:
+	return StreetVendors.blocks_parking(self, spot[0]) or Construction.blocks_parking(self, spot[0]) \
+			or KerbBins.blocks_parking(plan, spot[0], float(car._dims().length)) \
+			or FarmersMarket.blocks_parking(plan, spot[0]) or Parklets.blocks_parking(self, spot[0]) \
+			or StarBoulevard.blocks_parking(plan, spot[0]) \
+			or LowriderMeet.blocks_parking(self, spot[0]) \
+			or FilmShoot.blocks_parking(plan, spot[0]) \
+			or Valets.blocks_parking(self, spot[0]) \
+			or Micromobility.blocks_parking(self, spot[0])
+
+
+## One more parked car on a spot the block's own pass left empty (BusyStreets, a hash per spot).
+func _park_extra(spot: Array, extra: int, ecount: Array) -> void:
+	if ecount[0] >= extra or not BusyStreets.park_extra_roll(plan.seed, spot) or not PhysicsBudget.can_spawn():
+		return
+	var at: Vector3 = spot[0]
+	for c in _cars:
+		if is_instance_valid(c):
+			var cw := WorldState.to_world((c as Node3D).global_position) if (c as Node3D).is_inside_tree() else at + Vector3(99.0, 0.0, 0.0)
+			if Vector2(cw.x - at.x, cw.z - at.z).length() < 5.0:
+				return
+	if _kerb_reserved(spot):
+		return
+	var r := BusyStreets.park_extra_rng(plan.seed, spot)
+	var car := Vehicle.random_car(r)
+	if _kerb_taken(spot, car):
+		car.free()
+		return
+	# Fills whatever the pass left empty, so it moves with anything that takes a kerb spot.
+	car.set_meta("busy_extra", true)
+	var holder: Node = get_parent() if get_parent() else self
+	var spot_pos: Vector3 = at + Vector3(0.0, 0.3 + _gy(at.x, at.z), 0.0)
+	car.position = WorldState.to_local(spot_pos) if holder != self else spot_pos
+	car.rotation.y = float(spot[1]) + (PI if r.randf() < 0.5 else 0.0)
+	holder.add_child(car)
+	car.visible = visible
+	_cars.append(car)
+	ecount[0] += 1
 
 
 func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Array) -> void:
@@ -2931,13 +3010,7 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 		return
 	var car := Vehicle.random_car(rng)
 	var flip := rng.randf() < 0.5
-	if (plan.macro and Landmarks.covers(plan, Vector2(spot[0].x, spot[0].z), 3.0)) or BigVehicles.in_stop_zone(plan, Vector2(spot[0].x, spot[0].z)) \
-			or FireStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or PoliceStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
-			or Schools.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or Alleys.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
-			or Kerbs.blocks_parking(self, spot[0]) or Hospital.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
-			or FreightRail.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
-			or CivicBuildings.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
-			or CarPark.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)):
+	if _kerb_reserved(spot):
 		# After the rolls, so the chunk rng runs the same whether or not the spot is used, and it
 		# counts as a car, as the vendors' and the market's spots below do: a kerb kept clear that
 		# another feature moves (a driveway apron when a market closes the street) must not shift
@@ -2953,13 +3026,7 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	# A street vendor's truck at this stretch of kerb (StreetVendors): after every roll, so the
 	# block's stream (and the walkers after it) runs the same with or without the truck.
 	# It counts as parked, so the cap (and with it the rolls) is the same too.
-	if StreetVendors.blocks_parking(self, spot[0]) or Construction.blocks_parking(self, spot[0]) \
-			or KerbBins.blocks_parking(plan, spot[0], float(car._dims().length)) \
-			or FarmersMarket.blocks_parking(plan, spot[0]) or Parklets.blocks_parking(self, spot[0]) \
-			or StarBoulevard.blocks_parking(plan, spot[0]) \
-			or LowriderMeet.blocks_parking(self, spot[0]) \
-			or FilmShoot.blocks_parking(plan, spot[0]) \
-			or Valets.blocks_parking(self, spot[0]):
+	if _kerb_taken(spot, car):
 		car.free()
 		count[0] += 1
 		return
@@ -4067,8 +4134,9 @@ func _add_lamp(at: Vector3, facing: Vector2 = Vector2.ZERO) -> void:
 	_add_prop("lamp", at, Color(0.28, 0.29, 0.32), [
 		["lamp", PropFactory.model_lamp(), Transform3D(Basis(Vector3.UP, fmod(absf(at.x * 7.3 + at.z * 3.1), TAU)), at), _lamp_tint],
 		["lamp_pool", PropFactory.light_pool(), pool, NightCity.pool_color(Vector2(at.x, at.z))],
-	], [[Vector3(0.3, 3.9, 0.3), at + Vector3(0.0, 1.95, 0.0), 0.0]])
+	] + _night_atmos([at + Vector3(0.0, 3.8, 0.0)], at + Vector3(0.0, 3.8, 0.0), at, LAMP_POOL_SIZE), [[Vector3(0.3, 3.9, 0.3), at + Vector3(0.0, 1.95, 0.0), 0.0]])
 	_batch.set_no_shadow("lamp_pool")
+	NightAtmos.finish_batch(_batch)
 	if level != Level.FULL:
 		return
 	# A real light as well, so the lamp actually lifts the people and cars under it. DayNight
@@ -4089,6 +4157,16 @@ func _add_lamp(at: Vector3, facing: Vector2 = Vector2.ZERO) -> void:
 	PropBreak.own_light(self, light)
 
 
+## A lamp's halos and shaft in the night air (NightAtmos): instances of its own prop record, so
+## they go out with it. None while capturing for the far city (which has its own lamp heads).
+func _night_atmos(lights: Array, head: Vector3, at: Vector3, pool: float) -> Array:
+	if capturing or not NightAtmos.enabled:
+		return []
+	NightAtmos.ensure(get_parent())
+	var parts := NightAtmos.lamp_parts(lights, head, at.y, pool, Vector2(at.x, at.z), level == Level.FULL)
+	return parts
+
+
 ## The real lamp (StreetLamps, a model per type): the same prop slot, pool and OmniLight3D as
 ## the old post, the pool and the light moved under / into the lamp's head.
 func _add_street_lamp(at: Vector3, facing: Vector2) -> void:
@@ -4103,8 +4181,9 @@ func _add_street_lamp(at: Vector3, facing: Vector2) -> void:
 	_add_prop("lamp", at, Color(0.28, 0.29, 0.32), [
 		[lp.key, lp.mesh, lp.xform, lp.paint, lp.custom],
 		["lamp_pool", PropFactory.light_pool(), pool, StreetLamps.pool_color(lp.type, Vector2(at.x, at.z))],
-	], [[box, at + Vector3(0.0, box.y * 0.5, 0.0), 0.0]])
+	] + _night_atmos(lp.lights, head, at, size), [[box, at + Vector3(0.0, box.y * 0.5, 0.0), 0.0]])
 	_batch.set_no_shadow("lamp_pool")
+	NightAtmos.finish_batch(_batch)
 	if level != Level.FULL:
 		return
 	var light := OmniLight3D.new()
@@ -4705,6 +4784,7 @@ func _build_freeway() -> void:
 	# The four-level stack's connectors go into the same meshes (StackBuild).
 	var quads := kit.build_segments(segs, area) + StackBuild.build(self, kit, deck_body)
 	if quads == 0:
+		deck_body.free()  # never entered the tree: an orphan body each capture (perf-audit-2)
 		return
 	var t := Freeway.DECK_THICKNESS
 	for seg in segs:
@@ -4787,6 +4867,7 @@ func _build_freeway_ramps() -> void:
 			prev_y = y
 		built += 1
 	if built == 0:
+		ramp_body.free()
 		return
 	add_child(ramp_body)
 	kit.commit(PropFactory.road("asphalt_aerial", 9.0, Color(0.69, 0.69, 0.71), hash([plan.seed, "ramp"]), 0.0, 0.7), "Ramp")

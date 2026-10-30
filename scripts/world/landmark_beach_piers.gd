@@ -274,7 +274,7 @@ static func _mh_piles(batch: MultiMeshBatch, anchor: Vector2, head: Vector3, det
 	var step := MH_PILE_STEP if detailed else MH_PILE_STEP * 4.0
 	var top := DECK_Y - DECK_T * 0.5
 	var h := top - PILE_FOOT
-	var pile := _cyl_mesh(MH_PILE_R, h, 8 if detailed else 6, _concrete())
+	var pile := _cyl_mesh(MH_PILE_R, h, 8 if detailed else 6, OceanCloseup.pile_material(Color(0.58, 0.56, 0.52), 0.85, false, _concrete()))
 	var cap := _box_mesh(Vector3(0.9, 0.55, MH_PILE_GAUGE * 2.0 + 1.2), PropFactory.material(CONCRETE_DARK))
 	var x := anchor.x - 5.0
 	while x > head.x - MH_END_RADIUS * 0.5:
@@ -461,7 +461,7 @@ static func _rd_deck(parent: Node3D, statics: StaticBody3D, pts: PackedVector2Ar
 static func _rd_piles(batch: MultiMeshBatch, pts: PackedVector2Array, detailed: bool) -> void:
 	var top := DECK_Y - DECK_T * 0.5
 	var h := top - PILE_FOOT
-	var pile := _cyl_mesh(RD_PILE_R, h, 8 if detailed else 5, PropFactory.material(TIMBER_DARK, 0.95))
+	var pile := _cyl_mesh(RD_PILE_R, h, 8 if detailed else 5, OceanCloseup.pile_material(TIMBER_DARK, 0.9, true, PropFactory.material(TIMBER_DARK, 0.95)))
 	var brace := _box_mesh(Vector3(0.28, 0.28, RD_PILE_GAUGE * 2.0), PropFactory.material(TIMBER_DARK, 0.95))
 	for i in pts.size():
 		var p := pts[i]

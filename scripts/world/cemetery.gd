@@ -257,26 +257,35 @@ static func _rolled_kind(plan: CityPlan, k: Vector2i, rect: Rect2, district: int
 static func road_closed(plan: CityPlan, axis: int, index: int, along: float) -> bool:
 	if plan.macro == null:
 		return false
-	var key := Vector4i(plan.seed, axis, index, roundi(along * 4.0))
-	var hit: Variant = _closed.get(key)
-	if hit != null:
-		return hit
+	# The spans this road's closures cover, from the nine cells round the probe's cell, kept per
+	# (road, cell): the answer for any `along` is whether one of them holds it. It was cached per
+	# quarter metre of `along`, so every moving traffic car missed it every tick and re-read the
+	# nine cells (perf-audit-2: ~12 % of a street car's tick), and the cache grew to 200,000 keys.
 	var pos := plan.road_pos(axis, index)
 	var probe := Vector2(pos, along) if axis == CityPlan.AXIS_X else Vector2(along, pos)
 	var c := _cell_of(probe)
-	var out := false
-	for dx in range(-1, 2):
-		for dz in range(-1, 2):
-			var d := decide(plan, c + Vector2i(dx, dz))
-			if d.is_empty():
-				continue
-			for cl: Array in d.closed:
-				if int(cl[0]) == axis and int(cl[1]) == index and along > float(cl[2]) and along < float(cl[3]):
-					out = true
-	if _closed.size() > 200000:
-		_closed.clear()
-	_closed[key] = out
-	return out
+	var key := Vector4i(plan.seed, axis, index, c.x * 65536 + c.y)
+	var spans: Variant = _closed.get(key)
+	if spans == null:
+		var list := PackedFloat64Array()
+		for dx in range(-1, 2):
+			for dz in range(-1, 2):
+				var d := decide(plan, c + Vector2i(dx, dz))
+				if d.is_empty():
+					continue
+				for cl: Array in d.closed:
+					if int(cl[0]) == axis and int(cl[1]) == index:
+						list.append(float(cl[2]))
+						list.append(float(cl[3]))
+		if _closed.size() > 200000:
+			_closed.clear()
+		_closed[key] = list
+		spans = list
+	var sp: PackedFloat64Array = spans
+	for i in range(0, sp.size(), 2):
+		if along > sp[i] and along < sp[i + 1]:
+			return true
+	return false
 
 
 # --- The plan -----------------------------------------------------------------------------------

@@ -460,6 +460,18 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   down by `ws_wall()` near (building) and far (building_lod) alike, roofs / awnings / rooftops
   gloss, the crowd and the hero soak. `WET_WORLD=0` is the A/B (`wet_world` global, `WetWorld`);
   `car_shot.gd WET=1,1`; checks `tests/wet_world_checks.gd`.
+- The ocean close up (wave 3, docs/HANDOFF.md "The Pacific close up"): `ocean.gdshader` includes
+  `shaders/ocean_closeup.gdshaderinc`, a FRAGMENT-only pass faded with the hand-over's `detail`
+  (`near_c`), so the vertex stage (SeaSurface's mirror) and the far sea are untouched: wind-aligned
+  capillary ripples faded by the pixel footprint (`fwidth`), wind slicks and gust patches, the sun
+  glitter as three octaves of flashing facets (`oc_glint`) handed to the old lobe under a pixel,
+  light through thin wave tops (`crest_sss`), deep blue scatter looking down, the cloud base
+  mirrored, foam torn down the wind that opens into Worley lace as it ages, a foam line at hulls
+  (in `wake_foam`) and round every pier pile (`pile_a/b`, grids from `OceanCloseup.pile_grids()`,
+  pushed by Weather). The piles' waterline (weed, barnacles, wet splash zone) is
+  `shaders/waterline_wet.gdshaderinc` in pier_park.gdshader and `pile_wet.gdshader`. Still no
+  texture sampler in the ocean. `OCEAN_CLOSEUP=0` (the `ocean_closeup` shader global) is the A/B;
+  checks `tests/ocean_closeup_checks.gd`.
 - Los Angeles weather (2026-10-05, "beyond clear / overcast / rain / storm"): `Weather.State`
   gains MARINE ("June gloom") and SANTA_ANA (appended: every per-state table has six rows, the
   pause menu's chips are Auto + one per state in order, `--weather=marine|santa_ana`, aliases in
@@ -748,6 +760,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   quarter size. Any new HUD piece sizes itself from the viewport's height, never in fixed pixels.
   Small Forward+ scenes with the real sky and weather: `tools/glshot/fwd_block_shot.tscn`
   (block_shot plus DayNight and Weather; `--hour=`, `--weather=`; ~10 min and ~11 GB on lavapipe).
+- HUD polish (2026-10-30, docs/HANDOFF.md "HUD polish"): `HudTheme` (`scripts/ui/hud_theme.gd`,
+  static) is every HUD piece's type (Barlow Condensed for display lines, Inter for the rest; OFL,
+  `assets/fonts/`), `scale()` (1080-line units x the settings' HUD size), `safe_rect()` (a
+  `MARGIN` 40-unit title-safe band, and a centred 21:9 band on wider windows: `band_inset()`) and
+  easing (`envelope()` for toasts). New pieces on DebugHud: `AreaToast` (the place name from
+  `district_name_at()` and the street from `street_at()` - CityPlan.road_name of the carriageway
+  underfoot - bottom left on entering a district, the street alone on a new street) and
+  `VehicleHud` (the car's invented maker and model, `MODELS` per BodyType, as he gets in; a speed
+  pill left of the minimap, MPH or KT, the D / R / N letter). Any new HUD piece uses the theme.
+  `AREA_TOAST=0` / `VEHICLE_HUD=0` the A/B; stills `post_room_shot.gd MODE=downed|loading`,
+  `HUD_TOAST="Place|Street"`, `HUD_CAR="<type>:<mph>"`; checks `tests/hud_polish_checks.gd`.
 - Weapon wheel (owner, 2026-09-24: "GTA style ... slows everything ... apple glass style"):
   `WeaponWheel` (`scripts/ui/weapon_wheel.gd`) is its own CanvasLayer (3) in the HUD scene, so it
   draws over the HUD and still works in HIDDEN (a nested layer ignores its parent's visibility).
@@ -979,6 +1002,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   of the junction ahead of the camera, walkers on the crosswalk in front of it; `--hour=21` for
   the heads at night). Checks: `tests/street_life_checks.gd`, loaded by the smoke test like the
   air traffic's.
+- Busy streets (2026-10-30, docs/HANDOFF.md "Busy streets"): `BusyStreets`
+  (`scripts/npc/busy_streets.gd`, static; hooks in TrafficManager `_maintain()` / `_spawn_near()` /
+  `_run_spawns()` / `density_at()`, `CityStreamer._process()`, `CityChunk._park_car_steps()` /
+  `_pedestrian_steps()`) spends the existing caps where the camera looks: `focus_share` of street
+  spawns go round the camera's block, ahead of it, never popping in inside the view nearer than
+  `view_pop_min` (except while FILLING after a load or teleport, `spawn_burst()`); cars far behind
+  and out of view go back to the pool (`retire_far()`); the street cap follows the hour
+  (`hour_factor()`, NightCity.traffic_level); street traffic no longer waits on PhysicsBudget
+  (kinematic: `traffic_room()`); near FULL blocks' walkers are topped up once a second from their
+  planned count x `crowd_factor(hour)`, freeing far out-of-view walkers for room (`balance_crowd()`);
+  the kerbs take up to `PARK_EXTRA` more parked cars on the spots their pass left empty (a hash per
+  spot, after every roll). `BUSY_STREETS=0` is the A/B; census `tools/busy_streets/census.gd`
+  (and `CENSUS=1` on still_shot.gd); checks `tests/busy_streets_checks.gd`.
 - Traffic AI (2026-10-05, "traffic that drives like people"; HANDOFF 9ed): `TrafficAI`
   (`scripts/npc/traffic_ai.gd`, static) is the drivers on top of TrafficManager's IDM queues.
   **Moods** from a hash per car (`roll_mood()`: NORMAL, 12 % PUSHY, 12 % CAREFUL, 8 % DOZY) set
@@ -1339,6 +1375,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `restore()`, `LandmarkDowntown.build()` `restore_tower()`. Sanctuaries take none; curtain walls
   get no hole. `BUILDING_DAMAGE=0` is the A/B; stills `tools/glshot/damage_shot.gd`; checks
   `tests/building_damage_checks.gd`.
+- Car detail (2026-10-30, docs/HANDOFF.md "Close-up car detail"): `CarDetail`
+  (`scripts/vehicles/car_detail.gd`): number plates (invented format and county, text a hash of the
+  car's look) and badges as raised SignFont ribbons, ONE mesh a car on `car_detail.gdshader`'s
+  shared pair (plate lamp off / on), built lazily when the car enters its 70 m tier (`near()`, 3 a
+  frame, `flush()` for tests), spots ray-found on the near body (`PLATE_AT` hints); tyre sidewall
+  lettering in PropFactory's near wheel; grime / mud / scratches as uniforms on the car's own paint
+  material (car_paint.gdshaderinc grime block), brake dust as `wheel_material(kit, false, dust)`,
+  windscreen dust (`screen_dust`) on the shared cabin glass. `CAR_DETAIL=0` the A/B; `CAR_GRIME=`
+  and views `plate|nose|wheel|arch` on car_shot.gd; probe `tools/car_detail_probe.gd`; checks
+  `tests/car_detail_checks.gd`.
 - Car cabins (2026-10-30, docs/HANDOFF.md "Car cabins"): the car the player drives, empty parked
   cars within `CarInteriors.near_range` (7.5 m) of him and a car that lost a door get real
   geometry (`CarInteriors`, one node under the root; `CarInterior` on the car's near body mesh):
@@ -1726,6 +1772,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `uv_shift`), and `UV.y > 1.5` is how the shader knows to draw a fan that widens and fades
   along the road instead of a round pool; drawn as a pool, a beam laid flat on the street read
   as a long white smear.
+- Night atmosphere (2026-10-30, docs/HANDOFF.md "Night street atmosphere"): `NightAtmos`
+  (`scripts/world/night_atmos.gd`): camera-facing halos round every lamp head
+  (`atmos_glow_halo`) and lit shop front (`atmos_shop_glow`), a drawn light cone under each FULL
+  lamp (`atmos_beam_shaft`), all in the lamp's own prop record (glow words: out with the lamp),
+  plus car lamp halos (car_lights.gdshader parts 6 / 7, `PropFactory.LIGHT_HALO_*`), lens streaks
+  on a light looked at straight on, and a sodium lean on the depth fog near the street. Sized and
+  faded in the shaders (`shaders/night_halo.gdshaderinc`) off the `night_atmos` global (haze from
+  `haze_for()`, shaft gain 0 where volumetric fog is on, halo gain, viewport height), pushed four
+  times a second; collapsed by day. `NIGHT_ATMOS=0` is the A/B; checks
+  `tests/night_atmos_checks.gd`.
 - Car lights (GAME_PLAN G4 / G6, 2026-10-04): the lamp mesh is `PropFactory.vehicle_lights()`
   on `shaders/car_lights.gdshader` (it replaced light_pool for cars): head and tail glows, the
   beam fan, amber indicators at all four corners, reversing lamps and a red wash on the road
@@ -3841,6 +3897,21 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   as before). Built on the loading screen (`warm()`, ~2 s); `?showroom` lines them up. Look with
   `tools/glshot/la_tree_shot.gd` (a lineup in seconds, `SPECIES=`, `LEVEL=n`, `CAM` / `LOOK`), find
   them with `tools/la_trees_probe.gd` (`MODE=street|cypress|row`); checks: `tests/la_trees_checks.gd`.
+- Trees close up (2026-10-30, docs/HANDOFF.md "Trees close up"): `TreesCloseup`
+  (`scripts/world/trees_closeup.gd`) marks every tree material `closeup` (TREES_CLOSEUP=0 is the
+  A/B: each shader exactly as it was) and hands foliage_tex each scanned tree's crown bounds
+  (`dress()` from `_tree_mesh()`, from the mesh AABB: no mesh data needed). ONE gust field for
+  foliage_tex / foliage / la_tree (`shaders/tree_wind.gdshaderinc`, true world via `origin_shift`,
+  downwind along `wind_lean` or the onshore `TW_DIR`; `TreesCloseup.gust()` the GDScript copy -
+  change both): fronts bow each crown in turn. foliage_tex: depth from the crown bounds (core dark
+  and ambient-occluded, sun-side shell brighter, underside green-shifted by `under_filter` - the
+  sky ambient painted it slate blue -, shell translucent), leaves rounded from the crown's centre,
+  per-cluster tone and flutter, a Forward+-only per-frame dithered scissor once texels are under a
+  pixel (TAA resolves it; never `IN_SHADOW_PASS`). Palms sway as one tree (`frond_follow`), crown
+  heart shaded, trunk rings bumped by screen derivatives; LA bark bumped from its own patterns;
+  scanned bark reads its ORM occlusion. No mesh, roll or ladder change. Stills
+  `tools/trees_closeup/tree_shot.gd` (both renderers), streets `tools/trees_closeup/probe.gd`;
+  checks `tests/trees_closeup_checks.gd`.
 - Replica areas (see the technical rule): `ReplicaAreas` (`scripts/world/replica_areas.gd`,
   `MacroMap.replica`, built in `MacroMap.setup()` before the hill roads, `fit_hill_profile()`
   after) holds each area as a table - today only `ESPLANADE`: Knob Hill down the Redondo
@@ -5493,6 +5564,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/hero/render.py --hero` (the same recipe in nodes) and `--pose` (see Player body). The
   crowd tracksuit code (`Pedestrian.tracksuit_material()`, `add_piping()`) is kept for dressing
   a crowd rig.
+- The hero's face, second pass (2026-10-30, docs/HANDOFF.md "The hero's face, second pass"): built
+  by `tools/hero/` again - face structure from MPFB targets in `hero_config.json` (no eye move /
+  scale targets: HeroFace's centres), the complexion baked by `prep_textures.py` (`look.face_detail`,
+  `mottle`, `freckles`, `moles`), `hero_x_skin_region.png` (pore size, redness, cartilage) and the
+  detail map's B = pore cavity, brows as strand cards (`hair.brow_cards`; the hero_brows material
+  name kept), denser hair (`atlas_density`, `strand_round` in hero_hair.gdshader). The orange ear
+  was BACKLIGHT doubling the Forward+ transmittance (`backlight_fwd`). `HERO_FACE_2=0` is the
+  shader A/B; checks `tests/hero_face_2_checks.gd`.
 - Player body: `Avatar` (`scripts/player/avatar.gd`, built by `Player._build_avatar()` from
   `avatar_model`, one of `Pedestrian.MODELS`): idle / walk / run clips picked by speed, frozen or
   slowed stride in the air, forward lean while boosting. The orange capsule in `player.tscn` is
@@ -5618,6 +5697,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `MESH_COMPACT=0` the A/B). Measure with `tools/memory_probe.gd` (load, 2 km drive, `HOPS=`
   teleports; RSS, every static cache sized, the scene by owner, duplicate meshes) and
   `tools/peak_rss.py --trace 5 -- <cmd>` (the box has no `/usr/bin/time`).
+- CPU per physics tick (perf-audit-2, docs/HANDOFF.md "Perf audit 2"): headless, a frame is up to
+  eight physics steps and TrafficManager was ~85 % of them, so **anything the traffic asks per car
+  per tick must be O(1)**: `CityPlan._index_at()` starts from a per-64 m hint, `road_open()`'s
+  site bounds and `Cemetery.road_closed()`'s spans are cached per road (never per metre of
+  `along`: a moving car misses that every tick), `Vehicle.road_lift()` is kept per body type
+  (`_dims()` builds a dictionary each call), `_place()` skips a bit-identical write. Measure with
+  `tools/perf_audit_2/traffic_bench.tscn` (the tick piece by piece), `tools/cpu_probe.gd`
+  (`BY_SCRIPT=1`, `BASE_OFF=Traffic`), `memory_probe.gd ORPHANS=1` (nodes left out of the tree),
+  `SMOKE_PROFILE=1` (TIME lines carry the allocator and orphans), `MEMORY_CENSUS=1`.
 - Load time (2026-10-05, docs/HANDOFF.md "Load time"): `LoadClock` (`scripts/util/load_clock.gd`)
   prints a `LOADING <stage>: ms` line per stage; `tools/load_time/load_time.sh desktop|headless`
   runs a launch with `LOAD_QUIT=1` (quit once loaded) and greps them; `LOAD_PROFILE=1` totals
@@ -6088,6 +6176,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   front of it** (the offshore island is; the volume knows nothing nearer). An additive halo must
   reach ZERO at its quad's edge: a 4 % tail, added in linear on Forward+, draws the quad.
   `tests/fwd_review_d_checks.gd` scans every shader for the colour rules.
+- And two more (fwd-review-e, 2026-10-30, HANDOFF "Forward+ review e"): **an additive unshaded
+  quad adds in linear HDR on Forward+** - a broad pool over dark asphalt that reads as a soft
+  wash on opengl3 is a flat white disc on the Mac (`light_pool.gdshader` `display_add`, on for
+  FreewayKit's pools); and a display-number shader never wraps a texture in `cs_in()` before
+  `disp()` (decoded twice on Compatibility). `tools/fwd_review/color_matrix.gd` prints the whole
+  colour-space table on either renderer in seconds; `tests/fwd_review_e_checks.gd`.
 - Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building),
   `tools/glshot/block_shot.tscn` (a few FULL city blocks alone, no far city: a block's ground and
   furniture) and `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real

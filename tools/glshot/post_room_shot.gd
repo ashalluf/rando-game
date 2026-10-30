@@ -15,9 +15,21 @@ extends SceneTree
 ## view (degrees); WARMUP + FRAMES frames (the engine compiles its motion-vector pipelines in the
 ## background, and draws no velocity until they are ready); DT the frame time the blur is told
 ## (1/60: a software frame takes seconds). Prints POST (what CameraPost did) for the last frame.
+## HUD polish: MODE=downed (the OUT COLD card), MODE=loading (the loading screen at PROGRESS,
+## STEP), HUD_TOAST="Place|Street" and HUD_CAR="<body type>:<mph>" with any mode.
 ## Under --rendering-driver opengl3 it shows the Compatibility path: no effect, no errors.
 
 func _initialize() -> void:
+	# HUD polish stills (docs/HANDOFF.md "HUD polish"): HUD_TOAST="Place|Street" holds the place
+	# toast up, HUD_CAR="<body type>:<mph>" shows a car's name and speed with no car (both loaded
+	# by path: this script compiles before the autoloads).
+	if _env("HUD_TOAST", "") != "":
+		(load("res://scripts/ui/area_toast.gd") as GDScript).set("forced", Array(_env("HUD_TOAST", "").split("|")))
+	if _env("HUD_CAR", "") != "":
+		var car := _env("HUD_CAR", "").split(":")
+		var vh := load("res://scripts/ui/vehicle_hud.gd") as GDScript
+		vh.set("forced_type", int(car[0]))
+		vh.set("forced_mph", float(car[1]) if car.size() > 1 else 0.0)
 	var packed: PackedScene = load("res://scenes/levels/test_box.tscn")
 	var level := packed.instantiate()
 	root.add_child(level)
@@ -74,6 +86,21 @@ func _initialize() -> void:
 				if after >= float(_env("LAND_AFTER", "0.15")):
 					break
 		Engine.time_scale = 0.0005
+	elif mode == "downed":
+		# The OUT COLD card (PlayerHealth): knocked down by a heavy hit.
+		var health: Node = player.get("health")
+		health.call("take_damage", 9999.0, player.global_position + Vector3(6, 0, 0))
+		for i in int(_env("DOWN_FRAMES", "40")):
+			await process_frame
+	elif mode == "loading":
+		# The loading screen over the room, held at PROGRESS with STEP's text.
+		var screen: CanvasLayer = (load("res://scripts/ui/loading_screen.gd") as GDScript).new()
+		root.add_child(screen)
+		await process_frame
+		screen.call("_step", _env("STEP", "Building the city"), float(_env("PROGRESS", "0.62")))
+		screen.set("_shown_progress", float(_env("PROGRESS", "0.62")))
+		for i in 6:
+			await process_frame
 	elif mode == "pause":
 		# The pause menu over the room (the room has no DayNight or Weather, so its pickers
 		# have nothing to drive here; the look is what this is for).

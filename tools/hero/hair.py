@@ -192,7 +192,7 @@ def strand_length(root):
 
 LAYERS = [
     # name, count, width, rise, lift, columns, occlusion
-    ("under", HC.get("under_cards", 180), 0.018, 0.0030, 0.0006, (0, 1, 2), 0.42),
+    ("under", HC.get("under_cards", 180), HC.get("under_width", 0.018), 0.0030, 0.0006, (0, 1, 2), 0.42),
     ("main", HC.get("main_cards", 230), 0.014, 0.0060, 0.0024, (1, 2, 3, 4), 0.72),
     ("top", HC.get("top_cards", 120), 0.009, 0.0080, 0.0048, (4, 5, 6), 1.0),
 ]
@@ -275,4 +275,121 @@ for g in body.vertex_groups:
 hair.modifiers.new("Armature", 'ARMATURE').object = arm
 arm.data.pose_position = 'POSE'
 print("HAIR %d cards (%d hairline, %d fly-away), %d tris" % (len(cards), edge, fly, sum(len(p.vertices) - 2 for p in hme.polygons)))
+
+# ---- the brows as strands (hero-face-2) --------------------------------------------------------------
+# The MakeHuman brow is one flat card on the skin with a painted texture: a smear of paint up close.
+# Here it is replaced by short strand cards rooted where that card's texture is dense, each growing
+# out of the skin the way brow hair grows - up and out at the inner end, then sideways along the
+# arch and slightly down at the tail - lying almost flat, a couple of millimetres off the skin. The
+# object, its name and its material slot stay (the material is hero_brows); only its mesh changes.
+# UV: u one of eight strand columns of the brow atlas (prep_textures.py), v root (1) to tip (0).
+brow_n = HC.get("brow_cards", 0)
+brows = [o for o in bpy.data.objects if o.type == 'MESH' and "eyebrow" in o.name]
+if brow_n > 0 and brows:
+    bo = brows[0]
+    brng = np.random.default_rng(HC.get("seed", 11) + 101)
+    bsaved = [(m, m.show_viewport) for m in bo.modifiers]
+    for m, _ in bsaved:
+        m.show_viewport = False
+    dgb = bpy.context.evaluated_depsgraph_get()
+    bme = bpy.data.meshes.new_from_object(bo.evaluated_get(dgb), preserve_all_data_layers=True, depsgraph=dgb)
+    for m, sv in bsaved:
+        m.show_viewport = sv
+    bmat = bo.matrix_world
+    BV = np.array([(bmat @ v.co)[:] for v in bme.vertices])
+    buv = bme.uv_layers.active.data
+    # the brow texture's alpha, to keep roots where the painted brow is
+    bname = cfg["human"]["eyebrows"].replace(".mhclo", "")
+    img = bpy.data.images.load(os.path.join(common.MPFB_DATA, "eyebrows", bname, bname + ".png"))
+    iw, ih = img.size
+    px = np.array(img.pixels[:], np.float32).reshape(ih, iw, 4)
+    tri_s = []
+    for poly in bme.polygons:
+        lv = list(poly.loop_indices)
+        for k in range(1, len(lv) - 1):
+            tri_s.append((lv[0], lv[k], lv[k + 1]))
+    lv2v = [l.vertex_index for l in bme.loops]
+    tri_a = []
+    for t in tri_s:
+        q = BV[[lv2v[i] for i in t]]
+        tri_a.append(0.5 * np.linalg.norm(np.cross(q[1] - q[0], q[2] - q[0])))
+    tri_a = np.array(tri_a)
+    roots = []
+    tries = 0
+    while len(roots) < brow_n and tries < brow_n * 60:
+        tries += 1
+        ti = brng.choice(len(tri_s), p=tri_a / tri_a.sum())
+        w = brng.dirichlet(np.ones(3))
+        t = tri_s[ti]
+        uv_ = sum(w[k] * np.array(buv[t[k]].uv[:]) for k in range(3))
+        a = px[min(ih - 1, max(0, int(uv_[1] * ih))), min(iw - 1, max(0, int(uv_[0] * iw))), 3]
+        if brng.random() > a ** 1.5:
+            continue
+        roots.append(sum(w[k] * BV[lv2v[t[k]]] for k in range(3)))
+    roots = np.array(roots)
+    bbm = bmesh.new()
+    buvl = bbm.loops.layers.uv.new(UVN)
+    buv2 = bbm.loops.layers.uv.new("hairdata")
+    made = 0
+    for side in (-1.0, 1.0):
+        rs = roots[np.sign(roots[:, 0]) == side] if len(roots) else roots
+        if len(rs) == 0:
+            continue
+        xin, xout = np.abs(rs[:, 0]).min(), np.abs(rs[:, 0]).max()
+        for r in rs:
+            loc, n = surface(r)
+            n = Vector(n)
+            t01 = (abs(r[0]) - xin) / max(xout - xin, 1e-4)  # 0 inner end .. 1 tail
+            # growth direction: up and a little out at the head, out along the arch, out and down
+            # at the tail; a little scatter per hair
+            ang = math.radians(52.0 * (1 - t01) ** 2 + 8.0 - 32.0 * max(0.0, t01 - 0.55) / 0.45 + brng.normal() * 10.0)
+            d = Vector((side * math.cos(ang), 0.0, math.sin(ang)))
+            d = (d - n * d.dot(n)).normalized()
+            L_ = (0.006 + 0.006 * brng.random()) * (0.8 if t01 > 0.8 else 1.0)
+            pts, nrs = [], []
+            steps = 5
+            for i in range(steps):
+                s_ = i / (steps - 1)
+                p_ = Vector(loc) + d * (L_ * s_)
+                l2, n2 = surface(p_)
+                pts.append(Vector(l2) + Vector(n2) * (0.0005 + 0.0016 * s_ ** 1.2))
+                nrs.append(Vector(n2))
+            col = int(brng.integers(0, 8))
+            u0, u1 = (col + 0.05) / 8, (col + 0.95) / 8
+            width = 0.0024 + 0.0012 * brng.random()
+            rows = []
+            for i, (p_, n_) in enumerate(zip(pts, nrs)):
+                tg = (pts[min(i + 1, steps - 1)] - pts[max(i - 1, 0)]).normalized()
+                b = tg.cross(n_).normalized()
+                s_ = i / (steps - 1)
+                w_ = width * (1.0 - 0.5 * s_)
+                rows.append((bbm.verts.new(p_ - b * w_ / 2), bbm.verts.new(p_ + b * w_ / 2), s_))
+            for i in range(steps - 1):
+                a0, a1, s0 = rows[i]
+                b0, b1, s1 = rows[i + 1]
+                f = bbm.faces.new((a0, a1, b1, b0))
+                for l, (u, v) in zip(f.loops, ((u0, 1 - s0), (u1, 1 - s0), (u1, 1 - s1), (u0, 1 - s1))):
+                    l[buvl].uv = (u, v)
+                    l[buv2].uv = (1.0, float(brng.random()))
+            made += 1
+    json.dump([list(map(float, r_)) for r_ in roots], open(common.work("brows.json"), "w"))
+    nb = bpy.data.meshes.new("hero_brow_strands")
+    bbm.to_mesh(nb)
+    bbm.free()
+    for p_ in nb.polygons:
+        p_.use_smooth = True
+    old_mats = list(bo.data.materials)
+    # the strands are in world (rest) space; the object keeps its transform, so undo it
+    inv = bo.matrix_world.inverted()
+    for v in nb.vertices:
+        v.co = inv @ v.co
+    bo.data = nb
+    for m in old_mats:
+        nb.materials.append(m)
+    for g in list(bo.vertex_groups):
+        bo.vertex_groups.remove(g)
+    vgb = bo.vertex_groups.new(name=P + "Head")
+    vgb.add(list(range(len(nb.vertices))), 1.0, 'REPLACE')
+    bpy.data.meshes.remove(bme)
+    print("HAIR brows: %d strand cards, %d tris" % (made, sum(len(p_.vertices) - 2 for p_ in nb.polygons)))
 bpy.ops.wm.save_as_mainfile(filepath=common.work("hero_parts.blend"))
