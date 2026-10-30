@@ -18430,6 +18430,13 @@ geometry:
   job per body type, cached for the session: the arithmetic runs on a WorkerThreadPool task
   (`threaded`, off on the web), the main thread only reads the arrays (~3.5 ms) and makes one
   surface a frame (~1.4 ms). ~3.0-4.0k triangles a door; 70-140 ms of work a body type.
+  **The split also drops the window cutters' caps** (follow-up, 2026-10-30): `cut_windows()` in
+  make_road_cars.py leaves each cutter's inner sheet, in the `tyre` slot, ~5 cm behind every pane.
+  The old opaque glass hid it; through the clear glass it drew the whole windscreen and side glass
+  solid black from the driver's seat (and from outside). A `tyre` triangle parallel to a glass
+  triangle (`CAP_ALIGN`) within `CAP_DEPTH` / `CAP_REACH` of it is left out (`out.caps` counts
+  them); the seals, square to the glass, stay. Only the rig's split mesh changes: traffic keeps the
+  model (opaque glass in front of the caps). Stills: shots/car-cabins `15`/`16` (before / after).
 - **The cabin in code.** `CarInteriorKit` lays everything out by CarCabin's measured numbers (the
   same formulas car_cabin.gdshaderinc traces with, so the traced driver's hands land on the real
   rim, checked): dash and padded top falling to the windscreen's foot, binnacle and cluster,
