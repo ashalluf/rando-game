@@ -73,8 +73,8 @@ const PREMIERE_HOURS := Vector2(19.5, 25.0)
 const CARPET_W := 2.6
 const FANS_PER_SIDE := 9
 ## The people who make a venue's scene - its bouncers, the first of its line, a premiere's first
-## fans - spawn even when the crowd cap is full (they are still counted against it): a club with
-## a rope and nobody behind it reads as closed.
+## fans - spawn even when the crowd cap is full (they are still counted against it) and are never
+## trimmed when Quality lowers the cap: a club with a rope and nobody behind it reads as closed.
 const SCENE_PEOPLE := 10
 ## Draw distances (m) and shadow reach.
 const ENTRANCE_DRAW := 220.0
@@ -586,8 +586,8 @@ static func _build_premieres(chunk: CityChunk, full: bool, holder: Node3D = null
 						"spot": Vector2(at.x, at.z), "yaw": atan2(-face.x, -face.z)})
 			var pool_at := base * Vector3(0.0, 0.0, length * 0.5)
 			var pb := Basis(Vector3.RIGHT, -PI * 0.5)
-			var pool := Transform3D(Basis(Vector3.UP, atan2(base.basis.z.x, base.basis.z.z)) * pb.scaled(Vector3(6.5, 1.0, length + 3.0)), Vector3(pool_at.x, CityChunk.SIDEWALK_TOP + 0.07, pool_at.z))
-			chunk._batch.add("nl_pool", PropFactory.shop_spill(), pool, Color(1.0, 0.86, 0.72, 0.9))
+			var pool := Transform3D(Basis(Vector3.UP, atan2(base.basis.z.x, base.basis.z.z)) * pb.scaled(Vector3(5.0, 1.0, length + 1.5)), Vector3(pool_at.x, CityChunk.SIDEWALK_TOP + 0.07, pool_at.z))
+			chunk._batch.add("nl_pool", PropFactory.shop_spill(), pool, Color(1.0, 0.82, 0.7, 0.42))
 			chunk._batch.set_no_shadow("nl_pool")
 			_add_light(holder, base * Vector3(0.0, 4.5, length * 0.5) + Vector3(0.0, g, 0.0), 11.0, Color(1.0, 0.9, 0.8))
 		for x: float in [-8.4, -5.3, 5.3, 8.4]:
@@ -639,6 +639,10 @@ static func spawn_person(chunk: CityChunk, index: int) -> void:
 			at = s.spot
 			yaw = float(s.yaw)
 			ped.setup_role(NightGoer.Role.FAN, s.rect, int(s.seed), {}, at, yaw)
+	if key_person:
+		# Never freed when Quality trims the crowd (CityStreamer.trim_pedestrians()): the line and
+		# the door are the scene.
+		ped.set_meta("no_trim", true)
 	ped.position = Vector3(at.x, chunk.ground_y(at.x, at.y) + 0.05, at.y)
 	chunk.add_child(ped)
 

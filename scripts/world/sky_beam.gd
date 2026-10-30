@@ -13,8 +13,8 @@ extends Node3D
 
 ## How far the drawn beam reaches (m), its half-angle (degrees), how bright it is.
 @export var reach: float = 1700.0
-@export var half_angle: float = 0.85
-@export var strength: float = 0.75
+@export var half_angle: float = 1.0
+@export var strength: float = 0.55
 ## The real light where volumetric fog draws the shaft: range (m), energy, fog energy.
 @export var fog_reach: float = 850.0
 @export var spot_energy: float = 30.0

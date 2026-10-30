@@ -95,6 +95,15 @@ func _initialize() -> void:
 				print("HOLDER %d,%d %s" % [ix, iz, str(names)])
 			if beams > 0 or not goers.is_empty():
 				print("CHUNK %d,%d build=%.0fms people=%s beams=%d" % [ix, iz, ms, str(goers), beams])
+			var wait := int(OS.get_environment("WAIT")) if OS.get_environment("WAIT") != "" else 0
+			if wait > 0 and (not goers.is_empty()):
+				for f in wait:
+					await physics_frame
+				for n in ch.get_children():
+					if n.get_script() != null and String(n.get_script().resource_path).ends_with("night_goer.gd"):
+						var g = n
+						var hm: Vector2 = g.get("home")
+						print("  GOER role=%d state=%d vis=%s down=%s act=%d stage=%d panic=%.1f off_home=%.1f" % [g.get("role"), g.get("state"), str(g.visible), str(g.get("_down")), g.get("_act"), g.get("_stage"), g.get("_panic_left"), Vector2(g.position.x, g.position.z).distance_to(hm)])
 			ch.get_parent().remove_child(ch)
 			ch.free()
 	print("VENUES %d" % found)

@@ -17132,7 +17132,9 @@ the head walks to the door and is hidden (no body, no hit zone) for `INSIDE_SECO
 shuffle up a place (`_reslot()`); later they come out round the corner to the tail, or out of the
 door to a waiting car. Gunfire breaks the line (they run, then rejoin the tail); the bouncer holds.
 The bouncers, the first `SCENE_PEOPLE` 10 of a line and a premiere's fans spawn even when the crowd
-cap is full (still counted): in the first stills the downtown cap left the ropes standing empty.
+cap is full (still counted) and carry `no_trim`: in the first stills the ropes stood nearly empty
+and the premiere had no fans, because a still renders at ~1 fps, Quality steps down, and
+`CityStreamer.trim_pedestrians()` frees the walkers farthest from the player first - the venues'.
 
 **Pickups** (`NightPickups`, `scripts/npc/night_pickups.gd`, one node under the scene made by the
 first venue chunk): every 0.5 s, for an open venue within 260 m of the player, now and then
