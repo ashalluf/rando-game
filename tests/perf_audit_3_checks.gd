@@ -7,7 +7,9 @@ extends RefCounted
 ##   - a crowd foot samples its rays on the stagger, not every tick on flat ground;
 ##   - the sea's life idles inland and not on the coast;
 ##   - the night haze's daytime early-out gives sodium_for()'s own answer;
-##   - beach riders' flipbooks come back as their own arrays (so CacheTrim sees them in use).
+##   - beach riders' flipbooks come back as their own arrays (so CacheTrim sees them in use);
+##   - the far canopy is the sphere less its zero-area triangles, the same box;
+##   - a building's balconies cast from a near twin and a far twin without the uprights.
 
 var _t: Node
 
@@ -19,6 +21,8 @@ func run(t: Node, city: Node3D) -> void:
 	_sodium_rule()
 	_sea_idle(city)
 	_ride_copies()
+	_canopy()
+	_balconies()
 	await _feet(city)
 
 
@@ -137,3 +141,50 @@ func _feet(city: Node3D) -> void:
 		return
 	# RAY_EVERY 2 near, 4 further: at most about half the ticks, plus each foot's first.
 	_t._check(float(samples) <= float(ticks) * 0.62, "perf 3: crowd feet sample on the stagger, not every tick (%d samples in %d foot ticks)" % [samples, ticks])
+
+
+func _canopy() -> void:
+	var blob := PropFactory.canopy_blob()
+	var ref := SphereMesh.new()
+	ref.radius = 0.5
+	ref.height = 1.0
+	ref.radial_segments = 6
+	ref.rings = 2
+	var idx: PackedInt32Array = blob.surface_get_arrays(0)[Mesh.ARRAY_INDEX] if blob.get_surface_count() > 0 else PackedInt32Array()
+	var v_ref: PackedVector3Array = ref.get_mesh_arrays()[Mesh.ARRAY_VERTEX]
+	var ok := blob.get_aabb().is_equal_approx(ref.get_aabb())
+	# Under the dummy renderer the mesh keeps no arrays: then only the box is checked.
+	if not idx.is_empty():
+		ok = ok and idx.size() == 72 and (blob.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() == v_ref.size()
+	var made := PropFactory.without_degenerate(ref)
+	var made_idx: PackedInt32Array = (ref.get_mesh_arrays()[Mesh.ARRAY_INDEX] as PackedInt32Array)
+	_t._check(ok and made.get_aabb().is_equal_approx(ref.get_aabb()) and made_idx.size() == 108,
+		"perf 3: the far canopy is the 6-sided sphere less its 12 zero-area triangles, the same box")
+
+
+func _balconies() -> void:
+	var b: Node = CityChunk.BUILDING_SCENE.instantiate()
+	var node := MultiMeshInstance3D.new()
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = PropFactory.balcony()
+	mm.instance_count = 2
+	node.multimesh = mm
+	node.visibility_range_end = 480.0
+	b.add_child(node)
+	var was: bool = Building.balcony_shadow_split
+	Building.balcony_shadow_split = true
+	b.call("_balcony_shadows", node, [Transform3D(), Transform3D(Basis(), Vector3(3.0, 0.0, 0.0))])
+	Building.balcony_shadow_split = was
+	var near: MultiMeshInstance3D = b.get_node_or_null("BalconiesShadowNear")
+	var far: MultiMeshInstance3D = b.get_node_or_null("BalconiesShadowFar")
+	var only := GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+	_t._check(node.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF and near != null and far != null \
+			and near.cast_shadow == only and far.cast_shadow == only and near.multimesh == mm \
+			and far.multimesh.instance_count == 2 and far.multimesh.mesh == PropFactory.balcony_shadow() \
+			and is_equal_approx(near.visibility_range_end, Building.BALCONY_SHADOW_NEAR) \
+			and is_equal_approx(far.visibility_range_begin, Building.BALCONY_SHADOW_NEAR) and is_equal_approx(far.visibility_range_end, 480.0),
+		"perf 3: balconies cast from their own mesh near and a twin without the uprights past %.0f m" % Building.BALCONY_SHADOW_NEAR)
+	_t._check(PropFactory.balcony_shadow().get_aabb().is_equal_approx(PropFactory.balcony().get_aabb()),
+		"perf 3: the balcony's far shadow twin has the balcony's own box")
+	b.free()

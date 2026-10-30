@@ -1690,6 +1690,7 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		node.multimesh = mm
 		node.visibility_range_end = FRAME_DRAW_DISTANCE * 2.0
 		add_child(node)
+		_balcony_shadows(node, balconies)
 	if not fins.is_empty():
 		var fin_xf: Array = []
 		var fin_tints: Array = []
@@ -1710,6 +1711,43 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 			boxes.map(func(e: Array) -> Color: return e[1]), relief_draw_distance, true)
 		for e: Array in boxes:
 			details_top = maxf(details_top, ((e[0] as Transform3D) * AABB(Vector3(-0.5, -0.5, -0.5), Vector3.ONE)).end.y)
+
+
+## The balconies' shadow (perf-audit-3): the 408-triangle railing is 34 separate boxes, which no
+## simplifier thins, and it cast into every cascade out to 480 m - 1.3 M triangles at the
+## MacArthur Park aerial. The drawn node casts nothing; within BALCONY_SHADOW_NEAR a SHADOWS_ONLY
+## twin of the same mesh casts (the uprights' stripes on the slab are visible up close), past it
+## one without the 1.3 cm uprights (PropFactory.balcony_shadow(), under a texel of those cascades).
+## BALCONY_SHADOW=0 in the environment is the A/B (the one node casting as before).
+const BALCONY_SHADOW_NEAR := 45.0
+static var balcony_shadow_split := OS.get_environment("BALCONY_SHADOW") != "0"
+
+
+func _balcony_shadows(node: MultiMeshInstance3D, xforms: Array) -> void:
+	if not balcony_shadow_split:
+		return
+	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var near := MultiMeshInstance3D.new()
+	near.name = "BalconiesShadowNear"
+	near.multimesh = node.multimesh
+	near.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+	near.visibility_range_end = BALCONY_SHADOW_NEAR
+	near.visibility_range_end_margin = 4.0
+	add_child(near)
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = PropFactory.balcony_shadow()
+	mm.instance_count = xforms.size()
+	for i in xforms.size():
+		mm.set_instance_transform(i, xforms[i])
+	var far := MultiMeshInstance3D.new()
+	far.name = "BalconiesShadowFar"
+	far.multimesh = mm
+	far.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+	far.visibility_range_begin = BALCONY_SHADOW_NEAR
+	far.visibility_range_begin_margin = 4.0
+	far.visibility_range_end = node.visibility_range_end
+	add_child(far)
 
 
 ## One part's worth of a facade detail MultiMesh (window frames, bands, parapet, bay cheeks), into

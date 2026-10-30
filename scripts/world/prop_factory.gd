@@ -900,6 +900,28 @@ static func balcony() -> Mesh:
 	return mesh
 
 
+## balcony() without its uprights, for its shadow past Building.BALCONY_SHADOW_NEAR: the slab,
+## the rails and the side returns and posts, the same boxes at the same places (132 triangles).
+static func balcony_shadow() -> Mesh:
+	if _cache.has("balcony_shadow"):
+		return _cache["balcony_shadow"]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var c := Color(0.5, 0.5, 0.5)
+	_box_into(st, Vector3(0.0, 0.03, 0.5), Vector3(1.04, 0.06, 1.0), c)
+	_box_into(st, Vector3(0.0, 0.98, 0.98), Vector3(1.02, 0.045, 0.05), c)
+	_box_into(st, Vector3(0.0, 0.64, 0.98), Vector3(1.0, 0.022, 0.026), c)
+	_box_into(st, Vector3(0.0, 0.30, 0.98), Vector3(1.0, 0.025, 0.03), c)
+	_box_into(st, Vector3(0.0, 0.10, 0.98), Vector3(1.0, 0.022, 0.026), c)
+	for sx: float in [-0.5, 0.5]:
+		_box_into(st, Vector3(sx, 0.98, 0.5), Vector3(0.04, 0.045, 1.0), c)
+		_box_into(st, Vector3(sx, 0.55, 0.5), Vector3(0.03, 0.9, 0.03), c)
+	st.generate_normals()
+	var mesh := st.commit()
+	_cache["balcony_shadow"] = mesh
+	return mesh
+
+
 ## Adds a coloured box to a SurfaceTool being built in local space.
 static func _box_into(st: SurfaceTool, centre: Vector3, size: Vector3, colour: Color) -> void:
 	var h := size * 0.5
