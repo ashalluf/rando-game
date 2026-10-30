@@ -18152,3 +18152,85 @@ A car "driven to the lot round the block" is ordinary traffic after it pulls awa
 straight on); a car brought back is a fresh one from the pool, not the same body. Uniforms are
 the crowd's garment recolour (a red, black, green, burgundy or white top over dark trousers): no
 vests or name badges modelled.
+
+## 9gn. Boats: a speedboat and a jet ski you can drive, 2026-10-30 (fleet wave 3, `wt/speedboats`; VISUAL_ROADMAP "?")
+
+The task: player-drivable boats at the marina, entered like a car, riding the ocean shader's
+waves, with a wake and spray, beached on sand, sinking when destroyed.
+
+**What there is.** Two invented boats, built in code at real size: the SALTRUNNER 24 (7.4 m deep-V
+bowrider: open cockpit with gunwales, liner, sole and bulkheads, two bucket seats behind twin
+consoles, a wheel on a raked column, a three-pane wraparound windscreen with a chrome rail, bow
+rails, cleats, nav lights, a stern light on its pole, a teak swim platform, a sterndrive leg and
+prop, lifting strakes, a rubbing strake and a hull graphic sweeping up to the bow) and the WAVEKITE
+(3.3 m three-seat personal watercraft: the upper deck one loft from the transom to the hood, the
+saddle, handlebars with grips, mirrors and a visor, the pump nozzle, ride plate, sponsons). Both
+side-tied at the marina's east headwalk, in the aisle between its two southernmost main docks
+(`BoatMoorings.spots()`, pure; looks are hashes of the seed). Walk down the gangway, press E.
+
+**Files.** `scripts/vehicles/boat.gd` (`Boat extends Vehicle`, no wheels), `boat_kit.gd` (the
+meshes, three levels each, on `boat.gdshader` in its solo mode: paint and canvas as uniforms, no
+vertex bob), `boat_wake.gd` (the water FX), `boat_ride_pose.gd` (the hero seated, extends
+SwimPose for its aiming), `boat_moorings.gd` (where, and the build). One hook: MarinaBuild.attach()
+appends `BoatMoorings.build(c)` after its commit step (FULL chunks; the boats live under the city
+root in the chunk's `_cars`, like parked cars and the flyable jets). `BOATS=0` builds none.
+
+**How it floats.** Three samples of the water under the hull (the bow, the stern quarters) through
+`SwimWater.at()` - the sea and the bay through `SeaSurface` (ocean.gdshader's Gerstner swells and
+surf in GDScript, Swim's), the marina's basin, the lakes - fitted with a plane; six hull points
+(three stations, two across, `rest_draft` under the waterline) each push up by their depth under
+that plane (a spring set so the six carry the weight at `rest_draft`, damped at a share of
+critical) through `apply_impulse()`. On top: keel drag (sideways speed bled into the heading: a
+carve), quadratic hull drag set so thrust and drag meet at `boat_top_speed`, planing lift growing
+with speed, and an attitude rule that eases the hull to the water plane's slope plus the trim (the
+bow over the hump) plus the lean into the turn (the jet ski goes well over).
+**Trap (cost a debug round):** never write `linear_velocity` / `angular_velocity` in a tick that
+also applies impulses: the cached value written back wipes them (the moored boats sank at a
+steady half metre a second while every buoyancy impulse was being applied). Spin changes go
+through `Boat._spin()` (a torque impulse through the inverse inertia).
+
+**Collision with no water floor.** The city's GroundBody (top y 0) lies under the sea and the
+basin, so a boat over water carries a collision exception with it (Swim's rule; dropped once it is
+out over land with its keel above 0). Out at sea the water chunks also have a floor box (top
+0.1 m under the mean water), so past `OPEN_SEA` (22 m) offshore and away from the marina's jetties
+and breakwater the world layer leaves the boat's mask; inshore it keeps it, which is how a boat
+runs aground in the shallows and up the sand (beached: it stops, its thrust only works while the
+stern is wet). Known gap: out at sea a boat passes through pier pilings.
+
+**Driving.** The car's controls: W / S throttle and astern, A / D the helm (a turn rate that needs
+speed, reversed going astern), Shift the boost (`nitro_multiplier`), right click a power turn,
+Space a hop off the water, and in the air the car's own flight (`Vehicle._fly`). Engine voices
+from EngineAudio (`engine_profile` meta: "v8" the sterndrive, "moto" the jet ski) and a water rush
+loop pitched by speed. The hero is DRAWN (a car hides him in its glass; a boat is open):
+`BoatRidePose` is added to his skeleton while he drives, his Visual turned with the hull and his
+Avatar lowered by the hip height onto `BoatKit.SEAT` (the helm's bucket seat, the front of the
+saddle); thighs forward, arms to the wheel / bars, a lean and a head turn with the steering.
+
+**Water FX** (`BoatWake`, SwimFX's materials, world-space CPUParticles3D, nothing past 160 m of the
+camera): a churned trail from the stern, the two Kelvin arms at 19.5 degrees off the bow quarters,
+spray sheets off the chines at speed, the jet ski's rooster tail at throttle, and on landing off a
+wave a splash each side and the slap (SwimFX's synthesized splash).
+
+**Damage.** Its own, no CarDamage: `health` (600 / 320), rounds x1.3, a blast 900 at its centre,
+a hard landing; at zero `destroy()`: `Explosion.blast` (excluding itself), the driver thrown clear,
+CarDamage's fire material and black smoke, the paint charred, buoyancy let go stern first over
+`sink_seconds`, held on the bottom and freed `sunk_seconds` later. `is_wreck()` keeps anyone from
+boarding it.
+
+**Look / test.** `tools/boats/boat_shot.gd` (the two meshes on calm water, seconds),
+`still_shot.gd BOAT=speedboat|jetski|dock` (`tools/boats/stage.gd`: BOAT_AT, BOAT_HEADING,
+BOAT_VIEW=chase|side|front|high, BOAT_BOOST, BOAT_STEER, BOAT_TICKS), `BOAT_DEBUG=1` a line a second
+per boat, `tools/boats/compile.gd`, `tools/boats/coast_probe.gd`. Checks:
+`tests/speedboats_checks.gd` (meshes and budgets, the moorings, the pose; live: both float level at
+the waterline, interact in, the hero seated, the throttle and the wake, the swell at sea, the helm,
+out, beached, blown up and sunk, no boarding a wreck, BOATS=0).
+
+**Cost** (`still_shot.gd BOAT=dock`, the headwalk at 11:30, opengl3): BOATS=0 4,463,101
+triangles / 2,141 draws, with the boats 4,468,761 / 2,146 (+5.7k triangles, +5 draws, +0.13 %).
+Nothing outside the marina's chunk; the FX only near the camera while a boat moves. Gate
+(`SHARDS=3`): 2,702 checks, 0 failed, peak 2.5 GB a shard.
+
+**Not done / unverified.** Nothing seen on Forward+ (opengl3 stills only); the feel numbers are
+tuned against the checks, not hands. No AI boats (the marina's own MarinaTraffic runabouts are
+still scripted). Bullets do not hole the hull visually. A boat left at sea far from the player is
+frozen where it floats (PhysicsBudget's script switch) until the player comes back.

@@ -503,6 +503,17 @@ func _initialize() -> void:
 		for i in _env_int("NEWS_FRAMES", 30):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
+	# BOAT=speedboat|jetski|dock: the player driving a boat across the bay, or the moorings
+	# (tools/boats/stage.gd: BOAT_AT, BOAT_HEADING, BOAT_VIEW=chase|side|front|high, BOAT_BOOST,
+	# BOAT_STEER, BOAT_TICKS); the player stays in the shot.
+	var boat_env := OS.get_environment("BOAT")
+	if boat_env != "" and current_scene:
+		var b_eye: String = await load("res://tools/boats/stage.gd").stage(self, current_scene, boat_env, get_root().get_camera_3d())
+		if b_eye != "":
+			OS.set_environment("EYE", b_eye)
+			OS.set_environment("EYE_KEEP_PLAYER", "1")
+		print("BOAT %s eye %s" % [boat_env, b_eye])
+		_eye(player, fov)
 	# ONLOOKER_SCENE=body|wreck|blast: a crowd come back round a scene ahead of the camera
 	# (tools/onlookers/stage.gd: ONLOOKER_EYE=behind|front, ONLOOKER_SHOTS=1 all views, ONLOOKER_PEOPLE, ONLOOKER_COUNT;
 	# ONLOOKERS=0 the before), ONLOOKER_FRAMES for the arms to come up.

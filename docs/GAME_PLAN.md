@@ -343,6 +343,12 @@ already mapped so milestone 2 is script-only.
   of firelight and a budgeted flickering light, and 2-6 people in street clothes round each (the
   beach's baked figures, clothed). LOD chunks lay the pools so the coast reads as a row of fires
   from the air. `BONFIRES=0` is the A/B.
+- **2026-10-30 Drivable boats (HANDOFF "Boats").** A speedboat and a jet ski at the marina, entered
+  like a car. Decisions: a Boat IS a Vehicle with no wheels (the enter / exit contract, the pools,
+  EngineAudio, the car's jump and flight all come free); it floats on the water that is drawn
+  (SwimWater / SeaSurface, the swimmer's mirror of the ocean shader) with impulses at six hull
+  points, never by writing velocities; its own simple damage, not CarDamage (no glass, no cabin);
+  the hero drawn seated (a boat is open), posed in code like the swim strokes. Invented names.
 
 - **2026-10-29 The harbour's lights (HANDOFF "The harbour's lights").** A lighthouse on the
   headland's south-east cliff and a breakwater light at the end of a long rubble breakwater off the
