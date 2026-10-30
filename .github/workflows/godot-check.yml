@@ -31,7 +31,18 @@ jobs:
         # city either way (tests/gate_reset.gd), so the shards' results are the plain run's.
         run: |
           nproc; free -m
-          SHARDS=auto GODOT="$RUNNER_TEMP/godot" tests/headless_check.sh
+          SHARDS=auto SMOKE_LOG_DIR=build/smoke_logs GODOT="$RUNNER_TEMP/godot" tests/headless_check.sh
+
+      - name: Upload smoke test logs
+        # Every shard's whole log (the job log keeps only the FAIL lines): what a failing check
+        # printed about itself, kept for a week.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-logs
+          path: build/smoke_logs
+          retention-days: 7
+          if-no-files-found: ignore
 
       - name: Cache export templates
         id: template-cache

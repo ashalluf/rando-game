@@ -47,6 +47,7 @@ if [ "$SHARDS" -le 1 ]; then
     echo "== Script errors found in the smoke test output"
     STATUS=1
   fi
+  if [ -n "${SMOKE_LOG_DIR:-}" ]; then mkdir -p "$SMOKE_LOG_DIR"; cp "$LOG" "$SMOKE_LOG_DIR/smoke.log"; fi
   rm -f "$LOG"
   exit $STATUS
 fi
