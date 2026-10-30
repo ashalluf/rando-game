@@ -345,7 +345,8 @@ static func face(b: Building, face_index: int, fc: Vector3, a: Vector3, n: Vecto
 			# The threshold at the shop's door, unless it is a recessed entry (the shader traces that).
 			var door_i := ShopfrontKit.door_index(key, span_i)
 			var dc := run * span_i + door_i
-			if not ShopfrontKit.recessed(key) and dc >= skip and dc < cols - skip:
+			# Not on masonry: its plinth band runs across the door's foot.
+			if not masonry and not ShopfrontKit.recessed(key) and dc >= skip and dc < cols - skip:
 				var along := size_u * 0.5 - (float(dc) + 0.5) * pitch
 				acc.box(Transform3D(Basis(a, Vector3.UP, n), fc + a * along + Vector3(0.0, bottom + 0.018, 0.0) + n * 0.17),
 					Vector3(2.0 * ShopfrontKit.GLASS_HALF * pitch, 0.036, 0.34), K_STONE,

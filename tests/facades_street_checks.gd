@@ -95,7 +95,7 @@ func _make(sd: int, shops: bool, finish: int) -> Building:
 	return bld
 
 
-## Every vertex of a StreetDress: inside the building's lot (plus a hand off the wall), above its foot.
+## Every vertex of a StreetDress: inside the building's lot (plus the door steps onto the pavement), above its foot.
 func _dress_bounds(bld: Building) -> String:
 	var mi := bld.get_node_or_null("StreetDress") as MeshInstance3D
 	if mi == null:
@@ -106,7 +106,7 @@ func _dress_bounds(bld: Building) -> String:
 	for p in verts:
 		lo = lo.min(p)
 		hi = hi.max(p)
-	var half := Vector3(bld.lot_size.x * 0.5 + 1.0, 0.0, bld.lot_size.y * 0.5 + 1.0)
+	var half := Vector3(bld.lot_size.x * 0.5 + 1.5, 0.0, bld.lot_size.y * 0.5 + 1.5)
 	if lo.x < -half.x or lo.z < -half.z or hi.x > half.x or hi.z > half.z or lo.y < -0.01 or hi.y > bld.height + 1.0:
 		return " StreetDress spans %s .. %s" % [lo, hi]
 	if verts.size() / 4 * 2 > 9000:
