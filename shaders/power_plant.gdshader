@@ -181,7 +181,7 @@ void fragment() {
 		// lit warm after dark, most of them.
 		float pitch = 1.5;
 		float mull = max(lines(uv.x, pitch, 0.08), lines(uv.y, max(h, 1.0), 0.1));
-		vec3 mirror = disp(sky_tint.rgb) * (0.28 + 0.65 * fres) * (0.85 + 0.3 * vnoise(vec2(floor(uv.x / pitch), 0.5) * 3.0));
+		vec3 mirror = sky_tint.rgb * (0.28 + 0.65 * fres) * (0.85 + 0.3 * vnoise(vec2(floor(uv.x / pitch), 0.5) * 3.0));
 		albedo = mix(paint * 0.4, vec3(0.2, 0.21, 0.22), mull);
 		emit += cs_srgb_to_linear(mirror) * 0.55 * (1.0 - mull) * (1.0 - night_factor * 0.75);
 		float lit = step(0.3, hash12(vec2(floor(uv.x / (pitch * 3.0)), param) + seedv));
