@@ -2480,6 +2480,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The far ranges (tests/far_ranges_checks.gd): the back and east ranges as crest lines, their
 	# feet and the front range unmoved, the bake on the new shape, the plane's crags and layered haze.
 	load("res://tests/far_ranges_checks.gd").new().run(self, city)
+	# The wet world (tests/wet_world_checks.gd, WetWorld, CarWipers): the shaders' water, walls, wipers.
+	await load("res://tests/wet_world_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

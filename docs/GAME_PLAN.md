@@ -3479,6 +3479,12 @@ already mapped so milestone 2 is script-only.
   Decisions: anything the sky draws after the Forward+ cloud volume's composite is in front of it
   (the island); renderer-space shaders take `sky_tint` through `cs_as_uniform()`; vertex colours are
   decoded with `cs_srgb_to_linear()`, never `cs_in()`; a test scans every shader for these.
+- **2026-10-30 The wet world is shader-only, driven by the road's globals.** Rain on cars, walls,
+  roofs, awnings and people reads `road_wetness` / `road_drying` / `rain_intensity` through one
+  include (wet_surface.gdshaderinc) with no textures and one branch when dry, so it dries in step
+  with the street and costs the web nothing. Wipers are one shared mesh per body type turned in the
+  vertex shader, with four shared phase buckets (no per-car uniform); the glass clears its beads by
+  the same angle worked out from TIME.
 
 ## Correction: what build 135 (0ce833f) actually contained
 
