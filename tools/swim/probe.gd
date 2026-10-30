@@ -54,6 +54,11 @@ func _ready() -> void:
 		var lay := LandmarkMacArthurPark.layout(plan)
 		if lay.has("lake_bounds"):
 			print("SWIM MacArthur lake bounds %s, height %.2f" % [str(lay.lake_bounds), plan.height_at((lay.lake_bounds as Rect2).get_center())])
+	if m.reservoir:
+		var r: Reservoir = m.reservoir
+		for back in [40.0, 70.0, 100.0, 140.0]:
+			var q := r.arc_point((r.dam_a0 + r.dam_a1) * 0.5) + Vector2(0.0, -back)
+			print("SWIM reservoir level %.2f: %.0f m upstream of the crest (%.1f, %.1f) wet %s bed %.2f" % [r.level, back, q.x, q.y, str(r.wet(q)), m.height_at(q)])
 	var prof := []
 	for s in [0.0, 2.0, 3.5, 10.0, 26.0, 60.0, 200.0]:
 		prof.append("%.0f:%.2f" % [s, SeaSurface.seabed(s)])

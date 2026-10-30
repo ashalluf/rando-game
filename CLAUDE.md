@@ -4826,8 +4826,9 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   player's child; `swim.step()` is the first thing in Player's tick after the car and does the whole
   tick in water). Where water is: `SwimWater` (`scripts/world/swim_water.gd`) - the sea and the bay
   worked out (`SeaSurface`, `scripts/world/sea_surface.gd`: ocean.gdshader's vertex stage in
-  GDScript, change one change both, the checks read the shader's source) and the marina; the lake,
-  canals and pools registered by their builders (`SwimWater.add_rect()` / `add_poly()`, one line,
+  GDScript, change one change both, the checks read the shader's source), the marina and the
+  reservoir (`Reservoir.wet()` at its level, the hills its bed); the lake, the golf pond, canals,
+  pools (yard, rec, hill-home; rooftop pools are `TANK`: the roof is a real floor) registered by their builders (`SwimWater.add_rect()` / `add_poly()`, one line,
   FULL chunks only). Sea, marina and pools have no real floor under the water, so while he swims
   there the world layer is off his mask and Swim holds him over the water's own floor and inside a
   pool's tank. Strokes are code (`SwimPose`, second modifier after HeroMotion; crawl, tread,

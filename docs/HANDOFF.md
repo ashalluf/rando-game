@@ -14475,8 +14475,19 @@ the spot, so a fixed camera frames him; `SWIM_DEPTH` for under) and `EYE_KEEP_PL
 `still_shot.gd`, e.g. off Rando Pier:
 `SWIM_STAGE=crawl SWIM_HOLD=1 EYE_KEEP_PLAYER=1 FOV=50 EYE=-1005,1.6,-271,0,-6 ... -- --spawn=-1005,-280,-90,-10 --hour=15.5 --nohud`.
 
-**Not done / known gaps.** Rooftop pools (Rooftops) and hill-home pools (HillHomeBuild) are not
-registered (one line each when wanted); the river's low-flow channel is too shallow to swim; a car
-driven into the sea still rides its wheels on the ground box; the underwater view has no real
-depth fog on far geometry (the pass veils the whole picture); the strokes are keyed in code, not
-motion-captured; nothing of it has been seen on Forward+ (the Mac).
+**Wave 3 (finishing the task, merged onto main 95bd13f).** More water: the reservoir behind the
+dam is worked out like the marina (`Reservoir.wet()` on its 5 m grid, the surface its fitted
+`level`, the floor `height_at()` - the carved hills, real ground, so nothing is passed through:
+`Kind.RESERVOIR`), the golf pond registers in its chunks (a dug bed 1.3 m deep, the turf's
+collision under it), the rooftop pool decks register as `Kind.TANK` (a pool whose floor is real:
+the roof, 0.95 m down; the world stays on his mask, so a roof pool never drops him through the
+tower) and the hill homes' pools as ordinary painted pools. `still_shot.gd EYE_KEEP_PLAYER=1` prints
+where he is and the water he swims in once. Still `09_after_reservoir_crawl_1630`:
+`SWIM_STAGE=crawl SWIM_HOLD=1 EYE_KEEP_PLAYER=1 FOV=50 EYE=-524.5,266.4,-1308,200,-12 ... --
+--spawn=-522,-1302,180,-8,264 --hour=16.5 --nohud` (spawn under the level: a still's frozen clock
+never lets him fall the last metre in).
+
+**Not done / known gaps.** The river's low-flow channel is too shallow to swim; a car driven into
+the sea still rides its wheels on the ground box; the strokes are keyed in code, not
+motion-captured (the UAL swim clips are still out of this network's reach); nothing of it has been
+seen on Forward+ (the Mac).

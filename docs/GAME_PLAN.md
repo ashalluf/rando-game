@@ -311,7 +311,9 @@ already mapped so milestone 2 is script-only.
   strokes are keyed in code per frame (SwimPose), because the CC0 animation library is out of the
   build's network reach (an itch.io download) - a UAL swim clip can replace them later; no
   drowning and no guns in the water (overpowered, and GTA's rule); the sounds are synthesized.
-  `SWIMMING=0` is the A/B.
+  `SWIMMING=0` is the A/B. Wave 3: the reservoir (worked out from its own grid and level) and
+  rooftop pools keep their real floors (the hills, the roof: a roof pool must never take the
+  world off his mask 60 m up); the golf pond and hill-home pools register like the others.
 
 - **2026-10-05 The street's signs are real models (HANDOFF "The street's signs").** The signs
   were a cylinder for a stop sign facing the junction diagonally, flat boxes with TextMesh names
