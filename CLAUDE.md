@@ -1640,9 +1640,11 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `Lowrider.add_wheels()` (72-spoke code-built wire wheels, `shaders/wire_wheel.gdshader`, part in
   COLOR.a). `Lowrider.Hydraulics` (a child node) springs four corner heights and moves the BodyModel
   holder and NightLights (visual only); a corner past `stroke` lifts its wheel; a physical car lays
-  back at rest. `LowriderMeet` (`scripts/world/lowrider_meet.gd`): one boulevard kerb per `CELL` by
+  back at rest, except the player's own lowrider: the `hydraulics` action (H / D-pad up; tap a hop
+  that also kicks the real car, hold to lift, + A / D three-wheel) runs `drive_input()`. `LowriderMeet` (`scripts/world/lowrider_meet.gd`): one boulevard kerb per `CELL` by
   hash, Fri/Sat/Sun from 18:30, a kinematic row (`traffic` with `"parked"`) plus `MeetGoer`s, the
-  parked cars skipped after their rolls (`blocks_parking()`); `traffic_kind()` sends a few cruising
+  parked cars skipped after their rolls (`blocks_parking()`), folding chairs and coolers in the gaps
+  (`MeetKit`, one mesh a meet, `CrowdLife.add_seat()`); `traffic_kind()` sends a few cruising
   slow (`TrafficManager._street_kind()`, its roll reused). `LOWRIDERS=0` the A/B, `LOWRIDER_MEET=1`
   forces meets on, `LOWRIDER_POSE=i:hop:0.7` freezes row car i mid-routine; `car_shot.gd --each=25,26
   HYDRAULICS=hop`; probe `tools/lowrider_probe.gd`; checks `tests/lowriders_checks.gd`.

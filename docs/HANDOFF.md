@@ -14501,3 +14501,18 @@ twin (the twin is the body, so it does move with the holder, but its baked wheel
 The meet crowd stands on the pavement only (nobody in the street between the cars), no music,
 no folding chairs or coolers, no open trunks showing the pumps. Brake lamps stay off on a meet car,
 but its head and tail lamps run at night like a traffic car's (a driver sits in each).
+
+**Wave 3 (the session that finished it, 2026-10-30).** Merged origin/main (95bd13f; only the four
+append-at-the-end docs / smoke-test conflicts). Added the two gaps that were the player's to see:
+**the player's own switch** - in a lowrider he drives, the new `hydraulics` input action (H, pad
+D-pad up; project.godot, at the end of [input]) runs `Hydraulics.drive_input()`: a tap (under
+`tap_seconds` 0.22) hops the nose and also kicks the REAL car (an impulse of `hop_kick` x mass at
+the front axle, the crash watch held), a hold lifts all four, a hold with A / D three-wheels to that
+side, with W / S lifts the nose or the tail, let go it lays down; only the body moves (the physical
+wheels stay Vehicle's) and the HUD's driving hint names it. **The meet's kerb**: pairs of folding
+quad camp chairs and a wheeled cooler in `CHAIR_SHARE` of the gaps between the row's cars, at the
+kerb's edge facing the street (`LowriderMeet.chair_spots()`, pure, hashes of the meet's seed),
+code-built by `MeetKit` (`scripts/world/meet_kit.gd`) into ONE vertex-coloured mesh a meet
+(`MeetChairs`, drawn to 90 m, no collision), each pair registered with `CrowdLife.add_seat()` so a
+passer-by's SIT can take it. Two new checks (33 in all). Forward+ seen at last (lavapipe,
+`car_shot.gd` and `fwd_block_shot.tscn` at the meet): see the stills README.
