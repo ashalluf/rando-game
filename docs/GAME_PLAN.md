@@ -295,6 +295,12 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-30 The mid distance is planted and parked from the capture, never placed (HANDOFF "The
+  mid distance").** The far tiers' yard trees come from the LOD block build's own capture (green
+  ground, building footprints) on hashes of the seed and the place, and the far streets' cars are
+  painted per pixel - the moving ones the night lights' own cells - so nothing a seed builds
+  moves and the far city costs no new draws. House roofs out there are the house's own clay tint
+  or shingle, flagged so the far shader draws them as roofs, not as towers' membranes.
 - **2026-10-30 The night has its own street life (fleet wave 3, `nightlife`).** After 21:00 a share
   of the open restaurants and tower lobbies downtown, in midtown and the beach town are clubs and
   bars with a line along the wall behind a velvet rope, a bouncer and a lit entrance; the door
@@ -3461,6 +3467,24 @@ already mapped so milestone 2 is script-only.
   worked out once against the same surface function the concrete is built from and played from a
   clock (nothing simulated); they and the spectators are baked figures that wake into live people.
   SKATE_PARK=0 keeps the boxes.
+- **2026-10-30 The third wave of car bodies is derived, not drawn from scratch.** The EV hatch,
+  luxury sedan, compact SUV, work truck and coupe (tools/make_cars_3.py) are the older lofted
+  specs moved by station maps (cab-forward, a long bonnet, a cut overhang plus a uniform scale,
+  a lowered glasshouse) with their own faces, tails and parts, because the loft is fussy and a
+  derived one is known to build; their silhouettes still differ where a street reads them. Their
+  shares (165 per thousand) come out of the END of six older ranges, the sedan's, pickup's,
+  van's, sports car's, crossover's and the hatchback's, and `CARS_3=0` hands each slice back.
+
+- **2026-10-30 Forward+ review of the wave-3 features (fwd-review-d, HANDOFF "Forward+ review d").**
+  Decisions: anything the sky draws after the Forward+ cloud volume's composite is in front of it
+  (the island); renderer-space shaders take `sky_tint` through `cs_as_uniform()`; vertex colours are
+  decoded with `cs_srgb_to_linear()`, never `cs_in()`; a test scans every shader for these.
+- **2026-10-30 The wet world is shader-only, driven by the road's globals.** Rain on cars, walls,
+  roofs, awnings and people reads `road_wetness` / `road_drying` / `rain_intensity` through one
+  include (wet_surface.gdshaderinc) with no textures and one branch when dry, so it dries in step
+  with the street and costs the web nothing. Wipers are one shared mesh per body type turned in the
+  vertex shader, with four shared phase buckets (no per-car uniform); the glass clears its beads by
+  the same angle worked out from TIME.
 - **2026-10-30 The hero's face lives in shaders; his clips play at their feet's speed.** The rig has
   no face bones and rebuilding it in Blender would break every clip and fit, so the blink and the
   gaze are the eye and lash shaders (the eyeball turned about its centre, the upper lid painted onto
@@ -3519,3 +3543,10 @@ pink-and-orange cloud sky; palms lit from below; dense crowds and headlights. Th
 signage as a light source*, *wet road reflections*, and *sky with cloud STRUCTURE at sunset* -
 this project has shaders/neon_sign.gdshader and a `road_wetness` global already and uses almost
 none of either.
+- **2026-10-30 The far ranges are crest lines, and the far ground reaches the far plane
+  (HANDOFF "The far ranges").** The back and east ranges' bases are a front face (the old one, so
+  their feet and the city's edge do not move), a wandering crest with a few big massings and a
+  long fall behind; canyons are wider apart and only saddle the crest. The front range keeps its
+  shape (it carries the landmarks). The horizon plane stays 14 km, with a coarser ring on the same
+  material out to 12.6 km, because its rim was erasing the crests 5-7 km away; past the bake the
+  map is mirrored. FAR_RANGES=0 is the old world exactly.

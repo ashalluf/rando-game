@@ -52,6 +52,15 @@ const STRIP_HEIGHT := 0.06
 const STRIP_WIDTH := 0.05
 ## Triangles classified per slice before the job checks its budget.
 const SLICE := 2048
+## The window cutters (make_road_cars.py cut_windows()) leave their inner sheet, in the `tyre`
+## slot, a few cm behind every pane: the old opaque glass hid it, through clear glass it was a
+## black wall over the whole windscreen from inside. A `tyre` triangle lying parallel to a pane
+## (|normal . pane normal| over CAP_ALIGN) within CAP_DEPTH of it and CAP_REACH of its centre is
+## that sheet and is left out; the seals round the opening stand square to the glass and stay.
+const CAP_ALIGN := 0.8
+const CAP_DEPTH := 0.12
+const CAP_REACH := 0.3
+const CAP_CELL := 0.25
 
 ## Finished splits per body type: {"real", "body": ArrayMesh, "doors": [door, ...]}, a door being
 ## {"side": -1 / 1, "mesh": ArrayMesh, "surf_map": PackedInt32Array, "hinge": Vector3,
@@ -147,7 +156,9 @@ static func step(budget_usec: int) -> bool:
 				job.task = WorkerThreadPool.add_task(job.crunch, false, "CarDoorSplit")
 			if not job.crunched:
 				continue
-			WorkerThreadPool.wait_for_task_completion(job.task)
+			if not job.waited:
+				WorkerThreadPool.wait_for_task_completion(job.task)
+				job.waited = true
 		while not job.finished and Time.get_ticks_usec() - t0 < budget_usec:
 			job.advance()
 		if job.finished:
@@ -156,6 +167,16 @@ static func step(budget_usec: int) -> bool:
 		if Time.get_ticks_usec() - t0 >= budget_usec:
 			break
 	return not _jobs.is_empty()
+
+
+## Waits for every split still on a worker thread and drops the unfinished jobs (see
+## CarInteriorKit.drain()).
+static func drain() -> void:
+	for type: int in _jobs.keys():
+		var job: Job = _jobs[type]
+		if job.task >= 0 and not job.waited:
+			WorkerThreadPool.wait_for_task_completion(job.task)
+	_jobs.clear()
 
 
 ## Runs `type`'s job to the end at once (tools and tests).
@@ -181,6 +202,7 @@ class Job:
 	var finished := false
 	var crunched := false
 	var task := -1
+	var waited := false
 	var out := {}
 	var _stage := 0
 	var _surfs: Array = []
@@ -194,6 +216,8 @@ class Job:
 	var _glass_lo := [INF, INF]
 	var _glass_hi := [-INF, -INF]
 	var _front_top := 0.0
+	## Glass triangles by CAP_CELL cell: [centroid, normal, ...] (see CAP_ALIGN).
+	var _gcell := {}
 	var _rear := 0.0
 	var _sill := 0.0
 	var _van := false
@@ -285,6 +309,12 @@ class Job:
 					continue
 				n = n.normalized()
 				var m := (a + b + c) / 3.0
+				var gk := Vector3i((m / CarDoorSplit.CAP_CELL).floor())
+				var cell: Array = _gcell.get(gk, [])
+				if cell.is_empty():
+					_gcell[gk] = cell
+				cell.append(m)
+				cell.append(n)
 				if absf(n.x) < 0.45 or absf(m.x) < 0.3:
 					continue
 				var p := Vector2(-m.z, m.y)
@@ -473,7 +503,13 @@ class Job:
 		var cls: PackedByteArray = _cls[si]
 		var nt := idx.size() / 3
 		var end := mini(_ti + CarDoorSplit.SLICE * 2, nt)
+		var mat: Material = (_surfs[si] as Dictionary).mat
+		var caps := mat != null and String(mat.resource_name) == "tyre" and not _gcell.is_empty()
+		var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX] if caps else PackedVector3Array()
 		for t in range(_ti, end):
+			if caps and _window_cap(v[idx[t * 3]], v[idx[t * 3 + 1]], v[idx[t * 3 + 2]]):
+				dropped += 1
+				continue
 			var c := cls[t] if t < cls.size() else 0
 			if c == 0:
 				_keep.append(idx[t * 3])
@@ -491,6 +527,29 @@ class Job:
 		return _ti >= nt
 
 	var _prepared: Array = []
+	## Window-cutter caps left out (CAP_ALIGN).
+	var dropped := 0
+
+	func _window_cap(a: Vector3, b: Vector3, c: Vector3) -> bool:
+		var n := (b - a).cross(c - a)
+		if n.length_squared() < 1e-14:
+			return false
+		n = n.normalized()
+		var m := (a + b + c) / 3.0
+		var k := Vector3i((m / CarDoorSplit.CAP_CELL).floor())
+		for dx in range(-1, 2):
+			for dy in range(-1, 2):
+				for dz in range(-1, 2):
+					var cell: Array = _gcell.get(k + Vector3i(dx, dy, dz), [])
+					for i in range(0, cell.size(), 2):
+						var gn: Vector3 = cell[i + 1]
+						if absf(n.dot(gn)) < CarDoorSplit.CAP_ALIGN:
+							continue
+						var off: Vector3 = m - (cell[i] as Vector3)
+						var d := off.dot(gn)
+						if absf(d) < CarDoorSplit.CAP_DEPTH and (off - gn * d).length() < CarDoorSplit.CAP_REACH:
+							return true
+		return false
 
 	## The body's arrays and each door's compacted ones for surface `si` (no renderer calls).
 	func _prepare_surface(si: int) -> void:
@@ -563,7 +622,7 @@ class Job:
 				"sill": _sill, "belt": belt, "top": _glass_hi[k] if _glass_hi[k] > -INF else belt,
 				"lower": _lower_k[k] if (_lower_k[k] as PackedVector2Array).size() >= 3 else _lower, "upper": _upper[k],
 			})
-		out = {"real": true, "body": _body, "doors": doors}
+		out = {"real": true, "body": _body, "doors": doors, "caps": dropped}
 		_surfs.clear()
 		_cls.clear()
 		_prepared.clear()

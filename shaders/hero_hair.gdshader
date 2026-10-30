@@ -30,18 +30,6 @@ uniform float anisotropy = 0.8;
 uniform vec2 strand_flow = vec2(0.0, 1.0);
 // How dark the buried layers get (UV2.x is 0.4 for the under-layer, 1 for the top).
 uniform float occlusion = 1.0;
-// Wet: wet hair is darker and its highlight sharper.
-// Rain on the hero (HeroLook.setup_wet): Weather's street wetness (soaks in the rain, dries over
-// minutes) and the rain itself, or wet_hold (>= 0) for stills; wet_gain 0 is the A/B.
-global uniform float road_wetness;
-global uniform float rain_intensity;
-uniform float wet_gain = 0.0;
-uniform float wet_hold = -1.0;
-float hero_wet() {
-	float w = wet_hold >= 0.0 ? wet_hold : max(road_wetness, rain_intensity);
-	return clamp(w, 0.0, 1.0) * wet_gain;
-}
-
 
 varying vec2 hairdata;
 
@@ -49,24 +37,31 @@ void vertex() {
 	hairdata = UV2;
 }
 
+#include "res://shaders/wet_surface.gdshaderinc"
+
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
 }
 
 void fragment() {
-	float wet = hero_wet();
 	vec4 t = texture(albedo_tex, UV);
 	float tip = clamp(UV.y, 0.0, 1.0);
 	vec3 col = mix(root_color, tip_color, smoothstep(0.25, 1.0, tip)) * (0.7 + 0.6 * t.r);
 	col *= 0.88 + 0.24 * fract(hairdata.y * 7.31);
 	col = mix(col, t.rgb, strands_from_texture);
 	float ao = mix(1.0, clamp(hairdata.x, 0.0, 1.0), occlusion * (1.0 - strands_from_texture));
-	ALBEDO = col * ao * (1.0 - 0.4 * wet);
+	ALBEDO = col * ao;
 	AO = ao;
 	ALPHA = t.a * (root_fade > 0.0 ? smoothstep(0.0, root_fade, tip) * 0.6 + 0.4 * smoothstep(0.0, root_fade * 0.35, tip) : 1.0);
 	ALPHA_SCISSOR_THRESHOLD = clamp(alpha_cut + (hash(FRAGCOORD.xy) - 0.5) * dither, 0.02, 0.98);
-	ROUGHNESS = mix(roughness, 0.18, wet);
+	ROUGHNESS = roughness;
 	SPECULAR = specular * ao;
 	ANISOTROPY = anisotropy;
 	ANISOTROPY_FLOW = strand_flow;
+	if (ws_on()) {
+		// Rain: wet hair is darker and glossier.
+		float wet = ws_wet(0.6);
+		ALBEDO *= mix(1.0, 0.62, wet);
+		ROUGHNESS = mix(ROUGHNESS, 0.2, wet);
+	}
 }

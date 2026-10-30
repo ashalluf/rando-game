@@ -29,11 +29,10 @@ var cloth_rib: ShaderMaterial
 var shadow_twin: MeshInstance3D
 ## The living face (blinks, saccades; HeroFace), null with HERO_CLOSEUP=0 / HERO_FACE=0.
 var face: HeroFace
-## Rain on him: the skin, velour and hair shaders read the street's wetness (`road_wetness`,
-## Weather's, which soaks in the rain and dries over minutes after it) and the rain itself
-## (`rain_intensity`) as globals; `wet_gain` 0 turns that off (HERO_CLOSEUP=0), HERO_WET=x holds
-## a wetness for stills.
-const WET_MATERIALS := ["skin", "cloth", "cloth_rib", "hair"]
+## Rain on his skin: the skin shader takes the wet world's water (wet_surface.gdshaderinc, which
+## also wets the velour and the hair); `wet_gain` 0 turns the skin's off (HERO_CLOSEUP=0),
+## HERO_WET=x holds a wetness on it for stills.
+const WET_MATERIALS := ["skin"]
 var _joints: Array = [] # [upper, middle, end] bone triples: L elbow, R elbow, L knee, R knee
 var _skeleton: Skeleton3D
 
@@ -195,7 +194,7 @@ func update() -> void:
 
 
 
-## Sets the rain uniforms on the four wet-able materials (called once they all exist).
+## Sets the rain uniforms on the skin (called once they all exist).
 func setup_wet() -> void:
 	var hold := float(OS.get_environment("HERO_WET")) if OS.get_environment("HERO_WET") != "" else -1.0
 	for key in WET_MATERIALS:

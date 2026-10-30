@@ -41,20 +41,15 @@ uniform vec3 backlight_color : source_color = vec3(0.32, 0.08, 0.045);
 // HeroLook sets 0.3 on the Compatibility renderer, where BACKLIGHT is a glow, not scattering.
 uniform float backlight_gain = 1.0;
 // Wet: a film of water on the skin - glossier, a touch darker.
-// Rain on the hero (HeroLook.setup_wet): Weather's street wetness (soaks in the rain, dries over
-// minutes) and the rain itself, or wet_hold (>= 0) for stills; wet_gain 0 is the A/B.
-global uniform float road_wetness;
-global uniform float rain_intensity;
+// Rain (HeroLook.setup_wet): the wet world's water (wet_surface.gdshaderinc, the same numbers as
+// the street, the crowd's clothes and the hero's velour and hair), or wet_hold (>= 0) for stills;
+// wet_gain 0 is the A/B (HERO_CLOSEUP=0).
 uniform float wet_gain = 0.0;
 uniform float wet_hold = -1.0;
-float hero_wet() {
-	float w = wet_hold >= 0.0 ? wet_hold : max(road_wetness, rain_intensity);
-	return clamp(w, 0.0, 1.0) * wet_gain;
-}
-
+#include "res://shaders/wet_surface.gdshaderinc"
 
 void fragment() {
-	float wet = hero_wet();
+	float wet = (wet_hold >= 0.0 ? wet_hold : (ws_on() ? ws_wet(0.5) : 0.0)) * wet_gain;
 	vec4 m = texture(mask_tex, UV);
 	vec4 d = texture(detail_tex, UV * detail_scale);
 	vec3 alb = texture(albedo_tex, UV).rgb * albedo_tint.rgb;

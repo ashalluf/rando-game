@@ -238,13 +238,15 @@ def everyday_details(s, sec, surf, body, parts):
     for side in (1.0, -1.0):
         for line in d["gaps_side"]:
             paths.append(surface_path(surf, "side", line, side))
-        # The rear door's shut line runs round the rear arch.
-        rd = d["rear_door"]
-        arc = circle_path(ra, s["axle_z"], s["arch_r_rear"] + rd[2], rd[3], rd[4], 10)
-        paths.append(surface_path(surf, "side", [(rd[0], rd[1]), (rd[0], arc[0][1])] + arc[1:],
-                                  side))
-        paths.append(surface_path(surf, "side", [(d["sill_gap"][0], d["sill_gap"][1]),
-                                                  (arc[-1][0], d["sill_gap"][1])], side))
+        # The rear door's shut line runs round the rear arch (a two-door body has none: its
+        # door's rear edge and sill line are plain gaps_side lines).
+        if "rear_door" in d:
+            rd = d["rear_door"]
+            arc = circle_path(ra, s["axle_z"], s["arch_r_rear"] + rd[2], rd[3], rd[4], 10)
+            paths.append(surface_path(surf, "side", [(rd[0], rd[1]), (rd[0], arc[0][1])] + arc[1:],
+                                      side))
+            paths.append(surface_path(surf, "side", [(d["sill_gap"][0], d["sill_gap"][1]),
+                                                      (arc[-1][0], d["sill_gap"][1])], side))
         for line in d.get("gaps_fj", []):
             paths.append(fj_path(surf, line, side))
     for line in d.get("gaps_rear", []):

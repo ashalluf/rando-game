@@ -7,7 +7,7 @@ extends RefCounted
 ##  - the clip speeds: each locomotion clip's speed measured from its own planted feet (on a
 ##    separate hero.glb, never the player's) matches Avatar's HERO_*_SPEED, and the gait plays
 ##    each band's clip at the rate that keeps the feet still
-##  - the rain and the skin: the four wet-able materials take the rain (wet_gain 1)
+##  - the rain: the skin takes the wet world's water (wet_gain 1)
 ## Leans on nothing an earlier check left: it builds what it measures.
 
 var _t: Node
@@ -30,7 +30,7 @@ func run(t: Node, player: Node3D) -> void:
 	for key in HeroLook.WET_MATERIALS:
 		var m := look.get(key) as ShaderMaterial
 		wet_ok = wet_ok and m != null and float(m.get_shader_parameter("wet_gain")) == 1.0
-	_check(wet_ok, "the skin, the velour, its rib bands and the hair take the rain")
+	_check(wet_ok, "the skin takes the rain (the wet world does the velour and the hair)")
 
 
 func _check_face_materials(avatar: Node3D, look: HeroLook) -> void:

@@ -44,7 +44,7 @@ func _ready() -> void:
 	# close to the old 300, and the distance checks (tests/distance_checks.gd) about 20 more.
 	# SMOKE_WATCHDOG=seconds raises it for a run on a box shared with other heavy jobs, where the
 	# same checks take longer in wall time (the gate's own timeout has to be raised with it).
-	var watchdog := float(OS.get_environment("SMOKE_WATCHDOG")) if OS.get_environment("SMOKE_WATCHDOG") != "" else 1500.0
+	var watchdog := float(OS.get_environment("SMOKE_WATCHDOG")) if OS.get_environment("SMOKE_WATCHDOG") != "" else 2400.0
 	get_tree().create_timer(watchdog).timeout.connect(func():
 		printerr("SMOKE TEST TIMED OUT")
 		get_tree().quit(2))
@@ -507,10 +507,19 @@ func _city_streaming(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> v
 	_check(not lamp.is_empty(), "home chunk has a lamp to break")
 	var lamp_id: String = lamp.get("id", "")
 	if not lamp.is_empty():
+		var debris_before := get_tree().get_nodes_in_group("debris").size()
 		home_chunk.damage_prop(lamp, 999.0, Vector3.UP)
 		await _ticks(2)
 		_check(lamp.dead and _world_state().is_destroyed(home_chunk.key, lamp_id), "lamp breaks and is recorded as destroyed")
-		_check(get_tree().get_nodes_in_group("debris").size() >= 3, "broken lamp drops debris")
+		# PropBreak fells a lamp hit this hard (a falling pole and its pieces): count what it added,
+		# a few ticks on (the pieces are made over the next frames).
+		var debris_added := 0
+		for i in 20:
+			debris_added = get_tree().get_nodes_in_group("debris").size() - debris_before
+			if debris_added >= 1:
+				break
+			await _ticks(1)
+		_check(debris_added >= 1, "broken lamp drops debris (%d pieces)" % debris_added)
 
 	# Walk far away: chunks stream, the old home chunk becomes LOD or unloads.
 	var far := Vector3(700.0, 2.0, 0.0)
@@ -2294,6 +2303,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/farmers_market_checks.gd").new().run(self, city)
 	# Forward+ review traps (tests/fwd_review_b_checks.gd): back-face normals, normal-map green, sky_tint.
 	load("res://tests/fwd_review_b_checks.gd").new().run(self, city)
+	# Forward+ review d (tests/fwd_review_d_checks.gd): sky_tint and vertex colours in every shader.
+	load("res://tests/fwd_review_d_checks.gd").new().run(self, city)
 	# Memory (tests/memory_audit_checks.gd): the peak resident memory budget, and the audit's cuts.
 	load("res://tests/memory_audit_checks.gd").new().run(self, city)
 	# The loading screen's rehearsal (tests/shader_warm_checks.gd): it leaves nothing behind.
@@ -2464,6 +2475,15 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/car_cabins_checks.gd").new().run(self, city)
 	# Dry creek beds (tests/arroyos_checks.gd): the drainage network, a FULL and a LOD hill chunk's beds, culverts.
 	load("res://tests/arroyos_checks.gd").new().run(self, city)
+	# The third wave of everyday bodies (tests/cars_3_checks.gd, Cars3): rolls, the switch, builds, traffic.
+	await load("res://tests/cars_3_checks.gd").new().run(self, city)
+	# The mid distance (tests/mid_city_checks.gd): yard trees, house roofs and pools in the far tiers.
+	load("res://tests/mid_city_checks.gd").new().run(self, city)
+	# The far ranges (tests/far_ranges_checks.gd): the back and east ranges as crest lines, their
+	# feet and the front range unmoved, the bake on the new shape, the plane's crags and layered haze.
+	load("res://tests/far_ranges_checks.gd").new().run(self, city)
+	# The wet world (tests/wet_world_checks.gd, WetWorld, CarWipers): the shaders' water, walls, wipers.
+	await load("res://tests/wet_world_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
@@ -3290,6 +3310,12 @@ func _test_weapons(player: Player) -> void:
 	_check(gun != null and gun.lock_on, "weapon_3 is the shotgun, and it takes GTA-style aim")
 	var crate := _nearest_crate(Vector3(-14.0, 1.0, 0.0))
 	if crate and gun:
+		# The rocket checks before this leave rubble and shells (debris, minutes long) lying about
+		# the room; one between the player and the crate took the blast and the pellet (CI 374).
+		for d in get_tree().get_nodes_in_group("debris"):
+			if d is RigidBody3D:
+				d.free()
+		await get_tree().physics_frame
 		player.global_position = crate.global_position + Vector3(5.0, 0.6, 0.0)
 		player.velocity = Vector3.ZERO
 		await _ticks(5)
