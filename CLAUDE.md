@@ -5124,6 +5124,18 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   gathers riders and surfers there; `tools/beach/probe.gd` walks the coast (`PEOPLE=1`),
   `tools/beach/chunks.gd` lists the built chunks, `tools/beach/checks.gd` runs the checks alone.
   Checks: `tests/beach_life_checks.gd`.
+- Beach amenities (2026-10-30, wave 3, docs/HANDOFF.md "Beach amenities"): `BeachAmenities`
+  (`scripts/world/beach_amenities.gd`, one hook line in `CityChunk._build_beach()` before
+  `BeachLife.build()`, whose obstacles it extends, and one in its LOD branch) puts split-face block
+  restrooms, a concession / rental stand (invented `STAND_NAMES`; shutter by the hour), outdoor gym
+  pens, stainless showers and wave racks by the bike path, rows of extra volleyball poles (some
+  netted with BeachLife's net) and painted drums on the sand. `plan_stretch()` is pure: hashes of
+  seed + world shore cell (`STATION_CELL` / `SHOWER_CELL` / `CAN_CELL`), lower kinds give way to
+  higher over a window, palms and the tower only nudge. Code-built on ONE shader
+  (`shaders/beach_amenities.gdshader`, kind in COLOR.a x 32 = `K_*`, paint in INSTANCE_CUSTOM),
+  one `bam_*` batch per mesh a chunk; LOD / far: the two buildings as plain lod_boxes.
+  `BEACH_AMENITIES=0` is the A/B; probe `tools/beach_amenities/probe.gd` (EYEs); checks
+  `tests/beach_amenities_checks.gd`.
 - The hero (owner, 2026-09-24: "Blender with real fingers from scratch AAA studio level"):
   `assets/models/hero.glb`, built by **`tools/hero/`** in Blender 4.2 with MPFB2 from CC0
   MakeHuman assets plus our own tracksuit, rib tank, rope chain, watch, ring, laced sneakers and

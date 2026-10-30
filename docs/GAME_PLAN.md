@@ -357,6 +357,13 @@ already mapped so milestone 2 is script-only.
   instrument playing laid on by per-frame two-bone arm solves rather than new clips; the gear is
   code-built at real size on one shader, one batch per kind a chunk; passers-by stop at the vendor
   queue spots; no audio (no CC0 recording reachable); `BUSKERS=0` the A/B.
+- **2026-10-30 The beach gets its public amenities (HANDOFF "Beach amenities").** Restroom
+  blocks, a concession and rental stand, outdoor gym pens, showers, bike racks, rows of volleyball
+  poles and painted drums. Decisions: built in code at real size on one shader (one batch per kind a
+  chunk), placed by hashes of world shore cells so any chunk plans the same beach, buildings and
+  showers on the bike path's seaward side, the gym and poles mid-beach off BeachLife's court, drums
+  in bands; BeachLife's sunbathers keep clear (they are handed as obstacles); `BEACH_AMENITIES=0`
+  the A/B.
 - **2026-10-05 Onlookers: the crowd comes back after the chaos (HANDOFF "Onlookers").** After
   the panic near a wreck, a blast or a body, people near the camera come back and stand round it
   in a loose ring: filming on their phones (held up at eye level, the screen lit, a video light

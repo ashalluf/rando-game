@@ -272,6 +272,7 @@ func _warm_shaders() -> void:
 	effects.append_array(Billboards.warm())
 	# The beach's towels, umbrellas, chairs, boards, the net and the tower (BeachLife).
 	effects.append_array(BeachLife.warm())
+	effects.append_array(BeachAmenities.warm()) # restrooms, the stand, the gym, showers, drums
 	# The pier park's meshes (PierPark), built here rather than by the chunk that streams it in.
 	effects.append_array(PierPark.warm())
 	# The code-built Los Angeles trees and accents (LaTrees): built here, ~2 s of GDScript.

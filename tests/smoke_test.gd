@@ -2409,6 +2409,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/buskers_checks.gd").new().run(self, city)
 	# Urban wildlife (tests/wildlife_checks.gd): coyotes, deer, raccoons, squirrels, rabbits.
 	await load("res://tests/wildlife_checks.gd").new().run(self, city)
+	# The beach's amenities (tests/beach_amenities_checks.gd): restrooms, the stand, gyms, showers,
+	# racks, poles and drums, pure and clear of the sunbathers; the palms and tower as before.
+	load("res://tests/beach_amenities_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
