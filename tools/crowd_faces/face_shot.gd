@@ -10,8 +10,8 @@ extends SceneTree
 ## Env: MODELS, LOOK (default 0: own clothes), CLIP (default life/idle), DIST (metres from the
 ## face, default 0.7), YAW (degrees round the person, default 15), FOV (default 30), NIGHT=1 (a
 ## sodium lamp up and behind to the side, the street at night: lamp_factor 1, no sun), STILL=
-## "blink,gx,gy" holds the face (face_still), STREET=1 walks the view back to DIST along the road
-## (a pavement framing: the camera at eye height). Forward+: --rendering-driver vulkan with lavapipe
+## "blink,gx,gy" holds the face (face_still), STREET=1 a pavement instead: the people walking toward
+## and away from a camera at eye height, 1.7 to 8 m off (one OUT image; use CLIP=Casual_Walk_inplace). Forward+: --rendering-driver vulkan with lavapipe
 ## (VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json); a few minutes.
 func _initialize() -> void:
 	var ped = load("res://scripts/npc/pedestrian.gd")
@@ -49,10 +49,39 @@ func _initialize() -> void:
 	gm.albedo_color = Color(0.2, 0.2, 0.21)
 	ground.material_override = gm
 	root.add_child(ground)
+	var street := OS.get_environment("STREET") == "1"
+	if street:
+		# A pavement: pale slabs, a shop wall on the left, the kerb and the road on the right.
+		gm.albedo_color = Color(0.42, 0.41, 0.39)
+		var wall := MeshInstance3D.new()
+		var wb := BoxMesh.new()
+		wb.size = Vector3(0.4, 6.0, 40.0)
+		wall.mesh = wb
+		wall.position = Vector3(-2.6, 3.0, -10.0)
+		var wmat := StandardMaterial3D.new()
+		wmat.albedo_color = Color(0.55, 0.5, 0.44)
+		wall.material_override = wmat
+		root.add_child(wall)
+		var road := MeshInstance3D.new()
+		var rb := BoxMesh.new()
+		rb.size = Vector3(10.0, 0.02, 40.0)
+		road.mesh = rb
+		road.position = Vector3(7.2, 0.0, -10.0)
+		var rmat := StandardMaterial3D.new()
+		rmat.albedo_color = Color(0.12, 0.12, 0.125)
+		road.material_override = rmat
+		root.add_child(road)
+	# STREET=1: walking past a camera on the pavement - toward it and away, 1.5 to 6 m off.
+	var spots := [Vector3(0.55, 0.0, -1.7), Vector3(-0.75, 0.0, -2.6), Vector3(0.9, 0.0, -3.8), Vector3(-0.4, 0.0, -5.2), Vector3(1.3, 0.0, -6.6), Vector3(-1.2, 0.0, -8.0)]
 	var people: Array = []
 	for i in models.size():
 		var inst: Node3D = (load(String(models[i])) as PackedScene).instantiate()
 		inst.position = Vector3(float(i) * 3.0, 0.0, 0.0)
+		if street:
+			inst.position = spots[i % spots.size()]
+			inst.rotation.y = 0.15 if i % 3 != 2 else PI + 0.1
+		# Each their own build, as Pedestrian gives them (and so their own blink and gaze phase).
+		inst.scale = Vector3(1.0 + 0.04 * sin(float(i) * 2.3), 1.0 + 0.03 * cos(float(i) * 1.7), 1.0 + 0.04 * cos(float(i) * 3.1))
 		root.add_child(inst)
 		people.append(inst)
 		if night:
@@ -82,7 +111,7 @@ func _initialize() -> void:
 			ap.add_animation_library("life", load(life_path))
 		if ap.has_animation(clip):
 			ap.play(clip)
-			ap.seek(ap.get_animation(clip).length * 0.3, true)
+			ap.seek(ap.get_animation(clip).length * fposmod(0.3 + 0.37 * float(i), 1.0), true)
 			ap.pause()
 		if still.size() >= 3:
 			for n in inst.find_children("*", "MeshInstance3D", true, false):
@@ -99,6 +128,16 @@ func _initialize() -> void:
 	root.add_child(cam)
 	cam.current = true
 	var out := OS.get_environment("OUT") if OS.get_environment("OUT") != "" else "faces.png"
+	if street:
+		cam.fov = float(OS.get_environment("FOV")) if OS.get_environment("FOV") != "" else 50.0
+		cam.position = Vector3(0.1, 1.62, 0.0)
+		cam.look_at(Vector3(0.0, 1.45, -6.0), Vector3.UP)
+		for k in 10:
+			await process_frame
+		get_root().get_texture().get_image().save_png(out)
+		print("saved ", out)
+		quit()
+		return
 	var crops: Array[Image] = []
 	for i in people.size():
 		var inst: Node3D = people[i]

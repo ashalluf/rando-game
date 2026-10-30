@@ -24,7 +24,7 @@ extends SceneTree
 ##     thin skin (ears, nose wings) - evaluated per texel from the interpolated head-frame position.
 const OUT_TABLE := "res://scripts/npc/crowd_face_table.gd"
 const OUT_ATLAS := "res://assets/textures/crowd/crowd_faces.png"
-const TILE := 256
+const TILE := 128
 const COLS := 8
 ## Half the distance between the eye centres on the average face, metres.
 const EYE_HALF := 0.032
@@ -231,7 +231,7 @@ func _measure(path: String) -> Dictionary:
 				var q := qa * w0 + qb * w1 + qc * w2
 				map.set_pixel(x, y, _zones(q))
 				cover[y * TILE + x] = 1
-	_dilate(map, cover, 3)
+	_dilate(map, cover, 2)
 	var jl: Array = fit_l.j
 	var jr: Array = fit_r.j
 	return {"map": map, "rect": rect, "cl": fit_l.c, "jl": jl, "cr": fit_r.c, "jr": jr,

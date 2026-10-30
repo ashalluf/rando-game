@@ -3625,3 +3625,10 @@ none of either.
   regional pores and roughness), brows as strand cards and twice the hair cards. The contract
   (54 bones, clips, material names, hero_x_* maps, eye centres) is held so nothing downstream
   moves. HERO_FACE_2=0 is the shader A/B.
+- 2026-10-30 (wave 3, crowd-faces): the crowd's faces are lifted in the shader, not rebuilt: the
+  rigs, their atlases and the body contract stay as they are, and a per-rig face map plus eye frames
+  measured off the meshes (tools/crowd_faces/face_fit.gd) drive a close-up pass within 11 m of the
+  camera - living eyes (saccades, eye contact, blinks, socket shade), blood, cavities, oil, lips,
+  brow roots, finer pores. Light through skin is held to the ears and nose wings for every crowd
+  rig at every distance (free), which is what fixed the orange faces under street lamps.
+  CROWD_FACES=0 is the A/B.

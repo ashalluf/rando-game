@@ -4,7 +4,7 @@ extends RefCounted
 ## Per crowd rig (the body atlas' name less _body): tile (index in crowd_faces.png, COLS a row),
 ## rect (the face map's rect in atlas UV: x, y, w, h), eyes [c.x, c.y, j00, j01, j10, j11] for the
 ## rig's left (+x) and right eye (uv = c + J * (dx, dy) on the unit eyeball), lid [u, v] over each.
-const TILE := 256
+const TILE := 128
 const COLS := 8
 const ROWS := 4
 const TABLE := {
