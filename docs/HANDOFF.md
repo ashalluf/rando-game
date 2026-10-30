@@ -14455,3 +14455,19 @@ EYE); `tools/car_park/drive_shot.gd` (opengl3: the exterior, then the player dri
 `CarPark.drive_path()` - with stills at the barrier, on the first ramp, on deck 2, on the top ramp
 and on the roof; 3D is switched off between shots so the drive runs at full physics speed);
 `CAR_PARKS=0` is the A/B. Checks: `tests/garage_drive_in_checks.gd`.
+
+**Wave 3 (2026-10-30): the parked cars are real.** What the player sees most inside is the stall
+rows, and they were ArenaGrounds' 260-triangle box cars. Up close they are now the road cars' far
+twins (`CarParkBuild.real_body()`: sedan, crossover, hatchback, SUV, minivan by `REAL_ODDS`, ~2k
+triangles a surface, baked wheels) in `Vehicle.PAINTS` with the GLOSS finish, one material per
+body type: `shaders/car_park_car.gdshader` is car_paint with `#define PAINT_FROM_CUSTOM` (a small
+guarded block in `car_paint.gdshaderinc`: the paint from INSTANCE_CUSTOM.rgb through
+`cs_as_uniform()`; every other car is unchanged). They are grouped in cells of `CELL_STALLS` 10
+stalls of one deck and band, drawn to `NEAR_DRAW` 36 m; the box cars draw from there to
+`CAR_DRAW`. **Every MultiMesh of a cell takes the cell's bounds as `custom_aabb`**: measured to
+their own centres, a real body and the stand-in of the same stall both drew (seen on the roof).
+`CAR_PARK_REAL_CARS=0` is the A/B. The painted soffits' emission went 0.16 -> 0.34 (they still
+read brown-black on Compatibility, lit only by the warm street the sky's cubemap puts below the
+horizon). Frame from the street outside the 6-deck CIVIC PARK (`--spawn=2231,-1523,-138,9,2`,
+geo_count AB=RealCars*): +51k triangles (+0.8 %), +27 draws (cells of 6 to 48 m were +417k /
++212). Stills: shots/garage-drive-in `07_`-`12_`. Not verified on Forward+.
