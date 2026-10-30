@@ -242,15 +242,21 @@ func _director(t: Node) -> void:
 		dir.watch(foot + Vector3(0.0, 2.0 + float(i) * 0.1, 5.0 + float(i) * 0.33), Vector3(0.0, 3.0, 20.0), true, dt)
 	var started := StuntDirector.moments == moments + 1 and dir.is_active() and StuntDirector.last_launch_id == "stunt_check"
 	# Let the ease run a few real frames.
+	# The director's ease steps at most 0.1 s a frame, so on a slow frame (a busy city in a
+	# shard) 600 ms can be two frames: wait for the frames too.
 	var t0 := Time.get_ticks_msec()
-	while Time.get_ticks_msec() - t0 < 600:
+	var frames := 0
+	while (Time.get_ticks_msec() - t0 < 600 or frames < 4) and frames < 120:
 		await t.get_tree().process_frame
+		frames += 1
 	var slowed := Engine.time_scale < 0.6
+	var slowed_at := "%.2f after %d frames in %d ms" % [Engine.time_scale, frames, Time.get_ticks_msec() - t0]
 	# Touch down: the world comes back to speed.
 	for i in 10:
 		dir.watch(foot + Vector3(0.0, 0.0, 14.0), Vector3(0.0, 0.0, 15.0), false, dt)
 	t0 = Time.get_ticks_msec()
-	while Time.get_ticks_msec() - t0 < 900 and not is_equal_approx(Engine.time_scale, 1.0):
+	# Real time, and a loaded runner gives few frames of it (CI 379 timed out at 900 ms).
+	while Time.get_ticks_msec() - t0 < 5000 and not (is_equal_approx(Engine.time_scale, 1.0) and is_equal_approx(AudioServer.playback_speed_scale, 1.0)):
 		await t.get_tree().process_frame
 	var back := is_equal_approx(Engine.time_scale, 1.0) and is_equal_approx(AudioServer.playback_speed_scale, 1.0)
 	# A slow ride past the lip (under min_launch_speed) is no launch.
@@ -278,7 +284,7 @@ func _director(t: Node) -> void:
 	if own:
 		dir.queue_free()
 	_t._check(started and slowed and back and slow_ok and polite,
-		"stunt ramps: a launch off a lip slows the world (started %s, slowed %s), touch-down restores it (%s), a slow ride is no launch (%s), another owner's time scale is left alone (%s)" % [started, slowed, back, slow_ok, polite])
+		"stunt ramps: a launch off a lip slows the world (started %s, slowed %s: %s), touch-down restores it (%s), a slow ride is no launch (%s), another owner's time scale is left alone (%s)" % [started, slowed, slowed_at, back, slow_ok, polite])
 
 
 ## STUNT_RAMPS=0: no sites anywhere.

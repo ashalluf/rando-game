@@ -55,41 +55,107 @@ func _ready() -> void:
 
 func _build_ui() -> void:
 	_shade = ColorRect.new()
-	_shade.color = Color(0.055, 0.06, 0.075)
+	_shade.color = Color(0.035, 0.04, 0.055)
 	_shade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_shade)
+	# The old centred label and bar stay as data (the step text, the progress) and are drawn by
+	# `_art` (HUD polish: docs/HANDOFF.md): a dusk glow, the wordmark bottom left, a tip, the step
+	# and a thin amber bar across the safe area that eases toward the progress.
 	_label = Label.new()
 	_label.text = "Loading"
-	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_label.set_anchors_preset(Control.PRESET_CENTER)
-	_label.offset_left = -300.0
-	_label.offset_right = 300.0
-	_label.offset_top = -10.0
-	_label.offset_bottom = 24.0
-	_label.add_theme_color_override("font_color", Color(0.82, 0.84, 0.88))
+	_label.visible = false
 	_shade.add_child(_label)
 	_bar = ColorRect.new()
-	_bar.color = Color(0.16, 0.17, 0.20)
-	_bar.set_anchors_preset(Control.PRESET_CENTER)
-	_bar.offset_left = -220.0
-	_bar.offset_right = 220.0
-	_bar.offset_top = 34.0
-	_bar.offset_bottom = 40.0
+	_bar.visible = false
 	_shade.add_child(_bar)
 	_fill = ColorRect.new()
-	_fill.color = Color(0.78, 0.80, 0.84)
-	_fill.set_anchors_preset(Control.PRESET_LEFT_WIDE)
-	_fill.offset_right = 0.0
 	_bar.add_child(_fill)
+	_glow = TextureRect.new()
+	_glow.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_glow.stretch_mode = TextureRect.STRETCH_SCALE
+	var g := Gradient.new()
+	g.offsets = PackedFloat32Array([0.0, 0.55, 1.0])
+	g.colors = PackedColorArray([Color(0.42, 0.2, 0.12, 0.55), Color(0.16, 0.08, 0.12, 0.25), Color(0.0, 0.0, 0.0, 0.0)])
+	var gt := GradientTexture2D.new()
+	gt.gradient = g
+	gt.fill = GradientTexture2D.FILL_RADIAL
+	gt.fill_from = Vector2(0.15, 1.05)
+	gt.fill_to = Vector2(1.05, -0.2)
+	gt.width = 256
+	gt.height = 256
+	_glow.texture = gt
+	_shade.add_child(_glow)
+	_art = Control.new()
+	_art.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_art.draw.connect(_draw_art)
+	_shade.add_child(_art)
+
+
+## Shown under the wordmark, one at a time (original lines).
+const TIPS := [
+	"Hold jump in the air to jump again. And again.",
+	"Boost follows where you look. Look up.",
+	"Hold Tab for the weapon wheel: the world slows while you choose.",
+	"Press M for the map. Click anywhere to set a waypoint.",
+	"Cars fly too. Hold boost in the air.",
+	"Nobody counts your ammunition.",
+	"Esc for the pause menu: the hour, the weather, the settings.",
+	"Press P for photo mode.",
+]
+
+var _glow: TextureRect
+var _art: Control
+var _shown_progress: float = 0.0
+var _tip: int = -1
+var _t0: int = Time.get_ticks_msec()
+
+
+func _process(delta: float) -> void:
+	if _art == null:
+		return
+	# Real time; the bar eases toward the progress rather than jumping.
+	_shown_progress = lerpf(_shown_progress, _progress, minf(delta * 6.0, 1.0))
+	if _tip < 0:
+		_tip = int(Time.get_unix_time_from_system()) % TIPS.size()
+	_art.queue_redraw()
+
+
+func _draw_art() -> void:
+	var view := _art.get_viewport_rect().size
+	var s := HudTheme.scale(view)
+	var safe := HudTheme.safe_rect(view)
+	var t := float(Time.get_ticks_msec() - _t0) / 1000.0
+	var tip: String = TIPS[(maxi(_tip, 0) + int(t / 7.0)) % TIPS.size()]
+	var tip_a := clampf(1.0 - absf(fposmod(t, 7.0) - 3.5) / 3.5 * 1.25 + 0.25, 0.0, 1.0)
+	var x := safe.position.x
+	var bottom := safe.end.y
+	# The bar first, along the bottom of the safe area.
+	var bar_y := bottom - 2.0 * s
+	var bar_w := safe.size.x
+	_art.draw_rect(Rect2(x, bar_y, bar_w, 3.0 * s), Color(1, 1, 1, 0.12))
+	_art.draw_rect(Rect2(x, bar_y, bar_w * clampf(_shown_progress, 0.0, 1.0), 3.0 * s), HudTheme.ACCENT)
+	# The step and the percentage over its right end.
+	var step := _label.text.to_upper() if _label else ""
+	var px := int(round(14.0 * s))
+	HudTheme.draw_tracked_right(_art, HudTheme.text(), "%d%%" % int(round(_shown_progress * 100.0)), safe.end.x, bar_y - 14.0 * s, px, 1.5 * s, HudTheme.INK)
+	HudTheme.draw_tracked_right(_art, HudTheme.text_medium(), step, safe.end.x - 64.0 * s, bar_y - 14.0 * s, px, 2.0 * s, HudTheme.SOFT)
+	# The wordmark and the tip, bottom left over the bar.
+	var tpx := int(round(19.0 * s))
+	HudTheme.draw_tracked(_art, HudTheme.text_medium(), tip, Vector2(x, bar_y - 42.0 * s), tpx, 0.2 * s, Color(1, 1, 1, 0.72 * tip_a))
+	var wpx := int(round(118.0 * s))
+	HudTheme.draw_tracked(_art, HudTheme.display_bold(), "RANDO", Vector2(x - 5.0 * s, bar_y - 92.0 * s), wpx, 6.0 * s, HudTheme.INK)
+	var w := HudTheme.tracked_width(HudTheme.display_bold(), "RANDO", wpx, 6.0 * s)
+	_art.draw_rect(Rect2(x + w + 14.0 * s, bar_y - 92.0 * s - wpx * 0.62, 6.0 * s, wpx * 0.62), HudTheme.ACCENT)
+	HudTheme.draw_tracked(_art, HudTheme.text(), "A CITY TO WRECK", Vector2(x + w + 32.0 * s, bar_y - 92.0 * s), int(round(16.0 * s)), 4.0 * s, HudTheme.SOFT)
 
 
 func _step(text: String, fraction: float) -> void:
 	_progress = fraction
 	if _label:
 		_label.text = text
-	if _fill:
-		_fill.offset_right = 440.0 * clampf(fraction, 0.0, 1.0)
 
 
 ## Runs the whole sequence. `city` is the CityStreamer. Awaits frames throughout so the bar
@@ -299,6 +365,8 @@ func _warm_shaders() -> void:
 	# The hills' code-built chaparral mound (HillShrub, hill-ground-3).
 	if HillGround3.enabled:
 		effects.append_array(HillShrub.warm())
+	if HillScatter.enabled:
+		effects.append_array(HillScatter.warm())
 	# The utility poles' hardware (UtilityPoles), built in code.
 	effects.append_array(UtilityPoles.warm())
 	# Car damage: the flames, the glass cubes and the engine smoke (CarDamage).

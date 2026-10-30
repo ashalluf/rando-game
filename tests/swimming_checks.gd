@@ -26,6 +26,8 @@ func run(t: Node, city: Node3D) -> void:
 	var weather: Node = city.get_node_or_null("Weather")
 	if weather and weather.has_method("force_state"):
 		weather.call("force_state", 0)
+		# A storm in an earlier check may have started a tsunami (a 30 m swell): end it outright.
+		weather.set("_tsunami_left", 0.0)
 		for i in 10:
 			await _t.get_tree().physics_frame
 	await _check_live(city, m)
@@ -142,6 +144,8 @@ func _check_live(city: Node3D, m: MacroMap) -> void:
 	var st: Array = swim.get("_sea")
 	var surf := SeaSurface.height(m, Vector2(tp.x, tp.z), SeaSurface.now(), st)
 	var under := surf - tp.y
+	if under < 0.9 or under > 1.9:
+		print("SWIM DEBUG feet %.2f surface %.2f sea %s swimming %s under %s mask %d offset %s" % [tp.y, surf, str(st), str(swim.get("swimming")), str(swim.get("under")), player.collision_mask, str(ws.get("world_offset"))])
 	_check(bool(swim.get("swimming")) and under > 0.9 and under < 1.9, "he floats at the drawn surface, head out (feet %.2f m under it)" % under)
 	# Forward: the crawl.
 	Input.action_press("move_forward")

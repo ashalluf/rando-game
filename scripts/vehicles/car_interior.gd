@@ -222,7 +222,7 @@ func has_lost_door() -> bool:
 
 func busy() -> bool:
 	for d: Dictionary in doors:
-		if not d.lost and (float(d.open) > 0.001 or float(d.target) > 0.0):
+		if not d.lost and (float(d.open) > float(d.get("ajar", 0.0)) + 0.001 or float(d.target) > 0.0):
 			return true
 	return false
 
@@ -233,6 +233,16 @@ func door(side: float) -> Dictionary:
 		if signf(float(d.side)) == signf(side):
 			return d
 	return {}
+
+
+## A crash sprang the door on `side`: it stands `ajar` open (0..1 of its swing) and droops
+## `sag` radians on its hinges from now on (CrashDeform).
+func jam(side: float, ajar: float, sag: float) -> void:
+	var d := door(side)
+	if d.is_empty() or d.lost:
+		return
+	d.ajar = maxf(float(d.get("ajar", 0.0)), ajar)
+	d.sag = maxf(float(d.get("sag", 0.0)), sag)
 
 
 ## Opens the door on `side`, holds it, closes it (somebody getting in or out).
@@ -260,11 +270,14 @@ func tick(delta: float) -> void:
 			d.hold = float(d.hold) - delta
 			if float(d.hold) <= 0.0:
 				d.target = 0.0
-		o = move_toward(o, float(d.target), delta * (OPEN_SPEED if float(d.target) > o else CLOSE_SPEED))
+		# A door a crash sprang (jam()) never shuts past its catch again.
+		var rest := float(d.get("ajar", 0.0))
+		var goal := maxf(float(d.target), rest)
+		o = move_toward(o, goal, delta * (OPEN_SPEED if goal > o else CLOSE_SPEED))
 		d.open = o
 		# Out fast and easing to the check strap; shut with a little speed at the end.
 		var e := 1.0 - pow(1.0 - o, 2.2) if float(d.target) > 0.0 else o * o * (3.0 - 2.0 * o)
-		(d.pivot as Node3D).rotation = Vector3(0.0, deg_to_rad(OPEN_DEG) * e * float(d.side), 0.0)
+		(d.pivot as Node3D).rotation = Vector3(float(d.get("sag", 0.0)), deg_to_rad(OPEN_DEG) * e * float(d.side), 0.0)
 		var skin: MeshInstance3D = d.mesh if d.mesh != null and is_instance_valid(d.mesh) else null
 		if skin != null:
 			var cast := GeometryInstance3D.SHADOW_CASTING_SETTING_ON if o > 0.02 or _holed else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

@@ -318,7 +318,7 @@ func _build_settings() -> void:
 	column.custom_minimum_size = Vector2(360.0, 0.0)
 	column.add_theme_constant_override("separation", 10)
 	_settings_view.add_child(column)
-	column.add_child(_label("RANDO", _semibold, 74, Color.WHITE, 6.0))
+	column.add_child(_label("RANDO", HudTheme.display_bold(), 96, Color.WHITE, 6.0)) # the loading screen's wordmark
 	column.add_child(_label("SETTINGS", _medium, 17, Color(1, 1, 1, 0.62), 5.0))
 	column.add_child(_spacer(22.0))
 	var back := _big_button("Back")
@@ -459,7 +459,7 @@ func _build() -> void:
 	column.custom_minimum_size = Vector2(620.0, 0.0)
 	column.add_theme_constant_override("separation", 10)
 	_main_view.add_child(column)
-	column.add_child(_label("RANDO", _semibold, 74, Color.WHITE, 6.0))
+	column.add_child(_label("RANDO", HudTheme.display_bold(), 96, Color.WHITE, 6.0)) # the loading screen's wordmark
 	column.add_child(_label("PAUSED", _medium, 17, Color(1, 1, 1, 0.62), 5.0))
 	column.add_child(_spacer(22.0))
 	var resume := _big_button("Resume")

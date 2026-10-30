@@ -168,7 +168,7 @@ if "skin" not in SKIP:
         return L_ * (1 - (mask * amount)[:, None] * (1 - np.array(col, np.float32))[None, :])
 
 
-    flush = np.clip(0.55 * cheeks + 0.8 * nose_tip + 0.6 * ears + 0.25 * eyelids, 0, 1)
+    flush = np.clip(0.55 * cheeks + 0.8 * nose_tip + look.get("ear_flush", 0.6) * ears + 0.25 * eyelids, 0, 1)
     L_ = zone([1.0, 0.86, 0.84], flush, 0.45)
     L_ = zone([0.9, 0.84, 0.88], socket, 0.5)
     L_ = zone([1.0, 0.97, 0.9], forehead, 0.4)
@@ -176,6 +176,78 @@ if "skin" not in SKIP:
     L_ = zone([0.74, 0.74, 0.78], beard, st * 0.85)
     lipc = look.get("lips", 0.3)
     L_ = zone([0.9, 0.7, 0.7], np.clip(lips, 0, 1), lipc)
+    # --- the living complexion (hero-face-2): what made the face read as wax was one even tone --
+    # Melanin and blood vary at every scale on a real face; each term below is a measured-looking
+    # zone or a noise in 3D on the surface (no UV seams). Its own rng: nothing after it moves.
+    frng = np.random.default_rng(look.get("face_seed", 41))
+    fdet = look.get("face_detail", 1.0)
+    if fdet > 0:
+        n1 = folds.vnoise(Pc * 38.0, 31)
+        n2 = folds.vnoise(Pc * 140.0, 32)
+        n3 = folds.vnoise(Pc * 520.0, 33)
+        hd_ = head.astype(np.float64)
+        # blotchy blood under the skin: patches on the cheeks, nose, chin, round the mouth
+        blood = np.clip(0.5 + 0.55 * n1 + 0.35 * n2, 0, 1) ** 2
+        red_zone = np.clip(0.9 * cheeks + 1.0 * nose_tip + 0.7 * nose + 0.5 * chin + 0.35 * eyelids, 0, 1) * hd_
+        redness = np.clip(red_zone * (0.45 + 0.75 * blood), 0, 1)
+        # thread veins on the nose wings and the cheeks' apples: fine ridged noise
+        thread = np.clip(1.0 - np.abs(folds.vnoise(Pc * 900.0, 34)) * 7.0, 0, 1) ** 3
+        redness = np.clip(redness + 0.5 * thread * np.clip(nose_tip + 0.6 * cheeks, 0, 1), 0, 1)
+        L_ = zone([1.0, 0.80, 0.80], redness, 0.32 * fdet)
+        # melanin mottling everywhere on the head (sun on a man of about forty), finer on the nose
+        mel = (0.55 * n1 + 0.3 * n2 + 0.15 * n3) * hd_
+        L_ = L_ * (1.0 - look.get("mottle", 0.07) * fdet * mel)[:, None]
+        # under-eye: the tear trough, darker and cooler under the lower lid, out to the cheek
+        for c_ in (eye_l, eye_r):
+            dz_ = z - (c_[2] - 0.019)
+            dx_ = (x - c_[0] * 1.05) / 0.017
+            trough = np.exp(-dx_ ** 2 - (dz_ / 0.0075) ** 2) * front * hd_
+            L_ = zone([0.80, 0.76, 0.82], trough, 0.55 * fdet)
+        # the upper lid and the inner corners: a little purple-brown, as thin skin shows
+        L_ = zone([0.88, 0.80, 0.82], eyelids, 0.35 * fdet)
+        # the nose: wings shaded where they fold into the cheek, a darker crease round each wing
+        for s_ in (-1, 1):
+            wing = np.exp(-((x - s_ * 0.0165) / 0.0045) ** 2 - ((z - (lip_top + 0.017)) / 0.006) ** 2) * front
+            L_ = zone([0.82, 0.72, 0.70], wing, 0.45 * fdet)
+        # freckles and moles: a few hundred small light-brown dots on the cheeks, nose and
+        # forehead, a handful of dark moles anywhere on the face and neck
+        face_pts = np.nonzero(hd_ * front > 0.5)[0]
+        if len(face_pts):
+            from scipy.spatial import cKDTree
+            tree = cKDTree(Pc)
+            spots = np.zeros(len(Pc))
+            dark = np.zeros(len(Pc))
+            zone_w = np.clip(cheeks * 1.4 + nose + nose_tip + 0.6 * forehead, 0, 1)
+            cand = face_pts[frng.random(len(face_pts)) < 0.02 * zone_w[face_pts] + 0.002]
+            pick = cand[frng.permutation(len(cand))[:int(look.get("freckles", 420))]]
+            for i in pick:
+                r_ = 0.0004 + 0.0008 * frng.random()
+                nb_ = tree.query_ball_point(Pc[i], r_ * 2.2)
+                if not nb_:
+                    continue
+                d_ = np.linalg.norm(Pc[nb_] - Pc[i], axis=1)
+                spots[nb_] = np.maximum(spots[nb_], np.exp(-(d_ / r_) ** 2) * (0.4 + 0.6 * frng.random()))
+            mole_c = np.nonzero(hd_ > 0.5)[0]
+            for i in mole_c[frng.permutation(len(mole_c))[:int(look.get("moles", 7))]]:
+                r_ = 0.0008 + 0.0009 * frng.random()
+                nb_ = tree.query_ball_point(Pc[i], r_ * 2.0)
+                d_ = np.linalg.norm(Pc[nb_] - Pc[i], axis=1)
+                dark[nb_] = np.maximum(dark[nb_], ss(r_, r_ * 0.55, d_))
+            L_ = zone([0.80, 0.66, 0.55], spots, 0.7 * fdet)
+            L_ = zone([0.42, 0.32, 0.27], dark, 0.85 * fdet)
+        # under the strand brows (hair.py's roots): the skin between brow hairs is shaded and
+        # carries the fine hairs too short to model, so the brow reads as a mass with depth
+        bj = common.work("brows.json")
+        if os.path.exists(bj) and cfg.get("hair", {}).get("brow_cards", 0) > 0:
+            from scipy.spatial import cKDTree
+            br_ = np.array(json.load(open(bj)), np.float64)
+            dd, _ = cKDTree(br_).query(Pc, k=3, distance_upper_bound=0.01)
+            dd = np.where(np.isfinite(dd), dd, 0.01)
+            bmask = np.clip(np.exp(-(dd / 0.0022) ** 2).sum(1), 0, 1) * hd_
+            bcol = T.srgb_to_lin(np.array(look.get("brow_rgb", [26, 20, 17]), np.float32) / 255.0) * 2.2
+            L_ = L_ * (1 - 0.55 * bmask[:, None]) + bcol[None, :] * 0.55 * bmask[:, None]
+        # the stubble's shadow is uneven: thicker on the chin and upper lip, patchy on the cheek
+        L_ = zone([0.86, 0.86, 0.90], beard * np.clip(0.5 + 0.6 * n2, 0, 1), 0.3 * fdet * st)
     # the scalp under the hair: the hair's own colour, so any gap between cards shows roots
     hc = T.srgb_to_lin(np.array(look.get("hair_rgb", [14, 12, 11]), np.float32) / 255.0) * 1.8
     L_ = L_ * (1 - 0.92 * hair[:, None]) + hc[None, :] * 0.92 * hair[:, None]
@@ -273,6 +345,13 @@ if "skin" not in SKIP:
     rough = 0.52 - 0.14 * tzone - 0.18 * np.clip(lips, 0, 1) - 0.12 * nose_tip + 0.05 * cheeks + 0.07 * beard * st \
         - 0.24 * nails + 0.14 * hair + 0.06 * hands - 0.06 * eyelids
     rough += 0.035 * folds.vnoise(Pc * 90.0, 8)
+    if look.get("face_detail", 1.0) > 0:
+        # specular breakup on the face (hero-face-2): oil gathers in patches on the nose and
+        # forehead, the cheeks dry and matte, the lips moist; a fine mottle at a few millimetres
+        hdr_ = head * front
+        rough += hdr_ * (0.06 * folds.vnoise(Pc * 260.0, 35) + 0.05 * folds.vnoise(Pc * 60.0, 36)
+                         - 0.06 * nose_tip - 0.05 * nose * np.clip(0.5 + folds.vnoise(Pc * 120.0, 37), 0, 1)
+                         + 0.06 * cheeks - 0.05 * np.clip(lips, 0, 1))
     R = np.full(cov.shape, 0.55, np.float32)
     R[idx] = np.clip(rough, 0.08, 0.95)
     R = T.dilate(R, cov, 6)
@@ -284,6 +363,18 @@ if "skin" not in SKIP:
     M[idx] = np.stack([beard * st, thin, cav, tzone], 1)
     M = T.dilate(M, cov, 6)
     T.save(M, extra("hero_x_skin_mask.png"), 1024)
+    # the face's regions for the shader (hero-face-2): R how big and deep the pores are (the nose
+    # and the cheeks most, the lips and lids none), G redness under the skin (the SSS tint and
+    # the flush), B the ear and nose cartilage that transmits light, A unused
+    pore_w = np.clip(0.35 + 0.9 * nose_tip + 0.6 * nose + 0.55 * cheeks + 0.3 * forehead + 0.3 * chin
+                     - 0.9 * np.clip(lips, 0, 1) - 0.8 * eyelids - 0.3 * socket, 0.05, 1.0) * np.where(head, 1.0, 0.55)
+    red_w = np.clip(0.9 * cheeks + nose_tip + 0.5 * nose + 0.5 * ears + 0.3 * chin + 0.4 * np.clip(lips, 0, 1), 0, 1)
+    cart = np.clip(ears * 1.0 + 0.6 * np.exp(-((ax - 0.016) / 0.007) ** 2 - ((z - (lip_top + 0.02)) / 0.008) ** 2) * front, 0, 1)
+    RG = np.zeros(cov.shape + (4,), np.float32)
+    RG[..., 3] = 1.0
+    RG[idx] = np.stack([pore_w, red_w, cart, np.ones_like(pore_w)], 1)
+    RG = T.dilate(RG, cov, 6)
+    T.save(RG[..., :3], extra("hero_x_skin_region.png"), 1024)
 
     # --- tiling micro detail: pores + crosshatch in RGB (a normal), stubble hairs in alpha -------------
     DS = 1024
@@ -323,7 +414,10 @@ if "skin" not in SKIP:
                 uy = -dx * sa + dy * ca
                 return np.maximum(win, np.exp(-((ux / (r * el)) ** 2 + (uy / r) ** 2) * 1.6))
             splat(stb, gx + rng.random() * HS, gy + rng.random() * HS, 10, dot)
-    detail = np.concatenate([T.encode_normal(det), stb[..., None]], -1)
+    # B: the pores' cavity (1 open skin, 0 the bottom of a pore) for the shader's specular
+    # occlusion and a touch of darkening; the normal's z is rebuilt in the shader
+    cavity = np.clip(1.0 + 0.9 * np.minimum(hgt - np.median(hgt), 0.0) / (np.abs(np.minimum(hgt - np.median(hgt), 0.0)).max() + 1e-6), 0, 1)
+    detail = np.concatenate([T.encode_normal(det)[..., :2], cavity[..., None], stb[..., None]], -1)
     T.save(detail, extra("hero_x_skin_detail.png"))
     print("TEX skin: beard %.0f%% hair %.0f%% of the head's texels" % (100 * beard[head].mean(), 100 * hair[head].mean()))
 
@@ -370,7 +464,37 @@ def dark_rgba(path, name, size, col):
 
 brow = cfg["human"]["eyebrows"].replace(".mhclo", "")
 lash = cfg["human"]["eyelashes"].replace(".mhclo", "")
-specs["brow_base"] = dark_rgba("eyebrows/%s/%s.png" % (brow, brow), "hero_brow.png", 512, look.get("brow_rgb", [26, 20, 17]))
+if cfg.get("hair", {}).get("brow_cards", 0) > 0:
+    # the brow strands' atlas (hair.py grows the cards): 8 columns, root at the top (v = 1). Each
+    # column holds one to three tapering hairs, darker and thicker at the root, the tip lighter
+    # and fine - brow hair is coarse and catches light along its length.
+    brng = np.random.default_rng(24)
+    BW, BH, BC = 256, 256, 8
+    bcw = BW // BC
+    bat = np.zeros((BH, BW, 4), np.float32)
+    brow_lin = T.srgb_to_lin(np.array(look.get("brow_rgb", [26, 20, 17]), np.float32) / 255.0)
+    rws = np.arange(BH, dtype=np.float32)
+    xs2 = np.arange(bcw, dtype=np.float32)
+    for c in range(BC):
+        cov_ = np.zeros((BH, bcw), np.float32)
+        lit_ = np.zeros((BH, bcw), np.float32)
+        for k in range(2 + int(brng.integers(0, 3))):
+            x0 = bcw * (0.15 + 0.7 * brng.random())
+            end = BH * (0.75 + 0.25 * brng.random())
+            bend = (brng.random() - 0.5) * bcw * 0.35
+            t = np.clip(rws / end, 0, 1)
+            xk = x0 + bend * t ** 2
+            w = (1.6 + 0.8 * brng.random()) * (1 - 0.8 * t ** 1.5)
+            a = (rws < end) * (1 - T.smoothstep(0.8, 1.0, t))
+            prof = np.exp(-((xs2[None, :] - xk[:, None]) / np.maximum(w[:, None], 0.35)) ** 2) * a[:, None]
+            cov_ = 1 - (1 - cov_) * (1 - np.clip(prof, 0, 1))
+            lit_ = np.maximum(lit_, prof * (0.7 + 0.6 * t[:, None]))
+        shade = np.clip(lit_ / np.maximum(cov_, 1e-3), 0.5, 1.5)
+        bat[:, c * bcw:(c + 1) * bcw, :3] = T.lin_to_srgb(np.clip(brow_lin[None, None, :] * shade[..., None], 0, 1))
+        bat[:, c * bcw:(c + 1) * bcw, 3] = np.clip(cov_, 0, 1)
+    specs["brow_base"] = T.save(bat, tex("hero_brow.png"))
+else:
+    specs["brow_base"] = dark_rgba("eyebrows/%s/%s.png" % (brow, brow), "hero_brow.png", 512, look.get("brow_rgb", [26, 20, 17]))
 specs["lash_base"] = dark_rgba("eyelashes/%s/%s.png" % (lash, lash), "hero_lash.png", 512, [12, 10, 9])
 
 # =================================================================================================
@@ -383,6 +507,9 @@ atlas = np.zeros((HH, HW, 4), np.float32)
 rows = np.arange(HH, dtype=np.float32)
 xs_ = np.arange(cw, dtype=np.float32)
 KINDS = [(70, 1.25, 0.95), (64, 1.2, 0.95), (56, 1.15, 0.9), (44, 1.1, 0.85), (36, 1.05, 0.8), (26, 1.0, 0.72), (18, 0.95, 0.62), (7, 0.9, 0.5)]
+# hero-face-2: the clumps read as strings with daylight between them; denser, finer strands
+_hd = cfg.get("hair", {}).get("atlas_density", 1.0)
+KINDS = [(int(n * _hd), t / max(_hd, 1.0) ** 0.35, r) for n, t, r in KINDS]
 for c, (n_strands, thick, reach) in enumerate(KINDS):
     cov_ = np.zeros((HH, cw), np.float32)
     col_ = np.zeros((HH, cw), np.float32)

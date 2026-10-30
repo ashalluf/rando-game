@@ -8,6 +8,7 @@ render_mode cull_disabled;
 // CarDamage swaps for one without the broken lamps.
 
 #include "res://shaders/car_damage.gdshaderinc"
+#include "res://shaders/car_crumple.gdshaderinc"
 
 uniform vec3 lamp_albedo : source_color = vec3(0.95);
 uniform float lamp_roughness = 0.1;
@@ -22,6 +23,10 @@ varying vec3 lp;
 
 void vertex() {
 	lp = VERTEX;
+	if (cr_any()) {
+		// A crushed nose carries its lamps with it (CrashDeform).
+		cr_apply(VERTEX, NORMAL);
+	}
 }
 
 

@@ -1,6 +1,7 @@
 shader_type spatial;
 render_mode cull_disabled, depth_prepass_alpha;
 #include "res://shaders/heli_downwash.gdshaderinc"
+#include "res://shaders/tree_wind.gdshaderinc"
 
 // Leaf cards for the downloaded trees, bushes, flowers and grass clumps. Only the leaf surfaces
 // use this; the trunk and branches stay on their own opaque material, which keeps them out of the
@@ -152,6 +153,40 @@ uniform float canopy_round : hint_range(0.0, 1.0) = 0.45;
 /// How much the rounded direction leans upward rather than straight out from the trunk axis.
 uniform float canopy_lift : hint_range(0.0, 2.0) = 0.62;
 
+// --- Close up (trees-closeup, 2026-10-30; TreesCloseup, scripts/world/trees_closeup.gd) -------
+// 1 = on; TREES_CLOSEUP=0 sets 0 and every term below is the shader as it was (the A/B).
+uniform float closeup : hint_range(0.0, 1.0) = 1.0;
+/// The crown's leaf-card bounds in the mesh's own space (TreesCloseup.dress() measures them per
+/// model): its centre and half extents. A radius of 0 (bushes, flowers) leaves the depth term off.
+uniform vec3 crown_center = vec3(0.0, 0.0, 0.0);
+uniform vec3 crown_radius = vec3(0.0, 0.0, 0.0);
+/// How dark the leaves deep in a crown go (the sky cannot reach them; the shadow map's coarse twin
+/// does not darken them either), and how much brighter the sun side's outer shell is.
+uniform float inner_shade : hint_range(0.0, 1.0) = 0.42;
+uniform float sun_side : hint_range(0.0, 1.0) = 0.2;
+/// A crown's lean downwind as a gust front passes, as multiples of its sway bend.
+uniform float gust_push : hint_range(0.0, 4.0) = 1.5;
+/// Extra leaf flutter in a gust, and the leaf-to-leaf scatter of the flutter's phase.
+uniform float flutter_gust : hint_range(0.0, 3.0) = 1.4;
+/// Forward+ only (TAA resolves it): how far the cut-out threshold is dithered once a leaf card's
+/// texels are under a pixel, so a crown at 10-40 m fades its edges instead of sparkling.
+uniform float edge_dither : hint_range(0.0, 0.6) = 0.32;
+/// Close up the leaf cards are rounded harder toward the crown's outward direction (canopy_round
+/// is the old amount): the sun side of a crown lights as one bright shell and the far side falls
+/// into shade, instead of every card lit by its own random tilt (dark cards all through).
+uniform float canopy_round_close : hint_range(0.0, 1.0) = 0.7;
+/// Light inside and under a crown has come through leaves: green-gold, not the sky's blue. The
+/// shaded underside of a crown is pushed this far toward that filtered colour (the sky ambient
+/// alone painted every crown's underside slate blue), and its translucency raised to this.
+uniform float under_filter : hint_range(0.0, 1.0) = 0.75;
+uniform float translucency_close : hint_range(0.0, 1.0) = 0.5;
+/// Multiplies a scanned leaf's colour close up (see the fragment).
+uniform vec3 leaf_warm = vec3(1.0, 1.05, 0.8);
+
+varying float v_depth;
+varying vec3 v_out_world;
+varying float v_cell;
+
 
 // Two independent smooth noise fields from one lattice: one set of corners, two values each, so
 // the thinning and the blossom patches do not correlate and neither costs a second walk.
@@ -187,6 +222,16 @@ void vertex() {
 	if (max(max(inst.x, inst.y), inst.z) < 0.0001) {
 		inst = vec4(0.0, 0.5, 0.5, 0.0);
 	}
+	// How deep in the crown this vertex sits: 0 on the shell, 1 at the core (before the shape
+	// change, so it is the model's own crown). And a per-leaf-cluster random off the rest position,
+	// for tone and flutter phase.
+	v_depth = 0.0;
+	if (closeup > 0.5 && crown_radius.x > 0.01) {
+		vec3 q = (VERTEX - crown_center) / max(crown_radius, vec3(0.05));
+		v_depth = 1.0 - clamp(length(q), 0.0, 1.0);
+	}
+	vec3 cell3 = floor(VERTEX * 1.7);
+	v_cell = fract(sin(dot(cell3, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
 	// Canopy shape: stretch up and pull in, or squash down and spread. Scaled by height above the
 	// instance origin so the trunk foot stays put and only the crown changes proportion.
 	if (shape_amount > 0.001) {
@@ -209,7 +254,11 @@ void vertex() {
 	float w = clamp(max(wind_factor, 0.25), 0.0, 3.0);
 	// A gust that travels: the envelope is a slow wave across the world, so a street breathes
 	// rather than every tree holding a constant amplitude.
-	w *= 1.0 - gust_depth + gust_depth * (0.5 + 0.5 * sin(TIME * gust_speed + (origin.x + origin.z) * 0.013));
+	float old_env = 1.0 - gust_depth + gust_depth * (0.5 + 0.5 * sin(TIME * gust_speed + (origin.x + origin.z) * 0.013));
+	// The gust that crosses the street (tree_wind.gdshaderinc): the same front reaches the trees
+	// one after another.
+	float g = tw_gust(origin.xz + origin_shift.xz, TIME, wind_lean);
+	w *= mix(old_env, 0.55 + 0.95 * g, closeup);
 
 	// 1. Branch sway. Slow, wide, growing with the square of height above the instance origin, and
 	//    phase-shifted by which side of the trunk the branch leaves from.
@@ -229,26 +278,41 @@ void vertex() {
 		VERTEX.xz += normalize(lean_dir.xz + vec2(1e-6)) * lean;
 	}
 
+	// The front bows the whole crown downwind as it passes, and lets it spring back.
+	if (closeup > 0.5) {
+		VERTEX.xz += tw_dir_model(MODEL_MATRIX, wind_lean) * h * h * branch_bend * gust_push * g * clamp(w, 0.0, 3.0);
+	}
+
 	// The rotor wash of a helicopter low overhead (heli_downwash.gdshaderinc).
 	VERTEX += heli_wash_offset(MODEL_MATRIX, h, radial, around, branch_bend * 8.0, TIME, phase);
 
 	// 2. Leaf flutter. Quick, tiny, and keyed to how far the vertex hangs off the trunk axis, so
 	//    leaf tips shiver while the branch carrying them is still halfway through its swing.
-	float lt = TIME * leaf_speed;
-	float shiver = sin(lt + bp * 2.3 + radial * 1.9);
-	VERTEX.y += shiver * radial * leaf_flutter * w;
-	VERTEX.xz += around.yx * vec2(1.0, -1.0) * cos(lt * 0.83 + bp) * radial * leaf_flutter * w * 0.5;
+	//    Close up each leaf cluster flutters on its own phase and harder in a gust: one phase per
+	//    tree turned the whole crown into one shimmering sheet.
+	float lt = TIME * leaf_speed * (1.0 + 0.35 * closeup * g);
+	float lp = bp * 2.3 + radial * 1.9 + closeup * v_cell * 6.28;
+	float lf = leaf_flutter * w * (1.0 + closeup * flutter_gust * g);
+	float shiver = sin(lt + lp);
+	VERTEX.y += shiver * radial * lf;
+	VERTEX.xz += around.yx * vec2(1.0, -1.0) * cos(lt * 0.83 + lp * 0.7) * radial * lf * 0.5;
 
 	// 3. Round the flat leaf cards toward the canopy's own outward direction, so the crown shades
 	//    as a volume. Normalised, so it works for a 2.6 m bush and a 19 m tree alike.
 	if (canopy_round > 0.001) {
 		vec3 out_dir = normalize(vec3(VERTEX.x, max(VERTEX.y, 0.001) * canopy_lift, VERTEX.z) + vec3(0.0, 1e-4, 0.0));
-		vec3 blended = mix(NORMAL, out_dir, canopy_round);
+		if (closeup > 0.5 && crown_radius.x > 0.01) {
+			// Out from the crown's own centre rather than the trunk axis at the foot.
+			out_dir = normalize((VERTEX - crown_center) / max(crown_radius, vec3(0.05)) + vec3(0.0, 0.25, 0.0));
+		}
+		vec3 blended = mix(NORMAL, out_dir, mix(canopy_round, canopy_round_close, closeup));
 		float nl = length(blended);
 		// The blend can only cancel out if the two are exactly opposed at exactly 0.5; guard it
 		// rather than hand the light loop a zero normal.
 		NORMAL = nl > 1e-4 ? blended / nl : NORMAL;
 	}
+	vec3 od = normalize(vec3(VERTEX.x - crown_center.x, (VERTEX.y - crown_center.y) * 0.8 + 0.3, VERTEX.z - crown_center.z) + vec3(0.0, 1e-4, 0.0));
+	v_out_world = normalize((MODEL_MATRIX * vec4(od, 0.0)).xyz);
 }
 
 
@@ -295,6 +359,7 @@ void fragment() {
 		albedo *= vec3(1.0 + t * 0.55, 1.0 + t * 0.12, 1.0 - t * 0.45);
 	}
 
+	float bloom_on = 0.0;
 	if (blossom_mix > 0.001) {
 		// Luminance in linear light in BOTH renderers, so the two agree on which leaves are
 		// bright. x*x is a cheap stand-in for the sRGB decode Compatibility did not do.
@@ -310,13 +375,44 @@ void fragment() {
 		// blossom by leaf luminance alone drags it to navy; the constant term is what keeps a
 		// flower in shadow still reading as a flower.
 		albedo = mix(albedo, blossom * (0.95 + lum * 0.85), on);
+		bloom_on = on;
 	}
 
+	// A crown with depth: leaf clusters differ a little in tone, the sun side's outer leaves are
+	// brighter (they see the sun and the sky; one shade of green per tree read as painted card),
+	// and the leaves deep inside go dark - the sky never reaches them.
+	float occl = 1.0;
+	if (closeup > 0.5) {
+		albedo *= 0.9 + 0.2 * v_cell;
+		// The scans' leaves sit a little blue of a Los Angeles street tree's; under a blue sky's
+		// ambient that read as teal. Pulled toward the leaf's own green.
+		albedo *= mix(leaf_warm, vec3(1.0), bloom_on);
+		vec3 sd = normalize(sun_direction);
+		float day = clamp(sd.y * 4.0, 0.0, 1.0);
+		float sunward = clamp(dot(normalize(v_out_world), sd), 0.0, 1.0);
+		albedo *= 1.0 + sun_side * day * sunward * (1.0 - v_depth);
+		occl = 1.0 - inner_shade * smoothstep(0.05, 0.75, v_depth);
+		albedo *= mix(1.0, occl, 0.55);
+		// The underside and the core: what lights them came through the leaves above.
+		float under = clamp(-normalize(v_out_world).y * 1.4 + 0.2, 0.0, 1.0);
+		float filt = under_filter * max(under, v_depth * 0.8) * (1.0 - bloom_on);
+		albedo = mix(albedo, albedo * vec3(1.02, 1.16, 0.62), filt);
+	}
 	float wet = clamp(road_wetness, 0.0, 1.0);
 	// Wet foliage darkens the same way wet cloth does, and goes glossy.
 	ALBEDO = albedo * mix(1.0, 0.84, wet);
 	ALPHA = coverage - alpha_bias;
 	ALPHA_SCISSOR_THRESHOLD = alpha_cut;
+#if CURRENT_RENDERER == RENDERER_FORWARD_PLUS
+	// Leaf cards whose texels are under a pixel sparkle as the cut flips pixel to pixel frame to
+	// frame. A threshold dithered per pixel and per frame lets TAA resolve that edge as partial
+	// cover (Forward+ only: Compatibility has no temporal pass, and the shadow map stays crisp).
+	if (closeup > 0.5 && !IN_SHADOW_PASS) {
+		float far_px = smoothstep(0.8, 3.0, lod);
+		float hsh = fract(sin(dot(FRAGCOORD.xy + vec2(fract(TIME * 7.13) * 61.0, fract(TIME * 3.71) * 37.0), vec2(12.9898, 78.233))) * 43758.5453);
+		ALPHA_SCISSOR_THRESHOLD = alpha_cut + (hsh - 0.5) * edge_dither * far_px;
+	}
+#endif
 
 	// One fetch: glTF packs occlusion in red and roughness in green in the same map.
 	vec3 arm = texture(rough_tex, uv).rgb;
@@ -325,6 +421,11 @@ void fragment() {
 	if (has_rough) {
 		AO = arm.r;
 		AO_LIGHT_AFFECT = 0.35;
+	}
+	if (closeup > 0.5) {
+		// The rest of the core's darkness is the sky it cannot see: ambient only.
+		AO = (has_rough ? arm.r : 1.0) * mix(1.0, occl, 0.8);
+		AO_LIGHT_AFFECT = has_rough ? 0.35 : 0.0;
 	}
 	if (has_normal) {
 		NORMAL_MAP = texture(normal_tex, uv).rgb;
@@ -339,11 +440,13 @@ void fragment() {
 	// `bright` is raw texture brightness, which is a different number in the two colour spaces, so
 	// it gets the same treatment as the blossom luminance before it is used as a thickness cue.
 	float thin = mix(bright * bright, bright, lin);
-	vec3 through = ALBEDO * translucency * (0.35 + 0.65 * thin);
+	vec3 through = ALBEDO * mix(translucency, translucency_close, closeup) * (0.35 + 0.65 * thin);
 	// Forward scattering on top: light carries on in the direction it was already going, so a
 	// canopy between the camera and the sun lights up far harder than one off to the side.
 	vec3 to_cam = normalize((INV_VIEW_MATRIX * vec4(VIEW, 0.0)).xyz);
 	float facing = clamp(dot(to_cam, -normalize(sun_direction)), 0.0, 1.0);
 	through *= 1.0 + scatter_gain * pow(facing, scatter_sharpness);
+	// The shell lets the light through; the core's leaves sit behind other leaves.
+	through *= mix(1.0, 1.25 - 0.85 * v_depth, closeup);
 	BACKLIGHT = through;
 }
