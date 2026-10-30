@@ -1012,8 +1012,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`hour_factor()`, NightCity.traffic_level); street traffic no longer waits on PhysicsBudget
   (kinematic: `traffic_room()`); near FULL blocks' walkers are topped up once a second from their
   planned count x `crowd_factor(hour)`, freeing far out-of-view walkers for room (`balance_crowd()`);
-  the kerbs take up to `PARK_EXTRA` more parked cars on the spots their pass left empty (a hash per
-  spot, after every roll). `BUSY_STREETS=0` is the A/B; census `tools/busy_streets/census.gd`
+  a kerb spot the block's pass left undecided gets an extra parked car at `PARK_EXTRA_ODDS` (a pure
+  hash per spot, no running count, after every roll). `BUSY_STREETS=0` is the A/B; census `tools/busy_streets/census.gd`
   (and `CENSUS=1` on still_shot.gd); checks `tests/busy_streets_checks.gd`.
 - Traffic AI (2026-10-05, "traffic that drives like people"; HANDOFF 9ed): `TrafficAI`
   (`scripts/npc/traffic_ai.gd`, static) is the drivers on top of TrafficManager's IDM queues.

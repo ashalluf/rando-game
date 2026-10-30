@@ -225,6 +225,12 @@ static func try_start(p: Pedestrian, at_spawn: bool) -> bool:
 	var district := plan.district_at(here)
 	var jay := JAY_SHARE.x if district == CityPlan.District.DOWNTOWN or district == CityPlan.District.MIDTOWN else JAY_SHARE.y
 	if r < jay:
+		# A staged street (tests, stills) keeps the road to the cars it placed: a jaywalker
+		# brakes every car in the lane (the traffic AI swerve check's car stood still behind one).
+		# Stills and the errands check start theirs with _start_jay() itself.
+		var traffic := _traffic_of(p)
+		if traffic != null and traffic.get("staged"):
+			return false
 		return _start_jay(p, plan, here)
 	return false
 

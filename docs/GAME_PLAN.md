@@ -295,6 +295,16 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-30 Busy streets spend the caps where the camera looks, not more caps (HANDOFF "Busy
+  streets").** Measured at the downtown bookmark the traffic was at its 150-car cap but spread evenly
+  over a 380 m circle (5-9 moving cars in view), every queued street spawn was dropped while the kerbs'
+  parked cars filled PhysicsBudget at load (empty roads in every still), the crowd cap was spent once
+  on whichever blocks built first, and nothing followed the hour. BusyStreets focuses 70 % of street
+  spawns round the camera's block, retires far cars behind it, lets kinematic traffic ignore the props
+  budget, scales the street cap by NightCity's traffic level, tops up near blocks' walkers from far
+  ones, and parks up to 40 % more cars on the kerb spots a block's own pass left empty (a hash per
+  spot after every roll). The traffic's own rng rolls more (traffic was never seed-fixed).
+  BUSY_STREETS=0 is the A/B.
 - **2026-10-30 The blast is built frame by frame (fleet wave 3, `explosions-2`).** The rocket and
   car explosions get a second layer on top of WeaponFX's (`BlastFX`, one call): flash light and
   screen flash, a screen-reading pressure wave (desktop only), fire rolling upward, a LIT smoke cap
