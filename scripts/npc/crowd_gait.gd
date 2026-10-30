@@ -105,7 +105,7 @@ static func apply(ped: Pedestrian, anim: AnimationPlayer, seed_value: int) -> bo
 		ped._walk_left_down = float(a.get_meta("left_down", 0.0))
 	if lib.has_animation("idle") and r.randf() < 0.8:
 		ped._idle_clip = LIB + "/idle"
-	if not ped._jogger:
+	if not ped._jogger and is_equal_approx(ped.walk_speed, ped._rolled_speed):
 		ped.walk_speed *= float(row[0]) * r.randf_range(0.95, 1.05)
 		if name != "classic":
 			# The cadence a real walker keeps: a short-legged clip at a fast pace would trot

@@ -250,6 +250,8 @@ var _idle_clip: String = IDLE_CLIP
 var _turn_lean_gain: float = 0.0
 var _turn_lean: float = 0.0
 var _steered: bool = false
+## The pace setup() rolled: a gait retunes only that, never a pace something set on purpose.
+var _rolled_speed: float = -1.0
 var _posture_pitch: float = 0.0
 var _look_near: bool = false
 var _look_yaw: float = 0.0
@@ -311,6 +313,7 @@ func setup(block_rect: Rect2, sidewalk: float, seed_value: int) -> void:
 	# would take four steps a second.
 	walk_speed = _rng.randf_range(1.05, 1.5)
 	_speed = walk_speed
+	_rolled_speed = walk_speed
 	_anim_rng.seed = hash([seed_value, "anim"])
 	_run_pace = run_speed * _anim_rng.randf_range(0.88, 1.12)
 	_arm_swing = _anim_rng.randf_range(arm_swing_spread.x, arm_swing_spread.y)

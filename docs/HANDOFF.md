@@ -19740,3 +19740,64 @@ HeroFace stepped 30 s (blinks 5-20, shut and open, >= 12 saccades, in range), ai
 measured speed against Avatar's (8 %), zero slip across the gait, the rain uniforms. Cost: two
 more materials on the hero (the eye and lash surfaces were draws already), a few uniforms a frame.
 Stills on `shots/hero-closeup`.
+
+## 9d?. The crowd's walks: gaits, matched rates, banked turns (wave 3, branch `wt/crowd-anim-2`; VISUAL_ROADMAP #?)
+
+Owner's bar: "make it look like GTA 6". Every walker played the rig's one `Casual_Walk_inplace`
+with the same arms, so a pavement of people read as a march.
+
+**What is new.**
+- `tools/crowd/gait_clips.gd` (extends `life_clips.gd`, which grew one hook, `_style_hook()`,
+  a no-op there) retargets the CC0 UAL walks (`Walk_Loop`, `Walk_Formal_Loop`, and `Idle_Loop` for
+  the idle; the same `build/ual_src/` files `fetch_life_clips.sh` fetches) onto every crowd rig and
+  RESTYLES them keyed: step length, foot width and toe-out, hip bob and sway (the spine takes 70 %
+  of the extra roll back), spine lean with the neck compensating, head pitch, arm swing, arms out,
+  elbow bend, collarbones settled toward rest (the upper arm keeping its world rotation). Both legs
+  are then solved by two-bone IK onto the feet the style asks for, so a planted foot stays planted
+  whatever the hips do. Six gaits (casual, brisk, amble, heavy, light, formal) plus `idle` (the
+  library idle three times over, one slow weight shift onto each foot, pelvis dropping on the free
+  side). Every UAL walk gets `WALK_BASE` under its own style (7 degrees more upright, elbows 16
+  degrees straighter, arms 5 degrees off the body, collarbones 85 % to rest): as retargeted, the
+  library walk stooped, carried its forearms half raised, and the shirts opened at the front of
+  the shoulder (the armhole, same cause `fix_arm_pose()` fixes on the rig's own walk).
+- Each clip carries metadata measured on its finished keys: `ground_speed` (planted toe's
+  backward speed in metres at speed_scale 1; 0.60-1.17 m/s over the rigs and gaits), `cycles`
+  (1: one stride a loop), `left_down`. The library carries the rig's phenotype (weight, age,
+  height, muscle from `crowd_config.json`). Written to `assets/models/crowd_gait/<rig>_gait.res`
+  (32 rigs, 1.3 MB). Rerun it (seconds a rig) whenever a crowd rig is rebuilt, like life_clips.
+- `CrowdGait` (`scripts/npc/crowd_gait.gd`): `pick(seed, lib, wide)` is pure - hash([seed,
+  "gait2"]); a heavy build (phenotype weight + the width roll) walks heavy 70 % of the time, an old
+  one ambles 60 %, a slim one is light 45 %, the rest from a spread (casual 32 %, brisk 22 %, the
+  old classic clip 16 %, amble / formal / light 10 % each). `apply()` (from `Pedestrian._add_model()`
+  after `fix_arm_pose()`, plain walkers only - `_lives()`) adds the "gait" library and sets
+  `_walk_clip`, `_walk_clip_speed`, `_walk_cycles`, `_walk_left_down`, `_idle_clip` (80 % get the
+  weight-shift idle), and multiplies the pace, arm swing and turn rate by the gait's row (`GAITS`).
+  The pace is held so the play rate stays in `CADENCE` 0.85-1.4 (about two steps a second at the
+  top): the library's stride is short, and a fast pace on a short-legged rig trotted. A pace
+  something set on purpose (`walk_speed` changed before `_ready`, e.g. a check's 3.2 m/s) is left
+  alone (`_rolled_speed`). No roll on any existing stream: model, look, route, carry, jogger, the
+  style and walk streams are the same on and off (checked).
+- Pedestrian: every use of `WALK_CLIP` / `WALK_CLIP_SPEED` / `WALK_CYCLES` / `WALK_LEFT_DOWN` /
+  `IDLE_CLIP` in the plain walker's own code reads the per-person vars instead (subclasses keep the
+  constants and are untouched); the pivot's cadence is scaled to the clip's speed; the arm-swing
+  means are per model AND clip. Turns bank (`CrowdGait.turn_lean()`: a share of the centripetal
+  angle, `TURN_LEAN_MAX` 8 degrees, eased; back to level when not steering). A hand with something
+  in it swings less: a cup's arm 30 %, a bag's 35 %.
+
+**A/B and look.** `CROWD_ANIM_2=0` is the crowd exactly as before. `CrowdGait.forced` gives every
+new walker one gait. `tools/crowd/crowd_lab.tscn SCENARIO=gaits` films one walker per gait in
+lanes with a side-on camera keeping pace (`GAITS=casual,brisk,...`; one gait = a close solo strip
+on crowd_a). Checks: `tests/crowd_anim_2_checks.gd` (libraries and metadata on every rig, the pick's
+spread and build bias, no drift, clip and rate per gait, the planted toe measured in the world
+while walking - under 0.3 of the pace -, the cadence band, the turn bank); `crowd_anim_checks.gd`
+reads the person's own clip now.
+
+**Numbers.** Measured slide of the planted toe in the checks: heavy 0.20 m/s at 1.19 m/s, brisk
+0.26 at 1.58, amble 0.17 at 1.08 (the residue is the toe rolling over at push-off, which the
+"planted" window includes). Frame cost at the downtown bookmark (opengl3, SPLIT=1 pedestrians line):
+see the commit / final message (same meshes and LODs; the change is CPU-side only: a library per
+rig and the same per-tick pose work).
+
+**Not done.** The officers, crews, sleepers and the other Pedestrian subclasses keep the rig's walk.
+Starts / stops still blend walk <-> idle (no dedicated start or stop clips in the library). The
+idle's weight shift is keyed, not a mocap clip.

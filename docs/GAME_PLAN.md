@@ -3574,3 +3574,9 @@ none of either.
   shape (it carries the landmarks). The horizon plane stays 14 km, with a coarser ring on the same
   material out to 12.6 km, because its rim was erasing the crests 5-7 km away; past the bake the
   map is mirrored. FAR_RANGES=0 is the old world exactly.
+- **2026-10-30 The crowd walks in gaits (HANDOFF 9d?).** Instead of one walk clip for everybody,
+  each plain walker gets one of six baked gaits (or the old clip) by a hash of its seed and its
+  rig's phenotype, with its own pace, arms and turn rate; the play rate follows each clip's
+  measured ground speed and stays in a cadence band (pace gives way, never the feet). The gaits are
+  restyled keyed from two CC0 library walks rather than more mocap: the variety budget is the
+  style table in tools/crowd/gait_clips.gd. CROWD_ANIM_2=0 is the old crowd exactly.
