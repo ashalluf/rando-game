@@ -42,7 +42,7 @@ func current_index() -> int:
 
 
 func _physics_process(delta: float) -> void:
-	if _player and _player.is_driving():
+	if _player and (_player.is_driving() or (_player.has_method("is_swimming") and _player.is_swimming())):
 		return
 	if wheel_open:
 		if current:

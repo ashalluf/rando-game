@@ -349,6 +349,25 @@ invented for this game; no real carrier's scheme, mark or name.
 | Cone, apron floodlight mast, elevated edge light, inset light | `AirportKit.cone()` etc. | 90, 178, 76, 50 | the apron, the runways and taxiways | 2026-10-04 |
 | Perimeter fence (post + barbed outrigger, chain-link panel), blast fence panel, localizer element, glide-slope mast, windsock, PAPI unit | `AirportKit.fence_post()` etc. | 72 + 4, 88, 106, 222, 170, 54 | the field's edges and navaids | 2026-10-04 |
 
+## Street furniture (built in code)
+
+The pavement furniture (2026-10-05, fleet task "street-furniture") is generated at run time by
+`scripts/world/street_furniture.gd` - no model files - on `shaders/street_furniture.gdshader`.
+The bench ads are `assets/textures/street_furniture/bench_ads.jpg`, drawn by
+`tools/make_bench_ads.py` (PIL, the system's DejaVu / Liberation fonts): every advertiser, name and
+phone number (555 numbers) is invented for this game.
+
+| Mesh | Built by | Triangles (finest; generated LODs below) | Used for | Added |
+|---|---|---|---|---|
+| LA wet-barrel fire hydrant | `StreetFurniture.hydrant()` | ~3.3k | one a block (CityChunk) | 2026-10-05 |
+| Single-space smart meter | `StreetFurniture.meter()` | ~0.7k | metered kerbs (StreetDetail) | 2026-10-05 |
+| Pay station with solar mast | `StreetFurniture.pay_station()` | ~0.5k | 18 % of metered spaces | 2026-10-05 |
+| Concrete bus bench, painted ad back | `StreetFurniture.ad_bench()` | ~0.3k | beside a third of the bus shelters | 2026-10-05 |
+| Perforated downtown bin | `StreetFurniture.mesh_bin()` | ~1.9k | TrashCan downtown, midtown, campus | 2026-10-05 |
+| Galvanised inverted-U bike rack | `StreetFurniture.bike_rack()` | ~1.0k | bike racks (StreetDetail) | 2026-10-05 |
+| Precast kerb planter (+ a Poly Haven shrub) | `StreetFurniture.planter()` | ~0.2k | planters (CityChunk) | 2026-10-05 |
+| Bench ad atlas, 8 ads, 1024 x 2560 | `tools/make_bench_ads.py` | - | the ad benches | 2026-10-05 |
+
 ## The hero (Blender + MPFB2, CC0 assets)
 
 `assets/models/hero.glb` (and the `hero_hero_*` textures Godot extracts from it, plus the
@@ -490,6 +509,7 @@ to each `.glb` on import (`prop_<name>_<map>.jpg` + `.import`); those are commit
 | Chrysler LHS tire squeal 03 / 04 (04-25-2009).wav (audible-edge), a real sedan's tyres squealing | https://freesound.org/people/audible-edge/sounds/71738/ and https://freesound.org/people/audible-edge/sounds/71739/ | CC0 1.0 | `assets/audio/skid_0..2` (71739 3.0-8.4 s and 8.6-14.2 s, 71738 5.8-10.2 s of the HQ previews; the last 0.4 s cross-faded into the first, levelled to -20 dBFS RMS, mono 44.1 kHz Vorbis): DrivingFX's squeal | 2026-10-05 |
 | Metal Grinding; Light (amholma) | https://freesound.org/people/amholma/sounds/344352/ | CC0 1.0 | `assets/audio/scrape_0` (2.0-13.5 s, 0.5 s cross-fade loop, -22 dBFS RMS, mono 44.1 kHz Vorbis): a car body grinding on the road or a wall | 2026-10-05 |
 | BACKFIRE.ogg (CeebFrack) | https://freesound.org/people/CeebFrack/sounds/105351/ | CC0 1.0 | `assets/audio/backfire_0` (0.0-0.9 s, the tail faded, mono 44.1 kHz Vorbis): an exhaust backfire on a hard lift-off | 2026-10-05 |
+| Engine voices, built in code (no recording): `tools/engine_audio.py` | this repo | original (CC0-equivalent, ours) | `assets/audio/eng_<four, v8, diesel, bus, v12, moto>_<idle, low, mid, high, off>_0`, `eng_turbo_0`, `eng_blowoff_0`, `eng_beeper_0` (EngineAudio): each cylinder's exhaust pulse at its place in the firing order (an inline four, a cross-plane V8 alternating banks, a straight-six diesel with combustion knock, a V12, a 45-degree V-twin) through a pipe comb and a muffler, a whole number of engine cycles a loop, mono 32 kHz Vorbis, -20 dBFS RMS. The session's network policy blocked Freesound, OpenGameArt and Wikimedia and no CC0 engine recording was reachable (2026-10-29: OpenGameArt and archive.org were reachable; their CC0 / public-domain engine audio is one-off low-bitrate loops of unknown rpm or street field recordings, none usable as a fixed-rpm ladder, and the OGA racing loops are remixes of sampling+ sources, so the synthesis stays); a recording can replace any file under the same name (re-measure its loudness, put its rpm in `EngineAudio.PROFILES`) | 2026-10-06 |
 | jacaranda_tree | `tree_jacaranda.glb` | 60k tris, 10.2 MB | street and park trees; recoloured to lavender blossom (see shaders/foliage_tex.gdshader) | 2026-09-21 |
 | island_tree_03 | `tree_d.glb` | 38k tris, 3.6 MB | street and park trees | 2026-09-21 |
 | fir_tree_01 | `tree_fir.glb` | 54k tris, 5.2 MB | hill conifers | 2026-09-21 |
