@@ -2661,6 +2661,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The third perf audit (tests/perf_audit_3_checks.gd): cache trims, the crowd feet's stagger,
 	# the sea's life idling inland, the night haze's daytime early-out.
 	await load("res://tests/perf_audit_3_checks.gd").new().run(self, city)
+	# The street's second clutter pass (tests/street_clutter_2_checks.gd): bags, cardboard, carts,
+	# steam, weeds, butts, puddles, flyers, pages, droppings; one batch a kind, nothing else moved.
+	load("res://tests/street_clutter_2_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
