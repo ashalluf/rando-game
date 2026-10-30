@@ -3666,6 +3666,11 @@ none of either.
   cruisers, and on every renderer additive washes (lens flares, a road pool with the bar mirrored
   in a wet road, facade washes fitted to the wall), roadblock flares and a hazier searchlight.
   Never instance uniforms: one ShaderMaterial a cruiser. POLICE_NIGHT_LOOK=0 is the A/B.
+- 2026-10-30 (cinematic review, wave 3): the look is tuned as ONE picture against the ten reference
+  cameras, by numbers: richer saturation and split toning by day, a broad shadow "depth" term in
+  the per-hour grade instead of a darker frame, day exposure 1.18, night exposure 2.3 with night
+  bloom, the night fill and haze cool but not navy, thinner clear haze. tests/cinematic_review_checks.gd
+  pins the ranges.
 - 2026-10-30 (wave 3, crowd-faces): the crowd's faces are lifted in the shader, not rebuilt: the
   rigs, their atlases and the body contract stay as they are, and a per-rig face map plus eye frames
   measured off the meshes (tools/crowd_faces/face_fit.gd) drive a close-up pass within 11 m of the
