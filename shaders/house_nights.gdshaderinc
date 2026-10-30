@@ -3,7 +3,8 @@
 // INSTANCE_CUSTOM.b x 997, exact even as a half float. Everything here is mirrored bit for bit by
 // scripts/world/house_nights.gd (change one, change both; tests/house_nights_checks.gd reads
 // these numbers back), so the house the street sees lit is the house the hills see lit.
-// No globals are declared here: the including shader passes the hour in.
+// No globals are declared here: the including shader passes the hour in. The including shader
+// must include color_space.gdshaderinc first (hn_lit() hands a linear colour to its renderer).
 
 uint hn_ihash(uint x) {
 	x ^= x >> 16u;
@@ -72,4 +73,10 @@ vec3 hn_tv_light(int key, float t) {
 	float flick = 0.82 + 0.18 * sin(t * 23.0 + float(key)) * sin(t * 7.3);
 	vec3 c = mix(vec3(0.30, 0.48, 1.0), vec3(0.75, 0.85, 1.0), k);
 	return c * (0.45 + 0.75 * k) * flick;
+}
+
+// A LINEAR colour in the renderer's own space, for the renderer-space shaders that include this
+// (house_glass, building_lod): unchanged on Forward+, sRGB-encoded on Compatibility.
+vec3 hn_lit(vec3 c) {
+	return cs_out(c);
 }

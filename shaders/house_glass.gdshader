@@ -126,6 +126,6 @@ void fragment() {
 		vec3 dark_room = room * mix(1.0, 0.35, nf);
 		dark_room = mix(dark_room, COLOR.rgb * 0.08, max(clamp(sheer, 0.0, 1.0), slats) * nf);
 		ALBEDO = mix(mix(dark_room, vec3(0.0), fres), vec3(0.0), lit_n);
-		EMISSION = mirror * fres * reflect_emit * (1.0 - 0.7 * nf) + cs_out(em);
+		EMISSION = mirror * fres * reflect_emit * (1.0 - 0.7 * nf) + hn_lit(em);
 	}
 }

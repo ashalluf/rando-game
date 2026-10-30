@@ -1608,9 +1608,9 @@ void fragment() {
 				vec3 room_c = lit_color;
 				if (hn_house) {
 					// The house's lamp tone, and its TV room flickering blue.
-					room_c = cs_out(hn_tone(hn_tone_index(hn_key)));
+					room_c = hn_lit(hn_tone(hn_tone_index(hn_key)));
 					if (hn_tv(hn_key) && k < lit_share * 0.3) {
-						room_c = cs_out(hn_tv_light(hn_key, TIME) * 0.8);
+						room_c = hn_lit(hn_tv_light(hn_key, TIME) * 0.8);
 					}
 				}
 				albedo = mix(albedo, room_c, 0.70 * on);
