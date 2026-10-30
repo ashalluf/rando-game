@@ -1028,6 +1028,7 @@ static func _pool_build(ch: CityChunk, f: Dictionary) -> void:
 	_ground(ch, f, -hl, hl, -hw, hw, G_POOL, 0.0, 1.6 / 4.0, 1.0, Vector2(hl, hw), FAR_POOL, 0.035)
 	if not _full(ch):
 		return
+	SwimWater.add_poly(ch, PackedVector2Array([fp(f, -hl, -hw), fp(f, hl, -hw), fp(f, hl, hw), fp(f, -hl, hw)]), _top(ch, f.c) - 0.035, _top(ch, f.c) - 0.035 - 2.0, SwimWater.Kind.POOL)
 	var st := _walls(ch)
 	var u: Vector2 = f.u
 	var v := perp(u)
