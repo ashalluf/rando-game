@@ -302,6 +302,17 @@ already mapped so milestone 2 is script-only.
   feet tilted to a slope. Stairs whose collision is a walkable ramp (the player cannot climb
   risers) get their real treads on a new feet-only physics layer 6 that nothing pairs with. The
   hero keeps his own planted-foot IK (HeroMotion) and reads the same layer. `FOOT_IK=0` is the A/B.
+- **2026-10-05 Onlookers: the crowd comes back after the chaos (HANDOFF "Onlookers").** After
+  the panic near a wreck, a blast or a body, people near the camera come back and stand round it
+  in a loose ring: filming on their phones (held up at eye level, the screen lit, a video light
+  after dark), pointing, a hand over the mouth, arms folded, one or two calling for help; a new
+  shot scatters them, responders arriving (or a minute or two) send them away. Decisions: built on
+  crowd life (a new `CrowdLife.Act.WATCH`, walked to round each walker's OWN pavement ring - no
+  one steps into the road to gawk), the arm poses solved per frame over the life clips (a
+  two-bone solve, as the sitters' legs) rather than new clips, plain walkers only (never
+  officers, crews, sleepers), near the camera only (`life_range`); a watched body is kept as
+  debris past its 12 s while people watch it (`BODY_HOLD`), or the crowd would come back to
+  nothing; every roll a hash; `ONLOOKERS=0` the A/B.
 - **2026-10-05 Apartments: the first per-style kit (G2; HANDOFF "Apartment buildings").** Midtown's
   low-rise lots and the inner suburbs get LA stucco apartments - walk-ups with galleries and open
   stairs, bungalow courts, Spanish courts, podium blocks - instead of storefront boxes and single
@@ -309,6 +320,44 @@ already mapped so milestone 2 is script-only.
   the LOD boxes and the coverage probe all work unchanged (one hook in plan_house, one in
   _build_lot); claims come after every existing roll and are hashes of the lot; no new materials.
   Midtown keeps 55 % of its low lots as storefront Buildings so street life keeps its shops.
+- **2026-10-05 Street furniture as code-built models (HANDOFF "Street furniture").** The
+  pavement's hydrants, meters, benches, bins, racks and planters were Poly Haven scans and
+  primitives that read as a generic city, not Los Angeles. Decisions: build LA's own pieces in
+  code at real size (the squat wet-barrel hydrant, the single-space smart meter and pay station,
+  the concrete bus bench with a painted ad back, the perforated downtown bin)
+  on one shader, one batch per kind a chunk; swap only the MESHES at the old calls so every prop
+  id, roll and collision shape stays (the hydrant now turns its pumper to the street with the
+  rolled spin still drawn); the new pieces (pay stations, an ad bench beside a third of the bus
+  shelters) are hashes of seed + place, and the benches get prop ids of their own so nothing
+  else's id moves. The shelters stay (Billboards' lightboxes and StreetErrands' bus queues use
+  them) and the collection-day carts are KerbBins' (lead review): this branch built its own carts
+  and a bench-instead-of-shelter stop first and dropped both.
+  `STREET_FURNITURE=0` is the A/B. Break effects stay with prop-destruction.
+- **2026-10-06 Engines are voices on the nearest cars, revved by a simulated gearbox (HANDOFF "Engine
+  audio").** Every car used to share one low-quality engine loop, played only for the player's
+  car and pitched linearly with speed; traffic was a tyre roll. Decisions: a pool of voices (4
+  traffic + the player's car, 2 on the web) re-picked by distance every 0.2 s rather than a
+  player per car; an engine per body type (six profiles), each a ladder of loops recorded at
+  fixed rpm crossfaded equal-power and pitched by rpm, the industry's standard granular-by-rpm
+  scheme, rather than one pitched loop; the revs come from a pure gearbox simulation
+  (`EngineAudio.step_engine()`, unit-checked) so shifts, kick-down and the limiter are heard;
+  the loops are SYNTHESISED offline from firing pulses (tools/engine_audio.py) because no CC0
+  engine recording was reachable from the session's network, with every file replaceable by a
+  recording under the same name. DrivingFX keeps the physical cars' squeal; EngineAudio adds one
+  only for kinematic traffic, which has no tyre slip to read.
+- **2026-10-05 The hero swims (HANDOFF "Swimming").** Water was a floor: the sea, the marina
+  and the pools held him up at their painted surface and the lake let him wade. Decisions: the sea's
+  surface is worked out in GDScript from the ocean shader's own model (SeaSurface, checked against
+  the shader's source) so he rides the swell that is drawn; where the water has no real floor (the
+  sea, the marina, pools) the player's mask drops the world layer and Swim holds him over the
+  water's own floor and in a pool's tank, while the lake and the canals keep their real floors; the
+  strokes are keyed in code per frame (SwimPose), because the CC0 animation library is out of the
+  build's network reach (an itch.io download) - a UAL swim clip can replace them later; no
+  drowning and no guns in the water (overpowered, and GTA's rule); the sounds are synthesized.
+  `SWIMMING=0` is the A/B. Wave 3: the reservoir (worked out from its own grid and level) and
+  rooftop pools keep their real floors (the hills, the roof: a roof pool must never take the
+  world off his mask 60 m up); the golf pond and hill-home pools register like the others.
+
 - **2026-10-05 The street's signs are real models (HANDOFF "The street's signs").** The signs
   were a cylinder for a stop sign facing the junction diagonally, flat boxes with TextMesh names
   and red-banded white boxes. Decisions: built in CODE at real size (StreetSignKit; BoulevardSigns owns the kerb's parking plates), not Blender - every
@@ -1490,6 +1539,15 @@ already mapped so milestone 2 is script-only.
   hooks, so its windows, shops, damage and coded far boxes are unchanged) with the ornament as
   real geometry on its window grid; the old 150 ft limit holds. docs/HANDOFF.md "The historic
   core"; CLAUDE.md "Historic core".
+
+- **2026-10-06 Street props break by what they ARE, GTA-style.** A hydrant knocked off sends up a
+  geyser for a while (and throws you up it), a shelter's glass bursts into tempered cubes, lamp
+  posts bend and then fall from the foot, mailboxes and news boxes burst open with paper, meters
+  snap off; a car at speed smashes through instead of stopping dead. Behaviour is keyed on the
+  prop record's kind and the pieces are copies of its own instances, so it survives the furniture
+  and lamps being re-modelled. Rounds pop a lamp but never fell it. docs/HANDOFF.md "Street props
+  that break like GTA"; CLAUDE.md "Street props break by KIND".
+  Wave 3: the overpowered hero smashes through them on foot too (over 18 m/s: a boost, never a run).
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
