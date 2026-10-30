@@ -27,7 +27,7 @@ const SHINGLE := Color(0.36, 0.16, 0.12)
 const IRON := Color(0.10, 0.11, 0.11)
 const LANTERN_ROOF := Color(0.45, 0.10, 0.08)
 const BRASS := Color(0.62, 0.46, 0.20)
-const STONE := Color(0.63, 0.58, 0.50)
+const STONE := Color(0.92, 0.86, 0.76)
 const BRICK := Color(0.78, 0.56, 0.48)
 const CONCRETE := Color(0.80, 0.78, 0.74)
 const BLACK := Color(0.07, 0.07, 0.075)
@@ -51,7 +51,7 @@ const PORCH_TOP := 3.95
 const LAMP_OVER_BASE := 2.0
 
 ## Armour stone shapes (chipped boxes) and how many rows a flank carries.
-const STONE_SHAPES := 3
+const STONE_SHAPES := 2
 ## Armour stones are drawn to this far; past it the mound's shader draws the blocks.
 const STONE_DRAW := 260.0
 
@@ -101,7 +101,7 @@ static func mat(name: String) -> Material:
 			pm.vertex_color_is_srgb = true
 			m = pm
 		"path":
-			m = PropFactory.pbr("sidewalk", 2.5, Color(1.25, 1.2, 1.1))
+			m = PropFactory.pbr("paving", 1.6, Color(1.05, 0.98, 0.86))
 		"lawn":
 			m = PropFactory.lawn(Color(0.40, 0.52, 0.24), 4411, 0.3, 3.0)
 		"lantern_glass":
@@ -324,6 +324,8 @@ static var _geo_cache: Dictionary = {}
 static func _place(root: Node3D, body: StaticBody3D, key: String, make: Callable, node_name: String) -> MeshInstance3D:
 	if not _geo_cache.has(key):
 		var g: LandmarkGeo = make.call()
+		if key.ends_with("_far"):
+			_fold(g, FAR_FOLD)
 		var faces := g.collision.duplicate()
 		var holder := Node3D.new()
 		var mi0 := g.commit(holder, node_name)
@@ -345,6 +347,27 @@ static func _place(root: Node3D, body: StaticBody3D, key: String, make: Callable
 		cs.shape = shape
 		body.add_child(cs)
 	return mi
+
+
+## Far copies draw their small surfaces as plain painted trim: one draw instead of six.
+const FAR_FOLD := {"brick": "trim", "stone": "trim", "planks": "trim", "door": "trim", "dark": "trim", "path": "trim"}
+
+
+## Moves every triangle of surface `from` into surface `to` (LandmarkGeo's own arrays: no read
+## back from the renderer), for each pair in `fold` whose `to` the builder used.
+static func _fold(g: LandmarkGeo, fold: Dictionary) -> void:
+	for from: String in fold:
+		var to: String = fold[from]
+		if not g._surfaces.has(from) or not g._surfaces.has(to):
+			continue
+		var a: Dictionary = g._surfaces[from]
+		var b: Dictionary = g._surfaces[to]
+		(b.v as PackedVector3Array).append_array(a.v)
+		(b.nrm as PackedVector3Array).append_array(a.nrm)
+		(b.uv as PackedVector2Array).append_array(a.uv)
+		(b.col as PackedColorArray).append_array(a.col)
+		b.n = int(b.n) + int(a.n)
+		a.n = 0
 
 
 ## Builds the near and far meshes of every piece ahead of time (the loading screen, with the far
@@ -761,15 +784,15 @@ static func _grounds(g: LandmarkGeo, detailed: bool) -> void:
 	for i in segs:
 		var a := -TAU * float(i) / float(segs)
 		poly.append(Vector2(cos(a), sin(a)) * r)
-	g.cap("lawn", LandmarkGeo.ccw(poly), 0.03)
+	g.cap("lawn", LandmarkGeo.ccw(poly), 0.10)
 	# The walk: a ring round the foundation and a straight run from the steps to the gate.
 	var w0 := HALF + 0.35
 	var w1 := HALF + 1.6
 	for side in 4:
 		var b := Basis(Vector3.UP, PI * 0.5 * side)
-		var q := [b * Vector3(-w1, 0.06, w1), b * Vector3(w1, 0.06, w1), b * Vector3(w0, 0.06, w0), b * Vector3(-w0, 0.06, w0)]
+		var q := [b * Vector3(-w1, 0.14, w1), b * Vector3(w1, 0.14, w1), b * Vector3(w0, 0.14, w0), b * Vector3(-w0, 0.14, w0)]
 		g.quad("path", q[0], q[1], q[2], q[3], Vector3.UP, Vector2(q[0].x, q[0].z), Vector2(q[1].x, q[1].z), Vector2(q[2].x, q[2].z), Vector2(q[3].x, q[3].z))
-	g.quad("path", Vector3(-1.0, 0.06, HALF + PORCH_DEPTH + 1.0), Vector3(1.0, 0.06, HALF + PORCH_DEPTH + 1.0), Vector3(1.0, 0.06, r), Vector3(-1.0, 0.06, r), Vector3.UP,
+	g.quad("path", Vector3(-1.0, 0.14, HALF + PORCH_DEPTH + 1.0), Vector3(1.0, 0.14, HALF + PORCH_DEPTH + 1.0), Vector3(1.0, 0.14, r), Vector3(-1.0, 0.14, r), Vector3.UP,
 		Vector2(-1, 8.4), Vector2(1, 8.4), Vector2(1, r), Vector2(-1, r))
 	if not detailed:
 		return
@@ -1008,7 +1031,6 @@ static func build_breakwater(parent: Node3D, statics: StaticBody3D, k: int, _pla
 	parent.add_child(root)
 	var g := LandmarkGeo.new()
 	g.use("core", mat("armour_far"))
-	g.use("concrete", mat("concrete"))
 	g.use("foam", mat("foam"))
 	var crest := Lighthouses.CREST_Y
 	var ch := Lighthouses.CREST_HALF
@@ -1049,9 +1071,9 @@ static func build_breakwater(parent: Node3D, statics: StaticBody3D, k: int, _pla
 	var yaw := Basis(Vector3.UP, atan2(-d.y, d.x))
 	for i in slabs:
 		var m := a.lerp(b, (float(i) + 0.5) / float(slabs))
-		# Far, the cap is the mound's own surface (COLOR.a 0: armour_stone.gdshader's concrete).
-		g.box("concrete" if detailed else "core", Vector3(m.x, cap_top - 0.7, m.y), Vector3(length / slabs - 0.03, 1.4, cw),
-			CONCRETE if detailed else Color(CONCRETE.r, CONCRETE.g, CONCRETE.b, 0.0), yaw, 0.04 if detailed else 0.0)
+		# The cap is the mound's own surface (COLOR.a 0: armour_stone.gdshader's concrete), one draw.
+		g.box("core", Vector3(m.x, cap_top - 0.7, m.y), Vector3(length / slabs - 0.03, 1.4, cw),
+			Color(CONCRETE.r, CONCRETE.g, CONCRETE.b, 0.0), yaw, 0.04 if detailed else 0.0)
 	if statics:
 		var body := StaticBody3D.new()
 		body.name = "BreakwaterBody_%d" % k
