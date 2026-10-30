@@ -5107,6 +5107,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`_walk_clip_speed`), clamped to `CADENCE`; use `_walk_clip` / `_idle_clip`, never the
   constants, in the plain walker's code. Turns bank (`turn_lean()`), carrying hands swing less.
   `CROWD_ANIM_2=0` is the A/B; `crowd_lab.tscn SCENARIO=gaits`; checks `tests/crowd_anim_2_checks.gd`.
+- Crowd faces (2026-10-30, docs/HANDOFF.md "The crowd's faces up close"): a branch of
+  `character.gdshader` (`face_pass`, set by `CrowdFaces.apply()` from `Pedestrian.character_material()`)
+  that runs only within `CrowdFaces.REACH` (11 m) of the camera on the crowd rigs. Per rig,
+  `tools/crowd_faces/face_fit.gd` (opengl3, needs mesh data; rerun after any crowd rig rebuild) writes
+  `CrowdFaceTable` (face rect, each eye's centre and linear map from the unit eyeball to atlas UV -
+  the two eyes' UVs are MIRRORED -, upper-lid skin UVs) and a tile of `crowd_faces.png` (VRAM like every texture;
+  R blood, G cavity incl. brow roots, B oil, A lips 1 / thin skin 0.5). Eyes: the iris moved by
+  sampling at uv - J * gaze (saccades, eye contact from the head frame rebuilt from the eyeball's
+  normal), a blink painted from the upper lid (lid pixels are skin), socket shade, sclera dulled,
+  the source's red-brown irises browned. Timing per person from the instance's SCALE (a flat varying):
+  shared look materials stay shared. BACKLIGHT is held to thin skin everywhere (it lit faces orange
+  under a lamp behind). `CROWD_FACES=0` is the A/B; stills `tools/crowd_faces/face_shot.gd`; checks
+  `tests/crowd_faces_checks.gd`.
 - Crowd look (2026-10-29, "heads turn to what happens"; docs/HANDOFF.md "The crowd's heads"):
   `CrowdLook` (`scripts/npc/crowd_look.gd`), a SkeletonModifier3D a near pedestrian gets on its
   rig the first time it is within `look_range` of the player and the camera (one hook in

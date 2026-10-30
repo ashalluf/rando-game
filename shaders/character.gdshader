@@ -200,6 +200,39 @@ uniform vec4 hat_face_rect = vec4(0.0, 0.0, 1.0, 1.0);
 uniform sampler2D hat_face_mask : hint_default_black, filter_linear;
 uniform vec3 hat_face_u = vec3(1.0, 0.0, 0.0);
 uniform vec3 hat_face_v = vec3(0.0, 1.0, 0.0);
+// The close-up face pass (CrowdFaces, scripts/npc/crowd_faces.gd): 0 off (CROWD_FACES=0, the rigs
+// without a row in CrowdFaceTable, and everybody past face_reach, who skip the branch). Within
+// face_reach metres of the camera, on the crowd rigs: living eyes - the iris moved across the eyeball
+// by sampling the eye's own disc at uv - J * gaze (J maps a direction on the unit eyeball to atlas
+// UV, fitted per rig and eye by tools/crowd_faces/face_fit.gd), saccades between fixations and now
+// and then onto the camera, a blink painted down over the eyeball from the upper lid (the lid's
+// colour sampled from the rig's own lid skin at lid_uv), the socket's shade - and the face map
+// (crowd_faces.png, one tile a rig over its face rect in atlas UV: R blood, G cavity, B oil, A lips
+// 1.0 / thin skin 0.5) for the face's colour, gloss, finer pores and where light may come through.
+// Everything is per person from a hash of the instance's own scale (v_face_seed), so a crowd does
+// not blink in step though it shares one material per look.
+uniform float face_pass = 0.0;
+uniform sampler2D face_map : hint_default_black, filter_linear, repeat_disable;
+uniform vec4 face_rect = vec4(0.0, 0.0, 1.0, 1.0);
+uniform vec4 face_tile = vec4(0.0, 0.0, 1.0, 1.0);
+uniform vec4 eye_l_c = vec4(0.0);
+uniform vec4 eye_l_j = vec4(0.0);
+uniform vec4 eye_r_c = vec4(0.0);
+uniform vec4 eye_r_j = vec4(0.0);
+uniform vec4 lid_uv = vec4(0.0);
+uniform float face_reach = 11.0;
+// Stills: x 1 holds the face - y the blink (0 open .. 1 shut), z / w the gaze (eyeball units, + to
+// the person's left and up). 0 lets it live.
+uniform vec4 face_still = vec4(0.0);
+// How much each zone does (the face map's channels) and the pores' second, finer read.
+uniform float face_blood = 0.55;
+uniform float face_cavity = 0.32;
+uniform float face_oil = 0.22;
+uniform float face_lips = 0.45;
+uniform float face_pores = 0.55;
+// Light through skin, on the crowd rigs with the pass on: everywhere but the thin parts (ears, nose
+// wings) it is held to this share - a lamp behind somebody lit the whole face orange.
+uniform float face_backlight = 0.3;
 // A responder's uniform (EmergencyCrew.uniform_material): 0 none (everyone else, who skips the
 // branch), 1 structural turnout gear, 2 the paramedics' uniform. Laid out from the body
 // coordinates EmergencyCrew.trim_mesh() bakes into the rig's mesh (CUSTOM2: metres above the
@@ -241,6 +274,8 @@ varying vec3 v_skel;
 varying vec4 v_trim_a;
 varying vec4 v_trim_b;
 varying flat float v_code;
+// Per person: a hash of the instance's scale (Pedestrian rolls each its own build).
+varying flat float v_face_seed;
 
 #include "res://shaders/wet_surface.gdshaderinc"
 // 1 under an open umbrella (WetWorld.shelter(): a shared sheltered copy of the look).
@@ -325,6 +360,8 @@ void vertex() {
 	v_trim_a = CUSTOM2;
 	v_trim_b = CUSTOM3;
 	v_code = floor(CUSTOM2.z);
+	vec3 sc = vec3(length(MODEL_MATRIX[0].xyz), length(MODEL_MATRIX[1].xyz), length(MODEL_MATRIX[2].xyz));
+	v_face_seed = fract(sin(dot(sc / max(sc.y, 1e-6) + vec3(sc.y * 37.0), vec3(127.1, 311.7, 74.7))) * 43758.5453);
 	if (uniform_kind > 0.5 && region_mask > 0.5) {
 		// Turnout gear is thick: the coat and trousers stand off the body, the arms with them
 		// (the coat's sleeves cover any bare forearm, trim_mesh's codes 1-2), and gloves a little.
@@ -349,6 +386,53 @@ vec2 triple_trim(float d, float w, float fw) {
 }
 
 
+float face_h(float n) {
+	return fract(sin(n * 12.9898 + 4.1414) * 43758.5453);
+}
+
+
+// The upper lid's closure 0..1 at time t: one blink per 3.7 s slot at a hashed moment (70 ms
+// closing, 30 shut, 130 opening), now and then a double.
+float face_blink(float seed, float t) {
+	float slot = floor(t / 3.7);
+	float ph = t - slot * 3.7;
+	float h = face_h(slot * 7.31 + seed * 91.7);
+	float b = 0.0;
+	for (int k = 0; k < 2; k++) {
+		float start = 0.3 + h * 2.9 + float(k) * 0.34;
+		float dt = ph - start;
+		float c = dt < 0.0 ? 0.0 : (dt < 0.07 ? dt / 0.07 : (dt < 0.1 ? 1.0 : 1.0 - clamp((dt - 0.1) / 0.13, 0.0, 1.0)));
+		b = max(b, c * ((k == 0 || h > 0.82) ? 1.0 : 0.0));
+	}
+	return b;
+}
+
+
+// One fixation's target (eyeball units: x to the person's left, y up): a glance about, or (a share
+// of fixations, when the camera is close and in front: cam.z) the camera itself.
+vec2 face_target(float i, float seed, vec3 cam) {
+	float a = face_h(i * 3.17 + seed * 57.3);
+	float b = face_h(i * 5.71 + seed * 13.9);
+	float c = face_h(i * 1.93 + seed * 33.1);
+	vec2 g = vec2((a - 0.5) * 0.5, (b - 0.5) * 0.24 - 0.03);
+	if (c < 0.45 * cam.z) {
+		g = clamp(cam.xy, vec2(-0.42, -0.3), vec2(0.42, 0.3));
+	}
+	return g;
+}
+
+
+// Where the eyes look at time t: fixations of 0.5-2 s, each reached by a 30 ms saccade, with a
+// little tremor between.
+vec2 face_gaze(float seed, float t, vec3 cam) {
+	float w = t + 0.55 * sin(t * 0.61 + seed * 6.28) + 0.3 * sin(t * 1.37 + seed * 17.0);
+	float i = floor(w / 1.15);
+	float f = w - i * 1.15;
+	vec2 g = mix(face_target(i - 1.0, seed, cam), face_target(i, seed, cam), smoothstep(0.0, 0.035, f));
+	return g + vec2(sin(t * 23.0 + seed * 40.0), cos(t * 19.0 + seed * 21.0)) * 0.004;
+}
+
+
 vec3 to_space(vec3 c, float lin) {
 	return lin > 0.5 ? to_linear(c) : c;
 }
@@ -356,6 +440,73 @@ vec3 to_space(vec3 c, float lin) {
 
 void fragment() {
 	vec3 base = texture(albedo_tex, UV).rgb;
+	// The close-up face pass (see face_pass): eyes here, the skin further down.
+	float face_dist = length(VERTEX);
+	float face_near = (face_pass > 0.5 && region_mask > 0.5 && face_dist < face_reach) ? 1.0 - smoothstep(face_reach * 0.72, face_reach, face_dist) : 0.0;
+	float eye_pre = clamp(COLOR.b + COLOR.a - 1.0, 0.0, 1.0);
+	float eye_shade = 1.0;
+	float eye_lid = 0.0;
+	if (face_near > 0.0 && eye_pre > 0.5) {
+		bool left = length(UV - eye_l_c.xy) < length(UV - eye_r_c.xy);
+		vec2 ec = left ? eye_l_c.xy : eye_r_c.xy;
+		vec4 ej = left ? eye_l_j : eye_r_j;
+		mat2 J = mat2(vec2(ej.x, ej.z), vec2(ej.y, ej.w));
+		mat2 Ji = inverse(J);
+		// This texel's place on the unit eyeball: x across (the person's left), y up.
+		vec2 p = Ji * (UV - ec);
+		// The head's frame in view space, from the eyeball's own normal (its direction from the
+		// eye's centre is (p.x, p.y, pz) in the head frame) and the surface's run with p.x.
+		float pz = sqrt(max(1.0 - dot(p, p), 0.04));
+		vec3 n_v = normalize(NORMAL);
+		vec2 dpx = dFdx(p);
+		vec2 dpy = dFdy(p);
+		float det = dpx.x * dpy.y - dpx.y * dpy.x;
+		vec3 t_v = abs(det) > 1e-12 ? (dFdx(VERTEX) * dpy.y - dFdy(VERTEX) * dpx.y) / det : vec3(1.0, 0.0, 0.0);
+		vec3 n_h = vec3(p, pz);
+		vec3 t_h = normalize(vec3(1.0, 0.0, -p.x / pz));
+		vec3 tv = normalize(t_v - n_v * dot(t_v, n_v));
+		vec3 th = normalize(t_h - n_h * dot(t_h, n_h));
+		mat3 fv = mat3(n_v, tv, cross(n_v, tv));
+		mat3 fh = mat3(n_h, th, cross(n_h, th));
+		mat3 h2v = fv * transpose(fh);
+		vec3 cam_v = normalize(-VERTEX);
+		vec3 cam_h = transpose(h2v) * cam_v;
+		// Eye contact only close and in front.
+		float contact = smoothstep(0.35, 0.6, cam_h.z) * (1.0 - smoothstep(4.0, 7.0, face_dist));
+		float ft = TIME + v_face_seed * 113.0;
+		vec2 gaze = face_still.x > 0.5 ? face_still.zw : face_gaze(v_face_seed, ft, vec3(cam_h.xy, contact));
+		float blink = face_still.x > 0.5 ? face_still.y : face_blink(v_face_seed, ft);
+		// The iris moved: the disc sampled where this texel's content comes from, kept on the disc.
+		vec2 q = p - gaze;
+		float ql = length(q);
+		q *= ql > 0.93 ? 0.93 / ql : 1.0;
+		base = textureGrad(albedo_tex, ec + J * q, dFdx(UV), dFdy(UV)).rgb;
+		// The sclera is never paper white: a touch darker and warmer, veined toward the corners.
+		vec3 bl = value_is_linear > 0.5 ? sqrt(max(base, vec3(0.0))) : base;
+		float sclera = smoothstep(0.5, 0.7, max(bl.r, max(bl.g, bl.b))) * (1.0 - smoothstep(0.12, 0.3, rgb_to_hsv(bl).y));
+		base *= mix(vec3(1.0), vec3(0.86, 0.80, 0.76), sclera);
+		// The source's brown iris is a saturated red that reads as a bloodshot glow: brown it.
+		vec3 ih = rgb_to_hsv(bl);
+		float red_iris = smoothstep(0.35, 0.55, ih.y) * (1.0 - smoothstep(0.06, 0.1, abs(fract(ih.x + 0.5) - 0.5)));
+		vec3 brown = hsv_to_rgb(vec3(0.075, ih.y * 0.78, ih.z * 0.85));
+		base = mix(base, value_is_linear > 0.5 ? to_linear(brown) : brown, red_iris);
+		// The socket: the upper lid's shadow over the top of the eyeball and the corners.
+		eye_shade = 1.0 - 0.55 * smoothstep(-0.05, 0.5, p.y) - 0.35 * smoothstep(0.42, 0.85, abs(p.x)) - 0.2 * smoothstep(-0.25, -0.55, p.y);
+		eye_shade = clamp(eye_shade, 0.25, 1.0);
+		// The blink: the upper lid painted down over the eyeball (it rides lower on a downward look).
+		float lid_y = mix(0.66, -0.6, blink) + min(gaze.y, 0.0) * 0.7;
+		float fw = max(fwidth(p.y), 0.01);
+		float on_lid = smoothstep(lid_y - fw, lid_y + fw, p.y);
+		float lash = (1.0 - smoothstep(0.0, 0.07, abs(p.y - lid_y))) * step(0.02, blink);
+		// The lid's own skin (both lids' samples, so one bad texel cannot colour an eye), a little
+		// darker - it is in the brow's shade; it is skin from here on.
+		vec3 lid = (textureLod(albedo_tex, lid_uv.xy, 3.0).rgb + textureLod(albedo_tex, lid_uv.zw, 3.0).rgb) * 0.43;
+		eye_shade = mix(1.0, eye_shade, face_near);
+		eye_lid = on_lid * face_near;
+		base = mix(base * eye_shade, lid, eye_lid);
+		base = mix(base, base * 0.3, lash * face_near);
+		eye_shade = mix(eye_shade, 1.0, eye_lid);
+	}
 	float face_fix = 0.0;
 	if (hat_face > 0.5) {
 		// Sampled whatever the mask says (a uniform branch keeps the derivatives defined).
@@ -401,7 +552,7 @@ void fragment() {
 	if (region_mask > 0.5) {
 		// Exact, from the vertex colour (see region_mask): the level of R or G is the fabric.
 		float c = COLOR.r + COLOR.g;
-		eye = clamp(COLOR.b + COLOR.a - 1.0, 0.0, 1.0);
+		eye = clamp(COLOR.b + COLOR.a - 1.0, 0.0, 1.0) * (1.0 - eye_lid);
 		is_skin = COLOR.a * (1.0 - eye);
 		is_hair = COLOR.b * (1.0 - eye);
 		is_cloth = smoothstep(0.12, 0.2, c);
@@ -628,6 +779,33 @@ void fragment() {
 		det = mix(vec4(0.5), det, max(on_skin, step(0.5, is_cloth)) * detail_strength);
 		albedo *= 1.0 + (det.a - 0.5) * detail_tone;
 	}
+	// The face map's zones and the finer pores (see face_pass), on the face's skin up close.
+	vec4 fz = vec4(0.0);
+	vec4 det2 = vec4(0.5);
+	if (face_near > 0.0 && is_skin > 0.5) {
+		vec2 fq = (UV - face_rect.xy) / face_rect.zw;
+		if (fq.x > 0.0 && fq.y > 0.0 && fq.x < 1.0 && fq.y < 1.0) {
+			fz = textureLod(face_map, face_tile.xy + clamp(fq, vec2(0.004), vec2(0.996)) * face_tile.zw, 0.0) * face_near;
+			float lips = smoothstep(0.75, 0.92, fz.a);
+			// Blood under the skin (cheeks, nose, lips, ears): warmer and redder, weaker on dark skin
+			// by itself (a multiply). The factors are gamma-space; squared-ish on a linear texture.
+			vec3 flush = mix(vec3(1.0), vec3(1.09, 0.91, 0.9), fz.r * face_blood);
+			// The cavities (under the eyes cool and a little violet, the creases plain shadow).
+			vec3 hollow = mix(vec3(1.0), vec3(0.88, 0.85, 0.9), fz.g * face_cavity * 2.0);
+			// Lips: deeper and redder than the skin round them, the line between them dark.
+			vec3 lip = mix(vec3(1.0), vec3(1.02, 0.84, 0.86), lips * face_lips);
+			vec3 k = flush * hollow * lip;
+			albedo *= value_is_linear > 0.5 ? k * k : k;
+			// Tone: a slow mottle in the skin's own metres, so a cheek is not one even paint.
+			float mot = stain_noise(vec3(UV2 * 55.0, v_face_seed * 7.0)) * 0.6 + stain_noise(vec3(UV2 * 160.0, 3.0)) * 0.4;
+			albedo *= 1.0 + (mot - 0.5) * 0.12 * face_near;
+		}
+		// Pores at half the tile, which up close the 5 cm tile is too coarse for.
+		vec2 duv = UV2 / (DETAIL_METRES.x * 0.45);
+		det2 = textureGrad(detail_tex, fract(duv) * 0.5, dFdx(duv) * 0.5, dFdy(duv) * 0.5);
+		det2 = mix(vec4(0.5), det2, face_near * face_pores);
+		albedo *= 1.0 + (det2.a - 0.5) * 0.5;
+	}
 	ALBEDO = albedo * mix(vec3(1.0), skin_tint, is_skin);
 	float grimed = 0.0;
 	if (grime > 0.0) {
@@ -669,6 +847,14 @@ void fragment() {
 		ROUGHNESS += is_cloth * (fabric < 0.5 ? FABRIC_ROUGH.x : (fabric < 1.5 ? FABRIC_ROUGH.y : FABRIC_ROUGH.z));
 		ROUGHNESS = clamp(ROUGHNESS + (det.b - 0.5) * detail_rough, 0.05, 1.0);
 		ROUGHNESS = mix(ROUGHNESS, eye_roughness, eye);
+		if (face_near > 0.0) {
+			// The face: oily T-zone, glossy lips, the pores breaking the sheen up; the painted lid
+			// is skin, the shaded top of the eyeball wet but in shadow.
+			float lips_r = smoothstep(0.75, 0.92, fz.a);
+			ROUGHNESS += (-fz.b * face_oil - lips_r * 0.1 + (det2.b - 0.5) * 0.7) * is_skin;
+			ROUGHNESS = mix(ROUGHNESS, skin_roughness, eye_lid);
+			ROUGHNESS = clamp(ROUGHNESS, 0.05, 1.0);
+		}
 	}
 	ROUGHNESS = min(ROUGHNESS + grimed * 0.08, 1.0);
 	// Soaked cloth is wet, and wet is glossy.
@@ -688,7 +874,8 @@ void fragment() {
 	SPECULAR = mix(0.50, 0.42, is_skin);
 	// Velour's pile scatters rather than mirrors; its shine is the rim below, not a hot spot.
 	SPECULAR = mix(SPECULAR, 0.28, clamp(velour * 2.0, 0.0, 1.0) * garment_mix);
-	SPECULAR = mix(SPECULAR, 0.55, eye);
+	SPECULAR = mix(SPECULAR, 0.55 * eye_shade * eye_shade, eye * (1.0 - eye_lid));
+	SPECULAR += fz.b * 0.08 * is_skin;
 	// The baked relief. normal_strength is 0 for any rig with no map, and at 0 Godot blends
 	// straight back to the geometric normal, so an unbound sampler here is harmless rather
 	// than a white wall of noise. Declaring these two uniforms without ever sampling them -
@@ -698,12 +885,24 @@ void fragment() {
 	if (detail_strength > 0.0) {
 		// Slopes added (Godot rebuilds z from xy): the rig's folds and relief, then the weave.
 		vec2 nxy = NORMAL_MAP.xy * 2.0 - 1.0 + (det.rg * 2.0 - 1.0) * detail_normal;
+		nxy += (det2.rg * 2.0 - 1.0) * 1.2;
 		NORMAL_MAP = vec3(nxy * 0.5 + 0.5, 1.0);
 	}
 	NORMAL_MAP_DEPTH = normal_strength;
 	// Thin extremities catch light from behind the way real skin does.
 	BACKLIGHT = (region_mask > 0.5 ? skin_backlight : vec3(1.0)) * skin_subsurface * is_skin * 0.5;
 	SSS_STRENGTH = skin_sss * is_skin;
+	if (face_pass > 0.5 && region_mask > 0.5) {
+		// Light through skin only where skin is thin (ears, nose wings: the face map's A at 0.5),
+		// and never the whole face: under a lamp behind somebody it lit them orange. Compatibility's
+		// BACKLIGHT is a glow, not scattering, so it gets less still.
+		float thin = smoothstep(0.3, 0.45, fz.a) * (1.0 - smoothstep(0.75, 0.92, fz.a));
+		float keep = mix(face_backlight, 1.0, thin);
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+		keep *= 0.6;
+#endif
+		BACKLIGHT *= keep;
+	}
 	// Velour pile: Godot's rim lobe is exactly the brighter-at-grazing sheen, tinted mostly by
 	// the fabric's own colour.
 	RIM = velour * garment_mix;

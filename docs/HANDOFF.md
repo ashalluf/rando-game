@@ -21008,3 +21008,80 @@ the beach-life bookmark, the weathered tower close up. Forward+ (lavapipe, `fwd_
 `tests/beach_golden_checks.gd` (the include and its switch, the colour-space line, the uniforms
 parse, the material follows the switch, the tower's codes are free in BeachLife's table and drawn
 by the props shader, the same tower vertices with the switch on and off).
+
+## 9hx. The crowd's faces up close: living eyes, face zones, no orange faces under lamps (wave 3, branch `wt/crowd-faces`)
+
+The owner's bar is "GTA 6". At 1-4 m the crowd's faces read as mannequins: eyes fixed and glassy
+(a paper-white sclera lit as evenly as the cheek, the MakeHuman "brown" iris a saturated blood red),
+skin one even paint with no blood, no hollows, no gloss where skin is oily, lips the colour of the
+cheek, brows a pen stroke (the hair-mesh cards alone) - and at night under a street lamp behind
+them, the whole face glowing orange. The hero got this treatment in 9hf / 9hk with face bones he
+does not have either; the crowd has no budget for per-person materials or modifiers, so all of it
+is ONE branch of `shaders/character.gdshader` that runs only within `CrowdFaces.REACH` (11 m, faded
+over the last quarter) of the camera, driven by per-rig data measured off the meshes.
+
+- **The data** (`tools/crowd_faces/face_fit.gd`, opengl3 under Xvfb - it needs mesh data - about a
+  minute for all 32 rigs; rerun after any crowd rig is rebuilt or added): per rig, in the head frame
+  of hat_fit.gd (moved to the eyes' midpoint and scaled by the eye spacing, so one zone table fits
+  every face) -
+  - each eye's centre and the LINEAR map from a direction on the unit eyeball to atlas UV, fitted by
+    least squares over the front half (`uv = c + J * (dx, dy)`; the residual is 1-2 px of the 2K
+    atlas, so the eye discs are a planar projection). **The two eyes' UVs are mirrored** (J's u
+    column flips sign): a gaze written in UV would cross the eyes; written in the head frame through
+    each eye's own J it is conjugate;
+  - the upper lid's outer skin over each eye (the most forward skin vertex in a small column over
+    the eye's centre: the nearest-point pick landed on the pink inner lid);
+  - the face map: the face's own UV island (the largest connected piece of the head's front skin -
+    the mouth's inside and stray head skin sit elsewhere in the atlas), rasterised into one 128 px
+    tile of `assets/textures/crowd/crowd_faces.png` (8 x 4 tiles, 1024 x 512, VRAM-compressed like every texture,
+    sampled at LOD 0; the body atlases are size-limited to 1024, so a face rect is ~240 texels) from the interpolated head-frame position: R blood (cheeks, nose, lips, ears, a touch of
+    chin and brow), G cavity (tear troughs, inner corners, the lid crease, nose wings, mouth corners,
+    the lip line, the brows' roots), B oil (forehead, bridge, chin), A 1.0 lips / 0.5 thin skin
+    (ears, nose wings). Written to `scripts/npc/crowd_face_table.gd` (`CrowdFaceTable`).
+- **The shader** (`face_pass` 1 set by `CrowdFaces.apply()` from one line in
+  `Pedestrian.character_material()`; no rolls, so no seed moves; the body contract and the welded
+  mid / far bodies are untouched - the branch is never reached past 11 m):
+  - **eyes**: the iris moves by sampling the eye's own disc at `uv - J * gaze` (kept on the disc).
+    Fixations of 0.5-2 s reached by a 30 ms saccade, a tremor between; inside 7 m and when the
+    camera is in front, a share of fixations land on the camera - the head frame in view space is
+    rebuilt per pixel from the eyeball's smooth normal (its direction from the eye centre is
+    `(p.x, p.y, pz)` in the head frame) and the surface's screen-space run with `p.x`. A blink every
+    3.7 s slot at a hashed moment (70 ms closing, 30 shut, 130 opening, now and then a double)
+    paints the upper lid down over the eyeball from the lid skin's colour (both lids' samples
+    averaged; lid pixels are SKIN from then on: tint, roughness, pores); the lid rides lower on a
+    downward look. The socket's shade (the lid's shadow over the top, the corners), the sclera a
+    touch darker and warmer, its specular cut in that shade, and the red-brown source iris browned
+    (hue 0.075, a little less saturated).
+  - **per person, not per look**: the timing hashes the instance's own SCALE (`v_face_seed`, a
+    flat varying from MODEL_MATRIX's column lengths - Pedestrian rolls every walker its own build),
+    so a crowd sharing one material per look does not blink in step (no instance uniforms).
+  - **skin**: the face map's zones as multiplies (squared on Forward+'s linearised texture): blood
+    warm and red (weaker on dark skin by itself), cavities a little cool and violet, lips deeper and
+    redder; a slow mottle in the skin's own metres (UV2); the crowd detail texture's skin tile read a
+    second time at under half the tile for finer pores (tone, slope, roughness), the sheen broken up
+    by it, the T-zone oilier and the lips glossier.
+  - **light through skin**: BACKLIGHT is held to `face_backlight` (0.3) except on thin skin (and to
+    0.6 of that on Compatibility, where it is a glow) for every crowd rig with the pass on, at every
+    distance (it costs nothing). That is the night fix: under a lamp behind somebody the whole face
+    was lit orange (before / after stills 05 / 06). Forward+'s SSS is left alone (it is scattering,
+    not a glow; cutting it greyed the older faces).
+- **Cost**: no triangles, no draws, no nodes, no CPU per person; ALU on the face and eye pixels of
+  people within 11 m (a face is a few thousand pixels at 2 m). Downtown bookmark
+  (`--spawn=2359.4,880,0,12,2`, 13:00, opengl3, SPLIT=1): see the numbers below. One 0.5 MB
+  texture in memory (the face atlas, 0.35 MB on disk) and one more sampler in the character shader (6 with its includes; the
+  web cap is 9).
+
+Switches: `CROWD_FACES=0` (the A/B: the pass and the BACKLIGHT change off). Stills:
+`tools/crowd_faces/face_shot.gd` (framed on each person's Head bone: `MODELS`, `DIST`, `YAW`, `FOV`,
+`NIGHT=1` a sodium lamp behind to one side, `STILL=blink,gx,gy` holds the face, `STREET=1` a
+pavement with people walking toward and away; `--rendering-driver vulkan` with lavapipe for
+Forward+, about a minute). Checks: `tests/crowd_faces_checks.gd` (the table covers MODELS, tiles,
+rects and eye maps sane and mirrored, the atlas imported like every texture, the branch gated by face_reach, the seed
+from the scale, the blink's numbers mirrored by `CrowdFaces.blink()`, 12-25 blinks a minute and not
+in step, a prepared rig's look carries the pass, apply() touches only face uniforms, the A/B).
+
+**Not done**: the lashes are hair-mesh cards and do not follow the painted blink (they stay open
+for its 0.2 s); the lower lashes are as dense as the upper ones (the hero thinned his); no mouth or
+brow motion (no face bones); the brows are still the hair cards over painted roots; eye contact is
+a share of fixations, not driven by CrowdLook's targets (a later pass could hand the shader the
+look direction through the head bone, which it already turns).

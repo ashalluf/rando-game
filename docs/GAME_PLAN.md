@@ -3686,3 +3686,10 @@ none of either.
   the per-hour grade instead of a darker frame, day exposure 1.18, night exposure 2.3 with night
   bloom, the night fill and haze cool but not navy, thinner clear haze. tests/cinematic_review_checks.gd
   pins the ranges.
+- 2026-10-30 (wave 3, crowd-faces): the crowd's faces are lifted in the shader, not rebuilt: the
+  rigs, their atlases and the body contract stay as they are, and a per-rig face map plus eye frames
+  measured off the meshes (tools/crowd_faces/face_fit.gd) drive a close-up pass within 11 m of the
+  camera - living eyes (saccades, eye contact, blinks, socket shade), blood, cavities, oil, lips,
+  brow roots, finer pores. Light through skin is held to the ears and nose wings for every crowd
+  rig at every distance (free), which is what fixed the orange faces under street lamps.
+  CROWD_FACES=0 is the A/B.
