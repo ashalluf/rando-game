@@ -1,0 +1,13 @@
+refcams compare before (d88241cc) -> after1 (20bf5530)
+shot                dp5   dp50   dp95    dsat dmired   tris%  draws%    pix  flags
+street_noon        -4.0   -1.0   +2.0  +0.022    2.1    +1.0    +0.5   3.92  ok
+street_night       +0.0   +0.0   +6.0  -0.047   22.9    +3.0    +1.3   3.32  FLAG: sat_mean -0.0473; colour +22.9 mired (6898K -> 5957K)
+sunset             -1.0   -3.0   +1.0  +0.090   79.3    +0.3    +0.2   4.30  FLAG: sat_mean +0.0899; colour +79.3 mired (2715K -> 2234K)
+golden_aerial      -6.0   +1.0   +2.0  +0.038    7.6    +0.0    +0.1   4.11  FLAG: sat_mean +0.038
+downtown_aerial    -3.0   -6.0   +2.0  +0.033   -0.1    +0.1    +0.0   4.27  FLAG: sat_mean +0.0329
+beach              -6.0   +0.0   +3.0  +0.020   -0.3    -0.0    -0.2   2.88  ok
+hills              -6.0   -1.0   +2.0  +0.051    6.4    -0.3    -0.8   4.38  FLAG: sat_mean +0.0515
+freeway            -5.0   -3.0   -3.0  +0.016    1.9    -4.6    -3.8   7.76  FLAG: lum_p99 -11; pixels 7.8 mean |d|
+macarthur          -6.0   -3.0   +2.0  +0.051    7.5    -0.4    -0.1   5.56  FLAG: sat_mean +0.0513
+pier_night         -1.0   +0.0   +3.0  +0.001   27.9    -0.0    -0.2   2.41  FLAG: colour +27.9 mired (11939K -> 8952K)
+8 of 10 shots flagged: street_night, sunset, golden_aerial, downtown_aerial, hills, freeway, macarthur, pier_night
