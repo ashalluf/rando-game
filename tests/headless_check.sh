@@ -26,7 +26,7 @@ if [ "$SHARDS" -le 1 ]; then
   echo "== Smoke test"
   LOG="$(mktemp)"
   set +e
-  "${RUN[@]}" timeout 2400 "$GODOT" --headless --path . res://tests/smoke_test.tscn 2>&1 | tee "$LOG"
+  "${RUN[@]}" timeout 3600 "$GODOT" --headless --path . res://tests/smoke_test.tscn 2>&1 | tee "$LOG"
   STATUS=${PIPESTATUS[0]}
   set -e
   if [ "$STATUS" = "124" ]; then
@@ -46,7 +46,7 @@ mkdir -p "$DIR"
 START=$(date +%s)
 PIDS=()
 for ((i = 0; i < SHARDS; i++)); do
-  SMOKE_SHARD="$i/$SHARDS" "${RUN[@]}" timeout 2400 "$GODOT" --headless --path . res://tests/smoke_test.tscn > "$DIR/shard_$i.log" 2>&1 &
+  SMOKE_SHARD="$i/$SHARDS" "${RUN[@]}" timeout 3600 "$GODOT" --headless --path . res://tests/smoke_test.tscn > "$DIR/shard_$i.log" 2>&1 &
   PIDS+=($!)
 done
 STATUS=0

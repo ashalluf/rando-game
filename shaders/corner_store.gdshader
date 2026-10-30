@@ -14,7 +14,7 @@ uniform float plaster_mean = 0.38;
 // The lightbox and its letters by day and after dark (times lamp_factor).
 uniform float sign_day = 0.35;
 uniform float sign_night = 1.5;
-uniform float sign_cap = 1.3;
+uniform float sign_cap = 0.7;
 // The ceiling's light panels and the coolers' lit backs (always on: the store is open).
 uniform float troffer_energy = 3.2;
 uniform float cooler_energy = 1.9;
@@ -299,9 +299,11 @@ void fragment() {
 		// A lit face: bright, but a red brighter than ~1 turns salmon pink through AgX, so a
 		// red-heavy face keeps green at a share of red (it reads red-orange, as a real lightbox
 		// does) and the whole is held under `sign_cap`.
-		emit.g = max(emit.g, emit.r * 0.16 * smoothstep(0.6, 1.6, emit.r));
+		emit.g = max(emit.g, emit.r * 0.1 * smoothstep(0.6, 1.6, emit.r));
 		emit /= max(1.0, max(emit.r, max(emit.g, emit.b)) / sign_cap);
-		base *= 0.55;
+		// Held at 0.7 (it was 1.3): on Forward+ the face plus its own lit albedo went through AgX
+		// as peach (247, 188, 132) at 21:00 against (232, 46, 19) at noon (fwd-review-d).
+		base *= 0.3;
 		rough = 0.25;
 	} else if (kind == K_LETTERS) {
 		emit = base * (sign_day * 1.6 + sign_night * 1.3 * lamp);

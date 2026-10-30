@@ -83,6 +83,7 @@ var throttle: float = 0.0
 
 var _points: PackedVector3Array = PackedVector3Array()
 var _sea: Array = []
+var _dbg_v: float = 0.0
 var _sea_age: float = 9.0
 var _ground: StaticBody3D
 var _ground_excepted: bool = false
@@ -470,6 +471,22 @@ func _physics_process(delta: float) -> void:
 		_sea = SeaSurface.state(get_tree())
 		_sea_age = 0.0
 	_watch_rider()
+	# BOAT_DEBUG: a jump in speed between two ticks lists what was round her (how a kinematic body
+	# moved kilometres in a step was found).
+	if _debug and absf(linear_velocity.length() - _dbg_v) > 15.0:
+		var q := PhysicsShapeQueryParameters3D.new()
+		var sh := SphereShape3D.new()
+		sh.radius = 30.0
+		q.shape = sh
+		q.transform = Transform3D(Basis(), global_position)
+		q.collision_mask = 0xFFFF
+		q.exclude = [get_rid()]
+		var names := []
+		for r in get_world_3d().direct_space_state.intersect_shape(q, 16):
+			var o: Object = r.collider
+			names.append("%s(%s) d%.1f" % [o.name, o.get_class(), (o as Node3D).global_position.distance_to(global_position) if o is Node3D else -1.0])
+		print("BOATJUMP v %.1f -> %.1f mask %d near %s" % [_dbg_v, linear_velocity.length(), collision_mask, str(names)])
+	_dbg_v = linear_velocity.length()
 	# A guard against depenetration: something left overlapping the hull (a capsule, a pile) can
 	# fire a body off at hundreds of m/s. Before any impulse of this tick (a velocity written after
 	# one wipes it).

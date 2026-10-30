@@ -72,6 +72,11 @@ const MAKES := {
 	Vehicle.BodyType.BEATER: [0, "ESTRAVA"],
 	Vehicle.BodyType.LOWRIDER_HARDTOP: [0, "GRANDEVA"],
 	Vehicle.BodyType.LOWRIDER_COUPE: [0, "MONTERRA"],
+	Vehicle.BodyType.EV_HATCH: [5, "VOLTINA"],
+	Vehicle.BodyType.LUX_SEDAN: [1, "QUENTIS 9"],
+	Vehicle.BodyType.COMPACT_SUV: [2, "RANGLO"],
+	Vehicle.BodyType.WORK_TRUCK: [2, "HAULDER WT"],
+	Vehicle.BodyType.COUPE: [0, "STRADA"],
 }
 ## Where the plates go, per body type: [rear height, rear x, front height] in metres over the
 ## road (the generators' plate recesses, tools/make_road_cars.py / make_more_cars.py; the van's
@@ -88,8 +93,13 @@ const PLATE_AT := {
 	Vehicle.BodyType.SUV: [1.14, 0.0, 0.50],
 	Vehicle.BodyType.MINIVAN: [0.925, 0.0, 0.40],
 	Vehicle.BodyType.BEATER: [0.71, 0.0, 0.36],
-	Vehicle.BodyType.LOWRIDER_HARDTOP: [0.50, 0.0, 0.40],
-	Vehicle.BodyType.LOWRIDER_COUPE: [0.50, 0.0, 0.40],
+	Vehicle.BodyType.LOWRIDER_HARDTOP: [0.53, 0.0, 0.40],
+	Vehicle.BodyType.LOWRIDER_COUPE: [0.53, 0.0, 0.40],
+	Vehicle.BodyType.EV_HATCH: [0.755, 0.0, 0.36],
+	Vehicle.BodyType.LUX_SEDAN: [0.575, 0.0, 0.40],
+	Vehicle.BodyType.COMPACT_SUV: [0.95, 0.0, 0.45],
+	Vehicle.BodyType.WORK_TRUCK: [0.87, 0.0, 0.50],
+	Vehicle.BodyType.COUPE: [0.567, 0.0, 0.38],
 }
 ## Tyre makers and lines moulded into the sidewall (invented).
 const TYRE_MAKERS := ["VORANTA", "TERRAVAL", "MARENZO", "QUILLAN"]
@@ -99,7 +109,7 @@ const TYRE_LINES := ["TOURING A/S", "SPORT HP", "ALL TERRAIN", "ECO TOUR", "CITY
 const GRIME_LEVELS := [0.0, 0.32, 0.62, 0.95]
 const GRIME_ODDS := [35, 75, 95, 100]
 ## Body types that work for a living: more grime and, half the time, mud.
-const WORK := [Vehicle.BodyType.PICKUP, Vehicle.BodyType.VAN, Vehicle.BodyType.DELIVERY_VAN,
+const WORK := [Vehicle.BodyType.PICKUP, Vehicle.BodyType.WORK_TRUCK, Vehicle.BodyType.VAN, Vehicle.BodyType.DELIVERY_VAN,
 		Vehicle.BodyType.BOX_TRUCK, Vehicle.BodyType.GARBAGE_TRUCK, Vehicle.BodyType.TOW_TRUCK,
 		Vehicle.BodyType.STREET_SWEEPER]
 
@@ -765,7 +775,7 @@ static func _ray(tris: Array, x: float, y: float, dir: float) -> Array:
 static func _flat_spot(tris: Array, x: float, y: float, dir: float, hx: float, hy: float, bracket: bool = false) -> Array:
 	if tris.is_empty():
 		return []
-	for k in 9:
+	for k in 15:
 		var yy := y + (0.0 if k == 0 else 0.02 * float((k + 1) / 2) * (1.0 if k % 2 == 1 else -1.0))
 		var pts: Array = []
 		var ok := true
