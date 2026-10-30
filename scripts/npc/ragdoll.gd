@@ -234,7 +234,8 @@ func _ground_under(at: Vector3) -> Dictionary:
 	var space := get_world_3d().direct_space_state
 	var skip: Array[RID] = []
 	for b in bodies:
-		skip.append(b.get_rid())
+		if is_instance_valid(b):
+			skip.append(b.get_rid())
 	var q := PhysicsRayQueryParameters3D.create(at + Vector3.UP * 0.4, at + Vector3.DOWN * 1.2, 1, skip)
 	return space.intersect_ray(q)
 
