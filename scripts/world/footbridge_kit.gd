@@ -343,7 +343,7 @@ static func _lamps(k: _Ctx) -> void:
 		var t := -half + (half * 2.0) * (float(i) + 0.5) / float(n)
 		var p := v3(c + dir * t, y + CAGE_CROWN - 0.12)
 		_box(k, p, Vector3(0.3, 0.12, 0.5), basis, Color(0.2, 0.21, 0.22), K_PAINT)
-		_box(k, p - Vector3(0, 0.07, 0), Vector3(0.24, 0.02, 0.42), basis, Color(), K_LAMP)
+		_box(k, p - Vector3(0, 0.07, 0), Vector3(0.26, 0.02, 0.46), basis, Color(), K_LAMP)
 
 
 # --- Boulevard ends: a landing and a straight stair --------------------------------------------

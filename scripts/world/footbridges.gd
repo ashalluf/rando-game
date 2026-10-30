@@ -34,7 +34,7 @@ enum Form { TRUSS, GIRDER }
 
 ## Roads at least this wide (the 24 m avenues and the wide real streets) get boulevard bridges.
 const MIN_ROAD_WIDTH := 22.0
-const BOULEVARD_ODDS := 0.3
+const BOULEVARD_ODDS := 0.45
 ## Only every BOULEVARD_EVERY-th stretch of a road may hold one (no two on neighbouring stretches).
 const BOULEVARD_EVERY := 3
 ## A stair or tower climbs at most this (metres): steeper ground, or a deck too high over it, is not

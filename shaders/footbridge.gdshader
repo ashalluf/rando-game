@@ -27,7 +27,7 @@ uniform sampler2D tag_atlas : filter_linear_mipmap_anisotropic, repeat_disable;
 uniform float diamond = 0.055;
 uniform float wire = 0.085;
 uniform vec3 lamp_color = vec3(1.0, 0.86, 0.66);
-uniform float lamp_energy = 5.0;
+uniform float lamp_energy = 9.0;
 
 varying flat float v_kind;
 varying vec3 v_world;
@@ -84,7 +84,7 @@ void fragment() {
 		float board = smoothstep(0.02, 0.0, abs(fract(UV.y / 0.3) - 0.5) - 0.48) * 0.06;
 		float spk = fb_hash(floor(wp * 40.0 + UV * 40.0)) * 0.05;
 		float stain = smoothstep(0.55, 0.85, fb_noise(vec2(UV.x * 1.4, UV.y * 0.18) + 7.0)) * 0.25;
-		alb = col * vec3(0.62, 0.61, 0.58) * (0.88 + 0.18 * big - board + spk) * (1.0 - stain);
+		alb = col * vec3(0.52, 0.51, 0.49) * (0.88 + 0.18 * big - board + spk) * (1.0 - stain);
 		rough = 0.86;
 		spec = 0.4;
 	} else if (v_kind < 2.5) {
@@ -116,7 +116,7 @@ void fragment() {
 		float broom = fb_noise(vec2(UV.x * 0.6, UV.y * 90.0)) * 0.08;
 		float wear = smoothstep(1.0, 0.0, abs(fract(UV.y) - 0.5) * 2.0) * 0.0;
 		float joint = smoothstep(0.03, 0.0, abs(fract(UV.x / 3.0) - 0.5) - 0.48);
-		alb = col * vec3(0.48, 0.47, 0.45) * (0.86 + 0.18 * big + broom - wear) * (1.0 - joint * 0.4);
+		alb = col * vec3(0.42, 0.41, 0.40) * (0.86 + 0.18 * big + broom - wear) * (1.0 - joint * 0.4);
 		rough = 0.9 - wet * 0.55;
 		alb *= 1.0 - wet * 0.35;
 	} else if (v_kind < 5.5) {

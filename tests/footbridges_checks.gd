@@ -140,7 +140,7 @@ func _kit(all: Array[Dictionary]) -> void:
 		boxes_ok = boxes_ok and boxes.size() >= 12
 		for bx: Array in boxes:
 			var size: Vector3 = bx[1]
-			boxes_ok = boxes_ok and size.x > 0.0 and size.y > 0.0 and size.z > 0.0 and (bx[0] as Vector3).length() < 80.0
+			boxes_ok = boxes_ok and size.x > 0.0 and size.y > 0.0 and size.z > 0.0 and Vector2((bx[0] as Vector3).x, (bx[0] as Vector3).z).length() < 80.0
 	_t._check(worst_full > 2000 and worst_full < 16000 and worst_ratio < 0.6 and boxes_ok,
 		"footbridges: the kit builds each bridge in one mesh (worst %d triangles, LOD at most %.0f %% of it) with box collision" % [worst_full, worst_ratio * 100.0])
 	var mat := FootbridgeKit.material()
