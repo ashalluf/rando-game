@@ -17,3 +17,10 @@ as the rain would leave them); "before" is `RAIN_CROWD=0`, same weather, same EY
 - `14_lab_hood_up.jpg` - the same lab, RAIN_GEAR=hood: a hood fitted to the rig's skull, pulled up.
 
 01-03 were shot before the final arm hold (the canopy then sat a little lower); 08-14 are final.
+
+## Wave 3 (merged with main 95bd13f, the far tier)
+
+- `15_before_rain_bus_queue.jpg` / `16_after_rain_bus_queue.jpg` - rain at 15:00, the bus queue
+  on the avenue east of Flower (EYE `2472,3.0,1012,4,-3`, FOV 35); before is `RAIN_CROWD=0`.
+- `17_after_rain_aerial.jpg` - from 28 m up over Flower St (EYE `2365,28,975,0,-22`): umbrellas
+  along both pavements; past 60 m they are the far tier's coarse canopies (`RAIN_FAR=0` the A/B).
