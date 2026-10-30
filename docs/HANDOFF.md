@@ -20422,3 +20422,7 @@ Forward+ city render: it does not fit lavapipe); the opengl3 rain-night city sti
 white with or without this branch (the harness, not the look); the helicopter's new shaft was not
 caught in a city still (AIR=police framed it out); no strobe reflection in the road shader's own
 mirrored city (the pool's mirror streak stands in for it); emergency vehicles' beacons are untouched.
+Gate (`SHARDS=3`, after merging main dbf7ac87+): 3,942 checks, 3 failed - ragdolls "a doll comes
+to rest on a car-high box", wildlife "calm animals stay put", explosions_2 "the blasts leave
+nothing behind" - all three pass alone with POLICE_NIGHT_LOOK=1 and =0 (118 checks each), so they
+are order-dependent in shard 0 / 2, not this branch. Peak RSS 3,377 MB (shard 1).
