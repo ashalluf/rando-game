@@ -127,7 +127,8 @@ func _maybe_arrival() -> void:
 		return
 	var gap := Valets.arrival_gap(bool(s.hotel), _hour)
 	_next_arrival = _clock + _rng.randf_range(gap.x, gap.y)
-	if queue.size() >= MAX_QUEUE or _free_valets() == 0:
+	# Somebody stays at the podium: no new car while only one valet is back.
+	if queue.size() >= MAX_QUEUE or _free_valets() < mini(2, valets.size()):
 		return
 	var traffic := _traffic()
 	if traffic == null or traffic.get("staged"):
@@ -436,15 +437,13 @@ func _exit_tree() -> void:
 
 # --- Helpers -----------------------------------------------------------------------------------
 
-## A valet at the podium free for a job: the lead stays while another is free.
+## A valet at the podium free for a job: the lead (the first) only when nobody else is.
 func _free_valet() -> Valet:
-	var free: Array = []
-	for v: Variant in valets:
+	for i in range(valets.size() - 1, -1, -1):
+		var v: Variant = valets[i]
 		if is_instance_valid(v) and (v as Valet).free_for_job():
-			free.append(v)
-	if free.is_empty():
-		return null
-	return free[free.size() - 1]
+			return v
+	return null
 
 
 func _free_valets() -> int:

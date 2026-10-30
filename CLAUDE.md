@@ -4729,6 +4729,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `ParkletDiner` (a Pedestrian): diners seated on the life sit clips (hips solved to
   `ParkletKit.SEAT_Y`), a waiter walking door -> table. Who sits is `busy(room, hour)`.
   `PARKLETS=0` is the A/B; probe `tools/parklets/probe.gd`; checks `tests/parklets_checks.gd`.
+- Valet stands (2026-10-30, docs/HANDOFF.md "Valet stands"): `Valets` (`scripts/world/valets.gd`,
+  after Parklets in a FULL chunk's steps) puts a podium, key box, A-frame and umbrella
+  (`ValetKit`, on `StreetVendors.material()`) at a hotel LOBBY (hash of the Building) or a
+  RESTAURANT on a busy block, from `Building.shop_fronts`; +x / +z faces keep a 20 m zone of
+  their parking lane clear (`blocks_parking()`), -x / -z faces double-park. `ValetStand` calls
+  TrafficManager cars in (a street car in its kerb lane, else `place_car()` from the pool; tag
+  `traffic.valet`, one hook in `_drive_street()`: the drop-off is a stop, on the hazards), the
+  driver gets out (a StreetErrands walker), a `Valet` (uniformed Pedestrian) runs to the door,
+  drives off, and later brings a car back for a guest. `VALETS=0` is the A/B; stills `VALET=` on
+  `still_shot.gd`; probe `tools/valets/probe.gd`, `live.gd`; checks `tests/valets_checks.gd`.
 - Farmers' market (2026-10-05, HANDOFF "The farmers' market"): `FarmersMarket`
   (`scripts/world/farmers_market.gd`, pure) picks one local street per `CELL` 1.7 km by hash
   (residential / midtown blocks nobody claims) and closes it to cars from `CLOSE_INSET` past each

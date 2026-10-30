@@ -15534,3 +15534,73 @@ checks, 0 failed, peak RSS 2,506 MB a shard, 1,054 s.
 and the tarps' backlight need a Mac look. LOD chunks and the far city draw the buildings only
 (no goods past the FULL ring, by design). Garments are simple lofted sacks with tube sleeves:
 fine on a rack at 3 m, plain at 1 m.
+
+## 9d?. Valet stands at hotels and restaurants, 2026-10-30 (fleet wave 3, agent branch `wt/valets`; VISUAL_ROADMAP "?")
+
+**What.** The kerb in front of a hotel or a busy restaurant has a valet stand: a lectern podium
+(the stand's paint, brass bands, a lit panel with VALET and an invented operator - GOLDLINE VALET,
+SILVER KEY, CURBSIDE COURT, BRASS & KEY, ORCHID VALET -, a sloped desk with the ticket book and a
+gooseneck lamp lit after dark), a steel key cabinet on a post with its door open on rows of keys
+and tags, an A-frame VALET PARKING board with the rate, a market umbrella on a cast base, cones
+at the ends of the zone and a warm pool under the lamp at night. Two (a restaurant) or three (a
+hotel) valets in the operator's uniform (`Valet.UNIFORMS`: red, black, navy, burgundy jackets or
+white shirts over dark trousers) stand at the podium. Cars pull in on their hazards and queue
+behind the one being served; its driver's door swings open (ErrandProps), the driver gets out and
+walks into the building, a valet runs round its tail to the door, gets in and it drives off as
+ordinary traffic; that valet is away 35-90 s and comes back at the wheel of a car that pulls in,
+gets out and walks back to the podium while a guest comes out of the door, gets in and drives off.
+
+**Where.** `Valets` (`scripts/world/valets.gd`) reads a FULL chunk's `Building.shop_fronts` like
+Parklets: a tower's LOBBY is a hotel by a hash of its Building's seed (`HOTEL_ODDS` by district,
+one stand a building), a RESTAURANT has valets on a busy block (`BUSY_BLOCK` by a hash of the
+block, then `RESTAURANT_ODDS` by the shop). On the block's +x / +z faces the parking lane is the
+chunk's own: the zone (`ZONE_BACK` + `ZONE_AHEAD`, 20 m) is kept clear of parked cars
+(`blocks_parking()`, after their rolls, counted as parked) and checked with
+`Parklets._kerb_free()` (bus stops, red kerbs, stations, vendors, road works, bike lanes,
+parklets). On the -x / -z faces the lane is the neighbour chunk's, so the served car stands
+DOUBLE-PARKED in the kerb lane (`double`; `_road_free()`), its drop-off slid so the valets cross to
+it through a gap in the parked cars' 8 m grid. Restaurants work 11:30-14:30 and 17:00-23:30
+(`open_at()`), hotels round the clock (the hour the chunk is built at, as the vendors do);
+`arrival_gap()` sets how often a car comes. Default seed: 11 stands in the 38 blocks within
+500 m of Pershing Square at 20:00.
+
+**How it runs.** `ValetStand` (`scripts/npc/valet_stand.gd`, a child of the chunk; true world
+space) ticks only within `ACTIVE_RANGE` (115 m) of the player. Every arrival gap it calls a car
+in: a street car already coming down its kerb lane toward it (`StreetErrands._may_park()`), else
+one from TrafficManager's pool placed 70-100 m upstream (`place_car()`). The car is tagged
+(`traffic.valet` = the stand's instance id, `no_turns`, `placed`, meta `valet` + `errand` so
+errands leave it alone) and **TrafficManager drives it**: one hook in `_drive_street()` after the
+kerb-space parking block, `Valets.street_stop()` -> `stop_for()`, the drop-off a stop like a
+bus's, the shift into the kept zone (0 double-parked), `hazard` on inside `HAZARD_REACH`. The
+ones behind queue by the IDM's own leader rule. The service (`Serve`) is a small state machine on
+the stand: DROP_OPEN, DROP_WAIT_VALET, DROP_IN, PULL for a drop-off; RET_OPEN, RET_WAIT_GUEST,
+RET_GUEST_IN, PULL for a car brought back. The driver and the guest are StreetErrands walkers
+(a hidden one near by from `_from_pool()`, else a new one under the crowd cap) with errand steps
+(path, hide), so nobody is made or lost. A valet's job is placed motion
+(`StreetErrands._step_to()`, which steps down onto the carriageway and up again) at a run.
+Cars shot, crashed, panicking (CarPanic's `cp`), taken by the player or retired are let go
+(`_prune()`) and a valet riding in one is back at the podium. Out of the player's range a stand
+calls nothing and its away valets are home at once.
+
+**Never moves anything.** Every roll is a hash of the seed and the shop / building / block; the
+chunk's step comes after the parklets and before the parked cars; the parked cars keep off a kept
+zone after their rolls; nothing goes through `_add_prop` (the podium, key box and sign are
+EncampmentItems, knocked over and remembered as gone). Checked: built with `VALETS=0` the block's
+buildings, props and trash cans are identical and its parked cars a superset.
+
+**Files.** `scripts/world/valets.gd` (placement, build, hooks), `scripts/world/valet_kit.gd`
+(meshes on `StreetVendors.material()`: podium 754, key box 840, sign 1,134, cone 212, base 152
+triangles; the umbrella is `StreetVendors.umbrella_mesh()`), `scripts/npc/valet_stand.gd`,
+`scripts/npc/valet.gd` (a Pedestrian with the life clips, uniform recolour like the parklet
+waiters). Hooks: `CityChunk._block_steps()` (the build step and one spawn step a valet),
+`CityChunk._park_car()` (`Valets.blocks_parking`), `TrafficManager._drive_street()` (the stop),
+`LoadingScreen` (`Valets.warm()`), `tests/smoke_test.gd` (one line), `still_shot.gd` (`VALET=`).
+
+**Look / measure.**
+- Stills: `VALET=drop|queue|back` on `tools/glshot/still_shot.gd` stages the stand nearest the
+  camera (`tools/valets/stage.gd`: `VALET_T` seconds in, `VALET_VIEW=kerb|across`, `VALET_PICK`)
+  and frames it with a free camera; `VALETS=0` is the before.
+- Probe: `tools/valets/probe.gd -- --spawn=x,z,0,0 --hour=20` (every stand within `R` m with an
+  EYE; `VALET_DEBUG=1` prints why each candidate front was turned down);
+  `tools/valets/live.gd -- --spawn=x,z,0,0` watches the stands at work in the running city.
+- Checks: `tests/valets_checks.gd` (`SMOKE_PARTS=valets_checks`).
