@@ -229,7 +229,7 @@ static func block(plan: CityPlan, bx: int, bz: int, fill: int, grid: float = 1.0
 			else:
 				_paint(box, lot_rect, YARD)
 			continue
-		if filled and lot.get("parking", false):
+		if filled and lot.get("parking", false) and not StarBoulevard.strip_lot(plan, bx, bz, lot):
 			_paint(box, cell, PARKING)
 			continue
 		# A vacant lot or a gravel car park (VacantLots: the lot's whole cell).
