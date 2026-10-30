@@ -14,3 +14,15 @@ Batch 1 (first look, code at 977d303):
 Frame cost (GEO, before -> after, same cameras): overlook 4.28 M / 1,627 draws -> 4.40 M / 1,679;
 culvert 1.58 M / 753 -> 1.71 M / 806; road 2 4.07 M / 1,608 -> 4.11 M / 1,641; aerials
 650 k / 288 -> 689 k / 307, 617 k / 258 -> 637 k / 265, 742 k / 295 -> 815 k / 326.
+
+Batch 2 (final code, dbb9295):
+- 11/12 the culvert from below its outlet (cobbles on their own stone shader now).
+- 13/14, 15/16 the back range from ~70 m; 17/18 a lower oblique: the wash down the gully floor with
+  willows, mule fat and a sycamore along its banks.
+- 19, 20 close-ups from the small block scene (tools/glshot/block_shot.tscn): the bed's sand,
+  gravel and cobbles, a boulder and willow on the bank; the culvert with cobbles below it.
+
+Final frame cost (GEO, ARROYOS=0 -> on, same cameras): culvert 1.58 M / 800 -> 1.71 M / 853;
+aerials 654 k / 329 -> 692 k / 348, 621 k / 299 -> 640 k / 306, 746 k / 336 -> 818 k / 367; two
+road views 3.05 M / 1,395 -> 3.20 M / 1,463 and 2.74 M / 1,218 -> 2.79 M / 1,254 (their frames
+point at the asphalt and are not included).
