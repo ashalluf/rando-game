@@ -1064,6 +1064,7 @@ func _build_ground_material() -> ShaderMaterial:
 		m.set_shader_parameter("macro_centre", Vector2.ZERO)
 		m.set_shader_parameter("macro_span", macro_span)
 		m.set_shader_parameter("macro_height", MacroMap.BAKE_HEIGHT_SCALE)
+		FarRanges.apply(m)
 		# The Palos Verdes hills are shaped to the Esplanade photographs' skyline; keep the crags
 		# off them (macro_relief.gdshaderinc, calm_*).
 		if plan.macro.replica:

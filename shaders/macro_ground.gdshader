@@ -616,6 +616,12 @@ void fragment() {
 		albedo = mix(albedo, smog_c * dim, sm);
 		emitted = mix(emitted, cs_out(smog_c) * dim, sm);
 	}
+	// The layered distance haze (macro_relief.gdshaderinc): taken off what the renderer lights and
+	// laid on as light, like fog, in both bands.
+	float rh = range_haze_amount(dist, world_pos.y);
+	vec3 rh_ws = cs_out(range_haze_color(sky_lin)) * rh;
+	albedo *= 1.0 - rh;
+	emitted = emitted * (1.0 - rh) + rh_ws;
 	// Compatibility does not add EMISSION at face value (HANDOFF 9au: 0.25 emitted over a lit
 	// 0.25 albedo drew 0.35, not 0.5); this is its painted band measured against its lit one.
 	if (!cs_linear_renderer()) {
@@ -634,7 +640,7 @@ void fragment() {
 	// The albedo is linear up to here, and goes to the renderer's own space (a no-op on Forward+);
 	// the emission is in it already.
 	ALBEDO = cs_out(albedo * (1.0 - painted) * (1.0 - rim));
-	EMISSION = mix(emitted * painted, sky_ws, rim);
+	EMISSION = mix(emitted * painted + rh_ws * (1.0 - painted), sky_ws, rim);
 	ROUGHNESS = mix(rough, 1.0, (1.0 - near) * 0.25 * painted);
 	METALLIC = 0.0;
 	// The tiles' default 0.5 where the renderer lights this plane: at 0.15 Godot also cuts the

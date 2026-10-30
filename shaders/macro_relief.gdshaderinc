@@ -38,6 +38,11 @@ uniform float relief_amplitude = 40.0;
 uniform float relief_wavelength = 900.0;
 // How hard a slope damps the octaves under it, which is what turns noise into eroded land.
 uniform float relief_erosion : hint_range(0.0, 4.0) = 1.4;
+// What the crags' octaves look like (FarRanges.apply sets it; FAR_RANGES=0 gives 0). 0 is ridged
+// noise, 1 - |n|: its crests are creases, and along every far skyline they stood up as a saw of
+// sharp teeth. 1 turns it over, |n|: round crests and creased valleys, the way a weathered range
+// lies - the gullies are where the sharp lines are.
+uniform float crag_shape : hint_range(0.0, 1.0) = 1.0;
 // Metres of undulation out on the flats, so the basin floor is not a dead level sheet.
 uniform float flats_amplitude = 6.0;
 // Octaves finer than this many screen pixels fade out instead of aliasing.
@@ -57,8 +62,36 @@ uniform float calm_fade = 0.35;
 uniform vec2 calm2_centre = vec2(0.0);
 uniform vec2 calm2_axes = vec2(0.0);
 
+// Layered aerial perspective on the far land (FarRanges; FAR_RANGES=0 sets range_haze 0). The
+// Environment's fog greys a range evenly; real distance haze is denser low down, so each ridge's
+// foot sinks into the air in front of the next one and its crest stands clear - the layers of
+// blue ridgelines a mountain front is from the basin. `range_haze_amount()` is how much of the
+// air's colour (`range_haze_color()`, the horizon's own colour pushed a little blue) lies over a
+// point `d` metres off at height `y`; the ground, the far canopy and the far estates all take it,
+// so a clump or a house sits in the same air as the slope under it.
+uniform float range_haze : hint_range(0.0, 1.0) = 0.62;
+// Nothing nearer than this (the streamed hill tiles meet the plane inside it), then an e-fold
+// every `range_haze_reach` metres.
+uniform float range_haze_from = 1100.0;
+uniform float range_haze_reach = 6500.0;
+// Up to this height the air thins to `range_haze_keep` of its haze at the foot.
+uniform float range_haze_top = 1250.0;
+uniform float range_haze_keep : hint_range(0.0, 1.0) = 0.42;
+uniform vec3 range_haze_tone = vec3(0.80, 0.90, 1.07);
 
 const int MAX_OCTAVES = 10;
+
+
+float range_haze_amount(float d, float y) {
+	float a = 1.0 - exp(-max(d - range_haze_from, 0.0) / range_haze_reach);
+	return range_haze * a * mix(1.0, range_haze_keep, smoothstep(0.0, range_haze_top, y));
+}
+
+
+// The haze's colour from the horizon's (linear light).
+vec3 range_haze_color(vec3 sky_lin) {
+	return sky_lin * range_haze_tone;
+}
 
 
 float hash12(vec2 p) {
@@ -124,8 +157,8 @@ vec3 relief_fbm(vec2 p, int octaves, float fp) {
 		}
 		vec3 n = noised(q);
 		float v = n.x * 2.0 - 1.0;
-		float r = 1.0 - abs(v);
-		vec2 dr = (-sign(v) * 2.0) * (n.yz * acc);
+		float r = mix(1.0 - abs(v), abs(v), crag_shape);
+		vec2 dr = (mix(-2.0, 2.0, crag_shape) * sign(v)) * (n.yz * acc);
 		// Erosion: damp this octave wherever the slope built up so far is already steep. The
 		// gradient is per metre, so scaling by the wavelength makes the test dimensionless.
 		float damp = 1.0 / (1.0 + relief_erosion * dot(dsum, dsum) * wl * wl);
