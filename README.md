@@ -12,3 +12,6 @@
 - 10_after2_parked_pair_kerb.jpg - a stall swapped to two bikes (scooter + sport) backed in at the kerb on their stands.
 - 11_after2_riders_and_night_headlights.jpg - the three with traffic riders leaning (moto_shot), and at night facing the camera: headlights and beams on the road.
 - 12/13/14_model2_*_cycles.jpg - Cycles previews: the sport bike's pressed panels (nose cowl, twin angular lamps, ram-air intake, slanted side panels with gills, livery stripe, upswept LED tail, aluminium beams), the cruiser's pinstriped tank with a chrome winged badge, the scooter's panelled body.
+
+## Third set (wave 3, after merging main 95bd13f)
+- 15_after_merge_ride_flower_st.jpg - the hero on the sport bike on Flower St at 15:00 on the merged build (opengl3 still, MOTO=ride).
