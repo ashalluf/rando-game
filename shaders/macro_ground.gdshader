@@ -210,6 +210,8 @@ varying vec3 world_pos;
 // are 44 m apart, so the dip reaches `cut_reach` metres round the cut - all under the city's own
 // ground, which covers the plane everywhere else there.
 uniform vec4 cut_rect = vec4(0.0);
+// The underground station's stairwells (MetroStation.cut_rect(), set by LightRailSystem).
+uniform vec4 cut_rect2 = vec4(0.0);
 uniform float cut_sink = 16.0;
 uniform float cut_reach = 60.0;
 
@@ -256,6 +258,11 @@ void vertex() {
 	if (cut_rect.z > cut_rect.x) {
 		vec2 tw = wp.xz + world_offset;
 		vec2 cq = max(max(cut_rect.xy - tw, tw - cut_rect.zw), vec2(0.0));
+		off -= cut_sink * (1.0 - smoothstep(0.0, cut_reach, length(cq)));
+	}
+	if (cut_rect2.z > cut_rect2.x) {
+		vec2 tw = wp.xz + world_offset;
+		vec2 cq = max(max(cut_rect2.xy - tw, tw - cut_rect2.zw), vec2(0.0));
 		off -= cut_sink * (1.0 - smoothstep(0.0, cut_reach, length(cq)));
 	}
 	VERTEX.y += off;

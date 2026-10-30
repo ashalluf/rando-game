@@ -1280,6 +1280,8 @@ func _build_beach(block: Dictionary) -> void:
 		# The beach's towels and umbrellas as dots of colour, the path and the courts (BeachLife).
 		if not capturing:
 			BeachLife.build_lod(self, life_z.x, life_z.y)
+			Bonfires.build_lod(self, life_z.x, life_z.y)
+		BeachAmenities.build_lod(self, life_z.x, life_z.y)
 		return
 	for sr: Rect2 in MarinaBuild.sand_rects(self, owned_rect() if _replica != null else Rect2(block.rect.position, Vector2(block.rect.size.x, owned_rect().end.y - block.rect.position.y))):
 		_build_surf_spray(sr)
@@ -1334,6 +1336,9 @@ func _build_beach(block: Dictionary) -> void:
 			_add_lifeguard_tower(at, spin)
 	# The beach's people keep out of the marina's channel and off its jetties.
 	obstacles.append_array(MarinaBuild.beach_obstacles(self))
+	obstacles.append_array(BeachAmenities.build(self, life_z.x, life_z.y, obstacles))
+	# The bonfire rings (Bonfires: hashes only), added to the obstacles the sunbathers keep off.
+	Bonfires.build(self, life_z.x, life_z.y, obstacles)
 	BeachLife.build(self, life_z.x, life_z.y, obstacles, tower)
 
 
@@ -2325,7 +2330,7 @@ func _build_roads(block: Dictionary) -> void:
 	var open_x := plan.road_open(CityPlan.AXIS_X, ix + 1, rect.get_center().y)
 	if open_x:
 		_road_slab(Rect2(rx - wx * 0.5, rect.position.y, wx, rect.size.y), asphalt, look_x.material)
-	elif FarmersMarket.paves(plan, ix, iz, CityPlan.AXIS_X):
+	elif FarmersMarket.paves(plan, ix, iz, CityPlan.AXIS_X) or FilmShoot.paves(plan, ix, iz, CityPlan.AXIS_X):
 		# A farmers' market's street is closed to cars but still a street (FarmersMarket).
 		_road_slab(Rect2(rx - wx * 0.5, rect.position.y, wx, rect.size.y), asphalt, look_x.material)
 	# Horizontal road on the +Z side, spanning this block's X range.
@@ -2335,7 +2340,7 @@ func _build_roads(block: Dictionary) -> void:
 	var open_z := plan.road_open(CityPlan.AXIS_Z, iz + 1, rect.get_center().x)
 	if open_z:
 		_road_slab(Rect2(rect.position.x, rz - wz * 0.5, rect.size.x, wz), asphalt, look_z.material)
-	elif FarmersMarket.paves(plan, ix, iz, CityPlan.AXIS_Z):
+	elif FarmersMarket.paves(plan, ix, iz, CityPlan.AXIS_Z) or FilmShoot.paves(plan, ix, iz, CityPlan.AXIS_Z):
 		_road_slab(Rect2(rect.position.x, rz - wz * 0.5, rect.size.x, wz), asphalt, look_z.material)
 	# The intersection square at the +X +Z corner.
 	if plan.road_open(CityPlan.AXIS_X, ix + 1, rz) or plan.road_open(CityPlan.AXIS_Z, iz + 1, rx):
@@ -2354,6 +2359,7 @@ func _road_slab(r: Rect2, asphalt: Color, material: Material) -> void:
 	var cuts: Array[Rect2] = []
 	if rail != null and not capturing and level == Level.FULL:
 		cuts = rail.cuts_in(r)
+		cuts.append_array(MetroStation.cuts_in(plan, r))
 	# The freight trench too (FreightRail.cuts_in()), at FULL and LOD: it is seen from the air.
 	var freight := FreightRail.of(plan)
 	if freight != null and not capturing:
@@ -2574,6 +2580,8 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 	# A premiere's searchlight beams from an LOD chunk (NightLife; the FULL build is below).
 	if level != Level.FULL:
 		steps.append_array(NightLife.steps(self, block))
+	# A film shoot on this chunk's street (FilmShootBuild; hash-seeded, the block's rng untouched).
+	steps.append_array(FilmShootBuild.steps(self, block))
 	if level == Level.FULL:
 		steps.append(_build_sidewalk_props.bind(rect, params, rng, district))
 		# Midtown's deco boulevard: mature palms on its kerbs, the night pools (DecoBoulevard), after
@@ -2600,6 +2608,12 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 			steps.append(func() -> void: StreetVendors.build_block(self, block))
 			for i in StreetVendors.MAX_PER_BLOCK:
 				steps.append(func() -> void: StreetVendors.spawn_vendor(self, i))
+		# Street performers (Buskers): hash-seeded by block, face and hour, after the vendors' carts
+		# they keep clear of; the block's rng is untouched.
+		if Buskers.wanted(self, block):
+			steps.append(func() -> void: Buskers.build_block(self, block))
+			for i in Buskers.MAX_PEOPLE:
+				steps.append(func() -> void: Buskers.spawn_person(self, i))
 		# Road works in the kerb lane and the building sites' crews (Construction; hash-seeded),
 		# before the parked cars, which keep out of a closure.
 		if Construction.wanted(self, block):
@@ -2620,6 +2634,12 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 		# Night life (NightLife): club and bar lines, bouncers, a premiere's carpet and searchlights.
 		# Hash-seeded by shop and night; reads the shop fronts, takes no kerb, no block rng.
 		steps.append_array(NightLife.steps(self, block))
+		# Valet stands at hotels and busy restaurants (Valets): podium, keys, sign, their valets.
+		# Hash-seeded; after the parklets they keep clear of, before the parked cars.
+		if Valets.wanted(self, block):
+			steps.append(func() -> void: Valets.build_block(self, block))
+			for i in Valets.MAX_PEOPLE:
+				steps.append(func() -> void: Valets.spawn_valet(self, i))
 		# The fashion district's goods on the pavement and their sellers (FashionDistrict; hash-seeded).
 		if FashionDistrict.wanted(self, block):
 			steps.append_array(FashionDistrict.steps(self, block))
@@ -2861,7 +2881,9 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 			or KerbBins.blocks_parking(plan, spot[0], float(car._dims().length)) \
 			or FarmersMarket.blocks_parking(plan, spot[0]) or Parklets.blocks_parking(self, spot[0]) \
 			or StarBoulevard.blocks_parking(plan, spot[0]) \
-			or LowriderMeet.blocks_parking(self, spot[0]):
+			or LowriderMeet.blocks_parking(self, spot[0]) \
+			or FilmShoot.blocks_parking(plan, spot[0]) \
+			or Valets.blocks_parking(self, spot[0]):
 		car.free()
 		count[0] += 1
 		return

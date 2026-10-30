@@ -24,7 +24,9 @@ func run(t: Node, city: Node3D) -> void:
 	var heat_before: float = float(police.get("heat")) if police else 0.0
 	var scene: Node = tree.current_scene if tree.current_scene else tree.root
 	var plain_before := 0
+	var names_before := {}
 	for c in scene.get_children():
+		names_before[c.name] = true
 		if c.get_script() == null:
 			plain_before += 1
 	var mute_before := AudioServer.is_bus_mute(0)
@@ -35,10 +37,13 @@ func run(t: Node, city: Node3D) -> void:
 		await tree.process_frame
 	_t._check(city.get_node_or_null("WarmRehearsal") == null, "the rehearsal's holder is gone afterwards (ran in %d ms)" % ms)
 	var plain_after := 0
+	var new_plain: Array = []
 	for c in scene.get_children():
 		if c.get_script() == null and not c.is_queued_for_deletion():
 			plain_after += 1
-	_t._check(plain_after <= plain_before, "the rehearsal's effects leave no node in the scene (%d plain nodes before, %d after)" % [plain_before, plain_after])
+			if not names_before.has(c.name):
+				new_plain.append("%s (%s)" % [c.name, c.get_class()])
+	_t._check(plain_after <= plain_before, "the rehearsal's effects leave no node in the scene (%d plain nodes before, %d after %s)" % [plain_before, plain_after, str(new_plain)])
 	var left := 0
 	for group in ["vehicle", "pedestrian"]:
 		for n in tree.get_nodes_in_group(group):

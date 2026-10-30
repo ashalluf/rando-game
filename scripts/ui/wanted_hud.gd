@@ -96,7 +96,7 @@ func _process(delta: float) -> void:
 ## bottom-right corner at 1080 lines, scaled with the window by MinimapFrame).
 func _layout() -> void:
 	var view := get_viewport_rect().size
-	var r := clampf(view.y * star_size * 0.5, 11.0, 30.0)
+	var r := clampf(view.y * star_size * 0.5, 11.0, 30.0) * GameSettings.hud_scale
 	var gap := r * 0.42
 	var w := 5.0 * 2.0 * r + 4.0 * gap + 20.0
 	var h := 2.0 * r + 20.0
@@ -115,7 +115,7 @@ func _layout() -> void:
 	_stars_mat.set_shader_parameter("star_glow_px", r * 0.4)
 	# Over the minimap, scaled with it (MinimapFrame scales with the window).
 	var frame := (get_parent().get_node_or_null("MinimapFrame") if get_parent() else null) as Control
-	var hs := clampf(view.y / 1080.0, 0.7, 2.0)
+	var hs := clampf(view.y / 1080.0, 0.7, 2.0) * GameSettings.hud_scale
 	var mini := Rect2(view - Vector2.ONE * 284.0, Vector2.ONE * 260.0)
 	if frame and frame.has_method("screen_rect"):
 		mini = frame.call("screen_rect")

@@ -215,6 +215,10 @@ static func plan_chunk(chunk: CityChunk, block: Dictionary) -> Array:
 	if Parklets.wanted(chunk, block):
 		for pk: Dictionary in Parklets.plan_chunk(chunk, block):
 			parklet_keys[int(pk.key)] = true
+	# A valet stand's shop is the valets' (its podium and cones stand at the door).
+	if Valets.wanted(chunk, block):
+		for vs: Dictionary in Valets.plan_chunk(chunk, block):
+			parklet_keys[int(vs.key)] = true
 	var fronts: Array = []
 	for child in chunk.get_children():
 		var b := child as Building
