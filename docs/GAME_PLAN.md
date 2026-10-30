@@ -3647,3 +3647,9 @@ none of either.
   measured ground speed and stays in a cadence band (pace gives way, never the feet). The gaits are
   restyled keyed from two CC0 library walks rather than more mocap: the variety budget is the
   style table in tools/crowd/gait_clips.gd. CROWD_ANIM_2=0 is the old crowd exactly.
+- **2026-10-30 The street level is detail on the walls plus one hardware mesh a building
+  (HANDOFF "The street level up close").** Relief, repairs, cracks and the grime at the foot are
+  shader work on the existing walls (no new nodes); doors in ground floors without shops are an
+  integer roll the shader and the props share, so the frame, the lamp and the step agree; the
+  hardware (downpipes, meters, condensers, grilles, lamps, housings) is ONE code-built mesh a
+  building, one draw, drawn to ~105 m. Every roll is a hash; FACADES_STREET=0 is the old city.
