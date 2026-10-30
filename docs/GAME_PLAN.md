@@ -295,6 +295,12 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-30 The mid distance is planted and parked from the capture, never placed (HANDOFF "The
+  mid distance").** The far tiers' yard trees come from the LOD block build's own capture (green
+  ground, building footprints) on hashes of the seed and the place, and the far streets' cars are
+  painted per pixel - the moving ones the night lights' own cells - so nothing a seed builds
+  moves and the far city costs no new draws. House roofs out there are the house's own clay tint
+  or shingle, flagged so the far shader draws them as roofs, not as towers' membranes.
 - **2026-10-30 The night has its own street life (fleet wave 3, `nightlife`).** After 21:00 a share
   of the open restaurants and tower lobbies downtown, in midtown and the beach town are clubs and
   bars with a line along the wall behind a velvet rope, a bouncer and a lit entrance; the door
