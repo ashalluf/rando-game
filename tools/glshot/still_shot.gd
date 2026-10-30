@@ -405,6 +405,19 @@ func _initialize() -> void:
 		for i in _env_int("EMERGENCY_FRAMES", 30):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
+	# ONLOOKER_SCENE=body|wreck|blast: a crowd come back round a scene ahead of the camera
+	# (tools/onlookers/stage.gd: ONLOOKER_EYE=behind|front, ONLOOKER_SHOTS=1 all views, ONLOOKER_PEOPLE, ONLOOKER_COUNT;
+	# ONLOOKERS=0 the before), ONLOOKER_FRAMES for the arms to come up.
+	var onl_env := OS.get_environment("ONLOOKER_SCENE")
+	if onl_env != "" and current_scene:
+		var o_eye: String = await load("res://tools/onlookers/stage.gd").stage(self, current_scene, onl_env, get_root().get_camera_3d())
+		if o_eye != "":
+			OS.set_environment("EYE", o_eye)
+		print("ONLOOKER_SCENE %s eye %s" % [onl_env, o_eye])
+		_eye(player, fov)
+		for i in _env_int("ONLOOKER_FRAMES", 30):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
 	# TRAFFIC=bus|merge|pullout: a car changing lanes round a bus at its stop, a car merging from an
 	# on-ramp (from above), a parked car pulling out (TrafficAI.stage_for_shot), framed by a free
 	# camera. The staged traffic moves only when told: TRAFFIC_STEPS="s,s,..." advances it that many

@@ -1,9 +1,50 @@
-# Handoff: Rando Game (written 2026-09-19; section 0000000 is the newest state: fleet wave 2, 2026-10-05)
+# Handoff: Rando Game (written 2026-09-19; section 00000000 is the newest state: fleet wave 3, 2026-10-29)
 
 This is the narrative handoff for whoever picks the project up next, from any Claude Code account
 or as a person. `CLAUDE.md` is the rulebook and `docs/GAME_PLAN.md` is the roadmap plus the
 decisions log; both stay the source of truth. This file is the story: where things stand, how
 the day-to-day work goes, what is fragile, what to do next. Read all three before touching code.
+
+## 00000000. Fleet wave 3 (2026-10-29; read this first)
+
+The owner: "this needs to start looking like GTA 6" and "keep working until I say STOP".
+
+- **`main` = `95bd13f`** (builds 360 / 361): everything of section 0000000 plus `wt/apartments`
+  (HANDOFF 9eu, roadmap #140) and `wt/tower-gondolas` (9ev, #141), each gated green with
+  `SHARDS=3 tests/headless_check.sh` (2,381 and 2,396 checks, 0 failed).
+- **Wave 3 is 23 cloud sessions** (tag `rando-wave3`), each on `wt/<slug>` with stills on
+  `shots/<slug>`, briefed with `fleet/brief`'s BRIEF.md plus wave-3 overrides (base on main
+  95bd13f; a paused branch merges main and finishes; owner's bar "GTA 6"). 21 finish wave 2's
+  paused tasks; two are new: `rock-outcrops` (the mountains read as smooth tan humps from the
+  basin) and `facades-gta` (generated buildings read as boxes in flat window grids; its task text
+  is in its session prompt). Roster (slug, session):
+  - `street-furniture` `session_01Q7NKz19z1PwJ4x56JtVr6K` (resume)
+  - `star-boulevard` `session_01Q7NKyxMv2pxLeD8Qt8g9AU` (resume)
+  - `walk-in-store` `session_01Q7NKywFH9Scd8sAvZgcbQS` (resume)
+  - `garage-drive-in` `session_01Q7NKyzNbm97g9P3AkcWUmc` (resume)
+  - `fashion-district` `session_01Q7NKz1v1f7sh824t5HwbRm` (resume)
+  - `coast-highway` `session_01Q7NKyz5HDr4HtqP2AgmB6q` (resume)
+  - `motorcycles` `session_01Q7NKyxLVDCcxsoPsrgHAHG` (resume)
+  - `lowriders` `session_01Q7NKyxSeHn4jsqpEZ6Natu` (resume)
+  - `car-panic` `session_01Q7NKz1XvdGKKQZezoZxRfM` (resume)
+  - `onlookers` `session_01Q7NKyzBdCsbV2EbZqbqdmL` (resume)
+  - `freeway-incidents` `session_01Q7NKyzx8sjyPQzQkqomtvT` (resume)
+  - `heli-flyable` `session_01Q7NKyydpmWXUujfF322PSE` (resume)
+  - `swimming` `session_01Q7NKyxXuZ2HdyYyfDSj6WT` (resume)
+  - `wingsuit` `session_01Q7NKz1G1uGGNSMorRgr375` (resume)
+  - `prop-destruction` `session_01Q7NKyzREFyCX9xf6BhkxcW` (resume)
+  - `parklets` `session_01Q7NKyxAdsyLRMYEwNPfGtz` (resume)
+  - `backyards` `session_01Q7NKyyrn8VHLuN8kcfPVHa` (resume)
+  - `rain-crowd` `session_01Q7NKz1hc3AB5Vfya419KMG` (resume)
+  - `news-crews` `session_01Q7NKywVfLKD4tXuQ3dVzVb` (resume)
+  - `crowd-lookat` `session_01Q7NKz1LdUALdLyvkqfKcyf` (resume)
+  - `engine-audio` `session_01Q7NKz1FiJ5a8imtWE3QHmz` (resume)
+  - `rock-outcrops` `session_01Q7NKz1dppYF3oKNgiPBcvD` (new)
+  - `facades-gta` `session_01Q7NKyz5XbXuSzP8dsPgX9x` (new)
+- The lead merges finished branches in batches (`tools/fleet/merge_branch.py`), gates each batch,
+  pushes main, and launches the remaining `tasks.tsv` areas as slots free up.
+- 1,000 agents is not possible here: a gate run is ~2.4 GB a shard on a 15 GB box, and the
+  account's usage limit stopped the last fleet at ~50 sessions.
 
 ## 0000000. Fleet wave 2: 100 sessions (2026-10-05, from 09:24 UTC; read this first)
 
@@ -14201,6 +14242,79 @@ streets' glow stands in). The lamps stand where the old ones stood, and on some 
 is beside a utility pole (StreetDetail's), which the old thin post hid better. No real light
 shaped like the cobra's cut-off (still an omni). Shot lamps break as before (debris box), no
 falling pole.
+
+## 9ex. Onlookers: the crowd comes back after the chaos (fleet wave 2, "onlookers")
+
+**What.** Once the panic near a wreck, a blast site or a body is over, people near the camera come
+back and stand round it in a loose ring at a distance: filming it on their phones (held up at eye
+level in front of the face, the screen lit, a white video light on the back after dark), pointing
+at it, a hand over the mouth, arms folded with a shake of the head; one or two call for help on
+the phone (the life library's phone clip). A new shot or blast scatters them (they come back once
+it is quiet again); responders arriving (Emergency's crews and units, police officers and
+cruisers within 38 m) or 70-150 s of quiet send them away one by one.
+
+**How.** `Onlookers` (`scripts/npc/onlookers.gd`), one Node under the tree root made by the first
+walker with life clips (`Onlookers.ensure()` from `Pedestrian._setup_life()`). Every 0.5 s it:
+- looks for scenes within 80 m of the player (true world positions, merged within 16 m):
+  CarDamage's `_burning` / `_wrecks`, `Explosion.blast_count`, fresh Ragdolls in PhysicsBudget's
+  debris (not responders'). A watched body's `debris_life` is raised to 75 s from when it was seen
+  (`BODY_HOLD`): bodies are debris for 12 s, less than a panic lasts, and the crowd came back to
+  nothing.
+- calls a scene quiet once `Pedestrian.alarm()`'s own record (`_last_alarm_ms` / `_at`) has had
+  nothing within 60 m for 3.5 s;
+- recruits up to two a scan per quiet scene (5-12 a scene by hash, 28 in all): walkers that are
+  `_life_free()` (or only standing about) within 55 m, nearest first. Each gets a spot on ITS OWN
+  pavement ring in the scene's band (body 4.2-10 m, wreck 6.5-13, burning 9.5-17, blast 7-15) kept
+  1.3 m from the others, walks there with the ordinary ring walk (`CrowdLife.Act.WATCH`, stage
+  GOING), turns to face the scene and plays its role.
+
+Roles (`Onlookers.Role`, by a hash of scene and person): CALL first (1-2 a scene, 14-32 s, then
+film or stare), FILM 42 %, POINT 16 %, COVER 18 %, GAWK the rest; a bag carrier never films and
+uses the other hand. The arm poses are a two-bone solve in skeleton space laid over the life clips
+(`Onlookers._arm()`, the same solve as the sitters' legs), the hand turned to a grip frame
+(`_hand_for()`: CrowdLife's grip basis is mirrored on one hand, so the target takes its
+handedness), blended in and out over about half a second. FILM puts the wrist so the phone sits
+33 cm ahead of the eyes on the line to the scene, the palm and screen to the face; half the
+filmers with a free left hand hold it in both. Beats: the phone comes down to look at it now and
+then, the pointing arm comes and goes with the talk clip, the hand goes to the mouth and back with
+a head shake, gawkers nod and shake their heads. The filming phone is its own mesh
+(`film_phone_mesh()`: brighter screen, camera bump, lens, LED) on CrowdLife's prop material;
+`crowd_prop.gdshader` glow 3 is the LED, lit by `lamp_factor`.
+
+Pedestrian hooks (one line each): `var watch`, `Onlookers.walk()` in `_walk` after the errands,
+`Onlookers.pose()` in `_physics_process` after the errands' pose, `Onlookers.release()` at the top
+of `_end_act()` (so a fright, leaving life range, being knocked or freed all release), `ensure()`
+in `_setup_life()`. `CrowdLife.Act` gains WATCH (appended).
+
+**Switches and tools.** `ONLOOKERS=0` turns it off (the A/B). `ONLOOKERS_DEBUG=1` prints scenes,
+joins and closes. Stills: `ONLOOKER_SCENE=body|wreck|blast` on `tools/glshot/still_shot.gd`
+(`tools/onlookers/stage.gd`: a scene on the pavement of the block ahead, 16 walkers added, 11 put
+in place at once; `ONLOOKER_EYE=behind|front`, `ONLOOKER_SHOTS=1` every view and the night, `ONLOOKER_FRAMES`). Checks:
+`tests/onlookers_checks.gd` (a knocked walker opens a scene, nobody watches while panicking, they
+come back into the band facing it and spaced, more than one role, a caller on the phone clip, a
+filmer's phone at eye level with the screen to the eyes, a new shot scatters them, they return,
+a responder closes the scene).
+
+**A bug found on the way (golf).** `scripts/npc/golfer.gd` set `life_enabled = false` in its
+setup. That is Pedestrian's STATIC switch, so the first golfer to spawn turned crowd life off for
+the whole city (every walker after it stopped talking, sitting, carrying and, now, gathering).
+The onlookers checks caught it when the shard dealt them after golf's. A golfer never lives
+anyway (`_lives()` is false for its script), so the line is gone; golf's checks still pass.
+
+**Frame cost** (still_shot.gd's GEO, opengl3 + Xvfb 1280x720, the default spawn's staged body
+scene from the road, ONLOOKERS=0 against on): 6.108 M -> 6.132 M triangles (+0.4 %), 2,648 ->
+2,675 draws (each held phone is one small draw, at most 28 onlookers); CPU: one scan every 0.5 s
+(the debris and pedestrian groups) and an arm solve per posed onlooker per tick.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the video light's bloom and the screen
+glow through AgX. The ring is each walker's own pavement ring, so round a scene in the road the
+crowd stands along both kerbs rather than in a closed circle (nobody steps into traffic to look).
+No crowd-lookat integration beyond the head look crowd life already does. Only plain walkers
+(and ReplicaWalkers) come; beach-goers, park-goers and the market's shoppers do not.
+
+**Wave 3.** Merged with origin/main 95bd13f (the conflicts were only lists both sides appended to);
+`SHARDS=3 tests/headless_check.sh` green at 2,416 checks, peak RSS 2,494 MB a shard. Fresh stills
+20-24 on shots/onlookers show the staged body scene unchanged on the merged base.
 ## 9eu. Apartment buildings: walk-ups, bungalow courts, Spanish courts and podium blocks, 2026-10-05 (agent branch `wt/apartments`; VISUAL_ROADMAP #140)
 
 G2's first per-style kit: Los Angeles stucco apartments in MIDTOWN and the inner SUBURBS. Before,
@@ -14378,6 +14492,103 @@ dedicated wiping clip, no head turn. No sound of the hoists. The LOD ring shows 
 cradle box at its old depth on infill towers. Workers cannot be knocked off (on purpose); shooting
 one only swings the cradle, with no blood.
 
+## 9ew. Street furniture: LA's hydrants, meters, pay stations, ad benches, bins, racks and planters, 2026-10-05 (agent branch `wt/street-furniture`; VISUAL_ROADMAP "?")
+
+**What.** The pavement furniture was Poly Haven scans (a red generic hydrant, a wooden planter
+box, a corrugated can), a box-and-cylinder meter and a grey hoop: a generic city. Now
+`StreetFurniture` (`scripts/world/street_furniture.gd`) builds Los Angeles's own pieces in code, at
+real size, on one shader (`shaders/street_furniture.gdshader`):
+
+- **Fire hydrant**: the squat LA wet barrel - bolted flange, a short swelled barrel, the band and
+  the bonnet with its pentagon operating nut, a 4" pumper outlet and two 2.5" hose outlets (caps
+  with grip lugs and nuts, chains to eyes on the barrel, stem bosses), a stencilled number. Yellow
+  (three shades), silver or a faded cream; the aged roll (the old `aged` flag) chalks the paint and
+  chips it to dark iron with rust round the chips and runs below. It turns its pumper to the
+  street (the rolled spin is still drawn, so nothing after it moves).
+- **Parking meter**: a single-space smart meter - black post on a bolted plate, the grey head with
+  a domed top, display, keypad, card and coin slots, a "pay" label, the solar cell, the back door
+  and its lock. **Pay station** (`PAY_STATION_SHARE` 18 % of metered spaces, a hash; the same
+  `meter` prop): cabinet on a concrete plinth, sloped head, lit screen, a 12-key pad, card reader,
+  coin and receipt slots, the instruction panel, a blue "P" plate and the solar panel on its mast.
+- **Bus bench with a painted ad back**, beside a third of the bus shelters (`STOP_BENCH_SHARE`, a
+  hash of seed + stop; `add_stop_bench()`, called at the end of `StreetDetail._bus_shelter()`):
+  cast concrete ends (an L in profile), a rounded seat slab and a back rest leaning 15 degrees,
+  bolted; the ad painted on both faces from `assets/textures/street_furniture/bench_ads.jpg`
+  (`tools/make_bench_ads.py`: eight INVENTED advertisers - two realtors, injury lawyers, abogados,
+  bail bonds, a dentist, a taco stand, the bench company's own "your ad here" - with 555 numbers),
+  sun-faded, peeling and grimy with wear. It stands `STOP_BENCH_ALONG` (4.2 m) along the kerb from
+  the shelter, away from the stop's sign, as far in as the shelter's own bench (behind
+  StreetErrands' queue at the kerb), facing the road. It is only PLANNED there and made a prop at
+  the finish (`StreetFurniture.commit()`, one line in `CityChunk._finish_build()`), skipped where
+  anything the whole build laid stands (props, trees, camp pieces, vendors, kerb rows, cans,
+  cars): a dozen passes after StreetDetail (Encampment's kerb row, StreetClutter, StreetWear,
+  Murals, the signs) read `prop_records` to keep clear, and a bench recorded at the shelter
+  pushed a skid-row cart, a bike and the bags off the kerb in the first before/after still. A prop
+  with an id of its own (`ad_bench_<n>`, `_own_prop()`: CityChunk's record without its counter,
+  so no other id moves) and two CrowdLife seats. **The shelters are untouched** (Billboards'
+  lightbox and StreetErrands' queue use them).
+- **Downtown bin**: perforated powder-coated steel you see the black liner through (holes cut by
+  the shader where they are bigger than a pixel, averaged into a darker sheet past that), four
+  straps, the rim with the bag folded over it, a rain bonnet on four posts. It is the TrashCan's
+  mesh in DOWNTOWN, MIDTOWN and CAMPUS (`bin_style()`; still the same physics prop, rolled the
+  same, with main's draw distance).
+- **Bike rack**: the galvanised inverted U (spangle, white rust with age) on bolted flanges.
+- **Kerb planter**: precast concrete, a rim and a reveal line, soil, and one of five plantings
+  built from ClimbingPlants' accent builders (agave with aloes, three aloes, lavender, lantana,
+  red-hot poker with lavender; `planter_plant()`, ClimbingPlants' shader and atlas).
+
+**Not ours, by the lead's review:** the residential carts on collection day are KerbBins'
+(`scripts/world/kerb_bins.gd`, with a lid the garbage arm tips); this branch built its own and
+dropped them. A first version also swapped half the shelters for a bench-only stop; dropped too.
+
+**How it hangs together.** Every piece is ONE mesh (positions, normals, COLOR = rgb paint + kind in
+the alpha, UV in metres or 0..1 for a label, the ad or a screen, UV2.x the label id) through
+`ImporterMesh.generate_lods()` and `PropFactory._build_shadow_proxy()`, so a batch per kind a chunk
+draws distant pieces coarse and casts from a lighter twin. Per instance, INSTANCE_CUSTOM is the
+paint (sRGB) and the wear (the bench: the ad in .r). The hooks are where the old pieces were made:
+`CityChunk`'s hydrant and planter lines and the TrashCan's style, `StreetDetail`'s racks, meters
+and the end of the bus shelter; the meshes are built on the loading screen (`warm()`).
+`STREET_FURNITURE=0` in the environment is the A/B (the old meshes, no pay stations, no stop
+benches).
+
+**Trap (cost an hour).** The kind rides in COLOR.a and is compared exactly in the fragment; an
+interpolated 8.0 is 7.9999995 at some pixels of the Compatibility renderer, those fell through
+every branch and drew white specks all over the plastic and the bin (it looked like shadow acne).
+Round the kind in the fragment (`floor(v_kind + 0.5)`).
+
+**Look and measure.** `tools/glshot/furniture_shot.gd` lines every piece up on a pavement in
+seconds (`OLD=1` the old meshes in the same places, `NIGHT=1`, `WEAR`, `WET`, `AD`, `PLANTS=1` the
+five plantings, `DEBUG=1 CULL=0` paints front faces by normal and back faces red).
+`tools/street_furniture/probe.gd` lists the pieces of the FULL chunks round a point with an EYE.
+Checks: `tests/street_furniture_checks.gd` (`tools/street_furniture/checks_only.tscn` runs them
+alone in a minute): the meshes (one surface on the shader, budget, real height, shadow twins), the
+shader's kinds, the atlas, the shares, the hydrant facing the street, the bin by district, every
+bus stop keeping its shelter, the stop benches by a shelter with their own ids and gone once
+smashed, and a metered downtown block built the same with the furniture off (props by id, kind
+and place, buildings, cans, cars, EncampmentItems, and the camp / kerb / vendor batches' counts).
+
+**Frame cost** (`tools/geo_count.gd`, opengl3, 800x600, `--spawn=1918,795.5,97,-6,2 --hour=12.5`,
+the downtown pavement at block 20,4, `STREET_FURNITURE=0` then `1`): 4,471,498 -> 4,401,483
+triangles (-1.6 %: the Poly Haven hydrant and can scans were heavier than the code pieces with
+their LODs), 3,086 -> 3,084 draws, 3,611 -> 3,609 objects. One batch per kind a chunk, like the
+pieces they replace; the stop bench is one more batch where a chunk has one.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the galvanising, the paint's sheen and the
+ad's colours want a Mac look. Break effects are prop-destruction's; these props still break into
+the chunk's generic debris boxes. The meters, hydrants and racks keep their old placements, so
+one can stand close to one of StreetLamps' or StreetSignKit's poles where the old rolls put it
+(nothing was moved to keep every roll and id). The plaza and park benches keep the Poly Haven
+kit bench and the shelters their own bench; suburban trash cans keep the corrugated scan. The
+bench ad art is eight flat designs, no photography (no real people).
+
+**Wave 3 (2026-10-29).** Merged origin/main (95bd13f: apartments, tower gondolas); only the docs and
+the smoke test's hook lines conflicted. The painted pieces read as fresh toys at the wear they
+roll, so: `sf_worn_paint()` shows an OLDER COAT (silver, cream or oxide red, by `v_seed`) in
+mid-scale patches (a 24 / 6 per-metre fbm, a threshold 0.17 + 0.16 x wear under the chips', lower
+on edges) before the deep chips reach the iron; dust settles on faces toward the sky
+(`v_lnormal.y`, by wear, gone in the wet); and a fresh hydrant rolls wear 0.16-0.4 (was 0-0.12;
+the aged roll unchanged). Stills 35-38 on shots/street-furniture (`furniture_shot.gd WEAR=0.28` /
+`0.3`, the before is the stashed shader). Not seen on Forward+.
 
 ## 9d?. The coast highway under the bluffs, 2026-10-05 (fleet wave 2, agent branch `wt/coast-highway`; VISUAL_ROADMAP "?")
 
