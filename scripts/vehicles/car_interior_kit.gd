@@ -69,6 +69,14 @@ static func request(type: int, data: Dictionary, doors: Array) -> Dictionary:
 	return _cache[key]
 
 
+## Waits for every build still on a worker thread and forgets it (CarInteriors leaving the tree:
+## a task never waited for is still running when the engine shuts down).
+static func drain() -> void:
+	for key: Variant in _tasks.keys():
+		WorkerThreadPool.wait_for_task_completion((_tasks[key] as Dictionary).task)
+	_tasks.clear()
+
+
 ## {"cabin": ArrayMesh, "wheel": ArrayMesh, "wheel_xf": Transform3D, "cards": [ArrayMesh per door]}
 ## for body `type`, at once; `doors` CarDoorSplit's doors (or stand-ins).
 static func build(type: int, data: Dictionary, doors: Array) -> Dictionary:

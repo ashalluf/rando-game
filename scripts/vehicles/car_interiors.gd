@@ -147,6 +147,12 @@ func deactivate(c: Vehicle) -> void:
 		(rig as CarInterior).remove()
 
 
+func _exit_tree() -> void:
+	# Nothing of ours may still be running on a worker thread when the engine shuts down.
+	CarDoorSplit.drain()
+	CarInteriorKit.drain()
+
+
 static func _near_mesh(c: Vehicle) -> Mesh:
 	# The headless dummy renderer keeps no mesh data to split.
 	if DisplayServer.get_name() == "headless":

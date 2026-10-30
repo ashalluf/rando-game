@@ -156,7 +156,9 @@ static func step(budget_usec: int) -> bool:
 				job.task = WorkerThreadPool.add_task(job.crunch, false, "CarDoorSplit")
 			if not job.crunched:
 				continue
-			WorkerThreadPool.wait_for_task_completion(job.task)
+			if not job.waited:
+				WorkerThreadPool.wait_for_task_completion(job.task)
+				job.waited = true
 		while not job.finished and Time.get_ticks_usec() - t0 < budget_usec:
 			job.advance()
 		if job.finished:
@@ -165,6 +167,16 @@ static func step(budget_usec: int) -> bool:
 		if Time.get_ticks_usec() - t0 >= budget_usec:
 			break
 	return not _jobs.is_empty()
+
+
+## Waits for every split still on a worker thread and drops the unfinished jobs (see
+## CarInteriorKit.drain()).
+static func drain() -> void:
+	for type: int in _jobs.keys():
+		var job: Job = _jobs[type]
+		if job.task >= 0 and not job.waited:
+			WorkerThreadPool.wait_for_task_completion(job.task)
+	_jobs.clear()
 
 
 ## Runs `type`'s job to the end at once (tools and tests).
@@ -190,6 +202,7 @@ class Job:
 	var finished := false
 	var crunched := false
 	var task := -1
+	var waited := false
 	var out := {}
 	var _stage := 0
 	var _surfs: Array = []
