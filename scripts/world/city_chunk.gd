@@ -2579,6 +2579,12 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 			steps.append(func() -> void: StreetVendors.build_block(self, block))
 			for i in StreetVendors.MAX_PER_BLOCK:
 				steps.append(func() -> void: StreetVendors.spawn_vendor(self, i))
+		# Street performers (Buskers): hash-seeded by block, face and hour, after the vendors' carts
+		# they keep clear of; the block's rng is untouched.
+		if Buskers.wanted(self, block):
+			steps.append(func() -> void: Buskers.build_block(self, block))
+			for i in Buskers.MAX_PEOPLE:
+				steps.append(func() -> void: Buskers.spawn_person(self, i))
 		# Road works in the kerb lane and the building sites' crews (Construction; hash-seeded),
 		# before the parked cars, which keep out of a closure.
 		if Construction.wanted(self, block):
