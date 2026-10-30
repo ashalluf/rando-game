@@ -14486,10 +14486,16 @@ block, the kit's size and collision, the FULL / LOD chunks, cleared planting, fa
 switch).
 
 **Frame cost** (still_shot GEO at the bookmarks above, opengl3): a FULL bridge is one mesh draw
-plus its shadow, 4-9k triangles; see the summary of the branch for the before / after numbers.
+plus its shadow, 4-9k triangles. The seven stills' frames, FOOTBRIDGES=0 -> on (triangles, draws):
+deck noon 2.73 M / 858 -> 2.77 M / 872; under the 110 by the tower 2.97 M / 1,635 -> 3.16 M / 1,613
+(+6 %: the tower and span fill the frame); boulevard truss 2.27 -> 2.28 M; stair 3.60 -> 3.62 M;
+girder 4.76 -> 4.76 M; deck at night 3.26 -> 3.28 M; boulevard at night 2.21 -> 2.21 M; draws
+within +-1 % everywhere (planting collapsed under the bridges pays some back). Gate:
+`SHARDS=3 tests/headless_check.sh` 2,410 checks, 0 failed, peak RSS 2.49 GB a shard.
 
 **Not done.** Pedestrians do not use the bridges (the walkers' rings go through the stairs on
 the pavement; nobody climbs them); no ramps (stairs only - ADA ramps would need room the
 pavement does not have); no elevator towers; the freeway towers' cage roof is a flat plate; the
-far box is solid (no cage silhouette past the LOD ring); graffiti on the walkway itself and
+far box is solid (no cage silhouette past the LOD ring); the crown lamps face down and read
+faintly from the freeway at night; graffiti on the walkway itself and
 throw-ups on the girders' undersides are not drawn. Only seen on opengl3, not on Forward+.
