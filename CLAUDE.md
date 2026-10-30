@@ -1956,6 +1956,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the mouse wheel tune while driving; the `Radio` bus (car speaker) sends to Game. The card is
   `RadioHud` (DebugHud). `CAR_RADIO=0` the A/B; stills `tools/radio/radio_shot.gd`; checks
   `tests/car_radio_checks.gd`.
+- The chase camera (2026-10-30, docs/HANDOFF.md "The chase camera"): `DriveCam`
+  (`scripts/player/drive_cam.gd`, made by the CameraRig) drives the rig while the player drives a
+  ground Vehicle (not Aircraft / FlyableHeli): follows the travel direction on an exact critically
+  damped spring (`follow_*`, lag capped `max_corner_lag_deg`), pitch / distance / FOV with speed
+  (`pitch_*_deg`, `speed_pullback`, `speed_fov`), road shake as sines of the clock faded above
+  `max_buzz_share` of the frame rate, kicks (bump / landing / crash) on a sub-stepped spring, free
+  look that eases back (`free_look_hold`, `recenter_seconds`), `look_behind` (C / pad X), a
+  driving blur through `blur_terms()` in CameraPost, a sphere on the spring arm. Settings "Driving
+  camera shake". `DRIVE_CAM=0` the A/B; strips `tools/driving_camera/drive_strip.gd`
+  (`--fixed-fps 60`); checks `tests/driving_camera_checks.gd`.
 - Driving effects (2026-10-05, "the feel of driving fast and badly"; HANDOFF "Driving effects"):
   `DrivingFX` (`scripts/vehicles/driving_fx.gd`), ONE node per level, made by the first Vehicle
   (`DrivingFX.ensure()`, the one hook in `Vehicle._ready`) as a child of the level root (the
