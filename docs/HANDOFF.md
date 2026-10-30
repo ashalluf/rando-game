@@ -19517,8 +19517,9 @@ and maps stay - the asset A/B is `git show` of the old hero.glb). Build knobs in
 the region map's spread and cartilage, the transmittance held down, strand brows on the hair
 shader with their atlas, 54 bones). Stills on `shots/hero-face-2` (hero_shot.gd `CAM_AT=face`,
 `YAW=25`, `CAM_DIST` 0.5 / 1.5 / 4, `LIGHT` day / golden / night, Forward+ on lavapipe and
-opengl3). Cost: the hero is ~137k triangles (was ~133k: +13k hair, +4k brows, a little less
-elsewhere), the same draws.
+opengl3). Cost (hero_shot.gd's GEO line, the hero alone at 0.5 m): 150,233 -> 166,102 triangles
+(+12.6k hair cards, +4k brow strands), 31 draws either way. Gate: `SHARDS=3`, 3,708 checks, 0
+failed, peak RSS 3,149 MB (shard 1).
 
 **Not done**: the tracksuit and body below the neck are untouched; no face bones (still no mouth
 or brow motion); the skin's albedo is still MakeHuman's 2K body atlas (about 0.5 mm a texel on the
