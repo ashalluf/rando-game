@@ -3625,3 +3625,8 @@ none of either.
   regional pores and roughness), brows as strand cards and twice the hair cards. The contract
   (54 bones, clips, material names, hero_x_* maps, eye centres) is held so nothing downstream
   moves. HERO_FACE_2=0 is the shader A/B.
+- 2026-10-30 (cinematic review, wave 3): the look is tuned as ONE picture against the ten reference
+  cameras, by numbers: richer saturation and split toning by day, a broad shadow "depth" term in
+  the per-hour grade instead of a darker frame, day exposure 1.18, night exposure 2.3 with night
+  bloom, the night fill and haze cool but not navy, thinner clear haze. tests/cinematic_review_checks.gd
+  pins the ranges.
