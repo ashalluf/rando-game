@@ -1,5 +1,6 @@
 shader_type spatial;
 render_mode cull_disabled, depth_prepass_alpha;
+#include "res://shaders/heli_downwash.gdshaderinc"
 
 // Leaf cards for the downloaded trees, bushes, flowers and grass clumps. Only the leaf surfaces
 // use this; the trunk and branches stay on their own opaque material, which keeps them out of the
@@ -227,6 +228,9 @@ void vertex() {
 		float lean = h * h * branch_bend * 3.0 * length(wind_lean) * (0.75 + 0.25 * sin(TIME * 0.7 + phase));
 		VERTEX.xz += normalize(lean_dir.xz + vec2(1e-6)) * lean;
 	}
+
+	// The rotor wash of a helicopter low overhead (heli_downwash.gdshaderinc).
+	VERTEX += heli_wash_offset(MODEL_MATRIX, h, radial, around, branch_bend * 8.0, TIME, phase);
 
 	// 2. Leaf flutter. Quick, tiny, and keyed to how far the vertex hangs off the trunk axis, so
 	//    leaf tips shiver while the branch carrying them is still halfway through its swing.
