@@ -2571,6 +2571,9 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 	# The farmers' market on this chunk's street (FarmersMarketBuild; hash-seeded, by the hour and
 	# the day; the block's rng untouched). Before the walkers, so its people get the crowd's room.
 	steps.append_array(FarmersMarketBuild.steps(self, block))
+	# A premiere's searchlight beams from an LOD chunk (NightLife; the FULL build is below).
+	if level != Level.FULL:
+		steps.append_array(NightLife.steps(self, block))
 	if level == Level.FULL:
 		steps.append(_build_sidewalk_props.bind(rect, params, rng, district))
 		# Midtown's deco boulevard: mature palms on its kerbs, the night pools (DecoBoulevard), after
@@ -2614,6 +2617,9 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 			steps.append(func() -> void: Parklets.build_block(self, block))
 			for i in Parklets.MAX_PEOPLE:
 				steps.append(func() -> void: Parklets.spawn_person(self, i))
+		# Night life (NightLife): club and bar lines, bouncers, a premiere's carpet and searchlights.
+		# Hash-seeded by shop and night; reads the shop fronts, takes no kerb, no block rng.
+		steps.append_array(NightLife.steps(self, block))
 		# The fashion district's goods on the pavement and their sellers (FashionDistrict; hash-seeded).
 		if FashionDistrict.wanted(self, block):
 			steps.append_array(FashionDistrict.steps(self, block))

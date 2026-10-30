@@ -2405,6 +2405,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Freeway incidents (tests/freeway_incidents_checks.gd): the schedule, a stall with its patrol
 	# car and tow, debris that traffic changes lanes round, a slowdown, the message signs.
 	await load("res://tests/freeway_incidents_checks.gd").new().run(self, city)
+	# Night life (tests/nightlife_checks.gd): club and bar lines, the bouncer, the door letting the
+	# head in, a taxi double-parked for a fare, a premiere's carpet and searchlights, nothing moved.
+	await load("res://tests/nightlife_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

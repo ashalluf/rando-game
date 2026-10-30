@@ -263,6 +263,8 @@ func _warm_shaders() -> void:
 	effects.append_array(StreetVendors.warm())
 	# The parklets' decks, bistro sets and umbrellas (Parklets), built in code.
 	effects.append_array(Parklets.warm())
+	# The night life's entrances, ropes and searchlight carts (NightLife), built in code.
+	effects.append_array(NightLife.warm())
 	effects.append_array(BoulevardSigns.warm())
 	FarmersMarketKit.warm()
 	effects.append(FarmersMarketKit.material())
