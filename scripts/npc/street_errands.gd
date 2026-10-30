@@ -242,7 +242,7 @@ static func release(p: Pedestrian) -> void:
 			if taken[k] == p:
 				taken[k] = null
 	var car: Variant = p.errand.get("car")
-	if car is Vehicle and is_instance_valid(car) and car.get_node_or_null("ErrandCar") == null:
+	if is_instance_valid(car) and car is Vehicle and car.get_node_or_null("ErrandCar") == null:
 		(car as Vehicle).remove_meta("errand")
 	_set_truck(p, -1)
 	p.errand = {}
