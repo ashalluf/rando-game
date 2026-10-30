@@ -3462,6 +3462,13 @@ already mapped so milestone 2 is script-only.
   clock (nothing simulated); they and the spectators are baked figures that wake into live people.
   SKATE_PARK=0 keeps the boxes.
 
+- **2026-10-30 Car close-up detail is geometry for plates and badges, shader for dirt.** Plates
+  and badges are raised geometry (one small mesh per car, built only when the car first comes
+  within 70 m, on two shared materials) because embossed characters and chrome need real relief at
+  2 m; grime, mud, scratches and brake dust ride uniforms on materials that already exist per car
+  (the paint) or are shared in a few levels (the wheels), so no car gains a material. Plate format
+  and county are invented. CAR_DETAIL=0 is the A/B.
+
 ## Correction: what build 135 (0ce833f) actually contained
 
 That commit's subject says "denser grass, real palm fronds, finer ground". It also shipped a

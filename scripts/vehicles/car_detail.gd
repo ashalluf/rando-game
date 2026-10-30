@@ -563,9 +563,9 @@ static func _plate_static(tag: int) -> Arrays:
 	for sx: float in [-1.0, 1.0]:
 		_slab(a, o + ex * (sx * 0.089) + ey * (PLATE_H * 0.5 - 0.022), ex, ey, ez, 0.0055, 0.0055, PLATE_T, PLATE_T + 0.0025, _col(Color(0.72, 0.72, 0.74), K_CHROME), 0.0)
 	# The banner in red over the characters and the tag line in blue under them, printed.
-	_ribbons(a, _text_strokes(PLATE_BANNER, 0.017, 0.0032, 0.0, PLATE_H * 0.5 - 0.022, 0.13), 0.0032,
+	_ribbons(a, _text_strokes(PLATE_BANNER, 0.017, 0.0032, 0.0, PLATE_H * 0.5 - 0.022, 0.15), 0.0032,
 			o, ex, ey, ez, PLATE_T, 0.0002, _col(Color(0.62, 0.07, 0.08), K_RED), 0.0, false)
-	_ribbons(a, _text_strokes(PLATE_FOOT, 0.011, 0.0022, 0.0, -PLATE_H * 0.5 + 0.014, 0.16), 0.0022,
+	_ribbons(a, _text_strokes(PLATE_FOOT, 0.011, 0.0022, 0.0, -PLATE_H * 0.5 + 0.014, 0.20), 0.0022,
 			o, ex, ey, ez, PLATE_T, 0.0002, _col(Color(0.08, 0.18, 0.50), K_BLUE), 0.0, false)
 	_glyph_cache[key] = a
 	return a

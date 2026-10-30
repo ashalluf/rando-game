@@ -532,12 +532,12 @@ void fragment() {
 		// Fine spray dots above the band and round the arches (under a pixel: their average).
 		vec3 dc = floor(qm * 160.0);
 		float dpx = length(fwidth(qm * 160.0));
-		float dots = mix(step(0.80, hash13(dc)), 0.2, smoothstep(0.6, 1.4, dpx));
+		float dots = mix(step(0.88, hash13(dc)), 0.12, smoothstep(0.6, 1.4, dpx));
 		dots *= max(1.0 - smoothstep(edge_h, edge_h + 0.28, h), splash) * grime;
 		// The tail collects the dust its own wake drops: the rear face, more toward the bottom.
 		float tail_u = grime_frame.z > 0.0 ? body_uv.x : 1.0 - body_uv.x;
-		float tail = smoothstep(0.90, 0.985, tail_u) * (1.0 - facing.x) * (1.0 - facing.y) * (0.55 + 0.45 * (1.0 - smoothstep(0.3, 1.3, h)));
-		float dirt = max(max(low * (0.55 + 0.45 * n2), arch * (0.6 + 0.4 * n3)), tail * (0.5 + 0.5 * n1));
+		float tail = smoothstep(0.90, 0.985, tail_u) * (1.0 - facing.x) * (1.0 - facing.y) * (1.0 - smoothstep(0.25, 1.0, h + (n1 - 0.5) * 0.3));
+		float dirt = max(max(low * (0.55 + 0.45 * n2), arch * (0.6 + 0.4 * n3)), tail * (0.25 + 0.4 * n1) * grime);
 		dirt = clamp(max(dirt * smoothstep(0.0, 0.35, grime), dots * 0.7) * side, 0.0, 0.95);
 		vec3 dust_c = grime_col(mix(vec3(0.50, 0.46, 0.40), vec3(0.62, 0.57, 0.49), n2));
 		// A wet road darkens the film to grey-brown sludge.
