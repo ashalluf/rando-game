@@ -65,6 +65,8 @@ extends SceneTree
 ## row (tools/glshot/aftermath_stage.gd: AF_FIND, AF_TIME, AF_EYE_DIST, AF_FAR, ...).
 ## PROPS=hydrant,lamp,bus_stop,mailbox,meter,newsbox breaks street props round the nearest of the
 ## first kind and frames them (tools/glshot/prop_break_city_stage.gd: PB_FIND, PB_TIME, PB_EYE_*).
+## VALET=drop|queue|back stages the valet stand nearest the camera at work and frames it
+## (tools/valets/stage.gd: VALET_T, VALET_VIEW=kerb|across, VALET_PICK).
 ## SERVICE=garbage|sweeper|tow|ice_cream|delivery stages a service vehicle at work ahead of the
 ## camera and moves a free camera to frame it (ServiceFleet.stage_for_shot; SERVICE_EYE=0 keeps
 ## the camera, SERVICE_LIFT 0..1 how far up the garbage truck's arm has its cart).
@@ -653,6 +655,18 @@ func _initialize() -> void:
 		print("ERRAND %s eye %s" % [errand_env, er_eye])
 		_eye(player, fov)
 		for i in _env_int("ERRAND_FRAMES", 12):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
+	# VALET=drop|queue|back: the valet stand nearest the camera at work, framed by a free camera
+	# (tools/valets/stage.gd: VALET_T, VALET_VIEW, VALET_PICK; VALETS=0 is the A/B).
+	var valet_env := OS.get_environment("VALET")
+	if valet_env != "" and current_scene:
+		var va_eye: String = await load("res://tools/valets/stage.gd").new().stage(current_scene, valet_env, get_root().get_camera_3d())
+		if va_eye != "":
+			OS.set_environment("EYE", va_eye)
+		print("VALET %s eye %s" % [valet_env, va_eye])
+		_eye(player, fov)
+		for i in _env_int("VALET_FRAMES", 6):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
 	# RAIN_STAGE=<level>: the crowd as the rain leaves it (tools/rain_crowd/stage.gd: umbrellas,

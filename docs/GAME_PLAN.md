@@ -1774,6 +1774,13 @@ already mapped so milestone 2 is script-only.
   parked cars skip the stretch after their rolls. Diners sit on the crowd's life clips by the hour
   the chunk is built at; a waiter walks between the door and the tables. FULL chunks only.
   docs/HANDOFF.md "Outdoor dining parklets"; CLAUDE.md "Parklets".
+- **2026-10-30 Hotels and busy restaurants run valet stands with TrafficManager's own cars.**
+  A podium, key box, sign and umbrella at the kerb before a hotel lobby or restaurant (hashes of
+  the building / shop / block), valets in uniform, cars called in from the street traffic or
+  placed from its pool upstream, driven to the drop-off by TrafficManager as a stop (hazards on,
+  queueing behind each other), driven off as ordinary traffic and brought back later. On the
+  block's -x / -z faces (the neighbour chunk's parking lane) they double-park rather than reach
+  into another chunk's parked cars. docs/HANDOFF.md "Valet stands"; CLAUDE.md "Valet stands".
 - **2026-10-05 The player flies helicopters (an arcade model, not a simulator).** The air
   traffic's model on a real body (`FlyableHeli`, a wheel-less Vehicle): jump / boost the
   collective with an altitude hold hands off, the move axes the cyclic (it goes the way it leans,
