@@ -13,6 +13,11 @@ renderer, not the Mac's Forward+), the 110 by downtown, route 3 t 1904, forced w
 - `07_after_cms_stalled_vehicle_ahead_1400.jpg` - a changeable message sign on a gantry: STALLED VEHICLE / RIGHT SHOULDER / AHEAD.
 - `08_after_cms_move_over_night_2100.jpg` - the same sign's second page at 21:00.
 - `09_after_stall_tow_gone_1400.jpg` - after: the scene cleared, the curled tread strips on the shoulder (they were two boxes).
+- `10_after_stall_road_flares_behind_patrol_2200.jpg` - wave 3: the patrol officer's road flares, a taper of burning fusees on the shoulder behind the patrol car (red glow, pool, smoke), 22:00. EYE `1951.0,11.5,222.0,167.0,-4.0`, `FW_INCIDENT_T=80`.
+- `11_after_stall_road_flares_dusk_2036.jpg` - the same at 20:36.
+- `12_after_stall_road_flares_day_1400.jpg` - the same by day (the glow is dimmer by day, as a real flare).
+- `13_after_stall_patrol_close_wave3_merge_1400.jpg` / `14_after_stall_patrol_close_night_2200.jpg` - the stall after the wave-3 merge of main: patrol car, driver, stalled car; by day and at night (the flares are behind this camera).
+- (10-12 were shot before the glow was made a little larger and brighter, `size` 0.42 and the halo x0.7.)
 - `00_before_*` - the same three views with FREEWAY_INCIDENTS=0 (the second guide board where the CMS hangs).
 
 Frame cost (still_shot GEO, 1280x720, traffic differs run to run): stall view 5.34 M tris / 2,961 draws before, 5.92 M / 3,105 with the stall (three vehicles and the driver); debris view 5.50 M / 2,694 -> 5.28 M / 2,707; CMS view 3.64 M / 1,247 -> 3.66 M / 1,260.
