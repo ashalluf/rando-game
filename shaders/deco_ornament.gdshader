@@ -193,7 +193,7 @@ void fragment() {
 		grad += cush * 0.9 * fade;
 		float ripple = vnoise(uv * 38.0 + cell * 3.1);
 		vec3 glassc = mix(vec3(0.62, 0.70, 0.70), vec3(0.80, 0.84, 0.82), ripple * 0.6 + 0.2);
-		vec3 sky = disp(sky_tint.rgb);
+		vec3 sky = sky_tint.rgb;
 		glassc = mix(glassc, sky * 0.9 + 0.1, 0.25);
 		col = mix(glassc, vec3(0.55, 0.55, 0.53), m);
 		rough = mix(0.12, 0.85, m);

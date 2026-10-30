@@ -3461,6 +3461,18 @@ already mapped so milestone 2 is script-only.
   worked out once against the same surface function the concrete is built from and played from a
   clock (nothing simulated); they and the spectators are baked figures that wake into live people.
   SKATE_PARK=0 keeps the boxes.
+- **2026-10-30 The third wave of car bodies is derived, not drawn from scratch.** The EV hatch,
+  luxury sedan, compact SUV, work truck and coupe (tools/make_cars_3.py) are the older lofted
+  specs moved by station maps (cab-forward, a long bonnet, a cut overhang plus a uniform scale,
+  a lowered glasshouse) with their own faces, tails and parts, because the loft is fussy and a
+  derived one is known to build; their silhouettes still differ where a street reads them. Their
+  shares (165 per thousand) come out of the END of six older ranges, the sedan's, pickup's,
+  van's, sports car's, crossover's and the hatchback's, and `CARS_3=0` hands each slice back.
+
+- **2026-10-30 Forward+ review of the wave-3 features (fwd-review-d, HANDOFF "Forward+ review d").**
+  Decisions: anything the sky draws after the Forward+ cloud volume's composite is in front of it
+  (the island); renderer-space shaders take `sky_tint` through `cs_as_uniform()`; vertex colours are
+  decoded with `cs_srgb_to_linear()`, never `cs_in()`; a test scans every shader for these.
 - 2026-10-30 (wave 3, crowd-variety): six more adults (crowd_aa..af) appended to Pedestrian.MODELS - a suit and tie, a blazer, a work shirt, a cardigan, a gym tank, wide trousers - with the tailored jacket, the necktie, the tank and wide trousers added to tools/crowd/garments.py. Appended, so every earlier rig keeps its index; a person's roll picks among 32 now (CROWD_VARIETY=0: the old 26).
 
 ## Correction: what build 135 (0ce833f) actually contained
