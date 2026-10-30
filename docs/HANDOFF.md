@@ -14418,3 +14418,61 @@ crew's hands are IK onto the rail and the squeegee with the idle frozen near its
 dedicated wiping clip, no head turn. No sound of the hoists. The LOD ring shows Rooftops' static
 cradle box at its old depth on infill towers. Workers cannot be knocked off (on purpose); shooting
 one only swings the cradle, with no blood.
+
+## 9d?. Ocean traffic: boats under way, a ferry, tugs, a pilot boat and ships at anchor, 2026-10-29 (agent branch `wt/ocean-traffic`, fleet wave 3; VISUAL_ROADMAP "?")
+
+The bay and the coast were empty water. Now:
+
+- **Sloops under sail** (`VesselMesh.Kind.SAIL`, 9.5-14.5 m): the marina's sailboat hull and rig
+  with the sails UP - a cambered mainsail on its boom (`main_sail()`) and a jib on the forestay
+  (`jib()`), one mesh per tack, swung by the boom angle. They sail free (`Vessel.Program.SAIL`) by
+  Weather's wind (`rain_wind`, the sea breeze blowing onshore): straight for a course that can be
+  sailed, else 48 degrees off the wind on alternating tacks (a tack every 50-150 s); speed from a
+  sloop's polar (`_polar()`), the boom sheeted by the point of sail (7 degrees close-hauled to 78
+  running), heeled to leeward up to 19 degrees, a helmsman in the cockpit. They keep to water with
+  room (`OceanTraffic.sea_room()`) and turn for open sea (`offshore_dir()`) when the shore, a pier
+  or the marina's jetties come up, and stay within `home_reach` of a sailing ground (`SAIL_HOMES`).
+- **Motor yachts, sport fishers, runabouts** (BoatMesh's own meshes) on the coastal lane (700 m off
+  the beaches, round the headland's west end and south face into the bay, back 1,500 m out) and a
+  loop in the bay; fishers troll slow loops of their own offshore.
+- **Two ferries** (PACIFIC TERN, a 42 m catamaran built in code: demihulls, bridge deck with a bow
+  fairing, a raked two-deck house with window bands, the wheelhouse, the line's name) on the
+  crossing from the harbour out past the anchorage toward the island (`FERRY_OUT` / `FERRY_BACK`,
+  14.5 m/s, slowing to 4 in the harbour).
+- **Two tugs** (28 m: high flared bow with the bow pudding, side fenders and tyres, two-deck house,
+  twin stacks, towing winch, H-bitt) - one on a loop from the harbour round the nearest ship at
+  anchor, one standing by the moored ship (`HOLD`), and **the pilot boat** (16 m, PILOT on its
+  cabin) out to the farthest ship and back.
+- **Five container ships at anchor** in the roads south of the port (`ANCHORAGE`, `AnchoredShip`):
+  PortKit's ship with a deck load in PortKit's liveries, bow into the wind, swinging slowly round her
+  anchor (12-minute period), and at night her anchor lights, deck floods and lit house. A body on
+  the world layer: you can land on her, rounds spark off her steel.
+
+**How it is drawn.** `vessel.gdshader` is the marina's `boat.gdshader` (now
+`shaders/boat_body.gdshaderinc`, shared) with `#define BOAT_RIDE`: the hull samples the ocean's
+swell (`sea_ride.gdshaderinc`: the five Gerstner waves, the wave groups, the fine-wave fade and the
+tsunami, ocean.gdshader's numbers copied and checked) at its centre, bow, stern and both sides from
+SHADER TIME and heaves, pitches and rolls with it - the only way to stay in phase with the water,
+since GDScript has no copy of TIME. A solo boat's seed is a uniform now (`solo_seed`): the instance
+path hashed the boat's position, which flickered a moving boat's boot stripe (MarinaTraffic's too).
+Past `far_cut` (650 m) everything under the design waterline is discarded: out there the sea is the
+horizon plane, 24 m down, and the hull's bottom would hang over it. Three levels per hull by
+visibility range (scaled by length), shadows from NEAR and MID only. **Wakes** are foam in
+ocean.gdshader (`wake_foam()`, 16 slots `wake_a` / `wake_b`, `OceanTraffic.push_wakes()` every
+physics tick, nearest first): the churned prop wash fading to a pale scar, the bow wave along the
+hull and the Kelvin arms at 19.5 degrees broken into divergent crests, a slick of flattened chop
+between them; they reach the painted far sea too. Nav lights (masthead, sidelights aimed to their
+sides, stern; tugs' towing lights, the pilot's white over red, the ferry's deck lights) are one
+billboard mesh per vessel on aircraft_lights.gdshader, kind 4 (night only).
+
+**Shooting.** `Vessel.take_hit()` (props layer, mask 0, dropped past 700 m): smoke under half health,
+at zero she burns for 2.5 s, explodes (`Explosion.blast`) and settles by the stern over 38 s, then
+leaves the fleet; the small craft are respawned by the survey, a ferry, tug or pilot boat
+back on her loop `RESPAWN` (120) seconds later.
+
+**Tools.** `tools/ocean_traffic/vessel_shot.tscn` (the kit on a patch of the real ocean, seconds:
+`SCENE=lineup|sail|port|ferry`, `CAM`, `LOOK`, `HOUR`, `WAVE`, `LOD`), `tools/ocean_traffic/probe.tscn`
+(every route sampled against the sea, triangle counts, `OUT=` a map). Both are SCENES: under
+`--script` the vessel scripts cannot compile (they name WorldState and Sfx). `OCEAN_TRAFFIC=0` is the
+A/B; `OCEAN_STAGE=x,z,yaw` puts seven boats ahead of a point for a still. Checks:
+`tests/ocean_traffic_checks.gd`.

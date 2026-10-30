@@ -46,6 +46,8 @@ const MOORED_SHIP := Vector2(3065.0, 6541.0)
 ## Sailing grounds (homes the sloops keep near): off the marina's channel, off the pier, off the
 ## south beach towns, in the lee of the headland, and in the bay.
 const SAIL_HOMES := [Vector2(-1500.0, 300.0), Vector2(-1450.0, -900.0), Vector2(-1350.0, 2300.0), Vector2(-1700.0, 3800.0), Vector2(1200.0, 7800.0), Vector2(-1500.0, -2600.0)]
+## Seconds before a sunk ferry, tug or pilot boat is back on her loop.
+const RESPAWN := 120.0
 ## Hull paints for the yachts (sRGB): mostly white, some navy, dark green, cream, red, grey.
 const YACHT_PAINTS := [Color(0.94, 0.94, 0.92), Color(0.94, 0.94, 0.92), Color(0.95, 0.95, 0.93), Color(0.12, 0.16, 0.3), Color(0.92, 0.92, 0.9), Color(0.08, 0.22, 0.17), Color(0.86, 0.82, 0.7), Color(0.55, 0.12, 0.1), Color(0.52, 0.55, 0.58), Color(0.2, 0.36, 0.55)]
 ## The tugs' hulls: one company in black over red, the other in dark green.
@@ -68,6 +70,7 @@ var _serial: int = 0
 var _pier_zones: Array = []
 var _day: Node
 var _weather: Node
+var _respawns: Array = []
 var _wake_a := PackedVector4Array()
 var _wake_b := PackedVector4Array()
 
@@ -137,27 +140,32 @@ func _build_fleet() -> void:
 		s.transform = Transform3D(Basis(Vector3.UP, s.yaw), s.world_pos)
 		add_child(s)
 		ships.append(s)
-	var ferry: PackedVector2Array = lanes.ferry
-	var flen := _loop_length(ferry)
-	for i in 2:
-		var v := _new_vessel(VesselMesh.Kind.FERRY, i, 42.0, Color(0.94, 0.95, 0.95), 1)
-		v.tag = "ferry_%d" % i
-		v.follow(ferry, 14.5, flen * float(i) * 0.5, [[0.0, 650.0, 4.0], [flen - 900.0, flen, 4.0]])
-		_add(v)
-	var tug_loop: PackedVector2Array = lanes.tug
-	var t := _new_vessel(VesselMesh.Kind.TUG, 0, 28.0, TUG_PAINTS[0], 2)
-	t.tag = "tug_0"
-	t.follow(tug_loop, 5.0, 0.0, [[0.0, 300.0, 2.5]])
-	_add(t)
-	var t2 := _new_vessel(VesselMesh.Kind.TUG, 1, 26.0, TUG_PAINTS[1], 3)
-	t2.tag = "tug_1"
-	t2.hold(MOORED_SHIP + Vector2(-40.0, 33.0), Vector2(0.0, -1.0))
-	_add(t2)
-	var pilot: PackedVector2Array = lanes.pilot
-	var p := _new_vessel(VesselMesh.Kind.PILOT, 0, 16.0, Color(0.05, 0.05, 0.06), 0)
-	p.tag = "pilot_0"
-	p.follow(pilot, 10.5, _loop_length(pilot) * 0.3, [[0.0, 250.0, 3.0]])
-	_add(p)
+	for tag in ["ferry_0", "ferry_1", "tug_0", "tug_1", "pilot_0"]:
+		_add(_persistent(tag))
+
+
+## One of the persistent loops' vessels, by its tag, at its starting point.
+func _persistent(tag: String) -> Vessel:
+	var v: Vessel
+	match tag:
+		"ferry_0", "ferry_1":
+			var i := 0 if tag == "ferry_0" else 1
+			var ferry: PackedVector2Array = lanes.ferry
+			var flen := _loop_length(ferry)
+			v = _new_vessel(VesselMesh.Kind.FERRY, i, 42.0, Color(0.94, 0.95, 0.95), 1)
+			v.follow(ferry, 14.5, flen * float(i) * 0.5, [[0.0, 650.0, 4.0], [flen - 900.0, flen, 4.0]])
+		"tug_0":
+			v = _new_vessel(VesselMesh.Kind.TUG, 0, 28.0, TUG_PAINTS[0], 2)
+			v.follow(lanes.tug, 5.0, 0.0, [[0.0, 300.0, 2.5]])
+		"tug_1":
+			v = _new_vessel(VesselMesh.Kind.TUG, 1, 26.0, TUG_PAINTS[1], 3)
+			v.hold(MOORED_SHIP + Vector2(-40.0, 33.0), Vector2(0.0, -1.0))
+		_:
+			var pilot: PackedVector2Array = lanes.pilot
+			v = _new_vessel(VesselMesh.Kind.PILOT, 0, 16.0, Color(0.05, 0.05, 0.06), 0)
+			v.follow(pilot, 10.5, _loop_length(pilot) * 0.3, [[0.0, 250.0, 3.0]])
+	v.tag = tag
+	return v
 
 
 ## The routes, as closed loops in TRUE world XZ:
@@ -312,6 +320,11 @@ func advance(dt: float) -> void:
 			v.drive(dt)
 	for s in ships:
 		s.drive(dt)
+	for r: Array in _respawns.duplicate():
+		r[0] -= dt
+		if r[0] <= 0.0:
+			_respawns.erase(r)
+			_add(_persistent(r[1]))
 	_survey_left -= dt
 	if _survey_left <= 0.0:
 		_survey_left = survey_interval
@@ -466,8 +479,11 @@ func _on_finished(v: Vessel) -> void:
 	v.queue_free()
 
 
-func on_vessel_lost(_v: Vessel) -> void:
-	pass
+## A persistent vessel that went down comes back, at her loop's start, `RESPAWN` seconds later.
+func on_vessel_lost(v: Vessel) -> void:
+	for p in ["ferry_", "tug_", "pilot_"]:
+		if v.tag.begins_with(p):
+			_respawns.append([RESPAWN, v.tag])
 
 
 # --- Wakes ----------------------------------------------------------------------------------------
