@@ -17149,3 +17149,25 @@ waiters). Hooks: `CityChunk._block_steps()` (the build step and one spawn step a
   EYE; `VALET_DEBUG=1` prints why each candidate front was turned down);
   `tools/valets/live.gd -- --spawn=x,z,0,0` watches the stands at work in the running city.
 - Checks: `tests/valets_checks.gd` (`SMOKE_PARTS=valets_checks`).
+- Frame cost (`still_shot.gd` GEO, opengl3 1280x720, 13:00, `VALETS=0` -> on with the queue
+  staged; the after frames hold three staged cars and the before frames the live traffic, so
+  most of the difference is cars): across the street 3.54 M triangles / 1,518 draws -> 4.00 M /
+  1,610; down the kerb 5.82 M / 2,170 -> 5.83 M / 2,048; from above 3.23 M / 1,367 -> 2.97 M /
+  969. The kit itself is ~3.5k triangles and six batches a chunk with stands (podium, key box,
+  sign, cones, umbrella base, umbrella; the lamp pool shadowless), shadows to 45 m, drawn to
+  130-150 m; nothing in LOD chunks or the far city. CPU: one ValetStand tick a physics frame,
+  which returns at once out of the player's 115 m.
+- Stills: `shots/valets` (README there): before / after across, down the kerb and from above at
+  13:00, the same at 20:30, the drop-off, the key box and a valet, the A-frame.
+
+**Gate.** `SMOKE_PARTS=valets_checks`: 34 checks, 0 failed.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the lit podium panel, the lamp and
+the hazards at night need a Mac look. The airport has no valet stand (its curb is the
+drop-off loops' traffic, `MacroMap.terminal_loops`; a valet there would fight the loop). The
+valets get into and out of the car through ErrandProps' swinging door but the hero-grade "slide
+into the seat" is a hide; nobody is seen in the car until the cabin trace's npc driver comes on.
+A car "driven to the lot round the block" is ordinary traffic after it pulls away (it may go
+straight on); a car brought back is a fresh one from the pool, not the same body. Uniforms are
+the crowd's garment recolour (a red, black, green, burgundy or white top over dark trousers): no
+vests or name badges modelled.
