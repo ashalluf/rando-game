@@ -18996,6 +18996,12 @@ old shape (the same macro with `FarRanges.enabled` switched round single synchro
 bake (LoadCache) is the new shape; the shaders' crag shape and haze, its numbers read from the
 include; the ring on the plane's material, its overlap, its rim inside the far plane, its grid.
 
+**Gate** (merged with origin/main at 2026-10-30 ~08:00, with rock-outcrops and arroyos):
+`SHARDS=3 tests/headless_check.sh` 3,624 checks, one failure, the known intermittent dog check
+("the second walker is still there after 30 ticks", shard 0; see the car-panic and lowrider gates
+above); shard 0 alone again: 1,152 passed, 0 failed. Peak RSS per shard 2.75-3.03 GB. The far
+ranges, arroyos, rock outcrops, hill air and distance parts together: 92 passed.
+
 **Not done / not verified.** The faces still read bright and rocky from downtown at 15:00 (the
 splat's rock above 450 m and snow above `snow_line` 1150 - my summits reach ~1300 m, so a few more
 tops are white; not touched: the near tiles share it). The far city's buildings still fade to the
