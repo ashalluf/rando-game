@@ -40,10 +40,10 @@ const CAR_DRAW := 260.0
 ## Up close the stalls hold the real road bodies (body types and their shares; all fit a 5.2 m
 ## stall nose-in), in cells of CELL_STALLS stalls, drawn to NEAR_DRAW of a cell's centre.
 const REAL_TYPES := [Vehicle.BodyType.SEDAN, Vehicle.BodyType.CROSSOVER, Vehicle.BodyType.HATCHBACK,
-	Vehicle.BodyType.SUV, Vehicle.BodyType.MINIVAN, Vehicle.BodyType.BEATER]
-const REAL_ODDS := [0.30, 0.30, 0.14, 0.12, 0.09, 0.05]
-const CELL_STALLS := 6
-const NEAR_DRAW := 48.0
+	Vehicle.BodyType.SUV, Vehicle.BodyType.MINIVAN]
+const REAL_ODDS := [0.32, 0.32, 0.15, 0.12, 0.09]
+const CELL_STALLS := 10
+const NEAR_DRAW := 36.0
 const TEXT_DRAW := 110.0
 
 static var _mats: Dictionary = {}
