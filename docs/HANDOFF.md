@@ -14975,7 +14975,10 @@ script error when the car was freed first; reordered here, at both sites); twice
 flake that passed alone with `CROWD_LOOK` on and off - dogs ("a round into a dog sends it running"
 and "the second walker is still there", right after the photo mode checks: owner and dog gone at
 once, as if their chunk had been retired) and onlookers ("a new shot sends the onlookers running
-(1 stayed)").
+(1 stayed)"). The same gate on untouched origin/main 78e6178+ (eb75a10)
+failed too: the emergency checks' stretcher pair ("the other brings the stretcher...", "they climb
+back in...") and a script error in `tests/dog_checks.gd:180` (the walker's dog freed mid-check).
+So the dog, stretcher and onlookers failures are races in those checks, not the look.
 
 **Not done / not verified.** Not seen in the city or on Forward+ (the turn is bone rotation, so
 the renderer does not change it). No eyes: the crowd rigs have no eye bones, so a look is head
