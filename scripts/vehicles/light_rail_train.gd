@@ -286,7 +286,7 @@ func pose(state: Dictionary, lamp: float) -> void:
 		body.global_transform = Transform3D(basis, WorldState.to_local(world.origin))
 		# Hidden (and not solid) once wholly in the tunnel past the portal's bore.
 		var centre_s := _along((cab_x + art_x) * 0.5)
-		var buried := centre_s < line.mouth_s - 10.0
+		var buried := centre_s < line.mouth_s - 10.0 and not MetroStation.draws(line, centre_s)
 		body.visible = not buried
 		body.process_mode = Node.PROCESS_MODE_DISABLED if buried else Node.PROCESS_MODE_INHERIT
 		# Bogies turn under the body to follow the track.

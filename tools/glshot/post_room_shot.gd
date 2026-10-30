@@ -81,6 +81,12 @@ func _initialize() -> void:
 		level.add_child(menu)
 		await process_frame
 		menu.call("open")
+		# SETTINGS=1: the settings screen (GameSettings), SETTINGS_HUD=<x> a HUD size on it.
+		if _env("SETTINGS", "0") == "1":
+			menu.call("_show_settings", true)
+			if _env("SETTINGS_HUD", "") != "":
+				var hud_slider: Range = (menu.get("settings_controls") as Dictionary).get("hud_scale")
+				hud_slider.value = float(_env("SETTINGS_HUD", "1"))
 		for i in 12:
 			await process_frame
 	elif mode == "fire":

@@ -1487,6 +1487,9 @@ static func _from_far(near: Node, at: Vector2) -> Pedestrian:
 		var p := n as Pedestrian
 		if p == null or p._down or not p.errand.is_empty() or not p._lives() or p._cross == Pedestrian.Cross.CROSSING:
 			continue
+		# A walker kept in place (a test's, a venue's line: "no_trim") is never borrowed.
+		if p.has_meta("no_trim"):
+			continue
 		if p.global_position.distance_to(player.global_position) < FAR_TAKE:
 			continue
 		var d := Vector2(p.position.x, p.position.z).distance_to(at)
