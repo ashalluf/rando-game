@@ -463,7 +463,8 @@ static func honk(tm: TrafficManager, car: Vehicle, reason: String, long: bool = 
 		honk_log.pop_front()
 	count("honk_" + reason)
 	var at := car.global_position - car.global_basis.z * float(t.get("half", 2.4)) + Vector3.UP * 0.7
-	Sfx.play("car_horn_long" if long else "car_horn", at, 0.0, 1.0 + float(h % 13 - 6) * 0.012)
+	if not EngineAudio.horn(car, long, at): # the car's own horn (engine-audio pass)
+		Sfx.play("car_horn_long" if long else "car_horn", at, 0.0, 1.0 + float(h % 13 - 6) * 0.012)
 	return true
 
 
