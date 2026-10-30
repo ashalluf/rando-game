@@ -2414,6 +2414,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/beach_amenities_checks.gd").new().run(self, city)
 	# The oil islands in the bay (tests/oil_islands_checks.gd): siting, plan, codes, near and far.
 	load("res://tests/oil_islands_checks.gd").new().run(self, city)
+	# Aerial advertising (tests/sky_ads_checks.gd): the blimp's loop, the banner racetracks, who
+	# flies when, the meshes and a staged blimp and tow plane shot down.
+	await load("res://tests/sky_ads_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

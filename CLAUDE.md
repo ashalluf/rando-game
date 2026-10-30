@@ -1359,6 +1359,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Stills: `AIR=final|takeoff|news|police` on `tools/glshot/still_shot.gd` (the staged jet is
   faded in at once, `AirTraffic._shown()`). The helicopter model is `tools/make_helicopter.py`
   (Blender, headless; ASSETS.md).
+- Aerial advertising (2026-10-30, fleet "sky-ads", docs/HANDOFF.md "Aerial advertising"):
+  `SkyAds` (`scripts/world/sky_ads.gd`, AirTraffic's child, made in its `_setup()`) flies the
+  invented FIZZLY soda blimp (`AdBlimp`, 60 m envelope, X fins, gondola, ducted props) on a
+  16.6 km AirRoute loop circling the ballpark and the beach (clear of `obstacle_top()` by
+  `blimp_clearance`, airship grades), its LED night sign scrolling LedScreen 5 x 7 text from
+  `SkyAds.led_texture()`, and two banner tow planes (`BannerPlane`) on racetracks off the beach
+  towing invented letter banners (`SkyAds.BANNERS`; top-level banner and rope placed on the route
+  BEHIND the plane, fluttered in the vertex shader; the banner's own body tears it off). All of
+  it is code (`SkyAdMesh`) on ONE shader (`shaders/sky_ads.gdshader`, kind in COLOR.a / 16,
+  copies checked); AmbientCraft's take_hit / crash / wreck. Rolls are hashes (`SkyAds.roll()`),
+  who flies is pure (`blimp_flies()`, `banner_flies()`). `SKY_ADS=0` is the A/B; stills
+  `AIR=blimp|banner` (`AIR_DIST`, `AIR_SIDE`, `AIR_PICK`) on `still_shot.gd`; probe
+  `tools/sky_ads/probe.tscn`; checks `tests/sky_ads_checks.gd`.
 - Flyable helicopter (2026-10-05, fleet "heli-flyable", docs/HANDOFF.md "The flyable
   helicopter"): `FlyableHeli` (`scripts/vehicles/flyable_heli.gd`) is a wheel-less Vehicle wearing
   the air traffic's helicopter.glb, so interact gets in and out like a car. Jump = collective up,
