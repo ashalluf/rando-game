@@ -45,7 +45,7 @@ void fragment() {
 		float ms = length(MODEL_MATRIX[0].xyz);
 		float px = max(length(fwidth(lp)) * ms, 1e-5);
 		bool screen = pane >= 0 && pane_hi[pane].w > 0.5 && pane_hi[pane].w < 1.5;
-		vec3 slope = glass_wet(lp, n, screen, ms, px, TIME, albedo, rough, emission);
+		vec3 slope = glass_wet(lp, n, screen, ms, px, TIME, albedo, rough, emission).xyz;
 		vec3 sv = (VIEW_MATRIX * (MODEL_MATRIX * vec4(slope, 0.0))).xyz;
 		float sl = length(slope);
 		if (sl > 1e-4) {

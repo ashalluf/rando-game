@@ -14,6 +14,7 @@ extends RefCounted
 const SHADERS := [
 	"res://shaders/car_paint.gdshaderinc", "res://shaders/car_glass.gdshader",
 	"res://shaders/car_glass_damage.gdshader", "res://shaders/car_wiper.gdshader",
+	"res://shaders/car_glass_open.gdshader",
 	"res://shaders/building.gdshader", "res://shaders/building_lod.gdshader",
 	"res://shaders/facade_kit.gdshaderinc", "res://shaders/rooftop.gdshader",
 	"res://shaders/character.gdshader", "res://shaders/crowd_hair.gdshader",

@@ -9,8 +9,9 @@
 // Water on the pane at mesh point `lp` (mesh normal `n`, `screen` the windscreen), `ms` metres a
 // mesh unit, `px` metres a pixel, at time `t`. Darkens what is seen through it (`emission`),
 // scatters the reflection a little (`rough`, `albedo`), and returns the beads' and runs' slope in
-// mesh space for the caller to bend NORMAL by. Call only when ws_on().
-vec3 glass_wet(vec3 lp, vec3 n, bool screen, float ms, float px, float t, inout vec3 albedo, inout float rough, inout vec3 emission) {
+// mesh space for the caller to bend NORMAL by (xyz) and how much of the pane is water (w). Call only
+// when ws_on().
+vec4 glass_wet(vec3 lp, vec3 n, bool screen, float ms, float px, float t, inout vec3 albedo, inout float rough, inout vec3 emission) {
 	float wet = ws_wet(0.25);
 	vec3 tt;
 	vec3 bb;
@@ -35,5 +36,5 @@ vec3 glass_wet(vec3 lp, vec3 n, bool screen, float ms, float px, float t, inout 
 	float lens = clamp(0.55 - bead.z * 0.9, 0.0, 1.0) * bead.x;
 	albedo += vec3(0.05, 0.055, 0.06) * lens + vec3(0.012) * run.x;
 	rough = mix(rough, 0.16, cover * 0.4);
-	return tt * (bead.y + run.y * 0.7) + bb * bead.z;
+	return vec4(tt * (bead.y + run.y * 0.7) + bb * bead.z, cover);
 }

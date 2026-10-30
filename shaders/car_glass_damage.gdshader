@@ -137,7 +137,7 @@ void fragment() {
 	if (ws_on() && state < 1.5 && kind < 1.5) {
 		// Rain on what is still a pane (car_glass_wet.gdshaderinc); the wipers stay off here.
 		float ms = length(MODEL_MATRIX[0].xyz);
-		vec3 wet_tilt = glass_wet(lp, n, false, ms, px * ms, TIME, alb, rough, emit);
+		vec3 wet_tilt = glass_wet(lp, n, false, ms, px * ms, TIME, alb, rough, emit).xyz;
 		tilt += wet_tilt * 0.6;
 	}
 
