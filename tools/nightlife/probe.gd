@@ -83,6 +83,10 @@ func _initialize() -> void:
 					ix, iz, "club" if int(v.kind) == 1 else "bar", String(v.name), door.x, door.y, float(v.run), float(v.kerb),
 					str(v.open), (v.members as Array).size(), eye.x, eye.y, yaw])
 				found += 1
+			for n in ch.get_children():
+				if n is MultiMeshInstance3D and String(n.name).begins_with("Batch_nl_"):
+					var mm: MultiMesh = n.multimesh
+					print("BATCH %s n=%d vis=%s range=%.0f cast=%d first=%s" % [n.name, mm.instance_count, str(n.visible), n.visibility_range_end, n.cast_shadow, str(mm.get_instance_transform(0).origin) if mm.instance_count > 0 else "-"])
 			var holder: Node = ch.get_node_or_null("NightLife")
 			if holder:
 				var names: Array = []

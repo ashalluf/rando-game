@@ -295,6 +295,14 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-30 The night has its own street life (fleet wave 3, `nightlife`).** After 21:00 a share
+  of the open restaurants and tower lobbies downtown, in midtown and the beach town are clubs and
+  bars with a line along the wall behind a velvet rope, a bouncer and a lit entrance; the door
+  lets the line in one at a time and some come back out to a taxi or ride-hail car double-parked on
+  its hazards (TrafficManager's own `dp_at`). A Broadway palace has a premiere on some nights (red
+  carpet, fans behind barriers, four searchlights sweeping the sky), a club its opening (two). All
+  hashes after every existing roll; nothing takes the kerb or a prop id. NIGHTLIFE=0 the A/B.
+
 - **2026-10-29 Facades are worked out per pane, not per building (owner: "start looking like GTA
   6").** Glass varies pane by pane and floor by floor, blinds hang at their own heights, the glass
   mirrors a street opposite with parallax, curtain walls come in three systems (flush, deep fins,

@@ -23,7 +23,7 @@ global uniform float lamp_factor;
 global uniform float road_wetness;
 
 // The LED strips and the downlights at full night, and how much shows by day.
-uniform float led_night = 6.0;
+uniform float led_night = 9.0;
 uniform float led_day = 0.35;
 uniform float downlight_night = 9.0;
 // A lightbox face at night (its own paint glowing through the acrylic).

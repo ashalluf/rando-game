@@ -72,6 +72,10 @@ const PREMIERE_HOURS := Vector2(19.5, 25.0)
 ## The premiere's carpet width, and how many fans stand behind each barrier row at most.
 const CARPET_W := 2.6
 const FANS_PER_SIDE := 9
+## The people who make a venue's scene - its bouncers, the first of its line, a premiere's first
+## fans - spawn even when the crowd cap is full (they are still counted against it): a club with
+## a rope and nobody behind it reads as closed.
+const SCENE_PEOPLE := 10
 ## Draw distances (m) and shadow reach.
 const ENTRANCE_DRAW := 220.0
 const ROPE_DRAW := 110.0
@@ -436,7 +440,7 @@ static func _build_venue(chunk: CityChunk, block: Dictionary, v: Dictionary, hou
 		chunk._batch.set_draw_distance(k, ENTRANCE_DRAW)
 		chunk._batch.set_shadow_distance(k, SHADOW_DISTANCE)
 		tint = NightLifeKit.LED_COLORS[int(v.led)]
-		_sign(holder, String(v.name), xf * Vector3(0.0, NightLifeKit.CANOPY_Y + NightLifeKit.CANOPY_T * 0.5, NightLifeKit.CANOPY_D + 0.012), xf.basis, 0.2, NightLifeKit.CANOPY_W - 0.4, tint, gy)
+		_sign(holder, String(v.name), xf * Vector3(0.0, NightLifeKit.CANOPY_Y + NightLifeKit.CANOPY_T * 0.5, NightLifeKit.CANOPY_D + 0.012), xf.basis, 0.26, NightLifeKit.CANOPY_W - 0.4, tint, gy)
 	else:
 		chunk._batch.add("nl_bar", NightLifeKit.bar_entrance(), xf, Color.WHITE, custom)
 		chunk._batch.set_draw_distance("nl_bar", ENTRANCE_DRAW)
@@ -586,7 +590,7 @@ static func _build_premieres(chunk: CityChunk, full: bool, holder: Node3D = null
 			chunk._batch.add("nl_pool", PropFactory.shop_spill(), pool, Color(1.0, 0.86, 0.72, 0.9))
 			chunk._batch.set_no_shadow("nl_pool")
 			_add_light(holder, base * Vector3(0.0, 4.5, length * 0.5) + Vector3(0.0, g, 0.0), 11.0, Color(1.0, 0.9, 0.8))
-		for x: float in [-6.4, -3.6, 3.6, 6.4]:
+		for x: float in [-8.4, -5.3, 5.3, 8.4]:
 			var at := base * Vector3(x, 0.0, to_kerb - 0.95)
 			_add_searchlight(chunk, holder, at, base.basis, hash([seed_value, x, "nl_sl"]), full)
 
@@ -597,7 +601,8 @@ static func spawn_person(chunk: CityChunk, index: int) -> void:
 	if index >= people.size():
 		return
 	var s: Dictionary = people[index]
-	if not chunk._take_crowd_room():
+	var key_person := String(s.kind) == "bouncer" or (String(s.kind) != "smoker" and int(s.slot) < SCENE_PEOPLE)
+	if not chunk._take_crowd_room() and not key_person:
 		return
 	var ped := NightGoer.new()
 	var at: Vector2
