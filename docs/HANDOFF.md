@@ -18504,7 +18504,10 @@ aerial 3.38 M / 1,584 -> 3.37 M / 1,592 (eight beams, a draw each). CPU: a Night
 Pedestrian (kinematic, mask 0); NightPickups looks at the venue list twice a second and scans the
 traffic list only when a call is due.
 
-**Checks**: `SMOKE_PARTS=nightlife_checks`: 45 passed, 0 failed.
+**Checks**: `SMOKE_PARTS=nightlife_checks`: 45 passed, 0 failed (29 of them night life's). Full gate
+(`SHARDS=3`, merged with main 2026-10-30): 3,515 of 3,516 passed, peak 2.99 GB a shard; the one
+failure was sea life's "the pod leaps clear" (top 2.62 m against its 2.6 m bound, in shard 0 after
+other checks), which passes alone on this branch (`SMOKE_PARTS=sea_life_checks`, top 2.32 m).
 
 **Not done / not verified.** Not seen on Forward+ (the Mac): the volumetric beams on HIGH (the
 fog's reach and energy are guesses: `fog_reach`, `fog_energy`), the LED and sign glow under AgX.
