@@ -19396,3 +19396,59 @@ per car.
   renderer's reflections (SSR, the probes), which the opengl3 stills do not have - judge the glass
   and the lacquer there. The wiper blades on every body type (checked on the sedan in stills; the
   geometry is fitted per body from the windscreen box, so a bus or an exotic may sit a little off).
+
+## 9d?. Hills without leopard spots, again (fleet wave 3, `wt/hill-ground-3`, 2026-10-30)
+
+The hills reference still (refcams `hills`, the `hills` bookmark, 15:00) showed the near and mid
+hill ground as tan with dark LEOPARD SPOTS - dark ovals 10-30 m across, evenly over every slope -
+and no shrubs to speak of. Stills on `shots/hill-ground-3`.
+
+**What drew the spots** (found by elimination, each a one-minute `hill_ground_shot.tscn` or a
+bookmark with `HIDE=`): not the far planting (`HIDE=Planting_*`), not shadows (the opengl3 still
+draws none), not the horizon plane (`HIDE=Ground`), not the shells (`HIDE=HillShells`). The spots
+stayed over the terrain's debug colours (`TERRAIN_DEBUG=1`: brush / bare / rock) and went away with
+`TERRAIN_DEBUG=2`, which drops the fine erosion's NORMAL. They were `erosion.gdshaderinc`: the 55 m
+and 27 m gully orders drawn as shading on the tiles and the plane, 7 m deep (walls sloping ~0.8)
+with neighbouring cells' stripes half a cycle out of phase (Fewes's 0.5 jitter, 1.6 branch), so
+every gully was a braid of short pits - under a low afternoon sun, black ovals. Only the DayNight
+sun showed them; `hill_ground_shot` without `DAYNIGHT=1` lights from above and hid them.
+
+**Fix 1, the erosion**: `erosion_amp` 3 m (terrain) / `far_erosion_amp` 3 m (plane),
+`erosion_jitter` 0.45, `erosion_branch` 0.8 (uniforms in the include now). Rills run on down the
+slope: along / across the fall line the field changes 0.37 as much (0.62 before; the check).
+
+**Fix 2, stands as masses**: the stand noise was 70 % shrub-scale octaves (3 m, 1.1 m). They fade
+with distance into a SHARE of brush (`hill_stand_edge()`), so from 150 m the whole stand was a
+khaki tone with olive smudges, never a mass. The octave weights are uniforms now (`stand_*_w`:
+patch 0.5, clumps 0.14, bushes 0.18, fine 0.12, bias 0.18) and the land decides more: brush runs
+down each fine rill (`hill_rill_th(rill, w)`: erosion z times steepness, `rill_brush` 0.3, its reach
+modulated 0.2..1.4 by a ~180 m noise so the streaks come and go). The tiles and the plane take the
+rill from their own `ero.z`; the shells from the tile's COLOR.a (`CityChunk._tile_rills`, sampled
+row by row with the heights - the shells working the 32-cell noise per vertex per layer took a
+one-minute still to over ten); HillPlanting from the tile (`_terrain_rill()`) or its CPU port
+(`HillPlanting.rill()`, 34 us a call). Mean brush run along three rows of the front range 36 m
+(14 m before), 9 % of the ground in the soft middle (13 %). `stand_gaps` 0.15: the straw between a
+stand's bushes made bright round holes in every stand up close (the leopard inside out).
+
+**Fix 3, shrubs that read**: `HillShrub` (`scripts/world/hill_shrub.gd`), a code-built chaparral
+mound (several stems from a root crown, 120 clusters of grey-green sprigs to the ground, 4.2 m wide
+and 2.8 m tall native, three variants) on LaTrees' emitter, LOD ladder, shadow twin and
+`la_tree.gdshader` (5,820 -> 240 triangles). It replaces the Poly Haven searsia on the stands and as
+the lone sage (`hill_shrub_<v>` batches, drawn to `HillGround3.SHRUB_DISTANCE` 160 m, no shadow):
+the searsia's black-background atlas made every stand a scatter of dark sprigs from 20 m on.
+
+**Cost**: hills bookmark GEO (after merging main 2026-10-30 with rock-outcrops) 2,144,276 tris / 1,292 draws against 2,151,642 / 1,300 with
+`HILL_GROUND_3=0` (the shrubs past 160 m there). Build steps (`hill_step_bench`): `_sample_terrain`
+~6 more time-sliced calls a FULL chunk (worst 10 ms unchanged), planting the same.
+
+**A/B and tools**: `HILL_GROUND_3=0` (HillGround3.apply() puts the old uniforms on the terrain,
+shell and plane materials; HillPlanting and the planting go back too). `tools/hill_ground_3/
+topdown.gd` (`--at=x,z --size= --step= --out=`) maps HillPlanting's field with hillshade in five
+seconds - use it before any render; hill_ground_shot `TERRAIN_DEBUG=1|2|3`. Checks:
+`tests/hill_ground_3_checks.gd` (mirrors, rills, masses, the shrub), and the hill planting check
+reads the tile's rills and accepts the new batches.
+
+**Not done / to check on the Mac**: the stands' tone on Forward+ at the bookmark (lavapipe small
+scene only: before/after in the shots); the far tier still plants only oaks, so past 160 m the
+stands are paint (by design, HANDOFF 9au); the rills' second order comes and goes with the pixel
+footprint like the old one did, so a stand edge can shift a few metres between 40 and 150 m.

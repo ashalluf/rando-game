@@ -91,11 +91,26 @@ const float CROWN_MEAN = 0.35;
 // 3 m value noise cut by a threshold is itself a field of smooth round blobs, and from 150 m (the
 // shrub crowns gone) that WAS the leopard: a 1.1 m octave (`fine`, the leaf clumps' noise) rags
 // every edge into a fractal one.
-const float STAND_PATCH_W = 0.2;
-const float STAND_MID_W = 0.1;
-const float STAND_BUSH_W = 0.4;
-const float STAND_FINE_W = 0.3;
-const float STAND_BIAS = 0.35;
+// hill-ground-3 (2026-10-30): uniforms now, so the A/B (HILL_GROUND_3=0, HillGround3.apply())
+// can put the old 0.2 / 0.1 / 0.4 / 0.3 / 0.35 back. With the shrub-scale octaves carrying 70 % of
+// the spread, a stand was DEFINED by them: once they faded with distance its edge widened into a
+// share of brush everywhere, and from 150 m on the hills were one khaki tone with olive smudges.
+// Now the patch octaves carry most of it and the land (with the fine rills, hill_rill_th()) the
+// rest; the bushes only rag the edge, so a stand stays a mass at any distance.
+uniform float stand_patch_w = 0.5;
+uniform float stand_mid_w = 0.14;
+uniform float stand_bush_w = 0.18;
+uniform float stand_fine_w = 0.12;
+uniform float stand_bias = 0.18;
+// How much of the straw shows through between a stand's bushes (the 3 m octave's lows). At 1 every
+// stand was pocked with bright round holes a few metres across, the leopard turned inside out; a
+// gap in real chaparral is shade and litter, which the crown tone (terrain.gdshader) already darkens.
+uniform float stand_gaps : hint_range(0.0, 1.0) = 0.15;
+// How much more brush the bottom of a fine erosion rill carries than its crest (erosion_detail()'s
+// z, -1 crest .. +1 floor, times the slope's steepness): the stands run down each rill as dark
+// streaks with gold ribs of grass between them, the fluted look of a real chaparral face, instead of
+// sitting on the slope as blobs.
+uniform float rill_brush = 0.3;
 
 
 float hash12t(vec2 p) {
@@ -160,11 +175,22 @@ float hill_stand_threshold(float slope, float north, float drain, float hill) {
 }
 
 
+// The rills' push on the threshold: `rill` is erosion_detail()'s z times the steepness that scaled
+// its depth (0 where it is not worked out: the web, below MEDIUM, past its fade), `w` true world XZ.
+// Its slow modulation (RILL_REACH_*, a ~180 m noise): some faces follow their rills hard, others
+// hardly, so the streaks come and go instead of combing every slope.
+const float RILL_REACH_LOW = 0.2;
+const float RILL_REACH_HIGH = 1.4;
+float hill_rill_th(float rill, vec2 w) {
+	return rill * rill_brush * topo_weight * mix(RILL_REACH_LOW, RILL_REACH_HIGH, vnoiset(w * 0.0055 + 61.0));
+}
+
+
 // The stand noise: the patch octaves, the 8 m clumps (`mid`, vnoiset(w * 0.12 + 17.0)) and the
 // single bushes (`bush`, the 3 m octave), which rag a stand's edge at the scale of one shrub.
 float hill_stand_noise(float patchy, float mid, float bush, float fine) {
-	return patchy * STAND_PATCH_W + mid * STAND_MID_W + (bush - 0.5) * STAND_BUSH_W
-		+ (fine - 0.5) * STAND_FINE_W + STAND_BIAS;
+	return patchy * stand_patch_w + mid * stand_mid_w + (bush - 0.5) * stand_bush_w
+		+ (fine - 0.5) * stand_fine_w + stand_bias;
 }
 
 
@@ -173,8 +199,8 @@ float hill_stand_noise(float patchy, float mid, float bush, float fine) {
 // 0 gone). A hillside too far off to resolve an octave then draws the SHARE of brush it would
 // have left, as a tone, not the coarser octaves' blobs with a hard rim.
 float hill_stand_edge(float fine_fade, float bush_fade, float mid_fade) {
-	return 0.045 + (1.0 - fine_fade) * STAND_FINE_W * 0.3 + (1.0 - bush_fade) * STAND_BUSH_W * 0.3
-		+ (1.0 - mid_fade) * STAND_MID_W * 0.3;
+	return 0.045 + (1.0 - fine_fade) * stand_fine_w * 0.3 + (1.0 - bush_fade) * stand_bush_w * 0.3
+		+ (1.0 - mid_fade) * stand_mid_w * 0.3;
 }
 
 
@@ -203,7 +229,7 @@ float hill_mid_fade(float fw) {
 // octave is on its way out the threshold blurs instead of cutting the noise's cells into squares.
 float hill_stand(float th, float stand, float bush, float edge) {
 	float e = edge + fwidth(stand) * 0.7;
-	return smoothstep(th + e, th - e, stand) * smoothstep(0.12, 0.3, bush);
+	return smoothstep(th + e, th - e, stand) * mix(1.0, smoothstep(0.12, 0.3, bush), stand_gaps);
 }
 
 

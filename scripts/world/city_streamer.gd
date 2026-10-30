@@ -1090,6 +1090,7 @@ func _build_ground_material() -> ShaderMaterial:
 	_far_ground_materials = [_canopy_material, EstateFar.material()]
 	mat.set_shader_parameter("near_albedo", PropFactory.texture("grass", "Color"))
 	mat.set_shader_parameter("near_normal", PropFactory.texture("grass", "NormalGL"))
+	HillGround3.apply(mat)
 	return mat
 
 

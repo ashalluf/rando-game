@@ -2482,6 +2482,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/far_ranges_checks.gd").new().run(self, city)
 	# The wet world (tests/wet_world_checks.gd, WetWorld, CarWipers): the shaders' water, walls, wipers.
 	await load("res://tests/wet_world_checks.gd").new().run(self, city)
+	# The hills' ground, wave 3 (tests/hill_ground_3_checks.gd): no leopard spots, stands as masses,
+	# the code-built chaparral shrub.
+	load("res://tests/hill_ground_3_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
@@ -3452,14 +3455,14 @@ func _check_hill_planting(chunk: Node3D, plan: CityPlan) -> void:
 		var th := func(q: Vector2) -> float: return chunk.call("_terrain_height", q, "heights")
 		var grad := Vector2(th.call(p + Vector2(2.0, 0.0)) - th.call(p - Vector2(2.0, 0.0)),
 			th.call(p + Vector2(0.0, 2.0)) - th.call(p - Vector2(0.0, 2.0))) * 0.25
-		var g := HillPlanting.ground(p, grad, true, chunk.call("_terrain_height", p, "drains"))
+		var g := HillPlanting.ground(p, grad, true, chunk.call("_terrain_height", p, "drains"), chunk.call("_terrain_rill", p))
 		if float(g.rocky) > 0.45 or float(g.bare) > 0.55:
 			on_rock += 1
 		if rec[1] == "chaparral":
 			chaparral += 1
 			if float(g.brush) > 0.3:
 				on_brush += 1
-	_check(chaparral >= 20 and chunk.has_node("Batch_hill_chaparral"), "a hill chunk plants chaparral stands (%d shrubs, %d oaks, %d lone shrubs)" % [chaparral, planted.get("oak", 0), planted.get("sage", 0)])
+	_check(chaparral >= 20 and (chunk.has_node("Batch_hill_chaparral") or chunk.find_children("Batch_hill_shrub_*", "", false, false).size() > 0), "a hill chunk plants chaparral stands (%d shrubs, %d oaks, %d lone shrubs)" % [chaparral, planted.get("oak", 0), planted.get("sage", 0)])
 	_check(on_rock == 0, "nothing planted on rock or bare cuts (%d of %d)" % [on_rock, points.size()])
 	_check(on_brush >= chaparral * 0.75, "the chaparral stands on the painted brush (%d of %d)" % [on_brush, chaparral])
 	# The field itself: the shaded side is brush, the sunny side grass.

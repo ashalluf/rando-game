@@ -103,10 +103,14 @@ void vertex() {
 	float drain = COLOR.g * 2.0 - 1.0;
 	vec2 aspect = hill_aspect(world_nrm);
 	vec2 broad = hill_broad(w);
-	float th = hill_stand_threshold(aspect.x, aspect.y, drain, broad.x);
+	// The terrain's fine rills at this vertex, worked out once when the tile was built
+	// (CityChunk._tile_rills, -1..1 as 0..1; 0.5 where there are none). In here it was the 32-cell
+	// erosion noise for every vertex of every layer.
+	float rill = COLOR.a * 2.0 - 1.0;
+	float th = hill_stand_threshold(aspect.x, aspect.y, drain, broad.x) + hill_rill_th(rill, w);
 	// The canopy's top here: the understory's height where a stand is likely, the grass's
 	// elsewhere (the stand noise without its single-bush octave, with a wider edge for it).
-	float stand = broad.y * STAND_PATCH_W + vnoiset(w * 0.12 + 17.0) * STAND_MID_W + STAND_BIAS;
+	float stand = broad.y * stand_patch_w + vnoiset(w * 0.12 + 17.0) * stand_mid_w + stand_bias;
 	float span = mix(grass_height, brush_height, smoothstep(th + 0.25, th - 0.12, stand));
 	// A little lower out where the shells are thinning, so the last of them sink into the ground.
 	float dist = distance(ground, INV_VIEW_MATRIX[3].xyz);
