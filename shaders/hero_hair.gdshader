@@ -18,6 +18,9 @@ uniform vec3 tip_color : source_color = vec3(0.075, 0.062, 0.052);
 // 1: take the colour from the texture (brows); 0: from the strand atlas' shading + the colours.
 uniform float strands_from_texture = 0.0;
 uniform float alpha_cut = 0.32;
+// How far up the card (UV.y, root 0 .. tip 1) the roots fade in. Every card's root end was a hard
+// straight cut, which at the hairline and the temples drew rows of black rectangles.
+uniform float root_fade = 0.0;
 // Width of the dithered band round alpha_cut.
 uniform float dither = 0.22;
 uniform float roughness = 0.36;
@@ -27,6 +30,10 @@ uniform float anisotropy = 0.8;
 uniform vec2 strand_flow = vec2(0.0, 1.0);
 // How dark the buried layers get (UV2.x is 0.4 for the under-layer, 1 for the top).
 uniform float occlusion = 1.0;
+// How round the strands are across a card (0: a flat card, the old look) and how many strand
+// columns the atlas has across U (the hair atlas 8, the brows 8).
+uniform float strand_round = 0.0;
+uniform float strand_columns = 8.0;
 
 varying vec2 hairdata;
 
@@ -49,10 +56,18 @@ void fragment() {
 	float ao = mix(1.0, clamp(hairdata.x, 0.0, 1.0), occlusion * (1.0 - strands_from_texture));
 	ALBEDO = col * ao;
 	AO = ao;
-	ALPHA = t.a;
+	ALPHA = t.a * (root_fade > 0.0 ? smoothstep(0.0, root_fade, tip) * 0.6 + 0.4 * smoothstep(0.0, root_fade * 0.35, tip) : 1.0);
 	ALPHA_SCISSOR_THRESHOLD = clamp(alpha_cut + (hash(FRAGCOORD.xy) - 0.5) * dither, 0.02, 0.98);
 	ROUGHNESS = roughness;
 	SPECULAR = specular * ao;
+	// Round the strands across the card (hero-face-2): a card is flat, and its whole width
+	// caught one highlight as a white plank. Each strand column's normal is bent across it, so
+	// the shine breaks up strand by strand as it does on real hair.
+	if (strand_round > 0.0) {
+		float cu = fract(UV.x * strand_columns) * 2.0 - 1.0;
+		float wob = sin(UV.x * 1931.0 + hairdata.y * 37.0) * 0.5;
+		NORMAL = normalize(NORMAL + TANGENT * (cu * 0.9 + wob) * strand_round);
+	}
 	ANISOTROPY = anisotropy;
 	ANISOTROPY_FLOW = strand_flow;
 	if (ws_on()) {

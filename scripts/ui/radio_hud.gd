@@ -87,7 +87,7 @@ func _process(delta: float) -> void:
 
 func _layout() -> void:
 	var view := get_viewport_rect().size
-	_scale = clampf(view.y / 1080.0, 0.7, 2.0)
+	_scale = HudTheme.scale(view)
 	var size := (panel_size * _scale).round()
 	var e := 1.0 - pow(1.0 - _show, 3.0)
 	var y := margin * _scale - (1.0 - e) * 26.0 * _scale

@@ -406,7 +406,7 @@ the tiling `hero_x_skin_detail` (pores, stubble) and `hero_x_pile` (velour).
 
 ## The crowd (Blender + MPFB2, CC0 assets)
 
-`assets/models/crowd_a.glb` .. `crowd_z.glb` (and the `crowd_*_body.jpg`, `_body_nrm.jpg` and
+`assets/models/crowd_a.glb` .. `crowd_z.glb`, `crowd_aa.glb` .. `crowd_af.glb` (and the `crowd_*_body.jpg`, `_body_nrm.jpg` and
 `_hair.png` Godot extracts from them) are the pedestrians (`Pedestrian.MODELS`), built by
 `tools/crowd/` with the hero's toolchain: Blender 4.2 LTS, the MPFB 2.0.17 add-on and the CC0
 MakeHuman system asset pack, which `tools/hero/setup.sh` downloads into the ignored
@@ -453,6 +453,12 @@ the nine Meshy pedestrians (`pedestrian_d..l`, rows above), which are no longer 
 | `crowd_x.glb` | young Black man, tall and athletic: charcoal heather tee, olive cargo shorts, grey sneakers, short hair | young_african_male, eyes `low-poly` + brown, eyebrow006, eyelashes01, shoes02, short01; our own tee and cargo shorts |
 | `crowd_y.glb` | Black woman in her sixties: navy knee-length dress with a small floral print and short sleeves, flat shoes, short grey hair | middleage_african_female, eyes `low-poly` + brown, eyebrow007, eyelashes01, shoes04, short03; our own dress |
 | `crowd_z.glb` | young white woman, slim: sage quilted puffer jacket, black leggings, navy sneakers, ponytail | young_caucasian_female2, eyes `low-poly` + bluegreen, eyebrow005, eyelashes01, shoes06, ponytail01; our own puffer and leggings |
+| `crowd_aa.glb` | South Asian American man in his forties, tall and lean: charcoal pinstripe two-button suit, white shirt, burgundy striped tie, dark dress shoes, short black hair | middleage_asian_male 50% + middleage_caucasian_male 30% + middleage_african_male 20%, eyes `low-poly` + brown, eyebrow010, eyelashes01, shoes04, short02; our own tailored jacket, shirt, tie and slacks |
+| `crowd_ab.glb` | Black woman in her thirties, slim and tall: navy one-button blazer, ivory shell top, charcoal knee-length skirt with a back vent, flat shoes, close-cropped hair | young_african_female, eyes `low-poly` + brown, eyebrow007, eyelashes01, shoes04, short03; our own blazer, top and skirt |
+| `crowd_ac.glb` | Latino man in his thirties, broad and strong: navy twill work shirt with flap pockets and rolled sleeves, worn jeans, work boots, a short beard | young_caucasian_male 45% + young_african_male 25% + young_asian_male 30%, eyes `low-poly` + brown, eyebrow006, eyelashes01, shoes03, short04; our own work shirt and jeans |
+| `crowd_ad.glb` | Armenian American man in his seventies, heavy: oatmeal button cardigan over a pale blue shirt, grey pressed slacks, brown leather shoes, short white hair | old_caucasian_male 75% + old_asian_male 25%, eyes `low-poly` + brown, eyebrow010, eyelashes01, shoes01, short03; our own cardigan, shirt and slacks |
+| `crowd_ae.glb` | Samoan American man in his twenties, very muscular: heather grey racer-back gym tank, black athletic shorts with a white stripe, white sneakers | young_asian_male 40% + young_african_male 35% + young_caucasian_male 25%, eyes `low-poly` + brown, eyebrow006, eyelashes01, shoes05, short01; our own tank and shorts |
+| `crowd_af.glb` | young Vietnamese American woman, slim and short: cropped camel zip jacket over a white tee, black wide-leg trousers to the floor, white sneakers, long dark hair | young_asian_female, eyes `low-poly` + brown, eyebrow009, eyelashes01, shoes05, long01; our own jacket, tee and wide trousers |
 
 Each is ONE skinned `Body` (skin, eyes, clothes, shoes; 10.5-13.8k triangles, one 2K colour atlas
 and a 1K normal atlas, the vertex colour carrying the skin / top / bottom / hair split) and a
@@ -771,6 +777,7 @@ no real operator's name, colours or mark.
 | Font | Source URL | License | Used for | Added |
 |---|---|---|---|---|
 | Inter 4.1 SemiBold and Medium (`extras/woff-hinted/Inter-SemiBold.woff2`, `Inter-Medium.woff2` from the release zip) | https://github.com/rsms/inter/releases/tag/v4.1 | SIL Open Font License 1.1 (text in `assets/fonts/Inter-OFL.txt`) | weapon wheel names and hints (`scripts/ui/weapon_wheel.gd`); falls back to Godot's default font if missing | 2026-09-24 |
+| Barlow Condensed SemiBold and Bold (latin subset woff2 from the `@fontsource/barlow-condensed` 5.0.13 npm package; the Barlow Project, github.com/jpt/barlow) | https://cdn.jsdelivr.net/npm/@fontsource/barlow-condensed@5.0.13/ | SIL Open Font License 1.1 (text in `assets/fonts/BarlowCondensed-OFL.txt`) | the HUD's display type (`scripts/ui/hud_theme.gd`: place toast, car name and speed, loading wordmark, OUT COLD, pause and map titles); falls back to Godot's default font if missing | 2026-10-30 |
 
 ## Map data
 

@@ -112,6 +112,21 @@ one left the player. `SMOKE_PARTS=bird_checks` runs one area in a minute and a h
 `SMOKE_PROFILE=1` times every check and part (`tools/gate/profile.py`), and
 `tools/gate/compare.py` compares two runs' lists. A new check file needs no wiring for shards.
 
+**Every check file starts from a clean city** (2026-10-30, docs/HANDOFF.md "Every check file
+starts from a clean city"): `tests/gate_reset.gd` snapshots the city after its setup and puts it
+back before EVERY file, in one process too - static switches (public bools and any static named
+`force*` / `*_forced` / `staged` / `hold`, read off every class), Weather, DayNight's hour,
+Quality, Traffic's cap and `staged`, every city child's `enabled` / `staged`, WorldState's
+destruction, the police's stars, onlooker scenes, wrecks, burning cars, debris, time scale, pause,
+the player out of his car at full health - then `stage_home()`. A file the list does not await
+gets the statics only. So never lean on what an earlier file left; and a new switch of your own
+is reset for free if it is a public static bool. `SMOKE_SHUFFLE=<seed>` runs city_files in a
+seeded order (the proof), `SMOKE_LEAKS=1` prints every static a file changed and left changed,
+`SMOKE_NO_RESET=1` is the A/B. A file called from inside a city part goes in `INLINE_FILES`
+(gate_speed_2_checks fails on one that is in neither list). `SHARDS=auto` (CI) picks the shards
+from the cores and memory (`SHARD_MB`, 3200 a shard). Refresh `PART_COST` with
+`tools/gate/part_costs.py <SMOKE_PROFILE=1 log>` when the deal goes lopsided.
+
 Download a Linux headless-capable build with:
 
 ```
@@ -445,6 +460,18 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   down by `ws_wall()` near (building) and far (building_lod) alike, roofs / awnings / rooftops
   gloss, the crowd and the hero soak. `WET_WORLD=0` is the A/B (`wet_world` global, `WetWorld`);
   `car_shot.gd WET=1,1`; checks `tests/wet_world_checks.gd`.
+- The ocean close up (wave 3, docs/HANDOFF.md "The Pacific close up"): `ocean.gdshader` includes
+  `shaders/ocean_closeup.gdshaderinc`, a FRAGMENT-only pass faded with the hand-over's `detail`
+  (`near_c`), so the vertex stage (SeaSurface's mirror) and the far sea are untouched: wind-aligned
+  capillary ripples faded by the pixel footprint (`fwidth`), wind slicks and gust patches, the sun
+  glitter as three octaves of flashing facets (`oc_glint`) handed to the old lobe under a pixel,
+  light through thin wave tops (`crest_sss`), deep blue scatter looking down, the cloud base
+  mirrored, foam torn down the wind that opens into Worley lace as it ages, a foam line at hulls
+  (in `wake_foam`) and round every pier pile (`pile_a/b`, grids from `OceanCloseup.pile_grids()`,
+  pushed by Weather). The piles' waterline (weed, barnacles, wet splash zone) is
+  `shaders/waterline_wet.gdshaderinc` in pier_park.gdshader and `pile_wet.gdshader`. Still no
+  texture sampler in the ocean. `OCEAN_CLOSEUP=0` (the `ocean_closeup` shader global) is the A/B;
+  checks `tests/ocean_closeup_checks.gd`.
 - Los Angeles weather (2026-10-05, "beyond clear / overcast / rain / storm"): `Weather.State`
   gains MARINE ("June gloom") and SANTA_ANA (appended: every per-state table has six rows, the
   pause menu's chips are Auto + one per state in order, `--weather=marine|santa_ana`, aliases in
@@ -739,6 +766,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   quarter size. Any new HUD piece sizes itself from the viewport's height, never in fixed pixels.
   Small Forward+ scenes with the real sky and weather: `tools/glshot/fwd_block_shot.tscn`
   (block_shot plus DayNight and Weather; `--hour=`, `--weather=`; ~10 min and ~11 GB on lavapipe).
+- HUD polish (2026-10-30, docs/HANDOFF.md "HUD polish"): `HudTheme` (`scripts/ui/hud_theme.gd`,
+  static) is every HUD piece's type (Barlow Condensed for display lines, Inter for the rest; OFL,
+  `assets/fonts/`), `scale()` (1080-line units x the settings' HUD size), `safe_rect()` (a
+  `MARGIN` 40-unit title-safe band, and a centred 21:9 band on wider windows: `band_inset()`) and
+  easing (`envelope()` for toasts). New pieces on DebugHud: `AreaToast` (the place name from
+  `district_name_at()` and the street from `street_at()` - CityPlan.road_name of the carriageway
+  underfoot - bottom left on entering a district, the street alone on a new street) and
+  `VehicleHud` (the car's invented maker and model, `MODELS` per BodyType, as he gets in; a speed
+  pill left of the minimap, MPH or KT, the D / R / N letter). Any new HUD piece uses the theme.
+  `AREA_TOAST=0` / `VEHICLE_HUD=0` the A/B; stills `post_room_shot.gd MODE=downed|loading`,
+  `HUD_TOAST="Place|Street"`, `HUD_CAR="<type>:<mph>"`; checks `tests/hud_polish_checks.gd`.
 - Weapon wheel (owner, 2026-09-24: "GTA style ... slows everything ... apple glass style"):
   `WeaponWheel` (`scripts/ui/weapon_wheel.gd`) is its own CanvasLayer (3) in the HUD scene, so it
   draws over the HUD and still works in HIDDEN (a nested layer ignores its parent's visibility).
@@ -970,6 +1008,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   of the junction ahead of the camera, walkers on the crosswalk in front of it; `--hour=21` for
   the heads at night). Checks: `tests/street_life_checks.gd`, loaded by the smoke test like the
   air traffic's.
+- Busy streets (2026-10-30, docs/HANDOFF.md "Busy streets"): `BusyStreets`
+  (`scripts/npc/busy_streets.gd`, static; hooks in TrafficManager `_maintain()` / `_spawn_near()` /
+  `_run_spawns()` / `density_at()`, `CityStreamer._process()`, `CityChunk._park_car_steps()` /
+  `_pedestrian_steps()`) spends the existing caps where the camera looks: `focus_share` of street
+  spawns go round the camera's block, ahead of it, never popping in inside the view nearer than
+  `view_pop_min` (except while FILLING after a load or teleport, `spawn_burst()`); cars far behind
+  and out of view go back to the pool (`retire_far()`); the street cap follows the hour
+  (`hour_factor()`, NightCity.traffic_level); street traffic no longer waits on PhysicsBudget
+  (kinematic: `traffic_room()`); near FULL blocks' walkers are topped up once a second from their
+  planned count x `crowd_factor(hour)`, freeing far out-of-view walkers for room (`balance_crowd()`);
+  the kerbs take up to `PARK_EXTRA` more parked cars on the spots their pass left empty (a hash per
+  spot, after every roll). `BUSY_STREETS=0` is the A/B; census `tools/busy_streets/census.gd`
+  (and `CENSUS=1` on still_shot.gd); checks `tests/busy_streets_checks.gd`.
 - Traffic AI (2026-10-05, "traffic that drives like people"; HANDOFF 9ed): `TrafficAI`
   (`scripts/npc/traffic_ai.gd`, static) is the drivers on top of TrafficManager's IDM queues.
   **Moods** from a hash per car (`roll_mood()`: NORMAL, 12 % PUSHY, 12 % CAREFUL, 8 % DOZY) set
@@ -1290,6 +1341,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   staggered by distance, `max_alarms` 7. A/B: `TREE_FIRE=0`, `BLAST_AFTERMATH=0`,
   `CAR_ALARMS=0` in the environment. Stills: `AFTERMATH=palms|burning|charred|column|crater` on
   `still_shot.gd` (`tools/glshot/aftermath_stage.gd`). Checks: `tests/explosion_aftermath_checks.gd`.
+- The blast, second pass (2026-10-30, fleet wave 3 "explosions-2", docs/HANDOFF.md "The blast,
+  frame by frame"): `BlastFX` (`scripts/weapons/blast_fx.gd`, ONE call at the end of
+  `WeaponFX.explosion()`) adds a 60-energy flash light reaching `flash_reach` radii (the facades)
+  then a flickering fire glow, a white-hot flare billboard, a screen flash (layer -1 ColorRect,
+  add), the pressure wave (`shaders/blast_wave.gdshader`, screen-reading, render_priority MIN, not
+  web) and a fast ground kick, fire puffs rolling UP (fire_puff.gdshader's `relief`: billows lit
+  from the core, 0 = the old flat puff), a cap and column of LIT smoke for 10-20 s
+  (`shaders/blast_smoke.gdshader`, sun + sky + the fire under young puffs, linear on both; local
+  coords so a re-centre carries it), burning debris (`BlastDebris`: ballistic points with one ray a
+  tick feeding two emitters through `emission_points`) and windows facing it across the street
+  (BuildingDamage SHATTER records + shards, delayed by the wave). Car blasts set `fuel_next` (bigger
+  fireball) and toss `car_lift_gain` higher. Caps: `max_heavy` in `heavy_window`, `max_columns`,
+  `max_debris`, `max_glass_panes`. `EXPLOSIONS_2=0` is the A/B; strips `FX_TIMES=` / `FX_CAR=1`
+  on `tools/glshot/fx_shot.gd`; checks `tests/explosions_2_checks.gd`.
 - Street props break by KIND (2026-10-06, docs/HANDOFF.md "Street props that break like GTA"):
   `PropBreak` (`scripts/world/prop_break.gd`) takes `damage_prop()` / `break_prop()`: a hydrant
   leaves a `HydrantGeyser` (13 m column, wet patch, lifts the player) and a flange; a shelter loses
@@ -1316,6 +1381,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `restore()`, `LandmarkDowntown.build()` `restore_tower()`. Sanctuaries take none; curtain walls
   get no hole. `BUILDING_DAMAGE=0` is the A/B; stills `tools/glshot/damage_shot.gd`; checks
   `tests/building_damage_checks.gd`.
+- Car detail (2026-10-30, docs/HANDOFF.md "Close-up car detail"): `CarDetail`
+  (`scripts/vehicles/car_detail.gd`): number plates (invented format and county, text a hash of the
+  car's look) and badges as raised SignFont ribbons, ONE mesh a car on `car_detail.gdshader`'s
+  shared pair (plate lamp off / on), built lazily when the car enters its 70 m tier (`near()`, 3 a
+  frame, `flush()` for tests), spots ray-found on the near body (`PLATE_AT` hints); tyre sidewall
+  lettering in PropFactory's near wheel; grime / mud / scratches as uniforms on the car's own paint
+  material (car_paint.gdshaderinc grime block), brake dust as `wheel_material(kit, false, dust)`,
+  windscreen dust (`screen_dust`) on the shared cabin glass. `CAR_DETAIL=0` the A/B; `CAR_GRIME=`
+  and views `plate|nose|wheel|arch` on car_shot.gd; probe `tools/car_detail_probe.gd`; checks
+  `tests/car_detail_checks.gd`.
 - Car cabins (2026-10-30, docs/HANDOFF.md "Car cabins"): the car the player drives, empty parked
   cars within `CarInteriors.near_range` (7.5 m) of him and a car that lost a door get real
   geometry (`CarInteriors`, one node under the root; `CarInterior` on the car's near body mesh):
@@ -1703,6 +1778,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `uv_shift`), and `UV.y > 1.5` is how the shader knows to draw a fan that widens and fades
   along the road instead of a round pool; drawn as a pool, a beam laid flat on the street read
   as a long white smear.
+- Night atmosphere (2026-10-30, docs/HANDOFF.md "Night street atmosphere"): `NightAtmos`
+  (`scripts/world/night_atmos.gd`): camera-facing halos round every lamp head
+  (`atmos_glow_halo`) and lit shop front (`atmos_shop_glow`), a drawn light cone under each FULL
+  lamp (`atmos_beam_shaft`), all in the lamp's own prop record (glow words: out with the lamp),
+  plus car lamp halos (car_lights.gdshader parts 6 / 7, `PropFactory.LIGHT_HALO_*`), lens streaks
+  on a light looked at straight on, and a sodium lean on the depth fog near the street. Sized and
+  faded in the shaders (`shaders/night_halo.gdshaderinc`) off the `night_atmos` global (haze from
+  `haze_for()`, shaft gain 0 where volumetric fog is on, halo gain, viewport height), pushed four
+  times a second; collapsed by day. `NIGHT_ATMOS=0` is the A/B; checks
+  `tests/night_atmos_checks.gd`.
 - Car lights (GAME_PLAN G4 / G6, 2026-10-04): the lamp mesh is `PropFactory.vehicle_lights()`
   on `shaders/car_lights.gdshader` (it replaced light_pool for cars): head and tail glows, the
   beam fan, amber indicators at all four corners, reversing lamps and a red wash on the road
@@ -3669,6 +3754,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (it asked `height_at()` ~1,000 times in one step: a 60 ms hitch per hill chunk). Judge any of it fast with `tools/glshot/hill_ground_shot.tscn` (the real hill chunks
   round an EYE, lit by the city's environment, a minute a shot; `SHELL_DEBUG`, `NOSHELLS`,
   `PROFILE` under Forward+) and time the steps with `tools/hill_step_bench/hill_step_bench.tscn`.
+- The hills' ground, wave 3 (2026-10-30, docs/HANDOFF.md "Hills without leopard spots, again"):
+  the leopard spots were the fine erosion orders' NORMAL (erosion.gdshaderinc, 7 m deep, cells out
+  of phase: braids of pits) - now `erosion_amp` 3 m and `erosion_jitter` 0.45 / `erosion_branch` 0.8,
+  rills. Stands: the stand octaves are uniforms (`stand_*_w`, patch-dominant) and `hill_rill_th(rill,
+  w)` puts brush down each rill (terrain and plane from `ero.z`, the shells from the tile's COLOR.a,
+  `CityChunk._tile_rills`, sampled with the heights; HillPlanting.rill() is the CPU port);
+  `stand_gaps` 0.15 (bright holes in a stand). `HillShrub` (scripts/world/hill_shrub.gd) is the
+  stands' code-built shrub on LaTrees' emitter, `hill_shrub_<v>` batches to `SHRUB_DISTANCE` 160 m.
+  `HILL_GROUND_3=0` puts the old numbers back (`HillGround3.apply()` on the three materials);
+  `tools/hill_ground_3/topdown.gd` maps the stands in seconds; hill_ground_shot `TERRAIN_DEBUG=1`
+  paints brush / bare / rock; checks `tests/hill_ground_3_checks.gd`.
 - Overhead utilities (2026-10-05, docs/HANDOFF.md "Overhead utilities"): `UtilityPoles`
   (`scripts/world/utility_poles.gd`) builds the line StreetDetail decides on (`_pole_run()` hands
   it over): tapered wooden poles, a crossarm on the pole's face with braces and porcelain pins, a
@@ -4820,6 +4916,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `strip()` stood off the leg as a board), `dress` (the skirt plus a bodice with `slope` 3 shaped to
   the waist, its hem laid onto the skirt; region `keep`, so no look splits it in two; prints
   `dots` / `floral` in `pattern()`). Worn by `crowd_u..z` (MODELS 20-25, after the rest).
+  **Crowd variety (2026-10-30, docs/HANDOFF.md "Crowd variety")**: `tailored` (a suit coat or
+  blazer: the shell with a V front cut by two planes to the top button, `_lapel()` panels laid on
+  the front by front rays with a notch, a turn-down collar whose fall is laid ON the coat by rays,
+  buttons, flap pockets; vent / cutaway / darts / welt / cuff buttons painted by
+  `paint_tailored()`), `tie` (knot and blade grids on the shirt, region `keep`), `vest` `tank`
+  (racer back), trousers `wide` (hem held under half the ankles' spacing) and shorts `athletic`.
+  A coat (or a jacket with `over`) hides the shirt and tie under it by RAYS straight out from the
+  torso axis (`hide_under(ray=True)`): the nearest-point test took the lapels beside the V for
+  cover and stripped the shirt off the chest. Worn by `crowd_aa..af` (MODELS 26-31);
+  `CROWD_VARIETY=0` leaves them out (`Pedestrian.VARIETY_MODELS`); checks `tests/crowd_variety_checks.gd`.
   **Close-up detail** (owner, 2026-09-27: faces and garments at 2-4 m): faces are not the
   average MakeHuman head - `build_character.py` rolls MPFB's own face targets (nose, jaw, chin,
   cheeks, eyes, mouth, ears, brows, forehead; `FACE_PAIRS`, `face_var`, `face_seed`, explicit
@@ -5440,6 +5546,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/hero/render.py --hero` (the same recipe in nodes) and `--pose` (see Player body). The
   crowd tracksuit code (`Pedestrian.tracksuit_material()`, `add_piping()`) is kept for dressing
   a crowd rig.
+- The hero's face, second pass (2026-10-30, docs/HANDOFF.md "The hero's face, second pass"): built
+  by `tools/hero/` again - face structure from MPFB targets in `hero_config.json` (no eye move /
+  scale targets: HeroFace's centres), the complexion baked by `prep_textures.py` (`look.face_detail`,
+  `mottle`, `freckles`, `moles`), `hero_x_skin_region.png` (pore size, redness, cartilage) and the
+  detail map's B = pore cavity, brows as strand cards (`hair.brow_cards`; the hero_brows material
+  name kept), denser hair (`atlas_density`, `strand_round` in hero_hair.gdshader). The orange ear
+  was BACKLIGHT doubling the Forward+ transmittance (`backlight_fwd`). `HERO_FACE_2=0` is the
+  shader A/B; checks `tests/hero_face_2_checks.gd`.
 - Player body: `Avatar` (`scripts/player/avatar.gd`, built by `Player._build_avatar()` from
   `avatar_model`, one of `Pedestrian.MODELS`): idle / walk / run clips picked by speed, frozen or
   slowed stride in the air, forward lean while boosting. The orange capsule in `player.tscn` is
@@ -5499,6 +5613,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/glshot/hero_moves_shot.gd` (several stills a load: a clip frozen or a staged move -
   fly, fall, hit_*, draw, land_<speed>, roll, idle_*; `STEP=1` for the foot IK); checks
   `tests/hero_moves_checks.gd`.
+- The hero close up (wave 3, docs/HANDOFF.md "The hero close up"): no face bones, so `HeroFace`
+  (`scripts/player/hero_face.gd`, owned by HeroLook, ticked on skeleton_updated) drives
+  `shaders/hero_eye.gdshader` / `hero_lash.gdshader`: saccades, blinks (the upper lid PAINTED onto
+  the eyeball in the head's frame, the upper lashes swung down about the eye's centre), the socket's
+  shade. Centres and frames go to the shaders in WORLD space: the skinned VERTEX is in the
+  skeleton's centimetres (the bind poses carry the rig's 100x), never the mesh's metres. Clip rates
+  are stride-matched (`HeroStride` measures each clip's planted toe; `Avatar.HERO_*_SPEED`,
+  `hero_gait()`). Rain on the skin: wet_surface.gdshaderinc's `ws_wet()` (`HeroLook.setup_wet()`; wet-world
+  does the velour and hair). `HERO_CLOSEUP=0` the A/B, `HERO_FACE=0`, stills `HERO_FACE_BLINK`,
+  `HERO_FACE_GAZE`, `HERO_WET`, `CAM_AT=face` / `LIGHT=golden|night` on hero_shot.gd; checks
+  `tests/hero_closeup_checks.gd`.
 - Crowd foot placement (G5, 2026-10-29, docs/HANDOFF.md "Crowd foot placement"): `CrowdFeet`
   (`scripts/npc/crowd_feet.gd`, one line at the end of `Pedestrian._physics_process()`, so every
   subclass that runs it gets it) plants a person's feet on what is under them within

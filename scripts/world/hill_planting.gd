@@ -36,12 +36,23 @@ const TRAIL_AMOUNT := 0.8
 const CROWN_EDGE := 0.06
 const CROWN_CELL := 2.6
 const CROWN_MEAN := 0.35
-## hill_splat.gdshaderinc: the stand noise's octave weights and bias (hill_stand_noise()).
-const STAND_PATCH_W := 0.2
-const STAND_MID_W := 0.1
-const STAND_BUSH_W := 0.4
-const STAND_FINE_W := 0.3
-const STAND_BIAS := 0.35
+## hill_splat.gdshaderinc: the stand noise's octave weights and bias (hill_stand_noise()), and how
+## much the fine erosion rills push the stands (hill_rill_th()). hill-ground-3: the patch octaves
+## carry most of the spread, so a stand is a mass at any distance (HillGround3).
+const STAND_PATCH_W := 0.5
+const STAND_MID_W := 0.14
+const STAND_BUSH_W := 0.18
+const STAND_FINE_W := 0.12
+const STAND_BIAS := 0.18
+const RILL_BRUSH := 0.3
+## hill_splat.gdshaderinc: the range of hill_rill_th()'s slow modulation.
+const RILL_REACH_LOW := 0.2
+const RILL_REACH_HIGH := 1.4
+## erosion.gdshaderinc / terrain.gdshader: the fine erosion orders the rills come from.
+const EROSION_JITTER := 0.45
+const EROSION_BRANCH := 0.8
+const EROSION_AMP := 3.0
+const EROSION_CELL := 55.0
 
 ## The shader's uniforms this file mirrors, by name, for the smoke test.
 const MIRRORED := {
@@ -52,11 +63,29 @@ const MIRRORED := {
 	"drain_brush": DRAIN_BRUSH, "gentle_grass": GENTLE_GRASS,
 	"gully_scree": GULLY_SCREE, "crest_rock": CREST_ROCK, "topo_weight": TOPO_WEIGHT,
 	"south_grass": SOUTH_GRASS, "crown_edge": CROWN_EDGE,
+	"stand_patch_w": STAND_PATCH_W, "stand_mid_w": STAND_MID_W, "stand_bush_w": STAND_BUSH_W,
+	"stand_fine_w": STAND_FINE_W, "stand_bias": STAND_BIAS, "rill_brush": RILL_BRUSH,
 }
 ## The shader constants this file mirrors, by name, for the smoke test.
 const MIRRORED_CONSTS := {"CROWN_CELL": CROWN_CELL, "CROWN_MEAN": CROWN_MEAN,
-	"STAND_PATCH_W": STAND_PATCH_W, "STAND_MID_W": STAND_MID_W, "STAND_BUSH_W": STAND_BUSH_W,
-	"STAND_FINE_W": STAND_FINE_W, "STAND_BIAS": STAND_BIAS}
+	"RILL_REACH_LOW": RILL_REACH_LOW, "RILL_REACH_HIGH": RILL_REACH_HIGH}
+
+## The numbers ground() uses: the constants above, or with HILL_GROUND_3=0 the old ones
+## (HillGround3.OLD), as the shaders get them.
+static var _w: Dictionary = {}
+
+
+static func _weights() -> Dictionary:
+	if _w.is_empty():
+		_w = {"patch": STAND_PATCH_W, "mid": STAND_MID_W, "bush": STAND_BUSH_W, "fine": STAND_FINE_W,
+			"bias": STAND_BIAS, "rill": RILL_BRUSH, "jitter": EROSION_JITTER, "branch": EROSION_BRANCH,
+			"amp": EROSION_AMP}
+		if not HillGround3.enabled:
+			var o: Dictionary = HillGround3.OLD
+			_w = {"patch": o.stand_patch_w, "mid": o.stand_mid_w, "bush": o.stand_bush_w, "fine": o.stand_fine_w,
+				"bias": o.stand_bias, "rill": o.rill_brush, "jitter": o.erosion_jitter, "branch": o.erosion_branch,
+				"amp": o.erosion_amp}
+	return _w
 
 
 ## hill_splat.gdshaderinc hash12t().
@@ -101,7 +130,7 @@ static func _smooth(e0: float, e1: float, x: float) -> float:
 ## `trails` false skips the metre-wide trails (the far tier's mounds are wider than one).
 ## `drain` is MacroMap.drainage_at(w) (-1 spur crest .. +1 gully), which the shader gets
 ## through the terrain's vertex colour.
-static func ground(w: Vector2, grad: Vector2, trails: bool = true, drain: float = 0.0) -> Dictionary:
+static func ground(w: Vector2, grad: Vector2, trails: bool = true, drain: float = 0.0, rill_at: float = INF) -> Dictionary:
 	var n := Vector3(-grad.x, 1.0, -grad.y).normalized()
 	var slope := 1.0 - clampf(n.y, 0.0, 1.0)
 	var flat := Vector2(n.x, n.z).length()
@@ -112,10 +141,15 @@ static func ground(w: Vector2, grad: Vector2, trails: bool = true, drain: float 
 	var south := maxf(-north, 0.0)
 	var coverage := CHAPARRAL_AMOUNT + maxf(north, 0.0) * NORTH_BRUSH - south * SOUTH_GRASS \
 			+ drain * DRAIN_BRUSH - gentle * GENTLE_GRASS + (hill - 0.5) * 0.2
+	var wt := _weights()
 	var th := 0.5 + (coverage - 0.5) * TOPO_WEIGHT
+	# The stands follow the fine erosion rills (hill_rill_th(): the shader's z, both orders resolved).
+	# `rill_at` is rill_th() off the tile's own grid when the caller has it (CityChunk._tile_rills).
+	if float(wt.rill) > 0.0:
+		th += (rill_at if rill_at != INF else rill_th(w, grad)) * float(wt.rill) * TOPO_WEIGHT * rill_reach(w)
 	var bush := vnoise(w * 0.29 + Vector2(3.7, 3.7))
-	var frag := patchy * STAND_PATCH_W + vnoise(w * 0.12 + Vector2(17.0, 17.0)) * STAND_MID_W \
-			+ (bush - 0.5) * STAND_BUSH_W + (vnoise(w * 0.9 + Vector2(51.0, 51.0)) - 0.5) * STAND_FINE_W + STAND_BIAS
+	var frag := patchy * float(wt.patch) + vnoise(w * 0.12 + Vector2(17.0, 17.0)) * float(wt.mid) \
+			+ (bush - 0.5) * float(wt.bush) + (vnoise(w * 0.9 + Vector2(51.0, 51.0)) - 0.5) * float(wt.fine) + float(wt.bias)
 	# The stand's edge runs round the shrub crowns (the shader's hill_stand_crowned(), resolved).
 	frag -= (crown(w) - CROWN_MEAN) * CROWN_EDGE
 	# The shader's stand edge is 0.09 wide in `frag`; as a 0..1 share it is the same test, softer.
@@ -133,6 +167,80 @@ static func ground(w: Vector2, grad: Vector2, trails: bool = true, drain: float 
 	rocky = maxf(rocky, _smooth(0.78, 0.86, crag * 0.7 + patchy * 0.3) * _smooth(0.10, 0.22, slope))
 	rocky = maxf(rocky, _smooth(0.2, 0.7, -drain) * _smooth(0.14, 0.3, slope) * _smooth(0.42, 0.62, crag * 0.6 + bush * 0.4) * CREST_ROCK)
 	return {"brush": brush, "bare": bare, "rocky": rocky, "north": north, "slope": slope}
+
+
+## hill_splat.gdshaderinc hill_rill_th()'s slow modulation: some faces follow their rills hard,
+## others hardly (a ~180 m noise), so the streaks come and go instead of combing every slope.
+static func rill_reach(w: Vector2) -> float:
+	return lerpf(RILL_REACH_LOW, RILL_REACH_HIGH, vnoise(w * 0.0055 + Vector2(61.0, 61.0)))
+
+
+## Whether the stands follow the rills at all (off with HILL_GROUND_3=0).
+static func rills_on() -> bool:
+	return float(_weights().rill) > 0.0
+
+
+## The rills as the shaders' stand rule takes them (hill_rill_th()'s argument): erosion_detail().z
+## times the steepness that scaled its depth, on ground falling by `grad`.
+static func rill_th(w: Vector2, grad: Vector2) -> float:
+	var steep := _smooth(0.08, 0.45, grad.length())
+	if steep <= 0.0:
+		return 0.0
+	return rill(w, grad, float(_weights().amp) * steep) * steep
+
+
+## erosion.gdshaderinc erosion_hash().
+static func _ehash(p: Vector2) -> Vector2:
+	var x := fposmod(p.x * 0.1031, 1.0)
+	var y := fposmod(p.y * 0.1030, 1.0)
+	var z := fposmod(p.x * 0.0973, 1.0)
+	var d := x * (y + 33.33) + y * (z + 33.33) + z * (x + 33.33)
+	x += d
+	y += d
+	z += d
+	return Vector2(fposmod((x + y) * z, 1.0), fposmod((x + z) * y, 1.0))
+
+
+## erosion.gdshaderinc erosion_cells(): one order at `p` (cells), stripes varying along `dir`.
+static func _ecells(p: Vector2, dir: Vector2, jitter: float) -> Vector3:
+	var ip := p.floor()
+	var fp := p - ip
+	var va := Vector3.ZERO
+	var wt := 0.0
+	for j in range(-2, 2):
+		for i in range(-2, 2):
+			var o := Vector2(i, j)
+			var pp := fp + o - _ehash(ip - o) * jitter
+			var w := maxf(exp(-pp.length_squared() * 2.0) - 0.0889, 0.0)
+			var mag := pp.dot(dir) * TAU
+			var sn := -sin(mag) * TAU
+			va += Vector3(cos(mag), sn * dir.x, sn * dir.y) * w
+			wt += w
+	return va / maxf(wt, 0.0001)
+
+
+## erosion.gdshaderinc erosion_detail().z with both orders resolved: how deep in a fine rill `w`
+## sits (-1 crest .. +1 floor) on ground that falls by `grad`, the first order `amp` metres deep.
+static func rill(w: Vector2, grad: Vector2, amp: float) -> float:
+	var wt := _weights()
+	var acc := Vector3.ZERO
+	var a := amp
+	var c := EROSION_CELL
+	var wsum := 0.0
+	for o in 2:
+		var d := grad + Vector2(acc.x, acc.y) * float(wt.branch)
+		var dir := Vector2(d.y, -d.x)
+		var l := dir.length()
+		dir = dir / l if l > 0.00001 else Vector2(1.0, 0.0)
+		var f := _smooth(0.02, 0.2, l)
+		var e := _ecells(w / c, dir, float(wt.jitter))
+		acc.x += e.y * (a / c) * f
+		acc.y += e.z * (a / c) * f
+		acc.z += -e.x * f * a
+		wsum += a
+		a *= 0.5
+		c *= 0.5
+	return acc.z / maxf(wsum, 0.0001)
 
 
 ## hill_splat.gdshaderinc hill_crowns().x: the height (0..1) of the shrub crown canopy at `w`,

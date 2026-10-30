@@ -411,6 +411,8 @@ func begin_build() -> void:
 				_steps.append(_build_roads.bind(block))
 			if _owns_shoreline():
 				_steps.append(_build_beach.bind(block))
+				if OceanCloseup.enabled():
+					_steps.append(_build_water.bind(true))
 			# The coast highway runs the length of the sand on the land side of it, so a beach
 			# chunk has to lay road as well; without this PCH simply stops at every beach town
 			# and picks up again where the cliffs start.
@@ -632,7 +634,11 @@ func _add_shop_spill() -> void:
 				var xf: Transform3D = b.transform * (pool[0] as Transform3D)
 				xf.origin.y = SIDEWALK_TOP + 0.06
 				_batch.add("shop_spill", mesh, xf, pool[1])
+				var glow: Variant = NightAtmos.shop_part(xf, pool[1], SIDEWALK_TOP)
+				if glow != null:
+					_batch.add(glow[0], glow[1], glow[2], glow[3], glow[4])
 	_batch.set_no_shadow("shop_spill")
+	NightAtmos.finish_batch(_batch)
 	_batch.set_draw_distance("shop_spill", SHOP_SPILL_DISTANCE)
 
 
@@ -1115,8 +1121,21 @@ func _build_sts_crane(at: Vector3, working: bool, ship_z: float, kit: RandomNumb
 
 # --- Ocean, beach, hills ---------------------------------------------------------------
 
-func _build_water() -> void:
+func _build_water(seaward_only := false) -> void:
 	var area := owned_rect()
+	if seaward_only:
+		# A beach chunk's own slice of sea (OceanCloseup): from its seaward edge to a few metres
+		# under the sand past the waterline. Without it the inner surf zone off every BEACH-zone
+		# chunk was missing, and the sand's drowned face showed as a flat blue sheet.
+		if capturing:
+			return
+		var cx := -INF
+		for k in 5:
+			cx = maxf(cx, plan.macro.coast_x(lerpf(area.position.y, area.end.y, k / 4.0)))
+		var east := minf(cx + 6.0, area.end.x)
+		if east <= area.position.x + 1.0:
+			return
+		area = Rect2(area.position, Vector2(east - area.position.x, area.size.y))
 	var c := area.get_center()
 	# Waving surface (shaders/ocean.gdshader, Gerstner waves sized by the Weather node) over a
 	# solid box so the sea still holds you up. Surface at +0.15 so it sits above the ground
@@ -1581,6 +1600,10 @@ var _tile_n: int = 0
 var _tile_row: int = 0
 var _tile_heights := PackedFloat32Array()
 var _tile_drains := PackedFloat32Array()
+## The fine erosion rills at each vertex of a FULL tile (HillPlanting.rill() times the steepness, the
+## terrain shader's ero.z * steep): hill_shells.gdshader's stand rule reads them from COLOR.a and the
+## planting off the grid, so neither works the 32-cell noise out again (hill-ground-3).
+var _tile_rills := PackedFloat32Array()
 ## Microseconds of sampling a call takes before it hands the frame back.
 const TERRAIN_SAMPLE_BUDGET_US := 2500
 
@@ -1595,6 +1618,7 @@ func _sample_terrain() -> bool:
 		_tile_n = (terrain_subdiv_road if has_road else terrain_subdiv) if level == Level.FULL else terrain_subdiv_lod
 		_tile_heights.resize((_tile_n + 1) * (_tile_n + 1))
 		_tile_drains.resize((_tile_n + 1) * (_tile_n + 1))
+		_tile_rills.resize((_tile_n + 1) * (_tile_n + 1))
 		_tile_row = 0
 	var n := _tile_n
 	var t0 := Time.get_ticks_usec()
@@ -1606,10 +1630,35 @@ func _sample_terrain() -> bool:
 			_tile_heights[j * (n + 1) + i] = plan.height_at(Vector2(x, z))
 			# The drainage the height_at() just above left (MacroMap.last_drain).
 			_tile_drains[j * (n + 1) + i] = plan.macro.last_drain if plan.macro else 0.0
+		# The row above now has both its neighbours: its rills (and the last row's, once sampled).
+		if j >= 1:
+			_sample_rills(j - 1)
+		if j == n:
+			_sample_rills(n)
 		_tile_row += 1
 		if Time.get_ticks_usec() - t0 > TERRAIN_SAMPLE_BUDGET_US:
 			break
 	return _tile_row > n
+
+
+## The fine rills along row `j` of the tile, off its own heights (central differences, as the
+## mesh's normals): FULL tiles only, where the shells and the planting read them.
+func _sample_rills(j: int) -> void:
+	if level != Level.FULL or not HillPlanting.rills_on():
+		return
+	var area := owned_rect()
+	var n := _tile_n
+	var dx := area.size.x / n
+	var dz := area.size.y / n
+	var j0 := maxi(j - 1, 0)
+	var j1 := mini(j + 1, n)
+	for i in n + 1:
+		var i0 := maxi(i - 1, 0)
+		var i1 := mini(i + 1, n)
+		var grad := Vector2((_tile_heights[j * (n + 1) + i1] - _tile_heights[j * (n + 1) + i0]) / (dx * (i1 - i0)),
+			(_tile_heights[j1 * (n + 1) + i] - _tile_heights[j0 * (n + 1) + i]) / (dz * (j1 - j0)))
+		var p := Vector2(area.position.x + area.size.x * i / n, area.position.y + area.size.y * j / n)
+		_tile_rills[j * (n + 1) + i] = HillPlanting.rill_th(p, grad)
 
 
 func _build_terrain() -> void:
@@ -1640,7 +1689,9 @@ func _build_terrain() -> void:
 			if not _shell_clear.is_empty():
 				keep = clampf(0.5 + _shell_clear[j * (n + 1) + i] / (2.0 * SHELL_CLEAR_SPAN), 0.0, 1.0)
 				_shell_any = _shell_any or (keep > 0.5 and h > 1.5)
-			st.set_color(Color(t, _tile_drains[j * (n + 1) + i] * 0.5 + 0.5, keep, 1.0))
+			# COLOR.a is the fine rills (_tile_rills, -1..1 as 0..1) for the shells' stand rule.
+			var rl := _tile_rills[j * (n + 1) + i] if _tile_rills.size() > j * (n + 1) + i else 0.0
+			st.set_color(Color(t, _tile_drains[j * (n + 1) + i] * 0.5 + 0.5, keep, rl * 0.5 + 0.5))
 			st.add_vertex(Vector3(x, h, z))
 	for j in n:
 		for i in n:
@@ -1656,7 +1707,7 @@ func _build_terrain() -> void:
 			st.add_index(c)
 	st.generate_normals()
 	# Kept for the planting, which reads slopes and hollows off the very surface drawn.
-	_terrain_grid = {"heights": heights, "drains": _tile_drains, "n": n, "area": area}
+	_terrain_grid = {"heights": heights, "drains": _tile_drains, "rills": _tile_rills, "n": n, "area": area}
 	var mesh := MeshInstance3D.new()
 	mesh.name = "Terrain"
 	mesh.mesh = st.commit()
@@ -1898,6 +1949,18 @@ const PLANT_ROWS_PER_STEP := 3
 
 ## The drawn terrain's height at `p` (true world XZ): the tile's own grid, bilinear, or the map
 ## off the tile.
+## The fine rills at `p` off the tile (_tile_rills), or INF where the tile has none (ground()
+## then works them out itself).
+func _terrain_rill(p: Vector2) -> float:
+	if _terrain_grid.is_empty() or (_terrain_grid.get("rills", PackedFloat32Array()) as PackedFloat32Array).size() != (_tile_n + 1) * (_tile_n + 1) \
+			or not HillPlanting.rills_on():
+		return INF
+	var area: Rect2 = _terrain_grid.area
+	if not area.grow(0.01).has_point(p):
+		return INF
+	return _terrain_height(p, "rills")
+
+
 func _terrain_height(p: Vector2, field: String = "heights") -> float:
 	if _terrain_grid.is_empty():
 		return plan.height_at(p) if field == "heights" else plan.macro.drainage_at(p)
@@ -1961,7 +2024,7 @@ func _plant_hills() -> bool:
 			var grad := Vector2(_terrain_height(p + Vector2(2.0, 0.0)) - _terrain_height(p - Vector2(2.0, 0.0)),
 				_terrain_height(p + Vector2(0.0, 2.0)) - _terrain_height(p - Vector2(0.0, 2.0))) * 0.25
 			# The drainage off the tile's own grid, as the shader gets it through the vertex colour.
-			var g := HillPlanting.ground(p, grad, true, _terrain_height(p, "drains"))
+			var g := HillPlanting.ground(p, grad, true, _terrain_height(p, "drains"), _terrain_rill(p))
 			# Nothing on the rock or the bare cuts and trails.
 			if float(g.rocky) > 0.3 or float(g.bare) > 0.4:
 				continue
@@ -2000,7 +2063,13 @@ func _plant_hills() -> bool:
 				var variety := Color(rng.randf() * 0.3, rng.randf(), rng.randf(), 0.0)
 				if in_bed:
 					continue
-				_batch.add("hill_chaparral", chap, Transform3D(tilt.scaled(Vector3(s * 1.45, s, s * 1.45)), at - Vector3(0.0, 0.2 + float(g.slope) * 1.5, 0.0)), tint, variety)
+				if HillGround3.enabled:
+					# The code-built mound (HillShrub, hill-ground-3): its leaves carry their own grey-green,
+					# so the tint is only a per-shrub lightness.
+					var hs := lerpf(hill_brush_height.x, hill_brush_height.y, size * size) / HillShrub.HEIGHT
+					_batch.add("hill_shrub_%d" % (int(tone * 30.0) % HillShrub.VARIANTS), HillShrub.mesh(int(tone * 30.0)), Transform3D(tilt.scaled(Vector3(hs * 1.45, hs, hs * 1.45)), at - Vector3(0.0, 0.1 + float(g.slope) * 1.2, 0.0)), Color(1.0, 1.0, 1.0).lerp(Color(1.18, 1.15, 1.08), tone), variety)
+				else:
+					_batch.add("hill_chaparral", chap, Transform3D(tilt.scaled(Vector3(s * 1.45, s, s * 1.45)), at - Vector3(0.0, 0.2 + float(g.slope) * 1.5, 0.0)), tint, variety)
 				hill_planting.chaparral += 1
 				points.append([p, "chaparral"])
 			elif brush < 0.35 and roll > 1.0 - hill_sage_chance:
@@ -2010,7 +2079,12 @@ func _plant_hills() -> bool:
 				var sage_var := Color(rng.randf(), rng.randf(), 0.8, 0.0)
 				if in_bed:
 					continue
-				_batch.add("hill_chaparral", chap, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s * 1.1, s, s * 1.1)), at - Vector3(0.0, 0.15, 0.0)), tint, sage_var)
+				if HillGround3.enabled:
+					# Sage and buckwheat: a small, paler mound.
+					var hs := lerpf(0.8, 1.3, size) / HillShrub.HEIGHT
+					_batch.add("hill_shrub_%d" % (int(tone * 30.0) % HillShrub.VARIANTS), HillShrub.mesh(int(tone * 30.0)), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(hs, hs, hs)), at - Vector3(0.0, 0.1, 0.0)), Color(1.45, 1.45, 1.3), sage_var)
+				else:
+					_batch.add("hill_chaparral", chap, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s * 1.1, s, s * 1.1)), at - Vector3(0.0, 0.15, 0.0)), tint, sage_var)
 				hill_planting.sage += 1
 				points.append([p, "sage"])
 	_plant_row = stop
@@ -2021,6 +2095,9 @@ func _plant_hills() -> bool:
 	# block, keep theirs.
 	_batch.set_no_shadow("hill_chaparral")
 	_batch.set_draw_distance("hill_chaparral", hill_brush_distance)
+	for v in HillShrub.VARIANTS:
+		_batch.set_no_shadow("hill_shrub_%d" % v)
+		_batch.set_draw_distance("hill_shrub_%d" % v, HillGround3.SHRUB_DISTANCE)
 	return true
 
 
@@ -2741,6 +2818,7 @@ func _pedestrian_steps(rect: Rect2, rng: RandomNumberGenerator, params: Dictiona
 	if plan.macro and not params.is_empty():
 		# The downtown core is the busiest: up to twice the district's count in the middle.
 		count = roundi(count * (1.0 + plan.macro.skyline_boost(rect.get_center())))
+	BusyStreets.note_crowd(self, rect, plan.sidewalk_width if sidewalk < 0.0 else sidewalk, count)
 	return _crowd_steps(rect, plan.sidewalk_width if sidewalk < 0.0 else sidewalk, count, rng)
 
 
@@ -2860,7 +2938,66 @@ func _park_car_steps(rect: Rect2, rng: RandomNumberGenerator, params: Dictionary
 	var count := [0]
 	for spot in spots:
 		steps.append(_park_car.bind(spot, rng, max_cars, count))
+	# Fuller kerbs (BusyStreets): more cars on the spots left empty, from hashes after every roll.
+	var extra := BusyStreets.park_extra_count(max_cars)
+	if extra > 0:
+		var ecount := [0]
+		for spot in spots:
+			steps.append(_park_extra.bind(spot, extra, ecount))
 	return steps
+
+
+## The kerb spot is kept clear for something the plan puts there (a stop, a station, a school...).
+func _kerb_reserved(spot: Array) -> bool:
+	var p := Vector2(spot[0].x, spot[0].z)
+	return (plan.macro and Landmarks.covers(plan, p, 3.0)) or BigVehicles.in_stop_zone(plan, p) \
+			or FireStation.keeps_clear(plan, p) or PoliceStation.keeps_clear(plan, p) \
+			or Schools.keeps_clear(plan, p) or Alleys.keeps_clear(plan, p) \
+			or Kerbs.blocks_parking(self, spot[0]) or Hospital.keeps_clear(plan, p) \
+			or FreightRail.keeps_clear(plan, p) \
+			or CivicBuildings.keeps_clear(plan, p) \
+			or CarPark.keeps_clear(plan, p)
+
+
+## The kerb spot is taken by a feature of this chunk (a vendor's truck, works, carts, a parklet...).
+func _kerb_taken(spot: Array, car: Vehicle) -> bool:
+	return StreetVendors.blocks_parking(self, spot[0]) or Construction.blocks_parking(self, spot[0]) \
+			or KerbBins.blocks_parking(plan, spot[0], float(car._dims().length)) \
+			or FarmersMarket.blocks_parking(plan, spot[0]) or Parklets.blocks_parking(self, spot[0]) \
+			or StarBoulevard.blocks_parking(plan, spot[0]) \
+			or LowriderMeet.blocks_parking(self, spot[0]) \
+			or FilmShoot.blocks_parking(plan, spot[0]) \
+			or Valets.blocks_parking(self, spot[0]) \
+			or Micromobility.blocks_parking(self, spot[0])
+
+
+## One more parked car on a spot the block's own pass left empty (BusyStreets, a hash per spot).
+func _park_extra(spot: Array, extra: int, ecount: Array) -> void:
+	if ecount[0] >= extra or not BusyStreets.park_extra_roll(plan.seed, spot) or not PhysicsBudget.can_spawn():
+		return
+	var at: Vector3 = spot[0]
+	for c in _cars:
+		if is_instance_valid(c):
+			var cw := WorldState.to_world((c as Node3D).global_position) if (c as Node3D).is_inside_tree() else at + Vector3(99.0, 0.0, 0.0)
+			if Vector2(cw.x - at.x, cw.z - at.z).length() < 5.0:
+				return
+	if _kerb_reserved(spot):
+		return
+	var r := BusyStreets.park_extra_rng(plan.seed, spot)
+	var car := Vehicle.random_car(r)
+	if _kerb_taken(spot, car):
+		car.free()
+		return
+	# Fills whatever the pass left empty, so it moves with anything that takes a kerb spot.
+	car.set_meta("busy_extra", true)
+	var holder: Node = get_parent() if get_parent() else self
+	var spot_pos: Vector3 = at + Vector3(0.0, 0.3 + _gy(at.x, at.z), 0.0)
+	car.position = WorldState.to_local(spot_pos) if holder != self else spot_pos
+	car.rotation.y = float(spot[1]) + (PI if r.randf() < 0.5 else 0.0)
+	holder.add_child(car)
+	car.visible = visible
+	_cars.append(car)
+	ecount[0] += 1
 
 
 func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Array) -> void:
@@ -2873,13 +3010,7 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 		return
 	var car := Vehicle.random_car(rng)
 	var flip := rng.randf() < 0.5
-	if (plan.macro and Landmarks.covers(plan, Vector2(spot[0].x, spot[0].z), 3.0)) or BigVehicles.in_stop_zone(plan, Vector2(spot[0].x, spot[0].z)) \
-			or FireStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or PoliceStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
-			or Schools.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or Alleys.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
-			or Kerbs.blocks_parking(self, spot[0]) or Hospital.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
-			or FreightRail.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
-			or CivicBuildings.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
-			or CarPark.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)):
+	if _kerb_reserved(spot):
 		# After the rolls, so the chunk rng runs the same whether or not the spot is used, and it
 		# counts as a car, as the vendors' and the market's spots below do: a kerb kept clear that
 		# another feature moves (a driveway apron when a market closes the street) must not shift
@@ -2895,13 +3026,7 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	# A street vendor's truck at this stretch of kerb (StreetVendors): after every roll, so the
 	# block's stream (and the walkers after it) runs the same with or without the truck.
 	# It counts as parked, so the cap (and with it the rolls) is the same too.
-	if StreetVendors.blocks_parking(self, spot[0]) or Construction.blocks_parking(self, spot[0]) \
-			or KerbBins.blocks_parking(plan, spot[0], float(car._dims().length)) \
-			or FarmersMarket.blocks_parking(plan, spot[0]) or Parklets.blocks_parking(self, spot[0]) \
-			or StarBoulevard.blocks_parking(plan, spot[0]) \
-			or LowriderMeet.blocks_parking(self, spot[0]) \
-			or FilmShoot.blocks_parking(plan, spot[0]) \
-			or Valets.blocks_parking(self, spot[0]):
+	if _kerb_taken(spot, car):
 		car.free()
 		count[0] += 1
 		return
@@ -4009,8 +4134,9 @@ func _add_lamp(at: Vector3, facing: Vector2 = Vector2.ZERO) -> void:
 	_add_prop("lamp", at, Color(0.28, 0.29, 0.32), [
 		["lamp", PropFactory.model_lamp(), Transform3D(Basis(Vector3.UP, fmod(absf(at.x * 7.3 + at.z * 3.1), TAU)), at), _lamp_tint],
 		["lamp_pool", PropFactory.light_pool(), pool, NightCity.pool_color(Vector2(at.x, at.z))],
-	], [[Vector3(0.3, 3.9, 0.3), at + Vector3(0.0, 1.95, 0.0), 0.0]])
+	] + _night_atmos([at + Vector3(0.0, 3.8, 0.0)], at + Vector3(0.0, 3.8, 0.0), at, LAMP_POOL_SIZE), [[Vector3(0.3, 3.9, 0.3), at + Vector3(0.0, 1.95, 0.0), 0.0]])
 	_batch.set_no_shadow("lamp_pool")
+	NightAtmos.finish_batch(_batch)
 	if level != Level.FULL:
 		return
 	# A real light as well, so the lamp actually lifts the people and cars under it. DayNight
@@ -4031,6 +4157,16 @@ func _add_lamp(at: Vector3, facing: Vector2 = Vector2.ZERO) -> void:
 	PropBreak.own_light(self, light)
 
 
+## A lamp's halos and shaft in the night air (NightAtmos): instances of its own prop record, so
+## they go out with it. None while capturing for the far city (which has its own lamp heads).
+func _night_atmos(lights: Array, head: Vector3, at: Vector3, pool: float) -> Array:
+	if capturing or not NightAtmos.enabled:
+		return []
+	NightAtmos.ensure(get_parent())
+	var parts := NightAtmos.lamp_parts(lights, head, at.y, pool, Vector2(at.x, at.z), level == Level.FULL)
+	return parts
+
+
 ## The real lamp (StreetLamps, a model per type): the same prop slot, pool and OmniLight3D as
 ## the old post, the pool and the light moved under / into the lamp's head.
 func _add_street_lamp(at: Vector3, facing: Vector2) -> void:
@@ -4045,8 +4181,9 @@ func _add_street_lamp(at: Vector3, facing: Vector2) -> void:
 	_add_prop("lamp", at, Color(0.28, 0.29, 0.32), [
 		[lp.key, lp.mesh, lp.xform, lp.paint, lp.custom],
 		["lamp_pool", PropFactory.light_pool(), pool, StreetLamps.pool_color(lp.type, Vector2(at.x, at.z))],
-	], [[box, at + Vector3(0.0, box.y * 0.5, 0.0), 0.0]])
+	] + _night_atmos(lp.lights, head, at, size), [[box, at + Vector3(0.0, box.y * 0.5, 0.0), 0.0]])
 	_batch.set_no_shadow("lamp_pool")
+	NightAtmos.finish_batch(_batch)
 	if level != Level.FULL:
 		return
 	var light := OmniLight3D.new()

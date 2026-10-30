@@ -295,6 +295,14 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-30 The blast is built frame by frame (fleet wave 3, `explosions-2`).** The rocket and
+  car explosions get a second layer on top of WeaponFX's (`BlastFX`, one call): flash light and
+  screen flash, a screen-reading pressure wave (desktop only), fire rolling upward, a LIT smoke cap
+  and column (hand-lit, unshaded, linear on both renderers, so the web and the Mac agree), burning
+  debris as script points feeding shared emitters (no physics bodies), and the windows facing the
+  blast across the street broken through BuildingDamage's own records. Caps keep a rocket barrage
+  to three full blasts in 2.5 s. `EXPLOSIONS_2=0` is the A/B.
+
 - **2026-10-30 The mid distance is planted and parked from the capture, never placed (HANDOFF "The
   mid distance").** The far tiers' yard trees come from the LOD block build's own capture (green
   ground, building footprints) on hashes of the seed and the place, and the far streets' cars are
@@ -319,6 +327,13 @@ already mapped so milestone 2 is script-only.
   the front doors; only the everyday bodies (sedan, taxi, crossover, pickup, van, hatchback, SUV,
   minivan, beater); the exotics, police and big vehicles keep the traced cabin.
 
+- **2026-10-30 The night street's air is drawn, never simulated (HANDOFF "Night street
+  atmosphere").** Halos round lamp heads, shop fronts and car lamps, light cones under the lamps
+  in mist and rain, lens streaks on the lights looked at straight on and a sodium lean on the
+  street's depth fog, all sized and faded in the shaders off one global (`night_atmos`: haze,
+  shaft gain, halo gain, viewport height) that NightAtmos pushes four times a second from the
+  weather. Halos and shafts are instances of each lamp's own prop record (out with the lamp); the
+  drawn cones are skipped where Forward+'s volumetric fog already lights the air (never doubled).
 - **2026-10-30 The oil islands in the bay are a data table, not seeded (HANDOFF "The oil
   islands").** Three decorated drilling islands 600-700 m off the Long Beach sand, each a landmark
   built near and far from one builder on one shader; details are hashes of the island, so no seed
@@ -3485,6 +3500,49 @@ already mapped so milestone 2 is script-only.
   with the street and costs the web nothing. Wipers are one shared mesh per body type turned in the
   vertex shader, with four shared phase buckets (no per-car uniform); the glass clears its beads by
   the same angle worked out from TIME.
+- **2026-10-30 The hills' leopard spots were the fine erosion's normal; stands are masses of the
+  land.** (hill-ground-3) The dark blobs evenly over every slope in the hills still were not the paint
+  or the planting: the 55 / 27 m erosion orders drawn as shading were 7 m deep with neighbouring
+  cells half a stripe out of phase, so each gully was a braid of pits, black under an afternoon sun.
+  Now 3 m, nearly in phase: rills. The stand noise was 70 % shrub-scale octaves, which fade with
+  distance into a share tone (khaki from 150 m); now the patch octaves, the drainage and the rills
+  themselves (brush down each rill) decide, and the bushes only rag the edges. The searsia shrub
+  (black leaf atlas, dark sprigs) is replaced on the stands by a code-built chaparral mound
+  (HillShrub, LaTrees' machinery). HILL_GROUND_3=0 puts everything back.
+- 2026-10-30 (wave 3, crowd-variety): six more adults (crowd_aa..af) appended to Pedestrian.MODELS - a suit and tie, a blazer, a work shirt, a cardigan, a gym tank, wide trousers - with the tailored jacket, the necktie, the tank and wide trousers added to tools/crowd/garments.py. Appended, so every earlier rig keeps its index; a person's roll picks among 32 now (CROWD_VARIETY=0: the old 26).
+- **2026-10-30 Every check file starts from a clean city.** The smoke test snapshots the city
+  after its setup and puts it back (statics, weather, hour, staged traffic, the units' switches,
+  destruction, onlookers, wrecks, debris, time scale, the player) before every check file and city
+  part, in one process as in a shard, so a check's result no longer depends on what ran before it
+  (`tests/gate_reset.gd`; `SMOKE_SHUFFLE=<seed>` is the proof). Chosen over patching each order bug
+  where it surfaced. CI runs `SHARDS=auto`.
+- **2026-10-30 The hero's face lives in shaders; his clips play at their feet's speed.** The rig has
+  no face bones and rebuilding it in Blender would break every clip and fit, so the blink and the
+  gaze are the eye and lash shaders (the eyeball turned about its centre, the upper lid painted onto
+  it, the upper lashes swung down) driven by HeroFace from the head bone. The walk / run / sprint
+  play at speeds measured from each clip's planted foot (HeroStride) instead of guessed numbers
+  (the walk was 1.5x off, the run 1.6x), and the gait bands moved to where people change gait.
+  Rain wets him through the street's own wetness global. HERO_CLOSEUP=0 keeps all of it off.
+
+- **2026-10-30 Car close-up detail is geometry for plates and badges, shader for dirt.** Plates
+  and badges are raised geometry (one small mesh per car, built only when the car first comes
+  within 70 m, on two shared materials) because embossed characters and chrome need real relief at
+  2 m; grime, mud, scratches and brake dust ride uniforms on materials that already exist per car
+  (the paint) or are shared in a few levels (the wheels), so no car gains a material. Plate format
+  and county are invented. CAR_DETAIL=0 is the A/B.
+- **2026-10-30 The ocean close up is a fragment-only pass (ocean-closeup, HANDOFF "The Pacific close
+  up").** Capillary ripples, wind streaks, glitter sparkles, crest light, ageing foam and the pile
+  and hull foam lines all live in the fragment stage and fade with the hand-over's `detail`, so
+  SeaSurface (the vertex stage in GDScript) and the far sea plane need no change. Pile positions
+  are pushed as grids worked out from the piers' own constants, not found by depth (the web has no
+  depth texture).
+
+- **2026-10-30 One HUD theme (hud-polish, HANDOFF "HUD polish").** Every HUD piece takes its type,
+  scale, safe area and easing from `HudTheme`: Barlow Condensed for display lines (place names, the
+  car's model, the speed, the wordmark), Inter for the rest; the corner pieces sit 40 1080-line
+  units in from the edges, and on a window wider than 21:9 inside a centred 21:9 band. Place names
+  come from what the city already knows (district_name_at, road_name); car model names are invented
+  per body type in `VehicleHud.MODELS` under the dealership brands. No new roll anywhere.
 
 - **2026-10-30 The night skyline is rolled, never placed (HANDOFF "The night skyline").** Office
   colour temperatures, cleaners' floors, crown washes and floodlit stone are integer rolls on a
@@ -3550,3 +3608,9 @@ none of either.
   shape (it carries the landmarks). The horizon plane stays 14 km, with a coarser ring on the same
   material out to 12.6 km, because its rim was erasing the crests 5-7 km away; past the bake the
   map is mirrored. FAR_RANGES=0 is the old world exactly.
+- 2026-10-30 (wave 3, hero-face-2): the hero's face is rebuilt with the hero pipeline rather than
+  patched in shaders alone: MPFB face targets for structure (brow ridge, cheekbones, jaw, a
+  shorter nose), the complexion baked into the maps (blood, mottling, freckles, tear troughs,
+  regional pores and roughness), brows as strand cards and twice the hair cards. The contract
+  (54 bones, clips, material names, hero_x_* maps, eye centres) is held so nothing downstream
+  moves. HERO_FACE_2=0 is the shader A/B.

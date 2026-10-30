@@ -60,7 +60,9 @@ uniform float crown_relief = 1.3;
 uniform float detail_normal : hint_range(0.0, 2.0) = 1.0;
 // The gullies finer than the height field's own (shaders/erosion.gdshaderinc): metres deep
 // for the first order, metres between its gullies, and how much darker a gully floor is.
-uniform float erosion_amp = 7.0;
+// 3 m, not 7: at 7 a 55 m order's walls sloped ~0.8, and lit by an afternoon sun every trough
+// was a black pit (hill-ground-3). The horizon plane's far_erosion_amp is the same number.
+uniform float erosion_amp = 3.0;
 uniform float erosion_cell = 55.0;
 uniform float erosion_shade : hint_range(0.0, 1.0) = 0.2;
 // (dirt_color, rock_color, drain_shade, macro_variation, snow_color and snow_line are the splat's,
@@ -68,6 +70,8 @@ uniform float erosion_shade : hint_range(0.0, 1.0) = 0.2;
 // Same second fetch as the road shader, and the same global switch: the grass is sampled again
 // rotated and at another scale and cross-faded on slow noise, which kills the visible tiling.
 global uniform float ground_detail;
+// tools/glshot/hill_ground_shot.gd TERRAIN_DEBUG=1: the splat as colour (r brush, g bare, b rock).
+uniform int debug_mode = 0;
 
 #include "res://shaders/hill_splat.gdshaderinc"
 #include "res://shaders/erosion.gdshaderinc"
@@ -116,8 +120,9 @@ void fragment() {
 	vec2 fall = -wn.xz / max(wn.y, 0.25);
 	// Off with ground_detail (the web, and below MEDIUM), like the second grass fetch.
 	vec3 ero = vec3(0.0);
+	float steep = smoothstep(0.08, 0.45, length(fall));
 	if (ground_detail > 0.5) {
-		ero = erosion_detail(w, fall, erosion_amp * smoothstep(0.08, 0.45, length(fall)), erosion_cell, length(fwidth(w)));
+		ero = erosion_detail(w, fall, erosion_amp * steep, erosion_cell, length(fwidth(w)));
 	}
 
 	// ---- noise: hillside, patch and bush scales ---------------------------------------------
@@ -178,7 +183,8 @@ void fragment() {
 	float fine_fade = leaf_fade;
 	float fine = leaf;
 	float clump = mix(0.5, vnoiset(w * 0.12 + 17.0), mid_fade);
-	float th = hill_stand_threshold(slope, north, drain, hill);
+	// The stands run down the fine rills (hill_rill_th()).
+	float th = hill_stand_threshold(slope, north, drain, hill) + hill_rill_th(ero.z * steep, w);
 	// Shrub crowns 2.6 m apart: a stand's edge runs round them, and inside it they are lit as
 	// domes with shade between them. Gone to their average once one is under a few pixels.
 	// Off with ground_detail (the web, below MEDIUM): eight hashes a pixel, and there the edge
@@ -235,6 +241,9 @@ void fragment() {
 	// Snow above the far ground's snow line, and not on the near-vertical faces.
 	float snow = smoothstep(snow_line, snow_line + 270.0, world_pos.y) * (1.0 - smoothstep(0.45, 0.8, slope));
 	ALBEDO = cs_out(mix(albedo, snow_color, snow));
+	if (debug_mode == 1) {
+		ALBEDO = vec3(brush * (1.0 - bare) * (1.0 - rocky), bare * (1.0 - rocky), rocky) * 0.6;
+	}
 
 	// ---- the surface's own relief -----------------------------------------------------------
 	// The terrain mesh has no UVs and so no tangents, and a NORMAL_MAP without tangents does
@@ -251,6 +260,8 @@ void fragment() {
 	vec2 canopy = (bush_n.yz * 0.29 * brush_relief * bush_fade + leaf_n.yz * 0.9 * leaf_relief * leaf_fade
 		- crowns.yz * crown_relief * crown_fade * step(0.001, crowns.x))
 		* brush * (1.0 - bare) * (1.0 - rocky);
+	if (debug_mode == 2) { ero.xy = vec2(0.0); }
+	if (debug_mode == 3) { canopy = vec2(0.0); }
 	ds = (ds + canopy) * (1.0 - snow * 0.7) + ero.xy;
 	float ny = max(wn.y, 0.25);
 	vec3 n = normalize(wn / ny - vec3(ds.x, 0.0, ds.y));

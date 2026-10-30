@@ -24,7 +24,9 @@ extends Node
 ## the hill shells, AB=1 saves every frame again without them (<name>_noshells.png), DEBUG_SEQ=1,3
 ## saves it again in those shell debug modes (<name>_dbgN.png), GEO=1 prints each frame's
 ## triangles and draws, SHELL_DEBUG=1 draws
-## the shells solid (hill_shells.gdshader debug_mode), PROFILE=n profiles n frames with the shells
+## the shells solid (hill_shells.gdshader debug_mode), TERRAIN_DEBUG=1 paints the terrain's splat
+## (r brush, g bare, b rock), =2 drops the fine erosion's normal, =3 the canopy's (terrain.gdshader
+## debug_mode), PROFILE=n profiles n frames with the shells
 ## and n without (run with --gpu-profile under Forward+; see the block after the shot).
 
 ## The horizon plane's material (GROUND=1), for DayNight's haze and smog (DAYNIGHT=1).
@@ -93,6 +95,8 @@ func _ready() -> void:
 			dn.owner = null
 			add_child(dn)
 			dn.call("set_paused", true)
+	if OS.get_environment("TERRAIN_DEBUG") != "":
+		PropFactory.terrain_material().set_shader_parameter("debug_mode", int(OS.get_environment("TERRAIN_DEBUG")))
 	if OS.get_environment("SHELL_DEBUG") != "":
 		PropFactory.hill_shell_material().set_shader_parameter("debug_mode", int(OS.get_environment("SHELL_DEBUG")))
 	var style: Dictionary = city.chunk_style()
