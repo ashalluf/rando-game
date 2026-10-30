@@ -26,6 +26,8 @@ uniform float fold_shade = 0.35;
 uniform float weave = 0.12;
 // Detail under a pixel fades to its average from this many pixels per weave cell.
 uniform float detail_fade_px = 2.0;
+// How much sun a tarp or awning lets through to its shaded side (BACKLIGHT, both renderers).
+uniform float canvas_through = 0.55;
 
 varying vec3 v_local;
 varying flat int v_kind;
@@ -162,6 +164,8 @@ void fragment() {
 	int pattern = int(UV2.x * 16.0);
 	float fold = UV2.y;
 	float sheen = 0.0;
+	// Light through thin cloth and canvas (a tarp seen from under it glows with the sun).
+	float through = 0.0;
 
 	if (kind <= 3) {
 		// Cloth: the dye shifted per display, a pattern, folds and the weave.
@@ -208,6 +212,7 @@ void fragment() {
 			sheen = 0.15;
 		}
 		spec = 0.35;
+		through = kind == 2 ? 0.08 : 0.28;
 	} else if (kind == 4) {
 		// Chrome tube: brushed along u.
 		metal = 1.0;
@@ -231,7 +236,11 @@ void fragment() {
 		nrm_t.xy += vec2(w) * 0.15 * fade;
 		base *= 0.88 + 0.16 * fg_noise(uv * 0.8 + v_seed * 31.0);
 		base = mix(base, vec3(dot(base, vec3(0.333))) * 1.1, 0.15 * v_wear);
+		// Seams across the tarp every metre or so, and grime along them.
+		float seam = 1.0 - smoothstep(0.008, 0.02, abs(fract(uv.y * 0.9 + 0.5) - 0.5) / 0.9);
+		base *= 1.0 - 0.18 * seam * fade;
 		rough = 0.82;
+		through = canvas_through;
 	} else if (kind == 7) {
 		// Fibreglass: a gloss lacquer (white) or satin (black).
 		float dark = step(dot(base, vec3(0.333)), 0.3);
@@ -292,4 +301,7 @@ void fragment() {
 		RIM_TINT = 0.6;
 	}
 	EMISSION = cs_out(emit);
+	if (through > 0.0) {
+		BACKLIGHT = cs_out(base * through);
+	}
 }

@@ -287,6 +287,8 @@ static func garment(g: Geo, cut: int, col: Color, pattern: int, w: float, len: f
 			var fold := sin(a * 3.0 + phase + t * 1.3) * (0.008 + 0.02 * t) * (2.0 if cut == Cut.GOWN or cut == Cut.DRESS or cut == Cut.SKIRT else 1.0)
 			xc += fold * signf(sin(a) + 0.001)
 			var yy := y
+			# The hem never hangs ruler-straight: it dips where the folds bunch.
+			yy -= (0.5 + 0.5 * sin(a * 3.0 + phase)) * 0.018 * t * t
 			if j == 0:
 				yy = top - 0.05 - absf(cos(a)) * 0.06
 			line.append(Vector3(xc, yy, zc))
@@ -997,7 +999,7 @@ static func overhead_tarp(variant: int, span: float, len: float) -> ArrayMesh:
 		return _cache[key]
 	var g := Geo.new()
 	var tarp_c: Color = [Color(0.12, 0.30, 0.62), Color(0.88, 0.88, 0.86), Color(0.70, 0.18, 0.12), Color(0.18, 0.40, 0.25),
-		Color(0.90, 0.55, 0.12), Color(0.35, 0.36, 0.40)][variant % 6]
+		Color(0.90, 0.55, 0.12), Color(0.86, 0.80, 0.66)][variant % 6]
 	var nx := 8
 	var nz := 4
 	var rows: Array = []
@@ -1016,7 +1018,7 @@ static func overhead_tarp(variant: int, span: float, len: float) -> ArrayMesh:
 				var l2: Array = line.duplicate()
 				l2.reverse()
 				rr.append(l2)
-		var col := kc(tarp_c * (1.0 if face > 0.0 else 0.8), K_CANVAS)
+		var col := kc(tarp_c * (1.0 if face > 0.0 else 0.92), K_CANVAS)
 		var up := Vector3.UP * face
 		g.sheet(rr, false, func(_j: int, _i: int) -> Color: return col,
 			func(j: int, i: int) -> Vector2: return Vector2(float(i) / float(nx) * span, float(j) / float(nz) * len),
