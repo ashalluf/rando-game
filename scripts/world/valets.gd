@@ -99,8 +99,7 @@ static func wanted(chunk: CityChunk, block: Dictionary) -> bool:
 
 
 ## The landmark hotel (CivicSites "live_hotel", HOTEL ALTAIR by the arena) if its site is on
-## this block: its porte-cochere is on its east face, so the stand is on the block's +x kerb.
-## [door point, face normal] or [] .
+## this block: [door point, face normal] on its face nearest a kerb, or [].
 static func _landmark_hotel(plan: CityPlan, block: Dictionary) -> Array:
 	if plan == null or plan.macro == null or not CivicSites.SITES.has("live_hotel"):
 		return []
@@ -109,7 +108,16 @@ static func _landmark_hotel(plan: CityPlan, block: Dictionary) -> Array:
 		return []
 	var info := CivicSites.site(plan, "live_hotel")
 	var world: Rect2 = info.world
-	return [Vector2(world.end.x, world.get_center().y), Vector2(1.0, 0.0)]
+	# Its drive-up on the face nearest a kerb (the block is shared with the plaza).
+	var c := world.get_center()
+	var options := [
+		[world.position.y - rect.position.y, Vector2(c.x, world.position.y), Vector2(0.0, -1.0)],
+		[rect.end.y - world.end.y, Vector2(c.x, world.end.y), Vector2(0.0, 1.0)],
+		[world.position.x - rect.position.x, Vector2(world.position.x, c.y), Vector2(-1.0, 0.0)],
+		[rect.end.x - world.end.x, Vector2(world.end.x, c.y), Vector2(1.0, 0.0)],
+	]
+	options.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+	return [options[0][1], options[0][2]]
 
 
 ## Whether a block (CityPlan.block()) can have stands: plain buildings in a district with odds.
@@ -182,6 +190,8 @@ static func plan_chunk(chunk: CityChunk, block: Dictionary) -> Array:
 	# The landmark hotel's porte-cochere (no Building: the block is its site).
 	var lm := _landmark_hotel(plan, block)
 	if not lm.is_empty():
+		if debug:
+			print("VALET_DEBUG landmark hotel front %s on block %d,%d" % [str(lm[0]), chunk.ix, chunk.iz])
 		fronts.append([lm[0], lm[1], true, hash([plan.seed, "live_hotel"]), Building.ShopRoom.LOBBY, -1, true])
 	# Hotels first, then a stable order whatever order the buildings were added in.
 	fronts.sort_custom(func(x: Array, y: Array) -> bool: return x[3] < y[3] if x[2] == y[2] else x[2])
@@ -252,6 +262,9 @@ static func plan_chunk(chunk: CityChunk, block: Dictionary) -> Array:
 		var c := Vector2(mid, kerb) if xrun else Vector2(kerb, mid)
 		var ok := _road_free(plan, axis, index, z0, z1, kerb, out_d, xrun, others, c, length) if double \
 			else Parklets._kerb_free(chunk, c, trav, out_d, length, face, others)
+		if f.size() >= 7:
+			# The landmark hotel's own kerb (its site covers it; nothing else stands there).
+			ok = plan.road_open(axis, index, z0) and plan.road_open(axis, index, z1)
 		if not ok:
 			if debug:
 				print("VALET_DEBUG %s kerb" % ("hotel" if f[2] else "rest"))
@@ -272,7 +285,7 @@ static func plan_chunk(chunk: CityChunk, block: Dictionary) -> Array:
 			"paint": int(_h01([plan.seed, "valet_paint", key]) * PAINTS.size()) % PAINTS.size(),
 			"uniform": int(_h01([plan.seed, "valet_uniform", key]) * Valet.UNIFORMS.size()) % Valet.UNIFORMS.size(),
 			"valets": HOTEL_VALETS if bool(f[2]) else RESTAURANT_VALETS,
-			"rect": rect, "id": "valet_%d" % absi(key),
+			"rect": rect, "id": "valet_%d" % absi(key), "landmark": f.size() >= 7,
 		}
 		out.append(stand)
 		others.append(stand)

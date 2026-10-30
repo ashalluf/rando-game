@@ -28,6 +28,8 @@ func _initialize() -> void:
 	vs.set("force_hour", hour)
 	for m: Mesh in [kit.call("podium", 0), kit.call("key_box"), kit.call("sign", 0), kit.call("cone"), kit.call("umbrella_base")]:
 		print("MESH tris=%d" % ((m.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() / 3))
+	var cs: GDScript = load("res://scripts/world/civic_sites.gd")
+	print("LANDMARK HOTEL anchor ", cs.call("anchor", "live_hotel"), " block ", plan.block_index_at(cs.call("anchor", "live_hotel")))
 	var reach := float(OS.get_environment("R")) if OS.get_environment("R") != "" else 300.0
 	var start: Vector2i = plan.block_index_at(c)
 	var span := int(reach / 80.0) + 1
@@ -57,7 +59,7 @@ func _initialize() -> void:
 				if s.has("node"):
 					n_valets = (s.node.get("valets") as Array).size()
 				print("VALET block=%d,%d face=%d %s op=%d zone=%.0f..%.0f podium=%.1f,%.1f valets=%d build=%.0fms EYE=%.1f,1.7,%.1f,%.0f,-6" % [
-					ix, iz, int(s.face), "hotel" if s.hotel else "restaurant", int(s.op), s.zone.x, s.zone.y, pod.x, pod.y, n_valets, ms, eye.x, eye.y, yaw])
+					ix, iz, int(s.face), ("landmark hotel" if s.landmark else "hotel") if s.hotel else "restaurant", int(s.op), s.zone.x, s.zone.y, pod.x, pod.y, n_valets, ms, eye.x, eye.y, yaw])
 				found += 1
 			ch.get_parent().remove_child(ch)
 			ch.free()
