@@ -116,7 +116,7 @@ const PART_COST := {
 	"fwd_review_a_checks": 0.0, "fwd_review_b_checks": 0.0, "garments_2_checks": 0.0,
 	"memory_audit_checks": 0.0, "offshore_island_checks": 0.0, "perf_audit_checks": 0.0,
 	"shop_vinyl_checks": 0.0, "sky_checks": 0.0, "bonfires_checks": 3.0,
-	"cinematic_review_checks": 0.1
+	"cinematic_review_checks": 0.1, "sunset_clouds_checks": 0.0
 }
 const DEFAULT_COST := 6.0
 ## Every share pays for its own city load on top of its parts.
@@ -2513,6 +2513,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/garments_2_checks.gd").new().run(self, city)
 	# Six more kinds of adult (tests/crowd_variety_checks.gd): crowd_aa..af and what they wear.
 	load("res://tests/crowd_variety_checks.gd").new().run(self, city)
+	# The crowd's faces up close (tests/crowd_faces_checks.gd): the face table and atlas, the pass's
+	# reach, per-person blinks, the look materials, the A/B.
+	load("res://tests/crowd_faces_checks.gd").new().run(self, city)
 	# Footbridges (tests/footbridges_checks.gd): placement, clearances, stairs, the kit, the chunks.
 	load("res://tests/footbridges_checks.gd").new().run(self, city)
 	# The power plant (tests/power_plant_checks.gd): the site south of the airport, the pure layout,
@@ -2642,9 +2645,19 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The police at night (tests/police_night_look_checks.gd, PoliceNightLook): one flash clock, the
 	# glow, the budgeted strobes, the wall wash, roadblock flares, the searchlight's haze.
 	await load("res://tests/police_night_look_checks.gd").new().run(self, city)
+	# The Los Angeles sunset (tests/sunset_clouds_checks.gd, SunsetSky): the weight, the low sun's light.
+	load("res://tests/sunset_clouds_checks.gd").new().run(self, city)
 	# The freeway close up (tests/freeway_closeup_checks.gd, FreewayCloseup): the concrete deck's
 	# UVs and lane copy, the kit's close-up pass, no geometry or rolls moved, the rush-hour fill.
 	await load("res://tests/freeway_closeup_checks.gd").new().run(self, city)
+	# The beach at golden hour (tests/beach_golden_checks.gd): the sand's postcard pass behind its
+	# switch, the sky mirror's colour space, the weathered tower's codes, the same tower geometry.
+	load("res://tests/beach_golden_checks.gd").new().run(self, city)
+	# The GI review (tests/gi_review_checks.gd): GiTuning's numbers per level, the contact shadows.
+	await load("res://tests/gi_review_checks.gd").new().run(self, city)
+	# The third perf audit (tests/perf_audit_3_checks.gd): cache trims, the crowd feet's stagger,
+	# the sea's life idling inland, the night haze's daytime early-out.
+	await load("res://tests/perf_audit_3_checks.gd").new().run(self, city)
 	# The aerial review (tests/aerial_review_checks.gd, AerialReview): the two seas agree, the plane's
 	# night band, the hills' mottle from the air, the far tors' haze, the far crowns' colour.
 	load("res://tests/aerial_review_checks.gd").new().run(self, city)
