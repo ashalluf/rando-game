@@ -32,3 +32,15 @@ the salmon wash, and the shop's light spilling onto the pavement. Befores are 06
 - `16_v2_corner_night_2130.jpg` (before: 10, first version: 11)
 - `17_v2_storefront_night_2130.jpg` - from across the front street: the lit sign, the windows, the spill.
 - `18_v2_inside_night_2130.jpg` (first version: 12)
+
+Fourth batch (v3, wave 3, merged with main at 95bd13f): the side street wall carries a
+hand-painted mural of the goods (panels of pictures - ice cream, a paleta, the lotto star, a can,
+soda, oranges - no words, no brands, flaked to the stucco), bottles and cans at 12 sides, and the
+shelves can be shot up: rounds knock the stock off, packs thrown into the aisle, drinks burst
+(`STORE_SHOOT=24` staged here). Befores are 13 (corner noon) and 14 (inside) / 16 (corner night).
+
+- `19_v3_corner_noon_mural.jpg` (before: 13)
+- `20_v3_side_wall_mural_noon.jpg` - the mural from the side street.
+- `21_v3_inside_after_shooting_noon.jpg` - the aisle after 24 rounds into the shelves: packs on the floor, one still in the air (before: 14).
+- `22_v3_corner_night_2130.jpg` (before: 16)
+- `23_v3_inside_night_2130.jpg` (before: 18)
