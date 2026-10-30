@@ -92,6 +92,8 @@ func _events(sea: Node, plan: CityPlan) -> void:
 	var same := true
 	for n in 60:
 		for k in range(-4, 4):
+			# Fresh both times: the running node may already have this window in its cache.
+			SeaLife.clear_cache()
 			var a: Dictionary = sea.call("pod", n, k)
 			SeaLife.clear_cache()
 			var b: Dictionary = sea.call("pod", n, k)
