@@ -48,6 +48,15 @@ const MODELS := [
 	"res://assets/models/crowd_x.glb",
 	"res://assets/models/crowd_y.glb",
 	"res://assets/models/crowd_z.glb",
+	# 2026-10-30: six more working Los Angeles adults in garments of their own: a two-button suit
+	# and tie (the tailored jacket), a blazer and pencil skirt, a work shirt, a cardigan over a
+	# shirt, a gym tank and shorts, a cropped jacket over wide trousers (crowd_config.json).
+	"res://assets/models/crowd_aa.glb",
+	"res://assets/models/crowd_ab.glb",
+	"res://assets/models/crowd_ac.glb",
+	"res://assets/models/crowd_ad.glb",
+	"res://assets/models/crowd_ae.glb",
+	"res://assets/models/crowd_af.glb",
 ]
 ## Rigs that never wear a hat: their head is already covered (crowd_r's headscarf). The hat rolls
 ## are still made for them, so every roll after them is the same as anyone's.

@@ -2384,6 +2384,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/coast_highway_checks.gd").new().run(self, city)
 	# The second garment set (tests/garments_2_checks.gd): crowd_u..z and what they wear.
 	load("res://tests/garments_2_checks.gd").new().run(self, city)
+	# Six more kinds of adult (tests/crowd_variety_checks.gd): crowd_aa..af and what they wear.
+	load("res://tests/crowd_variety_checks.gd").new().run(self, city)
 	# Footbridges (tests/footbridges_checks.gd): placement, clearances, stairs, the kit, the chunks.
 	load("res://tests/footbridges_checks.gd").new().run(self, city)
 	# The power plant (tests/power_plant_checks.gd): the site south of the airport, the pure layout,
