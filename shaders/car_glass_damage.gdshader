@@ -16,6 +16,7 @@ render_mode cull_disabled;
 
 #define CABIN_FIRE
 #include "res://shaders/car_cabin.gdshaderinc"
+#include "res://shaders/car_glass_wet.gdshaderinc"
 
 // The model's own glass material.
 uniform vec3 glass_albedo : source_color = vec3(0.14, 0.155, 0.175);
@@ -133,6 +134,12 @@ void fragment() {
 	}
 	// Soot on whatever glass survives a fire.
 	alb *= 1.0 - 0.8 * clamp(burnt * 2.0, 0.0, 1.0);
+	if (ws_on() && state < 1.5 && kind < 1.5) {
+		// Rain on what is still a pane (car_glass_wet.gdshaderinc); the wipers stay off here.
+		float ms = length(MODEL_MATRIX[0].xyz);
+		vec3 wet_tilt = glass_wet(lp, n, false, ms, px * ms, TIME, alb, rough, emit);
+		tilt += wet_tilt * 0.6;
+	}
 
 	ALBEDO = alb;
 	ROUGHNESS = rough;
