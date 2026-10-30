@@ -28,3 +28,10 @@ Frame cost (still_shot.gd GEO, opengl3 1280x720, same views, COAST_HIGHWAY=0 -> 
 from the sea 2.29 M / 405 draws -> 2.11 M / 728; road level north 1.28 M / 387 -> 2.26 M / 978;
 the beach 1.70 M / 268 -> 2.42 M / 723. Most of the added draws are the parked cars and the
 beach's people; the before was a broken coast (the road-level camera stood inside the hill).
+
+## Wave 3 (merged with main 95bd13f)
+
+- 17 the street faces from the road: tall windows or a clerestory ribbon upstairs, a high window
+  beside the garage downstairs (compare 09)
+- 18 the same at 21:00, lit rooms over the road
+- 19 aerial from the sea after the merge (compare 08)
