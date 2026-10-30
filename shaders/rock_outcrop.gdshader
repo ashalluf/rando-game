@@ -68,6 +68,20 @@ uniform float plane_step = 43.61;
 uniform float edge_start = 5040.0;
 uniform float edge_end = 6860.0;
 global uniform vec4 sky_tint;
+// The horizon plane's layered distance haze (macro_relief.gdshaderinc's range_haze_*), as the far
+// canopy takes it: without it every far tor was unhazed against hazed slopes, a field of brown
+// flecks over each range from the air (aerial review). AerialReview turns it off (the A/B).
+uniform bool aerial_haze = true;
+// And past `aerial_blend` metres a far tor loses up to `aerial_blend_max` of its colour and of its
+// light-and-dark: a warm orange crag in full renderer light on a slope the plane paints and hazes
+// to a pale grey-beige, measured (177, 164, 135) on (168, 164, 145) with a spread of +-22 per
+// channel, read as one fleck per tor however much haze lay on both - and its sunlit and shaded
+// halves, so its normal is laid over to the slope's too. Its shape stays: the crags still break
+// the skyline, they just stop being confetti.
+uniform vec2 aerial_blend = vec2(1100.0, 3600.0);
+uniform float aerial_blend_max : hint_range(0.0, 1.0) = 0.75;
+// How much of that share also lays the far tor's normal over to the slope's (up).
+uniform float aerial_flatten : hint_range(0.0, 1.5) = 1.25;
 
 varying vec3 world_pos;
 varying vec3 world_nrm;
@@ -75,6 +89,7 @@ varying float foot;
 varying float tone;
 varying float rim;
 varying float cam_dist;
+varying float rhaze;
 
 
 float corner_height(vec2 xz, vec3 cam) {
@@ -141,6 +156,7 @@ void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	world_nrm = normalize(mat3(MODEL_MATRIX) * NORMAL);
 	cam_dist = length(world_pos - cam);
+	rhaze = aerial_haze ? range_haze_amount(cam_dist, world_pos.y) : 0.0;
 	rim = smoothstep(edge_start, edge_end, length(origin.xz - cam.xz));
 }
 
@@ -188,6 +204,19 @@ void fragment() {
 	col = mix(col, dust_color * mix(0.75, 1.0, detail), clamp(foot, 0.0, 1.0) * 0.85);
 	// The scan's crevices darken a little more than its texture says.
 	col *= mix(0.7, 1.0, arm.r);
+	if (aerial_haze && far_mode) {
+		float fb = smoothstep(aerial_blend.x, aerial_blend.y, cam_dist) * aerial_blend_max;
+		float l = dot(col, vec3(0.2126, 0.7152, 0.0722));
+		// The rock's mean tone (its palette under the detail's mean of ~1), at the slope's measured
+		// tone: laid flat it takes the full sun, which put it a few levels over the slope.
+		float l_mean = dot(base, vec3(0.2126, 0.7152, 0.0722));
+		vec3 grey = vec3(mix(l, l_mean, 0.6)) * vec3(0.70, 0.73, 0.74);
+		col = mix(col, grey, fb);
+		// What made each tor a fleck was its sunlit and shaded halves against a slope the plane
+		// shades smoothly: far off it is lit as the ground it stands on (up), more as it shrinks.
+		vec3 nw = normalize(mix(normalize(world_nrm), vec3(0.0, 1.0, 0.0), fb * aerial_flatten));
+		NORMAL = normalize((VIEW_MATRIX * vec4(nw, 0.0)).xyz);
+	}
 	if (!far_mode) {
 		vec3 nm = texture(normal_tex, UV).rgb;
 		float near = 1.0 - smoothstep(detail_reach * 0.5, detail_reach, cam_dist);
@@ -199,6 +228,8 @@ void fragment() {
 	}
 	ALBEDO = cs_out(col) * (1.0 - rim);
 	EMISSION = cs_out(cs_srgb_to_linear(sky_tint.rgb)) * rim;
+	ALBEDO *= 1.0 - rhaze;
+	EMISSION += cs_out(range_haze_color(cs_srgb_to_linear(sky_tint.rgb))) * (rhaze * (1.0 - rim));
 	ROUGHNESS = mix(0.82, 1.0, arm.g) * mix(1.0, 0.92, varnish);
 	SPECULAR = 0.35;
 }
