@@ -2424,6 +2424,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/foot_ik_checks.gd").new().run(self, city)
 	# The settings screen (tests/settings_menu_checks.gd): defaults, the file, every knob, the screen.
 	await load("res://tests/settings_menu_checks.gd").new().run(self, city)
+	# Fireworks (tests/fireworks_checks.gd): the shared plan, the nights, the sites, a staged show, the booms.
+	await load("res://tests/fireworks_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

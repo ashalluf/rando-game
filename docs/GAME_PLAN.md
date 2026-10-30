@@ -1789,6 +1789,17 @@ already mapped so milestone 2 is script-only.
   They are built on the dogs' body (DogMesh / DogRig: fur shells, procedural gait) at real size.
   Shot, hit or startled they bolt and are gone: no blood, no ragdoll, no crime - no gore on animals,
   as with the dogs. docs/HANDOFF.md "Urban wildlife"; CLAUDE.md "Urban wildlife".
+- **2026-10-30 Fireworks over the beach and the ballpark on some nights, worked out on the GPU.**
+  A show is a programme, not a simulation: a hash of (show seed, 0.4 s bin) says whether a bin
+  launches a shell and what it is (peony, willow, crossette, strobe, ring; colours, height, size),
+  looping an act with a finale, and the vertex shader draws every star, rising shell and smoke puff
+  from one clock (`shaders/fireworks.gdshaderinc`, mirrored bit for bit by `Fireworks.shell()`):
+  no particles, the same on Compatibility, ~5 draws while a show runs and none otherwise. The CPU
+  only does what the GPU cannot: booms heard distance / 343 m/s after the break, the show's
+  coloured light (one OmniLight3D a site, off the web), the brightest breaks handed to the
+  water's glints. Nights are a hash of (seed, night, site) - beach 22 %, ballpark 30 %, 20:45 to
+  23:15, none in rain; `FIREWORKS=1` forces them. docs/HANDOFF.md "Fireworks"; CLAUDE.md
+  "Fireworks".
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north

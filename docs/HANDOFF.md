@@ -17658,3 +17658,77 @@ drags the HUD slider).
 motion blur toggles there are wired the same way as Quality's own and are untested by eye. No
 gamepad focus navigation on the screen (mouse only, like the rest of the menu). No key rebinding,
 no window mode or V-sync.
+
+## 9gh. Fireworks over the beach and the ballpark, 2026-10-30 (fleet wave 3, agent branch `wt/fireworks`; VISUAL_ROADMAP "?")
+
+**What**: on some nights a fireworks show goes up over the beach - from a barge on the sea about
+480 m off the waterline, west of the pier - and over the ballpark in the ravine, from beyond the
+centre-field fence. Shells climb on a tail of gold sparks with a mortar flash at the bottom, and
+break as one of five types: PEONY (a sphere of stars, two-colour for some, white-hot at the
+break), WILLOW (gold glitter that hangs and droops for five seconds), CROSSETTE (24 comets that
+each split into four), STROBE (white stars blinking on their own beats, with crackle) and RING (a
+tilted ring). Seven colours (red and purple hold green low against AgX's salmon). The show loops
+an act of 150 s: an opening, the body (a shell in 40 % of the 0.4 s bins), a build (60 %), a
+finale (95 %, willow curtains and strobes) and a gap. Each break leaves smoke that grows, thins
+and drifts down the wind for 28 s, glowing in its shell's colour while the stars burn inside it
+and lit by the show's light. The breaks light the city and the water round them (an OmniLight3D
+per site, coloured by what is breaking), and at the beach the sea under the show carries the
+long broken columns of glints a rippled surface mirrors. Booms are heard distance / 343 m/s after
+each break (from the pier, about a second and a quarter; from the hills, five), with a crackle
+after strobes, willows and crossettes and the mortar thumps close by; all three sounds are
+synthesised in code (`Fireworks.stream()`), quieter and duller with distance.
+
+**How (the part to keep)**: the show is a PROGRAMME worked out from one clock and one seed, never
+simulated, and it is drawn on the GPU. `shaders/fireworks.gdshaderinc` holds the plan: time in
+`FW_BIN` (0.4 s) bins; an integer hash (the windows' lowbias32) of (show seed, bin) says whether
+the bin launches a shell (odds by the act's phase) and, by more salts, everything about it. A
+mesh slot `s` draws the newest bin `b` with `b % slots == s`, so the 24 star slots (96 stars and
+10 trail pieces each) hold 9.6 s of shells - longer than any shell lives - and the 84 smoke slots
+33.6 s. `shaders/fireworks.gdshader` places each quad as a streak in view space from where its
+star was a moment ago to where it is (drag, gravity, the wind, the crossette's split, the
+strobe's beat, the willow's twinkle), at least `min_px` wide with the brightness given back when
+it is widened, additive and unlit; a quad with nothing to draw collapses behind the camera.
+`fireworks_smoke.gdshader` is the same plan for the puffs (alpha-blended, lit by hand);
+`fireworks_water.gdshader` is a sheet 15 cm over the sea that adds, for the four brightest breaks
+Fireworks hands it, the share of wind ripples tilted to send each into the eye (a Gaussian slope
+spread, so the columns are long toward the viewer), broken into flickering glints, faded before
+the waterline. No particles anywhere: it is the same on Compatibility and the web.
+`Fireworks.shell()` is the plan again in GDScript, bit for bit (the same 32-bit hash; the checks
+read the include's numbers back and hold the hash to fixed values): it drives the booms (each
+frame plays every sound whose arrival time - break plus distance over the speed of sound - fell
+between the last frame and this one, from the camera's true world position), the light and the
+water's list. Change a number in the include, change it in Fireworks.
+
+**Frame cost** (still_shot.gd GEO, opengl3, 1280x720, the finale held at 134 s, `FIREWORKS=1`
+against `FIREWORKS=0` from the same eyes): +5.8k triangles and +2 to +3 draw calls a view (the
+ballpark from its terrace 1,765k -> 1,771k tris, 347 -> 349 draws; the pier 526k -> 531k, 119 ->
+122; the hills over the beach 736k -> 742k, 220 -> 223), all in the camera pass (nothing casts a
+shadow). The CPU: one plan lookup per bin in a 24 s window, cached per site. With no show the
+site nodes are hidden: nothing drawn, nothing run but the night test.
+
+**Which nights**: `show_tonight(seed, night, site)`, a hash against `ODDS` (beach 0.22, ballpark
+0.30; seed 1337: the ballpark's first is night 2, the beach's night 8), the night counted from
+noon (`night_of()`), the show from 20:45 to 23:15 (`START_HOUR`, `END_HOUR`; a game hour is two
+real minutes, so five minutes, two acts), faded in and out over `FADE_HOURS`; none while it rains
+(Weather's `rain_level`). The show clock is the scaled process time while the show runs (the
+weapon wheel slows it, photo mode stops it). The smoke test sees no show unless a check stages one.
+
+**Switches**: `FIREWORKS=0` none (the A/B), `FIREWORKS=1` both sites whatever the night, hour or
+weather; `FIREWORKS_SITE=beach|stadium` one; `FIREWORKS_T=<s>` starts the show clock there and
+`FIREWORKS_HOLD=1` holds it (stills: the finale is 128-143 s into an act).
+
+**Files**: `scripts/world/fireworks.gd`, `shaders/fireworks.gdshaderinc`, `fireworks.gdshader`,
+`fireworks_smoke.gdshader`, `fireworks_water.gdshader`, the node in `scenes/levels/city.tscn`,
+`tools/fireworks/probe.tscn` (the sites, an act by type, 60 nights, EYEs from the pier, the hills
+and the street), `tests/fireworks_checks.gd` (one line in smoke_test.gd).
+
+**Stills** (`shots/fireworks`, opengl3): the finale from the ballpark's terrace, the pier's end,
+the hills above the beach town, the sand, the hills toward the ballpark. To take them:
+`FIREWORKS=1 FIREWORKS_T=134 FIREWORKS_HOLD=1 EYE_AGL=1 EYE=2012.5,25,-2738.3,6.4,24
+SHOTS="-1205,8.6,-342,89,15@21.2@55;-104.9,199.7,-1110.7,115,2@21.2@45;-960,3,-150,75.5,10@21.2@65;
+-58.9,381.9,-1513,-55,-1@21.2@30" ... still_shot.gd -- --hour=21.2 --nohud --spawn=2012,-2738,0,0`.
+
+**Not verified**: Forward+ (lavapipe cannot hold the city; the shaders are unlit additive and
+alpha quads with no Forward+-only path, but bloom will make the breaks glow more on the Mac than
+in the stills); the web build; how the synthesised booms sound (headless audio is the Dummy
+driver); the OmniLight's look on the water on Forward+.
