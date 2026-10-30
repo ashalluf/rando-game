@@ -1805,7 +1805,7 @@ func _city_polish(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void
 	var cars_seen := 0
 	for car in traffic_cars_for_lights(city):
 		cars_seen += 1
-		var lights: Node = (car as Node).get_node_or_null("NightLights")
+		var lights: Node = (car as Node).find_child("NightLights", true, false)  # a motorcycle's leans with it, under its Pose
 		if lights and (lights as MeshInstance3D).mesh and (lights as MeshInstance3D).mesh.surface_get_material(0) is ShaderMaterial:
 			car_lights += 1
 	_check(cars_seen > 0 and car_lights == cars_seen, "cars carry head and tail lights (%d of %d)" % [car_lights, cars_seen])
@@ -2084,6 +2084,7 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# taxi and beater - the roll table, the rng stream, builds, hits, the taxi's sign and fare,
 	# the beater's wear.
 	await load("res://tests/more_cars_checks.gd").new().run(self, city)
+	await load("res://tests/motorcycles_checks.gd").new().run(self, city)  # motorcycles: build, ride, riders, filtering
 	# The light rail (tests/light_rail_checks.gd): the line's table, timetable, crossings, the
 	# traffic's lane and stop rules, a station chunk, the trains on the track, a strike.
 	await load("res://tests/light_rail_checks.gd").new().run(self, city)

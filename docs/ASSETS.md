@@ -223,6 +223,9 @@ class instead.
 | `tools/make_lowriders.py` | `road_lowrider_hardtop.glb` | 51k tris + 8k far twin (1960s two-door hardtop, laid low; the game draws its wire wheels) | `BodyType.LOWRIDER_HARDTOP` | 2026-10-06 |
 | `tools/make_lowriders.py` | `road_lowrider_coupe.glb` | 49k tris + 8k far twin (1980s coupe with a padded half roof) | `BodyType.LOWRIDER_COUPE` | 2026-10-06 |
 | code (`Lowrider.wire_wheel()`) | the lowriders' 13" wire wheels | 72 spokes, thin whitewall, knock-off; ~6k tris near, a disc far | `Lowrider` | 2026-10-06 |
+| `tools/make_motorcycles.py` | `moto_sport.glb` | 74k tris (body, fork, wheels as separate nodes) + 3.5k far twin; original 600-class supersport | `BodyType.MOTO_SPORT` (Motorcycle) | 2026-10-06 |
+| `tools/make_motorcycles.py` | `moto_cruiser.glb` | 66k tris + 3.5k far twin; original air-cooled V-twin cruiser, wire wheels | `BodyType.MOTO_CRUISER` | 2026-10-06 |
+| `tools/make_motorcycles.py` | `moto_scooter.glb` | 51k tris + 3.5k far twin; original 150-class step-through scooter | `BodyType.MOTO_SCOOTER` | 2026-10-06 |
 | `tools/make_emergency_vehicles.py` | `road_fire_engine.glb` | 35k tris + 10k far twin (Type 1 pumper: crew cab, pump panel, roll-ups, hose bed, ladders, light bar, Q-siren; original, no department's marks) | `BodyType.FIRE_ENGINE` (EmergencyCar) | 2026-10-04 |
 | `tools/make_emergency_vehicles.py` | `road_ambulance.glb` | 23k tris + 10k far twin (Type III: cutaway cab, modular box, striping, chevrons, warning lamps; original) | `BodyType.AMBULANCE` (EmergencyCar) | 2026-10-04 |
 | `tools/make_school_bus.py` | `road_school_bus.glb` | 54k tris + 10k far twin (Type D transit-style school bus: split-sash windows, eight-way warning lamps, rub rails, STOP arm, crossing arm, rear emergency door, the invented RANDO UNIFIED SCHOOL DISTRICT lettering; Blender's built-in font; original, no maker's shapes or badges) | `BodyType.SCHOOL_BUS` (Schools) | 2026-10-05 |

@@ -329,6 +329,15 @@ already mapped so milestone 2 is script-only.
   view and only where `sea_room()` says there is water all round; sloops sail by a polar and
   tack, never within 40 degrees of the wind. Invented names: the ferry line PACIFIC TERN.
 
+- **2026-10-06 Motorcycles are Vehicles with a drawn lean (HANDOFF "Motorcycles").** A sport
+  bike, a cruiser and a scooter, Blender-built at real size (tools/make_motorcycles.py). Decisions:
+  a Vehicle subclass (BodyType appended, never rolled by random_car) so enter / exit, traffic and
+  the pools are the cars'; two centre-line physics wheels with the roll held upright on the body's
+  direct state, the lean and the wheelie DRAWN on the model (stable, cheap, and the arcade feel the
+  cars have) rather than a simulated counter-steering bike; the rider is visible - the hero
+  himself on the player's bike (a skeleton modifier), crowd rigs in full-face helmets in traffic -
+  posed by one two-bone solver; thrown off as a ragdoll in a crash; 5 % of street traffic, lane
+  filtering past stopped queues; kerb stalls swapped to bikes by hash after every roll.
 - **2026-10-05 Onlookers: the crowd comes back after the chaos (HANDOFF "Onlookers").** After
   the panic near a wreck, a blast or a body, people near the camera come back and stand round it
   in a loose ring: filming on their phones (held up at eye level, the screen lit, a video light

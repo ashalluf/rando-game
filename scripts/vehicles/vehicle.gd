@@ -14,13 +14,16 @@ extends VehicleBody3D
 enum BodyType { SEDAN, PICKUP, VAN, SPORTS, SUPER, SPIDER, HYPER, TRACK, CROSSOVER, BUS, BOX_TRUCK, SEMI, FIRE_ENGINE, AMBULANCE, HATCHBACK, SUV, MINIVAN, TAXI, BEATER, SCHOOL_BUS,
 	GARBAGE_TRUCK, STREET_SWEEPER, TOW_TRUCK, ICE_CREAM_TRUCK, DELIVERY_VAN,
 	# The lowriders (Lowrider: tools/make_lowriders.py), never rolled: car meets and cruisers.
-	LOWRIDER_HARDTOP, LOWRIDER_COUPE }
+	LOWRIDER_HARDTOP, LOWRIDER_COUPE,
+	# Motorcycles (Motorcycle: two wheels, a rider on top). Never rolled by random_car().
+	MOTO_SPORT, MOTO_CRUISER, MOTO_SCOOTER }
 enum Addon { NONE, ROOF_RACK, SPOILER, LIGHT_BAR }
 
 ## Original names. Nothing here is or imitates a real manufacturer's model.
 const BODY_NAMES := ["Sedan", "Pickup", "Van", "Sports", "Vantari", "Vantari Aperta", "Kestrel", "Kestrel RS", "Crossover", "City Bus", "Box Truck", "Semi", "Fire Engine", "Ambulance", "Hatchback", "SUV", "Minivan", "Taxi", "Beater", "School Bus",
 	"Garbage Truck", "Street Sweeper", "Tow Truck", "Ice Cream Truck", "Delivery Van",
-	"Hardtop Lowrider", "Coupe Lowrider"]
+	"Hardtop Lowrider", "Coupe Lowrider",
+	"Sport Bike", "Cruiser", "Scooter"]
 ## Generated body models per type (see docs/ASSETS.md). Missing files fall back to the box car.
 const BODY_MODELS := {
 	BodyType.SEDAN: "res://assets/models/road_sedan.glb",
@@ -50,6 +53,9 @@ const BODY_MODELS := {
 	BodyType.DELIVERY_VAN: "res://assets/models/road_van.glb",
 	BodyType.LOWRIDER_HARDTOP: "res://assets/models/road_lowrider_hardtop.glb",
 	BodyType.LOWRIDER_COUPE: "res://assets/models/road_lowrider_coupe.glb",
+	BodyType.MOTO_SPORT: "res://assets/models/moto_sport.glb",
+	BodyType.MOTO_CRUISER: "res://assets/models/moto_cruiser.glb",
+	BodyType.MOTO_SCOOTER: "res://assets/models/moto_scooter.glb",
 }
 ## Belt line (bottom of the side glass, as a fraction of body height) for a single-texture body
 ## whose texture does not darken the windows, so the paint shader finds glass by shape. No body
@@ -83,6 +89,8 @@ const BODY_ODDS := {
 	BodyType.DELIVERY_VAN: 0,
 	# Nor the lowriders (Lowrider: the car meets park them, the traffic sends a few cruising).
 	BodyType.LOWRIDER_HARDTOP: 0, BodyType.LOWRIDER_COUPE: 0,
+	# Nor the motorcycles (Motorcycle: TrafficManager and the kerbs place them).
+	BodyType.MOTO_SPORT: 0, BodyType.MOTO_CRUISER: 0, BodyType.MOTO_SCOOTER: 0,
 }
 ## How a 0-999 roll maps onto BODY_ODDS: [end of the range (exclusive), type], in roll order. Every
 ## old type keeps the START of the range it had before the second wave and gives the end of it to

@@ -1766,6 +1766,22 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   dive and rock-back, eased swerve) and a hard stop squeals and lays marks (`PanicSkid`, into
   DrivingFX's ring). Never a crime by itself. `CAR_PANIC=0` is the A/B; stills `PANIC=` on
   `still_shot.gd`; checks `tests/car_panic_checks.gd`.
+- Motorcycles (2026-10-06, docs/HANDOFF.md "Motorcycles"): `Motorcycle`
+  (`scripts/vehicles/motorcycle.gd`, extends Vehicle; BodyType MOTO_SPORT / MOTO_CRUISER /
+  MOTO_SCOOTER appended, BODY_ODDS 0) - bodies from `tools/make_motorcycles.py` (Blender or the
+  PyPI `bpy`; nodes `_body`, `_steer` (origin on the rake axis), `_wheel_f`, `_wheel_r`, `_far`).
+  Two centre-line physics wheels; the roll is held upright on the body's DIRECT STATE
+  (`_hold_upright()`: RigidBody3D's `angular_velocity` is synced before VehicleBody3D's wheel
+  impulses, so writing it back killed every turn). The lean, wheelie and side stand are drawn
+  (the `Pose` node); fallen = nobody holds it up. Riders: `RideSolver` (two-bone solves to the
+  seat, grips and pegs) on a `MotoRider` (traffic, a BikeRider, `MotoHelmet`) or the hero
+  (`HeroRide`, the LAST modifier; Player calls `mount_rider()` / `dismount_rider()`); a crash
+  over `throw_dv` throws him off (`MotoThrow`, a ragdoll, then up again). Traffic: a share of
+  TrafficManager's own roll (`STREET_SHARE`, `FREEWAY_SHARE`), lane filtering past a stopped
+  queue (`filter_tick()`, `filter_shift`); kerbs: `parked_swap()` (a hash, after every roll).
+  EngineAudio voices them as "moto" (meta `engine_profile`).
+  `MOTORCYCLES=0` the A/B; stills `MOTO=` on still_shot.gd, `tools/moto/moto_shot.tscn`; probe
+  `tools/moto/moto_probe.tscn`; checks `tests/motorcycles_checks.gd`.
 - Big vehicles (2026-10-04, "buses and trucks in traffic"): `BigVehicles`
   (`scripts/vehicles/big_vehicles.gd`) - a 40 ft city bus (`BodyType.BUS`, the invented agency
   BASIN TRANSIT: white over a teal skirt), a cab-over box truck (`BOX_TRUCK`, invented fleets on
