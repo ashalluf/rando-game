@@ -2356,6 +2356,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/heli_flyable_checks.gd").new().run(self, city)
 	# Drivers react to chaos (tests/car_panic_checks.gd): brake, swerve, kerb, reverse, abandon, go round.
 	await load("res://tests/car_panic_checks.gd").new().run(self, city)
+	# The coast highway under the bluffs (tests/coast_highway_checks.gd): its place, the bench and
+	# bluff, the houses, parking, a chunk's road, houses, collision and cars, LOD and the far city.
+	await load("res://tests/coast_highway_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
