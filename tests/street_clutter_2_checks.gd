@@ -141,10 +141,13 @@ func _built(city: Node3D, plan: CityPlan) -> void:
 				if key == "sc2_steam" or key == "sc2_poster" or key in StreetClutter2.FLAT_KEYS:
 					shadow_ok = shadow_ok and node.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF and chunk.get_node_or_null("BatchShadow_" + key) == null
 				draw_ok = draw_ok and node.visibility_range_end > 0.0
-			# Hash-seeded: planned again from the same built chunk, the same pieces.
-			if first:
-				var again: Dictionary = StreetClutter2.plan_block(chunk, block).out
-				same_plan = same_plan and _sig(again) == _sig(out)
+			# Hash-seeded: the same block built again gets the same pieces (first two blocks).
+			if first and k == downtown[0] or first and not midtown.is_empty() and k == midtown[0]:
+				var twin: CityChunk = city._new_chunk(k, CityChunk.Level.FULL)
+				twin.build()
+				same_plan = same_plan and _sig(twin.get_meta("street_clutter_2", {})) == _sig(out)
+				twin.get_parent().remove_child(twin)
+				twin.free()
 			var sig := _signature(chunk)
 			chunk.get_parent().remove_child(chunk)
 			chunk.free()
@@ -168,7 +171,7 @@ func _built(city: Node3D, plan: CityPlan) -> void:
 	_t._check(draw_ok, "every street clutter 2 batch stops drawing at a distance")
 	_t._check(place_bad.is_empty(), "pavement clutter stands on the pavement and road clutter lies in the road (%s)" % [place_bad.slice(0, 6)])
 	_t._check(steam_bad == 0, "steam rises only in districts that have it (%d)" % steam_bad)
-	_t._check(same_plan, "street clutter 2 is hash-seeded: planned again from the built chunk, the same pieces (flyers aside)")
+	_t._check(same_plan, "street clutter 2 is hash-seeded: the same block built twice gets the same pieces")
 	_t._check(same_block, "street clutter 2 rolls nothing from the block: built without it, the block is the same")
 	_t._check(off_clean, "off (STREET_CLUTTER_2=0), no street clutter 2 batch is built")
 
@@ -176,9 +179,6 @@ func _built(city: Node3D, plan: CityPlan) -> void:
 func _sig(out: Dictionary) -> Array:
 	var s: Array = []
 	for key: String in out:
-		# The flyers read the poles from the chunk's batch, which is built (and emptied) by then.
-		if key == "sc2_poster":
-			continue
 		for it: Array in out[key]:
 			var o: Vector3 = (it[0] as Transform3D).origin
 			s.append("%s %.2f %.2f %.2f" % [key, o.x, o.z, (it[1] as Color).r])
