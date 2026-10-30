@@ -16,7 +16,7 @@ global uniform float night_factor;
 global uniform float rain_intensity;
 global uniform vec2 wind_lean;
 
-uniform float opacity = 0.42;
+uniform float opacity = 0.9;
 uniform float rise = 0.55;
 
 varying float v_alpha;
@@ -71,12 +71,13 @@ void fragment() {
 	float n = n2(p * 3.0 - vec2(0.0, t * 2.0) + v_seed * 31.0) * 0.6 + n2(p * 7.0 - vec2(t * 0.3, t * 3.4) + v_seed * 7.0) * 0.4;
 	float side = 1.0 - smoothstep(0.15, 0.5, abs(v_uv.x - 0.5));
 	float cap = smoothstep(0.0, 0.25, v_uv.y) * (1.0 - smoothstep(0.7, 1.0, v_uv.y));
-	float a = clamp((n - 0.32) * 2.2, 0.0, 1.0) * side * cap * v_alpha * opacity;
+	float a = clamp((n - 0.22) * 2.4, 0.0, 1.0) * side * cap * v_alpha * opacity;
 	if (a < 0.004) {
 		discard;
 	}
 	vec3 col = vec3(0.82, 0.83, 0.85);
 	ALBEDO = cs_out(col);
-	EMISSION = cs_out(vec3(1.0, 0.65, 0.35) * lamp_factor * 0.06);
+	// Scattered light: steam is bright wherever it is lit, so it never reads as a dark smear.
+	EMISSION = cs_out(col * 0.18 + vec3(1.0, 0.65, 0.35) * lamp_factor * 0.12);
 	ALPHA = a;
 }
