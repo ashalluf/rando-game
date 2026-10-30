@@ -330,7 +330,7 @@ static func _cable(ch: CityChunk, m: Dictionary, d: FarmersMarketBuild.Detail, l
 		var p2 := FilmShoot.point(m, q.x, q.y)
 		var p := Vector3(p2.x, CityChunk.ROAD_TOP + 0.022 + ch._gy(p2.x, p2.y), p2.y)
 		if not first:
-			d.g.tube(prev, p, 0.02, 5, black, Vector2(0.8, 0.0))
+			d.g.tube(prev, p, 0.014, 5, black, Vector2(0.8, 0.0))
 		prev = p
 		first = false
 
