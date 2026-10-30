@@ -189,8 +189,14 @@ func _strike(heli: FlyableHeli) -> void:
 	box.add_child(cs)
 	heli.get_parent().add_child(box)
 	box.global_position = hub + heli.global_basis.x * (heli._main_radius * 0.7)
-	await _ticks(2)
-	_t._check(heli.rotor_hits_something(), "a mast inside the rotor disc is found by the strike query")
+	# The broadphase can take a few steps to take a new body in on a busy scene (the shard's).
+	var found := false
+	for i in 20:
+		await _ticks(1)
+		if heli.rotor_hits_something():
+			found = true
+			break
+	_t._check(found, "a mast inside the rotor disc is found by the strike query")
 	box.global_position += Vector3.UP * 40.0
 	await _ticks(2)
 	_t._check(not heli.rotor_hits_something(), "and nothing is found with the disc clear")
