@@ -148,9 +148,23 @@ func run(t: Node, city: Node3D) -> void:
 		"leaving photo mode restores the pause, the time scale and the camera")
 	_t._check(hour_back and weather_back and mode_back,
 		"leaving photo mode restores the clock and the weather")
-	_t._check(env.adjustment_saturation == sat_before and env.adjustment_color_correction == lut_before
-		and (vig == null or (vig.get_shader_parameter("strength") == vig_before and vig.get_shader_parameter("grain") == grain_before))
-		and (player == null or player.visible) and (hud == null or hud.visible == hud_before)
-		and not (photo.get("_bar_a") as ColorRect).is_visible_in_tree(),
-		"leaving photo mode restores the grade, vignette, grain, player and HUD")
+	# HourGrade sets the saturation again whenever the look moves (at dusk it moves every frame),
+	# so its own current value counts as restored too.
+	var hg: Variant = day.get("grade")
+	var sat_ok := env.adjustment_saturation == sat_before \
+		or (hg != null and is_equal_approx(env.adjustment_saturation, float(hg.get("_sat_set"))))
+	var wrong: Array = []
+	if not sat_ok:
+		wrong.append("saturation %.3f vs %.3f" % [env.adjustment_saturation, sat_before])
+	if env.adjustment_color_correction != lut_before:
+		wrong.append("lut")
+	if vig != null and (vig.get_shader_parameter("strength") != vig_before or vig.get_shader_parameter("grain") != grain_before):
+		wrong.append("vignette / grain")
+	if player != null and not player.visible:
+		wrong.append("player hidden")
+	if hud != null and hud.visible != hud_before:
+		wrong.append("hud")
+	if (photo.get("_bar_a") as ColorRect).is_visible_in_tree():
+		wrong.append("letterbox")
+	_t._check(wrong.is_empty(), "leaving photo mode restores the grade, vignette, grain, player and HUD %s" % str(wrong))
 	DirAccess.remove_absolute("user://photo_mode_test")
