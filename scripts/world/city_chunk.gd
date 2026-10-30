@@ -2320,7 +2320,7 @@ func _build_roads(block: Dictionary) -> void:
 	var open_x := plan.road_open(CityPlan.AXIS_X, ix + 1, rect.get_center().y)
 	if open_x:
 		_road_slab(Rect2(rx - wx * 0.5, rect.position.y, wx, rect.size.y), asphalt, look_x.material)
-	elif FarmersMarket.paves(plan, ix, iz, CityPlan.AXIS_X):
+	elif FarmersMarket.paves(plan, ix, iz, CityPlan.AXIS_X) or FilmShoot.paves(plan, ix, iz, CityPlan.AXIS_X):
 		# A farmers' market's street is closed to cars but still a street (FarmersMarket).
 		_road_slab(Rect2(rx - wx * 0.5, rect.position.y, wx, rect.size.y), asphalt, look_x.material)
 	# Horizontal road on the +Z side, spanning this block's X range.
@@ -2330,7 +2330,7 @@ func _build_roads(block: Dictionary) -> void:
 	var open_z := plan.road_open(CityPlan.AXIS_Z, iz + 1, rect.get_center().x)
 	if open_z:
 		_road_slab(Rect2(rect.position.x, rz - wz * 0.5, rect.size.x, wz), asphalt, look_z.material)
-	elif FarmersMarket.paves(plan, ix, iz, CityPlan.AXIS_Z):
+	elif FarmersMarket.paves(plan, ix, iz, CityPlan.AXIS_Z) or FilmShoot.paves(plan, ix, iz, CityPlan.AXIS_Z):
 		_road_slab(Rect2(rect.position.x, rz - wz * 0.5, rect.size.x, wz), asphalt, look_z.material)
 	# The intersection square at the +X +Z corner.
 	if plan.road_open(CityPlan.AXIS_X, ix + 1, rz) or plan.road_open(CityPlan.AXIS_Z, iz + 1, rx):
@@ -2566,6 +2566,8 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 	# The farmers' market on this chunk's street (FarmersMarketBuild; hash-seeded, by the hour and
 	# the day; the block's rng untouched). Before the walkers, so its people get the crowd's room.
 	steps.append_array(FarmersMarketBuild.steps(self, block))
+	# A film shoot on this chunk's street (FilmShootBuild; hash-seeded, the block's rng untouched).
+	steps.append_array(FilmShootBuild.steps(self, block))
 	if level == Level.FULL:
 		steps.append(_build_sidewalk_props.bind(rect, params, rng, district))
 		# Midtown's deco boulevard: mature palms on its kerbs, the night pools (DecoBoulevard), after
@@ -2842,7 +2844,8 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	# It counts as parked, so the cap (and with it the rolls) is the same too.
 	if StreetVendors.blocks_parking(self, spot[0]) or Construction.blocks_parking(self, spot[0]) \
 			or KerbBins.blocks_parking(plan, spot[0], float(car._dims().length)) \
-			or FarmersMarket.blocks_parking(plan, spot[0]) or Parklets.blocks_parking(self, spot[0]):
+			or FarmersMarket.blocks_parking(plan, spot[0]) or Parklets.blocks_parking(self, spot[0]) \
+			or FilmShoot.blocks_parking(plan, spot[0]):
 		car.free()
 		count[0] += 1
 		return
