@@ -18985,6 +18985,10 @@ shot one's blood splats landed after the cleanup (two Decals left on the scene, 
 check). `WarmRehearsal.run()` now sweeps the scene for the effects' leftovers for `SWEEP_FRAMES`
 (12) frames after the holder goes.
 
+**Foot placement check:** `tests/foot_ik_checks.gd`'s kerb people were seed 11, which rolled crowd_z
+from 26 rigs and crowd_f from 32 (0.041 m against its 0.04 tolerance). They are seed 1310 now,
+which rolls crowd_z either way (0.006 m, with CROWD_VARIETY on and off).
+
 **Checks:** `tests/crowd_variety_checks.gd` (indices, the A/B list, hat rows, life and busk
 libraries, the config rows wearing the new garments, adults only, body budget 16.5k, a spread of
 heights); `_check_crowd_rigs` holds all 32 to the body contract.
