@@ -1439,12 +1439,13 @@ void fragment() {
 					// The room itself, lit by its own ceiling: panels, a bright upper wall, a
 					// dim floor, a glowing blind, a dark desk line. It used to be one flat
 					// lit_color tile, and a tower after dark read as a checkerboard of them.
-					vec3 lit_room = room_raw * lit_color * room_lamp * glow;
+					vec3 lit_room = room_raw * lit_color * window_temp(seed, face_id, row, col) * room_lamp * glow;
 					albedo = mix(albedo, albedo * 0.35, on);
 					emission = lit_room * lit_strength * 2.0 * on;
 				} else {
-					albedo = mix(albedo, lit_color, 0.7 * on);
-					emission = lit_color * glow * lit_strength * on;
+					vec3 lit_t = lit_color * window_temp(seed, face_id, row, col);
+					albedo = mix(albedo, lit_t, 0.7 * on);
+					emission = lit_t * glow * lit_strength * on;
 				}
 				metal = mix(metal, 0.0, on);
 				rough = mix(rough, 0.5, on);
@@ -1795,6 +1796,15 @@ void fragment() {
 			// just dimming it.
 			albedo = mix(albedo, albedo * vec3(0.46, 0.44, 0.42), dirt);
 			rough = min(1.0, rough + 0.18 * dirt);
+		}
+
+		// ---- The night skyline: crown washes and floodlit stone (window_lights.gdshaderinc) ----
+		// The light a tower's own fittings throw on its walls after dark, rolled from the seed as
+		// the far boxes roll it. Generated buildings only: the landmark towers' crowns are theirs.
+		if (part_attributes && !garage && !storefront && !dmg_in_hole) {
+			vec3 wash = tower_wash(seed, pt_size.y, v - pt_base_y, u, facade_finish <= 1 && window_style != 2,
+				lamp_factor * night_skyline, 1.0 - smoothstep(0.4, 1.4, px_m));
+			emission += wash * (glass ? max(albedo, vec3(0.16)) : albedo);
 		}
 
 		// ---- The facade pass: the members' depth, the drips from the roofline ---------------

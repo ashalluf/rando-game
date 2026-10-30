@@ -927,7 +927,7 @@ void fragment() {
 				bool lit = storefront ? shop_open : window_lit(sd, face_id, row, col, lit_ratio_p);
 				float on = storefront ? lamp_factor : night_factor;
 				if (lit && on > 0.001) {
-					vec3 light = storefront ? cs_as_uniform(shop_tone_far(shop_key)) * lit_shop_level : lit_c * window_glow(sd, face_id, row, col) * lit_room_level;
+					vec3 light = storefront ? cs_as_uniform(shop_tone_far(shop_key)) * lit_shop_level : lit_c * window_temp(sd, face_id, row, col) * window_glow(sd, face_id, row, col) * lit_room_level;
 					if (!storefront) {
 						// A lit office is lit from its ceiling (building.gdshader's traced room: the
 						// panels, the bright upper wall, a dim floor): brighter toward the head of the
@@ -1096,6 +1096,12 @@ void fragment() {
 				albedo *= 1.0 - 0.45 * drip * (glass ? 0.3 : 1.0);
 				float cdist = min(uq, wall_len - uq);
 				albedo *= 1.0 - 0.14 * weather * (1.0 - smoothstep(0.05, 0.7, cdist)) * (glass ? 0.3 : 1.0);
+			}
+			if (!plinth && !parking && !storefront) {
+				// The night skyline: the crown wash and floodlit stone building.gdshader throws on
+				// the same walls, from the same rolls (window_lights.gdshaderinc).
+				vec3 wash = tower_wash(sd, part_h, vp, uq, fin <= 1 && ws != 2, lamp_factor * night_skyline, detail(2.0, mpp));
+				emission += wash * (glass ? max(albedo, vec3(0.16)) : albedo);
 			}
 		}
 	} else if (custom.a > 4.5) {
