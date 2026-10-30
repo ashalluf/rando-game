@@ -288,6 +288,9 @@ func _warm_shaders() -> void:
 		effects.append_array(RoadsideKit.warm())
 	# The street furniture's meshes and shader (StreetFurniture), only drawn through the batches.
 	effects.append_array(StreetFurniture.warm())
+	# The fashion district's goods, stalls and tarps (FashionKit), built in code.
+	if FashionDistrict.enabled:
+		effects.append_array(FashionKit.warm())
 	for mat: Material in effects:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D

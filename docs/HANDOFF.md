@@ -15455,3 +15455,71 @@ leave. Gate: `SHARDS=3` green after guarding a free in `tests/dog_checks.gd` (th
 freed the walker). Not done: Forward+ stills of the stretch (all stills are opengl3); the houses'
 street side has no planting or palms; the bluff's painted outcrops above the road are the hills'
 own look, untouched here.
+
+## 9fi. The fashion district: wholesale goods on the pavement and market alleys, 2026-10-06 / 10-30 (agent branch `wt/fashion-district`; VISUAL_ROADMAP row "Downtown's fashion district")
+
+**What it is.** Downtown east of Main St from 7th St to Pico Blvd (Main, Alameda, 7th and Pico
+are DowntownReal's pinned streets, so the stretch is the same on every seed), out to
+`EAST_REACH` (330 m) past Alameda: the real district's FORMS - wholesale and retail clothing
+and textile shops with their stock out on the pavement every morning, a market alley of stalls
+under tarps - with every NAME invented. It is an OVERLAY on the seeded blocks: no lot, roll or
+building moves (the checks build a block with `FASHION=0` and compare).
+
+**The pieces.**
+- `FashionDistrict` (`scripts/world/fashion_district.gd`): `block_info()` (pure, cached per plan:
+  DOWNTOWN BUILDINGS blocks in the stretch, no site / grounds / Chinatown / river / landmark;
+  each face by hash `FACE_ODDS`, cut on skid row; Main St's frontage north of 9th St left to
+  HistoricCore; `market` south of 9th St by `MARKET_ODDS`). Hooks, one line each: `dress()` in
+  `CityChunk._build_lot()` after HistoricCore (shop names from `SHOP_POOL`, which are names
+  already in `Building.SHOP_NAMES`, so the clothing shop interiors and the window vinyl follow;
+  kit awnings on every shop), `steps()` in the FULL block steps after Micromobility (a frontage
+  set per shop front against the wall with a door gap, clear of corners, alley mouths and the
+  street furniture; sellers one a step under the crowd cap), `dress_market()` first thing in
+  `AlleyKit.dress()` (a district alley run with a walled side becomes stalls both sides backed
+  onto the walls, an `AISLE` 2.2 m clear, overhead tarps and bulb strings, banners with invented
+  alley names at the mouths, two `lamp_light`s, keepers and `FashionShopper`s), `owns_face()` in
+  `Encampment._faces()` (no camp on a face with goods), `walker()` (district walkers carry bags
+  at 42 %), `walk_sidewalk()` (walkers keep to the kerb half).
+- `FashionKit` (`scripts/world/fashion_kit.gd`): everything code-built at real size, cached,
+  built on the loading screen (`warm()`): racks of hung garments in colour stories (tees,
+  shirts, dresses, gowns, jeans, jackets, hoodies on hangers), gridwalls, fabric bolt stands and
+  upright roll rows, mannequins (white gloss / black satin, dressed), sale tables of folded
+  stock, hand trucks with cartons, carton stacks, stalls (tube frame, gridwall back, counter,
+  tarp roof), overhead tarps, banners, bulb strings, hand-lettered price signs. Frontage sets
+  up to 6.8k triangles, stalls 2.7k.
+- `shaders/fashion_goods.gdshader`: kind in COLOR.a 16ths, patterns (stripe, plaid, floral,
+  dots, satin, sequin, lace, camo, leopard) and the fold parameter in UV2, denim twill, knit,
+  weave, roll and bolt ends, corrugated board and tape, chrome, gridwall cut-out (dithered under
+  a pixel), lit bulbs (`lamp_factor`), wet from `road_wetness`; linear on both renderers.
+  **This pass**: cloth and canvas carry BACKLIGHT (`canvas_through` 0.55 for tarps, 0.28 cloth,
+  0.08 denim) so a tarp seen from under it in sun glows its colour instead of drawing a black
+  slab, seams across the tarps, the grey overhead tarp became a sun-faded canvas, and the
+  garments' hems dip with their folds instead of hanging ruler-straight.
+- Hours: goods out 7:30-20:30, the market's people 8:00-22:00, by the hour the chunk is built
+  (`force_hour` for tests and stills). Shadows: sets and stalls cast none (a chunk-wide batch's
+  shadow reach is measured to its bounds' centre, so they put the whole alley into every
+  cascade); **`set_shadow_distance()` does nothing on code meshes, use `set_shadow_reach()`**.
+
+**The merge (wave 3).** origin/main 95bd13f merged into the paused branch cleanly (no conflicts;
+the hooks sit after Micromobility / HistoricCore, which main kept). The district's checks pass
+alone on the merged tree (14 checks, two seeds); the full sharded gate (`SHARDS=3`) on bb2d4af
+passed 2,409 checks, 0 failed, peak RSS 2,482 MB a shard, 784 s. After merging origin/main eb75a10
+(swimming, engine audio, street furniture, onlookers, prop destruction) the gate passed 2,547
+checks, 0 failed, peak RSS 2,506 MB a shard, 1,054 s.
+
+**Look / measure.**
+- Stills: `tools/glshot/block_shot.tscn` (the FULL blocks alone): the market alley `EYE=3331.0,1.7,832.7,-180,2`,
+  the shop fronts `3290,1.6,1016,180,-12`, the alley from above `3331,32,795,-180,-42`, along a
+  pavement `3256,1.7,1019.5,-90,-6`; `FASHION=0` is the before.
+- Probe: `tools/fashion/probe.tscn` (`BUILD=1`, `AT=x,z;...`, `FASHION_DEBUG=1`).
+- Checks: `tests/fashion_district_checks.gd` (`SMOKE_PARTS=fashion_district_checks`).
+- Frame cost (block_shot GEO=1, opengl3 1280x720, FULL blocks alone, FASHION off -> on):
+  market alley 3.89 -> 4.26 M triangles (+9.4 %), 2,501 -> 2,662 draws; shop fronts 2.44 ->
+  2.40 M, 2,178 -> 2,110 draws (the goods hide what was behind them); the alley from above
+  3.33 -> 3.61 M (+8.5 %), 2,409 -> 2,508 draws; along a pavement 4.93 -> 4.92 M, 3,893 -> 3,940
+  draws. Nothing in LOD chunks or the far city.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: satins, sequins, chrome, the bulbs
+and the tarps' backlight need a Mac look. LOD chunks and the far city draw the buildings only
+(no goods past the FULL ring, by design). Garments are simple lofted sacks with tube sleeves:
+fine on a rack at 3 m, plain at 1 m.
