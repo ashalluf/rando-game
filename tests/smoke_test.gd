@@ -2405,6 +2405,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Freeway incidents (tests/freeway_incidents_checks.gd): the schedule, a stall with its patrol
 	# car and tow, debris that traffic changes lanes round, a slowdown, the message signs.
 	await load("res://tests/freeway_incidents_checks.gd").new().run(self, city)
+	# The second perf audit (tests/perf_audit_2_checks.gd): the cached road closures and site
+	# bounds answer as before, road_lift() per body type, no orphan freeway bodies from a capture.
+	load("res://tests/perf_audit_2_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
@@ -4065,7 +4068,8 @@ func _check(ok: bool, label: String) -> void:
 	# printerr: unbuffered, so progress is visible even if the run is killed.
 	printerr("%s %s" % ["PASS" if ok else "FAIL", label])
 	if _profile:
-		printerr("TIME %.2f s, rss %d MB, frame %d" % [Time.get_ticks_msec() / 1000.0, _rss_mb(), Engine.get_process_frames()])
+		printerr("TIME %.2f s, rss %d MB, frame %d, godot %d MB, orphans %d" % [Time.get_ticks_msec() / 1000.0, _rss_mb(), Engine.get_process_frames(),
+			int(Performance.get_monitor(Performance.MEMORY_STATIC)) / 1048576, int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT))])
 	if not ok:
 		_failures.append(label)
 

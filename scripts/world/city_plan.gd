@@ -524,21 +524,44 @@ func road_open(axis: int, index: int, along: float) -> bool:
 		if axis == AXIS_X:
 			if index <= s.ix0 or index >= s.ix1:
 				continue
-			if along <= road_pos(AXIS_Z, s.iz0) + road_width(AXIS_Z, s.iz0) * 0.5 or along >= road_pos(AXIS_Z, s.iz1) - road_width(AXIS_Z, s.iz1) * 0.5:
+			var b := _site_bounds(s)
+			if along <= b[0] or along >= b[1]:
 				continue
 			var on_kept := false
-			for k: int in s.keep_z:
-				if absf(along - road_pos(AXIS_Z, k)) < road_width(AXIS_Z, k) * 0.5:
+			var kept: PackedFloat64Array = b[4]
+			for k in range(0, kept.size(), 2):
+				if absf(along - kept[k]) < kept[k + 1]:
 					on_kept = true
 			if not on_kept:
 				return false
 		else:
 			if index <= s.iz0 or index >= s.iz1 or (s.keep_z as Array).has(index):
 				continue
-			if along <= road_pos(AXIS_X, s.ix0) + road_width(AXIS_X, s.ix0) * 0.5 or along >= road_pos(AXIS_X, s.ix1) - road_width(AXIS_X, s.ix1) * 0.5:
+			var b := _site_bounds(s)
+			if along <= b[2] or along >= b[3]:
 				continue
 			return false
 	return true
+
+
+var _site_bounds_cache: Dictionary = {}
+
+
+## A site's closed stretch in road coordinates, worked out once (road_open() asks it for every
+## traffic car every tick; perf-audit-2): [z lo, z hi, x lo, x hi, kept z roads as (pos, half width)].
+## The same expressions road_open() evaluated each call, so the same floats.
+func _site_bounds(s: Dictionary) -> Array:
+	var b: Variant = _site_bounds_cache.get(s.id)
+	if b != null:
+		return b
+	var kept := PackedFloat64Array()
+	for k: int in s.keep_z:
+		kept.append(road_pos(AXIS_Z, k))
+		kept.append(road_width(AXIS_Z, k) * 0.5)
+	var out := [road_pos(AXIS_Z, s.iz0) + road_width(AXIS_Z, s.iz0) * 0.5, road_pos(AXIS_Z, s.iz1) - road_width(AXIS_Z, s.iz1) * 0.5,
+		road_pos(AXIS_X, s.ix0) + road_width(AXIS_X, s.ix0) * 0.5, road_pos(AXIS_X, s.ix1) - road_width(AXIS_X, s.ix1) * 0.5, kept]
+	_site_bounds_cache[s.id] = out
+	return out
 
 
 ## The road on `axis` whose centre line is nearest `coord`, open at `along`? (For callers that
