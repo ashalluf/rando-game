@@ -17080,3 +17080,52 @@ traffic (with TRAFFIC_AI=0 cars slow and stop but do not change lanes). No incid
 connectors or the ramps. The flares are not seen on Forward+ (their red under AgX) and have no sound or collision. The patrol officer stays in the car (the flares just appear one by one); the driver does not walk to the tow
 (they vanish when the bed rises). The mattress and tread have no collision. The debris stills are
 framed from 30 m; closer framing would read better.
+
+
+## 9d?. The settings screen, 2026-10-30 (agent branch `wt/settings-menu`; VISUAL_ROADMAP ?)
+
+**What**: the pause menu gets a **Settings** button (between the seed and Quit) that swaps the
+menu column and the controls card for a settings screen in the same frosted style: a title column
+(Back, Reset to defaults) and one wide glass card in two columns of rows - a name, then a frosted
+slider with its value (a thin track filled white up to a white disc) or Off / On chips.
+
+| Section | Setting | Knob |
+|---|---|---|
+| CONTROLS | Look sensitivity 0.2-3x | CameraRig `mouse_sensitivity` and `gamepad_look_speed` x the multiplier (their exports, kept once as meta `gs_mouse` / `gs_pad`, are the base) |
+| | Invert look | CameraRig `invert_y` |
+| CAMERA | Field of view 55-100 | CameraRig `camera_fov` (the aim drop, boost widening and the wingsuit's extra ride on it) |
+| | Field of view in cars 55-110 | CameraRig `car_fov` (new: used instead of camera_fov while `player.vehicle` is set; 0 = camera_fov) |
+| AUDIO | Master / World / Ambience 0-100 % | bus volume (`linear_to_db`), muted at 0; nothing else sets those buses' volumes |
+| GRAPHICS | Motion blur | CameraPost `motion_blur_enabled` (Quality still turns it off below MEDIUM) |
+| | Depth of field | CameraPost `user_dof` (new): gates the ambient, aim and wheel far blur |
+| | Film grain, Vignette | the `Vignette` layer's `grain` / `strength`, the city's own numbers or 0 |
+| | Render scale 50-100 % | Quality `user_scale` (new) x the level's render_scale, still under the pixel budget; `set_user_scale()` re-runs `_apply_scale()` on desktop, bilinear on the web, nothing headless |
+| HUD | HUD size 75-150 % | `GameSettings.hud_scale` x the window scale in MinimapFrame.hud_scale(), WeaponHud and WantedHud (the ring, the bar and the stars follow); a change re-emits the viewport's `size_changed` so each relays out |
+
+**How**: `GameSettings` (`scripts/ui/game_settings.gd`, static): `DEFAULTS` (the game as it was),
+`RANGES` (min, max, step), `sanitize()` (clamped, snapped, typed; a bad file value falls back),
+`load_file()` / `save_file()` (ConfigFile at `path`, section `settings`), `apply(scene)`. The menu
+loads once a session (`ensure_loaded()`) and applies on every city load (`_apply_settings`
+deferred from its `_ready`), applies on every change (the frozen frame shows a graphics toggle at
+once) and saves when the screen is left or the menu closes (only if something changed). Esc in the
+screen steps back to the menu. Hooks: three lines in camera_rig.gd, three in camera_post.gd, the
+user scale in quality.gd, one expression each in minimap_frame / weapon_hud / wanted_hud.
+
+**A/B**: `SETTINGS_MENU=0` - no button, no screen, nothing loaded or applied.
+
+**Checks**: `tests/settings_menu_checks.gd` (in city_menu after the freeway incidents): defaults
+equal the rig's export, ranges hold them, clamping and snapping, a round trip through the file, a
+bad file, no file; applied, every value on its knob (rig, buses, CameraPost, Quality, the lens
+layer, the minimap's scale, no far blur with DOF off); the screen's slider and chips change and
+apply values, leaving saves, reset puts everything back. It runs on `user://settings_menu_test.cfg`,
+deletes it, and restores the rig, buses, post, Quality, the lens and the HUD scale. The smoke test
+never reads the player's file (a SmokeTest root skips the load).
+
+**Stills** (shots/settings-menu): the menu with the new button and the settings screen over the
+test room, `MODE=pause SETTINGS=1` on `tools/glshot/post_room_shot.gd` (seconds; `SETTINGS_HUD=`
+drags the HUD slider).
+
+**Not done / unverified**: the settings are not shown on the Mac (Forward+): the render scale and
+motion blur toggles there are wired the same way as Quality's own and are untested by eye. No
+gamepad focus navigation on the screen (mouse only, like the rest of the menu). No key rebinding,
+no window mode or V-sync.

@@ -3285,6 +3285,11 @@ already mapped so milestone 2 is script-only.
   appended to Pedestrian.MODELS so no earlier index or roll moves); b, c, f and g stay in their
   library clothes (the task: do not rebuild existing rigs). A dress is one "keep" cloth: no look
   recolours it into a two-tone outfit.
+- **2026-10-30 Settings are multipliers on the tuned knobs, saved on the player's machine.** The
+  pause menu's SETTINGS screen (GameSettings) scales the camera rig's look speeds, Quality's render
+  scale and the HUD's window scale rather than replacing them, so tuning an export still moves the
+  game; every default is the game as it was (an empty file changes nothing). Saved to
+  user://settings.cfg with ConfigFile when the screen is left; the smoke test never reads it.
 
 ## Correction: what build 135 (0ce833f) actually contained
 

@@ -19,6 +19,8 @@ extends Node3D
 ## Distance from the pivot to the camera (meters). The spring arm shortens it near walls.
 @export var camera_distance: float = 6.5
 @export var camera_fov: float = 75.0
+## Field of view while the player drives (the settings screen; 0 = camera_fov in a car too).
+@export var car_fov: float = 0.0
 ## Extra field of view while boosting, for a sense of speed.
 @export var boost_fov_boost: float = 15.0
 @export var fov_lerp_speed: float = 6.0
@@ -105,8 +107,9 @@ func _process(delta: float) -> void:
 	var ease_blend := smoothstep(0.0, 1.0, _aim_blend)
 	spring_arm.spring_length = lerpf(camera_distance, _aim_distance, ease_blend)
 	spring_arm.position.x = aim_shoulder * ease_blend
-	var target_fov := camera_fov - _aim_fov_drop * ease_blend
 	var player := get_parent() as Player
+	var base_fov := car_fov if car_fov > 0.0 and player and player.vehicle != null else camera_fov
+	var target_fov := base_fov - _aim_fov_drop * ease_blend
 	if player and player.is_boosting():
 		target_fov += boost_fov_boost
 	camera.fov = lerpf(camera.fov, target_fov, 1.0 - exp(-fov_lerp_speed * delta))
