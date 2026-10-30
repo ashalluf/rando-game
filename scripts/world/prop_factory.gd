@@ -1078,6 +1078,7 @@ static func foliage_material() -> ShaderMaterial:
 		return _cache["foliage_mat"]
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/foliage.gdshader")
+	TreesCloseup.mark(mat)
 	_cache["foliage_mat"] = mat
 	return mat
 
@@ -1104,6 +1105,7 @@ static func foliage_textured(src: StandardMaterial3D, blossom: Color = Color.TRA
 	if blossom.a > 0.0:
 		mat.set_shader_parameter("blossom_mix", blossom.a)
 		mat.set_shader_parameter("blossom", Color(blossom.r, blossom.g, blossom.b))
+	TreesCloseup.mark(mat)
 	_cache[key] = mat
 	return mat
 
@@ -1934,6 +1936,7 @@ static func _tree_mesh(file: String, blossom: Color = Color.TRANSPARENT, budget:
 				mesh.surface_set_material(i, foliage_textured(sm, blossom))
 				continue
 			sm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	TreesCloseup.dress(mesh)
 	var proxy := shadow_proxy(mesh)
 	if proxy:
 		for i in mesh.get_surface_count():
