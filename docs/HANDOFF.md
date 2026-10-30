@@ -20871,3 +20871,79 @@ opengl3, `SUNSET_CLOUDS=0` vs on.
 would need the band retuned, which touches every dusk); the fine bright speckles inside big heaps
 on lavapipe stills are the volume's own (in the before too); the city stills are opengl3 only (the
 city does not fit lavapipe); dawn gets the same model (symmetric weight) but was not tuned.
+
+## 9d?. The chase camera (wave 3, driving-camera)
+
+The owner: "make it look like GTA 6 - and feel like it". In a car the camera used to be the
+on-foot rig unchanged: it stayed where the mouse left it, so a turn drove the car out of the frame
+and nothing told you how fast you were going. Now `DriveCam` (`scripts/player/drive_cam.gd`, a
+Node the CameraRig makes in `_ready()`) drives the rig while the player is at the wheel of any
+ground Vehicle (cars, trucks, bikes, boats; never `Aircraft` or `FlyableHeli`, which keep the old
+camera). `DRIVE_CAM=0` in the environment is the A/B.
+
+- **Follow.** The view follows the way the car travels (its velocity past `velocity_follow_from`,
+  its nose when slow or reversing) on a critically damped spring (`DriveCam.spring()`, exact for
+  a step, so any frame rate lands on the same curve) whose stiffness rises with speed
+  (`follow_slow` 3.5 -> `follow_fast` 5.5). Its steady lag in a turn is the swing into the corner:
+  ~10 degrees at 60 km/h and 0.8 g, capped at `max_corner_lag_deg` 22, plus `corner_swing_deg` per
+  rad/s of yaw rate (never stored in the spring, so it does not accumulate). It leans against the
+  cornering force (`corner_roll` deg per g, max 3).
+- **Framing.** Pivot at the car's centre (`pivot_base` + per metre of length; a semi counts its
+  trailer), distance `distance_base` + `distance_per_length` x length + `speed_pullback` with speed
+  + `accel_pull` (falls back accelerating, closes in braking); pitch `pitch_slow_deg` -11 ->
+  `pitch_fast_deg` -6 (lower with speed) plus `slope_follow` of a hill; field of view +`speed_fov`
+  (7 deg) at full speed and +`nitro_fov` on the nitro (the on-foot boost FOV is faded out in the
+  car). Speed share: `speed_from` 8 m/s (30 km/h) to `speed_full` 42 (150 km/h). Measured: 30 / 80
+  / 150 km/h = 6.4 / 7.1 / 8.4 m back, pitch -11 / -9 / -6, FOV +0 / +1.6 / +7.
+- **Shake.** `road_shake(clock, ...)` is pure: two slow sway sines and three buzz sines (11.7,
+  17.3, 23.9 Hz) of the CLOCK, never a random number a frame; the buzz grows with speed squared,
+  the sway from a crawl; x`rough_gain` when a wheel is on hill terrain; any component above
+  `max_buzz_share` of the frame rate is faded out (at 20 fps the buzz is gone, the sway stays), so
+  it reads the same at 30 and 144 fps. Flat out on tarmac it moves the view 0.44 degrees at most.
+  The settings screen's new "Driving camera shake" (GameSettings `drive_shake`, CameraRig
+  `drive_shake`) turns it off.
+- **Kicks.** `_physics_process` watches the car's velocity: a vertical change past `bump_min_dv` in
+  a tick is a bump (a short dip), touch-down after more than 12 ticks with no wheel in contact a
+  landing (dip and drop by the fall speed, a rig shake past 12 m/s), a horizontal change past
+  `crash_min_dv` a crash (lurch toward the car, a rig shake). The kick is an under-damped spring
+  (`kick_omega`, `kick_damping`) sub-stepped at 240 Hz: the same thump at 30 and 144 fps.
+  A teleport (respawn, an origin shift) kicks nothing.
+- **Free look / look behind.** Mouse or stick input (`CameraRig` calls `note_look()`) hands the
+  view to the player; `free_look_hold` 1.3 s after the last input it eases back behind the car over
+  `recenter_seconds`. While boost-flying (airborne, boost held: the car flies where you look) it
+  never takes the view back. **In the air the view is always the player's** (the car flies where
+  the camera looks, Vehicle._fly()): leaving the ground hands it over as it stands, nothing
+  recentres until `air_hold` after touch-down; `set_look()` / `look_at_point()` count as the
+  player's look. `look_behind` (new action: C / pad X) swings round in
+  `look_behind_seconds` and back on release. Getting in blends from the view you had
+  (`blend_seconds`); getting out hands it back.
+- **Motion blur.** CameraPost multiplies its strength by `DriveCam.blur_terms()` (1 +
+  `blur_gain` 0.7 at full speed) and raises the soft knee by `blur_threshold_add` px while driving:
+  the car rides with the camera (only its lag and the buzz move it on screen, under the knee), so it
+  stays sharp while the road and the roadside streak. Forward+ only, like the blur itself: NOT
+  SEEN (the city does not fit lavapipe) - judge it on the Mac.
+- **Walls.** The spring arm sweeps a `arm_radius` 0.25 m sphere while driving (the ray alone can
+  slip past a corner and leave the near plane in a wall), and because the arm resolves its length
+  in the physics tick while the chase moves the pivot every frame, the rig sweeps the sphere again
+  from the pivot where it is now (`_clamp_to_walls()`). The checks spin the view round a car
+  backed up to a wall, a pillar and a low lid: the camera was never inside one or on the far side.
+
+Hooks: `camera_rig.gd` (the DriveCam, `note_look()` on input, the chase result applied before
+`_apply_rotation()`, the pivot moved to the car), `camera_post.gd` (two lines, the blur terms),
+`game_settings.gd` / `pause_menu.gd` (the shake toggle, the C row on the controls card),
+`project.godot` (`look_behind`). Checks: `tests/driving_camera_checks.gd` (55, the last city file;
+alone: `SMOKE_PARTS=driving_camera_checks`). Strips: `tools/driving_camera/drive_strip.gd` (a
+scripted drive up Flower St with `--fixed-fps 60`: s30, s80, s150, a 35 km/h right turn onto
+Olympic, an 80 km/h hop; `DRIVE_CAM=0` the before) and `strips.py`; stills on
+`shots/driving-camera`.
+
+Gate: the flight check ("boost flies the car upward") places the look with `set_look()` and
+boosts; the chase camera took the pitch back and it failed - in this branch's first gate and in
+main's batch 18, which had merged an earlier head and backed it out. Now a placed view counts as
+the player's look and in the air the view is always the player's. No frame cost to measure
+(no geometry; a few dozen flops a frame).
+
+Not done / not seen: the motion blur on Forward+ (above); a pad's look-behind shares X with the
+on-foot dive / wingsuit (both off in a car); no per-surface buzz beyond terrain (DrivingFX knows
+sand and dirt, not shared); the camera does not yet look into the corner AHEAD (GTA's slight
+lead) - the lag shows the flank instead.

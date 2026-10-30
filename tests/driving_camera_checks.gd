@@ -208,6 +208,17 @@ func _live(player: Player, rig: Node, drive: DriveCam) -> void:
 	await _place(car, Vector3(0.0, 9.0, 80.0), 0.0)
 	await _until_ticks(func() -> bool: return drive.landings > l0, 160)
 	_check(drive.landings > l0, "dropping 9 m kicks it as a landing")
+	# In the air the view is the player's: the car flies where the camera looks.
+	await _place(car, Vector3(0.0, 40.0, 80.0), 0.0)
+	await _ticks(20)
+	rig.call("set_look", 30.0, 35.0)
+	var held := true
+	for i in 40:
+		car.hold_crash_watch(2)
+		await _tree.physics_frame
+		if absf(rad_to_deg(float(rig.get("_pitch"))) - 35.0) > 1.0 or absf(rad_to_deg(float(rig.get("_yaw"))) - 30.0) > 1.0:
+			held = false
+	_check(held, "airborne, a placed look is held: the car flies where the player looks")
 	player.exit_vehicle()
 	await _wait(drive.blend_seconds + 0.10)
 	_check(drive.weight == 0.0 and arm.shape == null, "getting out lets go of the car and the arm's sphere")
