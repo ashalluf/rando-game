@@ -92,20 +92,21 @@ func _far(tors: Array) -> void:
 		return
 	var slots_ok: bool = (f._slots as Array).size() == tors.size()
 	for s: Variant in f._slots:
-		slots_ok = slots_ok and s is Array and (f._near as Dictionary).has(s[0]) and (f._far as Dictionary).has(s[2])
-	_t._check(slots_ok, "every tor has a near and a far instance (%d near cells, %d far cells)" % [(f._near as Dictionary).size(), (f._far as Dictionary).size()])
+		slots_ok = slots_ok and s is Array and (f._near_lists as Dictionary).has(s[0]) and (f._far as Dictionary).has(s[2])
+	_t._check(slots_ok, "every tor has a near and a far slot (%d near cells, %d far cells, %d near cells built)" % [(f._near_lists as Dictionary).size(), (f._far as Dictionary).size(), (f._near as Dictionary).size()])
 	var tr: Dictionary = tors[tors.size() / 2]
 	var cell := Vector2i(floori(tr.pos.x / RockFar.NEAR_CELL), floori(tr.pos.y / RockFar.NEAR_CELL))
 	var shown_before := f.near_shown(cell)
 	f.survey(Vector3(tr.pos.x, 0.0, tr.pos.y))
 	var shown := f.near_shown(cell)
-	var node := f._near[Vector3i(cell.x, cell.y, int(tr.kind))] as Node3D
+	var node := f.near_node(Vector3i(cell.x, cell.y, int(tr.kind)))
+	var drawn := node != null and node.visible
 	f.survey(Vector3(tr.pos.x + 20000.0, 0.0, tr.pos.y))
-	var gone := not f.near_shown(cell) and not node.visible
+	var gone := not f.near_shown(cell) and (f.near_node(Vector3i(cell.x, cell.y, int(tr.kind))) == null or not f.near_node(Vector3i(cell.x, cell.y, int(tr.kind))).visible)
 	var cam := f.get_viewport().get_camera_3d()
 	if cam:
 		f.survey(WorldState.to_world(cam.global_position))
-	_t._check(shown and node.visible and gone, "a near cell shows round the camera and goes past NEAR_RANGE (was %s)" % shown_before)
+	_t._check(shown and drawn and gone, "a near cell shows round the camera and goes past NEAR_RANGE (was %s)" % shown_before)
 
 
 func _chunks(city: Node3D, plan: CityPlan, tors: Array) -> void:
@@ -161,6 +162,8 @@ func _chunks(city: Node3D, plan: CityPlan, tors: Array) -> void:
 		if tried >= 4 or not bool(road.get("draw", true)):
 			continue
 		var pts: PackedVector2Array = road.points
+		if pts.size() < 2:
+			continue
 		var k := plan.chunk_index_at(pts[pts.size() / 2])
 		if plan.zone_at(pts[pts.size() / 2]) != MacroMap.Zone.HILLS:
 			continue
@@ -193,10 +196,10 @@ func _batch_counts(city: Node3D, k: Vector2i) -> Dictionary:
 	var c: CityChunk = city._new_chunk(k, CityChunk.Level.FULL)
 	c.build()
 	var out := {}
-	var data: Dictionary = c._batch.data()
-	for key: String in data:
-		var entry: Variant = data[key]
-		out[key] = (entry.xforms as Array).size() if entry is Dictionary and (entry as Dictionary).has("xforms") else 1
+	for n in c.find_children("Batch_*", "MultiMeshInstance3D", true, false):
+		var mi := n as MultiMeshInstance3D
+		if mi.multimesh:
+			out[String(mi.name).trim_prefix("Batch_")] = mi.multimesh.instance_count
 	c.get_parent().remove_child(c)
 	c.free()
 	return out

@@ -53,6 +53,9 @@ uniform bool far_mode = false;
 uniform sampler2D tile_tex : source_color, filter_linear_mipmap, repeat_enable;
 uniform float tile_mean = 0.2;
 uniform float tile_size = 9.0;
+// The welded mesh's brightness against the scan's, and how much dust settles on it.
+uniform float far_tone = 0.78;
+uniform float far_dust = 0.3;
 
 // Seated on the far plane where INSTANCE_CUSTOM.r says no chunk drew the real ground (RockFar's
 // materials); off for the rocks a chunk's batch draws, which always stand on its terrain.
@@ -154,7 +157,9 @@ void fragment() {
 		vec3 tp = wp / tile_size;
 		vec3 t = cs_in(texture(tile_tex, tp.zy).rgb) * w.x + cs_in(texture(tile_tex, tp.xz).rgb) * w.y + cs_in(texture(tile_tex, tp.xy).rgb) * w.z;
 		detail = min(pow(max(dot(t, vec3(0.2126, 0.7152, 0.0722)) / max(tile_mean, 1e-3), 0.0), 1.3), 1.8);
-		detail *= 0.85 + 0.3 * rnoise(wp.xz * 0.05 + vec2(wp.y * 0.11, 3.0));
+		// Far off a crag is mostly its shaded faces and cracks: a little darker than the scan reads
+		// close up, or a range's crags drew as pale flecks against the straw.
+		detail *= (0.85 + 0.3 * rnoise(wp.xz * 0.05 + vec2(wp.y * 0.11, 3.0))) * far_tone;
 		arm = vec3(1.0, 1.0, 0.0);
 	} else {
 		vec3 scan = cs_in(texture(albedo_tex, UV).rgb);
@@ -176,7 +181,7 @@ void fragment() {
 	col = mix(col, varnish_color * detail, varnish);
 	// Dust and dry grass on what faces the sky, in patches.
 	float patch = rnoise(wp.xz * 0.35) * 0.6 + rnoise(wp.xz * 1.3) * 0.4;
-	float dust = smoothstep(0.55, 0.9, n.y) * smoothstep(0.3, 0.7, patch) * dust_amount;
+	float dust = smoothstep(0.55, 0.9, n.y) * smoothstep(0.3, 0.7, patch) * (far_mode ? far_dust : dust_amount);
 	vec3 settle = mix(dust_color, straw_color, smoothstep(0.55, 0.85, patch));
 	col = mix(col, settle * mix(0.8, 1.1, detail), dust);
 	// The ground's dirt over the foot.

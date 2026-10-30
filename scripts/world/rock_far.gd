@@ -29,8 +29,10 @@ var _plan: CityPlan
 var _tors: Array = []
 ## Per tor: [near key, index there, far key, index there].
 var _slots: Array = []
-## Vector3i(cell x, cell z, kind) -> MultiMeshInstance3D.
+## Vector3i(cell x, cell z, kind) -> MultiMeshInstance3D: the near cells built (on first show,
+## freed when hidden), the tors of every near cell, and the far cells (all built at once).
 var _near: Dictionary = {}
+var _near_lists: Dictionary = {}
 var _far: Dictionary = {}
 ## Vector3i -> the near cell's shadow (the welded mesh, SHADOWS_ONLY), shown with it.
 var _near_shadow: Dictionary = {}
@@ -105,13 +107,7 @@ func _build() -> void:
 		if not _near_tors.has(c2):
 			_near_tors[c2] = []
 		(_near_tors[c2] as Array).append(int(t.id))
-	for k: Vector3i in near_lists:
-		_near[k] = _cell(near_lists[k], k.z, false, "RockNear_%d_%d_%d" % [k.x, k.y, k.z])
-		(_near[k] as Node3D).visible = false
-		var sh := _cell(near_lists[k], k.z, true, "RockNearShadow_%d_%d_%d" % [k.x, k.y, k.z])
-		sh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
-		sh.visible = false
-		_near_shadow[k] = sh
+	_near_lists = near_lists
 	for k: Vector3i in far_lists:
 		_far[k] = _cell(far_lists[k], k.z, true, "RockFar_%d_%d_%d" % [k.x, k.y, k.z])
 
@@ -201,10 +197,19 @@ func _show_near(cell: Vector2i, on: bool) -> void:
 		_shown.erase(cell)
 	for kind in RockKit.TOR_KINDS:
 		var k := Vector3i(cell.x, cell.y, kind)
-		if _near.has(k):
-			(_near[k] as Node3D).visible = on
-			if not on:
-				(_near_shadow[k] as Node3D).visible = false
+		if not _near_lists.has(k):
+			continue
+		if on and not _near.has(k):
+			_near[k] = _cell(_near_lists[k], k.z, false, "RockNear_%d_%d_%d" % [k.x, k.y, k.z])
+			var sh := _cell(_near_lists[k], k.z, true, "RockNearShadow_%d_%d_%d" % [k.x, k.y, k.z])
+			sh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+			sh.visible = false
+			_near_shadow[k] = sh
+		elif not on and _near.has(k):
+			(_near[k] as Node).queue_free()
+			(_near_shadow[k] as Node).queue_free()
+			_near.erase(k)
+			_near_shadow.erase(k)
 	for id: int in _near_tors[cell]:
 		_write(id)
 
@@ -217,8 +222,9 @@ func _write(id: int) -> void:
 	var nk: Vector3i = s[0]
 	var shown := _shown.has(Vector2i(nk.x, nk.y))
 	var data := Color(real, float(t.tone), float(t.sink) / 100.0, 1.0)
-	((_near[nk] as MultiMeshInstance3D).multimesh).set_instance_custom_data(int(s[1]), data)
-	((_near_shadow[nk] as MultiMeshInstance3D).multimesh).set_instance_custom_data(int(s[1]), data)
+	if _near.has(nk):
+		((_near[nk] as MultiMeshInstance3D).multimesh).set_instance_custom_data(int(s[1]), data)
+		((_near_shadow[nk] as MultiMeshInstance3D).multimesh).set_instance_custom_data(int(s[1]), data)
 	data.a = 0.0 if shown else 1.0
 	((_far[s[2]] as MultiMeshInstance3D).multimesh).set_instance_custom_data(int(s[3]), data)
 
@@ -244,6 +250,11 @@ static func release(ids: Array) -> void:
 
 static func is_claimed(id: int) -> bool:
 	return int(_claims.get(id, 0)) > 0
+
+
+## The built near cell `k` (Vector3i cell x, z, kind), or null.
+func near_node(k: Vector3i) -> MultiMeshInstance3D:
+	return _near.get(k) as MultiMeshInstance3D
 
 
 func near_shown(cell: Vector2i) -> bool:
