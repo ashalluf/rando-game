@@ -19,3 +19,5 @@ fixed camera frames him). Not Forward+: the lighting is the flat Compatibility p
 - `06_after_park_pool_1530.jpg` - the front crawl in a rec park's 25 m pool, held in its tank.
 - `07_after_macarthur_lake_1530.jpg` - treading water in MacArthur Park's lake.
 - `08_after_dolphin_1840.jpg` - a dolphin leap's splash at dusk, the pier's lamps in the water.
+- `09_after_reservoir_crawl_1630.jpg` - wave 3: the front crawl in the reservoir behind the dam (its
+  level over the carved hills; the intake towers and the crest behind him).
