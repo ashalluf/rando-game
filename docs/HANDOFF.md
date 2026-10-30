@@ -17080,3 +17080,97 @@ traffic (with TRAFFIC_AI=0 cars slow and stop but do not change lanes). No incid
 connectors or the ramps. The flares are not seen on Forward+ (their red under AgX) and have no sound or collision. The patrol officer stays in the car (the flares just appear one by one); the driver does not walk to the tow
 (they vanish when the bed rises). The mattress and tread have no collision. The debris stills are
 framed from 30 m; closer framing would read better.
+
+## 9fz. Street performers (2026-10-30, fleet wave 3, branch `wt/buskers`)
+
+The task: "Street performers: a guitarist with an open case, a drummer on buckets, a breakdancer
+with a ring of watchers, a living statue painted silver, a mariachi trio, on busy pavements
+downtown, at the beach boardwalk and on plazas; hash-placed per block, built on crowd life, audio
+from CC0 recordings if available (else none), flee from gunfire and come back."
+
+**Where.** `Buskers.plan_block(plan, ix, iz, hour)` (pure) reads StreetVendors' place per face
+(`StreetVendors._place`: downtown, midtown, park, MacArthur Park's faces, the arena, the beach
+town and the blocks by the boardwalk) and rolls `ODDS[place][kind]` per face, faces in a hashed
+order, the first that passes its odds AND its hours (`HOURS`, shifted per act by a hash) wins: one
+act a block. A PLAZA block rolls two slots either side of the fountain on its long axis
+(`PLAZA` odds), and only slot 0 can be a breakdancer (the ring needs the room). Every roll is a
+hash of seed + block + face (or slot) + kind; the hour the chunk is built at decides who is out
+(`Buskers.force_hour`, else StreetVendors.hour_now()). Downtown at 15:00 on seed 1337 has ~15
+acts within 600 m of Pershing Square; none at 04:00.
+
+**Build.** One hook in `CityChunk._block_steps`, right after the street vendors' steps (it keeps
+clear of their carts through `StreetVendors._occupied()` and its own `occupied` list) and before
+the parked cars and the walkers: `Buskers.build_block` lays the gear as batches on the chunk's
+MultiMeshBatch (`busk_case`, `busk_drums`, `busk_break`, `busk_plinth`, `busk_amp`; drawn to
+`GEAR_DRAW` 110 m, shadows to 35 m), writes the people's specs to chunk meta `busk_people`, and
+adds `WATCH_SPOTS` (3) queue spots per act to `vendor_queue` (record `{"busk": id}`), where
+passers-by stop (Pedestrian._plan_queue, StreetVendors' share and time). Then `MAX_PEOPLE` (12)
+steps spawn the people, each through `_take_crowd_room()`; a watcher only comes with a performer
+who did. A pavement pitch is `PERFORM_IN` 3.15 m in from the kerb, the tips at 2.2 m, the watch
+spots at 1.05 m; the performer faces the street.
+
+**The gear** (`Buskers.Kit`: a small mesh writer, triangles turned to face the way asked, smooth
+or flat normals; one shader `shaders/busker_prop.gdshader`, the surface in COLOR.a tenths - wood
+with grain, brass, steel, plastic, plush, cardboard, silver paint, rubber, a sound hole, LED):
+an acoustic guitar with a sunburst top, binding, rosette, pickguard, frets, strings and pegs
+(976 tris; the guitarron is it at 1.33 and twice as deep), a violin with f-holes and scroll and a
+bow, a trumpet with its valves and flared bell, drumsticks, an open guitar case lined in plush
+with coins and bills, a practice amp, the drum kit (upturned 5-gallon buckets, a pail, milk
+crates, a pot-lid cymbal on a tripod, a tip bucket; 3,560 tris), the breakdancer's taped
+cardboard with a boombox and a cap, the statue's painted plinth with its tin, and a sombrero built
+round each rig's head from CrowdHatTable (FireHelmet's method).
+
+**The people.** `Busker` (`scripts/npc/busker.gd`) and `BuskWatcher` (`busk_watcher.gd`) extend
+Pedestrian with StreetVendor's pattern (at the spot for good, a scare runs them off with
+everyone, they walk back when the panic is over); performers' rigs are chosen
+(`Buskers.seed_for()` mirrors `_add_model()`'s style rolls: a rig from `RIGS[kind]`, no hat or
+pack). The clips: the life library plus a "busk" one, `tools/crowd/busk_clips.gd` (extends
+life_clips.gd, same retarget, same CC0 UAL sources): `dance` (toprock), `crouch`, `lantern`,
+`spell` (the statue's poses). The playing is laid on after the clip near the camera only
+(`life_range`), by `Busker.two_bone()` (a two-bone arm solve in skeleton space, blended):
+- guitar on Spine01 (placed against the rest pose), right hand strumming over the sound hole
+  (`strum_rate`), left on the neck changing chord position every ~2 s;
+- drums: the life `sit` clip with the bench solve (`_seat_drop`, the root slid so the hips land
+  on the kit's bucket), each hand to a strike point of `DRUM_HITS` on an 8-step pattern of its own
+  (`drum_rate`), lifting between hits, the sticks placed each tick from the wrist to the tip;
+- breakdance: an 18 s routine of toprock, a drop, a spin (the body turned on the spot), a
+  one-hand freeze (the body tipped onto the right hand, solved to the cardboard) and back up; the
+  ring of five watchers claps at the freeze;
+- statue: silver all over (`silver_material()`: metallic, the rig's own normal map), up on the
+  plinth (`PLINTH_H`, kinematic), a pose frozen (`speed_scale` 0) and a slow mechanical bow (the
+  nod at 0.55x) when somebody comes within `bow_reach` or between "songs";
+- mariachi: black charro (`charro_material()`, the character shader's garment split), sombreros,
+  the guitarron strummed, the violin under the chin with the bow drawn across it, the trumpet at
+  the lips on the Head bone with both hands on the valves.
+Songs last `song_seconds`; between them `applause_until_ms` makes BuskWatchers clap (both hands
+solved together in front of the chest) and the performer nods.
+
+**Audio: none.** Freesound needs an API key and nothing else CC0 with street guitar, bucket drums
+or a mariachi trio was reachable from the box; the acts play silently. A synthesised guitar
+(Karplus-Strong) and bucket hits would be the next step if no recording turns up.
+
+**A/B, tools, checks.** `BUSKERS=0` in the environment: no acts, no watch spots, the block exactly
+as before. `tools/buskers/busk_shot.tscn` (every act alone on a strip of pavement, opengl3, seconds;
+`SHOTS`, `TIMES`, `KINDS`, `NIGHT=1`), `tools/buskers/probe.gd -- --spawn=x,z,0,0 --hour=15` (every
+act round a point with an EYE for still_shot.gd), `tools/buskers/compile.gd` (compiles, builds the
+meshes, prints triangles). Checks: `tests/buskers_checks.gd`.
+
+**Frame cost** (`still_shot.gd` GEO at 15:00, the same EYE with `BUSKERS=0` and on; tris / draws):
+the plaza drummer `EYE=2803.5,1.7,127.0,13,-7` 5,646,406 / 2,492 -> 5,708,346 / 2,514 (+1.1 %);
+the plaza statue `2803.5,1.7,73.5,168,-5` 5,477,732 / 2,415 -> 5,542,163 / 2,425 (+1.2 %); a
+pavement with no act `2350.0,1.7,268.0,30,-8` 3,476,383 / 1,531 -> 3,479,440 / 1,533; the mariachi
+trio and two watchers 6 m away `2369.6,1.7,350.5,-30,-6` 4,871,292 / 2,794 -> 5,086,697 / 2,773
+(+4.4 % triangles: five crowd rigs close up; the people come out of the crowd cap).
+
+**Stills** (branch `shots/buskers`): `01_before_plaza_1500` / `02_after_plaza_drummer_1500`,
+`03_before_plaza_south_1500` / `04_after_plaza_living_statue_1500`, `05_before_pavement_1500` /
+`06_after_pavement_mariachi_trio_1500`, then every act alone from `busk_shot.tscn`: `07` guitarist,
+`08` drummer, `09` statue, `10` mariachis, `11` breakdancer toprock, `12` the freeze with the ring
+clapping, `13` the mariachis at night.
+
+**Not done / unverified.** No audio. Nothing seen on Forward+ (the silver statue's metal and the
+black charro cloth want a Mac look). The performers do not pack up in the rain (they keep playing;
+RainCrowd is off for them). The hands are two-bone solves with the clip's own wrists and fingers
+(the fretting fingers do not close on the neck). A breakdancer only ever dances on a plaza (none on
+the boardwalk landmark itself). Watchers are only the act's own (the breakdancer's ring, the
+mariachis' pair) plus passers-by at the watch spots; nobody walks up to tip.
