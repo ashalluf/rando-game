@@ -14948,8 +14948,8 @@ the street's traffic held) and frames it; `NEWS_ALL=1` takes every framing from 
 at the wide bookmark (opengl3, 1280x720, `EYE=6.20,4.44,69.68,22.48,1.33 --spawn=-10,40,0,-5
 --hour=15`): 5.30 M triangles / 2,258 draws without it, 5.62 M / 2,413 with it - and that includes
 the staged burning wreck's fire and smoke; the van (the road van's model plus ~9 gear nodes and
-lettering), two crew rigs, the stand, the tape and its posts are most of the rest. Gate: SHARDS=3,
-2,430 checks passed, peak 2.49 GB a shard.
+lettering), two crew rigs, the stand, the tape and its posts are most of the rest. Gate (merged with
+main eb75a109): SHARDS=3, 2,568 checks passed, 0 failed.
 
 **Not done / not verified.** Forward+ (the stand light, the tape's sheen) not seen on lavapipe;
 the standoff story is checked by setting the stars, not with a live police chase; the reporter's lip sync is the generic talk clip.
