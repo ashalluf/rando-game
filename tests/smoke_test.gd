@@ -2667,6 +2667,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Lawns close up (tests/lawns_closeup_checks.gd, LawnsCloseup): the lawn field shared by the
 	# ground and the blades, the tuft, the parkways and weeds, nothing else moved.
 	load("res://tests/lawns_closeup_checks.gd").new().run(self, city)
+	# Storm drama (tests/storm_drama_checks.gd, StormDrama): gusts, sheets, bolts, the sky, run-off.
+	await load("res://tests/storm_drama_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
