@@ -26,3 +26,6 @@ with everything on they peak over 13.6 GB and the box has 15.
 - 15: the coast highway, Forward+ 15:00 / 21:00.
 - 16: the fashion district street at 21:00, Forward+ (the market alley was off: ALLEYS=0).
 - 17-18: a parklet and the facade pass downtown, Forward+ 13:00 / 21:00.
+- 19: the corner store, Forward+ noon / 21:00 before (the lit red sign through AgX as peach,
+  247,188,132) / 21:00 after (red-orange, 243,125,64, like a real lightbox).
+- 20: the walk of fame, Forward+ 13:00 / 21:00 (terrazzo stars, brass, the palace beyond).
