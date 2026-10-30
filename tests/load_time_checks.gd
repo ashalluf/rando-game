@@ -34,8 +34,12 @@ func _round_trip(plan: CityPlan) -> void:
 		_check(true, "the load cache is off (LOAD_CACHE=0): nothing to round-trip")
 		return
 	var inputs := ["check_bake", plan.seed, 9000.0, 24]
+	# bake() replaces the map's bake_height, which the horizon plane's own bake left there and
+	# later checks read (the far ranges): put it back after.
+	var city_height: Image = plan.macro.bake_height
 	var img := plan.macro.bake(Vector2(300.0, -200.0), 9000.0, 24)
 	var h := plan.macro.bake_height
+	plan.macro.bake_height = city_height
 	LoadCache.save_images("check_bake", inputs, [img, h])
 	var back := LoadCache.load_images("check_bake", inputs)
 	_check(back.size() == 2, "the load cache gives back both images of a bake")

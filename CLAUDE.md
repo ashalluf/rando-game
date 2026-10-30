@@ -437,6 +437,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `light_volumetric_fog_energy` down in bad weather - rain thickens the volumetric fog seventy
   times, and lit by the moonlight fill it hung over the street as a pale grey veil. At 88 %
   cloud the sky IS the clouds, so the night cloud colour is what decides it.
+- The wet world (2026-10-30, docs/HANDOFF.md "The wet world"): everything that is not a road takes
+  the rain from the road's globals through `shaders/wet_surface.gdshaderinc` (no samplers; call it
+  only behind `if (ws_on())`, the one dry branch; never with wet_drying.gdshaderinc): car paint and
+  glass bead and run (`car_glass_wet.gdshaderinc`), `CarWipers` sweeps a code-built pair per body
+  type on driven cars (shared phase materials; the glass clears the same arcs), walls darken top
+  down by `ws_wall()` near (building) and far (building_lod) alike, roofs / awnings / rooftops
+  gloss, the crowd and the hero soak. `WET_WORLD=0` is the A/B (`wet_world` global, `WetWorld`);
+  `car_shot.gd WET=1,1`; checks `tests/wet_world_checks.gd`.
 - Los Angeles weather (2026-10-05, "beyond clear / overcast / rain / storm"): `Weather.State`
   gains MARINE ("June gloom") and SANTA_ANA (appended: every per-state table has six rows, the
   pause menu's chips are Auto + one per state in order, `--weather=marine|santa_ana`, aliases in
@@ -3481,6 +3489,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `calm2_*` (set by CityStreamer) holds the crags off it. Probe: `tools/reservoir/probe.tscn`
   (level, dam, lake, trail, walls, timings; `OUT=` a contour map; `SEED=`); compile check
   `tools/reservoir/compile.gd`. Checks: `tests/reservoir_checks.gd`.
+- The far ranges (2026-10-30, docs/HANDOFF.md "The far ranges"): the back and east ranges are
+  crest lines (`FarRanges`, `scripts/world/far_ranges.gd`, from `MacroMap._range_heights_at()`:
+  the old front face to the full line, a wandering crest, a few big summits, a long fall behind;
+  canyons 980 / 820 m apart that only saddle the crest, `erosion_share()`); the front range is
+  untouched. A coarser ring (`FarRanges.build_ring()`) on the plane's own material carries the far
+  ground out to 12.6 km - the 14 km plane's rim (5-6.9 km) had dissolved every crest into the sky,
+  leaving the spurs as cones - with the bake mirrored past its edge (`macro_mirror`); the crags are
+  |n| (`crag_shape`), and `range_haze_amount()` in macro_relief.gdshaderinc is a layered haze the
+  ground, far canopy and far estates all take. `FAR_RANGES=0` is the A/B; probe
+  `tools/far_ranges/probe.tscn` (panorama, skyline numbers); checks `tests/far_ranges_checks.gd`.
 - The horizon: everything outside the streamed chunks is the ground follower, a single plane
   14 km across (`CityStreamer.ground_size`) wearing `shaders/macro_ground.gdshader`. It is
   shaded from a 256 px image of the whole basin baked once at load by `MacroMap.bake()` (RGB is
@@ -5913,6 +5931,18 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   gives the cut faces their normals. Every piece computes a corner by the same expression, or the
   roof cracks. No new mesh or draw (+24 triangles a cut part). `FAR_CORNERS=0` is the A/B;
   `far_building_shot.gd CHAMFER=1`; checks `tests/far_corners_checks.gd` (mirror the reshape).
+- The mid distance (2026-10-30, docs/HANDOFF.md "The mid distance"): `MidCity`
+  (`scripts/world/mid_city.gd`) is what the LOD chunks and the far city draw from 400 m to 3 km.
+  Skyline plants YARD TREES (`yard_trees()`: a jittered grid at `ODDS` per district on the green
+  ground of the captured block, an occupancy raster keeping them off buildings and paving) and
+  fills `KERB_FILL` of the empty kerb slots (appended after the roll's spots: a tree's look is a
+  hash of its index); crowns darker and dappled (far_canopy `mid_city`). HouseBuild.lod() flags a
+  wing `HOUSE_FLAG` 0.25 (its flat roof wears a house's coverings) and its slabs `ROOF_FLAG` 1.25
+  (tile / shingle courses), roof colour = the house's own clay tint or shingle (`roof_far()`);
+  YardFill's pools are `POOL_FLAG` 5 boxes. `shaders/far_cars.gdshaderinc`: parked cars on the
+  kerbs and far_traffic's own cars (same keys) by day on the plates, decks and LOD ground, the
+  asphalt x`mid_road_gain`. Hashes only, nothing else moves. `MID_CITY=0` is the A/B; probe
+  `tools/mid_city/probe.gd -- --at=x,z`; checks `tests/mid_city_checks.gd`.
 - Road hardware (2026-10-05, docs/HANDOFF.md "Road hardware"): `RoadHardware`
   (`scripts/world/road_hardware.gd`, one hook line at the end of `StreetDetail.build_block`, FULL
   chunks) lays cast-iron manhole covers (four cast patterns, proud or sunk in a patched round or

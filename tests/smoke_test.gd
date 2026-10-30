@@ -2475,6 +2475,13 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/arroyos_checks.gd").new().run(self, city)
 	# The third wave of everyday bodies (tests/cars_3_checks.gd, Cars3): rolls, the switch, builds, traffic.
 	await load("res://tests/cars_3_checks.gd").new().run(self, city)
+	# The mid distance (tests/mid_city_checks.gd): yard trees, house roofs and pools in the far tiers.
+	load("res://tests/mid_city_checks.gd").new().run(self, city)
+	# The far ranges (tests/far_ranges_checks.gd): the back and east ranges as crest lines, their
+	# feet and the front range unmoved, the bake on the new shape, the plane's crags and layered haze.
+	load("res://tests/far_ranges_checks.gd").new().run(self, city)
+	# The wet world (tests/wet_world_checks.gd, WetWorld, CarWipers): the shaders' water, walls, wipers.
+	await load("res://tests/wet_world_checks.gd").new().run(self, city)
 	# The explosion's second pass (tests/explosions_2_checks.gd, BlastFX): flash, wave, rolling fire,
 	# the lit column, burning debris, windows blown out across the street, the caps, the car's fuel blast.
 	await load("res://tests/explosions_2_checks.gd").new().run(self, city)
