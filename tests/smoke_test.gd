@@ -2616,6 +2616,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/ocean_closeup_checks.gd").new().run(self, city)
 	# HUD polish (tests/hud_polish_checks.gd): the theme, the safe area, the place toast, the car readout.
 	await load("res://tests/hud_polish_checks.gd").new().run(self, city)
+	# The police at night (tests/police_night_look_checks.gd, PoliceNightLook): one flash clock, the
+	# glow, the budgeted strobes, the wall wash, roadblock flares, the searchlight's haze.
+	await load("res://tests/police_night_look_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

@@ -348,6 +348,16 @@ func _build_searchlight() -> void:
 	_pool.top_level = true
 	_pool.visible = false
 	add_child(_pool)
+	if PoliceNightLook.enabled:
+		# PoliceNightLook: the shaft as lit haze, and a white-hot middle to the pool.
+		_beam_mat.set_shader_parameter("look", 1.0)
+		var core := MeshInstance3D.new()
+		core.name = "PoolCore"
+		core.mesh = PropFactory.light_pool(Color(0.95, 0.98, 1.0), 2.6, 4.5)
+		core.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		core.position = Vector3(0.0, 0.0, 0.02)
+		core.scale = Vector3(0.5, 0.5, 1.0)
+		_pool.add_child(core)
 
 
 # --- Flight -----------------------------------------------------------------------------------
