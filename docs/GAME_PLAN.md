@@ -295,6 +295,17 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-29 The sea is worked out, like the sky's traffic (wave 3, HANDOFF "Ocean traffic").**
+  The bay and the coast get boats under way, a ferry, tugs, a pilot boat and ships at anchor, all
+  scripted (no physics), in TRUE world coordinates. Decisions: the hulls ride the swell in their
+  shader from a copy of the ocean's waves (checked against ocean.gdshader's numbers), because only
+  the shader knows TIME - a GDScript bob would drift out of phase with the water drawn round it;
+  wakes are foam the ocean shader draws from 16 uniform slots, not particles or decals (one draw,
+  both renderers, and they reach the painted far sea too); the hull below its waterline is cut
+  away past 650 m because the far sea is the horizon plane 24 m down; small craft spawn out of
+  view and only where `sea_room()` says there is water all round; sloops sail by a polar and
+  tack, never within 40 degrees of the wind. Invented names: the ferry line PACIFIC TERN.
+
 - **2026-10-05 Apartments: the first per-style kit (G2; HANDOFF "Apartment buildings").** Midtown's
   low-rise lots and the inner suburbs get LA stucco apartments - walk-ups with galleries and open
   stairs, bungalow courts, Spanish courts, podium blocks - instead of storefront boxes and single

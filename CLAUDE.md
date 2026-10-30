@@ -3006,6 +3006,22 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   environment is the A/B. Probe: `tools/marina/probe.gd` (headless, seconds); quick checks:
   `tools/marina/marina_check.tscn` (the marina's checks alone, a minute); checks:
   `tests/marina_checks.gd`.
+- Ocean traffic (wave 3, docs/HANDOFF.md "Ocean traffic"): `OceanTraffic`
+  (`scripts/world/ocean_traffic.gd`, a Node3D in city.tscn; its children's local space is true world)
+  runs `Vessel`s (`scripts/vehicles/vessel.gd`, AnimatableBody3D on props, mask 0, `take_hit()`:
+  burns, explodes, sinks) scripted like AirTraffic - LOOP (closed polylines: the coastal lane, the
+  bay, two ferries' crossing, a tug and the pilot boat to the anchorage), SAIL (sloops tacking 48
+  degrees off Weather's wind, boom and jib sheeted by the point of sail, heeled to leeward), HOLD (a
+  tug at the moored ship) - plus five `AnchoredShip`s in the roads (PortKit's ship, lit). Small craft
+  spawn out of view round the camera on water with room (`sea_room()`). Hulls are `VesselMesh` (the
+  sloop under sail, tug, pilot boat, catamaran ferry; BoatMesh's yachts) on `shaders/vessel.gdshader`
+  = `boat_body.gdshaderinc` with BOAT_RIDE: the hull RIDES THE SWELL in its vertex shader
+  (`sea_ride.gdshaderinc`, the ocean's own waves and groups off TIME - GDScript has no copy of
+  TIME) and loses what is under its waterline past `far_cut` (the far sea is the plane 24 m down).
+  Wakes are foam in ocean.gdshader (`wake_a/b`, 16, bow + heading, speed, beam, trail, hull length +
+  strength; `push_wakes()`). `OCEAN_TRAFFIC=0` the A/B, `OCEAN_STAGE=x,z,yaw` a staged scene for
+  stills; kit stills `tools/ocean_traffic/vessel_shot.tscn`, routes `probe.tscn`; checks
+  `tests/ocean_traffic_checks.gd`. Probes are scenes: under `--script` Vessel cannot compile.
 - The oil field (2026-10-05, docs/HANDOFF.md 9df: "pumpjacks nodding on bare hills in the middle
   of the city", the Baldwin Hills forms): `OilField` (`scripts/world/oil_field.gd`, data,
   `MacroMap.oil`, made in `MacroMap.setup()` after the river) is a landmark AREA site (CityPlan
