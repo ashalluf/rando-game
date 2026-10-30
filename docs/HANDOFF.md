@@ -18407,3 +18407,90 @@ riders are baked poses swapped, not animated (a pose snaps between ride, crouch,
 no pushing; they pass through each other and through the player (scripted, like BeachRider). The
 player cannot skate. Spectators do not cheer or turn to the tricks. Graffiti uses the shared
 street wear atlas, so a piece can repeat one on a nearby wall.
+
+## 9d?. The far ranges (fleet wave 3, `far-ranges`)
+
+The owner's bar is GTA 6; from the hills (refcams `hills`) and from downtown the back range and
+the east range read as rows of evenly spaced cone-shaped teeth, nothing like the San Gabriels
+(broad massive ridges, deep canyons, a few prominent summits, layers of blue haze).
+
+**What made the teeth, in order of how much.** Measured with the new probe (below) against the
+renders:
+1. **The horizon plane's rim.** The plane is 14 km across and hands over to the sky's colour from
+   5.0 to 6.9 km out (`edge_start` / `edge_end`). The back range's crest is 5-7 km from downtown and
+   the hills, so the crest dissolved into the sky and only the nearer spurs' tops stood against it,
+   each a lone cone. The probe's skyline (raw heights) was a fairly continuous wall where the render
+   drew pyramids with sky between them.
+2. **The bases.** Each range was a plateau (full height from `*_full` to the map's edge) of the map
+   noise's 830 m and 415 m octaves at +-34 % of the range's height: over three kilometres of depth
+   the skyline is whichever bump stands highest at each bearing, a summit every few hundred metres.
+3. **The erosion.** The front range's 440 m canyon spacing at a quarter of the range's height cut
+   300 m notches every 440 m through the crest itself.
+4. **The crags.** Ridged noise (1 - |n|) on the plane: creased crests, a saw along every skyline.
+The bake's B-spline and the plane's 44 m vertices were not it.
+
+**What changed** (`FarRanges`, `scripts/world/far_ranges.gd`; `FAR_RANGES=0` / `--no-far-ranges`
+is the old world exactly):
+- **Crest lines.** `MacroMap._range_heights_at()` builds the back and east ranges from
+  `FarRanges.back_base()` / `east_base()`: the OLD front face (smoothstep from start to full, and
+  the old height factor at the foot, handed over to the new one as the face rises, so the foot -
+  zone_at()'s CITY / HILLS line - does not move: 0 of 1,068 foot points change side), on up to a
+  crest `CREST_IN` (700 m) past the full line, wandering +-`CREST_WANDER` (420 m) along the range
+  (`_crest_noise`), a high shoulder, then a long fall away from the basin (`FALL` 42 % over 3.6 km).
+  Height along it is a slow massing (`_mass_noise`, 3.6 km, `MASS_GAIN` 0.35) over 7 % of the old
+  noise: a few big summits kilometres apart. Both noises are new objects seeded from the seed, so
+  nothing else's noise or rng moves. **The front range is not touched** (sign, observatory, hill
+  roads, estates, reservoir, ballpark; checked to 0.0000 m).
+- **Canyons.** `_erode()` / `_erosion_filter()` take an optional spacing and gain: the back range
+  980 m (`BACK_SPACING`) at 0.34 of its height, the east range 820 m at 0.28, finer orders 0.4 of
+  the one above (0.5 elsewhere), and `FarRanges.erosion_share()` keeps only `CREST_KEEP` (30 %) of
+  the depth on the crest and the shoulder behind it, easing back to full over 950 m: a canyon cuts
+  back into a crest as a saddle, not as a notch to its foot.
+- **The far ring.** `FarRanges.build_ring()` (one hook in `CityStreamer._build_ground()`, one in
+  `update_streaming()`): a second mesh on the plane's OWN material, out to `RING_HALF` 12.6 km at
+  twice the plane's vertex spacing, snapped to its own world grid, with a hole the plane covers
+  (130-260 m of overlap, in which the ring sinks `ring_sink` 8 m under it). The plane's rim moves
+  out to `RING_EDGE` 9.6-11.7 km (inside the camera's 12 km far plane). `ground_size`, the far city,
+  the GroundBody and everything seated on the plane (far canopy, estates, the ridge sign) are
+  unchanged; the far city's own fade (`edge_start` on building_lod / far_canopy / far_estate) still
+  runs at 5.0-6.9 km, where its data ends. Past the bake's 16 km the map is MIRRORED
+  (`macro_mirror` in `macro_uv()`), so the ranges go on as further ridgelines instead of the edge
+  row of texels smeared out. 119,528 triangles, one draw.
+- **Crags turned over** (`crag_shape` 1 in macro_relief.gdshaderinc): |n| instead of 1 - |n|,
+  round crests and creased valleys. Same amplitude, so MountainOccluder's bound holds.
+- **Layered haze** (`range_haze_amount()` / `range_haze_color()` in macro_relief.gdshaderinc,
+  taken by macro_ground, far_canopy and far_estate alike, so a clump sits in the air the slope under
+  it is in): nothing within 1.1 km (the streamed tiles), then an e-fold every 6.5 km, thinning to
+  42 % of itself by 1,250 m up; the colour is the horizon's (`sky_tint`) times `range_haze_tone`
+  (0.66, 0.78, 0.95). A ridge's foot sinks into the air in front of the next one and its crest
+  stands clear. Laid on like fog: albedo times (1 - a), the colour emitted.
+
+**Numbers.** Skylines (raw heights, `FarRanges.skyline_stats()`, 140 columns over 70 degrees):
+downtown north sharpness 1.53 -> 0.52, summits 13 -> 7; the east side 0.70 -> 0.29, 9 -> 3.
+**Frame cost** (`still_shot.gd` GEO, opengl3 1280x720, same EYEs): hills 15:00 1.79 M / 718 draws
+-> 1.91 M / 709; freeway 4.83 M / 2,348 -> 5.06 M / 2,343; downtown north 15:00 3.20 M / 1,436 ->
+3.33 M / 1,432; golden 3.28 M / 1,512 -> 3.41 M / 1,513; east 1.60 M / 816 -> 1.65 M / 810: the
+ring's ~120 k triangles, no draws. CPU: two FastNoiseLite calls more per `_range_heights_at()`.
+
+**Tools.** `tools/far_ranges/probe.tscn` (headless, seconds): `EYE=x,y,z YAW FOV W H PITCH OUT=`
+paints a panorama of `height_at()` shaded by distance and prints the skyline's summits and
+sharpness; `COLS=i,j` prints where column i's skyline comes from; `TOP=x0,z0,x1,z1,step
+TOP_OUT=file.raw` dumps raw heights as float32 for numpy. Stills: `still_shot.gd` `SHOTS=` (the
+hills refcam, golden hour, the 110, downtown north at 15:00 and 17:18, east), Forward+ on lavapipe
+with `hill_ground_shot.tscn GROUND=1 DAYNIGHT=1 EYE=600,180,-1000,0,2` (the plane and the hill
+tiles round the eye; one shot a run - two OOM'd).
+
+**Checks** (`tests/far_ranges_checks.gd`, 15): the front range unchanged; the feet unmoved; no
+walls in the bases (a crest pulled onto the full line once made a 150 m wall a few metres wide:
+`CREST_WANDER` must stay well under `CREST_IN`); both skylines fewer summits and smoother than the
+old shape (the same macro with `FarRanges.enabled` switched round single synchronous calls); the
+bake (LoadCache) is the new shape; the shaders' crag shape and haze, its numbers read from the
+include; the ring on the plane's material, its overlap, its rim inside the far plane, its grid.
+
+**Not done / not verified.** The faces still read bright and rocky from downtown at 15:00 (the
+splat's rock above 450 m and snow above `snow_line` 1150 - my summits reach ~1300 m, so a few more
+tops are white; not touched: the near tiles share it). The far city's buildings still fade to the
+sky's colour at 5-6.9 km, now over ground rather than sky (a faint pale band; a dithered fade would
+need building_lod). Not seen on the Mac: the ring's seam at 7 km at high altitude, the mirrored
+ranges past 8 km from the air. The front range (the reported spikes nearest the hills camera,
+left of frame) keeps its shape by design: its summits carry the landmarks.

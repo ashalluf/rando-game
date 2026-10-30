@@ -132,8 +132,82 @@ static func skyline_stats(sky: PackedFloat32Array, step: float) -> Dictionary:
 	return {"peaks": peaks, "sharp": sharp / maxf(n - 2, 1) * step, "mean": mean / maxf(n, 1)}
 
 
+## The far ring: the horizon plane is 14 km across and handed over to the sky's colour from 5 to
+## 6.9 km out (its rim), so from the basin the back range's crest - 5 to 7 km off - dissolved into
+## the sky and only the nearer spurs' tops stood against it, each a lone cone. That was most of the
+## teeth. The ring is a second mesh on the SAME material out to RING_HALF, at twice the plane's
+## vertex spacing (snapped to it in world space, like the plane), with a hole the plane covers and
+## RING_SEAM metres of overlap in which the ring sinks RING_SINK under it; the plane's own rim moves
+## out to RING_EDGE. Past the bake's 16 km the map is mirrored (macro_uv()), so the ranges go on
+## as further ridgelines. ground_size, the far city and everything that seats on the plane are
+## unchanged. Null when off.
+const RING_HALF := 12600.0
+const RING_EDGE := Vector2(9600.0, 11700.0)
+const RING_SINK := 8.0
+const RING_SEAM := 220.0
+static func build_ring(mat: ShaderMaterial, ground_size: float, gstep: float) -> MeshInstance3D:
+	if not enabled:
+		return null
+	var step := gstep * 2.0
+	var n := int(ceil(RING_HALF / step))
+	var hole := ground_size * 0.5 - 2.0 * step
+	var side := 2 * n + 1
+	var verts := PackedVector3Array()
+	var norms := PackedVector3Array()
+	var uv2 := PackedVector2Array()
+	verts.resize(side * side)
+	norms.resize(side * side)
+	uv2.resize(side * side)
+	for j in side:
+		for i in side:
+			var k := j * side + i
+			verts[k] = Vector3((i - n) * step, 0.0, (j - n) * step)
+			norms[k] = Vector3.UP
+			uv2[k] = Vector2(1.0, 0.0)
+	var idx := PackedInt32Array()
+	for j in side - 1:
+		for i in side - 1:
+			var x0 := absf((i - n) * step)
+			var x1 := absf((i + 1 - n) * step)
+			var z0 := absf((j - n) * step)
+			var z1 := absf((j + 1 - n) * step)
+			if maxf(x0, x1) <= hole and maxf(z0, z1) <= hole:
+				continue
+			var a := j * side + i
+			# Clockwise seen from above: Godot's front faces.
+			idx.append_array([a, a + 1, a + side, a + 1, a + side + 1, a + side])
+	var arr := []
+	arr.resize(Mesh.ARRAY_MAX)
+	arr[Mesh.ARRAY_VERTEX] = verts
+	arr[Mesh.ARRAY_NORMAL] = norms
+	arr[Mesh.ARRAY_TEX_UV2] = uv2
+	arr[Mesh.ARRAY_INDEX] = idx
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	var mi := MeshInstance3D.new()
+	mi.name = "FarRing"
+	mi.mesh = mesh
+	mi.material_override = mat
+	mi.extra_cull_margin = 2000.0
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mat.set_shader_parameter("ring_inner", ground_size * 0.5 + gstep)
+	mat.set_shader_parameter("ring_seam", RING_SEAM)
+	mat.set_shader_parameter("ring_sink", RING_SINK)
+	mat.set_shader_parameter("edge_start", RING_EDGE.x)
+	mat.set_shader_parameter("edge_end", RING_EDGE.y)
+	return mi
+
+
+## Where the ring stands for a player at `local` (scene space): on its own grid in world space.
+static func ring_position(local: Vector3, gstep: float) -> Vector3:
+	var off := WorldState.world_offset
+	var s := gstep * 2.0
+	return Vector3(snappedf(local.x + off.x, s) - off.x, 0.0, snappedf(local.z + off.z, s) - off.z)
+
+
 ## The horizon plane's crag shape on a material that includes macro_relief.gdshaderinc.
 static func apply(m: ShaderMaterial) -> void:
 	m.set_shader_parameter("crag_shape", 1.0 if enabled else 0.0)
+	m.set_shader_parameter("macro_mirror", enabled)
 	if not enabled:
 		m.set_shader_parameter("range_haze", 0.0)

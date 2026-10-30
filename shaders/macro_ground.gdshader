@@ -54,6 +54,11 @@ uniform float smog_reach = 3200.0;
 // sky shows just under the horizon), and so do the far city's boxes and planting, on the same
 // numbers (building_lod.gdshader, far_canopy.gdshader). CityStreamer sets all three from
 // ground_size.
+// FarRanges' far ring (FarRanges.build_ring() sets them): its distance from its own centre past
+// which it is clear of the plane, the overlap it eases back up over, and how far it sinks there.
+uniform float ring_inner = 7044.0;
+uniform float ring_seam = 220.0;
+uniform float ring_sink = 8.0;
 uniform float edge_start = 5040.0;
 uniform float edge_end = 6860.0;
 
@@ -255,6 +260,11 @@ void vertex() {
 			* smoothstep(urban_lift_start, urban_lift_end, d) * (1.0 - wet);
 	}
 	float off = lift - far_ground_sink(d, wet);
+	// FarRanges' far ring (UV2.x 1): where it runs under the plane's edge it sinks out of the way.
+	if (UV2.x > 0.5) {
+		vec2 lq = abs(VERTEX.xz);
+		off -= ring_sink * (1.0 - smoothstep(ring_inner, ring_inner + ring_seam, max(lq.x, lq.y)));
+	}
 	if (cut_rect.z > cut_rect.x) {
 		vec2 tw = wp.xz + world_offset;
 		vec2 cq = max(max(cut_rect.xy - tw, tw - cut_rect.zw), vec2(0.0));

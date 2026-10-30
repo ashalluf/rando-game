@@ -3403,6 +3403,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `calm2_*` (set by CityStreamer) holds the crags off it. Probe: `tools/reservoir/probe.tscn`
   (level, dam, lake, trail, walls, timings; `OUT=` a contour map; `SEED=`); compile check
   `tools/reservoir/compile.gd`. Checks: `tests/reservoir_checks.gd`.
+- The far ranges (2026-10-30, docs/HANDOFF.md "The far ranges"): the back and east ranges are
+  crest lines (`FarRanges`, `scripts/world/far_ranges.gd`, from `MacroMap._range_heights_at()`:
+  the old front face to the full line, a wandering crest, a few big summits, a long fall behind;
+  canyons 980 / 820 m apart that only saddle the crest, `erosion_share()`); the front range is
+  untouched. A coarser ring (`FarRanges.build_ring()`) on the plane's own material carries the far
+  ground out to 12.6 km - the 14 km plane's rim (5-6.9 km) had dissolved every crest into the sky,
+  leaving the spurs as cones - with the bake mirrored past its edge (`macro_mirror`); the crags are
+  |n| (`crag_shape`), and `range_haze_amount()` in macro_relief.gdshaderinc is a layered haze the
+  ground, far canopy and far estates all take. `FAR_RANGES=0` is the A/B; probe
+  `tools/far_ranges/probe.tscn` (panorama, skyline numbers); checks `tests/far_ranges_checks.gd`.
 - The horizon: everything outside the streamed chunks is the ground follower, a single plane
   14 km across (`CityStreamer.ground_size`) wearing `shaders/macro_ground.gdshader`. It is
   shaded from a 256 px image of the whole basin baked once at load by `MacroMap.bake()` (RGB is

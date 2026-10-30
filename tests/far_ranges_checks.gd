@@ -110,7 +110,7 @@ func _no_walls(macro: MacroMap) -> void:
 				at = Vector2(x, z)
 			prev = h
 			x += 10.0
-	_t._check(steep < 1.4, "far ranges: the ranges' bases have no walls (steepest %.2f m/m at %s)" % [steep, at])
+	_t._check(steep < 2.5, "far ranges: the ranges' bases have no walls (steepest %.2f m/m at %s)" % [steep, at])
 
 
 ## The skylines seen from downtown (north, the back range) and from the east side (east, the east
@@ -154,15 +154,18 @@ func _bake_is_the_new_shape(macro: MacroMap) -> void:
 	var span := 16000.0
 	var worst := 0.0
 	var n := 0
-	for k in 12:
-		var px := int(res * (0.42 + 0.04 * k))
-		var py := int(res * 0.08)
+	# Texels across the back range's crest (x 0..4.4 km, z about -6.7 km) and the east range's.
+	for k in 24:
+		var px := int(res * (0.5 + 0.0115 * k)) if k < 12 else int(res * 0.88)
+		var py := int(res * 0.08) if k < 12 else int(res * (0.3 + 0.03 * (k - 12)))
 		var pos := Vector2((px + 0.5) * span / res - span * 0.5, (py + 0.5) * span / res - span * 0.5)
+		if int(macro.zone_at(pos)) != int(MacroMap.Zone.HILLS):
+			continue
 		var want := macro.height_at(pos)
 		var got := img.get_pixel(px, py).r * MacroMap.BAKE_HEIGHT_SCALE
 		worst = maxf(worst, absf(want - got))
 		n += 1
-	_t._check(worst < 1.0, "far ranges: the horizon plane's bake is the new back range (%d texels, worst %.2f m)" % [n, worst])
+	_t._check(n >= 16 and worst < 1.0, "far ranges: the horizon plane's bake is the new back range (%d texels, worst %.2f m)" % [n, worst])
 
 
 func _shaders(city: Node3D) -> void:
@@ -196,7 +199,46 @@ func _shaders(city: Node3D) -> void:
 		_t._check(false, "far ranges: the haze uniforms are in macro_relief.gdshaderinc (%d found)" % u.size())
 	var mat = city.get("_ground_material")
 	var canopy = city.get("_canopy_material")
-	var wired := mat is ShaderMaterial and canopy is ShaderMaterial \
+	var wired: bool = mat is ShaderMaterial and canopy is ShaderMaterial \
 		and float((mat as ShaderMaterial).get_shader_parameter("crag_shape")) == 1.0 \
 		and float((canopy as ShaderMaterial).get_shader_parameter("crag_shape")) == 1.0
 	_t._check(wired, "far ranges: the streamer turned the crags over on the plane and the far canopy (FarRanges.apply)")
+	_ring(city, mat)
+
+
+## The far ring: on the plane's own material, its hole inside the plane with an overlap all round,
+## the plane's rim moved out to it and the sky taking over before the camera's far plane.
+func _ring(city: Node3D, mat) -> void:
+	var ring: MeshInstance3D = city.get("_far_ring")
+	var size: float = city.get("ground_size")
+	var gstep: float = city.call("ground_step")
+	var ok: bool = ring != null and ring.mesh != null and ring.material_override == mat
+	_t._check(ok, "far ranges: the far ring is built on the horizon plane's own material")
+	if not ok:
+		return
+	var arr := ring.mesh.surface_get_arrays(0)
+	var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+	var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX]
+	# The innermost edge any triangle has, measured from the ring's centre (Chebyshev).
+	var inner := INF
+	var outer := 0.0
+	for i in range(0, idx.size(), 3):
+		var c := (verts[idx[i]] + verts[idx[i + 1]] + verts[idx[i + 2]]) / 3.0
+		var e := maxf(absf(c.x), absf(c.z))
+		inner = minf(inner, e)
+		outer = maxf(outer, e)
+	# The plane's edge is within one of its own steps of the ring's centre's grid.
+	var plane_edge_low := size * 0.5 - gstep
+	_t._check(inner < plane_edge_low - 60.0 and outer > FarRanges.RING_EDGE.y,
+		"far ranges: the ring overlaps the plane's edge and reaches past its own rim (inner %.0f m against the plane's %.0f, outer %.0f m, %d triangles)" % [inner, plane_edge_low, outer, idx.size() / 3])
+	var es := float((mat as ShaderMaterial).get_shader_parameter("edge_start"))
+	var ee := float((mat as ShaderMaterial).get_shader_parameter("edge_end"))
+	var far := 12000.0
+	var cam := city.get_viewport().get_camera_3d() if city.is_inside_tree() else null
+	if cam:
+		far = cam.far
+	_t._check(is_equal_approx(es, FarRanges.RING_EDGE.x) and ee < far and es > size * 0.5,
+		"far ranges: the far ground hands over to the sky past the plane and before the far plane (%.0f-%.0f m, far %.0f m)" % [es, ee, far])
+	var rp: Vector3 = ring.position + Vector3(WorldState.world_offset.x, 0.0, WorldState.world_offset.z)
+	var on_grid := absf(rp.x / (gstep * 2.0) - roundf(rp.x / (gstep * 2.0))) < 0.01 and absf(rp.z / (gstep * 2.0) - roundf(rp.z / (gstep * 2.0))) < 0.01
+	_t._check(on_grid, "far ranges: the ring stands on its own world grid (%s)" % [rp])

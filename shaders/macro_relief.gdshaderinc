@@ -77,7 +77,7 @@ uniform float range_haze_reach = 6500.0;
 // Up to this height the air thins to `range_haze_keep` of its haze at the foot.
 uniform float range_haze_top = 1250.0;
 uniform float range_haze_keep : hint_range(0.0, 1.0) = 0.42;
-uniform vec3 range_haze_tone = vec3(0.80, 0.90, 1.07);
+uniform vec3 range_haze_tone = vec3(0.66, 0.78, 0.95);
 
 const int MAX_OCTAVES = 10;
 
@@ -230,8 +230,18 @@ vec4 macro_sample(vec2 uv, out vec2 grad) {
 }
 
 
+// Past the bake's edge the map is mirrored (FarRanges' far ring reaches 12.6 km from the camera,
+// and the bake is 16 km across): the ranges go on as further ridgelines instead of the edge row of
+// texels smeared out to the horizon. Inside the map it changes nothing.
+uniform bool macro_mirror = true;
+
+
 vec2 macro_uv(vec2 w) {
-	return (w - macro_centre) / macro_span + vec2(0.5);
+	vec2 u = (w - macro_centre) / macro_span + vec2(0.5);
+	if (macro_mirror) {
+		u = vec2(1.0) - abs(vec2(1.0) - mod(u, vec2(2.0)));
+	}
+	return u;
 }
 
 
