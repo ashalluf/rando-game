@@ -70,29 +70,55 @@ const INLINE_FILES := ["downtown_checks", "hero_moves_checks", "street_life_chec
 	"crowd_anim_checks", "crowd_life_checks", "crowd_hat_checks", "photo_mode_checks",
 	"wingsuit_checks", "traffic_ai_checks", "street_errands_checks", "dog_checks"]
 ## Wall seconds each part took in a whole run on the 4-core fleet box (SMOKE_PROFILE=1 prints
-## them as PART lines); a file missing here counts DEFAULT_COST. Only the deal depends on them.
+## them as PART lines; refreshed 2026-10-30 from main a3db077f, tools/gate/part_costs.py); a file missing here counts DEFAULT_COST. Only the deal depends on them.
 const PART_COST := {
-	"room": 30.0, "city_streaming": 59.7, "city_terrain": 17.9, "city_landmarks": 39.0,
-	"city_cars": 64.5, "city_people": 8.8, "city_polish": 27.1, "city_crowd": 72.4,
-	"city_menu": 42.1, "civic_checks": 1.4, "air_traffic_checks": 3.3, "airport_checks": 11.8,
-	"car_damage_checks": 13.5, "car_cabin_checks": 1.5, "car_lights_checks": 9.7,
-	"big_vehicle_checks": 34.7, "more_cars_checks": 4.1, "light_rail_checks": 1.8,
-	"bird_checks": 0.4, "sky_checks": 0.0, "emergency_checks": 80.6,
-	"police_station_checks": 64.9, "ambience_checks": 0.5, "audio_checks": 2.2,
-	"replica_checks": 0.5, "surf_checks": 0.5, "freeway_kit_checks": 0.9, "westlake_checks": 22.3,
-	"distance_checks": 21.9, "hill_air_checks": 0.1, "far_city_checks": 0.3,
-	"masjid_checks": 15.3, "street_wear_checks": 9.9, "climbing_plants_checks": 1.4,
-	"street_vendors_checks": 1.1, "beach_life_checks": 0.9, "broadway_checks": 1.6,
-	"lot_fill_checks": 3.4, "house_checks": 1.7, "industrial_checks": 1.2, "park_checks": 0.5,
-	"billboard_checks": 4.1, "la_river_checks": 15.6, "night_city_checks": 3.0,
-	"port_life_checks": 20.8, "canals_checks": 0.8, "pier_park_checks": 17.7,
-	"marina_checks": 0.2, "explosion_aftermath_checks": 9.4, "building_damage_checks": 0.1,
-	"schools_checks": 1.3, "minimap_checks": 0.5, "weather_la_checks": 0.1,
-	"stack_interchange_checks": 6.0
+	"city_crowd": 322.9, "freeway_incidents_checks": 152.9, "emergency_checks": 144.6,
+	"news_crews_checks": 116.9, "hospital_checks": 108.1, "garage_drive_in_checks": 101.9,
+	"police_station_checks": 100.3, "car_panic_checks": 96.8, "city_cars": 87.1,
+	"city_streaming": 82.8, "engine_audio_checks": 80.3, "city_menu": 68.7,
+	"service_vehicle_checks": 64.1, "onlookers_checks": 63.3, "heli_flyable_checks": 62.6,
+	"city_landmarks": 53.3, "swimming_checks": 49.0, "big_vehicle_checks": 47.6,
+	"distance_checks": 41.0, "city_polish": 34.9, "motorcycles_checks": 31.4,
+	"prop_destruction_checks": 30.9, "westlake_checks": 30.9, "murals_checks": 30.8, "room": 30.0,
+	"port_life_checks": 27.7, "city_terrain": 22.4, "pier_park_checks": 21.9, "masjid_checks": 18.1,
+	"la_river_checks": 17.0, "police_night_checks": 15.8, "car_lights_checks": 14.4,
+	"car_damage_checks": 14.2, "street_wear_checks": 13.4, "airport_checks": 13.1,
+	"rain_crowd_checks": 12.8, "driving_fx_checks": 12.2, "crowd_look_checks": 12.0,
+	"micromobility_checks": 11.6, "city_people": 11.1, "explosion_aftermath_checks": 11.0,
+	"stack_interchange_checks": 9.5, "coast_highway_checks": 7.5, "shader_warm_checks": 7.3,
+	"walk_in_store_checks": 7.0, "fashion_district_checks": 6.6, "worship_checks": 5.8,
+	"more_cars_checks": 5.6, "billboard_checks": 5.5, "lot_fill_checks": 5.4,
+	"road_detail_checks": 5.4, "air_traffic_checks": 5.2, "ridges_checks": 5.2,
+	"road_wear_checks": 5.0, "broadway_checks": 4.7, "roadside_checks": 4.6, "backyards_checks": 4.4,
+	"chinatown_checks": 3.3, "oil_field_checks": 3.3, "alley_checks": 3.1, "apartments_checks": 3.1,
+	"construction_checks": 2.9, "hill_homes_checks": 2.9, "la_trees_checks": 2.9,
+	"street_furniture_checks": 2.9, "utility_poles_checks": 2.9, "airport_life_checks": 2.8,
+	"kerbs_checks": 2.6, "signage_checks": 2.6, "historic_core_checks": 2.4, "night_city_checks": 2.4,
+	"footbridges_checks": 2.2, "house_checks": 2.2, "car_cabin_checks": 2.1, "civic_checks": 2.1,
+	"climbing_plants_checks": 2.1, "street_lamps_checks": 2.1, "vacant_lots_checks": 2.1,
+	"parklets_checks": 2.0, "star_boulevard_checks": 1.9, "freight_checks": 1.7,
+	"occluders_checks": 1.7, "industrial_checks": 1.6, "street_vendors_checks": 1.6,
+	"light_rail_checks": 1.5, "car_dealers_checks": 1.4, "farmers_market_checks": 1.4,
+	"lowriders_checks": 1.4, "schools_checks": 1.4, "street_signs_checks": 1.3,
+	"beach_life_checks": 1.1, "civic_buildings_checks": 1.1, "minimap_checks": 1.1,
+	"pueblo_lane_checks": 1.1, "audio_checks": 1.0, "ballpark_checks": 1.0, "freeway_kit_checks": 0.9,
+	"golf_checks": 0.9, "power_plant_checks": 0.8, "cemetery_checks": 0.7, "film_studio_checks": 0.7,
+	"park_checks": 0.7, "wilshire_deco_checks": 0.7, "canals_checks": 0.6,
+	"far_landmarks_checks": 0.6, "load_time_checks": 0.6, "reflection_probes_checks": 0.6,
+	"texture_budget_checks": 0.6, "bird_checks": 0.5, "estate_night_checks": 0.5,
+	"far_city_checks": 0.5, "surf_checks": 0.5, "ambience_checks": 0.4, "replica_checks": 0.4,
+	"reservoir_checks": 0.4, "facades_gta_checks": 0.3, "ocean_traffic_checks": 0.3,
+	"refinery_checks": 0.3, "tower_gondolas_checks": 0.3, "building_damage_checks": 0.2,
+	"fwd_review_c_checks": 0.2, "hill_air_checks": 0.2, "lighthouses_checks": 0.2,
+	"marina_checks": 0.2, "ref_cameras_checks": 0.2, "rooftops_checks": 0.2, "web_build_checks": 0.2,
+	"far_corners_checks": 0.1, "weather_la_checks": 0.1, "color_grade_checks": 0.0,
+	"fwd_review_a_checks": 0.0, "fwd_review_b_checks": 0.0, "garments_2_checks": 0.0,
+	"memory_audit_checks": 0.0, "offshore_island_checks": 0.0, "perf_audit_checks": 0.0,
+	"shop_vinyl_checks": 0.0, "sky_checks": 0.0
 }
 const DEFAULT_COST := 6.0
 ## Every share pays for its own city load on top of its parts.
-const CITY_LOAD_COST := 60.0
+const CITY_LOAD_COST := 120.0
 var _parts := {} # part or check file name -> true; empty = everything
 var _buildings_done := false
 var _ran := {} # the city parts this run has started, for _stage()
@@ -187,8 +213,15 @@ func _wants_city() -> bool:
 
 
 func _part_begin(part: String) -> int:
-	if not _parts.is_empty():
+	# Every city part after the first starts from the clean city and the spawn too, in a whole
+	# run as in a share (the photo mode check failed only after city_crowd's state in one process).
+	if not _ran.is_empty() and part != "city_files":
+		_ran[part] = true
+		await between_files()
+	elif not _parts.is_empty():
 		await _stage(part)
+	else:
+		_ran[part] = true
 	if part == "city_files":
 		_wrap_files()
 	return Time.get_ticks_msec()

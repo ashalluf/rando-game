@@ -112,6 +112,21 @@ one left the player. `SMOKE_PARTS=bird_checks` runs one area in a minute and a h
 `SMOKE_PROFILE=1` times every check and part (`tools/gate/profile.py`), and
 `tools/gate/compare.py` compares two runs' lists. A new check file needs no wiring for shards.
 
+**Every check file starts from a clean city** (2026-10-30, docs/HANDOFF.md "Every check file
+starts from a clean city"): `tests/gate_reset.gd` snapshots the city after its setup and puts it
+back before EVERY file, in one process too - static switches (public bools and any static named
+`force*` / `*_forced` / `staged` / `hold`, read off every class), Weather, DayNight's hour,
+Quality, Traffic's cap and `staged`, every city child's `enabled` / `staged`, WorldState's
+destruction, the police's stars, onlooker scenes, wrecks, burning cars, debris, time scale, pause,
+the player out of his car at full health - then `stage_home()`. A file the list does not await
+gets the statics only. So never lean on what an earlier file left; and a new switch of your own
+is reset for free if it is a public static bool. `SMOKE_SHUFFLE=<seed>` runs city_files in a
+seeded order (the proof), `SMOKE_LEAKS=1` prints every static a file changed and left changed,
+`SMOKE_NO_RESET=1` is the A/B. A file called from inside a city part goes in `INLINE_FILES`
+(gate_speed_2_checks fails on one that is in neither list). `SHARDS=auto` (CI) picks the shards
+from the cores and memory (`SHARD_MB`, 3200 a shard). Refresh `PART_COST` with
+`tools/gate/part_costs.py <SMOKE_PROFILE=1 log>` when the deal goes lopsided.
+
 Download a Linux headless-capable build with:
 
 ```

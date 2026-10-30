@@ -148,6 +148,10 @@ func run(t: Node, city: Node3D) -> void:
 		"leaving photo mode restores the pause, the time scale and the camera")
 	_t._check(hour_back and weather_back and mode_back,
 		"leaving photo mode restores the clock and the weather")
+	printerr("photo mode back: sat %s lut %s vig %s grain %s player %s hud %s bar %s" % [env.adjustment_saturation == sat_before,
+		env.adjustment_color_correction == lut_before, vig == null or vig.get_shader_parameter("strength") == vig_before,
+		vig == null or vig.get_shader_parameter("grain") == grain_before, player == null or player.visible,
+		hud == null or hud.visible == hud_before, (photo.get("_bar_a") as ColorRect).is_visible_in_tree()])
 	_t._check(env.adjustment_saturation == sat_before and env.adjustment_color_correction == lut_before
 		and (vig == null or (vig.get_shader_parameter("strength") == vig_before and vig.get_shader_parameter("grain") == grain_before))
 		and (player == null or player.visible) and (hud == null or hud.visible == hud_before)
