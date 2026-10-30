@@ -71,3 +71,7 @@ func run(t: Node, _city: Node3D) -> void:
 	# The halo's value at the quad's edge, as the shader computes it: zero.
 	var edge := maxf(exp(-3.2) - 0.0408, 0.0) / 0.9592
 	_t._check(edge < 0.001, "the flare halo's edge value is %.4f" % edge)
+	# The corner store's lit red sign face stays under AgX's salmon knee (~1) at night.
+	var store := load("res://shaders/corner_store.gdshader") as Shader
+	var cap: Variant = RenderingServer.shader_get_parameter_default(store.get_rid(), "sign_cap") if store != null else null
+	_t._check(cap != null and float(cap) <= 0.8, "the corner store's lit sign is capped under AgX's salmon knee (%s)" % [cap])
