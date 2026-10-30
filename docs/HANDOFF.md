@@ -13588,10 +13588,17 @@ so the whole estate moves as one (per part, a pad 26 m across on a 44 m plane tr
 character for character. CityStreamer hands the material the far plane's uniforms with the
 canopy's (four list entries). Colours are LINEAR, out through `cs_out()`.
 
-**Cost** (still_shot.gd GEO at the bookmarks, opengl3, 1280 x 720): front range from the basin
-1.62 M -> 1.64 M triangles, 367 draws both; Palos Verdes from the basin 1.055 M -> 1.094 M, 358 ->
-357 draws; from the air over the front range 1.269 M -> 1.295 M, 180 -> 177 draws; the downtown
-eye 2.857 M -> 2.903 M, 1,721 -> 1,722 draws. Instances, not draws: ~20-25 boxes an estate.
+**Cost** (still_shot.gd GEO at the same EYE, opengl3, before = `LIGHTHOUSES=0`, after = the final
+branch): the lighthouse from the cove 2.73 M tris / 864 draws -> 2.64 M / 860 (flat); the harbour
+mouth by day 2.51 M / 775 -> 2.73 M / 871 (+222 k / +96: ~8 near breakwater pieces of four draws -
+mound + cap, foam, two stone shapes - the far pieces at two, the gate and the far house; a sparse
+sea view where nothing else draws). The cuts that got there: two stone shapes, no row under water,
+stones only within `STONE_DRAW` 260 m (the mound's shader draws blocks past that), the cap on the
+mound's surface, the far copies' small surfaces folded into one painted-trim surface
+(`LighthouseKit.FAR_FOLD`). Build: a near breakwater piece 12 ms, the house and gate 1-2 ms from the
+cache; load +0.5 s (the warm-up, most of it first-time textures and palms). Gate (SHARDS=3) on the
+merged branch: 2,539 checks, 0 failed; one script error in shard 0 from `dog_checks.gd` (a walker
+freed under the check), which did not reproduce run alone.
 
 **Look / measure.** `tools/estate_night/probe.tscn` (headless, seconds) lists every estate and
 the eight biggest clusters with an EYE in the basin looking at each. The stills (shots/estate-night):
