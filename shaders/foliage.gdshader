@@ -1,6 +1,7 @@
 shader_type spatial;
 render_mode cull_disabled;
 #include "res://shaders/heli_downwash.gdshaderinc"
+#include "res://shaders/tree_wind.gdshaderinc"
 
 // Wind sway and light for the generated foliage (palms). Nothing in this city moved except the
 // grass, and a street of palms standing dead still is one of the things that reads as "model"
@@ -62,6 +63,18 @@ uniform float wet_roughness : hint_range(0.0, 1.0) = 0.22;
 /// 1 = burnt out: the fronds are burnt back to stubs and black ribs, the trunk charred.
 uniform float burnt : hint_range(0.0, 1.0) = 0.0;
 
+// --- Close up (trees-closeup, 2026-10-30; TreesCloseup). 0 = the shader as it was (the A/B) ---
+uniform float closeup : hint_range(0.0, 1.0) = 1.0;
+/// How much of each frond's own lag survives: a palm sways as ONE tree on its trunk, the fronds
+/// only trailing it a little at their tips (a full lag per frond read as fronds flapping).
+uniform float frond_follow : hint_range(0.0, 1.0) = 0.3;
+/// The crown's lean downwind as a gust front passes (multiples of its sway bend).
+uniform float gust_push : hint_range(0.0, 4.0) = 1.6;
+/// How dark the fronds at the heart of the crown go, against the tips out in the light.
+uniform float inner_shade : hint_range(0.0, 1.0) = 0.42;
+/// The trunk's leaf-scar rings and fibre as a bump (no texture: the trunk is vertex colours).
+uniform float bark_relief : hint_range(0.0, 3.0) = 1.0;
+
 varying float leaf_out;
 varying vec3 rest_pos;
 
@@ -71,7 +84,9 @@ void vertex() {
 	float phase = origin.x * 0.31 + origin.z * 0.23;
 	float w = clamp(max(wind_factor, 0.25), 0.0, 3.0);
 	// The travelling gust envelope.
-	w *= 1.0 - gust_depth + gust_depth * (0.5 + 0.5 * sin(TIME * gust_speed + (origin.x + origin.z) * 0.013));
+	float old_env = 1.0 - gust_depth + gust_depth * (0.5 + 0.5 * sin(TIME * gust_speed + (origin.x + origin.z) * 0.013));
+	float g = tw_gust(origin.xz + origin_shift.xz, TIME, wind_lean);
+	w *= mix(old_env, 0.55 + 0.95 * g, closeup);
 
 	// Distance from the trunk axis, and a CONTINUOUS direction around it. atan() would be the
 	// obvious way to get an azimuth and it would tear the mesh along the -X axis where it wraps;
@@ -85,7 +100,8 @@ void vertex() {
 	// 1. Trunk and frond ribs: slow, wide, growing with the square of height, phase-shifted by
 	//    which side of the trunk the frond leaves from.
 	float t = TIME * speed;
-	float p = phase + around.x * frond_lag + around.y * frond_lag * 0.7;
+	float lag = frond_lag * mix(1.0, frond_follow * smoothstep(0.4, 3.0, radial), closeup);
+	float p = phase + around.x * lag + around.y * lag * 0.7;
 	// Two frequencies so the sway wanders instead of ticking like a metronome.
 	float gust_x = sin(t + p) * 0.72 + sin(t * 1.73 + p * 2.1) * 0.28;
 	float gust_z = sin(t * 0.87 + p * 1.4 + 2.1) * 0.72 + sin(t * 1.51 + p) * 0.28;
@@ -93,6 +109,11 @@ void vertex() {
 	float bend = h * h * bend_scale * w;
 	VERTEX.x += bend * gust_x;
 	VERTEX.z += bend * gust_z;
+	// The front bows the whole palm downwind as it passes; the fronds' tips stream further.
+	if (closeup > 0.5) {
+		float stream = 1.0 + 0.5 * smoothstep(1.0, 4.0, radial);
+		VERTEX.xz += tw_dir_model(MODEL_MATRIX, wind_lean) * h * h * bend_scale * gust_push * g * stream * clamp(w, 0.0, 3.0);
+	}
 	// The steady wind lays the crown over downwind, breathing with the gusts (model space: the
 	// instance may be turned and scaled).
 	if (dot(wind_lean, wind_lean) > 1e-6) {
@@ -107,7 +128,8 @@ void vertex() {
 	// 2. Leaflets: quick, tiny, keyed to how far out along the frond the vertex sits, so the tips
 	//    shiver while the rib carrying them is still halfway through its swing.
 	float ft = TIME * flutter_speed;
-	VERTEX.y += sin(ft + p + radial * 1.7) * radial * flutter * w * 0.25;
+	ft *= 1.0 + 0.3 * closeup * g;
+	VERTEX.y += sin(ft + p + radial * 1.7) * radial * flutter * w * 0.25 * (1.0 + closeup * g);
 	VERTEX.xz += around.yx * vec2(1.0, -1.0) * cos(ft * 0.79 + p) * radial * flutter * w * 0.12;
 }
 
@@ -129,7 +151,38 @@ void fragment() {
 		vec3 coal = vec3(0.028, 0.025, 0.022) * (0.7 + 0.6 * n);
 		albedo = mix(albedo, coal, burnt * mix(0.9, 0.97, step(0.7, leaf_out)));
 	}
+	float occl = 1.0;
+	bool frond = COLOR.g > COLOR.r * 0.95;
+	bool trunk = !frond && length(rest_pos.xz) < 0.5 && COLOR.r - COLOR.b < 0.2;
+	if (closeup > 0.5) {
+		if (frond) {
+			// The heart of the crown is in the shade of every frond round it.
+			occl = 1.0 - inner_shade * (1.0 - smoothstep(0.5, 3.2, leaf_out));
+			albedo *= mix(1.0, occl, 0.6);
+		} else if (trunk && bark_relief > 0.0) {
+			// Leaf-scar rings (the old boots' bases) and vertical fibre, bumped from their own
+			// height field by screen derivatives: the mesh has no tangents.
+			float ring = fract(rest_pos.y * 4.2 + 0.15 * sin(atan(rest_pos.z, rest_pos.x) * 3.0 + rest_pos.y));
+			float hgt = smoothstep(0.0, 0.18, ring) * (1.0 - smoothstep(0.55, 1.0, ring));
+			hgt += 0.15 * sin(atan(rest_pos.z, rest_pos.x) * 37.0 + rest_pos.y * 3.0);
+			// Gone before the rings are under a pixel or two, or they alias into moire.
+			hgt *= 0.012 * bark_relief * (1.0 - smoothstep(0.12, 0.35, fwidth(rest_pos.y * 4.2)));
+			vec3 dpx = dFdx(VERTEX);
+			vec3 dpy = dFdy(VERTEX);
+			vec3 r1 = cross(dpy, NORMAL);
+			vec3 r2 = cross(NORMAL, dpx);
+			float det = dot(dpx, r1);
+			float hx = dFdx(hgt);
+			float hy = dFdy(hgt);
+			if (abs(det) > 1e-10) {
+				NORMAL = normalize(abs(det) * NORMAL - sign(det) * (hx * r1 + hy * r2));
+			}
+			albedo *= 0.82 + 0.3 * smoothstep(0.0, 0.012 * bark_relief, hgt);
+		}
+	}
 	ALBEDO = albedo;
+	AO = mix(1.0, occl, 0.8);
+	AO_LIGHT_AFFECT = 0.0;
 	ROUGHNESS = mix(leaf_roughness, wet_roughness, wet);
 	SPECULAR = mix(leaf_specular, 0.85, wet);
 
@@ -142,5 +195,5 @@ void fragment() {
 	// one off to the side.
 	vec3 to_cam = normalize((INV_VIEW_MATRIX * vec4(VIEW, 0.0)).xyz);
 	float facing = clamp(dot(to_cam, -normalize(sun_direction)), 0.0, 1.0);
-	BACKLIGHT = through * (1.0 + scatter_gain * pow(facing, scatter_sharpness));
+	BACKLIGHT = through * (1.0 + scatter_gain * pow(facing, scatter_sharpness)) * mix(1.0, occl, closeup * 0.7);
 }

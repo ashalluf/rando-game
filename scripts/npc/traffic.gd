@@ -153,7 +153,7 @@ func _run_spawns() -> void:
 		_spawn_queues[0].clear()
 	if waiting == 0 or _built_this_frame >= builds_per_frame:
 		return
-	if not PhysicsBudget.can_spawn():
+	if not PhysicsBudget.can_spawn() and not BusyStreets.traffic_room(self):
 		for q: Array in _spawn_queues:
 			q.clear()
 		return
@@ -242,7 +242,8 @@ func density_at(pos: Vector2) -> float:
 		return 1.0
 	# Busiest across all of downtown (the 1:1 replica is 3.8 km from north to south), thinning
 	# over midtown round it.
-	var d := lerpf(edge_density, 1.0, smoothstep(macro.midtown_radius, 0.0, macro.downtown_distance(pos)))
+	var edge := maxf(edge_density, BusyStreets.EDGE_DENSITY) if BusyStreets.enabled else edge_density
+	var d := lerpf(edge, 1.0, smoothstep(macro.midtown_radius, 0.0, macro.downtown_distance(pos)))
 	var curb: Rect2 = macro.terminal_curb
 	var to_curb := (pos - pos.clamp(curb.position, curb.end)).length()
 	d = maxf(d, lerpf(1.0, edge_density, smoothstep(140.0, 480.0, to_curb)))
@@ -251,19 +252,24 @@ func density_at(pos: Vector2) -> float:
 
 func _maintain() -> void:
 	var pw := WorldState.to_world(_player.global_position)
+	# The camera (BusyStreets): cars far behind it go back to the pool to be spent in front of it.
+	var eye := BusyStreets.eye(get_tree(), _player)
 	for car in cars.duplicate():
 		if not is_instance_valid(car):
 			cars.erase(car)
 			continue
 		var wp := WorldState.to_world(car.global_position)
 		var zone := plan.zone_at(Vector2(wp.x, wp.z))
-		if wp.distance_to(pw) > despawn_distance or (zone != MacroMap.Zone.CITY and zone != MacroMap.Zone.BEACH):
+		if wp.distance_to(pw) > despawn_distance or (zone != MacroMap.Zone.CITY and zone != MacroMap.Zone.BEACH) \
+				or BusyStreets.retire_far(self, wp, eye[0], eye[1]):
 			cars.erase(car)
 			_retire(car)
 		else:
 			_turn_back_from_replica(car)
 	var density := density_at(Vector2(pw.x, pw.z))
 	var want := roundi(max_cars * density)
+	if BusyStreets.enabled:
+		want = roundi(max_cars * density * BusyStreets.hour_factor(BusyStreets.hour_now(self)))
 	# Too many (a lower quality level or a quieter district): shed the farthest ones.
 	if staged:
 		want = cars.size()
@@ -275,7 +281,7 @@ func _maintain() -> void:
 	while loop_cars.size() > max_loop_cars:
 		var extra: Vehicle = loop_cars.pop_back()
 		_retire(extra)
-	for i in mini(want - cars.size(), 12):
+	for i in mini(want - cars.size(), BusyStreets.spawn_burst(self, want)):
 		_spawn_queues[0].append(_spawn_near.bind(pw, density))
 	_maintain_loops(pw)
 	TrafficAI.maybe_pullout(self)
@@ -288,6 +294,12 @@ func _spawn_near(pw: Vector3, density: float = 1.0) -> void:
 	# Dense traffic spawns closer, so the jam is visible from the sidewalk.
 	var near := lerpf(spawn_min, spawn_min * 0.5, density)
 	var along := (pw.z if axis == CityPlan.AXIS_X else pw.x) + _rng.randf_range(near, spawn_max) * (1.0 if _rng.randf() < 0.5 else -1.0)
+	# Most spawns round the camera's own block instead, ahead of it (BusyStreets).
+	var focus := BusyStreets.pick_spawn(self, _rng)
+	if focus != Vector3.INF:
+		axis = int(focus.x)
+		index = int(focus.y)
+		along = focus.z
 	var dir := 1 if _rng.randf() < 0.5 else -1
 	var lane := _lane_offset(axis, index, dir)
 	var pos2 := Vector2(plan.road_pos(axis, index) + lane, along) if axis == CityPlan.AXIS_X else Vector2(along, plan.road_pos(axis, index) + lane)

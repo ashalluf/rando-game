@@ -102,13 +102,15 @@ func _layout() -> void:
 	var h := 2.0 * r + 20.0
 	_stars.size = Vector2(w, h)
 	var top := star_margin.y
+	var right := view.x - star_margin.x - HudTheme.band_inset(view)
 	# Under the weapon panel when there is one (WeaponHud), right-aligned with it.
 	var panel := get_parent().get_node_or_null("WeaponHud") if get_parent() else null
 	if panel and panel.has_method("panel_rect"):
 		var pr: Rect2 = panel.call("panel_rect")
 		if pr.size.y > 0.0:
 			top = pr.end.y + 4.0
-	_stars.position = Vector2(view.x - star_margin.x - w + 10.0, top)
+			right = pr.end.x
+	_stars.position = Vector2(right - w + 10.0, top)
 	_stars_mat.set_shader_parameter("rect_px", _stars.size)
 	_stars_mat.set_shader_parameter("star_r", r)
 	_stars_mat.set_shader_parameter("star_gap", gap)
@@ -116,7 +118,7 @@ func _layout() -> void:
 	# Over the minimap, scaled with it (MinimapFrame scales with the window).
 	var frame := (get_parent().get_node_or_null("MinimapFrame") if get_parent() else null) as Control
 	var hs := clampf(view.y / 1080.0, 0.7, 2.0) * GameSettings.hud_scale
-	var mini := Rect2(view - Vector2.ONE * 284.0, Vector2.ONE * 260.0)
+	var mini := Rect2(view - Vector2.ONE * 300.0, Vector2.ONE * 260.0)
 	if frame and frame.has_method("screen_rect"):
 		mini = frame.call("screen_rect")
 		hs = frame.scale.x

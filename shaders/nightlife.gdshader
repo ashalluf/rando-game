@@ -122,7 +122,9 @@ void fragment() {
 		metal = 0.0;
 	} else if (code == 10) {
 		// A lightbox face: the accent through white acrylic, lit after dark.
-		vec3 face = mix(vec3(0.85), paint, 0.75);
+		// Mixed in display numbers, then decoded: mixed in linear, the white's 0.85 swamped a dark
+		// accent (a deep red's linear 0.15) and the lit face was pink on Forward+.
+		vec3 face = cs_srgb_to_linear(mix(vec3(0.85), v_paint, 0.75));
 		emit = face * box_night * lamp * v_lit;
 		base = face;
 		rough = 0.3;

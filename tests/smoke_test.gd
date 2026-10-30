@@ -68,7 +68,8 @@ const CITY_PARTS := ["city_streaming", "city_terrain", "city_landmarks", "city_c
 ## Check files called from inside a city part (they go with that part, never on their own).
 const INLINE_FILES := ["downtown_checks", "hero_moves_checks", "street_life_checks",
 	"crowd_anim_checks", "crowd_life_checks", "crowd_hat_checks", "photo_mode_checks",
-	"wingsuit_checks", "traffic_ai_checks", "street_errands_checks", "dog_checks", "hero_closeup_checks"]
+	"wingsuit_checks", "traffic_ai_checks", "street_errands_checks", "dog_checks", "hero_closeup_checks",
+	"hero_face_2_checks"]
 ## Wall seconds each part took in a whole run on the 4-core fleet box (SMOKE_PROFILE=1 prints
 ## them as PART lines; refreshed 2026-10-30 from main a3db077f, tools/gate/part_costs.py); a file missing here counts DEFAULT_COST. Only the deal depends on them.
 const PART_COST := {
@@ -406,6 +407,8 @@ func _run() -> void:
 	await load("res://tests/wingsuit_checks.gd").new().run(self, player)
 	# The hero close up (tests/hero_closeup_checks.gd): the living face, stride-matched clips, rain.
 	await load("res://tests/hero_closeup_checks.gd").new().run(self, player)
+	# The hero's face, second pass (tests/hero_face_2_checks.gd): skin regions, strand brows.
+	await load("res://tests/hero_face_2_checks.gd").new().run(self, player)
 	await _test_weapons(player)
 	_test_buildings()
 	level.free() # Free now, so the city scene cannot pick up this level's player.
@@ -2384,6 +2387,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/signage_checks.gd").new().run(self, city)
 	# The code-built Los Angeles trees and accents (tests/la_trees_checks.gd).
 	load("res://tests/la_trees_checks.gd").new().run(self, city)
+	# Street trees close up (tests/trees_closeup_checks.gd, TreesCloseup): the gust field, the switch, crowns, bark.
+	load("res://tests/trees_closeup_checks.gd").new().run(self, city)
 	# Car dealerships (tests/car_dealers_checks.gd): auto rows of new-car dealers and used lots, pure
 	# sites inside their blocks, the lot cars, stickers, tube men and cars for sale, nothing else moved.
 	load("res://tests/car_dealers_checks.gd").new().run(self, city)
@@ -2602,6 +2607,22 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/explosions_2_checks.gd").new().run(self, city)
 	# The reset between check files (tests/gate_speed_2_checks.gd): what it puts back, the file list.
 	load("res://tests/gate_speed_2_checks.gd").new().run(self, city)
+	# The night street's air (tests/night_atmos_checks.gd, NightAtmos): halos, shafts, the haze.
+	load("res://tests/night_atmos_checks.gd").new().run(self, city)
+	# Close-up car detail (tests/car_detail_checks.gd): plates, badges, tyre lettering, grime, the A/B.
+	await load("res://tests/car_detail_checks.gd").new().run(self, city)
+	# Busy streets (tests/busy_streets_checks.gd): the hour, the focused spawns and rear retires,
+	# the extra kerb cars (a hash, nothing moved), the near crowd topped up.
+	await load("res://tests/busy_streets_checks.gd").new().run(self, city)
+	# The Pacific close up (tests/ocean_closeup_checks.gd): fragment-only, the piles' grids, the A/B.
+	load("res://tests/ocean_closeup_checks.gd").new().run(self, city)
+	# HUD polish (tests/hud_polish_checks.gd): the theme, the safe area, the place toast, the car readout.
+	await load("res://tests/hud_polish_checks.gd").new().run(self, city)
+	# Forward+ review e (tests/fwd_review_e_checks.gd): the wave-3 shaders' colour-space traps.
+	load("res://tests/fwd_review_e_checks.gd").new().run(self, city)
+	# The night skyline (tests/night_skyline_checks.gd, NightSkyline): office colours, cleaners'
+	# floors, crown washes and floods shared by the near walls and the far boxes, beacons out of step.
+	load("res://tests/night_skyline_checks.gd").new().run(self, city)
 	# The hills' planted volume (tests/hill_planting_2_checks.gd): scatter clumps on the stands, oak clumps.
 	load("res://tests/hill_planting_2_checks.gd").new().run(self, city)
 
