@@ -34,6 +34,14 @@ uniform float grass_scale = 3.5;
 // The aerial grass-and-gravel scan, only its light and dark, at a big tile over the blades.
 uniform float mottle_scale = 13.0;
 uniform float mottle_amount : hint_range(0.0, 1.0) = 1.0;
+// From the air the 13 m tile of the scan repeats: a checkerboard over every slope from 150 m up
+// (aerial review). Past a pixel footprint of `mottle_far_px` metres a second, rotated sample at
+// 2.37x the tile is laid half over it - two incommensurate tilings show no period - and the
+// contrast eases to `mottle_far_keep`, toward the flat mean the far plane paints. Near (where
+// hill_shells.gdshader copies the mottle) it is untouched. Off (AerialReview): as before.
+uniform bool aerial_mottle = true;
+uniform vec2 mottle_far_px = vec2(0.28, 0.75);
+uniform float mottle_far_keep : hint_range(0.0, 1.0) = 0.55;
 uniform float dirt_scale = 4.5;
 uniform float rock_scale = 7.0;
 // Each texture's mean luminance (linear), so recolouring keeps its detail at the colour asked.
@@ -152,6 +160,16 @@ void fragment() {
 	// The blades mip away to one flat tone past a few tens of metres; the aerial scan's worn
 	// patches and tufts, at a much larger tile, carry the grain from there out to the LOD ring.
 	float mot = clamp(luma(cs_in(texture(mottle_albedo, w / mottle_scale).rgb)) / mottle_mean_luma, 0.4, 1.8);
+	if (aerial_mottle) {
+		float far_m = smoothstep(mottle_far_px.x, mottle_far_px.y, length(fwidth(w)));
+		if (far_m > 0.001) {
+			vec2 uvm = (mat2(vec2(0.61, 0.79), vec2(-0.79, 0.61)) * w) / (mottle_scale * 2.37) + vec2(3.1, 8.4);
+			float mot2 = clamp(luma(cs_in(texture(mottle_albedo, uvm).rgb)) / mottle_mean_luma, 0.4, 1.8);
+			float mix2 = 0.35 + 0.3 * vnoiset(w * 0.011 + 2.0);
+			float m_far = 1.0 + (mix(mot, mot2, mix2) - 1.0) * mottle_far_keep;
+			mot = mix(mot, m_far, far_m);
+		}
+	}
 	float gl = clamp(luma(g) / grass_mean_luma, 0.3, 2.0) * (1.0 + (mot - 1.0) * mottle_amount);
 	// Greener where the ground holds its water a little longer: some hillsides, and low down.
 	float green = clamp(smoothstep(0.3, 0.75, hill) * 0.8 + (1.0 - smoothstep(60.0, 260.0, world_pos.y)) * 0.25, 0.0, 1.0);

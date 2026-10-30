@@ -106,6 +106,47 @@ float joint1(float x, float spacing, float w) {
 	return (1.0 - smoothstep(w * 0.5, w * 0.5 + fw, g)) * fade;
 }
 
+#include "res://shaders/lawn_field.gdshaderinc"
+
+// Bark mulch up close (lawns_closeup on): shredded chips about 3-6 cm long lying every which way,
+// each its own tone of brown - fresh red-brown to weathered grey - with dark gaps and shade
+// between them. Returns (tone multiplier, gap darkness, slope x, slope z); faded to its own
+// average as a chip passes a pixel or two.
+vec4 mulch_chips(vec2 p) {
+	vec2 q = p / 0.045;
+	vec2 ci = floor(q);
+	float best = 10.0;
+	float second = 10.0;
+	vec2 best_d = vec2(0.0);
+	float best_h = 0.0;
+	for (int y = -1; y <= 1; y++) {
+		for (int x = -1; x <= 1; x++) {
+			vec2 c = ci + vec2(float(x), float(y));
+			float h = hash12(c + 13.7);
+			vec2 o = vec2(hash12(c + 2.1), hash12(c + 5.3));
+			vec2 d = q - (c + o);
+			// A chip is an elongated cell: the distance squashed along its own direction.
+			float a = h * 6.2831;
+			vec2 ax = vec2(cos(a), sin(a));
+			vec2 dd = vec2(dot(d, ax) * 0.45, dot(d, vec2(-ax.y, ax.x)));
+			float r = length(dd);
+			if (r < best) {
+				second = best;
+				best = r;
+				best_d = dd;
+				best_h = h;
+			} else if (r < second) {
+				second = r;
+			}
+		}
+	}
+	float gap = 1.0 - smoothstep(0.02, 0.14, second - best);
+	float tone = mix(0.62, 1.32, fract(best_h * 7.13));
+	vec2 slope = -normalize(best_d + 1.0e-4) * smoothstep(0.0, 0.5, best) * 0.5;
+	float fade = 1.0 - smoothstep(0.004, 0.02, length(fwidth(p)));
+	return vec4(mix(1.0, tone, fade), gap * fade, slope * fade);
+}
+
 void vertex() {
 	local_pos = VERTEX;
 	local_normal = NORMAL;
@@ -127,6 +168,14 @@ void fragment() {
 		vec3 g = tiled(grass_tex, p, 2.6);
 		float dry = clamp(variant * 0.9 + 0.35 * (vnoise(p * 0.21 + 3.0) - 0.5), 0.0, 1.0);
 		albedo = g * mix(disp(lawn_tint), disp(lawn_dry), dry) * mottle;
+		if (lawn_field_on()) {
+			// The lawn field's clover and brown spots (lawn_field.gdshaderinc), the seed from the
+			// lawn's thirst so neighbouring yards differ.
+			float ls = floor(variant * 997.0) * 0.37;
+			float d2 = clamp(dry + smoothstep(0.68, 0.86, lf_noise(p * 0.42 + ls * 2.9 + 17.0)) * 0.4, 0.0, 1.0);
+			float clover = lf_clover(p, ls, d2);
+			albedo = g * mix(mix(disp(lawn_tint), disp(lawn_dry), d2), disp(lawn_tint) * vec3(0.86, 0.97, 1.03), clover * 0.6) * mottle;
+		}
 		rough = 0.95;
 		wet_k = 0.4;
 	} else if (kind < 1.5) {
@@ -182,6 +231,15 @@ void fragment() {
 		albedo = tiled(dirt_tex, p, 1.4) * disp(mulch_tint) * (0.7 + 0.6 * chips) * mottle;
 		rough = 0.96;
 		wet_k = 0.6;
+		if (lawn_field_on()) {
+			vec4 mc = mulch_chips(p);
+			// Chips over the dirt: their own tone, a red-brown or grey cast per bed patch, the
+			// gaps between them dark, each chip tilted (a slope for the normal below).
+			vec3 cast = mix(vec3(1.08, 0.92, 0.82), vec3(0.88, 0.9, 0.92), smoothstep(0.3, 0.7, vnoise(p * 0.6 + 21.0)));
+			albedo = disp(mulch_tint) * 1.55 * (0.82 + 0.3 * chips) * mc.x * cast * (1.0 - 0.72 * mc.y) * mottle;
+			nm = vec3(mc.z * 0.5 + 0.5, -mc.w * 0.5 + 0.5, 1.0);
+			nm_depth = 0.9;
+		}
 	} else if (kind < 7.5) {
 		// Ivy over the freeway's slopes, dense and dark with leafy clumps; where the deck's shade
 		// keeps it off (variant up to 1 right under it) the bare compacted dirt Caltrans leaves.
