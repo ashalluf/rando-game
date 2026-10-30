@@ -35,6 +35,8 @@ extends SceneTree
 ## `DOOR_SIDE=1` the right, `STEER=` radians), views `open3`, `aperture`, `cockpit`.
 ## `CAR_GLASS=0` puts the car back on its model's own opaque glass (the A/B); `TIME=n` prints each
 ## view's frame time over n frames (the software renderer's fragment cost, which GEO cannot see).
+## `WET=1,1` stages a downpour on the car (the wet world: beads, runs, wipers - with OCCUPANT set
+## the wipers run), `WET=0.6,0,1` a drying car.
 ## Nothing here may name Vehicle or PoliceCar as a TYPE: this script is compiled before the
 ## autoloads exist (CLAUDE.md).
 
@@ -114,6 +116,13 @@ func _initialize() -> void:
 	world.add_child(we)
 	RenderingServer.global_shader_parameter_set("night_factor", 1.0 if night else 0.0)
 	RenderingServer.global_shader_parameter_set("lamp_factor", 1.0 if night else 0.0)
+	# `WET=wetness[,rain[,drying]]`: the wet world (WetWorld) on the car, e.g. WET=1,1 a downpour.
+	var wet_env := OS.get_environment("WET")
+	if wet_env != "":
+		var wv := wet_env.split(",")
+		RenderingServer.global_shader_parameter_set("road_wetness", float(wv[0]))
+		RenderingServer.global_shader_parameter_set("rain_intensity", float(wv[1]) if wv.size() > 1 else 0.0)
+		RenderingServer.global_shader_parameter_set("road_drying", float(wv[2]) if wv.size() > 2 else 0.0)
 	# The sky's colour as DayNight publishes it (the empty frames' cabin and the building glass are
 	# lit by it); the project default is a day sky.
 	if night:

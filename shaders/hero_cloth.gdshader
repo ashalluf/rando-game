@@ -36,6 +36,8 @@ uniform float rim_tint = 0.6;
 // How much the crushed-pile patches change the sheen.
 uniform float crush = 0.3;
 
+#include "res://shaders/wet_surface.gdshaderinc"
+
 void fragment() {
 	vec3 base = texture(albedo_tex, UV).rgb * albedo_color.rgb;
 	vec2 nr = texture(normal_tex, UV).rg * 2.0 - 1.0;
@@ -54,4 +56,13 @@ void fragment() {
 	SPECULAR = specular;
 	RIM = rim * cr;
 	RIM_TINT = rim_tint;
+	if (ws_on()) {
+		// Rain (wet_surface.gdshaderinc): the velour soaks dark where it faces the sky, its pile
+		// flattened (less sheen), a wet shine on top.
+		float face_up = smoothstep(-0.15, 0.75, (INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).y);
+		float wet = ws_wet(0.55) * mix(0.35, 1.0, face_up);
+		ALBEDO = mix(ALBEDO, base * 0.6, wet);
+		ROUGHNESS = mix(ROUGHNESS, 0.45, wet);
+		RIM *= 1.0 - 0.6 * wet;
+	}
 }

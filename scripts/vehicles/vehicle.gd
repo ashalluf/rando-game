@@ -1859,6 +1859,7 @@ func _add_cabin_glass(holder: Node3D, meshes: Array[MeshInstance3D]) -> void:
 			var data := CarCabin.measure(body_type, m.mesh, CarCabin.context(self, to_car))
 			_glass_shared = CarCabin.glass_material(body_type, src, data)
 			m.set_surface_override_material(si, _glass_shared)
+			CarWipers.attach(self, m, _glass_shared, data, CarCabin.context(self, to_car))
 			_glass_slots.append([m, si])
 			if not _glass_meshes.has(m):
 				_glass_meshes.append(m)
@@ -1919,6 +1920,7 @@ func _apply_occupant(seats: int, look: Dictionary) -> void:
 	var dmg_glass: ShaderMaterial = _damage._glass if _damage != null and is_instance_valid(_damage) else null
 	if dmg_glass != null:
 		CarCabin.seat(dmg_glass, seats, look)
+		CarWipers.sync(self, seats, null)
 		return
 	var mat := _glass_shared
 	if cabin_glass_override is ShaderMaterial:
@@ -1930,6 +1932,7 @@ func _apply_occupant(seats: int, look: Dictionary) -> void:
 			_glass_own = _glass_shared.duplicate() as ShaderMaterial
 		mat = _glass_own
 		CarCabin.seat(mat, seats, look)
+	CarWipers.sync(self, seats, mat)
 	for slot: Array in _glass_slots:
 		var m := slot[0] as MeshInstance3D
 		if is_instance_valid(m) and m.get_surface_override_material(slot[1]) != mat:
@@ -2006,11 +2009,18 @@ const PARTS_SHADER := """
 shader_type spatial;
 render_mode cull_back;
 // Vertex colours from the glTF are linear already.
+#include "res://shaders/wet_surface.gdshaderinc"
 void fragment() {
 	ALBEDO = COLOR.rgb;
 	ROUGHNESS = clamp(COLOR.a, 0.04, 1.0);
 	METALLIC = 0.0;
 	SPECULAR = 0.5;
+	if (ws_on()) {
+		// Rain (WetWorld): the far twin's parts wet like the near body's.
+		float w = ws_wet(0.3);
+		ALBEDO *= mix(1.0, 0.85, w);
+		ROUGHNESS = mix(ROUGHNESS, ROUGHNESS * 0.5, w);
+	}
 }
 """
 

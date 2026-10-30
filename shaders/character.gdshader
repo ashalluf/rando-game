@@ -242,6 +242,10 @@ varying vec4 v_trim_a;
 varying vec4 v_trim_b;
 varying flat float v_code;
 
+#include "res://shaders/wet_surface.gdshaderinc"
+// 1 under an open umbrella (WetWorld.shelter(): a shared sheltered copy of the look).
+uniform float rain_shelter = 0.0;
+
 
 vec3 rgb_to_hsv(vec3 c) {
 	float mx = max(c.r, max(c.g, c.b));
@@ -645,6 +649,20 @@ void fragment() {
 		ALBEDO = mix(ALBEDO, soaked, soak * 0.92);
 	}
 
+	// Rain (wet_surface.gdshaderinc): the shoulders, the head and whatever faces the sky soak first,
+	// cloth goes dark, hair dark and glossy, skin a little shinier; drying with the street.
+	float rain_wet = 0.0;
+	if (ws_on()) {
+		vec3 wn = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
+		float face_up = smoothstep(-0.15, 0.75, wn.y);
+		float high = smoothstep(0.55, 0.85, v_height);
+		rain_wet = ws_wet(0.55) * clamp(face_up * 0.85 + high * 0.4, 0.0, 1.0);
+		// Under an open umbrella (WetWorld.shelter()): only the legs catch the splashes.
+		rain_wet = mix(rain_wet, ws_wet(0.55) * 0.35 * (1.0 - smoothstep(0.25, 0.5, v_height)), rain_shelter);
+		float soaks = clamp(1.0 - is_skin - eye, 0.0, 1.0);
+		ALBEDO *= mix(1.0, mix(0.56, 0.72, is_hair), rain_wet * soaks);
+	}
+
 	ROUGHNESS = mix(mix(cloth_roughness, skin_roughness, is_skin), hair_roughness, is_hair * hair_strength);
 	ROUGHNESS = mix(ROUGHNESS, other_roughness, is_other);
 	if (region_mask > 0.5) {
@@ -655,6 +673,7 @@ void fragment() {
 	ROUGHNESS = min(ROUGHNESS + grimed * 0.08, 1.0);
 	// Soaked cloth is wet, and wet is glossy.
 	ROUGHNESS = mix(ROUGHNESS, 0.24, soak);
+	ROUGHNESS = mix(ROUGHNESS, mix(mix(0.5, 0.3, is_skin), 0.22, is_hair), rain_wet);
 	if (trim_rough > 0.0) {
 		// Trim, belt leather and metal are smoother than the canvas round them.
 		ROUGHNESS = mix(ROUGHNESS, 0.45, trim_rough);

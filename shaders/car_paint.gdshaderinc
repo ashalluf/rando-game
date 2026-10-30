@@ -202,7 +202,7 @@ uniform float mud = 0.0;
 uniform float scratches = 0.0;
 uniform vec4 grime_arch = vec4(-1.4, 1.4, 0.2, 0.34);
 uniform vec3 grime_frame = vec3(-0.2, 1.0, 1.0);
-global uniform float road_wetness;
+// (road_wetness comes from wet_surface.gdshaderinc.)
 
 varying vec3 world_pos;
 // x = along the car, y = up, z = across, all 0..1 over the body's bounding box.
@@ -211,6 +211,10 @@ varying vec3 body_uv;
 varying vec2 facing;
 // The up-component of the body-space normal (signed: 1 roof, 0 door skin, -1 underside).
 varying float body_ny;
+// The body mesh's own normal (the rain's beads and runs are laid out in its frame).
+varying vec3 wet_nrm;
+
+#include "res://shaders/wet_surface.gdshaderinc"
 
 
 // A display (sRGB) colour in the space `paint` arrives in (a source_color uniform: decoded on
@@ -323,6 +327,7 @@ void vertex() {
 	body_uv = length_is_x ? n : vec3(n.z, n.y, n.x);
 	facing = vec2(length_is_x ? abs(nrm.z) : abs(nrm.x), abs(nrm.y));
 	body_ny = nrm.y;
+	wet_nrm = nrm;
 }
 
 
@@ -767,6 +772,36 @@ void fragment() {
 		ALBEDO += vec3(flake * flake_strength * body * near * (1.0 - worn_rough));
 	}
 
+	// --- Rain (wet_surface.gdshaderinc). The paint goes a shade deeper under its film of water;
+	// beads stand on the bonnet, roof and boot (the body mesh's own frame: a moving car carries
+	// them), and on the doors and wings the water runs down in threads while it still rains.
+	// Unresolved (a few metres off) the beads are only the darker, glossier tone.
+	float wet_px = 0.0;
+	if (ws_on()) {
+		float wet = ws_wet(0.3);
+		float ms = length(MODEL_MATRIX[0].xyz);
+		vec3 wn = normalize(wet_nrm);
+		vec3 wt;
+		vec3 wb;
+		ws_frame(wn, wt, wb);
+		vec3 wp = paint_rest * ms;
+		vec2 q = vec2(dot(wp, wt), dot(wp, wb));
+		float px = max(length(fwidth(world_pos)), 1e-5);
+		float up = smoothstep(-0.1, 0.65, wn.y);
+		float paint_part = max(body, glass);
+		vec3 bead = ws_beads(q, mix(0.8, 1.15, up), wet * mix(0.35, 1.0, up) * paint_part, px);
+		vec2 run = ws_runs(vec2(q.x, -q.y), 0.06, TIME, ws_rain() * (1.0 - up) * 0.6 * paint_part, px);
+		ALBEDO *= mix(1.0, 0.8, wet * body);
+		ROUGHNESS = mix(ROUGHNESS, ROUGHNESS * 0.6, wet);
+		vec3 slope = wt * (bead.y + run.y * 0.6) + wb * bead.z;
+		float sl = length(slope);
+		if (sl > 1e-4) {
+			vec3 sv = (VIEW_MATRIX * (MODEL_MATRIX * vec4(slope, 0.0))).xyz;
+			NORMAL = normalize(NORMAL + normalize(sv) * min(sl, 1.2) * 0.55);
+		}
+		wet_px = wet;
+	}
+
 	// The lacquer: a second, much sharper specular lobe over everything painted, and over glass.
 	// Matte paint drops its own coat to zero but the glass keeps one.
 	// Glass keeps a lacquer-sharp reflection but not a full one: at grazing angles a full coat
@@ -782,6 +817,9 @@ void fragment() {
 	CLEARCOAT *= 1.0 - worn_coat * body;
 	CLEARCOAT *= 1.0 - grime_cc * body;
 	CLEARCOAT_ROUGHNESS = mix(clearcoat_roughness_value, 0.25, worn_coat);
+	// A wet body is all lacquer: even a dull or worn coat mirrors under its film of water.
+	CLEARCOAT = max(CLEARCOAT, 0.9 * wet_px * open_sky * max(body, glass));
+	CLEARCOAT_ROUGHNESS = mix(CLEARCOAT_ROUGHNESS, 0.03, wet_px);
 #ifdef CAR_DAMAGE
 	CLEARCOAT *= cc_keep;
 #endif
