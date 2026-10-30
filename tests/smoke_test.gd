@@ -2485,6 +2485,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The hills' ground, wave 3 (tests/hill_ground_3_checks.gd): no leopard spots, stands as masses,
 	# the code-built chaparral shrub.
 	load("res://tests/hill_ground_3_checks.gd").new().run(self, city)
+	# The hills' planted volume (tests/hill_planting_2_checks.gd): scatter clumps on the stands, oak clumps.
+	load("res://tests/hill_planting_2_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

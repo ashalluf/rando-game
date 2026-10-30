@@ -3674,6 +3674,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `HILL_GROUND_3=0` puts the old numbers back (`HillGround3.apply()` on the three materials);
   `tools/hill_ground_3/topdown.gd` maps the stands in seconds; hill_ground_shot `TERRAIN_DEBUG=1`
   paints brush / bare / rock; checks `tests/hill_ground_3_checks.gd`.
+- The hills' planted volume (2026-10-30, docs/HANDOFF.md "The hills' planted volume"): `HillScatter`
+  (`scripts/world/hill_scatter.gd`, one step after `_plant_hills` in both levels' HILLS list) puts
+  a code-built clump (three lumpy domes, 63 / 15 / 6 triangles on one buffer, measured edges) on
+  the painted stands: a 4 m world grid in FULL chunks (`hill_scatter_full`, dithered in past
+  `FULL_FADE` 38-58 m, to 300 m), a 6.5 m grid of bigger clumps in LOD chunks (`hill_scatter_lod`,
+  to 720 m: they planted nothing); `shaders/hill_scatter.gdshader` draws the leaves from world
+  noise (linear, color_space). Seated by `HillPlanting.ground()` off the tile (never on rock, cuts,
+  roads, pads, beds); no shadows. Oaks in hollows get companions (`oak_clump()`, `far_oak_clump()`
+  in Skyline). Hashes of seed + world cell; `HILL_PLANTING_2=0` is the A/B; checks
+  `tests/hill_planting_2_checks.gd`.
 - Overhead utilities (2026-10-05, docs/HANDOFF.md "Overhead utilities"): `UtilityPoles`
   (`scripts/world/utility_poles.gd`) builds the line StreetDetail decides on (`_pole_run()` hands
   it over): tapered wooden poles, a crossarm on the pole's face with braces and porcelain pins, a

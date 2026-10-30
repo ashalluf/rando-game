@@ -403,7 +403,7 @@ func begin_build() -> void:
 			_steps.append_array([_sample_terrain, _mark_shell_ground])
 			# The dry creek beds (Arroyos): the bed's field, before the mesh carries the shells' keep-out.
 			_steps.append_array(ArroyoBuild.field_steps(self))
-			_steps.append_array([_build_terrain, _build_hill_shells, _build_hill_roads, _on_map_ground(_build_mansions), _on_map_ground(_scatter_hills), _on_map_ground(_plant_hills)])
+			_steps.append_array([_build_terrain, _build_hill_shells, _build_hill_roads, _on_map_ground(_build_mansions), _on_map_ground(_scatter_hills), _on_map_ground(_plant_hills), _on_map_ground(HillScatter.step.bind(self))])
 			for step in ArroyoBuild.build_steps(self):
 				_steps.append(_on_map_ground(step))
 		MacroMap.Zone.BEACH:
@@ -2025,6 +2025,8 @@ func _plant_hills() -> bool:
 				# A California sycamore in the wettest hollows (LaTrees, hashes only).
 				if not LaTrees.gully_tree(self, at - Vector3(0.0, 0.1, 0.0), yaw, wet):
 					_batch.add("hill_oak_%d" % v, PropFactory.model_hill_oak(v), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at - Vector3(0.0, 0.1, 0.0)), tint, variety)
+					# Live oaks grow in clumps (HillScatter, hill-planting-2; hashes of the oak's place).
+					hill_planting["oak_clump"] = int(hill_planting.get("oak_clump", 0)) + HillScatter.oak_clump(self, "hill_oak_%d" % v, PropFactory.model_hill_oak(v), at, s, tint, variety, segs, pads)
 				hill_planting.oak += 1
 				points.append([p, "oak"])
 				continue
