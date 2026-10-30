@@ -15,6 +15,10 @@ var _t: Node
 
 func run(t: Node, city: Node3D) -> void:
 	_t = t
+	# HILL_GROUND_3=0 (the A/B) is the old ground: nothing of this pass to hold.
+	if not HillGround3.enabled:
+		_t._check(true, "hill-ground-3: off (HILL_GROUND_3=0)")
+		return
 	_mirrors()
 	_rills()
 	var plan: CityPlan = city.get("plan") if city else null
