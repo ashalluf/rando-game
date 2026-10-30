@@ -158,6 +158,7 @@ func _ready() -> void:
 	mass = 1900.0 if heavy else 1500.0
 	engine_power = 9500.0 if heavy else 8200.0
 	_build_light_bar()
+	PoliceNightLook.ensure(self)
 	_siren = Sfx.loop_player("siren", siren_volume_db)
 	_siren.max_distance = siren_distance
 	_siren.unit_size = 34.0
@@ -290,10 +291,15 @@ func _process(delta: float) -> void:
 		_light_timer = 0.5
 		_night = _night_level()
 	var lit := _lights_on()
+	var look := PoliceNightLook.enabled
 	if _bar_mat:
 		_bar_mat.set_shader_parameter("lights_on", 1.0 if lit else 0.0)
+		# One clock for the lenses and the light they throw (PoliceNightLook); -1 is shader TIME.
+		_bar_mat.set_shader_parameter("clock", PoliceNightLook.clock if look else -1.0)
+		_bar_mat.set_shader_parameter("night_gain", 2.2 if look else 0.0)
 	if _bar_light:
-		var show := lit and _night > 0.05
+		# PoliceNightLook's budgeted strobes light the street instead.
+		var show := lit and _night > 0.05 and not look
 		_bar_light.visible = show
 		if show:
 			var side := flash_side(Time.get_ticks_msec() / 1000.0)
@@ -305,6 +311,17 @@ func _process(delta: float) -> void:
 			_siren.play()
 		else:
 			_siren.stop()
+
+
+## True while the bar is flashing (PoliceNightLook lights and washes only these).
+func bar_lit() -> bool:
+	var bar := get_node_or_null("LightBar") as Node3D
+	return bar != null and bar.visible and _lights_on()
+
+
+## Where in the flash cycle this car is (0..1): its own, so a row is not in step.
+func flash_phase() -> float:
+	return _phase
 
 
 func _lights_on() -> bool:

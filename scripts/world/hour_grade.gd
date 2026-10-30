@@ -26,24 +26,33 @@ extends RefCounted
 
 enum Look { DAY, GOLDEN, BLUE, NIGHT, MARINE, OVERCAST, SANTA_ANA }
 
-## Per look: saturation, contrast (S-curve mix, negative flattens), mid gamma per channel (>1
-## darkens that channel's mids), shadow gain per channel (-0.3 takes 30 % off the deepest
-## values, fading out by the mids as (1 - v)^5), highlight tint per channel (added around 3/4 up, white stays white).
+## Per look: saturation, contrast (S-curve mix, negative flattens), depth (a broad shadow gain,
+## (1 - v)^2: it reaches the lower mids the toe does not - the film "shadows" slider), mid gamma
+## per channel (>1 darkens that channel's mids), shadow gain per channel (-0.3 takes 30 % off the
+## deepest values, fading out by the mids as (1 - v)^5), highlight tint per channel (added around
+## 3/4 up, white stays white).
+## The cinematic review (2026-10-30, docs/HANDOFF.md "The cinematic review", refcams before/after)
+## retuned DAY, GOLDEN, BLUE, NIGHT, OVERCAST and SANTA_ANA toward a filmic, high-contrast but
+## natural look: more saturation, a firmer S with the depth term under it and mid gamma under 1
+## to hold the mids where they were (contrast lives in the toe, not in a darker frame), warm
+## highlights over cooler shadows (split toning) by day, richer golden hour mids so a sunset
+## glows instead of sinking, and the night's blue pulled out of the mids (the wet street was
+## navy). `tests/cinematic_review_checks.gd` pins the ranges. MARINE is as it was.
 const LOOKS := {
-	Look.DAY: {"sat": 1.30, "contrast": 0.22, "gamma": Vector3(1.0, 1.0, 1.0),
-		"shadow": Vector3(-0.18, -0.18, -0.15), "high": Vector3(0.01, 0.005, -0.01)},
-	Look.GOLDEN: {"sat": 1.36, "contrast": 0.16, "gamma": Vector3(0.98, 0.96, 1.1),
-		"shadow": Vector3(-0.12, -0.16, -0.24), "high": Vector3(0.04, 0.025, -0.05)},
-	Look.BLUE: {"sat": 1.24, "contrast": 0.10, "gamma": Vector3(1.22, 1.0, 0.97),
-		"shadow": Vector3(-0.3, -0.18, -0.02), "high": Vector3(0.03, 0.01, -0.02)},
-	Look.NIGHT: {"sat": 1.16, "contrast": 0.12, "gamma": Vector3(1.02, 0.99, 1.03),
-		"shadow": Vector3(-0.52, -0.5, -0.54), "high": Vector3(0.03, 0.01, -0.03)},
-	Look.MARINE: {"sat": 1.04, "contrast": -0.04, "gamma": Vector3(1.02, 1.0, 0.97),
+	Look.DAY: {"sat": 1.42, "contrast": 0.30, "depth": -0.25, "gamma": Vector3(0.90, 0.91, 0.94),
+		"shadow": Vector3(-0.20, -0.18, -0.12), "high": Vector3(0.03, 0.012, -0.02)},
+	Look.GOLDEN: {"sat": 1.48, "contrast": 0.22, "depth": -0.30, "gamma": Vector3(0.80, 0.85, 0.98),
+		"shadow": Vector3(-0.18, -0.22, -0.28), "high": Vector3(0.05, 0.03, -0.05)},
+	Look.BLUE: {"sat": 1.28, "contrast": 0.12, "depth": -0.08, "gamma": Vector3(1.14, 0.98, 0.94),
+		"shadow": Vector3(-0.3, -0.2, -0.04), "high": Vector3(0.04, 0.015, -0.02)},
+	Look.NIGHT: {"sat": 1.22, "contrast": 0.12, "depth": 0.0, "gamma": Vector3(1.02, 1.02, 1.09),
+		"shadow": Vector3(-0.56, -0.56, -0.62), "high": Vector3(0.045, 0.02, -0.03)},
+	Look.MARINE: {"sat": 1.04, "contrast": -0.04, "depth": 0.0, "gamma": Vector3(1.02, 1.0, 0.97),
 		"shadow": Vector3(-0.06, -0.06, -0.03), "high": Vector3(-0.01, 0.0, 0.012)},
-	Look.OVERCAST: {"sat": 1.14, "contrast": 0.08, "gamma": Vector3(1.01, 1.0, 0.985),
-		"shadow": Vector3(-0.14, -0.14, -0.12), "high": Vector3(0.0, 0.0, 0.005)},
-	Look.SANTA_ANA: {"sat": 1.34, "contrast": 0.24, "gamma": Vector3(0.98, 0.99, 1.04),
-		"shadow": Vector3(-0.18, -0.18, -0.18), "high": Vector3(0.015, 0.005, -0.015)},
+	Look.OVERCAST: {"sat": 1.18, "contrast": 0.10, "depth": -0.08, "gamma": Vector3(1.0, 0.99, 0.975),
+		"shadow": Vector3(-0.16, -0.16, -0.12), "high": Vector3(0.0, 0.0, 0.005)},
+	Look.SANTA_ANA: {"sat": 1.44, "contrast": 0.32, "depth": -0.25, "gamma": Vector3(0.90, 0.92, 0.97),
+		"shadow": Vector3(-0.2, -0.2, -0.2), "high": Vector3(0.025, 0.008, -0.02)},
 }
 ## Points in the rebuilt gradient (the texture is 256 texels; 33 points is under a texel apart
 ## in what they can move).
@@ -124,16 +133,17 @@ static func blend(w: Dictionary) -> Dictionary:
 		var l: Dictionary = LOOKS[look]
 		out["sat"] = lerpf(out["sat"], l["sat"], t)
 		out["contrast"] = lerpf(out["contrast"], l["contrast"], t)
+		out["depth"] = lerpf(float(out.get("depth", 0.0)), float(l.get("depth", 0.0)), t)
 		for key in ["gamma", "shadow", "high"]:
 			out[key] = (out[key] as Vector3).lerp(l[key], t)
 	return out
 
 
 ## One channel of the curve: the base gradient's value `b` through the look's numbers.
-static func channel(b: float, gamma: float, shadow: float, contrast: float, high: float) -> float:
+static func channel(b: float, gamma: float, shadow: float, contrast: float, high: float, depth: float = 0.0) -> float:
 	var v := pow(clampf(b, 0.0, 1.0), gamma)
 	var s := 1.0 - v
-	v *= 1.0 + shadow * s * s * s * s * s
+	v *= (1.0 + shadow * s * s * s * s * s) * (1.0 + depth * s * s)
 	if contrast >= 0.0:
 		v = lerpf(v, v * v * (3.0 - 2.0 * v), contrast)
 	else:
@@ -151,6 +161,7 @@ static func gradient_for(base: Gradient, look: Dictionary, identity: bool = fals
 	var shadow: Vector3 = look["shadow"]
 	var high: Vector3 = look["high"]
 	var contrast: float = look["contrast"]
+	var depth: float = float(look.get("depth", 0.0))
 	for i in POINTS:
 		var x := float(i) / float(POINTS - 1)
 		offsets.append(x)
@@ -158,9 +169,9 @@ static func gradient_for(base: Gradient, look: Dictionary, identity: bool = fals
 			colors.append(Color(x, x, x))
 			continue
 		var c := base.sample(x) if base else Color(x, x, x)
-		colors.append(Color(channel(c.r, gamma.x, shadow.x, contrast, high.x),
-			channel(c.g, gamma.y, shadow.y, contrast, high.y),
-			channel(c.b, gamma.z, shadow.z, contrast, high.z)))
+		colors.append(Color(channel(c.r, gamma.x, shadow.x, contrast, high.x, depth),
+			channel(c.g, gamma.y, shadow.y, contrast, high.y, depth),
+			channel(c.b, gamma.z, shadow.z, contrast, high.z, depth)))
 	g.offsets = offsets
 	g.colors = colors
 	return g
@@ -173,7 +184,7 @@ func update(elevation: float, golden: float, weather_darken: float, marine: floa
 	if _env.adjustment_color_correction != _tex:
 		return # photo mode's filter is on
 	var look := blend(weights(elevation, golden, weather_darken, marine, santa_ana))
-	var key := PackedFloat32Array([look["sat"], look["contrast"]])
+	var key := PackedFloat32Array([look["sat"], look["contrast"], float(look.get("depth", 0.0))])
 	for k in ["gamma", "shadow", "high"]:
 		var v: Vector3 = look[k]
 		key.append_array([v.x, v.y, v.z])

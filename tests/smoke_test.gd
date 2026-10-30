@@ -115,7 +115,8 @@ const PART_COST := {
 	"far_corners_checks": 0.1, "weather_la_checks": 0.1, "color_grade_checks": 0.0,
 	"fwd_review_a_checks": 0.0, "fwd_review_b_checks": 0.0, "garments_2_checks": 0.0,
 	"memory_audit_checks": 0.0, "offshore_island_checks": 0.0, "perf_audit_checks": 0.0,
-	"shop_vinyl_checks": 0.0, "sky_checks": 0.0, "bonfires_checks": 3.0
+	"shop_vinyl_checks": 0.0, "sky_checks": 0.0, "bonfires_checks": 3.0,
+	"cinematic_review_checks": 0.1
 }
 const DEFAULT_COST := 6.0
 ## Every share pays for its own city load on top of its parts.
@@ -2605,6 +2606,10 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The explosion's second pass (tests/explosions_2_checks.gd, BlastFX): flash, wave, rolling fire,
 	# the lit column, burning debris, windows blown out across the street, the caps, the car's fuel blast.
 	await load("res://tests/explosions_2_checks.gd").new().run(self, city)
+	# The crowd's walks (tests/crowd_anim_2_checks.gd, CrowdGait): gaits, matched rates, no slide.
+	await load("res://tests/crowd_anim_2_checks.gd").new().run(self, city)
+	# The cinematic review (tests/cinematic_review_checks.gd): the grade, exposure, bloom and haze numbers.
+	load("res://tests/cinematic_review_checks.gd").new().run(self, city)
 	# The reset between check files (tests/gate_speed_2_checks.gd): what it puts back, the file list.
 	load("res://tests/gate_speed_2_checks.gd").new().run(self, city)
 	# The night street's air (tests/night_atmos_checks.gd, NightAtmos): halos, shafts, the haze.
@@ -2623,6 +2628,20 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The night skyline (tests/night_skyline_checks.gd, NightSkyline): office colours, cleaners'
 	# floors, crown washes and floods shared by the near walls and the far boxes, beacons out of step.
 	load("res://tests/night_skyline_checks.gd").new().run(self, city)
+	# The second perf audit (tests/perf_audit_2_checks.gd): the cached road closures and site
+	# bounds answer as before, road_lift() per body type, no orphan freeway bodies from a capture.
+	load("res://tests/perf_audit_2_checks.gd").new().run(self, city)
+	# The hills' planted volume (tests/hill_planting_2_checks.gd): scatter clumps on the stands, oak clumps.
+	load("res://tests/hill_planting_2_checks.gd").new().run(self, city)
+	# The street level up close (tests/facades_street_checks.gd): the door's rolls as the shader rolls
+	# them, the hardware inside the lot, nothing a building rolled moving.
+	load("res://tests/facades_street_checks.gd").new().run(self, city)
+	# Crash deformation (tests/crash_deform_checks.gd): crumple zones by speed, panels, wheels,
+	# scrapes, shards on the road, a real head-on, the A/B.
+	await load("res://tests/crash_deform_checks.gd").new().run(self, city)
+	# The police at night (tests/police_night_look_checks.gd, PoliceNightLook): one flash clock, the
+	# glow, the budgeted strobes, the wall wash, roadblock flares, the searchlight's haze.
+	await load("res://tests/police_night_look_checks.gd").new().run(self, city)
 	# The third perf audit (tests/perf_audit_3_checks.gd): cache trims, the crowd feet's stagger,
 	# the sea's life idling inland, the night haze's daytime early-out.
 	await load("res://tests/perf_audit_3_checks.gd").new().run(self, city)

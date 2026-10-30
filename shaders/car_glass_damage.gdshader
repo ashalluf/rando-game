@@ -17,6 +17,7 @@ render_mode cull_disabled;
 #define CABIN_FIRE
 #include "res://shaders/car_cabin.gdshaderinc"
 #include "res://shaders/car_glass_wet.gdshaderinc"
+#include "res://shaders/car_crumple.gdshaderinc"
 
 // The model's own glass material.
 uniform vec3 glass_albedo : source_color = vec3(0.14, 0.155, 0.175);
@@ -36,6 +37,10 @@ void vertex() {
 	lp = VERTEX;
 	ln = NORMAL;
 	cam_local = (inverse(MODEL_MATRIX) * vec4(INV_VIEW_MATRIX[3].xyz, 1.0)).xyz;
+	if (cr_any()) {
+		// The glass rides a crushed roof or pillar down with the paint (CrashDeform).
+		cr_apply(VERTEX, NORMAL);
+	}
 }
 
 

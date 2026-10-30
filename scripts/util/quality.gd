@@ -221,6 +221,8 @@ func _apply_render() -> void:
 	CarLights.budget = [6, 3, 0, 0][int(level)]
 	CarLights.player_light = level <= Level.LOW
 	CarLights.player_shadow = level == Level.HIGH
+	# Real red / blue strobes on the nearest cruisers (PoliceNightLook, Forward+ only).
+	PoliceNightLook.budget = [6, 4, 2, 0][int(level)]
 	# Reflection probes in the streets round the camera (Forward+ only): nine, one render a half
 	# second at HIGH; five, one a second at MEDIUM; none below.
 	ReflectionProbes.budget = [9, 5, 0, 0][int(level)]
