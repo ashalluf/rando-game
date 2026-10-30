@@ -15591,3 +15591,21 @@ it is thrown a little and runs: never blood, never a ragdoll, never a crime.
 on `still_shot.gd` (`tools/wildlife/stage.gd`: WILD_DIST, WILD_SPACING, WILD_TURN, WILD_POSE
 stand|graze|sit|walk|trot|flee, WILD_FRAMES). Compile + mesh counts: `tools/wildlife/compile.gd`.
 Checks: `tests/wildlife_checks.gd`.
+
+**Cost** (still_shot.gd GEO, opengl3, the cart street at 22:12, `-458,2.2,546,90,-12`): WILDLIFE=0
+2,942,404 triangles / 981 draws; two raccoons staged 5 m off at the NEAR level (skin + 10 fur
+shells) 3,104,227 / 986 (+5.5 % triangles, +5 draws; two coyotes 7 m off: 3,110,050 / 1,002).
+That is the worst case: the survey puts animals down 30 m or more from the player, where they
+draw at MID (2.5k + 9.9k shells) or FAR (0.8k), and at most 14 of them (web 6). Warming every
+species' meshes on the loading screen: ~0.6 s. The smoke test's wildlife part peaks at 1.47 GB.
+
+**Stills** (`shots/wildlife`): the lineup and close-ups, deer grazing the headland at dawn (a buck),
+raccoons at the kerb carts at night, coyotes trotting past them, squirrels and a cottontail by the
+kerb at midday, and the WILDLIFE=0 before.
+
+**Not done / unverified.** Not seen on Forward+ (opengl3 stills only). Two front-range spots
+(x 236 / 342, z -1966 / -1824) never finished a still: their load stalls with WILDLIFE=0 too, so it
+is not this feature, but the dawn deer could not be framed on the front range - the stills use the
+headland. Animals do not climb walls or avoid traffic while idling (traffic does not brake for
+them; a car's bumper sends one running). No sounds beyond a coyote's yelp when hit (the Ambience's
+coyote one-shots are unchanged). Squirrels do not run up trees.
