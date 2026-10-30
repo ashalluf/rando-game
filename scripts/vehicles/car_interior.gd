@@ -330,6 +330,10 @@ func detach(side: float, push: Vector3) -> RigidBody3D:
 			(part as Node).reparent(body, false)
 	var root := car.get_parent() if car.get_parent() != null else car.get_tree().root
 	root.add_child(body, true)
+	# It starts inside its car's collision box: never against that car (the depenetration threw
+	# both, and a wreck came to rest on its own door).
+	body.add_collision_exception_with(car)
+	car.add_collision_exception_with(body)
 	body.global_transform = Transform3D(xf.basis.orthonormalized(), xf.origin)
 	pivot.queue_free()
 	var out := car.global_basis.x * float(d.side)
