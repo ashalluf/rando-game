@@ -973,6 +973,8 @@ func _add_hills(rect: Rect2, macro: MacroMap) -> void:
 			var p := _spot(rect, hs)
 			if _on_hill_road(p, segs, pads):
 				continue
+			if macro.coast_highway and macro.coast_highway.covers(p, 6.0):
+				continue
 			var gy: float = _lattice_height(lat, p)
 			if gy < 1.5:
 				continue
