@@ -210,7 +210,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   nodes in scene files. Scene files hold structure (lights, environment, player instance), scripts
   hold content.
 - Physics layers: 1 `world` (static), 2 `player`, 3 `props` (rigid bodies), 4 `npc` (pedestrians),
-  5 `terrain` (hill heightmaps, in addition to world). Player mask = world+props.
+  5 `terrain` (hill heightmaps, in addition to world), 6 `foot ground` (treads under walkable ramps,
+  read only by foot-placement rays; see Crowd foot placement). Player mask = world+props.
   Crates: layer props, mask all three. The camera spring arm collides with `world` only.
   **Masks are what the physics engine pairs on, so they cost CPU.** GodotPhysics makes a pair
   for every two overlapping objects where either one's mask has the other's layer, and re-pairs
@@ -4823,6 +4824,21 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/glshot/hero_moves_shot.gd` (several stills a load: a clip frozen or a staged move -
   fly, fall, hit_*, draw, land_<speed>, roll, idle_*; `STEP=1` for the foot IK); checks
   `tests/hero_moves_checks.gd`.
+- Crowd foot placement (G5, 2026-10-29, docs/HANDOFF.md "Crowd foot placement"): `CrowdFeet`
+  (`scripts/npc/crowd_feet.gd`, one line at the end of `Pedestrian._physics_process()`, so every
+  subclass that runs it gets it) plants a person's feet on what is under them within
+  `near_range` 20 / `far_range` 30 m of the CAMERA: two rays a foot (ankle and ball, every
+  `RAY_EVERY` ticks), a foot rests on the higher hit (a heel over a nosing stands on the ball) or,
+  on one sloping surface, on the heel's with the foot tilted; the hips come down by the lower
+  foot's drop less what that leg has left before it is straight, each leg is re-solved in its clip
+  knee plane, and anything a clip does not key is undone before the next write (`_restore()`). Off
+  seated, ragdolled, hidden, in a truck, or with `_visual` offset. **Physics layer 6 is "foot
+  ground"** (`CrowdFeet.FEET_LAYER`): true treads where the world layer has a walkable ramp over
+  steps (the Esplanade's beach stairs, `CrowdFeet.add_steps()`); a shape with meta `feet_pass` is
+  seen through. The hero's own planted-foot IK (HeroMotion) reads the same layer. `FOOT_IK=0` is
+  the A/B; lab `tools/foot_ik/foot_lab.tscn` (stills, a headless error report, `MODE=bench`);
+  city stills `FEET=kerb|stairs|slope` on `still_shot.gd` (`tools/foot_ik/stage.gd`); places
+  `tools/foot_ik/find.tscn`; checks `tests/foot_ik_checks.gd`.
 - Late build steps (2026-10-05, docs/HANDOFF.md "The integration-b OOM"): a pass that must run
   after every DEFERRED step (YardFill's walls, `_run_or_defer`, crowds) queues itself with
   `CityChunk._run_last(step)` (ClimbingPlants, Murals); `build_step()` puts those in front of the

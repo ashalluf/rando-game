@@ -68,7 +68,7 @@ func _env(key: String, fallback: String) -> String:
 ## Ground height under (x, z) in true world (the highest surface under `from_y`), or NAN.
 func _ground(x: float, z: float, from_y: float) -> float:
 	var a: Vector3 = _ws.to_local(Vector3(x, from_y, z))
-	var q := PhysicsRayQueryParameters3D.create(a, a - Vector3(0, 40.0, 0), 1 | CrowdFeet.FEET_LAYER)
+	var q := PhysicsRayQueryParameters3D.create(a, a - Vector3(0, from_y + 300.0, 0), 1 | CrowdFeet.FEET_LAYER)
 	var hit := _space.intersect_ray(q)
 	if not hit.is_empty() and CrowdFeet._passes(hit):
 		q.from = hit.position - Vector3(0, 0.002, 0)
@@ -137,10 +137,15 @@ func _kerb(at: Vector2) -> String:
 	if best_t == INF:
 		print("FEET: no kerb near %s" % at)
 		return ""
-	# Refine the edge to 1 cm.
-	var lo := best_t - 0.1
-	var hi := best_t
-	for i in 8:
+	# City kerbs run along the axes: snap the road's direction to the nearest one, then find the
+	# edge along it to 1 cm.
+	if absf(best_d.x) > absf(best_d.y):
+		best_d = Vector2(signf(best_d.x), 0.0)
+	else:
+		best_d = Vector2(0.0, signf(best_d.y))
+	var lo := 0.0
+	var hi := 8.0
+	for i in 12:
 		var mid := (lo + hi) * 0.5
 		var p := at + best_d * mid
 		if _ground(p.x, p.y, top) < h0 - 0.08:
@@ -197,12 +202,14 @@ func _slope(at: Vector2) -> String:
 	print("FEET slope grade %.0f %% up toward %s" % [up.length() * 100.0, up.normalized()])
 	up = up.normalized()
 	var across := Vector2(-up.y, up.x)
-	_stand(at - across * 1.3, _yaw_of(across), 0, top)
+	# Spread up the slope, the camera looking along the contour at them: the one standing
+	# across it shows both feet at their two heights; the others face up and down it.
+	_stand(at - up * 1.4, _yaw_of(across), 0, top)
 	_stand(at, _yaw_of(up), 1, top)
-	_stand(at + across * 1.3 + up * 0.4, _yaw_of(-up), 2, top)
-	# The camera stands off to the side, across the contour from the middle person.
-	var dist := float(_env("FEET_EYE_DIST", "5.0"))
-	var eye_xz := at + up.orthogonal() * dist
+	_stand(at + up * 1.4, _yaw_of(-across), 2, top)
+	var side := float(_env("FEET_SIDE", "1"))
+	var dist := float(_env("FEET_EYE_DIST", "4.5"))
+	var eye_xz := at + across * dist * side
 	var gy := _ground(eye_xz.x, eye_xz.y, top + 20.0)
 	var my := _ground(at.x, at.y, top)
-	return _eye_at(Vector3(eye_xz.x, maxf(gy, my) + 1.3, eye_xz.y), Vector3(at.x, my + 0.7, at.y))
+	return _eye_at(Vector3(eye_xz.x, (gy if not is_nan(gy) else my) + 1.0, eye_xz.y), Vector3(at.x, my + 0.5, at.y))

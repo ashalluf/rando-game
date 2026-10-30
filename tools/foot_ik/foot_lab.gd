@@ -5,7 +5,8 @@ extends Node3D
 ##   OUT=/tmp/feet SHOTS=kerb,ramp,stairs,walk LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s \
 ##     "-screen 0 1280x720x24" godot --rendering-driver opengl3 --display-driver x11 \
 ##     --audio-driver Dummy --path . --resolution 1280x720 tools/foot_ik/foot_lab.tscn
-## FOOT_IK=0 is the before. Headless (`--headless`) it prints, per person, the feet's planted
+## FOOT_IK=0 is the before. MODE=bench (headless) times N people (default 40) walking round
+## the camera on the flat: the physics step's process time with and without (run it twice). Headless (`--headless`) it prints, per person, the feet's planted
 ## error: how far each sole is from the ground found under it (m), with and without the IK.
 ## SHOTS: kerb (three people at a 15 cm kerb edge, one foot over it), ramp (people across and
 ## along a 14-degree slope), stairs (people on 17 x 30 cm steps), walk (one walking up the ramp:
@@ -26,6 +27,10 @@ func _ready() -> void:
 	var player := Node3D.new()
 	player.add_to_group("player")
 	add_child(player)
+	if OS.get_environment("MODE") == "bench":
+		await _bench()
+		get_tree().quit()
+		return
 	_stage()
 	for i in 40:
 		await get_tree().physics_frame
@@ -98,6 +103,24 @@ func _world() -> void:
 	for i in 10:
 		var h := RISE * float(i + 1)
 		_box(Vector3(26, h * 0.5, -RUN * (float(i) + 0.5)), Vector3(4, h, RUN), Color(0.6, 0.6, 0.58))
+	if OS.get_environment("STAIR_RAMP") == "1":
+		# The steps on the feet layer under a walkable world-layer ramp through their nosings
+		# (the Esplanade's beach stairs), the ramp seen through by the feet.
+		for body in get_children():
+			if body is StaticBody3D and (body as StaticBody3D).position.x == 26.0:
+				body.collision_layer = CrowdFeet.FEET_LAYER
+		var ang := atan2(RISE, RUN)
+		var ramp := StaticBody3D.new()
+		ramp.collision_layer = 1
+		var cs := CollisionShape3D.new()
+		var bs := BoxShape3D.new()
+		bs.size = Vector3(4, 0.3, 10.0 * RUN / cos(ang))
+		cs.shape = bs
+		cs.set_meta("feet_pass", true)
+		ramp.add_child(cs)
+		ramp.position = Vector3(26, RISE + RISE * 5.0 - 0.15 * cos(ang), -RUN * 5.0 - 0.15 * sin(ang))
+		ramp.rotation.x = ang
+		add_child(ramp)
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-38, 140, 0)
 	sun.shadow_enabled = true
@@ -283,3 +306,22 @@ func _walk_report() -> void:
 			worst = maxf(worst, absf(v - fm))
 		print("foot_lab walk %s: planted ankle on flat %.3f, on the slope mean error %.3f worst %.3f (%d ticks)" % [leg[2], fm, err / maxf(slope.size(), 1), worst, slope.size()])
 		p.queue_free()
+
+
+func _bench() -> void:
+	var n := int(_env("N", "40"))
+	_cam.position = Vector3(0, 1.6, 0)
+	for i in n:
+		var p := Pedestrian.new()
+		var a := TAU * float(i) / float(n)
+		p.setup(Rect2(-9, -9, 18, 18), 4.0, 500 + i)
+		p.position = Vector3(cos(a) * 7.0, 0.05, sin(a) * 7.0)
+		add_child(p)
+	for i in 120:
+		await get_tree().physics_frame
+	var total := 0.0
+	var ticks := 600
+	for i in ticks:
+		await get_tree().physics_frame
+		total += Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)
+	print("foot_lab bench: FOOT_IK=%s N=%d physics process %.3f ms a tick" % [OS.get_environment("FOOT_IK"), n, total / ticks * 1000.0])

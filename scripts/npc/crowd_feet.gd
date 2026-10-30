@@ -34,9 +34,9 @@ static var far_range: float = 30.0
 const REACH := 0.34
 ## The most the hips come UP (a body sunk below both feet's ground).
 const HIPS_UP := 0.12
-## Rays start this far over the soles' plane (the highest step a foot can find) and end REACH
-## (plus a margin) under it.
-const RAY_UP := 0.5
+## Rays start this far over the soles' plane (the highest step a foot can find: anything taller,
+## a bench seat, a planter, is an obstacle, not ground) and end REACH (plus a margin) under it.
+const RAY_UP := 0.4
 ## Physics ticks between ray samples (staggered by the person's id).
 const RAY_EVERY := 2
 ## How straight a leg may be pulled (share of its full length) before the hips come down.
@@ -203,6 +203,11 @@ func _sample(ped: Node, xf: Transform3D, base: float) -> void:
 			elif absf(ys[0] - ys[1]) < 0.03:
 				nrm = (n0 + n1).normalized()
 		if hits == 0:
+			_want[side] = 0.0
+			_nrm_want[side] = Vector3.UP
+			continue
+		if best - base > REACH:
+			# Something knee-high beside the foot (a bench, a step too tall to stand on): not ground.
 			_want[side] = 0.0
 			_nrm_want[side] = Vector3.UP
 			continue

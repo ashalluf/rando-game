@@ -102,6 +102,10 @@ func _stand(o: Vector3, at: Vector3, yaw_deg: float, seed_value: int) -> Pedestr
 	return p
 
 
+func _bone(p: Pedestrian, bone: String) -> Vector3:
+	return _ankle(p, bone)
+
+
 func _ankle(p: Pedestrian, bone: String) -> Vector3:
 	var sk: Skeleton3D = p._head_skel
 	return sk.global_transform * sk.get_bone_global_pose(sk.find_bone(bone)).origin
@@ -140,12 +144,17 @@ func _check_kerb(_city: Node3D, o: Vector3) -> void:
 		var at := _ankle(kerb, b)
 		worst = maxf(worst, absf((at.y - _ground(at)) - ref))
 	_check(worst < 0.04, "both feet at the kerb stand on their own ground (worst %.3f m off the flat stance)" % worst)
-	# Nothing accumulates: a hundred more ticks and the hips are where they were.
-	var sk: Skeleton3D = kerb._head_skel
-	var hips := sk.global_transform * sk.get_bone_global_pose(sk.find_bone("Hips")).origin
-	await _ticks(100)
-	var hips2 := sk.global_transform * sk.get_bone_global_pose(sk.find_bone("Hips")).origin
-	_check(hips.distance_to(hips2) < 0.02, "the IK does not pile up tick on tick (hips moved %.3f m)" % hips.distance_to(hips2))
+	# Nothing accumulates: the kerb person's hips stay where the same person's on the flat road
+	# are, less the drop, a hundred ticks on (the idle's own sway is in both).
+	var drift := []
+	for n in 2:
+		var hk := _bone(kerb, "Hips").y - kerb.global_position.y
+		var hf := _bone(flat, "Hips").y - flat.global_position.y
+		drift.append(hk - hf)
+		if n == 0:
+			await _ticks(100)
+	_check(absf(float(drift[1]) - float(drift[0])) < 0.012 and absf(float(drift[0]) - f.applied_hips) < 0.02,
+		"the IK does not pile up tick on tick (hips against the flat stance %.3f, then %.3f)" % [drift[0], drift[1]])
 	flat.queue_free()
 	kerb.queue_free()
 
@@ -168,20 +177,28 @@ func _check_ramp(_city: Node3D, o: Vector3) -> void:
 
 
 func _check_steps(_city: Node3D, o: Vector3) -> void:
-	# Facing up the flight, between the 3rd and 4th treads: the feet find the treads (the feet
-	# layer), not the walkable ramp over their nosings.
-	var p := _stand(o, Vector3(26.0, 0.17 * 3.5 + 0.02, -0.3 * 3.0), 0.0, 101)
+	# Facing up the flight, standing on the walkable ramp at its 3rd tread (where the body of a
+	# real walker stands): the feet find the treads (the feet layer), not the ramp over them, and
+	# stand on them as high as feet on the flat do.
+	var flat := _stand(o, Vector3(20.0, 0.0, 2.0), 0.0, 101)
+	var p := _stand(o, Vector3(26.0, 0.17 + 0.17 * 3.0 + 0.02, -0.3 * 3.0), 0.0, 101)
 	_cam.global_position = o + Vector3(30.0, 2.0, -1.2)
 	await _ticks(45)
+	var ref := minf(_ankle(flat, "LeftFoot").y - o.y, _ankle(flat, "RightFoot").y - o.y)
 	var worst := 0.0
+	var line := ""
 	for b in ["LeftFoot", "RightFoot"]:
 		var at := _ankle(p, b)
-		var tread := NAN
-		# The tread under this ankle: the step whose span holds it.
-		var k := clampi(int(floor(-(at.z - o.z) / 0.3)), 0, 7)
-		tread = o.y + 0.17 * float(k + 1)
-		worst = maxf(worst, at.y - tread)
-	_check(worst < 0.24, "on the steps the ankles stand on the treads, not floating on the ramp (worst %.3f m)" % worst)
+		var ball := _ankle(p, b.replace("Foot", "ToeBase"))
+		# A foot across a riser stands on the higher tread (under its ball, going up).
+		var k := maxi(clampi(int(floor(-(at.z - o.z) / 0.3)), 0, 7), clampi(int(floor(-(ball.z - o.z) / 0.3)), 0, 7))
+		var tread := o.y + 0.17 * float(k + 1)
+		worst = maxf(worst, absf(at.y - tread - ref))
+		line += " %s %.3f over tread %d" % [b, at.y - tread, k]
+	var f: CrowdFeet = p.foot_ik
+	_check(worst < 0.07, "on the steps the ankles stand on the treads, not on the ramp over them (worst %.3f m off the flat stance;%s; lift %s; body at %.2f)"
+		% [worst, line, f.applied_lift if f else Vector2.INF, p.global_position.y - o.y])
+	flat.queue_free()
 	p.queue_free()
 
 
