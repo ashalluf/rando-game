@@ -81,6 +81,8 @@ func _roll_life(seed_value: int) -> void:
 ## After the model and the life clips: the act's own clips, the costume, where to stand.
 func _setup_life() -> void:
 	super()
+	# A performer at work is not part of the crowd's rain behaviour (RainCrowd): no umbrella.
+	rain = null
 	if not _life_ok:
 		return
 	_busk_ok = attach_clips(_anim, _model_path)

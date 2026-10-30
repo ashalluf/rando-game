@@ -36,6 +36,8 @@ func _roll_life(seed_value: int) -> void:
 
 func _ready() -> void:
 	super()
+	# Watching an act is not part of the crowd's rain behaviour (RainCrowd).
+	rain = null
 	_work(true)
 
 
