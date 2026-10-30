@@ -18973,6 +18973,13 @@ forces a level; `OCCUPANT=npc --night` for the plate lamp. Probe: `tools/car_det
 `tests/car_detail_checks.gd`. `CAR_DETAIL=0` is the A/B (no detail mesh, clean paint, plain wheels,
 clear windscreen, the old wheel meshes).
 
+**Frame cost** (opengl3, `GEO=1` on car_shot.gd, one sedan): `plate` view 31 -> 32 draws, 151k ->
+166k triangles; `side` 40 -> 41 draws, 184k -> 202k (the four near wheels' lettering, shadows
+included, and the plates); `far` (44 m) 13 draws / 19,836 triangles both ways. The downtown street
+bookmark (`--spawn=2359.4,880,0,12,2 --hour=12`, still_shot.gd SPLIT=1): 7,008,641 tris / 3,790
+draws off, 7,006,538 / 3,784 on - flat within the run-to-run traffic noise (few cars within 30 m).
+Build: ~0.1 ms a car at spawn (uniforms), ~1 ms when it first comes near, 3 a frame at most.
+
 **Not done / not verified**: exotics, Meshy sports, big vehicles, lowriders' plates (only the
 `MAKES` types get plates; every car gets grime); the windscreen dust is one level per body type
 (the glass material is shared per type); the grime's colours were judged on opengl3 and one
