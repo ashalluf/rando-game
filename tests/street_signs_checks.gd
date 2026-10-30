@@ -17,6 +17,12 @@ func run(t: Node, city: Node3D) -> void:
 	_t = t
 	var plan: CityPlan = city.plan
 	StreetSigns.keep_xforms = true
+	# A single-process run reaches here after checks that knock down street props (crashes, blasts):
+	# WorldState keeps them gone, and a rebuilt chunk leaves a felled stop sign out. Count on a clean
+	# registry, then put it back.
+	var ws: Node = t.get_node("/root/WorldState")
+	var destroyed_before: Dictionary = (ws.get("_destroyed") as Dictionary).duplicate(true)
+	(ws.get("_destroyed") as Dictionary).clear()
 	_font()
 	_kit()
 	var stop := _find(plan, CityPlan.Intersection.STOP_SIGNS)
@@ -28,6 +34,7 @@ func run(t: Node, city: Node3D) -> void:
 		_signal_chunk(city, plan, sig)
 	_school(city, plan)
 	StreetSigns.keep_xforms = false
+	ws.set("_destroyed", destroyed_before)
 
 
 func _font() -> void:
