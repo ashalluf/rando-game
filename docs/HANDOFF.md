@@ -15583,7 +15583,9 @@ single; 20 dolls (6 jointed) 0.93 vs 0.60; all settled (20, all asleep) 0.031 vs
 hold to 1-18 mm while tumbling (the city check's worst 44 mm). Building a jointed doll: ~10 ms
 more than the single body (56 ms for four in the probe, rig instancing included). Draws and
 triangles are unchanged by construction (the same rig mesh; the parts carry only collision
-shapes), so a still_shot GEO at a bookmark does not move.
+shapes): `still_shot.gd` at the default spawn with `FX_SHOOT=3` (a walker shot 9 m ahead, 2.5 s
+before the frame), GEO 6,887,678 triangles / 3,489 draws with the joints, 6,888,826 / 3,496 with
+`RAGDOLLS=0` (the walker is flung out of frame in both: the knock's speed is unchanged).
 
 **Look.** `tools/ragdolls/ragdoll_shot.tscn` (`SCENE=car|kerb|blast`, `FRAMES`, `CAM`, `LOOK`,
 `RAGDOLLS=0` the before): stills on `shots/ragdolls` - hit into a parked car, the doll now folds
