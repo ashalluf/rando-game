@@ -974,7 +974,7 @@ void fragment() {
 			vec2 wpp;
 			oc_wind_frame(wind_dir, wv, wpp);
 			float tear = oc_vnoise(vec2(dot(w, wv) / 7.0 - TIME * 0.25, dot(w, wpp) / 1.1));
-			foam = max(foam, old * smoothstep(0.45, 0.78, tear) * 0.55 * near_c);
+			foam = max(foam, old * smoothstep(0.52, 0.82, tear) * 0.4 * near_c);
 			// The piles: churned foam round every pile, sloshing with the swell.
 			if (pile_count > 0 && dist < 320.0) {
 				float pd = oc_pile_dist(w);
