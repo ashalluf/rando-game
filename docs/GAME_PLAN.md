@@ -348,6 +348,15 @@ already mapped so milestone 2 is script-only.
   under FULL chunks) rather than lod_boxes, because tanks and columns are round and the night
   aerial needs its lamps, flames and steam; the lamps are billboard points (a few thousand cost one
   draw a piece), the night glow on the steel a shader term, not lights.
+- **2026-10-29 The crowd's heads (HANDOFF "The crowd's heads").** People near the camera turn
+  their heads, and past 50 degrees a little of the chest, toward what happens round them: blasts,
+  crashes and shot cars, the player boosting past or landing hard, sirens, burning cars,
+  performers (`crowd_look_magnet`), and glance at cars, the player and passers-by with a
+  look-away. Decisions: a SkeletonModifier3D on the rig (posed after every clip and overlay, never
+  accumulating) with the thinking in the physics tick; ONE shared survey a physics frame plus
+  events other systems post, never a per-person world query; loud things are heard from behind,
+  quiet ones need sight; critically damped springs with a top speed, so a startle is fast but
+  never a snap; only within look_range of the player and the camera. `CROWD_LOOK=0` is the A/B.
 - **2026-10-05 Apartments: the first per-style kit (G2; HANDOFF "Apartment buildings").** Midtown's
   low-rise lots and the inner suburbs get LA stucco apartments - walk-ups with galleries and open
   stairs, bungalow courts, Spanish courts, podium blocks - instead of storefront boxes and single

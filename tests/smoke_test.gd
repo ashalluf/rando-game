@@ -2378,6 +2378,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/refinery_checks.gd").new().run(self, city)
 	# Backyard life (tests/backyards_checks.gd): the kit, the pure yard plan, a batch per kind, nothing else moved.
 	load("res://tests/backyards_checks.gd").new().run(self, city)
+	# The crowd's head look (tests/crowd_look_checks.gd): the modifier, heard and seen events, caps,
+	# easing, hold-off, and easing back out of range.
+	await load("res://tests/crowd_look_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

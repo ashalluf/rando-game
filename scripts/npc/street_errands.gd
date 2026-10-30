@@ -1033,7 +1033,7 @@ static func _done(p: Pedestrian) -> void:
 		p._carry = CrowdLife.Carry.NONE
 	if not p.errand.is_empty() and p.errand.has("car"):
 		var car: Variant = p.errand.car
-		if car is Vehicle and is_instance_valid(car) and (car as Node).get_node_or_null("ErrandCar") == null:
+		if is_instance_valid(car) and car is Vehicle and (car as Node).get_node_or_null("ErrandCar") == null:
 			(car as Vehicle).remove_meta("errand")
 	p.errand = {}
 	p._life_clip = ""
