@@ -35,7 +35,7 @@ const FINISH_2 := {
 		"flake": 0.09, "flake_scale": 150.0, "flake_fade": 13.0, "pearl": 0.0},
 	6: {"peel": 0.6, "sparkle": 0.75, "wrap": 0.0, "candy": 0.0,             # TRICOAT
 		"metallic": 0.22, "roughness": 0.26, "clearcoat": 1.0, "cc_rough": 0.014,
-		"flake": 0.06, "flake_scale": 320.0, "flake_fade": 11.0, "pearl": 0.6},
+		"flake": 0.06, "flake_scale": 320.0, "flake_fade": 11.0, "pearl": 0.5},
 	7: {"peel": 0.0, "sparkle": 0.0, "wrap": 1.0, "candy": 0.0,              # SATIN
 		"metallic": 0.05, "roughness": 0.5, "clearcoat": 0.0, "cc_rough": 0.36,
 		"flake": 0.0, "flake_scale": 190.0, "flake_fade": 9.0, "pearl": 0.0},
@@ -160,7 +160,7 @@ static func apply(car: Vehicle, mat: ShaderMaterial) -> void:
 		mat.set_shader_parameter("flake_fade_distance", f.flake_fade)
 		mat.set_shader_parameter("pearl_amount", f.pearl)
 		if float(f.pearl) > 0.0:
-			mat.set_shader_parameter("pearl_power", 2.0)
+			mat.set_shader_parameter("pearl_power", 3.2)
 			mat.set_shader_parameter("pearl_color", car.paint_flip if car.paint_flip.a > 0.0 else Vehicle._pearl_tint(car.paint))
 	if float(f.candy) > 0.0:
 		mat.set_shader_parameter("candy_amount", f.candy)
