@@ -14,3 +14,13 @@ What to look at: 18:00-18:06 cumulus bases lit hot gold-orange from below toward
 violet-dark crowns, red crowns away from it; the deck going dark from the bottom up after; pink
 cirrus afterglow at 18:12-18:15; the blue hour after 18:30. 19:00-19:30 is night in this game's
 sun path (the sun is 15-22 degrees under), unchanged.
+
+## Second pass (the lead's review, 2026-10-30)
+
+`review_*`: three columns BEFORE (main) / FIRST PASS / SECOND PASS, toward the sun (top) and away
+(bottom), at 17:45, 18:15 and 18:30 on Forward+ (`review_forward_*`) and Compatibility
+(`review_compat_*`); `review_city_beach.jpg` the city from the beach, `SUNSET_CLOUDS=0` vs on.
+The second pass: an art-directed palette (deep orange at 17:45, never lemon; salmon at the
+sunset; pink, then magenta as the sun sinks), the earth's shadow on an exaggerated radius so the
+bases keep glowing to ~18:40, the sun kept as the volume's key light under the horizon (it used to
+hand over to the moon, which is why the bases went grey), a stronger gold lining.
