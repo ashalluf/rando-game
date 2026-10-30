@@ -15656,7 +15656,10 @@ frontage's low shop blocks replace a tower and the dealer's lot); the palace cor
 view); the south walk `740,1.7,-2299,-95,-4` 3.51 M -> 3.45 M; above the boulevard
 `805,24,-2314,90,-18` 3.57 M -> 3.52 M, 2,431 -> 2,259. Night within 3 % of noon. Wave-3 stills:
 23-34 on `shots/star-boulevard` (README there). Gate after merging main eb75a10: `SHARDS=3`
-2,554 checks passed, 0 failed (shards peak 2.3-2.5 GB).
+2,554 checks passed, 0 failed (shards peak 2.3-2.5 GB). After merging main 001fd22: 2,699 checks,
+one failure outside the walk (car_damage_checks "the wreck comes down and rests on the deck", 2.72 m
+over it - the check's own note records a 2.79 m catch before); that part re-run alone passed (0.99 m)
+with the walk's checks (69 checks, 0 failed). Shards peak 2.37-2.54 GB.
 
 **Tools.** `tools/star_boulevard/probe.tscn` (headless: the walk, its blocks, the palace, the
 characters, EYEs), `tools/star_boulevard/star_shot.gd` (a few metres of the band or the forecourt
