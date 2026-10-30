@@ -21190,7 +21190,8 @@ The beach view still has the pier's flat-coloured primitive stall tables in the 
 wave 2 and in a native opengl3 still: a landmark's look, not the web. These runs were on main
 `3192f643`; main then moved 49 commits (contact shadows, the GI review, the beach's golden hour,
 ...), merged here before the gate: their shaders pass the ES 3.00 scan and the sampler budget, and
-ContactShadows is built for both renderers, but that merge was not loaded in a browser.
+ContactShadows is built for both renderers. The merged build (pck 600.5 MB) loaded at downtown
+noon: clean console, wasm heap 727 MB, JS heap 0.73 GB, 18.3 s a frame (still 10).
 
 **The console.** At every bookmark the same lines as in wave 2 and nothing else: the template's
 `Occlusion culling is disabled at build-time`, Chrome's AudioContext autoplay notice until the
@@ -21214,7 +21215,7 @@ missed (first launch in a fresh profile). A frame under SwiftShader is ~20 s dow
 was ~35 s in wave 2 on the same harness; not comparable across boxes), so frame cost cannot be
 read here.
 
-**Size.** `index.pck` 599.6 MB, `index.wasm` 39.5 MB, `index.js` 0.28 MB, the rest 0.04 MB:
+**Size.** `index.pck` 599.6 MB (600.5 MB after merging main), `index.wasm` 39.5 MB, `index.js` 0.28 MB, the rest 0.04 MB:
 **639.5 MB**, 360 MB under Pages' 1 GB (web-build-2 left it at 550 MB of pck; wave 3's 70
 features added ~50 MB). S3TC textures are 491 MB of it (588 of them; the biggest are the 4K
 sign atlas 8 MB, the hero's 2K maps, road wear, climbers, the billboard atlas). No exclusion was
@@ -21259,6 +21260,18 @@ preset and the exclude filter.
 textureGather, fma, dFdxFine, textureQueryLod, ...) outside comments - WebGL2 is GLSL ES 3.00 and
 Godot passes built-ins through, so one compiles on the Mac and in every opengl3 still and draws a
 blank material in the browser - and the scan proven on a planted call. Gate on the merge with main: `SHARDS=3 tests/headless_check.sh` SMOKE TEST PASSED, 4,188 checks, 0 failed, 1,087 s, peak RSS 2,969 MB.
+
+**An open question: the hero turns blue in the rain on the web.** At the rain bookmark his
+black velour top and his hair read saturated royal blue (still 04); the trousers stay black. The
+wet branches only darken and lower the roughness (`hero_cloth` velour 0.45, `hero_hair` 0.2), so
+the blue is the sky's radiance in a glossier surface - and at 13:00 rain is only ~0.75 cloud
+coverage (`cloud_coverage` 0.42 + the hour's swing + `_cloud(RAIN)` 0.42), whose painted deck
+leaves blue holes overhead. The hero alone in native opengl3 with `road_wetness` 1 (still 09) goes
+darker and glossier, not blue, and a native opengl3 city still of the same rain view
+(`still_shot.gd --hour=13 --weather=rain`, on the merged main; a different pose, the player
+mid-air with his back up) shows him black. Not resolved here: for wet-world / the sky (a stratus
+ceiling in `painted_cumulus()` from ~0.7 coverage, as the volume's `strat`, would close the holes
+the web and Forward+ below MEDIUM see in rain).
 
 **Not done / not verified.** Real frame rate in a browser on a GPU (SwiftShader cannot say); the
 ReadPixels read-backs could move to the loading screen; the 600 MB download is still the biggest
