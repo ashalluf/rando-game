@@ -56,7 +56,7 @@ static func _pebble_level(v: int, rings: int, segs: int) -> Array:
 			var ph := TAU * float(s) / segs
 			var d := Vector3(sin(th) * cos(ph), cos(th), sin(th) * sin(ph))
 			# A worn, uneven stone: a low-order wobble, the same at every LOD.
-			var wob := 1.0 + 0.08 * sin(ph * 2.0 + v * 1.3) * sin(th * 2.0) + 0.05 * cos(ph * 3.0 + v) * sin(th)
+			var wob := 1.0 + 0.13 * sin(ph * 2.0 + v * 1.3) * sin(th * 2.0) + 0.08 * cos(ph * 3.0 + v * 2.1) * sin(th) + 0.05 * sin(ph * 5.0 + th * 3.0 + v)
 			var p := Vector3(d.x * lumps.x, d.y * lumps.y, d.z * lumps.z) * 0.5 * wob
 			p.y += 0.5 * lumps.y
 			verts.append(p)
@@ -85,8 +85,11 @@ static var _stone_mat: StandardMaterial3D = null
 ## The cobbles' material: the rock texture world-projected, tinted per instance.
 static func stone_material() -> StandardMaterial3D:
 	if _stone_mat == null:
-		var m: StandardMaterial3D = PropFactory.pbr("rock", 0.7, Color.WHITE, 1.0, true).duplicate()
-		m.roughness = 0.8
+		# The rock scan at a quarter metre a tile (grain and pits at a cobble's size), darkened to
+		# a wet-worn granite's value; the instance tint varies it stone to stone.
+		var m: StandardMaterial3D = PropFactory.pbr("rock", 0.25, Color(0.5, 0.48, 0.45), 1.0, true).duplicate()
+		m.roughness = 0.88
+		m.metallic_specular = 0.35
 		_stone_mat = m
 	return _stone_mat
 
@@ -94,12 +97,12 @@ static func stone_material() -> StandardMaterial3D:
 ## A cobble's tint from a hash: granite greys, tan, now and then rose or a dark stone.
 static func stone_tint(t: float) -> Color:
 	if t < 0.5:
-		return Color(1.0, 0.98, 0.95).lerp(Color(0.82, 0.8, 0.78), t * 2.0)
+		return Color(1.0, 0.98, 0.95).lerp(Color(0.72, 0.7, 0.68), t * 2.0)
 	if t < 0.8:
-		return Color(1.05, 0.95, 0.8)
+		return Color(1.0, 0.9, 0.74)
 	if t < 0.92:
-		return Color(1.05, 0.85, 0.78)
-	return Color(0.5, 0.5, 0.48)
+		return Color(1.02, 0.8, 0.72)
+	return Color(0.45, 0.45, 0.43)
 
 
 ## The headwall's width for `pipes` pipes of radius `r`.

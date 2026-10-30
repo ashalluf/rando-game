@@ -57,6 +57,8 @@ var _segs_done: bool = false
 const CELL := 16.0
 ## Prints why each carved run did or did not get a culvert (tools/arroyos/culvert_probe).
 static var debug: bool = false
+## ARROYO_TRACE=1 prints every step as it starts and ends (stderr).
+static var trace: bool = OS.get_environment("ARROYO_TRACE") == "1"
 
 
 static func _make(ch: CityChunk) -> ArroyoBuild:
@@ -91,7 +93,11 @@ static func build_steps(ch: CityChunk) -> Array[Callable]:
 func _timed(step: Callable) -> Callable:
 	return func() -> Variant:
 		var t0 := Time.get_ticks_usec()
+		if trace:
+			printerr("ARROYO step %s chunk (%d, %d) level %d" % [step.get_method(), ch.ix, ch.iz, ch.level])
 		var done: Variant = step.call()
+		if trace:
+			printerr("ARROYO done %s %s" % [step.get_method(), done])
 		var dt := Time.get_ticks_usec() - t0
 		ch.set_meta("arroyo_usec", int(ch.get_meta("arroyo_usec", 0)) + dt)
 		ch.set_meta("arroyo_max_usec", maxi(int(ch.get_meta("arroyo_max_usec", 0)), dt))
@@ -283,7 +289,8 @@ func _find_culverts(li: int, pts: Array, area: Rect2) -> void:
 			if across.dot(up) < 0.0:
 				across = -across
 			ia = road.at + across * (float(road.width) * 0.5 + 1.6)
-			ha = top - 1.0 - 2.0 * (0.45 if maxf(pts[start][2], pts[end][2]) < 3.5 else 0.6)
+			# Its pipe's invert a little under the ditch, the headwall standing out of it.
+			ha = ch.plan.height_at(ia) - 0.35
 		culverts.append({"inlet": ia, "outlet": ib, "ha": ha, "hb": hb, "width": maxf(pts[start][2], pts[end][2]), "line": li, "pi": int(pts[start][0]), "road": road})
 
 

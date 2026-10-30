@@ -121,8 +121,10 @@ void fragment() {
 	float inside = clamp(-e / half_w, 0.0, 1.0);
 
 	// Sand, re-toned to ours.
-	vec3 sand = cs_in(texture(sand_albedo, w / sand_scale).rgb);
-	sand = sand / max(sand_mean_luma, 0.01) * sand_color;
+	// Re-toned by luma: Ground054 is an orange beach sand, a wash's is grey granite grit.
+	vec3 sand_t = cs_in(texture(sand_albedo, w / sand_scale).rgb);
+	vec3 sand = sand_color * (luma(sand_t) / max(sand_mean_luma, 0.01));
+	sand = mix(sand, sand * (sand_t / max(luma(sand_t), 0.01)), 0.15);
 	// The low-flow thread: a narrower meander down the middle, finer and a little darker.
 	float wander = (fbm(vec2(q.x * 0.04, COLOR.b * 37.0)) - 0.5) * half_w * 1.1;
 	float thread = 1.0 - smoothstep(0.25, 0.9, abs(UV2.x - wander) / max(half_w * 0.45, 0.6));
@@ -137,8 +139,9 @@ void fragment() {
 	// flow, thinning where the thread runs.
 	float bars = fbm(vec2(q.x * 0.12, q.y * 0.45) + COLOR.b * 13.0);
 	float gravel = smoothstep(0.42, 0.62, bars + (1.0 - inside) * 0.35 - thread * 0.4);
-	vec3 grv = cs_in(texture(gravel_albedo, w / gravel_scale).rgb);
-	grv = grv / max(gravel_mean_luma, 0.01) * sand_color * vec3(0.95, 0.96, 1.0);
+	vec3 grv_t = cs_in(texture(gravel_albedo, w / gravel_scale).rgb);
+	vec3 grv = sand_color * vec3(0.95, 0.96, 1.0) * (luma(grv_t) / max(gravel_mean_luma, 0.01));
+	grv = mix(grv, grv * (grv_t / max(luma(grv_t), 0.01)), 0.3);
 	col = mix(col, grv, gravel);
 
 	// Cobbles: two sizes, on the bars and along the thread's banks; faded to their mean under a
