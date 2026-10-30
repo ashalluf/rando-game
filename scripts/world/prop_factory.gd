@@ -2107,6 +2107,7 @@ static func building_lod_material(far_city: bool = false) -> ShaderMaterial:
 	mat.set_shader_parameter("print_small_plant", far_city)
 	mat.set_shader_parameter("facade_variety", FacadeVariety.enabled)
 	mat.set_shader_parameter("mid_city", MidCity.enabled)
+	mat.set_shader_parameter("house_nights", HouseNights.enabled)
 	_cache[key] = mat
 	return mat
 

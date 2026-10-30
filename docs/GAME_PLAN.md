@@ -3723,3 +3723,9 @@ none of either.
   triangles; balconies get a hand-made LOD and shadow twins; static mesh caches that grow with the
   places visited drop what only they hold (CacheTrim) instead of clearing at a size. Plain runs of
   an aerial bookmark differ by millions of triangles, so frame costs there are DIFF=1 pairs only.
+- **2026-10-30 A house's night is one integer (house-nights, HANDOFF "Houses at night").** Every
+  house's night - dark or lived in, lamp tone, rooms lit, TV, porch, carriage lamps, number,
+  landscape lights - is a hash of its key (seed mod 997), which the near glass carries in UV2 and
+  the far box already carried in INSTANCE_CUSTOM.b, so the street and the hills agree. Fixtures are
+  geometry, their light additive quads in four batches a chunk; real lights only on the nearest
+  porches on Forward+ desktop.

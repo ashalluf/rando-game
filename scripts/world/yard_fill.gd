@@ -697,7 +697,7 @@ static func _beach_lot(plan: CityPlan, grid: Dictionary, e: Dictionary, walk: Re
 	var back_cut: Array[Rect2] = holes.duplicate()
 	if pool.size.x > 0.0:
 		back_cut.append(pool)
-		pieces.append([pool, G_POOL, 0.0, "pool"])
+		pieces.append([pool, G_POOL, HouseNights.pool_variant(pool), "pool"])
 		# A suburban pool sits in the lawn on a concrete deck of its own.
 		if odds.get("pool_apron", false) and back_kind == G_LAWN:
 			var apron := pool.grow(1.2).intersection(bzone)
@@ -970,6 +970,7 @@ static func _dress_beach_lot(ch: CityChunk, lp: Dictionary, grid: Dictionary, co
 						_flower(ch, p, rng)
 			"pool":
 				_coping(ch, r)
+				HouseNights.pool_glow(ch, r)
 				SwimWater.add_rect(ch, r, CityChunk.SIDEWALK_TOP + LIFT - 0.05 + ch._gy(r.get_center().x, r.get_center().y), CityChunk.SIDEWALK_TOP + LIFT - 0.05 + ch._gy(r.get_center().x, r.get_center().y) - SwimWater.POOL_DEPTH, SwimWater.Kind.POOL)
 	if drive.size.x > 0.0 and _h01([plan.seed, key, "drive_car"]) < DRIVE_CAR_ODDS and ch._yard_cars < MAX_CARS:
 		var dq := _to_frame(f, drive)

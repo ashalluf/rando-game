@@ -38,6 +38,9 @@ uniform float tile_size = 0.31;
 
 global uniform float road_wetness;
 global uniform float ground_detail;
+// A pool's light after dark (HouseNights: its variant 0.75 on, 0.25 off, 0 the old pool).
+global uniform float lamp_factor;
+uniform float pool_light = 0.9;
 
 varying vec3 local_pos;
 varying vec3 local_normal;
@@ -117,6 +120,7 @@ void fragment() {
 	vec3 nm = vec3(0.5, 0.5, 1.0);
 	float nm_depth = 0.0;
 	float wet_k = 1.0;
+	vec3 pool_em = vec3(0.0);
 	float mottle = 0.9 + 0.2 * vnoise(p * 0.13 + variant * 7.0) + 0.06 * (vnoise(p * 1.1) - 0.5);
 	if (kind < 0.5) {
 		// A lawn: watered green to summer-dry by the variant, in patches.
@@ -195,6 +199,12 @@ void fragment() {
 		albedo = vec3(0.14, 0.50, 0.60) * (0.9 + 0.35 * c);
 		rough = 0.22;
 		wet_k = 0.0;
+		if (variant > 0.5) {
+			// The pool light: the water lit turquoise from below, brightest round the lamp in
+			// the deep end's wall, the caustics lit through it.
+			float lampd = 0.5 + 0.5 * vnoise(p * 0.35 + 3.0);
+			pool_em = vec3(0.06, 0.62, 0.72) * pool_light * (0.55 + 0.45 * lampd + 0.6 * c) * lamp_factor;
+		}
 	} else {
 		// A gravel yard (a service yard, a maintenance yard under the freeway).
 		float stones = vnoise(p * 14.0) * 0.5 + vnoise(p * 31.0) * 0.5;
@@ -207,6 +217,7 @@ void fragment() {
 	albedo *= 1.0 - 0.35 * wet;
 	rough = mix(rough, 0.14, wet * 0.85);
 	ALBEDO = to_lit(albedo);
+	EMISSION = to_lit(pool_em);
 	ROUGHNESS = rough;
 	// The detail normal as a slope on the ground plane (these meshes have no tangents). Tops only.
 	if (local_normal.y > 0.9 && nm_depth > 0.0) {

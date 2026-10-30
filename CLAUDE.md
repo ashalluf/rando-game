@@ -3910,6 +3910,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   classes by path (naming them compiles the crowd into every tool that loads YardFill).
   `BACKYARDS=0` is the A/B; probe `tools/backyards/probe.gd`, fit `tools/backyards/lounger_shot.tscn`;
   checks `tests/backyards_checks.gd`.
+- Houses at night (2026-10-30, docs/HANDOFF.md "Houses at night"): `HouseNights`
+  (`scripts/world/house_nights.gd`) works each house's night from ONE integer, its key (seed mod
+  997: the near glass carries it in UV2.x - 1 from `HouseBuild._tri()`, the far box in
+  `MidCity.house_custom()`'s .b) through `shaders/house_nights.gdshaderinc` (the same hashes, bit
+  for bit; checked): dark houses, a lamp tone, the rooms lit and a bedtime off `city_hour`, a TV.
+  `house_glass.gdshader` traces lit rooms behind sheers / blinds (panes without UV2 keep the old
+  look), `building_lod.gdshader` lights the far house wings and pools from the same rolls.
+  `dress()` (one line in `HouseKit.build()`, after LaTrees) puts porch lanterns, carriage lamps, a
+  lit number and on `NICE` houses path lights and facade / cypress uplights into the chunk's
+  "h_lamp" house mesh (`house_lamp.gdshader`) and their light into four shadowless `hn_*` batches
+  (`house_glow.gdshader`, additive in display numbers); pools by `pool_variant()` (lot_yard) and
+  `pool_glow()`. `HouseNightLights` puts `budget` (4 / 2 / 0 / 0) OmniLights on the nearest lit
+  porches, Forward+ desktop only. `HOUSE_NIGHTS=0` is the A/B; checks `tests/house_nights_checks.gd`.
 - Yard sales (2026-10-30, docs/HANDOFF.md "Weekend yard sales"): `YardSales`
   (`scripts/world/yard_sales.gd`, one line after each `Backyards.block()` in YardFill) - a hash of
   seed + lot holds a sale on Saturday / Sunday (`sale_info()`, `state_at()`: SETUP / OPEN /
