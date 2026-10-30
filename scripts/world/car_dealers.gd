@@ -114,6 +114,11 @@ static func site(plan: CityPlan, bx: int, bz: int) -> Dictionary:
 	var key := Vector3i(plan.seed, bx, bz)
 	if _cache.has(key):
 		return _cache[key]
+	# The walk of fame's boulevard is a souvenir strip, never an auto row (StarBoulevard; asked
+	# before this block's site is cached, since the walk's own plan asks this one).
+	var walk_road := -99999
+	if plan.macro != null and StarBoulevard.block_side(plan, bx, bz) != 0:
+		walk_road = int(StarBoulevard.plan_for(plan).road)
 	var out := {}
 	_cache[key] = out
 	if not enabled or plan.macro == null:
@@ -136,6 +141,8 @@ static func site(plan: CityPlan, bx: int, bz: int) -> Dictionary:
 	for side in 4:
 		var road: Array = [[CityPlan.AXIS_Z, bz], [CityPlan.AXIS_Z, bz + 1], [CityPlan.AXIS_X, bx], [CityPlan.AXIS_X, bx + 1]][side]
 		var along := bx if int(road[0]) == CityPlan.AXIS_Z else bz
+		if int(road[0]) == CityPlan.AXIS_Z and int(road[1]) == walk_road:
+			continue
 		if not is_row(plan, int(road[0]), int(road[1]), along):
 			continue
 		if _h01([plan.seed, bx, bz, side, "dealer"]) >= BLOCK_ODDS:

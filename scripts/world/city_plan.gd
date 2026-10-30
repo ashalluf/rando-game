@@ -674,6 +674,10 @@ func _lot_grid(ix: int, iz: int, dropped: Variant) -> Array[Dictionary]:
 	# A replica block's lots are the replica's own (its frontage houses and their seeded
 	# backfill), so every tier that asks - LOD chunks, the far skyline, the air traffic's
 	# obstacle map - sees the same houses the detailed chunk builds (ReplicaAreas.block_lots()).
+	# A landmark area's block (the power plant's south block meets the replica's corridor) is the
+	# landmark's ground whoever else reaches it.
+	if macro and block(ix, iz).has("site"):
+		return []
 	if macro and macro.replica:
 		var replica_lots: Variant = macro.replica.block_lots(self, ix, iz)
 		if replica_lots != null:
@@ -761,6 +765,9 @@ func _lot_grid(ix: int, iz: int, dropped: Variant) -> Array[Dictionary]:
 				continue
 			# The substation and the power line's right of way (Ridges), after every roll.
 			if ridges != null and ridges.claims_lot(self, ix, iz, lot_rect, cell_rect):
+				continue
+			# The power plant's line: its right of way and receiving station (PowerPlant), after every roll.
+			if PowerPlant.enabled and macro and PowerPlant.claims_lot(self, ix, iz, lot_rect):
 				continue
 			var parking := false
 			if surface_odds > 0.0 and not yard and lot_size.x >= 16.0 and lot_size.y >= 14.0 \
