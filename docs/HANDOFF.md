@@ -14959,3 +14959,6 @@ downtown at dusk; the room close-ups). City frame at the glide bookmark
 against 4.54 M / 2,295 falling without the suit - the suit's two small dynamic meshes are lost in
 the frame-to-frame noise. Not done: the hands keep the clip's relaxed curl in the glide (a real
 pilot's are flat or on a grip toggle); the vapour and the fabric were never seen on Forward+.
+Second merge (main eb75a10, swimming): the suit and swimming's `dive` share pad X (dive acts only
+in the water, the suit only in the air), and gliding into water folds the suit (`Player`, one line
+after `swim.step()`); no check covers that hand-over yet (the test room has no water).
