@@ -18647,6 +18647,10 @@ on `shots/fwd-review-d`.
   shaders in the hydrant's wet patch, the swimmer's water underside, Chinatown's glass, the light
   rail's windows and interior; the river's sky mirror written raw into EMISSION. The power plant's
   glass band measured within 0.2 levels before / after at its bookmark (small at that angle).
+- **The corner store's red sign turned peach at night** (still 19): its lit face plus its own lit
+  albedo went through AgX at up to 1.3 and came out (247, 188, 132) against (232, 46, 19) at noon.
+  `sign_cap` 0.7, the green floor 0.1 of red, the face's albedo 0.3: now (243, 125, 64), red-orange
+  like a real lightbox.
 - `billboard_steel.gdshader` ran `cs_in()` (for textures) on its vertex colour, which is raw on
   both: on the Mac the steel was drawn from sRGB numbers as linear (paler).
 
@@ -18656,8 +18660,10 @@ the footbridges day and night, the news vans, the lighthouse at night (lantern, 
 house's windows), the power plant by day and night (stack lights stay red), the refinery by day
 (cooling-tower plume, process units). Lowriders' candy paint had its own Forward+ pass (9ft).
 
-**Not on main, so not reviewed:** oil islands, the blimp, buskers, beach amenities, wildlife
-(second / third launch branches not merged when this ran).
+**Merged while this ran, read but not rendered:** oil islands, beach amenities, bonfires, buskers,
+fireworks, sea life, rock outcrops, the metro, the film shoot, sky ads, skate park, stunt ramps,
+yard sales. Their shaders pass the scan (they already decode `sky_tint`, no back-face flips); none
+was seen on Forward+. The blimp's LED panel and wildlife were not on main.
 
 **Noted, not fixed:** in `fwd_block_shot.tscn` at night the sky BELOW the horizon (seen past the
 built blocks, where the game has its horizon plane) is a maroon band on Forward+ (the city light
