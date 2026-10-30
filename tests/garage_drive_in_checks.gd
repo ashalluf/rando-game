@@ -39,6 +39,16 @@ func _check(ok: bool, label: String) -> void:
 	_t._check(ok, label)
 
 
+var _once: Dictionary = {}
+
+
+func _check_once(ok: bool, label: String) -> void:
+	if _once.has(label) and ok:
+		return
+	_once[label] = true
+	_check(ok, label)
+
+
 func _ticks(n: int) -> void:
 	for i in n:
 		await _tree.physics_frame
@@ -164,6 +174,17 @@ func _chunk(s: Dictionary) -> void:
 			cars += (c as MultiMeshInstance3D).multimesh.instance_count
 	var stalls := int(lay.stalls) * 2 * int(lay.modules) * (int(lay.decks) + 1)
 	_check(cars > stalls / 4 and cars < stalls, "cars are parked on the decks (%d of %d stalls)" % [cars, stalls])
+	var real := 0
+	var real_tris := 0
+	for c in node.get_children():
+		if c is MultiMeshInstance3D and String(c.name).begins_with("RealCars"):
+			var mm := (c as MultiMeshInstance3D).multimesh
+			real += mm.instance_count
+			_check_once(mm.use_custom_data and (c as MultiMeshInstance3D).visibility_range_end > 0.0, "the real parked cars carry their paint per instance and stop at their range")
+			for si in mm.mesh.get_surface_count():
+				real_tris = maxi(real_tris, mm.mesh.surface_get_array_len(si) / 3)
+	_check(real == cars, "up close every parked car is a real road body (%d of %d)" % [real, cars])
+	_check(real_tris > 300, "the real bodies are the road cars' far twins, not boxes (%d triangles in a surface)" % real_tris)
 	_check(float(node.get_meta("build_us", 0)) < 250000.0, "it builds in one chunk step (%.1f ms)" % (float(node.get_meta("build_us", 0)) / 1000.0))
 	# Collision: down through every deck at an aisle and at the ramp's middle.
 	await _ticks(2)

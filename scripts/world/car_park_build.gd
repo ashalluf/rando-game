@@ -37,6 +37,13 @@ const RAMP_STEP := 1.0
 const CAR_BOX := Vector3(4.5, 1.35, 1.84)
 ## Cars and the lettering stop drawing past these (m).
 const CAR_DRAW := 260.0
+## Up close the stalls hold the real road bodies (body types and their shares; all fit a 5.2 m
+## stall nose-in), in cells of CELL_STALLS stalls, drawn to NEAR_DRAW of a cell's centre.
+const REAL_TYPES := [Vehicle.BodyType.SEDAN, Vehicle.BodyType.CROSSOVER, Vehicle.BodyType.HATCHBACK,
+	Vehicle.BodyType.SUV, Vehicle.BodyType.MINIVAN, Vehicle.BodyType.BEATER]
+const REAL_ODDS := [0.30, 0.30, 0.14, 0.12, 0.09, 0.05]
+const CELL_STALLS := 6
+const NEAR_DRAW := 48.0
 const TEXT_DRAW := 110.0
 
 static var _mats: Dictionary = {}
@@ -528,17 +535,20 @@ static func _ground(g: Geo, ch: CityChunk, s: Dictionary, xf: Transform3D) -> vo
 
 # --- Cars, gates, pools, letters ------------------------------------------------------------------
 
-## The parked cars: stalls taken by a hash of the car park, the level and the stall.
+## The parked cars: stalls taken by a hash of the car park, the level and the stall. Up close they
+## are the real bodies (`real_body()`: the road cars' far twins, ~8k triangles, in their paint),
+## grouped in cells of `CELL_STALLS` stalls so a cell's LOD and range are its own (a MultiMesh takes
+## one LOD for all its instances from its bounds); past `NEAR_DRAW` of a cell, ArenaGrounds' static
+## cars stand in. CAR_PARK_REAL_CARS=0 keeps the static cars everywhere (the A/B).
 static func _cars(node: Node3D, g: Geo, s: Dictionary) -> void:
 	var lay: Dictionary = s.layout
 	var decks := int(lay.decks)
 	var st0: float = lay.st0
 	var n := int(lay.stalls)
 	var seed_v := int(s.seed)
-	var inside: Array = [[], [], [], []]
-	var roof: Array = [[], [], [], []]
-	var cols: Array = [[], [], [], []]
-	var rcols: Array = [[], [], [], []]
+	var real := OS.get_environment("CAR_PARK_REAL_CARS") != "0" and not real_body(REAL_TYPES[0]).is_empty()
+	# cell key -> {"top", "near": {type: [[xf, paint], ...]}, "far": {kind: [[xf, paint], ...]}}
+	var cells: Dictionary = {}
 	for k in decks + 1:
 		var y := CarPark.FLOOR * float(k)
 		var top := k == decks
@@ -563,29 +573,128 @@ static func _cars(node: Node3D, g: Geo, s: Dictionary) -> void:
 				yaw += (_h01([seed_v, k, bi, i, "cp_yaw"]) - 0.5) * 0.06
 				var xf := Transform3D(Basis(Vector3.UP, yaw), Vector3(u, y + 0.005, v))
 				var paint: Color = ArenaGrounds.CAR_PAINTS[absi(hash([seed_v, k, bi, i, "cp_paint"])) % ArenaGrounds.CAR_PAINTS.size()]
-				(roof[kind] if top else inside[kind]).append(xf)
-				(rcols[kind] if top else cols[kind]).append(paint)
+				var key := Vector3i(k, bi, i / CELL_STALLS)
+				if not cells.has(key):
+					cells[key] = {"top": top, "near": {}, "far": {}}
+				var cell: Dictionary = cells[key]
+				if not (cell.far as Dictionary).has(kind):
+					cell.far[kind] = []
+				cell.far[kind].append([xf, paint])
+				if real:
+					var t: int = REAL_TYPES[_pick_type(_h01([seed_v, k, bi, i, "cp_body"]))]
+					var rp: Color = Vehicle.PAINTS[absi(hash([seed_v, k, bi, i, "cp_rpaint"])) % Vehicle.PAINTS.size()]
+					if not (cell.near as Dictionary).has(t):
+						cell.near[t] = []
+					cell.near[t].append([xf, rp])
 				g.car_box(xf, CAR_BOX)
-	for kind in 4:
-		for pass_i in 2:
-			var xfs: Array = roof[kind] if pass_i == 1 else inside[kind]
-			if xfs.is_empty():
-				continue
-			var mm := MultiMesh.new()
-			mm.transform_format = MultiMesh.TRANSFORM_3D
-			mm.use_colors = true
-			mm.mesh = ArenaGrounds.car_mesh(kind)
-			mm.instance_count = xfs.size()
-			var pc: Array = rcols[kind] if pass_i == 1 else cols[kind]
-			for i in xfs.size():
-				mm.set_instance_transform(i, xfs[i])
-				mm.set_instance_color(i, pc[i])
-			var mmi := MultiMeshInstance3D.new()
-			mmi.name = "Cars%s%d" % ["Roof" if pass_i == 1 else "", kind]
-			mmi.multimesh = mm
-			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if pass_i == 1 else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for key: Vector3i in cells:
+		var cell: Dictionary = cells[key]
+		var top: bool = cell.top
+		var tag := "%d_%d_%d" % [key.x, key.y, key.z]
+		for kind: int in cell.far:
+			var mmi := _car_mmi(ArenaGrounds.car_mesh(kind), cell.far[kind], Vector3.ZERO, false)
+			mmi.name = "Cars%s%d_%s" % ["Roof" if top else "", kind, tag]
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if top else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mmi.visibility_range_begin = NEAR_DRAW if real else 0.0
 			mmi.visibility_range_end = CAR_DRAW
 			node.add_child(mmi)
+		for t: int in cell.near:
+			var body := real_body(t)
+			var mmi := _car_mmi(body.mesh, cell.near[t], body.offset, true)
+			mmi.name = "RealCars%s%d_%s" % ["Roof" if top else "", t, tag]
+			# Inside, the deck over a car is its shadow; the roof's cars cast.
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if top else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mmi.visibility_range_end = NEAR_DRAW
+			node.add_child(mmi)
+
+
+static func _car_mmi(mesh: Mesh, cars: Array, offset: Vector3, custom: bool) -> MultiMeshInstance3D:
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = not custom
+	mm.use_custom_data = custom
+	mm.mesh = mesh
+	mm.instance_count = cars.size()
+	for i in cars.size():
+		var c: Array = cars[i]
+		mm.set_instance_transform(i, (c[0] as Transform3D) * Transform3D(Basis(), offset))
+		if custom:
+			var p: Color = c[1]
+			mm.set_instance_custom_data(i, Color(p.r, p.g, p.b, 1.0))
+		else:
+			mm.set_instance_color(i, c[1])
+	var mmi := MultiMeshInstance3D.new()
+	mmi.multimesh = mm
+	return mmi
+
+
+static func _pick_type(r: float) -> int:
+	var acc := 0.0
+	for i in REAL_ODDS.size():
+		acc += float(REAL_ODDS[i])
+		if r < acc:
+			return i
+	return 0
+
+
+## {"mesh" (the body type's far twin: its paint surfaces on shaders/car_park_car.gdshader, the
+## folded parts on Vehicle's parts material), "offset" (the model's origin from a car standing on
+## y 0, nose -Z)}, or {} without the model. Built once a type.
+static func real_body(t: int) -> Dictionary:
+	var key := "real_%d" % t
+	if _mats.has(key):
+		return _mats[key]
+	var out := {}
+	_mats[key] = out
+	var path: String = Vehicle.BODY_MODELS.get(t, "")
+	if path == "" or not ResourceLoader.exists(path):
+		return out
+	var inst := (load(path) as PackedScene).instantiate()
+	var far: ArrayMesh = null
+	var near_box := AABB()
+	for mi in inst.find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		if String(m.name).ends_with("_far"):
+			far = m.mesh as ArrayMesh
+		elif m.mesh and near_box.size == Vector3.ZERO:
+			near_box = m.mesh.get_aabb()
+	inst.free()
+	if far == null or far.get_surface_count() == 0:
+		return out
+	var mesh := far.duplicate() as ArrayMesh
+	var box := far.get_aabb()
+	for si in mesh.get_surface_count():
+		var src := mesh.surface_get_material(si) as StandardMaterial3D
+		if src == null:
+			continue
+		if String(src.resource_name).begins_with("paint"):
+			mesh.surface_set_material(si, _real_paint(src, near_box if near_box.size != Vector3.ZERO else box))
+		else:
+			var pm := Vehicle._part_material(src)
+			if pm != null:
+				mesh.surface_set_material(si, pm)
+	out.mesh = mesh
+	out.offset = Vector3(-box.get_center().x, -box.position.y, -box.get_center().z)
+	return out
+
+
+static func _real_paint(src: StandardMaterial3D, box: AABB) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/car_park_car.gdshader")
+	mat.set_shader_parameter("albedo_tex", src.albedo_texture)
+	if src.normal_texture:
+		mat.set_shader_parameter("normal_tex", src.normal_texture)
+		mat.set_shader_parameter("has_normal", true)
+	var f: Dictionary = Vehicle.FINISHES[Vehicle.Finish.GLOSS]
+	mat.set_shader_parameter("paint_metallic", f.metallic)
+	mat.set_shader_parameter("paint_roughness", f.roughness)
+	mat.set_shader_parameter("clearcoat_amount", f.clearcoat)
+	mat.set_shader_parameter("clearcoat_roughness_value", f.cc_rough)
+	mat.set_shader_parameter("flake_strength", f.flake)
+	mat.set_shader_parameter("body_min", box.position)
+	mat.set_shader_parameter("body_size", box.size)
+	mat.set_shader_parameter("length_is_x", box.size.x >= box.size.z)
+	return mat
 
 
 ## The barrier arms at the entry and the exit: on the island, lying across each lane.
