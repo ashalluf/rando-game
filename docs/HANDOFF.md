@@ -41,6 +41,17 @@ The owner: "this needs to start looking like GTA 6" and "keep working until I sa
   - `engine-audio` `session_01Q7NKz1FiJ5a8imtWE3QHmz` (resume)
   - `rock-outcrops` `session_01Q7NKz1dppYF3oKNgiPBcvD` (new)
   - `facades-gta` `session_01Q7NKyz5XbXuSzP8dsPgX9x` (new)
+- **Merged so far (2026-10-30)**: batch 1 street-furniture, onlookers; batch 2 prop-destruction,
+  engine-audio, swimming; batch 3 facades-gta, offshore-island, rain-crowd, parklets, heli-flyable,
+  car-panic, coast-highway, fashion-district (plus check fixes for CI 360-365: the tree-ladder
+  slack, onlookers staging home, the ramp-merge window, the heli strike poll).
+- **Second launch (2026-10-30 01:33)**, eight new sessions from tasks.tsv: `oil-islands`
+  `session_01Q7NKyyYRLXXTXkVJp1in4J`, `sea-life` `session_01Q7NKyzk56JBK8dNe3KVqFu`, `speedboats`
+  `session_01Q7NKyyye8YuupMr7qCukxK`, `bonfires` `session_01Q7NKz1sEin5FzYhNeyFGYi`,
+  `beach-amenities` `session_01Q7NKyykydtjYTWzoXntgQQ`, `arroyos` `session_01Q7NKywQABt4kpLAqquDMLJ`,
+  `wildlife` `session_01Q7NKz19XER5tG3sDKw5cAu`, `buskers` `session_01Q7NKyxq5QvjBEfP2ibZKng`.
+  Also running from the first launch: ocean-traffic, refinery, power-plant, lighthouses,
+  footbridges, foot-ik, garments-2.
 - The lead merges finished branches in batches (`tools/fleet/merge_branch.py`), gates each batch,
   pushes main, and launches the remaining `tasks.tsv` areas as slots free up.
 - 1,000 agents is not possible here: a gate run is ~2.4 GB a shard on a 15 GB box, and the
