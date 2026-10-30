@@ -72,13 +72,13 @@ global uniform vec4 sky_tint;
 // canopy takes it: without it every far tor was unhazed against hazed slopes, a field of brown
 // flecks over each range from the air (aerial review). AerialReview turns it off (the A/B).
 uniform bool aerial_haze = true;
-// And past `aerial_blend` metres a far tor takes the hill's own tone (the straw and dirt the plane
-// paints round it) by up to `aerial_blend_max`: a warm orange crag in full renderer light on a
-// slope the plane paints grey-beige, measured (177, 164, 135) on (168, 164, 145) with a spread of
-// +-22 per channel, read as one fleck per tor however much haze lay on both. Its shape stays: the
-// crags still break the skyline, they just stop being confetti.
+// And past `aerial_blend` metres a far tor loses up to `aerial_blend_max` of its colour and of its
+// light-and-dark: a warm orange crag in full renderer light on a slope the plane paints and hazes
+// to a pale grey-beige, measured (177, 164, 135) on (168, 164, 145) with a spread of +-22 per
+// channel, read as one fleck per tor however much haze lay on both. Its shape stays: the crags
+// still break the skyline, they just stop being confetti.
 uniform vec2 aerial_blend = vec2(1100.0, 3600.0);
-uniform float aerial_blend_max : hint_range(0.0, 1.0) = 0.7;
+uniform float aerial_blend_max : hint_range(0.0, 1.0) = 0.75;
 
 varying vec3 world_pos;
 varying vec3 world_nrm;
@@ -203,9 +203,11 @@ void fragment() {
 	col *= mix(0.7, 1.0, arm.r);
 	if (aerial_haze && far_mode) {
 		float fb = smoothstep(aerial_blend.x, aerial_blend.y, cam_dist) * aerial_blend_max;
-		vec3 hill_tone = mix(straw_color, dust_color, 0.45) * mix(1.0, clamp(detail, 0.6, 1.4), 0.3)
-			* mix(0.82, 1.0, smoothstep(0.3, 0.9, n.y));
-		col = mix(col, hill_tone, fb);
+		float l = dot(col, vec3(0.2126, 0.7152, 0.0722));
+		// The rock's mean tone (its palette under the detail's mean of ~1), cooled to the slope's.
+		float l_mean = dot(base, vec3(0.2126, 0.7152, 0.0722));
+		vec3 grey = vec3(mix(l, l_mean, 0.6)) * vec3(1.06, 1.0, 0.86);
+		col = mix(col, grey, fb);
 	}
 	if (!far_mode) {
 		vec3 nm = texture(normal_tex, UV).rgb;
