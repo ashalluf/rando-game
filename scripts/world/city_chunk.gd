@@ -461,6 +461,8 @@ func begin_build() -> void:
 	_steps.append(_build_light_rail)
 	# What stands on the hills (RidgeBuild): towers, masts, tanks, fire roads, the right of way.
 	_steps.append_array(RidgeBuild.attach(self))
+	# The hills' real rock (RockBuild): tors claimed and collided, outcrops, cut-bank boulders.
+	_steps.append_array(RockBuild.attach(self))
 	# The freight line (FreightRail, FreightKit): track, trench, decks, crossings, the yard's tracks.
 	_steps.append_array(FreightKit.attach(self))
 	if level == Level.FULL and plan.macro:
@@ -1715,7 +1717,7 @@ func _scatter_hills() -> bool:
 			var v := rng.randi() % 2
 			var sc := rng.randf_range(0.6, 1.7)
 			var tilt := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, rng.randf_range(-0.25, 0.25))
-			_batch.add("rock_%d" % v, PropFactory.model_rock(v), Transform3D(tilt.scaled(Vector3(sc, sc, sc)), at - Vector3(0.0, 0.15 * sc, 0.0)))
+			_batch.add("rock_%d" % v, RockKit.mesh(RockKit.BOULDER_A + v) if RockOutcrops.enabled else PropFactory.model_rock(v), Transform3D(tilt.scaled(Vector3(sc, sc, sc)), at - Vector3(0.0, 0.15 * sc, 0.0)))
 			var size := (Vector3(2.4, 0.8, 1.2) if v == 0 else Vector3(2.4, 1.8, 2.4)) * sc
 			_add_shape(size, at + Vector3(0.0, size.y * 0.5 - 0.15 * sc, 0.0), yaw)
 		elif roll < 0.38:

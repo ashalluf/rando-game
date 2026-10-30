@@ -1132,6 +1132,7 @@ func _build_ground() -> void:
 	_ground.add_child(mesh)
 	add_child(_ground)
 	MountainOccluder.attach(self, plan.macro, macro_span)
+	RockFar.attach(self, plan, _canopy_material)
 	_ground_body = StaticBody3D.new()
 	_ground_body.name = "GroundBody"
 	_ground_body.collision_layer = 1
