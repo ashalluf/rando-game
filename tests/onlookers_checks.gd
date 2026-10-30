@@ -19,6 +19,10 @@ func run(t: Node, city: Node3D) -> void:
 		_check(true, "onlookers are off (ONLOOKERS=0): only the pure checks ran")
 		return
 	var chunk: Node3D = city.chunks.get(Vector2i(0, 0))
+	if chunk == null and t.has_method("stage_home"):
+		# One process (CI) runs this file wherever the previous one left the player; go home.
+		await t.stage_home()
+		chunk = city.chunks.get(Vector2i(0, 0))
 	_check(chunk != null, "the spawn block's chunk is loaded for the onlooker checks")
 	if chunk == null:
 		return
