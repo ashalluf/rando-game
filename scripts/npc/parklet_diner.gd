@@ -13,6 +13,11 @@ extends Pedestrian
 
 enum Role { DINER, WAITER }
 
+## A waiter's uniform: black shirt and black trousers (the crowd's garment regions).
+const WAITER_TOP := Color(0.035, 0.035, 0.04)
+const WAITER_PANTS := Color(0.03, 0.03, 0.035)
+static var _waiter_mats: Dictionary = {}
+
 ## Seconds a waiter stands at a table, and at the door.
 @export var table_seconds: Vector2 = Vector2(4.0, 9.0)
 @export var door_seconds: Vector2 = Vector2(5.0, 14.0)
@@ -32,6 +37,10 @@ var _leg: int = 0
 var _beat: float = 0.0
 var _mate: Node3D = null
 var _mate_looked: bool = false
+## The waiter's tray, held level on the left palm (placed every frame, never on the bone: the
+## hand's own turn would tip it).
+var _tray: MeshInstance3D = null
+var _tray_w: float = 0.0
 
 
 func setup_diner(block_rect: Rect2, seed_value: int, at: Vector2, yaw: float, mate: Vector2) -> void:
@@ -45,6 +54,8 @@ func setup_diner(block_rect: Rect2, seed_value: int, at: Vector2, yaw: float, ma
 func setup_waiter(block_rect: Rect2, seed_value: int, door_at: Vector2, table_spots: Array, out: Vector2) -> void:
 	setup(block_rect, 4.0, seed_value)
 	role = Role.WAITER
+	# Nobody serves in a cap or a backpack (the crowd's own roll is still made).
+	accessory_chance = 0.0
 	door = door_at
 	tables = table_spots
 	out_dir = out
@@ -61,6 +72,53 @@ func _roll_life(seed_value: int) -> void:
 	_carry = CrowdLife.Carry.NONE
 	_jogger = false
 	_dog_walker = false
+
+
+func _add_model() -> bool:
+	if not super._add_model():
+		return false
+	if role != Role.WAITER:
+		return true
+	var inst: Node3D = null
+	for c in _visual.get_children():
+		if c is Node3D:
+			inst = c
+			break
+	if inst == null:
+		return true
+	for node in inst.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if mi.mesh == null or is_hair(mi):
+			continue
+		var src := mi.mesh.surface_get_material(0) as StandardMaterial3D
+		if src and src.albedo_texture:
+			var mat := waiter_material(src.albedo_texture)
+			if mat:
+				mi.material_override = mat
+	return true
+
+
+## The rig's look in the waiter's blacks (one material per rig texture).
+static func waiter_material(albedo: Texture2D) -> ShaderMaterial:
+	var key := albedo.resource_path if albedo.resource_path != "" else str(albedo.get_instance_id())
+	if _waiter_mats.has(key):
+		return _waiter_mats[key]
+	var base := character_material(albedo, 1)
+	if base == null:
+		return null
+	var mat := base.duplicate() as ShaderMaterial
+	mat.set_shader_parameter("cloth_hue", WAITER_TOP.h)
+	mat.set_shader_parameter("cloth_sat", WAITER_TOP.s)
+	mat.set_shader_parameter("cloth_value", WAITER_TOP.v)
+	mat.set_shader_parameter("cloth_strength", 0.97)
+	mat.set_shader_parameter("pants_hue", WAITER_PANTS.h)
+	mat.set_shader_parameter("pants_sat", WAITER_PANTS.s)
+	mat.set_shader_parameter("pants_value", WAITER_PANTS.v)
+	mat.set_shader_parameter("pants_strength", 0.95)
+	mat.set_shader_parameter("cloth_roughness", 0.75)
+	mat.set_shader_parameter("cloth_shade_keep", 0.6)
+	_waiter_mats[key] = mat
+	return mat
 
 
 func _ready() -> void:
@@ -127,6 +185,49 @@ func _physics_process(delta: float) -> void:
 	# The scare is over and they are walking about: a waiter goes back to work.
 	if role == Role.WAITER and _act == CrowdLife.Act.NONE and _panic_left <= 0.0 and _cross == Cross.NONE:
 		_next_leg(false)
+
+
+## The waiter carries the tray: the left forearm forward (the crowd's coffee hold) and the tray
+## level on the palm, while working and near; never running, never down.
+func _life_pose(delta: float) -> void:
+	super(delta)
+	if role != Role.WAITER or _head_skel == null:
+		return
+	var carry := _life_near and not _down and _panic_left <= 0.0 and _clip != RUN_CLIP
+	_tray_w = move_toward(_tray_w, 1.0 if carry else 0.0, delta * 3.0)
+	var fore := _head_skel.find_bone("LeftForeArm")
+	var hand := _head_skel.find_bone("LeftHand")
+	if fore < 0 or hand < 0:
+		return
+	if _tray_w > 0.001:
+		var w := smoothstep(0.0, 1.0, _tray_w)
+		var f := _head_skel.get_bone_global_pose(fore)
+		var now := (_head_skel.get_bone_global_pose(hand).origin - f.origin).normalized()
+		var turn := Quaternion(now, CrowdLife.CUP_FOREARM.normalized())
+		_set_global_rot(fore, Basis(Quaternion.IDENTITY.slerp(turn, w)) * f.basis)
+	if _tray == null and carry:
+		_tray = MeshInstance3D.new()
+		_tray.name = "Tray"
+		_tray.mesh = ParkletKit.tray()
+		_tray.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_tray.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+		_tray.top_level = true
+		add_child(_tray)
+	if _tray == null:
+		return
+	_tray.visible = _tray_w > 0.5
+	if not _tray.visible:
+		return
+	# Level, over the palm: the hand's origin is the wrist, the palm a hand's length on toward
+	# the fingers, and the tray's floor just over it.
+	var sk_xf := _head_skel.global_transform
+	var wrist := sk_xf * _head_skel.get_bone_global_pose(hand).origin
+	var elbow := sk_xf * _head_skel.get_bone_global_pose(fore).origin
+	var along := wrist - elbow
+	along.y = 0.0
+	along = along.normalized() if along.length_squared() > 1e-6 else -_visual.global_transform.basis.z
+	var yaw := _visual.global_rotation.y
+	_tray.global_transform = Transform3D(Basis(Vector3.UP, yaw), wrist + along * 0.07 + Vector3.UP * 0.035)
 
 
 func _do_act(delta: float) -> void:

@@ -463,6 +463,27 @@ static func umbrella(open: bool) -> Mesh:
 	return _finish(st, key)
 
 
+## The waiter's tray in its own frame (centre of the tray's floor at the origin): a round
+## brushed-steel tray with a rolled rim, a water carafe, two tumblers and a plate under a napkin.
+static func tray() -> Mesh:
+	if _meshes.has("tray"):
+		return _meshes["tray"]
+	var st := StreetClutter._begin()
+	var steel := Color(0.62, 0.62, 0.6, A_STEEL)
+	var srm := Vector2(0.32, 0.9)
+	var glass := Color(0.75, 0.82, 0.8, A_GLASS)
+	var grm := Vector2(0.05, 0.0)
+	StreetClutter._cyl(st, Transform3D(Basis(), Vector3(0.0, -0.006, 0.0)), 0.17, 0.175, 0.006, steel, srm, 24)
+	StreetClutter._cyl(st, Transform3D(Basis(), Vector3(0.0, 0.0, 0.0)), 0.182, 0.18, 0.016, steel, srm, 24)
+	StreetClutter._cyl(st, Transform3D(Basis(), Vector3(-0.06, 0.0, -0.04)), 0.045, 0.04, 0.17, glass, grm, 12)
+	StreetClutter._cyl(st, Transform3D(Basis(), Vector3(-0.06, 0.17, -0.04)), 0.02, 0.04, 0.05, glass, grm, 10)
+	for k in 2:
+		StreetClutter._cyl(st, Transform3D(Basis(), Vector3(0.05 + 0.06 * float(k), 0.0, 0.07 - 0.12 * float(k))), 0.032, 0.029, 0.1, glass, grm, 10)
+	StreetClutter._cyl(st, Transform3D(Basis(), Vector3(0.02, 0.0, 0.1)), 0.075, 0.08, 0.014, Color(0.95, 0.95, 0.93, A_CHINA), Vector2(0.15, 0.0), 16)
+	_box(st, Vector3(0.02, 0.02, 0.1), Vector3(0.09, 0.012, 0.05), 0.003, Color(0.93, 0.92, 0.88), Vector2(0.8, 0.0))
+	return _finish(st, "tray")
+
+
 ## Builds every mesh once (the loading screen), so the first parklet does not stall, and hands
 ## back the material to draw once through a MultiMesh.
 static func warm() -> Array:
@@ -474,4 +495,5 @@ static func warm() -> Array:
 				bistro_set(sq == 1, laid == 1, cafe == 1)
 	umbrella(true)
 	umbrella(false)
+	tray()
 	return [material()]
