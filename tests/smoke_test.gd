@@ -111,7 +111,7 @@ const PART_COST := {
 	"reservoir_checks": 0.4, "facades_gta_checks": 0.3, "ocean_traffic_checks": 0.3,
 	"refinery_checks": 0.3, "tower_gondolas_checks": 0.3, "building_damage_checks": 0.2,
 	"fwd_review_c_checks": 0.2, "hill_air_checks": 0.2, "lighthouses_checks": 0.2,
-	"marina_checks": 0.2, "ref_cameras_checks": 0.2, "rooftops_checks": 0.2, "web_build_checks": 0.2,
+	"marina_checks": 0.2, "ref_cameras_checks": 0.2, "rooftops_checks": 0.2, "web_build_checks": 0.2, "web_review_3_checks": 0.1,
 	"far_corners_checks": 0.1, "weather_la_checks": 0.1, "color_grade_checks": 0.0,
 	"fwd_review_a_checks": 0.0, "fwd_review_b_checks": 0.0, "garments_2_checks": 0.0,
 	"memory_audit_checks": 0.0, "offshore_island_checks": 0.0, "perf_audit_checks": 0.0,
@@ -2436,6 +2436,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The web build (tests/web_build_checks.gd): the Web preset, WebGL's texture units and the
 	# global buffer in every shader, and the web's own quality settings.
 	load("res://tests/web_build_checks.gd").new().run(self, city)
+	# The web review after wave 3 (tests/web_review_3_checks.gd): no GLSL ES 3.1+ built-in in a shader.
+	load("res://tests/web_review_3_checks.gd").new().run(self)
 	# The Forward+ review of those four (tests/fwd_review_c_checks.gd): the map scales with the window.
 	await load("res://tests/fwd_review_c_checks.gd").new().run(self, city)
 	# The landmarks' far copies (tests/far_landmarks_checks.gd): the detailed copies' palms and trees.
