@@ -31,7 +31,7 @@ static func stage(tree: SceneTree, env: String, cam: Camera3D) -> String:
 	var stand := xf * Vector3(-1.5, 0.0, -0.15)
 	# On whatever is under that spot (the kerb, the pavement), found by a ray.
 	var space := car.get_world_3d().direct_space_state
-	var q := PhysicsRayQueryParameters3D.create(stand + Vector3.UP * 3.0, stand - Vector3.UP * 3.0, 1)
+	var q := PhysicsRayQueryParameters3D.create(stand + Vector3.UP * 0.6, stand - Vector3.UP * 3.0, 1)
 	var hit := space.intersect_ray(q)
 	if not hit.is_empty():
 		stand.y = (hit.position as Vector3).y

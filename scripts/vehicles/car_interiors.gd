@@ -15,7 +15,7 @@ extends Node
 ## Parked cars within this of the player on foot get theirs (m), dropped past it + `hysteresis`.
 @export var near_range: float = 7.5
 @export var hysteresis: float = 3.0
-@export var max_parked: int = 2
+@export var max_parked: int = 1
 ## How often the set is chosen (s).
 @export var pick_interval: float = 0.2
 ## Door splits per frame (us).
