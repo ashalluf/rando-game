@@ -34,8 +34,22 @@ PLACES = ["broadway", "wilshire", "suburb", "beach"]
 NAMES = ["%s %s_%s" % (w[0], p, h) for w in ("clear", "rain") for h in ("2100", "0030") for p in PLACES]
 
 
+# The small scenes (shoot_fwd.sh): f.png, f_1.png ... place by place (PLACES, as given to it),
+# each clear 21:00, clear 00:30, rain 21:00, rain 00:30.
+SMALL = {"bw": "broadway", "wil": "wilshire", "sub": "suburb", "beach": "beach"}
+
+
 def files(d):
 	out = []
+	if os.path.exists(os.path.join(d, "f.png")):
+		k = 0
+		for pl in os.environ.get("PLACES", "bw wil sub beach").split():
+			for w, h in (("c", "2100"), ("c", "0030"), ("r", "2100"), ("r", "0030")):
+				f = os.path.join(d, "f.png" if k == 0 else "f_%d.png" % k)
+				k += 1
+				if os.path.exists(f):
+					out.append(("%s %s_%s" % (w, SMALL[pl], h), f))
+		return sorted(out, key=lambda t: NAMES.index(t[0]) if t[0] in NAMES else 99)
 	for i, n in enumerate(NAMES):
 		f = os.path.join(d, "n.png" if i == 0 else "n_%d.png" % i)
 		if os.path.exists(f):
