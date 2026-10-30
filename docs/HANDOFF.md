@@ -20934,3 +20934,77 @@ than the old one" and "the blasts leave nothing behind (0 nodes, 7 pieces)"; sha
 street car's lane group, during the police station checks). None of it is freeway code, and
 `SMOKE_PARTS=explosions_2_checks,police_station_checks` alone passes 65 / 65 with no error.
 The 49 freeway checks (kit + close-up) pass.
+
+## 9hw. The beach at golden hour: a postcard pass on the sand and the towers (fleet wave 3, `wt/beach-golden`)
+
+**The brief** (wave 3, owner's bar "make it look like GTA 6", whose trailer lingers on its
+beaches): the beach town's sand, boardwalk and pier at golden hour and at midday as a postcard -
+sand with real micro relief, footprints and wind ripples, wet sand mirroring the sunset, the
+towers' paint and wear, palms backlit, people in long shadows, the pier's lights, haze over the
+water, the surf's spray in the light. Mostly shader and placement tuning, measured.
+
+**What it is** (`BeachGolden`, `scripts/world/beach_golden.gd`; `shaders/beach_golden.gdshaderinc`,
+included by `beach_sand.gdshader`; codes 11 / 12 in `beach_props.gdshader`):
+- **The damp tide band.** Above the swash's reach (`reach_max`, the surf model's run-up) a ragged
+  band 5 m wide (wandering with the shore) is darker (`band_darken`) and glossier
+  (`band_roughness`), and mirrors the sky by Fresnel (`band_mirror`); in it, standing **pools**
+  in the low-tide terrace's troughs (a noise field) mirror it nearly whole (`pool_mirror`, rough
+  0.04, the relief drowned). At golden hour the sky's glow round the sun is added to what the wet
+  sand mirrors (`sun_glow`, toward the sun's azimuth, low over the horizon) and a broad sun path
+  runs up it (exponent 40 in damp sand, 600 in a pool): the sunset thrown up the beach.
+- **The sky mirror's colour space** (the Forward+ fix): `sky_tint` arrives as raw sRGB on both
+  renderers, and the sand (a renderer-space shader) EMITTED it raw - a stop too bright on the Mac.
+  It now goes through `cs_as_uniform()` (CLAUDE.md's fwd-review-d rule), the sun colour too.
+- **Relief on the dry sand**: wind **ripples** 9-15 cm apart, crests along the shore, asymmetric,
+  bent and forking under a warp, patchy, faded out once a ripple is under ~0.06 of a pixel - only
+  near the camera, where the texture's own ripples cannot hold; **hummocks** (0.33 and 1.1 per
+  metre octaves of value noise, each in its own TURNED domain: in the world's axes the gradient
+  of a value noise draws its lattice as streaks along x and z, a corduroy at a grazing sun).
+- **Footprints**: trails walked down to the water (one per 5 m band along the shore, half of them,
+  wandering, left / right heel-and-toe dents with their heaped rims at a 0.72 m stride, gaps where
+  the wind filled them, softened with age) and along the wet sand (crisper, holding water: darker
+  and glossier in the dent). Washed out under the swash. A trail under a pixel is its average, a
+  faintly trodden line.
+- **The wrack line**: kelp and shell grit along the swash's top, a ragged dark band of clumps
+  and speckle. **Quartz glints**: one 1.2 cm cell in 16 has a tilted facet that flashes when it
+  mirrors the sun into the eye, faded under a pixel (the near sand only).
+- **The lifeguard towers**: the tower mesh's paint and timber carry codes 11 and 12 (vertex
+  alpha 0.55 / 0.60, `BeachGolden.tower_paint()` / `tower_wood()`; A_PLAIN with the switch off).
+  The shader draws boards with grooves (their average past a few pixels), paint faded and chalked
+  most where it faces the sky, small peeling patches to grey wood with a dark lip near the cabin's
+  foot, grime run down from the window band, a per-tower amount (a hash of its TRUE position, so an
+  origin shift does not change it); posts silvered and grained, checked, dark and damp at the sand.
+
+**Rules / traps.** Nothing rolls: every pattern is a hash of true world position in the shader,
+the tower's geometry is the same vertex for vertex (checked), so no seed's layout moves.
+`fwidth()` must be taken OUTSIDE any branch: inside `if (golden_on && dist < 260)` llvmpipe
+returned 0 and the ripples, never faded, aliased into a fine hatch at every range (found by
+switching each layer off: `BEACH_GOLDEN_PARAMS="ripple_amp=0,..."` sets any of the sand's
+uniforms for stills and tuning). The existing swash code still takes fwidth inside its branch (it
+is not hit by the camera far from the sheet; left alone).
+
+**Not done**: palms backlit (foliage.gdshader's BACKLIGHT already scatters a low sun through the
+fronds; untouched), people and bikes on the boardwalk (the boardwalk's and the piers' stretches
+get no BeachLife people - unchanged), the pier's lights (they follow `lamp_factor`, on by 18:30 -
+unchanged), haze over the water and the spray's backlight (surf_spray.gdshader already glows
+toward a low sun - unchanged). The midday sand stays pale: AgX and the grade, not the sand.
+
+**Frame cost** (opengl3 1280x720, `still_shot.gd` GEO, `--quality=0 --weather=clear`, the same
+EYEs from one load each, BEACH_GOLDEN=0 vs on): shader-only, so the geometry is the same -
+the beach bookmark `EYE=-725,1.7,610,160,-6` at 13:00 1,849,714 tris / 394 draws -> 1,857,094 /
+408 (people and bikes moved between the loads; the sand and towers add nothing); sand toward the
+sea 1,066,667 / 289 both; the pier from the beach 1,376,566 / 350 both; down the pier deck at
+18:30 1,951,568 / 1,353 both. The pixel cost is the sand's: ~6 value-noise taps and two short
+loops of trail tests a fragment within 260 m, nothing past it.
+
+**Stills** (`shots/beach-golden`, opengl3): sand toward the sea and the pier from the beach at
+13:00 / 17:45 / 18:30 before and after, the pier deck at 18:30, low over the sand toward the sun,
+the beach-life bookmark, the weathered tower close up. Forward+ (lavapipe, `fwd_block_shot.tscn`,
+960x540) pairs of the sand at 17:45 and the tower at 13:00: `fwd_*` on the same branch.
+
+**Gate**: `SHARDS=3 tests/headless_check.sh` 4,019 checks, 0 failed (peak RSS 3,428 MB a shard).
+
+**A/B**: `BEACH_GOLDEN=0` (the sand and the towers exactly as before). Checks:
+`tests/beach_golden_checks.gd` (the include and its switch, the colour-space line, the uniforms
+parse, the material follows the switch, the tower's codes are free in BeachLife's table and drawn
+by the props shader, the same tower vertices with the switch on and off).

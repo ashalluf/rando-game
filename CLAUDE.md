@@ -5583,6 +5583,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   one `bam_*` batch per mesh a chunk; LOD / far: the two buildings as plain lod_boxes.
   `BEACH_AMENITIES=0` is the A/B; probe `tools/beach_amenities/probe.gd` (EYEs); checks
   `tests/beach_amenities_checks.gd`.
+- The beach at golden hour (2026-10-30, docs/HANDOFF.md "The beach at golden hour"): `BeachGolden`
+  (`scripts/world/beach_golden.gd`) + `shaders/beach_golden.gdshaderinc` in beach_sand.gdshader:
+  the damp band above the swash and its standing pools mirror the sky (sunset glow, a broad sun
+  path), wind ripples (near only), turned-domain hummocks, footprint trails, the wrack line, quartz
+  glints, all hashes of true world position; the sky mirror via `cs_as_uniform()`. Lifeguard towers
+  wear codes 11 / 12 in beach_props.gdshader (faded, peeling paint; silvered posts). Take `fwidth()`
+  outside branches (llvmpipe gives 0 inside). `BEACH_GOLDEN=0` the A/B, `BEACH_GOLDEN_PARAMS=
+  "name=v,..."` sets sand uniforms; checks `tests/beach_golden_checks.gd`.
 - Beach bonfires (2026-10-30, docs/HANDOFF.md "Beach bonfire rings"): `Bonfires`
   (`scripts/world/bonfires.gd`, pure `rings_in()` / `group()` / `lit_at()`, hashes of seed + a
   `RING_CELL` 24 m shore cell + the night) puts precast concrete fire rings (code-built,

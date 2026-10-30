@@ -2645,6 +2645,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The freeway close up (tests/freeway_closeup_checks.gd, FreewayCloseup): the concrete deck's
 	# UVs and lane copy, the kit's close-up pass, no geometry or rolls moved, the rush-hour fill.
 	await load("res://tests/freeway_closeup_checks.gd").new().run(self, city)
+	# The beach at golden hour (tests/beach_golden_checks.gd): the sand's postcard pass behind its
+	# switch, the sky mirror's colour space, the weathered tower's codes, the same tower geometry.
+	load("res://tests/beach_golden_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

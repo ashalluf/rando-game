@@ -3585,6 +3585,13 @@ already mapped so milestone 2 is script-only.
   stretches stay asphalt. Every close-up detail is a shader pass on the existing meshes (no
   geometry, no rolls), lamp halos reuse NightAtmos, and the rush hours fill the freeway through
   the existing single roll a slot. `FREEWAY_CLOSEUP=0` restores all of it.
+- **2026-10-30 The beach at golden hour is a shader pass on the sand and the towers (beach-golden,
+  HANDOFF "The beach at golden hour").** Decisions: everything is a hash of true world position in
+  the shader (ripples, hummocks, footprint trails, the damp tide band and its pools, the wrack
+  line, glints, the towers' wear), so nothing rolls and no seed's beach moves; the tower's paint
+  and timber are new vertex-alpha codes on the same geometry; the sand's sky mirror takes
+  `sky_tint` through `cs_as_uniform()` (it was a stop too bright on Forward+). `BEACH_GOLDEN=0`
+  restores both shaders' old paths exactly.
 
 ## Correction: what build 135 (0ce833f) actually contained
 
