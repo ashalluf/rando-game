@@ -12,6 +12,9 @@ global uniform float wind_factor;
 global uniform float night_factor;
 global uniform float road_wetness;
 
+// How far the tip moves in the wind (metres at full height, scaled by wind_factor).
+uniform float sway_amount = 0.03;
+
 varying float height_t;
 varying float parched;
 
@@ -20,7 +23,7 @@ void vertex() {
 	height_t = clamp(UV.y, 0.0, 1.0);
 	parched = INSTANCE_CUSTOM.r;
 	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	float sway = sin(TIME * 1.7 + world.x * 0.4 + world.z * 0.3) * 0.03 * max(wind_factor, 0.2) * height_t * height_t;
+	float sway = sin(TIME * 1.7 + world.x * 0.4 + world.z * 0.3) * sway_amount * max(wind_factor, 0.2) * height_t * height_t;
 	VERTEX.x += sway;
 	VERTEX.z += sway * 0.4;
 }

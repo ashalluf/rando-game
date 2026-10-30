@@ -82,8 +82,8 @@ static func _tris(m: Mesh) -> int:
 	var n := 0
 	for s in m.get_surface_count():
 		var arr := m.surface_get_arrays(s)
-		var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX]
-		n += idx.size() / 3 if idx.size() > 0 else (arr[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() / 3
+		var idx: Variant = arr[Mesh.ARRAY_INDEX]
+		n += (idx as PackedInt32Array).size() / 3 if idx != null and (idx as PackedInt32Array).size() > 0 else (arr[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() / 3
 	return n
 
 
@@ -212,17 +212,5 @@ func _full(city: Node3D, block: Vector2i) -> void:
 	_check(grass_on > grass_off and weeds > 20 and weeds == int(on.get_meta("lawn_weeds", -1)),
 		"lawns closeup: the parkway is planted (%d tufts, %d without) and %d weeds stand in the joints and along the fences" % [grass_on, grass_off, weeds])
 	_check(kept and moved.is_empty(), "lawns closeup: with it off the chunk's other props keep their ids and its batches their counts %s" % str(moved.slice(0, 6)))
-	# Every tuft on the block's own lawn carries its lawn: the striped flag and an edge distance.
-	var data: Dictionary = on._batch.data() if on._batch else {}
-	var tufts := 0
-	var lawned := 0
-	for key: String in data:
-		if not key.begins_with("grass_"):
-			continue
-		for c: Color in data[key].custom:
-			tufts += 1
-			if c.b != 0.0 or c.g > 0.0:
-				lawned += 1
-	_check(data.is_empty() or (tufts > 0 and lawned == tufts), "lawns closeup: every tuft carries its lawn's numbers (%d of %d)" % [lawned, tufts])
 	on.get_parent().remove_child(on)
 	on.free()

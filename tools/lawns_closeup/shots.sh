@@ -19,7 +19,7 @@ S7="-166.5,1.7,70,-62,-16@21.5"
 S8="28,1.7,-330,-135,-12@7.2"
 env "$@" OUT="$OUT/lawn.png" EYE="${S1%@*}" EYE_AGL=1 FRAMES=40 SHOT_FRAMES=30 \
 	SHOTS="$S1;$S2;$S3;$S4;$S5;$S6;$S7;$S8" LIBGL_ALWAYS_SOFTWARE=1 \
-	timeout 2400 xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --rendering-driver opengl3 \
+	timeout 4000 xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --rendering-driver opengl3 \
 	--display-driver x11 --audio-driver Dummy --path . --script tools/glshot/still_shot.gd \
 	--resolution 1280x720 -- --spawn=-168,52,180,-14 --hour=12 --weather=clear --nohud --quality=0 \
 	> "$OUT/shots.log" 2>&1
