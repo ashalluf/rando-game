@@ -1617,6 +1617,15 @@ already mapped so milestone 2 is script-only.
   (curvature included) before the clouds. Blue haze by day, a silhouette against the sunset,
   the town's lights at night, gone in the marine layer and rain. docs/HANDOFF.md "The island
   offshore"; CLAUDE.md "The island offshore".
+- **2026-10-05 Back yards are lived in (suburbs and the beach town).** On YardFill's back-yard
+  plan, a hash per lot: patio dining sets under market umbrellas, gas and kettle grills smoking at
+  dinner time (the shader reads `city_hour`), string lights over the patio lit after dark, loungers
+  and floats by the pools, trampolines, washing lines, citrus trees, doghouses and dog runs, a
+  toddler's slide and wagon (no children: the crowd has no child rigs). Code-built (`BackyardKit`),
+  one batch per kind a FULL chunk; LOD chunks keep the umbrellas, trampolines and the lights' glow
+  so the yards read from the air. docs/HANDOFF.md "Backyard life"; CLAUDE.md "Backyard life".
+  Wave 3 (2026-10-30): people on the pool and lawn loungers by day (baked sunbathers in swimwear,
+  as many as the beach's busyness of the hour lets out; shot or near gunfire, they get up and run).
 
 - **2026-10-06 Street props break by what they ARE, GTA-style.** A hydrant knocked off sends up a
   geyser for a while (and throws you up it), a shelter's glass bursts into tempered cubes, lamp

@@ -2376,6 +2376,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/power_plant_checks.gd").new().run(self, city)
 	# The oil refinery north of the port (tests/refinery_checks.gd): site, layout, chunks, far pieces.
 	load("res://tests/refinery_checks.gd").new().run(self, city)
+	# Backyard life (tests/backyards_checks.gd): the kit, the pure yard plan, a batch per kind, nothing else moved.
+	load("res://tests/backyards_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

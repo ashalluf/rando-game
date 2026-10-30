@@ -16078,3 +16078,103 @@ over the horizon plane's band, as the moored ship's always did. No crew on deck 
 helmsman block), no engine-side spray particles, no sound for sailboats; the ferry never docks at a
 terminal (it slows to 4 m/s in the harbour and turns round); the tugs do not actually tow anything.
 Sailboats are only near the six `SAIL_HOMES`; the coastal lane and bay loop are the only motor routes.
+
+## 9fp. Backyard life in the suburbs and the beach town, 2026-10-05 (fleet wave 2, `wt/backyards`)
+
+**What.** The back yards were lawn, deck or tile with a tree and a pool: nobody lived there. Now
+`Backyards` (`scripts/world/backyards.gd`) furnishes them from YardFill's own lot plans: a patio
+dining set (powder-coated bistro set or a teak table for six) near the house or under the
+climbing plants' pergola, a market umbrella through it (eight fabric colours, some striped), a gas
+cart grill or a kettle grill against the house, string lights zig-zagging from the eave (or posts)
+to two timber posts over the table, chaise loungers beside the pool with a side table, floats on
+the pool (a swim ring, an air mattress, a beach ball) bobbing and turning, a 12 ft trampoline
+with its safety net on the lawn, a T-post washing line hung with the week's wash, one or two
+citrus trees in the back corners (orange, lemon or mandarin in fruit), a doghouse where DogYard
+put a dog out back or a chain-link dog run, and a toddler's slide, wagon and ball (no children:
+the crowd has no child rigs).
+
+**How it is placed.** `plan_lot(plan, lp, district)` is PURE - hashes of seed + lot, never a
+chunk, block or yard rng - and works in the lot's yard frame (u along the street, v back from it).
+Items go into the back zone (the house's back line to the back fence, kept `EDGE` off the fences)
+with a cheap lattice search toward a target per kind (`_find()`: at most 16 x 16 spots, no
+closures - a lambda-scored first version took 100 ms a lot). It keeps clear of the house parts,
+the drive, the pool (floats inside it), YardFill's back-lawn tree (`_plant_back()` puts it at a
+back lawn piece's centre: 4.2 m kept clear) and its shrub strip along the piece's long edge, and
+ClimbingPlants' pergolas (`pergola_rect()` is ClimbingPlants._pergola()'s own rng and first roll;
+a dining set goes under one, without an umbrella or lights). Shares per district (suburbs /
+beach town) are the consts at the top. ~0.22 ms a lot.
+
+**How it is drawn.** Two hook lines in `YardFill._build_beach()`. FULL: deferred after YardFill's
+own dressing jobs (so every existing prop keeps its id; checked), one time-sliced job a lot and a
+finishing job. Each kind is ONE MultiMesh batch a chunk (`by_*`), code-built in `BackyardKit`
+(`scripts/world/backyard_kit.gd`) on `shaders/backyard.gdshader` (what a face is in COLOR.a x 16:
+paint, fabric palette, galvanised, enamel, bulb, ember, jump mat, laundry, peel, timber, canvas,
+vinyl, rubber, stainless, water; paint and the fabric index in INSTANCE_CUSTOM; linear colour
+arithmetic through color_space.gdshaderinc). The chunk's string lights are ONE merged mesh
+(`BackyardLights`), each bulb's centre in CUSTOM0 so the shader keeps it ~1.6 px wide from the
+air; under each set an additive `by_glow` pool (`PropFactory.light_pool`). Bulbs follow
+`lamp_factor`; the grill smoke (`shaders/backyard_smoke.gdshader`, a billboard plume from TIME on
+one quad batch, the custom AABB set) and the fire showing at the grill's lid seam follow
+`city_hour`: 55 % of households cook, each in its own window between 17:06 and ~21:30 - no
+rebuild, no CPU. `BACKYARD_COOK=1` makes every grill cook (stills). Trampoline net and the dog
+run's chain-link are `shaders/backyard_net.gdshader` (cut-out threads blurred to their cover under
+a pixel, dithered). Tables, grills, loungers, trampolines and doghouses are breakable props
+(`patio`, `grill`, `trampoline`, `doghouse`). LOD chunks lay only what reads from the air: a low
+umbrella cone, a trampoline disc and the lights' glow. The far city's capture gets none.
+
+**Cost.** Shadows come from stand-ins of a few dozen triangles registered in
+`PropFactory._shadow_proxies` (dining sets, umbrellas, trampolines, citrus, grills, loungers,
+doghouses; the rest cast nothing), to 90 m. First version: the 150 m aerial +34 % triangles
+(every mesh full detail into every cascade); after trimming the kit 25-45 % and the stand-ins,
+same frames (`still_shot.gd`, opengl3, BACKYARDS=0 vs on):
+
+| frame | before | after |
+|---|---|---|
+| 150 m over block (21,31), noon `EYE=2097,150,4278,0,-55` | 2,907,359 / 1,387 | 3,091,309 / 1,408 (+6.3 % / +1.5 %) |
+| 45 m, noon `EYE=2097,45,4218,0,-50` | 3,632,066 / 1,569 | 3,767,837 / 1,622 (+3.7 % / +3.4 %) |
+| patio, noon `EYE=1513.8,6,3987.6,0,-22` (6 m AGL) | 7,504,474 / 2,759 | 7,608,360 / 2,847 (+1.4 % / +3.2 %) |
+| 40 m over the patio, 21:00 `EYE=1513.8,40,4012,0,-55` | 5,079,004 / 2,501 | 5,024,733 / 2,560 (-1.1 % / +2.4 %) |
+
+(triangles / draws; EYE heights above the ground with `EYE_AGL=1`.) A FULL suburb block
+(seed 1337, (21,35)) gets 181 pieces in 64 of 74 yards, 18 batch kinds.
+
+**Tools.** `tools/backyards/probe.gd` (headless, seconds: counts per kind, the plan time, the
+busiest blocks with EYEs, and EYEs at string lights, trampolines, loungers and grills that cook;
+`SEED`, `R`); `tools/backyards/compile.gd`. Checks: `tests/backyards_checks.gd` (kit budgets,
+purity, clearance, a FULL chunk on / off A/B, LOD, capture). `BACKYARDS=0` is the A/B.
+
+**Stills** (shots/backyards; opengl3, not the Mac's Forward+): the 150 m and 45 m aerials at noon
+and 21:00 before / after, one patio at noon, 18:30 (the grill smoking) and 21:00, a trampoline, a
+pool with loungers, the 40 m night aerial over the patio.
+
+**Wave 3 (2026-10-30): people.** Merged with main at 95bd13f (apartments' lots are kept off by
+their own `extra_ground` in the yard plan's parts; both checks pass). The loungers - by a pool and
+on a lawn - carry sunbathers by day: `plan_lot()` gives a lounger pair `"sun"` ([seat, beach rig,
+the share of the beach's busyness from which they are out], pure), and `_sun()` puts out those
+under `BeachLife.density(hour) x weather_factor` of the hour the chunk is built at (none from
+19:30 to 6:30). Each is a baked figure in a swimsuit (BeachFigure.beach_mesh() in the new
+`BeachGoer.BEACH_POSES["lounge"]`: hips pitched 40 degrees back on a 49 cm hip joint, the back up
+50 degrees, legs out, hands on the thighs; fitted with `tools/backyards/lounger_shot.tscn`),
+merged into one `BeachFigureMesh` a chunk ("BackyardFigures", 160 m, shadows to 45 m), each with a
+`YardFigure` body (`scripts/world/yard_figure.gd`); shot, knocked or near gunfire it wakes as a
+`YardGoer` (`scripts/npc/yard_goer.gd`, a BeachGoer whose ground is the yard's level over the
+relief, not the sand). `Backyards.seat_xform()` is a seat in the lounger's space (a baked figure
+faces -Z, the lounger's feet). The loading screen bakes the seven rigs in the pose
+(`Backyards.figure_kinds()`). backyards.gd names none of the beach classes (they pull the
+autoloads into every `--script` tool that loads YardFill): `SUN_MODELS` / `POSE_CHAIR` are copies
+(checked). The probe counts 183 sunbathers over 1,026 lots and prints `LOUNGERS_SUN` EYEs.
+
+**Gate (wave 3):** `SHARDS=3 tests/headless_check.sh` on the merge with main eb75a10: 2,551 checks
+passed, 0 failed, shards peaking at 2.30 / 2.52 / 2.44 GB. One earlier run on the same tree lost
+`tests/dog_checks.gd`'s crowd-dog walker mid-check ("previously freed", line 168 / 180, in the shard
+that does not run backyards); `SMOKE_PARTS=dog_checks,backyards_checks` passes and the next full
+run passed, so it reads as a flake in the dog check's staging (something knocks or frees the walker
+it placed beside the player), not this branch. Sunbathers' cost (opengl3, BACKYARDS=0 -> on, 14:00):
+a lounger pair at 6 m 5.11 M / 2,340 -> 5.29 M / 2,462 triangles / draws; 45 m over block (21,31)
+3.71 M / 1,475 -> 3.82 M / 1,532.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the bulbs' and embers' bloom through AgX,
+the smoke under TAA, the sunbathers' skin. Nobody at the grill or the table at dinner (a standing or
+seated baked figure in clothes needs a non-swimwear bake), no hot tubs, fire pits or veg beds. String lights hook onto the house's
+back wall at a fixed 2.55 m (not the real eave of a two-storey house). The pieces stand at the
+yard's level and do not follow a slope inside a lot. A trampoline does not bounce the player.
