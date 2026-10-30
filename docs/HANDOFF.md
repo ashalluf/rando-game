@@ -19396,3 +19396,61 @@ per car.
   renderer's reflections (SSR, the probes), which the opengl3 stills do not have - judge the glass
   and the lacquer there. The wiper blades on every body type (checked on the sedan in stills; the
   geometry is fitted per body from the windscreen box, so a bus or an exotic may sit a little off).
+
+## 9d?. The blast, frame by frame (2026-10-30, fleet wave 3, branch `wt/explosions-2`)
+
+Task: "take the rocket / car explosion to GTA 6 level, frame by frame". WeaponFX.explosion() is
+unchanged except its last line, which hands over to **`BlastFX`** (`scripts/weapons/blast_fx.gd`);
+`EXPLOSIONS_2=0` in the environment is the old blast alone (the A/B). What it adds, by time:
+
+- **0.00 s, the flash.** `BlastFlash`: an OmniLight at `flash_energy` 60 over `flash_reach` 7
+  radii (the old light is 14 over 4), held `flash_time`, then a flickering fire glow that rises
+  with the fireball and dies over `glow_time` 2.4 s. `BlastFlare`: an additive billboard
+  (flare texture, HDR 7/6/4.6 - yellow-white, never red-heavy: AgX turns that salmon) several
+  radii across, gone in 0.13 s. The screen flash: one ColorRect on a CanvasLayer at -1 (under the
+  HUD, the vignette's layer), additive, peak `screen_flash` scaled by distance (`screen_flash_reach`
+  radii) and by whether the camera faces it, faded in 0.16 s.
+- **0.02 s, the wave.** `BlastWave`: a sphere on `shaders/blast_wave.gdshader` expanding to
+  `wave_reach` radii in `wave_seconds`, refracting the screen in a band near its silhouette. It
+  reads the screen, so render_priority MIN (WeaponFX._shimmer's trap) and not on the web. The
+  ground kick: a fast low dust ring (lit smoke material, so it is dark at night) and grit chips.
+- **0.05 s, the fire rolls up.** `BlastFireRoll`: fire puffs thrown upward and braked by drag, so
+  they bunch into a cap that cools to soot. `fire_puff.gdshader` gained `relief` (0 = the old flat
+  puff; BlastFX sets 0.75): each lump of the billow texture is lit from the core below and shaded on
+  its top, the ball's rim darker - the self-shadowed billows.
+- **0.1 s, debris and glass.** `BlastDebris` (`scripts/weapons/blast_debris.gd`): 7 lumps (10 for
+  a fuel blast) on ballistic arcs, one world ray a physics tick each, a bounce, then burning where
+  they land for 2.5-6 s. Not physics bodies, and their flames and smoke trails are TWO emitters per
+  blast whose `emission_points` are rewritten with the pieces' positions every tick. Glass:
+  BuildingDamage already shattered panes within 0.7 radii; BlastFX._glass() adds SHATTER records to
+  the panes FACING the blast out to `glass_reach` 2.4 radii (by chance further out), on the same
+  Building records (WorldState keeps them, the facade shader draws them), shards out of the first
+  `glass_bursts` delayed by the wave's travel (d / 343 s). Towers are left to BuildingDamage.
+- **0.4 s on, the mushroom.** `BlastColumn` holds `Cap` (a burst thrown up hard and braked, piling
+  up a couple of radii over the blast) and `Stem` (fed for `column_emit` 10 s, each puff living
+  `column_life` 15 s, rising ~`column_rise`); both `local_coords` so an origin re-centre carries
+  them, `custom_aabb` for their whole travel. **`shaders/blast_smoke.gdshader`** lights every puff by
+  hand (unshaded, so both renderers agree; linear through color_space.gdshaderinc): a ball normal
+  bent by the texture's relief, `sun_direction` with a wrap and self-shadowing through dense cores,
+  `sky_tint` (decoded) from above, a ground bounce below, and while a puff is young
+  (INSTANCE_CUSTOM.y) the fire's orange on its underside. render_priority -1 (draws before the
+  fire), soft particles, faded near the lens.
+- **Cars.** CarDamage.explode() sets `BlastFX.fuel_next` around its blast: radius x1.25, a bigger
+  roll and cap, more debris; its toss is x`car_lift_gain` 1.45 (`BlastFX.lift_gain()`, 1 with the
+  switch off; the randf calls are unchanged).
+- **Caps.** `max_heavy` 3 blasts in `heavy_window` 2.5 s get the column, debris and glass; past that
+  a blast is the old one plus the flash, wave and roll. `max_columns` 3 (the oldest stops feeding),
+  `max_debris` 24 pieces alive, `max_glass_panes` 18 a blast.
+
+Look: `tools/glshot/fx_shot.gd` now takes `FX_TIMES=0.03,0.1,...` (a strip from one blast, the
+clock fast past `FX_FAST_AFTER`), `FX_CAR=1` (a parked car's own explosion), `FX_SIDE`, and prints a
+`STATS` line per frame. `tools/explosions_2/blast_room_shot.gd` is a small street (the test room, a
+floor, four Buildings) small enough for lavapipe Forward+ (~5 min a strip): `NIGHT=1`, `CAR=1`,
+`DIST`, `TIMES`. A city strip on opengl3 is ~20 min (the load). Checks:
+`tests/explosions_2_checks.gd` (47 in its part; it stages a deck 420 m up, a Building across a
+street from a blast, eight quick blasts for the caps, and frees every node the blasts add).
+
+Stills on `shots/explosions-2`: the downtown day strips before / after (opengl3) and the night
+street strip on Forward+ (lavapipe). NOT verified: the Mac at 60 fps (lavapipe runs ~1 frame a
+second, so TAA ghosts particles: judge shapes, not smears), the web build (no wave there by
+design), frame cost on a real GPU (see the STATS numbers below).
