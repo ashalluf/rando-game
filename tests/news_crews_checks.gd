@@ -47,6 +47,8 @@ func run(t: Node, city: Node3D) -> void:
 	_layout()
 	_blast_story(player)
 	_nc.clear()
+	_standoff(player)
+	_nc.clear()
 	_traffic.staged = true
 	_clear_traffic()
 	await _on_air(player)
@@ -347,3 +349,18 @@ func _send(player: Player) -> void:
 	var dolls := parent.get_children().filter(func(n: Node) -> bool: return n is Ragdoll).size()
 	_check(dolls > dolls_before and not _nc.crews.has(crew), "a crew member knocked down is a body like anyone's (%d -> %d bodies)" % [dolls_before, dolls])
 	_check(bool(s.get("wrap", false)), "and the story wraps: the rest pack up")
+
+
+func _standoff(player: Player) -> void:
+	var police := _tree.get_first_node_in_group("wanted")
+	if police == null:
+		return
+	var was: int = int(police.get("stars"))
+	player.global_position = _ws.to_local(_road_point(20.0, 0.0)) + Vector3.UP
+	police.set("stars", _nc.standoff_stars)
+	_nc._scan(_nc.standoff_seconds * 0.5)
+	var early := _nc.stories.size()
+	_nc._scan(_nc.standoff_seconds * 0.6)
+	police.set("stars", was)
+	_check(early == 0 and _nc.stories.size() == 1 and _nc.stories[0].kind == NewsCrews.KIND_STANDOFF,
+			"the police held on one spot long enough makes a standoff story, not before (%d then %d)" % [early, _nc.stories.size()])

@@ -157,6 +157,20 @@ func _add_model() -> bool:
 	return true
 
 
+## Dressed for the job: a reporter on air wears nothing on their head and no backpack; a camera
+## operator now and then a cap (the crowd's accessory roll would hang a pack on their back, which
+## the shoulder camera's operator never wears).
+func _add_accessory(inst: Node3D) -> void:
+	if role == Role.REPORTER or _style.randf() >= 0.35:
+		return
+	var skel := inst.find_child("Skeleton3D", true, false) as Skeleton3D
+	if skel == null or skel.find_bone("Head") < 0 or _model_path in NO_HAT_MODELS:
+		return
+	_hat = Accessory.CAP
+	_hat_pick = _style.randi()
+	CrowdHat.dress(inst, _model_path, HAT_KIND[Accessory.CAP], _hat_pick, _accessory_reach())
+
+
 func _scare(_at: Vector3) -> void:
 	pass
 

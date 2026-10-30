@@ -70,6 +70,8 @@ var traffic: TrafficManager
 var dispatched: int = 0
 ## Running back to the van (a wrap under fire).
 var hurry: bool = false
+## The staged story's framings (stage_for_shot, _framings): true world EYEs by name.
+var shot_eyes: Dictionary = {}
 
 var _player: Node3D
 var _pool: Array[NewsVan] = []
@@ -733,18 +735,48 @@ func stage_for_shot(scene: String, cam: Camera3D, station_index: int = -1) -> St
 	var along := float(k.along)
 	# The scene: in the road by the far kerb's side, like a car that went up there.
 	var sc := Vector2(road + side * (width * 0.25), along) if int(k.axis) == CityPlan.AXIS_X else Vector2(along, road + side * (width * 0.25))
+	# The street held for the shot: no traffic drives through (a bus stood in the night frame).
+	if traffic:
+		traffic.staged = true
+		for car in traffic.cars.duplicate():
+			if is_instance_valid(car):
+				var cw2 := WorldState.to_world(car.global_position)
+				if Vector2(cw2.x - sc.x, cw2.z - sc.y).length() < 160.0:
+					traffic._retire(car)
 	var s := open_story(KIND_BLAST, Vector3(sc.x, plan.height_at(sc), sc.y))
 	var van := stage(s, station_index)
 	if van == null:
 		return ""
 	_tell_air(s.world)
+	# What happened: a car that went up, burnt out and still burning where the scene is.
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 23
+	var wreck := Vehicle.random_car(rng)
+	var yaw := NewsVan.heading(int(k.axis), int(k.dir)) + 0.6
+	wreck.transform = global_transform.affine_inverse() * Transform3D(Basis(Vector3.UP, yaw),
+			WorldState.to_local(Vector3(sc.x, plan.height_at(sc) + 0.9, sc.y)))
+	add_child(wreck)
+	s.props.append(wreck)
 	await get_tree().physics_frame
 	await get_tree().physics_frame
+	var dmg := wreck.damage_state()
+	dmg.douse_seconds = 600.0
+	dmg._staged = true
+	dmg.become_wreck()
 	for c in crews:
 		if is_instance_valid(c) and c.van == van:
 			c.global_position = c.spot + Vector3.UP * 0.05
 			c.task = NewsCrew.Task.WORK
 			c._think()
+	shot_eyes = _framings(s, k, side, width)
+	return String(shot_eyes.get(scene, shot_eyes.wide))
+
+
+## Every framing of a staged story, true world EYEs: `wide` the whole scene from across the street
+## and down it (the van in front, the crew, the tape, the wreck behind), `crew` over the camera
+## operator's shoulder, `reporter` close on the reporter from beside the camera, `van` the truck
+## and its uplink, `air` from above like the helicopter sees it.
+func _framings(s: Dictionary, k: Dictionary, side: float, width: float) -> Dictionary:
 	var lay: Dictionary = s.layout
 	var rep: Vector2 = lay.reporter
 	var camp: Vector2 = lay.camera
@@ -753,23 +785,21 @@ func stage_for_shot(scene: String, cam: Camera3D, station_index: int = -1) -> St
 	var along_v := Vector2(0.0, 1.0) if int(k.axis) == CityPlan.AXIS_X else Vector2(1.0, 0.0)
 	var sgn := float(lay.sgn)
 	var gy := plan.height_at(rep)
-	match scene:
-		"crew":
-			# Over the camera operator's shoulder, the reporter and the scene beyond.
-			var e := camp + along_v * sgn * 2.6 - across * side * 0.6
-			return _eye_at(Vector3(e.x, gy + 1.75, e.y), Vector3(rep.x, gy + 1.45, rep.y))
-		"reporter":
-			# Close on the reporter from beside the camera.
-			var e2 := rep + along_v * sgn * 2.2 - across * side * 0.9
-			return _eye_at(Vector3(e2.x, gy + 1.6, e2.y), Vector3(rep.x, gy + 1.35, rep.y))
-		"van":
-			var vp: Vector2 = lay.kerb.stop
-			var e3 := vp - across * side * (width * 0.5 + 6.0) + along_v * sgn * 9.0
-			return _eye_at(Vector3(e3.x, gy + 2.0, e3.y), Vector3(vp.x, gy + 4.5, vp.y))
-	# The whole scene from across the street.
-	var mid := rep.lerp(scn, 0.35)
-	var e4 := mid - across * side * (width * 0.5 + 3.5) + along_v * sgn * 16.0
-	return _eye_at(Vector3(e4.x, plan.height_at(e4) + 2.4, e4.y), Vector3(mid.x, gy + 1.8, mid.y))
+	var vp: Vector2 = lay.kerb.stop
+	var out := {}
+	# The close ones from the building side of the pavement (the kerb has the trees and poles).
+	var e := camp + along_v * sgn * 2.0 + across * side * 1.4
+	out.crew = _eye_at(Vector3(e.x, gy + 1.75, e.y), Vector3(rep.x, gy + 1.4, rep.y))
+	var e2 := rep.lerp(camp, 0.6) + across * side * 1.3
+	out.reporter = _eye_at(Vector3(e2.x, gy + 1.6, e2.y), Vector3(rep.x, gy + 1.45, rep.y))
+	var e3 := vp - across * side * (width * 0.5 - 2.0) + along_v * sgn * 9.0
+	out.van = _eye_at(Vector3(e3.x, gy + 1.7, e3.y), Vector3(vp.x, gy + 3.0, vp.y))
+	var mid := rep.lerp(scn, 0.5)
+	var e4 := vp - across * side * (width * 0.5 + 2.5) + along_v * sgn * 14.0
+	out.wide = _eye_at(Vector3(e4.x, plan.height_at(e4) + 2.2, e4.y), Vector3(mid.x, gy + 1.2, mid.y))
+	var e5 := mid - across * side * 22.0 + along_v * sgn * 30.0
+	out.air = _eye_at(Vector3(e5.x, gy + 34.0, e5.y), Vector3(mid.x, gy, mid.y))
+	return out
 
 
 static func _eye_at(e: Vector3, look_at: Vector3) -> String:

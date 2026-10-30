@@ -415,6 +415,18 @@ func _initialize() -> void:
 			OS.set_environment("EYE", news_eye)
 			OS.set_environment("EYE_AGL", "")
 		print("NEWS %s eye %s" % [news_env, news_eye])
+		# NEWS_ALL=1: the other framings after it from the same load (SHOTS), NEWS_NIGHT=h adds the
+		# wide one again at that hour.
+		if OS.get_environment("NEWS_ALL") == "1":
+			var eyes: Dictionary = nc.get("shot_eyes")
+			var more: Array = []
+			for key: String in ["crew", "reporter", "van", "air"]:
+				if key != news_env and eyes.has(key):
+					more.append(String(eyes[key]) + "@")
+			if OS.get_environment("NEWS_NIGHT") != "":
+				more.append(String(eyes.wide) + "@" + OS.get_environment("NEWS_NIGHT"))
+				more.append(String(eyes.crew) + "@")
+			OS.set_environment("SHOTS", ";".join(more))
 		_eye(player, fov)
 		if current_scene.has_method("update_streaming"):
 			current_scene.call("update_streaming", true)

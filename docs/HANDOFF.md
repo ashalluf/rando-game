@@ -14377,3 +14377,58 @@ crew's hands are IK onto the rail and the squeegee with the idle frozen near its
 dedicated wiping clip, no head turn. No sound of the hoists. The LOD ring shows Rooftops' static
 cradle box at its old depth on infill towers. Workers cannot be knocked off (on purpose); shooting
 one only swings the cradle, with no blood.
+
+## 9d?. TV news crews, 2026-10-05 (agent branch `wt/news-crews`; VISUAL_ROADMAP #?)
+
+**What.** TV news at big scenes. A blast (a rocket, a car going up) or a police standoff
+(`standoff_stars` held round one spot, within `standoff_radius`, for `standoff_seconds`) is a
+STORY. After `blast_delay` (the desk has to hear of it) one of four invented stations - BASIN 7
+(satellite dish), SUNCOAST 4 (microwave mast), PACIFICA 9 (mast), ONDA 34 (dish, Spanish-language) -
+sends its live truck along the streets from out of sight. It double-parks down the street from
+the scene, hazards on, raises its uplink (`raise_seconds` 14: the dish swings up off the roof and
+round to the south, the mast runs out six sections to ~10 m over the roof with its coiled cable
+and pans its transmitter toward a receive site downtown), and the crew gets out: a reporter
+with the station's flagged mic and a camera operator with a shoulder camera. The reporter stands
+about `report_distance` (25 m; 62 m for a standoff) off the scene with it behind them, the camera
+`camera_back` beyond facing back, a light on a stand beside it (a SpotLight3D after dark on
+desktop), caution tape on posts across the pavement between them and the scene and along the
+kerb, the camera's cable on the ground back to the van. They are on air for `air_seconds`
+(80-140 s; a standoff holds them while it lasts), then wrap: back aboard, the uplink down, off;
+pooled once nobody sees the van. The news helicopter AirTraffic already flies is told the same
+story (`news_heat`, `news_focus`).
+
+**Files.** `scripts/npc/news_crews.gd` (`NewsCrews`, the node in city.tscn: stories, dispatch,
+the pure `layout()`, deploy, props, wrap, the pool, staging for tests and stills),
+`scripts/vehicles/news_van.gd` (`NewsVan` extends Vehicle: the road van in fleet white with the
+station's band, lettering and roof number; EmergencyCar's lane driving and StreetRoute routing
+without a siren, stopping at reds; DRIVE / ON_SCENE / LEAVING; hit, it goes physical like any car
+and its crew walks back to it), `scripts/npc/news_crew.gd` (`NewsCrew` extends Pedestrian: GO /
+WORK / RETURN; the reporter talks with the life library's talk clip under a held mic arm, the
+operator holds the camera on the shoulder, eye at the viewfinder; arm and kneel poses solved per
+rig like EmergencyCrew's; gunfire or a blast within `duck_radius` drops them to a knee and the
+camera swings to the trouble), `scripts/world/news_kit.gd` (`NewsKit`: stations and every mesh
+in code at real size - roof rack, mast base, sections, head, coil, dish turntable and
+prime-focus paraboloid, shoulder camera, mic with flag, LED panel on a tripod, tape posts and
+tape), `shaders/news_tape.gdshader` (safety yellow polyethylene, block-capital print, flutter
+pinned at the posts by `wind_factor`).
+
+**Rules.** Shooting a crew member is a crime like anyone (they are Pedestrians); one down wraps
+the story and the rest hurry back. The crew boards at the van's side door, or beside the van when
+a parked car is in the way, or after 30 s out of sight (never stranded). `max_vans` 2 (1 on the
+web), never two vans of one station at once, `merge_radius` 70 m makes blasts one story,
+`story_gap` 30 s between stories. Costs nothing until a story: no node but the dispatcher.
+`NEWS_CREWS=0` in the environment turns it off (the A/B). The smoke test keeps `enabled` off
+except in `tests/news_crews_checks.gd` (50 checks: invented stations, the kit, both uplinks up
+and down, the layout, a blast story and the helicopter, a standoff story, a staged van on air, the wrap and the
+pool, a van driving in from off the street, a crew member knocked down).
+
+**Stills.** `NEWS=wide|crew|reporter|van|air` on `tools/glshot/still_shot.gd` stages a story on
+the street ahead of the camera (a burning wreck at the scene, the van pulled up, the crew on air,
+the street's traffic held) and frames it; `NEWS_ALL=1` takes every framing from one load,
+`NEWS_NIGHT=21.5` the wide one and the crew again after dark; `NEWS_STATION=0..3`. The van alone:
+`NEWS=<station> tools/glshot/car_shot.gd --row=0,0` (`NEWS_RAISE`). On `shots/news-crews`.
+
+**Frame cost.** FRAMECOST
+
+**Not done / not verified.** Forward+ (the stand light, the tape's sheen) not seen on lavapipe;
+the standoff story is checked by setting the stars, not with a live police chase; the reporter's lip sync is the generic talk clip.

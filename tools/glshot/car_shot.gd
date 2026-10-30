@@ -177,7 +177,13 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 	var cars: Array[Node3D] = []
 	for i in types.size():
 		var car: Node3D
-		if police:
+		if OS.get_environment("NEWS") != "":
+			# NEWS=<station 0..3>: a TV news van on scene, its uplink raised (NEWS_RAISE 0..1).
+			var nrng := RandomNumberGenerator.new()
+			car = load("res://scripts/vehicles/news_van.gd").call("make", OS.get_environment("NEWS").to_int() + i, nrng)
+			car.set("mode", 1)
+			car.set("raise", float(OS.get_environment("NEWS_RAISE")) if OS.get_environment("NEWS_RAISE") != "" else 1.0)
+		elif police:
 			var rng := RandomNumberGenerator.new()
 			car = load("res://scripts/npc/police_car.gd").call("make", heavy, rng)
 			car.set("police", null)
@@ -206,7 +212,7 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 		# Parked, like a street car: a physics body left to settle on its springs. A cruiser is
 		# kinematic until it engages, so it is stood on the road at its ride height instead.
 		car.position = Vector3((float(i) - float(types.size() - 1) * 0.5) * spacing,
-				float(car.call("road_lift")) if police or types[i] == 12 or types[i] == 13 else 0.9, 0.0)
+				float(car.call("road_lift")) if police or OS.get_environment("NEWS") != "" or types[i] == 12 or types[i] == 13 else 0.9, 0.0)
 		world.add_child(car)
 		cars.append(car)
 	var occupant := OS.get_environment("OCCUPANT")

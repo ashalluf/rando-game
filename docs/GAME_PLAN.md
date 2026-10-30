@@ -1484,6 +1484,14 @@ already mapped so milestone 2 is script-only.
   real geometry on its window grid; the old 150 ft limit holds. docs/HANDOFF.md "The historic
   core"; CLAUDE.md "Historic core".
 
+- **2026-10-05 The news covers the chaos.** A big blast or a long police standoff becomes a
+  STORY: one of four invented stations (BASIN 7, SUNCOAST 4, PACIFICA 9, ONDA 34; never a real
+  broadcaster) sends its live truck, which double-parks down the street, raises its uplink and
+  puts a reporter on air in front of the scene behind caution tape, while the news helicopter
+  circles the same spot. They are people like anyone (shooting them is a crime), they kneel at
+  gunfire with the camera still rolling, and they pack up and leave after a couple of minutes.
+  docs/HANDOFF.md "TV news crews"; CLAUDE.md "TV news crews".
+
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
   in the afternoon, backlighting the mountain faces the city looks at. Realism wins over the old
