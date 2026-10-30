@@ -20805,23 +20805,28 @@ did - proven pixel for pixel, below.
 
 **The model** (sky.gdshader):
 - `sun_through(el, h)`: the sun as it reaches a point `h` km up at elevation `el` measured from
-  THAT point's horizon (el = the camera's sun elevation + the point's distance toward the sun /
-  R, plus 0.01 of refraction). Air masses: Rayleigh (8 km scale height, tau 0.032 / 0.074 / 0.180
-  a unit air mass) and aerosol (1.4 km, 0.085 / 0.115 / 0.150 - the basin's smog, which is what
-  takes the light past orange to red), 1 / (el + k) above the point's horizon and, below it, twice
-  the grazing path to the tangent height less the part above the point. Brightness falls with the
-  red's transmittance (floor 0.45) and goes to 0 as the tangent height goes under the ground (the
-  earth's shadow, soft over -0.5..0.4 km). Returns the colour normalised to its red, so neither
-  renderer's exposure moves it. `SunsetSky.sun_through()` is the GDScript copy; the checks read
-  the shader's optical depths and shadow line back.
+  THAT point's horizon (el = the camera's sun elevation + the point's distance toward the sun / R).
+  **The colour is an art-directed palette** by `el` (`SUNSET_PAL_E` / `SUNSET_PAL_C`, linear, red
+  1): gold-orange at sin 0.30, orange, deep orange at 0.06, red-orange on the horizon, salmon at
+  -0.05, pink at -0.10, magenta at -0.16. The first pass was a physical transmittance (Rayleigh +
+  aerosol air masses, normalised to red) and the lead's review threw it out: the sunlit cumulus came
+  out pale lemon at 17:45 and the bases went grey at 18:15. **The earth's shadow climbs on an
+  exaggerated radius** (`SUNSET_SHADOW_R` 200 km, soft over -0.4..0.5 km of tangent height, with
+  0.01 of refraction): this game's sun sinks about four times faster than LA's, and at the true
+  6,371 km a deck 2 km up lost the sun four game minutes after the street; now its bases glow
+  salmon, pink, then magenta to ~18:40. Brightness eases to 0.7 under the horizon.
+  `SunsetSky.sun_through()` / `PALETTE_*` / `SHADOW_R` are the GDScript copy; the checks read the
+  shader's stops, colours and shadow line back.
 - **Volume (Forward+)**: every lit cloud sample takes `sun_through()` at its own height and place,
   mixed by the weight - gold at 17:30, orange-red at 18:00, red on the crowns at 18:06, the
   earth's shadow then climbing the deck from the bases. Once the sun is under the street's horizon
   the light march is tipped down (to -0.2) so it leaves through the flat base: the whole base glows
   hot from below while the body above stays in its own shade - at the true 1-2 degrees the march
-  ran along inside the base and never saw the light. The ambient under the deck takes the warm
+  ran along inside the base and never saw the light. **While the weight is on the sun stays the
+  march's key light down to sin -0.2** (it used to hand over to the moon at sin -0.07, which is
+  most of why the 18:15 bases were grey). The ambient under the deck takes the warm
   horizon (twilight_warm, strongest toward the sun, x1.9 once the sun is under), the crowns the
-  violet of the twilight band. A narrow forward lobe (HG 0.86) on thin margins is the silver lining.
+  violet of the twilight band. A narrow forward lobe (HG 0.86, x0.16) on thin margins is the silver / gold lining.
 - **Rays**: fanned wider (exp(-ang^2 x 1.1)) at `sunset_rays` (0.45) in the sun's own red, NOT
   `god_rays`: DayNight multiplies that by (1 - night_factor), which is 0.3 at the sunset itself.
 - **Painted cumulus (Compatibility, the web)**: the same light at the deck's crown height
@@ -20851,6 +20856,12 @@ fixed here). `HOLD_TIME=1` is new on `tools/sky/sky_shot.gd` because shader TIME
 compiles slower drifts the clouds and an A/B "differs" in 15 % of its pixels; `PARAMS="a=1;b=0"`
 holds uniforms after DayNight has set them (frame_pre_draw), for experiments.
 
+**Second pass (the lead's review)**: palette, longer shadow, sun kept as key light, stronger
+lining; before / after 17:45, 18:15, 18:30 in `shots/sunset-clouds` `review_*` (Forward+ and
+opengl3): 17:45 hot orange, not lemon; 18:15 and 18:30 the bases glow salmon and pink under
+violet crowns where the first pass had grey silhouettes. Noon is still bit-identical (the gates
+did not move).
+
 **Stills** (`shots/sunset-clouds`): sky_shot every 15 min 17:30-19:30 toward the sun (yaw 90) and
 away (270), Forward+ and opengl3, before (old shader) and after; the city from the beach
 (-732, 2.1, 800, west) and over the basin from the front range (300, 260 agl, -650, south-west) on
@@ -20860,363 +20871,3 @@ opengl3, `SUNSET_CLOUDS=0` vs on.
 would need the band retuned, which touches every dusk); the fine bright speckles inside big heaps
 on lavapipe stills are the volume's own (in the before too); the city stills are opengl3 only (the
 city does not fit lavapipe); dawn gets the same model (symmetric weight) but was not tuned.
-
-## 9hv. The freeway close up (wave 3, branch `wt/freeway-closeup`; VISUAL_ROADMAP #220)
-
-The brief: driving the 110 / 101 / 10 at speed, from the chase cam and the driver's seat, by day,
-golden hour and night, the freeway should read like a 2026 game's LA freeway. The kit (9ba) had
-the parts; what read wrong up close was the driving surface (the city's asphalt material on a
-deck that in LA is concrete), clean barriers, flat sign faces and invisible markers by day.
-
-**What changed** (`FreewayCloseup`, `scripts/world/freeway_closeup.gd`; `FREEWAY_CLOSEUP=0` is the A/B):
-- **The deck is concrete** (`shaders/freeway_deck.gdshader`). The kit's `top` vertices now carry
-  UV = (metres along the route, metres across from the centre line) and UV2 = (half width, route
-  + 1; 0 on ramps and the stack's connectors) through `FreewayKit.top_vertex()` (the kit, the
-  ramps and StackBuild). The shader rebuilds Freeway.lane_layout() from the half width (its
-  numbers are copies, checked) and draws: lane-wide slabs with transverse joints skewed 2:12 at
-  Caltrans's repeating 12-13-19-18 ft spacing, sealant and spalled edges; longitudinal tining,
-  a normal tilt faded once a groove is under ~2 pixels; per slab (hashes) a tone, replaced slabs
-  (paler, crisper), cracked ones (a corner break or a mid-slab crack), asphalt patches with a
-  tarred seam; asphalt overlay stretches (28 % of 520 m stretches a route) whose cracks mirror
-  the slab joints under them; two polished, rubber-darkened wheel paths a lane, the oil band
-  down each lane's middle, now and then two skid marks drifting across; the shoulders' grit,
-  litter, glass glitter and weeds at the barrier toe and through cracks, a milled rumble strip
-  past the outer edge line; rain darkens and glosses it and water stands in the ruts and the
-  gutters. Tangents come from screen derivatives (the deck has none). 4 samplers.
-- **The kit's shaders** take a `closeup` uniform (set from the switch): graffiti from the street
-  wear tag atlas - handstyles on the faces the traffic sees, throw-ups on the outer barrier faces
-  and running on down the fascia, some buffed -, recast barrier panels and chipped arrises, white
-  rust and grime on the galvanised steel; sign boards in metres (the board's UV against the
-  screen Jacobian) with 12 in extruded panel seams and the lip over each, clip bolts at every
-  stringer, streaks down from the top and grime along the foot, the microprismatic sheeting's
-  sparkle in the retro; raised markers drawn as housings with lens faces, a white one's back lens
-  red (it glints red to a wrong-way driver at night), on a black adhesive pad; dirt round the
-  Botts' dots; tyre grime smudges on the lines.
-- **Lamp halos**: every light standard's two heads get NightAtmos's halo in the chunk's batch
-  (`FreewayCloseup.lamp_halo()`, the batch's relief taken back off; collapses by day).
-- **Traffic by the hour**: TrafficManager's freeway fill leaves a free slot empty at
-  `FreewayCloseup.spawn_skip(hour)` (0.08 at the rush, 0.62 in the small hours; the old flat
-  0.35 when staged or switched off) - the same single roll a slot, so no rng drift. The trucks
-  already keep to the two slow lanes (BigVehicles' shares).
-
-No geometry, roll or LOD rule changed: the checks build a deck chunk's kit with the pass on and
-off and compare every vertex; the triangle budgets (tests/freeway_kit_checks.gd) are unchanged.
-
-**Checks**: `tests/freeway_closeup_checks.gd` (the lane copies, samplers, materials, the deck's
-UVs, no geometry moved, the fill by the hour).
-
-**Cost** (still_shot.gd GEO, opengl3 1280x720, one load each; traffic differs run to run): the
-freeway bookmark (`--spawn=200,1088,-90,-4,30 --hour=13 --weather=clear`) `FREEWAY_CLOSEUP=0`
-6,766,083 tris / 3,156 draws, on 6,740,195 / 3,127 (flat: no geometry is added; the halos are
-instances of the batch's existing `atmos_glow_halo` key). On the 110 by downtown, main c838ea1 ->
-this branch: drive noon 5.66 M / 2,866 -> 5.80 M / 2,833, deck close up 2.08 M / 809 -> 2.06 M /
-793, drive night 3.74 M / 1,379 -> 3.72 M / 1,394. Pixel cost: the deck shader is four texture
-fetches (two scans, two normals) and a dozen value noises against road.gdshader's own five
-fetches and noise, so the deck is about what it was.
-
-**Stills** (`shots/freeway-closeup`, README there): the 110 by downtown northbound, before /
-after at noon, chase, the gantry, the deck close up, golden hour, night, the exit sign at night,
-and a low driver's-eye view. Cameras: `--spawn=1989,160,-6,-3,12`, `EYE=1989,12.0,160,-6,-3`,
-`1989,11.6,166,-6,-28` (deck), `1993,11.7,150,-6,-5@13@75` (driver).
-
-**Not done / not verified.** Forward+ (the Mac) not rendered: the concrete's albedo (0.158
-linear) and the halo strength were judged on opengl3 only; at night the pale concrete takes more
-of the moonlight fill than the old asphalt did. The sign panel seams and bolts only show inside
-~15 m (the gantries are seen from 25 m and more, where they fade to the board). Sound walls are
-YardFill's (`lot_walls.gdshader`) and were not touched; StreetWear already tags them. No real
-weed geometry (painted only). The rush-hour fill was not measured in a still (the stills hold
-traffic as the city spawned it).
-
-**Gate** (`SHARDS=3`, merged with main 3eb7bea): 4,017 checks, 4,015 passed, shard peaks 2,685 /
-3,432 / 3,322 MB, 1,136 s. Failed in shard 1: explosions_2's "one flash light, brighter and wider
-than the old one" and "the blasts leave nothing behind (0 nodes, 7 pieces)"; shard 2 logged one
-`Invalid access to property or key 'dir'` in TrafficManager._drive_streets (traffic.gd:544, a
-street car's lane group, during the police station checks). None of it is freeway code, and
-`SMOKE_PARTS=explosions_2_checks,police_station_checks` alone passes 65 / 65 with no error.
-The 49 freeway checks (kit + close-up) pass.
-
-## 9hw. The beach at golden hour: a postcard pass on the sand and the towers (fleet wave 3, `wt/beach-golden`)
-
-**The brief** (wave 3, owner's bar "make it look like GTA 6", whose trailer lingers on its
-beaches): the beach town's sand, boardwalk and pier at golden hour and at midday as a postcard -
-sand with real micro relief, footprints and wind ripples, wet sand mirroring the sunset, the
-towers' paint and wear, palms backlit, people in long shadows, the pier's lights, haze over the
-water, the surf's spray in the light. Mostly shader and placement tuning, measured.
-
-**What it is** (`BeachGolden`, `scripts/world/beach_golden.gd`; `shaders/beach_golden.gdshaderinc`,
-included by `beach_sand.gdshader`; codes 11 / 12 in `beach_props.gdshader`):
-- **The damp tide band.** Above the swash's reach (`reach_max`, the surf model's run-up) a ragged
-  band 5 m wide (wandering with the shore) is darker (`band_darken`) and glossier
-  (`band_roughness`), and mirrors the sky by Fresnel (`band_mirror`); in it, standing **pools**
-  in the low-tide terrace's troughs (a noise field) mirror it nearly whole (`pool_mirror`, rough
-  0.04, the relief drowned). At golden hour the sky's glow round the sun is added to what the wet
-  sand mirrors (`sun_glow`, toward the sun's azimuth, low over the horizon) and a broad sun path
-  runs up it (exponent 40 in damp sand, 600 in a pool): the sunset thrown up the beach.
-- **The sky mirror's colour space** (the Forward+ fix): `sky_tint` arrives as raw sRGB on both
-  renderers, and the sand (a renderer-space shader) EMITTED it raw - a stop too bright on the Mac.
-  It now goes through `cs_as_uniform()` (CLAUDE.md's fwd-review-d rule), the sun colour too.
-- **Relief on the dry sand**: wind **ripples** 9-15 cm apart, crests along the shore, asymmetric,
-  bent and forking under a warp, patchy, faded out once a ripple is under ~0.06 of a pixel - only
-  near the camera, where the texture's own ripples cannot hold; **hummocks** (0.33 and 1.1 per
-  metre octaves of value noise, each in its own TURNED domain: in the world's axes the gradient
-  of a value noise draws its lattice as streaks along x and z, a corduroy at a grazing sun).
-- **Footprints**: trails walked down to the water (one per 5 m band along the shore, half of them,
-  wandering, left / right heel-and-toe dents with their heaped rims at a 0.72 m stride, gaps where
-  the wind filled them, softened with age) and along the wet sand (crisper, holding water: darker
-  and glossier in the dent). Washed out under the swash. A trail under a pixel is its average, a
-  faintly trodden line.
-- **The wrack line**: kelp and shell grit along the swash's top, a ragged dark band of clumps
-  and speckle. **Quartz glints**: one 1.2 cm cell in 16 has a tilted facet that flashes when it
-  mirrors the sun into the eye, faded under a pixel (the near sand only).
-- **The lifeguard towers**: the tower mesh's paint and timber carry codes 11 and 12 (vertex
-  alpha 0.55 / 0.60, `BeachGolden.tower_paint()` / `tower_wood()`; A_PLAIN with the switch off).
-  The shader draws boards with grooves (their average past a few pixels), paint faded and chalked
-  most where it faces the sky, small peeling patches to grey wood with a dark lip near the cabin's
-  foot, grime run down from the window band, a per-tower amount (a hash of its TRUE position, so an
-  origin shift does not change it); posts silvered and grained, checked, dark and damp at the sand.
-
-**Rules / traps.** Nothing rolls: every pattern is a hash of true world position in the shader,
-the tower's geometry is the same vertex for vertex (checked), so no seed's layout moves.
-`fwidth()` must be taken OUTSIDE any branch: inside `if (golden_on && dist < 260)` llvmpipe
-returned 0 and the ripples, never faded, aliased into a fine hatch at every range (found by
-switching each layer off: `BEACH_GOLDEN_PARAMS="ripple_amp=0,..."` sets any of the sand's
-uniforms for stills and tuning). The existing swash code still takes fwidth inside its branch (it
-is not hit by the camera far from the sheet; left alone).
-
-**Not done**: palms backlit (foliage.gdshader's BACKLIGHT already scatters a low sun through the
-fronds; untouched), people and bikes on the boardwalk (the boardwalk's and the piers' stretches
-get no BeachLife people - unchanged), the pier's lights (they follow `lamp_factor`, on by 18:30 -
-unchanged), haze over the water and the spray's backlight (surf_spray.gdshader already glows
-toward a low sun - unchanged). The midday sand stays pale: AgX and the grade, not the sand.
-
-**Frame cost** (opengl3 1280x720, `still_shot.gd` GEO, `--quality=0 --weather=clear`, the same
-EYEs from one load each, BEACH_GOLDEN=0 vs on): shader-only, so the geometry is the same -
-the beach bookmark `EYE=-725,1.7,610,160,-6` at 13:00 1,849,714 tris / 394 draws -> 1,857,094 /
-408 (people and bikes moved between the loads; the sand and towers add nothing); sand toward the
-sea 1,066,667 / 289 both; the pier from the beach 1,376,566 / 350 both; down the pier deck at
-18:30 1,951,568 / 1,353 both. The pixel cost is the sand's: ~6 value-noise taps and two short
-loops of trail tests a fragment within 260 m, nothing past it.
-
-**Stills** (`shots/beach-golden`, opengl3): sand toward the sea and the pier from the beach at
-13:00 / 17:45 / 18:30 before and after, the pier deck at 18:30, low over the sand toward the sun,
-the beach-life bookmark, the weathered tower close up. Forward+ (lavapipe, `fwd_block_shot.tscn`,
-960x540) pairs of the sand at 17:45 and the tower at 13:00: `fwd_*` on the same branch.
-
-**Gate**: `SHARDS=3 tests/headless_check.sh` 4,019 checks, 0 failed (peak RSS 3,428 MB a shard).
-
-**A/B**: `BEACH_GOLDEN=0` (the sand and the towers exactly as before). Checks:
-`tests/beach_golden_checks.gd` (the include and its switch, the colour-space line, the uniforms
-parse, the material follows the switch, the tower's codes are free in BeachLife's table and drawn
-by the props shader, the same tower vertices with the switch on and off).
-
-## 9hx. The crowd's faces up close: living eyes, face zones, no orange faces under lamps (wave 3, branch `wt/crowd-faces`)
-
-The owner's bar is "GTA 6". At 1-4 m the crowd's faces read as mannequins: eyes fixed and glassy
-(a paper-white sclera lit as evenly as the cheek, the MakeHuman "brown" iris a saturated blood red),
-skin one even paint with no blood, no hollows, no gloss where skin is oily, lips the colour of the
-cheek, brows a pen stroke (the hair-mesh cards alone) - and at night under a street lamp behind
-them, the whole face glowing orange. The hero got this treatment in 9hf / 9hk with face bones he
-does not have either; the crowd has no budget for per-person materials or modifiers, so all of it
-is ONE branch of `shaders/character.gdshader` that runs only within `CrowdFaces.REACH` (11 m, faded
-over the last quarter) of the camera, driven by per-rig data measured off the meshes.
-
-- **The data** (`tools/crowd_faces/face_fit.gd`, opengl3 under Xvfb - it needs mesh data - about a
-  minute for all 32 rigs; rerun after any crowd rig is rebuilt or added): per rig, in the head frame
-  of hat_fit.gd (moved to the eyes' midpoint and scaled by the eye spacing, so one zone table fits
-  every face) -
-  - each eye's centre and the LINEAR map from a direction on the unit eyeball to atlas UV, fitted by
-    least squares over the front half (`uv = c + J * (dx, dy)`; the residual is 1-2 px of the 2K
-    atlas, so the eye discs are a planar projection). **The two eyes' UVs are mirrored** (J's u
-    column flips sign): a gaze written in UV would cross the eyes; written in the head frame through
-    each eye's own J it is conjugate;
-  - the upper lid's outer skin over each eye (the most forward skin vertex in a small column over
-    the eye's centre: the nearest-point pick landed on the pink inner lid);
-  - the face map: the face's own UV island (the largest connected piece of the head's front skin -
-    the mouth's inside and stray head skin sit elsewhere in the atlas), rasterised into one 128 px
-    tile of `assets/textures/crowd/crowd_faces.png` (8 x 4 tiles, 1024 x 512, VRAM-compressed like every texture,
-    sampled at LOD 0; the body atlases are size-limited to 1024, so a face rect is ~240 texels) from the interpolated head-frame position: R blood (cheeks, nose, lips, ears, a touch of
-    chin and brow), G cavity (tear troughs, inner corners, the lid crease, nose wings, mouth corners,
-    the lip line, the brows' roots), B oil (forehead, bridge, chin), A 1.0 lips / 0.5 thin skin
-    (ears, nose wings). Written to `scripts/npc/crowd_face_table.gd` (`CrowdFaceTable`).
-- **The shader** (`face_pass` 1 set by `CrowdFaces.apply()` from one line in
-  `Pedestrian.character_material()`; no rolls, so no seed moves; the body contract and the welded
-  mid / far bodies are untouched - the branch is never reached past 11 m):
-  - **eyes**: the iris moves by sampling the eye's own disc at `uv - J * gaze` (kept on the disc).
-    Fixations of 0.5-2 s reached by a 30 ms saccade, a tremor between; inside 7 m and when the
-    camera is in front, a share of fixations land on the camera - the head frame in view space is
-    rebuilt per pixel from the eyeball's smooth normal (its direction from the eye centre is
-    `(p.x, p.y, pz)` in the head frame) and the surface's screen-space run with `p.x`. A blink every
-    3.7 s slot at a hashed moment (70 ms closing, 30 shut, 130 opening, now and then a double)
-    paints the upper lid down over the eyeball from the lid skin's colour (both lids' samples
-    averaged; lid pixels are SKIN from then on: tint, roughness, pores); the lid rides lower on a
-    downward look. The socket's shade (the lid's shadow over the top, the corners), the sclera a
-    touch darker and warmer, its specular cut in that shade, and the red-brown source iris browned
-    (hue 0.075, a little less saturated).
-  - **per person, not per look**: the timing hashes the instance's own SCALE (`v_face_seed`, a
-    flat varying from MODEL_MATRIX's column lengths - Pedestrian rolls every walker its own build),
-    so a crowd sharing one material per look does not blink in step (no instance uniforms).
-  - **skin**: the face map's zones as multiplies (squared on Forward+'s linearised texture): blood
-    warm and red (weaker on dark skin by itself), cavities a little cool and violet, lips deeper and
-    redder; a slow mottle in the skin's own metres (UV2); the crowd detail texture's skin tile read a
-    second time at under half the tile for finer pores (tone, slope, roughness), the sheen broken up
-    by it, the T-zone oilier and the lips glossier.
-  - **light through skin**: BACKLIGHT is held to `face_backlight` (0.3) except on thin skin (and to
-    0.6 of that on Compatibility, where it is a glow) for every crowd rig with the pass on, at every
-    distance (it costs nothing). That is the night fix: under a lamp behind somebody the whole face
-    was lit orange (before / after stills 05 / 06). Forward+'s SSS is left alone (it is scattering,
-    not a glow; cutting it greyed the older faces).
-- **Cost**: no triangles, no draws, no nodes, no CPU per person; ALU on the face and eye pixels of
-  people within 11 m (a face is a few thousand pixels at 2 m). Downtown bookmark
-  (`--spawn=2359.4,880,0,12,2`, 13:00, opengl3, SPLIT=1): see the numbers below. One 0.5 MB
-  texture in memory (the face atlas, 0.35 MB on disk) and one more sampler in the character shader (6 with its includes; the
-  web cap is 9).
-
-Switches: `CROWD_FACES=0` (the A/B: the pass and the BACKLIGHT change off). Stills:
-`tools/crowd_faces/face_shot.gd` (framed on each person's Head bone: `MODELS`, `DIST`, `YAW`, `FOV`,
-`NIGHT=1` a sodium lamp behind to one side, `STILL=blink,gx,gy` holds the face, `STREET=1` a
-pavement with people walking toward and away; `--rendering-driver vulkan` with lavapipe for
-Forward+, about a minute). Checks: `tests/crowd_faces_checks.gd` (the table covers MODELS, tiles,
-rects and eye maps sane and mirrored, the atlas imported like every texture, the branch gated by face_reach, the seed
-from the scale, the blink's numbers mirrored by `CrowdFaces.blink()`, 12-25 blinks a minute and not
-in step, a prepared rig's look carries the pass, apply() touches only face uniforms, the A/B).
-
-**Not done**: the lashes are hair-mesh cards and do not follow the painted blink (they stay open
-for its 0.2 s); the lower lashes are as dense as the upper ones (the hero thinned his); no mouth or
-brow motion (no face bones); the brows are still the hair cards over painted roots; eye contact is
-a share of fixations, not driven by CrowdLook's targets (a later pass could hand the shader the
-look direction through the head bone, which it already turns).
-
-## 9hy. The chase camera (wave 3, driving-camera)
-
-The owner: "make it look like GTA 6 - and feel like it". In a car the camera used to be the
-on-foot rig unchanged: it stayed where the mouse left it, so a turn drove the car out of the frame
-and nothing told you how fast you were going. Now `DriveCam` (`scripts/player/drive_cam.gd`, a
-Node the CameraRig makes in `_ready()`) drives the rig while the player is at the wheel of any
-ground Vehicle (cars, trucks, bikes, boats; never `Aircraft` or `FlyableHeli`, which keep the old
-camera). `DRIVE_CAM=0` in the environment is the A/B.
-
-- **Follow.** The view follows the way the car travels (its velocity past `velocity_follow_from`,
-  its nose when slow or reversing) on a critically damped spring (`DriveCam.spring()`, exact for
-  a step, so any frame rate lands on the same curve) whose stiffness rises with speed
-  (`follow_slow` 3.5 -> `follow_fast` 5.5). Its steady lag in a turn is the swing into the corner:
-  ~10 degrees at 60 km/h and 0.8 g, capped at `max_corner_lag_deg` 22, plus `corner_swing_deg` per
-  rad/s of yaw rate (never stored in the spring, so it does not accumulate). It leans against the
-  cornering force (`corner_roll` deg per g, max 3).
-- **Framing.** Pivot at the car's centre (`pivot_base` + per metre of length; a semi counts its
-  trailer), distance `distance_base` + `distance_per_length` x length + `speed_pullback` with speed
-  + `accel_pull` (falls back accelerating, closes in braking); pitch `pitch_slow_deg` -11 ->
-  `pitch_fast_deg` -6 (lower with speed) plus `slope_follow` of a hill; field of view +`speed_fov`
-  (7 deg) at full speed and +`nitro_fov` on the nitro (the on-foot boost FOV is faded out in the
-  car). Speed share: `speed_from` 8 m/s (30 km/h) to `speed_full` 42 (150 km/h). Measured: 30 / 80
-  / 150 km/h = 6.4 / 7.1 / 8.4 m back, pitch -11 / -9 / -6, FOV +0 / +1.6 / +7.
-- **Shake.** `road_shake(clock, ...)` is pure: two slow sway sines and three buzz sines (11.7,
-  17.3, 23.9 Hz) of the CLOCK, never a random number a frame; the buzz grows with speed squared,
-  the sway from a crawl; x`rough_gain` when a wheel is on hill terrain; any component above
-  `max_buzz_share` of the frame rate is faded out (at 20 fps the buzz is gone, the sway stays), so
-  it reads the same at 30 and 144 fps. Flat out on tarmac it moves the view 0.44 degrees at most.
-  The settings screen's new "Driving camera shake" (GameSettings `drive_shake`, CameraRig
-  `drive_shake`) turns it off.
-- **Kicks.** `_physics_process` watches the car's velocity: a vertical change past `bump_min_dv` in
-  a tick is a bump (a short dip), touch-down after more than 12 ticks with no wheel in contact a
-  landing (dip and drop by the fall speed, a rig shake past 12 m/s), a horizontal change past
-  `crash_min_dv` a crash (lurch toward the car, a rig shake). The kick is an under-damped spring
-  (`kick_omega`, `kick_damping`) sub-stepped at 240 Hz: the same thump at 30 and 144 fps.
-  A teleport (respawn, an origin shift) kicks nothing.
-- **Free look / look behind.** Mouse or stick input (`CameraRig` calls `note_look()`) hands the
-  view to the player; `free_look_hold` 1.3 s after the last input it eases back behind the car over
-  `recenter_seconds`. While boost-flying (airborne, boost held: the car flies where you look) it
-  never takes the view back. `look_behind` (new action: C / pad X) swings round in
-  `look_behind_seconds` and back on release. Getting in blends from the view you had
-  (`blend_seconds`); getting out hands it back.
-- **Motion blur.** CameraPost multiplies its strength by `DriveCam.blur_terms()` (1 +
-  `blur_gain` 0.7 at full speed) and raises the soft knee by `blur_threshold_add` px while driving:
-  the car rides with the camera (only its lag and the buzz move it on screen, under the knee), so it
-  stays sharp while the road and the roadside streak. Forward+ only, like the blur itself: NOT
-  SEEN (the city does not fit lavapipe) - judge it on the Mac.
-- **Walls.** The spring arm sweeps a `arm_radius` 0.25 m sphere while driving (the ray alone can
-  slip past a corner and leave the near plane in a wall). The checks spin the view round a car
-  backed up to a wall, a pillar and a low lid: the camera was never inside one or on the far side.
-
-Hooks: `camera_rig.gd` (the DriveCam, `note_look()` on input, the chase result applied before
-`_apply_rotation()`, the pivot moved to the car), `camera_post.gd` (two lines, the blur terms),
-`game_settings.gd` / `pause_menu.gd` (the shake toggle, the C row on the controls card),
-`project.godot` (`look_behind`). Checks: `tests/driving_camera_checks.gd` (55, the last city file;
-alone: `SMOKE_PARTS=driving_camera_checks`). Strips: `tools/driving_camera/drive_strip.gd` (a
-scripted drive up Flower St with `--fixed-fps 60`: s30, s80, s150, a 35 km/h right turn onto
-Olympic, an 80 km/h hop; `DRIVE_CAM=0` the before) and `strips.py`; stills on
-`shots/driving-camera`.
-
-Not done / not seen: the motion blur on Forward+ (above); a pad's look-behind shares X with the
-on-foot dive / wingsuit (both off in a car); no per-surface buzz beyond terrain (DrivingFX knows
-sand and dirt, not shared); the camera does not yet look into the corner AHEAD (GTA's slight
-lead) - the lag shows the flank instead.
-
-## 9hz. Grounded light: the GI reviewed on Forward+, contact shadows on both renderers (fleet wave 3, `gi-review`, branch `wt/gi-review`, 2026-10-30)
-
-The owner's bar ("make it look like GTA 6") is mostly indirect light: contact under every car and
-prop, AO where walls meet pavement, bounce warming a street off a sunlit facade, the dim light
-under a freeway, a shaded alley still readable. Reviewed on the real Forward+ pipeline under
-lavapipe, one small scene a process (`tools/gi_review/gi_shot.tscn`: the FULL chunk round an EYE,
-the city's WorldEnvironment / Sun / DayNight / Weather, the clock held, the player's camera
-attributes so the auto exposure adapts as the eye does, `VARIANTS=` shooting before / after and
-HIGH / MEDIUM from ONE load, `PROFILE=1` + `--gpu-profile` timing every variant through
-`tools/gi_review/profile_split.py`); opengl3 for the Compatibility side. Seed 1337, 12:00 clear.
-Two downtown blocks in one lavapipe process run the box out of memory (OOM-killed at 12.7 GB):
-one scene a process, `BLOCKS=home`.
-
-**What was wrong (measured, ground luminance 0..255 in the shade):**
-- **HIGH's shade is SDFGI's alone, and it was too dark where the sky is hidden**: a service alley
-  33 at HIGH against 57 at MEDIUM, the street under the 110 13 (pitch black, the soffit 18) against
-  85. Open shade under a parked car 18 (p10) against 42.
-- **`ambient_light_energy` does nothing by day.** Godot applies it only while
-  `ambient_light_sky_contribution` is under 1.0, and DayNight's day value was 1.0: `day_ambient_energy`
-  (0.30, "a key light that out-runs the fill", HANDOFF 1348) and `marine_ambient_gain` have never
-  acted by day. Measured: AMB 0.35 and 0.5 drew the same frame. MEDIUM's sky fill was therefore the
-  sky cubemap at full strength, unoccluded (no SDFGI): flat, blue, twice HIGH's shade, a freeway
-  soffit lit like the open street.
-- **SSAO** (radius 2.1 m, detail 0.6) was a wide soft veil with no contact; **SSIL** (radius 4 m,
-  intensity 0.5) reached a quarter of a street.
-- **Cars and street furniture floated on the Compatibility renderer** (the web, every opengl3 still):
-  no SSAO there at all.
-
-**What changed:**
-- **`GiTuning`** (`scripts/world/gi_tuning.gd`): the SSAO / SSIL / SDFGI numbers per Quality level
-  in ONE table, applied by `Quality._apply_render()` (one line). HIGH: SSAO radius 1.2, intensity
-  2.4, power 1.6, detail 1.0, light_affect 0.12; SSIL radius 6, intensity 0.8, normal rejection 0.6;
-  SDFGI bounce feedback 0.9 and the DAY energy x1.35 (`gi_scale`, DayNight's `day_gi_energy *
-  GiTuning.gi_scale`; the night value is untouched - the road glow must not bounce). MEDIUM and
-  below: SSAO light_affect 0.3 and the day sky contribution 0.7 (`sky_contribution`, DayNight;
-  the rest of the ambient is day_ambient at its energy, which now acts). SDFGI energy sweep in the
-  alley: x1.0 33, x1.3 + bounce 0.9 37, read_sky_light off 17 (the sky is half of it).
-- **Freeway soffit fill** (`freeway_structure.gdshader` `under_fill`, GiTuning UNDER_FILL, HIGH only
-  0.22): downward faces of the deck, caps and girders emit their albedo times a warm ground bounce by
-  day (`1 - lamp_factor`); emitted, so SDFGI bounces it onto the street under the deck. Tried first
-  and rejected: SDFGI energy x3 (soffit 18 -> 30), `sdfgi_min_cell_size` 1.6 (soffit 125, but by
-  LEAKING the sunlit deck top through a 2 m girder; the street under it stayed 15).
-- **`ContactShadows`** (`scripts/world/contact_shadows.gd`, `shaders/contact_shadow.gdshader`):
-  one MultiMesh of soft occlusion quads - the footprint as a rounded rect fading `MARGIN` past the
-  body, a blob under each wheel from `_dims()` track and axles - under the `budget` (48) nearest
-  cars (group "vehicle") and loose props ("physics_prop") within `reach` (70 m), drawn as an
-  alpha-blended darkening (one draw, both renderers). One node under the tree root (made by the
-  first Vehicle, like CarLights) writing TRUE global transforms every frame, so origin shifts never
-  touch it; re-picked every 0.25 s. A car's quad lies in its own contact plane (`_dims()` road),
-  tilts with it, fades when no wheel touches (jumps, flight), when it rolls over, and near `reach`;
-  wheel-less non-traffic vehicles (helicopters, jets, boats) get none. Street furniture: one
-  "BatchContact" MultiMesh per FULL chunk built in `MultiMeshBatch.build()` from the batches in
-  `CONTACT_KEYS` (bench, planter, mailbox, news boxes, cafe sets, hydrants, meters, racks), drawn to
-  70 m past its bounds; each batch node keeps `contact_twin` / `contact_base`, so `hide_instance()`
-  takes a broken prop's quad with it. Strength by renderer: 0.55 with SDFGI (HIGH), 0.9 with SSAO
-  alone (MEDIUM / LOW), 1.0 with neither (Compatibility, LOWEST).
-- A/B: `GI_REVIEW=0` (all of it: the scene's numbers, no fill, no quads), `CONTACT_SHADOWS=0` (the
-  quads only). gi_shot variant tokens: `GI=0|1`, `Q=0..3`, `CS=0|1`, `GIS=`, `SKY=`, `FILL=` and
-  any Environment `property=value`.
-
-**GPU cost** (lavapipe `--gpu-profile`, shares of the frame, read the shares): SSIL 1.6-2.9 %,
-SSAO 0.8-1.5 %, SDFGI probes + render 1.2-1.8 %, before and after alike - the new numbers move
-nothing measurable (a larger SSIL radius costs nothing in Godot: its sample count is the quality
-setting's). The quads are one transparent draw plus one a FULL chunk.
-
-**Not done / not verified:** temporal SSIL noise (lavapipe stills are static frames; a clean still
-proves nothing about shimmer); the web build was not exported (the quads use only what
-Compatibility has); a park UNDER trees (the spot picked was a rec park's courts); interiors behind
-open doors are the traced shop rooms, untouched.

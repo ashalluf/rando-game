@@ -409,8 +409,9 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   weight on the sun's elevation alone (0 above ~19 degrees and below ~13 under, 0 in overcast:
   every block it adds is gated, noon and night are bit-identical). While on, each cloud sample,
   the painted deck and the cirrus are lit by `sun_through(el, h)` - the sun as it reaches THAT
-  point (local elevation tipped by the distance toward the sun, Rayleigh + aerosol air masses,
-  dark once the earth's shadow reaches it; `SunsetSky.sun_through()` is the GDScript copy, the
+  point (local elevation tipped by the distance toward the sun; an art-directed palette orange ->
+  salmon -> pink -> magenta, `SUNSET_PAL_*`; dark once the earth's shadow reaches it, on an
+  exaggerated `SUNSET_SHADOW_R` 200 km so the bases glow ~30 game minutes past sunset; `SunsetSky.sun_through()` is the GDScript copy, the
   checks read the shader's numbers) -; after the street's sunset the light march is tipped down
   so the flat bases glow from below under violet crowns; cirrus keep an afterglow (broken into
   wisps: their E-W streaks otherwise read as beams); rays fan wide (`sunset_rays`, not

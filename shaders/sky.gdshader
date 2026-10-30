@@ -117,8 +117,6 @@ uniform float god_rays : hint_range(0.0, 2.0) = 0.8;
 /// so gold, then orange, then red), and not at all once the earth stands between them (a cloud
 /// 3 km up keeps the sun about two degrees longer than the street, the cirrus three).
 uniform float sunset = 0.0;
-/// Aerosol (smog) optical depth along a vertical path, as a multiple of a clear coastal day's.
-uniform float sunset_aerosol = 1.0;
 /// The earth's shadow rising opposite the sun and the Belt of Venus above it (linear multiples of
 /// the sky's own luminance there, so they hold on both renderers).
 uniform vec3 earth_shadow_tint = vec3(0.55, 0.64, 0.95);
@@ -409,35 +407,28 @@ float hg(float c, float g) {
 
 // --- The low sun as it reaches a point ----------------------------------------------------------
 // The sun seen from a point `h` km up, at elevation `el` (the sine, measured from that point's
-// own horizontal): rgb the colour the air leaves it (normalised to its red), a its brightness
-// (0 in the earth's shadow). Air masses are a cheap Chapman: 1 / (el + k) scaled by the density
-// at the point, and below the point's horizon twice the grazing path down to the tangent height
-// less the part above the point. Rayleigh (scale height 8 km) and aerosol (1.4 km) separately:
-// the aerosol is what takes the light past orange to red in a Los Angeles evening.
+// own horizontal): rgb its colour there (linear, red 1), a its brightness (0 in the earth's
+// shadow). The colour is ART-DIRECTED, not a transmittance: a low sun through the Los Angeles
+// haze lights a cloud deep orange, salmon as it touches the horizon, then pink and magenta while
+// it shines up at the bases from under it (SUNSET_PAL_*, SunsetSky.PALETTE's copy). The earth's
+// shadow climbs the cloud on SUNSET_SHADOW_R, a curvature exaggerated so a deck 2 km up keeps
+// its glow ~30 game minutes past the street's sunset (this game's sun sinks four times faster
+// than LA's, and the post-sunset glow on the bases is the shot).
+const float SUNSET_SHADOW_R = 200.0;
+const float SUNSET_PAL_E[7] = float[](0.30, 0.15, 0.06, 0.00, -0.05, -0.10, -0.16);
+const vec3 SUNSET_PAL_C[7] = vec3[](vec3(1.00, 0.66, 0.36), vec3(1.00, 0.48, 0.18), vec3(1.00, 0.34, 0.10),
+	vec3(1.00, 0.27, 0.13), vec3(1.00, 0.26, 0.20), vec3(0.95, 0.18, 0.38), vec3(0.78, 0.16, 0.52));
 vec4 sun_through(float el, float h) {
 	h = max(h, 0.0);
-	float er = exp(-h / 8.0);
-	float ea = exp(-h / 1.4);
-	float ht = el >= 0.0 ? h : h - el * el * EARTH_R * 0.5;
-	float mr;
-	float ma;
-	if (el >= 0.0) {
-		mr = er / (el + 0.03);
-		ma = ea / (el + 0.05);
-	} else {
-		float htc = max(ht, 0.0);
-		mr = (2.0 * exp(-htc / 8.0) - er) / 0.03;
-		ma = (2.0 * exp(-htc / 1.4) - ea) / 0.05;
+	vec3 c = SUNSET_PAL_C[0];
+	for (int i = 1; i < 7; i++) {
+		float k = clamp((SUNSET_PAL_E[i - 1] - el) / (SUNSET_PAL_E[i - 1] - SUNSET_PAL_E[i]), 0.0, 1.0);
+		c = mix(c, SUNSET_PAL_C[i], k);
 	}
-	vec3 tau = vec3(0.032, 0.074, 0.180) * mr + vec3(0.085, 0.115, 0.150) * sunset_aerosol * ma;
-	vec3 tr = exp(-tau);
-	float m = max(tr.r, 1e-4);
-	// Refraction lifts the sun about 0.6 degrees at the horizon: the shadow line comes later
-	// (the colour keeps the geometric air mass, or a crown that should be orange reads gold).
-	float elr = el + 0.01;
-	float htr = elr >= 0.0 ? h : h - elr * elr * EARTH_R * 0.5;
-	float lit = smoothstep(-0.5, 0.4, htr);
-	return vec4(tr / m, lit * mix(0.45, 1.0, smoothstep(0.0, 0.35, m)));
+	float elr = min(el + 0.01, 0.0);
+	float htr = h - elr * elr * SUNSET_SHADOW_R * 0.5;
+	float lit = smoothstep(-0.4, 0.5, htr);
+	return vec4(c, lit * mix(0.7, 1.0, smoothstep(-0.12, 0.1, el)));
 }
 
 // A linear colour handed to the output: Compatibility composes in display numbers.
@@ -551,7 +542,7 @@ vec4 cumulus_march(vec3 dir, vec3 ldir, vec3 lcol, vec3 amb_top, vec3 amb_bot, v
 				lc = mix(lcol, sun_white * st.rgb * st.a, sunset);
 				// The silver lining: the thin margins of a cloud between the eye and a low sun
 				// throw a narrow forward lobe far brighter than the body.
-				ls += exp(-od) * hg(cs, 0.86) * 0.09 * sunset * (1.0 - smoothstep(0.05, 0.6, d));
+				ls += exp(-od) * hg(cs, 0.86) * 0.16 * sunset * (1.0 - smoothstep(0.05, 0.6, d));
 			}
 			// The ambient: the sky's blue from above, the ground's bounce from below. It reaches
 			// a dense core far less than a wisp, and the underside of a heap least of all (the
@@ -806,7 +797,10 @@ void sky() {
 			vec3 white_sun = mix(low_sun, vec3(dot(low_sun, vec3(0.3333))), 0.85 * smoothstep(0.15, 0.5, sdir.y));
 			vec3 lcol = white_sun * cloud_sun * sun_key;
 			float sun_el = sdir.y;
-			if (sun_key < 0.01) {
+			// While the sunset is on the sun stays the key light under the horizon: the bases it
+			// still reaches glow (sun_through()'s shadow line), not the moon's grey.
+			bool glow_key = sunset > 0.0 && sdir.y > -0.2;
+			if (sun_key < 0.01 && !glow_key) {
 				sun_el = -2.0;
 				ldir = mdir;
 				lcol = moon_tint * moon_light * moon_lit * moon_lit * moon_vis * 0.9;
