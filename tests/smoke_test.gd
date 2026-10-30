@@ -2623,6 +2623,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The night skyline (tests/night_skyline_checks.gd, NightSkyline): office colours, cleaners'
 	# floors, crown washes and floods shared by the near walls and the far boxes, beacons out of step.
 	load("res://tests/night_skyline_checks.gd").new().run(self, city)
+	# The GI review (tests/gi_review_checks.gd): GiTuning's numbers per level, the contact shadows.
+	await load("res://tests/gi_review_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

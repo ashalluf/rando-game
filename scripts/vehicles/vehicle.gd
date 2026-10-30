@@ -679,6 +679,7 @@ func _ready() -> void:
 	add_to_group("physics_prop")
 	CarLights.ensure(self)
 	DrivingFX.ensure(self)
+	ContactShadows.ensure(self)
 	CarInteriors.ensure(self)
 	EngineAudio.ensure(self)
 	CarRadio.ensure(self) # the player's car radio (scripts/vehicles/car_radio.gd)
