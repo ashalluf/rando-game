@@ -4620,6 +4620,18 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `STREET_VENDORS=0` turns it off (the A/B). Look with `tools/glshot/vendor_shot.gd` (the stands
   alone, seconds; `NIGHT=1`) and find them with `tools/vendor_probe.gd`; checks:
   `tests/street_vendors_checks.gd`.
+- Street performers (2026-10-30, HANDOFF "Street performers"): `Buskers`
+  (`scripts/world/buskers.gd`, static; `plan_block()` pure: hashes of seed + block + face + the
+  hour, one act a block, two on a plaza, breakdancers only on plazas) - guitar with an open case,
+  bucket drums, breakdance on cardboard with a ring of `BuskWatcher`s, a silver living statue on a
+  plinth, a mariachi trio - as a FULL chunk step after the street vendors (one hook in
+  `_block_steps`). Gear code-built (`Buskers.Kit`) on `shaders/busker_prop.gdshader` (surface in
+  COLOR.a tenths), a `busk_*` batch per kind; performers are `Busker`s (`scripts/npc/busker.gd`,
+  extends Pedestrian: crowd life + StreetVendor's flee-and-return) playing over the "busk" clip
+  library (`tools/crowd/busk_clips.gd` -> `assets/models/crowd_busk/`, rerun with life_clips.gd)
+  with two-bone arm solves to the instrument (`Busker.two_bone()`); passers-by stop at
+  `vendor_queue` spots. No audio. `BUSKERS=0` is the A/B; stills `tools/buskers/busk_shot.tscn`
+  (every act alone, seconds), `tools/buskers/probe.gd` EYEs; checks `tests/buskers_checks.gd`.
 - Farmers' market (2026-10-05, HANDOFF "The farmers' market"): `FarmersMarket`
   (`scripts/world/farmers_market.gd`, pure) picks one local street per `CELL` 1.7 km by hash
   (residential / midtown blocks nobody claims) and closes it to cars from `CLOSE_INSET` past each

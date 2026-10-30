@@ -32,7 +32,7 @@ const PLAZA := 100
 ## breakdancers only on plazas (they need the room for their ring). PLAZA rolls per slot (two a
 ## plaza, either side of the fountain).
 const ODDS := {
-	StreetVendors.Place.DOWNTOWN: [0.05, 0.045, 0.0, 0.025, 0.02],
+	StreetVendors.Place.DOWNTOWN: [0.03, 0.025, 0.0, 0.015, 0.012],
 	StreetVendors.Place.MIDTOWN: [0.018, 0.01, 0.0, 0.008, 0.015],
 	StreetVendors.Place.PARK: [0.05, 0.03, 0.0, 0.03, 0.03],
 	StreetVendors.Place.MACARTHUR: [0.08, 0.05, 0.0, 0.02, 0.1],
@@ -235,6 +235,10 @@ static func build_block(chunk: CityChunk, block: Dictionary) -> void:
 	var plan: CityPlan = chunk.plan
 	var rect: Rect2 = block.rect
 	var occupied := StreetVendors._occupied(chunk)
+	# Every prop the block has (a plaza's benches, planters and lamps, the stops' shelters).
+	for r: Dictionary in chunk.prop_records:
+		var rp: Vector3 = r.position
+		occupied.append([Vector2(rp.x, rp.z), 1.3])
 	var people: Array = chunk.get_meta("busk_people", [])
 	var acts: Array = chunk.get_meta("busk_acts", [])
 	for v: Dictionary in plan_block(plan, chunk.ix, chunk.iz, hour_now(chunk)):
@@ -263,15 +267,18 @@ static func _spot(chunk: CityChunk, rect: Rect2, v: Dictionary, occupied: Array)
 		var long_x := inner.size.x >= inner.size.y
 		var axis := Vector2(1.0, 0.0) if long_x else Vector2(0.0, 1.0)
 		var sgn := 1.0 if int(v.slot) == 0 else -1.0
-		var reach := basin + (RING_RADIUS + 3.5 if kind == Kind.BREAK else 4.5)
-		var at := c + axis * sgn * reach
 		var out := axis * sgn
-		if not StreetVendors._clear(occupied, at, half + (RING_RADIUS if kind == Kind.BREAK else 0.0)):
-			return {}
-		occupied.append([at, half + (RING_RADIUS if kind == Kind.BREAK else 1.0)])
-		# A plaza performer faces back across the plaza toward the fountain's side they came round.
-		var face := -out if kind != Kind.BREAK else out
-		return {"at": at, "yaw": atan2(-face.x, -face.y), "out": face, "along": Vector2(-face.y, face.x)}
+		# Out along the axis from the fountain's rim until the pitch (and a ring) is clear.
+		for k in 6:
+			var reach := basin + (RING_RADIUS + 4.0 if kind == Kind.BREAK else 6.5) + float(k) * 2.5
+			var at := c + out * reach
+			var room := half + (RING_RADIUS if kind == Kind.BREAK else 1.2)
+			if not inner.grow(-3.0).has_point(at + out * room) or not StreetVendors._clear(occupied, at, room):
+				continue
+			occupied.append([at, room])
+			# Facing out across the plaza, the fountain behind.
+			return {"at": at, "yaw": atan2(-out.x, -out.y), "out": out, "along": Vector2(-out.y, out.x)}
+		return {}
 	var edge: Array = CityChunk._sidewalk_edges(rect)[int(v.face)]
 	var a: Vector2 = edge[0]
 	var b: Vector2 = edge[1]
@@ -458,7 +465,7 @@ static func _guitar(k: Kit, s: float, depth: float, top: Color, rim: Color, wood
 	k.box(Vector3((nx0 + nx1) * 0.5 - 0.03 * s, 0.0, nz + 0.008), Vector3(nx1 - nx0 + 0.06 * s, 0.052 * s, 0.006), Color(0.07, 0.04, 0.03), A_WOOD)
 	for f in 14:
 		var fx := nx1 - (nx1 - nx0 + 0.04 * s) * (1.0 - pow(0.944, f + 1)) / (1.0 - pow(0.944, 15))
-		k.box(Vector3(fx, 0.0, nz + 0.0115), Vector3(0.0018, 0.051 * s, 0.0012), Color(0.85, 0.85, 0.8), A_STEEL)
+		k.box(Vector3(fx, 0.0, nz + 0.0115), Vector3(0.0018, 0.051 * s, 0.0012), Color(0.55, 0.54, 0.5), A_STEEL)
 	var head := Transform3D(Basis(Vector3(0, 1, 0), 0.22), Vector3(nx1 + 0.085 * s, 0.0, nz - 0.012))
 	k.box_xf(head, Vector3(0.18 * s, 0.078 * s, 0.016), Color(0.08, 0.05, 0.03), A_WOOD)
 	for i in 6:

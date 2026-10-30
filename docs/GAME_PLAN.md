@@ -295,6 +295,16 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-30 Street performers (HANDOFF "Street performers").** A guitarist with his case
+  open, a bucket drummer, a breakdancer with a ring of watchers, a silver living statue and a
+  mariachi trio on the busy pavements (downtown, the arena, across from MacArthur Park, the beach
+  town) and on the plazas. Decisions: placement is a pure plan (hashes of seed + block + face +
+  the hour), run as a FULL chunk step after the street vendors, so nothing the seed builds moves;
+  the performers are crowd rigs on top of crowd life (StreetVendor's work-flee-return pattern)
+  playing over UAL clips retargeted like the life clips (`tools/crowd/busk_clips.gd`), with the
+  instrument playing laid on by per-frame two-bone arm solves rather than new clips; the gear is
+  code-built at real size on one shader, one batch per kind a chunk; passers-by stop at the vendor
+  queue spots; no audio (no CC0 recording reachable); `BUSKERS=0` the A/B.
 - **2026-10-05 Onlookers: the crowd comes back after the chaos (HANDOFF "Onlookers").** After
   the panic near a wreck, a blast or a body, people near the camera come back and stand round it
   in a loose ring: filming on their phones (held up at eye level, the screen lit, a video light

@@ -162,9 +162,15 @@ func _performing() -> bool:
 	return _stage == Stage.DOING and _act == CrowdLife.Act.STAND and not _down and _panic_left <= 0.0
 
 
+## On the plinth (or seated at the kit) a performer is placed, not dropped: the walkers' 0.1 m
+## (which gravity takes up) is taken off, and the statue stands on the plinth's top.
 func _ground_y(x: float, z: float, fallback: float) -> float:
-	var lift := Buskers.PLINTH_H if kind == Buskers.Kind.STATUE and _stage == Stage.DOING and _panic_left <= 0.0 else 0.0
-	return super(x, z, fallback) + lift
+	var at_work := _stage == Stage.DOING and _panic_left <= 0.0
+	if at_work and kind == Buskers.Kind.STATUE:
+		return super(x, z, fallback) - 0.1 + Buskers.PLINTH_H
+	if at_work and kind == Buskers.Kind.DRUMS:
+		return super(x, z, fallback) - 0.1
+	return super(x, z, fallback)
 
 
 func _life_range_changed(_near: bool) -> void:
@@ -185,7 +191,8 @@ func _scare(at: Vector3) -> void:
 	_visual.rotation.z = 0.0
 	if _hip_bone >= 0 and _head_skel:
 		_head_skel.reset_bone_pose(_hip_bone)
-	if _kinematic and _lod_stride == 1:
+	if _kinematic:
+		# Off the plinth or the bucket and into the physics (_update_lod puts a far one back).
 		_kinematic = false
 		collision_mask = 1
 	super(at)
@@ -274,14 +281,15 @@ func _statue(delta: float) -> void:
 		if _bow_left <= 0.0:
 			_life_clip = _life_base
 		return
-	_frozen = true
+	# Frozen once the pose has blended in (frozen mid-blend it would hold half a walk).
+	_frozen = _t > 1.2
 	var near := _player != null and is_instance_valid(_player) and _player.global_position.distance_to(global_position) < bow_reach
 	if _bow_next <= 0.0 and (near or _in_break):
 		_bow_next = bow_every
 		if _anim and _anim.has_animation(CrowdLife.NOD):
 			_frozen = false
 			_life_clip = CrowdLife.NOD
-			_bow_left = _anim.get_animation(CrowdLife.NOD).length / 0.55
+			_bow_left = _anim.get_animation(CrowdLife.NOD).length / 0.55 + 0.8
 
 
 ## A frozen pose holds the clip where it is; a statue's bow plays at half speed (mechanical).
@@ -677,3 +685,19 @@ func _hide_hat() -> void:
 	for n in _visual.find_children("*", "MeshInstance3D", true, false):
 		if String(n.name).begins_with("Hat") or (n.get_parent() is BoneAttachment3D and not (n as MeshInstance3D) in _meshes):
 			(n as Node3D).visible = false
+
+
+## The body a knocked performer becomes keeps the costume (a fresh copy of the rig).
+func _dress_doll(doll: Ragdoll) -> void:
+	super(doll)
+	if doll._rig == null or (kind != Buskers.Kind.STATUE and kind != Buskers.Kind.MARIACHI):
+		return
+	for node in doll._rig.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		var src := mi.mesh.surface_get_material(0) as StandardMaterial3D if mi.mesh and mi.mesh.get_surface_count() > 0 else null
+		if kind == Buskers.Kind.STATUE:
+			mi.material_override = silver_material(src.albedo_texture if src else null, is_hair(mi))
+		elif src and src.albedo_texture and not is_hair(mi):
+			var m := charro_material(src.albedo_texture)
+			if m != null:
+				mi.material_override = m
