@@ -622,7 +622,14 @@ static func _concession(st: SurfaceTool, variant: int, open: bool) -> void:
 	# The serving window: a recess, the menu-lit back, a stainless counter, the shutter.
 	var wx := -0.8
 	var ww := 4.0
-	_box(st, Vector3(wx, 1.65, -D * 0.5 + 0.02), Vector3(ww, 1.1, 0.04), _c(Color(0.32, 0.22, 0.14), K_MENU), Vector2(0.7, 0.0), 0.0)
+	# The kitchen seen through the window (the body is solid, so it is laid on its face): a dark
+	# warm back, the menu over the back counter, a fridge glowing, a shelf of cups.
+	_box(st, Vector3(wx, 1.65, -D * 0.5 - 0.01), Vector3(ww, 1.1, 0.02), _c(Color(0.2, 0.15, 0.11), K_SIGN), Vector2(0.8, 0.0), 0.0)
+	_box(st, Vector3(wx, 2.02, -D * 0.5 - 0.025), Vector3(ww - 0.4, 0.3, 0.01), _c(Color(0.1, 0.11, 0.1), K_MENU), Vector2(0.6, 0.0), 0.0)
+	_box(st, Vector3(wx + 1.3, 1.5, -D * 0.5 - 0.025), Vector3(0.7, 0.75, 0.01), _c(Color(0.75, 0.85, 0.9), K_LAMP), Vector2(0.2, 0.0), 0.0)
+	_box(st, Vector3(wx - 0.9, 1.4, -D * 0.5 - 0.12), Vector3(1.4, 0.03, 0.22), ss, srm, 0.005)
+	for i in 6:
+		StreetClutter._cyl(st, Transform3D(Basis(), Vector3(wx - 1.5 + float(i) * 0.24, 1.415, -D * 0.5 - 0.12)), 0.04, 0.05, 0.14, _c(Color(0.95, 0.94, 0.9), K_SIGN), Vector2(0.4, 0.0), 8)
 	for sx: float in [-1.0, 1.0]:
 		_box(st, Vector3(wx + sx * (ww * 0.5 + 0.05), 1.65, -D * 0.5 - 0.02), Vector3(0.1, 1.2, 0.08), trim, rm, 0.01)
 	_box(st, Vector3(wx, 1.08, -D * 0.5 - 0.22), Vector3(ww + 0.2, 0.05, 0.48), ss, srm, 0.01)

@@ -14893,3 +14893,69 @@ never lets him fall the last metre in).
 the sea still rides its wheels on the ground box; the strokes are keyed in code, not
 motion-captured (the UAL swim clips are still out of this network's reach); nothing of it has been
 seen on Forward+ (the Mac).
+
+## 9d?. Beach amenities (wave 3, `beach-amenities`, 2026-10-30)
+
+The sand had people, towers, a court and the bike path, but none of the public works an LA county
+beach is built round. `BeachAmenities` (`scripts/world/beach_amenities.gd`) adds them, code-built at
+real size on one shader (`shaders/beach_amenities.gdshader`):
+
+- **Restroom blocks** (9.6 x 5.6 x 2.9 m) of split-face block (coursing, per-block shade, recessed
+  joints, a rough normal) on a concrete pad, a cast roof slab with an overhang and lip, a bond-beam
+  course, louvred vents along both long walls, an entrance at each end behind a privacy screen wall
+  with the MEN / WOMEN plate and pictogram, a caged bulkhead lamp over each door (lit by
+  `lamp_factor`, a light pool under it, one `lamp_light` OmniLight a chunk on desktop), RESTROOMS
+  lettered on the sea face, a stainless drinking fountain, downpipes, the electric box, roof vents.
+- **The concession and rental stand** (8 x 5 m): stucco, the invented name on a fascia board
+  (`STAND_NAMES`: SANDPIPER SNACKS, TIDELINE CAFE, THE SALT SHACK, GULL & GALLEY, BLUE CURL KIOSK),
+  a serving window under a striped awning on arms (the second stripe the instance's paint), the
+  roll-up shutter rolled up from 8:30 to 19:00 and down otherwise (`concession_<n>_shut`), chalk
+  menu boards lit at night, a stainless counter, a lamp strip; round its end the RENTALS counter
+  with a boogie-board A-frame, surfboards stood against a rail, folded umbrellas in a stand and
+  stacked chairs; two picnic tables on the pad in front.
+- **Outdoor gym pens** (14 x 9 m) at mid-beach: a sandblasted timber border, a stepped pull-up rig
+  (2.2 / 2.5 / 2.8 m), a rings frame with chains, parallel dip bars, a decline and a flat bench,
+  the OUTDOOR FITNESS sign. Frames in a county green / blue / grey (instance paint).
+- **Showers** on the bike path's seaward edge: a brushed stainless column, two heads, push buttons,
+  a foot tap, a pad wet round its grate. **Bike racks**: galvanised wave racks beside each station
+  and alone by a quarter of the showers.
+- **Volleyball poles**: a row of two or three courts along the shore at mid-beach, 40 % netted with
+  BeachLife's own net and tapes, the rest bare galvanised poles with eye bolts.
+- **Drums**: painted 55-gallon drums (ribs, rolled rim, the bin bag over it) in three bands across
+  the sand, now and then with a white-banded recycling drum beside, and beside every station.
+
+**Placement is pure** (`plan_stretch(plan, z0, z1, obstacles)`): a STATION_CELL (84.5 m of shore,
+13 of BeachLife's cells) rolls one of restroom 28 %, concession 18 %, gym 18 %, poles 18 %; a
+SHOWER_CELL (42.25 m) a shower at 55 %; a CAN_CELL (19.5 m) a drum at 60 %; each a hash of the seed
+and the cell, owned by the chunk its cell's centre is in. Lower kinds give way to higher (BeachLife's
+courts > stations > showers > racks > drums) over a window a station cell wider than the stretch,
+so neighbours agree. Nothing on a stretch `BeachLife.kept_off()` (the boardwalk, the piers, the
+marina's channel, the replica's coast), nothing on a beach under 45 m (58 m for the gym and poles).
+The block's palms and tower (chunk-local) only NUDGE a station along the shore (`NUDGES`). The
+hook in `CityChunk._build_beach()` runs before `BeachLife.build()` and appends what it returns
+(this stretch's items and the neighbours' within 40 m) to the obstacles BeachLife's sunbathers keep
+clear of; the palms and the tower roll exactly as before (checked).
+
+**Drawn**: one `bam_<mesh>` batch per mesh a chunk (restroom 3.2k, stand ~3.1k, gym 2.1k, shower
+470, rack 810, drum 420-490, poles 240 triangles), shadows to 90 m (45 m for the small ones),
+drawn to 260 / 150 m; netted courts in BeachLife's `beach_net` / `beach_court_lines` batches; box
+collision for the buildings, the gym's rigs, showers, drums and poles. Meshes are built on the
+loading screen (`warm()`, ~0.3 s). LOD chunks and the far city: the restroom and the stand as plain
+`lod_box`es (INSTANCE_CUSTOM.a 1).
+
+**A/B and tools.** `BEACH_AMENITIES=0` in the environment: none of it, BeachLife's people as before.
+`tools/beach_amenities/probe.gd` (headless, seconds; `Z0`, `Z1`, `KIND=`) prints every station with
+an EYE for still_shot.gd and every mesh's triangles. Checks: `tests/beach_amenities_checks.gd`.
+
+**Cost** (still_shot GEO, opengl3, 15:00, the restroom bookmark `EYE_AGL=1
+EYE=-751.3,1.8,470.8,-58,-4 -- --spawn=-745,466,-60,-4`): `BEACH_AMENITIES=0` 5,458,897 triangles /
+1,943 draws, on 5,488,965 / 1,958 (+0.6 %, +15 draws). The plan of 4 km of shore is ~8 ms headless.
+
+**Stills** (branch `shots/beach-amenities`): `01_before_restroom_spot_1500`,
+`02_after_restroom_shower_rack_1500`, `03_before_aerial_1500`, `04_after_aerial_1500`,
+`05_after_concession_stand_1500`, `06_after_rental_counter_1500`, `07_after_gym_pen_1500`,
+`08_after_volleyball_poles_1500`, `09_after_restroom_night_2048`.
+
+**Not done / known gaps.** Nobody uses them (no one showers, works out or queues at the stand;
+BeachActivity plays only on BeachLife's own court); the rental surfboards are slabs, not shaped
+boards; the drums are static (not knockable); nothing of it has been seen on Forward+ (the Mac).
