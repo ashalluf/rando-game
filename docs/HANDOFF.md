@@ -19813,3 +19813,70 @@ Environment). Halo brightness through AgX on the Mac wants a look.
 `near_fade`; `night_shaft.gdshader` `gain` (0.028), `reach`; `car_lights.gdshader` `halo_head`,
 `halo_tail`, `halo_core`, `halo_glow`, `halo_streak`; `NightAtmos.HAZE_BY_STATE`, `SODIUM_LEAN`,
 `SODIUM_DENSITY`, `LAMP_HALO`.
+
+## 9hh. Close-up car detail: plates, badges, tyre lettering, grime (2026-10-30, wave 3, `wt/car-detail`)
+
+The task: "at 2-5 m the Blender-built everyday bodies still read as clean CG models ... add the
+close-up detail GTA 6 cars have, in ways that cost nothing past the near LOD; keep the far twin
+untouched and the per-car material count flat (never instance uniforms)."
+
+**What was already there** (the task text was older than the wheels): PropFactory.car_wheel()
+already builds a tread pattern, a dished rim with spokes, lug nuts, a centre cap, a brake disc and a
+caliper that steers but does not spin. So the wheels got what they lacked - lettering and dirt -
+and the work went into the body.
+
+`CarDetail` (`scripts/vehicles/car_detail.gd`), one hook in `Vehicle._ready()` (after the livery
+props), one in `_update_body_tier()` (tier 0) and one in `_refresh_lights()`:
+- **Plates and badges are real geometry.** SignFont's strokes swept into ribbons standing 1.6 mm
+  proud (`_ribbons()`, polylines thinned by `simplify()`, an RDP pass: SignFont draws a bowl in 20
+  segments), a 305 x 152 mm plate on a black surround with two bolts and a registration tag, an
+  invented county (RANDO COUNTY / PACIFIC BASIN) and format (`plate_text()`: two letters, a digit,
+  a dash, three digits; a hash of the car's look), front and rear. The maker's emblem (CarDealers'
+  invented brands, a mark per brand in chrome on a black disc) on the boot and the grille, the
+  model's name (`MAKES`, invented) in chrome capitals right of it. ONE mesh per car, ONE surface,
+  on a shared pair of materials (`car_detail.gdshader`; the pair is the rear plate lamp off / on,
+  switched with the tail lamps), shadowless, `visibility_range_end` = `body_far_distance`.
+- **Where they go**: `PLATE_AT` is the generators' plate recesses (height over the road, the van's
+  on its left rear door); `_spots()` casts rays at the near body meshes (CarDamage's TriangleMesh
+  cache, glass / lamp / tyre slots refused) for the flattest spot near it and its tilt, once per
+  body type. Headless (no mesh data) it falls back to the box ends.
+- **Built lazily**: the meta `car_detail` waits until the car first enters its shadow tier
+  (70 m); `near()` queues it and `_drain()` builds at most `BUILDS_PER_FRAME` (3) a frame (~1 ms
+  each on this box: plate pieces are cached per character in the plate's frame and moved into
+  place natively). A traffic car that never comes near never pays. `flush()` for tests and stills.
+- **Tyre lettering** (`tyre_letters()`, from `PropFactory.car_wheel()` near meshes only): the maker
+  top and bottom, the line and the size (`tyre_text()`: section, ratio, rim worked out from the
+  wheel's own radius and width) raised on the sidewall band, which turns plain rubber with them
+  (+~1.4k triangles a near wheel, shared by every car of that style and size; the far wheel is
+  untouched).
+- **Grime** (car_paint.gdshaderinc's grime block, skipped at `grime == 0`): uniforms on the car's
+  OWN paint material (Vehicle already makes one per car: no material added) - a low band of dust
+  with a ragged, streaked top, spray round each arch (heavier behind the wheel, `grime_arch` in
+  mesh units from WHEEL_POSE), a cloud of fine dots, dust on the tail, mud clumps and spatter on
+  the work trucks (`WORK`, half of them), clear-coat scratches on the flanks at hip height. A wet
+  road darkens the film. Levels from `grime_for()` (a hash: 35 % clean, light, dirty, filthy; work
+  trucks one level up, the beater at least dirty).
+- **Brake dust**: `PropFactory.wheel_material(kit, force_metal, dust)` - three shared dust levels per
+  kit (21 materials at most), the wheel shader's `dust` (barrel and caliper most, the spoke tops
+  least, by the mesh's own cavity shade; the sidewall greyed, the rotor's edge rusted).
+- **Windscreen**: car_glass.gdshader's `screen_dust` on the body type's shared cabin glass: a film
+  outside two wiper sweeps (pivots at a quarter and three fifths across the foot), a ridge of dust
+  along each sweep's edge, less in the wet.
+
+Stills: `car_shot.gd` views `plate`, `nose`, `wheel`, `arch` (new), `CAR_GRIME=g,mud,scratch,dust`
+forces a level; `OCCUPANT=npc --night` for the plate lamp. Probe: `tools/car_detail_probe.gd`
+(headless: plate, grime, the glass's dust, triangles, build time). Checks:
+`tests/car_detail_checks.gd`. `CAR_DETAIL=0` is the A/B (no detail mesh, clean paint, plain wheels,
+clear windscreen, the old wheel meshes).
+
+**Frame cost** (opengl3, `GEO=1` on car_shot.gd, one sedan): `plate` view 31 -> 32 draws, 151k ->
+166k triangles; `side` 40 -> 41 draws, 184k -> 202k (the four near wheels' lettering, shadows
+included, and the plates); `far` (44 m) 13 draws / 19,836 triangles both ways. The downtown street
+bookmark (`--spawn=2359.4,880,0,12,2 --hour=12`, still_shot.gd SPLIT=1): 7,008,641 tris / 3,790
+draws off, 7,006,538 / 3,784 on - flat within the run-to-run traffic noise (few cars within 30 m).
+Build: ~0.1 ms a car at spawn (uniforms), ~1 ms when it first comes near, 3 a frame at most.
+
+**Not done / not verified**: exotics, Meshy sports, big vehicles, lowriders' plates (only the
+`MAKES` types get plates; every car gets grime); the windscreen dust is one level per body type
+(the glass material is shared per type); the grime's colours were judged on opengl3 and one
+lavapipe car_shot, not in the city on Forward+.

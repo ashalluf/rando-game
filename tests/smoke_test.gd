@@ -2604,6 +2604,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/gate_speed_2_checks.gd").new().run(self, city)
 	# The night street's air (tests/night_atmos_checks.gd, NightAtmos): halos, shafts, the haze.
 	load("res://tests/night_atmos_checks.gd").new().run(self, city)
+	# Close-up car detail (tests/car_detail_checks.gd): plates, badges, tyre lettering, grime, the A/B.
+	await load("res://tests/car_detail_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

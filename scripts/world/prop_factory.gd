@@ -2825,6 +2825,31 @@ uniform vec2 m_dark = vec2(0.10, 0.85);
 // tools/glshot/wheel_vertex_probe.gd (the colours as authored) and wheel_shot.gd
 // --mode=styles_debug (class and shade painted into the colour channels).
 uniform float shade_lift = 0.20;
+// How dirty the wheel is (CarDetail, one of three shared copies per kit): brake dust on the rim
+// face, more in the barrel and on the caliper, road dust on the tyre; 0 skips it all.
+uniform float dust = 0.0;
+
+varying vec3 wl;
+varying vec3 wn;
+
+void vertex() {
+	wl = VERTEX;
+	wn = NORMAL;
+}
+
+float wh13(vec3 p) {
+	p = fract(p * 0.1031);
+	p += dot(p, p.yzx + 33.33);
+	return fract((p.x + p.y) * p.z);
+}
+
+float wnoise(vec3 p) {
+	vec3 i = floor(p);
+	vec3 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(mix(wh13(i), wh13(i + vec3(1, 0, 0)), f.x), mix(wh13(i + vec3(0, 1, 0)), wh13(i + vec3(1, 1, 0)), f.x), f.y),
+		mix(mix(wh13(i + vec3(0, 0, 1)), wh13(i + vec3(1, 0, 1)), f.x), mix(wh13(i + vec3(0, 1, 1)), wh13(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}
 
 void fragment() {
 	int slot = int(clamp(UV.x * 8.0, 0.0, 7.999));
@@ -2838,6 +2863,32 @@ void fragment() {
 	else if (slot == 4) { alb = c_disc; mr = m_disc; }
 	else if (slot == 5) { alb = c_caliper; mr = m_caliper; }
 	else if (slot == 6) { alb = c_cap; mr = m_cap; }
+	if (dust > 0.0) {
+		// Metres in the wheel's own space (it turns with the wheel, as the dust does).
+		float n = wnoise(wl * 55.0) * 0.6 + wnoise(wl * 210.0 + 3.7) * 0.4;
+		float rad = length(wl.yz);
+		if (slot == 0 || slot == 1) {
+			// Road dust dries grey-brown on the sidewall; the crown is scrubbed darker and matte.
+			float sidewall = smoothstep(0.55, 0.85, abs(normalize(wn).x));
+			float a = dust * sidewall * (0.35 + 0.45 * n);
+			alb = mix(alb, vec3(0.115, 0.105, 0.092), a);
+			mr.y = mix(mr.y, 0.98, a);
+		} else if (slot != 4) {
+			// Brake dust: iron and pad dust baked dark brown onto the alloy, thickest in the
+			// barrel and the caliper (near the pads), in the corners of the face, wiped off the
+			// polished spoke tops by the weather.
+			float k = slot == 3 ? 1.0 : (slot == 5 ? 0.85 : (slot == 6 ? 0.35 : 0.6));
+			float cav = 1.0 - COLOR.r;
+			float a = clamp(dust * k * (0.45 + 0.55 * n) * (0.55 + 0.9 * cav), 0.0, 0.92);
+			alb = mix(alb, vec3(0.085, 0.070, 0.055), a);
+			mr.x *= 1.0 - 0.75 * a;
+			mr.y = mix(mr.y, 0.72, a);
+		} else {
+			// The rotor's hat and outer edge go to surface rust; the swept band stays bright.
+			float edge = smoothstep(0.0, 0.004, abs(fract(rad * 61.0) - 0.5) - 0.46);
+			alb = mix(alb, vec3(0.20, 0.10, 0.05), dust * 0.25 * n + edge * 0.06 * dust);
+		}
+	}
 	ALBEDO = alb * shade;
 	METALLIC = mr.x;
 	ROUGHNESS = mr.y;
@@ -2853,8 +2904,8 @@ const WHEEL_UNIFORMS := ["rubber", "letter", "face", "barrel", "disc", "caliper"
 ## `force_metal` keeps the Forward+ metal path on a renderer that cannot light it. Nothing in
 ## the game passes it; tools/glshot/wheel_shot.gd does, so the two paths can be rendered side by
 ## side under the same software GL and the fallback can be shown to do something.
-static func wheel_material(kit: int, force_metal: bool = false) -> ShaderMaterial:
-	var key := "wheel_mat_%d%s" % [kit, "_m" if force_metal else ""]
+static func wheel_material(kit: int, force_metal: bool = false, dust: int = 0) -> ShaderMaterial:
+	var key := "wheel_mat_%d%s%s" % [kit, "_m" if force_metal else "", "_d%d" % dust if dust > 0 else ""]
 	if _cache.has(key):
 		return _cache[key]
 	var k: Dictionary = WHEEL_KITS[posmod(kit, WHEEL_KITS.size())]
@@ -2909,6 +2960,9 @@ static func wheel_material(kit: int, force_metal: bool = false) -> ShaderMateria
 		var c: Color = albedo[i]
 		mat.set_shader_parameter("c_" + WHEEL_UNIFORMS[i], Vector3(c.r, c.g, c.b))
 		mat.set_shader_parameter("m_" + WHEEL_UNIFORMS[i], mr[i])
+	# CarDetail's dust levels: light, dirty, filthy.
+	if dust > 0:
+		mat.set_shader_parameter("dust", [0.0, 0.35, 0.65, 0.95][clampi(dust, 0, 3)])
 	_cache[key] = mat
 	return mat
 
@@ -3040,7 +3094,8 @@ static func _wheel_revolve(st: SurfaceTool, prof: Array, seg: int, inward: bool 
 ## past wheel_lod_distance - the city runs a hundred and fifty traffic cars and the far mesh is
 ## what makes that affordable.
 static func car_wheel(style: int, radius: float, width: float, near: bool) -> Mesh:
-	var key := "cw_%d_%d_%d_%d" % [style, roundi(radius * 500.0), roundi(width * 500.0), int(near)]
+	var letters := near and CarDetail.enabled
+	var key := "cw_%d_%d_%d_%d%s" % [style, roundi(radius * 500.0), roundi(width * 500.0), int(near), "_l" if letters else ""]
 	if _cache.has(key):
 		return _cache[key]
 	var face: Dictionary = WHEEL_FACES[posmod(style, WHEEL_FACES.size())]
@@ -3054,7 +3109,10 @@ static func car_wheel(style: int, radius: float, width: float, near: bool) -> Me
 	var seg := 96 if near else 20
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	_wheel_tyre(st, radius, rim_r, hw, seg, near)
+	_wheel_tyre(st, radius, rim_r, hw, seg, near, letters)
+	if letters:
+		# Raised moulded lettering on the sidewall (CarDetail; the band under it is plain rubber).
+		CarDetail.tyre_letters(st, style, radius, rim_r, hw, width)
 	_wheel_barrel(st, rim_r, hw, seg, near)
 	_wheel_brake(st, rim_r, hw, near)
 	_wheel_face(st, face, rim_r, hw, near)
@@ -3167,7 +3225,7 @@ static func _box_wheel(st: SurfaceTool, centre: Vector3, size: Vector3, a: float
 ## normal map costs a texture fetch on every wheel pixel in the city plus a tangent per vertex,
 ## and still leaves the shoulder silhouette smooth. Measured on the near mesh the whole tread
 ## pattern - grooves, ribs and shoulder lugs - is about 2.4k of the 12k triangles.
-static func _wheel_tyre(st: SurfaceTool, r_out: float, rim_r: float, hw: float, seg: int, detail: bool) -> void:
+static func _wheel_tyre(st: SurfaceTool, r_out: float, rim_r: float, hw: float, seg: int, detail: bool, letters: bool = false) -> void:
 	var sw := r_out - rim_r                     # sidewall height
 	var bead := rim_r + r_out * 0.055
 	var crown_x := 0.715
@@ -3207,6 +3265,9 @@ static func _wheel_tyre(st: SurfaceTool, r_out: float, rim_r: float, hw: float, 
 		prof.append([-float(e[0]), e[1], WheelSlot.RUBBER if slot == WheelSlot.LETTER else slot, e[3], e[4]])
 	for row: Array in prof:
 		row[0] = float(row[0]) * hw
+		# With real raised lettering on it the band is plain rubber, the letters the lighter slot.
+		if letters and int(row[2]) == WheelSlot.LETTER:
+			row[2] = WheelSlot.RUBBER
 	_wheel_revolve(st, prof, seg)
 
 

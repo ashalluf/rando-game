@@ -1339,6 +1339,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `restore()`, `LandmarkDowntown.build()` `restore_tower()`. Sanctuaries take none; curtain walls
   get no hole. `BUILDING_DAMAGE=0` is the A/B; stills `tools/glshot/damage_shot.gd`; checks
   `tests/building_damage_checks.gd`.
+- Car detail (2026-10-30, docs/HANDOFF.md "Close-up car detail"): `CarDetail`
+  (`scripts/vehicles/car_detail.gd`): number plates (invented format and county, text a hash of the
+  car's look) and badges as raised SignFont ribbons, ONE mesh a car on `car_detail.gdshader`'s
+  shared pair (plate lamp off / on), built lazily when the car enters its 70 m tier (`near()`, 3 a
+  frame, `flush()` for tests), spots ray-found on the near body (`PLATE_AT` hints); tyre sidewall
+  lettering in PropFactory's near wheel; grime / mud / scratches as uniforms on the car's own paint
+  material (car_paint.gdshaderinc grime block), brake dust as `wheel_material(kit, false, dust)`,
+  windscreen dust (`screen_dust`) on the shared cabin glass. `CAR_DETAIL=0` the A/B; `CAR_GRIME=`
+  and views `plate|nose|wheel|arch` on car_shot.gd; probe `tools/car_detail_probe.gd`; checks
+  `tests/car_detail_checks.gd`.
 - Car cabins (2026-10-30, docs/HANDOFF.md "Car cabins"): the car the player drives, empty parked
   cars within `CarInteriors.near_range` (7.5 m) of him and a car that lost a door get real
   geometry (`CarInteriors`, one node under the root; `CarInterior` on the car's near body mesh):
