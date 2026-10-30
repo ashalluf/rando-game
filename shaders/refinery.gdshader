@@ -134,12 +134,14 @@ void fragment() {
 		// a vertical seam, gently dented, a dull metallic sheen dirtied low down and under drips.
 		float lap = lines(uv.y, 1.2, 0.035);
 		float seam = lines(uv.x, max(param, 3.1), 0.03);
-		float dent = vnoise(uv * vec2(1.7, 2.3) + param);
-		albedo = vec3(0.68, 0.69, 0.68) * (0.86 + 0.18 * dent) * (1.0 - 0.15 * lap) * (1.0 - 0.1 * seam);
-		albedo *= 1.0 - 0.18 * streaks(uv * vec2(1.5, 1.0), h, param * 3.0);
+		// One tone per sheet (1.2 m courses, staggered seams), a faint dent, run-down grime.
+		float sheet = hash12(vec2(floor(uv.x / max(param, 3.1)), floor(uv.y / 1.2)) + param);
+		float dent = vnoise(uv * vec2(0.9, 1.4) + param);
+		albedo = vec3(0.6, 0.61, 0.6) * (0.9 + 0.1 * sheet + 0.05 * dent) * (1.0 - 0.18 * lap) * (1.0 - 0.12 * seam);
+		albedo *= 1.0 - 0.14 * streaks(uv * vec2(1.5, 1.0), h, param * 3.0);
 		albedo = mix(albedo, vec3(0.3, 0.28, 0.25), 0.4 * foot);
-		metal = 0.75;
-		rough = 0.38 + 0.2 * dent;
+		metal = 0.6;
+		rough = 0.42 + 0.12 * sheet;
 		lit_steel = 1.0;
 	} else if (kind < 2.5) {
 		// Painted structural steel: the paint scuffed, rust at the joints, dirt at the foot.
@@ -186,9 +188,11 @@ void fragment() {
 		float toe = 1.0 - step(0.12, hy);
 		float post = 1.0 - smoothstep(0.025, 0.025 + max(fwidth(uv.x), 0.0005), abs(fract(uv.x / 1.8 + 0.5) - 0.5) * 1.8);
 		float keep = clamp(rail + toe + post * step(hy, 1.09), 0.0, 1.0);
-		// Under a pixel, rails are kept as a faint line rather than a crawling stipple.
+		// Under a pixel the rails are kept by their coverage (about a fifth of the quad), dithered
+		// per pixel - kept whole, a far rail was a solid yellow band round every platform.
 		float far_k = smoothstep(0.02, 0.07, fwidth(uv.y));
-		if (keep < 0.5 && far_k < 0.5) {
+		float dither = hash12(FRAGCOORD.xy);
+		if (keep < 0.5 && (far_k < 0.5 || dither > 0.22)) {
 			discard;
 		}
 		albedo = paint * (0.85 + 0.2 * vnoise(uv * vec2(2.0, 8.0)));

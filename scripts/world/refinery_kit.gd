@@ -520,7 +520,7 @@ static func column(st: SurfaceTool, foot: Vector3, r: float, h: float, seed: int
 		ring_deck(st, foot + Vector3(0.0, y, 0.0), r, r + 1.2, 12 if detail else 8, detail, a0 - arc * 0.5, a0 + arc * 0.5)
 		lights.append([foot + Vector3(0.0, y + 2.4, 0.0) + out * (r + 1.0), SODIUM if int(y) % 3 != 0 else LED, 1.0, L_FIELD])
 		y += pitch
-	ring_deck(st, foot + Vector3(0.0, h + r * 0.45 - 0.2, 0.0), 0.0, r + 0.6, 12, detail)
+	ring_deck(st, foot + Vector3(0.0, h - 0.1, 0.0), r, r + 1.1, 16 if detail else 10, detail)
 	lights.append([foot + Vector3(0.0, h + r * 0.45 + 1.8, 0.0), RED, 1.0, L_FIELD])
 	if detail:
 		ladder(st, foot + out * (r + 0.55) + Vector3(0.0, 3.2, 0.0), h - 3.0, out)

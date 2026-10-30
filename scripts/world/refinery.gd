@@ -301,7 +301,6 @@ static func _plan_spheres(lay: Dictionary, sb: Dictionary, ps: int) -> void:
 ## along the other, a fired heater at one end, floodlight masts.
 static func _plan_process(lay: Dictionary, sb: Dictionary, ps: int) -> void:
 	var c: Rect2 = sb.content.grow(-2.0)
-	lay.pads.append(c)
 	var key := [ps, "ref_unit", sb.bx, sb.bz]
 	var flip := h01(key + ["flip"]) < 0.5
 	var long_x := c.size.x >= c.size.y
@@ -336,6 +335,11 @@ static func _plan_process(lay: Dictionary, sb: Dictionary, ps: int) -> void:
 	var s0: Vector2 = at.call(L * 0.08, 3.0)
 	var s1: Vector2 = at.call(L * 0.08 + s_len, 3.0 + s_w)
 	var srect := Rect2(Vector2(minf(s0.x, s1.x), minf(s0.y, s1.y)), (s1 - s0).abs())
+	# Concrete under the structure and the columns' row; the rest of the block is gravel.
+	lay.pads.append(srect.grow(4.0).intersection(c))
+	var crow0: Vector2 = at.call(L * 0.04, 3.0 + s_w + 1.0)
+	var crow1: Vector2 = at.call(L * 0.96, W)
+	lay.pads.append(Rect2(Vector2(minf(crow0.x, crow1.x), minf(crow0.y, crow1.y)), (crow1 - crow0).abs()))
 	lay.items.append({"type": "structure", "at": srect.get_center(), "rect": srect, "levels": levels, "lh": lh, "seed": sd,
 		"paint": RefineryKit.GREY_STEEL if h01(key + ["paint"]) < 0.6 else RefineryKit.GREEN_STEEL})
 	var v_col := 3.0 + s_w + (W - 3.0 - s_w) * 0.5
@@ -804,6 +808,7 @@ static func _ground(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
 
 ## Chain-link with barbed wire along the fence line, open at the gate.
 static func _fence(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
+	Industrial._state(ch)
 	var w: Rect2 = lay.inner
 	var g: Vector2 = lay.gate.at
 	var hg := GATE_W * 0.5 + 1.6
