@@ -38,4 +38,4 @@ on the road in 02 are road wear and are in 01 (LOWRIDERS=0) too: not the meet.
 - 24 - Forward+: an everyday sedan, the hardtop in lime gold, the hardtop in teal (`LOOK=3`, `LOOK=11`)
 
 A Forward+ still of the meet block (fwd_block_shot.tscn) does not fit this box: lavapipe passed 13.6 GB and was killed.
-The player's switch (H in a lowrider: tap a hop, hold a lift, + A / D a three-wheel) is checked, not shot (a still cannot press the key).
+The player's switch (X in a lowrider: tap a hop, hold a lift, + A / D a three-wheel) is checked, not shot (a still cannot press the key).
