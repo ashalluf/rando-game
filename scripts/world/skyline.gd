@@ -885,6 +885,7 @@ func _add_city_trees(k: Vector2i, b: Dictionary, ch: CityChunk) -> void:
 	var veg_custom: Array = _work.veg_custom
 	# Always on the real relief: far_canopy.gdshader leaves an instance flagged 1 where it is.
 	var real := Color(1.0, 0.0, 0.0, 0.0)
+	var first_veg := veg_colors.size()
 	var palms := ch._palm_street
 	var jacaranda := ch._jacaranda_street
 	var spots: Array[Vector2] = []
@@ -952,6 +953,8 @@ func _add_city_trees(k: Vector2i, b: Dictionary, ch: CityChunk) -> void:
 	# The yards' trees, on the green ground the block leaves (MidCity; hashes only).
 	MidCity.yard_trees(_plan, k, b, ch.captured, ch._gy, func(q: Vector2) -> bool: return ch._under_freeway(q, CityChunk.TREE_FREEWAY_MARGIN),
 		veg, veg_colors, veg_custom)
+	# The crowns as dark as the real trees they hand over to (AerialReview; colours only).
+	AerialReview.darken_city_canopy(veg_colors, first_veg)
 
 
 ## A hill block: vegetation and the estates HillRoads places. The planting is the bulk of it.

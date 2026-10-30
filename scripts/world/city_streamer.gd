@@ -1064,6 +1064,7 @@ func _build_ground_material() -> ShaderMaterial:
 	_canopy_material = ShaderMaterial.new()
 	_canopy_material.shader = load("res://shaders/far_canopy.gdshader")
 	_canopy_material.set_shader_parameter("mid_city", MidCity.enabled)
+	AerialReview.apply_ground(mat)
 	for m in [mat, _canopy_material, EstateFar.material()]:
 		m.set_shader_parameter("macro_tex", tex)
 		m.set_shader_parameter("macro_height_tex", htex)
