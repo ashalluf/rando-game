@@ -32,6 +32,18 @@ func _ready() -> void:
 	add_child(weapon_hud)
 	move_child(weapon_hud, weapon_label.get_index())
 	weapon_label.visible = false
+	# HUD polish (scripts/ui/hud_theme.gd): the place-name toast, the car's name and its speed,
+	# and the debug text in the HUD's own type.
+	if AreaToast.enabled:
+		var area := AreaToast.new()
+		area.name = "AreaToast"
+		add_child(area)
+	if VehicleHud.enabled:
+		var car_hud := VehicleHud.new()
+		car_hud.name = "VehicleHud"
+		add_child(car_hud)
+	for l: Label in [stats, hints, weapon_label]:
+		l.add_theme_font_override("font", HudTheme.text_medium())
 	if CarRadio.enabled: # the car radio's station card (scripts/ui/radio_hud.gd)
 		var radio_hud := RadioHud.new()
 		radio_hud.name = "RadioHud"

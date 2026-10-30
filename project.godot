@@ -251,6 +251,11 @@ wet_world={
 "value": 1.0
 }
 
+night_skyline={
+"type": "float",
+"value": 1.0
+}
+
 night_factor={
 "type": "float",
 "value": 0.0
@@ -322,4 +327,12 @@ road_stamp_near={
 heli_downwash={
 "type": "vec4",
 "value": Vector4(0, -10000, 0, 0)
+}
+night_atmos={
+"type": "vec4",
+"value": Vector4(0.3, 1, 1, 1080)
+}
+ocean_closeup={
+"type": "float",
+"value": 1.0
 }

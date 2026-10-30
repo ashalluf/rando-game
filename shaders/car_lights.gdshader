@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode unshaded, blend_add, cull_disabled, depth_draw_never, shadows_disabled;
+render_mode unshaded, blend_add, cull_disabled, depth_draw_never, shadows_disabled, skip_vertex_transform;
 
 // A car's lamps as one additive mesh (PropFactory.vehicle_lights()): head and tail glows, the
 // indicators, the reversing lamps, the beam fan on the road ahead and the red wash on the road
@@ -12,6 +12,17 @@ render_mode unshaded, blend_add, cull_disabled, depth_draw_never, shadows_disabl
 // also show by day (`day_glow`), the way a real one does.
 
 global uniform float lamp_factor;
+
+// Parts 6 and 7 are the head and tail lamps' halos in the night air (NightAtmos): four corners on
+// one point, turned to the camera here and sized by the air like the street lamps' halos.
+#include "res://shaders/night_halo.gdshaderinc"
+uniform float halo_head = 0.34;
+uniform float halo_tail = 0.26;
+uniform float halo_core = 2.4;
+uniform float halo_glow = 0.5;
+uniform float halo_streak = 0.5;
+varying vec4 v_halo;
+varying vec2 v_hq;
 uniform vec3 tint : source_color = vec3(1.0);
 uniform float strength : hint_range(0.0, 4.0) = 1.6;
 uniform float falloff : hint_range(0.5, 6.0) = 1.3;
@@ -30,6 +41,40 @@ uniform float day_glow = 1.1;
 // Tail lamp running glow, and how much brighter the brake makes it (both x lamp level).
 uniform float tail_level = 0.75;
 uniform float brake_gain = 2.6;
+
+void vertex() {
+	float part = floor(UV.x * 0.5 + 0.001);
+	v_halo = vec4(0.0);
+	if (part > 5.5) {
+		vec3 c = (MODELVIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
+		float dist = length(c);
+		vec2 corner = (vec2(UV.x - part * 2.0, UV.y) - vec2(0.5)) * 2.0;
+		// Head lamps shine forward, tail lamps back: a halo shows as the lamp faces the eye.
+		vec3 fwd = normalize((MODELVIEW_MATRIX * vec4(0.0, 0.0, -1.0, 0.0)).xyz);
+		float facing = dot(fwd, -c / max(dist, 1e-3));
+		float tail = step(6.5, part);
+		float face = smoothstep(-0.15, 0.75, mix(facing, -facing, tail));
+		float s = mix(halo_head, halo_tail, tail);
+		float R = nh_radius(s);
+		float px = nh_metre_px(dist, PROJECTION_MATRIX);
+		float core_w = max(0.2 * s, 1.5 * px);
+		R = max(R, core_w * 2.6);
+		float st = (1.0 - tail) * nh_streak(c, dist) * face;
+		float ex = st > 0.002 ? 6.0 : 1.0;
+		float fade = smoothstep(2.0, 5.0, dist) * nh_far(dist) * night_atmos.z * face;
+		if (fade < 0.002) {
+			VERTEX = vec3(0.0);
+		} else {
+			c -= normalize(c) * min(0.3, dist * 0.25);
+			VERTEX = c + vec3(corner.x * ex * R, corner.y * R, 0.0);
+		}
+		v_hq = vec2(corner.x * ex, corner.y);
+		v_halo = vec4(ex, core_w / R, fade, st * fade);
+	} else {
+		VERTEX = (MODELVIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	}
+	NORMAL = normalize((MODELVIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
+}
 
 void fragment() {
 	float part = floor(UV.x * 0.5 + 0.001);
@@ -58,10 +103,20 @@ void fragment() {
 		a = glow * on * blink * day * 1.4; // right indicators
 	} else if (part < 4.5) {
 		a = glow * reverse * day * 1.2; // reversing lamps
-	} else {
+	} else if (part < 5.5) {
 		// The red wash on the road behind: faint while the lamps are on, strong on the brake.
 		a = glow * glow * lamp_factor * (0.1 + 0.9 * brake) * 0.3;
+	} else {
+		// A lamp's halo: the head lamps' at the lamp level, the tail lamps' brighter on the brake.
+		float level = part < 6.5 ? lamp_factor : lamp_factor * tail_level + brake * max(lamp_factor * brake_gain * 0.6, 0.0);
+		a = level * nh_shape(v_hq, v_halo.x, v_halo.y, halo_core * v_halo.z, halo_glow * nh_halo_amount() * v_halo.z, halo_streak * v_halo.w) / max(strength, 1e-3);
 	}
-	ALBEDO = tint * COLOR.rgb;
-	ALPHA = a * strength * COLOR.a;
+	if (part > 5.5) {
+		// The halo's light can pass 1: it goes in the colour, never the alpha (clamped on a
+		// UNORM target).
+		ALBEDO = tint * COLOR.rgb * a * strength * COLOR.a;
+	} else {
+		ALBEDO = tint * COLOR.rgb;
+		ALPHA = a * strength * COLOR.a;
+	}
 }

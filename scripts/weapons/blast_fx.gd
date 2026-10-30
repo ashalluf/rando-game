@@ -328,7 +328,7 @@ static func _column(parent: Node, at: Vector3, radius: float, fuel: bool) -> voi
 	cap.initial_velocity_max = 22.0 * sc
 	cap.damping_min = 4.0 * sc
 	cap.damping_max = 6.0 * sc
-	cap.gravity = Vector3(0.35, 0.9, 0.15) * sc
+	cap.gravity = Vector3(0.08, 0.5, 0.04) * sc
 	cap.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
 	cap.emission_sphere_radius = radius * 0.4
 	_scale_curve(cap, radius * 0.75, radius * 0.95, 3.4)
@@ -346,12 +346,19 @@ static func _column(parent: Node, at: Vector3, radius: float, fuel: bool) -> voi
 	col.initial_velocity_max = column_rise * 1.2 * sc
 	col.damping_min = 0.15
 	col.damping_max = 0.35
-	col.gravity = Vector3(0.45, 0.55, 0.2) * sc
+	# A gentle drift, not a push: gravity is an acceleration, and 0.45 m/s2 sideways carried the
+	# column 70 m off its fire by 18 s.
+	col.gravity = Vector3(0.08, 0.15, 0.04) * sc
 	col.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
 	col.emission_sphere_radius = radius * 0.3
 	_scale_curve(col, radius * 0.5, radius * 0.7, 4.5)
-	col.color_ramp = WeaponFX._ramp([Color(0.05, 0.045, 0.04, 0.0), Color(0.055, 0.05, 0.045, 0.85),
-		Color(0.065, 0.06, 0.055, 0.8), Color(0.085, 0.08, 0.075, 0.6), Color(0.11, 0.11, 0.11, 0.0)])
+	# Thick from its first instant (a ramp that fades in over a quarter of the life left the foot
+	# of the column bare), thinning as it spreads.
+	var stem_ramp := Gradient.new()
+	stem_ramp.offsets = PackedFloat32Array([0.0, 0.05, 0.4, 0.75, 1.0])
+	stem_ramp.colors = PackedColorArray([Color(0.05, 0.045, 0.04, 0.0), Color(0.055, 0.05, 0.045, 0.85),
+		Color(0.065, 0.06, 0.055, 0.8), Color(0.085, 0.08, 0.075, 0.55), Color(0.11, 0.11, 0.11, 0.0)])
+	col.color_ramp = stem_ramp
 	var reach := column_life * column_rise * 1.6 * sc + radius * 4.0
 	for e: CPUParticles3D in [cap, col]:
 		e.custom_aabb = AABB(Vector3(-reach, -radius, -reach), Vector3(reach * 2.0, reach + radius, reach * 2.0))
@@ -390,7 +397,7 @@ static func _scale_curve(p: CPUParticles3D, lo: float, hi: float, grow: float) -
 	# Raise max_value or the growth is clamped to 1 (the Curve trap).
 	var c := Curve.new()
 	c.max_value = maxf(1.0, grow)
-	c.add_point(Vector2(0.0, 0.45))
+	c.add_point(Vector2(0.0, 0.7))
 	c.add_point(Vector2(0.15, 1.0))
 	c.add_point(Vector2(1.0, grow))
 	p.scale_amount_curve = c

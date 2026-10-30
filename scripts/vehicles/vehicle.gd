@@ -731,8 +731,20 @@ func exit_candidates() -> Array[Vector3]:
 ## the relief (0.45 m over the road top, 0.71 m over a freeway deck) whatever the body, so every
 ## street car's tyres hung 15-27 cm clear of the asphalt and every freeway car's ~0.5 m.
 func road_lift() -> float:
+	# Kept per body type: the traffic asks it for every car every tick, and _dims() builds a
+	# fifteen-key dictionary each call (perf-audit-2).
+	if _lift_type == body_type:
+		return _lift
 	var d := _dims()
-	return -float(d.get("road", d.get("ride", model_bottom_y)))
+	var lift := -float(d.get("road", d.get("ride", model_bottom_y)))
+	if d.has("road") or d.has("ride"):
+		_lift_type = body_type
+		_lift = lift
+	return lift
+
+
+var _lift_type: int = -999999
+var _lift: float = 0.0
 
 
 func is_traffic() -> bool:
@@ -1133,6 +1145,7 @@ func _build() -> void:
 	_add_livery_props(dims)
 	if Lowrider.is_lowrider(body_type):
 		Lowrider.attach(self)
+	CarDetail.attach(self)
 	_occupant_key = -1
 	_update_occupant()
 
@@ -1336,6 +1349,7 @@ func _refresh_lights() -> void:
 	var on := lights_running() and _lamp_bits != 15
 	if _night_lights.visible != on:
 		_night_lights.visible = on
+		CarDetail.lamps(self, on)
 	if not on:
 		return
 	var phase := int(get_instance_id() % 4)
@@ -1518,6 +1532,8 @@ func _update_body_tier(dist: float) -> void:
 	if tier == _body_tier:
 		return
 	_body_tier = tier
+	if tier == 0:
+		CarDetail.near(self)
 	if _body_shadows.is_empty():
 		_make_body_shadows()
 	for m in _body_meshes:

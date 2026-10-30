@@ -411,6 +411,8 @@ func begin_build() -> void:
 				_steps.append(_build_roads.bind(block))
 			if _owns_shoreline():
 				_steps.append(_build_beach.bind(block))
+				if OceanCloseup.enabled():
+					_steps.append(_build_water.bind(true))
 			# The coast highway runs the length of the sand on the land side of it, so a beach
 			# chunk has to lay road as well; without this PCH simply stops at every beach town
 			# and picks up again where the cliffs start.
@@ -632,7 +634,11 @@ func _add_shop_spill() -> void:
 				var xf: Transform3D = b.transform * (pool[0] as Transform3D)
 				xf.origin.y = SIDEWALK_TOP + 0.06
 				_batch.add("shop_spill", mesh, xf, pool[1])
+				var glow: Variant = NightAtmos.shop_part(xf, pool[1], SIDEWALK_TOP)
+				if glow != null:
+					_batch.add(glow[0], glow[1], glow[2], glow[3], glow[4])
 	_batch.set_no_shadow("shop_spill")
+	NightAtmos.finish_batch(_batch)
 	_batch.set_draw_distance("shop_spill", SHOP_SPILL_DISTANCE)
 
 
@@ -1115,8 +1121,21 @@ func _build_sts_crane(at: Vector3, working: bool, ship_z: float, kit: RandomNumb
 
 # --- Ocean, beach, hills ---------------------------------------------------------------
 
-func _build_water() -> void:
+func _build_water(seaward_only := false) -> void:
 	var area := owned_rect()
+	if seaward_only:
+		# A beach chunk's own slice of sea (OceanCloseup): from its seaward edge to a few metres
+		# under the sand past the waterline. Without it the inner surf zone off every BEACH-zone
+		# chunk was missing, and the sand's drowned face showed as a flat blue sheet.
+		if capturing:
+			return
+		var cx := -INF
+		for k in 5:
+			cx = maxf(cx, plan.macro.coast_x(lerpf(area.position.y, area.end.y, k / 4.0)))
+		var east := minf(cx + 6.0, area.end.x)
+		if east <= area.position.x + 1.0:
+			return
+		area = Rect2(area.position, Vector2(east - area.position.x, area.size.y))
 	var c := area.get_center()
 	# Waving surface (shaders/ocean.gdshader, Gerstner waves sized by the Weather node) over a
 	# solid box so the sea still holds you up. Surface at +0.15 so it sits above the ground
@@ -2964,6 +2983,8 @@ func _park_extra(spot: Array) -> void:
 	if _kerb_taken(spot, car):
 		car.free()
 		return
+	# Fills whatever the pass left empty, so it moves with anything that takes a kerb spot.
+	car.set_meta("busy_extra", true)
 	var holder: Node = get_parent() if get_parent() else self
 	var spot_pos: Vector3 = at + Vector3(0.0, 0.3 + _gy(at.x, at.z), 0.0)
 	car.position = WorldState.to_local(spot_pos) if holder != self else spot_pos
@@ -4108,8 +4129,9 @@ func _add_lamp(at: Vector3, facing: Vector2 = Vector2.ZERO) -> void:
 	_add_prop("lamp", at, Color(0.28, 0.29, 0.32), [
 		["lamp", PropFactory.model_lamp(), Transform3D(Basis(Vector3.UP, fmod(absf(at.x * 7.3 + at.z * 3.1), TAU)), at), _lamp_tint],
 		["lamp_pool", PropFactory.light_pool(), pool, NightCity.pool_color(Vector2(at.x, at.z))],
-	], [[Vector3(0.3, 3.9, 0.3), at + Vector3(0.0, 1.95, 0.0), 0.0]])
+	] + _night_atmos([at + Vector3(0.0, 3.8, 0.0)], at + Vector3(0.0, 3.8, 0.0), at, LAMP_POOL_SIZE), [[Vector3(0.3, 3.9, 0.3), at + Vector3(0.0, 1.95, 0.0), 0.0]])
 	_batch.set_no_shadow("lamp_pool")
+	NightAtmos.finish_batch(_batch)
 	if level != Level.FULL:
 		return
 	# A real light as well, so the lamp actually lifts the people and cars under it. DayNight
@@ -4130,6 +4152,16 @@ func _add_lamp(at: Vector3, facing: Vector2 = Vector2.ZERO) -> void:
 	PropBreak.own_light(self, light)
 
 
+## A lamp's halos and shaft in the night air (NightAtmos): instances of its own prop record, so
+## they go out with it. None while capturing for the far city (which has its own lamp heads).
+func _night_atmos(lights: Array, head: Vector3, at: Vector3, pool: float) -> Array:
+	if capturing or not NightAtmos.enabled:
+		return []
+	NightAtmos.ensure(get_parent())
+	var parts := NightAtmos.lamp_parts(lights, head, at.y, pool, Vector2(at.x, at.z), level == Level.FULL)
+	return parts
+
+
 ## The real lamp (StreetLamps, a model per type): the same prop slot, pool and OmniLight3D as
 ## the old post, the pool and the light moved under / into the lamp's head.
 func _add_street_lamp(at: Vector3, facing: Vector2) -> void:
@@ -4144,8 +4176,9 @@ func _add_street_lamp(at: Vector3, facing: Vector2) -> void:
 	_add_prop("lamp", at, Color(0.28, 0.29, 0.32), [
 		[lp.key, lp.mesh, lp.xform, lp.paint, lp.custom],
 		["lamp_pool", PropFactory.light_pool(), pool, StreetLamps.pool_color(lp.type, Vector2(at.x, at.z))],
-	], [[box, at + Vector3(0.0, box.y * 0.5, 0.0), 0.0]])
+	] + _night_atmos(lp.lights, head, at, size), [[box, at + Vector3(0.0, box.y * 0.5, 0.0), 0.0]])
 	_batch.set_no_shadow("lamp_pool")
+	NightAtmos.finish_batch(_batch)
 	if level != Level.FULL:
 		return
 	var light := OmniLight3D.new()
@@ -4746,6 +4779,7 @@ func _build_freeway() -> void:
 	# The four-level stack's connectors go into the same meshes (StackBuild).
 	var quads := kit.build_segments(segs, area) + StackBuild.build(self, kit, deck_body)
 	if quads == 0:
+		deck_body.free()  # never entered the tree: an orphan body each capture (perf-audit-2)
 		return
 	var t := Freeway.DECK_THICKNESS
 	for seg in segs:
@@ -4828,6 +4862,7 @@ func _build_freeway_ramps() -> void:
 			prev_y = y
 		built += 1
 	if built == 0:
+		ramp_body.free()
 		return
 	add_child(ramp_body)
 	kit.commit(PropFactory.road("asphalt_aerial", 9.0, Color(0.69, 0.69, 0.71), hash([plan.seed, "ramp"]), 0.0, 0.7), "Ramp")

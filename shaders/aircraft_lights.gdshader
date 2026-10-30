@@ -35,6 +35,7 @@ render_mode unshaded, blend_add, cull_disabled, depth_draw_never, shadows_disabl
 
 // Not night_factor: the lamps come on in a storm too (DayNight publishes max(night, weather)).
 global uniform float lamp_factor;
+global uniform float night_skyline;
 // Share of full brightness nav lights and strobes keep by day. Real strobes read in daylight.
 uniform float day_level : hint_range(0.0, 1.0) = 0.22;
 // Landing lights by day: they are bright enough to see at noon on final.
@@ -109,8 +110,10 @@ void fragment() {
 		on = (step(f, 0.03) + step(abs(f - 0.10), 0.015)) * strobe_on;
 		level = max(lamp_factor, day_level * 2.0);
 	} else if (v_kind > 1.5 && v_kind < 2.5) {
-		// Beacon: a red pulse a second.
-		float f = fract(TIME + v_phase);
+		// Beacon: a red pulse a second; with the night pass each light at its own rate, 30-50 a
+		// minute from its phase (towers' lights out of step, NightSkyline).
+		float rate = mix(1.0, 0.5 + 0.35 * fract(v_phase * 7.31), night_skyline);
+		float f = fract(TIME * rate + v_phase);
 		on = pow(max(sin(f * 6.2832), 0.0), 5.0) * beacon_on;
 	} else if (v_kind > 2.5 && v_kind < 3.5) {
 		on = landing_on;

@@ -31,11 +31,14 @@ func _ready() -> void:
 
 ## Places the frame and the ring for the viewport's size.
 func layout() -> void:
-	var s := hud_scale(get_viewport_rect().size)
+	var view := get_viewport_rect().size
+	var s := hud_scale(view)
+	# The safe area (HudTheme): the margin, and on a window wider than 21:9 the band's inset.
+	var inset := HudTheme.band_inset(view)
 	for c: Control in [self, get_parent().get_node_or_null("MinimapBorder") as Control]:
 		if c == null:
 			continue
-		c.offset_right = -base_margin * s
+		c.offset_right = -base_margin * s - inset
 		c.offset_bottom = -base_margin * s
 		c.offset_left = c.offset_right - base_size
 		c.offset_top = c.offset_bottom - base_size
@@ -46,7 +49,8 @@ func layout() -> void:
 ## The frame's rectangle on screen (scaled).
 func screen_rect() -> Rect2:
 	var s := scale.x
-	var end := get_viewport_rect().size - Vector2.ONE * base_margin * s
+	var view := get_viewport_rect().size
+	var end := view - Vector2.ONE * base_margin * s - Vector2(HudTheme.band_inset(view), 0.0)
 	return Rect2(end - Vector2.ONE * base_size * s, Vector2.ONE * base_size * s)
 
 

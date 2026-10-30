@@ -350,7 +350,9 @@ func _send(player: Player) -> void:
 	crew.knock(Vector3(0.0, 2.0, 4.0))
 	await _ticks(2)
 	var dolls := parent.get_children().filter(func(n: Node) -> bool: return n is Ragdoll).size()
-	_check(dolls > dolls_before and not _nc.crews.has(crew), "a crew member knocked down is a body like anyone's (%d -> %d bodies)" % [dolls_before, dolls])
+	# The knocked person's node is freed: never hand it to a typed array's has().
+	var listed := is_instance_valid(crew) and _nc.crews.has(crew)
+	_check(dolls > dolls_before and not listed, "a crew member knocked down is a body like anyone's (%d -> %d bodies)" % [dolls_before, dolls])
 	_check(bool(s.get("wrap", false)), "and the story wraps: the rest pack up")
 
 

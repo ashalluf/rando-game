@@ -240,7 +240,7 @@ static func _survey(tree: SceneTree) -> void:
 		_events.append([Kind.BLAST, Explosion.last_blast_world, null, now, 3.5, BLAST_RANGE, 1.0, _next_id])
 		_next_id += 1
 	var player := Pedestrian._player
-	if is_instance_valid(player) and player is CharacterBody3D:
+	if is_instance_valid(player) and player is CharacterBody3D and player.is_inside_tree():
 		var v := (player as CharacterBody3D).velocity
 		if v.length() > BOOST_SPEED:
 			if now > _boost_until:
@@ -258,7 +258,7 @@ static func _survey(tree: SceneTree) -> void:
 ## Four times a second: sirens, burning cars, magnets and walkers within reach of the camera.
 static func _survey_slow(tree: SceneTree, now: float) -> void:
 	var centre := _camera_at
-	if is_instance_valid(Pedestrian._player):
+	if is_instance_valid(Pedestrian._player) and Pedestrian._player.is_inside_tree():
 		centre = Pedestrian._player.global_position if centre == Vector3.INF else centre
 	if centre == Vector3.INF:
 		return
@@ -461,7 +461,9 @@ func _quiet_candidates(eye: Vector3, _now_s: float, weigh: Callable, best_score:
 			best_score = s
 			best.assign([Kind.CAR, at + vel * 0.12 + Vector3.UP * 0.6, null, 0.0, 0, s])
 	var player := Pedestrian._player
-	if is_instance_valid(player):
+	# A player or walker still allocated but out of the tree (a test's earlier room, a hidden
+	# walker) has no global position: skip it.
+	if is_instance_valid(player) and player.is_inside_tree():
 		var at := player.global_position + Vector3.UP * 1.5
 		var s: float = weigh.call(Kind.PLAYER, at, float(ped.look_player_range), 1.0, player.get_instance_id())
 		if s > best_score:
@@ -472,7 +474,7 @@ func _quiet_candidates(eye: Vector3, _now_s: float, weigh: Callable, best_score:
 		if not is_instance_valid(n): # the list is a quarter second old: freed since
 			continue
 		var o := n as Node3D
-		if o == ped or o == null:
+		if o == ped or o == null or not o.is_inside_tree():
 			continue
 		var at := o.global_position
 		if at.distance_squared_to(me) > PASSER_RANGE * PASSER_RANGE:

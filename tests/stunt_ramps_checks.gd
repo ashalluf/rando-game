@@ -250,7 +250,8 @@ func _director(t: Node) -> void:
 	for i in 10:
 		dir.watch(foot + Vector3(0.0, 0.0, 14.0), Vector3(0.0, 0.0, 15.0), false, dt)
 	t0 = Time.get_ticks_msec()
-	while Time.get_ticks_msec() - t0 < 900 and not is_equal_approx(Engine.time_scale, 1.0):
+	# Real time, and a loaded runner gives few frames of it (CI 379 timed out at 900 ms).
+	while Time.get_ticks_msec() - t0 < 5000 and not (is_equal_approx(Engine.time_scale, 1.0) and is_equal_approx(AudioServer.playback_speed_scale, 1.0)):
 		await t.get_tree().process_frame
 	var back := is_equal_approx(Engine.time_scale, 1.0) and is_equal_approx(AudioServer.playback_speed_scale, 1.0)
 	# A slow ride past the lip (under min_launch_speed) is no launch.
