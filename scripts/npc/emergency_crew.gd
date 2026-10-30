@@ -800,6 +800,11 @@ func _tick_gear(delta: float) -> void:
 ## The line from the pump panel along the ground to the nozzle in the hands: a tube through a
 ## few points (the panel, down to the street, a lazy curve along it, up to the chest).
 func _lay_hose() -> void:
+	# The engine pooled out from under the crew (a call given up): nothing to run a hose from.
+	if car == null or not is_instance_valid(car) or not car.is_inside_tree():
+		if _hose != null:
+			_hose.visible = false
+		return
 	if _hose == null:
 		_hose = MeshInstance3D.new()
 		_hose.name = "HoseLine"
@@ -807,6 +812,7 @@ func _lay_hose() -> void:
 		_hose.material_override = hose_material()
 		_hose.top_level = true
 		add_child(_hose)
+	_hose.visible = true
 	var scene := service.scene_point(car.incident) if not car.incident.is_empty() else global_position
 	var a := _panel_point(scene)
 	var hands := _nozzle_point()

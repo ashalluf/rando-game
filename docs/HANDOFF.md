@@ -19443,7 +19443,8 @@ as parts of their own, so a shard could believe it owned work that ran in anothe
 | SHARDS=3, the same code | 1,151 s (3 x ~1,070) | 3,496 | 5 (load flakes, see below) |
 | final (+ main c900e0b1, 191 files), one process | 2,611 s | 3,655 | **0** |
 | final, SMOKE_SHUFFLE=7, beside the one above | 2,659 s | 3,655 | 1 (the ragdoll joint gap, a flake: see below) |
-Peak memory one process 3.8-4.0 GB, a shard 2.7-3.1 GB. Where the time goes did not change since 9du:
+| final, SHARDS=3 | 925 s (3 x 868-923) | 3,686 | 3 (the fire crew's hose trio, the load flake below) |
+Peak memory one process 3.8-4.0 GB, a shard 2.5-3.2 GB. Where the time goes did not change since 9du:
 the frames are compute bound (the whole city simulates every tick, ~0.1-0.2 s a frame here), and
 the waits are already condition polls. Cut: the pending-seed check built a whole second city
 (56 s) to test that `_ready()` takes the seed - it now streams one block and no far city
@@ -19468,6 +19469,10 @@ zero) before every file (`SMOKE_NO_RECENTER=1` is its A/B). Two more fail only o
 cores), with and without the reset (`SMOKE_NO_RESET=1` failed the same way 1 run in 2): the fire
 crew never leaves the engine (`emergency_checks`, "lays a hose") and the city_cars drive check
 (a car stands at 0.1 m/s). They pass alone and in one process.
+In the final shard gate the fire crew stuck again (3 checks) and, the call given up, the crew
+went on laying hose from the engine Emergency had pooled out of the tree (`!is_inside_tree()`
+errors, which headless_check.sh counts as script errors): `EmergencyCrew._lay_hose()` now hides
+the hose and returns when its engine is gone.
 
 Two more things the reset now puts back: **input actions** (every action is released between
 files, `last["input"]` counts any still held; checks press and release actions by hand, and one
