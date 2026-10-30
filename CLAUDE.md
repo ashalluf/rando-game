@@ -1827,6 +1827,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `haze_for()`, shaft gain 0 where volumetric fog is on, halo gain, viewport height), pushed four
   times a second; collapsed by day. `NIGHT_ATMOS=0` is the A/B; checks
   `tests/night_atmos_checks.gd`.
+- The night street review (2026-10-30, docs/HANDOFF.md "The night street at eye level"):
+  `NightStreetReview` (`scripts/world/night_street_review.gd`) holds the balance: the moon's key
+  (`MOON` 0.09: at 0.3 it lit streets evenly blue at ~45 % of the noon sun and hid the lamps),
+  StreetLamps' pool / range scales, Broadway's lantern gain (a light's meta `lamp_gain`, read by
+  DayNight), the rain's night fill, and `sky_tint` now following the rain / overcast horizon the
+  sky draws (every mirror read a navy sky under a brown cloud base). NightAtmos lays a wet
+  reflection streak per FULL lamp (`atmos_glow_wet`, `shaders/night_wet.gdshader`: foot to mirror
+  point, collapsed while dry); road.gdshader's mirrored windows smear (`mirror_window*`,
+  `mirror_sky`). `NIGHT_STREET_REVIEW=0` is the A/B; bookmarks `tools/night_street/` (shoot.sh
+  full city, shoot_fwd.sh small scenes, measure.py); checks `tests/night_street_review_checks.gd`.
 - Car lights (GAME_PLAN G4 / G6, 2026-10-04): the lamp mesh is `PropFactory.vehicle_lights()`
   on `shaders/car_lights.gdshader` (it replaced light_pool for cars): head and tail glows, the
   beam fan, amber indicators at all four corners, reversing lamps and a red wash on the road

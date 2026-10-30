@@ -57,13 +57,14 @@ def files(d):
 	return out
 
 
-dirs = sys.argv[1:]
-if len(dirs) == 1:
-	for n, f in files(dirs[0]):
-		print(line(n, stats(f)))
-else:
-	b = dict(files(dirs[1]))
-	for n, f in files(dirs[0]):
-		if n in b:
-			print(line(n, stats(b[n])).replace(n, n + " B", 1))
-		print(line(n, stats(f)).replace(n, n + " A", 1))
+if __name__ == "__main__":
+	dirs = sys.argv[1:]
+	if len(dirs) == 1:
+		for n, f in files(dirs[0]):
+			print(line(n, stats(f)))
+	else:
+		b = dict(files(dirs[1]))
+		for n, f in files(dirs[0]):
+			if n in b:
+				print(line(n, stats(b[n])).replace(n, n + " B", 1))
+			print(line(n, stats(f)).replace(n, n + " A", 1))
