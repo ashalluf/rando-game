@@ -83,6 +83,8 @@ static var clock: float = 0.0
 static var hold: bool = OS.get_environment("FW_INCIDENT_HOLD") == "1"
 ## The live node (null when off).
 static var current: FreewayIncidents
+## Every incidents node in the tree, oldest first (current is the newest).
+static var _alive: Array[FreewayIncidents] = []
 ## Counts for the checks: "swerve", "stop", "spawn_moved", "built_<kind>", "tow_loaded", ...
 static var counts: Dictionary = {}
 static var _forced: Array = []
@@ -386,6 +388,7 @@ static func flare_spot(inc: Dictionary, k: int, halves: Array) -> Vector2:
 
 func _ready() -> void:
 	current = self
+	_alive.append(self)
 	name = "FreewayIncidents"
 	process_physics_priority = 10
 	if clock == 0.0 and plan != null:
@@ -393,8 +396,11 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	_alive.erase(self)
 	if current == self:
-		current = null
+		# Another city's node may still be in the tree (the pause menu's Rebuild builds the new
+		# city before it frees the old one): hand `current` back to it.
+		current = _alive.back() if not _alive.is_empty() else null
 
 
 func _fw() -> Freeway:
