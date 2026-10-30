@@ -941,6 +941,9 @@ func _add_city_trees(k: Vector2i, b: Dictionary, ch: CityChunk) -> void:
 			Vector3(p.x, gy + lift + th * 0.5, p.y)))
 		veg_colors.append(col)
 		veg_custom.append(real)
+	# The yards' trees, on the green ground the block leaves (MidCity; hashes only).
+	MidCity.yard_trees(_plan, k, b, ch.captured, ch._gy, func(q: Vector2) -> bool: return ch._under_freeway(q, CityChunk.TREE_FREEWAY_MARGIN),
+		veg, veg_colors, veg_custom)
 
 
 ## A hill block: vegetation and the estates HillRoads places. The planting is the bulk of it.

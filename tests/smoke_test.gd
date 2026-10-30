@@ -2446,6 +2446,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# THE PIT, the boardwalk's skate park (tests/skate_park_checks.gd): the pits, the terrace, the
 	# lines on the concrete, the build and its collision, the riders on the clock, a knock, gunfire.
 	await load("res://tests/skate_park_checks.gd").new().run(self, city)
+	# The mid distance (tests/mid_city_checks.gd): yard trees, house roofs and pools in the far tiers.
+	load("res://tests/mid_city_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

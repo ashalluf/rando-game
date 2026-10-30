@@ -58,6 +58,12 @@ varying float shade;
 varying float fade;
 varying float rim;
 varying float glow;
+// The mid distance (MidCity; off: MID_CITY=0): a tree's crown is clumps of leaves in sun and the
+// holes between them in shade, not one flat colour - lit lumps a metre or two across on the
+// crown's true world position, faded to their mean once a pixel cannot hold them.
+uniform bool mid_city = false;
+varying vec3 crown_pos;
+varying float crown;
 
 
 // The plane's own offset (lift minus sink) at one of its vertices, exactly as its shader works it.
@@ -133,6 +139,8 @@ void vertex() {
 		vec3 sc = vec3(length(MODEL_MATRIX[0].xyz), length(MODEL_MATRIX[1].xyz), length(MODEL_MATRIX[2].xyz));
 		NORMAL = normalize(NORMAL / max(sc * sc, vec3(1e-4)));
 	}
+	crown = (rigid || INSTANCE_CUSTOM.a > 0.5) ? 0.0 : 1.0;
+	crown_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz + vec3(0.0, shift, 0.0) + vec3(world_offset.x, 0.0, world_offset.y);
 	fade = rigid ? 1.0 : COLOR.a;
 	glow = rigid ? 0.0 : clamp(INSTANCE_CUSTOM.g, 0.0, 1.0);
 	vec3 at = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
@@ -153,8 +161,16 @@ void fragment() {
 			discard;
 		}
 	}
+	float dapple = 1.0;
+	if (mid_city && crown > 0.5) {
+		float mpp = max(fwidth(crown_pos.x), fwidth(crown_pos.z));
+		vec3 cell = floor(crown_pos * 0.62);
+		float h = fract(sin(dot(cell, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+		float h2 = fract(sin(dot(floor(crown_pos * 1.7), vec3(39.35, 11.13, 83.17))) * 24634.634);
+		dapple = mix(1.0, 0.68 + 0.5 * h * (0.75 + 0.5 * h2), 1.0 - smoothstep(0.8, 2.6, mpp));
+	}
 	// rigid_color is a source_color uniform, already in the renderer's own space.
-	ALBEDO = (rigid ? tint * shade : cs_out(tint * shade)) * (1.0 - rim);
+	ALBEDO = (rigid ? tint * shade : cs_out(tint * shade * dapple)) * (1.0 - rim);
 	// sky_tint arrives raw on both renderers; the sky it fades into is decoded on Forward+.
 	EMISSION = cs_out(cs_srgb_to_linear(sky_tint.rgb)) * rim;
 	if (glow > 0.001) {

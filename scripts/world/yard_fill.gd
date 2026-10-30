@@ -1595,6 +1595,10 @@ static func _ground(ch: CityChunk, r: Rect2, kind: int, variant: float, lift: fl
 	if ch.level == CityChunk.Level.FULL and not ch.capturing:
 		ch._yard_ground.append([r, kind, variant, lift])
 		return
+	if kind == G_POOL:
+		# The pool as a flat far box (MidCity: LA from the hills is dotted with them).
+		MidCity.pool(ch, r)
+		return
 	if kind != G_LAWN or maxf(r.size.x, r.size.y) < 6.0 or minf(r.size.x, r.size.y) < 2.0:
 		return
 	var c := r.get_center()
