@@ -1,6 +1,6 @@
 # rock-outcrops stills (wt/rock-outcrops)
 
-opengl3 (Compatibility) stills, 1280x720, `tools/glshot/still_shot.gd`; "before" is the same build with `ROCKS=0`.
+opengl3 (Compatibility) stills, 1280x720 (the afters re-shot after the far crags were darkened), `tools/glshot/still_shot.gd`; "before" is the same build with `ROCKS=0`.
 
 | file | what |
 |---|---|
