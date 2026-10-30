@@ -147,8 +147,8 @@ static func open_at(kind: int, hour: float) -> bool:
 	return h >= 17.0 and h < 26.0
 
 
-## How many people stand in the line at `hour`: a club's from 21:30, longest from 23:00 to
-## 01:00, gone by 03:00; a bar's short line from 21:00 to its last call. `key` makes each venue
+## How many people stand in the line at `hour`: a club's from 21:30, long from 22:30 to 01:00,
+## gone by 03:00; a bar's short line from 21:00 to its last call. `key` makes each venue
 ## its own (0.55..1.0 of the peak).
 static func queue_size(kind: int, hour: float, key: int) -> int:
 	if not open_at(kind, hour):
@@ -157,9 +157,9 @@ static func queue_size(kind: int, hour: float, key: int) -> int:
 	var peak := 15.0 if kind == Kind.CLUB else 5.0
 	var shape := 0.0
 	if kind == Kind.CLUB:
-		shape = smoothstep(21.5, 23.0, h) * (1.0 - smoothstep(25.0, 27.0, h))
+		shape = smoothstep(21.2, 22.4, h) * (1.0 - smoothstep(25.0, 27.0, h))
 	else:
-		shape = smoothstep(21.0, 22.5, h) * (1.0 - smoothstep(24.5, 25.8, h))
+		shape = smoothstep(20.6, 21.8, h) * (1.0 - smoothstep(24.5, 25.8, h))
 	var own := 0.55 + 0.45 * _h01([key, "nl_peak"])
 	return int(round(peak * shape * own))
 

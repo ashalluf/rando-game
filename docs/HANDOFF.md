@@ -17103,8 +17103,9 @@ roll is a hash of the seed and the shop's key; nothing uses the block rng, nothi
 block with it off and compares buildings, prop ids and parked cars.
 
 **When.** From the hour the chunk is built at, like the parklets and vendors. `open_at()`: clubs
-21:30-03:00, bars 17:00-02:00. `queue_size()`: a club's line grows from 21:30, is longest 23:00 to
-01:00 (up to 15), gone by 03:00; a bar's up to 5 from 21:00. The rope goes out for a club or a bar
+21:30-03:00, bars 17:00-02:00. `queue_size()`: a club's line grows from 21:30, is long from 22:30 to
+01:00 (up to 15), gone by 03:00; a bar's up to 5 from 21:00. (The first ramp ran to 23:00, and the
+22:00 stills had three people at each rope.) The rope goes out for a club or a bar
 with 3+ waiting. `night_hour()` makes a night one clock (01:00 = 25). The night's number is
 DayNight's `day_count` (the day before, before 06:00): a club's opening (`OPENING_ODDS` 0.18) and a
 Broadway palace's premiere (`PREMIERE_ODDS` 0.34, 19:30-01:00, one premiere a block) are hashes of
@@ -17162,3 +17163,28 @@ a venue, `NIGHTLIFE_PREMIERE=1` puts tonight's premieres and openings on. Probe:
 `tools/nightlife/probe.gd -- --spawn=x,z,0,0 --hour=22.5` (venues, people, beams, EYEs; `PALACES=1`
 every palace). Kit alone: `tools/nightlife/kit_shot.gd` (seconds). Compile: `tools/nightlife/compile.gd`.
 Checks: `tests/nightlife_checks.gd`.
+
+**Stills** (`shots/nightlife`, opengl3 1280x720, `--hour=22 --quality=0`, `--spawn=2735,58,46,0`,
+the default seed's own venues and night 0's premiere; the odd numbers are `NIGHTLIFE=0`): `01`/`02`
+AFTERGLOW (club) `EYE=2675.0,2.2,197.2,-4,6`, `03`/`04` HALCYON (club, a tower lobby)
+`EYE=2737.6,2.2,45.8,86,6`, `05`/`06` the AURORA's premiere on Broadway `EYE=2996,7,34,90,-12`,
+`07`/`08` the beams over downtown `EYE=3330,140,330,120,2` (FOV 55).
+
+**Frame cost** (`still_shot.gd` GEO, the same EYEs, before -> after): AFTERGLOW 3.62 M triangles /
+1,661 draws -> 3.91 M / 1,733; HALCYON 3.05 M / 1,250 -> 3.30 M / 1,313 (both mostly the line's
+11-14 people and their shadows; the entrance, rope, sign and pool are 4-5 draws a venue); the
+premiere 3.33 M / 1,621 -> 3.51 M / 1,728 (twelve fans, four carts and drums, the carpet); the
+aerial 3.38 M / 1,584 -> 3.37 M / 1,592 (eight beams, a draw each). CPU: a NightGoer is a placed
+Pedestrian (kinematic, mask 0); NightPickups looks at the venue list twice a second and scans the
+traffic list only when a call is due.
+
+**Checks**: `SMOKE_PARTS=nightlife_checks`: 45 passed, 0 failed.
+
+**Not done / not verified.** Not seen on Forward+ (the Mac): the volumetric beams on HIGH (the
+fog's reach and energy are guesses: `fog_reach`, `fog_energy`), the LED and sign glow under AgX.
+No natural pickup is in a still (they are rolled on a clock; the check stages one). The far city
+draws no beams (only FULL and LOD chunks). The bouncers do not stop the player or anybody else;
+people in line do not leave when it rains (RainCrowd gives them umbrellas). A tower lobby's club
+has its line at the lobby door with the tower's street number over it. `StreetErrands._from_far()`
+now skips walkers marked `no_trim` (it borrowed people standing in a line - and would have
+borrowed a test's staged walkers - to drive parked cars away).
