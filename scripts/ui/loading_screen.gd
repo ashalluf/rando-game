@@ -295,6 +295,9 @@ func _warm_shaders() -> void:
 	# Backyard life's patio sets, grills, trampolines, floats and lights (BackyardKit).
 	if Backyards.enabled:
 		effects.append_array(BackyardKit.warm())
+	# Yard sales' tables, goods, racks and signs (YardSaleKit).
+	if YardSales.enabled:
+		effects.append_array(YardSaleKit.warm())
 	for mat: Material in effects:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
