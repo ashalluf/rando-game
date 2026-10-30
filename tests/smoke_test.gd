@@ -505,10 +505,19 @@ func _city_streaming(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> v
 	_check(not lamp.is_empty(), "home chunk has a lamp to break")
 	var lamp_id: String = lamp.get("id", "")
 	if not lamp.is_empty():
+		var debris_before := get_tree().get_nodes_in_group("debris").size()
 		home_chunk.damage_prop(lamp, 999.0, Vector3.UP)
 		await _ticks(2)
 		_check(lamp.dead and _world_state().is_destroyed(home_chunk.key, lamp_id), "lamp breaks and is recorded as destroyed")
-		_check(get_tree().get_nodes_in_group("debris").size() >= 3, "broken lamp drops debris")
+		# PropBreak fells a lamp hit this hard (a falling pole and its pieces): count what it added,
+		# a few ticks on (the pieces are made over the next frames).
+		var debris_added := 0
+		for i in 20:
+			debris_added = get_tree().get_nodes_in_group("debris").size() - debris_before
+			if debris_added >= 1:
+				break
+			await _ticks(1)
+		_check(debris_added >= 1, "broken lamp drops debris (%d pieces)" % debris_added)
 
 	# Walk far away: chunks stream, the old home chunk becomes LOD or unloads.
 	var far := Vector3(700.0, 2.0, 0.0)
