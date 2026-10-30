@@ -17147,6 +17147,10 @@ makes them. Lights: AmbientCraft's billboard nav lights, strobes and beacons.
   A banner plane in view is ~2-3k triangles and 4 draws (plane, banner, their twins, the rope).
   The three craft are always alive (one draw each wherever they are); nothing per chunk.
 
+**Gate.** After merging origin/main (674307f1): `SHARDS=3 tests/headless_check.sh` passed 3,052
+checks, 0 failed, peak RSS 2,866 MB a shard, 775 s; the sky ads' own 51 checks pass alone
+(`SMOKE_PARTS=sky_ads_checks`, 78 s).
+
 **Not done / not verified.** Forward+ (the Mac) not seen: the LED sign's bloom, the envelope's
 sheen and the banner cloth's lighting want a Mac look. Weather is read only to keep craft down
 in rain and storms (no marine-layer special case: the blimp flies in the deck's base). The
