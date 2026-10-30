@@ -1643,7 +1643,9 @@ void fragment() {
 			if (sign_off) {
 				albedo *= mix(1.0, 0.7, shop_on);
 			} else if (channel) {
-				vec3 lc = letter_color(shop_byte(shop_key, 11u) % 6u);
+				// The letters' own material gets LETTER_COLORS as a Color (decoded on Forward+), so
+				// their glow here is decoded too: raw, a red sign's stand-in strip drew pink.
+				vec3 lc = fx_srgb_in(letter_color(shop_byte(shop_key, 11u) % 6u));
 				float mid = 1.0 - smoothstep(0.18, 0.34, abs((fv - 0.76) / 0.17 - 0.5));
 				float run = 1.0 - smoothstep(0.30, 0.40, abs(shop_u - 0.5));
 				// The letters stop drawing at Building.SIGN_DRAW_DISTANCE; before they go the

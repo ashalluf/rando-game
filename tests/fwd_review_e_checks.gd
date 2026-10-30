@@ -11,7 +11,9 @@ extends RefCounted
 ##   space, so they go through fx_srgb_in() (decoded on Forward+ only); raw, Forward+ mirrored the
 ##   street as pale beige slabs.
 ## - The shop sign band's hues (building.gdshader and its far copy) are display numbers too: raw,
-##   a red lightbox was a pale red past 1 on Forward+ and AgX drew it pink. fx_srgb_in() them.
+##   a red lightbox was a pale red past 1 on Forward+ and AgX drew it pink. fx_srgb_in() them,
+##   and the channel letters' glow on the board (letter_color()), whose real letters' material
+##   gets the same colours as a Color, decoded on Forward+.
 
 var _t: Node
 
@@ -56,3 +58,5 @@ func run(t: Node, _city: Node3D) -> void:
 		var dec := c.find("sign_hue = fx_srgb_in(sign_hue);")
 		var box := c.find("vec3 box = sign_hue /")
 		_t._check(at > 0 and dec > at and dec < box, "%s decodes the sign band's hues before the lightbox is made of them" % p.get_file())
+	_t._check(_code("res://shaders/building.gdshader").contains("vec3 lc = fx_srgb_in(letter_color("),
+		"the channel letters' glow on the sign band is decoded like the letters' own material")
