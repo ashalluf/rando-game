@@ -15608,3 +15608,23 @@ as before. `tools/buskers/busk_shot.tscn` (every act alone on a strip of pavemen
 `SHOTS`, `TIMES`, `KINDS`, `NIGHT=1`), `tools/buskers/probe.gd -- --spawn=x,z,0,0 --hour=15` (every
 act round a point with an EYE for still_shot.gd), `tools/buskers/compile.gd` (compiles, builds the
 meshes, prints triangles). Checks: `tests/buskers_checks.gd`.
+
+**Frame cost** (`still_shot.gd` GEO at 15:00, the same EYE with `BUSKERS=0` and on; tris / draws):
+the plaza drummer `EYE=2803.5,1.7,127.0,13,-7` 5,646,406 / 2,492 -> 5,708,346 / 2,514 (+1.1 %);
+the plaza statue `2803.5,1.7,73.5,168,-5` 5,477,732 / 2,415 -> 5,542,163 / 2,425 (+1.2 %); a
+pavement with no act `2350.0,1.7,268.0,30,-8` 3,476,383 / 1,531 -> 3,479,440 / 1,533; the mariachi
+trio and two watchers 6 m away `2369.6,1.7,350.5,-30,-6` 4,871,292 / 2,794 -> 5,086,697 / 2,773
+(+4.4 % triangles: five crowd rigs close up; the people come out of the crowd cap).
+
+**Stills** (branch `shots/buskers`): `01_before_plaza_1500` / `02_after_plaza_drummer_1500`,
+`03_before_plaza_south_1500` / `04_after_plaza_living_statue_1500`, `05_before_pavement_1500` /
+`06_after_pavement_mariachi_trio_1500`, then every act alone from `busk_shot.tscn`: `07` guitarist,
+`08` drummer, `09` statue, `10` mariachis, `11` breakdancer toprock, `12` the freeze with the ring
+clapping, `13` the mariachis at night.
+
+**Not done / unverified.** No audio. Nothing seen on Forward+ (the silver statue's metal and the
+black charro cloth want a Mac look). The performers do not pack up in the rain (they keep playing;
+RainCrowd is off for them). The hands are two-bone solves with the clip's own wrists and fingers
+(the fretting fingers do not close on the neck). A breakdancer only ever dances on a plaza (none on
+the boardwalk landmark itself). Watchers are only the act's own (the breakdancer's ring, the
+mariachis' pair) plus passers-by at the watch spots; nobody walks up to tip.
