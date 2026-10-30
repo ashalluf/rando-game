@@ -1563,6 +1563,12 @@ already mapped so milestone 2 is script-only.
   and lamps being re-modelled. Rounds pop a lamp but never fell it. docs/HANDOFF.md "Street props
   that break like GTA"; CLAUDE.md "Street props break by KIND".
   Wave 3: the overpowered hero smashes through them on foot too (over 18 m/s: a boost, never a run).
+- **2026-10-05 Cafes and restaurants build parklets into the parking lane.** A timber deck with
+  planters, screens, bistro tables, umbrellas and a festoon of bulbs, in front of a shop whose
+  ROOM is a cafe or restaurant (the same room its glass shows), rolled by a hash of the shop; the
+  parked cars skip the stretch after their rolls. Diners sit on the crowd's life clips by the hour
+  the chunk is built at; a waiter walks between the door and the tables. FULL chunks only.
+  docs/HANDOFF.md "Outdoor dining parklets"; CLAUDE.md "Parklets".
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north

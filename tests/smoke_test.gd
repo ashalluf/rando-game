@@ -2348,6 +2348,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/offshore_island_checks.gd").new().run(self, city)
 	# The crowd in the rain (tests/rain_crowd_checks.gd): umbrellas, hoods, hurrying, shelter, going in.
 	await load("res://tests/rain_crowd_checks.gd").new().run(self, city)
+	# Parklets (tests/parklets_checks.gd): decks in the parking lane before cafes and restaurants,
+	# diners seated, a waiter, cars kept off, umbrellas furled at night, nothing else moved.
+	load("res://tests/parklets_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

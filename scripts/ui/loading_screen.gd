@@ -260,6 +260,8 @@ func _warm_shaders() -> void:
 	effects.append_array(PortKit.warm())
 	# The street vendors' trucks, carts and umbrellas (StreetVendors), built in code.
 	effects.append_array(StreetVendors.warm())
+	# The parklets' decks, bistro sets and umbrellas (Parklets), built in code.
+	effects.append_array(Parklets.warm())
 	effects.append_array(BoulevardSigns.warm())
 	FarmersMarketKit.warm()
 	effects.append(FarmersMarketKit.material())
