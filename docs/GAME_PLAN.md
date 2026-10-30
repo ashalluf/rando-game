@@ -302,6 +302,19 @@ already mapped so milestone 2 is script-only.
   the LOD boxes and the coverage probe all work unchanged (one hook in plan_house, one in
   _build_lot); claims come after every existing roll and are hashes of the lot; no new materials.
   Midtown keeps 55 % of its low lots as storefront Buildings so street life keeps its shops.
+- **2026-10-05 Street furniture as code-built models (HANDOFF "Street furniture").** The
+  pavement's hydrants, meters, benches, bins, racks and planters were Poly Haven scans and
+  primitives that read as a generic city, not Los Angeles. Decisions: build LA's own pieces in
+  code at real size (the squat wet-barrel hydrant, the single-space smart meter and pay station,
+  the concrete bus bench with a painted ad back, the perforated downtown bin)
+  on one shader, one batch per kind a chunk; swap only the MESHES at the old calls so every prop
+  id, roll and collision shape stays (the hydrant now turns its pumper to the street with the
+  rolled spin still drawn); the new pieces (pay stations, an ad bench beside a third of the bus
+  shelters) are hashes of seed + place, and the benches get prop ids of their own so nothing
+  else's id moves. The shelters stay (Billboards' lightboxes and StreetErrands' bus queues use
+  them) and the collection-day carts are KerbBins' (lead review): this branch built its own carts
+  and a bench-instead-of-shelter stop first and dropped both.
+  `STREET_FURNITURE=0` is the A/B. Break effects stay with prop-destruction.
 - **2026-10-05 The street's signs are real models (HANDOFF "The street's signs").** The signs
   were a cylinder for a stop sign facing the junction diagonally, flat boxes with TextMesh names
   and red-banded white boxes. Decisions: built in CODE at real size (StreetSignKit; BoulevardSigns owns the kerb's parking plates), not Blender - every
