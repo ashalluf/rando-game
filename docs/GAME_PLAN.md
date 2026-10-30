@@ -3557,6 +3557,18 @@ already mapped so milestone 2 is script-only.
   foliage ladders' table and shadow twins are untouched); the leaf-edge dither is Forward+ only
   (TAA), never in the shadow pass; `TREES_CLOSEUP=0` restores every shader exactly.
 
+- **2026-10-30 Grounded light: tune the GI per level, ground everything with contact quads
+  (gi-review, HANDOFF "Grounded light").** Measured on Forward+ (lavapipe, small scenes, the
+  player's auto exposure): HIGH's shade is SDFGI's alone and was too dark in enclosed spaces
+  (alley 33/255, underpass 13), while MEDIUM's unoccluded sky fill doubled it and flattened it.
+  Decisions: the per-level numbers live in one table (`GiTuning`) that Quality applies; HIGH gets
+  SDFGI x1.35 by day and bounce 0.9, MEDIUM and below a 0.7 sky contribution (Godot ignores
+  ambient energy at contribution 1.0, so that was the only knob); every car, loose prop and piece
+  of street furniture gets a soft contact quad on BOTH renderers (one MultiMesh for the dynamic set,
+  one a chunk for furniture), weaker where SDFGI / SSAO already occlude. The deep underpass at HIGH
+  stays dark: a coarser SDFGI cell leaks the sunlit deck through the soffit, so it is left for a
+  fill on the freeway kit.
+
 ## Correction: what build 135 (0ce833f) actually contained
 
 That commit's subject says "denser grass, real palm fronds, finer ground". It also shipped a

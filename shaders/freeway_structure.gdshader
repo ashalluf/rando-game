@@ -45,6 +45,10 @@ uniform vec2 form_panel = vec2(2.44, 1.22);
 uniform float barrier_joint = 6.1;
 // Lamp lenses: emission at full lamp_factor.
 uniform float lens_energy = 9.0;
+// The daylight a deck's underside gets back off the street round it, emitted (GiTuning sets it at
+// HIGH: SDFGI under a 30 m deck leaves the soffit black, and a coarser cell leaks the sunlit top
+// through it). Emitted light feeds SDFGI too, so it also lifts the street under the deck. 0: off.
+uniform float under_fill = 0.0;
 
 varying vec3 obj_pos;
 varying vec3 obj_nrm;
@@ -184,6 +188,12 @@ void fragment() {
 	} else if (kind == 8) {
 		alb = base * (0.8 + 0.3 * vnoise(obj_pos.xz * 9.0));
 		rough = 0.9;
+	}
+
+	if (under_fill > 0.0) {
+		vec3 un = normalize(obj_nrm);
+		float down = smoothstep(-0.2, -0.8, un.y) + 0.25 * (1.0 - abs(un.y));
+		emit += alb * under_fill * down * vec3(1.0, 0.95, 0.88) * (1.0 - clamp(lamp_factor, 0.0, 1.0));
 	}
 
 	// Rain darkens and glosses what faces the sky most.

@@ -16,7 +16,9 @@ extends Node3D
 ## marks SAMPLES (6) frames of every shot for tools/gpu_profile.py (pipe the log through it, or
 ## through tools/gi_review/profile_split.py for one table per shot). CARS=n parks n cars (BodyType
 ## 0..) in a row from the EYE along its view, CAR_AT=x,z,yaw puts one exactly; both on the ground
-## at once, wheels on, asleep. RENDER=compat is meaningless here: run --rendering-driver opengl3.
+## at once, wheels on, asleep. The camera wears the player's attributes (auto exposure, as the
+## player's eye adapts; AUTO_EXPOSURE=0 none). VARIANTS="spec;spec" shoots every EYE once per
+## spec (see _setup()), OUT_<shot>_<variant>.png. Opengl3: --rendering-driver opengl3.
 
 var plan: CityPlan
 var world_seed: int = 0
@@ -61,12 +63,31 @@ func _ready() -> void:
 	cam.far = float(_env("FAR", "12000"))
 	add_child(cam)
 	cam.make_current()
+	# The player's own camera attributes (auto exposure 200..620, no far blur), so a dark
+	# underpass is judged the way the player's eye adapts to it. AUTO_EXPOSURE=0: none.
+	if _env("AUTO_EXPOSURE", "1") != "0":
+		var player: Node = (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
+		var pcam := player.find_child("Camera3D", true, false) as Camera3D
+		if pcam == null:
+			for c in player.find_children("*", "Camera3D", true, false):
+				pcam = c
+		if pcam and pcam.attributes:
+			var attr := pcam.attributes.duplicate() as CameraAttributesPractical
+			attr.dof_blur_far_enabled = false
+			attr.dof_blur_near_enabled = false
+			cam.attributes = attr
+			print("AUTO_EXPOSURE ", attr.auto_exposure_enabled, " ", attr.auto_exposure_min_sensitivity, "..", attr.auto_exposure_max_sensitivity)
+		player.free()
 	for keep in ["WorldEnvironment", "Sun", "DayNight", "Weather"]:
 		var n: Node = city.get_node_or_null(keep)
 		if n:
 			city.remove_child(n)
 			n.owner = null
 			add_child(n)
+	# The clock held: variants of one shot are seconds of real time apart and minutes of game time.
+	var dn0: Node = get_node_or_null("DayNight")
+	if dn0 and dn0.has_method("set_paused"):
+		dn0.call("set_paused", true)
 	var we := get_node_or_null("WorldEnvironment") as WorldEnvironment
 	_scene_env = we.environment if we else null
 	_base_env = _scene_env.duplicate() if _scene_env else null
@@ -148,6 +169,8 @@ func _setup(spec: String) -> void:
 			cs = cs and gi
 		elif tok.begins_with("CS="):
 			cs = tok.trim_prefix("CS=") != "0"
+		elif tok.begins_with("GIS=") or tok.begins_with("AMB=") or tok.begins_with("SKY=") or tok.begins_with("FILL="):
+			pass
 		else:
 			props.append(tok)
 	for pr in _base_env.get_property_list():
@@ -167,6 +190,21 @@ func _setup(spec: String) -> void:
 		GiTuning.enabled = true
 		GiTuning.apply(env, _sun, q)
 		GiTuning.enabled = was
+	else:
+		GiTuning.gi_scale = 1.0
+		GiTuning.ambient_scale = 1.0
+		GiTuning.sky_contribution = 1.0
+		FreewayKit.structure_material().set_shader_parameter("under_fill", 0.0)
+	# GIS= / AMB= override DayNight's SDFGI energy and sky fill multipliers after the level's.
+	for tok in spec.split(" ", false):
+		if tok.begins_with("GIS="):
+			GiTuning.gi_scale = tok.trim_prefix("GIS=").to_float()
+		elif tok.begins_with("AMB="):
+			GiTuning.ambient_scale = tok.trim_prefix("AMB=").to_float()
+		elif tok.begins_with("SKY="):
+			GiTuning.sky_contribution = tok.trim_prefix("SKY=").to_float()
+		elif tok.begins_with("FILL="):
+			FreewayKit.structure_material().set_shader_parameter("under_fill", tok.trim_prefix("FILL=").to_float())
 	_set_props(env, ",".join(props))
 	_set_props(env, _env("ENV", ""))
 	if _sun:

@@ -131,8 +131,12 @@ func _process(delta: float) -> void:
 		prop_material().set_shader_parameter("gain", _gain)
 	var n := 0
 	for e in _picked:
+		# Never cast before checking: a freed object cannot be cast (a car pooled or a prop
+		# despawned since the last pick).
+		if not is_instance_valid(e[0]):
+			continue
 		var o := e[0] as Node3D
-		if o == null or not is_instance_valid(o) or not o.is_inside_tree():
+		if o == null or not o.is_inside_tree():
 			continue
 		var info: Vector4 = e[2]
 		var xf := o.global_transform

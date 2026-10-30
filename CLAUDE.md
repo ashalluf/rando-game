@@ -618,6 +618,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   kept low (`Vehicle.FINISHES`): the mirror is the lacquer's job. `Vehicle.PAINTS` is weighted the way
   a real car park looks (mostly white/black/grey/silver). Grass is tapered curved blades whose
   normals are bent toward up so a lawn lights as a carpet, not as a pile of lit slivers.
+- Grounded light (wave 3, `gi-review`, docs/HANDOFF.md "Grounded light"): `GiTuning`
+  (`scripts/world/gi_tuning.gd`, one table, applied by `Quality._apply_render()`) tunes SSAO /
+  SSIL / SDFGI per level and hands DayNight `gi_scale` (day SDFGI energy, x1.35 at HIGH) and
+  `sky_contribution` (0.7 below HIGH). **Godot ignores `ambient_light_energy` while
+  `ambient_light_sky_contribution` is 1.0**: by day the sky fill is turned down only through the
+  contribution. `ContactShadows` (`scripts/world/contact_shadows.gd`, one node under the root, made
+  by the first Vehicle): one MultiMesh of soft occlusion quads (`shaders/contact_shadow.gdshader`:
+  footprint + wheel blobs, alpha-blended black) under the nearest cars and loose props, faded when
+  a car leaves the ground; a "BatchContact" MultiMesh per FULL chunk under the furniture batches in
+  `CONTACT_KEYS` (MultiMeshBatch.build(); `hide_instance()` takes a broken prop's). Weaker where
+  SDFGI / SSAO already occlude. `GI_REVIEW=0` / `CONTACT_SHADOWS=0` the A/B;
+  `tools/gi_review/gi_shot.tscn` (VARIANTS= in one load, the player's auto exposure, PROFILE=1);
+  checks `tests/gi_review_checks.gd`.
 - Reflection probes (G4, 2026-10-05, docs/HANDOFF.md "Reflection probes"): `ReflectionProbes`
   (`scripts/world/reflection_probes.gd`, a Node CityStreamer adds; **Forward+ desktop only**,
   `supported()`; `REFLECTION_PROBES=0` the A/B). Box-projected `ReflectionProbe`s on the street
