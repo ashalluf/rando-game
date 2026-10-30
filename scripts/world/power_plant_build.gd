@@ -109,10 +109,10 @@ static func _ground(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
 		for r: Rect2 in _parts(ring, area):
 			ch._add_slab(Vector3(r.get_center().x, CityChunk.SIDEWALK_TOP - 0.1, r.get_center().y), Vector3(r.size.x, 0.2, r.size.y), ch.style.sidewalk, true)
 		for r: Rect2 in _parts(gravel, area):
-			ch._add_slab(Vector3(r.get_center().x, PowerPlant.BASE_Y - 0.1, r.get_center().y), Vector3(r.size.x, 0.2, r.size.y), Color(0.48, 0.46, 0.43), true)
+			ch._add_slab(Vector3(r.get_center().x, PowerPlant.BASE_Y - 0.1, r.get_center().y), Vector3(r.size.x, 0.2, r.size.y), Color(0.36, 0.36, 0.35), true)
 		for gr: Array in lay.ground:
 			for r: Rect2 in _parts([gr[0]], area):
-				var col := Color(0.3, 0.3, 0.3) if int(gr[1]) == Industrial.G_ASPHALT else Color(0.62, 0.61, 0.58)
+				var col := Color(0.3, 0.3, 0.3) if int(gr[1]) == Industrial.G_ASPHALT else (Color(0.48, 0.46, 0.43) if int(gr[1]) == Industrial.G_GRAVEL else Color(0.62, 0.61, 0.58))
 				ch._add_slab(Vector3(r.get_center().x, PowerPlant.BASE_Y - 0.09, r.get_center().y), Vector3(r.size.x, 0.2, r.size.y), col, true)
 		return
 	var acc := _acc(ch)
@@ -120,7 +120,8 @@ static func _ground(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
 		FilmStudio._flat(ch, acc.walk, r, CityChunk.SIDEWALK_TOP)
 		ch._add_shape(Vector3(r.size.x, 0.3, r.size.y), Vector3(r.get_center().x, CityChunk.SIDEWALK_TOP - 0.15 + _gy(ch, r.get_center()), r.get_center().y))
 	for r: Rect2 in _parts(gravel, area):
-		Industrial._ground_rect(acc.ground, ch, r, PowerPlant.BASE_Y, Industrial.G_GRAVEL, 0.4, true)
+		# The yard is paved (asphalt worn grey); the switchyard and the tank berm are gravel pieces.
+		Industrial._ground_rect(acc.ground, ch, r, PowerPlant.BASE_Y, Industrial.G_ASPHALT, 0.75, true)
 		ch._add_shape(Vector3(r.size.x, 0.3, r.size.y), Vector3(r.get_center().x, PowerPlant.BASE_Y - 0.15 + _gy(ch, r.get_center()), r.get_center().y))
 	for gr: Array in lay.ground:
 		for r: Rect2 in _parts([gr[0]], area):
@@ -632,14 +633,21 @@ static func landmark(parent: Node3D, plan: CityPlan) -> void:
 			for k in 3:
 				var a := TAU * float(k) / 3.0 + 0.4
 				var at := Vector3(s.x + cos(a) * rr, base + yy, s.z + sin(a) * rr)
-				var code := (2.0 if li == 0 else 0.0) * 10.0 + fposmod(float(n) * 0.37, 1.0) * 9.0
+				# The top ring flashes together (a beacon, one phase a stack), the middle ring burns steady.
+				var code := (2.0 if li == 0 else 0.0) * 10.0 + fposmod(float(lay.stacks.find(s)) * 0.37, 1.0) * 9.0
 				for kk in [0, 1, 2, 0, 2, 3]:
 					st.set_color(red)
 					st.set_uv(corners[kk])
-					st.set_uv2(Vector2(2.2 if li == 0 else 1.6, code))
+					st.set_uv2(Vector2(4.2 if li == 0 else 3.0, code))
 					st.set_normal(Vector3.UP)
 					st.add_vertex(at)
 				n += 1
+	# A faint vapour plume over each heat-recovery stack (the gas units' exhaust, visible as it cools).
+	if OS.get_environment("PLANT_PLUMES") != "0":
+		for sk: Vector3 in lay.stacks:
+			if sk.y > 60.0:
+				continue
+			parent.add_child(_plume(Vector3(sk.x, PowerPlant.BASE_Y + plan.macro.relief_at(Vector2(sk.x, sk.z)) + sk.y + 1.0, sk.z)))
 	if n > 0:
 		var mat := ShaderMaterial.new()
 		mat.shader = load("res://shaders/aircraft_lights.gdshader")
@@ -652,3 +660,44 @@ static func landmark(parent: Node3D, plan: CityPlan) -> void:
 		lights.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		lights.extra_cull_margin = 16000.0
 		parent.add_child(lights)
+
+
+## A slow white plume: a few big soft puffs rising and spreading off a stack's mouth, leaning
+## downwind (the sea breeze, toward +x and inland).
+static func _plume(at: Vector3) -> CPUParticles3D:
+	var p := CPUParticles3D.new()
+	p.name = "StackPlume"
+	p.position = at
+	p.amount = 14
+	p.lifetime = 11.0
+	p.preprocess = 11.0
+	p.local_coords = false
+	p.direction = Vector3(0.25, 1.0, 0.1)
+	p.spread = 9.0
+	p.initial_velocity_min = 2.2
+	p.initial_velocity_max = 3.4
+	p.gravity = Vector3(0.55, 0.12, 0.08)
+	p.damping_min = 0.15
+	p.damping_max = 0.3
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	p.emission_sphere_radius = 1.6
+	p.particle_flag_align_y = false
+	p.scale_amount_min = 4.0
+	p.scale_amount_max = 5.5
+	var curve := Curve.new()
+	curve.max_value = 6.0
+	curve.add_point(Vector2(0.0, 0.8))
+	curve.add_point(Vector2(0.4, 2.4))
+	curve.add_point(Vector2(1.0, 5.2))
+	p.scale_amount_curve = curve
+	p.color_ramp = WeaponFX._ramp([Color(1, 1, 1, 0.0), Color(1, 1, 1, 0.42), Color(1, 1, 1, 0.3), Color(1, 1, 1, 0.12), Color(1, 1, 1, 0.0)])
+	p.color = Color(0.92, 0.93, 0.94, 1.0)
+	p.angle_min = -180.0
+	p.angle_max = 180.0
+	var q := QuadMesh.new()
+	q.size = Vector2.ONE
+	q.material = WeaponFX.smoke_material()
+	p.mesh = q
+	p.custom_aabb = AABB(Vector3(-40.0, -5.0, -40.0), Vector3(120.0, 70.0, 80.0))
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return p

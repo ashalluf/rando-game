@@ -196,6 +196,8 @@ static func _make_layout(plan: CityPlan) -> Dictionary:
 	G.append([_rect_uv(lay, 4.0, 178.0, 98.0, 282.0), Industrial.G_CONCRETE])
 	G.append([_rect_uv(lay, 98.0, 200.0, 131.0, 300.0), Industrial.G_CONCRETE])
 	G.append([_rect_uv(lay, 112.0, 124.0, EF - 2.0, 156.0), Industrial.G_CONCRETE])
+	G.append([sy, Industrial.G_GRAVEL])
+	G.append([_rect_uv(lay, 134.0, 218.0, 160.0, 318.0), Industrial.G_GRAVEL])
 	# --- Flood masts round the yard.
 	for p: Vector2 in [Vector2(6.0, 6.0), Vector2(6.0, 300.0), Vector2(96.0, 150.0), Vector2(96.0, 296.0),
 			Vector2(106.0, 122.0), Vector2(EF - 2.0, 122.0), Vector2(EF - 2.0, 10.0), Vector2(EF - 2.0, 326.0)]:

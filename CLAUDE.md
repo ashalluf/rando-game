@@ -3845,6 +3845,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the environment removes the course (the A/B), `GOLF_LIFE=0` its life. Probe:
   `tools/golf/probe.gd` (`OUT=map.png` a top-down map of the fields); poses:
   `tools/golf/golfer_lab.tscn`; checks: `tests/golf_checks.gd`.
+- Power plant (2026-10-30, docs/HANDOFF.md "The power plant on the coast"): `PowerPlant`
+  (`scripts/world/power_plant.gd`, pure layout + line), `PowerPlantKit` (code-built pieces on ONE
+  shader, `shaders/power_plant.gdshader`, kind in COLOR.a 32nds) and `PowerPlantBuild` (site
+  chunks FULL / LOD / capture, `extras()` for the seawall, the line's towers, right of way and
+  station, `landmark()` for the wires and stack lights near and far). An area site south of the
+  airport (two beach-town blocks, streets closed); the line calls Ridges' / RidgeKit's tower, span
+  and wire code and takes lots after every roll (`claims_lot()` in `CityPlan.lots()`,
+  `claims_cell()` in `HouseKit.extra_lots()`). `POWER_PLANT=0` is the A/B; probe
+  `tools/power_plant/probe.tscn` (`PP_DEBUG=1`); checks `tests/power_plant_checks.gd`.
 - The film studio lot (2026-10-05, docs/HANDOFF.md "The film studio lot"): SUNSPIRE PICTURES
   (invented, its mark a half sun behind a spire), `FilmStudio` (`scripts/world/film_studio.gd`)
   + `FilmStudioKit` (`scripts/world/film_studio_kit.gd`) on ONE shader

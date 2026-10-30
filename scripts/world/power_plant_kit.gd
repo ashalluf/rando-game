@@ -339,6 +339,11 @@ static func hall(g: Geo, o: Vector3, sz: Vector3, clad: Color, sd: int, sea_side
 			if i < nb and i % 3 == 1:
 				for sx: float in [-1.0, 1.0]:
 					g.box(Transform3D(Basis(), o + Vector3(sx * (sz.x * 0.5 + 0.05), plinth + 2.2, z + sz.z / float(nb) * 0.5)), Vector3(0.1, 2.4, 3.6), K_LOUVRE, clad * 0.85)
+		# Wall packs over the doors and along the long walls, lit after dark.
+		for i in range(1, nb, 2):
+			var z := -sz.z * 0.5 + sz.z * float(i) / float(nb)
+			for sx: float in [-1.0, 1.0]:
+				g.box(Transform3D(Basis(), o + Vector3(sx * (sz.x * 0.5 + 0.2), 7.5, z)), Vector3(0.3, 0.25, 0.45), K_LAMP, Color(1.0, 0.84, 0.58))
 		# Downpipes at the corners.
 		for sx: float in [-1.0, 1.0]:
 			for sz_: float in [-1.0, 1.0]:
@@ -402,6 +407,8 @@ static func stair_tower(g: Geo, o: Vector3, h: float, w: float, lift: float) -> 
 		var y0 := float(i) * lift
 		var y1 := y0 + lift
 		g.box(Transform3D(Basis(), o + Vector3(0, y1, 0)), Vector3(w, 0.1, w), K_GRATING, STEEL_GREY, 0.0, 0)
+		# A caged bulkhead lamp at each landing (the plant's night glitter).
+		g.box(Transform3D(Basis(), o + Vector3(hw + 0.15, y1 + 2.2, 0)), Vector3(0.22, 0.3, 0.22), K_LAMP, Color(1.0, 0.86, 0.6))
 		if g.full:
 			var a := o + Vector3(-hw + 0.6, y0, -hw * 0.3 if i % 2 == 0 else hw * 0.3)
 			var b := o + Vector3(hw - 0.6, y1, -hw * 0.3 if i % 2 == 0 else hw * 0.3)
@@ -553,6 +560,10 @@ static func hrsg(g: Geo, o: Vector3, sz: Vector3) -> void:
 			g.cyl(o + Vector3(x + 0.6, y, 0), o + Vector3(x + 0.6, y + 4.0, 0), 0.25, 0.25, 8, K_JACKET, Color(0.74, 0.75, 0.75))
 	g.box(Transform3D(Basis(), o + Vector3(0, 0.6 + sz.y + 0.12, 0)), Vector3(sz.x + 0.4, 0.24, sz.z + 0.4), K_ROOF, Color(0.5, 0.5, 0.49))
 	g.platform(Transform3D(Basis(), o), Rect2(-sz.x * 0.5, -sz.z * 0.5, sz.x, sz.z), 0.6 + sz.y + 0.24, 1 | 2 | 4 | 8)
+	for i in 5:
+		var x := lerpf(-sz.x * 0.45, sz.x * 0.45, float(i) / 4.0)
+		for sz_: float in [-1.0, 1.0]:
+			g.box(Transform3D(Basis(), o + Vector3(x, 0.6 + sz.y - 4.0 - float(i % 2) * 9.0, sz_ * (sz.z * 0.5 + 0.35))), Vector3(0.25, 0.3, 0.25), K_LAMP, Color(1.0, 0.86, 0.6))
 	stair_tower(g, o + Vector3(-sz.x * 0.5 + 3.0, 0.0, sz.z * 0.5 + 3.4), sz.y + 1.0, 4.8, 5.2)
 	# The duct from the HRSG's east end to its stack.
 	g.box(Transform3D(Basis(), o + Vector3(sz.x * 0.5 + 1.6, 0.6 + sz.y * 0.7, 0)), Vector3(3.2, sz.y * 0.5, 5.4), K_STEEL, HRSG_GREY * 0.95, 4.0, 0)
@@ -866,18 +877,26 @@ static func seawall(g: Geo, x: float, z0: float, z1: float, y_sand: float, y_top
 			_rock(g, Vector3(x - 3.0 - h2 * 1.2, y_sand + 0.2, z + 0.5), 0.4 + h2 * 0.4, i * 7 + seed_value)
 
 
-## A boulder: an octahedron squashed and turned by a hash.
+## A boulder: a subdivided icosahedron (level 1 near, 0 far) squashed, turned and knobbled by a
+## function of the direction alone (so shared corners stay shared and the rock is closed), its
+## underside flattened onto the sand. Flat-shaded facets read as quarried granite.
 static func _rock(g: Geo, c: Vector3, r: float, sd: int) -> void:
+	var tris: Array = RidgeKit._icosphere(1 if g.full else 0)
 	var b := Basis(Vector3.UP, float(sd % 37) * 0.31) * Basis(Vector3.RIGHT, float(sd % 11) * 0.2)
-	var ax := [b.x * r * 1.1, b.y * r * 0.75, b.z * r * 0.95]
+	var k := Vector3(1.15 + float(sd % 5) * 0.06, 0.72, 0.95)
+	var ph := float(sd % 97) * 0.71
 	var col := Color(0.52, 0.5, 0.47) * (0.85 + float(sd % 7) * 0.04)
-	for sx: float in [-1.0, 1.0]:
-		for sy: float in [-1.0, 1.0]:
-			for sz_: float in [-1.0, 1.0]:
-				var a: Vector3 = c + ax[0] * sx
-				var bb: Vector3 = c + ax[1] * sy
-				var cc: Vector3 = c + ax[2] * sz_
-				g.tri(a, bb, cc, (a + bb + cc) / 3.0 - c, K_ROCK, col, Vector2(a.x, a.z), Vector2(bb.x, bb.z), Vector2(cc.x, cc.z), Vector2.ZERO)
+	for tr: Array in tris:
+		var p: Array[Vector3] = []
+		for d: Vector3 in tr:
+			var bump := 1.0 + 0.16 * sin(d.x * 5.1 + ph) * sin(d.y * 4.3 + ph * 1.7) + 0.1 * sin(d.z * 7.3 + ph * 0.6)
+			var q := b * (d * k * bump * r)
+			q.y = maxf(q.y, -r * 0.32)
+			p.append(c + q)
+		var n := (p[1] - p[0]).cross(p[2] - p[0])
+		if n.dot((p[0] + p[1] + p[2]) / 3.0 - c) < 0.0:
+			n = -n
+		g.tri(p[0], p[1], p[2], n, K_ROCK, col, Vector2(p[0].x, p[0].z), Vector2(p[1].x, p[1].z), Vector2(p[2].x, p[2].z), Vector2.ZERO)
 
 
 ## The intake / outfall: a concrete headwall in the seawall at (x, z) facing the sea, its bar

@@ -683,7 +683,7 @@ func _add_captured(k: Vector2i, b: Dictionary, zone: int, ch: CityChunk) -> void
 	if String(b.get("site", "")) == GolfCourse.ID:
 		GolfFar.add(_plan, k, ch, _work)
 	elif zone == MacroMap.Zone.CITY and not _plan.river_block(k.x, k.y) and not _plan.marina_block(k.x, k.y) \
-			and b.get("site", "") != OilField.ID:
+			and b.get("site", "") != OilField.ID and b.get("site", "") != PowerPlant.SITE_ID:
 		_add_city_trees(k, b, ch)
 	# Container stacks in the port yard.
 	if batch.has("container"):
