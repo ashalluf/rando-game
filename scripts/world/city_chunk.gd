@@ -4784,6 +4784,7 @@ func _build_freeway() -> void:
 	# The four-level stack's connectors go into the same meshes (StackBuild).
 	var quads := kit.build_segments(segs, area) + StackBuild.build(self, kit, deck_body)
 	if quads == 0:
+		deck_body.free()  # never entered the tree: an orphan body each capture (perf-audit-2)
 		return
 	var t := Freeway.DECK_THICKNESS
 	for seg in segs:
@@ -4866,6 +4867,7 @@ func _build_freeway_ramps() -> void:
 			prev_y = y
 		built += 1
 	if built == 0:
+		ramp_body.free()
 		return
 	add_child(ramp_body)
 	kit.commit(PropFactory.road("asphalt_aerial", 9.0, Color(0.69, 0.69, 0.71), hash([plan.seed, "ramp"]), 0.0, 0.7), "Ramp")

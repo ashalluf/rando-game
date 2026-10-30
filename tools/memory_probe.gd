@@ -145,12 +145,48 @@ static func _read_status() -> Vector2i:
 func _rss(label: String) -> void:
 	var r := _read_status()
 	_peak_rss = maxi(_peak_rss, r.x)
-	print("RSS %-22s rss %6d MB  hwm %6d MB  godot %6d MB  objects %d  resources %d  nodes %d" % [
+	print("RSS %-22s rss %6d MB  hwm %6d MB  godot %6d MB  objects %d  resources %d  nodes %d  orphans %d" % [
 		label, r.x / 1048576, r.y / 1048576,
 		int(Performance.get_monitor(Performance.MEMORY_STATIC)) / 1048576,
 		int(Performance.get_monitor(Performance.OBJECT_COUNT)),
 		int(Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT)),
-		int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))])
+		int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)),
+		int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT))])
+	if _env("ORPHANS", "0") != "0":
+		_orphans()
+
+
+## ORPHANS=1: the nodes out of the tree that nobody freed, by script / class and name stem (a
+## pool by design shows up here as well as a leak; read the counts against what the pools hold).
+func _orphans() -> void:
+	var tally := {}
+	for id in Node.get_orphan_node_ids():
+		var n := instance_from_id(id) as Node
+		if n == null:
+			continue
+		var s: Script = n.get_script()
+		var kind := s.resource_path.get_file() if s != null else n.get_class()
+		if n.get_parent() != null:
+			continue
+		var stem := String(n.name).rstrip("0123456789@_")
+		var key := "%s %s" % [kind, stem]
+		if stem == "" and n.get_child_count() > 0:
+			var c := n.get_child(0)
+			key += " [%s %s]" % [c.get_class(), String(c.name).rstrip("0123456789@_")]
+			if c is MeshInstance3D and (c as MeshInstance3D).mesh != null:
+				key += " " + (c as MeshInstance3D).mesh.resource_name
+		if not tally.has(key) and n.get_child_count() > 0 and n.get_child(0) is CollisionShape3D:
+			var cs := n.get_child(0) as CollisionShape3D
+			print("ORPHAN SAMPLE %s: %s %s at %s, body at %s, metas %s, groups %s, layer %d" % [key, cs.shape.get_class() if cs.shape else "-",
+				str(cs.shape.get("size")) if cs.shape else "", str(cs.position), str((n as Node3D).position) if n is Node3D else "",
+				str(n.get_meta_list()), str(n.get_groups()), int(n.get("collision_layer"))])
+		tally[key] = int(tally.get(key, 0)) + 1 + n.get_child_count(true)
+	var rows := []
+	for k in tally:
+		rows.append([tally[k], k])
+	rows.sort_custom(func(a, b): return a[0] > b[0])
+	for r in rows.slice(0, 25):
+		print("ORPHAN %6d  %s" % [r[0], r[1]])
 
 
 # --- sizing ---------------------------------------------------------------------------------

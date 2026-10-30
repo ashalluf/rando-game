@@ -20228,3 +20228,131 @@ hues and letter glow go through `fx_srgb_in()`, which leaves Compatibility alone
 `display_add` and FreewayKit's pool material using it.
 
 **Frame cost:** shader-only changes plus one uniform; no node, mesh or draw added.
+
+## 9hn. Perf audit 2: frame, CPU and memory after wave 3, 2026-10-30 (agent branch `wt/perf-audit-2`; VISUAL_ROADMAP ?)
+
+**The ask.** After wave 3 (~45 branches since 9dj / 9dq) the single-process smoke run peaked at
+3,372-3,532 MB on CI against the memory check's budget and its wall time kept climbing (CI 367 hit
+the watchdog at 1,343 s). Measure frame, CPU and memory at the bookmarks, cut the biggest costs
+without changing the look, and report before / after.
+
+**What a headless frame is.** `tools/cpu_probe.gd` at the downtown spawn: ~270 ms a frame, every
+frame running the full eight physics steps (the catch-up spiral), so game time advances 8/60 s a
+frame whatever the frame costs - **the smoke test's wall time is the physics tick's cost**. Its
+`TIME_PHYSICS_PROCESS` is the LONGEST step of the frame, not their sum (the probe's
+"physics/step" column is that max over the step count: read it x8). Switching systems off in
+turn: **TrafficManager 277 -> 45 ms a frame**, pedestrians ~60 ms (their AnimationPlayer advance
+and move_and_slide, native), everything else inside the +-30 ms noise (birds, rail, police,
+emergency, ambience, air traffic, weather, the wave-3 nodes). The binary has no symbols, so gdb
+sampling shows nothing; the traffic was timed from the inside.
+
+**The traffic tick, piece by piece** (`tools/perf_audit_2/traffic_bench.tscn`: TrafficManager's own
+tick switched off and run by hand, each part timed; the sections inside `_drive_street` came from
+temporary `Time.get_ticks_usec()` marks, not committed). Downtown, 150 street cars and
+70 on the freeway: `_drive_streets` 16.7-17.3 ms a tick (111 us a car), `_drive_freeway` 3 ms,
+`_maintain` 4 ms and `_maintain_freeway` 4.5 ms every 30 ticks. Inside a street car's tick:
+- `CityPlan.road_open()` (the outer loop's safety net, every car every tick) **29 %**, of which
+  the landmark sites' loop recomputed road_pos / road_width for every site on every call, and
+  `Cemetery.road_closed()` cached per QUARTER METRE of `along` - every moving car missed it every
+  tick, re-read nine cells' decisions, and grew the cache toward its 200,000-key cap;
+- `CityPlan._index_at()` walked from road 0 on every call (O(blocks from the origin): ~50
+  road_pos lookups at the port), and road_open's sub-checks, the junction lookup and the bus stop
+  each call it;
+- `_place()` (the transform write, ~27 descendant nodes per car) 20 %;
+- `Vehicle.road_lift()` built `_dims()`'s fifteen-key dictionary literal per car per tick.
+
+**Cut (exact: same answers, checked).**
+1. `Cemetery.road_closed()` keeps each road's closed spans per (road, probe cell) - the very spans
+   of the nine cells it read - and answers any `along` from them.
+2. `CityPlan.road_open()` keeps each site's bounds (`_site_bounds()`, keyed by site id).
+3. `CityPlan._index_at()` starts from the last answer in its 64 m bucket (`_index_hint`). road_pos
+   is monotonic and fills its cache contiguously from the nearest known road, so the walk ends on
+   the same road from any start and no road is worked out in another order.
+4. `Vehicle.road_lift()` kept per body type (`_lift_type`, `_lift`).
+5. `TrafficManager._place()` skips the write when the transform is bit-identical (a car standing in
+   a queue: ~20 % of placements downtown). A frozen kinematic body set to its own transform gets
+   zero motion either way.
+
+Street tick after: road_open 35 -> 21 (section units), the junction block 11.8 -> 7.1, the lift
+8.1 -> 2.2; `_drive_streets` ~17 -> ~13-15 ms a tick on a loaded box (the bench's absolute numbers
+move with the box; read the sections against each other).
+
+**Orphans.** `memory_probe.gd ORPHANS=1` lists the nodes out of the tree by script and name (and a
+sample of a body's first shape). A far-city capture of a freeway block built `FreewayBody` /
+`RampBody` with a shape per segment and returned early without freeing them: one more orphan body
+per capture, for the whole session (CI's exit listed 2,702 leaked GodotBody3D RIDs). Fixed. Left:
+~100 unnamed bodies with one BoxShape3D (27.5 x 8.4 x 17.6 m, in a site's local frame) made once
+at load by a far-landmark builder (not found; constant, a few kB), PuebloLane's templates (by
+design) and the vehicle pools (by design).
+
+**Frame (opengl3, still_shot.gd).** Downtown noon 7.28 M triangles / 3,727 draws on 960x540
+(9dj after: 7.21 M / 3,752): wave 3 did not grow the downtown frame. New items there: parked
+scooters 102 k (78 k shadow, 6 draws) and docked share bikes 82 k - MicroMesh was code-built
+with no LODs and no lighter twin, so a scooter drew every spoke at any range and cast from its
+full mesh. It now goes through ImporterMesh with generated LODs and `PropFactory._build_shadow_proxy()`
+(StreetFurniture's recipe). The port bookmark: the refinery's far pieces (`RefineryFar`, "Plant")
+draw 118 k triangles, unindexed with no LOD; now indexed with generated LODs (25.1 -> 14.2 MB; the
+frame there barely moves, -654 triangles: at 600 m the LODs still pick near-full detail).
+
+| DIFF pair, 1280x720 (cars, people, particles hidden) | before (main) | after | pixels that moved |
+|---|---|---|---|
+| downtown noon | 6,684,567 (4,060,842 / 2,623,723) / 3,204 | 6,458,887 (3,937,192 / 2,521,693) / 3,198 | 116 (0.013 %), 3 > 32: the scooter cluster ~40 m off |
+| port noon | 3,490,293 (3,250,047 / 240,244) / 1,388 | 3,489,639 / 1,388 | 86 (0.009 %) |
+
+**Memory.** The probe (load, 2 km drive, four hops): city loaded 1,541 -> 1,510 MB RSS, allocator
+1,374 -> 1,353 MB. Through a whole smoke run the allocator itself climbs from ~1.38 GB at load to
+~2.9 GB (the TIME lines now carry it): every teleport builds its area, and the per-kind bakes
+(camp and beach figures, rides, hats), wheels and text meshes stay - each bounded by kind, none a
+leak. A fixed mmap threshold (`MALLOC_MMAP_THRESHOLD_` 256 kB) bought 40 MB at the probe's peak:
+fragmentation is not the story. `MEMORY_CENSUS=1` prints the static caches at the end of a run
+(`tools/perf_audit_2/cache_census.gd`): prop_factory's shadow proxies and cache (~240 / ~190 MB as
+sized, the meshes counted with the scene's), street_sign_kit 59-64 MB (348 entries; it clears at
+1,500), tree_fire's chunk records 58 MB, the crowd's far meshes 45 MB, beach_figure rides 38-57 MB,
+camp_figure shadows 37-48 MB, dog meshes 36 MB.
+
+**The whole run** (single process, as CI runs it; main and this branch side by side on the same
+box, after merging main at 3b1f8dd):
+
+| | main 3b1f8dd | this branch | |
+|---|---|---|---|
+| smoke test wall time (SMOKE TIME) | 2,805.5 s | 2,734.3 s | -2.5 % |
+| checks | 3,601 (1 failed*) | 3,608 (1 failed*) | +7: tests/perf_audit_2_checks.gd |
+| peak RSS | 4,030 MB | 4,050 MB | noise (the allocator ends at ~3.0 GB either way) |
+| the hospital / police station / news crews / city_polish parts | 103 / 98 / 86 / 40 s | 101 / 94 / 48 / 37 s | the traffic-heavy parts |
+
+\* both: "the far city keeps its tiles for the load cache", which fails on any box whose
+`user://load_cache` already holds this tree's tiles (earlier runs here); CI starts empty.
+
+Read it plainly: the traffic tick lost a fifth of its cost, which is ~2-3 % of the whole run - the
+gate's time is spread over many systems and the checks' own waits, and the peak memory is what
+each teleport builds plus the per-kind bakes. Earlier, before the merge (main a3db077, 2,985
+checks), a lone single-process run of main took 1,924 s and peaked at 3,864 MB on this box.
+At the end of a full run the census lists street_sign_kit at 729 entries (135 MB as sized; it
+clears only at 1,500), beach_figure's rides 108 MB (299), camp_figure's shadows 92 MB (525),
+beach bakes 66 MB, dog meshes 66 MB, tree_fire's charred meshes 39 MB - the next memory cuts are
+caps on those (a lower cap on the sign cache rebuilds identical meshes; untested here).
+
+**Gate notes.** (a) A check that built a whole far-city capture chunk outside the tree and freed it
+made the process abort in the engine's teardown (SIGABRT, `peak_rss.py` reports 250, after every
+check had passed) in two of two shard runs; the check now counts the orphans the real far city left
+(none) and the abort is gone. Anything that builds chunks in a check should go through the scene.
+(b) Main 3b1f8dd fails three nightlife checks ("somebody comes out of the door and gets into it",
+"with the fare in, the car drives on", "the fare is back inside") when the parts run in shard 2's
+order in one process (`SMOKE_PARTS=<shard 2's list>`): order-dependent, the same on main and here;
+they pass alone. Not this branch's.
+(c) The final `SHARDS=3` gate on this branch (merged with main 3b1f8dd, 3,642 checks, 1,514 s,
+shard peaks 2,536 / 3,052 / 3,020 MB): 3,638 passed. Failed: those three nightlife checks (shard 2),
+"the wreck comes down and rests on the deck" (car damage; 2.65 m over the deck after 260 ticks on
+the loaded box, 1.70 m after 143 alone - it passes alone and passed in the two gates before), and
+shard 2's process aborted in teardown once more after its checks (exit 250) - so that abort is
+nondeterministic and not (only) the capture chunk: it did not happen in three other single-process
+runs of the same list (one with this branch's checks). Worth a look on main.
+
+**Not done / next.** (1) The marina's boats cast from their MID mesh out to 230 m: 508 k shadow
+triangles at the beach-town bookmark - a SHADOWS_ONLY twin of the FAR mesh for the MID tier would
+cut most of it (pre-wave-3, not touched). (2) The rest of a street car's tick: road_open's
+sub-checks (schools, market, river) still ~20 %, two relief samples (8 dictionary lookups) 9 %,
+the IDM and line-hold logic; a per-car memo of the relief cell would be exact. (3) Pedestrians'
+animation advance per physics tick (~8 ms a step downtown). (4) The far city is still the biggest
+camera cost at every bookmark (0.7-2.4 M triangles). (5) Not seen on the Mac or Forward+; the web
+build not exported. Stills: `shots/perf-audit-2`.

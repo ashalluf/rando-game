@@ -1059,7 +1059,12 @@ func _relief_sample(i: int, j: int) -> float:
 ## one pushes a transform change down every child the car has - body, glass, lights, twelve wheel
 ## and caliper meshes - to the renderer and the physics server. Same result, a quarter of the work.
 func _place(car: Vehicle, pos: Vector3, yaw: float, pitch: float) -> void:
-	car.global_transform = Transform3D(Basis.from_euler(Vector3(pitch, yaw, 0.0)), pos)
+	var xf := Transform3D(Basis.from_euler(Vector3(pitch, yaw, 0.0)), pos)
+	# A car standing in a queue is placed where it already is: the write would push the same
+	# transform down every child (body, glass, lights, wheels) to the renderer and the physics
+	# server for nothing (perf-audit-2). Skipped only when it is bit-identical.
+	if car.global_transform != xf:
+		car.global_transform = xf
 	# Past PhysicsBudget.vehicle_script_radius a car's own per-step script is off, and with it the
 	# lamps' state (Vehicle._tick_lights): a car that left the radius braking kept its brake lights,
 	# or its indicator, for good. The traffic drives it every tick anyway, so it ticks them here.
