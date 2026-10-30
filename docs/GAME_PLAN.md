@@ -295,6 +295,14 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-30 The blast is built frame by frame (fleet wave 3, `explosions-2`).** The rocket and
+  car explosions get a second layer on top of WeaponFX's (`BlastFX`, one call): flash light and
+  screen flash, a screen-reading pressure wave (desktop only), fire rolling upward, a LIT smoke cap
+  and column (hand-lit, unshaded, linear on both renderers, so the web and the Mac agree), burning
+  debris as script points feeding shared emitters (no physics bodies), and the windows facing the
+  blast across the street broken through BuildingDamage's own records. Caps keep a rocket barrage
+  to three full blasts in 2.5 s. `EXPLOSIONS_2=0` is the A/B.
+
 - **2026-10-30 The night has its own street life (fleet wave 3, `nightlife`).** After 21:00 a share
   of the open restaurants and tower lobbies downtown, in midtown and the beach town are clubs and
   bars with a line along the wall behind a velvet rope, a bouncer and a lit entrance; the door

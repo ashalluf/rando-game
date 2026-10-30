@@ -49,7 +49,26 @@ func _initialize() -> void:
 	base.y = 0.0
 	# The street: two Buildings, faces 10 m either side of its centre line (x), running along z.
 	var bscene: PackedScene = load("res://scenes/props/building.tscn")
-	var centre := base + Vector3(0.0, 0.0, -40.0)
+	# Far off the room's own pillars, on a floor of its own.
+	var centre := base + Vector3(600.0, 0.0, -40.0)
+	var floor_body := StaticBody3D.new()
+	floor_body.collision_layer = 1
+	var fs := CollisionShape3D.new()
+	var fb := BoxShape3D.new()
+	fb.size = Vector3(400.0, 1.0, 400.0)
+	fs.shape = fb
+	floor_body.add_child(fs)
+	var fm := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = fb.size
+	fm.mesh = bm
+	var asphalt := StandardMaterial3D.new()
+	asphalt.albedo_color = Color(0.16, 0.16, 0.17)
+	asphalt.roughness = 0.9
+	fm.material_override = asphalt
+	floor_body.add_child(fm)
+	root.add_child(floor_body)
+	floor_body.global_position = centre - Vector3(0.0, 0.5, 0.0)
 	for side in [-1, 1]:
 		for k in 2:
 			var b: Node3D = bscene.instantiate()

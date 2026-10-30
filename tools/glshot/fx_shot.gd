@@ -74,6 +74,15 @@ func _initialize() -> void:
 			path = out.get_basename() + "_t%05.2f.png" % want
 		get_root().get_texture().get_image().save_png(path)
 		print("saved ", path, " at ", elapsed)
+		# The frame's cost at that moment (the renderer's counts and the CPU's process / physics
+		# times, which is where the particles are simulated).
+		print("STATS t=%.2f draws=%d prims=%d objects=%d process_ms=%.2f physics_ms=%.2f nodes=%d" % [want,
+			Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
+			Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME),
+			Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME),
+			Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
+			Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0,
+			Performance.get_monitor(Performance.OBJECT_NODE_COUNT)])
 	quit()
 
 
