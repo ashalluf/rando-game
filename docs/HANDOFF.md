@@ -20758,7 +20758,11 @@ over the last quarter) of the camera, driven by per-rig data measured off the me
     not a glow; cutting it greyed the older faces).
 - **Cost**: no triangles, no draws, no nodes, no CPU per person; ALU on the face and eye pixels of
   people within 11 m (a face is a few thousand pixels at 2 m). Downtown bookmark
-  (`--spawn=2359.4,880,0,12,2`, 13:00, opengl3, SPLIT=1): see the numbers below. One 0.5 MB
+  (`--spawn=2359.4,880,0,12,2`, 13:00, opengl3, SPLIT=1, people not frozen): Pedestrian 713 nodes,
+  467,441 tris / 341 draws (100,789 shadow) with `CROWD_FACES=0` against 460,720 / 335 (100,789) with
+  it on; frame 8.23 M / 4,014 draws against 8.20 M / 3,989 - the same geometry (the pass adds none;
+  the difference is walkers who moved between the two loads). The cost is fragment ALU only, which
+  the software renderer cannot time; it runs on the face pixels of people within 11 m. One 0.5 MB
   texture in memory (the face atlas, 0.35 MB on disk) and one more sampler in the character shader (6 with its includes; the
   web cap is 9).
 
