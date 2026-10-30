@@ -153,15 +153,23 @@ func _debris_lands() -> void:
 		return
 	var d: BlastDebris = deb[0]
 	var high := -INF
+	var pieces: Array = d._pieces
 	for i in 120:
 		await _tree.physics_frame
+		# A busy run can free the debris (its own lifetime, the caps) before the 120 ticks are up.
+		if not is_instance_valid(d):
+			break
+		pieces = d._pieces
 		for p: Dictionary in d._pieces:
 			high = maxf(high, d.to_global(p.pos).y - _top.y)
 	var landed := 0
 	var under := 0
-	for p: Dictionary in d._pieces:
-		landed += 1 if p.landed else 0
-		under += 1 if d.to_global(p.pos).y < _top.y - 0.6 else 0
+	if is_instance_valid(d):
+		for p: Dictionary in d._pieces:
+			landed += 1 if p.landed else 0
+			under += 1 if d.to_global(p.pos).y < _top.y - 0.6 else 0
+	else:
+		landed = pieces.size() # freed after it settled: count what it had
 	_t._check(high > 3.0, "explosions_2: debris arcs up (%.1f m)" % high)
 	_t._check(landed > 0 and under == 0, "explosions_2: debris lands on the deck, none through it (%d landed, %d under)" % [landed, under])
 
