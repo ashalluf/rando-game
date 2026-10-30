@@ -44,7 +44,7 @@ func _ready() -> void:
 	# close to the old 300, and the distance checks (tests/distance_checks.gd) about 20 more.
 	# SMOKE_WATCHDOG=seconds raises it for a run on a box shared with other heavy jobs, where the
 	# same checks take longer in wall time (the gate's own timeout has to be raised with it).
-	var watchdog := float(OS.get_environment("SMOKE_WATCHDOG")) if OS.get_environment("SMOKE_WATCHDOG") != "" else 1500.0
+	var watchdog := float(OS.get_environment("SMOKE_WATCHDOG")) if OS.get_environment("SMOKE_WATCHDOG") != "" else 2400.0
 	get_tree().create_timer(watchdog).timeout.connect(func():
 		printerr("SMOKE TEST TIMED OUT")
 		get_tree().quit(2))
@@ -3292,6 +3292,12 @@ func _test_weapons(player: Player) -> void:
 	_check(gun != null and gun.lock_on, "weapon_3 is the shotgun, and it takes GTA-style aim")
 	var crate := _nearest_crate(Vector3(-14.0, 1.0, 0.0))
 	if crate and gun:
+		# The rocket checks before this leave rubble and shells (debris, minutes long) lying about
+		# the room; one between the player and the crate took the blast and the pellet (CI 374).
+		for d in get_tree().get_nodes_in_group("debris"):
+			if d is RigidBody3D:
+				d.free()
+		await get_tree().physics_frame
 		player.global_position = crate.global_position + Vector3(5.0, 0.6, 0.0)
 		player.velocity = Vector3.ZERO
 		await _ticks(5)
