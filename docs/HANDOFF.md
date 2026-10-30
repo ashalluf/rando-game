@@ -18917,3 +18917,72 @@ against the Forward+ terrain and the cobbles' dome shading want a look; the far 
 draws no strip (LOD chunks do); fire roads (dirt, not drawn by HillRoads) cross a wash with no
 ford or culvert, the bed just stops either side; a drop inlet below a deep cut can sit under a
 tall cut face; the first launch spends ~7 s on the network on the loading screen (cached after).
+
+## 9d?. The hero close up: a living face, planted feet, rain on him (wave 3, branch `wt/hero-closeup`)
+
+The owner's bar is "GTA 6", and the hero is in every frame. Reviewed at the third-person distance
+and in close-ups (hero_shot.gd on opengl3 and lavapipe Forward+: day, golden hour, night under a
+lamp, rain). What read worst, and what was done:
+
+- **The face was a mannequin's.** Fixed eyes that never moved, never blinked, sclera lit as evenly
+  as the cheek. The rig has no face bones (54: the crowd's 24 + fingers) and rebuilding hero.glb
+  would break the clips, the grip fits and the hero_x_* maps, so it is done in shaders.
+  `HeroFace` (`scripts/player/hero_face.gd`, owned by HeroLook, stepped on `skeleton_updated`)
+  drives `shaders/hero_eye.gdshader` and `shaders/hero_lash.gdshader` (HeroLook puts them on the
+  hero_eyes / hero_lashes surfaces):
+  - **gaze**: fixations every 0.35-2.4 s (sometimes a long hold), each a fast saccade (~30 ms) to
+    the look point plus a random offset, a micro-tremor between; the look point is 20 m along the
+    camera's view (where the player looks), or the camera itself when it is close in front of his
+    face (and then only 45 % of fixations: he finds the lens and looks away). Each eye aims from its
+    own centre (near points converge); clamped to 32 / 24 degrees. The eyeball turns about its
+    centre in the vertex shader.
+  - **blinks**: every 2-6 s, 15 % doubles, a third of the big saccades; 70 ms closing, 30 shut,
+    130 opening. There is no lid geometry to close, so the upper lid is PAINTED onto the eyeball:
+    every fragment above the lid's edge in the head's frame (eye radii from the centre) is lid skin
+    with a lash line along the edge, and the face mesh hides the eyeball outside the opening. The
+    upper lashes swing down about the eye's centre with it (0.72 rad); the lid follows a downward
+    look.
+  - **the socket's shade**: the top of the eyeball under the upper lid and the corners darkened,
+    the clear coat weakened there; the atlas's blue swatch that landed on the tear line (a blue
+    band along every lower lid) is the pink waterline now; the lower lashes, as dense as the upper
+    ones in the texture (they read as eyeliner), keep only their strongest strands.
+  - **Trap, a lost round:** the skinned `VERTEX` of the hero is in the SKELETON's centimetres (the
+    mesh node sits under the 0.01 armature and the bind poses carry the 100x), not the mesh's
+    metres - centres computed in mesh space moved the eyeballs a metre off. Everything goes to the
+    shaders in WORLD space (`MODEL_MATRIX` in, `inverse(MODEL_MATRIX)` out), which is the same on
+    both renderers. And never `orthonormalized()` the head's deformation before using it for points.
+- **Foot sliding.** `HeroStride` (`scripts/player/hero_stride.gd`) measures a clip's speed from its
+  own planted toe (in an in-place clip the stance foot slides back at exactly the body's speed):
+  walk 0.88 m/s, run 3.17, sprint 9.44 (`tools/hero_closeup/stride_probe.gd`). Avatar played them
+  as 1.3, 5.0 and 8.3: at a 1.3 m/s walk the feet slid 0.42 m/s (32 %), the run 37 % everywhere in
+  its band, the sprint at the normal 12 m/s moonwalked 14 % backwards. Now `Avatar.hero_gait()`
+  plays each at speed / its measured speed, and the bands moved to where people change gait (a jog
+  from 2 m/s, the sprint from 6.3, where it plays at 0.67 with a sprinter's cadence); 0 % slip from
+  0.8 to 18 m/s inside the rate ranges. The officers' Avatars (crowd rigs) keep the old path.
+- **Glowing ears and fingers on Compatibility** (web, every opengl3 still): BACKLIGHT there is a
+  glow, not scattering, and lit the ears and fingers bright orange against the sun. HeroLook sets
+  the skin's `backlight_gain` 0.3 on Compatibility; Forward+ keeps its transmittance.
+- **Rain did nothing to him.** The skin, velour (and its rib bands) and hair shaders read Weather's
+  `road_wetness` (soaks in the rain, dries over minutes) and `rain_intensity`: the skin glosses
+  (roughness down with the pores' variation), the velour darkens 45 %, its pile lies flat (sheen
+  and rim down) and it shines a little, the hair darkens and its highlight tightens.
+  `HeroLook.setup_wet()`; `HERO_WET=x` holds a wetness for stills.
+- Tried and left: a root fade on the hair cards (`hero_hair.gdshader` `root_fade`, 0.22 now) for
+  the blocky hairline and temples; it helps little - the blocks are whole cards of the under-layer
+  showing at the temples and need a hair rebuild in tools/hero (not in this tree any more: only
+  hero_clips.gd, hero_config.json and render_look.py are left of tools/hero/).
+
+**Not done** (in order): the hair cards at the temples and nape (a rebuild); the idle's head hangs
+low (the clip's); no mouth or brow motion (no bones; a talk / breath pass would need shape keys);
+the tracksuit's black velour still reads flat at the street distance.
+
+Switches: `HERO_CLOSEUP=0` the whole pass (A/B), `HERO_FACE=0` the face alone; stills
+`HERO_FACE_BLINK=0..1`, `HERO_FACE_GAZE=yaw,pitch` (degrees), `HERO_WET=0..1`, and on
+`tools/glshot/hero_shot.gd` `CAM_AT=face` (the camera on the head's own facing) and
+`LIGHT=golden|night` (a low warm sun; a sodium lamp at night). Probes: `tools/hero_closeup/
+mesh_probe.gd` (the hero's surfaces, the eyeballs' centres; opengl3), `stride_probe.gd`
+(headless). Checks: `tests/hero_closeup_checks.gd` (room part): the face's materials, a fresh
+HeroFace stepped 30 s (blinks 5-20, shut and open, >= 12 saccades, in range), aiming, each clip's
+measured speed against Avatar's (8 %), zero slip across the gait, the rain uniforms. Cost: two
+more materials on the hero (the eye and lash surfaces were draws already), a few uniforms a frame.
+Stills on `shots/hero-closeup`.
