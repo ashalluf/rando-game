@@ -97,7 +97,7 @@ const PLATE_AT := {
 	Vehicle.BodyType.LOWRIDER_COUPE: [0.53, 0.0, 0.40],
 	Vehicle.BodyType.EV_HATCH: [0.755, 0.0, 0.36],
 	Vehicle.BodyType.LUX_SEDAN: [0.575, 0.0, 0.40],
-	Vehicle.BodyType.COMPACT_SUV: [0.95, 0.0, 0.45],
+	Vehicle.BodyType.COMPACT_SUV: [0.66, 0.0, 0.45],
 	Vehicle.BodyType.WORK_TRUCK: [0.87, 0.0, 0.50],
 	Vehicle.BodyType.COUPE: [0.567, 0.0, 0.38],
 }
