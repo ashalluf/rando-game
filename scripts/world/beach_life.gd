@@ -62,7 +62,7 @@ const SKATERS := 2
 const WALKERS := 4
 ## Landmarks whose ground is their own (the boardwalk's courts and walk, the piers): nothing here
 ## within this many metres of their anchor along the shore.
-const KEEP_OFF := {"venice_boardwalk": 225.0, "manhattan_pier": 22.0, "redondo_pier": 80.0}
+const KEEP_OFF := {"venice_boardwalk": 225.0, "manhattan_pier": 22.0, "redondo_pier": 80.0, "power_plant": 16.0}
 ## How far the figures draw and their shadows reach (m).
 const FIGURE_DRAW := 170.0
 const FIGURE_SHADOW := 60.0

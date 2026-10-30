@@ -149,6 +149,9 @@ static func _list() -> Array[Dictionary]:
 		list.append(OilField.entry())
 	# --- The reservoir in the front range (Reservoir, LandmarkReservoir) -------------------------
 	list.append({"id": "reservoir", "anchor": Reservoir.ANCHOR, "radius": 60.0})
+	# The power plant on the coast south of the airport (PowerPlant): an area site, closed streets.
+	if PowerPlant.enabled:
+		list.append(PowerPlant.entry())
 	return list
 
 
@@ -227,6 +230,8 @@ static func site_steps(site_id: String, chunk: CityChunk) -> Array[Callable]:
 			return OilFieldBuild.site_steps(chunk)
 		FilmStudio.SITE_ID:
 			return FilmStudio.site_steps(chunk)
+		PowerPlant.SITE_ID:
+			return PowerPlantBuild.site_steps(chunk)
 	var none: Array[Callable] = []
 	return none
 
@@ -237,6 +242,8 @@ static func capture_steps(site_id: String, chunk: CityChunk) -> Array[Callable]:
 		return Canals.capture_steps(chunk)
 	if site_id == FilmStudio.SITE_ID:
 		return FilmStudio.capture_steps(chunk)
+	if site_id == PowerPlant.SITE_ID:
+		return PowerPlantBuild.capture_steps(chunk)
 	var none: Array[Callable] = []
 	return none
 
@@ -302,6 +309,8 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, plan: C
 			BallparkBuild.build(parent, statics, detailed)
 		OilField.ID:
 			OilFieldBuild.build_lights(parent, plan)
+		PowerPlant.SITE_ID:
+			PowerPlantBuild.landmark(parent, plan)
 		# Downtown LA civic set (see all() and CivicSites).
 		"arena", "live_plaza", "live_hotel", "convention_center", "ziggurat_hall", "civic_park", "concert_hall", "lattice_museum", "pueblo_station", "pueblo_lane":
 			CivicSites.build(lm.id, parent, statics, plan, detailed)

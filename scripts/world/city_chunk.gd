@@ -454,6 +454,8 @@ func begin_build() -> void:
 		_steps.append_array(ReplicaBuilder.attach(self, replica_role))
 	# The marina's channel, jetties, breakwater and highway bridge where they reach this chunk.
 	_steps.append_array(MarinaBuild.extras(self))
+	# The power plant's seawall and intake on the sand, its line's towers and receiving station.
+	_steps.append_array(PowerPlantBuild.extras(self))
 	# The freeway runs over every zone: city blocks, the beach, the hills, the lot. It is built
 	# last so its deck lands on top of whatever the chunk laid down.
 	_steps.append(_build_freeway)

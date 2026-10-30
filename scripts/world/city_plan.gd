@@ -759,6 +759,9 @@ func _lot_grid(ix: int, iz: int, dropped: Variant) -> Array[Dictionary]:
 			# The substation and the power line's right of way (Ridges), after every roll.
 			if ridges != null and ridges.claims_lot(self, ix, iz, lot_rect, cell_rect):
 				continue
+			# The power plant's line: its right of way and receiving station (PowerPlant), after every roll.
+			if PowerPlant.enabled and macro and PowerPlant.claims_lot(self, ix, iz, lot_rect):
+				continue
 			var parking := false
 			if surface_odds > 0.0 and not yard and lot_size.x >= 16.0 and lot_size.y >= 14.0 \
 					and float(absi(hash([seed, lot_seed, "surface_lot"])) % 10007) / 10007.0 < surface_odds:

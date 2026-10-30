@@ -70,6 +70,7 @@ const LANDMARK_NAMES := {
 	# The reservoir in the front range (Reservoir): an invented name.
 	"reservoir": "Lake Shallufer",
 	"pueblo_lane": "Paseo de las Golondrinas",
+	"power_plant": "Seacliff Generating Station",
 }
 
 ## Pixels a landmark pin needs clear of an already-labelled one to get its own name written.
