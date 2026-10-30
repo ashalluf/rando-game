@@ -17141,3 +17141,15 @@ makes them. Lights: AmbientCraft's billboard nav lights, strobes and beacons.
   `AIR_DIST * 0.18` over the eye, creeping); the stills on `shots/sky-ads`.
 - Probe: `tools/sky_ads/probe.tscn` (routes, heights, clearances, triangles, banners; seconds).
 - Checks: `tests/sky_ads_checks.gd` (`SMOKE_PARTS=sky_ads_checks`).
+- Frame cost (still_shot.gd GEO, opengl3 1280x720, the beach by the pier, noon,
+  `EYE=-975,2.2,-420,70,13`): SKY_ADS=0 1,128,040 triangles / 231 draws -> the blimp staged in
+  full view 230 m off 1,159,040 / 236 (+2.7 %, +5 draws: the hull, its shadow twin, the lights).
+  A banner plane in view is ~2-3k triangles and 4 draws (plane, banner, their twins, the rope).
+  The three craft are always alive (one draw each wherever they are); nothing per chunk.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the LED sign's bloom, the envelope's
+sheen and the banner cloth's lighting want a Mac look. Weather is read only to keep craft down
+in rain and storms (no marine-layer special case: the blimp flies in the deck's base). The
+banner is one rigid strip (it follows the route's chord, not every bend of a turn). No crowd
+reaction to a crash beyond the blast's own alarm. The blimp's engine is the rotor loop pitched
+down and the plane's the car engine loop pitched up (no CC0 airship or piston-plane loop added).
