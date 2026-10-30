@@ -22,12 +22,15 @@ func _global_and_switch() -> void:
 	_t._check(ProjectSettings.has_setting("shader_globals/night_skyline"), "night_skyline is a shader global")
 	var was := NightSkyline.enabled
 	NightSkyline.set_enabled(false)
-	var off := float(RenderingServer.global_shader_parameter_get("night_skyline"))
+	var off: Variant = RenderingServer.global_shader_parameter_get("night_skyline")
 	NightSkyline.set_enabled(true)
-	var on := float(RenderingServer.global_shader_parameter_get("night_skyline"))
+	var on: Variant = RenderingServer.global_shader_parameter_get("night_skyline")
 	NightSkyline.set_enabled(was)
-	_t._check(is_equal_approx(off, 0.0) and is_equal_approx(on, 1.0),
-		"NIGHT_SKYLINE switches the night_skyline global (off %.1f, on %.1f)" % [off, on])
+	# The headless dummy server keeps no global values (null): then only the switch is held.
+	var ok := NightSkyline.enabled == was
+	if off != null and on != null:
+		ok = ok and is_equal_approx(float(off), 0.0) and is_equal_approx(float(on), 1.0)
+	_t._check(ok, "NIGHT_SKYLINE switches the night_skyline global (off %s, on %s)" % [off, on])
 
 
 ## The near walls and the far boxes call the same shared functions with their own seed, and the
@@ -39,13 +42,17 @@ func _shader_copies() -> void:
 	var air := FileAccess.get_file_as_string("res://shaders/aircraft_lights.gdshader")
 	_t._check(inc.contains("const float CLEANERS_FLOOR = %.3f;" % NightSkyline.CLEANERS_FLOOR),
 		"the cleaners' floor share is NightSkyline.CLEANERS_FLOOR")
-	var temps_ok := true
-	for i in NightSkyline.TEMPS.size():
-		var m: Vector3 = NightSkyline.TEMPS[i]
-		var row := "t < %.2f) {\n\t\t\tm = vec3(%.2f, %.2f, %.2f);" % [NightSkyline.TEMP_EDGES[i], m.x, m.y, m.z]
-		temps_ok = temps_ok and inc.contains(row)
-	var c := NightSkyline.CLEANERS_TEMP
-	temps_ok = temps_ok and inc.contains("m = vec3(%.2f, %.1f, %.2f);" % [c.x, c.y, c.z])
+	# Every "t < edge) {  m = vec3(a, b, c);" row and the cleaners' colour, read back as numbers.
+	var rows: Array[Array] = []
+	var re := RegEx.create_from_string("t < ([0-9.]+)\\) \\{\\s*m = vec3\\(([0-9.]+), ([0-9.]+), ([0-9.]+)\\);")
+	for m in re.search_all(inc):
+		rows.append([float(m.get_string(1)), Vector3(float(m.get_string(2)), float(m.get_string(3)), float(m.get_string(4)))])
+	var temps_ok := rows.size() == NightSkyline.TEMPS.size()
+	for i in mini(rows.size(), NightSkyline.TEMPS.size()):
+		temps_ok = temps_ok and is_equal_approx(rows[i][0], NightSkyline.TEMP_EDGES[i]) and (rows[i][1] as Vector3).is_equal_approx(NightSkyline.TEMPS[i])
+	var cre := RegEx.create_from_string("CLEANERS_FLOOR\\) \\{\\s*m = vec3\\(([0-9.]+), ([0-9.]+), ([0-9.]+)\\);")
+	var cm := cre.search(inc)
+	temps_ok = temps_ok and cm != null and Vector3(float(cm.get_string(1)), float(cm.get_string(2)), float(cm.get_string(3))).is_equal_approx(NightSkyline.CLEANERS_TEMP)
 	_t._check(temps_ok, "window_temp()'s shares and colours are NightSkyline.TEMP_EDGES / TEMPS")
 	_t._check(inc.contains("wl_roll(sd, 65u) < %.1f" % NightSkyline.CROWN_SHARE)
 		and inc.contains("wl_roll(sd, 68u) < %.1f" % NightSkyline.FLOOD_SHARE),
