@@ -1232,8 +1232,8 @@ def build_top_shell(ctx, g, gid, kind):
     NECK = B.B("neck")
     CHEST = B.B("Spine")
     fit = g.get("fit", "regular")
-    off_t = {"fitted": 0.006, "regular": 0.011, "loose": 0.018, "jacket": 0.022}[fit]
-    slope = {"fitted": 0.7, "regular": 0.3, "loose": 0.2, "jacket": 0.22}[fit]
+    off_t = {"fitted": 0.006, "regular": 0.011, "loose": 0.018, "jacket": 0.022, "puffer": 0.034}[fit]
+    slope = g.get("slope", {"fitted": 0.7, "regular": 0.3, "loose": 0.2, "jacket": 0.22, "puffer": 0.12}[fit])
     hip_z = B.B("LeftUpLeg")[2]
     z_hem = hip_z + g.get("hem", -0.02)
     neck_back = NECK[2] + g.get("neck_back", -0.006)
@@ -1551,18 +1551,95 @@ def front_line(ctx, o, z_top, z_bot, x=0.0, step=0.025):
     return out
 
 
-def strip(ctx, name, line, width, lift, th=0.0016, caps=True):
+def strip(ctx, name, line, width, lift, th=0.0016, caps=True, across=(1.0, 0.0, 0.0)):
     """A flat strip laid down a line of (point, normal) - a placket or a zip tape: `width` across
-    (along x), raised `lift` off the surface, with rounded edges."""
+    (along x, or `across`), raised `lift` off the surface, with rounded edges."""
     frames = []
     for p, n in line:
-        ax = np.array([1.0, 0.0, 0.0])
+        ax = np.array(across, np.float64)
         ax = ax - n * (ax @ n)
         ax /= np.linalg.norm(ax)
         frames.append((Vector(p), Vector(n), Vector(ax)))
     w = width * 0.5
     prof = [(-0.002, -w - 0.0005), (lift * 0.7, -w + 0.0008), (lift, -w * 0.4), (lift, w * 0.4), (lift * 0.7, w - 0.0008), (-0.002, w + 0.0005)]
     return sweep(ctx, name, frames, lambda i: prof, closed=False, caps=caps)
+
+
+def surface_line(objs, starts, direction):
+    """[(point, outward normal)] where rays from `starts` along `direction` first meet `objs`."""
+    bvh = bvh_of(objs)
+    out = []
+    dv = Vector(direction)
+    for q in starts:
+        hit = bvh.ray_cast(Vector(q), dv, 1.0)
+        if hit[0] is not None:
+            n = Vector(hit[1])
+            if n.dot(dv) > 0:
+                n = -n
+            out.append((np.array(hit[0]), np.array(n.normalized())))
+    return out
+
+
+def surface_patch(ctx, objs, centre, out, up, w, h, lift, name, nu=7, nv=9):
+    """A patch of cloth laid ON a surface (a pocket): a grid of rays cast in along -out round
+    `centre` (across `w` along the side vector, `h` along `up`), each hit lifted `lift` off the
+    surface along its normal, the rim rolled down to the surface - so the patch follows the
+    thigh's curve instead of standing off it as a flat board. Metric UVs (u across, v up)."""
+    bvh = bvh_of(objs)
+    out = np.asarray(out, np.float64) / np.linalg.norm(out)
+    up = np.asarray(up, np.float64)
+    up = up - out * (up @ out)
+    up /= np.linalg.norm(up)
+    side = np.cross(up, out)
+    grid, ok = [], True
+    for j in range(nv):
+        row = []
+        for i in range(nu):
+            a = (i / (nu - 1) - 0.5) * w
+            b = (j / (nv - 1) - 0.5) * h
+            q = np.asarray(centre) + side * a + up * b
+            hit = bvh.ray_cast(Vector(q + out * 0.3), Vector(-out), 0.6)
+            if hit[0] is None:
+                ok = False
+                row.append(None)
+                continue
+            n = np.array(Vector(hit[1]).normalized())
+            if n @ out < 0:
+                n = -n
+            rim = i in (0, nu - 1) or j in (0, nv - 1)
+            row.append((np.array(hit[0]) + n * (0.0012 if rim else lift), (a, b)))
+        grid.append(row)
+    if not ok:
+        return None
+    verts, faces, fuv = [], [], []
+    idx = {}
+    for j in range(nv):
+        for i in range(nu):
+            idx[(i, j)] = len(verts)
+            verts.append(tuple(grid[j][i][0]))
+    for j in range(nv - 1):
+        for i in range(nu - 1):
+            q = (idx[(i, j)], idx[(i + 1, j)], idx[(i + 1, j + 1)], idx[(i, j + 1)])
+            faces.append(q)
+            fuv.append([grid[j][i][1], grid[j][i + 1][1], grid[j + 1][i + 1][1], grid[j + 1][i][1]])
+    return mesh_with_local_uv(ctx, name, verts, faces, fuv)
+
+
+def patch(ctx, name, line, width, lift, across, garment, part, region, fabric, gid, bones=None):
+    """A sewn-on patch (a pocket, its flap) as a strip laid along `line`, weighted from the body
+    (and, given `bones`, moved onto them: a cargo pocket rides the thigh alone)."""
+    if len(line) < 2:
+        return None
+    o = strip(ctx, name, line, width, lift, across=across)
+    c = np.mean([p for p, n in line], 0)
+    nm = np.mean([n for p, n in line], 0)
+    fix_winding(o, lambda q, c=c, nm=nm: tuple(c - nm * 0.08))
+    weights_from_body(ctx, o)
+    for src, dst in (bones or ()):
+        move_weight(o, src, dst, 1.0)
+    smooth_weights(o, 3)
+    mark(o, garment, part, region, fabric, gid)
+    return o
 
 
 def discs(ctx, name, centres, normals, radius, thick, seg=10):
@@ -1648,6 +1725,14 @@ def shirt(ctx, g, gid):
     at the front), the placket with its buttons, cuffs or sleeves rolled to the forearm."""
     B = ctx.body
     g = dict(g)
+    if g.get("work"):
+        # a chore / work jacket in cotton duck: hip length with a straight hem, a deep point
+        # collar, a wide placket with metal buttons, plain buttoned cuffs, patch pockets with flaps
+        for k, v in (("fit", "jacket"), ("tail", 0.004), ("hem", -0.045), ("stand_h", 0.03), ("fall", 0.054),
+                     ("collar_gap", 0.24), ("placket_w", 0.046), ("button_spacing", 0.098), ("cuff_len", 0.052),
+                     ("pocket", False), ("off_shoulder", 0.009), ("sleeve_ease", 0.014), ("neck_front", -0.05),
+                     ("tris", 2100), ("layer_clear", 0.012), ("buttons_color", [58, 54, 48])):
+            g.setdefault(k, v)
     g.setdefault("fit", "regular")
     rolled = g.get("sleeve", "long") == "rolled"
     short = g.get("sleeve", "long") == "short"
@@ -1758,6 +1843,23 @@ def shirt(ctx, g, gid):
             mark(bt, "shirt", "buttons", "other", fabric, gid)
             parts.append(bt)
     L["placket"] = [list(p) for p, n in line]
+    if g.get("work"):
+        # chest pockets' flaps, each with a button, over the patch the painter draws under them
+        ch = B.B("Spine")
+        z_f = ch[2] + g.get("flap_z", 0.04)
+        L["flaps"] = []
+        for sg in (1.0, -1.0):
+            xs = [sg * (0.05 + 0.09 * k / 6) for k in range(7)]
+            fl = surface_line([o], [(x, -0.6, z_f - 0.022) for x in xs], (0.0, 1.0, 0.0))
+            fo = patch(ctx, "shirt_flap_" + ("L" if sg > 0 else "R"), fl, 0.046, 0.0032, (0.0, 0.0, 1.0), "shirt", "flap", "top", fabric, gid)
+            if fo is not None:
+                parts.append(fo)
+                p, n = fl[len(fl) // 2]
+                bt = discs(ctx, "shirt_flap_button_" + ("L" if sg > 0 else "R"), [p + n * 0.0034 - np.array([0, 0, 0.012])], [n], 0.0062, 0.002, seg=8)
+                weights_from_body(ctx, bt)
+                mark(bt, "shirt", "buttons", "other", fabric, gid)
+                parts.append(bt)
+            L["flaps"].append([z_f, sg * 0.05, sg * 0.14])
     parts += cuff_bands(ctx, o, L, g, gid, "shirt", g.get("cuff_kind", "roll" if rolled else ("rib" if short else "cuff")), fabric)
     L["neck_ring"] = {"axis": list(axis), "ring": ring}
     L["neck_cut"] = [L["neck_back"], L["neck_front"], NECK[1] + 0.06, NECK[1] - 0.07]
@@ -1813,11 +1915,121 @@ def hood_down(ctx, o, axis, edge, g, gid, fabric, n=40):
     return hd
 
 
+def vertex_zone(o):
+    """Each vertex's top zone (0 torso, 1 left sleeve, 2 right sleeve), by its faces' majority."""
+    me = o.data
+    a = me.attributes.get("zone")
+    zv = np.zeros(len(me.vertices), int)
+    if a is None:
+        return zv
+    vals = [0] * len(me.polygons)
+    a.data.foreach_get("value", vals)
+    cnt = np.zeros((len(me.vertices), 3))
+    for p, z in zip(me.polygons, vals):
+        for v in p.vertices:
+            cnt[v, min(max(z, 0), 2)] += 1
+    return cnt.argmax(1)
+
+
+def quilt_coords(B, P, zone, L):
+    """The puffer's channel coordinate per point: metres up the torso from the hem, or metres
+    down each sleeve from the shoulder joint (upper arm, then on along the forearm), and which
+    period applies (0 torso, 1 sleeve). Shared with garment_paint.py's seams (L["quilt"])."""
+    t = P[:, 2] - L["z_hem"]
+    kind = np.zeros(len(P), int)
+    for k, (side, sg) in enumerate(SIDES):
+        on = zone == k + 1
+        if not on.any():
+            continue
+        sh, el, wr = B.B(side + "Arm"), B.B(side + "ForeArm"), B.B(side + "Hand")
+        a1 = (el - sh) / np.linalg.norm(el - sh)
+        s1 = (P[on] - sh) @ a1
+        L1 = np.linalg.norm(el - sh)
+        a2 = (wr - el) / np.linalg.norm(wr - el)
+        s2 = (P[on] - el) @ a2
+        t[on] = np.where(s2 > 0.0, L1 + s2, s1)
+        kind[on] = 1
+    return t, kind
+
+
+def quilt(ctx, o, g, L):
+    """Puffer baffles: the shell bulged out between stitched channels round the torso (every
+    `quilt` metres up from the hem) and round each sleeve (every `quilt_sleeve` down from the
+    shoulder): fill under nylon is a row of rounded tubes, and that silhouette - scalloped down
+    the sides and the sleeves - is what says puffer from across the street. Runs on the
+    decimated shell: every channel line is first cut in as an edge loop (bisected, so the
+    stitching is a crisp pinch whatever the shell's density), then every vertex is moved out by
+    how far it is from the nearest line."""
+    B = ctx.body
+    per_t, per_s = g.get("quilt", 0.11), g.get("quilt_sleeve", 0.085)
+    z0 = L["z_hem"]
+    bm = bmesh.new()
+    bm.from_mesh(o.data)
+    zl = bm.faces.layers.int.get("zone")
+    CH = B.B("Spine")
+
+    def faces_in(zone, test):
+        return [f for f in bm.faces if (zl is None or f[zl] == zone) and test(f.calc_center_median())]
+
+    def bisect(faces, co, no):
+        if not faces:
+            return
+        geom = list({v for f in faces for v in f.verts}) + list({e for f in faces for e in f.edges}) + faces
+        bmesh.ops.bisect_plane(bm, geom=geom, plane_co=co, plane_no=no, dist=0.0004)
+    z = z0 + per_t
+    while z < CH[2] + 0.16:
+        bisect(faces_in(0, lambda c, z=z: abs(c.z - z) < 0.06), Vector((0, 0, z)), Vector((0, 0, 1)))
+        z += per_t
+    for k, (side, sg) in enumerate(SIDES):
+        sh, el, wr = B.B(side + "Arm"), B.B(side + "ForeArm"), B.B(side + "Hand")
+        L1 = float(np.linalg.norm(el - sh))
+        a1 = (el - sh) / L1
+        a2 = (wr - el) / np.linalg.norm(wr - el)
+        s = per_s
+        while s < L1 + float(np.linalg.norm(wr - el)):
+            if s < L1:
+                co, no = sh + a1 * s, a1
+                test = lambda c, co=co, no=no: abs((np.array(c) - co) @ no) < 0.05 and (np.array(c) - el) @ a2 < 0.02
+            else:
+                co, no = el + a2 * (s - L1), a2
+                test = lambda c, co=co, no=no: abs((np.array(c) - co) @ no) < 0.05 and (np.array(c) - el) @ a2 > -0.02
+            bisect(faces_in(k + 1, test), Vector(co), Vector(no))
+            s += per_s
+    bm.to_mesh(o.data)
+    bm.free()
+    o.data.update()
+    P, nbr, bound = mesh_arrays(o)
+    N = vertex_normals(o)
+    zone = vertex_zone(o)
+    t, kind = quilt_coords(B, P, zone, L)
+    per = np.where(kind == 1, per_s, per_t)
+    frac = (t / per) % 1.0
+    A = g.get("loft", 0.011) * np.where(kind == 1, 0.75, 1.0)
+    bulge = A * (np.sin(math.pi * frac) ** 0.5 - 0.65)
+    # gentler over the shoulders' top, where the channels run out into the yoke and the collar
+    bulge *= 1.0 - 0.6 * smoothstep(CH[2] + 0.08, CH[2] + 0.16, P[:, 2]) * (kind == 0)
+    bulge[bound] *= 0.3
+    P = P + N * bulge[:, None]
+    # two gentle passes: the bisected slivers otherwise shade as streaks across each channel
+    P = taubin(P, nbr, bound, 2)
+    set_positions(o, P)
+    print("CROWD quilt: %d verts, %d sleeve, bulge %.1f..%.1f mm" % (len(P), int((kind == 1).sum()), bulge.min() * 1000, bulge.max() * 1000))
+    L["quilt"] = {"per": per_t, "per_s": per_s, "loft": g.get("loft", 0.011)}
+
+
 def jacket(ctx, g, gid):
     """Zip jacket: the shell to the waist, a rib hem band and rib cuffs, a stand collar, the zip
     (tapes, teeth, slider and pull) down the centre front."""
     B = ctx.body
     g = dict(g)
+    if g.get("puffer"):
+        # a quilted down jacket: lofty all over, short elastic binding at the hem and the cuffs,
+        # a tall stand collar, the shell bulged into channels before it is decimated (quilt())
+        for k, v in (("fit", "puffer"), ("band_len", 0.02), ("band_pull", 0.006), ("cuff_len", 0.022),
+                     ("cuff_pull", 0.014), ("collar_h", 0.068), ("sleeve_ease", 0.015), ("cuff_ease", 0.005),
+                     ("off_shoulder", 0.016), ("tris", 1900), ("neck_flare", 0.02), ("pocket", "welt"),
+                     ("layer_clear", 0.014), ("sleeve_taper", 0.15)):
+            g.setdefault(k, v)
     g.setdefault("fit", "jacket")
     g["sleeve"] = "long"
     band = g.get("band_len", 0.055)
@@ -1834,6 +2046,9 @@ def jacket(ctx, g, gid):
     keep_largest_part(o)
     subdivide(o, 1)
     decimate(o, g.get("tris", 1800))
+    if g.get("puffer"):
+        # after the decimation, which collapsed the channels away when they came first
+        quilt(ctx, o, g, L)
     clear_of(o, [B.bvh], 0.006)
     if ctx.layers:
         # a little more over the layer under it, which is skinned differently
@@ -1971,6 +2186,11 @@ def trousers(ctx, g, gid):
     B = ctx.body
     V, cent = B.V, B.cent
     g = dict(g)
+    if g.get("cargo"):
+        # cargo shorts: a roomy twill short to the knee, bellows pockets on the outer thighs
+        for k, v in (("style", "shorts"), ("fabric", "woven"), ("above_knee", 0.015), ("hem_r", 0.098),
+                     ("ease", 0.016), ("wash", 0.0)):
+            g.setdefault(k, v)
     if g.get("style") == "joggers":
         g.setdefault("above_ankle", 0.085)   # the cuff hangs on from here to just over the ankle
     st = dict(TROUSERS[g.get("style", "jeans")])
@@ -2152,8 +2372,46 @@ def trousers(ctx, g, gid):
     parts = [o]
     if style == "joggers":
         parts += leg_cuffs(ctx, o, L, g, gid, fabric)
+    if g.get("cargo"):
+        parts += cargo_pockets(ctx, o, L, g, gid, fabric)
     ctx.layers.append(o)
     return parts, L
+
+
+def cargo_pockets(ctx, o, L, g, gid, fabric):
+    """Bellows pockets on the outer thighs: a patch standing off the leg, a flap over its mouth."""
+    B = ctx.body
+    out = []
+    L["cargo"] = []
+    for side, sg in SIDES:
+        hip, kn = B.B(side + "UpLeg"), B.B(side + "Leg")
+        z_top = hip[2] - g.get("cargo_top", 0.15)
+        z_bot = max(z_top - g.get("cargo_len", 0.17), L["ends"][side]["co"][2] + 0.035)
+        t = lambda z, hip=hip, kn=kn: (hip[2] - z) / (hip[2] - kn[2])
+        axis_at = lambda z, hip=hip, kn=kn, t=t: hip + (kn - hip) * t(z)
+        # on the outer side, turned a little toward the front
+        odir = np.array([sg * 0.94, -0.34, 0.0])
+        zc = 0.5 * (z_top + z_bot)
+        bones = [([("Left" if side == "Right" else "Right") + "UpLeg", "Hips", "Spine02", side + "Leg"], side + "UpLeg")]
+        pk = surface_patch(ctx, [o], axis_at(zc), odir, (0, 0, 1), g.get("cargo_w", 0.14), z_top - z_bot, 0.007, "cargo_pocket_" + side[0])
+        if pk is None:
+            continue
+        fix_winding(pk, lambda c, a=axis_at: tuple(a(c.z)))
+        weights_from_body(ctx, pk)
+        for src, dst in bones:
+            move_weight(pk, src, dst, 1.0)
+        mark(pk, "trousers", "cargo", "bottom", fabric, gid)
+        out.append(pk)
+        fl = surface_patch(ctx, [o, pk], axis_at(z_top - 0.02), odir, (0, 0, 1), g.get("cargo_w", 0.14) + 0.012, 0.05, 0.004, "cargo_flap_" + side[0], nu=7, nv=4)
+        if fl is not None:
+            fix_winding(fl, lambda c, a=axis_at: tuple(a(c.z)))
+            weights_from_body(ctx, fl)
+            for src, dst in bones:
+                move_weight(fl, src, dst, 1.0)
+            mark(fl, "trousers", "flap", "bottom", fabric, gid)
+            out.append(fl)
+        L["cargo"].append([side, z_top, z_bot])
+    return out
 
 
 def leg_cuffs(ctx, o, L, g, gid, fabric):
@@ -2260,13 +2518,81 @@ def skirt(ctx, g, gid):
     move_weight(o, ["RightLeg", "RightFoot"], "RightUpLeg", 1.0)
     move_weight(o, list(LEG_UP), "Hips", g.get("hip_share", 0.3))
     smooth_weights(o, g.get("weight_blur", 24), names=["LeftUpLeg", "RightUpLeg", "Hips", "Spine02"])
-    mark(o, "skirt", "shell", "bottom", g.get("fabric", "woven"), gid)
+    mark(o, g.get("garment", "skirt"), "shell", g.get("region", "bottom"), g.get("fabric", "woven"), gid)
     L = {"z_waist": z_w, "z_hem": float(z_hem), "k_wide": int(k_wide), "crotch": crotch,
          "hems": [("hem", [list(frames[j][0] + frames[j][1] * profs[j][len(zs)][0] + Vector((0, 0, profs[j][len(zs)][1]))) for j in range(n)]),
                   ("waist", [list(frames[j][0] + frames[j][1] * profs[j][1][0]) for j in range(n)])]}
     ctx.layers.append(o)
     return [o], L
 
+
+
+def dress(ctx, g, gid):
+    """A dress: the skirt (skirt(), swept round the hips from a waist seam a little over the hip
+    joints) and a fitted bodice over it from the waist up - cap sleeves or short sleeves, a scoop
+    neck finished with a turned facing - both in the "keep" region, so no recolour splits it into
+    two cloths. The bodice's hem lies over the skirt's waist (it is the layer over it), which is the
+    waist seam."""
+    B = ctx.body
+    sk = dict(g)
+    sk.setdefault("rise", 0.075)
+    # "keep": a dress is printed or dyed as one cloth, never recoloured into a two-tone outfit
+    sk["region"] = g.get("region", "keep")
+    sk["garment"] = "dress"
+    sk.setdefault("fabric", g.get("fabric", "woven"))
+    sobj, Ls = skirt(ctx, sk, gid)
+    hip_z = B.B("LeftUpLeg")[2]
+    bd = dict(g)
+    bd.setdefault("fit", "fitted")
+    bd.setdefault("sleeve", "short")
+    bd.setdefault("sleeve_t", 0.32)
+    bd.setdefault("sleeve_ease", 0.006)
+    bd.setdefault("sleeve_flare", 0.012)
+    # a dress's bodice is shaped in to the waist (darts), not hung from the bust like a tee
+    bd.setdefault("slope", 3.0)
+    bd["hem"] = Ls["z_waist"] - hip_z - bd.get("overlap", 0.014)
+    bd.setdefault("neck_front", -0.105)
+    bd.setdefault("neck_back", -0.03)
+    o, L = build_top_shell(ctx, bd, gid, "dress")
+    cut_top(ctx, o, L)
+    axis, cut_z, radius, ring = neck_ring_fn(ctx, L["neck_back"], L["neck_front"], L["off"] + bd.get("neck_flare", 0.03))
+    NECK = B.B("neck")
+    CHEST = B.B("Spine")
+    cut_neck(o, axis, radius, L["neck_back"], L["neck_front"], NECK[1] + 0.06, NECK[1] - 0.07, CHEST[2] + 0.02)
+    keep_largest_part(o)
+    subdivide(o, 1)
+    decimate(o, bd.get("tris", 1700))
+    clear_of(o, [B.bvh], 0.005)
+    clear_of(o, [bvh_of(sobj)], bd.get("layer_clear", 0.003), smooth=True)
+    # the hem laid down onto the skirt's waist, so the seam is a seam and not a top over a skirt
+    P, nbr, bound = mesh_arrays(o)
+    sb = bvh_of(sobj)
+    ty = B_torso_y(B)
+    for i in np.where(P[:, 2] < Ls["z_waist"] + 0.03)[0]:
+        c = Vector((0.0, ty(P[i, 2]), P[i, 2]))
+        d = Vector(P[i]) - c
+        d.z = 0.0
+        if d.length < 1e-4:
+            continue
+        hit = sb.ray_cast(c + d.normalized() * 0.5, -d.normalized(), 0.5)
+        if hit[0] is not None:
+            w = float(smoothstep(Ls["z_waist"] + 0.03, Ls["z_waist"], P[i, 2]))
+            tgt = np.array(hit[0]) + np.array(d.normalized()) * 0.0025
+            if np.linalg.norm(tgt[:2] - c[:2]) < np.linalg.norm(P[i, :2] - np.array(c[:2])) or w > 0.5:
+                P[i] = P[i] * (1 - w) + tgt * w
+    set_positions(o, P)
+    L["hems"] = top_lips(ctx, o, L, hem=(0.0015, 0.008), sleeve=(0.0025, 0.014), neck=(0.0022, 0.012))
+    smooth_weights(o, bd.get("shoulder_blur", 12), where=lambda c: min((c - Vector(B.B("LeftArm"))).length, (c - Vector(B.B("RightArm"))).length) < 0.17,
+                   names=["LeftShoulder", "RightShoulder", "LeftArm", "RightArm", "Spine", "Spine01", "neck"])
+    off_the_head(o, 0.35)
+    # the bodice's hem moves as the skirt's waist does (hips), not with the thighs
+    move_weight(o, list(LEG_UP), "Hips", 1.0)
+    mark(o, "dress", "shell", g.get("region", "keep"), bd.get("fabric", "woven"), gid)
+    L["skirt"] = Ls
+    L["z_waist"] = Ls["z_waist"]
+    L["neck_cut"] = [L["neck_back"], L["neck_front"], NECK[1] + 0.06, NECK[1] - 0.07]
+    ctx.layers.append(o)
+    return sobj + [o], L
 
 
 def vest(ctx, g, gid):
@@ -2595,7 +2921,7 @@ def scarf(ctx, g, gid):
     ctx.layers.append(o)
     return [o], L
 
-BUILDERS = {"tee": tee, "trousers": trousers, "shirt": shirt, "jacket": jacket, "skirt": skirt, "vest": vest,
+BUILDERS = {"dress": dress, "tee": tee, "trousers": trousers, "shirt": shirt, "jacket": jacket, "skirt": skirt, "vest": vest,
             "scarf": scarf}
 
 
@@ -2702,7 +3028,7 @@ def build(body, arm, cfg, name):
         flatten_crotch(body, arm)
     ctx = Ctx(body, arm, cfg, name)
     # bottoms first, then tops in the order given (a vest after the tee it goes over), a headscarf last
-    order = sorted(range(len(cfg["outfit"])), key=lambda i: {"trousers": 0, "skirt": 0, "vest": 2, "scarf": 3}.get(cfg["outfit"][i]["type"], 1))
+    order = sorted(range(len(cfg["outfit"])), key=lambda i: {"trousers": 0, "skirt": 0, "dress": 0, "vest": 2, "scarf": 3}.get(cfg["outfit"][i]["type"], 1))
     for gid in order:
         g = cfg["outfit"][gid]
         objs, L = BUILDERS[g["type"]](ctx, g, gid)

@@ -570,7 +570,7 @@ static func extra_lots(plan: CityPlan, bx: int, bz: int) -> Array[Dictionary]:
 				if bl.size.x > 0.0 and bl.intersects(cell):
 					hit = true
 					break
-			if hit or Worship.covers(plan, bx, bz, cell):
+			if hit or Worship.covers(plan, bx, bz, cell) or PowerPlant.claims_cell(plan, cell):
 				continue
 			var edge := i == 0 or j == 0 or i == int(grid.nx) - 1 or j == int(grid.nz) - 1
 			var lot := {"seed": hash([plan.seed, bx, bz, i, j, "extra_house"]), "size": cell.size - Vector2(2.0, 2.0),

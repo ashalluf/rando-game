@@ -40,6 +40,14 @@ const MODELS := [
 	"res://assets/models/crowd_r.glb",
 	"res://assets/models/crowd_s.glb",
 	"res://assets/models/crowd_t.glb",
+	# 2026-10-30: six more in garments of their own (tools/crowd/garments.py): two quilted puffers,
+	# two dresses, a duck work jacket, cargo shorts (docs/ASSETS.md, crowd_config.json).
+	"res://assets/models/crowd_u.glb",
+	"res://assets/models/crowd_v.glb",
+	"res://assets/models/crowd_w.glb",
+	"res://assets/models/crowd_x.glb",
+	"res://assets/models/crowd_y.glb",
+	"res://assets/models/crowd_z.glb",
 ]
 ## Rigs that never wear a hat: their head is already covered (crowd_r's headscarf). The hat rolls
 ## are still made for them, so every roll after them is the same as anyone's.
@@ -215,6 +223,7 @@ var _look_point := Vector3.INF
 var _look_threat := Vector3.INF
 var _look_hold: float = 0.0
 var _look_scan: float = 0.0
+var _look_mod: CrowdLook
 ## Moving cars near the player, [position, velocity], shared by the whole crowd and refreshed
 ## a few times a second (_nearby_cars()).
 static var _cars: Array = []
@@ -1398,6 +1407,8 @@ func _physics_process(delta: float) -> void:
 	if _lod_timer >= 0.5:
 		_lod_timer = 0.0
 		_update_lod()
+	if rain != null and rain.indoors(delta):
+		return
 	_lod_tick += 1
 	if _lod_stride > 1 and _lod_tick % _lod_stride != 0:
 		return
@@ -1410,6 +1421,8 @@ func _physics_process(delta: float) -> void:
 		_post_pose(delta)
 	if _life_ok:
 		_life_pose(delta)
+		if rain != null:
+			rain.pose(delta)
 	if not errand.is_empty():
 		StreetErrands.pose(self, delta)
 	if not watch.is_empty():
@@ -1489,6 +1502,8 @@ func _walk(delta: float) -> void:
 			return
 		if panicking:
 			_go_to(_flee_point())
+		elif rain != null and _life_near and rain.on_walk_end():
+			pass
 		elif _way.randf() < cross_chance and plan_crossing(-1):
 			pass
 		elif _life_near and _life.randf() < life_chance and _try_life(false):
@@ -1506,6 +1521,8 @@ func _walk(delta: float) -> void:
 		to_target = goal - here
 		stops = _route.is_empty() and not panicking and (_cross == Cross.TO_KERB or _pause_next > 0.0 or _act != CrowdLife.Act.NONE)
 	var want := _run_pace if panicking else walk_speed
+	if rain != null:
+		want *= rain.pace(panicking)
 	if stops:
 		want = minf(want, sqrt(2.0 * stop_decel * maxf(to_target.length() - 0.2, 0.0)) + 0.15)
 	var v := _steer(to_target, want, delta, panicking)
@@ -1567,6 +1584,11 @@ func _post_pose(delta: float) -> void:
 	if _look_bones.size() != 2:
 		return
 	_look_hold = maxf(_look_hold - delta, 0.0)
+	if CrowdLook.enabled and _look_mod == null:
+		_look_mod = CrowdLook.of(self, _head_skel)
+	if _look_mod:
+		_look_mod.think(delta) # the head look as a modifier (crowd_look.gd); below is CROWD_LOOK=0
+		return
 	_look_scan -= delta
 	if _look_scan <= 0.0:
 		_look_scan = 0.3 + _anim_rng.randf() * 0.25
@@ -2136,6 +2158,8 @@ static func alarm(tree: SceneTree, at: Vector3, radius: float, screams: int, for
 	SeaLife.startle(at, radius)
 	# And the dogs (Dog): a lead dog barks with its tail tucked, a yard dog runs for the house.
 	Dog.startle_all(tree, at, radius)
+	# And the drivers (CarPanic): brake, swerve, up the kerb, back away, or get out and run.
+	CarPanic.alarm(tree, at, radius, force)
 	var now := Time.get_ticks_msec()
 	if not force and now - _last_alarm_ms < 250 and at.distance_to(_last_alarm_at) < 10.0:
 		return
@@ -2585,6 +2609,8 @@ var _leg_bones := PackedInt32Array()
 var errand: Dictionary = {}
 ## This person's part at a scene they came back to look at (Onlookers), {} for none.
 var watch: Dictionary = {}
+## The crowd in the rain (RainCrowd: umbrellas, hoods, hurrying, shelter), null for nobody.
+var rain: RainCrowd
 
 
 ## Rolls what this person carries and whether they jog or walk a dog (from the seed, so the same
@@ -2648,6 +2674,7 @@ func _setup_life() -> void:
 	if not _life_ok:
 		_jogger = false
 		return
+	rain = RainCrowd.make(self, _life.seed)
 	var node: Node3D = _head_skel
 	var unit := 1.0
 	while node != null and node != _visual:

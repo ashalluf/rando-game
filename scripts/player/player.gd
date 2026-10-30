@@ -91,6 +91,8 @@ var vehicle: Vehicle
 var lock_on: LockOn
 ## Health, the police's bullets and going down (scripts/player/player_health.gd).
 var health: PlayerHealth
+## The wingsuit (scripts/player/wingsuit.gd), or null with WINGSUIT=0.
+var wingsuit: Wingsuit
 ## Swimming (scripts/player/swim.gd).
 var swim: Swim
 
@@ -130,6 +132,7 @@ func _ready() -> void:
 	health.name = "Health"
 	add_child(health)
 	add_child(Footsteps.new()) # footsteps by surface (scripts/player/footsteps.gd)
+	wingsuit = Wingsuit.attach(self)
 	swim = Swim.new() # the sea, the marina, pools, the lake (scripts/player/swim.gd)
 	swim.name = "Swim"
 	add_child(swim)
@@ -162,6 +165,8 @@ func _physics_process(delta: float) -> void:
 			respawn()
 		return
 	if swim and swim.step(delta):
+		if wingsuit and wingsuit.is_active():
+			wingsuit.close(false) # glided into the water: the suit folds, he swims
 		return
 	if (global_position.y < fall_through_y and global_position.y > kill_y) or _under_terrain(global_position) or _under_city_ground():
 		recover_from_fall()
@@ -170,6 +175,8 @@ func _physics_process(delta: float) -> void:
 		_takeoff_y = global_position.y
 		_current_peak = 0.0
 	_update_timers(delta, on_floor)
+	if wingsuit and wingsuit.tick(delta, on_floor):
+		return # gliding or skidding: the suit moved him (scripts/player/wingsuit.gd)
 
 	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	_boosting = Input.is_action_pressed("boost")
@@ -300,7 +307,7 @@ func _try_enter_vehicle() -> void:
 		var car := node as Vehicle
 		if car == null or car.driver != null:
 			continue
-		if car.is_traffic() or car.is_wreck():
+		if (car.is_traffic() and not CarPanic.is_abandoned(car)) or car.is_wreck():
 			continue
 		var d := car.global_position.distance_to(global_position) - maxf(car.enter_radius - enter_range, 0.0)
 		if d < best_d:
@@ -311,6 +318,7 @@ func _try_enter_vehicle() -> void:
 
 
 func enter_vehicle(car: Vehicle) -> void:
+	CarPanic.take(car) # a car its driver ran from leaves the traffic first (nobody's crime)
 	# Parked cars live under the city root; this tag stops their chunk from freeing a car that
 	# has been driven away from home.
 	car.set_meta("driven", true)
@@ -334,6 +342,9 @@ func enter_vehicle(car: Vehicle) -> void:
 	if avatar:
 		avatar.hold_gun(null, false, 0.0)
 	global_position = car.seat_position()
+	# A motorcycle shows its rider: the hero sits on it (Motorcycle.mount_rider).
+	if car.has_method("mount_rider"):
+		car.mount_rider(self)
 
 
 func exit_vehicle() -> void:
@@ -343,6 +354,8 @@ func exit_vehicle() -> void:
 	vehicle = null
 	_driving = false
 	car.driver = null
+	if car.has_method("dismount_rider"):
+		car.dismount_rider(self)
 	visible = true
 	collision_layer = 2
 	collision_mask = 5

@@ -309,6 +309,9 @@ static func _faces(plan: CityPlan, ix: int, iz: int) -> Array:
 		var other: Vector2i = across[e]
 		if String(plan.block(other.x, other.y).get("site", "")) == LandmarkMacArthurPark.SITE.id:
 			odds = maxf(odds, PARK_EDGE_ODDS)
+		# The fashion district's goods stand on this face (FashionDistrict): no camp on it.
+		if FashionDistrict.owns_face(plan, ix, iz, e):
+			continue
 		if odds > 0.0 and _hash01([plan.seed, "camp_face", ix, iz, e]) < odds:
 			out.append(e)
 		if out.size() >= cap:
@@ -448,6 +451,8 @@ static func _occupied(chunk: CityChunk) -> Array:
 	out.append_array(PoliceStation.keep_clear_points(chunk.plan, chunk.ix, chunk.iz))
 	# And a civic building's frontage (CivicBuildings).
 	out.append_array(CivicBuildings.keep_clear_points(chunk.plan, chunk.ix, chunk.iz))
+	# And a car park's driveway (CarPark).
+	out.append_array(CarPark.keep_clear_points(chunk.plan, chunk.ix, chunk.iz))
 	return out
 
 

@@ -119,6 +119,7 @@ func run(city: Node3D) -> void:
 	var t_beach := Time.get_ticks_usec()
 	LoadClock.start("screen: beach figures")
 	var beach := BeachFigure.kinds()
+	beach.append_array(Backyards.figure_kinds())
 	for i in beach.size():
 		if _due():
 			_step("Preparing the beach", 0.3 + 0.25 * float(i) / float(maxi(beach.size(), 1)))
@@ -260,6 +261,8 @@ func _warm_shaders() -> void:
 	effects.append_array(PortKit.warm())
 	# The street vendors' trucks, carts and umbrellas (StreetVendors), built in code.
 	effects.append_array(StreetVendors.warm())
+	# The parklets' decks, bistro sets and umbrellas (Parklets), built in code.
+	effects.append_array(Parklets.warm())
 	effects.append_array(BoulevardSigns.warm())
 	FarmersMarketKit.warm()
 	effects.append(FarmersMarketKit.material())
@@ -286,6 +289,12 @@ func _warm_shaders() -> void:
 		effects.append_array(RoadsideKit.warm())
 	# The street furniture's meshes and shader (StreetFurniture), only drawn through the batches.
 	effects.append_array(StreetFurniture.warm())
+	# The fashion district's goods, stalls and tarps (FashionKit), built in code.
+	if FashionDistrict.enabled:
+		effects.append_array(FashionKit.warm())
+	# Backyard life's patio sets, grills, trampolines, floats and lights (BackyardKit).
+	if Backyards.enabled:
+		effects.append_array(BackyardKit.warm())
 	for mat: Material in effects:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
