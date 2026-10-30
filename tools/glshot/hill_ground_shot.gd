@@ -93,6 +93,8 @@ func _ready() -> void:
 			dn.owner = null
 			add_child(dn)
 			dn.call("set_paused", true)
+	if OS.get_environment("TERRAIN_DEBUG") != "":
+		PropFactory.terrain_material().set_shader_parameter("debug_mode", int(OS.get_environment("TERRAIN_DEBUG")))
 	if OS.get_environment("SHELL_DEBUG") != "":
 		PropFactory.hill_shell_material().set_shader_parameter("debug_mode", int(OS.get_environment("SHELL_DEBUG")))
 	var style: Dictionary = city.chunk_style()

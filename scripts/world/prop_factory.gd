@@ -176,6 +176,7 @@ static func terrain_material() -> ShaderMaterial:
 	mat.set_shader_parameter("dirt_normal", texture("hill_dirt", "NormalGL"))
 	mat.set_shader_parameter("rock_albedo", texture("hill_outcrop", "Color"))
 	mat.set_shader_parameter("rock_normal", texture("hill_outcrop", "NormalGL"))
+	HillGround3.apply(mat)
 	_cache["terrain_mat"] = mat
 	return mat
 
@@ -191,6 +192,7 @@ static func hill_shell_material() -> ShaderMaterial:
 	# The painted straw's own light and dark, so the grass carries the ground's tone.
 	mat.set_shader_parameter("grass_albedo", texture("grass", "Color"))
 	mat.set_shader_parameter("mottle_albedo", texture("hill", "Color"))
+	HillGround3.apply(mat)
 	_cache["hill_shell_mat"] = mat
 	return mat
 

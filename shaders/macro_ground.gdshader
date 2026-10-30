@@ -26,6 +26,8 @@ render_mode cull_back;
 // takes over, tinted by whatever the macro map says is there.
 uniform sampler2D near_albedo : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D near_normal : hint_normal, filter_linear_mipmap, repeat_enable;
+// Metres deep of the first fine erosion order (terrain.gdshader's erosion_amp; hill-ground-3).
+uniform float far_erosion_amp = 3.0;
 uniform float near_scale = 6.0;
 uniform float near_fade_start = 60.0;
 uniform float near_fade_end = 340.0;
@@ -389,9 +391,12 @@ void fragment() {
 		vec2 grad = mg * macro_height + fb.yz * (amp_m * far);
 		// The gullies finer than the bake's (terrain.gdshader draws the same up close).
 		vec3 ero = vec3(0.0);
+		// The rills' depth times the steepness, for the stand rule (hill_rill_th(), as on the tiles).
+		float rill = 0.0;
 		if (rich && m.a > 0.02) {
 			float steep = smoothstep(0.08, 0.45, length(grad));
-			ero = erosion_detail(w, grad, 7.0 * steep, 55.0, fp);
+			ero = erosion_detail(w, grad, far_erosion_amp * steep, 55.0, fp);
+			rill = ero.z * steep;
 			grad += ero.xy;
 		}
 		n = normalize(vec3(-grad.x, 1.0, -grad.y));
@@ -430,9 +435,9 @@ void fragment() {
 			float hillv = vnoiset(w * 0.0028);
 			float patchy = mix(0.5, vnoiset(w * 0.011), f90) * 0.65 + mix(0.5, vnoiset(w * 0.037 + 13.1), f30) * 0.35;
 			float clump = mix(0.5, vnoiset(w * 0.12 + 17.0), f8);
-			float th = hill_stand_threshold(cslope, asp.y, mdrain, hillv);
+			float th = hill_stand_threshold(cslope, asp.y, mdrain, hillv) + hill_rill_th(rill, w);
 			float edge = hill_stand_edge(0.0, 0.0, f8)
-				+ (1.0 - f30) * STAND_PATCH_W * 0.35 * 0.3 + (1.0 - f90) * STAND_PATCH_W * 0.65 * 0.3;
+				+ (1.0 - f30) * stand_patch_w * 0.35 * 0.3 + (1.0 - f90) * stand_patch_w * 0.65 * 0.3;
 			float stands = hill_stand(th, hill_stand_noise(patchy, clump, 0.5, 0.5), 0.5, edge);
 			// The tiles' straw and brush as they average from afar (FAR_*), greener on some
 			// hillsides and low down (their `green`).
