@@ -591,10 +591,25 @@ static func _cars(node: Node3D, g: Geo, s: Dictionary) -> void:
 		var cell: Dictionary = cells[key]
 		var top: bool = cell.top
 		var tag := "%d_%d_%d" % [key.x, key.y, key.z]
+		# Every group of a cell takes the cell's bounds, so their ranges are measured to one centre
+		# (each to its own, a stand-in and a real body of the same stall both drew, or neither).
+		var bounds := AABB()
+		var first := true
+		for kind: int in cell.far:
+			for c: Array in cell.far[kind]:
+				var p: Vector3 = (c[0] as Transform3D).origin
+				if first:
+					bounds = AABB(p, Vector3.ZERO)
+					first = false
+				else:
+					bounds = bounds.expand(p)
+		bounds = bounds.grow(3.0)
+		bounds.size.y += 1.5
 		for kind: int in cell.far:
 			var mmi := _car_mmi(ArenaGrounds.car_mesh(kind), cell.far[kind], Vector3.ZERO, false)
 			mmi.name = "Cars%s%d_%s" % ["Roof" if top else "", kind, tag]
 			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if top else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mmi.custom_aabb = bounds
 			mmi.visibility_range_begin = NEAR_DRAW if real else 0.0
 			mmi.visibility_range_end = CAR_DRAW
 			node.add_child(mmi)
@@ -604,6 +619,7 @@ static func _cars(node: Node3D, g: Geo, s: Dictionary) -> void:
 			mmi.name = "RealCars%s%d_%s" % ["Roof" if top else "", t, tag]
 			# Inside, the deck over a car is its shadow; the roof's cars cast.
 			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if top else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			mmi.custom_aabb = bounds
 			mmi.visibility_range_end = NEAR_DRAW
 			node.add_child(mmi)
 
@@ -865,8 +881,8 @@ static func material(key: String) -> Material:
 				# under a slab sees no sky: without this it drew as a brown-black lid).
 				var cm := PropFactory.pbr("plaster_white", 3.0, Color(0.93, 0.93, 0.9)).duplicate() as StandardMaterial3D
 				cm.emission_enabled = true
-				cm.emission = Color(0.93, 0.93, 0.9)
-				cm.emission_energy_multiplier = 0.16
+				cm.emission = Color(0.9, 0.92, 0.94)
+				cm.emission_energy_multiplier = 0.34
 				m = cm
 			"coping":
 				m = PropFactory.material(Color(0.62, 0.62, 0.6), 0.8)
