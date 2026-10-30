@@ -365,6 +365,8 @@ func _warm_shaders() -> void:
 	# The hills' code-built chaparral mound (HillShrub, hill-ground-3).
 	if HillGround3.enabled:
 		effects.append_array(HillShrub.warm())
+	if HillScatter.enabled:
+		effects.append_array(HillScatter.warm())
 	# The utility poles' hardware (UtilityPoles), built in code.
 	effects.append_array(UtilityPoles.warm())
 	# Car damage: the flames, the glass cubes and the engine smoke (CarDamage).

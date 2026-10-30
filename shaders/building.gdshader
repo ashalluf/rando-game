@@ -320,6 +320,7 @@ uint shop_frame_index(uint shop) {
 // Broken panes, blast holes and soot (scripts/world/building_damage.gd).
 #include "res://shaders/building_damage.gdshaderinc"
 #include "res://shaders/wet_surface.gdshaderinc"
+#include "res://shaders/facade_street.gdshaderinc"
 
 // A door's framing, painted: `p` in metres from the opening's corner at the pavement on
 // ShopfrontKit's low edge (the high end of `u`), `w` the opening's width. The members of the
@@ -807,6 +808,12 @@ void fragment() {
 	float wet_u = 0.0;
 	float wet_pitch = 3.0;
 	float wet_down = -1.0;
+	// The street level (facade_street.gdshaderinc): the relief's tilt of the normal along u and up
+	// the wall, the direction +u runs in the world, and how much harder the wall's own normal map
+	// is pressed near the camera.
+	vec2 fs_tilt = vec2(0.0);
+	vec3 fs_tan = vec3(0.0);
+	float fs_nm_gain = 1.0;
 
 	if (abs(n.y) > 0.5) {
 		// Roof, with a lighter parapet ring around the edge.
@@ -1068,6 +1075,30 @@ void fragment() {
 			win_h = vec2(0.16, 0.40);
 		}
 
+		// ---- The street level: a door in a ground floor without shops ---------------------
+		// (facade_street.gdshaderinc; FacadeStreet puts the lamp over it and the step under it on
+		// the same integer roll, and leaves the window's frame and surround out of this bay).
+		float fs_door_u = -1000.0;
+		uint fs_key = 0u;
+		vec2 fs_ds = vec2(1.0, 2.2);
+		bool fs_door_bay = false;
+		if (facade_street && !uv_facade && !chamfer && !garage && !storefront && (window_style == 0 || window_style == 3)
+				&& pt_shop < 0.5 && int(face_id) != street_back_face && abs(pt_base_y - street_ground_y) < 0.05
+				&& pt_ground - pt_base_y < 0.05 && pitch >= 1.4 && pt_floor >= 3.0) {
+			float face_len_d = face_id < 2.5 ? pt_size.z : pt_size.x;
+			fs_key = fs_face_key(seed, face_id, face_len_d);
+			int dc = fs_door_col(fs_key, floor(face_len_d / pitch + 0.5));
+			if (dc >= 0) {
+				fs_door_u = (float(dc) + 0.5) * pitch;
+				fs_ds = fs_door_size(pitch, pt_floor, fs_door_sill(facade_finish));
+				fs_door_bay = row == 0.0 && abs(col - float(dc)) < 0.5;
+				if (fs_door_bay) {
+					glass = false;
+					frame = false;
+				}
+			}
+		}
+
 		// Reveal: the wall band right around a punched or slot window (sill, jambs, lintel).
 		bool reveal = false;
 		if (!chamfer && !garage && !storefront && (window_style == 0 || window_style == 3)) {
@@ -1075,6 +1106,7 @@ void fragment() {
 			float hh = window_style == 0 ? 0.25 : 0.40;
 			float cy = window_style == 0 ? 0.52 : 0.5;
 			reveal = !glass && abs(fu - 0.5) < hw + 0.05 && abs(fv - cy) < hh + 0.05;
+			reveal = reveal && !fs_door_bay;
 		}
 
 		// ---- Window depth ------------------------------------------------------------------
@@ -1089,6 +1121,7 @@ void fragment() {
 		// sign puts the traced ray back in `u`'s frame. The room parallax below uses it too - it
 		// was mirrored on those faces, showing the left wall of a room seen from the left.
 		float u_sign = uv_facade ? 1.0 : (abs(n.x) > 0.5 ? sign(n.x) : -sign(n.z));
+		fs_tan = normalize(world_tangent - world_normal * dot(world_tangent, world_normal)) * u_sign;
 		vec2 pane_w = vec2(-1.0);
 		float recess_shade = 0.0;
 		float reveal_deep = 0.0;
@@ -1668,6 +1701,14 @@ void fragment() {
 				albedo = mix(albedo, box, 0.55 * shop_on * face);
 			}
 
+			if (facade_street && !lobby && shop_byte(shop_key, 46u) < 96u && shop_w >= 2.6) {
+				// A gooseneck lamp over the board (FacadeStreet hangs it on the same roll): two on a
+				// long shop. After dark each throws a fan of warm light down the board.
+				float lx = shop_w > 6.0 ? (shop_u < 0.5 ? 0.25 : 0.75) : 0.5;
+				vec2 gd = vec2((shop_u - lx) * shop_w, (fv - 0.93) * sf_h);
+				float beam = exp(-gd.x * gd.x / (0.25 + 0.5 * max(-gd.y, 0.0))) * smoothstep(-0.95, -0.02, gd.y);
+				emission += albedo * vec3(1.0, 0.76, 0.46) * 4.0 * beam * shop_on;
+			}
 		} else if (bulkhead) {
 			// The panelled base under a display window: stall risers are always a different
 			// material from the wall, usually tile or painted board.
@@ -1677,6 +1718,10 @@ void fragment() {
 			float panel = step(0.06, abs(fract(fu * 2.0) - 0.5) * 2.0);
 			albedo = base_col * mix(0.72, 1.0, panel);
 			rough = 0.6;
+			if (facade_street) {
+				float fade_b = 1.0 - smoothstep(street_grime_far * 0.6, street_grime_far, length(VERTEX));
+				fs_plinth(albedo, rough, v - pt_base_y, u, face_id < 2.5 ? pt_size.z : pt_size.x, face_id, seed, 0.4, fade_b, px_m);
+			}
 		} else if (frame) {
 			albedo = (window_style == 2 && curtain_spandrel) ? mullion_color : accent_color;
 			rough = 0.6;
@@ -1757,12 +1802,66 @@ void fragment() {
 				wall_nm_weight *= 0.4;
 			}
 			albedo *= mix(1.0, crown_shade, step(pt_crown, v));
-			if (facade_variety && !storefront && (window_style == 0 || window_style == 3)) {
+			if (facade_variety && !storefront && (window_style == 0 || window_style == 3) && !fs_door_bay) {
 				// The facade pass: the shade round each opening (fx_opening_ao()).
 				vec2 oc = window_style == 0 ? vec2(0.5, 0.52) : vec2(0.5, 0.5);
 				vec2 oh = window_style == 0 ? vec2(0.27, 0.25) : vec2(0.16, 0.40);
 				float ao = fx_opening_ao(vec2((fu - oc.x) * pitch, (fv - oc.y) * pt_floor), oh * vec2(pitch, pt_floor), px_m);
 				albedo *= 1.0 - 0.32 * ao;
+			}
+
+			// --- The street level up close (facade_street.gdshaderinc) --------------------
+			// The wall's relief, its repairs and cracks, and the door of a ground floor without
+			// shops. The relief tilts the normal (applied after everything else, below).
+			float fs_dist = length(VERTEX);
+			float fs_face_len = face_id < 2.5 ? pt_size.z : pt_size.x;
+			bool fs_on_ground = abs(pt_base_y - street_ground_y) < 0.05;
+			if (facade_street && !uv_facade && !chamfer && !garage && fs_dist < street_grime_far) {
+				float w_rel = (1.0 - smoothstep(street_relief_near, street_relief_far, fs_dist)) * street_relief;
+				vec2 fs_g = vec2(1.0 - smoothstep(0.0025, 0.007, px_m), 1.0 - smoothstep(0.02, 0.06, px_m));
+				uint fs_b = uint(clamp(abs(seed), 0.0, 999.0) + 0.5);
+				bool in_base = pt_base_h > 0.01 && base_up < pt_base_h;
+				int fs_kind = -1;
+				if (in_base) {
+					fs_kind = 3;
+				} else if (facade_finish == 0) {
+					uint pick = wl_hash(fs_b, 99u) % 5u;
+					fs_kind = pick < 3u ? 0 : (pick == 3u ? 1 : 4);
+				} else if (facade_finish == 2) {
+					fs_kind = 2;
+				}
+				if (fs_kind >= 0 && w_rel > 0.0) {
+					fs_tilt = fs_slope(vec2(u, in_base ? base_up : v), fs_kind, seed, fs_g, px_m) * w_rel;
+				}
+				fs_nm_gain = 1.0 + 0.8 * w_rel;
+				if (facade_finish == 1 && use_wall_texture && !in_base) {
+					// Brick: the mortar is the grey in the texture; raked back, it sits in shade.
+					float mx = max(tex.r, max(tex.g, tex.b));
+					float sat = (mx - min(tex.r, min(tex.g, tex.b))) / max(mx, 1e-3);
+					float mortar = (1.0 - smoothstep(0.16, 0.30, sat)) * smoothstep(0.12, 0.3, mx);
+					albedo *= 1.0 - 0.32 * mortar * (0.35 + 0.65 * w_rel);
+				}
+				if ((facade_finish == 0 || facade_finish == 2) && !in_base) {
+					// Render patched in paint that nearly matches, and cracks off the window corners.
+					vec4 pa = fs_patch(vec2(u, v), face_id, seed);
+					albedo *= mix(1.0, pa.z, pa.x);
+					albedo *= 1.0 - 0.07 * pa.y * fs_g.y;
+					rough = mix(rough, rough * 0.86, pa.x);
+					fs_tilt *= mix(1.0, 0.35, pa.x);
+					if (!storefront && (window_style == 0 || window_style == 3) && !fs_door_bay && fs_dist < 45.0) {
+						vec2 cell_m = vec2(pitch, storefront ? sf_h : pt_floor);
+						float ck = col * 7.0 + row * 131.0 + face_id * 977.0 + seed;
+						albedo *= 1.0 - 0.6 * fs_crack(vec2(fu, fv) * cell_m, win_c * cell_m, win_h * cell_m, ck, px_m);
+					}
+				}
+				if (fs_door_u > -999.0 && row < 0.5) {
+					vec2 dq = vec2(u - fs_door_u, v - pt_base_y - fs_door_sill(facade_finish));
+					vec2 door_tilt = vec2(0.0);
+					if (fs_door(dq, fs_ds, fs_key, px_m, 1.0 - night_factor, albedo, rough, metal, door_tilt)) {
+						fs_tilt = door_tilt * w_rel;
+						wall_nm_weight = 0.0;
+					}
+				}
 			}
 
 			// --- Weathering ------------------------------------------------------------
@@ -1796,6 +1895,16 @@ void fragment() {
 			// just dimming it.
 			albedo = mix(albedo, albedo * vec3(0.46, 0.44, 0.42), dirt);
 			rough = min(1.0, rough + 0.18 * dirt);
+			if (facade_street && !uv_facade && !chamfer && !garage && fs_on_ground) {
+				// Where the wall meets the pavement, and after dark the lamp over the door.
+				float fade_p = 1.0 - smoothstep(street_grime_far * 0.6, street_grime_far, fs_dist);
+				fs_plinth(albedo, rough, v - pt_base_y, u, fs_face_len, face_id, seed, facade_finish == 3 ? 0.0 : 1.0, fade_p, px_m);
+				if (fs_door_u > -999.0 && fs_lamp_lit(fs_key)) {
+					vec3 lamp_c = fs_lamp_kind(fs_key) == 2u ? vec3(0.85, 0.92, 1.0) : vec3(1.0, 0.70, 0.40);
+					vec2 ld = vec2(u - fs_door_u, v - pt_base_y - fs_door_sill(facade_finish) - fs_ds.y - 0.42);
+					emission += albedo * fs_lamp_wash(ld, lamp_c) * 2.8 * clamp(lamp_factor, 0.0, 1.0);
+				}
+			}
 		}
 
 		// ---- The night skyline: crown washes and floodlit stone (window_lights.gdshaderinc) ----
@@ -1957,10 +2066,14 @@ void fragment() {
 	SPECULAR = 0.25;
 	EMISSION = emission;
 	NORMAL_MAP = wall_nm;
-	NORMAL_MAP_DEPTH = reveal_face ? 0.0 : wall_normal_depth * wall_nm_weight;
+	NORMAL_MAP_DEPTH = reveal_face ? 0.0 : wall_normal_depth * wall_nm_weight * fs_nm_gain;
 	// A reveal is lit as the surface it is - a sill faces up, a head faces down - not as the
 	// wall it was drawn on.
 	if (reveal_face) {
 		NORMAL = normalize((VIEW_MATRIX * vec4(reveal_normal, 0.0)).xyz);
+	} else if (fs_tilt != vec2(0.0)) {
+		// The street-level relief (facade_street.gdshaderinc): the wall tilted by its height field.
+		vec3 nw = normalize(world_normal - fs_tan * fs_tilt.x - vec3(0.0, 1.0, 0.0) * fs_tilt.y);
+		NORMAL = normalize((VIEW_MATRIX * vec4(nw, 0.0)).xyz);
 	}
 }

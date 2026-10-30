@@ -356,6 +356,10 @@ static func material(lit: bool) -> ShaderMaterial:
 static func lamps(car: Vehicle, on: bool) -> void:
 	var mi := car.get_node_or_null("CarDetail") as MeshInstance3D
 	if mi != null:
+		if mi.has_meta("crash_mat"):
+			# A crashed car's own copy (CrashDeform.detail()).
+			(mi.get_meta("crash_mat") as ShaderMaterial).set_shader_parameter("plate_lamp", 1.0 if on else 0.0)
+			return
 		var want := material(on)
 		if mi.material_override != want:
 			mi.material_override = want
@@ -383,6 +387,7 @@ static func _add_detail_mesh(car: Vehicle, look: int) -> void:
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.visibility_range_end = car.body_far_distance
 	car.add_child(mi)
+	CrashDeform.detail(car, mi)
 
 
 ## Mesh arrays in progress (plain triangles, faces turned the way they are meant to face).

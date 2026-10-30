@@ -238,6 +238,20 @@ var _head_skel: Skeleton3D
 var _look_bones := PackedInt32Array()
 var _arm_bones := PackedInt32Array()
 var _arm_swing: float = 1.0
+## How this person walks (CrowdGait, crowd-anim-2): the gait's name, its clip and that clip's
+## measured ground speed, strides and left footfall, the idle, and the bank into turns. The
+## defaults are the rig's own walk, which is what every walker had before (CROWD_ANIM_2=0).
+var gait: String = ""
+var _walk_clip: String = WALK_CLIP
+var _walk_clip_speed: float = WALK_CLIP_SPEED
+var _walk_cycles: float = WALK_CYCLES
+var _walk_left_down: float = WALK_LEFT_DOWN
+var _idle_clip: String = IDLE_CLIP
+var _turn_lean_gain: float = 0.0
+var _turn_lean: float = 0.0
+var _steered: bool = false
+## The pace setup() rolled: a gait retunes only that, never a pace something set on purpose.
+var _rolled_speed: float = -1.0
 var _posture_pitch: float = 0.0
 var _look_near: bool = false
 var _look_yaw: float = 0.0
@@ -299,6 +313,7 @@ func setup(block_rect: Rect2, sidewalk: float, seed_value: int) -> void:
 	# would take four steps a second.
 	walk_speed = _rng.randf_range(1.05, 1.5)
 	_speed = walk_speed
+	_rolled_speed = walk_speed
 	_anim_rng.seed = hash([seed_value, "anim"])
 	_run_pace = run_speed * _anim_rng.randf_range(0.88, 1.12)
 	_arm_swing = _anim_rng.randf_range(arm_swing_spread.x, arm_swing_spread.y)
@@ -392,26 +407,28 @@ func _add_model() -> bool:
 	_anim = inst.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if _anim:
 		fix_arm_pose(_anim, path)
-		_has_walk = _anim.has_animation(WALK_CLIP)
+		if _lives():
+			CrowdGait.apply(self, _anim, _life_seed)
+		_has_walk = _anim.has_animation(_walk_clip)
 		_has_run = _anim.has_animation(RUN_CLIP)
-		_has_idle = _anim.has_animation(IDLE_CLIP)
+		_has_idle = _anim.has_animation(_idle_clip)
 		for clip in _anim.get_animation_list():
 			_anim.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
 		# Advanced by hand in _physics_process so far pedestrians can animate less often.
 		_anim.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
-		if _anim.has_animation(WALK_CLIP):
-			_set_clip(WALK_CLIP, 0.0)
+		if _anim.has_animation(_walk_clip):
+			_set_clip(_walk_clip, 0.0)
 			# Pose the rig at the top of the walk before hanging anything off its bones. The
 			# clip holds the spine seven degrees off the bind pose the whole way round, so a
 			# backpack lined up against the bind pose rides tilted back and floating off the
 			# spine. Lining it up against a walking frame puts it on the back.
 			_anim.seek(0.0, true)
 	_add_accessory(inst)
-	if _anim and _anim.has_animation(WALK_CLIP):
+	if _anim and _anim.has_animation(_walk_clip):
 		# Start everyone at a different point in the cycle. A crowd stepping in perfect
 		# unison is the most obvious tell that they are all the same model.
-		_anim.seek(_style.randf() * _anim.get_animation(WALK_CLIP).length, true)
-		_anim.speed_scale = walk_speed / (WALK_CLIP_SPEED * _stride)
+		_anim.seek(_style.randf() * _anim.get_animation(_walk_clip).length, true)
+		_anim.speed_scale = walk_speed / (_walk_clip_speed * _stride)
 	var found := inst.find_children("*", "Skeleton3D", true, false)
 	if not found.is_empty():
 		_head_skel = found[0]
@@ -423,15 +440,15 @@ func _add_model() -> bool:
 			_look_bones.clear()
 		if -1 in _arm_bones or _anim == null:
 			_arm_bones.clear()
-		elif not _arm_means.has(path):
-			_arm_means[path] = _clip_means(_anim, _head_skel, WALK_CLIP, _arm_bones)
+		elif not _arm_means.has(path + _walk_clip):
+			_arm_means[path + _walk_clip] = _clip_means(_anim, _head_skel, _walk_clip, _arm_bones)
 	return true
 
 
 ## Stands this character still (staging and tests): the clip follows the speed.
 func _play_idle() -> void:
 	_speed = 0.0
-	_set_clip(IDLE_CLIP, 0.3)
+	_set_clip(_idle_clip, 0.3)
 
 
 ## Idle, walk or run from the speed this person actually covers the ground at, with the clip's
@@ -440,6 +457,10 @@ func _play_idle() -> void:
 func _animate_gait() -> void:
 	if _anim == null:
 		return
+	if not _steered and absf(_turn_lean) > 1e-4:
+		_turn_lean = move_toward(_turn_lean, 0.0, 0.02)
+		_visual.rotation.z = _turn_lean
+	_steered = false
 	var rate := _gait
 	if _life_clip != "" and _speed < 0.12 and not _pivoting:
 		_set_clip(_life_clip, 0.25 if _life_clip in CrowdLife.ONE_SHOTS else 0.5)
@@ -448,16 +469,16 @@ func _animate_gait() -> void:
 		_set_clip(CrowdLife.JOG, 0.3)
 		rate = _speed / (CrowdLife.JOG_CLIP_SPEED * _stride)
 	elif _pivoting and _speed < 0.35 and _has_walk:
-		_set_clip(WALK_CLIP, 0.3)
-		rate = pivot_cadence
+		_set_clip(_walk_clip, 0.3)
+		rate = pivot_cadence * WALK_CLIP_SPEED / _walk_clip_speed
 	elif _speed > run_clip_from - (0.4 if _clip == RUN_CLIP else 0.0) and _has_run:
 		_set_clip(RUN_CLIP, 0.3)
 		rate = _speed / (RUN_CLIP_SPEED * _stride)
-	elif _speed > (0.22 if _clip == IDLE_CLIP else 0.1) or not _has_idle:
-		_set_clip(WALK_CLIP, 0.35)
-		rate = maxf(_speed, 0.4) / (WALK_CLIP_SPEED * _stride)
+	elif _speed > (0.22 if _clip == _idle_clip else 0.1) or not _has_idle:
+		_set_clip(_walk_clip, 0.35)
+		rate = maxf(_speed, 0.4) / (_walk_clip_speed * _stride)
 	else:
-		_set_clip(IDLE_CLIP, 0.45)
+		_set_clip(_idle_clip, 0.45)
 	if absf(rate - _rate) > 0.005:
 		_rate = rate
 		_anim.speed_scale = rate
@@ -479,15 +500,15 @@ func _set_clip(clip: String, blend: float) -> void:
 	_anim.play(clip, blend)
 	var length := _anim.get_animation(clip).length
 	var phase := -1.0
-	if from == WALK_CLIP:
-		phase = fposmod((t / from_len - WALK_LEFT_DOWN) * WALK_CYCLES, 1.0)
+	if from == _walk_clip:
+		phase = fposmod((t / from_len - _walk_left_down) * _walk_cycles, 1.0)
 	elif from == RUN_CLIP:
 		phase = fposmod(t / from_len - RUN_LEFT_DOWN, 1.0)
 	if clip == RUN_CLIP:
 		_anim.seek(fposmod(maxf(phase, 0.0) + RUN_LEFT_DOWN, 1.0) * length, false)
-	elif clip == WALK_CLIP:
-		var cycle := float(_anim_rng.randi() % int(WALK_CYCLES))
-		_anim.seek(fposmod((maxf(phase, 0.0) + cycle) / WALK_CYCLES + WALK_LEFT_DOWN, 1.0) * length, false)
+	elif clip == _walk_clip:
+		var cycle := float(_anim_rng.randi() % int(_walk_cycles))
+		_anim.seek(fposmod((maxf(phase, 0.0) + cycle) / _walk_cycles + _walk_left_down, 1.0) * length, false)
 	elif clip in CrowdLife.ONE_SHOTS:
 		_anim.seek(0.0, false)
 	else:
@@ -513,9 +534,16 @@ func _steer(to_goal: Vector2, want: float, delta: float, panicking: bool) -> Vec
 		elif a < 0.21: # 12 degrees
 			_pivoting = false
 		var rate := (_run_turn_rad if panicking else (_pivot_rate_rad if _pivoting else _turn_rad)) * delta
+		var turned := 0.0
 		if a > 1e-4:
-			yaw = wrapf(yaw + clampf(err, -rate, rate), -PI, PI)
+			turned = clampf(err, -rate, rate)
+			yaw = wrapf(yaw + turned, -PI, PI)
 			_visual.rotation.y = yaw
+		_steered = true
+		if _turn_lean_gain > 0.0 and delta > 0.0:
+			# Into the bend, the way a walker's body banks round a corner (CrowdGait).
+			_turn_lean = CrowdGait.turn_lean(_turn_lean, turned / delta, _speed, _turn_lean_gain, delta)
+			_visual.rotation.z = _turn_lean
 		if _pivoting:
 			want = 0.0
 		elif not panicking and a > 0.02:
@@ -1594,8 +1622,15 @@ func _move(v: Vector2, delta: float) -> void:
 func _post_pose(delta: float) -> void:
 	if _head_skel == null:
 		return
-	if _arm_bones.size() == 2 and _clip == WALK_CLIP and absf(_arm_swing - 1.0) > 0.02:
-		var means: Array = _arm_means.get(_model_path, [])
+	# A hand with something in it swings less (a cup in the left, a bag in the right).
+	var swings := [_arm_swing, _arm_swing]
+	if gait != "":
+		if _carry == CrowdLife.Carry.CUP:
+			swings[0] *= 0.3
+		elif _carry == CrowdLife.Carry.BAG:
+			swings[1] *= 0.35
+	if _arm_bones.size() == 2 and _clip == _walk_clip and (absf(swings[0] - 1.0) > 0.02 or absf(swings[1] - 1.0) > 0.02):
+		var means: Array = _arm_means.get(_model_path + _walk_clip, [])
 		for i in mini(means.size(), 2):
 			var mean: Quaternion = means[i]
 			var dq := mean.inverse() * _head_skel.get_bone_pose_rotation(_arm_bones[i])
@@ -1604,7 +1639,7 @@ func _post_pose(delta: float) -> void:
 			var axis := Vector3(dq.x, dq.y, dq.z)
 			if axis.length_squared() > 1e-8:
 				var ang := 2.0 * atan2(axis.length(), dq.w)
-				_head_skel.set_bone_pose_rotation(_arm_bones[i], mean * Quaternion(axis.normalized(), ang * _arm_swing))
+				_head_skel.set_bone_pose_rotation(_arm_bones[i], mean * Quaternion(axis.normalized(), ang * float(swings[i])))
 	if _look_bones.size() != 2:
 		return
 	_look_hold = maxf(_look_hold - delta, 0.0)

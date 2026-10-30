@@ -295,6 +295,16 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-30 Busy streets spend the caps where the camera looks, not more caps (HANDOFF "Busy
+  streets").** Measured at the downtown bookmark the traffic was at its 150-car cap but spread evenly
+  over a 380 m circle (5-9 moving cars in view), every queued street spawn was dropped while the kerbs'
+  parked cars filled PhysicsBudget at load (empty roads in every still), the crowd cap was spent once
+  on whichever blocks built first, and nothing followed the hour. BusyStreets focuses 70 % of street
+  spawns round the camera's block, retires far cars behind it, lets kinematic traffic ignore the props
+  budget, scales the street cap by NightCity's traffic level, tops up near blocks' walkers from far
+  ones, and parks up to 40 % more cars on the kerb spots a block's own pass left empty (a hash per
+  spot after every roll). The traffic's own rng rolls more (traffic was never seed-fixed).
+  BUSY_STREETS=0 is the A/B.
 - **2026-10-30 The blast is built frame by frame (fleet wave 3, `explosions-2`).** The rocket and
   car explosions get a second layer on top of WeaponFX's (`BlastFX`, one call): flash light and
   screen flash, a screen-reading pressure wave (desktop only), fire rolling upward, a LIT smoke cap
@@ -3561,6 +3571,12 @@ already mapped so milestone 2 is script-only.
   scanned crown's depth comes from its mesh bounds (no per-leaf data, no mesh rebuild, so the
   foliage ladders' table and shadow twins are untouched); the leaf-edge dither is Forward+ only
   (TAA), never in the shadow pass; `TREES_CLOSEUP=0` restores every shader exactly.
+- **2026-10-30 The hills' volume is a cheap code-built clump on the stand field, not more scanned
+  shrubs.** (hill-planting-2) A stand is thousands of shrubs; a HillShrub is 5,800 triangles near,
+  so the volume comes from a 63 / 15 / 6-triangle clump of three domes whose leaves the shader
+  draws from world noise, placed on the very stand field the terrain paints, in FULL chunks (from
+  ~85 m, the real shrubs nearer) and in the LOD ring (which planted nothing). No shadows; the clumps
+  are darker than the paint so a stand reads as lit tops over shaded masses. HILL_PLANTING_2=0.
 
 - **2026-10-30 The freeway's driving surface is concrete (freeway-closeup, HANDOFF "The freeway
   close up").** LA's elevated freeways are portland cement concrete, so the deck top left the
@@ -3633,3 +3649,28 @@ none of either.
   regional pores and roughness), brows as strand cards and twice the hair cards. The contract
   (54 bones, clips, material names, hero_x_* maps, eye centres) is held so nothing downstream
   moves. HERO_FACE_2=0 is the shader A/B.
+- **2026-10-30 The crowd walks in gaits (HANDOFF 9hp).** Instead of one walk clip for everybody,
+  each plain walker gets one of six baked gaits (or the old clip) by a hash of its seed and its
+  rig's phenotype, with its own pace, arms and turn rate; the play rate follows each clip's
+  measured ground speed and stays in a cadence band (pace gives way, never the feet). The gaits are
+  restyled keyed from two CC0 library walks rather than more mocap: the variety budget is the
+  style table in tools/crowd/gait_clips.gd. CROWD_ANIM_2=0 is the old crowd exactly.
+- **2026-10-30 The street level is detail on the walls plus one hardware mesh a building
+  (HANDOFF "The street level up close").** Relief, repairs, cracks and the grime at the foot are
+  shader work on the existing walls (no new nodes); doors in ground floors without shops are an
+  integer roll the shader and the props share, so the frame, the lamp and the step agree; the
+  hardware (downpipes, meters, condensers, grilles, lamps, housings) is ONE code-built mesh a
+  building, one draw, drawn to ~105 m. Every roll is a hash; FACADES_STREET=0 is the old city.
+- 2026-10-30 (wave 3, crash-deform): crashes deform the car as crumple zones in the vertex
+  shaders (mesh-space uniforms, the CarDamage pattern), not as a mesh rebuilt on the CPU: an
+  undamaged car keeps its cost, every slot (paint, glass, lamps, trim, plates, far twin) moves by
+  the same function, and a crushed car is still one draw per slot. Panels spring by turning a
+  soft box of the mesh about a hinge; doors use the car-cabins rig. The collision shape stays the
+  box. CRASH_DEFORM=0 is the A/B.
+- **2026-10-30 The police at night (police-night, HANDOFF "Red and blue at night").** A chase or a
+  roadblock after dark is the red and blue on everything round it, so the light bar now lights its
+  surroundings: one shared flash clock for the lenses and their light (they had drifted apart), a
+  budgeted pool of real OmniLight3Ds on Forward+ desktop (6 / 4 / 2 / 0 by Quality) on the nearest
+  cruisers, and on every renderer additive washes (lens flares, a road pool with the bar mirrored
+  in a wet road, facade washes fitted to the wall), roadblock flares and a hazier searchlight.
+  Never instance uniforms: one ShaderMaterial a cruiser. POLICE_NIGHT_LOOK=0 is the A/B.
