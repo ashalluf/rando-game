@@ -10,6 +10,9 @@ extends RefCounted
 
 ## The two boats' places: [kind, metres south (+z) of the aisle's middle, metres out
 ## from the headwalk's water edge to the hull's side].
+## How far over the water a boat is put down (m): its collision box clear of y 0.
+const DROP := 0.5
+
 const PLACES := [[BoatKit.Kind.SPEEDBOAT, -2.5, 0.45], [BoatKit.Kind.JETSKI, 6.5, 0.35]]
 
 
@@ -56,7 +59,10 @@ static func build(c: CityChunk) -> void:
 		var b := Boat.new()
 		b.name = "Boat_%d" % int(sp.kind)
 		b.setup_boat(int(sp.kind), int(sp.look))
-		var at := Vector3(p.x, Marina.WATER_Y, p.y)
+		# Put on the water from a little above it: a hull built at its waterline already reaches
+		# under the ground box's top (y 0), and a depenetration on the first step fired both boats
+		# 50 m up (a chunk built inside another check's frame, before the exception was in).
+		var at := Vector3(p.x, Marina.WATER_Y + DROP, p.y)
 		b.position = WorldState.to_local(at) if holder != c else at
 		b.rotation.y = float(sp.yaw)
 		holder.add_child(b)

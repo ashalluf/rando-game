@@ -399,6 +399,8 @@ func _macro() -> MacroMap:
 func _ground_body() -> StaticBody3D:
 	if _ground == null or not is_instance_valid(_ground):
 		var city := _city()
+		if city == null and is_inside_tree():
+			city = get_tree().root.get_node_or_null("City")
 		_ground = city.get_node_or_null("GroundBody") as StaticBody3D if city else null
 	return _ground
 
