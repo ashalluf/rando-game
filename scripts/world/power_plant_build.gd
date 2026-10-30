@@ -614,6 +614,8 @@ static func landmark(parent: Node3D, plan: CityPlan) -> void:
 		wires.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		wires.custom_aabb = AABB(w.lo - Vector3.ONE * 10.0, (w.hi - w.lo) + Vector3.ONE * 20.0)
 		wires.extra_cull_margin = 50.0
+		# Thin wires 1.8 km long: not an obstacle for AirTraffic's routes (their box would be).
+		wires.set_meta("air_ignore", true)
 		parent.add_child(wires)
 	# The stacks' aviation lights: three round each top, three round each tall one's middle.
 	var st := SurfaceTool.new()
@@ -659,6 +661,7 @@ static func landmark(parent: Node3D, plan: CityPlan) -> void:
 		lights.mesh = mesh
 		lights.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		lights.extra_cull_margin = 16000.0
+		lights.set_meta("air_ignore", true)
 		parent.add_child(lights)
 
 
