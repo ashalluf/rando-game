@@ -20,3 +20,11 @@ opengl3 / Compatibility, a plain pavement and sky - not the city's lighting).
 - 15_shelter_glass_on_pavement_3s - the shelter's glass lying as cubes, the frame standing
 
 Frame cost at the 11/12 eye: 3.906 M tris / 1,624 draws unbroken, 3.936 M / 1,652 mid-break (+0.8 %, all of it transient). Nothing new is drawn until something breaks.
+
+## Wave 3 (finish)
+
+- 16_wave3_geyser_fine_drops_mist_3s - same view as 05: the falling rain is now fine drops (300 thin, short streaks) instead of broad white needles, a mist sheath tears off the column, a fuller crown
+- 17_wave3_car_smash_lifted_by_geyser - a sedan at 14 m/s smashes the hydrant; the geyser lifts it by the side over the main
+- 18_wave3_car_rolled_over_by_geyser_3s - and rolls it over (the water strikes where it stands over the main, not the car's centre); the lamp it felled lies on the pavement
+- 19_wave3_geyser_night_stage - the new spray at night (stage has no street lamps)
+- Not shot: the player boosting through a lamp (PropBreak.smash_player; checked in tests: 40 m/s in, 33.8 m/s out, the lamp felled)
