@@ -2199,6 +2199,16 @@ streets, drives, house heights, no yard piece under a house or on another), one 
 right shader for a beach, a campus and a freeway block, the budgets, a LOD build with no yard
 meshes, and a beach and a freeway block built with the fill off being the same block.
 
+**Gate notes.** The plant's south block meets the Esplanade replica's corridor, whose backfill
+lots leaked into `CityPlan.lots()` for it: `_lot_grid()` now returns nothing for any site block
+before it asks the replica. The line's wires were one 1.8 km landmark box to AirTraffic's obstacle
+field and lifted the arrivals' downwind leg until jets landed long: wires and stack lights carry
+`air_ignore`. The site took one of the default seed's only two beach-town walk streets, so
+`tests/lot_fill_checks.gd` asks for one with the plant on. Gate: 2,559 checks, 0 failed, 3 shards,
+peak 2.48 GB a shard. Frame cost (opengl3 GEO, before -> after): aerial 3.12 M / 1,006 draws ->
+3.09 M / 992, east street 5.47 M / 1,606 -> 4.19 M / 1,068, the line along the 105 4.54 M / 1,688 ->
+4.44 M / 1,678.
+
 **Not done / not verified.** The web build plays the plain mix (sample playback skips bus
   effects: no reverb, no muffle, no ducker). Traffic voices ride only the TrafficManager's street
   and freeway cars - parked cars, police and the airport loop are silent unless driven (the police
@@ -14943,7 +14953,8 @@ Names are invented: SEACLIFF GENERATING STATION, BASIN LIGHT & POWER, LARKWOOD R
 
 **The line** (`PowerPlant.line()`, pure). From the dead-end gantry north across the street to an
 angle tower in the strip between the freeway and the mall's back road, then east along the 105,
-`LINE_OFFSET` (62 m) south of its centre line, on 42 m towers with spans of up to `MAX_SPAN`
+`LINE_OFFSET` (62 m) south of its centre line, on towers of 42 m raised per span until every
+conductor clears the ground by `CLEARANCE` (`_clear_spans()`: 44-63 m on the default seed), spans of up to `MAX_SPAN`
 (420 m), to a receiving station (`STATION`, 40 x 50 m) 1.8 km east: on the default seed five towers
 at x -501, -67, 353, 773, 1165 (z 1137.5) and the station at x 1335. A tower foot must be inside an
 ordinary BUILDINGS block's inner rect, off the freeway and its ramps, the airport and its clear
