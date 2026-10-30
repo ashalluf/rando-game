@@ -37,7 +37,7 @@ func run(t: Node, city: Node3D) -> void:
 	var at := _top + Vector3(0.0, 1.0, 0.0)
 	WeaponFX.explosion(city, at, 9.0, 1.0)
 	_layers(parent, at)
-	await _debris_lands()
+	await _debris_lands(at)
 	await _caps(parent)
 	await _glass()
 	await _ticks(20) # the shards wait for the wave to reach their panes
@@ -146,12 +146,16 @@ func _layers(parent: Node, at: Vector3) -> void:
 
 
 ## Debris arcs out and comes down ON the deck.
-func _debris_lands() -> void:
-	var deb := _named(WeaponFX.fx_parent(_city), "BlastDebris")
-	if deb.is_empty():
+func _debris_lands(at: Vector3) -> void:
+	# This blast's debris: the one nearest it (an earlier check's blast can leave its own about).
+	var d: BlastDebris = null
+	for c in WeaponFX.fx_parent(_city).get_children():
+		if c is BlastDebris and not c.is_queued_for_deletion():
+			if d == null or (c as Node3D).global_position.distance_to(at) < d.global_position.distance_to(at):
+				d = c
+	if d == null:
 		_t._check(false, "explosions_2: debris to watch")
 		return
-	var d: BlastDebris = deb[0]
 	var high := -INF
 	var pieces: Array = d._pieces
 	for i in 120:
