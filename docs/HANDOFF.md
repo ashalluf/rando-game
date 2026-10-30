@@ -17161,8 +17161,8 @@ freeway 4.269 M / 2,171 -> 4.270 M / 2,222; midtown toward the sign 4.034 M / 2,
 2,104; a hill road in the front range 1.834 M / 572 -> 1.867 M / 650; a summit crag from 320 m (its
 near cell's scans in view) 0.625 M / 705 -> 1.003 M / 735. Triangles stay small wherever the city
 is in view; the cost is ~50-80 draws (the far cells, three kinds each). The plan is ~4-5 s of
-GDScript at the first load (then LoadCache). Gate on the merged tree (main 001fd22 + this branch):
-2,692 passed, 0 failed in 3 shards, peak 2.57 GB a shard.
+GDScript at the first load (then LoadCache). Gate on the merged tree (main a3db077f + this branch):
+3,030 passed, 0 failed in 3 shards, peak 2.94 GB a shard.
 
 **Stills** (`origin/shots/rock-outcrops`, before = `ROCKS=0`): the three ref views (hills, golden
 aerial, freeway), midtown toward the sign mountain and its 16-degree telephoto (summit crags and
