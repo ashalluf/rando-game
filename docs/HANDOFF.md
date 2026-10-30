@@ -14893,3 +14893,60 @@ never lets him fall the last metre in).
 the sea still rides its wheels on the ground box; the strokes are keyed in code, not
 motion-captured (the UAL swim clips are still out of this network's reach); nothing of it has been
 seen on Forward+ (the Mac).
+
+## 9d?. Urban wildlife: coyotes, mule deer, raccoons, squirrels, rabbits (fleet wave 3, `wt/wildlife`; VISUAL_ROADMAP row "?")
+
+**What.** Animals that live in the city and run from the player: coyotes trotting across the hill
+roads and the streets at the suburbs' edge from dusk through the night, mule deer grazing the
+hills at dawn (a buck in four carries antlers), fox squirrels in the parks and on the suburban
+lawns by day, cottontails on the hill grass and the park lawns morning and evening, raccoons at
+the kerb carts on collection night. Within `alert` metres an animal freezes and watches the
+player; within `flush` (more the faster he comes) it bolts - a mule deer stotting with all four
+feet off the ground, a rabbit or squirrel bounding, a coyote at full stretch - and is gone once out
+of sight. A gunshot or a blast near it (Pedestrian.alarm -> Dog.startle_all) does the same. Hit,
+it is thrown a little and runs: never blood, never a ragdoll, never a crime.
+
+**How.**
+- **Bodies are the dogs'.** `WildSpecies` (`scripts/npc/wild_species.gd`) is a table in
+  DogMesh.BREEDS' format - withers height, length, chest, neck, head, ears, tail, leg, paw, coat -
+  at real size (coyote 0.58 m, mule deer 0.98, raccoon 0.30, fox squirrel 0.11, cottontail 0.16),
+  and `DogMesh.breed()` looks there after its own breeds (ONE hook line; the dogs' table, odds and
+  fallback are untouched, checked). So each animal is DogMesh's lofted, skinned 28-bone body with
+  its fur shells at three levels (6.8k + 59k shells / 2.5k + 9.9k / 0.8k triangles; the shells
+  only within `near_range` x its size) and DogRig's procedural gait. Extra keys DogRig reads (two
+  small hooks): `tail_pose` (a coyote's low brush, a squirrel's tail curled over its back) and
+  `bound` / `pronk` (the gallop's foot phases replaced by a hop - hind pair together - or all four
+  together). `gait` sets the rig's trot / gallop speeds so a rabbit hops at any pace.
+- **Coats**: `tools/wildlife/make_wild_coats.py` paints six looks on the dogs' chart (it imports
+  `tools/dogs/make_dog_coats.py` for the chart, noise and nose) into `assets/textures/dogs/wild_*.jpg`:
+  agouti grizzle as fine banded noise, the coyote's saddle and black tail tip, the deer's white
+  rump, throat bib and forehead V, the raccoon's mask, brows and ringed tail, the squirrel's
+  orange fringe, the rabbit's white scut.
+- **Antlers**: `WildSpecies.antler_mesh(points, level)`: code-built tapering tubes on a
+  Catmull-Rom, a mule deer's dichotomous forks (2-4 points a side, a brow tine on the older
+  ones), on a BoneAttachment3D on the head bone, near / far versions by visibility range.
+- **Brains**: `WildAnimal` (`scripts/npc/wild_animal.gd`) extends Dog (so DogBody's hit box on the
+  npc layer, Dog's bolt and ground following): IDLE (graze, forage, sit up, look round), WANDER
+  near home, TRAVEL along a route (the coyote's crossing), ALERT (freeze, watch the player),
+  fleeing. Counters `WildAnimal.flushes` / `hits` for the checks.
+- **Where and when**: `Wildlife` (`scripts/world/wildlife.gd`, a Node3D in city.tscn like Birds)
+  surveys every second: 46 m cells round the player, each asked `plan_cell()` - PURE, a hash of
+  seed + cell + the half hour, the zone, the block's district and kind, and
+  `WildSpecies.activity(species, hour)` - for at most one group. HILLS: deer (groups of 1-3),
+  rabbits, coyotes (routed square across a hill road in the cell). PARK / SCHOOL grounds:
+  squirrels, rabbits, coyotes. SUBURBS / BEACHTOWN house blocks: squirrels, raccoons (at
+  `KerbBins.block_sets()` carts out today, else by a house), coyotes routed across a street -
+  `EDGE_GAIN` (3.5x) where the hills are within `EDGE_REACH` (the suburbs' edge). Spawned only
+  past `min_spawn` (30 m) and behind the camera inside `hidden_inside` (70 m), onto ground a
+  world-layer ray finds within 2.2 m of the plan's height (never a roof); dropped past
+  `spawn_radius + despawn_margin`; a spot that bolted does not come back that half hour.
+  Caps: `max_animals` 14 (web 6; Quality LOW 60 %, LOWEST 30 %).
+- **A/B**: `WILDLIFE=0` in the environment. The smoke test keeps the survey off (SmokeTest root),
+  as ServiceFleet does; its checks call `survey()` / `stage()` themselves.
+
+**Tools.** Lineup in seconds: `BREEDS=deer,coyote,raccoon,rabbit,squirrel tools/glshot/dog_shot.gd`
+(any DogRig pose: `POSE=walk|trot|gallop|sit|sniff|fear`). Spots: `tools/wildlife/probe.gd -- --spawn=x,z,0,0
+--hour=h` (R, SPECIES, MAX; counts per habitat and an EYE per spot). In the city: `WILD=deer,deer:3`
+on `still_shot.gd` (`tools/wildlife/stage.gd`: WILD_DIST, WILD_SPACING, WILD_TURN, WILD_POSE
+stand|graze|sit|walk|trot|flee, WILD_FRAMES). Compile + mesh counts: `tools/wildlife/compile.gd`.
+Checks: `tests/wildlife_checks.gd`.

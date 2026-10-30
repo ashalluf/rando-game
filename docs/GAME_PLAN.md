@@ -1541,6 +1541,13 @@ already mapped so milestone 2 is script-only.
   and lamps being re-modelled. Rounds pop a lamp but never fell it. docs/HANDOFF.md "Street props
   that break like GTA"; CLAUDE.md "Street props break by KIND".
   Wave 3: the overpowered hero smashes through them on foot too (over 18 m/s: a boost, never a run).
+- **2026-10-30 Urban wildlife lives where it does in LA, and only runs.** Coyotes cross the hill
+  roads and the suburbs' streets at dusk and night (far more at the edge of the hills), mule deer
+  graze the hills at dawn, squirrels the parks and lawns by day, rabbits the hill grass, raccoons the
+  kerb carts at night - planned per cell and half hour from hashes, round the player like the birds.
+  They are built on the dogs' body (DogMesh / DogRig: fur shells, procedural gait) at real size.
+  Shot, hit or startled they bolt and are gone: no blood, no ragdoll, no crime - no gore on animals,
+  as with the dogs. docs/HANDOFF.md "Urban wildlife"; CLAUDE.md "Urban wildlife".
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north

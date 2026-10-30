@@ -712,6 +712,8 @@ species. Original work for this game.
 The dogs (`DogMesh`, `DogRig`; 2026-10-05) are built in code: no model file. Their coats
 (`assets/textures/dogs/*.jpg`, 14 colourways) are painted by `tools/dogs/make_dog_coats.py`
 (numpy + PIL), original. The Quaternius Shiba (`dog_shiba.glb`) they replace is removed.
+The urban wildlife (`WildSpecies`, 2026-10-30) is built the same way; its six coats
+(`assets/textures/dogs/wild_*.jpg`) are painted by `tools/wildlife/make_wild_coats.py`, original.
 
 | File | Source | License | Cut | Date |
 |---|---|---|---|---|
