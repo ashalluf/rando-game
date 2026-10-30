@@ -250,6 +250,14 @@ func stage_home() -> void:
 	var near: bool = player.global_position.distance_to(home) < 40.0
 	player.global_position = home
 	player.velocity = Vector3.ZERO
+	# And the origin back at the spawn: a file that flew the player kilometres off left the world
+	# re-centred there, and a check that teleports far (a boat 1 km out at sea) then re-centres
+	# again mid-check in some orders and not others. recenter() shifts the scene so the player,
+	# now at the true spawn, is at the origin: world_offset is zero again.
+	var ws: Node = _world_state()
+	if Vector2(ws.world_offset.x, ws.world_offset.z).length() > 1.0 and city.has_method("recenter"):
+		city.call("recenter")
+		near = false
 	# Looking the way the city first set the camera (a file aims down the view: the rocket at a
 	# helicopter 55 m ahead hit whatever building the last file had the camera turned to).
 	var rig: Node = player.get_node_or_null("CameraRig")
@@ -1218,6 +1226,14 @@ func _city_cars(city: Node3D, plan: CityPlan, player: CharacterBody3D, macro: Ma
 	var near: bool = player.global_position.distance_to(home) < 40.0
 	player.global_position = home
 	player.velocity = Vector3.ZERO
+	# And the origin back at the spawn: a file that flew the player kilometres off left the world
+	# re-centred there, and a check that teleports far (a boat 1 km out at sea) then re-centres
+	# again mid-check in some orders and not others. recenter() shifts the scene so the player,
+	# now at the true spawn, is at the origin: world_offset is zero again.
+	var ws: Node = _world_state()
+	if Vector2(ws.world_offset.x, ws.world_offset.z).length() > 1.0 and city.has_method("recenter"):
+		city.call("recenter")
+		near = false
 	city.update_streaming(true)
 	await _ticks(10)
 	var cars: Array = []
@@ -1461,6 +1477,14 @@ func _city_people(city: Node3D, plan: CityPlan, player: CharacterBody3D, traffic
 	var near: bool = player.global_position.distance_to(home) < 40.0
 	player.global_position = home
 	player.velocity = Vector3.ZERO
+	# And the origin back at the spawn: a file that flew the player kilometres off left the world
+	# re-centred there, and a check that teleports far (a boat 1 km out at sea) then re-centres
+	# again mid-check in some orders and not others. recenter() shifts the scene so the player,
+	# now at the true spawn, is at the origin: world_offset is zero again.
+	var ws: Node = _world_state()
+	if Vector2(ws.world_offset.x, ws.world_offset.z).length() > 1.0 and city.has_method("recenter"):
+		city.call("recenter")
+		near = false
 	city.update_streaming(true)
 	await _ticks(130)
 	var peds := get_tree().get_nodes_in_group("pedestrian")
