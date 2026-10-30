@@ -37,6 +37,7 @@ void fragment() {
 	ALBEDO = cs_out(lash_color);
 	ALPHA = t.a * mix(lower_thin, 1.0, upper_v);
 	ALPHA_SCISSOR_THRESHOLD = alpha_cut;
-	ROUGHNESS = 0.65;
-	SPECULAR = 0.15;
+	// Lashes are matte hair: lit by the sky's reflection they read as a blue line.
+	ROUGHNESS = 0.85;
+	SPECULAR = 0.04;
 }
