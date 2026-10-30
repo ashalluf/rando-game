@@ -2600,6 +2600,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The explosion's second pass (tests/explosions_2_checks.gd, BlastFX): flash, wave, rolling fire,
 	# the lit column, burning debris, windows blown out across the street, the caps, the car's fuel blast.
 	await load("res://tests/explosions_2_checks.gd").new().run(self, city)
+	# The crowd's walks (tests/crowd_anim_2_checks.gd, CrowdGait): gaits, matched rates, no slide.
+	await load("res://tests/crowd_anim_2_checks.gd").new().run(self, city)
 	# The reset between check files (tests/gate_speed_2_checks.gd): what it puts back, the file list.
 	load("res://tests/gate_speed_2_checks.gd").new().run(self, city)
 

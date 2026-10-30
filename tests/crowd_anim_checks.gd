@@ -60,8 +60,8 @@ func _run(t: Node, city: Node3D) -> void:
 	_check(early >= 0.0 and early < ped.walk_speed * 0.6 and peak > ped.walk_speed * 0.9,
 		"a walker pulls away from a standstill over its first steps (%.2f m/s after 0.2 s, %.2f later, pace %.2f)" % [early, peak, ped.walk_speed])
 	var rate: float = ped._anim.speed_scale if ped._anim else 0.0
-	var matched := rate * Pedestrian.WALK_CLIP_SPEED * ped._stride
-	_check(ped._anim == null or (ped._clip == Pedestrian.WALK_CLIP and absf(matched - ped._speed) < 0.05),
+	var matched := rate * ped._walk_clip_speed * ped._stride
+	_check(ped._anim == null or (ped._clip == ped._walk_clip and absf(matched - ped._speed) < 0.05),
 		"the walk clip runs at the rate the ground speed asks for (clip %s covers %.2f m/s, body %.2f)" % [ped._clip, matched, ped._speed])
 	# An about-turn: back west. It stops, steps round where it stands, and sets off again.
 	var pivoted := false
@@ -81,7 +81,7 @@ func _run(t: Node, city: Node3D) -> void:
 	# A stop: a pause, and the idle clip once the last step is done.
 	ped._pause_left = 3.0
 	await _ticks(90)
-	_check(ped._speed == 0.0 and (ped._anim == null or ped._clip == Pedestrian.IDLE_CLIP),
+	_check(ped._speed == 0.0 and (ped._anim == null or ped._clip == ped._idle_clip),
 		"standing still plays the idle (speed %.2f, clip %s)" % [ped._speed, ped._clip])
 	# A gunshot off to one side: the head turns to it (the pose over the clip, not the body).
 	var face: float = ped._visual.global_rotation.y

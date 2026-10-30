@@ -193,6 +193,7 @@ func _retarget(src: Rig, tgt: Rig, a: Animation, name: String, loop: bool, fps: 
 		hips_pos.append(tgt.rest_g[tgt_hips].origin + (sg[src_hips].origin - src.rest_g[src_hips].origin) * k)
 	if swing < 1.0:
 		_scale_legs(tgt, poses, hips_pos, swing)
+	if _style_hook(tgt, poses, hips_pos, name) or swing < 1.0:
 		toe_low = INF
 		for f in frames + 1:
 			for toe in toes:
@@ -222,6 +223,12 @@ func _retarget(src: Rig, tgt: Rig, a: Animation, name: String, loop: bool, fps: 
 		tgt.root.name, name, a.length, frames + 1, (hips_pos[frames / 2] + Vector3(0, dz, 0)).y,
 		tgt.rest_g[tgt_hips].origin.y, dz])
 	return out
+
+
+## A subclass's chance to restyle a clip's keys before it is set on the ground (gait_clips.gd);
+## true when it changed them.
+func _style_hook(_tgt: Rig, _poses: Array, _hips_pos: Array[Vector3], _name: String) -> bool:
+	return false
 
 
 ## Each leg bone's rotation pulled toward its mean over the clip, by 1 - `swing`.
