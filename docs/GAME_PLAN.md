@@ -3723,6 +3723,15 @@ none of either.
   triangles; balconies get a hand-made LOD and shadow twins; static mesh caches that grow with the
   places visited drop what only they hold (CacheTrim) instead of clearing at a size. Plain runs of
   an aerial bookmark differ by millions of triangles, so frame costs there are DIFF=1 pairs only.
+- 2026-10-30 (aerial review, wave 3): a seam between two tiers is fixed by making both sides draw
+  the same thing the same way (the plane paints its sea on the ocean's own window; far tors take the
+  plane's haze; the plane's lit band is never dimmed on top of the renderer's own night), not by
+  tuning one side's colour to the other in one still. AERIAL_REVIEW=0 is the A/B.
+- 2026-10-30 (lawns close up, wave 3): the lawn and its blades are ONE field (lawn_field.gdshaderinc):
+  each tuft carries its lawn's numbers and takes the ground's colour at its root, so the blades
+  shrink into the lawn by 62 m with no band and the grass cells draw to 86 m instead of 115 (the
+  saving pays for 1.4x denser, mown tufts). Suburb streets get grass parkways between the kerb and
+  the walk; weeds grow in the walk's joints and along the yard fences. LAWNS_CLOSEUP=0 is the A/B.
 - **2026-10-30 - Car paint, second pass (car-paint-2, HANDOFF "Car paint that reads as
   photographed").** Decisions: the street a car mirrors is a world-fixed skyline per reflected
   azimuth that cuts the sky's mirror and emits facades and the road (both renderers; the probes
