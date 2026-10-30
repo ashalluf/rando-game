@@ -51,6 +51,8 @@ global uniform float lamp_factor;
 varying vec3 tint;
 varying float fade;
 varying float rim;
+// The layered distance haze over this vertex (macro_relief.gdshaderinc).
+varying float rhaze;
 varying flat int kind;
 varying float variant;
 varying vec3 local_pos;
@@ -118,6 +120,8 @@ void vertex() {
 			fade = 0.0;
 		}
 	}
+	vec3 hp = origin + vec3(0.0, shift, 0.0);
+	rhaze = range_haze_amount(length(hp - cam), hp.y);
 	if (fade < 0.004) {
 		VERTEX = vec3(0.0);
 	} else {
@@ -208,4 +212,7 @@ void fragment() {
 	ROUGHNESS = rough;
 	SPECULAR = spec;
 	EMISSION = cs_out(emit) * (1.0 - rim) + cs_out(cs_srgb_to_linear(sky_tint.rgb)) * rim;
+	// The same air the ground under it is in (macro_ground.gdshader).
+	ALBEDO *= 1.0 - rhaze;
+	EMISSION = EMISSION * (1.0 - rhaze) + cs_out(range_haze_color(cs_srgb_to_linear(sky_tint.rgb))) * (rhaze * (1.0 - rim));
 }

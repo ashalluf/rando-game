@@ -34,6 +34,8 @@ void vertex() {
 	hairdata = UV2;
 }
 
+#include "res://shaders/wet_surface.gdshaderinc"
+
 float hash(vec2 p) {
 	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
 }
@@ -53,4 +55,10 @@ void fragment() {
 	SPECULAR = specular * ao;
 	ANISOTROPY = anisotropy;
 	ANISOTROPY_FLOW = strand_flow;
+	if (ws_on()) {
+		// Rain: wet hair is darker and glossier.
+		float wet = ws_wet(0.6);
+		ALBEDO *= mix(1.0, 0.62, wet);
+		ROUGHNESS = mix(ROUGHNESS, 0.2, wet);
+	}
 }
