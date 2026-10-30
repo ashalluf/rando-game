@@ -305,14 +305,6 @@ already mapped so milestone 2 is script-only.
   ones, and parks up to 40 % more cars on the kerb spots a block's own pass left empty (a hash per
   spot after every roll). The traffic's own rng rolls more (traffic was never seed-fixed).
   BUSY_STREETS=0 is the A/B.
-- **2026-10-30 The sunset is the sun as it reaches each cloud (fleet wave 3, `sunset-clouds`).**
-  Rather than tint the clouds by the hour, a `sunset` weight on the sun's elevation (SunsetSky)
-  switches sky.gdshader to a per-point model: Rayleigh + aerosol air masses to the point, the
-  earth's shadow by tangent height, so cumulus bases glow from below after the street's sunset,
-  crowns go violet, the cirrus keep an afterglow and the deck goes dark from the bottom up. It is 0
-  outside ~16:50-18:55 and every block it adds is gated: noon is bit-identical (proven), the cost
-  flat. SUNSET_CLOUDS=0 is the A/B.
-
 - **2026-10-30 The blast is built frame by frame (fleet wave 3, `explosions-2`).** The rocket and
   car explosions get a second layer on top of WeaponFX's (`BlastFX`, one call): flash light and
   screen flash, a screen-reading pressure wave (desktop only), fire rolling upward, a LIT smoke cap

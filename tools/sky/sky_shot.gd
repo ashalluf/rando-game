@@ -12,10 +12,6 @@ extends SceneTree
 ## DOME city_glow held (night); DETAIL 0 forces the painted cumulus; SHADER another sky shader
 ## (the A/B: /tmp/sky_old.gdshader); BENCH n frames after the shot, timed (CPU and GPU ms a frame,
 ## printed as BENCH lines - lavapipe's GPU is the CPU, so read the difference between two runs).
-## PARAMS="name=value;name=value" holds sky shader uniforms (floats) after DayNight has set them,
-## e.g. PARAMS="cirrus_amount=0;sunset=0" (the sunset A/B is SUNSET_CLOUDS=0). HOLD_TIME=1 stops
-## shader TIME (Engine.time_scale 0), so two runs whose shaders compile at different speeds can be
-## diffed pixel for pixel (the clouds drift with TIME).
 
 var _frame := 0
 var _frames := 24
@@ -81,24 +77,12 @@ func _initialize() -> void:
 	root.add_child(top)
 	cam.make_current()
 	_frames = int(_env("FRAMES", "24"))
-	if _env("HOLD_TIME", "0") == "1":
-		Engine.time_scale = 0.0
 	_bench = int(_env("BENCH", "0"))
 	# The game runs TAA at every level, which is what resolves the march's per-frame dither.
 	if _env("TAA", "1") == "1":
 		root.use_taa = true
 	_vp = root.get_viewport_rid()
-	# Held after DayNight's own _process has set the frame's uniforms.
-	if _env("PARAMS", "") != "":
-		RenderingServer.frame_pre_draw.connect(_params)
 	RenderingServer.viewport_set_measure_render_time(_vp, true)
-
-
-func _params() -> void:
-	for kv in _env("PARAMS", "").split(";", false):
-		var p := kv.split("=")
-		if p.size() == 2:
-			_sky.set_shader_parameter(p[0].strip_edges(), float(p[1]))
 
 
 func _load_shader(path: String) -> Shader:
