@@ -16,6 +16,9 @@ var _rig_path: String = ""
 var _hider: LimbHider
 var _limbs: Array[RigidBody3D] = []
 var _skel: Skeleton3D
+## The jointed body (RagdollJoints) while this doll is one, near the camera; null for the single
+## tumbling body (far away, over the cap, RAGDOLLS=0) and for the box body.
+var _joints: RagdollJoints
 
 ## How badly this body is bleeding: its wounds' strengths summed (1 per rifle round, more for a
 ## torn-off limb). It sizes the pool, and a body that was only knocked over has 0 and leaves
@@ -93,6 +96,13 @@ func build_from_rig(path: String, look: int = -1) -> bool:
 		_anim.get_animation("run_fast_3_inplace").loop_mode = Animation.LOOP_LINEAR
 		_anim.play("run_fast_3_inplace")
 		_anim.speed_scale = 2.2
+	# Near the camera: a jointed body that falls like a person (RagdollJoints).
+	if is_inside_tree() and RagdollJoints.wanted(global_position, get_viewport()):
+		RagdollJoints.make_room()
+		_joints = RagdollJoints.attach(self, body, inst, _anim)
+		if _joints != null:
+			_anim.speed_scale = 1.0
+			bodies = _joints.bodies()
 	return true
 
 
@@ -101,8 +111,13 @@ func _process(delta: float) -> void:
 		return
 	_age += delta
 	var busy := false
+	if _joints != null and not _joints.frozen:
+		if _joints.tick(delta):
+			busy = true
+		else:
+			bodies = _joints.bodies()
 	if bleed > 0.0:
-		busy = _blood_step(delta)
+		busy = _blood_step(delta) or busy
 	if _anim != null and _anim.is_playing():
 		var body: RigidBody3D = bodies[0]
 		# Stop flailing once it lies still.
@@ -123,7 +138,8 @@ func shot(at: Vector3, dir: Vector3, impulse: Vector3 = Vector3.ZERO, strength: 
 		return
 	var body: RigidBody3D = bodies[0]
 	if impulse.length() > 0.01:
-		body.apply_impulse(impulse, at - body.global_position)
+		var hit := _joints.nearest(at) if _joints != null and not _joints.frozen else body
+		hit.apply_impulse(impulse, at - hit.global_position)
 	WeaponFX.blood(self, at, dir, strength, self)
 	var d := dir.normalized() if not dir.is_zero_approx() else Vector3.FORWARD
 	var s := sqrt(clampf(strength, 0.1, WeaponFX.blood_strength_max))
@@ -372,6 +388,9 @@ func dismember(count: int, impulse: Vector3) -> int:
 		if piece.is_empty():
 			continue
 		_hider.bones.append(root_bone)
+		if _joints != null and not _joints.frozen:
+			_joints.drop_limb(limb, skel)
+			bodies = _joints.bodies()
 		var joint := skel.global_transform * skel.get_bone_global_pose(root_bone).origin
 		_add_stump(skel, root_bone)
 		_throw_limb(piece, limb, source.get_active_material(0), impulse)
@@ -677,6 +696,9 @@ func _ready() -> void:
 
 
 func fling(impulse: Vector3) -> void:
+	if _joints != null and not _joints.frozen:
+		_joints.fling(impulse)
+		return
 	for b in bodies:
 		b.apply_central_impulse(impulse * b.mass / TOTAL_MASS)
 		b.angular_velocity = Vector3(randf_range(-6, 6), randf_range(-6, 6), randf_range(-6, 6))

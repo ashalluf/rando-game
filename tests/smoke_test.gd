@@ -2361,6 +2361,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The coast highway under the bluffs (tests/coast_highway_checks.gd): its place, the bench and
 	# bluff, the houses, parking, a chunk's road, houses, collision and cars, LOD and the far city.
 	await load("res://tests/coast_highway_checks.gd").new().run(self, city)
+	# Jointed ragdolls (tests/ragdolls_checks.gd): parts, joints, settling, freezing, gibs, the cap.
+	await load("res://tests/ragdolls_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
