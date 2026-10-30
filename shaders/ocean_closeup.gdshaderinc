@@ -114,6 +114,39 @@ float oc_worley(vec2 p) {
 }
 
 
+// Foam as a net of bubble threads round irregular holes (cells of `cell` metres in `p`, which is
+// metres): a warped Worley F2 - F1 edge net. `age` 0 fresh (solid, the holes closed) .. 1 old
+// (thin threads, wide holes); `px` a pixel in metres (faded to the net's mean under a few pixels).
+float oc_lace(vec2 p, float cell, float age, float px) {
+	vec2 q = p / cell;
+	q += (vec2(oc_vnoise(q * 0.35 + 1.3), oc_vnoise(q * 0.35 + 7.9)) - 0.5) * 1.6;
+	vec2 i = floor(q);
+	vec2 f = q - i;
+	float f1 = 8.0;
+	float f2 = 8.0;
+	for (int y = -1; y <= 1; y++) {
+		for (int x = -1; x <= 1; x++) {
+			vec2 g = vec2(float(x), float(y));
+			vec2 o = oc_hash22(i + g) * 0.85 + 0.075;
+			float d = length(g + o - f);
+			if (d < f1) {
+				f2 = f1;
+				f1 = d;
+			} else if (d < f2) {
+				f2 = d;
+			}
+		}
+	}
+	float e = f2 - f1;
+	// Threads along the cell edges, thicker on younger foam; holes open from the middles.
+	float thread = 1.0 - smoothstep(0.04, 0.10 + 0.32 * (1.0 - age), e);
+	float hole = smoothstep(0.08 + 0.45 * (1.0 - age), 0.35 + 0.45 * (1.0 - age), f1) * age;
+	float net = max(thread, 1.0 - hole) * (0.85 + 0.15 * oc_hash12(i));
+	float mean = mix(0.95, 0.5, age);
+	return mix(net, mean, smoothstep(cell / 5.0, cell / 1.5, px));
+}
+
+
 // The wind's frame on the water: `wv` down the wind, `wp` across it.
 void oc_wind_frame(vec2 wind, out vec2 wv, out vec2 wp) {
 	wv = normalize(wind + vec2(0.0001, 0.0));

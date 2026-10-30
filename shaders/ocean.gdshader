@@ -866,12 +866,9 @@ void fragment() {
 		// behind opens into a net of bubble cells and holes (the close-up pass).
 		if (rich && near_c > 0.001 && dist < 45.0 && ww > 0.01) {
 			float fresh = max(bore_face, lip);
-			vec2 bp = vec2(along, shore) / 0.24 + vec2(0.0, TIME * 0.06);
-			float cells = oc_worley(bp);
-			float cells2 = oc_worley(bp * 2.7 + 3.3);
-			float nv = oc_vnoise(bp * 0.23 + 1.7);
-			float net = smoothstep(0.04 + 0.30 * nv, 0.30 + 0.30 * nv, cells) * (0.55 + 0.45 * smoothstep(0.05, 0.35, cells2));
-			net = mix(net, 0.7, smoothstep(0.24 / 4.0, 0.24 / 1.2, px_m));
+			vec2 bp = vec2(along, shore) + vec2(0.0, TIME * 0.015);
+			float trail_age = clamp(back_m / 9.0, 0.0, 1.0) * 0.6 + 0.4;
+			float net = oc_lace(bp, 0.30, trail_age, px_m) * (0.7 + 0.3 * oc_lace(bp + 3.7, 0.09, trail_age, px_m));
 			ww *= mix(1.0, net, (1.0 - fresh * 0.8) * 0.85 * near_c);
 		}
 		face_glow = (front ? smoothstep(0.35, 0.95, face_m) : 0.0) * steep * (1.0 - broken * 0.75)
@@ -996,9 +993,7 @@ void fragment() {
 				}
 			}
 			if (dist < 90.0) {
-				float wl = oc_worley(w / 0.32 + vec2(TIME * 0.05, -TIME * 0.03));
-				float lace_v = smoothstep(0.12 + 0.40 * age, 0.45 + 0.30 * age, wl);
-				lace_v = mix(lace_v, 0.62, smoothstep(0.32 / 4.0, 0.32 / 1.5, px_m));
+				float lace_v = oc_lace(w + vec2(TIME * 0.016, -TIME * 0.01), 0.35, age, px_m);
 				foam *= mix(1.0, lace_v, foam_lace * age * near_c);
 				// The piles' foam is fresh, churned all the time: a lighter lace.
 				contact *= mix(1.0, lace_v, 0.35 * near_c);
