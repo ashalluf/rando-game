@@ -338,6 +338,15 @@ already mapped so milestone 2 is script-only.
   himself on the player's bike (a skeleton modifier), crowd rigs in full-face helmets in traffic -
   posed by one two-bone solver; thrown off as a ragdoll in a crash; 5 % of street traffic, lane
   filtering past stopped queues; kerb stalls swapped to bikes by hash after every roll.
+- **2026-10-05 One building you can walk into: the corner store (HANDOFF "The corner store").**
+  Corner lots in MIDTOWN and the SUBURBS, by hash after every other lot claim, hold a one-storey
+  convenience store with real interior geometry (shelving, gondolas, coolers, counter, cigarette
+  rack, ~3k code-built products, a cashier). The interior is only drawn while the camera or the
+  player is within 5 m of the storefront; otherwise the glass traces the same room from the same
+  layout numbers, so the facade matches the inside. `WALK_IN_STORE=0` turns it off.
+  Wave 3: shooting the shelves knocks the stock off (thrown packs, drink spray; the interior shows
+  from 70 m while it is shot up; `STORE_MAYHEM=0`), and the side wall carries a painted mural of
+  the goods (pictures only).
 - **2026-10-05 Onlookers: the crowd comes back after the chaos (HANDOFF "Onlookers").** After
   the panic near a wreck, a blast or a body, people near the camera come back and stand round it
   in a loose ring: filming on their phones (held up at eye level, the screen lit, a video light

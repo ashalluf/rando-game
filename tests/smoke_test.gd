@@ -2339,6 +2339,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Street lamps (tests/street_lamps_checks.gd): the kit against its table, the pick per street,
 	# the arms over the road, the lamps' pools and omnis, and the same prop ids with the kit off.
 	load("res://tests/street_lamps_checks.gd").new().run(self, city)
+	# The corner store you can walk into (tests/walk_in_store_checks.gd): placement, the build near
+	# and far, the interior shown and the door opening as you walk up, nothing else on the block moved.
+	await load("res://tests/walk_in_store_checks.gd").new().run(self, city)
 	await load("res://tests/onlookers_checks.gd").new().run(self, city) # the crowd back round a body after the panic (Onlookers)
 	# Street props breaking by kind (tests/prop_destruction_checks.gd): geysers, shelter glass,
 	# bent and felled lamps, burst boxes, snapped meters, cars smashing through.
