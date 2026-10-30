@@ -3612,6 +3612,22 @@ already mapped so milestone 2 is script-only.
   one a chunk for furniture), weaker where SDFGI / SSAO already occlude. The deep underpass at HIGH
   stays dark: a coarser SDFGI cell leaks the sunlit deck through the soffit, so it is left for a
   fill on the freeway kit.
+- **2026-10-30 The web build is checked in the full Chromium, one tab, without firing (web-review-3,
+  HANDOFF "The web build after wave 3").** After ~70 merges the browser build still loads and draws
+  every bookmark with a clean console and a ~720 MB wasm heap; what broke was the harness (the
+  headless-shell Chromium never delivered a screenshot frame, two tabs no longer fit 16 GB, and its
+  click fired the rifle). No game code changed; the rule that every shader stays GLSL ES 3.00 is
+  now a check. The export stays at 600 MB of pck: the remaining "unused" assets the probe lists are
+  reached by name tables, so nothing more is excluded blind.
+- **2026-10-30 The night street is lit by its lamps, not the moon (night-street-review, HANDOFF
+  "The night street at eye level").** Reviewed from the pavement at 21:00 and 00:30, clear and rain,
+  on both renderers. Decisions: the moon's key drops to 0.09 (it was ~45 % of the noon sun through
+  the night exposure, so every street was evenly blue and the pools invisible) and the lamps' pools
+  and ranges grow instead; a rainy night keeps most of its fill (overcast city nights are lighter,
+  not darker); the mirrors' sky follows the rain's horizon the sky draws; the lit-window grid
+  painted on the wet road is smeared to a glow; each FULL lamp gets a wet-road reflection streak in
+  its own prop record; Broadway's lanterns at 0.6 of the level. All tuning of existing systems plus
+  one quad a lamp; `NIGHT_STREET_REVIEW=0` restores the old numbers.
 
 ## Correction: what build 135 (0ce833f) actually contained
 
@@ -3723,6 +3739,27 @@ none of either.
   triangles; balconies get a hand-made LOD and shadow twins; static mesh caches that grow with the
   places visited drop what only they hold (CacheTrim) instead of clearing at a size. Plain runs of
   an aerial bookmark differ by millions of triangles, so frame costs there are DIFF=1 pairs only.
+- 2026-10-30 (aerial review, wave 3): a seam between two tiers is fixed by making both sides draw
+  the same thing the same way (the plane paints its sea on the ocean's own window; far tors take the
+  plane's haze; the plane's lit band is never dimmed on top of the renderer's own night), not by
+  tuning one side's colour to the other in one still. AERIAL_REVIEW=0 is the A/B.
+- 2026-10-30 (lawns close up, wave 3): the lawn and its blades are ONE field (lawn_field.gdshaderinc):
+  each tuft carries its lawn's numbers and takes the ground's colour at its root, so the blades
+  shrink into the lawn by 62 m with no band and the grass cells draw to 86 m instead of 115 (the
+  saving pays for 1.4x denser, mown tufts). Suburb streets get grass parkways between the kerb and
+  the walk; weeds grow in the walk's joints and along the yard fences. LAWNS_CLOSEUP=0 is the A/B.
+- **2026-10-30 A house's night is one integer (house-nights, HANDOFF "Houses at night").** Every
+  house's night - dark or lived in, lamp tone, rooms lit, TV, porch, carriage lamps, number,
+  landscape lights - is a hash of its key (seed mod 997), which the near glass carries in UV2 and
+  the far box already carried in INSTANCE_CUSTOM.b, so the street and the hills agree. Fixtures are
+  geometry, their light additive quads in four batches a chunk; real lights only on the nearest
+  porches on Forward+ desktop.
+- **2026-10-30 - Car paint, second pass (car-paint-2, HANDOFF "Car paint that reads as
+  photographed").** Decisions: the street a car mirrors is a world-fixed skyline per reflected
+  azimuth that cuts the sky's mirror and emits facades and the road (both renderers; the probes
+  take over near the camera); flake is sampled per pixel-sized cell fixed to the body; new
+  finishes, the contrast-roof livery and a car's condition are appended and rolled by hashes of
+  the look seed after every roll, so no existing roll moves and CAR_PAINT_2=0 is the old look.
 - **2026-10-30 Downtown at arm's length (downtown-street-closeup, HANDOFF "Downtown streets at
   arm's length").** A pedestrian-eye review of downtown listed ten things that break the picture at
   2-10 m; the worst were fixed in one file (StreetCloseup) with hooks: the kerb face gets its own

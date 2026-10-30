@@ -1430,6 +1430,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   windscreen dust (`screen_dust`) on the shared cabin glass. `CAR_DETAIL=0` the A/B; `CAR_GRIME=`
   and views `plate|nose|wheel|arch` on car_shot.gd; probe `tools/car_detail_probe.gd`; checks
   `tests/car_detail_checks.gd`.
+- Car paint, second pass (2026-10-30, docs/HANDOFF.md "Car paint that reads as photographed"):
+  `CarPaint2` (`scripts/vehicles/car_paint_2.gd`, two hooks in Vehicle) and the `paint2` block of
+  car_paint.gdshaderinc (every uniform 0 by default: other materials and `CAR_PAINT_2=0` keep the
+  old shader bit for bit). In the lacquer: a world-fixed skyline per reflected azimuth cuts the sky
+  mirror where a ray meets a building and EMITS facades with windows and the street there (the
+  hard horizon line across a door, on both renderers; handed to the probes inside their reach);
+  orange peel (normal and coat roughness at mm scale, a softer mirror once under a pixel); flake
+  glints per pixel-sized cell fixed to the body (sun only, sun-facing only); candy, satin wraps,
+  contrast roofs (`stripe_mode` 6, `Livery.CONTRAST_ROOF`, `ROOF_LINE` per body), dust / pollen
+  films and oxidised single-stage paint. New finishes `CANDY`, `TRICOAT`, `SATIN` and the livery
+  are APPENDED; new paints and roofs are hashes of the look seed after every roll (`PAINTS` is
+  untouched, the rng spent as before). Take fwidth() outside the paint2 branches (`p2_*`).
+  Stills `PAINT_ENV=golden,street`, `FLIP=`, `TRIM=`, `CAR_COND=dust,oxide[,pollen]` on
+  car_shot.gd; checks `tests/car_paint_2_checks.gd`.
 - Car cabins (2026-10-30, docs/HANDOFF.md "Car cabins"): the car the player drives, empty parked
   cars within `CarInteriors.near_range` (7.5 m) of him and a car that lost a door get real
   geometry (`CarInteriors`, one node under the root; `CarInterior` on the car's near body mesh):
@@ -1827,6 +1841,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `haze_for()`, shaft gain 0 where volumetric fog is on, halo gain, viewport height), pushed four
   times a second; collapsed by day. `NIGHT_ATMOS=0` is the A/B; checks
   `tests/night_atmos_checks.gd`.
+- The night street review (2026-10-30, docs/HANDOFF.md "The night street at eye level"):
+  `NightStreetReview` (`scripts/world/night_street_review.gd`) holds the balance: the moon's key
+  (`MOON` 0.09: at 0.3 it lit streets evenly blue at ~45 % of the noon sun and hid the lamps),
+  StreetLamps' pool / range scales, Broadway's lantern gain (a light's meta `lamp_gain`, read by
+  DayNight), the rain's night fill, and `sky_tint` now following the rain / overcast horizon the
+  sky draws (every mirror read a navy sky under a brown cloud base). NightAtmos lays a wet
+  reflection streak per FULL lamp (`atmos_glow_wet`, `shaders/night_wet.gdshader`: foot to mirror
+  point, collapsed while dry); road.gdshader's mirrored windows smear (`mirror_window*`,
+  `mirror_sky`). `NIGHT_STREET_REVIEW=0` is the A/B; bookmarks `tools/night_street/` (shoot.sh
+  full city, shoot_fwd.sh small scenes, measure.py); checks `tests/night_street_review_checks.gd`.
 - Car lights (GAME_PLAN G4 / G6, 2026-10-04): the lamp mesh is `PropFactory.vehicle_lights()`
   on `shaders/car_lights.gdshader` (it replaced light_pool for cars): head and tail glows, the
   beam fan, amber indicators at all four corners, reversing lamps and a red wash on the road
@@ -3910,6 +3934,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   classes by path (naming them compiles the crowd into every tool that loads YardFill).
   `BACKYARDS=0` is the A/B; probe `tools/backyards/probe.gd`, fit `tools/backyards/lounger_shot.tscn`;
   checks `tests/backyards_checks.gd`.
+- Houses at night (2026-10-30, docs/HANDOFF.md "Houses at night"): `HouseNights`
+  (`scripts/world/house_nights.gd`) works each house's night from ONE integer, its key (seed mod
+  997: the near glass carries it in UV2.x - 1 from `HouseBuild._tri()`, the far box in
+  `MidCity.house_custom()`'s .b) through `shaders/house_nights.gdshaderinc` (the same hashes, bit
+  for bit; checked): dark houses, a lamp tone, the rooms lit and a bedtime off `city_hour`, a TV.
+  `house_glass.gdshader` traces lit rooms behind sheers / blinds (panes without UV2 keep the old
+  look), `building_lod.gdshader` lights the far house wings and pools from the same rolls.
+  `dress()` (one line in `HouseKit.build()`, after LaTrees) puts porch lanterns, carriage lamps, a
+  lit number and on `NICE` houses path lights and facade / cypress uplights into the chunk's
+  "h_lamp" house mesh (`house_lamp.gdshader`) and their light into four shadowless `hn_*` batches
+  (`house_glow.gdshader`, additive in display numbers); pools by `pool_variant()` (lot_yard) and
+  `pool_glow()`. `HouseNightLights` puts `budget` (4 / 2 / 0 / 0) OmniLights on the nearest lit
+  porches, Forward+ desktop only. `HOUSE_NIGHTS=0` is the A/B; checks `tests/house_nights_checks.gd`.
 - Yard sales (2026-10-30, docs/HANDOFF.md "Weekend yard sales"): `YardSales`
   (`scripts/world/yard_sales.gd`, one line after each `Backyards.block()` in YardFill) - a hash of
   seed + lot holds a sale on Saturday / Sunday (`sale_info()`, `state_at()`: SETUP / OPEN /
@@ -3926,6 +3963,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the same `ground_detail`-gated second rotated sample the road shader uses. Keep it subtle: the
   first pass used `sign()` for the stripes and a 1.6x albedo boost and the lawns came out
   candy-striped and blown out, which is louder than the flat green it replaced.
+- Lawns close up (2026-10-30, docs/HANDOFF.md "Lawns close up"): `LawnsCloseup`
+  (`scripts/world/lawns_closeup.gd`) and `shaders/lawn_field.gdshaderinc`, ONE field (dry, clover,
+  brown spots, wear, stripes, morning sprinklers by `city_hour`) shared by lawn.gdshader and every
+  grass blade: a tuft carries its lawn (COLOR the lawn's tint, INSTANCE_CUSTOM y dryness, z seed
+  index / 1024, w edge metres + 16 if striped; `_add_grass(..., lawn, lawn_rect)`), so blades take
+  the ground's colour and shrink into it between 26 and 62 m (cells now draw to 86 m, 1.4x denser,
+  mown and spread tufts on 200 indexed vertices). Grass parkways between kerb and walk on SUBURBS
+  blocks (cut round corners and drives, one mesh a chunk, 5 cm proud), weeds in the walk's joints
+  and along yard fences (`_run_last`), bark-chip mulch and clover in lot_yard. Hashes only.
+  `LAWNS_CLOSEUP=0` is the A/B; stills `tools/lawns_closeup/block.sh` (minutes), `shots.sh` (the
+  city); checks `tests/lawns_closeup_checks.gd`.
 - Palms (owner, 2026-09-20: "it's Cali, put palm trees"): `PropFactory.palm(variant)` builds a
   whole tree as one vertex-coloured mesh (tall slender curved trunk with ridged bark, a crown of
   feathered fronds whose leaflets are separate pointed blades so daylight shows through, a skirt
@@ -6223,6 +6271,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   kerbs and far_traffic's own cars (same keys) by day on the plates, decks and LOD ground, the
   asphalt x`mid_road_gain`. Hashes only, nothing else moves. `MID_CITY=0` is the A/B; probe
   `tools/mid_city/probe.gd -- --at=x,z`; checks `tests/mid_city_checks.gd`.
+- The aerial review (2026-10-30, docs/HANDOFF.md "The aerial review"): what breaks at the tier
+  seams from 100-800 m, fixed behind `AerialReview` (`scripts/world/aerial_review.gd`;
+  `AERIAL_REVIEW=0` the A/B): the horizon plane paints its sea on the ocean chunks' own hand-over
+  window (`sea_paint_*` = ocean.gdshader `handover_*`), both seas in linear light under the same
+  layered haze (the ocean's `range_haze_*` are copies, checked); the plane's renderer-lit band is
+  not dimmed again at night; terrain.gdshader breaks its 13 m mottle tile past `mottle_far_px`;
+  RockFar's tors take the range haze and the hill's tone past `aerial_blend`; the far city's tree
+  crowns are `CITY_CANOPY_GAIN` darker. `tools/aerial_review/layer_probe.gd` saves every shot again
+  with one layer hidden (which node draws that speckle?). Checks `tests/aerial_review_checks.gd`.
 - Downtown at arm's length (2026-10-30, docs/HANDOFF.md "Downtown streets at arm's length"):
   `StreetCloseup` (`scripts/world/street_closeup.gd`): the kerb face as its own mesh ("KerbFace") on
   `shaders/kerb_closeup.gdshader` with a rolled arris strip, the 0.6 m concrete gutter pan
@@ -6370,6 +6427,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   gives 16 and Compatibility keeps up to seven -, no `instance uniform`, the web quality path,
   the exclude filter). A webshot takes ~14 minutes on a 4-core box; never share the box with
   the headless gate (it starves the tab: the screenshot times out waiting for a frame).
+- The web build after wave 3 (2026-10-30, docs/HANDOFF.md "The web build after wave 3"): every
+  bookmark still loads clean, wasm heap ~720 MB (the browser cap is 4 GB), pck 600 MB. Harness
+  traps: the box's Playwright now defaults to `chrome-headless-shell`, where `page.screenshot()`
+  never gets a frame from a 20 s Godot frame and a left click ballooned the tab to 6 GB - webshot.js
+  now picks the FULL Chromium under /opt/pw-browsers; ONE tab at a time (two were OOM-killed);
+  the harness's click FIRES THE RIFLE (`KEY=k` starts audio with nothing fired, `NOCLICK=1`,
+  `BUTTON=middle`); `PROBE=1` (tools/webshot/probe.js) prints the wasm heap, Web Audio buffers and
+  their callers. Shaders must stay GLSL ES 3.00: no bitfieldExtract / findMSB / textureGather /
+  fma / dFdxFine ... (`tests/web_review_3_checks.gd`).
 - Forward+ review of small scenes (2026-10-05, docs/HANDOFF.md "Forward+ review A"): lavapipe
   renders `block_shot.tscn` (a few FULL blocks, ~10 min a run, ~12 GB) and the room tools
   (`hero_moves_shot.gd`, `photo_shot.gd ROOM=1`, ~2 min) with `--rendering-driver vulkan` and

@@ -194,8 +194,9 @@ static func place(plan: CityPlan, at: Vector3, facing: Vector2, force: int = -1)
 		"paint": paint(plan, t, at2, facing),
 		"custom": Color(1.0 if NightCity.lamp_led(at2) else 0.0, h01([seed, at2.snapped(Vector2(0.1, 0.1)), "lamp_age"]), 0.0, 0.0),
 		"lights": lights,
-		"pool": float(spec.pool),
-		"range": float(spec.range),
+		# Scaled by the night street review (NightStreetReview: wider pools reach the lanes).
+		"pool": float(spec.pool) * NightStreetReview.pool_scale(),
+		"range": float(spec.range) * NightStreetReview.range_scale(),
 		"gain": float(spec.gain),
 		"box": box,
 	}

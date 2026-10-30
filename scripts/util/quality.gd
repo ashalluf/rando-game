@@ -221,6 +221,7 @@ func _apply_render() -> void:
 	# Real headlights on the nearest cars (CarLights, Forward+ only): six and the player's car
 	# shadowed at HIGH, three at MEDIUM, only the player's car at LOW, none at LOWEST.
 	CarLights.budget = [6, 3, 0, 0][int(level)]
+	HouseNightLights.budget = [4, 2, 0, 0][int(level)]
 	CarLights.player_light = level <= Level.LOW
 	CarLights.player_shadow = level == Level.HIGH
 	# Real red / blue strobes on the nearest cruisers (PoliceNightLook, Forward+ only).
