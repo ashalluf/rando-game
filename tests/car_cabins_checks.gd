@@ -194,10 +194,22 @@ func _get_in_and_out(player: Player) -> void:
 	_put(player, car.global_position + car.global_basis.x * 2.4 + Vector3.UP * 0.4)
 	await _ticks(2)
 	player.enter_vehicle(car)
+	# The cabin may still be building on a worker thread: the door swings once it is up.
+	await _until(func() -> bool: return CarInteriors.rig_of(car) != null, 120)
 	var rig := CarInteriors.rig_of(car)
 	var opened := await _until(func() -> bool: return rig != null and is_instance_valid(rig) and rig.door_open(1.0) > 0.9, 90)
-	_check(rig != null and opened and rig.door_open(-1.0) < 0.01, "getting in from the right swings the right door open (and only it)")
-	var shut := await _until(func() -> bool: return rig.door_open(1.0) < 0.001 and not rig.busy(), 180)
+	var why := "rig %s valid %s, car valid %s, rig_of %s, driving %s, time scale %.3f" % [rig != null, rig != null and is_instance_valid(rig),
+			is_instance_valid(car), CarInteriors.rig_of(car) != null if is_instance_valid(car) else false,
+			player.vehicle == car, Engine.time_scale]
+	_check(rig != null and is_instance_valid(rig) and opened and rig.door_open(-1.0) < 0.01, "getting in from the right swings the right door open (and only it) (%s)" % why)
+	if rig == null or not is_instance_valid(rig):
+		rig = CarInteriors.rig_of(car)
+	if rig == null:
+		_check(false, "and shuts it behind him (no rig)")
+		player.exit_vehicle()
+		car.queue_free()
+		return
+	var shut := await _until(func() -> bool: return is_instance_valid(rig) and rig.door_open(1.0) < 0.001 and not rig.busy(), 180)
 	_check(shut, "and shuts it behind him")
 	_check(float(rig._mat.get_shader_parameter("powered")) == 1.0 and CarCabin.seats_of(car.cabin_glass()) == 1,
 			"the dash lights up and he is seated in the glass (seats %d)" % CarCabin.seats_of(car.cabin_glass()))
@@ -231,6 +243,7 @@ func _crash_tears_door(player: Player) -> void:
 	_put(player, car.global_position - car.global_basis.x * 2.4 + Vector3.UP * 0.4)
 	await _ticks(2)
 	player.enter_vehicle(car)
+	await _until(func() -> bool: return CarInteriors.rig_of(car) != null, 120)
 	var rig := CarInteriors.rig_of(car)
 	await _until(func() -> bool: return rig != null and not rig.busy(), 240)
 	var before := _lost_doors()

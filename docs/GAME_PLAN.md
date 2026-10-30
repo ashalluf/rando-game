@@ -297,7 +297,7 @@ already mapped so milestone 2 is script-only.
 
 - **2026-10-30 The player's car has a real cabin and doors that swing (HANDOFF "Car cabins").**
   The traced cabin stays for the city's ~300 cars; the car the player drives, the empty parked
-  cars he stands by (two at most, within 7.5 m) and any car that has lost a door get geometry:
+  cars he stands by (the nearest one, within 7.5 m) and any car that has lost a door get geometry:
   the front doors are cut out of the body model along the shut lines the Blender run grooved
   (a table of those lines per body, no Blender re-run, no new asset), a code-built cabin (dash,
   cluster, screen, wheel, seats, console, carpet, headliner, door cards, jambs) laid out by the

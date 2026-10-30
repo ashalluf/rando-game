@@ -17084,7 +17084,7 @@ framed from 30 m; closer framing would read better.
 
 Fleet wave 3 task `car-cabins` (branch `wt/car-cabins`, stills on `shots/car-cabins`). The traced
 cabin (CarCabin, car_cabin.gdshaderinc) stays for the city's ~300 cars. The car the player drives,
-up to two empty parked cars within 7.5 m of him on foot and any car that has lost a door get REAL
+the nearest empty parked car within 7.5 m of him on foot and any car that has lost a door get REAL
 geometry:
 
 - **Doors cut out of the body, no Blender re-run.** `CarDoorSplit` (scripts/vehicles/car_door_split.gd)
@@ -17155,7 +17155,9 @@ cabin glass (the player stands next to the car he left).
 
 **Cost** (car_shot GEO, one sedan, opengl3): chase 40 -> 54 draws, 184k -> 233k triangles; front
 three-quarter 39 -> 53, 172k -> 221k; at the driver's window 30 -> 44, 151k -> 188k. Only the
-player's car and at most two parked cars ever carry it; nothing in LOD chunks or the far city.
+player's car and at most one parked car ever carry it; nothing in LOD chunks or the far city. In the city
+(Flower at Olympic, 13:00, the same EYE, still_shot SPLIT): the Vehicle category 628k -> 682k
+triangles, 98 -> 158 draws with two parked rigs up (before `max_parked` became 1).
 City frame numbers in the still list on shots/car-cabins.
 
 **Not done / not verified.** Forward+ (the Mac) not seen: leather, the transparent glass and the

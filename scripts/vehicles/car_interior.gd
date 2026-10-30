@@ -193,6 +193,9 @@ func _shadows(_on: bool) -> void:
 ## Takes it all back off the car. A car that has lost a door is never handed back (CarInteriors
 ## keeps it), since the body it would go back to has the door.
 func remove() -> void:
+	if OS.get_environment("CABIN_DEBUG") != "":
+		print("CABIN remove %s (car valid %s)" % [name, car != null and is_instance_valid(car)])
+		print_stack()
 	if car != null and is_instance_valid(car):
 		if car.cabin_glass_override == _glass:
 			car.cabin_glass_override = null
