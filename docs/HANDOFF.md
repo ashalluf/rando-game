@@ -20724,7 +20724,7 @@ over the last quarter) of the camera, driven by per-rig data measured off the me
     the eye's centre: the nearest-point pick landed on the pink inner lid);
   - the face map: the face's own UV island (the largest connected piece of the head's front skin -
     the mouth's inside and stray head skin sit elsewhere in the atlas), rasterised into one 128 px
-    tile of `assets/textures/crowd/crowd_faces.png` (8 x 4 tiles, 1024 x 512, lossless, no mips,
+    tile of `assets/textures/crowd/crowd_faces.png` (8 x 4 tiles, 1024 x 512, VRAM-compressed like every texture,
     sampled at LOD 0; the body atlases are size-limited to 1024, so a face rect is ~240 texels) from the interpolated head-frame position: R blood (cheeks, nose, lips, ears, a touch of
     chin and brow), G cavity (tear troughs, inner corners, the lid crease, nose wings, mouth corners,
     the lip line, the brows' roots), B oil (forehead, bridge, chin), A 1.0 lips / 0.5 thin skin
@@ -20758,7 +20758,7 @@ over the last quarter) of the camera, driven by per-rig data measured off the me
     not a glow; cutting it greyed the older faces).
 - **Cost**: no triangles, no draws, no nodes, no CPU per person; ALU on the face and eye pixels of
   people within 11 m (a face is a few thousand pixels at 2 m). Downtown bookmark
-  (`--spawn=2359.4,880,0,12,2`, 13:00, opengl3, SPLIT=1): see the numbers below. One 2 MB
+  (`--spawn=2359.4,880,0,12,2`, 13:00, opengl3, SPLIT=1): see the numbers below. One 0.5 MB
   texture in memory (the face atlas, 0.35 MB on disk) and one more sampler in the character shader (6 with its includes; the
   web cap is 9).
 
@@ -20767,7 +20767,7 @@ Switches: `CROWD_FACES=0` (the A/B: the pass and the BACKLIGHT change off). Stil
 `NIGHT=1` a sodium lamp behind to one side, `STILL=blink,gx,gy` holds the face, `STREET=1` a
 pavement with people walking toward and away; `--rendering-driver vulkan` with lavapipe for
 Forward+, about a minute). Checks: `tests/crowd_faces_checks.gd` (the table covers MODELS, tiles,
-rects and eye maps sane and mirrored, the atlas lossless, the branch gated by face_reach, the seed
+rects and eye maps sane and mirrored, the atlas imported like every texture, the branch gated by face_reach, the seed
 from the scale, the blink's numbers mirrored by `CrowdFaces.blink()`, 12-25 blinks a minute and not
 in step, a prepared rig's look carries the pass, apply() touches only face uniforms, the A/B).
 

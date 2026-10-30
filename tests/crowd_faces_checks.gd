@@ -41,12 +41,12 @@ func run(t: Node, _city: Node3D) -> void:
 	_t._check(rows, "crowd-faces: CrowdFaceTable has a row for every Pedestrian.MODELS rig (rerun tools/crowd_faces/face_fit.gd after a rig changes)")
 	_t._check(tiles.size() == table.size() and table.size() <= table_s.COLS * table_s.ROWS, "crowd-faces: one face-atlas tile per rig, all inside the atlas")
 	_t._check(sane, "crowd-faces: face rects, eye centres, eye maps (mirrored across, invertible) and lid samples all in the atlas")
-	# the atlas: the size the table says, lossless (the zones are data, not a picture)
+	# the atlas: the size the table says, imported like every texture (texture_budget_checks)
 	var tex := load(faces.ATLAS) as Texture2D
 	_t._check(tex != null and tex.get_width() == table_s.TILE * table_s.COLS and tex.get_height() == table_s.TILE * table_s.ROWS,
 		"crowd-faces: crowd_faces.png is COLS x ROWS tiles of TILE")
 	var imp := FileAccess.get_file_as_string(faces.ATLAS + ".import")
-	_t._check(imp.contains("compress/mode=0") and imp.contains("detect_3d/compress_to=0"), "crowd-faces: the face atlas is imported lossless and never VRAM-compressed")
+	_t._check(imp.contains("compress/mode=2") and imp.contains("mipmaps/generate=true") and imp.contains("detect_3d/compress_to=0"), "crowd-faces: the face atlas is imported VRAM-compressed with mipmaps, like every texture")
 	# the shader: the pass is one branch, inside face_reach of the camera; per-person timing from the
 	# instance's scale; the blink's numbers are CrowdFaces'
 	var src := FileAccess.get_file_as_string("res://shaders/character.gdshader")
