@@ -13,6 +13,7 @@ render_mode cull_disabled;
 // which draws the same cabin.
 
 #include "res://shaders/car_cabin.gdshaderinc"
+#include "res://shaders/car_glass_wet.gdshaderinc"
 
 // The model's own glass material.
 uniform vec3 glass_albedo : source_color = vec3(0.14, 0.155, 0.175);
@@ -35,9 +36,25 @@ void fragment() {
 	vec3 n = normalize(ln);
 	vec3 to = lp - cam_local;
 	float dist = length(to);
-	EMISSION = glass_view(lp, to / max(dist, 1e-5), n, find_pane(lp, n), dist);
-	ALBEDO = glass_albedo;
-	ROUGHNESS = glass_roughness;
+	int pane = find_pane(lp, n);
+	vec3 emission = glass_view(lp, to / max(dist, 1e-5), n, pane, dist);
+	vec3 albedo = glass_albedo;
+	float rough = glass_roughness;
+	if (ws_on()) {
+		// Rain on the glass (car_glass_wet.gdshaderinc): beads, runs, the wipers' arcs.
+		float ms = length(MODEL_MATRIX[0].xyz);
+		float px = max(length(fwidth(lp)) * ms, 1e-5);
+		bool screen = pane >= 0 && pane_hi[pane].w > 0.5 && pane_hi[pane].w < 1.5;
+		vec3 slope = glass_wet(lp, n, screen, ms, px, TIME, albedo, rough, emission);
+		vec3 sv = (VIEW_MATRIX * (MODEL_MATRIX * vec4(slope, 0.0))).xyz;
+		float sl = length(slope);
+		if (sl > 1e-4) {
+			NORMAL = normalize(NORMAL + normalize(sv) * min(sl, 1.2) * 0.6);
+		}
+	}
+	EMISSION = emission;
+	ALBEDO = albedo;
+	ROUGHNESS = rough;
 	METALLIC = glass_metallic;
 	SPECULAR = 0.5;
 }

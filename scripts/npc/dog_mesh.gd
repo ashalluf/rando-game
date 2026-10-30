@@ -154,7 +154,10 @@ static var _joints: Dictionary = {}
 
 
 static func breed(name: String) -> Dictionary:
-	return BREEDS.get(name, BREEDS.labrador)
+	if BREEDS.has(name):
+		return BREEDS[name]
+	# The urban wildlife is built from its own proportions on the same body (WildSpecies).
+	return WildSpecies.SPECIES.get(name, BREEDS.labrador)
 
 
 ## A breed rolled from a 0..1 number (the crowd's pavement mix).
@@ -1035,7 +1038,7 @@ class Builder:
 					bw.append([B_TAIL[k0 + 1], smoothstep(0.6, 1.0, f) * 0.5])
 				if t < 0.1:
 					bw.append([B_PELVIS, (0.1 - t) * 6.0])
-				var fur := coat_len("tail") * (lerpf(0.75, 1.15, sin(t * PI)) if kind in ["plume", "sickle"] else lerpf(1.0, 0.7, t))
+				var fur := coat_len("tail") * (lerpf(0.75, 1.15, sin(t * PI)) if kind in ["plume", "sickle", "brush"] else lerpf(1.0, 0.7, t))
 				add(p, out, uv, Vector2(t * tl, th * rad), Vector3(0, 0, 1), PART_FUR, fur, 1.0 - 0.2 * maxf(-cos(th), 0.0), bw)
 		grid(base, rings + 1, around)
 		var last := base + rings * (around + 1)

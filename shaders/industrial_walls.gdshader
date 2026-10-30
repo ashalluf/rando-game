@@ -260,7 +260,7 @@ void fragment() {
 				vec2 pf = fract(pane);
 				float bar = max(step(pf.x, 0.06) + step(0.94, pf.x), step(pf.y, 0.06) + step(0.94, pf.y));
 				float pid = hash12(floor(pane) + vec2(floor(uv.x / bay), fl) * 7.0 + seedv * 50.0);
-				vec3 glass = vec3(0.10, 0.12, 0.11) + disp(sky_tint.rgb) * 0.12 * (0.6 + 0.4 * wq.y);
+				vec3 glass = vec3(0.10, 0.12, 0.11) + sky_tint.rgb * 0.12 * (0.6 + 0.4 * wq.y);
 				if (pid < 0.08) {
 					glass = vec3(0.72, 0.72, 0.68);
 				} else if (pid < 0.12) {
@@ -338,7 +338,7 @@ void fragment() {
 		float pitch = max(param, 0.5);
 		float mull = max(lines(uv.x, pitch, 0.07), band(uv.y, h * 0.62, 0.035));
 		float fres = pow(1.0 - clamp(dot(normalize(VIEW), NORMAL), 0.0, 1.0), 3.0);
-		vec3 mirror = disp(sky_tint.rgb) * (0.25 + 0.7 * fres) * (0.85 + 0.3 * vnoise(vec2(uv.x / pitch, 0.5) * 3.0));
+		vec3 mirror = sky_tint.rgb * (0.25 + 0.7 * fres) * (0.85 + 0.3 * vnoise(vec2(uv.x / pitch, 0.5) * 3.0));
 		albedo = mix(paint * 0.35, vec3(0.16, 0.17, 0.18), mull);
 		emit += mirror * 0.55 * (1.0 - mull) * (1.0 - night_factor * 0.7);
 		float lit = step(0.35, hash12(vec2(floor(uv.x / pitch), floor(uv.y / (h * 0.62)) + seedv * 9.0))) * lamp_factor;

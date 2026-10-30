@@ -295,6 +295,83 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-30 The mid distance is planted and parked from the capture, never placed (HANDOFF "The
+  mid distance").** The far tiers' yard trees come from the LOD block build's own capture (green
+  ground, building footprints) on hashes of the seed and the place, and the far streets' cars are
+  painted per pixel - the moving ones the night lights' own cells - so nothing a seed builds
+  moves and the far city costs no new draws. House roofs out there are the house's own clay tint
+  or shingle, flagged so the far shader draws them as roofs, not as towers' membranes.
+- **2026-10-30 The night has its own street life (fleet wave 3, `nightlife`).** After 21:00 a share
+  of the open restaurants and tower lobbies downtown, in midtown and the beach town are clubs and
+  bars with a line along the wall behind a velvet rope, a bouncer and a lit entrance; the door
+  lets the line in one at a time and some come back out to a taxi or ride-hail car double-parked on
+  its hazards (TrafficManager's own `dp_at`). A Broadway palace has a premiere on some nights (red
+  carpet, fans behind barriers, four searchlights sweeping the sky), a club its opening (two). All
+  hashes after every existing roll; nothing takes the kerb or a prop id. NIGHTLIFE=0 the A/B.
+- **2026-10-30 The player's car has a real cabin and doors that swing (HANDOFF "Car cabins").**
+  The traced cabin stays for the city's ~300 cars; the car the player drives, the empty parked
+  cars he stands by (the nearest one, within 7.5 m) and any car that has lost a door get geometry:
+  the front doors are cut out of the body model along the shut lines the Blender run grooved
+  (a table of those lines per body, no Blender re-run, no new asset), a code-built cabin (dash,
+  cluster, screen, wheel, seats, console, carpet, headliner, door cards, jambs) laid out by the
+  numbers CarCabin already measures, see-through glass with the people still traced on it. Doors
+  swing when he gets in or out on the side he is on and come off in a hard crash or blast. Only
+  the front doors; only the everyday bodies (sedan, taxi, crossover, pickup, van, hatchback, SUV,
+  minivan, beater); the exotics, police and big vehicles keep the traced cabin.
+
+- **2026-10-30 The oil islands in the bay are a data table, not seeded (HANDOFF "The oil
+  islands").** Three decorated drilling islands 600-700 m off the Long Beach sand, each a landmark
+  built near and far from one builder on one shader; details are hashes of the island, so no seed
+  or rng moves anything else. Like the piers they stand where the table says on every seed.
+- 2026-10-30 (fleet wave 3, `sky-ads`): aerial advertising. The blimp and the banner planes are
+  AmbientCraft on AirRoutes (AirTraffic's model: placed on a route, never simulated; take_hit,
+  smoke, crash, wreck for free), built in code at real size on one shader. The blimp flies one
+  loop - a circle over the ballpark, one over the beach - day and night, its LED sign the night
+  look; banners only by day. The banner hangs off the ROUTE behind the plane, not off the plane,
+  so it follows a turn. Brand and banners are invented (the city's own billboard campaigns).
+- **2026-10-30 Film shoots on location (VISUAL_ROADMAP, film-shoot).** A shoot is a STREET like
+  the farmers' market: one local street per 2.3 km cell by hash, closed every day through
+  CityPlan.road_open() (closures are plan data traffic and the map cache), never a market's street,
+  and the market's decision never looks at a shoot so the answer is the same whichever is asked
+  first. Always set up (the city is always filming); day and night differ only by the lamps. The
+  trucks are the box truck's far body; everything else is code-built on one shader. Names are
+  invented tables. Hashes of seed + cell / site only. `FILM_SHOOT=0` is the A/B.
+- **2026-10-30 The Coral Line's underground terminus is a real station (HANDOFF "The Coral
+  Line's underground station").** The two kiosks in Flower's median now lead down a stair and an
+  escalator each to a concourse (ticket machines, fare gates) and a bank to an island platform
+  where the trains stand. Decisions: built in code in the station's own frame from the line alone
+  (no roll); the fixtures' light is worked out in the shader and emitted, because the sky's
+  ambient and the sun would otherwise light a hole 13 m under the street; the island is 7 m (the
+  street stations' 3 m cannot take escalators), so LightRail spreads the tracks wider there only
+  while the station is on; the city's ground box is passed through by a collision exception (the
+  lake's rule), not cut; the trains in the tunnel are drawn only while the player is down there.
+- **2026-10-30 Life in the water is worked out from the clock, never simulated (HANDOFF "Life in
+  the water").** Dolphins, pelicans, the buoys' sea lions and a rare grey whale are pure functions
+  of `SeaLife.clock` and hashes of seed + kind + time window + 600 m coast stretch, so any moment
+  can be drawn without the one before, stills and checks just move the clock, and no other roll in
+  the city moves. Code-built meshes at real size, one MultiMesh per kind and level, motion in the
+  vertex shader; `SEA_LIFE=0` is the A/B.
+
+- **2026-10-30 A stunt playground hidden in the real city (HANDOFF "Stunt ramps").** Kickers on
+  car park roofs, quarter-pipes in the river channel, a freeway ramp pair and loops on the industrial
+  right of way, a pier kicker and dirt jumps in vacant lots, each where a stunt crew would put it and
+  never on a traffic lane, every site a hash after every existing roll. Slow motion on a big launch
+  uses Engine.time_scale on the real clock, as the weapon wheel does, and yields to any other owner.
+- **2026-10-30 The hills' rock is real rock, and the ranges get crags on the skyline (fleet wave 3,
+  wt/rock-outcrops).** The lead's review of the reference stills: from the city and the freeway the
+  mountains read as smooth tan humps and cones. Photoscanned CC0 cliffs and boulders now stand where
+  the terrain paints rock - on the crests, the steepest faces and, stood up into 30-80 m spires and
+  fins, on the summits - at every distance (one node draws them all; a far rock is seated on the
+  horizon plane's drawn ground), with outcrops, scree and cut-bank boulders up close. Scans keep
+  one level: their generated LODs shred along the open UV seams, so the distance gets welded
+  copies. docs/HANDOFF.md "Rock outcrops"; `ROCKS=0` is the A/B.
+- **2026-10-30 Dry creek beds down the canyon floors (HANDOFF 9gv, arroyos).** Every major gully of
+  the ranges carries a wash: the land's own drainage (a priority-flooded D8 network over the
+  natural mountains, `Arroyos`), snapped into the real gully floor, drawn on a FULL or LOD hill tile
+  as a sandy, gravelly, cobbled bed (`shaders/arroyo_bed.gdshader`), with cobbles, boulders,
+  willow and mule-fat thickets and sycamores along it at FULL, and a concrete headwall and
+  corrugated pipe where a drawn hill road crosses it. Hashes only; the hills' planting only skips
+  the bed. `ARROYOS=0` is the A/B.
 - **2026-10-29 Facades are worked out per pane, not per building (owner: "start looking like GTA
   6").** Glass varies pane by pane and floor by floor, blinds hang at their own heights, the glass
   mirrors a street opposite with parallax, curtain walls come in three systems (flush, deep fins,
@@ -309,6 +386,19 @@ already mapped so milestone 2 is script-only.
   right of way (corridor lots only); boulevard stairs run along the back of the pavement; built in
   code into one mesh and one material a bridge; planting under a bridge is collapsed after its
   rolls, so nothing else on a seed moves.
+- **2026-10-30 Beach bonfire rings at night (HANDOFF "Beach bonfire rings").** Concrete fire
+  rings in a row along the beach above the tide line (hashes per 24 m of shore, nothing else on
+  the beach moves; the sunbathers keep clear of them), empty by day, about six in ten lit after
+  dusk (none in rain, a storm or a Santa Ana) with CarDamage's flames, embers, wood smoke, a pool
+  of firelight and a budgeted flickering light, and 2-6 people in street clothes round each (the
+  beach's baked figures, clothed). LOD chunks lay the pools so the coast reads as a row of fires
+  from the air. `BONFIRES=0` is the A/B.
+- **2026-10-30 Drivable boats (HANDOFF "Boats").** A speedboat and a jet ski at the marina, entered
+  like a car. Decisions: a Boat IS a Vehicle with no wheels (the enter / exit contract, the pools,
+  EngineAudio, the car's jump and flight all come free); it floats on the water that is drawn
+  (SwimWater / SeaSurface, the swimmer's mirror of the ocean shader) with impulses at six hull
+  points, never by writing velocities; its own simple damage, not CarDamage (no glass, no cabin);
+  the hero drawn seated (a boat is open), posed in code like the swim strokes. Invented names.
 
 - **2026-10-29 The harbour's lights (HANDOFF "The harbour's lights").** A lighthouse on the
   headland's south-east cliff and a breakwater light at the end of a long rubble breakwater off the
@@ -347,6 +437,30 @@ already mapped so milestone 2 is script-only.
   Wave 3: shooting the shelves knocks the stock off (thrown packs, drink spray; the interior shows
   from 70 m while it is shot up; `STORE_MAYHEM=0`), and the side wall carries a painted mural of
   the goods (pictures only).
+- **2026-10-30 Street performers (HANDOFF "Street performers").** A guitarist with his case
+  open, a bucket drummer, a breakdancer with a ring of watchers, a silver living statue and a
+  mariachi trio on the busy pavements (downtown, the arena, across from MacArthur Park, the beach
+  town) and on the plazas. Decisions: placement is a pure plan (hashes of seed + block + face +
+  the hour), run as a FULL chunk step after the street vendors, so nothing the seed builds moves;
+  the performers are crowd rigs on top of crowd life (StreetVendor's work-flee-return pattern)
+  playing over UAL clips retargeted like the life clips (`tools/crowd/busk_clips.gd`), with the
+  instrument playing laid on by per-frame two-bone arm solves rather than new clips; the gear is
+  code-built at real size on one shader, one batch per kind a chunk; passers-by stop at the vendor
+  queue spots; no audio (no CC0 recording reachable); `BUSKERS=0` the A/B.
+- **2026-10-30 The beach gets its public amenities (HANDOFF "Beach amenities").** Restroom
+  blocks, a concession and rental stand, outdoor gym pens, showers, bike racks, rows of volleyball
+  poles and painted drums. Decisions: built in code at real size on one shader (one batch per kind a
+  chunk), placed by hashes of world shore cells so any chunk plans the same beach, buildings and
+  showers on the bike path's seaward side, the gym and poles mid-beach off BeachLife's court, drums
+  in bands; BeachLife's sunbathers keep clear (they are handed as obstacles); `BEACH_AMENITIES=0`
+  the A/B.
+- **2026-10-29 Crowd foot placement (G5; HANDOFF "Crowd foot placement").** Near the camera
+  (fading out from 20 to 30 m) every walker and stander plants its feet on what is really under
+  them - a kerb, a stair tread, a slope, a hill path - instead of the flat plane the clips were made
+  on: two rays a foot, the hips down by the lower foot, the legs re-solved in their own knee plane,
+  feet tilted to a slope. Stairs whose collision is a walkable ramp (the player cannot climb
+  risers) get their real treads on a new feet-only physics layer 6 that nothing pairs with. The
+  hero keeps his own planted-foot IK (HeroMotion) and reads the same layer. `FOOT_IK=0` is the A/B.
 - **2026-10-05 Onlookers: the crowd comes back after the chaos (HANDOFF "Onlookers").** After
   the panic near a wreck, a blast or a body, people near the camera come back and stand round it
   in a loose ring: filming on their phones (held up at eye level, the screen lit, a video light
@@ -1671,6 +1785,12 @@ already mapped so milestone 2 is script-only.
   hooks, so its windows, shops, damage and coded far boxes are unchanged) with the ornament as
   real geometry on its window grid; the old 150 ft limit holds. docs/HANDOFF.md "The historic
   core"; CLAUDE.md "Historic core".
+- **2026-10-30 Weekend yard sales.** A hash of seed + lot picks the suburban and beach-town
+  houses that hold a yard sale on a Saturday, a Sunday or both, with hours; the chunk builds what
+  is out at the hour and day it is built at, on YardFill's plan of the front yard (one row of
+  tables and things, the browsers in front of it, on the pavement where the yard is shallow).
+  Hand-lettered signs come from SignFont's strokes with a wobble per glyph. FULL chunks only;
+  `YARD_SALES=0` is the A/B (docs/HANDOFF.md "Weekend yard sales").
 - **2026-10-30 An island on the horizon, drawn by the sky.** Isla Calandra (original; the form of
   the Channel Islands) stands 36 km offshore, three times past the 12 km far plane, so it is not
   a mesh: sky.gdshader follows each pixel's ray across a height field in true-world kilometres
@@ -1716,6 +1836,13 @@ already mapped so milestone 2 is script-only.
   parked cars skip the stretch after their rolls. Diners sit on the crowd's life clips by the hour
   the chunk is built at; a waiter walks between the door and the tables. FULL chunks only.
   docs/HANDOFF.md "Outdoor dining parklets"; CLAUDE.md "Parklets".
+- **2026-10-30 Hotels and busy restaurants run valet stands with TrafficManager's own cars.**
+  A podium, key box, sign and umbrella at the kerb before a hotel lobby or restaurant (hashes of
+  the building / shop / block), valets in uniform, cars called in from the street traffic or
+  placed from its pool upstream, driven to the drop-off by TrafficManager as a stop (hazards on,
+  queueing behind each other), driven off as ordinary traffic and brought back later. On the
+  block's -x / -z faces (the neighbour chunk's parking lane) they double-park rather than reach
+  into another chunk's parked cars. docs/HANDOFF.md "Valet stands"; CLAUDE.md "Valet stands".
 - **2026-10-05 The player flies helicopters (an arcade model, not a simulator).** The air
   traffic's model on a real body (`FlyableHeli`, a wheel-less Vehicle): jump / boost the
   collective with an altitude hold hands off, the move axes the cyclic (it goes the way it leans,
@@ -1741,6 +1868,47 @@ already mapped so milestone 2 is script-only.
   forecourt of handprint slabs, costumed characters in ORIGINAL costumes (never a copyrighted
   character) and sightseeing buses. Everything after the existing rolls; STAR_BOULEVARD=0 the
   A/B. docs/HANDOFF.md "The walk of fame"; CLAUDE.md "Walk of fame".
+- **2026-10-30 Urban wildlife lives where it does in LA, and only runs.** Coyotes cross the hill
+  roads and the suburbs' streets at dusk and night (far more at the edge of the hills), mule deer
+  graze the hills at dawn, squirrels the parks and lawns by day, rabbits the hill grass, raccoons the
+  kerb carts at night - planned per cell and half hour from hashes, round the player like the birds.
+  They are built on the dogs' body (DogMesh / DogRig: fur shells, procedural gait) at real size.
+  Shot, hit or startled they bolt and are gone: no blood, no ragdoll, no crime - no gore on animals,
+  as with the dogs. docs/HANDOFF.md "Urban wildlife"; CLAUDE.md "Urban wildlife".
+- **2026-10-30 Fireworks over the beach and the ballpark on some nights, worked out on the GPU.**
+  A show is a programme, not a simulation: a hash of (show seed, 0.4 s bin) says whether a bin
+  launches a shell and what it is (peony, willow, crossette, strobe, ring; colours, height, size),
+  looping an act with a finale, and the vertex shader draws every star, rising shell and smoke puff
+  from one clock (`shaders/fireworks.gdshaderinc`, mirrored bit for bit by `Fireworks.shell()`):
+  no particles, the same on Compatibility, ~5 draws while a show runs and none otherwise. The CPU
+  only does what the GPU cannot: booms heard distance / 343 m/s after the break, the show's
+  coloured light (one OmniLight3D a site, off the web), the brightest breaks handed to the
+  water's glints. Nights are a hash of (seed, night, site) - beach 22 %, ballpark 30 %, 20:45 to
+  23:15, none in rain; `FIREWORKS=1` forces them. docs/HANDOFF.md "Fireworks"; CLAUDE.md
+  "Fireworks".
+
+- **2026-10-30 The player's car has a radio: four invented stations of CC0 / public-domain
+  music.** VELVET HOUR 88.3 (classical), PALM STATIC 97.1 (lo-fi), NEON FREEWAY 104.5 (synth) and
+  TIKI SUNSET 92.7 (lounge), three tracks each (cut to 110 s, levelled to -17 LUFS, 48 kbit/s at
+  32 kHz: 7 MB in all) and an original synthesised ident, no DJ voice (no CC0 voice set worth
+  shipping was reachable; the brief allowed none). Decisions: stations are always on air (each
+  loop has its own clock started at a hash, so tuning lands mid-song, GTA-style); a car's station
+  is a hash of the car, cruisers and emergency units come on off; the pick stays with the car;
+  Q / pad d-pad and the mouse wheel tune while driving (the wheel switches no gun in a car); the
+  music plays on a Radio bus (car-speaker band) sending to Game, so slow motion and blasts
+  muffle it like everything else; the card is the HUD's smoked glass at the top centre. Track
+  titles and artists in game are invented; the real sources are credited in docs/ASSETS.md.
+  `CAR_RADIO=0` is the A/B. docs/HANDOFF.md "The car radio"; CLAUDE.md "Car radio".
+- **2026-10-30 Bodies fall like people: a jointed ragdoll near the camera, one body once still.**
+  A knocked-down person within 70 m of the camera is eleven rigid bodies (pelvis, chest, head,
+  upper arms, forearms, thighs, shins) sized from the rig's own bones, joined by cone-twist joints
+  (spine, neck, shoulders, hips) and one-way hinges (elbows, knees), and a SkeletonModifier3D poses
+  the skeleton from them. Decisions: our own bodies and joints rather than PhysicalBone3D (the rigs
+  sit under a 0.01 armature, which physics bodies do not take); at most six jointed at once (the
+  oldest freezes for a new one; three on the web); once still, after 8 s, or left behind, the doll
+  FREEZES into the old single body - one compound rigid body holding the pose it fell in - so
+  everything reading `Ragdoll.bodies[0]` keeps working and a settled body costs what it did.
+  `RAGDOLLS=0` is the A/B. docs/HANDOFF.md "Jointed ragdolls"; CLAUDE.md "Jointed ragdolls".
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
@@ -3285,6 +3453,38 @@ already mapped so milestone 2 is script-only.
   appended to Pedestrian.MODELS so no earlier index or roll moves); b, c, f and g stay in their
   library clothes (the task: do not rebuild existing rigs). A dress is one "keep" cloth: no look
   recolours it into a two-tone outfit.
+- **2026-10-30 Settings are multipliers on the tuned knobs, saved on the player's machine.** The
+  pause menu's SETTINGS screen (GameSettings) scales the camera rig's look speeds, Quality's render
+  scale and the HUD's window scale rather than replacing them, so tuning an export still moves the
+  game; every default is the game as it was (an empty file changes nothing). Saved to
+  user://settings.cfg with ConfigFile when the screen is left; the smoke test never reads it.
+
+- **2026-10-30 The skate park replaces the boardwalk's box park, on the berm.** THE PIT (invented
+  name) stands where LandmarkVeniceBoardwalk always put its skate park, as a code-built poured
+  platform: the sand cannot be dug (a beach is a thin mesh over the GroundBody), so the pits are cut
+  down through a high deck, as before. New: the pad is lifted onto the highest sand under it - the
+  berm crest runs right there, 1.3 m up, and had buried the old bowl's floor. Skaters ride lines
+  worked out once against the same surface function the concrete is built from and played from a
+  clock (nothing simulated); they and the spectators are baked figures that wake into live people.
+  SKATE_PARK=0 keeps the boxes.
+- **2026-10-30 The third wave of car bodies is derived, not drawn from scratch.** The EV hatch,
+  luxury sedan, compact SUV, work truck and coupe (tools/make_cars_3.py) are the older lofted
+  specs moved by station maps (cab-forward, a long bonnet, a cut overhang plus a uniform scale,
+  a lowered glasshouse) with their own faces, tails and parts, because the loft is fussy and a
+  derived one is known to build; their silhouettes still differ where a street reads them. Their
+  shares (165 per thousand) come out of the END of six older ranges, the sedan's, pickup's,
+  van's, sports car's, crossover's and the hatchback's, and `CARS_3=0` hands each slice back.
+
+- **2026-10-30 Forward+ review of the wave-3 features (fwd-review-d, HANDOFF "Forward+ review d").**
+  Decisions: anything the sky draws after the Forward+ cloud volume's composite is in front of it
+  (the island); renderer-space shaders take `sky_tint` through `cs_as_uniform()`; vertex colours are
+  decoded with `cs_srgb_to_linear()`, never `cs_in()`; a test scans every shader for these.
+- **2026-10-30 The wet world is shader-only, driven by the road's globals.** Rain on cars, walls,
+  roofs, awnings and people reads `road_wetness` / `road_drying` / `rain_intensity` through one
+  include (wet_surface.gdshaderinc) with no textures and one branch when dry, so it dries in step
+  with the street and costs the web nothing. Wipers are one shared mesh per body type turned in the
+  vertex shader, with four shared phase buckets (no per-car uniform); the glass clears its beads by
+  the same angle worked out from TIME.
 
 - **2026-10-30 The web download stays small by leaving out what nothing loads, not by shrinking
   what the desktop draws.** The Web preset's exclude_filter now also drops the old scans the kits
@@ -3342,3 +3542,10 @@ pink-and-orange cloud sky; palms lit from below; dense crowds and headlights. Th
 signage as a light source*, *wet road reflections*, and *sky with cloud STRUCTURE at sunset* -
 this project has shaders/neon_sign.gdshader and a `road_wetness` global already and uses almost
 none of either.
+- **2026-10-30 The far ranges are crest lines, and the far ground reaches the far plane
+  (HANDOFF "The far ranges").** The back and east ranges' bases are a front face (the old one, so
+  their feet and the city's edge do not move), a wandering crest with a few big massings and a
+  long fall behind; canyons are wider apart and only saddle the crest. The front range keeps its
+  shape (it carries the landmarks). The horizon plane stays 14 km, with a coarser ring on the same
+  material out to 12.6 km, because its rim was erasing the crests 5-7 km away; past the bake the
+  map is mirrored. FAR_RANGES=0 is the old world exactly.

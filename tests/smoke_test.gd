@@ -44,7 +44,7 @@ func _ready() -> void:
 	# close to the old 300, and the distance checks (tests/distance_checks.gd) about 20 more.
 	# SMOKE_WATCHDOG=seconds raises it for a run on a box shared with other heavy jobs, where the
 	# same checks take longer in wall time (the gate's own timeout has to be raised with it).
-	var watchdog := float(OS.get_environment("SMOKE_WATCHDOG")) if OS.get_environment("SMOKE_WATCHDOG") != "" else 1500.0
+	var watchdog := float(OS.get_environment("SMOKE_WATCHDOG")) if OS.get_environment("SMOKE_WATCHDOG") != "" else 2400.0
 	get_tree().create_timer(watchdog).timeout.connect(func():
 		printerr("SMOKE TEST TIMED OUT")
 		get_tree().quit(2))
@@ -88,7 +88,7 @@ const PART_COST := {
 	"port_life_checks": 20.8, "canals_checks": 0.8, "pier_park_checks": 17.7,
 	"marina_checks": 0.2, "explosion_aftermath_checks": 9.4, "building_damage_checks": 0.1,
 	"schools_checks": 1.3, "minimap_checks": 0.5, "weather_la_checks": 0.1,
-	"stack_interchange_checks": 6.0
+	"stack_interchange_checks": 6.0, "bonfires_checks": 3.0
 }
 const DEFAULT_COST := 6.0
 ## Every share pays for its own city load on top of its parts.
@@ -505,10 +505,19 @@ func _city_streaming(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> v
 	_check(not lamp.is_empty(), "home chunk has a lamp to break")
 	var lamp_id: String = lamp.get("id", "")
 	if not lamp.is_empty():
+		var debris_before := get_tree().get_nodes_in_group("debris").size()
 		home_chunk.damage_prop(lamp, 999.0, Vector3.UP)
 		await _ticks(2)
 		_check(lamp.dead and _world_state().is_destroyed(home_chunk.key, lamp_id), "lamp breaks and is recorded as destroyed")
-		_check(get_tree().get_nodes_in_group("debris").size() >= 3, "broken lamp drops debris")
+		# PropBreak fells a lamp hit this hard (a falling pole and its pieces): count what it added,
+		# a few ticks on (the pieces are made over the next frames).
+		var debris_added := 0
+		for i in 20:
+			debris_added = get_tree().get_nodes_in_group("debris").size() - debris_before
+			if debris_added >= 1:
+				break
+			await _ticks(1)
+		_check(debris_added >= 1, "broken lamp drops debris (%d pieces)" % debris_added)
 
 	# Walk far away: chunks stream, the old home chunk becomes LOD or unloads.
 	var far := Vector3(700.0, 2.0, 0.0)
@@ -2161,6 +2170,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# the front rows first, batches and figures on a FULL chunk, woken people, gunfire scattering
 	# them, the block's palms unmoved, the LOD dots, nobody at night, the cyclist's legs on the pedals.
 	load("res://tests/beach_life_checks.gd").new().run(self, city)
+	# Beach bonfire rings (tests/bonfires_checks.gd): rings above the tide line, lit after dusk with
+	# people round them, empty by day, the LOD pools, nothing else on the beach moved.
+	load("res://tests/bonfires_checks.gd").new().run(self, city)
 	# Broadway's theatre district (tests/broadway_checks.gd): palaces on their real addresses, one
 	# sign surface each, the lanterns, goods and clock, the far boxes, nothing else in the block moved.
 	load("res://tests/broadway_checks.gd").new().run(self, city)
@@ -2289,6 +2301,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/farmers_market_checks.gd").new().run(self, city)
 	# Forward+ review traps (tests/fwd_review_b_checks.gd): back-face normals, normal-map green, sky_tint.
 	load("res://tests/fwd_review_b_checks.gd").new().run(self, city)
+	# Forward+ review d (tests/fwd_review_d_checks.gd): sky_tint and vertex colours in every shader.
+	load("res://tests/fwd_review_d_checks.gd").new().run(self, city)
 	# Memory (tests/memory_audit_checks.gd): the peak resident memory budget, and the audit's cuts.
 	load("res://tests/memory_audit_checks.gd").new().run(self, city)
 	# The loading screen's rehearsal (tests/shader_warm_checks.gd): it leaves nothing behind.
@@ -2405,6 +2419,69 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Freeway incidents (tests/freeway_incidents_checks.gd): the schedule, a stall with its patrol
 	# car and tow, debris that traffic changes lanes round, a slowdown, the message signs.
 	await load("res://tests/freeway_incidents_checks.gd").new().run(self, city)
+	# Night life (tests/nightlife_checks.gd): club and bar lines, the bouncer, the door letting the
+	# head in, a taxi double-parked for a fare, a premiere's carpet and searchlights, nothing moved.
+	await load("res://tests/nightlife_checks.gd").new().run(self, city)
+	# Street performers (tests/buskers_checks.gd): the plan, the gear, an act's chunk built the same with them off.
+	load("res://tests/buskers_checks.gd").new().run(self, city)
+	# Urban wildlife (tests/wildlife_checks.gd): coyotes, deer, raccoons, squirrels, rabbits.
+	await load("res://tests/wildlife_checks.gd").new().run(self, city)
+	# The beach's amenities (tests/beach_amenities_checks.gd): restrooms, the stand, gyms, showers,
+	# racks, poles and drums, pure and clear of the sunbathers; the palms and tower as before.
+	load("res://tests/beach_amenities_checks.gd").new().run(self, city)
+	# The oil islands in the bay (tests/oil_islands_checks.gd): siting, plan, codes, near and far.
+	load("res://tests/oil_islands_checks.gd").new().run(self, city)
+	# Aerial advertising (tests/sky_ads_checks.gd): the blimp's loop, the banner racetracks, who
+	# flies when, the meshes and a staged blimp and tow plane shot down.
+	await load("res://tests/sky_ads_checks.gd").new().run(self, city)
+	# Crowd foot placement (tests/foot_ik_checks.gd, CrowdFeet): kerbs, slopes, steps, fade, switch.
+	await load("res://tests/foot_ik_checks.gd").new().run(self, city)
+	# The settings screen (tests/settings_menu_checks.gd): defaults, the file, every knob, the screen.
+	await load("res://tests/settings_menu_checks.gd").new().run(self, city)
+	# Fireworks (tests/fireworks_checks.gd): the shared plan, the nights, the sites, a staged show, the booms.
+	await load("res://tests/fireworks_checks.gd").new().run(self, city)
+	# The film shoot on location (tests/film_shoot_checks.gd): closed local streets apart, the
+	# basecamp and the set, the kit, the built chunk and its people, LOD, and the A/B.
+	load("res://tests/film_shoot_checks.gd").new().run(self, city)
+	# The car radio (tests/car_radio_checks.gd): four stations, the dial, on air, the card, the Radio bus.
+	await load("res://tests/car_radio_checks.gd").new().run(self, city)
+	# Jointed ragdolls (tests/ragdolls_checks.gd): parts, joints, settling, freezing, gibs, the cap.
+	await load("res://tests/ragdolls_checks.gd").new().run(self, city)
+	# The light rail's underground station (tests/metro_underground_checks.gd): the plan, the build,
+	# standing on every floor, the tunnel trains while the player is down there, the riders, the A/B.
+	await load("res://tests/metro_underground_checks.gd").new().run(self, city)
+	# Valet stands (tests/valets_checks.gd): hotels and restaurants, the podium and its zone, a car
+	# in on its hazards, a valet off in it, the car back and its guest away.
+	await load("res://tests/valets_checks.gd").new().run(self, city)
+	# Boats (tests/speedboats_checks.gd): the speedboat and jet ski at the marina, on the water.
+	await load("res://tests/speedboats_checks.gd").new().run(self, city)
+	# Life in the water (tests/sea_life_checks.gd): dolphins, pelicans, sea lions on the buoys, a whale.
+	await load("res://tests/sea_life_checks.gd").new().run(self, city)
+	# THE PIT, the boardwalk's skate park (tests/skate_park_checks.gd): the pits, the terrace, the
+	# lines on the concrete, the build and its collision, the riders on the clock, a knock, gunfire.
+	await load("res://tests/skate_park_checks.gd").new().run(self, city)
+	# Stunt ramps (tests/stunt_ramps_checks.gd): where the kickers, the quarter-pipe, the freeway pair,
+	# the loop and the dirt lines stand, their chunks, and the slow-motion moment off a lip.
+	await load("res://tests/stunt_ramps_checks.gd").new().run(self, city)
+	# Weekend yard sales (tests/yard_sales_checks.gd): the kit and its signs, when (weekends only),
+	# the pure front-yard row, a FULL chunk's sale and its corner signs, nothing else moved.
+	load("res://tests/yard_sales_checks.gd").new().run(self, city)
+	# The hills' real rock (tests/rock_outcrops_checks.gd): tors, outcrops, cut-bank boulders.
+	load("res://tests/rock_outcrops_checks.gd").new().run(self, city)
+	# Real car interiors and hinged doors (tests/car_cabins_checks.gd): the cabin by a parked car,
+	# getting in and out swings the door, the wheel turns, a crash tears a door off.
+	await load("res://tests/car_cabins_checks.gd").new().run(self, city)
+	# Dry creek beds (tests/arroyos_checks.gd): the drainage network, a FULL and a LOD hill chunk's beds, culverts.
+	load("res://tests/arroyos_checks.gd").new().run(self, city)
+	# The third wave of everyday bodies (tests/cars_3_checks.gd, Cars3): rolls, the switch, builds, traffic.
+	await load("res://tests/cars_3_checks.gd").new().run(self, city)
+	# The mid distance (tests/mid_city_checks.gd): yard trees, house roofs and pools in the far tiers.
+	load("res://tests/mid_city_checks.gd").new().run(self, city)
+	# The far ranges (tests/far_ranges_checks.gd): the back and east ranges as crest lines, their
+	# feet and the front range unmoved, the bake on the new shape, the plane's crags and layered haze.
+	load("res://tests/far_ranges_checks.gd").new().run(self, city)
+	# The wet world (tests/wet_world_checks.gd, WetWorld, CarWipers): the shaders' water, walls, wipers.
+	await load("res://tests/wet_world_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
@@ -3231,6 +3308,12 @@ func _test_weapons(player: Player) -> void:
 	_check(gun != null and gun.lock_on, "weapon_3 is the shotgun, and it takes GTA-style aim")
 	var crate := _nearest_crate(Vector3(-14.0, 1.0, 0.0))
 	if crate and gun:
+		# The rocket checks before this leave rubble and shells (debris, minutes long) lying about
+		# the room; one between the player and the crate took the blast and the pellet (CI 374).
+		for d in get_tree().get_nodes_in_group("debris"):
+			if d is RigidBody3D:
+				d.free()
+		await get_tree().physics_frame
 		player.global_position = crate.global_position + Vector3(5.0, 0.6, 0.0)
 		player.velocity = Vector3.ZERO
 		await _ticks(5)

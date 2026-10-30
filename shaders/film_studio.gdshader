@@ -185,7 +185,7 @@ void fragment() {
 		float pitch = max(param, 0.4);
 		float mull = max(lines(uv.x, pitch, 0.06), band(uv.y, h * 0.66, 0.03));
 		float fres = pow(1.0 - clamp(dot(normalize(VIEW), NORMAL), 0.0, 1.0), 3.0);
-		vec3 mirror = disp(sky_tint.rgb) * (0.22 + 0.7 * fres) * (0.85 + 0.3 * vnoise(vec2(uv.x / pitch, 0.5) * 3.0));
+		vec3 mirror = sky_tint.rgb * (0.22 + 0.7 * fres) * (0.85 + 0.3 * vnoise(vec2(uv.x / pitch, 0.5) * 3.0));
 		albedo = mix(paint * 0.3, vec3(0.15, 0.15, 0.16), mull);
 		emit += mirror * 0.55 * (1.0 - mull) * (1.0 - night_factor * 0.7);
 		vec2 pane_id = vec2(floor(uv.x / pitch), floor(world_p.y / 3.6)) + seedv * 9.0;

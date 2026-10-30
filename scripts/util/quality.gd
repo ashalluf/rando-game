@@ -64,6 +64,9 @@ enum Level { HIGH, MEDIUM, LOW, LOWEST }
 @export var lod_threshold: PackedFloat32Array = PackedFloat32Array([1.0, 1.5, 2.5, 4.0])
 
 var level: Level = Level.HIGH
+## The settings screen's render scale (GameSettings): a multiplier on the level's own scale,
+## still capped by its pixel budget.
+var user_scale: float = 1.0
 ## The 3D resolution actually in use (window size times the scale), shown on the HUD.
 var render_pixels: Vector2i = Vector2i.ZERO
 ## Last world offset seen, to drop the measurement window across an origin re-centering.
@@ -141,6 +144,23 @@ func force_level(new_level: int) -> void:
 		return
 	_forced = true
 	apply_level(clampi(new_level, 0, Level.LOWEST) as Level)
+
+
+## The settings screen's render scale (0.5..1). Desktop re-runs the level's scaling; the web
+## (Compatibility, no FSR) scales bilinear; the headless check has no picture to scale.
+func set_user_scale(s: float) -> void:
+	s = clampf(s, 0.25, 1.0)
+	if absf(s - user_scale) < 0.0001:
+		return
+	user_scale = s
+	if DisplayServer.get_name() == "headless":
+		return
+	if OS.has_feature("web"):
+		var viewport := get_viewport()
+		if viewport:
+			viewport.scaling_3d_scale = s
+		return
+	_apply_scale()
 
 
 ## True while a level is held (force_level() or --quality).
@@ -230,7 +250,7 @@ func _apply_scale() -> void:
 		return
 	var i := int(level)
 	var window_px := float(viewport.size.x) * float(viewport.size.y)
-	var scale: float = render_scale[i]
+	var scale: float = render_scale[i] * user_scale
 	if window_px > 0.0:
 		scale = minf(scale, sqrt(pixel_budget[i] / window_px))
 	scale = clampf(scale, 0.25, 1.0)
