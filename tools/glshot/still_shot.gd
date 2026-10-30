@@ -422,6 +422,34 @@ func _initialize() -> void:
 		for i in _env_int("EMERGENCY_FRAMES", 30):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
+	# NEWS=wide|crew|reporter|van: a TV news van and its crew on air at a story staged ahead of the
+	# camera (NewsCrews.stage_for_shot; NEWS_STATION=0..3 picks the station), framed by a free camera.
+	var news_env := OS.get_environment("NEWS")
+	if news_env != "" and current_scene and current_scene.get_node_or_null("NewsCrews"):
+		var nc: Node = current_scene.get_node("NewsCrews")
+		var news_eye: String = await nc.call("stage_for_shot", news_env, get_root().get_camera_3d(), _env_int("NEWS_STATION", -1))
+		if news_eye != "":
+			OS.set_environment("EYE", news_eye)
+			OS.set_environment("EYE_AGL", "")
+		print("NEWS %s eye %s" % [news_env, news_eye])
+		# NEWS_ALL=1: the other framings after it from the same load (SHOTS), NEWS_NIGHT=h adds the
+		# wide one again at that hour.
+		if OS.get_environment("NEWS_ALL") == "1":
+			var eyes: Dictionary = nc.get("shot_eyes")
+			var more: Array = []
+			for key: String in ["crew", "reporter", "van", "air"]:
+				if key != news_env and eyes.has(key):
+					more.append(String(eyes[key]) + "@")
+			if OS.get_environment("NEWS_NIGHT") != "":
+				more.append(String(eyes.wide) + "@" + OS.get_environment("NEWS_NIGHT"))
+				more.append(String(eyes.crew) + "@")
+			OS.set_environment("SHOTS", ";".join(more))
+		_eye(player, fov)
+		if current_scene.has_method("update_streaming"):
+			current_scene.call("update_streaming", true)
+		for i in _env_int("NEWS_FRAMES", 30):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
 	# ONLOOKER_SCENE=body|wreck|blast: a crowd come back round a scene ahead of the camera
 	# (tools/onlookers/stage.gd: ONLOOKER_EYE=behind|front, ONLOOKER_SHOTS=1 all views, ONLOOKER_PEOPLE, ONLOOKER_COUNT;
 	# ONLOOKERS=0 the before), ONLOOKER_FRAMES for the arms to come up.

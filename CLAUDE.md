@@ -1869,6 +1869,21 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   windscreen (same pass): `CarCabin.BUS_DAYLIGHT` lights a bus's traced cabin 2.2x (and lets more of
   it through the glass) and a bus's far twin starts at 60 m (`BigVehicles.tune()`), since from the
   pavement at noon its front read as a black slab.
+- TV news crews (2026-10-05, docs/HANDOFF.md "TV news crews"): `NewsCrews`
+  (`scripts/npc/news_crews.gd`, a node in city.tscn, group `news_crews`) opens a STORY at a blast
+  (after `blast_delay`) or a police standoff (`standoff_stars` held round one spot for
+  `standoff_seconds`), tells AirTraffic's news helicopter (`news_focus`), and sends one of four
+  invented stations' live trucks (`NewsVan`, `scripts/vehicles/news_van.gd`: the road van in fleet
+  white with the station's band and lettering, NewsKit's roof gear - a satellite dish or a 10 m
+  telescoping microwave mast - raised over `raise_seconds` on scene) along the lanes like an
+  EmergencyCar; it double-parks down the street (`layout()`, pure: reporter about
+  `report_distance` off the scene, the camera beyond them, caution tape between them and the
+  scene, the light stand) and its crew (`NewsCrew`, a Pedestrian: reporter with the station's mic
+  talking, camera operator with a shoulder camera; they kneel at gunfire and the camera turns to
+  it) goes on air for `air_seconds`, then boards and the van leaves and is pooled. Caps
+  `max_vans`; the smoke test keeps it off (`enabled`) except in `tests/news_crews_checks.gd`.
+  `NEWS_CREWS=0` is the A/B; stills `NEWS=wide|crew|reporter|van|air` (`NEWS_ALL=1`,
+  `NEWS_NIGHT=h`) on still_shot.gd, the van alone `NEWS=<station>` on car_shot.gd.
 - Civic buildings (2026-10-05, HANDOFF "Neighbourhood civic buildings"): `CivicBuildings`
   (`scripts/world/civic_buildings.gd`, static) places a Spanish or mid-century branch library, a
   post office (invented CONTINENTAL POST: flag, collection boxes, dock, mail trucks), a city

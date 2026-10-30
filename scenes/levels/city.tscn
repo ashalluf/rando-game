@@ -19,6 +19,7 @@
 [ext_resource type="Script" path="res://scripts/world/freight_rail_system.gd" id="14_freight"]
 [ext_resource type="Script" path="res://scripts/npc/cyclists.gd" id="30_cyclists"]
 [ext_resource type="Script" path="res://scripts/world/ocean_traffic.gd" id="31_ocean"]
+[ext_resource type="Script" path="res://scripts/npc/news_crews.gd" id="31_news"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("6_sky")
@@ -158,6 +159,9 @@ script = ExtResource("30_cyclists")
 
 [node name="OceanTraffic" type="Node3D" parent="."]
 script = ExtResource("31_ocean")
+
+[node name="NewsCrews" type="Node3D" parent="."]
+script = ExtResource("31_news")
 
 [node name="DebugHud" parent="." instance=ExtResource("3_hud")]
 

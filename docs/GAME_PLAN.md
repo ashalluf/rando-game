@@ -1636,6 +1636,13 @@ already mapped so milestone 2 is script-only.
   Wave 3 (2026-10-30): people on the pool and lawn loungers by day (baked sunbathers in swimwear,
   as many as the beach's busyness of the hour lets out; shot or near gunfire, they get up and run).
 
+- **2026-10-05 The news covers the chaos.** A big blast or a long police standoff becomes a
+  STORY: one of four invented stations (BASIN 7, SUNCOAST 4, PACIFICA 9, ONDA 34; never a real
+  broadcaster) sends its live truck, which double-parks down the street, raises its uplink and
+  puts a reporter on air in front of the scene behind caution tape, while the news helicopter
+  circles the same spot. They are people like anyone (shooting them is a crime), they kneel at
+  gunfire with the camera still rolling, and they pack up and leave after a couple of minutes.
+  docs/HANDOFF.md "TV news crews"; CLAUDE.md "TV news crews".
 - **2026-10-06 Street props break by what they ARE, GTA-style.** A hydrant knocked off sends up a
   geyser for a while (and throws you up it), a shelter's glass bursts into tempered cubes, lamp
   posts bend and then fall from the foot, mailboxes and news boxes burst open with paper, meters
