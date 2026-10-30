@@ -14979,7 +14979,7 @@ behind, hazards, the bar, the driver, the CMS behind telling of it, the slow lan
 tow parked ahead bed down, the car on its bed, the driver gone, the tow driving off with it, both
 vehicles handed to the traffic); a mattress in its lane, a car changing lanes round it and never
 through it, a spawn moved out of its lane; a slowdown slowing a car; the switch off changing
-nothing. `SMOKE_PARTS=freeway_incidents_checks`: 48 passed, 0 failed (~6 min with the city load). Full gate (SHARDS=3) on this branch: 2,407 passed, 0 failed, peak 2.39 GB a shard.
+nothing. `SMOKE_PARTS=freeway_incidents_checks`: 48 passed, 0 failed (~6 min with the city load). Full gate (SHARDS=3) on this branch: 2,407 passed, 0 failed, peak 2.39 GB a shard. Wave 3 (merged with main eb75a10, road flares added, `current` handed back across the pause menu's second city): `SMOKE_PARTS=freeway_incidents_checks` 50 passed; full gate (SHARDS=3) 2,568 passed, 0 failed (an earlier run on the same merge failed WarmRehearsal's "no node left" check once, which main's own CI 365 also fails; it passed on the rerun).
 
 **Stills** (shots/freeway-incidents, opengl3, the 110 by downtown at route 3 t 1904):
 `01`-`04` and `09` the stall (coasting in, patrol car behind, the tow winching, the tow loaded
@@ -15001,6 +15001,6 @@ bar at night. The stall's vehicles are scripted, not driven: a car the player pa
 shoulder in their path is not avoided (the tow drives through it; shooting it knocks it out of the
 script like any traffic car). The incidents' blocks act only on TrafficAI's lane-indexed freeway
 traffic (with TRAFFIC_AI=0 cars slow and stop but do not change lanes). No incidents on the stack's
-connectors or the ramps. The patrol officer stays in the car; the driver does not walk to the tow
+connectors or the ramps. The flares are not seen on Forward+ (their red under AgX) and have no sound or collision. The patrol officer stays in the car (the flares just appear one by one); the driver does not walk to the tow
 (they vanish when the bed rises). The mattress and tread have no collision. The debris stills are
 framed from 30 m; closer framing would read better.
