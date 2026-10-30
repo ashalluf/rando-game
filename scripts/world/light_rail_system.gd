@@ -75,6 +75,10 @@ func _setup() -> bool:
 	if ground and not line.cut_rects().is_empty():
 		var r: Rect2 = line.cut_rects()[0]
 		ground.set_shader_parameter("cut_rect", Vector4(r.position.x, r.position.y, r.end.x, r.end.y))
+	# And under the underground station's stairwells (MetroStation).
+	var mr := MetroStation.cut_rect(line)
+	if ground and mr.size.x > 0.0:
+		ground.set_shader_parameter("cut_rect2", Vector4(mr.position.x, mr.position.y, mr.end.x, mr.end.y))
 	for i in 2:
 		var b := Sfx.loop_player("rail_bell", -2.0)
 		b.unit_size = 10.0
@@ -114,6 +118,7 @@ func step() -> void:
 	if focus != Vector3.INF:
 		pw = focus
 	trains = line.trains_at(LightRail.clock)
+	MetroStation.showing = MetroStation.shelters(pw)
 	_trains(pw)
 	_crossings(pw)
 
@@ -135,7 +140,7 @@ func _trains(pw: Vector3) -> void:
 	for e: Array in by_dist:
 		if want.size() >= max_detailed or float(e[0]) > detail_range + LightRail.TRAIN_LENGTH * 0.5:
 			break
-		if _buried(e[1]):
+		if _buried(e[1]) and not MetroStation.wants_train(line, e[1], pw):
 			continue
 		want[int(e[1].id)] = e[1]
 	detailed.clear()
@@ -382,7 +387,7 @@ func _passengers(tr: LightRailTrain, st: Dictionary) -> void:
 	for i in line.stations.size():
 		if absf(float(line.stations[i].s) - mid_s) < 20.0:
 			idx = i
-	if idx < 0 or int(line.stations[idx].mode) == LightRail.Mode.TUNNEL:
+	if idx < 0 or (int(line.stations[idx].mode) == LightRail.Mode.TUNNEL and not MetroStation.built()):
 		return
 	var key := "%d:%d" % [int(st.id), int(floor(float(st.tau) / 30.0))]
 	if _served.has(key):
@@ -422,14 +427,16 @@ func _passengers(tr: LightRailTrain, st: Dictionary) -> void:
 	for k in rng.randi_range(1, 3):
 		if city == null or not city.has_method("take_crowd_room") or not city.take_crowd_room(0.0):
 			break
-		var rider := RailRider.new()
+		var rider: RailRider = MetroRider.new() if int(st_d.mode) == LightRail.Mode.TUNNEL else RailRider.new()
+		if rider is MetroRider:
+			(rider as MetroRider).frame = MetroStation.frame(line)
 		rider.line = line
 		rider.station = idx
 		rider.setup(Rect2(), 3.0, hash([plan.seed, key, "off", k]))
 		var door: Vector2 = doors[rng.randi() % doors.size()]
 		var end := 1.0 if rng.randf() < 0.5 else -1.0
 		var exit_s := float(st_d.s) + end * (LightRail.PLATFORM_LENGTH * 0.5 + (LightRail.RAMP_RUN + 3.0 if int(st_d.mode) == LightRail.Mode.GRADE else -3.0))
-		var exit: Vector2 = line.sample(exit_s).pos
+		var exit: Vector2 = MetroStation.exit_point(line) if int(st_d.mode) == LightRail.Mode.TUNNEL else line.sample(exit_s).pos
 		rider.position = Vector3(door.x, rider._ground_y(door.x, door.y, 0.0), door.y)
 		chunk.add_child(rider)
 		rider.alight(exit)

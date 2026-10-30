@@ -74,7 +74,7 @@ func _tick() -> void:
 ## True while the helicopter has never been flown and sits where it was put.
 func _at_home() -> bool:
 	return heli != null and heli.driver == null and not heli.has_meta("driven") \
-			and heli.global_position.distance_to(global_position) < 1.5
+			and heli.is_inside_tree() and is_inside_tree() and heli.global_position.distance_to(global_position) < 1.5
 
 
 func _free_heli() -> void:
