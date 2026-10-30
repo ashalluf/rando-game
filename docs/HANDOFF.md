@@ -18420,6 +18420,101 @@ no pushing; they pass through each other and through the player (scripted, like 
 player cannot skate. Spectators do not cheer or turn to the tricks. Graffiti uses the shared
 street wear atlas, so a piece can repeat one on a nearby wall.
 
+## 9gu. Car cabins: real interiors and hinged doors for the player's car (G6, 2026-10-30)
+
+Fleet wave 3 task `car-cabins` (branch `wt/car-cabins`, stills on `shots/car-cabins`). The traced
+cabin (CarCabin, car_cabin.gdshaderinc) stays for the city's ~300 cars. The car the player drives,
+the nearest empty parked car within 7.5 m of him on foot and any car that has lost a door get REAL
+geometry:
+
+- **Doors cut out of the body, no Blender re-run.** `CarDoorSplit` (scripts/vehicles/car_door_split.gd)
+  holds the front doors' shut lines as the Blender specs drew them (`DOORS`: `front` line, `rear`
+  (B-pillar) and `sill` in (along, height); the van's whole cab-door outline round its arch). The
+  body mesh is Blender's space turned: mesh x = x, y = height, z = -along (tools/car_cabins/
+  model_probe.gd prints it). A triangle goes to a door when its centroid is past `XMIN` on that
+  side and inside the outline below the glass (its top raised to the door glass's foot) or inside
+  the side window's hull grown by `FRAME` above it (glass, liners, seals; painted pillars and the
+  roof rail only up to `PAINT_OVER_BELT`). Parts that are not paint or glass move WHOLE by area
+  vote when they fit in the door's box (mirrors, handles), are cut per triangle when they are
+  strips or rings (`STRIP_HEIGHT`, `STRIP_WIDTH`: the belt moulding, the chrome round both
+  windows) and stay on the body otherwise (the cladding along the whole side): cut triangle by
+  triangle they tore into teeth. The body keeps its surface order (one degenerate triangle in a
+  surface it lost entirely) because the cabin glass and CarDamage address surfaces by index. A
+  job per body type, cached for the session: the arithmetic runs on a WorkerThreadPool task
+  (`threaded`, off on the web), the main thread only reads the arrays (~3.5 ms) and makes one
+  surface a frame (~1.4 ms). ~3.0-4.0k triangles a door; 70-140 ms of work a body type.
+  **The split also drops the window cutters' caps** (follow-up, 2026-10-30): `cut_windows()` in
+  make_road_cars.py leaves each cutter's inner sheet, in the `tyre` slot, ~5 cm behind every pane.
+  The old opaque glass hid it; through the clear glass it drew the whole windscreen and side glass
+  solid black from the driver's seat (and from outside). A `tyre` triangle parallel to a glass
+  triangle (`CAP_ALIGN`) within `CAP_DEPTH` / `CAP_REACH` of it is left out (`out.caps` counts
+  them); the seals, square to the glass, stay. Only the rig's split mesh changes: traffic keeps the
+  model (opaque glass in front of the caps). Stills: shots/car-cabins `15`/`16` (before / after).
+- **The cabin in code.** `CarInteriorKit` lays everything out by CarCabin's measured numbers (the
+  same formulas car_cabin.gdshaderinc traces with, so the traced driver's hands land on the real
+  rim, checked): dash and padded top falling to the windscreen's foot, binnacle and cluster,
+  centre screen on a bezel, vents, column and stalks, pedals; bolstered front seats with
+  inserts and headrests on stalks; the rear bench; console with selector and armrest; carpet,
+  toe board and tunnel; headliner, visors and mirror; B-pillar trims, quarter cards and sills,
+  and the painted jamb round each opening; per door a card (armrest, pull, latch, speaker,
+  pocket, cap) and its seal. Rounded boxes (`Geo.rbox`), tori, cylinders; ~18k triangles,
+  built on a worker thread (`request()`). ONE material, `shaders/car_interior.gdshader`: role in
+  COLOR.r, UV in metres; leather grain, perforation, cloth weave, carpet, soft-touch grain and a
+  speaker grille as heights bumped by screen derivatives (no tangents); the cluster's dials and a
+  navigation screen lit while somebody is at the wheel. Five schemes (`CarInterior.SCHEMES`:
+  charcoal cloth, black / grey / tan / oxblood leather) by a hash of the car.
+- **The rig.** `CarInterior` hangs off the car's near body mesh (mesh space): swaps the body mesh
+  for the split one, puts DoorL / DoorR pivots on the hinges (skin + card; the body's surface
+  overrides - the paint with its damage, the glass - copied every tick), the cabin and a
+  `SteeringWheel` node turned by `steering * STEER_RATIO` (15). `swing(side)` opens a door to
+  `OPEN_DEG` (66), holds `HOLD`, shuts it. `detach()` throws a door off as a PhysicsBudget debris
+  body (`LostDoor`, `DOOR_LIFE` 90 s) and the car keeps its rig (the hole stays). The glass is
+  `shaders/car_glass_open.gdshader` - transparent, tinted by each pane's own tint, the sky by
+  Fresnel, and only the PEOPLE of the trace kept, drawn opaque where the ray meets them (the hero
+  is still hidden in a car and traced) - through `Vehicle.cabin_glass_override`. Shadows: the
+  body keeps its light twin (doors shut); an open door casts its own (+110k triangles when the
+  split body cast at full detail).
+- **Who gets one.** `CarInteriors` (one node under the root, `ensure()` from Vehicle._ready):
+  every 0.2 s the player's car, the `max_parked` nearest empty parked supported cars within
+  `near_range` (+ `hysteresis` to keep), cars with a lost door; split and kit prefetched within
+  `near_range + prefetch`. Hooks in vehicle.gd (one line each): the driver setter
+  (`driver_changed`: the door on the side the player was on swings - later, if the rig is still
+  building -, and on getting out the side he is put down), `take_hit` (`on_hit`: a crash of
+  `detach_crash` (7 m/s over crash_min_dv) or a blast of `detach_blast` tears off the door on that
+  side, a big blast both), `_apply_occupant` (the override glass, occupants seated on it).
+  Supported: sedan, taxi, crossover, pickup, van (and the delivery van), hatchback, SUV, minivan,
+  beater. Not the exotics, police cars, buses, trucks or service vehicles.
+
+**Tools.** `CABIN=1 DOOR=0..1 [DOOR_SIDE=1] [STEER=r] [CABIN_HIDE=Skin,Cabin,Card]` and views
+`open3`, `aperture`, `cockpit` on tools/glshot/car_shot.gd (seconds); `CABIN_STAGE=<door>|in`
+(CABIN_EYE, CABIN_TYPE) on still_shot.gd (tools/car_cabins/cabin_stage.gd: the player at the
+nearest parked car's open door, or at its wheel seen through the open passenger door);
+tools/car_cabins/split_probe.tscn (opengl3: every body's split, the longest main-thread step per
+stage, the kit's time and triangles). `CAR_CABINS=0` is the A/B; `CABIN_DEBUG=1` prints every hit
+on a car with a rig.
+
+**Checks** (tests/car_cabins_checks.gd, ~25): the outlines, the wheel against the trace, a parked
+car's cabin coming and going, traffic and wrecks never, the door swinging on getting in and out,
+the dash powering, the wheel turning, a crash tearing the door off as debris and keeping the hole,
+CAR_CABINS off. Headless has no mesh data: the doors there are stand-ins (cards, no skin); the
+real split is checked by the probe. tests/car_cabin_checks.gd now accepts a car with its own
+cabin glass (the player stands next to the car he left).
+
+**Cost** (car_shot GEO, one sedan, opengl3): chase 40 -> 54 draws, 184k -> 233k triangles; front
+three-quarter 39 -> 53, 172k -> 221k; at the driver's window 30 -> 44, 151k -> 188k. Only the
+player's car and at most one parked car ever carry it; nothing in LOD chunks or the far city. In the city
+(Flower at Olympic, 13:00, the same EYE, still_shot SPLIT): the Vehicle category 628k -> 682k
+triangles, 98 -> 158 draws with two parked rigs up (before `max_parked` became 1).
+City frame numbers in the still list on shots/car-cabins.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: leather, the transparent glass and the
+lit cluster need a Mac look. Rear doors stay part of the body (they neither open nor come off),
+and so do the sliding doors (minivan, van). Getting in is still the old instant seat change -
+the door swings round it, the hero does not climb in. The door's window frame shows a few jagged
+liner triangles from some angles while open, and a thin strip of the belt chrome can remain
+across the opening on some bodies. Getting out of a car on the checks' high deck throws it (an
+old crash-watch quirk the cabin checks also see), which can tear a door there.
+
 ## 9gq. Stunt ramps (fleet wave 3, `wt/stunt-ramps`, 2026-10-30)
 
 A chaos-sandbox playground hidden in the real city: every piece is where a stunt crew would put
