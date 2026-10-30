@@ -2532,6 +2532,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`shaders/street_clutter.gdshader`: paint from INSTANCE_CUSTOM, printed front pages, covers and
   chalk from the vertex alpha), one draw per kind a chunk. StreetDetail still makes the news
   boxes' old rng rolls and hands them over; everything else is hash-seeded.
+  **Street clutter 2** (`StreetClutter2`, `scripts/world/street_clutter_2.gd`, 2026-10-30, docs/HANDOFF.md
+  "The street's small stuff"): one FULL step after RoadWear - trash bags (restaurants; collection
+  nights by block + weekday hash), cardboard and a hand truck by shop doors (`Building.shop_fronts`),
+  steam from RoadHardware's covers / inlets downtown (`street_steam.gdshader`), carts, cones round
+  utility cuts, weeds, butts and gum, puddles collapsed on a dry road, flyers on `upole`s, pages
+  blowing down the gutter, droppings under ledges; one `sc2_*` batch a kind on
+  `street_clutter_2.gdshader` (code in COLOR.a x 16), hashes only, no `_add_prop`.
+  `STREET_CLUTTER_2=0` the A/B (`SC2_HOUR` / `SC2_DAY` for stills); probe
+  `tools/street_clutter_2/probe.gd`; checks `tests/street_clutter_2_checks.gd`.
   **Kerbs** (`Kerbs`, `scripts/world/kerbs.gd`, 2026-10-05): a FULL block's pavement is an
   inner slab (`_block_surface`) plus a ring `RING` 2.6 m wide built by Kerbs in the pavement's own
   material with one trimesh collision: corner ramps cut in line with the crosswalks (dome pads),

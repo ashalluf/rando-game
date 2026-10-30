@@ -3723,3 +3723,9 @@ none of either.
   triangles; balconies get a hand-made LOD and shadow twins; static mesh caches that grow with the
   places visited drop what only they hold (CacheTrim) instead of clearing at a size. Plain runs of
   an aerial bookmark differ by millions of triangles, so frame costs there are DIFF=1 pairs only.
+- **2026-10-30 The street's small stuff (street-clutter-2, HANDOFF "The street's small stuff").**
+  Bags, cardboard, a hand truck, steam, carts, cones, weeds, butts and gum, puddles, flyers, blowing
+  pages and droppings are a second clutter pass, one step after everything a FULL chunk lays, so it
+  can read the shop fronts, the road hardware and the poles instead of guessing; hashes only and no
+  props (nothing else in the block moves); one batch a kind on one shader (the steam on its own,
+  transparent). What is out follows the hour and weekday the chunk is built at, like the vendors.

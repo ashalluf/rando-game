@@ -21156,3 +21156,57 @@ Not done / not seen: the motion blur on Forward+ (above); a pad's look-behind sh
 on-foot dive / wingsuit (both off in a car); no per-surface buzz beyond terrain (DrivingFX knows
 sand and dirt, not shared); the camera does not yet look into the corner AHEAD (GTA's slight
 lead) - the lag shows the flank instead.
+
+## 9d?. The street's small stuff (street-clutter-2, 2026-10-30, roadmap #?)
+
+The owner's bar is GTA 6, whose streets are dense with the small stuff of real life. `StreetClutter2`
+(`scripts/world/street_clutter_2.gd`) is a second clutter pass after StreetClutter's news boxes and
+gutter litter, ONE build step of every FULL city chunk (after RoadWear, so the furniture, the parked
+cars, RoadHardware's covers / inlets / cuts, the utility poles and every Building's shop fronts are
+down). It lays, at real size and built in code:
+
+- **Trash bags**: two pile variants of four to six tied 33-gallon bags (lumpy squashed lofts with a
+  gathered neck and knot; black, a grey one, a dark green one), a restaurant's or cafe's pile at the
+  end of its front (to the kerb after 20:00), and on a **collection night** (a hash of block and
+  weekday, `COLLECTION_ODDS` by district, 18:30-07:00) a pile every `BAG_PILE_EVERY` m of kerb.
+- **Cardboard**: four flattened boxes leaning on the wall by a shop door with a strap, one flat in
+  front; flutes, ink stamps, tape, dirt rising from the pavement, soggy in the rain.
+- **A hand truck** with three cases by a shop door while a delivery is on (by day, hashed per hour).
+- **Steam** out of covers and kerb inlets (`STEAM_ODDS`: downtown's old steam lines), a transparent
+  plume on `shaders/street_steam.gdshader`: four camera-turned puffs per plume, billows scrolling up,
+  drifting downwind (`wind_lean`, `wind_factor`), thicker at night and in the rain, warmed by the lamps.
+- **Shopping carts** (wire basket cut out of a grid and dithered to its cover under a pixel, chrome
+  frame, red handle, casters), `CART_TIPPED` of them on their side.
+- **Traffic cones** (28", two reflective collars that glint by `lamp_factor`) round a third of
+  RoadHardware's utility cuts, now and then one knocked over.
+- **Weeds** in a crack at the foot of the walls and behind the kerb (blades that sway, a rosette).
+- **Butts and gum** round every bus stop and in front of some shop doors (more at cafes and bars).
+- **Puddles** in the gutter, the parking lane and the corner ramps: collapsed in the vertex stage
+  on a dry street, grown from `road_wetness` (`puddle_from` .. `puddle_full`) as a noisy blob with a
+  damp ring, the sky mirrored by Fresnel (emitted; `mirror_forward` under Forward+'s SSR), rain rings,
+  the lamps' warmth at night. They outlast the road's own film as it dries.
+- **Flyers** stapled round utility poles (`upole`): five or six sheets wrapped on the shaft, a
+  curled corner, staples, lost-pet photos, bold titles, tear-off phone tabs with some taken, faded and
+  torn with age. (StreetWear's flat flyers stay; these are the paper on top.)
+- **Newspaper pages blowing** down the gutter: one 7 x 5 sheet the vertex shader slides along its run
+  (custom.b), hops, tips and flutters, resting at each end and blowing back (ping-pong), faster in wind.
+- **Pigeon droppings** on the pavement under the ledges downtown (cut-out splashes, fresh or old).
+
+All of it is ONE material (`shaders/street_clutter_2.gdshader`, what a face is in COLOR.a x 16 =
+`StreetClutter2.C_*`, checked) except the steam; one batch per kind a chunk (`sc2_*`, 13 keys), the
+flat kinds and the flyers and steam shadowless, the upright ones casting only within `SHADOW_REACH`
+45 m, each drawn to its own distance (45-220 m). Linear on both renderers (color_space include).
+Meshes reuse StreetClutter's static builders (`_bbox`, `_cyl`, `_tube`, `_quad`, `_vtx`).
+
+**Seeding**: every roll is `h01()` of the seed and the place (block, kerb, shop key, cover, pole),
+never a chunk / block / Building rng, and nothing goes through `_add_prop`: the block's props keep
+their ids, its parked cars and crowd their rolls (the checks build each block with it off and
+compare). What is out depends on the hour the chunk is built at and the weekday
+(`BeachLife.hour_now`, `FarmersMarket.weekday`; `force_hour` / `force_day`, env `SC2_HOUR` / `SC2_DAY`
+for stills). Hooks: one step line in `CityChunk.begin_build()`, `Building` records `shop_fronts`
+when StreetClutter2 is on too (was Parklets / NightLife only; a record, no roll), the loading
+screen warms the meshes. `STREET_CLUTTER_2=0` is the A/B.
+
+Probe: `tools/street_clutter_2/probe.gd -- --spawn=x,z,0,0` (counts per kind and block, the step's
+plan time, an EYE per kind; `HOUR=`, `DAY=`, `KIND=`, `R=`). Compile: `tools/street_clutter_2/compile.gd`.
+Checks: `tests/street_clutter_2_checks.gd` (the last city file).

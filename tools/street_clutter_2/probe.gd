@@ -31,7 +31,12 @@ func _initialize() -> void:
 			chunk.call("build")
 			var built := Time.get_ticks_usec() - t0
 			var out: Dictionary = chunk.get_meta("street_clutter_2", {})
-			var line := "BLOCK %d,%d district=%d rect=%s build=%.0fms" % [ix, iz, int(plan.block(ix, iz).district), str(plan.block(ix, iz).rect), built / 1000.0]
+			# The step's own cost: plan the same chunk again (the lay is a batch.add a piece).
+			var t1 := Time.get_ticks_usec()
+			if not out.is_empty():
+				sc.call("plan_block", chunk, plan.block(ix, iz))
+			var planned := Time.get_ticks_usec() - t1
+			var line := "BLOCK %d,%d district=%d rect=%s build=%.0fms plan=%.1fms" % [ix, iz, int(plan.block(ix, iz).district), str(plan.block(ix, iz).rect), built / 1000.0, planned / 1000.0]
 			for key: String in out:
 				line += " %s=%d" % [key, (out[key] as Array).size()]
 				totals[key] = int(totals.get(key, 0)) + (out[key] as Array).size()
