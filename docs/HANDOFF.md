@@ -15534,3 +15534,67 @@ checks, 0 failed, peak RSS 2,506 MB a shard, 1,054 s.
 and the tarps' backlight need a Mac look. LOD chunks and the far city draw the buildings only
 (no goods past the FULL ring, by design). Garments are simple lofted sacks with tube sleeves:
 fine on a rack at 3 m, plain at 1 m.
+
+## 9d?. Jointed ragdolls: bodies that fall like people, 2026-10-30 (fleet wave 3, agent branch `wt/ragdolls`; VISUAL_ROADMAP "?")
+
+**What changed.** A knocked-down person used to be the rigged model inside ONE rigid box
+(0.5 x 1.7 x 0.4 m), flailing its run clip until it lay still: it bounced over a car stiff as a
+plank and lay on the road in a running pose. Now a rigged doll near the camera is a real ragdoll.
+
+- `RagdollJoints` (`scripts/npc/ragdoll_joints.gd`): eleven parts (`PARTS`: pelvis, chest, head,
+  upper arms, forearms with the hand, thighs, shins with a foot box), each a RigidBody3D placed on
+  its bone in the idle clip's first frame (standing straight, arms down: the reference the limits
+  are measured from), its shape sized from the rig's own bones (a box for pelvis and chest, a
+  sphere for the head, capsules for the limbs). Mass shares add up to the old 23 kg. Joints:
+  ConeTwistJoint3D at the spine (28 / 22 degrees swing / twist), neck (38 / 45), shoulders (85 / 40)
+  and hips (62 / 25); HingeJoint3D at the elbows (140 degrees toward the front) and knees (145
+  toward the back). No part collides with another (all-pairs exceptions; stable, and a person's
+  limbs crossing reads fine at street distance).
+- `RagdollPose` (`scripts/npc/ragdoll_pose.gd`): a SkeletonModifier3D, the skeleton's FIRST
+  modifier (before any LimbHider, so a torn limb still collapses), that sets each driven bone's
+  skeleton-space pose from its body and the fixed offset it had to it. Undriven bones (spine middle,
+  neck, hands, feet, fingers) keep the idle frame relative to their parents.
+- The pelvis IS the doll's old body, moved onto the hips; the rig rides it as before. `bodies[0]`
+  is the pelvis, and every part is a direct child of the Ragdoll node, so WeaponFX.bullet_wound,
+  the shotgun's pellet gathering and `classify()` find the doll from any part they hit. A round
+  shoves the part nearest it. `dismember()` drops the torn limb's parts, joints and bones.
+- **Cost bounds.** Only within `joint_range` (70 m) of the camera; at most `max_active` (6, web 3)
+  at once - a new doll freezes the oldest; and a doll FREEZES once every part is under 0.35 m/s and
+  1.2 rad/s for 0.6 s, or at 8 s, or when the camera is 110 m away: every part's shapes move onto
+  the pelvis (one compound RigidBody3D holding the pose it fell in, the whole mass), the pose is
+  baked into the skeleton's own bone poses and the modifier freed, joints and limb bodies go. From
+  then on it is the old single body to everything: Emergency's patients and stretchers, the
+  onlookers, the blood pool, PhysicsBudget's debris clock.
+- `RAGDOLLS=0` in the environment: every doll the old single body (the A/B).
+
+**Traps found.** (1) A Joint3D's frame is read in WORLD space when its nodes are set: set as
+`transform` on a joint under the turned, moved doll, every joint pulled 0.2-1.5 m apart. Set
+`global_transform` after `add_child`. (2) Godot's hinge counts the bend NEGATIVE about the joint's
+Z (measured with a probe: limits [0, 90] let the body turn about -Z), so a bend toward `d x front`
+is the limit's lower side. (3) The old body took a knock's impulse as its SPEED, not impulse /
+23 kg: Godot Physics works a new body's mass out at its first step, and an impulse in the frame
+it is made meets a mass of 1 (measured: impulse (-60, 72, -90) -> velocity (-59.9, 71.7, -89.9)).
+Every knock in the game is tuned to that, so `RagdollJoints.fling()` sets the same speed on every
+part (plus a shared tumble about the centre of mass and a flail per limb).
+
+**Measured** (`tools/ragdolls/probe.tscn`, headless `--fixed-fps 60`, wall ms per physics frame
+over 60 frames, a floor, a kerb and a car-high box): 6 dolls tumbling 0.53-0.64 jointed vs 0.25
+single; 20 dolls (6 jointed) 0.93 vs 0.60; all settled (20, all asleep) 0.031 vs 0.019. Joints
+hold to 1-18 mm while tumbling (the city check's worst 44 mm). Building a jointed doll: ~10 ms
+more than the single body (56 ms for four in the probe, rig instancing included). Draws and
+triangles are unchanged by construction (the same rig mesh; the parts carry only collision
+shapes), so a still_shot GEO at a bookmark does not move.
+
+**Look.** `tools/ragdolls/ragdoll_shot.tscn` (`SCENE=car|kerb|blast`, `FRAMES`, `CAM`, `LOOK`,
+`RAGDOLLS=0` the before): stills on `shots/ragdolls` - hit into a parked car, the doll now folds
+over the bonnet and lies draped on the windscreen, legs hanging (before: it cleared the car stiff
+and lay behind it mid-stride); off the kerb into the road; a blast with two limbs off.
+Checks: `tests/ragdolls_checks.gd` (part table, jointed near the camera, joints hold, settles and
+freezes into one compound body with every shape, lies on the ground, a round into it bleeds,
+rests on a car-high box, gibs drop their parts, the cap, the range, the switch).
+
+**Not done / not verified.** Seen only on opengl3 in a small scene (no Forward+, no city still of a
+fall; the physics is renderer-independent). The doll starts from the standing idle frame, not the
+pose the walker was in when hit (a small pop, as before). No self-collision between parts (an arm
+can pass through the chest). The hero's doll (PlayerHealth) uses the same path; only crowd rigs
+were probed.

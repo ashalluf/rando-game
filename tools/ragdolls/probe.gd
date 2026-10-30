@@ -41,11 +41,20 @@ func _run() -> void:
 		print("doll %d %s ok=%s jointed=%s bodies=%d" % [i, String(models[i % models.size()]).get_file(), ok, d.get("_joints") != null, d.bodies.size()])
 	print("build ms %.1f" % ((Time.get_ticks_usec() - t0) / 1000.0))
 	var phys := 0.0
+	var wall0 := 0
 	for s in steps:
+		if s == 2 or s == 302:
+			wall0 = Time.get_ticks_usec()
+		if s == 62 or s == 362:
+			var asleep := dolls.filter(func(d): return PhysicsServer3D.body_get_state(d.bodies[0].get_rid(), PhysicsServer3D.BODY_STATE_SLEEPING)).size()
+			print("asleep %d of %d, jointed %d" % [asleep, dolls.size(), RagdollJoints.active_count()])
+			print("wall ms/step (%s; run with --fixed-fps 60) %.3f" % ["tumbling" if s == 62 else "settled", (Time.get_ticks_usec() - wall0) / 60000.0])
 		await get_tree().physics_frame
 		if s < 6 and OS.get_environment("VEL") == "1":
 			print("v ", dolls[0].bodies[0].linear_velocity, " at ", dolls[0].bodies[0].global_position)
 		phys += Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)
+		if s == 59:
+			print("physics ms/step over the first 60 steps (tumbling) %.3f" % (phys * 1000.0 / 60.0))
 		if s % 100 == 99:
 			var line := "step %d active=%d" % [s + 1, RagdollJoints.active_count()]
 			for d in dolls:

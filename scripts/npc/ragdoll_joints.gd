@@ -418,6 +418,15 @@ func freeze() -> void:
 				c.reparent(pelvis, true)
 		rb.queue_free()
 	parts = {"pelvis": pelvis}
+	# The pose baked into the skeleton's own bone poses (the clip is paused, nothing overwrites
+	# them) and the modifier gone: a frozen doll costs no skeleton work a frame.
+	var skel := pose.get_skeleton()
+	if skel:
+		var sinv := skel.global_transform.affine_inverse()
+		for i in pose.bones.size():
+			skel.set_bone_global_pose(pose.bones[i], sinv * pose.rides[i].global_transform * pose.offsets[i])
+		pose.active = false
+		pose.queue_free()
 	pelvis.mass = Ragdoll.TOTAL_MASS
 	pelvis.linear_velocity = Vector3.ZERO
 	pelvis.angular_velocity = Vector3.ZERO

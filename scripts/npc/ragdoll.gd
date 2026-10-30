@@ -1,8 +1,10 @@
 class_name Ragdoll
 extends Node3D
-## A knocked-over pedestrian. With a rigged model it is that same character tumbling as one
-## rigid body, flailing its run cycle until it comes to rest (build_from_rig); without one it is
-## the floppy six-piece box body held together by pin joints (build). Spawned when a pedestrian
+## A knocked-over pedestrian. With a rigged model it is that same character: near the camera a
+## jointed ragdoll (RagdollJoints: eleven parts, frozen back into one body once still), farther
+## off or over the cap one rigid body flailing its run cycle until it comes to rest
+## (build_from_rig); without a model it is the floppy six-piece box body held together by pin
+## joints (build). Spawned when a pedestrian
 ## gets hit. Registered as debris so PhysicsBudget frees it later.
 
 ## Total mass of the box body; fling() scales impulses by piece mass over this.

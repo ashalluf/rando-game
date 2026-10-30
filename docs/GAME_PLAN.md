@@ -1607,6 +1607,16 @@ already mapped so milestone 2 is script-only.
   the dead end at the north is a slide with a closure; its own traffic (CoastTraffic). It also
   fixed the old northern coast (shrubs and rocks floating over cut ground, chunks with no
   terrain). docs/HANDOFF.md "The coast highway"; CLAUDE.md "Coast highway".
+- **2026-10-30 Bodies fall like people: a jointed ragdoll near the camera, one body once still.**
+  A knocked-down person within 70 m of the camera is eleven rigid bodies (pelvis, chest, head,
+  upper arms, forearms, thighs, shins) sized from the rig's own bones, joined by cone-twist joints
+  (spine, neck, shoulders, hips) and one-way hinges (elbows, knees), and a SkeletonModifier3D poses
+  the skeleton from them. Decisions: our own bodies and joints rather than PhysicalBone3D (the rigs
+  sit under a 0.01 armature, which physics bodies do not take); at most six jointed at once (the
+  oldest freezes for a new one; three on the web); once still, after 8 s, or left behind, the doll
+  FREEZES into the old single body - one compound rigid body holding the pose it fell in - so
+  everything reading `Ragdoll.bodies[0]` keeps working and a settled body costs what it did.
+  `RAGDOLLS=0` is the A/B. docs/HANDOFF.md "Jointed ragdolls"; CLAUDE.md "Jointed ragdolls".
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
