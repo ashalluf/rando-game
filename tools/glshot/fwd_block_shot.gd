@@ -68,14 +68,16 @@ func _ready() -> void:
 			add_child(n)
 	var built := {}
 	var chunk_script: GDScript = load("res://scripts/world/city_chunk.gd")
-	var blocks := int(_env("BLOCKS", "1"))
+	# BLOCKS=home builds only the block under each EYE (downtown's 3 x 3 runs lavapipe out of memory).
+	var home_only := _env("BLOCKS", "1") == "home"
+	var blocks := 0 if home_only else int(_env("BLOCKS", "1"))
 	var out := _env("OUT", "fwd_block.png")
 	for k in eyes.size():
 		var p: PackedStringArray = (eyes[k] as String).split(",")
 		var at := Vector3(p[0].to_float(), p[1].to_float(), p[2].to_float())
 		at.y += plan.height_at(Vector2(at.x, at.z))
 		var home: Vector2i = plan.block_index_at(Vector2(at.x, at.z))
-		if blocks > 0:
+		if blocks > 0 or home_only:
 			for dz in range(-blocks, blocks + 1):
 				for dx in range(-blocks, blocks + 1):
 					var bk := Vector2i(home.x + dx, home.y + dz)
