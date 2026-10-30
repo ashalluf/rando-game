@@ -260,7 +260,7 @@ func _cruisers(plan: CityPlan) -> void:
 	_check(on > 0 and wrong == 0 and off < on, "lowriders cruise in the traffic of their districts only, more on a meet night (%d on a Saturday night, %d on a Tuesday noon, of %d)" % [on, off, n])
 
 
-## The player's switch box (Hydraulics.drive_input(), what H / D-pad up drive): a tap hops, a
+## The player's switch box (Hydraulics.drive_input(), what X / D-pad up drive): a tap hops, a
 ## hold lifts, a hold with A / D three-wheels to that side.
 func _player_switch() -> void:
 	var car: Vehicle = _car(Lowrider.COUPE, Vector2(18.0, 0.0), 7)

@@ -436,7 +436,7 @@ class Hydraulics extends Node:
 	var _x := 0.79
 	var _zf := -1.44
 	var _zr := 1.58
-	## The player at the wheel: tap `hydraulics` (H / D-pad up) for a hop, hold it to lift, and
+	## The player at the wheel: tap `hydraulics` (X / D-pad up) for a hop, hold it to lift, and
 	## while it is held steer for a three-wheel to that side or W / S to lift the nose or the tail.
 	## A tap shorter than this (s) is a hop.
 	var tap_seconds: float = 0.22
