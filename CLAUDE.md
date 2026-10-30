@@ -4741,6 +4741,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `StreetVendor`s and `MarketShopper`s, `CityChunk.market_road` puts them on the asphalt).
   `FARMERS_MARKET=0` the A/B, `MARKET_DAY=1`, `MARKET_HOUR=h`. Probe:
   `tools/farmers_market/probe.gd`; checks: `tests/farmers_market_checks.gd`.
+- Film shoots (2026-10-30, HANDOFF "Film shoots on location"): `FilmShoot`
+  (`scripts/world/film_shoot.gd`, pure) closes one local street per `CELL` 2.3 km by hash, the
+  farmers' market's way (its own salts; never a market's street or the chunk that builds one -
+  `road_closed()` answers false while a market decides, so the order does not matter), through
+  `CityPlan.road_open()`. Always set up: `FilmShootBuild` lays the basecamp along one kerb
+  (code-built trailers, the box truck's far body as grip / electric trucks with lift gates and
+  carts, a generator, catering), the set down the other (track and dolly, crane, HMIs, a balloon
+  light, flags, bounces, video village under a black pop-up), barricades, cones, orange notices
+  and arrow signs with invented productions; `FilmShootKit` on ONE shader
+  (`shaders/film_shoot.gdshader`, kind in COLOR.a x 20, lamps by `lamp_factor`), two `lamp_light`
+  omnis at night (desktop). People: `FilmCrew` (in black, StreetVendor), actors, `FilmExtra`
+  (MarketShopper in holding), in the crowd cap. `FILM_SHOOT=0` is the A/B; probe
+  `tools/film_shoot/probe.gd`; checks `tests/film_shoot_checks.gd`.
 - Micromobility (2026-10-05, docs/HANDOFF.md "Micromobility": "the 2026 LA street"):
   `Micromobility` (`scripts/world/micromobility.gd`, static) lays out, from hashes only (seed +
   block / face / road / crossing, never a chunk or block rng; a FULL chunk's step after the

@@ -15534,3 +15534,73 @@ checks, 0 failed, peak RSS 2,506 MB a shard, 1,054 s.
 and the tarps' backlight need a Mac look. LOD chunks and the far city draw the buildings only
 (no goods past the FULL ring, by design). Garments are simple lofted sacks with tube sleeves:
 fine on a rack at 3 m, plain at 1 m.
+
+## 9d?. Film shoots on location, 2026-10-30 (fleet wave 3, agent branch `wt/film-shoot`; VISUAL_ROADMAP "?")
+
+Very LA: a street closed for a shoot. `FilmShoot` (`scripts/world/film_shoot.gd`) is the plan,
+`FilmShootKit` (`film_shoot_kit.gd`) the hardware, `FilmShootBuild` (`film_shoot_build.gd`) the
+chunk's steps, `FilmCrew` / `FilmExtra` (`scripts/npc/`) the people, one shader
+(`shaders/film_shoot.gdshader`). `FILM_SHOOT=0` in the environment is the A/B.
+
+**Where.** The farmers' market's machinery with its own cells and salts: the map in `CELL`
+2.3 km squares, a hash of seed + cell picks up to `TRIES` points, the block under the point gives
+its +X or +Z street if it is a plain local street (`MIN_WIDTH`..`MAX_WIDTH`, not an avenue, not
+pinned, at least `MIN_LEN` long, gentle) of MIDTOWN / SUBURBS / BEACHTOWN / INDUSTRIAL blocks
+nobody claims (no site, grounds, school, hospital, Chinatown, river, marina, replica, downtown's
+real extent; FarmersMarket's `_street_clear()` for freeways, rail and landmarks). Never a farmers'
+market's street, nor the chunk that builds one. **Order independence**: `FilmShoot.road_closed()`
+answers false while a market (or a shoot) decides, and a shoot's decision asks
+`FarmersMarket.market_on()` directly, so a market never sees a shoot and a shoot always sees the
+markets, whichever is asked first. The street is closed (CityPlan.road_open(), one hook line)
+from `CLOSE_INSET` past each crossing, so the junctions keep their signals and crosswalks; the
+owner chunk paves it (the market's `paves()` line takes `or FilmShoot.paves()`), its parked cars
+skip it after their rolls (`blocks_parking()`), and `ground_y()` puts people on the asphalt
+(the chunk's `market_road` rect, reused). On seed 1337 there are three in the 12 km basin
+(CREST AVE x 2, RIVER ST), the nearest pair 1.9 km apart.
+
+**What** (`layout()`, pure, cached; street frame t along, o across, `camp_side` by hash):
+- the BASECAMP along one kerb from whichever end the hash says, as far as it fits: honeywagon
+  (13.6 m, six doors with steps and vents), a cast trailer, the grip and electric trucks (the box
+  truck's far body in a fleet paint, its lift gate down with a C-stand cart / cable cart and
+  sandbags), a second cast trailer, a tow-behind generator; the catering tent (20 x 10 ft, buffet
+  under black skirting, chafing dishes, urns, a cooler, bulbs) at the far end;
+- the SET down the other side, on the stretch the basecamp leaves: 9.6 m of track and the dolly
+  (camera with lens, matte box and monitor), a crane (truss arm, weights, remote head and camera)
+  10 m down the street, two 18K HMIs on roller stands at the kerb aimed at the action, the
+  balloon light at 6.6 m over the road, black flags and silver bounces on C-stands, video
+  village (monitor cart, three director's chairs, the sound cart) under the market's pop-up in
+  black canvas, piles of apple boxes and road cases, cables from the generator to every lamp;
+- the action on the set side's PAVEMENT: two actors on their marks facing each other;
+- both ends: type III barricades (the middle one turned aside for the carts), cones, the yellow
+  arrow sign with the production's code and "STREET CLOSED FOR FILMING", and orange "NOTICE -
+  FILMING IN PROGRESS" sheets on posts every `NOTICE_STEP` down both kerbs with the title, the
+  company and the tow-away line;
+- 11 crew in black (FilmCrew: operator, dolly grip, focus puller, crane op, director, script,
+  gaffer, boom, a PA at each end on the walkie, the caterer), 10 extras in holding (the road
+  between the basecamp and the set). All in the crowd cap; gunfire sends them off and they come
+  back (StreetVendor / MarketShopper behaviour).
+
+Titles, companies and codes are invented tables (`TITLES`, `COMPANIES`, `CODES`).
+
+**Drawn.** Every piece is a FarmersMarketKit.Geo mesh (near triangles, a coarse level as its one
+LOD and shadow twin) re-materialled to `FilmShootKit.material()`; one batch per piece a chunk
+(`fs_*`), shadows to 70 m (`set_shadow_reach`), the big pieces drawn to 360 m, the set to 170 m,
+cones and notices to 110 m. Lettering and cables are ONE detail mesh a chunk (`FilmShootDetail`,
+FarmersMarketBuild.Detail, its surfaces swapped to the shoot's shader). The shader: kind in
+COLOR.a x 20 (metal, gloss paint, duvetyne, canvas, rubber, trailer glass lit after dark, wood,
+the HMI lens, the balloon, monitor screens, lamps, paper notices, foil bounce, sandbags, diamond
+plate, barricade stripes, the trailers' seamed aluminium), colour-space include, lamps by
+`lamp_factor`. The HMIs, flags, bounces, balloon, village and barricades are `EncampmentItem`s
+(knocked over, gone for good, WorldState). Trailers, trucks, the generator and the crane base
+have collision boxes on the chunk. After dark two OmniLights in `lamp_light` (the balloon, a
+fill at the action; desktop only). LOD chunks: the basecamp and the balloon, no shadow. The far
+city: nothing.
+
+**Hooks**: `CityPlan.road_open()` (one `if`), CityChunk's two paving `elif`s, the parking line,
+one `steps.append_array()` after the market's, the loading screen's warm, the smoke test's line.
+
+**Tools**: `tools/film_shoot/probe.gd` (every shoot in the basin with STREET / SET / AERIAL EYEs
+for block_shot.tscn or still_shot.gd). Checks: `tests/film_shoot_checks.gd` (38).
+
+**Not verified**: Forward+ look (HMI and balloon emission levels, the night fill), the crowd's
+actual behaviour round the set in a played session.

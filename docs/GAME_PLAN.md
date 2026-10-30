@@ -295,6 +295,13 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-30 Film shoots on location (VISUAL_ROADMAP, film-shoot).** A shoot is a STREET like
+  the farmers' market: one local street per 2.3 km cell by hash, closed every day through
+  CityPlan.road_open() (closures are plan data traffic and the map cache), never a market's street,
+  and the market's decision never looks at a shoot so the answer is the same whichever is asked
+  first. Always set up (the city is always filming); day and night differ only by the lamps. The
+  trucks are the box truck's far body; everything else is code-built on one shader. Names are
+  invented tables. Hashes of seed + cell / site only. `FILM_SHOOT=0` is the A/B.
 - **2026-10-29 Facades are worked out per pane, not per building (owner: "start looking like GTA
   6").** Glass varies pane by pane and floor by floor, blinds hang at their own heights, the glass
   mirrors a street opposite with parallax, curtain walls come in three systems (flush, deep fins,
