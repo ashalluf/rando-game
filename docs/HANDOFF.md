@@ -14473,3 +14473,21 @@ and no pads. Stills: `HELI=hover` (HELI_DIST, HELI_AGL, HELI_SIDE, HELI_YAW, HEL
 - The downwash bends the shader plants only; the hill shells, the climbers and the encampments'
   tarps do not react.
 - Forward+ not looked at (opengl3 stills only).
+
+### Wave 3 (finished 2026-10-30)
+
+Merged origin/main (95bd13f) in; the only conflicts were the docs and the check-file list. Two
+visible fixes:
+- **The wash reads as weather, not stickers.** Its dust was AmbientCraft's UNSHADED puff in a
+  fixed beige: the same flat colour at noon and at dusk, and on a park's lawn a set of brown
+  blotches that read as dead patches. Now two layers of DrivingFX's lit puff (lit on the face
+  and through it, soft where it meets the ground): a low sheet of grit skimming outward and
+  slower billows rolling out round it, coloured by what is under the hub (`dust_color` paving
+  and roofs, `hills_color` the terrain layer, `sand_color` the beach, `lawn_color` a faint pale
+  haze off PARK and SCHOOL blocks, `spray_color` water).
+- **The airport heliport's paint was drawn face down** (counter-clockwise, so its normal flipped
+  and the whole pad drew near black with olive markings); wound clockwise now, sRGB vertex
+  colours decoded on both renderers.
+
+Gate: `SHARDS=3 tests/headless_check.sh` 2,431 checks passed, 0 failed (peak 2.47 GB a shard).
+Stills on `shots/heli-flyable`.
