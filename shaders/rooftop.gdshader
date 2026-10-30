@@ -11,6 +11,7 @@ render_mode blend_mix, depth_draw_opaque, cull_back, diffuse_burley, specular_sc
 // Shader includes and shaders use // comments, never ##.
 
 #include "res://shaders/color_space.gdshaderinc"
+#include "res://shaders/wet_surface.gdshaderinc"
 
 global uniform float lamp_factor;
 global uniform float night_factor;
@@ -349,6 +350,15 @@ void fragment() {
 		rough = 0.6;
 	}
 
+	if (ws_on() && kind != K_WATER && kind != K_LAMP && kind != K_BULB && kind != K_SIGN && kind != K_BEACON) {
+		// Rain (wet_surface.gdshaderinc): decks, pads and paving dark and glossy, puddles on the
+		// flat, canvas and cushions soaked.
+		float face_up = smoothstep(-0.2, 0.7, normalize(lnorm).y);
+		float pond = smoothstep(0.55, 0.85, ws_noise(lpos.xz * 0.3)) * step(0.9, normalize(lnorm).y);
+		float wet = ws_wet(0.35 + 0.5 * pond) * mix(0.55, 1.0, face_up);
+		col *= mix(1.0, (kind == K_CANVAS || kind == K_CUSHION || kind == K_LAWN || kind == K_SOIL) ? 0.55 : 0.68, wet);
+		rough = mix(rough, mix(0.2, 0.03, pond), wet * face_up);
+	}
 	if (set_normal) {
 		NORMAL = normalize((VIEW_MATRIX * (MODEL_MATRIX * vec4(nm, 0.0))).xyz);
 	}

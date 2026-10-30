@@ -23,7 +23,16 @@ func run(t: Node, city: Node3D) -> void:
 	_check_meshes()
 	_check_spots(m)
 	_check_pose()
+	# A single-process run may arrive in a storm (an earlier check's weather): stage a calm sea, and
+	# change it while she is out there (_check_live), then hand the weather back.
+	var weather: Node = city.get_node_or_null("Weather")
+	if weather and weather.has_method("force_state"):
+		weather.call("force_state", 0)
+		for i in 10:
+			await _t.get_tree().physics_frame
 	await _check_live(city, m)
+	if weather and weather.has_method("force_state"):
+		weather.call("force_state", -1)
 	await _t.call("stage_home")
 
 
@@ -169,6 +178,24 @@ func _check_live(city: Node3D, m: MacroMap) -> void:
 		hi = maxf(hi, tw.y)
 		off = maxf(off, absf(tw.y - surf))
 	_check(off < 0.6 and hi - lo > 0.04, "at sea she rides the drawn swell (%.2f to %.2f m, at most %.2f m off the surface)" % [lo, hi, off])
+	# The weather turns: a storm's sea under her, then calm again. She rides it out (a weather change
+	# once fired her hundreds of metres up: BannerPlane's body entering at the local origin).
+	var weather: Node = city.get_node_or_null("Weather")
+	if weather and weather.has_method("force_state"):
+		weather.call("force_state", 3)
+		var worst := 0.0
+		var top_y := -INF
+		for i in 240:
+			await tree.physics_frame
+			var tw: Vector3 = ws.call("to_world", boat.global_position)
+			top_y = maxf(top_y, tw.y)
+			if i >= 60:
+				worst = maxf(worst, absf(tw.y - SeaSurface.height(m, Vector2(tw.x, tw.z), SeaSurface.now(), boat._sea)))
+		_check(worst < 2.5 and top_y < 8.0 and boat.wet > 0.0,
+			"a storm comes up and she rides it (highest %.2f m, at most %.2f m off the surface)" % [top_y, worst])
+		weather.call("force_state", 0)
+		for i in 60:
+			await tree.physics_frame
 	# Flat out for seven seconds (boost on for the last two): she stays on the water.
 	Input.action_press("move_forward")
 	var high := -INF

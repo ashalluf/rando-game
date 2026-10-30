@@ -254,6 +254,10 @@ const EROSION_SLOPE_STEP := 70.0
 ## read as a field of cones whatever was cut into them. (A fresh noise moved the summits: the
 ## sign ended up behind a crest.)
 var _range_noise: FastNoiseLite
+## The back and east ranges' massing and crest wander (FarRanges; a noise of its own, so nothing
+## the map noise decides moves).
+var _mass_noise: FastNoiseLite
+var _crest_noise: FastNoiseLite
 ## The drainage at the point raw_height_at() last looked at: +1 on a gully's line, -1 on a spur's
 ## crest, 0 off the eroded ranges (and on the headland). The hills' ground reads it
 ## (CityChunk._build_terrain puts it in the vertex colour for terrain.gdshader, HillPlanting
@@ -299,6 +303,17 @@ func setup() -> void:
 	_range_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	_range_noise.frequency = _noise.frequency
 	_range_noise.fractal_octaves = 2
+	_mass_noise = FastNoiseLite.new()
+	_mass_noise.seed = seed + 60607
+	_mass_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	_mass_noise.frequency = FarRanges.MASS_FREQ
+	_mass_noise.fractal_octaves = 2
+	_mass_noise.fractal_gain = FarRanges.MASS_GAIN
+	_crest_noise = FastNoiseLite.new()
+	_crest_noise.seed = seed + 60611
+	_crest_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	_crest_noise.frequency = FarRanges.CREST_FREQ
+	_crest_noise.fractal_octaves = 1
 	_relief = FastNoiseLite.new()
 	_relief.seed = seed + 7919
 	_relief.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
@@ -637,7 +652,12 @@ func raw_height_at(pos: Vector2) -> float:
 	# The back range beyond the valley: the real wall.
 	_erode_drain = 0.0
 	if back_h > 12.0:
-		back_h = _erode(back_h, back_height * back_erosion_depth, pos, Vector2(bx.y, bz.y))
+		if FarRanges.enabled:
+			var zs := pos.y + embay_depth * embay_at(pos.x)
+			var keep := FarRanges.erosion_share(-zs, -back_full_z, _crest_noise.get_noise_1d(pos.x))
+			back_h = _erode(back_h, back_height * FarRanges.BACK_DEPTH * keep, pos, Vector2(bx.y, bz.y), FarRanges.BACK_SPACING, FarRanges.EROSION_GAIN)
+		else:
+			back_h = _erode(back_h, back_height * back_erosion_depth, pos, Vector2(bx.y, bz.y))
 	if back_h > h:
 		h = back_h
 		drain = _erode_drain
@@ -645,7 +665,11 @@ func raw_height_at(pos: Vector2) -> float:
 	# The eastern range, closing the bowl.
 	_erode_drain = 0.0
 	if east_h > 12.0:
-		east_h = _erode(east_h, east_height * erosion_depth, pos, Vector2(bx.z, bz.z))
+		if FarRanges.enabled:
+			var keep := FarRanges.erosion_share(pos.x, east_full_x, _crest_noise.get_noise_1d(pos.y + 9000.0))
+			east_h = _erode(east_h, east_height * FarRanges.EAST_DEPTH * keep, pos, Vector2(bx.z, bz.z), FarRanges.EAST_SPACING, FarRanges.EROSION_GAIN)
+		else:
+			east_h = _erode(east_h, east_height * erosion_depth, pos, Vector2(bx.z, bz.z))
 	if east_h > h:
 		h = east_h
 		drain = _erode_drain
@@ -695,7 +719,15 @@ func _range_heights_at(pos: Vector2) -> Vector3:
 	var east := smoothstep(east_start_x, east_full_x, pos.x)
 	# Two octaves come out about a quarter stronger than four (FastNoiseLite normalises by the
 	# octaves it sums), hence 0.3 where the old bases had 0.38 - 0.42.
-	return Vector3(front * hills_height * lerpf(1.0, embay_scale, emb) * (0.64 + 0.3 * n),
+	var front_h := front * hills_height * lerpf(1.0, embay_scale, emb) * (0.64 + 0.3 * n)
+	if FarRanges.enabled:
+		# Crest lines with a few big summits (FarRanges): the back range wanders along x, the
+		# east range along z.
+		var mass := _mass_noise.get_noise_2dv(pos)
+		return Vector3(front_h,
+			FarRanges.back_base(zs, back_start_z, back_full_z, back_height, n, mass, _crest_noise.get_noise_1d(pos.x)),
+			FarRanges.east_base(pos.x, east_start_x, east_full_x, east_height, n, mass, _crest_noise.get_noise_1d(pos.y + 9000.0)))
+	return Vector3(front_h,
 		back * back_height * (0.62 + 0.34 * n),
 		east * east_height * (0.62 + 0.32 * n))
 
@@ -706,7 +738,7 @@ func _range_heights_at(pos: Vector2) -> Vector3:
 ## was; the carving grows with the height and with the steepness (summits and benches stay
 ## rounded, the flanks are cut up, as on a real range) and never takes more than half of it,
 ## so no gully digs a hole down to the city floor. Leaves the drainage in _erode_drain.
-func _erode(h: float, depth: float, pos: Vector2, slope: Vector2) -> float:
+func _erode(h: float, depth: float, pos: Vector2, slope: Vector2, spacing: float = -1.0, gain: float = -1.0) -> float:
 	var t := smoothstep(12.0, 160.0, h)
 	for spot: Array in _calm_spots:
 		var a: Vector2 = spot[0]
@@ -722,9 +754,10 @@ func _erode(h: float, depth: float, pos: Vector2, slope: Vector2) -> float:
 	if amp < 0.01:
 		_erode_drain = 0.0
 		return h
-	var e := _erosion_filter(pos, slope, amp)
+	var g := erosion_gain if gain <= 0.0 else gain
+	var e := _erosion_filter(pos, slope, amp, spacing, g)
 	# Gully floor -1, spur crest +1, as a share of what the orders could add up to at most.
-	var v := e.x / (amp * (1.0 - pow(erosion_gain, erosion_octaves)) / (1.0 - erosion_gain))
+	var v := e.x / (amp * (1.0 - pow(g, erosion_octaves)) / (1.0 - g))
 	_erode_drain = t * clampf(-v * 1.5, -1.0, 1.0)
 	return maxf(h + e.x, h * 0.5)
 
@@ -736,10 +769,10 @@ func _erode(h: float, depth: float, pos: Vector2, slope: Vector2) -> float:
 ## what makes each order branch off the one above it. `amp` metres for the main order, each
 ## finer one `erosion_gain` of the last at half the spacing. Returns the height change in
 ## metres in .x and its slope (metres per metre) in .yz.
-func _erosion_filter(pos: Vector2, slope: Vector2, amp: float) -> Vector3:
+func _erosion_filter(pos: Vector2, slope: Vector2, amp: float, spacing: float = -1.0, gain: float = -1.0) -> Vector3:
 	var out := Vector3.ZERO
 	var a := amp
-	var cell := erosion_spacing
+	var cell := erosion_spacing if spacing <= 0.0 else spacing
 	for o in erosion_octaves:
 		var d := slope + Vector2(out.y, out.z) * erosion_branch
 		# Along the contour: the stripes vary across it, so they run downhill.
@@ -751,7 +784,7 @@ func _erosion_filter(pos: Vector2, slope: Vector2, amp: float) -> Vector3:
 		var fade := smoothstep(0.02, 0.2, l)
 		var e := _erosion_cells(pos.x / cell, pos.y / cell, dir, o)
 		out += Vector3(e.x * a, e.y * a / cell, e.z * a / cell) * fade
-		a *= erosion_gain
+		a *= erosion_gain if gain <= 0.0 else gain
 		cell *= 0.5
 	return out
 

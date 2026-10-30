@@ -16,14 +16,17 @@ enum BodyType { SEDAN, PICKUP, VAN, SPORTS, SUPER, SPIDER, HYPER, TRACK, CROSSOV
 	# The lowriders (Lowrider: tools/make_lowriders.py), never rolled: car meets and cruisers.
 	LOWRIDER_HARDTOP, LOWRIDER_COUPE,
 	# Motorcycles (Motorcycle: two wheels, a rider on top). Never rolled by random_car().
-	MOTO_SPORT, MOTO_CRUISER, MOTO_SCOOTER }
+	MOTO_SPORT, MOTO_CRUISER, MOTO_SCOOTER,
+	# The third wave of everyday bodies (Cars3: tools/make_cars_3.py), rolled through ROLL_MAP.
+	EV_HATCH, LUX_SEDAN, COMPACT_SUV, WORK_TRUCK, COUPE }
 enum Addon { NONE, ROOF_RACK, SPOILER, LIGHT_BAR }
 
 ## Original names. Nothing here is or imitates a real manufacturer's model.
 const BODY_NAMES := ["Sedan", "Pickup", "Van", "Sports", "Vantari", "Vantari Aperta", "Kestrel", "Kestrel RS", "Crossover", "City Bus", "Box Truck", "Semi", "Fire Engine", "Ambulance", "Hatchback", "SUV", "Minivan", "Taxi", "Beater", "School Bus",
 	"Garbage Truck", "Street Sweeper", "Tow Truck", "Ice Cream Truck", "Delivery Van",
 	"Hardtop Lowrider", "Coupe Lowrider",
-	"Sport Bike", "Cruiser", "Scooter"]
+	"Sport Bike", "Cruiser", "Scooter",
+	"EV Hatch", "Luxury Sedan", "Compact SUV", "Work Truck", "Coupe"]
 ## Generated body models per type (see docs/ASSETS.md). Missing files fall back to the box car.
 const BODY_MODELS := {
 	BodyType.SEDAN: "res://assets/models/road_sedan.glb",
@@ -56,6 +59,11 @@ const BODY_MODELS := {
 	BodyType.MOTO_SPORT: "res://assets/models/moto_sport.glb",
 	BodyType.MOTO_CRUISER: "res://assets/models/moto_cruiser.glb",
 	BodyType.MOTO_SCOOTER: "res://assets/models/moto_scooter.glb",
+	BodyType.EV_HATCH: "res://assets/models/road_ev_hatch.glb",
+	BodyType.LUX_SEDAN: "res://assets/models/road_lux_sedan.glb",
+	BodyType.COMPACT_SUV: "res://assets/models/road_compact_suv.glb",
+	BodyType.WORK_TRUCK: "res://assets/models/road_work_truck.glb",
+	BodyType.COUPE: "res://assets/models/road_coupe.glb",
 }
 ## Belt line (bottom of the side glass, as a fraction of body height) for a single-texture body
 ## whose texture does not darken the windows, so the paint shader finds glass by shape. No body
@@ -74,14 +82,14 @@ const GEO_GLASS_SPAN := {}
 ## Taxis are not rolled here: a sedan whose look rolls a taxi job (TAXI_SHARE) IS the taxi body, so
 ## every seed that parked a taxi still parks one.
 const BODY_ODDS := {
-	BodyType.SEDAN: 210, BodyType.PICKUP: 120, BodyType.VAN: 75, BodyType.SPORTS: 85,
+	BodyType.SEDAN: 190, BodyType.PICKUP: 95, BodyType.VAN: 60, BodyType.SPORTS: 65,
 	BodyType.SUPER: 30, BodyType.SPIDER: 15, BodyType.HYPER: 20, BodyType.TRACK: 15,
-	BodyType.CROSSOVER: 190,
+	BodyType.CROSSOVER: 135,
 	# Never rolled: the traffic spawns its buses and trucks on purpose (BigVehicles).
 	BodyType.BUS: 0, BodyType.BOX_TRUCK: 0, BodyType.SEMI: 0,
 	# Nor the emergency apparatus (Emergency sends them).
 	BodyType.FIRE_ENGINE: 0, BodyType.AMBULANCE: 0,
-	BodyType.HATCHBACK: 70, BodyType.SUV: 80, BodyType.MINIVAN: 55, BodyType.TAXI: 0, BodyType.BEATER: 35,
+	BodyType.HATCHBACK: 40, BodyType.SUV: 80, BodyType.MINIVAN: 55, BodyType.TAXI: 0, BodyType.BEATER: 35,
 	# Nor the school bus (Schools parks them and sends them out at the bell).
 	BodyType.SCHOOL_BUS: 0,
 	# Nor the service vehicles (ServiceFleet sends them to work).
@@ -91,22 +99,31 @@ const BODY_ODDS := {
 	BodyType.LOWRIDER_HARDTOP: 0, BodyType.LOWRIDER_COUPE: 0,
 	# Nor the motorcycles (Motorcycle: TrafficManager and the kerbs place them).
 	BodyType.MOTO_SPORT: 0, BodyType.MOTO_CRUISER: 0, BodyType.MOTO_SCOOTER: 0,
+	# The third wave (Cars3, 2026-10-30) took 165 from the ends of six older ranges: the EV hatch
+	# is the new LA commuter, so it takes the most.
+	BodyType.EV_HATCH: 55, BodyType.LUX_SEDAN: 20, BodyType.COMPACT_SUV: 45, BodyType.WORK_TRUCK: 25,
+	BodyType.COUPE: 20,
 }
 ## How a 0-999 roll maps onto BODY_ODDS: [end of the range (exclusive), type], in roll order. Every
 ## old type keeps the START of the range it had before the second wave and gives the end of it to
 ## a new type, so a seed's roll that landed on, say, a sedan still lands on a sedan unless it was
 ## in the slice the hatchbacks took - what a seed parks moves only where a new type now lands
-## (the smoke test checks this table against BODY_ODDS).
+## (the smoke test checks this table against BODY_ODDS). The third wave did the same again: a row
+## with a third entry is a slice it took, and that entry is who had it (Cars3.row_type(): with
+## `CARS_3=0` the slice goes back to them).
 const ROLL_MAP := [
-	[210, BodyType.SEDAN], [250, BodyType.HATCHBACK],
-	[370, BodyType.PICKUP], [400, BodyType.SUV],
-	[475, BodyType.VAN], [515, BodyType.MINIVAN],
-	[600, BodyType.SPORTS], [630, BodyType.SUV], [660, BodyType.HATCHBACK],
+	[190, BodyType.SEDAN], [210, BodyType.LUX_SEDAN, BodyType.SEDAN],
+	[235, BodyType.HATCHBACK], [250, BodyType.EV_HATCH, BodyType.HATCHBACK],
+	[345, BodyType.PICKUP], [370, BodyType.WORK_TRUCK, BodyType.PICKUP], [400, BodyType.SUV],
+	[460, BodyType.VAN], [475, BodyType.COMPACT_SUV, BodyType.VAN], [515, BodyType.MINIVAN],
+	[580, BodyType.SPORTS], [600, BodyType.COUPE, BodyType.SPORTS], [630, BodyType.SUV],
+	[645, BodyType.HATCHBACK], [660, BodyType.EV_HATCH, BodyType.HATCHBACK],
 	[690, BodyType.SUPER], [705, BodyType.BEATER],
 	[720, BodyType.SPIDER], [730, BodyType.MINIVAN],
 	[750, BodyType.HYPER], [760, BodyType.BEATER],
 	[775, BodyType.TRACK], [780, BodyType.MINIVAN],
-	[970, BodyType.CROSSOVER], [990, BodyType.SUV], [1000, BodyType.BEATER],
+	[915, BodyType.CROSSOVER], [945, BodyType.COMPACT_SUV, BodyType.CROSSOVER],
+	[970, BodyType.EV_HATCH, BodyType.CROSSOVER], [990, BodyType.SUV], [1000, BodyType.BEATER],
 ]
 ## Where a generated wheel sits in body space, per body type: `x` half-track, `front` / `rear`
 ## the axle positions along the car, `y` the hub height, `r` the tyre radius and `w` the section
@@ -167,6 +184,12 @@ const WHEEL_POSE := {
 	# (Lowrider.add_wheels(), "wire").
 	BodyType.LOWRIDER_HARDTOP: {"x": 0.790, "front": -1.441, "rear": 1.579, "y": 0.180, "r": 0.292, "w": 0.160, "baked": true, "wire": true},
 	BodyType.LOWRIDER_COUPE: {"x": 0.740, "front": -1.337, "rear": 1.383, "y": 0.180, "r": 0.292, "w": 0.160, "baked": true, "wire": true},
+	# The third wave (tools/make_cars_3.py prints these; Cars3).
+	BodyType.EV_HATCH: {"x": 0.772, "front": -1.270, "rear": 1.360, "y": 0.148, "r": 0.318, "w": 0.215, "baked": true},
+	BodyType.LUX_SEDAN: {"x": 0.797, "front": -1.609, "rear": 1.461, "y": 0.168, "r": 0.345, "w": 0.235, "baked": true},
+	BodyType.COMPACT_SUV: {"x": 0.809, "front": -1.460, "rear": 1.242, "y": 0.183, "r": 0.356, "w": 0.242, "baked": true},
+	BodyType.WORK_TRUCK: {"x": 0.880, "front": -2.076, "rear": 1.534, "y": 0.184, "r": 0.390, "w": 0.260, "baked": true},
+	BodyType.COUPE: {"x": 0.797, "front": -1.472, "rear": 1.358, "y": 0.168, "r": 0.345, "w": 0.235, "baked": true},
 }
 ## The sizes above deliberately land on six distinct (radius, section width) pairs across the
 ## eight body types. Every extra pair is another five meshes (one per spoke pattern) times two
@@ -515,6 +538,7 @@ var driver: Node3D:
 		if v != null:
 			_npc_driver = false
 		_update_occupant()
+		CarInteriors.driver_changed(self, v)
 ## How close the player has to be to get in (meters from the origin; big for aircraft).
 var enter_radius: float = 4.5
 ## Traffic state while driven by the TrafficManager (empty otherwise). A car given traffic gets a
@@ -622,6 +646,8 @@ var _glass_slots: Array = []
 ## (made the first time somebody is, and kept for the next time).
 var _glass_shared: ShaderMaterial
 var _glass_own: ShaderMaterial
+## CarInterior's glass while the car has its real cabin built (CarInteriors), else null.
+var cabin_glass_override: Material = null
 ## Somebody from the traffic is at the wheel (see `traffic`), and who (a seed for CarCabin).
 var _npc_driver: bool = false
 var _occupant_seed: int = 0
@@ -653,6 +679,7 @@ func _ready() -> void:
 	add_to_group("physics_prop")
 	CarLights.ensure(self)
 	DrivingFX.ensure(self)
+	CarInteriors.ensure(self)
 	EngineAudio.ensure(self)
 	CarRadio.ensure(self) # the player's car radio (scripts/vehicles/car_radio.gd)
 	set_meta("spawn_time", Time.get_ticks_msec() / 1000.0)
@@ -755,6 +782,7 @@ func take_hit(_shape_index: int, damage: float, dir: Vector3, at: Vector3 = Vect
 	damage_state().hit(kind, at, dir, damage)
 	CarAlarm.on_hit(self, kind, damage)
 	CrowdLook.car_hit(self, kind, damage)
+	CarInteriors.on_hit(self, kind, damage, dir, at)
 
 
 ## This car's damage, made now if it has none yet.
@@ -1668,6 +1696,8 @@ func _dims() -> Dictionary:
 			return ServiceVehicles.DIMS[body_type]
 		BodyType.LOWRIDER_HARDTOP, BodyType.LOWRIDER_COUPE:
 			return Lowrider.DIMS[body_type]
+		BodyType.EV_HATCH, BodyType.LUX_SEDAN, BodyType.COMPACT_SUV, BodyType.WORK_TRUCK, BodyType.COUPE:
+			return Cars3.DIMS[body_type]
 		BodyType.SPORTS:
 			return {"length": 4.6, "width": 1.9, "chassis_h": 0.55, "cabin": Vector2(-0.9, 2.0), "cabin_h": 0.55, "wheel_z": 1.45, "track": 1.64, "tyre_r": 0.34, "ride": -0.30}
 		BodyType.SUPER, BodyType.SPIDER:
@@ -1825,6 +1855,7 @@ func _add_cabin_glass(holder: Node3D, meshes: Array[MeshInstance3D]) -> void:
 			var data := CarCabin.measure(body_type, m.mesh, CarCabin.context(self, to_car))
 			_glass_shared = CarCabin.glass_material(body_type, src, data)
 			m.set_surface_override_material(si, _glass_shared)
+			CarWipers.attach(self, m, _glass_shared, data, CarCabin.context(self, to_car))
 			_glass_slots.append([m, si])
 			if not _glass_meshes.has(m):
 				_glass_meshes.append(m)
@@ -1885,13 +1916,19 @@ func _apply_occupant(seats: int, look: Dictionary) -> void:
 	var dmg_glass: ShaderMaterial = _damage._glass if _damage != null and is_instance_valid(_damage) else null
 	if dmg_glass != null:
 		CarCabin.seat(dmg_glass, seats, look)
+		CarWipers.sync(self, seats, null)
 		return
 	var mat := _glass_shared
-	if seats != 0:
+	if cabin_glass_override is ShaderMaterial:
+		# The real cabin is built (CarInterior): its own see-through glass, people still traced.
+		mat = cabin_glass_override
+		CarCabin.seat(mat, seats, look)
+	elif seats != 0:
 		if _glass_own == null and _glass_shared != null:
 			_glass_own = _glass_shared.duplicate() as ShaderMaterial
 		mat = _glass_own
 		CarCabin.seat(mat, seats, look)
+	CarWipers.sync(self, seats, mat)
 	for slot: Array in _glass_slots:
 		var m := slot[0] as MeshInstance3D
 		if is_instance_valid(m) and m.get_surface_override_material(slot[1]) != mat:
@@ -1968,11 +2005,18 @@ const PARTS_SHADER := """
 shader_type spatial;
 render_mode cull_back;
 // Vertex colours from the glTF are linear already.
+#include "res://shaders/wet_surface.gdshaderinc"
 void fragment() {
 	ALBEDO = COLOR.rgb;
 	ROUGHNESS = clamp(COLOR.a, 0.04, 1.0);
 	METALLIC = 0.0;
 	SPECULAR = 0.5;
+	if (ws_on()) {
+		// Rain (WetWorld): the far twin's parts wet like the near body's.
+		float w = ws_wet(0.3);
+		ALBEDO *= mix(1.0, 0.85, w);
+		ROUGHNESS = mix(ROUGHNESS, ROUGHNESS * 0.5, w);
+	}
 }
 """
 
@@ -2088,7 +2132,7 @@ func _box(size: Vector3, pos: Vector3, color: Color, collide: bool, glow: bool =
 static func _body_for_roll(roll: int) -> BodyType:
 	for row: Array in ROLL_MAP:
 		if roll < int(row[0]):
-			return row[1] as BodyType
+			return Cars3.row_type(row) as BodyType
 	return BodyType.SEDAN
 
 
@@ -2140,6 +2184,12 @@ static func random_car(rng: RandomNumberGenerator) -> Vehicle:
 				var kind := absi(hash([look, 13])) % SERVICE_PAINTS.size()
 				color = SERVICE_PAINTS[kind]
 				trim = SERVICE_BANDS[kind]
+				fin = Finish.GLOSS
+				extra = Addon.NONE
+		BodyType.WORK_TRUCK:
+			# A company's truck most of the time: a fleet colour, plain gloss (off the look seed).
+			if job < Cars3.WORK_FLEET_SHARE:
+				color = Cars3.WORK_FLEET_PAINTS[absi(hash([look, 15])) % Cars3.WORK_FLEET_PAINTS.size()]
 				fin = Finish.GLOSS
 				extra = Addon.NONE
 		BodyType.BEATER:

@@ -174,6 +174,8 @@ float kit_hash(vec2 p) {
 	return fract(p.x * p.y);
 }
 
+#include "res://shaders/wet_surface.gdshaderinc"
+
 void fragment() {
 	vec2 uv = (swap_uv ? UV.yx : UV) / tile_m;
 	vec3 tint = v_tint;
@@ -197,6 +199,14 @@ void fragment() {
 	float up = smoothstep(0.55, 0.95, v_world_normal.y);
 	float patch = kit_hash(floor(v_world_pos.xz * 1.7) + floor(v_world_pos.y * 0.5));
 	albedo *= 1.0 - grime * up * (0.25 + 0.35 * patch);
+	if (ws_on()) {
+		// Rain (wet_surface.gdshaderinc): cornices, sills and awnings dark and glossy on top, the
+		// canvas soaked through, the undersides only damp.
+		float face_up = smoothstep(-0.2, 0.7, v_world_normal.y);
+		float wet = ws_wet(0.35 + 0.4 * face_up) * mix(0.55, 1.0, face_up);
+		albedo *= mix(1.0, 0.6, wet);
+		rough = mix(rough, 0.18, wet * face_up);
+	}
 	ALBEDO = clamp(albedo * (1.0 - occ * 0.55), vec3(0.0), vec3(1.0));
 	AO = 1.0 - occ;
 	AO_LIGHT_AFFECT = 0.25;

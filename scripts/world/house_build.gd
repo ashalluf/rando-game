@@ -1302,9 +1302,9 @@ func _world_size(r: Rect2, hgt: float) -> Vector3:
 ## in the wall colour that closes the gable ends - in the `lod_box` batch, which the far city takes
 ## as it is. Plus the wings' collision where the chunk wants it, and their occluder.
 func lod() -> void:
-	var custom := Color(0.25, 0.32, float(absi(seed) % 997) / 997.0, 0.0)
+	var custom := MidCity.house_custom(seed)
 	var plain := Color(0.0, 0.0, float(absi(seed) % 997) / 997.0, 1.0)
-	var roof_far: Color = HouseKit.CLAY_FAR if h.roof_mat == "h_roof" else (col.shingle as Color).lightened(0.12)
+	var roof_far: Color = MidCity.roof_far(h.roof_mat == "h_roof", col)
 	for w: Dictionary in h.wings:
 		var r: Rect2 = w.r
 		var ye := float(w.storeys) * HouseKit.STOREY
@@ -1359,7 +1359,7 @@ func _lod_roof(w: Dictionary, ye: float, roof_c: Color, wall_c: Color, plain: Co
 		var bz := rd * length
 		if bx.cross(by).dot(bz) < 0.0:
 			bz = -bz
-		_lod_add(Transform3D(Basis(bx, by, bz), mid), roof_c, plain)
+		_lod_add(Transform3D(Basis(bx, by, bz), mid), roof_c, MidCity.roof_custom(plain))
 	# The prism under them: a square rotated 45 degrees about the ridge, its top at the ridge line
 	# over the walls, filling the gable ends.
 	var hh := (r.size.y if along_u else r.size.x) * 0.5 * pitch + eave * pitch

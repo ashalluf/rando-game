@@ -220,6 +220,11 @@ class instead.
 | `tools/make_more_cars.py` | `road_minivan.glb` | 52k tris + 8k far twin | `BodyType.MINIVAN` | 2026-10-05 |
 | `tools/make_more_cars.py` | `road_taxi.glb` | 54k tris + 8k far twin (the sedan + a lit roof sign, `taxi_sign` slot) | `BodyType.TAXI` | 2026-10-05 |
 | `tools/make_more_cars.py` | `road_beater.glb` | 51k tris + 8k far twin (a dent and a cracked, taped tail lamp in the geometry) | `BodyType.BEATER` | 2026-10-05 |
+| `tools/make_cars_3.py` | `road_ev_hatch.glb` | 52k tris + 8k far twin (the hatchback cab-forward, closed face, light bar, glass roof) | `BodyType.EV_HATCH` | 2026-10-30 |
+| `tools/make_cars_3.py` | `road_lux_sedan.glb` | 55k tris + 8k far twin (the sedan with a 24 cm longer bonnet) | `BodyType.LUX_SEDAN` | 2026-10-30 |
+| `tools/make_cars_3.py` | `road_compact_suv.glb` | 48k tris + 8k far twin (the SUV cut short and scaled to 88 %, spare wheel) | `BodyType.COMPACT_SUV` | 2026-10-30 |
+| `tools/make_cars_3.py` | `road_work_truck.glb` | 56k tris + 8k far twin (the pickup blacked out, toolbox, ladder rack, `ladder` slot) | `BodyType.WORK_TRUCK` | 2026-10-30 |
+| `tools/make_cars_3.py` | `road_coupe.glb` | 51k tris + 8k far twin (the sedan, short overhangs, roof down 9 cm, two doors) | `BodyType.COUPE` | 2026-10-30 |
 | `tools/make_lowriders.py` | `road_lowrider_hardtop.glb` | 51k tris + 8k far twin (1960s two-door hardtop, laid low; the game draws its wire wheels) | `BodyType.LOWRIDER_HARDTOP` | 2026-10-06 |
 | `tools/make_lowriders.py` | `road_lowrider_coupe.glb` | 49k tris + 8k far twin (1980s coupe with a padded half roof) | `BodyType.LOWRIDER_COUPE` | 2026-10-06 |
 | code (`Lowrider.wire_wheel()`) | the lowriders' 13" wire wheels | 72 spokes, thin whitewall, knock-off; ~6k tris near, a disc far | `Lowrider` | 2026-10-06 |
@@ -559,6 +564,10 @@ to each `.glb` on import (`prop_<name>_<map>.jpg` + `.import`); those are commit
 | tree_small_02 | `tree_c.glb` | 40k (from 2.0M) | street and park trees | 2026-09-19 |
 | namaqualand_boulder_02 | `rock_a.glb` | 3.5k (from 98k) | hill boulders (flat) | 2026-09-19 |
 | namaqualand_boulder_04 | `rock_b.glb` | 3.5k (from 59k) | hill boulders (tall) | 2026-09-19 |
+| namaqualand_cliff_02 | `rock_tor_a.glb` (+ `rock_tor_a_mid.glb`, welded, geometry only, `tools/rocks/make_rock_lods.py`) | 9k (from 194k); welded 1.8k | crest tors (RockKit, `rock_outcrop.gdshader` recolours it) | 2026-10-30 |
+| namaqualand_cliff_01 | `rock_tor_b.glb` (+ `rock_tor_b_mid.glb`) | 7k (from 94k); welded 1.8k | tors and outcrops | 2026-10-30 |
+| mountainside | `rock_face_a.glb` (+ `rock_face_a_mid.glb`) | 8k (from 153k); welded 1.8k | rock faces on the steepest slopes | 2026-10-30 |
+| namaqualand_boulder_05 | `rock_boulder_c.glb` | 2.4k (from 90k) | scree and cut-bank boulders | 2026-10-30 |
 | wild_rooibos_bush (5 variants) | `plant_rooibos.glb` | 1k to 13k | dry scrub on the hills | 2026-09-19 |
 | grass_medium_02 (5 variants) | `grass_tuft.glb` | 0.7k to 2.5k | grass tufts on the hills | 2026-09-19 |
 | exterior_aircon_unit (clean + rusted) | `prop_ac.glb` | 9.5k per variant | rooftop air conditioning units | 2026-09-20 |

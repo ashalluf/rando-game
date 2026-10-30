@@ -251,7 +251,7 @@ void fragment() {
 		float mull = lines(uv.x, pitch, 0.06);
 		float fres = pow(1.0 - clamp(dot(normalize(VIEW), NORMAL), 0.0, 1.0), 3.0);
 		albedo = mix(vec3(0.05, 0.06, 0.07), vec3(0.2, 0.2, 0.21), mull);
-		emit += to_lit(disp(sky_tint.rgb)) * (0.15 + 0.5 * fres) * (1.0 - mull) * (1.0 - night_factor * 0.8);
+		emit += to_lit(sky_tint.rgb) * (0.15 + 0.5 * fres) * (1.0 - mull) * (1.0 - night_factor * 0.8);
 		float lit = step(0.2, hash12(vec2(floor(uv.x / pitch), floor(world_p.y / 3.8)) + floor(world_p.xz / 50.0))) * lamp_factor;
 		emit += vec3(0.95, 0.9, 0.78) * 0.7 * lit * (1.0 - mull);
 		rough = mix(0.06, 0.5, mull);

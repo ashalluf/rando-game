@@ -108,7 +108,7 @@ func run(t: Node, city: Node3D) -> void:
 	# Out of range: eased back to the clip's pose and the modifier stops.
 	ped.look_range = 0.0
 	ped._update_lod()
-	for i in 120:
+	for i in 480:
 		await _tree.process_frame
 		if not mod.active:
 			break

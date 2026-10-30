@@ -752,6 +752,7 @@ static func _build_beach(ch: CityChunk, bp: Dictionary) -> void:
 			_pocket_park(ch, r, _rng(ch.plan, "pocket", [ch.ix, ch.iz, k]), full)
 	if not full:
 		Backyards.block(ch, bp)
+		YardSales.block(ch, bp)
 		return
 	var grid: Dictionary = bp.grid
 	var corridor_cells := {}
@@ -764,6 +765,7 @@ static func _build_beach(ch: CityChunk, bp: Dictionary) -> void:
 		jobs.append(_dress_walk.bind(ch, walk, walk_path))
 	_defer(ch, jobs)
 	Backyards.block(ch, bp)
+	YardSales.block(ch, bp)
 
 
 ## The dressing (walls, planting, props) as build steps of their own, queued before the finish
@@ -1594,6 +1596,10 @@ static func _ground(ch: CityChunk, r: Rect2, kind: int, variant: float, lift: fl
 		return
 	if ch.level == CityChunk.Level.FULL and not ch.capturing:
 		ch._yard_ground.append([r, kind, variant, lift])
+		return
+	if kind == G_POOL:
+		# The pool as a flat far box (MidCity: LA from the hills is dotted with them).
+		MidCity.pool(ch, r)
 		return
 	if kind != G_LAWN or maxf(r.size.x, r.size.y) < 6.0 or minf(r.size.x, r.size.y) < 2.0:
 		return
