@@ -113,8 +113,12 @@ func _push() -> void:
 		return
 	if not _looked:
 		_looked = true
+		# Weather is DayNight's sibling in city.tscn; anywhere else, look through the scene.
+		var city := _day.get_parent() if _day else null
+		if city:
+			_weather = city.get_node_or_null("Weather")
 		var scene := get_tree().current_scene if is_inside_tree() else null
-		if scene:
+		if _weather == null and scene:
 			_weather = scene.find_child("Weather", true, false)
 	var weights := []
 	if _weather and _weather.has_method("weight_of"):
