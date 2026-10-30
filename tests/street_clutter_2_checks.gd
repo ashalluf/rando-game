@@ -60,7 +60,7 @@ func _tables_and_meshes() -> void:
 	var bad: Array = []
 	for key: String in StreetClutter2.KEYS:
 		var mesh := StreetClutter2.mesh_for(key)
-		var tris := mesh.surface_get_array_len(0) / 3 if mesh.get_surface_count() == 1 else -1
+		var tris: int = mesh.surface_get_array_len(0) / 3 if mesh.get_surface_count() == 1 else -1
 		if tris < 2 or tris > 2600:
 			bad.append("%s %d" % [key, tris])
 	_t._check(bad.is_empty(), "street clutter 2 meshes are one surface, 2-2,600 triangles (%s)" % [bad])
@@ -168,7 +168,7 @@ func _built(city: Node3D, plan: CityPlan) -> void:
 	_t._check(draw_ok, "every street clutter 2 batch stops drawing at a distance")
 	_t._check(place_bad.is_empty(), "pavement clutter stands on the pavement and road clutter lies in the road (%s)" % [place_bad.slice(0, 6)])
 	_t._check(steam_bad == 0, "steam rises only in districts that have it (%d)" % steam_bad)
-	_t._check(same_plan, "street clutter 2 is hash-seeded: planned twice, the same pieces")
+	_t._check(same_plan, "street clutter 2 is hash-seeded: planned again from the built chunk, the same pieces (flyers aside)")
 	_t._check(same_block, "street clutter 2 rolls nothing from the block: built without it, the block is the same")
 	_t._check(off_clean, "off (STREET_CLUTTER_2=0), no street clutter 2 batch is built")
 
@@ -176,6 +176,9 @@ func _built(city: Node3D, plan: CityPlan) -> void:
 func _sig(out: Dictionary) -> Array:
 	var s: Array = []
 	for key: String in out:
+		# The flyers read the poles from the chunk's batch, which is built (and emptied) by then.
+		if key == "sc2_poster":
+			continue
 		for it: Array in out[key]:
 			var o: Vector3 = (it[0] as Transform3D).origin
 			s.append("%s %.2f %.2f %.2f" % [key, o.x, o.z, (it[1] as Color).r])

@@ -315,6 +315,11 @@ static func _shop_things(ctx: Dictionary, fronts: Array) -> void:
 			if _free(ctx, q, 0.45):
 				_take(ctx, q, 0.45)
 				_put(ctx, K_DOLLY, _xf(q, _yaw(-n) + PI + (h01(hk + ["dy"]) - 0.5) * 0.3, 1.0), Color(h01(hk + ["dpaint"]), 0.0, 0.0, 0.0))
+		# Pigeon droppings under the shop's sign band and ledges, on the pavement at the wall.
+		var drops: float = float(DROPPINGS_PER_M[district]) * width
+		if h01(hk + ["drop"]) < drops:
+			var q := p + n * (0.25 + 0.3 * h01(hk + ["dd"])) + along * (h01(hk + ["dx"]) - 0.5) * width * 0.8
+			_put(ctx, K_DROP, _xf(q, h01(hk + ["dy"]) * TAU, 0.6 + 0.8 * h01(hk + ["ds"]), CityChunk.SIDEWALK_TOP + 0.003), Color(h01(hk + ["dseed"]), h01(hk + ["dfresh"]), 0.0, 0.0))
 		# Butts and gum spread on the pavement in front of the door (more downtown, bars).
 		if h01(hk + ["gum"]) < float(BUTTS_PER_SHOP_M[district]) * width * (2.5 if food else 1.0):
 			var q := p + n * clampf(depth * 0.45, 1.0, 3.0) + along * (h01(hk + ["gx"]) - 0.5) * width * 0.5
