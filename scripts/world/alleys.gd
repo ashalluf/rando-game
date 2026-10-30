@@ -311,7 +311,9 @@ static func obstacles(sp: Dictionary, foot: Dictionary) -> Array:
 	for lot: Dictionary in sp.lots:
 		var size: Vector2 = lot.size
 		var lr := Rect2((lot.center as Vector2) - size * 0.5, size)
-		if lot.get("parking", false):
+		# A car park has nothing standing on it, unless a building was recorded there after all
+		# (the walk of fame builds its frontage car parks: StarBoulevard.strip_lot()).
+		if lot.get("parking", false) and not foot.has(int(lot.seed)):
 			continue
 		if foot.has(int(lot.seed)):
 			obs.append_array(foot[int(lot.seed)])

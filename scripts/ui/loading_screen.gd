@@ -119,6 +119,7 @@ func run(city: Node3D) -> void:
 	var t_beach := Time.get_ticks_usec()
 	LoadClock.start("screen: beach figures")
 	var beach := BeachFigure.kinds()
+	beach.append_array(Backyards.figure_kinds())
 	for i in beach.size():
 		if _due():
 			_step("Preparing the beach", 0.3 + 0.25 * float(i) / float(maxi(beach.size(), 1)))
@@ -293,6 +294,9 @@ func _warm_shaders() -> void:
 	# The fashion district's goods, stalls and tarps (FashionKit), built in code.
 	if FashionDistrict.enabled:
 		effects.append_array(FashionKit.warm())
+	# Backyard life's patio sets, grills, trampolines, floats and lights (BackyardKit).
+	if Backyards.enabled:
+		effects.append_array(BackyardKit.warm())
 	for mat: Material in effects:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D

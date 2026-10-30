@@ -12,9 +12,19 @@ var _tree: SceneTree
 
 
 func run(t: Node, city: Node3D) -> void:
+	await _run(t, city)
+	Onlookers.enabled = OS.get_environment("ONLOOKERS") != "0"
+	RainCrowd.forced = -1.0
+
+
+func _run(t: Node, city: Node3D) -> void:
 	_t = t
 	_tree = t.get_tree()
 	_check_library()
+	# A single-process run reaches here after the car panic's wrecks and blasts: their onlooker
+	# scenes would recruit these walkers, and the weather may be raining. Neither is tested here.
+	Onlookers.enabled = false
+	RainCrowd.forced = 0.0
 	var chunk: Node3D = city.chunks.get(Vector2i(0, 0))
 	_check(chunk != null, "the spawn block's chunk is loaded for the crowd life checks")
 	if chunk == null:
