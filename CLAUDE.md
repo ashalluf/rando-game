@@ -1012,8 +1012,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`hour_factor()`, NightCity.traffic_level); street traffic no longer waits on PhysicsBudget
   (kinematic: `traffic_room()`); near FULL blocks' walkers are topped up once a second from their
   planned count x `crowd_factor(hour)`, freeing far out-of-view walkers for room (`balance_crowd()`);
-  the kerbs take up to `PARK_EXTRA` more parked cars on the spots their pass left empty (a hash per
-  spot, after every roll). `BUSY_STREETS=0` is the A/B; census `tools/busy_streets/census.gd`
+  a kerb spot the block's pass left undecided gets an extra parked car at `PARK_EXTRA_ODDS` (a pure
+  hash per spot, no running count, after every roll). `BUSY_STREETS=0` is the A/B; census `tools/busy_streets/census.gd`
   (and `CENSUS=1` on still_shot.gd); checks `tests/busy_streets_checks.gd`.
 - Traffic AI (2026-10-05, "traffic that drives like people"; HANDOFF 9ed): `TrafficAI`
   (`scripts/npc/traffic_ai.gd`, static) is the drivers on top of TrafficManager's IDM queues.
@@ -1302,6 +1302,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   every frame drew nothing - change amounts in steps, only when they change; a crash watch
   without its contact ray takes every scripted velocity reset for a crash;
   `Explosion.blast()` still pushes a car once per collision shape (2-3x a rocket's 30 m/s).
+- Cars that crumple (2026-10-30, docs/HANDOFF.md "Cars that crumple"): `CrashDeform`
+  (`scripts/vehicles/crash_deform.gd`, CarDamage's child, made by the first crash past
+  `min_over`) adds crumple zones (contact, push, depth by speed: `depth_per_dv`), sprung panels
+  (bonnet, boot lid, a hanging bumper; doors via `CarInterior.jam()`), knocked wheels (rig node
+  rotation.z), scrapes and road shards (`CrashLitter`, one MultiMesh ring a level) as mesh-space
+  uniforms in `shaders/car_crumple.gdshaderinc`, which the damaged paint, glass, lamps, the
+  trim / chrome / far parts (`car_part_damage.gdshader`) and the plates (`car_detail_damage`)
+  all include: anything else drawing part of a body must include it too. `_crash_contact()`
+  casts three rays. `CRASH_DEFORM=0` the A/B; stills `DAMAGE=front50|side50|roll|scrape...` on
+  car_shot.gd; checks `tests/crash_deform_checks.gd`.
 - What a blast leaves behind (2026-10-05, fleet task "explosions", docs/HANDOFF.md, section at
   the end): `Explosion.blast()` ends with ONE call, `BlastAftermath.blast()`
   (`scripts/weapons/blast_aftermath.gd`): a CRATER where it hit the ground (generated albedo +
@@ -2271,6 +2281,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`police_station_glass.gdshader`, `trace`). Judge a block at night with
   `tools/glshot/station_night_shot.tscn` (the city's real DayNight, lamps on; block_shot's NIGHT=1
   never switches the lamps on). `POLICE_NIGHT=0` is the A/B; checks `tests/police_night_checks.gd`.
+- The police at night (2026-10-30, docs/HANDOFF.md "Red and blue at night"): `PoliceNightLook`
+  (`scripts/npc/police_night_look.gd`, one node under the root made by the first PoliceCar) owns
+  ONE flash clock (`clock`) that the bar's lenses (police_lights.gdshader `clock`, hotter after
+  dark: `night_gain`), the real lights and the washes read; a budgeted pool of OmniLight3Ds
+  (`budget` 6 / 4 / 2 / 0 by Quality, Forward+ desktop, `supported()`) on the nearest lit cruisers
+  within `reach`, red or blue as the lit bank (the cruiser's own BarLight stays dark); on every
+  renderer a `PoliceGlow` per lit cruiser on `shaders/police_wash.gdshader` (one material a car,
+  kind in COLOR.a x 4): flares and a lens streak never under `min_px`, a pool on the road (lifted
+  `POOL_LIFT` over the kerb) with the bar mirrored in a wet road, a wash on each facade beside it
+  (rays, fitted to where the wall really runs); burning flares (FreewayIncidentKit's) in a vee on
+  the trouble's side of a roadblock; the searchlight's shaft as lit haze (`look`) with a hot pool
+  core. Trap: a shader that writes POSITION in one branch uses it for EVERY vertex - write it in
+  the other branch too. `POLICE_NIGHT_LOOK=0` is the A/B; small street `tools/police_night/police_shot.gd`
+  (`VIEW=chase|low|block`, `RAIN=`, `T=`, `STRIP=`); checks `tests/police_night_look_checks.gd`.
 - Character arms: the generated clips were authored for arms that hang straight, but each
   generated rig is bound in whatever pose its mesh came out in (A-pose, or a palms-up shrug
   with the forearms raised), and the clips drive the arm bones as if that were the rest pose -
@@ -3759,6 +3783,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `HILL_GROUND_3=0` puts the old numbers back (`HillGround3.apply()` on the three materials);
   `tools/hill_ground_3/topdown.gd` maps the stands in seconds; hill_ground_shot `TERRAIN_DEBUG=1`
   paints brush / bare / rock; checks `tests/hill_ground_3_checks.gd`.
+- The hills' planted volume (2026-10-30, docs/HANDOFF.md "The hills' planted volume"): `HillScatter`
+  (`scripts/world/hill_scatter.gd`, one step after `_plant_hills` in both levels' HILLS list) puts
+  a code-built clump (three lumpy domes, 63 / 15 / 6 triangles on one buffer, measured edges) on
+  the painted stands: a 4 m world grid in FULL chunks (`hill_scatter_full`, dithered in past
+  `FULL_FADE` 70-100 m, to 300 m), a 6 m grid of bigger clumps in LOD chunks (`hill_scatter_lod`,
+  to 720 m: they planted nothing); `shaders/hill_scatter.gdshader` draws the leaves from world
+  noise (linear, color_space). Seated by `HillPlanting.ground()` off the tile (never on rock, cuts,
+  roads, pads, beds); no shadows. Oaks in hollows get companions (`oak_clump()`, `far_oak_clump()`
+  in Skyline). Hashes of seed + world cell; `HILL_PLANTING_2=0` is the A/B; checks
+  `tests/hill_planting_2_checks.gd`.
 - Overhead utilities (2026-10-05, docs/HANDOFF.md "Overhead utilities"): `UtilityPoles`
   (`scripts/world/utility_poles.gd`) builds the line StreetDetail decides on (`_pole_run()` hands
   it over): tapered wooden poles, a crossarm on the pole's face with braces and porcelain pins, a
@@ -4662,6 +4696,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`ShopfrontKit.TextAcc`): never `SurfaceTool.append_from()` a mesh per building (a read-back
   from the renderer). Look with `tools/glshot/still_shot.gd` `EYE=` / `SHOTS=` (a third `@fov`
   field per shot); `building_shot.gd` for one building.
+- The street level up close (2026-10-30, docs/HANDOFF.md "The street level up close"): within
+  ~55 m `shaders/facade_street.gdshaderinc` (in building.gdshader) gives the walls relief as a
+  height field in metres on (u, v) applied as a tilt of NORMAL at the end (stucco grain and trowel,
+  precast tie holes, the base course's V-joints, raked brick mortar), patched render, cracks off
+  window corners, splash-back / damp / salt / scuffs at the foot (facade_detail.gdshader's
+  `street_foot` does the plinth band), and a DOOR in ground floors without shops on an integer roll
+  (`fs_door_col()` = `FacadeStreet.door_col()`, wl_hash salts 90-99; Building drops that bay's
+  frame, surround and AC); after dark door lamps and goosenecks (shop_byte salt 46) wash the wall
+  and the board. `FacadeStreet` (`scripts/world/facade_street.gd`, one hook per wall in
+  `_add_facade_details()`, `commit()` in `generate()`) builds the hardware as ONE `StreetDress`
+  mesh a building (downpipes, conduit and meters, condensers, grilles, door steps and lamps,
+  goosenecks, shutter housings, thresholds) on `facade_street_props.gdshader` (kind in COLOR.a x 16).
+  `FACADES_STREET=0` is the A/B; `tools/facades_street/probe.gd` / `shots.sh`, `building_shot.gd
+  SHOPS=0 STYLE= SHAPE=`; checks `tests/facades_street_checks.gd`.
 - Shop interiors (VISUAL_ROADMAP #14, 2026-10-04): behind every storefront's glass is ONE room
   the width of the whole shop (6-9.5 m deep, a tower lobby 13 m and double height), traced per
   pixel in `building.gdshader` by `shaders/shop_interior.gdshaderinc` (`shop_interior()`): the
@@ -5029,6 +5077,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   A/B) and everyone hurries. Rolls are `hash(seed, "rain")`. Hooks: four lines in Pedestrian, one
   in Weather. `RAIN_CROWD=0` the A/B; `RAIN_STAGE=<level>` / `RAIN_FOCUS=` on `still_shot.gd`;
   `crowd_lab.tscn SCENARIO=rain` (seconds); checks `tests/rain_crowd_checks.gd`.
+- Crowd gaits (2026-10-30, docs/HANDOFF.md "The crowd's walks"): `CrowdGait`
+  (`scripts/npc/crowd_gait.gd`, from `Pedestrian._add_model()`, plain walkers only) gives each
+  person a gait - casual, brisk, amble, heavy, light, formal, or the rig's old clip - by
+  hash([seed, "gait2"]) and the rig's phenotype, from `assets/models/crowd_gait/<rig>_gait.res`
+  (`tools/crowd/gait_clips.gd`: the UAL walks retargeted and restyled keyed with leg IK; rerun it
+  with life_clips.gd when a rig is rebuilt). Each clip's `ground_speed` meta drives the play rate
+  (`_walk_clip_speed`), clamped to `CADENCE`; use `_walk_clip` / `_idle_clip`, never the
+  constants, in the plain walker's code. Turns bank (`turn_lean()`), carrying hands swing less.
+  `CROWD_ANIM_2=0` is the A/B; `crowd_lab.tscn SCENARIO=gaits`; checks `tests/crowd_anim_2_checks.gd`.
 - Crowd faces (2026-10-30, docs/HANDOFF.md "The crowd's faces up close"): a branch of
   `character.gdshader` (`face_pass`, set by `CrowdFaces.apply()` from `Pedestrian.character_material()`)
   that runs only within `CrowdFaces.REACH` (11 m) of the camera on the crowd rigs. Per rig,

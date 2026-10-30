@@ -226,6 +226,18 @@ func attach(to: Vehicle) -> void:
 	set_process(false)
 
 
+## The crash deformation (CrashDeform), made the first time a crash crumples the car.
+var _crumple: CrashDeform = null
+
+
+func crumple() -> CrashDeform:
+	if _crumple == null:
+		_crumple = CrashDeform.new()
+		_crumple.attach(self)
+		add_child(_crumple)
+	return _crumple
+
+
 func _exit_tree() -> void:
 	_burning.erase(self)
 	_smokers.erase(self)
@@ -442,6 +454,8 @@ func _set_pane(i: int, s: float) -> void:
 	var c: Vector3 = ((pane[0] as Vector3) + (pane[1] as Vector3)) * 0.5
 	if s >= 2.0 and was < 2.0:
 		_glass_burst(c, pane[2], pane[1] - pane[0], 1.0 if int(pane[3]) != 2 else 0.3)
+		if CrashDeform.applies(car) and int(pane[3]) != CarCabin.KIND_SCREEN:
+			crumple().pane_fell(_mesh_to_world(c), int(pane[3]) == CarCabin.KIND_LAMP)
 		_glass_sound(_mesh_to_world(c), -2.0, randf_range(0.9, 1.1))
 	elif s >= 1.0 and was < 1.0:
 		_glass_burst(c, pane[2], pane[1] - pane[0], 0.25)
@@ -530,6 +544,8 @@ func _break_lamp_at(p: Vector3, front: bool) -> void:
 func _break_lamps(bits: int) -> void:
 	if bits & ~lamps_broken == 0:
 		return
+	if CrashDeform.applies(car):
+		crumple().lamps_broke(bits & ~lamps_broken)
 	lamps_broken |= bits
 	_ensure_lamps()
 	car._set_lamps_broken(lamps_broken)
@@ -561,6 +577,8 @@ func _blast(center: Vector3, falloff: float) -> float:
 	_add_dent(p, push, (blast_dent_radius * (0.55 + 0.45 * falloff)) / _mesh_scale)
 	if falloff > 0.2:
 		_add_scorch(p, (0.6 + 1.2 * falloff) / _mesh_scale)
+	if CrashDeform.applies(car):
+		crumple().blast(near, push_body, falloff)
 	# Glass and lamps facing the blast.
 	var toward := (_to_mesh.basis * -push_body).normalized()
 	for i in _panes.size():
@@ -592,6 +610,8 @@ func _crash(at: Vector3, dir: Vector3, over: float) -> float:
 	var r := (crash_dent_radius.x + crash_dent_radius.y * over)
 	var depth := minf(crash_dent_depth.x + crash_dent_depth.y * over, max_dent_depth)
 	_add_dent(p, (_to_mesh.basis * push_body).normalized() * depth / _mesh_scale, r / _mesh_scale)
+	if CrashDeform.applies(car):
+		crumple().crash(body_at, push_body, over, at)
 	if over > 4.0:
 		_break_lamps(_lamps_near(body_at, 0.9 + over * 0.05))
 	if over > 6.0:
@@ -1498,6 +1518,8 @@ func restore() -> void:
 			if t != null and t.mesh == m.mesh:
 				t.set_surface_override_material(e[1], e[2])
 	_swapped.clear()
+	if _crumple != null:
+		_crumple.reset()
 	_stop_fire()
 	_smokers.erase(self)
 	car._set_lamps_broken(0)
@@ -1558,6 +1580,8 @@ func _push() -> void:
 		var r := LAMP_HEAD_R if front else LAMP_TAIL_R
 		# The lamp on the car's left (body -x) is the mesh's -x side for every glass-slot body.
 		m.set_shader_parameter("broken", Vector2(1.0 if lamps_broken & l else 0.0, 1.0 if lamps_broken & r else 0.0))
+	if _crumple != null:
+		_crumple.push()
 
 
 ## For a single-texture body: which sides have lost their glass (front, rear, left, right).
@@ -1697,6 +1721,29 @@ func stage(what: String) -> void:
 	if parts.has("dents"):
 		car.take_hit(-1, 9.0, xf.basis * Vector3(0.35, 0.0, 1.0).normalized(), xf * Vector3(hw - 0.2, mid, -_len * 0.5), Vehicle.HIT_CRASH)
 		car.take_hit(-1, 7.0, xf.basis * Vector3(-1.0, 0.0, 0.0), xf * Vector3(hw, mid - 0.05, 0.55), Vehicle.HIT_CRASH)
+	# Crashes at a speed (CrashDeform): "front<km/h>" a head-on into a wall, "corner<km/h>" an
+	# offset hit on the nose's right corner, "side<km/h>" a T-bone on the right doors, "rear<km/h>"
+	# a rear-ender, "roll" landing on the roof, "scrape" a slide along a wall down the right side.
+	for part in parts:
+		var kmh := 0.0
+		for pre in ["front", "corner", "side", "rear"]:
+			if part.begins_with(pre) and part.length() > pre.length():
+				kmh = float(part.substr(pre.length()))
+		var over := kmh / 3.6 - car.crash_min_dv
+		if part.begins_with("front") and over > 0.0:
+			car.take_hit(-1, over, xf.basis * Vector3.BACK, xf * Vector3(0.0, mid, -_len * 0.5 - 0.3), Vehicle.HIT_CRASH)
+		elif part.begins_with("corner") and over > 0.0:
+			car.take_hit(-1, over, xf.basis * Vector3(-0.3, 0.0, 1.0).normalized(), xf * Vector3(hw * 0.7, mid, -_len * 0.5 - 0.3), Vehicle.HIT_CRASH)
+		elif part.begins_with("side") and over > 0.0:
+			car.take_hit(-1, over, xf.basis * Vector3.LEFT, xf * Vector3(hw + 0.3, mid, -0.1), Vehicle.HIT_CRASH)
+		elif part.begins_with("rear") and over > 0.0:
+			car.take_hit(-1, over, xf.basis * Vector3.FORWARD, xf * Vector3(0.0, mid, _len * 0.5 + 0.3), Vehicle.HIT_CRASH)
+		elif part == "roll":
+			car.take_hit(-1, 7.0, xf.basis * Vector3.DOWN, xf * Vector3(-0.2, _top + 0.3, 0.1), Vehicle.HIT_CRASH)
+		elif part == "scrape":
+			car.linear_velocity = xf.basis * Vector3(0.0, 0.0, -12.0)
+			car.take_hit(-1, 1.0, xf.basis * Vector3.LEFT, xf * Vector3(hw + 0.2, mid, 0.3), Vehicle.HIT_CRASH)
+			car.linear_velocity = Vector3.ZERO
 	_stage_hold = false
 	if parts.has("smoke"):
 		_hurt(health - max_health * smoke_at + 50.0)

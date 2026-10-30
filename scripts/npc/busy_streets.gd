@@ -26,9 +26,9 @@ extends RefCounted
 ##    New walkers appear out of the view or `crowd_pop_min` off. Late at night it also thins a
 ##    near block over its share, out of view.
 ## 4. FULLER KERBS. A block parked at most its district's "parked" cars on ~70 kerb spots (and
-##    rolled each spot at 55 %): `park_extra()` puts up to `PARK_EXTRA` more of the district's
-##    count on the spots the block's own pass left empty, from a hash of seed + spot (never the
-##    block rng), with every keep-clear the old pass has - so nothing the seed built moves.
+##    rolled each spot at 55 %): CityChunk._park_extra() puts a car on `PARK_EXTRA_ODDS` of the
+##    spots the block's own pass left undecided, from a hash of seed + spot (never the block rng),
+##    with every keep-clear the old pass has - so nothing the seed built moves.
 ##
 ## Cost is held by the caps: the same 150 street cars, the same crowd cap; the parked cars are
 ## sleeping bodies on their far twin past Vehicle.body_far_distance (30 m) and a welded middle /
@@ -65,10 +65,9 @@ static var crowd_per_tick: int = 6
 ## A topped-up walker appears out of the view, or at least this far off.
 static var crowd_pop_min: float = 45.0
 
-## Extra parked cars a block may add on the spots its own pass left empty (fraction of its count).
-const PARK_EXTRA := 0.4
-## And the share of those empty spots that get one (a hash per spot).
-const PARK_EXTRA_ODDS := 0.5
+## The share of the kerb spots a block's own pass left empty that get an extra car (a hash per spot;
+## no running count, so nothing a feature takes moves another).
+const PARK_EXTRA_ODDS := 0.16
 
 
 # --- the hour -------------------------------------------------------------------------------
@@ -337,11 +336,6 @@ static func _spawn(ch: CityChunk, entry: Array, at: Vector3, fwd: Vector3) -> vo
 
 
 # --- fuller kerbs ---------------------------------------------------------------------------
-
-## The extra parked cars a block of district count `max_cars` may add (CityChunk._park_car_steps).
-static func park_extra_count(max_cars: int) -> int:
-	return roundi(max_cars * PARK_EXTRA) if enabled else 0
-
 
 ## Whether kerb spot `spot` (CityChunk's [pos, yaw, side]) gets an extra car: a hash of seed + spot.
 static func park_extra_roll(seed_value: int, spot: Array) -> bool:

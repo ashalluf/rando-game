@@ -16,6 +16,13 @@ uniform float energy = 4.0;
 uniform float idle = 0.45;
 // 0 switches the bar off (an abandoned cruiser).
 uniform float lights_on = 1.0;
+// PoliceNightLook's shared flash clock (s), so the light on the street is the lens that is lit;
+// below 0, shader TIME (POLICE_NIGHT_LOOK=0, the A/B).
+uniform float clock = -1.0;
+// How much hotter a lit lens burns after dark (x lamp_factor): an HDR source the glow blooms,
+// with a white-hot middle. 0 is the old bar.
+uniform float night_gain = 0.0;
+global uniform float lamp_factor;
 
 varying vec4 part;
 
@@ -30,7 +37,7 @@ float strobe(float t, float start) {
 }
 
 void fragment() {
-	float t = fract(TIME * rate + phase);
+	float t = fract((clock >= 0.0 ? clock : TIME) * rate + phase);
 	float bank = part.a;
 	float lit = 0.0;
 	if (bank > 0.75) {
@@ -39,6 +46,10 @@ void fragment() {
 		lit = strobe(t, 0.0);
 	}
 	float housing = 1.0 - step(0.25, bank);
-	vec3 lens = part.rgb * mix(idle, energy, lit * lights_on);
+	float on = lit * lights_on;
+	float hot = energy * (1.0 + night_gain * clamp(lamp_factor, 0.0, 1.0));
+	vec3 lens = part.rgb * mix(idle, hot, on);
+	// A lit lens burns toward white: an LED array saturates the camera.
+	lens += vec3(1.0) * on * night_gain * clamp(lamp_factor, 0.0, 1.0) * 0.6 * energy * 0.25;
 	ALBEDO = mix(lens, part.rgb, housing);
 }
