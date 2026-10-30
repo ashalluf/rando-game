@@ -17080,3 +17080,79 @@ traffic (with TRAFFIC_AI=0 cars slow and stop but do not change lanes). No incid
 connectors or the ramps. The flares are not seen on Forward+ (their red under AgX) and have no sound or collision. The patrol officer stays in the car (the flares just appear one by one); the driver does not walk to the tow
 (they vanish when the bed rises). The mattress and tread have no collision. The debris stills are
 framed from 30 m; closer framing would read better.
+
+## 9d?. The web build after wave 3, 2026-10-30 (fleet wave 3, agent branch `wt/web-build-2`; VISUAL_ROADMAP row "?")
+
+**What was asked.** About 45 feature branches landed since the last web check (9dx): export the
+web build again, hold the download under GitHub Pages' 1 GB cap, load it at the usual bookmarks and
+the new areas, fix every shader / WebGL / global-buffer error, and find anything a new feature sets
+"for the web" only through `Quality.apply_level()` (which the web never runs).
+
+**How it was checked.** The 4.7.2 `web_nothreads_release` template (from the GitHub release's
+`Godot_v4.7.2-stable_export_templates.tpz`: downloads.godotengine.org is blocked here),
+`--export-release "Web"` (33 s), loaded by `tools/webshot/webshot.js` in headless Chromium 1243 on
+SwiftShader (WebGL 2.0) at 960x540 with `WAIT=300000 SHOT_TIMEOUT=900000 FPS_SECONDS=1 LOG=...`,
+**one tab at a time**: two tabs on this 4-core box now take ~200 s a frame each and the screenshot
+times out (the city is heavier than in wave 2). One tab: 10-17 minutes a bookmark, one frame 3-17 s.
+Bookmarks (all `&weather=clear&nohud`): downtown `?spawn=2359.4,880,0,12,2&hour=12` and
+`&hour=21.5`, the Esplanade `?spawn=-441.7,3534.6,-178,-1.5&hour=12`, MacArthur Park
+`?spawn=300,430,0,-8&hour=12`, the beach `?spawn=-725,610,160,-6&hour=15`, the coast highway
+`?spawn=-1034,-1100,0,-4&hour=14`, the power plant `?spawn=-700,1380,-90,-5&hour=16`, the refinery
+`?spawn=2700,5440,-120,-18&hour=13` and `?spawn=2700,5440,-120,-8&hour=21`, the walk of fame
+`?spawn=780,-2329.2,90,-6&hour=12`. The oil islands are not merged yet (no bookmark). Put a
+`.gdignore` in any folder under `build/` that holds screenshots: `build/` has none, so the editor
+imports them and the next export ships them (6.7 MB of PNGs in one debug export here).
+
+**The console.** At all ten: no `SHADER ERROR`, no shader compile failure, no WebGL error, no
+global-buffer allocation error, no script error, no out-of-memory - only the engine's "Occlusion
+culling is disabled at build-time" and Chrome's autoplay notice, as in wave 2. JS heap after load
+0.68-0.81 GB. Statically: no shader over `WEB_SAMPLERS` (the most is now 8, `terrain.gdshader`;
+lot_ground, lot_yard and vacant_walls 7), none uses `instance uniform`, and every Forward+-only
+addition (decals - LandingFX's crater, the warm-up's atlas keeper -, the lighthouses' volumetric
+spots, reflection probes, heat haze, exhaust shimmer, jet exhaust) is gated.
+
+**The download.** pck 582.0 MB on main (wave 2's filter already in; the texture-budget pass took it
+down from 643.5), **550.0 MB now**: the Web preset's `exclude_filter` also leaves out the old Poly
+Haven scans the code-built kits replaced (prop_hydrant_b, prop_powerpole, prop_streetlamp,
+prop_trashbag, prop_patio_set and their extracted textures), the two exotic bodies no body type uses
+(exo_super_coupe, exo_hyper_a) and the Meshy sedan (car_sedan*): -32.0 MB, desktop untouched. With
+the 39.5 MB wasm the site is ~590 MB, 59 % of the cap. Wave 3 itself added only ~26 MB of assets
+(its features are mostly code-built; the motorcycles, the lowriders and six crowd rigs are most of
+it). The biggest single files are the boulevard signs' 2048 x 3072 atlas (8.4 MB in the pck), the
+road wear atlases (2 x 5.6), the hero's 2K normal maps (3 x 5.6) and the climbers' (2 x 4.2); left
+alone, because a size limit is cross-platform (4.7 has no per-platform import limit) and would blur
+the desktop's signs, road and hero too, with no need while the site is at 59 %.
+`tools/webshot/unused_probe.gd` (headless, a minute) lists the assets nothing reaches by file name,
+stem or dependency; expect false positives for names built in code (`hero_x_%s`, a texture set's
+folder, `%s_albedo.png`): grep the stem before excluding anything.
+
+**Quality on the web.** No wave-3 feature sets anything "for the web" through `apply_level()`.
+The four systems that read Quality's `level` (Weather's splash and haze, Birds' cap, Cyclists' cap,
+DrivingFX's pools) each carry their own `OS.has_feature("web")` numbers, so the HIGH that `level`
+reads in the browser does no harm; a check now holds every future reader to the same.
+
+**Open: the Esplanade at noon under SwiftShader.** At `?spawn=-441.7,3534.6,-178,-1.5&hour=12` the
+web draws the sky left of x ~ 425 px and above the horizon as a flat gold-to-red block with a
+pixel-sharp vertical edge (glow then spreads it over the palms in front, which look orange); it
+repeats run to run. The same view through llvmpipe (`city_shot.gd`, opengl3, at HIGH and at
+`--quality=2`, i.e. `cloud_detail` and `ground_detail` 0 as on the web) is clean, and so are the
+other nine bookmarks and wave 2's dusk still of the same spot. Eliminated with debug web builds
+(each one export and a 10-25 minute shot): the offshore island off, the contrails off, a NaN / Inf
+guard on the sky's output (unchanged: the values are finite), a clamp of the sky's output at 32,
+a clamp of the cubemap pass, aerial-perspective fog off, glow off (the block stays, sharp and solid:
+it is the sky that draws it, glow only spreads it), and hiding in turn every chunk, the far city,
+the far landmarks / ridges / light rail / ground plane / air and sea traffic, and the player /
+weather / vehicles / canvas layers (`?hide=` on a throwaway build). No geometry exists only on the
+web (a dump of every visible instance near the camera matched llvmpipe's). So the sky shader
+evaluates sunset-like colours for a block of screen pixels on SwiftShader only - the sun is due
+south 56 degrees up, just above that frame. Not verified on a real GPU browser (the owner's Mac uses
+ANGLE on Metal, not SwiftShader); if the owner sees it, the next step is to bisect the sky's terms
+(base gradient, twilight, smog, sun glow / aureole / disc) with a debug uniform.
+
+**Checks** (`tests/web_build_checks.gd`): the old ones, plus every exclude glob still matches a file
+(a stale glob ships the renamed file), no script or scene line names an excluded stem (the res://
+scan misses `MODEL_DIR + "prop_x.glb"`), and every script that reads Quality's `level` also says
+what it does on the web. `SMOKE_PARTS=web_build_checks`: 16 PASS.
+
+**Not done / not verified.** The Esplanade block above. The real frame rate in a browser on a GPU
+(SwiftShader cannot say). No texture was resized. Stills: branch `shots/web-build-2`.

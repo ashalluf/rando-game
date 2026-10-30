@@ -3286,6 +3286,12 @@ already mapped so milestone 2 is script-only.
   library clothes (the task: do not rebuild existing rigs). A dress is one "keep" cloth: no look
   recolours it into a two-tone outfit.
 
+- **2026-10-30 The web download stays small by leaving out what nothing loads, not by shrinking
+  what the desktop draws.** The Web preset's exclude_filter now also drops the old scans the kits
+  replaced, two unused exotic bodies and the Meshy sedan (pck 582 -> 550 MB, 59 % of GitHub
+  Pages' 1 GB with the wasm). Texture size limits are cross-platform in 4.7, so the big atlases
+  stay full size until the web actually nears the cap.
+
 ## Correction: what build 135 (0ce833f) actually contained
 
 That commit's subject says "denser grass, real palm fronds, finer ground". It also shipped a

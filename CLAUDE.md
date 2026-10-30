@@ -5730,6 +5730,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   gives 16 and Compatibility keeps up to seven -, no `instance uniform`, the web quality path,
   the exclude filter). A webshot takes ~14 minutes on a 4-core box; never share the box with
   the headless gate (it starves the tab: the screenshot times out waiting for a frame).
+  After wave 3 (2026-10-30, HANDOFF "The web build after wave 3"): pck 550 MB (the filter also
+  drops the old hydrant_b / powerpole / streetlamp / trashbag / patio scans, exo_super_coupe,
+  exo_hyper_a, car_sedan); run ONE webshot at a time now (two time out); a system that reads
+  Quality's `level` must carry its own web numbers (the web's `level` reads HIGH; checked);
+  `tools/webshot/unused_probe.gd` lists unreachable assets. Open: a SwiftShader-only sky block at
+  the Esplanade at noon.
 - Forward+ review of small scenes (2026-10-05, docs/HANDOFF.md "Forward+ review A"): lavapipe
   renders `block_shot.tscn` (a few FULL blocks, ~10 min a run, ~12 GB) and the room tools
   (`hero_moves_shot.gd`, `photo_shot.gd ROOM=1`, ~2 min) with `--rendering-driver vulkan` and

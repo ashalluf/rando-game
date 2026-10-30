@@ -22,6 +22,7 @@ func run(t: Node, city: Node) -> void:
 	_preset()
 	_shaders()
 	_quality(city)
+	_level_readers()
 
 
 func _preset() -> void:
@@ -125,6 +126,26 @@ func _shaders() -> void:
 	_t._check(over.is_empty(), "web: every shader within %d texture samplers (most %d, %s) %s" % [
 		WEB_SAMPLERS, worst, worst_name, over])
 	_t._check(instance.is_empty(), "web: no shader uses instance uniforms %s" % [instance])
+
+
+## Quality never runs apply_level() on the web, so its `level` reads HIGH there whatever the
+## browser can do. A system that sizes itself from that level must say what it does on the web
+## (its own `OS.has_feature("web")` cap), or the browser gets the desktop's HIGH numbers. The
+## pause menu only shows the level.
+func _level_readers() -> void:
+	var bad: Array[String] = []
+	var readers := 0
+	for path in _files("res://scripts", ".gd"):
+		if path.ends_with("/quality.gd") or path.ends_with("/pause_menu.gd"):
+			continue
+		var src := FileAccess.get_file_as_string(path)
+		if not src.contains("\"Quality\"") or not src.contains("get(\"level\")"):
+			continue
+		readers += 1
+		if not src.contains("has_feature(\"web\")"):
+			bad.append(path.get_file())
+	_t._check(readers >= 3 and bad.is_empty(),
+		"web: every system reading Quality's level has its own web cap (%d readers) %s" % [readers, bad])
 
 
 func _quality(city: Node) -> void:
