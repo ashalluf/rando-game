@@ -124,6 +124,9 @@ func _ramps(day: Node) -> void:
 	var lamp_full := -1.0
 	var lamp_jump := 0.0
 	var prev_lamp := -1.0
+	var prev_exp := -1.0
+	var exp_falls := 0.0
+	var exp_sunset := 0.0
 	var m := 0
 	while m <= 150:
 		var h := 17.0 + float(m) / 60.0
@@ -145,6 +148,13 @@ func _ramps(day: Node) -> void:
 		if lamp_full < 0.0 and l > 0.99:
 			lamp_full = h
 		prev_lamp = l
+		if s.has("exp"):
+			var e: float = s["exp"]
+			if prev_exp >= 0.0:
+				exp_falls = maxf(exp_falls, prev_exp - e)
+			prev_exp = e
+			if m == 60:
+				exp_sunset = e
 		m += 1
 	var smooth := true
 	var text := ""
@@ -152,6 +162,10 @@ func _ramps(day: Node) -> void:
 		text += "%s %.3f " % [k, worst[k]]
 		smooth = smooth and float(worst[k]) < 0.05
 	_t._check(smooth, "golden hour: no colour jumps between two game minutes 17:00-19:30 (%s)" % text)
+	var de: float = day.get("day_exposure")
+	var ne: float = day.get("night_exposure")
+	_t._check(exp_falls < 0.0001 and exp_sunset > de + 0.3 * (ne - de),
+		"golden hour: the exposure only rises through the dusk and is a third of the way to night's by the sunset (%.2f)" % exp_sunset)
 	_t._check(lamp_on > 0.0 and lamp_full > lamp_on + 0.33 and lamp_jump < 0.06,
 		"golden hour: the lamps come on as a ramp (%.2f -> %.2f, worst step %.3f)" % [lamp_on, lamp_full, lamp_jump])
 
@@ -166,7 +180,8 @@ func _restore(day: Node) -> void:
 	var all := true
 	for k: String in GoldenHour.OLD:
 		all = all and day.get(k) == GoldenHour.OLD[k]
-	var old_ramp := GoldenHour.sky_night(-0.065, 0.77) == 0.77 and GoldenHour.golden_grade(0.0) == 1.0
+	var old_ramp := GoldenHour.sky_night(-0.065, 0.77) == 0.77 and GoldenHour.golden_grade(0.0) == 1.0 \
+		and GoldenHour.exposure_mix(0.0, 0.01) == 0.01
 	GoldenHour.enabled = was
 	for k in keep:
 		day.set(k, keep[k])

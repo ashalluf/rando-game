@@ -13,7 +13,11 @@ class_name GoldenHour
 ##   as the light; then the GOLDEN grade pushed red into the mids on top (hills: 73 % of the pixels
 ##   orange, saturation 0.80). The zenith holds blue, the band hugs the horizon, and the GOLDEN
 ##   look eases while the light itself is red (`golden_grade()`).
-## - The light handed from the sunset to the moon too fast and too blue: 18:30 brown, 19:00 teal.
+## - The sun falls to its night energy at the sunset, but the exposure followed the slow moonlight
+##   ramp: 18:00 was the darkest frame of the evening (street ground median 16 against 37 at 18:30).
+##   The exposure now starts its way to the night's as the light falls (`exposure_mix()`).
+## - The light handed from the sunset to the moon too blue: 18:30 brown, 19:00 teal hills.
+## - The golden-hour smog lid flattened the ranges and the far city to one beige (17:30 aerial).
 ##
 ## GOLDEN_HOUR_REVIEW=0 in the environment is the A/B: DayNight takes its old numbers back
 ## (`restore()`), the sky darkens on night_factor and the grade is as it was.
@@ -28,6 +32,12 @@ const SKY_NIGHT := Vector2(0.03, -0.22)
 ## by GRADE_EASE's upper elevation: the scene is already as red as the light.
 const SUNSET_GRADE := 0.45
 const GRADE_EASE := Vector2(-0.02, 0.12)
+
+## The exposure's early ramp: this share of the way to the night exposure by the sunset (from
+## EXPOSURE_EASE's upper elevation, ~17:25, to its lower, ~18:05), handing over to the slow
+## moonlight ramp once that passes it, so the frame's brightness falls monotonically.
+const SUNSET_EXPOSURE := 0.5
+const EXPOSURE_EASE := Vector2(0.15, -0.02)
 
 ## DayNight's numbers before the review, put back with GOLDEN_HOUR_REVIEW=0.
 const OLD := {
@@ -53,6 +63,14 @@ static func golden_grade(elevation: float) -> float:
 	if not enabled:
 		return 1.0
 	return lerpf(SUNSET_GRADE, 1.0, smoothstep(GRADE_EASE.x, GRADE_EASE.y, elevation))
+
+
+## How far DayNight's exposure is from the day's toward the night's: moonlight, or the early
+## ramp while that is larger.
+static func exposure_mix(elevation: float, moonlight: float) -> float:
+	if not enabled:
+		return moonlight
+	return maxf(moonlight, SUNSET_EXPOSURE * smoothstep(EXPOSURE_EASE.x, EXPOSURE_EASE.y, elevation))
 
 
 ## Called by DayNight._ready(): with the review off, its old numbers.
