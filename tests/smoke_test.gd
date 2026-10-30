@@ -2482,6 +2482,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/far_ranges_checks.gd").new().run(self, city)
 	# The wet world (tests/wet_world_checks.gd, WetWorld, CarWipers): the shaders' water, walls, wipers.
 	await load("res://tests/wet_world_checks.gd").new().run(self, city)
+	# The night skyline (tests/night_skyline_checks.gd, NightSkyline): office colours, cleaners'
+	# floors, crown washes and floods shared by the near walls and the far boxes, beacons out of step.
+	load("res://tests/night_skyline_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
