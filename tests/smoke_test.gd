@@ -2477,6 +2477,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/cars_3_checks.gd").new().run(self, city)
 	# The mid distance (tests/mid_city_checks.gd): yard trees, house roofs and pools in the far tiers.
 	load("res://tests/mid_city_checks.gd").new().run(self, city)
+	# The far ranges (tests/far_ranges_checks.gd): the back and east ranges as crest lines, their
+	# feet and the front range unmoved, the bake on the new shape, the plane's crags and layered haze.
+	load("res://tests/far_ranges_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

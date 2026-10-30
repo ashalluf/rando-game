@@ -3530,3 +3530,10 @@ pink-and-orange cloud sky; palms lit from below; dense crowds and headlights. Th
 signage as a light source*, *wet road reflections*, and *sky with cloud STRUCTURE at sunset* -
 this project has shaders/neon_sign.gdshader and a `road_wetness` global already and uses almost
 none of either.
+- **2026-10-30 The far ranges are crest lines, and the far ground reaches the far plane
+  (HANDOFF "The far ranges").** The back and east ranges' bases are a front face (the old one, so
+  their feet and the city's edge do not move), a wandering crest with a few big massings and a
+  long fall behind; canyons are wider apart and only saddle the crest. The front range keeps its
+  shape (it carries the landmarks). The horizon plane stays 14 km, with a coarser ring on the same
+  material out to 12.6 km, because its rim was erasing the crests 5-7 km away; past the bake the
+  map is mirrored. FAR_RANGES=0 is the old world exactly.

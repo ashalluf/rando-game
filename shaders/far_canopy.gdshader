@@ -57,6 +57,8 @@ varying float shade;
 // hands it back): dithered in the fragment, collapsed at zero.
 varying float fade;
 varying float rim;
+// The layered distance haze over this vertex (macro_relief.gdshaderinc).
+varying float rhaze;
 varying float glow;
 // The mid distance (MidCity; off: MID_CITY=0): a tree's crown is clumps of leaves in sun and the
 // holes between them in shade, not one flat colour - lit lumps a metre or two across on the
@@ -145,6 +147,8 @@ void vertex() {
 	glow = rigid ? 0.0 : clamp(INSTANCE_CUSTOM.g, 0.0, 1.0);
 	vec3 at = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
 	rim = smoothstep(edge_start, edge_end, length(at.xz - cam.xz));
+	vec3 hp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz + vec3(0.0, shift, 0.0);
+	rhaze = range_haze_amount(length(hp - cam), hp.y);
 	if (fade < 0.004) {
 		// Collapsed: nothing rasterises, so a hidden block costs no fragments.
 		VERTEX = vec3(0.0);
@@ -173,6 +177,9 @@ void fragment() {
 	ALBEDO = (rigid ? tint * shade : cs_out(tint * shade * dapple)) * (1.0 - rim);
 	// sky_tint arrives raw on both renderers; the sky it fades into is decoded on Forward+.
 	EMISSION = cs_out(cs_srgb_to_linear(sky_tint.rgb)) * rim;
+	// The same air the ground under it is in (macro_ground.gdshader).
+	ALBEDO *= 1.0 - rhaze;
+	EMISSION += cs_out(range_haze_color(cs_srgb_to_linear(sky_tint.rgb))) * (rhaze * (1.0 - rim));
 	if (glow > 0.001) {
 		// A lit glass band: the rooms behind a hillside house's glass, warm after dark (a little
 		// sky in the glass by day).
