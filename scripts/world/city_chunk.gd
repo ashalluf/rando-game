@@ -4005,7 +4005,7 @@ func _add_lamp(at: Vector3, facing: Vector2 = Vector2.ZERO) -> void:
 func _night_atmos(lights: Array, head: Vector3, at: Vector3, pool: float) -> Array:
 	if capturing or not NightAtmos.enabled:
 		return []
-	NightAtmos.ensure()
+	NightAtmos.ensure(get_parent())
 	var parts := NightAtmos.lamp_parts(lights, head, at.y, pool, Vector2(at.x, at.z), level == Level.FULL)
 	return parts
 

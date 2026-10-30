@@ -17,7 +17,7 @@ global uniform float lamp_factor;
 global uniform float rain_intensity;
 global uniform vec3 origin_shift;
 
-uniform float gain = 0.02;
+uniform float gain = 0.028;
 uniform float reach = 70.0;
 uniform float rain_streaks = 0.9;
 

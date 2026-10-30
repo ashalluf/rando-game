@@ -63,7 +63,8 @@ const SHAFT_DISTANCE := 90.0
 static var _node: NightAtmos = null
 static var _meshes: Dictionary = {}
 
-## Last values pushed (the checks read them).
+## Last values pushed (the checks read them: the dummy renderer reads globals back as null).
+var pushed: Vector4 = Vector4.ZERO
 var haze: float = 0.3
 var shaft_gain: float = 1.0
 var halo_gain: float = 1.0
@@ -215,17 +216,15 @@ static func atmos_material(kind: String) -> ShaderMaterial:
 
 # --- The node -------------------------------------------------------------------------------
 
-## Makes the node (once per scene) under the current scene. Called by the first lamp a chunk
-## builds; safe to call from anywhere, any number of times.
-static func ensure() -> void:
-	if not enabled or is_instance_valid(_node):
-		return
-	var tree := Engine.get_main_loop() as SceneTree
-	if tree == null or tree.current_scene == null:
+## Makes the node (once per city) under `city` (the CityStreamer, the scene root in the game,
+## which holds Weather, DayNight and Quality). Called by the first lamp a chunk builds; safe to
+## call any number of times.
+static func ensure(city: Node) -> void:
+	if not enabled or is_instance_valid(_node) or city == null:
 		return
 	_node = NightAtmos.new()
 	_node.name = "NightAtmos"
-	tree.current_scene.add_child.call_deferred(_node)
+	city.add_child.call_deferred(_node)
 
 
 func _ready() -> void:
@@ -274,7 +273,8 @@ func _push() -> void:
 	if int(q.get("level") if q else 0) >= 3:
 		shaft_gain = 0.0
 	var vh := get_viewport().get_visible_rect().size.y if is_inside_tree() else 1080.0
-	RenderingServer.global_shader_parameter_set("night_atmos", Vector4(haze, shaft_gain, halo_gain, vh))
+	pushed = Vector4(haze, shaft_gain, halo_gain, vh)
+	RenderingServer.global_shader_parameter_set("night_atmos", pushed)
 
 
 ## The canyon's sodium haze, after DayNight and Weather wrote the fog this frame.

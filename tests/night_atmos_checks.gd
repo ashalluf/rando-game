@@ -65,7 +65,7 @@ func _assets() -> void:
 		"car_lights.gdshader's halo parts are PropFactory.LIGHT_HALO_HEAD / _TAIL (%d, %d)" % [PropFactory.LIGHT_HALO_HEAD, PropFactory.LIGHT_HALO_TAIL])
 	var hm := NightAtmos.halo_mesh()
 	var sm := NightAtmos.shaft_mesh()
-	_t._check(hm.get_surface_count() == 1 and hm.surface_get_material(0) == NightAtmos.atmos_material("halo") and hm.get_aabb().size.x >= 8.0,
+	_t._check(hm.get_surface_count() == 1 and hm.surface_get_material(0) == NightAtmos.atmos_material("halo") and hm.custom_aabb.size.x >= 8.0,
 		"the halo is one quad on the halo shader with bounds for its largest glow")
 	_t._check(sm.get_surface_count() == 1 and sm.surface_get_material(0) == NightAtmos.atmos_material("shaft") and absf(sm.get_aabb().position.y + 1.0) < 0.01
 		and absf(sm.get_aabb().end.y) < 0.01, "the shaft is one open unit cone on the shaft shader, top at 0, floor at -1")
@@ -159,27 +159,32 @@ func _chunk(city: Node3D) -> void:
 
 
 func _node(city: Node3D) -> void:
-	NightAtmos.ensure()
-	await_free(city)
+	# The city's own node when it is there (the chunks made it), else one staged for the checks.
 	var node: NightAtmos = NightAtmos._node
-	if node == null or not node.is_inside_tree():
+	var staged := false
+	if node == null or node.get_parent() != city:
 		node = NightAtmos.new()
+		staged = true
 		city.add_child(node)
 	var weather := city.get_node_or_null("Weather")
 	var state_was := -1
 	var forced_was := false
+	var saved := {}
 	if weather:
 		state_was = int(weather.state)
 		forced_was = bool(weather._forced)
+		for k: String in ["state", "_previous", "blend", "wetness", "_timer"]:
+			saved[k] = weather.get(k)
 		weather.force_state(2)
 	node._push()
-	var g: Vector4 = RenderingServer.global_shader_parameter_get("night_atmos")
+	var g: Vector4 = node.pushed
 	_t._check(weather == null or (node.haze >= 0.75 and absf(g.x - node.haze) < 1e-4 and g.w >= 64.0),
 		"the node pushes a rainy night's haze to the global (%.2f, viewport %d px)" % [g.x, int(g.w)])
 	if weather:
 		weather.force_state(state_was)
-		if not forced_was:
-			weather.force_state(-1)
+		weather._forced = forced_was
+		for k: String in saved:
+			weather.set(k, saved[k])
 	node._push()
 	# The fog lean starts from DayNight / Weather's value each frame and never piles up.
 	var env := Environment.new()
@@ -206,8 +211,6 @@ func _node(city: Node3D) -> void:
 	node.cam_height_override = -1.0
 	node._env = null
 	node._push()
+	if staged:
+		node.queue_free()
 
-
-## ensure() adds the node deferred; nothing to wait for here (the checks drive it directly).
-func await_free(_city: Node3D) -> void:
-	pass
