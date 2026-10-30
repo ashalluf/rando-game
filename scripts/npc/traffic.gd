@@ -1313,6 +1313,10 @@ func _drive_freeway(delta: float) -> void:
 			freeway_cars.erase(car)
 			continue
 		var tt: Dictionary = car.traffic
+		# A pooled freeway car handed out again as a street car (place_car) is no longer ours.
+		if not tt.has("fw"):
+			freeway_cars.erase(car)
+			continue
 		if tt.has("ramp"):
 			on_ramps.append(car)
 			continue

@@ -14965,7 +14965,13 @@ deck noon 2.73 M / 858 -> 2.77 M / 872; under the 110 by the tower 2.97 M / 1,63
 (+6 %: the tower and span fill the frame); boulevard truss 2.27 -> 2.28 M; stair 3.60 -> 3.62 M;
 girder 4.76 -> 4.76 M; deck at night 3.26 -> 3.28 M; boulevard at night 2.21 -> 2.21 M; draws
 within +-1 % everywhere (planting collapsed under the bridges pays some back). Gate:
-`SHARDS=3 tests/headless_check.sh` 2,410 checks, 0 failed, peak RSS 2.49 GB a shard.
+`SHARDS=3 tests/headless_check.sh` 2,410 checks, 0 failed, peak RSS 2.49 GB a shard; after merging
+main (eb75a10) 2,548 checks, 0 failed. That merge's gate first failed twice on main's own code:
+`TrafficManager._drive_freeway()` met a car in `freeway_cars` whose `traffic` had no `fw` (a pooled
+freeway car handed out again by `place_car()`, from engine_audio_checks onward, 1,878 errors), and
+`StreetErrands.release()` ran `is` on a freed car. Both now have a one-line guard (the first drops
+such a car from the freeway list; the second tests `is_instance_valid()` first). dog_checks once
+found its dog walker freed within 40 ticks (not reproduced; not touched).
 
 **Not done.** Pedestrians do not use the bridges (the walkers' rings go through the stairs on
 the pavement; nobody climbs them); no ramps (stairs only - ADA ramps would need room the
