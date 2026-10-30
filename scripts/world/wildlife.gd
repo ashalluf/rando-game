@@ -125,6 +125,8 @@ func animals() -> Array:
 
 ## Drops what the player left behind, then puts down what lives round him now.
 func survey() -> void:
+	if not _setup():
+		return
 	var eye := _player.global_position
 	var w := WorldState.to_world(eye)
 	var hr := hour()
@@ -372,6 +374,7 @@ func _ground(wp: Vector2) -> float:
 ## Puts one animal down at a true world point for stills and checks (calm: only a gun or a hit
 ## sends it off). `mode` idle | walk | trot | graze | sit.
 func stage(species_name: String, wp: Vector2, yaw: float, seed_value: int = 1, calm_on: bool = true) -> WildAnimal:
+	_setup()
 	var y := _ground(wp)
 	if is_nan(y):
 		y = plan.height_at(wp) if plan else 0.0
