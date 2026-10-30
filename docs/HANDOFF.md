@@ -20410,3 +20410,15 @@ few minutes) and in the city with `STARS=3 POLICE=pursuit|standoff` on `still_sh
 Checks: `tests/police_night_look_checks.gd` (its own cruisers on a deck 300 m up; the clock, the
 glow, the budget, colours by bank, the wall wash, flares, a dark bar, day, the searchlight, no rng,
 Quality's table).
+
+Cost (still_shot.gd GEO, opengl3, downtown at Flower and Olympic `--spawn=2359.4,880,0,-4`,
+23:00, `STARS=3 POLICE=pursuit`, before = POLICE_NIGHT_LOOK=0): 4,312 -> 4,323 draws, 9,174,259
+-> 9,182,098 triangles (+0.1 %); a cruiser's glow is 4 draws (flares and streaks one, the pool,
+two walls) plus two rays every 0.6 s and four more where a wall is found; the real strobes are
+at most `budget` unshadowed omnis. Stills on `shots/police-night` (01-10, README there).
+
+**Not done / not verified**: the real strobes are seen only on lavapipe in the small street (no
+Forward+ city render: it does not fit lavapipe); the opengl3 rain-night city stills draw the road
+white with or without this branch (the harness, not the look); the helicopter's new shaft was not
+caught in a city still (AIR=police framed it out); no strobe reflection in the road shader's own
+mirrored city (the pool's mirror streak stands in for it); emergency vehicles' beacons are untouched.
