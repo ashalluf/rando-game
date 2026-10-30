@@ -65,16 +65,21 @@ func step(delta: float) -> void:
 		var level := clampf(v / 12.0, 0.0, 1.0)
 		_voice.volume_db = lerpf(-24.0, -3.0, level)
 		_voice.pitch_scale = lerpf(0.85, 1.12, level)
-	if v < CarPanic.SKID_SPEED * 0.6:
+	if v < CarPanic.SKID_SPEED * 0.35:
 		return
 	var fx := DrivingFX.instance()
 	if fx == null or not is_instance_valid(fx) or not fx.is_inside_tree():
 		return
+	var tm := CarPanic.traffic_of(get_tree())
 	var xf := car.global_transform
-	var n := xf.basis.y.normalized()
 	# The marks fade in as the tyres lock and out as the car stops.
-	var s := strength * clampf((v - CarPanic.SKID_SPEED * 0.6) / 3.0, 0.2, 1.0)
+	var s := strength * clampf((v - CarPanic.SKID_SPEED * 0.35) / 3.0, 0.25, 1.0)
 	for i in _wheels.size():
 		var at: Vector3 = xf * (_wheels[i] as Vector3)
-		fx._lay(_states[i], at, n, Vector3.ZERO, 0.21, fx.rubber_tint, s)
+		# On the road itself, not where the diving body puts the tyre (a few cm under it).
+		if tm:
+			var w := WorldState.to_world(at)
+			w.y = tm._relief(Vector2(w.x, w.z)) + CityChunk.ROAD_TOP + 0.025
+			at = WorldState.to_local(w)
+		fx._lay(_states[i], at, Vector3.UP, Vector3.ZERO, 0.21, fx.rubber_tint, s)
 
