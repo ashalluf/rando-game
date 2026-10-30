@@ -2417,6 +2417,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Aerial advertising (tests/sky_ads_checks.gd): the blimp's loop, the banner racetracks, who
 	# flies when, the meshes and a staged blimp and tow plane shot down.
 	await load("res://tests/sky_ads_checks.gd").new().run(self, city)
+	# Crowd foot placement (tests/foot_ik_checks.gd, CrowdFeet): kerbs, slopes, steps, fade, switch.
+	await load("res://tests/foot_ik_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

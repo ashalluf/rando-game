@@ -1427,6 +1427,7 @@ func _physics_process(delta: float) -> void:
 		StreetErrands.pose(self, delta)
 	if not watch.is_empty():
 		Onlookers.pose(self, delta)
+	CrowdFeet.tick(self, delta)
 
 
 func _walk(delta: float) -> void:
@@ -2610,6 +2611,8 @@ var errand: Dictionary = {}
 var watch: Dictionary = {}
 ## The crowd in the rain (RainCrowd: umbrellas, hoods, hurrying, shelter), null for nobody.
 var rain: RainCrowd
+## Foot placement on uneven ground (CrowdFeet), made on first use near the camera.
+var foot_ik: CrowdFeet
 
 
 ## Rolls what this person carries and whether they jog or walk a dog (from the seed, so the same
