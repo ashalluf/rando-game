@@ -22,8 +22,16 @@ func run(t: Node, city: Node3D) -> void:
 	_check_constants()
 	_check_sea(m)
 	_check_water(m)
+	# A single-process run may arrive in a storm (an earlier check's weather): float him in a calm sea.
+	var weather: Node = city.get_node_or_null("Weather")
+	if weather and weather.has_method("force_state"):
+		weather.call("force_state", 0)
+		for i in 10:
+			await _t.get_tree().physics_frame
 	await _check_live(city, m)
 	await _check_pool(city)
+	if weather and weather.has_method("force_state"):
+		weather.call("force_state", -1)
 	await _t.call("stage_home")
 
 
