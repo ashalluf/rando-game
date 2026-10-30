@@ -14414,6 +14414,17 @@ one only swings the cradle, with no blood.
   LANE 2", "OBJECT IN ROAD / LANE 3 BLOCKED", "SLOW TRAFFIC / EXPECT DELAYS"), else travel times
   to two of FreewayKit's invented destinations, else a safety message.
 
+- **Road flares** (wave 3): once the patrol car has stood `FLARE_AFTER` s the officer's flares
+  appear one every `FLARE_EVERY` s, 5-7 of them (`flare_count()`), a taper behind the patrol car
+  from the shoulder's middle out to the slow lane's edge line (`flare_spot()`, `FLARE_STEP` 6.5 m
+  apart), burning till the patrol car has driven on. Each is `FreewayIncidentKit.flare_node()`: a
+  red paper fusee on its wire stand with a slag bead, a glow quad turned to the camera that never
+  draws under `min_px` 3 px and flickers from TIME (`shaders/fw_flare.gdshader` mode 0: a white-hot
+  point in a tight red halo, red held to a tenth green for AgX), a red pool on the deck (mode 1), a
+  wisp of pink-lit smoke (WeaponFX's smoke material, 14 particles, not on the web); after dark one
+  red OmniLight over the line on desktop (`FREEWAY_FLARE_LIGHT=0` leaves it out). The stall
+  script's pose carries `flares` (how many burn), so the checks read it without a scene.
+
 **How.** Every route is cut into `ZONE` (1 km) stretches per direction, and time into `PERIOD`
 (480 s) slots phased per stretch; `incident(fw, seed, route, zone, dir, slot)` is pure: what (20 %
 stall, 11 % tyre, 7 % mattress, 12 % slowdown, the rest quiet), where (`t` along the route, never
