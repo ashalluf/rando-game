@@ -3620,3 +3620,8 @@ none of either.
   regional pores and roughness), brows as strand cards and twice the hair cards. The contract
   (54 bones, clips, material names, hero_x_* maps, eye centres) is held so nothing downstream
   moves. HERO_FACE_2=0 is the shader A/B.
+- **2026-10-30 Perf audit 3: measure aerials in DIFF pairs, trim caches by refcount (perf-audit-3,
+  HANDOFF "Perf audit 3").** The far city's canopies are drawn without the sphere's zero-area pole
+  triangles; balconies get a hand-made LOD and shadow twins; static mesh caches that grow with the
+  places visited drop what only they hold (CacheTrim) instead of clearing at a size. Plain runs of
+  an aerial bookmark differ by millions of triangles, so frame costs there are DIFF=1 pairs only.
