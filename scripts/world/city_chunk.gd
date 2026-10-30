@@ -623,7 +623,11 @@ func _add_shop_spill() -> void:
 				var xf: Transform3D = b.transform * (pool[0] as Transform3D)
 				xf.origin.y = SIDEWALK_TOP + 0.06
 				_batch.add("shop_spill", mesh, xf, pool[1])
+				var glow: Variant = NightAtmos.shop_part(xf, pool[1], SIDEWALK_TOP)
+				if glow != null:
+					_batch.add(glow[0], glow[1], glow[2], glow[3], glow[4])
 	_batch.set_no_shadow("shop_spill")
+	NightAtmos.finish_batch(_batch)
 	_batch.set_draw_distance("shop_spill", SHOP_SPILL_DISTANCE)
 
 
@@ -3973,8 +3977,9 @@ func _add_lamp(at: Vector3, facing: Vector2 = Vector2.ZERO) -> void:
 	_add_prop("lamp", at, Color(0.28, 0.29, 0.32), [
 		["lamp", PropFactory.model_lamp(), Transform3D(Basis(Vector3.UP, fmod(absf(at.x * 7.3 + at.z * 3.1), TAU)), at), _lamp_tint],
 		["lamp_pool", PropFactory.light_pool(), pool, NightCity.pool_color(Vector2(at.x, at.z))],
-	], [[Vector3(0.3, 3.9, 0.3), at + Vector3(0.0, 1.95, 0.0), 0.0]])
+	] + _night_atmos([at + Vector3(0.0, 3.8, 0.0)], at + Vector3(0.0, 3.8, 0.0), at, LAMP_POOL_SIZE), [[Vector3(0.3, 3.9, 0.3), at + Vector3(0.0, 1.95, 0.0), 0.0]])
 	_batch.set_no_shadow("lamp_pool")
+	NightAtmos.finish_batch(_batch)
 	if level != Level.FULL:
 		return
 	# A real light as well, so the lamp actually lifts the people and cars under it. DayNight
@@ -3995,6 +4000,16 @@ func _add_lamp(at: Vector3, facing: Vector2 = Vector2.ZERO) -> void:
 	PropBreak.own_light(self, light)
 
 
+## A lamp's halos and shaft in the night air (NightAtmos): instances of its own prop record, so
+## they go out with it. None while capturing for the far city (which has its own lamp heads).
+func _night_atmos(lights: Array, head: Vector3, at: Vector3, pool: float) -> Array:
+	if capturing or not NightAtmos.enabled:
+		return []
+	NightAtmos.ensure()
+	var parts := NightAtmos.lamp_parts(lights, head, at.y, pool, Vector2(at.x, at.z), level == Level.FULL)
+	return parts
+
+
 ## The real lamp (StreetLamps, a model per type): the same prop slot, pool and OmniLight3D as
 ## the old post, the pool and the light moved under / into the lamp's head.
 func _add_street_lamp(at: Vector3, facing: Vector2) -> void:
@@ -4009,8 +4024,9 @@ func _add_street_lamp(at: Vector3, facing: Vector2) -> void:
 	_add_prop("lamp", at, Color(0.28, 0.29, 0.32), [
 		[lp.key, lp.mesh, lp.xform, lp.paint, lp.custom],
 		["lamp_pool", PropFactory.light_pool(), pool, StreetLamps.pool_color(lp.type, Vector2(at.x, at.z))],
-	], [[box, at + Vector3(0.0, box.y * 0.5, 0.0), 0.0]])
+	] + _night_atmos(lp.lights, head, at, size), [[box, at + Vector3(0.0, box.y * 0.5, 0.0), 0.0]])
 	_batch.set_no_shadow("lamp_pool")
+	NightAtmos.finish_batch(_batch)
 	if level != Level.FULL:
 		return
 	var light := OmniLight3D.new()

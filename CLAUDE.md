@@ -1630,6 +1630,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `uv_shift`), and `UV.y > 1.5` is how the shader knows to draw a fan that widens and fades
   along the road instead of a round pool; drawn as a pool, a beam laid flat on the street read
   as a long white smear.
+- Night atmosphere (2026-10-30, docs/HANDOFF.md "Night street atmosphere"): `NightAtmos`
+  (`scripts/world/night_atmos.gd`): camera-facing halos round every lamp head
+  (`atmos_glow_halo`) and lit shop front (`atmos_shop_glow`), a drawn light cone under each FULL
+  lamp (`atmos_beam_shaft`), all in the lamp's own prop record (glow words: out with the lamp),
+  plus car lamp halos (car_lights.gdshader parts 6 / 7, `PropFactory.LIGHT_HALO_*`), lens streaks
+  on a light looked at straight on, and a sodium lean on the depth fog near the street. Sized and
+  faded in the shaders (`shaders/night_halo.gdshaderinc`) off the `night_atmos` global (haze from
+  `haze_for()`, shaft gain 0 where volumetric fog is on, halo gain, viewport height), pushed four
+  times a second; collapsed by day. `NIGHT_ATMOS=0` is the A/B; checks
+  `tests/night_atmos_checks.gd`.
 - Car lights (GAME_PLAN G4 / G6, 2026-10-04): the lamp mesh is `PropFactory.vehicle_lights()`
   on `shaders/car_lights.gdshader` (it replaced light_pool for cars): head and tail glows, the
   beam fan, amber indicators at all four corners, reversing lamps and a red wash on the road
