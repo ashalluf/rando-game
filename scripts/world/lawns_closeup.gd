@@ -309,10 +309,10 @@ static func _drives(ch: CityChunk) -> Array:
 ## pavement (soil sits over the concrete; it also covers the tree wells, so the street trees
 ## stand in the grass), one mesh a chunk on its own lawn, and its blades.
 static func parkway(ch: CityChunk, rect: Rect2) -> void:
-	var pieces := parkway_pieces(rect, _drives(ch))
+	var plan := ch.plan
+	var pieces := _off_stops(plan, rect, parkway_pieces(rect, _drives(ch)))
 	if pieces.is_empty():
 		return
-	var plan := ch.plan
 	var h := _h01([plan.seed, ch.ix, ch.iz, "parkway"])
 	var tint := parkway_tint(h, _h01([plan.seed, ch.ix, ch.iz, "parkway_k"]))
 	var mat := PropFactory.lawn(tint, hash([plan.seed, ch.ix, ch.iz, "parkway"]), 0.25 + 0.4 * _h01([plan.seed, ch.ix, ch.iz, "parkway_dry"]), 0.0)
@@ -330,6 +330,33 @@ static func parkway(ch: CityChunk, rect: Rect2) -> void:
 	for pc: Array in pieces:
 		var r: Rect2 = pc[0]
 		ch._add_grass(r.grow(-0.05), PARKWAY_DENSITY, 0.0, [], mat, r)
+
+
+## The pieces less the stretches beside a bus stop (its shelter and bench stand on the walk, the
+## riders wait at the kerb: paved, as a real stop is), sampled a metre at a time.
+static func _off_stops(plan: CityPlan, rect: Rect2, pieces: Array) -> Array:
+	var edges := CityChunk._sidewalk_edges(rect)
+	var out: Array = []
+	for pc: Array in pieces:
+		var r: Rect2 = pc[0]
+		var inward: Vector2 = edges[int(pc[1])][2]
+		var along_x := r.size.x >= r.size.y
+		var length := r.size.x if along_x else r.size.y
+		var run_from := 0.0
+		var t := 0.0
+		while t <= length:
+			var c := r.get_center()
+			var q := Vector2(r.position.x + t, c.y) if along_x else Vector2(c.x, r.position.y + t)
+			var blocked := BigVehicles.in_stop_zone(plan, q - inward * 2.5)
+			if blocked or t + 1.0 > length:
+				var end := t if blocked else length
+				if end - run_from >= PARKWAY_MIN:
+					var nr := Rect2(r.position.x + run_from, r.position.y, end - run_from, r.size.y) if along_x \
+						else Rect2(r.position.x, r.position.y + run_from, r.size.x, end - run_from)
+					out.append([nr, pc[1]])
+				run_from = t + 1.0
+			t += 1.0
+	return out
 
 
 ## How far the parkway's top stands over the pavement (it covers Kerbs' root heaves, 4.5 cm at

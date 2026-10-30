@@ -3679,3 +3679,8 @@ none of either.
   the per-hour grade instead of a darker frame, day exposure 1.18, night exposure 2.3 with night
   bloom, the night fill and haze cool but not navy, thinner clear haze. tests/cinematic_review_checks.gd
   pins the ranges.
+- 2026-10-30 (lawns close up, wave 3): the lawn and its blades are ONE field (lawn_field.gdshaderinc):
+  each tuft carries its lawn's numbers and takes the ground's colour at its root, so the blades
+  shrink into the lawn by 62 m with no band and the grass cells draw to 86 m instead of 115 (the
+  saving pays for 1.6x denser, mown tufts). Suburb streets get grass parkways between the kerb and
+  the walk; weeds grow in the walk's joints and along the yard fences. LAWNS_CLOSEUP=0 is the A/B.
