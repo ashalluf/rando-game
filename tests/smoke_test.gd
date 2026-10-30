@@ -2429,6 +2429,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The film shoot on location (tests/film_shoot_checks.gd): closed local streets apart, the
 	# basecamp and the set, the kit, the built chunk and its people, LOD, and the A/B.
 	load("res://tests/film_shoot_checks.gd").new().run(self, city)
+	# The car radio (tests/car_radio_checks.gd): four stations, the dial, on air, the card, the Radio bus.
+	await load("res://tests/car_radio_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
