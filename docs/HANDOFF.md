@@ -20562,3 +20562,70 @@ lot's forecourt stands higher than the base (LotFill on a slope) they are buried
 brackets beyond the goosenecks; the alley face only gets downpipes (AlleyKit dresses the rest).
 Stills: `shots/facades-street` (the 02 pair still shows shop thresholds over a masonry plinth,
 since removed).
+
+## 9hr. Cars that crumple (wave 3, branch `wt/crash-deform`; VISUAL_ROADMAP ?)
+
+The owner's bar is "GTA 6": a head-on at 60 km/h left a nearly whole car with one shader dent.
+`CrashDeform` (`scripts/vehicles/crash_deform.gd`) is the structure giving way behind the dent,
+made under the car's CarDamage the first time a crash crumples it (an undamaged car still has
+no damage node and its shared paint shader; a shot car gets no crumple either).
+
+- **Crumple zones** (`shaders/car_crumple.gdshaderinc`, `cr_move()`): up to `CRUMPLE_CAP` (6) a
+  car, each a contact on the body's box, a push direction (the crash's velocity change) and a
+  depth: `depth_per_dv` 0.062 m per m/s past `min_over` (1.5 m/s over Vehicle.crash_min_dv), at
+  most `max_hit_depth` 0.7 a hit and `max_crush` 0.9 a zone (a second hit the same way within
+  0.6 of the zone's radius deepens it). The zone's front goes back by the depth; the metal behind
+  it, out to `reach_base + reach_gain x depth` (at most `reach_share` of the car's extent along
+  the push), takes it like an accordion: ridges across the push `fold_pitch` apart, wandering,
+  out along the skin's normal on faces that run along the push; the face that took the hit
+  caves in unevenly; a bonnet or boot lid crushed from its end tents UP (`tent`). The lateral
+  reach is `radius_base + radius_gain x depth` (a roof landing takes the whole roof, edge to
+  edge; a side hit is `side_gain` 1.4 deeper: a door is weaker than a crumple zone). Speeds on
+  the sedan: 30 km/h nothing (dent only), 50 km/h 0.32 m, 70 km/h 0.66 m, 90 km/h 0.7 m.
+  The paint cracks and flakes along the ridges and grime sits in the folds.
+- **Every slot rides it**: the damaged paint, glass (`car_glass_damage.gdshader`) and lamps
+  (`car_lamp_damage.gdshader`) include it, and the trim / chrome / ladder slots and the far
+  twin's `parts` move onto `shaders/car_part_damage.gdshader` (a plain lit copy of the model's
+  StandardMaterial3D numbers, or the far parts' vertex colours), and the number plates and badges
+  onto `car_detail_damage.gdshader` (car_detail.gdshader is now `car_detail.gdshaderinc` under
+  two `shader_type` lines; the crashed copy has the mesh transforms in `to_mesh` / `from_mesh`).
+  `CarDetail.lamps()` sets the crashed copy's plate lamp instead of swapping the shared pair.
+  The far twin stays coarse: it wears the same uniforms on its own few thousand triangles.
+- **Panels**: past `bonnet_at` (0.16 m) of crush at the nose the bonnet springs (turned about the
+  windscreen's foot, `bonnet_angle` 0.12 rad at most; a boot lid the same at the tail, 70 %);
+  past `bumper_at` (0.3 m), or a hard hit on a corner, the bumper tears off that corner and hangs
+  to the road (turned about the other corner). The hinge comes from the measured glass
+  (`_screen_foot()`); the region is a soft box. A side hit on the doors past `door_at` springs
+  the door there on the car-cabins rig (`CarInterior.jam(side, ajar, sag)`: it never shuts past
+  `ajar` again and droops `sag` rad on its hinges; the player's car and near parked cars only).
+- **Wheels** (visual): a hit past `wheel_at` within `wheel_reach` of a wheel cambers it (the
+  rig node's rotation.z, which `_update_wheels` never writes) and pushes it in; a crush deep into
+  an end pushes that axle back into the arches (`_wheels_back()`). `reset()` (CarDamage.restore,
+  a pooled cruiser) puts them back.
+- **Scrapes**: every crash lays a band along the contact the way the car was sliding over it
+  (its velocity along the face, else the push's), scuffed (clear coat gone), scored to primer
+  and bare steel in streaks, ragged ends; `SCRAPE_CAP` 8 a car, paint only.
+- **Shards** (`CrashLitter`, `scripts/vehicles/crash_litter.gd`): one MultiMesh ring of 900
+  chips (360 on the web) for the whole level, a child of the level root (rides the origin
+  shifts), one draw, no shadow: tempered glass cubes under a pane that falls out (CarDamage
+  `_set_pane`), clear / red / amber lens bits from a broken lamp (`_break_lamps`, shots too),
+  black bumper plastic and paint flecks from a crumple, each on what is really under it (a ray
+  a shard, only when something breaks), thrown on along the car's velocity.
+- **Where it hit**: `Vehicle._crash_contact()` casts two more rays a third of the way to each end
+  of the face (only past the crash threshold): a pole or a car's corner is met by the nearest,
+  a wall by all three (averaged). With `CRASH_DEFORM=0` it is the old single ray.
+- Hooks: CarDamage `_crash()` / `_blast()` (`crumple().crash()` / `.blast()`, a blast past
+  `blast_from` caves its side in), `_break_lamps()`, `_set_pane()`, `_push()`, `restore()`;
+  CarDetail `_add_detail_mesh()` / `lamps()`; CarInterior `jam()`, `tick()`, `busy()`.
+- **Stills**: `DAMAGE=front30|front50|front70|front90|corner50|side50|rear50|roll|scrape` on
+  `tools/glshot/car_shot.gd` (CarDamage.stage(): the same take_hit path a crash takes, at that
+  speed); `CRASH_DEBUG=1` prints each car's zones, panels and scrapes. Stills on
+  `shots/crash-deform`.
+- `CRASH_DEFORM=0` is the A/B (dents only, the single contact ray). Checks:
+  `tests/crash_deform_checks.gd` (shaders, no crumple on a shot car, depth by speed, panels,
+  parts, the nose moving and the tail not, wheels, the roof, scrapes, shards and the ring cap, a
+  real 60 km/h run into a wall through the crash watch, the A/B).
+- Not done: the physics shape stays the box (a crushed car still collides as a whole one); the
+  shadow twins carry the crush only where they share the paint material (the cars' own
+  `_body_shadows` do); the motorcycles and aircraft take none of it; a dragged bumper throws no
+  sparks of its own (DrivingFX's body contacts still do).

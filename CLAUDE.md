@@ -1302,6 +1302,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   every frame drew nothing - change amounts in steps, only when they change; a crash watch
   without its contact ray takes every scripted velocity reset for a crash;
   `Explosion.blast()` still pushes a car once per collision shape (2-3x a rocket's 30 m/s).
+- Cars that crumple (2026-10-30, docs/HANDOFF.md "Cars that crumple"): `CrashDeform`
+  (`scripts/vehicles/crash_deform.gd`, CarDamage's child, made by the first crash past
+  `min_over`) adds crumple zones (contact, push, depth by speed: `depth_per_dv`), sprung panels
+  (bonnet, boot lid, a hanging bumper; doors via `CarInterior.jam()`), knocked wheels (rig node
+  rotation.z), scrapes and road shards (`CrashLitter`, one MultiMesh ring a level) as mesh-space
+  uniforms in `shaders/car_crumple.gdshaderinc`, which the damaged paint, glass, lamps, the
+  trim / chrome / far parts (`car_part_damage.gdshader`) and the plates (`car_detail_damage`)
+  all include: anything else drawing part of a body must include it too. `_crash_contact()`
+  casts three rays. `CRASH_DEFORM=0` the A/B; stills `DAMAGE=front50|side50|roll|scrape...` on
+  car_shot.gd; checks `tests/crash_deform_checks.gd`.
 - What a blast leaves behind (2026-10-05, fleet task "explosions", docs/HANDOFF.md, section at
   the end): `Explosion.blast()` ends with ONE call, `BlastAftermath.blast()`
   (`scripts/weapons/blast_aftermath.gd`): a CRATER where it hit the ground (generated albedo +

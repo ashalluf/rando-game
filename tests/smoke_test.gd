@@ -2633,6 +2633,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The street level up close (tests/facades_street_checks.gd): the door's rolls as the shader rolls
 	# them, the hardware inside the lot, nothing a building rolled moving.
 	load("res://tests/facades_street_checks.gd").new().run(self, city)
+	# Crash deformation (tests/crash_deform_checks.gd): crumple zones by speed, panels, wheels,
+	# scrapes, shards on the road, a real head-on, the A/B.
+	await load("res://tests/crash_deform_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

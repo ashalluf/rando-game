@@ -3653,3 +3653,9 @@ none of either.
   integer roll the shader and the props share, so the frame, the lamp and the step agree; the
   hardware (downpipes, meters, condensers, grilles, lamps, housings) is ONE code-built mesh a
   building, one draw, drawn to ~105 m. Every roll is a hash; FACADES_STREET=0 is the old city.
+- 2026-10-30 (wave 3, crash-deform): crashes deform the car as crumple zones in the vertex
+  shaders (mesh-space uniforms, the CarDamage pattern), not as a mesh rebuilt on the CPU: an
+  undamaged car keeps its cost, every slot (paint, glass, lamps, trim, plates, far twin) moves by
+  the same function, and a crushed car is still one draw per slot. Panels spring by turning a
+  soft box of the mesh about a hinge; doors use the car-cabins rig. The collision shape stays the
+  box. CRASH_DEFORM=0 is the A/B.
