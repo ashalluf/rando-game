@@ -15,3 +15,16 @@ Nothing is forced: the grill smoking at 18:30 is a household that cooks that nig
 
 Frame cost (triangles / draws, before -> after): 150 m 2.91 M / 1,387 -> 3.09 M / 1,408; 45 m
 3.63 M / 1,569 -> 3.77 M / 1,622; patio 7.50 M / 2,759 -> 7.61 M / 2,847.
+
+## Wave 3 (merged with main 95bd13f; sunbathers)
+
+| files | view |
+|---|---|
+| 20 / 21 | two sunbathers on a lawn lounger pair, 14:00 (`EYE=956,6,3739.3,90,-22`, 6 m above the ground) |
+| 22 / 23 | 30 m over that yard, 14:00 (`EYE=947,30,3760,0,-55`) |
+| 24 / 25 | 45 m over block (21,31), 14:00, after the merge (apartments next door) |
+| 26 / 27, 28 / 29 | 150 m over block (21,31), noon / 21:00, after the merge |
+
+Frame cost (triangles / draws, `BACKYARDS=0` -> on): lounger 5.11 M / 2,340 -> 5.29 M / 2,462;
+30 m 4.64 M / 2,387 -> 4.58 M / 2,452; 45 m 3.71 M / 1,475 -> 3.82 M / 1,532; 150 m noon 3.13 M /
+1,431 -> 3.28 M / 1,448; 21:00 3.11 M / 1,421 -> 3.25 M / 1,440.
