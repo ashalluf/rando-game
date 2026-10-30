@@ -563,7 +563,7 @@ static func _cars(node: Node3D, g: Geo, s: Dictionary) -> void:
 				if _h01([seed_v, k, bi, i, "cp_car"]) >= fill:
 					continue
 				var u := st0 + (float(i) + 0.5) * CarPark.STALL_W + (_h01([seed_v, k, bi, i, "cp_dx"]) - 0.5) * 0.25
-				var v := back + dir * (2.55 + _h01([seed_v, k, bi, i, "cp_dv"]) * 0.3)
+				var v := back + dir * (2.85 + _h01([seed_v, k, bi, i, "cp_dv"]) * 0.2)
 				var kind := 0
 				var r := _h01([seed_v, k, bi, i, "cp_kind"])
 				if r > 0.55:
