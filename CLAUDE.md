@@ -2876,7 +2876,10 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   off near one), `spawn_lane()` in `_spawn_freeway_car()`. CMS: `has_cms()` (a hash) makes
   FreewayKit build a message cabinet in place of the second guide board; near the player the node
   puts its LED face on (`shaders/freeway_cms.gdshader`) saying what is ahead, travel times or a
-  safety line. `FREEWAY_INCIDENTS=0` is the A/B; stills `FW_INCIDENT=stall|tyre|mattress|slow`
+  safety line. Behind a parked patrol car a taper of burning road flares (`flare_spot()`,
+  `FreewayIncidentKit.flare_node()`, `shaders/fw_flare.gdshader`: a glow never under 3 px, a red
+  pool, smoke, one red omni at night on desktop - `FREEWAY_FLARE_LIGHT=0`).
+  `FREEWAY_INCIDENTS=0` is the A/B; stills `FW_INCIDENT=stall|tyre|mattress|slow`
   (`FW_INCIDENT_AT`, `_T`, `_HOLD`, `_TIMES` per SHOTS entry); probe
   `tools/freeway_incidents/probe.tscn`; checks `tests/freeway_incidents_checks.gd`.
 - The four-level stack (VISUAL_ROADMAP #81, 2026-10-05, docs/HANDOFF.md, the stack section):

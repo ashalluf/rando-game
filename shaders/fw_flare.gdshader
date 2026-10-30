@@ -12,7 +12,7 @@ render_mode blend_add, unshaded, depth_draw_never, cull_disabled, shadows_disabl
 global uniform float lamp_factor;
 
 uniform float mode = 0.0;
-uniform float size = 0.55;
+uniform float size = 0.42;
 uniform float min_px = 3.0;
 uniform vec2 viewport_px = vec2(1280.0, 720.0);
 uniform vec3 core_color = vec3(3.6, 1.05, 0.85);
@@ -51,9 +51,10 @@ void fragment() {
 	float gain = mix(day_gain, night_gain, clamp(lamp_factor, 0.0, 1.0)) * v_flick;
 	vec3 col;
 	if (mode < 0.5) {
-		float core = exp(-r * r * 28.0);
-		float halo = exp(-r * r * 4.5) * (1.0 - smoothstep(0.75, 1.0, r));
-		col = core_color * core + halo_color * halo * 0.6;
+		// A white-hot point in a tight red halo: a flare reads as a spark, not a ball.
+		float core = exp(-r * r * 60.0);
+		float halo = exp(-r * r * 9.0) * (1.0 - smoothstep(0.7, 1.0, r));
+		col = core_color * core * 1.6 + halo_color * halo * 0.7;
 	} else {
 		float pool = exp(-r * r * 3.2) * (1.0 - smoothstep(0.8, 1.0, r));
 		col = halo_color * pool * pool_gain * mix(0.35, 1.0, clamp(lamp_factor, 0.0, 1.0));

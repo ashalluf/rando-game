@@ -61,8 +61,8 @@ const BUILD_REACH := 750.0
 static var FREEWAY_FLARE_LIGHT := OS.get_environment("FREEWAY_FLARE_LIGHT") != "0"
 const FLARE_AFTER := 3.0
 const FLARE_EVERY := 1.4
-const FLARE_STEP := 9.0
-const FLARE_BACK := 6.0
+const FLARE_STEP := 6.5
+const FLARE_BACK := 3.0
 const CMS_REACH := 520.0
 const CMS_LOOK := 4200.0
 ## A gantry carries a CMS on this share of its carriageways (has_cms()).
