@@ -1766,6 +1766,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   dive and rock-back, eased swerve) and a hard stop squeals and lays marks (`PanicSkid`, into
   DrivingFX's ring). Never a crime by itself. `CAR_PANIC=0` is the A/B; stills `PANIC=` on
   `still_shot.gd`; checks `tests/car_panic_checks.gd`.
+- Stunt ramps (2026-10-30, docs/HANDOFF.md "Stunt ramps"): `StuntRamps` (`scripts/world/stunt_ramps.gd`,
+  pure, hashes after every roll) plans a steel kicker in a car park's roof aisle past its last light
+  pole, a concrete quarter-pipe at the toe of the LA River's bank across the bed from an access
+  ramp, a ramp pair square across a straight freeway stretch and a loop-the-loop beside one on the
+  INDUSTRIAL right of way (Footbridges' corridor tests), a kicker at RANDO PIER's sea end, and dirt
+  tabletops down a bare vacant lot's ruts. `StuntKit` builds them in code on ONE shader
+  (`shaders/stunt_ramp.gdshader`, kind in COLOR.a 16ths), `StuntBuild` (one hook in `begin_build()`,
+  one after `VacantLots.build_lot()`) puts each in the chunk owning its foot with trimesh collision
+  and collapses the planting under the freeway pieces (`_run_last`). `StuntDirector` (one node under
+  the root) watches the player's body cross a lip fast and get airborne: Engine.time_scale and the
+  audio eased to `slow_time_scale` on the REAL clock, `camera_fov` + `fov_kick`, released on landing,
+  after `max_seconds`, or as soon as anything else writes the time scale; it also presses a car onto
+  the loop's track. `STUNT_RAMPS=0` / `STUNT_SLOWMO=0` the A/B; probe `tools/stunt_ramps/probe.tscn`;
+  stills `STUNT=<kind|id>[:t]` on `still_shot.gd`; checks `tests/stunt_ramps_checks.gd`.
 - Motorcycles (2026-10-06, docs/HANDOFF.md "Motorcycles"): `Motorcycle`
   (`scripts/vehicles/motorcycle.gd`, extends Vehicle; BodyType MOTO_SPORT / MOTO_CRUISER /
   MOTO_SCOOTER appended, BODY_ODDS 0) - bodies from `tools/make_motorcycles.py` (Blender or the

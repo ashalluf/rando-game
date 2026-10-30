@@ -295,6 +295,8 @@ static func _segment(plan: CityPlan, ri: int, i: int) -> Array:
 ## off-ramp, footbridge, the light rail and the freight line. The ground height, or NAN.
 static func _ground(plan: CityPlan, c: Vector2, dir: Vector2, along: Vector2, hd: float, ha: float, own_route: int) -> float:
 	var r := Footbridges._turned_rect(c, dir, along, hd, ha)
+	if plan.district_at(c) != CityPlan.District.INDUSTRIAL:
+		return NAN
 	if not Footbridges._tower_ground_ok(plan, r, c, CityChunk.SIDEWALK_TOP + plan.macro.relief_at(c)):
 		return NAN
 	var lo := INF

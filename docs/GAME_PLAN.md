@@ -295,6 +295,11 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-30 A stunt playground hidden in the real city (HANDOFF "Stunt ramps").** Kickers on
+  car park roofs, quarter-pipes in the river channel, a freeway ramp pair and loops on the industrial
+  right of way, a pier kicker and dirt jumps in vacant lots, each where a stunt crew would put it and
+  never on a traffic lane, every site a hash after every existing roll. Slow motion on a big launch
+  uses Engine.time_scale on the real clock, as the weapon wheel does, and yields to any other owner.
 - **2026-10-29 Facades are worked out per pane, not per building (owner: "start looking like GTA
   6").** Glass varies pane by pane and floor by floor, blinds hang at their own heights, the glass
   mirrors a street opposite with parallax, curtain walls come in three systems (flush, deep fins,

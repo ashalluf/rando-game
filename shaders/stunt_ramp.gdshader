@@ -81,10 +81,13 @@ void fragment() {
 		// Painted steel.
 		vec3 tex = disp(cs_in(texture(paint_tex, uv * 0.5).rgb));
 		col = vcol * mix(0.82, 1.12, tex.g);
-		float chip = smoothstep(0.62, 0.7, fbm(uv * 3.1 + 11.0));
-		col = mix(col, vec3(0.42, 0.40, 0.38), chip * 0.7);
-		col = mix(col, vec3(0.34, 0.17, 0.08), smoothstep(0.66, 0.78, fbm(uv * 2.3 + 4.0)) * 0.6);
-		col *= mix(1.0, 0.75, grime * 0.25);
+		// Chips: small and few, mostly near the faces' edges and low down (where a ride rubs).
+		float chip = smoothstep(0.78, 0.84, fbm(uv * 9.0 + 11.0)) * smoothstep(0.35, 0.75, vnoise(uv * 0.7 + 3.0));
+		col = mix(col, vec3(0.40, 0.38, 0.36), chip * 0.8);
+		// Rust weeping down from the chips, faint.
+		float weep = smoothstep(0.7, 0.9, vnoise(vec2(uv.x * 6.0, uv.y * 0.6) + 2.0)) * 0.18;
+		col = mix(col, vec3(0.36, 0.20, 0.10), weep);
+		col *= mix(1.0, 0.82, grime * 0.3);
 		rough = mix(0.42, 0.75, chip + tex.r * 0.3);
 		metal = chip * 0.6;
 	} else if (k < 1.5) {
