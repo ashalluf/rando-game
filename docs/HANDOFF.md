@@ -50,6 +50,16 @@ The owner: "this needs to start looking like GTA 6" and "keep working until I sa
   star-boulevard, freeway-incidents (body types: the lowriders are 25-26, the motorcycles 27-29),
   plus the crowd checks holding onlookers off and the weather dry (CI 366: in one process they ran
   after the car panic's scenes).
+  Batch 5: buskers, wildlife, beach-amenities, oil-islands, sky-ads, foot-ik, bonfires, with
+  the CI 367/368 single-process fixes (watchdog 1500 s, the freed-limb cast, the street-signs
+  registry, photo mode under HourGrade, the swim check's calm sea, the ferry bound). Batch 6:
+  beach-amenities' follow-up, settings-menu, fireworks, film-shoot, car-radio, ragdolls,
+  metro-underground, valets, speedboats, sea-life, skate-park.
+- **Fourth launch (2026-10-30 05:00)**: `fwd-review-d`, `web-build-2`, `perf-audit-2` (CI 368's
+  peak RSS of 3,857 MB is over the 3,600 MB budget: theirs), `gate-speed-2`; and at 05:31 `cars-3`
+  `session_01Q7NKyyuPu49YmDxBo2PfCQ`, `night-atmos` `session_01Q7NKyxCp6U2kctqagxsmT2`,
+  `wet-world` `session_01Q7NKyzYEh5h3oJyBWnAbRR`, `crowd-variety` `session_01Q7NKz1bn3aYbtVioNJ8CN6`.
+  Still running from earlier: stunt-ramps, nightlife, yard-sales, car-cabins, arroyos, rock-outcrops.
 - **Second launch (2026-10-30 01:33)**, eight new sessions from tasks.tsv: `oil-islands`
   `session_01Q7NKyyYRLXXTXkVJp1in4J`, `sea-life` `session_01Q7NKyzk56JBK8dNe3KVqFu`, `speedboats`
   `session_01Q7NKyyye8YuupMr7qCukxK`, `bonfires` `session_01Q7NKz1sEin5FzYhNeyFGYi`,
