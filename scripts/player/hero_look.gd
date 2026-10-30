@@ -10,7 +10,8 @@ extends RefCounted
 ##   hero_tracksuit    -> shaders/hero_cloth.gdshader (pose-driven folds, velour pile and sheen)
 ##   hero_tracksuit_rib-> the cloth shader, no wrinkles
 ##   hero_eyes, hero_dial -> the glTF material plus a clearcoat: the wet eye, the watch glass
-## The hero_x_* maps the shaders need are not in the glTF; they sit next to it.
+## The hero_x_* maps the shaders need are not in the glTF; they sit next to it (hero_x_skin_region
+## is the face's pore size, redness and cartilage, hero-face-2).
 
 const SKIN := preload("res://shaders/hero_skin.gdshader")
 const HAIR := preload("res://shaders/hero_hair.gdshader")
@@ -98,6 +99,10 @@ func _material_for(src: StandardMaterial3D, s: Dictionary) -> Material:
 			skin.set_shader_parameter("sss_strength", s.get("skin_sss", 0.4))
 			skin.set_shader_parameter("stubble_amount", s.get("stubble", 0.9))
 			skin.set_shader_parameter("detail_strength", s.get("pores", 0.6))
+			# hero-face-2: the face's region map (pore size, redness, cartilage); HERO_FACE_2=0
+			# is the old skin shading (the maps the build bakes stay the new ones).
+			skin.set_shader_parameter("region_tex", _map("skin_region.png"))
+			skin.set_shader_parameter("face2", 1.0 if face2() else 0.0)
 			# The Compatibility renderer's BACKLIGHT is not scattering, it is a glow: at the old
 			# strength the ears and fingers of every web / opengl3 frame lit up bright orange
 			# against the sun. Forward+ keeps its transmittance as it was.
@@ -113,10 +118,17 @@ func _material_for(src: StandardMaterial3D, s: Dictionary) -> Material:
 				m.set_shader_parameter("strands_from_texture", 1.0)
 				m.set_shader_parameter("specular", 0.2)
 				m.set_shader_parameter("anisotropy", 0.0)
+				if face2():
+					# strand brows (tools/hero/hair.py): fine hairs want a lower cut and a little
+					# shine along them
+					m.set_shader_parameter("alpha_cut", 0.26)
+					m.set_shader_parameter("specular", 0.3)
 			else:
 				hair = m
 				if HeroFace.closeup():
 					m.set_shader_parameter("root_fade", 0.22)
+				if face2():
+					m.set_shader_parameter("strand_round", 0.85)
 			return m
 		"hero_tracksuit", "hero_tracksuit_rib":
 			var m := ShaderMaterial.new()
@@ -164,6 +176,12 @@ func _material_for(src: StandardMaterial3D, s: Dictionary) -> Material:
 			m.metallic_specular = 0.7
 			return m
 	return null
+
+
+## The hero-face-2 pass (strand brows, the face's region map, the new transmittance);
+## HERO_FACE_2=0 is the A/B for what the shaders do.
+static func face2() -> bool:
+	return OS.get_environment("HERO_FACE_2") != "0"
 
 
 func _map(name: String) -> Texture2D:
