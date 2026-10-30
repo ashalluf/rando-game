@@ -58,8 +58,9 @@ const SLICE := 2048
 ## "skin_x": |x| of the door skin, "front": along at the belt, "rear", "sill", "top": door glass top,
 ## "belt": door glass bottom, "lower": PackedVector2Array (the outline below the glass)}.
 static var _done: Dictionary = {}
-## step() runs the arithmetic on a worker thread (now() never does).
-static var threaded: bool = true
+## step() runs the arithmetic on a worker thread (now() never does; nor the single-threaded web
+## build, whose worker tasks would only run when waited for).
+static var threaded: bool = not OS.has_feature("web")
 static var _jobs: Dictionary = {}
 
 

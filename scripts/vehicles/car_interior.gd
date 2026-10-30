@@ -54,6 +54,10 @@ var _glass: ShaderMaterial
 var _wheel_xf: Transform3D
 var _real := false
 var _powered := -1.0
+## Lights the dash with nobody at the wheel (stills).
+var force_powered := false
+## A door has come off: the shadow twin shows the hole, the doors left cast their own.
+var _holed := false
 
 
 ## Builds it on `c` (CarDoorSplit's result for its body type must be ready). Null when the car
@@ -177,17 +181,14 @@ func _set_far(end: float) -> void:
 		gi.visibility_range_end = end
 
 
-## The body's shadow twins carry closed doors: while this is up the body and doors cast instead.
-func _shadows(on: bool) -> void:
-	for twin in car._body_shadows:
-		if is_instance_valid(twin):
-			twin.visible = (not on) and car._body_tier == 0
-	if body_mi != null and is_instance_valid(body_mi):
-		body_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if on else (_orig_cast as GeometryInstance3D.ShadowCastingSetting)
+## Shadows: the body keeps its light shadow twin (it has the doors shut, which is the door's shadow
+## too while it is shut); a door casts its own only while it stands open. Casting the split body
+## at full detail into every cascade cost ~100k triangles a frame.
+func _shadows(_on: bool) -> void:
 	for d: Dictionary in doors:
 		var m: MeshInstance3D = d.mesh
 		if m != null and is_instance_valid(m):
-			m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 ## Takes it all back off the car. A car that has lost a door is never handed back (CarInteriors
@@ -199,7 +200,14 @@ func remove() -> void:
 			car._update_occupant(true)
 		_shadows(false)
 	if _orig_mesh != null and body_mi != null and is_instance_valid(body_mi):
+		var split := body_mi.mesh
+		body_mi.cast_shadow = _orig_cast as GeometryInstance3D.ShadowCastingSetting
 		body_mi.mesh = _orig_mesh
+		# A shadow twin made while this was up was made from the split body: give it the whole one.
+		if car != null and is_instance_valid(car):
+			for twin in car._body_shadows:
+				if is_instance_valid(twin) and twin.mesh == split:
+					twin.mesh = _orig_mesh
 	queue_free()
 
 
@@ -255,9 +263,21 @@ func tick(delta: float) -> void:
 		# Out fast and easing to the check strap; shut with a little speed at the end.
 		var e := 1.0 - pow(1.0 - o, 2.2) if float(d.target) > 0.0 else o * o * (3.0 - 2.0 * o)
 		(d.pivot as Node3D).rotation = Vector3(0.0, deg_to_rad(OPEN_DEG) * e * float(d.side), 0.0)
+		var skin: MeshInstance3D = d.mesh
+		if skin != null:
+			var cast := GeometryInstance3D.SHADOW_CASTING_SETTING_ON if o > 0.02 or _holed else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			if skin.cast_shadow != cast:
+				skin.cast_shadow = cast
+	if _real and car != null and _orig_mesh != null:
+		# The shadow twin carries whole doors (a twin made while this was up gets them back), or
+		# the hole once one is gone.
+		var want: Mesh = body_mi.mesh if _holed else _orig_mesh
+		for twin in car._body_shadows:
+			if is_instance_valid(twin) and twin.mesh != want:
+				twin.mesh = want
 	if wheel != null and car != null:
 		wheel.transform = Transform3D(_wheel_xf.basis * Basis(Vector3(0, 0, 1), -car.steering * STEER_RATIO), _wheel_xf.origin)
-	var powered := 1.0 if car != null and car.driver != null else 0.0
+	var powered := 1.0 if car != null and (car.driver != null or force_powered) else 0.0
 	if powered != _powered:
 		_powered = powered
 		_mat.set_shader_parameter("powered", powered)
@@ -286,6 +306,7 @@ func detach(side: float, push: Vector3) -> RigidBody3D:
 	if d.is_empty() or d.lost:
 		return null
 	d.lost = true
+	_holed = true
 	var pivot: Node3D = d.pivot
 	var xf := pivot.global_transform
 	var body := RigidBody3D.new()

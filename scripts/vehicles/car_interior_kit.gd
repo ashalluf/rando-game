@@ -51,6 +51,8 @@ static func request(type: int, data: Dictionary, doors: Array) -> Dictionary:
 	var key := _key(type, data, doors)
 	if _cache.has(key):
 		return _cache[key]
+	if not CarDoorSplit.threaded:
+		return build(type, data, doors)
 	if not _tasks.has(key):
 		var job := {"geos": {}}
 		var d := data.duplicate()

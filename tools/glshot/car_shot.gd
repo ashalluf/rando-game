@@ -254,6 +254,7 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 				continue
 			if occupant == "player":
 				car.call("_apply_occupant", 1, load("res://scripts/vehicles/car_cabin.gd").call("player_look"))
+				rig.set("force_powered", true)
 			var amount := OS.get_environment("DOOR").to_float()
 			var side := 1.0 if OS.get_environment("DOOR_SIDE") == "1" else -1.0
 			var d: Dictionary = rig.call("door", side)

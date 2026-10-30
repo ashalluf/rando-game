@@ -532,6 +532,14 @@ func _initialize() -> void:
 		while pb_t < _env_float("PB_TIME", 1.0):
 			await process_frame
 			pb_t += get_root().get_process_delta_time()
+	# CABIN_STAGE=<door 0..1>|in: the real car cabin (tools/car_cabins/cabin_stage.gd): the player at
+	# the nearest parked car's open driver's door, or at its wheel seen through the passenger's.
+	var cab_env := OS.get_environment("CABIN_STAGE")
+	if cab_env != "" and current_scene:
+		var cab_eye: String = await load("res://tools/car_cabins/cabin_stage.gd").stage(self, cab_env, get_root().get_camera_3d())
+		if cab_eye != "":
+			OS.set_environment("EYE", cab_eye)
+		_eye(player, fov)
 	# SERVICE=garbage|sweeper|tow|ice_cream|delivery: a service vehicle at work in front of the
 	# camera (ServiceFleet.stage_for_shot; SERVICE_LIFT 0..1 how far up the arm has the cart).
 	var svc_env := OS.get_environment("SERVICE")
