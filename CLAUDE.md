@@ -732,6 +732,11 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   numpy matches the engine within 1-2 levels). `tools/glshot/grade_shot.tscn` (3 x 3 FULL blocks,
   the city's DayNight, `HOURS=`) is the Forward+ view on lavapipe (11 GB at `BLOCKS=1`; never
   more). Checks: `tests/color_grade_checks.gd`.
+- The cinematic review (2026-10-30, docs/HANDOFF.md "The cinematic review"): a look change is judged
+  on all ten refcams at once (one picture, not one shot) by their numbers; tune the grade offline
+  from a `GRADE_RAW=1` run, then confirm with a normal run and `tools/cinematic/grade_probe.gd`
+  (Forward+ in two minutes). HourGrade's looks carry `depth` (a broad shadow gain); DayNight has
+  `day_/night_glow_intensity` and `_threshold`. `tests/cinematic_review_checks.gd` pins the ranges.
 - The map (2026-10-05, "a minimap and a full-screen map with a GPS, GTA style"): the minimap and
   the full-screen map draw the same thing through `MapPainter` (`scripts/ui/map_painter.gd`,
   static; a `MapPainter.View` says where: world-to-canvas transform, pixels per metre, the

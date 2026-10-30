@@ -20700,6 +20700,76 @@ Gate (`SHARDS=3`, after merging main dbf7ac87+): 3,942 checks, 3 failed - ragdol
 to rest on a car-high box", wildlife "calm animals stay put", explosions_2 "the blasts leave
 nothing behind" - all three pass alone with POLICE_NIGHT_LOOK=1 and =0 (118 checks each), so they
 are order-dependent in shard 0 / 2, not this branch. Peak RSS 3,377 MB (shard 1).
+
+## 9ht. The cinematic review: one filmic LA across the ten reference cameras (wave 3, wt/cinematic-review)
+
+**What.** An art-direction pass on the whole picture against the owner's bar ("make it look like
+GTA 6"): rich, warm sunlight over cooler shadows, firm blacks, saturated golden hours, nights that
+are dark but not murky or navy, lights that bloom. Judged on the ten reference cameras
+(`tools/refcams/`, opengl3) by their numbers, tuned offline (GRADE_RAW=1 run + the grade's maths in
+numpy, which reproduces the engine within 1-4 levels on all ten), and checked on Forward+ (lavapipe)
+with a new small probe. No new system: every change is a value behind an existing tunable, plus
+one new grade term and the night bloom, both behind tunables.
+
+**Values changed (and why).**
+- `HourGrade.LOOKS` (`scripts/world/hour_grade.gd`): a new per-look key `depth`, a broad shadow
+  gain `(1 - v)^2` (the "shadows" slider; the old toe term `(1 - v)^5` only reaches the deepest
+  values), applied in `channel()` after the toe; 0 = the curve as it was. DAY sat 1.30 -> 1.42,
+  contrast 0.22 -> 0.30, depth -0.25, mid gamma (1, 1, 1) -> (0.90, 0.91, 0.94) so the mids stay
+  where they were while the toe deepens; warm highlights over cooler shadows (high +0.03 R / -0.02
+  B, shadow -0.20 R / -0.12 B). GOLDEN sat 1.36 -> 1.48, contrast 0.22, depth -0.30, gamma
+  (0.80, 0.85, 0.98): the sunset glows instead of sinking. BLUE sat 1.28, red gamma 1.22 -> 1.14.
+  NIGHT sat 1.16 -> 1.22, blue mid gamma 1.03 -> 1.09 and toe (-0.56, -0.56, -0.62): the blue out
+  of the mids. OVERCAST sat 1.18. SANTA_ANA sat 1.44, contrast 0.32 (at least as crisp as clear).
+  MARINE unchanged. The old checks in `color_grade_checks.gd` all hold (night's toe 0.047 < 0.086,
+  the live curve still drops noon -> midnight at 0.15).
+- `DayNight.day_exposure` 1.25 -> 1.18 (and city.tscn's `tonemap_exposure`): the noon street sat at
+  p50 143 and the beach 171, over the 123 midday target; the extra level read as milky.
+- `DayNight.night_exposure` 2.1 -> 2.3: the light lifts the night, the grade's toe stays deep.
+- New `day_glow_intensity` / `night_glow_intensity` (0.5 / 0.85) and `day_glow_threshold` /
+  `night_glow_threshold` (1.3 / 0.9), blended by `moonlight` onto the Environment's glow: by day
+  bloom is as before, after dark lamps, signs and headlights get a film halo.
+- `DayNight.night_ambient` (0.3, 0.38, 0.6) -> (0.32, 0.38, 0.52) and `night_fog` (0.05, 0.07,
+  0.14) -> (0.06, 0.07, 0.11): together they turned the wet night street navy (24/32/47 RGB).
+- `Weather.fog_by_state[CLEAR]` 0.0001 -> 0.000085: the hills and beach frames had p5 109 / 93.
+- Not changed, judged fine: the lens (vignette 0.24, grain 0.028, fringe 0.0016), CameraPost's
+  motion blur and DOF, the sky, the golden-hour smog, MARINE.
+
+**Numbers** (refcams opengl3, before = main d88241cc, after = this branch before the last main merge;
+luminance p5/p50/p95, saturation, CCT):
+street_noon 26/143/184 0.22 6973K -> 22/142/186 0.24 6872K; street_night 6/23/94 0.49 6898K ->
+6/23/100 0.44 5957K (less navy); sunset 14/40/122 0.50 2715K -> 13/37/123 0.59 2234K;
+golden_aerial 50/148/177 0.30 -> 44/149/179 0.34; downtown_aerial 13/79/175 0.36 -> 10/73/177 0.39;
+beach 93/171/203 0.15 -> 87/171/206 0.17; hills 109/154/183 0.26 -> 103/153/185 0.31; freeway
+34/128/195 0.19 -> 29/125/192 0.20; macarthur 41/131/213 0.33 -> 35/128/215 0.38; pier_night
+12/23/73 0.59 11939K -> 11/23/76 0.59 8952K. Frame cost: triangles and draws within the run-to-run
+noise on every shot (refcams compare: -4.6 % .. +3 %, traffic and people move).
+Forward+ (lavapipe, `tools/cinematic/grade_probe.gd`, the city's Environment and DayNight over
+test pieces; p5/p50/p95, sat): 12:00 97/138/181 0.32 -> 94/139/183 0.37; 17:12 52/80/175 0.28 ->
+50/78/177 0.34; 17:51 33/55/132 0.55 -> 33/55/132 0.62 (warmer); 21:30 the lamp blooms wider and
+the cast goes from blue (40/44/50) to neutral (43/44/48).
+
+**Tools.** `tools/cinematic/grade_probe.gd`: the look on Forward+ in two minutes (HOURS=, OUT=);
+`tools/glshot/grade_shot.tscn` (BLOCKS=1) is now OOM-killed in the macro setup on a 15 GB box.
+The offline regrade: run refcams with `GRADE_RAW=1`, then HourGrade.channel() in numpy
+(saturation as Godot's mean-mix, then the 33-point curve over the base gradient) per shot, with
+each shot's look weights from DayNight's maths (golden, blue, night, overcast = 1.4 x darken).
+
+**Checks** (`tests/cinematic_review_checks.gd`): every look has a depth term; the DAY, GOLDEN,
+NIGHT and SANTA_ANA numbers within their ranges (rich and firm, split toning, golden mids warm, the
+night's blue pulled); depth darkens the lower mids and keeps black / white, and a look without it is
+the old curve; the exposures, night bloom over day, the night fill and haze not navy; the clear
+haze under 0.0001; the live Environment's bloom and exposure follow the clock.
+
+**Stills** (shots/cinematic-review): the before / after refcams sheets, the compare sheet, the
+Forward+ probe before / after per hour.
+
+**Not done / not verified.** The Mac's Forward+ CITY is not seen (the probe is test pieces; the
+city does not fit lavapipe). The hazed frames (beach, hills) are pale mostly from their own
+materials (the opengl3 terrain and the sand), which the grade cannot fix without wrecking the rest;
+their p5 moved only 6. The sun's specular on cars and glass was judged on the probe's spheres only.
+If the Mac's nights read too dark, raise `night_exposure` toward 2.45 before lifting NIGHT's toe.
+
 ## 9d?. The Los Angeles sunset: clouds lit by the low sun as it reaches them (wave 3, `sunset-clouds`, branch `wt/sunset-clouds`)
 
 Owner's bar: the GTA 6 trailer's opening shot - the sun low over the Pacific, cumulus bases lit

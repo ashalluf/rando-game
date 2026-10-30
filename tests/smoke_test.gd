@@ -116,6 +116,7 @@ const PART_COST := {
 	"fwd_review_a_checks": 0.0, "fwd_review_b_checks": 0.0, "garments_2_checks": 0.0,
 	"memory_audit_checks": 0.0, "offshore_island_checks": 0.0, "perf_audit_checks": 0.0,
 	"shop_vinyl_checks": 0.0, "sky_checks": 0.0, "bonfires_checks": 3.0,
+	"cinematic_review_checks": 0.1,
 	"sunset_clouds_checks": 0.0
 }
 const DEFAULT_COST := 6.0
@@ -2608,6 +2609,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/explosions_2_checks.gd").new().run(self, city)
 	# The crowd's walks (tests/crowd_anim_2_checks.gd, CrowdGait): gaits, matched rates, no slide.
 	await load("res://tests/crowd_anim_2_checks.gd").new().run(self, city)
+	# The cinematic review (tests/cinematic_review_checks.gd): the grade, exposure, bloom and haze numbers.
+	load("res://tests/cinematic_review_checks.gd").new().run(self, city)
 	# The reset between check files (tests/gate_speed_2_checks.gd): what it puts back, the file list.
 	load("res://tests/gate_speed_2_checks.gd").new().run(self, city)
 	# The night street's air (tests/night_atmos_checks.gd, NightAtmos): halos, shafts, the haze.

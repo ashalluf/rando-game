@@ -143,8 +143,22 @@ extends Node
 ## Environment supplies the contrast, and this supplies the level. Opening up after dark is the
 ## cheap version of eye adaptation - without it the night grade crushes a street lit by lamps
 ## into mud.
-@export var day_exposure: float = 1.25
-@export var night_exposure: float = 2.1
+## 1.25 until the cinematic review (2026-10-30): the noon street sat at p50 143 and the beach at
+## 171, a stop over the 123 midday target, and the extra level was what read as milky. The grade
+## (HourGrade DAY) now puts the contrast back on a frame that is not pushed up first.
+@export var day_exposure: float = 1.18
+## Night: 2.1 until the cinematic review; the refcams' night street and pier sat at p50 23 (murk,
+## not darkness). The grade's night toe stays as deep: the lift is the light, not lifted blacks.
+@export var night_exposure: float = 2.3
+## Bloom by day and at full night (the Environment's glow_intensity and glow_hdr_threshold,
+## blended by `moonlight` like the exposure; the cinematic review, 2026-10-30). By day the scene's
+## 0.5 / 1.3: only the sun's glints and the hottest sky bloom. After dark lamps, signs, neon and
+## headlights are the picture, and a film camera wraps them in a halo: more glow and a lower
+## threshold, so a sodium lamp or a lit window blooms where by day nothing at that level would.
+@export var day_glow_intensity: float = 0.5
+@export var night_glow_intensity: float = 0.85
+@export var day_glow_threshold: float = 1.3
+@export var night_glow_threshold: float = 0.9
 @export_group("Distance")
 ## Colour of the depth fog by day, at dusk and at night. It is deliberately a touch darker and
 ## less blue than the horizon: fog that is exactly the sky colour erases the far half of the
@@ -155,11 +169,14 @@ extends Node
 ## lit by the sun; it goes beige, and the sky above it stays the blue.
 @export var day_fog: Color = Color(0.63, 0.62, 0.57)
 @export var dusk_fog: Color = Color(0.72, 0.45, 0.33)
-@export var night_fog: Color = Color(0.05, 0.07, 0.14)
+## Night was (0.05, 0.07, 0.14) and the ambient (0.3, 0.38, 0.6) until the cinematic review: the
+## two together turned a wet street at night navy (refcams street_night 24/32/47 RGB below the
+## horizon). Still cool - moonlight - but the street reads as asphalt under lamps.
+@export var night_fog: Color = Color(0.06, 0.07, 0.11)
 @export_group("")
 ## Ambient light color and strength by day and by night (moonlight).
 @export var day_ambient: Color = Color(0.62, 0.7, 0.85)
-@export var night_ambient: Color = Color(0.3, 0.38, 0.6)
+@export var night_ambient: Color = Color(0.32, 0.38, 0.52)
 ## Sky fill in the shadows. Kept well under the sun (see day_sun_energy): a real midday shadow
 ## is about a fifth as bright as the lit side, not two thirds.
 @export var day_ambient_energy: float = 0.30
@@ -500,6 +517,8 @@ func _apply() -> void:
 			streamer.set_ground_smog(smog * ground_smog, smog_side)
 	if _env:
 		_env.tonemap_exposure = lerpf(day_exposure, night_exposure, moonlight)
+		_env.glow_intensity = lerpf(day_glow_intensity, night_glow_intensity, moonlight)
+		_env.glow_hdr_threshold = lerpf(day_glow_threshold, night_glow_threshold, moonlight)
 		if grade:
 			grade.update(elevation, golden, weather_darken, marine, santa_ana)
 		_env.sdfgi_energy = lerpf(day_gi_energy, night_gi_energy, moonlight)
