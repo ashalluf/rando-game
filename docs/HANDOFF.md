@@ -14428,6 +14428,14 @@ probe `tools/moto/moto_probe.tscn`; compile `tools/moto/compile.gd`. Checks:
 lean, wheelie, flight; the traffic rider's seat and grips; the throw; the pool; the player's ride
 and throw; the kerb hash; lane filtering). Stills on `shots/motorcycles`.
 
+**Cost and gate (wave 3, merged with main 95bd13f).** geo_count at Flower St / Olympic
+(`--spawn=2359.4,880,0,12,2`, 800x600 opengl3): MOTORCYCLES=0 6.13 M tris / 3,433 draws, on
+6.10 M / 3,399 (flat; the traffic mix differs run to run). `SHARDS=3` gate: 2,411 checks, 0
+failed, peak RSS 2.49 GB a shard. The smoke test's car-lights check now finds `NightLights`
+below a car's root (a bike's leans under its Pose). One earlier gate run failed
+shader_warm's "no node left" check with two BlastCraters from some other blast landing during
+the rehearsal's wait frames; it passed on the rerun and alone (a timing race, not the bikes).
+
 **Not done.** Not seen on Forward+ (every still is opengl3 or Cycles). No engine sound of its own
 (the `engine-audio` area's; it uses the cars' loop). Police do not chase on bikes. The hero's ride
 pose has no clip of its own (solved over the idle).
