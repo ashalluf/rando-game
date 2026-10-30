@@ -2645,6 +2645,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The freeway close up (tests/freeway_closeup_checks.gd, FreewayCloseup): the concrete deck's
 	# UVs and lane copy, the kit's close-up pass, no geometry or rolls moved, the rush-hour fill.
 	await load("res://tests/freeway_closeup_checks.gd").new().run(self, city)
+	# The aerial review (tests/aerial_review_checks.gd, AerialReview): the two seas agree, the plane's
+	# night band, the hills' mottle from the air, the far tors' haze, the far crowns' colour.
+	load("res://tests/aerial_review_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
