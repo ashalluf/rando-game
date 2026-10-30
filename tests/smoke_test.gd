@@ -2361,6 +2361,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The coast highway under the bluffs (tests/coast_highway_checks.gd): its place, the bench and
 	# bluff, the houses, parking, a chunk's road, houses, collision and cars, LOD and the far city.
 	await load("res://tests/coast_highway_checks.gd").new().run(self, city)
+	# The second garment set (tests/garments_2_checks.gd): crowd_u..z and what they wear.
+	load("res://tests/garments_2_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
@@ -3665,7 +3667,7 @@ func _check_crowd_rigs() -> void:
 		if why != "":
 			bad.append(path.get_file() + ":" + why)
 		rig.queue_free()
-	_check(rigs >= 20 and bad.is_empty(), "the %d crowd rigs keep the contract (24 bones, clips, masked body with detail UV2, cut-out hair, <= 20k triangles)%s" % [rigs, "" if bad.is_empty() else " " + str(bad)])
+	_check(rigs >= 26 and bad.is_empty(), "the %d crowd rigs keep the contract (24 bones, clips, masked body with detail UV2, cut-out hair, <= 20k triangles)%s" % [rigs, "" if bad.is_empty() else " " + str(bad)])
 	# a rig whose head is covered (the headscarf) is one of the crowd, and never wears a hat
 	var no_hat_ok := true
 	for path: String in ped_script.NO_HAT_MODELS:

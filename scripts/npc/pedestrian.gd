@@ -40,6 +40,14 @@ const MODELS := [
 	"res://assets/models/crowd_r.glb",
 	"res://assets/models/crowd_s.glb",
 	"res://assets/models/crowd_t.glb",
+	# 2026-10-30: six more in garments of their own (tools/crowd/garments.py): two quilted puffers,
+	# two dresses, a duck work jacket, cargo shorts (docs/ASSETS.md, crowd_config.json).
+	"res://assets/models/crowd_u.glb",
+	"res://assets/models/crowd_v.glb",
+	"res://assets/models/crowd_w.glb",
+	"res://assets/models/crowd_x.glb",
+	"res://assets/models/crowd_y.glb",
+	"res://assets/models/crowd_z.glb",
 ]
 ## Rigs that never wear a hat: their head is already covered (crowd_r's headscarf). The hat rolls
 ## are still made for them, so every roll after them is the same as anyone's.

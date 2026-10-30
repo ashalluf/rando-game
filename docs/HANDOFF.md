@@ -15534,3 +15534,97 @@ checks, 0 failed, peak RSS 2,506 MB a shard, 1,054 s.
 and the tarps' backlight need a Mac look. LOD chunks and the far city draw the buildings only
 (no goods past the FULL ring, by design). Garments are simple lofted sacks with tube sleeves:
 fine on a rack at 3 m, plain at 1 m.
+
+## 9fj. The crowd's third garment set: puffers, a work jacket, cargo shorts, dresses, 2026-10-30 (fleet wave 3, branch `wt/garments-2`; VISUAL_ROADMAP "?")
+
+The task: new garment types in the crowd's own pipeline (`tools/crowd/garments.py`,
+`garment_paint.py`) and NEW rigs wearing them, without rebuilding the existing twenty. b, c, f and g
+keep their library clothes (rebuilding them would move every bake, hat row and life library of
+theirs; left for a session asked to).
+
+| rig | person | wears |
+| --- | --- | --- |
+| u | young Korean American man, slim | black quilted puffer, grey slim jeans, grey sneakers |
+| v | Latina woman, 30s | terracotta midi dress with cream dots, cap sleeves, flat shoes, long hair |
+| w | white man, 50s, heavy | tan duck work jacket with a brown corduroy collar, dark jeans, boots |
+| x | young Black man, tall (1.89 m), athletic | charcoal heather tee, olive cargo shorts |
+| y | Black woman, 60s | navy knee-length short-sleeved dress with a small floral print |
+| z | young white woman, slim | sage puffer, black leggings, navy sneakers, ponytail |
+
+### The garments
+
+- **Puffer** (`jacket` + `"puffer": true`): fit `puffer` (off 34 mm, a low hang slope), a tall stand
+  collar, the zip, short elastic bindings at the hem and cuffs, welt pockets. **The quilting is
+  geometry**: `quilt()` runs on the DECIMATED shell, first bisecting it along every channel line
+  (every `quilt` 0.11 m up the torso from the hem; every `quilt_sleeve` 0.085 m down each sleeve
+  from the shoulder joint, on along the forearm), then moving every vertex out by its distance from
+  the nearest line (`loft` 11 mm, a pinch at the line) and two Taubin passes. Bulged before the
+  decimation (the first try), the channels were smoothed away entirely; bulged after it without the
+  cuts, a 2.7 cm mesh sampled an 11 cm channel four times and nothing read. The painter reads the
+  same lines (`L["quilt"]`, `quilt_t()`): the stitch row and pinch shadow, the baffle's roundness in
+  the height field, puckers running off each line, a ripstop grid, the nylon's mottle.
+- **Work jacket** (`shirt` + `"work": true`): the shirt shell at the jacket fit with a straight
+  hip-length hem, a deep point collar painted as corduroy in `collar_color`, a wide placket with
+  dark metal buttons, plain cuffs, and chest-pocket FLAPS as geometry (`patch()`, each with a
+  button) over painted patch pockets; two big lower patch pockets; cotton duck (a heavy plain weave
+  with slub streaks).
+- **Cargo shorts** (`trousers` + `"cargo": true`): woven chino shorts to the knee, roomy, with
+  bellows pockets and flaps on the outer thighs. The pockets are `surface_patch()`: a grid of rays
+  cast in at the thigh, each hit lifted along its normal, the rim rolled down - so the patch follows
+  the leg. The first version, a flat `strip()`, stood off the curved thigh as a board you could see
+  edge-on from the front. Painted: a box pleat, stitch rows, a snap.
+- **Dress** (`dress`): `skirt()` from a waist seam 7.5 cm over the hip joints, plus a bodice built
+  as a top shell over it (cap or short sleeves, a scoop neck with a turned facing). With the tee's
+  hang the bodice read as a separate top over a skirt; it is now shaped in to the waist (`slope`
+  3.0, the Envelope's new override) and its hem laid onto the skirt's waist. Region **keep**: a look
+  never recolours it, so it is never split into two cloths. Prints: `pattern()` takes `dots`
+  (half-drop grid) and `floral` (five-petal flowers with an eye and two leaves, hashed rotation and
+  jitter), both box-filtered and faded to their average under a couple of texels.
+
+### Game side
+
+`Pedestrian.MODELS` has 26 (u..z appended: no earlier index moves, so no roll before them changes).
+`Encampment.FIGURE_POOL` stays 12 (no new camp-figure bakes). None is in `OFFICER_MODELS`. Life
+clips (`tools/crowd/life_clips.gd RIGS=crowd_u,...`) and the hat table (`tools/crowd/hat_fit.gd`, run
+over ALL rigs - with `MODELS=` it rewrites the table with only those) were made for the six; the old
+rows are byte-identical; REPORT: 0 head vertices through any hat on the six. Checks:
+`tests/garments_2_checks.gd` (6), plus the crowd-rig contract check now wants 26.
+
+### Cost
+
+Bodies at LOD 0: u 14,969, v 13,742, w 12,803, x 13,094, y 12,924, z 14,415 (the puffers the
+heaviest: the cut channel loops); hair 1.5-3.8k. Downtown bookmark (`tools/geo_count.gd --spawn=2359.4,880,0,12,2 --quality=0`,
+800x600, opengl3, `AB=Body,Hair`: the same frozen frame with every crowd Body and Hair hidden),
+origin/main's MODELS (20) against these (26):
+
+| | frame triangles | draws | objects | the crowd's share (Body + Hair) |
+| --- | --- | --- | --- | --- |
+| before (20 rigs) | 7,561,958 | 4,342 | 4,737 | 420,703 tris, 335 draws |
+| after (26 rigs) | 7,512,514 | 4,353 | 4,750 | 420,221 tris, 437 draws* |
+
+Flat: the near people's triangles moved by -0.1 % (which rigs stand nearest the camera is a roll
+over a longer MODELS list). *The crowd's draw share is the hidden-node difference, which includes
+whichever people happen to be in frame; the whole frame is +11 draws (+0.25 %). Both runs print
+the same 13 pre-existing `Ragdoll._limb_blood` "cast a freed object" errors from the loading
+screen's rehearsal (main has them too; `entry[0] as RigidBody3D` before the validity check).
+Each new rig adds ~1.7 MB of .glb and about 230 ms of loading-screen work (limbs, welded bodies,
+hats), as the eight before them did.
+
+### Stills (branch `shots/garments-2`)
+
+`new6_front` / `_q3` / `_side` / `_back` (Godot opengl3 lineup), `cycles_u..z` (Blender Cycles,
+front / side / back), `cycles_puffers_geometry` and `cycles_cargo_dress_geometry` (FLAT=1).
+
+### Not done
+
+- b, c, f, g still in MakeHuman's clothes (the brief said not to rebuild existing rigs). A blazer
+  with lapels (f's look) is still the garment most worth building.
+- The work jacket's sleeves are a little full; the dresses wear the library flat shoes, which come
+  with white socks; leggings on z show a sock at the ankle in profile.
+- Nothing seen on Forward+ (the Mac): the puffers' nylon and the dress prints want a look at 2-4 m.
+- In the geometry-only preview v's dress shows small dark notches at the front of the waist seam
+  (the skirt's tucked lip between the bodice hem and the skirt); it does not show in the textured
+  lineup. u's channels are shallower than z's (the shell's lower budget); the paint carries them.
+- The gate after merging origin/main (SHARDS=3): 2,539 of 2,540. The one failure, "a new shot
+  sends the onlookers running (1 stayed)" (tests/onlookers_checks.gd, merged from wt/onlookers),
+  passed both times alone (`SMOKE_PARTS=onlookers_checks`); it is not in this branch's code.
