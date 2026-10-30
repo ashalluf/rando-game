@@ -14428,7 +14428,12 @@ the street's traffic held) and frames it; `NEWS_ALL=1` takes every framing from 
 `NEWS_NIGHT=21.5` the wide one and the crew again after dark; `NEWS_STATION=0..3`. The van alone:
 `NEWS=<station> tools/glshot/car_shot.gd --row=0,0` (`NEWS_RAISE`). On `shots/news-crews`.
 
-**Frame cost.** FRAMECOST
+**Frame cost.** Nothing until a story (the dispatcher only scans once a second). A staged story
+at the wide bookmark (opengl3, 1280x720, `EYE=6.20,4.44,69.68,22.48,1.33 --spawn=-10,40,0,-5
+--hour=15`): 5.30 M triangles / 2,258 draws without it, 5.62 M / 2,413 with it - and that includes
+the staged burning wreck's fire and smoke; the van (the road van's model plus ~9 gear nodes and
+lettering), two crew rigs, the stand, the tape and its posts are most of the rest. Gate: SHARDS=3,
+2,430 checks passed, peak 2.49 GB a shard.
 
 **Not done / not verified.** Forward+ (the stand light, the tape's sheen) not seen on lavapipe;
 the standoff story is checked by setting the stars, not with a live police chase; the reporter's lip sync is the generic talk clip.
