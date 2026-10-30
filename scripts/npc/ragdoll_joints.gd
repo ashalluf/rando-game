@@ -40,7 +40,7 @@ static var tumble_spin: float = 2.5
 static var limb_flail: float = 4.0
 ## Each part's inertia as an even sphere this many times its rod's (0: Godot's own from the shapes),
 ## its radius of gyration at least sqrt(`inertia_floor`) metres.
-static var inertia_gain: float = 0.0 if OS.get_environment("RAGDOLL_INERTIA") == "0" else 2.0
+static var inertia_gain: float = float(OS.get_environment("RAGDOLL_INERTIA")) if OS.get_environment("RAGDOLL_INERTIA") != "" else 3.0
 static var inertia_floor: float = 0.02
 ## No part spins faster than this (rad/s). A limb flung hard turns ~25.
 static var max_spin: float = 30.0

@@ -854,8 +854,11 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the pelvis as one compound body, the pose baked into the bone poses, joints and limbs gone.
   Traps: a Joint3D's frame is WORLD space, set after it is in the tree (set as `transform` under
   the turned doll, every joint pulled apart); a body made this frame meets an impulse with mass 1,
-  so the old body took a knock's impulse as its SPEED - `fling()` keeps that. `RAGDOLLS=0` is the
-  A/B; probe `tools/ragdolls/probe.tscn`, stills `tools/ragdolls/ragdoll_shot.tscn`; checks
+  so the old body took a knock's impulse as its SPEED - `fling()` keeps that; the light parts
+  (head, forearms) on their own tiny inertia spun to 60-90 rad/s on landing and the joints pulled
+  15-30 cm open (once flew apart), so every part gets an even inertia `inertia_gain` (3) x its rod's
+  and a `max_spin` cap (`clamp_spin()`, each physics step) - never snap parts back by teleport, it
+  fights the contacts and diverged. `RAGDOLLS=0` is the A/B (`RAGDOLL_INERTIA=0` the old inertia); probe `tools/ragdolls/probe.tscn`, stills `tools/ragdolls/ragdoll_shot.tscn`; checks
   `tests/ragdolls_checks.gd`.
   Dismemberment (owner, same day: "body parts limbs flying off ... from the rocket launcher"):
   `Explosion.blast()` passes `gibs` (up to 3 inside `gib_reach` of the radius) to

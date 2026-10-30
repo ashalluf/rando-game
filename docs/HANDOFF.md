@@ -17964,6 +17964,26 @@ pose the walker was in when hit (a small pop, as before). No self-collision betw
 can pass through the chest). The hero's doll (PlayerHealth) uses the same path; only crowd rigs
 were probed.
 
+**Follow-up 2 (2026-10-30): joints that hold.** CI 383 read a 15 cm joint gap ("the joints hold
+while the doll tumbles", 0.153 m; another loaded gate 0.125). It was never load: the physics step
+is fixed, and the gap follows `fling()`'s random spin, so it moved with the global rng's state
+from whatever ran before. `tools/ragdolls/probe.tscn` with `SEED=n` (now prints `WORST GAP`, and
+`GAPLOG=1` / `TRACE_DOLL=i` per joint and per step) reproduced it in one process: up to 0.32 m.
+The cause: the light parts (head 9 %, forearms 2.5 % of the mass) on Godot's inertia from their
+small shapes spun up to 60-90 rad/s at landing, and the point constraints (which correct 0.3 of a
+drift a step) lost them - on seed 1 one doll diverged to 1,800 rad/s and flew apart. Tried first:
+snapping each child back onto its joint every step (and removing the separating velocity) - it
+pushed parts into the floor, the contacts answered, and seed 1 went to 3.2 m: never teleport parts.
+The fix: every part an even inertia, `inertia_gain` (3) x its rod's (L^2/12 + r^2/2, at least
+`inertia_floor` 0.02 m^2 of gyration), and `max_spin` 30 rad/s on every part before each step
+(`RagdollJoints.clamp_spin()` from `Ragdoll._physics_process`). Probe, 10 seeds x 8 dolls: worst
+0.056-0.077 m (was 0.06-0.32); the per-step cost 0.6-1.0 ms tumbling for 8 dolls, as before, and
+dolls settle sooner (2.4-2.9 s). The check is back to 0.1 m and there is a new one,
+`_check_hard_tumbles()`: four dolls with fling()'s spin at its extremes from a hash (every run the
+worst case, whatever ran before), worst gap under 0.1 m (0.056) and no part over 70 rad/s (25).
+Under a four-core CPU hog: 0.037 / 0.056 m. `RAGDOLL_INERTIA=0` is the A/B (Godot's own inertia),
+`RAGDOLL_INERTIA=<n>` any gain.
+
 ## 9gl. The Coral Line's underground station, 2026-10-30 (fleet wave 3, `wt/metro-underground`; VISUAL_ROADMAP "?")
 
 **The ask.** The light rail's underground terminus at 7th St / Flower was two stair kiosks in the
