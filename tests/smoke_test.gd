@@ -2462,6 +2462,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/car_cabins_checks.gd").new().run(self, city)
 	# Dry creek beds (tests/arroyos_checks.gd): the drainage network, a FULL and a LOD hill chunk's beds, culverts.
 	load("res://tests/arroyos_checks.gd").new().run(self, city)
+	# Close-up car detail (tests/car_detail_checks.gd): plates, badges, tyre lettering, grime, the A/B.
+	await load("res://tests/car_detail_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

@@ -193,6 +193,17 @@ uniform vec4 pin_roof = vec4(0.0);
 uniform float pin_style = 0.0;
 uniform float pattern_amount = 0.0;
 
+// Road grime, mud and clear-coat scratches (CarDetail, per car on its own paint material; 0
+// skips the whole block). grime_arch: the front and rear axles along the body and the hub
+// height, then the tyre radius, all in mesh units; grime_frame: the body's bottom (mesh y),
+// metres per mesh unit, and which way along is the tail (+1 / -1).
+uniform float grime = 0.0;
+uniform float mud = 0.0;
+uniform float scratches = 0.0;
+uniform vec4 grime_arch = vec4(-1.4, 1.4, 0.2, 0.34);
+uniform vec3 grime_frame = vec3(-0.2, 1.0, 1.0);
+global uniform float road_wetness;
+
 varying vec3 world_pos;
 // x = along the car, y = up, z = across, all 0..1 over the body's bounding box.
 varying vec3 body_uv;
@@ -200,6 +211,17 @@ varying vec3 body_uv;
 varying vec2 facing;
 // The up-component of the body-space normal (signed: 1 roof, 0 door skin, -1 underside).
 varying float body_ny;
+
+
+// A display (sRGB) colour in the space `paint` arrives in (a source_color uniform: decoded on
+// Forward+, raw on Compatibility), for the grime's constants.
+vec3 grime_col(vec3 srgb) {
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+	return srgb;
+#else
+	return mix(srgb / 12.92, pow((srgb + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), srgb));
+#endif
+}
 
 
 float hash13(vec3 p) {
@@ -470,6 +492,93 @@ void fragment() {
 		lr_pin = clamp(lr_pin, 0.0, 1.0) * custom;
 		coat = mix(coat, pin_color, lr_pin);
 	}
+	// Road grime: a film of dust low on the body that climbs round the wheel arches (thrown up
+	// and back by the tyres), dust on the tail, mud on the work trucks, and fine scratches in the
+	// clear coat along the flanks. Everything in metres in the mesh's own space, so it rides with
+	// the car and lines up with its arches.
+	float grime_rough = 0.0;
+	float grime_cc = 0.0;
+	if (grime > 0.0 || mud > 0.0 || scratches > 0.0) {
+		vec3 q = paint_rest;
+		float sc = grime_frame.y;
+		float along = length_is_x ? q.x : q.z;
+		float across = length_is_x ? q.z : q.x;
+		float h = (q.y - grime_frame.x) * sc;
+		vec3 qm = q * sc;
+		float n1 = wear_noise(qm * 3.1);
+		float n2 = wear_noise(qm * 13.0 + 7.3);
+		float n3 = wear_noise(qm * 47.0 + 2.1);
+		// Not on what faces the sky: rain and the wash take that.
+		float side = 1.0 - smoothstep(0.30, 0.70, body_ny);
+		// Dust runs down the panels in streaks.
+		float streak = wear_noise(vec3(along * sc * 26.0, h * 1.4, across * sc * 26.0));
+		// The low band: higher on a dirtier car, its top edge ragged and run down in streaks.
+		float edge_h = 0.16 + 0.32 * grime + (n1 - 0.5) * 0.20 + (streak - 0.5) * 0.16;
+		float low = 1.0 - smoothstep(edge_h - 0.12, edge_h + 0.03, h);
+		// Spray round each arch, heavier behind the wheel; a cloud of fine dots past its edge.
+		float arch = 0.0;
+		float splash = 0.0;
+		for (int k = 0; k < 2; k++) {
+			float c = k == 0 ? grime_arch.x : grime_arch.y;
+			vec2 d = vec2((along - c) * grime_frame.z, q.y - grime_arch.z) * sc;
+			float r = length(d);
+			float rr = grime_arch.w * sc;
+			float behind = smoothstep(-0.4, 0.6, d.x / max(r, 1e-3));
+			float reach = rr + 0.12 + 0.30 * behind * grime + (n2 - 0.5) * 0.10;
+			float ring = (1.0 - smoothstep(reach - 0.06, reach + 0.02, r)) * smoothstep(rr - 0.04, rr + 0.02, r);
+			arch = max(arch, ring * (0.55 + 0.45 * behind));
+			splash = max(splash, (1.0 - smoothstep(rr, rr + 0.9, r)) * smoothstep(-0.2, 0.7, d.x / max(r, 1e-3)) * (1.0 - smoothstep(0.2, 0.9, h)));
+		}
+		// Fine spray dots above the band and round the arches (under a pixel: their average).
+		vec3 dc = floor(qm * 160.0);
+		float dpx = length(fwidth(qm * 160.0));
+		float dots = mix(step(0.80, hash13(dc)), 0.2, smoothstep(0.6, 1.4, dpx));
+		dots *= max(1.0 - smoothstep(edge_h, edge_h + 0.28, h), splash) * grime;
+		// The tail collects the dust its own wake drops: the rear face, more toward the bottom.
+		float tail_u = grime_frame.z > 0.0 ? body_uv.x : 1.0 - body_uv.x;
+		float tail = smoothstep(0.90, 0.985, tail_u) * (1.0 - facing.x) * (1.0 - facing.y) * (0.55 + 0.45 * (1.0 - smoothstep(0.3, 1.3, h)));
+		float dirt = max(max(low * (0.55 + 0.45 * n2), arch * (0.6 + 0.4 * n3)), tail * (0.5 + 0.5 * n1));
+		dirt = clamp(max(dirt * smoothstep(0.0, 0.35, grime), dots * 0.7) * side, 0.0, 0.95);
+		vec3 dust_c = grime_col(mix(vec3(0.50, 0.46, 0.40), vec3(0.62, 0.57, 0.49), n2));
+		// A wet road darkens the film to grey-brown sludge.
+		dust_c = mix(dust_c, dust_c * 0.45, road_wetness);
+		coat = mix(coat, dust_c, dirt * 0.9);
+		// Mud: clumps and spatter thrown off the tyres, low and behind the arches.
+		float clump = smoothstep(0.52, 0.72, n2 * 0.55 + n3 * 0.45);
+		vec3 sp = floor(qm * 38.0);
+		float spat = step(0.93, hash13(sp)) * (1.0 - smoothstep(0.18, 0.42, length(fract(qm * 38.0) - 0.5)));
+		float mudm = clamp((max(arch, splash) * 1.1 + low * 0.5) * max(clump, spat) * mud * side, 0.0, 1.0);
+		coat = mix(coat, grime_col(mix(vec3(0.24, 0.19, 0.14), vec3(0.33, 0.27, 0.20), n3)), mudm);
+		// Scratches: fine lines through the clear coat on the flanks at hip height (keys, bags,
+		// brushes at the car wash), each a short straight cut at its own angle, lighter than the
+		// paint and with no lacquer over it; under a pixel they fade to their average.
+		float scr = 0.0;
+		if (scratches > 0.0 && h > 0.30 && h < 1.15) {
+			vec2 sq = vec2(along, q.y) * sc / 0.22;
+			vec2 cell = floor(sq);
+			float px = max(length(fwidth(sq)), 1e-4);
+			for (int j = 0; j < 4; j++) {
+				vec2 ce = cell + vec2(float(j % 2), float(j / 2)) - step(fract(sq), vec2(0.5));
+				float hs = hash13(vec3(ce, sign(across) * 3.0 + 1.0));
+				if (hs > scratches * 0.4) {
+					continue;
+				}
+				vec2 o = ce + vec2(hash13(vec3(ce, 5.1)), hash13(vec3(ce, 9.3)));
+				float an = (hash13(vec3(ce, 2.7)) - 0.5) * 0.7;
+				vec2 dir = vec2(cos(an), sin(an));
+				float len = 0.2 + 0.7 * hash13(vec3(ce, 4.4));
+				vec2 rel = sq - o;
+				float t = clamp(dot(rel, dir), -len * 0.5, len * 0.5);
+				float dl = length(rel - dir * t);
+				float wdt = 0.005;
+				scr = max(scr, clamp((wdt * 0.5 + px * 0.5 - dl) / px, 0.0, 1.0) * min(1.0, wdt / px));
+			}
+			scr *= (1.0 - facing.y) * facing.x;
+		}
+		coat = mix(coat, coat * 0.55 + grime_col(vec3(0.62)), scr * 0.85);
+		grime_rough = max(dirt * 0.85, mudm);
+		grime_cc = max(max(dirt, mudm), scr * 0.8);
+	}
 	vec3 painted = coat * (0.55 + 0.45 * lum * paint_brightness);
 	vec3 dark = base.rgb * 0.6;
 	ALBEDO = mix(dark, painted, body);
@@ -487,6 +596,7 @@ void fragment() {
 	rough *= 1.0 + 0.10 * (hash13(floor(world_pos * 6.0)) - 0.5);
 	rough = mix(rough, max(rough * 1.6, 0.42), worn_coat * body);
 	rough = mix(rough, 0.78, worn_rough * body);
+	rough = mix(rough, 0.82, grime_rough * body);
 	metal = mix(metal, 0.0, worn_rough * body);
 	// A pinstripe is enamel laid on the lacquer: no flake under it.
 	metal = mix(metal, 0.05, lr_pin * body);
@@ -670,6 +780,7 @@ void fragment() {
 	}
 	CLEARCOAT = max(clearcoat_amount * body, glass_clearcoat * glass * mix(1.0, 0.6, shape_glass)) * open_sky;
 	CLEARCOAT *= 1.0 - worn_coat * body;
+	CLEARCOAT *= 1.0 - grime_cc * body;
 	CLEARCOAT_ROUGHNESS = mix(clearcoat_roughness_value, 0.25, worn_coat);
 #ifdef CAR_DAMAGE
 	CLEARCOAT *= cc_keep;

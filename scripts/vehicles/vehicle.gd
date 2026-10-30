@@ -1110,6 +1110,7 @@ func _build() -> void:
 	_add_livery_props(dims)
 	if Lowrider.is_lowrider(body_type):
 		Lowrider.attach(self)
+	CarDetail.attach(self)
 	_occupant_key = -1
 	_update_occupant()
 
@@ -1313,6 +1314,7 @@ func _refresh_lights() -> void:
 	var on := lights_running() and _lamp_bits != 15
 	if _night_lights.visible != on:
 		_night_lights.visible = on
+		CarDetail.lamps(self, on)
 	if not on:
 		return
 	var phase := int(get_instance_id() % 4)
@@ -1495,6 +1497,8 @@ func _update_body_tier(dist: float) -> void:
 	if tier == _body_tier:
 		return
 	_body_tier = tier
+	if tier == 0:
+		CarDetail.near(self)
 	if _body_shadows.is_empty():
 		_make_body_shadows()
 	for m in _body_meshes:
