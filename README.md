@@ -17,6 +17,8 @@ renderer, not the Mac's Forward+), the 110 by downtown, route 3 t 1904, forced w
 - `11_after_stall_road_flares_dusk_2036.jpg` - the same at 20:36.
 - `12_after_stall_road_flares_day_1400.jpg` - the same by day (the glow is dimmer by day, as a real flare).
 - `13_after_stall_patrol_close_wave3_merge_1400.jpg` / `14_after_stall_patrol_close_night_2200.jpg` - the stall after the wave-3 merge of main: patrol car, driver, stalled car; by day and at night (the flares are behind this camera).
+- `15_after_stall_road_flares_close_night_2200.jpg` - final: the flare line from the shoulder just behind it, 22:00 (EYE `1950.3,11.0,232.0,166.0,-5.0`, FOV 50); `16_..._dusk_2048.jpg` the same at 20:48 (shot before the glow was pulled in front of the deck: the nearest glow is cut flat there).
+- `00_before_flare_view_night_2200.jpg` - the same view with FREEWAY_INCIDENTS=0. Cost there: 5.25 M tris / 2,804 draws before, 5.32 M / 2,866 with the stall and flares.
 - (10-12 were shot before the glow was made a little larger and brighter, `size` 0.42 and the halo x0.7.)
 - `00_before_*` - the same three views with FREEWAY_INCIDENTS=0 (the second guide board where the CMS hangs).
 
