@@ -76,12 +76,12 @@ func run(t: Node, city: Node3D) -> void:
 	var old := OS.get_environment("OCEAN_CLOSEUP")
 	OS.set_environment("OCEAN_CLOSEUP", "0")
 	OceanCloseup.apply(mat)
-	var off_global := float(RenderingServer.global_shader_parameter_get("ocean_closeup"))
+	var off_global: float = OceanCloseup.global_value
 	var fb := StandardMaterial3D.new()
 	var off_mat := OceanCloseup.pile_material(Color.GRAY, 0.9, false, fb)
 	OS.set_environment("OCEAN_CLOSEUP", old)
 	OceanCloseup.apply(mat)
-	var on_global := float(RenderingServer.global_shader_parameter_get("ocean_closeup"))
+	var on_global: float = OceanCloseup.global_value
 	_t._check(is_zero_approx(off_global) and is_equal_approx(on_global, 1.0 if old != "0" else 0.0) and off_mat == fb,
 		"ocean close-up: OCEAN_CLOSEUP=0 turns the global and the pile materials off (%.1f / %.1f)" % [off_global, on_global])
 

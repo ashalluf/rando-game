@@ -21,7 +21,8 @@ static func enabled() -> bool:
 
 ## Sets the A/B global and hands the ocean material the piers' pile grids.
 static func apply(mat: ShaderMaterial) -> void:
-	RenderingServer.global_shader_parameter_set("ocean_closeup", 1.0 if enabled() else 0.0)
+	global_value = 1.0 if enabled() else 0.0
+	RenderingServer.global_shader_parameter_set("ocean_closeup", global_value)
 	if mat == null:
 		return
 	var grids := pile_grids()
@@ -108,3 +109,5 @@ static func pile_material(base: Color, rough: float, timber: bool, fallback: Mat
 
 
 static var _mats: Dictionary = {}
+## What apply() last set the `ocean_closeup` global to (the dummy renderer reads globals back null).
+static var global_value := 1.0
