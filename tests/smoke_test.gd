@@ -2387,6 +2387,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/signage_checks.gd").new().run(self, city)
 	# The code-built Los Angeles trees and accents (tests/la_trees_checks.gd).
 	load("res://tests/la_trees_checks.gd").new().run(self, city)
+	# Street trees close up (tests/trees_closeup_checks.gd, TreesCloseup): the gust field, the switch, crowns, bark.
+	load("res://tests/trees_closeup_checks.gd").new().run(self, city)
 	# Car dealerships (tests/car_dealers_checks.gd): auto rows of new-car dealers and used lots, pure
 	# sites inside their blocks, the lot cars, stickers, tube men and cars for sale, nothing else moved.
 	load("res://tests/car_dealers_checks.gd").new().run(self, city)
