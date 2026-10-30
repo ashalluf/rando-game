@@ -286,18 +286,20 @@ class DownedCard extends Control:
 			fade = v
 			queue_redraw()
 	var _font: Font
+	var _sub_font: Font
 	const TITLE := "OUT COLD"
-	const LINE := "walk it off"
+	const LINE := "WALK IT OFF"
 
 	func _ready() -> void:
-		var path := "res://assets/fonts/Inter-SemiBold.woff2"
-		_font = load(path) as Font if ResourceLoader.exists(path) else ThemeDB.fallback_font
+		# The HUD's type (HudTheme): the display face for the title, Inter for the line.
+		_font = HudTheme.display_bold()
+		_sub_font = HudTheme.text_medium()
 
 	func _draw() -> void:
 		if fade <= 0.0:
 			return
 		var h := size.y
-		var px := int(clampf(h * 0.085, 28.0, 140.0))
+		var px := int(clampf(h * 0.115, 34.0, 190.0))
 		var sub_px := int(clampf(h * 0.022, 12.0, 34.0))
 		var spacing := px * 0.18
 		var width := 0.0
@@ -318,5 +320,6 @@ class DownedCard extends Control:
 		var bottom := h * 0.5 + px * 0.62
 		draw_line(Vector2(cx - rule, top), Vector2(cx + rule, top), Color(1, 1, 1, 0.5 * fade), maxf(1.0, h / 900.0))
 		draw_line(Vector2(cx - rule, bottom), Vector2(cx + rule, bottom), Color(1, 1, 1, 0.5 * fade), maxf(1.0, h / 900.0))
-		var sw := _font.get_string_size(LINE, HORIZONTAL_ALIGNMENT_LEFT, -1, sub_px).x
-		draw_string(_font, Vector2(cx - sw * 0.5, bottom + sub_px * 1.6), LINE, HORIZONTAL_ALIGNMENT_LEFT, -1, sub_px, Color(1, 1, 1, 0.7 * fade))
+		var track := sub_px * 0.32
+		var sw := HudTheme.tracked_width(_sub_font, LINE, sub_px, track)
+		HudTheme.draw_tracked(self, _sub_font, LINE, Vector2(cx - sw * 0.5, bottom + sub_px * 1.9), sub_px, track, Color(1, 1, 1, 0.7 * fade))

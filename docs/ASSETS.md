@@ -771,6 +771,7 @@ no real operator's name, colours or mark.
 | Font | Source URL | License | Used for | Added |
 |---|---|---|---|---|
 | Inter 4.1 SemiBold and Medium (`extras/woff-hinted/Inter-SemiBold.woff2`, `Inter-Medium.woff2` from the release zip) | https://github.com/rsms/inter/releases/tag/v4.1 | SIL Open Font License 1.1 (text in `assets/fonts/Inter-OFL.txt`) | weapon wheel names and hints (`scripts/ui/weapon_wheel.gd`); falls back to Godot's default font if missing | 2026-09-24 |
+| Barlow Condensed SemiBold and Bold (latin subset woff2 from the `@fontsource/barlow-condensed` 5.0.13 npm package; the Barlow Project, github.com/jpt/barlow) | https://cdn.jsdelivr.net/npm/@fontsource/barlow-condensed@5.0.13/ | SIL Open Font License 1.1 (text in `assets/fonts/BarlowCondensed-OFL.txt`) | the HUD's display type (`scripts/ui/hud_theme.gd`: place toast, car name and speed, loading wordmark, OUT COLD, pause and map titles); falls back to Godot's default font if missing | 2026-10-30 |
 
 ## Map data
 

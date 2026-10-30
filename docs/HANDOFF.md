@@ -19396,3 +19396,70 @@ per car.
   renderer's reflections (SSR, the probes), which the opengl3 stills do not have - judge the glass
   and the lacquer there. The wiper blades on every body type (checked on the sedan in stills; the
   geometry is fitted per body from the windscreen box, so a bus or an exotic may sit a little off).
+
+## 9d?. HUD polish, 2026-10-30 (fleet wave 3, agent branch `wt/hud-polish`; VISUAL_ROADMAP ?)
+
+**What**: the in-game UI reviewed against a 2026 open-world bar (original: no GTA fonts, icons,
+wording or layouts). One theme for every screen, two new HUD pieces, and the screens that still
+used Godot's default font or fixed pixels brought into line.
+
+- **The theme** (`HudTheme`, `scripts/ui/hud_theme.gd`, static): type - **Barlow Condensed**
+  SemiBold / Bold (OFL, bundled as woff2, docs/ASSETS.md) for display lines and **Inter** (already
+  bundled) for everything read at a glance; `scale(view)` = MinimapFrame's rule (1 at 1080 lines,
+  x GameSettings.hud_scale); `safe_rect(view)`: every corner piece keeps `MARGIN` 40 1080-line
+  units from the edges (3.7 % of the height, TV title-safe), and a window wider than `MAX_ASPECT`
+  (21:9) holds the HUD to a centred 21:9 band (`band_inset()`: 0 at 16:9, 16:10 and a 3440 x 1440
+  monitor's 2.39 is 40 px, 1,040 px each side at 32:9); ink tiers (INK / SOFT / FAINT, the amber
+  ACCENT, the shadow); `ease_out`, `ease_in_out`, `ease_back`, `envelope(age, in, hold, out)`;
+  `draw_tracked()` (letter-spaced text with a two-step shadow that reads over a white sky and a
+  black street) and `glass_material()` (glass_hud.gdshader's pill, the panels' one look).
+- **Safe area applied**: the minimap and its ring (debug_hud.tscn's margin 24 -> 40; MinimapFrame
+  adds the ultrawide inset; fwd_review_c's check reads the theme's margin now), the weapon panel,
+  the stars (right-aligned under the panel), the health bar, the radio card (now x the HUD size
+  too), the full map's panels, scale bar and north arrow.
+- **Place toast** (`AreaToast`, on DebugHud): the place is `CityStreamer.district_name_at()` (coast
+  towns, zones, districts), the street `AreaToast.street_at(plan, xz)` - the nearest of the block's
+  four grid roads whose carriageway is within `street_reach` 6 m, `CityPlan.road_name()`; none in
+  a block's middle or off the grid. A new place must hold `settle` 0.9 s, then rises bottom left
+  in the safe area (district in tracked Barlow caps 52 u, an amber rule and the street in Inter
+  21 u) over a soft gradient scrim, holds `hold` 3.6 s and eases out; a new street in the same
+  place shows alone (24 u), no more than every `street_gap` 7 s. `next_toast()` is the pure rule.
+  Polled every 0.35 s on the real clock. It also shows on spawn.
+- **Vehicle readout** (`VehicleHud`, on DebugHud): getting in, the maker (amber tracked caps),
+  the model (Barlow 40 u) and the class (the BODY_NAMES line) ease in right-aligned over the speed
+  pill; the pill (glass, 196 x 86 u) stands left of the minimap with its bottom on the minimap's:
+  the speed in Barlow Bold 58 u (MPH on the road; KT for aircraft, helicopters, boats), the
+  selector letter D / R / N in a ring (R amber) and a thin amber bar (sqrt of speed / 160 mph).
+  Names: `VehicleHud.MODELS`, one invented [maker, model] per BodyType in its order (makers are
+  the dealerships' VELMARA, QUENTIS, HALDRIC, ORIVO, BRAVENT, SUNDALE plus the exotics' Vantari and
+  Kestrel, Brennard for heavy vehicles, Torvik for bikes); police cars read "Rando City Police",
+  aircraft, helicopters and boats their own display names. A body type appended to Vehicle needs a
+  row here (the check counts them).
+- **Screens**: the loading screen redrawn - a dusk glow from the lower left, the RANDO wordmark
+  (Barlow Bold 118 u, an amber block, "A CITY TO WRECK"), a rotating original tip, the step and the
+  percentage over a thin amber bar across the safe area that eases toward the progress (the old
+  label and bar are kept, hidden, as data); the OUT COLD card's title in Barlow Bold, the line in
+  tracked Inter caps; the pause menu's and settings screen's RANDO and the full map's RANDO CITY in
+  the display face; the FULL mode's debug text in Inter.
+
+**A/B**: `AREA_TOAST=0` and `VEHICLE_HUD=0` (neither piece is built). The type and margins have
+no switch (they are the look).
+
+**Checks**: `tests/hud_polish_checks.gd` (last in city_files): the scale at 1080 / 1600 lines, the
+safe area at 1920 x 1080, 2560 x 1600, 1280 x 800, 3440 x 1440, 5120 x 1440, easing, the four
+fonts bundled; a model name for every body type, unique, no real maker; 60 mph reads 60 MPH; the
+selector letters; the toast rules; the street on a road's centre line and none in a block's
+middle; in the city: both pieces on the HUD, the minimap in the safe corner, the weapon panel in
+the safe top right, a toast on demand and put away, the speed pill in the safe area left of the
+minimap. It forces nothing it does not put back.
+
+**Stills**: `tools/glshot/post_room_shot.gd` (the test room: no city, so the place toast is
+forced) with `HUD_TOAST="Place|Street"`, `HUD_CAR="<body type>:<mph>"`, `MODE=downed` (OUT COLD),
+`MODE=loading` (`PROGRESS`, `STEP`), `MODE=pause`, `MODE=wheel`; `--resolution 1920x1080` and
+`2560x1600`. In the city: `still_shot.gd` without `--nohud`.
+
+**Not done / unverified**: no in-car tachometer or gear number (EngineAudio's revs are not read);
+the toasts have no gamepad glyphs; nothing seen on Forward+ (the HUD is canvas items and the
+glass shader, which the opengl3 stills draw the same way); the place toast is not shown in the test
+room without HUD_TOAST (it has no city); street names off the grid (freeway, hill roads, the
+Esplanade) are not named.

@@ -733,6 +733,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   quarter size. Any new HUD piece sizes itself from the viewport's height, never in fixed pixels.
   Small Forward+ scenes with the real sky and weather: `tools/glshot/fwd_block_shot.tscn`
   (block_shot plus DayNight and Weather; `--hour=`, `--weather=`; ~10 min and ~11 GB on lavapipe).
+- HUD polish (2026-10-30, docs/HANDOFF.md "HUD polish"): `HudTheme` (`scripts/ui/hud_theme.gd`,
+  static) is every HUD piece's type (Barlow Condensed for display lines, Inter for the rest; OFL,
+  `assets/fonts/`), `scale()` (1080-line units x the settings' HUD size), `safe_rect()` (a
+  `MARGIN` 40-unit title-safe band, and a centred 21:9 band on wider windows: `band_inset()`) and
+  easing (`envelope()` for toasts). New pieces on DebugHud: `AreaToast` (the place name from
+  `district_name_at()` and the street from `street_at()` - CityPlan.road_name of the carriageway
+  underfoot - bottom left on entering a district, the street alone on a new street) and
+  `VehicleHud` (the car's invented maker and model, `MODELS` per BodyType, as he gets in; a speed
+  pill left of the minimap, MPH or KT, the D / R / N letter). Any new HUD piece uses the theme.
+  `AREA_TOAST=0` / `VEHICLE_HUD=0` the A/B; stills `post_room_shot.gd MODE=downed|loading`,
+  `HUD_TOAST="Place|Street"`, `HUD_CAR="<type>:<mph>"`; checks `tests/hud_polish_checks.gd`.
 - Weapon wheel (owner, 2026-09-24: "GTA style ... slows everything ... apple glass style"):
   `WeaponWheel` (`scripts/ui/weapon_wheel.gd`) is its own CanvasLayer (3) in the HUD scene, so it
   draws over the HUD and still works in HIDDEN (a nested layer ignores its parent's visibility).

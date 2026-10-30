@@ -3486,6 +3486,13 @@ already mapped so milestone 2 is script-only.
   vertex shader, with four shared phase buckets (no per-car uniform); the glass clears its beads by
   the same angle worked out from TIME.
 
+- **2026-10-30 One HUD theme (hud-polish, HANDOFF "HUD polish").** Every HUD piece takes its type,
+  scale, safe area and easing from `HudTheme`: Barlow Condensed for display lines (place names, the
+  car's model, the speed, the wordmark), Inter for the rest; the corner pieces sit 40 1080-line
+  units in from the edges, and on a window wider than 21:9 inside a centred 21:9 band. Place names
+  come from what the city already knows (district_name_at, road_name); car model names are invented
+  per body type in `VehicleHud.MODELS` under the dealership brands. No new roll anywhere.
+
 ## Correction: what build 135 (0ce833f) actually contained
 
 That commit's subject says "denser grass, real palm fronds, finer ground". It also shipped a

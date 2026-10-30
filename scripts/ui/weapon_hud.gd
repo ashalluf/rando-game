@@ -10,7 +10,7 @@ extends Control
 
 ## Panel size at 1080 lines (px) and its margin from the top right corner.
 @export var panel_size: Vector2 = Vector2(360.0, 80.0)
-@export var margin: float = 16.0
+@export var margin: float = HudTheme.MARGIN
 ## How long the pop on a weapon change lasts (s) and how far the icon swells (fraction).
 @export var pop_time: float = 0.28
 @export var pop_scale: float = 0.12
@@ -79,7 +79,7 @@ func _layout() -> void:
 	var size := (panel_size * _scale).round()
 	var m := margin * _scale
 	_glass.size = size
-	_glass.position = Vector2(view.x - m - size.x, m).round()
+	_glass.position = Vector2(view.x - m - HudTheme.band_inset(view) - size.x, m).round()
 	_glass_mat.set_shader_parameter("rect_px", size)
 	_glass_mat.set_shader_parameter("bar_corner", size.y * 0.36)
 	_ink.position = _glass.position
