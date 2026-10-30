@@ -3461,6 +3461,12 @@ already mapped so milestone 2 is script-only.
   worked out once against the same surface function the concrete is built from and played from a
   clock (nothing simulated); they and the spectators are baked figures that wake into live people.
   SKATE_PARK=0 keeps the boxes.
+- **2026-10-30 Forward+ review e: display numbers are decoded where they are handed over.** A
+  colour written as display numbers in a renderer-space shader (the building shaders) goes through
+  a Forward+-only decode where it is used (`fx_srgb_in()`), never by re-tuning the number; a broad
+  additive pool adds as display numbers on Forward+ (`light_pool.gdshader` `display_add`) so the
+  Mac's night streets match the stills. The colour-space table is measured, not remembered
+  (`tools/fwd_review/color_matrix.gd`).
 
 ## Correction: what build 135 (0ce833f) actually contained
 

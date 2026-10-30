@@ -5968,6 +5968,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   material Godot has already turned NORMAL toward the camera on a back face** - never flip it again
   with `FRONT_FACING`. A generated normal map is OpenGL-style: green = the row BELOW minus the row
   above (WeaponFX's blood maps). `tests/fwd_review_b_checks.gd` holds the three.
+- And two more (fwd-review-e, 2026-10-30, HANDOFF "Forward+ review e"): **an additive unshaded
+  quad adds in linear HDR on Forward+** - a broad pool over dark asphalt that reads as a soft
+  wash on opengl3 is a flat white disc on the Mac (`light_pool.gdshader` `display_add`, on for
+  FreewayKit's pools); and a display-number shader never wraps a texture in `cs_in()` before
+  `disp()` (decoded twice on Compatibility). `tools/fwd_review/color_matrix.gd` prints the whole
+  colour-space table on either renderer in seconds; `tests/fwd_review_e_checks.gd`.
 - Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building),
   `tools/glshot/block_shot.tscn` (a few FULL city blocks alone, no far city: a block's ground and
   furniture) and `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real
