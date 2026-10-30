@@ -36,10 +36,29 @@ const TW_LEN2 := 31.0
 const TW_RAGGED := 9.0
 
 
+## Every material marked or dressed (they are cached for the session anyway), so a still can
+## flip the whole pass in one held frame (set_all(); still_shot.gd TREES_AB=1).
+static var _marked: Array[ShaderMaterial] = []
+static var _barks: Array[StandardMaterial3D] = []
+
+
 ## `closeup` on a tree material (foliage_textured(), foliage_material(), LaTrees.material()).
 static func mark(mat: ShaderMaterial) -> void:
 	if mat != null:
 		mat.set_shader_parameter("closeup", 1.0 if enabled else 0.0)
+		if not _marked.has(mat):
+			_marked.append(mat)
+
+
+## The pass on or off for every tree material made so far, bark included (a still's A/B in one
+## load: the frame is held, so the wind is in the same place both times).
+static func set_all(on: bool) -> void:
+	for m in _marked:
+		m.set_shader_parameter("closeup", 1.0 if on else 0.0)
+	for b in _barks:
+		var was: Array = b.get_meta("trees_closeup_was")
+		b.normal_scale = (BRANCH_NORMAL if b.resource_name.ends_with("_branches") else BARK_NORMAL) if on else float(was[0])
+		b.ao_enabled = on or bool(was[1])
 
 
 ## Crown bounds on a scanned tree's leaf materials and the bark settings on its wood. Called once
@@ -66,6 +85,8 @@ static func _bark(m: StandardMaterial3D) -> void:
 	if m.get_meta("trees_closeup", false):
 		return
 	m.set_meta("trees_closeup", true)
+	m.set_meta("trees_closeup_was", [m.normal_scale, m.ao_enabled])
+	_barks.append(m)
 	if m.normal_enabled:
 		m.normal_scale = BRANCH_NORMAL if m.resource_name.ends_with("_branches") else BARK_NORMAL
 	if m.roughness_texture != null and not m.ao_enabled:

@@ -148,3 +148,17 @@ func _switch() -> void:
 	TreesCloseup.enabled = was
 	_t._check(float(off.get_shader_parameter("closeup")) == 0.0 and float(on.get_shader_parameter("closeup")) == 1.0,
 		"TREES_CLOSEUP=0 marks the tree materials off (the A/B)")
+	# set_all(): the whole pass flipped on every material made so far (still_shot.gd TREES_AB), bark
+	# included, then put back.
+	var palm := PropFactory.foliage_material()
+	var bark: StandardMaterial3D = null
+	var m0: Mesh = PropFactory.model_tree(0)
+	for s in m0.get_surface_count():
+		if m0.surface_get_material(s) is StandardMaterial3D:
+			bark = m0.surface_get_material(s)
+			break
+	TreesCloseup.set_all(false)
+	var off_ok := float(palm.get_shader_parameter("closeup")) == 0.0 and (bark == null or not bark.has_meta("trees_closeup_was") or bark.ao_enabled == bool((bark.get_meta("trees_closeup_was") as Array)[1]))
+	TreesCloseup.set_all(true)
+	var on_ok := float(palm.get_shader_parameter("closeup")) == 1.0 and (bark == null or bark.ao_enabled)
+	_t._check(off_ok and on_ok, "TreesCloseup.set_all() flips every tree material and the bark, and back")
