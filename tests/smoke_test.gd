@@ -39,12 +39,12 @@ func _rss_mb() -> int:
 
 
 func _ready() -> void:
-	# Watchdog: a broken test must never hang the check. Game time, and under the 600 s wall-clock
-	# timeout in headless_check.sh; the police checks added about 30 s to a run that was already
+	# Watchdog: a broken test must never hang the check. Game time, and under the 2400 s wall-clock
+	# timeout in headless_check.sh (1500: the wave-3 batches took one process past 840); the police checks added about 30 s to a run that was already
 	# close to the old 300, and the distance checks (tests/distance_checks.gd) about 20 more.
 	# SMOKE_WATCHDOG=seconds raises it for a run on a box shared with other heavy jobs, where the
 	# same checks take longer in wall time (the gate's own timeout has to be raised with it).
-	var watchdog := float(OS.get_environment("SMOKE_WATCHDOG")) if OS.get_environment("SMOKE_WATCHDOG") != "" else 840.0
+	var watchdog := float(OS.get_environment("SMOKE_WATCHDOG")) if OS.get_environment("SMOKE_WATCHDOG") != "" else 1500.0
 	get_tree().create_timer(watchdog).timeout.connect(func():
 		printerr("SMOKE TEST TIMED OUT")
 		get_tree().quit(2))
