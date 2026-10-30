@@ -139,6 +139,11 @@ static func rings_in(plan: CityPlan, z0: float, z1: float) -> Array:
 	return out
 
 
+## The number painted on ring `ring` (the beach's rings are numbered in order along the shore).
+static func ring_number(ring: Dictionary) -> int:
+	return posmod(int(ring.k), 99) + 1
+
+
 ## The night `hour` (0..24, on day `day`) belongs to, and the hour counted from that night's
 ## evening (past midnight is 24+): [night, hour].
 static func night_of(hour: float, day: int) -> Array:
@@ -254,7 +259,8 @@ static func build(ch: CityChunk, z0: float, z1: float, obstacles: Array) -> void
 		var at: Vector2 = ring.at
 		var y := BeachLife.sand_y(ch, at.x, at.y)
 		var xf := Transform3D(Basis(Vector3.UP, float(ring.yaw)), Vector3(at.x, y, at.y))
-		ch._batch.add("bonfire_ring", ring_mesh(), xf)
+		# The ring's painted number (custom.r: the number / 256, exact as a half float).
+		ch._batch.add("bonfire_ring", ring_mesh(), xf, Color.WHITE, Color(float(ring_number(ring)) / 256.0, 0.0, 0.0, 0.0))
 		ch._add_shape(Vector3(RING_R * 1.8, RING_H + RING_SINK, RING_R * 1.8), Vector3(at.x, y + (RING_H - RING_SINK) * 0.5, at.y), float(ring.yaw))
 		obstacles.append([at, RING_CLEAR])
 		var lit := lit_at(plan, int(ring.k), hour, day, weather)
@@ -270,26 +276,27 @@ static func build(ch: CityChunk, z0: float, z1: float, obstacles: Array) -> void
 		obstacles.append([at, GROUP_CLEAR])
 		var hr := _hi([plan.seed, "bonfire_kit", int(ring.k), int(n[0])])
 		for p: Dictionary in group(plan, ring, int(n[0])):
+			p["ring"] = int(ring.k)
 			people_all.append(p)
 			var pa: Vector2 = p.at
 			var custom := Color((p.paint as Color).r, (p.paint as Color).g, (p.paint as Color).b, float(p.pal) / 8.0)
 			if p.blanket:
 				var tc := pa - (pa - at).normalized() * 0.15
-				ch._batch.add("beach_towel", BeachLife.prop_mesh("towel"), Transform3D(Basis(Vector3.UP, float(p.yaw) + PI * 0.5),
-					Vector3(tc.x, BeachLife.sand_y(ch, tc.x, tc.y), tc.y)), Color.WHITE, custom)
+				fire.props.append(["beach_towel", ch._batch.add("beach_towel", BeachLife.prop_mesh("towel"), Transform3D(Basis(Vector3.UP, float(p.yaw) + PI * 0.5),
+					Vector3(tc.x, BeachLife.sand_y(ch, tc.x, tc.y), tc.y)), Color.WHITE, custom)])
 			if p.chair:
-				ch._batch.add("beach_chair", BeachLife.prop_mesh("chair"), Transform3D(Basis(Vector3.UP, float(p.yaw)),
-					Vector3(pa.x, BeachLife.sand_y(ch, pa.x, pa.y), pa.y)), Color.WHITE, custom)
+				fire.props.append(["beach_chair", ch._batch.add("beach_chair", BeachLife.prop_mesh("chair"), Transform3D(Basis(Vector3.UP, float(p.yaw)),
+					Vector3(pa.x, BeachLife.sand_y(ch, pa.x, pa.y), pa.y)), Color.WHITE, custom)])
 		var land: Vector2 = ring.land
 		var away := Vector2(-land.y, land.x)
 		if _h([hr, 0]) < 0.7:
 			var cp := at + land * (SEAT_R.y + 0.9) + away * (_h([hr, 1]) - 0.5) * 2.0
 			var cc: Color = BeachLife.COOLERS[_hi([hr, 2]) % BeachLife.COOLERS.size()]
-			ch._batch.add("beach_cooler", BeachLife.prop_mesh("cooler"), Transform3D(Basis(Vector3.UP, _h([hr, 3]) * TAU),
-				Vector3(cp.x, BeachLife.sand_y(ch, cp.x, cp.y), cp.y)), Color.WHITE, Color(cc.r, cc.g, cc.b, 0.0))
+			fire.props.append(["beach_cooler", ch._batch.add("beach_cooler", BeachLife.prop_mesh("cooler"), Transform3D(Basis(Vector3.UP, _h([hr, 3]) * TAU),
+				Vector3(cp.x, BeachLife.sand_y(ch, cp.x, cp.y), cp.y)), Color.WHITE, Color(cc.r, cc.g, cc.b, 0.0))])
 		var wp := at + Vector2(cos(_h([hr, 4]) * TAU), sin(_h([hr, 4]) * TAU)) * (RING_R + 0.55)
-		ch._batch.add("bonfire_wood", wood_mesh(), Transform3D(Basis(Vector3.UP, _h([hr, 5]) * TAU),
-			Vector3(wp.x, BeachLife.sand_y(ch, wp.x, wp.y), wp.y)))
+		fire.props.append(["bonfire_wood", ch._batch.add("bonfire_wood", wood_mesh(), Transform3D(Basis(Vector3.UP, _h([hr, 5]) * TAU),
+			Vector3(wp.x, BeachLife.sand_y(ch, wp.x, wp.y), wp.y)))])
 	ch._batch.set_draw_distance("bonfire_ring", RING_DRAW)
 	ch._batch.set_shadow_distance("bonfire_ring", 60.0)
 	ch._batch.set_draw_distance("bonfire_wood", 120.0)
@@ -338,6 +345,9 @@ static func _add_figures(ch: CityChunk, people: Array) -> void:
 			fig.figure_index = merged.add_figure(mesh, CampFigure.shadow_for(mesh), xf)
 		fig.transform = xf
 		ch.add_child(fig)
+		var fire := ch.get_node_or_null("Bonfire_%d" % int(p.get("ring", -1))) as BonfireFire
+		if fire:
+			fire.figures.append(fig)
 	if merged:
 		ch.add_child(merged)
 
@@ -354,7 +364,7 @@ static func build_lod(ch: CityChunk, z0: float, z1: float) -> void:
 			continue
 		var at: Vector2 = ring.at
 		var y := BeachLife.sand_y(ch, at.x, at.y) + 0.08
-		var xf := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(LOD_POOL_SIZE, LOD_POOL_SIZE, 1.0)), Vector3(at.x, y, at.y))
+		var xf := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5) * Basis.from_scale(Vector3(LOD_POOL_SIZE, LOD_POOL_SIZE, 1.0)), Vector3(at.x, y, at.y))
 		ch._batch.add("bonfire_lod_pool", pool_mesh(), xf)
 		count += 1
 	if count > 0:
@@ -533,7 +543,7 @@ static func stack_mesh() -> Mesh:
 	for i in n:
 		var a := TAU * float(i) / float(n) + 0.17 * float(i % 2)
 		var foot := Vector3(cos(a) * 0.36, base_y, sin(a) * 0.36)
-		var top := Vector3(cos(a + 0.6) * 0.05, base_y + 0.62 + 0.06 * float(i % 3), sin(a + 0.6) * 0.05)
+		var top := Vector3(cos(a + 0.6) * 0.05, base_y + 0.72 + 0.07 * float(i % 3), sin(a + 0.6) * 0.05)
 		_log(st, foot, top, 0.042 + 0.012 * float(i % 3), 7, K_LOG, K_CUT)
 	# Two cross logs under it, burning through.
 	_log(st, Vector3(-0.34, base_y + 0.04, -0.06), Vector3(0.33, base_y + 0.06, 0.08), 0.05, 7, K_LOG, K_CUT)

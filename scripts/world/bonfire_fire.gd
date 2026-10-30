@@ -29,14 +29,18 @@ const LIGHT_REACH := 110.0
 const SHADOW_REACH := 26.0
 ## The light's colour (sRGB), energy, range and height over the sand.
 const LIGHT_COLOR := Color(1.0, 0.55, 0.24)
-const LIGHT_ENERGY := 2.3
-const LIGHT_RANGE := 11.0
-const LIGHT_Y := 0.95
+const LIGHT_ENERGY := 2.6
+const LIGHT_RANGE := 12.0
+const LIGHT_Y := 1.3
 ## The crackle's reach (m).
 const SOUND_REACH := 45.0
 
 var ring_k: int = 0
 var plan: CityPlan
+## The group round the fire (BonfireFigure) and their things ([batch key, instance index] in the
+## chunk's batches): sent home when the fire goes out (a chunk built at night lives on into the day).
+var figures: Array = []
+var props: Array = []
 
 var lit: bool = false
 var _near: bool = false
@@ -87,15 +91,19 @@ func _check() -> void:
 		return
 	var c := Bonfires.clock(self)
 	lit = Bonfires.lit_at(plan, ring_k, c[0], c[1], c[2])
+	if not lit and (not figures.is_empty() or not props.is_empty()):
+		_dismiss()
 	var cam := get_viewport().get_camera_3d() if is_inside_tree() and get_viewport() else null
 	_cam_dist = global_position.distance_to(cam.global_position) if cam else 0.0
 	var want := lit and _cam_dist < STACK_RANGE
-	if want and not _built:
+	if lit and not _built:
 		_build()
 	if not _built:
 		return
 	_stack.visible = want
-	_pool.visible = want
+	# The pool is one quad: it shows from anywhere while the fire burns (the row of glows along a
+	# night beach seen from the air).
+	_pool.visible = lit
 	var burn := want and _cam_dist < FIRE_RANGE
 	for p: CPUParticles3D in [_flames, _licks, _embers, _smoke]:
 		p.emitting = burn
@@ -109,6 +117,23 @@ func _check() -> void:
 		elif not hear and _sound.playing:
 			_sound.stop()
 	_deal_lights()
+
+
+## The fire is out: its people go home and take their chairs, blankets, cooler and wood (anyone
+## already woken by gunfire is a live person and stays where they ran).
+func _dismiss() -> void:
+	var ch := get_parent()
+	for fig in figures:
+		if is_instance_valid(fig) and not fig._awake:
+			if fig.figure_mesh and is_instance_valid(fig.figure_mesh):
+				fig.figure_mesh.hide_figure(fig.figure_index)
+			fig.queue_free()
+	figures.clear()
+	for pr: Array in props:
+		var node := ch.get_node_or_null("Batch_" + String(pr[0])) as MultiMeshInstance3D if ch else null
+		if node:
+			MultiMeshBatch.hide_instance(node, int(pr[1]))
+	props.clear()
 
 
 ## The real lights go to the nearest lit fires, the shadow to the nearest of all (desktop only).
@@ -153,45 +178,45 @@ func _build() -> void:
 	_pool.name = "Pool"
 	_pool.mesh = Bonfires.pool_mesh()
 	_pool.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_pool.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(Bonfires.POOL_SIZE, Bonfires.POOL_SIZE, 1.0)), Vector3(0.0, 0.06, 0.0))
+	_pool.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.5) * Basis.from_scale(Vector3(Bonfires.POOL_SIZE, Bonfires.POOL_SIZE, 1.0)), Vector3(0.0, 0.06, 0.0))
 	add_child(_pool)
 	var base := Vector3(0.0, Bonfires.ASH_Y + 0.12, 0.0)
 	# The body of the fire, rolling up off the coals.
-	_flames = _flame_system("Flames", 26, Vector2.ONE, 180.0)
-	_flames.position = base
+	_flames = _flame_system("Flames", 30, Vector2.ONE, 180.0)
+	_flames.position = base + Vector3(0.0, 0.08, 0.0)
 	_flames.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
 	_flames.emission_box_extents = Vector3(0.17, 0.05, 0.17)
 	_flames.spread = 18.0
-	_flames.lifetime = 0.75
+	_flames.lifetime = 0.9
 	_flames.lifetime_randomness = 0.4
-	_flames.initial_velocity_min = 0.25
-	_flames.initial_velocity_max = 0.8
-	_flames.gravity = Vector3(0.08, 1.7, 0.0)
-	_flames.damping_min = 0.6
-	_flames.damping_max = 1.2
-	_flames.scale_amount_min = 0.34
-	_flames.scale_amount_max = 0.56
+	_flames.initial_velocity_min = 0.5
+	_flames.initial_velocity_max = 1.1
+	_flames.gravity = Vector3(0.08, 2.2, 0.0)
+	_flames.damping_min = 0.5
+	_flames.damping_max = 1.0
+	_flames.scale_amount_min = 0.5
+	_flames.scale_amount_max = 0.78
 	# Tongues licking up the teepee's logs.
-	_licks = _flame_system("Tongues", 16, Vector2(0.3, 0.75), 10.0)
+	_licks = _flame_system("Tongues", 20, Vector2(0.32, 0.9), 10.0)
 	_licks.emission_shape = CPUParticles3D.EMISSION_SHAPE_DIRECTED_POINTS
 	var pts := PackedVector3Array()
 	var nrm := PackedVector3Array()
 	for i in 7:
 		var a := TAU * float(i) / 7.0
-		pts.append(Vector3(cos(a) * 0.22, Bonfires.ASH_Y + 0.12, sin(a) * 0.22))
+		pts.append(Vector3(cos(a) * 0.2, Bonfires.ASH_Y + 0.22, sin(a) * 0.2))
 		nrm.append(Vector3(-cos(a) * 0.35, 1.0, -sin(a) * 0.35).normalized())
 	_licks.emission_points = pts
 	_licks.emission_normals = nrm
 	_licks.spread = 10.0
-	_licks.lifetime = 0.6
+	_licks.lifetime = 0.7
 	_licks.lifetime_randomness = 0.35
-	_licks.initial_velocity_min = 0.4
-	_licks.initial_velocity_max = 0.9
-	_licks.gravity = Vector3(0.05, 1.6, 0.0)
+	_licks.initial_velocity_min = 0.6
+	_licks.initial_velocity_max = 1.2
+	_licks.gravity = Vector3(0.05, 2.0, 0.0)
 	_licks.damping_min = 0.3
 	_licks.damping_max = 0.8
-	_licks.scale_amount_min = 0.55
-	_licks.scale_amount_max = 0.9
+	_licks.scale_amount_min = 0.75
+	_licks.scale_amount_max = 1.15
 	# Embers riding the heat up and off down the breeze.
 	_embers = CPUParticles3D.new()
 	_embers.name = "Embers"
@@ -224,11 +249,11 @@ func _build() -> void:
 	_smoke = CPUParticles3D.new()
 	_smoke.name = "Smoke"
 	_smoke.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_smoke.amount = WeaponFX._count(22)
+	_smoke.amount = WeaponFX._count(40)
 	_smoke.lifetime = 7.0
 	_smoke.lifetime_randomness = 0.15
 	_smoke.local_coords = false
-	_smoke.position = base + Vector3(0.0, 0.75, 0.0)
+	_smoke.position = base + Vector3(0.0, 1.0, 0.0)
 	_smoke.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
 	_smoke.emission_box_extents = Vector3(0.12, 0.1, 0.12)
 	_smoke.direction = Vector3.UP
@@ -238,17 +263,18 @@ func _build() -> void:
 	_smoke.gravity = Vector3(0.45, 0.35, 0.15)
 	_smoke.damping_min = 0.15
 	_smoke.damping_max = 0.35
-	_smoke.scale_amount_min = 0.5
-	_smoke.scale_amount_max = 0.8
+	_smoke.scale_amount_min = 0.35
+	_smoke.scale_amount_max = 0.6
 	var curve := Curve.new()
 	curve.max_value = 6.0
 	curve.add_point(Vector2(0.0, 0.6))
 	curve.add_point(Vector2(0.3, 1.7))
 	curve.add_point(Vector2(1.0, 5.0))
 	_smoke.scale_amount_curve = curve
-	_smoke.color_ramp = WeaponFX._ramp([Color(4.0, 1.9, 0.75, 0.0), Color(1.5, 1.15, 0.95, 0.45),
-		Color(1, 1, 1, 0.34), Color(1, 1, 1, 0.16), Color(1, 1, 1, 0.0)])
-	_smoke.color = Color(0.36, 0.35, 0.34, 1.0)
+	# Lit warm only where it leaves the flames, then the night's own grey, thin and fading.
+	_smoke.color_ramp = WeaponFX._ramp([Color(2.2, 1.3, 0.75, 0.0), Color(1.15, 1.02, 0.95, 0.2),
+		Color(1, 1, 1, 0.16), Color(1, 1, 1, 0.1), Color(1, 1, 1, 0.05), Color(1, 1, 1, 0.0)])
+	_smoke.color = Color(0.42, 0.42, 0.42, 1.0)
 	_smoke.angle_min = -180.0
 	_smoke.angle_max = 180.0
 	var sq := QuadMesh.new()
@@ -266,6 +292,8 @@ func _build() -> void:
 		_light.omni_range = LIGHT_RANGE
 		_light.omni_attenuation = 1.3
 		_light.shadow_enabled = false
+		# A fire is a big soft source, not a bulb: soft shadow edges.
+		_light.shadow_blur = 2.5
 		_light.distance_fade_enabled = true
 		_light.distance_fade_begin = LIGHT_REACH - 30.0
 		_light.distance_fade_length = 25.0

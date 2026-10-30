@@ -172,6 +172,17 @@ func _full_chunk(city: Node3D, k: Vector2i) -> void:
 		var woke: RoughSleeper = (figs[0] as BonfireFigure).wake()
 		_t._check(woke is BeachGoer and (woke as BeachGoer).clothed and (woke as BeachGoer).beach_pose == (figs[0] as BonfireFigure).beach_pose,
 			"a woken bonfire figure is a live BeachGoer in street clothes in the same pose")
+	# Morning comes on a chunk built at night: the fires go out and their people go home.
+	Bonfires.force_hour = 7.0
+	var left := 0
+	for f: BonfireFire in fires:
+		f._check()
+		left += f.figures.size() + f.props.size()
+	var staying := 0
+	for fg in _children(chunk, BonfireFigure):
+		staying += int(not (fg as Node).is_queued_for_deletion())
+	_t._check(left == 0 and staying == 0, "when the fires go out their people and things go home (%d left)" % staying)
+	Bonfires.force_hour = 21.0
 	# The block's own rolls: the same palms and tower with the rings off.
 	Bonfires.enabled = false
 	var plain: CityChunk = city._new_chunk(Vector2i(chunk.ix, chunk.iz), CityChunk.Level.FULL)
