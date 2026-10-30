@@ -28,6 +28,8 @@ func run(t: Node, city: Node3D) -> void:
 	var was_heavy := BlastFX.max_heavy
 	BlastFX._recent.clear()
 	var parent := WeaponFX.fx_parent(city)
+	# Debris an earlier check's blasts left flying is not this check's.
+	var alive_before := BlastDebris.alive()
 	var before := {}
 	for c in parent.get_children():
 		before[c] = true
@@ -59,7 +61,7 @@ func run(t: Node, city: Node3D) -> void:
 	var left := 0
 	for c in parent.get_children():
 		left += 0 if before.has(c) else 1
-	_t._check(left == 0 and BlastDebris.alive() == 0, "explosions_2: the blasts leave nothing behind (%d nodes, %d pieces)" % [left, BlastDebris.alive()])
+	_t._check(left == 0 and BlastDebris.alive() <= alive_before, "explosions_2: the blasts leave nothing behind (%d nodes, %d pieces, %d before)" % [left, BlastDebris.alive(), alive_before])
 
 
 func _ticks(n: int) -> void:
@@ -107,8 +109,13 @@ func _layers(parent: Node, at: Vector3) -> void:
 	var screen := RenderingServer.get_current_rendering_method() != "dummy" and not OS.has_feature("web")
 	_t._check(not screen or int(last.get("wave", 0)) > 0, "explosions_2: the pressure wave where the screen can be read")
 	# The flash: far brighter and wider than WeaponFX's own light (14 over 4 radii).
-	var flashes := _named(parent, "BlastFlash")
-	var lit := flashes.size() == 1 and (flashes[0] as OmniLight3D).light_energy > 14.0 and (flashes[0] as OmniLight3D).omni_range > 9.0 * 4.0
+	# This blast's flash: the one nearest it (an earlier check's blast can leave one fading).
+	var flash: OmniLight3D = null
+	for c in parent.get_children():
+		if c is OmniLight3D and String(c.name).begins_with("BlastFlash") and not c.is_queued_for_deletion():
+			if flash == null or (c as Node3D).global_position.distance_to(at) < flash.global_position.distance_to(at):
+				flash = c
+	var lit := flash != null and flash.light_energy > 14.0 and flash.omni_range > 9.0 * 4.0
 	_t._check(lit, "explosions_2: one flash light, brighter and wider than the old one")
 	var flare := _named(parent, "BlastFlare")
 	_t._check(flare.size() == 1 and ((flare[0] as MeshInstance3D).material_override as StandardMaterial3D).billboard_keep_scale,
