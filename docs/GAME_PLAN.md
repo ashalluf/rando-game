@@ -439,6 +439,16 @@ already mapped so milestone 2 is script-only.
   kerb that is clear (parked cars, people, solid street furniture); an abandoned car keeps its
   door open and the player can take it as nobody's crime; nothing here is a crime unless a person
   is hit.
+- **2026-10-06 Multi-storey car parks you can drive up (HANDOFF "Multi-storey car parks").**
+  Decisions: standalone structures on their own hash-picked sites in LotFill's districts, not the
+  parking podiums (a podium is one shader-drawn part of a tower's Building; making it drivable
+  would mean rebuilding the tower round it). Stacked straight ramps in one walled strip - the
+  simplest form that is truly drivable with a game car's turning circle and keeps a constant
+  clearance between ramps - with U-turns in the end zones and the exit down the same two-way
+  ramps. Built in code at real size (3.05 m floor to floor, 2.39 m under the beams, 14.9 % ramps
+  with eased ends), one trimesh collision body. Barrier arms lift for the player and have no
+  collision (an arm a car can hook would launch it). Parked cars are the cheap static ArenaGrounds
+  bodies with box collision, not live Vehicles. Operator names invented.
 - **2026-10-05 The street's signs are real models (HANDOFF "The street's signs").** The signs
   were a cylinder for a stop sign facing the junction diagonally, flat boxes with TextMesh names
   and red-banded white boxes. Decisions: built in CODE at real size (StreetSignKit; BoulevardSigns owns the kerb's parking plates), not Blender - every

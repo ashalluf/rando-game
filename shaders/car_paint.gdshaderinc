@@ -167,6 +167,10 @@ uniform float wear_door_side = -1.0;
 uniform vec3 wear_door_color : source_color = vec3(0.5);
 uniform vec4 wear_primer = vec4(0.0, 0.0, 0.0, 1.0);
 varying vec3 paint_rest;
+#ifdef PAINT_FROM_CUSTOM
+// A MultiMesh of static parked bodies (car_park_car.gdshader): the paint per instance, sRGB.
+varying vec3 inst_paint;
+#endif
 
 // Custom paint (the lowriders: Lowrider.paint()), 0 on every other car, which skips all of it.
 // Candy: a tinted lacquer over a bright base, so the colour runs deep where the panel turns away
@@ -287,6 +291,9 @@ void vertex() {
 		VERTEX += o0;
 	}
 #endif
+#ifdef PAINT_FROM_CUSTOM
+	inst_paint = INSTANCE_CUSTOM.rgb;
+#endif
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	paint_rest = rest_pos;
 	vec3 n = (rest_pos - body_min) / max(body_size, vec3(0.001));
@@ -374,7 +381,11 @@ void fragment() {
 	}
 
 	float livery = livery_mask();
+#ifdef PAINT_FROM_CUSTOM
+	vec3 coat = mix(cs_as_uniform(inst_paint), stripe_color, livery);
+#else
 	vec3 coat = mix(paint, stripe_color, livery);
+#endif
 	// Pearl flip: the second coat only shows where the panel turns away from the eye.
 	if (pearl_amount > 0.0) {
 		float fres = pow(1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0), pearl_power);

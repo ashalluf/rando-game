@@ -2393,6 +2393,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Lowriders (tests/lowriders_checks.gd): the bodies, wire wheels and paint, the hydraulics, where
 	# and when the meets are, a meet's chunk (the row, the crowd, the block unmoved), the cruisers.
 	await load("res://tests/lowriders_checks.gd").new().run(self, city)
+	# Multi-storey car parks (tests/garage_drive_in_checks.gd): placement, the plan's grades and
+	# headroom, the structure and its collision on every deck, and a car driven up to the second deck.
+	await load("res://tests/garage_drive_in_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
