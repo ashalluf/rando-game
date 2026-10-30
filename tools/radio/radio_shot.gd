@@ -18,7 +18,7 @@ func _initialize() -> void:
 	change_scene_to_file("res://scenes/levels/city.tscn")
 	for i in _env_int("FRAMES", 60):
 		await process_frame
-	var scene := get_root().get_child(get_root().get_child_count() - 1)
+	var scene := current_scene
 	var player: Node3D = get_first_node_in_group("player")
 	var car: Node3D = load("res://scripts/vehicles/vehicle.gd").new()
 	car.call("setup", _env_int("BODY", 8), Color(0.08, 0.09, 0.11), 0)
