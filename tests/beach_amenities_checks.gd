@@ -38,10 +38,8 @@ func _plan(plan: CityPlan) -> void:
 	_t._check(whole.size() > 20 and str(whole) == str(again), "the beach's amenities are a pure plan (%d items over the whole coast, z -4000..6000)" % whole.size())
 	_t._check(whole.size() == a.size() + b.size() and str(_sorted(whole)) == str(_sorted(a + b)),
 		"the amenities are world-anchored: two halves of the shore hold the whole's (%d vs %d + %d)" % [whole.size(), a.size(), b.size()])
-	# Which kinds exist is counted over more coast: the power plant, the marina and the coast
-	# highway take stretches of the 4 km above, and a seed may leave a rare kind out of it.
 	var counts := {}
-	for it: Dictionary in BeachAmenities.plan_stretch(plan, -2500.0, 4000.0):
+	for it: Dictionary in whole:
 		counts[String(it.kind)] = int(counts.get(String(it.kind), 0)) + 1
 	var every := true
 	for k: String in ["restroom", "concession", "gym", "court", "shower", "rack", "can"]:
