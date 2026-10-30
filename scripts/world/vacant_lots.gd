@@ -126,6 +126,9 @@ static func kind_of(plan: CityPlan, bx: int, bz: int, lot: Dictionary) -> int:
 	var b: Dictionary = plan.block(bx, bz)
 	if int(b.kind) != CityPlan.BlockKind.BUILDINGS or b.has("site") or b.has("grounds"):
 		return NONE
+	# The walk of fame's frontage is a souvenir strip (StarBoulevard).
+	if StarBoulevard.strip_lot(plan, bx, bz, lot):
+		return NONE
 	var district: int = b.district
 	if not ODDS.has(district):
 		return NONE

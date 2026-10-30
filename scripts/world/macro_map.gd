@@ -490,6 +490,8 @@ func height_at(pos: Vector2) -> float:
 	h = Ballpark.carve(pos, h)
 	if hill_roads and raw > 0.5:
 		h = hill_roads.carve(pos, h)
+	# The lighthouse's pad on the headland's south-east cliff (Lighthouses).
+	h = Lighthouses.carve(self, pos, h)
 	return h
 
 

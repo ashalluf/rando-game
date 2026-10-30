@@ -93,6 +93,9 @@ static func _offered(plan: CityPlan, lot: Dictionary, district: int) -> bool:
 	if district == CityPlan.District.MIDTOWN:
 		if plan.lot_height(s, district, plan.macro.skyline_boost(c)) > MIDTOWN_MAX_H:
 			return false
+		# The walk of fame's frontage is a souvenir strip (StarBoulevard).
+		if StarBoulevard.strip_lot(plan, plan.block_index_at(c).x, plan.block_index_at(c).y, lot):
+			return false
 		# The block's tower site (Construction picks it among the Building lots, after this claim).
 		var k := plan.block_index_at(c)
 		var site := Construction.tower_site(plan, k.x, k.y)
