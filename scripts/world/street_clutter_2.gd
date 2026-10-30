@@ -542,8 +542,9 @@ static func _wall_things(ctx: Dictionary, edges: Array) -> void:
 			var t := lerpf(3.0, length - 3.0, h01(hk + [i, "wt"]))
 			var kerb := a + dir * t
 			var wall := StreetClutter._wall_depth(walls, kerb, inward) if not walls.is_empty() else StreetClutter.BOARD_FRONTAGE + 1.0
-			# At the wall's foot if there is one near, else in the joint behind the kerb.
-			var depth := wall - 0.06 if wall < 9.0 and h01(hk + [i, "where"]) < 0.7 else 0.32 + 0.05 * h01(hk + [i, "d"])
+			# At the wall's foot where a building stands at the back of the pavement (further in, a
+			# footprint is usually behind a forecourt's planters), else in the joint behind the kerb.
+			var depth := wall - 0.06 if wall < 5.0 and h01(hk + [i, "where"]) < 0.5 else 0.32 + 0.05 * h01(hk + [i, "d"])
 			var q := kerb + inward * depth
 			if not _free(ctx, q, 0.15):
 				continue
@@ -554,7 +555,7 @@ static func _wall_things(ctx: Dictionary, edges: Array) -> void:
 			var t := lerpf(3.0, length - 3.0, h01(hk + [i, "dt"]))
 			var kerb := a + dir * t
 			var wall := StreetClutter._wall_depth(walls, kerb, inward) if not walls.is_empty() else StreetClutter.BOARD_FRONTAGE + 1.0
-			if wall > 9.0:
+			if wall > 5.5:
 				continue
 			var q := kerb + inward * (wall - 0.25 - 0.3 * h01(hk + [i, "dd"]))
 			_put(ctx, K_DROP, _xf(q, h01(hk + [i, "dy"]) * TAU, 0.6 + 0.8 * h01(hk + [i, "ds"]), CityChunk.SIDEWALK_TOP + 0.003), Color(h01(hk + [i, "dseed"]), h01(hk + [i, "dfresh"]), 0.0, 0.0))

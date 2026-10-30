@@ -219,9 +219,9 @@ void fragment() {
 		vec2 uv = UV;
 		float m = 0.0;
 		float heart = 0.0;
-		for (int i = 0; i < 6; i++) {
+		for (int i = 0; i < 9; i++) {
 			vec2 c = vec2(h1(vec2(seed * 31.0, float(i))), h1(vec2(float(i), seed * 17.0))) * 0.7 + 0.15;
-			float r = 0.025 + 0.05 * h1(vec2(float(i) * 3.1, seed));
+			float r = 0.035 + 0.06 * h1(vec2(float(i) * 3.1, seed));
 			float d = length(uv - c) + (n2(uv * 40.0 + float(i)) - 0.5) * 0.03;
 			m = max(m, 1.0 - smoothstep(r * 0.85, r, d));
 			heart = max(heart, 1.0 - smoothstep(r * 0.15, r * 0.45, d));
