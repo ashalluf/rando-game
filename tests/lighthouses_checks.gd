@@ -61,12 +61,18 @@ func _pad(plan: CityPlan) -> void:
 		var dir := Vector2(cos(TAU * a / 16.0), sin(TAU * a / 16.0))
 		for r in [0.0, 6.0, 12.0, 18.0, Lighthouses.PAD_RADIUS - 0.5]:
 			flat = maxf(flat, absf(m.height_at(Lighthouses.LIGHT_AT + dir * r) - y))
+		# Steeper than the banks only where the natural ground itself is (the headland's rim has a
+		# 10 m step of its own on its inland side, which the bank hands back to past the fill).
 		var prev := m.height_at(Lighthouses.LIGHT_AT + dir * Lighthouses.PAD_RADIUS)
+		var prev_nat := _natural(m, Lighthouses.LIGHT_AT + dir * Lighthouses.PAD_RADIUS)
 		var r := Lighthouses.PAD_RADIUS + 1.0
 		while r <= Lighthouses.PAD_REACH - 6.0:
-			var h := m.height_at(Lighthouses.LIGHT_AT + dir * r)
-			steep = maxf(steep, absf(h - prev))
+			var q := Lighthouses.LIGHT_AT + dir * r
+			var h := m.height_at(q)
+			var nat := _natural(m, q)
+			steep = maxf(steep, absf(h - prev) - maxf(absf(nat - prev_nat) - 1.0, 0.0))
 			prev = h
+			prev_nat = nat
 			r += 1.0
 		var outside := Lighthouses.LIGHT_AT + dir * (Lighthouses.PAD_REACH + 1.0)
 		if absf(Lighthouses.carve(m, outside, 3.0) - 3.0) > 1e-4:
@@ -76,6 +82,14 @@ func _pad(plan: CityPlan) -> void:
 	var covered := Lighthouses.covers(Lighthouses.LIGHT_AT + Vector2(8.0, -5.0), 0.0) and Lighthouses.covers(Lighthouses.segments()[5].a, 0.0)
 	var free := not Lighthouses.covers(Lighthouses.LIGHT_AT + Vector2(-120.0, -80.0), 2.0)
 	_t._check(covered and free, "lighthouses: the hills' planting keeps off the pad and the breakwater, not off the hills round them")
+
+
+func _natural(m: MacroMap, p: Vector2) -> float:
+	var was := Lighthouses._enabled
+	Lighthouses._enabled = 0
+	var h := m.height_at(p)
+	Lighthouses._enabled = was
+	return h
 
 
 ## The breakwater keeps out of the port, the harbour's berth and the cargo ship, and off every
