@@ -20409,9 +20409,11 @@ reads the person's own clip now.
 
 **Numbers.** Measured slide of the planted toe in the checks: heavy 0.20 m/s at 1.19 m/s, brisk
 0.26 at 1.58, amble 0.17 at 1.08 (the residue is the toe rolling over at push-off, which the
-"planted" window includes). Frame cost at the downtown bookmark (opengl3, SPLIT=1 pedestrians line):
-see the commit / final message (same meshes and LODs; the change is CPU-side only: a library per
-rig and the same per-tick pose work).
+"planted" window includes). Frame cost at the downtown bookmark (`--spawn=2359.4,880,0,12,2
+--hour=12`, opengl3, SPLIT=1): pedestrians 477,523 tris / 338 draws before (`CROWD_ANIM_2=0`) and
+after; the whole frame 8,141,990 / 3,788 before, 8,142,053 / 3,786 after (same meshes and LODs; the
+change is CPU-side only: one more library per rig, ~40 KB, and the same per-tick pose work).
+Gate: `SHARDS=3` 3,942 checks, 0 failed, peak RSS 3,383 MB. Stills on `shots/crowd-anim-2`.
 
 **Not done.** The officers, crews, sleepers and the other Pedestrian subclasses keep the rig's walk.
 Starts / stops still blend walk <-> idle (no dedicated start or stop clips in the library). The
