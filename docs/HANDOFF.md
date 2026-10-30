@@ -14663,6 +14663,16 @@ products per bone for four bones; not measured separately.
 `01_calm`, `02_crash_left`, `03_boost_behind`, `04_busker_right`, `05_far_blast_left`
 (`*_before_after.jpg`) and `06_crash_reaction_every_10_ticks.jpg`.
 
+**Gate.** `SHARDS=3 tests/headless_check.sh` on the merged head: 2,441 checks passed, peak RSS
+2.46 GB a shard. On the way it caught a real bug here (a walker freed since the last quarter-second
+survey was cast: a script error on every shard) and showed three things that are not this
+branch's: `StreetErrands.release()` tested `car is Vehicle` before `is_instance_valid(car)` (a
+script error when the car was freed first; reordered here, at both sites); twice, an in-shard
+flake that passed alone with `CROWD_LOOK` on and off - dogs ("a round into a dog sends it running"
+and "the second walker is still there", right after the photo mode checks: owner and dog gone at
+once, as if their chunk had been retired) and onlookers ("a new shot sends the onlookers running
+(1 stayed)").
+
 **Not done / not verified.** Not seen in the city or on Forward+ (the turn is bone rotation, so
 the renderer does not change it). No eyes: the crowd rigs have no eye bones, so a look is head
 and chest only. Nothing in main joins `crowd_look_magnet` yet (the buskers session's to use).
