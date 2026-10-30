@@ -310,7 +310,9 @@ static func far_oak_clump(seed: int, p: Vector2, r: float, th: float, col: Color
 			continue
 		var s := lerpf(0.65, 0.9, _u(hk, 2))
 		var gy: float = height.call(lat, q)
-		veg.append(Transform3D(Basis(Vector3.UP, TAU * _u(hk, 2)).scaled(Vector3(r * s, th * s, r * s * 0.85)), Vector3(q.x, gy + th * s * 0.3, q.y)))
+		# Never under the far tier's least oak (a lower blob there reads as the brush mounds it dropped).
+		var tc := maxf(th * s, Skyline.HILL_OAK_HEIGHT.x)
+		veg.append(Transform3D(Basis(Vector3.UP, TAU * _u(hk, 2)).scaled(Vector3(r * s, tc, r * s * 0.85)), Vector3(q.x, gy + tc * 0.3, q.y)))
 		veg_colors.append(col * Color(0.92, 0.95, 0.92, 1.0))
 		veg_custom.append(Color(0.0, 0.0, 0.0, 0.0))
 		made += 1

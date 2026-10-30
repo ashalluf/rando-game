@@ -19791,7 +19791,7 @@ at the check's chunk); the far tier does the same with its canopy blobs (`far_oa
 as ONE instance (measurement trap 3), so `HILL_SCATTER_LEVEL=n` builds the clump with only level n
 and no LODs: 2,914,432 with every visible clump at level 1 (+4.3 % over before) and 3,095,680 at
 level 0 (+10.7 %, the bound nobody draws: ~3,800 clumps in view). The real mix is under the level-1
-figure. Draws +21 (+1.6 %). Hill flight (`tools/flight_bench.gd` ROUTE=b FIXED=1, headless CPU, the whole build and draw prep): 189.2 ms CPU a frame before, 187.8 after (mean 184.5 / 182.8 ms, p95 274 / 255 - noise on a shared box: flat). The FULL chunk build takes the scatter ~0.3 s more in 3.5 ms steps.
+figure. Draws +21 (+1.6 %). Hill flight (`tools/flight_bench.gd` ROUTE=b FIXED=1, headless CPU, the whole build and draw prep): 189.2 ms CPU a frame before, 187.8 after (mean 184.5 / 182.8 ms, p95 274 / 255 - noise on a shared box: flat). A FULL chunk spends 196 ms on its scatter in 47 steps of at most 3.5 ms.
 
 **A/B and tools**: `HILL_PLANTING_2=0` (no scatter, no oak companions; the old planting exactly -
 the check builds the chunk both ways and compares every point). `HILL_SCATTER_LEVEL=0|1|2` for the
