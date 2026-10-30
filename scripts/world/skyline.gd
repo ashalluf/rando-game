@@ -902,6 +902,7 @@ func _add_city_trees(k: Vector2i, b: Dictionary, ch: CityChunk) -> void:
 				spots.append(t[0])
 	# Kerb rows on every block, parks and plazas included (the FULL build lines them all).
 	var odds: float = params.get("trees", 0.5)
+	var fill: Array[Vector2] = []
 	var ring := rect.grow(-1.6)
 	var corners := [ring.position, Vector2(ring.end.x, ring.position.y), ring.end, Vector2(ring.position.x, ring.end.y)]
 	for e in 4:
@@ -910,8 +911,13 @@ func _add_city_trees(k: Vector2i, b: Dictionary, ch: CityChunk) -> void:
 		var n := int(a.distance_to(c) / STREET_TREE_STEP)
 		for i in n:
 			if float(absi(hash([_plan.seed, "st", k, e, i])) % 1000) / 1000.0 >= odds:
+				# The slots the roll left empty that MidCity fills, after every spot of the roll's
+				# (a tree's look is a hash of its index).
+				if MidCity.kerb_fill(_plan, k, b.district, odds, e, i):
+					fill.append(a.lerp(c, (float(i) + 0.5) / float(maxi(n, 1))))
 				continue
 			spots.append(a.lerp(c, (float(i) + 0.5) / float(maxi(n, 1))))
+	spots.append_array(fill)
 	for i in spots.size():
 		var p: Vector2 = spots[i]
 		# Not under a freeway deck, as the chunks do (CityChunk._add_tree()).
@@ -939,6 +945,8 @@ func _add_city_trees(k: Vector2i, b: Dictionary, ch: CityChunk) -> void:
 				col = Color(0.30, 0.25, 0.48).lerp(Color(0.38, 0.33, 0.56), v)
 		veg.append(Transform3D(Basis(Vector3.UP, float(absi(hs) % 628) * 0.01).scaled(Vector3(r, th, r * 0.9)),
 			Vector3(p.x, gy + lift + th * 0.5, p.y)))
+		if MidCity.enabled:
+			col = Color(col.r * MidCity.KERB_DARKEN, col.g * MidCity.KERB_DARKEN, col.b * MidCity.KERB_DARKEN)
 		veg_colors.append(col)
 		veg_custom.append(real)
 	# The yards' trees, on the green ground the block leaves (MidCity; hashes only).

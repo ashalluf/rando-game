@@ -5810,6 +5810,18 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   gives the cut faces their normals. Every piece computes a corner by the same expression, or the
   roof cracks. No new mesh or draw (+24 triangles a cut part). `FAR_CORNERS=0` is the A/B;
   `far_building_shot.gd CHAMFER=1`; checks `tests/far_corners_checks.gd` (mirror the reshape).
+- The mid distance (2026-10-30, docs/HANDOFF.md "The mid distance"): `MidCity`
+  (`scripts/world/mid_city.gd`) is what the LOD chunks and the far city draw from 400 m to 3 km.
+  Skyline plants YARD TREES (`yard_trees()`: a jittered grid at `ODDS` per district on the green
+  ground of the captured block, an occupancy raster keeping them off buildings and paving) and
+  fills `KERB_FILL` of the empty kerb slots (appended after the roll's spots: a tree's look is a
+  hash of its index); crowns darker and dappled (far_canopy `mid_city`). HouseBuild.lod() flags a
+  wing `HOUSE_FLAG` 0.25 (its flat roof wears a house's coverings) and its slabs `ROOF_FLAG` 1.25
+  (tile / shingle courses), roof colour = the house's own clay tint or shingle (`roof_far()`);
+  YardFill's pools are `POOL_FLAG` 5 boxes. `shaders/far_cars.gdshaderinc`: parked cars on the
+  kerbs and far_traffic's own cars (same keys) by day on the plates, decks and LOD ground, the
+  asphalt x`mid_road_gain`. Hashes only, nothing else moves. `MID_CITY=0` is the A/B; probe
+  `tools/mid_city/probe.gd -- --at=x,z`; checks `tests/mid_city_checks.gd`.
 - Road hardware (2026-10-05, docs/HANDOFF.md "Road hardware"): `RoadHardware`
   (`scripts/world/road_hardware.gd`, one hook line at the end of `StreetDetail.build_block`, FULL
   chunks) lays cast-iron manhole covers (four cast patterns, proud or sunk in a patched round or

@@ -52,13 +52,26 @@ const MAX_PER_BLOCK := 70
 ## Canopy colours (LINEAR, far_canopy multiplies its shade by them): dark live oak and ficus,
 ## olive and eucalyptus grey-green, a fresher sycamore green, the odd jacaranda.
 const GREENS := [
-	[Color(0.045, 0.070, 0.030), 0.30],
-	[Color(0.070, 0.100, 0.042), 0.55],
-	[Color(0.095, 0.110, 0.070), 0.72],
-	[Color(0.120, 0.150, 0.060), 0.88],
-	[Color(0.085, 0.095, 0.080), 0.97],
-	[Color(0.28, 0.23, 0.44), 1.0],
+	[Color(0.030, 0.048, 0.020), 0.32],
+	[Color(0.048, 0.070, 0.030), 0.58],
+	[Color(0.066, 0.076, 0.048), 0.74],
+	[Color(0.080, 0.105, 0.040), 0.88],
+	[Color(0.060, 0.068, 0.058), 0.97],
+	[Color(0.20, 0.16, 0.32), 1.0],
 ]
+## The kerb rows' crowns are darker too (Skyline's own colours times this), and a share of the
+## kerb slots the district's roll left empty get a tree (`KERB_FILL`): LA's residential streets
+## are lined almost unbroken.
+const KERB_DARKEN := 0.7
+const KERB_FILL := {
+	CityPlan.District.SUBURBS: 0.65,
+	CityPlan.District.BEACHTOWN: 0.4,
+	CityPlan.District.MIDTOWN: 0.55,
+	CityPlan.District.CAMPUS: 0.5,
+}
+## Of the paved ground a block leaves (forecourts, a court's paving), the share of the district's
+## odds that still gets a tree (a planter, a tree well).
+const PAVED_SHARE := 0.3
 
 
 static func h01(parts: Array) -> float:
@@ -115,7 +128,7 @@ static func yard_trees(plan: CityPlan, k: Vector2i, b: Dictionary, cap: Dictiona
 		return 0
 	var nx := int(ceil(rect.size.x / CELL))
 	var nz := int(ceil(rect.size.y / CELL))
-	# 0 unknown (the block's own ground), 1 green, 2 blocked.
+	# 0 unknown (the block's own ground), 1 green, 2 blocked (standing), 3 paved.
 	var occ := PackedByteArray()
 	occ.resize(nx * nz)
 	# The block's ground, bottom up (the build lays it in that order): the top slab decides.
@@ -124,7 +137,7 @@ static func yard_trees(plan: CityPlan, k: Vector2i, b: Dictionary, cap: Dictiona
 		if gr.size.x <= 0.0 or gr.size.y <= 0.0:
 			continue
 		var fc: Color = g[3]
-		var v: int = 1 if fc.g > fc.r * 1.08 and fc.g > fc.b * 1.15 else 2
+		var v: int = 1 if fc.g > fc.r * 1.08 and fc.g > fc.b * 1.15 else 3
 		_fill(occ, nx, nz, rect, gr, v)
 	# Whatever stands: the buildings and boxes, grown by the clearance.
 	var batch: Dictionary = cap.get("batch", {})
@@ -135,7 +148,10 @@ static func yard_trees(plan: CityPlan, k: Vector2i, b: Dictionary, cap: Dictiona
 	for box: Array in cap.get("boxes", []):
 		_fill(occ, nx, nz, rect, _footprint(box[0]).grow(WALL_CLEAR), 2)
 	# The suburbs' block is its lawn (YardFill lays only the yards' other pieces there).
-	var lawn_block: bool = b.district == CityPlan.District.SUBURBS or b.has("grounds") and String(b.grounds) == "cemetery"
+	# The suburbs' block is its lawn (YardFill lays only the yards' other pieces there), and a beach
+	# town's yards under 6 m are not laid at all from out here: both count as green.
+	var lawn_block: bool = b.district == CityPlan.District.SUBURBS or b.district == CityPlan.District.BEACHTOWN \
+		or b.has("grounds") and String(b.grounds) == "cemetery"
 	var gx := int(rect.size.x / STEP)
 	var gz := int(rect.size.y / STEP)
 	var placed := 0
@@ -144,14 +160,15 @@ static func yard_trees(plan: CityPlan, k: Vector2i, b: Dictionary, cap: Dictiona
 			if placed >= MAX_PER_BLOCK:
 				return placed
 			var key := [plan.seed, "yard_tree", k, i, j]
-			if h01(key) >= odds:
+			var roll := h01(key)
+			if roll >= odds:
 				continue
 			var p := rect.position + Vector2((float(i) + 0.15 + 0.7 * h01(key + ["x"])) * STEP,
 				(float(j) + 0.15 + 0.7 * h01(key + ["z"])) * STEP)
 			var ci := clampi(int((p.x - rect.position.x) / CELL), 0, nx - 1)
 			var cj := clampi(int((p.y - rect.position.y) / CELL), 0, nz - 1)
 			var o := occ[cj * nx + ci]
-			if o == 2 or (o == 0 and not lawn_block):
+			if o == 2 or (o == 0 and not lawn_block) or (o == 3 and roll >= odds * PAVED_SHARE):
 				continue
 			if under.call(p):
 				continue
@@ -197,3 +214,12 @@ static func _fill(occ: PackedByteArray, nx: int, nz: int, rect: Rect2, r: Rect2,
 		var row := j * nx
 		for i in range(i0, i1):
 			occ[row + i] = v
+
+
+## The kerb slots Skyline's own roll left empty that get a tree anyway (KERB_FILL), as positions
+## for Skyline to plant with its own kerb-row look. `ring` and the slot count are Skyline's.
+static func kerb_fill(plan: CityPlan, k: Vector2i, district: int, _odds: float, e: int, i: int) -> bool:
+	if not enabled:
+		return false
+	var fill: float = KERB_FILL.get(district, 0.0)
+	return fill > 0.0 and h01([plan.seed, "kerb_fill", k, e, i]) < fill
