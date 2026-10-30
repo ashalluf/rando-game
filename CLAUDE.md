@@ -5686,6 +5686,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   material Godot has already turned NORMAL toward the camera on a back face** - never flip it again
   with `FRONT_FACING`. A generated normal map is OpenGL-style: green = the row BELOW minus the row
   above (WeaponFX's blood maps). `tests/fwd_review_b_checks.gd` holds the three.
+- And three more (fwd-review-d, 2026-10-30, HANDOFF "Forward+ review d"): a renderer-space shader
+  (no colour-space include, colours as the renderer hands them: the ocean) takes `sky_tint` through
+  `cs_as_uniform()`, never raw; **vertex colours are raw on both** (`cs_srgb_to_linear(COLOR.rgb)`,
+  never `cs_in()`); and **anything the sky draws after the Forward+ cloud volume's composite is in
+  front of it** (the offshore island is; the volume knows nothing nearer). An additive halo must
+  reach ZERO at its quad's edge: a 4 % tail, added in linear on Forward+, draws the quad.
+  `tests/fwd_review_d_checks.gd` scans every shader for the colour rules.
 - Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building),
   `tools/glshot/block_shot.tscn` (a few FULL city blocks alone, no far city: a block's ground and
   furniture) and `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real

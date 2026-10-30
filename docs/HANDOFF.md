@@ -17080,3 +17080,66 @@ traffic (with TRAFFIC_AI=0 cars slow and stop but do not change lanes). No incid
 connectors or the ramps. The flares are not seen on Forward+ (their red under AgX) and have no sound or collision. The patrol officer stays in the car (the flares just appear one by one); the driver does not walk to the tow
 (they vanish when the bed rises). The mattress and tread have no collision. The debris stills are
 framed from 30 m; closer framing would read better.
+
+## 9d?. Forward+ review d: the wave-3 features on the Mac's renderer, 2026-10-30 (fleet wave 3, session `fwd-review-d`, branch `wt/fwd-review-d`)
+
+Same method as reviews a-c (9ee, 9dp, 9dy): each wave-3 feature rendered in a SMALL scene on the
+real Forward+ pipeline under lavapipe (`fwd_block_shot.tscn`, or the feature's own shot tool with
+`--rendering-driver vulkan`), most of them against the same frame on opengl3, measured with the
+percentile one-liner; then every shader read for the colour-space traps. Stills and their README
+on `shots/fwd-review-d`.
+
+**Fixed:**
+- **The offshore island was invisible on Forward+** (still 01-03). The sky draws it "after the
+  stars, under the clouds", but on Forward+ the cumulus is a VOLUME marched in the half-res pass
+  and composited over everything drawn before it (`col * cl.a + cl.rgb`). The march does not know
+  the island is there, and at the horizon its haze and the far cloud field took the whole band:
+  at 14:00 only a sliver showed, at sunset nothing. Every cloud on a ray that meets the island is
+  BEHIND it (from under the deck, a ray low enough to meet a 1,050 m crest at 36 km reaches the
+  1.45 km cloud base past 50 km), so `sky.gdshader` now draws the island after the volume's
+  composite when the volume is on and the camera is under the deck (`island_late`); the painted
+  path (Compatibility, low levels) is unchanged.
+- **The sea was washed out on Forward+** (still 04): `ocean.gdshader` is a renderer-space shader
+  (no colour-space include) but read `sky_tint`, which is raw sRGB on both renderers, as its haze:
+  on the Mac the whole sea mirrored a sky 1.5-2x too bright (p5 52 against opengl3's 6 on the same
+  view) and stood brighter than the far plane, whose `haze_color` is decoded. Now
+  `cs_as_uniform(sky_tint.rgb)`; opengl3 is unchanged. The ocean traffic's wakes now read on it.
+- **The refinery's flares drew square halos at night** (still 05): the halo gaussian left 4 % at
+  its quad's edge, invisible in the opengl3 stills and a lit orange square added in linear over the
+  night sky. It now reaches zero at the edge, and its colour (a display colour tuned on opengl3) is
+  decoded on Forward+ (`cs_as_uniform`) - it was a disc twice the size of the opengl3 one.
+- **`sky_tint` through the wrong door** in ten more shaders: `disp(sky_tint)` (re-encoding a
+  colour never decoded: too bright on the Mac) in the refinery, the power plant, the film studio,
+  the deco ornament and industrial_walls (fwd-review-b's report); taken as linear by linear-on-both
+  shaders in the hydrant's wet patch, the swimmer's water underside, Chinatown's glass, the light
+  rail's windows and interior; the river's sky mirror written raw into EMISSION. The power plant's
+  glass band measured within 0.2 levels before / after at its bookmark (small at that angle).
+- `billboard_steel.gdshader` ran `cs_in()` (for textures) on its vertex colour, which is raw on
+  both: on the Mac the steel was drawn from sRGB numbers as linear (paler).
+
+**Looked at, nothing to fix (Forward+ against opengl3):** the crowd in the rain (umbrellas, the
+red canopy not salmon, hoods), the wingsuit's fabric and vapour, the motorcycles day and night,
+the footbridges day and night, the news vans, the lighthouse at night (lantern, drawn beams, the
+house's windows), the power plant by day and night (stack lights stay red), the refinery by day
+(cooling-tower plume, process units). Lowriders' candy paint had its own Forward+ pass (9ft).
+
+**Not on main, so not reviewed:** oil islands, the blimp, buskers, beach amenities, wildlife
+(second / third launch branches not merged when this ran).
+
+**Noted, not fixed:** in `fwd_block_shot.tscn` at night the sky BELOW the horizon (seen past the
+built blocks, where the game has its horizon plane) is a maroon band on Forward+ (the city light
+dome's orange over the navy night); in the game the ground covers it. Downtown and midtown blocks
+peak over 13.6 GB on lavapipe with everything on: those scenes were rendered with the unrelated
+systems off (`LITE` list in the README).
+
+**Tools:** none committed (the wrappers that ran a render queue and killed Godot after its last
+still are described in the README). `tools/offshore_island/island_shot.gd`'s header says
+`YAW=-115`; the island is at `YAW=115` from the beach (-900, 0).
+
+**Checks** (`tests/fwd_review_d_checks.gd`, source text only, so it leans on no earlier check):
+every shader - no `disp(sky_tint`, a linear shader decodes `sky_tint` before using it as a colour,
+no `cs_in()` on COLOR; the river's mirror through `cs_out`; the ocean's haze through
+`cs_as_uniform`; the island drawn after the volume's composite; the flare halo zero at its edge.
+
+**Frame cost:** shader-only changes; no node, mesh or draw added. The island is drawn in one of two
+places, never both.

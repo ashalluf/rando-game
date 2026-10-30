@@ -60,3 +60,14 @@ func run(t: Node, _city: Node3D) -> void:
 	_t._check(col_bad.is_empty(), "no shader runs cs_in() on a raw vertex colour %s" % [col_bad])
 	var river := FileAccess.get_file_as_string("res://shaders/river_water.gdshader")
 	_t._check(river.contains("EMISSION = cs_out(sky)"), "the river's sky mirror is handed over in the renderer's space")
+	var ocean := FileAccess.get_file_as_string("res://shaders/ocean.gdshader")
+	_t._check(ocean.contains("cs_as_uniform(sky_tint.rgb)"), "the ocean's haze is sky_tint in the renderer's own space (the far plane's)")
+	var sky := FileAccess.get_file_as_string("res://shaders/sky.gdshader")
+	var late := sky.find("if (island_late) {")
+	_t._check(late > 0 and late > sky.find("col = col * cl.a + cl.rgb;"),
+		"under the Forward+ cloud volume the offshore island is drawn after the volume's composite")
+	var flame := FileAccess.get_file_as_string("res://shaders/refinery_flame.gdshader")
+	_t._check(flame.contains("exp(-r * r * 3.2) - 0.0408"), "the refinery flare's halo reaches nothing at its quad's edge")
+	# The halo's value at the quad's edge, as the shader computes it: zero.
+	var edge := maxf(exp(-3.2) - 0.0408, 0.0) / 0.9592
+	_t._check(edge < 0.001, "the flare halo's edge value is %.4f" % edge)
