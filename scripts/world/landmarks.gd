@@ -157,6 +157,8 @@ static func _list() -> Array[Dictionary]:
 	# The oil refinery north of the port (Refinery): an area site like the film studio's.
 	if Refinery.enabled:
 		list.append(Refinery.entry())
+	# The decorated oil islands in the bay off Long Beach (OilIslands, OilIslandBuild).
+	list.append_array(OilIslands.entries())
 	return list
 
 
@@ -328,6 +330,8 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, plan: C
 				LandmarkDowntown.build(lm, parent, statics, detailed)
 			elif Lighthouses.is_piece(lm.id):
 				Lighthouses.build(lm, parent, statics, plan, detailed)
+			elif OilIslands.is_island(lm.id):
+				OilIslandBuild.build(lm, parent, detailed)
 
 
 # --- Hill sign ------------------------------------------------------------------------------

@@ -3266,6 +3266,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   out). Far: `RefineryFar` (one hook in `CityStreamer._build_far_landmarks()`), a far piece a block,
   hidden while a FULL chunk's `RefineryCover` is shown; LOD chunks lay ground only. `REFINERY=0` the
   A/B; probe `tools/refinery/probe.tscn`; checks `tests/refinery_checks.gd`.
+- The oil islands (2026-10-30, docs/HANDOFF.md "The oil islands"): three decorated drilling
+  islands in San Pedro Bay 600-700 m off the Long Beach sand (the FORM of the real ones; names and
+  the operator invented). A DATA TABLE (`OilIslands`, `scripts/world/oil_islands.gd`: anchors,
+  pad half extents, yaw, revetment `RINGS`, berm, wall, tower ranges, `WASHES` / `PASTELS`), every
+  detail a hash of the island (`h01()`), no rng, not seeded. Each island is a landmark
+  (`Landmarks.all()` appends `entries()`, `Landmarks.build()`'s `_:` arm calls
+  `OilIslandBuild.build()`): ONE mesh on `shaders/oil_island.gdshader` (kind + 16 x wash in
+  COLOR.a / 128, `code()`; rock as Voronoi boulders with wet / weed / foam bands, groundcover,
+  board-formed screens, pastel panels, steel, falling and still water, lamps, gelled floods after
+  dark) plus batches: palms (near and far, far shadowless), boulders and shrubs (near only), one
+  concave collision shape and boxes (near only), `lamp_light` omnis gelled like the floods
+  (desktop, near). `OIL_ISLANDS=0` is the A/B; probe `tools/oil_islands/probe.tscn`; checks
+  `tests/oil_islands_checks.gd`.
 - The reservoir (VISUAL_ROADMAP #105, 2026-10-05, docs/HANDOFF.md 9dk): the FORM of the
   reservoir behind the famous sign - a long irregular lake filling a canyon of the front range,
   held back by a 1920s concrete arch-gravity dam that faces the basin - named "Lake Shallufer" on

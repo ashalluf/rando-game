@@ -2412,6 +2412,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The beach's amenities (tests/beach_amenities_checks.gd): restrooms, the stand, gyms, showers,
 	# racks, poles and drums, pure and clear of the sunbathers; the palms and tower as before.
 	load("res://tests/beach_amenities_checks.gd").new().run(self, city)
+	# The oil islands in the bay (tests/oil_islands_checks.gd): siting, plan, codes, near and far.
+	load("res://tests/oil_islands_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

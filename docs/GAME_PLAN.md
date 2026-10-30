@@ -295,6 +295,10 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-30 The oil islands in the bay are a data table, not seeded (HANDOFF "The oil
+  islands").** Three decorated drilling islands 600-700 m off the Long Beach sand, each a landmark
+  built near and far from one builder on one shader; details are hashes of the island, so no seed
+  or rng moves anything else. Like the piers they stand where the table says on every seed.
 - **2026-10-29 Facades are worked out per pane, not per building (owner: "start looking like GTA
   6").** Glass varies pane by pane and floor by floor, blinds hang at their own heights, the glass
   mirrors a street opposite with parallax, curtain walls come in three systems (flush, deep fins,

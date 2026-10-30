@@ -17315,3 +17315,56 @@ EYE=-751.3,1.8,470.8,-58,-4 -- --spawn=-745,466,-60,-4`): `BEACH_AMENITIES=0` 5,
 **Not done / known gaps.** Nobody uses them (no one showers, works out or queues at the stand;
 BeachActivity plays only on BeachLife's own court); the rental surfboards are slabs, not shaped
 boards; the drums are static (not knockable); nothing of it has been seen on Forward+ (the Mac).
+
+## 9gc. The oil islands (2026-10-30, fleet wave 3, `wt/oil-islands`)
+
+Task: "the decorated offshore oil islands in the bay (the form of Long Beach's, original): man-made
+islands of boulders a few hundred metres across with palm trees, waterfalls, tall pastel-lit towers
+that hide the drilling rigs, sound walls, lit at night ... far versions for the horizon."
+
+- **Where**: three islands in San Pedro Bay, 600-700 m off the Long Beach sand east of the port
+  (`MacroMap.bay_z` 6300, between `port_rect.end.x` 3380 and `bay_east_x` 4700): KESTREL
+  (3720, 6905, 4 towers), HALCYON (4060, 6985, 3), CORVINA (4385, 6900, 3). The operator is the
+  oil field's invented BASIN CREST OIL CO.; every name is invented.
+- **Data** (`OilIslands`, `scripts/world/oil_islands.gd`): a table, NOT seeded (same on every
+  seed, like the piers). The pad edge is a polar superellipse (n 3.2) with a three-sine wobble
+  (`edge_local()`), offset outward along its normal by the revetment `RINGS` (crest 4.25 m, the
+  waterline at 10.5 m out, toe -3.6, apron -5.2) and inward by the berm (`BERM_OUT`..`BERM_IN`,
+  `BERM_H` 2.2 m) and the sound wall (`WALL_IN` 19 m, 8-12.5 m panels stepping in threes).
+  `towers()`, `falls_angle()` (toward the shore, -Z), `surface_at()`, `island_at()`,
+  `edge_distance()`. Every detail is `h01(island, salt, n)`, a hash: no rng anywhere, nothing
+  else in the city moves.
+- **Build** (`OilIslandBuild`, `scripts/world/oil_island_build.gd`), a landmark per island
+  (`Landmarks.all()` appends `OilIslands.entries()`; `Landmarks.build()`'s default arm calls
+  `OilIslandBuild.build(lm, parent, detailed)`; the ocean chunk holding the anchor builds it
+  detailed, CityStreamer keeps the far copy): ONE `LandmarkGeo` mesh on ONE material,
+  `shaders/oil_island.gdshader` - the revetment (Voronoi boulders in UV metres, wet darkening,
+  weed and barnacles in the tidal band, a lace of foam riding a swell at the waterline), the pad
+  (6 m slab joints, stains), the berm (ice plant with magenta and gold flowers), the sound wall
+  (panel joints, a painted band), each tower (corrugated derrick house, four board-formed white
+  screens with slanted tops, pastel fins and visors, a curved sail shell round one corner, the
+  derrick's top standing clear with girts, crown block and a pulsing red light), the well bay
+  with its rig rails, sheds, tanks, light masts, the pipe rack, and the waterfall (a two-tier
+  rock cliff, a sheet on each face, a pool, a cascade down the revetment, foam at the sea).
+  Batches: palms on the berm (near AND far, the far shadowless - the far-landmarks rule),
+  boulders (4 code-built dented icospheres, ~2,400-2,900 a revetment, near only, 320 m draw,
+  70 m shadow reach) and shrubs (near only). Near only: one concave collision shape (revetment,
+  pad, berm, cliff) plus boxes (wall panels, towers, sheds, falls), and on desktop a
+  `lamp_light` omni at each tower's foot in its gel and one at the falls.
+- **Night**: `lamp_factor` lights the floods - each screen / panel face washed from its foot in
+  one of eight gels (`WASHES`, copied in the shader and checked), fading with height, in pools 7.5 m
+  apart; the sound wall gets fewer, lower pools; lamps, masts and the aviation lights glow; the
+  falls and pools glow blue-white.
+- **Cost**: near ~6.4-7.0 k triangles of mesh plus the batches; far 3.0-3.3 k triangles, 51-60
+  palms, 7 nodes each; first near build ~1.3 s (the palm meshes being made), then 80-120 ms
+  (it is one landmark build step, like the pier's). Frame (still_shot.gd GEO, opengl3, the shore
+  camera at (3950, 5, 6300) looking south, noon): 696,802 tris / 221 draws without, 727,098 /
+  231 with (+4 %, +10 draws: three far copies); from the air at 17:30 689,616 / 217 -> 765,332 /
+  241. Gate: `SHARDS=3 tests/headless_check.sh` 2,696 checks, 0 failed, peak 2.53 GB a shard.
+  Stills on `shots/oil-islands` (README lists them).
+- **A/B**: `OIL_ISLANDS=0`. Probe: `tools/oil_islands/probe.tscn` (zones, distances, towers,
+  near / far cost, EYE lines). Checks: `tests/oil_islands_checks.gd`.
+- **Not done**: no boats tie up and there is no dock; the islands' lights are not mirrored in the
+  ocean shader (`Weather.pier_light_lines()` could take them); the ocean's surf does not break
+  on the revetment (the shader's foam lace stands in); nothing seen on Forward+ (opengl3 stills
+  only); the waterfall makes no sound.
