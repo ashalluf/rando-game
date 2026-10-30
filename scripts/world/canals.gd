@@ -1037,6 +1037,7 @@ static func _sink_volume(ch: CityChunk, part: Rect2) -> void:
 	var box := BoxShape3D.new()
 	# Out to the bank tops, so the sloped banks below the box's top are reachable too.
 	var r := part.grow(COPE_IN - BED_HALF - 1.6 - 0.1)
+	SwimWater.add_rect(ch, r, WATER_Y + ch._gy(r.get_center().x, r.get_center().y), FLOOR_Y + ch._gy(r.get_center().x, r.get_center().y), SwimWater.Kind.CANAL)
 	box.size = Vector3(r.size.x, (WATER_Y + 1.0) - WALL_BOTTOM, r.size.y)
 	cs.shape = box
 	cs.position = Vector3(r.get_center().x, (WATER_Y + 1.0 + WALL_BOTTOM) * 0.5 + ch._gy(r.get_center().x, r.get_center().y), r.get_center().y)
