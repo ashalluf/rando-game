@@ -48,6 +48,7 @@ const int K_CHROME = 19;
 const int K_ROOF = 20;
 const int K_WIRE = 21;
 const int K_PRICE = 22;
+const int K_MURAL = 23;
 
 float hash21(vec2 p) {
 	p = fract(p * vec2(123.34, 456.21));
@@ -67,6 +68,142 @@ float grid_line(float x, float p, float w) {
 	float fw = max(fwidth(x), 1e-4);
 	float d = abs(fract(x / p + 0.5) - 0.5) * p;
 	return 1.0 - smoothstep(w * 0.5 - fw, w * 0.5 + fw, d);
+}
+
+// --- The side wall's hand-painted mural (K_MURAL) -------------------------------------------------
+// LA corner stores paint their goods on the street wall: a row of panels, each a picture on a flat
+// ground inside a painted border - a soda bottle, an ice cream cone, a can, a lotto star, a
+// paleta, fruit. Drawn as signed distances in the panel's own metres (UV: metres along the wall
+// and the height), outlined in dark paint, the edges wobbled by a brush noise, then faded and
+// flaked to the stucco under it. Never words or a brand: pictures only.
+const float MURAL_Y0 = 0.62;
+const float MURAL_Y1 = 1.86;
+const float MURAL_SLOT = 1.7;
+
+float sd_box(vec2 p, vec2 b, float r) {
+	vec2 d = abs(p) - b + r;
+	return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0) - r;
+}
+
+float sd_star(vec2 p, float r, float rf) {
+	const vec2 k1 = vec2(0.809016994, -0.587785252);
+	const vec2 k2 = vec2(-k1.x, k1.y);
+	p.x = abs(p.x);
+	p -= 2.0 * max(dot(k1, p), 0.0) * k1;
+	p -= 2.0 * max(dot(k2, p), 0.0) * k2;
+	p.x = abs(p.x);
+	p.y -= r;
+	vec2 ba = rf * vec2(-k1.y, k1.x) - vec2(0.0, 1.0);
+	float h = clamp(dot(p, ba) / dot(ba, ba), 0.0, r);
+	return length(p - ba * h) * sign(p.y * ba.x - p.x * ba.y);
+}
+
+float sd_tri_down(vec2 p, float w, float h) {
+	// A cone point down: apex at (0, -h), the rim from (-w, 0) to (w, 0).
+	vec2 q = vec2(abs(p.x), p.y);
+	vec2 e = normalize(vec2(h, w));
+	float side = dot(q - vec2(w, 0.0), e);
+	return max(side, q.y);
+}
+
+// One picture: its fill colour and an outline distance; `id` picks it.
+vec4 mural_icon(vec2 p, int id, float hsh) {
+	vec3 col = vec3(0.0);
+	float d = 1e3;
+	if (id == 0) {
+		// A soda bottle, tilted a little, with its label band and cap.
+		float a = (hsh - 0.5) * 0.4;
+		p = mat2(vec2(cos(a), sin(a)), vec2(-sin(a), cos(a))) * p;
+		float body = sd_box(p - vec2(0.0, -0.12), vec2(0.14, 0.3), 0.08);
+		float neck = sd_box(p - vec2(0.0, 0.26), vec2(0.05, 0.12), 0.03);
+		d = min(body, neck);
+		col = mix(vec3(0.55, 0.12, 0.08), vec3(0.15, 0.45, 0.18), step(0.5, hsh));
+		if (abs(p.y + 0.12) < 0.08 && body < 0.0) col = vec3(0.95, 0.92, 0.85);
+		if (p.y > 0.34) col = vec3(0.85, 0.75, 0.2);
+	} else if (id == 1) {
+		// An ice cream cone, two scoops.
+		float cone = sd_tri_down(p - vec2(0.0, 0.02), 0.13, 0.42);
+		float s1 = length(p - vec2(-0.05, 0.1)) - 0.14;
+		float s2 = length(p - vec2(0.06, 0.26)) - 0.13;
+		d = min(cone, min(s1, s2));
+		col = vec3(0.82, 0.58, 0.28);
+		if (s1 < 0.0) col = vec3(0.95, 0.6, 0.7);
+		if (s2 < 0.0) col = vec3(0.98, 0.94, 0.82);
+		if (cone < 0.0 && s1 > 0.0) {
+			float hatch = abs(fract((p.x + p.y) * 14.0) - 0.5) + abs(fract((p.x - p.y) * 14.0) - 0.5);
+			col *= 0.85 + 0.15 * step(0.5, hatch);
+		}
+	} else if (id == 2) {
+		// A can, its top an ellipse.
+		float body = sd_box(p, vec2(0.15, 0.25), 0.03);
+		float top = length((p - vec2(0.0, 0.25)) * vec2(1.0, 3.2)) - 0.15;
+		d = min(body, top);
+		col = mix(vec3(0.12, 0.3, 0.62), vec3(0.85, 0.5, 0.1), step(0.5, hsh));
+		if (top < 0.0) col = vec3(0.75);
+		if (abs(p.y) < 0.05 && body < 0.0) col = vec3(0.95, 0.95, 0.9);
+	} else if (id == 3) {
+		// The lotto star, with a ring of rays.
+		d = sd_star(p, 0.3, 0.45);
+		col = vec3(0.98, 0.8, 0.15);
+		float ang = atan(p.y, p.x);
+		float ray = step(0.6, fract(ang / 6.2831853 * 16.0)) * step(0.35, length(p)) * step(length(p), 0.44);
+		if (d > 0.0 && ray > 0.5) { d = -0.001; col = vec3(0.95, 0.4, 0.1); }
+	} else if (id == 4) {
+		// A paleta on its stick, a bite out of the corner.
+		float bar = sd_box(p - vec2(0.0, 0.08), vec2(0.13, 0.26), 0.11);
+		float bite = length(p - vec2(0.14, 0.32)) - 0.07;
+		bar = max(bar, -bite);
+		float stick = sd_box(p - vec2(0.0, -0.26), vec2(0.03, 0.1), 0.02);
+		d = min(bar, stick);
+		col = stick < 0.0 && bar > 0.0 ? vec3(0.85, 0.72, 0.5) : mix(vec3(0.9, 0.35, 0.45), vec3(0.45, 0.75, 0.3), step(0.5, hsh));
+		if (bar < 0.0 && fract(p.y * 9.0 + hsh) < 0.15) col *= 1.15;
+	} else {
+		// Fruit: two oranges and a leaf.
+		float o1 = length(p - vec2(-0.1, -0.06)) - 0.17;
+		float o2 = length(p - vec2(0.13, 0.04)) - 0.15;
+		float leaf = length((p - vec2(0.18, 0.24)) * vec2(1.0, 2.2)) - 0.08;
+		d = min(min(o1, o2), leaf);
+		col = leaf < 0.0 && o2 > 0.0 ? vec3(0.2, 0.5, 0.15) : vec3(0.95, 0.52, 0.08);
+		float dimple = noise2(p * 60.0);
+		col *= 0.92 + 0.12 * dimple;
+	}
+	return vec4(col, d);
+}
+
+vec3 mural(vec2 uv, vec3 bg, out float painted) {
+	float slot = floor(uv.x / MURAL_SLOT);
+	vec2 c = vec2((slot + 0.5) * MURAL_SLOT, (MURAL_Y0 + MURAL_Y1) * 0.5);
+	vec2 p = uv - c;
+	// The ground colour picks the pictures; rounded, since an interpolated vertex colour wobbles in
+	// its last bits pixel to pixel and a hash of it would pick a new picture every column.
+	vec3 bk = floor(bg * 32.0 + 0.5);
+	float hsh = hash21(vec2(slot, bk.r * 31.0 + bk.g * 7.0 + bk.b * 3.0));
+	// The brush: every edge wobbles a few millimetres.
+	float wob = (noise2(uv * 24.0) - 0.5) * 0.012 + (noise2(uv * 5.0) - 0.5) * 0.01;
+	vec2 hb = vec2(MURAL_SLOT * 0.5 - 0.09, (MURAL_Y1 - MURAL_Y0) * 0.5);
+	float panel = sd_box(p, hb, 0.04) + wob;
+	float border = abs(panel + 0.05) - 0.025;
+	// Each panel's ground its own shade of the wall's paint.
+	vec3 ground = mix(bg, bg * vec3(1.15, 1.05, 0.9), hsh);
+	int id = (int(slot) + int(hsh * 6.0)) % 6;
+	vec4 ic = mural_icon(p / 1.3, id, fract(hsh * 7.3));
+	float fw = max(fwidth(ic.a), 1e-4);
+	float fill = 1.0 - smoothstep(-fw, fw, ic.a + wob);
+	float line = 1.0 - smoothstep(0.012 - fw, 0.012 + fw, abs(ic.a + wob));
+	vec3 col = ground;
+	// A painted shadow down and to the right of the picture.
+	vec4 sh = mural_icon((p - vec2(0.045, -0.04)) / 1.3, id, fract(hsh * 7.3));
+	col *= 1.0 - 0.25 * (1.0 - smoothstep(-fw, fw, sh.a));
+	col = mix(col, ic.rgb, fill);
+	col = mix(col, vec3(0.06, 0.05, 0.05), line);
+	float bfw = max(fwidth(border), 1e-4);
+	col = mix(col, vec3(0.08, 0.07, 0.07), 1.0 - smoothstep(-bfw, bfw, border));
+	painted = 1.0 - smoothstep(-0.004, 0.004, panel);
+	// Sun-faded toward the top, flaked off in patches to the stucco under it.
+	col = mix(col, col * 0.75 + vec3(0.2), smoothstep(MURAL_Y0, MURAL_Y1, uv.y) * 0.15);
+	float flake = step(0.8, noise2(uv * 5.0) * 0.75 + noise2(uv * 23.0) * 0.25);
+	painted *= 1.0 - flake;
+	return col;
 }
 
 void vertex() {
@@ -219,6 +356,22 @@ void fragment() {
 		float ink = step(0.12, f) * step(f, 0.4) * step(0.5, fract(uv.y * 40.0 + hs)) * fine;
 		base = mix(strip, mix(paper, vec3(0.08), ink * 0.7), mix(0.7, tag, fine));
 		rough = 0.4;
+	} else if (kind == K_MURAL) {
+		// Paint on the stucco: a sheet a few millimetres off the wall, cut away (discard) round the
+		// panels and where it has flaked, so the wall's own plaster shows there.
+		float painted = 0.0;
+		vec3 m = mural(uv, base, painted);
+		if (painted < 0.5) {
+			discard;
+		}
+		vec3 tx = cs_in(texture(plaster_tex, uv / 2.4).rgb);
+		float l = dot(tx, vec3(0.333)) / plaster_mean;
+		base = m * mix(1.0, clamp(l, 0.85, 1.12), 0.4);
+		vec2 nm = texture(plaster_nrm, uv / 2.4).rg * 2.0 - 1.0;
+		vec3 t = normalize(cross(NORMAL, vec3(0.0, 1.0, 0.0)) + vec3(1e-4, 0.0, 0.0));
+		vec3 b = cross(t, NORMAL);
+		NORMAL = normalize(NORMAL + (t * nm.x + b * nm.y) * 0.3);
+		rough = 0.72;
 	} else if (kind == K_WIRE) {
 		metal = 0.7;
 		rough = 0.4;

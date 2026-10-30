@@ -19,7 +19,7 @@ extends StaticBody3D
 ## Live thrown products (all stores together); past it the rest only drop out of sight.
 const MAX_FLYING := 28
 ## How long a thrown product lies about (s).
-const DEBRIS_LIFE := 25.0
+static var DEBRIS_LIFE: float = 600.0 if OS.get_environment("STORE_SHOOT") != "" else 25.0
 
 static var enabled: bool = OS.get_environment("STORE_MAYHEM") != "0"
 static var _flying: Array = []
@@ -140,8 +140,10 @@ func _throw(mesh: Mesh, xf: Transform3D, col: Color, custom: Color, ldir: Vector
 	body.add_child(mmi)
 	PhysicsBudget.register_debris(body, DEBRIS_LIFE)
 	var gdir := site.global_basis * ldir
-	body.linear_velocity = gdir * randf_range(3.0, 6.5) + Vector3.UP * randf_range(1.0, 3.0) \
-			+ Vector3(randf_range(-1.2, 1.2), 0.0, randf_range(-1.2, 1.2))
+	# Packs on a shelf have the shelf's back behind them: they burst out into the aisle, back the
+	# way the round came, as much as along it.
+	body.linear_velocity = -gdir * randf_range(1.5, 4.0) + Vector3.UP * randf_range(0.8, 2.6) \
+			+ Vector3(randf_range(-1.5, 1.5), 0.0, randf_range(-1.5, 1.5))
 	body.angular_velocity = Vector3(randf_range(-14.0, 14.0), randf_range(-10.0, 10.0), randf_range(-14.0, 14.0))
 	_flying.append(body)
 
@@ -154,7 +156,7 @@ func _burst(lp: Vector3, ldir: Vector3, col: Color, wet: bool) -> void:
 	p.amount = 26 if wet else 14
 	p.lifetime = 0.9 if wet else 1.4
 	p.explosiveness = 0.92
-	p.direction = ldir + Vector3.UP * 0.35
+	p.direction = -ldir + Vector3.UP * 0.35
 	p.spread = 38.0 if wet else 60.0
 	p.initial_velocity_min = 2.0 if wet else 0.8
 	p.initial_velocity_max = 5.0 if wet else 2.4

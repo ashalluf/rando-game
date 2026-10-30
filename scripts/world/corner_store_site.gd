@@ -40,6 +40,8 @@ var shot_until: int = 0
 var _glass: Array = [] # [GeometryInstance3D, traced, clear]
 var _wait: float = 0.0
 var _player: Node3D
+## STORE_SHOOT=n (stills): n rounds into the shelves once the interior is built, the stock thrown.
+var _shoot_left: int = int(OS.get_environment("STORE_SHOOT")) if OS.get_environment("STORE_SHOOT") != "" else 0
 
 
 func add_glass(mi: GeometryInstance3D, traced: Material, clear: Material) -> void:
@@ -55,6 +57,8 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if _shoot_left > 0 and interior_ready:
+		_stage_shooting()
 	_wait -= delta
 	if _wait > 0.0:
 		return
@@ -131,3 +135,35 @@ func _exit_tree() -> void:
 		if is_instance_valid(p) and not (p as Node).is_queued_for_deletion():
 			(p as Node).queue_free()
 	people.clear()
+
+
+## STORE_SHOOT's rounds: spread along the gondolas' faces, the back wall and the coolers, each
+## from the door's side, as if somebody emptied a magazine down the aisle.
+func _stage_shooting() -> void:
+	var body := get_node_or_null("Body") as CornerStoreBody
+	if body == null:
+		_shoot_left = 0
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([int(store.get("seed", 0)), "stage_shoot"])
+	var gz: Vector2 = lay.g_z
+	var half := CornerStore.GONDOLA_W * 0.5
+	var targets: Array = []
+	for gx: float in lay.gondolas:
+		for side: float in [1.0, -1.0]:
+			targets.append(Vector3(gx + side * (half - 0.05), 0.0, 0.0))
+	var off := 0
+	for i in _shoot_left:
+		var p := Vector3.ZERO
+		var t: Vector3 = targets[i % targets.size()] if not targets.is_empty() else Vector3.ZERO
+		if i % 4 == 3 or targets.is_empty():
+			# The back wall.
+			p = Vector3(rng.randf_range(float(lay.ix0) + 0.4, float(lay.ix1) - 0.4), rng.randf_range(0.6, 1.8), float(lay.iz0) + CornerStore.BACK_SHELF - 0.08)
+		else:
+			p = Vector3(t.x, rng.randf_range(0.35, float(lay.g_h) - 0.15), rng.randf_range(gz.y + 0.2, gz.x - 0.2))
+		# Into the face from the aisle beside it (the back wall from the room).
+		var into := Vector3(0, 0, -1) if i % 4 == 3 or targets.is_empty() else Vector3(-signf(t.x - float(lay.gondolas[floori(float(i % targets.size()) / 2.0)])), 0, 0)
+		var dir := global_basis * (into + Vector3(rng.randf_range(-0.3, 0.3), rng.randf_range(-0.15, 0.1), rng.randf_range(-0.3, 0.3))).normalized()
+		off += body.hit_at(to_global(p), dir, 12.0)
+	print("STORE_SHOOT %s: %d rounds, %d products off, %d thrown" % [store.get("name", ""), _shoot_left, off, CornerStoreBody._flying.size()])
+	_shoot_left = 0

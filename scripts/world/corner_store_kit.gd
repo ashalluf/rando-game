@@ -36,6 +36,12 @@ const K_CHROME := 19
 const K_ROOF := 20
 const K_WIRE := 21
 const K_PRICE := 22
+const K_MURAL := 23
+## The side wall mural's panel grounds (sRGB): one per store by hash.
+const MURAL_GROUNDS := [Color(0.42, 0.68, 0.84), Color(0.96, 0.82, 0.32), Color(0.56, 0.80, 0.66), Color(0.97, 0.64, 0.50), Color(0.92, 0.90, 0.80)]
+## The mural's band (m over the floor) and panel width: the shader's MURAL_Y0 / _Y1 / _SLOT.
+const MURAL_Y := Vector2(0.62, 1.86)
+const MURAL_SLOT := 1.7
 
 # Product parts in corner_store_goods.gdshader (the vertex alpha x 8).
 const P_BODY := 0
@@ -309,7 +315,18 @@ static func _shell(site: CornerStoreSite, body: StaticBody3D, s: Dictionary, lay
 	var words := "ICE  -  COLD DRINKS  -  LOTTO  -  SNACKS"
 	_letters(g, "kit", words, Vector3(cs * (W * 0.5 + 0.012), 2.2, -D * 0.55), Vector3(0, 0, -cs), Vector3.UP, 0.34, D * 0.8, _k(sign_face * 0.85, K_STUCCO))
 	g.box("kit", Vector3(cs * (W * 0.5 + 0.004), 2.2, -D * 0.55), Vector3(0.006, 0.56, minf(D * 0.84, (D - 1.0))), _k(Color(0.96, 0.95, 0.90), K_STUCCO))
-	# The storefront: a grille box over each opening, bars over the windows, the bulkhead's kick.
+	# A hand-painted mural of the goods under the words: panels of pictures (no words, no brands),
+	# a sheet a few millimetres off the wall that the shader cuts round the panels and the flakes.
+	var n_panels := floori((D - 0.6) / MURAL_SLOT)
+	if n_panels >= 2:
+		var u0 := (D - float(n_panels) * MURAL_SLOT) * 0.5
+		var u1 := u0 + float(n_panels) * MURAL_SLOT
+		var mx := cs * (W * 0.5 + 0.006)
+		var ground: Color = MURAL_GROUNDS[absi(hash([int(s.seed), "mural"])) % MURAL_GROUNDS.size()]
+		var span := u1 - u0
+		g.quad("kit", Vector3(mx, MURAL_Y.x, -u0), Vector3(mx, MURAL_Y.y, -u0), Vector3(mx, MURAL_Y.y, -u1), Vector3(mx, MURAL_Y.x, -u1), Vector3(cs, 0, 0),
+				Vector2(0.0, MURAL_Y.x), Vector2(0.0, MURAL_Y.y), Vector2(span, MURAL_Y.y), Vector2(span, MURAL_Y.x), _k(ground, K_MURAL))
+		# The storefront: a grille box over each opening, bars over the windows, the bulkhead's kick.
 	for o: Array in openings:
 		var u0: float = o[0]
 		var u1: float = o[1]
@@ -923,10 +940,10 @@ static func goods_mesh(kind: int) -> ArrayMesh:
 							var e: Array = q[k]
 							add.call(e[0], e[1], e[2], P_BODY if side > 0.0 else P_SIDE)
 		Goods.CAN:
-			_lathe(add, [[0.0, 0.0], [0.5, 0.04], [0.5, 0.92], [0.43, 1.0], [0.0, 1.0]], [P_CAP, P_LABEL, P_CAP, P_CAP], 8)
+			_lathe(add, [[0.0, 0.0], [0.5, 0.04], [0.5, 0.92], [0.43, 1.0], [0.0, 1.0]], [P_CAP, P_LABEL, P_CAP, P_CAP], 12)
 		Goods.BOTTLE:
 			_lathe(add, [[0.0, 0.0], [0.5, 0.05], [0.5, 0.25], [0.5, 0.6], [0.46, 0.7], [0.17, 0.88], [0.17, 1.0], [0.0, 1.0]],
-					[P_CLEAR, P_CLEAR, P_LABEL, P_CLEAR, P_CLEAR, P_CAP, P_CAP], 8)
+					[P_CLEAR, P_CLEAR, P_LABEL, P_CLEAR, P_CLEAR, P_CAP, P_CAP], 12)
 	st.index()
 	var m := st.commit()
 	m.surface_set_material(0, goods_material())

@@ -14202,100 +14202,6 @@ is beside a utility pole (StreetDetail's), which the old thin post hid better. N
 shaped like the cobra's cut-off (still an omni). Shot lamps break as before (debris box), no
 falling pole.
 
-## 9d?. The corner store: a building you walk into, 2026-10-05 (agent branch `wt/walk-in-store`; VISUAL_ROADMAP "?")
-
-**What.** One kind of building the player can walk into: a one-storey stucco corner convenience
-store (invented names: EL SOLECITO MARKET, LUCKY STAR MINI MART, MOONLITE MARKET, ... `CornerStore.NAMES`)
-on a corner lot in MIDTOWN and the SUBURBS, built to the back of the pavement on both streets.
-Outside: the sign band across the front and down the corner side with the name in lit letters,
-painted words down the side street wall, a steel grille box and bars over the windows, a tiled
-bulkhead, posters and a neon OPEN in the window, an ice chest by the door, a ramp where the floor
-stands over a sloping pavement, a rooftop unit. Inside, real geometry: vinyl tile floor, painted
-walls, a drop ceiling with light panels, wall shelving across the back, gondolas running back from
-the window, a bank of glass-door coolers down the far wall (lit backs, LED mullions, wire shelves,
-handles), the counter (till with its screen, card reader, lotto terminal, a glass scratch-ticket
-case, an impulse rack of candy), the cigarette rack on the wall behind the cashier with its lit
-header, a cashier's stool, a convex security mirror, a lit LOTTO sign; ~2,700-3,100 products
-(boxes, cans, bottles, chip bags, packs, candy) as one MultiMesh per kind; two interior lights;
-a cashier (and two times in three a customer) as StreetVendors (kinematic, they duck at gunfire).
-The door swings in when the player walks up.
-
-**Files.** `scripts/world/corner_store.gd` (CornerStore: where, the layout, LOD/far, the
-`_build_lot` hook), `scripts/world/corner_store_kit.gd` (CornerStoreKit: all geometry, goods,
-people), `scripts/world/corner_store_site.gd` (CornerStoreSite: the runtime node), shaders
-`corner_store.gdshader` (every opaque surface; kind in COLOR.a / 32), `corner_store_goods.gdshader`
-(products: part in the vertex alpha, colour from the instance), `corner_store_glass.gdshader`
-(the traced room), `corner_store_clear.gdshader` (clear glass), probe
-`tools/walk_in_store/probe.tscn`, checks `tests/walk_in_store_checks.gd` (one line in smoke_test).
-One hook line in `CityChunk._build_lot()`, after CivicBuildings' claim.
-
-**Where.** A hash of seed + block decides whether a MIDTOWN (20 %) or SUBURBS (13 %) block of plain
-buildings has a store and which corner it tries first; the corner lot must be a lot of the grid
-(not a courtyard), 9 x 8.5 m or more, the footprint (a hashed 10.5-14.5 x 10-13 m) within 0.8 m of
-relief, off the freeways, both streets open, and no other claim's (fire / police station, worship,
-Broadway, Chinatown, car dealers, an oil well, civic buildings - all asked first). The front is the
-wider street. `_build_lot` asks after every roll and claim, so no other lot's roll moves (checked:
-the block's far boxes are identical with the store on and off). Default seed: 119 stores within
-4.2 km of (600, 0), 94 / 27 midtown / suburbs within 4.5 km of the origin; the refusals are mostly
-relief and park/plaza blocks (the probe prints them).
-
-**The interior is culled when you are outside it.** CornerStoreSite keeps the Interior node hidden
-and the glass on `corner_store_glass.gdshader`, which TRACES the room per pixel from the very
-numbers the geometry is built from (`CornerStore.layout()`: back shelving, gondolas, coolers,
-counter, cigarette rack, light panels on the same 2.4 m grid, the same tile floor), so the facade
-draws the store's own room and nothing jumps at the switch. When the camera or the player comes
-within `reach` (5 m) of the storefront (or is inside), the Interior shows and every pane swaps to
-`corner_store_clear.gdshader`; past `reach + hysteresis` it hides again. The door's leaf is traced
-in the store's frame through a `to_store` matrix (its hinge). Checked by moving probe points:
-across the street -> traced, at the window -> shown, at the door -> it swings 96 degrees in, inside
--> shown and the door shut, away -> hidden.
-
-**Build cost** (headless, this box): the lot step 0.4 ms, then deferred steps shell 12 ms (the
-first store pays the lettering), glass and door 2.4, interior 8.7, goods 7.3, people and lights
-6.7 ms. Meshes are committed unindexed and without tangents (LandmarkGeo.commit()'s passes were
-most of each step); the plaster's relief is a slope off the face in the shader instead.
-
-**LOD / far.** A `lod_box` in the stucco (plain, extends under the floor by the relief) plus the
-front and side sign bands as lit PANEL plant boxes; the far city captures exactly these.
-
-**A/B.** `WALK_IN_STORE=0` in the environment (the lot keeps its old building); `STORE_SHOW=1`
-forces every interior on (stills).
-
-**Frame cost** (still_shot.gd's GEO, opengl3 + Xvfb 1280x720, the EL SOLECITO MARKET corner,
-midtown block (2,-1), `--spawn=281,-8,0,0`, `WALK_IN_STORE=0` against on; live traffic and people
-differ run to run): across the corner at noon (`EYE=294.5,2.9,-4,40,-2`) 4.60 M -> 4.88 M
-triangles, 2,923 -> 3,151 draws; at 21:30 5.29 M -> 5.43 M, 3,622 -> 3,775. Most of the
-difference is the city behind: the lot's old building was six storeys, the store is one, so more
-of the blocks behind it are in view. The store itself is ~6 draws from outside (shell, glass,
-frames, door) and its interior none while hidden. Standing inside at noon the frame is 5.43 M /
-3,206 draws (the interior ~0.17 M of it, the rest the street through the glass and door).
-
-**Stills** (shots/walk-in-store; opengl3, NOT the Mac's Forward+): the corner before / after at
-noon and 21:30, inside by the door (coolers, gondolas), the counter with the cigarette rack and
-the cashier, inside at night.
-
-**Not done / not verified.** Forward+ not seen (the coolers' glow, the sign and the troffers
-under AgX; SSR on the floor). Pedestrians never walk in (the customer is placed); the doors are
-the player's alone. The goods are not breakable (rounds hit the shelving's collision). No ATM or
-coffee machine. The far city shows the store as a plain box (old path, not FarBuilding's code).
-Suburb stores are fewer than midtown ones (27 against 94 within 4.5 km of the origin): suburb
-corners fail on relief and park blocks more often.
-
-**Second pass after the lead's review.** Packaging: every product wears a cell of
-`assets/textures/corner_store/goods_labels.jpg` (8 x 8 invented packs from
-`tools/walk_in_store/make_goods_atlas.py`: muted real-world grounds - white, black, red, brown,
-kraft, navy -, print bands, abstract marks, fake lettering, barcodes, nutrition panels), picked by
-INSTANCE_CUSTOM.r; more shapes (cereal boxes, detergent jugs, tubs), crinkled chip bags, facings
-pulled forward unevenly and turned a little, sold-out gaps, price strips (`K_PRICE`) on every
-shelf lip. Room: wear paths, heel scuffs and dirty grout on the floor; light panels of different
-ages with now and then a tired tube; three omnis of different strength plus a cold glow off the
-coolers; aisle signs hung from the ceiling and a lit GROCERY header; the counter cluttered
-(energy shots, lighters, a tip jar, the receipt printer, flyers). Night: the sign face is lit
-bright, red held off AgX's salmon by a green share (it reads red-orange, as a real lightbox
-does); the traced room glows brighter through the glass (`energy_night` 1.7); each window throws
-a pool on the pavement (`cstore_spill`, its own batch: the city's spill check counts the
-buildings' pools). Gate after it: 2,393 passed, 0 failed (3 shards, peak 2.46 GB). Stills 13-18
-on shots/walk-in-store.
 ## 9eu. Apartment buildings: walk-ups, bungalow courts, Spanish courts and podium blocks, 2026-10-05 (agent branch `wt/apartments`; VISUAL_ROADMAP #140)
 
 G2's first per-style kit: Los Angeles stucco apartments in MIDTOWN and the inner SUBURBS. Before,
@@ -14472,3 +14378,119 @@ crew's hands are IK onto the rail and the squeegee with the idle frozen near its
 dedicated wiping clip, no head turn. No sound of the hoists. The LOD ring shows Rooftops' static
 cradle box at its old depth on infill towers. Workers cannot be knocked off (on purpose); shooting
 one only swings the cradle, with no blood.
+
+## 9d?. The corner store: a building you walk into, 2026-10-05 (agent branch `wt/walk-in-store`; VISUAL_ROADMAP "?")
+
+**What.** One kind of building the player can walk into: a one-storey stucco corner convenience
+store (invented names: EL SOLECITO MARKET, LUCKY STAR MINI MART, MOONLITE MARKET, ... `CornerStore.NAMES`)
+on a corner lot in MIDTOWN and the SUBURBS, built to the back of the pavement on both streets.
+Outside: the sign band across the front and down the corner side with the name in lit letters,
+painted words down the side street wall, a steel grille box and bars over the windows, a tiled
+bulkhead, posters and a neon OPEN in the window, an ice chest by the door, a ramp where the floor
+stands over a sloping pavement, a rooftop unit. Inside, real geometry: vinyl tile floor, painted
+walls, a drop ceiling with light panels, wall shelving across the back, gondolas running back from
+the window, a bank of glass-door coolers down the far wall (lit backs, LED mullions, wire shelves,
+handles), the counter (till with its screen, card reader, lotto terminal, a glass scratch-ticket
+case, an impulse rack of candy), the cigarette rack on the wall behind the cashier with its lit
+header, a cashier's stool, a convex security mirror, a lit LOTTO sign; ~2,700-3,100 products
+(boxes, cans, bottles, chip bags, packs, candy) as one MultiMesh per kind; two interior lights;
+a cashier (and two times in three a customer) as StreetVendors (kinematic, they duck at gunfire).
+The door swings in when the player walks up.
+
+**Files.** `scripts/world/corner_store.gd` (CornerStore: where, the layout, LOD/far, the
+`_build_lot` hook), `scripts/world/corner_store_kit.gd` (CornerStoreKit: all geometry, goods,
+people), `scripts/world/corner_store_site.gd` (CornerStoreSite: the runtime node), shaders
+`corner_store.gdshader` (every opaque surface; kind in COLOR.a / 32), `corner_store_goods.gdshader`
+(products: part in the vertex alpha, colour from the instance), `corner_store_glass.gdshader`
+(the traced room), `corner_store_clear.gdshader` (clear glass), probe
+`tools/walk_in_store/probe.tscn`, checks `tests/walk_in_store_checks.gd` (one line in smoke_test).
+One hook line in `CityChunk._build_lot()`, after CivicBuildings' claim.
+
+**Where.** A hash of seed + block decides whether a MIDTOWN (20 %) or SUBURBS (13 %) block of plain
+buildings has a store and which corner it tries first; the corner lot must be a lot of the grid
+(not a courtyard), 9 x 8.5 m or more, the footprint (a hashed 10.5-14.5 x 10-13 m) within 0.8 m of
+relief, off the freeways, both streets open, and no other claim's (fire / police station, worship,
+Broadway, Chinatown, car dealers, an oil well, civic buildings - all asked first). The front is the
+wider street. `_build_lot` asks after every roll and claim, so no other lot's roll moves (checked:
+the block's far boxes are identical with the store on and off). Default seed: 119 stores within
+4.2 km of (600, 0), 94 / 27 midtown / suburbs within 4.5 km of the origin; the refusals are mostly
+relief and park/plaza blocks (the probe prints them).
+
+**The interior is culled when you are outside it.** CornerStoreSite keeps the Interior node hidden
+and the glass on `corner_store_glass.gdshader`, which TRACES the room per pixel from the very
+numbers the geometry is built from (`CornerStore.layout()`: back shelving, gondolas, coolers,
+counter, cigarette rack, light panels on the same 2.4 m grid, the same tile floor), so the facade
+draws the store's own room and nothing jumps at the switch. When the camera or the player comes
+within `reach` (5 m) of the storefront (or is inside), the Interior shows and every pane swaps to
+`corner_store_clear.gdshader`; past `reach + hysteresis` it hides again. The door's leaf is traced
+in the store's frame through a `to_store` matrix (its hinge). Checked by moving probe points:
+across the street -> traced, at the window -> shown, at the door -> it swings 96 degrees in, inside
+-> shown and the door shut, away -> hidden.
+
+**Build cost** (headless, this box): the lot step 0.4 ms, then deferred steps shell 12 ms (the
+first store pays the lettering), glass and door 2.4, interior 8.7, goods 7.3, people and lights
+6.7 ms. Meshes are committed unindexed and without tangents (LandmarkGeo.commit()'s passes were
+most of each step); the plaster's relief is a slope off the face in the shader instead.
+
+**LOD / far.** A `lod_box` in the stucco (plain, extends under the floor by the relief) plus the
+front and side sign bands as lit PANEL plant boxes; the far city captures exactly these.
+
+**A/B.** `WALK_IN_STORE=0` in the environment (the lot keeps its old building); `STORE_SHOW=1`
+forces every interior on (stills).
+
+**Frame cost** (still_shot.gd's GEO, opengl3 + Xvfb 1280x720, the EL SOLECITO MARKET corner,
+midtown block (2,-1), `--spawn=281,-8,0,0`, `WALK_IN_STORE=0` against on; live traffic and people
+differ run to run): across the corner at noon (`EYE=294.5,2.9,-4,40,-2`) 4.60 M -> 4.88 M
+triangles, 2,923 -> 3,151 draws; at 21:30 5.29 M -> 5.43 M, 3,622 -> 3,775. Most of the
+difference is the city behind: the lot's old building was six storeys, the store is one, so more
+of the blocks behind it are in view. The store itself is ~6 draws from outside (shell, glass,
+frames, door) and its interior none while hidden. Standing inside at noon the frame is 5.43 M /
+3,206 draws (the interior ~0.17 M of it, the rest the street through the glass and door).
+
+**Stills** (shots/walk-in-store; opengl3, NOT the Mac's Forward+): the corner before / after at
+noon and 21:30, inside by the door (coolers, gondolas), the counter with the cigarette rack and
+the cashier, inside at night.
+
+**Not done / not verified.** Forward+ not seen (the coolers' glow, the sign and the troffers
+under AgX; SSR on the floor). Pedestrians never walk in (the customer is placed); the doors are
+the player's alone. The goods were not breakable at first (rounds hit the shelving's collision; the third pass knocks them off). No ATM or
+coffee machine. The far city shows the store as a plain box (old path, not FarBuilding's code).
+Suburb stores are fewer than midtown ones (27 against 94 within 4.5 km of the origin): suburb
+corners fail on relief and park blocks more often.
+
+**Second pass after the lead's review.** Packaging: every product wears a cell of
+`assets/textures/corner_store/goods_labels.jpg` (8 x 8 invented packs from
+`tools/walk_in_store/make_goods_atlas.py`: muted real-world grounds - white, black, red, brown,
+kraft, navy -, print bands, abstract marks, fake lettering, barcodes, nutrition panels), picked by
+INSTANCE_CUSTOM.r; more shapes (cereal boxes, detergent jugs, tubs), crinkled chip bags, facings
+pulled forward unevenly and turned a little, sold-out gaps, price strips (`K_PRICE`) on every
+shelf lip. Room: wear paths, heel scuffs and dirty grout on the floor; light panels of different
+ages with now and then a tired tube; three omnis of different strength plus a cold glow off the
+coolers; aisle signs hung from the ceiling and a lit GROCERY header; the counter cluttered
+(energy shots, lighters, a tip jar, the receipt printer, flyers). Night: the sign face is lit
+bright, red held off AgX's salmon by a green share (it reads red-orange, as a real lightbox
+does); the traced room glows brighter through the glass (`energy_night` 1.7); each window throws
+a pool on the pavement (`cstore_spill`, its own batch: the city's spill check counts the
+buildings' pools). Gate after it: 2,393 passed, 0 failed (3 shards, peak 2.46 GB). Stills 13-18
+on shots/walk-in-store.
+
+**Third pass (wave 3, after merging main at 95bd13f).** Shooting the store up: the store's
+collision is `CornerStoreBody` (`scripts/world/corner_store_body.gd`), and a round that lands on
+the fittings knocks the products within ~0.27 m of the aim point off the shelf (`per_hit` 5): their
+MultiMesh instances are scaled to nothing (the site keeps a record per goods MultiMesh, `goods`,
+with an `alive` mask), the nearest two are thrown out into the aisle as `PhysicsProp` debris wearing
+the pack's own one-instance MultiMesh (`MAX_FLYING` 28 for all stores, `DEBRIS_LIFE` 25 s), and a
+can or a bottle bursts in a spray of its drink, a box or bag in a puff of paper (one-shot
+CPUParticles3D). `take_hit()` is not given the round's point, so it is `Player.get_aim()` when the
+aim's collider is the store (the shooter it nearly always is); police rounds only chip it. While
+it is being shot up (`shot_until`, 30 s) the store shows its real interior from `shot_reach` 70 m,
+so the stock flying is seen through the glass from across the street. `STORE_MAYHEM=0` is the A/B;
+`STORE_SHOOT=n` stages n rounds into the shelves for stills. Checked: a round into the back shelf
+knocks products off and shows the interior from 40 m; a round outside the room does nothing.
+The side street wall carries a hand-painted mural under the painted words (`K_MURAL`, a sheet 6 mm
+off the wall that the shader cuts round the panels and the flaked paint): a row of 1.7 m panels on
+a ground picked per store (`MURAL_GROUNDS`), each a picture - soda bottle, ice cream cone, can,
+lotto star, paleta, oranges - as signed distances outlined in dark paint, brush-wobbled, sun-faded,
+with a painted drop shadow; no words, no brands. Bottles and cans are lathed at 12 sides (8 read
+faceted up close). Stills 19-23 on shots/walk-in-store.
+

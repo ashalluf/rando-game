@@ -301,6 +301,9 @@ already mapped so milestone 2 is script-only.
   rack, ~3k code-built products, a cashier). The interior is only drawn while the camera or the
   player is within 5 m of the storefront; otherwise the glass traces the same room from the same
   layout numbers, so the facade matches the inside. `WALK_IN_STORE=0` turns it off.
+  Wave 3: shooting the shelves knocks the stock off (thrown packs, drink spray; the interior shows
+  from 70 m while it is shot up; `STORE_MAYHEM=0`), and the side wall carries a painted mural of
+  the goods (pictures only).
 - **2026-10-05 Apartments: the first per-style kit (G2; HANDOFF "Apartment buildings").** Midtown's
   low-rise lots and the inner suburbs get LA stucco apartments - walk-ups with galleries and open
   stairs, bungalow courts, Spanish courts, podium blocks - instead of storefront boxes and single
