@@ -2626,6 +2626,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The second perf audit (tests/perf_audit_2_checks.gd): the cached road closures and site
 	# bounds answer as before, road_lift() per body type, no orphan freeway bodies from a capture.
 	load("res://tests/perf_audit_2_checks.gd").new().run(self, city)
+	# The beach at golden hour (tests/beach_golden_checks.gd): the sand's postcard pass behind its
+	# switch, the sky mirror's colour space, the weathered tower's codes, the same tower geometry.
+	load("res://tests/beach_golden_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
