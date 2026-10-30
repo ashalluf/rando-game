@@ -1302,6 +1302,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `restore()`, `LandmarkDowntown.build()` `restore_tower()`. Sanctuaries take none; curtain walls
   get no hole. `BUILDING_DAMAGE=0` is the A/B; stills `tools/glshot/damage_shot.gd`; checks
   `tests/building_damage_checks.gd`.
+- Car cabins (2026-10-30, docs/HANDOFF.md "Car cabins"): the car the player drives, empty parked
+  cars within `CarInteriors.near_range` (7.5 m) of him and a car that lost a door get real
+  geometry (`CarInteriors`, one node under the root; `CarInterior` on the car's near body mesh):
+  `CarDoorSplit` cuts the front doors out of the body mesh by the shut-line table `DOORS` (the
+  specs' grooves in (along, height), mesh z = -along), on a worker thread, cached per body type;
+  `CarInteriorKit` builds the cabin in code from CarCabin's measurement (`car_interior.gdshader`,
+  role in COLOR.r); the glass is `car_glass_open.gdshader` through `Vehicle.cabin_glass_override`.
+  Doors swing on get in / out (driver setter hook), tear off past `detach_crash` (take_hit hook).
+  Headless has no mesh data: stand-in doors. `CAR_CABINS=0` the A/B; stills `CABIN=1 DOOR=` on
+  car_shot.gd, `CABIN_STAGE=` on still_shot.gd; probe `tools/car_cabins/split_probe.tscn`; checks
+  `tests/car_cabins_checks.gd`.
 - Car glass and drivers (2026-09-28: "every car on the street reads as a sealed toy, and traffic
   drives itself"): `CarCabin` (`scripts/vehicles/car_cabin.gd`). Every body with a glass slot
   (the road_* bodies, the exotics; the Meshy sports car has its glass in the paint and stays

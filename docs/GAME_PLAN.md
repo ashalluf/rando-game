@@ -302,6 +302,17 @@ already mapped so milestone 2 is script-only.
   its hazards (TrafficManager's own `dp_at`). A Broadway palace has a premiere on some nights (red
   carpet, fans behind barriers, four searchlights sweeping the sky), a club its opening (two). All
   hashes after every existing roll; nothing takes the kerb or a prop id. NIGHTLIFE=0 the A/B.
+- **2026-10-30 The player's car has a real cabin and doors that swing (HANDOFF "Car cabins").**
+  The traced cabin stays for the city's ~300 cars; the car the player drives, the empty parked
+  cars he stands by (the nearest one, within 7.5 m) and any car that has lost a door get geometry:
+  the front doors are cut out of the body model along the shut lines the Blender run grooved
+  (a table of those lines per body, no Blender re-run, no new asset), a code-built cabin (dash,
+  cluster, screen, wheel, seats, console, carpet, headliner, door cards, jambs) laid out by the
+  numbers CarCabin already measures, see-through glass with the people still traced on it. Doors
+  swing when he gets in or out on the side he is on and come off in a hard crash or blast. Only
+  the front doors; only the everyday bodies (sedan, taxi, crossover, pickup, van, hatchback, SUV,
+  minivan, beater); the exotics, police and big vehicles keep the traced cabin.
+
 - **2026-10-30 The oil islands in the bay are a data table, not seeded (HANDOFF "The oil
   islands").** Three decorated drilling islands 600-700 m off the Long Beach sand, each a landmark
   built near and far from one builder on one shader; details are hashes of the island, so no seed
