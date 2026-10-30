@@ -153,7 +153,41 @@ func _process(delta: float) -> void:
 		# In the chase camera the nitro's own (smaller) widening is in fov_add.
 		target_fov += boost_fov_boost * (1.0 - cw)
 	target_fov += float(chase.get("fov_add", 0.0)) * cw
+	if cw > 0.0:
+		_clamp_to_walls()
 	camera.fov = lerpf(camera.fov, target_fov, 1.0 - exp(-fov_lerp_speed * delta))
+
+
+## The spring arm resolves its length in the physics tick, but the chase camera moves the pivot
+## every frame: sweep the arm's sphere again from where the pivot is now, so for no frame does the
+## camera stand in a wall or past it.
+func _clamp_to_walls() -> void:
+	var space := get_world_3d().direct_space_state if is_inside_tree() else null
+	if space == null:
+		return
+	var from := spring_arm.global_position
+	var dir := spring_arm.global_basis.z
+	var length := spring_arm.spring_length
+	var r := maxf(drive.arm_radius if drive else 0.25, 0.05)
+	var q := PhysicsShapeQueryParameters3D.new()
+	var sphere := SphereShape3D.new()
+	sphere.radius = r
+	q.shape = sphere
+	q.transform = Transform3D(Basis(), from)
+	q.motion = dir * length
+	q.collision_mask = spring_arm.collision_mask
+	var ex: Array[RID] = []
+	var body := get_parent() as CollisionObject3D
+	if body:
+		ex.append(body.get_rid())
+	if drive and drive.car and is_instance_valid(drive.car):
+		ex.append(drive.car.get_rid())
+	q.exclude = ex
+	var frac := space.cast_motion(q)
+	var safe := length * frac[0] if frac.size() > 0 else length
+	safe = maxf(safe - spring_arm.margin * 0.5, 0.0)
+	if safe < camera.position.z:
+		camera.position.z = safe
 
 
 ## The aiming view: pulled in to `distance`, over the shoulder, `fov_drop` degrees narrower.

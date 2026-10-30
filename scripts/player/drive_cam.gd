@@ -96,6 +96,9 @@ extends Node
 @export var free_look_hold: float = 1.3
 ## Seconds the ease back takes.
 @export var recenter_seconds: float = 0.9
+## Seconds the view stays the player's after the car touches down from a flight (in the air it
+## is always the player's: the car flies where the camera looks).
+@export var air_hold: float = 0.5
 ## Seconds to swing round to look behind and back.
 @export var look_behind_seconds: float = 0.16
 ## Seconds to blend into the chase camera on getting in, and out of it on getting out.
@@ -160,6 +163,7 @@ var _k := Vector3.ZERO
 var _kv := Vector3.ZERO
 var _look_noted: bool = false
 var _was_on: bool = false
+var _was_air: bool = false
 
 
 func setup(rig: Node3D, arm: SpringArm3D) -> void:
@@ -393,15 +397,21 @@ func apply(rig_yaw: float, rig_pitch: float, player: Node, delta: float, look_be
 	_chase_pitch = lerpf(_chase_pitch, want_pitch, 1.0 - exp(-3.0 * delta))
 
 	# Free look: the player's input takes the view; after a hold it eases back.
-	var boost_fly := airborne and Input.is_action_pressed("boost")
+	# In the air the car flies where the CAMERA looks (Vehicle._fly(): boost thrusts along it), so
+	# leaving the ground hands the view to the player as it stands, and it is never taken back
+	# while the car is airborne; the chase eases back in after touch-down.
+	if airborne and not _was_air:
+		_free_yaw = rig_yaw
+		_free_pitch = rig_pitch
+		_auto = 0.0
+	_was_air = airborne
 	if _look_noted:
 		_free_yaw = rig_yaw
 		_free_pitch = rig_pitch
 		_auto = 0.0
 		_hold = free_look_hold
-	elif boost_fly:
-		# Boost-flying steers by the camera: leave it where the player put it.
-		_hold = maxf(_hold, 0.2)
+	elif airborne:
+		_hold = maxf(_hold, air_hold)
 	else:
 		_hold -= delta
 		if _hold <= 0.0:

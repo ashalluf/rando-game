@@ -20809,7 +20809,10 @@ camera). `DRIVE_CAM=0` in the environment is the A/B.
 - **Free look / look behind.** Mouse or stick input (`CameraRig` calls `note_look()`) hands the
   view to the player; `free_look_hold` 1.3 s after the last input it eases back behind the car over
   `recenter_seconds`. While boost-flying (airborne, boost held: the car flies where you look) it
-  never takes the view back. `look_behind` (new action: C / pad X) swings round in
+  never takes the view back. **In the air the view is always the player's** (the car flies where
+  the camera looks, Vehicle._fly()): leaving the ground hands it over as it stands, nothing
+  recentres until `air_hold` after touch-down; `set_look()` / `look_at_point()` count as the
+  player's look. `look_behind` (new action: C / pad X) swings round in
   `look_behind_seconds` and back on release. Getting in blends from the view you had
   (`blend_seconds`); getting out hands it back.
 - **Motion blur.** CameraPost multiplies its strength by `DriveCam.blur_terms()` (1 +
@@ -20818,7 +20821,9 @@ camera). `DRIVE_CAM=0` in the environment is the A/B.
   stays sharp while the road and the roadside streak. Forward+ only, like the blur itself: NOT
   SEEN (the city does not fit lavapipe) - judge it on the Mac.
 - **Walls.** The spring arm sweeps a `arm_radius` 0.25 m sphere while driving (the ray alone can
-  slip past a corner and leave the near plane in a wall). The checks spin the view round a car
+  slip past a corner and leave the near plane in a wall), and because the arm resolves its length
+  in the physics tick while the chase moves the pivot every frame, the rig sweeps the sphere again
+  from the pivot where it is now (`_clamp_to_walls()`). The checks spin the view round a car
   backed up to a wall, a pillar and a low lid: the camera was never inside one or on the far side.
 
 Hooks: `camera_rig.gd` (the DriveCam, `note_look()` on input, the chase result applied before
