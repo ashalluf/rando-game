@@ -41,6 +41,9 @@ void vertex() {
 		float px = 2.0 * dist / (abs(PROJECTION_MATRIX[1][1]) * max(viewport_px.y, 1.0));
 		float s = max(size, px * min_px) * (0.85 + 0.15 * v_flick);
 		vp.xy += VERTEX.xy * s;
+		// Pulled toward the camera by its own size, so the deck it lies on never cuts the glow
+		// along a straight line.
+		vp.z += min(s * 1.2, dist * 0.5);
 		POSITION = PROJECTION_MATRIX * vp;
 	}
 }
