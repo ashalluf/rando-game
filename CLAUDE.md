@@ -1276,6 +1276,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   staggered by distance, `max_alarms` 7. A/B: `TREE_FIRE=0`, `BLAST_AFTERMATH=0`,
   `CAR_ALARMS=0` in the environment. Stills: `AFTERMATH=palms|burning|charred|column|crater` on
   `still_shot.gd` (`tools/glshot/aftermath_stage.gd`). Checks: `tests/explosion_aftermath_checks.gd`.
+- The blast, second pass (2026-10-30, fleet wave 3 "explosions-2", docs/HANDOFF.md "The blast,
+  frame by frame"): `BlastFX` (`scripts/weapons/blast_fx.gd`, ONE call at the end of
+  `WeaponFX.explosion()`) adds a 60-energy flash light reaching `flash_reach` radii (the facades)
+  then a flickering fire glow, a white-hot flare billboard, a screen flash (layer -1 ColorRect,
+  add), the pressure wave (`shaders/blast_wave.gdshader`, screen-reading, render_priority MIN, not
+  web) and a fast ground kick, fire puffs rolling UP (fire_puff.gdshader's `relief`: billows lit
+  from the core, 0 = the old flat puff), a cap and column of LIT smoke for 10-20 s
+  (`shaders/blast_smoke.gdshader`, sun + sky + the fire under young puffs, linear on both; local
+  coords so a re-centre carries it), burning debris (`BlastDebris`: ballistic points with one ray a
+  tick feeding two emitters through `emission_points`) and windows facing it across the street
+  (BuildingDamage SHATTER records + shards, delayed by the wave). Car blasts set `fuel_next` (bigger
+  fireball) and toss `car_lift_gain` higher. Caps: `max_heavy` in `heavy_window`, `max_columns`,
+  `max_debris`, `max_glass_panes`. `EXPLOSIONS_2=0` is the A/B; strips `FX_TIMES=` / `FX_CAR=1`
+  on `tools/glshot/fx_shot.gd`; checks `tests/explosions_2_checks.gd`.
 - Street props break by KIND (2026-10-06, docs/HANDOFF.md "Street props that break like GTA"):
   `PropBreak` (`scripts/world/prop_break.gd`) takes `damage_prop()` / `break_prop()`: a hydrant
   leaves a `HydrantGeyser` (13 m column, wet patch, lifts the player) and a flange; a shelter loses

@@ -2475,6 +2475,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/arroyos_checks.gd").new().run(self, city)
 	# The third wave of everyday bodies (tests/cars_3_checks.gd, Cars3): rolls, the switch, builds, traffic.
 	await load("res://tests/cars_3_checks.gd").new().run(self, city)
+	# The explosion's second pass (tests/explosions_2_checks.gd, BlastFX): flash, wave, rolling fire,
+	# the lit column, burning debris, windows blown out across the street, the caps, the car's fuel blast.
+	await load("res://tests/explosions_2_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
