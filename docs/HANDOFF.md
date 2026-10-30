@@ -18450,7 +18450,10 @@ as parts of their own, so a shard could believe it owned work that ran in anothe
 |---|---|---|---|
 | main a3db077f (before) | 2,583 s | 2,985 | 3 (photo mode restore; the ambulance's stretcher pair) |
 | this branch, before main's last merge | 2,500 s | 2,994 | 2 (photo mode, after city_crowd; the ferry's speed) |
-(See the results table below for the final runs.) Where the time goes did not change since 9du:
+| this branch + main (42 more files), one process | 2,505 s | 3,464 | 1 (sea life's purity check, fixed) |
+| the same, SMOKE_SHUFFLE=7, beside the one above | 2,486 s | 3,464 | 4 (see below) |
+| SHARDS=3, the same code | 1,151 s (3 x ~1,070) | 3,496 | 5 (load flakes, see below) |
+Peak memory one process 3.8 GB, a shard 2.7-3.1 GB. Where the time goes did not change since 9du:
 the frames are compute bound (the whole city simulates every tick, ~0.1-0.2 s a frame here), and
 the waits are already condition polls. Cut: the pending-seed check built a whole second city
 (56 s) to test that `_ready()` takes the seed - it now streams one block and no far city
@@ -18465,6 +18468,16 @@ so the shards were lopsided: refreshed from this run with `tools/gate/part_costs
 repo's 2-core runner that is 1 or 2 depending on the memory GitHub gives it - NOT measured: no
 runner was available from here. If CI runs out of memory with 2, set `SHARD_MB` higher in the
 workflow (or `SHARDS: 1`); with the reset, one process and the shards give the same results.
+
+**What the shuffled and sharded runs turned up.** The sea-life check compared a cached event
+with a fresh one, and the live node writes its state into the cached events as the city runs:
+it failed whenever enough had run before it (fixed: two fresh events). A boat put 1 km out at
+sea sank 489 m in one order and flew 202 m in a shard: the origin had been re-centred somewhere
+else by an earlier file, so `stage_home()` now re-centres it at the spawn (`world_offset` back to
+zero) before every file. Two more fail only on a loaded box (three Godot processes on four
+cores), with and without the reset (`SMOKE_NO_RESET=1` failed the same way 1 run in 2): the fire
+crew never leaves the engine (`emergency_checks`, "lays a hose") and the city_cars drive check
+(a car stands at 0.1 m/s). They pass alone and in one process.
 
 **Fixes the reset turned up**: the photo-mode restore check failed in one process after
 city_crowd and passed alone (main has since made it say which piece is wrong); the reset before

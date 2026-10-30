@@ -35,6 +35,7 @@ var _weather := {}
 var _hour := 9.0
 var _quality := {}
 var _traffic := {}
+var _player_masks := Vector2i(-1, -1)
 var leaks := OS.get_environment("SMOKE_LEAKS") == "1"
 ## How many resets ran, and what the last put back (the checks read them).
 var count := 0
@@ -102,6 +103,9 @@ func snapshot(city: Node) -> void:
 	var traffic: Node = city.get_node_or_null("Traffic")
 	if traffic:
 		_traffic = {"max_cars": traffic.get("max_cars"), "staged": traffic.get("staged")}
+	var player := city.get_tree().get_first_node_in_group("player") as CollisionObject3D
+	if player:
+		_player_masks = Vector2i(player.collision_layer, player.collision_mask)
 
 
 ## Statics only: synchronous, no node freed.
@@ -127,6 +131,15 @@ func full(tree: SceneTree) -> void:
 	Engine.time_scale = 1.0
 	AudioServer.playback_speed_scale = 1.0
 	tree.paused = false
+	# Every input action let go: a file that pressed jump or boost and ended before releasing it
+	# (swimming's dive, a drive's throttle) had the next file's boat climbing 170 m.
+	var held := 0
+	for action in InputMap.get_actions():
+		if Input.is_action_pressed(action):
+			held += 1
+		Input.action_release(action)
+	if held > 0:
+		last["input"] = held
 	for path in _nodes:
 		var node: Node = _city.get_node_or_null(path)
 		if node == null:
@@ -163,6 +176,17 @@ func full(tree: SceneTree) -> void:
 		if player.get("vehicle") != null:
 			player.call("exit_vehicle")
 			last["player:vehicle"] = true
+		# Out of the water (Swim takes the world layer off his mask while he swims: left so, the
+		# next file's player falls through the street or rides a boat into the sea floor).
+		var swim: Object = player.get("swim")
+		if swim and bool(swim.get("swimming")):
+			swim.call("_exit")
+			last["player:swimming"] = true
+		var body := player as CollisionObject3D
+		if body and _player_masks.x >= 0 and (body.collision_layer != _player_masks.x or body.collision_mask != _player_masks.y):
+			body.collision_layer = _player_masks.x
+			body.collision_mask = _player_masks.y
+			last["player:masks"] = true
 		var health: Object = player.get("health")
 		if health:
 			if bool(health.get("downed")):

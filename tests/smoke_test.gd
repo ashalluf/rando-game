@@ -255,7 +255,7 @@ func stage_home() -> void:
 	# again mid-check in some orders and not others. recenter() shifts the scene so the player,
 	# now at the true spawn, is at the origin: world_offset is zero again.
 	var ws: Node = _world_state()
-	if Vector2(ws.world_offset.x, ws.world_offset.z).length() > 1.0 and city.has_method("recenter"):
+	if OS.get_environment("SMOKE_NO_RECENTER") != "1" and Vector2(ws.world_offset.x, ws.world_offset.z).length() > 1.0 and city.has_method("recenter"):
 		city.call("recenter")
 		near = false
 	# Looking the way the city first set the camera (a file aims down the view: the rocket at a
@@ -1231,7 +1231,7 @@ func _city_cars(city: Node3D, plan: CityPlan, player: CharacterBody3D, macro: Ma
 	# again mid-check in some orders and not others. recenter() shifts the scene so the player,
 	# now at the true spawn, is at the origin: world_offset is zero again.
 	var ws: Node = _world_state()
-	if Vector2(ws.world_offset.x, ws.world_offset.z).length() > 1.0 and city.has_method("recenter"):
+	if OS.get_environment("SMOKE_NO_RECENTER") != "1" and Vector2(ws.world_offset.x, ws.world_offset.z).length() > 1.0 and city.has_method("recenter"):
 		city.call("recenter")
 		near = false
 	city.update_streaming(true)
@@ -1482,7 +1482,7 @@ func _city_people(city: Node3D, plan: CityPlan, player: CharacterBody3D, traffic
 	# again mid-check in some orders and not others. recenter() shifts the scene so the player,
 	# now at the true spawn, is at the origin: world_offset is zero again.
 	var ws: Node = _world_state()
-	if Vector2(ws.world_offset.x, ws.world_offset.z).length() > 1.0 and city.has_method("recenter"):
+	if OS.get_environment("SMOKE_NO_RECENTER") != "1" and Vector2(ws.world_offset.x, ws.world_offset.z).length() > 1.0 and city.has_method("recenter"):
 		city.call("recenter")
 		near = false
 	city.update_streaming(true)
