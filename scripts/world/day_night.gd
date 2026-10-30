@@ -25,8 +25,12 @@ extends Node
 ## made the old aerials read as a pastel model village rather than a city at noon.
 @export var day_sun_energy: float = 1.3
 ## The moon. 0.55 lit every roof in the city brighter than the night sky above it (roofs 100-120
-## of 255 against a sky of 50 in a Forward+ aerial at 21:00): day-for-night, not a night.
-@export var night_sun_energy: float = 0.3
+## of 255 against a sky of 50 in a Forward+ aerial at 21:00): day-for-night, not a night. 0.3
+## through night_exposure 2.3 was still ~45 % of the noon sun's key (1.3 x day_exposure 1.18): it
+## lit every street evenly blue with crisp tree and wire shadows, and the lamp pools vanished in
+## it (the night street review, 2026-10-30: NightStreetReview.MOON, 0.09; the lamps light the
+## street, the moon rims it).
+@export var night_sun_energy: float = NightStreetReview.moon()
 ## Sun elevations the golden-hour tint fades out between once the sun is under the horizon
 ## (x fully faded, y still full strength; elevation is the sine of the arc angle, not degrees).
 @export var dusk_fade_elevation: Vector2 = Vector2(-0.36, -0.24)
@@ -473,6 +477,8 @@ func _apply() -> void:
 			_horizon_now = _horizon_now.lerp(rim, marine)
 		_sky.set_shader_parameter("sky_top", top.lerp(storm_top, weather_darken))
 		_sky.set_shader_parameter("sky_horizon", rim.lerp(storm_horizon, weather_darken))
+		# The mirrors (sky_tint) see what the sky draws at the horizon, the weather's too.
+		_horizon_now = NightStreetReview.sky_tint(_horizon_now, storm_horizon, weather_darken)
 		_sky.set_shader_parameter("cloud_color", day_cloud.lerp(dusk_cloud, dusk).lerp(StormDrama.CLOUD, storm * (1.0 - moonlight) * 0.75))
 		_sky.set_shader_parameter("cloud_coverage", clampf(cloud_coverage + 0.12 * sin(hour * 0.9) + cloud_extra + 0.5 * marine - 0.32 * santa_ana + StormDrama.COVER * storm, 0.0, 0.98))
 		_sky.set_shader_parameter("cloud_shadow", day_cloud_shadow.lerp(dusk_cloud_shadow, dusk).lerp(Color(0.2, 0.2, 0.24), weather_darken))
@@ -516,7 +522,7 @@ func _apply() -> void:
 		# with, or the land ends in a hard line however good the haze is.
 		var streamer := get_parent()
 		if streamer and streamer.has_method("set_ground_haze"):
-			var hz: Color = _horizon_now.lerp(storm_horizon, weather_darken)
+			var hz: Color = _horizon_now if NightStreetReview.enabled else _horizon_now.lerp(storm_horizon, weather_darken)
 			# A directional light shines along -Z, so +Z points back at the sun.
 			streamer.set_ground_haze(hz, _sun.global_transform.basis.z if _sun else Vector3.UP)
 		if streamer and streamer.has_method("set_ground_smog"):
@@ -539,7 +545,10 @@ func _apply() -> void:
 		_env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 		_env.ambient_light_sky_contribution = lerpf(GiTuning.sky_contribution, 0.35, moonlight)
 		_env.ambient_light_color = day_ambient.lerp(night_ambient, moonlight)
-		_env.ambient_light_energy = lerpf(day_ambient_energy, night_ambient_energy, moonlight) * (1.0 - 0.35 * weather_darken) \
+		# Rain takes 35 % of the fill by day; at night the cloud base bounces the streets' light back,
+		# so a rainy night keeps most of it (NightStreetReview.rain_night_cut()).
+		_env.ambient_light_energy = lerpf(day_ambient_energy, night_ambient_energy, moonlight) \
+			* (1.0 - 0.35 * weather_darken * lerpf(1.0, NightStreetReview.rain_night_cut(), moonlight)) \
 			* (1.0 + marine_ambient_gain * marine * (1.0 - moonlight)) * GiTuning.ambient_scale
 		# Rain haze is grey by day and, like the cloud above it, lit by the streets at night.
 		_env.fog_light_color = _env.fog_light_color.lerp(Color(0.35, 0.37, 0.4).lerp(night_storm_fog, moonlight), weather_darken)
@@ -566,7 +575,9 @@ func _apply() -> void:
 		var lit := want > 0.001 or not hide_dark_lamps
 		for light in get_tree().get_nodes_in_group("lamp_light"):
 			var l := light as OmniLight3D
-			l.light_energy = want
+			# A light may carry its own share of the level (meta lamp_gain: Broadway's lanterns, whose
+			# low globes stand a couple of metres off pale walls).
+			l.light_energy = want * float(l.get_meta("lamp_gain", 1.0))
 			# Only ever show a light this hid: anything else that hides one (a chunk fading out)
 			# keeps it hidden.
 			if not lit and l.visible:

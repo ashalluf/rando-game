@@ -119,6 +119,9 @@ func _tri(name: String, a: Vector3, b: Vector3, c: Vector3, n: Vector3, cl: Colo
 	else:
 		tg = nn.cross(Vector3.UP if absf(nn.y) < 0.9 else Vector3.RIGHT).normalized()
 	var tp := Plane(tg, bs)
+	if name == "glass" and HouseNights.enabled:
+		# The house's night key (HouseNights, house_glass.gdshader), on every pane of the house.
+		s.set_uv2(Vector2(float(HouseNights.key(seed)) + 1.0, 0.0))
 	s.set_color(cl)
 	s.set_normal(nn)
 	s.set_tangent(tp)
