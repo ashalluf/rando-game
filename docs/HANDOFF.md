@@ -17160,7 +17160,10 @@ waiters). Hooks: `CityChunk._block_steps()` (the build step and one spawn step a
 - Stills: `shots/valets` (README there): before / after across, down the kerb and from above at
   13:00, the same at 20:30, the drop-off, the key box and a valet, the A-frame.
 
-**Gate.** `SMOKE_PARTS=valets_checks`: 34 checks, 0 failed.
+**Gate.** `SMOKE_PARTS=valets_checks`: 34 checks, 0 failed. After merging origin/main
+(a3db077: the wave-3 batches up to CI 367): `SHARDS=3
+tests/headless_check.sh` 3,035 checks, 0 failed, 788 s, peak RSS 2,959 MB a shard. The westlake
+camp check now skips EncampmentItems named `Valet_` as it does `Vendor_`, `Micro_`, `Parklet_`.
 
 **Not done / not verified.** Forward+ (the Mac) not seen: the lit podium panel, the lamp and
 the hazards at night need a Mac look. The airport has no valet stand (its curb is the
