@@ -279,6 +279,9 @@ func _on_air(player: Player) -> void:
 	for i in 60 * 30:
 		await _tree.physics_frame
 		if i % 30 == 0:
+			# Held "seen": where the camera points is whatever earlier parts left it, and an
+			# off-screen LEAVING van is pooled by the very upkeep that sends it off.
+			van.unseen_time = 0.0
 			_nc._upkeep(0.5)
 		if van.mode == NewsVan.Mode.LEAVING:
 			boarded = true

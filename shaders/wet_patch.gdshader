@@ -66,7 +66,7 @@ void fragment() {
 	NORMAL = normalize(mat3(VIEW_MATRIX) * normalize(vec3(rp.x * 0.35, 1.0, rp.y * 0.35)));
 	float fres = pow(1.0 - clamp(dot(NORMAL, normalize(-VERTEX)), 0.0, 1.0), 4.0);
 	float night = clamp(lamp_factor, 0.0, 1.0);
-	vec3 sky = sky_tint.rgb * mix(1.0, 0.25, night);
+	vec3 sky = cs_srgb_to_linear(sky_tint.rgb) * mix(1.0, 0.25, night);
 	ALBEDO = vec3(0.0);
 	ROUGHNESS = mix(0.32, 0.03, deep);
 	METALLIC = 0.0;

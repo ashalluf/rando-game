@@ -415,7 +415,7 @@ func _place_stations() -> void:
 		var m: int = smp.mode
 		stations.append({
 			"name": nm, "s": s, "pos": smp.pos, "mode": m, "terminus": spec.get("terminus", false),
-			"width": AERIAL_PLATFORM_WIDTH if m == Mode.AERIAL else PLATFORM_WIDTH, "y": smp.y,
+			"width": AERIAL_PLATFORM_WIDTH if m == Mode.AERIAL else (MetroStation.PLATFORM_WIDTH if m == Mode.TUNNEL and MetroStation.enabled else PLATFORM_WIDTH), "y": smp.y,
 		})
 	# Spread the tracks round each island platform.
 	for st in stations:

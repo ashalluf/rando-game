@@ -526,6 +526,9 @@ func road_open(axis: int, index: int, along: float) -> bool:
 	# Nor along a farmers' market's street (FarmersMarket: bollards at both ends).
 	if macro and FarmersMarket.enabled and FarmersMarket.road_closed(self, axis, index, along):
 		return false
+	# Nor along a street closed for a film shoot (FilmShoot: barricades at both ends).
+	if macro and FilmShoot.enabled and FilmShoot.road_closed(self, axis, index, along):
+		return false
 	# The freight line closes the avenue through its yard and severs the streets its ramps cut
 	# (FreightRail.road_open()).
 	var freight := FreightRail.of(self)

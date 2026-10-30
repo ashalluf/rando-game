@@ -76,6 +76,10 @@ const LANDMARK_NAMES := {
 	"breakwater_0": "Breakwater", "breakwater_1": "Breakwater", "breakwater_2": "Breakwater", "breakwater_3": "Breakwater", "breakwater_4": "Breakwater", "breakwater_5": "Breakwater", "breakwater_6": "Breakwater", "breakwater_7": "Breakwater", "breakwater_8": "Breakwater", "breakwater_9": "Breakwater", "breakwater_10": "Breakwater", "breakwater_11": "Breakwater", "breakwater_12": "Breakwater", "breakwater_13": "Breakwater", "breakwater_14": "Breakwater",
 	"power_plant": "Seacliff Generating Station",
 	"refinery": "Vellard Bay Works",
+	# The decorated oil islands in the bay (OilIslands): invented names.
+	"oil_island_0": "Kestrel Island",
+	"oil_island_1": "Halcyon Island",
+	"oil_island_2": "Corvina Island",
 }
 
 ## Pixels a landmark pin needs clear of an already-labelled one to get its own name written.

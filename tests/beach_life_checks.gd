@@ -114,7 +114,8 @@ func _batch(chunk: Node, key: String) -> MultiMeshInstance3D:
 
 
 func _figures(chunk: Node) -> Array:
-	return chunk.get_children().filter(func(c: Node) -> bool: return c is BeachFigure)
+	# The people round the bonfires after dark are Bonfires' (tests/bonfires_checks.gd).
+	return chunk.get_children().filter(func(c: Node) -> bool: return c is BeachFigure and not c is BonfireFigure)
 
 
 func _full_chunk(city: Node3D, k: Vector2i) -> void:

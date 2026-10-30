@@ -106,6 +106,7 @@ void fragment() {
 	METALLIC = 0.0;
 	// The sky mirrored at a grazing angle (the web's only reflection; a floor under SSR on
 	// Forward+), dark at night but for a little of the city's sodium glow.
-	vec3 sky = sky_tint.rgb * (1.0 - 0.9 * night_factor) + vec3(0.05, 0.03, 0.012) * lamp_factor;
-	EMISSION = sky * fres * sky_emit * (1.0 - edge) * (1.0 - foam);
+	// sky_tint is raw sRGB numbers on both renderers (fwd-review-d): decoded, then handed over.
+	vec3 sky = cs_srgb_to_linear(sky_tint.rgb * (1.0 - 0.9 * night_factor) + vec3(0.05, 0.03, 0.012) * lamp_factor);
+	EMISSION = cs_out(sky) * fres * sky_emit * (1.0 - edge) * (1.0 - foam);
 }

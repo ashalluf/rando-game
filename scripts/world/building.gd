@@ -1542,7 +1542,7 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 				# A tower's lobby is lit all night; every pool is its room's colour (room_tone()).
 				var lobby := shop_is_lobby(key, run, runs, maxf(height, size.y))
 				var front_along := size_u * 0.5 - (float(run) + 0.5) * span * pitch
-				if Parklets.enabled and absf(front_along) <= size_u * 0.5 - cut:
+				if (Parklets.enabled or NightLife.enabled) and absf(front_along) <= size_u * 0.5 - cut:
 					shop_fronts.append([fc + a * front_along, n, span * pitch, ShopRoom.LOBBY if lobby else shop_room(face_index + 1, run), key])
 				if not shop_open(key) and not lobby:
 					continue
