@@ -119,6 +119,8 @@ static func _outcrops(ch: CityChunk, rect: Rect2, tors: Array, state: Dictionary
 				continue
 			if Ballpark.covers(p, 8.0) or _near_tor(p, tors, 2.0):
 				continue
+			if ch.plan.macro.get("coast_highway") != null and ch.plan.macro.coast_highway.covers(p, 6.0):
+				continue
 			var grad := _grad(ch, p)
 			var g := HillPlanting.ground(p, grad, true, ch._terrain_height(p, "drains"))
 			var rocky := float(g.rocky)

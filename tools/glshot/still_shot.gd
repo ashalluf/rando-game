@@ -63,6 +63,8 @@ extends SceneTree
 ## nearest person doing that (LIFE_FOCUS_DIST metres off, default 5); CROWD_LIFE=0 turns the crowd's life off (the A/B).
 ## AFTERMATH=palms|burning|charred|column|crater stages what a blast leaves by the nearest palm
 ## row (tools/glshot/aftermath_stage.gd: AF_FIND, AF_TIME, AF_EYE_DIST, AF_FAR, ...).
+## PROPS=hydrant,lamp,bus_stop,mailbox,meter,newsbox breaks street props round the nearest of the
+## first kind and frames them (tools/glshot/prop_break_city_stage.gd: PB_FIND, PB_TIME, PB_EYE_*).
 ## SERVICE=garbage|sweeper|tow|ice_cream|delivery stages a service vehicle at work ahead of the
 ## camera and moves a free camera to frame it (ServiceFleet.stage_for_shot; SERVICE_EYE=0 keeps
 ## the camera, SERVICE_LIFT 0..1 how far up the garbage truck's arm has its cart).
@@ -103,6 +105,8 @@ extends SceneTree
 ## TREE_AB=2 adds the parts: no instance bias, lower shadow-twin bias, old shadows, per group.
 ## DRIVE=burnout|drift|donut|scrape|sand drives a car badly in front of the camera for the driving
 ## effects (tools/glshot/drive_fx_stage.gd: DRIVE_DIST, DRIVE_SIDE, DRIVE_YAW, DRIVE_TIME, ...).
+## RAIN_STAGE=<level> settles the crowd as that rain leaves it (tools/rain_crowd/stage.gd:
+## RAIN_FOCUS=umbrella|hood|shelter, RAIN_REPORT=1; RAIN_CROWD=0 the A/B; --weather=storm too).
 ## MOTION_BLUR=1 leaves the camera's motion blur on (Forward+ only; off by default so a still
 ## is sharp). Traffic is allowed to build freely during the warm-up, so the streets look the way they do a
 ## minute into play rather than the first second of it.
@@ -380,6 +384,19 @@ func _initialize() -> void:
 		for i in _env_int("STREET_FRAMES", 8):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
+	# HELI=hover|pad: a running helicopter held over the ground ahead of the camera, or a free
+	# camera framing the helicopter pad nearest it (FlyableHeli.stage_for_shot; HELI_* there).
+	var heli_env := OS.get_environment("HELI")
+	if heli_env != "" and current_scene:
+		var heli_eye: String = load("res://scripts/vehicles/flyable_heli.gd").call("stage_for_shot", heli_env, get_root().get_camera_3d())
+		if heli_eye != "":
+			OS.set_environment("EYE", heli_eye)
+			OS.set_environment("EYE_AGL", "")
+			print("HELI eye ", heli_eye)
+			_eye(player, fov)
+		for i in _env_int("HELI_FRAMES", 40):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
 	# BIG=bus|semi: a bus standing at its stop (doors open, kneeling) or a semi on the freeway
 	# nearest the camera, and a free camera framing it (see _stage_big).
 	var big_env := OS.get_environment("BIG")
@@ -403,6 +420,19 @@ func _initialize() -> void:
 		if current_scene.has_method("update_streaming"):
 			current_scene.call("update_streaming", true)
 		for i in _env_int("EMERGENCY_FRAMES", 30):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
+	# ONLOOKER_SCENE=body|wreck|blast: a crowd come back round a scene ahead of the camera
+	# (tools/onlookers/stage.gd: ONLOOKER_EYE=behind|front, ONLOOKER_SHOTS=1 all views, ONLOOKER_PEOPLE, ONLOOKER_COUNT;
+	# ONLOOKERS=0 the before), ONLOOKER_FRAMES for the arms to come up.
+	var onl_env := OS.get_environment("ONLOOKER_SCENE")
+	if onl_env != "" and current_scene:
+		var o_eye: String = await load("res://tools/onlookers/stage.gd").stage(self, current_scene, onl_env, get_root().get_camera_3d())
+		if o_eye != "":
+			OS.set_environment("EYE", o_eye)
+		print("ONLOOKER_SCENE %s eye %s" % [onl_env, o_eye])
+		_eye(player, fov)
+		for i in _env_int("ONLOOKER_FRAMES", 30):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
 	# TRAFFIC=bus|merge|pullout: a car changing lanes round a bus at its stop, a car merging from an
@@ -438,6 +468,39 @@ func _initialize() -> void:
 				t_img.save_png(t_out)
 			var sc: Variant = tm.get_meta("shot_car") if tm.has_meta("shot_car") else null
 			print("saved %s: car %s" % [t_out, str((sc as Node).get("traffic")) if sc != null and is_instance_valid(sc) else "-"])
+	# PANIC=brake|swerve|kerb|reverse|abandon: a driver reacting to a shot on the nearest one-lane
+	# street (CarPanic.stage_for_shot; PANIC_SIDE=near puts the camera on the car's kerb side), the
+	# traffic moved only by PANIC_STEPS="s,s,..." seconds before each still, saved as OUT with _p1,
+	# _p2, ... added.
+	var panic_env := OS.get_environment("PANIC")
+	if panic_env != "" and current_scene and current_scene.get_node_or_null("Traffic"):
+		var cpn = load("res://scripts/npc/car_panic.gd")
+		var ptm: Node = current_scene.get_node("Traffic")
+		var p_eye: String = cpn.call("stage_for_shot", ptm, panic_env, get_root().get_camera_3d(), OS.get_environment("PANIC_SIDE"))
+		print("PANIC %s eye %s" % [panic_env, p_eye])
+		if p_eye != "":
+			OS.set_environment("EYE", p_eye)
+			OS.set_environment("EYE_AGL", "")
+		_eye(player, fov)
+		if current_scene.has_method("update_streaming"):
+			current_scene.call("update_streaming", true)
+		for i in _env_int("PANIC_FRAMES", 20):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
+		var p_steps := OS.get_environment("PANIC_STEPS").split(",", false)
+		for s_i in p_steps.size():
+			cpn.call("advance_shot", ptm, p_steps[s_i].to_float())
+			Engine.time_scale = 0.0005
+			for i in _env_int("SETTLE", 6):
+				await process_frame
+				_pose(player, anchor, hold, boost, fov)
+			Engine.time_scale = 1.0
+			var p_out := OS.get_environment("OUT").get_basename() + "_p%d.png" % (s_i + 1)
+			var p_img := get_root().get_texture().get_image()
+			if p_img:
+				p_img.save_png(p_out)
+			var pc: Variant = ptm.get_meta("shot_car") if ptm.has_meta("shot_car") else null
+			print("saved %s: car %s" % [p_out, str((pc as Node).get("traffic").get("cp", {})) if pc != null and is_instance_valid(pc) and (pc as Node).get("traffic") is Dictionary else "-"])
 	# AFTERMATH=palms|burning|charred|column|crater: what a blast leaves behind, staged by the
 	# nearest palm row and framed by a free camera (tools/glshot/aftermath_stage.gd), then AF_TIME
 	# seconds of it at FX_SCALE.
@@ -455,6 +518,20 @@ func _initialize() -> void:
 		while af_t < _env_float("AF_TIME", 0.3):
 			await process_frame
 			af_t += get_root().get_process_delta_time()
+	# PROPS=hydrant,lamp,bus_stop,...: street props broken round the nearest of the first kind
+	# (tools/glshot/prop_break_city_stage.gd), framed by a free camera, then PB_TIME seconds of it.
+	var pb_env := OS.get_environment("PROPS")
+	if pb_env != "" and current_scene:
+		var pb_eye: String = load("res://tools/glshot/prop_break_city_stage.gd").stage(self, pb_env, get_root().get_camera_3d())
+		if pb_eye != "" and OS.get_environment("PB_KEEP_EYE") != "1":
+			OS.set_environment("EYE", pb_eye)
+		print("PROPS %s eye %s" % [pb_env, pb_eye])
+		_eye(player, fov)
+		Engine.time_scale = _env_float("FX_SCALE", 0.375)
+		var pb_t := 0.0
+		while pb_t < _env_float("PB_TIME", 1.0):
+			await process_frame
+			pb_t += get_root().get_process_delta_time()
 	# SERVICE=garbage|sweeper|tow|ice_cream|delivery: a service vehicle at work in front of the
 	# camera (ServiceFleet.stage_for_shot; SERVICE_LIFT 0..1 how far up the arm has the cart).
 	var svc_env := OS.get_environment("SERVICE")
@@ -497,6 +574,17 @@ func _initialize() -> void:
 		print("ERRAND %s eye %s" % [errand_env, er_eye])
 		_eye(player, fov)
 		for i in _env_int("ERRAND_FRAMES", 12):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
+	# RAIN_STAGE=<level>: the crowd as the rain leaves it (tools/rain_crowd/stage.gd: umbrellas,
+	# hoods, doorways, shelters; RAIN_FOCUS frames one; RAIN_CROWD=0 is the A/B).
+	if OS.get_environment("RAIN_STAGE") != "" and current_scene:
+		var rc_eye: String = load("res://tools/rain_crowd/stage.gd").stage(self, float(OS.get_environment("RAIN_STAGE")), get_root().get_camera_3d())
+		if rc_eye != "":
+			OS.set_environment("EYE", rc_eye)
+			print("RAIN eye %s" % rc_eye)
+			_eye(player, fov)
+		for i in _env_int("RAIN_FRAMES", 6):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
 	# Then all but freeze the clock for the last frames: a software frame takes seconds, and at
@@ -1674,6 +1762,7 @@ func _pose(player: Node3D, anchor: Vector3, hold: Vector3, boost: bool, fov: flo
 ## EYE=x,y,z,yaw,pitch: a free camera at that TRUE world point (yaw 0 looks north, 90 west, as
 ## --spawn does), the player hidden - for matching a reference photograph from a fixed viewpoint
 ## (a Street View car's lens is about 2.5 m above the road). FOV is the vertical field of view.
+## EYE_KEEP_PLAYER=1 leaves the player where he is, in the shot.
 var _eye_cam: Camera3D
 ## BOOST=fly is under way: the pose no longer pins the player.
 var _flying: bool = false
@@ -1704,6 +1793,13 @@ func _eye(player: Node3D, fov: float) -> void:
 		_eye_cam.make_current()
 	_eye_cam.fov = fov if fov > 0.0 else 45.0
 	_eye_cam.global_transform = Transform3D(Basis.from_euler(Vector3(deg_to_rad(p[4].to_float()), deg_to_rad(p[3].to_float()), 0.0)), at)
+	# EYE_KEEP_PLAYER=1: the player stays in the shot where he is (the swimming stills).
+	if OS.get_environment("EYE_KEEP_PLAYER") == "1":
+		var sw: Node = player.get("swim")
+		if not player.has_meta("eye_printed"):
+			player.set_meta("eye_printed", true)
+			print("EYE_KEEP_PLAYER at %s swimming %s water %s" % [str(player.global_position), str(sw.get("swimming") if sw else "-"), str(sw.get("water") if sw else "-")])
+		return
 	player.visible = false
 	# Keep the streaming centred where the camera is.
 	player.global_position = Vector3(at.x, player.global_position.y, at.z)

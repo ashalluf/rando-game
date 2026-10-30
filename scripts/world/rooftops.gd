@@ -806,6 +806,7 @@ static func _parked_helicopter(b: Building, at: Vector3, quarter: int, livery: i
 		mi.transform = xf
 		mi.visibility_range_end = 380.0
 		b.add_child(mi)
+		HeliPads.rooftop(b, xf, livery, mi)
 		return
 	var inst := _heli_instance(livery)
 	if inst == null:
@@ -813,6 +814,7 @@ static func _parked_helicopter(b: Building, at: Vector3, quarter: int, livery: i
 	inst.name = "ParkedHelicopter"
 	inst.transform = xf
 	b.add_child(inst)
+	HeliPads.rooftop(b, xf, livery, inst)
 
 
 static var _heli_meshes: Dictionary = {}
@@ -1089,6 +1091,12 @@ static func _pool(b: Building, g: RooftopGeo, glass: RooftopGeo, f: Dictionary, 
 	var deck_rect := _rect_of(g.xf, Rect2(Vector2(-hx + 0.4, -hz + 0.4), Vector2(zl - 0.8, dz1 - (-hz) - 0.8)))
 	var pool_rect := _rect_of(g.xf, Rect2(pool_min - Vector2(cop, cop), pool_max - pool_min + Vector2(cop, cop) * 2.0))
 	_spawn_goers(b, deck_rect, pool_rect, origin.y + y)
+	# Swimmable (Swim): the water over the roof it stands on, in the chunk's space.
+	var wpoly := PackedVector2Array()
+	for q: Vector3 in corners:
+		var cq: Vector3 = b.transform * (g.xf * q)
+		wpoly.append(Vector2(cq.x, cq.z))
+	SwimWater.add_poly(b, wpoly, (b.transform * (g.xf * Vector3(px, water_y, pz))).y, (b.transform * origin).y, SwimWater.Kind.TANK)
 	# Collision: the deck round the pool (the pool's floor is the roof: wade in).
 	for r: Rect2 in [Rect2(d_lo, Vector2(hx * 2.0, pool_min.y - d_lo.y)), Rect2(Vector2(-hx, pool_max.y), Vector2(hx * 2.0, dz1 - pool_max.y)),
 			Rect2(Vector2(-hx, pool_min.y), Vector2(pool_min.x + hx, width)), Rect2(Vector2(pool_max.x, pool_min.y), Vector2(hx - pool_max.x, width))]:
@@ -1451,7 +1459,7 @@ static var _landmark_pads: Dictionary = {}
 ## A helipad on a LandmarkDowntown tower's flat roof (its TOWERS row's "helipad": [local centre
 ## on the roof, deck size, quarter turns]): the same pad as a Building's, on its own node at
 ## `at` (the tower's anchor), with collision on `statics` when there is one.
-static func landmark_helipad(parent: Node3D, at: Vector3, pad: Array, statics: StaticBody3D) -> void:
+static func landmark_helipad(parent: Node3D, at: Vector3, pad: Array, statics: StaticBody3D, heli_spot: bool = true) -> void:
 	if not enabled:
 		return
 	var local: Vector3 = pad[0]
@@ -1478,3 +1486,5 @@ static func landmark_helipad(parent: Node3D, at: Vector3, pad: Array, statics: S
 		cs.shape = box
 		cs.position = at + local + Vector3(0, PAD_RISE - 0.15, 0)
 		statics.add_child(cs)
+		if heli_spot:
+			HeliPads.landmark(parent, at + local + Vector3(0, PAD_RISE, 0), turn)

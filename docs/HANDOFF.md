@@ -1,9 +1,61 @@
-# Handoff: Rando Game (written 2026-09-19; section 0000000 is the newest state: fleet wave 2, 2026-10-05)
+# Handoff: Rando Game (written 2026-09-19; section 00000000 is the newest state: fleet wave 3, 2026-10-29)
 
 This is the narrative handoff for whoever picks the project up next, from any Claude Code account
 or as a person. `CLAUDE.md` is the rulebook and `docs/GAME_PLAN.md` is the roadmap plus the
 decisions log; both stay the source of truth. This file is the story: where things stand, how
 the day-to-day work goes, what is fragile, what to do next. Read all three before touching code.
+
+## 00000000. Fleet wave 3 (2026-10-29; read this first)
+
+The owner: "this needs to start looking like GTA 6" and "keep working until I say STOP".
+
+- **`main` = `95bd13f`** (builds 360 / 361): everything of section 0000000 plus `wt/apartments`
+  (HANDOFF 9eu, roadmap #140) and `wt/tower-gondolas` (9ev, #141), each gated green with
+  `SHARDS=3 tests/headless_check.sh` (2,381 and 2,396 checks, 0 failed).
+- **Wave 3 is 23 cloud sessions** (tag `rando-wave3`), each on `wt/<slug>` with stills on
+  `shots/<slug>`, briefed with `fleet/brief`'s BRIEF.md plus wave-3 overrides (base on main
+  95bd13f; a paused branch merges main and finishes; owner's bar "GTA 6"). 21 finish wave 2's
+  paused tasks; two are new: `rock-outcrops` (the mountains read as smooth tan humps from the
+  basin) and `facades-gta` (generated buildings read as boxes in flat window grids; its task text
+  is in its session prompt). Roster (slug, session):
+  - `street-furniture` `session_01Q7NKz19z1PwJ4x56JtVr6K` (resume)
+  - `star-boulevard` `session_01Q7NKyxMv2pxLeD8Qt8g9AU` (resume)
+  - `walk-in-store` `session_01Q7NKywFH9Scd8sAvZgcbQS` (resume)
+  - `garage-drive-in` `session_01Q7NKyzNbm97g9P3AkcWUmc` (resume)
+  - `fashion-district` `session_01Q7NKz1v1f7sh824t5HwbRm` (resume)
+  - `coast-highway` `session_01Q7NKyz5HDr4HtqP2AgmB6q` (resume)
+  - `motorcycles` `session_01Q7NKyxLVDCcxsoPsrgHAHG` (resume)
+  - `lowriders` `session_01Q7NKyxSeHn4jsqpEZ6Natu` (resume)
+  - `car-panic` `session_01Q7NKz1XvdGKKQZezoZxRfM` (resume)
+  - `onlookers` `session_01Q7NKyzBdCsbV2EbZqbqdmL` (resume)
+  - `freeway-incidents` `session_01Q7NKyzx8sjyPQzQkqomtvT` (resume)
+  - `heli-flyable` `session_01Q7NKyydpmWXUujfF322PSE` (resume)
+  - `swimming` `session_01Q7NKyxXuZ2HdyYyfDSj6WT` (resume)
+  - `wingsuit` `session_01Q7NKz1G1uGGNSMorRgr375` (resume)
+  - `prop-destruction` `session_01Q7NKyzREFyCX9xf6BhkxcW` (resume)
+  - `parklets` `session_01Q7NKyxAdsyLRMYEwNPfGtz` (resume)
+  - `backyards` `session_01Q7NKyyrn8VHLuN8kcfPVHa` (resume)
+  - `rain-crowd` `session_01Q7NKz1hc3AB5Vfya419KMG` (resume)
+  - `news-crews` `session_01Q7NKywVfLKD4tXuQ3dVzVb` (resume)
+  - `crowd-lookat` `session_01Q7NKz1LdUALdLyvkqfKcyf` (resume)
+  - `engine-audio` `session_01Q7NKz1FiJ5a8imtWE3QHmz` (resume)
+  - `rock-outcrops` `session_01Q7NKz1dppYF3oKNgiPBcvD` (new)
+  - `facades-gta` `session_01Q7NKyz5XbXuSzP8dsPgX9x` (new)
+- **Merged so far (2026-10-30)**: batch 1 street-furniture, onlookers; batch 2 prop-destruction,
+  engine-audio, swimming; batch 3 facades-gta, offshore-island, rain-crowd, parklets, heli-flyable,
+  car-panic, coast-highway, fashion-district (plus check fixes for CI 360-365: the tree-ladder
+  slack, onlookers staging home, the ramp-merge window, the heli strike poll).
+- **Second launch (2026-10-30 01:33)**, eight new sessions from tasks.tsv: `oil-islands`
+  `session_01Q7NKyyYRLXXTXkVJp1in4J`, `sea-life` `session_01Q7NKyzk56JBK8dNe3KVqFu`, `speedboats`
+  `session_01Q7NKyyye8YuupMr7qCukxK`, `bonfires` `session_01Q7NKz1sEin5FzYhNeyFGYi`,
+  `beach-amenities` `session_01Q7NKyykydtjYTWzoXntgQQ`, `arroyos` `session_01Q7NKywQABt4kpLAqquDMLJ`,
+  `wildlife` `session_01Q7NKz19XER5tG3sDKw5cAu`, `buskers` `session_01Q7NKyxq5QvjBEfP2ibZKng`.
+  Also running from the first launch: ocean-traffic, refinery, power-plant, lighthouses,
+  footbridges, foot-ik, garments-2.
+- The lead merges finished branches in batches (`tools/fleet/merge_branch.py`), gates each batch,
+  pushes main, and launches the remaining `tasks.tsv` areas as slots free up.
+- 1,000 agents is not possible here: a gate run is ~2.4 GB a shard on a 15 GB box, and the
+  account's usage limit stopped the last fleet at ~50 sessions.
 
 ## 0000000. Fleet wave 2: 100 sessions (2026-10-05, from 09:24 UTC; read this first)
 
@@ -14201,6 +14253,79 @@ streets' glow stands in). The lamps stand where the old ones stood, and on some 
 is beside a utility pole (StreetDetail's), which the old thin post hid better. No real light
 shaped like the cobra's cut-off (still an omni). Shot lamps break as before (debris box), no
 falling pole.
+
+## 9ex. Onlookers: the crowd comes back after the chaos (fleet wave 2, "onlookers")
+
+**What.** Once the panic near a wreck, a blast site or a body is over, people near the camera come
+back and stand round it in a loose ring at a distance: filming it on their phones (held up at eye
+level in front of the face, the screen lit, a white video light on the back after dark), pointing
+at it, a hand over the mouth, arms folded with a shake of the head; one or two call for help on
+the phone (the life library's phone clip). A new shot or blast scatters them (they come back once
+it is quiet again); responders arriving (Emergency's crews and units, police officers and
+cruisers within 38 m) or 70-150 s of quiet send them away one by one.
+
+**How.** `Onlookers` (`scripts/npc/onlookers.gd`), one Node under the tree root made by the first
+walker with life clips (`Onlookers.ensure()` from `Pedestrian._setup_life()`). Every 0.5 s it:
+- looks for scenes within 80 m of the player (true world positions, merged within 16 m):
+  CarDamage's `_burning` / `_wrecks`, `Explosion.blast_count`, fresh Ragdolls in PhysicsBudget's
+  debris (not responders'). A watched body's `debris_life` is raised to 75 s from when it was seen
+  (`BODY_HOLD`): bodies are debris for 12 s, less than a panic lasts, and the crowd came back to
+  nothing.
+- calls a scene quiet once `Pedestrian.alarm()`'s own record (`_last_alarm_ms` / `_at`) has had
+  nothing within 60 m for 3.5 s;
+- recruits up to two a scan per quiet scene (5-12 a scene by hash, 28 in all): walkers that are
+  `_life_free()` (or only standing about) within 55 m, nearest first. Each gets a spot on ITS OWN
+  pavement ring in the scene's band (body 4.2-10 m, wreck 6.5-13, burning 9.5-17, blast 7-15) kept
+  1.3 m from the others, walks there with the ordinary ring walk (`CrowdLife.Act.WATCH`, stage
+  GOING), turns to face the scene and plays its role.
+
+Roles (`Onlookers.Role`, by a hash of scene and person): CALL first (1-2 a scene, 14-32 s, then
+film or stare), FILM 42 %, POINT 16 %, COVER 18 %, GAWK the rest; a bag carrier never films and
+uses the other hand. The arm poses are a two-bone solve in skeleton space laid over the life clips
+(`Onlookers._arm()`, the same solve as the sitters' legs), the hand turned to a grip frame
+(`_hand_for()`: CrowdLife's grip basis is mirrored on one hand, so the target takes its
+handedness), blended in and out over about half a second. FILM puts the wrist so the phone sits
+33 cm ahead of the eyes on the line to the scene, the palm and screen to the face; half the
+filmers with a free left hand hold it in both. Beats: the phone comes down to look at it now and
+then, the pointing arm comes and goes with the talk clip, the hand goes to the mouth and back with
+a head shake, gawkers nod and shake their heads. The filming phone is its own mesh
+(`film_phone_mesh()`: brighter screen, camera bump, lens, LED) on CrowdLife's prop material;
+`crowd_prop.gdshader` glow 3 is the LED, lit by `lamp_factor`.
+
+Pedestrian hooks (one line each): `var watch`, `Onlookers.walk()` in `_walk` after the errands,
+`Onlookers.pose()` in `_physics_process` after the errands' pose, `Onlookers.release()` at the top
+of `_end_act()` (so a fright, leaving life range, being knocked or freed all release), `ensure()`
+in `_setup_life()`. `CrowdLife.Act` gains WATCH (appended).
+
+**Switches and tools.** `ONLOOKERS=0` turns it off (the A/B). `ONLOOKERS_DEBUG=1` prints scenes,
+joins and closes. Stills: `ONLOOKER_SCENE=body|wreck|blast` on `tools/glshot/still_shot.gd`
+(`tools/onlookers/stage.gd`: a scene on the pavement of the block ahead, 16 walkers added, 11 put
+in place at once; `ONLOOKER_EYE=behind|front`, `ONLOOKER_SHOTS=1` every view and the night, `ONLOOKER_FRAMES`). Checks:
+`tests/onlookers_checks.gd` (a knocked walker opens a scene, nobody watches while panicking, they
+come back into the band facing it and spaced, more than one role, a caller on the phone clip, a
+filmer's phone at eye level with the screen to the eyes, a new shot scatters them, they return,
+a responder closes the scene).
+
+**A bug found on the way (golf).** `scripts/npc/golfer.gd` set `life_enabled = false` in its
+setup. That is Pedestrian's STATIC switch, so the first golfer to spawn turned crowd life off for
+the whole city (every walker after it stopped talking, sitting, carrying and, now, gathering).
+The onlookers checks caught it when the shard dealt them after golf's. A golfer never lives
+anyway (`_lives()` is false for its script), so the line is gone; golf's checks still pass.
+
+**Frame cost** (still_shot.gd's GEO, opengl3 + Xvfb 1280x720, the default spawn's staged body
+scene from the road, ONLOOKERS=0 against on): 6.108 M -> 6.132 M triangles (+0.4 %), 2,648 ->
+2,675 draws (each held phone is one small draw, at most 28 onlookers); CPU: one scan every 0.5 s
+(the debris and pedestrian groups) and an arm solve per posed onlooker per tick.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the video light's bloom and the screen
+glow through AgX. The ring is each walker's own pavement ring, so round a scene in the road the
+crowd stands along both kerbs rather than in a closed circle (nobody steps into traffic to look).
+No crowd-lookat integration beyond the head look crowd life already does. Only plain walkers
+(and ReplicaWalkers) come; beach-goers, park-goers and the market's shoppers do not.
+
+**Wave 3.** Merged with origin/main 95bd13f (the conflicts were only lists both sides appended to);
+`SHARDS=3 tests/headless_check.sh` green at 2,416 checks, peak RSS 2,494 MB a shard. Fresh stills
+20-24 on shots/onlookers show the staged body scene unchanged on the merged base.
 ## 9eu. Apartment buildings: walk-ups, bungalow courts, Spanish courts and podium blocks, 2026-10-05 (agent branch `wt/apartments`; VISUAL_ROADMAP #140)
 
 G2's first per-style kit: Los Angeles stucco apartments in MIDTOWN and the inner SUBURBS. Before,
@@ -14378,6 +14503,1037 @@ dedicated wiping clip, no head turn. No sound of the hoists. The LOD ring shows 
 cradle box at its old depth on infill towers. Workers cannot be knocked off (on purpose); shooting
 one only swings the cradle, with no blood.
 
+## 9ew. Street furniture: LA's hydrants, meters, pay stations, ad benches, bins, racks and planters, 2026-10-05 (agent branch `wt/street-furniture`; VISUAL_ROADMAP "?")
+
+**What.** The pavement furniture was Poly Haven scans (a red generic hydrant, a wooden planter
+box, a corrugated can), a box-and-cylinder meter and a grey hoop: a generic city. Now
+`StreetFurniture` (`scripts/world/street_furniture.gd`) builds Los Angeles's own pieces in code, at
+real size, on one shader (`shaders/street_furniture.gdshader`):
+
+- **Fire hydrant**: the squat LA wet barrel - bolted flange, a short swelled barrel, the band and
+  the bonnet with its pentagon operating nut, a 4" pumper outlet and two 2.5" hose outlets (caps
+  with grip lugs and nuts, chains to eyes on the barrel, stem bosses), a stencilled number. Yellow
+  (three shades), silver or a faded cream; the aged roll (the old `aged` flag) chalks the paint and
+  chips it to dark iron with rust round the chips and runs below. It turns its pumper to the
+  street (the rolled spin is still drawn, so nothing after it moves).
+- **Parking meter**: a single-space smart meter - black post on a bolted plate, the grey head with
+  a domed top, display, keypad, card and coin slots, a "pay" label, the solar cell, the back door
+  and its lock. **Pay station** (`PAY_STATION_SHARE` 18 % of metered spaces, a hash; the same
+  `meter` prop): cabinet on a concrete plinth, sloped head, lit screen, a 12-key pad, card reader,
+  coin and receipt slots, the instruction panel, a blue "P" plate and the solar panel on its mast.
+- **Bus bench with a painted ad back**, beside a third of the bus shelters (`STOP_BENCH_SHARE`, a
+  hash of seed + stop; `add_stop_bench()`, called at the end of `StreetDetail._bus_shelter()`):
+  cast concrete ends (an L in profile), a rounded seat slab and a back rest leaning 15 degrees,
+  bolted; the ad painted on both faces from `assets/textures/street_furniture/bench_ads.jpg`
+  (`tools/make_bench_ads.py`: eight INVENTED advertisers - two realtors, injury lawyers, abogados,
+  bail bonds, a dentist, a taco stand, the bench company's own "your ad here" - with 555 numbers),
+  sun-faded, peeling and grimy with wear. It stands `STOP_BENCH_ALONG` (4.2 m) along the kerb from
+  the shelter, away from the stop's sign, as far in as the shelter's own bench (behind
+  StreetErrands' queue at the kerb), facing the road. It is only PLANNED there and made a prop at
+  the finish (`StreetFurniture.commit()`, one line in `CityChunk._finish_build()`), skipped where
+  anything the whole build laid stands (props, trees, camp pieces, vendors, kerb rows, cans,
+  cars): a dozen passes after StreetDetail (Encampment's kerb row, StreetClutter, StreetWear,
+  Murals, the signs) read `prop_records` to keep clear, and a bench recorded at the shelter
+  pushed a skid-row cart, a bike and the bags off the kerb in the first before/after still. A prop
+  with an id of its own (`ad_bench_<n>`, `_own_prop()`: CityChunk's record without its counter,
+  so no other id moves) and two CrowdLife seats. **The shelters are untouched** (Billboards'
+  lightbox and StreetErrands' queue use them).
+- **Downtown bin**: perforated powder-coated steel you see the black liner through (holes cut by
+  the shader where they are bigger than a pixel, averaged into a darker sheet past that), four
+  straps, the rim with the bag folded over it, a rain bonnet on four posts. It is the TrashCan's
+  mesh in DOWNTOWN, MIDTOWN and CAMPUS (`bin_style()`; still the same physics prop, rolled the
+  same, with main's draw distance).
+- **Bike rack**: the galvanised inverted U (spangle, white rust with age) on bolted flanges.
+- **Kerb planter**: precast concrete, a rim and a reveal line, soil, and one of five plantings
+  built from ClimbingPlants' accent builders (agave with aloes, three aloes, lavender, lantana,
+  red-hot poker with lavender; `planter_plant()`, ClimbingPlants' shader and atlas).
+
+**Not ours, by the lead's review:** the residential carts on collection day are KerbBins'
+(`scripts/world/kerb_bins.gd`, with a lid the garbage arm tips); this branch built its own and
+dropped them. A first version also swapped half the shelters for a bench-only stop; dropped too.
+
+**How it hangs together.** Every piece is ONE mesh (positions, normals, COLOR = rgb paint + kind in
+the alpha, UV in metres or 0..1 for a label, the ad or a screen, UV2.x the label id) through
+`ImporterMesh.generate_lods()` and `PropFactory._build_shadow_proxy()`, so a batch per kind a chunk
+draws distant pieces coarse and casts from a lighter twin. Per instance, INSTANCE_CUSTOM is the
+paint (sRGB) and the wear (the bench: the ad in .r). The hooks are where the old pieces were made:
+`CityChunk`'s hydrant and planter lines and the TrashCan's style, `StreetDetail`'s racks, meters
+and the end of the bus shelter; the meshes are built on the loading screen (`warm()`).
+`STREET_FURNITURE=0` in the environment is the A/B (the old meshes, no pay stations, no stop
+benches).
+
+**Trap (cost an hour).** The kind rides in COLOR.a and is compared exactly in the fragment; an
+interpolated 8.0 is 7.9999995 at some pixels of the Compatibility renderer, those fell through
+every branch and drew white specks all over the plastic and the bin (it looked like shadow acne).
+Round the kind in the fragment (`floor(v_kind + 0.5)`).
+
+**Look and measure.** `tools/glshot/furniture_shot.gd` lines every piece up on a pavement in
+seconds (`OLD=1` the old meshes in the same places, `NIGHT=1`, `WEAR`, `WET`, `AD`, `PLANTS=1` the
+five plantings, `DEBUG=1 CULL=0` paints front faces by normal and back faces red).
+`tools/street_furniture/probe.gd` lists the pieces of the FULL chunks round a point with an EYE.
+Checks: `tests/street_furniture_checks.gd` (`tools/street_furniture/checks_only.tscn` runs them
+alone in a minute): the meshes (one surface on the shader, budget, real height, shadow twins), the
+shader's kinds, the atlas, the shares, the hydrant facing the street, the bin by district, every
+bus stop keeping its shelter, the stop benches by a shelter with their own ids and gone once
+smashed, and a metered downtown block built the same with the furniture off (props by id, kind
+and place, buildings, cans, cars, EncampmentItems, and the camp / kerb / vendor batches' counts).
+
+**Frame cost** (`tools/geo_count.gd`, opengl3, 800x600, `--spawn=1918,795.5,97,-6,2 --hour=12.5`,
+the downtown pavement at block 20,4, `STREET_FURNITURE=0` then `1`): 4,471,498 -> 4,401,483
+triangles (-1.6 %: the Poly Haven hydrant and can scans were heavier than the code pieces with
+their LODs), 3,086 -> 3,084 draws, 3,611 -> 3,609 objects. One batch per kind a chunk, like the
+pieces they replace; the stop bench is one more batch where a chunk has one.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the galvanising, the paint's sheen and the
+ad's colours want a Mac look. Break effects are prop-destruction's; these props still break into
+the chunk's generic debris boxes. The meters, hydrants and racks keep their old placements, so
+one can stand close to one of StreetLamps' or StreetSignKit's poles where the old rolls put it
+(nothing was moved to keep every roll and id). The plaza and park benches keep the Poly Haven
+kit bench and the shelters their own bench; suburban trash cans keep the corrugated scan. The
+bench ad art is eight flat designs, no photography (no real people).
+
+**Wave 3 (2026-10-29).** Merged origin/main (95bd13f: apartments, tower gondolas); only the docs and
+the smoke test's hook lines conflicted. The painted pieces read as fresh toys at the wear they
+roll, so: `sf_worn_paint()` shows an OLDER COAT (silver, cream or oxide red, by `v_seed`) in
+mid-scale patches (a 24 / 6 per-metre fbm, a threshold 0.17 + 0.16 x wear under the chips', lower
+on edges) before the deep chips reach the iron; dust settles on faces toward the sky
+(`v_lnormal.y`, by wear, gone in the wet); and a fresh hydrant rolls wear 0.16-0.4 (was 0-0.12;
+the aged roll unchanged). Stills 35-38 on shots/street-furniture (`furniture_shot.gd WEAR=0.28` /
+`0.3`, the before is the stashed shader). Not seen on Forward+.
+
+## 9ey. Street props that break like GTA (fleet wave 2, wt/prop-destruction; VISUAL_ROADMAP row "?")
+
+Every breakable street prop used to break the same way: hidden, four grey boxes thrown, Sfx
+`break`. A car hitting one stopped dead against its static box. Now `PropBreak`
+(`scripts/world/prop_break.gd`, static) breaks them by their **kind** (the `kind` CityChunk's
+`_add_prop()` records), never by their mesh - street lamps are StreetLamps' models, the
+furniture is being replaced in parallel - and the pieces are copies of the prop's own batch
+instances: `_add_prop()` now keeps each instance's mesh, final (relief-lifted) transform, colour
+and custom data in the record (`[key, index, mesh, xform, color, custom]`, read back from
+`MultiMeshBatch.data()`), and a piece is a one-instance MultiMesh, so a newsbox keeps its paint
+and a lamp its type through its shader's INSTANCE_CUSTOM.
+
+- **hydrant**: sheared off and thrown up (11 m/s, a PhysicsBudget body), the flange left standing
+  (`PropStub`), and a `HydrantGeyser` (`scripts/world/hydrant_geyser.gd`) at its foot: a column of
+  hose_water.gdshader streaks at `jet_speed` 16 m/s (13 m high), a crown of white puffs breaking
+  up, a ring of falling rain, foam at the foot, the roar (`amb_fountain` + `rain`, re-routed to the
+  World bus), and the wet ground: `shaders/wet_patch.gdshader` on a disc, darkening and mirroring
+  the sky by Fresnel (emitted, `sky_tint`), ragged-edged, rung by falling drops, spreading over
+  `patch_grow_seconds`. 45 s at full pressure, 8 s sagging (the speed sets the height), then the
+  patch dries back from its edge over 40 s and the node goes. Whoever stands in the column is
+  thrown up it (`lift_speed` 15 m/s - over the top on purpose) and loose bodies over it are lifted
+  (an impulse a step; VehicleBody3D clears forces). `max_live` 6; a new one ends the oldest. The
+  puffs dim with `DayNight.lamp_now`.
+- **bus_stop**: the first break only takes the glass (`PropBreak.survives()`): every instance
+  whose key says "glass" hidden, 340 tempered cubes (`PropShards`, single cubes and small clumps)
+  thrown off the pane's rect, the record kept alive at `FRAME_HEALTH`. Broken again, or by a car
+  over `SHELTER_SMASH_SPEED`, the frame comes down as one body per remaining piece.
+- **lamp** (and stop_sign, street_sign, signal): a hit under `LEAN_FROM` (a round) pops a lamp -
+  its pool hidden, its OmniLight freed (the record now owns it, `PropBreak.own_light()`; a shot-out
+  lamp used to keep lighting the pavement), glass tinkling from its head - and never fells it. A
+  hit between LEAN_FROM and `FALL_AT[kind]` BENDS the post at its foot (every instance and shape
+  turned about the base, more per hit); a harder one, or a bend past `MAX_LEAN`, fells it: a
+  `FallingPole` (`scripts/world/falling_pole.gd`, one body of the whole pole) hinged to the chunk's
+  StreetProps body at its foot, swung over the way it was hit, let go past `RELEASE_ANGLE`, slamming
+  down with a crash and dust. **Trap:** a box swung about its own bottom edge digs its corner into
+  the pavement and stands the pole back up - the felled pole's boxes are cut `FOOT_CLEAR` off the
+  foot. Signs use their normal health for rounds and fall when it runs out. A felled signal's
+  heads go dark (`traffic_signal.gdshader` reads custom.b over 0.5 as dead).
+- **mailbox / newsbox**: the box knocked over as a body and a burst of letters (envelopes drawn in
+  code: stamp, postmark, address lines) or folded newspapers (masthead, photo, columns; no
+  lettering) that flutter down (drag, sway, tumble) and lie flat on the pavement.
+- **meter**: snapped off and flung spinning, a stub of pipe left, coins everywhere.
+- Anything else breaks the old way.
+
+**PropShards** (`scripts/world/prop_shards.gd`): ONE MultiMesh per burst simulated in GDScript like
+the brass (a gravity arc, a ground plane at the pavement the prop stood on, bounces, rest), lying
+`LINGER` seconds, then shrinking away; `MAX_NODES` 10 bursts. **Cars smash through**:
+`PropBreak.smash_ahead()` (one line in `Vehicle._update_wheels()`, before the crash watch) runs one
+box query ahead of a physical car over `SMASH_MIN` 5 m/s each step it runs its script; a prop in
+it takes `speed x SMASH_DAMAGE`, breaks BEFORE the solver meets it (`break_prop()` now disables a
+dead prop's shapes at once), the car loses `SLOW[kind]` of its speed, takes a HIT_CRASH dent and,
+for a felled pole, passes through it (`FallingPole.pass_through()`: hinged, it is pinned to the
+world and stopped the car dead). Below the threshold, or a pole only bent, the car hits it as before.
+Cars tagged `warm_rehearsal` (the loading screen's row, which a blast throws about) never smash:
+they broke real props, and WorldState kept them broken (its "layer 0" is reset to 4 by
+`Vehicle._ready()`). `PROP_BREAK_LOG=1` prints every break and what did it.
+A destroyed prop on a rebuilt chunk leaves its stub (`PropBreak.remains()`, the `is_destroyed`
+early return in `_add_prop()`). `PROP_BREAK=0` in the environment is the A/B.
+
+Hooks in shared files (each a line or two): `CityChunk._add_prop()` (instance data, remains),
+`damage_prop()`, `break_prop()`, both lamp builders and Broadway's lamp (`own_light`),
+`Vehicle._update_wheels()`, tests/smoke_test.gd (one line), still_shot.gd (`PROPS=` staging).
+
+Look: `tools/glshot/prop_break_shot.gd` (the props alone on a pavement, seconds a frame; `BREAK=`,
+`CAPS=`, `CAR=1` drives a sedan through the hydrant and the lamp, `NIGHT=1`), in the city
+`PROPS=hydrant,lamp,... still_shot.gd` (`tools/glshot/prop_break_city_stage.gd`: PB_FIND,
+PB_TIME, PB_EYE_*). Checks: `tests/prop_destruction_checks.gd` (on a deck 300 m up, a chunk of its
+own). Compile: `tools/prop_break/compile.gd`. Stills on `shots/prop-destruction`.
+
+Not done / not verified: nothing of it on Forward+ (the wet patch's mirror, the geyser under TAA
+and bloom); no water on the ground beyond the disc (the road's own `road_wetness` is global); a
+geyser does not knock a car off the road, it only floats it; bent poles are not persisted (only
+destroyed ones);
+~~no player-on-foot smashing~~ (done in wave 3, below).
+
+**Wave 3 (finish).** Merged origin/main (95bd13f) in. The player smashes through on foot:
+`PropBreak.smash_player()` (one line before `move_and_slide()` in `Player._physics_process()`)
+runs the cars' box query (`_smash_hits()`, now shared) ahead of a player over `PLAYER_SMASH_MIN`
+18 m/s - a boost, a dive, a fall; never a run (12 m/s) - so boosting into a lamp fells it and he
+flies on with `1 - PLAYER_SLOW_SHARE x SLOW[kind]` of his speed (checked: 40 m/s in, 33.8 out),
+the camera kicks (`PLAYER_SHAKE`), and the felled pole lets him pass (`smasher`). The geyser
+reads as water, not needles: the falling rain is 300 fine drops (3.5 cm x 55 cm streaks at 0.42)
+instead of 140 broad sticks, a mist sheath tears off the column on the way up (`_mist`), the
+crown's puffs are bigger; and it lifts a body where it stands over the main, not at its centre,
+so a car driven over a geyser rises by one side and tips away.
+
+## 9ez. Engine audio: an engine per car, revved by a simulated gearbox, 2026-10-06 (agent branch `wt/engine-audio`; VISUAL_ROADMAP "?")
+
+**What it was.** One low-quality engine loop (`engine_loop_0`, GGBotNet) played only for the
+player's car and pitched linearly with speed; traffic was Ambience's tyre roll, and a bus or truck
+its `diesel_idle` loop. No gears, no idle-to-redline character, no turbo, no reversing alarm, one
+horn sound for every car.
+
+**What it is.** `EngineAudio` (`scripts/vehicles/engine_audio.gd`), one node under the root made
+by the first Vehicle (`ensure()`, next to CarLights and DrivingFX):
+- **Nearest cars only**: every `pick_interval` (0.2 s, real clock) the `voices` (4; 2 on the web)
+  running cars (`lights_running()`: somebody in the cabin) nearest the camera within `reach` (55
+  m) plus the player's car get a Voice (five loop players, turbo, beeper, squeal); voices are
+  reused, never freed. The Vehicle's own engine loop stays quiet while `covers()` (one guarded
+  block in `Vehicle._physics_process`); a voiced bus or truck drops Ambience's diesel loop
+  (`voiced()`, one line in `_follow_traffic`).
+- **Profiles** (`PROFILES`, `profile_for()`): four (sedan, hatchback, crossover, minivan, taxi,
+  beater, vans, ice-cream truck), v8 (pickup, SUV, the muscle car, any `police_car`), diesel (box
+  truck, semi, fire engine, ambulance, garbage, sweeper, tow), bus (city and school buses), v12
+  (the four exotics, turbo + blow-off), moto (V-twin; any car with meta `engine_profile` "moto" -
+  the motorcycles session can use it).
+- **Revs** (`step_engine()`, pure, unit-checked): gear ratios spread geometrically between the
+  speed first gear tops out at (`first`) and the speed top gear reaches 92 % of the redline at
+  (`top`); upshift at an rpm from 42 % to 93 % of the redline by throttle, downshift under 62 % of
+  it, a kick-down on a floored throttle, 0.24 s throttle cut and fast rpm drop through each shift,
+  clutch slip in first, a limiter that cuts and catches at the redline, free revs in the air
+  (held just under the redline, no bounce) and standing on the throttle (boost = floored).
+- **Mix** (`layer_gains()`): the on-load ladder idle / low / mid / high crossfaded equal power by
+  rpm (each loop pitched rpm / its own rpm, a per-car +-4 % character), the coasting loop faded in
+  as the load drops above idle; level + `load_db` at full load + `rev_db` at the redline. Traffic
+  throttle comes from its acceleration (position deltas: kinematic traffic has no velocity; an
+  origin shift's jump is ignored), the player's from the stick and boost.
+- **On top**: the turbo whistle spools with load x revs and dumps on a lift (blow-off on the v12
+  only); the reversing alarm on diesel and bus profiles while rolling backward or with the
+  reversing lamps on; a squeal for TRAFFIC braking harder than `squeal_decel` or cornering harder
+  than `squeal_lateral` (DrivingFX already squeals the physical cars from their real tyre slip);
+  `horn()` / `horn_spec()` - each car's own take and pitch from a hash of its look, deep on trucks
+  and buses, the air horn on semis, fire engines and garbage trucks; TrafficAI's honks go through
+  it (one guarded line, the old Sfx call is the fallback), and the player has a `horn` action (H /
+  pad d-pad down, held = leaning on it).
+
+**The sounds** are synthesised offline by `tools/engine_audio.py`, NOT recorded: the session's
+network policy blocks Freesound, OpenGameArt, Wikimedia, archive.org and Kenney, and no CC0 engine
+recording was found on GitHub (SuperTuxKart's are GPL / CC-BY-SA). The tool builds each loop from
+the physics of the sound: every cylinder's exhaust pulse at its place in the firing order (i4;
+cross-plane V8 alternating banks L R L L R L R R - the burble; i6 diesel with combustion knock;
+V12; 45-degree V-twin), a per-cylinder strength spread (the lope) and cycle-to-cycle jitter, each
+bank through a pipe comb and a muffler, a whole number of engine cycles per loop with periodic
+noise so there is no seam. 33 files, 0.7 MB. Measured: fours / V8s / V-twin carry 88-99 % of
+their energy under 1 kHz, the diesels 56 % with the knock band above it, the V12 30-77 %. Sfx
+gets them as SAMPLES with loudness entries and loop flags (fallback: the old engine tone, built
+once). **Any file can be replaced by a recording**: same name, re-measure its loudest-50 ms level
+for `SAMPLE_LOUDNESS_DB`, and put the rpm it was recorded at in `PROFILES.rpm`. That is the first
+thing to do on a session whose network reaches Freesound.
+
+**Cost.** No geometry, no draws (geo_count flat by construction). CPU: one group scan every
+0.2 s (like CarLights) and up to five voices' arithmetic a frame; audio: up to ~7 players a voice
+playing (two engine layers in a crossfade, the coasting layer, turbo, beeper, squeal), so ~20-30
+streams at worst. Sfx load +30 ms (the 33 oggs).
+
+**A/B and tools.** `ENGINE_AUDIO=0` (the old single loop on the player's car, the old horns);
+`ENGINE_AUDIO_HUD=1` shows a debug panel (each voice's profile, traffic or physical, gear, rpm,
+load, speed, the five layer gains, turbo, BEEP, SQUEAL); probe `tools/engine_audio/probe.tscn`
+(headless, seconds: each profile's run through the gears, the body-type table, missing files).
+Checks: `tests/engine_audio_checks.gd` (63 with the city: live staged traffic, the gearbox per profile, equal power,
+the player's voice and shifts, the Vehicle's loop silent, a truck's diesel and alarm, horns).
+
+**Gate** (`SHARDS=3 tests/headless_check.sh`, 2026-10-06, final code): 2,416 checks passed, 0
+failed, peak RSS 2,403 MB a shard. The run is still marked failed by one SCRIPT ERROR in
+`tests/dog_checks.gd:180` (a dog walker freed during its 90-tick wait, outside this area), which
+appeared in both 3-shard runs. Shard 0 run ALONE passes clean both with this branch's engine audio
+on (751 checks) and with `ENGINE_AUDIO=0` (751), and `SMOKE_PARTS=dog_checks` passes alone either
+way: it shows only under the three shards' CPU contention, so it is that check's timing race.
+
+**Found by the debug panel**: freeway traffic squealed on gentle curves - kinematic cars are
+placed along lane polylines and their heading steps at every vertex, so a raw yaw rate spiked;
+the squeal now reads speed x the turning rate of the direction of travel (that rate smoothed over a
+quarter second, so neither a vertex step nor the speed regained leaving a slow junction turn reads
+as a hard corner; squeals need 8.5 m/s2 braking or cornering above 9 m/s), and every
+voice's motion is sensed once a PHYSICS tick (`Voice.sense()` from `_physics_process`), measured
+over the time since the car last moved: traffic is placed on physics ticks, so a render frame saw
+it move twice or not at all and the speed and its rate jittered. A live check stages three cars
+through the spawn junction (one free to turn).
+
+**Not done / not verified.** Nobody has LISTENED to it: the session has no audio out, so the
+loops were judged by spectrum, crest factor and seam only - an ear check on the Mac is needed,
+and the synthesised timbre will not match a recording. Not on the web build heard either.
+Motorcycles have a profile but no bodies yet. Traffic gear changes are plausible but their
+throttle is guessed from acceleration. StreetErrands' honk (`Sfx.play("horn")`) was left as it
+was. No interior (in-cabin) muffling for the player's car.
+
+**Wave 3 (2026-10-29).** Merged origin/main (95bd13f: apartments, tower gondolas). Sourcing tried
+again: OpenGameArt and archive.org now answer, Freesound, Kenney and Pixabay still do not. What
+they hold under CC0 / public domain is the GGBotNet pack already in (64 kb/s, one loop of unknown
+rpm), pauliuw's two 20 s loops whose pitch wanders 80-220 Hz (no fixed rpm to place on a ladder),
+domasx2's racing loops (marked CC0 but built from sampling+ material: left out) and street field
+recordings - so the synthesised ladder stays. StreetErrands' honk now goes through
+`EngineAudio.horn()` like TrafficAI's (each car its own horn; the old Sfx call is the fallback). Gate
+(`SHARDS=3`, on 95bd13f + this branch): 2,442 of 2,443 checks passed, peak RSS 2,473 MB a shard;
+the one failure was TrafficAI's swerve check (`traffic_ai_checks.gd:435`: the placed car stood
+still short of the player, no swerve, no honk). Shard 1 rerun alone passes, with engine audio on
+AND with `ENGINE_AUDIO=0` (867 / 867 each, the swerve check running: swerved, 2.6 m clear,
+honked), so it is that check's timing under three shards' CPU contention, not this branch.
+Beware: `SMOKE_PARTS=traffic_ai_checks` alone silently SKIPS the swerve check (no avenue found
+from that start), so it proves nothing about it.
+
+## 9fa. Swimming: the hero in the sea, the marina, the lake, the canals and pools (fleet wave 2, `wt/swimming`)
+
+The owner's brief: "The hero swims: in the ocean, the marina, pools and MacArthur Park's lake he
+floats at the surface (the ocean's Gerstner height from GDScript, as Surf mirrors it), swims with a
+stroke animation, dives under, splashes and a wake, and boosts out of the water like a dolphin;
+drowning is not a thing." Before this every one of those waters was a floor: the sea and the marina
+held him up on the city's ground box (y 0, the water drawn at 0.15), a pool is painted on paving,
+and the lake and canals let him wade on their floors.
+
+**Files.** `scripts/player/swim.gd` (`Swim`, the controller, a child of the Player),
+`scripts/player/swim_pose.gd` (`SwimPose`, the strokes), `scripts/player/swim_fx.gd` (`SwimFX`:
+splashes, wake, bubbles, synthesized sounds), `scripts/world/sea_surface.gd` (`SeaSurface`, the
+sea's height), `scripts/world/swim_water.gd` (`SwimWater`, where water is), `shaders/underwater.gdshader`
+and `shaders/water_underside.gdshader`, `tests/swimming_checks.gd`, `tools/swim/probe.tscn`.
+Hooks: Player (`swim.step()` first in the tick after the car; `is_swimming()`), WeaponManager (no
+guns in the water), Footsteps (no steps), Avatar (`swim_pose`, `swim_body()`), the `dive` input
+action (C / Ctrl / pad X, at the end of `[input]`), and one registration line in each water builder
+(MacArthur Park's lake volume, the canals' sink volumes, Parks' rec pool, LotFill's swimming pools,
+YardFill's back-yard pools). `tools/glshot/still_shot.gd` gained `EYE_KEEP_PLAYER=1`.
+
+**The sea's surface** is the ocean shader's vertex stage in GDScript (`SeaSurface.displacement()`:
+the shore distance, the shoaling taper, the wave groups, the five Gerstner swells with the lean
+pulled back for big seas, the tsunami, the surf of surf.gdshaderinc through Surf's envelope, and the
+held level near the shore), read at a point by stepping back along the horizontal displacement
+(three fixed-point steps). The sea state comes from Weather (wave_scale, surf_gain, the tsunami);
+its clock is the shader's TIME (`SeaSurface.clock`, the engine's ticks at first use, advanced by
+the scaled process delta in Swim). ~95 us a sample. The shader's uniform defaults and swell lines
+are checked against its source; change one, change both.
+
+**Where water is.** `SwimWater.at(macro, true_world_pos, t, sea)`: registered entries first (a 64 m
+grid; an entry goes when its node leaves the tree; FULL chunks only), then the marina's basin and
+channel (`Marina.in_water()`, flat at 0.15, a floor 4.5 m down), then the sea (zone OCEAN and
+seaward of the waterline; the floor the sand's own profile under the water, SAND_STEEP / SAND_LOW,
+shelving to the floor box's -13). A pool, the sea and the marina have no real floor under the
+water, so while he swims there `solid` makes Swim drop the world layer off his mask and hold him
+over the water's floor (and, in a pool, inside the tank); the lake and the canals have real floors
+under the ground box, which their own volumes already let bodies through, so the mask stays.
+
+**Swim.** He goes in when his feet come within `enter_above` of the surface (falling or standing),
+where the water is at least `min_depth` deep (the sea: past SAND_STEEP_AT offshore); a plunge
+(> 9 m/s) takes him under and `entry_drag` slows it (a 30 m fall goes ~8 m down), then he floats
+back up at `idle_rise`. At the surface the water's spring holds his feet `tread_depth` (still) or
+`crawl_depth` (moving) under the surface of the swell; under the water he swims where the camera
+looks (a 12-degree dead band round level), jump up, dive down. Jump at the surface hops out
+(`jump_out`, onto a dock or a pool's edge). Boost: `boost_speed` 17 m/s along the top, and every
+`leap_gap` a dolphin leap (`leap_up`, `leap_gravity`) - the streamline pose laid along the arc, a
+splash out and a splash in; boost with the camera pitched over `launch_pitch` bursts out into the
+ordinary boost flight. He wades out where the water gets shallower than `min_depth * 0.8`.
+**No drowning, no breath, no damage**: he is overpowered.
+
+**The strokes** are code, not a clip: the free UAL library (the life clips' source) is an itch.io
+download this build's network policy refuses, so `SwimPose` keys them per frame the way the hero's
+idle variants were keyed - each bone's length aimed at a skeleton-space direction as if he stood
+upright, worked out from a phase: the front crawl (each arm a full circle at the shoulder, the
+pull under the body with the elbow bent, the recovery high and wide, half a cycle apart; the body
+roll; the head turned to breathe every other stroke; a six-beat flutter), treading (sculling arms,
+eggbeater legs), the breaststroke under water and the streamline with a dolphin kick (boost and
+leaps). Blended by weights; `Avatar.swim_body()` lays the body (prone in the crawl, along the
+velocity under and in the air) about the hips and lifts it so the back is awash. A real swim clip
+can replace the keyed strokes later (`tools/hero/hero_clips.gd` CLIPS row + a `moves/swim_*` play
+in `Avatar.swim_body()`), SwimPose's weight then only for the lay.
+
+**Effects.** A splash on every way in and out (droplets in a crown, a little white mist, and for
+a real plunge only a small broken patch of foam, a metre or two, gone in two seconds), a hand's
+splash at each crawl stroke, the wake (small flat patches of lace laid off the head and shoulders,
+which stay where they were laid and spread sideways, so a moving swimmer draws a narrow V; nothing
+while treading), a rooster tail of spray on the boost, bubbles under the water (only deeper than
+1.2 m, so none break through the opaque sea). The lead's review of the first stills: the entry's
+foam ring was 6-8 m across and read as a decal donut; it is the patch above now. Under the surface (the camera's own point): `underwater.gdshader`, a full-screen quad
+(the heat haze's trick, render_priority MIN) that reads the picture AND its depth: every pixel's
+light absorbed red-first over its real distance (Beer-Lambert per channel, `absorb`), scattered
+toward the water's colour by distance (`visibility`, metres to half), darker with depth and at
+night, blurrier with distance, wobbling; and the surface's underside overhead
+(`water_underside.gdshader`, a plane at the surface over the camera): Snell's window of sky
+straight up, dark past the critical angle. Both work in linear on both renderers.
+Sounds are synthesized in SwimFX (noise bursts with bubble chirps; a muffled loop under the water):
+no CC0 water recording is in the project and freesound / itch.io are out of reach.
+
+**Cost.** Nothing on land beyond a zone test a tick. In the sea two to three `SeaSurface.height()`
+samples a tick (~0.3 ms), a few CPUParticles3D systems and, under the water, one full-screen pass.
+No geometry is added to any chunk (the registrations are data). Measured (still_shot GEO, the
+same camera off Rando Pier at 15:30, opengl3): swimming 3,229,823 triangles / 2,920 draws, with
+`SWIMMING=0` (the hero standing on the water instead) 3,255,022 / 2,927 - flat.
+
+**Stills** (branch `shots/swimming`): `01_before_sea_1530` (SWIMMING=0: he runs on the sea),
+`02_after_crawl_1530`, `03_after_tread_1530`, `04_after_underwater_1530`, `05_after_dolphin_1530`,
+`06_after_park_pool_1530` (the rec pool at (129.5, -95.1) on seed 1337), `07_after_macarthur_lake_1530`,
+`08_after_dolphin_1840`. The probe (`tools/swim/probe.tscn`) prints the nearest rec pools and the
+lake's bounds for framing more.
+
+**A/B and stills.** `SWIMMING=0` in the environment: no water anywhere (SwimWater.enabled), the
+old behaviour. `SWIM_STAGE=tread|crawl|boost|under` (fakes the stick) with `SWIM_HOLD=1` (swims on
+the spot, so a fixed camera frames him; `SWIM_DEPTH` for under) and `EYE_KEEP_PLAYER=1` on
+`still_shot.gd`, e.g. off Rando Pier:
+`SWIM_STAGE=crawl SWIM_HOLD=1 EYE_KEEP_PLAYER=1 FOV=50 EYE=-1005,1.6,-271,0,-6 ... -- --spawn=-1005,-280,-90,-10 --hour=15.5 --nohud`.
+
+**Wave 3 (finishing the task, merged onto main 95bd13f).** More water: the reservoir behind the
+dam is worked out like the marina (`Reservoir.wet()` on its 5 m grid, the surface its fitted
+`level`, the floor `height_at()` - the carved hills, real ground, so nothing is passed through:
+`Kind.RESERVOIR`), the golf pond registers in its chunks (a dug bed 1.3 m deep, the turf's
+collision under it), the rooftop pool decks register as `Kind.TANK` (a pool whose floor is real:
+the roof, 0.95 m down; the world stays on his mask, so a roof pool never drops him through the
+tower) and the hill homes' pools as ordinary painted pools. `still_shot.gd EYE_KEEP_PLAYER=1` prints
+where he is and the water he swims in once. Still `09_after_reservoir_crawl_1630`:
+`SWIM_STAGE=crawl SWIM_HOLD=1 EYE_KEEP_PLAYER=1 FOV=50 EYE=-524.5,266.4,-1308,200,-12 ... --
+--spawn=-522,-1302,180,-8,264 --hour=16.5 --nohud` (spawn under the level: a still's frozen clock
+never lets him fall the last metre in).
+
+**Not done / known gaps.** The river's low-flow channel is too shallow to swim; a car driven into
+the sea still rides its wheels on the ground box; the strokes are keyed in code, not
+motion-captured (the UAL swim clips are still out of this network's reach); nothing of it has been
+seen on Forward+ (the Mac).
+## 9fb. Facades that read as built (fleet "facades-gta", wave 3)
+
+The owner: "this needs to start looking like GTA 6". The lead's review of the reference stills
+found the generated Buildings the biggest gap: at 30-150 m from the street and 100-500 m from the
+air, towers read as boxes wrapped in a flat, perfectly regular grid of near-identical dark panes,
+with no depth and knife-sharp corners.
+
+**What changed.** One include, `shaders/facade_variety.gdshaderinc`, used by BOTH building.gdshader
+(near walls) and building_lod.gdshader (the coded far boxes), every roll from integers (wl_hash,
+salts 70-89) so a tower keeps the same panes across the LOD line:
+- **Pane and floor variety** (`fx_pane()`, `fx_floor_tint()`): each pane's tone (0.8-1.45), its
+  mirror strength (0.72-1.28) and the height its blind hangs at (60 % of panes, clustered by floor -
+  the near room traces the very blind through room_interior's new `drop_in`, the far box draws it at
+  its average); curtain walls in coating batches of 3-9 storeys; spandrel panels each their own tone
+  and tilt; pane bow 1.8x and a rolled-glass wave across each pane.
+- **The street opposite in the glass** (`fx_opposite()`): the reflected ray meets a plane of
+  facades 18-44 m out (a lot every 14-32 m at its own height, finish and window grid, its roofline,
+  lit by the sun on that side) or the street before it; the far skyline rows stay behind. It
+  replaced the reflection keyed on the ray's heading alone, which mirrored the same picture in every
+  pane of a face. Opposite rooflines now cross a tower floor by floor and move as you walk.
+- **Depth** (`fx_member()`): a curtain wall's members stand proud of the glass - their side faces
+  (lit as what they face) and their sun shadows on the panes, box filtered and handed to their
+  averages once a pixel spans a bay. Three systems by hash (`fx_system()`, `FacadeVariety.system()`):
+  flush unitised 50 % (15 cm caps; within `caps_real_until` = kit_mullion_distance the kit's real
+  caps take over), deep 48 cm fins 26 %, 42 cm slab bands 24 % (both always analytic: a 13 cm fin as
+  geometry aliases into broken lines at 100 m, tried and dropped). The far boxes now draw a punched
+  or slot window's reveals and head shadow as the near trace does, and both draw the shade round each
+  opening (`fx_opening_ao()`).
+- **Weathering**: drips off the coping (a streak every 55 cm, longer under scuppers,
+  `fx_roof_drip()`), water off the corners, both lighter on glass.
+- **Edges**: every near box part above 6 m wide has its vertical arrises cut back 22 cm
+  (`Building._bevel_arrays()`, `FacadeVariety.bevel()`; on a part with shops never more than 4.5 % of
+  a bay, inside the first frame). The cut faces draw as the shader's corner pier, so the corner
+  catches the light. Collision, StreetWear and the kit still measure the box.
+
+**A/B and tools.** `FACADES_GTA=0` in the environment: the walls, the far boxes and the corners
+exactly as before. `tools/glshot/far_building_shot.gd` takes `CAM_POS=x,y,z CAM_LOOK=x,y,z FOV=`
+for close-ups of the same row near and far (it also runs under lavapipe Forward+ in 2 minutes).
+Checks: `tests/facades_gta_checks.gd`.
+
+**Numbers.** Reference cameras (opengl3, main 95bd13f vs this branch, the five building views):
+triangles -1.3 % .. +0.5 %, draws -1.5 % .. +0.2 %, no shot flagged; luminance p50 within 2 levels
+(see the compare on shots/facades-gta). Shader cost: about 60 more ALU ops on glass pixels and 40 on
+curtain-wall walls, no new samplers (WebGL budget unchanged), no new nodes or draws. The bevel adds
+16 triangles a part. Near/far luminance (far_pair.py): a fin tower's far copy runs ~1.3x its near
+one, as the glass towers did before.
+
+**Not done / not verified.** The landmark towers (`uv_facade`) get the variety, the reflection and
+the flush depth, but never fins or bands. The opposite facades are a fixed hash per wall, not the
+real buildings across the street (the reflection probes still take over near the camera on
+Forward+). Forward+ judged on a small scene under lavapipe only (the city does not fit); the
+owner's Mac should look at a downtown street at noon and the golden-hour aerial.
+
+## 9fc. The island offshore: Isla Calandra on the horizon, 2026-10-30 (agent branch `wt/offshore-island`; VISUAL_ROADMAP #148)
+
+**What it is.** A large island 30-40 km out across the Pacific (the form of the Channel
+Islands; the name is original, Isla Calandra, its one town Puerto Calandra): a 34 km long
+ridge of mountains to 1,050 m with an isthmus a third of the way along, a ragged coast and
+canyons down its flanks. From the beach town its centre is 36 km out a little south of west, so
+it fills the sunset's side of the horizon (its north point near due west, where the sun goes
+down at 18:00); from the hills, downtown and the Esplanade it is 36-42 km off.
+
+**How it is drawn.** It stands three times past the camera's 12 km far plane, so the SKY draws
+it: `shaders/offshore_island.gdshaderinc`, included by sky.gdshader, `island_draw()` called
+after the sun, moon and stars and before the cirrus, contrails and clouds (so the sun sets
+behind it, stars never show through it, clouds stand in front). The sky is drawn behind
+everything, so the city, the headland, the piers and the near sea cover it with no depth
+trick. It is a real height field in true-world KILOMETRES (`view_km`, the camera SkyExtras
+already pushes): each pixel's ray is followed across the footprint ellipse
+(`island_chord()`), the ground sampled along the chord (8 even samples plus 6 round where it
+crosses the long axis, which is what decides the skyline, so it does not crawl as you move);
+the pixel is island under the highest angle any sample makes, less the earth's curvature with
+refraction (R 7,330 km: 88 m of the shore sinks at 36 km), antialiased over a pixel. The
+first sample passed under is the surface seen: lit by the sun with a normal from the height
+field and by the sky, then laid in aerial perspective (`island_haze_km`). At dusk the air in
+front is darker than the sky behind (`island_glare`, toward a low sun), which is what makes
+it a hard silhouette against the sunset. After dark: 30 lights round the town's bay and along
+the coast road (sodium and white, a few going off through the night, twinkling) and a red
+beacon on the ridge, no smaller than a pixel, only computed near the town's bearing. Cost: a
+handful of noise evaluations per pixel inside its few-degree band; nothing anywhere else
+(`island_amount` 0 returns first). Works on Compatibility (the web) unchanged.
+
+**Weather** (`OffshoreIsland`, scripts/world/offshore_island.gd, DayNight's child next to
+SkyExtras): every frame `air()` (pure) turns Weather's state weights into the amount (clear 1,
+overcast 0.3, rain / storm / marine layer 0, Santa Ana 1), the haze distance (26 km clear, 75
+km Santa Ana, less in golden-hour smog by `golden_haze_cut`) and the lights (night_factor).
+No Weather (sky_shot) reads as clear. `ISLAND=0` / `-- --no-island` is the A/B.
+
+**Look at it:** `tools/offshore_island/island_shot.gd` (sky_shot.gd with the camera at a
+true-world EYE over a sea plane, seconds; AMOUNT / HAZE / LIGHTS hold the uniforms). In the
+city: still_shot.gd EYE `-690,2,800,113.7,0.6` (beach, EYE_AGL=1), `-441.66,2,3534.58,109,0.2`
+(Esplanade), `-600,40,-1500,117,-1.5` (the front range's west end). Checks:
+`tests/offshore_island_checks.gd` (distances, open ocean under the footprint, the town facing
+the mainland, the weather table, the wiring and the pushed uniforms).
+
+**Not done / not verified:** no Forward+ (Mac) still - opengl3 only; colours use the sky's own
+uniforms, so they should hold, but the haze under AgX and auto exposure wants a look. The marine
+layer's deck top seen from above (the hills over a white sea) hides the island entirely rather
+than letting the ridge stand out of it. No reflection of the island's lights on the sea. Not on
+the minimap (it is off its range).
+
+## 9fd. The crowd in the rain (fleet wave 2, `wt/rain-crowd`)
+
+The task: "when Weather rains, people put up umbrellas (code-built, opened and held by the grip
+frame of CrowdLife, a few colours), pull hoods, hurry, shelter under awnings, bus shelters and
+doorways, and the streets empty out under a downpour; umbrellas fold when it stops. Built on crowd
+life, near the camera only."
+
+**How it hangs together.** `RainCrowd` (`scripts/npc/rain_crowd.gd`) is one small object per plain
+walker that lives (`Pedestrian.rain`, made at the end of `_setup_life()` once the life clips are
+attached; officers, crews, sleepers, vendors never get one). Weather writes `RainCrowd.level` (its
+blended `rain_level`: 0.7 rain, 1.0 storm) every frame; tests and stills force it
+(`RainCrowd.forced`). Pedestrian calls it from four lines: `indoors()` at the top of the physics
+tick (after `_update_lod`, so the camera's range still updates while someone is inside), `pace()`
+on the walking speed, `on_walk_end()` where a walk ends (before the crosswalk roll; dry it returns
+at once with no roll, so a dry city behaves exactly as before), and `pose()` after the life pose.
+Everything is gated on `_life_near` (crowd life's 60 m): far walkers walk on as in the dry.
+
+**Who does what** is `hash(seed, "rain")`: 56 % carry an umbrella (a full-size stick umbrella or
+a compact, sixteen colourways weighted to black and navy), the hooded-jacket rigs (`HOOD_RIGS`:
+crowd_m's windbreaker, crowd_o's hoodie) pull the hood up unless they wear a hat, the rest have
+nothing; each reacts at their own rain level (`REACT_LEVEL` 0.06-0.45, folds again 0.04 under it),
+so a shower starts with a few umbrellas and ends with them folding one by one.
+
+- **Umbrellas** (`RainGear`, `scripts/npc/rain_gear.gd`): code-built at real size (eight or seven
+  steel ribs on a curved dome, gores sagging between them, stretchers from the runner, ferrule,
+  rib tips, a crook or a straight grip with a wrist strap, the tie strap when furled), at
+  `OPEN_STEPS` (7) opening amounts - the ribs swing up from the shaft, the runner slides, the
+  cloth folds in - swapped through in `OPEN_SECONDS` (0.55 s) to open or fold, so there is no
+  per-instance uniform (the Compatibility global-buffer cap). ~1.8k triangles open, one draw a
+  holder, no shadow, `visibility_range_end` = life range. Held: the holding arm's upper arm and
+  forearm are aimed in skeleton space (`UPPER_ARM`, `FOREARM`, mirrored; the coffee cup's method),
+  then the umbrella node (top_level) is placed at the grip point of CrowdLife's grip frame on the
+  hand bone with its shaft leaning from the hand to `APEX_OVER_HEAD` over the head. The phone and
+  the bag take the right hand, so their carriers hold it in the left. Furled it hangs from the
+  hand like a cane. It folds to run (panic) and under cover (a bus-stop seat or a doorway).
+- **Hoods**: fitted to each rig's skull from CrowdHatTable (`RainGear.build_hood()`, the hats'
+  head frame): a loose shell (standoff 1.2 cm at the face, 1.6 at the crown, 3.4 at the back), an
+  elliptical face opening from over the brow down, a rolled hem, a drape down the nape. Pulled up
+  by turning it about the nape over 0.7 s; the hair cards hide under the same "under_hat" meta the
+  hats use. The colour is the look's recoloured top (`cloth_hue/sat/value`) or a near-black.
+- **Hurry**: `PACE` 1.1 under an umbrella, 1.22 under a hood, 1.38 with nothing (and the head
+  down, `_posture_pitch` -0.38, restored after); the walk clip's rate follows the speed.
+- **Shelter** (rain over `SHELTER_LEVEL` 0.5, at the end of a walk, 75 % of the uncovered and 12 %
+  of the covered): the nearest free seat within 35 m whose record is a bus stop's (CrowdLife's
+  seats - StreetDetail registers both places of every stop's bench with its prop record), else a
+  doorway or awning along the building line: `Pedestrian._plan_wall()`'s ray to the wall, stood
+  with the back to it (fold, idle, or the phone). Talks and open-bench sits of the uncovered end
+  when it starts. The stop is held while it rains and ends when it eases.
+- **The street empties** over `LEAVE_LEVEL` (0.6): a share (18 % at 0.6 to 55 % in a storm) walk
+  up to a doorway (`_plan_wall()` WINDOW, then 0.45 m on into it) and go in: hidden, collision
+  layer 0, hit zone off, the whole tick skipped; out again under 0.56 or once the camera has gone.
+- **Arriving mid-rain**: `settle_now()` - the first time someone comes into range within four
+  seconds of being made (their chunk streamed in) they are already as the rain left them: umbrella
+  up, hood up, in a shelter, or inside. The stills stage everyone this way.
+
+**Tools.** `RAIN_STAGE=<level>` on `still_shot.gd` (with `--weather=rain|storm`) settles the crowd
+near the player, `RAIN_FOCUS=umbrella|hood|shelter` frames the nearest one, `RAIN_REPORT=1` lists
+them; `tools/crowd/crowd_lab.tscn SCENARIO=rain` (`RAIN`, `RAIN_GEAR=umbrella|hood|none`,
+`RAIN_AFTER`) shows the gear in seconds without a city; `tools/rain_crowd/compile.gd` compiles and
+builds every mesh with its triangle count. `RAIN_CROWD=0` is the A/B. Checks:
+`tests/rain_crowd_checks.gd` (one line at the end of the smoke test's check files).
+
+**Frame cost** (opengl3, the still harness's GEO line, same EYE and load, rain at 15:00):
+along the pavement (`EYE=2368.5,2.0,912,-4.5,-4`, FOV 38) 5,826,899 triangles / 2,605 draws with
+`RAIN_CROWD=0`, 5,807,637 / 2,599 with it (the umbrellas' few draws are paid back by the people
+gone in); the wider pavement view (`2362,2.2,893,-26.6,-5`) 6,156,832 / 2,946 -> 6,120,229 / 2,937.
+An umbrella is ~1.8k triangles and one draw, a hood ~1.6k; nothing past 60 m. CPU: one compare a
+tick per walker in the dry; in the rain two arm aims and a transform for each holder near the
+camera.
+
+**Stills** (`shots/rain-crowd`, opengl3): `08_before_rain_along` / `09_after_rain_along` (the
+pair), `10_after_umbrella_close`, `11_after_rain_night_along`, `12_after_storm_along`, the first
+pair `01` / `02` and `03` (storm) from the wider east-pavement view, and two lab close-ups (`13`
+umbrellas held, `14` a hood up). EYEs above; `RAIN_STAGE=0.7` (rain) / `1.0` (storm),
+`--weather=rain|storm --hour=15|21`, spawn `2359.4,880,0,12,2`.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the canopy's translucency (BACKLIGHT),
+the wet sheen and beads. No umbrella collisions between neighbours (two holders can pass through
+each other's canopies) and no canopy clearance under low awnings (a holder in a doorway folds it).
+Awnings are not detected as such: shelter is any wall the ray finds. The hood is skinned to the
+head only (a big head turn swings its drape). Dog walkers and joggers keep going (no umbrella).
+
+**Wave 3 (finished on main 95bd13f).** The branch was merged with main (only the docs and the
+smoke test's check list conflicted: both kept) and one gap closed, the one a player sees most: the
+far crowd. Past crowd life's 60 m, out to `RainCrowd.FAR_REACH` (140 m, Pedestrian's `lod_far`:
+`_lod_stride` <= 4), an umbrella carrier shows a coarse OPEN canopy over the head
+(`RainGear.umbrella_far()`: the same dome at three rows and two columns a gore plus the shaft,
+86 triangles; `_show_far()`, placed over the Head bone at `FAR_APEX_OVER_HEAD` 0.42 m, where the
+held one ends up), with no arm pose (a figure 20-50 pixels tall); it is gone while they run or
+panic and when the rain stops. `pace()` now applies at any range (far walkers hurry too); the
+shelter, going in and the hood stay near only. `RAIN_FAR=0` is the A/B. In the staged downtown
+load about 110 of ~480 far walkers carry one. Cost (opengl3 GEO, same load and EYE
+`2362,2.2,893,-26.6,-5`, FOV 60, rain at 15:00): 6,772,080 triangles / 3,435 draws with
+`RAIN_FAR=0`, 6,770,956 / 3,460 with it (+25 draws, triangles flat). `RAIN_REPORT=1` on the
+stage now also prints the far umbrellas (positions, and a count a few frames after the stage).
+Checks added: the far canopy shows past life's range, is coarse and over the head, and goes when
+the rain stops. Stills: `15_before_rain_bus_queue` / `16_after_rain_bus_queue` (EYE
+`2472,3.0,1012,4,-3`, FOV 35: the bus queue on the next avenue east, every umbrella open over the
+queue), `17_after_rain_aerial` (EYE `2365,28,975,0,-22`, FOV 55). Still not seen on Forward+.
+Far people do not go in, so from the air a storm's streets still carry walkers. Gate after the
+second merge with main (eb75a10): `SHARDS=3`, 2,568 checks passed, 0 failed, peak RSS 2,481 MB per
+shard (an earlier run lost two load-timing checks - a bumper tap, a semi on the deck - which pass
+alone and on the rerun).
+
+## 9fe. Outdoor dining parklets, 2026-10-05 (agent branch `wt/parklets`, fleet wave 2; VISUAL_ROADMAP "?")
+
+**What.** Los Angeles restaurants and cafes build timber decks out into the parking lane in front
+of their door. Now the city's do: a deck level with the pavement, painted planters along the
+traffic side with a clipped boxwood hedge, slatted cedar screens at the ends, a festoon of bulbs
+strung between four posts, a flexible delineator at each outer corner and a rubber wheel stop
+before each end; bistro sets (round marble or square timber tables, two rattan chairs) laid for
+dinner or coffee where somebody sits; canvas umbrellas open by day and furled after 19:30.
+Diners sit on the crowd's own seated clips and talk to whoever shares their table; a waiter walks
+between the shop's door and the tables, stopping at each to take an order.
+
+**Files.** `scripts/world/parklets.gd` (plan, build, people, `blocks_parking()`),
+`scripts/world/parklet_kit.gd` (every mesh, code-built at real size), `shaders/parklet.gdshader`
+(one material: codes in the vertex alpha - decking with boards, gaps, butt joints and screws,
+cedar, canvas, powder-coated steel, bulbs, glass, china, food, boxwood, soil, marble, rattan,
+reflective sheeting, candle flame), `scripts/npc/parklet_diner.gd` (DINER / WAITER, a
+Pedestrian), `tests/parklets_checks.gd`, `tools/parklets/probe.gd`. Hooks: `Building.shop_fronts`
+(three lines in the shop-spill loop: every ground-floor shop's foot, normal, width, room, key),
+one step block in `CityChunk._block_steps()` after Micromobility, one `or` in `_park_car()`'s
+after-the-rolls check, one warm line in the loading screen, one load line in the smoke test.
+
+**Where.** A shop front whose ROOM (`Building.shop_room()`, what its glass shows) is CAFE or
+RESTAURANT, on the block's +x or +z face (the chunk's own parking lane, as the vendors' trucks),
+standing within `FRONT_REACH` of the kerb, rolls `ODDS[district]` on a hash of seed + building +
+shop key. The deck (6, 8 or 10 m, the longest that fits the shop's width + 3 m) is clamped
+`CORNER_KEEP` off the block's ends and dropped where any of five points along its lane hits a
+closed road, a bus stop, a fire / police station's kerb, a school, an alley mouth, a hospital,
+freight rail, a civic building, a landmark, the market, a red kerb or driveway, a vendor's truck,
+road works, a bike lane or another parklet. At most `MAX_PER_BLOCK`. FULL chunks only. On the
+default seed 7 parklets on the 16 chunks round Pershing Square.
+
+**Who.** `busy(room, hour)` is the share of chairs taken at the hour the chunk is built at (cafes
+breakfast to late afternoon, restaurants lunch and dinner); each chair rolls a hash with the
+hour. After dark a shop the shader shows closed (`Building.shop_open()`) has an empty, unlit deck.
+Diners are kinematic and mask 0 while seated (`Pedestrian._sit_pose()` puts the hips at
+`ParkletKit.SEAT_Y`), and `_act_beat` is held at INF so Pedestrian's bench-neighbour beat never
+fires; their own beat switches sit / sit_talk and looks at the table mate. Gunfire sends them
+running and they do not come back; the waiter does. In the crowd cap (`_take_crowd_room()`).
+
+**Rolls.** Nothing goes through `_add_prop` (the deck's collision is its own `Parklets`
+StaticBody3D: deck, planters, two screens), so the block's prop ids are the same with parklets on
+or off; the parked cars skip the stretch after every roll and count it as parked. The bistro sets
+are `EncampmentItem`s (they tip over and stay gone; the umbrella goes with them). The check builds
+the block off and on and compares buildings, props and trash cans, and that the cars are a
+superset.
+
+**Cost.** One downtown frame (opengl3, 1280x720, the wide EYE below): 4.03 M -> 4.21 M triangles
+(+4.7 %), 1,788 -> 1,819 draws; from the pavement next to it 5.20 M -> 5.38 M, 2,723 -> 2,701-2,799
+(the diners are most of it: up to a dozen crowd rigs a chunk). A 10 m deck is ~15 k triangles
+(the bulbs and the hedge), a set 1.6-2.5 k, an umbrella 0.3 k.
+
+**Wave 3** (resumed after the usage-limit pause): merged origin/main 95bd13f (apartments,
+gondolas), the waiter's uniform and tray, the full gate green (2,412 checks, 3 shards, peak RSS
+2,499 MB). Frame at the across-the-street EYE after the merge: 4.05 M triangles, 1,553 draws.
+
+**Stills** (`shots/parklets`): EYEs on the DONUT HOLE cafe's parklet, block 25,0:
+`EYE=2651.2,1.7,199.2,37,-8` (across the street), `2639.5,2.4,186.5,-129,-13` (the pavement),
+`2648.5,1.6,196,35,-12` (the road side), `EYE_AGL=1`, at `--hour=13` and `--hour=21`;
+`PARKLETS=0` for the before.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the bulbs' glow and the OmniLight under
+the festoon through AgX. Diners hold no cutlery and never eat (no seated eating clip in the life
+library). The waiter now wears blacks (the crowd's garment regions, `ParkletDiner.waiter_material()`,
+no cap or pack) and carries `ParkletKit.tray()` (a steel tray with a carafe, tumblers and a plate)
+level on the left palm: the forearm turned forward like the crowd's coffee hold, the tray placed
+every frame over the wrist (`top_level`, never on the bone, so the hand's turn cannot tip it);
+put down while running or out of `life_range`. The -x / -z faces' parking lanes
+belong to the neighbouring chunk and get none (as the vendors' trucks). Walkers never take a free
+chair.
+
+## 9ff. The flyable helicopter, 2026-10-05 (agent branch `wt/heli-flyable`; VISUAL_ROADMAP "?")
+
+The task: "the player can take a helicopter from the helipads (rooftops, the hospital, the police
+HQ, the airport) and fly it - collective on jump/boost, cyclic on the move axes, yaw - with the
+rotor disc shader and rotor sound AirTraffic's Helicopter uses, a downwash that kicks dust and
+bends palms below, and crash physics. Reuse the Helicopter model."
+
+### What it is
+
+- **`FlyableHeli`** (`scripts/vehicles/flyable_heli.gd`) extends `Vehicle` with no wheels, like
+  the flyable jets extend it with theirs: the player's interact gets in and out with no new code
+  (`enter_vehicle()` unfreezes it), PhysicsBudget turns its script off when far, CarLights and
+  DrivingFX skip it (no lamps, no wheels). It wears `assets/models/helicopter.glb` with the air
+  traffic's material recipe (four liveries: private in Rooftops' colourways, police, news, an
+  invented air ambulance - white over navy, an orange band, never a cross), the rotor discs on
+  `shaders/rotor_disc.gdshader` faded in over the blades with the rotor speed, the nav lights,
+  strobes, beacons and landing light on `aircraft_lights.gdshader`, and the `rotor_loop` Sfx
+  pitched and levelled by the rotor and the load. Collision: cabin, boom, fin, two skid boxes.
+- **Flight.** `spool` (0..1) runs up over `spool_time` while somebody is at the stick and down
+  after; thrust is along the body's up, capped at `max_thrust` x spool squared. Collective: jump
+  climbs to `climb_rate`, boost descends at `descent_rate`, neither holds the height (a P loop on
+  the vertical speed, divided by the tilt so a leaning helicopter does not sink). Cyclic: the move
+  axes ask for a pitch / roll up to `max_pitch_deg` / `max_roll_deg`; the thrust tilts with it,
+  so it accelerates the way it leans, like the real thing; quadratic `drag` sets the top speed
+  (~65 m/s) and `slip_damp` makes it fly where its nose points past `coordinate_speed`. Hands off,
+  it tilts against its own drift (`brake_tilt`) and comes to a hover. Yaw: the nose turns toward
+  the camera's heading at `yaw_rate` (the mouse or the right stick steers, as the cars' flight
+  does); on the skids with the collective down it does not turn. The attitude is chased by
+  blending the angular velocity toward an axis-angle error (`attitude_response`, `max_rate`),
+  scaled by the rotor's authority.
+- **Crashes.** `_crash_watch_heli()` (a body with no wheels has no Vehicle crash watch) turns a
+  velocity change past `crash_dv` in one step into hp (`crash_damage` per m/s). Every third step
+  a thin cylinder round the hub at the blades' sweep is asked against the world and terrain: a
+  hit is a **rotor strike** - the four blades thrown as debris bodies, the disc gone, the engine
+  dead, a metal crash and a camera shake. Rounds and blasts come through `take_hit()` (hp 160:
+  smoke at half, engine dead at none). Dead in the air it spins round the mast (the tail rotor's
+  torque gone) and sinks on what is left of the rotor; it explodes on a hard impact, or
+  `burn_seconds` after settling on fire: `Explosion.blast()`, the player thrown out, charred
+  materials, fire and smoke, out of the `vehicle` group, PhysicsBudget debris for
+  `wreck_lifetime`.
+- **Downwash.** `HeliDownwash` (`scripts/vehicles/heli_downwash.gd`, the helicopter's child): a
+  ray under the hub every 0.1 s; inside `reach` (36 m) a ring of dust (`AmbientCraft`'s puff
+  material, radial acceleration outward; spray over the sea) at the ground, thicker the lower and
+  harder the rotor works; loose props (RigidBody3D, not vehicles) inside `push_radius` blown
+  outward; and the `heli_downwash` shader global (hub xyz, strength) - the strongest wash owns it.
+  `shaders/heli_downwash.gdshaderinc` is included by `foliage.gdshader` (palms), `foliage_tex`
+  (the scanned trees), `la_tree` and `grass`: within 24 m (grass 30 m) and 50 m under the hub a
+  plant leans away from under the rotor, right under it the crown is pressed down and out round
+  the trunk, everything shivers; grass lies flat in rings running outward. One branch on `w` when
+  no helicopter is low: nothing else changes.
+- **Where they wait.** `HeliSpot` (`scripts/vehicles/heli_spot.gd`) holds a helicopter's place.
+  `HeliPads` (`scripts/world/heli_pads.gd`) puts them: on every pad Rooftops parks a helicopter
+  (`HELI_SHARE`) the merged parked mesh is the **stand-in**, swapped for a real (frozen) body when
+  the player comes within 75 m and back once he is 160 m off and nobody has flown it - so a city
+  of rooftop pads costs nothing until you climb one; on half the landmark tower pads (a hash of
+  the pad: news or private); on the hospital's tower pad (the air ambulance); on a raised pad
+  (Rooftops' own kit, `landmark_helipad()`) on the police headquarters' roof (a police
+  helicopter); and on two painted pads on the airport's east apron by the hangars (news and
+  private; `AIRPORT_PADS`, picked by `tools/heli/probe.gd` clear of the gates, the parked jets,
+  the masts and the staging rows). Those few are `eager` (made when their FULL chunk is). The body
+  lives under the city root like a parked car; a flown one outlives its pad's chunk, and its spot
+  makes another when it is gone. Hooks: one line each in `Rooftops._parked_helicopter()` and
+  `landmark_helipad()`, `HospitalBuild._helipad()`, `PoliceStation.build_lot()` (the HQ only) and
+  `Airport.build_chunk()`.
+- **Camera.** While flying the chase camera sits at `camera_distance` (15 m; the player's own
+  6.5 m comes back on the way out).
+
+### Controls (for the owner)
+
+E at a helicopter gets in. Wait a couple of seconds for the rotor. Space climbs, Shift
+descends, let go of both and it holds its height. W / S / A / D tilt it (forward, back,
+sideways) and it flies that way; let go and it levels off and stops by itself. Turn with the
+mouse: the nose follows the camera. Land by holding Shift until the skids touch, then E.
+Don't put the rotor into a building.
+
+### Tunables most likely to need changing
+
+`climb_rate` 13, `descent_rate` 10, `max_pitch_deg` 26, `max_roll_deg` 24, `yaw_rate` 1.5,
+`brake_tilt` 0.02, `drag` 0.0011 (top speed), `spool_time` 3.2, `crash_dv` 9, `max_hp` 160,
+`camera_distance` 15; the wash's `reach` 36 and the shader's 24 m reach and bend gains.
+
+### Checks, stills, A/B
+
+`tests/heli_flyable_checks.gd` (one line in `smoke_test.gd`). `HELI_FLYABLE=0` builds no spots
+and no pads. Stills: `HELI=hover` (HELI_DIST, HELI_AGL, HELI_SIDE, HELI_YAW, HELI_LIVERY) and
+`HELI=pad` (HELI_SPOT, HELI_TURN, HELI_BACK, HELI_UP) on `tools/glshot/still_shot.gd`.
+
+### Not done / not verified
+
+- Never flown by a person: every feel number is from the checks' scripted inputs, not from hands
+  on a keyboard. Expect to tune.
+- No interior or pilot drawn (the canopy is the model's dark mirror glass, as the air traffic's).
+- The downwash bends the shader plants only; the hill shells, the climbers and the encampments'
+  tarps do not react.
+- Forward+ not looked at (opengl3 stills only).
+
+### Wave 3 (finished 2026-10-30)
+
+Merged origin/main (95bd13f) in; the only conflicts were the docs and the check-file list. Two
+visible fixes:
+- **The wash reads as weather, not stickers.** Its dust was AmbientCraft's UNSHADED puff in a
+  fixed beige: the same flat colour at noon and at dusk, and on a park's lawn a set of brown
+  blotches that read as dead patches. Now two layers of DrivingFX's lit puff (lit on the face
+  and through it, soft where it meets the ground): a low sheet of grit skimming outward and
+  slower billows rolling out round it, coloured by what is under the hub (`dust_color` paving
+  and roofs, `hills_color` the terrain layer, `sand_color` the beach, `lawn_color` a faint pale
+  haze off PARK and SCHOOL blocks, `spray_color` water).
+- **The airport heliport's paint was drawn face down** (counter-clockwise, so its normal flipped
+  and the whole pad drew near black with olive markings); wound clockwise now, sRGB vertex
+  colours decoded on both renderers.
+
+Gate: `SHARDS=3 tests/headless_check.sh` 2,431 checks passed, 0 failed (peak 2.47 GB a shard).
+Stills on `shots/heli-flyable`.
+
+## 9fg. Drivers react to chaos: brake, swerve, kerb, reverse, abandon and run, 2026-10-05 (agent branch `wt/car-panic`; VISUAL_ROADMAP ?)
+
+**What.** Gunfire or a blast near a street traffic car makes its driver react, GTA-style.
+`CarPanic` (`scripts/npc/car_panic.gd`, static) hears every `Pedestrian.alarm()` (one hook line,
+before the crowd's rate limit; it has its own 300 ms / 12 m one) and rolls each street traffic
+car within the alarm's radius (x0.85 for gunfire: glass and engine noise) a reaction from a hash
+of the car and the alarm, nearest first, at most `MAX_PANIC` (12) at once:
+
+- **BRAKE** - a hard stop (8.2 m/s^2 close, 5.2 at the edge of hearing), hazards 2.6-7.5 s, drive on.
+  Buses, trucks and service vehicles only ever do this.
+- **SWERVE** - brake and jink away from the threat inside the room the lane leaves (toward the
+  parked cars when the threat is across the road, in toward the centre line when it is on the
+  kerb side; half a metre on a two-lane street), sit, ease back.
+- **KERB** - only where `kerb_clear()` says so (no car parked or standing within the stretch, nobody
+  on the spot, and a shape query on world + props finds no lamp, hydrant or signal pole on the
+  pavement edge; 14 m short of the junction at least): crawl over and up with two wheels
+  (`KERB_IN` 0.3 m inside the kerb face, lifted and rolled `KERB_ROLL` as the outer wheels climb).
+  Once it is wholly out of its lane its `lane` becomes a lane nobody drives by the kerb, so it
+  leaves the lane's queue and the cars behind drive past; it comes back when `_group_clear()`
+  finds room. Else it falls back to SWERVE.
+- **REVERSE** - threat ahead: stop, back away up to 7-17 m at 3.6 m/s on the reversing lamps
+  (`traffic.rev`, one line in `Vehicle._tick_lights`), never past the car behind (1.2 m), the
+  player, or into the junction behind.
+- **ABANDON** - stop, `PanicCar` (`scripts/npc/panic_car.gd`, a node on the car) swings the
+  driver's door open (StreetErrands' `ErrandProps.door_node()`), `CarPanic.spawn_driver()` makes a
+  `Pedestrian` at the door (a FULL chunk and `take_crowd_room()`, else the reaction is a BRAKE),
+  `_scare()`d so it runs, on a StreetErrands road path round its car to the near pavement or across
+  the road to the far one, whichever is away from the threat (the traffic brakes for it as for a
+  jaywalker), then flees round its block; `_npc_driver` off, so CarCabin's traced driver goes and
+  the lamps go dark. The car stays where it stopped, door open. **The player can take it**:
+  `Player._try_enter_vehicle()` lets an abandoned traffic car through (`CarPanic.is_abandoned()`)
+  and `enter_vehicle()` calls `CarPanic.take()`, which drops it out of the traffic under
+  `Police.innocent` (nobody's crime); the door shuts behind him.
+- **FLOOR** - threat behind, or caught in a junction box: cruise speed x1.6 for 5-8 s, driven by
+  the ordinary traffic code (lights and queues still hold it).
+
+**The body on its springs** (wave 3). A panic car is placed, not driven on wheels, so it used
+to stop like a sled. `_body_motion()` runs a damped spring on the pitch from the car's own
+deceleration (`DIVE_PER_ACCEL` 0.0042 rad per m/s^2, about 2 degrees in the 8.2 m/s^2 stop,
+capped at `DIVE_MAX`; `DIVE_DAMPING` 0.32, so it rocks back past level once as it stops), eases
+a swerve's turn in (`YAW_EASE`) and rolls into it (`SWAY_ROLL`); state in `t.bd`, gone with
+`_end()`. Above `SKID_SPEED` 6 m/s with a stop of `SKID_DECEL` 6.3 m/s^2 or more, `PanicSkid`
+(`scripts/npc/panic_skid.gd`, a child of the car) squeals (Sfx `skid`, the loop pitched and
+levelled by the speed) and lays four locked-wheel marks in DrivingFX's mark ring (its `_lay()`;
+none with `DRIVING_FX=0`), fading as the car slows; it frees itself under 1.2 m/s.
+
+**Cars behind.** A panicking car standing in its lane carries `dp_at` and `why` 4, so on a street
+with two lanes each way TrafficAI passes it like a double-parked car. The car right behind
+honks (`TrafficAI.honk(..., "panic")`, its rate limits) after `HONK_AFTER` scaled by its mood's
+patience; on a one-lane street, behind an abandoned car or a long hold, after `ROUND_PATIENCE` it
+goes ROUND: out past the stopped car on the wrong side at a crawl (`ROUND_SIDE` 0.5 m clear of its
+flank), by at 5.5 m/s, back in. It starts only with the oncoming lane clear `ROUND_CLEAR` (95 m)
+ahead and the stopped car clear of the junction; oncoming cars within `YIELD_REACH` meanwhile
+YIELD (stop short of it until it is back).
+
+**How.** Every state is a `cp` dict in the car's traffic dict; `TrafficManager._drive_street()`
+hands a car with one to `CarPanic.street_tick()` first (one hook line) and skips the rest when it
+returns true. Everything else the traffic does is untouched. **Crime:** nothing here reports one;
+the shot or blast itself still does, as before, and so does a person hit. A panicking car never
+moves faster than 4 m/s off its lane (the bumper's knock threshold) except FLOOR on the road.
+`CAR_PANIC=0` in the environment turns it all off (the A/B).
+
+**Checks** (`tests/car_panic_checks.gd`, one line at the end of the smoke test's city files): each
+kind on a staged one-lane street (forced with `CarPanic.force_kind`), the follower driving past a
+car on the kerb, the follower honking and going round an abandoned car while a staged oncoming
+car yields, the player taking it, the switch, the cap on a blast among 18 cars, and no two cars
+inside each other throughout, and the hard stop's dive, rock, squeal and marks (dive -0.040 rad,
+rock +0.010, 76 marks). `SMOKE_PARTS=car_panic_checks` runs them alone (~4 min with the
+city load). Compile in seconds: `godot --headless --path . --script tools/car_panic/compile.gd`.
+
+**Stills.** `PANIC=brake|swerve|kerb|reverse|abandon` on `tools/glshot/still_shot.gd`
+(`CarPanic.stage_for_shot()`: the nearest one-lane street with a long block, the car and one
+behind it, a shot by the far kerb ahead; `PANIC_SIDE=near` for the kerb-side camera;
+`PANIC_STEPS="s,s,..."` advances the staged traffic, doors and drivers that many seconds before
+each still, `_p1`, `_p2`, ...; `PANIC_EYE_D` / `PANIC_EYE_H` the camera's distance ahead and
+height). The stills are on `shots/car-panic`: `00_before_CAR_PANIC0...` (the same staging, nobody
+reacts), `01-04_abandon_*`, `05-07_kerb_*`, `08-09_reverse_*`, `10-12_night_2100_*`. A panicking
+car never crosses its stop line by itself (it stops short; the traffic's rules take the junction).
+
+**Wave 3 gate** (merged with main at 78e6178f): `SHARDS=3` - shard 1 (with the car panic
+checks) 924 passed, shard 2 736 passed, shard 0 one failure ("dogs: the second walker is still
+there after 30 ticks"; shard 0 never runs the car panic checks), which passed on a rerun of shard
+0 alone (782 passed). The run before, two freeway checks (the on-ramp merge's lane, the semi on
+the deck) failed once each in the 3-process run and passed alone and on the next full run: load
+flakes on a 4-core box, not this branch (they are freeway; car panic touches street traffic only).
+Peak RSS 2.48 GB a shard. Frame cost: no new draw (the marks go in DrivingFX's existing ring;
+PanicSkid is one audio player on a stopping car).
+
+**Not done / known gaps.** Freeway, airport-loop, replica and stack traffic do not panic (street
+traffic only). The driver's door is ErrandProps' swung panel over the closed body door (the
+bodies have no door node). A ROUND can still meet an oncoming car that spawns inside the clear
+stretch (rare: spawns are 120 m+ from the player); it stops short (YIELD) but the passer is then
+part in its lane until it is by. Abandoned cars stay in the lane until the traffic despawns them
+(380 m) or the player takes one.
+
+## 9fh. The coast highway under the bluffs, 2026-10-05 (fleet wave 2, agent branch `wt/coast-highway`; VISUAL_ROADMAP "?")
+
+**The ask.** "A coast highway north of the beach town along the ocean (the form of PCH under the
+bluffs): a four-lane road between the sand and a cliff, beach houses on pilings over the sand on
+the ocean side with their decks and stairs, cars parked along the shoulder, lifeguard towers,
+surfers' vans", fitted to MacroMap's coast north of the pier without cutting through a district.
+
+**Where.** HillRoads' "Pacific Coast Highway" already ran the whole coast, COAST_INSET (46 m) in
+from the waterline; north of the beach town (z < ~-850 on seed 1337) the front range comes down to
+the sea and the road was a cutting climbing to 38 m in a 1:1 hillside, and the chunks there were
+broken: shrubs and rocks floating over the cut ground, a hills chunk with no terrain at all
+(the OCEAN-zoned block north of z -1267 drew only water and sand), the land standing as a cliff
+curtain over the sand. The stretch is the coast highway's own first 600 m (`z_north` = its first
+point, `shelf_full_z - 420`, to `z_south` = +600; the bench is full height to `z_full` = +470).
+Its centre line IS the coast highway's, so no other road, lot, block or freeway moves (the 10's
+end at x -900 is 170 m inland; checked: no city block, freeway or landmark on the corridor).
+
+**The land (`CoastHighway.profile()`, folded into `MacroMap.raw_height_at()`).** In d = x -
+coast_x(z): the sand at 0 up to the seawall (`WALL`, 31.6 m), a ramp behind it, the bench at
+`ROAD_Y` 4 m under the four lanes (d 35-57), a concrete gutter to the toe (58.6), then a cut bluff
+(min(natural, 1.5 m per m), which the hill road's own carve holds to 1:1 from the carriageway's
+edge, BANK_REACH out), the mountains past `REACH` (150 m, faded over 60). The relief is calmed to
+nothing over it (`calm()` in `_relief_at()`), `beach_width_at()` ends the sand at the wall (the
+relief's own fade keeps `_beach_width_base()`, so nothing past the corridor moves - checked by
+taking the plan away and comparing 80 probes). North of `z_north` the profile fades back to the
+mountains over 90 m: the slide that closed the road. South, the bench comes down to the beach
+town's level between `z_full` and `z_south`. `bed_y()` is the coast highway's profile as HillRoads
+smoothed it (what it carves), read after the hill roads exist; everything on the road sits on it.
+
+**The plan (pure, hashes of seed + place).** Runs of `RUN` 70 m: `HOUSE_ODDS` 0.6 of them a row of
+beach houses (9-14.5 m wide, 1.4-3.2 m apart, every fifth gap a public access way with a stair),
+the rest open beach; houses in four styles (white modern stucco, cedar lap, grey board and batten,
+pastel stucco), one or two storeys, a deck 2.8-4.2 m out past the sea face, a stair to the sand on
+60 %, a roof terrace on 40 %, a garage on 85 %. A lifeguard tower on every open stretch over 60 m,
+stairs down the seawall every ~110 m of open beach, parking stalls every 6.6 m on both shoulders
+(open beach 50 %, among houses 30 % and never across a garage door, bluff side 36 %), a third of
+them surfers' (a van, a pickup, an SUV or a minivan with one to three boards on a roof rack).
+
+**The chunks (`CoastHighwayBuild.attach()`).** Every chunk whose owned rect reaches the corridor
+builds its own ground in place of its zone's (`match (-1 ...)`, an empty branch): the sea, the
+hill terrain (shells, scatter, planting; all kept off the corridor by `_near_pad()`,
+`_shell_marks()` and `Skyline._add_hills()`), the sand, the spray and BeachLife's people (no path
+or court: `kept_off()`; the houses, towers and stairs as obstacles; nobody north of the slide), the
+beach town's streets south of the stretch (a BEACH block's +X / +Z roads, clipped). A piece is
+built by the chunk whose owned rect holds its centre. FULL: the asphalt (road.gdshader, UV across
+0..1 so the gutters run wet, `lamp_axis` 1), worn paint (white edge lines inside the shoulders,
+dashed lane lines on a fixed z phase, a double yellow pair at each edge of the painted median),
+the apron and seawall (a parapet where no house or stair stands), the gutter and toe kerb, the
+houses (HouseKit's materials: stucco, siding, glass with its traced room and lit windows, trim,
+doors, metal; one mesh per material a chunk; floor slab, concrete skirt, braced pilings, glazed
+sea faces, street faces with garage, door, canopy and high windows, side windows, a set-back upper
+floor or a balcony, a deck with a glass balustrade and its stair to the sand, eaves or a parapet,
+roof terraces), the access and beach stairs, fences between houses, bins, the k-rails, barricade
+and ROAD CLOSED board in front of the slide's boulders, cobra lamps on the bluff side
+(`CityChunk._add_lamp()`: the pool, the omni at night, breakable), lifeguard towers, real parked
+cars (sleeping Vehicles under the city root, the chunk's `_cars`), one `CoastBody` (boxes: the
+road, the apron, the parapet, houses, decks, stairs). LOD: the asphalt and the houses as
+`lod_box`es; the far city records the boxes. The hill strip in the stretch is kept (draw false)
+for the keep-offs and the carve.
+
+**Traffic (`CoastTraffic`, a child of the streamer).** ReplicaTraffic's way: kinematic cars by z
+on the two lanes each way (southbound on the sea side), 19-24 m/s, gaps held, spawned 160-380 m
+from the player and pooled, on past the stretch down the hill strip for 320 m; northbound cars
+queue at the closure and leave once the player is away from it. `staged` stops the upkeep for the
+checks. `COAST_TRAFFIC=0` turns it off alone.
+
+**A/B.** `COAST_HIGHWAY=0` (the old coast). Probe: `tools/coast_highway/probe.gd` (transects across
+the coast, the plan's counts, the coast highway's profile). Checks: `tests/coast_highway_checks.gd`.
+
+
+**Wave 3 (merged with main 95bd13f).** The merge was clean apart from the smoke test's hook line
+and this file. The houses' street faces (what a driver sees) were blank stucco with two small
+windows: an upper floor now carries a long clerestory ribbon (half the houses, by the seed) or a
+row of tall windows, and the ground floor a high window in the widest wall the garage and the door
+leave. Gate: `SHARDS=3` green after guarding a free in `tests/dog_checks.gd` (the crowd had already
+freed the walker). Not done: Forward+ stills of the stretch (all stills are opengl3); the houses'
+street side has no planting or palms; the bluff's painted outcrops above the road are the hills'
+own look, untouched here.
+
+## 9fi. The fashion district: wholesale goods on the pavement and market alleys, 2026-10-06 / 10-30 (agent branch `wt/fashion-district`; VISUAL_ROADMAP row "Downtown's fashion district")
+
+**What it is.** Downtown east of Main St from 7th St to Pico Blvd (Main, Alameda, 7th and Pico
+are DowntownReal's pinned streets, so the stretch is the same on every seed), out to
+`EAST_REACH` (330 m) past Alameda: the real district's FORMS - wholesale and retail clothing
+and textile shops with their stock out on the pavement every morning, a market alley of stalls
+under tarps - with every NAME invented. It is an OVERLAY on the seeded blocks: no lot, roll or
+building moves (the checks build a block with `FASHION=0` and compare).
+
+**The pieces.**
+- `FashionDistrict` (`scripts/world/fashion_district.gd`): `block_info()` (pure, cached per plan:
+  DOWNTOWN BUILDINGS blocks in the stretch, no site / grounds / Chinatown / river / landmark;
+  each face by hash `FACE_ODDS`, cut on skid row; Main St's frontage north of 9th St left to
+  HistoricCore; `market` south of 9th St by `MARKET_ODDS`). Hooks, one line each: `dress()` in
+  `CityChunk._build_lot()` after HistoricCore (shop names from `SHOP_POOL`, which are names
+  already in `Building.SHOP_NAMES`, so the clothing shop interiors and the window vinyl follow;
+  kit awnings on every shop), `steps()` in the FULL block steps after Micromobility (a frontage
+  set per shop front against the wall with a door gap, clear of corners, alley mouths and the
+  street furniture; sellers one a step under the crowd cap), `dress_market()` first thing in
+  `AlleyKit.dress()` (a district alley run with a walled side becomes stalls both sides backed
+  onto the walls, an `AISLE` 2.2 m clear, overhead tarps and bulb strings, banners with invented
+  alley names at the mouths, two `lamp_light`s, keepers and `FashionShopper`s), `owns_face()` in
+  `Encampment._faces()` (no camp on a face with goods), `walker()` (district walkers carry bags
+  at 42 %), `walk_sidewalk()` (walkers keep to the kerb half).
+- `FashionKit` (`scripts/world/fashion_kit.gd`): everything code-built at real size, cached,
+  built on the loading screen (`warm()`): racks of hung garments in colour stories (tees,
+  shirts, dresses, gowns, jeans, jackets, hoodies on hangers), gridwalls, fabric bolt stands and
+  upright roll rows, mannequins (white gloss / black satin, dressed), sale tables of folded
+  stock, hand trucks with cartons, carton stacks, stalls (tube frame, gridwall back, counter,
+  tarp roof), overhead tarps, banners, bulb strings, hand-lettered price signs. Frontage sets
+  up to 6.8k triangles, stalls 2.7k.
+- `shaders/fashion_goods.gdshader`: kind in COLOR.a 16ths, patterns (stripe, plaid, floral,
+  dots, satin, sequin, lace, camo, leopard) and the fold parameter in UV2, denim twill, knit,
+  weave, roll and bolt ends, corrugated board and tape, chrome, gridwall cut-out (dithered under
+  a pixel), lit bulbs (`lamp_factor`), wet from `road_wetness`; linear on both renderers.
+  **This pass**: cloth and canvas carry BACKLIGHT (`canvas_through` 0.55 for tarps, 0.28 cloth,
+  0.08 denim) so a tarp seen from under it in sun glows its colour instead of drawing a black
+  slab, seams across the tarps, the grey overhead tarp became a sun-faded canvas, and the
+  garments' hems dip with their folds instead of hanging ruler-straight.
+- Hours: goods out 7:30-20:30, the market's people 8:00-22:00, by the hour the chunk is built
+  (`force_hour` for tests and stills). Shadows: sets and stalls cast none (a chunk-wide batch's
+  shadow reach is measured to its bounds' centre, so they put the whole alley into every
+  cascade); **`set_shadow_distance()` does nothing on code meshes, use `set_shadow_reach()`**.
+
+**The merge (wave 3).** origin/main 95bd13f merged into the paused branch cleanly (no conflicts;
+the hooks sit after Micromobility / HistoricCore, which main kept). The district's checks pass
+alone on the merged tree (14 checks, two seeds); the full sharded gate (`SHARDS=3`) on bb2d4af
+passed 2,409 checks, 0 failed, peak RSS 2,482 MB a shard, 784 s. After merging origin/main eb75a10
+(swimming, engine audio, street furniture, onlookers, prop destruction) the gate passed 2,547
+checks, 0 failed, peak RSS 2,506 MB a shard, 1,054 s.
+
+**Look / measure.**
+- Stills: `tools/glshot/block_shot.tscn` (the FULL blocks alone): the market alley `EYE=3331.0,1.7,832.7,-180,2`,
+  the shop fronts `3290,1.6,1016,180,-12`, the alley from above `3331,32,795,-180,-42`, along a
+  pavement `3256,1.7,1019.5,-90,-6`; `FASHION=0` is the before.
+- Probe: `tools/fashion/probe.tscn` (`BUILD=1`, `AT=x,z;...`, `FASHION_DEBUG=1`).
+- Checks: `tests/fashion_district_checks.gd` (`SMOKE_PARTS=fashion_district_checks`).
+- Frame cost (block_shot GEO=1, opengl3 1280x720, FULL blocks alone, FASHION off -> on):
+  market alley 3.89 -> 4.26 M triangles (+9.4 %), 2,501 -> 2,662 draws; shop fronts 2.44 ->
+  2.40 M, 2,178 -> 2,110 draws (the goods hide what was behind them); the alley from above
+  3.33 -> 3.61 M (+8.5 %), 2,409 -> 2,508 draws; along a pavement 4.93 -> 4.92 M, 3,893 -> 3,940
+  draws. Nothing in LOD chunks or the far city.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: satins, sequins, chrome, the bulbs
+and the tarps' backlight need a Mac look. LOD chunks and the far city draw the buildings only
+(no goods past the FULL ring, by design). Garments are simple lofted sacks with tube sleeves:
+fine on a rack at 3 m, plain at 1 m.
 ## 9d?. Rock outcrops: real rock on the hills, and crags on the ranges' skyline, 2026-10-30 (agent branch `wt/rock-outcrops`, fleet wave 3)
 
 The task: the hills' rock was paint (terrain.gdshader's outcrop splat); put real photoscanned rock
@@ -14418,7 +15574,8 @@ smooth tan humps and cones; prove it there.
   summit a jumble of 1-4 round its foot: one rock alone read as a statue from the basin. Each is
   sunk by the slope under its footprint plus a fifth of its height (a summit only by the height).
   Kept off the hill roads (+14 m), estate pads, landmarks (radius capped at 150 m: the sign's 400 m
-  is relief flattening), ridge masts / sites / towers, the reservoir and the ballpark. ~12,000
+  is relief flattening), ridge masts / sites / towers, the reservoir, the ballpark and the coast
+  highway's corridor. ~12,000
   tors on the default seed, ~2,800 standing over 15 m, ~330 summit crags.
 - **Drawn at every distance by one node** (`RockFar`, `scripts/world/rock_far.gd`, a child of the
   streamer whose origin is the true-world origin, one hook line after MountainOccluder): near

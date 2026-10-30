@@ -377,7 +377,11 @@ func begin_build() -> void:
 		_steps.append_array(MarinaBuild.attach(self, block))
 		_steps.append(_finish_build)
 		return
-	match zone:
+	# The coast highway's stretch under the bluffs (CoastHighway) builds its own ground, whatever
+	# the zone: the sea, the sand, the bench and its road, the houses, the bluff's terrain.
+	var coast_steps := CoastHighwayBuild.attach(self, block)
+	_steps.append_array(coast_steps)
+	match (-1 if not coast_steps.is_empty() else zone):
 		MacroMap.Zone.OCEAN:
 			_steps.append(_build_water)
 			# The same for the headland: its shore is an ellipse, so a chunk whose centre is at sea
@@ -410,6 +414,8 @@ func begin_build() -> void:
 			_steps.append(_build_airport)
 		MacroMap.Zone.PORT:
 			_steps.append_array(_port_steps(block))
+		-1:
+			pass # the coast highway's steps above stand in for the zone's
 		_:
 			if _owns_shoreline():
 				_steps.append(_build_beach.bind(block))
@@ -497,6 +503,8 @@ func _begin_capture(block: Dictionary, replica_role: int = 0) -> void:
 		_steps.append(func() -> void: captured.batch = _batch.data())
 		return
 	_steps.append_array(MarinaBuild.extras(self))
+	# The coast highway's houses as far boxes (CoastHighwayBuild).
+	_steps.append_array(CoastHighwayBuild.capture_steps(self))
 	match zone:
 		MacroMap.Zone.CITY:
 			# A replica block or a landmark's site does not build the seeded block, so the far
@@ -573,6 +581,8 @@ func _finish_build() -> void:
 	DecoBoulevard.commit(self)
 	Construction.commit(self)
 	StreetSigns.commit(self)
+	# The stop benches StreetDetail planned (StreetFurniture): props only now, clear of it all.
+	StreetFurniture.commit(self)
 	StreetShadowReach.apply(self)
 	UtilityPoles.commit(self)
 	Roadside.commit(self)
@@ -1672,7 +1682,8 @@ func _hill_segments() -> Array[Dictionary]:
 		return []
 	var segs: Array[Dictionary] = plan.macro.hill_roads.segments_in(owned_rect())
 	# The coast highway's bridge over the marina's channel replaces its strip there (MarinaBuild).
-	return MarinaBuild.filter_segments(self, segs)
+	# The coast highway's strip under the bluffs is drawn four lanes wide by CoastHighwayBuild.
+	return CoastHighwayBuild.filter_segments(self, MarinaBuild.filter_segments(self, segs))
 
 
 ## Asphalt strips following the carved road beds, clipped to this chunk.
@@ -1790,6 +1801,7 @@ func _shell_marks(area: Rect2) -> Array:
 		if r > 0.0 and not SHELL_FREE_LANDMARKS.has(lm.id) and area.grow(r + SHELL_CLEAR_SPAN).has_point(at):
 			marks.append([at, at, r])
 	marks.append_array(Ballpark.shell_marks(area))
+	marks.append_array(CoastHighwayBuild.shell_marks(self, area))
 	# The reservoir's shore, bathtub ring, trail, dam and spillway (Reservoir.shell_marks()).
 	if plan.macro and plan.macro.reservoir:
 		marks.append_array(plan.macro.reservoir.shell_marks(area.grow(SHELL_CLEAR_SPAN + 12.0)))
@@ -2012,6 +2024,9 @@ func _near_hill_road(p: Vector2, segs: Array[Dictionary], margin: float) -> bool
 
 func _near_pad(p: Vector2, pads: Array[Dictionary], margin: float) -> bool:
 	if Ballpark.covers(p, margin):
+		return true
+	# The coast highway's road, houses and sand (CoastHighway).
+	if plan.macro and plan.macro.coast_highway and plan.macro.coast_highway.covers(p, margin):
 		return true
 	for m in pads:
 		if p.distance_to(m.pos) < HillRoads.PAD_RADIUS + margin:
@@ -2587,8 +2602,18 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 		# racks. Hash-seeded; after the vendors it keeps clear of, before the parked cars.
 		if Micromobility.wanted(self, block):
 			steps.append(func() -> void: Micromobility.build_block(self, block))
+		# Outdoor dining parklets (Parklets): decks in the parking lane before cafes and restaurants,
+		# their diners and waiters. Hash-seeded; after the vendors, road works and bike lanes they
+		# keep clear of, before the parked cars, which keep off their stretch.
+		if Parklets.wanted(self, block):
+			steps.append(func() -> void: Parklets.build_block(self, block))
+			for i in Parklets.MAX_PEOPLE:
+				steps.append(func() -> void: Parklets.spawn_person(self, i))
+		# The fashion district's goods on the pavement and their sellers (FashionDistrict; hash-seeded).
+		if FashionDistrict.wanted(self, block):
+			steps.append_array(FashionDistrict.steps(self, block))
 		steps.append_array(_park_car_steps(rect, rng, params))
-		steps.append_array(_pedestrian_steps(rect, rng, params, Encampment.PATH_KEEP + 1.0 if camps & Encampment.FACES else -1.0))
+		steps.append_array(_pedestrian_steps(rect, rng, params, FashionDistrict.walk_sidewalk(self, block, Encampment.PATH_KEEP + 1.0 if camps & Encampment.FACES else -1.0)))
 		# The rec park's or school's people (Parks; their own stream, after the block's walkers).
 		steps.append_array(Parks.people_steps(self, block))
 	return steps
@@ -2725,6 +2750,7 @@ func _spawn_walker(rect: Rect2, sidewalk: float, rng: RandomNumberGenerator) -> 
 		return
 	var ped := Pedestrian.new()
 	ped.setup(rect, sidewalk, rng.randi())
+	FashionDistrict.walker(self, ped)
 	var start := ped._random_ring_point(sidewalk)
 	ped.position = Vector3(start.x, SIDEWALK_TOP + 0.1 + _gy(start.x, start.y), start.y)
 	add_child(ped)
@@ -2818,7 +2844,7 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	# It counts as parked, so the cap (and with it the rolls) is the same too.
 	if StreetVendors.blocks_parking(self, spot[0]) or Construction.blocks_parking(self, spot[0]) \
 			or KerbBins.blocks_parking(plan, spot[0], float(car._dims().length)) \
-			or FarmersMarket.blocks_parking(plan, spot[0]):
+			or FarmersMarket.blocks_parking(plan, spot[0]) or Parklets.blocks_parking(self, spot[0]):
 		car.free()
 		count[0] += 1
 		return
@@ -3009,6 +3035,8 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	Chinatown.dress(self, lot, building)
 	# The historic core's beaux-arts blocks on Spring St and Main St (HistoricCore; hash-seeded).
 	HistoricCore.dress(self, lot, building)
+	# The fashion district's clothing and textile shops under awnings (FashionDistrict; no roll).
+	FashionDistrict.dress(self, lot, building)
 	var g := _gy(center.x, center.y)
 	var gmin := g
 	var half: Vector2 = lot.size * 0.5
@@ -3557,14 +3585,16 @@ func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGen
 		if e == hydrant_edge:
 			var p := a + dir * rng.randf_range(6.0, length - 6.0) + inward
 			var aged := rng.randf() < 0.4
-			_add_prop("hydrant", Vector3(p.x, SIDEWALK_TOP, p.y), Color(0.85, 0.15, 0.12), [
-				["hydrant_aged" if aged else "hydrant", PropFactory.model_hydrant(aged), Transform3D(Basis(Vector3.UP, rng.randf_range(0.0, TAU)), Vector3(p.x, SIDEWALK_TOP, p.y))],
-			], [[Vector3(0.3, 0.8, 0.3), Vector3(p.x, SIDEWALK_TOP + 0.4, p.y), 0.0]])
+			# StreetFurniture's LA wet barrel (the rolled spin is still drawn).
+			var spin := rng.randf_range(0.0, TAU)
+			_add_prop("hydrant", Vector3(p.x, SIDEWALK_TOP, p.y), Color(0.85, 0.15, 0.12), StreetFurniture.hydrant_instances(plan.seed, aged, spin, Vector3(p.x, SIDEWALK_TOP, p.y), inward),
+				[[Vector3(0.3, 0.8, 0.3), Vector3(p.x, SIDEWALK_TOP + 0.4, p.y), 0.0]])
 		if cans_left > 0 and rng.randf() < 0.6 and PhysicsBudget.can_spawn():
 			cans_left -= 1
 			var p := a + dir * rng.randf_range(4.0, length - 4.0) + inward * 1.3
 			var can := TrashCan.new()
 			can.rusty = rng.randf() < 0.35
+			can.style = StreetFurniture.bin_style(block_district)
 			can.position = Vector3(p.x, SIDEWALK_TOP + 0.02 + _gy(p.x, p.y), p.y)
 			can.rotation.y = rng.randf_range(0.0, TAU)
 			add_child(can)
@@ -3797,13 +3827,17 @@ func _add_prop(kind: String, at: Vector3, color: Color, instances: Array, shapes
 	var id := "%s_%d" % [kind, _prop_counter]
 	_prop_counter += 1
 	if WorldState.is_destroyed(key, id):
+		PropBreak.remains(self, kind, at)
 		return
 	var g := _gy(at.x, at.z)
 	var record := {"id": id, "kind": kind, "position": at + Vector3(0.0, g, 0.0), "color": color, "health": PROP_HEALTH.get(kind, 20.0), "instances": [], "shapes": [], "dead": false}
 	for inst in instances:
 		# A fifth entry is the instance's custom data (a signal head's timing, see _add_signal_corner).
 		var index := _batch.add(inst[0], inst[1], inst[2], inst[3] if inst.size() > 3 else Color.WHITE, inst[4] if inst.size() > 4 else Color.BLACK)
-		record.instances.append([inst[0], index])
+		# The mesh, final transform, colour and custom data too: PropBreak breaks a prop into
+		# copies of its own instances.
+		var b: Dictionary = _batch.data()[inst[0]]
+		record.instances.append([inst[0], index, b.mesh, b.xforms[index], b.colors[index], b.custom[index]])
 	for s in shapes:
 		var shape := _add_shape(s[0], s[1] + Vector3(0.0, g, 0.0), s[2])
 		if shape:
@@ -3815,6 +3849,8 @@ func _add_prop(kind: String, at: Vector3, color: Color, instances: Array, shapes
 func damage_prop(record: Dictionary, damage: float, hit_dir: Vector3) -> void:
 	if record.dead:
 		return
+	if PropBreak.enabled and PropBreak.damage(self, record, damage, hit_dir):
+		return
 	record.health -= damage
 	if record.health <= 0.0:
 		break_prop(record, hit_dir)
@@ -3823,13 +3859,19 @@ func damage_prop(record: Dictionary, damage: float, hit_dir: Vector3) -> void:
 func break_prop(record: Dictionary, hit_dir: Vector3 = Vector3.UP) -> void:
 	if record.dead:
 		return
+	if PropBreak.enabled and PropBreak.survives(self, record, hit_dir):
+		return
 	record.dead = true
 	for inst in record.instances:
 		MultiMeshBatch.hide_instance(_mm_nodes.get(inst[0]), inst[1])
 	for shape in record.shapes:
 		if is_instance_valid(shape):
+			# Out of the solver at once (a car smashing through must not meet it this step).
+			shape.disabled = true
 			shape.queue_free()
 	WorldState.mark_destroyed(key, record.id)
+	if PropBreak.enabled and PropBreak.broke(self, record, hit_dir):
+		return
 	Sfx.play("break", record.position)
 	_spawn_debris(record.position, record.color, hit_dir)
 
@@ -3909,6 +3951,7 @@ func _add_lamp(at: Vector3, facing: Vector2 = Vector2.ZERO) -> void:
 	light.distance_fade_length = 15.0
 	light.add_to_group("lamp_light")
 	add_child(light)
+	PropBreak.own_light(self, light)
 
 
 ## The real lamp (StreetLamps, a model per type): the same prop slot, pool and OmniLight3D as
@@ -3944,6 +3987,7 @@ func _add_street_lamp(at: Vector3, facing: Vector2) -> void:
 	light.distance_fade_length = 15.0
 	light.add_to_group("lamp_light")
 	add_child(light)
+	PropBreak.own_light(self, light)
 
 
 ## `yaw` is the direction the bench faces (forward is -Z).
@@ -3974,9 +4018,8 @@ func _build_clutter(_rect: Rect2, edges: Array, params: Dictionary, rng: RandomN
 		var e: Array = edges[rng.randi() % 4]
 		var yaw := atan2(-e[2].x, -e[2].y)
 		var p: Vector2 = _edge_point(e, rng, 5.0) + e[2] * 2.4
-		_add_prop("planter", Vector3(p.x, SIDEWALK_TOP, p.y), Color(0.45, 0.32, 0.2), [
-			["planter", PropFactory.model_planter(), Transform3D(Basis(Vector3.UP, yaw), Vector3(p.x, SIDEWALK_TOP, p.y))],
-		], [[Vector3(0.95, 0.45, 0.45), Vector3(p.x, SIDEWALK_TOP + 0.22, p.y), yaw]])
+		_add_prop("planter", Vector3(p.x, SIDEWALK_TOP, p.y), Color(0.45, 0.32, 0.2), StreetFurniture.planter_instances(plan.seed, Transform3D(Basis(Vector3.UP, yaw), Vector3(p.x, SIDEWALK_TOP, p.y))),
+			[[Vector3(0.95, 0.45, 0.45), Vector3(p.x, SIDEWALK_TOP + 0.22, p.y), yaw]])
 	for i in clutter:
 		var e: Array = edges[rng.randi() % 4]
 		var yaw := atan2(-e[2].x, -e[2].y) + rng.randf_range(-0.3, 0.3)

@@ -638,6 +638,8 @@ func _probe(eye: Vector3, s: Dictionary) -> void:
 		s["panic"] = float(scared) / float(maxi(people, 1))
 	var near := 0
 	for car in _traffic_cars():
+		if not (car as Node3D).is_inside_tree():
+			continue # pooled out of the tree (CoastTraffic keeps its pool off it)
 		if (car as Node3D).global_position.distance_to(eye) < 60.0:
 			near += 1
 	s["cars"] = near
@@ -1153,6 +1155,8 @@ func _follow_traffic(eye: Vector3, _dt: float) -> void:
 			# The diesel: loud at idle, revving up a little as it pulls away; no tyre Doppler on top.
 			v.volume_db = float(_diesel[1]) + ambience_db + car_roll_db + 2.0 - clampf(speed * 0.15, 0.0, 3.0)
 			v.pitch_scale = clampf((0.95 + speed / 30.0) * doppler, 0.8, 1.6)
+			if EngineAudio.voiced(n):
+				v.volume_db -= 40.0 # its own engine voice carries it (EngineAudio)
 		for k in _passes.size():
 			if _pass_of[k] == car and _passes[k].playing:
 				v.volume_db -= 8.0 # the pass-by carries it for now

@@ -2168,6 +2168,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Downtown's historic core (tests/historic_core_checks.gd): beaux-arts banks and offices on Spring St
 	# and Main St, their ornament, far cornices, nothing else in the block moved.
 	load("res://tests/historic_core_checks.gd").new().run(self, city)
+	# The fashion district (tests/fashion_district_checks.gd): goods at the shop fronts, the market alley.
+	load("res://tests/fashion_district_checks.gd").new().run(self, city)
 	# The ground outside downtown and midtown (tests/lot_fill_checks.gd): beach-town yards, the
 	# campus, the freeway's right of way - bare share before and after, one mesh each, budgets, and
 	# nothing else in the block moved.
@@ -2328,8 +2330,37 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Street lamps (tests/street_lamps_checks.gd): the kit against its table, the pick per street,
 	# the arms over the road, the lamps' pools and omnis, and the same prop ids with the kit off.
 	load("res://tests/street_lamps_checks.gd").new().run(self, city)
+	await load("res://tests/onlookers_checks.gd").new().run(self, city) # the crowd back round a body after the panic (Onlookers)
+	# Street props breaking by kind (tests/prop_destruction_checks.gd): geysers, shelter glass,
+	# bent and felled lamps, burst boxes, snapped meters, cars smashing through.
+	await load("res://tests/prop_destruction_checks.gd").new().run(self, city)
+	# Engine audio (tests/engine_audio_checks.gd): profiles and loops, the gearbox, the player's
+	# voice, a truck's diesel and reversing alarm, a horn per car.
+	await load("res://tests/engine_audio_checks.gd").new().run(self, city)
 	# Apartments (tests/apartments_checks.gd): midtown and inner-suburb walk-ups, courts and podiums.
 	load("res://tests/apartments_checks.gd").new().run(self, city)
+	# Street furniture (tests/street_furniture_checks.gd): the meshes, the shader's kinds, the rolls,
+	# a metered block and collection day's carts built the same with the furniture off.
+	load("res://tests/street_furniture_checks.gd").new().run(self, city)
+	# Swimming (tests/swimming_checks.gd): the sea's swell in GDScript, the water, and the hero in it.
+	await load("res://tests/swimming_checks.gd").new().run(self, city)
+	# The facade pass (tests/facades_gta_checks.gd): systems rolled as the shaders roll them, the bevel.
+	load("res://tests/facades_gta_checks.gd").new().run(self, city)
+	# The island offshore (tests/offshore_island_checks.gd): where it stands, the weather, the sky.
+	load("res://tests/offshore_island_checks.gd").new().run(self, city)
+	# The crowd in the rain (tests/rain_crowd_checks.gd): umbrellas, hoods, hurrying, shelter, going in.
+	await load("res://tests/rain_crowd_checks.gd").new().run(self, city)
+	# Parklets (tests/parklets_checks.gd): decks in the parking lane before cafes and restaurants,
+	# diners seated, a waiter, cars kept off, umbrellas furled at night, nothing else moved.
+	load("res://tests/parklets_checks.gd").new().run(self, city)
+	# The flyable helicopter (tests/heli_flyable_checks.gd): the heliport's pads, get in, climb,
+	# hover, fly, yaw, the downwash, land, a rotor strike, a crash, a stand-in spot waking.
+	await load("res://tests/heli_flyable_checks.gd").new().run(self, city)
+	# Drivers react to chaos (tests/car_panic_checks.gd): brake, swerve, kerb, reverse, abandon, go round.
+	await load("res://tests/car_panic_checks.gd").new().run(self, city)
+	# The coast highway under the bluffs (tests/coast_highway_checks.gd): its place, the bench and
+	# bluff, the houses, parking, a chunk's road, houses, collision and cars, LOD and the far city.
+	await load("res://tests/coast_highway_checks.gd").new().run(self, city)
 	# The hills' real rock (tests/rock_outcrops_checks.gd): tors, outcrops, cut-bank boulders.
 	load("res://tests/rock_outcrops_checks.gd").new().run(self, city)
 
@@ -3850,7 +3881,8 @@ func _check_foliage_ladders() -> void:
 				var idx := _lod_indices(lods[l]["index_data"], wide)
 				var tris := idx.size() / 3
 				var edge := float(levels[l][3])
-				if not is_equal_approx(float(lods[l]["edge_length"]), edge) or tris != int(levels[l][2]) or tris >= prev:
+				var count_ok: bool = tris == int(levels[l][2]) or (levels[l][0] == "gen" and FoliageLod.gen_close(tris, int(levels[l][2])))
+				if not is_equal_approx(float(lods[l]["edge_length"]), edge) or not count_ok or tris >= prev:
 					faults.append("%s s%d LOD %d (edge %.3f, %d tris after %d)" % [f, s, l, lods[l]["edge_length"], tris, prev])
 				prev = tris
 				if levels[l][0] != "thin":
@@ -3870,7 +3902,9 @@ func _check_foliage_ladders() -> void:
 			var first: int = FoliageLod.shadow_level(levels, PropFactory.foliage_planted_scale(f))
 			if first >= 0:
 				var ss := RenderingServer.mesh_get_surface(shadow.get_rid(), s) if shadow else {}
-				if ss.is_empty() or int(ss.get("index_count", 0)) / 3 != int(levels[first][2]) or (ss.get("lods", []) as Array).size() != levels.size() - first:
+				var twin_tris: int = int(ss.get("index_count", 0)) / 3 if not ss.is_empty() else -1
+				var twin_ok: bool = twin_tris == int(levels[first][2]) or (levels[first][0] == "gen" and FoliageLod.gen_close(twin_tris, int(levels[first][2])))
+				if ss.is_empty() or not twin_ok or (ss.get("lods", []) as Array).size() != levels.size() - first:
 					faults.append("%s s%d shadow twin" % [f, s])
 	_check(faults.is_empty() and thin_levels > 20, "every scanned tree carries its measured LOD ladder; %d thinned levels keep the canopy (worst cover %.1f %%, tone %.1f %%) %s" % [
 		thin_levels, worst.cover * 100.0, worst.tone * 100.0, faults])

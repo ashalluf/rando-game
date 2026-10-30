@@ -241,6 +241,9 @@ static func _kept_out(plan: CityPlan, p: Vector2, radius: float, marks: Array) -
 	var macro: MacroMap = plan.macro
 	if Ballpark.covers(p, radius + 20.0):
 		return true
+	# The coast highway's bench, road and houses under the bluffs (CoastHighway).
+	if macro.get("coast_highway") != null and macro.coast_highway.covers(p, radius + 10.0):
+		return true
 	if macro.reservoir and macro.reservoir.keep_clear(p, macro.height_at(p), radius + 10.0):
 		return true
 	if macro.hill_roads:
