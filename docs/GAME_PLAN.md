@@ -295,6 +295,14 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-29 Facades are worked out per pane, not per building (owner: "start looking like GTA
+  6").** Glass varies pane by pane and floor by floor, blinds hang at their own heights, the glass
+  mirrors a street opposite with parallax, curtain walls come in three systems (flush, deep fins,
+  slab bands) whose depth is drawn analytically at every range, and drips and corner water weather
+  every wall - one include shared by the near walls and the far boxes, rolled from integers so the
+  LOD line keeps them. Corners of near box parts are bevelled 22 cm. Fins as geometry were tried and
+  dropped (aliasing lines at 100 m). docs/HANDOFF.md "Facades that read as built".
+
 - **2026-10-05 Onlookers: the crowd comes back after the chaos (HANDOFF "Onlookers").** After
   the panic near a wreck, a blast or a body, people near the camera come back and stand round it
   in a loose ring: filming on their phones (held up at eye level, the screen lit, a video light

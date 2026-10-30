@@ -14893,3 +14893,56 @@ never lets him fall the last metre in).
 the sea still rides its wheels on the ground box; the strokes are keyed in code, not
 motion-captured (the UAL swim clips are still out of this network's reach); nothing of it has been
 seen on Forward+ (the Mac).
+## 9fb. Facades that read as built (fleet "facades-gta", wave 3)
+
+The owner: "this needs to start looking like GTA 6". The lead's review of the reference stills
+found the generated Buildings the biggest gap: at 30-150 m from the street and 100-500 m from the
+air, towers read as boxes wrapped in a flat, perfectly regular grid of near-identical dark panes,
+with no depth and knife-sharp corners.
+
+**What changed.** One include, `shaders/facade_variety.gdshaderinc`, used by BOTH building.gdshader
+(near walls) and building_lod.gdshader (the coded far boxes), every roll from integers (wl_hash,
+salts 70-89) so a tower keeps the same panes across the LOD line:
+- **Pane and floor variety** (`fx_pane()`, `fx_floor_tint()`): each pane's tone (0.8-1.45), its
+  mirror strength (0.72-1.28) and the height its blind hangs at (60 % of panes, clustered by floor -
+  the near room traces the very blind through room_interior's new `drop_in`, the far box draws it at
+  its average); curtain walls in coating batches of 3-9 storeys; spandrel panels each their own tone
+  and tilt; pane bow 1.8x and a rolled-glass wave across each pane.
+- **The street opposite in the glass** (`fx_opposite()`): the reflected ray meets a plane of
+  facades 18-44 m out (a lot every 14-32 m at its own height, finish and window grid, its roofline,
+  lit by the sun on that side) or the street before it; the far skyline rows stay behind. It
+  replaced the reflection keyed on the ray's heading alone, which mirrored the same picture in every
+  pane of a face. Opposite rooflines now cross a tower floor by floor and move as you walk.
+- **Depth** (`fx_member()`): a curtain wall's members stand proud of the glass - their side faces
+  (lit as what they face) and their sun shadows on the panes, box filtered and handed to their
+  averages once a pixel spans a bay. Three systems by hash (`fx_system()`, `FacadeVariety.system()`):
+  flush unitised 50 % (15 cm caps; within `caps_real_until` = kit_mullion_distance the kit's real
+  caps take over), deep 48 cm fins 26 %, 42 cm slab bands 24 % (both always analytic: a 13 cm fin as
+  geometry aliases into broken lines at 100 m, tried and dropped). The far boxes now draw a punched
+  or slot window's reveals and head shadow as the near trace does, and both draw the shade round each
+  opening (`fx_opening_ao()`).
+- **Weathering**: drips off the coping (a streak every 55 cm, longer under scuppers,
+  `fx_roof_drip()`), water off the corners, both lighter on glass.
+- **Edges**: every near box part above 6 m wide has its vertical arrises cut back 22 cm
+  (`Building._bevel_arrays()`, `FacadeVariety.bevel()`; on a part with shops never more than 4.5 % of
+  a bay, inside the first frame). The cut faces draw as the shader's corner pier, so the corner
+  catches the light. Collision, StreetWear and the kit still measure the box.
+
+**A/B and tools.** `FACADES_GTA=0` in the environment: the walls, the far boxes and the corners
+exactly as before. `tools/glshot/far_building_shot.gd` takes `CAM_POS=x,y,z CAM_LOOK=x,y,z FOV=`
+for close-ups of the same row near and far (it also runs under lavapipe Forward+ in 2 minutes).
+Checks: `tests/facades_gta_checks.gd`.
+
+**Numbers.** Reference cameras (opengl3, main 95bd13f vs this branch, the five building views):
+triangles -1.3 % .. +0.5 %, draws -1.5 % .. +0.2 %, no shot flagged; luminance p50 within 2 levels
+(see the compare on shots/facades-gta). Shader cost: about 60 more ALU ops on glass pixels and 40 on
+curtain-wall walls, no new samplers (WebGL budget unchanged), no new nodes or draws. The bevel adds
+16 triangles a part. Near/far luminance (far_pair.py): a fin tower's far copy runs ~1.3x its near
+one, as the glass towers did before.
+
+**Not done / not verified.** The landmark towers (`uv_facade`) get the variety, the reflection and
+the flush depth, but never fins or bands. The opposite facades are a fixed hash per wall, not the
+real buildings across the street (the reflection probes still take over near the camera on
+Forward+). Forward+ judged on a small scene under lavapipe only (the city does not fit); the
+owner's Mac should look at a downtown street at noon and the golden-hour aerial.
+
