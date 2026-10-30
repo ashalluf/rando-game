@@ -10,3 +10,4 @@ Stills for `wt/speedboats` (drivable speedboat and jet ski). opengl3 (Compatibil
 - 04_jetski_side_coast_1724.jpg - the jet ski with the beach town and pier behind.
 - 05_speedboat_wake_from_above.jpg - an early run: the wake's foam from above (boat out of frame, next to a pier).
 - 06_boatkit_lineup_bow.jpg, 07_boatkit_speedboat_profile.jpg - the two meshes alone on flat water.
+- 08_before_marina_headwalk_1130.jpg / 09_after_marina_headwalk_boats_1130.jpg - the east headwalk with BOATS=0 and with the moored speedboat (bow north) and the jet ski astern of it (`BOAT=dock`). Frame cost: 4,463,101 -> 4,468,761 triangles, 2,141 -> 2,146 draws.
