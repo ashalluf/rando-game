@@ -67,7 +67,8 @@ const CITY_PARTS := ["city_streaming", "city_terrain", "city_landmarks", "city_c
 	"city_polish", "city_crowd", "city_menu"]
 ## Check files called from inside a city part (they go with that part, never on their own).
 const INLINE_FILES := ["downtown_checks", "hero_moves_checks", "street_life_checks",
-	"crowd_anim_checks", "crowd_life_checks", "crowd_hat_checks", "photo_mode_checks"]
+	"crowd_anim_checks", "crowd_life_checks", "crowd_hat_checks", "photo_mode_checks",
+	"wingsuit_checks"]
 ## Wall seconds each part took in a whole run on the 4-core fleet box (SMOKE_PROFILE=1 prints
 ## them as PART lines); a file missing here counts DEFAULT_COST. Only the deal depends on them.
 const PART_COST := {
@@ -335,6 +336,8 @@ func _run() -> void:
 	_check(player.global_position.distance_to(Vector3(0, 1, 0)) < 2.0, "respawn returns to spawn")
 
 	await _check_camera_post(player)
+	# The wingsuit (tests/wingsuit_checks.gd): spread, glide, dive, pull up, bank, fold, land.
+	await load("res://tests/wingsuit_checks.gd").new().run(self, player)
 	await _test_weapons(player)
 	_test_buildings()
 	level.free() # Free now, so the city scene cannot pick up this level's player.

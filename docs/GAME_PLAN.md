@@ -1635,6 +1635,14 @@ already mapped so milestone 2 is script-only.
   so the yards read from the air. docs/HANDOFF.md "Backyard life"; CLAUDE.md "Backyard life".
   Wave 3 (2026-10-30): people on the pool and lawn loungers by day (baked sunbathers in swimwear,
   as many as the beach's busyness of the hour lets out; shot or near gunfire, they get up and run).
+- **2026-10-06 The hero has a wingsuit, and it flies like energy, not like a jetpack.** In the
+  air G / pad X (or holding jump on the way down) spreads it; the stick pitches and rolls, speed
+  comes only from diving (gravity along the path, drag on the square of the speed) and a pull-up
+  spends it on height; boost still thrusts, because he is overpowered. He flares by himself near
+  the ground and never climbs out of a flare unless pulled back; a slow touch-down runs out, a
+  fast one is a skid on one knee. The suit's fabric is built from his live bones each frame, so
+  it follows every pose; the gun is put away while he glides and comes out to shoot.
+  docs/HANDOFF.md "The wingsuit"; CLAUDE.md "Wingsuit".
 
 - **2026-10-05 The news covers the chaos.** A big blast or a long police standoff becomes a
   STORY: one of four invented stations (BASIN 7, SUNCOAST 4, PACIFICA 9, ONDA 34; never a real
