@@ -10,7 +10,7 @@ render_mode cull_back;
 uniform sampler2D rock_albedo : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform float rock_mean_luma = 0.3;
 // Linear albedo of an average stone.
-uniform vec3 stone_color = vec3(0.2, 0.193, 0.18);
+uniform vec3 stone_color = vec3(0.3, 0.29, 0.27);
 
 global uniform float road_wetness;
 
@@ -30,7 +30,7 @@ void fragment() {
 		+ cs_in(texture(rock_albedo, v_local.xz * 1.7).rgb) * w.y
 		+ cs_in(texture(rock_albedo, v_local.xy * 1.7).rgb) * w.z;
 	float l = dot(t, vec3(0.2126, 0.7152, 0.0722)) / rock_mean_luma;
-	vec3 col = stone_color * mix(1.0, l, 0.7) * COLOR.rgb;
+	vec3 col = stone_color * mix(1.0, clamp(l, 0.4, 1.6), 0.5) * COLOR.rgb;
 	// The foot, sunk in the sand: damp and dusty.
 	float foot = 1.0 - smoothstep(0.05, 0.3, v_local.y);
 	col *= mix(1.0, 0.8, foot);

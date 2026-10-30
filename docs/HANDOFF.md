@@ -17161,7 +17161,13 @@ cobbles were 180-triangle meshes then): road over the headland wash 4.28 M / 1,6
 / 1,679; the culvert 1.58 M / 753 -> 1.71 M / 806; a second road 4.07 M / 1,608 -> 4.11 M / 1,641;
 the back-range aerials 650 k / 288 -> 689 k / 307, 617 k / 258 -> 637 k / 265, 742 k / 295 -> 815 k
 / 326. So +1 to +10 % triangles and +7 to +53 draws (the bed per chunk FULL and LOD, three cobble
-batches and the culvert ends per FULL chunk).
+batches and the culvert ends per FULL chunk). Final code (4ee9b70 + the stone tone), the same six
+cameras with the two road views tilted down: 3.05 M / 1,395 -> 3.20 M / 1,463; the culvert
+1.58 M / 800 -> 1.71 M / 853; 2.74 M / 1,218 -> 2.79 M / 1,254; aerials 654 k / 329 -> 692 k / 348,
+621 k / 299 -> 640 k / 306, 746 k / 336 -> 818 k / 367.
+
+**Gate**: `SHARDS=3 tests/headless_check.sh` on 4ee9b70 (origin/main merged): 3,036 checks, 0
+failed, peak 2.89 GB a shard. Stills: `shots/arroyos` (batch 2 is the final code).
 
 **An existing hang, not this branch's**: `still_shot.gd` under opengl3 + Xvfb with
 `--spawn=796,-1564` (the pass) stops after "LOADING far city" with the main thread in a condition
