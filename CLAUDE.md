@@ -2271,6 +2271,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`police_station_glass.gdshader`, `trace`). Judge a block at night with
   `tools/glshot/station_night_shot.tscn` (the city's real DayNight, lamps on; block_shot's NIGHT=1
   never switches the lamps on). `POLICE_NIGHT=0` is the A/B; checks `tests/police_night_checks.gd`.
+- The police at night (2026-10-30, docs/HANDOFF.md "Red and blue at night"): `PoliceNightLook`
+  (`scripts/npc/police_night_look.gd`, one node under the root made by the first PoliceCar) owns
+  ONE flash clock (`clock`) that the bar's lenses (police_lights.gdshader `clock`, hotter after
+  dark: `night_gain`), the real lights and the washes read; a budgeted pool of OmniLight3Ds
+  (`budget` 6 / 4 / 2 / 0 by Quality, Forward+ desktop, `supported()`) on the nearest lit cruisers
+  within `reach`, red or blue as the lit bank (the cruiser's own BarLight stays dark); on every
+  renderer a `PoliceGlow` per lit cruiser on `shaders/police_wash.gdshader` (one material a car,
+  kind in COLOR.a x 4): flares and a lens streak never under `min_px`, a pool on the road (lifted
+  `POOL_LIFT` over the kerb) with the bar mirrored in a wet road, a wash on each facade beside it
+  (rays, fitted to where the wall really runs); burning flares (FreewayIncidentKit's) in a vee on
+  the trouble's side of a roadblock; the searchlight's shaft as lit haze (`look`) with a hot pool
+  core. Trap: a shader that writes POSITION in one branch uses it for EVERY vertex - write it in
+  the other branch too. `POLICE_NIGHT_LOOK=0` is the A/B; small street `tools/police_night/police_shot.gd`
+  (`VIEW=chase|low|block`, `RAIN=`, `T=`, `STRIP=`); checks `tests/police_night_look_checks.gd`.
 - Character arms: the generated clips were authored for arms that hang straight, but each
   generated rig is bound in whatever pose its mesh came out in (A-pose, or a palms-up shrug
   with the forearms raised), and the clips drive the arm bones as if that were the rest pose -

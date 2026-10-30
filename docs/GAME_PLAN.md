@@ -3607,3 +3607,10 @@ none of either.
   regional pores and roughness), brows as strand cards and twice the hair cards. The contract
   (54 bones, clips, material names, hero_x_* maps, eye centres) is held so nothing downstream
   moves. HERO_FACE_2=0 is the shader A/B.
+- **2026-10-30 The police at night (police-night, HANDOFF "Red and blue at night").** A chase or a
+  roadblock after dark is the red and blue on everything round it, so the light bar now lights its
+  surroundings: one shared flash clock for the lenses and their light (they had drifted apart), a
+  budgeted pool of real OmniLight3Ds on Forward+ desktop (6 / 4 / 2 / 0 by Quality) on the nearest
+  cruisers, and on every renderer additive washes (lens flares, a road pool with the bar mirrored
+  in a wet road, facade washes fitted to the wall), roadblock flares and a hazier searchlight.
+  Never instance uniforms: one ShaderMaterial a cruiser. POLICE_NIGHT_LOOK=0 is the A/B.

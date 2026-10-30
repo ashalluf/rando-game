@@ -31,9 +31,15 @@ static var force: bool = false
 static var budget: int = 6
 ## The shared flash clock (seconds).
 static var clock: float = 0.0
+## Stills: the clock is not advanced (tools/police_night/police_shot.gd sets it frame by frame).
+static var hold: bool = false
 ## Real lights in use this frame, for checks and the HUD.
 static var active_count: int = 0
 static var _inst: PoliceNightLook = null
+## The pool rides this far over the road: over the kerb and the pavement too (at 6 cm the
+## pavement's 15 cm step cut it off along a ruler-straight line). Additive and soft, it never
+## shows the gap.
+const POOL_LIFT := 0.22
 static var _glow_mesh: ArrayMesh = null
 static var _pool_mesh: ArrayMesh = null
 static var _wall_mesh: ArrayMesh = null
@@ -52,7 +58,7 @@ static var _wall_mesh_b: ArrayMesh = null
 ## How far to the side a facade can be and still take the wash (m).
 @export var wall_reach: float = 16.0
 ## The pool on the road: its size (m).
-@export var pool_size: float = 22.0
+@export var pool_size: float = 30.0
 ## Road flares at a roadblock: how many, and how far out from the car (m).
 @export var flare_count: int = 5
 @export var flare_out: float = 6.5
@@ -62,6 +68,9 @@ var _pick_t: float = 0.0
 var _wall_t: float = 0.0
 var _night: float = 0.0
 var _night_t: float = 0.0
+## POLICE_NIGHT_DEBUG=1 prints every cruiser's state every 2 s.
+var _debug: bool = OS.get_environment("POLICE_NIGHT_DEBUG") == "1"
+var _debug_t: float = 0.0
 
 
 static func ensure(from: Node) -> void:
@@ -93,6 +102,11 @@ static func supported() -> bool:
 
 func _ready() -> void:
 	process_priority = 10
+	# Stills: POLICE_NIGHT_T=<s> holds the flash clock there (a frame strip steps it).
+	var t := OS.get_environment("POLICE_NIGHT_T")
+	if t != "":
+		hold = true
+		clock = float(t)
 
 
 func _exit_tree() -> void:
@@ -102,7 +116,8 @@ func _exit_tree() -> void:
 
 
 func _process(delta: float) -> void:
-	clock += delta
+	if not hold:
+		clock += delta
 	_night_t -= delta
 	if _night_t <= 0.0:
 		_night_t = 0.4
@@ -123,6 +138,16 @@ func _process(delta: float) -> void:
 		_pick_t = pick_interval
 		_pick(cars, cam)
 	_place_lights()
+	if _debug:
+		_debug_t -= delta
+		if _debug_t <= 0.0:
+			_debug_t = 2.0
+			for c in cars:
+				var pc := c as PoliceCar
+				if pc == null:
+					continue
+				var g := pc.get_node_or_null("PoliceGlow") as Node3D
+				print("POLICE_NIGHT car %s lit=%s side=%d glow=%s night=%.2f clock=%.2f lights=%d dist=%.0f" % [pc.name, pc.bar_lit(), pc.flash_side(clock), g.visible if g else null, _night, clock, active_count, cam.global_position.distance_to(pc.global_position) if cam else -1.0])
 
 
 # --- Washes ----------------------------------------------------------------------------------
@@ -156,8 +181,8 @@ func _tick_car(car: PoliceCar, cam: Camera3D, do_walls: bool) -> void:
 	var right := Vector3.UP.cross(fwd).normalized()
 	var ground := car.global_position - car.global_basis.y * car.road_lift()
 	var s := pool_size
-	pool.global_transform = Transform3D(Basis(right * s, Vector3.UP * s, fwd * s), ground + Vector3.UP * 0.06)
-	mat.set_shader_parameter("bar_height", (bar_y + 0.2) / s)
+	pool.global_transform = Transform3D(Basis(right * s, Vector3.UP * s, fwd * s), ground + Vector3.UP * POOL_LIFT)
+	mat.set_shader_parameter("bar_height", (bar_y + 0.2 - POOL_LIFT) / s)
 	pool.visible = _night > 0.02
 	if do_walls:
 		_place_walls(car, glow, ground, right)
@@ -225,11 +250,33 @@ func _place_walls(car: PoliceCar, glow: Node3D, ground: Vector3, right: Vector3)
 		n.y = 0.0
 		n = n.normalized()
 		var d := from.distance_to(hit.position)
-		var w := 8.0 + d * 0.9
-		var h := 6.0 + d * 0.35
+		var w := 14.0 + d * 0.8
+		var h := 8.0 + d * 0.3
 		var t := Vector3.UP.cross(n).normalized()
-		var at: Vector3 = hit.position + n * 0.08
-		at.y = ground.y + h * 0.32
+		# An additive quad past the end of the wall glows in thin air: find how far the facade
+		# really runs each way (rays a quarter of the width apart) and fit the quad to it.
+		var plane_d: float = n.dot(hit.position)
+		var lo := 0.0
+		var hi := 0.0
+		for sgn in [-1.0, 1.0]:
+			for step in [1, 2]:
+				var o: float = sgn * w * 0.25 * float(step)
+				var f2 := from + t * o
+				var q2 := PhysicsRayQueryParameters3D.create(f2, f2 + dir * (wall_reach + 4.0), 1)
+				q2.exclude = [car.get_rid()]
+				var h2 := space.intersect_ray(q2)
+				if h2.is_empty() or absf(n.dot(h2.position) - plane_d) > 1.0:
+					break
+				if sgn < 0.0:
+					lo = o
+				else:
+					hi = o
+		w = hi - lo
+		if w < 4.0:
+			wm.set_meta("found", false)
+			continue
+		var at: Vector3 = hit.position + n * 0.08 + t * ((lo + hi) * 0.5)
+		at.y = ground.y + h * 0.5
 		wm.global_transform = Transform3D(Basis(t * w, Vector3.UP * h, n), at)
 		wm.set_meta("found", true)
 

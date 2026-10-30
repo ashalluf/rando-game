@@ -33,17 +33,17 @@ uniform float lights_on = 1.0;
 uniform float real_light = 0.0;
 uniform vec3 red = vec3(4.0, 0.36, 0.22);
 uniform vec3 blue = vec3(0.30, 0.75, 5.2);
-uniform float glare_size = 0.55;
-uniform float min_px = 5.0;
+uniform float glare_size = 0.7;
+uniform float min_px = 6.0;
 uniform vec2 viewport_px = vec2(1280.0, 720.0);
 uniform float glare_gain = 1.0;
 uniform float glare_day = 0.25;
-uniform float pool_gain = 0.42;
-uniform float wall_gain = 0.30;
-uniform float mirror_gain = 0.9;
+uniform float pool_gain = 0.95;
+uniform float wall_gain = 0.22;
+uniform float mirror_gain = 0.7;
 // The bar's height over the pool's plane (m), for the mirrored streak.
 uniform float bar_height = 1.6;
-uniform float pool_shift = 0.22;
+uniform float pool_shift = 0.15;
 
 varying float v_kind;
 varying float v_bank;
@@ -77,6 +77,9 @@ void vertex() {
 		// Pulled toward the camera so the roof and the bar's own housing never cut it.
 		vp.z += min(s * 1.5, dist * 0.5);
 		POSITION = PROJECTION_MATRIX * vp;
+	} else {
+		// POSITION written in one branch is used for every vertex: give the flat pieces theirs.
+		POSITION = PROJECTION_MATRIX * (MODELVIEW_MATRIX * vec4(VERTEX, 1.0));
 	}
 }
 
@@ -112,10 +115,10 @@ void fragment() {
 			// on the car's -x, so the lit side's light sits that way.
 			vec2 p = UV - 0.5;
 			vec2 lean = vec2(-side * pool_shift, 0.0);
-			float d = length((p - lean) * vec2(1.0, 1.35)) * 2.0;
+			float d = length((p - lean) * vec2(1.0, 1.35)) / (0.5 - pool_shift);
 			float pool = pow(max(1.0 - d, 0.0), 2.2);
 			// Grows a little in the rain: the light carries in the wet air and on the wet road.
-			col = c * pool * pool_gain * (1.0 + 0.6 * road_wetness);
+			col = c * pool * pool_gain * (1.0 + 0.6 * road_wetness) * gain;
 			// The bar in the wet road: its mirror image at (0, -h, 0) seen from the camera lands on
 			// the road at m; a reflection on rough water stretches from m toward the viewer.
 			vec3 cam = v_cam;
@@ -133,16 +136,21 @@ void fragment() {
 				float len = 0.06 + 0.32 * road_wetness;
 				float w = 0.010 + 0.012 * (1.0 - road_wetness);
 				float streak = exp(-across * across / (w * w)) * exp(-max(along, 0.0) / len) * smoothstep(-0.03, 0.0, along);
+				// Broken up along its length the way ripples and the tarmac's grain break a reflection.
+				float bands = 0.55 + 0.45 * sin(along * 140.0) * sin(along * 53.0 + 1.3);
+				streak *= bands;
 				float glint = exp(-dot(rel, rel) / (w * w * 2.0));
-				col += c * (streak * 0.55 + glint * 0.9) * mirror_gain * road_wetness;
+				col += c * (streak * 0.55 + glint * 0.9) * mirror_gain * road_wetness * night * lit;
 			}
 		} else {
-			// A wall: brightest at the middle of the quad (level with the car), fading up and out;
-			// the side of the car it faces gets its own colour harder.
+			// A wall: lit from a lamp a car's height up, so brightest low and in the middle, a long soft
+			// fade up the facade and to the sides; the side of the car it faces gets its colour harder.
 			float wall_side = v_bank > 0.75 ? -1.0 : 1.0;
 			float facing = side * wall_side > 0.0 ? 1.0 : 0.45;
-			float fall = pow(max(1.0 - length(q * vec2(1.0, 1.25)), 0.0), 2.0);
-			col = c * fall * facing * wall_gain * (1.0 + 0.4 * rain_intensity);
+			float across = exp(-q.x * q.x * 3.0) - exp(-3.0);
+			float up = UV.y;
+			float fall = max(across, 0.0) * exp(-max(up - 0.12, 0.0) * 3.2) * smoothstep(0.0, 0.06, up) * smoothstep(1.0, 0.8, up);
+			col = c * fall * facing * wall_gain * (1.0 + 0.4 * rain_intensity) * gain;
 		}
 	}
 	ALBEDO = cs_out(col);
