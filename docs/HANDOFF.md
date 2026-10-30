@@ -14893,3 +14893,81 @@ never lets him fall the last metre in).
 the sea still rides its wheels on the ground box; the strokes are keyed in code, not
 motion-captured (the UAL swim clips are still out of this network's reach); nothing of it has been
 seen on Forward+ (the Mac).
+
+## 9d?. Beach bonfire rings (2026-10-30, wave 3, branch `wt/bonfires`)
+
+The task: "Beach bonfire rings at night (the form of Dockweiler's concrete fire rings): rings along
+the beach above the tide line, lit after dusk with a fire, smoke, a warm light on the sand, small
+groups of people sitting round them, empty by day."
+
+**What it is.** `Bonfires` (`scripts/world/bonfires.gd`) places precast concrete fire rings
+(1.22 m across, 0.62 m tall, set 0.3 m into the sand) between the berm and the bike path: one slot
+per `RING_CELL` (24 m) of shore, `RING_ODDS` 0.78, across `RING_AT` 0.58-0.70 of the beach's width,
+jittered along the shore, skipped on a beach narrower than `MIN_WIDTH`, where BeachLife keeps off
+(the boardwalk, the piers, the marina channel, the replica's coast), within `GROUP_CLEAR` of the
+bike path or a volleyball court. `rings_in()` is pure and world-anchored (two halves of the shore
+plan the whole's rings). The mesh is code (`ring_mesh()`: a lathe with eased arrises, the ash bed,
+four charred stubs; `stack_mesh()`: tonight's teepee of split logs over coals; `wood_mesh()`: the
+firewood bundle) on `shaders/bonfire.gdshader` (kind in COLOR.a x 8: concrete with aggregate,
+blotches, soot inside, over the rim and in streaks down the outside, sand at the foot, the ring's
+number stencilled in white on two sides from INSTANCE_CUSTOM.r; ash; alligatored char whose cracks
+glow when `heat` is 1; bark; cut ends). One batch a chunk (`bonfire_ring`) plus a box shape.
+
+**The night.** `lit_at(plan, k, hour, day, weather)`: a ring burns on `LIT_ODDS` 0.62 of nights,
+from 18:24-20:12 to 22:18-00:36 (`START` / `END`, hashes of the ring and the night;
+`night_of()` counts past midnight as the evening's), never in RAIN, STORM or SANTA_ANA (a red-flag
+night). The day is DayNight.day_count. `BonfireFire` (`scripts/world/bonfire_fire.gd`), a node in
+every ring, checks the clock every 0.8 s, and once lit builds: the stack on the hot material,
+CarDamage's flame systems at a camp-fire size (a body of flame and tongues up the teepee,
+`CarDamage.fire_material()` and its ramps - the AgX-safe orange), embers, thin grey wood smoke lit
+warm only where it leaves the flames, a 15 m additive pool (`light_pool.gdshader`, every renderer,
+visible from any distance while it burns), the crackle within 45 m, and on desktop an OmniLight at
+1.3 m that flickers; `_deal_lights()` gives a light to the nearest `LIGHT_BUDGET` (6) burning within
+`LIGHT_REACH` (110 m) and soft shadows to the nearest one inside `SHADOW_REACH` (26 m), none while
+`DayNight.lamp_scale` is 0 (Quality below MEDIUM). Particles stop past `FIRE_RANGE` (230 m).
+
+**The people.** A lit ring at the build hour gets `group()` (pure): 2-6 round it on an arc open to
+the sea, 1.7-2.15 m out, turned to the fire - sitting on a blanket, leaning back on their hands, in
+a low beach chair, a few standing - with chairs and towels (BeachLife's meshes in its batches), a
+cooler, the firewood. They are `BonfireFigure`s (`scripts/world/bonfire_figure.gd`, extends
+BeachFigure): baked like the beach's people but in STREET CLOTHES - `BeachGoer.clothed` (two hook
+lines in beach_goer.gd) puts the rig's own outfit back with `Pedestrian.character_material()` (not
+RoughSleeper's worn look) instead of a swimsuit, for the bake, for the live person a shot wakes and
+for their ragdoll. Eight rigs (`MODELS`: the windbreaker, the cardigan, the hoodie, the polo and
+four more) x four poses, baked on the loading screen. When the fire goes out (`_dismiss()`) its
+group and their things go (a chunk built at night lives on into the day).
+
+**Hooks.** `CityChunk._build_beach()`: `Bonfires.build()` BEFORE `BeachLife.build()` (a ring in a
+palm or the tower is not built; every ring built joins the obstacles, so the sunbathers keep clear
+of it - BeachLife's own rolls are hashes and do not move), `Bonfires.build_lod()` beside
+`BeachLife.build_lod()` (the pools of the rings lit at the build hour, 22 m, drawn to 2.6 km). The
+loading screen warms the meshes and the bakes. `tests/beach_life_checks.gd`'s figure count leaves
+the bonfire figures out.
+
+**A/B and stills.** `BONFIRES=0` in the environment: no rings at all. `BONFIRE_LIT=1` lights every
+ring (stills), `Bonfires.force_hour` / `force_lit` for tests. Probe:
+`tools/bonfires/probe.gd -- --z0=200 --z1=1000 [--hour=21]` lists every ring with whether it burns,
+its group size and two EYEs. Stills (branch `shots/bonfires`, opengl3, seed 1337):
+`--spawn=-655,712,90,0 --hour=21 --nohud --weather=clear` with SHOTS
+`-701.4,1.6,699.6,122.5,-7@21` (close), `-688,8,690,166.5,-10@21` (the row),
+`-645,35,780,30,-25@21` (aerial).
+
+**Frame cost** (still_shot.gd GEO, same cameras, BONFIRES=0 -> on): close by a lit ring 635,780 /
+188 draws -> 897,624 / 279 (camera +21k triangles; the rest is the nearest fire's omni shadow
+cubemap, +240k shadow triangles, and the group's figures and chairs); along the beach (two fires
+in view) 848,051 / 419 -> 884,547 / 453; from 35 m up 1,802,511 / 452 -> 1,850,330 / 511; the
+aerial past the FULL ring 1,337,354 / 930 -> 1,314,897 / 923 (flat). By day only the ring batch.
+
+**Checks** (`tests/bonfires_checks.gd`, 23): the tables and the shader's copy of the ring size, the
+ring mesh at its size on the shader, the pure world-anchored plan above the tide line clear of the
+path and courts, lit after dusk only (none by day, by 04:00, in rain or a Santa Ana), 01:30 is the
+evening's, groups round their rings facing the fire, a FULL chunk at 21:00 (one ring batch, a fire
+per ring, a clothed figure per planned person, the wood, the flames on the car fire's material, the
+light, a woken figure is a clothed BeachGoer, morning sends them home), BONFIRES=0 leaves the
+palms and tower as they were, by day nobody, the LOD pools at night and none by day.
+
+**Not done / unverified.** Nothing seen on Forward+ (the Mac): the omni's flicker and soft shadow,
+the flame material's soft-particle fade on sand and the smoke's lighting need a look there. The
+fire is visual only (no burn damage, nothing ignites it; a rocket does not scatter the logs). A
+chunk built in daylight gets no group when its ring lights later (it does on the next rebuild). No
+graffiti on the rings beyond the numbers; no s'mores sticks or guitars.

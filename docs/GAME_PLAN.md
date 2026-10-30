@@ -295,6 +295,14 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-30 Beach bonfire rings at night (HANDOFF "Beach bonfire rings").** Concrete fire
+  rings in a row along the beach above the tide line (hashes per 24 m of shore, nothing else on
+  the beach moves; the sunbathers keep clear of them), empty by day, about six in ten lit after
+  dusk (none in rain, a storm or a Santa Ana) with CarDamage's flames, embers, wood smoke, a pool
+  of firelight and a budgeted flickering light, and 2-6 people in street clothes round each (the
+  beach's baked figures, clothed). LOD chunks lay the pools so the coast reads as a row of fires
+  from the air. `BONFIRES=0` is the A/B.
+
 - **2026-10-05 Onlookers: the crowd comes back after the chaos (HANDOFF "Onlookers").** After
   the panic near a wreck, a blast or a body, people near the camera come back and stand round it
   in a loose ring: filming on their phones (held up at eye level, the screen lit, a video light
