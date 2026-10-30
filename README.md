@@ -13,3 +13,9 @@ A traffic car on a one-lane street, a shot by the far kerb ahead of it, the came
 - 10/11/12_night_2100_* - ABANDON at 21:00.
 
 Frame cost (still_shot GEO, the abandon frame vs CAR_PANIC=0 at the same eye): 4.18 M tris / 2,290 draws vs 3.98 M / 2,238 - the difference is the cars and people in view (the before frame has the two cars driven out of it), not the system, which adds one door panel and one walker.
+
+## Wave 3 (springs and rubber)
+
+- 01-04_abandon_* - rendered again from this branch (the first session listed them but never pushed them).
+- 13_brake_0.55s_nose_dives_tyres_lock.jpg - BRAKE seen from behind: the nose is down on its springs (the tail stands up) under the 7.4 m/s^2 stop.
+- 14_brake_2.4s_stopped_hazards_skid_marks.jpg - stopped on the hazards, four locked-wheel marks behind it (PanicSkid into DrivingFX's mark ring); it rocked back once as it stopped.
