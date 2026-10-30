@@ -12,6 +12,8 @@ extends Node3D
 ## (opengl3 for the Compatibility path.) EYE=x,y,z,yaw,pitch (TRUE world, y metres over the
 ## ground there; yaw 0 north, 90 west), SHOTS="eye;eye" more from the same load (OUT_1.png ...),
 ## FOV, FRAMES (default 30), BLOCKS (chunks each way, default 1; 0 none - sky and weather only),
+## A sixth EYE field is that shot's hour (DayNight.hour set and applied before its frames), so a
+## day and a night still come from one load.
 ## FAR (camera far, default 12000), GEO=1 prints triangles and draws. --hour= and --weather= are
 ## read by DayNight and Weather themselves. The tool node carries `plan` and `world_seed` the way
 ## CityStreamer does, so Weather finds the fire site and the coast.
@@ -88,6 +90,11 @@ func _ready() -> void:
 					add_child(ch)
 					ch.build()
 					built[bk] = ch
+		if p.size() > 5:
+			var dn: Node = get_node_or_null("DayNight")
+			if dn:
+				dn.set("hour", p[5].to_float())
+				dn.call("_apply")
 		stand.global_position = at
 		cam.global_transform = Transform3D(Basis.from_euler(Vector3(deg_to_rad(p[4].to_float()), deg_to_rad(p[3].to_float()), 0.0)), at)
 		for i in int(_env("FRAMES", "30")):
