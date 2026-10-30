@@ -18462,3 +18462,52 @@ it, and none blocks a traffic lane.
   are a first guess), over the freeway pair - only the synthetic director ticks are checked; the
   plate, concrete and paint under Forward+ (opengl3 stills only); the dirt lines' sides against a
   lot whose relief varies more than a few decimetres.
+
+## 9gr. Weekend yard sales, 2026-10-30 (agent branch `wt/yard-sales`; VISUAL_ROADMAP ?)
+
+Saturday and Sunday mornings in the suburbs and the beach town a few houses put their stuff out
+front: six-foot folding tables and card tables of goods (household: a box of things, a table
+lamp, plates, mugs, a vase, a toaster, books, picture frames; media: records, books, board games,
+a radio; kitchen: pots, a blender, jars, a basket, a fan), a rolling clothes rack of shirts,
+dresses, jackets and trousers on hangers, the old sofa with a "$40" card, a beach cruiser on its
+kickstand, stacks of taped moving boxes, a floor lamp; a hand-lettered poster board on two lath
+stakes with three balloons on the pavement in front; cardboard signs taped to the utility pole or
+street lamp at each end of the block's front street, the arrow pointing to the sale (a lath stake
+in the parkway where no pole is near); the seller behind the first table (a StreetVendor) and
+neighbours browsing (YardSaleBrowser). After it closes a FREE box is left on the pavement.
+
+- **Files**: `scripts/world/yard_sales.gd` (who, when, where - pure - and the build),
+  `scripts/world/yard_sale_kit.gd` (every mesh in code at real size on BackyardKit's builder),
+  `shaders/yard_sale.gdshader` (one shader: kind in COLOR.a x 16 - HDPE table top, kraft
+  cardboard with tape, poster board, marker ink, upholstery and garment palettes by
+  INSTANCE_CUSTOM.a, ceramic, latex balloons and garments swaying by UV2.y),
+  `scripts/npc/yard_sale_browser.gd`, `tests/yard_sales_checks.gd`, `tools/yard_sales/probe.tscn`.
+  Hooks: one line after each `Backyards.block()` in `YardFill._build_beach()`, the kit's warm-up
+  on the loading screen, one load line in smoke_test.gd.
+- **When**: `sale_info()` - a hash of seed + lot: `ODDS` (suburbs 7.5 %, beach town 3.5 %),
+  `DAYS` (Saturday 58 %, Sunday 14 %, both 28 %), `HOURS` setup 6:42 / open 7:30 / close 14:00 /
+  leftovers gone 18:30 (open and close +-45 min). `state_at()` NONE / SETUP (tables and boxes,
+  bare tables) / OPEN / LEFTOVER (the sofa, boxes and the FREE box). The day and hour are
+  FarmersMarket's (`weekday()`: the game starts on a Saturday; `hour_now()`); rain calls it off.
+  `YARD_SALE=all` makes every candidate lot hold one today; `force_day` / `force_hour` for tests.
+- **Where** (`plan_lot()`, pure, on YardFill's lot plan): one ROW parallel to the street in the
+  front lawn / patio / drive, clear of the house (+0.5 m), the front walk and its cypresses
+  (+0.9 m), the tree YardFill plants in the middle of a big front lawn, YardFill's car in the
+  drive (its own hash), decomposed granite and beds (planted), and the street line. Most front
+  yards in the game are 2-4 m deep (setbacks), so where there is no room for an aisle in the yard
+  the row stands at the front and the browsers stand on the pavement (`on_pavement`) - unless a
+  wall, pickets or a hedge is on the street line (YardFill's edge roll), then no sale. A front dog
+  (DogYard's roll) means no sale. On seed 1337 round the suburb bookmark: 56 sales on 1,368 lots
+  on a Saturday at 9:30, 29 us a lot to plan.
+- **Build**: FULL chunks only, as YardFill deferred jobs (a job a sale, the corner signs, the
+  people, the finish); every thing is an `EncampmentItem` (knocked or shot it goes over as a real
+  body and stays gone), batch keys `ys_*`, drawn to 150 m (signs 120 m), shadows within 45 m
+  (`set_shadow_reach`). Browse spots go in the chunk's `vendor_queue`. Signs are lettered by hand
+  from SignFont's strokes with a wobble per glyph (slant, size, baseline) as marker ribbons,
+  cached per text. Up to 3 sales and 9 browsers a chunk (crowd cap). LOD chunks and the far city
+  draw none of it (a table is under a pixel from there).
+- **A/B**: `YARD_SALES=0`. **Checks**: `tests/yard_sales_checks.gd` (kit budgets and arrow
+  direction, purity and weekend-only, the share, the row's clearances, a FULL chunk with it off
+  and on - nothing else moves -, a weekday chunk, LOD, capture).
+- **Not done / unverified**: the stills are opengl3 (Compatibility); the ink, fluorescent boards
+  and balloons want a look on the Mac (Forward+). No LOD meshes on the kit (draw distance only).

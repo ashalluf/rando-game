@@ -3654,6 +3654,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   classes by path (naming them compiles the crowd into every tool that loads YardFill).
   `BACKYARDS=0` is the A/B; probe `tools/backyards/probe.gd`, fit `tools/backyards/lounger_shot.tscn`;
   checks `tests/backyards_checks.gd`.
+- Yard sales (2026-10-30, docs/HANDOFF.md "Weekend yard sales"): `YardSales`
+  (`scripts/world/yard_sales.gd`, one line after each `Backyards.block()` in YardFill) - a hash of
+  seed + lot holds a sale on Saturday / Sunday (`sale_info()`, `state_at()`: SETUP / OPEN /
+  LEFTOVER, FarmersMarket's day and hour, rain calls it off); `plan_lot()` is PURE on YardFill's
+  lot plan: one row in the front yard, the aisle in it or on the pavement where the yard is
+  shallow. `YardSaleKit` (code meshes, `shaders/yard_sale.gdshader`, kind in COLOR.a x 16, signs
+  hand-lettered from SignFont), things are EncampmentItems, corner signs taped to `upole` / lamp
+  poles, a StreetVendor seller and `YardSaleBrowser`s. FULL only. `YARD_SALES=0` is the A/B,
+  `YARD_SALE=all` every candidate today; probe `tools/yard_sales/probe.tscn`; checks
+  `tests/yard_sales_checks.gd`.
 - Lawns: `PropFactory.lawn()` + `shaders/lawn.gdshader`, not a plain tiled texture - a 5 m tile
   mips down to one flat green rectangle from thirty metres up, and the grass-blade multimesh only
   reaches a few dozen metres. Dry/watered patches, mower stripes angled per lawn, worn dirt, and

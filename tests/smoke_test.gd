@@ -2449,6 +2449,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Stunt ramps (tests/stunt_ramps_checks.gd): where the kickers, the quarter-pipe, the freeway pair,
 	# the loop and the dirt lines stand, their chunks, and the slow-motion moment off a lip.
 	await load("res://tests/stunt_ramps_checks.gd").new().run(self, city)
+	# Weekend yard sales (tests/yard_sales_checks.gd): the kit and its signs, when (weekends only),
+	# the pure front-yard row, a FULL chunk's sale and its corner signs, nothing else moved.
+	load("res://tests/yard_sales_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
