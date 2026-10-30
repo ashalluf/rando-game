@@ -20837,7 +20837,8 @@ loops of trail tests a fragment within 260 m, nothing past it.
 the beach-life bookmark, the weathered tower close up. Forward+ (lavapipe, `fwd_block_shot.tscn`,
 960x540) pairs of the sand at 17:45 and the tower at 13:00: `fwd_*` on the same branch.
 
-**Gate**: `SHARDS=3 tests/headless_check.sh` 4,019 checks, 0 failed (peak RSS 3,428 MB a shard).
+**Gate**: `SHARDS=3 tests/headless_check.sh` on main 1865ef2 merged: 4,034 checks, 0 failed (peak RSS
+3,422 MB a shard). The stills were rendered before the cinematic grade (1865ef2) was merged.
 
 **A/B**: `BEACH_GOLDEN=0` (the sand and the towers exactly as before). Checks:
 `tests/beach_golden_checks.gd` (the include and its switch, the colour-space line, the uniforms
