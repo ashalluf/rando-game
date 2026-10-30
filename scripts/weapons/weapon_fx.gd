@@ -2089,6 +2089,9 @@ static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0
 		dect.tween_callback(decal.queue_free)
 
 	shake(node, at, radius)
+	# The flash, the pressure wave, the rolling fireball, burning debris, blown-out windows and
+	# the smoke column (BlastFX; EXPLOSIONS_2=0 is the old blast alone).
+	BlastFX.explosion(node, at, radius, power)
 
 
 ## Dust the blast tears off the surfaces around it: a flat skirt racing out along the ground,
