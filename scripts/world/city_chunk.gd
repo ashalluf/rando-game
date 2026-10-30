@@ -2607,6 +2607,12 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 			steps.append(func() -> void: Parklets.build_block(self, block))
 			for i in Parklets.MAX_PEOPLE:
 				steps.append(func() -> void: Parklets.spawn_person(self, i))
+		# Valet stands at hotels and busy restaurants (Valets): podium, keys, sign, their valets.
+		# Hash-seeded; after the parklets they keep clear of, before the parked cars.
+		if Valets.wanted(self, block):
+			steps.append(func() -> void: Valets.build_block(self, block))
+			for i in Valets.MAX_PEOPLE:
+				steps.append(func() -> void: Valets.spawn_valet(self, i))
 		# The fashion district's goods on the pavement and their sellers (FashionDistrict; hash-seeded).
 		if FashionDistrict.wanted(self, block):
 			steps.append_array(FashionDistrict.steps(self, block))
@@ -2842,7 +2848,8 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	# It counts as parked, so the cap (and with it the rolls) is the same too.
 	if StreetVendors.blocks_parking(self, spot[0]) or Construction.blocks_parking(self, spot[0]) \
 			or KerbBins.blocks_parking(plan, spot[0], float(car._dims().length)) \
-			or FarmersMarket.blocks_parking(plan, spot[0]) or Parklets.blocks_parking(self, spot[0]):
+			or FarmersMarket.blocks_parking(plan, spot[0]) or Parklets.blocks_parking(self, spot[0]) \
+			or Valets.blocks_parking(self, spot[0]):
 		car.free()
 		count[0] += 1
 		return

@@ -707,6 +707,14 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 		bus_shift = maxf(bus_shift, float(t.park_shift) * clampf((30.0 - to_park) / 22.0, 0.0, 1.0))
 		if v < 0.3 and to_park < 1.5 and float(t.get("shift", 0.0)) > float(t.park_shift) - 0.1 and StreetErrands.park_here(self, car):
 			return
+	# Called in by a valet stand (Valets): its drop-off is a stop, like a bus's, on the hazards.
+	if t.has("valet"):
+		var vs := Valets.street_stop(self, car, t, along, v, delta)
+		if vs.x < INF:
+			acc = minf(acc, _idm(v, v0, vs.x, 0.0, 0.05))
+			room = minf(room, vs.x + 0.05)
+			still = minf(still, vs.x - 0.1)
+			bus_shift = maxf(bus_shift, vs.y)
 	# A jaywalker in this lane ahead (StreetErrands): braked for, and now and then honked at.
 	var jay := StreetErrands.jaywalker_gap(car, axis, index, dir, along, half, plan.road_pos(axis, index) + float(t.lane), v)
 	if jay < INF:
