@@ -19441,7 +19441,9 @@ as parts of their own, so a shard could believe it owned work that ran in anothe
 | this branch + main (42 more files), one process | 2,505 s | 3,464 | 1 (sea life's purity check, fixed) |
 | the same, SMOKE_SHUFFLE=7, beside the one above | 2,486 s | 3,464 | 4 (see below) |
 | SHARDS=3, the same code | 1,151 s (3 x ~1,070) | 3,496 | 5 (load flakes, see below) |
-Peak memory one process 3.8 GB, a shard 2.7-3.1 GB. Where the time goes did not change since 9du:
+| final (+ main c900e0b1, 191 files), one process | 2,611 s | 3,655 | **0** |
+| final, SMOKE_SHUFFLE=7, beside the one above | 2,659 s | 3,655 | 1 (the ragdoll joint gap, a flake: see below) |
+Peak memory one process 3.8-4.0 GB, a shard 2.7-3.1 GB. Where the time goes did not change since 9du:
 the frames are compute bound (the whole city simulates every tick, ~0.1-0.2 s a frame here), and
 the waits are already condition polls. Cut: the pending-seed check built a whole second city
 (56 s) to test that `_ready()` takes the seed - it now streams one block and no far city
@@ -19462,10 +19464,20 @@ with a fresh one, and the live node writes its state into the cached events as t
 it failed whenever enough had run before it (fixed: two fresh events). A boat put 1 km out at
 sea sank 489 m in one order and flew 202 m in a shard: the origin had been re-centred somewhere
 else by an earlier file, so `stage_home()` now re-centres it at the spawn (`world_offset` back to
-zero) before every file. Two more fail only on a loaded box (three Godot processes on four
+zero) before every file (`SMOKE_NO_RECENTER=1` is its A/B). Two more fail only on a loaded box (three Godot processes on four
 cores), with and without the reset (`SMOKE_NO_RESET=1` failed the same way 1 run in 2): the fire
 crew never leaves the engine (`emergency_checks`, "lays a hose") and the city_cars drive check
 (a car stands at 0.1 m/s). They pass alone and in one process.
+
+Two more things the reset now puts back: **input actions** (every action is released between
+files, `last["input"]` counts any still held; checks press and release actions by hand, and one
+that returns early leaves them down) and **the player left in the water** (Swim takes the world layer off his mask; the reset calls `Swim._exit()` and
+puts the snapshot's masks back). The swimming check's splash count now finds Godot's renamed
+`@SwimSplash@n` nodes. **Not ours, left alone:** the speedboat thrown hundreds of metres in a
+`SMOKE_PARTS` run fails ALONE too (`SMOKE_PARTS=speedboats_checks`: 5 of 39), which main's 0c5e2ee already names as the speedboats session's sea-follow bug; and
+the ragdoll's "joints hold" bound (0.12 m) read 0.137 m in the final shuffled run, while the same
+two files in the same order (`airport_checks,ragdolls_checks`) read 0.100 and then 0.053 m on two
+runs - a run-to-run physics spread, not an order leak.
 
 **Fixes the reset turned up**: the photo-mode restore check failed in one process after
 city_crowd and passed alone (main has since made it say which piece is wrong); the reset before
