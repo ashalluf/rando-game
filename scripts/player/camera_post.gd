@@ -186,16 +186,11 @@ func _push_motion_blur(frame_seconds: float) -> void:
 	if effect.enabled != on:
 		effect.enabled = on
 		effect.cut = true # the history is stale by the time it comes back on
-	# Driving (DriveCam): more streak with speed, a higher knee so the chased car stays sharp.
-	var drive_terms := Vector2(1.0, 0.0)
-	var drive: Variant = get_parent().get("drive")
-	if drive != null and is_instance_valid(drive):
-		drive_terms = drive.blur_terms()
-	effect.strength = strength * drive_terms.x
+	effect.strength = strength
 	effect.shutter = shutter
 	effect.reference_fps = reference_fps
 	effect.max_blur_px = max_blur_px
-	effect.threshold_px = velocity_threshold_px + drive_terms.y
+	effect.threshold_px = velocity_threshold_px
 	effect.samples = samples
 	effect.soft_z = depth_tolerance
 	effect.max_camera_jump = max_camera_jump
