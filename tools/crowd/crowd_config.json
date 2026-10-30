@@ -1,0 +1,2571 @@
+{
+ "defaults": {
+  "rig": "mixamo",
+  "eyes": "low-poly.mhclo",
+  "eyelashes": "eyelashes01.mhclo",
+  "eye_color": "brown",
+  "skin_material_type": "MAKESKIN",
+  "eyes_material_type": "MAKESKIN",
+  "rest_pose": {
+   "arm_down_deg": 14.0,
+   "elbow_open_deg": 26.0
+  },
+  "budget": {
+   "skin": 6400,
+   "garment": 4600,
+   "shoes": 1300,
+   "hat": 700,
+   "hair": 3400,
+   "brows": 200,
+   "lashes": 240
+  },
+  "atlas": {
+   "size": 2048,
+   "normal_size": 1024,
+   "hair_size": 1024,
+   "pad": 6,
+   "scale": {
+    "skin_head": 1.0,
+    "skin": 0.62,
+    "eyes": 0.75,
+    "garment": 0.62,
+    "shoes": 0.45,
+    "hat": 0.45,
+    "hair": 0.5,
+    "brows": 0.35,
+    "lashes": 0.3
+   }
+  },
+  "skin_normal_strength": 0.5,
+  "garment_ao": 0.55,
+  "face_var": 0.35
+ },
+ "characters": [
+  {
+   "name": "crowd_a",
+   "about": "young Black man, slim and athletic: white tee, jeans, white sneakers, close crop",
+   "phenotype": {
+    "gender": 1.0,
+    "age": 0.5,
+    "muscle": 0.62,
+    "weight": 0.42,
+    "proportions": 0.6,
+    "height": 0.5,
+    "race": {
+     "caucasian": 0.05,
+     "african": 0.92,
+     "asian": 0.03
+    }
+   },
+   "skin": [
+    "young_african_male"
+   ],
+   "eyebrows": "eyebrow001.mhclo",
+   "hair": "",
+   "hair_rgb": [
+    18,
+    14,
+    12
+   ],
+   "clothes": [
+    "shoes05.mhclo"
+   ],
+   "targets": [
+    [
+     "nose-width1-incr",
+     0.3
+    ],
+    [
+     "chin-width-incr",
+     0.2
+    ]
+   ],
+   "buzz": true,
+   "stubble": 0.3,
+   "beard_rgb": [
+    14,
+    11,
+    10
+   ],
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "jeans",
+     "color": [
+      44,
+      56,
+      88
+     ]
+    },
+    {
+     "type": "tee",
+     "sleeve": "short",
+     "fit": "regular",
+     "color": [
+      226,
+      224,
+      218
+     ]
+    }
+   ]
+  },
+  {
+   "name": "crowd_b",
+   "about": "Latino man in his forties, heavy-set: work overalls over a tee, boots, short dark hair",
+   "phenotype": {
+    "gender": 1.0,
+    "age": 0.7,
+    "muscle": 0.55,
+    "weight": 0.85,
+    "proportions": 0.45,
+    "height": 0.46,
+    "race": {
+     "caucasian": 0.55,
+     "african": 0.15,
+     "asian": 0.3
+    }
+   },
+   "skin": [
+    "middleage_caucasian_male"
+   ],
+   "skin_blend": [
+    [
+     "middleage_caucasian_male",
+     0.45
+    ],
+    [
+     "middleage_african_male",
+     0.35
+    ],
+    [
+     "middleage_asian_male",
+     0.2
+    ]
+   ],
+   "eyebrows": "eyebrow010.mhclo",
+   "hair": "short04.mhclo",
+   "clothes": [
+    "male_worksuit01.mhclo",
+    "shoes03.mhclo"
+   ],
+   "targets": [
+    [
+     "head-round",
+     0.3
+    ],
+    [
+     "neck-scale-horiz-incr",
+     0.3
+    ]
+   ],
+   "hair_rgb": [
+    24,
+    18,
+    15
+   ],
+   "stubble": 0.75,
+   "beard_rgb": [
+    22,
+    17,
+    14
+   ]
+  },
+  {
+   "name": "crowd_c",
+   "about": "white woman in her seventies, slight and short: striped blouse, grey skirt, flat shoes, short grey hair",
+   "phenotype": {
+    "gender": 0.0,
+    "age": 0.88,
+    "muscle": 0.35,
+    "weight": 0.4,
+    "proportions": 0.5,
+    "height": 0.42,
+    "race": {
+     "caucasian": 0.95,
+     "african": 0.0,
+     "asian": 0.05
+    }
+   },
+   "skin": [
+    "old_caucasian_female"
+   ],
+   "eye_color": "lightblue",
+   "eyebrows": "eyebrow007.mhclo",
+   "hair": "short03.mhclo",
+   "clothes": [
+    "female_elegantsuit01.mhclo",
+    "shoes04.mhclo"
+   ],
+   "targets": [],
+   "hair_rgb": [
+    132,
+    127,
+    121
+   ],
+   "skin_tone": [
+    0.78,
+    0.72,
+    0.68
+   ],
+   "face_var": 0.3
+  },
+  {
+   "name": "crowd_d",
+   "about": "young East Asian woman: tee dyed rust, jeans, navy sneakers, ponytail",
+   "phenotype": {
+    "gender": 0.0,
+    "age": 0.48,
+    "muscle": 0.45,
+    "weight": 0.42,
+    "proportions": 0.55,
+    "height": 0.58,
+    "race": {
+     "caucasian": 0.05,
+     "african": 0.0,
+     "asian": 0.95
+    }
+   },
+   "skin": [
+    "young_asian_female"
+   ],
+   "eyebrows": "eyebrow002.mhclo",
+   "hair": "ponytail01.mhclo",
+   "clothes": [
+    "shoes06.mhclo"
+   ],
+   "targets": [],
+   "hair_rgb": [
+    28,
+    20,
+    16
+   ],
+   "face_var": 0.3,
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "slim",
+     "color": [
+      36,
+      36,
+      40
+     ],
+     "wash": 0.12,
+     "fade_color": [
+      96,
+      96,
+      104
+     ],
+     "thread": [
+      88,
+      88,
+      92
+     ]
+    },
+    {
+     "type": "tee",
+     "sleeve": "short",
+     "fit": "fitted",
+     "color": [
+      150,
+      62,
+      44
+     ]
+    }
+   ]
+  },
+  {
+   "name": "crowd_e",
+   "about": "Black woman in her forties, heavy: tee dyed mustard, denim shorts, white sneakers, natural hair",
+   "phenotype": {
+    "gender": 0.0,
+    "age": 0.68,
+    "muscle": 0.45,
+    "weight": 0.82,
+    "proportions": 0.45,
+    "height": 0.52,
+    "race": {
+     "caucasian": 0.05,
+     "african": 0.93,
+     "asian": 0.02
+    }
+   },
+   "skin": [
+    "middleage_african_female"
+   ],
+   "eyebrows": "eyebrow003.mhclo",
+   "hair": "afro01.mhclo",
+   "clothes": [
+    "shoes05.mhclo"
+   ],
+   "targets": [],
+   "hair_rgb": [
+    20,
+    16,
+    14
+   ],
+   "face_var": 0.3,
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "shorts",
+     "color": [
+      62,
+      86,
+      126
+     ],
+     "wash": 0.5,
+     "above_knee": 0.14,
+     "fade_color": [
+      140,
+      168,
+      200
+     ]
+    },
+    {
+     "type": "tee",
+     "sleeve": "short",
+     "fit": "regular",
+     "color": [
+      196,
+      150,
+      52
+     ]
+    }
+   ]
+  },
+  {
+   "name": "crowd_f",
+   "about": "young white man, tall: olive field jacket, jeans, grey sneakers, short brown hair",
+   "phenotype": {
+    "gender": 1.0,
+    "age": 0.52,
+    "muscle": 0.55,
+    "weight": 0.5,
+    "proportions": 0.6,
+    "height": 0.57,
+    "race": {
+     "caucasian": 0.95,
+     "african": 0.0,
+     "asian": 0.05
+    }
+   },
+   "skin": [
+    "young_caucasian_male"
+   ],
+   "eye_color": "bluegreen",
+   "eyebrows": "eyebrow006.mhclo",
+   "hair": "short04.mhclo",
+   "hair_rgb": [
+    70,
+    50,
+    34
+   ],
+   "clothes": [
+    "male_casualsuit05.mhclo",
+    "shoes02.mhclo"
+   ],
+   "targets": [
+    [
+     "chin-prominent-incr",
+     0.3
+    ]
+   ],
+   "stubble": 0.5,
+   "beard_rgb": [
+    70,
+    50,
+    34
+   ],
+   "dye": {
+    "bottom": [
+     124,
+     106,
+     78
+    ]
+   },
+   "dye_contrast": {
+    "bottom": 0.85
+   }
+  },
+  {
+   "name": "crowd_g",
+   "about": "Black man in his seventies: dark suit, dress shoes, short grey hair",
+   "phenotype": {
+    "gender": 1.0,
+    "age": 0.87,
+    "muscle": 0.45,
+    "weight": 0.55,
+    "proportions": 0.5,
+    "height": 0.48,
+    "race": {
+     "caucasian": 0.05,
+     "african": 0.93,
+     "asian": 0.02
+    }
+   },
+   "skin": [
+    "old_african_male"
+   ],
+   "eyebrows": "eyebrow009.mhclo",
+   "hair": "short01.mhclo",
+   "hair_rgb": [
+    128,
+    124,
+    118
+   ],
+   "clothes": [
+    "male_elegantsuit01.mhclo",
+    "shoes04.mhclo"
+   ],
+   "targets": [],
+   "beard": 0.55,
+   "stubble": 0.3,
+   "beard_rgb": [
+    118,
+    114,
+    108
+   ]
+  },
+  {
+   "name": "crowd_h",
+   "about": "East Asian man in his forties: striped shirt, jeans, brown leather shoes, short side part",
+   "phenotype": {
+    "gender": 1.0,
+    "age": 0.66,
+    "muscle": 0.5,
+    "weight": 0.45,
+    "proportions": 0.5,
+    "height": 0.52,
+    "race": {
+     "caucasian": 0.05,
+     "african": 0.0,
+     "asian": 0.95
+    }
+   },
+   "skin": [
+    "middleage_asian_male"
+   ],
+   "eyebrows": "eyebrow004.mhclo",
+   "hair": "short03.mhclo",
+   "hair_rgb": [
+    22,
+    18,
+    16
+   ],
+   "clothes": [
+    "shoes01.mhclo"
+   ],
+   "targets": [],
+   "stubble": 0.12,
+   "beard_rgb": [
+    20,
+    17,
+    15
+   ],
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "jeans",
+     "color": [
+      96,
+      98,
+      104
+     ],
+     "wash": 0.3,
+     "fade_color": [
+      150,
+      152,
+      158
+     ],
+     "thread": [
+      150,
+      150,
+      150
+     ]
+    },
+    {
+     "type": "shirt",
+     "sleeve": "long",
+     "fit": "regular",
+     "color": [
+      236,
+      238,
+      242
+     ],
+     "pattern": {
+      "type": "stripes",
+      "color": [
+       70,
+       96,
+       150
+      ],
+      "period": 0.011,
+      "width": 0.3,
+      "strength": 0.85
+     }
+    }
+   ]
+  },
+  {
+   "name": "crowd_i",
+   "about": "young white woman, slim: tee dyed heather grey, black leggings, white sneakers, long hair",
+   "phenotype": {
+    "gender": 0.0,
+    "age": 0.47,
+    "muscle": 0.5,
+    "weight": 0.32,
+    "proportions": 0.6,
+    "height": 0.55,
+    "race": {
+     "caucasian": 0.95,
+     "african": 0.0,
+     "asian": 0.05
+    }
+   },
+   "skin": [
+    "young_caucasian_female"
+   ],
+   "eye_color": "green",
+   "eyebrows": "eyebrow005.mhclo",
+   "hair": "long01.mhclo",
+   "clothes": [
+    "shoes05.mhclo"
+   ],
+   "targets": [],
+   "hair_rgb": [
+    96,
+    66,
+    40
+   ],
+   "face_var": 0.3,
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "leggings",
+     "color": [
+      26,
+      26,
+      28
+     ]
+    },
+    {
+     "type": "tee",
+     "sleeve": "short",
+     "fit": "fitted",
+     "color": [
+      150,
+      150,
+      152
+     ],
+     "heather": true
+    }
+   ]
+  },
+  {
+   "name": "crowd_j",
+   "about": "white man in his fifties, heavy, close-cropped: denim shirt, jeans, brown shoes",
+   "cover_tuck": 0.014,
+   "phenotype": {
+    "gender": 1.0,
+    "age": 0.76,
+    "muscle": 0.4,
+    "weight": 0.8,
+    "proportions": 0.45,
+    "height": 0.5,
+    "race": {
+     "caucasian": 0.95,
+     "african": 0.0,
+     "asian": 0.05
+    }
+   },
+   "skin": [
+    "middleage_caucasian_male"
+   ],
+   "eye_color": "blue",
+   "eyebrows": "eyebrow011.mhclo",
+   "hair": "",
+   "buzz": true,
+   "hair_rgb": [
+    96,
+    84,
+    72
+   ],
+   "clothes": [
+    "shoes01.mhclo"
+   ],
+   "targets": [
+    [
+     "head-age-incr",
+     0.3
+    ]
+   ],
+   "hairline": 0.095,
+   "stubble": 0.62,
+   "beard_rgb": [
+    66,
+    58,
+    52
+   ],
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "jeans",
+     "color": [
+      34,
+      42,
+      64
+     ],
+     "wash": 0.2,
+     "fade_color": [
+      90,
+      110,
+      150
+     ]
+    },
+    {
+     "type": "shirt",
+     "sleeve": "rolled",
+     "fit": "loose",
+     "color": [
+      104,
+      132,
+      168
+     ],
+     "pocket": true
+    }
+   ]
+  },
+  {
+   "name": "crowd_k",
+   "about": "young Latina woman: tee dyed teal, jeans, navy sneakers, braid",
+   "phenotype": {
+    "gender": 0.0,
+    "age": 0.5,
+    "muscle": 0.45,
+    "weight": 0.58,
+    "proportions": 0.5,
+    "height": 0.48,
+    "race": {
+     "caucasian": 0.55,
+     "african": 0.15,
+     "asian": 0.3
+    }
+   },
+   "skin": [
+    "young_caucasian_female"
+   ],
+   "skin_blend": [
+    [
+     "young_caucasian_female",
+     0.45
+    ],
+    [
+     "young_african_female",
+     0.35
+    ],
+    [
+     "young_asian_female",
+     0.2
+    ]
+   ],
+   "eyebrows": "eyebrow002.mhclo",
+   "hair": "braid01.mhclo",
+   "clothes": [
+    "shoes06.mhclo"
+   ],
+   "targets": [],
+   "hair_rgb": [
+    22,
+    16,
+    13
+   ],
+   "face_var": 0.3,
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "jeans",
+     "color": [
+      72,
+      100,
+      142
+     ],
+     "wash": 0.6,
+     "fade_color": [
+      150,
+      176,
+      206
+     ]
+    },
+    {
+     "type": "tee",
+     "sleeve": "short",
+     "fit": "fitted",
+     "color": [
+      40,
+      112,
+      118
+     ]
+    }
+   ]
+  },
+  {
+   "name": "crowd_l",
+   "about": "East Asian man in his seventies: long-sleeve tee dyed maroon, jeans, black shoes, short grey hair",
+   "phenotype": {
+    "gender": 1.0,
+    "age": 0.86,
+    "muscle": 0.4,
+    "weight": 0.45,
+    "proportions": 0.45,
+    "height": 0.48,
+    "race": {
+     "caucasian": 0.05,
+     "african": 0.0,
+     "asian": 0.95
+    }
+   },
+   "skin": [
+    "old_asian_male"
+   ],
+   "eyebrows": "eyebrow008.mhclo",
+   "hair": "short01.mhclo",
+   "hair_rgb": [
+    120,
+    116,
+    112
+   ],
+   "clothes": [
+    "shoes04.mhclo"
+   ],
+   "targets": [],
+   "stubble": 0.2,
+   "beard_rgb": [
+    130,
+    126,
+    120
+   ],
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "chinos",
+     "color": [
+      58,
+      58,
+      62
+     ]
+    },
+    {
+     "type": "tee",
+     "sleeve": "long",
+     "fit": "regular",
+     "color": [
+      104,
+      36,
+      44
+     ]
+    }
+   ]
+  },
+  {
+   "name": "crowd_m",
+   "about": "white man in his seventies, tall and thin, a little stooped: navy windbreaker, stone chinos, brown shoes, thin grey hair",
+   "phenotype": {
+    "gender": 1.0,
+    "age": 0.92,
+    "muscle": 0.3,
+    "weight": 0.38,
+    "proportions": 0.4,
+    "height": 0.62,
+    "race": {
+     "caucasian": 0.95,
+     "african": 0.0,
+     "asian": 0.05
+    }
+   },
+   "skin": [
+    "old_caucasian_male"
+   ],
+   "eye_color": "lightblue",
+   "eyebrows": "eyebrow005.mhclo",
+   "hair": "short02.mhclo",
+   "hair_rgb": [
+    176,
+    172,
+    166
+   ],
+   "clothes": [
+    "shoes01.mhclo"
+   ],
+   "targets": [
+    [
+     "stomach-pregnant-incr",
+     0.15
+    ],
+    [
+     "neck-trans-forward",
+     0.5
+    ],
+    [
+     "neck-back-scale-depth-incr",
+     0.6
+    ]
+   ],
+   "stubble": 0.18,
+   "beard_rgb": [
+    180,
+    176,
+    170
+   ],
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "chinos",
+     "color": [
+      168,
+      156,
+      128
+     ]
+    },
+    {
+     "type": "jacket",
+     "color": [
+      34,
+      44,
+      72
+     ],
+     "fabric": "woven",
+     "rib_fabric": "jersey",
+     "zip_color": [
+      30,
+      30,
+      32
+     ],
+     "collar_h": 0.045
+    }
+   ]
+  },
+  {
+   "name": "crowd_n",
+   "about": "South Asian woman in her sixties, short and heavy: buttoned crew-neck cardigan, mid-calf skirt, flat shoes, short grey-streaked hair",
+   "phenotype": {
+    "gender": 0.0,
+    "age": 0.84,
+    "muscle": 0.35,
+    "weight": 0.78,
+    "proportions": 0.45,
+    "height": 0.36,
+    "race": {
+     "caucasian": 0.3,
+     "african": 0.2,
+     "asian": 0.5
+    }
+   },
+   "skin": [
+    "middleage_asian_female"
+   ],
+   "skin_blend": [
+    [
+     "middleage_asian_female",
+     0.45
+    ],
+    [
+     "middleage_african_female",
+     0.3
+    ],
+    [
+     "middleage_caucasian_female",
+     0.25
+    ]
+   ],
+   "eyebrows": "eyebrow009.mhclo",
+   "hair": "short03.mhclo",
+   "hair_rgb": [
+    78,
+    74,
+    72
+   ],
+   "clothes": [
+    "shoes04.mhclo"
+   ],
+   "targets": [],
+   "face_var": 0.32,
+   "outfit": [
+    {
+     "type": "skirt",
+     "color": [
+      50,
+      54,
+      72
+     ],
+     "hem_from_knee": -0.2,
+     "flare": 0.11,
+     "fabric": "woven",
+     "fold_gain": 0.3,
+     "weight_blur": 12,
+     "hip_share": 0.2
+    },
+    {
+     "type": "jacket",
+     "collar": "rib",
+     "closure": "buttons",
+     "knit": true,
+     "pocket": "none",
+     "fit": "regular",
+     "fabric": "jersey",
+     "rib_fabric": "jersey",
+     "color": [
+      84,
+      124,
+      120
+     ],
+     "buttons_color": [
+      226,
+      220,
+      204
+     ],
+     "band_len": 0.045,
+     "cuff_len": 0.045,
+     "collar_h": 0.02,
+     "hem": 0.05
+    }
+   ]
+  },
+  {
+   "name": "crowd_o",
+   "about": "Black teenage boy, slim: pullover hoodie, black joggers, grey sneakers, short hair",
+   "phenotype": {
+    "gender": 1.0,
+    "age": 0.33,
+    "muscle": 0.4,
+    "weight": 0.36,
+    "proportions": 0.55,
+    "height": 0.62,
+    "race": {
+     "caucasian": 0.05,
+     "african": 0.93,
+     "asian": 0.02
+    }
+   },
+   "skin": [
+    "young_african_male"
+   ],
+   "eyebrows": "eyebrow002.mhclo",
+   "hair": "short02.mhclo",
+   "hair_rgb": [
+    16,
+    12,
+    11
+   ],
+   "clothes": [
+    "shoes02.mhclo"
+   ],
+   "targets": [],
+   "face_var": 0.32,
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "joggers",
+     "color": [
+      34,
+      34,
+      37
+     ],
+     "tris": 1600
+    },
+    {
+     "type": "jacket",
+     "collar": "hood",
+     "closure": "none",
+     "pocket": "kangaroo",
+     "fabric": "jersey",
+     "rib_fabric": "jersey",
+     "color": [
+      118,
+      32,
+      40
+     ],
+     "cord_color": [
+      232,
+      230,
+      224
+     ],
+     "fit": "loose",
+     "tris": 1600
+    }
+   ]
+  },
+  {
+   "name": "crowd_p",
+   "about": "white teenage girl, slim and short: fitted tee, olive A-line skirt above the knee, white sneakers, auburn ponytail",
+   "phenotype": {
+    "gender": 0.0,
+    "age": 0.37,
+    "muscle": 0.38,
+    "weight": 0.36,
+    "proportions": 0.55,
+    "height": 0.6,
+    "race": {
+     "caucasian": 0.95,
+     "african": 0.0,
+     "asian": 0.05
+    }
+   },
+   "skin": [
+    "young_caucasian_female2"
+   ],
+   "eye_color": "green",
+   "eyebrows": "eyebrow006.mhclo",
+   "hair": "ponytail01.mhclo",
+   "hair_rgb": [
+    104,
+    52,
+    30
+   ],
+   "clothes": [
+    "shoes05.mhclo"
+   ],
+   "targets": [],
+   "face_var": 0.32,
+   "outfit": [
+    {
+     "type": "skirt",
+     "color": [
+      92,
+      98,
+      62
+     ],
+     "hem_from_knee": 0.09,
+     "flare": 0.06,
+     "fabric": "woven",
+     "fold_gain": 0.3,
+     "weight_blur": 12,
+     "hip_share": 0.2
+    },
+    {
+     "type": "tee",
+     "sleeve": "short",
+     "fit": "fitted",
+     "color": [
+      226,
+      214,
+      230
+     ]
+    }
+   ]
+  },
+  {
+   "name": "crowd_q",
+   "about": "Latino man in his thirties, tall and heavy: navy pique polo, khaki shorts, grey sneakers, short black hair",
+   "phenotype": {
+    "gender": 1.0,
+    "age": 0.6,
+    "muscle": 0.42,
+    "weight": 1.0,
+    "proportions": 0.45,
+    "height": 0.58,
+    "race": {
+     "caucasian": 0.5,
+     "african": 0.15,
+     "asian": 0.35
+    }
+   },
+   "skin": [
+    "young_caucasian_male"
+   ],
+   "skin_blend": [
+    [
+     "young_caucasian_male",
+     0.4
+    ],
+    [
+     "young_african_male",
+     0.3
+    ],
+    [
+     "young_asian_male",
+     0.3
+    ]
+   ],
+   "eyebrows": "eyebrow010.mhclo",
+   "hair": "short04.mhclo",
+   "hair_rgb": [
+    18,
+    15,
+    13
+   ],
+   "clothes": [
+    "shoes02.mhclo"
+   ],
+   "targets": [
+    [
+     "stomach-pregnant-incr",
+     0.55
+    ],
+    [
+     "neck-double-incr",
+     0.4
+    ]
+   ],
+   "stubble": 0.35,
+   "beard_rgb": [
+    18,
+    15,
+    13
+   ],
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "shorts",
+     "color": [
+      178,
+      160,
+      122
+     ],
+     "fabric": "woven",
+     "wash": 0.0,
+     "thread": [
+      150,
+      136,
+      104
+     ],
+     "above_knee": 0.06
+    },
+    {
+     "type": "shirt",
+     "sleeve": "short",
+     "fit": "loose",
+     "fabric": "jersey",
+     "pique": true,
+     "color": [
+      34,
+      44,
+      74
+     ],
+     "tail": 0.025,
+     "placket_len": 0.13,
+     "button_spacing": 0.045,
+     "stand_h": 0.024,
+     "fall": 0.034,
+     "collar_gap": 0.12,
+     "placket_w": 0.03,
+     "pocket": false,
+     "cuff_len": 0.025,
+     "cuff_pull": 0.004,
+     "sleeve_t": 0.6,
+     "buttons_color": [
+      30,
+      36,
+      56
+     ]
+    }
+   ]
+  },
+  {
+   "name": "crowd_r",
+   "about": "young North African woman: dusty rose headscarf, long cream tee, navy wide trousers, sneakers",
+   "phenotype": {
+    "gender": 0.0,
+    "age": 0.5,
+    "muscle": 0.42,
+    "weight": 0.5,
+    "proportions": 0.5,
+    "height": 0.5,
+    "race": {
+     "caucasian": 0.75,
+     "african": 0.15,
+     "asian": 0.1
+    }
+   },
+   "skin": [
+    "young_caucasian_female"
+   ],
+   "skin_blend": [
+    [
+     "young_caucasian_female",
+     0.6
+    ],
+    [
+     "young_african_female",
+     0.28
+    ],
+    [
+     "young_asian_female",
+     0.12
+    ]
+   ],
+   "eyebrows": "eyebrow001.mhclo",
+   "hair": "",
+   "hair_rgb": [
+    24,
+    18,
+    15
+   ],
+   "clothes": [
+    "shoes06.mhclo"
+   ],
+   "targets": [],
+   "face_var": 0.32,
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "chinos",
+     "color": [
+      40,
+      46,
+      70
+     ],
+     "hem_r": 0.07
+    },
+    {
+     "type": "tee",
+     "sleeve": "long",
+     "fit": "loose",
+     "color": [
+      226,
+      216,
+      198
+     ],
+     "hem": -0.05,
+     "tris": 1500
+    },
+    {
+     "type": "scarf",
+     "color": [
+      176,
+      124,
+      126
+     ],
+     "fabric": "jersey",
+     "fold_gain": 0.3
+    }
+   ]
+  },
+  {
+   "name": "crowd_s",
+   "about": "Filipino man in his thirties, very short and stocky: hi-vis vest over a grey tee, charcoal work trousers, boots, short black hair",
+   "phenotype": {
+    "gender": 1.0,
+    "age": 0.58,
+    "muscle": 0.65,
+    "weight": 0.58,
+    "proportions": 0.45,
+    "height": 0.22,
+    "race": {
+     "caucasian": 0.1,
+     "african": 0.05,
+     "asian": 0.85
+    }
+   },
+   "skin": [
+    "young_asian_male"
+   ],
+   "skin_blend": [
+    [
+     "young_asian_male",
+     0.7
+    ],
+    [
+     "young_african_male",
+     0.2
+    ],
+    [
+     "young_caucasian_male",
+     0.1
+    ]
+   ],
+   "eyebrows": "eyebrow004.mhclo",
+   "hair": "short01.mhclo",
+   "hair_rgb": [
+    14,
+    12,
+    11
+   ],
+   "clothes": [
+    "shoes03.mhclo"
+   ],
+   "targets": [],
+   "stubble": 0.25,
+   "beard_rgb": [
+    14,
+    12,
+    11
+   ],
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "chinos",
+     "color": [
+      62,
+      62,
+      64
+     ],
+     "thread": [
+      90,
+      90,
+      90
+     ]
+    },
+    {
+     "type": "tee",
+     "sleeve": "short",
+     "fit": "regular",
+     "color": [
+      130,
+      132,
+      134
+     ],
+     "heather": true,
+     "tris": 1500
+    },
+    {
+     "type": "vest",
+     "color": [
+      206,
+      232,
+      40
+     ],
+     "tape_color": [
+      198,
+      200,
+      196
+     ],
+     "fabric": "woven",
+     "fold_gain": 0.3
+    }
+   ]
+  },
+  {
+   "name": "crowd_t",
+   "about": "very tall Black woman in her thirties: striped button shirt, black slim trousers, sneakers, long braids",
+   "phenotype": {
+    "gender": 0.0,
+    "age": 0.58,
+    "muscle": 0.5,
+    "weight": 0.5,
+    "proportions": 0.6,
+    "height": 0.68,
+    "race": {
+     "caucasian": 0.03,
+     "african": 0.95,
+     "asian": 0.02
+    }
+   },
+   "skin": [
+    "young_african_female"
+   ],
+   "eyebrows": "eyebrow003.mhclo",
+   "hair": "braid01.mhclo",
+   "hair_rgb": [
+    16,
+    12,
+    10
+   ],
+   "clothes": [
+    "shoes05.mhclo"
+   ],
+   "targets": [],
+   "face_var": 0.32,
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "slim",
+     "color": [
+      30,
+      30,
+      32
+     ],
+     "wash": 0.0,
+     "fade_color": [
+      50,
+      50,
+      54
+     ],
+     "thread": [
+      60,
+      60,
+      60
+     ]
+    },
+    {
+     "type": "shirt",
+     "sleeve": "rolled",
+     "fit": "fitted",
+     "color": [
+      244,
+      240,
+      232
+     ],
+     "pattern": {
+      "type": "stripes",
+      "color": [
+       180,
+       70,
+       60
+      ],
+      "period": 0.014,
+      "width": 0.25,
+      "strength": 0.8
+     },
+     "pocket": false
+    }
+   ]
+  },
+  {
+   "name": "crowd_u",
+   "about": "young Korean American man, slim: black quilted puffer jacket, grey slim jeans, grey sneakers, short hair",
+   "phenotype": {
+    "gender": 1.0,
+    "age": 0.46,
+    "muscle": 0.5,
+    "weight": 0.42,
+    "proportions": 0.55,
+    "height": 0.55,
+    "race": {
+     "caucasian": 0.05,
+     "african": 0.0,
+     "asian": 0.95
+    }
+   },
+   "skin": [
+    "young_asian_male"
+   ],
+   "eyebrows": "eyebrow012.mhclo",
+   "hair": "short02.mhclo",
+   "hair_rgb": [
+    16,
+    13,
+    12
+   ],
+   "clothes": [
+    "shoes02.mhclo"
+   ],
+   "targets": [],
+   "stubble": 0.1,
+   "beard_rgb": [
+    16,
+    13,
+    12
+   ],
+   "face_var": 0.32,
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "slim",
+     "color": [
+      92,
+      94,
+      100
+     ],
+     "wash": 0.25,
+     "fade_color": [
+      140,
+      142,
+      150
+     ],
+     "thread": [
+      120,
+      120,
+      122
+     ]
+    },
+    {
+     "type": "jacket",
+     "puffer": true,
+     "color": [
+      22,
+      23,
+      26
+     ],
+     "fabric": "woven",
+     "rib_fabric": "jersey",
+     "zip_color": [
+      20,
+      20,
+      22
+     ]
+    }
+   ]
+  },
+  {
+   "name": "crowd_v",
+   "about": "Latina woman in her thirties: terracotta midi dress with cream dots and cap sleeves, flat shoes, a bob",
+   "phenotype": {
+    "gender": 0.0,
+    "age": 0.56,
+    "muscle": 0.42,
+    "weight": 0.55,
+    "proportions": 0.5,
+    "height": 0.47,
+    "race": {
+     "caucasian": 0.55,
+     "african": 0.12,
+     "asian": 0.33
+    }
+   },
+   "skin": [
+    "young_caucasian_female"
+   ],
+   "skin_blend": [
+    [
+     "young_caucasian_female",
+     0.5
+    ],
+    [
+     "young_african_female",
+     0.25
+    ],
+    [
+     "young_asian_female",
+     0.25
+    ]
+   ],
+   "eyebrows": "eyebrow002.mhclo",
+   "hair": "long01.mhclo",
+   "hair_rgb": [
+    24,
+    17,
+    13
+   ],
+   "clothes": [
+    "shoes04.mhclo"
+   ],
+   "targets": [],
+   "face_var": 0.32,
+   "outfit": [
+    {
+     "type": "dress",
+     "color": [
+      168,
+      78,
+      52
+     ],
+     "hem_from_knee": -0.14,
+     "flare": 0.09,
+     "fabric": "woven",
+     "fold_gain": 0.3,
+     "weight_blur": 12,
+     "hip_share": 0.2,
+     "pattern": {
+      "type": "dots",
+      "color": [
+       236,
+       226,
+       206
+      ],
+      "period": 0.03,
+      "size": 0.0055,
+      "strength": 0.95
+     }
+    }
+   ]
+  },
+  {
+   "name": "crowd_w",
+   "about": "white man in his fifties, heavy: tan duck work jacket with a brown corduroy collar, dark jeans, work boots, short hair",
+   "phenotype": {
+    "gender": 1.0,
+    "age": 0.74,
+    "muscle": 0.55,
+    "weight": 0.72,
+    "proportions": 0.45,
+    "height": 0.53,
+    "race": {
+     "caucasian": 0.95,
+     "african": 0.0,
+     "asian": 0.05
+    }
+   },
+   "skin": [
+    "middleage_caucasian_male"
+   ],
+   "eye_color": "brown",
+   "eyebrows": "eyebrow010.mhclo",
+   "hair": "short04.mhclo",
+   "hair_rgb": [
+    86,
+    70,
+    56
+   ],
+   "clothes": [
+    "shoes03.mhclo"
+   ],
+   "targets": [
+    [
+     "chin-width-incr",
+     0.3
+    ],
+    [
+     "head-square",
+     0.25
+    ]
+   ],
+   "stubble": 0.55,
+   "beard_rgb": [
+    90,
+    76,
+    64
+   ],
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "jeans",
+     "color": [
+      32,
+      38,
+      58
+     ],
+     "wash": 0.25,
+     "fade_color": [
+      86,
+      104,
+      140
+     ]
+    },
+    {
+     "type": "shirt",
+     "work": true,
+     "color": [
+      164,
+      128,
+      82
+     ],
+     "collar_color": [
+      74,
+      52,
+      36
+     ],
+     "thread": [
+      132,
+      102,
+      64
+     ]
+    }
+   ]
+  },
+  {
+   "name": "crowd_x",
+   "about": "young Black man, athletic: charcoal tee, olive cargo shorts, grey sneakers, short hair",
+   "phenotype": {
+    "gender": 1.0,
+    "age": 0.44,
+    "muscle": 0.68,
+    "weight": 0.5,
+    "proportions": 0.55,
+    "height": 0.6,
+    "race": {
+     "caucasian": 0.05,
+     "african": 0.93,
+     "asian": 0.02
+    }
+   },
+   "skin": [
+    "young_african_male"
+   ],
+   "eyebrows": "eyebrow006.mhclo",
+   "hair": "short01.mhclo",
+   "hair_rgb": [
+    14,
+    11,
+    10
+   ],
+   "clothes": [
+    "shoes02.mhclo"
+   ],
+   "targets": [],
+   "stubble": 0.25,
+   "beard_rgb": [
+    14,
+    11,
+    10
+   ],
+   "face_var": 0.32,
+   "outfit": [
+    {
+     "type": "trousers",
+     "cargo": true,
+     "color": [
+      64,
+      66,
+      40
+     ],
+     "thread": [
+      58,
+      60,
+      38
+     ]
+    },
+    {
+     "type": "tee",
+     "sleeve": "short",
+     "fit": "regular",
+     "color": [
+      58,
+      58,
+      62
+     ],
+     "heather": true
+    }
+   ]
+  },
+  {
+   "name": "crowd_y",
+   "about": "Black woman in her sixties: navy short-sleeved knee-length dress with a small floral print, flat shoes, short grey hair",
+   "phenotype": {
+    "gender": 0.0,
+    "age": 0.82,
+    "muscle": 0.38,
+    "weight": 0.66,
+    "proportions": 0.45,
+    "height": 0.5,
+    "race": {
+     "caucasian": 0.05,
+     "african": 0.93,
+     "asian": 0.02
+    }
+   },
+   "skin": [
+    "middleage_african_female"
+   ],
+   "eyebrows": "eyebrow007.mhclo",
+   "hair": "short03.mhclo",
+   "hair_rgb": [
+    118,
+    114,
+    108
+   ],
+   "clothes": [
+    "shoes04.mhclo"
+   ],
+   "targets": [],
+   "face_var": 0.32,
+   "outfit": [
+    {
+     "type": "dress",
+     "color": [
+      34,
+      42,
+      72
+     ],
+     "hem_from_knee": -0.04,
+     "flare": 0.07,
+     "sleeve_t": 0.55,
+     "neck_front": -0.085,
+     "fabric": "woven",
+     "fold_gain": 0.3,
+     "weight_blur": 12,
+     "hip_share": 0.2,
+     "pattern": {
+      "type": "floral",
+      "color": [
+       214,
+       170,
+       150
+      ],
+      "color2": [
+       150,
+       176,
+       128
+      ],
+      "period": 0.045,
+      "strength": 0.9
+     }
+    }
+   ]
+  },
+  {
+   "name": "crowd_z",
+   "about": "young white woman, slim: sage quilted puffer jacket, black leggings, navy sneakers, a long bob",
+   "phenotype": {
+    "gender": 0.0,
+    "age": 0.45,
+    "muscle": 0.42,
+    "weight": 0.38,
+    "proportions": 0.6,
+    "height": 0.52,
+    "race": {
+     "caucasian": 0.95,
+     "african": 0.0,
+     "asian": 0.05
+    }
+   },
+   "skin": [
+    "young_caucasian_female2"
+   ],
+   "eye_color": "bluegreen",
+   "eyebrows": "eyebrow005.mhclo",
+   "hair": "ponytail01.mhclo",
+   "hair_rgb": [
+    118,
+    86,
+    52
+   ],
+   "clothes": [
+    "shoes06.mhclo"
+   ],
+   "targets": [],
+   "face_var": 0.32,
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "leggings",
+     "color": [
+      24,
+      24,
+      26
+     ]
+    },
+    {
+     "type": "jacket",
+     "puffer": true,
+     "color": [
+      150,
+      160,
+      132
+     ],
+     "fabric": "woven",
+     "rib_fabric": "jersey",
+     "zip_color": [
+      200,
+      196,
+      186
+     ],
+     "quilt": 0.1
+    }
+   ]
+  },
+  {
+   "name": "crowd_aa",
+   "about": "South Asian American man in his forties, tall and lean: charcoal two-button suit with notched lapels and a back vent, white shirt, burgundy striped tie, dark dress shoes, short black hair greying at the sides",
+   "phenotype": {
+    "gender": 1.0,
+    "age": 0.66,
+    "muscle": 0.5,
+    "weight": 0.48,
+    "proportions": 0.55,
+    "height": 0.66,
+    "race": {
+     "caucasian": 0.35,
+     "african": 0.1,
+     "asian": 0.55
+    }
+   },
+   "skin": [
+    "middleage_asian_male"
+   ],
+   "skin_blend": [
+    [
+     "middleage_asian_male",
+     0.5
+    ],
+    [
+     "middleage_caucasian_male",
+     0.3
+    ],
+    [
+     "middleage_african_male",
+     0.2
+    ]
+   ],
+   "eyebrows": "eyebrow010.mhclo",
+   "hair": "short02.mhclo",
+   "hair_rgb": [
+    34,
+    30,
+    28
+   ],
+   "clothes": [
+    "shoes04.mhclo"
+   ],
+   "targets": [
+    [
+     "chin-width-incr",
+     0.2
+    ]
+   ],
+   "stubble": 0.2,
+   "beard_rgb": [
+    28,
+    24,
+    22
+   ],
+   "face_var": 0.33,
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "chinos",
+     "color": [
+      50,
+      52,
+      58
+     ],
+     "fabric": "woven",
+     "thread": [
+      44,
+      46,
+      52
+     ],
+     "hem_height": 0.07
+    },
+    {
+     "type": "shirt",
+     "sleeve": "long",
+     "fit": "fitted",
+     "color": [
+      238,
+      238,
+      234
+     ],
+     "pocket": false,
+     "tail": 0.05,
+     "tris": 1500,
+     "buttons_color": [
+      228,
+      226,
+      220
+     ]
+    },
+    {
+     "type": "tie",
+     "color": [
+      104,
+      26,
+      36
+     ],
+     "pattern": {
+      "type": "repp",
+      "color": [
+       176,
+       146,
+       92
+      ],
+      "period": 0.026,
+      "width": 0.16,
+      "strength": 0.85
+     }
+    },
+    {
+     "type": "tailored",
+     "color": [
+      50,
+      52,
+      58
+     ],
+     "buttons_color": [
+      26,
+      24,
+      24
+     ],
+     "pattern": {
+      "type": "stripes",
+      "color": [
+       96,
+       98,
+       106
+      ],
+      "period": 0.011,
+      "width": 0.08,
+      "strength": 0.45
+     }
+    }
+   ]
+  },
+  {
+   "name": "crowd_ab",
+   "about": "Black woman in her thirties, slim and tall: navy one-button blazer, ivory shell top, charcoal straight skirt to the knee with a back vent, dark flat shoes, close-cropped hair",
+   "phenotype": {
+    "gender": 0.0,
+    "age": 0.56,
+    "muscle": 0.45,
+    "weight": 0.46,
+    "proportions": 0.6,
+    "height": 0.6,
+    "race": {
+     "caucasian": 0.05,
+     "african": 0.92,
+     "asian": 0.03
+    }
+   },
+   "skin": [
+    "young_african_female"
+   ],
+   "eyebrows": "eyebrow007.mhclo",
+   "hair": "short03.mhclo",
+   "hair_rgb": [
+    18,
+    14,
+    12
+   ],
+   "clothes": [
+    "shoes04.mhclo"
+   ],
+   "targets": [],
+   "face_var": 0.33,
+   "outfit": [
+    {
+     "type": "skirt",
+     "color": [
+      66,
+      66,
+      72
+     ],
+     "hem_from_knee": -0.03,
+     "flare": 0.06,
+     "ease": 0.03,
+     "fabric": "woven",
+     "fold_gain": 0.3,
+     "weight_blur": 18,
+     "hip_share": 0.3,
+     "slit": 0.15,
+     "rise": 0.06
+    },
+    {
+     "type": "tee",
+     "sleeve": "short",
+     "fit": "fitted",
+     "fabric": "woven",
+     "color": [
+      232,
+      226,
+      212
+     ],
+     "neck_front": -0.075,
+     "sleeve_t": 0.35,
+     "hem": 0.02
+    },
+    {
+     "type": "tailored",
+     "color": [
+      34,
+      40,
+      64
+     ],
+     "buttons_color": [
+      22,
+      22,
+      26
+     ],
+     "lapel_w": 0.066,
+     "fit": "regular",
+     "off_shoulder": 0.006,
+     "sleeve_ease": 0.004,
+     "layer_clear": 0.007,
+     "button_t": 1.0
+    }
+   ]
+  },
+  {
+   "name": "crowd_ac",
+   "about": "Latino man in his thirties, broad and strong: faded navy twill work shirt with flap chest pockets and the sleeves rolled, worn jeans, tan work boots, short black hair and a short beard",
+   "phenotype": {
+    "gender": 1.0,
+    "age": 0.55,
+    "muscle": 0.78,
+    "weight": 0.66,
+    "proportions": 0.45,
+    "height": 0.52,
+    "race": {
+     "caucasian": 0.5,
+     "african": 0.12,
+     "asian": 0.38
+    }
+   },
+   "skin": [
+    "young_caucasian_male"
+   ],
+   "skin_blend": [
+    [
+     "young_caucasian_male",
+     0.45
+    ],
+    [
+     "young_african_male",
+     0.25
+    ],
+    [
+     "young_asian_male",
+     0.3
+    ]
+   ],
+   "eyebrows": "eyebrow006.mhclo",
+   "hair": "short04.mhclo",
+   "hair_rgb": [
+    20,
+    16,
+    14
+   ],
+   "clothes": [
+    "shoes03.mhclo"
+   ],
+   "targets": [
+    [
+     "neck-scale-horiz-incr",
+     0.4
+    ]
+   ],
+   "stubble": 0.4,
+   "beard": 0.75,
+   "beard_rgb": [
+    22,
+    18,
+    16
+   ],
+   "face_var": 0.34,
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "jeans",
+     "color": [
+      46,
+      62,
+      92
+     ],
+     "wash": 0.55,
+     "fade_color": [
+      118,
+      140,
+      176
+     ]
+    },
+    {
+     "type": "shirt",
+     "work": true,
+     "fit": "regular",
+     "sleeve": "rolled",
+     "color": [
+      62,
+      78,
+      98
+     ],
+     "thread": [
+      52,
+      64,
+      80
+     ],
+     "hem": 0.0,
+     "tail": 0.03,
+     "stand_h": 0.027,
+     "fall": 0.044,
+     "collar_gap": 0.18,
+     "placket_w": 0.034,
+     "button_spacing": 0.09,
+     "tris": 1900,
+     "buttons_color": [
+      40,
+      40,
+      42
+     ]
+    }
+   ]
+  },
+  {
+   "name": "crowd_ad",
+   "about": "Armenian American man in his seventies, heavy, a little stooped: oatmeal button cardigan over a pale blue shirt, grey pressed slacks, brown leather shoes, short white hair and a grey moustache",
+   "phenotype": {
+    "gender": 1.0,
+    "age": 0.9,
+    "muscle": 0.35,
+    "weight": 0.74,
+    "proportions": 0.45,
+    "height": 0.46,
+    "race": {
+     "caucasian": 0.85,
+     "african": 0.0,
+     "asian": 0.15
+    }
+   },
+   "skin": [
+    "old_caucasian_male"
+   ],
+   "skin_blend": [
+    [
+     "old_caucasian_male",
+     0.75
+    ],
+    [
+     "old_asian_male",
+     0.25
+    ]
+   ],
+   "eyebrows": "eyebrow010.mhclo",
+   "hair": "short03.mhclo",
+   "hair_rgb": [
+    196,
+    192,
+    186
+   ],
+   "clothes": [
+    "shoes01.mhclo"
+   ],
+   "targets": [
+    [
+     "nose-scale-vert-incr",
+     0.35
+    ],
+    [
+     "nose-hump-incr",
+     0.4
+    ],
+    [
+     "stomach-pregnant-incr",
+     0.4
+    ]
+   ],
+   "stubble": 0.3,
+   "beard_rgb": [
+    150,
+    146,
+    140
+   ],
+   "face_var": 0.3,
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "chinos",
+     "color": [
+      98,
+      96,
+      94
+     ],
+     "fabric": "woven",
+     "thread": [
+      90,
+      88,
+      86
+     ],
+     "rise": 0.065
+    },
+    {
+     "type": "shirt",
+     "sleeve": "long",
+     "fit": "regular",
+     "color": [
+      178,
+      196,
+      214
+     ],
+     "pocket": true,
+     "tail": 0.05,
+     "tris": 1500,
+     "buttons_color": [
+      236,
+      234,
+      228
+     ]
+    },
+    {
+     "type": "jacket",
+     "over": true,
+     "collar": "rib",
+     "closure": "buttons",
+     "knit": true,
+     "pocket": "none",
+     "fit": "regular",
+     "fabric": "jersey",
+     "rib_fabric": "jersey",
+     "color": [
+      170,
+      150,
+      122
+     ],
+     "buttons_color": [
+      92,
+      70,
+      52
+     ],
+     "band_len": 0.05,
+     "cuff_len": 0.05,
+     "collar_h": 0.022,
+     "hem": 0.03,
+     "neck_front": -0.17,
+     "neck_flare": 0.02,
+     "layer_clear": 0.009,
+     "layer_reach": 0.025
+    }
+   ]
+  },
+  {
+   "name": "crowd_ae",
+   "about": "Samoan American man in his twenties, very muscular: heather grey gym tank top, black athletic shorts with a white side stripe, white sneakers, short black hair",
+   "phenotype": {
+    "gender": 1.0,
+    "age": 0.47,
+    "muscle": 0.95,
+    "weight": 0.62,
+    "proportions": 0.5,
+    "height": 0.58,
+    "race": {
+     "caucasian": 0.25,
+     "african": 0.25,
+     "asian": 0.5
+    }
+   },
+   "skin": [
+    "young_asian_male"
+   ],
+   "skin_blend": [
+    [
+     "young_asian_male",
+     0.4
+    ],
+    [
+     "young_african_male",
+     0.35
+    ],
+    [
+     "young_caucasian_male",
+     0.25
+    ]
+   ],
+   "eyebrows": "eyebrow006.mhclo",
+   "hair": "short01.mhclo",
+   "hair_rgb": [
+    14,
+    11,
+    10
+   ],
+   "clothes": [
+    "shoes05.mhclo"
+   ],
+   "targets": [
+    [
+     "neck-scale-horiz-incr",
+     0.5
+    ],
+    [
+     "chin-width-incr",
+     0.45
+    ],
+    [
+     "head-square",
+     0.4
+    ],
+    [
+     "chin-prominent-incr",
+     0.3
+    ]
+   ],
+   "stubble": 0.45,
+   "beard_rgb": [
+    14,
+    11,
+    10
+   ],
+   "face_var": 0.33,
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "shorts",
+     "athletic": true,
+     "fabric": "jersey",
+     "color": [
+      22,
+      22,
+      24
+     ],
+     "above_knee": 0.075,
+     "hem_r": 0.094,
+     "ease": 0.014,
+     "stripe_color": [
+      232,
+      232,
+      228
+     ],
+     "stripe_w": 0.007
+    },
+    {
+     "type": "vest",
+     "tank": true,
+     "heather": true,
+     "color": [
+      150,
+      150,
+      154
+     ],
+     "armhole_in": 0.044,
+     "armhole_depth": 0.12,
+     "neck_front": -0.11,
+     "neck_back": -0.02,
+     "neck_flare": 0.02,
+     "fit": "regular",
+     "off_shoulder": 0.009
+    }
+   ],
+   "cover_tuck": 0.016
+  },
+  {
+   "name": "crowd_af",
+   "about": "young Vietnamese American woman, slim: cropped camel zip jacket over a white tee, black wide-leg trousers to the floor, white sneakers, long dark hair",
+   "phenotype": {
+    "gender": 0.0,
+    "age": 0.45,
+    "muscle": 0.45,
+    "weight": 0.4,
+    "proportions": 0.6,
+    "height": 0.55,
+    "race": {
+     "caucasian": 0.1,
+     "african": 0.0,
+     "asian": 0.9
+    }
+   },
+   "skin": [
+    "young_asian_female"
+   ],
+   "eyebrows": "eyebrow009.mhclo",
+   "hair": "long01.mhclo",
+   "hair_rgb": [
+    22,
+    17,
+    15
+   ],
+   "clothes": [
+    "shoes05.mhclo"
+   ],
+   "targets": [],
+   "face_var": 0.33,
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "wide",
+     "color": [
+      26,
+      26,
+      28
+     ],
+     "fabric": "woven",
+     "thread": [
+      30,
+      30,
+      32
+     ],
+     "rise": 0.085,
+     "hem_height": 0.025,
+     "tris": 1600
+    },
+    {
+     "type": "tee",
+     "sleeve": "short",
+     "fit": "fitted",
+     "color": [
+      238,
+      236,
+      230
+     ],
+     "hem": 0.0
+    },
+    {
+     "type": "jacket",
+     "collar": "stand",
+     "closure": "zip",
+     "pocket": "welt",
+     "fit": "jacket",
+     "fabric": "woven",
+     "rib_fabric": "jersey",
+     "color": [
+      176,
+      134,
+      90
+     ],
+     "zip_color": [
+      200,
+      190,
+      170
+     ],
+     "zip_pull_color": [
+      200,
+      190,
+      170
+     ],
+     "band_len": 0.03,
+     "band_pull": 0.004,
+     "cuff_len": 0.03,
+     "collar_h": 0.04,
+     "hem": 0.11,
+     "layer_clear": 0.009,
+     "layer_reach": 0.025,
+     "sleeve_ease": 0.006
+    }
+   ]
+  }
+ ],
+ "garments": {
+  "female_casualsuit01": {
+   "erase": [
+    [
+     0.7,
+     0.14,
+     0.87,
+     0.31
+    ]
+   ],
+   "fold_gain": 0.75
+  },
+  "female_casualsuit02": {
+   "erase": [
+    [
+     0.7,
+     0.14,
+     0.87,
+     0.31
+    ]
+   ],
+   "fold_gain": 0.75
+  },
+  "male_casualsuit02": {
+   "erase": [
+    [
+     0.49,
+     0.1,
+     0.63,
+     0.24
+    ]
+   ],
+   "fold_gain": 0.75
+  },
+  "male_casualsuit04": {
+   "erase": [
+    [
+     0.49,
+     0.09,
+     0.63,
+     0.24
+    ]
+   ]
+  },
+  "male_casualsuit06": {
+   "erase": [
+    [
+     0.19,
+     0.1,
+     0.31,
+     0.18
+    ],
+    [
+     0.44,
+     0.1,
+     0.63,
+     0.21
+    ],
+    [
+     0.72,
+     0.14,
+     0.76,
+     0.18
+    ]
+   ],
+   "fold_gain": 0.75
+  },
+  "male_worksuit01": {
+   "regions": "keep"
+  },
+  "male_casualsuit05": {
+   "hips": "top"
+  },
+  "male_elegantsuit01": {
+   "hips": "top"
+  },
+  "female_sportsuit01": {
+   "fold_gain": 0.75
+  }
+ }
+}

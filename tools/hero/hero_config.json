@@ -1,0 +1,275 @@
+{
+ "human": {
+  "name": "hero",
+  "phenotype": {
+   "gender": 1.0,
+   "age": 0.6,
+   "muscle": 0.72,
+   "weight": 0.48,
+   "proportions": 0.75,
+   "height": 0.55,
+   "cupsize": 0.5,
+   "firmness": 0.5,
+   "race": {
+    "caucasian": 0.9,
+    "african": 0.05,
+    "asian": 0.05
+   }
+  },
+  "rig": "mixamo",
+  "eyes": "high-poly.mhclo",
+  "eyebrows": "eyebrow009.mhclo",
+  "eyelashes": "eyelashes02.mhclo",
+  "hair": "short04.mhclo",
+  "teeth": "",
+  "tongue": "",
+  "clothes": [
+   "shoes05.mhclo"
+  ],
+  "skin_mhmat": "middleage_caucasian_male.mhmat",
+  "skin_material_type": "MAKESKIN",
+  "eyes_material_type": "MAKESKIN",
+  "alternative_materials": {},
+  "targets": [
+   {
+    "target": "torso-vshape-incr",
+    "value": 0.35
+   },
+   {
+    "target": "measure-shoulder-dist-incr",
+    "value": 0.12
+   },
+   {
+    "target": "measure-neck-circ-incr",
+    "value": 0.45
+   },
+   {
+    "target": "measure-waist-circ-decr",
+    "value": 0.15
+   },
+   {
+    "target": "chin-width-incr",
+    "value": 0.4
+   },
+   {
+    "target": "chin-prominent-incr",
+    "value": 0.3
+   },
+   {
+    "target": "l-cheek-bones-incr",
+    "value": 0.6
+   },
+   {
+    "target": "r-cheek-bones-incr",
+    "value": 0.6
+   },
+   {
+    "target": "head-square",
+    "value": 0.45
+   },
+   {
+    "target": "nose-hump-incr",
+    "value": 0.2
+   },
+   {
+    "target": "nose-width1-incr",
+    "value": 0.2
+   },
+   {
+    "target": "eyebrows-trans-down",
+    "value": 0.2
+   },
+   {
+    "target": "mouth-scale-horiz-incr",
+    "value": 0.1
+   },
+   {
+    "target": "nose-scale-vert-decr",
+    "value": 0.3
+   },
+   {
+    "target": "nose-point-width-incr",
+    "value": 0.25
+   },
+   {
+    "target": "nose-flaring-incr",
+    "value": 0.3
+   },
+   {
+    "target": "nose-nostrils-width-incr",
+    "value": 0.2
+   },
+   {
+    "target": "nose-base-up",
+    "value": 0.2
+   },
+   {
+    "target": "nose-volume-incr",
+    "value": 0.15
+   },
+   {
+    "target": "forehead-nubian-incr",
+    "value": 0.45
+   },
+   {
+    "target": "eyebrows-trans-forward",
+    "value": 0.4
+   },
+   {
+    "target": "forehead-temple-decr",
+    "value": 0.35
+   },
+   {
+    "target": "l-cheek-volume-decr",
+    "value": 0.45
+   },
+   {
+    "target": "r-cheek-volume-decr",
+    "value": 0.45
+   },
+   {
+    "target": "l-cheek-inner-decr",
+    "value": 0.3
+   },
+   {
+    "target": "r-cheek-inner-decr",
+    "value": 0.3
+   },
+   {
+    "target": "chin-bones-incr",
+    "value": 0.45
+   },
+   {
+    "target": "chin-cleft-incr",
+    "value": 0.25
+   },
+   {
+    "target": "mouth-cupidsbow-incr",
+    "value": 0.4
+   },
+   {
+    "target": "mouth-philtrum-volume-incr",
+    "value": 0.35
+   },
+   {
+    "target": "mouth-lowerlip-volume-incr",
+    "value": 0.25
+   },
+   {
+    "target": "mouth-laugh-lines-in",
+    "value": 0.25
+   },
+   {
+    "target": "l-eye-bag-incr",
+    "value": 0.25
+   },
+   {
+    "target": "r-eye-bag-incr",
+    "value": 0.25
+   },
+   {
+    "target": "l-eye-eyefold-down",
+    "value": 0.2
+   },
+   {
+    "target": "r-eye-eyefold-down",
+    "value": 0.2
+   },
+   {
+    "target": "l-ear-flap-decr",
+    "value": 0.3
+   },
+   {
+    "target": "r-ear-flap-decr",
+    "value": 0.3
+   }
+  ]
+ },
+ "look": {
+  "stubble": 0.9,
+  "pore_strength": 1.6,
+  "lips": 0.3,
+  "skin_tint": [
+   0.9,
+   0.78,
+   0.68
+  ],
+  "hair_rgb": [
+   14,
+   12,
+   11
+  ],
+  "tracksuit_rgb": [
+   22,
+   22,
+   24
+  ],
+  "trim_rgb": [
+   242,
+   242,
+   240
+  ],
+  "hair_roughness": 0.42,
+  "sheen_rgb": [
+   110,
+   110,
+   118
+  ],
+  "skin_saturation": 1.18,
+  "iris_rgb": [
+   92,
+   60,
+   36
+  ],
+  "brow_rgb": [
+   26,
+   20,
+   17
+  ],
+  "gold_rgb": [
+   255,
+   208,
+   128
+  ],
+  "face_detail": 1.0,
+  "freckles": 420,
+  "moles": 7,
+  "ear_flush": 0.3,
+  "face_seed": 41,
+  "mottle": 0.12
+ },
+ "outfit": "tracksuit",
+ "rest_pose": {
+  "arm_down_deg": 14.0,
+  "elbow_open_deg": 26.0
+ },
+ "hair": {
+  "seed": 11,
+  "hairline_above_eyes": 0.076,
+  "under_cards": 460,
+  "main_cards": 440,
+  "top_cards": 180,
+  "hairline_cards": 300,
+  "flyaway_cards": 30,
+  "under_width": 0.022,
+  "brow_cards": 520,
+  "atlas_density": 2.2
+ },
+ "tracksuit": {
+  "garment_tris": 18000,
+  "drape_gain": 1.35,
+  "fold_gain": 1.35,
+  "shoulder_ease": 0.01,
+  "chain_radius": 0.0028
+ },
+ "finalize": {
+  "hand_ratio": 0.45,
+  "hand_after_ratio": 0.5,
+  "shoe_ratio": 0.8,
+  "skin_subdiv": 1,
+  "scalp_ratio": 0.3,
+  "ear_ratio": 0.6,
+  "neck_ratio": 0.55,
+  "shadow_tris": 9000
+ }
+}

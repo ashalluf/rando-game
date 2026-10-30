@@ -1,0 +1,17 @@
+{
+  "name": "pedestrian_k",
+  "prompt": "Black woman in her 30s with dark brown skin and natural curly black hair, smart casual: mustard yellow knit sweater, black straight trousers, white leather sneakers, natural face, full body standing, ultra realistic, photorealistic, highly detailed, physically accurate materials and proportions, real-world scale, no cartoon or stylized look",
+  "credits": 44,
+  "tasks": {
+    "preview": "01a0cabe-efc1-73ef-b621-01bbae74d896",
+    "refine": "01a0cabf-ea2a-76cd-9b50-65231f958794",
+    "rig": "01a0cac1-24f0-7253-a804-1e8476456228",
+    "animations": "01a0cac1-eea7-70c3-b2d9-76b5d3044a1c"
+  },
+  "source": "Meshy (generated for this project)",
+  "animations": [
+    0,
+    613,
+    659
+  ]
+}
