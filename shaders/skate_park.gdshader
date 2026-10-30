@@ -22,6 +22,7 @@ render_mode cull_back;
 
 global uniform float road_wetness;
 global uniform float ground_detail;
+global uniform float lamp_factor;
 
 #include "res://shaders/color_space.gdshaderinc"
 
@@ -31,11 +32,11 @@ uniform sampler2D tag_atlas : filter_linear_mipmap, repeat_disable;
 
 // LINEAR albedos: a beach park's concrete is pale and warm, the bowls a little darker and greyer
 // (polished by wheels), the walls the colour of old form-poured concrete.
-uniform vec3 deck_color = vec3(0.36, 0.345, 0.315);
-uniform vec3 bowl_color = vec3(0.30, 0.295, 0.28);
-uniform vec3 wall_color = vec3(0.27, 0.26, 0.24);
-uniform vec3 cap_color = vec3(0.40, 0.39, 0.36);
-uniform vec3 coping_color = vec3(0.44, 0.43, 0.40);
+uniform vec3 deck_color = vec3(0.205, 0.196, 0.18);
+uniform vec3 bowl_color = vec3(0.19, 0.186, 0.176);
+uniform vec3 wall_color = vec3(0.15, 0.144, 0.132);
+uniform vec3 cap_color = vec3(0.25, 0.243, 0.225);
+uniform vec3 coping_color = vec3(0.30, 0.292, 0.27);
 uniform vec3 soil_color = vec3(0.05, 0.035, 0.022);
 uniform vec3 urethane = vec3(0.025, 0.024, 0.024);
 uniform vec3 tile_blue = vec3(0.012, 0.09, 0.30);
@@ -152,6 +153,7 @@ void fragment() {
 	float metal = 0.0;
 	float spec = 0.4;
 	float nm_depth = 0.55;
+	float lamp = 0.0;
 
 	if (kind == 0 || kind == 6) {
 		col = deck_color * (0.88 + 0.22 * pour) * detail;
@@ -178,7 +180,8 @@ void fragment() {
 		float lane = sp_noise(vec2(uv.x * 0.08, h * 3.5 + 1.0));
 		float arc = smoothstep(0.62, 0.86, sp_noise(vec2(uv.x * 0.35, h * 22.0)) * (0.7 + 0.5 * lane));
 		float band = smoothstep(0.3, 1.0, h) * (1.0 - smoothstep(2.4, 3.1, h));
-		col = mix(col, urethane * 3.0, arc * 0.35 * band);
+		float broken = smoothstep(0.35, 0.75, sp_noise(vec2(uv.x * 0.9, h * 2.0 + 5.0)));
+		col = mix(col, urethane * 3.0, arc * 0.16 * band * broken);
 		// Polished where it is ridden most: a faint sheen low on the wall.
 		rough -= 0.12 * band;
 		// Water stain from the drain at the floor's lowest point; old leaves in the corners.
@@ -230,10 +233,12 @@ void fragment() {
 		// grid, efflorescence weeping from the joints, damp at the foot; then the graffiti.
 		col = wall_color * (0.85 + 0.25 * pour) * detail;
 		float board = floor(uv.y / 0.15);
-		col *= 0.93 + 0.12 * sp_hash(vec2(board, floor(uv.x / 2.4)));
+		col *= 0.96 + 0.07 * sp_hash(vec2(board, floor(uv.x / 2.4)));
 		float grain = sp_noise(vec2(uv.x * 9.0, uv.y * 0.6 + board * 13.0));
-		col *= 0.95 + 0.08 * grain;
-		col *= 1.0 - 0.25 * joint(uv.y, 0.15, 0.003, px);
+		col *= 0.97 + 0.05 * grain;
+		col *= 1.0 - 0.1 * joint(uv.y, 0.15, 0.002, px);
+		// Lifts of the pour every 1.2 m, a darker line with a weep of lime under it.
+		col *= 1.0 - 0.3 * joint(uv.y, 1.2, 0.006, px);
 		vec2 tie = abs(fract(uv / vec2(0.9, 0.6) + 0.5) - 0.5) * vec2(0.9, 0.6);
 		col *= 1.0 - 0.6 * (1.0 - smoothstep(0.012, 0.012 + px * 1.5, length(tie))) * (1.0 - smoothstep(0.05, 0.2, px));
 		col *= 1.0 - 0.3 * (1.0 - smoothstep(0.0, 0.45, uv.y)) * sp_noise(vec2(uv.x * 0.8, 2.0));
@@ -252,6 +257,14 @@ void fragment() {
 		col = mix(col, urethane * 3.0, wax * 0.4 * smoothstep(0.0, 0.5, v_nrm.y));
 		col *= 1.0 - 0.4 * joint(uv.x, 2.0, 0.004, px) * step(0.5, v_nrm.y);
 		rough = 0.72;
+	} else if (kind == 14) {
+		// A floodlight's LED panel: a grid of emitters, lit after dark.
+		vec2 cell = fract(uv * 9.0);
+		float dot_ = 1.0 - smoothstep(0.25, 0.42, length(cell - 0.5));
+		col = vec3(0.12) + vec3(0.25) * dot_;
+		lamp = lamp_factor * (0.55 + 0.45 * dot_);
+		rough = 0.3;
+		nm_depth = 0.0;
 	} else if (kind == 11) {
 		// Grip tape: black sandpaper, scuffed grey where the feet go.
 		col = vec3(0.018, 0.018, 0.02) * (0.85 + 0.3 * sp_hash(floor(uv * 400.0)));
@@ -293,6 +306,9 @@ void fragment() {
 	col *= 1.0 - 0.35 * wet * (1.0 - metal);
 	rough = mix(rough, 0.25, wet * 0.7);
 	ALBEDO = cs_out(col);
+	if (lamp > 0.0) {
+		EMISSION = cs_out(vec3(1.0, 0.98, 0.92)) * lamp * 9.0;
+	}
 	ROUGHNESS = clamp(rough, 0.05, 1.0);
 	METALLIC = metal;
 	SPECULAR = spec;

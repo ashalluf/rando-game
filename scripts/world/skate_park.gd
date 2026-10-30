@@ -145,6 +145,14 @@ const K_LEDGE := 10
 const K_GRIP := 11
 const K_WOOD := 12
 const K_WHEEL := 13
+const K_LAMP := 14
+
+## Floodlight poles: park-local XZ, the surface they stand on; POLE_H tall, the head reaching
+## POLE_ARM toward the park's middle.
+const POLES := [[Vector2(-14.4, -21.3), H_HI], [Vector2(12.4, -21.3), H_HI], [Vector2(-14.5, 21.4), H_LO],
+	[Vector2(11.8, 21.5), H_LO], [Vector2(-14.5, 1.4), H_LO]]
+const POLE_H := 8.5
+const POLE_ARM := 1.3
 
 const GALV := Color(0.56, 0.57, 0.58)
 const LEDGE_RED := Color(0.42, 0.05, 0.035)
@@ -234,6 +242,20 @@ static func build(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: 
 		# The landmark's statics sit in the holder's own frame (CityChunk's _statics: identity).
 		cs.transform = statics.transform.affine_inverse() * Transform3D(Basis(), base)
 		statics.add_child(cs)
+	if detailed and not OS.has_feature("web"):
+		for spot: Vector3 in lamp_spots():
+			var l := OmniLight3D.new()
+			l.omni_range = 26.0
+			l.omni_attenuation = 1.2
+			l.light_energy = 0.0
+			l.light_color = Color(0.92, 0.95, 1.0)
+			l.shadow_enabled = false
+			l.distance_fade_enabled = true
+			l.distance_fade_begin = 140.0
+			l.distance_fade_length = 30.0
+			l.position = spot
+			l.add_to_group("lamp_light")
+			root.add_child(l)
 	if detailed:
 		var life := SkateParkLife.new()
 		life.name = "SkateParkLife"
@@ -456,6 +478,12 @@ static func _build_geo(g: Geo, palms: PackedVector2Array, detailed: bool) -> voi
 	_access(g)
 	for p in palms:
 		_planter(g, p, H_HI if p.y < 0.0 else H_LO, detailed)
+	for pole: Array in POLES:
+		_pole(g, pole[0], float(pole[1]), detailed)
+	if detailed:
+		# The park's name, painted big on the walls the boardwalk and the beach path see.
+		_letters(g, NAME, 1.15, Vector3(HALF_W + 0.012, H_HI - 1.0, -12.0), Vector3.RIGHT, Color(0.86, 0.84, 0.78))
+		_letters(g, NAME, 0.7, Vector3(-4.0, H_LO - 0.62, HALF_L + 0.012), Vector3.BACK, Color(0.80, 0.16, 0.10))
 	if detailed:
 		_railings(g, palms)
 		_stair_rail(g)
@@ -832,6 +860,64 @@ static func _planter(g: Geo, c: Vector2, top: float, detailed: bool) -> void:
 		g.quad(_v(o0, top + h), _v(o1, top + h), _v(i1, top + h), _v(i0, top + h), Vector3.UP, K_CAP)
 		g.quad_n([_v(i0, top + h), _v(i1, top + h), _v(i1, top + h - 0.12), _v(i0, top + h - 0.12)], [Vector3(-d0.x, 0, -d0.y), Vector3(-d1.x, 0, -d1.y), Vector3(-d1.x, 0, -d1.y), Vector3(-d0.x, 0, -d0.y)], K_CAP)
 		g.tri(_v(c, top + h - 0.12), _v(i0, top + h - 0.12), _v(i1, top + h - 0.12), Vector3.UP, K_SOIL)
+
+
+## A floodlight pole: a tapered steel column on a base plate, an arm, a flat LED head (lit after
+## dark in the shader; the light itself is an OmniLight3D in the lamp group, build()).
+static func _pole(g: Geo, at: Vector2, top: float, detailed: bool) -> void:
+	var to_mid := (Vector2(0.0, 0.0) - at).normalized()
+	var foot := _v(at, top)
+	var head := foot + Vector3(0.0, POLE_H, 0.0)
+	var steel := Color(0.34, 0.35, 0.36)
+	g.tube(foot, head, 0.085, 10 if detailed else 5, K_STEEL, steel)
+	if detailed:
+		g.tube(foot, foot + Vector3(0.0, 0.5, 0.0), 0.12, 10, K_STEEL, steel)
+		g.quad(foot + Vector3(-0.22, 0.01, -0.22), foot + Vector3(0.22, 0.01, -0.22), foot + Vector3(0.22, 0.01, 0.22), foot + Vector3(-0.22, 0.01, 0.22), Vector3.UP, K_STEEL, steel)
+	var arm_end := head + Vector3(to_mid.x, 0.0, to_mid.y) * POLE_ARM + Vector3(0.0, 0.15, 0.0)
+	g.tube(head - Vector3(0.0, 0.2, 0.0), arm_end, 0.045, 6 if detailed else 4, K_STEEL, steel)
+	# The head: a flat box, its underside the LED panel, tilted a little toward the park.
+	var fwd := Vector3(to_mid.x, 0.0, to_mid.y)
+	var side := fwd.cross(Vector3.UP)
+	var c := arm_end + fwd * 0.35
+	var hw := 0.32
+	var hl := 0.45
+	var tilt := Vector3(0.0, -0.08, 0.0)
+	var a := c - side * hw - fwd * hl
+	var b := c + side * hw - fwd * hl
+	var d := c + side * hw + fwd * hl + tilt
+	var e := c - side * hw + fwd * hl + tilt
+	var up := Vector3(0.0, 0.11, 0.0)
+	g.quad(a + up, b + up, d + up, e + up, Vector3.UP, K_STEEL, steel)
+	g.quad(a, b, d, e, Vector3.DOWN, K_LAMP)
+	g.quad(a, b, b + up, a + up, -fwd, K_STEEL, steel)
+	g.quad(e, d, d + up, e + up, fwd, K_STEEL, steel)
+	g.quad(a, e, e + up, a + up, -side, K_STEEL, steel)
+	g.quad(b, d, d + up, b + up, side, K_STEEL, steel)
+
+
+## `text` painted on a wall face facing `nrm` (RIGHT or BACK), centred at `at`, `height` tall.
+static func _letters(g: Geo, text: String, height: float, at: Vector3, nrm: Vector3, tint: Color) -> void:
+	var geo: Array = FreewayKit.text_geo(text, height)
+	var verts: PackedVector3Array = geo[0]
+	var idx: PackedInt32Array = geo[1]
+	# The reader's right along the wall: -z on a +x face, +x on a +z face.
+	var right := Vector3(0.0, 0.0, -1.0) if nrm.x > 0.5 else Vector3(1.0, 0.0, 0.0)
+	for t in range(0, idx.size() - 2, 3):
+		var q: Array = []
+		for k in 3:
+			var v := verts[idx[t + k]]
+			q.append(at + right * v.x + Vector3(0.0, v.y, 0.0))
+		g.tri(q[0], q[1], q[2], nrm, K_PAINT, tint)
+
+
+## Where the poles' lights hang (park-local), for the OmniLight3Ds.
+static func lamp_spots() -> Array:
+	var out: Array = []
+	for pole: Array in POLES:
+		var at: Vector2 = pole[0]
+		var to_mid := (Vector2.ZERO - at).normalized()
+		out.append(_v(at + to_mid * (POLE_ARM + 0.35), float(pole[1]) + POLE_H - 0.3))
+	return out
 
 
 ## Galvanised pipe railings along the high deck's drops (not over the stair, the bank or the drop
