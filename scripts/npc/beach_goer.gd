@@ -197,6 +197,8 @@ var beach_pose: String = ""
 var suit: int = 0
 ## Volleyball (BeachLife's court, BeachActivity drives it): the spot they play from (parent
 ## space), where they are going now, and how long the hit lasts.
+## In street clothes, not a swimsuit (a bonfire after dark, BonfireFigure).
+var clothed: bool = false
 var volley_home := Vector2.INF
 var volley_goal := Vector2.INF
 var volley_face: float = 0.0
@@ -221,7 +223,10 @@ func _ready() -> void:
 	super._ready()
 	if _down:
 		return
-	dress(_visual, _model_path, suit)
+	if clothed:
+		BonfireFigure.clothe(_visual, _look)
+	else:
+		dress(_visual, _model_path, suit)
 	if beach_pose != "" and BEACH_POSES.has(beach_pose) and _skel != null and not _base_rot.is_empty():
 		var p := _solve(BEACH_POSES[beach_pose])
 		_posed_rot = p[0]
@@ -676,4 +681,7 @@ func knock(impulse: Vector3, gibs: int = 0) -> void:
 	for i in range(before, parent.get_child_count()):
 		var doll := parent.get_child(i) as Ragdoll
 		if doll and doll._rig:
-			dress(doll._rig, _model_path, suit)
+			if clothed:
+				BonfireFigure.clothe(doll._rig, _look)
+			else:
+				dress(doll._rig, _model_path, suit)

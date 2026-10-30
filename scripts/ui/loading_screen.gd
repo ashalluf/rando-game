@@ -124,6 +124,12 @@ func run(city: Node3D) -> void:
 			_step("Preparing the beach", 0.3 + 0.25 * float(i) / float(maxi(beach.size(), 1)))
 			await _frames(1)
 		BeachFigure.warm_kind(beach[i])
+	# The people round the beach fires at night (BonfireFigure: clothed), and the rings' meshes.
+	Bonfires.warm()
+	for k: Array in BonfireFigure.kinds():
+		if _due():
+			await _frames(1)
+		BonfireFigure.warm_kind(k)
 	print("LOADING beach: %d figures and flipbooks %d ms" % [beach.size(), (Time.get_ticks_usec() - t_beach) / 1000])
 	LoadClock.stop("screen: beach figures")
 	_step("Building the city", 0.55)
