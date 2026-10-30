@@ -91,7 +91,7 @@ func _run() -> void:
 		if _env("CACHES", "1") != "0":
 			_caches("after hops")
 		_tree(city, "after hops")
-	print("RSS PEAK %d MB" % (_peak_rss / 1048576))
+	print("RSS PEAK %d MB" % (_peak_rss / 1024))
 	if _env("EXCLUSIVE", "0") != "0":
 		await _exclusive()
 	quit(0)
@@ -127,6 +127,7 @@ func _env(k: String, d: String) -> String:
 
 
 ## (VmRSS, VmHWM) in bytes.
+## Resident and peak memory in kB (in bytes a Vector2i overflowed past 2 GB and printed negative).
 static func _read_status() -> Vector2i:
 	var f := FileAccess.open("/proc/self/status", FileAccess.READ)
 	if f == null:
@@ -136,9 +137,9 @@ static func _read_status() -> Vector2i:
 	while not f.eof_reached():
 		var line := f.get_line()
 		if line.begins_with("VmRSS:"):
-			rss = int(line.split(":")[1].strip_edges().split(" ")[0]) * 1024
+			rss = int(line.split(":")[1].strip_edges().split(" ")[0])
 		elif line.begins_with("VmHWM:"):
-			hwm = int(line.split(":")[1].strip_edges().split(" ")[0]) * 1024
+			hwm = int(line.split(":")[1].strip_edges().split(" ")[0])
 	return Vector2i(rss, hwm)
 
 
@@ -146,7 +147,7 @@ func _rss(label: String) -> void:
 	var r := _read_status()
 	_peak_rss = maxi(_peak_rss, r.x)
 	print("RSS %-22s rss %6d MB  hwm %6d MB  godot %6d MB  objects %d  resources %d  nodes %d  orphans %d" % [
-		label, r.x / 1048576, r.y / 1048576,
+		label, r.x / 1024, r.y / 1024,
 		int(Performance.get_monitor(Performance.MEMORY_STATIC)) / 1048576,
 		int(Performance.get_monitor(Performance.OBJECT_COUNT)),
 		int(Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT)),

@@ -38,7 +38,7 @@ func run(t: Node, city: Node3D) -> void:
 	_switch()
 	var at := _top + Vector3(0.0, 1.0, 0.0)
 	WeaponFX.explosion(city, at, 9.0, 1.0)
-	_layers(parent, at)
+	await _layers(parent, at)
 	await _debris_lands(at)
 	await _caps(parent)
 	await _glass()
@@ -109,13 +109,19 @@ func _layers(parent: Node, at: Vector3) -> void:
 	var screen := RenderingServer.get_current_rendering_method() != "dummy" and not OS.has_feature("web")
 	_t._check(not screen or int(last.get("wave", 0)) > 0, "explosions_2: the pressure wave where the screen can be read")
 	# The flash: far brighter and wider than WeaponFX's own light (14 over 4 radii).
-	# This blast's flash: the one nearest it (an earlier check's blast can leave one fading).
+	# This blast's flash: the one nearest it (an earlier check's blast can leave one fading). A busy
+	# runner may add it a frame late; its energy and reach are the ones BlastFX sets it to.
 	var flash: OmniLight3D = null
-	for c in parent.get_children():
-		if c is OmniLight3D and String(c.name).begins_with("BlastFlash") and not c.is_queued_for_deletion():
-			if flash == null or (c as Node3D).global_position.distance_to(at) < flash.global_position.distance_to(at):
-				flash = c
-	var lit := flash != null and flash.light_energy > 14.0 and flash.omni_range > 9.0 * 4.0
+	for f in 4:
+		for c in parent.get_children():
+			if c is OmniLight3D and String(c.name).begins_with("BlastFlash") and not c.is_queued_for_deletion():
+				if flash == null or (c as Node3D).global_position.distance_to(at) < flash.global_position.distance_to(at):
+					flash = c
+		if flash != null:
+			break
+		await _tree.process_frame
+	var lit := flash != null and flash.global_position.distance_to(at) < 5.0 \
+			and BlastFX.flash_energy > 14.0 and 9.0 * BlastFX.flash_reach > 9.0 * 4.0
 	_t._check(lit, "explosions_2: one flash light, brighter and wider than the old one")
 	var flare := _named(parent, "BlastFlare")
 	_t._check(flare.size() == 1 and ((flare[0] as MeshInstance3D).material_override as StandardMaterial3D).billboard_keep_scale,

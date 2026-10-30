@@ -19,6 +19,8 @@ render_mode cull_back;
 
 #include "res://shaders/color_space.gdshaderinc"
 
+global uniform vec3 origin_shift;
+
 // BeachLife.CANVAS2, sRGB.
 const vec3 CANVAS2[6] = vec3[](vec3(0.97, 0.96, 0.92), vec3(0.98, 0.84, 0.25), vec3(0.1, 0.32, 0.6),
 	vec3(0.9, 0.2, 0.2), vec3(0.2, 0.62, 0.55), vec3(0.99, 0.62, 0.7));
@@ -35,6 +37,7 @@ varying float v_mode;
 varying vec3 v_paint;
 varying vec3 v_paint2;
 varying float v_seed;
+varying vec3 v_origin;
 
 float bp_hash(vec2 p) {
 	p = fract(p * vec2(123.34, 456.21));
@@ -56,6 +59,7 @@ void vertex() {
 	v_paint = INSTANCE_CUSTOM.rgb;
 	v_seed = INSTANCE_CUSTOM.a;
 	v_paint2 = CANVAS2[clamp(int(INSTANCE_CUSTOM.a * 8.0 + 0.5), 0, 5)];
+	v_origin = MODEL_MATRIX[3].xyz;
 }
 
 void fragment() {
@@ -151,6 +155,47 @@ void fragment() {
 		metal = 0.0;
 	} else if (code == 10) {
 		rough = 0.6;
+	} else if (code == 11 || code == 12) {
+		// The lifeguard tower's weathered paint (11) and timber (12) (BeachGolden): salt air and
+		// a year of sun. Boards with their grooves, the paint chalked and faded most where it
+		// faces the sky, peeling to grey wood on the edges and low down, rust and grime run down
+		// from the window band; the posts silvered, grained, damp and dark where they meet the sand.
+		vec3 nw = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
+		float tw_seed = fract(sin(dot(floor(v_origin.xz + origin_shift.xz), vec2(12.9898, 78.233))) * 43758.5453);
+		float horiz = abs(nw.x) > abs(nw.z) ? v_local.z : v_local.x;
+		float y = v_local.y;
+		float upf = clamp(nw.y, 0.0, 1.0);
+		float fw = max(fwidth(horiz), 1e-4);
+		if (code == 11) {
+			float wall = 1.0 - smoothstep(0.4, 0.6, abs(nw.y));
+			float groove = (1.0 - smoothstep(0.004, 0.006 + fw * 1.5, abs(fract(horiz / 0.115) - 0.5) * 0.115)) * wall;
+			groove = mix(groove, 0.08 * wall, smoothstep(0.006, 0.03, fw));
+			base *= 1.0 - 0.3 * groove;
+			float lum = dot(base, vec3(0.3, 0.59, 0.11));
+			float fade = 0.05 + 0.25 * upf + 0.14 * bp_noise(vec2(horiz, y) * 1.3 + tw_seed * 13.0) + 0.08 * tw_seed;
+			base = mix(base, mix(base, vec3(lum), 0.5) * 1.12, clamp(fade, 0.0, 0.6));
+			float chalk = smoothstep(0.6, 0.9, bp_noise(vec2(horiz, y) * 4.0 + 3.0)) * 0.15;
+			base = mix(base, vec3(0.86, 0.86, 0.84), chalk);
+			float peel_n = bp_noise(vec2(horiz, y) * 13.0 + tw_seed * 5.0) * 0.65 + bp_noise(vec2(horiz, y) * 41.0) * 0.35;
+			float peel_bias = 0.1 * (1.0 - smoothstep(0.0, 0.5, y - 2.3)) + 0.06 * tw_seed;
+			float peel = smoothstep(0.83 - peel_bias, 0.85 - peel_bias, peel_n);
+			float lip = smoothstep(0.8 - peel_bias, 0.83 - peel_bias, peel_n) * (1.0 - peel);
+			base = mix(base, cs_srgb_to_linear(vec3(0.46, 0.45, 0.42)) * (0.8 + 0.3 * bp_noise(vec2(horiz * 30.0, y * 3.0))), peel);
+			base *= 1.0 - 0.25 * lip;
+			float streak = smoothstep(0.55, 0.9, bp_noise(vec2(horiz * 7.0, y * 0.35) + 1.7)) * wall
+				* smoothstep(3.5, 2.5, y) * (0.4 + 0.6 * bp_noise(vec2(horiz * 2.0, 0.0)));
+			base = mix(base, cs_srgb_to_linear(vec3(0.42, 0.33, 0.24)), streak * 0.35);
+			rough = mix(0.62, 0.8, fade) + 0.1 * peel;
+		} else {
+			float grain = bp_noise(vec2(horiz * 45.0, y * 1.5)) * 0.6 + bp_noise(vec2(horiz * 120.0, y * 6.0)) * 0.4;
+			grain = mix(grain, 0.5, smoothstep(0.003, 0.01, fw));
+			base = cs_srgb_to_linear(mix(vec3(0.40, 0.38, 0.35), vec3(0.55, 0.53, 0.49), grain));
+			float check_v = smoothstep(0.93, 0.97, bp_noise(vec2(horiz * 60.0, y * 0.6)));
+			base *= 1.0 - 0.45 * check_v;
+			float damp = 1.0 - smoothstep(0.0, 0.55 + 0.2 * bp_noise(vec2(horiz * 8.0, 0.0)), y);
+			base = mix(base, cs_srgb_to_linear(vec3(0.22, 0.21, 0.17)), damp * 0.75);
+			rough = 0.85;
+		}
 	}
 	// Sand dust on whatever stands in it.
 	if (code != 7 && code != 4) {
