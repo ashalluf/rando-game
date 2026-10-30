@@ -20765,3 +20765,11 @@ of the moonlight fill than the old asphalt did. The sign panel seams and bolts o
 YardFill's (`lot_walls.gdshader`) and were not touched; StreetWear already tags them. No real
 weed geometry (painted only). The rush-hour fill was not measured in a still (the stills hold
 traffic as the city spawned it).
+
+**Gate** (`SHARDS=3`, merged with main 3eb7bea): 4,017 checks, 4,015 passed, shard peaks 2,685 /
+3,432 / 3,322 MB, 1,136 s. Failed in shard 1: explosions_2's "one flash light, brighter and wider
+than the old one" and "the blasts leave nothing behind (0 nodes, 7 pieces)"; shard 2 logged one
+`Invalid access to property or key 'dir'` in TrafficManager._drive_streets (traffic.gd:544, a
+street car's lane group, during the police station checks). None of it is freeway code, and
+`SMOKE_PARTS=explosions_2_checks,police_station_checks` alone passes 65 / 65 with no error.
+The 49 freeway checks (kit + close-up) pass.
