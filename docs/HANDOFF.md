@@ -14424,7 +14424,8 @@ building moves (the checks build a block with `FASHION=0` and compare).
 
 **The merge (wave 3).** origin/main 95bd13f merged into the paused branch cleanly (no conflicts;
 the hooks sit after Micromobility / HistoricCore, which main kept). The district's checks pass
-alone on the merged tree (14 checks, two seeds).
+alone on the merged tree (14 checks, two seeds); the full sharded gate (`SHARDS=3`) on bb2d4af
+passed 2,409 checks, 0 failed, peak RSS 2,482 MB a shard, 784 s.
 
 **Look / measure.**
 - Stills: `tools/glshot/block_shot.tscn` (the FULL blocks alone): the market alley `EYE=3331.0,1.7,832.7,-180,2`,
