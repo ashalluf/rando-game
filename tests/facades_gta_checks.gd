@@ -103,9 +103,16 @@ func _buildings_wear_it() -> void:
 			if not is_equal_approx(caps, want):
 				why += " seed %d caps_real_until %.0f, want %.0f" % [bld.seed, caps, want]
 			curtain_seen = curtain_seen or bld.window_style == Building.WindowStyle.CURTAIN
-		for c in bld.get_children():
-			if c is CollisionShape3D and not ((c as CollisionShape3D).shape is BoxShape3D or (c as CollisionShape3D).shape is ConvexPolygonShape3D):
-				why += " seed %d collision %s" % [bld.seed, (c as CollisionShape3D).shape]
+		# Each part's own collision is still its box (or a cut part's prism), at the part's centre.
+		for part: Dictionary in bld.parts:
+			var found := false
+			for c in bld.get_children():
+				if c is CollisionShape3D and (c as CollisionShape3D).position.is_equal_approx(part.center):
+					var sh := (c as CollisionShape3D).shape
+					if sh is BoxShape3D or sh is ConvexPolygonShape3D:
+						found = true
+			if not found:
+				why += " seed %d part at %s has no box" % [bld.seed, part.center]
 		bld.free()
 	if not curtain_seen:
 		why += " no curtain wall among them"
