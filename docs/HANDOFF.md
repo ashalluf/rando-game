@@ -14951,6 +14951,10 @@ failed, peak RSS 2.49 GB a shard. The smoke test's car-lights check now finds `N
 below a car's root (a bike's leans under its Pose). One earlier gate run failed
 shader_warm's "no node left" check with two BlastCraters from some other blast landing during
 the rehearsal's wait frames; it passed on the rerun and alone (a timing race, not the bikes).
+After the second merge (main eb75a10: engine audio, swimming, onlookers, ...): 2,550 checks, 0
+failed, peak RSS 2.50 GB. Two earlier runs of that head each failed one other area's timing check
+under three parallel shards (emergency's stretcher, onlookers' "run at a new shot"); both pass
+alone and on the rerun, emergency also with the bikes on in shard 0 alone.
 
 **Engine.** A bike carries meta `engine_profile` "moto", so the engine-audio pass
 (`EngineAudio`) voices it as its V-twin; the old `engine_loop` is only the fallback when that pass
