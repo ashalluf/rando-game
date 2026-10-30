@@ -116,7 +116,7 @@ const PART_COST := {
 	"fwd_review_a_checks": 0.0, "fwd_review_b_checks": 0.0, "garments_2_checks": 0.0,
 	"memory_audit_checks": 0.0, "offshore_island_checks": 0.0, "perf_audit_checks": 0.0,
 	"shop_vinyl_checks": 0.0, "sky_checks": 0.0, "bonfires_checks": 3.0,
-	"cinematic_review_checks": 0.1
+	"cinematic_review_checks": 0.1, "sunset_clouds_checks": 0.0
 }
 const DEFAULT_COST := 6.0
 ## Every share pays for its own city load on top of its parts.
@@ -2642,6 +2642,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The police at night (tests/police_night_look_checks.gd, PoliceNightLook): one flash clock, the
 	# glow, the budgeted strobes, the wall wash, roadblock flares, the searchlight's haze.
 	await load("res://tests/police_night_look_checks.gd").new().run(self, city)
+	# The Los Angeles sunset (tests/sunset_clouds_checks.gd, SunsetSky): the weight, the low sun's light.
+	load("res://tests/sunset_clouds_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

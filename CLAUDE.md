@@ -404,6 +404,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   under overcast. Look in seconds with `tools/sky/sky_shot.gd` (the city's Environment and
   DayNight, no city; HOUR, YAW, PITCH, MOONAGE, COVERAGE, CONTRAILS, DOME, DETAIL=0 the painted
   path, BENCH). Checks: `tests/sky_checks.gd`.
+- The sunset (2026-10-30, docs/HANDOFF.md "The Los Angeles sunset"): `SunsetSky`
+  (`scripts/world/sunset_sky.gd`, one hook in DayNight._apply()) hands sky.gdshader a `sunset`
+  weight on the sun's elevation alone (0 above ~19 degrees and below ~13 under, 0 in overcast:
+  every block it adds is gated, noon and night are bit-identical). While on, each cloud sample,
+  the painted deck and the cirrus are lit by `sun_through(el, h)` - the sun as it reaches THAT
+  point (local elevation tipped by the distance toward the sun, Rayleigh + aerosol air masses,
+  dark once the earth's shadow reaches it; `SunsetSky.sun_through()` is the GDScript copy, the
+  checks read the shader's numbers) -; after the street's sunset the light march is tipped down
+  so the flat bases glow from below under violet crowns; cirrus keep an afterglow (broken into
+  wisps: their E-W streaks otherwise read as beams); rays fan wide (`sunset_rays`, not
+  `god_rays`, which the night factor kills); the earth's shadow and Belt of Venus rise opposite
+  the sun, a peach band toward it. `SUNSET_CLOUDS=0` is the A/B; `tools/sky/sky_shot.gd` takes
+  `PARAMS=` and `HOLD_TIME=1` (pixel diffs); checks `tests/sunset_clouds_checks.gd`.
 - The island offshore (2026-10-30, docs/HANDOFF.md "The island offshore"): Isla Calandra, 36 km
   WSW of the beach, past the far plane, so the SKY draws it (`shaders/offshore_island.gdshaderinc`,
   `island_draw()` in sky.gdshader after the stars, before the clouds): a height field in true-world

@@ -20790,3 +20790,73 @@ materials (the opengl3 terrain and the sand), which the grade cannot fix without
 their p5 moved only 6. The sun's specular on cars and glass was judged on the probe's spheres only.
 If the Mac's nights read too dark, raise `night_exposure` toward 2.45 before lifting NIGHT's toe.
 
+## 9hu. The Los Angeles sunset: clouds lit by the low sun as it reaches them (wave 3, `sunset-clouds`, branch `wt/sunset-clouds`)
+
+Owner's bar: the GTA 6 trailer's opening shot - the sun low over the Pacific, cumulus bases lit
+hot orange and pink from below with their tops in violet shadow, rays, a gold-peach-blue
+gradient, cirrus catching the last light after the sun has set, then the blue hour.
+
+**What it is.** `SunsetSky` (`scripts/world/sunset_sky.gd`, static; ONE hook line in
+`DayNight._apply()`) hands `sky.gdshader` a `sunset` weight that depends on the sun's elevation
+alone: 0 above sin 0.33 (~16:50), full from sin 0.17 (~17:20) to sin -0.10 (~18:23), 0 again by
+sin -0.23 (~18:55); times (1 - 1.5 x weather_darken) and (1 - 0.8 x marine). At 0 the shader skips
+every block it added (six `if (sunset > 0.0 ...)` gates), so noon and the night draw what they
+did - proven pixel for pixel, below.
+
+**The model** (sky.gdshader):
+- `sun_through(el, h)`: the sun as it reaches a point `h` km up at elevation `el` measured from
+  THAT point's horizon (el = the camera's sun elevation + the point's distance toward the sun /
+  R, plus 0.01 of refraction). Air masses: Rayleigh (8 km scale height, tau 0.032 / 0.074 / 0.180
+  a unit air mass) and aerosol (1.4 km, 0.085 / 0.115 / 0.150 - the basin's smog, which is what
+  takes the light past orange to red), 1 / (el + k) above the point's horizon and, below it, twice
+  the grazing path to the tangent height less the part above the point. Brightness falls with the
+  red's transmittance (floor 0.45) and goes to 0 as the tangent height goes under the ground (the
+  earth's shadow, soft over -0.5..0.4 km). Returns the colour normalised to its red, so neither
+  renderer's exposure moves it. `SunsetSky.sun_through()` is the GDScript copy; the checks read
+  the shader's optical depths and shadow line back.
+- **Volume (Forward+)**: every lit cloud sample takes `sun_through()` at its own height and place,
+  mixed by the weight - gold at 17:30, orange-red at 18:00, red on the crowns at 18:06, the
+  earth's shadow then climbing the deck from the bases. Once the sun is under the street's horizon
+  the light march is tipped down (to -0.2) so it leaves through the flat base: the whole base glows
+  hot from below while the body above stays in its own shade - at the true 1-2 degrees the march
+  ran along inside the base and never saw the light. The ambient under the deck takes the warm
+  horizon (twilight_warm, strongest toward the sun, x1.9 once the sun is under), the crowns the
+  violet of the twilight band. A narrow forward lobe (HG 0.86) on thin margins is the silver lining.
+- **Rays**: fanned wider (exp(-ang^2 x 1.1)) at `sunset_rays` (0.45) in the sun's own red, NOT
+  `god_rays`: DayNight multiplies that by (1 - night_factor), which is 0.3 at the sunset itself.
+- **Painted cumulus (Compatibility, the web)**: the same light at the deck's crown height
+  (cloud_base + 0.6 depth); thin margins and the sun side lit, and with the sun under the deck's
+  horizon the base lit toward the sun, the thick middle violet; the night's darkening held off while
+  the sun still lights it. Computed colours go to Compatibility through `sunset_out()` (display
+  numbers).
+- **Cirrus (both)**: lit by `sun_through(el, 9 km)` with a forward-scatter lobe, keeping the light
+  ~3 degrees longer than the street (pink-orange over the east at 18:12); the night factor no longer
+  dims them while they are lit. **Their east-west streaks run straight at the sun at sunset and
+  read as giant beams of light** (the first pass was all "rays"): broken along their length into
+  wisps by two value-noise octaves while the weight is on.
+- **The sky**: a peach band toward the sun between the gold horizon and the blue; opposite it the
+  earth's shadow (slate blue, its top at ~0.85 x the sun's depression) and the Belt of Venus over
+  it, both as multiples of the sky's own luminance there. Subtle: DayNight's own violet twilight
+  band already sits there, and the low cumulus usually hide the horizon.
+
+**Measured.** Noon (12:00, sky_shot `HOLD_TIME=1 TAA=0`, old shader vs new): **0 pixels differ**
+on both Forward+ (lavapipe) and opengl3. Cost (sky_shot BENCH=40 at 18:00 facing the sun,
+lavapipe 1280x720, two runs each): old 732 / 753 ms, new 726 / 755 ms a frame - inside the noise.
+Refcams (`--only street_noon,downtown_aerial,sunset,golden_aerial --strict`, `SUNSET_CLOUDS=0`
+vs on): street_noon and downtown_aerial 0.00 % of pixels changed, 0 shots flagged. **Trap found
+on the way:** in `--strict` the `sunset` (17:51) and `golden_aerial` (17:12) frames come out with a
+midday blue sky (golden_aerial changed 0.39 %, sunset 0.00 %), so strict refcams say nothing about
+the evening; judge the sunset with sky_shot and still_shot SHOTS instead (refcams' own issue, not
+fixed here). `HOLD_TIME=1` is new on `tools/sky/sky_shot.gd` because shader TIME is real time: a shader that
+compiles slower drifts the clouds and an A/B "differs" in 15 % of its pixels; `PARAMS="a=1;b=0"`
+holds uniforms after DayNight has set them (frame_pre_draw), for experiments.
+
+**Stills** (`shots/sunset-clouds`): sky_shot every 15 min 17:30-19:30 toward the sun (yaw 90) and
+away (270), Forward+ and opengl3, before (old shader) and after; the city from the beach
+(-732, 2.1, 800, west) and over the basin from the front range (300, 260 agl, -650, south-west) on
+opengl3, `SUNSET_CLOUDS=0` vs on.
+
+**Not done / known**: the Belt of Venus is faint against DayNight's violet band (a stronger one
+would need the band retuned, which touches every dusk); the fine bright speckles inside big heaps
+on lavapipe stills are the volume's own (in the before too); the city stills are opengl3 only (the
+city does not fit lavapipe); dawn gets the same model (symmetric weight) but was not tuned.
