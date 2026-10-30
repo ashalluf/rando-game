@@ -1474,6 +1474,16 @@ already mapped so milestone 2 is script-only.
   do not fall (the world is realistic, the player is the chaos). Only built near the camera.
   docs/HANDOFF.md "Window-washing gondolas"; CLAUDE.md "Window-washing gondolas".
 
+- **2026-10-30 A gas-fired power plant on the coast south of the airport (fleet wave 3,
+  power-plant).** SEACLIFF GENERATING STATION (invented, of BASIN LIGHT & POWER) takes two
+  beach-town blocks at the 105's west end as an area site (streets closed): the old units' turbine
+  hall, boiler house and 78 m twin stacks in red and white bands with red obstruction lights, a
+  combined-cycle block, switchyard, fuel tanks, offices; a seawall and intake trestle on the sand.
+  Its line leaves on lattice towers in the ridges' style (their code called, not copied) east along
+  the 105 to a receiving station, taking the lots it crosses after every roll. A fixed area, as the
+  film studio and the canals are; everything in it is laid out from the snapped rect.
+  docs/HANDOFF.md "The power plant on the coast"; CLAUDE.md "Power plant".
+
 - **2026-10-05 The cumulus read as photographs, not paintings (owner's review of wt/sky).** Flat
   bases at a shared condensation level, crowns thinned so the billows build them into turrets,
   footprints warped and tops sheared, a second population of fragments, three-octave torn edges

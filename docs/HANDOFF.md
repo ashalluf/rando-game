@@ -2210,6 +2210,16 @@ streets, drives, house heights, no yard piece under a house or on another), one 
 right shader for a beach, a campus and a freeway block, the budgets, a LOD build with no yard
 meshes, and a beach and a freeway block built with the fill off being the same block.
 
+**Gate notes.** The plant's south block meets the Esplanade replica's corridor, whose backfill
+lots leaked into `CityPlan.lots()` for it: `_lot_grid()` now returns nothing for any site block
+before it asks the replica. The line's wires were one 1.8 km landmark box to AirTraffic's obstacle
+field and lifted the arrivals' downwind leg until jets landed long: wires and stack lights carry
+`air_ignore`. The site took one of the default seed's only two beach-town walk streets, so
+`tests/lot_fill_checks.gd` asks for one with the plant on. Gate: 2,559 checks, 0 failed, 3 shards,
+peak 2.48 GB a shard. Frame cost (opengl3 GEO, before -> after): aerial 3.12 M / 1,006 draws ->
+3.09 M / 992, east street 5.47 M / 1,606 -> 4.19 M / 1,068, the line along the 105 4.54 M / 1,688 ->
+4.44 M / 1,678.
+
 **Not done / not verified.** The web build plays the plain mix (sample playback skips bus
   effects: no reverb, no muffle, no ducker). Traffic voices ride only the TrafficManager's street
   and freeway cars - parked cars, police and the airport loop are silent unless driven (the police
@@ -15795,3 +15805,106 @@ BLOCKS=1 -- --hour=21` (lavapipe, ~11 GB, ~12 min). Checks: `tests/lighthouses_c
 not seen (lavapipe's fwd_block_shot scene has no Quality node raising the fog to HIGH). The minimap
 does not draw the breakwater. NEEDS MAC CHECK: the beams and spots at night on Forward+ HIGH, and
 the flash from downtown.
+
+## 9fm. The power plant on the coast: Seacliff Generating Station, 2026-10-30 (fleet wave 3, agent branch `wt/power-plant`; VISUAL_ROADMAP row "?")
+
+The task: "a gas-fired power plant on the coast (the form of the El Segundo / Redondo plants,
+original): turbine halls, tall twin stacks with red aviation lights, a switchyard of transformers
+and lattice towers, transmission lines leaving it (sharing the ridges' line style), a seawall".
+
+**Where.** Two beach-town blocks just south of the airport and the 105's west end, between the
+beach road (x -645.5) and the street at x -460.9, z 1208.4..1562.6 on the default seed (the site
+rect, kerb to kerb, is x -633.5..-468, z 1217.4..1551.6: 166 x 334 m). The row north of it has the
+105's deck through it (z 1053..1090), and the next block east is under the South Bay Mall
+landmark's ring road (x -455..-45, z 1174..1432), so the site is these two. It is a landmark AREA
+like the film studio's (`PowerPlant.entry()`, appended last in `Landmarks.all()`): CityPlan snaps it
+to whole blocks, closes the street inside (road -6 is the plant's yard now) and its chunks run
+`PowerPlantBuild.site_steps()`; the relief is flattened over its `flat_rect`. `POWER_PLANT=0` in
+the environment: no entry, no site, no line (the A/B).
+
+**What** (`PowerPlant.layout()`, pure, cached per plan, drawn in a 166 x 334 m design frame and
+scaled to the snapped rect; `PowerPlantKit` builds every piece in code at real size):
+- the old steam units: a 34 x 110 x 25 m turbine hall along the sea side (concrete plinth, ribbed
+  cladding, a window band under the eaves, pilasters, ridge vent, roof fans, roll-up doors) and a
+  36 x 98 x 48 m boiler house behind it (darker cladding, vertical window strips, penthouses, a
+  stair tower, ring platforms), their step-up transformer behind its fire wall;
+- the TWIN STACKS: 78 m slipformed concrete, 4.6 m tapering to 3.1 m, the top 38 % in five red and
+  white aviation bands, soot at the crown, a railed platform at 88 % with a caged ladder; flue
+  ducts on trestles from the boiler house; red obstruction lights (a flashing ring at the top, a
+  steady ring at mid-height) on `aircraft_lights.gdshader`, drawn across the basin;
+- the combined-cycle block: two trains west to east - an air filter house on legs with weather
+  hoods, the gas turbine's enclosure with roof vents, the exhaust transition, the heat-recovery
+  boiler (casing with stiffeners and girts, three drums, a roof platform, a stair tower) and its
+  52 m steel stack (rings, an emissions platform and hut) - the steam turbine hall east of them,
+  pipe bridges of insulated pipe, the step-up transformers;
+- the cooling water pump house with two 2.4 m blue pipes, demineralised and raw water tanks, two
+  fuel oil tanks (stairs, wind girders, rails, foam pipes) in a concrete berm;
+- the switchyard (north-east): two rows of the ridges' strain gantries, four bays of breakers,
+  disconnects on porcelain posts and tubular bus, two transformers, lightning masts, the control
+  house, and the dead-end gantry the line leaves from;
+- offices (two storeys of concrete and ribbon glass, the company's name on the parapet), the gate
+  on the east street with its sliding leaves, a guard booth and the name sign, a car park,
+  chain-link with barbed outriggers round the site, eight flood masts (pools, four omnis);
+- on the sand in front (`PowerPlantBuild.extras()`, in the beach chunk): a seawall along the sand's
+  landward edge (stepped face, cap, rip-rap at its toe) and the intake / outfall - a headwall with
+  bar screens and a pipe trestle on pile bents out past the surf, its deck high enough for the bike
+  path under it (no pile within 3 m of `BeachLife.path_x()`); `BeachLife.KEEP_OFF` keeps towels
+  16 m off it.
+
+Names are invented: SEACLIFF GENERATING STATION, BASIN LIGHT & POWER, LARKWOOD RECEIVING STATION.
+
+**The line** (`PowerPlant.line()`, pure). From the dead-end gantry north across the street to an
+angle tower in the strip between the freeway and the mall's back road, then east along the 105,
+`LINE_OFFSET` (62 m) south of its centre line, on towers of 42 m raised per span until every
+conductor clears the ground by `CLEARANCE` (`_clear_spans()`: 44-63 m on the default seed), spans of up to `MAX_SPAN`
+(420 m), to a receiving station (`STATION`, 40 x 50 m) 1.8 km east: on the default seed five towers
+at x -501, -67, 353, 773, 1165 (z 1137.5) and the station at x 1335. A tower foot must be inside an
+ordinary BUILDINGS block's inner rect, off the freeway and its ramps, the airport and its clear
+zone, every landmark (the mall by its ring road; piers skipped), the river and the marina
+(`_ground_ok()`; `PP_DEBUG=1` prints why each spot was refused). It is the ridges' line in every
+visible part: `Ridges.spec()` / `attach()` / `gantry_attach()` / `wire()` / `sag()`,
+`RidgeKit.tower_body()` / `tower_legs()` / `tower_members()` / `gantry_members()`,
+`RidgeSystem.Wires` and `power_wire.gdshader` - called, not copied; nothing in the ridges' files
+changed. The right of way takes the lots within `ROW_HALF` (13 m) of the line AFTER every roll
+(`claims_lot()`, one hook in `CityPlan.lots()` after Ridges'), keeps HouseKit's extra houses out
+(`claims_cell()`, one hook in `HouseKit.extra_lots()`) and is laid as weeds (FULL) or a slab (LOD).
+
+**Tiers.** FULL site chunk: ONE casting mesh on `shaders/power_plant.gdshader` (~36-37k triangles a
+chunk), ground on Industrial's ground material (gravel, asphalt, concrete pads), the pavement ring,
+box collision and occluder boxes per piece, a build step per piece (worst step ~80 ms in the probe:
+a boiler house or the switchyard), pools and omnis, parked ArenaGrounds cars, a few staff. LOD: the
+same mesh at low detail (`Geo.full` false: no rails, ladders, stiffeners, fans; 4-12k triangles).
+The far city's capture: ground slabs and a box per mass (`_far_boxes()`, the old far-box path), the
+stacks' banded tops as their own boxes; Skyline plants no kerb trees on the site. The landmark (near
+and far alike, true world): every conductor and earth wire, spacers, jumpers, the towers' lattice
+as fine lines (collapsed by `PowerPlantBuild.cover()` where a FULL chunk built the tower, through
+power_wire's `covered` texture), the switchyard's strain bus and droppers, and the stack lights;
+`PowerWires` pushes `viewport_px` as RidgeSystem does.
+
+**The shader** (`power_plant.gdshader`, kind in COLOR.a 32nds, `PowerPlantKit.K_*`; display numbers
+via disp() / to_lit() like industrial_walls; culling off, the normal turned on a back face): ribbed
+cladding (trapezoid ribs in the normal, sheets, laps, chalking, grime), form-panel concrete,
+painted steel, galvanised, the concrete stack (slipform lifts, aviation bands, soot), window bands
+(sky emitted by fresnel, lit warm after dark), flood lenses, aviation red, aluminium jacket, roofs,
+grating, louvres, tank shells (weld courses, rust), radiator fins, signs and letters (lit after
+dark), rip-rap, porcelain, chain-link (cut out, dithered far), roll-up doors.
+
+**Hooks in shared files** (each a line or two): `Landmarks.all()` / `site_steps()` /
+`capture_steps()` / `build()`; `CityPlan.lots()`; `HouseKit.extra_lots()`; `CityChunk.begin_build()`
+(`PowerPlantBuild.extras(self)` after the marina's); `BeachLife.KEEP_OFF`; Skyline's kerb-tree skip;
+the minimap's name ("Seacliff Generating Station"); one line in tests/smoke_test.gd.
+
+**Tools.** `tools/power_plant/probe.tscn` (headless, a minute or two: the site, every piece, the
+line's towers and station, the lots it takes, EYEs, then every site and line chunk built FULL and
+LOD with times and triangles; `BUILD=0` skips the builds, `PP_DEBUG=1` the line's refusals);
+`tools/power_plant/site_scan.tscn` (the coast's grid, zones, districts and the freeway round the
+site). Stills: still_shot.gd `EYE=` / `SHOTS=` - aerial `-800,140,1650,-40.9,-15.5`, from the east
+street `-430,1.7,1420,42.5,9.7`, from the sand `-725,3,1395,-63.2,12.8`, the trains
+`-470,30,1560,36.9,-5.7`, the switchyard `-430,22,1200,138.8,-9.1`, the line along the 105
+`-560,30,1180,-85,-3` (`--hour=21` for the lights). Checks: `tests/power_plant_checks.gd`.
+
+**Not done / not verified.** Seen on opengl3 only (no Forward+ still yet: the cladding's rib normals
+and the window mirror want a Mac look). The plant is static: no steam or heat shimmer from the
+stacks, no traffic of its own through the gate. The line ends at a receiving station rather than
+joining the ridges' network. Another seed's snapped rect scales the layout; a rect under
+`MIN_SIZE` builds the yard bare, and a grid that gives the line no tower spots builds no line.

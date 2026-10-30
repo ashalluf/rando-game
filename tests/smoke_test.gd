@@ -2368,6 +2368,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/garments_2_checks.gd").new().run(self, city)
 	# Footbridges (tests/footbridges_checks.gd): placement, clearances, stairs, the kit, the chunks.
 	load("res://tests/footbridges_checks.gd").new().run(self, city)
+	# The power plant (tests/power_plant_checks.gd): the site south of the airport, the pure layout,
+	# the line's towers and right of way, FULL / LOD chunks, the seawall, the far city, the wires.
+	load("res://tests/power_plant_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
