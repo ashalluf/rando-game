@@ -91,7 +91,7 @@ func _built(city: Node3D, plan: CityPlan, line: LightRail, f: Dictionary) -> voi
 		return
 	var body := chunk.get_node_or_null("MetroBody") as StaticBody3D
 	var mesh := chunk.get_node_or_null("MetroStation") as MeshInstance3D
-	_check(mesh != null and mesh.mesh != null and chunk.has_node("MetroSigns") and chunk.has_node("MetroGlass") and chunk.has_node("MetroShadow"),
+	_check(mesh != null and mesh.mesh != null and chunk.has_node("MetroSigns") and chunk.has_node("MetroGlass") and chunk.has_node("MetroShadow") and chunk.has_node("MetroOccluder"),
 		"the chunk builds the station's meshes")
 	_check(body != null and body.get_child_count() > 100 and body.collision_layer == 1 and body.collision_mask == 0,
 		"and its collision on the world layer, mask 0 (%d boxes)" % (body.get_child_count() if body else 0))

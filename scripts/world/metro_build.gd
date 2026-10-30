@@ -762,11 +762,21 @@ func _kiosk(k: float) -> void:
 	for side: float in [-1.0, 1.0]:
 		_box(o0 + 0.3, o1 - 0.3, roof_lo - 0.12, roof_lo - 0.05, side * po - 0.05, side * po + 0.05, K_LAMP, LAMP)
 	pool(_w(Vector3((o0 + o1) * 0.5, kerb + 0.02, 0.0)), _d3, Vector2(o1 - o0 + 3.0, hw * 2.0 + 2.5), Color(1.0, 0.93, 0.8, 0.45))
+	# What casts in the sun: the side walls, the inner wall, the canopy (tinted glass casts a light
+	# shadow in life; a full one reads better than none), the fascia, the posts.
+	for side: float in [-1.0, 1.0]:
+		_box(o0, o1, kerb, kerb + 0.5, side * (lh + 0.12) - 0.1, side * (lh + 0.12) + 0.1, K_CONCRETE, M_CONCRETE, false, shadow)
+		for pu: float in [o0 + 0.15, o1 - 0.15]:
+			_box(pu - 0.07, pu + 0.07, kerb, roof_lo, side * po - 0.07, side * po + 0.07, K_CONCRETE, M_CONCRETE, false, shadow)
+	_box(minf(inner, inner - k * 0.2), maxf(inner, inner - k * 0.2), kerb, kerb + 1.18, -lh - 0.2, lh + 0.2, K_CONCRETE, M_CONCRETE, false, shadow)
+	_box(o0, o1, roof_lo - 0.05, roof_lo, -rw, rw, K_CONCRETE, M_CONCRETE, true, shadow)
+	_box(minf(fu, fu + k * 0.12), maxf(fu, fu + k * 0.12), roof_hi - 0.45, roof_hi + 0.05, -rw, rw, K_CONCRETE, M_CONCRETE, true, shadow)
 	# The pylon on the island's inner end: the bullet, the station's name, BASIN METRO.
 	var pu2 := k * (MetroStation.KIOSK_U - MetroStation.KIOSK_HALF + 0.25)
 	_box(pu2 - 0.2, pu2 + 0.2, kerb, kerb + 3.4, -0.45, 0.45, K_ENAMEL, ENAMEL)
 	_box(pu2 - 0.22, pu2 + 0.22, kerb + 3.4, kerb + 3.95, -0.47, 0.47, K_PAINT, CORAL)
 	_solid(pu2 - 0.22, pu2 + 0.22, kerb, kerb + 3.95, -0.47, 0.47)
+	_box(pu2 - 0.22, pu2 + 0.22, kerb, kerb + 3.95, -0.47, 0.47, K_CONCRETE, M_CONCRETE, false, shadow)
 	for e: float in [-1.0, 1.0]:
 		_text(LightRail.LINE_LETTER, 0.42, Vector3(pu2 + e * 0.225, kerb + 3.67, 0.0), Vector3(e, 0, 0), M_WHITE)
 		_text(LightRail._short(str(f.name).split(" / ")[0]), 0.16, Vector3(pu2 + e * 0.205, kerb + 2.9, 0.0), Vector3(e, 0, 0), M_WHITE, 0.8)
@@ -856,10 +866,58 @@ func _commit() -> void:
 		cs.transform = s[1]
 		sb.add_child(cs)
 	chunk.add_child(sb)
+	_add_occluder()
 	_add_lights()
 	_add_probe()
 	_add_zone()
 	_add_riders()
+
+
+## An occluder shell a little inside the concrete round the station (the concourse's ceiling and
+## the slab between the levels, the tunnel's roof, the side and end walls; never over a stair's
+## opening): from down here the city above is culled. From the street it hides only what is
+## under the street (CLAUDE.md: an occluder lies inside what it stands for).
+func _add_occluder() -> void:
+	var verts := PackedVector3Array()
+	var idx := PackedInt32Array()
+	var quad_at := func(a: Vector3, b: Vector3, c: Vector3, d: Vector3) -> void:
+		var i0 := verts.size()
+		for p: Vector3 in [a, b, c, d]:
+			verts.append(_w(p))
+		idx.append_array([i0, i0 + 1, i0 + 2, i0, i0 + 2, i0 + 3])
+	var hw := MetroStation.HALF_W
+	var cu := MetroStation.CONC_U
+	var tu := MetroStation.TUNNEL_U
+	var shafts := []
+	for k: float in [-1.0, 1.0]:
+		var a := k * MetroStation.SHAFT_IN
+		var b := k * (cu + 0.5)
+		shafts.append(Rect2(minf(a, b), -2.0, absf(b - a), 4.0))
+	var ceil_h := MetroStation.CONC_CEIL + 0.3
+	for rr: Rect2 in _minus(Rect2(-cu - 0.4, -hw - 0.4, (cu + 0.4) * 2.0, (hw + 0.4) * 2.0), shafts):
+		quad_at.call(Vector3(rr.position.x, ceil_h, rr.position.y), Vector3(rr.end.x, ceil_h, rr.position.y), Vector3(rr.end.x, ceil_h, rr.end.y), Vector3(rr.position.x, ceil_h, rr.end.y))
+	var mid_h := MetroStation.CONC_FLOOR - 0.3
+	var holes := [Rect2(-MetroStation.BANK_U - 0.5, -MetroStation.BANK_HALF - 0.3, MetroStation.BANK_U * 2.0 + 0.8, MetroStation.BANK_HALF * 2.0 + 0.6),
+		Rect2(MetroStation.LIFT_U - 1.4, -1.4, 2.8, 2.8)]
+	for rr: Rect2 in _minus(Rect2(-cu, -hw, cu * 2.0, hw * 2.0), holes):
+		quad_at.call(Vector3(rr.position.x, mid_h, rr.position.y), Vector3(rr.end.x, mid_h, rr.position.y), Vector3(rr.end.x, mid_h, rr.end.y), Vector3(rr.position.x, mid_h, rr.end.y))
+	var roof_h := MetroStation.PLAT_CEIL + 0.3
+	for e: float in [-1.0, 1.0]:
+		var a := e * cu
+		var b := e * (tu + 0.3)
+		quad_at.call(Vector3(minf(a, b), roof_h, -hw - 0.3), Vector3(maxf(a, b), roof_h, -hw - 0.3), Vector3(maxf(a, b), roof_h, hw + 0.3), Vector3(minf(a, b), roof_h, hw + 0.3))
+		quad_at.call(Vector3(e * (tu + 0.3), _floor, -hw - 0.3), Vector3(e * (tu + 0.3), _floor, hw + 0.3), Vector3(e * (tu + 0.3), roof_h, hw + 0.3), Vector3(e * (tu + 0.3), roof_h, -hw - 0.3))
+		quad_at.call(Vector3(e * (cu + 0.4), roof_h, -hw - 0.3), Vector3(e * (cu + 0.4), roof_h, hw + 0.3), Vector3(e * (cu + 0.4), ceil_h, hw + 0.3), Vector3(e * (cu + 0.4), ceil_h, -hw - 0.3))
+	for side: float in [-1.0, 1.0]:
+		var v := side * (hw + 0.3)
+		quad_at.call(Vector3(-tu - 0.3, _floor, v), Vector3(tu + 0.3, _floor, v), Vector3(tu + 0.3, roof_h, v), Vector3(-tu - 0.3, roof_h, v))
+		quad_at.call(Vector3(-cu - 0.4, roof_h, v), Vector3(cu + 0.4, roof_h, v), Vector3(cu + 0.4, ceil_h, v), Vector3(-cu - 0.4, ceil_h, v))
+	var occ := ArrayOccluder3D.new()
+	occ.set_arrays(verts, idx)
+	var oi := OccluderInstance3D.new()
+	oi.name = "MetroOccluder"
+	oi.occluder = occ
+	chunk.add_child(oi)
 
 
 ## The station's own lights for the trains and the people (Forward+ / desktop; never the web),

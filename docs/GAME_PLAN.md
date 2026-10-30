@@ -295,6 +295,16 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-30 The Coral Line's underground terminus is a real station (HANDOFF "The Coral
+  Line's underground station").** The two kiosks in Flower's median now lead down a stair and an
+  escalator each to a concourse (ticket machines, fare gates) and a bank to an island platform
+  where the trains stand. Decisions: built in code in the station's own frame from the line alone
+  (no roll); the fixtures' light is worked out in the shader and emitted, because the sky's
+  ambient and the sun would otherwise light a hole 13 m under the street; the island is 7 m (the
+  street stations' 3 m cannot take escalators), so LightRail spreads the tracks wider there only
+  while the station is on; the city's ground box is passed through by a collision exception (the
+  lake's rule), not cut; the trains in the tunnel are drawn only while the player is down there.
+
 - **2026-10-29 Facades are worked out per pane, not per building (owner: "start looking like GTA
   6").** Glass varies pane by pane and floor by floor, blinds hang at their own heights, the glass
   mirrors a street opposite with parallax, curtain walls come in three systems (flush, deep fins,
