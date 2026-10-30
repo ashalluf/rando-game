@@ -14,9 +14,22 @@ const PORT = parseInt(process.env.PORT || '8123'); // PORT=... runs two harnesse
 const root = process.env.WEB_ROOT ? path0.resolve(process.env.WEB_ROOT) : path0.resolve(__dirname, '..', '..', 'build', 'web');
 const types = {'.html':'text/html','.js':'text/javascript','.wasm':'application/wasm','.pck':'application/octet-stream','.png':'image/png'};
 const server = http.createServer((req,res)=>{ const f = path.join(root, req.url.split('?')[0]==='/'?'index.html':req.url.split('?')[0]); fs.readFile(f,(e,d)=>{ if(e){res.writeHead(404);res.end();return;} res.writeHead(200,{'Content-Type':types[path.extname(f)]||'application/octet-stream'}); res.end(d); }); });
+// The FULL Chromium under /opt/pw-browsers (chromium-<n>/chrome-linux*/chrome), newest first. Not
+// Playwright's default chrome-headless-shell: there page.screenshot() waits on a compositor frame
+// that never comes while a Godot frame takes 20-35 s, and times out (2026-10-30).
+const OLD_CHROME = (() => {
+  const base = '/opt/pw-browsers';
+  let dirs = [];
+  try { dirs = fs.readdirSync(base).filter(d => /^chromium-\d+$/.test(d)).sort((a, b) => parseInt(b.slice(9)) - parseInt(a.slice(9))); } catch (e) {}
+  for (const d of dirs) for (const sub of ['chrome-linux64', 'chrome-linux']) {
+    const p = path0.join(base, d, sub, 'chrome');
+    if (fs.existsSync(p)) return p;
+  }
+  return '';
+})();
 (async () => {
   await new Promise(r=>server.listen(PORT,r));
-  const browser = await chromium.launch({ executablePath: process.env.CHROME || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist','--enable-webgl','--no-sandbox'] });
+  const browser = await chromium.launch({ executablePath: process.env.CHROME || (fs.existsSync(OLD_CHROME) ? OLD_CHROME : undefined), args: ['--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist','--enable-webgl','--no-sandbox'] });
   const page = await browser.newPage({ viewport: { width: parseInt(process.env.VW || '960'), height: parseInt(process.env.VH || '540') } });
   const logs = [];
   const t0 = Date.now(); const stamp = () => ((Date.now() - t0) / 1000).toFixed(1) + 's';
@@ -26,7 +39,11 @@ const server = http.createServer((req,res)=>{ const f = path.join(root, req.url.
   page.on('pageerror', e => note(`${stamp()} [pageerror] ${e.message}`));
   await page.goto(`http://127.0.0.1:${PORT}/index.html` + (process.env.QS || ''));
   await page.waitForTimeout(parseInt(process.env.WAIT || '25000'));
-  await page.mouse.click(parseInt(process.env.VW || '960') / 2, parseInt(process.env.VH || '540') / 2);
+  // NOCLICK=1 skips the click (no mouse capture, no Web Audio start): the A/B for anything the
+  // first click sets off.
+  // KEY=<name> presses an unbound key instead (a user gesture: Web Audio starts, nothing fires).
+  if (process.env.KEY) await page.keyboard.press(process.env.KEY);
+  else if (process.env.NOCLICK !== '1') await page.mouse.click(parseInt(process.env.VW || '960') / 2, parseInt(process.env.VH || '540') / 2);
 
   await page.waitForTimeout(1500);
 
