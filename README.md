@@ -4,6 +4,7 @@ The Pacific close up (branch `wt/ocean-closeup`). Pairs: before = `OCEAN_CLOSEUP
 close-up pass. 01-18: the city through `tools/glshot/still_shot.gd` on opengl3 (Compatibility,
 1280x720), clear weather, at noon (12:00), golden hour (17:36) and night (21:30). 19-22: Forward+
 on lavapipe, `tools/glshot/fwd_block_shot.tscn` (the city's sky and weather, a few blocks), noon.
+23-26: overcast at 13:00, opengl3, `fwd_block_shot.tscn` `BLOCKS=3`.
 
 | file | what |
 |---|---|
@@ -18,3 +19,5 @@ on lavapipe, `tools/glshot/fwd_block_shot.tscn` (the city's sky and weather, a f
 | 17/18 | under the pier at night: the lamps' columns broken by the ripples |
 | 19/20 | Forward+: under the pier in the surf (foam net, collars) |
 | 21/22 | Forward+: the pier from the surf |
+| 23/24 | overcast, under the pier |
+| 25/26 | overcast, a boat's eye (2.2 m) |
