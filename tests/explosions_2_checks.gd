@@ -151,17 +151,23 @@ func _debris_lands() -> void:
 	if deb.is_empty():
 		_t._check(false, "explosions_2: debris to watch")
 		return
+	# Measured as it goes: in a full shard the debris can finish its course and free itself
+	# before the 120 frames are up (a SCRIPT ERROR on the freed node).
 	var d: BlastDebris = deb[0]
 	var high := -INF
-	for i in 120:
-		await _tree.physics_frame
-		for p: Dictionary in d._pieces:
-			high = maxf(high, d.to_global(p.pos).y - _top.y)
 	var landed := 0
 	var under := 0
-	for p: Dictionary in d._pieces:
-		landed += 1 if p.landed else 0
-		under += 1 if d.to_global(p.pos).y < _top.y - 0.6 else 0
+	for i in 120:
+		await _tree.physics_frame
+		if not is_instance_valid(d) or d.is_queued_for_deletion():
+			break
+		landed = 0
+		under = 0
+		for p: Dictionary in d._pieces:
+			var y: float = d.to_global(p.pos).y
+			high = maxf(high, y - _top.y)
+			landed += 1 if p.landed else 0
+			under += 1 if p.landed and y < _top.y - 0.6 else 0
 	_t._check(high > 3.0, "explosions_2: debris arcs up (%.1f m)" % high)
 	_t._check(landed > 0 and under == 0, "explosions_2: debris lands on the deck, none through it (%d landed, %d under)" % [landed, under])
 
