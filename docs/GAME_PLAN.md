@@ -3619,6 +3619,15 @@ already mapped so milestone 2 is script-only.
   click fired the rifle). No game code changed; the rule that every shader stays GLSL ES 3.00 is
   now a check. The export stays at 600 MB of pck: the remaining "unused" assets the probe lists are
   reached by name tables, so nothing more is excluded blind.
+- **2026-10-30 The night street is lit by its lamps, not the moon (night-street-review, HANDOFF
+  "The night street at eye level").** Reviewed from the pavement at 21:00 and 00:30, clear and rain,
+  on both renderers. Decisions: the moon's key drops to 0.09 (it was ~45 % of the noon sun through
+  the night exposure, so every street was evenly blue and the pools invisible) and the lamps' pools
+  and ranges grow instead; a rainy night keeps most of its fill (overcast city nights are lighter,
+  not darker); the mirrors' sky follows the rain's horizon the sky draws; the lit-window grid
+  painted on the wet road is smeared to a glow; each FULL lamp gets a wet-road reflection streak in
+  its own prop record; Broadway's lanterns at 0.6 of the level. All tuning of existing systems plus
+  one quad a lamp; `NIGHT_STREET_REVIEW=0` restores the old numbers.
 
 ## Correction: what build 135 (0ce833f) actually contained
 

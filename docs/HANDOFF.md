@@ -21525,3 +21525,66 @@ body, and `CAR_COND=dust,oxide[,pollen]` forces the condition. Checks:
 Forward+ near the camera); the flake glints have no shadow test (sun-facing only); no wrap seams or
 chrome wraps; the Meshy sports body's colour-shift pearl reads greyish on Forward+; nothing yet
 judged on the owner's Mac at 60 fps (orange peel and flake are about motion).
+
+## 9ig. The night street at eye level (fleet wave 3, branch `wt/night-street-review`; VISUAL_ROADMAP ?)
+
+A review of the night street from the pavement - Broadway downtown, Wilshire in midtown, a suburban
+street, the beach town - at 21:00 and 00:30, clear and in rain, on opengl3 (the whole city, one load,
+16 stills) and on lavapipe Forward+ (small scenes: the suburb and the beach; downtown blocks do not
+fit lavapipe even alone, 13.6 GB). Everything is tuning of what existed plus one new reflection quad;
+no roll moved. `NIGHT_STREET_REVIEW=0` puts all of it back.
+
+What read wrong, and why:
+
+- **The moon was a second sun.** `night_sun_energy` 0.3 through `night_exposure` 2.3 is ~45 % of the
+  noon key: every street was lit evenly blue, trees and wires threw crisp moon shadows, the beach sand
+  read as dusk, and the lamps' pools were invisible against it. Now `NightStreetReview.MOON` 0.09
+  (`night_sun_energy`'s default reads it). The lamps carry the street: StreetLamps' pools x1.3 and
+  OmniLight ranges x1.25 (`POOL_SCALE`, `RANGE_SCALE`; type, place and paint unchanged).
+- **The wet road's mirrors showed a navy sky under a brown cloud base.** `DayNight._horizon_now`
+  (pushed as `sky_tint`) was the CLEAR horizon even in rain, while the sky shader blends to
+  `storm_horizon` by `weather_darken`; every mirror (road, car paint, glass) read the wrong sky.
+  `NightStreetReview.sky_tint()` applies the same blend.
+- **Rain made the night darker than clear.** The ambient cut of 35 % x `weather_darken` hit the night
+  too, where a real overcast night is LIGHTER (the city's sodium glow on the cloud base). The cut is
+  now 25 % of itself at night (`RAIN_NIGHT_CUT`, eased by `moonlight`).
+- **A grid of lit squares painted on the wet asphalt.** road.gdshader's `mirrored_city()` drew the
+  canyon's office windows as sharp rectangles in every puddle - the most CG thing in a rain still.
+  Now `mirror_windows` 0.25, `mirror_window_lit` 0.8 and the rows smeared (`mirror_window_smear` 0.7),
+  and the film mirrors `sky_tint` by Fresnel (`mirror_sky` 1.0) through `cs_as_uniform()`.
+- **No lamp was reflected in the wet road.** Compatibility has no SSR and Forward+'s misses every lamp
+  above the frame. NightAtmos now lays one more instance per FULL lamp in the lamp's own prop record
+  (`atmos_glow_wet`, so a popped lamp takes it): `shaders/night_wet.gdshader`, a flat additive quad
+  placed in the vertex stage from the lamp's foot toward the camera to the mirror point
+  (`d * h / (h + eye)`) and smeared on past it, a screen-constant width, ripples, collapsed while dry
+  or by day; strength per lamp `WET_PER_LIGHT` x heads, capped `WET_MAX`.
+- **Broadway's lanterns were the brightest thing downtown and had no halo.** Their light is now 0.6 of
+  the level (an OmniLight's meta `lamp_gain`, read by DayNight's lamp loop) and they wear NightAtmos'
+  halos and the reflection like every other lamp.
+
+Numbers (opengl3, the whole city; low-half p50 is the median of the darker half of the frame, holes
+the share of 32 px tiles under 8/255; before -> after): Broadway 21:00 clear p50 55 -> 30, low 54 ->
+26; Wilshire 21:00 low 47 -> 25; suburb 21:00 low 32 -> 18; beach 21:00 low 95 -> 58 (the moonlit
+sand), 00:30 74 -> 42; Broadway 00:30 low 31 -> 14. Lit pixels (the lamps and shop fronts) and p95 /
+p99 are unchanged, so the frame's contrast now comes from the lights. In rain the holes went UP on
+Broadway (6.5 -> 12.8 %) and Wilshire (4.2 -> 9.8 %): that is the fake window grid gone from the
+asphalt, which was what filled them; the wet road is now dark navy with the lamps' streaks in it.
+`tools/night_street/measure.py <after> <before>` prints the table.
+
+Tools: `tools/night_street/shoot.sh <out>` (the 16 stills, one city load, ~70 min, ~9 GB),
+`shoot_fwd.sh` (fwd_block_shot small scenes; `DRIVER=opengl3` the minutes loop; `PLACES=`, `EXTRA=`),
+`measure.py`, `sheet.py` (contact sheet), `pairs.py` (before / after jpgs), `eye_probe.gd` (a street
+EYE for a point). still_shot.gd's SHOTS take a 4th field, the weather; fwd_block_shot.gd takes
+`FREE_PREV=1`, `EXTRA=`, a weather in the EYE's 7th field, `PICK=` and `GLOBALS=1`. Lavapipe needs a
+temporary `override.cfg` with `[threading] worker_pool/max_threads=1` for the suburb and beach scenes
+(12.7 GB peak); never commit it.
+
+Checks: `tests/night_street_review_checks.gd` (the tuned numbers and the switch, the sky blend, a lamp
+placed the same on and off, the reflection only in FULL chunks and capped, the shaders' tunables and
+colour handling, `lamp_gain`).
+
+Not done / not seen: the Wilshire small scene (fwd_block_shot) draws an empty ground plane there, so
+Wilshire was judged on opengl3 only; Broadway was never seen on Forward+ (does not fit lavapipe); the
+rain streaks on opengl3 read a touch thin and white near the eye - `width_share` / `gain` in
+night_wet.gdshader are the knobs; the suburb stays dark between lamps (its lamps are 40 m apart and
+the gardens are unlit, which is how it is), 20 % holes.
