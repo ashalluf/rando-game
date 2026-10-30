@@ -319,6 +319,13 @@ already mapped so milestone 2 is script-only.
   right of way (corridor lots only); boulevard stairs run along the back of the pavement; built in
   code into one mesh and one material a bridge; planting under a bridge is collapsed after its
   rolls, so nothing else on a seed moves.
+- **2026-10-30 Beach bonfire rings at night (HANDOFF "Beach bonfire rings").** Concrete fire
+  rings in a row along the beach above the tide line (hashes per 24 m of shore, nothing else on
+  the beach moves; the sunbathers keep clear of them), empty by day, about six in ten lit after
+  dusk (none in rain, a storm or a Santa Ana) with CarDamage's flames, embers, wood smoke, a pool
+  of firelight and a budgeted flickering light, and 2-6 people in street clothes round each (the
+  beach's baked figures, clothed). LOD chunks lay the pools so the coast reads as a row of fires
+  from the air. `BONFIRES=0` is the A/B.
 
 - **2026-10-29 The harbour's lights (HANDOFF "The harbour's lights").** A lighthouse on the
   headland's south-east cliff and a breakwater light at the end of a long rubble breakwater off the

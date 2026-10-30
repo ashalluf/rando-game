@@ -5163,6 +5163,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   one `bam_*` batch per mesh a chunk; LOD / far: the two buildings as plain lod_boxes.
   `BEACH_AMENITIES=0` is the A/B; probe `tools/beach_amenities/probe.gd` (EYEs); checks
   `tests/beach_amenities_checks.gd`.
+- Beach bonfires (2026-10-30, docs/HANDOFF.md "Beach bonfire rings"): `Bonfires`
+  (`scripts/world/bonfires.gd`, pure `rings_in()` / `group()` / `lit_at()`, hashes of seed + a
+  `RING_CELL` 24 m shore cell + the night) puts precast concrete fire rings (code-built,
+  `shaders/bonfire.gdshader`, kind in COLOR.a x 8) above the tide line, built from one line in
+  `CityChunk._build_beach()` BEFORE BeachLife (the rings join the sunbathers' obstacles). After
+  dusk some burn (`BonfireFire`: CarDamage's flame material, embers, wood smoke, a sand pool, the
+  nearest `LIGHT_BUDGET` carry a flickering OmniLight on desktop) with a group round each
+  (`BonfireFigure`, BeachFigure bakes in STREET CLOTHES: `BeachGoer.clothed`). None in rain,
+  storms or a Santa Ana. LOD chunks lay the pools. `BONFIRES=0` the A/B, `BONFIRE_LIT=1` lights
+  every ring; probe `tools/bonfires/probe.gd`; checks `tests/bonfires_checks.gd`.
 - The hero (owner, 2026-09-24: "Blender with real fingers from scratch AAA studio level"):
   `assets/models/hero.glb`, built by **`tools/hero/`** in Blender 4.2 with MPFB2 from CC0
   MakeHuman assets plus our own tracksuit, rib tank, rope chain, watch, ring, laced sneakers and

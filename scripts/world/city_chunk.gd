@@ -1281,6 +1281,7 @@ func _build_beach(block: Dictionary) -> void:
 		if not capturing:
 			BeachLife.build_lod(self, life_z.x, life_z.y)
 		BeachAmenities.build_lod(self, life_z.x, life_z.y)
+			Bonfires.build_lod(self, life_z.x, life_z.y)
 		return
 	for sr: Rect2 in MarinaBuild.sand_rects(self, owned_rect() if _replica != null else Rect2(block.rect.position, Vector2(block.rect.size.x, owned_rect().end.y - block.rect.position.y))):
 		_build_surf_spray(sr)
@@ -1336,6 +1337,8 @@ func _build_beach(block: Dictionary) -> void:
 	# The beach's people keep out of the marina's channel and off its jetties.
 	obstacles.append_array(MarinaBuild.beach_obstacles(self))
 	obstacles.append_array(BeachAmenities.build(self, life_z.x, life_z.y, obstacles))
+	# The bonfire rings (Bonfires: hashes only), added to the obstacles the sunbathers keep off.
+	Bonfires.build(self, life_z.x, life_z.y, obstacles)
 	BeachLife.build(self, life_z.x, life_z.y, obstacles, tower)
 
 

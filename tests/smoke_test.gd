@@ -88,7 +88,7 @@ const PART_COST := {
 	"port_life_checks": 20.8, "canals_checks": 0.8, "pier_park_checks": 17.7,
 	"marina_checks": 0.2, "explosion_aftermath_checks": 9.4, "building_damage_checks": 0.1,
 	"schools_checks": 1.3, "minimap_checks": 0.5, "weather_la_checks": 0.1,
-	"stack_interchange_checks": 6.0
+	"stack_interchange_checks": 6.0, "bonfires_checks": 3.0
 }
 const DEFAULT_COST := 6.0
 ## Every share pays for its own city load on top of its parts.
@@ -2161,6 +2161,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# the front rows first, batches and figures on a FULL chunk, woken people, gunfire scattering
 	# them, the block's palms unmoved, the LOD dots, nobody at night, the cyclist's legs on the pedals.
 	load("res://tests/beach_life_checks.gd").new().run(self, city)
+	# Beach bonfire rings (tests/bonfires_checks.gd): rings above the tide line, lit after dusk with
+	# people round them, empty by day, the LOD pools, nothing else on the beach moved.
+	load("res://tests/bonfires_checks.gd").new().run(self, city)
 	# Broadway's theatre district (tests/broadway_checks.gd): palaces on their real addresses, one
 	# sign surface each, the lanterns, goods and clock, the far boxes, nothing else in the block moved.
 	load("res://tests/broadway_checks.gd").new().run(self, city)
