@@ -24,7 +24,9 @@ extends Node
 ## the hill shells, AB=1 saves every frame again without them (<name>_noshells.png), DEBUG_SEQ=1,3
 ## saves it again in those shell debug modes (<name>_dbgN.png), GEO=1 prints each frame's
 ## triangles and draws, SHELL_DEBUG=1 draws
-## the shells solid (hill_shells.gdshader debug_mode), PROFILE=n profiles n frames with the shells
+## the shells solid (hill_shells.gdshader debug_mode), TERRAIN_DEBUG=1 paints the terrain's splat
+## (r brush, g bare, b rock), =2 drops the fine erosion's normal, =3 the canopy's (terrain.gdshader
+## debug_mode), PROFILE=n profiles n frames with the shells
 ## and n without (run with --gpu-profile under Forward+; see the block after the shot).
 
 ## The horizon plane's material (GROUND=1), for DayNight's haze and smog (DAYNIGHT=1).

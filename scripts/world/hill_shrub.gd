@@ -13,8 +13,10 @@ extends RefCounted
 ## variant and cached; warmed on the loading screen with LaTrees (warm()).
 
 const VARIANTS := 3
-## Native height (metres); instances are scaled to the planted height.
-const HEIGHT := 2.2
+## Native height (metres, the leaves' top); instances are scaled to the planted height. The dome
+## is grown to CROWN_TOP and its sprigs stand out over it to about this.
+const HEIGHT := 2.8
+const CROWN_TOP := 2.2
 ## Leaf colours (linear, LaTrees' vertex colours): the dusty grey-green of chamise and scrub oak
 ## in late summer, a little lighter than the painted stand (whose colour holds the shade between
 ## the bushes).
@@ -74,7 +76,7 @@ static func _grow(v: int) -> LaTrees.TreeData:
 	rng.seed = hash(["hill_shrub", v])
 	var d := LaTrees.TreeData.new()
 	var cr := Vector2(1.55 + 0.15 * v, 1.05)
-	var centre := Vector3(0.0, HEIGHT - cr.y, 0.0)
+	var centre := Vector3(0.0, CROWN_TOP - cr.y, 0.0)
 	d.crown = {"centre": centre, "radii": Vector3(cr.x, cr.y, cr.x)}
 	var p := {"cluster_r": 0.46, "leaves": 14, "leaf_len": 0.3, "leaf_w": 0.2, "leaf_kind": LaTrees.L_SPRIG,
 		"sprig": 0, "mode": "up", "leaf_segs": 1, "droop": 0.0, "cluster_style": 0}

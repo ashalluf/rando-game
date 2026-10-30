@@ -3417,6 +3417,15 @@ already mapped so milestone 2 is script-only.
   worked out once against the same surface function the concrete is built from and played from a
   clock (nothing simulated); they and the spectators are baked figures that wake into live people.
   SKATE_PARK=0 keeps the boxes.
+- **2026-10-30 The hills' leopard spots were the fine erosion's normal; stands are masses of the
+  land.** (hill-ground-3) The dark blobs evenly over every slope in the hills still were not the paint
+  or the planting: the 55 / 27 m erosion orders drawn as shading were 7 m deep with neighbouring
+  cells half a stripe out of phase, so each gully was a braid of pits, black under an afternoon sun.
+  Now 3 m, nearly in phase: rills. The stand noise was 70 % shrub-scale octaves, which fade with
+  distance into a share tone (khaki from 150 m); now the patch octaves, the drainage and the rills
+  themselves (brush down each rill) decide, and the bushes only rag the edges. The searsia shrub
+  (black leaf atlas, dark sprigs) is replaced on the stands by a code-built chaparral mound
+  (HillShrub, LaTrees' machinery). HILL_GROUND_3=0 puts everything back.
 
 ## Correction: what build 135 (0ce833f) actually contained
 
