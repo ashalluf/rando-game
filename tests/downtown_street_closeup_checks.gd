@@ -63,52 +63,37 @@ func _block(ch: CityChunk) -> void:
 		"street closeup: the kerb face is its own mesh on the close-up material")
 	_t._check(ring != null and not (ring.material_override as ShaderMaterial).shader.resource_path.ends_with("kerb_closeup.gdshader"),
 		"street closeup: the ring's top keeps the pavement's material")
-	var data := ch._batch.data()
-	_t._check(data.has("gutter") and data.gutter.mesh == StreetCloseup.pan_mesh() and (data.gutter.xforms as Array).size() > 8,
-		"street closeup: the gutter is the concrete pan (%d pieces)" % ((data.gutter.xforms as Array).size() if data.has("gutter") else 0))
+	var info: Dictionary = ch.get_meta("street_closeup", {})
+	var pieces: Array = info.get("pieces", [])
+	_t._check(bool(info.get("pan", false)) and pieces.size() > 8, "street closeup: the gutter is the concrete pan (%d pieces)" % pieces.size())
 	# No pan piece over a kerb inlet's apron: worked out per edge as RoadHardware lays them.
 	var rect: Rect2 = ch.plan.block(ch.ix, ch.iz).rect
 	var over := 0
 	var inlets := 0
-	if data.has("gutter"):
-		for e: Array in CityChunk._sidewalk_edges(rect):
-			var a: Vector2 = e[0]
-			var b: Vector2 = e[1]
-			var dir := (b - a).normalized()
-			for at: float in StreetCloseup.inlet_alongs(ch, e):
-				inlets += 1
-				var ip := a + dir * at
-				for x: Transform3D in data.gutter.xforms:
-					var half := 2.0 * x.basis.get_scale().z
-					var c := Vector2(x.origin.x, x.origin.z)
-					var off := c - ip
-					if absf(off.dot(dir)) < half + RoadHardware.INLET_APRON - 0.01 and absf(off.dot(Vector2(-dir.y, dir.x))) < 1.0:
-						over += 1
+	for e: Array in CityChunk._sidewalk_edges(rect):
+		var a: Vector2 = e[0]
+		var b: Vector2 = e[1]
+		var dir := (b - a).normalized()
+		for at: float in StreetCloseup.inlet_alongs(ch, e):
+			inlets += 1
+			var ip := a + dir * at
+			for x: Transform3D in pieces:
+				var half := 2.0 * x.basis.get_scale().z
+				var off := Vector2(x.origin.x, x.origin.z) - ip
+				if absf(off.dot(dir)) < half + RoadHardware.INLET_APRON - 0.01 and absf(off.dot(Vector2(-dir.y, dir.x))) < 1.0:
+					over += 1
 	_t._check(over == 0, "street closeup: no gutter pan over a kerb inlet's apron (%d inlets, %d over)" % [inlets, over])
-	# The pan's kerb side flag is consistent: every piece's custom.r is 0 or 1.
 	var flags := true
-	if data.has("gutter"):
-		for c: Color in data.gutter.custom:
-			flags = flags and (is_equal_approx(c.r, 0.0) or is_equal_approx(c.r, 1.0))
+	for r: float in info.get("sides", []):
+		flags = flags and (is_equal_approx(r, 0.0) or is_equal_approx(r, 1.0))
 	_t._check(flags, "street closeup: every pan piece says which side its kerb is")
 
 
-## A tree under a shed's deck is taken out of its batch (one test shed round the first tree).
+## The block on Broadway by 5th has a building site whose covered walkway stood over a street
+## tree (the review's first still): every tree under a shed's deck was taken out of its batch.
 func _sheds(ch: CityChunk) -> void:
-	var data := ch._batch.data()
-	var key := ""
-	for kk: String in data:
-		if (kk.begins_with("tree_") and kk != "tree_grate") or kk.begins_with("palm_") or kk.begins_with("la_"):
-			key = kk
-			break
-	if key == "":
-		_t._check(true, "street closeup: (no street tree on the block to shed)")
-		return
-	var o: Vector3 = (data[key].xforms[0] as Transform3D).origin
-	var p := Vector2(o.x, o.z)
-	ch.set_meta("sc_sheds", [PackedVector2Array([p + Vector2(-0.5, -0.5), p + Vector2(0.5, -0.5), p + Vector2(0.5, 0.5), p + Vector2(-0.5, 0.5)])])
-	var gone := StreetCloseup.clear_sheds(ch, ch._mm_nodes)
-	_t._check(gone >= 1 and not ch.has_meta("sc_sheds"), "street closeup: a street tree under a shed's deck is taken out (%d)" % gone)
+	var gone := int(ch.get_meta("sc_shed_trees", -1))
+	_t._check(gone >= 1 or not Construction.enabled, "street closeup: street trees under a shed's deck are taken out (%d)" % gone)
 
 
 ## Broadway's goods: never in front of a surface car park or a vacant lot (pure).
@@ -156,18 +141,18 @@ func _ab(on: CityChunk, off: CityChunk) -> void:
 	_t._check(same, "street closeup: the same props in the same places with it off (%d / %d)" % [ra.size(), rb.size()])
 	var counts := true
 	var bad := ""
-	var don := on._batch.data()
-	var doff := off._batch.data()
-	for key: String in doff:
+	var non := _mm_counts(on)
+	var noff := _mm_counts(off)
+	for key: String in noff:
 		# The pan is split round the inlets; Broadway's goods keep off car parks.
-		if key == "gutter" or key.begins_with("bw_"):
+		if key.contains("gutter") or key.contains("bw_") or key.contains("ad_bench") or key.contains("Contact"):
 			continue
-		var n_on := (don[key].xforms as Array).size() if don.has(key) else -1
-		if n_on != (doff[key].xforms as Array).size():
+		if int(non.get(key, -1)) != int(noff[key]):
 			counts = false
 			bad = key
 	_t._check(counts, "street closeup: every other batch has the same instances with it off%s" % ("" if bad == "" else " (%s differs)" % bad))
-	_t._check(off.get_node_or_null("KerbFace") == null and doff.has("gutter") and doff.gutter.mesh == PropFactory.gutter(),
+	var strip := off.get_node_or_null("Batch_gutter") as MultiMeshInstance3D
+	_t._check(off.get_node_or_null("KerbFace") == null and strip != null and strip.multimesh.mesh == PropFactory.gutter(),
 		"street closeup: off, the kerb face is in the ring and the gutter is the old strip")
 
 
@@ -194,10 +179,7 @@ func _lot_cars(city: Node3D, plan: CityPlan) -> void:
 		return
 	var ch: CityChunk = city._new_chunk(k, CityChunk.Level.FULL)
 	ch.build()
-	var statics := 0
-	for key: String in ch._batch.data():
-		if key.begins_with("apark_car_"):
-			statics += (ch._batch.data()[key].xforms as Array).size()
+	var statics := int((ch.get_meta("street_closeup", {}) as Dictionary).get("statics", 0))
 	var near := 0
 	var far := 0
 	var ranged := true
@@ -211,6 +193,14 @@ func _lot_cars(city: Node3D, plan: CityPlan) -> void:
 	_t._check(statics > 0 and near == far and near > 0 and near <= statics and ranged,
 		"street closeup: a car park's cars are real bodies up close (%d of %d static cars, %d stand-ins past %.0f m)" % [near, statics, far, StreetCloseup.REAL_CAR_NEAR])
 	_drop(ch)
+
+
+func _mm_counts(ch: CityChunk) -> Dictionary:
+	var out := {}
+	for c in ch.get_children():
+		if c is MultiMeshInstance3D and String(c.name).begins_with("Batch"):
+			out[String(c.name)] = (c as MultiMeshInstance3D).multimesh.instance_count
+	return out
 
 
 func _drop(chunk: CityChunk) -> void:

@@ -243,7 +243,9 @@ static func commit_cars(ch: CityChunk, nodes: Dictionary) -> void:
 		cell.far[kind].append([xf, c[4]])
 		var hk := [seed_v, snappedf(p.x, 0.1), snappedf(p.z, 0.1), "sc_car"]
 		var t: int = CarParkBuild.REAL_TYPES[CarParkBuild._pick_type(_h01(hk + ["body"]))]
-		var rp: Color = Vehicle.PAINTS[absi(hash(hk + ["paint"])) % Vehicle.PAINTS.size()]
+		# The static car's own paint (LotFill's roll), so the car does not change colour at the
+		# hand-over to the stand-in.
+		var rp: Color = c[4]
 		if not (cell.near as Dictionary).has(t):
 			cell.near[t] = []
 		cell.near[t].append([xf, rp])
@@ -261,31 +263,10 @@ static func commit_cars(ch: CityChunk, nodes: Dictionary) -> void:
 			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		for t: int in cell.near:
 			var body := CarParkBuild.real_body(t)
-			var mmi := _real_mmi(body.mesh, cell.near[t], body.offset)
+			var mmi := CarParkBuild._car_mmi(body.mesh, cell.near[t], body.offset, true)
 			mmi.name = "LotRealCars%d_%d_%d" % [t, ck.x, ck.y]
 			_seat(ch, mmi, bounds)
 			mmi.visibility_range_end = REAL_CAR_NEAR
-
-
-## The real bodies of a cell: paint per instance in the custom data (car_park_car.gdshader).
-## Instance colours are on too (white): on the Compatibility renderer a MultiMesh with custom data
-## and no colours handed the shader garbage for the paint (neon pinks and cyans in the stills).
-static func _real_mmi(mesh: Mesh, cars: Array, offset: Vector3) -> MultiMeshInstance3D:
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_colors = true
-	mm.use_custom_data = true
-	mm.mesh = mesh
-	mm.instance_count = cars.size()
-	for i in cars.size():
-		var c: Array = cars[i]
-		mm.set_instance_transform(i, (c[0] as Transform3D) * Transform3D(Basis(), offset))
-		var p: Color = c[1]
-		mm.set_instance_color(i, Color.WHITE)
-		mm.set_instance_custom_data(i, Color(p.r, p.g, p.b, 1.0))
-	var mmi := MultiMeshInstance3D.new()
-	mmi.multimesh = mm
-	return mmi
 
 
 ## A cell's MultiMesh in the chunk with the cell's bounds (all of a cell's groups measure their
@@ -310,30 +291,55 @@ static func note_shed(ch: CityChunk, poly: PackedVector2Array) -> void:
 	(ch.get_meta("sc_sheds") as Array).append(poly)
 
 
-## The street trees whose trunks stand under a shed's deck: their trunks went up through it. A
-## shed goes up where the trees were boxed and taken down for the works; the tree's grate stays.
-## Returns how many were taken out (the checks read it).
-static func clear_sheds(ch: CityChunk, nodes: Dictionary) -> int:
+## Just before the chunk's batches are built (they clear their instance lists as they build): the
+## street trees whose trunks stand under a shed's deck - their trunks went up through it; a shed
+## goes up where the trees were boxed and taken down for the works, the grate stays - and what the
+## checks read back (`street_closeup` meta: the gutter's pieces, the static lot cars).
+static func before_build(ch: CityChunk) -> void:
+	if not enabled:
+		return
+	var data := ch._batch.data()
+	var info := {"pieces": [], "sides": [], "pan": false, "statics": 0}
+	if data.has("gutter"):
+		info.pan = data.gutter.mesh == pan_mesh()
+		info.pieces = (data.gutter.xforms as Array).duplicate()
+		for c: Color in data.gutter.custom:
+			(info.sides as Array).append(c.r)
+	for key: String in data:
+		if key.begins_with("apark_car_"):
+			info.statics += (data[key].xforms as Array).size()
+	ch.set_meta("street_closeup", info)
 	if not ch.has_meta("sc_sheds"):
-		return 0
+		return
 	var sheds: Array = ch.get_meta("sc_sheds")
 	ch.remove_meta("sc_sheds")
-	var data := ch._batch.data()
-	var gone := 0
+	var hits: Array = []
 	for key: String in data:
 		if not (key.begins_with("palm_") or key.begins_with("la_") or (key.begins_with("tree_") and key != "tree_grate")):
-			continue
-		var node := nodes.get(key) as MultiMeshInstance3D
-		if node == null:
 			continue
 		var xforms: Array = data[key].xforms
 		for i in xforms.size():
 			var o: Vector3 = (xforms[i] as Transform3D).origin
 			for poly: PackedVector2Array in sheds:
 				if Geometry2D.is_point_in_polygon(Vector2(o.x, o.z), poly):
-					MultiMeshBatch.hide_instance(node, i)
-					gone += 1
+					hits.append([key, i])
 					break
+	ch.set_meta("sc_shed_hits", hits)
+
+
+## Once built: those trees out of their batches (hide_instance(): the shadow twin too). Returns how
+## many (the checks read it).
+static func clear_sheds(ch: CityChunk, nodes: Dictionary) -> int:
+	if not ch.has_meta("sc_shed_hits"):
+		return 0
+	var hits: Array = ch.get_meta("sc_shed_hits")
+	ch.remove_meta("sc_shed_hits")
+	var gone := 0
+	for h: Array in hits:
+		var node := nodes.get(h[0]) as MultiMeshInstance3D
+		if node:
+			MultiMeshBatch.hide_instance(node, int(h[1]))
+			gone += 1
 	ch.set_meta("sc_shed_trees", gone)
 	return gone
 

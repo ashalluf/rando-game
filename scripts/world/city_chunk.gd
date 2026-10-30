@@ -604,6 +604,7 @@ func _finish_build() -> void:
 	_commit_boxes()
 	FreightKit.clear_road_decals(self)
 	var fire_trees := TreeFire.collect(self, _batch)
+	StreetCloseup.before_build(self)
 	_mm_nodes = _batch.build(self)
 	TreeFire.attach(self, fire_trees, _mm_nodes)
 	StreetCloseup.commit_cars(self, _mm_nodes)
