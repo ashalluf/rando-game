@@ -317,10 +317,11 @@ func _limb_blood() -> bool:
 		return false
 	for id: int in _limb_trails.keys():
 		var entry: Array = _limb_trails[id]
-		var limb := entry[0] as RigidBody3D
-		if not is_instance_valid(limb) or int(entry[1]) <= 0 or _age > 8.0:
+		# A freed limb (debris timeout, the chunk gone) cannot even be cast: test it first.
+		if not is_instance_valid(entry[0]) or int(entry[1]) <= 0 or _age > 8.0:
 			_limb_trails.erase(id)
 			continue
+		var limb := entry[0] as RigidBody3D
 		var ground := _ground_under(limb.global_position)
 		if ground.is_empty():
 			continue
