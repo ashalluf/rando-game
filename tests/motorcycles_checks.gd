@@ -160,6 +160,11 @@ func _parked() -> void:
 	for m: Motorcycle in bikes:
 		asleep = asleep and PhysicsServer3D.body_get_state(m.get_rid(), PhysicsServer3D.BODY_STATE_SLEEPING)
 	_check(asleep, "a parked bike goes to sleep (Vehicle.settle)")
+	var ea: GDScript = load("res://scripts/vehicles/engine_audio.gd")
+	var voices: Array = []
+	for m: Motorcycle in bikes:
+		voices.append(String(ea.call("profile_for", m)))
+	_check(voices.all(func(v): return v == "moto"), "every bike is voiced as the engine pass's V-twin (%s)" % ", ".join(voices))
 
 
 func _ride() -> void:

@@ -287,6 +287,8 @@ func _init() -> void:
 
 func _ready() -> void:
 	kind = kind_of(body_type)
+	# The engine-audio pass voices a bike as its V-twin (EngineAudio.profile_for()).
+	set_meta("engine_profile", "moto")
 	var ph: Dictionary = PHYS[kind]
 	engine_power = float(ph.power)
 	reverse_power = 600.0
@@ -715,13 +717,17 @@ func _physics_process(delta: float) -> void:
 		return
 	if PhysicsServer3D.body_get_state(get_rid(), PhysicsServer3D.BODY_STATE_SLEEPING):
 		PhysicsServer3D.body_set_state(get_rid(), PhysicsServer3D.BODY_STATE_SLEEPING, false)
-	if _engine_sound == null:
-		_engine_sound = Sfx.loop_player("engine_loop", -10.0)
-		add_child(_engine_sound)
-	if not _engine_sound.playing:
-		_engine_sound.play()
 	var speed := linear_velocity.dot(-global_basis.z)
-	_engine_sound.pitch_scale = (1.0 if kind != Kind.SCOOTER else 1.5) + clampf(absf(speed) / top_speed, 0.0, 1.0) * 1.6
+	if EngineAudio.covers(self): # the engine-audio pass voices it (scripts/vehicles/engine_audio.gd)
+		if _engine_sound and _engine_sound.playing:
+			_engine_sound.stop()
+	else:
+		if _engine_sound == null:
+			_engine_sound = Sfx.loop_player("engine_loop", -10.0)
+			add_child(_engine_sound)
+		if not _engine_sound.playing:
+			_engine_sound.play()
+		_engine_sound.pitch_scale = (1.0 if kind != Kind.SCOOTER else 1.5) + clampf(absf(speed) / top_speed, 0.0, 1.0) * 1.6
 	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var throttle := -input.y
 	var boosting := Input.is_action_pressed("boost")
