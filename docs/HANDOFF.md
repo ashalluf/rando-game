@@ -15031,3 +15031,9 @@ code-built by `MeetKit` (`scripts/world/meet_kit.gd`) into ONE vertex-coloured m
 (`MeetChairs`, drawn to 90 m, no collision), each pair registered with `CrowdLife.add_seat()` so a
 passer-by's SIT can take it. Two new checks (33 in all). Forward+ seen at last (lavapipe,
 `car_shot.gd` and `fwd_block_shot.tscn` at the meet): see the stills README.
+Gate on the branch merged with main eb75a10: `SHARDS=3` shards 0 and 1 passed (860 + 1,000). Shard 2
+failed four far-city checks (three "every city block out to the horizon is drawn", 338 gaps at
+alpha -1, and "the far city keeps its tiles for the load cache") on a WARM `user://load_cache` left
+by earlier runs. Rerun alone after deleting that cache, it passed (691, the lowrider checks
+included): the LoadCache's far-city tiles from an older run are restored wrongly (load-time's area,
+not this branch's). Peak RSS 2.4 GB a shard. Main's `horn` action took H, so the hydraulics are on X.
