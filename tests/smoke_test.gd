@@ -1798,7 +1798,7 @@ func _city_polish(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void
 	var cars_seen := 0
 	for car in traffic_cars_for_lights(city):
 		cars_seen += 1
-		var lights: Node = (car as Node).get_node_or_null("NightLights")
+		var lights: Node = (car as Node).find_child("NightLights", true, false)  # a motorcycle's leans with it, under its Pose
 		if lights and (lights as MeshInstance3D).mesh and (lights as MeshInstance3D).mesh.surface_get_material(0) is ShaderMaterial:
 			car_lights += 1
 	_check(cars_seen > 0 and car_lights == cars_seen, "cars carry head and tail lights (%d of %d)" % [car_lights, cars_seen])
