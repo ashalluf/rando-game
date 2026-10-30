@@ -19466,3 +19466,24 @@ with the shader's rule; the ocean material carries the grids; `OCEAN_CLOSEUP=0` 
 `tools/glshot/fwd_block_shot.tscn` with `BLOCKS=3` (the pier is in reach: a minute a still on
 opengl3, the city's real sky and weather). EYEs: the pier's end `-1218,8.6,-345,90,-9`, under the
 pier `-1121,1.8,-368,180,-8`, the beach `-962,2.2,-250,92,-3`, a boat's eye `-1300,1.1,-250,90,-1.5`.
+
+**Stills** (`shots/ocean-closeup`, before = `OCEAN_CLOSEUP=0`): 01-18 the city on opengl3 at noon,
+17:36 and 21:30 from the four EYEs above; 19-22 Forward+ on lavapipe (`fwd_block_shot.tscn`,
+`BLOCKS=1`, under the pier in the surf at `-1005,1.8,-368,180,-8` and the pier from the surf at
+`-1005,1.2,-300,90,-3`); 23-26 overcast on opengl3 (`fwd_block_shot.tscn`, `BLOCKS=3`).
+
+**Frame cost.** Geometry: identical on the pier and open-water EYEs (`GEO` 433,256 tris / 143
+draws either way); on EYEs that see a BEACH chunk's shore the new sea slice adds one water mesh
+and its floor box per such chunk: the beach EYE 922,462 -> 933,132 tris, 243 -> 245 draws; under
+the pier 2.53 M -> 2.55 M, 816 -> 822 draws (FULL and LOD chunks in view). Shader: on llvmpipe
+(opengl3, 960x540, water ~70 % of the frame, under the pier at noon), 200 extra frames took 0.477
+s a frame off and 0.497 s on: about +4 % of the frame. Everything is gated on `rich` and `near_c`
+(the open sea past 210-470 m pays only the branch tests), the Worley lace only within 45-90 m.
+
+**Not done / not verified:** the Redondo pier's arc and the Manhattan pier's head ring have no
+pile foam (their piles are not on a straight grid); the marina's boats float on
+`marina_water.gdshader`, which this pass does not touch; anchored ships and parked boats are not in
+the wakes list, so they get no hull foam line (only vessels under way and the holding tug do); no
+Forward+ still at golden hour or night (lavapipe runs were noon only); the swimmer's SWIM_STAGE
+views were not shot (a boat's-eye EYE stands in for water level). The web build was not exported
+(nothing new there: no sampler, everything behind `ground_detail`).
