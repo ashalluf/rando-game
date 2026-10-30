@@ -20851,3 +20851,9 @@ setting's). The quads are one transparent draw plus one a FULL chunk.
 proves nothing about shimmer); the web build was not exported (the quads use only what
 Compatibility has); a park UNDER trees (the spot picked was a rec park's courts); interiors behind
 open doors are the traced shop rooms, untouched.
+
+**Gate** (`SHARDS=3`, after merging main at 1865ef2b): 4,064 of 4,066 checks pass; the two failures
+are `explosions_2` (the flash light and "nothing left behind"), timing-sensitive to what earlier
+checks in the shard leave (main's CI 383 patched the same check for that). `SMOKE_PARTS=
+crash_deform_checks,explosions_2_checks` passes 80/80 both with and without `GI_REVIEW=0`. The
+first gate also caught a real error of this branch (ContactShadows cast a pooled, freed car), fixed.
