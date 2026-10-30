@@ -93,7 +93,7 @@ func _schedule(ads: SkyAds) -> void:
 
 func _meshes() -> void:
 	var tc := SkyAdMesh.triangle_counts()
-	_t._check(int(tc.blimp) > 4000 and int(tc.blimp) < 14000, "the blimp is real geometry within budget (%d triangles)" % tc.blimp)
+	_t._check(int(tc.blimp) > 4000 and int(tc.blimp) < 16000, "the blimp is real geometry within budget (%d triangles)" % tc.blimp)
 	_t._check(int(tc.plane) > 500 and int(tc.plane) < 2500, "the tow plane is real geometry within budget (%d triangles)" % tc.plane)
 	_t._check(SkyAdMesh.env_radius(SkyAdMesh.ENV_LENGTH * SkyAdMesh.ENV_PEAK) > 7.5 and SkyAdMesh.env_radius(1.0) < 3.0 and SkyAdMesh.env_radius(SkyAdMesh.ENV_LENGTH) < 0.5,
 		"the envelope swells to its 15 m girth and closes at both ends")

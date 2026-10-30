@@ -258,20 +258,36 @@ class Geo:
 
 	## Text laid by `place` (a Callable taking a Vector2 in metres of text, centred, and
 	## returning [position, normal]), `height` metres tall.
-	func text(s: String, height: float, place: Callable, kind: int, col: Color, t2: Vector2 = Vector2.ZERO) -> float:
+	func text(s: String, height: float, place: Callable, kind: int, col: Color, t2: Vector2 = Vector2.ZERO, max_edge: float = 0.0) -> float:
 		var geo := FreewayKit.text_geo(s, height)
 		var verts: PackedVector3Array = geo[0]
 		var ids: PackedInt32Array = geo[1]
 		for t in range(0, ids.size() - 2, 3):
-			var pa: Array = place.call(Vector2(verts[ids[t]].x, verts[ids[t]].y))
-			var pb: Array = place.call(Vector2(verts[ids[t + 1]].x, verts[ids[t + 1]].y))
-			var pc: Array = place.call(Vector2(verts[ids[t + 2]].x, verts[ids[t + 2]].y))
-			var want: Vector3 = pa[1]
-			var a := vert(pa[0], want, kind, col, Vector2.ZERO, pa[2] if pa.size() > 2 else t2)
-			var b := vert(pb[0], pb[1], kind, col, Vector2.ZERO, pb[2] if pb.size() > 2 else t2)
-			var cc := vert(pc[0], pc[1], kind, col, Vector2.ZERO, pc[2] if pc.size() > 2 else t2)
-			tri(a, b, cc, want)
+			var qa := Vector2(verts[ids[t]].x, verts[ids[t]].y)
+			var qb := Vector2(verts[ids[t + 1]].x, verts[ids[t + 1]].y)
+			var qc := Vector2(verts[ids[t + 2]].x, verts[ids[t + 2]].y)
+			# On a curved surface a long triangle is a chord that sinks into it: split it into an
+			# n x n grid of small ones first (max_edge metres), each corner placed on the surface.
+			var n := 1
+			if max_edge > 0.0:
+				n = clampi(ceili(maxf(qa.distance_to(qb), maxf(qb.distance_to(qc), qc.distance_to(qa))) / max_edge), 1, 24)
+			for i in n:
+				for j in n - i:
+					_text_tri(qa, qb, qc, n, Vector2(i, j), Vector2(i + 1, j), Vector2(i, j + 1), place, kind, col, t2)
+					if j < n - i - 1:
+						_text_tri(qa, qb, qc, n, Vector2(i + 1, j), Vector2(i + 1, j + 1), Vector2(i, j + 1), place, kind, col, t2)
 		return geo[2]
+
+	func _text_tri(qa: Vector2, qb: Vector2, qc: Vector2, n: int, g0: Vector2, g1: Vector2, g2: Vector2, place: Callable, kind: int, col: Color, t2: Vector2) -> void:
+		var pts: Array = []
+		for gg: Vector2 in [g0, g1, g2]:
+			var q := qa + (qb - qa) * (gg.x / n) + (qc - qa) * (gg.y / n)
+			pts.append(place.call(q))
+		var want: Vector3 = pts[0][1]
+		var a := vert(pts[0][0], pts[0][1], kind, col, Vector2.ZERO, pts[0][2] if pts[0].size() > 2 else t2)
+		var b := vert(pts[1][0], pts[1][1], kind, col, Vector2.ZERO, pts[1][2] if pts[1].size() > 2 else t2)
+		var cc := vert(pts[2][0], pts[2][1], kind, col, Vector2.ZERO, pts[2][2] if pts[2].size() > 2 else t2)
+		tri(a, b, cc, want)
 
 	func commit() -> ArrayMesh:
 		var arr := []
@@ -378,7 +394,7 @@ static func _build_blimp() -> Geo:
 			var nn := env_normal(u, a)
 			nn.x *= side
 			return [p, nn]
-		g.text("FIZZLY", 6.2, name_place, K_LETTER, red)
+		g.text("FIZZLY", 6.2, name_place, K_LETTER, Color(0.86, 0.05, 0.03), Vector2.ZERO, 0.7)
 		var line_place := func(q: Vector2) -> Array:
 			var u := 50.0 + (q.x if side < 0.0 else -q.x)
 			var a := PI * 0.5 + 0.55 - q.y / env_radius(u)
@@ -387,7 +403,7 @@ static func _build_blimp() -> Geo:
 			var nn := env_normal(u, a)
 			nn.x *= side
 			return [p, nn]
-		g.text("Taste the Loud.", 1.5, line_place, K_LETTER, Color(0.98, 0.95, 0.88))
+		g.text("Taste the Loud.", 1.5, line_place, K_LETTER, Color(0.98, 0.95, 0.88), Vector2.ZERO, 0.7)
 	# Four fins in an X, orange with a white tip band and a darker control surface.
 	for k in 4:
 		var a := PI * 0.25 + PI * 0.5 * k
