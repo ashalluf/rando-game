@@ -799,8 +799,8 @@ void sky() {
 			float sun_el = sdir.y;
 			// While the sunset is on the sun stays the key light under the horizon: the bases it
 			// still reaches glow (sun_through()'s shadow line), not the moon's grey.
-			bool sun_glow = sunset > 0.0 && sdir.y > -0.2;
-			if (sun_key < 0.01 && !sun_glow) {
+			bool glow_key = sunset > 0.0 && sdir.y > -0.2;
+			if (sun_key < 0.01 && !glow_key) {
 				sun_el = -2.0;
 				ldir = mdir;
 				lcol = moon_tint * moon_light * moon_lit * moon_lit * moon_vis * 0.9;
