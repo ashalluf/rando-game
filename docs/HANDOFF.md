@@ -20077,3 +20077,11 @@ failed, peak RSS 3,149 MB (shard 1).
 or brow motion); the skin's albedo is still MakeHuman's 2K body atlas (about 0.5 mm a texel on the
 face) - a dedicated 2K head map would be the next real step; the hair's top layer can still catch
 a bright patch at the crown against a low sun.
+Frame cost, downtown at Flower and Olympic (`--spawn=2359.4,880,0,2,2`, noon, opengl3, the blast
+24 m ahead; fx_shot.gd STATS, before = EXPLOSIONS_2=0): draws 3183-3192 -> 3210-3227 in the
+first second, 2595-2687 -> 2656-2714 from 2.5 to 18 s (+27 to +74 draws, 1-3 %); primitives
++10k to +69k (under 1.1 % of ~6.3-6.8 M). The process / physics times in those lines are llvmpipe
+and streaming noise (3.4-7.4 s a frame either way) and say nothing about the +2 ms budget; the
+CPU side is ~10 CPUParticles3D systems and one ray per debris piece a tick while a blast lives.
+The column's drift is a small acceleration (`gravity` 0.08 m/s2 sideways): at 0.45 it carried
+the column 70 m off its fire by 18 s.
