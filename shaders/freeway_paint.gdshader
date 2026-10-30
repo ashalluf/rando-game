@@ -40,6 +40,13 @@ uniform float sign_light = 0.55;
 uniform float sign_retro = 1.6;
 // Paint's own glass beads (dim, wide).
 uniform float paint_retro = 0.6;
+// The close-up pass (FreewayCloseup; FREEWAY_CLOSEUP=0 is the A/B): sign boards built of 12 in
+// extruded aluminium panels with their seams, clip bolts on the stringers and road grime, the
+// raised markers' housings, lenses (red seen from the wrong way) and black adhesive pads, dirt
+// rings round the Botts' dots, tyre grime on the paint.
+uniform bool closeup = true;
+uniform float panel_pitch = 0.305;
+uniform float stringer_pitch = 1.22;
 
 varying vec3 obj_pos;
 
@@ -111,6 +118,11 @@ void fragment() {
 		alb = col * mix(0.62, 1.0, smoothstep(wear, wear + 0.35, worn)) * (0.9 + 0.1 * vnoise(obj_pos.xz * 40.0));
 		rough = 0.68;
 		emit = col * lit * paint_retro;
+		if (closeup) {
+			// Tyre grime: where wheels cross a line it greys, in smudges a metre or two long.
+			float smudge = smoothstep(0.55, 0.85, vnoise(vec2(along * 0.45, across * 2.0)) * 0.7 + vnoise(vec2(along * 3.0, 9.0)) * 0.3);
+			alb = mix(alb, alb * 0.45 + vec3(0.02), smudge * 0.55);
+		}
 	} else if (kind == 3 || kind == 4) {
 		// Botts' dots and markers (3), or the yellow edge markers alone (4).
 		float x = (across - 0.5) * (kind == 3 ? 0.16 : 0.12);
@@ -120,6 +132,8 @@ void fragment() {
 		// a pixel and a half while the headlights reach it, so the line of glints runs on.
 		float mh = max(0.05, foot * (lit > 0.01 ? 0.75 : 0.0));
 		bool marker = abs(x) < min(mh, 0.06) && abs(y - mk_at) < mh;
+		// The black adhesive pad a marker is glued down on, a little proud of it.
+		bool pad = closeup && !marker && foot < 0.05 && length(vec2(x, (y - mk_at) * 0.85)) < 0.085;
 		bool dot_hit = false;
 		vec2 rel = vec2(0.0);
 		if (kind == 3 && !marker) {
@@ -128,13 +142,36 @@ void fragment() {
 			// Never under about a pixel across, so a line of dots still reads as one up the road.
 			dot_hit = length(rel) < min(max(dot_radius, foot * 0.55), 0.08) && foot < 0.12;
 		}
-		if (!marker && !dot_hit) {
+		if (!marker && !dot_hit && !pad) {
 			discard;
 		}
-		if (marker) {
+		if (pad) {
+			alb = vec3(0.012, 0.012, 0.013);
+			rough = 0.5;
+		} else if (marker) {
 			alb = col * 0.8;
 			rough = 0.3;
 			emit = col * lit * glint_energy;
+			if (closeup) {
+				// The housing: a low dome of white or yellow ABS, the lens faces at its two ends
+				// (along the road), tilted 30 degrees; a white marker's back lens is red, so the
+				// wrong way glints red.
+				vec2 fdir = length(UV2) > 0.5 ? normalize(UV2) : vec2(0.0, 1.0);
+				vec2 vh = normalize((cam - wp).xz + vec2(0.0001));
+				bool from_behind = dot(fdir, vh) < -0.1;
+				float ly = (y - mk_at) / mh;
+				float lens = smoothstep(0.55, 0.7, abs(ly));
+				bool white = col.r > 0.6 && col.b > 0.6;
+				vec3 lens_col = (white && from_behind) ? vec3(0.55, 0.03, 0.02) : col * 0.55;
+				alb = mix(alb * (0.92 + 0.08 * (1.0 - abs(ly))), lens_col, lens);
+				rough = mix(0.38, 0.08, lens);
+				if (white && from_behind) {
+					emit = vec3(0.9, 0.02, 0.01) * headlit(wp, -UV2, cam, fwd) * night * glint_energy * 0.7;
+				}
+				vec3 along_w = vec3(-fdir.x, 0.0, -fdir.y);
+				nrm_w = normalize(vec3(0.0, 1.0, 0.0) + along_w * clamp(ly, -1.0, 1.0) * 0.6);
+				dome = true;
+			}
 		} else {
 			// A ceramic dome: glossy white, its normal bulging out of the deck.
 			alb = vec3(0.80, 0.80, 0.77);
@@ -146,6 +183,10 @@ void fragment() {
 			nrm_w = normalize(vec3(0.0, 1.0, 0.0) * sqrt(max(1.0 - dot(d, d), 0.05)) + across_w * d.x * 0.9 + along_w * d.y * 0.9);
 			dome = true;
 			emit = alb * lit * 0.4;
+			if (closeup) {
+				// Road dirt ground into the dome's foot.
+				alb *= 1.0 - smoothstep(0.55, 1.0, length(d)) * 0.45;
+			}
 		}
 	} else if (kind == 5) {
 		// Carpool diamond: an elongated diamond outline on a quad (UV 0..1 both ways).
@@ -179,6 +220,47 @@ void fragment() {
 		rough = 0.42;
 		float wash = sign_light * (0.55 + 0.45 * (1.0 - clamp(UV.y, 0.0, 1.0)));
 		float retro = headlit(wp, UV2, cam, fwd) * sign_retro;
+		if (closeup) {
+			// The board in metres: the board's UV is 0..1, so solve the screen Jacobian for the
+			// metres per UV unit both ways.
+			vec3 dpx = dFdx(wp);
+			vec3 dpy = dFdy(wp);
+			vec2 dux = dFdx(UV);
+			vec2 duy = dFdy(UV);
+			float det = dux.x * duy.y - duy.x * dux.y;
+			if (abs(det) > 1e-14) {
+				vec3 dpdu = (dpx * duy.y - dpy * dux.y) / det;
+				vec3 dpdv = (dpy * dux.x - dpx * duy.x) / det;
+				vec2 bm = vec2(length(dpdu), length(dpdv));
+				// Round to the centimetre, so the panel grid does not crawl with the derivatives.
+				bm = round(bm * 100.0) / 100.0;
+				vec2 m = UV * bm;
+				float pxm = max(length(dpx), length(dpy));
+				// Panel seams: a dark hairline with a bright lip over it.
+				float pv = m.y / panel_pitch;
+				float sw = 1.0 - smoothstep(0.0, 1.0, pxm / 0.02);
+				float sdist = (0.5 - abs(fract(pv) - 0.5)) * panel_pitch;
+				float seam = (1.0 - smoothstep(0.003, 0.003 + pxm, sdist)) * sw;
+				// The lip: the panel above's edge, just over the seam, catches the light.
+				float lip = (1.0 - smoothstep(0.004, 0.012 + pxm, abs(sdist - 0.008))) * sw * (1.0 - step(0.5, fract(pv)));
+				alb = alb * (1.0 - seam * 0.6) + lip * 0.04;
+				// Clip bolts: two on every panel at every stringer.
+				float sx = m.x - stringer_pitch * 0.5;
+				vec2 bp = vec2(mod(sx, stringer_pitch) - stringer_pitch * 0.5, (fract(pv) - 0.5) * panel_pitch);
+				float bd = length(vec2(bp.x, abs(bp.y) - panel_pitch * 0.3));
+				float bolt = (1.0 - smoothstep(0.011, 0.011 + pxm, bd)) * (1.0 - smoothstep(0.004, 0.012, pxm));
+				alb = mix(alb, vec3(0.38, 0.38, 0.37), bolt);
+				rough = mix(rough, 0.35, bolt);
+				// Grime: streaks from the top edge down, a dirty band along the foot, sun fade high.
+				float streak = smoothstep(0.55, 0.85, vnoise(vec2(m.x * 2.2, m.y * 0.25))) * smoothstep(0.3, 1.0, UV.y);
+				float foot_b = 1.0 - smoothstep(0.0, 0.35, m.y);
+				alb = mix(alb, alb * 0.55 + vec3(0.012, 0.011, 0.009), clamp(streak * 0.45 + foot_b * 0.35, 0.0, 0.7));
+				alb *= 0.94 + 0.12 * vnoise(m * 1.3);
+				// Microprismatic sheeting: retroreflection in fine cells that sparkle.
+				float cell = hash12(floor(m / 0.004));
+				retro *= mix(1.0, 0.6 + 0.8 * cell, 1.0 - smoothstep(0.002, 0.006, pxm));
+			}
+		}
 		emit = col * night * (wash + retro);
 	}
 

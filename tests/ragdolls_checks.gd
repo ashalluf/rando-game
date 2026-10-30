@@ -28,6 +28,7 @@ func run(t: Node, city: Node3D) -> void:
 	RagdollJoints.joint_range = 100000.0 # wherever the camera stands by now
 	await _check_fall(city, chunk)
 	await _check_bonnet(city, chunk)
+	await _check_hard_tumbles(city, chunk)
 	await _check_gibs(city, chunk)
 	await _check_cap_and_range(city, chunk)
 	RagdollJoints.enabled = was[0]
@@ -156,8 +157,7 @@ func _check_fall(city: Node3D, chunk: Node3D) -> void:
 	_check(is_instance_valid(doll), "the doll lasts until it settles")
 	if not is_instance_valid(doll):
 		return
-	# 0.18 until wt/ragdolls stiffens the joints under load: CI 383 read 0.153 m, a loaded gate 0.125.
-	_check(worst < 0.18, "the joints hold while the doll tumbles (worst gap %.3f m)" % worst)
+	_check(worst < 0.1, "the joints hold while the doll tumbles (worst gap %.3f m)" % worst)
 	_check(froze_at >= 0, "the doll freezes into one body once it settles (after %.1f s)" % (froze_at / 60.0))
 	_check(doll.bodies.size() == 1 and doll.bodies.all(func(b): return is_instance_valid(b) and not b.is_queued_for_deletion()),
 		"a frozen doll is ONE live body again (%d)" % doll.bodies.size())
@@ -180,6 +180,48 @@ func _check_fall(city: Node3D, chunk: Node3D) -> void:
 	if hit:
 		bled = WeaponFX.bullet_wound(doll, hit, Vector3.DOWN, 1.0) and doll.bleed > 0.0
 	_check(bled, "a round into a frozen doll finds it and it bleeds")
+
+
+## Four dolls flung with the hardest spin fling() can roll (a hash, not the global rng, so every
+## run is the worst case): the light parts used to spin up to 90 rad/s on landing and the joints
+## pulled 15-30 cm open (CI 383; a gate under load), once flying apart. RagdollJoints' even inertia
+## and spin cap hold them.
+func _check_hard_tumbles(city: Node3D, chunk: Node3D) -> void:
+	var ground := _floor(city, chunk, 2)
+	await _ticks(2)
+	var dolls: Array[Ragdoll] = []
+	for k in 4:
+		var at := ground + Vector3(-4.5 + float(k) * 3.0, 0.05, float(k % 2) * 2.0 - 1.0)
+		var d := _doll_at(chunk, at, float(k) * 1.3, Vector3(float(k % 3) - 1.0, 1.5, 2.5 if k % 2 == 0 else -2.5) * 2.0)
+		if d._joints == null:
+			continue
+		# fling()'s spin at its extremes, signs from a hash of k.
+		var h := hash(["ragdoll_tumble", k])
+		var sg := func(bit: int) -> float: return 1.0 if (h >> bit) & 1 else -1.0
+		var w := Vector3(sg.call(0), sg.call(1), sg.call(2)) * RagdollJoints.tumble_spin
+		var list := d._joints.bodies()
+		for i in list.size():
+			var rb := list[i]
+			rb.angular_velocity = w
+			if i >= 3:
+				rb.angular_velocity += Vector3(sg.call(3 + i), sg.call(4 + i), sg.call(5 + i)) * RagdollJoints.limb_flail
+		dolls.append(d)
+	_check(dolls.size() == 4, "four hard-tumbling dolls are jointed (%d)" % dolls.size())
+	var worst := 0.0
+	var spin := 0.0
+	for i in 150:
+		await _ticks(1)
+		for d in dolls:
+			if is_instance_valid(d) and d._joints != null and not d._joints.frozen:
+				worst = maxf(worst, d._joints.gap())
+				for rb in d._joints.bodies():
+					spin = maxf(spin, rb.angular_velocity.length())
+	_check(worst < 0.1, "the joints hold through the hardest tumble (worst gap %.3f m)" % worst)
+	_check(spin <= RagdollJoints.max_spin + 40.0, "no part spins wildly (%.0f rad/s)" % spin)
+	for d in dolls:
+		if is_instance_valid(d):
+			d.queue_free()
+	await _ticks(1)
 
 
 ## Dropped onto a car-high box on the props layer (a bonnet) on a clear floor: it rests on top.

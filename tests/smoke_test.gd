@@ -2642,6 +2642,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The police at night (tests/police_night_look_checks.gd, PoliceNightLook): one flash clock, the
 	# glow, the budgeted strobes, the wall wash, roadblock flares, the searchlight's haze.
 	await load("res://tests/police_night_look_checks.gd").new().run(self, city)
+	# The freeway close up (tests/freeway_closeup_checks.gd, FreewayCloseup): the concrete deck's
+	# UVs and lane copy, the kit's close-up pass, no geometry or rolls moved, the rush-hour fill.
+	await load("res://tests/freeway_closeup_checks.gd").new().run(self, city)
 	# The third perf audit (tests/perf_audit_3_checks.gd): cache trims, the crowd feet's stagger,
 	# the sea's life idling inland, the night haze's daytime early-out.
 	await load("res://tests/perf_audit_3_checks.gd").new().run(self, city)

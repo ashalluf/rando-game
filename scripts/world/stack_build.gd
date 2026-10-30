@@ -87,8 +87,9 @@ static func _segment(kit: FreewayKit, stack: FreewayStack, l: Dictionary, k: int
 	var r0 := lat(fa, half, 0.0)
 	var l1 := lat(fb, -half, 0.0)
 	var r1 := lat(fb, half, 0.0)
+	var uvs := {l0: Vector2(run0, -half), r0: Vector2(run0, half), l1: Vector2(run1, -half), r1: Vector2(run1, half)}
 	for v: Vector3 in [l0, r1, r0, l0, l1, r1]:
-		kit.top.add_vertex(v)
+		kit.top_vertex(v, uvs[v], half, 0.0)
 	# Box girder: fascia, cantilever soffit, web, bottom slab.
 	var g := FreewayStack.GIRDER
 	var conc := FreewayKit.kind_color(FreewayKit.CONCRETE, FreewayKit.S_FASCIA)

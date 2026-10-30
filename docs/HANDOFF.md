@@ -17964,6 +17964,26 @@ pose the walker was in when hit (a small pop, as before). No self-collision betw
 can pass through the chest). The hero's doll (PlayerHealth) uses the same path; only crowd rigs
 were probed.
 
+**Follow-up 2 (2026-10-30): joints that hold.** CI 383 read a 15 cm joint gap ("the joints hold
+while the doll tumbles", 0.153 m; another loaded gate 0.125). It was never load: the physics step
+is fixed, and the gap follows `fling()`'s random spin, so it moved with the global rng's state
+from whatever ran before. `tools/ragdolls/probe.tscn` with `SEED=n` (now prints `WORST GAP`, and
+`GAPLOG=1` / `TRACE_DOLL=i` per joint and per step) reproduced it in one process: up to 0.32 m.
+The cause: the light parts (head 9 %, forearms 2.5 % of the mass) on Godot's inertia from their
+small shapes spun up to 60-90 rad/s at landing, and the point constraints (which correct 0.3 of a
+drift a step) lost them - on seed 1 one doll diverged to 1,800 rad/s and flew apart. Tried first:
+snapping each child back onto its joint every step (and removing the separating velocity) - it
+pushed parts into the floor, the contacts answered, and seed 1 went to 3.2 m: never teleport parts.
+The fix: every part an even inertia, `inertia_gain` (3) x its rod's (L^2/12 + r^2/2, at least
+`inertia_floor` 0.02 m^2 of gyration), and `max_spin` 30 rad/s on every part before each step
+(`RagdollJoints.clamp_spin()` from `Ragdoll._physics_process`). Probe, 10 seeds x 8 dolls: worst
+0.056-0.077 m (was 0.06-0.32); the per-step cost 0.6-1.0 ms tumbling for 8 dolls, as before, and
+dolls settle sooner (2.4-2.9 s). The check is back to 0.1 m and there is a new one,
+`_check_hard_tumbles()`: four dolls with fling()'s spin at its extremes from a hash (every run the
+worst case, whatever ran before), worst gap under 0.1 m (0.056) and no part over 70 rad/s (25).
+Under a four-core CPU hog: 0.037 / 0.056 m. `RAGDOLL_INERTIA=0` is the A/B (Godot's own inertia),
+`RAGDOLL_INERTIA=<n>` any gain.
+
 ## 9gl. The Coral Line's underground station, 2026-10-30 (fleet wave 3, `wt/metro-underground`; VISUAL_ROADMAP "?")
 
 **The ask.** The light rail's underground terminus at 7th St / Flower was two stair kiosks in the
@@ -20770,6 +20790,150 @@ materials (the opengl3 terrain and the sand), which the grade cannot fix without
 their p5 moved only 6. The sun's specular on cars and glass was judged on the probe's spheres only.
 If the Mac's nights read too dark, raise `night_exposure` toward 2.45 before lifting NIGHT's toe.
 
+## 9hu. The Los Angeles sunset: clouds lit by the low sun as it reaches them (wave 3, `sunset-clouds`, branch `wt/sunset-clouds`)
+
+Owner's bar: the GTA 6 trailer's opening shot - the sun low over the Pacific, cumulus bases lit
+hot orange and pink from below with their tops in violet shadow, rays, a gold-peach-blue
+gradient, cirrus catching the last light after the sun has set, then the blue hour.
+
+**What it is.** `SunsetSky` (`scripts/world/sunset_sky.gd`, static; ONE hook line in
+`DayNight._apply()`) hands `sky.gdshader` a `sunset` weight that depends on the sun's elevation
+alone: 0 above sin 0.33 (~16:50), full from sin 0.17 (~17:20) to sin -0.10 (~18:23), 0 again by
+sin -0.23 (~18:55); times (1 - 1.5 x weather_darken) and (1 - 0.8 x marine). At 0 the shader skips
+every block it added (six `if (sunset > 0.0 ...)` gates), so noon and the night draw what they
+did - proven pixel for pixel, below.
+
+**The model** (sky.gdshader):
+- `sun_through(el, h)`: the sun as it reaches a point `h` km up at elevation `el` measured from
+  THAT point's horizon (el = the camera's sun elevation + the point's distance toward the sun /
+  R, plus 0.01 of refraction). Air masses: Rayleigh (8 km scale height, tau 0.032 / 0.074 / 0.180
+  a unit air mass) and aerosol (1.4 km, 0.085 / 0.115 / 0.150 - the basin's smog, which is what
+  takes the light past orange to red), 1 / (el + k) above the point's horizon and, below it, twice
+  the grazing path to the tangent height less the part above the point. Brightness falls with the
+  red's transmittance (floor 0.45) and goes to 0 as the tangent height goes under the ground (the
+  earth's shadow, soft over -0.5..0.4 km). Returns the colour normalised to its red, so neither
+  renderer's exposure moves it. `SunsetSky.sun_through()` is the GDScript copy; the checks read
+  the shader's optical depths and shadow line back.
+- **Volume (Forward+)**: every lit cloud sample takes `sun_through()` at its own height and place,
+  mixed by the weight - gold at 17:30, orange-red at 18:00, red on the crowns at 18:06, the
+  earth's shadow then climbing the deck from the bases. Once the sun is under the street's horizon
+  the light march is tipped down (to -0.2) so it leaves through the flat base: the whole base glows
+  hot from below while the body above stays in its own shade - at the true 1-2 degrees the march
+  ran along inside the base and never saw the light. The ambient under the deck takes the warm
+  horizon (twilight_warm, strongest toward the sun, x1.9 once the sun is under), the crowns the
+  violet of the twilight band. A narrow forward lobe (HG 0.86) on thin margins is the silver lining.
+- **Rays**: fanned wider (exp(-ang^2 x 1.1)) at `sunset_rays` (0.45) in the sun's own red, NOT
+  `god_rays`: DayNight multiplies that by (1 - night_factor), which is 0.3 at the sunset itself.
+- **Painted cumulus (Compatibility, the web)**: the same light at the deck's crown height
+  (cloud_base + 0.6 depth); thin margins and the sun side lit, and with the sun under the deck's
+  horizon the base lit toward the sun, the thick middle violet; the night's darkening held off while
+  the sun still lights it. Computed colours go to Compatibility through `sunset_out()` (display
+  numbers).
+- **Cirrus (both)**: lit by `sun_through(el, 9 km)` with a forward-scatter lobe, keeping the light
+  ~3 degrees longer than the street (pink-orange over the east at 18:12); the night factor no longer
+  dims them while they are lit. **Their east-west streaks run straight at the sun at sunset and
+  read as giant beams of light** (the first pass was all "rays"): broken along their length into
+  wisps by two value-noise octaves while the weight is on.
+- **The sky**: a peach band toward the sun between the gold horizon and the blue; opposite it the
+  earth's shadow (slate blue, its top at ~0.85 x the sun's depression) and the Belt of Venus over
+  it, both as multiples of the sky's own luminance there. Subtle: DayNight's own violet twilight
+  band already sits there, and the low cumulus usually hide the horizon.
+
+**Measured.** Noon (12:00, sky_shot `HOLD_TIME=1 TAA=0`, old shader vs new): **0 pixels differ**
+on both Forward+ (lavapipe) and opengl3. Cost (sky_shot BENCH=40 at 18:00 facing the sun,
+lavapipe 1280x720, two runs each): old 732 / 753 ms, new 726 / 755 ms a frame - inside the noise.
+Refcams (`--only street_noon,downtown_aerial,sunset,golden_aerial --strict`, `SUNSET_CLOUDS=0`
+vs on): street_noon and downtown_aerial 0.00 % of pixels changed, 0 shots flagged. **Trap found
+on the way:** in `--strict` the `sunset` (17:51) and `golden_aerial` (17:12) frames come out with a
+midday blue sky (golden_aerial changed 0.39 %, sunset 0.00 %), so strict refcams say nothing about
+the evening; judge the sunset with sky_shot and still_shot SHOTS instead (refcams' own issue, not
+fixed here). `HOLD_TIME=1` is new on `tools/sky/sky_shot.gd` because shader TIME is real time: a shader that
+compiles slower drifts the clouds and an A/B "differs" in 15 % of its pixels; `PARAMS="a=1;b=0"`
+holds uniforms after DayNight has set them (frame_pre_draw), for experiments.
+
+**Stills** (`shots/sunset-clouds`): sky_shot every 15 min 17:30-19:30 toward the sun (yaw 90) and
+away (270), Forward+ and opengl3, before (old shader) and after; the city from the beach
+(-732, 2.1, 800, west) and over the basin from the front range (300, 260 agl, -650, south-west) on
+opengl3, `SUNSET_CLOUDS=0` vs on.
+
+**Not done / known**: the Belt of Venus is faint against DayNight's violet band (a stronger one
+would need the band retuned, which touches every dusk); the fine bright speckles inside big heaps
+on lavapipe stills are the volume's own (in the before too); the city stills are opengl3 only (the
+city does not fit lavapipe); dawn gets the same model (symmetric weight) but was not tuned.
+
+## 9hv. The freeway close up (wave 3, branch `wt/freeway-closeup`; VISUAL_ROADMAP #220)
+
+The brief: driving the 110 / 101 / 10 at speed, from the chase cam and the driver's seat, by day,
+golden hour and night, the freeway should read like a 2026 game's LA freeway. The kit (9ba) had
+the parts; what read wrong up close was the driving surface (the city's asphalt material on a
+deck that in LA is concrete), clean barriers, flat sign faces and invisible markers by day.
+
+**What changed** (`FreewayCloseup`, `scripts/world/freeway_closeup.gd`; `FREEWAY_CLOSEUP=0` is the A/B):
+- **The deck is concrete** (`shaders/freeway_deck.gdshader`). The kit's `top` vertices now carry
+  UV = (metres along the route, metres across from the centre line) and UV2 = (half width, route
+  + 1; 0 on ramps and the stack's connectors) through `FreewayKit.top_vertex()` (the kit, the
+  ramps and StackBuild). The shader rebuilds Freeway.lane_layout() from the half width (its
+  numbers are copies, checked) and draws: lane-wide slabs with transverse joints skewed 2:12 at
+  Caltrans's repeating 12-13-19-18 ft spacing, sealant and spalled edges; longitudinal tining,
+  a normal tilt faded once a groove is under ~2 pixels; per slab (hashes) a tone, replaced slabs
+  (paler, crisper), cracked ones (a corner break or a mid-slab crack), asphalt patches with a
+  tarred seam; asphalt overlay stretches (28 % of 520 m stretches a route) whose cracks mirror
+  the slab joints under them; two polished, rubber-darkened wheel paths a lane, the oil band
+  down each lane's middle, now and then two skid marks drifting across; the shoulders' grit,
+  litter, glass glitter and weeds at the barrier toe and through cracks, a milled rumble strip
+  past the outer edge line; rain darkens and glosses it and water stands in the ruts and the
+  gutters. Tangents come from screen derivatives (the deck has none). 4 samplers.
+- **The kit's shaders** take a `closeup` uniform (set from the switch): graffiti from the street
+  wear tag atlas - handstyles on the faces the traffic sees, throw-ups on the outer barrier faces
+  and running on down the fascia, some buffed -, recast barrier panels and chipped arrises, white
+  rust and grime on the galvanised steel; sign boards in metres (the board's UV against the
+  screen Jacobian) with 12 in extruded panel seams and the lip over each, clip bolts at every
+  stringer, streaks down from the top and grime along the foot, the microprismatic sheeting's
+  sparkle in the retro; raised markers drawn as housings with lens faces, a white one's back lens
+  red (it glints red to a wrong-way driver at night), on a black adhesive pad; dirt round the
+  Botts' dots; tyre grime smudges on the lines.
+- **Lamp halos**: every light standard's two heads get NightAtmos's halo in the chunk's batch
+  (`FreewayCloseup.lamp_halo()`, the batch's relief taken back off; collapses by day).
+- **Traffic by the hour**: TrafficManager's freeway fill leaves a free slot empty at
+  `FreewayCloseup.spawn_skip(hour)` (0.08 at the rush, 0.62 in the small hours; the old flat
+  0.35 when staged or switched off) - the same single roll a slot, so no rng drift. The trucks
+  already keep to the two slow lanes (BigVehicles' shares).
+
+No geometry, roll or LOD rule changed: the checks build a deck chunk's kit with the pass on and
+off and compare every vertex; the triangle budgets (tests/freeway_kit_checks.gd) are unchanged.
+
+**Checks**: `tests/freeway_closeup_checks.gd` (the lane copies, samplers, materials, the deck's
+UVs, no geometry moved, the fill by the hour).
+
+**Cost** (still_shot.gd GEO, opengl3 1280x720, one load each; traffic differs run to run): the
+freeway bookmark (`--spawn=200,1088,-90,-4,30 --hour=13 --weather=clear`) `FREEWAY_CLOSEUP=0`
+6,766,083 tris / 3,156 draws, on 6,740,195 / 3,127 (flat: no geometry is added; the halos are
+instances of the batch's existing `atmos_glow_halo` key). On the 110 by downtown, main c838ea1 ->
+this branch: drive noon 5.66 M / 2,866 -> 5.80 M / 2,833, deck close up 2.08 M / 809 -> 2.06 M /
+793, drive night 3.74 M / 1,379 -> 3.72 M / 1,394. Pixel cost: the deck shader is four texture
+fetches (two scans, two normals) and a dozen value noises against road.gdshader's own five
+fetches and noise, so the deck is about what it was.
+
+**Stills** (`shots/freeway-closeup`, README there): the 110 by downtown northbound, before /
+after at noon, chase, the gantry, the deck close up, golden hour, night, the exit sign at night,
+and a low driver's-eye view. Cameras: `--spawn=1989,160,-6,-3,12`, `EYE=1989,12.0,160,-6,-3`,
+`1989,11.6,166,-6,-28` (deck), `1993,11.7,150,-6,-5@13@75` (driver).
+
+**Not done / not verified.** Forward+ (the Mac) not rendered: the concrete's albedo (0.158
+linear) and the halo strength were judged on opengl3 only; at night the pale concrete takes more
+of the moonlight fill than the old asphalt did. The sign panel seams and bolts only show inside
+~15 m (the gantries are seen from 25 m and more, where they fade to the board). Sound walls are
+YardFill's (`lot_walls.gdshader`) and were not touched; StreetWear already tags them. No real
+weed geometry (painted only). The rush-hour fill was not measured in a still (the stills hold
+traffic as the city spawned it).
+
+**Gate** (`SHARDS=3`, merged with main 3eb7bea): 4,017 checks, 4,015 passed, shard peaks 2,685 /
+3,432 / 3,322 MB, 1,136 s. Failed in shard 1: explosions_2's "one flash light, brighter and wider
+than the old one" and "the blasts leave nothing behind (0 nodes, 7 pieces)"; shard 2 logged one
+`Invalid access to property or key 'dir'` in TrafficManager._drive_streets (traffic.gd:544, a
+street car's lane group, during the police station checks). None of it is freeway code, and
+`SMOKE_PARTS=explosions_2_checks,police_station_checks` alone passes 65 / 65 with no error.
+The 49 freeway checks (kit + close-up) pass.
 ## 9d?. Perf audit 3: the frame, CPU and memory after wave 3's last ~60 branches, 2026-10-30 (fleet wave 3, agent branch `wt/perf-audit-3`; VISUAL_ROADMAP ?)
 
 **The ask.** Re-measure the bookmarks after the ~60 features merged since perf-audit-2, find the
