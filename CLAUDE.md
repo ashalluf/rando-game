@@ -388,6 +388,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   under overcast. Look in seconds with `tools/sky/sky_shot.gd` (the city's Environment and
   DayNight, no city; HOUR, YAW, PITCH, MOONAGE, COVERAGE, CONTRAILS, DOME, DETAIL=0 the painted
   path, BENCH). Checks: `tests/sky_checks.gd`.
+- The island offshore (2026-10-30, docs/HANDOFF.md "The island offshore"): Isla Calandra, 36 km
+  WSW of the beach, past the far plane, so the SKY draws it (`shaders/offshore_island.gdshaderinc`,
+  `island_draw()` in sky.gdshader after the stars, before the clouds): a height field in true-world
+  km (`view_km`) followed along each ray, curvature included; lit, hazed (`island_haze_km`), dark
+  against a low sun (`island_glare`), town lights at night. `OffshoreIsland`
+  (`scripts/world/offshore_island.gd`, DayNight's child) pushes shape and weather (`air()`, pure:
+  gone in the marine layer / rain). `ISLAND=0` is the A/B; `tools/offshore_island/island_shot.gd`
+  in seconds; checks `tests/offshore_island_checks.gd`.
 - Weather: `Weather` node in the city scene (`scripts/world/weather.gd`): states clear, overcast,
   rain, storm; drives DayNight (`cloud_extra`, `weather_darken`), fog, rain particles, wet roads
   (`PropFactory.set_wetness`), the `wind_factor`, `wave_scale` and `tsunami_scale` shader globals,
@@ -1351,6 +1359,21 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Stills: `AIR=final|takeoff|news|police` on `tools/glshot/still_shot.gd` (the staged jet is
   faded in at once, `AirTraffic._shown()`). The helicopter model is `tools/make_helicopter.py`
   (Blender, headless; ASSETS.md).
+- Flyable helicopter (2026-10-05, fleet "heli-flyable", docs/HANDOFF.md "The flyable
+  helicopter"): `FlyableHeli` (`scripts/vehicles/flyable_heli.gd`) is a wheel-less Vehicle wearing
+  the air traffic's helicopter.glb, so interact gets in and out like a car. Jump = collective up,
+  boost = down, neither holds the height; move axes = cyclic (it accelerates the way the thrust
+  leans; centred, it tilts against its drift and stops); the nose follows the camera. Thrust
+  scales with the rotor's `spool`. Crashes: dv per step past `crash_dv` costs hp, a shape query
+  round the hub is a rotor strike (blades thrown, engine dead, it spins down), bullets through
+  `take_hit()`; dead, it explodes on impact (Explosion.blast, a debris wreck). `HeliDownwash`
+  kicks dust / spray under the hub and owns the `heli_downwash` shader global that
+  `shaders/heli_downwash.gdshaderinc` bends palms, trees, LA trees and grass with. `HeliSpot`
+  makes a real one where a pad has one (`HeliPads`: Rooftops' parked helicopters as stand-ins
+  within `WAKE_DISTANCE`, half the landmark tower pads, the hospital's air ambulance, a pad on the
+  police HQ's roof, two painted pads on the airport's east apron). `HELI_FLYABLE=0` is the A/B;
+  stills `HELI=hover|pad` on `still_shot.gd`; probe `tools/heli/probe.gd`; checks
+  `tests/heli_flyable_checks.gd`.
 - Airport (2026-10-04, "a major international airport, ground and air"; original - invented
   airlines, no real names or logos, a big field's FORMS). Three files. **`Airport`**
   (`scripts/world/airport.gd`, static) is the LAYOUT, all derived from MacroMap's numbers:
@@ -1716,6 +1739,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`tools/glshot/drive_fx_stage.gd`: a car driven badly in front of the camera). Checks:
   `tests/driving_fx_checks.gd`. Trap: `ensure()` is called by every car a chunk builds in one
   frame and the add is deferred, so "made but not yet added" must count as made (it made dozens).
+- Car panic (2026-10-05, docs/HANDOFF.md "Drivers react to chaos"): `CarPanic`
+  (`scripts/npc/car_panic.gd`) hears `Pedestrian.alarm()` and gives street traffic drivers in
+  reach a reaction (BRAKE, SWERVE, KERB only where `kerb_clear()`, REVERSE with `traffic.rev`
+  lamps, ABANDON - `PanicCar` opens the door, a running Pedestrian gets out, the player may take
+  the car via `CarPanic.take()` -, FLOOR), a `cp` state driven by `street_tick()` from one line at
+  the top of `TrafficManager._drive_street()`; cars behind honk and pass (`dp_at`) or go ROUND
+  while oncoming cars YIELD. A placed panic car's body rides a spring (`_body_motion()`: nose
+  dive and rock-back, eased swerve) and a hard stop squeals and lays marks (`PanicSkid`, into
+  DrivingFX's ring). Never a crime by itself. `CAR_PANIC=0` is the A/B; stills `PANIC=` on
+  `still_shot.gd`; checks `tests/car_panic_checks.gd`.
 - Big vehicles (2026-10-04, "buses and trucks in traffic"): `BigVehicles`
   (`scripts/vehicles/big_vehicles.gd`) - a 40 ft city bus (`BodyType.BUS`, the invented agency
   BASIN TRANSIT: white over a teal skirt), a cab-over box truck (`BOX_TRUCK`, invented fleets on
@@ -2996,6 +3029,24 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   crossings; seconds); timing `tools/la_river/river_bench.tscn`; stills
   `tools/la_river/river_shot.tscn` (CAR=1 a car down a ramp) and `still_shot.gd` EYEs (HANDOFF
   9bp). Checks: `tests/la_river_checks.gd`.
+- The coast highway (2026-10-05, docs/HANDOFF.md "The coast highway"): north of the beach town,
+  where the front range meets the sea. `CoastHighway` (`scripts/world/coast_highway.gd`,
+  `MacroMap.coast_highway`, built in `setup()` before the hill roads) is a pure plan in
+  d = x - coast_x(z): `profile()` (sand to WALL, the bench at ROAD_Y under four lanes centred on
+  HillRoads' coast highway line, a cut bluff, the mountains past REACH) folded into
+  `raw_height_at()`, `calm()` in `_relief_at()`, `beach_width()` in `beach_width_at()` (the
+  relief fade keeps `_beach_width_base()`); houses (runs by hash, styles, decks, stairs), towers,
+  stairs, parking stalls; `bed_y()` is the coast highway's own profile (what HillRoads carves).
+  `CoastHighwayBuild.attach()` replaces the zone's steps in every chunk the corridor reaches (the
+  `match` takes -1): water, the hill terrain, sand and BeachLife (no path or court there:
+  `BeachLife.kept_off()`), the four lanes and paint (the hill strip is kept for the keep-offs but
+  not drawn), seawall and apron, gutter, houses on pilings (HouseKit's materials), stairs, k-rails
+  and the slide at the north end, cobra lamps (`_add_lamp()`), real parked cars (surfers' boards
+  on a rack); keep-offs in `_near_pad()`, `_shell_marks()`, `Skyline._add_hills()`. LOD: road and
+  house boxes; the far city: the boxes. `CoastTraffic` (`scripts/npc/coast_traffic.gd`) drives
+  it both ways (queues at the closure; `staged` for checks). `COAST_HIGHWAY=0` /
+  `COAST_TRAFFIC=0` are the A/B; probe `tools/coast_highway/probe.gd`; checks
+  `tests/coast_highway_checks.gd`.
 - The marina (VISUAL_ROADMAP #70, 2026-10-05, docs/HANDOFF.md 9cb): the small-craft marina
   between the beach town and the airport, the form of LA's big man-made one, names invented.
   **Data**: `Marina` (`scripts/world/marina.gd`, `MacroMap.marina`, built in `setup()` after the
@@ -3691,6 +3742,22 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `SHOP_NAMES`, Broadway's appended after the first `BASE_SHOP_NAMES`; nothing else's roll moves).
   `BROADWAY=0` is the A/B; `tools/broadway_probe.gd` lists the palaces with EYEs; checks
   `tests/broadway_checks.gd`.
+- Fashion district (2026-10-06, HANDOFF "The fashion district"): `FashionDistrict`
+  (`scripts/world/fashion_district.gd`) overlays the DOWNTOWN building blocks east of Main St from
+  7th St to Pico Blvd (`stretch()`, `EAST_REACH` past Alameda; `block_info()` is pure, cached per
+  plan). Hooks, one line each: `dress()` (after HistoricCore in `_build_lot()`: `name_pool` from
+  `SHOP_POOL` - names already in `Building.SHOP_NAMES`, so the clothing interiors and the vinyl know
+  them - and kit awnings on every shop), `steps()` (FULL, after Micromobility: a frontage SET per
+  shop front against the wall, `FashionKit.frontage()`, one prop with its collision boxes, sellers),
+  `dress_market()` (first line of `AlleyKit.dress()`: a district alley south of 9th St with a walled
+  side becomes stalls both sides backed onto the walls, tarps, bulb strings, banners with invented
+  names, two `lamp_light`s, keepers and `FashionShopper`s), `owns_face()` (Encampment keeps off the
+  goods' faces), `walker()` (more shopping bags), `walk_sidewalk()`. Meshes are code
+  (`scripts/world/fashion_kit.gd`, cached, built on the loading screen) on ONE shader
+  (`shaders/fashion_goods.gdshader`: kind in COLOR.a 16ths, pattern / fold in UV2, colour-space
+  include). **`set_shadow_distance()` does nothing on these code meshes: use `set_shadow_reach()`.**
+  Every roll a hash; FULL only. `FASHION=0` is the A/B; probe `tools/fashion/probe.tscn`
+  (`BUILD=1`, `AT=`, `FASHION_DEBUG=1`); checks `tests/fashion_district_checks.gd`.
 - Chinatown (2026-10-05, HANDOFF "Chinatown"): `Chinatown` (`scripts/world/chinatown.gd`) is a
   site table off the pinned streets - the district (Olive to Main, 520 m north of Cesar Chavez),
   the plaza's Hill-Broadway block, the gate over Broadway - applied LAST in `CityPlan.block()`
@@ -4084,6 +4151,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   are one trimesh per building (`KitSolids`). Baked AO lives in UV2.x as occlusion, and is off
   on `kit_iron`, whose thin bars bury their only vertices in the rails they meet. The kit is off
   on the web (`Building.kit_enabled`), where the boxes and painted frames stand in for it.
+- The facade pass (2026-10-29, owner: "this needs to start looking like GTA 6"; docs/HANDOFF.md
+  "Facades that read as built"): `shaders/facade_variety.gdshaderinc`, included by BOTH
+  building.gdshader and building_lod.gdshader (rolled from integers, salts 70-89, so near and far
+  agree): per-pane tone, mirror and blind (`fx_pane()`, the near room traces the same blind via
+  room_interior's `drop_in`), per-floor coating batches on curtain walls, the street opposite
+  mirrored with parallax (`fx_opposite()`: a plane of facades 18-44 m out, roofline, windows,
+  the street below; replaces the heading-keyed rows), the curtain wall's members as analytic depth
+  (`fx_member()`: side faces and sun shadows, box filtered to their averages) for three systems by
+  hash (`fx_system()` / `FacadeVariety.system()`: flush 50 %, 48 cm fins 26 %, slab bands 24 %;
+  flush hands over to the kit's real caps inside `caps_real_until`), far punched-window reveals and
+  head shadows, drips off the coping and water off the corners. Near box parts get 22 cm bevelled
+  vertical corners (`Building._bevel_arrays()`, `FacadeVariety.bevel()`; collision stays the box).
+  `FACADES_GTA=0` is the A/B; checks `tests/facades_gta_checks.gd`; look with
+  `far_building_shot.gd CAM_POS= CAM_LOOK= FOV=`.
 - Storefronts and curtain walls (owner, 2026-09-27: "next level ... AAA studio quality"): the
   kit's code-built half, `ShopfrontKit` (`scripts/world/shopfront_kit.gd`), meshes built in
   GDScript in the kit's frame and conventions, wearing `PropFactory.kit_material()` and added
@@ -4432,6 +4513,21 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   environment turns the layer off (the A/B). Look with `tools/crowd/crowd_lab.tscn` SCENARIO=life
   (a pavement, a wall, two benches), props, dog (CAM / LOOK / FOV place the camera); check with
   `tests/crowd_life_checks.gd`; time it with MODE=bench.
+- The crowd in the rain (2026-10-06, docs/HANDOFF.md "The crowd in the rain"): `RainCrowd`
+  (`scripts/npc/rain_crowd.gd`, `Pedestrian.rain`, made in `_setup_life()`; Weather pushes
+  `RainCrowd.level` = its `rain_level`) - near the camera only (`_life_near`): umbrellas
+  (`RainGear`, `scripts/npc/rain_gear.gd`, code-built at `OPEN_STEPS` opening amounts, swapped
+  to open / fold; held up by aiming the arm in skeleton space and placed at CrowdLife's grip
+  frame each tick, top_level; `shaders/rain_gear.gdshader`, part in COLOR.a, colours as Vector3
+  linear), hoods on `HOOD_RIGS` (fitted from CrowdHatTable like the hats; the hair cards hidden
+  under the "under_hat" meta), `pace()` (hurry), `on_walk_end()` (a bus-stop seat - a life seat
+  whose record's kind is "bus_stop" - or a doorway by `_plan_wall()`; over `LEAVE_LEVEL` a share
+  go in: hidden, layer 0, hit shape off, back out under it), `settle_now()` for whoever comes into
+  range mid-rain. Past it, out to `FAR_REACH` (140 m), an umbrella carrier shows a coarse open
+  canopy over the head (`RainGear.umbrella_far()`, 86 triangles, no arm pose; `RAIN_FAR=0` the
+  A/B) and everyone hurries. Rolls are `hash(seed, "rain")`. Hooks: four lines in Pedestrian, one
+  in Weather. `RAIN_CROWD=0` the A/B; `RAIN_STAGE=<level>` / `RAIN_FOCUS=` on `still_shot.gd`;
+  `crowd_lab.tscn SCENARIO=rain` (seconds); checks `tests/rain_crowd_checks.gd`.
 - Dogs (2026-10-05, "realistic dogs, so the dog walkers can come back"; docs/HANDOFF.md, the
   dogs section): built in CODE like the birds. **`DogMesh`** (`scripts/npc/dog_mesh.gd`) builds six
   breeds by proportion - labrador, German shepherd, small terrier, chihuahua, pit bull mix,
@@ -4633,6 +4729,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `STREET_VENDORS=0` turns it off (the A/B). Look with `tools/glshot/vendor_shot.gd` (the stands
   alone, seconds; `NIGHT=1`) and find them with `tools/vendor_probe.gd`; checks:
   `tests/street_vendors_checks.gd`.
+- Parklets (fleet wave 2, docs/HANDOFF.md "Outdoor dining parklets"): `Parklets`
+  (`scripts/world/parklets.gd`) reads every FULL building's ground-floor shop fronts
+  (`Building.shop_fronts`, recorded beside `shop_pools`) and, for a CAFE or RESTAURANT room on the
+  block's +x / +z face at the back of the pavement, rolls a timber deck into the parking lane
+  (`ODDS` by district, hash of seed + shop; clear of the corners, stops, red kerbs, trucks, road
+  works, bike lanes). `ParkletKit` builds it in code on `shaders/parklet.gdshader` (deck, painted
+  planters with clipped boxwood, slatted end screens, a festoon on four posts lit after dark,
+  delineators, wheel stops; bistro sets laid or bare; umbrellas open by day, furled after 19:30).
+  Collision is its own `Parklets` StaticBody3D (never `_add_prop`: prop ids stay put); sets are
+  `EncampmentItem`s. Parked cars skip the stretch after their rolls (`blocks_parking()`).
+  `ParkletDiner` (a Pedestrian): diners seated on the life sit clips (hips solved to
+  `ParkletKit.SEAT_Y`), a waiter walking door -> table. Who sits is `busy(room, hour)`.
+  `PARKLETS=0` is the A/B; probe `tools/parklets/probe.gd`; checks `tests/parklets_checks.gd`.
 - Farmers' market (2026-10-05, HANDOFF "The farmers' market"): `FarmersMarket`
   (`scripts/world/farmers_market.gd`, pure) picks one local street per `CELL` 1.7 km by hash
   (residential / midtown blocks nobody claims) and closes it to cars from `CLOSE_INSET` past each

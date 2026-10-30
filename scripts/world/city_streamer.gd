@@ -249,6 +249,13 @@ func _ready() -> void:
 		replica_traffic.plan = plan
 		replica_traffic.rep = plan.macro.replica
 		add_child(replica_traffic)
+	# The coast highway under the bluffs carries its own cars (CoastTraffic).
+	if plan.macro and plan.macro.coast_highway and CoastTraffic.enabled():
+		var coast_traffic := CoastTraffic.new()
+		coast_traffic.name = "CoastTraffic"
+		coast_traffic.plan = plan
+		coast_traffic.ch = plan.macro.coast_highway
+		add_child(coast_traffic)
 	# The four-level stack's connectors carry their own cars, handed to and from Traffic.
 	if plan.macro and plan.macro.freeway and plan.macro.freeway.stack:
 		var stack_traffic := StackTraffic.new()

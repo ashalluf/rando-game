@@ -2168,6 +2168,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Downtown's historic core (tests/historic_core_checks.gd): beaux-arts banks and offices on Spring St
 	# and Main St, their ornament, far cornices, nothing else in the block moved.
 	load("res://tests/historic_core_checks.gd").new().run(self, city)
+	# The fashion district (tests/fashion_district_checks.gd): goods at the shop fronts, the market alley.
+	load("res://tests/fashion_district_checks.gd").new().run(self, city)
 	# The ground outside downtown and midtown (tests/lot_fill_checks.gd): beach-town yards, the
 	# campus, the freeway's right of way - bare share before and after, one mesh each, budgets, and
 	# nothing else in the block moved.
@@ -2342,6 +2344,23 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/street_furniture_checks.gd").new().run(self, city)
 	# Swimming (tests/swimming_checks.gd): the sea's swell in GDScript, the water, and the hero in it.
 	await load("res://tests/swimming_checks.gd").new().run(self, city)
+	# The facade pass (tests/facades_gta_checks.gd): systems rolled as the shaders roll them, the bevel.
+	load("res://tests/facades_gta_checks.gd").new().run(self, city)
+	# The island offshore (tests/offshore_island_checks.gd): where it stands, the weather, the sky.
+	load("res://tests/offshore_island_checks.gd").new().run(self, city)
+	# The crowd in the rain (tests/rain_crowd_checks.gd): umbrellas, hoods, hurrying, shelter, going in.
+	await load("res://tests/rain_crowd_checks.gd").new().run(self, city)
+	# Parklets (tests/parklets_checks.gd): decks in the parking lane before cafes and restaurants,
+	# diners seated, a waiter, cars kept off, umbrellas furled at night, nothing else moved.
+	load("res://tests/parklets_checks.gd").new().run(self, city)
+	# The flyable helicopter (tests/heli_flyable_checks.gd): the heliport's pads, get in, climb,
+	# hover, fly, yaw, the downwash, land, a rotor strike, a crash, a stand-in spot waking.
+	await load("res://tests/heli_flyable_checks.gd").new().run(self, city)
+	# Drivers react to chaos (tests/car_panic_checks.gd): brake, swerve, kerb, reverse, abandon, go round.
+	await load("res://tests/car_panic_checks.gd").new().run(self, city)
+	# The coast highway under the bluffs (tests/coast_highway_checks.gd): its place, the bench and
+	# bluff, the houses, parking, a chunk's road, houses, collision and cars, LOD and the far city.
+	await load("res://tests/coast_highway_checks.gd").new().run(self, city)
 	# The oil islands in the bay (tests/oil_islands_checks.gd): siting, plan, codes, near and far.
 	load("res://tests/oil_islands_checks.gd").new().run(self, city)
 
