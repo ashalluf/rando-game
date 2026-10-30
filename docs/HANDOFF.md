@@ -21214,6 +21214,14 @@ and prop id is identical.
 lower): suburb parkway 6.76 -> 6.83 M (+1.0 %), front lawn 6.92 -> 7.06 M (+2.1 %), park 9.27 ->
 9.98 M (+7.6 %), campus 9.34 -> 9.75 M (+4.4 %), long lawn 6.82 -> 7.02 M (+2.9 %); draws +6..+17.
 
+**Gate** (merged with origin/main at 429e671, `SHARDS=3`): 4,195 checks, 0 failed, peak RSS
+3,413 MB, but shard 0 logged one script error in crowd_life_checks.gd:168 (a test pedestrian freed
+before `_carry` was set). `SMOKE_PARTS=city_crowd` alone passes with the pass on and off; a
+re-run of shard 0 alone had no crowd error but failed one live-traffic check (plus the known
+`'dir'` error in `_drive_streets`), and the same shard with `LAWNS_CLOSEUP=0` failed two other
+traffic checks: order- and timing-dependent traffic and crowd checks on main, not this branch.
+The 30 lawns checks pass in every run.
+
 Tools: `tools/lawns_closeup/block.sh` (block_shot, minutes), `shots.sh` (the city, ~45 min on
 this box), `probe.gd` (lawn blocks and parks with EYEs). Checks: `tests/lawns_closeup_checks.gd`.
 Not done / not verified: no lavapipe Forward+ still (memory and time went to the city stills and
