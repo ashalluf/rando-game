@@ -14474,4 +14474,11 @@ they hold under CC0 / public domain is the GGBotNet pack already in (64 kb/s, on
 rpm), pauliuw's two 20 s loops whose pitch wanders 80-220 Hz (no fixed rpm to place on a ladder),
 domasx2's racing loops (marked CC0 but built from sampling+ material: left out) and street field
 recordings - so the synthesised ladder stays. StreetErrands' honk now goes through
-`EngineAudio.horn()` like TrafficAI's (each car its own horn; the old Sfx call is the fallback).
+`EngineAudio.horn()` like TrafficAI's (each car its own horn; the old Sfx call is the fallback). Gate
+(`SHARDS=3`, on 95bd13f + this branch): 2,442 of 2,443 checks passed, peak RSS 2,473 MB a shard;
+the one failure was TrafficAI's swerve check (`traffic_ai_checks.gd:435`: the placed car stood
+still short of the player, no swerve, no honk). Shard 1 rerun alone passes, with engine audio on
+AND with `ENGINE_AUDIO=0` (867 / 867 each, the swerve check running: swerved, 2.6 m clear,
+honked), so it is that check's timing under three shards' CPU contention, not this branch.
+Beware: `SMOKE_PARTS=traffic_ai_checks` alone silently SKIPS the swerve check (no avenue found
+from that start), so it proves nothing about it.
