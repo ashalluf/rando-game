@@ -20743,3 +20743,25 @@ off and compare every vertex; the triangle budgets (tests/freeway_kit_checks.gd)
 
 **Checks**: `tests/freeway_closeup_checks.gd` (the lane copies, samplers, materials, the deck's
 UVs, no geometry moved, the fill by the hour).
+
+**Cost** (still_shot.gd GEO, opengl3 1280x720, one load each; traffic differs run to run): the
+freeway bookmark (`--spawn=200,1088,-90,-4,30 --hour=13 --weather=clear`) `FREEWAY_CLOSEUP=0`
+6,766,083 tris / 3,156 draws, on 6,740,195 / 3,127 (flat: no geometry is added; the halos are
+instances of the batch's existing `atmos_glow_halo` key). On the 110 by downtown, main c838ea1 ->
+this branch: drive noon 5.66 M / 2,866 -> 5.80 M / 2,833, deck close up 2.08 M / 809 -> 2.06 M /
+793, drive night 3.74 M / 1,379 -> 3.72 M / 1,394. Pixel cost: the deck shader is four texture
+fetches (two scans, two normals) and a dozen value noises against road.gdshader's own five
+fetches and noise, so the deck is about what it was.
+
+**Stills** (`shots/freeway-closeup`, README there): the 110 by downtown northbound, before /
+after at noon, chase, the gantry, the deck close up, golden hour, night, the exit sign at night,
+and a low driver's-eye view. Cameras: `--spawn=1989,160,-6,-3,12`, `EYE=1989,12.0,160,-6,-3`,
+`1989,11.6,166,-6,-28` (deck), `1993,11.7,150,-6,-5@13@75` (driver).
+
+**Not done / not verified.** Forward+ (the Mac) not rendered: the concrete's albedo (0.158
+linear) and the halo strength were judged on opengl3 only; at night the pale concrete takes more
+of the moonlight fill than the old asphalt did. The sign panel seams and bolts only show inside
+~15 m (the gantries are seen from 25 m and more, where they fade to the board). Sound walls are
+YardFill's (`lot_walls.gdshader`) and were not touched; StreetWear already tags them. No real
+weed geometry (painted only). The rush-hour fill was not measured in a still (the stills hold
+traffic as the city spawned it).
