@@ -328,7 +328,7 @@ static func _column(parent: Node, at: Vector3, radius: float, fuel: bool) -> voi
 	cap.initial_velocity_max = 22.0 * sc
 	cap.damping_min = 4.0 * sc
 	cap.damping_max = 6.0 * sc
-	cap.gravity = Vector3(0.35, 0.9, 0.15) * sc
+	cap.gravity = Vector3(0.08, 0.5, 0.04) * sc
 	cap.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
 	cap.emission_sphere_radius = radius * 0.4
 	_scale_curve(cap, radius * 0.75, radius * 0.95, 3.4)
@@ -346,7 +346,9 @@ static func _column(parent: Node, at: Vector3, radius: float, fuel: bool) -> voi
 	col.initial_velocity_max = column_rise * 1.2 * sc
 	col.damping_min = 0.15
 	col.damping_max = 0.35
-	col.gravity = Vector3(0.45, 0.55, 0.2) * sc
+	# A gentle drift, not a push: gravity is an acceleration, and 0.45 m/s2 sideways carried the
+	# column 70 m off its fire by 18 s.
+	col.gravity = Vector3(0.08, 0.15, 0.04) * sc
 	col.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
 	col.emission_sphere_radius = radius * 0.3
 	_scale_curve(col, radius * 0.5, radius * 0.7, 4.5)
