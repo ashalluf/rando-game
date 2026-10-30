@@ -295,6 +295,13 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-30 Life in the water is worked out from the clock, never simulated (HANDOFF "Life in
+  the water").** Dolphins, pelicans, the buoys' sea lions and a rare grey whale are pure functions
+  of `SeaLife.clock` and hashes of seed + kind + time window + 600 m coast stretch, so any moment
+  can be drawn without the one before, stills and checks just move the clock, and no other roll in
+  the city moves. Code-built meshes at real size, one MultiMesh per kind and level, motion in the
+  vertex shader; `SEA_LIFE=0` is the A/B.
+
 - **2026-10-05 Onlookers: the crowd comes back after the chaos (HANDOFF "Onlookers").** After
   the panic near a wreck, a blast or a body, people near the camera come back and stand round it
   in a loose ring: filming on their phones (held up at eye level, the screen lit, a video light

@@ -89,6 +89,7 @@ class Geo:
 	var v := PackedVector3Array()
 	var c := PackedColorArray()
 	var uv := PackedVector2Array()
+	var uv2 := PackedVector2Array()
 	var idx := PackedInt32Array()
 
 	func add(p: Vector3, col: Color, t: Vector2) -> int:
@@ -97,7 +98,7 @@ class Geo:
 		uv.append(t)
 		return v.size() - 1
 
-	## A triangle wound so its face normal points away from `ref` (inside the part).
+	## A triangle facing away from `ref` (a point inside the part).
 	func tri(a: int, b: int, d: int, ref: Vector3) -> void:
 		var fn := (v[b] - v[a]).cross(v[d] - v[a])
 		var cen := (v[a] + v[b] + v[d]) / 3.0
@@ -105,9 +106,10 @@ class Geo:
 			var t := b
 			b = d
 			d = t
+		# Godot's front faces are CLOCKWISE seen from the front: stored the other way round.
 		idx.append(a)
-		idx.append(b)
 		idx.append(d)
+		idx.append(b)
 
 	func quad(a: int, b: int, d: int, e: int, ref: Vector3) -> void:
 		tri(a, b, d, ref)
@@ -122,7 +124,7 @@ class Geo:
 			var a := idx[i]
 			var b := idx[i + 1]
 			var d := idx[i + 2]
-			var fn := (v[b] - v[a]).cross(v[d] - v[a])
+			var fn := (v[d] - v[a]).cross(v[b] - v[a])
 			n[a] += fn
 			n[b] += fn
 			n[d] += fn
@@ -134,6 +136,8 @@ class Geo:
 		arr[Mesh.ARRAY_NORMAL] = n
 		arr[Mesh.ARRAY_COLOR] = c
 		arr[Mesh.ARRAY_TEX_UV] = uv
+		if uv2.size() == v.size():
+			arr[Mesh.ARRAY_TEX_UV2] = uv2
 		arr[Mesh.ARRAY_INDEX] = idx
 		var m := ArrayMesh.new()
 		m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
@@ -392,9 +396,9 @@ static func _sea_lion(g: Geo, level: int) -> void:
 	var thick := 0.025
 	for s: float in [1.0, -1.0]:
 		# Fore flippers: long, flat on the ground, splayed out and back from the chest.
-		var fore := PackedVector2Array([Vector2(0.0, -0.06), Vector2(0.18, -0.08), Vector2(0.36, -0.03), Vector2(0.44, 0.04),
-			Vector2(0.4, 0.09), Vector2(0.2, 0.07), Vector2(0.0, 0.07)])
-		_fin(g, fore, Vector3(s * 0.14, 0.03, z0 + L * 0.34), Vector3(s, 0, 0.45).normalized(), Vector3(0, 0, 1), thick, under.lerp(Color(0.06, 0.045, 0.035), 0.6), P_FIN, 0.34)
+		var fore := PackedVector2Array([Vector2(0.0, -0.06), Vector2(0.15, -0.08), Vector2(0.3, -0.04), Vector2(0.36, 0.04),
+			Vector2(0.32, 0.09), Vector2(0.16, 0.07), Vector2(0.0, 0.07)])
+		_fin(g, fore, Vector3(s * 0.14, 0.03, z0 + L * 0.34), Vector3(s, 0, 0.8).normalized(), Vector3(0, 0, 1), thick, under.lerp(Color(0.06, 0.045, 0.035), 0.6), P_FIN, 0.34)
 		# Hind flippers: trailing back and a little out, flat.
 		var hind := PackedVector2Array([Vector2(0.0, -0.045), Vector2(0.15, -0.06), Vector2(0.3, -0.07), Vector2(0.34, 0.0),
 			Vector2(0.3, 0.07), Vector2(0.15, 0.05), Vector2(0.0, 0.045)])
@@ -609,12 +613,14 @@ static func _buoy(g: Geo, level: int) -> void:
 # --- the spray ---------------------------------------------------------------------------------
 
 ## The spray: 14 quads, each a clump the shader flies from the origin (a splash) or stacks into
-## a column (a whale's blow). UV the corner (-1..1); COLOR.r the clump's seed, COLOR.g its index
-## / 16, so the shader gives each its own direction, size and timing.
+## a column (a whale's blow). UV the corner (-1..1); UV2.x the clump's seed, UV2.y its index / 16,
+## so the shader gives each its own direction, size and timing (not the vertex colour: a
+## MultiMesh without instance colours hands the shader a zero COLOR on Compatibility).
 static func _spray(g: Geo) -> void:
 	for i in 14:
 		var seed := fposmod(sin(float(i) * 12.9898) * 43758.5453, 1.0)
 		var base := g.v.size()
 		for k: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
-			g.add(Vector3.ZERO, Color(seed, float(i) / 16.0, 0.0, 1.0), k)
+			g.add(Vector3.ZERO, Color(1, 1, 1, 1), k)
+			g.uv2.append(Vector2(seed, float(i) / 16.0))
 		g.quad(base, base + 1, base + 2, base + 3, Vector3(0, 0, -1))

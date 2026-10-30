@@ -14893,3 +14893,77 @@ never lets him fall the last metre in).
 the sea still rides its wheels on the ground box; the strokes are keyed in code, not
 motion-captured (the UAL swim clips are still out of this network's reach); nothing of it has been
 seen on Forward+ (the Mac).
+
+## 9d?. Life in the water: dolphins, pelicans, sea lions on the buoys, a grey whale, 2026-10-30 (fleet wave 3, branch `wt/sea-life`; VISUAL_ROADMAP "?")
+
+The sea was empty water. Now, now and then, a pod of bottlenose dolphins passes beyond the break
+line arcing and rolling, a line of brown pelicans glides low along the swell (flapping in a wave
+that runs down the line) and one of them climbs to ~9 m, folds and plunges and sits on the water
+before running off it; two navigation buoys (one in the harbour off the port's south quay, one out
+in the bay off Long Beach) carry two or three California sea lions hauled out on the deck, lifting
+their heads, looking round and barking in bouts; and rarely, 650-1450 m out, a grey whale blows
+four times, its back rolling through the swell, its flukes coming up on the last dive.
+
+**How.** `SeaLife` (`scripts/world/sea_life.gd`, a Node3D in city.tscn after Cyclists) simulates
+nothing. The coast is cut into `SEG` (600 m) stretches along z and time into windows per kind
+(dolphins 150 s, pelicans 80 s, whales 480 s on 3 km stretches); `pod(n, k)` / `line(n, k)` /
+`whale(n, k)` are hashes of (seed, kind, window, stretch) saying whether something passes, when,
+which way, how fast, how far out, how many. Each animal is then a pure function of the clock:
+`dolphins_at(e, t)` (each dolphin's leap cycle - a ballistic arc from below the surface, so the
+pitch follows the path; 45 % leaps of 0.9-2.1 m, 40 % rolls that show the back and fin, the rest
+stay down), `pelicans_at()` (the echelon, the wingbeat wave; a diver's climb, plunge, pop-up, sit,
+take-off run), `whale_at()`, `lions_at()` (a pose per 8-13 s stretch per lion, eased; a bout of
+barks per 9 s by hash; a startle slides each off the rim and they haul out 55-95 s later). The
+splashes and the blow are worked out by the same functions (their age is the time since the
+crossing), and so are the sounds (an event crossed between the last frame and this one). The coast
+line is `MacroMap.coast_x()` (sea to the west), a stretch must be straight and open water
+(`_stretch_ok()`), the break line is `Surf.break_distance()` of the sea Weather draws, and the
+water's height `SeaSurface.height()` (one sample a pod or line a frame; the buoys sample their
+slope too and tilt with it). Nothing is worked out unless the camera is within `COAST_REACH`
+(1.6 km) of the coast; the buoys only within 1.4 km. Pelicans keep off the night and a storm sea.
+
+**Drawn** by one MultiMesh per kind and level (dolphin, sea lion, pelican, whale, buoy; near and
+far by `RANGES`) on `shaders/sea_life.gdshader` - the tail beat as a travelling wave down the
+stock, the whale's terminal fluke lift, the sea lion's neck lift, head turn, breathing and jaw (its
+own part), the pelican's wingbeat (arm about the shoulder, the hand lagging) and the fold for the
+plunge and sitting (hand back over the arm at the wrist, arm swept back) - and one of spray on
+`shaders/sea_spray.gdshader` (14 camera-facing clumps a splash: thrown droplets over white water at
+the base; the whale's V-shaped blow as two mist plumes). Meshes (`SeaLifeMesh`) are code at real
+size: lofted superelliptic sections along the body, fins as outlines with thickness, the pelican's
+fingered primaries and pouch, the buoy's float, guano deck, lattice tower, radar reflector and
+lantern (a green flash every four seconds, `night_factor`). Near/far triangles: dolphin 1436/260,
+sea lion 1432/240, pelican 1648/196, whale 1804/396, buoy 828/226. Sounds are synthesised
+(`SeaSounds`: bark, splash, plunge, a dolphin's puff, a whale's blow). Hits: `Pedestrian.alarm()`
+calls `SeaLife.startle()` (one line) and blasts are polled - the sea lions go in. Nothing else of
+the city reads or rolls anything new.
+
+**Traps (each a lost round).** Godot's front faces are CLOCKWISE seen from the front: built the
+right-hand way, every animal was inside out under `cull_disabled` (lit from behind, and the sea
+lions drew their mouth colour all over); `Geo.tri()` takes a point inside the part and winds each
+triangle to face away from it, stored the other way round. A MultiMesh without instance colours
+hands the Compatibility shader a ZERO vertex COLOR (the spray's clumps all sat on one spot as one
+solid dome): the clump seed is in UV2. INSTANCE_CUSTOM is vertex-only (the lantern's phase goes
+through a varying). A still's later SHOTS stream for many frames at full speed, so staged events
+had moved on by then: `stage_for_shot()` holds SeaLife's clock (`SEA_HOLD=0` lets it run).
+
+**Look.** `SEA="dolphin@x,z[,lead];pelican@...;dive@...;whale@..."` on `tools/glshot/still_shot.gd`
+stages each at a true world point (a dive: `lead` seconds before the splash); `sealion` prints the
+buoys. `tools/sea_life/kit_shot.tscn` renders the kit alone in seconds (VIEW=buoy|lion|dolphin|
+pelican|whale, NIGHT=1, AGE, LIFT, BARK, FLAP, FLUKES, LOD=1; SPRAY_DEBUG=1 paints each clump by
+its seed). `tools/sea_life/probe.tscn` (headless) prints the meshes, the buoys with EYEs and the
+events due on a stretch (`Z=`, `MINUTES=`, `STAGE=dive|dolphin`). A/B: `SEA_LIFE=0`.
+
+**Cost** (opengl3, `still_shot.gd` GEO, same cameras, SEA_LIFE=0 -> on, with everything staged in
+view - the worst case): FILL_COST
+
+Stills on `shots/sea-life`. Checks: `tests/sea_life_checks.gd` (meshes in budget with their parts
+and real sizes, the shader's part list, the sounds; the events are pure and their odds right;
+every dolphin on open water beyond the break line, leaps and rolls with splashes; a staged dive
+climbs to ~9 m, folds, plunges and sits; the whale blows four times and lifts its flukes; the
+buoys on open water clear of the ship, the sea lions on the deck, barking; a startle sends them in
+and back; a staged pod is drawn).
+
+**Not done / unverified.** Nothing has been seen on Forward+ (the Mac): every still is opengl3. The
+animals are not hit by rounds (a gun near them only startles the sea lions); dolphins and pelicans
+ignore the player's boats and swimming; the pelicans' line does not follow a curving coast round
+the headland (stretches that bend are skipped); there are no recorded sounds (all synthesised).

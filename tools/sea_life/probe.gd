@@ -47,5 +47,13 @@ func _ready() -> void:
 				"pelican":
 					n += sea.pelicans_at(e, float(i) * 3.0).size()
 	print("cost: 100 frames of events %.2f ms each (%d animals)" % [float(Time.get_ticks_usec() - tt) / 100000.0, n])
+	if OS.get_environment("STAGE") != "":
+		var kind := OS.get_environment("STAGE")
+		sea.stage(kind, Vector2(-950.0, -120.0), 0.45)
+		var e: Dictionary = sea._forced[0]
+		for dt in [0.0, 0.3]:
+			var list: Array = sea.pelicans_at(e, SeaLife.clock + dt) if kind != "dolphin" else sea.dolphins_at(e, SeaLife.clock + dt)
+			for b in list:
+				print("STAGED t+%.1f %s" % [dt, b])
 	sea.free()
 	get_tree().quit()

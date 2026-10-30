@@ -123,10 +123,10 @@ void vertex() {
 		}
 		float head = smoothstep(neck.z + 0.1, neck.z - 0.1, p.z) * step(part, 2.5);
 		vec3 pv = neck + vec3(0.0, ic.x * 0.13, 0.0);
-		vec3 q = rot_x(p - pv, ic.x * 0.95 + ic.z * 0.25);
+		vec3 q = rot_x(p - pv, ic.x * 0.75 + ic.z * 0.25);
 		q = rot_y(q, ic.y * 0.7);
 		p = mix(p, pv + q, head);
-		n = normalize(mix(n, rot_y(rot_x(n, ic.x * 0.95 + ic.z * 0.25), ic.y * 0.7), head));
+		n = normalize(mix(n, rot_y(rot_x(n, ic.x * 0.75 + ic.z * 0.25), ic.y * 0.7), head));
 	} else if (kind == 2 && part == 3.0) {
 		// The wing: the hand folds back at the wrist, the arm sweeps back and down at the
 		// shoulder as the wing folds; spread, the arm beats about the shoulder and the hand
@@ -218,9 +218,9 @@ void fragment() {
 			rough = 0.5;
 			alb *= 0.8 + 0.4 * noise3(m * 12.0);
 		} else if (part == 6.0) {
-			// The lantern: a green flash every four seconds (one second in four lit, a short
-			// flash), seen properly once it is dark.
-			float f = step(fract(TIME / 4.0 + v_lamp), 0.1);
+			// The lantern: a green flash every four seconds (a second of it), seen properly once
+			// it is dark.
+			float f = step(fract(TIME / 4.0 + v_lamp), 0.25);
 			rough = 0.1;
 			alb = vec3(0.12, 0.2, 0.13);
 			emit = lamp_color * f * (0.3 + 5.0 * night_factor);

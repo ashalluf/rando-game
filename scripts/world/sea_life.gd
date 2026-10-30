@@ -47,8 +47,8 @@ const WHALE_GAP := 32.0
 ## bay off the Long Beach shore. A buoy that is not on open water for a seed is left out.
 const BUOYS := [Vector2(3290.0, 6728.0), Vector2(3790.0, 6690.0)]
 ## Sea lions on a buoy's deck: at most this many, laid round the tower between its legs.
-const MAX_LIONS := 4
-const LION_RING := 0.95
+const MAX_LIONS := 3
+const LION_RING := 1.0
 ## The bark: a bout every this many seconds per buoy at most, this share of them barked.
 const BOUT_SECONDS := 9.0
 const BOUT_ODDS := 0.62
@@ -89,6 +89,7 @@ var plan: CityPlan
 var macro: MacroMap
 var seed_value: int = 0
 var _mm: Dictionary = {} # "kind:lod" -> MultiMeshInstance3D
+var _shadow: Dictionary = {} # "kind:0" -> the near batch's shadow twin (the far mesh)
 var _spray: MultiMeshInstance3D
 var _lists: Dictionary = {} # "kind:lod" -> Array of [Transform3D, Color, Vector4]
 var _spray_list: Array = [] # [Vector3 local, Vector4 custom]
@@ -102,6 +103,9 @@ var _eye_w := Vector3.ZERO
 var _web := false
 ## Staged events for stills and checks: each an event dictionary like the hashed ones.
 var _forced: Array = []
+## Set by stage_for_shot(): the clock stands still, so every shot of a still's load sees the
+## staged moment (a load's later shots stream for many frames at full speed).
+var hold_clock := false
 ## Counted for the checks: what the last draw put out, by kind.
 var drawn: Dictionary = {}
 
@@ -134,12 +138,28 @@ func _ready() -> void:
 			mmi.multimesh = mm
 			mmi.material_override = material(k)
 			mmi.name = "SeaLife_%s_%d" % [k, lod]
-			# Only the near level casts: a dolphin 200 m off throws a shadow of a pixel.
-			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if lod == 0 else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			# Neither level casts: the near one's shadow comes from the far mesh (below), into
+			# every cascade; a dolphin 200 m off throws a shadow of a pixel.
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			mmi.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
 			mmi.visible = false
 			add_child(mmi)
 			_mm["%s:%d" % [k, lod]] = mmi
+		var twin := MultiMeshInstance3D.new()
+		var tm := MultiMesh.new()
+		tm.transform_format = MultiMesh.TRANSFORM_3D
+		tm.use_colors = true
+		tm.use_custom_data = true
+		tm.mesh = SeaLifeMesh.mesh(k, 1)
+		tm.instance_count = 0
+		twin.multimesh = tm
+		twin.material_override = material(k)
+		twin.name = "SeaLifeShadow_%s" % k
+		twin.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		twin.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+		twin.visible = false
+		add_child(twin)
+		_shadow[k + ":0"] = twin
 	_spray = MultiMeshInstance3D.new()
 	var sm := MultiMesh.new()
 	sm.transform_format = MultiMesh.TRANSFORM_3D
@@ -256,7 +276,8 @@ func _process(delta: float) -> void:
 	if not enabled or not _setup():
 		_hide_all()
 		return
-	clock += delta
+	if not hold_clock:
+		clock += delta
 	if Explosion.blast_count != _blast_seen:
 		_blast_seen = Explosion.blast_count
 		var at := Explosion.last_blast_world
@@ -282,6 +303,8 @@ func _frame() -> void:
 func _hide_all() -> void:
 	for key in _mm:
 		(_mm[key] as MultiMeshInstance3D).visible = false
+	for key in _shadow:
+		(_shadow[key] as MultiMeshInstance3D).visible = false
 	if _spray:
 		_spray.visible = false
 
@@ -469,7 +492,7 @@ func dolphins_at(e: Dictionary, t: float, out_splash: Array = [], sounds: Array 
 		var phase := h01(key + [j, "f"]) * period
 		if e.has("sync"):
 			# Staged: every dolphin is a few tenths into a leap at the staged moment.
-			phase = fposmod(0.9 + 0.15 * float(j) - float(e.sync), period)
+			phase = fposmod(0.75 + 0.1 * float(j) - float(e.sync), period)
 		var local := u + phase
 		var cyc := int(floor(local / period))
 		var tau := local - float(cyc) * period - 0.6
@@ -695,7 +718,7 @@ func lions_at(b: Buoy, t: float, out_splash: Array = [], sounds: Array = [], t_p
 		barks_n = 3 + int(h01(bk + ["n"]) * 4.0)
 	for j in b.lions:
 		var hs: float = b.lion_seed[j]
-		var ang := TAU * (float(j) / 4.0) + (hs - 0.5) * 0.25
+		var ang := TAU * (float(j) / 3.0) + (hs - 0.5) * 0.12
 		var tangent_yaw := ang + (PI * 0.5 if hs < 0.5 else -PI * 0.5)
 		var spot := Vector3(sin(ang) * LION_RING, deck, cos(ang) * LION_RING)
 		# Head up or down, turned this way or that: a level per lion per 8-second stretch, eased.
@@ -749,6 +772,11 @@ func lions_at(b: Buoy, t: float, out_splash: Array = [], sounds: Array = [], t_p
 			lift = lerpf(lift, 0.3, off)
 		out.append({"xf": bx * Transform3D(basis, pos), "lift": lift, "turn": turn, "bark": bark, "breath": fposmod(t / (3.5 + hs) + hs, 1.0), "tint": hs})
 	return out
+
+
+## A sea lion's coat (an instance colour over the mesh's brown): soaked dark, or dried to tan.
+static func lion_tint(h: float) -> Color:
+	return Color(0.6, 0.55, 0.52).lerp(Color(1.25, 1.12, 0.98), smoothstep(0.25, 0.85, h))
 
 
 ## A sea lion's pose for one stretch: (lift, turn); most of the time it lies head down.
@@ -814,8 +842,8 @@ func _collect(t: float, sounds: Array = [], t_prev: float = INF) -> void:
 		_put("buoy", b.xf.origin, b.xf.basis, Color(1, 1, 1), Vector4(h01([seed_value, "lamp", b.index]), 0, 0, 0))
 		for l in lions:
 			var xf: Transform3D = l.xf
-			# Wet dark brown to dry tan, by the lion.
-			var tint := Color(1, 1, 1).lerp(Color(0.45, 0.42, 0.4), clampf(1.0 - float(l.tint) * 1.6, 0.0, 1.0))
+			# Wet near-black brown to dry tan, by the lion.
+			var tint := lion_tint(float(l.tint))
 			_put("sea_lion", xf.origin, xf.basis, tint, Vector4(l.lift, l.turn, l.bark, l.breath))
 	for s in splash:
 		var sp: Vector3 = s.pos
@@ -846,10 +874,13 @@ func _draw() -> void:
 		var items: Array = _lists.get(key, [])
 		var n := items.size()
 		drawn[key] = n
+		var twin: MultiMeshInstance3D = _shadow.get(key)
 		if n == 0:
 			if mmi.visible:
 				mm.visible_instance_count = 0
 				mmi.visible = false
+			if twin and twin.visible:
+				twin.visible = false
 			continue
 		if mm.instance_count < n:
 			mm.instance_count = 0
@@ -893,6 +924,15 @@ func _draw() -> void:
 		var pad := 9.0 if key.begins_with("whale") else 3.5
 		mmi.custom_aabb = AABB(lo, hi - lo).grow(pad)
 		mmi.visible = true
+		if twin:
+			var tm := twin.multimesh
+			if tm.instance_count != mm.instance_count:
+				tm.instance_count = 0
+				tm.instance_count = mm.instance_count
+			tm.buffer = buf
+			tm.visible_instance_count = n
+			twin.custom_aabb = mmi.custom_aabb
+			twin.visible = true
 	var n := _spray_list.size()
 	drawn["spray"] = n
 	var sm := _spray.multimesh
@@ -966,10 +1006,11 @@ func _play_sounds(sounds: Array) -> void:
 ## Stages `kind` ("dolphin", "pelican", "dive", "whale", "sealion") at true world XZ `at` (moved
 ## onto the nearest open water off the coast for the coast's kinds), `lead` seconds into it at
 ## the moment of the call; returns the true world point it stands at.
-func stage(kind: String, at: Vector2, lead: float = 2.0) -> Vector3:
+func stage(kind: String, at: Vector2, lead: float = 2.0, keep: bool = false) -> Vector3:
 	if not _setup() and macro == null:
 		return Vector3.ZERO
-	_forced.clear()
+	if not keep:
+		_forced.clear()
 	var brk := _break_distance()
 	var s := maxf(macro.coast_x(at.y) - at.x, 5.0)
 	match kind:
@@ -1006,9 +1047,11 @@ func advance(seconds: float) -> void:
 		_frame()
 
 
-## For still_shot.gd SEA=dolphin|pelican|dive|whale|sealion: stages the kind in front of the
-## camera (`dist` metres ahead, on the water) and holds the clock there; prints an EYE line.
-func stage_for_shot(kind: String, cam: Camera3D, dist: float, lead: float) -> void:
+## For still_shot.gd SEA: "kind[@x,z[,lead]];..." (dolphin, pelican, dive, whale): each kind
+## staged at true world XZ x,z (or `dist` metres ahead of the camera), `lead` seconds before its
+## moment (default `lead`); the clock then stands still (SEA_HOLD=0 lets it run). Prints each
+## spot.
+func stage_for_shot(spec: String, cam: Camera3D, dist: float, lead: float) -> void:
 	if not _setup():
 		print("SEA: no plan")
 		return
@@ -1016,13 +1059,19 @@ func stage_for_shot(kind: String, cam: Camera3D, dist: float, lead: float) -> vo
 	var f := -cam.global_transform.basis.z
 	f.y = 0.0
 	f = f.normalized()
-	var at := Vector2(eye.x + f.x * dist, eye.z + f.z * dist)
-	if kind == "sealion":
-		var best: Buoy = null
-		for b: Buoy in _buoys:
-			if best == null or b.at.distance_to(Vector2(eye.x, eye.z)) < best.at.distance_to(Vector2(eye.x, eye.z)):
-				best = b
-		print("SEA staged sea lions on buoy ", best.at if best else Vector2.ZERO)
-		return
-	var p := stage(kind, at, lead)
-	print("SEA staged %s at %s (eye %s)" % [kind, p, eye])
+	_forced.clear()
+	hold_clock = OS.get_environment("SEA_HOLD") != "0"
+	for item in spec.split(";", false):
+		var kind := item.get_slice("@", 0)
+		var at := Vector2(eye.x + f.x * dist, eye.z + f.z * dist)
+		var ld := lead
+		if item.contains("@"):
+			var nums := item.get_slice("@", 1).split(",")
+			at = Vector2(float(nums[0]), float(nums[1]))
+			if nums.size() > 2:
+				ld = float(nums[2])
+		if kind == "sealion":
+			print("SEA sea lions on the buoys ", _buoys.map(func(b): return b.at))
+			continue
+		var p := stage(kind, at, ld, true)
+		print("SEA staged %s at %s (eye %s)" % [kind, p, eye])
