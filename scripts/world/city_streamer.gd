@@ -158,6 +158,8 @@ var recenter_count: int = 0
 var _player: Node3D
 ## The ground follower: the drawn plane, which slides with the player (see update_streaming).
 var _ground: Node3D
+## FarRanges' far ring round the horizon plane (null when off).
+var _far_ring: MeshInstance3D
 ## Its collision, a separate body that stays where it is. Moving a static body wakes every body
 ## touching it - Godot Physics calls wakeup_neighbours() on any transform set, even to the same
 ## value - and this box touches everything in the city: every parked car, trash can and prop.
@@ -658,6 +660,8 @@ func update_streaming(immediate: bool) -> void:
 		snappedf(local.z + off.z, gstep) - off.z)
 	if not gpos.is_equal_approx(_ground.position):
 		_ground.position = gpos
+	if _far_ring:
+		_far_ring.position = FarRanges.ring_position(local, gstep)
 	if Vector2(local.x - _ground_body.position.x, local.z - _ground_body.position.z).length() > ground_size * GROUND_BODY_REACH:
 		_ground_body.position = Vector3(local.x, 0.0, local.z)
 	# The macro map is addressed in true world XZ, so the plane has to know how far the scene's
@@ -1059,12 +1063,14 @@ func _build_ground_material() -> ShaderMaterial:
 	var htex := ImageTexture.create_from_image(plan.macro.bake_height)
 	_canopy_material = ShaderMaterial.new()
 	_canopy_material.shader = load("res://shaders/far_canopy.gdshader")
+	_canopy_material.set_shader_parameter("mid_city", MidCity.enabled)
 	for m in [mat, _canopy_material, EstateFar.material()]:
 		m.set_shader_parameter("macro_tex", tex)
 		m.set_shader_parameter("macro_height_tex", htex)
 		m.set_shader_parameter("macro_centre", Vector2.ZERO)
 		m.set_shader_parameter("macro_span", macro_span)
 		m.set_shader_parameter("macro_height", MacroMap.BAKE_HEIGHT_SCALE)
+		FarRanges.apply(m)
 		# The Palos Verdes hills are shaped to the Esplanade photographs' skyline; keep the crags
 		# off them (macro_relief.gdshaderinc, calm_*).
 		if plan.macro.replica:
@@ -1142,6 +1148,10 @@ func _build_ground() -> void:
 	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_ground.add_child(mesh)
 	add_child(_ground)
+	# The far ranges' ring out to the camera's far plane (FarRanges; null when FAR_RANGES=0).
+	_far_ring = FarRanges.build_ring(_ground_material, ground_size, ground_step())
+	if _far_ring:
+		add_child(_far_ring)
 	MountainOccluder.attach(self, plan.macro, macro_span)
 	RockFar.attach(self, plan, _canopy_material)
 	_ground_body = StaticBody3D.new()

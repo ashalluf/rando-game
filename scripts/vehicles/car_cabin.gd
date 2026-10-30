@@ -45,7 +45,7 @@ const ENGINE_T := 0.1
 const SIDE_BY_SEAT := -1.0
 ## Bodies with privacy glass behind the front seats.
 const PRIVACY_BODIES := [Vehicle.BodyType.CROSSOVER, Vehicle.BodyType.PICKUP, Vehicle.BodyType.VAN,
-		Vehicle.BodyType.SUV, Vehicle.BodyType.MINIVAN]
+		Vehicle.BodyType.SUV, Vehicle.BodyType.MINIVAN, Vehicle.BodyType.COMPACT_SUV, Vehicle.BodyType.WORK_TRUCK]
 ## The two-seat exotics: no back seats, and the glass behind the cabin is an engine cover.
 const TWO_SEATERS := [Vehicle.BodyType.SUPER, Vehicle.BodyType.SPIDER, Vehicle.BodyType.HYPER, Vehicle.BodyType.TRACK]
 ## A car whose side glass is shorter than this (m) has no back seats either (the panel van's

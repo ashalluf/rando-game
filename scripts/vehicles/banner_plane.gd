@@ -37,6 +37,9 @@ var _banner_vel: Vector3 = Vector3.ZERO
 var _banner_world: Transform3D
 var _banner_left: float = 0.0
 var _banner_hp: float = 0.0
+## The physics frame the banner's body was first placed in (-1 not yet); its hit layer goes on
+## in a later one (see _build_banner).
+var _banner_placed_frame: int = -1
 var _clock: float = 0.0
 
 
@@ -95,7 +98,11 @@ func _build_banner() -> void:
 	banner_body = hit
 	banner_body.name = "BannerBody"
 	banner_body.sync_to_physics = false
-	banner_body.collision_layer = HIT_LAYER
+	# No layer until it has been placed and a step has run there (`_banner_placed_frame`): it enters the
+	# tree at the local origin - where the player stands after a re-centre - and Godot takes the
+	# first move to its place as the kinematic body's velocity (km in a step: it fired a boat at
+	# the origin off at 200,000 m/s).
+	banner_body.collision_layer = 0
 	banner_body.collision_mask = 0
 	banner_body.top_level = true
 	var cs := CollisionShape3D.new()
@@ -201,6 +208,11 @@ func _place_banner(dt: float) -> void:
 	banner.global_transform = local
 	if banner_body:
 		banner_body.global_transform = local
+		var f := Engine.get_physics_frames()
+		if _banner_placed_frame < 0:
+			_banner_placed_frame = f
+		elif f > _banner_placed_frame and banner_body.collision_layer == 0 and not banner_cut:
+			banner_body.collision_layer = HIT_LAYER
 	if rope:
 		var top := local * Vector3(0.0, SkyAdMesh.BANNER_HEIGHT * 0.5 + 0.2, 0.15)
 		var span := top - hook

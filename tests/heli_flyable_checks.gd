@@ -198,8 +198,14 @@ func _strike(heli: FlyableHeli) -> void:
 			break
 	_t._check(found, "a mast inside the rotor disc is found by the strike query")
 	box.global_position += Vector3.UP * 40.0
-	await _ticks(2)
-	_t._check(not heli.rotor_hits_something(), "and nothing is found with the disc clear")
+	# The same broadphase lag the other way: a moved body can still be found a few steps.
+	var clear := false
+	for i in 20:
+		await _ticks(1)
+		if not heli.rotor_hits_something():
+			clear = true
+			break
+	_t._check(clear, "and nothing is found with the disc clear")
 	box.queue_free()
 	heli.rotor_strike()
 	_t._check(heli.rotor_lost and heli.engine_dead and heli.hp < heli.max_hp * 0.6, "a rotor strike throws the blades and kills the engine")

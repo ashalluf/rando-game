@@ -135,6 +135,13 @@ func run(city: Node3D) -> void:
 	LoadClock.stop("screen: beach figures")
 	_step("Building the city", 0.55)
 	await _frames(1)
+	# The hills' dry creek beds (Arroyos): the drainage network over every range, a few seconds
+	# the first launch (then LoadCache), before any hill chunk waits on it.
+	LoadClock.start("screen: arroyos")
+	while not Arroyos.build_step(city.get("plan")):
+		if _due():
+			await _frames(1)
+	LoadClock.stop("screen: arroyos")
 	LoadClock.start("screen: preload world")
 	_preload_world(city)
 	LoadClock.stop("screen: preload world")
@@ -271,6 +278,8 @@ func _warm_shaders() -> void:
 	effects.append_array(StreetVendors.warm())
 	# The parklets' decks, bistro sets and umbrellas (Parklets), built in code.
 	effects.append_array(Parklets.warm())
+	# The night life's entrances, ropes and searchlight carts (NightLife), built in code.
+	effects.append_array(NightLife.warm())
 	# The valet stands' podiums, key boxes, signs and cones (Valets), built in code.
 	effects.append_array(Valets.warm())
 	effects.append_array(BoulevardSigns.warm())

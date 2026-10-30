@@ -305,6 +305,29 @@ already mapped so milestone 2 is script-only.
   ones, and parks up to 40 % more cars on the kerb spots a block's own pass left empty (a hash per
   spot after every roll). The traffic's own rng rolls more (traffic was never seed-fixed).
   BUSY_STREETS=0 is the A/B.
+- **2026-10-30 The mid distance is planted and parked from the capture, never placed (HANDOFF "The
+  mid distance").** The far tiers' yard trees come from the LOD block build's own capture (green
+  ground, building footprints) on hashes of the seed and the place, and the far streets' cars are
+  painted per pixel - the moving ones the night lights' own cells - so nothing a seed builds
+  moves and the far city costs no new draws. House roofs out there are the house's own clay tint
+  or shingle, flagged so the far shader draws them as roofs, not as towers' membranes.
+- **2026-10-30 The night has its own street life (fleet wave 3, `nightlife`).** After 21:00 a share
+  of the open restaurants and tower lobbies downtown, in midtown and the beach town are clubs and
+  bars with a line along the wall behind a velvet rope, a bouncer and a lit entrance; the door
+  lets the line in one at a time and some come back out to a taxi or ride-hail car double-parked on
+  its hazards (TrafficManager's own `dp_at`). A Broadway palace has a premiere on some nights (red
+  carpet, fans behind barriers, four searchlights sweeping the sky), a club its opening (two). All
+  hashes after every existing roll; nothing takes the kerb or a prop id. NIGHTLIFE=0 the A/B.
+- **2026-10-30 The player's car has a real cabin and doors that swing (HANDOFF "Car cabins").**
+  The traced cabin stays for the city's ~300 cars; the car the player drives, the empty parked
+  cars he stands by (the nearest one, within 7.5 m) and any car that has lost a door get geometry:
+  the front doors are cut out of the body model along the shut lines the Blender run grooved
+  (a table of those lines per body, no Blender re-run, no new asset), a code-built cabin (dash,
+  cluster, screen, wheel, seats, console, carpet, headliner, door cards, jambs) laid out by the
+  numbers CarCabin already measures, see-through glass with the people still traced on it. Doors
+  swing when he gets in or out on the side he is on and come off in a hard crash or blast. Only
+  the front doors; only the everyday bodies (sedan, taxi, crossover, pickup, van, hatchback, SUV,
+  minivan, beater); the exotics, police and big vehicles keep the traced cabin.
 
 - **2026-10-30 The oil islands in the bay are a data table, not seeded (HANDOFF "The oil
   islands").** Three decorated drilling islands 600-700 m off the Long Beach sand, each a landmark
@@ -352,6 +375,13 @@ already mapped so milestone 2 is script-only.
   horizon plane's drawn ground), with outcrops, scree and cut-bank boulders up close. Scans keep
   one level: their generated LODs shred along the open UV seams, so the distance gets welded
   copies. docs/HANDOFF.md "Rock outcrops"; `ROCKS=0` is the A/B.
+- **2026-10-30 Dry creek beds down the canyon floors (HANDOFF 9gv, arroyos).** Every major gully of
+  the ranges carries a wash: the land's own drainage (a priority-flooded D8 network over the
+  natural mountains, `Arroyos`), snapped into the real gully floor, drawn on a FULL or LOD hill tile
+  as a sandy, gravelly, cobbled bed (`shaders/arroyo_bed.gdshader`), with cobbles, boulders,
+  willow and mule-fat thickets and sycamores along it at FULL, and a concrete headwall and
+  corrugated pipe where a drawn hill road crosses it. Hashes only; the hills' planting only skips
+  the bed. `ARROYOS=0` is the A/B.
 - **2026-10-29 Facades are worked out per pane, not per building (owner: "start looking like GTA
   6").** Glass varies pane by pane and floor by floor, blinds hang at their own heights, the glass
   mirrors a street opposite with parallax, curtain walls come in three systems (flush, deep fins,
@@ -3447,6 +3477,24 @@ already mapped so milestone 2 is script-only.
   worked out once against the same surface function the concrete is built from and played from a
   clock (nothing simulated); they and the spectators are baked figures that wake into live people.
   SKATE_PARK=0 keeps the boxes.
+- **2026-10-30 The third wave of car bodies is derived, not drawn from scratch.** The EV hatch,
+  luxury sedan, compact SUV, work truck and coupe (tools/make_cars_3.py) are the older lofted
+  specs moved by station maps (cab-forward, a long bonnet, a cut overhang plus a uniform scale,
+  a lowered glasshouse) with their own faces, tails and parts, because the loft is fussy and a
+  derived one is known to build; their silhouettes still differ where a street reads them. Their
+  shares (165 per thousand) come out of the END of six older ranges, the sedan's, pickup's,
+  van's, sports car's, crossover's and the hatchback's, and `CARS_3=0` hands each slice back.
+
+- **2026-10-30 Forward+ review of the wave-3 features (fwd-review-d, HANDOFF "Forward+ review d").**
+  Decisions: anything the sky draws after the Forward+ cloud volume's composite is in front of it
+  (the island); renderer-space shaders take `sky_tint` through `cs_as_uniform()`; vertex colours are
+  decoded with `cs_srgb_to_linear()`, never `cs_in()`; a test scans every shader for these.
+- **2026-10-30 The wet world is shader-only, driven by the road's globals.** Rain on cars, walls,
+  roofs, awnings and people reads `road_wetness` / `road_drying` / `rain_intensity` through one
+  include (wet_surface.gdshaderinc) with no textures and one branch when dry, so it dries in step
+  with the street and costs the web nothing. Wipers are one shared mesh per body type turned in the
+  vertex shader, with four shared phase buckets (no per-car uniform); the glass clears its beads by
+  the same angle worked out from TIME.
 
 ## Correction: what build 135 (0ce833f) actually contained
 
@@ -3498,3 +3546,10 @@ pink-and-orange cloud sky; palms lit from below; dense crowds and headlights. Th
 signage as a light source*, *wet road reflections*, and *sky with cloud STRUCTURE at sunset* -
 this project has shaders/neon_sign.gdshader and a `road_wetness` global already and uses almost
 none of either.
+- **2026-10-30 The far ranges are crest lines, and the far ground reaches the far plane
+  (HANDOFF "The far ranges").** The back and east ranges' bases are a front face (the old one, so
+  their feet and the city's edge do not move), a wandering crest with a few big massings and a
+  long fall behind; canyons are wider apart and only saddle the crest. The front range keeps its
+  shape (it carries the landmarks). The horizon plane stays 14 km, with a coarser ring on the same
+  material out to 12.6 km, because its rim was erasing the crests 5-7 km away; past the bake the
+  map is mirrored. FAR_RANGES=0 is the old world exactly.

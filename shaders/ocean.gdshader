@@ -55,6 +55,7 @@ global uniform float lamp_factor;
 // The breaking surf: surf_shape / surf_extra and the wave model shared with the sand's swash and
 // the spray (Surf, scripts/world/surf.gd, is the same model in GDScript).
 #include "res://shaders/surf.gdshaderinc"
+#include "res://shaders/color_space.gdshaderinc"
 
 // --- Colour (LINEAR, not sRGB - see the hand-over note above) --------------------------------
 // The open sea, and the shelf. These two are MacroMap.BAKE_OCEAN_DEEP and BAKE_OCEAN_SHALLOW
@@ -670,7 +671,10 @@ void fragment() {
 	// The sky this water is under, weather and all. Same expression DayNight hands the ground
 	// follower as its haze_color (horizon lerped toward the storm horizon), so the far sea and
 	// this one wash out into the same colour.
-	vec3 haze = mix(sky_tint.rgb, storm_horizon, weather_dark * (1.0 - night_factor * 0.6));
+	// sky_tint is raw sRGB on both renderers; the far plane's haze_color (set from script) is
+	// decoded on Forward+. cs_as_uniform() puts this one in the same space, or on the Mac the
+	// whole sea mirrored a sky 1.5-2x too bright and stood out from the far plane (fwd-review-d).
+	vec3 haze = mix(cs_as_uniform(sky_tint.rgb), storm_horizon, weather_dark * (1.0 - night_factor * 0.6));
 	vec3 sun_n = normalize(sun_direction);
 	float dim = mix(1.0, 0.16, night_factor);
 	// The golden hour: the sun low but up. Backlit surf faces glow and the sun path turns warm.
