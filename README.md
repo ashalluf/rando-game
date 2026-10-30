@@ -16,3 +16,12 @@ opengl3 (Compatibility) stills, DIFF=1 (people and traffic hidden), 1280x720.
 - `12_after_dt_day_4.jpg`: downtown 10:00, flyers on a utility pole (after: STREET_CLUTTER_2=1)
 - `13_before_dt_day_6.jpg`: downtown 10:00, a restaurant's bags and cardboard (before: STREET_CLUTTER_2=0)
 - `14_after_dt_day_6.jpg`: downtown 10:00, a restaurant's bags and cardboard (after: STREET_CLUTTER_2=1)
+- `15_before_mb2_night.jpg`: midtown 21:30 wet, a collection night's bags at the kerb (before)
+- `16_after_mb2_night.jpg`: midtown 21:30 wet, a collection night's bags at the kerb (after)
+- `17_before_mb2_night_1.jpg`: midtown 21:30, cardboard and bags by a deli's door (before)
+- `18_after_mb2_night_1.jpg`: midtown 21:30, cardboard and bags by a deli's door (after)
+- `19_before_mb2_night_3.jpg`: midtown 21:30, flyers on a utility pole, weeds (before)
+- `20_after_mb2_night_3.jpg`: midtown 21:30, flyers on a utility pole, weeds (after)
+- `21_before_mb2_night_5.jpg`: beach town 21:30, bags at the kerb (before)
+- `22_after_mb2_night_5.jpg`: beach town 21:30, bags at the kerb (after)
+- `23_kit_lineup.jpg`: the kit alone (tools/street_clutter_2/kit_shot.gd): bags, cardboard, cart, cone, hand truck, steam, weeds, butts and gum, flyers, page, droppings
