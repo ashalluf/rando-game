@@ -28,7 +28,10 @@ func run(t: Node, city: Node3D) -> void:
 	var was_heavy := BlastFX.max_heavy
 	BlastFX._recent.clear()
 	var parent := WeaponFX.fx_parent(city)
-	var before := parent.get_child_count()
+	var before := {}
+	for c in parent.get_children():
+		before[c] = true
+	await _ticks(3) # the deck's shape reaches the physics space
 
 	_switch()
 	var at := _top + Vector3(0.0, 1.0, 0.0)
@@ -41,8 +44,9 @@ func run(t: Node, city: Node3D) -> void:
 	_car_fuel()
 
 	# Clean up: everything the blasts left, the deck, the building, the caps' clocks.
+	# Everything the blasts added to the scene (WeaponFX's own layers too) goes now.
 	for c in parent.get_children():
-		if c.name.begins_with("Blast") or c.name.begins_with("GlassShards"):
+		if not before.has(c) and c != _deck and not _made.has(c):
 			c.queue_free()
 	for n in _made:
 		if is_instance_valid(n):
@@ -52,7 +56,10 @@ func run(t: Node, city: Node3D) -> void:
 	BlastFX.max_heavy = was_heavy
 	BlastFX.fuel_next = false
 	await _ticks(3)
-	_t._check(parent.get_child_count() <= before + 2, "explosions_2: the blasts leave nothing behind (%d -> %d children)" % [before, parent.get_child_count()])
+	var left := 0
+	for c in parent.get_children():
+		left += 0 if before.has(c) else 1
+	_t._check(left == 0 and BlastDebris.alive() == 0, "explosions_2: the blasts leave nothing behind (%d nodes, %d pieces)" % [left, BlastDebris.alive()])
 
 
 func _ticks(n: int) -> void:
