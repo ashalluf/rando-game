@@ -1483,6 +1483,12 @@ already mapped so milestone 2 is script-only.
   hooks, so its windows, shops, damage and coded far boxes are unchanged) with the ornament as
   real geometry on its window grid; the old 150 ft limit holds. docs/HANDOFF.md "The historic
   core"; CLAUDE.md "Historic core".
+- **2026-10-30 An island on the horizon, drawn by the sky.** Isla Calandra (original; the form of
+  the Channel Islands) stands 36 km offshore, three times past the 12 km far plane, so it is not
+  a mesh: sky.gdshader follows each pixel's ray across a height field in true-world kilometres
+  (curvature included) before the clouds. Blue haze by day, a silhouette against the sunset,
+  the town's lights at night, gone in the marine layer and rain. docs/HANDOFF.md "The island
+  offshore"; CLAUDE.md "The island offshore".
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north

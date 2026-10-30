@@ -374,6 +374,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   under overcast. Look in seconds with `tools/sky/sky_shot.gd` (the city's Environment and
   DayNight, no city; HOUR, YAW, PITCH, MOONAGE, COVERAGE, CONTRAILS, DOME, DETAIL=0 the painted
   path, BENCH). Checks: `tests/sky_checks.gd`.
+- The island offshore (2026-10-30, docs/HANDOFF.md "The island offshore"): Isla Calandra, 36 km
+  WSW of the beach, past the far plane, so the SKY draws it (`shaders/offshore_island.gdshaderinc`,
+  `island_draw()` in sky.gdshader after the stars, before the clouds): a height field in true-world
+  km (`view_km`) followed along each ray, curvature included; lit, hazed (`island_haze_km`), dark
+  against a low sun (`island_glare`), town lights at night. `OffshoreIsland`
+  (`scripts/world/offshore_island.gd`, DayNight's child) pushes shape and weather (`air()`, pure:
+  gone in the marine layer / rain). `ISLAND=0` is the A/B; `tools/offshore_island/island_shot.gd`
+  in seconds; checks `tests/offshore_island_checks.gd`.
 - Weather: `Weather` node in the city scene (`scripts/world/weather.gd`): states clear, overcast,
   rain, storm; drives DayNight (`cloud_extra`, `weather_darken`), fog, rain particles, wet roads
   (`PropFactory.set_wetness`), the `wind_factor`, `wave_scale` and `tsunami_scale` shader globals,
