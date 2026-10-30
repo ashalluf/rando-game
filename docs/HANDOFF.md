@@ -18315,3 +18315,85 @@ and back; a staged pod is drawn).
 animals are not hit by rounds (a gun near them only startles the sea lions); dolphins and pelicans
 ignore the player's boats and swimming; the pelicans' line does not follow a curving coast round
 the headland (stretches that bend are skipped); there are no recorded sounds (all synthesised).
+
+## 9gp. THE PIT: the boardwalk's skate park, poured in code, with skaters on their lines, 2026-10-30 (agent branch `wt/skate-park`; VISUAL_ROADMAP ?)
+
+The task (fleet wave 3, "skate-park"): "a beach skate park ... bowls with coping, a snake run,
+ledges, rails, stairs, a half-pipe - with skaters riding them (scripted lines like BeachRider's
+skater, kickflips as a pose flip), spectators on the edge, graffiti. A site by the boardwalk fit
+to MacroMap's beach."
+
+**Where.** The boardwalk landmark (`LandmarkVeniceBoardwalk`) already had a skate park at
+SKATE_X / SKATE_Z (park origin (-978.3, 1.32, -473.6) on seed 1337): a raised plateau of ~80 box
+nodes. `_skate_park()` now hands over to `SkatePark.build()` (and the far copy builds the far
+level); SKATE_PARK=0 keeps the boxes. **The old park was buried**: the beach's berm crest
+(`CityChunk._sand_y()`, up to 1.3 m) runs right under the pad, and the old bowl's floor sat at the
+plan's ground (0), a metre under the sand. `SkatePark.origin()` lifts the pad onto the highest sand
+under it (`sand_y()` is the sand's profile in GDScript) and the walls run down past the lowest.
+
+**The park** (`scripts/world/skate_park.gd`, park-local frame +X inland, +Z up the beach): a high
+deck (H_HI 3.0 over the lifted origin) with a squared-oval POOL (bullnose coping blocks, a blue
+mosaic tile band, 2.3 m transitions, 0.45 m vert) and a SNAKE RUN (a sine channel deepening from
+1.55 to 2.45 m with round end caps) cut through it; a stair set of nine with hubba ledges either
+side and a centre handrail, and a bank, down to a TERRACE (H_LO 1.3) with a concrete MINI RAMP
+(1.85 m quarters, steel coping, decks with railings), a red-painted ledge with steel edges, a
+manual pad, a flat bar and a funbox with kickers; board-formed retaining walls all round with their
+caps; galvanised railings on the high deck's drops; a ramp up from the sand on the walk side; five
+floodlight poles (LED heads lit by `lamp_factor`, an OmniLight3D each in `lamp_light`, not on the
+web); THE PIT painted big on the walls the walk and the beach path see. A pit is a rim (closed
+polygon) swept down its profile (`pits()`, `profile()`: vert, then a quarter circle, the floor
+triangulated inside), the high deck a Delaunay round the rims with what falls inside dropped.
+`surface_y(p)` is the walkable top worked out from the same numbers (checked against the
+collision with rays). ONE mesh, `shaders/skate_park.gdshader` (kind in COLOR.a / 16: deck with
+saw-cut joints and scuffs, bowls with broken urethane carve marks, coping with wax and grind, the
+tile band, steel, board-formed walls with graffiti from the street wear atlas - big pieces and a
+handstyle layer, buffed ones -, caps, painted ledges, grip, plies, wheels, LED), ONE concave
+collision shape on the landmark's statics. ~9.6k triangles near, 2.5k far, built in ~45 ms, cached
+per anchor. The boardwalk's palm row crosses the pad on a slant (the walk turns with the shore):
+`skips_palm()` leaves out those that would stand in the park's way, after their rolls (2 on seed
+1337); `palm_ok()` would give a kept one a planter.
+
+**The skaters** (`scripts/world/skate_park_life.gd`): five LINES as waypoint tables (`lines()`:
+pool - round the walls high with two pumps a lap, a frontside air and a coping grind; snake - in
+off the deck, weaving bank to bank, out over the tail, back up the deck; mini - a 180 air at one
+lip and a turned kick at the other; street - onto the ledge, the flat bar, a kickflip over the
+funbox's kicker, a manual down the pad and a kickflip off it; stairs - up the bank, along the deck
+top, round, a kickflip down the nine). `sample()` makes each a 30 Hz table once (Catmull-Rom where
+ridden, straight in the air; the pace along the surface, so slower across the plan up a wall; an
+air given the time a body takes to rise and fall and lifted to clear whatever its chord crosses;
+grinds held at the rail's or coping's height; the up vector the surface's, smoothed; crouch on
+steep walls and after landings; a turned air swings the way it goes). Seven riders play them
+from the clock with their own offsets (`at()`); a kickflip rolls the board a turn about its length
+under an "air" figure. Riders and eight spectators (sitting on the drop wall's edge, arms folded,
+watching) are baked figures (`SkaterPerson`, a RoughSleeper in the crowd look as it is, posed from
+`POSES_SKATE`, `CampFigure._bake()`, a figure a frame); a body on the npc layer each; shot,
+knocked, or within ALARM_REACH of gunfire / any blast (the nearest WAKE_PER_ALARM, 0.12 s apart)
+they become a live SkaterPerson (who stands on the park's concrete, `_ground_y()`) and a skater's
+board is thrown as debris. Code-built board: concave kicks, grip, plies, trucks, wheels.
+
+**Switches / tools.** `SKATE_PARK=0` the A/B; `SKATE_T=<s>` sets the riders' clock,
+`SKATE_HOLD=1` holds it; `SKATE_DEBUG=1` prints the origin and EYEs. Probe (seconds, headless):
+`godot --headless --path . --script tools/skate_park/probe.gd` (geometry sizes, surface heights,
+every line's speed and clearance). Checks: `tests/skate_park_checks.gd` (63: layout, lines,
+switch, palms, the chunk's build, rays on the floor / deck / terrace, the clock, a woken
+spectator, a knocked skater, gunfire), alone `SMOKE_PARTS=skate_park_checks` (79 with the room).
+Full gate on this branch merged with main a3db077 (`SHARDS=3`): 3,080 passed, 0 failed, peak 2.89 GB a shard.
+
+**Stills** (shots/skate-park, opengl3 1280x720, `--spawn=-960,-470,135,-10 --hour=16.5`): EYEs
+overview `-950,32,-503,135,-38`, pool `-969.8,6.0,-494.6,162,-26`, street terrace
+`-962.3,6.0,-450.6,40,-18`, stair set `-973.7,4.4,-464.6,0,-8`, mini ramp `-982.3,4.6,-462.0,90,-12`,
+snake `-987.3,6.2,-494.6,180,-26`, and the overview and the stairs at 21:00. `00/02/04_before_*`
+are SKATE_PARK=0 (the old boxes, the bowl full of sand).
+
+**Frame cost** (`still_shot.gd` GEO, same EYEs, SKATE_PARK=0 -> on): overview 1.21 M / 799 draws
+-> 1.32 M / 535; pool 1.69 M / 1,098 -> 1.79 M / 827; street 1.69 M / 925 -> 1.79 M / 635; stairs
+2.81 M / 1,597 -> 2.85 M / 1,308; mini ramp 0.67 M / 235 -> 0.72 M / 213; snake 1.47 M / 731 ->
+1.57 M / 515: +3 to +9 % triangles (the figures and their shadows), ~260 fewer draws a view (the
+old park's box nodes are one mesh now). CPU: one transform per rider a physics frame.
+
+**Not done / not verified.** Not seen on Forward+ (the Mac): the concrete's tone under AgX, the
+floodlights' pools at night (the opengl3 stills show the LED heads only), the tile band. The
+riders are baked poses swapped, not animated (a pose snaps between ride, crouch, air and grind);
+no pushing; they pass through each other and through the player (scripted, like BeachRider). The
+player cannot skate. Spectators do not cheer or turn to the tricks. Graffiti uses the shared
+street wear atlas, so a piece can repeat one on a nearby wall.

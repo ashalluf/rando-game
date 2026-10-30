@@ -2443,6 +2443,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/speedboats_checks.gd").new().run(self, city)
 	# Life in the water (tests/sea_life_checks.gd): dolphins, pelicans, sea lions on the buoys, a whale.
 	await load("res://tests/sea_life_checks.gd").new().run(self, city)
+	# THE PIT, the boardwalk's skate park (tests/skate_park_checks.gd): the pits, the terrace, the
+	# lines on the concrete, the build and its collision, the riders on the clock, a knock, gunfire.
+	await load("res://tests/skate_park_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
