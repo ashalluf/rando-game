@@ -73,7 +73,7 @@ static func field_steps(ch: CityChunk) -> Array[Callable]:
 	if not Arroyos.enabled or ch.capturing or ch.plan.macro == null:
 		return []
 	var b := _make(ch)
-	return [b._field]
+	return [b._timed(b._field)]
 
 
 ## The steps after the planting (wrapped by the chunk so the batch adds no relief).
@@ -82,8 +82,20 @@ static func build_steps(ch: CityChunk) -> Array[Callable]:
 		return []
 	var b := _make(ch)
 	if ch.level == CityChunk.Level.FULL:
-		return [b._bed_mesh, b._stones, b._banks, b._culverts]
-	return [b._bed_mesh]
+		return [b._timed(b._bed_mesh), b._timed(b._stones), b._timed(b._banks), b._timed(b._culverts)]
+	return [b._timed(b._bed_mesh)]
+
+
+## Microseconds this chunk's arroyo steps took (meta "arroyo_usec"), the longest call in
+## "arroyo_max_usec" (the checks print them).
+func _timed(step: Callable) -> Callable:
+	return func() -> Variant:
+		var t0 := Time.get_ticks_usec()
+		var done: Variant = step.call()
+		var dt := Time.get_ticks_usec() - t0
+		ch.set_meta("arroyo_usec", int(ch.get_meta("arroyo_usec", 0)) + dt)
+		ch.set_meta("arroyo_max_usec", maxi(int(ch.get_meta("arroyo_max_usec", 0)), dt))
+		return done
 
 
 ## Whether `p` (world XZ) lies within `margin` of a bed in this chunk (the planting asks).

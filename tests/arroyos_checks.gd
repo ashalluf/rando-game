@@ -145,7 +145,10 @@ func _full(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 			in_bed += 1
 		on[str(e)] = true
 	_t._check(in_bed == 0, "arroyos: nothing of the hills' own planting stands in the bed (%d)" % in_bed)
-	print("ARROYOS full chunk %s: %d segments, %d bed triangles, %d cobbles, banks %s, build %.0f ms" % [k, b.segs.size(), tris, cobbles, kinds, ms])
+	var own_ms := int(chunk.get_meta("arroyo_usec", 0)) / 1000.0
+	var step_ms := int(chunk.get_meta("arroyo_max_usec", 0)) / 1000.0
+	_t._check(step_ms < 40.0, "arroyos: no arroyo build step over 40 ms (%.1f; %.1f ms in all)" % [step_ms, own_ms])
+	print("ARROYOS full chunk %s: %d segments, %d bed triangles, %d cobbles, banks %s, chunk build %.0f ms, arroyos %.1f ms (longest step %.1f)" % [k, b.segs.size(), tris, cobbles, kinds, ms, own_ms, step_ms])
 	_free(chunk)
 	Arroyos.enabled = false
 	var off := _build(city, k, CityChunk.Level.FULL)

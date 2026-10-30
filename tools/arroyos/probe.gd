@@ -48,6 +48,12 @@ func _ready() -> void:
 					hit = seg
 			if hit.is_empty():
 				continue
+			var xx: Vector2 = Geometry2D.segment_intersects_segment(a, b, hit.a, hit.b)
+			var hills := true
+			for q: Vector2 in [xx + Vector2(80, 0), xx - Vector2(80, 0), xx + Vector2(0, 80), xx - Vector2(0, 80)]:
+				hills = hills and plan.macro.zone_at(q) == MacroMap.Zone.HILLS
+			if not hills:
+				continue
 			var x: Vector2 = Geometry2D.segment_intersects_segment(a, b, hit.a, hit.b)
 			var rd: Vector2 = (hit.b - hit.a).normalized()
 			var flow := (b - a).normalized()
@@ -64,4 +70,25 @@ func _ready() -> void:
 				x.x - flow.x * 25.0, road_y + 45.0, x.y - flow.y * 25.0, yaw])
 			found += 1
 			break
+	# The widest washes, from the air: 120 m down the wash and 80 m up, looking back up it.
+	var best: Array = []
+	for li in net.lines.size():
+		var ws: PackedFloat32Array = net.lines[li].w
+		var line: PackedVector2Array = net.lines[li].pts
+		var run := 0
+		for i in line.size():
+			run = run + 1 if ws[i] > 4.0 else 0
+			if run == 40 and line[i].distance_to(at) <= radius:
+				best.append([li, i - 20])
+				break
+	for e: Array in best.slice(0, most):
+		var line: PackedVector2Array = net.lines[e[0]].pts
+		var p := Arroyos.snapped(net, e[0], e[1])
+		var flow := (line[mini(e[1] + 3, line.size() - 1)] - line[maxi(e[1] - 3, 0)]).normalized()
+		var cam := p + flow * 110.0
+		var y := plan.height_at(cam) + 70.0
+		var yaw := rad_to_deg(atan2(flow.x, flow.y))
+		var pitch := -rad_to_deg(atan2(y - plan.height_at(p), 110.0))
+		print("WASH %d at %s width %.1f  AIR_EYE=%.1f,%.1f,%.1f,%.0f,%.0f  LOW_EYE=%.1f,%.1f,%.1f,%.0f,-8" % [e[0], p.round(), net.lines[e[0]].w[e[1]], cam.x, y, cam.y, yaw, pitch,
+			p.x + flow.x * 25.0, plan.height_at(p + flow * 25.0) + 4.0, p.y + flow.y * 25.0, yaw])
 	get_tree().quit()

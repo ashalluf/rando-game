@@ -14893,3 +14893,90 @@ never lets him fall the last metre in).
 the sea still rides its wheels on the ground box; the strokes are keyed in code, not
 motion-captured (the UAL swim clips are still out of this network's reach); nothing of it has been
 seen on Forward+ (the Mac).
+
+## 9d?. Dry creek beds (arroyos) (2026-10-30, wave 3, `wt/arroyos`)
+
+The task: "dry creek beds in the canyon floors: a sandy, cobbled wash winding down each major
+gully, boulders, sycamores and willows along it, culverts where hill roads cross. FULL hill chunks
+only, planted from the same drainage field so it follows the land; LOD chunks a painted strip."
+
+**Where the washes are: the land's own drainage, not the erosion's stripes.** `last_drain` (the
+erosion field, -1 crest .. +1 gully) was tried first and paints broad blue areas, not lines: it is
+three orders of cosine stripes summed, high along every order's floor and on flats, and a per-vertex
+cross-section test on the tile gave blobs, never a line that runs. So `Arroyos`
+(`scripts/world/arroyos.gd`) routes water over the natural mountains:
+- a PRESCAN (`raw_height_at()` every 128 m over the whole reachable map) finds the ranges; the flow
+  grid is every 32 m cell within a prescan cell of them (`CELL`; 352 x 520 cells, 95k of them range,
+  the reservoir's water left out); ~7 s the first launch on this box, then `LoadCache` ("arroyos");
+- **priority flood** (Barnes) from the range's edge on a bucket queue (`FLOOD_BUCKET` 0.25 m, FIFO
+  in a bucket, no sort): every cell drains to the neighbour it was reached from. Plain D8 was tried
+  first: the eroded ranges' 32 m grid is full of little pits, the flow ended in them and only the
+  range foot had channels;
+- catchments down the flow in Kahn order; every cell draining `MIN_CATCH` (60 cells, 6 ha) is a
+  channel; traced head to junction into lines, rounded (Chaikin x3), resampled every `STEP` 4 m,
+  with a bed width from the catchment (`WIDTH_MIN` 2.6 m, +1.25 a doubling, to 9 m);
+- **gaps**: no bed across a filled pit (the flood's own flat), where the fall is under `MIN_FALL`,
+  or where a line stands `RISE` (2.5 m) over the lowest ground it has reached (a flood path over a
+  saddle, or onto the grid's far edge, x 8300 / z -8200);
+- **snapping**: each point, as chunks ask, looks `SNAP_REACH` (22 m) across the coarse line for the
+  lowest natural ground (13 samples and a parabola), and the offsets are averaged over
+  `SNAP_SMOOTH` points either side, so the bed lies in the real floor of the 4-6 m terrain tile and
+  winds with it. Pure: two chunks compute the same snapped points along their shared edge.
+- default seed: 384 washes, 230 km. The back range's south face and the canyons of every range are
+  well served; the front range's smooth, very steep south face above the basin has few (its
+  gullies drain under 6 ha before the foot), and the pass's low ground has gaps.
+
+**Per chunk** (`ArroyoBuild`, `scripts/world/arroyo_build.gd`; two hooks in the HILLS step list):
+- `field_steps()` after `_mark_shell_ground`: waits for the network (a slice a call), snaps the
+  points that can reach the tile (2.5 ms a call), keeps a point only on **natural** ground
+  (`Arroyos.natural()`: `height_at()` within 0.3 m of the mountains plus the city relief - NOT of
+  `raw_height_at()`, which leaves out the relief and called every point carved), off the reservoir
+  and the ballpark; makes the bed segments; finds the culverts; works out each tile vertex's
+  distance to the bed and lowers the hill shells' keep-out with it (no grass blades in the bed).
+- `_plant_hills` skips points in the bed (`ArroyoBuild.in_bed()`), AFTER every roll the point
+  would make (the oak's / shrub's variety and the sage's colour are drawn first): nothing else the
+  hills plant moves (checked: 0 of 110 moved).
+- `build_steps()` after the planting: the BED is the tile's own triangles near a wash (corner
+  within `BED_REACH` + half a cell), each split barycentrically into 16 (FULL) / 4 (LOD), so the
+  pieces lie exactly on the drawn ground; per vertex the distance to the bed's edge and its half
+  width (UV), the flow direction and a line hash (COLOR), the signed offset across (UV2.x). One
+  mesh a chunk, no shadow, `shaders/arroyo_bed.gdshader`: lifted a few cm along the normal (more
+  with distance), a ragged dithered edge, granite sand (Ground054 re-toned), a meandering darker
+  low-flow thread with ripples, gravel bars (DryGroundRocks) toward the banks and in drifts, two
+  sizes of procedural cobbles lit as domes and faded to their mean under a few pixels, debris lines,
+  wet and glossy after rain (`road_wetness`, the thread last); linear on both renderers.
+- FULL only: code COBBLES (`ArroyoKit.pebble()`, three worn shapes, ~180/80/24 triangles in three
+  LODs, the rock texture world-projected, tints from a hash: granite greys, tan, rose, now and then
+  dark), 2-5 a 4 m segment, `MAX_COBBLES` 520, no shadow, 90 m; BOULDERS (the hills' `rock_0/1`,
+  32 % a bank side, 7 % in the bed, collision over half a metre high); the BANKS: willow thickets
+  (LaTrees' olive - lance leaves, pale undersides - greener and taller, 4-7 m, in clumps of 1-3),
+  mule fat (the chaparral model, bright green), sycamores (LaTrees, 10-16 m, wider beds), scaled
+  by the bed's width, `MAX_TREES` 22 / `MAX_SHRUBS` 70, never on a road or in another bed.
+- CULVERTS: a run of carved points between two natural ones that a DRAWN hill road crosses
+  (`_crossing_road()`), under `CULVERT_MAX_RUN`, with the road at least `CULVERT_MIN_FILL` over
+  the outlet's toe. The outlet sits at the downstream toe (bisected where the ground stops being
+  natural); the inlet at the upstream toe, or - where the road is benched into the slope and in cut
+  above it, which is most of them - a drop inlet in the uphill ditch at the road's shoulder.
+  `ArroyoKit.culvert_mesh()`: a board-formed concrete headwall with a coping, splayed wing walls
+  and an apron round one or two corrugated steel pipes (0.45 / 0.6 / 0.75 m by the bed's width,
+  two over 6.5 m) running 2.5 m into the bank with a dark cap; `shaders/arroyo_culvert.gdshader`
+  (form lines, tie holes, water streaks, splash, lichen; 68 mm corrugations, galvanised to rust at
+  the invert; the bore dark with depth, silt along it); rip-rap below the outlet; a collision box.
+- every roll a hash of seed + line + point (+ side, + index), never a chunk, block or row rng.
+- `ARROYOS=0` in the environment: no network, no hook does anything (the A/B).
+
+**Cost** (the busiest FULL chunk on the default seed, (31, -44): 83 segments): the bed 1,665
+triangles (one draw, no shadow), 263 cobbles (three batches), 54 bank plants in existing batches;
+the arroyo steps' time and the stills' GEO lines are below.
+
+**Tools**: `tools/arroyos/net_probe.tscn` (OUT=, REGION=, RES=, SNAP=1: the network over a
+hillshade, the catchments tinted), `tools/arroyos/probe.tscn` (culverts on drawn roads in the hills
+with ROAD_EYE / AIR_EYE lines, the widest washes with AIR_EYE / LOW_EYE), `tools/arroyos/
+culvert_probe.tscn` (why a run got a culvert or not, the washes that climb). Checks:
+`tests/arroyos_checks.gd`.
+
+**Not done / unverified.** Nothing of it has been seen on Forward+ (the Mac) - the bed's tone
+against the Forward+ terrain and the cobbles' dome shading want a look; the far city (Skyline)
+draws no strip (LOD chunks do); fire roads (dirt, not drawn by HillRoads) cross a wash with no
+ford or culvert, the bed just stops either side; a drop inlet below a deep cut can sit under a
+tall cut face; the first launch spends ~7 s on the network on the loading screen (cached after).
