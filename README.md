@@ -7,3 +7,5 @@
 - 04_after_bank_down_to_platform.jpg - from the concourse down the bank to the island and a train.
 - 05_after_platform_train_dwelling.jpg - the platform with a train dwelling, doors open, riders.
 - 06_after_platform_lift_and_tunnel.jpg - the other way: the lift, the escalators, the tunnel into the dark.
+- 07_after_platform_names_on_the_walls.jpg - the platform in the full city (still_shot), the station name panels lettered.
+- 08_after_kiosk_street_city_still.jpg - the kiosk in the full city at 14:00 (the "after" of 00).
