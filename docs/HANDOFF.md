@@ -14446,8 +14446,25 @@ purity, clearance, a FULL chunk on / off A/B, LOD, capture). `BACKYARDS=0` is th
 and 21:00 before / after, one patio at noon, 18:30 (the grill smoking) and 21:00, a trampoline, a
 pool with loungers, the 40 m night aerial over the patio.
 
+**Wave 3 (2026-10-30): people.** Merged with main at 95bd13f (apartments' lots are kept off by
+their own `extra_ground` in the yard plan's parts; both checks pass). The loungers - by a pool and
+on a lawn - carry sunbathers by day: `plan_lot()` gives a lounger pair `"sun"` ([seat, beach rig,
+the share of the beach's busyness from which they are out], pure), and `_sun()` puts out those
+under `BeachLife.density(hour) x weather_factor` of the hour the chunk is built at (none from
+19:30 to 6:30). Each is a baked figure in a swimsuit (BeachFigure.beach_mesh() in the new
+`BeachGoer.BEACH_POSES["lounge"]`: hips pitched 40 degrees back on a 49 cm hip joint, the back up
+50 degrees, legs out, hands on the thighs; fitted with `tools/backyards/lounger_shot.tscn`),
+merged into one `BeachFigureMesh` a chunk ("BackyardFigures", 160 m, shadows to 45 m), each with a
+`YardFigure` body (`scripts/world/yard_figure.gd`); shot, knocked or near gunfire it wakes as a
+`YardGoer` (`scripts/npc/yard_goer.gd`, a BeachGoer whose ground is the yard's level over the
+relief, not the sand). `Backyards.seat_xform()` is a seat in the lounger's space (a baked figure
+faces -Z, the lounger's feet). The loading screen bakes the seven rigs in the pose
+(`Backyards.figure_kinds()`). backyards.gd names none of the beach classes (they pull the
+autoloads into every `--script` tool that loads YardFill): `SUN_MODELS` / `POSE_CHAIR` are copies
+(checked). The probe counts 183 sunbathers over 1,026 lots and prints `LOUNGERS_SUN` EYEs.
+
 **Not done / not verified.** Forward+ (the Mac) not seen: the bulbs' and embers' bloom through AgX,
-the smoke under TAA. No people in the yards (a baked figure on a lounger, BeachFigure-style,
-would be the next step), no hot tubs, fire pits or veg beds. String lights hook onto the house's
+the smoke under TAA, the sunbathers' skin. Nobody at the grill or the table at dinner (a standing or
+seated baked figure in clothes needs a non-swimwear bake), no hot tubs, fire pits or veg beds. String lights hook onto the house's
 back wall at a fixed 2.55 m (not the real eave of a two-storey house). The pieces stand at the
 yard's level and do not follow a slope inside a lot. A trampoline does not bounce the player.
