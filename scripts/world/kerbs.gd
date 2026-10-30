@@ -684,6 +684,11 @@ static func _ring_setup(ctx: Dictionary, mat: Material) -> void:
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	ctx["st"] = st
 	ctx["mat"] = mat
+	# The kerb face and its arris in their own mesh and material (StreetCloseup).
+	if StreetCloseup.enabled:
+		var fst := SurfaceTool.new()
+		fst.begin(Mesh.PRIMITIVE_TRIANGLES)
+		ctx["fst"] = fst
 	ctx["inv"] = Vector2(1.0 / rect.size.x, 1.0 / rect.size.y)
 	var step := ch.ground_grid_step if CityChunk._detail() >= 1.0 else ch.ground_grid_step * 2.0
 	var inn := inner(rect)
@@ -772,6 +777,12 @@ static func _finish_ring(ctx: Dictionary) -> void:
 	mi.mesh = mesh
 	mi.material_override = ctx.mat
 	ch.add_child(mi)
+	if ctx.has("fst"):
+		var face := MeshInstance3D.new()
+		face.name = "KerbFace"
+		face.mesh = (ctx.fst as SurfaceTool).commit()
+		face.material_override = StreetCloseup.kerb_material(ctx.mat)
+		ch.add_child(face)
 	var acc: _Faces = ctx.acc
 	if ch._statics and acc.faces.size() > 0:
 		var shape := ConcavePolygonShape3D.new()
@@ -966,8 +977,62 @@ static func _kerb_face(ctx: Dictionary, e: int, coords: Array) -> void:
 		var ta := kerb_top(ctx.notches, e, u0)
 		var tb := kerb_top(ctx.notches, e, u1)
 		var foot := ROAD - FACE_FOOT
+		if ctx.has("fst"):
+			_face_closeup(ctx, e, start, u0, u1, a, b, ta, tb, foot, want)
+			continue
 		_tri(ctx, _v3(ctx, a, ta), _v3(ctx, b, tb), _v3(ctx, b, foot), want)
 		_tri(ctx, _v3(ctx, a, ta), _v3(ctx, b, foot), _v3(ctx, a, foot), want)
+
+
+## The same face in StreetCloseup's mesh (UV: metres along in world terms, metres over the road),
+## its collision as before, and the arris strip over the top edge where the kerb stands full height.
+static func _face_closeup(ctx: Dictionary, e: int, start: float, u0: float, u1: float, a: Vector2, b: Vector2,
+		ta: float, tb: float, foot: float, want: Vector3) -> void:
+	var fst: SurfaceTool = ctx.fst
+	var pa := _v3(ctx, a, ta)
+	var pb := _v3(ctx, b, tb)
+	var fb := _v3(ctx, b, foot)
+	var fa := _v3(ctx, a, foot)
+	var w0 := start + u0
+	var w1 := start + u1
+	StreetCloseup.face_tri(fst, pa, pb, fb, Vector2(w0, ta - ROAD), Vector2(w1, tb - ROAD), Vector2(w1, foot - ROAD), want, 0.0)
+	StreetCloseup.face_tri(fst, pa, fb, fa, Vector2(w0, ta - ROAD), Vector2(w1, foot - ROAD), Vector2(w0, foot - ROAD), want, 0.0)
+	var acc: _Faces = ctx.acc
+	acc.faces.append_array(PackedVector3Array([pa, pb, fb, pa, fb, fa]))
+	if absf(ta - TOP) > 0.001 or absf(tb - TOP) > 0.001:
+		return
+	# The arris: not over the block's corners (the next edge's strip meets it there).
+	var length: float = ctx.lens[e]
+	var s0 := maxf(u0, StreetCloseup.ARRIS)
+	var s1 := minf(u1, length - StreetCloseup.ARRIS)
+	if s1 - s0 < 0.01:
+		return
+	var lift := TOP + StreetCloseup.ARRIS_LIFT
+	var oa := _v3(ctx, _pt(ctx, e, s0, 0.0), lift)
+	var ob := _v3(ctx, _pt(ctx, e, s1, 0.0), lift)
+	var ib := _v3(ctx, _pt(ctx, e, s1, StreetCloseup.ARRIS), lift)
+	var ia := _v3(ctx, _pt(ctx, e, s0, StreetCloseup.ARRIS), lift)
+	var q0 := start + s0
+	var q1 := start + s1
+	# The strip faces up; its vertex normals carry the face's outward way for the shader.
+	_arris_tri(fst, oa, ob, ib, Vector2(q0, 0.0), Vector2(q1, 0.0), Vector2(q1, 1.0), want)
+	_arris_tri(fst, oa, ib, ia, Vector2(q0, 0.0), Vector2(q1, 1.0), Vector2(q0, 1.0), want)
+
+
+static func _arris_tri(fst: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, ua: Vector2, ub: Vector2, uc: Vector2, out: Vector3) -> void:
+	var n := (c - a).cross(b - a)
+	if n.y < 0.0:
+		var t := b
+		b = c
+		c = t
+		var tu := ub
+		ub = uc
+		uc = tu
+	for k in 3:
+		fst.set_normal(out)
+		fst.set_uv([ua, ub, uc][k])
+		fst.set_uv2(Vector2(1.0, 0.0))
+		fst.add_vertex([a, b, c][k])
 
 
 # --- Marks ----------------------------------------------------------------------------------------

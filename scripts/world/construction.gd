@@ -948,6 +948,8 @@ static func _hoarding(ch: CityChunk, st: SurfaceTool, site: Dictionary, g: float
 					K.box(st, Transform3D(Basis(), Vector3(qq.x, y0 + WALKWAY_H * 0.5, qq.y)), Vector3(0.1, WALKWAY_H, 0.1), K.K_STEEL, Color(0.20, 0.32, 0.22), -1.0, 0, 32)
 				t3 += 2.44
 			var dm := (a + b) * 0.5 + out * depth * 0.5
+			# No street tree grows up through the deck (StreetCloseup, at the chunk's finish).
+			StreetCloseup.note_shed(ch, PackedVector2Array([a, b, b + out * (depth + 0.2), a + out * (depth + 0.2)]))
 			K.box(st, Transform3D(Basis(Vector3.UP, yaw), Vector3(dm.x, y0 + WALKWAY_H + 0.15, dm.y)), Vector3(len, 0.3, depth + 0.2), K.K_STEEL, Color(0.20, 0.32, 0.22))
 			K.box(st, Transform3D(Basis(Vector3.UP, yaw), Vector3(dm.x, y0 + WALKWAY_H + 0.31, dm.y)), Vector3(len, 0.03, depth + 0.2), K.K_FORM, Color(0.62, 0.55, 0.42), -1.0, 0, 32)
 			var pk := (a + b) * 0.5 + out * (depth + 0.1)
