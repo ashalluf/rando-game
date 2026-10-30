@@ -18986,6 +18986,12 @@ yard and kerb canopies: a canopy_blob is a few dozen triangles, ~30 k more of th
 view). Planting a block costs 0.5-2.6 ms of the far city's build (probe), inside its per-step
 budget; the far tiles are LoadCache'd like the rest.
 
+**Gate** (`SHARDS=3`, this branch merged with main 285e960's parent): 3,613 passed, 2 failed, peak
+3.1 GB a shard. Both failures are outside this branch and flaky: ragdolls' "the body lies on the
+ground" (hips 0.55-0.63 m against a 0.60 bar; alone it failed with `MID_CITY=0` and passed twice
+with it on) and stunt ramps' touch-down restoring the time scale (passes alone: order-dependent in
+one process). `SMOKE_PARTS=mid_city_checks`: 4 passed.
+
 **Not done / not verified.** Not seen on Forward+ (the Mac): the canopy and roof colours under AgX,
 the pools' sky. The midtown and downtown blocks are still Building boxes on paving (FarBuilding's
 coded copies of the near buildings, untouched by design); their trees are the kerb rows and
