@@ -14978,6 +14978,15 @@ faces -Z, the lounger's feet). The loading screen bakes the seven rigs in the po
 autoloads into every `--script` tool that loads YardFill): `SUN_MODELS` / `POSE_CHAIR` are copies
 (checked). The probe counts 183 sunbathers over 1,026 lots and prints `LOUNGERS_SUN` EYEs.
 
+**Gate (wave 3):** `SHARDS=3 tests/headless_check.sh` on the merge with main eb75a10: 2,551 checks
+passed, 0 failed, shards peaking at 2.30 / 2.52 / 2.44 GB. One earlier run on the same tree lost
+`tests/dog_checks.gd`'s crowd-dog walker mid-check ("previously freed", line 168 / 180, in the shard
+that does not run backyards); `SMOKE_PARTS=dog_checks,backyards_checks` passes and the next full
+run passed, so it reads as a flake in the dog check's staging (something knocks or frees the walker
+it placed beside the player), not this branch. Sunbathers' cost (opengl3, BACKYARDS=0 -> on, 14:00):
+a lounger pair at 6 m 5.11 M / 2,340 -> 5.29 M / 2,462 triangles / draws; 45 m over block (21,31)
+3.71 M / 1,475 -> 3.82 M / 1,532.
+
 **Not done / not verified.** Forward+ (the Mac) not seen: the bulbs' and embers' bloom through AgX,
 the smoke under TAA, the sunbathers' skin. Nobody at the grill or the table at dinner (a standing or
 seated baked figure in clothes needs a non-swimwear bake), no hot tubs, fire pits or veg beds. String lights hook onto the house's
