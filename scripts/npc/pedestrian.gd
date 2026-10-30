@@ -40,6 +40,14 @@ const MODELS := [
 	"res://assets/models/crowd_r.glb",
 	"res://assets/models/crowd_s.glb",
 	"res://assets/models/crowd_t.glb",
+	# 2026-10-30: six more in garments of their own (tools/crowd/garments.py): two quilted puffers,
+	# two dresses, a duck work jacket, cargo shorts (docs/ASSETS.md, crowd_config.json).
+	"res://assets/models/crowd_u.glb",
+	"res://assets/models/crowd_v.glb",
+	"res://assets/models/crowd_w.glb",
+	"res://assets/models/crowd_x.glb",
+	"res://assets/models/crowd_y.glb",
+	"res://assets/models/crowd_z.glb",
 ]
 ## Rigs that never wear a hat: their head is already covered (crowd_r's headscarf). The hat rolls
 ## are still made for them, so every roll after them is the same as anyone's.
@@ -215,6 +223,7 @@ var _look_point := Vector3.INF
 var _look_threat := Vector3.INF
 var _look_hold: float = 0.0
 var _look_scan: float = 0.0
+var _look_mod: CrowdLook
 ## Moving cars near the player, [position, velocity], shared by the whole crowd and refreshed
 ## a few times a second (_nearby_cars()).
 static var _cars: Array = []
@@ -1575,6 +1584,11 @@ func _post_pose(delta: float) -> void:
 	if _look_bones.size() != 2:
 		return
 	_look_hold = maxf(_look_hold - delta, 0.0)
+	if CrowdLook.enabled and _look_mod == null:
+		_look_mod = CrowdLook.of(self, _head_skel)
+	if _look_mod:
+		_look_mod.think(delta) # the head look as a modifier (crowd_look.gd); below is CROWD_LOOK=0
+		return
 	_look_scan -= delta
 	if _look_scan <= 0.0:
 		_look_scan = 0.3 + _anim_rng.randf() * 0.25

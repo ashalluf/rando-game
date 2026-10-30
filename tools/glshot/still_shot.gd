@@ -68,6 +68,7 @@ extends SceneTree
 ## SERVICE=garbage|sweeper|tow|ice_cream|delivery stages a service vehicle at work ahead of the
 ## camera and moves a free camera to frame it (ServiceFleet.stage_for_shot; SERVICE_EYE=0 keeps
 ## the camera, SERVICE_LIFT 0..1 how far up the garbage truck's arm has its cart).
+## MOTO=ride|throw|filter|parked|riders stages motorcycles (tools/moto/stage.gd has the knobs).
 ## ERRAND=bus|car|jay|shop|deliver stages a street errand ahead of the camera (StreetErrands; see
 ## tools/street_errands/stage.gd for ERRAND_PICK and the framing knobs); STREET_ERRANDS=0 turns
 ## the errands off (the A/B).
@@ -277,6 +278,50 @@ func _initialize() -> void:
 			if fly_frames % 20 == 0:
 				print("fly: frame %d, %.2f s, %.1f m/s" % [fly_frames, flown, (player.get("velocity") as Vector3).length()])
 		print("fly: %.2f s at %.1f m/s, now at %s" % [flown, (player.get("velocity") as Vector3).length(), player.global_position])
+	# WINGSUIT=glide|fall|skid: the hero launched along the camera at WS_SPEED m/s (default 48), the suit
+	# spread (glide) or not (fall, the before) - skid: launched low and fast at WS_SPEED 55 so he
+	# touches down and skids -, the stick held at WS_INPUT ("roll,pitch", the move
+	# axes) for WS_TIME seconds of game time at FLY_SCALE; then WS_LOOK="yaw,pitch" (degrees off
+	# his heading, and up) swings the camera round him for the shot, WS_DIST metres off (and FOV).
+	var ws_mode := OS.get_environment("WINGSUIT")
+	if (ws_mode == "glide" or ws_mode == "fall" or ws_mode == "skid") and player and player.get("wingsuit") != null:
+		_flying = true
+		var suit: Node = player.get("wingsuit")
+		var rig_ws: Node3D = player.get_node("CameraRig")
+		var yaw_ws := rig_ws.global_rotation.y
+		player.set("velocity", Basis(Vector3.UP, yaw_ws) * Vector3(0.0, -6.0, -_env_float("WS_SPEED", 48.0)))
+		(player.get_node("Visual") as Node3D).rotation.y = yaw_ws
+		var stick := OS.get_environment("WS_INPUT").split(",")
+		if ws_mode == "skid":
+			player.set("velocity", Basis(Vector3.UP, yaw_ws) * Vector3(0.0, -4.0, -_env_float("WS_SPEED", 55.0)))
+		if ws_mode == "fall" and OS.get_environment("WS_DIST") != "":
+			rig_ws.set("camera_distance", _env_float("WS_DIST", 6.5))
+		if ws_mode != "fall":
+			suit.call("open")
+			suit.call("force_input", Vector2(float(stick[0]), float(stick[1])) if stick.size() == 2 else Vector2.ZERO)
+		Engine.time_scale = _env_float("FLY_SCALE", 0.125)
+		var flown_ws := 0.0
+		while flown_ws < _env_float("WS_TIME", 1.5):
+			await process_frame
+			flown_ws += get_root().get_process_delta_time()
+		print("wingsuit: %.2f s, %.1f m/s, gliding %s, at %s" % [flown_ws, (player.get("velocity") as Vector3).length(), suit.call("is_gliding"), player.global_position])
+		var gliding_ws: bool = suit.call("is_gliding")
+		if OS.get_environment("WS_DIST") != "":
+			if gliding_ws:
+				suit.set("camera_extra", _env_float("WS_DIST", 9.0) - float(suit.get("_base_distance")))
+			else:
+				rig_ws.set("camera_distance", _env_float("WS_DIST", 6.5))
+		if OS.get_environment("FOV") != "":
+			suit.set("_base_fov", _env_float("FOV", 70.0))
+			suit.set("fov_extra", 0.0)
+			rig_ws.set("camera_fov", _env_float("FOV", 70.0))
+			rig_ws.set("boost_fov_boost", 0.0)
+		var look_ws := OS.get_environment("WS_LOOK").split(",")
+		if look_ws.size() == 2:
+			var hd: float = rad_to_deg(float(suit.get("heading"))) if ws_mode != "fall" else rad_to_deg(yaw_ws)
+			suit.set("chase_after", 1.0e9)
+			rig_ws.call("set_look", hd + float(look_ws[0]), float(look_ws[1]))
+			await process_frame
 	# HUD=1 with --nohud: skip the loading screen (which --nohud does) but put the HUD back up for
 	# the shot, in its CLEAN mode - without --nohud the loading screen fills the first hundred frames.
 	if OS.get_environment("HUD") == "1" and current_scene:
@@ -420,6 +465,34 @@ func _initialize() -> void:
 		if current_scene.has_method("update_streaming"):
 			current_scene.call("update_streaming", true)
 		for i in _env_int("EMERGENCY_FRAMES", 30):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
+	# NEWS=wide|crew|reporter|van: a TV news van and its crew on air at a story staged ahead of the
+	# camera (NewsCrews.stage_for_shot; NEWS_STATION=0..3 picks the station), framed by a free camera.
+	var news_env := OS.get_environment("NEWS")
+	if news_env != "" and current_scene and current_scene.get_node_or_null("NewsCrews"):
+		var nc: Node = current_scene.get_node("NewsCrews")
+		var news_eye: String = await nc.call("stage_for_shot", news_env, get_root().get_camera_3d(), _env_int("NEWS_STATION", -1))
+		if news_eye != "":
+			OS.set_environment("EYE", news_eye)
+			OS.set_environment("EYE_AGL", "")
+		print("NEWS %s eye %s" % [news_env, news_eye])
+		# NEWS_ALL=1: the other framings after it from the same load (SHOTS), NEWS_NIGHT=h adds the
+		# wide one again at that hour.
+		if OS.get_environment("NEWS_ALL") == "1":
+			var eyes: Dictionary = nc.get("shot_eyes")
+			var more: Array = []
+			for key: String in ["crew", "reporter", "van", "air"]:
+				if key != news_env and eyes.has(key):
+					more.append(String(eyes[key]) + "@")
+			if OS.get_environment("NEWS_NIGHT") != "":
+				more.append(String(eyes.wide) + "@" + OS.get_environment("NEWS_NIGHT"))
+				more.append(String(eyes.crew) + "@")
+			OS.set_environment("SHOTS", ";".join(more))
+		_eye(player, fov)
+		if current_scene.has_method("update_streaming"):
+			current_scene.call("update_streaming", true)
+		for i in _env_int("NEWS_FRAMES", 30):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
 	# ONLOOKER_SCENE=body|wreck|blast: a crowd come back round a scene ahead of the camera
@@ -595,6 +668,18 @@ func _initialize() -> void:
 		for i in _env_int("RAIN_FRAMES", 6):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
+	# MOTO=ride|throw|filter|parked|riders: motorcycles staged in front of the camera
+	# (tools/moto/stage.gd: MOTO_TYPE, MOTO_LEAN, MOTO_WHEELIE, MOTO_SPEED, MOTO_FILTER_T).
+	var moto_env := OS.get_environment("MOTO")
+	if moto_env != "" and current_scene:
+		var m_eye: String = await load("res://tools/moto/stage.gd").new().stage(self, current_scene, moto_env, get_root().get_camera_3d())
+		if m_eye != "":
+			OS.set_environment("EYE", m_eye)
+		print("MOTO %s eye %s" % [moto_env, m_eye])
+		_eye(player, fov)
+		for i in _env_int("MOTO_SETTLE", 12):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
 	# Then all but freeze the clock for the last frames: a software frame takes seconds, and at
 	# normal speed everything that moves - people, traffic, leaves, fire - smears under TAA.
 	# Held still, TAA and the GI converge on one instant, as crisp as it is on the Mac.
@@ -762,6 +847,8 @@ func _initialize() -> void:
 		# A third field is this shot's own field of view ("x,y,z,yaw,pitch@hour@fov").
 		if bits.size() > 2:
 			fov = bits[2].to_float()
+		# Systems that stage a sequence (FreewayIncidents' FW_INCIDENT_TIMES) read which shot this is.
+		Engine.set_meta("still_shot_index", k)
 		_eye(player, fov)
 		if streamer and streamer.has_method("update_streaming"):
 			streamer.call("update_streaming", true)
@@ -1563,7 +1650,12 @@ func _stage_street(kind: String) -> void:
 				var t := mix[mixed % mix.size()]
 				mixed += 1
 				var mc: Node = vs.call("random_car", rng)
-				if t == 17:
+				if t == 25 or t == 26:
+					# A lowrider cruising (Lowrider): handed out by its own kind.
+					mc.free()
+					mc = load("res://scripts/vehicles/lowrider.gd").call("make", t, rng.randi())
+					big_kind = t
+				elif t == 17:
 					mc.call("setup", t, Color(0.96, 0.73, 0.03), 0)
 					mc.call("setup_look", 0, 3, Color(0.07, 0.07, 0.08))
 				else:

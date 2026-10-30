@@ -216,7 +216,11 @@ func _player_car(player: Player, car: Vehicle, ea: EngineAudio) -> void:
 	var high_played: bool = v._players[2].playing or v._players[3].playing
 	_check(high_played or float(v.st.rpm) < 3000.0, "the upper loops take over as it revs")
 	player.exit_vehicle()
-	await _ticks(15)
+	# The voices are re-picked on the real clock (pick_interval): a loaded box runs many ticks a pick.
+	for i in 90:
+		await _tree.physics_frame
+		if i >= 15 and _voice_of(ea, car) == null:
+			break
 	_check(_voice_of(ea, car) == null, "an empty parked car has no engine")
 	# Back by the start, so the camera is near the truck that comes next.
 	player.global_position = _top + Vector3(0.0, 1.2, 30.0)

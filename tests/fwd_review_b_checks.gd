@@ -15,8 +15,8 @@ var _t: Node
 
 func run(t: Node, _city: Node3D) -> void:
 	_t = t
-	for p in ["res://shaders/boat.gdshader", "res://shaders/climbers.gdshader", "res://shaders/smoke_column.gdshader"]:
-		var code := (load(p) as Shader).code
+	for p in ["res://shaders/boat_body.gdshaderinc", "res://shaders/climbers.gdshader", "res://shaders/smoke_column.gdshader"]:
+		var code := FileAccess.get_file_as_string(p)
 		_t._check(not code.contains("nrm = -nrm") and not code.contains("NORMAL = -NORMAL"),
 			"%s does not flip a back face's NORMAL a second time" % p.get_file())
 	for p in ["res://shaders/school_walls.gdshader", "res://shaders/park_ground.gdshader", "res://shaders/park_walls.gdshader"]:

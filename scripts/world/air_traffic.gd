@@ -446,7 +446,7 @@ func _lots(ix: int, iz: int) -> Array:
 	if macro.zone_at(rect.get_center()) == MacroMap.Zone.CITY:
 		for lot in plan.lots(ix, iz):
 			# A surface car park (LotFill) has nothing standing on it.
-			if lot.get("parking", false):
+			if lot.get("parking", false) and not StarBoulevard.strip_lot(plan, ix, iz, lot):
 				continue
 			var centre: Vector2 = lot.center
 			var size: Vector2 = lot.size
