@@ -3251,6 +3251,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   The surface street grid is still axis-aligned (`CityPlan.road_pos()` is scalar per axis and
   blocks, lots, traffic lanes and the minimap all assume axis-aligned rects); the freeways and the
   hill roads are the curved roads.
+- The freeway close up (wave 3, docs/HANDOFF.md "The freeway close up"): the deck top is
+  concrete (`shaders/freeway_deck.gdshader`, `FreewayCloseup.deck_material()`; UV = metres along /
+  across, UV2 = half width, route + 1 or 0 for ramps and connectors - `FreewayKit.top_vertex()`):
+  lane-wide slabs with Caltrans's skewed 12-13-19-18 ft joints, tining, wheel paths, the oil band,
+  skid marks, replaced / cracked / patched slabs, asphalt overlay stretches with reflective cracks,
+  shoulders with grit, litter, weeds and a rumble strip, water in the ruts. The kit's own shaders
+  carry a `closeup` pass (graffiti from the street wear atlas on barriers and fascias, chipped
+  arrises, white rust on the galvanising; sign boards' 12 in panel seams, clip bolts and grime,
+  marker housings with red wrong-way lenses and adhesive pads); light standards get NightAtmos
+  halos in the chunk batch (`FreewayCloseup.lamp_halo()`, relief taken off); the freeway's free
+  slots fill by the hour (`spawn_skip()`, the same one roll a slot). The lane numbers in the deck
+  shader are Freeway's (checked). `FREEWAY_CLOSEUP=0` is the A/B; checks
+  `tests/freeway_closeup_checks.gd`.
 - Footbridges (2026-10-30, docs/HANDOFF.md "Footbridges"): `Footbridges` (pure placement: boulevards
   >= 22 m by schools / parks, one freeway slot of 36 segments at a time with caged stair towers on
   the corridor lots), `FootbridgeKit` (one mesh, `shaders/footbridge.gdshader`, kind in COLOR.a / 16),

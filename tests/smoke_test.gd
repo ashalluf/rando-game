@@ -2626,6 +2626,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The second perf audit (tests/perf_audit_2_checks.gd): the cached road closures and site
 	# bounds answer as before, road_lift() per body type, no orphan freeway bodies from a capture.
 	load("res://tests/perf_audit_2_checks.gd").new().run(self, city)
+	# The freeway close up (tests/freeway_closeup_checks.gd, FreewayCloseup): the concrete deck's
+	# UVs and lane copy, the kit's close-up pass, no geometry or rolls moved, the rush-hour fill.
+	await load("res://tests/freeway_closeup_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
