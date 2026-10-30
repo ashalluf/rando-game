@@ -2512,6 +2512,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/garments_2_checks.gd").new().run(self, city)
 	# Six more kinds of adult (tests/crowd_variety_checks.gd): crowd_aa..af and what they wear.
 	load("res://tests/crowd_variety_checks.gd").new().run(self, city)
+	# The crowd's faces up close (tests/crowd_faces_checks.gd): the face table and atlas, the pass's
+	# reach, per-person blinks, the look materials, the A/B.
+	load("res://tests/crowd_faces_checks.gd").new().run(self, city)
 	# Footbridges (tests/footbridges_checks.gd): placement, clearances, stairs, the kit, the chunks.
 	load("res://tests/footbridges_checks.gd").new().run(self, city)
 	# The power plant (tests/power_plant_checks.gd): the site south of the airport, the pure layout,
