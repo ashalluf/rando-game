@@ -15607,6 +15607,11 @@ per boat, `tools/boats/compile.gd`, `tools/boats/coast_probe.gd`. Checks:
 the waterline, interact in, the hero seated, the throttle and the wake, the swell at sea, the helm,
 out, beached, blown up and sunk, no boarding a wreck, BOATS=0).
 
+**Cost** (`still_shot.gd BOAT=dock`, the headwalk at 11:30, opengl3): BOATS=0 4,463,101
+triangles / 2,141 draws, with the boats 4,468,761 / 2,146 (+5.7k triangles, +5 draws, +0.13 %).
+Nothing outside the marina's chunk; the FX only near the camera while a boat moves. Gate
+(`SHARDS=3`): 2,702 checks, 0 failed, peak 2.5 GB a shard.
+
 **Not done / unverified.** Nothing seen on Forward+ (opengl3 stills only); the feel numbers are
 tuned against the checks, not hands. No AI boats (the marina's own MarinaTraffic runabouts are
 still scripted). Bullets do not hole the hull visually. A boat left at sea far from the player is
