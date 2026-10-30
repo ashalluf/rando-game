@@ -3739,3 +3739,9 @@ none of either.
   shrink into the lawn by 62 m with no band and the grass cells draw to 86 m instead of 115 (the
   saving pays for 1.4x denser, mown tufts). Suburb streets get grass parkways between the kerb and
   the walk; weeds grow in the walk's joints and along the yard fences. LAWNS_CLOSEUP=0 is the A/B.
+- **2026-10-30 A house's night is one integer (house-nights, HANDOFF "Houses at night").** Every
+  house's night - dark or lived in, lamp tone, rooms lit, TV, porch, carriage lamps, number,
+  landscape lights - is a hash of its key (seed mod 997), which the near glass carries in UV2 and
+  the far box already carried in INSTANCE_CUSTOM.b, so the street and the hills agree. Fixtures are
+  geometry, their light additive quads in four batches a chunk; real lights only on the nearest
+  porches on Forward+ desktop.
