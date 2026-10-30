@@ -110,6 +110,8 @@ func _hours(city: Node3D) -> void:
 					var z := plan.zone_at(s.at)
 					if s.habitat == "hills" and z != MacroMap.Zone.HILLS:
 						bad.append("hills spot off the hills")
+					if s.habitat == "hills" and Wildlife._slope(plan, s.at) > Wildlife.MAX_SLOPE:
+						bad.append("a hill animal on a cliff")
 					if s.kind == "cross" and (s.route as Array).is_empty():
 						bad.append("a crossing with no route")
 	_check(pure, "wildlife: plan_cell() is pure (the same cell and hour plan the same animals)")

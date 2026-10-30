@@ -31,6 +31,8 @@ const HOUSE_ODDS := {"squirrel": 0.14, "raccoon": 0.13, "coyote": 0.022}
 ## `EDGE_REACH` metres (the suburbs' edge).
 const EDGE_GAIN := 3.5
 const EDGE_REACH := 380.0
+## The steepest ground (rise over run) a hill animal is planned on.
+const MAX_SLOPE := 0.75
 
 ## How far round the player animals are planned, the nearest one is put down, inside which it
 ## must be behind the camera, and how far past the radius they are dropped (m).
@@ -187,6 +189,9 @@ static func plan_cell(p: CityPlan, cx: int, cz: int, hr: float) -> Array:
 	var habitat := ""
 	var b: Dictionary = {}
 	if zone == MacroMap.Zone.HILLS:
+		# Nothing grazes a cliff: the ranges are steeper than 45 degrees off their crests.
+		if _slope(p, at) > MAX_SLOPE:
+			return out
 		habitat = "hills"
 		odds = HILL_ODDS
 	elif zone == MacroMap.Zone.CITY:
@@ -244,6 +249,13 @@ static func plan_cell(p: CityPlan, cx: int, cz: int, hr: float) -> Array:
 			break
 		acc += o
 	return out
+
+
+## The ground's slope at a point (rise over run, the steeper axis, over 8 m).
+static func _slope(p: CityPlan, at: Vector2) -> float:
+	var dx := absf(p.height_at(at + Vector2(4, 0)) - p.height_at(at - Vector2(4, 0))) / 8.0
+	var dz := absf(p.height_at(at + Vector2(0, 4)) - p.height_at(at - Vector2(0, 4))) / 8.0
+	return maxf(dx, dz)
 
 
 ## The hills within EDGE_REACH of a point (four probes).
