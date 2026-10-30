@@ -63,6 +63,8 @@ const SKY_TOP := Color(0.105, 0.128, 0.122)
 const SKY_HORIZON := Color(0.205, 0.238, 0.222)
 const FOG := Color(0.25, 0.285, 0.268)
 const CLOUD := Color(0.36, 0.40, 0.385)
+## Cloud cover a storm adds on top of Weather's (no blue gaps in a storm).
+const COVER := 0.35
 ## Rain wind at a full gust, times Weather's rain_wind.
 const GUST_RAIN := 1.9
 ## Run-off: how many streams at most, how far from the camera, how often a probe runs.

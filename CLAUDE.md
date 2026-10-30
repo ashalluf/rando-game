@@ -486,6 +486,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `shaders/waterline_wet.gdshaderinc` in pier_park.gdshader and `pile_wet.gdshader`. Still no
   texture sampler in the ocean. `OCEAN_CLOSEUP=0` (the `ocean_closeup` shader global) is the A/B;
   checks `tests/ocean_closeup_checks.gd`.
+- Storm drama (2026-10-30, docs/HANDOFF.md "Storm drama"): `StormDrama`
+  (`scripts/world/storm_drama.gd`, Weather's child; hooks in Weather, DayNight, TyreSpray, the sky's
+  `flash_dir` / `flash_spread`): one pure gust clock (`gust(t)`) leans the trees down the storm's
+  wind (added to `wind_lean`) and throws the drops; the rain curtain's `sheets` (veils on the true
+  world running downwind) and `slant`, an inner curtain in the street (desktop), the curtain down to
+  the ground from the air; a bolt (`storm_bolt.gdshader`) for strikes within `BOLT_REACH`, the sky's
+  flash toward the strike, the ambient raised for the flash; a darker, greener day sky and full cover;
+  streams off roof edges and drip lines off awnings (`storm_runoff.gdshader`, rays round the camera);
+  wet litter. Hashes only, never Weather's rng. `STORM_DRAMA=0` the A/B; `STORM_FLASH=<s>`
+  (+ `_DIST`, `_AZ`, `_HOLD`) a strike for stills; checks `tests/storm_drama_checks.gd`.
 - Los Angeles weather (2026-10-05, "beyond clear / overcast / rain / storm"): `Weather.State`
   gains MARINE ("June gloom") and SANTA_ANA (appended: every per-state table has six rows, the
   pause menu's chips are Auto + one per state in order, `--weather=marine|santa_ana`, aliases in

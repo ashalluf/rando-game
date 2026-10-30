@@ -474,7 +474,7 @@ func _apply() -> void:
 		_sky.set_shader_parameter("sky_top", top.lerp(storm_top, weather_darken))
 		_sky.set_shader_parameter("sky_horizon", rim.lerp(storm_horizon, weather_darken))
 		_sky.set_shader_parameter("cloud_color", day_cloud.lerp(dusk_cloud, dusk).lerp(StormDrama.CLOUD, storm * (1.0 - moonlight) * 0.75))
-		_sky.set_shader_parameter("cloud_coverage", clampf(cloud_coverage + 0.12 * sin(hour * 0.9) + cloud_extra + 0.5 * marine - 0.32 * santa_ana, 0.0, 0.98))
+		_sky.set_shader_parameter("cloud_coverage", clampf(cloud_coverage + 0.12 * sin(hour * 0.9) + cloud_extra + 0.5 * marine - 0.32 * santa_ana + StormDrama.COVER * storm, 0.0, 0.98))
 		_sky.set_shader_parameter("cloud_shadow", day_cloud_shadow.lerp(dusk_cloud_shadow, dusk).lerp(Color(0.2, 0.2, 0.24), weather_darken))
 		# After dark: moonlit cloud on a clear night, the city's own light on an overcast one.
 		var overcast := clampf(weather_darken * 1.6, 0.0, 1.0)

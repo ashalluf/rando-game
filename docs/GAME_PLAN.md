@@ -3732,3 +3732,8 @@ none of either.
   shrink into the lawn by 62 m with no band and the grass cells draw to 86 m instead of 115 (the
   saving pays for 1.4x denser, mown tufts). Suburb streets get grass parkways between the kerb and
   the walk; weeds grow in the walk's joints and along the yard fences. LAWNS_CLOSEUP=0 is the A/B.
+- 2026-10-30 (storm drama, wave 3): a storm is told from rain by what moves - gusts (one clock that
+  leans every tree and slants the drops and the curtain's sheets), bolts you see for strikes within
+  2.6 km, a sky and street that light toward the strike, and water running off the buildings - on
+  top of a darker, greener, closed-over day sky. All cheap: no new full-screen pass on the web (the
+  inner curtain is desktop only). STORM_DRAMA=0 is the A/B.
