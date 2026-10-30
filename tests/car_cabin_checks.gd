@@ -146,6 +146,9 @@ func _city_cars() -> void:
 			split += 1
 		if car is PoliceCar:
 			continue
+		if car.is_traffic() and car.traffic.has("cp") and int((car.traffic.cp as Dictionary).get("k", -1)) == CarPanic.Kind.ABANDON:
+			# Its driver ran from gunfire (CarPanic): a traffic car with nobody in it, by design.
+			continue
 		if car.is_traffic():
 			traffic_n += 1
 			if (seats_of(car) & 1) != 0:

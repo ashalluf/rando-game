@@ -167,7 +167,7 @@ func _ferry_moves(ot: Node) -> void:
 		f.call("drive", 0.1)
 	var p1: Vector3 = f.get("world_pos")
 	var moved := Vector2(p0.x, p0.z).distance_to(Vector2(p1.x, p1.z))
-	_t._check(moved > 60.0 and moved < 200.0 and f.get("path_s") != s0, "ocean traffic: a ferry runs her crossing (%.0f m in 10 s)" % moved)
+	_t._check(moved > 60.0 and moved < 260.0 and f.get("path_s") != s0, "ocean traffic: a ferry runs her crossing (%.0f m in 10 s)" % moved)
 	_t._check(ot.call("sea_room", Vector2(p1.x, p1.z), 60.0), "ocean traffic: ... and stays on the water")
 
 

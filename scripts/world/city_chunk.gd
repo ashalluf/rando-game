@@ -1280,6 +1280,8 @@ func _build_beach(block: Dictionary) -> void:
 		# The beach's towels and umbrellas as dots of colour, the path and the courts (BeachLife).
 		if not capturing:
 			BeachLife.build_lod(self, life_z.x, life_z.y)
+			Bonfires.build_lod(self, life_z.x, life_z.y)
+		BeachAmenities.build_lod(self, life_z.x, life_z.y)
 		return
 	for sr: Rect2 in MarinaBuild.sand_rects(self, owned_rect() if _replica != null else Rect2(block.rect.position, Vector2(block.rect.size.x, owned_rect().end.y - block.rect.position.y))):
 		_build_surf_spray(sr)
@@ -1334,6 +1336,9 @@ func _build_beach(block: Dictionary) -> void:
 			_add_lifeguard_tower(at, spin)
 	# The beach's people keep out of the marina's channel and off its jetties.
 	obstacles.append_array(MarinaBuild.beach_obstacles(self))
+	obstacles.append_array(BeachAmenities.build(self, life_z.x, life_z.y, obstacles))
+	# The bonfire rings (Bonfires: hashes only), added to the obstacles the sunbathers keep off.
+	Bonfires.build(self, life_z.x, life_z.y, obstacles)
 	BeachLife.build(self, life_z.x, life_z.y, obstacles, tower)
 
 
@@ -2597,6 +2602,12 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 			steps.append(func() -> void: StreetVendors.build_block(self, block))
 			for i in StreetVendors.MAX_PER_BLOCK:
 				steps.append(func() -> void: StreetVendors.spawn_vendor(self, i))
+		# Street performers (Buskers): hash-seeded by block, face and hour, after the vendors' carts
+		# they keep clear of; the block's rng is untouched.
+		if Buskers.wanted(self, block):
+			steps.append(func() -> void: Buskers.build_block(self, block))
+			for i in Buskers.MAX_PEOPLE:
+				steps.append(func() -> void: Buskers.spawn_person(self, i))
 		# Road works in the kerb lane and the building sites' crews (Construction; hash-seeded),
 		# before the parked cars, which keep out of a closure.
 		if Construction.wanted(self, block):

@@ -306,6 +306,16 @@ already mapped so milestone 2 is script-only.
   the front doors; only the everyday bodies (sedan, taxi, crossover, pickup, van, hatchback, SUV,
   minivan, beater); the exotics, police and big vehicles keep the traced cabin.
 
+- **2026-10-30 The oil islands in the bay are a data table, not seeded (HANDOFF "The oil
+  islands").** Three decorated drilling islands 600-700 m off the Long Beach sand, each a landmark
+  built near and far from one builder on one shader; details are hashes of the island, so no seed
+  or rng moves anything else. Like the piers they stand where the table says on every seed.
+- 2026-10-30 (fleet wave 3, `sky-ads`): aerial advertising. The blimp and the banner planes are
+  AmbientCraft on AirRoutes (AirTraffic's model: placed on a route, never simulated; take_hit,
+  smoke, crash, wreck for free), built in code at real size on one shader. The blimp flies one
+  loop - a circle over the ballpark, one over the beach - day and night, its LED sign the night
+  look; banners only by day. The banner hangs off the ROUTE behind the plane, not off the plane,
+  so it follows a turn. Brand and banners are invented (the city's own billboard campaigns).
 - **2026-10-29 Facades are worked out per pane, not per building (owner: "start looking like GTA
   6").** Glass varies pane by pane and floor by floor, blinds hang at their own heights, the glass
   mirrors a street opposite with parallax, curtain walls come in three systems (flush, deep fins,
@@ -320,6 +330,13 @@ already mapped so milestone 2 is script-only.
   right of way (corridor lots only); boulevard stairs run along the back of the pavement; built in
   code into one mesh and one material a bridge; planting under a bridge is collapsed after its
   rolls, so nothing else on a seed moves.
+- **2026-10-30 Beach bonfire rings at night (HANDOFF "Beach bonfire rings").** Concrete fire
+  rings in a row along the beach above the tide line (hashes per 24 m of shore, nothing else on
+  the beach moves; the sunbathers keep clear of them), empty by day, about six in ten lit after
+  dusk (none in rain, a storm or a Santa Ana) with CarDamage's flames, embers, wood smoke, a pool
+  of firelight and a budgeted flickering light, and 2-6 people in street clothes round each (the
+  beach's baked figures, clothed). LOD chunks lay the pools so the coast reads as a row of fires
+  from the air. `BONFIRES=0` is the A/B.
 
 - **2026-10-29 The harbour's lights (HANDOFF "The harbour's lights").** A lighthouse on the
   headland's south-east cliff and a breakwater light at the end of a long rubble breakwater off the
@@ -358,6 +375,30 @@ already mapped so milestone 2 is script-only.
   Wave 3: shooting the shelves knocks the stock off (thrown packs, drink spray; the interior shows
   from 70 m while it is shot up; `STORE_MAYHEM=0`), and the side wall carries a painted mural of
   the goods (pictures only).
+- **2026-10-30 Street performers (HANDOFF "Street performers").** A guitarist with his case
+  open, a bucket drummer, a breakdancer with a ring of watchers, a silver living statue and a
+  mariachi trio on the busy pavements (downtown, the arena, across from MacArthur Park, the beach
+  town) and on the plazas. Decisions: placement is a pure plan (hashes of seed + block + face +
+  the hour), run as a FULL chunk step after the street vendors, so nothing the seed builds moves;
+  the performers are crowd rigs on top of crowd life (StreetVendor's work-flee-return pattern)
+  playing over UAL clips retargeted like the life clips (`tools/crowd/busk_clips.gd`), with the
+  instrument playing laid on by per-frame two-bone arm solves rather than new clips; the gear is
+  code-built at real size on one shader, one batch per kind a chunk; passers-by stop at the vendor
+  queue spots; no audio (no CC0 recording reachable); `BUSKERS=0` the A/B.
+- **2026-10-30 The beach gets its public amenities (HANDOFF "Beach amenities").** Restroom
+  blocks, a concession and rental stand, outdoor gym pens, showers, bike racks, rows of volleyball
+  poles and painted drums. Decisions: built in code at real size on one shader (one batch per kind a
+  chunk), placed by hashes of world shore cells so any chunk plans the same beach, buildings and
+  showers on the bike path's seaward side, the gym and poles mid-beach off BeachLife's court, drums
+  in bands; BeachLife's sunbathers keep clear (they are handed as obstacles); `BEACH_AMENITIES=0`
+  the A/B.
+- **2026-10-29 Crowd foot placement (G5; HANDOFF "Crowd foot placement").** Near the camera
+  (fading out from 20 to 30 m) every walker and stander plants its feet on what is really under
+  them - a kerb, a stair tread, a slope, a hill path - instead of the flat plane the clips were made
+  on: two rays a foot, the hips down by the lower foot, the legs re-solved in their own knee plane,
+  feet tilted to a slope. Stairs whose collision is a walkable ramp (the player cannot climb
+  risers) get their real treads on a new feet-only physics layer 6 that nothing pairs with. The
+  hero keeps his own planted-foot IK (HeroMotion) and reads the same layer. `FOOT_IK=0` is the A/B.
 - **2026-10-05 Onlookers: the crowd comes back after the chaos (HANDOFF "Onlookers").** After
   the panic near a wreck, a blast or a body, people near the camera come back and stand round it
   in a loose ring: filming on their phones (held up at eye level, the screen lit, a video light
@@ -1752,6 +1793,13 @@ already mapped so milestone 2 is script-only.
   forecourt of handprint slabs, costumed characters in ORIGINAL costumes (never a copyrighted
   character) and sightseeing buses. Everything after the existing rolls; STAR_BOULEVARD=0 the
   A/B. docs/HANDOFF.md "The walk of fame"; CLAUDE.md "Walk of fame".
+- **2026-10-30 Urban wildlife lives where it does in LA, and only runs.** Coyotes cross the hill
+  roads and the suburbs' streets at dusk and night (far more at the edge of the hills), mule deer
+  graze the hills at dawn, squirrels the parks and lawns by day, rabbits the hill grass, raccoons the
+  kerb carts at night - planned per cell and half hour from hashes, round the player like the birds.
+  They are built on the dogs' body (DogMesh / DogRig: fur shells, procedural gait) at real size.
+  Shot, hit or startled they bolt and are gone: no blood, no ragdoll, no crime - no gore on animals,
+  as with the dogs. docs/HANDOFF.md "Urban wildlife"; CLAUDE.md "Urban wildlife".
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north

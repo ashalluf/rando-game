@@ -421,6 +421,12 @@ func _initialize() -> void:
 				_pose(player, anchor, hold, boost, fov)
 		else:
 			print("BIRD: no Birds node or camera")
+	# WILD=coyote,deer,...: the urban wildlife in a row ahead of the camera (tools/wildlife/stage.gd:
+	# WILD_DIST, WILD_SPACING, WILD_TURN, WILD_POSE stand|graze|sit|walk|trot|flee, WILD_FRAMES).
+	var wild_env := OS.get_environment("WILD")
+	if wild_env != "" and current_scene:
+		await load("res://tools/wildlife/stage.gd").stage(self, current_scene, wild_env, get_root().get_camera_3d())
+		_pose(player, anchor, hold, boost, fov)
 	# STREET=queue|crossing: a signalised junction ahead of the camera, a queue at its red, and
 	# for `crossing` people out on the crosswalk in front of it (see _stage_street).
 	var street_env := OS.get_environment("STREET")
@@ -678,6 +684,18 @@ func _initialize() -> void:
 		print("MOTO %s eye %s" % [moto_env, m_eye])
 		_eye(player, fov)
 		for i in _env_int("MOTO_SETTLE", 12):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
+	# FEET=kerb|stairs|slope: people standing on uneven ground in front of a free camera
+	# (tools/foot_ik/stage.gd; FOOT_IK=0 is the before).
+	var feet_env := OS.get_environment("FEET")
+	if feet_env != "" and current_scene:
+		var ft_eye: String = await load("res://tools/foot_ik/stage.gd").new().stage(current_scene, feet_env, self, player)
+		if ft_eye != "" and OS.get_environment("EYE") == "":
+			OS.set_environment("EYE", ft_eye)
+		print("FEET %s eye %s" % [feet_env, ft_eye])
+		_eye(player, fov)
+		for i in _env_int("FEET_FRAMES", 8):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
 	# Then all but freeze the clock for the last frames: a software frame takes seconds, and at

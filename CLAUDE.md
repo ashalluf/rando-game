@@ -210,7 +210,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   nodes in scene files. Scene files hold structure (lights, environment, player instance), scripts
   hold content.
 - Physics layers: 1 `world` (static), 2 `player`, 3 `props` (rigid bodies), 4 `npc` (pedestrians),
-  5 `terrain` (hill heightmaps, in addition to world). Player mask = world+props.
+  5 `terrain` (hill heightmaps, in addition to world), 6 `foot ground` (treads under walkable ramps,
+  read only by foot-placement rays; see Crowd foot placement). Player mask = world+props.
   Crates: layer props, mask all three. The camera spring arm collides with `world` only.
   **Masks are what the physics engine pairs on, so they cost CPU.** GodotPhysics makes a pair
   for every two overlapping objects where either one's mask has the other's layer, and re-pairs
@@ -1370,6 +1371,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Stills: `AIR=final|takeoff|news|police` on `tools/glshot/still_shot.gd` (the staged jet is
   faded in at once, `AirTraffic._shown()`). The helicopter model is `tools/make_helicopter.py`
   (Blender, headless; ASSETS.md).
+- Aerial advertising (2026-10-30, fleet "sky-ads", docs/HANDOFF.md "Aerial advertising"):
+  `SkyAds` (`scripts/world/sky_ads.gd`, AirTraffic's child, made in its `_setup()`) flies the
+  invented FIZZLY soda blimp (`AdBlimp`, 60 m envelope, X fins, gondola, ducted props) on a
+  16.6 km AirRoute loop circling the ballpark and the beach (clear of `obstacle_top()` by
+  `blimp_clearance`, airship grades), its LED night sign scrolling LedScreen 5 x 7 text from
+  `SkyAds.led_texture()`, and two banner tow planes (`BannerPlane`) on racetracks off the beach
+  towing invented letter banners (`SkyAds.BANNERS`; top-level banner and rope placed on the route
+  BEHIND the plane, fluttered in the vertex shader; the banner's own body tears it off). All of
+  it is code (`SkyAdMesh`) on ONE shader (`shaders/sky_ads.gdshader`, kind in COLOR.a / 16,
+  copies checked); AmbientCraft's take_hit / crash / wreck. Rolls are hashes (`SkyAds.roll()`),
+  who flies is pure (`blimp_flies()`, `banner_flies()`). `SKY_ADS=0` is the A/B; stills
+  `AIR=blimp|banner` (`AIR_DIST`, `AIR_SIDE`, `AIR_PICK`) on `still_shot.gd`; probe
+  `tools/sky_ads/probe.tscn`; checks `tests/sky_ads_checks.gd`.
 - Flyable helicopter (2026-10-05, fleet "heli-flyable", docs/HANDOFF.md "The flyable
   helicopter"): `FlyableHeli` (`scripts/vehicles/flyable_heli.gd`) is a wheel-less Vehicle wearing
   the air traffic's helicopter.glb, so interact gets in and out like a car. Jump = collective up,
@@ -3277,6 +3291,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   out). Far: `RefineryFar` (one hook in `CityStreamer._build_far_landmarks()`), a far piece a block,
   hidden while a FULL chunk's `RefineryCover` is shown; LOD chunks lay ground only. `REFINERY=0` the
   A/B; probe `tools/refinery/probe.tscn`; checks `tests/refinery_checks.gd`.
+- The oil islands (2026-10-30, docs/HANDOFF.md "The oil islands"): three decorated drilling
+  islands in San Pedro Bay 600-700 m off the Long Beach sand (the FORM of the real ones; names and
+  the operator invented). A DATA TABLE (`OilIslands`, `scripts/world/oil_islands.gd`: anchors,
+  pad half extents, yaw, revetment `RINGS`, berm, wall, tower ranges, `WASHES` / `PASTELS`), every
+  detail a hash of the island (`h01()`), no rng, not seeded. Each island is a landmark
+  (`Landmarks.all()` appends `entries()`, `Landmarks.build()`'s `_:` arm calls
+  `OilIslandBuild.build()`): ONE mesh on `shaders/oil_island.gdshader` (kind + 16 x wash in
+  COLOR.a / 128, `code()`; rock as Voronoi boulders with wet / weed / foam bands, groundcover,
+  board-formed screens, pastel panels, steel, falling and still water, lamps, gelled floods after
+  dark) plus batches: palms (near and far, far shadowless), boulders and shrubs (near only), one
+  concave collision shape and boxes (near only), `lamp_light` omnis gelled like the floods
+  (desktop, near). `OIL_ISLANDS=0` is the A/B; probe `tools/oil_islands/probe.tscn`; checks
+  `tests/oil_islands_checks.gd`.
 - The reservoir (VISUAL_ROADMAP #105, 2026-10-05, docs/HANDOFF.md 9dk): the FORM of the
   reservoir behind the famous sign - a long irregular lake filling a canyon of the front range,
   held back by a 1920s concrete arch-gravity dam that faces the basin - named "Lake Shallufer" on
@@ -4788,6 +4815,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/glshot/dog_shot.gd` (a lineup: `BREEDS`, `VIEW` side / front / three / rear / top,
   `POSE` stand / walk / trot / gallop / sit / sniff / look / bark / fear, `LOD`, `SEQ` frames)
   and `tools/crowd/crowd_lab.tscn SCENARIO=dog`; checks: `tests/dog_checks.gd`.
+- Urban wildlife (2026-10-30, docs/HANDOFF.md "Urban wildlife"): coyotes, mule deer, raccoons, fox
+  squirrels, cottontails ARE DogMesh bodies (`WildSpecies.SPECIES`, DogMesh.BREEDS' format plus
+  `tail_pose` / `bound` / `pronk` / `gait`, found by `DogMesh.breed()` after the dogs; coats from
+  `tools/wildlife/make_wild_coats.py` on the dogs' chart; antlers `WildSpecies.antler_mesh()`),
+  `WildAnimal` (extends Dog: idle / wander / route / alert, bolts from the player, a gun or a hit,
+  no gore) placed by `Wildlife` (city.tscn, like Birds; `plan_cell()` pure: seed + 46 m cell + half
+  hour, zone, block, `WildSpecies.activity()`). `WILDLIFE=0` the A/B; off in the smoke test but in
+  its checks (`tests/wildlife_checks.gd`); stills `WILD=` on still_shot.gd, spots `tools/wildlife/probe.gd`.
 - Street errands (2026-10-05, "the pavement's comings and goings"): `StreetErrands`
   (`scripts/npc/street_errands.gd`, static) gives walkers within `life_range` somewhere real to
   go, rolled from `Pedestrian._try_life()` on their own stream (`hash([seed, "errand"])`, never
@@ -4958,6 +4993,18 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `ParkletDiner` (a Pedestrian): diners seated on the life sit clips (hips solved to
   `ParkletKit.SEAT_Y`), a waiter walking door -> table. Who sits is `busy(room, hour)`.
   `PARKLETS=0` is the A/B; probe `tools/parklets/probe.gd`; checks `tests/parklets_checks.gd`.
+- Street performers (2026-10-30, HANDOFF "Street performers"): `Buskers`
+  (`scripts/world/buskers.gd`, static; `plan_block()` pure: hashes of seed + block + face + the
+  hour, one act a block, two on a plaza, breakdancers only on plazas) - guitar with an open case,
+  bucket drums, breakdance on cardboard with a ring of `BuskWatcher`s, a silver living statue on a
+  plinth, a mariachi trio - as a FULL chunk step after the street vendors (one hook in
+  `_block_steps`). Gear code-built (`Buskers.Kit`) on `shaders/busker_prop.gdshader` (surface in
+  COLOR.a tenths), a `busk_*` batch per kind; performers are `Busker`s (`scripts/npc/busker.gd`,
+  extends Pedestrian: crowd life + StreetVendor's flee-and-return) playing over the "busk" clip
+  library (`tools/crowd/busk_clips.gd` -> `assets/models/crowd_busk/`, rerun with life_clips.gd)
+  with two-bone arm solves to the instrument (`Busker.two_bone()`); passers-by stop at
+  `vendor_queue` spots. No audio. `BUSKERS=0` is the A/B; stills `tools/buskers/busk_shot.tscn`
+  (every act alone, seconds), `tools/buskers/probe.gd` EYEs; checks `tests/buskers_checks.gd`.
 - Farmers' market (2026-10-05, HANDOFF "The farmers' market"): `FarmersMarket`
   (`scripts/world/farmers_market.gd`, pure) picks one local street per `CELL` 1.7 km by hash
   (residential / midtown blocks nobody claims) and closes it to cars from `CLOSE_INSET` past each
@@ -5115,6 +5162,28 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   gathers riders and surfers there; `tools/beach/probe.gd` walks the coast (`PEOPLE=1`),
   `tools/beach/chunks.gd` lists the built chunks, `tools/beach/checks.gd` runs the checks alone.
   Checks: `tests/beach_life_checks.gd`.
+- Beach amenities (2026-10-30, wave 3, docs/HANDOFF.md "Beach amenities"): `BeachAmenities`
+  (`scripts/world/beach_amenities.gd`, one hook line in `CityChunk._build_beach()` before
+  `BeachLife.build()`, whose obstacles it extends, and one in its LOD branch) puts split-face block
+  restrooms, a concession / rental stand (invented `STAND_NAMES`; shutter by the hour), outdoor gym
+  pens, stainless showers and wave racks by the bike path, rows of extra volleyball poles (some
+  netted with BeachLife's net) and painted drums on the sand. `plan_stretch()` is pure: hashes of
+  seed + world shore cell (`STATION_CELL` / `SHOWER_CELL` / `CAN_CELL`), lower kinds give way to
+  higher over a window, palms and the tower only nudge. Code-built on ONE shader
+  (`shaders/beach_amenities.gdshader`, kind in COLOR.a x 32 = `K_*`, paint in INSTANCE_CUSTOM),
+  one `bam_*` batch per mesh a chunk; LOD / far: the two buildings as plain lod_boxes.
+  `BEACH_AMENITIES=0` is the A/B; probe `tools/beach_amenities/probe.gd` (EYEs); checks
+  `tests/beach_amenities_checks.gd`.
+- Beach bonfires (2026-10-30, docs/HANDOFF.md "Beach bonfire rings"): `Bonfires`
+  (`scripts/world/bonfires.gd`, pure `rings_in()` / `group()` / `lit_at()`, hashes of seed + a
+  `RING_CELL` 24 m shore cell + the night) puts precast concrete fire rings (code-built,
+  `shaders/bonfire.gdshader`, kind in COLOR.a x 8) above the tide line, built from one line in
+  `CityChunk._build_beach()` BEFORE BeachLife (the rings join the sunbathers' obstacles). After
+  dusk some burn (`BonfireFire`: CarDamage's flame material, embers, wood smoke, a sand pool, the
+  nearest `LIGHT_BUDGET` carry a flickering OmniLight on desktop) with a group round each
+  (`BonfireFigure`, BeachFigure bakes in STREET CLOTHES: `BeachGoer.clothed`). None in rain,
+  storms or a Santa Ana. LOD chunks lay the pools. `BONFIRES=0` the A/B, `BONFIRE_LIT=1` lights
+  every ring; probe `tools/bonfires/probe.gd`; checks `tests/bonfires_checks.gd`.
 - The hero (owner, 2026-09-24: "Blender with real fingers from scratch AAA studio level"):
   `assets/models/hero.glb`, built by **`tools/hero/`** in Blender 4.2 with MPFB2 from CC0
   MakeHuman assets plus our own tracksuit, rib tank, rope chain, watch, ring, laced sneakers and
@@ -5214,6 +5283,21 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/glshot/hero_moves_shot.gd` (several stills a load: a clip frozen or a staged move -
   fly, fall, hit_*, draw, land_<speed>, roll, idle_*; `STEP=1` for the foot IK); checks
   `tests/hero_moves_checks.gd`.
+- Crowd foot placement (G5, 2026-10-29, docs/HANDOFF.md "Crowd foot placement"): `CrowdFeet`
+  (`scripts/npc/crowd_feet.gd`, one line at the end of `Pedestrian._physics_process()`, so every
+  subclass that runs it gets it) plants a person's feet on what is under them within
+  `near_range` 20 / `far_range` 30 m of the CAMERA: two rays a foot (ankle and ball, every
+  `RAY_EVERY` ticks), a foot rests on the higher hit (a heel over a nosing stands on the ball) or,
+  on one sloping surface, on the heel's with the foot tilted; the hips come down by the lower
+  foot's drop less what that leg has left before it is straight, each leg is re-solved in its clip
+  knee plane, and anything a clip does not key is undone before the next write (`_restore()`). Off
+  seated, ragdolled, hidden, in a truck, or with `_visual` offset. **Physics layer 6 is "foot
+  ground"** (`CrowdFeet.FEET_LAYER`): true treads where the world layer has a walkable ramp over
+  steps (the Esplanade's beach stairs, `CrowdFeet.add_steps()`); a shape with meta `feet_pass` is
+  seen through. The hero's own planted-foot IK (HeroMotion) reads the same layer. `FOOT_IK=0` is
+  the A/B; lab `tools/foot_ik/foot_lab.tscn` (stills, a headless error report, `MODE=bench`);
+  city stills `FEET=kerb|stairs|slope` on `still_shot.gd` (`tools/foot_ik/stage.gd`); places
+  `tools/foot_ik/find.tscn`; checks `tests/foot_ik_checks.gd`.
 - Swimming (2026-10-05, docs/HANDOFF.md "Swimming"): `Swim` (`scripts/player/swim.gd`, the
   player's child; `swim.step()` is the first thing in Player's tick after the car and does the whole
   tick in water). Where water is: `SwimWater` (`scripts/world/swim_water.gd`) - the sea and the bay
