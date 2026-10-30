@@ -28,6 +28,7 @@ const DEFAULTS := {
 	"invert_y": false,
 	"fov": 75.0,
 	"car_fov": 75.0,
+	"drive_shake": true,
 	"volume_master": 1.0,
 	"volume_world": 1.0,
 	"volume_ambience": 1.0,
@@ -151,6 +152,7 @@ static func _apply_camera(tree: SceneTree) -> void:
 	rig.set("invert_y", bool(get_value("invert_y")))
 	rig.set("camera_fov", float(get_value("fov")))
 	rig.set("car_fov", float(get_value("car_fov")))
+	rig.set("drive_shake", bool(get_value("drive_shake")))
 
 
 static func _apply_audio() -> void:
