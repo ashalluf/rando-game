@@ -14418,3 +14418,78 @@ crew's hands are IK onto the rail and the squeegee with the idle frozen near its
 dedicated wiping clip, no head turn. No sound of the hoists. The LOD ring shows Rooftops' static
 cradle box at its old depth on infill towers. Workers cannot be knocked off (on purpose); shooting
 one only swings the cradle, with no blood.
+
+## 9d?. Footbridges: caged overcrossings over the boulevards and the freeways, 2026-10-30 (fleet wave 3, `wt/footbridges`)
+
+The task: "Pedestrian bridges over the freeways and wide boulevards near schools and parks: steel
+truss or concrete spans with chain-link cages arching over the walkway, ramps or stairs at both
+ends, lights, graffiti", collision so the player can cross. Stills on `shots/footbridges`.
+
+**Where (pure, `Footbridges`, `scripts/world/footbridges.gd`).** Hashes of seed + place only, so
+every chunk asks the same question. BOULEVARD: a road at least `MIN_ROAD_WIDTH` (22 m), on every
+`BOULEVARD_EVERY`-th stretch between crossings and `BOULEVARD_ODDS` of those, with a school or rec
+park (or a PARK / SCHOOL block) on one side and neither side downtown, industrial, a site, the
+river, the marina, the replica or a hospital; no light rail on the street, no freeway near, the
+road open the whole way (a high school's closed street is not crossed), the stair's rise at most
+`MAX_STAIR_RISE`. The span crosses square to the road mid-stretch, the walkway `CLEARANCE_ROAD`
+(5.35 m) plus the structure's depth over the road's crown; on each pavement a landing at its back
+half (`PAVE_BACK`) on two columns and a straight stair down along the kerb, two flights and a half
+landing, risers <= `RISER` 0.178 m, treads 0.28 m, worked out per side so the last riser lands on
+that side's pavement exactly. FREEWAY: each route is cut into slots of `SLOT_SEGMENTS` (36, ~860 m),
+`FREEWAY_ODDS` of them try their segments in hash order and take the first that fits: a straight
+stretch, no gantry within a segment, no stack cover or open edge, no other deck, connector or
+ramp within `FREEWAY_KEEP` of the span's line, city ground, the tower at most `MAX_TOWER_RISE`
+over its ground; the walkway `CLEARANCE_DECK` (5.3 m) plus depth over the deck top. Each end is a
+stair TOWER `TOWER_GAP` outside the deck edge: switchback flights of `TOWER_RISERS` in two lanes,
+a `TOWER_TOP` landing where the span arrives and the landings under it, `TOWER_LANDING` ones at
+the far end. A tower stands only on a plain BUILDINGS block's inner ground (never a road or a
+pavement), every lot it touches a corridor lot (CityChunk._lot_under_freeway()'s rule), no alley,
+ground within `MAX_RELIEF`. Default seed, the 7 km square round (1500, 800): ~20 boulevard and 8
+freeway bridges (`tools/footbridges/probe.tscn` lists them with EYEs, and why freeway spots were
+turned down: `Footbridges.rejects`).
+
+**The kit (`FootbridgeKit`).** Code at real size into ONE LandmarkGeo surface on ONE material,
+`shaders/footbridge.gdshader` (kind in the vertex alpha /16: painted steel with grime and rust
+weeping from the joints, concrete with form-board lines, galvanised, chain-link cut out of a quad
+in UV metres and dithered to its cover under a couple of pixels, the broom-finished walkway wet in
+the rain, lamp lenses lit by `lamp_factor`, grit nosings, tags from the street wear atlas): a
+bridge is one draw. TRUSS: a Pratt through-truss (bottom and top chords, verticals, diagonals
+falling to the middle, floor beams, top struts, end portals) with a fascia plate; GIRDER: a precast
+box girder with leaning webs and solid parapets. Both carry the CAGE (posts every ~2.6 m, mesh up
+the sides to `CAGE_SIDE`, hoops arching to `CAGE_CROWN` 2.95 m, the mesh in strips over them),
+handrails, lamps under the crown. Stairs are solid steps (risers, treads, nosings, the sawtooth
+sides triangulated, the soffit) on steel stringers with a handrail and a chain-link fence. Towers:
+four columns plus mid columns, girts and X bracing at every landing, the flights and landings
+inside, mesh on all four faces with the span's opening and a 2.3 m door at the foot, a roof and a
+light. Tags: up to `MAX_TAGS` on the fascias, parapets, columns and tower plates by hash. 4-9k
+triangles a bridge FULL, LOD 40 % of that (chords, slabs for flights, alternate posts). Colours:
+seafoam, tan, blue-grey, dark green, grey, galvanised; a quarter of the cages vinyl-black.
+
+**In the chunks (`FootbridgeBuild`).** One hook after `_build_freeway` in `CityChunk.begin_build()`
+and one in the capture build. The chunk whose owned rect holds a bridge's span centre builds it
+(a pivot node `Footbridge_<id>` with the mesh; FULL adds a StaticBody3D of boxes on the world
+layer, mask 0 - walkway, cage sides and crown, landings, a ramp box per flight, fences, tower
+walls with the openings - a `lamp_light` OmniLight3D under the crown on desktop, `lamp_pool`
+pools under each crown lamp and at the stair feet). Every FULL chunk a bridge touches then,
+after every deferred step (`_run_last`), collapses its own batch instances (trees, palms,
+shrubs, street furniture; not flat paint, pools or far boxes) standing in the bridge's `clear`
+rects: every roll was already made, nothing else moves. Prop collision under a stair stays (it
+is inside the stair). LOD chunks build the LOD kit with no body or light; the far city records
+the span and each stair or tower as plain far boxes (`lod_box`, INSTANCE_CUSTOM.a 1).
+
+**A/B and tools.** `FOOTBRIDGES=0`. `tools/footbridges/probe.tscn` (headless, seconds: every
+bridge round `AT` with EYE / DECK EYE / STAIR EYE lines); `tools/footbridges/bridge_shot.tscn`
+(one bridge alone on a grey ground, opengl3, ~20 s: `ID=`, `SHOTS="cam;look|..."` in the span's
+frame, `NIGHT=1`, `LOD=1`). Checks: `tests/footbridges_checks.gd` (counts, purity, one owner,
+clearances, risers to the ground, landings on the pavement, towers off the deck and on their
+block, the kit's size and collision, the FULL / LOD chunks, cleared planting, far boxes, the
+switch).
+
+**Frame cost** (still_shot GEO at the bookmarks above, opengl3): a FULL bridge is one mesh draw
+plus its shadow, 4-9k triangles; see the summary of the branch for the before / after numbers.
+
+**Not done.** Pedestrians do not use the bridges (the walkers' rings go through the stairs on
+the pavement; nobody climbs them); no ramps (stairs only - ADA ramps would need room the
+pavement does not have); no elevator towers; the freeway towers' cage roof is a flat plate; the
+far box is solid (no cage silhouette past the LOD ring); graffiti on the walkway itself and
+throw-ups on the girders' undersides are not drawn. Only seen on opengl3, not on Forward+.

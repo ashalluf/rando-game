@@ -295,6 +295,14 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-30 Footbridges (HANDOFF "Footbridges").** Caged pedestrian overcrossings over the
+  wide boulevards by schools and parks and over the freeways. Decisions: placement is pure (hashes
+  of seed + road stretch / freeway slot), so any chunk a bridge touches agrees on it; the freeway
+  is elevated here, so its bridges climb 15-19 m in caged switchback stair towers standing on the
+  right of way (corridor lots only); boulevard stairs run along the back of the pavement; built in
+  code into one mesh and one material a bridge; planting under a bridge is collapsed after its
+  rolls, so nothing else on a seed moves.
+
 - **2026-10-05 Apartments: the first per-style kit (G2; HANDOFF "Apartment buildings").** Midtown's
   low-rise lots and the inner suburbs get LA stucco apartments - walk-ups with galleries and open
   stairs, bungalow courts, Spanish courts, podium blocks - instead of storefront boxes and single
