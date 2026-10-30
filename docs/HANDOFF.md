@@ -18255,7 +18255,9 @@ trap, `AirTraffic._place_before_entry()`). The boat was the body sitting there; 
 would have been fired off the same way. Fix in `banner_plane.gd`: the body has no collision layer
 until a physics frame after its first placement (`_banner_placed_frame`). The check now stages a
 calm sea (`Weather.force_state(0)`, the swimming checks' way) and puts a storm under her at sea for
-four seconds ("a storm comes up and she rides it").
+four seconds ("a storm comes up and she rides it"). It reads her wet over the window (over 60 % of
+the ticks), never on the last tick alone: a storm sea throws her clear of a crest now and then, and
+one single-process run failed on exactly that instant.
 
 ## 9go. Life in the water: dolphins, pelicans, sea lions on the buoys, a grey whale, 2026-10-30 (fleet wave 3, branch `wt/sea-life`; VISUAL_ROADMAP "?")
 
