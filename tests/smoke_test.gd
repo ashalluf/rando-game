@@ -2655,6 +2655,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/beach_golden_checks.gd").new().run(self, city)
 	# The GI review (tests/gi_review_checks.gd): GiTuning's numbers per level, the contact shadows.
 	await load("res://tests/gi_review_checks.gd").new().run(self, city)
+	# The third perf audit (tests/perf_audit_3_checks.gd): cache trims, the crowd feet's stagger,
+	# the sea's life idling inland, the night haze's daytime early-out.
+	await load("res://tests/perf_audit_3_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

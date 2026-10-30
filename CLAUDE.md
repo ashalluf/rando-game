@@ -5805,6 +5805,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (integration-b: 10.9 GB+). Memory per stage: `tools/memory_probe/memory_probe.tscn`
   (VmHWM / VmRSS, `PROBE_TICKS`), wrapped by `tools/memory_probe/run_probe.sh` (peak, `LIMIT_MB`
   kill).
+- Perf audit 3 (2026-10-30, docs/HANDOFF.md "Perf audit 3"): a static mesh cache that grows with
+  the places visited trims with `CacheTrim.trim()` (`scripts/util/cache_trim.gd`: drops what only
+  the cache holds, by refcount measured through the same calls; StreetSignKit, BeachFigure's suited
+  rider flipbooks; `CACHE_TRIM=0` the A/B) - hand an Array value out as `CacheTrim.copy()`, never
+  the cache's own or `duplicate()` (copy-on-write: its elements gain no reference). A code-built
+  mesh of separate pieces gets a hand-made LOD index list (the balcony: no simplifier merges boxes;
+  scale its error by the instances' stretch with `lod_bias`). A SphereMesh repeats its pole vertices
+  (a 6 x 2 sphere is a third zero-area triangles: `PropFactory.without_degenerate()`). Measure an
+  aerial bookmark only with `DIFF=1` pairs: two plain runs there differ by millions of triangles.
 - Memory (2026-10-05, docs/HANDOFF.md "Memory audit"): the smoke test fails past a peak-RSS
   budget (`tests/memory_audit_checks.gd`, 3,600 MB, `MEMORY_BUDGET_MB`; it peaked at 2.94 GB).
   **Never key a cache on a RID or instance id of something that can be unloaded** - a model's

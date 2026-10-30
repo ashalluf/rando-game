@@ -292,6 +292,15 @@ func _frame() -> void:
 		_hide_all()
 		return
 	_eye_w = WorldState.to_world(cam.global_position)
+	# Inland, with no buoy in range and nothing staged, there is nothing to work out: events_at()
+	# answers nothing past COAST_REACH and every buoy is out of range, so the pass would only clear
+	# its lists, hash and hide (perf-audit-3: it ran every frame wherever the camera was).
+	if _idle(_eye_w):
+		if not drawn.is_empty() or (_spray and _spray.visible):
+			_hide_all()
+			drawn.clear()
+		_prev_clock = clock
+		return
 	_sea_state = SeaSurface.state(get_tree())
 	var sounds: Array = []
 	var tp := _prev_clock if _prev_clock >= 0.0 and clock - _prev_clock < 1.0 else INF
@@ -371,6 +380,16 @@ func sea_y(p: Vector2) -> float:
 	if _sea_state.is_empty():
 		_sea_state = SeaSurface.state(get_tree()) if is_inside_tree() else [1.0, 0.0, Vector4(0.9, 12.0, 8.0, 38.0), Vector4.ZERO]
 	return SeaSurface.height(macro, p, SeaSurface.now(), _sea_state)
+
+
+## Nothing of the sea's life can be in range of `eye` (true world).
+func _idle(eye: Vector3) -> bool:
+	if not _forced.is_empty() or _coast_near(eye):
+		return false
+	for b: Buoy in _buoys:
+		if Vector2(eye.x, eye.z).distance_to(b.at) <= RANGES.buoy.x:
+			return false
+	return true
 
 
 func _coast_near(eye: Vector3) -> bool:
