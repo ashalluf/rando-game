@@ -3436,6 +3436,13 @@ already mapped so milestone 2 is script-only.
   worked out once against the same surface function the concrete is built from and played from a
   clock (nothing simulated); they and the spectators are baked figures that wake into live people.
   SKATE_PARK=0 keeps the boxes.
+- **2026-10-30 The hero's face lives in shaders; his clips play at their feet's speed.** The rig has
+  no face bones and rebuilding it in Blender would break every clip and fit, so the blink and the
+  gaze are the eye and lash shaders (the eyeball turned about its centre, the upper lid painted onto
+  it, the upper lashes swung down) driven by HeroFace from the head bone. The walk / run / sprint
+  play at speeds measured from each clip's planted foot (HeroStride) instead of guessed numbers
+  (the walk was 1.5x off, the run 1.6x), and the gait bands moved to where people change gait.
+  Rain wets him through the street's own wetness global. HERO_CLOSEUP=0 keeps all of it off.
 
 ## Correction: what build 135 (0ce833f) actually contained
 

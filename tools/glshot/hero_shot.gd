@@ -64,6 +64,31 @@ func _initialize() -> void:
 		sun.light_color = Color(1.0, 0.96, 0.9)
 		sun.shadow_enabled = true
 		sun.directional_shadow_max_distance = 12.0
+		# LIGHT=golden: a low warm sun and an orange sky; LIGHT=night: no sun, a dark sky and a
+		# sodium street lamp 4 m up and 2 m in front of him (the hero close-up stills).
+		match OS.get_environment("LIGHT"):
+			"golden":
+				sun.rotation_degrees = Vector3(-9.0, float(OS.get_environment("SUN_YAW")) if OS.get_environment("SUN_YAW") != "" else 35.0, 0.0)
+				sun.light_color = Color(1.0, 0.62, 0.36)
+				sun.light_energy = 1.6
+				sky_mat.sky_top_color = Color(0.36, 0.40, 0.55)
+				sky_mat.sky_horizon_color = Color(0.95, 0.62, 0.40)
+				e.ambient_light_energy = 0.35
+			"night":
+				sun.visible = false
+				sky_mat.sky_top_color = Color(0.01, 0.012, 0.025)
+				sky_mat.sky_horizon_color = Color(0.04, 0.035, 0.04)
+				sky_mat.ground_horizon_color = Color(0.03, 0.025, 0.02)
+				sky_mat.ground_bottom_color = Color(0.01, 0.01, 0.01)
+				e.ambient_light_energy = 0.25
+				e.tonemap_exposure = 2.2
+				var lamp := OmniLight3D.new()
+				lamp.light_color = Color(1.0, 0.72, 0.42)
+				lamp.light_energy = 6.0
+				lamp.omni_range = 14.0
+				lamp.shadow_enabled = true
+				lamp.position = Vector3(1.2, 4.2, -2.0)
+				stage.add_child(lamp)
 	env.environment = e
 	stage.add_child(env)
 	stage.add_child(sun)
