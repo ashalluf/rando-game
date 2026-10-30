@@ -225,9 +225,9 @@ static func dress(b: HouseBuild, cyp0: int = -1) -> void:
 		_lantern(b, Vector2(lu, wv), 1.95, porch, lamp_tint, 0)
 		var lp := b.W(lu, 1.95, wv - 0.2)
 		if porch:
-			_glow(ch, 2, b.W(lu, 1.35, wv - 0.04), b.N(Vector2(1, 0)) * 2.6, Vector3(0, 3.0, 0), glow_tint, 0.55)
-			_pool_at(ch, Vector3(lp.x, b.g - HouseKit.FLOOR_LIFT + 0.04, lp.z) + b.N(Vector2(0, -1)) * 0.9, 2.3, glow_tint, 0.42)
-			_halo(ch, lp + b.N(Vector2(0, -1)) * 0.12, 0.42, glow_tint, 0.9)
+			_glow(ch, 2, b.W(lu, 1.35, wv - 0.04), b.N(Vector2(1, 0)) * 2.6, Vector3(0, 3.0, 0), glow_tint, 0.85)
+			_pool_at(ch, Vector3(lp.x, b.g - HouseKit.FLOOR_LIFT + 0.04, lp.z) + b.N(Vector2(0, -1)) * 0.9, 2.6, glow_tint, 0.6)
+			_halo(ch, lp + b.N(Vector2(0, -1)) * 0.12, 0.5, glow_tint, 1.0)
 			HouseNightLights.add_spot(ch, lp + b.N(Vector2(0, -1)) * 0.5, glow_tint)
 		# The house number on the other side of the door.
 		_plaque(b, Vector2(du - side * 0.9, wv), 1.55, number_lit(k), lamp_tint, house_number(k))
@@ -239,7 +239,7 @@ static func dress(b: HouseBuild, cyp0: int = -1) -> void:
 			_lantern(b, Vector2(gu, gv), 2.25, on, lamp_tint, 0)
 			if on:
 				var gp := b.W(gu, 2.25, gv - 0.2)
-				_glow(ch, 2, b.W(gu, 1.6, gv - 0.04), b.N(Vector2(1, 0)) * 2.0, Vector3(0, 2.8, 0), glow_tint, 0.45)
+				_glow(ch, 2, b.W(gu, 1.6, gv - 0.04), b.N(Vector2(1, 0)) * 2.0, Vector3(0, 2.8, 0), glow_tint, 0.7)
 				_halo(ch, gp, 0.36, glow_tint, 0.8)
 		if on:
 			# The drive in front of the doors.
@@ -354,5 +354,5 @@ static func pool_glow(ch: CityChunk, r: Rect2) -> void:
 		return
 	var c := r.get_center()
 	var y := ch._gy(c.x, c.y) + CityChunk.SIDEWALK_TOP + YardFill.LIFT + 0.06
-	_glow(ch, 0, Vector3(c.x, y, c.y), Vector3(r.size.x + 2.6, 0, 0), Vector3(0, 0, -(r.size.y + 2.6)), POOL_GLOW, 0.32)
-	_halo(ch, Vector3(c.x, y + 0.05, c.y), maxf(r.size.x, r.size.y) * 0.5, POOL_GLOW, 0.18)
+	_glow(ch, 0, Vector3(c.x, y, c.y), Vector3(r.size.x + 2.6, 0, 0), Vector3(0, 0, -(r.size.y + 2.6)), POOL_GLOW, 0.55)
+	_halo(ch, Vector3(c.x, y + 0.05, c.y), maxf(r.size.x, r.size.y) * 0.5, POOL_GLOW, 0.3)

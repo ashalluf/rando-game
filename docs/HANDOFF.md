@@ -21191,7 +21191,7 @@ the house. Now:
   `hn_scallop`, `hn_halo`, additive in DISPLAY numbers on both renderers - fwd-review-e's rule):
   the lantern's scallop on the wall and pool on the step, the carriage lamps' scallops and a pool
   on the drive, path-light pools, uplight cones up the facade between its bays and up both sides of
-  each cypress LaTrees planted (NICE), halos at every lamp never under 2.6 px (so a street reads
+  each cypress LaTrees planted (NICE), halos at every lamp never under 3.4 px (so a street reads
   from the air), a turquoise glow over each lit pool. Halos draw to 900 m, the rest to 260 m.
 - **Real lights** (`HouseNightLights`, one node under the root, Forward+ desktop only): `budget`
   OmniLights (Quality 4 / 2 / 0 / 0) on the nearest lit porches within 48 m, picked every 0.4 s

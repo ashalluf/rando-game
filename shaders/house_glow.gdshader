@@ -16,7 +16,7 @@ global uniform float lamp_factor;
 // 0 a pool on the ground, 1 an uplight's cone up a wall, 2 a lantern's scallop on a wall,
 // 3 a lamp's halo (a camera-facing sprite never drawn smaller than `halo_px` pixels).
 uniform int shape = 0;
-uniform float halo_px = 2.6;
+uniform float halo_px = 3.4;
 
 varying float halo_scale;
 

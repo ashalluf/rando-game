@@ -40,7 +40,7 @@ global uniform float road_wetness;
 global uniform float ground_detail;
 // A pool's light after dark (HouseNights: its variant 0.75 on, 0.25 off, 0 the old pool).
 global uniform float lamp_factor;
-uniform float pool_light = 0.9;
+uniform float pool_light = 1.4;
 
 varying vec3 local_pos;
 varying vec3 local_normal;
