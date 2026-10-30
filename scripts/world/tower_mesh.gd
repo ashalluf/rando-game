@@ -536,8 +536,8 @@ func light_mesh(material: Material) -> ArrayMesh:
 		# A phase per light from its index, so a row of beacons does not pulse in step.
 		# The night pass takes it from where the light stands instead: every tower's first beacon
 		# had phase 0, so the skyline's beacons flashed in step (NightSkyline.light_phase()).
-		var ph := NightSkyline.light_phase(spec[0], i) if NightSkyline.enabled else fposmod(float(i) * 0.37, 1.0)
-		var code := float(spec[3]) * 10.0 + ph * 9.0
+		var ph: float = NightSkyline.light_phase(spec[0], i) if NightSkyline.enabled else fposmod(float(i) * 0.37, 1.0)
+		var code: float = float(spec[3]) * 10.0 + ph * 9.0
 		for k in [0, 1, 2, 0, 2, 3]:
 			st.set_color(spec[1])
 			st.set_uv(corners[k])
