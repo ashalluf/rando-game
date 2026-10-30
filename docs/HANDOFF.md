@@ -18676,3 +18676,6 @@ the truck (they do not come off in a crash); its rack is not climbable collision
 boxes. The compact SUV's spare adds 0.4 m to its length, which traffic's gaps count. No car dealer
 or car park lineup was changed to show the new bodies (they turn up through random_car() and the
 traffic like the second wave's).
+
+**Gate** (`SHARDS=3`, after merging origin/main at 80883b2a): 3,555 checks, 0 failed, peak RSS 3.17 GB
+a shard. Stills on `shots/cars-3`.
