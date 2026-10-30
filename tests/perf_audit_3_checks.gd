@@ -187,4 +187,11 @@ func _balconies() -> void:
 		"perf 3: balconies cast from their own mesh near and a twin without the uprights past %.0f m" % Building.BALCONY_SHADOW_NEAR)
 	_t._check(PropFactory.balcony_shadow().get_aabb().is_equal_approx(PropFactory.balcony().get_aabb()),
 		"perf 3: the balcony's far shadow twin has the balcony's own box")
+	# The balcony's LOD: its surface is indexed, and the renderer holds one LOD of the solid boxes
+	# (the dummy renderer keeps no surface data: then the switch alone is checked).
+	var surf: Dictionary = RenderingServer.mesh_get_surface(PropFactory.balcony().get_rid(), 0)
+	var lods: Array = surf.get("lods", [])
+	_t._check(not PropFactory.BALCONY_LOD or surf.is_empty() or surf.get("index_count", 0) == 0 \
+			or (lods.size() == 1 and int(surf.get("index_count", 0)) == 34 * 36),
+		"perf 3: the balcony carries one LOD without its uprights (%d LODs, %d indices)" % [lods.size(), int(surf.get("index_count", 0))])
 	b.free()

@@ -891,13 +891,38 @@ static func balcony() -> Mesh:
 			var z := 0.16 + float(i) * 0.19
 			_box_into(st, Vector3(sx, 0.55, z), Vector3(0.020, 0.9, 0.013), metal)
 	st.generate_normals()
-	var mesh := st.commit()
+	# One LOD (perf-audit-3): the same vertices, indexed, and a coarse index list of the slab, the
+	# rails and the returns - the first BALCONY_SOLID boxes, 36 unindexed vertices each - without
+	# the 25 uprights, 1.3-2 cm wide. Godot takes it once BALCONY_LOD_ERROR (in the mesh's units;
+	# Building scales it by the instances' stretch through lod_bias) is under a pixel, where the
+	# uprights are a fraction of one. The 408 triangles were 34 separate boxes, which no simplifier
+	# thins: 1.34 M triangles of balconies at the MacArthur Park aerial.
+	var arrays := st.commit_to_arrays()
+	var n := (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+	var all := PackedInt32Array()
+	all.resize(n)
+	for i in n:
+		all[i] = i
+	arrays[Mesh.ARRAY_INDEX] = all
+	var lods := {}
+	if BALCONY_LOD and n == 34 * 36:
+		lods[BALCONY_LOD_ERROR] = all.slice(0, BALCONY_SOLID * 36)
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], lods)
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
 	mat.roughness = 0.8
 	mesh.surface_set_material(0, mat)
 	_cache["balcony"] = mesh
 	return mesh
+
+
+## balcony(): its first boxes that are not uprights (slab, four rails, two returns, two posts).
+const BALCONY_SOLID := 9
+## The balcony LOD's error in mesh units (an upright is 0.013-0.02 of the unit width).
+const BALCONY_LOD_ERROR := 0.06
+## BALCONY_LOD=0 in the environment builds it without its LOD (the A/B).
+static var BALCONY_LOD := OS.get_environment("BALCONY_LOD") != "0"
 
 
 ## balcony() without its uprights, for its shadow past Building.BALCONY_SHADOW_NEAR: the slab,

@@ -1689,6 +1689,12 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		node.name = "Balconies"
 		node.multimesh = mm
 		node.visibility_range_end = FRAME_DRAW_DISTANCE * 2.0
+		# The mesh's LOD error is in its own units and an instance is stretched to its bay: a
+		# MultiMesh picks its LOD from the node's scale alone, so scale the threshold here.
+		var stretch := 1.0
+		for xf: Transform3D in balconies:
+			stretch = maxf(stretch, xf.basis.get_scale()[xf.basis.get_scale().max_axis_index()])
+		node.lod_bias = stretch
 		add_child(node)
 		_balcony_shadows(node, balconies)
 	if not fins.is_empty():
