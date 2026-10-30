@@ -14377,3 +14377,74 @@ crew's hands are IK onto the rail and the squeegee with the idle frozen near its
 dedicated wiping clip, no head turn. No sound of the hoists. The LOD ring shows Rooftops' static
 cradle box at its old depth on infill towers. Workers cannot be knocked off (on purpose); shooting
 one only swings the cradle, with no blood.
+
+## 9d?. Rock outcrops: real rock on the hills, and crags on the ranges' skyline, 2026-10-30 (agent branch `wt/rock-outcrops`, fleet wave 3)
+
+The task: the hills' rock was paint (terrain.gdshader's outcrop splat); put real photoscanned rock
+where HillPlanting already says rock - crests, the steepest faces, the hill roads' cut banks - in
+FULL chunks with LODs and shadow twins, the far tier keeping only the big ones. The lead's wave-3
+note: from the city and the freeway (refcams 05 golden aerial, 09 freeway) the mountains read as
+smooth tan humps and cones; prove it there.
+
+**What is there now**
+
+- **The kit** (`RockKit`, `scripts/world/rock_kit.gd`): four new CC0 Poly Haven scans -
+  `namaqualand_cliff_02` (`rock_tor_a`, 9k triangles), `namaqualand_cliff_01` (`rock_tor_b`, 7k),
+  `mountainside` (`rock_face_a`, 8k), `namaqualand_boulder_05` (`rock_boulder_c`, 2.4k) - plus the
+  two old boulders (`rock_a`, `rock_b`), all on ONE shader, `shaders/rock_outcrop.gdshader`: the
+  scan's albedo kept only as luminance (its cracks and grain as a ratio to the scan's own mean,
+  capped so the atlas's pale gaps at a seam cannot flare) and recoloured per instance between buff
+  sandstone and grey granite, desert varnish (dark streaks down the steep faces, world space),
+  dust and dry grass on what faces the sky, the ground's dirt over the foot, the scan's normal map
+  plus a finer tiling of it close up. Linear on both renderers (color_space.gdshaderinc).
+- **Never the scans' LODs.** Godot's LOD generator (and pymeshlab's texture-preserving collapse)
+  keeps a scan's open UV seams, and past the first level the rock comes apart into flakes floating
+  round it (`tools/rocks/rock_shot.gd LOD=3` shows it; a 120 m tor drawn that way was a thin dark
+  sheet hanging over a ridge in the first city still). So a tor scan is ONE level, and each tor
+  kind has a welded copy, `rock_*_mid.glb` (`tools/rocks/make_rock_lods.py`: merge close
+  vertices, quadric collapse to 1,800 triangles, positions and normals only), whose generated LODs
+  go down to ~220 triangles cleanly. The welded mesh is textured triplanar with the hills' own
+  tileable rock (`hill_outcrop`, the terrain's outcrop texture) in the shader's `far_mode`. The
+  boulders keep their generated LODs (too small for the flaking to show).
+- **The plan** (`RockOutcrops`, `scripts/world/rock_outcrops.gd`, pure, hashes of seed + cell):
+  one jittered candidate every `TOR_CELL` (58 m) over the basin bake (`MacroMap.bake_height`:
+  height and drainage per 31 m texel, so ~76k candidates cost ~4 s once, then LoadCache), asked
+  `HillPlanting.ground()` (the terrain's splat) with the bake's slope and drainage: a tor where
+  the paint says rock (`TOR_ROCKY`), on a crest (`CREST_DRAIN`) and on a steep face (`STEEP_ODDS`:
+  the bake's 31 m texels read a cliff band as 40 degrees, where the paint wants 60). A crest gets
+  the long cliff laid along the contour, a steep face the face slab turned down the slope, the
+  highest ground within `SUMMIT_REACH` a SUMMIT CRAG (the scan stood up into a spire or fin 35-70 m
+  high, narrower than tall) - and every crest piece brings a spine of 1-3 more along the ridge, a
+  summit a jumble of 1-4 round its foot: one rock alone read as a statue from the basin. Each is
+  sunk by the slope under its footprint plus a fifth of its height (a summit only by the height).
+  Kept off the hill roads (+14 m), estate pads, landmarks (radius capped at 150 m: the sign's 400 m
+  is relief flattening), ridge masts / sites / towers, the reservoir and the ballpark. ~12,000
+  tors on the default seed, ~2,800 standing over 15 m, ~330 summit crags.
+- **Drawn at every distance by one node** (`RockFar`, `scripts/world/rock_far.gd`, a child of the
+  streamer whose origin is the true-world origin, one hook line after MountainOccluder): near
+  cells (320 m) within `NEAR_RANGE` 420 m show the scans (no shadow of their own; a SHADOWS_ONLY
+  twin of the welded mesh within `SHADOW_RANGE` 240 m), far cells (1,920 m) the welded meshes with
+  their LODs, no shadow; a tor in a shown near cell is collapsed in its far cell
+  (INSTANCE_CUSTOM.a 0), so it is never drawn twice and never pops between tiers. **Seating:** a
+  tor stands where the CPU put it (height_at less its sink) when a FULL or LOD chunk claims it
+  (`RockFar.claim()`, static: the loading screen's chunks claim before the node exists); else
+  `rock_outcrop.gdshader` moves it onto the horizon plane's drawn triangles under its origin, with
+  far_canopy.gdshader's own plane_height() (the streamer keeps the plane uniforms of every rock
+  material current through `_far_ground_materials`).
+- **FULL hill chunks** (`RockBuild`, `scripts/world/rock_build.gd`, one hook in
+  `CityChunk.begin_build()` after RidgeBuild): the tors' collision (a trimesh of the welded mesh
+  each, `RockBody`, world layer, mask 0), outcrops on the painted rock (an 11 m jittered grid off
+  the tile's own heights and drainage, up to `MAX_OUTCROPS`: welded tor / face pieces 3-9 m and
+  the boulders, each with a collision box), scree tumbled downhill of them, and boulders bedded in
+  the hill roads' cut banks (where the ground beside the bed stands `BANK_MIN_CUT` over it) with
+  now and then one fallen onto the shoulder. Batches `rock_k<kind>`, shadows within 70 m
+  (`set_shadow_reach`). LOD chunks only claim. `_scatter_hills()`'s old boulders keep every roll
+  and now wear the rock shader (RockKit.mesh(BOULDER_A + v)). Counts per chunk in meta `rocks`.
+
+**Tools.** `tools/rocks/rock_shot.gd` (the kit on a plain, seconds: `PLAIN=1` the glTF materials,
+`FAR=1` the welded meshes, `LOD=n`, `TONE`, `SCALE`), `tools/rocks/probe.tscn` (the plan: counts,
+`OUT=` a map, `NEAR=x,z` the biggest tors there with an EYE for still_shot.gd, `ROAD=x,z` cut banks
+with an EYE on the road), `tools/rocks/make_rock_lods.py` (the welded meshes from the Poly Haven
+glTFs; needs pymeshlab and `apt-get install libopengl0`). `ROCKS=0` is the A/B; `ROCK_DEBUG=1`
+prints RockFar's survey. **Trap:** a `.tscn` probe whose script fails to parse never quits (no
+_ready runs): check a script with `godot --headless --check-only --script res://...` first.

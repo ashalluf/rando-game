@@ -25,6 +25,8 @@ const CREST_DRAIN := -0.3
 const CREST_ODDS := 0.5
 ## The odds on a steep face (the bake's slope), whatever the paint says.
 const STEEP_ODDS := 0.4
+## A crest tor on the highest ground within this many metres is a summit crag.
+const SUMMIT_REACH := 75.0
 ## Never under this elevation (the low foothills stay grass) and never within this of a road's
 ## edge, an estate pad, a landmark's radius or a tower.
 const TOR_MIN_HEIGHT := 25.0
@@ -115,22 +117,60 @@ static func _plan_tors(plan: CityPlan) -> Array:
 				continue
 			if macro.zone_at(p) != MacroMap.Zone.HILLS:
 				continue
-			var tor := _make_tor(plan, p, grad, hd.y, float(g.slope), crest, hs)
+			var tor := _make_tor(plan, p, grad, hd.y, float(g.slope), crest, crest and _summit(macro, p, hd.x, span), hs)
 			if tor.is_empty() or _kept_out(plan, p, float(tor.radius), marks):
 				continue
 			tor["id"] = out.size()
 			out.append(tor)
+			# A crest carries a spine of rock along the ridge, a summit a jumble round its crag:
+			# one piece alone read as a statue from the basin.
+			if crest:
+				var along := grad.orthogonal().normalized() if grad.length() > 1e-4 else Vector2.RIGHT
+				var pieces := 1 + int(_h01(hs + ["spine"]) * (4.0 if bool(tor.summit) else 3.0))
+				for k in pieces:
+					var ks := hs + ["piece", k]
+					var q: Vector2
+					if bool(tor.summit):
+						q = p + Vector2.from_angle(_h01(ks + ["a"]) * TAU) * float(tor.radius) * lerpf(0.45, 0.9, _h01(ks + ["d"]))
+					else:
+						var side := 1.0 if k % 2 == 0 else -1.0
+						q = p + along * side * float(tor.radius) * lerpf(0.8, 1.5, _h01(ks + ["d"])) * (1.0 + float(k / 2))
+					var qk := RockKit.TOR_A if _h01(ks + ["k"]) < 0.55 else RockKit.TOR_B
+					var qs := float(tor.basis.get_scale().y) * lerpf(0.45, 0.85, _h01(ks + ["s"])) * (1.0 if qk == RockKit.TOR_A else 1.4)
+					var piece := _make_tor(plan, q, grad, hd.y, float(g.slope), true, false, ks, qk, qs)
+					if _kept_out(plan, q, float(piece.radius), marks) or macro.zone_at(q) != MacroMap.Zone.HILLS:
+						continue
+					piece["id"] = out.size()
+					out.append(piece)
 	print("RockOutcrops: %d tors planned in %.0f ms" % [out.size(), (Time.get_ticks_usec() - t0) / 1000.0])
 	return out
 
 
+## Is `p` the highest point of the bake within SUMMIT_REACH (eight directions)?
+static func _summit(macro: MacroMap, p: Vector2, h: float, span: float) -> bool:
+	for k in 8:
+		var d := Vector2.from_angle(TAU * k / 8.0) * SUMMIT_REACH
+		if _bake_at(macro, p + d, span).x > h:
+			return false
+	return true
+
+
 ## A tor at `p`: which scan, how big, which way, how deep. A crest gets the long cliff laid along
 ## the ridge; a steep face the tall face slab turned to look down the slope; the rest the block.
-static func _make_tor(plan: CityPlan, p: Vector2, grad: Vector2, drain: float, slope: float, crest: bool, hs: Array) -> Dictionary:
+static func _make_tor(plan: CityPlan, p: Vector2, grad: Vector2, drain: float, slope: float, crest: bool, summit: bool, hs: Array, force_kind: int = -1, force_s: float = 0.0) -> Dictionary:
 	var size := _h01(hs + ["size"])
 	var kind: int
 	var s: float
-	if crest and _h01(hs + ["kind"]) < 0.7:
+	if force_kind >= 0:
+		kind = force_kind
+		s = force_s
+		summit = false
+	elif summit:
+		# A summit crag: the scan stood up as a spire or a fin of rock tens of metres high, the
+		# range's skyline from the basin.
+		kind = RockKit.FACE_A if _h01(hs + ["kind"]) < 0.55 else RockKit.TOR_A
+		s = lerpf(3.5, 6.0, size) if kind == RockKit.FACE_A else lerpf(4.0, 7.0, size)
+	elif crest and _h01(hs + ["kind"]) < 0.7:
 		kind = RockKit.TOR_A
 		s = lerpf(1.6, 6.0, pow(size, 1.3))
 	elif slope > 0.45:
@@ -150,7 +190,10 @@ static func _make_tor(plan: CityPlan, p: Vector2, grad: Vector2, drain: float, s
 		yaw = atan2(down.x, down.y) + (_h01(hs + ["yaw"]) - 0.5) * 0.5
 	else:
 		yaw = _h01(hs + ["yaw"]) * TAU
-	var stretch := Vector3(lerpf(0.85, 1.25, _h01(hs + ["sx"])), lerpf(0.75, 1.3, _h01(hs + ["sy"])), lerpf(0.85, 1.2, _h01(hs + ["sz"])))
+	var stretch := Vector3(lerpf(0.85, 1.25, _h01(hs + ["sx"])), lerpf(0.9, 1.45, _h01(hs + ["sy"])), lerpf(0.85, 1.2, _h01(hs + ["sz"])))
+	if summit:
+		# Stood up: a spire or a fin, narrower than it is tall (jointed sandstone weathers that way).
+		stretch = Vector3(lerpf(0.55, 0.85, _h01(hs + ["sx"])), lerpf(1.3, 1.9, _h01(hs + ["sy"])), lerpf(0.6, 0.9, _h01(hs + ["sz"])))
 	var sc := stretch * s
 	var basis := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, (_h01(hs + ["tilt"]) - 0.5) * 0.12).scaled(sc)
 	var radius := 0.5 * Vector2(b.size.x * sc.x, b.size.z * sc.z).length()
@@ -159,8 +202,11 @@ static func _make_tor(plan: CityPlan, p: Vector2, grad: Vector2, drain: float, s
 	# Deep enough that the uphill side of the footprint is buried, plus a fifth of the height.
 	var sink := tan(acos(clampf(1.0 - slope, 0.05, 1.0))) * radius * 0.7 + tall * lerpf(0.18, 0.32, _h01(hs + ["sink"]))
 	sink = minf(sink, tall * 0.6)
+	if summit:
+		# The summit falls away on every side: nothing uphill to bury it in.
+		sink = tall * lerpf(0.22, 0.34, _h01(hs + ["sink"]))
 	return {"pos": p, "y": gy - sink, "sink": sink, "kind": kind, "basis": basis,
-		"tone": _h01(hs + ["tone"]), "radius": radius, "top": tall - sink}
+		"tone": _h01(hs + ["tone"]), "radius": radius, "top": tall - sink, "summit": summit}
 
 
 ## Roads, pads, landmarks, towers, masts and sites to keep the tors off, as [pos, radius] marks

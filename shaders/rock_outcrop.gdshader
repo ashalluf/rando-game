@@ -31,10 +31,10 @@ uniform float scan_mean = 0.2;
 // How much of the scan's light and dark survives (1 the scan's own contrast).
 uniform float scan_contrast = 1.15;
 // The rock palette, linear: buff sandstone, grey granite, and the dark of desert varnish.
-uniform vec3 sandstone_color = vec3(0.185, 0.140, 0.092);
-uniform vec3 granite_color = vec3(0.150, 0.138, 0.120);
+uniform vec3 sandstone_color = vec3(0.150, 0.112, 0.074);
+uniform vec3 granite_color = vec3(0.118, 0.108, 0.094);
 uniform vec3 varnish_color = vec3(0.055, 0.045, 0.036);
-uniform float varnish_amount : hint_range(0.0, 1.0) = 0.55;
+uniform float varnish_amount : hint_range(0.0, 1.0) = 0.7;
 // What settles on the rock: the hills' dirt and their straw (hill_splat.gdshaderinc's numbers).
 uniform vec3 dust_color = vec3(0.205, 0.176, 0.133);
 uniform vec3 straw_color = vec3(0.200, 0.158, 0.076);

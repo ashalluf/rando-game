@@ -10,10 +10,14 @@ extends Node3D
 ## plane's drawn ground. Its node's origin is the true-world origin (MountainOccluder's rule), a
 ## child of the streamer so the origin shifts carry it.
 
-const NEAR_CELL := 480.0
+const NEAR_CELL := 320.0
 const FAR_CELL := 1920.0
-## Metres from the camera to a near cell's nearest point inside which the cell is shown.
-const NEAR_RANGE := 1150.0
+## Metres from the camera to a near cell's nearest point inside which the cell is shown: inside
+## the LOD ring (CityStreamer.lod_reach_metres(), 840 m), so a near tor stands on a chunk's real
+## terrain; past it the welded mesh is a good match for a rock that size.
+const NEAR_RANGE := 420.0
+## Metres to a near cell inside which its tors cast (their welded mesh, SHADOWS_ONLY).
+const SHADOW_RANGE := 240.0
 ## Seconds between looks at which near cells to show.
 const SURVEY := 0.4
 
@@ -33,8 +37,9 @@ var _near_shadow: Dictionary = {}
 ## Near cell (Vector2i) -> the tor ids in it.
 var _near_tors: Dictionary = {}
 var _shown: Dictionary = {}
-## Tor id -> how many chunks claim it.
-var _claims: Dictionary = {}
+## Tor id -> how many chunks claim it. Static: the chunks the loading screen builds can claim
+## before this node exists, and it reads them when it does.
+static var _claims: Dictionary = {}
 var _clock := 0.0
 var _materials: Array[ShaderMaterial] = []
 
@@ -124,7 +129,7 @@ func _cell(list: Array, kind: int, far: bool, label: String) -> MultiMeshInstanc
 		var t: Dictionary = list[i]
 		var xf := Transform3D(t.basis, Vector3(t.pos.x, t.y, t.pos.y))
 		mm.set_instance_transform(i, xf)
-		mm.set_instance_custom_data(i, Color(0.0, float(t.tone), float(t.sink) / 100.0, 1.0))
+		mm.set_instance_custom_data(i, Color(1.0 if is_claimed(int(t.id)) else 0.0, float(t.tone), float(t.sink) / 100.0, 1.0))
 		var wb := xf * b
 		lo = lo.min(wb.position)
 		hi = hi.max(wb.end)
@@ -157,6 +162,7 @@ func _process(delta: float) -> void:
 func survey(eye: Vector3) -> void:
 	var e := Vector2(eye.x, eye.z)
 	var want := {}
+	var shade := {}
 	var r := int(ceil(NEAR_RANGE / NEAR_CELL)) + 1
 	var c := Vector2i(floori(e.x / NEAR_CELL), floori(e.y / NEAR_CELL))
 	for dz in range(-r, r + 1):
@@ -168,12 +174,19 @@ func survey(eye: Vector3) -> void:
 			var q := Vector2(clampf(e.x, rect.position.x, rect.end.x), clampf(e.y, rect.position.y, rect.end.y))
 			if q.distance_to(e) < NEAR_RANGE:
 				want[k] = true
+				if q.distance_to(e) < SHADOW_RANGE:
+					shade[k] = true
 	for k: Vector2i in _shown.keys():
 		if not want.has(k):
 			_show_near(k, false)
 	for k: Vector2i in want:
 		if not _shown.has(k):
 			_show_near(k, true)
+	for k: Vector2i in _shown:
+		for kind in RockKit.TOR_KINDS:
+			var key := Vector3i(k.x, k.y, kind)
+			if _near_shadow.has(key):
+				(_near_shadow[key] as Node3D).visible = shade.has(k)
 	if DEBUG:
 		var near_tors := 0
 		for k: Vector2i in _shown:
@@ -190,7 +203,8 @@ func _show_near(cell: Vector2i, on: bool) -> void:
 		var k := Vector3i(cell.x, cell.y, kind)
 		if _near.has(k):
 			(_near[k] as Node3D).visible = on
-			(_near_shadow[k] as Node3D).visible = on
+			if not on:
+				(_near_shadow[k] as Node3D).visible = false
 	for id: int in _near_tors[cell]:
 		_write(id)
 
@@ -210,24 +224,25 @@ func _write(id: int) -> void:
 
 
 ## A chunk drew the real terrain under these tors (CityChunk FULL or LOD): they stand on it.
-func claim(ids: Array) -> void:
+static func claim(ids: Array) -> void:
 	for id: int in ids:
 		_claims[id] = int(_claims.get(id, 0)) + 1
-		if int(_claims[id]) == 1:
-			_write(id)
+		if int(_claims[id]) == 1 and current:
+			current._write(id)
 
 
-func release(ids: Array) -> void:
+static func release(ids: Array) -> void:
 	for id: int in ids:
 		var n := int(_claims.get(id, 0)) - 1
 		if n <= 0:
 			_claims.erase(id)
-			_write(id)
+			if current:
+				current._write(id)
 		else:
 			_claims[id] = n
 
 
-func is_claimed(id: int) -> bool:
+static func is_claimed(id: int) -> bool:
 	return int(_claims.get(id, 0)) > 0
 
 

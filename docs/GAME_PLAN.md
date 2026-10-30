@@ -295,6 +295,14 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-30 The hills' rock is real rock, and the ranges get crags on the skyline (fleet wave 3,
+  wt/rock-outcrops).** The lead's review of the reference stills: from the city and the freeway the
+  mountains read as smooth tan humps and cones. Photoscanned CC0 cliffs and boulders now stand where
+  the terrain paints rock - on the crests, the steepest faces and, stood up into 30-80 m spires and
+  fins, on the summits - at every distance (one node draws them all; a far rock is seated on the
+  horizon plane's drawn ground), with outcrops, scree and cut-bank boulders up close. Scans keep
+  one level: their generated LODs shred along the open UV seams, so the distance gets welded
+  copies. docs/HANDOFF.md "Rock outcrops"; `ROCKS=0` is the A/B.
 - **2026-10-05 Apartments: the first per-style kit (G2; HANDOFF "Apartment buildings").** Midtown's
   low-rise lots and the inner suburbs get LA stucco apartments - walk-ups with galleries and open
   stairs, bungalow courts, Spanish courts, podium blocks - instead of storefront boxes and single

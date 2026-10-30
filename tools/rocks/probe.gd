@@ -24,9 +24,10 @@ func _ready() -> void:
 			big += 1
 	for k in by_kind:
 		print("ROCKS kind ", RockKit.KINDS[k], " ", by_kind[k])
-	print("ROCKS total ", tors.size(), " standing over 15 m: ", big)
-	# NEAR=x,z: the biggest tors within 900 m, with an EYE 220 m downhill and over the crest's
-	# height looking at each (still_shot.gd EYE=).
+	var summits := tors.filter(func(t: Dictionary) -> bool: return bool(t.get("summit", false)))
+	print("ROCKS total ", tors.size(), " standing over 15 m: ", big, " summit crags: ", summits.size())
+	# NEAR=x,z: the biggest tors within 900 m, with an EYE 220 m downhill and 25 m over the ground
+	# looking at each (still_shot.gd EYE=).
 	if OS.get_environment("NEAR") != "":
 		var q := OS.get_environment("NEAR").split(",")
 		var at := Vector2(q[0].to_float(), q[1].to_float())
@@ -37,12 +38,36 @@ func _ready() -> void:
 			var g := Vector2(plan.macro.height_at(p + Vector2(10, 0)) - plan.macro.height_at(p - Vector2(10, 0)),
 				plan.macro.height_at(p + Vector2(0, 10)) - plan.macro.height_at(p - Vector2(0, 10)))
 			var down := -g.normalized() if g.length() > 1e-3 else Vector2(0, 1)
-			var eye := p + down * 220.0
+			var dist := float(OS.get_environment("DIST")) if OS.get_environment("DIST") != "" else 260.0
+			var eye := p + down * dist
 			var gy := float(t.y) + float(t.sink)
-			var ey := maxf(plan.macro.height_at(eye) + 8.0, gy + float(t.top) + 20.0)
+			# Level with the rock's foot (or 25 m over the ground there), so its top stands on the sky.
+			var ey := maxf(plan.macro.height_at(eye) + 25.0, gy)
 			var yaw := rad_to_deg(atan2(-(p - eye).x, -(p - eye).y))
-			var pitch := rad_to_deg(atan2(gy + float(t.top) * 0.4 - ey, 220.0))
-			print("TOR %d %s at %s top %.0f m r %.0f  EYE=%.0f,%.1f,%.0f,%.0f,%.0f" % [t.id, RockKit.KINDS[t.kind], p, t.top, t.radius, eye.x, ey, eye.y, yaw, pitch])
+			var pitch := rad_to_deg(atan2(gy + float(t.top) * 0.4 - ey, dist))
+			print("TOR %d %s%s at %s top %.0f m r %.0f  EYE=%.0f,%.1f,%.0f,%.0f,%.0f" % [t.id, RockKit.KINDS[t.kind], " summit" if t.get("summit", false) else "", p, t.top, t.radius, eye.x, ey, eye.y, yaw, pitch])
+	# ROAD=x,z: cut banks on the hill roads within 1.5 km, with an EYE on the road looking along it.
+	if OS.get_environment("ROAD") != "":
+		var q := OS.get_environment("ROAD").split(",")
+		var at := Vector2(q[0].to_float(), q[1].to_float())
+		var shown := 0
+		for seg: Dictionary in plan.macro.hill_roads.segments_in(Rect2(at - Vector2(1500, 1500), Vector2(3000, 3000))):
+			if shown >= 6 or not bool(seg.get("draw", true)):
+				continue
+			var a: Vector2 = seg.a
+			var b: Vector2 = seg.b
+			var c := (a + b) * 0.5
+			var d := (b - a).normalized()
+			var n := Vector2(-d.y, d.x)
+			var bed := (float(seg.ha) + float(seg.hb)) * 0.5
+			var off := float(seg.width) * 0.5 + 3.5
+			var cut := maxf(plan.macro.height_at(c + n * off), plan.macro.height_at(c - n * off)) - bed
+			if cut < 4.0:
+				continue
+			var eye := c - d * 30.0
+			var yaw := rad_to_deg(atan2(-d.x, -d.y))
+			print("BANK cut %.1f m at %s  EYE=%.0f,%.1f,%.0f,%.0f,-4" % [cut, c, eye.x, bed + 2.2, eye.y, yaw])
+			shown += 1
 	var out := OS.get_environment("OUT")
 	if out != "":
 		var hi := plan.macro.bake_height

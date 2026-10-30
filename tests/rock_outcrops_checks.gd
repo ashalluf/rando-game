@@ -34,7 +34,7 @@ func _kit() -> void:
 		var m := RockKit.mesh(k)
 		var lods := RockKit.lod_triangles(m)
 		var mat := m.surface_get_material(0) as ShaderMaterial
-		var good := m.get_surface_count() == 1 and lods.size() == 1 and lods[0] >= 2000 and lods[0] <= 10000 \
+		var good := m.get_surface_count() == 1 and (lods.size() == 1) == RockKit.MID_FILES.has(k) and lods[0] >= 2000 and lods[0] <= 10000 \
 			and mat != null and mat.shader.resource_path.ends_with("rock_outcrop.gdshader")
 		ok = ok and good
 		note += "%s %s " % [RockKit.KINDS[k], str(lods)]
@@ -42,7 +42,7 @@ func _kit() -> void:
 		var lods := RockKit.lod_triangles(RockKit.mid_mesh(k))
 		ok = ok and lods[0] <= 2000 and lods.size() >= 3 and lods[lods.size() - 1] <= 400
 		note += "mid %s " % str(lods)
-	_t._check(ok, "the rock kit's scans load as one level on the rock shader, the tors' welded meshes carry LODs (%s)" % note)
+	_t._check(ok, "the rock kit's tor scans load as one level (boulders with LODs) on the rock shader, the tors' welded meshes carry LODs (%s)" % note)
 
 
 func _plan(plan: CityPlan, tors: Array) -> void:
@@ -136,7 +136,7 @@ func _chunks(city: Node3D, plan: CityPlan, tors: Array) -> void:
 	var ids: Array = chunk.get_meta("rock_claims", [])
 	var claimed := not ids.is_empty()
 	for id: int in ids:
-		claimed = claimed and f != null and f.is_claimed(id)
+		claimed = claimed and RockFar.is_claimed(id)
 	_t._check(chunk.zone == MacroMap.Zone.HILLS and body != null and body.collision_layer == 1 and body.collision_mask == 0
 		and body.get_child_count() == int(rocks.get("tors", -1)) and claimed,
 		"a FULL hill chunk %s collides and claims its tors (%d) and lays outcrops (%d), scree (%d), bank boulders (%d)"
@@ -145,7 +145,7 @@ func _chunks(city: Node3D, plan: CityPlan, tors: Array) -> void:
 	chunk.free()
 	var released := true
 	for id: int in ids:
-		released = released and not f.is_claimed(id)
+		released = released and not RockFar.is_claimed(id)
 	_t._check(released, "the tors go back to the far seat when their chunk goes")
 	var lod: CityChunk = city._new_chunk(best, CityChunk.Level.LOD)
 	lod.build()

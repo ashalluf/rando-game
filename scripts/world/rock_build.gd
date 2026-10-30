@@ -8,10 +8,13 @@ class_name RockBuild
 
 ## How many outcrop grid rows a build step, and the most outcrops and bank boulders a chunk.
 const ROWS_PER_STEP := 6
-const MAX_OUTCROPS := 70
+const MAX_OUTCROPS := 40
 const MAX_BANK := 60
 ## The most scree a chunk lays round its outcrops and tors.
-const MAX_SCREE := 120
+const MAX_SCREE := 60
+## Metres from the camera inside which a chunk's rock batch casts (MultiMeshBatch.set_shadow_reach):
+## past it a boulder's shadow is a few texels of the cascade.
+const SHADOW_REACH := 70.0
 ## The LOD of the welded mesh a tor's collision is cut from (0: its ~1,800 triangles, closed).
 const COLLISION_LOD := 0
 
@@ -42,14 +45,9 @@ static func attach(ch: CityChunk) -> Array[Callable]:
 
 
 static func _claim(ch: CityChunk, ids: Array) -> void:
-	var far := RockFar.current
-	if far == null:
-		return
-	far.claim(ids)
+	RockFar.claim(ids)
 	ch.set_meta("rock_claims", ids)
-	ch.tree_exiting.connect(func() -> void:
-		if RockFar.current:
-			RockFar.current.release(ids), CONNECT_ONE_SHOT)
+	ch.tree_exiting.connect(func() -> void: RockFar.release(ids), CONNECT_ONE_SHOT)
 
 
 ## Every tor's collision: a trimesh of its welded mesh (RockKit.mid_mesh), in the tor's own transform, on
@@ -180,7 +178,11 @@ static func _place(ch: CityChunk, kind: int, p: Vector2, h: float, yaw: float, s
 	var tall := b.size.y * sc.y
 	var sink := minf(tan(acos(clampf(1.0 - slope, 0.05, 1.0))) * radius * 0.6 + tall * 0.15, tall * 0.55)
 	var at := Vector3(p.x, h - sink, p.y)
-	ch._batch.add("rock_k%d" % kind, RockKit.mesh(kind), Transform3D(tilt.scaled(sc), at), Color.WHITE, Color(1.0, _h01(hs + ["tone"]), sink / 100.0, 1.0))
+	# The tor scans are 7-9k triangles a piece: an outcrop is their welded copy (with LODs).
+	var m := RockKit.mid_mesh(kind) if RockKit.MID_FILES.has(kind) else RockKit.mesh(kind)
+	var key := "rock_k%d" % kind
+	ch._batch.add(key, m, Transform3D(tilt.scaled(sc), at), Color.WHITE, Color(1.0, _h01(hs + ["tone"]), sink / 100.0, 1.0))
+	ch._batch.set_shadow_reach(key, SHADOW_REACH)
 	if solid:
 		var size := Vector3(b.size.x * sc.x, tall, b.size.z * sc.z) * 0.8
 		ch._add_shape(size, at + Vector3(0.0, size.y * 0.5, 0.0), yaw)

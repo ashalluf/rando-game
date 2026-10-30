@@ -12,7 +12,8 @@ class_name RockKit
 ##    (tools/rocks/make_rock_lods.py), with LODs Godot generates down to a couple of hundred; drawn
 ##    with the hills' tileable rock texture laid triplanar (the shader's far mode). RockFar's far
 ##    cells, every near tor's shadow, and a tor's collision.
-## The boulders are scans of a few thousand triangles: mesh() only, near the camera only.
+## The boulders are scans of a few thousand triangles: mesh() only, with their generated LODs
+## (small enough that the flaking never shows), near the camera only.
 ##
 ## Instance data (MultiMesh INSTANCE_CUSTOM, every value small - half floats on Compatibility):
 ## r 1 when the real terrain is drawn under the rock (a FULL or LOD chunk), 0 where the far plane
@@ -45,6 +46,20 @@ static var _scan: Dictionary = {}
 static func mesh(kind: int) -> Mesh:
 	if _meshes.has(kind):
 		return _meshes[kind]
+	if not MID_FILES.has(kind):
+		# A boulder: a few thousand triangles, small enough that its generated LODs' flaking never
+		# shows; it keeps them and its shadow twin.
+		var b := PropFactory.model_mesh(DIR + FILES[kind], [], [], Transform3D.IDENTITY, {}, true, 1 << 20)
+		_scan_material(kind, b)
+		_meshes[kind] = b
+		var bm := material(kind, false, false)
+		for s in b.get_surface_count():
+			b.surface_set_material(s, bm)
+		var twin := PropFactory.shadow_proxy(b)
+		if twin:
+			for s in twin.get_surface_count():
+				twin.surface_set_material(s, bm)
+		return b
 	var src := PropFactory.model_mesh(DIR + FILES[kind], [], [], Transform3D.IDENTITY, {}, false, 1 << 20)
 	_scan_material(kind, src)
 	var m := ArrayMesh.new()
@@ -52,8 +67,7 @@ static func mesh(kind: int) -> Mesh:
 	for s in src.get_surface_count():
 		m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, src.surface_get_arrays(s))
 		m.surface_set_material(s, material(kind, false, false))
-	if MID_FILES.has(kind):
-		PropFactory._shadow_proxies[m] = mid_mesh(kind)
+	PropFactory._shadow_proxies[m] = mid_mesh(kind)
 	return m
 
 
