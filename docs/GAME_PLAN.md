@@ -3625,3 +3625,8 @@ none of either.
   regional pores and roughness), brows as strand cards and twice the hair cards. The contract
   (54 bones, clips, material names, hero_x_* maps, eye centres) is held so nothing downstream
   moves. HERO_FACE_2=0 is the shader A/B.
+- 2026-10-30 (wave 3, driving-camera): the car camera is a chase camera (DriveCam) that follows
+  the way the car TRAVELS on a frame-rate-independent spring with a capped corner lag, rather than
+  locking to the car's nose (a drift then shows the car sideways, as GTA does). Shake is sines of
+  the clock, never per-frame noise, so it never strobes at a low frame rate, and it can be turned
+  off in the settings. Aircraft and the helicopter keep the free camera. DRIVE_CAM=0 is the A/B.
