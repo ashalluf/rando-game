@@ -2354,6 +2354,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The flyable helicopter (tests/heli_flyable_checks.gd): the heliport's pads, get in, climb,
 	# hover, fly, yaw, the downwash, land, a rotor strike, a crash, a stand-in spot waking.
 	await load("res://tests/heli_flyable_checks.gd").new().run(self, city)
+	# Drivers react to chaos (tests/car_panic_checks.gd): brake, swerve, kerb, reverse, abandon, go round.
+	await load("res://tests/car_panic_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
