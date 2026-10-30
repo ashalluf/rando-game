@@ -2605,6 +2605,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The explosion's second pass (tests/explosions_2_checks.gd, BlastFX): flash, wave, rolling fire,
 	# the lit column, burning debris, windows blown out across the street, the caps, the car's fuel blast.
 	await load("res://tests/explosions_2_checks.gd").new().run(self, city)
+	# The crowd's walks (tests/crowd_anim_2_checks.gd, CrowdGait): gaits, matched rates, no slide.
+	await load("res://tests/crowd_anim_2_checks.gd").new().run(self, city)
 	# The reset between check files (tests/gate_speed_2_checks.gd): what it puts back, the file list.
 	load("res://tests/gate_speed_2_checks.gd").new().run(self, city)
 	# The night street's air (tests/night_atmos_checks.gd, NightAtmos): halos, shafts, the haze.
@@ -2626,6 +2628,17 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The second perf audit (tests/perf_audit_2_checks.gd): the cached road closures and site
 	# bounds answer as before, road_lift() per body type, no orphan freeway bodies from a capture.
 	load("res://tests/perf_audit_2_checks.gd").new().run(self, city)
+	# The hills' planted volume (tests/hill_planting_2_checks.gd): scatter clumps on the stands, oak clumps.
+	load("res://tests/hill_planting_2_checks.gd").new().run(self, city)
+	# The street level up close (tests/facades_street_checks.gd): the door's rolls as the shader rolls
+	# them, the hardware inside the lot, nothing a building rolled moving.
+	load("res://tests/facades_street_checks.gd").new().run(self, city)
+	# Crash deformation (tests/crash_deform_checks.gd): crumple zones by speed, panels, wheels,
+	# scrapes, shards on the road, a real head-on, the A/B.
+	await load("res://tests/crash_deform_checks.gd").new().run(self, city)
+	# The police at night (tests/police_night_look_checks.gd, PoliceNightLook): one flash clock, the
+	# glow, the budgeted strobes, the wall wash, roadblock flares, the searchlight's haze.
+	await load("res://tests/police_night_look_checks.gd").new().run(self, city)
 	# The chase camera while driving (tests/driving_camera_checks.gd, DriveCam): follow, speed, corners,
 	# free look, look behind, kicks, the blur's terms, never inside a wall.
 	await load("res://tests/driving_camera_checks.gd").new().run(self, city)

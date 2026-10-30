@@ -403,7 +403,7 @@ func begin_build() -> void:
 			_steps.append_array([_sample_terrain, _mark_shell_ground])
 			# The dry creek beds (Arroyos): the bed's field, before the mesh carries the shells' keep-out.
 			_steps.append_array(ArroyoBuild.field_steps(self))
-			_steps.append_array([_build_terrain, _build_hill_shells, _build_hill_roads, _on_map_ground(_build_mansions), _on_map_ground(_scatter_hills), _on_map_ground(_plant_hills)])
+			_steps.append_array([_build_terrain, _build_hill_shells, _build_hill_roads, _on_map_ground(_build_mansions), _on_map_ground(_scatter_hills), _on_map_ground(_plant_hills), _on_map_ground(HillScatter.step.bind(self))])
 			for step in ArroyoBuild.build_steps(self):
 				_steps.append(_on_map_ground(step))
 		MacroMap.Zone.BEACH:
@@ -2044,6 +2044,8 @@ func _plant_hills() -> bool:
 				# A California sycamore in the wettest hollows (LaTrees, hashes only).
 				if not LaTrees.gully_tree(self, at - Vector3(0.0, 0.1, 0.0), yaw, wet):
 					_batch.add("hill_oak_%d" % v, PropFactory.model_hill_oak(v), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at - Vector3(0.0, 0.1, 0.0)), tint, variety)
+					# Live oaks grow in clumps (HillScatter, hill-planting-2; hashes of the oak's place).
+					hill_planting["oak_clump"] = int(hill_planting.get("oak_clump", 0)) + HillScatter.oak_clump(self, "hill_oak_%d" % v, PropFactory.model_hill_oak(v), at, s, tint, variety, segs, pads)
 				hill_planting.oak += 1
 				points.append([p, "oak"])
 				continue
@@ -2939,11 +2941,9 @@ func _park_car_steps(rect: Rect2, rng: RandomNumberGenerator, params: Dictionary
 	for spot in spots:
 		steps.append(_park_car.bind(spot, rng, max_cars, count))
 	# Fuller kerbs (BusyStreets): more cars on the spots left empty, from hashes after every roll.
-	var extra := BusyStreets.park_extra_count(max_cars)
-	if extra > 0:
-		var ecount := [0]
+	if BusyStreets.enabled:
 		for spot in spots:
-			steps.append(_park_extra.bind(spot, extra, ecount))
+			steps.append(_park_extra.bind(spot))
 	return steps
 
 
@@ -2972,15 +2972,12 @@ func _kerb_taken(spot: Array, car: Vehicle) -> bool:
 
 
 ## One more parked car on a spot the block's own pass left empty (BusyStreets, a hash per spot).
-func _park_extra(spot: Array, extra: int, ecount: Array) -> void:
-	if ecount[0] >= extra or not BusyStreets.park_extra_roll(plan.seed, spot) or not PhysicsBudget.can_spawn():
+## No running count: each spot is its own hash, so a feature that takes a kerb (a shoot, a parklet,
+## a bike lane) moves no other car, and a spot the pass decided (a car, or kept clear) is left alone.
+func _park_extra(spot: Array) -> void:
+	if spot.size() > 3 or not BusyStreets.park_extra_roll(plan.seed, spot) or not PhysicsBudget.can_spawn():
 		return
 	var at: Vector3 = spot[0]
-	for c in _cars:
-		if is_instance_valid(c):
-			var cw := WorldState.to_world((c as Node3D).global_position) if (c as Node3D).is_inside_tree() else at + Vector3(99.0, 0.0, 0.0)
-			if Vector2(cw.x - at.x, cw.z - at.z).length() < 5.0:
-				return
 	if _kerb_reserved(spot):
 		return
 	var r := BusyStreets.park_extra_rng(plan.seed, spot)
@@ -2997,7 +2994,6 @@ func _park_extra(spot: Array, extra: int, ecount: Array) -> void:
 	holder.add_child(car)
 	car.visible = visible
 	_cars.append(car)
-	ecount[0] += 1
 
 
 func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Array) -> void:
@@ -3008,6 +3004,7 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	# PhysicsBudget still caps the total, and Quality halves that cap below its top level.
 	if count[0] >= max_cars or rng.randf() > 0.55 or not PhysicsBudget.can_spawn():
 		return
+	spot.append(true) # decided by this pass (parked or kept clear): BusyStreets' extras leave it
 	var car := Vehicle.random_car(rng)
 	var flip := rng.randf() < 0.5
 	if _kerb_reserved(spot):

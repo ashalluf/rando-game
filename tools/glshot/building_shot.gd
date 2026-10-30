@@ -42,6 +42,14 @@ func _initialize() -> void:
 	var fin := OS.get_environment("FINISH")
 	if fin != "":
 		b.finish_options.assign([int(fin)])
+	# SHOPS=0 builds it with no storefront, STYLE=n forces a window style, SHAPE=n a shape (the
+	# street level's doors and grilles: tools/facades_street/).
+	if OS.get_environment("SHOPS") == "0":
+		b.allow_storefront = false
+	if OS.get_environment("STYLE") != "":
+		b.window_style_force = _env_int("STYLE", 0)
+	if OS.get_environment("SHAPE") != "":
+		b.shape_options.assign([_env_int("SHAPE", 0)])
 	root3d.add_child(b)
 	var cam := Camera3D.new()
 	root3d.add_child(cam)
