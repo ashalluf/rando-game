@@ -2955,7 +2955,7 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 		return
 	var fill := LotFill.wanted(self, district)
 	# A surface car park (CityPlan.lots() "parking"; the pad roll above is still made).
-	if fill and lot.get("parking", false):
+	if fill and lot.get("parking", false) and not StarBoulevard.strip_lot(plan, ix, iz, lot):
 		LotFill.surface_lot(self, lot)
 		return
 	if pad:

@@ -156,6 +156,9 @@ static func kerb_z(rect: Rect2, side: int) -> float:
 	return rect.end.y if side < 0 else rect.position.y
 
 
+## How far back from the pavement a lot's front may stand and still face the walk (metres).
+const FRONT_SLACK := 5.0
+
 ## True when `lot` of a walk block faces the boulevard.
 static func lot_fronts(plan: CityPlan, bx: int, bz: int, side: int, lot: Dictionary) -> bool:
 	if side == 0 or lot.get("yard", false):
@@ -163,9 +166,10 @@ static func lot_fronts(plan: CityPlan, bx: int, bz: int, side: int, lot: Diction
 	var inner := (plan.block(bx, bz).rect as Rect2).grow(-plan.sidewalk_width)
 	var c: Vector2 = lot.center
 	var s: Vector2 = lot.size
+	# Within FRONT_SLACK of the pavement: the lot grid leaves 3-4 m of gap before the first row.
 	if side < 0:
-		return c.y + s.y * 0.5 > inner.end.y - 3.0
-	return c.y - s.y * 0.5 < inner.position.y + 3.0
+		return c.y + s.y * 0.5 > inner.end.y - FRONT_SLACK
+	return c.y - s.y * 0.5 < inner.position.y + FRONT_SLACK
 
 
 ## True when `lot` is one of the walk's frontage lots: a souvenir-strip building, never a vacant
@@ -302,6 +306,11 @@ static func dress(ch: CityChunk, lot: Dictionary, building: Building) -> void:
 		return
 	building.max_height = minf(building.max_height, HEIGHT_LIMIT)
 	building.min_height = minf(building.min_height, building.max_height * 0.85)
+	# A main-street block built out to its lot (to the back of the pavement), never a tower on a
+	# forecourt or a podium: the strip reads as one wall of shopfronts.
+	building.force_shape = Building.Shape.SLAB
+	building.fill_lot = true
+	building.podium_lot = false
 	building.name_pool = shop_pool()
 	building.kit_blade_chance = BLADE_CHANCE
 

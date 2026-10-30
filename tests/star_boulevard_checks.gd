@@ -65,6 +65,20 @@ func _plan(plan: CityPlan, p: Dictionary) -> void:
 			ok = ok and StarBoulevard.block_side(plan, k, bz) == (-1 if bz < int(p.road) else 1)
 	ok = ok and StarBoulevard.block_side(plan, int(p.k1) + 1, int(p.road)) == 0
 	_t._check(ok, "the walk runs %d blocks of %s (%.0f m wide), plain midtown blocks on both sides" % [n, p.name, float(p.width)])
+	# The frontage is a souvenir strip: no car dealer, vacant lot or apartment block on the walk.
+	var fronts := 0
+	var strip := true
+	for k in range(int(p.k0), int(p.k1) + 1):
+		for bz: int in [int(p.road) - 1, int(p.road)]:
+			var sd := StarBoulevard.block_side(plan, k, bz)
+			for lot: Dictionary in plan.lots(k, bz):
+				if not StarBoulevard.lot_fronts(plan, k, bz, sd, lot):
+					continue
+				fronts += 1
+				strip = strip and StarBoulevard.strip_lot(plan, k, bz, lot) and not CarDealers.claims(plan, k, bz, lot) \
+					and not CarDealers.covers(plan, k, bz, lot.center) and VacantLots.kind_of(plan, k, bz, lot) == VacantLots.NONE \
+					and not Apartments.claims(plan, k, bz, lot, plan.district_at(lot.center))
+	_t._check(strip and fronts >= n, "the walk's %d frontage lots are a strip: no dealer, vacant lot or apartments" % fronts)
 	# Pure: worked out again from nothing it is the same walk; another seed has its own or none.
 	StarBoulevard._plans.erase(plan.seed)
 	var again := StarBoulevard.plan_for(plan)
@@ -93,7 +107,13 @@ func _plan(plan: CityPlan, p: Dictionary) -> void:
 func _full_block(city: Node3D, plan: CityPlan, pal: Dictionary) -> void:
 	var k: Vector2i = pal.block
 	var chunk: CityChunk = city._new_chunk(k, CityChunk.Level.FULL)
+	# Room in the crowd cap for the block's characters (the loaded city may have filled it).
+	var cap: int = city.get("max_pedestrians")
+	city.set("max_pedestrians", cap + 200)
+	city.set("_crowd_frame", -1)
 	chunk.build()
+	city.set("max_pedestrians", cap)
+	city.set("_crowd_frame", -1)
 	var band: MeshInstance3D = null
 	var forecourt: MeshInstance3D = null
 	var palace: Node3D = null

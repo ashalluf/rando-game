@@ -39,9 +39,13 @@ func _ready() -> void:
 		for bz in [int(p.road) - 1, int(p.road)]:
 			var sd := StarBoulevard.block_side(plan, k, bz)
 			for lot: Dictionary in plan.lots(k, bz):
+				if OS.get_environment("ALL_LOTS") == "1" and not StarBoulevard.lot_fronts(plan, k, bz, sd, lot):
+					print("  other %d,%d %s size %s yard %s parking %s edge %s inner %s" % [k, bz, str(lot.center), str(lot.size), str(lot.get("yard", false)), str(lot.get("parking", false)), str(lot.get("edge", false)), str((plan.block(k, bz).rect as Rect2).grow(-plan.sidewalk_width))])
 				if StarBoulevard.lot_fronts(plan, k, bz, sd, lot):
 					var who := "building"
-					if VacantLots.kind_of(plan, k, bz, lot) != VacantLots.NONE:
+					if CarDealers.claims(plan, k, bz, lot) or CarDealers.covers(plan, k, bz, lot.center):
+						who = "dealer"
+					elif VacantLots.kind_of(plan, k, bz, lot) != VacantLots.NONE:
 						who = "vacant"
 					elif Apartments.claims(plan, k, bz, lot, plan.district_at(lot.center)):
 						who = "apartments"
