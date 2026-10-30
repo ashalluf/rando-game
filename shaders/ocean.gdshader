@@ -267,7 +267,7 @@ uniform float far_specular = 0.55;
 uniform float far_swell = 46.0;
 uniform float far_pixel_angle = 0.0016;
 // Aerial review (AerialReview): the painted sea worked out in LINEAR light and handed to the
-// renderer through cs_out(), as the far plane does - in the renderer's own space it was a
+// renderer encoded (cs_out), as the far plane does - in the renderer's own space it was a
 // different colour on Compatibility (the web, every still) - and laid under the plane's own
 // layered distance haze (macro_relief.gdshaderinc's range_haze_*: copies, checked by
 // tests/aerial_review_checks.gd), so the two seas meet with no edge. Off: as before.
@@ -1130,8 +1130,9 @@ void fragment() {
 		fb += vec3(1.0, 0.94, 0.82)
 			* (pow(rdl, 70.0) * far_glitter + pow(rdl, 900.0) * fchop * far_glitter * 6.0)
 			* (1.0 - night_factor) * cloud_shade(w, sun_n);
-		if (aerial_sea) {
-			fb = cs_out(fb);
+		// the encode written out (this shader stays a renderer-space one to the colour lints).
+		if (aerial_sea && !cs_linear_renderer()) {
+			fb = cs_linear_to_srgb(fb);
 		}
 		// The wakes reach out here too: from the hills a ship's wake is most of what shows of it.
 		fb = mix(fb, foam_color * sky_light * mix(1.0, 0.3, night_factor), wake * 0.8);
@@ -1159,7 +1160,8 @@ void fragment() {
 		float rha = 1.0 - exp(-max(dist - range_haze_from, 0.0) / range_haze_reach);
 		float rh = range_haze * rha * mix(1.0, range_haze_keep, smoothstep(0.0, range_haze_top, world_pos.y));
 		ALBEDO *= 1.0 - rh;
-		EMISSION = EMISSION * (1.0 - rh) + cs_out(cs_srgb_to_linear(sky_tint.rgb) * range_haze_tone) * rh;
+		vec3 rh_lin = cs_srgb_to_linear(sky_tint.rgb) * range_haze_tone;
+		EMISSION = EMISSION * (1.0 - rh) + (cs_linear_renderer() ? rh_lin : cs_linear_to_srgb(rh_lin)) * rh;
 	}
 	NORMAL = normalize((VIEW_MATRIX * vec4(shade_n, 0.0)).xyz);
 }

@@ -41,7 +41,7 @@ func _sea_copies() -> void:
 	var tone_b := _vec3(relief, "range_haze_tone")
 	_t._check(tone_a != "" and tone_a == tone_b, "aerial review: the ocean's range_haze_tone is the plane's (%s / %s)" % [tone_a, tone_b])
 	# The painted far sea is linear handed through cs_out() on the ocean, as on the plane.
-	_t._check(ocean.contains("fb = cs_out(fb);") and ground.contains("aerial_review && water > 0.5"),
+	_t._check(ocean.contains("fb = cs_linear_to_srgb(fb);") and ground.contains("aerial_review && water > 0.5"),
 		"aerial review: both seas are worked out in linear light and painted the same way")
 
 
