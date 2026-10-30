@@ -76,7 +76,7 @@ func _throw(radius: float, push: float, count: int) -> void:
 	# Flame tongues off every piece: short-lived fire puffs, the fireball's material.
 	_flames = _emitter(count * 14, 0.38, WeaponFX._fire_material())
 	_flames.scale_amount_min = 0.35 * k
-	_flames.scale_amount_max = 0.75 * k
+	_flames.scale_amount_max = 0.6 * k
 	_flames.gravity = Vector3(0.0, 3.0, 0.0)
 	_flames.initial_velocity_max = 0.8
 	_flames.color_ramp = WeaponFX._ramp([Color(3.2, 2.2, 1.2, 1.0), Color(2.0, 0.75, 0.16, 0.95),

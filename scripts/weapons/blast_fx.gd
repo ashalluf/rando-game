@@ -39,9 +39,9 @@ static var wave_reach: float = 4.5
 static var wave_seconds: float = 0.42
 static var wave_strength: float = 0.035
 ## The smoke column: seconds it is fed, each puff's life, how fast it rises.
-static var column_emit: float = 7.0
-static var column_life: float = 13.0
-static var column_rise: float = 6.5
+static var column_emit: float = 10.0
+static var column_life: float = 15.0
+static var column_rise: float = 4.2
 static var max_columns: int = 3
 ## Burning debris thrown out (pieces a blast, and alive at once).
 static var debris_pieces: int = 7
@@ -316,7 +316,7 @@ static func _column(parent: Node, at: Vector3, radius: float, fuel: bool) -> voi
 	var mat := smoke_material()
 	# The cap: one burst of big puffs thrown up hard and braked by drag, so they pile up a couple
 	# of radii over the blast and spread there while the column rises into them.
-	var cap := _smoke_emitter(holder, WeaponFX._count(20), column_life + 2.0, mat)
+	var cap := _smoke_emitter(holder, WeaponFX._count(24), column_life + 4.0, mat)
 	cap.name = "Cap"
 	cap.explosiveness = 0.9
 	cap.one_shot = true
@@ -331,10 +331,10 @@ static func _column(parent: Node, at: Vector3, radius: float, fuel: bool) -> voi
 	cap.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
 	cap.emission_sphere_radius = radius * 0.4
 	_scale_curve(cap, radius * 0.75, radius * 0.95, 3.4)
-	cap.color_ramp = WeaponFX._ramp([Color(0.05, 0.045, 0.04, 0.0), Color(0.06, 0.05, 0.045, 0.85),
-		Color(0.07, 0.065, 0.06, 0.8), Color(0.09, 0.085, 0.08, 0.45), Color(0.10, 0.10, 0.10, 0.0)])
+	cap.color_ramp = WeaponFX._ramp([Color(0.05, 0.045, 0.04, 0.0), Color(0.06, 0.05, 0.045, 0.9),
+		Color(0.07, 0.065, 0.06, 0.85), Color(0.09, 0.085, 0.08, 0.6), Color(0.10, 0.10, 0.10, 0.0)])
 	# The column: puffs off the fire, rising at `column_rise` and growing, fed for `column_emit` s.
-	var col := _smoke_emitter(holder, WeaponFX._count(int(column_life * 6.0)), column_life, mat)
+	var col := _smoke_emitter(holder, WeaponFX._count(int(column_life * 9.0)), column_life, mat)
 	col.name = "Stem"
 	col.explosiveness = 0.0
 	col.one_shot = false
@@ -348,9 +348,9 @@ static func _column(parent: Node, at: Vector3, radius: float, fuel: bool) -> voi
 	col.gravity = Vector3(0.45, 0.55, 0.2) * sc
 	col.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
 	col.emission_sphere_radius = radius * 0.3
-	_scale_curve(col, radius * 0.45, radius * 0.6, 3.6)
-	col.color_ramp = WeaponFX._ramp([Color(0.05, 0.045, 0.04, 0.0), Color(0.055, 0.05, 0.045, 0.75),
-		Color(0.07, 0.065, 0.06, 0.6), Color(0.10, 0.10, 0.10, 0.32), Color(0.12, 0.12, 0.12, 0.0)])
+	_scale_curve(col, radius * 0.5, radius * 0.7, 4.5)
+	col.color_ramp = WeaponFX._ramp([Color(0.05, 0.045, 0.04, 0.0), Color(0.055, 0.05, 0.045, 0.85),
+		Color(0.065, 0.06, 0.055, 0.8), Color(0.085, 0.08, 0.075, 0.6), Color(0.11, 0.11, 0.11, 0.0)])
 	var reach := column_life * column_rise * 1.6 * sc + radius * 4.0
 	for e: CPUParticles3D in [cap, col]:
 		e.custom_aabb = AABB(Vector3(-reach, -radius, -reach), Vector3(reach * 2.0, reach + radius, reach * 2.0))
