@@ -15,6 +15,8 @@ extends RefCounted
 const SKIN := preload("res://shaders/hero_skin.gdshader")
 const HAIR := preload("res://shaders/hero_hair.gdshader")
 const CLOTH := preload("res://shaders/hero_cloth.gdshader")
+const EYE := preload("res://shaders/hero_eye.gdshader")
+const LASH := preload("res://shaders/hero_lash.gdshader")
 const MAPS := "res://assets/models/hero_x_%s"
 ## Elbow and knee angles (degrees of bend) at which the closed-joint folds start and are full.
 const ELBOW_BEND := Vector2(35.0, 115.0)
@@ -23,7 +25,15 @@ const KNEE_BEND := Vector2(15.0, 95.0)
 var cloth: ShaderMaterial
 var skin: ShaderMaterial
 var hair: ShaderMaterial
+var cloth_rib: ShaderMaterial
 var shadow_twin: MeshInstance3D
+## The living face (blinks, saccades; HeroFace), null with HERO_CLOSEUP=0 / HERO_FACE=0.
+var face: HeroFace
+## Rain on him: the skin, velour and hair shaders read the street's wetness (`road_wetness`,
+## Weather's, which soaks in the rain and dries over minutes after it) and the rain itself
+## (`rain_intensity`) as globals; `wet_gain` 0 turns that off (HERO_CLOSEUP=0), HERO_WET=x holds
+## a wetness for stills.
+const WET_MATERIALS := ["skin", "cloth", "cloth_rib", "hair"]
 var _joints: Array = [] # [upper, middle, end] bone triples: L elbow, R elbow, L knee, R knee
 var _skeleton: Skeleton3D
 
@@ -32,7 +42,10 @@ var _skeleton: Skeleton3D
 ## hero (no hero_skin material anywhere).
 static func dress(inst: Node3D, settings: Dictionary = {}) -> HeroLook:
 	var look := HeroLook.new()
+	if HeroFace.enabled():
+		look.face = HeroFace.new()
 	var found := false
+	var body: MeshInstance3D
 	for node in inst.find_children("*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
 		if mi.mesh == null:
@@ -46,11 +59,16 @@ static func dress(inst: Node3D, settings: Dictionary = {}) -> HeroLook:
 			if src == null:
 				continue
 			var mat := look._material_for(src, settings)
+			if mat and src.resource_name == "hero_skin":
+				body = mi
 			if mat:
 				mi.set_surface_override_material(i, mat)
 				found = true
 	if not found:
 		return null
+	look.setup_wet()
+	if look.face and look.face.eye == null:
+		look.face = null
 	if look.shadow_twin:
 		for node in inst.find_children("*", "MeshInstance3D", true, false):
 			if node != look.shadow_twin:
@@ -60,6 +78,8 @@ static func dress(inst: Node3D, settings: Dictionary = {}) -> HeroLook:
 		# Read the pose when the skeleton has finished it: the arm IK and the hands only exist
 		# in the final pose, and get_bone_global_pose() anywhere else returns the clip's.
 		look._skeleton.skeleton_updated.connect(look.update)
+		if look.face:
+			look.face.attach(look._skeleton, body)
 		for chain in [["LeftArm", "LeftForeArm", "LeftHand"], ["RightArm", "RightForeArm", "RightHand"],
 				["LeftUpLeg", "LeftLeg", "LeftFoot"], ["RightUpLeg", "RightLeg", "RightFoot"]]:
 			look._joints.append([look._skeleton.find_bone(chain[0]), look._skeleton.find_bone(chain[1]), look._skeleton.find_bone(chain[2])])
@@ -79,6 +99,11 @@ func _material_for(src: StandardMaterial3D, s: Dictionary) -> Material:
 			skin.set_shader_parameter("sss_strength", s.get("skin_sss", 0.4))
 			skin.set_shader_parameter("stubble_amount", s.get("stubble", 0.9))
 			skin.set_shader_parameter("detail_strength", s.get("pores", 0.6))
+			# The Compatibility renderer's BACKLIGHT is not scattering, it is a glow: at the old
+			# strength the ears and fingers of every web / opengl3 frame lit up bright orange
+			# against the sun. Forward+ keeps its transmittance as it was.
+			if HeroFace.closeup() and RenderingServer.get_current_rendering_method() == "gl_compatibility":
+				skin.set_shader_parameter("backlight_gain", 0.3)
 			return skin
 		"hero_hair", "hero_brows":
 			var m := ShaderMaterial.new()
@@ -91,6 +116,8 @@ func _material_for(src: StandardMaterial3D, s: Dictionary) -> Material:
 				m.set_shader_parameter("anisotropy", 0.0)
 			else:
 				hair = m
+				if HeroFace.closeup():
+					m.set_shader_parameter("root_fade", 0.22)
 			return m
 		"hero_tracksuit", "hero_tracksuit_rib":
 			var m := ShaderMaterial.new()
@@ -106,9 +133,22 @@ func _material_for(src: StandardMaterial3D, s: Dictionary) -> Material:
 				m.set_shader_parameter("wrinkle_mask", _map("suit_wrinkle_mask.png"))
 				cloth = m
 			else:
+				cloth_rib = m
 				m.set_shader_parameter("use_wrinkles", false)
 				m.set_shader_parameter("pile_scale", 60.0)
 				m.set_shader_parameter("pile_strength", 0.15)
+			return m
+		"hero_eyes" when face != null:
+			var m := ShaderMaterial.new()
+			m.shader = EYE
+			m.set_shader_parameter("albedo_tex", src.albedo_texture)
+			face.eye = m
+			return m
+		"hero_lashes" when face != null:
+			var m := ShaderMaterial.new()
+			m.shader = LASH
+			m.set_shader_parameter("albedo_tex", src.albedo_texture)
+			face.lash = m
 			return m
 		"hero_eyes", "hero_dial":
 			var m := src.duplicate() as StandardMaterial3D
@@ -135,6 +175,9 @@ func _map(name: String) -> Texture2D:
 ## The closed-joint folds: 0 with the elbows and knees straight, 1 at a full bend. Runs on the
 ## skeleton's skeleton_updated signal, once the IK has placed the arms.
 func update() -> void:
+	if face:
+		face.update()
+
 	if cloth == null or _skeleton == null or _joints.size() < 4:
 		return
 	var w := Vector4.ZERO
@@ -149,3 +192,14 @@ func update() -> void:
 		var r: Vector2 = ELBOW_BEND if i < 2 else KNEE_BEND
 		w[i] = smoothstep(r.x, r.y, bend)
 	cloth.set_shader_parameter("wrinkle_weights", w)
+
+
+
+## Sets the rain uniforms on the four wet-able materials (called once they all exist).
+func setup_wet() -> void:
+	var hold := float(OS.get_environment("HERO_WET")) if OS.get_environment("HERO_WET") != "" else -1.0
+	for key in WET_MATERIALS:
+		var m := get(key) as ShaderMaterial
+		if m:
+			m.set_shader_parameter("wet_gain", 1.0 if HeroFace.closeup() else 0.0)
+			m.set_shader_parameter("wet_hold", hold)

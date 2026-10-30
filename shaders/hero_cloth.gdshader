@@ -35,8 +35,21 @@ uniform float rim = 0.45;
 uniform float rim_tint = 0.6;
 // How much the crushed-pile patches change the sheen.
 uniform float crush = 0.3;
+// Wet: soaked velour goes darker, its pile lies flat (less sheen) and it shines.
+// Rain on the hero (HeroLook.setup_wet): Weather's street wetness (soaks in the rain, dries over
+// minutes) and the rain itself, or wet_hold (>= 0) for stills; wet_gain 0 is the A/B.
+global uniform float road_wetness;
+global uniform float rain_intensity;
+uniform float wet_gain = 0.0;
+uniform float wet_hold = -1.0;
+float hero_wet() {
+	float w = wet_hold >= 0.0 ? wet_hold : max(road_wetness, rain_intensity);
+	return clamp(w, 0.0, 1.0) * wet_gain;
+}
+
 
 void fragment() {
+	float wet = hero_wet();
 	vec3 base = texture(albedo_tex, UV).rgb * albedo_color.rgb;
 	vec2 nr = texture(normal_tex, UV).rg * 2.0 - 1.0;
 	if (use_wrinkles) {
@@ -49,9 +62,9 @@ void fragment() {
 	NORMAL_MAP_DEPTH = normal_depth;
 	float nv = clamp(dot(NORMAL, VIEW), 0.0, 1.0);
 	float cr = mix(1.0 - crush, 1.0 + crush, p.a);
-	ALBEDO = base + sheen_color * sheen * pow(1.0 - nv, sheen_power) * cr;
-	ROUGHNESS = roughness;
-	SPECULAR = specular;
-	RIM = rim * cr;
+	ALBEDO = base * (1.0 - 0.45 * wet) + sheen_color * sheen * (1.0 - 0.7 * wet) * pow(1.0 - nv, sheen_power) * cr;
+	ROUGHNESS = mix(roughness, 0.55, wet);
+	SPECULAR = mix(specular, 0.35, wet);
+	RIM = rim * cr * (1.0 - 0.6 * wet);
 	RIM_TINT = rim_tint;
 }

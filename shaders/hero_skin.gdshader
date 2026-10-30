@@ -38,16 +38,31 @@ uniform vec3 transmit_color : source_color = vec3(0.95, 0.32, 0.2);
 uniform float transmit_depth = 0.25;
 uniform float transmit_boost = 0.35;
 uniform vec3 backlight_color : source_color = vec3(0.32, 0.08, 0.045);
+// HeroLook sets 0.3 on the Compatibility renderer, where BACKLIGHT is a glow, not scattering.
+uniform float backlight_gain = 1.0;
+// Wet: a film of water on the skin - glossier, a touch darker.
+// Rain on the hero (HeroLook.setup_wet): Weather's street wetness (soaks in the rain, dries over
+// minutes) and the rain itself, or wet_hold (>= 0) for stills; wet_gain 0 is the A/B.
+global uniform float road_wetness;
+global uniform float rain_intensity;
+uniform float wet_gain = 0.0;
+uniform float wet_hold = -1.0;
+float hero_wet() {
+	float w = wet_hold >= 0.0 ? wet_hold : max(road_wetness, rain_intensity);
+	return clamp(w, 0.0, 1.0) * wet_gain;
+}
+
 
 void fragment() {
+	float wet = hero_wet();
 	vec4 m = texture(mask_tex, UV);
 	vec4 d = texture(detail_tex, UV * detail_scale);
 	vec3 alb = texture(albedo_tex, UV).rgb * albedo_tint.rgb;
 	float hairs = clamp(d.a * m.r * stubble_amount, 0.0, 1.0);
-	ALBEDO = mix(alb, stubble_color, hairs * 0.9);
+	ALBEDO = mix(alb, stubble_color, hairs * 0.9) * (1.0 - 0.12 * wet);
 	float rough = texture(rough_tex, UV).g * roughness_scale;
-	ROUGHNESS = clamp(mix(rough, 0.72, hairs), 0.04, 1.0);
-	SPECULAR = clamp(specular_level * mix(1.0, m.b, cavity_strength) + oil_specular * m.a, 0.0, 1.0);
+	ROUGHNESS = clamp(mix(mix(rough, 0.72, hairs), 0.12 + 0.3 * abs(d.r * 2.0 - 1.0), wet * 0.85), 0.04, 1.0);
+	SPECULAR = clamp(specular_level * mix(1.0, m.b, cavity_strength) + oil_specular * m.a + 0.2 * wet, 0.0, 1.0);
 	// Base wrinkles plus the tiling pores, blended by adding slopes (whiteout). The base map is
 	// imported as a two-channel normal map, so its z is rebuilt here.
 	vec2 nb = texture(normal_tex, UV).rg * 2.0 - 1.0;
@@ -59,5 +74,5 @@ void fragment() {
 	SSS_TRANSMITTANCE_COLOR = vec4(transmit_color, 1.0);
 	SSS_TRANSMITTANCE_DEPTH = transmit_depth * (0.3 + m.g);
 	SSS_TRANSMITTANCE_BOOST = transmit_boost * m.g;
-	BACKLIGHT = backlight_color * m.g;
+	BACKLIGHT = backlight_color * m.g * backlight_gain;
 }

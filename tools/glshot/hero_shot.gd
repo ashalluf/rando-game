@@ -119,13 +119,21 @@ func _initialize() -> void:
 	# CAM_Y as an offset still apply), CAM_AT=head at the head: the stance moves both about.
 	var aim_at := OS.get_environment("CAM_AT")
 	var at := [Vector3.INF]
+	# CAM_AT=face: the camera on the head's own facing (YAW orbits round it), aimed between the
+	# eyes - for the living face (HeroFace), whatever the clip does with the head.
+	var face := [Vector3.INF, Vector3.FORWARD, Vector3.UP]
 	var sk0: Skeleton3D = player.find_child("Skeleton3D", true, false)
 	if aim_at != "" and sk0:
 		sk0.skeleton_updated.connect(func() -> void:
 			var names: Array = ["RightHand", "LeftHand"] if aim_at == "hands" else ["Head", "Head"]
 			var a := sk0.to_global(sk0.get_bone_global_pose(sk0.find_bone(names[0])).origin)
 			var b := sk0.to_global(sk0.get_bone_global_pose(sk0.find_bone(names[1])).origin)
-			at[0] = (a + b) * 0.5)
+			at[0] = (a + b) * 0.5
+			if aim_at == "face":
+				var hx := sk0.global_transform * sk0.get_bone_global_pose(sk0.find_bone("Head"))
+				face[2] = hx.basis.y.normalized()
+				face[1] = hx.basis.z.normalized()
+				face[0] = hx.origin + face[2] * 0.095 + face[1] * 0.1)
 	var yaw := deg_to_rad(float(OS.get_environment("YAW")) if OS.get_environment("YAW") != "" else 90.0)
 	var walk := OS.get_environment("WALK") == "1"
 	# CAM_DIST / CAM_Y close in on the hands (default: the whole figure).
@@ -135,6 +143,9 @@ func _initialize() -> void:
 		if at[0] != Vector3.INF:
 			centre = at[0] + Vector3(0.0, float(OS.get_environment("CAM_Y")) if OS.get_environment("CAM_Y") != "" else 0.0, 0.0)
 		cam.global_position = centre + Basis(Vector3.UP, -yaw) * Vector3(0.0, 0.15 * dist / 2.6, -dist)
+		if face[0] != Vector3.INF:
+			centre = face[0]
+			cam.global_position = centre + (Basis(face[2], yaw) * face[1]) * dist
 		cam.look_at(centre, Vector3.UP)
 		cam.current = true
 	for i in 40:
