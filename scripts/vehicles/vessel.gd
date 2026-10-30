@@ -137,7 +137,7 @@ func setup(p_kind: int, p_variant: int, p_length: float, paint: Color, canvas: i
 	_mat.set_shader_parameter("solo", 1.0)
 	_mat.set_shader_parameter("ride", 1.0)
 	_mat.set_shader_parameter("solo_paint", Vector3(paint.r, paint.g, paint.b))
-	var lit := kind in [VesselMesh.Kind.MOTOR, VesselMesh.Kind.FISHER, VesselMesh.Kind.FERRY, VesselMesh.Kind.TUG, VesselMesh.Kind.PILOT]
+	var lit := kind in [VesselMesh.Kind.SAIL, VesselMesh.Kind.MOTOR, VesselMesh.Kind.FISHER, VesselMesh.Kind.FERRY, VesselMesh.Kind.TUG, VesselMesh.Kind.PILOT]
 	_mat.set_shader_parameter("solo_flags", float(canvas % 6) + (8.0 if lit else 0.0) + 16.0)
 	_mat.set_shader_parameter("solo_seed", _rng.randf())
 	var rs := VesselMesh.ride_size(kind) * scale_k
@@ -546,10 +546,10 @@ func _build_lights() -> void:
 		_:
 			top = 2.0 * k
 	var deck := clampf(top * 0.25, 1.0, 4.0)
-	specs.append([Vector3(0.0, top, -l * 0.15), white, 0.6 + l * 0.01, 4, Vector3.ZERO])
-	specs.append([Vector3(-b * 0.48, deck, -l * 0.25), red, 0.45 + l * 0.008, 4, Vector3(-1.0, 0.0, -0.5).normalized()])
-	specs.append([Vector3(b * 0.48, deck, -l * 0.25), green, 0.45 + l * 0.008, 4, Vector3(1.0, 0.0, -0.5).normalized()])
-	specs.append([Vector3(0.0, deck * 0.8, l * 0.49), white, 0.45 + l * 0.008, 4, Vector3(0.0, 0.0, 1.0)])
+	specs.append([Vector3(0.0, top, -l * 0.15), white, 1.0 + l * 0.02, 4, Vector3.ZERO])
+	specs.append([Vector3(-b * 0.48, deck, -l * 0.25), red, 0.8 + l * 0.015, 4, Vector3(-1.0, 0.0, -0.5).normalized()])
+	specs.append([Vector3(b * 0.48, deck, -l * 0.25), green, 0.8 + l * 0.015, 4, Vector3(1.0, 0.0, -0.5).normalized()])
+	specs.append([Vector3(0.0, deck * 0.8, l * 0.49), white, 0.8 + l * 0.015, 4, Vector3(0.0, 0.0, 1.0)])
 	if kind == VesselMesh.Kind.TUG:
 		specs.append([Vector3(0.0, top - 1.2 * k, -l * 0.15), white, 0.6 + l * 0.01, 4, Vector3.ZERO])
 		specs.append([Vector3(0.0, top - 2.4 * k, -l * 0.15), Color(1.0, 0.75, 0.2, 1.0), 0.6, 4, Vector3.ZERO])
@@ -580,7 +580,7 @@ func _build_lights() -> void:
 	var lm := ShaderMaterial.new()
 	lm.shader = _light_shader
 	lm.set_shader_parameter("field_day", 0.0)
-	lm.set_shader_parameter("min_angle", 0.0035)
+	lm.set_shader_parameter("min_angle", 0.005)
 	mesh.surface_set_material(0, lm)
 	_lights.mesh = mesh
 	_lights.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
