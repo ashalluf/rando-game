@@ -184,34 +184,15 @@ func _refinery_far(city: Node3D) -> void:
 
 
 ## A far-city capture of a freeway chunk built its deck body and dropped it out of the tree (an
-## orphan StaticBody3D with a shape per segment, every capture of every freeway block).
+## orphan StaticBody3D with a shape per segment, every capture of every freeway block). The far
+## city has captured every freeway block by now (the whole basin, at load): none may be left.
+## (Building a capture chunk here instead upset the engine's teardown: nothing is built.)
 func _freeway_orphans(plan: CityPlan, city: Node3D) -> void:
 	var fw = plan.macro.freeway if plan.macro else null
 	if fw == null:
 		return
-	var at := Vector2i(999999, 0)
-	for seg: Dictionary in fw.segments_in(Rect2(Vector2(-3000, -3000), Vector2(6000, 6000))):
-		if not seg.has("link"):
-			var mid: Vector2 = (seg.a as Vector2).lerp(seg.b, 0.5)
-			at = plan.block_index_at(mid)
-			break
-	if at.x == 999999:
-		return
-	var before := _orphan_bodies()
-	var ch := CityChunk.new()
-	ch.plan = plan
-	ch.ix = at.x
-	ch.iz = at.y
-	ch.level = CityChunk.Level.LOD
-	ch.style = city.call("chunk_style")
-	ch.capturing = true
-	ch.begin_build()
-	var guard := 0
-	while not ch.build_step() and guard < 4000:
-		guard += 1
-	var after := _orphan_bodies()
-	ch.free()
-	_check(after <= before, "perf2: a capture of a freeway block leaves no body out of the tree (%d -> %d)" % [before, after])
+	var n := _orphan_bodies()
+	_check(n == 0, "perf2: the far city's freeway captures leave no deck or ramp body out of the tree (%d)" % n)
 
 
 func _orphan_bodies() -> int:
