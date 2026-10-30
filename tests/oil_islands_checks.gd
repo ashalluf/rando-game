@@ -59,7 +59,8 @@ func run(t: Node, city: Node3D) -> void:
 		if berm <= OilIslands.PAD_Y + 0.5:
 			plan_bad += " berm%d" % i
 		var wl := OilIslands.surface_at(OilIslands.to_world(i, OilIslands.ring_local(i, 2.0, float(OilIslands.RINGS[2][0]))))
-		if absf(wl) > 0.05:
+		# surface_at() measures along the ray from the centre, the rings along the edge's normal.
+		if absf(wl) > 0.8:
 			plan_bad += " waterline%d" % i
 		for tw: Dictionary in OilIslands.towers(i):
 			var tc := OilIslands.to_world(i, tw.at)

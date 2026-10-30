@@ -70,6 +70,10 @@ const LANDMARK_NAMES := {
 	# The reservoir in the front range (Reservoir): an invented name.
 	"reservoir": "Lake Shallufer",
 	"pueblo_lane": "Paseo de las Golondrinas",
+	# The decorated oil islands in the bay (OilIslands): invented names.
+	"oil_island_0": "Kestrel Island",
+	"oil_island_1": "Halcyon Island",
+	"oil_island_2": "Corvina Island",
 }
 
 ## Pixels a landmark pin needs clear of an already-labelled one to get its own name written.
