@@ -275,12 +275,11 @@ static func _ends(ch: CityChunk, m: Dictionary, lay: Dictionary, d: FarmersMarke
 		var n := maxi(2, int((half * 2.0 - 2.0) / 2.7))
 		for k in n:
 			var o := lerpf(-half + 1.6, half - 1.6, (float(k) + 0.5) / float(n)) if n > 1 else 0.0
-			# The middle gap for the crew's carts: the barricade there stands turned aside.
-			var turned := k == n / 2 and n >= 3
+			# The middle one stands set back into the closure: the gaps either side of it are the
+			# way in for the crew's carts.
+			var back := k == n / 2 and n >= 3
 			var face := Vector2(out_dir, 0.0)
-			var xf := xf_at(m, t + (0.8 * out_dir if turned else 0.0), o, face)
-			if turned:
-				xf = xf * Transform3D(Basis(Vector3.UP, 0.6), Vector3.ZERO)
+			var xf := xf_at(m, t - (1.8 * out_dir if back else 0.0), o, face)
 			_item(ch, "fs_barricade", FilmShootKit.barricade(), xf, "bar_%d_%d" % [end, k], Vector3(2.5, 1.6, 0.6), 0.8, 30.0)
 		for k in 4:
 			var o := lerpf(-half + 1.0, half - 1.0, (float(k) + 0.5) / 4.0)

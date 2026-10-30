@@ -17116,7 +17116,7 @@ skip it after their rolls (`blocks_parking()`), and `ground_y()` puts people on 
   village (monitor cart, three director's chairs, the sound cart) under the market's pop-up in
   black canvas, piles of apple boxes and road cases, cables from the generator to every lamp;
 - the action on the set side's PAVEMENT: two actors on their marks facing each other;
-- both ends: type III barricades (the middle one turned aside for the carts), cones, the yellow
+- both ends: type III barricades (the middle one set back: the way in for the carts), cones, the yellow
   arrow sign with the production's code and "STREET CLOSED FOR FILMING", and orange "NOTICE -
   FILMING IN PROGRESS" sheets on posts every `NOTICE_STEP` down both kerbs with the title, the
   company and the tow-away line;
@@ -17143,6 +17143,12 @@ city: nothing.
 
 **Hooks**: `CityPlan.road_open()` (one `if`), CityChunk's two paving `elif`s, the parking line,
 one `steps.append_array()` after the market's, the loading screen's warm, the smoke test's line.
+
+**Frame cost** (block_shot.tscn GEO, the three EYEs below, triangles / draws): before
+(`FILM_SHOOT=0`) 5.68M / 3009, 4.82M / 2462, 4.68M / 2654; after 5.19M / 2949, 4.43M / 2421,
+4.66M / 2664 - lower, because the closed street loses its parked cars and traffic. EYEs (seed
+1337, CREST AVE): street `1490.2,1.9,-1271,-180,-3`, set `1500.7,3.2,-1173.3,134.8,-8`, aerial
+`1461.7,26,-1180.3,-129.8,-30`. Stills on `shots/film-shoot`.
 
 **Tools**: `tools/film_shoot/probe.gd` (every shoot in the basin with STREET / SET / AERIAL EYEs
 for block_shot.tscn or still_shot.gd). Checks: `tests/film_shoot_checks.gd` (38).
