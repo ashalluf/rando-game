@@ -1606,6 +1606,9 @@ void fragment() {
 			vec3 sign_hue = mix(vec3(0.16, 0.18, 0.22), vec3(0.42, 0.20, 0.16), hash21(vec2(shop_seed, 5.3)));
 			sign_hue = mix(sign_hue, vec3(0.18, 0.30, 0.26), step(0.66, hash21(vec2(shop_seed, 9.1))));
 			sign_hue = mix(sign_hue, vec3(0.22, 0.20, 0.26), step(0.86, hash21(vec2(shop_seed, 2.4))));
+			// Display numbers: decoded on Forward+ (fx_srgb_in()), or a red lightbox was a pale red past 1
+			// that AgX drew pink on the Mac (fwd-review-e).
+			sign_hue = fx_srgb_in(sign_hue);
 			albedo = sign_hue;
 			// A darker lip top and bottom so the band reads as a board fixed to the wall.
 			float lip = step(fv, 0.785) + step(0.918, fv);
