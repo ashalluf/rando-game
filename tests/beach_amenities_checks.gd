@@ -29,13 +29,13 @@ func run(t: Object, city: Node3D) -> void:
 
 
 func _plan(plan: CityPlan) -> void:
-	var z0 := -1500.0
-	var z1 := 2500.0
+	var z0 := -4000.0
+	var z1 := 6000.0
 	var whole: Array = BeachAmenities.plan_stretch(plan, z0, z1)
 	var again: Array = BeachAmenities.plan_stretch(plan, z0, z1)
 	var a: Array = BeachAmenities.plan_stretch(plan, z0, 600.0)
 	var b: Array = BeachAmenities.plan_stretch(plan, 600.0, z1)
-	_t._check(whole.size() > 20 and str(whole) == str(again), "the beach's amenities are a pure plan (%d items over 4 km of shore)" % whole.size())
+	_t._check(whole.size() > 20 and str(whole) == str(again), "the beach's amenities are a pure plan (%d items over the whole coast, z -4000..6000)" % whole.size())
 	_t._check(whole.size() == a.size() + b.size() and str(_sorted(whole)) == str(_sorted(a + b)),
 		"the amenities are world-anchored: two halves of the shore hold the whole's (%d vs %d + %d)" % [whole.size(), a.size(), b.size()])
 	var counts := {}
