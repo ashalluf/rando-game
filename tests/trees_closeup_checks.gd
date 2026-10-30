@@ -57,14 +57,18 @@ func _gust() -> void:
 	# upwind one saw (the ragged term drifts a little); a tree 30 m ACROSS the wind does not keep
 	# step with it in the same way.
 	var d := TreesCloseup.wind_dir()
-	var worst := 0.0
-	for i in 40:
+	var moved := 0.0
+	var still := 0.0
+	for i in 60:
 		var p := Vector2(120.0 + i * 3.1, -40.0 + i * 1.7)
 		var t0 := 10.0 + i * 0.7
 		var a := TreesCloseup.gust(p, t0)
-		var b := TreesCloseup.gust(p + d * 30.0, t0 + 30.0 / TreesCloseup.TW_SPEED)
-		worst = maxf(worst, absf(a - b))
-	_t._check(worst < 0.12, "a gust front travels downwind tree to tree (worst mismatch %.3f)" % worst)
+		moved += absf(a - TreesCloseup.gust(p + d * 30.0, t0 + 30.0 / TreesCloseup.TW_SPEED))
+		still += absf(a - TreesCloseup.gust(p + d * 30.0, t0))
+	moved /= 60.0
+	still /= 60.0
+	_t._check(moved < 0.06 and moved < still * 0.35,
+		"a gust front travels downwind tree to tree (mean mismatch %.3f riding the front, %.3f at one instant)" % [moved, still])
 	var lean := Vector2(-0.6, -0.4)
 	_t._check(TreesCloseup.wind_dir(lean).is_equal_approx(lean.normalized()), "a steady wind (the Santa Ana's lean) turns the gusts with it")
 
