@@ -2405,6 +2405,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Freeway incidents (tests/freeway_incidents_checks.gd): the schedule, a stall with its patrol
 	# car and tow, debris that traffic changes lanes round, a slowdown, the message signs.
 	await load("res://tests/freeway_incidents_checks.gd").new().run(self, city)
+	# THE PIT, the boardwalk's skate park (tests/skate_park_checks.gd): the pits, the terrace, the
+	# lines on the concrete, the build and its collision, the riders on the clock, a knock, gunfire.
+	await load("res://tests/skate_park_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

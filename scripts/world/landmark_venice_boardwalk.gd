@@ -261,6 +261,8 @@ static func build(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: 
 		# The art wall's murals, the same panels (its rolls are the first `rng` makes in both
 		# copies): a band of colour down the walk that reads from the beach and the pier.
 		_art_wall(anchor, parent, null, plan, rng)
+		if SkatePark.enabled:
+			SkatePark.build(anchor, parent, null, plan, false)
 		batch.build(parent)
 		return
 	_walk(anchor, parent, statics, plan, batch)
@@ -585,6 +587,10 @@ static func _art_wall(anchor: Vector2, parent: Node3D, statics: StaticBody3D, pl
 ## coordinates here: +X is inland, +Z is up the beach, origin at SKATE_X / SKATE_Z, y = 0 is
 ## the sand. Roughly 2,900 triangles and about 80 collision shapes.
 static func _skate_park(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: CityPlan) -> void:
+	# THE PIT (SkatePark): the poured park and its skaters; SKATE_PARK=0 keeps these boxes.
+	if SkatePark.enabled:
+		SkatePark.build(anchor, parent, statics, plan, true)
+		return
 	var base := _at(anchor, plan, SKATE_X, SKATE_Z, 0.0)
 	var deck := PropFactory.pbr("concrete", 5.0, CONCRETE_PALE)
 	var half_w := SKATE_W * 0.5
