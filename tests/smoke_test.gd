@@ -90,7 +90,7 @@ const PART_COST := {
 	"walk_in_store_checks": 7.0, "fashion_district_checks": 6.6, "worship_checks": 5.8,
 	"more_cars_checks": 5.6, "billboard_checks": 5.5, "lot_fill_checks": 5.4,
 	"road_detail_checks": 5.4, "air_traffic_checks": 5.2, "ridges_checks": 5.2,
-	"road_wear_checks": 5.0, "broadway_checks": 4.7, "roadside_checks": 4.6, "backyards_checks": 4.4,
+	"road_wear_checks": 5.0, "broadway_checks": 4.7, "roadside_checks": 4.6, "backyards_checks": 4.4, "lawns_closeup_checks": 4.0,
 	"chinatown_checks": 3.3, "oil_field_checks": 3.3, "alley_checks": 3.1, "apartments_checks": 3.1,
 	"construction_checks": 2.9, "hill_homes_checks": 2.9, "la_trees_checks": 2.9,
 	"street_furniture_checks": 2.9, "utility_poles_checks": 2.9, "airport_life_checks": 2.8,
@@ -2645,6 +2645,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The freeway close up (tests/freeway_closeup_checks.gd, FreewayCloseup): the concrete deck's
 	# UVs and lane copy, the kit's close-up pass, no geometry or rolls moved, the rush-hour fill.
 	await load("res://tests/freeway_closeup_checks.gd").new().run(self, city)
+	# Lawns close up (tests/lawns_closeup_checks.gd, LawnsCloseup): the lawn field shared by the
+	# ground and the blades, the tuft, the parkways and weeds, nothing else moved.
+	load("res://tests/lawns_closeup_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

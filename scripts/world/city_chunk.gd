@@ -2665,7 +2665,9 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 			# stay out of; a suburb whose lawns are flat green paint is the tell.
 			steps.append(func() -> void:
 				if _lawn_rect.size.x > 1.0:
-					_add_grass(_lawn_rect, 0.85, 0.0, _lot_rects))
+					_add_grass(_lawn_rect, 0.85, 0.0, _lot_rects, _lawn_mat, _lawn_rect)
+				# Grass parkways and the weeds nobody mows (LawnsCloseup; hash-seeded).
+				LawnsCloseup.block_step(self, rect, district))
 	# Chinatown's lanterns over the roads, its gate and the block's one mesh (Chinatown; hash-seeded).
 	if Chinatown.wanted(self, block):
 		steps.append(func() -> void: Chinatown.block_step(self, block))
@@ -2762,6 +2764,8 @@ static func _sidewalk_edges(rect: Rect2) -> Array:
 
 ## Where the block's lawn is (set by _block_lawn, read once the lots are down).
 var _lawn_rect := Rect2()
+## Its material (the blades take its field: LawnsCloseup).
+var _lawn_mat: Material
 
 
 ## Suburbs and campus: lawns between the buildings instead of bare paving.
@@ -2769,7 +2773,8 @@ func _block_lawn(rect: Rect2, rng: RandomNumberGenerator) -> void:
 	var inner := rect.grow(-plan.sidewalk_width)
 	var ic := inner.get_center()
 	var lawn := _lawn_color(rng)
-	_add_slab(Vector3(ic.x, SIDEWALK_TOP + 0.02, ic.y), Vector3(inner.size.x, 0.04, inner.size.y), style.grass, false, PropFactory.lawn(lawn, hash([plan.seed, ix, iz, "lawn"])))
+	_lawn_mat = PropFactory.lawn(lawn, hash([plan.seed, ix, iz, "lawn"]))
+	_add_slab(Vector3(ic.x, SIDEWALK_TOP + 0.02, ic.y), Vector3(inner.size.x, 0.04, inner.size.y), style.grass, false, _lawn_mat)
 	_lawn_rect = inner
 
 
@@ -3330,7 +3335,8 @@ func _build_yard(lot: Dictionary, rng: RandomNumberGenerator) -> void:
 	var center: Vector2 = lot.center
 	var size: Vector2 = lot.size
 	var lawn := _lawn_color(rng)
-	_add_slab(Vector3(center.x, SIDEWALK_TOP + 0.02, center.y), Vector3(size.x, 0.04, size.y), style.grass, false, PropFactory.lawn(lawn, hash([plan.seed, ix, iz, "lawn"])))
+	var yard_lawn := PropFactory.lawn(lawn, hash([plan.seed, ix, iz, "lawn"]))
+	_add_slab(Vector3(center.x, SIDEWALK_TOP + 0.02, center.y), Vector3(size.x, 0.04, size.y), style.grass, false, yard_lawn)
 	if level != Level.FULL:
 		return
 	for i in rng.randi_range(3, 7):
@@ -3341,7 +3347,7 @@ func _build_yard(lot: Dictionary, rng: RandomNumberGenerator) -> void:
 		_add_bush(Vector3(p.x, SIDEWALK_TOP, p.y), rng)
 	# A pocket garden is a garden: planted beds, not mown grass with three bushes on it.
 	_scatter_ground_cover(Rect2(center - size * 0.45, size * 0.9), rng, 1.35)
-	_add_grass(Rect2(center - size * 0.46, size * 0.92), 1.0)
+	_add_grass(Rect2(center - size * 0.46, size * 0.92), 1.0, 0.0, [], yard_lawn, Rect2(center - size * 0.5, size))
 	if rng.randf() < 0.6:
 		_add_bench(Vector3(center.x, SIDEWALK_TOP + 0.04, center.y + size.y * 0.3), PI)
 
@@ -3391,7 +3397,8 @@ func _build_park(rect: Rect2, rng: RandomNumberGenerator) -> void:
 	var center := inner.get_center()
 	# Lawns range from lush to summer-dry.
 	var lawn := _lawn_color(rng)
-	_add_slab(Vector3(center.x, SIDEWALK_TOP + 0.02, center.y), Vector3(inner.size.x, 0.04, inner.size.y), style.grass, false, PropFactory.lawn(lawn, hash([plan.seed, ix, iz, "lawn"])))
+	var park_lawn := PropFactory.lawn(lawn, hash([plan.seed, ix, iz, "lawn"]))
+	_add_slab(Vector3(center.x, SIDEWALK_TOP + 0.02, center.y), Vector3(inner.size.x, 0.04, inner.size.y), style.grass, false, park_lawn)
 	if level != Level.FULL:
 		return
 	var path_w := 3.0
@@ -3419,7 +3426,7 @@ func _build_park(rect: Rect2, rng: RandomNumberGenerator) -> void:
 		_add_bush(Vector3(p.x, SIDEWALK_TOP + 0.04, p.y), rng)
 	# Flowering ground cover over the whole park: this is where a park stops being bare grass.
 	_scatter_ground_cover(inner.grow(-2.0), rng, 1.0)
-	_add_grass(inner.grow(-1.0), 1.0, path_w * 0.5 + 0.3)
+	_add_grass(inner.grow(-1.0), 1.0, path_w * 0.5 + 0.3, [], park_lawn, inner)
 
 
 ## Freeway right-of-way: a lot the deck flies over or passes within LOT_FREEWAY_MARGIN of is never
@@ -3530,7 +3537,8 @@ func _add_bush(at: Vector3, rng: RandomNumberGenerator) -> void:
 ## which the lawn slab runs underneath). They are rasterised into an occupancy grid first,
 ## because testing twenty rects for each of twenty thousand blades costs more than the grass.
 ## Its own seeded rng, so adding grass never shifts the block's sequence and moves a building.
-func _add_grass(rect: Rect2, density: float = 1.0, keep_out: float = 0.0, blockers: Array[Rect2] = []) -> void:
+## `lawn` / `lawn_rect` are the lawn the grass stands on (LawnsCloseup: the blades take its field).
+func _add_grass(rect: Rect2, density: float = 1.0, keep_out: float = 0.0, blockers: Array[Rect2] = [], lawn: Material = null, lawn_rect: Rect2 = Rect2()) -> void:
 	if level != Level.FULL or rect.size.x < 2.0 or rect.size.y < 2.0:
 		return
 	var rng := RandomNumberGenerator.new()
@@ -3554,7 +3562,11 @@ func _add_grass(rect: Rect2, density: float = 1.0, keep_out: float = 0.0, blocke
 				for i in range(i0, i1 + 1):
 					blocked[j * gx + i] = 1
 	var center := rect.get_center()
-	var blade := PropFactory.grass_blade()
+	var blade := LawnsCloseup.tuft()
+	var closeup := LawnsCloseup.enabled
+	var look := LawnsCloseup.lawn_look(lawn, hash([plan.seed, ix, iz, "grass_look", int(rect.position.x)]))
+	var edge_rect := lawn_rect if lawn_rect.size.x > 0.0 else rect
+	var draw_to := LawnsCloseup.grass_distance(grass_distance)
 	# A big lawn is twenty thousand tufts, so it is planted GRASS_SLICE at a time as build steps
 	# of its own. Its random stream is its own too, so the lawn comes out identical either way.
 	var done := [0]
@@ -3576,13 +3588,18 @@ func _add_grass(rect: Rect2, density: float = 1.0, keep_out: float = 0.0, blocke
 			var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.05))
 			var key := "grass_%d_%d" % [floori(p.x / GRASS_CELL), floori(p.y / GRASS_CELL)]
 			keys[key] = true
-			_batch.add(key, blade, Transform3D(basis, Vector3(p.x, SIDEWALK_TOP + 0.05, p.y)), tint, Color(rng.randf(), 0.0, 0.0))
+			if closeup:
+				var phase := rng.randf()
+				_batch.add(key, blade, Transform3D(basis, Vector3(p.x, SIDEWALK_TOP + 0.05, p.y)), LawnsCloseup.tuft_color(look, tint),
+					LawnsCloseup.tuft_data(phase, look, LawnsCloseup.edge_distance(edge_rect, p)))
+			else:
+				_batch.add(key, blade, Transform3D(basis, Vector3(p.x, SIDEWALK_TOP + 0.05, p.y)), tint, Color(rng.randf(), 0.0, 0.0))
 		done[0] = stop
 		if stop < count:
 			return false
 		for key: String in keys:
 			_batch.set_no_shadow(key)
-			_batch.set_draw_distance(key, grass_distance)
+			_batch.set_draw_distance(key, draw_to)
 		return true)
 
 
