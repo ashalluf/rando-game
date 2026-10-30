@@ -106,6 +106,11 @@ var _drive_serial: int = 0
 
 func _ready() -> void:
 	_rng.seed = 99
+	if FreewayIncidents.enabled:
+		var fwi := FreewayIncidents.new()
+		fwi.plan = plan
+		fwi.tm = self
+		add_child(fwi)
 
 
 func _physics_process(delta: float) -> void:
@@ -173,12 +178,17 @@ func _new_car(kind: int = -1) -> Vehicle:
 		if not is_instance_valid(pooled):
 			_pool.remove_at(i)
 			continue
-		if (kind < 0 and not BigVehicles.is_big(pooled.body_type)) or pooled.body_type == kind:
+		if (kind < 0 and not BigVehicles.is_big(pooled.body_type) and not Lowrider.is_lowrider(pooled.body_type) and not Motorcycle.is_moto(pooled.body_type)) or pooled.body_type == kind:
 			_pool.remove_at(i)
 			if pooled.has_node("Hitch"):
 				(pooled.get_node("Hitch") as BigVehicles.Hitch).straighten()
 			return pooled
 	_built_this_frame += 1
+	if Lowrider.is_lowrider(kind):
+		# A cruising lowrider (Lowrider): its look from a hash, so the street's rng runs as before.
+		return Lowrider.make(kind, absi(hash([kind, cars.size(), Engine.get_physics_frames(), "lowrider"])))
+	if Motorcycle.is_moto(kind):
+		return Motorcycle.make(kind, _rng.randi())
 	if kind >= 0:
 		return BigVehicles.make(kind, _rng.randi())
 	return Vehicle.random_car(_rng)
@@ -199,7 +209,11 @@ func _street_kind(axis: int, index: int, at: Vector2) -> int:
 		return BigVehicles.SEMI
 	if roll < (BigVehicles.STREET_SEMI_SHARE + BigVehicles.STREET_BOX_SHARE) * k:
 		return BigVehicles.BOX_TRUCK
-	return -1
+	# A motorcycle now and then (Motorcycle; the same roll from its top end, no roll spent).
+	if Motorcycle.enabled and roll > 1.0 - Motorcycle.STREET_SHARE:
+		return Motorcycle.type_for(fposmod(roll * 7919.0, 1.0), plan.district_at(at))
+	# Now and then a lowrider cruising (Lowrider; the roll above, reused, spends no roll).
+	return LowriderMeet.traffic_kind(self, plan, at, roll)
 
 
 ## Takes a traffic car off the road: into the pool if there is room, freed otherwise.
@@ -290,12 +304,16 @@ func _spawn_near(pw: Vector3, density: float = 1.0) -> void:
 		pos2 = Vector2(plan.road_pos(axis, index) + lane, along) if axis == CityPlan.AXIS_X else Vector2(along, plan.road_pos(axis, index) + lane)
 	# Never inside a car already in that lane: the queue keeps cars apart, it cannot pull apart
 	# two that start inside each other.
-	if not _lane_clear(axis, index, dir, lane, along, SPAWN_CLEARANCE + (16.0 if kind >= 0 else 0.0)):
+	if not _lane_clear(axis, index, dir, lane, along, SPAWN_CLEARANCE + (16.0 if BigVehicles.is_big(kind) else 0.0)):
 		return
 	var car := _new_car(kind)
 	var speed := _rng.randf_range(speed_range.x, speed_range.y) * lerpf(1.0, dense_speed_factor, density)
-	if kind >= 0:
+	if BigVehicles.is_big(kind):
 		speed *= 0.8
+	if Lowrider.is_lowrider(kind):
+		speed *= LowriderMeet.CRUISE_SPEED
+	elif Motorcycle.is_moto(kind):
+		speed *= Motorcycle.traffic_factor(kind)
 	car.traffic = {"axis": axis, "index": index, "dir": dir, "lane": lane, "speed": speed, "v": speed * 0.8, "half": car_half_length(car), "rear": car_rear_length(car)}
 	TrafficAI.roll_mood(car, car.traffic)
 	if kind == BigVehicles.BUS:
@@ -586,6 +604,9 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 	# The driver's mood (TrafficAI.roll_mood): time gap and how late it is willing to brake.
 	var tg := float(t.get("m_gap", 1.0)) if ai else 1.0
 	var bk := float(t.get("m_brake", 1.0)) if ai else 1.0
+	# A motorcycle filters past a slow queue between the lanes (Motorcycle.filter_tick).
+	if car is Motorcycle and Motorcycle.filter_tick(self, car as Motorcycle, leader, groups, delta):
+		leader = null
 	# What holds the car this tick (TrafficAI reads the leader's): 0 nothing, 1 a line (light,
 	# sign, crosswalk, crossing), 2 the player, 3 a bus stop, 4 double-parked.
 	var why := 0
@@ -745,7 +766,7 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 	if yielding > 0.0:
 		t.yield_t = yielding - delta
 		acc = minf(acc, -minf(brake_comfort, v * 1.5))
-	var want_shift := maxf(siren_shift if yielding > 0.0 else 0.0, bus_shift)
+	var want_shift := maxf(maxf(siren_shift if yielding > 0.0 else 0.0, bus_shift), float(t.get("filter_shift", 0.0)))
 	t.shift = move_toward(float(t.get("shift", 0.0)), want_shift, delta * (1.4 if want_shift > float(t.get("shift", 0.0)) else 0.7))
 	acc = maxf(acc, -brake_max)
 	t.why = why
@@ -1230,14 +1251,20 @@ func _spawn_freeway_car(ri: int, t: float, dir: int) -> void:
 		kind = BigVehicles.SEMI
 	elif roll < BigVehicles.FREEWAY_SEMI_SHARE + BigVehicles.FREEWAY_BOX_SHARE:
 		kind = BigVehicles.BOX_TRUCK
-	if kind >= 0:
+	elif Motorcycle.enabled and roll > 1.0 - Motorcycle.FREEWAY_SHARE:
+		kind = Motorcycle.type_for(fposmod(roll * 7919.0, 1.0), CityPlan.District.MIDTOWN)
+	if BigVehicles.is_big(kind):
 		# Trucks keep to the two slow lanes, a little under the flow.
 		li = Freeway.LANES - 1 - _rng.randi() % 2
+		lane = Freeway.lane_fraction(width, li) * float(dir)
+	var free_li := FreewayIncidents.spawn_lane(ri, t, dir, li)
+	if free_li != li:
+		li = free_li
 		lane = Freeway.lane_fraction(width, li) * float(dir)
 	var car := _new_car(kind)
 	car.traffic = {
 		"fw": ri, "t": t, "dir": dir, "lane": lane, "li": li,
-		"speed": freeway_speed * _rng.randf_range(0.88, 1.12) * (0.88 if kind >= 0 else 1.0),
+		"speed": freeway_speed * _rng.randf_range(0.88, 1.12) * (0.88 if BigVehicles.is_big(kind) else (1.06 if Motorcycle.is_moto(kind) else 1.0)),
 		"half": car_half_length(car), "rear": car_rear_length(car),
 	}
 	TrafficAI.fw_setup(car, fw, false)
@@ -1257,7 +1284,7 @@ func _spawn_freeway_car(ri: int, t: float, dir: int) -> void:
 ## heading `dir`, of `kind` (-1 an ordinary car), in its slow lane if it is a truck.
 func place_freeway_car(ri: int, t: float, dir: int, kind: int = -1, speed: float = -1.0) -> Vehicle:
 	var car := _new_car(kind)
-	var lane: float = Freeway.lane_fraction(float(_freeway().routes[ri].width), Freeway.LANES - 1 if kind >= 0 else 1) * float(dir)
+	var lane: float = Freeway.lane_fraction(float(_freeway().routes[ri].width), Freeway.LANES - 1 if BigVehicles.is_big(kind) else 1) * float(dir)
 	car.traffic = {"fw": ri, "t": t, "dir": dir, "lane": lane,
 		"speed": freeway_speed if speed < 0.0 else speed, "half": car_half_length(car), "rear": car_rear_length(car)}
 	TrafficAI.fw_setup(car, _freeway(), true)
@@ -1357,6 +1384,7 @@ func _drive_freeway(delta: float) -> void:
 				var oa := TrafficAI.fw_ahead(groups, Vector3(float(tt.fw), float(dir), float(tt.lc_src)), float(tt.t), dir, car)
 				if not oa.is_empty():
 					speed = minf(speed, _fw_follow(car, oa[0]))
+			speed = FreewayIncidents.drive(self, fw, car, speed, groups, delta)
 			if ai:
 				TrafficAI.freeway_think(self, fw, car, leader, groups, delta)
 				if TrafficAI.fw_exit_tick(self, fw, car, speed, delta):

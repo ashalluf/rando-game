@@ -220,6 +220,12 @@ class instead.
 | `tools/make_more_cars.py` | `road_minivan.glb` | 52k tris + 8k far twin | `BodyType.MINIVAN` | 2026-10-05 |
 | `tools/make_more_cars.py` | `road_taxi.glb` | 54k tris + 8k far twin (the sedan + a lit roof sign, `taxi_sign` slot) | `BodyType.TAXI` | 2026-10-05 |
 | `tools/make_more_cars.py` | `road_beater.glb` | 51k tris + 8k far twin (a dent and a cracked, taped tail lamp in the geometry) | `BodyType.BEATER` | 2026-10-05 |
+| `tools/make_lowriders.py` | `road_lowrider_hardtop.glb` | 51k tris + 8k far twin (1960s two-door hardtop, laid low; the game draws its wire wheels) | `BodyType.LOWRIDER_HARDTOP` | 2026-10-06 |
+| `tools/make_lowriders.py` | `road_lowrider_coupe.glb` | 49k tris + 8k far twin (1980s coupe with a padded half roof) | `BodyType.LOWRIDER_COUPE` | 2026-10-06 |
+| code (`Lowrider.wire_wheel()`) | the lowriders' 13" wire wheels | 72 spokes, thin whitewall, knock-off; ~6k tris near, a disc far | `Lowrider` | 2026-10-06 |
+| `tools/make_motorcycles.py` | `moto_sport.glb` | 74k tris (body, fork, wheels as separate nodes) + 3.5k far twin; original 600-class supersport | `BodyType.MOTO_SPORT` (Motorcycle) | 2026-10-06 |
+| `tools/make_motorcycles.py` | `moto_cruiser.glb` | 66k tris + 3.5k far twin; original air-cooled V-twin cruiser, wire wheels | `BodyType.MOTO_CRUISER` | 2026-10-06 |
+| `tools/make_motorcycles.py` | `moto_scooter.glb` | 51k tris + 3.5k far twin; original 150-class step-through scooter | `BodyType.MOTO_SCOOTER` | 2026-10-06 |
 | `tools/make_emergency_vehicles.py` | `road_fire_engine.glb` | 35k tris + 10k far twin (Type 1 pumper: crew cab, pump panel, roll-ups, hose bed, ladders, light bar, Q-siren; original, no department's marks) | `BodyType.FIRE_ENGINE` (EmergencyCar) | 2026-10-04 |
 | `tools/make_emergency_vehicles.py` | `road_ambulance.glb` | 23k tris + 10k far twin (Type III: cutaway cab, modular box, striping, chevrons, warning lamps; original) | `BodyType.AMBULANCE` (EmergencyCar) | 2026-10-04 |
 | `tools/make_school_bus.py` | `road_school_bus.glb` | 54k tris + 10k far twin (Type D transit-style school bus: split-sash windows, eight-way warning lamps, rub rails, STOP arm, crossing arm, rear emergency door, the invented RANDO UNIFIED SCHOOL DISTRICT lettering; Blender's built-in font; original, no maker's shapes or badges) | `BodyType.SCHOOL_BUS` (Schools) | 2026-10-05 |
@@ -395,7 +401,7 @@ the tiling `hero_x_skin_detail` (pores, stubble) and `hero_x_pile` (velour).
 
 ## The crowd (Blender + MPFB2, CC0 assets)
 
-`assets/models/crowd_a.glb` .. `crowd_t.glb` (and the `crowd_*_body.jpg`, `_body_nrm.jpg` and
+`assets/models/crowd_a.glb` .. `crowd_z.glb` (and the `crowd_*_body.jpg`, `_body_nrm.jpg` and
 `_hair.png` Godot extracts from them) are the pedestrians (`Pedestrian.MODELS`), built by
 `tools/crowd/` with the hero's toolchain: Blender 4.2 LTS, the MPFB 2.0.17 add-on and the CC0
 MakeHuman system asset pack, which `tools/hero/setup.sh` downloads into the ignored
@@ -405,9 +411,9 @@ the nine Meshy pedestrians (`pedestrian_d..l`, rows above), which are no longer 
 | Part | Source | License |
 |---|---|---|
 | Base mesh, body/face shape targets, "mixamo" rig and weights | MPFB 2.0.17 | CC0 |
-| Skins, eyes (`low-poly` + an eye material), eyebrows, eyelashes, clothes (`male_casualsuit01..06`, `male_elegantsuit01`, `male_worksuit01`, `female_casualsuit01/02`, `female_elegantsuit01`, `female_sportsuit01`), shoes (`shoes01..06`), hair (`afro01`, `braid01`, `long01`, `ponytail01`, `short01..04`) and their textures | MakeHuman system asset pack, https://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip | CC0 |
+| Skins, eyes (`low-poly` + an eye material), eyebrows, eyelashes, clothes (`male_casualsuit01..06`, `male_elegantsuit01`, `male_worksuit01`, `female_casualsuit01/02`, `female_elegantsuit01`, `female_sportsuit01`), shoes (`shoes01..06`), hair (`afro01`, `bob01`, `bob02`, `braid01`, `long01`, `ponytail01`, `short01..04`) and their textures | MakeHuman system asset pack, https://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip | CC0 |
 | Skin blends, garment dyes, printed logos painted out, the painted scalp and crops, skin relief maps, the atlases, relaxed hands, bind pose, the region colours | Our own scripts (`tools/crowd/*.py`) | ours |
-| Our own garments (tee, jeans / slim / chinos / leggings / denim shorts / joggers, button shirt and polo, zip jacket / hoodie / cardigan, skirt, hi-vis vest, headscarf): the meshes modelled on each body (`tools/crowd/garments.py`) and every texel of their colour and relief painted procedurally, no source images (`tools/crowd/garment_paint.py`) | Our own scripts | ours |
+| Our own garments (tee, jeans / slim / chinos / leggings / denim shorts / joggers, button shirt and polo, zip jacket / hoodie / cardigan / quilted puffer, duck work jacket, cargo shorts, skirt, dress (dots or a floral print), hi-vis vest, headscarf): the meshes modelled on each body (`tools/crowd/garments.py`) and every texel of their colour and relief painted procedurally, no source images (`tools/crowd/garment_paint.py`) | Our own scripts | ours |
 | Idle / walk / run clips | Retargeted from our own `pedestrian_d_anim.glb` (`tools/hero/retarget_lib.py`) | ours |
 | Everyday "life" clips (`assets/models/crowd_life/crowd_*_life.res`, one AnimationLibrary per rig): `Idle_Loop`, `Idle_Talking_Loop`, `Sitting_Enter`, `Sitting_Idle_Loop`, `Sitting_Talking_Loop`, `Sitting_Exit`, `Jog_Fwd_Loop`, `Idle_Torch_Loop` from Universal Animation Library [Standard]; `Idle_TalkingPhone_Loop`, `Idle_FoldArms_Loop`, `Consume`, `Yes`, `Idle_No_Loop`, `Idle_Rail_Loop` from Universal Animation Library 2 [Standard] (Quaternius; the free Standard downloads, License.txt in each zip: CC0 1.0). Retargeted in Godot by `tools/crowd/life_clips.gd` (the jog's leg swing scaled to a jogger's stride, the standing clips' legs settled to the rig's stance); the sources are fetched by `tools/crowd/fetch_life_clips.sh` into the ignored `build/ual_src/` and do not ship | https://quaternius.itch.io/universal-animation-library , https://quaternius.itch.io/universal-animation-library-2 | CC0 1.0 (added 2026-10-04) |
 | The hero's moves (`assets/models/hero_moves.res`, one AnimationLibrary added to hero.glb's player as "moves"): `Idle_Loop`, `Jump_Start`, `Jump_Loop`, `Jump_Land`, `Roll`, `Sprint_Loop` from Universal Animation Library [Standard], `NinjaJump_Land` from Universal Animation Library 2 [Standard] (Quaternius, CC0 1.0), retargeted onto the hero's 54-bone rig in Godot by `tools/hero/hero_clips.gd`, with the hero Idle's own finger keys; the four idle variants (`idle_look`, `idle_neck`, `idle_watch`, `idle_stretch`) are keyed in that script over the library's idle. Sources fetched by `tools/crowd/fetch_life_clips.sh`, not shipped | https://quaternius.itch.io/universal-animation-library , https://quaternius.itch.io/universal-animation-library-2 | CC0 1.0 (added 2026-10-05) |
@@ -436,6 +442,12 @@ the nine Meshy pedestrians (`pedestrian_d..l`, rows above), which are no longer 
 | `crowd_r.glb` | young North African woman: dusty rose headscarf worn hijab-style, long cream tee, navy wide trousers, navy sneakers | young_caucasian_female 60% + young_african_female 28% + young_asian_female 12%, eyes `low-poly` + brown, eyebrow001, eyelashes01, shoes06, no hair mesh (the headscarf covers it); our own headscarf, tee and trousers |
 | `crowd_s.glb` | Filipino man in his thirties, very short and stocky: hi-vis safety vest over a heather-grey tee, charcoal work trousers, boots, short black hair | young_asian_male 70% + young_african_male 20% + young_caucasian_male 10%, eyes `low-poly` + brown, eyebrow004, eyelashes01, shoes03, short01; our own vest, tee and trousers |
 | `crowd_t.glb` | very tall Black woman in her thirties: red-striped white shirt with the sleeves rolled, black slim trousers, white sneakers, a braid | young_african_female, eyes `low-poly` + brown, eyebrow003, eyelashes01, shoes05, braid01; our own shirt and slim trousers |
+| `crowd_u.glb` | young Korean American man, slim: black quilted puffer jacket, grey slim jeans, grey sneakers, short hair | young_asian_male, eyes `low-poly` + brown, eyebrow012, eyelashes01, shoes02, short02; our own puffer and slim jeans |
+| `crowd_v.glb` | Latina woman in her thirties: terracotta midi dress with cream dots and cap sleeves, flat shoes, long hair | young_caucasian_female 50% + young_african_female 25% + young_asian_female 25%, eyes `low-poly` + brown, eyebrow002, eyelashes01, shoes04, long01; our own dress |
+| `crowd_w.glb` | white man in his fifties, heavy: tan duck work jacket with a brown corduroy collar, dark jeans, work boots, short hair | middleage_caucasian_male, eyes `low-poly` + brown, eyebrow010, eyelashes01, shoes03, short04; our own work jacket and jeans |
+| `crowd_x.glb` | young Black man, tall and athletic: charcoal heather tee, olive cargo shorts, grey sneakers, short hair | young_african_male, eyes `low-poly` + brown, eyebrow006, eyelashes01, shoes02, short01; our own tee and cargo shorts |
+| `crowd_y.glb` | Black woman in her sixties: navy knee-length dress with a small floral print and short sleeves, flat shoes, short grey hair | middleage_african_female, eyes `low-poly` + brown, eyebrow007, eyelashes01, shoes04, short03; our own dress |
+| `crowd_z.glb` | young white woman, slim: sage quilted puffer jacket, black leggings, navy sneakers, ponytail | young_caucasian_female2, eyes `low-poly` + bluegreen, eyebrow005, eyelashes01, shoes06, ponytail01; our own puffer and leggings |
 
 Each is ONE skinned `Body` (skin, eyes, clothes, shoes; 10.5-13.8k triangles, one 2K colour atlas
 and a 1K normal atlas, the vertex colour carrying the skin / top / bottom / hair split) and a
@@ -777,3 +789,9 @@ The containers are PortKit's. Railroad, marks and livery invented (Arroyo Pacifi
 | Asset | Source | License | Used for | Added |
 |---|---|---|---|---|
 | `assets/textures/road_wear/road_wear_color.png`, `_nrm.png`, `_data.png` (25 stamps, 2048 px atlas) | `tools/make_road_wear.py`: cut and recoloured from Asphalt033, GravelConcrete03, DryGroundRocks and Concrete034 (rows above: ambientCG / Poly Haven, CC0) plus procedural shapes (cracks, potholes, ruts, ripples, stains, tyre marks, paint ghosts) | CC0 sources; generated art ours | RoadWear (road, pavement and car-park wear) | 2026-10-05 |
+
+## Walk of fame lettering (our own generator)
+
+| Asset | Source | License | Used for | Added |
+|---|---|---|---|---|
+| `assets/textures/star_boulevard/walk_atlas.png` (1024 x 2048, names, signatures, emblems) | `tools/make_star_boulevard_art.py` (PIL); glyphs rendered offline from DejaVu Serif Bold (Bitstream Vera licence) and Liberation Serif Italic / Bold Italic (SIL OFL); emblems drawn in code; every name invented | ours (fonts permit rendered output) | the walk of fame's stars and forecourt slabs | 2026-10-05 |

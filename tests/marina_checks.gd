@@ -136,7 +136,7 @@ func _plan(mr: Marina, _plan_unused: CityPlan) -> void:
 
 
 func _shader() -> void:
-	var src := FileAccess.get_file_as_string("res://shaders/boat.gdshader")
+	var src := FileAccess.get_file_as_string("res://shaders/boat_body.gdshaderinc") # boat.gdshader includes it
 	var ok := true
 	for c: Color in Marina.CANVAS:
 		ok = ok and src.contains("vec3(%s, %s, %s)" % [_f(c.r), _f(c.g), _f(c.b)])

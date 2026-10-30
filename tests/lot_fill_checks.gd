@@ -119,8 +119,10 @@ func _beach_plan(plan: CityPlan) -> void:
 	var scene: PackedScene = load("res://scenes/props/building.tscn")
 	var lo: Vector2i = plan.block_index_at(Vector2(-950.0, -750.0))
 	# To z 1450: the canal neighbourhood (Canals) took two blocks of the old window (to z 600), one
-	# with a walk street; the next one is down by the piers.
-	var hi: Vector2i = plan.block_index_at(Vector2(-450.0, 1450.0))
+	# with a walk street; the next one is down by the piers. The power plant (PowerPlant) took
+	# the block south of the 105 that held one of the default seed's two walk streets: with it on the
+	# window runs on to the Esplanade and one walk street is all there is to find.
+	var hi: Vector2i = plan.block_index_at(Vector2(-450.0, 2000.0 if PowerPlant.enabled else 1450.0))
 	var walks := 0
 	var lots := 0
 	var drives := 0
@@ -176,7 +178,7 @@ func _beach_plan(plan: CityPlan) -> void:
 	heights.sort()
 	var median: float = heights[heights.size() / 2] if not heights.is_empty() else 0.0
 	var top: float = heights.back() if not heights.is_empty() else 0.0
-	_t._check(walks >= 2 and lots > 50 and drives * 5 >= lots and median <= 10.0 and top <= 17.0 and bad == 0,
+	_t._check(walks >= (1 if PowerPlant.enabled else 2) and lots > 50 and drives * 5 >= lots and median <= 10.0 and top <= 17.0 and bad == 0,
 		"beach-town yards: %d lots, %d drives, %d walk streets, houses %.1f m median (%.1f m the tallest), %d pieces astray" % [lots, drives, walks, median, top, bad])
 
 

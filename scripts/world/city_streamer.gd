@@ -297,6 +297,8 @@ func _build_far_landmarks() -> void:
 		# Far copies are built box by box (a pier, a mall, a ship are dozens of them) and never
 		# change after this: one draw per material instead of one per box.
 		MultiMeshBatch.merge_meshes(holder)
+	# The refinery's far pieces, one a block, hidden block by block under its FULL chunks.
+	RefineryFar.attach(self, plan)
 
 
 ## The far ridge sign stands on the far ground, not the real one. It is built level with the
@@ -371,8 +373,9 @@ func _build_showroom(at: Vector3, yaw: float) -> void:
 	var forward := Vector3(-sin(yaw), 0.0, -cos(yaw))
 	var right := forward.cross(Vector3.UP)
 	for i in Vehicle.BodyType.size():
-		var car := Vehicle.new()
-		car.setup(i as Vehicle.BodyType, Vehicle.PAINTS[i * 2 % Vehicle.PAINTS.size()], Vehicle.Addon.NONE)
+		var car: Vehicle = Motorcycle.make(i, i) if Motorcycle.is_moto(i) else Vehicle.new()
+		if not Motorcycle.is_moto(i):
+			car.setup(i as Vehicle.BodyType, Vehicle.PAINTS[i * 2 % Vehicle.PAINTS.size()], Vehicle.Addon.NONE)
 		car.position = at + forward * 12.0 + right * (float(i) - 1.5) * 6.0 + Vector3.UP * 1.0
 		car.rotation.y = yaw + PI * 0.5
 		add_child(car)

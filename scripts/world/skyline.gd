@@ -683,7 +683,8 @@ func _add_captured(k: Vector2i, b: Dictionary, zone: int, ch: CityChunk) -> void
 	if String(b.get("site", "")) == GolfCourse.ID:
 		GolfFar.add(_plan, k, ch, _work)
 	elif zone == MacroMap.Zone.CITY and not _plan.river_block(k.x, k.y) and not _plan.marina_block(k.x, k.y) \
-			and b.get("site", "") != OilField.ID:
+			and b.get("site", "") != OilField.ID and b.get("site", "") != PowerPlant.SITE_ID \
+			and b.get("site", "") != Refinery.SITE_ID:
 		_add_city_trees(k, b, ch)
 	# Container stacks in the port yard.
 	if batch.has("container"):
@@ -1062,7 +1063,7 @@ func _spot(rect: Rect2, hs: int) -> Vector2:
 
 ## Is `p` on (or within a mound's reach of) a hill road or an estate pad?
 static func _on_hill_road(p: Vector2, segs: Array[Dictionary], pads: Array[Dictionary]) -> bool:
-	if Ballpark.covers(p, 6.0):
+	if Ballpark.covers(p, 6.0) or Lighthouses.covers(p, 6.0):
 		return true
 	for seg in segs:
 		var closest := Geometry2D.get_closest_point_to_segment(p, seg.a, seg.b)
