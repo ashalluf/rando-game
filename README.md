@@ -12,3 +12,4 @@ opengl3 (Compatibility) stills, 1280x720 (the afters re-shot after the far crags
 | 11/12 | the freeway, telephoto (16 deg) up the front range: rock spines along the crests |
 | 13 | a hill road's cut bank with bedded boulders (FULL chunk, `hill_ground_shot.tscn`) |
 | 14 | the kit: the scan (top), Godot's generated LOD 3 of the same scan shredding along its UV seams (middle - why the scans keep one level), the welded mesh with its triplanar rock (bottom) |
+| 15/16 | a summit crag on the front range from 320 m (the scan in a near cell, standing on the FULL chunk's terrain) |
