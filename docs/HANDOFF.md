@@ -21315,7 +21315,7 @@ down). It lays, at real size and built in code:
 - **Traffic cones** (28", two reflective collars that glint by `lamp_factor`) round a third of
   RoadHardware's utility cuts, now and then one knocked over.
 - **Weeds** in a crack at the foot of the walls and behind the kerb (blades that sway, a rosette);
-  not on lawn blocks while LawnsCloseup is on (it lays those blocks' weeds and the parkway).
+  not in lawn districts (LawnsCloseup lays those blocks' weeds and the parkway).
 - **Butts and gum** round every bus stop and in front of some shop doors (more at cafes and bars).
 - **Puddles** in the gutter, the parking lane and the corner ramps: collapsed in the vertex stage
   on a dry street, grown from `road_wetness` (`puddle_from` .. `puddle_full`) as a noisy blob with a

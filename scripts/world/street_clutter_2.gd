@@ -542,8 +542,9 @@ static func _wall_things(ctx: Dictionary, edges: Array) -> void:
 			continue
 		var dir := (b - a) / length
 		var hk := [plan.seed, "sc2_wall", chunk.ix, chunk.iz, e]
-		# Lawn blocks get their weeds (and the parkway behind the kerb) from LawnsCloseup.
-		var lawned: bool = LawnsCloseup.enabled and bool((CityPlan.DISTRICTS[district] as Dictionary).get("lawn", false))
+		# Lawn districts get their weeds (and the parkway behind the kerb) from LawnsCloseup; never
+		# both, and never depending on whether it is on (its checks build the block with it off).
+		var lawned: bool = bool((CityPlan.DISTRICTS[district] as Dictionary).get("lawn", false))
 		var count := 0 if lawned else int(length * float(WEEDS_PER_M[district]))
 		for i in count:
 			var t := lerpf(3.0, length - 3.0, h01(hk + [i, "wt"]))
