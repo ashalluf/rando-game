@@ -176,6 +176,8 @@ uniform float junction_glow = 0.75;
 #include "res://shaders/window_lights.gdshaderinc"
 // The facade pass, as the near walls draw it (building.gdshader's facade_variety).
 #include "res://shaders/facade_variety.gdshaderinc"
+// The skyline's glass by day (building.gdshader has the same): sky, clouds, towers, the sun.
+#include "res://shaders/skyline_glass.gdshaderinc"
 uniform bool facade_variety = false;
 // building.gdshader's window_recess (its punched and slot windows' depth), for the far reveal.
 uniform float window_recess_far = 0.20;
@@ -774,6 +776,15 @@ void fragment() {
 			}
 			vec3 sky_h = cs_as_uniform(vec3(0.42, 0.47, 0.55));
 			vec3 sky_ref = mix(sky_h, cs_as_uniform(vec3(0.26, 0.44, 0.80)), smoothstep(0.0, 0.55, refl.y));
+			// Skyline glass, as building.gdshader has it: this hour's sky and its clouds, the towers
+			// round the camera, the sun where nothing is in the way.
+			bool sg = sg_on();
+			float sg_block = 0.0;
+			float sg_t = 1e9;
+			if (sg) {
+				sky_ref *= sg_sky_ratio(refl, sun_n);
+				sky_ref = sg_clouds(refl, sky_ref, TIME);
+			}
 			if (facade_variety) {
 				// The far skyline, then the street opposite with its parallax (fx_opposite()).
 				float heading = atan(refl.x, refl.z) * 0.159155;
@@ -783,10 +794,16 @@ void fragment() {
 				vec3 near_wall0 = mix(vec3(0.16, 0.15, 0.14), vec3(0.09, 0.10, 0.12), hash21(vec2(floor(heading * 26.0), 9.1)));
 				near_wall0 = mix(near_wall0, near_wall0 * 0.5 + sky_h * 0.12, 0.35);
 				sky_ref = mix(sky_ref, mix(sky_h * 0.55, near_wall0, 0.35), in_far);
+				if (sg) {
+					vec4 tw = sg_towers(world_pos + origin_shift, refl, mpp, length(world_pos - INV_VIEW_MATRIX[3].xyz), sky_ref, sun_n, sg_t);
+					sky_ref = mix(sky_ref, tw.rgb, tw.a);
+					sg_block = tw.a;
+				}
 				vec3 rw = vec3(dot(refl, tan_u), refl.y, dot(refl, world_normal));
 				float opp_hit;
 				sky_ref = fx_opposite(rw, uq, max(vp, 0.3), wl_face_row(sd, face_id, 0.0), sky_ref,
 					cs_as_uniform(vec3(0.09, 0.09, 0.10)), -dot(sun_n, world_normal), mpp, opp_hit);
+				sg_block = max(sg_block, opp_hit);
 			} else {
 				float heading = atan(refl.x, refl.z) * 0.159155;
 				float near_slot = heading * 26.0;
@@ -800,12 +817,21 @@ void fragment() {
 				vec3 far_wall = mix(sky_h * 0.55, near_wall, 0.35);
 				sky_ref = mix(sky_ref, far_wall, in_far);
 				sky_ref = mix(sky_ref, near_wall, in_near);
+				if (sg) {
+					vec4 tw = sg_towers(world_pos + origin_shift, refl, mpp, length(world_pos - INV_VIEW_MATRIX[3].xyz), sky_ref, sun_n, sg_t);
+					sky_ref = mix(sky_ref, tw.rgb, tw.a);
+					sg_block = max(tw.a, max(in_near, in_far));
+				}
 				sky_ref = mix(cs_as_uniform(vec3(0.09, 0.09, 0.10)), sky_ref, smoothstep(-0.22, 0.10, refl.y));
 			}
 			float fres = pow(1.0 - clamp(-dot(to_frag, world_normal), 0.0, 1.0), 4.0);
 			float mirror = mix(0.26, 0.90, fres) * (1.0 - 0.85 * night_factor) * (storefront ? 0.66 : 1.0) * mix(1.0, pv.y, cell_fade);
 			float sky_now = clamp(dot(sky_tint.rgb, vec3(0.299, 0.587, 0.114)) / 0.74, 0.0, 1.5);
 			vec3 refl_emit = sky_ref * mirror * reflect_emit * reflect_energy * sky_now;
+			if (sg && refl.y > -0.05) {
+				// The near glass's glint, at its average once a pane is pixels (the bow is too).
+				refl_emit += sg_glint(refl, sun_n) * mirror * (1.0 - sg_block) * (storefront ? 0.5 : 1.0) * mix(0.35, 1.0, cell_fade);
+			}
 			float to_sun = max(dot(refl, sun_n), 0.0);
 			vec3 glare = vec3(1.0, 0.96, 0.88)
 				* (pow(to_sun, glass_glare_tightness) * glass_glare

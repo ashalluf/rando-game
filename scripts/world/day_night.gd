@@ -280,6 +280,10 @@ func _ready() -> void:
 			island.name = "OffshoreIsland"
 			add_child(island)
 			island.setup(_sky, self)
+		# The skyline's glass: this hour's sky, the clouds and the towers round the camera.
+		var skyline_glass := SkylineGlass.new()
+		skyline_glass.name = "SkylineGlass"
+		add_child(skyline_glass)
 	_apply()
 
 
