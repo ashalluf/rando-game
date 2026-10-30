@@ -21080,3 +21080,74 @@ win the most (both change pixels; DIFF them). (2) The relief lattice in `_block_
 (3) The beach town's "Other" (1.30 M, 0.67 M shadow) was not split by name (OSPLIT not run there).
 (4) The balcony provenance on desktop (2 above). (5) No flight bench, no Forward+ look, no web
 export this pass; the CPU table is from a loaded box.
+
+## 9d?. The aerial review: where the tiers meet, seen from 100-800 m (fleet wave 3, `wt/aerial-review`, 2026-10-30)
+
+**The ask** (owner: "make it look like GTA 6"): the player flies (boost, wingsuit, helicopters) and
+sees the city from 100-800 m. Shoot the standard aerials and fix the worst of what breaks the
+illusion at the tier boundaries.
+
+**How it was looked at.** Seven cameras x noon / golden hour / night from ONE load
+(`still_shot.gd SHOTS=`, 21 shots, ~30 min opengl3): downtown `2050,300,750,-49,-24`, midtown west
+`-450,260,950,-40,-20`, the suburbs and the coast `-500,320,1700,0,-24`, the beach town
+`-1450,260,-150,-90,-22`, the port `2300,320,5300,-140,-24`, the hills and valley
+`0,520,-500,0,-14`, downtown from 800 m `2300,800,1000,-25,-42`; hours 12.5, 17.3, 21.5. New tool
+`tools/aerial_review/layer_probe.gd` (extends still_shot.gd, run with `TREES_AB=1`): every shot again
+with one scene layer hidden at a time (`<shot>_hide_<layer>.png`), diffed in numpy to pin a speckle
+or a seam on the node that draws it.
+
+**What broke, and the fix** (all behind `AerialReview`, `scripts/world/aerial_review.gd`;
+`AERIAL_REVIEW=0` puts every one back):
+1. **The sea seam** (the worst): from 300 m at noon the streamed ocean chunks were dark navy and the
+   horizon plane's sea pale, cut along the chunk grid in stair steps. The ocean chunk paints its
+   water (EMITTED at face value) from `handover_end` 470 m, but the plane lights its sea through the
+   renderer out to `paint_start` .. `paint_end` (900 - 2300 m): two lighting models side by side.
+   And on Compatibility the ocean worked its painted water out in the renderer's space while the
+   plane works in linear and encodes (`cs_out`), so even painted the two differed on the web. Now
+   the plane paints its WATER on the ocean's own window (`sea_paint_start` / `_end`, copies of
+   `handover_*`), takes no `compat_paint_gain` there, and the ocean's painted water is linear through
+   `cs_out()` under a copy of the plane's layered `range_haze_*` (checked). Forward+ numbers are what
+   they were in the painted band; the change there is that the plane no longer lights its sea.
+2. **The hills at night**: the plane's renderer-lit band (under 900 m) was ALBEDO x `dim` (0.16) on
+   top of the renderer's own moonlight: a dark ring round every streamed hill tile at night. The
+   lit band is no longer dimmed (the painted band keeps `dim`; it lights itself).
+3. **A checkerboard on every slope** from 150 m up: terrain.gdshader's 13 m `mottle` tile. Past a
+   pixel footprint of `mottle_far_px` (0.28 - 0.75 m) a second sample rotated and at 2.37x the tile is
+   laid half over it (two incommensurate tilings show no period) and the contrast eases to
+   `mottle_far_keep` 0.55. Inside the hill shells' range (75 m, a 0.12 m pixel) nothing changes, so
+   hill_shells.gdshader's copy of the mottle still matches (checked).
+4. **Brown flecks over every range**: RockFar's far tors (pinned by the layer probe: hidden, the
+   ranges are clean) were renderer-lit and unhazed on a slope the plane paints and hazes; measured
+   (177, 164, 135) on (168, 164, 145), +-21-24 per channel. rock_outcrop.gdshader now takes the
+   plane's layered haze (as the far canopy does) and, in far_mode past `aerial_blend` 1100 - 3600 m,
+   up to `aerial_blend_max` 0.75 of its colour goes to a grey at the slope's tone and its normal is
+   laid over to up (`aerial_flatten`): a tor's sunlit and shaded halves were most of the fleck. Spread
+   now +-12-14; the silhouettes on the skyline stay. **Partial**: still faintly visible as patches.
+5. **Pale confetti trees** in the far city: Skyline's kerb rows and MidCity's yard trees drew
+   (151, 168, 121) from 800 m at noon where the FULL chunks' real trees beside them drew about
+   (40, 80, 30). `AerialReview.darken_city_canopy()` puts `CITY_CANOPY_GAIN` 0.5 on every city
+   canopy colour after the block's planting (colours only: no instance, roll or count moves). The
+   far tiles are LoadCache'd; the key reads the env switch.
+
+**Not changed, seen**: no pop-in rings or LOD seams in the city's own tiers from these cameras
+(the far city's hand-over per block holds); the lawns are saturated green on opengl3; the near
+hills at night are a pale moonlit grey (the renderer's moon on the tiles; the plane now agrees with
+them); a pale gridded strip under the sign hill in the beach-town view was not identified.
+
+**Measured.** Flight bench (`tools/flight_bench.gd`, FIXED=1, route a, headless, AERIAL_REVIEW=0 ->
+1): cpu 206.7 -> 202.9 ms a frame, p95 289.8 -> 282.1 ms (noise; the work is in shaders). Frame cost
+(GEO, the 21 shots before -> after) flat within traffic noise: e.g. downtown noon 3.414 M / 1,468
+draws -> 3.412 M / 1,458, suburbs 4.171 M / 1,585 -> 4.164 M / 1,575, hills 1.431 M / 405 -> same.
+Shader cost: the plane and the ocean add nothing past what they did in their painted bands; the
+terrain one more texture fetch past 0.28 m a pixel; the far tors a few ALU.
+
+**Stills**: `shots/aerial-review` (README there), 01-12 before/after pairs, 13-18 after.
+
+**Checks**: `tests/aerial_review_checks.gd` (the switch on; the ocean's copies of the plane's
+numbers - hand-over window, pixel angle, swell, range haze - and both seas linear; the materials the
+city set; the mottle's change outside the shells' range; the canopy gain colour-only and off with
+the switch).
+
+**NEEDS MAC CHECK** (none of this was seen on Forward+): the sea from 300 m at noon (the plane
+used to be lit there), the far tors' tone (tuned on opengl3 numbers; the renderers light them
+differently), the far crowns' darkness under AgX.

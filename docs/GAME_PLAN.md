@@ -3718,3 +3718,7 @@ none of either.
   triangles; balconies get a hand-made LOD and shadow twins; static mesh caches that grow with the
   places visited drop what only they hold (CacheTrim) instead of clearing at a size. Plain runs of
   an aerial bookmark differ by millions of triangles, so frame costs there are DIFF=1 pairs only.
+- 2026-10-30 (aerial review, wave 3): a seam between two tiers is fixed by making both sides draw
+  the same thing the same way (the plane paints its sea on the ocean's own window; far tors take the
+  plane's haze; the plane's lit band is never dimmed on top of the renderer's own night), not by
+  tuning one side's colour to the other in one still. AERIAL_REVIEW=0 is the A/B.
