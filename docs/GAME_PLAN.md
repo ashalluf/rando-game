@@ -302,6 +302,13 @@ already mapped so milestone 2 is script-only.
   every wall - one include shared by the near walls and the far boxes, rolled from integers so the
   LOD line keeps them. Corners of near box parts are bevelled 22 cm. Fins as geometry were tried and
   dropped (aliasing lines at 100 m). docs/HANDOFF.md "Facades that read as built".
+- **2026-10-30 Footbridges (HANDOFF "Footbridges").** Caged pedestrian overcrossings over the
+  wide boulevards by schools and parks and over the freeways. Decisions: placement is pure (hashes
+  of seed + road stretch / freeway slot), so any chunk a bridge touches agrees on it; the freeway
+  is elevated here, so its bridges climb 15-19 m in caged switchback stair towers standing on the
+  right of way (corridor lots only); boulevard stairs run along the back of the pavement; built in
+  code into one mesh and one material a bridge; planting under a bridge is collapsed after its
+  rolls, so nothing else on a seed moves.
 
 - **2026-10-05 Onlookers: the crowd comes back after the chaos (HANDOFF "Onlookers").** After
   the panic near a wreck, a blast or a body, people near the camera come back and stand round it

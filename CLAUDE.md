@@ -2936,6 +2936,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   The surface street grid is still axis-aligned (`CityPlan.road_pos()` is scalar per axis and
   blocks, lots, traffic lanes and the minimap all assume axis-aligned rects); the freeways and the
   hill roads are the curved roads.
+- Footbridges (2026-10-30, docs/HANDOFF.md "Footbridges"): `Footbridges` (pure placement: boulevards
+  >= 22 m by schools / parks, one freeway slot of 36 segments at a time with caged stair towers on
+  the corridor lots), `FootbridgeKit` (one mesh, `shaders/footbridge.gdshader`, kind in COLOR.a / 16),
+  `FootbridgeBuild` (one hook after `_build_freeway` and one in the capture; the owner chunk is the
+  span centre's; planting in `clear` rects collapsed via `_run_last`). `FOOTBRIDGES=0` the A/B;
+  `tools/footbridges/probe.tscn`, `bridge_shot.tscn`; checks `tests/footbridges_checks.gd`.
 - The four-level stack (VISUAL_ROADMAP #81, 2026-10-05, docs/HANDOFF.md, the stack section):
   where the 110 meets the 101 at the real four-level interchange. **The plan is
   `FreewayStack`** (`scripts/world/freeway_stack.gd`, `Freeway.stack`, made in `Freeway.build()`

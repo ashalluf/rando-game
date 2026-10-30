@@ -463,6 +463,8 @@ func begin_build() -> void:
 	# The freeway runs over every zone: city blocks, the beach, the hills, the lot. It is built
 	# last so its deck lands on top of whatever the chunk laid down.
 	_steps.append(_build_freeway)
+	# Pedestrian bridges over the boulevards and the freeways (Footbridges, FootbridgeBuild).
+	_steps.append_array(FootbridgeBuild.attach(self))
 	# The light rail (LightRail, LightRailKit): track, structure, overhead, stations, gates.
 	_steps.append(_build_light_rail)
 	# What stands on the hills (RidgeBuild): towers, masts, tanks, fire roads, the right of way.
@@ -526,6 +528,7 @@ func _begin_capture(block: Dictionary, replica_role: int = 0) -> void:
 			_steps.append_array(_port_steps(block))
 		MacroMap.Zone.AIRPORT:
 			_steps.append(_build_airport)
+	_steps.append_array(FootbridgeBuild.attach(self))
 	_steps.append(func() -> void: captured.batch = _batch.data())
 
 
