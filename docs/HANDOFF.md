@@ -20629,3 +20629,74 @@ no damage node and its shared paint shader; a shot car gets no crumple either).
   shadow twins carry the crush only where they share the paint material (the cars' own
   `_body_shadows` do); the motorcycles and aircraft take none of it; a dragged bumper throws no
   sparks of its own (DrivingFX's body contacts still do).
+
+## 9hs. Red and blue at night (fleet wave 3, police-night)
+
+The task: a police pursuit and a roadblock at night are a signature GTA image - red and blue
+strobes washing the street, the facades and the wet road, glare on the lens, the helicopter's
+searchlight through the haze. Before this a cruiser's bar was six small unshaded boxes plus one
+OmniLight3D per cruiser (desktop), and the lenses (shader TIME) and that light (the wall clock)
+did not even flash together.
+
+**What is new** - `PoliceNightLook` (`scripts/npc/police_night_look.gd`), one node under the
+tree root, made by the first PoliceCar (`ensure()` in `PoliceCar._ready()`):
+- **One flash clock** (`PoliceNightLook.clock`): `police_lights.gdshader` takes it as `clock`
+  (below 0 = shader TIME, the A/B), the glow material takes it, the real lights read
+  `PoliceCar.flash_side(clock)`. `hold` (and `POLICE_NIGHT_T=<s>` in the environment) freezes it
+  for stills and strips.
+- **Hotter lenses after dark**: `night_gain` (2.2 while the look runs) x `lamp_factor` on the lit
+  lens, pushed toward white - an HDR source the glow blooms on Forward+.
+- **Real strobes** (Forward+ desktop, `supported()`, CarLights' rule; `force` for checks): a pool
+  of OmniLight3Ds, `budget` 6 / 4 / 2 / 0 by Quality (`Quality.apply_level()`), handed every
+  `pick_interval` to the lit cruisers within `reach` (90 m) nearest the camera (ahead of it
+  weighted), kept while a car stays wanted, faded in and out over 0.15 s, placed each frame over
+  the lit bank, red or blue (blue 1.35x: it reads darker). They light the road, the walls and
+  every car's paint and glass round the cruiser. The cruiser's own BarLight stays dark under the look.
+- **Washes on every renderer** - a `PoliceGlow` child per lit cruiser within `wash_reach`, ONE
+  ShaderMaterial a car on `shaders/police_wash.gdshader` (never instance uniforms), kind in
+  COLOR.a x 4: lens **flares** (a white-hot core in a coloured halo that reaches zero at the quad's
+  edge) and a thin **lens streak** on each lit bank, never under `min_px`; a **pool** on the road
+  (`pool_size` 30 m, lifted `POOL_LIFT` 0.22 m so the kerb does not cut it), leaning to the lit
+  side, bigger on a wet road, with the bar **mirrored in the wet road** - the mirror point of the
+  bar seen from the camera, a broken streak from it toward the viewer, by `road_wetness` (the road's
+  SSR only mirrors what is on screen, and the web has none); a **facade wash** each side, found by a
+  ray every `wall_interval` and fitted to where the wall really runs (two more rays each way; an
+  additive quad past a wall's end glows in thin air). The pool and walls step back 60 % where a
+  real light is on the car.
+- **Roadblock flares**: a roadblock cruiser lays `flare_count` burning flares
+  (`FreewayIncidentKit.flare_node()`) in a vee across the road on the side the player was on,
+  taken up when it stops being a roadblock (or is pooled).
+- **The searchlight**: `searchlight_beam.gdshader` `look` 1 (Helicopter sets it) draws the shaft
+  as lit haze - a hot core down its axis, motes drifting through it, lit down to the ground,
+  thicker in rain - and the pool gets a white-hot `PoolCore`.
+
+Trap (cost a round): **a shader that writes POSITION in one branch uses it for every vertex**; the
+pool and wall quads collapsed to nothing until the other branch wrote it too.
+
+Nothing rolls a random number (a car's look is its own `_phase`, made by Police's rng as before).
+`POLICE_NIGHT_LOOK=0` is the A/B: the old bar, its own BarLight, the old shaft.
+
+Look with `tools/police_night/police_shot.gd` (a small street: a pursuit pair, a roadblock pair
+with flares, two parked cars, facades; `VIEW=chase|low|block`, `RAIN=0..1`, `T=` the clock,
+`STRIP=n` a frame strip 0.05 s apart, `LOOK=0`, `FORCE=1`; opengl3 seconds, lavapipe Forward+ a
+few minutes) and in the city with `STARS=3 POLICE=pursuit|standoff` on `still_shot.gd`
+(`POLICE_NIGHT_T=` holds the clock, `POLICE_NIGHT_DEBUG=1` prints every cruiser's state).
+Checks: `tests/police_night_look_checks.gd` (its own cruisers on a deck 300 m up; the clock, the
+glow, the budget, colours by bank, the wall wash, flares, a dark bar, day, the searchlight, no rng,
+Quality's table).
+
+Cost (still_shot.gd GEO, opengl3, downtown at Flower and Olympic `--spawn=2359.4,880,0,-4`,
+23:00, `STARS=3 POLICE=pursuit`, before = POLICE_NIGHT_LOOK=0): 4,312 -> 4,323 draws, 9,174,259
+-> 9,182,098 triangles (+0.1 %); a cruiser's glow is 4 draws (flares and streaks one, the pool,
+two walls) plus two rays every 0.6 s and four more where a wall is found; the real strobes are
+at most `budget` unshadowed omnis. Stills on `shots/police-night` (01-10, README there).
+
+**Not done / not verified**: the real strobes are seen only on lavapipe in the small street (no
+Forward+ city render: it does not fit lavapipe); the opengl3 rain-night city stills draw the road
+white with or without this branch (the harness, not the look); the helicopter's new shaft was not
+caught in a city still (AIR=police framed it out); no strobe reflection in the road shader's own
+mirrored city (the pool's mirror streak stands in for it); emergency vehicles' beacons are untouched.
+Gate (`SHARDS=3`, after merging main dbf7ac87+): 3,942 checks, 3 failed - ragdolls "a doll comes
+to rest on a car-high box", wildlife "calm animals stay put", explosions_2 "the blasts leave
+nothing behind" - all three pass alone with POLICE_NIGHT_LOOK=1 and =0 (118 checks each), so they
+are order-dependent in shard 0 / 2, not this branch. Peak RSS 3,377 MB (shard 1).
