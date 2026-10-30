@@ -295,6 +295,13 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-29 Crowd foot placement (G5; HANDOFF "Crowd foot placement").** Near the camera
+  (fading out from 20 to 30 m) every walker and stander plants its feet on what is really under
+  them - a kerb, a stair tread, a slope, a hill path - instead of the flat plane the clips were made
+  on: two rays a foot, the hips down by the lower foot, the legs re-solved in their own knee plane,
+  feet tilted to a slope. Stairs whose collision is a walkable ramp (the player cannot climb
+  risers) get their real treads on a new feet-only physics layer 6 that nothing pairs with. The
+  hero keeps his own planted-foot IK (HeroMotion) and reads the same layer. `FOOT_IK=0` is the A/B.
 - **2026-10-05 Apartments: the first per-style kit (G2; HANDOFF "Apartment buildings").** Midtown's
   low-rise lots and the inner suburbs get LA stucco apartments - walk-ups with galleries and open
   stairs, bungalow courts, Spanish courts, podium blocks - instead of storefront boxes and single
