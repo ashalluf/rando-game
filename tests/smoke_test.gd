@@ -2426,6 +2426,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/settings_menu_checks.gd").new().run(self, city)
 	# Fireworks (tests/fireworks_checks.gd): the shared plan, the nights, the sites, a staged show, the booms.
 	await load("res://tests/fireworks_checks.gd").new().run(self, city)
+	# The film shoot on location (tests/film_shoot_checks.gd): closed local streets apart, the
+	# basecamp and the set, the kit, the built chunk and its people, LOD, and the A/B.
+	load("res://tests/film_shoot_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
