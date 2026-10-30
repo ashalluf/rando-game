@@ -250,7 +250,9 @@ func _check_pool(city: Node3D) -> void:
 func _count_splashes(player: Node) -> int:
 	var n := 0
 	for c in player.get_parent().get_children():
-		if str(c.name).begins_with("SwimSplash"):
+		# contains, not begins_with: while an earlier splash still stands, Godot names the next one
+		# "@SwimSplash@<n>" (a file before this one that put the player in the water left one).
+		if str(c.name).contains("SwimSplash"):
 			n += 1
 	return n
 

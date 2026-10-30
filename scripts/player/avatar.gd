@@ -511,6 +511,37 @@ const IDLE_VARIANTS := ["idle_look", "idle_neck", "idle_watch", "idle_stretch"]
 const LEFT_RAMP := 0.35
 ## Natural speed of the sprint clip (tools/hero/hero_clips.gd prints its gait).
 const SPRINT_CLIP_SPEED := 8.3
+## The hero's clips measured from their own planted feet (HeroStride, tools/hero_closeup/
+## stride_probe.gd): the speed each plays at 1.0 with its feet still on the ground. The old
+## numbers above were 1.5x the walk's and 1.6x the run's, so every step skated forward.
+const HERO_WALK_SPEED := 0.88
+const HERO_RUN_SPEED := 3.17
+const HERO_SPRINT_SPEED := 9.44
+## With the measured speeds the bands move to where people change gait: walk to a jog at 2 m/s,
+## the run to the sprint at 6.3 (played at 0.67, its cadence a sprinter's 3 steps a second).
+const HERO_RUN_FROM := 2.0
+const HERO_SPRINT_FROM := 6.3
+## The playback rate ranges (a walk faster than 2.3x reads as a scurry, slower than 0.7 as a crawl).
+const HERO_WALK_RATE := Vector2(0.7, 2.3)
+const HERO_RUN_RATE := Vector2(0.65, 2.0)
+const HERO_SPRINT_RATE := Vector2(0.65, 2.2)
+
+
+## The locomotion clip and its rate for ground speed `speed` (the hero; `boosting` forces the
+## sprint). Stride-matched: rate = speed / the clip's measured speed, inside the ranges above.
+## HERO_CLOSEUP=0 gives the old bands and speeds (the A/B).
+func hero_gait(speed: float, boosting: bool) -> Array:
+	if not HeroFace.closeup():
+		if speed < run_threshold:
+			return [WALK_CLIP, clampf(speed / WALK_CLIP_SPEED, 0.7, 2.4)]
+		if speed < sprint_threshold and not boosting:
+			return [RUN_CLIP, clampf(speed / RUN_CLIP_SPEED, 0.8, 2.8)]
+		return ["moves/sprint", clampf(speed / SPRINT_CLIP_SPEED, 0.9, 2.2)]
+	if speed < HERO_RUN_FROM and not boosting:
+		return [WALK_CLIP, clampf(speed / HERO_WALK_SPEED, HERO_WALK_RATE.x, HERO_WALK_RATE.y)]
+	if speed < HERO_SPRINT_FROM and not boosting:
+		return [RUN_CLIP, clampf(speed / HERO_RUN_SPEED, HERO_RUN_RATE.x, HERO_RUN_RATE.y)]
+	return ["moves/sprint", clampf(speed / HERO_SPRINT_SPEED, HERO_SPRINT_RATE.x, HERO_SPRINT_RATE.y)]
 
 
 ## The player jumped: the take-off (air: a mid-air jump, the same spring of the legs).
@@ -647,13 +678,10 @@ func _drive_moves(delta: float, speed: float, on_floor: bool, vertical: float, b
 					_anim.play(clip, 0.4)
 			else:
 				_play(IDLE_CLIP, 1.0)
-		elif speed < run_threshold:
-			_play(WALK_CLIP, clampf(speed / WALK_CLIP_SPEED, 0.7, 2.4))
-		elif speed < sprint_threshold and not boosting:
-			_play(RUN_CLIP, clampf(speed / RUN_CLIP_SPEED, 0.8, 2.8))
 		else:
-			_play("moves/sprint", clampf(speed / SPRINT_CLIP_SPEED, 0.9, 2.2))
-			if boosting:
+			var gait := hero_gait(speed, boosting)
+			_play(gait[0], gait[1])
+			if gait[0] == "moves/sprint" and boosting:
 				lean_target = ground_lean
 	_left = move_toward(_left, left_target, delta / LEFT_RAMP)
 	_low = move_toward(_low, low_target, delta / LEFT_RAMP)

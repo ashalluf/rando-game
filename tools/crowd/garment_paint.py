@@ -399,8 +399,8 @@ def paint_trousers(pt, B, X, sel, L, spec, outfit_color):
     sub = _Sub(pt, sel)
     # shorts in a woven cloth ("fabric": "woven") are chino shorts: welt pockets, no yoke or rivets
     denim = style in ("jeans", "slim", "shorts") and spec.get("fabric", "denim") == "denim"
-    chino = style == "chinos" or (style == "shorts" and not denim)
-    knit = style in ("leggings", "joggers")
+    chino = style in ("chinos", "wide") or (style == "shorts" and not denim and not spec.get("athletic"))
+    knit = style in ("leggings", "joggers") or bool(spec.get("athletic"))
     thread = spec.get("thread", [196, 142, 70] if denim else None)
     if thread is None:
         thread = list(np.clip(np.array(outfit_color) * 0.82, 0, 255))
@@ -484,7 +484,7 @@ def paint_trousers(pt, B, X, sel, L, spec, outfit_color):
                 sub.tint(k, thread, 0.9)
     else:
         seam(sub, np.where(P[:, 2] > crotch + 0.04, dw - band, 1.0), mpp, side=-1.0, rows=(0.004,), groove=0.0005)
-        if style == "joggers":
+        if style == "joggers" or spec.get("athletic"):
             # an elastic waistband: gathered into soft ridges all round, and a drawcord's two
             # eyelets either side of the front
             wb = (dw > 0.0) & (dw < band) & (P[:, 2] > crotch)
@@ -614,7 +614,12 @@ def paint_trousers(pt, B, X, sel, L, spec, outfit_color):
         seam(sub, np.where(outer, P[:, 1] - yc, 1.0), mpp, side=1.0, along=P[:, 2], rows=(0.006,) if style == "chinos" else (), thread=thread, dark=0.16)
         inner = m & (P[:, 0] * sg < x_ax * sg) & (P[:, 2] < crotch + 0.005)
         seam(sub, np.where(inner, P[:, 1] - y_ax, 1.0), mpp, side=-1.0, along=P[:, 2], rows=(0.003, 0.009) if denim else (), thread=thread, dark=0.16)
-        if style == "chinos":
+        if spec.get("athletic"):
+            # gym shorts: a contrast stripe down the outside of each leg and a split at the hem
+            dsd = np.where(m & (P[:, 2] < crotch + 0.12), P[:, 1] - yc, 1.0)
+            stp = 1.0 - sstep(spec.get("stripe_w", 0.006), spec.get("stripe_w", 0.006) + 0.0015, np.abs(dsd))
+            sub.tint(stp * (P[:, 0] * sg > x_ax * sg), spec.get("stripe_color", [230, 230, 226]), 1.0)
+        if style in ("chinos", "wide"):
             # the pressed crease down the front of the leg
             fwd_ok = m & (P[:, 1] < y_ax) & (P[:, 2] < crotch - 0.05)
             dcr = np.where(fwd_ok, P[:, 0] - x_ax, 1.0)
@@ -1054,6 +1059,14 @@ def paint_skirt(pt, B, X, pidx, parts, L, spec):
         seam(sub, np.where(dw > band, d, 1.0), mpp, side=1.0, along=P[:, 2], thread=thread, dark=0.15)
     zl = (np.abs(np.angle(np.exp(1j * (th - math.pi / 2))) * rr - 0.008) < 0.0015) & (dw > band) & (dw < band + 0.18)
     sub.shade(1.0 - 0.25 * zl)
+    if spec.get("slit"):
+        # a pencil skirt's back vent: the overlap's edge a step and a shadow up from the hem
+        tb = np.angle(np.exp(1j * (th - math.pi))) * rr
+        z0 = float(np.min(P[:, 2]))
+        k = gauss(tb, 0.0013) * (P[:, 2] < z0 + spec["slit"])
+        sub.h -= 0.0012 * k
+        sub.shade(1.0 - 0.55 * k)
+        seam(sub, np.where(P[:, 2] > z0 + spec["slit"], tb, 1.0), mpp, side=1.0, along=P[:, 2], groove=0.0004, dark=0.15)
     d = edge_dist(P, L["hems"], "hem")
     hem_band(sub, d, 0.025, mpp, rows=(0.02,), thread=thread, along=th * rr)
     sub.commit()
@@ -1067,6 +1080,22 @@ def paint_vest(pt, B, X, pidx, parts, L, spec):
     mpp = X.mpp[sel]
     sub = _Sub(pt, sel)
     th, rr = B.azimuth(P)
+    if spec.get("tank"):
+        # a jersey tank: heathered knit, side seams, the neck and armholes bound with a binding
+        # turned over and twin-needle stitched, a coverstitched hem
+        k = fbm(P, 0.004, 2, seed=105) * 0.08 + vnoise(P, 0.0015, seed=107) * 0.06 if spec.get("heather") else 0.03 * fbm(P, 0.02, 2, seed=109)
+        sub.shade(1.0 + k)
+        yc = B.torso_axis_y(P[:, 2])
+        seam(sub, np.where(np.abs(P[:, 0]) > 0.06, P[:, 1] - yc, 1.0), mpp, side=1.0, along=P[:, 2], groove=0.0004, dark=0.12)
+        d = edge_dist(P, L["hems"], "")
+        bind = 1.0 - sstep(0.009, 0.0105, d)
+        sub.shade(1.0 - 0.06 * bind)
+        sub.h += 0.0004 * bind
+        seam(sub, d - 0.0105, mpp, side=-1.0, rows=(0.003,), groove=0.0003, dark=0.1)
+        if spec.get("trim_color"):
+            sub.tint(bind, spec["trim_color"], 1.0)
+        sub.commit()
+        return
     # knitted mesh: a lattice of small holes (dark), faded under a texel
     fade = 1.0 - sstep(0.0008, 0.0016, mpp)
     hole = np.cos(TAU * (P[:, 0] + P[:, 2]) / 0.0035) * np.cos(TAU * (P[:, 0] - P[:, 2]) / 0.0035)
@@ -1255,6 +1284,201 @@ def paint_rib_cuffs(pt, X, pidx, parts):
         s.commit()
 
 
+# ---- tailored jacket and tie --------------------------------------------------------------------
+def paint_tailored(pt, B, X, pidx, parts, L, spec):
+    """A tailored coat: worsted wool (a fine twill, pinstripes or a faint check when the spec has a
+    pattern), the side and back seams, the centre back seam and the VENT up from the hem, the
+    front edge running down from the top button and curving away to the side at the hem (the
+    cutaway), front darts, the breast welt pocket, pick stitching round the lapels and the
+    collar, a buttonhole in the left lapel, the flaps' edges, cuff buttons on each sleeve."""
+    sel_all = np.isin(X.part, pidx)
+    shell = np.isin(X.part, [k for k in pidx if parts[k]["part"] == "shell"])
+    thread = spec.get("thread", list(np.clip(np.array(spec.get("color", [60, 60, 64])) * 0.9, 0, 255)))
+    P = X.P[sel_all]
+    mp = X.mpp[sel_all]
+    sub = _Sub(pt, sel_all)
+    zone = X.zone[sel_all].copy()
+    pattern(sub, B, P, spec, zone, mp)
+    fade = 1.0 - sstep(0.0006, 0.0013, mp)
+    tw = np.cos(TAU * (P[:, 0] * 0.7 + P[:, 2]) / 0.0011)
+    sub.h += 0.00008 * tw * fade
+    sub.shade(1.0 + 0.025 * tw * fade + 0.035 * fbm(P, 0.02, 2, seed=211))
+    sub.commit()
+    paint_top_seams(pt, B, X, shell, L, spec, None, "tee")
+    V = L["v"]
+    P = X.P[shell]
+    mpp = X.mpp[shell]
+    sub = _Sub(pt, shell)
+    th, rr = B.azimuth(P)
+    front = np.cos(th)
+    z_hem = L["z_hem"]
+    zb = V["z_btn"]
+    # the right front laps over the left: its edge a line down the centre to a hand over the hem,
+    # then away round the curve to the side
+    m = (front > 0.3) & (P[:, 2] < zb + 0.01)
+    if m.any():
+        Q = np.stack([P[m, 0], P[m, 2]], 1)
+        line = [np.array([-0.006, zb]), np.array([-0.006, z_hem + 0.09]), np.array([-0.02, z_hem + 0.04]), np.array([-0.06, z_hem + 0.008]),
+                np.array([-0.1, z_hem - 0.01])]
+        d, al = seg_dist(Q, line)
+        sm = _Sub(sub, m)
+        # the step where the lap's edge stands over the cloth under it
+        sm.h -= 0.0012 * gauss(d, 0.0016)
+        sm.shade(1.0 - 0.55 * gauss(d, 0.0012))
+        sm.h += 0.0004 * gauss(d - 0.004, 0.003)
+        seam(sm, d - 0.006, mpp[m], side=1.0, along=al, rows=(0.0,), thread=thread, groove=0.0001, ridge=0.0, dark=0.04)
+        sm.commit()
+    # centre back seam and the vent: the vent's overlap a step and a shadow up from the hem
+    back = front < -0.4
+    tb = np.angle(np.exp(1j * (th - math.pi))) * rr
+    seam(sub, np.where(back, tb, 1.0), mpp, side=1.0, along=P[:, 2], groove=0.0005, dark=0.18)
+    vent = spec.get("vent", 0.22 if z_hem < V["hip"] - 0.05 else 0.0)
+    if vent > 0:
+        mv = back & (P[:, 2] < z_hem + vent) & (np.abs(tb) < 0.03)
+        k = gauss(tb - 0.002, 0.0014) * (P[:, 2] < z_hem + vent)
+        sub.h -= 0.0015 * k * mv
+        sub.shade(1.0 - 0.6 * k * mv)
+        # the vent's top: a short diagonal tack
+        dz = np.hypot(tb, P[:, 2] - (z_hem + vent))
+        sub.shade(1.0 - 0.3 * back * gauss(dz, 0.003))
+    # front darts up from the pockets toward the chest
+    ch = B.B("Spine")
+    for sg in (1.0, -1.0):
+        x0 = sg * 0.095
+        m = (front > 0.2) & (np.abs(P[:, 0] - x0) < 0.02) & (P[:, 2] > V["buttons"][-1] - 0.07) & (P[:, 2] < ch[2] - 0.03)
+        if m.any():
+            tz = sstep(V["buttons"][-1] - 0.07, ch[2] - 0.03, P[:, 2])
+            k = gauss(np.abs(P[:, 0] - x0), 0.0016) * np.sin(np.pi * tz) * m
+            sub.h -= 0.0005 * k
+            sub.shade(1.0 - 0.1 * k)
+    # breast welt pocket, figure's left (+x), tilted up toward the side
+    m = (front > 0.2) & (P[:, 0] > 0.04) & (np.abs(P[:, 2] - (ch[2] + 0.005)) < 0.04)
+    if m.any():
+        Q = np.stack([P[m, 0], P[m, 2]], 1)
+        a, b = np.array([0.075, ch[2] - 0.004]), np.array([0.172, ch[2] + 0.012])
+        d, al = seg_dist(Q, [a, b])
+        box = 1.0 - sstep(0.011, 0.0125, d)
+        sm = _Sub(sub, m)
+        sm.h += 0.0008 * box
+        sm.shade(1.0 - 0.35 * gauss(d - 0.012, 0.0012) - 0.25 * gauss(Q[:, 1] - (a[1] + (Q[:, 0] - a[0]) * (b[1] - a[1]) / (b[0] - a[0])) + 0.011, 0.0012) * (box > 0.1))
+        sm.commit()
+    # three buttons on each cuff, over the sleeve's back seam
+    for side, sg in (("Left", 1.0), ("Right", -1.0)):
+        e = L["ends"][side]
+        co, no = np.array(e["co"]), np.array(e["no"])
+        s = (P - co) @ no
+        m = ((P[:, 0] * sg) > 0.1) & (s < 0.0) & (s > -0.07)
+        if not m.any():
+            continue
+        out = np.array([sg, 0.0, -0.4])
+        out = out - no * (out @ no)
+        out /= np.linalg.norm(out)
+        r = P[m] - co
+        rad = r - np.outer(r @ no, no)
+        rn = rad / np.maximum(np.linalg.norm(rad, axis=1, keepdims=True), 1e-6)
+        ang = np.arccos(np.clip(rn @ out, -1, 1)) * np.linalg.norm(rad, axis=1)
+        sm = _Sub(sub, m)
+        for kk in range(3):
+            dd = np.hypot(ang, s[m] + 0.025 + 0.018 * kk)
+            bt = 1.0 - sstep(0.0045, 0.0058, dd)
+            sm.tint(bt, spec.get("buttons_color", [40, 36, 34]), 1.0)
+            sm.h += 0.0009 * bt
+        sm.commit()
+    d = edge_dist(P, L["hems"], "")
+    sub.shade(1.0 - 0.1 * gauss(d, 0.0015))
+    sub.commit()
+    for k in pidx:
+        kind = parts[k]["part"]
+        m = X.part == k
+        if not m.any() or kind not in ("lapel", "collar", "pflap"):
+            continue
+        g = X.G[m]
+        s = _Sub(pt, m)
+        u, v = g[:, 0], g[:, 1]
+        if kind == "lapel":
+            vmax = np.interp(u, *_lapel_width(u, v))
+            de = np.minimum(np.abs(vmax - v), 1.0)
+            s.shade(1.0 - 0.18 * gauss(de, 0.0015))
+            r = gauss(de - 0.006, np.maximum(0.0005, 0.6 * X.mpp[m]))
+            s.shade(1.0 - 0.06 * r)
+            # the roll: the fold's crest catches the light, the turn behind it in shade
+            s.shade(1.0 + 0.08 * gauss(v - 0.003, 0.004) - 0.3 * (v < -0.002))
+            if parts[k]["name"].endswith("_L"):
+                ulen = u.max()
+                bh = gauss(v - 0.025, 0.0011) * (np.abs(u - ulen * 0.68) < 0.011)
+                s.shade(1.0 - 0.5 * bh)
+        elif kind == "collar":
+            vmax = float(v.max())
+            s.shade(1.0 - 0.14 * gauss(v - vmax * 0.36, 0.002))
+        else:
+            u0, u1, v0, v1 = u.min(), u.max(), v.min(), v.max()
+            de = np.minimum(np.minimum(u - u0, u1 - u), np.minimum(v - v0, v1 - v))
+            s.shade(1.0 - 0.3 * gauss(de, 0.0016))
+            s.shade(1.0 - 0.05 * gauss(de - 0.005, 0.0007))
+        s.commit()
+
+
+def _lapel_width(u, v):
+    """The lapel's width along it, from its own texels: the widest v at each u (binned)."""
+    bins = np.linspace(u.min(), u.max() + 1e-6, 40)
+    k = np.clip(np.digitize(u, bins) - 1, 0, len(bins) - 2)
+    w = np.zeros(len(bins) - 1)
+    for i in range(len(w)):
+        mm = k == i
+        w[i] = v[mm].max() if mm.any() else 0.0
+    c = 0.5 * (bins[1:] + bins[:-1])
+    ok = w > 0
+    return c[ok], w[ok]
+
+
+def paint_tie(pt, B, X, pidx, parts, L, spec):
+    """Silk: a fine woven sheen, the stripe (repp: diagonal bars down from the wearer's left
+    shoulder) or a small neat print, the blade's keeper loop and edge rolls, the knot's folds."""
+    for k in pidx:
+        m = X.part == k
+        if not m.any():
+            continue
+        g = X.G[m]
+        mp = X.mpp[m]
+        s = _Sub(pt, m)
+        u, v = g[:, 0], g[:, 1]
+        pat = spec.get("pattern", {"type": "repp"})
+        c2 = pat.get("color", [200, 196, 190])
+        per = pat.get("period", 0.024)
+        if pat.get("type", "repp") == "repp":
+            x = (u - v) / math.sqrt(2.0)
+            W = np.clip(1.6 * mp / per, 1e-3, 0.45)
+            t = x / per
+            wdt = pat.get("width", 0.22)
+            F = lambda t: np.floor(t) * wdt + np.minimum(t - np.floor(t), wdt)
+            bar = np.clip((F(t + W * 0.5) - F(t - W * 0.5)) / W, 0.0, 1.0)
+            s.tint(bar, c2, pat.get("strength", 0.9))
+        else:
+            gu, gv = u / per, v / per
+            r = np.hypot(gu - np.round(gu), gv - np.round(gv))
+            dot = 1.0 - sstep(0.18, 0.26, r)
+            fade = 1.0 - sstep(per * 0.2, per * 0.5, mp)
+            s.tint(dot * fade + (1 - fade) * 0.12, c2, pat.get("strength", 0.9))
+        fade = 1.0 - sstep(0.0005, 0.001, mp)
+        wv = np.cos(TAU * (u + v) / 0.0008)
+        s.h += 0.00005 * wv * fade
+        hw = np.maximum(np.abs(u).max(), 1e-3)
+        s.shade(1.0 - 0.18 * sstep(0.7, 1.0, np.abs(u) / np.maximum(np.interp(v, *_tie_half(u, v)), 1e-3)))
+        if parts[k]["part"] == "knot":
+            s.shade(1.0 - 0.22 * gauss(np.abs(u) - 0.004, 0.006) * (v > 0.012))
+        del hw
+        s.commit()
+
+
+def _tie_half(u, v):
+    bins = np.linspace(v.min(), v.max() + 1e-6, 30)
+    k = np.clip(np.digitize(v, bins) - 1, 0, len(bins) - 2)
+    w = np.array([np.abs(u[k == i]).max() if (k == i).any() else 0.0 for i in range(len(bins) - 1)])
+    c = 0.5 * (bins[1:] + bins[:-1])
+    ok = w > 0
+    return c[ok], w[ok]
+
+
 # ---- entry point ----------------------------------------------------------------------------------
 def paint(name, size):
     """(albedo sRGB float (size, size, 3), coverage, normal (size, size, 3) tangent space,
@@ -1326,4 +1550,5 @@ def paint(name, size):
     return alb, X.cov, nrm.astype(np.float32), X.cov
 
 
-PAINTERS = {"dress": paint_dress, "shirt": paint_shirt, "jacket": paint_jacket, "skirt": paint_skirt, "vest": paint_vest, "scarf": paint_scarf}
+PAINTERS = {"dress": paint_dress, "shirt": paint_shirt, "jacket": paint_jacket, "skirt": paint_skirt, "vest": paint_vest, "scarf": paint_scarf,
+            "tailored": paint_tailored, "tie": paint_tie}

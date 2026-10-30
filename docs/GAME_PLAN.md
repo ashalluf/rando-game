@@ -295,6 +295,14 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-30 The blast is built frame by frame (fleet wave 3, `explosions-2`).** The rocket and
+  car explosions get a second layer on top of WeaponFX's (`BlastFX`, one call): flash light and
+  screen flash, a screen-reading pressure wave (desktop only), fire rolling upward, a LIT smoke cap
+  and column (hand-lit, unshaded, linear on both renderers, so the web and the Mac agree), burning
+  debris as script points feeding shared emitters (no physics bodies), and the windows facing the
+  blast across the street broken through BuildingDamage's own records. Caps keep a rocket barrage
+  to three full blasts in 2.5 s. `EXPLOSIONS_2=0` is the A/B.
+
 - **2026-10-30 The mid distance is planted and parked from the capture, never placed (HANDOFF "The
   mid distance").** The far tiers' yard trees come from the LOD block build's own capture (green
   ground, building footprints) on hashes of the seed and the place, and the far streets' cars are
@@ -3494,6 +3502,20 @@ already mapped so milestone 2 is script-only.
   themselves (brush down each rill) decide, and the bushes only rag the edges. The searsia shrub
   (black leaf atlas, dark sprigs) is replaced on the stands by a code-built chaparral mound
   (HillShrub, LaTrees' machinery). HILL_GROUND_3=0 puts everything back.
+- 2026-10-30 (wave 3, crowd-variety): six more adults (crowd_aa..af) appended to Pedestrian.MODELS - a suit and tie, a blazer, a work shirt, a cardigan, a gym tank, wide trousers - with the tailored jacket, the necktie, the tank and wide trousers added to tools/crowd/garments.py. Appended, so every earlier rig keeps its index; a person's roll picks among 32 now (CROWD_VARIETY=0: the old 26).
+- **2026-10-30 Every check file starts from a clean city.** The smoke test snapshots the city
+  after its setup and puts it back (statics, weather, hour, staged traffic, the units' switches,
+  destruction, onlookers, wrecks, debris, time scale, the player) before every check file and city
+  part, in one process as in a shard, so a check's result no longer depends on what ran before it
+  (`tests/gate_reset.gd`; `SMOKE_SHUFFLE=<seed>` is the proof). Chosen over patching each order bug
+  where it surfaced. CI runs `SHARDS=auto`.
+- **2026-10-30 The hero's face lives in shaders; his clips play at their feet's speed.** The rig has
+  no face bones and rebuilding it in Blender would break every clip and fit, so the blink and the
+  gaze are the eye and lash shaders (the eyeball turned about its centre, the upper lid painted onto
+  it, the upper lashes swung down) driven by HeroFace from the head bone. The walk / run / sprint
+  play at speeds measured from each clip's planted foot (HeroStride) instead of guessed numbers
+  (the walk was 1.5x off, the run 1.6x), and the gait bands moved to where people change gait.
+  Rain wets him through the street's own wetness global. HERO_CLOSEUP=0 keeps all of it off.
 - **2026-10-30 The hills' volume is a cheap code-built clump on the stand field, not more scanned
   shrubs.** (hill-planting-2) A stand is thousands of shrubs; a HillShrub is 5,800 triangles near,
   so the volume comes from a 63 / 15 / 6-triangle clump of three domes whose leaves the shader
