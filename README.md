@@ -17,5 +17,8 @@ van alone with `NEWS=0 tools/glshot/car_shot.gd --row=0,0`.
 - `08_vans_mast_and_dish_raised.jpg`, `09_vans_side.jpg` - SUNCOAST 4 (mast) and BASIN 7 (dish)
   with their uplinks raised.
 
+- `10_live_shot_after_no_backpack_1500.jpg` - the live shot again after the dress fix: the operator's
+  shoulder camera, the reporter on air, the wreck burning behind the tape.
+
 Note: in 02 and 07 the operator wears the crowd's backpack roll; news crews no longer roll one
 (reporters wear nothing on their heads, operators sometimes a cap) since these were taken.
