@@ -21055,6 +21055,12 @@ Tools: `tools/perf_audit_3/feet_probe.gd`, `balcony_probe.gd`; `OSPLIT_BY=n` on 
 lists n parent / shader rows under an OSPLIT category (and "Chunk_21,-3" now counts as "Chunk").
 Switches: `CACHE_TRIM=0`, `BALCONY_LOD=0`, `BALCONY_SHADOW=0`.
 
+**The gate** (`SHARDS=3 tests/headless_check.sh`, this branch merged with main 3192f64): 4,048
+checks, 0 failed, 1,133 s; shard peaks 2,744 / 3,393 / 3,306 MB. A first gate before main's last
+merge failed three checks (two explosions_2 counts and one ragdoll rest height) that main fixed in
+the meantime ("this blast's own flash, and only the debris it added"; the ragdolls' even inertia);
+they failed the same way in shard 1's order on that tree and passed alone.
+
 ### Not done / next
 
 (1) The far city: 110 k canopies and 83 k boxes are 1.7-2.6 M camera triangles at every bookmark;
