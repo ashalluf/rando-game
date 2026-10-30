@@ -31,6 +31,7 @@ static func stage(tree: SceneTree, level: float, cam: Camera3D) -> String:
 				best_d = d
 				best = p
 	print("RAIN_STAGE level %.2f near: %s" % [level, counts])
+	tree.process_frame.connect(_far_report.bind(tree), CONNECT_ONE_SHOT)
 	if best == null:
 		return ""
 	var yaw := best._visual.global_rotation.y
@@ -42,3 +43,22 @@ static func stage(tree: SceneTree, level: float, cam: Camera3D) -> String:
 	var dd := target - at
 	var world: Vector3 = tree.root.get_node("/root/WorldState").to_world(at)
 	return "%.2f,%.2f,%.2f,%.2f,%.2f" % [world.x, world.y, world.z, rad_to_deg(atan2(-dd.x, -dd.z)), rad_to_deg(atan2(dd.y, Vector2(dd.x, dd.z).length()))]
+
+
+## The far tier a few frames on (the far walkers pose every 4th physics frame): how many carry
+## the coarse canopy.
+static func _far_report(tree: SceneTree) -> void:
+	for i in 5:
+		await tree.process_frame
+	var shown := 0
+	var far := 0
+	for n in tree.get_nodes_in_group("pedestrian"):
+		var p := n as Pedestrian
+		if p == null or p.rain == null or p._life_near:
+			continue
+		far += 1
+		if p.rain._far_umbrella != null and p.rain._far_umbrella.visible:
+			shown += 1
+			if OS.get_environment("RAIN_REPORT") == "1":
+				print("RAIN far umbrella at %s" % (tree.root.get_node("/root/WorldState").to_world(p.global_position) as Vector3).snapped(Vector3.ONE * 0.1))
+	print("RAIN_STAGE far walkers %d, far umbrellas %d" % [far, shown])

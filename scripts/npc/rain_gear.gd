@@ -95,11 +95,22 @@ static func umbrella(kind: int, step: int) -> ArrayMesh:
 	return _umbrellas[key]
 
 
+## The open umbrella of `kind` as it is seen past crowd life's range (RainCrowd's far tier, 60 to
+## 140 m: a figure 20-50 pixels tall): the canopy's dome in three rows and two columns a gore and
+## the shaft, nothing under a pixel (~100 triangles), shared.
+static func umbrella_far(kind: int) -> ArrayMesh:
+	var key := kind * 100 + 50
+	if not _umbrellas.has(key):
+		_umbrellas[key] = build_umbrella(kind, 1.0, false)
+	return _umbrellas[key]
+
+
 ## Every umbrella mesh now (the loading screen: ~3 ms an umbrella here).
 static func warm() -> void:
 	for k in [Kind.STICK, Kind.COMPACT]:
 		for s in OPEN_STEPS:
 			umbrella(k, s)
+		umbrella_far(k)
 
 
 ## How far the canopy reaches out from the shaft when open (m): RainCrowd keeps it clear of walls.
@@ -113,7 +124,7 @@ static func apex_height(kind: int) -> float:
 	return float(SPECS[kind].apex)
 
 
-static func build_umbrella(kind: int, open: float) -> ArrayMesh:
+static func build_umbrella(kind: int, open: float, detail: bool = true) -> ArrayMesh:
 	var sp: Dictionary = SPECS[kind]
 	var n: int = sp.ribs
 	var rib_len: float = sp.rib
@@ -123,7 +134,7 @@ static func build_umbrella(kind: int, open: float) -> ArrayMesh:
 	var f := smoothstep(0.0, 1.0, open)
 	# The rib's angle from straight up along its length: open it is the dome (a0 at the apex,
 	# a1 at the tip); furled it hangs down the shaft (176 degrees), curling in a little at the tip.
-	var rows := 9
+	var rows := 9 if detail else 3
 	var rib_pts: Array[PackedVector2Array] = []   # per row: (radius, height) of the rib
 	var prof := PackedVector2Array()
 	var p := Vector2(0.0, apex)
@@ -139,7 +150,7 @@ static func build_umbrella(kind: int, open: float) -> ArrayMesh:
 	# The canopy: a grid per gore, rows out along the ribs, columns across the gore. The cloth
 	# sags between the ribs (taut, a few centimetres at the hem) and, furled, folds in toward the
 	# shaft between them.
-	var cols := 6
+	var cols := 6 if detail else 2
 	var gore := TAU / float(n)
 	for g in n:
 		var pts := PackedVector3Array()
@@ -161,6 +172,9 @@ static func build_umbrella(kind: int, open: float) -> ArrayMesh:
 				pts.append(Vector3(sin(th) * radial, hy - drop, cos(th) * radial))
 				uvs.append(Vector2(float(g) + t, s))
 		b.grid(rows + 1, cols + 1, pts, uvs, P_FABRIC, Vector3(0.0, apex - 0.3, 0.0), false)
+	if not detail:
+		b.tube(PackedVector3Array([Vector3(0.0, 0.0, 0.0), Vector3(0.0, apex + float(sp.tip), 0.0)]), 0.006, 3, P_RIB)
+		return b.commit()
 	# The ribs under the cloth, the tips' caps, the stretchers from the runner, the shaft, the
 	# ferrule on top and the handle.
 	var runner_y := lerpf(0.16, apex - 0.24, f)

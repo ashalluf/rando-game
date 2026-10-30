@@ -160,16 +160,35 @@ func _check_behaviour(city: Node3D, chunk: Node3D) -> void:
 	_check(hair_shown > 0 or hooded._draw_tier >= 2 or hooded.rain._hair_hidden.is_empty(), "the hair comes back out")
 	_check(is_equal_approx(bare.rain.pace(false), 1.0) and not bare.rain._pitch_set and bare._posture_pitch == bare.rain._pitch0,
 		"dry again, the walk and the head are their own")
-	# Out of the camera's range nobody takes part.
+	# Out of crowd life's range: no held umbrella, no shelter, nobody goes in; they hurry, and an
+	# umbrella carrier still shows the coarse open canopy over the head (RainCrowd.FAR_REACH).
 	var far := Pedestrian.new()
 	far.setup(rect, plan.sidewalk_width, 9400)
 	far.position = peds[4].position
 	far.life_range = 0.5
 	chunk.add_child(far)
+	await _ticks(2)
+	if far.rain != null:
+		far.rain.gear = RainCrowd.Gear.UMBRELLA
+		far.rain.react = 0.2
 	RainCrowd.forced = 0.9
 	await _ticks(40)
 	_check(far.rain == null or ((far.rain._umbrella == null or not far.rain._umbrella.visible) and not far.rain.inside
-		and is_equal_approx(far.rain.pace(false), 1.0)), "a walker out of the camera's range walks on as in the dry")
+		and not far.rain.sheltering), "a walker out of crowd life's range holds nothing up and takes no shelter")
+	if far.rain != null:
+		var fu := far.rain._far_umbrella
+		_check(fu != null and fu.visible and far.rain.pace(false) > 1.0,
+			"past crowd life's range an umbrella carrier still shows an open canopy and hurries")
+		if fu != null:
+			var ftris: int = fu.mesh.surface_get_array_index_len(0) / 3
+			var sk := far._head_skel
+			var head := (sk.global_transform * sk.get_bone_global_pose(sk.find_bone("Head"))).origin
+			var top := fu.global_transform * Vector3(0.0, RainGear.apex_height(far.rain.kind), 0.0)
+			_check(ftris < 200 and top.y > head.y + 0.2 and Vector2(top.x - head.x, top.z - head.z).length() < 0.35,
+				"the far canopy is coarse (%d triangles) and over the head (%.2f m up)" % [ftris, top.y - head.y])
+		RainCrowd.forced = 0.0
+		await _ticks(10)
+		_check(fu == null or not fu.visible, "the far canopy goes when the rain stops")
 	RainCrowd.forced = -1.0
 	far.queue_free()
 	_free(peds)

@@ -68,6 +68,15 @@ const FOREARM := Vector3(-0.55, 0.6, 0.58)
 ## the rim clears the crown, and this far forward of it.
 const APEX_OVER_HEAD := 0.62
 const APEX_FORWARD := 0.06
+## Past crowd life's range, out to this far (m), an umbrella holder still carries an open
+## umbrella (a coarse one, RainGear.umbrella_far(), no arm pose: a figure 20-50 pixels tall), so a
+## rainy street reads as one across the road and down the block, not only round the camera.
+const FAR_REACH := 140.0
+## The far tier on or off (`RAIN_FAR=0` in the environment: the A/B).
+static var far_enabled: bool = OS.get_environment("RAIN_FAR") != "0"
+## Where the far canopy's apex sits over the Head bone (m): where the held one ends up (the shaft
+## leans from the hand, so the near apex is lower than APEX_OVER_HEAD).
+const FAR_APEX_OVER_HEAD := 0.42
 ## The grip point in the hand's grip frame (CrowdLife.grip_basis(): x thumb, y fingers, z palm).
 const GRIP := Vector3(0.0, 0.085, 0.032)
 
@@ -91,6 +100,7 @@ var inside: bool = false
 var _think: float = 0.0
 var _seen: bool = false
 var _umbrella: MeshInstance3D
+var _far_umbrella: MeshInstance3D
 var _step: int = -1
 ## Where the umbrella was last put (world): read when it is dropped, as the person leaves the tree.
 var _last_xf := Transform3D.IDENTITY
@@ -216,7 +226,7 @@ func indoors(delta: float) -> bool:
 ## The walking pace's factor in the rain (1 dry, panicking or a jogger).
 func pace(panicking: bool) -> float:
 	var r := rain_now()
-	if r < react or panicking or not ped._life_near:
+	if r < react or panicking or not enabled:
 		return 1.0
 	var k := smoothstep(react, react + 0.2, r)
 	var p: float = PACE.x if gear == Gear.UMBRELLA else (PACE.y if gear == Gear.HOOD else PACE.z)
@@ -276,7 +286,8 @@ func _wants_in(r: float) -> bool:
 ## the weather (end an exposed stop, go in, come out).
 func pose(delta: float) -> void:
 	var r := rain_now() if enabled else 0.0
-	if r <= 0.0 and open <= 0.0 and hood <= 0.0 and not carried and not sheltering and not _pitch_set:
+	if r <= 0.0 and open <= 0.0 and hood <= 0.0 and not carried and not sheltering and not _pitch_set \
+			and _far_umbrella == null:
 		return
 	var near := ped._life_near and not ped._down
 	if near and not _seen:
@@ -309,6 +320,8 @@ func pose(delta: float) -> void:
 		_think = THINK_SECONDS
 		_weather_thought(r, near)
 	_show(near)
+	_show_far(far_enabled and not near and gear == Gear.UMBRELLA and r >= react and not ped._down \
+		and ped._lod_stride <= 4 and ped._panic_left <= 0.0 and ped._clip != Pedestrian.RUN_CLIP)
 
 
 func _weather_thought(r: float, near: bool) -> void:
@@ -486,6 +499,38 @@ func _show(near: bool) -> void:
 			var piv := Transform3D(Basis.IDENTITY, _hood_pivot)
 			_hood_mi.transform = _hood_base * piv * turn * piv.affine_inverse()
 		_hide_hair(want_hood and hood > 0.6)
+
+
+## Past crowd life's range: the coarse open umbrella over the head, its shaft straight down from
+## the apex (the arm is the walk's; at that range the hand under it is a pixel or two).
+func _show_far(on: bool) -> void:
+	if not on:
+		if _far_umbrella != null:
+			_far_umbrella.visible = false
+		return
+	var sk: Skeleton3D = ped._head_skel
+	if sk == null:
+		return
+	var hb := sk.find_bone("Head")
+	if hb < 0:
+		return
+	if _far_umbrella == null:
+		_far_umbrella = MeshInstance3D.new()
+		_far_umbrella.name = "UmbrellaFar"
+		_far_umbrella.top_level = true
+		_far_umbrella.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_far_umbrella.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+		_far_umbrella.mesh = RainGear.umbrella_far(kind)
+		_far_umbrella.material_override = RainGear.canopy_material(pick)
+		_far_umbrella.visibility_range_end = FAR_REACH + 10.0
+		ped.add_child(_far_umbrella)
+	var head := sk.global_transform * sk.get_bone_global_pose(hb).origin
+	var yaw := ped._visual.global_rotation.y
+	var fwd := Vector3(-sin(yaw), 0.0, -cos(yaw))
+	var apex := head + Vector3.UP * (FAR_APEX_OVER_HEAD * ped._visual.scale.y) + fwd * APEX_FORWARD
+	var at := apex - Vector3.UP * RainGear.apex_height(kind)
+	_far_umbrella.global_transform = Transform3D(Basis(Vector3.UP, yaw), at)
+	_far_umbrella.visible = true
 
 
 ## The umbrella in the hand. Open, the holding arm is raised (upper arm and forearm aimed in
