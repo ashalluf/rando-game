@@ -18958,7 +18958,7 @@ and 2.8 m tall native, three variants) on LaTrees' emitter, LOD ladder, shadow t
 the lone sage (`hill_shrub_<v>` batches, drawn to `HillGround3.SHRUB_DISTANCE` 160 m, no shadow):
 the searsia's black-background atlas made every stand a scatter of dark sprigs from 20 m on.
 
-**Cost**: hills bookmark GEO 2,087,132 tris / 1,217 draws against 2,087,622 / 1,219 with
+**Cost**: hills bookmark GEO (after merging main 2026-10-30 with rock-outcrops) 2,144,276 tris / 1,292 draws against 2,151,642 / 1,300 with
 `HILL_GROUND_3=0` (the shrubs past 160 m there). Build steps (`hill_step_bench`): `_sample_terrain`
 ~6 more time-sliced calls a FULL chunk (worst 10 ms unchanged), planting the same.
 
