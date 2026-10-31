@@ -865,11 +865,13 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 			var pos2 := Vector2(wp.x, road + lane) if cross_axis == CityPlan.AXIS_Z else Vector2(road + lane, wp.z)
 			_place(car, WorldState.to_local(Vector3(pos2.x, _relief(pos2) + CityChunk.ROAD_TOP + car.road_lift(), pos2.y)), _heading(cross_axis, new_dir), 0.0)
 			return
-		if t.get("forced", false):
+		if t.get("forced", false) or t.has("tm_arc"):
 			# The road ahead is closed and the lane it must turn into is taken: wait at the centre
 			# of the crossing until it clears. This used to drop the turn and drive straight on,
 			# so whenever a car had to turn off a closed road at a busy corner - MacArthur Park's
 			# streets - it went straight into it, and on down the closed road through the lake.
+			# Likewise a car TrafficMotion has already drawn part way round its fillet: dropped
+			# there, it snapped straight again (up to 130 degrees in a tick, gate run 3131).
 			new_along = along + float(dir) * maxf(to_centre - 0.05, 0.0)
 			t.v = 0.0
 			car.traffic_speed = 0.0
