@@ -39,8 +39,9 @@ night-lamps-review	-	-	merged b28
 window-interiors-2	-	-	merged b27
 loading-first-frame	-	-	merged b27
 perf-audit-4	-	-	merged b30
-gate-flakes	-	-	waiting (first launch archived: account limit)
+gate-flakes	-	-	merged b32
 fwd-review-f	-	-	merged b27
 web-build-4	-	-	merged b30
 mac-verify-pack	-	-	merged b27
 la-street-hills	session_01ThLG8vqXUj9ppezUCfrpw6	opus	merged b29
+traffic-order-fix	session_01ThLG8uAGnS619ZaTijSjgG	opus	running
