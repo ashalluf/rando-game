@@ -6412,6 +6412,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   FreewayKit's pools); and a display-number shader never wraps a texture in `cs_in()` before
   `disp()` (decoded twice on Compatibility). `tools/fwd_review/color_matrix.gd` prints the whole
   colour-space table on either renderer in seconds; `tests/fwd_review_e_checks.gd`.
+- And two more (fwd-review-f, 2026-10-31, HANDOFF "Forward+ review f"): **lavapipe Forward+
+  converges SDFGI over ~90 frames** - a still taken 14-20 frames after a load or an hour change is
+  under- or over-lit by the GI it has not yet settled (grade_probe's 18:00 read p5 31, 46 or 41 by
+  run order); compare like with like, `FRAMES=90` for a lighting verdict. And **a Forward+ light
+  lights the volumetric fog too** (`light_volumetric_fog_energy`, default 1), which rain thickens
+  many times over: anything bright and brief (lightning) gets a low value or veils the frame.
+  A small scene on both renderers: `tools/fwd_review_f/shoot.sh` (`override.cfg` with
+  `[threading] worker_pool/max_threads=1`, never committed, or lavapipe OOMs at ~13.5 GB).
 - Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building),
   `tools/glshot/block_shot.tscn` (a few FULL city blocks alone, no far city: a block's ground and
   furniture) and `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real

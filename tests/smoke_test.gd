@@ -117,7 +117,7 @@ const PART_COST := {
 	"memory_audit_checks": 0.0, "offshore_island_checks": 0.0, "perf_audit_checks": 0.0,
 	"shop_vinyl_checks": 0.0, "sky_checks": 0.0, "bonfires_checks": 3.0,
 	"cinematic_review_checks": 0.1, "sunset_clouds_checks": 0.0, "night_street_review_checks": 0.1,
-	"downtown_street_closeup_checks": 1.5, "golden_hour_review_checks": 0.1
+	"downtown_street_closeup_checks": 1.5, "golden_hour_review_checks": 0.1, "fwd_review_f_checks": 0.0
 }
 const DEFAULT_COST := 6.0
 ## Every share pays for its own city load on top of its parts.
@@ -2689,6 +2689,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The golden-hour review (tests/golden_hour_review_checks.gd, GoldenHour): the sky's twilight
 	# ramp, the blue zenith at sunset, the eased grade, no pop 17:00-19:30, the A/B.
 	load("res://tests/golden_hour_review_checks.gd").new().run(self, city)
+	# Forward+ review f (tests/fwd_review_f_checks.gd): a night strike lights the street, not a white-out.
+	load("res://tests/fwd_review_f_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

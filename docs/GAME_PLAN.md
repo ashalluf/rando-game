@@ -3786,3 +3786,7 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+- 2026-10-31 (Forward+ review f, wave 4): a lightning strike at night lights the street, it does
+  not erase it - the flash's light is scaled by the night (the exposure is set for the moon) and
+  the bolt stays the brightest thing in the frame. Forward+ lighting verdicts on lavapipe are taken
+  only after the GI has converged (~90 frames). STORM_NIGHT_FLASH=0 is the A/B.
