@@ -1300,13 +1300,16 @@ void fragment() {
 				float across = axis == 1 ? (p.x - (box_size.x - rx)) / max(rx, 0.01) : (p.y - (box_size.z - rz)) / max(rz, 0.01);
 				vec2 tw = world_pos.xz + origin_shift.xz;
 				vec3 lr = lamp_ratio(tw);
-				vec3 g = street_glow(tw, vec2(across), axis);
-				float lvl = street_glow_level() * road * far_glow_gain * (axis == 0 ? junction_glow : 1.0);
+				// A junction is lit at its corners and a street by its rank (street_glow.gdshaderinc).
+				vec2 juv = vec2((p.x - (box_size.x - rx)) / max(rx, 0.01), (p.y - (box_size.z - rz)) / max(rz, 0.01));
+				vec3 g = axis == 0 ? street_glow_junction(tw, juv) : street_glow(tw, vec2(across), axis);
+				float rank = axis == 0 ? 1.0 : street_rank(axis == 1 ? rx : rz);
+				float lvl = street_glow_level() * road * far_glow_gain * rank * (axis == 0 ? junction_glow : 1.0);
 				emission += mix(glow_mean, g, glow_detail) * lr * lvl;
 				if (axis != 0) {
 					float w = axis == 1 ? rx : rz;
 					float along = axis == 1 ? tw.y : tw.x;
-					emission += street_glow_color * lr * street_lamp_heads(along, across * w, w, mpp) * street_glow_level() * road;
+					emission += street_glow_color * lr * street_lamp_heads(along, across * w, w, mpp) * street_glow_level() * road * rank;
 					// The traffic down it (far_traffic.gdshaderinc): busier and quicker on the
 					// wide roads.
 					float centre = (axis == 1 ? p.x - (box_size.x - rx * 0.5) : p.y - (box_size.z - rz * 0.5));
