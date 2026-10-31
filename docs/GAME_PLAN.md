@@ -3638,6 +3638,16 @@ already mapped so milestone 2 is script-only.
   while the logic keeps its own position (t.tm_logic), so no queue rule changes; a follower waits
   a hashed beat after the car ahead moves off, but not cars placed by checks. TRAFFIC_MOTION=0 is
   the A/B.
+- **2026-10-31 Trees are lit THROUGH, and the shadow map stays off their sunlit shell (tree-light-2,
+  HANDOFF "Trees under light").** Judged on a small Forward+ scene under lavapipe (the real batch
+  path, so the shadow twins and ladders are the game's) at 13:00 and 17:36. Decisions: a directional
+  shadow pass pushes leaves back along the light's own axis (`self_shadow_slack`: the ground
+  shadow does not move, the twin's coarse cards stop shading the shell they stand in front of);
+  the crown normal stays rounded on both faces of a card; the light that comes through a crown is
+  an emitted term from an analytic path through the crown's ellipsoid toward the sky and the sun
+  (Godot's BACKLIGHT is one leaf deep and the shadow map kills it inside a crown); the sway gets
+  weight (rate by height, the gust answered late with a swing-back). No mesh, ladder or twin
+  changed. `TREE_LIGHT=0` is the A/B.
 
 ## Correction: what build 135 (0ce833f) actually contained
 

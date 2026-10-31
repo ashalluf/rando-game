@@ -4110,6 +4110,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   scanned bark reads its ORM occlusion. No mesh, roll or ladder change. Stills
   `tools/trees_closeup/tree_shot.gd` (both renderers), streets `tools/trees_closeup/probe.gd`;
   checks `tests/trees_closeup_checks.gd`.
+- Trees under light (2026-10-31, docs/HANDOFF.md "Trees under light"): `TreeLight`
+  (`scripts/world/tree_light.gd`, marked from `TreesCloseup.mark()` / `dress()`) and
+  `shaders/tree_light.gdshaderinc` in foliage_tex / foliage / la_tree: in a directional shadow pass
+  (`PROJECTION_MATRIX[3][3] > 0.5`) leaves step back `self_shadow_slack` along the light's axis (the
+  twin's coarse cards shaded the sunlit shell; the ground shadow does not move); scanned leaves keep
+  the rounded normal on both faces; light through the crown is EMISSION from `tl_path()` (the path out
+  of the crown ellipsoid) toward the sky (`sky_tint`) and the sun (`tree_sun` global, the sun's linear
+  colour x energy, kept by a TreeLight node); the sway is weighted (`tl_rate()` by `sway_height`,
+  `tl_load()` late with a swing-back; `TreeLight.load_of()` the GDScript copy). `TREE_LIGHT=0` the A/B;
+  stills `tools/tree_light/tree_light_shot.tscn` (AB=1, PARAMS=); checks `tests/tree_light_checks.gd`.
 - Replica areas (see the technical rule): `ReplicaAreas` (`scripts/world/replica_areas.gd`,
   `MacroMap.replica`, built in `MacroMap.setup()` before the hill roads, `fit_hill_profile()`
   after) holds each area as a table - today only `ESPLANADE`: Knob Hill down the Redondo
