@@ -21980,3 +21980,68 @@ the same way, but judge 18:00 on the Mac first - if it reads milky-pink, raise `
 grass under a low red sun is what it is). The painted cumulus on opengl3 draws a big smooth ellipse in
 the aerial and sky shots (before and after alike; the sky's, not this review's). Dawn shares the sky
 ramp and the exposure ramp (both are symmetric in elevation) and was not looked at.
+
+## 9d?. The hero's locomotion (wave 4, branch wt/hero-locomotion-2)
+
+**What.** The hero's walk, run and sprint used to be three AnimationPlayer clips swapped by speed
+with a 0.15 s crossfade at whatever point each happened to be in its cycle (the feet changed step
+mid-stride: a pop), a stop was a crossfade to the idle from wherever the stride was, turning on
+the spot played the walk in place, moving sideways or backward while the body faced the aim ran
+the forward clip (a moonwalk), and a landing at a run played the stop-and-crouch landing.
+Now:
+- **Phase-synced gaits** (`HeroLoco`, `scripts/player/hero_loco.gd`, the FIRST modifier in his
+  skeleton's stack, before HeroMotion): the AnimationPlayer keeps playing the idle (or a one-shot)
+  underneath; HeroLoco samples the three gait clips itself (`Animation.rotation_track_interpolate`,
+  ~25 bones, fingers left to the idle / the grip) and lays their blend over it by `weight`. One
+  `phase` drives all three: it counts stride cycles and each clip maps cycle k to the span between
+  its own k-th and k+1-th left-toe touchdown (`GAITS`, the sync markers: the hero's walk is 4.2 s
+  of three uneven mocap strides, the run and the sprint one each; the phase wraps at `period()`,
+  3). So walk -> run -> sprint is three weights that move with the gait's speed (`walk_run_band`,
+  `run_sprint_band`), foot for foot, and standing <-> moving is one weight: nothing swaps.
+- **The start**: the gait fades in over `loco_fade_in` (0.16 s) from the left foot's touchdown,
+  the gait's own speed follows the body's at `gait_follow` (the body reaches 12 m/s in 0.13 s, so
+  without it the walk and the run would never show), and the chest is driven forward into the
+  acceleration on a spring (`accel_drive`, `drive_max`, `drive_stiffness` / `_damping`).
+- **The stop**: when the body stops, the stride runs on (at least as fast as `stop_max` needs) to
+  the next foot down, holds it, and fades out over `loco_fade_out` while the drive spring throws
+  the chest back and lets it settle past upright.
+- **Turning on the spot**: the feet stay where they are while the body turns (the hips held,
+  the spine taking the turn back so the chest follows the aim) until it is `turn_step_angle`
+  round; then he steps round at `turn_step_speed` on the walk at `turn_step_weight`, and stops on
+  a foot down.
+- **The strafe and the backpedal**: while the body faces the aim (the player's aim timer after a
+  shot, or LockOn aiming), the hips turn toward the way he goes (up to `strafe_max`, 66 degrees)
+  with the chest kept square (HeroLoco's counter-turn, then AimTwist's hold); past ~110 degrees off
+  his facing the gait runs BACKWARD (a backpedal), with hysteresis so it does not flicker. Not
+  aiming, the hips lead into a turn by up to `turn_lead_max`.
+- **The lean into a running turn**: the whole body rolls about the feet by `bank_gain` of the
+  angle a bike would lean (atan(v w / g)), at most `bank_max`, eased.
+- **The land-and-run**: landing at 2 m/s or more from under `land_hard` no longer plays the
+  landing clip: the stride carries on from the next foot down and the knees take the landing (a
+  spring dip on HeroMotion's `hips_drop`, which bends the legs, and the chest driven forward).
+- The gun stays in the hand through all of it: the gait is posed before the stance, the arm IK
+  and the hands (checked through a start, three gait changes and a stop by a probe modifier at
+  the end of the stack).
+
+**Why procedural.** The free UAL files the hero's clips come from have no start, stop, turn,
+strafe or backpedal clips (the list is in `tools/hero_locomotion/` - the walk, the jog, the
+sprint, crouch walks, the swim; see hero_clips.gd). Those moves are made from the gait clips by
+phase, weight, hip yaw and springs instead.
+
+**Look / check.** `tools/glshot/hero_moves_shot.gd` new staged moves: start, stop, accel (0 to 12
+m/s over the shot), move_<m/s>, strafe_l / strafe_r / back, sprint_turn, land_run; `STRIP=n` puts n
+frames of one shot side by side; `CAM_FIXED=1` keeps the camera from following his yaw.
+`tools/hero_locomotion/gait_probe.gd` (headless, seconds) prints each gait clip's length, speed
+and toe touchdowns: rerun it and update `HeroLoco.GAITS` if a clip changes (the checks fail on a
+table that no longer matches). `tests/hero_locomotion_2_checks.gd` (room part). `HERO_LOCO=0`
+is the A/B (the old clip swaps).
+
+**Cost.** No geometry, no draws. CPU: ~25 bones x up to three clips sampled and slerped a frame
+on the hero only (GDScript, ~0.1 ms on the build box).
+
+**Not done / not verified.** Nothing seen at 60 fps or on the owner's Mac: the fade times, the
+bands, the drive and bank springs want a feel pass (all exports on Avatar, "Hero locomotion").
+The strafe is the forward gait with the hips turned, not a real side-step clip: at a full 90
+degrees the feet still slide a little sideways. The backpedal is the forward clip backward. The
+walk clip's three strides are uneven mocap; a wider walk / jog set (UAL's Walk_Loop, Jog_Fwd_Loop)
+could replace it but was left alone (the stride constants are hero-closeup's).
