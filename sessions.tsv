@@ -3,7 +3,7 @@ skyline-glass-day	session_01ThLG8uowSi6fkwwKFJGq5a	opus	merged b27
 web-hero-rain	session_01ThLG8vJjp7qjfV4kjjLN3F	opus	merged b27
 paving-aliasing	session_01ThLG8vfhsrguA5kfxxjJCu	opus	merged b26
 night-flight	session_01ThLG8wnzhCQYaVRDADLiCR	opus	merged b26
-wet-road-mirror	session_01ThLG8u32iTb3T4iPwqMMb8	opus	running
+wet-road-mirror	session_01ThLG8u32iTb3T4iPwqMMb8	opus	merged b30
 dawn-review	-	-	merged b29
 rc-street-noon	-	-	merged b29
 rc-street-night	-	-	merged b29
@@ -11,15 +11,15 @@ rc-sunset	-	-	merged b29
 rc-golden-aerial	-	-	merged b29
 rc-downtown-aerial	-	-	merged b29
 rc-beach	-	-	waiting (first launch archived: account limit)
-rc-hills	-	-	waiting (first launch archived: account limit)
+rc-hills	-	-	merged b30
 rc-freeway	-	-	merged b29
 rc-macarthur	-	-	merged b29
 rc-pier-night	-	-	merged b27
 hero-closeup-2	-	-	merged b28
 hero-locomotion-2	-	-	merged b27
-crowd-closeup-3	-	-	waiting (first launch archived: account limit)
+crowd-closeup-3	-	-	merged b30
 car-exterior-closeup	-	-	merged b26
-traffic-behaviour-2	-	-	waiting (first launch archived: account limit)
+traffic-behaviour-2	-	-	merged b30
 pedestrian-flow	-	-	merged b28
 storefront-closeup-2	-	-	merged b28
 building-mid-detail	-	-	merged b28
@@ -38,9 +38,9 @@ ambient-sound-2	-	-	merged b27
 night-lamps-review	-	-	merged b28
 window-interiors-2	-	-	merged b27
 loading-first-frame	-	-	merged b27
-perf-audit-4	-	-	waiting (first launch archived: account limit)
+perf-audit-4	-	-	merged b30
 gate-flakes	-	-	waiting (first launch archived: account limit)
 fwd-review-f	-	-	merged b27
-web-build-4	-	-	waiting (first launch archived: account limit)
+web-build-4	-	-	merged b30
 mac-verify-pack	-	-	merged b27
 la-street-hills	session_01ThLG8vqXUj9ppezUCfrpw6	opus	merged b29
