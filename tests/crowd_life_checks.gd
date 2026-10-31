@@ -25,8 +25,12 @@ func _run(t: Node, city: Node3D) -> void:
 	# scenes would recruit these walkers, and the weather may be raining. Neither is tested here.
 	Onlookers.enabled = false
 	RainCrowd.forced = 0.0
+	# The streaming settled first, and the chunk in full: one still due to be replaced was freed
+	# under the check, walkers and all (gate run 4444: SCRIPT ERROR, the sitter "previously freed").
+	city.update_streaming(true)
+	await _tree.process_frame
 	var chunk: Node3D = city.chunks.get(Vector2i(0, 0))
-	_check(chunk != null, "the spawn block's chunk is loaded for the crowd life checks")
+	_check(chunk != null and int(chunk.get("level")) == CityChunk.Level.FULL, "the spawn block's chunk is loaded in full for the crowd life checks")
 	if chunk == null:
 		return
 	await _check_behaviour(city, chunk)
@@ -155,6 +159,9 @@ func _check_behaviour(city: Node3D, chunk: Node3D) -> void:
 		sitter._end_act(true)
 	_check(sitter._plan_sit(true), "a walker finds the bench's free seat")
 	await _ticks(90)
+	if not is_instance_valid(sitter) or not is_instance_valid(chunk):
+		_check(false, "the sitter and the spawn chunk last the sitting check")
+		return
 	var skel := sitter._head_skel
 	var hips_y := (skel.global_transform * skel.get_bone_global_pose(skel.find_bone("Hips")).origin).y
 	var foot_y := (skel.global_transform * skel.get_bone_global_pose(skel.find_bone("LeftToeBase")).origin).y
