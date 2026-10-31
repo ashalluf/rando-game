@@ -46,7 +46,7 @@ const float FT_FAR_BLOOM = 3.5;
 #define NIGHT_FLIGHT_DECLARED
 global uniform float night_flight;
 #endif
-const float FT_PLATOON = 190.0;
+const float FT_PLATOON = 120.0;
 const float FT_PLATOON_LO = 0.3;
 const float FT_PLATOON_SPAN = 1.4;
 const float FT_TAIL_MEAN = 2.2;
@@ -84,7 +84,7 @@ float ft_platoon(float u, float key) {
 	float t = f - c;
 	t = t * t * (3.0 - 2.0 * t);
 	float n = mix(ft_hash(vec3(c, key, 5.3)), ft_hash(vec3(c + 1.0, key, 5.3)), t);
-	return FT_PLATOON_LO + FT_PLATOON_SPAN * n;
+	return FT_PLATOON_LO + FT_PLATOON_SPAN * smoothstep(0.1, 0.9, n);
 }
 
 

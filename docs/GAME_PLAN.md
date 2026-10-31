@@ -3760,3 +3760,8 @@ none of either.
   take over near the camera); flake is sampled per pixel-sized cell fixed to the body; new
   finishes, the contrast-roof livery and a car's condition are appended and rolled by hashes of
   the look seed after every roll, so no existing roll moves and CAR_PAINT_2=0 is the old look.
+- **2026-10-31 - The night flight (night-flight, HANDOFF "The night flight").** The night aerial is
+  tuned in the shaders that already draw it, never with new geometry: traffic platoons as a smooth
+  noise in the cars' moving frame (the near lamps and the far lane means read the same factor), a
+  street's glow ranked by its width measured from the slab's own UV derivatives (so FULL, LOD and
+  the far plates agree without a table), junctions lit at their corners. NIGHT_FLIGHT=0 is the A/B.

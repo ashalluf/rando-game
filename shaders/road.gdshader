@@ -422,17 +422,26 @@ void fragment() {
 	vec3 glow = vec3(0.0);
 	// The street's rank by its width (street_glow.gdshaderinc, the far ground's rule): the
 	// derivatives here, in uniform control flow.
+	// A slab no longer than about its width is a junction square (the wet code's rule): lit at its
+	// corners like the far ground's (street_glow_junction()), not as a street running across it.
 	float glow_rank = 1.0;
+	bool glow_square = false;
 	if (lamp_axis > 0) {
 		float g_across_p = lamp_axis == 1 ? plan_pos.x : plan_pos.y;
+		float g_along_p = lamp_axis == 1 ? plan_pos.y : plan_pos.x;
 		float g_across_uv = lamp_axis == 1 ? slab_uv.x : slab_uv.y;
+		float g_along_uv = lamp_axis == 1 ? slab_uv.y : slab_uv.x;
 		float g_width = length(vec2(dFdx(g_across_p), dFdy(g_across_p))) / max(length(vec2(dFdx(g_across_uv), dFdy(g_across_uv))), 1.0e-7);
-		glow_rank = g_width > 8.0 && g_width < 60.0 ? street_rank(g_width) : 1.0;
+		float g_run = length(vec2(dFdx(g_along_p), dFdy(g_along_p))) / max(length(vec2(dFdx(g_along_uv), dFdy(g_along_uv))), 1.0e-7);
+		bool g_sized = g_width > 8.0 && g_width < 60.0;
+		glow_rank = g_sized && g_run > 1.8 * g_width ? street_rank(g_width) : 1.0;
+		glow_square = night_flight > 0.5 && g_sized && g_run < 1.4 * g_width;
 	}
 	if (lamp_axis > 0 && lamp_factor > 0.001 && side < 0.5) {
 		float far = smoothstep(street_glow_near, street_glow_far, length(VERTEX));
 		if (far > 0.0) {
-			glow = street_glow(plan_pos, slab_uv, lamp_axis) * lamp_ratio(plan_pos) * street_glow_level() * far * glow_rank;
+			vec3 g = glow_square ? street_glow_junction(plan_pos, slab_uv) : street_glow(plan_pos, slab_uv, lamp_axis);
+			glow = g * lamp_ratio(plan_pos) * street_glow_level() * far * glow_rank;
 		}
 	}
 	// The lit city standing in the water at night. Screen-space reflections only mirror what is

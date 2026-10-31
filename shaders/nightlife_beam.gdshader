@@ -29,16 +29,22 @@ global uniform float night_flight;
 uniform float beam_near_fade = 260.0;
 uniform float beam_near_floor = 0.2;
 
+varying flat vec3 lens_world;
+
+void vertex() {
+	// The lamp end (UV.y 0: the CylinderMesh's narrow top).
+	lens_world = (MODEL_MATRIX * vec4(0.0, 0.5, 0.0, 1.0)).xyz;
+}
+
 void fragment() {
 	float along = UV.y;
 	float fade = pow(1.0 - smoothstep(0.0, length_fade, along), 2.2) * (0.35 + 0.65 * exp(-along * 6.0));
 	fade *= smoothstep(near_start * 0.6, near_start + 0.02, along) * smoothstep(0.0, 0.004, along);
 	float face = pow(abs(dot(normalize(NORMAL), normalize(VIEW))), 2.2);
 	if (night_flight > 0.5) {
-		// Only from beside or above the beam (a camera in the air): from the street, looking up
-		// the shaft from its foot, it keeps its look.
-		vec3 wp = (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
-		float above = smoothstep(-30.0, 20.0, CAMERA_POSITION_WORLD.y - wp.y);
+		// Only for a camera in the air over the lamp: from the street, looking up the shaft from
+		// its foot, it keeps its look.
+		float above = smoothstep(40.0, 110.0, CAMERA_POSITION_WORLD.y - lens_world.y);
 		float near_k = mix(beam_near_floor, 1.0, smoothstep(beam_near_fade * 0.12, beam_near_fade, length(VERTEX)));
 		fade *= mix(1.0, near_k, above);
 	}

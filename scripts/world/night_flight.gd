@@ -18,7 +18,7 @@ extends RefCounted
 static var enabled: bool = OS.get_environment("NIGHT_FLIGHT") != "0"
 
 ## far_traffic.gdshaderinc's platoon numbers.
-const PLATOON := 190.0
+const PLATOON := 120.0
 const PLATOON_LO := 0.3
 const PLATOON_SPAN := 1.4
 const TAIL_MEAN := 2.2
@@ -62,7 +62,7 @@ static func platoon(u: float, key: float) -> float:
 	var t := f - c
 	t = t * t * (3.0 - 2.0 * t)
 	var n := lerpf(ft_hash(Vector3(c, key, 5.3)), ft_hash(Vector3(c + 1.0, key, 5.3)), t)
-	return PLATOON_LO + PLATOON_SPAN * n
+	return PLATOON_LO + PLATOON_SPAN * smoothstep(0.1, 0.9, n)
 
 
 ## street_glow.gdshaderinc street_rank(): a street's glow by its width in metres.

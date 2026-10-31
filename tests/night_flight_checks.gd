@@ -35,7 +35,7 @@ func _copies_agree() -> void:
 	var road := FileAccess.get_file_as_string("res://shaders/road.gdshader")
 	_t._check(ground.contains("street_rank(width)") and ground.contains("street_glow_junction(")
 		and lod.contains("street_rank(") and lod.contains("street_glow_junction(")
-		and road.contains("street_rank(g_width)"),
+		and road.contains("street_rank(g_width)") and road.contains("glow_square ? street_glow_junction("),
 		"the LOD ground, the far plates and the near road's far glow all rank their streets")
 	_t._check(ProjectSettings.has_setting("shader_globals/night_flight"), "night_flight is a shader global")
 
@@ -86,5 +86,5 @@ func _switch() -> void:
 	_t._check(off_ok and is_zero_approx(g) and is_equal_approx(g_on, 1.0),
 		"NIGHT_FLIGHT=0 puts every street and lane back as it was (global %.0f / %.0f)" % [g, g_on])
 	var beam := FileAccess.get_file_as_string("res://shaders/nightlife_beam.gdshader")
-	_t._check(beam.contains("night_flight > 0.5") and beam.contains("CAMERA_POSITION_WORLD.y - wp.y"),
-		"a sky beam fades only for a camera near it and beside or above it")
+	_t._check(beam.contains("night_flight > 0.5") and beam.contains("CAMERA_POSITION_WORLD.y - lens_world.y"),
+		"a sky beam fades only for a camera near it and up in the air over its lamp")
