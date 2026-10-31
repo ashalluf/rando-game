@@ -148,6 +148,10 @@ uniform vec3 sunset_peach = vec3(1.0, 0.66, 0.48);
 uniform float sunset_cloud_gain = 0.95;
 uniform float sunset_cirrus_gain = 0.5;
 uniform float sunset_rays = 0.45;
+/// The dawn's share (DawnReview, docs/HANDOFF.md "The dawn review"; 0 from noon on): the low sun
+/// through a clean morning basin is a cooler, pinker gold than the smoggy evening's orange, so
+/// sun_through() mixes toward DAWN_PAL_C by it.
+uniform float dawn = 0.0;
 
 // --- Volumetric cumulus (Forward+, cloud_detail on) --------------------------------------------
 /// 1 once SkyExtras has set the noise below; 0 draws the painted cumulus everywhere.
@@ -486,12 +490,22 @@ const float SUNSET_SHADOW_R = 200.0;
 const float SUNSET_PAL_E[7] = float[](0.30, 0.15, 0.06, 0.00, -0.05, -0.10, -0.16);
 const vec3 SUNSET_PAL_C[7] = vec3[](vec3(1.00, 0.66, 0.36), vec3(1.00, 0.48, 0.18), vec3(1.00, 0.34, 0.10),
 	vec3(1.00, 0.27, 0.13), vec3(1.00, 0.26, 0.20), vec3(0.95, 0.18, 0.38), vec3(0.78, 0.16, 0.52));
+const vec3 DAWN_PAL_C[7] = vec3[](vec3(1.00, 0.72, 0.50), vec3(1.00, 0.58, 0.40), vec3(1.00, 0.46, 0.36),
+	vec3(1.00, 0.40, 0.38), vec3(0.98, 0.36, 0.46), vec3(0.90, 0.30, 0.56), vec3(0.74, 0.28, 0.66));
 vec4 sun_through(float el, float h) {
 	h = max(h, 0.0);
 	vec3 c = SUNSET_PAL_C[0];
 	for (int i = 1; i < 7; i++) {
 		float k = clamp((SUNSET_PAL_E[i - 1] - el) / (SUNSET_PAL_E[i - 1] - SUNSET_PAL_E[i]), 0.0, 1.0);
 		c = mix(c, SUNSET_PAL_C[i], k);
+	}
+	if (dawn > 0.0) {
+		vec3 d = DAWN_PAL_C[0];
+		for (int i = 1; i < 7; i++) {
+			float k = clamp((SUNSET_PAL_E[i - 1] - el) / (SUNSET_PAL_E[i - 1] - SUNSET_PAL_E[i]), 0.0, 1.0);
+			d = mix(d, DAWN_PAL_C[i], k);
+		}
+		c = mix(c, d, dawn);
 	}
 	float elr = min(el + 0.01, 0.0);
 	float htr = h - elr * elr * SUNSET_SHADOW_R * 0.5;

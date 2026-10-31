@@ -4027,3 +4027,8 @@ none of either.
   materials, since the opengl3 stills hid the brown); a light-rail street is marked like any road
   where the line runs underground; four-lane roads carry a double yellow; bike lanes are dirty;
   patterned paving keeps its anti-repeat fetch on its own grid. All behind STREET_NOON=0.
+- **2026-10-31, the dawn review (docs/HANDOFF.md "The dawn review").** The morning is no longer the
+  evening's ramps run backwards: a weight on the MORNING alone (0 from noon on and at night, so both
+  are bit-identical) gives the sunrise a pinker gold sun, a rose horizon, cleaner air and a rose-grey
+  mist, eases the golden grade, and switches the street lamps off before the sunrise. Behind
+  DAWN_REVIEW=0.

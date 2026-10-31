@@ -818,6 +818,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `lamp_ease` global in light_pool.gdshader; lamp_factor itself unchanged), the replica's far
   bluff face is mottled (`bluff_far()`). `SUNSET_REVIEW=0` is the A/B; checks
   `tests/rc_sunset_checks.gd`.
+- The dawn review (2026-10-31, docs/HANDOFF.md "The dawn review"): `DawnReview`
+  (`scripts/world/dawn_review.gd`) takes DayNight's dawn off the dusk's numbers by a MORNING weight
+  (`weight()`: 0 from noon on and at night, so both are bit-identical): a pinker gold sun, a rose
+  horizon and cooler zenith, pink-gold clouds, less smog, a rose-grey morning mist, the GOLDEN grade
+  eased, sky.gdshader's `dawn` palette in sun_through() (SunsetSky.DAWN_PAL_C, checked), and the
+  lamps out before the sunrise (`lamp_factor()`). `DAWN_REVIEW=0` is the A/B; cameras
+  `tools/dawn_review/cameras.json` through refcams; checks `tests/dawn_review_checks.gd`.
 - The map (2026-10-05, "a minimap and a full-screen map with a GPS, GTA style"): the minimap and
   the full-screen map draw the same thing through `MapPainter` (`scripts/ui/map_painter.gd`,
   static; a `MapPainter.View` says where: world-to-canvas transform, pixels per metre, the
