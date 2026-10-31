@@ -6,6 +6,8 @@ class_name RcHills
 ## - Summit crags: broad, low tors bedded in the crown instead of spires (RockOutcrops._make_tor).
 ## - Far tors: the ones under a few pixels dropped, the rest darkened (apply_rock()).
 ## - Steep faces: the terrain's textures laid from the side, not stretched down them (apply_terrain()).
+## - Shrub clumps gathered into thickets with gaps, sized by the field (cluster()).
+## - The ridge sign: sheet-metal letters on a pipe frame, not 5 x 7 pixel boxes (HillSignLetters).
 
 static var _on: int = -1
 
@@ -39,3 +41,29 @@ const TILE_FADE_PX := Vector2(0.7, 1.8)
 static func apply_terrain(m: ShaderMaterial) -> void:
 	m.set_shader_parameter("side_mix", 1.0 if on() else 0.0)
 	m.set_shader_parameter("tile_fade_px", TILE_FADE_PX if on() else Vector2.ZERO)
+
+
+## The hill scatter's clumps (HillScatter.step()): a slow field in world metres that gathers them
+## into thickets. Under CLUSTER_GAP (plus a little per clump) a clump is left out; above it a clump
+## is scaled by the field (0.75-1.6x FULL, 0.85-1.3x LOD). Value noise, two octaves (CLUSTER_CELL and a third of it).
+const CLUSTER_GAP := 0.24
+const CLUSTER_CELL := 21.0
+
+
+static func _lattice(i: int, j: int) -> float:
+	var h := (i * 73856093) ^ (j * 19349663)
+	h = (h ^ (h >> 13)) * 1274126177
+	return float((h ^ (h >> 16)) & 65535) / 65535.0
+
+
+static func _vnoise(p: Vector2) -> float:
+	var i := int(floor(p.x))
+	var j := int(floor(p.y))
+	var f := p - Vector2(i, j)
+	var u := f * f * (Vector2(3.0, 3.0) - 2.0 * f)
+	return lerpf(lerpf(_lattice(i, j), _lattice(i + 1, j), u.x), lerpf(_lattice(i, j + 1), _lattice(i + 1, j + 1), u.x), u.y)
+
+
+static func cluster(p: Vector2) -> float:
+	var n := _vnoise(p / CLUSTER_CELL) * 0.7 + _vnoise(p / (CLUSTER_CELL / 3.0) + Vector2(17.3, 4.1)) * 0.3
+	return clampf((n - 0.5) * 1.6 + 0.5, 0.0, 1.0)
