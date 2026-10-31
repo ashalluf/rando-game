@@ -104,6 +104,8 @@ var _grind: AudioStreamPlayer3D = null
 var _ground_ms: int = -1000
 var _ground_near: Array[bool] = []
 var _t: float = 0.0
+## Stills: drag as if moving at this speed (m/s; 0 = the car's own).
+var stage_speed: float = 0.0
 ## Tests: how many things it did.
 var bursts: int = 0
 var rolls: int = 0
@@ -260,7 +262,7 @@ func _tick_bonnet(delta: float) -> void:
 	if not pd.get("fit", false):
 		# A later crash re-sprang it with CrashDeform's soft catch region: fitted again.
 		_fit_bonnet(pd)
-	var fwd := car.linear_velocity.dot(-car.global_basis.z)
+	var fwd := stage_speed if stage_speed > 0.0 else car.linear_velocity.dot(-car.global_basis.z)
 	# The wind under the front edge lifts it with speed (and flutters it); a car going backwards
 	# blows it shut onto its rest.
 	var wind := clampf(fwd * bonnet_wind, -0.3, bonnet_max)
@@ -389,7 +391,8 @@ func tear_wheel(i: int, push_body: Vector3 = Vector3.ZERO) -> void:
 	if vw != null:
 		vw.wheel_radius = 0.1
 		vw.wheel_friction_slip = 0.35
-	var host := WeaponFX.fx_parent(car)
+	# Beside the car (the level root or a node of it: it rides the origin shifts).
+	var host := car.get_parent()
 	if host == null or not (host is Node3D):
 		return
 	var r := float(car._wheel_pose().get("r", 0.34))
@@ -475,6 +478,7 @@ func _trip(push_body: Vector3, over: float) -> void:
 	var axis := car.global_basis.y.cross(push).normalized()
 	var w := minf(roll_gain * (over - roll_at * 0.5), roll_max)
 	car.hold_crash_watch(4)
+	car.sleeping = false
 	car.angular_velocity += axis * w
 	car.linear_velocity += Vector3.UP * (0.8 + over * 0.08)
 	rolls += 1
@@ -539,7 +543,10 @@ func _tick_drag(delta: float) -> bool:
 	var pts := _drag_points()
 	if pts.is_empty():
 		return false
-	var speed := car.linear_velocity.length()
+	var vel := car.linear_velocity
+	if stage_speed > 0.0:
+		vel = -car.global_basis.z * stage_speed
+	var speed := vel.length()
 	var moving := speed > drag_speed
 	# Is the road there (a ray each, ten times a second)?
 	var now := Time.get_ticks_msec()
@@ -563,8 +570,7 @@ func _tick_drag(delta: float) -> bool:
 			continue
 		any = true
 		var at: Vector3 = car.global_transform * (pts[k][0] as Vector3)
-		var v := car.linear_velocity
-		var throw := (-v.normalized() + Vector3.UP * 0.35).normalized()
+		var throw := (-vel.normalized() + Vector3.UP * 0.35).normalized()
 		var x := throw.cross(Vector3.FORWARD if absf(throw.z) < 0.9 else Vector3.RIGHT).normalized()
 		p.global_transform = Transform3D(Basis(x, throw, x.cross(throw).normalized()), at)
 		p.color = Color(1.0, 1.0, 1.0, 0.35 + 0.65 * level)

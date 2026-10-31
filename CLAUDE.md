@@ -1367,6 +1367,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   all include: anything else drawing part of a body must include it too. `_crash_contact()`
   casts three rays. `CRASH_DEFORM=0` the A/B; stills `DAMAGE=front50|side50|roll|scrape...` on
   car_shot.gd; checks `tests/crash_deform_checks.gd`.
+- Crashes at speed (2026-10-31, docs/HANDOFF.md "Crashes that break cars"): `CrashBreakup`
+  (`scripts/vehicles/crash_breakup.gd`, CarDamage's child, from `CrashDeform.crash()`): glass facing
+  a hard hit bursts out with the car's speed (`glass()` replaces CarDamage's old crash-glass rule);
+  the bonnet's catch lets go (region traced off the mesh, `_fit_bonnet()`; paint onto the two-sided
+  `car_paint_open.gdshader`, primer underside; an `EngineBay` mesh) and springs and flaps in the
+  wind; a hanging bumper or bare hub throws sparks and grinds where it drags; a 100 km/h corner hit
+  tears a wheel off (a `TornWheel` RigidBody, PhysicsBudget debris); airbags in the cabin trace
+  (`airbag` uniform, car_cabin.gdshaderinc); a T-bone TRIPS the car - centre of mass to
+  `roll_com_height`, low angular damping, a roll impulse, `Vehicle.tumble_until` holds `_fly` off
+  (boost still flies) - put back once it rests; `CrashDebris` (one MultiMesh ring) pieces that stay.
+  Panels turned well open cut triangles they stretch (`cr_open_w()` / `cr_torn()` in
+  car_crumple.gdshaderinc). `CRASH_BREAKUP=0` is the A/B; stills `DAMAGE=front50|side70|
+  corner70,wheeloff,drag|front60,airbag` on car_shot.gd; checks `tests/car_crash_3_checks.gd`.
 - What a blast leaves behind (2026-10-05, fleet task "explosions", docs/HANDOFF.md, section at
   the end): `Explosion.blast()` ends with ONE call, `BlastAftermath.blast()`
   (`scripts/weapons/blast_aftermath.gd`): a CRATER where it hit the ground (generated albedo +

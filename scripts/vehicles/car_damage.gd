@@ -1751,7 +1751,9 @@ func stage(what: String) -> void:
 		car.take_hit(-1, 7.0, xf.basis * Vector3(-1.0, 0.0, 0.0), xf * Vector3(hw, mid - 0.05, 0.55), Vehicle.HIT_CRASH)
 	# Crashes at a speed (CrashDeform): "front<km/h>" a head-on into a wall, "corner<km/h>" an
 	# offset hit on the nose's right corner, "side<km/h>" a T-bone on the right doors, "rear<km/h>"
-	# a rear-ender, "roll" landing on the roof, "scrape" a slide along a wall down the right side.
+	# a rear-ender, "roll" landing on the roof, "scrape" a slide along a wall down the right side;
+	# CrashBreakup's "wheeloff" (the front right wheel torn off), "airbag", "drag" (sparks off a
+	# hanging bumper or a bare hub as if the car were moving).
 	for part in parts:
 		var kmh := 0.0
 		for pre in ["front", "corner", "side", "rear"]:
@@ -1768,6 +1770,19 @@ func stage(what: String) -> void:
 			car.take_hit(-1, over, xf.basis * Vector3.FORWARD, xf * Vector3(0.0, mid, _len * 0.5 + 0.3), Vehicle.HIT_CRASH)
 		elif part == "roll":
 			car.take_hit(-1, 7.0, xf.basis * Vector3.DOWN, xf * Vector3(-0.2, _top + 0.3, 0.1), Vehicle.HIT_CRASH)
+		elif part == "wheeloff" and CrashBreakup.applies(car):
+			# CrashBreakup: the front wheel on the right torn off (it rolls away).
+			var bk := breakup()
+			for i in car._wheel_rigs.size():
+				var node := car._wheel_rigs[i][0] as Node3D
+				if node.position.x > 0.0 and node.position.z < 0.0:
+					bk.tear_wheel(i, Vector3.LEFT)
+		elif part == "airbag" and CrashBreakup.applies(car):
+			breakup()._fire_airbags()
+		elif part == "drag" and CrashBreakup.applies(car):
+			# Sparks off whatever drags as if the car were doing 50 km/h.
+			breakup().stage_speed = 14.0
+			breakup().set_physics_process(true)
 		elif part == "scrape":
 			car.linear_velocity = xf.basis * Vector3(0.0, 0.0, -12.0)
 			car.take_hit(-1, 1.0, xf.basis * Vector3.LEFT, xf * Vector3(hw + 0.2, mid, 0.3), Vehicle.HIT_CRASH)
