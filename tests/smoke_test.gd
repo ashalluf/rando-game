@@ -2781,6 +2781,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/dawn_review_checks.gd").new().run(self, city)
 	# Blood and gore at arm's length (tests/blood_gore_2_checks.gd, BloodGore, HeroBlood).
 	await load("res://tests/blood_gore_2_checks.gd").new().run(self, city)
+	# The five stars as distinct (tests/wanted_escalation_checks.gd, WantedEscalation, WantedAudio):
+	# caps per star, vans, the agency's trucks and troopers, the gunship, the sirens and the radio.
+	await load("res://tests/wanted_escalation_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

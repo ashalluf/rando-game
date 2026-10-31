@@ -3687,6 +3687,15 @@ already mapped so milestone 2 is script-only.
   (no hero rebuild), and the one map defect (the T-zone's hard box) is fixed in both the generator
   and the shipped PNGs. Forward+ is the target: where the two renderers' balance differs (linear vs
   raw albedo against a light lobe) the shader carries a Forward+ gain. All behind HERO_CLOSEUP_2=0.
+- **2026-10-31 Each wanted star is its own response (wanted-escalation, HANDOFF "The five stars
+  as distinct").** Decisions: one table (`WantedEscalation`) owns what every star brings - caps,
+  roadblocks from three (was four), tactical vans from four (was five), the helicopter at three, a
+  second at four, a gunship third at five; five stars bring an invented agency (the Basin Defense
+  Corps) in olive box-truck troop carriers, its troopers in field drab with carbines and ballistic
+  helmets. Each star also sounds and reads different: the sirens' voice is picked by star and
+  distance (wail, yelp, air horn, the agency's hi-lo), a synthesised police radio announces every
+  new star and calls more often, and a line under the stars names the response. No real agency's
+  name or livery; `WANTED_ESCALATION=0` restores the old response.
 
 ## Correction: what build 135 (0ce833f) actually contained
 
