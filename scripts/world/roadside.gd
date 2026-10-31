@@ -402,9 +402,11 @@ static func _queue_car(s: Site, p: Vector2, yaw: float) -> void:
 
 
 ## A shrub in the chunk's shared shrub batch.
-static func _shrub(s: Site, p: Vector2, scale: float) -> void:
+## `y` (frame height) is the soil it stands in; NAN: the ground under it.
+static func _shrub(s: Site, p: Vector2, scale: float, y: float = NAN) -> void:
 	var v := s.rng.randi() % 4
-	_inst(s, "shrub_%d" % v, PropFactory.model_shrub(v), Transform3D(Basis(Vector3.UP, s.rng.randf() * TAU).scaled(Vector3.ONE * scale), Vector3(p.x, s.dy(p.x, p.y) + 0.3, p.y)), Color.BLACK, Color(0.95, 1.0, 0.9))
+	var foot := s.dy(p.x, p.y) + 0.3 if is_nan(y) else y
+	_inst(s, "shrub_%d" % v, PropFactory.model_shrub(v), Transform3D(Basis(Vector3.UP, s.rng.randf() * TAU).scaled(Vector3.ONE * scale), Vector3(p.x, foot, p.y)), Color.BLACK, Color(0.95, 1.0, 0.9))
 
 
 ## A planter strip along the street edge with shrubs, leaving the drives open (frame x ranges).
@@ -424,11 +426,14 @@ static func _frontage(s: Site, drives: Array) -> void:
 		var mid := (r.x + r.y) * 0.5
 		var len := r.y - r.x
 		var y := s.dy(mid, z)
-		s.pen.box(Vector3(mid, y + 0.1, z), Vector3(len, 0.32, 1.0), RoadsideKit.c(Color(0.7, 0.69, 0.66), RoadsideKit.K_CONCRETE), RoadsideKit.RM_MATTE, 0.03)
+		# Level at its middle: on a slope the box runs down to its lower end's ground and the
+		# shrubs stand in its soil, not on the slope under each (docs/HANDOFF.md "Ground contact").
+		var drop := maxf(0.0, y - minf(s.dy(r.x, z), s.dy(r.y, z)))
+		s.pen.box(Vector3(mid, y + 0.1 - drop * 0.5, z), Vector3(len, 0.32 + drop, 1.0), RoadsideKit.c(Color(0.7, 0.69, 0.66), RoadsideKit.K_CONCRETE), RoadsideKit.RM_MATTE, 0.03)
 		s.pen.box(Vector3(mid, y + 0.255, z), Vector3(len - 0.2, 0.02, 0.8), RoadsideKit.c(Color(0.22, 0.16, 0.1), RoadsideKit.K_FIXED), RoadsideKit.RM_MATTE)
 		var n := int(len / 2.6)
 		for k in n:
-			_shrub(s, Vector2(r.x + (k + 0.5) * len / n, z), 0.55 + s.rng.randf() * 0.25)
+			_shrub(s, Vector2(r.x + (k + 0.5) * len / n, z), 0.55 + s.rng.randf() * 0.25, y + 0.265)
 	# The drives: concrete aprons over the pavement to the kerb.
 	var sw: float = s.ch.plan.sidewalk_width
 	for cut: Vector2 in drives:

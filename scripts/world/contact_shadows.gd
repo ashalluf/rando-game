@@ -45,11 +45,18 @@ static var gain_with_sdfgi: float = 0.55
 static var gain_with_ssao: float = 0.9
 static var gain_without_ssao: float = 1.0
 static var _inst: ContactShadows
+## Set by tools/ground_contact/probe.gd: every batch_contacts() call appends [parent, batches]
+## (key -> {"mesh", "xforms", ...}) here, so a headless probe can read what a chunk placed
+## (MultiMesh.get_instance_transform() is identity under the dummy renderer).
+static var recorder: Array = []
+static var recording: bool = false
 static var _prop_mat: ShaderMaterial
 
 var _mmi: MultiMeshInstance3D
 var _mm: MultiMesh
 var _picked: Array = [] # each [Node3D, kind: 0 car / 1 prop, info: Vector4]
+## GroundContact's people: each [Node3D, metres from its origin down to the ground].
+var _people: Array = []
 var _pick_t: float = 0.0
 var _gain: float = 1.0
 
@@ -87,7 +94,7 @@ func _ready() -> void:
 	var quad := PlaneMesh.new()
 	quad.size = Vector2.ONE
 	_mm.mesh = quad
-	_mm.instance_count = budget
+	_mm.instance_count = budget + GroundContact.people_budget
 	_mm.visible_instance_count = 0
 	_mmi = MultiMeshInstance3D.new()
 	_mmi.name = "ContactQuads"
@@ -154,13 +161,56 @@ func _process(delta: float) -> void:
 		var basis := Basis(b.x * (info.y + 2.0 * mg), b.y, b.z * (info.x + 2.0 * mg))
 		_mm.set_instance_transform(n, Transform3D(basis, foot))
 		_mm.set_instance_custom_data(n, Color(info.x, info.y, info.z, info.w))
-		_mm.set_instance_color(n, Color(mg, 1, 1, s))
+		_mm.set_instance_color(n, Color(mg, 0.22, 0.0, s))
 		n += 1
 		if n >= budget:
 			break
+	n = _people_quads(n, eye)
 	_mm.visible_instance_count = n
 	# Instances are in global space and the node sits at the origin: the bounds go round the eye.
 	_mmi.custom_aabb = AABB(eye - Vector3.ONE * (reach + 10.0), Vector3.ONE * (reach + 10.0) * 2.0)
+
+
+## GroundContact's blobs under the people picked, from instance `n` on; returns the next free one.
+func _people_quads(n: int, eye: Vector3) -> int:
+	var space: PhysicsDirectSpaceState3D = null
+	for e in _people:
+		if not is_instance_valid(e[0]):
+			continue
+		var p := e[0] as Node3D
+		if not GroundContact.is_person(p):
+			continue
+		var drop: float = e[1]
+		if p.is_in_group("player"):
+			# The player jumps and flies: his ground is looked up every frame (one ray).
+			if space == null:
+				space = p.get_world_3d().direct_space_state
+			drop = GroundContact.ground_drop(space, p)
+		if is_nan(drop):
+			continue
+		var xf := p.global_transform
+		var s := (1.0 - smoothstep(0.1, GroundContact.AIR_FADE, drop)) * _gain * GroundContact.PERSON.w
+		s *= 1.0 - smoothstep(GroundContact.people_reach * 0.7, GroundContact.people_reach, eye.distance_to(xf.origin))
+		if s <= 0.01:
+			continue
+		var grow := 1.0 + drop * GroundContact.AIR_SPREAD
+		var w := GroundContact.PERSON.x * grow
+		var l := GroundContact.PERSON.y * grow
+		var mg := GroundContact.PERSON.z * grow
+		# Flat on the ground under him, turned with his heading.
+		var fwd := Vector3(xf.basis.z.x, 0.0, xf.basis.z.z)
+		if fwd.length_squared() < 1e-6:
+			fwd = Vector3.BACK
+		fwd = fwd.normalized()
+		var right := Vector3.UP.cross(fwd)
+		var foot := xf.origin + Vector3.DOWN * drop + Vector3.UP * LIFT
+		_mm.set_instance_transform(n, Transform3D(Basis(right * (w + 2.0 * mg), Vector3.UP, fwd * (l + 2.0 * mg)), foot))
+		_mm.set_instance_custom_data(n, Color(l, w, 0.0, 0.0))
+		_mm.set_instance_color(n, Color(mg, 0.5, 0.0, s))
+		n += 1
+		if n >= _mm.instance_count:
+			break
+	return n
 
 
 ## 0 while a physics car has no wheel on the ground (a jump, a flight), 1 otherwise. A kinematic
@@ -208,6 +258,12 @@ func _pick(eye: Vector3) -> void:
 		if info.is_empty():
 			continue
 		_picked.append([f[1], f[2], info[0], info[1]])
+	_people.clear()
+	var near := GroundContact.people_near(get_tree(), eye)
+	if not near.is_empty():
+		var space := (near[0][1] as Node3D).get_world_3d().direct_space_state
+		for f in near:
+			_people.append([f[1], GroundContact.ground_drop(space, f[1])])
 
 
 ## [Vector4(length, width, track, axle half spacing), contact height in the object's frame].
@@ -258,32 +314,48 @@ static func prop_material() -> ShaderMaterial:
 ## in one MultiMesh under `parent` ("BatchContact"); each batch node remembers where its quads
 ## start (meta "contact_twin" / "contact_base") so hide_instance() takes a broken prop's quad too.
 static func batch_contacts(batches: Dictionary, nodes: Dictionary, parent: Node3D) -> void:
+	if recording:
+		recorder.append([parent, batches.duplicate()])
 	if not enabled or parent == null:
 		return
 	var xfs: Array = []
 	var cols: Array = []
 	var cus: Array = []
 	var bases: Array = []
-	for key: String in CONTACT_KEYS:
-		if not batches.has(key) or not nodes.has(key):
+	for key: String in batches:
+		# ContactShadows' own furniture keys, then GroundContact's (trunks, poles, more furniture).
+		var row: Array = []
+		if CONTACT_KEYS.has(key):
+			row = [0.0, PROP_MARGIN, float(CONTACT_KEYS[key]), GroundContact.grime(key)]
+		else:
+			row = GroundContact.spec(key)
+		if row.is_empty() or not nodes.has(key):
 			continue
 		var batch: Dictionary = batches[key]
 		var box: AABB = (batch.mesh as Mesh).get_aabb()
 		if box.size.x <= 0.0 or box.size.z <= 0.0:
 			continue
+		var dia: float = row[0]
+		var mg: float = row[1]
 		bases.append([nodes[key], xfs.size()])
 		var c := box.get_center()
 		for x: Transform3D in batch.xforms:
 			var sc := x.basis.get_scale()
 			var w := box.size.x * sc.x
 			var l := box.size.z * sc.z
-			if sc.x < 0.001 or w > 6.0 or l > 6.0:
+			var foot := x * Vector3(c.x, box.position.y, c.z)
+			if dia > 0.0:
+				# A trunk or a pole: round, its own diameter at the instance's scale, at its origin
+				# (the box is the crown or the arm).
+				w = dia * sc.x
+				l = w
+				foot = x.origin
+			if sc.x < 0.001 or w > 6.0 or l > 6.0 or x.origin.y < -9000.0:
 				xfs.append(Transform3D(Basis().scaled(Vector3.ZERO), Vector3(0.0, -10000.0, 0.0)))
 			else:
 				var b := x.basis.orthonormalized()
-				var foot := x * Vector3(c.x, box.position.y, c.z) + b.y * LIFT
-				xfs.append(Transform3D(Basis(b.x * (w + 2.0 * PROP_MARGIN), b.y, b.z * (l + 2.0 * PROP_MARGIN)), foot))
-			cols.append(Color(PROP_MARGIN, 1.0, 1.0, float(CONTACT_KEYS[key])))
+				xfs.append(Transform3D(Basis(b.x * (w + 2.0 * mg), b.y, b.z * (l + 2.0 * mg)), foot + b.y * LIFT))
+			cols.append(Color(mg, 0.5 if dia > 0.0 else 0.22, float(row[3]), float(row[2])))
 			cus.append(Color(l, w, 0.0, 0.0))
 	if xfs.is_empty():
 		return

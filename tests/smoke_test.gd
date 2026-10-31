@@ -2746,6 +2746,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/water_review_checks.gd").new().run(self, city)
 	# The day sky (tests/sky_day_checks.gd, SkyDay): 0 outside 09:00-16:00, gated, handed over.
 	load("res://tests/sky_day_checks.gd").new().run(self, city)
+	# Ground contact (tests/ground_contact_checks.gd, GroundContact): trunks, poles and people on
+	# contact quads, grime, a well's tree sunk with its dirt, a slope's planter on the paving.
+	load("res://tests/ground_contact_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

@@ -369,7 +369,9 @@ static func guy(ch: CityChunk, pin: Vector3, zl: Vector3, dir: Vector3) -> void:
 	var anchor := Vector3(ground.x, ground.y + ch._gy(ground.x, ground.z) + 0.05, ground.z)
 	add_wire(batch, top, anchor, 0.0, Wire.GUY, R_GUY)
 	var d := (top - anchor).normalized()
-	_put_along(batch, "up_guard", guard_mesh(), anchor + d * (GUARD_LENGTH * 0.5 + 0.12), d)
+	# The guard sleeves the rod down to the ground (12 cm up the wire it stood off it: docs/HANDOFF.md
+	# "Ground contact").
+	_put_along(batch, "up_guard", guard_mesh(), anchor + d * (GUARD_LENGTH * 0.5 - 0.04) + Vector3.DOWN * 0.04, d)
 	_put_along(batch, "up_anchor", anchor_mesh(), anchor, d)
 	summary(ch).guys += 1
 

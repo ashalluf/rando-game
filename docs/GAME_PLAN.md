@@ -3941,3 +3941,11 @@ none of either.
   mean colour and never multiply a texture; a mirrored light's column grows a sixth of the way
   travelled. WATER_REVIEW=0 is the A/B. The far sea and the horizon plane's sea are untouched.
 - 2026-10-31 (wave 4, sky-day-review): the day sky (09:00-16:00) is a weight on the clock (SkyDay), exactly 0 outside it so dawn, the golden hour, the sunset and the night stay bit-identical; the look changes in the drawn sky, and only a quarter of it reaches the radiance / ambient cubemap, because the sky is the city's fill light and lighting is the grade's call. The horizon colour is not darkened in the shader alone (it must match the fog and the far ground). SKY_DAY=0 is the A/B.
+- **2026-10-31 Ground contact: one quad system for everything on the ground, floats fixed at the
+  lift (ground-shadow-contact, HANDOFF "Ground contact").** Trunks, poles, furniture and people get
+  ContactShadows' existing quads (round at a trunk's own diameter, grime round street fixtures, a
+  blob under each near person) rather than a new system or a screen effect, because the web and the
+  opengl3 stills have no SSAO. Floating is measured against the DRAWN ground, never the collision
+  (paving is drawn over the slab that collides), through each instance's origin; every fix moves a
+  placement's height only, after the rolls, so no seed's city moves.
+

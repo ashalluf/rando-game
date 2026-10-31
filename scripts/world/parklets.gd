@@ -300,6 +300,10 @@ static func _build_one(chunk: CityChunk, block: Dictionary, pk: Dictionary, hour
 		var laid := not seats.is_empty()
 		var set_kind := int(square) * 4 + int(laid) * 2 + int(cafe)
 		var sxf := Transform3D(basis, xf * spot)
+		# On the deck, which is level at its centre's relief: the batch lifts each set by the slope
+		# under the set itself, so on a hill the sets floated or sank (docs/HANDOFF.md "Ground
+		# contact"). Take that back off.
+		sxf.origin.y += chunk._gy(xf.origin.x, xf.origin.z) - chunk._gy(sxf.origin.x, sxf.origin.z)
 		var id := "%s_t%d" % [String(pk.id), t]
 		if WorldState.is_destroyed(chunk.key, id):
 			continue

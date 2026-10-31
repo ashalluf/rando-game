@@ -687,6 +687,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   SDFGI / SSAO already occlude. `GI_REVIEW=0` / `CONTACT_SHADOWS=0` the A/B;
   `tools/gi_review/gi_shot.tscn` (VARIANTS= in one load, the player's auto exposure, PROFILE=1);
   checks `tests/gi_review_checks.gd`.
+- Ground contact (2026-10-31, docs/HANDOFF.md "Ground contact"): `GroundContact`
+  (`scripts/world/ground_contact.gd`) feeds ContactShadows' quads: round feet under trunks and poles
+  (`FEET` / `FEET_PREFIX`, at the instance's origin x scale), grime round fixtures (COLOR.b), a blob
+  under each near person (`people_near()`, `ground_drop()`). `GROUND_CONTACT=0` the A/B. Floating
+  props: `tools/ground_contact/probe.tscn` under opengl3 (rays to the DRAWN ground, never the
+  collision); a level box on a slope reaches the ground at its lowest corner, and what stands on it
+  is lifted by ITS relief, not the slope under each instance. Checks `tests/ground_contact_checks.gd`.
 - Reflection probes (G4, 2026-10-05, docs/HANDOFF.md "Reflection probes"): `ReflectionProbes`
   (`scripts/world/reflection_probes.gd`, a Node CityStreamer adds; **Forward+ desktop only**,
   `supported()`; `REFLECTION_PROBES=0` the A/B). Box-projected `ReflectionProbe`s on the street

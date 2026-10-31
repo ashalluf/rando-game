@@ -591,6 +591,7 @@ static func _trees(ctx: Dictionary) -> void:
 			if _clear_rect(ctx, wr, c):
 				ctx.cuts.append({"poly": _rect_poly(wr), "box": wr})
 				(ctx.wells as Array).append(wr)
+				GroundContact.sink_trunk(data, c, WELL_DIRT_DEPTH)
 				# The grate goes: the well is open.
 				xforms[i] = Transform3D(Basis().scaled(Vector3(0.0001, 0.0001, 0.0001)), xf.origin - Vector3(0.0, 0.5, 0.0))
 		if _h01(key + ["heave"]) < HEAVE_ODDS:
