@@ -298,6 +298,13 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 			elif occupant == "none":
 				car.call("_apply_occupant", 0, cabin.call("player_look"))
 			print("OCCUPANT type %d: seats %d" % [int(car.get("body_type")), int(cabin.call("seats_of", car.call("cabin_glass")))])
+			# OCC_LOOK=driver,passengers: where their heads are turned (radians to the car's right;
+			# TrafficBehaviour's occupant_look).
+			if OS.get_environment("OCC_LOOK") != "":
+				var lk := OS.get_environment("OCC_LOOK").split(",")
+				var sml := car.call("cabin_glass") as ShaderMaterial
+				if sml != null and lk.size() >= 2:
+					sml.set_shader_parameter("occupant_look", Vector2(lk[0].to_float(), lk[1].to_float()))
 			if OS.get_environment("CABIN_DEBUG") != "":
 				var sm := car.call("cabin_glass") as ShaderMaterial
 				if sm != null:

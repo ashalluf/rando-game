@@ -115,7 +115,8 @@ static func survey(tm: TrafficManager) -> void:
 		var wp := WorldState.to_world(c.global_position)
 		if Vector2(wp.x - pw.x, wp.z - pw.z).length_squared() > reach2:
 			continue
-		if c.linear_velocity.length_squared() > 9.0:
+		# Flying, or riding something (a wreck on a tow truck's bed has no collision).
+		if c.linear_velocity.length_squared() > 9.0 or c.collision_layer == 0:
 			continue
 		register(plan, c, wp)
 
@@ -402,7 +403,8 @@ static func oncoming_clear(tm: TrafficManager, groups: Dictionary, axis: int, in
 ## A wreck or a knocked-out car in the lane ahead: [the gap to stand at (m) or INF], with the lane
 ## change asked of TrafficAI, the edge round it, the slow pass and the look set as it goes.
 static func _obstacles(tm: TrafficManager, car: Vehicle, t: Dictionary, groups: Dictionary, along: float, v: float, half: float, delta: float) -> float:
-	if _obst_road.is_empty():
+	# A service vehicle at work (a tow truck coming for this very wreck) keeps its own stops.
+	if _obst_road.is_empty() or t.has("work"):
 		_end_dodge(t)
 		return INF
 	var axis: int = t.axis
@@ -430,7 +432,8 @@ static func _obstacles(tm: TrafficManager, car: Vehicle, t: Dictionary, groups: 
 	for rec: Array in mine:
 		var d := (float(rec[0]) - along) * float(dir) - half - float(rec[1])
 		# Kept until the whole car is past it, with a metre to spare, before it moves back.
-		if d > -2.0 * float(rec[1]) - 2.0 * half - 1.0 and d < DODGE_LOOK and d < bd:
+		var lo := -2.0 * float(rec[1]) - 2.0 * half - 1.0 if t.has("tb_dodge") else 0.0
+		if d > lo and d < DODGE_LOOK and d < bd:
 			bd = d
 			best = rec
 	if best.is_empty():

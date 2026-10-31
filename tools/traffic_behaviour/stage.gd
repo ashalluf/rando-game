@@ -102,14 +102,14 @@ static func stage(tm: TrafficManager, kind: String, cam: Camera3D) -> String:
 			var car := tm.place_car(axis, index, 1, 0, line - 2.6, 0.0, false)
 			tm.place_car(axis, index, 1, 0, line - 10.0, 0.0, false)
 			tm.set_meta("shot_car", car)
-			# Ahead and to the driver's side of the windscreen, at eye height.
+			# Beside the driver's window (the car's left), a little ahead, at eye height.
 			var wp := WorldState.to_world(car.global_position)
 			var fwd := -car.global_basis.z
 			var right := car.global_basis.x
-			var eye := wp + fwd * 3.6 - right * 2.1
+			var eye := wp + fwd * 1.2 - right * 2.7
 			TrafficBehaviour.look_override = Vector3(eye.x, wp.y + 1.2, eye.z)
-			var target := wp + fwd * 0.4 - right * 0.35
-			return TrafficAI._eye_string(plan, Vector2(eye.x, eye.z), 1.45, Vector2(target.x, target.z), 1.05)
+			var target := wp - fwd * 0.2 - right * 0.4
+			return TrafficAI._eye_string(plan, Vector2(eye.x, eye.z), 1.35, Vector2(target.x, target.z), 1.05)
 		"bus":
 			var best := []
 			var bd := INF
