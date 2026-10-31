@@ -4032,3 +4032,9 @@ none of either.
   are bit-identical) gives the sunrise a pinker gold sun, a rose horizon, cleaner air and a rose-grey
   mist, eases the golden grade, and switches the street lamps off before the sunrise. Behind
   DAWN_REVIEW=0.
+- **2026-10-31 Gore at arm's length is on top of the old blood, never instead of it (blood-gore-2,
+  HANDOFF "Blood and gore at arm's length").** The owner asked for more. Wounds, runs and the hero's
+  spatter are shader work on the materials the bodies already have (a shot doll's own copy, the
+  hero's), so the crowd pays nothing; pools follow the ground and the road's camber to the gutter,
+  bodies on cars bleed onto the paint and off its edge, stumps are torn flesh and bone. The caps,
+  the budget and the satin / coverage rules of the old marks stay as they were. BLOOD_GORE_2=0.

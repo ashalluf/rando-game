@@ -2779,6 +2779,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The dawn review (tests/dawn_review_checks.gd, DawnReview): a cooler, cleaner dawn, the lamps
 	# out before the sunrise, noon / evening / night bit-identical, the A/B.
 	load("res://tests/dawn_review_checks.gd").new().run(self, city)
+	# Blood and gore at arm's length (tests/blood_gore_2_checks.gd, BloodGore, HeroBlood).
+	await load("res://tests/blood_gore_2_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

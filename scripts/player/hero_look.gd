@@ -40,6 +40,8 @@ var face: HeroFace
 const WET_MATERIALS := ["skin"]
 var _joints: Array = [] # [upper, middle, end] bone triples: L elbow, R elbow, L knee, R knee
 var _skeleton: Skeleton3D
+## Blood spattered on him (blood-gore-2); null with BLOOD_GORE_2=0.
+var blood: HeroBlood
 
 
 ## Dresses `inst` (the instantiated hero.glb) and returns the look, or null when this is not the
@@ -82,6 +84,7 @@ static func dress(inst: Node3D, settings: Dictionary = {}) -> HeroLook:
 		# Read the pose when the skeleton has finished it: the arm IK and the hands only exist
 		# in the final pose, and get_bone_global_pose() anywhere else returns the clip's.
 		look._skeleton.skeleton_updated.connect(look.update)
+		look.blood = HeroBlood.attach(look._skeleton, [look.skin, look.cloth, look.cloth_rib]) # blood-gore-2
 		if look.face:
 			look.face.attach(look._skeleton, body)
 		for chain in [["LeftArm", "LeftForeArm", "LeftHand"], ["RightArm", "RightForeArm", "RightHand"],

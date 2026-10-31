@@ -1040,7 +1040,7 @@ static func smoke_material() -> StandardMaterial3D:
 static func warm_materials() -> Array:
 	# The blood marks' textures are generated here too (a few tens of milliseconds for all five
 	# kinds), so the first wound does not pay for them.
-	for kind in [_KIND_DROP, _KIND_SPATTER, _KIND_POOL, _KIND_SMEAR, _KIND_DRIP]:
+	for kind in [_KIND_DROP, _KIND_SPATTER, _KIND_POOL, _KIND_SMEAR, _KIND_DRIP, _KIND_RIVULET]:
 		blood_textures(kind)
 	return [_puff_material(false), _puff_material(true), _puff_material(false, true), _fire_material(),
 		_blood_drop_material(), _blood_mist_material()]
@@ -1054,7 +1054,7 @@ static func warm_decals() -> Array:
 	var out: Array = []
 	if not _decals():
 		return out
-	for kind in [_KIND_DROP, _KIND_SPATTER, _KIND_POOL, _KIND_SMEAR, _KIND_DRIP]:
+	for kind in [_KIND_DROP, _KIND_SPATTER, _KIND_POOL, _KIND_SMEAR, _KIND_DRIP, _KIND_RIVULET]:
 		var tex := blood_textures(kind)
 		var dec := Decal.new()
 		dec.texture_albedo = tex[0]
@@ -1105,6 +1105,8 @@ const _KIND_SPATTER := 1
 const _KIND_POOL := 2
 const _KIND_SMEAR := 3
 const _KIND_DRIP := 4
+## A rivulet run off a pool downhill / down the camber to the gutter (BloodGore).
+const _KIND_RIVULET := 5
 
 static var _splats: Array = []
 static var _walls: Array = []
@@ -1179,6 +1181,7 @@ static func _bleed(node: Node, at: Vector3, dir: Vector3, strength: float, victi
 	if dist > blood_far_distance:
 		return
 	blood_stats["wounds"] += 1
+	HeroBlood.splash(at, dir, strength) # blood-gore-2: spatter on the hero's clothes when close
 	var parent := fx_parent(node)
 	var exit_at := at + d * (blood_exit_depth if entry else 0.0)
 	var grow := sqrt(s)
@@ -1555,6 +1558,7 @@ static func blood_pool(node: Node, at: Vector3, normal: Vector3, strength: float
 	_pools.append(pool)
 	_trim(_pools, blood_pool_max)
 	blood_stats["pools"] += 1
+	BloodGore.pool_laid(node, pool, at, normal) # blood-gore-2: it spreads downhill, runs to the gutter
 	feed_pool(pool, strength)
 	return pool
 
@@ -1767,7 +1771,7 @@ static func blood_textures(kind: int) -> Array:
 		return _blood_tex[kind]
 	var w := 128
 	var h := 128
-	if kind == _KIND_DRIP:
+	if kind == _KIND_DRIP or kind == _KIND_RIVULET:
 		w = 64
 	elif kind == _KIND_SMEAR:
 		h = 64
@@ -1784,6 +1788,8 @@ static func blood_textures(kind: int) -> Array:
 			_paint_pool(f, w, h, rng)
 		_KIND_SMEAR:
 			_paint_smear(f, w, h, rng)
+		_KIND_RIVULET:
+			BloodGore.paint_rivulet(f, w, h, rng)
 		_:
 			_paint_drip(f, w, h, rng)
 	var maps := _shade_blood(f, w, h, rng)

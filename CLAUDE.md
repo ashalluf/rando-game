@@ -2649,6 +2649,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   key is missing (a null default means no default), and a CPUParticles3D under a bone attachment
   inherits the rig's 0.01 scale and shrinks a hundredfold, so drips ride the ragdoll's body.
   Stage it with `still_shot.gd` `FX_SHOOT=N` (`SHOT_YAW`, `FX_PED_WALL`, `FX_SCALE`).
+  **Gore at arm's length** (2026-10-31, docs/HANDOFF.md "Blood and gore at arm's length"):
+  `BloodGore` (`scripts/weapons/blood_gore.gd`) - a stain carries a hole (entry `ENTRY_HOLE`, exit
+  `EXIT_HOLE`) and its outward normal, drawn in character.gdshader by `shaders/blood_wound.gdshaderinc`
+  as a decal projected along that normal (punched hole, dark ring, glossy wet blood, a run creeping
+  down the way `wound_down` pulls over `RUN_SECONDS`); a pool is turned and slid down the slope and
+  sends a rivulet (`_KIND_RIVULET`) down the slope or the road's `CAMBER` to the gutter, where it
+  spreads along the kerb (`flow()`, the plan via the "city" group); a body on a car leaves a smear, a
+  run to the panel's edge, a drip there and drops on the road as it drives (`car_bleed()`); stumps
+  are `stump_mesh()` on `gib_stump.gdshader`; `HeroBlood` (`scripts/player/hero_blood.gd`) spatters
+  the hero within `REACH` of a wound (`shaders/blood_spatter.gdshaderinc` in hero_cloth / hero_skin,
+  `spat_p[]` / `spat_d[]` riding his bones, drying, washed by rain). A doll needs a look >= 0 for its
+  stain material. `BLOOD_GORE_2=0` the A/B; stills `tools/blood_gore/gore_shot.gd`
+  (`STAGE=wounds|stump|hero|car|pool`, the test room, a minute); checks `tests/blood_gore_2_checks.gd`.
   Screenshot effects with `tools/glshot/fx_shot.gd` (and store stills with
   `tools/glshot/still_shot.gd`): Godot caps a frame at eight physics ticks (0.133 s) however
   long a software frame really takes, so they count the effect's own elapsed time, never the

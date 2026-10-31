@@ -42,6 +42,8 @@ var _wounds: Array = []
 var _stain_mat: ShaderMaterial
 ## Torn-off limbs still able to leave a trail: limb instance id -> [limb, smears left, last spot].
 var _limb_trails: Dictionary = {}
+## blood-gore-2: the car this body bleeds on and its drip edge (BloodGore.car_bleed()).
+var _car_blood: Dictionary = {}
 ## Most stains one body carries; a new one past this replaces the oldest.
 const MAX_WOUNDS := 4
 ## Seconds a stain takes to soak out to its full size.
@@ -158,8 +160,9 @@ func shot(at: Vector3, dir: Vector3, impulse: Vector3 = Vector3.ZERO, strength: 
 	var inv := body.global_transform.affine_inverse()
 	# The entry a little inside where the ray met the collision shape (which stands off the skin),
 	# and the exit on the far side, bigger, the way an exit wound is.
-	_stains_due.append([inv * (at + d * 0.08), 0.10 * s])
-	_stains_due.append([inv * (at + d * WeaponFX.blood_exit_depth), 0.15 * s])
+	# blood-gore-2: each stain also carries its hole and the way it faces (BloodGore).
+	_stains_due.append([inv * (at + d * 0.08), 0.10 * s, BloodGore.ENTRY_HOLE * s, inv.basis * -d])
+	_stains_due.append([inv * (at + d * WeaponFX.blood_exit_depth), 0.15 * s, BloodGore.EXIT_HOLE * s, inv.basis * d])
 	_wounded(strength, inv * (at + d * WeaponFX.blood_exit_depth))
 
 
@@ -184,7 +187,7 @@ func _blood_step(delta: float) -> bool:
 	# One frame after the shot the skeleton has taken its first pose of the flailing clip.
 	if not _stains_due.is_empty() and _age > delta:
 		for s: Array in _stains_due:
-			_place_stain(s[0], s[1])
+			_place_stain(s[0], s[1], s[2] if s.size() > 2 else 0.0, s[3] if s.size() > 3 else Vector3.ZERO)
 		_stains_due.clear()
 	var soaking := _update_stains(delta)
 	_blood_tick -= delta
@@ -223,9 +226,13 @@ func _blood_step(delta: float) -> bool:
 			waiting = true
 	elif _pool_at == Vector3.INF and _age < 6.0:
 		waiting = true
+	# blood-gore-2: lying on a car - a smear on the paint, a run to the edge, drips off it.
+	var on_car := BloodGore.car_under(self, pelvis) if _age > 0.4 else {}
+	if not on_car.is_empty():
+		BloodGore.car_bleed(self, on_car.collider, on_car, bleed, _car_blood)
 	var limbs := _limb_blood()
 	var sliding := Vector2(body.linear_velocity.x, body.linear_velocity.z).length() > 1.2
-	return (soaking or waiting or limbs or sliding) and _age < 16.0
+	return (soaking or waiting or limbs or sliding or not on_car.is_empty()) and _age < (60.0 if not on_car.is_empty() else 16.0)
 
 
 ## The hips in the world (the pool runs out from under them), or the body's middle.
@@ -258,7 +265,7 @@ func _skeleton() -> Skeleton3D:
 
 ## A stain on the clothes round a wound: `local_at` in the body's own space, `radius` in metres.
 ## It rides the bone nearest the wound, so it stays on the sleeve or the shirt as they flail.
-func _place_stain(local_at: Vector3, radius: float) -> void:
+func _place_stain(local_at: Vector3, radius: float, hole: float = 0.0, facing: Vector3 = Vector3.ZERO) -> void:
 	var skel := _skeleton()
 	if skel == null or _stain_material() == null:
 		return
@@ -269,16 +276,24 @@ func _place_stain(local_at: Vector3, radius: float) -> void:
 	var bone := _nearest_bone(skel, sp)
 	if bone < 0:
 		return
-	var local := skel.get_bone_global_pose(bone).affine_inverse() * sp
+	var pose := skel.get_bone_global_pose(bone)
+	var local := pose.affine_inverse() * sp
 	var r := radius * unit
+	# The hole's outward normal in the bone's own frame, so it turns with the limb.
+	var nrm := Vector3.ZERO
+	if not facing.is_zero_approx():
+		var nw: Vector3 = bodies[0].global_basis * facing
+		nrm = (pose.basis.inverse() * (skel.global_basis.inverse() * nw)).normalized()
 	# Shot again close to a stain: that stain spreads instead of a second one on top of it.
 	for w: Dictionary in _wounds:
 		if int(w.bone) == bone and (w.local as Vector3).distance_to(local) < r * 0.9:
 			w.radius = minf(float(w.radius) + r * 0.45, float(w.radius) * 1.8)
+			w.hole = maxf(float(w.get("hole", 0.0)), hole * unit)
 			return
 	if _wounds.size() >= MAX_WOUNDS:
 		_wounds.pop_front()
-	_wounds.append({"bone": bone, "local": local, "radius": r, "age": 0.0})
+	_wounds.append({"bone": bone, "local": local, "radius": r, "age": 0.0, "hole": hole * unit, "nrm": nrm,
+		"run": BloodGore.run_length(radius) * unit})
 
 
 ## The bone whose segment (from its own origin to its child's) passes nearest `sp`, skeleton space.
@@ -307,17 +322,35 @@ func _update_stains(delta: float) -> bool:
 	if skel == null:
 		return false
 	var soaking := false
+	var gore := BloodGore.enabled()
+	var holes := Vector4.ZERO
 	for i in MAX_WOUNDS:
 		var v := Vector4.ZERO
+		var dir := Vector4.ZERO
 		if i < _wounds.size():
 			var w: Dictionary = _wounds[i]
 			w.age = float(w.age) + delta
 			var k := smoothstep(0.0, STAIN_SOAK, float(w.age))
 			soaking = soaking or k < 1.0
-			var p := skel.get_bone_global_pose(int(w.bone)) * (w.local as Vector3)
+			var pose := skel.get_bone_global_pose(int(w.bone))
+			var p := pose * (w.local as Vector3)
 			v = Vector4(p.x, p.y, p.z, float(w.radius) * lerpf(0.45, 1.0, k))
+			if gore:
+				# The run creeps down the body for BloodGore.RUN_SECONDS (blood_wound.gdshaderinc).
+				var run := BloodGore.run_share(float(w.age))
+				soaking = soaking or run < 1.0
+				var n: Vector3 = pose.basis * (w.get("nrm", Vector3.ZERO) as Vector3)
+				dir = Vector4(n.x, n.y, n.z, float(w.get("run", 0.0)) * run)
+				holes[i] = float(w.get("hole", 0.0)) * lerpf(0.6, 1.0, smoothstep(0.0, 0.25, float(w.age)))
 		_stain_mat.set_shader_parameter("wound_%d" % i, v)
+		if gore:
+			_stain_mat.set_shader_parameter("wound_dir_%d" % i, dir)
 	_stain_mat.set_shader_parameter("wound_count", float(_wounds.size()))
+	if gore:
+		_stain_mat.set_shader_parameter("wound_gore", 1.0)
+		_stain_mat.set_shader_parameter("wound_holes", holes)
+		_stain_mat.set_shader_parameter("wound_unit", 1.0 / maxf(skel.global_basis.get_scale().x, 0.0001))
+		_stain_mat.set_shader_parameter("wound_down", (skel.global_basis.inverse() * Vector3.DOWN).normalized())
 	return soaking or (_anim != null and _anim.is_playing())
 
 
@@ -406,7 +439,7 @@ func dismember(count: int, impulse: Vector3) -> int:
 			_joints.drop_limb(limb, skel)
 			bodies = _joints.bodies()
 		var joint := skel.global_transform * skel.get_bone_global_pose(root_bone).origin
-		_add_stump(skel, root_bone)
+		_add_stump(skel, root_bone, limb)
 		_throw_limb(piece, limb, source.get_active_material(0), impulse)
 		var out := (impulse.normalized() + Vector3.UP * 0.6).normalized()
 		WeaponFX.blood_gush(self, joint, out, WeaponFX.blood_gib_strength, self)
@@ -421,7 +454,7 @@ func dismember(count: int, impulse: Vector3) -> int:
 
 
 ## A dark wound where the limb was, riding the bone it hung from.
-func _add_stump(skel: Skeleton3D, root_bone: int) -> void:
+func _add_stump(skel: Skeleton3D, root_bone: int, limb: String = "") -> void:
 	var parent_bone := skel.get_bone_parent(root_bone)
 	if parent_bone < 0:
 		return
@@ -433,6 +466,14 @@ func _add_stump(skel: Skeleton3D, root_bone: int) -> void:
 	# The attachment carries the rig's own scale (the skeletons are in centimetres under a 0.01
 	# armature), so the cap is sized in the bone's units, from what one metre is there.
 	var unit := 1.0 / maxf(skel.global_basis.get_scale().x, 0.0001)
+	if BloodGore.enabled():
+		# blood-gore-2: torn skin, muscle, fat and the bone's end, facing out along the limb.
+		var rest := skel.get_bone_rest(root_bone).origin
+		cap.mesh = BloodGore.stump_mesh(BloodGore.STUMP_RADIUS.get(limb, 0.06))
+		cap.transform = Transform3D(WeaponFX._basis_up(rest if not rest.is_zero_approx() else Vector3.UP) * unit, rest)
+		cap.name = "Stump"
+		att.add_child(cap)
+		return
 	sphere.radius = 0.075 * unit
 	sphere.height = 0.12 * unit
 	sphere.radial_segments = 10
@@ -464,6 +505,13 @@ func _throw_limb(piece: Array, limb: String, material: Material, impulse: Vector
 	cap.mesh = _limb_cap_mesh()
 	cap.material_override = _wound_material()
 	cap.position = piece[3]
+	if BloodGore.enabled():
+		# The torn end of the limb, facing out of it (from its middle to the joint end).
+		var end: Vector3 = piece[3]
+		cap.mesh = BloodGore.stump_mesh(BloodGore.STUMP_RADIUS.get(limb, 0.06) * 0.95)
+		cap.material_override = null
+		cap.transform = Transform3D(WeaponFX._basis_up(end if not end.is_zero_approx() else Vector3.UP), end)
+		cap.name = "Stump"
 	body.add_child(cap)
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()

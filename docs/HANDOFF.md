@@ -24211,3 +24211,76 @@ way by both renderers, but judge 06:15 on the Mac. Dew was not added (the lawns'
 already wet the grass; damp roads at every dawn would read as rain). The navy asphalt in the street
 view is the same at every hour (not dawn's). The east-facing street camera looks at a building front,
 not the sunrise. The marine-layer mornings were not reshot (the old 60-camera table had a marine row).
+
+## 9jt. Blood and gore at arm's length (blood-gore-2, 2026-10-31)
+
+The owner asked for more blood. WeaponFX's blood (CLAUDE.md, the Effects note: sprays, splats, wall
+spatter, pools, drips, stains) stays exactly as it was - caps, budget, satin roughness, coverage mips;
+this pass adds what reads at two or three metres, all behind `BLOOD_GORE_2=0`.
+
+**Wounds on the body** (`shaders/blood_wound.gdshaderinc`, in character.gdshader inside its old
+`wound_count > 0.5` branch, so a living crowd pays nothing): `Ragdoll.shot()` now books each stain
+with a HOLE radius (`BloodGore.ENTRY_HOLE` 1.7 cm, `EXIT_HOLE` 3 cm, times the wound's sqrt
+strength) and its OUTWARD normal (-d for the entry, +d for the exit), kept in the bone's frame like
+the stain itself. The stain's centre is INSIDE the body (on the round's path), so 3D distance never
+reached the skin: the hole, its abraded ring and the run are drawn like a decal projected along the
+hole's normal (`h` along it, `t` across), on the side of the body that faces that way. Hole: near
+black, ragged (two noise octaves), a crater normal laid by the surface gradient of its depth
+(`wb_bump()`, view-space derivatives: no tangents needed). Ring: dark red-brown. Fresh blood glossy
+(roughness 0.09, SPECULAR 0.5) over the hole, ring, run and the soak's inner half; the weave and
+pores flattened under it. Run: a ribbon from the hole down the way gravity pulls in the rig
+(`wound_down`, set every frame while it creeps), narrowing, wandering, with a bead at its front;
+none when gravity points straight into the hole. It creeps over `RUN_SECONDS` (9 s), so the doll's
+blood upkeep runs that long. Uniforms: `wound_gore`, `wound_holes`, `wound_dir_0..3` (normal, run
+length), `wound_down`, `wound_unit`. No sampler added (the web's 9-sampler rule holds).
+
+**Pools that follow the ground** (`BloodGore.pool_laid()`, one hook line in `WeaponFX.blood_pool()`):
+`flow()` = the ground's own downhill (from the hit normal) + the road's 2 % camber toward its nearer
+kerb when the pool is on a carriageway (the plan from the "city" group; junction squares and blocks
+get none). Flatter than 0.6 % it stays round as before. Otherwise the pool is turned down the flow,
+stretched (aspect 1.15-1.75) and slid that way, and after `RIVULET_DELAY` a rivulet (new mark kind
+`_KIND_RIVULET`, 64 x 128, `paint_rivulet()`) creeps off downhill over `RIVULET_CREEP` - to the
+gutter when the kerb is within `RIVULET_MAX`, where a puddle spreads along the kerb. Both are children
+of the pool, so the pool cap takes them with it.
+
+**A body on a car** (`BloodGore.car_bleed()`, from `Ragdoll._blood_step()`): a ray down the props
+layer from the hips finds a VehicleBody3D; the first time, a pool on the paint under the body, a
+rivulet to the panel's edge (marched out in 12 cm steps down the slope, or toward the nearer side on
+a flat roof), a run down the face below it, all hosted by the car (they drive off with it); a
+`blood_drip()` on the edge; then a drop on the road every `CAR_TRAIL_STEP` the edge moves
+(`CAR_TRAIL_MAX` a body). A doll on a car keeps its upkeep for 60 s.
+
+**Stumps** (`BloodGore.stump_mesh()`, ~300 triangles, cached by radius, on `shaders/gib_stump.gdshader`
+- tissue colour in COLOR.rgb, kind in COLOR.a): a ragged lip of skin and cloth, a fat ring, muscle
+in fibre bundles, the bone's broken end with marrow, strands hanging off. On the body (facing out
+along the lost limb's rest direction) and on the thrown limb's torn end. Wet, a little translucent.
+
+**The hero spattered** (`HeroBlood`, `scripts/player/hero_blood.gd`, made by `HeroLook.dress()`):
+`WeaponFX._bleed()` calls `HeroBlood.splash()`; a wound within `REACH` 2.8 m (x sqrt strength) of
+his chest throws a spatter onto the side of him that faced it (up to `MAX_SPATS` 6), riding the bone
+it landed on. `shaders/blood_spatter.gdshaderinc` (in hero_cloth and hero_skin) draws drops from three
+octaves of 3D cells, stretched along the spray, a wet smear in the middle of a close one, drying matt
+over `DRY_SECONDS`, gone after `CLEAN_SECONDS`, washed off in rain (`RainCrowd.level`).
+
+**Trap**: a Ragdoll built with look -1 has no character material, so no stain material and no
+stains at all (the stage tool did that first). Pedestrians always pass their look.
+
+**Stills** (test room, a minute each): `tools/blood_gore/gore_shot.gd STAGE=wounds|stump|hero|car|pool`
+(`BLOOD_GORE_2=0` the before). City: `still_shot.gd FX_AT=7 FX_AT_PED=1 FX_PED_PLACE=1 FX_SHOOT=4
+FX_SCALE=1.0 FX_TIME=24 -- --spawn=2.5,60,0,-24` (a body in the road; the camber run to the kerb).
+**Checks**: `tests/blood_gore_2_checks.gd` (24).
+
+**Gate** (SHARDS=3, on a merge of main at `ff57f099`, batch 26): 4,472 checks, 2 FAIL, both in
+traffic, neither touched by this branch: `traffic_motion_checks` "no tick turns the car by more than
+a smooth turn would" (fails alone too, and with `BLOOD_GORE_2=0`: worst 50-130 degrees each run) and
+`traffic_ai_checks` "never drives into another car" (tightest -1.36 m). Before that merge the same
+branch passed 4,366 / 4,366. Peak RSS per shard 2.8-3.5 GB.
+
+**Not done / not verified.** Forward+ (the Mac: the marks are Decals there, the stills here are the
+Compatibility quads) was not rendered; the wound / spatter / stump colours go through the shaders'
+own colour paths (character.gdshader's `value_is_linear`, source_color defaults in the spatter,
+color_space.gdshaderinc in the stump), but judge them on the Mac. No good still of a stump yet (the
+test room's dolls land on them); the road camber run is held by the checks but its city still was not
+taken (the framing put the hero over the body). A body on a car moving in traffic was only checked
+with a car moved by hand. The car marks are not counted in WeaponFX's caps (they are bounded by the
+bodies on cars, three marks and a drip each, and free themselves).
