@@ -23171,8 +23171,13 @@ clean. Logs were kept per run (`SMOKE_LOG_DIR`); a loop script ran the seeds bac
 | 2222 | crowd_anim_2 SCRIPT ERROR (`_steer`, walker freed) | staged walker without `no_trim` | `no_trim` on every staged `Pedestrian.new()` in nine more check files |
 | 2222 | emergency "the other brings the stretcher" / "the ambulance leaves" | the stretcher medic pushed at the ambulance's rear corner for 45 s, 6 m short: a car in the kerb lane | the check clears parked cars within 16 m and holds StreetErrands off for the call |
 | 2525 | crowd_anim_2 SCRIPT ERROR (`_walk_check`, chunk freed) | the spawn block's chunk was replaced mid-walk | streaming settled and the chunk required FULL first; validity guards turn an error into a FAIL |
+| 4242 | explosions_3 x3 "one volume node", "the volume's box", "the heat haze reads the screen first" | explosions_2's rename trap again (BlastVolume / BlastHaze) | both explosion checks free an earlier blast's `Blast*` nodes (not the `BlastBits` pool); the gate reset does it before every file |
+| 4444 | crowd_life SCRIPT ERROR (sitter freed) | the spawn chunk swapped mid-check, as 2525 | settled streaming, a FULL chunk, guards |
+| 4444 | traffic_ai "a car with an exit leaves the freeway (left false)" | StackTraffic takes a share of freeway cars coming up to a diverge, out of `freeway_cars` | `take_share` 0 for the exit test; the message says where the car went |
+| 4444 | room "one shotgun blast throws a crate (0.13 m)" | not found | the message names what the aim ray hit and the crate |
 
-**The gate reset grew two things** (`tests/gate_reset.gd`): every BlastDebris freed, and the crowd:
+**The gate reset grew three things** (`tests/gate_reset.gd`): every BlastDebris freed, a blast's still-fading `Blast*` effect nodes freed
+(BlastBits, the shared chip pool, kept), and the crowd:
 the streamer's `max_pedestrians` put back and the head-count trimmed to the snapshot's (farthest
 plain walkers first, `BusyStreets.is_plain_walker()`: nobody on an errand, watching, stopped or
 seated). Ten more check files count the people a chunk build spawns without raising the cap
