@@ -760,6 +760,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   from a `GRADE_RAW=1` run, then confirm with a normal run and `tools/cinematic/grade_probe.gd`
   (Forward+ in two minutes). HourGrade's looks carry `depth` (a broad shadow gain); DayNight has
   `day_/night_glow_intensity` and `_threshold`. `tests/cinematic_review_checks.gd` pins the ranges.
+- The golden-hour review (2026-10-30, docs/HANDOFF.md "The golden hour review"): 17:00-19:30 is
+  judged on six views x six half hours (`tools/golden_hour/cameras.json` through refcams with
+  `REFCAMS_JSON=` and `SHEET_COLS=6`; `tools/golden_hour/strip.py` the numbers - sky / ground
+  balance, warmth, orange share - and the before / after hour strips). `GoldenHour`
+  (`scripts/world/golden_hour.gd`): the sky's night colours follow their own twilight ramp
+  (`sky_night()`), never night_factor (the lamps' switch, 1 eleven minutes after sunset); the
+  exposure starts toward the night's as the sun falls (`exposure_mix()`, monotonic); the GOLDEN
+  look eases at the sunset (`golden_grade()`). `GOLDEN_HOUR_REVIEW=0` is the A/B (`restore()` puts
+  DayNight's old numbers back); checks `tests/golden_hour_review_checks.gd`.
 - The map (2026-10-05, "a minimap and a full-screen map with a GPS, GTA style"): the minimap and
   the full-screen map draw the same thing through `MapPainter` (`scripts/ui/map_painter.gd`,
   static; a `MapPainter.View` says where: world-to-canvas transform, pixels per metre, the
