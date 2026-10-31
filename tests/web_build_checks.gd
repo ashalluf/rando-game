@@ -30,6 +30,7 @@ func run(t: Node, city: Node) -> void:
 	_preset()
 	_shaders()
 	_quality(city)
+	_rain_ceiling(city)
 
 
 func _preset() -> void:
@@ -241,3 +242,24 @@ func _source(path: String, seen: Dictionary) -> String:
 func _strip_comments(src: String) -> String:
 	src = RegEx.create_from_string("(?s)/\\*.*?\\*/").sub(src, "", true)
 	return RegEx.create_from_string("//[^\\n]*").sub(src, "", true)
+
+
+## The painted deck (the web, Forward+ below MEDIUM) closes into a stratus ceiling in rain: it
+## used to leave blue holes over the rain (a rain day's coverage is ~0.75). A clear day's deck,
+## at the most the hour's swing gives it, stays untouched.
+func _rain_ceiling(city: Node) -> void:
+	var src := FileAccess.get_file_as_string("res://shaders/sky.gdshader")
+	var lo := _const_f(src, "PAINTED_STRAT_LO")
+	var hi := _const_f(src, "PAINTED_STRAT_HI")
+	var dn: Node = city.get_node_or_null("DayNight")
+	var base: float = float(dn.get("cloud_coverage")) if dn else 0.42
+	var rain_extra: float = load("res://scripts/world/weather.gd").call("_cloud", 2) # RAIN
+	var rain_min := smoothstep(lo, hi, base - 0.12 + rain_extra)
+	var clear_max := smoothstep(lo, hi, base + 0.12)
+	_t._check(lo > 0.0 and hi > lo and rain_min >= 0.6 and clear_max == 0.0,
+		"web: the painted sky closes over the rain (%.2f at the thinnest hour) and leaves a clear day alone (%.2f)" % [rain_min, clear_max])
+
+
+func _const_f(src: String, name: String) -> float:
+	var m := RegEx.create_from_string("const\\s+float\\s+" + name + "\\s*=\\s*([0-9.]+)").search(src)
+	return float(m.get_string(1)) if m else -1.0
