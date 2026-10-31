@@ -8,6 +8,7 @@ class_name RcHills
 ## - Steep faces: the terrain's textures laid from the side, not stretched down them (apply_terrain()).
 ## - Shrub clumps gathered into thickets with gaps, sized by the field (cluster()).
 ## - The ridge sign: sheet-metal letters on a pipe frame, not 5 x 7 pixel boxes (HillSignLetters).
+## - The far ridge sign kept off the plane inside the LOD ring (seat_far_sign()).
 
 static var _on: int = -1
 
@@ -67,3 +68,15 @@ static func _vnoise(p: Vector2) -> float:
 static func cluster(p: Vector2) -> float:
 	var n := _vnoise(p / CLUSTER_CELL) * 0.7 + _vnoise(p / (CLUSTER_CELL / 3.0) + Vector2(17.3, 4.1)) * 0.3
 	return clampf((n - 0.5) * 1.6 + 0.5, 0.0, 1.0)
+
+
+## The far ridge sign (CityStreamer._seat_far_sign(), far_canopy.gdshader's rigid mode): not
+## moved onto the plane while the camera is inside the LOD ring round it (the real terrain is drawn
+## there), fully seated from SIGN_SEAT_MARGIN past it.
+const SIGN_SEAT_MARGIN := 320.0
+
+
+static func seat_far_sign(m: ShaderMaterial, lod_reach: float) -> void:
+	if not on():
+		return
+	m.set_shader_parameter("rigid_real_reach", Vector2(lod_reach, lod_reach + SIGN_SEAT_MARGIN))

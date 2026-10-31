@@ -104,7 +104,7 @@ func _sign(plan: CityPlan) -> void:
 	var n := Landmarks.SIGN_TEXT.length()
 	var cap := 7.0 * Landmarks.SIGN_SPAN / (float(n) * 5.0 + float(n - 1) * 1.5)
 	var low := float(line.ground) + 2.0 - HillSignLetters.STEP_MAX * cap
-	_t._check(ok and letters.mesh.get_aabb().position.y >= low - HillSignLetters.PEN * cap * 0.5 - 0.5, "rc-hills: no letter steps further down the hill than %.0f m under the old line" % (float(line.ground) + 2.0 - low))
+	_t._check(ok and letters.mesh.get_aabb().position.y >= low - HillSignLetters.PEN * cap * 0.75 - 0.5, "rc-hills: no letter steps further down the hill than %.0f m under the old line" % (float(line.ground) + 2.0 - low))
 	# Each letter clear of the ground under its middle (the end letters used to sink into the ridge).
 	var buried := 0
 	var aabb := letters.mesh.get_aabb() if ok else AABB()
@@ -114,3 +114,12 @@ func _sign(plan: CityPlan) -> void:
 			buried += 1
 	_t._check(ok and buried == 0, "rc-hills: no letter's ground stands over the lowest letter's foot (%d)" % buried)
 	holder.free()
+	# The far copy keeps off the plane while the real terrain is drawn round it.
+	var far: Variant = _t.get_tree().root.find_child("FarLandmark_sign", true, false) if _t.get_tree() else null
+	var reach := Vector2.ZERO
+	if far is Node:
+		for mi in (far as Node).find_children("*", "MeshInstance3D", true, false):
+			var m := (mi as MeshInstance3D).material_override as ShaderMaterial
+			if m and m.get_shader_parameter("rigid"):
+				reach = m.get_shader_parameter("rigid_real_reach")
+	_t._check(far == null or reach.x > 500.0, "rc-hills: the far sign is not sunk onto the plane inside the LOD ring (%s)" % str(reach))

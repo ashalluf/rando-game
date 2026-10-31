@@ -22451,8 +22451,14 @@ EYE=300,260,-650,0,-6 BLOCKS=1 LOD=4 DAYNIGHT=1 GROUND=1`):
    ground (the highest under its width, in front and under its frame, + 1.5 m, never more than
    `STEP_MAX` 0.25 caps under the old level line): the old single level was taken at the letters'
    centres and the ridge rises under the S and H, so from the basin the name read "?A LUFERWOOD".
-   The far copy is still seated by CityStreamer's rigid mode as one piece. Draws at the camera
-   809 -> 537 (the old letters were ~270 nodes).
+   **And the far copy no longer sinks into the hill**: CityStreamer seats it on the horizon
+   plane's ridge as one piece (far_canopy.gdshader's rigid mode), but inside the LOD ring the real
+   terrain is drawn round it and the plane's lift is faded out, so the shift pulled the whole name
+   down into the real hill - from the refcam the S, H and A were under the ground whatever the
+   letters' own heights (the small scene, which builds the detailed copy, showed them fine). The
+   shift now fades in from the LOD reach to `SIGN_SEAT_MARGIN` past it (`rigid_real_reach`,
+   `RcHills.seat_far_sign()`, one hook line in `_seat_far_sign()`). Draws at the camera 794 -> 515
+   (the old letters were ~270 nodes).
 
 **What was looked at and left**: the near ground's tone. On the opengl3 still the lit brush reads
 pale khaki and the stands only as shadow; on Forward+ (lavapipe, same eye lower: `fwd_main` /
