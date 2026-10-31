@@ -22001,10 +22001,12 @@ straight (`direct`) at its `aim` at its `want` speed instead of routing:
   up alongside on its own side (`pit_slot()`: its front bumper level with the car's rear wheel),
   matches speed for `pit_hold`, then turns in at the rear quarter. The contact is ASSISTED
   (`pit_assist()`): a VehicleBody3D's wheels hold a car straight through any real tap, so at the
-  cruiser's front corner within `pit_reach` it gets a yaw impulse of `pit_spin` (2.4 rad/s, from a
-  box inertia), a shove at the rear, and its rear wheels' grip at `pit_slip_share` for
-  `pit_slip_seconds` (given back by `_tick_slips()`, times a flat's share). Gives up after
-  `pit_timeout` / 12 s of lining up.
+  cruiser's front corner within `pit_reach` it gets `pit_spin` (2.0 rad/s) of yaw straight onto its
+  angular velocity, a `pit_shove` through its centre of mass (an impulse at the bumper sits above a
+  Vehicle's lowered centre of mass and ROLLED the car over), its rear wheels' grip at `pit_slip_share`
+  and its fronts' at twice that for `pit_slip_seconds` (given back by `_tick_slips()`, times a flat's
+  share; gripping fronts tripped the sliding car onto two wheels), and the cruiser eases off for
+  1.6 s (phase 2: rammed again, the car rolled). Gives up after `pit_timeout` / 12 s of lining up.
 - **FLANK**: every other cruiser near a fast car rides off its rear quarter, the sides alternating.
 - **SPIKES**: `Police._place_roadblock()` ends with `PoliceChase.roadblock()`: a `ChaseSpikeStrip`
   (`scripts/npc/chase_spike_strip.gd`) `spike_ahead` (15 m) short of the cruisers, across the road

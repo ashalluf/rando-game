@@ -24,9 +24,11 @@ func _ready() -> void:
 		await get_tree().physics_frame
 	car.linear_velocity = Vector3.FORWARD * 14.0
 	for i in 150:
+		if i > 0 and ChaseFlatTyres.flats(car) > 0 and i % 5 == 0:
+			print("  y %.3f vy %.2f" % [car.global_position.y, car.linear_velocity.y])
 		await get_tree().physics_frame
 		if i % 10 == 0 or ChaseFlatTyres.flats(car) > 0:
 			print("t%d z %.2f v %.1f watch %d flats %d wheels %d sleeping %s" % [i, car.global_position.z, car.linear_velocity.length(), strip._watch.size(), ChaseFlatTyres.flats(car), car.wheels.size(), car.sleeping])
-		if ChaseFlatTyres.flats(car) >= 4:
+		if ChaseFlatTyres.flats(car) >= 4 and i > 140:
 			break
 	get_tree().quit()

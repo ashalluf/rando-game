@@ -54,10 +54,10 @@ static var enabled: bool = OS.get_environment("POLICE_CHASE") != "0"
 @export var pit_gap: float = 0.55
 @export var pit_hold: float = 0.35
 @export var pit_look: float = 9.0
-## The assist: the yaw kick it gives the car (rad/s), the sideways shove at the rear (m/s) and
+## The assist: the yaw kick it gives the car (rad/s), the sideways shove (m/s, through its centre) and
 ## how long the car's rear tyres lose their grip (s, to this share of it).
-@export var pit_spin: float = 2.4
-@export var pit_shove: float = 2.2
+@export var pit_spin: float = 2.0
+@export var pit_shove: float = 1.4
 @export var pit_slip_seconds: float = 0.9
 @export var pit_slip_share: float = 0.25
 ## Contact reach for the assist: the cruiser's front corner within this of the car's rear quarter (m).
@@ -369,10 +369,18 @@ func _tactic(car: PoliceCar) -> Dictionary:
 			# Turning in: at the rear quarter, a little ahead of it, faster than the car.
 			var rear := tp - f * float(frame[3]) * 0.7
 			var corner := car.global_position + fwd * hl - (frame[2] as Vector3) * side * hw
+			if int(r.phase) == 2:
+				# Done: ease off and let the car spin out ahead (rammed again it trips and rolls).
+				if float(r.t) > 1.6:
+					_end_pit(car)
+					return {}
+				return {"aim": car.global_position + fwd * 20.0, "want": maxf(speed - 9.0, 0.0)}
 			if corner.distance_to(rear + (frame[2] as Vector3) * side * float(frame[4])) < pit_reach + hw:
 				pit_assist(car, target, side)
-				_end_pit(car)
-				return {}
+				r.phase = 2
+				r.t = 0.0
+				_pit_cool = pit_cooldown
+				return {"aim": car.global_position + fwd * 20.0, "want": maxf(speed - 9.0, 0.0)}
 			if float(r.t) > pit_timeout:
 				_end_pit(car)
 				return {}
@@ -412,25 +420,24 @@ func pit_assist(car: PoliceCar, target: Vehicle, side: float) -> void:
 	var f: Vector3 = frame[1]
 	var r: Vector3 = frame[2]
 	var hl: float = frame[3]
-	var hw: float = frame[4]
 	var m := target.mass
-	# Inertia about the vertical of a uniform box: m (L^2 + W^2) / 12.
-	var inertia := m * ((hl * 2.0) * (hl * 2.0) + (hw * 2.0) * (hw * 2.0)) / 12.0
-	var arm := hl * 0.75
-	# The cruiser on the right pushes the rear left: the nose swings right (yaw toward -side).
-	var j := pit_spin * inertia / arm
+	# The cruiser on the right pushes the rear left: the nose swings right (yaw toward -side). The
+	# spin goes straight onto the angular velocity and the shove through the centre of mass: an
+	# impulse at the bumper sits above a Vehicle's lowered centre of mass and rolled the car over.
 	var push := -r * side
 	target.hold_crash_watch(3)
-	target.apply_impulse(push * j, -f * arm)
-	target.apply_central_impulse(push * m * maxf(pit_shove - j / m, 0.0))
+	target.angular_velocity = Vector3(target.angular_velocity.x * 0.5, target.angular_velocity.y - side * pit_spin,
+			target.angular_velocity.z * 0.5)
+	target.apply_central_impulse(push * m * pit_shove)
+	# The rear lets go; the front slips too (gripping, it trips the sliding car onto two wheels).
 	for w in target.wheels:
-		if is_instance_valid(w) and not w.use_as_steering:
+		if is_instance_valid(w):
 			_slips.append([w, w.wheel_friction_slip, pit_slip_seconds])
-			w.wheel_friction_slip *= pit_slip_share
+			w.wheel_friction_slip *= pit_slip_share if not w.use_as_steering else minf(pit_slip_share * 2.0, 1.0)
 	car.hold_crash_watch(3)
 	car.apply_central_impulse(r * side * car.mass * 0.6)
 	pits += 1
-	Sfx.play("hit_metal", target.global_position - f * arm, 2.0, 0.8)
+	Sfx.play("hit_metal", target.global_position - f * hl * 0.75, 2.0, 0.8)
 	radio.say("pit_done")
 
 

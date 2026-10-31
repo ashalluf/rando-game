@@ -223,13 +223,13 @@ func _pit() -> void:
 	_chase.pit_assist(cop, mine, 1.0)
 	await _ticks(1)
 	var spin := mine.angular_velocity.y
-	var slipped := false
+	var slipped := true
 	for i in mine.wheels.size():
-		if not mine.wheels[i].use_as_steering and mine.wheels[i].wheel_friction_slip < float(grip[i]) * 0.5:
-			slipped = true
+		if not mine.wheels[i].use_as_steering and mine.wheels[i].wheel_friction_slip > float(grip[i]) * 0.5:
+			slipped = false
 	# The cruiser on the car's right pushes its rear left, so the nose swings right: negative yaw.
 	_check(_chase.pits == pits + 1 and spin < -1.2, "the PIT's contact spins the car away from the cruiser (yaw %.2f rad/s)" % spin)
-	_check(slipped, "the car's rear tyres let go for the slide")
+	_check(slipped, "the car's rear tyres let go for the slide (the fronts slip less)")
 	await _ticks(int(_chase.pit_slip_seconds * 60.0) + 10)
 	var back := true
 	for i in mine.wheels.size():

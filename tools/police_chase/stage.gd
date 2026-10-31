@@ -163,7 +163,7 @@ func _pit(player: Player) -> String:
 	for i in int(_live(5.0) * 60.0):
 		await _tree.physics_frame
 		t += dt
-		if chase and chase.pits == 0:
+		if t <= 0.4:
 			mine.linear_velocity = fwd * 17.0 + Vector3.UP * minf(mine.linear_velocity.y, 0.0)
 		if chase and chase.pits == 0 and t > 0.4:
 			chase._pit_cool = 0.0
