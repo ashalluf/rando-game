@@ -141,6 +141,10 @@ func _live_queues() -> void:
 			# A parked car waiting to pull out (TrafficAI) still stands in its parking spot.
 			if car.traffic.has("pull"):
 				continue
+			# A motorcycle filtering past a stopped queue rides between the lanes (filter_shift
+			# to the side), beside the cars it passes, not in them (tests/motorcycles_checks.gd).
+			if car.traffic.get("filtering", false):
+				continue
 			var key := TrafficManager.lane_key(int(car.traffic.axis), int(car.traffic.index), int(car.traffic.dir), float(car.traffic.lane))
 			if not groups.has(key):
 				groups[key] = []
