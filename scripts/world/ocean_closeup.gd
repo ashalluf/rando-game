@@ -41,6 +41,7 @@ static func apply(mat: ShaderMaterial) -> void:
 	mat.set_shader_parameter("pile_b", b)
 	mat.set_shader_parameter("pile_count", n)
 	mat.set_shader_parameter("pier_wheel", wheel_hub())
+	mat.set_shader_parameter("pier_deck", wheel_deck())
 
 
 ## The pier park's Ferris wheel for the ocean's night mirror (ocean_closeup.gdshaderinc
@@ -123,3 +124,14 @@ static func pile_material(base: Color, rough: float, timber: bool, fallback: Mat
 
 
 static var _mats: Dictionary = {}
+
+
+## The pier park's decks (PierPark.MAIN, NORTH, SOUTH) as one box in TRUE world (x0, z0, x1, z1):
+## the night mirror draws no wheel under them.
+static func wheel_deck() -> Vector4:
+	for lm: Dictionary in Landmarks.all():
+		if str(lm.id) == "pier":
+			var at: Vector2 = lm.anchor
+			var r := PierPark.MAIN.merge(PierPark.NORTH).merge(PierPark.SOUTH)
+			return Vector4(at.x + r.position.x, at.y + r.position.y, at.x + r.end.x, at.y + r.end.y)
+	return Vector4.ZERO

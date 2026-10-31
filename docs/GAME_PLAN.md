@@ -3786,3 +3786,13 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+
+- **2026-10-31 The water review: water is seen through, foam is never a pattern (water-review, HANDOFF
+  "The water from the beach and the pier").** From the beach the giveaways were regular foam nets
+  (polka dots, then leopard spots, then spaghetti lines), ruler-straight bores, and an opaque sea over
+  the sand. Decisions: every foam is one shared cut of warped multi-octave noise (surf_foam()) whose
+  threshold rises with age; the near shallows are drawn by refracting the view ray onto a sea floor
+  that IS the beach's own underwater rows (oc_seabed() = SeaSurface.seabed(), checked) - no depth
+  texture, so it holds on the web's renderer path too where enabled; caustics add light at the sand's
+  mean colour and never multiply a texture; a mirrored light's column grows a sixth of the way
+  travelled. WATER_REVIEW=0 is the A/B. The far sea and the horizon plane's sea are untouched.

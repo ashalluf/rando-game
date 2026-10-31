@@ -487,6 +487,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `shaders/waterline_wet.gdshaderinc` in pier_park.gdshader and `pile_wet.gdshader`. Still no
   texture sampler in the ocean. `OCEAN_CLOSEUP=0` (the `ocean_closeup` shader global) is the A/B;
   checks `tests/ocean_closeup_checks.gd`.
+- The water review (2026-10-31, docs/HANDOFF.md "The water from the beach and the pier"):
+  `WaterReview` (`scripts/world/water_review.gd`, the `water_review` global, set from
+  OceanCloseup.apply()). One foam everywhere near (`surf_foam()` in surf.gdshaderinc: the bores and old
+  lace, the open water's lace, the swash's edge); clear shallows (`oc_seabed()` = SeaSurface.seabed()
+  - change both - refracted through the coarse ripple only, `oc_sea_floor()`); caustics
+  (`surf_caustic()`) ADDED at the sand's mean colour, never multiplied into a texture; the night
+  mirror's lamp columns and the pier park's wheel (`OceanCloseup.wheel_hub()`). `WATER_REVIEW=0` the
+  A/B; views `tools/water_review/cameras.json` through refcams; checks `tests/water_review_checks.gd`.
 - Storm drama (2026-10-30, docs/HANDOFF.md "Storm drama"): `StormDrama`
   (`scripts/world/storm_drama.gd`, Weather's child; hooks in Weather, DayNight, TyreSpray, the sky's
   `flash_dir` / `flash_spread`): one pure gust clock (`gust(t)`) leans the trees down the storm's

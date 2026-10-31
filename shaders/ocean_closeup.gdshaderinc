@@ -178,6 +178,9 @@ vec3 oc_sea_floor(vec2 fw, float depth, float px, float t, float sun) {
 // twenty spokes - is drawn smeared along the view by the water's ripple (`smear_m` metres at the
 // plane, growing with distance), in a slow cycle of the wheel's colours.
 uniform vec4 pier_wheel = vec4(0.0);
+// The pier park's decks round the wheel in TRUE world (x0, z0, x1, z1): under them the deck hides
+// the wheel from the water (OceanCloseup.wheel_deck()).
+uniform vec4 pier_deck = vec4(0.0);
 uniform float wheel_light = 1.6;
 const float OC_WHEEL_SPOKES = 20.0;
 vec3 oc_hue(float h) {
@@ -186,6 +189,12 @@ vec3 oc_hue(float h) {
 }
 vec3 oc_wheel_mirror(vec3 p, vec3 refl, float smear, float t) {
 	if (pier_wheel.w <= 0.0 || abs(refl.z) < 0.0005) {
+		return vec3(0.0);
+	}
+	// Under the deck (and a few metres round it, where the deck's edge still cuts the view up).
+	vec2 dk = max(pier_deck.xy - p.xz, p.xz - pier_deck.zw);
+	float under = 1.0 - smoothstep(-1.0, 4.0, max(dk.x, dk.y));
+	if (under > 0.999) {
 		return vec3(0.0);
 	}
 	float tt = (pier_wheel.z - p.z) / refl.z;
@@ -207,7 +216,7 @@ vec3 oc_wheel_mirror(vec3 p, vec3 refl, float smear, float t) {
 	float spoke = exp(-pow(sp / sh, 2.0)) * (1.0 - smoothstep(R * 0.95, R + w, r)) * smoothstep(0.0, 2.0, r);
 	vec3 c = oc_hue(a + t * 0.03) * 0.8 + vec3(0.2);
 	// The energy is kept as the smear spreads it (a wider streak is a dimmer one).
-	return c * (rim + spoke * 0.55) * sqrt(0.35 / sv) * wheel_light;
+	return c * (rim + spoke * 0.55) * sqrt(0.35 / sv) * wheel_light * (1.0 - under);
 }
 
 

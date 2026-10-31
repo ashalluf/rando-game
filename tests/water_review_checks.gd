@@ -74,6 +74,11 @@ func run(t: Node, _city: Node3D) -> void:
 	var got: Variant = mat.get_shader_parameter("pier_wheel")
 	_t._check(got is Vector4 and (got as Vector4).is_equal_approx(hub), "water review: the ocean material carries the wheel")
 	_t._check(ocean.contains("oc_wheel_mirror(wp3, refl, smear, TIME)"), "water review: the night mirror draws the wheel")
+	# ... but not under the deck, which hides it from the water there.
+	var deck := OceanCloseup.wheel_deck()
+	var foot := Vector2(want_hub.x, want_hub.z)
+	_t._check(deck.x < foot.x and foot.x < deck.z and deck.y < foot.y and foot.y < deck.w and mat.get_shader_parameter("pier_deck") == deck,
+		"water review: the wheel stands on the deck the mirror leaves out (%s)" % str(deck))
 
 	# The A/B.
 	var gl := FileAccess.get_file_as_string("res://project.godot")
