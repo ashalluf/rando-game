@@ -278,6 +278,7 @@ func _turn(road: Array) -> void:
 		return
 	var last_yaw := car.global_rotation.y
 	var worst := 0.0
+	var worst_at := ""
 	var turned := false
 	var steer_max := 0.0
 	var roll_max := 0.0
@@ -294,7 +295,10 @@ func _turn(road: Array) -> void:
 		if t.has("tm_arc"):
 			arc_seen = true
 		var y := car.global_rotation.y
-		worst = maxf(worst, absf(wrapf(y - last_yaw, -PI, PI)))
+		var jump := absf(wrapf(y - last_yaw, -PI, PI))
+		if jump > worst:
+			worst = jump
+			worst_at = "tick %d axis %s turn %s arc %s cp %s lc %s to_c %.1f v %.2f" % [i, t.get("axis"), t.get("turn"), t.has("tm_arc"), t.has("cp"), t.has("lc_key"), float(t.get("to_c", 0.0)), float(t.get("v", 0.0))]
 		last_yaw = y
 		for rig: Array in car._wheel_rigs:
 			if rig[4]:
@@ -311,7 +315,7 @@ func _turn(road: Array) -> void:
 		var tt: Dictionary = car.traffic
 		info = "axis %s along %.1f v %.2f turn %s node %s want %s why %s to_c %.1f" % [tt.get("axis"), float(tt.get("along", 0.0)), float(tt.get("v", 0.0)), tt.get("turn"), tt.get("node"), node, tt.get("why"), float(tt.get("to_c", 0.0))]
 	_check(turned and arc_seen, "the placed car turned onto the cross street round a fillet (%s)" % info)
-	_check(worst < 0.12, "no tick turns the car by more than a smooth turn would (worst %.1f deg; the snap was 90)" % rad_to_deg(worst))
+	_check(worst < 0.12, "no tick turns the car by more than a smooth turn would (worst %.1f deg at %s; the snap was 90)" % [rad_to_deg(worst), worst_at])
 	_check(steer_max > 0.12, "its front wheels steer into the turn (%.1f deg)" % rad_to_deg(steer_max))
 	_check(roll_max > 0.002, "the body leans out of the turn (%.2f deg)" % rad_to_deg(roll_max))
 	print("traffic motion turn: worst %.1f deg a tick, steer %.1f deg, roll %.2f deg" % [rad_to_deg(worst), rad_to_deg(steer_max), rad_to_deg(roll_max)])
