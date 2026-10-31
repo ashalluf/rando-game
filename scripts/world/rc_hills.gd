@@ -31,6 +31,11 @@ static func apply_rock(m: ShaderMaterial, far: bool) -> void:
 	m.set_shader_parameter("far_grey_gain", FAR_GREY_GAIN)
 
 
-## The hill tiles' terrain (terrain.gdshader): steep faces take their textures from the side.
+## The hill tiles' terrain (terrain.gdshader): steep faces take their textures from the side, and
+## the dirt and rock tiles' structure fades out past TILE_FADE_PX metres a pixel.
+const TILE_FADE_PX := Vector2(0.7, 1.8)
+
+
 static func apply_terrain(m: ShaderMaterial) -> void:
 	m.set_shader_parameter("side_mix", 1.0 if on() else 0.0)
+	m.set_shader_parameter("tile_fade_px", TILE_FADE_PX if on() else Vector2.ZERO)
