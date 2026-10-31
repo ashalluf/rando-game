@@ -452,7 +452,14 @@ func _lane_clear(axis: int, index: int, dir: int, lane: float, along: float, cle
 		if not is_instance_valid(other) or not other.is_traffic() or not other.is_inside_tree():
 			continue
 		var t: Dictionary = other.traffic
-		if not t.has("axis") or lane_key(int(t.axis), int(t.index), int(t.dir), float(t.lane)) != key:
+		if not t.has("axis"):
+			continue
+		# A car still part way out of this lane (its lane change's ghost, or committed to a turn
+		# across it) is in it too: a car was spawned on top of one standing in a queue, half across
+		# (gate run with the live traffic: -4.76 m).
+		if lane_key(int(t.axis), int(t.index), int(t.dir), float(t.lane)) != key \
+				and not (int(t.get("lc_key", -1)) == key and not t.has("lc_noghost") and float(t.get("lc_p", 1.0)) < TrafficAI.GHOST_UNTIL) \
+				and int(t.get("tx_key", -1)) != key:
 			continue
 		var wp := WorldState.to_world(other.global_position)
 		if absf((wp.z if axis == CityPlan.AXIS_X else wp.x) - along) < clear + float(t.get("rear", 2.4)) - 2.4:
