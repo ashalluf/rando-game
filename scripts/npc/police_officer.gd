@@ -390,6 +390,11 @@ func _think() -> void:
 	var car_d := car.global_position.distance_to(pp) if car_ok else INF
 	if car_ok and car.mode == PoliceCar.Mode.PARKED and car_d > 9.0 and car_d < cover_reach and car.global_basis.y.y > 0.6:
 		task = Task.COVER
+		# Behind its open door, then forward by bounds (PoliceChase).
+		var door := PoliceChase.door_cover(self, car, pp)
+		if door != Vector3.INF:
+			_dest = door
+			return
 		var away := car.global_position - pp
 		away.y = 0.0
 		away = away.normalized() if away.length() > 0.1 else Vector3.BACK

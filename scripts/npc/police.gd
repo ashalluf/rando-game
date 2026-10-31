@@ -163,6 +163,7 @@ func _ready() -> void:
 	add_to_group("wanted")
 	_rng.seed = 5150
 	_web = OS.has_feature("web")
+	PoliceChase.attach(self)
 
 
 # --- Crimes ------------------------------------------------------------------------------------
@@ -641,6 +642,7 @@ func board(o: PoliceOfficer, car: PoliceCar) -> void:
 
 func officer_down(o: PoliceOfficer) -> void:
 	officers.erase(o)
+	PoliceChase.say("down")
 	if is_instance_valid(o.car):
 		o.car.crew_alive = maxi(o.car.crew_alive - 1, 0)
 
@@ -770,6 +772,7 @@ func _update_losing(delta: float) -> void:
 	if not flashing:
 		flashing = true
 		_flash_left = flash_seconds
+		PoliceChase.say("lost")
 	_flash_left -= delta
 	if _flash_left <= 0.0:
 		_flash_left = flash_seconds
@@ -1179,6 +1182,7 @@ func _place_roadblock() -> void:
 		var at := mid + (Vector2(lat, 0.0) if axis == CityPlan.AXIS_X else Vector2(0.0, lat))
 		var h := traffic._relief(at) if traffic else 0.0
 		spawn_cruiser(Vector3(at.x, 0.9 + h, at.y), yaw + (PI if k == 1 else 0.0), "roadblock")
+	PoliceChase.roadblock(self, mid, axis, index, travel)
 
 
 # --- Screenshots --------------------------------------------------------------------------------
