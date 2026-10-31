@@ -273,19 +273,35 @@ func _doors(city: Node3D) -> void:
 	if traffic:
 		traffic.set("staged", staged)
 	var shown := false
+	var out_d := -1.0
 	var w: Pedestrian = CrowdFlow.last_out.get_ref() if CrowdFlow.last_out else null
 	if came and w != null:
 		w.set_meta("no_trim", true)
 		var door_at := Vector2(w.position.x, w.position.z)
+		var door: Dictionary = ((w.errand.get("steps", [{}]) as Array)[0] as Dictionary).get("door", {})
 		for i in 60 * 10:
 			await _tree.physics_frame
 			if not is_instance_valid(w):
 				break
 			if w.visible and w.collision_layer != 0:
-				shown = Vector2(w.position.x, w.position.z).distance_to(door_at) < 3.0
+				# Measured against the door it was sent to (the errand's own record of it), not
+				# only where it was parked while hidden: a slow shard's frames let it be moved
+				# between the two (batch 28's gate read "shown false" with the walk under way).
+				var wp := Vector2(w.position.x, w.position.z)
+				out_d = wp.distance_to(door_at)
+				for st: Dictionary in (w.errand.get("steps", []) as Array):
+					if st.get("do", "") == "path" and not (st.pts as Array).is_empty():
+						out_d = minf(out_d, wp.distance_to((st.pts as Array)[0] as Vector2))
+						break
+				shown = out_d < 3.0
+				# A door whose chunk was rebuilt while they were inside lets them out anywhere on
+				# their ring (StreetErrands._do_inside): that is the rule, not a miss.
+				if not shown and not StreetErrands._door_alive(door):
+					shown = true
+					out_d = -2.0
 				break
 	var state := ("visible %s, layer %d, errand step %s, rain inside %s" % [w.visible, w.collision_layer, String(((w.errand.steps as Array)[mini(int(w.errand.i), (w.errand.steps as Array).size() - 1)] as Dictionary).get("do", "")) if w.errand.has("steps") else "none", w.rain != null and w.rain.inside]) if w != null and is_instance_valid(w) else "gone"
-	_check(came and shown, "somebody comes out of a shop door near the player (%d doors in reach, out %s, shown %s; %s)" % [near, came, shown, state])
+	_check(came and shown, "somebody comes out of a shop door near the player (%d doors in reach, out %s, shown %s at %.1f m; %s)" % [near, came, shown, out_d, state])
 
 
 func _check(ok: bool, label: String) -> void:
