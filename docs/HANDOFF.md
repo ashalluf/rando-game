@@ -25155,3 +25155,39 @@ Probes: `tools/rc_beach/sand_roads_probe.gd` (headless: every coast street stret
 beach; `LOOK=swim|wade|surf` saves a close look at the first one). Checks `tests/rc_beach_checks.gd`.
 Stills on `shots/rc-beach`.
 
+
+## 9kf. Traffic order, turns across a lane, ramp merges (fleet wave 4, `traffic-order-fix`, 2026-10-31)
+
+Gate-flakes' open traffic failures (section 9kd), fixed at the cause:
+
+1. **Lane groups are ordered by the noses, not the centres** (`TrafficAI.nose_ahead()`, used by
+   `_drive_streets()`' sort; `TrafficAI.ahead_in()` and `gap_ok()` decide ahead / behind the same
+   way). By the centres a short car beside the front half of a long bus dwelling at its stop (a
+   lane change's ghost in the bus's lane) sorted AHEAD of the bus, so neither had the other as its
+   leader and the car drove on into it (run 5757, -4.35 m). By the noses the bus is ahead of it,
+   with a negative gap, and the car stands. Same cost (one sort a group, O(1) a car).
+   `traffic_ai_checks` "a car beside a dwelling bus's front half has the bus ahead of it" holds it.
+2. **A turn from the wrong lane commits or goes on** (`TrafficAI.turn_cross_key()`,
+   `TURN_COMMIT` 24 m, `tx_key` / `tx_seen` in `traffic`). Reproduced on the first live run of
+   traffic_ai_checks: a car that never found a gap into its turn lane turned right from the inner
+   lane and its drawn fillet (TrafficMotion) swept into a car going straight in the kerb lane
+   (-1.57 m). Before the fillet starts it now looks once: room beside it (gap_ok) -> it commits
+   and is a ghost in the lane it cuts across until it has turned (followers there brake for it;
+   it follows that lane's leader too); no room -> it goes straight on (a forced turn waits at the
+   line instead).
+3. **The outer lane lets a waiting ramp car in** (`TrafficAI.merge_yielders()`,
+   `TrafficManager._fw_follow_at()`; `MERGE_YIELD=0` the A/B). Since FreewayFill fills each lane
+   ~42 m apart (jittered 13-71 m), the ~70 m a standing-start merge needs (`fw_gap_ok`) hardly ever
+   came: CI 399 / run 7373's ramp car stood at its merge point the whole window. A ramp car
+   waiting there sets `ramp_wait`; the nearest car coming up the lane that can stop at 2.6 m/s2
+   `MERGE_YIELD_ROOM` 12 m short of the follow distance (sticky: `yield_t`) slows for it. The
+   check now runs a car every 40 m up the outer lane past the merge point: with the yield it gets
+   in after ~5.5 s, with `MERGE_YIELD=0` it waits the whole 20 s (both A/B runs).
+4. **Check staging, not game bugs**: "a fast freeway car moves over and passes" ran on a freeway
+   FreewayFill refills even while staged (16 cars a tick), where a 28 m/s car rightly finds no 70 m
+   gap: the stretch round its two cars is kept clear of unplaced cars (`_keep_freeway_clear()`).
+   "a car swerves round the player" failed once here because the staged car rolled a double park
+   (2.5 % a block, `dp_at`) 4 m in: traffic honours `no_dp`, the check sets it.
+
+Not reproduced: valets "the valet walks back to the podium" (passed in every run here; nothing in
+its path code was changed).
