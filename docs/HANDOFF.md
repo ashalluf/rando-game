@@ -25083,4 +25083,23 @@ gives the build room in the crowd cap; never find a node by a name another file'
 already hold (Godot renames the newcomer); a wall-clock budget is measured twice and loosened
 under SMOKE_SHARD; a check's alarm reaches everyone the system under test can have recruited.
 
-**Verification**: RESULTS_PLACEHOLDER
+**Verification**: 31 shuffled `SHARDS=3` runs (seeds 101 .. 7373; ~22 min each, a shard peaking
+at 3.0-3.7 GB RSS), each failure fixed as it appeared, so the code moved under the runs. Clean runs
+came in streaks (404; 707; 1010; 2323, 2424; 4141; 4343; 4545; 5252, 5353; 5656, 5858), 4,342-4,619
+checks a run. **Five consecutive clean runs on one unchanged tree were not reached**: main merged
+batches 26-30 during the work, and each merge brought new rare failures (explosions_3, the turn
+snap main fixed as CI 397, rehearsal stragglers, alarms, the church zone).
+
+**Still open** (seen once each, not fixed):
+- traffic_ai "live traffic ... never drives into another car (tightest -4.35 m)" (run 5757, see
+  the table): lane groups sort by centre, so a short car beside a long dwelling bus's front half
+  counts as ahead of it. A traffic-logic fix (order by front / rear extents).
+- traffic_ai "a car climbs an on-ramp and merges into the outer lane (merged false)" (run 7373,
+  after the batch 30 merge).
+- "golden aerial: live, the noon far ground is unchanged (gain 0.90, fill 0.00)" (run 7373).
+- street_errands "somebody comes out of a shop door near the player (... errand step inside)"
+  (run 7272).
+- The spawn block's chunk is now and then REPLACED while a file uses it (crowd_anim_2 2525,
+  crowd_life 4444, ragdolls 7272): no rebuild path outside CityStreamer's own level logic was found.
+  The three files settle streaming first and turn a swap into a named FAIL instead of a SCRIPT
+  ERROR; the cause is still to find (log `_install_chunk` for the home block under SMOKE_SHARD).
