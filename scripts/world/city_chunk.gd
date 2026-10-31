@@ -4218,6 +4218,7 @@ func _add_street_lamp(at: Vector3, facing: Vector2) -> void:
 	# 3.5^-1.4), but never below 1.1 - eased all the way, a cobra's light reached two lanes at
 	# full strength and blew the road out.
 	light.omni_attenuation = maxf(1.4 * log(LAMP_LIGHT_HEIGHT) / log(maxf(head.y - at.y - 0.25, LAMP_LIGHT_HEIGHT)), 1.1)
+	NightLamps.tune_light(light, head.y - at.y - 0.25)
 	light.light_color = NightCity.lamp_light(Vector2(at.x, at.z))
 	light.light_energy = 0.0
 	light.shadow_enabled = false

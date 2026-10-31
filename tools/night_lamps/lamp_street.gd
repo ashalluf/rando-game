@@ -68,6 +68,8 @@ func _ready() -> void:
 			if o.shadow_enabled:
 				shadowed += 1
 		print("LAMPS lit=%d shadowed=%d energy=%.2f" % [lit, shadowed, (get_tree().get_nodes_in_group("street_lamp_light")[0] as OmniLight3D).light_energy])
+		print("GEO_%d tris=%d draws=%d shadow_tris=%d" % [k, Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME),
+			Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME), RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)])
 		var file := out if k == 0 else out.get_basename() + "_%d.png" % k
 		get_viewport().get_texture().get_image().save_png(file)
 		print("saved ", file)
@@ -162,6 +164,7 @@ func _lamps(stage: Node3D) -> void:
 		light.position = head + Vector3(0.0, -0.25, 0.0)
 		light.omni_range = lp.range
 		light.omni_attenuation = maxf(1.4 * log(3.5) / log(maxf(head.y - at.y - 0.25, 3.5)), 1.1)
+		NightLamps.tune_light(light, head.y - at.y - 0.25)
 		light.light_color = NightCity.lamp_light(key_at)
 		light.light_energy = 0.0
 		light.distance_fade_enabled = true

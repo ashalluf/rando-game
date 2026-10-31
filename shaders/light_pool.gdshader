@@ -18,6 +18,8 @@ uniform float falloff : hint_range(0.5, 6.0) = 2.4;
 // the Mac (the metro kiosk's and the freeway's pools, fwd-review-e). With this on, Forward+ adds the
 // display-space amount decoded, which over a dark ground is what the opengl3 still shows.
 uniform bool display_add = false;
+// A street lamp's pool on Forward+, where the lamp's real light already lights the road (see below).
+uniform float street_forward = 0.4;
 
 // A street lamp's pool (StreetLamps, the night lamps review): INSTANCE_CUSTOM.a 1 marks it, and
 // the pool is the light a real head throws rather than a soft dot - illuminance off a point
@@ -69,7 +71,13 @@ void fragment() {
 	ALBEDO = tint * COLOR.rgb;
 	ALPHA = a * COLOR.a;
 #if CURRENT_RENDERER != RENDERER_COMPATIBILITY
-	if (display_add) {
+	// A street lamp's broad pool on Forward+: added in display numbers (fwd-review-e: in linear HDR
+	// it was a flat beige carpet), and only the share the real OmniLight does not already give.
+	if (v_custom.a > 0.5) {
+		vec3 t = mix(tint * 12.92, 1.055 * pow(max(tint, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), tint));
+		ALBEDO = lp_to_linear(t * COLOR.rgb * clamp(ALPHA * street_forward, 0.0, 1.0));
+		ALPHA = 1.0;
+	} else if (display_add) {
 		// tint arrives decoded here (source_color): back to display numbers, the add, then decoded.
 		vec3 t = mix(tint * 12.92, 1.055 * pow(max(tint, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), tint));
 		ALBEDO = lp_to_linear(t * COLOR.rgb * clamp(ALPHA, 0.0, 1.0));

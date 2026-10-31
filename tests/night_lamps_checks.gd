@@ -18,6 +18,7 @@ func run(t: Object, city: Node3D) -> void:
 	NightLamps.enabled = true
 	_pools()
 	_shader()
+	_lights()
 	_budget()
 	_pick()
 	await _staged(city)
@@ -71,6 +72,36 @@ func _pools() -> void:
 	var want := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(size, 1.0, size)), Vector3(_head(cobra).x, at.y + 0.09, _head(cobra).z))
 	_t._check((off[0] as Transform3D).is_equal_approx(want) and (off[1] as Color) == old_col and (off[2] as Color) == Color.BLACK,
 		"night lamps: NIGHT_LAMPS=0 lays the old dot (old transform, colour, no custom)")
+
+
+func _lights() -> void:
+	var tall := OmniLight3D.new()
+	tall.omni_range = 16.0
+	tall.omni_attenuation = 1.1
+	var low := OmniLight3D.new()
+	low.omni_range = 12.5
+	low.omni_attenuation = 1.18
+	NightLamps.tune_light(tall, 8.35)
+	NightLamps.tune_light(low, 4.4)
+	var gt := float(tall.get_meta("lamp_gain", 1.0))
+	var gl := float(low.get_meta("lamp_gain", 1.0))
+	# What reaches the road under the head: gain x d^-attenuation; a tall head no longer a quarter of a post's.
+	var et := gt * pow(8.35, -1.1)
+	var el := gl * pow(4.4, -1.18)
+	_t._check(tall.omni_range >= 2.4 * 8.35 - 0.01 and absf(et / el - 1.0) < 0.05 and gt > gl,
+		"night lamps: a tall head's light reaches %.1f m and lands as bright under it as a post's (%.2f / %.2f)" % [tall.omni_range, et, el])
+	NightLamps.enabled = false
+	var off := OmniLight3D.new()
+	off.omni_range = 16.0
+	NightLamps.tune_light(off, 8.35)
+	NightLamps.enabled = true
+	_t._check(off.omni_range == 16.0 and not off.has_meta("lamp_gain"), "night lamps: NIGHT_LAMPS=0 leaves a lamp's light as it was")
+	for l in [tall, low, off]:
+		l.free()
+	var mat := ShaderMaterial.new()
+	NightLamps.dress_material("wet", mat)
+	_t._check(float(mat.get_shader_parameter("flare")) > 1.0 and float(mat.get_shader_parameter("sparkle")) > 0.0,
+		"night lamps: the wet road's lamp streaks flare toward the eye and break into glints")
 
 
 func _shader() -> void:

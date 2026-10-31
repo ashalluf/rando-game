@@ -42,7 +42,64 @@ static func pool_instance(lp: Dictionary, head: Vector3, at: Vector3, lift: floa
 	# Laid in the lamp's frame: the quad's x toward the street (the model's +x), its y along it.
 	var b: Basis = (lp.xform as Transform3D).basis.orthonormalized()
 	var flat := b * Basis(Vector3.RIGHT, -PI * 0.5) * Basis.from_scale(Vector3(r * 2.0, r * 2.0 * aspect, 1.0))
-	var c := NightCity.pool_color(at2)
+	var c := pool_ratio(NightCity.lamp_led(at2))
 	var g: float = GAIN[t]
 	var custom := Color(h / r, aspect, ARM_BACK if is_arm(t) else 0.0, 1.0)
 	return [Transform3D(flat, Vector3(head.x, at.y + lift, head.z)), Color(c.r * g, c.g * g, c.b * g, c.a), custom]
+
+
+## The wet road's lamp streaks (night_wet.gdshader): wider toward the eye and broken into glints
+## (the old rods were a few pixels wide end to end, which read as sticks stood in the road).
+const WET := {"width_share": 0.014, "flare": 2.2, "sparkle": 0.6, "near_fall": 2.6}
+
+
+## NightAtmos' materials, tuned by the review (with NIGHT_LAMPS=0 their shaders' own defaults).
+static func dress_material(kind: String, mat: ShaderMaterial) -> void:
+	if not enabled:
+		return
+	if kind == "wet":
+		for k: String in WET:
+			mat.set_shader_parameter(k, WET[k])
+
+
+## The real light (the OmniLight3D in the head). At the kit's numbers a cobra 8.6 m up lit the road
+## under it at a quarter of what a 3.5 m post gave and nothing two lanes out: on Forward+ the street
+## between lamps was black and the pools were all there was. The light's share of DayNight's level
+## (meta lamp_gain, which DayNight already reads) undoes the height's falloff - h^attenuation over the
+## old post's 3.5^1.4 - times LIGHT_GAIN, and its reach is at least REACH_PER_HEIGHT x the head's
+## height, so the light lands where the pool is.
+const LIGHT_GAIN := 1.5
+const REACH_PER_HEIGHT := 2.4
+const POST_FALLOFF := 5.79 # 3.5^1.4
+const FALLOFF := 1.5
+## The two lamps' light. NightCity's sodium (1.0, 0.86, 0.62) read as a warm-white bulb, not the
+## deep amber of high-pressure sodium, and its LED (0.86, 0.92, 1.0) as a cold blue-white that the
+## night grade turned grey-green on the asphalt; LA's LED heads are ~3000-4000 K.
+const SODIUM := Color(1.0, 0.72, 0.42)
+const LED := Color(1.0, 0.95, 0.88)
+
+
+## The review's colour for a light NightCity made (`c`: its sodium or LED colour).
+static func light_color(c: Color) -> Color:
+	if not enabled:
+		return c
+	return LED if c.is_equal_approx(NightCity.LED_LIGHT) else (SODIUM if c.is_equal_approx(NightCity.SODIUM_LIGHT) else c)
+
+
+## The pool's colour ratio (x light_pool's tint 1, 0.84, 0.58) for the place's lamp.
+static func pool_ratio(led: bool) -> Color:
+	return Color(0.98, 1.1, 1.48) if led else Color(1.0, 0.88, 0.74)
+
+
+## Sets `light` (a street lamp's omni, head `h` m over its foot) up for the review; old: untouched.
+static func tune_light(light: OmniLight3D, h: float) -> void:
+	if not enabled:
+		return
+	var hh := maxf(h, 2.5)
+	light.omni_range = maxf(light.omni_range, REACH_PER_HEIGHT * hh)
+	# Steeper than the kit's eased decay: a pool under each lamp and dimmer road between them,
+	# never one even wash (the gain below puts the light under the head back where it was).
+	light.omni_attenuation = maxf(light.omni_attenuation, FALLOFF)
+	light.light_color = light_color(light.light_color)
+	var gain := LIGHT_GAIN * pow(hh, light.omni_attenuation) / POST_FALLOFF
+	light.set_meta("lamp_gain", float(light.get_meta("lamp_gain", 1.0)) * gain)

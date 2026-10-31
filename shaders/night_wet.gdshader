@@ -36,6 +36,13 @@ uniform float smear_max = 7.0;
 uniform float wet_full = 0.55;
 // The water broken up: ripples and rain move bright and dark patches along the streak.
 uniform float ripple = 0.55;
+// The night lamps review (NightLamps sets these; 0 is the old streak): how much wider the streak is
+// at its near end than at the mirror point (a rough wet road spreads a lamp into a flame-shaped
+// column that widens toward the eye, never a rod of one width), the share of the streak broken into
+// small bright glints (each ripple facet catching the lamp), and how fast the near end dies.
+uniform float flare = 0.0;
+uniform float sparkle = 0.0;
+uniform float near_fall = 2.0;
 
 varying float v_amp;
 varying float v_peak;
@@ -73,6 +80,7 @@ void vertex() {
 		float s = VERTEX.y > 0.0 ? s1 : s0;
 		vec2 p0 = foot.xz + u * s;
 		float w = max(width_min, width_share * length(vec3(p0.x, foot.y, p0.y) - cam));
+		w *= 1.0 + flare * clamp((s - rd) / max(s1 - rd, 1e-3), 0.0, 1.0);
 		vec2 p = p0 + v * (VERTEX.x * w);
 		vec3 world = vec3(p.x, foot.y + 0.035, p.y);
 		VERTEX = (VIEW_MATRIX * vec4(world, 1.0)).xyz;
@@ -94,11 +102,20 @@ void fragment() {
 	float t = 1.0 - UV.y;
 	float pk = clamp(v_peak, 0.05, 0.95);
 	// Rising from the foot to the mirror point, then dying away toward the eye.
-	float along = t < pk ? pow(t / pk, 1.4) : pow(max(1.0 - (t - pk) / (1.0 - pk), 0.0), 2.0);
+	float along = t < pk ? pow(t / pk, 1.4) : pow(max(1.0 - (t - pk) / (1.0 - pk), 0.0), near_fall);
 	// Ripples: two drifting value-noise bands across the streak's length in true world metres.
 	float n1 = nw_noise(v_world * 2.3);
 	float n2 = nw_noise(v_world * 0.85 + vec2(TIME * 0.6, 0.0));
 	float broken = mix(1.0, 0.35 + 1.1 * n1 * n2 + 0.2 * n2, ripple);
 	float a = exp(-across * across * 6.0) * along * broken;
+	if (sparkle > 0.0) {
+		// Glints: small ripple facets (true world, a few cm) flashing as the rain moves them; the
+		// streak's body thins where it breaks up, so the total stays about the same.
+		vec2 g = v_world * 9.0 + vec2(0.0, TIME * 1.7);
+		float f = nw_noise(g) * nw_noise(g * 2.3 + 7.1);
+		float glint = smoothstep(0.32, 0.6, f) * 3.2;
+		float soft = exp(-across * across * 2.2);
+		a = mix(a, soft * along * (0.25 * broken + glint), sparkle);
+	}
 	ALBEDO = cs_out(v_col * a * v_amp);
 }
