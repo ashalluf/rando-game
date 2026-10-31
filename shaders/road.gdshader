@@ -142,6 +142,7 @@ float fbm(vec2 p) {
 
 
 #include "res://shaders/wet_drying.gdshaderinc"
+#include "res://shaders/wet_road_mirror.gdshaderinc"
 
 
 // Raindrop rings on standing water, as a tangent-space slope (xy). Three offset layers of cells,
@@ -496,14 +497,38 @@ void fragment() {
 	// at all. So the standing water mirrors a street canyon built from the reflected ray (lit shop
 	// fronts along the bottom, office windows above, the roofline), sharp in puddles and the
 	// gutter, and the wet film carries the same lights smeared into streaks toward the viewer.
+	// The street this slab runs down, for the streak mirror: (along, across from the first kerb,
+	// width, axis), the width from the derivatives like the drying's (taken here, in uniform control
+	// flow); z 0 when the slab is not a street's (a junction square, a skirt, a short piece).
+	vec4 wrm_st = vec4(0.0);
+	if (wet > 0.01 && wet_road_mirror > 0.5 && lamp_axis > 0) {
+		float st_across = lamp_axis == 1 ? plan_pos.x : plan_pos.y;
+		float st_along = lamp_axis == 1 ? plan_pos.y : plan_pos.x;
+		float st_auv = lamp_axis == 1 ? slab_uv.x : slab_uv.y;
+		float st_luv = lamp_axis == 1 ? slab_uv.y : slab_uv.x;
+		float st_w = length(vec2(dFdx(st_across), dFdy(st_across))) / max(length(vec2(dFdx(st_auv), dFdy(st_auv))), 1.0e-7);
+		float st_run = length(vec2(dFdx(st_along), dFdy(st_along))) / max(length(vec2(dFdx(st_luv), dFdy(st_luv))), 1.0e-7);
+		if (st_w > 5.0 && st_w < 60.0 && st_run > 1.8 * st_w) {
+			wrm_st = vec4(st_along, clamp(st_auv, 0.0, 1.0) * st_w, st_w, float(lamp_axis));
+		}
+	}
 	if (wet > 0.01 && lamp_factor > 0.05 && ground_detail > 0.5 && side < 0.5) {
 		vec3 to_frag = normalize(world_pos - CAMERA_POSITION_WORLD);
 		vec3 n = normalize(vec3(-slope.x * 0.6, 1.0, -slope.y * 0.6));
 		vec3 r = reflect(to_frag, n);
 		float fres = 0.02 + 0.98 * pow(1.0 - clamp(-to_frag.y, 0.0, 1.0), 5.0);
-		vec3 city = mirrored_city(r, max(standing, 0.0));
-		// The film is broken up where the tarmac is rough, so a streak runs in lengths.
-		float film_break = smoothstep(0.35, 0.75, value_noise(w * 0.7 + seed));
+		vec3 city;
+		float film_break;
+		if (wet_road_mirror > 0.5) {
+			// Streaks and smears (wet_road_mirror.gdshaderinc), broken into glints along the view.
+			float px_m = length(VERTEX) * 2.0 / max(abs(PROJECTION_MATRIX[1][1]) * VIEWPORT_SIZE.y, 1.0);
+			// The glints are in the city already; film_break here is the sky's smoother break.
+			city = wet_road_mirror_city(r, to_frag, w, standing, rough, px_m, seed, wrm_st, film_break);
+		} else {
+			city = mirrored_city(r, max(standing, 0.0));
+			// The film is broken up where the tarmac is rough, so a streak runs in lengths.
+			film_break = smoothstep(0.35, 0.75, value_noise(w * 0.7 + seed));
+		}
 		float gain = mirror_night * lamp_factor * fres * max(standing, film * mirror_film * film_break);
 		glow += city * gain * near_mirror(length(VERTEX));
 		// The night sky in the water, everywhere the city's lights are not: the horizon's colour.

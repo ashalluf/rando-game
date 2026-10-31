@@ -195,6 +195,7 @@ func _ready() -> void:
 	_rng.seed = 4242
 	WetWorld.install()
 	PavingAA.install()
+	WetRoadMirror.install()
 	_streamer = get_parent()
 	_daynight = get_parent().get_node_or_null("DayNight")
 	_sun = get_parent().get_node_or_null("Sun") as DirectionalLight3D

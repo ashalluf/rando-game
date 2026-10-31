@@ -2023,6 +2023,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   volumetric fog), lens drops refract (`shaders/rain_lens.gdshader`), the overcast deck is lighter.
   `RAIN_STREET_NIGHT=0` is the A/B (new shader paths default to the old look); `CARS=` on
   fwd_block_shot.gd stands lit cars; checks `tests/rain_street_night_checks.gd`.
+- The wet road's mirror (2026-10-31, docs/HANDOFF.md "The wet road's mirror"): road.gdshader's
+  night city in the water is `shaders/wet_road_mirror.gdshaderinc` - features drawn already blurred
+  (a box blurred = two ramps) by a per-pixel roughness field, much more in elevation than heading
+  (vertical streaks), sharp-ish only in standing water; on a street slab the reflected ray meets the
+  facades `wrm_setback` past each kerb, so streaks sit under shop fronts fixed to the plan; glints
+  are world-fixed (never in the view's frame: lines fan from the camera). All inside the wet, lit
+  branch: a dry road is bit-identical. `WET_ROAD_MIRROR=0` (global `wet_road_mirror`) is the old
+  mirror; small Forward+ scene `tools/wet_road_mirror/mirror_shot.gd`; checks
+  `tests/wet_road_mirror_checks.gd`.
 - Car lights (GAME_PLAN G4 / G6, 2026-10-04): the lamp mesh is `PropFactory.vehicle_lights()`
   on `shaders/car_lights.gdshader` (it replaced light_pool for cars): head and tail glows, the
   beam fan, amber indicators at all four corners, reversing lamps and a red wash on the road
