@@ -2689,6 +2689,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The golden-hour review (tests/golden_hour_review_checks.gd, GoldenHour): the sky's twilight
 	# ramp, the blue zenith at sunset, the eased grade, no pop 17:00-19:30, the A/B.
 	load("res://tests/golden_hour_review_checks.gd").new().run(self, city)
+	# The five stars as distinct (tests/wanted_escalation_checks.gd, WantedEscalation, WantedAudio):
+	# caps per star, vans, the agency's trucks and troopers, the gunship, the sirens and the radio.
+	await load("res://tests/wanted_escalation_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

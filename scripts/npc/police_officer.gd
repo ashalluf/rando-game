@@ -59,6 +59,8 @@ var car: PoliceCar
 ## Which of the car's crew this is (spreads them round the cover).
 var seat: int = 0
 var heavy: bool = false
+## A trooper of the five-star agency (WantedEscalation): field drab, a carbine, a helmet.
+var agency: bool = false
 var task: Task = Task.ENGAGE
 ## Seconds since this officer was on screen (Police recalls ones nobody sees).
 var unseen_time: float = 0.0
@@ -95,7 +97,8 @@ func setup_officer(p: Police, c: PoliceCar, index: int, is_heavy: bool, seed_val
 	police = p
 	car = c
 	seat = index
-	heavy = is_heavy
+	agency = c != null and c.agency
+	heavy = is_heavy or agency
 	# A ring of nothing: the pavement walk is never used, but Pedestrian seeds its streams here.
 	setup(Rect2(-1.0, -1.0, 2.0, 2.0), 1.0, seed_value)
 	_hits_left = hits_to_down + (1 if heavy else 0)
@@ -134,7 +137,7 @@ func _add_model() -> bool:
 		_meshes.append(mi)
 		var src := mi.mesh.surface_get_material(0) as StandardMaterial3D if mi.mesh else null
 		if src and src.albedo_texture and not is_hair(mi):
-			mi.material_override = uniform_material(src.albedo_texture, heavy)
+			mi.material_override = uniform_material(src.albedo_texture, heavy, agency)
 	plain_hair(body)
 	# Pose the rig in its idle before hanging the cap off the head bone (see Pedestrian._add_model:
 	# the clips hold the bones off the bind pose, and a cap lined up on the bind pose rides tilted).
@@ -184,8 +187,8 @@ func _pick_model() -> String:
 
 ## The uniform: the model's own face, skin and hair, with top and trousers repainted navy (black
 ## for the tactical unit) through the character shader's garment split. Cached per texture.
-static func uniform_material(albedo: Texture2D, is_heavy: bool) -> ShaderMaterial:
-	var key := "%d_%d" % [albedo.get_instance_id(), int(is_heavy)]
+static func uniform_material(albedo: Texture2D, is_heavy: bool, is_agency: bool = false) -> ShaderMaterial:
+	var key := "%d_%d_%d" % [albedo.get_instance_id(), int(is_heavy), int(is_agency)]
 	if _uniform_mats.has(key):
 		return _uniform_mats[key]
 	var base := character_material(albedo, 1)
@@ -194,6 +197,9 @@ static func uniform_material(albedo: Texture2D, is_heavy: bool) -> ShaderMateria
 	var mat := base.duplicate() as ShaderMaterial
 	var top: Color = HEAVY_TOP if is_heavy else UNIFORM_TOP
 	var low: Color = HEAVY_TROUSERS if is_heavy else UNIFORM_TROUSERS
+	if is_agency:
+		top = TacticalHelmet.FIELD_TOP
+		low = TacticalHelmet.FIELD_TROUSERS
 	mat.set_shader_parameter("cloth_hue", top.h)
 	mat.set_shader_parameter("cloth_sat", top.s)
 	mat.set_shader_parameter("cloth_value", top.v)
@@ -216,6 +222,9 @@ static func uniform_material(albedo: Texture2D, is_heavy: bool) -> ShaderMateria
 ## tactical unit goes without (no helmet is built yet).
 func _add_cap(inst: Node3D) -> void:
 	if heavy:
+		# A ballistic helmet fitted to this rig's head (WantedEscalation; none under the A/B).
+		if WantedEscalation.enabled:
+			TacticalHelmet.dress(inst, _model_path, agency)
 		return
 	CrowdHat.dress(inst, _model_path, CrowdHat.Kind.PEAKED, 0, accessory_distance)
 
@@ -503,6 +512,6 @@ func _dress_ragdoll(doll: Ragdoll) -> void:
 		var mi := node as MeshInstance3D
 		var src := mi.mesh.surface_get_material(0) as StandardMaterial3D if mi.mesh else null
 		if src and src.albedo_texture and mi.skin and not is_hair(mi):
-			mi.material_override = uniform_material(src.albedo_texture, heavy)
+			mi.material_override = uniform_material(src.albedo_texture, heavy, agency)
 	plain_hair(rig)
 	_add_cap(rig)

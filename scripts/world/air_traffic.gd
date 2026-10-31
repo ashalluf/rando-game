@@ -784,9 +784,8 @@ func _cruise_point() -> Vector3:
 func _order_police(dt: float) -> void:
 	var police := helicopters(Helicopter.Role.POLICE)
 	var p := player_world()
-	var want := 0
-	if stars >= police_stars:
-		want = 1 if stars == police_stars else 2
+	# One at police_stars, two above (WantedEscalation: three at five, the third the gunship).
+	var want := WantedEscalation.helicopters(stars, police_stars)
 	var pursuers: Array[Helicopter] = []
 	for h in police:
 		if h.task == "pursuit":
@@ -819,6 +818,10 @@ func _order_police(dt: float) -> void:
 		var wobble := Vector3(sin(_look_timer * 0.9 + i * 2.0), 0.0, cos(_look_timer * 1.3 + i)) * 2.5
 		h.look_target = p + wobble
 		h.searchlight_on = true
+		if WantedEscalation.is_gunship_slot(stars, i):
+			WantedEscalation.arm_gunship(h)
+			h.orbit_radius = WantedEscalation.GUNSHIP_ORBIT.x
+			h.orbit_height = police_orbit_height + WantedEscalation.GUNSHIP_ORBIT.y
 	for h in police:
 		if h.task == "leaving":
 			if h.mode != Helicopter.Mode.LEAVE:
