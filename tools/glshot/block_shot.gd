@@ -53,6 +53,7 @@ func _ready() -> void:
 	if sun:
 		sun.rotation_degrees = city.get("sun_rotation_degrees")
 		RenderingServer.global_shader_parameter_set("sun_direction", sun.global_basis.z)
+	PavingAA.install()  # PAVING_AA=0 is the before (no Weather here to push it)
 	# NIGHT=1: a crude night (no DayNight here) - the lamp globals on, the sun down to a moon and
 	# the sky's light dimmed - enough to judge what lights itself (signs, lamps, billboards).
 	if OS.get_environment("NIGHT") == "1":
