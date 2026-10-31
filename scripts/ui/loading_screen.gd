@@ -265,6 +265,13 @@ func run(city: Node3D) -> void:
 	print("LOADING dogs: %d ms" % ((Time.get_ticks_usec() - t_dogs) / 1000))
 	print("LOADING people: %d camp figures %d ms, %d rigs %d ms" % [kinds.size(), t_camp / 1000, models.size(), t_rigs / 1000])
 	LoadClock.stop("screen: rigs")
+	# The traffic the first seconds of play would build one car a frame, built here (FirstFill).
+	_step("Filling the streets", 0.99)
+	await _frames(1)
+	LoadClock.start("screen: traffic")
+	var filled: Array = FirstFill.traffic(city.get_node_or_null("Traffic"))
+	print("LOADING traffic filled: %d street, %d freeway, %d built" % filled)
+	LoadClock.stop("screen: traffic")
 	_step("Ready", 1.0)
 	await _frames(2)
 	await _fade_out()

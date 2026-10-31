@@ -26,6 +26,10 @@ extends Node
 
 const EVENTS := ["rifle", "rocket", "ped", "shotgun_ped", "cars", "police", "emergency", "fire",
 		"night", "rain", "landmarks"]
+## Wave 3's first uses (loading-first-frame, 2026-10-31): getting into a car (its cabin and doors,
+## the chase camera, the radio card), a hard crash (crumple), a lit cruiser at night (the washes),
+## people putting up umbrellas, a wild animal. Not in "all" (run them by name; "wave3" = all five).
+const WAVE3 := ["enter_car", "crash", "police_night", "umbrellas", "wildlife"]
 
 var _frames_per_event := 12
 var _base_ms := 0.0
@@ -106,7 +110,8 @@ func _ready() -> void:
 	base.sort()
 	_base_ms = base[base.size() / 2]
 	print("BASE median frame %.0f ms" % _base_ms)
-	var list: Array = EVENTS if _env("EVENTS", "all") == "all" else Array(_env("EVENTS", "").split(",", false))
+	var list: Array = EVENTS if _env("EVENTS", "all") == "all" else (WAVE3 if _env("EVENTS", "") == "wave3" \
+			else Array(_env("EVENTS", "").split(",", false)))
 	for ev in list:
 		await _event(String(ev))
 	_spikes.sort_custom(func(a, b): return a[0] > b[0])
@@ -371,3 +376,50 @@ func _ev_landmarks() -> void:
 		var a: Vector2 = lm.anchor
 		holder.position = Vector3(ahead.x - a.x, 0.0, ahead.z - a.y) + Vector3(float(i % 9 - 4) * 40.0, 0.0, -float(i / 9) * 30.0)
 	print("LANDMARKS built %d far copies" % n)
+
+
+func _ev_enter_car() -> void:
+	var car := _car(0)
+	car.position = _ahead(3.5) + Vector3(1.5, float(car.call("road_lift")), 0.0)
+	_hold().add_child(car)
+	for i in 3:
+		await get_tree().process_frame
+	_player.call("enter_vehicle", car)
+	for i in 8:
+		await get_tree().process_frame
+	_player.call("exit_vehicle")
+
+
+func _ev_crash() -> void:
+	var car := _car(1)
+	car.position = _ahead(8.0) + Vector3(0.0, 0.9, 0.0)
+	_hold().add_child(car)
+	for i in 3:
+		await get_tree().process_frame
+	var at: Vector3 = car.global_position + Vector3(0.0, 0.5, -2.0)
+	car.call("take_hit", 0, 24.0, Vector3(0.0, 0.0, 1.0), at, 4)
+
+
+func _ev_police_night() -> void:
+	RenderingServer.global_shader_parameter_set("night_factor", 1.0)
+	RenderingServer.global_shader_parameter_set("lamp_factor", 1.0)
+	var car: Node3D = load("res://scripts/npc/police_car.gd").call("make", false, RandomNumberGenerator.new())
+	car.set("police", null)
+	car.set("_stolen", true)
+	car.position = _ahead(10.0) + Vector3(0.0, float(car.call("road_lift")), 0.0)
+	_hold().add_child(car)
+
+
+func _ev_umbrellas() -> void:
+	RainCrowd.forced = 1.0
+	await _ev_ped()
+	for i in 20:
+		await get_tree().process_frame
+	RainCrowd.forced = -1.0
+
+
+func _ev_wildlife() -> void:
+	var a: Node3D = load("res://scripts/npc/wild_animal.gd").new()
+	a.call("setup", "coyote", 4242)
+	a.position = _ahead(8.0)
+	_hold().add_child(a)
