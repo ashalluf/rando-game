@@ -34,14 +34,15 @@ static var react_placed: bool = OS.get_environment("TRAFFIC_REACT_PLACED") == "1
 ## Metres from the camera inside which a car's body moves (past it: at rest, nothing runs).
 const RANGE := 70.0
 ## Pitch (rad) per m/s^2 of longitudinal acceleration: braking (nose down) and pulling away (the
-## squat is weaker: the springs are stiffer at the back and the drive is gentle). 4 m/s^2 of
-## braking is about 1 degree; a hard stop's 7 m/s^2 nearly 2.
-const PITCH_PER_DECEL := 0.0046
-const PITCH_PER_ACCEL := 0.0028
-const PITCH_MAX := 0.042
-## Roll (rad) per m/s^2 of lateral acceleration, outward: a 0.3 g city turn is ~1 degree.
-const ROLL_PER_ACCEL := 0.0062
-const ROLL_MAX := 0.05
+## squat is weaker: the springs are stiffer at the back and the drive is gentle). A little over a
+## real saloon's, as a game camera wants it read: 2 m/s^2 of city braking is ~0.9 degrees, a
+## hard stop's 6 m/s^2 2.6, capped at 3.2.
+const PITCH_PER_DECEL := 0.0075
+const PITCH_PER_ACCEL := 0.0045
+const PITCH_MAX := 0.055
+## Roll (rad) per m/s^2 of lateral acceleration, outward: a 0.3 g city turn is ~1.5 degrees.
+const ROLL_PER_ACCEL := 0.0085
+const ROLL_MAX := 0.06
 ## The body's springs: natural frequency (Hz) and damping ratio. Under 1, so a stop rocks back
 ## once past level and settles, which is what reads as a sprung car.
 const PITCH_HZ := 1.35

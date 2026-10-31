@@ -3613,6 +3613,16 @@ already mapped so milestone 2 is script-only.
   stays dark: a coarser SDFGI cell leaks the sunlit deck through the soffit, so it is left for a
   fill on the freeway kit.
 
+- **2026-10-30 Traffic that moves like cars (traffic-motion, HANDOFF "Traffic that moves like
+  cars").** Kinematic traffic glided: no dive, squat, lean or bounce, turns snapped 90 degrees at
+  the junction centre, front wheels straightened at every stop, a queue left in one tick.
+  Decisions: the motion is VISUAL only, springs on the body model and its lamps (TrafficMotion,
+  one hook in Vehicle._update_wheels), within 70 m of the camera; gains a little over a real
+  saloon's so a game camera reads them; turns are drawn round a fillet in TrafficManager._place()
+  while the logic keeps its own position (t.tm_logic), so no queue rule changes; a follower waits
+  a hashed beat after the car ahead moves off, but not cars placed by checks. TRAFFIC_MOTION=0 is
+  the A/B.
+
 ## Correction: what build 135 (0ce833f) actually contained
 
 That commit's subject says "denser grass, real palm fronds, finer ground". It also shipped a

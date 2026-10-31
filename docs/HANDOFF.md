@@ -21292,3 +21292,83 @@ the gate) - the colour match was built through cs_as_uniform() and needs a Mac l
 30-60 m still read a little darker than the ground in shade; MacArthur Park's, the civic lawn's
 and the rec parks' blades use a generic lawn look, not their ground's; dappled shade is whatever
 the trees' real shadows give (nothing faked).
+
+## 9d?. Traffic that moves like cars (wave 3, branch `wt/traffic-motion`, VISUAL_ROADMAP #?)
+
+The task: kinematic street and freeway cars seen MOVING from the pavement or a chase camera at
+3-25 m glide. Reviewed as frame sequences (`TMOTION=brake|pull|turn` on still_shot.gd, below), what
+read as fake:
+
+- **The body never moved.** No dive under braking, no squat pulling away, no lean in a turn, no
+  bounce: a model on a wire.
+- **Turns snapped.** `TrafficManager._drive_street()` puts a turning car onto the cross street at
+  the junction's centre in ONE tick, turned 90 degrees and jumped up to a lane width along. The
+  yaw-rate steering estimate then slammed the front wheels to full lock for that one frame.
+- **The front wheels straightened at every stop** (the steering was read off the yaw rate, which
+  is 0 standing) and turned instantly with no steering rate.
+- **A queue pulled away in one tick**: only the car held by the stop line waits its reaction
+  time; the IDM followers start the moment the gap opens.
+- Not wrong: the wheels' spin (`traffic_speed` is set from `t.v` every tick, `_wheel_radius` is the
+  model's), the freeway's lane changes (nosed by `lc_lat`).
+
+**`TrafficMotion`** (`scripts/vehicles/traffic_motion.gd`, state on the car as `Vehicle.motion`,
+made on first need). ONE hook in `Vehicle._update_wheels()` (so every kinematic car whose script
+runs - street, freeway, police, emergency, news, stack, coast traffic - gets it), within `RANGE`
+70 m of the camera, never on a car with a driver, a wreck, a motorcycle (its own Pose), a lowrider
+on its hydraulics, or a car in CarPanic's hands (that one dives as a whole already):
+- **Pitch, roll, heave** as damped springs (`spring()`, sub-stepped; pitch 1.35 Hz zeta 0.38, so a
+  stop rocks back once past level; big vehicles x0.75 slower, rolling x1.4) driven by the
+  longitudinal acceleration (smoothed: the freeway's follow rule changes speed in steps;
+  `pitch_for()`: 0.0075 rad per m/s^2 braking, 0.0045 squat, cap 0.055) and the lateral one (v x
+  yaw rate, `roll_for()` 0.0085 rad per m/s^2 outward), plus a few mm of road texture with speed.
+  Written to the BodyModel holder and NightLights about a pivot between the axles half a metre up
+  (`m * rest`), only when it changed by over 1e-5; the car's transform and physics are untouched.
+  A kneeling bus (BusFittings) keeps its body.
+- **Potholes**: RoadWear's deep potholes (`bump_for()`) under each wheel rig drop that wheel in and
+  kick the body toward the corner; the wheel climbs out at `POT_CLIMB`.
+- **Steering**: `steer_for()` = atan(wheelbase x yaw rate / v) at `STEER_RATE` 1.3 rad/s, HELD
+  under 0.6 m/s (wheelbase from the car's own wheel rigs).
+- **Turn fillets** (`turn_pose()` from `TrafficManager._place()`): the turning car is drawn round a
+  circular fillet tangent to its lane and the target lane (`fillet()`: the lanes' meeting point
+  C, the way in F and out G, radius what the junction box leaves + 1.5 m, 4-14 m), on the car's
+  own progress through the turn (pre-snap along F, post-snap along G, mapped onto one parameter so
+  it is continuous at the snap and at both tangent points). The target lane is
+  `TrafficAI.turn_lane()` (no rolls: `_lane_offset()` spends the traffic rng). The logic is
+  unchanged: TrafficManager reads a car's position back off its transform each tick, so the drawn
+  pose would feed back - `t.tm_logic` keeps [logical, drawn] and `TrafficMotion.logical()` hands
+  the logical one back while the car is where it was drawn. A dropped turn (its lane was taken)
+  goes back to the straight line at once (rare). The next junction's turn, rolled the tick after
+  the snap, does not replace a fillet still being drawn.
+- **The queue beat** (`queue_react()`, one line in `_drive_street()` before its reaction rule): a
+  car that stood behind a standing car waits `queue_delay()` (its mood's m_react x 0.75 + a hashed
+  0-0.25 s, 0.3-1.6 s) once that car moves off. Cars placed by hand (`placed`) get none unless
+  `TRAFFIC_REACT_PLACED=1` / `TrafficMotion.react_placed` (the stills set it), so every check that
+  times a staged queue is unchanged.
+
+`TRAFFIC_MOTION=0` is the A/B (the old glide, the old steering, the snap, no beat). Every roll is a
+hash (the texture phase of `look_seed`, the beat of seed + moment); the traffic rng is never
+touched, so no seed moves.
+
+**Cost**: `tools/traffic_motion/bench.tscn` (headless, downtown at Flower and Olympic, 600 physics
+frames, this 4-core box under load): the motion 102 us a physics frame over 3.9 cars in range
+(26 us a car); the traffic tick (`drive_usec`) 15.0 ms on vs 14.3 ms off, the whole physics
+process 57.2 vs 54.8 ms - both inside this box's run-to-run noise. No mesh, material or draw is
+added: the frame's GEO is unchanged (STILLS_GEO).
+
+**Stills** (`shots/traffic-motion`): `TMOTION=brake|pull|turn` with `TMOTION_STEPS="s,s,..."` on
+`still_shot.gd` (`tools/traffic_motion/stage.gd`: the nearest one-lane street to the camera, the
+traffic staged and moved only by `advance()`, which also ticks every car's wheels and body),
+saved as OUT with `_m1`, `_m2`...; `TRAFFIC_MOTION=0` on the same command is the before.
+`TrafficAI.advance_shot()` now ticks `_update_wheels()` (wheels, lamps, body) instead of only the
+lamps, so the TRAFFIC= sequences show it too.
+
+Checks: `tests/traffic_motion_checks.gd` (the pure rules, a placed car braking to a stop behind a
+standing one - body nose down, car level, wheels still, body back at rest -, a placed car turning
+round the fillet with no tick over 7 degrees of yaw, its wheels steered and body leaning, the
+switch, out-of-traffic rest, the beat, the cost). Tools: `tools/traffic_motion/compile.gd`.
+
+Not done / not verified: no Forward+ still (the motion is transforms only, nothing colour-related);
+cars past PhysicsBudget's `vehicle_script_radius` (100 m from the player) do not run it, which only
+matters for a free camera far from the player; U-turns (turn 2) and the stack / coast / replica
+traffic's own corners still turn the way they did; a dropped turn snaps back straight; the
+freeway's lane change still has no steering lead before the yaw (the yaw is the logic's).

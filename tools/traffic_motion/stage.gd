@@ -57,13 +57,16 @@ static func stage(tm: TrafficManager, kind: String, cam: Camera3D) -> String:
 	var kerb := float(-dir if axis == CityPlan.AXIS_X else dir)
 	match kind:
 		"brake":
-			var stop_at := lo + 78.0
+			var stop_at := lo + 62.0
 			_add(tm.place_car(axis, index, dir, 0, stop_at, 0.0, false, Vehicle.BodyType.CROSSOVER))
-			_car = tm.place_car(axis, index, dir, 0, lo + 12.0, 12.0, false, Vehicle.BodyType.SEDAN)
+			_car = tm.place_car(axis, index, dir, 0, lo + 8.0, 13.0, false, Vehicle.BodyType.SEDAN)
 			_add(_car)
-			# On the pavement across the car's lane, level with where it will stand.
-			var at := stop_at - float(dir) * 8.0
-			return _eye(plan, _xz(axis, road_x + kerb * (half_w + 2.2), at), 1.35, _xz(axis, road_x + kerb * 2.0, at - float(dir) * 1.0), 0.75)
+			# Low on the kerb a few metres short of the standing car, looking back up the lane at
+			# the one coming in: it stops about five metres away, three-quarter front on.
+			# Low in the empty oncoming lane a little short of the standing car, looking back up the
+			# lane at the one coming in: it stops a few metres away, three-quarter front on.
+			var at := stop_at - float(dir) * 4.0
+			return _eye(plan, _xz(axis, road_x - kerb * 1.6, at), 1.0, _xz(axis, road_x + kerb * 1.6, stop_at - float(dir) * 18.0), 0.55)
 		"pull":
 			var line := plan.road_pos(cross, k) - float(dir) * (plan.road_width(cross, k) * 0.5 + tm.stop_line_back)
 			if TrafficSignals.is_signal(plan, _node.x, _node.y):
@@ -76,8 +79,9 @@ static func stage(tm: TrafficManager, kind: String, cam: Camera3D) -> String:
 				_add(c)
 			_car = _cars[0]
 			_green_at = 0.05
-			var at2 := line - float(dir) * 11.0
-			return _eye(plan, _xz(axis, road_x + kerb * (half_w + 2.6), at2 - float(dir) * 6.0), 1.25, _xz(axis, road_x + kerb * 1.5, at2), 0.7)
+			# Behind the queue in the oncoming lane, a chase camera's height, looking up it.
+			var at2 := line - float(dir) * 26.0
+			return _eye(plan, _xz(axis, road_x - kerb * 1.4, at2), 1.6, _xz(axis, road_x + kerb * 1.6, line - float(dir) * 8.0), 0.6)
 		"turn":
 			var past := half_w + 3.0
 			for d: int in [1, -1]:
@@ -92,9 +96,10 @@ static func stage(tm: TrafficManager, kind: String, cam: Camera3D) -> String:
 			# The far corner of the junction the car turns toward, looking back at the turn.
 			var cpos := plan.road_pos(cross, k)
 			var cw := plan.road_width(cross, k) * 0.5
-			var corner := _xz(axis, road_x + float(_turn) * (half_w + 3.0), cpos + float(dir) * (cw + 3.0))
-			var centre := _xz(axis, road_x, cpos)
-			return _eye(plan, corner, 1.5, centre, 0.6)
+			# Past the junction in the oncoming lane, facing back: the car comes on and turns off.
+			var eye := _xz(axis, road_x - kerb * 1.5, cpos + float(dir) * (cw + 9.0))
+			var centre := _xz(axis, road_x + kerb * 1.0, cpos - float(dir) * 3.0)
+			return _eye(plan, eye, 1.3, centre, 0.6)
 	return ""
 
 
