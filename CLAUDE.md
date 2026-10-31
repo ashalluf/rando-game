@@ -17,7 +17,7 @@ street errands, reference cameras), batch 7 (the marketplace lane, shop-window v
 businesses) and batch 8 (street signs as real models, five street lamp types), plus the fixes
 for CI runs 355-357 (a turning car's room in its new lane, errands never parking a placed car,
 the car lights check's pick race), then apartments and tower gondolas (2026-10-29, build 361).
-**Stopped 2026-10-31 (out of tokens): start at docs/HANDOFF.md section 000000000** - main is batch 24 (`230ab090`), `wt/batch25-untested` waits for its gate, seven sessions paused.
+**Wave 4 (2026-10-31): start at docs/HANDOFF.md section 0000000000** - main is batch 25 (the golden-hour review) plus the CI 394 flake fixes; 45 cloud sessions run on `wt/<slug>` branches (roster on `fleet/brief`), the lead merges them in batches.
 **Wave 3 (2026-10-29)**: 23 cloud sessions finishing wave 2's paused tasks plus `rock-outcrops` and
 `facades-gta` (owner: "make it look like GTA 6"); start at docs/HANDOFF.md section 00000000.
 `SHARDS=3 tests/headless_check.sh` runs the smoke test in three processes (~10 min, ~2.4 GB each).
@@ -761,6 +761,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   from a `GRADE_RAW=1` run, then confirm with a normal run and `tools/cinematic/grade_probe.gd`
   (Forward+ in two minutes). HourGrade's looks carry `depth` (a broad shadow gain); DayNight has
   `day_/night_glow_intensity` and `_threshold`. `tests/cinematic_review_checks.gd` pins the ranges.
+- The golden-hour review (2026-10-30, docs/HANDOFF.md "The golden hour review"): 17:00-19:30 is
+  judged on six views x six half hours (`tools/golden_hour/cameras.json` through refcams with
+  `REFCAMS_JSON=` and `SHEET_COLS=6`; `tools/golden_hour/strip.py` the numbers - sky / ground
+  balance, warmth, orange share - and the before / after hour strips). `GoldenHour`
+  (`scripts/world/golden_hour.gd`): the sky's night colours follow their own twilight ramp
+  (`sky_night()`), never night_factor (the lamps' switch, 1 eleven minutes after sunset); the
+  exposure starts toward the night's as the sun falls (`exposure_mix()`, monotonic); the GOLDEN
+  look eases at the sunset (`golden_grade()`). `GOLDEN_HOUR_REVIEW=0` is the A/B (`restore()` puts
+  DayNight's old numbers back); checks `tests/golden_hour_review_checks.gd`.
 - The map (2026-10-05, "a minimap and a full-screen map with a GPS, GTA style"): the minimap and
   the full-screen map draw the same thing through `MapPainter` (`scripts/ui/map_painter.gd`,
   static; a `MapPainter.View` says where: world-to-canvas transform, pixels per metre, the

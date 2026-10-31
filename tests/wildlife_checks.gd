@@ -120,6 +120,18 @@ func _hours(city: Node3D) -> void:
 	_check(Wildlife.on() == (OS.get_environment("WILDLIFE") != "0"), "wildlife: WILDLIFE=0 is the A/B switch")
 
 
+## `n` spots on the pavement ring of the block round `near` (true world), 1.3 m in from its
+## -x edge (the ring is 2.6 m wide), 5 m apart along it: ground a car never drives on.
+func _pavement_spots(plan: CityPlan, near: Vector2, n: int) -> Array[Vector2]:
+	var bi: Vector2i = plan.block_index_at(near)
+	var r: Rect2 = plan.block(bi.x, bi.y).rect
+	var out: Array[Vector2] = []
+	for i in n:
+		var z := clampf(r.position.y + 6.0 + float(i) * 5.0, r.position.y + 1.3, r.end.y - 1.3)
+		out.append(Vector2(r.position.x + 1.3, z))
+	return out
+
+
 func _live(city: Node3D) -> void:
 	var wl: Wildlife = city.get_node_or_null("Wildlife")
 	_check(wl != null, "wildlife: the city has its Wildlife node")
@@ -130,17 +142,20 @@ func _live(city: Node3D) -> void:
 	var ws: Node = _tree.root.get_node("/root/WorldState")
 	var here: Vector3 = ws.call("to_world", player.global_position)
 	var fwd := Vector3(1, 0, 0)
-	# A squirrel well away, a deer, a raccoon: on the ground beside the player.
-	var sq := wl.stage("squirrel", Vector2(here.x + 20.0, here.z + 3.0), 0.0, 11, true)
-	var deer := wl.stage("deer", Vector2(here.x + 24.0, here.z - 6.0), 1.0, 12, true)
-	var rac := wl.stage("raccoon", Vector2(here.x + 18.0, here.z + 10.0), 2.0, 13, true)
+	# A squirrel well away, a deer, a raccoon: on the PAVEMENT of the block beside the player.
+	# Staged in the carriageway (x + 20) a traffic car now and then ran one over before the
+	# first check read it, and a hit is a flee (CI 394, "calm animals stay put").
+	var spots := _pavement_spots(city.plan, Vector2(here.x + 20.0, here.z), 3)
+	var sq := wl.stage("squirrel", spots[0], 0.0, 11, true)
+	var deer := wl.stage("deer", spots[1], 1.0, 12, true)
+	var rac := wl.stage("raccoon", spots[2], 2.0, 13, true)
 	await _ticks(6)
 	for an: WildAnimal in [sq, deer, rac]:
 		var p: Vector3 = ws.call("to_world", an.global_position)
 		var gy: float = city.plan.height_at(Vector2(p.x, p.z))
 		_check(absf(p.y - gy) < 2.5 and not is_nan(an.rig.skeleton.get_bone_global_pose(DogMesh.B_HEAD).origin.y),
 			"wildlife: a staged %s stands on the ground (%.2f against %.2f) and its pose is sane" % [an.species, p.y, gy])
-	_check(not sq.fleeing and not deer.fleeing and not rac.fleeing, "wildlife: calm animals stay put")
+	_check(not sq.fleeing and not deer.fleeing and not rac.fleeing, "wildlife: calm animals stay put (hits %d)" % (sq.hits_taken + deer.hits_taken + rac.hits_taken))
 	# The player close: the squirrel flushes and runs off.
 	sq.calm = false
 	sq.global_position = player.global_position + fwd * 2.5

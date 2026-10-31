@@ -178,6 +178,18 @@ func _heliport(city: Node3D, player: Node3D, ws: Node) -> void:
 ## A box in the rotor disc is a rotor strike: the blades go, the engine dies.
 func _strike(heli: FlyableHeli) -> void:
 	heli.spool = 1.0
+	# In clear air, held there: on the apron where it set down (20-odd metres from the pad) a
+	# mast or a fence could stand inside the disc, and "nothing is found with the disc clear"
+	# failed on CI 394 with the box 40 m up. Gravity off for the test, so it does not sink
+	# toward the box over the ticks; put back after.
+	var pose0 := heli.global_transform
+	var grav0 := heli.gravity_scale
+	heli.gravity_scale = 0.0
+	heli.linear_velocity = Vector3.ZERO
+	heli.angular_velocity = Vector3.ZERO
+	heli.global_position += Vector3.UP * 60.0
+	await _ticks(2)
+	_t._check(not heli.rotor_hits_something(), "the disc is clear 60 m up before the strike test")
 	var hub := heli.global_transform * heli._hub_local
 	var box := StaticBody3D.new()
 	box.collision_layer = 1
@@ -207,6 +219,11 @@ func _strike(heli: FlyableHeli) -> void:
 			break
 	_t._check(clear, "and nothing is found with the disc clear")
 	box.queue_free()
+	heli.gravity_scale = grav0
+	heli.global_transform = pose0
+	heli.linear_velocity = Vector3.ZERO
+	heli.angular_velocity = Vector3.ZERO
+	await _ticks(2)
 	heli.rotor_strike()
 	_t._check(heli.rotor_lost and heli.engine_dead and heli.hp < heli.max_hp * 0.6, "a rotor strike throws the blades and kills the engine")
 	_t._check(not heli._main_disc.visible or heli.rotor_lost, "the struck rotor draws no disc")
