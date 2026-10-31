@@ -9,3 +9,8 @@ with the real lamp kit, Buildings, a car and people, the city's own DayNight at 
 - 05: a sodium patch: deep amber light, pools under each lamp falling off between them.
 - 06 / 07: wet road: the reflections were pencil-thin rods; now broken, flaring columns.
 - 08 / 09: a cobra: its light now reaches the road and the facades.
+
+Second batch (opengl3, the Compatibility renderer = web; not the Mac):
+- 10 / 11: the street_night refcam before / after the first pass (p50 34 -> 37, p95 138 -> 143).
+  The first pass's wet streaks read as glowing cones there; 12 / 13 are the final soft, tapering
+  streaks on the lamp street (the refcam is re-shot at the end).
