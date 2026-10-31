@@ -174,6 +174,7 @@ uniform float junction_glow = 0.75;
 #include "res://shaders/color_space.gdshaderinc"
 // The lit offices and the pale or dark spandrels, rolled exactly as building.gdshader rolls them.
 #include "res://shaders/window_lights.gdshaderinc"
+#include "res://shaders/window_interiors.gdshaderinc"
 // The facade pass, as the near walls draw it (building.gdshader's facade_variety).
 #include "res://shaders/facade_variety.gdshaderinc"
 uniform bool facade_variety = false;
@@ -829,7 +830,13 @@ void fragment() {
 				float fv_in = clamp((fv - (wr.x - wr.y)) / (2.0 * wr.y), 0.0, 1.0);
 				float blind = mix(pv.z * 0.6, fx_blind(fv_in, pv.z), cell_fade);
 				room *= mix(1.0, pv.x, cell_fade) * (ws == 2 ? fx_floor_tint(sd, row) : vec3(1.0));
-				room = mix(room, vec3(0.20, 0.195, 0.18) * 1.15, blind * 0.85);
+				if (wi_home(sd, ws)) {
+					// A home hangs its own (window_interiors.gdshaderinc), seen at its average.
+					vec4 cm = wi_cover_mean(wi_key(sd, face_id, row, col));
+					room = mix(room, cm.rgb * 0.245, cm.a * 0.85);
+				} else {
+					room = mix(room, vec3(0.20, 0.195, 0.18) * 1.15, blind * 0.85);
+				}
 			}
 			// No glare lobe: the near glass has none, its flare is the renderer's own specular.
 			vec3 glass_col = mix(room, sky_ref, mirror * (1.0 - reflect_emit));
@@ -931,7 +938,13 @@ void fragment() {
 				bool lit = storefront ? shop_open : window_lit(sd, face_id, row, col, lit_ratio_p);
 				float on = storefront ? lamp_factor : night_factor;
 				if (lit && on > 0.001) {
-					vec3 light = storefront ? cs_as_uniform(shop_tone_far(shop_key)) * lit_shop_level : lit_c * window_temp(sd, face_id, row, col) * window_glow(sd, face_id, row, col) * lit_room_level;
+					vec3 wtone = window_temp(sd, face_id, row, col);
+					if (!storefront && wi_home(sd, ws)) {
+						// A home's lamps, or its TV, as the near room lights them.
+						uint wk = wi_key(sd, face_id, row, col);
+						wtone = wi_tv(wk) ? mix(WI_TV_MEAN, wi_tv_light(wk, TIME), cell_fade) : wi_home_tone(wk);
+					}
+					vec3 light = storefront ? cs_as_uniform(shop_tone_far(shop_key)) * lit_shop_level : lit_c * wtone * window_glow(sd, face_id, row, col) * lit_room_level;
 					if (!storefront) {
 						// A lit office is lit from its ceiling (building.gdshader's traced room: the
 						// panels, the bright upper wall, a dim floor): brighter toward the head of the
