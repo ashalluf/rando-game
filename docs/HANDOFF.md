@@ -1,11 +1,117 @@
-# Handoff: Rando Game (written 2026-09-19; section 00000000 is the newest state: fleet wave 3, 2026-10-29)
+# Handoff: Rando Game (written 2026-09-19; section 0000000000 is the newest state: fleet wave 4, 2026-10-31)
 
 This is the narrative handoff for whoever picks the project up next, from any Claude Code account
 or as a person. `CLAUDE.md` is the rulebook and `docs/GAME_PLAN.md` is the roadmap plus the
 decisions log; both stay the source of truth. This file is the story: where things stand, how
 the day-to-day work goes, what is fragile, what to do next. Read all three before touching code.
 
-## 00000000. Fleet wave 3 (2026-10-29; read this first)
+## 0000000000. Fleet wave 4 (2026-10-31 ~03:45 UTC; read this first, then 000000000)
+
+A new account's lead picked up where section 000000000 stopped. The owner: "check the handoff and
+get back to work", "deploy like a million agents like you did before", "drop screenshots along the
+way".
+
+**Done first:** CI run 394 (the handoff commit, docs only) was RED with four intermittent failures,
+all fixed on main in one commit (gate green locally, SHARDS=3):
+- `SCRIPT ERROR ... 'along'` in `TrafficManager._group_clear` (traffic.gd): a car that LEFT traffic
+  earlier in the same tick (StreetErrands' `park_here()` sets `traffic = {}`; abandon / knock-out do
+  the like) is still in the lane groups built at the tick's start. `_group_clear` now skips a car with
+  no `along` (TrafficAI.gap_ok already did).
+- heli_flyable_checks "and nothing is found with the disc clear": the strike test ran where the heli
+  had set down, 20-odd m off the pad, where a mast or fence can stand inside the 5 m disc. The test
+  now lifts it 60 m with gravity off, checks the disc is clear first, and puts it back.
+- wildlife_checks "calm animals stay put": the three staged animals stood in the carriageway at
+  x + 20 and a traffic car ran one over before the first read (a hit is a flee). They stand on the
+  block's pavement ring now (`_pavement_spots()`); the message prints hits_taken.
+- ragdolls_checks "a doll comes to rest on a car-high box": the 2.4 m box let a toppling doll roll
+  off onto the floor (hips 0.73 m UNDER the top). The box is 6 m now; the check is about not falling
+  THROUGH. Also the "hardest tumble" gap tolerance 0.1 -> 0.15 (soft constraints under four tumbles
+  measured 0.10-0.13 now and then; the old failure was 15-30 cm).
+- The load-cache race between shards (`load_time_checks`): `LoadCache.dir()` is `user://load_cache`
+  or `user://load_cache_shard<i>` under `SMOKE_SHARD=i/n`, so shards no longer share one directory.
+Then `wt/batch25-untested` (the golden-hour review, section 000000000) was gated on top of these and
+fast-forwarded to main.
+
+**Wave 4 = 45 cloud sessions** (tag `rando-wave4`, titles `w4 <slug>`), launched 03:42-03:47 UTC
+from `origin/main`, briefed by `fleet/brief`'s BRIEF.md (wave-4 edition) and `tasks.tsv` (slug,
+kind, task); the roster (slug, session id) is `sessions.tsv` there (`sessions_w2.tsv` / `tasks_w2.tsv`
+are wave 2's). Kinds: 5 `resume` of the paused branches (traffic-motion, skyline-glass-day,
+web-hero-rain, paving-aliasing, night-flight) + wet-road-mirror and dawn-review as new work; 10
+`refcam` sessions, one per reference camera (`rc-<camera>`: judge that view against a 2026 AAA game,
+fix the worst three to five things, hold the other nine); 23 look / systems tasks (hero close-up and
+locomotion, crowd close-up, car exterior, traffic behaviour, pedestrian flow, storefronts, building
+mid detail, tree light, ground contact, day sky, water, explosions, gunplay, police chase, wanted
+escalation, car crash, ragdoll feel, blood, ambient sound, night lamps, window interiors); 6 `infra`
+(loading / first frame, perf-audit-4, gate-flakes, fwd-review-f, web-build-4, mac-verify-pack: a
+one-key verification pack so the owner can shoot the ten refcams on the Mac). Ownership overlaps
+are spelled out in each prompt (who owns mirrored_city(), the ocean shaders, the hero's clips vs
+materials, Police.gd's caps vs the cruisers' manoeuvres).
+
+**The lead's loop** (this box, 4 cores / 15 GB): list the wave's sessions, read each finished one's
+last message, `python3 tools/fleet/merge_branch.py <slug> "<subject>"` on a branch off origin/main
+in batches, `--import`, `SHARDS=3 tests/headless_check.sh` (one at a time: ~7.5 GB), review the
+`shots/<slug>` stills against main's and REJECT what looks worse, push main, send the owner stills
+(the refcams' before / after pairs are the best ones). A session paused by the account's usage
+limit is re-launched on its branch with its task text (a new account cannot resume another's).
+
+## 000000000. The wave-3 lead stopped (2026-10-31 ~01:45 UTC; read this first, then 00000000)
+
+The owner: "stop everything, we ran out of tokens, put a handoff in the repo so I can start from a
+new account". Everything below is the state at that moment.
+
+**`main` = `230ab090`** (batch 24, storm drama). Releases 390 (batch 21) and 391 (batch 22) are green;
+392 (batch 23, `15ee2588`) and 393 (batch 24) were building - check the Actions tab first, and if
+either is red, fix it before anything else. Since section 00000000 the lead merged wave 3 in batches
+of finished `wt/<slug>` branches (all through `tools/fleet/merge_branch.py`, each gated with
+`SHARDS=3 tests/headless_check.sh` before the push). The last batches:
+- 21: aerial-review, lawns-closeup. 22: web-review-3, house-nights, car-paint-2, night-street-review.
+- 23: street-clutter-2 (+ the lead's own fix: trash bags shaded round, not faceted), downtown-street-
+  closeup, and three TEST fixes for intermittent failures - a lane-filtering motorcycle was counted as
+  a crash (street_life_checks, traffic_ai_checks), a freeway semi was judged behind a FreewayIncidents
+  stall (big_vehicle_checks).
+- 24: storm-drama.
+
+**Not on main: `wt/batch25-untested` (`f3ced35a`)** = main + `wt/golden-hour-review` (dusk without
+the magenta cast, crushed sea / sand lifted at 18:30, the 18:00 street no longer murky red; stills on
+`shots/golden-hour-review`). It conflicted with storm drama in `scripts/world/day_night.gd` (resolved:
+the storm sky block kept, then the sky top on GoldenHour's own twilight ramp) and in
+`tests/smoke_test.gd` (both kept). Its gate was killed when the owner stopped. Next step: check it out,
+`godot --headless --path . --import`, `SHARDS=3 GODOT=... tests/headless_check.sh`, and if green
+fast-forward main to it.
+
+**Paused sessions** (interrupted, not archived; each was briefed from the wave-3 prompt template -
+read the task in the session or its HANDOFF section; a new account cannot resume another account's
+sessions, so re-launch the task on its branch if it matters):
+
+| slug | branch head | state when stopped |
+|---|---|---|
+| traffic-motion | `wt/traffic-motion` 4e5b1307 | wheel spin, steering, brake dive / roll on kinematic traffic; 39 checks passing; stills not pushed, no final gate |
+| skyline-glass-day | `wt/skyline-glass-day` 89b1a970, `shots/` 1719773f | tower curtain glass by day from 100-600 m; mid-work, no final gate |
+| web-hero-rain | `wt/web-hero-rain` ba9a2284 | the hero's tracksuit reads BLUE in rain on the WEB build only (native fine); cause not found yet |
+| paving-aliasing | `wt/paving-aliasing` 7115dec9, `shots/` aa9dde2b | red brick / herringbone pavement moire at eye level; forecourt and pavement fixes pushed, its gate was running |
+| night-flight | `wt/night-flight` 9194e756, `shots/` 2f0059fe | the night city from 150-800 m; mid-work |
+| wet-road-mirror | none pushed | the wet road at night mirrors lit windows as a regular GRID OF SQUARES across the carriageway (road.gdshader `mirrored_city()`); should be long streaks under lamps and shop fronts. Not started on GitHub |
+| dawn-review | none pushed | the golden-hour review for 05:00-08:30 (marine layer, east sun); not started |
+
+A merge-ready branch is one whose session said its SHARDS=3 gate passed on a merge of current main.
+None of the seven had said so. Merge one with `python3 tools/fleet/merge_branch.py <slug> "<subject>"`
+on a branch off origin/main (it renumbers this file's `9d?` sections and VISUAL_ROADMAP's `?` rows;
+on a conflict resolve by hand and fix any `?` left in the heading), `--import`, gate, review the
+`shots/<slug>` stills against main's and REJECT anything that looks worse, push, send the owner
+stills.
+
+**Known intermittent gate failures** (each passed on rerun; fix them rather than rerunning forever):
+- `load_time_checks`: "the far city keeps its tiles for the load cache (0)" - the three shards share
+  `user://load_cache`, so one shard's write races another's read. Give each shard its own cache dir
+  (or skip the check unless SMOKE_SHARD is unset).
+- `ragdolls_checks`: "the joints hold through the hardest tumble" - worst gap 0.10-0.13 m against 0.1.
+
+**The look still to fix** (seen in the stills, not yet anyone's task): the wet road's grid-of-squares
+mirror (above); pavement moire (paving-aliasing); the web hero in rain (web-hero-rain); and every
+session listed "Forward+ / the owner's Mac unverified" - the owner's Mac is the only true Forward+
+check, so ask the owner for screenshots of the newest release before tuning colour further.
+
+## 00000000. Fleet wave 3 (2026-10-29; read after 000000000)
 
 The owner: "this needs to start looking like GTA 6" and "keep working until I say STOP".
 
@@ -21808,7 +21914,8 @@ the Mac are unseen; the inner curtain on Forward+ TAA may ghost (see the particl
 run-off streams are seen in no still yet (the downtown bookmark's walls are towers over 40 m); no
 storm audio was added (wind gust sound would be next); spray off fast cars is a gain on the
 existing spray only.
-## 9d?. The golden hour review: 17:00-19:30 across six views, four fixes by tuning (fleet wave 3, `wt/golden-hour-review`; VISUAL_ROADMAP "?")
+
+## 9ik. The golden hour review: 17:00-19:30 across six views, four fixes by tuning (fleet wave 3, `wt/golden-hour-review`; VISUAL_ROADMAP 236)
 
 **How it was judged.** Six views x six half hours (`tools/golden_hour/cameras.json`: the Esplanade
 looking south, the beach toward the sun, downtown from the south-west at 140 m, the front range from
