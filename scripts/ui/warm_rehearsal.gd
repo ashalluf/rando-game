@@ -35,6 +35,15 @@ const HOLD_FRAMES := 3
 const TAG := &"warm_rehearsal"
 
 static var enabled: bool = OS.get_environment("WARM_REHEARSAL") != "0"
+## Wave 3's first uses, rehearsed too (loading-first-frame, 2026-10-31; docs/HANDOFF.md "The first
+## minute"): a crash's crumple and its litter, a lit cruiser's washes (PoliceNightLook), the
+## car cabins' door split and kit (CarInteriors: the first car the player walks up to), people
+## under umbrellas and hoods (RainCrowd), a wild animal. `WARM_WAVE3=0` leaves them out (the A/B).
+static var wave3: bool = OS.get_environment("WARM_WAVE3") != "0"
+## For the first-use probe (tools/shader_warm/), which cannot fit the whole rehearsal's pipelines in
+## lavapipe's memory any more: only these stages ("cars", "people", ...) and body types (empty: all).
+static var only_stages: PackedStringArray = []
+static var only_types: Array = []
 static var _keeper: Node3D
 ## The car bodies and crowd rigs held for the session: freed with the last car or person of a
 ## kind, Godot drops the scene from its cache and the next one reads the .glb from disk again
@@ -80,6 +89,8 @@ static func run(scene: Node, cam: Camera3D, progress: Callable = Callable(), log
 		["idle particles", _stage_ghosts],
 	]
 	for i in stages.size():
+		if not only_stages.is_empty() and not only_stages.has(String(stages[i][0])):
+			continue
 		var t0 := Time.get_ticks_usec()
 		if progress.is_valid():
 			progress.call(float(i) / float(stages.size()), "Rehearsing " + String(stages[i][0]))
@@ -102,8 +113,10 @@ static func run(scene: Node, cam: Camera3D, progress: Callable = Callable(), log
 			if c.get_script() == null or String(c.name).begins_with("BlastCrater"):
 				c.queue_free()
 		await tree.process_frame
+		_purge_statics()
 	Police.innocent = innocent_was
 	AudioServer.set_bus_mute(0, bus_was)
+	_purge_statics()
 	if log_times:
 		print("WARM rehearsal total %d ms" % ((Time.get_ticks_usec() - t_all) / 1000))
 
@@ -153,7 +166,7 @@ static func atlas_textures() -> Array:
 	out.append([LandingFX.crater_texture()])
 	for k in 2:
 		var maps: Array = BlastAftermath.crater_textures(k)
-		out.append([maps[0], maps[1]])
+		out.append([maps[0], maps[1], null, maps[2] if maps.size() > 2 else null])
 	for kind in 5:
 		var tex: Array = WeaponFX.blood_textures(kind)
 		out.append([tex[0], tex[1], tex[2]])
@@ -166,7 +179,8 @@ static func atlas_textures() -> Array:
 static func _stage_cars(holder: Node3D, ground: Vector3, fwd: Vector3, right: Vector3, tree: SceneTree) -> void:
 	var types: Array = []
 	for t in Vehicle.BodyType.values():
-		types.append(int(t))
+		if only_types.is_empty() or only_types.has(int(t)):
+			types.append(int(t))
 	var i := 0
 	var cars: Array = []
 	for t in types:
@@ -185,7 +199,7 @@ static func _stage_cars(holder: Node3D, ground: Vector3, fwd: Vector3, right: Ve
 			continue
 		cars.append(car)
 		i += 1
-	for heavy in [false, true]:
+	for heavy in ([false] if not only_types.is_empty() else [false, true]):
 		var cop: PoliceCar = PoliceCar.make(heavy, RandomNumberGenerator.new())
 		cop.set("police", null)
 		cars.append(cop)
@@ -211,6 +225,8 @@ static func _stage_cars(holder: Node3D, ground: Vector3, fwd: Vector3, right: Ve
 	for n in 6:
 		hurt.take_hit(0, 60.0, fwd, at + right * (0.3 * n - 0.8) - fwd * 1.0, Vehicle.HIT_BULLET)
 	hurt.take_hit(0, 900.0, fwd, at - fwd * 3.0, Vehicle.HIT_BLAST)
+	if wave3:
+		await _stage_wave3_cars(cars, fwd, tree)
 
 
 static func _stage_people(holder: Node3D, ground: Vector3, fwd: Vector3, right: Vector3, tree: SceneTree) -> void:
@@ -228,6 +244,16 @@ static func _stage_people(holder: Node3D, ground: Vector3, fwd: Vector3, right: 
 		peds.append(p)
 	for f in 2:
 		await tree.process_frame
+	# Rain on them (RainCrowd): umbrellas opened in hand, hoods up, for a few frames.
+	if wave3 and RainCrowd.enabled:
+		var was := RainCrowd.forced
+		RainCrowd.forced = 1.0
+		for p: Pedestrian in peds:
+			if is_instance_valid(p) and p.get("rain") != null:
+				p.rain.settle_now()
+		for f in HOLD_FRAMES:
+			await tree.process_frame
+		RainCrowd.forced = was
 	# Two go down: one shot (the ragdoll, the stain, the blood), one torn apart (limbs, stumps).
 	if is_instance_valid(peds[0]):
 		var a: Pedestrian = peds[0]
@@ -310,3 +336,52 @@ static func _stage_ghosts(holder: Node3D, ground: Vector3, fwd: Vector3, right: 
 					(copy as GPUParticles3D).emitting = true
 				n += 1
 	await tree.process_frame
+
+
+## Wave 3's car first uses (see `wave3`): one car crashes into nothing (CrashDeform's crumple and
+## CrashLitter's shards), a cruiser's bar is lit (PoliceNightLook's glow, pool and wall washes,
+## drawn on every renderer), and the everyday bodies get their real cabin and doors for a moment
+## (CarInteriors: the door split runs on a worker thread and is cached per body type, so the first
+## car the player walks up to or gets into has it ready). Waits on the splits, at most `CABIN_WAIT`.
+const CABIN_WAIT := 240
+
+
+static func _stage_wave3_cars(cars: Array, fwd: Vector3, tree: SceneTree) -> void:
+	if cars.size() > 1 and is_instance_valid(cars[1]):
+		var c: Vehicle = cars[1]
+		c.take_hit(0, 24.0, -fwd, c.global_position - fwd * 2.0 + Vector3.UP * 0.5, Vehicle.HIT_CRASH)
+	for car: Vehicle in cars:
+		if car is PoliceCar and is_instance_valid(car):
+			car.set("_stolen", true)
+			break
+	var inst := CarInteriors.instance()
+	if inst == null:
+		return
+	var todo: Array = []
+	var seen := {}
+	for car: Vehicle in cars:
+		if is_instance_valid(car) and not seen.has(car.body_type) and CarInteriors.supported(car) and car != cars[0]:
+			seen[car.body_type] = true
+			todo.append(car)
+	var waited := 0
+	while not todo.is_empty() and waited < CABIN_WAIT:
+		for car: Vehicle in todo.duplicate():
+			if not is_instance_valid(car) or inst.activate(car) != null:
+				todo.erase(car)
+		await tree.process_frame
+		waited += 1
+	for f in HOLD_FRAMES:
+		await tree.process_frame
+	for car: Vehicle in cars:
+		if is_instance_valid(car) and CarInteriors.rig_of(car) != null:
+			inst.deactivate(car)
+
+
+## The burnt rehearsal car stays in CarDamage's static lists (burning, smoking, wrecks) after it is
+## freed: Emergency's scan then met a freed instance every second of play (a SCRIPT ERROR each
+## time) and the caps counted a car that is not there. Drops every entry that is gone.
+static func _purge_statics() -> void:
+	for list: Array in [CarDamage._burning, CarDamage._smokers, CarDamage._wrecks]:
+		for i in range(list.size() - 1, -1, -1):
+			if not is_instance_valid(list[i]):
+				list.remove_at(i)

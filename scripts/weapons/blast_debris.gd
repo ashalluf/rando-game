@@ -70,12 +70,26 @@ func _throw(radius: float, push: float, count: int) -> void:
 		var mi := MeshInstance3D.new()
 		mi.mesh = _mesh
 		mi.material_override = _mat
+		var own: StandardMaterial3D = null
+		if Blast3.enabled:
+			# Blast3: charred metal with embers in it that die down, its own material so each
+			# piece cools on its own clock (a few dozen at most); bright orange all over, the
+			# shared one read as a plastic toy on the road.
+			own = _mat.duplicate() as StandardMaterial3D
+			own.albedo_color = Color(0.035, 0.032, 0.03)
+			own.metallic = 0.4
+			own.roughness = 0.75
+			own.emission = Color(1.0, 0.28, 0.05)
+			own.emission_energy_multiplier = 0.5
+			mi.material_override = own
 		mi.scale = Vector3(randf_range(0.25, 0.6), randf_range(0.15, 0.4), randf_range(0.25, 0.55)) * clampf(radius / 9.0, 0.6, 1.4)
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(mi)
 		_pieces.append({"node": mi, "pos": Vector3.ZERO, "vel": vel, "landed": false, "t": 0.0,
 			"burn": randf_range(BURN.x, BURN.y), "axis": Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)).normalized(),
 			"spin": randf_range(6.0, 16.0), "out": false})
+		if own != null:
+			_pieces[-1]["mat"] = own
 	_live = count
 	_all.append(self)
 	var k := clampf(radius / 9.0, 0.6, 1.5)
@@ -158,7 +172,24 @@ func _physics_process(dt: float) -> void:
 				var n: Vector3 = hit.normal
 				to = to_local(hit.position) + n * 0.12
 				var v: Vector3 = p.vel
-				if v.length() > BOUNCE_SPEED and not p.get("bounced", false):
+				if Blast3.enabled:
+					# Blast3: it bounces as often as it has the speed to, then skids along the
+					# ground and settles flat (`_skid()`), instead of stopping dead where it hit.
+					var vn := n * v.dot(n)
+					var vt := v - vn
+					if vn.length() > BOUNCE_SPEED * 0.5:
+						p.vel = vt * 0.55 - vn * 0.32
+						p.spin = float(p.spin) * 0.7
+						p.bounces = int(p.get("bounces", 0)) + 1
+					elif n.y > 0.55:
+						p.vel = vt * 0.7
+						p.ground = n
+						p.skid = true
+						p.landed = true
+						p.t = 0.0
+					else:
+						p.vel = vt * 0.5 - n * 0.5
+				elif v.length() > BOUNCE_SPEED and not p.get("bounced", false):
 					p.vel = v.bounce(n) * 0.3
 					p.bounced = true
 				else:
@@ -170,6 +201,10 @@ func _physics_process(dt: float) -> void:
 			p.pos = to
 			mi.position = to
 			mi.rotate(p.axis, p.spin * dt)
+		elif p.get("skid", false):
+			_skid(p, mi, space, dt)
+			if p.t > p.burn:
+				p.skid = false
 		elif p.t > p.burn:
 			p.out = true
 			_live -= 1
@@ -188,6 +223,36 @@ func _physics_process(dt: float) -> void:
 		return
 	_flames.emission_points = points
 	_trail.emission_points = points
+
+
+## A landed piece sliding to a stop (Blast3): friction off its speed, held on the ground under
+## it by one short ray, turning to lie flat on it.
+func _skid(p: Dictionary, mi: MeshInstance3D, space: PhysicsDirectSpaceState3D, dt: float) -> void:
+	var v: Vector3 = p.vel
+	var sp := v.length()
+	var nsp := maxf(sp - 9.0 * dt, 0.0)
+	v = v * (nsp / maxf(sp, 1e-4))
+	var n: Vector3 = p.get("ground", Vector3.UP)
+	var to: Vector3 = p.pos + v * dt
+	if space != null and nsp > 0.0:
+		var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(to_global(to + n * 0.4), to_global(to - n * 0.6), 1))
+		if not hit.is_empty():
+			n = hit.normal
+			to = to_local(hit.position) + n * 0.1
+	p.vel = v
+	p.pos = to
+	p.ground = n
+	mi.position = to
+	# Lie flat: its basis turned toward one whose up is the ground's normal, keeping its heading.
+	var cur := mi.basis.orthonormalized()
+	var flat := WeaponFX._basis_up(n, atan2(cur.z.x, cur.z.z))
+	var s := mi.scale
+	mi.basis = cur.slerp(flat, clampf(dt * 8.0, 0.0, 1.0))
+	mi.scale = s
+	# The fire on it dies down.
+	if p.has("mat"):
+		var m: StandardMaterial3D = p.mat
+		m.emission_energy_multiplier = 0.5 * clampf(1.0 - float(p.t) / maxf(float(p.burn), 0.1), 0.0, 1.0)
 
 
 func _exit_tree() -> void:

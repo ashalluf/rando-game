@@ -21,14 +21,26 @@ uniform bool far = false;
 uniform bool use_vcol = false;
 
 
+varying float cr_gap;
+varying vec3 cr_rest;
+varying vec3 cr_moved;
+
+
 void vertex() {
+	cr_gap = panel_count > 0 ? cr_open_w(VERTEX) : 0.0;
+	cr_rest = VERTEX;
 	if (cr_any()) {
 		cr_apply(VERTEX, NORMAL);
 	}
+	cr_moved = VERTEX;
 }
 
 
 void fragment() {
+	float cr_stretch = length(cross(dFdx(cr_moved), dFdy(cr_moved))) / max(length(cross(dFdx(cr_rest), dFdy(cr_rest))), 1e-14);
+	if (cr_torn(cr_gap, cr_stretch)) {
+		discard;
+	}
 	if (far) {
 		ALBEDO = COLOR.rgb;
 		ROUGHNESS = clamp(COLOR.a, 0.04, 1.0);

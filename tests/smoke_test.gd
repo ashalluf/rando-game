@@ -69,7 +69,7 @@ const CITY_PARTS := ["city_streaming", "city_terrain", "city_landmarks", "city_c
 const INLINE_FILES := ["downtown_checks", "hero_moves_checks", "street_life_checks",
 	"crowd_anim_checks", "crowd_life_checks", "crowd_hat_checks", "photo_mode_checks",
 	"wingsuit_checks", "traffic_ai_checks", "street_errands_checks", "dog_checks", "hero_closeup_checks",
-	"hero_face_2_checks"]
+	"hero_face_2_checks", "hero_locomotion_2_checks"]
 ## Wall seconds each part took in a whole run on the 4-core fleet box (SMOKE_PROFILE=1 prints
 ## them as PART lines; refreshed 2026-10-30 from main a3db077f, tools/gate/part_costs.py); a file missing here counts DEFAULT_COST. Only the deal depends on them.
 const PART_COST := {
@@ -118,7 +118,7 @@ const PART_COST := {
 	"shop_vinyl_checks": 0.0, "sky_checks": 0.0, "bonfires_checks": 3.0,
 	"cinematic_review_checks": 0.1, "sunset_clouds_checks": 0.0, "night_street_review_checks": 0.1,
 	"downtown_street_closeup_checks": 1.5, "golden_hour_review_checks": 0.1,
-	"night_flight_checks": 0.0
+	"night_flight_checks": 0.0, "mac_verify_pack_checks": 1.0, "fwd_review_f_checks": 0.0, "web_hero_rain_checks": 0.1, "skyline_glass_day_checks": 0.1
 }
 const DEFAULT_COST := 6.0
 ## Every share pays for its own city load on top of its parts.
@@ -412,6 +412,8 @@ func _run() -> void:
 	await load("res://tests/hero_closeup_checks.gd").new().run(self, player)
 	# The hero's face, second pass (tests/hero_face_2_checks.gd): skin regions, strand brows.
 	await load("res://tests/hero_face_2_checks.gd").new().run(self, player)
+	# The hero's locomotion (tests/hero_locomotion_2_checks.gd): synced gaits, start, stop, turn, strafe.
+	await load("res://tests/hero_locomotion_2_checks.gd").new().run(self, player)
 	await _test_weapons(player)
 	_test_buildings()
 	level.free() # Free now, so the city scene cannot pick up this level's player.
@@ -2429,6 +2431,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/shader_warm_checks.gd").new().run(self, city)
 	# Load time (tests/load_time_checks.gd): the disk cache's bakes byte for byte, the shader warm-up.
 	load("res://tests/load_time_checks.gd").new().run(self, city)
+	# The first minute (tests/loading_first_frame_checks.gd): the warm-up list, the rehearsal's purge, the preload, FirstFill.
+	load("res://tests/loading_first_frame_checks.gd").new().run(self, city)
 	# The extra occluders (tests/occluders_checks.gd): hill terrain, decks, banks, sound walls and
 	# the far mountains, each inside what it stands for.
 	await load("res://tests/occluders_checks.gd").new().run(self, city)
@@ -2707,6 +2711,30 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The night flight (tests/night_flight_checks.gd, NightFlight): platoons, the streets' rank, junction
 	# pools, the beams' near fade, the A/B.
 	load("res://tests/night_flight_checks.gd").new().run(self, city)
+	# The verify pack (tests/mac_verify_pack_checks.gd, VerifyPack): the camera table, the button,
+	# the folder, a one-camera run that puts everything back.
+	await load("res://tests/mac_verify_pack_checks.gd").new().run(self, city)
+	# Forward+ review f (tests/fwd_review_f_checks.gd): a night strike lights the street, not a white-out.
+	load("res://tests/fwd_review_f_checks.gd").new().run(self, city)
+	# The rooms behind the windows, second pass (tests/window_interiors_checks.gd, WindowInteriors): homes,
+	# covers, TVs, open sashes, office workers; near and far rolling the same.
+	load("res://tests/window_interiors_checks.gd").new().run(self, city)
+	# The street at eye level (tests/ambient_sound_2_checks.gd, StreetSounds): crowd steps, shop
+	# bells, car doors, air brakes, tyres by surface, the leaves and far-sea beds; the mix is pure.
+	await load("res://tests/ambient_sound_2_checks.gd").new().run(self, city)
+	# Crashes at speed (tests/car_crash_3_checks.gd, CrashBreakup): bonnet, airbags, glass, rollover, torn wheel, debris.
+	await load("res://tests/car_crash_3_checks.gd").new().run(self, city)
+	# The explosion's third pass (tests/explosions_3_checks.gd, Blast3): the volume fireball, bits
+	# that land, debris that settles, fire-lit smoke, the haze, the scorch's maps.
+	await load("res://tests/explosions_3_checks.gd").new().run(self, city)
+	# The pier at night (tests/rc_pier_night_checks.gd, PierNight): the wheel's glow, the halos.
+	load("res://tests/rc_pier_night_checks.gd").new().run(self, city)
+	# The sky's radiance catches up with a jump (tests/web_hero_rain_checks.gd, SkySettle): the
+	# hero in the rain was blue on the web while the radiance still held the clear sky.
+	await load("res://tests/web_hero_rain_checks.gd").new().run(self, city)
+	# The skyline's glass by day (tests/skyline_glass_day_checks.gd, SkylineGlass): the tower boxes,
+	# the pick, the shaders sharing the include behind its switch, the node feeding the globals.
+	load("res://tests/skyline_glass_day_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
@@ -3555,7 +3583,11 @@ func _test_weapons(player: Player) -> void:
 	await _ticks(2)
 	var fx_after := _count_fx()
 	_check(fx_after.lights > fx_before.lights, "an explosion lights the scene (%d flash lights)" % fx_after.lights)
-	_check(fx_after.particles - fx_before.particles >= 4, "an explosion has layered particles (%d systems)" % (fx_after.particles - fx_before.particles))
+	# (Blast3, explosions-3: on the desktop the fireball is one volume and the sparks and chips one
+	# BlastBits pool, in place of three particle systems.)
+	var b3: Script = load("res://scripts/weapons/blast_3.gd")
+	var layered: int = fx_after.particles - fx_before.particles + (3 if b3.call("bits_on") and int(b3.call("volumes_alive")) > 0 else 0)
+	_check(layered >= 4, "an explosion has layered particles (%d systems)" % layered)
 	_check(player.camera_rig._shake > 0.0, "a nearby explosion shakes the camera")
 
 	# Shotgun (owner, 2026-09-24: "lose the gravity gun, give us a shotgun"): one blast of pellets

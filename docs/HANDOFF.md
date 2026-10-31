@@ -22402,6 +22402,749 @@ the body riding up and off over the roof more often than sliding off the front. 
 whose collision is a ramp (the Esplanade's beach stairs: walkable ramps over steps, with the real
 treads on the foot-ground layer) are rolled down as a ramp. Seen on opengl3 only; physics is
 renderer-independent.
+
+## 9ir. The verify pack (wave 4, `mac-verify-pack`)
+
+**Why.** Every picture the fleet has looked at is the Compatibility renderer on Linux (opengl3 +
+llvmpipe); the owner's Mac draws Forward+, and nobody had seen wave 3 there. The owner plays the
+released Mac app with no Terminal. So the check is ONE pause-menu button.
+
+**What.** `VerifyPack` (`scripts/ui/verify_pack.gd`, a CanvasLayer at 7 the pause menu adds beside
+PhotoMode; the menu's **Verify pack** button sits beside Settings, `-- --verify` starts it after the
+load). For each of the ten refcams (`CAMERAS`, a copy of `tools/refcams/cameras.json`: the export
+ships no .json; the checks hold them equal) it hides the HUD (photo mode's rule), parks the player
+DISABLED and hidden on a free camera (the player camera's auto exposure, its DOF off, no motion
+blur), sets the camera's hour (DayNight paused) and weather (soaked or dried to match, refcams'
+rule), holds the graphics level (Auto would drop a level on the teleport hitches), streams with
+`update_streaming(true)`, waits `settle_frames` (20) then holds `hold_seconds` (3, real clock)
+measuring fps, worst frame, CPU / GPU render time (viewport measure), then saves the root viewport
+(without its progress line) as `NN_<name>.png`. Then `sheet.jpg` (a SubViewport of thumbnails and
+captions), `report.txt` / `report.json` (OS, GPU, renderer method and driver, window, 3D scale,
+level; per shot fps, ms, triangles, draws and the luminance p5/p50/p95 - PIL's L, refcams.py's
+numbers) and `send/` (1280-wide JPGs, the sheet, the report: what the owner attaches). Everything
+goes back: player (true-world position, process mode, visibility), camera, clock and its pause,
+weather (and its forced flag) and wetness, the graphics mode, the HUD, the mouse, time scale. The
+card says where the folder is; **Open folder** opens it in Finder; the tree is paused under it.
+Esc stops a run (what was taken is kept). Folder: `Pictures/Rando Game/verify_<build>[_n]`, else
+`user://verify`.
+
+**Build number.** `BuildInfo` (`scripts/util/build_info.gd`): `BUILD` / `COMMIT` empty in the repo,
+written by the workflow's new "Stamp the build number" step (sed, run number and short sha) just
+before the exports, so the app knows it is "build-396". Local runs say `dev`. (LoadCache keys on
+the scripts' md5, so a stamped build misses the cache of an unstamped one: harmless.)
+
+**Proved (opengl3 harness).** `-- --verify --noload --quality=0` under Xvfb at 1280x720 with
+`VERIFY_DIR`, `VERIFY_QUIT=1`: 10 of 10 shots, the sheet, both reports and the send folder, in about
+20 minutes on llvmpipe (each shot ~2 min there: 0.2-2.5 fps). The full loading screen under
+llvmpipe went past 13.6 GB and was OOM-killed - the harness MUST pass `--noload` (as every glshot
+tool does); the Mac path (the loading screen) is unchanged. `VERIFY_CARD_SHOT=<png>` saves the end
+card. Stills on `shots/mac-verify-pack`.
+
+**Not verified.** Nothing on Forward+ / Metal: the GPU timings, the Pictures folder and Finder's
+Open folder are the Mac's to prove (the first pack the owner sends is the test). The pack adds no
+render feature and no frame cost outside a run.
+
+**Switches.** `VERIFY_PACK=0` (no node, no button), `VERIFY_HOLD`, `VERIFY_ONLY`, `VERIFY_DIR`,
+`VERIFY_QUIT`, `VERIFY_CARD_SHOT`. Off on the web. Checks: `tests/mac_verify_pack_checks.gd`
+(the table, the folder naming, the luminance numbers, a one-camera run that restores everything).
+Owner's page: `docs/VERIFY.md`.
+
+**Gate (2026-10-31).** SHARDS=3: 4,360 of 4,361; the one FAIL was utility poles' "the line rolls nothing
+from the block" in shard 0 (the verify checks ran in shard 2), which passes alone (30 of 30): an intermittent
+outside this branch. The verify checks alone: 35 of 35. Peak RSS of a part run 2.4 GB.
+
+## 9is. Forward+ review f: wave 3's batches 21-25 on the Mac's renderer (fleet wave 4, session `fwd-review-f`, branch `wt/fwd-review-f`)
+
+Same method as reviews a-e: each feature in a SMALL scene on the real Forward+ pipeline under
+lavapipe beside the same frame on opengl3, measured (luminance p5 / p50 / p95), stills and their
+README on `shots/fwd-review-f`. Seed 1337. Batches 21-25 = aerial-review, lawns-closeup,
+web-review-3, house-nights, car-paint-2, night-street-review, street-clutter-2,
+downtown-street-closeup, storm-drama, golden-hour-review.
+
+**First a static pass** over every shader those branches added or changed (house_glow, house_lamp,
+house_nights, house_glass, night_wet, storm_bolt, storm_runoff, street_steam, street_clutter_2,
+kerb_closeup, lawn / lawn_field / grass / lawn_weed / lot_yard, car_paint's paint2 block,
+macro_ground, rock_outcrop, sky's flash lobe) against the colour-space rules (fwd-review-d / e and
+CLAUDE.md's traps): every one decodes vertex / instance colours with `cs_srgb_to_linear()`, takes
+`sky_tint` through `cs_srgb_to_linear()` (linear shaders) or `cs_as_uniform()` / `grime_col()`
+(renderer-space ones), adds additively in display numbers where it is broad (house_glow) and fades
+its additive quads to zero at the edge (storm_bolt, night_wet). Nothing to fix there.
+
+**Fixed: a lightning strike at night whited out the frame** (both renderers; worse on Forward+).
+A held 0.9 strike at 21:30 (`STORM_FLASH=1 STORM_FLASH_HOLD=0.9 STORM_FLASH_AZ=10
+STORM_FLASH_DIST=1100`, suburb street 1801.8,1.7,4135.2) drew street and sky at p50 218
+(opengl3) / 201 (Forward+), p95 ~230: the flash's light (the sun's `+ flash * 2.5` and the
+lightning DirectionalLight's 5.5) is the day's against an exposure set for a 0.09 moon, ~350x
+the moonlight; the bolt was lost in the white. storm-drama had cut FLASH_AMBIENT for this but never
+re-shot it. On Forward+ the lightning light also lit the rain-thickened volumetric fog (its
+`light_volumetric_fog_energy` was Godot's 1.0) into a milky veil (p5 97). Now
+`StormDrama.night_flash_gain(moonlight)` scales the flash's light by `NIGHT_FLASH_LIGHT` 0.22 and
+the sky's flash by `NIGHT_FLASH_SKY` 0.45 at night (1 by day), the bolt keeps the whole flicker
+(`on_flash()` unscaled), and the lightning light's fog energy is `FLASH_FOG_ENERGY` 0.3.
+After: opengl3 p5/p50/p95 15/169/201, Forward+ 29/135/205, the bolt plainly visible on both.
+`STORM_NIGHT_FLASH=0` is the A/B. Checks: `tests/fwd_review_f_checks.gd`.
+
+**Looked at, nothing to fix (Forward+ against opengl3):**
+- Lawns close up (suburb parkway and front lawns at 12:00, 07:00 with the sprinklers, 21:30): the
+  blades take the ground's colour on Forward+ as on opengl3 (cs_as_uniform(COLOR) x the grass mean);
+  the night parkway is as dark as the walk beside it on both (measured ~58 vs ~50), not black.
+- House nights (the same street at 21:30): lit windows, porch lanterns and their scallops match;
+  the house_glow pools are display-additive, no white discs.
+- Car paint 2 (`car_shot.gd PAINT_ENV=street` and `golden,street`, the pickup in navy): the street
+  line in the lacquer and the coat read alike; Forward+ is darker navy, the renderers' usual
+  difference. (car_shot's bare ProceduralSky has a brown ground, which chrome mirrors as rust.)
+- The golden hour (tools/cinematic/grade_probe.gd, 17:30 / 18:00 / 18:30 / 19:00): the review's
+  change holds on Forward+. A first run looked milky pink at 18:00 (p5 46); it was the PROBE: with
+  several HOURS each starts from the previous hour's GI, and 20 frames does not settle SDFGI on
+  lavapipe. Cold start p5 31, converged (FRAMES=90) 41 / p50 64 against GOLDEN_HOUR_REVIEW=0's
+  17 / 36: the same lift the review made on opengl3 (16 -> 48). A trial SUNSET_GRADE 0.75 on
+  Forward+ moved it by 1 level and was dropped. The probe's header now says so.
+- The aerial review (hill_ground_shot.tscn GROUND=1 LOD=3 DAYNIGHT=1): the sea from 260 m at 12:30
+  joins the plane without the old seam on Forward+ (a faint line at the FULL ocean chunk's edge on
+  both renderers); the hills at 21:30 from 520 m are darker on Forward+ (p50 18 vs 29) - the pale
+  moonlit hills are the opengl3 side; moonlit cloud tops in the volume read bright, as moonlit cloud
+  does (five times the ground's albedo). FULL hill chunks with BLOCKS=1 run lavapipe out of memory:
+  BLOCKS=0.
+- The rainy night (the same street, 21:30 rain) and the storm by day: the wet road on Forward+
+  still mirrors lit windows as a grid of squares - wave 4's `wet-road-mirror` session owns it; the
+  rainy night sky is 2.6x brighter and redder on Forward+ (66,44,34 against 25,20,17): the sky
+  shader's linear night constants (`night_glow`, the light dome) are read as display numbers on
+  Compatibility, so it is the WEB / opengl3 side that is too dark there. Left for the sky's owner.
+
+**Not rendered:** downtown (street clutter's steam and bags, the kerb close-up's arris under a real
+sun, Broadway's lanterns) - a downtown block alone needs ~13.6 GB on lavapipe; storm run-off, the
+inner curtain's TAA ghosting at 60 fps. The web build (web-review-3) is the browser's and was not
+re-shot.
+
+**Tools:** `tools/fwd_review_f/shoot.sh <out> <eye> "<eyes>" [env...]` (fwd_block_shot on vulkan
+then opengl3; DRIVERS=, BLOCKS=, EXTRA=, FRAMES=). Lavapipe needs a temporary `override.cfg` with
+`[threading] worker_pool/max_threads=1` (never commit it) and `EXTRA=""` for a suburb block; a
+second place in one load (FREE_PREV off) is what OOMs it.
+
+**Frame cost:** none (two light energies and a uniform's value at night; no node, mesh or draw).
+
+## 9it. The first minute: what the loading screen left undone, and four fixes, 2026-10-31 (agent branch `wt/loading-first-frame`)
+
+**Ask (wave 4, infra):** the first minute of play - the loading screen's time, what pops in after
+the shade lifts, the first-use stutters of what wave 3 added. Measure, fix the three biggest.
+
+**New tools.**
+- `LOAD_FIRST_MINUTE=<s>` (with `LOAD_QUIT=1`, which `tools/load_time/load_time.sh` sets): after the
+  load, `scripts/util/first_minute.gd` prints a `FIRSTMIN` line a second - frame median / worst,
+  chunks pending and MISSING (blocks the streamer's window wants at a level that is not standing),
+  chunk SWAPS that second (each a visible pop), far-city work left, street / freeway cars, spawns
+  queued, walkers - then a summary and quits. Loaded by path (the Sfx autoload compiles LoadClock).
+- `LOAD_SCREEN_HEADLESS=1`: the loading screen runs under the dummy renderer too, so its WORK and the
+  minute after it are timed in ~2.4 GB. The desktop path no longer fits this box (below).
+- `load_time.sh` uses `tools/peak_rss.py` where there is no `/usr/bin/time`; `LOAD_PROFILE=1` also
+  prints every far landmark's build time.
+- `first_use_probe` gained `EVENTS=wave3` (enter_car, crash, police_night, umbrellas, wildlife) and
+  `REHEARSE_STAGES=` / `REHEARSE_TYPES=` (a part of the rehearsal). Run it on **opengl3**
+  (`xvfb-run ... --rendering-driver opengl3 res://tools/shader_warm/first_use_probe.tscn`, 2.8 GB):
+  under lavapipe even two body types' rehearsal now passes 13.6 GB and is OOM-killed.
+- `LOAD_*` names stay out of LoadCache's key; any other env var a script reads is IN it, so a debug
+  switch like `WARM_LOG=1` or `FIRST_FILL=0` makes the next launch cold (30 s of bake again).
+
+**Measured** (main at e5bb9e4, this 4-core box). Headless, cold cache: engine + script compile 22 s
+before the first line of game code (was 9 s in wave 2), macro map 7.6 s (ballpark + ridges 4.3 s),
+ground bake 30.5 s cold / 0.7 s warm (18 s in wave 2), far landmarks 10 s (pueblo_lane 1.8 s,
+rental_lot 1.4 s, civic_park 0.8 s: mostly the first build of kit meshes and tree ladders that are
+paid once anyway), first streaming 18 FULL + 129 LOD chunks 37 s, near far city 19 s cold.
+The loading screen's work (headless): shaders 13 s, camp 0.8 s, beach 3.4 s, preload 24 s, far
+city 41 s cold, trees 1.5 s, rigs 4 s. **Desktop opengl3 under Xvfb is OOM-killed at 13.6 GB**
+inside the rehearsal (2 GB before the first frame, +8 GB through the shader warm-up as llvmpipe
+compiles the city behind the screen): it peaked at 5.8 GB in wave 2. That is llvmpipe's GL program
+memory, not a measured Mac number, but nobody can run the desktop launch on a 15 GB cloud box now.
+
+| the minute after the shade (headless loading screen) | before | after |
+|---|---|---|
+| chunk swaps in the first 30 s | 43 (the last at 28.7 s) | 13 |
+| LOD blocks missing at t=1 s / 10 s / 30 s | 48 / 38 / 7 | 9 / 4 / 8 (ordinary streaming) |
+| street / freeway cars at t=1 s | 47 / 48 (headless no-screen: 4 / 2) | 48 / 70 |
+| traffic settled (nothing queued) | 4.1 s (16 s with no screen) | 1.1 s |
+| loading screen "preload world" | 24.2 s | 0.05 s |
+| peak RSS | 2,955 MB | 2,369 MB |
+
+| first use, opengl3 (base frame ~0.55 s) | worst frame, rehearsal without wave 3 | with |
+|---|---|---|
+| getting into a car (cabin, doors, drive cam, radio card) | 1,414 ms | 708 ms |
+| a crash (crumple, litter) | 4,556 | 1,814 |
+| people putting up umbrellas and hoods | 1,417 | 860 |
+| a lit cruiser at night, a coyote | 788 / 708 | 620 / 698 |
+| total over 1.5x a frame | 5,290 ms | 1,596 ms |
+
+**What changed.**
+1. **The warm-up's effect list aborted half-way.** `NightLifeKit.warm()` hands back MESHES; the loop
+   was typed `for mat: Material in effects`, so at the first mesh GDScript stopped the whole of
+   `_warm_shaders()`: every effect after the night life (valets, signs, the farmers' market, film
+   shoots, billboards, the beach, the pier, LA trees, car damage's fire, the boost streaks, the blast
+   aftermath, furniture, backyards, yard sales), the mesh materials and the blood decals were never
+   warmed, and the holder of ~280 warm-up quads was never freed - it stayed under the camera all
+   session. The list is `LoadingScreen.effect_list()` now; a Mesh in it is drawn as itself (its own
+   vertex format, a hundredth of its size).
+2. **The preload built a wider ring than the streamer keeps.** `_preload_world()` raised the FULL
+   radius to 5 (57 FULL chunks against the window's 18); the moment play began the streamer wanted
+   ~48 of them at LOD and rebuilt them a few a tick for half a minute, drawing them in full detail
+   meanwhile. It preloads the streamer's own window now (`LOAD_WIDE_PRELOAD=1` the old), and runs
+   once more just before the fade (the window moves while the far city and the rehearsal run).
+3. **The traffic was filled one car a frame in front of the player.** `FirstFill`
+   (`scripts/util/first_fill.gd`): the loading screen's last stage runs TrafficManager's own upkeep
+   and spawns with no per-frame cap until street, freeway and airport loop hold their target (the
+   same spawns, queues and rng). `FIRST_FILL=0` the A/B.
+4. **Wave 3's first uses rehearsed** (`WarmRehearsal.wave3`, `WARM_WAVE3=0` the A/B): a crash on the
+   second car (CrashDeform, CrashLitter), a lit cruiser (PoliceNightLook's washes), every everyday
+   body's cabin split and kit (`CarInteriors.activate()`, waited on up to `CABIN_WAIT` frames, then
+   deactivated: the split is cached per body type, so the first car walked up to has it), the staged
+   people under forced rain (`RainCrowd.forced`, umbrellas and hoods). And the burnt rehearsal car no
+   longer lingers in CarDamage's static lists (`_purge_statics()`): Emergency's scan met the freed
+   car every second of play (a SCRIPT ERROR each time) and the fire caps counted it.
+
+Checks: `tests/loading_first_frame_checks.gd` (the effect list's types, the purge, the preload
+radius, FirstFill staged / filling, the monitor off by default).
+
+**Not done / not verified.**
+- Nothing on the Mac. The cold launch the owner gets after every release is the cold column: 22 s of
+  script compile, 30 s of bake, ~60 s of far city, then the screen. The bake grew 18 -> 30 s with
+  wave 3's terrain (rock outcrops 4.2 s inside it); not attacked here (`height_at()` is not
+  thread-safe).
+- The desktop (opengl3) launch can no longer be measured on a 15 GB box; lavapipe cannot hold the
+  rehearsal. A Mac launch log (`LOADING` lines) is the real measure.
+- A crash still costs a second on first use after the rehearsal (CPU work in CrashDeform, not a
+  compile, by the look of it); umbrellas 0.3 s.
+
+## 9iu. Rooms behind the windows, second pass (fleet wave 4, `wt/window-interiors-2`, 2026-10-31)
+
+The task: residential rooms in the apartments and houses at night (a TV's flicker, a lamp, a
+figure walking past), offices with people at desks by day, curtains and blinds variety, the odd
+open window with its curtain moving; integer rolls, near and far agreeing. The ground-floor shop
+fronts are storefront-closeup-2's and are untouched (every new branch is `!storefront`).
+
+**Homes or offices.** Every window of a city `Building` used to be an office (room_interior():
+ceiling panels, a desk slab, a blind). Now a building is FLATS by an integer roll on its seed
+(`wi_home()`, salt 100), by window style - punched 52 %, narrow 38 %, curtain wall 16 %, ribbon
+9 % (`WI_HOME_*`). Everything else per window keys on `wi_key()` = `wl_face_row(seed, face, row)
++ col`, window_lights' own key, through its `wl_hash()` (salts 100-112 are this pass's):
+- what hangs at the glass (`wi_cover()`, 101): drapes 30 %, sheers 22 %, a roller blind 18 %, a
+  venetian 13 %, vertical blinds 7 %, bare 10 %; how far drawn (107); the fabric (108, 8 colours);
+- a TV (102, 30 % of lit home rooms), the window open by day (103, 7 % - only drapes / sheers),
+  somebody walking across (104, 45 %), a lamp tone (105, 4 tones normalised to luminance 1, a
+  multiplier on the building's lit colour as window_temp() is), a worker at the desk (106, 56 %).
+`shaders/window_interiors.gdshaderinc` holds them and is included by BOTH building.gdshader and
+building_lod.gdshader after window_lights; `WindowInteriors` (`scripts/world/window_interiors.gd`)
+is the GDScript copy (the checks read the shader's numbers back).
+
+**The near traces** (`shaders/window_rooms.gdshaderinc`, building.gdshader only, included after
+room_interior()): `home_room()` - a room wider than the window (walls up to 1.4 m past the jambs),
+its floor 0.85 m under the sill, the ceiling 0.3 m over the head, 2.8-5.2 m deep; a sofa box along
+the back wall with a picture over it, a book shelf on one side wall (in 65 %), a rug; a floor or
+table lamp whose light falls off from where it stands (1 / (1 + 0.45 d^2), a pool on the ceiling)
+and whose drum shade glows where the ray passes it; a passer-by (a capsule and a head, 3.2 s across
+every 10-30 s, alternate ways); then the cover at the glass - drapes in folds drawn to the sides,
+sheers over the room (glowing lit from behind), a roller or a venetian down to its level, vertical
+louvres with the room in the gaps. Fabric at the glass catches the daylight a room's depth never
+does (x1.9 as paint, lamp / 1.9). An open window: no glass in the lower half (`wi_open_k`: the
+mirror and the tint are taken off there), the upper sash's meeting rail across the middle, the
+drapes' hems and sheers swinging with `wind_factor` and TIME. `office_people()` sits one or two
+workers at room_interior()'s own desk (rolled the same way from room_seed): shoulders and head over
+a chair back, the monitor beyond them glowing toward the window. In office hours (8:00-18:30 and
+a floor the office roll would light) an occupied office has its ceiling lights ON
+(`office_day_light` 0.6 of the room's lit emission x the day share): with the room dark a worker
+did not read at all from the street. Screens glow a little by day and clearly after dark.
+
+**Lit homes.** The lit branch takes `wi_home_tone()` (or `wi_tv_light()`, blue-white cuts every
+second or so) where an office takes window_temp(); the shade adds its own glow. Which windows are
+lit is still window_lit() - unchanged, so nothing about the night skyline's counts moved.
+
+**The far box agrees**: a home window's lit light is the same tone (or the TV's mean, then the
+flicker once a pane is a few pixels), and by day the room behind the far pane carries the cover's
+mean colour and coverage (`wi_cover_mean()`) where an office carries fx_pane()'s blind.
+
+**Houses and apartments** (house_glass.gdshader, HouseBuild / ApartmentBuild panes): the cover
+mix gains lined drapes drawn to the sides and roller blinds (their daylight colour from the pane's
+COLOR), and a lit room now and then has somebody walking across in front of the lamp. These keys
+are the pane's float random (COLOR.a), as the old covers were; HouseNights' integer rolls (lit,
+tone, TV) are untouched, so the far house still agrees.
+
+**Cost.** Zero geometry and draws: all traced on glass pixels that were already shaded. The home
+trace is a box, two furniture boxes and a capsule per glass pixel; offices add a plane and a
+capsule for each of up to two workers. Measured with `building_shot.gd BENCH=20` on llvmpipe, a 24 m apartment block
+filling the frame at 21:00 (glass on most of the screen, the worst case): 55-58 ms -> 60-66 ms a
+frame (~+10 %); a street view where glass is a fraction of the screen pays a fraction of that.
+
+**Switch and tools.** `WINDOW_INTERIORS=0` is the A/B (the `window_interiors` global, pushed by
+`DayNight._ready()` -> `WindowInteriors.install()`): every building offices, house glass's old
+covers. `tools/glshot/building_shot.gd` takes `HOUR=` (city_hour), `WI=0` and `SETTLE=n` frames
+(TIME runs: a walker crosses, a TV cuts). Checks: `tests/window_interiors_checks.gd`.
+
+**Not done / open:** the walker and workers are capsules (fine at a window's distance, crude at
+arm's length); kitchens and bedrooms are not modelled (every home room is a living room); offices
+have no people after dark beyond lit rooms; the passer-by in house glass is a 2D silhouette on the
+back wall; Forward+ unverified (opengl3 stills only - the colours are the old room_interior's
+plain numbers, so they follow the same rule as the room they replace).
+
+## 9iv. The street at eye level: what you hear within 20 m (fleet wave 4, `ambient-sound-2`, 2026-10-31)
+
+The city's sound was beds (Ambience) and one-shots dropped round the listener; up close, nothing
+answered what the street was doing - walkers were silent, a shopper went into a shop with no bell,
+a parked car's door swung open and shut in silence, a bus pulled up without its air brakes, the
+player's car sounded the same on a lawn as on tarmac. This pass adds the near layer.
+
+**`StreetSounds`** (`scripts/util/street_sounds.gd`, a child Ambience makes in `_ready()`):
+- **The crowd's footsteps**: one npc-layer sphere query (`step_reach` 15 m) every `scan_interval`
+  (0.25 s, real clock) picks the `max_walkers` (6) nearest visible Pedestrians; each steps at its own
+  cadence from its measured speed (`step_interval()`: a 0.68 m step at a stroll, 1.3 m at a run;
+  ~1.9 / 2.8 steps a second), on what it walks on (`Footsteps.surface_at()`, the hero's rule,
+  re-read a fifth of the steps), `heels_share` 16 % of them in heels on hard ground
+  (`footstep_heels`), softer on grass and sand (`step_db()`). Its own pool of 8 World-bus voices,
+  so the crowd never steals a gunshot's voice from Sfx's pool.
+- **Shop door bells**: `StreetErrands` rings `StreetSounds.shop_door()` as a shopper goes into a shop
+  (the "hide" step, shop errands only) and as they come out (the "show" step `_do_inside()` makes
+  from the shop door carries `"bell": true`). Two hook lines.
+- **Car doors**: `ErrandCar._physics_process()` hands its door's opening before / after each tick to
+  `StreetSounds.car_door_moved()`: the latch and swing as it starts to open (`car_door_open`), the
+  slam as it shuts (`car_door`). One hook line. So a driver getting out of a parked car, a shopper
+  getting into theirs, a delivery driver - all of StreetErrands' cars.
+- **Air brakes**: every 0.25 s the big vehicles (BigVehicles.is_big) among TrafficManager's street
+  cars within `brake_reach` (80 m) are tracked by position; one that rolled for over a second and
+  now stands hisses its brakes once (`brake_step()`, pure; `brake_cooldown` 12 s a vehicle). Buses
+  at a stop, trucks at a red. Nothing in traffic.gd changed.
+- **Tyres by surface (the player's car)**: a ray under the car every 0.2 s; `tyre_kind()` (pure):
+  grass / sand -> `tyre_gravel` (dirt and grit; a hill road's asphalt is told from its verge by
+  HillRoads' drawn segments, fire roads and long drives count as dirt), a wet hard road (Weather
+  `wetness` > 0.3) -> `tyre_wet`, a dry road -> nothing (EngineAudio and the traffic's roll carry
+  it), airborne -> nothing. A loop under the car, `tyre_db()` / `tyre_pitch()` by speed.
+- Events (bells, doors, brakes) further than `event_reach` (40 m) are not played.
+- **Dogs**: Ambience's far bark one-shot comes from a real dog (group "dog": YardDog, CrowdDog;
+  Wildlife's animals are Dogs too and are skipped) when one is within its 240 m (`StreetSounds.dog_at()`), the way
+  the gulls come from Birds; the dogs' own close barks (Dog.bark()) were already there.
+
+**Ambience** (my area, `scripts/util/ambience.gd`): two layers appended to `LAYERS` - `leaves`
+(a bed: trees = `green` x 1.15 + hills x 0.2, louder with the wind, under rain halved, mostly gone
+in a car or under cover) and `sea_far` (an emitter toward the waterline the scene already finds:
+`scene_at()` adds `sea_far` = smoothstep(`sea_far_reach` 2400 m -> 140 m) of the distance to the
+water, `sea_far_at` = `surf_at`; heard most at night and least in the city's roar, giving way to the
+surf close up). `weather_now()` adds `wind` (0.25 a breeze, + rain, storm, Santa Ana) and `wet`
+(Weather.wetness). The traffic voices (`_assign_traffic()`): a car's voice is the wet tyre hiss
+instead of the dry roll while Weather.wetness > 0.45 (`_car_kind` is now 0 roll, 1 diesel, 2 wet).
+`levels_for()` / `rates_for()` stay pure (checked: same answer twice, inputs untouched, every
+layer / one-shot present).
+
+**Clips** (`tools/street_audio.py build`, sources in docs/ASSETS.md "The street at eye level
+audio"): shop_bell x4, car_door x3, car_door_open, air_brake (one new + two of bus_hiss), footstep_heels
+x5, tyre_gravel (loop), amb_leaves and amb_sea_far (beds, -22 dB RMS), tyre_wet (SYNTHESISED: no CC0
+steady wet-road hiss was found, only pass-bys). Every name has its loudness (SAMPLE_LOUDNESS_DB /
+AMBIENCE_LOUDNESS_DB), loops set in code (LOOPING / AMBIENCE_LOOPING), a synthesized fallback.
+Routing: bells, doors, brakes, steps and tyres on World (so the street reverb and the echo space
+take them); the leaves and the far sea on Ambience (enclosed in a car, ducked by gunfire).
+
+**A/B**: `AMBIENT_SOUND_2=0` (StreetSounds.enabled): no node, the two beds silent, the traffic's dry
+roll in the wet. **Checks**: `tests/ambient_sound_2_checks.gd`. **Compile**:
+`tools/street_sounds/compile.gd`. **Cost**: one sphere query 4x a second, one ray 5x a second while
+driving, a position read of the street's big vehicles 4x a second; up to 8 + 1 voices. Nothing
+drawn. **Gate fix** (traffic.gd, not this feature's): the first gate logged four script errors in
+`_drive_streets()` / `_drive_street()` during the onlookers checks - a car that left traffic earlier
+in the tick (an empty `traffic`) was still in the tick's lane groups (CI 394's `_group_clear` race,
+two more places). The group is filtered when such a car is in it, and a leader without `along`
+counts as no leader.
+**Not done / not verified**: nobody has HEARD it (the box has no audio out: levels are the
+measured loudness table plus taste - tune `walk_step_db`, `layer_db.leaves` / `sea_far` and the
+tyre dBs on the Mac); crowd footsteps are not checked live (the headless audio driver plays
+nothing, and which walkers stand near the camera is not staged); shop doors without an errand do
+not ring; freeway expansion-joint thumps were looked at (866213) and left out - the recording is a
+continuous wash, not a clean thump.
+
+## 9iw. Crashes that break cars (fleet wave 4, branch `wt/car-crash-3`)
+
+The task: "crashes at speed - windows that burst in a spray of cubes on impact (not only when
+shot), bumpers that hang and drag with sparks, bonnets that fly open, airbags, a wheel torn off
+rolling away, the body rolling over realistically (centre of mass), debris that stays". After
+CarDamage (dents, holes, fire) and CrashDeform (crumple zones, sprung panels), a head-on at 70 km/h
+still left the bonnet shut 3 cm ajar, every crash glass rule was "facing it, past 9 m/s over", a
+T-bone never rolled anything (the handling's centre of mass is 0.28 m over the road and a car in
+the air is held level by `Vehicle._fly`), and nothing came off the car but centimetre shards.
+
+**`CrashBreakup`** (`scripts/vehicles/crash_breakup.gd`), CarDamage's child like CrashDeform, made
+by the first crash that needs it (`CarDamage.breakup()`), called at the end of
+`CrashDeform.crash()` and from `CarDamage._blast()`; an undamaged car still has no node:
+- **Glass** (`glass()`, which replaces CarDamage's old crash-glass rule when it applies): past
+  `glass_burst_at` (4 m/s over) the side and rear glass facing the hit bursts out, past
+  `glass_all_at` (13) all of it; the windscreen (laminated) webs right across. The cubes fly on
+  with the car's own velocity (`CarDamage._crash_throw` read by `_glass_burst()`: more cubes,
+  faster, along the old travel) and CrashLitter lays them on the road as before.
+- **Bonnet**: past `bonnet_fly_at` (0.28 m of crush at the nose) or a hard frontal hit the catch
+  lets go. CrashDeform's lid region is a LEVEL box from the windscreen's foot, which misses a bonnet
+  that slopes down to the nose, so `_fit_bonnet()` traces the real bonnet off the body mesh
+  (`CarDamage._trace`, the TriangleMesh the rounds use) and lays the region along it with a sharp
+  edge. Then it is a spring (`bonnet_spring`, `bonnet_damp`) round a rest angle (0.35-0.95 rad by a
+  hash of the car) plus the wind (`bonnet_wind` x forward speed, a flutter), stopped by the
+  windscreen at `bonnet_max` 1.22 with a clank. Two traps, both found in stills: the lifted bonnet
+  shows its UNDERSIDE, which the body's single-sided skin culls - the car's damage paint goes onto
+  `shaders/car_paint_open.gdshader` (the same include with `CAR_OPEN_PANEL`, cull_disabled, back
+  faces primer grey); and a triangle with corners on both sides of the panel's edge stretches a
+  rubber sheet from the wing to the lifted panel - `car_crumple.gdshaderinc` `cr_open_w()` /
+  `cr_torn()`: the paint and part shaders pass each vertex's panel weight and cut triangles whose
+  corners disagree AND whose area the move grew 1.7x (screen derivatives of rest vs moved
+  positions), which leaves a real shut-line gap. An `EngineBay` mesh (inner wings, floor, bulkhead,
+  block, cam cover, airbox, battery, strut towers; body space, behind the crushed nose) shows under
+  it.
+- **Bumper and hub**: CrashDeform's hanging bumper (a panel turned about its intact corner) now
+  bounces and throws sparks (`spark_streak.gdshader`, an orange ramp) where its torn corner meets
+  the road while the car moves past `drag_speed`, with the Sfx `scrape` loop; a ray ten times a
+  second checks the road is there. A bare hub does the same.
+- **Wheels**: a crash past `wheel_tear_at` (11 m/s over, ~80 km/h) within `wheel_tear_reach` of a
+  wheel (further needs harder) tears it off: the rig node hidden, the physics wheel down to a
+  0.1 m hub with little grip (the corner drops and drags), a `TornWheel` RigidBody3D (the wheel's own
+  mesh, a cylinder, the props layer) thrown off with the car's speed and its spin, beside the car
+  (the level root), PhysicsBudget debris for `wheel_life` 300 s; a hubcap piece too.
+- **Airbags**: a frontal hit past `airbag_at` (5 m/s over, ~47 km/h) fires both front bags: the
+  `airbag` uniform (fill, sag) in `car_cabin.gdshaderinc`'s CABIN_FIRE block (only the damage glass
+  has it), two ellipsoids traced like the people - out of the wheel's hub toward the driver and out
+  of the dash's top - in creased white nylon (`CAB_BAG`), full in 30 ms, venting to limp over 1.3 s
+  (`airbag_shape()`).
+- **Rollover**: a side hit past `roll_at` (6 m/s over) TRIPS the car - the centre of mass goes to
+  `roll_com_height` 0.58 m over the road (a real saloon's), angular damping to 0.05, a roll of
+  `roll_gain` x (over - roll_at / 2) rad/s about the car's length (top toward the push) and a small
+  hop - and the physics does the rest: the T-bone at 80 km/h ends on its side or its roof. Any hit
+  past roll_at + 4 or a close blast lets the car tumble the same way. `Vehicle.tumble_until` (one
+  float, one condition) holds `_fly` off while it tumbles unless boost is held (the owner's flying
+  car is one key away). When it rests (or after `tumble_max`), the handling's numbers come back.
+- **Debris**: `CrashDebris` (`scripts/vehicles/crash_debris.gd`), CrashLitter's big brother: one
+  MultiMesh ring (220, 90 on the web; no shadow) of 10-45 cm pieces - bumper plastic, grille, trim,
+  a mirror in the paint, bits of wing, a hubcap - flown ballistically in GDScript (one ray a piece
+  a tick, at most 64 flying), bouncing, laid flat where they stop, and left there.
+
+`CRASH_BREAKUP=0` is the A/B (CrashDeform only). Stills on `tools/glshot/car_shot.gd`: the
+`DAMAGE=` speeds as before plus `wheeloff`, `airbag`, `drag` (sparks as if at 50 km/h);
+`CRASH_DEBUG=1` prints the bonnet's fitted region. Checks: `tests/car_crash_3_checks.gd` (a deck
+300 m up: the shaders, a shot car breaks nothing, a 75 km/h head-on - bonnet up, two-sided paint,
+engine bay, airbags full then limp, debris lands and stays, restore() -, an 80 km/h T-bone bursts
+the glass and rolls the car by the physics with flight held off and the centre of mass put back,
+a 100 km/h corner hit tears the wheel off and it rolls 3+ m away, the hanging bumper's sparks only
+while moving, a close blast, the A/B).
+
+Cost (car_shot GEO, one sedan, front70, 200 frames on): 43 -> 46 draws (the engine bay, the debris
+ring, the paint now two-sided on this car only), 190.9k -> 200.4k triangles (the shards of the
+extra panes that burst). An undamaged car and the city are unchanged: no node, no material, one
+float and one condition in Vehicle. Stills on `shots/car-crash-3`.
+
+Not done / not verified: Forward+ (the Mac) not seen - the bonnet's primer underside and the
+engine bay are plain colours (vertex colours / a literal ALBEDO), the sparks are DrivingFX's shader.
+The bumper never tears fully off (it hangs and drags); doors do not fly open (CarInterior's jam
+stays the only door rig); a bus, a truck or a motorcycle breaks nothing off; the far twin keeps its
+baked wheel past 30 m after a wheel is torn off; a rolled car's underbody is the model's flat black.
+
+## 9ix. The blast at arm's length, third pass (2026-10-31, fleet wave 4, branch `wt/explosions-3`)
+
+Task: "the explosion and fire at arm's length: the fireball's volume, the smoke's shading under sun
+and at night, debris that bounces and comes to rest, sparks that land, the scorch and crater's
+edge, the light's falloff on the facades, heat haze". Everything is in **`Blast3`**
+(`scripts/weapons/blast_3.gd`); `EXPLOSIONS_3=0` in the environment is the second pass exactly as
+it was (the A/B). The web keeps the cheap path (cards, CPU particles, no haze): `takes_fireball()`,
+`bits_on()`, `haze_on()` are all false there.
+
+- **The fireball is a volume.** `WeaponFX.explosion()` asks `Blast3.takes_fireball()` before its
+  fireball cards; yes -> `spawn_volume()`: a 2 m BoxMesh scaled to (1.5, 1.6, 1.5) radii round a
+  point 1.3 radii up, on `shaders/blast_volume.gdshader`. It is drawn by its back faces with no
+  depth test (works with the camera inside it) and marches the view ray 26 steps from the box's
+  entry to the scene's depth (the road and walls cut it where they stand). The field: a ball that
+  grows in 70 ms, rises and flattens into a cap with a thinning middle (the vortex ring), a skirt
+  for the first instant, a stem under the cap - every gated term is -1 where shut (a gate times the
+  term was 0 everywhere and the noise filled the whole box) - carved by two octaves of a 48^3
+  tiling FBM (`noise_texture()`, `get_seamless_image_3d`, no mipmaps: ImageTexture3D wants mip
+  LEVELS, not images with mipmaps). Each sample is black-body light (`blackbody()`, steep: dim red
+  is DARK, green about half of red while bright - AgX makes a bright red salmon) and soot lit by the
+  sun with one shadow tap, the sky and the fire inside; the lit soot fades as the gas heats (dim red
+  plus sunlit grey read pink). The light is added RAW and only the soot goes through cs_out(): the
+  sRGB curve on Compatibility lifted the weak channels and every orange went pastel. BlastFX's
+  rolling cards are skipped when the volume took the fireball (`this_blast_volume`,
+  `BlastFX.last.volume`). `max_volumes` 4; past that a blast gets the cards. `BLAST3_DEBUG=1` draws
+  the volume's opacity in grey.
+- **Chips and sparks land.** `BlastBits` (`scripts/weapons/blast_bits.gd`): one pool under the
+  scene root (two MultiMeshes, buffers written whole, `custom_aabb` the city), every chip and
+  spark a point with one world ray a physics tick. Chips bounce (`chip_bounce`), skid with
+  `chip_friction`, follow the ground or fall off an edge, rest flat for `chip_rest` 25 s and sink
+  away; sparks skitter and die on the road as embers (`shaders/blast_spark.gdshader`: width from the
+  instance's X, length from its Y, never under ~1.5 px). They replace WeaponFX's spark puffs and
+  chip layer and BlastFX's grit. `BlastDebris`'s lumps now bounce while they have the speed, skid
+  (`_skid()`), lie flat on the ground's normal and are charred metal with embers that cool (their
+  own material each; the shared bright orange read as a toy).
+- **The smoke.** `blast_smoke.gdshader` takes `fires[4]` / `fire_count` (`Blast3.push_fires()`,
+  driven each frame by the BlastBits pool): BlastFX's flash / glow lights (`add_fire()`) and
+  CarDamage's burning cars light the side of each puff that faces them; the old young-puff glow is
+  kept at `smoke_young_glow` x the hottest fire still burning, so a column fed for ten seconds over
+  a fire that went out at two is no longer lit orange from inside by nothing (main's night strip:
+  an orange ghost). After dark the street lamps' glow on the underside (`city_glow` x lamp_factor);
+  a forward-scattering rim looking toward the sun.
+- **The heat haze.** `BlastHaze` (`shaders/blast_haze.gdshader`): a quad over the seat of the blast
+  turned about its vertical to the camera, reading the screen (render_priority MIN, as the shimmer),
+  bending only pixels whose surface stands BEHIND the column (depth test in the shader), for
+  `haze_seconds` 6 (fuel 11). It replaces WeaponFX._shimmer's sphere on the desktop.
+- **The light.** The flash casts shadows at HIGH on Forward+ (`dress_flash()`, one blast at a time,
+  HIGH read off the environment's SDFGI), so it falls off round a car or a column instead of
+  lighting the wall behind it; the white-hot flare is `flare_scale` 0.55 of its old size (its 38 m
+  quad whited out the whole screen at night).
+- **The scorch.** `Blast3.crater_maps()` (BlastAftermath.crater_textures() hands over): soot thrown
+  out in fingers of different lengths (an angle table), specks past them, a paler scoured halo, a
+  rim of slabs broken along cellular edges, cracks, and an EMISSION map of embers in the pit. On the
+  decal it is `texture_emission` fading over `ember_seconds`; on Compatibility an additive quad of
+  the map (a StandardMaterial's emission map on the cut-out quad lit the whole mark white there).
+  WarmRehearsal's atlas list carries the emission map.
+
+Look: `tools/explosions_2/blast_room_shot.gd` (opengl3 ~2 min, lavapipe Forward+ ~12 min a strip)
+now sets off the whole `Explosion.blast()` by default (crater, rubble; `FULL=0` WeaponFX alone) and
+takes `CAM_X`, `LOOK_Y`. Checks: `tests/explosions_3_checks.gd` (31: the volume and its box, no
+cards under it, the web paths, chips at rest ON a deck and none through it, sparks landing, debris
+flat, the fires reaching the smoke, the haze first, the crater's fingers and embers, the colour
+rules); explosions_2's checks accept the volume in place of the rolling cards and the BlastBits pool.
+
+Cost: the fireball is now ONE draw (was two card systems), chips and sparks two draws for the whole
+scene; the volume is 26 steps x (2 noise taps + a 2-tap shadow sample) per covered pixel for 2.7 s
+(3.6 s fuel), at most four at once. No static geometry changed, so a still's GEO is unchanged.
+NOT measured: GPU time on a real GPU (lavapipe runs ~1 frame a second); the Mac at 60 fps (the
+volume's per-frame dither is meant for TAA); the web build (code paths only checked).
+
+## 9iy. The hero's locomotion (wave 4, branch wt/hero-locomotion-2)
+
+**What.** The hero's walk, run and sprint used to be three AnimationPlayer clips swapped by speed
+with a 0.15 s crossfade at whatever point each happened to be in its cycle (the feet changed step
+mid-stride: a pop), a stop was a crossfade to the idle from wherever the stride was, turning on
+the spot played the walk in place, moving sideways or backward while the body faced the aim ran
+the forward clip (a moonwalk), and a landing at a run played the stop-and-crouch landing.
+Now:
+- **Phase-synced gaits** (`HeroLoco`, `scripts/player/hero_loco.gd`, the FIRST modifier in his
+  skeleton's stack, before HeroMotion): the AnimationPlayer keeps playing the idle (or a one-shot)
+  underneath; HeroLoco samples the three gait clips itself (`Animation.rotation_track_interpolate`,
+  ~25 bones, fingers left to the idle / the grip) and lays their blend over it by `weight`. One
+  `phase` drives all three: it counts stride cycles and each clip maps cycle k to the span between
+  its own k-th and k+1-th left-toe touchdown (`GAITS`, the sync markers: the hero's walk is 4.2 s
+  of three uneven mocap strides, the run and the sprint one each; the phase wraps at `period()`,
+  3). So walk -> run -> sprint is three weights that move with the gait's speed (`walk_run_band`,
+  `run_sprint_band`), foot for foot, and standing <-> moving is one weight: nothing swaps.
+- **The start**: the gait fades in over `loco_fade_in` (0.16 s) from the left foot's touchdown,
+  the gait's own speed follows the body's at `gait_follow` (the body reaches 12 m/s in 0.13 s, so
+  without it the walk and the run would never show), and the chest is driven forward into the
+  acceleration on a spring (`accel_drive`, `drive_max`, `drive_stiffness` / `_damping`).
+- **The stop**: when the body stops, the stride runs on (at least as fast as `stop_max` needs) to
+  the next foot down, holds it, and fades out over `loco_fade_out` while the drive spring throws
+  the chest back and lets it settle past upright.
+- **Turning on the spot**: the feet stay where they are while the body turns (the hips held,
+  the spine taking the turn back so the chest follows the aim) until it is `turn_step_angle`
+  round; then he steps round at `turn_step_speed` on the walk at `turn_step_weight`, and stops on
+  a foot down.
+- **The strafe and the backpedal**: while the body faces the aim (the player's aim timer after a
+  shot, or LockOn aiming), the hips turn toward the way he goes (up to `strafe_max`, 66 degrees)
+  with the chest kept square (HeroLoco's counter-turn, then AimTwist's hold); past ~110 degrees off
+  his facing the gait runs BACKWARD (a backpedal), with hysteresis so it does not flicker. Not
+  aiming, the hips lead into a turn by up to `turn_lead_max`.
+- **The lean into a running turn**: the whole body rolls about the feet by `bank_gain` of the
+  angle a bike would lean (atan(v w / g)), at most `bank_max`, eased.
+- **The land-and-run**: landing at 2 m/s or more from under `land_hard` no longer plays the
+  landing clip: the stride carries on from the next foot down and the knees take the landing (a
+  spring dip on HeroMotion's `hips_drop`, which bends the legs, and the chest driven forward).
+- The gun stays in the hand through all of it: the gait is posed before the stance, the arm IK
+  and the hands (checked through a start, three gait changes and a stop by a probe modifier at
+  the end of the stack).
+
+**Why procedural.** The free UAL files the hero's clips come from have no start, stop, turn,
+strafe or backpedal clips (the list is in `tools/hero_locomotion/` - the walk, the jog, the
+sprint, crouch walks, the swim; see hero_clips.gd). Those moves are made from the gait clips by
+phase, weight, hip yaw and springs instead.
+
+**Look / check.** `tools/glshot/hero_moves_shot.gd` new staged moves: start, stop, accel (0 to 12
+m/s over the shot), move_<m/s>, strafe_l / strafe_r / back, sprint_turn, land_run; `STRIP=n` puts n
+frames of one shot side by side; `CAM_FIXED=1` keeps the camera from following his yaw.
+`tools/hero_locomotion/gait_probe.gd` (headless, seconds) prints each gait clip's length, speed
+and toe touchdowns: rerun it and update `HeroLoco.GAITS` if a clip changes (the checks fail on a
+table that no longer matches). `tests/hero_locomotion_2_checks.gd` (room part). `HERO_LOCO=0`
+is the A/B (the old clip swaps).
+
+**Cost.** No geometry, no draws. CPU: ~25 bones x up to three clips sampled and slerped a frame
+on the hero only (GDScript, ~0.1 ms on the build box).
+
+**Not done / not verified.** Nothing seen at 60 fps or on the owner's Mac: the fade times, the
+bands, the drive and bank springs want a feel pass (all exports on Avatar, "Hero locomotion").
+The strafe is the forward gait with the hips turned, not a real side-step clip: at a full 90
+degrees the feet still slide a little sideways. The backpedal is the forward clip backward. The
+walk clip's three strides are uneven mocap; a wider walk / jog set (UAL's Walk_Loop, Jog_Fwd_Loop)
+could replace it but was left alone (the stride constants are hero-closeup's).
+
+## 9iz. The pier at night from the beach (fleet wave 4, `rc-pier-night`, refcam pier_night)
+
+The pier_night reference camera (eye (-945, 1.8, -235), 21:00 clear) judged as an art director
+would. What gave it away, in the order the eye lands on it:
+
+1. **The wheel read as white steel.** Its LED strips are 13 cm wide: from the beach (100-300 m) a
+   fifth of a pixel, so the Compatibility renderer (no MSAA) drew the white-painted frame with a
+   few aliased specks of colour (wheel pixels mean (142, 158, 159), saturation ~0.1).
+2. **The deck was a black slab.** Lamp globes (0.24 m), string bulbs (5 cm) and the stands' fronts
+   were all under a pixel; only the arcade's windows and two lamp posts showed.
+3. **The coaster was an unlit red line** - the real pier rides carry chaser bulbs.
+4. **The night clouds were dark holes** in the navy sky on the painted (Compatibility) path:
+   desaturated grey at night_cloud_light 0.12 against a saturated sky. Forward+'s volume already
+   lit them warm grey-brown from the city below.
+
+Fixes (`PierNight`, `scripts/world/pier_night.gd`; `PIER_NIGHT=0` the A/B):
+- **The wheel's LEDs drawn on purpose** (`shaders/pier_wheel_glow.gdshader`): two quads in the
+  wheel's plane, one over each face's LEDs, turning with the wheel. Every spoke strip and both
+  rings are drawn analytically at their place and pattern, at least `min_px` 1.6 pixels wide with
+  their light spread over it (sqrt of the coverage kept: the LEDs bloom), faded in only once the
+  real strips are under a couple of pixels (`far_px`). Plus a glow of the wheel's mean colour in
+  the air, worked out in the vertex stage from the same patterns, zero at the quad's edge. The
+  patterns moved into `shaders/pier_led.gdshaderinc`, which pier_park.gdshader includes too.
+  pier_park's own `led_energy` 22 -> 4.5: through AgX the old value drew every colour white.
+- **The deck's lights as points**: NightAtmos halos (night_halo.gdshader, its core never under
+  1.7 px) on every lamp globe (40), every third string bulb, every stand and booth front, the
+  carousel crown and the coaster bulbs - one MultiMesh, one draw, collapsed by day. The far copy
+  takes every 4th bulb at 0.4 of the strength (all of them smeared into one blob at 1 km).
+- **Coaster chaser bulbs**: a bulb every 2.4 m outside each rail in the near track mesh
+  (pier_park's bulb kind, chasing by index), +5.3 k vertices.
+- **The painted cumulus at night** (sky.gdshader `painted_night_gain` 1.8 / `painted_city_light`
+  0.22 on Compatibility, 1.3 / 0.15 on Forward+ below MEDIUM, where the painted path runs; the
+  volume at HIGH is untouched): lit by the moon, the air and the city dome from below.
+  `NIGHT_CLOUDS=0` (SkyExtras.setup) is the A/B.
+
+Numbers (refcams, opengl3, all ten, A/B switches off vs on, same tree): pier_night p50 20 -> 22,
+p95 33 -> 45, saturation 0.60 -> 0.58 (the sky's share), tris +0.2 %, draws +0.4 %. The other
+nine within tolerance except freeway (a semi in one run only: traffic noise, see the diff map).
+Forward+ checked on the pier alone on lavapipe (`tools/pier_night/pier_shot.tscn`, vulkan): the
+wheel, bulbs and halos read, no flat discs; the volume clouds unchanged.
+
+Not done / owned elsewhere: the sea's reflections of the wheel and lamps and the bright swash
+line along the sand (water-review owns ocean / beach_sand); no bonfire rings in this view (the
+boardwalk's keep-off); the crowd on the deck is too small to read from the beach; the pier's
+underside stays a dark band.
+
+## 9ja. The hero in the rain on the web (wave 4, branch `wt/web-hero-rain`; VISUAL_ROADMAP ?)
+
+**The report** (web-review-3, HANDOFF 9id): at the rain bookmark the hero's black velour top and
+his hair read royal blue in the browser, not on the Mac or in opengl3 stills.
+
+**The cause: a stale sky radiance map, not a shader or a colour space.** The city's Sky is
+`process_mode = 2` (INCREMENTAL): when the sky changes, the cubemap is re-rendered and its rough
+levels are refiltered over the following frames. The city loads in a clear sky and the forced rain
+(and any hour or weather snap) arrives a frame later, so for dozens of frames every mirror - the
+wet velour (roughness 0.45) and hair (0.2) most of all, the wet road too - shows the OLD clear blue
+sky. Natively that is a fraction of a second; in a browser under SwiftShader a frame is ~20 s, so a
+webshot taken a few minutes after load is still inside that window. Bisected:
+- `tools/web_hero_rain/hero_probe.tscn` in the browser at the rain bookmark (frames 2, settle
+  200 s): base 33,35,38 (bluish); the cloth's wet branch off 36,35,34; reflections off 31,28,25; and
+  every step after the first toggle of the environment neutral (36,34,33) - the toggles rebuilt
+  the radiance. The crops showed the blue fading with time, not with a material.
+- `tools/web_hero_rain/hero_rain.tscn` natively (opengl3, `FRAMES=n`): 2 frames 30,30,29; 6 frames
+  21,24,27; 12 frames 17,19,23; 40 frames 20,20,21. The same scene in the browser at 40 frames was
+  black (21,21,22). `opengl3_es` (GLES 3.2, like WebGL2) agreed with opengl3. So nothing is
+  web-only except the frame rate.
+
+**The fix: `SkySettle`** (`scripts/world/sky_settle.gd`, DayNight's child, one hook in
+`DayNight._ready()`): on a jump - the first `start_frames` (6) after load, an hour step over
+`hour_jump` (0.2 h) in a frame, a Weather state change, a `cloud_coverage` step over `cover_jump`
+(0.05) - it sets the sky to PROCESS_MODE_QUALITY (every level filtered in one frame) for
+`hold_frames` (3), then puts the mode back. It runs PROCESS_MODE_ALWAYS (the pause menu and photo
+mode change the sky with the tree paused). Natively at 6 frames 21,24,27 -> 23,23,23; at 12
+frames 17,19,23 -> 18,19,20; the wet road stops being blue-grey the same way. In the browser at the
+rain bookmark: 33,35,38 -> 37,35,34. Cost: a QUALITY refilter of a 256 px radiance for three frames
+after a jump, nothing on any other frame. `SKY_SETTLE=0` (`?sky_settle=0` on the web) is the A/B.
+
+**Checks.** `tests/web_hero_rain_checks.gd` (one line in the smoke test): the node is there, the
+sky is back at INCREMENTAL after the start-up frames, an ordinary frame refilters nothing, an hour
+jump and a forced weather snap hold QUALITY and let go.
+
+**Tools.** `tools/web_hero_rain/`: `hero_rain.tscn` (the hero, the city's sky / sun / DayNight /
+Weather on a wet patch; `STEPS=` / `?steps=` bisects suspects with a crop each), `hero_probe.tscn`
+(the real city in the browser, one suspect at a time), `export_web.sh` (exports either as the web
+build's main scene into build/web_hero and puts project.godot back). Read crops out of a harness
+log with a few lines of Python (`PROBE_IMG <step> <base64 png>`).
+
+**Lesson for every web still:** the harness judges the first handful of frames. Anything that
+converges over frames (incremental radiance, TAA-less accumulation, streaming, particles) is
+mid-way there; compare a web still with a native run of the same FRAME COUNT, not the same time.
+
+**Not done / not verified.** The Mac (Forward+ runs the same INCREMENTAL sky; the settle applies
+there too and should be invisible but for the first frames). A real GPU browser.
+
+## 9jb. The skyline's glass by day (fleet "skyline-glass-day", wave 3)
+
+The task: downtown's towers by day from 100-600 m - the freeway, the street looking up, a
+helicopter - where the curtain-wall glass is most of what the skyline is; fix what reads fake.
+
+**What was wrong.** Every pane in the city mirrored ONE fixed noon gradient at every hour: the
+building shader's `sky_zenith` / `sky_horizon` are material defaults nothing sets on a Building,
+and the far boxes hard-code the same two colours. So a tower at 17:30 mirrored a midday blue sky;
+there were no clouds in any glass; a tower never mirrored the real towers beside it (only
+fx_opposite's fake street, at most ~105 m tall, and heading-keyed fake skyline rows); curtain
+walls mirrored 26 % head on, so from a helicopter a glass tower was the dark room behind it, a
+grid of near-black panels; the frame lines were a hard step (fu < 0.05), which crawls into
+moire at 100-600 m on Compatibility; the lit crowns emitted sky_tint's display numbers raw (pale
+on Forward+) and their ribs were a hard step too.
+
+**What changed.** One include, `shaders/skyline_glass.gdshaderinc`, shared by building.gdshader,
+building_lod.gdshader (the same calls in the coded far glass, so the LOD line does not show) and
+tower_crown.gdshader:
+- `sg_sky_ratio()`: the glass's old gradient times the ratio of THIS hour's sky (the hue of
+  DayNight's own `sky_top` / `sky_horizon`, at the old constants' luminance, a fifth to grey) to
+  the old constants, plus a warm glow toward a low sun. Brightness over the day still comes from
+  `sky_now`, and a material's own sky tint (the arena district's) is kept.
+- `sg_clouds()`: a cloud deck on the reflected ray (three value-noise octaves, DayNight's coverage,
+  thinned to haze at the horizon, lit tops warm at golden hour, grey bases).
+- `sg_towers()`: up to eight real towers traced as boxes (side faces with their own glass tint,
+  storeys and mullions faded to their average past a couple of pixels, the sun on their faces,
+  roofs, a parapet, haze by distance). A box the ray starts inside is the wall's own tower. They
+  sit behind the street opposite (fx_opposite still wins where it hits).
+- `sg_glint()`: the sun's disc in a pane, emitted, warm at golden hour, broken pane by pane by
+  the existing bow; zero where a tower or the street opposite is in the way.
+- `sg_mirror_ends()`: a curtain wall, or a glass tower's ribbon band, mirrors 42 % head on and
+  95 % at a glancing angle (was 26 / 90); punched windows and shops unchanged.
+- `sg_line()`: the curtain wall's frame lines (mullions, transoms) as box-filtered coverage once
+  a pixel spans 2 % of a bay (`frame_aa` in building.gdshader; the far boxes already did this);
+  the crowns' ribs the same.
+
+**CPU side.** `SkylineGlass` (`scripts/world/skyline_glass.gd`), DayNight's child (one hook next
+to SkyExtras), pushes five globals four times a second on the REAL clock (stills hold the game
+clock): `skyline_glass` (on, coverage, glint gain, golden), `skyline_sky_top` / `_rim` (DayNight's
+colours as set on the sky, raw display numbers, + the low-sun glow and the cloud light),
+`skyline_towers_a` / `_b` (two mat4s, a column a box: centre x, z in TRUE world, the half sizes
+packed as round(hx*4) + round(hz*4)*1024, top y). Candidates: every LandmarkDowntown tower (a pair
+split into its two towers) and every part over 40 m of the Buildings in the tree; `pick()` keeps
+the eight tallest for their distance within 1.1 km. project.godot's defaults are the old sky with
+nothing traced, so a tool without DayNight still draws sensibly. The render server's global
+getter is editor-only at run time: `SkylineGlass.last` holds what was pushed.
+
+**A/B and tools.** `SKYLINE_GLASS=0`: the glass exactly as before (the frame step too).
+`SKYLINE_GLASS_DEBUG=1`: traced towers magenta, clouds green in the glass (what proved the trace
+reaches the helicopter view). Stills: `still_shot.gd` with the eight cameras in this section's
+stills README (shots/skyline-glass-day). Checks: `tests/skyline_glass_day_checks.gd`.
+
+**Cost.** No geometry, nodes or draws: GEO on the eight bookmarks moves only by the run-to-run
+noise of the city (-2 % .. +2 % triangles, e.g. freeway 4.18 M -> 4.09 M, street 6.35 M -> 6.39 M,
+heli 2.46 M both). Shader: on glass pixels about 8 box tests (~20 ALU each), three noise octaves
+and a glint (~250 ALU in all), the frame filter (~40) on curtain-wall pixels; no new samplers (the
+WebGL budget is unchanged); five globals (11 vec4 slots of the Compatibility buffer).
+
+**Not done / not verified.** Judged on opengl3 stills only - no lavapipe Forward+ still of the
+city fits, and a small Forward+ scene was not run; colours go through the same decode as the
+rest of the glass (sg_srgb_in = cs_as_uniform), so Forward+ should agree, but the owner's Mac
+should look at the street-looking-up view at 14:00 and the helicopter at 17:30. Infill towers in
+LOD chunks / the far city are not traced (only Buildings in the tree and the landmark towers);
+the set changes every 0.25 s, so a reflected tower can pop as the camera moves. Flat tower tops
+were not touched (Rooftops covers infill roofs). The far boxes' second glass path (the old
+uncoded path) is unchanged.
+
+**Wave 4 (resume, 2026-10-31).** Merged origin/main (batch 25, the golden-hour review: GoldenHour
+leaves DayNight's sky colours on their twilight ramp, which SkylineGlass reads as they are set, so
+nothing to reconcile). The low sun's glow in the glass is a wide fan now (`sg_sky_ratio()`: a broad
+pow(az, 1.6) plus a hot pow(az, 12) core, out to half way up the sky) - a low sun lights a fan of sky
+70 degrees either side, and the old pow 3 spot only reached panes turned almost at the sun.
+Before / after through the refcams (`REFCAMS_JSON` with golden_aerial, downtown_aerial and a third
+camera `street_300m` = Flower St at z 480 looking north up at the core, 14:00, pitch 14):
+`refcams.py compare` flags nothing (golden_aerial pix 0.27, downtown_aerial 1.01, street_300m 2.58,
+luminance within 2 levels, triangles +0..1 %). What reads: street_300m's curtain wall mirrors blue
+sky, clouds and the towers across Flower where it mirrored a flat dark gradient; downtown_aerial's
+tiered tower gets sky in its upper panes; golden_aerial loses the white salt-and-pepper sparkle on the
+far glass towers (the frame step's moire), but from 1.5 km its core is mostly spandrel, stone and
+grade, so the glass changes it little - the broader sun fan does not move it either (the camera
+looks NE, the sunward faces mirror sky 45-60 degrees off the sun). Forward+: a downtown block under
+lavapipe is OOM-killed even at `BLOCKS=home` (15 GB box); a lone curtain-wall tower
+(`building_shot.gd` under vulkan, FINISH=3 STYLE=2) was rendered A/B instead (see below / stills).
 ## 9d?. The gate's intermittent failures, wave 4 (fleet wave 4, `gate-flakes`, 2026-10-31)
 
 The task: run `SHARDS=3 tests/headless_check.sh` five times in a row on main with a different

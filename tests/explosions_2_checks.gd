@@ -67,7 +67,7 @@ func run(t: Node, city: Node3D) -> void:
 	# Clean up: everything the blasts left, the deck, the building, the caps' clocks.
 	# Everything the blasts added to the scene (WeaponFX's own layers too) goes now.
 	for c in parent.get_children():
-		if not before.has(c) and c != _deck and not _made.has(c):
+		if not before.has(c) and c != _deck and not _made.has(c) and not (c is BlastBits):
 			c.queue_free()
 	for n in _made:
 		if is_instance_valid(n):
@@ -79,7 +79,8 @@ func run(t: Node, city: Node3D) -> void:
 	await _ticks(3)
 	var left := 0
 	for c in parent.get_children():
-		left += 0 if before.has(c) else 1
+		# (Blast3's BlastBits is the scene's one pool of chips and sparks, made by the first blast.)
+		left += 0 if before.has(c) or c is BlastBits else 1
 	_t._check(left == 0 and BlastDebris.alive() <= alive_before, "explosions_2: the blasts leave nothing behind (%d nodes, %d pieces, %d before)" % [left, BlastDebris.alive(), alive_before])
 
 
@@ -122,8 +123,10 @@ func _named(parent: Node, prefix: String) -> Array:
 func _layers(parent: Node, at: Vector3) -> void:
 	var last := BlastFX.last
 	_t._check(bool(last.get("heavy", false)), "explosions_2: the first blast gets the whole effect")
-	for key in ["flash", "kick", "roll", "column"]:
+	for key in ["flash", "kick", "column"]:
 		_t._check(int(last.get(key, 0)) > 0, "explosions_2: the blast made its %s" % key)
+	# The rolling fire, or Blast3's volume fireball in its place (explosions-3).
+	_t._check(int(last.get("roll", 0)) > 0 or int(last.get("volume", 0)) > 0, "explosions_2: the blast made its rolling fire")
 	_t._check(int(last.get("debris", 0)) > 0, "explosions_2: the blast threw burning debris (%d)" % int(last.get("debris", 0)))
 	var screen := RenderingServer.get_current_rendering_method() != "dummy" and not OS.has_feature("web")
 	_t._check(not screen or int(last.get("wave", 0)) > 0, "explosions_2: the pressure wave where the screen can be read")
@@ -157,7 +160,8 @@ func _layers(parent: Node, at: Vector3) -> void:
 	_t._check(ok, "explosions_2: cap and column in local space with bounds and growth")
 	_t._check(BlastFX.smoke_material().render_priority < 0, "explosions_2: the smoke draws before the fire")
 	var roll := _named(parent, "BlastFireRoll")
-	_t._check(roll.size() == 1 and (roll[0] as CPUParticles3D).custom_aabb.size.length() > 1.0, "explosions_2: the rolling fireball has its bounds")
+	_t._check((roll.size() == 1 and (roll[0] as CPUParticles3D).custom_aabb.size.length() > 1.0) or int(last.get("volume", 0)) > 0,
+		"explosions_2: the rolling fireball has its bounds")
 	var fire := WeaponFX._fire_material()
 	_t._check(not (fire is ShaderMaterial) or float((fire as ShaderMaterial).get_shader_parameter("relief")) > 0.0,
 		"explosions_2: the fireball's billows are shaded")
@@ -261,7 +265,7 @@ func _car_fuel() -> void:
 	BlastFX.fuel_next = true
 	WeaponFX.explosion(_city, _top + Vector3(30.0, 1.0, 30.0), 7.0, 0.6)
 	_t._check(not BlastFX.fuel_next, "explosions_2: a fuel blast consumes the flag")
-	_t._check(int(BlastFX.last.get("roll", 0)) > 18 or WeaponFX._web(), "explosions_2: a fuel fireball rolls up bigger (%d)" % int(BlastFX.last.get("roll", 0)))
+	_t._check(int(BlastFX.last.get("roll", 0)) > 18 or int(BlastFX.last.get("volume", 0)) > 0 or WeaponFX._web(), "explosions_2: a fuel fireball rolls up bigger (%d)" % int(BlastFX.last.get("roll", 0)))
 	_t._check(BlastFX.lift_gain() > 1.2, "explosions_2: a car's own blast throws it higher")
 	_t._check(FileAccess.get_file_as_string("res://scripts/vehicles/car_damage.gd").contains("BlastFX.lift_gain()"),
 		"explosions_2: CarDamage.explode asks for the lift")

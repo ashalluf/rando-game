@@ -16,6 +16,12 @@ extends SceneTree
 ## take-off), idle_look / idle_neck / idle_watch / idle_stretch (an idle variant, with the gun).
 ## yaw orbits the camera (0 front-on, 90 his right side). WEAPON (default 0; -1 none) the gun.
 ## CAM_Y the height the camera looks at (default 1.0), FOOTIK=0 turns the foot IK off.
+## The locomotion (HeroLoco): start (from standing to walk_speed at the player's acceleration),
+## stop (running 1 s, then stopping), accel (0 to 12 m/s over the shot: walk, run, sprint),
+## move_<m/s> (a steady gait), strafe_l / strafe_r / back (facing held, moving that way at 5 m/s),
+## sprint_turn (12 m/s round a 2.5 rad/s turn), land_run (falling, then landing at a run).
+## STRIP=n takes n frames evenly through the shot and lays them side by side in one image
+## (FOLLOW=1 keeps the camera on the hero as he would travel; the room has no travel, so off).
 
 func _initialize() -> void:
 	var stage := Node3D.new()
@@ -116,6 +122,8 @@ func _initialize() -> void:
 			await physics_frame
 		var anim: AnimationPlayer = player.find_child("AnimationPlayer", true, false)
 		var focus := Vector3(0.0, float(OS.get_environment("CAM_Y")) if OS.get_environment("CAM_Y") != "" else 1.0, 0.0)
+		var strip := int(OS.get_environment("STRIP")) if OS.get_environment("STRIP") != "" else 1
+		var frames: Array[Image] = []
 		if anim.has_animation(what):
 			player.set_physics_process(false)
 			anim.play(what, 0.0)
@@ -138,6 +146,9 @@ func _initialize() -> void:
 				avatar.call("landed", 80.0, 12.0)
 			elif what == "jump":
 				avatar.call("jumped", false)
+			elif what in ["strafe_l", "strafe_r", "back"]:
+				player.set("aim_hold_time", 1.0e6)
+				player.notify_fired()
 			elif what.begins_with("idle_"):
 				var len: float = anim.get_animation("moves/" + what).length
 				avatar.call("_start_oneshot", "moves/" + what, 0.0, len, 1.0, 0.0)
@@ -147,6 +158,10 @@ func _initialize() -> void:
 			player.set_physics_process(false)
 			var prev_yaw := 0.0
 			var fly_turn := deg_to_rad(float(OS.get_environment("FLY_TURN")) if OS.get_environment("FLY_TURN") != "" else 0.0)
+			var grab_every := secs / float(strip) if strip > 1 else INF
+			var next_grab := grab_every
+			var heading := 0.0
+			var cur := 0.0
 			while t < secs:
 				var vel := Vector3.ZERO
 				var floor := true
@@ -171,26 +186,73 @@ func _initialize() -> void:
 						vel = Vector3(0, 0, -13.0)
 					"turn":
 						visual.rotation.y += 4.0 * dt
+					"start":
+						cur = move_toward(cur, 12.0 if t > 0.15 else 0.0, 90.0 * dt)
+						vel = Basis(Vector3.UP, visual.rotation.y) * Vector3(0, 0, -cur)
+					"stop":
+						cur = 12.0 if t < 1.0 else move_toward(cur, 0.0, 70.0 * dt)
+						vel = Basis(Vector3.UP, visual.rotation.y) * Vector3(0, 0, -cur)
+					"accel":
+						vel = Basis(Vector3.UP, visual.rotation.y) * Vector3(0, 0, -12.0 * t / secs)
+					"strafe_l", "strafe_r", "back":
+						var d := {"strafe_l": Vector3(-1, 0, 0), "strafe_r": Vector3(1, 0, 0), "back": Vector3(0, 0, 1)}
+						cur = move_toward(cur, 5.0, 60.0 * dt)
+						vel = Basis(Vector3.UP, visual.rotation.y) * (d[what] as Vector3) * cur
+					"sprint_turn":
+						heading += 2.5 * dt
+						visual.rotation.y = heading
+						vel = Basis(Vector3.UP, heading) * Vector3(0, 0, -12.0)
+					"land_run":
+						if t < 0.3:
+							vel = Vector3(0, -40.0, -12.0)
+							floor = false
+						else:
+							if t - dt < 0.3:
+								avatar.call("landed", 40.0, 12.0)
+							vel = Vector3(0, 0, -12.0)
+				if what.begins_with("move_"):
+					vel = Basis(Vector3.UP, visual.rotation.y) * Vector3(0, 0, -float(what.trim_prefix("move_")))
 				avatar.call("drive", dt, Vector2(vel.x, vel.z).length(), floor, vel.y, boosting, vel)
 				var gun: Node = manager.get("current") if (manager as Node3D).visible else null
 				avatar.call("hold_gun", gun, OS.get_environment("AIM") == "1" or what == "aim", dt)
 				await physics_frame
 				t += dt
+				if t >= next_grab and frames.size() < strip - 1:
+					next_grab += grab_every
+					frames.append(await _grab(cam, focus, yaw, dist, visual))
 			if what == "fly" or what == "climb" or what == "fall":
 				focus = Vector3(0.0, 1.0, 0.0)
-		var cam_yaw := yaw + visual.rotation.y
-		cam.global_position = focus + Basis(Vector3.UP, -cam_yaw) * Vector3(0.0, 0.25 * dist / 3.6, -dist)
-		cam.look_at(focus, Vector3.UP)
-		cam.current = true
-		await process_frame
-		await process_frame
+		var last := await _grab(cam, focus, yaw, dist, visual)
+		frames.append(last)
 		var motion: Node = player.find_child("HeroMotion", true, false)
 		if motion:
 			print("MOTION %s lift %s hips_drop %.3f fly %.2f fall %.2f" % [what, motion.get("foot_lift"), motion.get("hips_drop"), motion.get("fly"), motion.get("fall")])
 		var path := "%s_%02d_%s_%d.png" % [out, n, what.replace("/", "-"), int(rad_to_deg(yaw))]
-		get_root().get_texture().get_image().save_png(path)
+		_strip(frames).save_png(path)
 		print("saved ", path)
 		n += 1
 		if anim:
 			anim.speed_scale = 1.0
 	quit()
+
+
+func _grab(cam: Camera3D, focus: Vector3, yaw: float, dist: float, visual: Node3D) -> Image:
+	var cam_yaw := yaw + (0.0 if OS.get_environment("CAM_FIXED") == "1" else visual.rotation.y)
+	cam.global_position = focus + Basis(Vector3.UP, -cam_yaw) * Vector3(0.0, 0.25 * dist / 3.6, -dist)
+	cam.look_at(focus, Vector3.UP)
+	cam.current = true
+	await process_frame
+	await process_frame
+	return get_root().get_texture().get_image()
+
+
+## The frames side by side (one image when there is one frame).
+func _strip(frames: Array[Image]) -> Image:
+	if frames.size() == 1:
+		return frames[0]
+	var w := frames[0].get_width()
+	var h := frames[0].get_height()
+	var img := Image.create(w * frames.size(), h, false, frames[0].get_format())
+	for i in frames.size():
+		img.blit_rect(frames[i], Rect2i(0, 0, w, h), Vector2i(w * i, 0))
+	return img

@@ -45,6 +45,7 @@ extends Node
 	"rain": -10.0, "rain_heavy": -12.0, "rain_roof": -11.0, "rain_car": -9.0,
 	"freeway": -9.0, "surf": -9.0, "airport": -11.0, "port": -12.0,
 	"river": -13.0, "fountain": -11.0, "playground": -15.0,
+	"leaves": -15.0, "sea_far": -12.0,
 }
 ## Crossfade time constant for the beds, seconds (real time). Bigger = slower, smoother swells.
 @export var fade_seconds: float = 2.4
@@ -82,6 +83,8 @@ extends Node
 @export var fountain_reach: float = 75.0
 ## Kids at a playground carry this far (by day), metres.
 @export var playground_reach: float = 150.0
+## How far inland the sea is still heard as a far-off roar (m), and where it is full.
+@export var sea_far_reach: Vector2 = Vector2(2400.0, 140.0)
 
 @export_group("Street")
 ## Walls closer than this count toward the street canyon (reverb), metres.
@@ -159,6 +162,10 @@ const LAYERS := {
 	"river": {"sound": "amb_river", "emitter": true, "pan": 0.6},
 	"fountain": {"sound": "amb_fountain", "emitter": true, "pan": 0.65},
 	"playground": {"sound": "amb_playground", "emitter": true, "pan": 0.6},
+	# The street at eye level (StreetSounds.enabled): leaves rustling in the wind round the
+	# listener, and the sea's roar heard from a long way inland, from the coast's direction.
+	"leaves": {"sound": "amb_leaves"},
+	"sea_far": {"sound": "amb_sea_far", "emitter": true, "pan": 0.45},
 }
 
 ## The acoustic spaces the probe tells apart, and the World reverb each wants: wet level, room size
@@ -248,7 +255,8 @@ var _verb_damp: float = 0.55
 var _verb_hp: float = 0.25
 var _echo_sent: Dictionary = {}
 var _diesel: Array = []           # [stream, trim] of the diesel idle, for big vehicles' voices
-var _car_kind: Array = []         # per traffic voice: true while it plays the diesel
+var _car_kind: Array = []         # per traffic voice: 0 the tyre roll, 1 the diesel, 2 the wet hiss
+var _wet: Array = []              # [stream, trim] of the wet-road tyre hiss (StreetSounds)
 var _bus_sent := Vector4(-1.0, -1.0, -1.0, -1.0) # what the buses were last told
 var _rng := RandomNumberGenerator.new()
 var _streamer: Node
@@ -278,6 +286,10 @@ func _ready() -> void:
 		fired[kind] = 0
 		rates[kind] = 0.0
 	_build_voices()
+	if StreetSounds.enabled:
+		var street := StreetSounds.new()
+		street.name = "StreetSounds"
+		add_child(street)
 	_blast_seen = Explosion.blast_count
 	_last_us = Time.get_ticks_usec()
 
@@ -325,8 +337,9 @@ func _build_voices() -> void:
 		add_child(v)
 		_cars.append(v)
 		_car_of.append(null)
-		_car_kind.append(false)
+		_car_kind.append(0)
 	_diesel = Sfx.take("diesel_idle")
+	_wet = Sfx.take("tyre_wet") if StreetSounds.enabled else []
 	for i in PASS_VOICES:
 		var v := AudioStreamPlayer3D.new()
 		v.name = "Pass_%d" % i
@@ -471,11 +484,15 @@ func _survey(eye: Vector3) -> void:
 ## The weather as the mix sees it: rain 0..1, storm 0..1, wave scale.
 func weather_now() -> Dictionary:
 	if _weather == null:
-		return {"rain": 0.0, "storm": 0.0, "waves": 1.0}
+		return {"rain": 0.0, "storm": 0.0, "waves": 1.0, "wind": 0.25, "wet": 0.0}
 	var storm := 0.0
 	if int(_weather.get("state")) == 3: # Weather.State.STORM
 		storm = float(_weather.get("blend"))
-	return {"rain": float(_weather.get("rain_level")), "storm": storm, "waves": float(_weather.get("wave_scale"))}
+	var rain := float(_weather.get("rain_level"))
+	# The wind 0..1: a breeze always, more in rain, a storm, a Santa Ana.
+	var wind := clampf(0.25 + rain * 0.3 + storm * 0.6 + float(_weather.get("santa_ana_weight")) * 0.7, 0.0, 1.0)
+	return {"rain": rain, "storm": storm, "waves": float(_weather.get("wave_scale")),
+		"wind": wind, "wet": float(_weather.get("wetness"))}
 
 
 ## Where a world position is, as far as sound goes. Pure MacroMap maths plus the freeway's cell
@@ -555,6 +572,9 @@ func scene_at(w: Vector3, macro: MacroMap, plan: CityPlan = null) -> Dictionary:
 	# Emitters: how loud and which way. Levels fall off smoothly with distance to the source.
 	s["surf"] = smoothstep(surf_reach, 25.0, water_near + maxf(height, 0.0) * 0.5) if water_at != Vector2.INF else 0.0
 	s["surf_at"] = Vector3(water_at.x, 0.0, water_at.y) if water_at != Vector2.INF else Vector3.INF
+	# The open sea from far off: the same waterline, heard kilometres inland and from the hills.
+	s["sea_far"] = smoothstep(sea_far_reach.x, sea_far_reach.y, water_near + maxf(height, 0.0) * 0.2) if water_at != Vector2.INF else 0.0
+	s["sea_far_at"] = s.surf_at
 	var fw := _freeway_near(macro, here, w.y)
 	s["freeway"] = smoothstep(freeway_reach, 22.0, fw[0])
 	s["freeway_at"] = fw[1]
@@ -914,6 +934,16 @@ func levels_for(s: Dictionary, hour: float, night: float, wx: Dictionary) -> Dic
 	out["fountain"] = float(s.get("fountain", 0.0)) * ground
 	var kids := smoothstep(7.5, 9.0, hour) * (1.0 - smoothstep(18.5, 20.0, hour)) * (1.0 - rain * 0.9)
 	out["playground"] = float(s.get("playground", 0.0)) * kids * ground
+	# The street at eye level: leaves rustle where there are trees, louder as the wind gets up;
+	# the sea far off carries most at night, when the city is quiet, and gives way to the surf.
+	out["leaves"] = 0.0
+	out["sea_far"] = 0.0
+	if StreetSounds.enabled:
+		var gust := clampf(float(wx.get("wind", 0.25)), 0.0, 1.0)
+		var trees := clampf(green * 1.15 + z[MacroMap.Zone.HILLS] * 0.2, 0.0, 1.0)
+		out["leaves"] = trees * lerpf(0.35, 1.0, gust) * (1.0 - rain * 0.5) * (1.0 - shelter * 0.8) * ground
+		var calm := lerpf(0.65, 1.0, night) * (1.0 - urban * 0.45)
+		out["sea_far"] = float(s.get("sea_far", 0.0)) * (1.0 - float(s.surf) * 0.7) * calm * clampf(0.8 + 0.1 * float(wx.get("waves", 1.0)), 0.8, 1.3) * (1.0 - float(s.in_car) * 0.6)
 	return out
 
 
@@ -991,6 +1021,11 @@ func fire(kind: String, eye: Vector3, w: Vector3) -> void:
 		var real := Birds.gull_at(eye, range_m.y)
 		if real != Vector3.INF:
 			at = real
+	# A bark comes from a real dog in earshot (a yard dog, a walker's) when there is one.
+	if kind == "dog" and StreetSounds.enabled:
+		var real := StreetSounds.dog_at(get_tree(), eye, range_m.y)
+		if real != Vector3.INF:
+			at = real
 	var v := _free_shot()
 	v.stop()
 	v.stream = got[0]
@@ -1020,7 +1055,7 @@ func _place_emitters(eye: Vector3) -> void:
 	if scene.is_empty():
 		return
 	var w := WorldState.to_world(eye)
-	for layer: String in ["freeway", "surf", "airport", "port", "river", "fountain", "playground"]:
+	for layer: String in ["freeway", "surf", "airport", "port", "river", "fountain", "playground", "sea_far"]:
 		var p: AudioStreamPlayer3D = _beds[layer]
 		if not p.playing:
 			continue
@@ -1081,13 +1116,15 @@ func _assign_traffic(eye: Vector3) -> void:
 		var car: Node3D = near[i][1] if i < near.size() else null
 		_car_of[i] = car
 		var v := _cars[i]
-		# A bus or a truck idles on its diesel; a car rolls on its tyres.
+		# A bus or a truck idles on its diesel; a car rolls on its tyres, which hiss on a wet road.
 		var big := car != null and not _diesel.is_empty() and BigVehicles.is_big(int(car.get("body_type")))
-		if big != bool(_car_kind[i]) and (big or v.stream != null):
-			_car_kind[i] = big
+		var wet := not big and not _wet.is_empty() and _weather != null and float(_weather.get("wetness")) > 0.45
+		var kind := 1 if big else (2 if wet else 0)
+		if kind != int(_car_kind[i]) and (kind != 0 or v.stream != null):
+			_car_kind[i] = kind
 			v.stop()
 			var roll: Array = Sfx.take("car_roll")
-			v.stream = _diesel[0] if big else (roll[0] if not roll.is_empty() else null)
+			v.stream = _diesel[0] if kind == 1 else (_wet[0] if kind == 2 else (roll[0] if not roll.is_empty() else null))
 		if car == null or v.stream == null:
 			if v.playing:
 				v.stop()
@@ -1151,7 +1188,11 @@ func _follow_traffic(eye: Vector3, _dt: float) -> void:
 		v.pitch_scale = clampf((0.75 + speed / 40.0) * doppler, 0.5, 2.0)
 		# A stopped car is an idle murmur; a fast one is tyre roar.
 		v.volume_db = _car_trim + ambience_db + car_roll_db + clampf((speed - 20.0) * 0.6, -12.0, 0.0)
-		if _car_kind[i]:
+		if int(_car_kind[i]) == 2:
+			# The wet hiss: nothing at a crawl, a spray of it at speed.
+			v.volume_db = float(_wet[1]) + ambience_db + car_roll_db + clampf((speed - 16.0) * 0.7, -22.0, 2.0)
+			v.pitch_scale = clampf((0.85 + speed / 60.0) * doppler, 0.7, 1.5)
+		if int(_car_kind[i]) == 1:
 			# The diesel: loud at idle, revving up a little as it pulls away; no tyre Doppler on top.
 			v.volume_db = float(_diesel[1]) + ambience_db + car_roll_db + 2.0 - clampf(speed * 0.15, 0.0, 3.0)
 			v.pitch_scale = clampf((0.95 + speed / 30.0) * doppler, 0.8, 1.6)

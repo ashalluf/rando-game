@@ -278,16 +278,21 @@ func _turn(road: Array) -> void:
 		return
 	var last_yaw := car.global_rotation.y
 	var worst := 0.0
-	var worst_at := ""
 	var turned := false
 	var steer_max := 0.0
 	var roll_max := 0.0
 	var arc_seen := false
+	var life: Dictionary = car.traffic
+	var worst_at := "-"
 	for i in 1800:
 		await _tree.physics_frame
 		if not is_instance_valid(car) or not car.is_traffic():
 			break
 		var t: Dictionary = car.traffic
+		# The upkeep can pool the car and hand it out again somewhere else (CI 397, after an
+		# earlier check's traffic in one shard): that is a new car, not a turn.
+		if not is_same(t, life):
+			break
 		if int(t.axis) == axis and int(t.get("turn", 0)) != nd and t.get("node", Vector2i.ZERO) == node:
 			t.turn = nd
 		if TrafficSignals.is_signal(_plan, node.x, node.y) and i % 30 == 0:
@@ -295,10 +300,10 @@ func _turn(road: Array) -> void:
 		if t.has("tm_arc"):
 			arc_seen = true
 		var y := car.global_rotation.y
-		var jump := absf(wrapf(y - last_yaw, -PI, PI))
-		if jump > worst:
-			worst = jump
-			worst_at = "tick %d axis %s turn %s arc %s cp %s lc %s to_c %.1f v %.2f" % [i, t.get("axis"), t.get("turn"), t.has("tm_arc"), t.has("cp"), t.has("lc_key"), float(t.get("to_c", 0.0)), float(t.get("v", 0.0))]
+		var dy := absf(wrapf(y - last_yaw, -PI, PI))
+		if dy > worst:
+			worst = dy
+			worst_at = "tick %d axis %s along %.1f v %.2f turn %s arc %s cp %s placed %s" % [i, t.get("axis"), float(t.get("along", 0.0)), float(t.get("v", 0.0)), t.get("turn"), t.has("tm_arc"), t.get("cp"), t.get("placed")]
 		last_yaw = y
 		for rig: Array in car._wheel_rigs:
 			if rig[4]:

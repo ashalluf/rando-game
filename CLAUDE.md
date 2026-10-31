@@ -332,6 +332,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   doors); `ParkBall` plays `ball_dribble` on each floor hit. Clips are cut by
   `tools/city_audio.py` (sources and spans in docs/ASSETS.md); `tools/audio_probe.tscn` prints
   the space, reverb, echo taps, beds and footing at named places. Checks: `tests/audio_checks.gd`.
+- The street at eye level (2026-10-31, docs/HANDOFF.md "The street at eye level"): `StreetSounds`
+  (`scripts/util/street_sounds.gd`, Ambience's child) plays the near layer from real events: the
+  nearest walkers' footsteps by surface and speed (some heels), a shop bell as a StreetErrands
+  shopper goes in / out, ErrandCar's door opening and slamming, a bus's / truck's air brakes as it
+  stands, the player's tyres on gravel or a wet road (`tyre_kind()`); Ambience gains `leaves` and
+  `sea_far` and a wet tyre hiss on the traffic voices. Pure: `step_interval()`, `step_db()`,
+  `tyre_kind()`, `tyre_db()`, `brake_step()`. Clips: `tools/street_audio.py`. `AMBIENT_SOUND_2=0`
+  is the A/B; checks `tests/ambient_sound_2_checks.gd`.
 - Engine audio (2026-10-06, docs/HANDOFF.md "Engine audio"): `EngineAudio`
   (`scripts/vehicles/engine_audio.gd`, one node under the root, made by the first Vehicle like
   CarLights) voices the `voices` (4, web 2) running cars nearest the camera within `reach` plus the
@@ -374,6 +382,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   zenith and horizon keep most of their day colour (`golden_blue_top`, `golden_pale_horizon`)
   and the violet earth's-shadow band is off (`twilight_band_gain`) - at 17:36 the sky used to be
   a full sunset already, and the ambient, which is the sky, turned every shadow lavender.
+- The sky's radiance after a jump (2026-10-31, docs/HANDOFF.md "The hero in the rain on the web"):
+  the city's Sky is INCREMENTAL, so after a jump (load, then the forced weather; the pause menu's
+  hour or weather) every mirror showed the OLD sky for dozens of frames - the wet hero read blue,
+  and in a browser at ~20 s a frame that lasted minutes. `SkySettle`
+  (`scripts/world/sky_settle.gd`, DayNight's child) holds the sky at QUALITY for `hold_frames` on a
+  jump, then puts the mode back. `SKY_SETTLE=0` (`?sky_settle=0`) is the A/B; checks
+  `tests/web_hero_rain_checks.gd`. A web still judged after a handful of frames shows stale mirrors.
 - Sky (2026-10-05, "an AAA sky"; HANDOFF 9ci): `sky.gdshader` plus `SkyExtras`
   (`scripts/world/sky_extras.gd`, made by DayNight as its child). **The cumulus are a volume on
   Forward+** (`cloud_volume` 1 once SkyExtras hands over the noise; `cloud_detail` on): a march
@@ -885,6 +900,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   layer it hid (all CanvasLayers 0..127; < 0 is part of the picture). Stills:
   `tools/glshot/photo_shot.gd` (`ROOM=1` the test room for a Forward+ DOF shot); checks:
   `tests/photo_mode_checks.gd`.
+- Verify pack (2026-10-31, docs/VERIFY.md, docs/HANDOFF.md "The verify pack"): `VerifyPack`
+  (`scripts/ui/verify_pack.gd`, beside the pause menu, its VERIFY PACK button; `-- --verify`)
+  shoots the ten refcams on the machine the game runs on - the owner's Mac, the only true
+  Forward+ check - at their hours and weather, holds each `hold_seconds`, saves PNGs, a sheet, a
+  report and a `send` folder of JPGs to Pictures/Rando Game/verify_<build>/, then puts the
+  player, camera, clock, weather, graphics level and HUD back. Its `CAMERAS` copy
+  `tools/refcams/cameras.json` (change both; checked). `BuildInfo` is the build number the
+  workflow stamps before export. `VERIFY_PACK=0` the A/B; checks `tests/mac_verify_pack_checks.gd`.
 - Input actions live in `project.godot` under `[input]`. Current actions: `move_forward/back/left/right`,
   `jump`, `boost` (Shift / gamepad B), `look_left/right/up/down` (right stick), `fire`, `alt_fire`,
   `next_weapon`, `prev_weapon` (mouse wheel only), `weapon_1..3`, `weapon_wheel` (Tab / gamepad
@@ -1392,6 +1415,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   all include: anything else drawing part of a body must include it too. `_crash_contact()`
   casts three rays. `CRASH_DEFORM=0` the A/B; stills `DAMAGE=front50|side50|roll|scrape...` on
   car_shot.gd; checks `tests/crash_deform_checks.gd`.
+- Crashes at speed (2026-10-31, docs/HANDOFF.md "Crashes that break cars"): `CrashBreakup`
+  (`scripts/vehicles/crash_breakup.gd`, CarDamage's child, from `CrashDeform.crash()`): glass facing
+  a hard hit bursts out with the car's speed (`glass()` replaces CarDamage's old crash-glass rule);
+  the bonnet's catch lets go (region traced off the mesh, `_fit_bonnet()`; paint onto the two-sided
+  `car_paint_open.gdshader`, primer underside; an `EngineBay` mesh) and springs and flaps in the
+  wind; a hanging bumper or bare hub throws sparks and grinds where it drags; a 100 km/h corner hit
+  tears a wheel off (a `TornWheel` RigidBody, PhysicsBudget debris); airbags in the cabin trace
+  (`airbag` uniform, car_cabin.gdshaderinc); a T-bone TRIPS the car - centre of mass to
+  `roll_com_height`, low angular damping, a roll impulse, `Vehicle.tumble_until` holds `_fly` off
+  (boost still flies) - put back once it rests; `CrashDebris` (one MultiMesh ring) pieces that stay.
+  Panels turned well open cut triangles they stretch (`cr_open_w()` / `cr_torn()` in
+  car_crumple.gdshaderinc). `CRASH_BREAKUP=0` is the A/B; stills `DAMAGE=front50|side70|
+  corner70,wheeloff,drag|front60,airbag` on car_shot.gd; checks `tests/car_crash_3_checks.gd`.
 - What a blast leaves behind (2026-10-05, fleet task "explosions", docs/HANDOFF.md, section at
   the end): `Explosion.blast()` ends with ONE call, `BlastAftermath.blast()`
   (`scripts/weapons/blast_aftermath.gd`): a CRATER where it hit the ground (generated albedo +
@@ -1439,6 +1475,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   fireball) and toss `car_lift_gain` higher. Caps: `max_heavy` in `heavy_window`, `max_columns`,
   `max_debris`, `max_glass_panes`. `EXPLOSIONS_2=0` is the A/B; strips `FX_TIMES=` / `FX_CAR=1`
   on `tools/glshot/fx_shot.gd`; checks `tests/explosions_2_checks.gd`.
+- The blast at arm's length, third pass (2026-10-31, fleet wave 4 "explosions-3", docs/HANDOFF.md
+  "The blast at arm's length"): `Blast3` (`scripts/weapons/blast_3.gd`, hooks in WeaponFX.explosion,
+  BlastFX, BlastAftermath, BlastDebris) - the fireball is a ray-marched VOLUME (`BlastVolume`,
+  `shaders/blast_volume.gdshader`: a box drawn by its back faces with no depth test, a shape field
+  carved by a 48^3 tiling noise, black-body light raw + lit soot through cs_out(), stopped at the
+  scene depth; `max_volumes` 4, past that the cards); `BlastBits` (`scripts/weapons/blast_bits.gd`,
+  one pool under the scene root, two MultiMeshes) - chips and sparks with one ray a tick that bounce,
+  skid and rest; burning debris settles flat; blast_smoke lit by `fire_list()` (the burning fires)
+  plus a night city glow and a sun forward-scatter; `BlastHaze` (`shaders/blast_haze.gdshader`,
+  render_priority MIN, bends only what is behind it); crater maps with soot fingers, a scoured halo
+  and pit embers (an additive quad on Compatibility: a StandardMaterial emission map there lit the
+  whole cut-out white). The web keeps the cards and particles. `EXPLOSIONS_3=0` is the A/B; strips
+  `tools/explosions_2/blast_room_shot.gd` (FULL, CAM_X, LOOK_Y; `BLAST3_DEBUG=1` the volume's
+  opacity); checks `tests/explosions_3_checks.gd`.
 - Street props break by KIND (2026-10-06, docs/HANDOFF.md "Street props that break like GTA"):
   `PropBreak` (`scripts/world/prop_break.gd`) takes `damage_prop()` / `break_prop()`: a hydrant
   leaves a `HydrantGeyser` (13 m column, wet patch, lifts the player) and a flange; a shelter loses
@@ -4247,6 +4297,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   screen (`PierPark.warm()`). Stills: `PIER_COASTER_S=<s>` (or `PIER_COASTER=<seconds>`) holds
   the train; EYEs in HANDOFF 9ca. Probe: `tools/pier/compile.gd` (compiles, builds near and far,
   prints the cost, runs the layout checks; seconds, headless).
+- The pier at night (wave 4, refcam pier_night, docs/HANDOFF.md "The pier at night from the
+  beach"): `PierNight` (`scripts/world/pier_night.gd`, one hook in `PierPark.build()`, one in
+  `PierCoaster._track_mesh()`): the wheel's sub-pixel LED strips drawn analytically in its plane
+  past a couple of pixels plus a glow of its colour (`shaders/pier_wheel_glow.gdshader`; the
+  patterns are `shaders/pier_led.gdshaderinc`, shared with pier_park.gdshader - change them
+  there), NightAtmos halos on the lamp globes, string bulbs, stand fronts, carousel crown and new
+  coaster chaser bulbs (one MultiMesh, thinned on the far copy). sky.gdshader's painted cumulus
+  take `painted_night_gain` / `painted_city_light` at night (Compatibility and below MEDIUM only).
+  `PIER_NIGHT=0` / `NIGHT_CLOUDS=0` are the A/B; the pier alone in a minute:
+  `tools/pier_night/pier_shot.tscn` (`EYE`, `T`, `FAR=1`, either renderer); checks
+  `tests/rc_pier_night_checks.gd`.
 - Downtown skyline (owner, 2026-09-24: "a 1:1 match of DTLA skyline ... It needs more
   buildings"): `LandmarkDowntown` (`scripts/world/landmark_downtown.gd`) builds nineteen `dt_*`
   landmarks, listed in ONE contiguous block at the end of `Landmarks.all()` (other branches add
@@ -4842,6 +4903,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   vertical corners (`Building._bevel_arrays()`, `FacadeVariety.bevel()`; collision stays the box).
   `FACADES_GTA=0` is the A/B; checks `tests/facades_gta_checks.gd`; look with
   `far_building_shot.gd CAM_POS= CAM_LOOK= FOV=`.
+- The skyline's glass by day (2026-10-31, docs/HANDOFF.md "The skyline's glass by day"):
+  `shaders/skyline_glass.gdshaderinc` (building.gdshader, building_lod.gdshader, tower_crown.gdshader)
+  makes the glass mirror THIS hour's sky (the hue of DayNight's own zenith and horizon at the old
+  constants' brightness - it was a fixed noon gradient at every hour), a cloud deck, up to eight
+  real towers round the camera traced as boxes (`skyline_towers_a/b`, two mat4 globals in TRUE
+  world) and the sun's glint; curtain walls mirror 42 % head on (was 26 %), and their frame lines
+  are box filtered past a pixel (`sg_line()`). `SkylineGlass` (`scripts/world/skyline_glass.gd`,
+  DayNight's child) pushes the globals four times a second on the REAL clock; their project.godot
+  defaults are the old sky with nothing traced. `SKYLINE_GLASS=0` is the A/B; checks
+  `tests/skyline_glass_day_checks.gd`. The render server's global getter is editor-only: read
+  `SkylineGlass.last`.
 - Storefronts and curtain walls (owner, 2026-09-27: "next level ... AAA studio quality"): the
   kit's code-built half, `ShopfrontKit` (`scripts/world/shopfront_kit.gd`), meshes built in
   GDScript in the kit's frame and conventions, wearing `PropFactory.kit_material()` and added
@@ -4926,6 +4998,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   frame cost is ALU on storefront glass pixels only. Judge with `building_shot.gd` (`NIGHT=1`,
   `BENCH=n`) and `still_shot.gd` `EYE=`/`SHOTS=` from the pavement; `tools/glshot/shop_probe.gd`
   (headless) lists the storefronts near a point with an EYE for each face.
+- Rooms behind the windows, second pass (2026-10-31, docs/HANDOFF.md "Rooms behind the windows,
+  second pass"): `shaders/window_interiors.gdshaderinc` (integer rolls, salts 100-112, in BOTH
+  building shaders; `WindowInteriors`, `scripts/world/window_interiors.gd`, the GDScript copy)
+  makes a building homes or offices (`wi_home()` by window style) and rolls each window's cover,
+  TV, open sash, passer-by and desk worker; `shaders/window_rooms.gdshaderinc` (building.gdshader
+  only, after room_interior()) traces `home_room()` and `office_people()`; the far box takes a
+  home's tone / TV / cover average from the same rolls. house_glass.gdshader gains drapes, roller
+  blinds and a passer-by. `WINDOW_INTERIORS=0` is the A/B (`window_interiors` global);
+  `building_shot.gd HOUR= WI=0 SETTLE=`; checks `tests/window_interiors_checks.gd`.
 - Corner stores you walk into (2026-10-05, fleet "walk-in-store", HANDOFF "The corner store"):
   `CornerStore` (`scripts/world/corner_store.gd`, pure: a hash of seed + block picks MIDTOWN /
   SUBURBS blocks and a corner; the corner lot must be level, off the freeway, on open streets and
@@ -5890,6 +5971,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/glshot/hero_moves_shot.gd` (several stills a load: a clip frozen or a staged move -
   fly, fall, hit_*, draw, land_<speed>, roll, idle_*; `STEP=1` for the foot IK); checks
   `tests/hero_moves_checks.gd`.
+- Hero locomotion (wave 4, docs/HANDOFF.md "The hero's locomotion"): `HeroLoco`
+  (`scripts/player/hero_loco.gd`, FIRST in his skeleton's stack) samples the walk / run / sprint
+  itself and lays them over the idle by a weight, phase-synced by the left toe's touchdowns
+  (`GAITS`, sync markers from `tools/hero_locomotion/gait_probe.gd`; rerun after a clip changes),
+  so nothing is a clip swap. `Avatar._drive_loco()`: the start (fade in, the chest driven into
+  the acceleration on a spring), the stop (the stride runs on to a foot down, then fades out and
+  settles back), the turn on the spot (feet planted to `turn_step_angle`, then a step round), the
+  strafe / backpedal while the body faces the aim (hips toward the travel, chest held, the gait
+  backward past ~110 degrees), the lean into a running turn (`_roll`, about the feet) and the
+  land-and-run (no stop clip: a dip on HeroMotion's hips_drop). The UAL free files have no
+  start, stop, turn or strafe clips: these are procedural. `HERO_LOCO=0` is the A/B; strips
+  `hero_moves_shot.gd STRIP=n` (start, stop, accel, move_<v>, strafe_l / _r, back, sprint_turn,
+  land_run); checks `tests/hero_locomotion_2_checks.gd`.
 - The hero close up (wave 3, docs/HANDOFF.md "The hero close up"): no face bones, so `HeroFace`
   (`scripts/player/hero_face.gd`, owned by HeroLook, ticked on skeleton_updated) drives
   `shaders/hero_eye.gdshader` / `hero_lash.gdshader`: saccades, blinks (the upper lid PAINTED onto
@@ -5989,6 +6083,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   WorldState cannot. The loading screen draws its shaders `shader_batch` (16) at a time and
   gives the bar a frame only every `bar_interval_ms` of work: each frame renders the whole city
   behind the screen (3.6 s on llvmpipe).
+- The first minute (2026-10-31, docs/HANDOFF.md "The first minute"): what play would build in its
+  first seconds is built behind the loading shade - `FirstFill` (`scripts/util/first_fill.gd`) the
+  traffic, the preload the streamer's OWN window (a wider FULL ring was rebuilt as LOD for half a
+  minute; `LOAD_WIDE_PRELOAD=1` the old), WarmRehearsal's wave-3 stages (`WARM_WAVE3=0`). A kit's
+  `warm()` may return meshes: `LoadingScreen.effect_list()` draws both (never type that loop).
+  Measure with `LOAD_FIRST_MINUTE=<s>` (FIRSTMIN lines: missing chunks, swaps, cars) and
+  `LOAD_SCREEN_HEADLESS=1` on `tools/load_time/load_time.sh headless`; the desktop launch is
+  OOM-killed on a 15 GB box now, and first-use probes run on opengl3. `FIRST_FILL=0` the A/B.
 - Performance: `Quality` node in the city scene (`scripts/util/quality.gd`) starts desktop at
   **HIGH** (owner, 2026-09-21: "I need it PS5 level graphics" - global illumination is the single
   biggest difference between this and a modern-looking game) and steps down to MEDIUM, LOW and
@@ -6475,6 +6577,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   FreewayKit's pools); and a display-number shader never wraps a texture in `cs_in()` before
   `disp()` (decoded twice on Compatibility). `tools/fwd_review/color_matrix.gd` prints the whole
   colour-space table on either renderer in seconds; `tests/fwd_review_e_checks.gd`.
+- And two more (fwd-review-f, 2026-10-31, HANDOFF "Forward+ review f"): **lavapipe Forward+
+  converges SDFGI over ~90 frames** - a still taken 14-20 frames after a load or an hour change is
+  under- or over-lit by the GI it has not yet settled (grade_probe's 18:00 read p5 31, 46 or 41 by
+  run order); compare like with like, `FRAMES=90` for a lighting verdict. And **a Forward+ light
+  lights the volumetric fog too** (`light_volumetric_fog_energy`, default 1), which rain thickens
+  many times over: anything bright and brief (lightning) gets a low value or veils the frame.
+  A small scene on both renderers: `tools/fwd_review_f/shoot.sh` (`override.cfg` with
+  `[threading] worker_pool/max_threads=1`, never committed, or lavapipe OOMs at ~13.5 GB).
 - Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building),
   `tools/glshot/block_shot.tscn` (a few FULL city blocks alone, no far city: a block's ground and
   furniture) and `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real
