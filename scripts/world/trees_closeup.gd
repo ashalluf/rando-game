@@ -48,6 +48,7 @@ static func mark(mat: ShaderMaterial) -> void:
 		mat.set_shader_parameter("closeup", 1.0 if enabled else 0.0)
 		if not _marked.has(mat):
 			_marked.append(mat)
+		TreeLight.mark(mat)
 
 
 ## The pass on or off for every tree material made so far, bark included (a still's A/B in one
@@ -77,6 +78,7 @@ static func dress(mesh: Mesh) -> void:
 				mark(sm)
 				sm.set_shader_parameter("crown_center", centre)
 				sm.set_shader_parameter("crown_radius", radius)
+				TreeLight.dress_material(sm, box)
 		elif mat is StandardMaterial3D and enabled:
 			_bark(mat as StandardMaterial3D)
 
