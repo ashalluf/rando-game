@@ -83,7 +83,10 @@ func _initialize() -> void:
 			await RenderingServer.frame_post_draw
 			var img := root.get_texture().get_image()
 			img.save_png("%s_%d.png" % [out, k])
-			print("STRIP %d t=%.3f -> %s_%d.png" % [k, t, out, k])
+			print("STRIP %d t=%.3f -> %s_%d.png | GEO draws %d objects %d tris %d" % [k, t, out, k,
+				Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
+				Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME),
+				Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)])
 			k += 1
 	Input.action_release("fire")
 	Input.action_release("alt_fire")
