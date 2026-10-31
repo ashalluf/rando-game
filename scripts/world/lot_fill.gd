@@ -775,12 +775,11 @@ static func _lamp(ch: CityChunk, at: Vector3) -> void:
 	if StreetLamps.enabled:
 		var lp := StreetLamps.place(ch.plan, at, Vector2.ZERO, StreetLamps.car_park_type(Vector2(at.x, at.z)))
 		var head: Vector3 = lp.lights[0]
-		var size: float = lp.pool * 1.15
-		var lpool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(size, 1.0, size)), Vector3(head.x, at.y + 0.05, head.z))
+		var lpool := NightLamps.pool_instance(lp, head, at, 0.05, 1.15)
 		var box: Vector3 = lp.box
 		ch._add_prop("lamp", at, Color(0.28, 0.29, 0.32), [
 			[lp.key, lp.mesh, lp.xform, lp.paint, lp.custom],
-			["lamp_pool", PropFactory.light_pool(), lpool, StreetLamps.pool_color(lp.type, Vector2(at.x, at.z))],
+			["lamp_pool", PropFactory.light_pool(), lpool[0], lpool[1], lpool[2]],
 		], [[box, at + Vector3(0.0, box.y * 0.5, 0.0), 0.0]])
 		return
 	var pool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(CityChunk.LAMP_POOL_SIZE * 1.3, 1.0, CityChunk.LAMP_POOL_SIZE * 1.3)), at + Vector3(0.0, 0.05, 0.0))

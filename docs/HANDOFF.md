@@ -23145,3 +23145,56 @@ grade, so the glass changes it little - the broader sun fan does not move it eit
 looks NE, the sunward faces mirror sky 45-60 degrees off the sun). Forward+: a downtown block under
 lavapipe is OOM-killed even at `BLOCKS=home` (15 GB box); a lone curtain-wall tower
 (`building_shot.gd` under vulkan, FINISH=3 STYLE=2) was rendered A/B instead (see below / stills).
+
+## 9jc. The street lamps at eye level (fleet wave 4, branch `wt/night-lamps-review`)
+
+The task: the street lamps at night from the pavement - glare and halo, the pools' shape and
+colour (sodium vs LED per patch), shadows under cars and people from the nearest lamps, the lit
+facades - judged on a small Forward+ scene under lavapipe (the Mac's renderer), holding the night
+refcams. The tool: `tools/night_lamps/lamp_street.tscn` (a two-lane street, a row of real
+Buildings, the real lamp kit placed and lit exactly as CityChunk does, a parked car, people, the
+city's own WorldEnvironment / Sun / DayNight; ~6 min a run on lavapipe, ~2 min on opengl3; `SHOTS=`,
+`TYPE=`, `LED=0|1`, `WET=`, `HAZE=`; prints LAMPS and GEO lines).
+
+What Forward+ showed (stills on `shots/night-lamps-review`):
+- **The lamps lit nothing.** A cobra's OmniLight 8.6 m up put a quarter of a 3.5 m post's light on
+  the road under it and nothing two lanes out; the whole street between lamps was black and the
+  additive pool dot was all there was. `NightLamps.tune_light()` (one line in
+  `CityChunk._add_street_lamp()`): reach at least `REACH_PER_HEIGHT` 2.4 x the head's height, a
+  steeper `FALLOFF` 1.5 (a pool under each lamp, dimmer road between - never one even wash), and the
+  light's share of DayNight's level (meta `lamp_gain`, which DayNight already reads) = `LIGHT_GAIN`
+  x h^attenuation / 3.5^1.4, so every type lands the same light under its head. Facades by the
+  lamps now take the light too.
+- **The pool was a soft dot.** `NightLamps.pool_instance()` lays it in the lamp's frame (x toward
+  the street) as a point source's illuminance, (1 + d^2/h^2)^-1.5, stretched 1.55x along the
+  street for the arm heads (cobra, mast) and cut behind their pole (house-side shield), round for
+  the post-tops and globes. `light_pool.gdshader` draws that when INSTANCE_CUSTOM.a is 1 (every
+  other pool keeps the old dot). **On Forward+ the broad pool, added in linear HDR, was a flat beige
+  carpet** (fwd-review-e's trap again): the street lamps' pools add in display numbers there, and
+  only `street_forward` 0.4 of them (the real light already lights the road).
+- **Sodium was a warm-white bulb, LED a cold blue the night grade turned grey-green.** The lights
+  are `NightLamps.SODIUM` (1, 0.72, 0.42) and `LED` (1, 0.95, 0.88, LA's 3000-4000 K heads); the
+  pools' ratios `pool_ratio()`. NightCity's roll (which patch is which) is untouched.
+- **No shadows.** `LampShadows` (`scripts/world/lamp_shadows.gd`, one node under the root made by
+  the first street lamp; Forward+ desktop only; `budget` 2 / 0 / 0 / 0 by Quality): the two lit
+  lamps nearest the camera within `reach` 34 m cast, faded in and out through `shadow_opacity`
+  (a hand-over never pops), dual-paraboloid with the seam turned horizontal (a third of the cube's
+  cost), soft (`shadow_blur`). The lamps' own models would cast from inside their own light (the
+  twin globe's sits in its post): the chunk's lamp batches (`Batch_lamp_*`, `Batch_bw_lamp` and the
+  twins) move to render layer 18 (`LAMP_LAYER`) the first time one of its lights is picked, and the
+  shadowed lights' `shadow_caster_mask` leaves it out. Street lamps carry the group
+  `street_lamp_light` (CityChunk's and Broadway's lanterns).
+- **The wet road's lamp reflections were pencil-thin rods** (night_wet.gdshader, a few px wide end
+  to end). `NightLamps.WET` sets the shader's new uniforms: `flare` (wider toward the eye),
+  `sparkle` (broken into glints off ripple facets in true-world metres), `near_fall`.
+
+Frame cost (lavapipe Forward+, the test street, wet 21:30, three views): no shadows 573k / 552k /
+332k triangles, 347 / 351 / 316 draws; two dual-paraboloid lamp shadows 691k / 648k / 392k, 431 /
+390 / 405 (cube shadows were 866k / 788k / 408k, 568 / 468 / 479). Compatibility and below HIGH:
+no change (same draws, the pool is the same batch).
+
+A/B: `NIGHT_LAMPS=0` (everything here back as it was, LampShadows too), `LAMP_SHADOWS=0` (the
+shadows only). Checks: `tests/night_lamps_checks.gd` (the pool's frame and profile, the old dot
+with the switch off, the lights' normalisation, the wet uniforms, the budget, the pure pick and
+fade, a staged run of the node: two nearest lit lamps cast, a hand-over fades, a zero budget
+stops all; the layer move; a FULL downtown chunk's lamps in the group).

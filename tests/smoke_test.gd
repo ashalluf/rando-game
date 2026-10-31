@@ -2735,6 +2735,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The skyline's glass by day (tests/skyline_glass_day_checks.gd, SkylineGlass): the tower boxes,
 	# the pick, the shaders sharing the include behind its switch, the node feeding the globals.
 	load("res://tests/skyline_glass_day_checks.gd").new().run(self, city)
+	# The street lamps at eye level (tests/night_lamps_checks.gd, NightLamps, LampShadows).
+	await load("res://tests/night_lamps_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

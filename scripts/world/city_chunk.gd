@@ -4175,8 +4175,10 @@ func _add_lamp(at: Vector3, facing: Vector2 = Vector2.ZERO) -> void:
 	light.distance_fade_begin = 45.0
 	light.distance_fade_length = 15.0
 	light.add_to_group("lamp_light")
+	light.add_to_group(LampShadows.GROUP)
 	add_child(light)
 	PropBreak.own_light(self, light)
+	LampShadows.ensure(self)
 
 
 ## A lamp's halos and shaft in the night air (NightAtmos): instances of its own prop record, so
@@ -4198,11 +4200,12 @@ func _add_street_lamp(at: Vector3, facing: Vector2) -> void:
 		head += l
 	head /= float(lp.lights.size())
 	var size: float = lp.pool
-	var pool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(size, 1.0, size)), Vector3(head.x, at.y + 0.09, head.z))
+	# The pool as the head throws it (NightLamps; NIGHT_LAMPS=0 the old dot).
+	var pool := NightLamps.pool_instance(lp, head, at)
 	var box: Vector3 = lp.box
 	_add_prop("lamp", at, Color(0.28, 0.29, 0.32), [
 		[lp.key, lp.mesh, lp.xform, lp.paint, lp.custom],
-		["lamp_pool", PropFactory.light_pool(), pool, StreetLamps.pool_color(lp.type, Vector2(at.x, at.z))],
+		["lamp_pool", PropFactory.light_pool(), pool[0], pool[1], pool[2]],
 	] + _night_atmos(lp.lights, head, at, size), [[box, at + Vector3(0.0, box.y * 0.5, 0.0), 0.0]])
 	_batch.set_no_shadow("lamp_pool")
 	NightAtmos.finish_batch(_batch)
@@ -4215,6 +4218,7 @@ func _add_street_lamp(at: Vector3, facing: Vector2) -> void:
 	# 3.5^-1.4), but never below 1.1 - eased all the way, a cobra's light reached two lanes at
 	# full strength and blew the road out.
 	light.omni_attenuation = maxf(1.4 * log(LAMP_LIGHT_HEIGHT) / log(maxf(head.y - at.y - 0.25, LAMP_LIGHT_HEIGHT)), 1.1)
+	NightLamps.tune_light(light, head.y - at.y - 0.25)
 	light.light_color = NightCity.lamp_light(Vector2(at.x, at.z))
 	light.light_energy = 0.0
 	light.shadow_enabled = false
@@ -4222,8 +4226,10 @@ func _add_street_lamp(at: Vector3, facing: Vector2) -> void:
 	light.distance_fade_begin = 45.0
 	light.distance_fade_length = 15.0
 	light.add_to_group("lamp_light")
+	light.add_to_group(LampShadows.GROUP)
 	add_child(light)
 	PropBreak.own_light(self, light)
+	LampShadows.ensure(self)
 
 
 ## `yaw` is the direction the bench faces (forward is -Z).
