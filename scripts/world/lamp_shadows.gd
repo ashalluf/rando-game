@@ -42,6 +42,8 @@ const LAMP_PREFIXES := ["Batch_lamp", "BatchShadow_lamp", "Batch_bw_lamp", "Batc
 @export var shadow_blur: float = 1.6
 @export var shadow_bias: float = 0.06
 @export var shadow_normal_bias: float = 1.2
+## Dual paraboloid shadows (false: cube, six passes a lamp).
+@export var dual_paraboloid: bool = true
 
 static var _inst_id: int = 0
 ## Lights casting now (the checks and the stills read it).
@@ -170,6 +172,13 @@ func _dress(l: OmniLight3D) -> void:
 		l.shadow_bias = shadow_bias
 		l.shadow_normal_bias = shadow_normal_bias
 		l.distance_fade_shadow = reach
+		# Two paraboloid passes instead of six cube faces (a third of the cost: most of it is the
+		# casters each pass draws), the seam turned horizontal through the head - the light's own
+		# z axis up - so the half that matters, the street below, is one paraboloid. An omni's
+		# light does not change with its turn.
+		if dual_paraboloid:
+			l.omni_shadow_mode = OmniLight3D.SHADOW_DUAL_PARABOLOID
+			l.rotation = Vector3(-PI * 0.5, 0.0, 0.0)
 	var holder := l.get_parent()
 	if holder == null or holder.has_meta("lamp_layer_done"):
 		return

@@ -50,7 +50,7 @@ static func pool_instance(lp: Dictionary, head: Vector3, at: Vector3, lift: floa
 
 ## The wet road's lamp streaks (night_wet.gdshader): wider toward the eye and broken into glints
 ## (the old rods were a few pixels wide end to end, which read as sticks stood in the road).
-const WET := {"width_share": 0.014, "flare": 2.2, "sparkle": 0.6, "near_fall": 2.6}
+const WET := {"width_share": 0.014, "flare": 1.8, "sparkle": 0.55, "near_fall": 2.6}
 
 
 ## NightAtmos' materials, tuned by the review (with NIGHT_LAMPS=0 their shaders' own defaults).
