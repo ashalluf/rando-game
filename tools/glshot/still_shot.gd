@@ -575,6 +575,37 @@ func _initialize() -> void:
 				t_img.save_png(t_out)
 			var sc: Variant = tm.get_meta("shot_car") if tm.has_meta("shot_car") else null
 			print("saved %s: car %s" % [t_out, str((sc as Node).get("traffic")) if sc != null and is_instance_valid(sc) else "-"])
+	# TB2=wreck|left|heads|bus: TrafficBehaviour's moments (tools/traffic_behaviour/stage.gd),
+	# moved on by TRAFFIC_STEPS like TRAFFIC's, saved as OUT with _t1, _t2, ... added.
+	var tb2_env := OS.get_environment("TB2")
+	if tb2_env != "" and current_scene and current_scene.get_node_or_null("Traffic"):
+		var tai2 = load("res://scripts/npc/traffic_ai.gd")
+		var tm2: Node = current_scene.get_node("Traffic")
+		var b_eye: String = load("res://tools/traffic_behaviour/stage.gd").call("stage", tm2, tb2_env, get_root().get_camera_3d())
+		print("TB2 %s eye %s" % [tb2_env, b_eye])
+		if b_eye != "":
+			OS.set_environment("EYE", b_eye)
+			OS.set_environment("EYE_AGL", "")
+		_eye(player, fov)
+		if current_scene.has_method("update_streaming"):
+			current_scene.call("update_streaming", true)
+		for i in _env_int("TRAFFIC_FRAMES", 30):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
+		var b_steps := OS.get_environment("TRAFFIC_STEPS").split(",", false)
+		for s_i in b_steps.size():
+			tai2.call("advance_shot", tm2, b_steps[s_i].to_float())
+			Engine.time_scale = 0.0005
+			for i in _env_int("SETTLE", 6):
+				await process_frame
+				_pose(player, anchor, hold, boost, fov)
+			Engine.time_scale = 1.0
+			var b_out := OS.get_environment("OUT").get_basename() + "_t%d.png" % (s_i + 1)
+			var b_img := get_root().get_texture().get_image()
+			if b_img:
+				b_img.save_png(b_out)
+			var bc: Variant = tm2.get_meta("shot_car") if tm2.has_meta("shot_car") else null
+			print("saved %s: car %s" % [b_out, str((bc as Node).get("traffic")) if bc != null and is_instance_valid(bc) else "-"])
 	# PANIC=brake|swerve|kerb|reverse|abandon: a driver reacting to a shot on the nearest one-lane
 	# street (CarPanic.stage_for_shot; PANIC_SIDE=near puts the camera on the car's kerb side), the
 	# traffic moved only by PANIC_STEPS="s,s,..." seconds before each still, saved as OUT with _p1,

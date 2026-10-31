@@ -3786,3 +3786,13 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+
+- **2026-10-31 Traffic that reads alive at eye level (traffic-behaviour-2, HANDOFF "Traffic that
+  reads alive at eye level").** The street traffic's IDM queues stood like parked furniture at a
+  red; now drivers creep, inch, ease off the brake, signal out of a bus stop, wait in the box to
+  turn left, give a crosswalk room, get round a wreck, and turn their heads. Decisions: one static
+  file on hook lines (traffic-motion owns how a kinematic car's body and wheels move, this owns what
+  the driver decides); state rides in the car's `traffic` dictionary (`tb_*`), so the pool resets it;
+  heads are a uniform on the car's own glass copy, written only on a change and only near the camera;
+  every per-car tick is O(1) (the obstacle survey is every 0.4 s, the oncoming scans only for cars
+  waiting to turn left). TRAFFIC_BEHAVIOUR=0 is the A/B.

@@ -69,6 +69,8 @@ static var _survey_t: float = 0.0
 static var _look_tick: int = 0
 ## What the checks count.
 static var counts: Dictionary = {}
+## A true world point every driver near the camera looks at (stills; NAN x: none).
+static var look_override := Vector3(NAN, 0.0, 0.0)
 
 
 static func count(what: String) -> void:
@@ -535,7 +537,9 @@ static func _heads(tm: TrafficManager, dt: float) -> void:
 ## Where car `c`'s driver (x) and passenger (y) want to look, radians toward the car's right.
 static func look_target(c: Vehicle, t: Dictionary, player: Node3D, now: float) -> Vector2:
 	var drv := NAN
-	if t.has("tb_look_at") and now - float(t.get("tb_look_t", -99.0)) < 0.6:
+	if not is_nan(look_override.x):
+		drv = _angle_to(c, WorldState.to_local(look_override))
+	elif t.has("tb_look_at") and now - float(t.get("tb_look_t", -99.0)) < 0.6:
 		drv = _angle_to(c, WorldState.to_local(t.tb_look_at as Vector3))
 	if is_nan(drv) and player != null and player.is_inside_tree():
 		var pp := player.global_position
