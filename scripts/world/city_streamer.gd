@@ -1149,10 +1149,12 @@ func _build_ground() -> void:
 	# four shadow cascades every frame for nothing. It still RECEIVES, which is what matters.
 	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_ground.add_child(mesh)
+	HorizonTiles.split(mesh)
 	add_child(_ground)
 	# The far ranges' ring out to the camera's far plane (FarRanges; null when FAR_RANGES=0).
 	_far_ring = FarRanges.build_ring(_ground_material, ground_size, ground_step())
 	if _far_ring:
+		HorizonTiles.split(_far_ring)
 		add_child(_far_ring)
 	MountainOccluder.attach(self, plan.macro, macro_span)
 	RockFar.attach(self, plan, _canopy_material)

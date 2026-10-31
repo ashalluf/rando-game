@@ -117,6 +117,12 @@ var _trim_tile: Vector2i = Vector2i(1 << 30, 0)
 ## ordered by the same view- and travel-weighted distance.
 var _priority: Callable
 var blocks_built: int = 0
+## Tile -> its blocks (those with instances), for _refresh_tile().
+var _tile_blocks: Dictionary = {}
+## A tile's node whose every instance is collapsed (every block in it dissolved under a chunk) is
+## hidden as a whole: it drew nothing but still cost its vertices (perf-audit-4). FAR_COVER_HIDE=0
+## keeps every tile node shown (the A/B).
+static var hide_covered := OS.get_environment("FAR_COVER_HIDE") != "0"
 
 
 func setup(plan: CityPlan, style: Dictionary, canopy: ShaderMaterial = null, priority: Callable = Callable()) -> void:
@@ -243,6 +249,30 @@ func _apply_alpha(block: Vector2i, a: float) -> void:
 		for i in range(int(b.e0), int(b.e0) + int(b.en)):
 			var c: Color = ecols[i]
 			em.set_instance_color(i, Color(c.r, c.g, c.b, a))
+	_refresh_tile(b.tile)
+
+
+## Shows a tile's nodes again as soon as a block in them is visible, hides each node once all of
+## its blocks are dissolved (boxes, houses and estate lights by the block's alpha; the planting
+## only under FULL chunks, which is when _apply_alpha collapses it).
+func _refresh_tile(t: Vector2i) -> void:
+	var tile = _tiles.get(t)
+	if tile == null:
+		return
+	var show := [false, false, false, false]
+	for block: Vector2i in _tile_blocks.get(t, []):
+		var b: Dictionary = _blocks[block]
+		var a: float = _alpha.get(block, 1.0)
+		if a > 0.0 or not hide_covered:
+			show[0] = show[0] or int(b.bn) > 0
+			show[2] = show[2] or int(b.hn) > 0
+			show[3] = show[3] or int(b.get("en", 0)) > 0
+		if a > 0.0 or int(_cover.get(block, 1)) != CityChunk.Level.FULL or not hide_covered:
+			show[1] = show[1] or int(b.vn) > 0
+	var nodes: Array = [tile.node, tile.veg, tile.house, tile.get("est")]
+	for k in 4:
+		if nodes[k] and (nodes[k] as Node3D).visible != show[k]:
+			(nodes[k] as Node3D).visible = show[k]
 
 
 ## Where a block's planting stands: on the real terrain (a LOD chunk has drawn it there) or on
@@ -386,7 +416,10 @@ func trim(eye: Vector2) -> void:
 					(tile.veg as Node).queue_free()
 				if tile.house:
 					(tile.house as Node).queue_free()
+				if tile.get("est"):
+					(tile.est as Node).queue_free()
 			_tiles.erase(t)
+			_tile_blocks.erase(t)
 			for bx in TILE_BLOCKS:
 				for bz in TILE_BLOCKS:
 					var k := Vector2i(t.x * TILE_BLOCKS + bx, t.y * TILE_BLOCKS + bz)
@@ -581,12 +614,16 @@ func _commit_tile() -> void:
 			tile.est.material_override = EstateFar.material()
 			add_child(tile.est)
 	_tiles[t] = tile
+	_tile_blocks[t] = []
 	var hills: Dictionary = _work.hills
 	for k in _work.ranges:
 		var r: Array = _work.ranges[k]
 		if int(r[1]) + int(r[3]) + int(r[5]) + int(r[7]) == 0:
 			continue
 		_blocks[k] = {"tile": t, "b0": r[0], "bn": r[1], "v0": r[2], "vn": r[3], "h0": r[4], "hn": r[5], "e0": r[6], "en": r[7], "hill": hills.has(k)}
+		if not _tile_blocks.has(t):
+			_tile_blocks[t] = []
+		(_tile_blocks[t] as Array).append(k)
 		# A tile built under chunks that are already standing starts with those blocks hidden,
 		# at once: nothing is fading, they were never shown.
 		if _cover.has(k):
@@ -595,6 +632,7 @@ func _commit_tile() -> void:
 			_set_seat(k, true)
 		else:
 			_alpha[k] = 1.0
+	_refresh_tile(t)
 
 
 ## The tile's boxes and plates: one MultiMesh on the LOD box shader.

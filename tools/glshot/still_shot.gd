@@ -1318,7 +1318,7 @@ func _geo_split(player: Node3D, anchor: Vector3, hold: Vector3, boost: bool, fov
 	if OS.get_environment("OSPLIT") == "1":
 		var stems := {}
 		var est := {}
-		for c in ["Other", "StreetProps", "LightRail", "River", "Parks", "Houses", "Industrial"]:
+		for c in ["Other", "StreetProps", "LightRail", "River", "Parks", "Houses", "Industrial", "Trees", "FarCity", "Landmark"]:
 			for gi: GeometryInstance3D in nodes[c]:
 				if not is_instance_valid(gi):
 					continue
