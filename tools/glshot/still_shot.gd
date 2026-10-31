@@ -576,6 +576,41 @@ func _initialize() -> void:
 				t_img.save_png(t_out)
 			var sc: Variant = tm.get_meta("shot_car") if tm.has_meta("shot_car") else null
 			print("saved %s: car %s" % [t_out, str((sc as Node).get("traffic")) if sc != null and is_instance_valid(sc) else "-"])
+	# TMOTION=brake|pull|turn|chase: traffic seen moving (TrafficMotion; tools/traffic_motion/stage.gd),
+	# moved only by TMOTION_STEPS="s,s,..." seconds before each still, saved as OUT with _m1, _m2, ...
+	var tmo_env := OS.get_environment("TMOTION")
+	if tmo_env != "" and current_scene and current_scene.get_node_or_null("Traffic"):
+		var tms = load("res://tools/traffic_motion/stage.gd")
+		var mtm: Node = current_scene.get_node("Traffic")
+		var m_eye: String = tms.call("stage", mtm, tmo_env, get_root().get_camera_3d())
+		print("TMOTION %s eye %s" % [tmo_env, m_eye])
+		if m_eye != "":
+			OS.set_environment("EYE", m_eye)
+			OS.set_environment("EYE_AGL", "")
+		_eye(player, fov)
+		if current_scene.has_method("update_streaming"):
+			current_scene.call("update_streaming", true)
+		for i in _env_int("TMOTION_FRAMES", 30):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
+		var m_steps := OS.get_environment("TMOTION_STEPS").split(",", false)
+		for s_i in m_steps.size():
+			tms.call("advance", mtm, m_steps[s_i].to_float())
+			if tmo_env == "chase":
+				# The chase camera follows the car: re-aimed after every step.
+				var c_eye: String = tms.call("chase_eye", mtm)
+				if c_eye != "":
+					OS.set_environment("EYE", c_eye)
+			Engine.time_scale = 0.0005
+			for i in _env_int("SETTLE", 6):
+				await process_frame
+				_pose(player, anchor, hold, boost, fov)
+			Engine.time_scale = 1.0
+			var m_out := OS.get_environment("OUT").get_basename() + "_m%d.png" % (s_i + 1)
+			var m_img := get_root().get_texture().get_image()
+			if m_img:
+				m_img.save_png(m_out)
+			print("saved %s" % m_out)
 	# PANIC=brake|swerve|kerb|reverse|abandon: a driver reacting to a shot on the nearest one-lane
 	# street (CarPanic.stage_for_shot; PANIC_SIDE=near puts the camera on the car's kerb side), the
 	# traffic moved only by PANIC_STEPS="s,s,..." seconds before each still, saved as OUT with _p1,
