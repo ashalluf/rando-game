@@ -105,6 +105,9 @@ var rolling: float = 0.0
 var _slope_dir := Vector3.ZERO
 ## The parts' own materials while the rolling one is on (part -> material).
 var _mats: Dictionary = {}
+## The slope rays run every third tick; between them the last answer (and its push) stands.
+var _ray_tick: int = 0
+var _last_roll: bool = false
 
 
 ## A round is about to knock a person down (Pedestrian.shot): where it went in and which way.
@@ -369,6 +372,18 @@ func rolling_down(dt: float) -> bool:
 	if pelvis == null or not is_instance_valid(pelvis) or not pelvis.is_inside_tree():
 		restore()
 		return false
+	_ray_tick += 1
+	if _ray_tick % 3 != 1:
+		if _last_roll:
+			for rb in joints.bodies():
+				rb.linear_velocity += _slope_dir * ROLL_NUDGE * dt
+			rolling += dt
+		return _last_roll
+	_last_roll = _rolling_rays(pelvis, dt)
+	return _last_roll
+
+
+func _rolling_rays(pelvis: RigidBody3D, dt: float) -> bool:
 	var space := pelvis.get_world_3d().direct_space_state
 	var from := pelvis.global_position
 	# Two rays a few decimetres apart along the way it moves (or fell): the ground's fall between
@@ -406,7 +421,7 @@ func rolling_down(dt: float) -> bool:
 		_roll_mat.friction = ROLL_FRICTION
 		_roll_mat.bounce = 0.05
 	var tumble := Vector3.UP.cross(down) * minf(sp / ROLL_RADIUS, ROLL_SPIN_MAX)
-	var ease := 1.0 - exp(-ROLL_SPIN_RATE * dt)
+	var ease := 1.0 - exp(-ROLL_SPIN_RATE * dt * 3.0)
 	for rb in joints.bodies():
 		rb.linear_velocity += down * ROLL_NUDGE * dt
 		if rb == pelvis or rb == joints.parts.get("chest"):

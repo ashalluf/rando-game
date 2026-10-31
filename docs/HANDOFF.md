@@ -22033,3 +22033,19 @@ pelvis, `NOSHOT=1` only the TRACE lines, `RAGDOLL_FEEL=0` the before). It raises
 debris lifetime: debris dies by the WALL clock (`Time.get_ticks_msec()`), and a software render
 spends 12 s in under 100 steps - the doll vanished mid-tumble in the first stills.
 Checks: `tests/ragdoll_feel_checks.gd` (each scene on a floor of its own 30 m up).
+
+**Cost.** No meshes, so draws and triangles are unchanged by construction. Per step, GDScript on
+the jointed dolls only (at most `max_active`): `tools/ragdolls/probe.tscn --n=6` (headless,
+`--fixed-fps 60`) 0.76-0.93 wall ms a step tumbling with it against 0.65-0.79 without, settled
+0.017 both; the slope rays run every third tick. Joints hold as before (probe worst gap 0.056-0.059
+both ways). Stills: `shots/ragdoll-feel`.
+
+**Not done / not verified.** No hit-reaction CLIPS (the muscles stand in; a clip set per direction
+would need UAL's hit clips retargeted). The car wrap is tuned on a sedan at 14 m/s in the tool and
+the checks; a bus or a truck's tall flat front still knocks people ahead (the bonnet is not there to
+ride, which is right, but untuned). Traffic cars do not brake for the body on their bonnet: a
+kinematic traffic car that knocks someone carries on (as before), so in the city the wrap ends with
+the body riding up and off over the roof more often than sliding off the front. Stairs in the city
+whose collision is a ramp (the Esplanade's beach stairs: walkable ramps over steps, with the real
+treads on the foot-ground layer) are rolled down as a ramp. Seen on opengl3 only; physics is
+renderer-independent.
