@@ -3786,3 +3786,7 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+- 2026-10-31 (rc-macarthur, wave 4): a refcam's fixes stay inside the thing it looks at - the park's
+  lake, lawn, planting and walks change behind MACARTHUR_LOOK, the lake shader's other users (golf)
+  keep their look (`shore_look` 0). Water is drawn in linear colour on both renderers with water's
+  real F0 (0.02); a landmark's lawn uses ONE material near and far so the LOD hand-over is no seam.

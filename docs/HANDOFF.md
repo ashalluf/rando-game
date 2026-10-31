@@ -21980,3 +21980,35 @@ the same way, but judge 18:00 on the Mac first - if it reads milky-pink, raise `
 grass under a low red sun is what it is). The painted cumulus on opengl3 draws a big smooth ellipse in
 the aerial and sky shots (before and after alike; the sky's, not this review's). Dawn shares the sky
 ramp and the exposure ramp (both are symmetric in elevation) and was not looked at.
+
+## 9d?. MacArthur Park from the air (wave 4, rc-macarthur)
+
+The reference camera `macarthur` (tools/refcams: MacArthur Park from the south, 120 m up, 11:00,
+clear) judged against a 2026 game. What gave it away, in the order the eye lands, and what changed
+(`MacArthurLook`, `scripts/world/macarthur_look.gd`; a few gated lines in
+`LandmarkMacArthurPark`; `MACARTHUR_LOOK=0` is the A/B, the park exactly as before):
+- **The lake was a black pill.** The water mesh is now a 4 m grid (`water_tris()`) whose vertices
+  carry the metres to the wall in UV2.x (`shore_distance()`, cached), and `lake.gdshader`'s new
+  `shore_look` branch (0 for the golf pond and creek, which are untouched) draws a silted shelf, a
+  ragged scum of algae against the wall, blooms in the open water and a green-teal body, in LINEAR
+  colour on both renderers (the old numbers were renderer-space: the web and every opengl3 still
+  drew the lake far darker than the Mac). SPECULAR 0.25 is water's F0 0.02 (0.5 doubled the sky
+  and turned it pool-cyan). The outline is new (`LAKE`): an irregular shore, a cove under the
+  boathouse, a planted point off the 7th St side, a narrower west arm. The hard foam disc at the
+  fountain is a soft billow quad (`boil()`).
+- **The lawns were lime sheets with lighter rectangles** where the LOD chunks drew a flat colour:
+  one lawn material at both levels (`lawn_material()`: deeper tint, drier, wear 0.42).
+- **An even picket of identical palms round the water and hardly a shade tree**: the ring keeps
+  72 % of its spots, each slid along and across, 22 % with a second palm beside it (hashes:
+  `palm_keep()`, `palm_spots()`); the lawns take shade trees until full at 10.5 m (85 against
+  ~50; `TREE_TRIES` - the old 4 tries per tree gave up early).
+- **The walks vanished past 260 m and the LOD halves had none**: drawn at both levels to 1100 m,
+  plus three walks across the north lawn (`extra_paths()`).
+Lake and lawn colours were tuned with `tools/glshot/block_shot.tscn` (`EYE=300,70,440,0,-38
+BLOCKS=2`, 1.5 min) and judged on the refcam. Checks: `tests/rc_macarthur_checks.gd` (pure: the
+water grid is the lake, shore distance, the palms off the walk and irregular and hashed, the
+trees' count and spacing, the walks on the lawn, the materials). Not done: the boathouse is still
+boxes under a four-sided cone; Wilshire's traffic is thin from up there (traffic's area); the
+camps across the street are not in this view. Forward+ not verified on lavapipe (the colours are
+linear on both renderers by construction, so the Mac should match the stills more closely than
+before).
