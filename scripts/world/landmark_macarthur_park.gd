@@ -171,7 +171,7 @@ static func layout(plan: CityPlan) -> Dictionary:
 	var margin := PROMENADE_W + COPING_W + 2.0
 	var frame := s_in.grow(-margin)
 	var pts := PackedVector2Array()
-	for p: Vector2 in SITE.lake:
+	for p: Vector2 in (MacArthurLook.LAKE if MacArthurLook.enabled else SITE.lake):
 		pts.append(frame.position + frame.size * p)
 	pts = _chaikin(_chaikin(_chaikin(pts)))
 	if Geometry2D.is_polygon_clockwise(pts):
@@ -1159,6 +1159,10 @@ static func _build_fountain(parent: Node3D, lay: Dictionary, detailed: bool) -> 
 	plume.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(plume)
 	# The boil at its foot: a ring of churned white water.
+	if MacArthurLook.enabled:
+		var boil := MacArthurLook.boil()
+		boil.position = base + Vector3(0.0, 0.04, 0.0)
+		parent.add_child(boil)
 	var foam := MeshInstance3D.new()
 	var disc := CylinderMesh.new()
 	disc.top_radius = 3.2
@@ -1174,7 +1178,10 @@ static func _build_fountain(parent: Node3D, lay: Dictionary, detailed: bool) -> 
 	foam.material_override = fm
 	foam.position = base + Vector3(0.0, 0.06, 0.0)
 	foam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	parent.add_child(foam)
+	if MacArthurLook.enabled:
+		foam.free()
+	else:
+		parent.add_child(foam)
 	# Lit from below after dark, like the real one: a lamp-group light (DayNight drives it).
 	var light := OmniLight3D.new()
 	light.position = base + Vector3(0.0, 1.2, 0.0)

@@ -14,6 +14,7 @@ class_name MacArthurLook
 ##     and the lawns carry ~3x the broadleaf trees (`TREES_PER_1000`).
 ##   * The walks vanished 260 m out, and the LOD halves had none: drawn at both levels to
 ##     `PATH_DRAW`, with diagonals across the north lawn (`extra_paths()`).
+##   * The lake's outline (`LAKE`) and the fountain's boil (a soft billow, `boil()`).
 ## Every roll is a hash of the seed and the place. MACARTHUR_LOOK=0 is the A/B: the park as it was.
 
 static var enabled: bool = OS.get_environment("MACARTHUR_LOOK") != "0"
@@ -38,6 +39,22 @@ const LAWN_TINT := Color(0.66, 0.72, 0.62)
 const LAWN_DRYNESS := 0.32
 const LAWN_WEAR := 0.42
 const LAWN_STRIPES := 4.2
+
+## The lake's outline in the south half's 0..1 frame (LandmarkMacArthurPark.SITE.lake's frame):
+## the old one, smoothed three times and stretched 5:1 by the half, was a stadium-shaped pill.
+## This one has the real lake's habit - an irregular shore, a cove under the boathouse, a
+## planted point running out from the 7th Street side and a narrower west arm.
+const LAKE := [
+	Vector2(0.03, 0.52), Vector2(0.06, 0.34), Vector2(0.12, 0.27), Vector2(0.19, 0.30),
+	Vector2(0.24, 0.20), Vector2(0.31, 0.08), Vector2(0.40, 0.10), Vector2(0.47, 0.18),
+	Vector2(0.55, 0.10), Vector2(0.64, 0.04), Vector2(0.75, 0.06), Vector2(0.85, 0.12),
+	Vector2(0.93, 0.24), Vector2(0.97, 0.42), Vector2(0.95, 0.62), Vector2(0.89, 0.80),
+	Vector2(0.79, 0.92), Vector2(0.70, 0.90), Vector2(0.665, 0.72), Vector2(0.63, 0.66),
+	Vector2(0.595, 0.72), Vector2(0.56, 0.92), Vector2(0.46, 0.96), Vector2(0.36, 0.90),
+	Vector2(0.27, 0.94), Vector2(0.17, 0.88), Vector2(0.10, 0.76), Vector2(0.05, 0.66),
+]
+## The fountain's boil: a soft flat billow (m across) instead of the hard-edged foam disc.
+const BOIL_SIZE := 9.0
 
 static var _lawn_mats: Dictionary = {}
 static var _shore_cache: Dictionary = {}
@@ -147,3 +164,20 @@ static func water_tris(lake: PackedVector2Array, bounds: Rect2, area: Rect2) -> 
 					out.append([poly[idx[k]], poly[idx[k + 1]], poly[idx[k + 2]]])
 		z += WATER_CELL
 	return out
+
+
+## The fountain's boil at its foot: one flat quad of the smoke billow, soft at its edge.
+static func boil() -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.name = "FountainBoil"
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(BOIL_SIZE, BOIL_SIZE)
+	mi.mesh = plane
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.86, 0.9, 0.9, 0.7)
+	m.albedo_texture = WeaponFX.puff_texture()
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.roughness = 0.6
+	mi.material_override = m
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return mi
