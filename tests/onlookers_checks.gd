@@ -85,9 +85,16 @@ func _check_scene(city: Node3D, chunk: Node3D) -> void:
 	var vx := x0 + 12.0
 	var victim := Pedestrian.new()
 	victim.setup(rect, plan.sidewalk_width, 9900)
+	# Like the walkers: BusyStreets' crowd balance frees far plain walkers, and the player may be
+	# anywhere by now (gate run 909 lost the victim in these four ticks: a script error).
+	victim.set_meta("no_trim", true)
+	victim.cross_chance = 0.0
 	victim.position = Vector3(vx, chunk.ground_y(vx, z + 1.0) + 0.1, z + 1.0)
 	chunk.add_child(victim)
 	await _ticks(4)
+	_check(is_instance_valid(victim) and not victim._down, "the staged victim is still standing to be knocked down")
+	if not is_instance_valid(victim):
+		return
 	var shot_at := victim.global_position + Vector3.UP
 	victim.knock(Vector3(0.0, 1.0, 1.0))
 	Pedestrian.alarm(_tree, shot_at, 40.0, 0, true, "")
