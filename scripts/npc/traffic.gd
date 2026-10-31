@@ -866,7 +866,13 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 			t.dir = new_dir
 			t.lane = lane
 			t.turn = 0
-			t.node = Vector2i(-999999, -999999)
+			# The junction it just turned through is the "next" one on the new road too (the car's
+			# along is its old lane, short of the centre): marked as seen, or a second turn was rolled
+			# there and the car snapped back onto the road it came from (CI 397).
+			t.node = node
+			t.forced = false
+			t.sign_ok = true
+			t.amber_go = true
 			var road := plan.road_pos(cross_axis, cross_index)
 			# Rebuild the world position on the new road, keeping the intersection's coordinate.
 			var pos2 := Vector2(wp.x, road + lane) if cross_axis == CityPlan.AXIS_Z else Vector2(road + lane, wp.z)
