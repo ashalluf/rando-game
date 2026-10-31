@@ -113,7 +113,7 @@ func _agency_truck(city: Node3D, police: Node) -> void:
 					paint_seen = col
 				if col.g > col.b and col.g >= col.r and col.v < 0.25 and col.v > 0.05:
 					paint_ok = true
-	var lettered := OS.has_feature("web") or truck.find_children("Lettering*", "MeshInstance3D", true, false).size() >= 2
+	var lettered := OS.has_feature("web") or _text_meshes(truck) >= 2
 	_check(truck.body_type == Vehicle.BodyType.BOX_TRUCK and truck.agency and truck.crew_aboard == 4 and truck.crew_alive == 4
 			and String(truck.get_meta("fleet", "")) == WantedEscalation.AGENCY,
 			"the agency's unit is a box truck with four aboard, its fleet the invented %s" % WantedEscalation.AGENCY)
@@ -277,3 +277,13 @@ func _dispatch(police: Node) -> void:
 	_check(sent_truck and ok, "a dispatch at five stars sends one of the agency's trucks onto the street")
 	police.call("clear")
 	police.set("enabled", false)
+
+
+## Lettering on a vehicle: its MeshInstance3Ds wearing a TextMesh (a second sibling of one name is
+## renamed by the tree, so they are counted by what they draw).
+func _text_meshes(car: Node) -> int:
+	var n := 0
+	for mi in car.find_children("*", "MeshInstance3D", true, false):
+		if (mi as MeshInstance3D).mesh is TextMesh:
+			n += 1
+	return n
