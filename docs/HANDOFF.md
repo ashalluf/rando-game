@@ -22471,6 +22471,10 @@ the far boxes and the vignette a few ALU; the sky's mid deck a Worley 3x3 where 
 night, live through DayNight at 12:30 and 17:12, the mid deck's switch, the far antennas' dim, the
 halls dressed and not with the switch off, the fringe).
 
+**Gate** (SHARDS=3, on main 2026-10-31 merged in): 4,461 of 4,462 passed; the one FAIL was
+traffic_motion_checks "no tick turns the car by more than a smooth turn would (worst 50.2 deg)" in
+shard 2, which passes alone twice (worst 0.5 deg) - intermittent, traffic-motion's, for gate-flakes.
+
 **NEEDS MAC CHECK**: the mid deck's cloudlets next to the cumulus volume (Forward+ draws them at
 0.2); the far ranges' tone at 17:00-18:00 on Forward+ (lavapipe on the hill tool: a little darker and
 warmer, as intended; the city's own Forward+ frame was not rendered).
