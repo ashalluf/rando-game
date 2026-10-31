@@ -238,6 +238,20 @@ func crumple() -> CrashDeform:
 	return _crumple
 
 
+## What a crash breaks off the car (CrashBreakup), made by the first crash that needs it.
+var _breakup: CrashBreakup = null
+## The velocity a pane bursting in a crash throws its cubes on with (CrashBreakup.glass()).
+var _crash_throw: Vector3 = Vector3.ZERO
+
+
+func breakup() -> CrashBreakup:
+	if _breakup == null:
+		_breakup = CrashBreakup.new()
+		_breakup.attach(self)
+		add_child(_breakup)
+	return _breakup
+
+
 func _exit_tree() -> void:
 	_burning.erase(self)
 	_smokers.erase(self)
@@ -508,6 +522,16 @@ func _glass_burst(c: Vector3, n: Vector3, size: Vector3, amount: float) -> void:
 	p.spread = 55.0
 	p.initial_velocity_min = 0.6
 	p.initial_velocity_max = 3.2
+	var throw := _crash_throw
+	if throw.length() > 2.0:
+		# A crash: the cubes fly on with the car (it stopped, they did not), out of the frame in
+		# a spray, and there are more of them - the whole pane goes at once.
+		world_n = (world_n * 2.5 + throw * 0.12).normalized()
+		p.spread = 38.0
+		p.initial_velocity_min = 1.5 + throw.length() * 0.25
+		p.initial_velocity_max = 3.5 + throw.length() * 0.55
+		p.amount = WeaponFX._count(maxi(6, int(110.0 * amount)))
+		p.lifetime = 1.6
 	p.gravity = Vector3(0.0, -9.8, 0.0)
 	p.angular_velocity_min = -720.0
 	p.angular_velocity_max = 720.0
@@ -614,7 +638,9 @@ func _crash(at: Vector3, dir: Vector3, over: float) -> float:
 		crumple().crash(body_at, push_body, over, at)
 	if over > 4.0:
 		_break_lamps(_lamps_near(body_at, 0.9 + over * 0.05))
-	if over > 6.0:
+	if CrashBreakup.applies(car):
+		breakup().glass((_to_mesh.basis * -push_body).normalized(), over)
+	elif over > 6.0:
 		var toward := (_to_mesh.basis * -push_body).normalized()
 		for i in _panes.size():
 			var n: Vector3 = _panes[i][2]
@@ -1520,6 +1546,8 @@ func restore() -> void:
 	_swapped.clear()
 	if _crumple != null:
 		_crumple.reset()
+	if _breakup != null:
+		_breakup.reset()
 	_stop_fire()
 	_smokers.erase(self)
 	car._set_lamps_broken(0)

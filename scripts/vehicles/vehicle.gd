@@ -653,6 +653,9 @@ var _glass_shared: ShaderMaterial
 var _glass_own: ShaderMaterial
 ## CarInterior's glass while the car has its real cabin built (CarInteriors), else null.
 var cabin_glass_override: Material = null
+## A crash tumble (CrashBreakup): till this clock time (s) the car is let roll in the air, not held
+## level by _fly (boost still flies it). 0 = none.
+var tumble_until: float = 0.0
 ## Somebody from the traffic is at the wheel (see `traffic`), and who (a seed for CarCabin).
 var _npc_driver: bool = false
 var _occupant_seed: int = 0
@@ -1021,7 +1024,8 @@ func _physics_process(delta: float) -> void:
 	# A wheel into a deep pothole (RoadWear): a jolt at that corner.
 	RoadWear.bump(self)
 	_air_time = _air_time + delta if is_airborne() else 0.0
-	if _air_time >= flight_grace:
+	if _air_time >= flight_grace and (tumble_until <= 0.0 or Input.is_action_pressed("boost") \
+			or Time.get_ticks_msec() * 0.001 > tumble_until):
 		_fly(delta, input)
 	else:
 		if _was_airborne:
