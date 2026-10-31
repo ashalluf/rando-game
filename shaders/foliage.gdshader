@@ -90,7 +90,7 @@ uniform float sway_height : hint_range(0.0, 40.0) = 14.0;
 uniform float self_shadow_slack : hint_range(0.0, 3.0) = 0.45;
 /// Sky light through a frond seen from below (fronds are one leaf thick: it is most of what
 /// a palm's underside is in the shade).
-uniform float sky_through : hint_range(0.0, 2.0) = 0.35;
+uniform float sky_through : hint_range(0.0, 2.0) = 0.2;
 
 
 void vertex() {

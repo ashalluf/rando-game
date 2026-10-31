@@ -202,7 +202,7 @@ uniform float self_shadow_slack : hint_range(0.0, 3.0) = 0.9;
 /// times the leaves' colour twice: green-gold), and the forward-scattered share of the sun seen
 /// through the crown's thin parts toward it.
 uniform float sky_through : hint_range(0.0, 2.0) = 0.55;
-uniform float sun_through : hint_range(0.0, 2.0) = 0.22;
+uniform float sun_through : hint_range(0.0, 4.0) = 1.4;
 /// How fast light dies through the crown, per crown radius of leaves.
 uniform float crown_density : hint_range(0.0, 8.0) = 1.7;
 /// The sway's weight: the crown's height in metres at scale 1 (TreeLight.dress() sets it from
@@ -372,6 +372,12 @@ void vertex() {
 
 
 void fragment() {
+	// The rounded crown normal for both faces of a card (tree-light-2): Godot turns a back face's
+	// normal to the camera, which undid the rounding on half the cards - every second leaf of a
+	// sunlit crown faced away from the sun and the crown drew as dark flecks.
+	if (tree_light > 0.5 && closeup > 0.5 && !FRONT_FACING) {
+		NORMAL = -NORMAL;
+	}
 	vec2 uv = UV * uv_scale;
 	vec4 tex = texture(albedo_tex, uv);
 	// 1.0 on Forward+ (which decoded the probe to 0.2140), 0.0 on Compatibility (which left it at
@@ -515,7 +521,7 @@ void fragment() {
 		vec3 leaf = ALBEDO * vec3(1.05, 1.2, 0.55) * (1.0 - bloom_on * 0.6);
 		float below = clamp(-to_cam.y * 1.6 + 0.2, 0.0, 1.0);
 		vec3 em = leaf * sky * sky_through * tl_through(v_path_up, crown_density) * below;
-		em += leaf * sun_c * sun_through * tl_through(v_path_sun, crown_density) * (0.25 + 0.75 * pow(facing, 3.0)) * (0.35 + 0.65 * thin);
+		em += leaf * sun_c * sun_through * tl_through(v_path_sun, crown_density) * (0.08 + 0.92 * pow(facing, 4.0)) * (0.35 + 0.65 * thin);
 		EMISSION = em * (1.0 - wet * 0.3);
 	}
 }

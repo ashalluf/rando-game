@@ -13,7 +13,7 @@ extends Node
 ## Env: OUT (prefix: <OUT>_<view>.png), VIEWS=name,... (default all of VIEW_DEFS), FRAMES (default
 ## 10; 24 on Forward+ for TAA and the exposure), TAA=1, WIND=n, HOLD=1 holds shader TIME (the
 ## pair of an A/B is the same frame), AB=name saves every view again with TreeLight off
-## (<view>_off.png). CAM=x,y,z LOOK=x,y,z FOV=n for one free view named "free".
+## (<view>_off.png). PARAMS=name=v,... sets tree shader uniforms. CAM=x,y,z LOOK=x,y,z FOV=n for one free view named "free".
 ## The row runs along +X at z 0 (pavement z -3..3), the lawn grove at z -14..-30.
 
 const VIEW_DEFS := {
@@ -24,6 +24,7 @@ const VIEW_DEFS := {
 	"palm": [Vector3(13.0, 1.6, 7.0), Vector3(16.0, 8.0, 0.0), 60.0],
 	"ground": [Vector3(-2.0, 9.0, 12.0), Vector3(-2.0, 0.0, -6.0), 60.0],
 	"grove": [Vector3(0.0, 1.7, -4.0), Vector3(0.0, 3.0, -22.0), 62.0],
+	"sunward": [Vector3.ZERO, Vector3.ZERO, 60.0],
 	"back": [Vector3(4.0, 1.6, -8.0), Vector3(2.0, 5.0, 2.0), 62.0],
 }
 
@@ -89,6 +90,11 @@ func _ready() -> void:
 		batch.add("t%d_%s_%d" % [i, r[0], r[1]], m, xf, Color.WHITE, Color(0.2, 0.5, 0.5, 0.8))
 		i += 1
 	batch.build(stage)
+	# PARAMS="name=value,...": set on every tree material (tuning without an edit).
+	for kv in OS.get_environment("PARAMS").split(",", false):
+		var p := kv.split("=")
+		for m: ShaderMaterial in TreeLight._marked:
+			m.set_shader_parameter(p[0], p[1].to_float())
 	await get_tree().process_frame
 	if sun:
 		print("SUN dir ", sun.global_basis.z, " energy ", sun.light_energy)
@@ -116,6 +122,10 @@ func _ready() -> void:
 	var ab := OS.get_environment("AB") == "1"
 	for v: Array in views:
 		var d: Array = v[1]
+		if v[0] == "sunward" and sun:
+			# Looking into the sun through the crown at (-3, 5, 0) from 11 m on the far side.
+			var az := Vector3(sun.global_basis.z.x, 0.0, sun.global_basis.z.z).normalized()
+			d = [Vector3(-3.0, 1.7, 0.0) - az * 11.0, Vector3(-3.0, 5.5, 0.0) + az * 4.0, 60.0]
 		cam.fov = d[2]
 		cam.look_at_from_position(d[0], d[1], Vector3.UP)
 		cam.make_current()
