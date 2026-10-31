@@ -180,8 +180,16 @@ func _check_car(player: Node3D) -> void:
 	player.get_parent().add_child(doll)
 	doll.global_position = car.global_position + Vector3.UP * 3.0
 	var space := car.get_world_3d().direct_space_state
-	var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(car.global_position + Vector3(0.0, 4.0, -1.0),
-		car.global_position + Vector3(0.0, -1.0, -1.0), 4))
+	# Past anything else on the props layer over it (CI 401: another car stood over this one's
+	# spot in a busy shard and the ray found that instead).
+	var q := PhysicsRayQueryParameters3D.create(car.global_position + Vector3(0.0, 4.0, -1.0),
+		car.global_position + Vector3(0.0, -1.0, -1.0), 4)
+	var hit := space.intersect_ray(q)
+	var skips: Array[RID] = []
+	while not hit.is_empty() and hit.collider != car and skips.size() < 6:
+		skips.append(hit.rid)
+		q.exclude = skips
+		hit = space.intersect_ray(q)
 	if hit.is_empty() or hit.collider != car:
 		_check(false, "blood gore 2: a ray finds the parked car's top (%s)" % hit)
 		car.queue_free()
