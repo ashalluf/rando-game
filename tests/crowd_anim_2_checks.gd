@@ -89,8 +89,13 @@ func _pick_checks() -> void:
 
 
 func _walker_checks(city: Node3D) -> void:
+	# The streaming settled first: a chunk still due to be replaced (an LOD one the FULL ring is
+	# building over, after the reset brought the player home) was freed under the check (gate run
+	# 2525: SCRIPT ERROR, the chunk "previously freed" in _walk_check).
+	city.update_streaming(true)
+	await _tree.process_frame
 	var chunk: Node3D = city.chunks.get(Vector2i(0, 0))
-	_check(chunk != null, "the spawn block's chunk is loaded for the gait checks")
+	_check(chunk != null and int(chunk.get("level")) == CityChunk.Level.FULL, "the spawn block's chunk is loaded in full for the gait checks")
 	if chunk == null:
 		return
 	var plan: CityPlan = city.plan
@@ -108,6 +113,9 @@ func _walker_checks(city: Node3D) -> void:
 	if not CrowdGait.enabled():
 		return
 	for g: String in ["heavy", "brisk", "amble"]:
+		if not is_instance_valid(chunk):
+			_check(false, "the spawn block's chunk lasts the gait checks")
+			break
 		await _walk_check(chunk, rect, g)
 
 
@@ -131,6 +139,9 @@ func _walk_check(chunk: Node3D, rect: Rect2, g: String) -> void:
 	var prev := [Vector3.INF, Vector3.INF]
 	var low := INF
 	for i in 150:
+		if not is_instance_valid(p) or not is_instance_valid(chunk):
+			_check(false, "the %s walker and its chunk last the walk" % g)
+			return
 		_steer(p, b)
 		await _tree.physics_frame
 		if sk == null or i < 70:
