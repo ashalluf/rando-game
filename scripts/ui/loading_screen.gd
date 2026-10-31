@@ -272,6 +272,12 @@ func run(city: Node3D) -> void:
 	var filled: Array = FirstFill.traffic(city.get_node_or_null("Traffic"))
 	print("LOADING traffic filled: %d street, %d freeway, %d built" % filled)
 	LoadClock.stop("screen: traffic")
+	# The window as it stands now (the player settled and the far city, the rehearsal and the rigs
+	# took their time since the preload): whatever it wants that is not standing yet is built
+	# behind the shade, not in the first seconds of play.
+	LoadClock.start("screen: final streaming")
+	_preload_world(city)
+	LoadClock.stop("screen: final streaming")
 	_step("Ready", 1.0)
 	await _frames(2)
 	await _fade_out()

@@ -107,6 +107,7 @@ static func run(scene: Node, cam: Camera3D, progress: Callable = Callable(), log
 			if c.get_script() == null or String(c.name).begins_with("BlastCrater"):
 				c.queue_free()
 		await tree.process_frame
+		_purge_statics()
 	Police.innocent = innocent_was
 	AudioServer.set_bus_mute(0, bus_was)
 	_purge_statics()
