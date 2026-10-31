@@ -22681,3 +22681,74 @@ arm's length); kitchens and bedrooms are not modelled (every home room is a livi
 have no people after dark beyond lit rooms; the passer-by in house glass is a 2D silhouette on the
 back wall; Forward+ unverified (opengl3 stills only - the colours are the old room_interior's
 plain numbers, so they follow the same rule as the room they replace).
+
+## 9iv. The street at eye level: what you hear within 20 m (fleet wave 4, `ambient-sound-2`, 2026-10-31)
+
+The city's sound was beds (Ambience) and one-shots dropped round the listener; up close, nothing
+answered what the street was doing - walkers were silent, a shopper went into a shop with no bell,
+a parked car's door swung open and shut in silence, a bus pulled up without its air brakes, the
+player's car sounded the same on a lawn as on tarmac. This pass adds the near layer.
+
+**`StreetSounds`** (`scripts/util/street_sounds.gd`, a child Ambience makes in `_ready()`):
+- **The crowd's footsteps**: one npc-layer sphere query (`step_reach` 15 m) every `scan_interval`
+  (0.25 s, real clock) picks the `max_walkers` (6) nearest visible Pedestrians; each steps at its own
+  cadence from its measured speed (`step_interval()`: a 0.68 m step at a stroll, 1.3 m at a run;
+  ~1.9 / 2.8 steps a second), on what it walks on (`Footsteps.surface_at()`, the hero's rule,
+  re-read a fifth of the steps), `heels_share` 16 % of them in heels on hard ground
+  (`footstep_heels`), softer on grass and sand (`step_db()`). Its own pool of 8 World-bus voices,
+  so the crowd never steals a gunshot's voice from Sfx's pool.
+- **Shop door bells**: `StreetErrands` rings `StreetSounds.shop_door()` as a shopper goes into a shop
+  (the "hide" step, shop errands only) and as they come out (the "show" step `_do_inside()` makes
+  from the shop door carries `"bell": true`). Two hook lines.
+- **Car doors**: `ErrandCar._physics_process()` hands its door's opening before / after each tick to
+  `StreetSounds.car_door_moved()`: the latch and swing as it starts to open (`car_door_open`), the
+  slam as it shuts (`car_door`). One hook line. So a driver getting out of a parked car, a shopper
+  getting into theirs, a delivery driver - all of StreetErrands' cars.
+- **Air brakes**: every 0.25 s the big vehicles (BigVehicles.is_big) among TrafficManager's street
+  cars within `brake_reach` (80 m) are tracked by position; one that rolled for over a second and
+  now stands hisses its brakes once (`brake_step()`, pure; `brake_cooldown` 12 s a vehicle). Buses
+  at a stop, trucks at a red. Nothing in traffic.gd changed.
+- **Tyres by surface (the player's car)**: a ray under the car every 0.2 s; `tyre_kind()` (pure):
+  grass / sand -> `tyre_gravel` (dirt and grit; a hill road's asphalt is told from its verge by
+  HillRoads' drawn segments, fire roads and long drives count as dirt), a wet hard road (Weather
+  `wetness` > 0.3) -> `tyre_wet`, a dry road -> nothing (EngineAudio and the traffic's roll carry
+  it), airborne -> nothing. A loop under the car, `tyre_db()` / `tyre_pitch()` by speed.
+- Events (bells, doors, brakes) further than `event_reach` (40 m) are not played.
+- **Dogs**: Ambience's far bark one-shot comes from a real dog (group "dog": YardDog, CrowdDog;
+  Wildlife's animals are Dogs too and are skipped) when one is within its 240 m (`StreetSounds.dog_at()`), the way
+  the gulls come from Birds; the dogs' own close barks (Dog.bark()) were already there.
+
+**Ambience** (my area, `scripts/util/ambience.gd`): two layers appended to `LAYERS` - `leaves`
+(a bed: trees = `green` x 1.15 + hills x 0.2, louder with the wind, under rain halved, mostly gone
+in a car or under cover) and `sea_far` (an emitter toward the waterline the scene already finds:
+`scene_at()` adds `sea_far` = smoothstep(`sea_far_reach` 2400 m -> 140 m) of the distance to the
+water, `sea_far_at` = `surf_at`; heard most at night and least in the city's roar, giving way to the
+surf close up). `weather_now()` adds `wind` (0.25 a breeze, + rain, storm, Santa Ana) and `wet`
+(Weather.wetness). The traffic voices (`_assign_traffic()`): a car's voice is the wet tyre hiss
+instead of the dry roll while Weather.wetness > 0.45 (`_car_kind` is now 0 roll, 1 diesel, 2 wet).
+`levels_for()` / `rates_for()` stay pure (checked: same answer twice, inputs untouched, every
+layer / one-shot present).
+
+**Clips** (`tools/street_audio.py build`, sources in docs/ASSETS.md "The street at eye level
+audio"): shop_bell x4, car_door x3, car_door_open, air_brake (one new + two of bus_hiss), footstep_heels
+x5, tyre_gravel (loop), amb_leaves and amb_sea_far (beds, -22 dB RMS), tyre_wet (SYNTHESISED: no CC0
+steady wet-road hiss was found, only pass-bys). Every name has its loudness (SAMPLE_LOUDNESS_DB /
+AMBIENCE_LOUDNESS_DB), loops set in code (LOOPING / AMBIENCE_LOOPING), a synthesized fallback.
+Routing: bells, doors, brakes, steps and tyres on World (so the street reverb and the echo space
+take them); the leaves and the far sea on Ambience (enclosed in a car, ducked by gunfire).
+
+**A/B**: `AMBIENT_SOUND_2=0` (StreetSounds.enabled): no node, the two beds silent, the traffic's dry
+roll in the wet. **Checks**: `tests/ambient_sound_2_checks.gd`. **Compile**:
+`tools/street_sounds/compile.gd`. **Cost**: one sphere query 4x a second, one ray 5x a second while
+driving, a position read of the street's big vehicles 4x a second; up to 8 + 1 voices. Nothing
+drawn. **Gate fix** (traffic.gd, not this feature's): the first gate logged four script errors in
+`_drive_streets()` / `_drive_street()` during the onlookers checks - a car that left traffic earlier
+in the tick (an empty `traffic`) was still in the tick's lane groups (CI 394's `_group_clear` race,
+two more places). The group is filtered when such a car is in it, and a leader without `along`
+counts as no leader.
+**Not done / not verified**: nobody has HEARD it (the box has no audio out: levels are the
+measured loudness table plus taste - tune `walk_step_db`, `layer_db.leaves` / `sea_far` and the
+tyre dBs on the Mac); crowd footsteps are not checked live (the headless audio driver plays
+nothing, and which walkers stand near the camera is not staged); shop doors without an errand do
+not ring; freeway expansion-joint thumps were looked at (866213) and left out - the recording is a
+continuous wash, not a clean thump.

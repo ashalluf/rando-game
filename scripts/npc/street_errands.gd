@@ -174,12 +174,15 @@ static func walk(p: Pedestrian, delta: float, panicking: bool) -> bool:
 		"enter_car":
 			_do_enter_car(p, step, delta)
 		"hide":
+			StreetSounds.shop_door(p.global_position) # the shop's bell as they go in
 			_hide(p)
 			_next(p, {"do": "inside", "door": step.get("door"), "until": _now() + int(1000.0 * float(step.get("secs", 30.0)))})
 		"inside":
 			_do_inside(p, step)
 		"show":
 			_show(p, step.get("at") as Vector2, float(step.get("yaw", p._visual.rotation.y)))
+			if step.get("bell", false):
+				StreetSounds.shop_door(p.global_position) # and as they come out
 			_next(p)
 		"ring":
 			p.ring = step.ring
@@ -745,7 +748,7 @@ static func _do_inside(p: Pedestrian, step: Dictionary) -> void:
 		var out: Vector2 = d.out
 		var what: int = p.errand.get("delivery", DELIVER_NONE)
 		var steps: Array = [
-			{"do": "show", "at": (d.p as Vector2) - out * 0.2, "yaw": atan2(-out.x, -out.y)},
+			{"do": "show", "at": (d.p as Vector2) - out * 0.2, "yaw": atan2(-out.x, -out.y), "bell": true},
 			{"do": "ring", "ring": d.ring},
 		]
 		if what == DELIVER_TRUCK:

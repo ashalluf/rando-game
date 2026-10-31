@@ -171,6 +171,17 @@ const SAMPLES := {
 	"eng_v12_off": ["eng_v12_off_0.ogg"], "eng_moto_idle": ["eng_moto_idle_0.ogg"], "eng_moto_low": ["eng_moto_low_0.ogg"],
 	"eng_moto_mid": ["eng_moto_mid_0.ogg"], "eng_moto_high": ["eng_moto_high_0.ogg"], "eng_moto_off": ["eng_moto_off_0.ogg"],
 	"eng_turbo": ["eng_turbo_0.ogg"], "eng_blowoff": ["eng_blowoff_0.ogg"], "eng_beeper": ["eng_beeper_0.ogg"],
+	# The street at eye level (StreetSounds): a shop door's bell, car doors opening and shutting, a
+	# heavy vehicle's air brakes setting as it stops (one new take and two of bus_hiss's), heels on
+	# the pavement, tyres on gravel and on a wet road (synthesised, tools/street_audio.py).
+	"shop_bell": ["shop_bell_0.ogg", "shop_bell_1.ogg", "shop_bell_2.ogg", "shop_bell_3.ogg"],
+	"car_door": ["car_door_0.ogg", "car_door_1.ogg", "car_door_2.ogg"],
+	"car_door_open": ["car_door_open_0.ogg"],
+	"air_brake": ["air_brake_0.ogg", "bus_hiss_0.ogg", "bus_hiss_2.ogg"],
+	"footstep_heels": ["footstep_heels_0.ogg", "footstep_heels_1.ogg", "footstep_heels_2.ogg",
+		"footstep_heels_3.ogg", "footstep_heels_4.ogg"],
+	"tyre_gravel": ["tyre_gravel_0.ogg"],
+	"tyre_wet": ["tyre_wet_0.ogg"],
 }
 
 ## Loudest-50 ms level of every take above, in dB, in the same order, measured off the committed
@@ -254,6 +265,13 @@ const SAMPLE_LOUDNESS_DB := {
 	"eng_v12_off": [-19.58], "eng_moto_idle": [-17.97], "eng_moto_low": [-17.82], "eng_moto_mid": [-18.66],
 	"eng_moto_high": [-18.65], "eng_moto_off": [-19.12], "eng_turbo": [-21.32], "eng_blowoff": [-14.33],
 	"eng_beeper": [-4.36],
+	"shop_bell": [-10.65, -12.74, -13.98, -13.15],
+	"car_door": [-9.35, -11.95, -9.01],
+	"car_door_open": [-15.22],
+	"air_brake": [-12.89, -13.77, -12.24],
+	"footstep_heels": [-18.99, -19.64, -18.86, -17.38, -18.26],
+	"tyre_gravel": [-22.0],
+	"tyre_wet": [-22.0],
 }
 
 ## Sample names that have to loop. Set on the stream in code rather than in the .import file, so
@@ -264,7 +282,8 @@ const LOOPING := ["engine_loop", "boost_loop", "rain", "wind", "ambience_city", 
 	"eng_four_idle", "eng_four_low", "eng_four_mid", "eng_four_high", "eng_four_off", "eng_v8_idle", "eng_v8_low", "eng_v8_mid",
 	"eng_v8_high", "eng_v8_off", "eng_diesel_idle", "eng_diesel_low", "eng_diesel_mid", "eng_diesel_high", "eng_diesel_off", "eng_bus_idle",
 	"eng_bus_low", "eng_bus_mid", "eng_bus_high", "eng_bus_off", "eng_v12_idle", "eng_v12_low", "eng_v12_mid", "eng_v12_high",
-	"eng_v12_off", "eng_moto_idle", "eng_moto_low", "eng_moto_mid", "eng_moto_high", "eng_moto_off", "eng_turbo", "eng_beeper"]
+	"eng_v12_off", "eng_moto_idle", "eng_moto_low", "eng_moto_mid", "eng_moto_high", "eng_moto_off", "eng_turbo", "eng_beeper",
+	"tyre_gravel", "tyre_wet"]
 
 ## The city's ambience (scripts/util/ambience.gd), all CC0 (sources in docs/ASSETS.md). Kept apart
 ## from SAMPLES only so the two lists read separately; both ship and both load the same way.
@@ -302,6 +321,9 @@ const AMBIENCE_SAMPLES := {
 	"amb_fountain": ["amb_fountain_0.ogg"],
 	"amb_playground": ["amb_playground_0.ogg"],
 	"construction": ["construction_0.ogg", "construction_1.ogg", "construction_2.ogg"],
+	# The street at eye level: leaves rustling in the wind, and the sea's roar from a long way off.
+	"amb_leaves": ["amb_leaves_0.ogg"],
+	"amb_sea_far": ["amb_sea_far_0.ogg"],
 }
 
 ## Levels of the takes above, in the same order. One-shots use the SAMPLE_LOUDNESS_DB metric (the
@@ -325,12 +347,14 @@ const AMBIENCE_LOUDNESS_DB := {
 	"crane": [-10.25, -11.37, -10.90, -4.51],
 	"amb_river": [-22.0], "amb_fountain": [-22.0], "amb_playground": [-22.0],
 	"construction": [-12.00, -11.42, -7.82],
+	"amb_leaves": [-22.0], "amb_sea_far": [-22.0],
 }
 
 ## Ambience names that loop (set in code, like LOOPING).
 const AMBIENCE_LOOPING := ["amb_city", "amb_city_far", "amb_crowd", "amb_birds", "amb_crickets",
 	"amb_gale", "amb_rain_heavy", "amb_rain_roof", "amb_rain_car", "amb_freeway", "amb_surf",
-	"amb_airport", "amb_port", "car_roll", "amb_river", "amb_fountain", "amb_playground"]
+	"amb_airport", "amb_port", "car_roll", "amb_river", "amb_fountain", "amb_playground",
+	"amb_leaves", "amb_sea_far"]
 
 ## Bus names (built by _install_buses). Everything a thing in the world makes goes to World;
 ## the weather and the city's ambience go to Ambience; Game holds both.
@@ -797,6 +821,14 @@ func _build_synth() -> void:
 	_put("diesel_idle", _engine_loop(0.6), true)
 	_put("rail_chime", _chime(1.2, [1046.5, 784.0, 1046.5]))
 	_put("ball_dribble", _thud(0.18, 95.0, 0.9))
+	# The street at eye level (StreetSounds): fallbacks for the takes in SAMPLES.
+	_put("shop_bell", _chime(1.4, [1318.5, 1760.0]))
+	_put("car_door", _thud(0.18, 85.0, 0.9))
+	_put("car_door_open", _tink(0.2))
+	_put("air_brake", _noise_burst(1.6, 2.0, 0.6, 0.8))
+	_put("footstep_heels", _tink(0.12))
+	_put("tyre_gravel", _noise_burst(1.0, 0.0, 0.4, 0.3), true)
+	_put("tyre_wet", _noise_burst(1.0, 0.0, 0.3, 0.85), true)
 	# Synthesised only: the light rail car's traction motors (an inverter whine the train pitches
 	# with its speed) and the hum and crackle off its pantograph and the overhead wire.
 	_put("rail_motor", _motor_whine(2.0), true)
@@ -1264,6 +1296,8 @@ func ambience_synth(key: String) -> PackedFloat32Array:
 		"amb_fountain": return _drips(2.0, 140)
 		"amb_playground": return _babble(3.0)
 		"construction": return _clank(1.0)
+		"amb_leaves": return _bed(2.0, 0.6, 0.3, 0.0, 0.0)
+		"amb_sea_far": return _surf(9.0)
 	return _bed(1.0, 0.05, 1.0, 0.0, 0.0)
 
 

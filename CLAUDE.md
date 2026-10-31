@@ -324,6 +324,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   doors); `ParkBall` plays `ball_dribble` on each floor hit. Clips are cut by
   `tools/city_audio.py` (sources and spans in docs/ASSETS.md); `tools/audio_probe.tscn` prints
   the space, reverb, echo taps, beds and footing at named places. Checks: `tests/audio_checks.gd`.
+- The street at eye level (2026-10-31, docs/HANDOFF.md "The street at eye level"): `StreetSounds`
+  (`scripts/util/street_sounds.gd`, Ambience's child) plays the near layer from real events: the
+  nearest walkers' footsteps by surface and speed (some heels), a shop bell as a StreetErrands
+  shopper goes in / out, ErrandCar's door opening and slamming, a bus's / truck's air brakes as it
+  stands, the player's tyres on gravel or a wet road (`tyre_kind()`); Ambience gains `leaves` and
+  `sea_far` and a wet tyre hiss on the traffic voices. Pure: `step_interval()`, `step_db()`,
+  `tyre_kind()`, `tyre_db()`, `brake_step()`. Clips: `tools/street_audio.py`. `AMBIENT_SOUND_2=0`
+  is the A/B; checks `tests/ambient_sound_2_checks.gd`.
 - Engine audio (2026-10-06, docs/HANDOFF.md "Engine audio"): `EngineAudio`
   (`scripts/vehicles/engine_audio.gd`, one node under the root, made by the first Vehicle like
   CarLights) voices the `voices` (4, web 2) running cars nearest the camera within `reach` plus the

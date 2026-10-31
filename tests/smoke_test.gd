@@ -2717,6 +2717,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The rooms behind the windows, second pass (tests/window_interiors_checks.gd, WindowInteriors): homes,
 	# covers, TVs, open sashes, office workers; near and far rolling the same.
 	load("res://tests/window_interiors_checks.gd").new().run(self, city)
+	# The street at eye level (tests/ambient_sound_2_checks.gd, StreetSounds): crowd steps, shop
+	# bells, car doors, air brakes, tyres by surface, the leaves and far-sea beds; the mix is pure.
+	await load("res://tests/ambient_sound_2_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
