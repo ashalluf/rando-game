@@ -23234,6 +23234,11 @@ pages). `tools/memory_probe.gd` with three rounds of HOPS over the ten refcam po
 (BeachFigure's bakes and suits, CampFigure._shadows, one seed per crowd model) - fills, not leaks.
 Nothing cut here; `memory_audit_checks.gd`'s budget stays 4,000 (CLAUDE.md said 3,600: corrected).
 
+**The gate** (`SHARDS=3 tests/headless_check.sh`, this branch merged with main at 59eaa64d, 128
+commits newer than the base): 4,624 checks, 0 failed, 1,316 s; shard peaks 2,736 / 3,524 / 3,465 MB
+- under 3,600 but with under 100 MB to spare on shard 1 after main's wave-4 merges, so the next
+memory work is the parts gate_rss.py ranks first.
+
 ### Not done / next
 
 (1) The far canopies (FarCity 0.6-1.6 M camera triangles everywhere): a canopy LOD would collapse
