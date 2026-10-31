@@ -16,3 +16,5 @@ branch, same camera. opengl3 (Compatibility) stills from tools/glshot/block_shot
 | 08_after_echo_park_stairway.jpg | the next stretch up is too steep to drive: a stairway, the street beyond climbing |
 | 09_before_olive_st_looking_east.jpg | Olive St at 3rd looking east: flat |
 | 10_after_top_of_bunker_hill_view_east.jpg | the top of the incline on Olive St, the view east down over the historic core |
+| 11_before_golden_hour_aerial_echo_park.jpg | 17:54, from over downtown's north-west edge toward Echo Park and the front range: a flat grid of blocks |
+| 12_after_golden_hour_aerial_echo_park_hillside_homes.jpg | the same (full city, still_shot.gd): the knolls rise behind, houses climbing the Elysian slopes on the right |
