@@ -16,6 +16,9 @@ const NAME := "PALOMA FLIGHT"
 const HALF := 11.0
 ## Where the centre line runs, as a share of the way from 3rd St to 4th St.
 const AT_SHARE := 0.52
+## How far the lots either side stand off the strip, and the shallowest piece of a lot built on (m).
+const PIECE_GAP := 1.0
+const PIECE_MIN := 14.0
 ## Tracks either side of the centre line, the stairway's centre line.
 const TRACK_OFF := 1.15
 const STAIR_OFF := 6.2
@@ -73,32 +76,78 @@ static func claims(plan: CityPlan, lot: Dictionary) -> bool:
 	return r.intersects(s.rect)
 
 
-## A claimed lot: paved, and the first one in the chunk builds the incline.
-static func build_lot(ch: CityChunk, lot: Dictionary) -> void:
+## What a lot crossed by the strip keeps either side of it: the lot cut along z at the strip's edges
+## (each piece at least PIECE_MIN deep, its cell cut the same way, its seed a hash of the lot's), so
+## the towers and mid-rises stand on the terrace and step down the face beside the incline. PURE.
+static func pieces(plan: CityPlan, lot: Dictionary) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var s := site(plan)
+	if s.is_empty():
+		return out
+	var band: Rect2 = s.rect
 	var half: Vector2 = (lot.size as Vector2) * 0.5
 	var c: Vector2 = lot.center
-	# A lawn knoll with trees (the park beside the real incline), the strip itself kept clear.
-	ch._add_slab(Vector3(c.x, CityChunk.SIDEWALK_TOP * 0.5, c.y), Vector3(half.x * 2.0, CityChunk.SIDEWALK_TOP, half.y * 2.0),
-		Color(0.36, 0.45, 0.24), true, PropFactory.lawn(Color(0.42, 0.50, 0.27), 4402, 0.4, 0.0))
-	if ch.capturing or ch.level != CityChunk.Level.FULL:
-		return
+	var cell: Rect2 = lot.get("cell", Rect2(c - half, half * 2.0))
+	var spans := [[c.y - half.y, band.position.y - PIECE_GAP], [band.end.y + PIECE_GAP, c.y + half.y]]
+	for k in spans.size():
+		var z0: float = spans[k][0]
+		var z1: float = spans[k][1]
+		if z1 - z0 < PIECE_MIN:
+			continue
+		var p := lot.duplicate()
+		p.center = Vector2(c.x, (z0 + z1) * 0.5)
+		p.size = Vector2(half.x * 2.0, z1 - z0)
+		var cz0 := cell.position.y if k == 0 else band.end.y
+		var cz1 := band.position.y if k == 0 else cell.end.y
+		p.cell = Rect2(cell.position.x, cz0, cell.size.x, maxf(cz1 - cz0, 0.0))
+		p.seed = absi(hash([int(lot.seed), "paloma_piece", k]))
+		p.parking = false
+		out.append(p)
+	return out
+
+
+## A claimed lot: its share of the strip is a planted bank either side of the incline and the
+## stairway, the first one in the chunk builds the incline; it returns what is left of the lot
+## either side (pieces()), which CityChunk._build_lot() builds as ordinary lots.
+static func build_lot(ch: CityChunk, lot: Dictionary) -> Array[Dictionary]:
+	var half: Vector2 = (lot.size as Vector2) * 0.5
+	var c: Vector2 = lot.center
 	var s := site(ch.plan)
+	var band: Rect2 = s.rect
+	var x0 := maxf(c.x - half.x, band.position.x)
+	var x1 := minf(c.x + half.x, band.end.x)
+	var z0 := maxf(c.y - half.y, band.position.y - PIECE_GAP)
+	var z1 := minf(c.y + half.y, band.end.y + PIECE_GAP)
+	if x1 > x0 and z1 > z0:
+		ch._add_slab(Vector3((x0 + x1) * 0.5, CityChunk.SIDEWALK_TOP * 0.5, (z0 + z1) * 0.5), Vector3(x1 - x0, CityChunk.SIDEWALK_TOP, z1 - z0),
+			Color(0.36, 0.45, 0.24), true, PropFactory.lawn(Color(0.42, 0.50, 0.27), 4402, 0.4, 0.0))
+	var rest := pieces(ch.plan, lot)
+	# The part of the lot the cut left too shallow to build on is planted with the strip.
+	for k in 2:
+		var lz0 := c.y - half.y if k == 0 else band.end.y + PIECE_GAP
+		var lz1 := band.position.y - PIECE_GAP if k == 0 else c.y + half.y
+		if lz1 - lz0 <= 0.0 or lz1 - lz0 >= PIECE_MIN:
+			continue
+		ch._add_slab(Vector3(c.x, CityChunk.SIDEWALK_TOP * 0.5, (lz0 + lz1) * 0.5), Vector3(half.x * 2.0, CityChunk.SIDEWALK_TOP, lz1 - lz0),
+			Color(0.36, 0.45, 0.24), true, PropFactory.lawn(Color(0.42, 0.50, 0.27), 4402, 0.4, 0.0))
+	if ch.capturing or ch.level != CityChunk.Level.FULL:
+		return rest
+	# A row of trees along each edge of the strip, off the incline and the stairs.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([ch.plan.seed, "paloma_knoll", int(lot.seed)])
-	var keep: Rect2 = (s.rect as Rect2).grow_individual(0.0, -HALF + 9.0, 0.0, -HALF + 9.0)
-	var n := int(half.x * half.y * 4.0 / 220.0)
-	for i in n:
-		var p := c + Vector2(rng.randf_range(-half.x + 4.0, half.x - 4.0), rng.randf_range(-half.y + 4.0, half.y - 4.0))
-		if keep.grow(3.0).has_point(p):
-			continue
-		ch._add_tree(Vector3(p.x, CityChunk.SIDEWALK_TOP, p.y), rng)
+	for zz: float in [band.position.y + 2.2, band.end.y - 2.0]:
+		var x := x0 + 5.0
+		while x < x1 - 3.0:
+			ch._add_tree(Vector3(x + rng.randf_range(-1.0, 1.0), CityChunk.SIDEWALK_TOP, zz), rng)
+			x += rng.randf_range(9.0, 13.0)
 	if ch.has_meta("paloma_flight"):
-		return
+		return rest
 	ch.set_meta("paloma_flight", true)
 	var node := LaHillsIncline.new()
 	node.name = "PalomaFlight"
 	ch.add_child(node)
 	node._build(ch, site(ch.plan))
+	return rest
 
 
 func _ground(ch: CityChunk, x: float, z: float) -> float:

@@ -3842,3 +3842,6 @@ none of either.
   Pedro, a skirt round the Baldwin Hills oil field) are a DATA TABLE folded into the relief's base, held
   level under every landmark. A street stretch steeper than 30 % is a public stairway closed to cars;
   everything driveable stays at or under 30 %. Hillside neighbourhoods are houses. LA_HILLS=0 is the A/B.
+  Lead review the same day: the hills are BUILT UP, not lawn - every block on a home hill's slope is
+  close-packed lots of houses (stilts, garages at the kerb, stairs to the door, retaining walls), and
+  Bunker Hill's towers stand either side of the incline's narrow planted strip.

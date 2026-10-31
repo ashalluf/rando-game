@@ -48,6 +48,8 @@ func setup(chunk: CityChunk, house: Dictionary) -> void:
 			gmin = minf(gmin, gy)
 	g = gmax + CityChunk.SIDEWALK_TOP + YardFill.LIFT + HouseKit.FLOOR_LIFT
 	base = -(gmax - gmin) - HouseKit.FLOOR_LIFT - 0.3
+	# A house on a hillside lot stands on stilts where the ground falls away (LaHillsHomes).
+	base = LaHillsHomes.house_base(ch, h, base, gmax - gmin)
 
 
 # --- Frame ---------------------------------------------------------------------------------------

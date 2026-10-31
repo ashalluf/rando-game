@@ -22,7 +22,7 @@ const POST_EVERY := 2.6
 const RAIL_PAINT := Color(0.16, 0.25, 0.19)
 const CONCRETE := Color(0.80, 0.78, 0.74)
 ## The banks either side: an ivy / ice plant slab (linear-ish tint over the grass set).
-const BANK_TINT := Color(0.40, 0.46, 0.26)
+const BANK_TINT := Color(0.24, 0.33, 0.15)
 
 static var _bank_mat: Material
 
@@ -70,11 +70,11 @@ static func _plant(ch: CityChunk, along_x: bool, mid: float, s0: float, s1: floa
 	var next_tree := s0 + rng.randf_range(6.0, 16.0)
 	while s < s1 - 2.5:
 		for side: float in [-1.0, 1.0]:
-			if rng.randf() < 0.25:
+			if rng.randf() < 0.08:
 				continue
 			var t := mid + side * rng.randf_range(inner, outer)
 			var p := _p(along_x, s + rng.randf_range(-0.8, 0.8), t)
-			var sc := rng.randf_range(0.8, 1.5)
+			var sc := rng.randf_range(1.0, 1.9)
 			var basis := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(sc, sc, sc))
 			var tint := Color(rng.randf_range(0.8, 1.05), rng.randf_range(0.9, 1.1), rng.randf_range(0.8, 1.0))
 			ch._batch.add("bush_%d" % pick, PropFactory.model_bush(pick), Transform3D(basis, Vector3(p.x, CityChunk.SIDEWALK_TOP, p.y)), tint)
@@ -82,8 +82,13 @@ static func _plant(ch: CityChunk, along_x: bool, mid: float, s0: float, s1: floa
 			var side := -1.0 if rng.randf() < 0.5 else 1.0
 			var tp := _p(along_x, s, mid + side * (inner + outer) * 0.5)
 			ch._add_tree(Vector3(tp.x, CityChunk.SIDEWALK_TOP, tp.y), rng)
-			next_tree = s + rng.randf_range(14.0, 26.0)
-		s += 2.4
+			next_tree = s + rng.randf_range(10.0, 18.0)
+		s += 1.7
+	# Ground cover and flowers over the banks (ivy and ice plant, not a mown lawn).
+	for side: float in [-1.0, 1.0]:
+		var a := _p(along_x, s0 + 1.0, mid + side * inner)
+		var b := _p(along_x, s1 - 1.0, mid + side * outer)
+		ch._scatter_ground_cover(Rect2(Vector2(minf(a.x, b.x), minf(a.y, b.y)), (a - b).abs()), rng, 1.6)
 
 
 ## A crossing whose arms are all stairs: the bank slab over the square.
@@ -239,6 +244,8 @@ const WALL_COLORS := [Color(0.88, 0.86, 0.82), Color(0.95, 0.88, 0.74), Color(0.
 
 
 static func kerb_walls(ch: CityChunk, block: Dictionary) -> void:
+	# The block's hillside house pieces (LaHillsHomes.dress() during the lots) go in with the walls.
+	LaHillsHomes.commit(ch)
 	if ch.capturing or ch.level != CityChunk.Level.FULL or not YardFill.enabled or ch._yard_lots.is_empty():
 		return
 	var lh: LaHills = ch.plan.macro.la_hills if ch.plan.macro else null

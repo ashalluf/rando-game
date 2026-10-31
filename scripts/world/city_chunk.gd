@@ -3192,8 +3192,17 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 		return
 	# Bunker Hill's incline and its plaza (LaHillsIncline: the strip mid-block up the east face).
 	if LaHillsIncline.claims(plan, lot):
-		LaHillsIncline.build_lot(self, lot)
-		return
+		var rest := LaHillsIncline.build_lot(self, lot)
+		if rest.is_empty():
+			return
+		# Either side of the strip the lot is built on as ordinary lots (towers and mid-rises
+		# stepping down the face); a second piece on a private rng, so the chunk's stream is unmoved.
+		for k in range(1, rest.size()):
+			var prng := RandomNumberGenerator.new()
+			prng.seed = int(rest[k].seed)
+			_build_lot(rest[k], params, prng)
+		lot = rest[0]
+		center = lot.center
 	var fill := LotFill.wanted(self, district)
 	# A surface car park (CityPlan.lots() "parking"; the pad roll above is still made).
 	if fill and lot.get("parking", false) and not StarBoulevard.strip_lot(plan, ix, iz, lot):
@@ -3343,6 +3352,8 @@ func _build_house(lot: Dictionary, district: int) -> void:
 	# A timber frame going up on the house's own plan (Construction; a hash of seed + lot).
 	if not Construction.build_house(self, lot, house):
 		HouseKit.build(self, house)
+		# On a hillside lot: stilts, a garage at the kerb, stairs to the door (LaHillsHomes; no roll).
+		LaHillsHomes.dress(self, house)
 	UtilityPoles.note_house(self, house)
 	building_count += 1
 	if YardFill.records(self, district):

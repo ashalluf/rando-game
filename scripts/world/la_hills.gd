@@ -166,6 +166,13 @@ func hill_at(pos: Vector2) -> Dictionary:
 
 ## True on a hillside neighbourhood of houses (MacroMap.district_at() makes it SUBURBS): a hill
 ## marked `homes` whose lift there is at least HOMES_LIFT.
+## How high a home hill lifts a block's centre before the block is houses whatever it rolled (m).
+const HOME_BLOCK_LIFT := 2.5
+## A home block's lots: their size and the gap between them (m), and the share left a pocket garden
+## (the suburbs' 14-22 m lots 6-14 m apart left half a knoll lawn).
+const HOME_LOT := Vector2(12.0, 16.5)
+const HOME_GAP := Vector2(1.6, 4.0)
+const HOME_COURTYARD := 0.06
 const HOMES_LIFT := 2.0
 func homes_at(pos: Vector2) -> bool:
 	if not _box.has_point(pos):
@@ -174,6 +181,14 @@ func homes_at(pos: Vector2) -> bool:
 		if hl.homes and (hl.box as Rect2).has_point(pos) and _one(hl, pos) >= HOMES_LIFT:
 			return true
 	return false
+
+
+## A block on a home hill's slope (its centre lifted HOME_BLOCK_LIFT or more): CityPlan.block() makes
+## it ordinary lots after every roll (no rolled park, plaza, mall, big box, rec park or campus on a
+## 25 % knoll: Echo Park's and Elysian Heights' slopes are houses lot after lot).
+func home_block(rect: Rect2) -> bool:
+	var c := rect.get_center()
+	return homes_at(c) and lift_raw(c) >= HOME_BLOCK_LIFT
 
 
 ## The hills' lift at `pos` before landmarks hold it level or a range takes over (m).

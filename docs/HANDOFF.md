@@ -22468,10 +22468,34 @@ the front walk; box collision per run).
 little incline railway, invented name and look - a steel trestle on concrete piers following the
 smoothed hill, two counterbalanced teal / red cars on parallel tracks worked out from the clock
 (`ride_u()`: a dwell at each end, a ride between), an arched gateway with the name on Hill St, a canopy
-at the top on Olive St, a stairway beside it, a lawn knoll with trees on the lots it crosses (claimed in
-`CityChunk._build_lot()` after every other claim; `site()` from DowntownReal's Hill / Olive / 3rd / 4th).
+at the top on Olive St, a stairway beside it; `site()` from DowntownReal's Hill / Olive / 3rd / 4th.
+The lots the strip crosses (claimed in `CityChunk._build_lot()` after every other claim) give up only the
+strip (`HALF` 11 m either side of the line plus `PIECE_GAP`), planted as a lawn with a row of trees along
+each edge; `LaHillsIncline.pieces()` (pure) cuts each lot along z at the strip's edges and `_build_lot()`
+builds what is left either side as ordinary lots (the second piece on a private rng of its hashed seed),
+so the towers and mid-rises stand on the terrace and step down the face on their plinths beside it.
+
+**Built-up hillsides** (lead review, same day: "the hill faces are BARE LAWN where real LA hills are
+built up"). `LaHills.home_block(rect)` (a home hill lifting the block's centre `HOME_BLOCK_LIFT` 2.5 m
+or more): `CityPlan.block()` makes the block BUILDINGS after every roll (no rolled park, plaza, mall, big
+box, rec park or campus on a knoll; landmark blocks and sites untouched) and `_lot_grid()` packs it with
+`HOME_LOT` 12-16.5 m lots `HOME_GAP` 1.6-4 m apart, `HOME_COURTYARD` 6 % pocket gardens (the suburbs'
+14-22 m lots 6-14 m apart left half of every knoll lawn; the rolls are the same rolls). Echo Park and
+Elysian Heights went from 6 + 6 PARK / MALL / BIGBOX blocks to all lots, 12-30 houses a block.
+`LaHillsHomes` (`scripts/world/la_hills_homes.gd`; hooks: `HouseBuild.setup()` asks `house_base()`,
+`CityChunk._build_house()` calls `dress()` after `HouseKit.build()`, `LaHillsBuild.kerb_walls()`'
+step calls `commit()`), FULL only, for every house on a home hill (no apartment's stilts, no hill-home
+lower levels): where the ground falls more than `STILT_DROP` 2.8 m under it the walls stop a `SKIRT`
+below the floor and each wing stands on a ring beam over posts on footings every `POST_EVERY`, X-braced
+in the tall edge bays; where the floor stands `GARAGE_RISE` 2.6 m or more over the kerb on its drive, a
+concrete garage is cut into the bank at the kerb (sectional door, lamp, a deck with a pipe rail over);
+and a flight of concrete steps with a rail runs from the back of the pavement to the door (beside the
+garage), wherever the door is `STAIR_RISE` 0.9 m or more over the pavement. One mesh a chunk
+(`HillHomes`, FootbridgeKit's material) and one body (garages, steps). Hashes only. The stairways'
+banks are ground cover and dense shrubs now (`_scatter_ground_cover()`, a private rng), not mown lawn.
 
 `LA_HILLS=0` is the A/B (the city exactly as before). Checks: `tests/la_street_hills_checks.gd`.
-Known gaps: houses on the steepest lots stand on tall plain foundation walls (HouseBuild's base), not
-stilts; the stairs' collision is the ramp under them; Boyle Heights' and San Pedro's industrial blocks
-on the slopes keep their plinths.
+Known gaps: houses on a 1-2.8 m drop still stand on plain wall (HouseBuild's base), only the steeper
+lots get stilts; the stilts' posts have no collision; no small apartments on the knolls (Apartments
+only claims midtown and the inner suburbs); the stairways' collision is the ramp under them; Boyle
+Heights' and San Pedro's industrial blocks on the slopes keep their plinths.

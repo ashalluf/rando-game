@@ -19,6 +19,7 @@ func run(t: Node, city: Node3D) -> void:
 	_landmarks_level(plan, lh)
 	_corridors(plan, lh)
 	_stairway_chunk(city, plan, lh)
+	_built_up(city, plan, lh)
 
 
 ## Bunker Hill: the crest along Grand stands 18-32 m over the plain, Hill St at its foot is near the
@@ -161,5 +162,65 @@ func _stairway_chunk(city: Node3D, plan: CityPlan, lh: LaHills) -> void:
 	var span := stairs.get_aabb().size.y if stairs and stairs.mesh else 0.0
 	_t._check(stairs != null and span > rise * 0.7,
 		"la hills: chunk (%d, %d) builds the stairway up %s (%.1f m of flight for a %.1f m rise)" % [found.y - 1, found.z, plan.road_name(CityPlan.AXIS_X, found.y), span, rise])
+	chunk.get_parent().remove_child(chunk)
+	chunk.free()
+
+
+## The hills are built up: every block on a home hill's slope is lots (no rolled park, mall or campus),
+## the lots the Paloma Flight's strip crosses keep buildings either side of it, and an Echo Park chunk
+## stands its houses on stilts, garages at the kerb and stairs (LaHillsHomes).
+func _built_up(city: Node3D, plan: CityPlan, lh: LaHills) -> void:
+	var blocks := 0
+	var odd: Array[String] = []
+	var pick := Vector2i(999999, 0)
+	var pick_lift := 0.0
+	for hl: Dictionary in lh.hills():
+		if not hl.homes:
+			continue
+		var box: Rect2 = hl.box
+		for bx in range(plan._index_at(CityPlan.AXIS_X, box.position.x), plan._index_at(CityPlan.AXIS_X, box.end.x) + 1):
+			for bz in range(plan._index_at(CityPlan.AXIS_Z, box.position.y), plan._index_at(CityPlan.AXIS_Z, box.end.y) + 1):
+				var b := plan.block(bx, bz)
+				if not lh.home_block(b.rect) or Landmarks.claims(b.rect) or b.has("site"):
+					continue
+				# A public school or a memorial park may still take one (Schools / Cemetery: map cells
+				# decided after every block roll; Boyle Heights has both).
+				var civic := str(b.get("grounds", ""))
+				if civic.begins_with("school") or civic == "cemetery":
+					continue
+				blocks += 1
+				if int(b.kind) != CityPlan.BlockKind.BUILDINGS or b.has("grounds") or plan.lots(bx, bz).is_empty():
+					odd.append("%s (%d,%d) kind %d" % [hl.id, bx, bz, int(b.kind)])
+				var c: Vector2 = (b.rect as Rect2).get_center()
+				if hl.id == "echo_park" and lh.lift_raw(c) > pick_lift:
+					pick_lift = lh.lift_raw(c)
+					pick = Vector2i(bx, bz)
+	_t._check(blocks >= 40 and odd.is_empty(), "la hills: %d blocks on the home hills' slopes (less schools and memorial parks) are all lots %s" % [blocks, odd.slice(0, 4)])
+	# The incline's strip: the lots it crosses keep their ground either side.
+	var site := LaHillsIncline.site(plan)
+	var crossed := 0
+	var kept := 0
+	if not site.is_empty():
+		var band: Rect2 = site.rect
+		for bx in range(plan._index_at(CityPlan.AXIS_X, band.position.x), plan._index_at(CityPlan.AXIS_X, band.end.x) + 1):
+			var bz := plan._index_at(CityPlan.AXIS_Z, band.get_center().y)
+			for lot: Dictionary in plan.lots(bx, bz):
+				if lot.yard or not LaHillsIncline.claims(plan, lot):
+					continue
+				crossed += 1
+				for p: Dictionary in LaHillsIncline.pieces(plan, lot):
+					var r := Rect2((p.center as Vector2) - (p.size as Vector2) * 0.5, p.size)
+					if not r.intersects(band):
+						kept += 1
+	_t._check(crossed >= 1 and kept >= crossed, "la hills: the Paloma Flight's strip crosses %d lots and leaves %d pieces of them to build on" % [crossed, kept])
+	if pick.x == 999999:
+		_t._check(false, "la hills: an Echo Park block to build")
+		return
+	var chunk: CityChunk = city._new_chunk(pick, CityChunk.Level.FULL)
+	chunk.build()
+	var homes := chunk.get_node_or_null("HillHomes") as MeshInstance3D
+	var body := chunk.get_node_or_null("HillHomesBody") as StaticBody3D
+	_t._check(homes != null and body != null and body.get_child_count() > 0,
+		"la hills: Echo Park block (%d, %d), %.0f m up, stands its houses on stilts, garages and stairs (%d shapes)" % [pick.x, pick.y, pick_lift, body.get_child_count() if body else 0])
 	chunk.get_parent().remove_child(chunk)
 	chunk.free()
