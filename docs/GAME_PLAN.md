@@ -3786,3 +3786,8 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+- **2026-10-31, the dawn review (docs/HANDOFF.md "The dawn review").** The morning is no longer the
+  evening's ramps run backwards: a weight on the MORNING alone (0 from noon on and at night, so both
+  are bit-identical) gives the sunrise a pinker gold sun, a rose horizon, cleaner air and a rose-grey
+  mist, eases the golden grade, and switches the street lamps off before the sunrise. Behind
+  DAWN_REVIEW=0.

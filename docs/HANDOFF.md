@@ -21980,3 +21980,47 @@ the same way, but judge 18:00 on the Mac first - if it reads milky-pink, raise `
 grass under a low red sun is what it is). The painted cumulus on opengl3 draws a big smooth ellipse in
 the aerial and sky shots (before and after alike; the sky's, not this review's). Dawn shares the sky
 ramp and the exposure ramp (both are symmetric in elevation) and was not looked at.
+
+## 9d?. The dawn review: 05:00-08:30, a sunrise that is not the sunset backwards (fleet wave 4, `wt/dawn-review`; VISUAL_ROADMAP "?")
+
+**How it was judged.** The refcams street (Flower at Olympic), golden aerial (downtown from the SW,
+140 m), hills (front range from 260 m) and beach (the waterline) views at 06:15, 07:00 and 08:00, plus
+the street at 05:45 (the lamps) and looking east at 06:15 (`tools/dawn_review/cameras.json`, run
+through refcams with `REFCAMS_JSON=` and `SHEET_COLS=4`; 14 shots, ~12 min load + ~2 min a shot).
+Stills on `shots/dawn-review` (before, first pass, final).
+
+**What main showed.** Every ramp DayNight runs is a function of the sun's elevation alone, so the
+morning was the evening played backwards: at 06:15 (sun ~4 degrees up) every view was a smoggy
+sunset - hills saturation 0.52 at 3,250 K, the aerial 3,840 K under a brown smog lid, the beach
+orange; the GOLDEN grade's red mids on top; the street lamps burning until the sun was seven degrees
+up (~06:27). 07:00 and 08:00 already read as day and were left.
+
+**What changed** (`DawnReview`, `scripts/world/dawn_review.gd`; all behind `DAWN_REVIEW=0`):
+a MORNING weight (`weight()`: 0 from noon on, ramping in from ~21 degrees down, out by ~38 up) takes
+DayNight's dusk numbers toward dawn ones where it hands them out: the low sun (1, 0.66, 0.46) for
+(1, 0.6, 0.35), the dusk horizon a rose-peach, the zenith a cleaner blue, the clouds pink-gold over
+a lilac shadow, the smog 0.6 of the morning's, the fog colour a rose-grey mist and the depth fog
+x1.15 with the sun low, HourGrade's GOLDEN weight x0.7; sky.gdshader's `dawn` uniform mixes
+sun_through() toward `DAWN_PAL_C` (cooler, pinker: SunsetSky's copy, checked); the street lamps
+switch off before the sunrise (`lamp_factor()`: 1 at ~05:42, 0 at ~06:02 - photocells switch off
+at more light than they switch on at; the evening keeps night_factor). The first pass (cold
+grey-blue mist, the GOLDEN grade at 0.45) drained 06:15 to saturation 0.20-0.22 and 5,100-5,500 K;
+the final numbers sit between.
+
+**Numbers** (luminance p5/p50/p95, saturation, CCT; before -> final): hills 06:15 48/86/164 0.52
+3,253 K -> 54/93/164 0.34 4,312 K; aerial 06:15 44/147/204 0.43 3,844 K -> 50/148/202 0.28 4,726 K;
+beach 06:15 47/137/179 0.31 4,084 K -> 49/139/179 0.24 4,923 K; street 06:15 25/50/151 0.44 ->
+24/48/149 0.42 (lamps off); 08:00 within a level (the weight is nearly gone). Frame cost: none
+(uniforms; the GEO counts move only with the traffic and streaming).
+
+**Checks** (`tests/dawn_review_checks.gd`): no weight at noon, evening, night; every number DayNight
+hands out compared ON vs OFF at 00, 03, 04:30, 09, 12, 15, 17:30, 18, 18:30, 21, 23:30 (bit-identical);
+the 06:15 sun cooler than the 17:45 one, a pinker horizon, thinner smog, a cooler and thicker haze;
+lamps on at 05:30 and out by 06:05 as a ramp; no colour jump per game minute 05:00-08:30; the shader's
+palette copy.
+
+**Not done / not verified.** Forward+ (the Mac) not rendered: colours and ramps only, read the same
+way by both renderers, but judge 06:15 on the Mac. Dew was not added (the lawns' morning sprinklers
+already wet the grass; damp roads at every dawn would read as rain). The navy asphalt in the street
+view is the same at every hour (not dawn's). The east-facing street camera looks at a building front,
+not the sunrise. The marine-layer mornings were not reshot (the old 60-camera table had a marine row).
