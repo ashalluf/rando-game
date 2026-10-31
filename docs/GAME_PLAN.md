@@ -3658,6 +3658,13 @@ already mapped so milestone 2 is script-only.
   are irrigated whatever the block rolled; flat roofs weather smoothly with the same function near
   and far; landmark windows are coverage, never a hard test. All behind CIVIC_GROUNDS=0 /
   ROOF_WEATHER=0.
+- **2026-10-31 The freeway at noon is full and seamless (rc-freeway, HANDOFF "The freeway at
+  noon").** The freeway refcam had a handful of cars in a kilometre at 13:00, moire rings in the
+  tining, a ladder of black rumble tiles and a crack at every deck bend. Decisions: freeway traffic
+  is filled per LANE (own jittered slots), nearest the player first and never on him, with a 1.5x
+  cap given mostly to the route he is on - density is spent where the camera is, not spread over
+  1.2 km; shading detail on the deck fades while it still spans pixels rather than at one; segment
+  geometry is mitred, not overlapped. `FREEWAY_FILL=0` / `FREEWAY_LOOK=0` restore the old.
 
 - **2026-10-30 Traffic that moves like cars (traffic-motion, HANDOFF "Traffic that moves like
   cars").** Kinematic traffic glided: no dive, squat, lean or bounce, turns snapped 90 degrees at

@@ -24338,3 +24338,92 @@ dispatch sending a truck). The police stay off in every other check.
 Not done: the gunship does not shoot (the brief asked for its spotlight); the trucks drive the
 lanes and pursue like cruisers (police-chase-2 owns manoeuvres); no Forward+ still of the gunship's
 volumetric beam.
+
+## 9jv. The freeway at noon (wave 4 refcam, branch `wt/rc-freeway`; VISUAL_ROADMAP ?)
+
+The task: judge the `freeway` reference camera (the 110's deck by downtown, 13:00 clear) like an
+art director, fix the worst three to five things, hold the other nine cameras.
+
+**What gave it away, in the order the eye lands on it:**
+1. **An empty freeway at 1 pm.** `TrafficManager._maintain_freeway()` offered ONE slot per
+   `freeway_gap` (34 m) and direction for all four lanes, walked from the far end of the window
+   up (so the cap ran out before the stretch in front of the player), every lane's car on the
+   same metre. At best a car per 136 lane-metres, abreast when they came; the refcam had a box
+   truck and four cars in a kilometre.
+2. **Rings across the lanes.** The deck's longitudinal tining (1.9 cm pitch, square grooves) only
+   faded once a groove was under ~1 pixel; at two or three pixels it beat with the pixel grid into
+   concentric moire rings across every near lane (`block_shot` close up).
+3. **A ladder of black tiles down the shoulder.** The milled rumble strip was flat cells, darkened
+   x0.84 and tilted one way per half: crisp dark rectangles at even pitch.
+4. **A dashed crack down the outer barrier at every bend.** Deck segments (24 m) were extruded on
+   their own normal at both ends: at a bend the outer barrier, fascia and deck top open a wedge.
+5. **Black pencil lines across a lane.** The expansion joints' finger seam is a 3 cm zig-zag that
+   aliased into broken dashes, on a 0.75-metal plate the Compatibility renderer drew near black.
+
+**What changed** (two switches, both on by default):
+- `FreewayFill` (`scripts/npc/freeway_fill.gd`; `FREEWAY_FILL=0` is the old fill exactly): every
+  lane has its own slots `LANE_GAP` (42 m) apart, each car slid inside its slot by a hash
+  (`slot_t()`), so lanes never line up; free slots are offered nearest the player first while a
+  route holds under `FILL_BELOW` of its share (load, teleport), and once filled only past
+  `INFLOW_FROM` (300 m, where a car is a few pixels; the flow brings them in), never within
+  `KEEP_CLEAR` (40 m: the first version put a car on the camera). The cap is `CAP_GAIN` (1.5) x
+  `max_freeway_cars` (so Quality and the web still scale it), shared mostly to the route under
+  the player (`shares()`, `FAR_WEIGHT` 0.3 at freeway_range), and cars leave at `retire_reach()`
+  (580 m, was 837). Trucks only take the two slow lanes' slots, twice as often there, so their
+  share is unchanged. The hour's empty-slot roll (FreewayCloseup.spawn_skip()) is kept, one roll a
+  slot. Hook: three small edits in `traffic.gd` (retire reach, cap, the slot loop) and an optional
+  `want_li` on `_spawn_freeway_car()`.
+- `FreewayLook` (`scripts/world/freeway_look.gd`; `FREEWAY_LOOK=0` leaves every shader default and
+  vertex as it was): deck `tine_fade` 0.12..0.45 pixels per pitch with a rounded (band-limited)
+  groove; `rumble_scoop`: each scoop a shallow cylinder cut rounded at its ends, shade from the lip
+  to the far wall, dust in the bottom, fading to a faint band; paint `joint_steel`: dull dusty
+  steel with an antialiased seam whose zig-zag flattens with distance; and `mitre()`: the deck top,
+  girder and both barriers of a main-deck segment end on the bisector of its neighbour's normal
+  (scaled to keep the width; none past 25 degrees or at a route end). Same triangles, same rolls.
+
+**Checks**: `tests/rc_freeway_checks.gd` (cap, reach, shares, per-lane jittered slots, nearest
+first, the dense window and the inflow band, keep-clear, the A/B; a spawned car keeps its slot's
+lane and no truck lands in a fast lane; the materials carry the look; the shaders' defaults are the
+old look).
+
+**The lead's "big red object on the lens"** (main e5bb9e4's freeway refcam): the camera stands in
+the slow lane 2.5 m over the deck, so a freeway car the old fill spawned on the player's slot (the
+player is parked on the eye), or a truck driving through at shot time, filled the frame - this
+branch's first fill did the same with a purple car. Two fixes: FreewayFill never spawns within
+`KEEP_CLEAR` (40 m) of the player, and `tools/refcams/refcams_shot.gd` `_clear_lens()` hides, for
+that shot only, any vehicle whose mesh box (grown 0.6 m) holds the eye, printing `REFCAM <shot>:
+hid <car>` in godot.log. The camera itself is not moved (its runs stay comparable).
+
+**Measured** (refcams, opengl3 1280x720; traffic differs run to run, so the freeway's cost moves
+with whatever stands near the camera): the freeway camera on main e5bb9e4 5.26 M triangles / 2,825
+draws (p5/p50/p95 28/153/212); with the A/Bs off on this branch 5.07 M / 2,719; with this pass
+5.72 M / 2,946 (cap x1.7 run), 5.95 M / 3,058 (a semi parked in front), 6.14 M / 3,010 (final,
+cap x1.5): about +0.5-0.9 M triangles and +200-300 draws, all of it cars. The whole set, before
+(`FREEWAY_FILL=0 FREEWAY_LOOK=0`) vs after in one tree: the other nine cameras within noise
+(triangles -2.7 %..+2.2 %, no flags); only the freeway flagged (the traffic). Stills on
+`shots/rc-freeway` (README there).
+
+**CPU** (`tools/perf_audit_2/traffic_bench.tscn -- --spawn=1989,160,-6,-3 --hour=13`, headless, mean us
+a call): `FREEWAY_FILL=0` 70 freeway cars, `_maintain_freeway` 4,923, `_drive_freeway` 3,771; the first
+fill 105 cars, 9,702 / 5,636; final 105 cars, 1,752 / 5,689 - the upkeep (every 0.5 s) now works out
+each route's anchor once instead of once a car (`nearest_on()` is a search; that also speeds the
+old path), skips the candidate search for a route at its share and hashes slots with integers. The
+drive is linear in cars (~54 us a car here): +1.9 ms a tick is the price of the 1.5x cap.
+
+**Final gate** (`SHARDS=3`, final code): 4,458 checks, 4,457 passed; the one failure was this
+branch's own jitter check (its bound of 8 / 40 pairs within 3 m was tighter than a uniform slide
+gives with the integer hash: 11); the bound is 16 now and `SMOKE_PARTS=rc_freeway_checks,
+freeway_closeup_checks` passes 38 / 38. Shard peaks 2,770 / 3,483 / 3,060 MB, 1,942 s.
+
+**First gate** (`SHARDS=3`, merged with origin/main 2026-10-31): 4,458 checks, 3 failed: freeway_closeup's
+"one roll a slot" (it counts the text `_rng.randf() < skip` in traffic.gd; the new fill's roll is
+written the other way round now), traffic_motion's "no tick turns the car..." (a street junction
+turn, 129.6 deg in one tick) and the room's "one shotgun blast throws a crate (0.22 m)". The last
+two are not freeway code; `SMOKE_PARTS=room,traffic_motion_checks,freeway_closeup_checks,rc_freeway_checks`
+then passed 207 / 207. Shard peaks 2,780 / 3,473 / 3,033 MB.
+
+**Not done / not verified.** Forward+ (the Mac) not rendered: the tining fade and the scoops are
+shading, judged on opengl3 only (TAA will soften what is left). Steady-state
+inflow (cars entering past 300 m) and pop-in were reasoned, not watched over minutes of play. Seen
+in the shots and left to their owners: the red brake-glow discs under a semi's trailer lamps by day
+(vehicle lights), the box truck / trailer bodies' flat sides, the mountain backdrop's blotches.

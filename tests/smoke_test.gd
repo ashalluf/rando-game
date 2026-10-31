@@ -2784,6 +2784,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The five stars as distinct (tests/wanted_escalation_checks.gd, WantedEscalation, WantedAudio):
 	# caps per star, vans, the agency's trucks and troopers, the gunship, the sirens and the radio.
 	await load("res://tests/wanted_escalation_checks.gd").new().run(self, city)
+	# The freeway refcam (tests/rc_freeway_checks.gd, FreewayFill / FreewayLook): per-lane slots
+	# nearest first, the cap and shares, the deck's tining, rumble scoops and joints, the A/Bs.
+	await load("res://tests/rc_freeway_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

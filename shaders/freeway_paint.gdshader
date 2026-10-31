@@ -17,6 +17,8 @@ render_mode cull_disabled;
 #include "res://shaders/color_space.gdshaderinc"
 
 global uniform float lamp_factor;
+// FreewayLook: the expansion joints as dull, dusty steel.
+uniform bool joint_steel = false;
 global uniform float road_wetness;
 
 // The Botts' dot pattern (FreewayKit.BOTTS_CYCLE): four dots DOT_STEP apart, then a marker.
@@ -206,6 +208,21 @@ void fragment() {
 		alb = mix(alb, vec3(0.18, 0.08, 0.03), smoothstep(0.55, 0.9, vnoise(obj_pos.xz * 3.0)) * 0.5);
 		metal = 0.75 * (1.0 - gap);
 		rough = 0.45;
+		if (joint_steel) {
+			// Traffic-polished, dusty steel (FreewayLook): a dull metal reads as the band it is on
+			// both renderers; at 0.75 metal the Compatibility renderer drew a black line.
+			// The fingers' seam, antialiased: its zig-zag flattens and it fades to its coverage once
+			// the band is a few pixels deep (a thin zig-zag aliased into broken dashes).
+			float fy = max(fwidth(UV.y), 0.001);
+			float zig = (tooth - 0.5) * 0.5 * (1.0 - smoothstep(0.04, 0.12, fy));
+			float hw = 0.03;
+			float ww = max(hw, fy * 0.75);
+			float seam = (1.0 - smoothstep(ww - fy * 0.5, ww + fy * 0.5, abs(UV.y - 0.5 - zig))) * (hw / ww);
+			alb = mix(vec3(0.30, 0.29, 0.27) * (0.85 + 0.3 * vnoise(obj_pos.xz * 7.0)), vec3(0.015), seam * 0.85);
+			gap = seam;
+			metal = 0.35 * (1.0 - gap);
+			rough = 0.55;
+		}
 	} else if (kind == 9) {
 		// Scupper grate: cast iron bars over a dark drain.
 		float bars = step(0.45, fract(UV.x * 7.0));
