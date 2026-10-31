@@ -193,6 +193,8 @@ func run(city: Node3D) -> void:
 		BeachFigure.warm_kind(beach[i])
 	# The people round the beach fires at night (BonfireFigure: clothed), and the rings' meshes.
 	Bonfires.warm()
+	# The second street clutter pass's meshes (StreetClutter2: bags, carts, cones, flyers, ...).
+	StreetClutter2.warm()
 	for k: Array in BonfireFigure.kinds():
 		if _due():
 			await _frames(1)

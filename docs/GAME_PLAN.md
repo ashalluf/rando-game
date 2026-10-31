@@ -3760,6 +3760,20 @@ none of either.
   take over near the camera); flake is sampled per pixel-sized cell fixed to the body; new
   finishes, the contrast-roof livery and a car's condition are appended and rolled by hashes of
   the look seed after every roll, so no existing roll moves and CAR_PAINT_2=0 is the old look.
+- **2026-10-30 The street's small stuff (street-clutter-2, HANDOFF "The street's small stuff").**
+  Bags, cardboard, a hand truck, steam, carts, cones, weeds, butts and gum, puddles, flyers, blowing
+  pages and droppings are a second clutter pass, one step after everything a FULL chunk lays, so it
+  can read the shop fronts, the road hardware and the poles instead of guessing; hashes only and no
+  props (nothing else in the block moves); one batch a kind on one shader (the steam on its own,
+  transparent). What is out follows the hour and weekday the chunk is built at, like the vendors.
+- **2026-10-30 Downtown at arm's length (downtown-street-closeup, HANDOFF "Downtown streets at
+  arm's length").** A pedestrian-eye review of downtown listed ten things that break the picture at
+  2-10 m; the worst were fixed in one file (StreetCloseup) with hooks: the kerb face gets its own
+  concrete material and a rolled arris strip, the gutter is LA's poured concrete pan, road paint is
+  pressed to 4 mm, LotFill's static cars become the real bodies' far twins within 42 m (per 24 m
+  cell), Broadway's goods keep off car parks and its sale table is real stock, trees under a
+  construction shed are taken out, cafe sets slide clear of bus shelters. Decisions: positions move
+  only after their rolls, hidden instances keep their indices, `STREET_CLOSEUP=0` is the A/B.
 - **2026-10-31, patterned ground without moire (paving-aliasing).** The "moire" on downtown's red
   forecourts was not aliasing: lot_ground.gdshader truncated its interpolated surface kind with
   int(), and an interpolated 3.0 reads 2.9999 on some pixel rows, so the paving flipped between red

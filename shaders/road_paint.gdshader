@@ -55,7 +55,16 @@ float fbm(vec2 p) {
 }
 
 
+// How proud of the road the paint stands (m). The markings are boxes 1-2 cm tall centred on
+// their height, whose lit sides read as plastic strips laid on the road at a pedestrian's eye;
+// thermoplastic is 2-4 mm. 0 keeps the box as it is (StreetCloseup's A/B). Every box vertex over
+// the centre is moved down to the box's underside plus this, so any box height works.
+uniform float thickness = 0.0;
+
 void vertex() {
+	if (thickness > 0.0 && VERTEX.y > 0.0) {
+		VERTEX.y = -VERTEX.y + thickness;
+	}
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 

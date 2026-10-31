@@ -127,6 +127,10 @@ static func build_block(chunk: CityChunk, rect: Rect2, edges: Array, params: Dic
 		var yaw := atan2(-dir.x, -dir.y)
 		var face_yaw := atan2(-inward.x, -inward.y)
 		var t := 2.0
+		# The concrete gutter pan Los Angeles pours with its kerb (StreetCloseup), else the strip.
+		if StreetCloseup.enabled:
+			StreetCloseup.lay_gutter(chunk, e)
+			t = length
 		while t < length - 2.0:
 			var piece := minf(4.0, length - 2.0 - t)
 			var p := a + dir * (t + piece * 0.5) - inward * 0.3

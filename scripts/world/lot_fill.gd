@@ -418,8 +418,11 @@ static func _car(ch: CityChunk, rng: RandomNumberGenerator, at: Vector3, yaw: fl
 	var v := 0 if rng.randf() < 0.62 else 2
 	var paint: Color = ArenaGrounds.CAR_PAINTS[rng.randi() % ArenaGrounds.CAR_PAINTS.size()]
 	var key := "apark_car_%d" % v
-	ch._batch.add(key, ArenaGrounds.car_mesh(v), Transform3D(Basis(Vector3.UP, yaw), at + Vector3(0.0, 0.005, 0.0)), paint)
+	var xf := Transform3D(Basis(Vector3.UP, yaw), at + Vector3(0.0, 0.005, 0.0))
+	var idx := ch._batch.add(key, ArenaGrounds.car_mesh(v), xf, paint)
 	ch._batch.set_shadow_distance(key, CAR_SHADOW_DISTANCE)
+	# Up close it is a real body (StreetCloseup, at the chunk's finish).
+	StreetCloseup.note_car(ch, key, idx, xf, v, paint)
 	ch._fill_cars += 1
 
 
