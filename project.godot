@@ -261,6 +261,10 @@ night_skyline={
 "type": "float",
 "value": 1.0
 }
+night_flight={
+"type": "float",
+"value": 1.0
+}
 
 night_factor={
 "type": "float",

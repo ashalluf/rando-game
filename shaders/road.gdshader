@@ -420,10 +420,19 @@ void fragment() {
 	NORMAL_MAP = vec3(slope * 0.5 + 0.5, 1.0);
 	NORMAL_MAP_DEPTH = 1.0;
 	vec3 glow = vec3(0.0);
+	// The street's rank by its width (street_glow.gdshaderinc, the far ground's rule): the
+	// derivatives here, in uniform control flow.
+	float glow_rank = 1.0;
+	if (lamp_axis > 0) {
+		float g_across_p = lamp_axis == 1 ? plan_pos.x : plan_pos.y;
+		float g_across_uv = lamp_axis == 1 ? slab_uv.x : slab_uv.y;
+		float g_width = length(vec2(dFdx(g_across_p), dFdy(g_across_p))) / max(length(vec2(dFdx(g_across_uv), dFdy(g_across_uv))), 1.0e-7);
+		glow_rank = g_width > 8.0 && g_width < 60.0 ? street_rank(g_width) : 1.0;
+	}
 	if (lamp_axis > 0 && lamp_factor > 0.001 && side < 0.5) {
 		float far = smoothstep(street_glow_near, street_glow_far, length(VERTEX));
 		if (far > 0.0) {
-			glow = street_glow(plan_pos, slab_uv, lamp_axis) * lamp_ratio(plan_pos) * street_glow_level() * far;
+			glow = street_glow(plan_pos, slab_uv, lamp_axis) * lamp_ratio(plan_pos) * street_glow_level() * far * glow_rank;
 		}
 	}
 	// The lit city standing in the water at night. Screen-space reflections only mirror what is

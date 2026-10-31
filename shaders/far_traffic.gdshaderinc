@@ -36,6 +36,21 @@ const float FT_MIN_PX = 0.9;
 // across the basin were dark threads.
 const float FT_FAR_BLOOM = 3.5;
 
+// The night flight pass (NightFlight; NIGHT_FLIGHT=0 sets the global 0: the A/B). Traffic comes
+// in PLATOONS - bunched behind a slow truck, thinned out after a light - so from the air a
+// freeway is a broken river of bright knots and gaps, not one even band: the share of cells
+// taken is scaled by a smooth noise along the moving road, FT_PLATOON metres a cell, mean 1.
+// And a far lane's tail lights count FT_TAIL_MEAN times in its mean: from above both directions
+// showed the same cream, where a real freeway reads white one way and red the other.
+#ifndef NIGHT_FLIGHT_DECLARED
+#define NIGHT_FLIGHT_DECLARED
+global uniform float night_flight;
+#endif
+const float FT_PLATOON = 190.0;
+const float FT_PLATOON_LO = 0.3;
+const float FT_PLATOON_SPAN = 1.4;
+const float FT_TAIL_MEAN = 2.2;
+
 
 // Cars on the road through the day, 0..1 of the lanes' cells taken (an LA weekday: the morning
 // and evening peaks, a busy evening, near empty at three in the morning).
@@ -58,6 +73,21 @@ float ft_hash(vec3 p) {
 }
 
 
+// The platoon factor at `u` metres along the moving road (the cars' own frame), `key` tells one
+// carriageway from another. NightCity.platoon() is the GDScript copy.
+float ft_platoon(float u, float key) {
+	if (night_flight < 0.5) {
+		return 1.0;
+	}
+	float f = u / FT_PLATOON;
+	float c = floor(f);
+	float t = f - c;
+	t = t * t * (3.0 - 2.0 * t);
+	float n = mix(ft_hash(vec3(c, key, 5.3)), ft_hash(vec3(c + 1.0, key, 5.3)), t);
+	return FT_PLATOON_LO + FT_PLATOON_SPAN * n;
+}
+
+
 // One lane's lights at (s, lx): lx metres across the lane from its middle. `sgn` +1 when its
 // cars move toward +s. Returns (head share, tail share) of a lit lamp at this point, already
 // scaled for the pixel size.
@@ -67,7 +97,7 @@ vec2 ft_lane(float s, float lx, float sgn, float lane, float level, float speed,
 	float w = u - c * FT_CELL;
 	float cm = mod(c, FT_CELLS);
 	vec3 key = vec3(cm, lane * 7.0 + (sgn > 0.0 ? 3.0 : 0.0), seed);
-	if (ft_hash(key) >= level) {
+	if (ft_hash(key) >= min(level * ft_platoon(u, seed * 2.0 + (sgn > 0.0 ? 1.0 : 0.0)), 1.0)) {
 		return vec2(0.0);
 	}
 	// The car: 4.6 m long somewhere in its cell, its lamps 0.75 m either side of its middle.
@@ -119,7 +149,9 @@ vec3 traffic_lights(float s, float x, float x0, float lane_w, float lanes, vec2 
 		float re = max(FT_LAMP_R, min(mpp, 4.0) * FT_MIN_PX);
 		float gain = pow(FT_LAMP_R / re, 1.05);
 		float area = 2.0 * 0.6 * re * re * 3.14159 * gain / (FT_CELL * lane_w);
-		col += (FT_HEAD * head_w + FT_TAIL * tail_w) * level * area * FT_FAR_BLOOM * (1.0 - sharp);
+		float lvl = min(level * ft_platoon(s - sgn * v * TIME, seed * 2.0 + (sgn > 0.0 ? 1.0 : 0.0)), 1.0);
+		float tail_k = night_flight > 0.5 ? FT_TAIL_MEAN : 1.0;
+		col += (FT_HEAD * head_w + FT_TAIL * tail_k * tail_w) * lvl * area * FT_FAR_BLOOM * (1.0 - sharp);
 	}
 	return col;
 }

@@ -18,12 +18,30 @@ uniform float near_start : hint_range(0.0, 1.0) = 0.0;
 uniform float haze : hint_range(0.0, 3.0) = 1.0;
 // How far along the beam (share of its length) it has faded to nothing.
 uniform float length_fade : hint_range(0.05, 1.0) = 1.0;
+// The night flight pass (NightFlight; NIGHT_FLIGHT=0 sets the global 0): a camera flying past a
+// beam saw it as a solid white bar across the frame - a shaft of lit haze is faint when you are
+// in it or above it (the few metres of air at its side are all you look through, and the eye is not adapted
+// to its source). Seen from under `beam_near_fade` metres it fades toward `beam_near_floor`.
+#ifndef NIGHT_FLIGHT_DECLARED
+#define NIGHT_FLIGHT_DECLARED
+global uniform float night_flight;
+#endif
+uniform float beam_near_fade = 260.0;
+uniform float beam_near_floor = 0.2;
 
 void fragment() {
 	float along = UV.y;
 	float fade = pow(1.0 - smoothstep(0.0, length_fade, along), 2.2) * (0.35 + 0.65 * exp(-along * 6.0));
 	fade *= smoothstep(near_start * 0.6, near_start + 0.02, along) * smoothstep(0.0, 0.004, along);
 	float face = pow(abs(dot(normalize(NORMAL), normalize(VIEW))), 2.2);
+	if (night_flight > 0.5) {
+		// Only from beside or above the beam (a camera in the air): from the street, looking up
+		// the shaft from its foot, it keeps its look.
+		vec3 wp = (INV_VIEW_MATRIX * vec4(VERTEX, 1.0)).xyz;
+		float above = smoothstep(-30.0, 20.0, CAMERA_POSITION_WORLD.y - wp.y);
+		float near_k = mix(beam_near_floor, 1.0, smoothstep(beam_near_fade * 0.12, beam_near_fade, length(VERTEX)));
+		fade *= mix(1.0, near_k, above);
+	}
 	ALBEDO = tint;
 	ALPHA = clamp(fade * face * strength * haze * clamp(lamp_factor * 1.4 - 0.2, 0.0, 1.0), 0.0, 1.0);
 }

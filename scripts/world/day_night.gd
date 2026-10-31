@@ -264,6 +264,7 @@ func _exit_tree() -> void:
 func _ready() -> void:
 	hour = start_hour
 	NightSkyline.install()
+	NightFlight.install()
 	_sun = get_node_or_null(sun_path) as DirectionalLight3D
 	var we := get_node_or_null(environment_path) as WorldEnvironment
 	if we:
