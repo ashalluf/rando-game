@@ -24,8 +24,8 @@ const MARGIN := 2.0
 
 
 ## Replaces `mi`'s mesh by the first tile and adds the others as children named
-## "<mi name>_tile<k>" (sharing material_override, shadow and layer settings). Does nothing when
-## disabled or when `mi` has no indexed mesh.
+## "<mi name>_tile<k>" with meta horizon_tile (sharing material_override, shadow and layer
+## settings). Does nothing when disabled or when `mi` has no indexed mesh.
 static func split(mi: MeshInstance3D, tiles: int = TILES) -> void:
 	if not enabled or mi == null or mi.mesh == null:
 		return
@@ -37,7 +37,8 @@ static func split(mi: MeshInstance3D, tiles: int = TILES) -> void:
 		var target := mi
 		if k > 0:
 			target = MeshInstance3D.new()
-			target.name = "%s_tile%d" % [mi.name, k]
+			target.name = "%s_tile%d" % [mi.name if mi.name != "" else "Horizon", k]
+			target.set_meta("horizon_tile", true)
 			target.material_override = mi.material_override
 			target.cast_shadow = mi.cast_shadow
 			target.layers = mi.layers
@@ -55,7 +56,7 @@ static func meshes_of(mi: MeshInstance3D) -> Array[Mesh]:
 	if mi.mesh:
 		out.append(mi.mesh)
 	for c in mi.get_children():
-		if c is MeshInstance3D and String(c.name).begins_with(String(mi.name) + "_tile") and (c as MeshInstance3D).mesh:
+		if c is MeshInstance3D and c.has_meta("horizon_tile") and (c as MeshInstance3D).mesh:
 			out.append((c as MeshInstance3D).mesh)
 	return out
 
