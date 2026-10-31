@@ -233,6 +233,12 @@ func _armed_car(x: float) -> Vehicle:
 
 
 func _alarms() -> void:
+	# Alarms an earlier blast left sounding (24-46 s each) hold CarAlarm.max_alarms' places, and a
+	# full cap sets nothing off (gate run 7171: both trigger checks failed). Quiet first.
+	for live in CarAlarm._live.duplicate():
+		if is_instance_valid(live):
+			live._stop()
+	await _frames(2)
 	var a := _armed_car(-20.0)
 	var b := _armed_car(20.0)
 	await _ticks(20)

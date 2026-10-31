@@ -25064,9 +25064,13 @@ clean. Logs were kept per run (`SMOKE_LOG_DIR`); a loop script ran the seeds bac
 | 4444, 5555 | room "one shotgun blast throws a crate (0.13 m / 0.00 m, aimed at the crate)" | PhysicsBudget froze the crate while earlier room checks had the player far off; it wakes props on its 0.25 s look and the shot came 7 ticks after the player was put back | the check unfreezes and wakes the crate first; the message names what the aim hit |
 | 5151 | shader_warm "the rehearsal's effects leave no node (Blood (Decal))" + SCRIPT ERROR in WarmRehearsal._stage_people | a live traffic car knocked one of the rehearsal's people (its cars are off every layer, its people were not) | the rehearsal's people are off the npc layer with their hit zone not monitoring; the loop is untyped and checks validity |
 | 5454 | birds "a gunshot 20 m away startles a flock up" | the check's own `advance(40)` let the surveys fill the bird cap, so the next `stage()` got no birds (id 0) | every staging lifts the cap for itself (`_stage()`) |
+| 5757 | shader_warm "the rehearsal's effects leave no node (@CPUParticles3D@n)" | a one-shot effect started by a delayed hit after the rehearsal's own sweep (it frees itself) | the check gives transient effects up to 300 frames to expire before it calls a node a leak |
+| 5757 | traffic_ai "live traffic ... never drives into another car (tightest -4.35 m)" | **not fixed**: a car changing lanes for a turn (kerb -> inner, lc_p 0.37, still a ghost) stood beside a bus dwelling at its stop; the lane group sorts by centre, so the short car beside the long bus's front half counted as AHEAD of it and never braked for it (CI 382's -1.85 m is the same family) | for the traffic owner: order a lane group by front / rear extents, not centres, when a vehicle is long |
+| 7171 | explosion_aftermath "a blast nearby / a hit sets a parked car's alarm off" | alarms an earlier blast left sounding (24-46 s) filled `CarAlarm.max_alarms` | the check quiets them first; the gate reset stops every sounding alarm |
+| 7171 | pueblo_lane "the far copy keeps the church's sanctuary zone" | counted as the tree-wide sanctuary group's change over a frame, which streaming chunks move | only zones under the build's root |
 
-**The gate reset grew three things** (`tests/gate_reset.gd`): every BlastDebris freed, a blast's still-fading `Blast*` effect nodes freed
-(BlastBits, the shared chip pool, kept), and the crowd:
+**The gate reset grew four things** (`tests/gate_reset.gd`): every BlastDebris freed, a blast's still-fading `Blast*` effect nodes freed
+(BlastBits, the shared chip pool, kept), every sounding car alarm stopped, and the crowd:
 the streamer's `max_pedestrians` put back and the head-count trimmed to the snapshot's (farthest
 plain walkers first, `BusyStreets.is_plain_walker()`: nobody on an errand, watching, stopped or
 seated). Ten more check files count the people a chunk build spawns without raising the cap
@@ -25079,7 +25083,26 @@ gives the build room in the crowd cap; never find a node by a name another file'
 already hold (Godot renames the newcomer); a wall-clock budget is measured twice and loosened
 under SMOKE_SHARD; a check's alarm reaches everyone the system under test can have recruited.
 
-**Verification**: RESULTS_PLACEHOLDER
+**Verification**: 31 shuffled `SHARDS=3` runs (seeds 101 .. 7373; ~22 min each, a shard peaking
+at 3.0-3.7 GB RSS), each failure fixed as it appeared, so the code moved under the runs. Clean runs
+came in streaks (404; 707; 1010; 2323, 2424; 4141; 4343; 4545; 5252, 5353; 5656, 5858), 4,342-4,619
+checks a run. **Five consecutive clean runs on one unchanged tree were not reached**: main merged
+batches 26-30 during the work, and each merge brought new rare failures (explosions_3, the turn
+snap main fixed as CI 397, rehearsal stragglers, alarms, the church zone).
+
+**Still open** (seen once each, not fixed):
+- traffic_ai "live traffic ... never drives into another car (tightest -4.35 m)" (run 5757, see
+  the table): lane groups sort by centre, so a short car beside a long dwelling bus's front half
+  counts as ahead of it. A traffic-logic fix (order by front / rear extents).
+- traffic_ai "a car climbs an on-ramp and merges into the outer lane (merged false)" (run 7373,
+  after the batch 30 merge).
+- "golden aerial: live, the noon far ground is unchanged (gain 0.90, fill 0.00)" (run 7373).
+- street_errands "somebody comes out of a shop door near the player (... errand step inside)"
+  (run 7272).
+- The spawn block's chunk is now and then REPLACED while a file uses it (crowd_anim_2 2525,
+  crowd_life 4444, ragdolls 7272): no rebuild path outside CityStreamer's own level logic was found.
+  The three files settle streaming first and turn a swap into a named FAIL instead of a SCRIPT
+  ERROR; the cause is still to find (log `_install_chunk` for the home block under SMOKE_SHARD).
 
 ## 9ke. The beach refcam: no cars on the sand, people in the water (wave 4, `rc-beach`, branch `wt/rc-beach`)
 
@@ -25131,3 +25154,4 @@ Probes: `tools/rc_beach/sand_roads_probe.gd` (headless: every coast street stret
 `tools/rc_beach/water_probe.gd` (opengl3: every BeachActivity's water people and the cars near the
 beach; `LOOK=swim|wade|surf` saves a close look at the first one). Checks `tests/rc_beach_checks.gd`.
 Stills on `shots/rc-beach`.
+

@@ -38,11 +38,20 @@ func run(t: Node, city: Node3D) -> void:
 	_t._check(city.get_node_or_null("WarmRehearsal") == null, "the rehearsal's holder is gone afterwards (ran in %d ms)" % ms)
 	var plain_after := 0
 	var new_plain: Array = []
-	for c in scene.get_children():
-		if c.get_script() == null and not c.is_queued_for_deletion():
-			plain_after += 1
-			if not names_before.has(c.name):
-				new_plain.append("%s (%s)" % [c.name, c.get_class()])
+	# A one-shot effect a delayed hit or blast starts after the rehearsal's own sweep frees itself
+	# when its life is over (gate run 5757: one CPUParticles3D, auto-named): a leak is a node still
+	# there once those have had a few seconds.
+	for wait in 300:
+		plain_after = 0
+		new_plain.clear()
+		for c in scene.get_children():
+			if c.get_script() == null and not c.is_queued_for_deletion():
+				plain_after += 1
+				if not names_before.has(c.name):
+					new_plain.append("%s (%s)" % [c.name, c.get_class()])
+		if plain_after <= plain_before:
+			break
+		await tree.process_frame
 	_t._check(plain_after <= plain_before, "the rehearsal's effects leave no node in the scene (%d plain nodes before, %d after %s)" % [plain_before, plain_after, str(new_plain)])
 	var left := 0
 	for group in ["vehicle", "pedestrian"]:
