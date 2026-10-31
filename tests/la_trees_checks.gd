@@ -111,6 +111,10 @@ func _downtown(city: Node3D, plan: CityPlan) -> void:
 	var a := _batches(on)
 	var props_on := on.prop_records.size()
 	var cars_on: int = (on.get("_cars") as Array).size()
+	# The first build's parked cars live under the city root, not the chunk: gone before the second
+	# build, or its kerb test finds them in the spots and PhysicsBudget counts them (gate run 606
+	# parked 15, then 6).
+	_free_cars(on)
 	LaTrees.enabled = false
 	var off: CityChunk = city._new_chunk(found, CityChunk.Level.FULL)
 	off.build()
@@ -118,6 +122,7 @@ func _downtown(city: Node3D, plan: CityPlan) -> void:
 	var b := _batches(off)
 	var props_off := off.prop_records.size()
 	var cars_off: int = (off.get("_cars") as Array).size()
+	_free_cars(off)
 	var figs := 0
 	var trees_on := 0
 	var trees_off := 0
@@ -155,6 +160,14 @@ func _downtown(city: Node3D, plan: CityPlan) -> void:
 	_t._check(narrow, "street figs are narrowed across the pavement")
 	on.free()
 	off.free()
+
+
+func _free_cars(ch: CityChunk) -> void:
+	for car in (ch.get("_cars") as Array):
+		if is_instance_valid(car) and car.get_parent() != ch and car.get_parent() != null:
+			# Out of the tree at once (the file is not awaited: no frame for a queue_free to land).
+			car.get_parent().remove_child(car)
+			(car as Node).queue_free()
 
 
 func _suburbs(city: Node3D, plan: CityPlan) -> void:
