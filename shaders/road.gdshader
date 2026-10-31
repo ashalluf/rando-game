@@ -21,6 +21,14 @@ uniform sampler2D rough_tex : hint_roughness_r, filter_linear_mipmap_anisotropic
 uniform vec3 tint : source_color = vec3(0.72, 0.72, 0.74);
 // Metres per texture tile.
 uniform float tex_scale = 8.0;
+// How far the texture is taken toward its own luminance before the tint (StreetNoonReview: the
+// asphalt photo is brown, and the grade turned a noon street on Forward+ into a dirt road).
+uniform float albedo_desat = 0.0;
+// The second, anti-repeat fetch: 0 rotated 37 degrees at another scale (as it was), 1 a quarter
+// turn at the same scale, 2 mirrored at the same scale. A texture that IS a grid (square pavers,
+// running-bond setts) rotated 37 degrees drew a ghost of its grid across itself; turned by a
+// quarter or mirrored its joints land on its own joints (StreetNoonReview.VARIANT_MODE).
+uniform int variant_mode = 0;
 uniform float seed = 0.0;
 // Size of a resurfacing patch (metres) and how much of the road is patched.
 uniform float patch_size = 7.0;
@@ -216,6 +224,11 @@ void vertex() {
 }
 
 
+vec3 road_desat(vec3 c) {
+	return mix(c, vec3(dot(c, vec3(0.2126, 0.7152, 0.0722))), albedo_desat);
+}
+
+
 void fragment() {
 	// Kerb faces, seat walls, steps and slab edges wear the same material as the ground on top,
 	// and mapped from above a vertical face drew every texel as a streak down its whole height
@@ -230,14 +243,14 @@ void fragment() {
 	vec2 w = mix(world_pos.xz, vec2(dot(world_pos.xz, along), -world_pos.y), side);
 	vec2 uv = w / tex_scale;
 	vec2 joint_fw = fwidth(w);
-	vec3 base = texture(albedo_tex, uv).rgb * tint;
+	vec3 base = road_desat(texture(albedo_tex, uv).rgb) * tint;
 	float rough = texture(rough_tex, uv).r;
 	// A laid pattern (setts, pavers) under two pixels is its average, not moire (pattern_aa): the
 	// albedo, roughness and relief all fade by the footprint's major axis.
 	float pattern_keep = 1.0;
 	if (paa_on() && pattern_module > 0.0) {
 		pattern_keep = paa_keep(pattern_module, max(joint_fw.x, joint_fw.y));
-		base = mix(paa_tex_mean(albedo_tex) * tint, base, pattern_keep);
+		base = mix(road_desat(paa_tex_mean(albedo_tex).rgb) * tint, base, pattern_keep);
 		rough = mix(paa_tex_mean(rough_tex).r, rough, pattern_keep);
 	}
 
@@ -247,10 +260,17 @@ void fragment() {
 	// one extra fetch, and the grid stops existing.
 	if (ground_detail > 0.5) {
 		vec2 uv2 = (mat2(vec2(0.80, -0.60), vec2(0.60, 0.80)) * w) / (tex_scale * 1.37) + vec2(13.7, 4.1);
+		if (variant_mode == 1) {
+			uv2 = vec2(uv.y, -uv.x) + vec2(13.0, 4.0);
+		} else if (variant_mode == 2) {
+			uv2 = vec2(-uv.x, uv.y) + vec2(13.0, 4.0);
+		}
 		float variant = smoothstep(0.34, 0.66, fbm(w * 0.019 + 91.0 + seed));
-		vec3 second = texture(albedo_tex, uv2).rgb * tint;
+		vec3 second = road_desat(texture(albedo_tex, uv2).rgb) * tint;
 		if (paa_on() && pattern_module > 0.0) {
-			second = mix(paa_tex_mean(albedo_tex) * tint, second, paa_keep(pattern_module * 1.37, max(joint_fw.x, joint_fw.y)));
+			// The rotated fetch is 1.37 times bigger; the grid-keeping ones (variant_mode) are not.
+			float module2 = pattern_module * (variant_mode == 0 ? 1.37 : 1.0);
+			second = mix(road_desat(paa_tex_mean(albedo_tex).rgb) * tint, second, paa_keep(module2, max(joint_fw.x, joint_fw.y)));
 		}
 		base = mix(base, second, variant);
 	}

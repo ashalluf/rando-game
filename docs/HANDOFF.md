@@ -24113,3 +24113,57 @@ StreetClutter2 / road.gdshader still mirror the sky as pale blobs in the carriag
 Checks: `tests/rain_street_night_checks.gd` (16: the switch and what it restores, the shaders'
 defaults, the materials, Weather's curtain and lens, the deck numbers, WetCarGlints' lamps and
 facing rule on a staged car).
+
+## 9jr. The street at noon: the street_noon refcam reviewed (wave 4, `wt/rc-street-noon`)
+
+**The task:** judge the street_noon reference camera (Flower at Olympic, eye height, 12:00 clear)
+like an art director, fix the worst three to five things, hold the other nine. Stills on
+`shots/rc-street-noon`.
+
+**What read fake, in the order the eye lands on it** (opengl3 refcam + a Forward+ probe):
+1. **The road is a brown dirt road on the Mac.** The carriageway fills the lower 40 % of the frame.
+   Asphalt033 is a photo of brown-grey tarmac (HSV saturation 0.17; the aerial set 0.06), and on
+   Forward+ the decoded warm road tints plus the DAY grade's saturation turned it orange-brown
+   (tools/rc_street_noon/road_probe.tscn, the real materials under the city's Environment and
+   DayNight: strips of 112/90/67 sRGB). The opengl3 refcam hides this (it reads neutral there).
+   FIXED: road.gdshader / road_patch.gdshader `albedo_desat` (the texture toward its own luminance
+   before the tint: asphalt 0.65, aerial 0.45) and PropFactory.road() neutralises an asphalt tint's
+   hue by the same amount (RoadWear's stamp tint follows). Forward+ now 97/86/76 against a grey
+   card's 64/59/52: the light's own warmth, no more.
+2. **A four-lane avenue with no lanes.** Flower carries the Coral Line end to end
+   (`LightRail.street_rail()`), so RoadHardware laid no centre markers and no Botts' dots on it -
+   even over the tunnel, where the street is an ordinary road - and a 20 m road (two lanes each
+   way by TrafficManager's rule) got a two-lane street's single dashed yellow. FIXED: markers and
+   dots go on where the line is underground (`StreetNoonReview.marks_rail_street()`: no non-TUNNEL
+   sample within 14 m, no station opening); every road with two lanes each way is a double yellow,
+   now a real one (two 16 cm lines 12 cm apart; they were 44 cm apart on the avenues).
+3. **Two mint-green bands** (the bike lanes): flat, spotless paint. FIXED: bike_lane.gdshader
+   `grime` (dust along the kerb and in streaks down the lane, the wheel path polished darker,
+   aggregate specks faded under a pixel). Forward+ 60/134/72 -> 79/123/77.
+4. **A brown smear across the bike lane's line**: RoadWear laid parking-lane oil drips where the
+   bike lane took the parking lane. FIXED: dropped there AFTER every roll (`_stamp(..., drop)`).
+5. **The pavement seen from the kerb** (an extra view): the square-paver photo's gravel-and-moss
+   grout drew bright olive lines, and road.gdshader's anti-repeat fetch, turned 37 degrees, drew a
+   ghost of the slab grid diagonally across the slabs. FIXED: `variant_mode` (pavers a quarter
+   turn, running-bond setts mirrored: the joints land on themselves) and `pavers` desat 0.55.
+
+**Not fixed (other sessions' areas):** the street is nearly empty of traffic (3-4 cars; Flower's
+traffic also keeps to the outer lane as a rail street - traffic.gd), the paint dashes' worn holes
+read a little blocky at 3 m (road_paint.gdshader), the refcam's opengl3 road is lighter than the
+Mac's (the Compatibility renderer lights raw sRGB numbers).
+
+**Rolls:** nothing rolls. The double yellow and the markers are placements of an existing pass;
+the dropped oil stamps make every roll first. `STREET_NOON=0` puts all of it back (the A/B).
+
+**Numbers** (refcams, opengl3, the same tree with STREET_NOON=0 / on; p5/p50/p95, sat, CCT):
+street_noon 21/139/185 0.259 7198K -> 22/142/190 0.247 6597K (the grey road reads cooler on the
+web build's renderer), triangles 7.15 M -> 7.16 M, draws 3525 -> 3533. The other nine within
+noise; `compare` flags only street_noon (the intended change) and freeway (a car passing the
+camera in one run: deck pixels identical). Forward+ probe (tools/rc_street_noon/road_probe.tscn,
+noon): asphalt strips 85-131 / 74-106 / 62-96 (warm) -> 83-127 / 75-108 / 69-100.
+
+**Checks:** `tests/rc_street_noon_checks.gd` (materials, the markings rule over tunnel / grade /
+station, double yellow, bike grime, the A/B).
+
+**Not verified:** the Mac's Forward+ CITY (the probe is the real materials on test strips; a
+Forward+ block shot was OOM-killed at 13 GB on this box).

@@ -29,6 +29,11 @@ uniform vec3 asphalt = vec3(0.1, 0.1, 0.1);
 // How worn: the green down the middle where the wheels run, everything at random.
 uniform float wear = 0.16;
 uniform float wheel_wear = 0.18;
+// Street grime in the paint (StreetNoonReview; 0 = the old clean paint): road dust settled along
+// the kerb, dirt streaked down the lane by the traffic, the wheel path polished darker, the
+// aggregate showing through as specks, and a slow dirty mottle - at noon a pristine green band
+// read as plastic laid on the road.
+uniform float grime = 0.0;
 
 varying vec3 v_world;
 varying vec2 v_size;
@@ -160,6 +165,26 @@ void fragment() {
 	vec3 base = mix(col, white, whites);
 	// Grit and tyre grime in the paint, thin paint showing the asphalt's grey.
 	base *= 0.86 + 0.2 * grain;
+	if (grime > 0.0) {
+		vec3 dust = vec3(0.16, 0.15, 0.13);
+		// Streaks along the lane (stretched noise) and a slow mottle of dirt.
+		float streak = bl_noise(vec2(across * 7.0, run * 0.32) + 11.0);
+		float mottle = bl_fbm(w.xz * 0.45 + 5.0);
+		// Dust settled in the kerb's lee and on the buffer's outer edge.
+		float kerb = 1.0 - smoothstep(lane_from, lane_from + 0.55, across);
+		float dirt = clamp(0.45 * kerb + 0.35 * smoothstep(0.45, 0.85, streak) + 0.3 * smoothstep(0.4, 0.75, mottle), 0.0, 1.0);
+		base = mix(base, mix(base, dust, 0.55), dirt * grime * (1.0 - 0.6 * whites));
+		// The wheel path: rubber polished into the paint, darker and smoother.
+		float polish = exp(-pow((across - 1.05) / 0.3, 2.0)) * (0.6 + 0.4 * streak);
+		base *= 1.0 - 0.22 * polish * grime;
+		// Aggregate through the paint: grey specks a couple of centimetres across, faded once
+		// they are under a pixel (they only shimmer there).
+		float speck_ok = 1.0 - smoothstep(0.012, 0.03, px);
+		float stone = step(0.78, bl_hash(floor(w.xz * 55.0)));
+		base = mix(base, asphalt * 1.4, stone * speck_ok * 0.55 * grime);
+		// Under a pixel, the specks' average.
+		base = mix(base, asphalt * 1.4, (1.0 - speck_ok) * 0.12 * grime);
+	}
 	base = mix(asphalt, base, smoothstep(0.5, 0.85, cover) * 0.6 + 0.4);
 	float wet = clamp(road_wetness, 0.0, 1.0);
 	ALBEDO = cs_out(base * mix(1.0, 0.85, wet));

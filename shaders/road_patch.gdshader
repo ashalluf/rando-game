@@ -15,6 +15,8 @@ uniform sampler2D albedo_tex : source_color, filter_linear_mipmap, repeat_enable
 uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap, repeat_enable;
 // Metres per texture tile; the roads use 7 and 9.
 uniform float tex_scale = 7.0;
+// The road's own desaturation of the same texture (road.gdshader, StreetNoonReview).
+uniform float albedo_desat = 0.0;
 // The roads' average tint (CityChunk.ROAD_TINTS), so a shade of 1.0 lands on the road's colour.
 uniform vec3 road_tint = vec3(0.81, 0.80, 0.82);
 // How far in from the rim the edge fades, and how ragged it is (fractions of the half-size).
@@ -74,6 +76,7 @@ void fragment() {
 
 	vec2 uv = world_pos.xz / tex_scale;
 	vec3 tex = texture(albedo_tex, uv).rgb;
+	tex = mix(tex, vec3(dot(tex, vec3(0.2126, 0.7152, 0.0722))), albedo_desat);
 	vec3 base = paint > 0.5 ? c * (0.8 + 0.4 * value_noise(world_pos.xz * 9.0)) : tex * road_tint * c.r;
 	// Oil and fresh tar are glossier than the grey road round them.
 	float shade = paint > 0.5 ? 1.0 : c.r;

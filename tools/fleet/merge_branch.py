@@ -82,9 +82,19 @@ def main():
             # less its newline, starts both sides.
             k = b.rstrip("\n")
             return b.count("\n") == 1 and o.startswith(k) and t.startswith(k) and k.strip().startswith('"')
-        if all(b.strip() == "" or (b in o and b in t) or tail_line(o, b, t) for o, b, t in hunks):
+        ENTRY = r'"[A-Za-z0-9_]+":\s*[-0-9.]+'
+        def entries_only(x):
+            # A hunk of nothing but `"name": cost` entries (PART_COST's tail).
+            return x.strip() != "" and re.sub(ENTRY, "", x).replace(",", "").strip() == ""
+        def entry_union(o, b, t):
+            return entries_only(o) and entries_only(b) and entries_only(t)
+        if all(b.strip() == "" or (b in o and b in t) or tail_line(o, b, t) or entry_union(o, b, t) for o, b, t in hunks):
             def keep(m):
                 o, b, t = m.group(1), m.group(2), m.group(3)
+                if b.strip() and entry_union(o, b, t) and not (b in o and b in t):
+                    have = set(re.findall(r'"([A-Za-z0-9_]+)":', o))
+                    extra = [e for e in re.findall(ENTRY, t) if re.match(r'"([A-Za-z0-9_]+)"', e).group(1) not in have]
+                    return o.rstrip("\n") + "".join(", " + e for e in extra) + "\n"
                 if b.strip() and tail_line(o, b, t) and not (b in o and b in t):
                     k = b.rstrip("\n")
                     extra = re.sub(r",?\s*\n\s*", ", ", t[len(k):].strip()).lstrip(", ").rstrip(", ")
