@@ -536,6 +536,12 @@ uniform float bottom_fade = 0.25;
 uniform vec2 sheet_dir = vec2(0.949, 0.316);
 uniform float sheet_speed = 13.0;
 global uniform vec3 origin_shift;
+// RainStreetNight: at night the streaks take the city's sodium light off the cloud base and fade
+// (lit by nothing else, a curtain of pale blue streaks read as scratches down the dark facades).
+global uniform float lamp_factor;
+uniform float night_look = NIGHT_LOOK;
+uniform vec3 night_tint = vec3(0.46, 0.41, 0.35);
+uniform float night_alpha = 0.72;
 
 varying vec3 local_pos;
 varying vec3 world_pos;
@@ -591,10 +597,11 @@ void fragment() {
 		float sheet = s1 * s1 * (0.55 + 0.45 * s2);
 		k = mix(1.0, (0.3 + 1.7 * sheet) * (0.75 + 0.5 * gust), sheets);
 	}
-	ALBEDO = tint;
-	ALPHA = clamp(clamp(v, 0.0, 1.0) * band * strength * k, 0.0, 1.0);
+	float nl = night_look * clamp(lamp_factor, 0.0, 1.0);
+	ALBEDO = mix(tint, night_tint, nl);
+	ALPHA = clamp(clamp(v, 0.0, 1.0) * band * strength * k * mix(1.0, night_alpha, nl), 0.0, 1.0);
 }
-"""
+""".replace("NIGHT_LOOK", RainStreetNight.curtain_night_code())
 	_curtain_mat.shader = shader
 	_curtain_mat.set_shader_parameter("height", curtain_height)
 	_curtain = MeshInstance3D.new()
@@ -611,8 +618,12 @@ func _build_lens() -> void:
 	if lens_rain <= 0.001:
 		return
 	_lens_mat = ShaderMaterial.new()
-	var shader := Shader.new()
-	shader.code = """
+	var shader: Shader = RainStreetNight.lens_shader()
+	if shader:
+		_lens_mat.shader = shader
+	else:
+		shader = Shader.new()
+		shader.code = """
 shader_type canvas_item;
 
 uniform float strength = 0.0;
@@ -650,7 +661,7 @@ void fragment() {
 	COLOR = vec4(tint, clamp(a * edge, 0.0, 1.0) * strength * 0.3);
 }
 """
-	_lens_mat.shader = shader
+		_lens_mat.shader = shader
 	_lens_rect = ColorRect.new()
 	_lens_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_lens_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -758,6 +769,8 @@ func _process(delta: float) -> void:
 		if _rain.amount != want_amount:
 			_rain.amount = want_amount
 		_rain.emitting = rain > 0.05
+		if _rain.emitting:
+			((_rain.mesh as PrimitiveMesh).material as StandardMaterial3D).emission_energy_multiplier = RainStreetNight.drop_glow(DayNight.lamp_now)
 		if _player:
 			var vel: Vector3 = _player.get("velocity") if _player.get("velocity") != null else Vector3.ZERO
 			_rain.global_position = _player.global_position + Vector3(0.0, 16.0, 0.0) + Vector3(vel.x, 0.0, vel.z) * 0.8 - rain_wind * 0.5

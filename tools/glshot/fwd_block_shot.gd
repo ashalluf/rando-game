@@ -14,6 +14,7 @@ extends Node3D
 ## FOV, FRAMES (default 30), BLOCKS (chunks each way, default 1; 0 none - sky and weather only),
 ## A sixth EYE field is that shot's hour, a seventh its weather (forced; dry ones first);
 ## FREE_PREV=1 frees each EYE's blocks before the next, EXTRA="dx,dz;..." adds blocks round each.
+## CARS="x,z,yaw[,b];..." stands cars with a driver in (lamps on) for the first EYE.
 ## (DayNight.hour set and applied before its frames), so a
 ## day and a night still come from one load.
 ## FAR (camera far, default 12000), GEO=1 prints triangles and draws. --hour= and --weather= are
@@ -123,6 +124,24 @@ func _ready() -> void:
 				if p[6] == "clear" or p[6] == "santa_ana":
 					wx.set("wetness", 0.0)
 		stand.global_position = at
+		# CARS="x,z,yaw[,b];..." (TRUE world, yaw as the EYE's: 0 the car's nose north) stands cars
+		# with a driver in, lamps on (a waiting driver's: brake lit; b=0 the brake off) - the
+		# shot's traffic, which this tool has none of (RainStreetNight's wet car glints).
+		if k == 0:
+			var crng := RandomNumberGenerator.new()
+			crng.seed = 77
+			var ci := 0
+			for cs in _env("CARS", "").split(";", false):
+				var cp := cs.split(",")
+				var car := Vehicle.random_car(crng)
+				add_child(car)
+				var cx := cp[0].to_float()
+				var cz := cp[1].to_float()
+				car.global_transform = Transform3D(Basis(Vector3.UP, deg_to_rad(cp[2].to_float())), Vector3(cx, plan.height_at(Vector2(cx, cz)) + 0.6, cz))
+				car.seat_waiting_driver(1000 + ci)
+				if cp.size() > 3 and cp[3] == "0":
+					car.light_brake = false
+				ci += 1
 		cam.global_transform = Transform3D(Basis.from_euler(Vector3(deg_to_rad(p[4].to_float()), deg_to_rad(p[3].to_float()), 0.0)), at)
 		for i in int(_env("FRAMES", "30")):
 			await get_tree().process_frame
