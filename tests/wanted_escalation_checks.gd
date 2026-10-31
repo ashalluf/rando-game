@@ -111,7 +111,7 @@ func _agency_truck(city: Node3D, police: Node) -> void:
 				var col := Color(c.x, c.y, c.z) if c is Vector3 else (c as Color if c is Color else Color.BLACK)
 				if c != null:
 					paint_seen = col
-				if col.g > col.b and col.g >= col.r and col.v < 0.25 and col.v > 0.05:
+				if col.g > col.b and col.g >= col.r and col.v < 0.4 and col.v > 0.05:
 					paint_ok = true
 	var lettered := OS.has_feature("web") or _text_meshes(truck) >= 2
 	_check(truck.body_type == Vehicle.BodyType.BOX_TRUCK and truck.agency and truck.crew_aboard == 4 and truck.crew_alive == 4

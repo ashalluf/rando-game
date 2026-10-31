@@ -24,8 +24,8 @@ static var enabled: bool = OS.get_environment("WANTED_ESCALATION") != "0"
 ## The invented agency that comes at five stars, and its paint (RGB as the car paint takes it).
 const AGENCY := "BASIN DEFENSE CORPS"
 const AGENCY_SHORT := "BDC"
-const AGENCY_OLIVE := Color(0.105, 0.120, 0.072)
-const AGENCY_BAND := Color(0.050, 0.055, 0.040)
+const AGENCY_OLIVE := Color(0.235, 0.255, 0.150)
+const AGENCY_BAND := Color(0.110, 0.120, 0.080)
 ## The gunship's matte charcoal and its dark olive belly.
 const GUNSHIP_TOP := Color(0.040, 0.044, 0.042)
 const GUNSHIP_LOW := Color(0.070, 0.080, 0.055)
