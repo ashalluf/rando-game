@@ -105,17 +105,19 @@ void fragment() {
 		float tuft = fsp_hash(floor(q));
 		float row = 0.75 + 0.25 * sin(UV.y * 52.0 * 6.2832);
 		float fibre = mix(0.55 + 0.6 * tuft * row, 0.82, smoothstep(0.003, 0.012, px));
-		c *= fibre * (0.82 + 0.3 * fsp_noise(UV * 7.0));
+		// Trodden darker in patches where feet go.
+		float trod = 1.0 - 0.22 * smoothstep(0.35, 0.8, fsp_noise(UV * vec2(2.5, 3.5) + 4.0));
+		c *= fibre * trod * (0.78 + 0.34 * fsp_noise(UV * 7.0));
 		rough = 0.97;
 	} else if (kind < 11.5) {
 		// Clipped foliage (box balls, cones, grass): small leaves as a broken, lumpy cover with
 		// dark gaps between them, sunlit tips paler. Faded to its mean where a leaf is under a pixel.
-		vec3 p3 = wpos * 38.0;
-		float lf = fsp_noise(p3.xy + p3.z * 1.7) * 0.55 + fsp_noise(p3.zy * 1.9 + 11.0) * 0.45;
-		float gap = smoothstep(0.22, 0.42, lf);
-		float lit_tip = smoothstep(0.62, 0.9, lf);
-		float near_k = 1.0 - smoothstep(0.004, 0.02, px);
-		float cover = mix(0.78, gap * (0.86 + 0.5 * lit_tip), near_k);
+		vec3 p3 = wpos * 62.0;
+		float lf = fsp_noise(p3.xy + p3.z * 1.7) * 0.5 + fsp_noise(p3.zy * 1.9 + 11.0) * 0.3 + fsp_noise(p3.xz * 0.37 + 5.0) * 0.2;
+		float gap = smoothstep(0.18, 0.40, lf);
+		float lit_tip = smoothstep(0.60, 0.85, lf);
+		float near_k = 1.0 - smoothstep(0.003, 0.015, px);
+		float cover = mix(0.82, (0.52 + 0.48 * gap) * (0.9 + 0.35 * lit_tip), near_k);
 		c *= cover * (0.8 + 0.4 * fsp_noise(wpos.xz * 4.0 + wpos.y * 3.0));
 		c = mix(c, c * vec3(1.15, 1.05, 0.75), lit_tip * near_k * 0.5);
 		rough = 0.72;

@@ -58,7 +58,7 @@ func _awning_cloth() -> void:
 			var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
 			var uv2: PackedVector2Array = arr[Mesh.ARRAY_TEX_UV2]
 			for i in verts.size():
-				if cols.size() > i and is_equal_approx(cols[i].a, ShopfrontKit.VALANCE_BOTTOM):
+				if cols.size() > i and absf(cols[i].a - ShopfrontKit.VALANCE_BOTTOM) < 0.01:
 					hem = true
 				if uv2.size() > i and int(uv2[i].y - 0.5) == ShopfrontKit.S and absf(verts[i].x) < 0.49 and absf(verts[i].x) > 0.01:
 					inner += 1

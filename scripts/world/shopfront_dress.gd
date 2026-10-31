@@ -29,6 +29,9 @@ extends RefCounted
 ## mesh, so FACADES_STREET=0 leaves it out too.
 
 static var enabled: bool = OS.get_environment("SHOPFRONT_DRESS") != "0"
+## SF_DEBUG=1: every piece is also listed on the Building (meta `sf_dress_log`: [what, Building-local
+## point, the wall's outward normal]), for tools/storefront_closeup_2/probe.gd to frame stills.
+static var debug: bool = OS.get_environment("SF_DEBUG") == "1"
 
 ## Kinds (facade_street_props.gdshader's vertex alpha x 16), after FacadeStreet's 0..9.
 const K_COIR := 10
@@ -88,6 +91,43 @@ static func _floor(b: Building, p: Vector3, fallback: float) -> float:
 	# PAVING_LIFT over the pavement slab.
 	var lift := LotFill.PAVING_LIFT if b.podium_lot else 0.0
 	return CityChunk.SIDEWALK_TOP + lift + float(ch.call("_gy", w.x, w.z)) - b.position.y
+
+
+## True where a piece standing at `p` (its foot) with `r` of reach would be inside another part of
+## the building (a wall only partly against another wing passes FacadeStreet's centre test).
+static func _blocked(b: Building, p: Vector3, r: float, along: Vector3) -> bool:
+	# Something of this building's own is there already (two parts sharing a face plane lay out the
+	# same storefront twice).
+	for sp: Array in b.get_meta("sf_dress", []):
+		if Vector2(float(sp[0]) - p.x, float(sp[1]) - p.z).length() < (float(sp[2]) + r) * 0.9:
+			return true
+	return _inside_any(b, p, r, along)
+
+
+## Whether the piece's foot or either end of it along the wall is inside another part.
+static func _inside_any(b: Building, p: Vector3, r: float, along: Vector3) -> bool:
+	for off: Vector3 in [Vector3.ZERO, along * r, -along * r]:
+		if FacadeStreet._inside_part(b, p + off + Vector3(0.0, 0.6, 0.0)):
+			return true
+	return false
+
+
+## A pier taken by a sign or a menu case already (the same storefront laid out twice).
+static func _pier_taken(b: Building, p: Vector3) -> bool:
+	var piers: Array = b.get_meta("sf_piers", [])
+	for q: Vector3 in piers:
+		if q.distance_to(p) < 0.3:
+			return true
+	piers.append(p)
+	b.set_meta("sf_piers", piers)
+	return false
+
+
+static func _log(b: Building, what: String, p: Vector3, n: Vector3) -> void:
+	if debug:
+		var items: Array = b.get_meta("sf_dress_log", [])
+		items.append([what, p, n])
+		b.set_meta("sf_dress_log", items)
 
 
 static func _note(b: Building, p: Vector3, r: float) -> void:
@@ -162,8 +202,10 @@ static func face(b: Building, face_id: int, fc: Vector3, a: Vector3, n: Vector3,
 			var out := (0.36 if not masonry else 0.10) + md * 0.5 + 0.03
 			var at := foot + a * (-mc) + n * out
 			at.y = ground
-			_mat(acc, at, wall, mw, md, _h(b, "mat look", face_id, run))
-			_note(b, at, maxf(mw, md) * 0.5)
+			if not _blocked(b, at, maxf(mw, md) * 0.5, a):
+				_mat(acc, at, wall, mw, md, _h(b, "mat look", face_id, run))
+				_log(b, "mat", at, n)
+				_note(b, at, maxf(mw, md) * 0.5)
 
 		# --- Planters ---------------------------------------------------------------------
 		if level and _h(b, "planter", face_id, run) < float(PLANTER_ODDS[room]):
@@ -181,7 +223,10 @@ static func face(b: Building, face_id: int, fc: Vector3, a: Vector3, n: Vector3,
 					continue
 				var at := fc + a * pa + n * 0.62
 				at.y = ground
+				if _blocked(b, at, 0.36, a):
+					continue
 				_planter(acc, at, wall, style, plant, paint, glaze, _h(b, "planter grow", face_id, run * 2 + int(s > 0.0)))
+				_log(b, "planter%d%d" % [style, plant], at, n)
 				_note(b, at, 0.36)
 
 		# --- A sandwich board out on the pavement beside the door ---------------------------
@@ -190,20 +235,27 @@ static func face(b: Building, face_id: int, fc: Vector3, a: Vector3, n: Vector3,
 		if level and absf(ba) < half - 0.4 and _h(b, "aboard", face_id, run) < float(BOARD_ODDS[room]):
 			var at := fc + a * ba + n * 1.30
 			at.y = ground
-			_sandwich_board(acc, at, wall, _h(b, "aboard look", face_id, run))
-			_note(b, at, 0.42)
+			if not _blocked(b, at, 0.42, a):
+				_sandwich_board(acc, at, wall, _h(b, "aboard look", face_id, run))
+				_log(b, "aboard", at, n)
+				_note(b, at, 0.42)
 
 		# --- A hanging sign on chains from the pier at the door's end ---------------------
 		var hang := not lobby and _h(b, "hang", face_id, run) < float(HANG_ODDS[room])
 		var has_blade := Building.shop_byte(key, ShopfrontKit.SALT_BLADE) < blade_byte and b._kit != null and ShopfrontKit.enabled
 		# Building._kit_awnings()' own roll for this shop.
 		var under_cover := canopy or (awnings and b._kit_hash("awning", (face_id - 1) * 131 + run) <= b.kit_awning_chance)
+		var pier_at := fc + a * (along + (pitch * 0.5 if pier_hi else -pitch * 0.5)) + Vector3(0.0, bottom, 0.0) + n * (pier_face + 0.45)
+		if (pier_hi or pier_lo) and (_inside_any(b, pier_at, 0.4, a) or _pier_taken(b, pier_at)):
+			pier_hi = false
+			pier_lo = false
 		if hang and not has_blade and not under_cover and (pier_hi or pier_lo):
 			var pa := along + (pitch * 0.5 if pier_hi else -pitch * 0.5)
 			var ph := bottom + clampf(sf * 0.66, 2.75, 3.15)
 			var paint: Color = BOARD_PAINTS[int(_h(b, "board paint", face_id, run) * BOARD_PAINTS.size()) % BOARD_PAINTS.size()]
 			var emblem: int = EMBLEM_BY_ROOM[room]
 			_hanging_sign(acc, fc + a * pa + Vector3(0.0, ph, 0.0) + n * pier_face, wall, paint, emblem, _h(b, "board", face_id, run))
+			_log(b, "sign%d" % emblem, fc + a * pa + Vector3(0.0, ph, 0.0) + n * pier_face, n)
 
 		# --- A menu case on the pier beside a cafe's or restaurant's door -----------------
 		if (pier_hi or pier_lo) and _h(b, "menu", face_id, run) < float(MENU_ODDS[room]):
@@ -215,6 +267,7 @@ static func face(b: Building, face_id: int, fc: Vector3, a: Vector3, n: Vector3,
 				var pa := along + (pitch * 0.5 if pier_hi else -pitch * 0.5)
 				var lit := 1.0 if Building.shop_open(key) else 0.0
 				_menu_case(acc, fc + a * pa + Vector3(0.0, bottom + 1.18, 0.0) + n * pier_face, wall, lit, _h(b, "menu look", face_id, run))
+				_log(b, "menu", fc + a * pa + Vector3(0.0, bottom + 1.18, 0.0) + n * pier_face, n)
 
 
 # --- The pieces (wall frame: `w.x` along the wall, `w.z` out of it, `at` the piece's foot) ----
@@ -226,7 +279,7 @@ static func _mat(acc: FacadeStreet.Acc, at: Vector3, w: Basis, mw: float, md: fl
 	var coir := Color(0.62, 0.45, 0.26).lerp(Color(0.32, 0.24, 0.16), look)
 	if look > 0.82:
 		coir = Color(0.12, 0.12, 0.13)   # a black ribbed entrance mat
-	acc.box(Transform3D(w, at + Vector3(0.0, 0.0085, 0.0)), Vector3(mw - 0.05, 0.013, md - 0.05), K_COIR, coir, 0.0, false)
+	acc.box(Transform3D(w, at + Vector3(0.0, 0.0085, 0.0)), Vector3(mw - 0.09, 0.013, md - 0.09), K_COIR, coir, 0.0, false)
 
 
 ## A planter: `style` 0 a tapered square trough, 1 a tall round fibreglass tub, 2 a glazed pot,
@@ -331,7 +384,7 @@ static func _cone_bush(acc: FacadeStreet.Acc, base: Vector3, r: float, h: float,
 		for j in segs + 1:
 			var u := TAU * float(j) / float(segs)
 			var d := Vector3(cos(u), 0.0, sin(u))
-			var bump := 1.0 + 0.06 * sin(float(j % segs) * 2.1 + seed01 * 7.0 + t * 5.0)
+			var bump := 1.0 + 0.09 * sin(float(j % segs) * 2.1 + seed01 * 7.0 + t * 9.0) * sin(t * 13.0 + float(j % segs))
 			pts.append(base + Vector3(0.0, 0.03 + t * h, 0.0) + d * rr * bump)
 			nrm.append((d * h + Vector3(0.0, r * 0.8, 0.0)).normalized())
 	_grid(acc, pts, nrm, rings, segs, K_LEAF, col)
