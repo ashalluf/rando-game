@@ -22460,3 +22460,18 @@ stains at all (the stage tool did that first). Pedestrians always pass their loo
 (`BLOOD_GORE_2=0` the before). City: `still_shot.gd FX_AT=7 FX_AT_PED=1 FX_PED_PLACE=1 FX_SHOOT=4
 FX_SCALE=1.0 FX_TIME=24 -- --spawn=2.5,60,0,-24` (a body in the road; the camber run to the kerb).
 **Checks**: `tests/blood_gore_2_checks.gd` (24).
+
+**Gate** (SHARDS=3, on a merge of main at `ff57f099`, batch 26): 4,472 checks, 2 FAIL, both in
+traffic, neither touched by this branch: `traffic_motion_checks` "no tick turns the car by more than
+a smooth turn would" (fails alone too, and with `BLOOD_GORE_2=0`: worst 50-130 degrees each run) and
+`traffic_ai_checks` "never drives into another car" (tightest -1.36 m). Before that merge the same
+branch passed 4,366 / 4,366. Peak RSS per shard 2.8-3.5 GB.
+
+**Not done / not verified.** Forward+ (the Mac: the marks are Decals there, the stills here are the
+Compatibility quads) was not rendered; the wound / spatter / stump colours go through the shaders'
+own colour paths (character.gdshader's `value_is_linear`, source_color defaults in the spatter,
+color_space.gdshaderinc in the stump), but judge them on the Mac. No good still of a stump yet (the
+test room's dolls land on them); the road camber run is held by the checks but its city still was not
+taken (the framing put the hero over the body). A body on a car moving in traffic was only checked
+with a car moved by hand. The car marks are not counted in WeaponFX's caps (they are bounded by the
+bodies on cars, three marks and a drip each, and free themselves).
