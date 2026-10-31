@@ -18,6 +18,16 @@ const DIR := "user://load_cache"
 ## Entries of one kind kept on disk (the newest); older ones are deleted on write.
 const KEEP := 2
 
+
+## The cache directory: DIR, or a shard's own under the sharded smoke test (SMOKE_SHARD=i/n):
+## three shards sharing one directory raced each other's writes and reads (load_time_checks'
+## "the far city keeps its tiles" failed when another shard's write landed first).
+static func dir() -> String:
+	var shard := OS.get_environment("SMOKE_SHARD")
+	if shard == "":
+		return DIR
+	return DIR + "_shard" + shard.get_slice("/", 0)
+
 static var _fingerprint: String = ""
 
 
@@ -112,7 +122,7 @@ static func path_for(kind: String, inputs: Array) -> String:
 	var ctx := HashingContext.new()
 	ctx.start(HashingContext.HASH_MD5)
 	ctx.update(key)
-	return "%s/%s_%s.bin" % [DIR, kind, ctx.finish().hex_encode()]
+	return "%s/%s_%s.bin" % [dir(), kind, ctx.finish().hex_encode()]
 
 
 ## The value stored under `kind` + `inputs` (plain data: arrays, dictionaries, packed arrays,
@@ -136,7 +146,7 @@ static func load_data(kind: String, inputs: Array) -> Variant:
 static func save_data(kind: String, inputs: Array, data: Variant) -> void:
 	if not enabled():
 		return
-	DirAccess.make_dir_recursive_absolute(DIR)
+	DirAccess.make_dir_recursive_absolute(dir())
 	var path := path_for(kind, inputs)
 	var tmp := path + ".tmp"
 	var f := FileAccess.open_compressed(tmp, FileAccess.WRITE, FileAccess.COMPRESSION_ZSTD)
@@ -176,13 +186,13 @@ static func save_images(kind: String, inputs: Array, images: Array) -> void:
 
 
 static func _trim(kind: String, keep_path: String) -> void:
-	var dir := DirAccess.open(DIR)
-	if dir == null:
+	var da := DirAccess.open(dir())
+	if da == null:
 		return
 	var found: Array = []
-	for f in dir.get_files():
+	for f in da.get_files():
 		if f.begins_with(kind + "_") and f.ends_with(".bin"):
-			var p := DIR + "/" + f
+			var p := dir() + "/" + f
 			if p != keep_path:
 				found.append([FileAccess.get_modified_time(p), p])
 	found.sort()

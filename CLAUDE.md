@@ -17,7 +17,7 @@ street errands, reference cameras), batch 7 (the marketplace lane, shop-window v
 businesses) and batch 8 (street signs as real models, five street lamp types), plus the fixes
 for CI runs 355-357 (a turning car's room in its new lane, errands never parking a placed car,
 the car lights check's pick race), then apartments and tower gondolas (2026-10-29, build 361).
-**Stopped 2026-10-31 (out of tokens): start at docs/HANDOFF.md section 000000000** - main is batch 24 (`230ab090`), `wt/batch25-untested` waits for its gate, seven sessions paused.
+**Wave 4 (2026-10-31): start at docs/HANDOFF.md section 0000000000** - main is batch 25 (the golden-hour review) plus the CI 394 flake fixes; 45 cloud sessions run on `wt/<slug>` branches (roster on `fleet/brief`), the lead merges them in batches.
 **Wave 3 (2026-10-29)**: 23 cloud sessions finishing wave 2's paused tasks plus `rock-outcrops` and
 `facades-gta` (owner: "make it look like GTA 6"); start at docs/HANDOFF.md section 00000000.
 `SHARDS=3 tests/headless_check.sh` runs the smoke test in three processes (~10 min, ~2.4 GB each).
