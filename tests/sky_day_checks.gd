@@ -43,9 +43,10 @@ func _weight() -> void:
 func _source() -> void:
 	var src := FileAccess.get_file_as_string("res://shaders/sky.gdshader")
 	_t._check(src.contains("uniform float sky_day = 0.0;"), "sky day: the sky's weight defaults to off")
+	_t._check(src.contains("sday = sky_day * day_cubemap;"), "sky day: the ambient cubemap takes only a share of it")
 	# Every line that reads the weight is a gate, or sits inside one (a mix() whose weight is 0 is
 	# exact): count the gates and the reads.
-	var gates := src.count("if (sky_day > 0.0")
+	var gates := src.count("if (sky_day > 0.0") + src.count("if (sday > 0.0")
 	var reads := 0
 	var gated := 0
 	var depth := 0
@@ -56,11 +57,14 @@ func _source() -> void:
 			continue
 		var opened := s.count("{")
 		var closed := s.count("}")
-		if s.contains("sky_day") and not s.begins_with("if (sky_day > 0.0"):
+		var gate := s.begins_with("if (sky_day > 0.0") or s.begins_with("if (sday > 0.0")
+		# sky() reads it once into `sday` (the cubemap pass takes a share), then gates on that.
+		var reads_it := (s.contains("sky_day") or s.contains("sday")) and s != "float sday = sky_day;"
+		if reads_it and not gate:
 			reads += 1
 			if not gate_depth.is_empty():
 				gated += 1
-		if s.begins_with("if (sky_day > 0.0"):
+		if gate:
 			gate_depth.append(depth)
 		depth += opened - closed
 		while not gate_depth.is_empty() and depth <= gate_depth[-1]:
