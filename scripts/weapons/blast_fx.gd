@@ -91,7 +91,11 @@ static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0
 	if not WeaponFX._web():
 		_pressure_wave(parent, at, big)
 	_ground_kick(node, parent, at, big, push)
-	_fire_roll(parent, at, big, fuel)
+	if not Blast3.this_blast_volume:
+		_fire_roll(parent, at, big, fuel)
+	else:
+		last["volume"] = 1 # Blast3's volume fireball took the rolling fire
+	Blast3.this_blast_volume = false
 	if heavy:
 		_column(parent, at, big, fuel)
 		last["debris"] = BlastDebris.spawn(node, parent, at, big, push, mini(debris_pieces + (3 if fuel else 0), max_debris))
@@ -123,6 +127,8 @@ static func _flash(node: Node, parent: Node, at: Vector3, radius: float) -> void
 	light.light_volumetric_fog_energy = 2.0
 	parent.add_child(light)
 	light.global_position = at + Vector3.UP * radius * 0.45
+	Blast3.add_fire(light)
+	Blast3.dress_flash(light)
 	var lt := light.create_tween()
 	lt.tween_interval(flash_time * 0.4)
 	lt.tween_property(light, "light_energy", glow_energy, flash_time).set_ease(Tween.EASE_OUT)
@@ -147,9 +153,10 @@ static func _flash(node: Node, parent: Node, at: Vector3, radius: float) -> void
 	flare.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(flare)
 	flare.global_position = at + Vector3.UP * radius * 0.3
-	flare.scale = Vector3.ONE * radius * 2.2
+	var fs := Blast3.flare_scale if Blast3.enabled else 1.0
+	flare.scale = Vector3.ONE * radius * 2.2 * fs
 	var ft := flare.create_tween()
-	ft.tween_property(flare, "scale", Vector3.ONE * radius * 4.2, 0.09).set_ease(Tween.EASE_OUT)
+	ft.tween_property(flare, "scale", Vector3.ONE * radius * 4.2 * fs, 0.09).set_ease(Tween.EASE_OUT)
 	ft.parallel().tween_property(flare, "transparency", 1.0, 0.13).set_ease(Tween.EASE_IN)
 	ft.tween_callback(flare.queue_free)
 	last["flash"] = 1
@@ -262,8 +269,12 @@ static func _ground_kick(node: Node, parent: Node, at: Vector3, radius: float, p
 		radius * 3.4 * push, radius * 5.0 * push, 0.4, _ground_ramp, false, 180.0, 3.4,
 		gb, 1.0, 0.3, 2.2, true, null, smoke_material())
 	# Grit: lit dark chips skimming out low along the ground.
-	WeaponFX._chip_layer(parent, ground + Vector3.UP * 0.2, WeaponFX._count(26), 0.06, 0.8,
-		radius * 2.0 * push, radius * 4.0 * push, Color(0.20, 0.19, 0.17), gb, 80.0, -22.0)
+	if Blast3.bits_on():
+		BlastBits.pool(node).throw_chips(ground + Vector3.UP * 0.2, WeaponFX._count(26), Vector2(radius * 1.6, radius * 3.2) * push,
+			0.06, Color(0.20, 0.19, 0.17), hit.normal, 88.0, true)
+	else:
+		WeaponFX._chip_layer(parent, ground + Vector3.UP * 0.2, WeaponFX._count(26), 0.06, 0.8,
+			radius * 2.0 * push, radius * 4.0 * push, Color(0.20, 0.19, 0.17), gb, 80.0, -22.0)
 	last["kick"] = 1
 
 

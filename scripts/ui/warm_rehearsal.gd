@@ -166,7 +166,7 @@ static func atlas_textures() -> Array:
 	out.append([LandingFX.crater_texture()])
 	for k in 2:
 		var maps: Array = BlastAftermath.crater_textures(k)
-		out.append([maps[0], maps[1]])
+		out.append([maps[0], maps[1], null, maps[2] if maps.size() > 2 else null])
 	for kind in 5:
 		var tex: Array = WeaponFX.blood_textures(kind)
 		out.append([tex[0], tex[1], tex[2]])

@@ -3874,3 +3874,10 @@ none of either.
   one exception: the car gets a real centre of mass and is let roll by the physics until it rests,
   and holding boost still flies it out. What breaks off (glass, bonnet, a wheel, pieces) is
   per-car state made only on a crash; nothing is added to an undamaged car. CRASH_BREAKUP=0 is the A/B.
+- **2026-10-31 The fireball is a volume, and what a blast throws lands (explosions-3, HANDOFF "The
+  blast at arm's length").** Cards cannot have depth: forty billboards always read as a pile of
+  discs from close up. Decision: on the desktop the fireball is ONE ray-marched box (26 steps of a
+  tiling 3D noise, black-body light and lit soot), capped at four at once, the cards kept past the
+  cap and on the web. Everything a blast throws that can be seen landing (chips, sparks, burning
+  lumps) is a scripted point with one ray a tick, never a particle that falls through the road.
+  Smoke is lit by the fires actually burning, not by its own age. All behind EXPLOSIONS_3=0.

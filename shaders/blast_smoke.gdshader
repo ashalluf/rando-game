@@ -16,6 +16,7 @@ render_mode unshaded, blend_mix, depth_draw_never, cull_disabled, shadows_disabl
 global uniform vec4 sky_tint;
 global uniform vec3 sun_direction;
 global uniform float night_factor;
+global uniform float lamp_factor;
 
 uniform sampler2D puff_tex : filter_linear_mipmap, repeat_disable;
 uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
@@ -31,9 +32,22 @@ uniform float fire_share = 0.12;
 // Soft particles (metres) and the fade near the lens.
 uniform float soft_distance = 3.0;
 uniform float near_fade = 2.5;
+// Blast3 (explosions-3): the fires burning now (xyz world, w strength 0..1 x their reach in m,
+// packed as reach + strength / 2: Blast3.push_fires()), so smoke is lit from below only by fire
+// that is still burning. `fire_count` 0 is the old "young puff" glow alone.
+uniform vec4 fires[4];
+uniform int fire_count = 0;
+uniform float fire_light_gain = 1.6;
+// How much of the old young-puff glow stays when the fires are known (0..1).
+uniform float young_glow = 1.0;
+// After dark the street lamps' glow on the smoke's underside (linear, x lamp_factor).
+uniform vec3 city_glow = vec3(0.0);
+// Light through thin smoke looking toward the sun (a forward-scattering lobe, 0 off).
+uniform float forward_scatter = 0.0;
 
 varying float v_age;
 varying mat3 v_card;
+varying vec3 v_world;
 
 
 void vertex() {
@@ -45,6 +59,7 @@ void vertex() {
 	MODELVIEW_MATRIX = MODELVIEW_MATRIX * mat4(vec4(length(MODEL_MATRIX[0].xyz), 0.0, 0.0, 0.0), vec4(0.0, length(MODEL_MATRIX[1].xyz), 0.0, 0.0), vec4(0.0, 0.0, length(MODEL_MATRIX[2].xyz), 0.0), vec4(0.0, 0.0, 0.0, 1.0));
 	MODELVIEW_NORMAL_MATRIX = mat3(MODELVIEW_MATRIX);
 	v_age = INSTANCE_CUSTOM.y;
+	v_world = MODEL_MATRIX[3].xyz;
 	// The card's own axes in WORLD space (x right along the card, y up it, z toward the eye).
 	v_card = mat3(normalize(world[0].xyz), normalize(world[1].xyz), normalize(world[2].xyz));
 }
@@ -80,7 +95,30 @@ void fragment() {
 	// The fire under a young puff, on its underside.
 	float young = 1.0 - smoothstep(0.0, fire_share, v_age);
 	vec3 glow = fire_glow * young * young * clamp(-n.y * 0.7 + 0.45, 0.0, 1.0) * (0.6 + 0.4 * dens);
-	vec3 col = alb * (sun * sun_gain * lit_sun + amb * mix(1.0, 0.55, dens)) + alb * glow * 6.0;
+	glow *= young_glow;
+	// The fires that are burning now, each lighting the side of the puff that faces it.
+	for (int i = 0; i < 4; i++) {
+		if (i >= fire_count) {
+			break;
+		}
+		vec4 f = fires[i];
+		float reach = floor(f.w);
+		float str = fract(f.w) * 2.0;
+		vec3 to = f.xyz - v_world;
+		float d = length(to);
+		float fall = str / (1.0 + d * d / max(reach * reach * 0.12, 1.0));
+		float face = clamp(dot(n, to / max(d, 0.01)) * 0.6 + 0.5, 0.0, 1.0);
+		glow += fire_glow * fire_light_gain * fall * face * (0.6 + 0.4 * dens) / 6.0;
+	}
+	// The city's sodium glow on the underside after dark.
+	glow += city_glow * lamp_factor * clamp(-n.y * 0.6 + 0.5, 0.0, 1.0) / 6.0;
+	// Thin smoke between the eye and the sun glows (silver lining); thick cores do not.
+	vec3 vdir = normalize(v_world - CAMERA_POSITION_WORLD);
+	float g = 0.6;
+	float cosv = dot(vdir, L);
+	float hg = (1.0 - g * g) / pow(max(1.0 + g * g - 2.0 * g * cosv, 1e-3), 1.5) * 0.08;
+	vec3 fwd = sun * forward_scatter * hg * (1.0 - dens) * (1.0 - tex.a * 0.5);
+	vec3 col = alb * (sun * sun_gain * lit_sun + amb * mix(1.0, 0.55, dens)) + alb * glow * 6.0 + fwd * 0.12;
 	ALBEDO = cs_out(col);
 	ALPHA = COLOR.a * tex.a;
 
