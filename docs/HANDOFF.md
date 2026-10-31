@@ -21980,3 +21980,73 @@ the same way, but judge 18:00 on the Mac first - if it reads milky-pink, raise `
 grass under a low red sun is what it is). The painted cumulus on opengl3 draws a big smooth ellipse in
 the aerial and sky shots (before and after alike; the sky's, not this review's). Dawn shares the sky
 ramp and the exposure ramp (both are symmetric in elevation) and was not looked at.
+
+## 9d?. The blast at arm's length, third pass (2026-10-31, fleet wave 4, branch `wt/explosions-3`)
+
+Task: "the explosion and fire at arm's length: the fireball's volume, the smoke's shading under sun
+and at night, debris that bounces and comes to rest, sparks that land, the scorch and crater's
+edge, the light's falloff on the facades, heat haze". Everything is in **`Blast3`**
+(`scripts/weapons/blast_3.gd`); `EXPLOSIONS_3=0` in the environment is the second pass exactly as
+it was (the A/B). The web keeps the cheap path (cards, CPU particles, no haze): `takes_fireball()`,
+`bits_on()`, `haze_on()` are all false there.
+
+- **The fireball is a volume.** `WeaponFX.explosion()` asks `Blast3.takes_fireball()` before its
+  fireball cards; yes -> `spawn_volume()`: a 2 m BoxMesh scaled to (1.5, 1.6, 1.5) radii round a
+  point 1.3 radii up, on `shaders/blast_volume.gdshader`. It is drawn by its back faces with no
+  depth test (works with the camera inside it) and marches the view ray 26 steps from the box's
+  entry to the scene's depth (the road and walls cut it where they stand). The field: a ball that
+  grows in 70 ms, rises and flattens into a cap with a thinning middle (the vortex ring), a skirt
+  for the first instant, a stem under the cap - every gated term is -1 where shut (a gate times the
+  term was 0 everywhere and the noise filled the whole box) - carved by two octaves of a 48^3
+  tiling FBM (`noise_texture()`, `get_seamless_image_3d`, no mipmaps: ImageTexture3D wants mip
+  LEVELS, not images with mipmaps). Each sample is black-body light (`blackbody()`, steep: dim red
+  is DARK, green about half of red while bright - AgX makes a bright red salmon) and soot lit by the
+  sun with one shadow tap, the sky and the fire inside; the lit soot fades as the gas heats (dim red
+  plus sunlit grey read pink). The light is added RAW and only the soot goes through cs_out(): the
+  sRGB curve on Compatibility lifted the weak channels and every orange went pastel. BlastFX's
+  rolling cards are skipped when the volume took the fireball (`this_blast_volume`,
+  `BlastFX.last.volume`). `max_volumes` 4; past that a blast gets the cards. `BLAST3_DEBUG=1` draws
+  the volume's opacity in grey.
+- **Chips and sparks land.** `BlastBits` (`scripts/weapons/blast_bits.gd`): one pool under the
+  scene root (two MultiMeshes, buffers written whole, `custom_aabb` the city), every chip and
+  spark a point with one world ray a physics tick. Chips bounce (`chip_bounce`), skid with
+  `chip_friction`, follow the ground or fall off an edge, rest flat for `chip_rest` 25 s and sink
+  away; sparks skitter and die on the road as embers (`shaders/blast_spark.gdshader`: width from the
+  instance's X, length from its Y, never under ~1.5 px). They replace WeaponFX's spark puffs and
+  chip layer and BlastFX's grit. `BlastDebris`'s lumps now bounce while they have the speed, skid
+  (`_skid()`), lie flat on the ground's normal and are charred metal with embers that cool (their
+  own material each; the shared bright orange read as a toy).
+- **The smoke.** `blast_smoke.gdshader` takes `fires[4]` / `fire_count` (`Blast3.push_fires()`,
+  driven each frame by the BlastBits pool): BlastFX's flash / glow lights (`add_fire()`) and
+  CarDamage's burning cars light the side of each puff that faces them; the old young-puff glow is
+  kept at `smoke_young_glow` x the hottest fire still burning, so a column fed for ten seconds over
+  a fire that went out at two is no longer lit orange from inside by nothing (main's night strip:
+  an orange ghost). After dark the street lamps' glow on the underside (`city_glow` x lamp_factor);
+  a forward-scattering rim looking toward the sun.
+- **The heat haze.** `BlastHaze` (`shaders/blast_haze.gdshader`): a quad over the seat of the blast
+  turned about its vertical to the camera, reading the screen (render_priority MIN, as the shimmer),
+  bending only pixels whose surface stands BEHIND the column (depth test in the shader), for
+  `haze_seconds` 6 (fuel 11). It replaces WeaponFX._shimmer's sphere on the desktop.
+- **The light.** The flash casts shadows at HIGH on Forward+ (`dress_flash()`, one blast at a time,
+  HIGH read off the environment's SDFGI), so it falls off round a car or a column instead of
+  lighting the wall behind it; the white-hot flare is `flare_scale` 0.55 of its old size (its 38 m
+  quad whited out the whole screen at night).
+- **The scorch.** `Blast3.crater_maps()` (BlastAftermath.crater_textures() hands over): soot thrown
+  out in fingers of different lengths (an angle table), specks past them, a paler scoured halo, a
+  rim of slabs broken along cellular edges, cracks, and an EMISSION map of embers in the pit. On the
+  decal it is `texture_emission` fading over `ember_seconds`; on Compatibility an additive quad of
+  the map (a StandardMaterial's emission map on the cut-out quad lit the whole mark white there).
+  WarmRehearsal's atlas list carries the emission map.
+
+Look: `tools/explosions_2/blast_room_shot.gd` (opengl3 ~2 min, lavapipe Forward+ ~12 min a strip)
+now sets off the whole `Explosion.blast()` by default (crater, rubble; `FULL=0` WeaponFX alone) and
+takes `CAM_X`, `LOOK_Y`. Checks: `tests/explosions_3_checks.gd` (31: the volume and its box, no
+cards under it, the web paths, chips at rest ON a deck and none through it, sparks landing, debris
+flat, the fires reaching the smoke, the haze first, the crater's fingers and embers, the colour
+rules); explosions_2's checks accept the volume in place of the rolling cards and the BlastBits pool.
+
+Cost: the fireball is now ONE draw (was two card systems), chips and sparks two draws for the whole
+scene; the volume is 26 steps x (2 noise taps + a 2-tap shadow sample) per covered pixel for 2.7 s
+(3.6 s fuel), at most four at once. No static geometry changed, so a still's GEO is unchanged.
+NOT measured: GPU time on a real GPU (lavapipe runs ~1 frame a second); the Mac at 60 fps (the
+volume's per-frame dither is meant for TAA); the web build (code paths only checked).
