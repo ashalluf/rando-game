@@ -358,3 +358,7 @@ tree_sun={
 "type": "vec3",
 "value": Vector3(0, 0, 0)
 }
+window_interiors={
+"type": "float",
+"value": 1.0
+}

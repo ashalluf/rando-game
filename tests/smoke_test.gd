@@ -2714,6 +2714,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/mac_verify_pack_checks.gd").new().run(self, city)
 	# Forward+ review f (tests/fwd_review_f_checks.gd): a night strike lights the street, not a white-out.
 	load("res://tests/fwd_review_f_checks.gd").new().run(self, city)
+	# The rooms behind the windows, second pass (tests/window_interiors_checks.gd, WindowInteriors): homes,
+	# covers, TVs, open sashes, office workers; near and far rolling the same.
+	load("res://tests/window_interiors_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

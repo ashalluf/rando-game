@@ -4926,6 +4926,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   frame cost is ALU on storefront glass pixels only. Judge with `building_shot.gd` (`NIGHT=1`,
   `BENCH=n`) and `still_shot.gd` `EYE=`/`SHOTS=` from the pavement; `tools/glshot/shop_probe.gd`
   (headless) lists the storefronts near a point with an EYE for each face.
+- Rooms behind the windows, second pass (2026-10-31, docs/HANDOFF.md "Rooms behind the windows,
+  second pass"): `shaders/window_interiors.gdshaderinc` (integer rolls, salts 100-112, in BOTH
+  building shaders; `WindowInteriors`, `scripts/world/window_interiors.gd`, the GDScript copy)
+  makes a building homes or offices (`wi_home()` by window style) and rolls each window's cover,
+  TV, open sash, passer-by and desk worker; `shaders/window_rooms.gdshaderinc` (building.gdshader
+  only, after room_interior()) traces `home_room()` and `office_people()`; the far box takes a
+  home's tone / TV / cover average from the same rolls. house_glass.gdshader gains drapes, roller
+  blinds and a passer-by. `WINDOW_INTERIORS=0` is the A/B (`window_interiors` global);
+  `building_shot.gd HOUR= WI=0 SETTLE=`; checks `tests/window_interiors_checks.gd`.
 - Corner stores you walk into (2026-10-05, fleet "walk-in-store", HANDOFF "The corner store"):
   `CornerStore` (`scripts/world/corner_store.gd`, pure: a hash of seed + block picks MIDTOWN /
   SUBURBS blocks and a corner; the corner lot must be level, off the freeway, on open streets and

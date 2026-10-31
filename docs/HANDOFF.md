@@ -22611,3 +22611,73 @@ radius, FirstFill staged / filling, the monitor off by default).
   rehearsal. A Mac launch log (`LOADING` lines) is the real measure.
 - A crash still costs a second on first use after the rehearsal (CPU work in CrashDeform, not a
   compile, by the look of it); umbrellas 0.3 s.
+
+## 9iu. Rooms behind the windows, second pass (fleet wave 4, `wt/window-interiors-2`, 2026-10-31)
+
+The task: residential rooms in the apartments and houses at night (a TV's flicker, a lamp, a
+figure walking past), offices with people at desks by day, curtains and blinds variety, the odd
+open window with its curtain moving; integer rolls, near and far agreeing. The ground-floor shop
+fronts are storefront-closeup-2's and are untouched (every new branch is `!storefront`).
+
+**Homes or offices.** Every window of a city `Building` used to be an office (room_interior():
+ceiling panels, a desk slab, a blind). Now a building is FLATS by an integer roll on its seed
+(`wi_home()`, salt 100), by window style - punched 52 %, narrow 38 %, curtain wall 16 %, ribbon
+9 % (`WI_HOME_*`). Everything else per window keys on `wi_key()` = `wl_face_row(seed, face, row)
++ col`, window_lights' own key, through its `wl_hash()` (salts 100-112 are this pass's):
+- what hangs at the glass (`wi_cover()`, 101): drapes 30 %, sheers 22 %, a roller blind 18 %, a
+  venetian 13 %, vertical blinds 7 %, bare 10 %; how far drawn (107); the fabric (108, 8 colours);
+- a TV (102, 30 % of lit home rooms), the window open by day (103, 7 % - only drapes / sheers),
+  somebody walking across (104, 45 %), a lamp tone (105, 4 tones normalised to luminance 1, a
+  multiplier on the building's lit colour as window_temp() is), a worker at the desk (106, 56 %).
+`shaders/window_interiors.gdshaderinc` holds them and is included by BOTH building.gdshader and
+building_lod.gdshader after window_lights; `WindowInteriors` (`scripts/world/window_interiors.gd`)
+is the GDScript copy (the checks read the shader's numbers back).
+
+**The near traces** (`shaders/window_rooms.gdshaderinc`, building.gdshader only, included after
+room_interior()): `home_room()` - a room wider than the window (walls up to 1.4 m past the jambs),
+its floor 0.85 m under the sill, the ceiling 0.3 m over the head, 2.8-5.2 m deep; a sofa box along
+the back wall with a picture over it, a book shelf on one side wall (in 65 %), a rug; a floor or
+table lamp whose light falls off from where it stands (1 / (1 + 0.45 d^2), a pool on the ceiling)
+and whose drum shade glows where the ray passes it; a passer-by (a capsule and a head, 3.2 s across
+every 10-30 s, alternate ways); then the cover at the glass - drapes in folds drawn to the sides,
+sheers over the room (glowing lit from behind), a roller or a venetian down to its level, vertical
+louvres with the room in the gaps. Fabric at the glass catches the daylight a room's depth never
+does (x1.9 as paint, lamp / 1.9). An open window: no glass in the lower half (`wi_open_k`: the
+mirror and the tint are taken off there), the upper sash's meeting rail across the middle, the
+drapes' hems and sheers swinging with `wind_factor` and TIME. `office_people()` sits one or two
+workers at room_interior()'s own desk (rolled the same way from room_seed): shoulders and head over
+a chair back, the monitor beyond them glowing toward the window. In office hours (8:00-18:30 and
+a floor the office roll would light) an occupied office has its ceiling lights ON
+(`office_day_light` 0.6 of the room's lit emission x the day share): with the room dark a worker
+did not read at all from the street. Screens glow a little by day and clearly after dark.
+
+**Lit homes.** The lit branch takes `wi_home_tone()` (or `wi_tv_light()`, blue-white cuts every
+second or so) where an office takes window_temp(); the shade adds its own glow. Which windows are
+lit is still window_lit() - unchanged, so nothing about the night skyline's counts moved.
+
+**The far box agrees**: a home window's lit light is the same tone (or the TV's mean, then the
+flicker once a pane is a few pixels), and by day the room behind the far pane carries the cover's
+mean colour and coverage (`wi_cover_mean()`) where an office carries fx_pane()'s blind.
+
+**Houses and apartments** (house_glass.gdshader, HouseBuild / ApartmentBuild panes): the cover
+mix gains lined drapes drawn to the sides and roller blinds (their daylight colour from the pane's
+COLOR), and a lit room now and then has somebody walking across in front of the lamp. These keys
+are the pane's float random (COLOR.a), as the old covers were; HouseNights' integer rolls (lit,
+tone, TV) are untouched, so the far house still agrees.
+
+**Cost.** Zero geometry and draws: all traced on glass pixels that were already shaded. The home
+trace is a box, two furniture boxes and a capsule per glass pixel; offices add a plane and a
+capsule for each of up to two workers. Measured with `building_shot.gd BENCH=20` on llvmpipe, a 24 m apartment block
+filling the frame at 21:00 (glass on most of the screen, the worst case): 55-58 ms -> 60-66 ms a
+frame (~+10 %); a street view where glass is a fraction of the screen pays a fraction of that.
+
+**Switch and tools.** `WINDOW_INTERIORS=0` is the A/B (the `window_interiors` global, pushed by
+`DayNight._ready()` -> `WindowInteriors.install()`): every building offices, house glass's old
+covers. `tools/glshot/building_shot.gd` takes `HOUR=` (city_hour), `WI=0` and `SETTLE=n` frames
+(TIME runs: a walker crosses, a TV cuts). Checks: `tests/window_interiors_checks.gd`.
+
+**Not done / open:** the walker and workers are capsules (fine at a window's distance, crude at
+arm's length); kitchens and bedrooms are not modelled (every home room is a living room); offices
+have no people after dark beyond lit rooms; the passer-by in house glass is a 2D silhouette on the
+back wall; Forward+ unverified (opengl3 stills only - the colours are the old room_interior's
+plain numbers, so they follow the same rule as the room they replace).
