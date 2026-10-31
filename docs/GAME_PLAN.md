@@ -3786,3 +3786,10 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+
+- **2026-10-31 The hills refcam (rc-hills, HANDOFF "The hills refcam").** Judged the front range
+  from 260 m at 15:00 and fixed what the eye lands on: the summit spire, pale far-tor flecks,
+  combed streaks down steep faces, polka-dot shrub clumps and the voxel sign. Decisions: a far
+  object under a few pixels is dropped by its share of the frame, not drawn as a fleck; steep
+  terrain is textured from the side; the ground's tone is not retuned from opengl3 stills (on
+  Forward+ it already reads as dark chaparral). All behind RC_HILLS=0.
