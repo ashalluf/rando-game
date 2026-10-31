@@ -97,7 +97,9 @@ static func flash(node: Node, at: Vector3, color: Color, size: float, life: floa
 	# Down the bore, rolled at random: a flash never comes out the same way up twice.
 	var basis := Basis.looking_at(fwd, Vector3.UP if absf(fwd.y) < 0.98 else Vector3.RIGHT)
 	basis = basis.rotated(fwd, randf() * TAU)
-	mi.global_transform = Transform3D(basis.scaled(Vector3.ONE * k * randf_range(0.85, 1.15)), at)
+	# A bigger charge throws a longer flame, but not in proportion (at 2.4x the shotgun's filled
+	# the frame).
+	mi.global_transform = Transform3D(basis.scaled(Vector3.ONE * pow(k, 0.7) * randf_range(0.85, 1.15)), at)
 	var t := mi.create_tween()
 	t.tween_method(func(a: float) -> void: mat.set_shader_parameter("age", a), 0.0, 1.0, maxf(life * 1.3, 0.03))
 	t.tween_callback(mi.queue_free)
@@ -117,7 +119,7 @@ static func _lights(node: Node, parent: Node, at: Vector3, fwd: Vector3, k: floa
 	# Energy grows less than the flash: at the shotgun's full 2.4x the old light burnt a wall four
 	# metres off to white, in daylight too.
 	var main := _light(parent, at + fwd * 0.45 * k, WeaponFX.muzzle_light_energy * clampf(k, 0.7, 1.5),
-		WeaponFX.muzzle_light_range * clampf(k, 0.7, 2.5), WeaponFX.muzzle_light_time)
+		WeaponFX.muzzle_light_range * clampf(k, 0.7, 1.4), WeaponFX.muzzle_light_time)
 	if not web:
 		# Volumetric fog takes it too (Forward+ HIGH): a flash in the haze is a puff of light.
 		main.light_volumetric_fog_energy = 3.0
