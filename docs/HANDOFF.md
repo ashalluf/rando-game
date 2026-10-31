@@ -21980,3 +21980,72 @@ the same way, but judge 18:00 on the Mac first - if it reads milky-pink, raise `
 grass under a low red sun is what it is). The painted cumulus on opengl3 draws a big smooth ellipse in
 the aerial and sky shots (before and after alike; the sky's, not this review's). Dawn shares the sky
 ramp and the exposure ramp (both are symmetric in elevation) and was not looked at.
+
+## 9d?. Cars at arm's length: under and inside the arches (fleet wave 4, `car-exterior-closeup`)
+
+The task: cars at arm's length - panel gaps on every lofted body, handles, mirrors with glass,
+badges, the arches' inner lining, brakes through the spokes, exhaust tips, an underbody that is not
+a flat plane. **What was already there** (checked in stills before any change): every lofted body
+(make_road_cars / make_more_cars / make_cars_3 / make_lowriders) already cuts 4 mm panel gaps and
+flush door handles, carries wing mirrors with a glass face (the CHROME slot: a mirror on Forward+,
+satin grey on Compatibility), and CarDetail's plates and badges; the game's generated wheels already
+draw a brake disc and a painted caliper behind the spokes. **What was missing**: the arches were bare
+black pockets (the boolean cutter's walls), no car had an exhaust (the cars_3 docstrings promise tips
+the code never built), and under the sills was the loft's decimated floor - in the PAINT slot, so a
+flipped or flying car showed a car-coloured flat plane.
+
+**What was built.** `tools/make_car_undersides.py` writes `assets/models/road_<name>_under.glb` for
+all 16 lofted bodies (sedan, crossover, pickup, van, hatchback, suv, minivan, taxi, beater, ev_hatch,
+lux_sedan, compact_suv, work_truck, coupe, both lowriders): it rebuilds each loft WITHOUT details
+(`rc.build(spec, False)`, ~1 s; compact_suv gets its post_scale) only to raycast it - the floor under
+any point, the tail's lowest face (`Fit.tail_face()`: the floor walked back until it ends, then a ray
+from behind just over that edge), the skin round each arch - and lays, in the body's own coordinates:
+- arch liners: a ribbed shell 1.4 cm inside each pocket from the inner wall to 2 cm short of the skin,
+  front wall, crown and rear wall, a back on the inner wall, three push-in clips;
+- struts in the arches behind the tyre (damper, top mount, and at the front the coil spring and seat);
+- front: subframe rails and cross members, lower arms to the hubs, the rack, tie rods and boots, the
+  sump and gearbox (the EV: a ribbed battery tray instead), a splash shield;
+- the exhaust (not on the EV): front pipe, resonator, heat shields against the floor, over the rear
+  axle into a transverse silencer, then each tailpipe sideways and straight back to a polished tip
+  with a rolled lip and a sooty bore, 2 cm past the bumper's lowest face (`EXHAUST`: one, two or the
+  coupe's four);
+- the fuel tank and its straps; the rear axle: a twist beam, trailing arms and coil springs, or on
+  `FRAME_BODIES` (pickup, work truck, van, lowriders) a ladder frame, a live axle with the diff and
+  driveshaft, leaf springs and dampers;
+- jacking pads on the sills, and a black underseal sheet 4 mm under the loft's floor (`floor_pan()`,
+  a grid kept off the arches and the floor's edges) - the painted floor is gone from view.
+All of it is ONE surface (4.6-5.6k triangles), the kind in the vertex colour's r (`K_*` / 16), a
+variant in g, UV metres along / across. **In the game** `CarUnderside`
+(`scripts/vehicles/car_underside.gd`) hangs it under the placed model (one hook line in
+`Vehicle._add_body_model()`, after the wheel tuck; the file is the body's path + `_under`), with
+`shaders/car_underside.gdshader` (linear on both renderers through color_space; ribs and felt on the
+liners, heat-tinted and rusted exhaust, polished tips, the shield's embossing, road grime from below,
+the wet world), no shadow, `DRAW_DISTANCE` 22 m. It is not one of `_body_meshes` (damage, cabins,
+CarDetail, CrashDeform never see it; CarDetail's plate search skips `_under` meshes by name). The body
+.glb, its LODs and its far twin are untouched, so nothing a car already was moves, and every road
+car - traffic, parked, police in a sedan body, the delivery van - gets it.
+
+**Cost** (car_shot GEO, one sedan, opengl3): front3 42 -> 43 draws, 188.2k -> 194.5k triangles;
+rear3 41 -> 42, 174.8k -> 181.1k; close 34 -> 35, 166.1k -> 172.4k (the importer's LODs cut it with
+distance); far (the twin) 14 draws / 19,838 triangles before and after. One draw (+ its depth
+pre-pass) per car within 22 m.
+
+**Look**: `tools/glshot/car_shot.gd` views `tail` (crouched behind the bumper), `liner` (low at the
+front wheel) and `under` (from below the road, the ground hidden and the sun turned to shine up as on
+a car on its roof - put it LAST in `--views`, it leaves the sun there). `CAR_UNDERSIDE=0` the A/B.
+Stills on `shots/car-exterior-closeup`. Rebuild: `python3.11 -m venv v && v/bin/pip install
+bpy==4.2.0` (pip has no bpy 4.2 for python 3.13), `v/bin/python tools/make_car_undersides.py
+[names]`, then `--import`.
+
+**Checks** (`tests/car_exterior_closeup_checks.gd`): every lofted body has its file and the bus,
+exotics and motorcycles none; a sedan, a pickup and the EV each hang one shadowless node on the shared
+material drawn inside the near range, not in `_body_meshes`, inside the footprint and off the road;
+CAR_UNDERSIDE off builds none and the same body meshes.
+
+**Not done / not verified.** The body .glbs were NOT rebuilt (the mirrors' heads are still bevelled
+boxes and the handles flat pulls in pockets; a rebuild of all 16 under pip bpy rather than the
+Blender 4.2.23 binary might move booleans across the fleet, so it was left for a session that can
+diff every body). Forward+ (the Mac) not rendered: the tips are a true metal there and the liners
+take SDFGI bounce - judge the arch on the Mac. The underside does not crumple with CrashDeform or
+char on a burnt wreck (it is mostly hidden; a wreck on its roof shows a clean underside). Big
+vehicles (bus, trucks, service and emergency bodies) have none.

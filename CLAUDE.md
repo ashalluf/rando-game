@@ -1450,6 +1450,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   windscreen dust (`screen_dust`) on the shared cabin glass. `CAR_DETAIL=0` the A/B; `CAR_GRIME=`
   and views `plate|nose|wheel|arch` on car_shot.gd; probe `tools/car_detail_probe.gd`; checks
   `tests/car_detail_checks.gd`.
+- Cars at arm's length (2026-10-31, docs/HANDOFF.md "Cars at arm's length: under and inside the
+  arches"): every lofted road body has a second file, `road_<name>_under.glb`
+  (`tools/make_car_undersides.py`: the loft rebuilt without details, ~2 s, only to raycast the floor,
+  the tail and the arch skin; `bpy==4.2.0` under python3.11) - ribbed arch liners, strut springs,
+  subframes and arms, the exhaust run with its tips (none on the EV), tank, rear axle (a ladder frame
+  and leaf springs on the trucks, the van, the lowriders) and a black underseal sheet over the loft's
+  PAINTED floor. `CarUnderside` hangs it under the placed model (one hook in `_add_body_model()`): one
+  shadowless surface on `shaders/car_underside.gdshader` (kind in COLOR.r / 16), drawn to 22 m, NOT
+  one of `_body_meshes`; the body .glb and its far twin are untouched. `CAR_UNDERSIDE=0` the A/B;
+  views `tail`, `liner`, `under` (last) on car_shot.gd; checks `tests/car_exterior_closeup_checks.gd`.
 - Car paint, second pass (2026-10-30, docs/HANDOFF.md "Car paint that reads as photographed"):
   `CarPaint2` (`scripts/vehicles/car_paint_2.gd`, two hooks in Vehicle) and the `paint2` block of
   car_paint.gdshaderinc (every uniform 0 by default: other materials and `CAR_PAINT_2=0` keep the

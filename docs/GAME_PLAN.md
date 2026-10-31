@@ -3786,3 +3786,9 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+- **2026-10-31 Cars at arm's length (car-exterior-closeup, HANDOFF "Cars at arm's length")**: what
+  is under a car and inside its arches is a SECOND file per body (`road_<name>_under.glb`), fitted to
+  the loft by raycasts and hung under the placed model, rather than a rebuild of the body .glbs: the
+  bodies, their LODs and far twins stay bit for bit, it is drawn only within 22 m with no shadow, and
+  it can be switched off (CAR_UNDERSIDE=0). The loft's floor was in the paint slot; a black underseal
+  sheet now covers it.

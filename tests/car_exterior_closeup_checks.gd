@@ -44,7 +44,7 @@ func _files() -> void:
 	for n in LOFTED:
 		if CarUnderside.path_for("res://assets/models/road_%s.glb" % n) == "":
 			missing.append(n)
-	_check(missing.is_empty(), "every lofted road body has its underside (%s missing)" % ", ".join(missing))
+	_check(missing.is_empty(), "every lofted road body has its underside (%d bodies%s)" % [LOFTED.size(), "" if missing.is_empty() else ", missing " + ", ".join(missing)])
 	var none := true
 	for t in [Vehicle.BodyType.BUS, Vehicle.BodyType.SUPER, Vehicle.BodyType.MOTO_SPORT]:
 		none = none and CarUnderside.path_for(String(Vehicle.BODY_MODELS.get(t, ""))) == ""
@@ -74,7 +74,7 @@ func _car_build() -> void:
 		var car := _car(type, -12.0 + 6.0 * float(_cars.size()))
 		await _tree.process_frame
 		var u := _underside(car)
-		var name := Vehicle.BODY_NAMES[type]
+		var name := String(Vehicle.BODY_NAMES[type])
 		_check(u != null, "a %s hangs its underside under its model" % name)
 		if u == null:
 			continue
@@ -91,7 +91,7 @@ func _car_build() -> void:
 		_check(ok, "the %s's underside is one shadowless surface on the shared material, drawn only near (%d node)" % [name, meshes.size()])
 		_check(not in_body, "it is not one of the %s's body meshes" % name)
 		# Its box, in the car's space: inside the footprint and off the road.
-		var mi0 := meshes[0] as MeshInstance3D if not meshes.is_empty() else null
+		var mi0: MeshInstance3D = meshes[0] as MeshInstance3D if not meshes.is_empty() else null
 		if mi0 and mi0.mesh and mi0.mesh.get_aabb().size.length() > 0.01:
 			var to_car := car.global_transform.affine_inverse() * mi0.global_transform
 			var box := to_car * mi0.mesh.get_aabb()
