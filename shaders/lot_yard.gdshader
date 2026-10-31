@@ -171,7 +171,7 @@ void fragment() {
 		if (lawn_field_on()) {
 			// The lawn field's clover and brown spots (lawn_field.gdshaderinc), the seed from the
 			// lawn's thirst so neighbouring yards differ.
-			float ls = floor(variant * 997.0) * 0.37;
+			float ls = floor(floor(variant * 255.0 + 0.5) * 997.0 / 255.0) * 0.37;
 			float d2 = clamp(dry + smoothstep(0.68, 0.86, lf_noise(p * 0.42 + ls * 2.9 + 17.0)) * 0.4, 0.0, 1.0);
 			float clover = lf_clover(p, ls, d2);
 			albedo = g * mix(mix(disp(lawn_tint), disp(lawn_dry), d2), disp(lawn_tint) * vec3(0.86, 0.97, 1.03), clover * 0.6) * mottle;
@@ -182,7 +182,9 @@ void fragment() {
 		// Concrete: broom-finished slabs between tooled joints, a slab or two a shade off its
 		// neighbours (poured on different days), darker toward the lot's old oil and leaf stains.
 		vec2 cell = floor(p / joint_spacing);
-		float slab = hash12(cell + floor(variant * 31.0));
+		// The variant snapped to its 8-bit vertex value first: interpolated, a constant 0.0 can
+		// read -1e-7 on some pixel rows and floor() flipped every slab's shade in stripes.
+		float slab = hash12(cell + floor(floor(variant * 255.0 + 0.5) * 31.0 / 255.0));
 		vec3 c = tiled(concrete_tex, p, 3.2) * disp(concrete_tint) * (0.9 + 0.14 * slab);
 		float stain = smoothstep(0.6, 0.85, vnoise(p * 0.45 + 11.0 + variant * 5.0));
 		c *= 1.0 - 0.22 * stain - 0.18 * variant;

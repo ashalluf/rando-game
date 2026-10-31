@@ -86,6 +86,7 @@ varying vec2 slab_uv;
 
 #include "res://shaders/street_glow.gdshaderinc"
 #include "res://shaders/color_space.gdshaderinc"
+#include "res://shaders/pattern_aa.gdshaderinc"
 // Which way this road's lamps run (CityChunk._road_look): 0 no glow, 1 along Z, 2 along X. Seen
 // from past `street_glow_near` metres the road wears the same lamp glow the far chunks do
 // (far_ground.gdshader); closer in, the real lamps and their light pools take over.
@@ -226,6 +227,7 @@ void fragment() {
 	vec2 along = normalize(vec2(-wn.z, wn.x) + vec2(1.0e-4, 0.0));
 	vec2 w = mix(world_pos.xz, vec2(dot(world_pos.xz, along), -world_pos.y), side);
 	vec2 uv = w / tex_scale;
+	vec2 joint_fw = fwidth(w);
 	vec3 base = texture(albedo_tex, uv).rgb * tint;
 	float rough = texture(rough_tex, uv).r;
 
@@ -288,9 +290,19 @@ void fragment() {
 		// 1 - joint_depth across its whole face and wore a BRIGHT grid where the joints should
 		// be, which is most of why the ground read as a dark sheet from the air.
 		float line = smoothstep(0.5 - 0.025, 0.5, max(edge.x, edge.y));
+		// Box-filtered by the pixel's footprint (pattern_aa): unfiltered, the 5 cm joints of a
+		// 2 m slab grid shimmered into moire from about 15 m and from the air (paving-aliasing).
+		if (paa_on()) {
+			line = paa_grid(w, joint_spacing, 0.03 * joint_spacing, joint_fw);
+		}
 		base *= mix(1.0, 1.0 - joint_depth, line);
 		rough = mix(rough, 1.0, line * 0.5);
-		base *= 0.965 + 0.07 * hash12(floor(slab) + seed);
+		float slab_tone = 0.07 * (hash12(floor(slab) + seed) - 0.5);
+		// A slab under a pixel or two is noise: fade its tone to the mean.
+		if (paa_on()) {
+			slab_tone *= paa_keep(joint_spacing, max(joint_fw.x, joint_fw.y));
+		}
+		base *= 1.0 + slab_tone;
 	}
 
 	// Wet tarmac goes darker and far glossier, and water stands in the low spots. The puddles

@@ -18,6 +18,7 @@ render_mode cull_back;
 //   sRGB; everything is worked in linear and handed over with cs_out() (color_space.gdshaderinc).
 
 #include "res://shaders/color_space.gdshaderinc"
+#include "res://shaders/pattern_aa.gdshaderinc"
 
 global uniform float lamp_factor;
 global uniform float road_wetness;
@@ -98,6 +99,12 @@ void fragment() {
 		float seg = floor((v_local.x + off) / 2.4);
 		float jx = fract((v_local.x + off) / 2.4) * 2.4;
 		float butt = 1.0 - smoothstep(0.0, 0.004 + px, min(jx, 2.4 - jx));
+		// Box-filtered (pattern_aa): widened by the footprint, a 6 mm gap 10 m off covered half
+		// of every board and the deck went dark in stripes.
+		if (paa_on()) {
+			gap = paa_lines(across, 1.0, 2.0 * gap_w, px / board_width);
+			butt = paa_lines(v_local.x + off, 2.4, 0.008, px);
+		}
 		base = pk_wood(base, v_local.x, v_local.z, board * 13.0 + seg, px);
 		// Screws over the joists every 0.4 m, two a board.
 		vec2 sp = vec2(fract(v_local.x / 0.4) * 0.4 - 0.2, (f - 0.5) * board_width);

@@ -32,6 +32,8 @@ uniform float grass_scale = 3.0;
 global uniform float road_wetness;
 global uniform float ground_detail;
 
+#include "res://shaders/pattern_aa.gdshaderinc"
+
 varying vec3 local_pos;
 varying vec3 local_normal;
 varying float kind;
@@ -77,7 +79,11 @@ void fragment() {
 	float wet_k = 1.0;
 	float mottle = 0.9 + 0.2 * vnoise(p * 0.11) + 0.06 * (vnoise(p * 0.9) - 0.5);
 	if (kind < 3.5) {
-		int k = int(kind);
+		// Rounded, never truncated: `kind` is interpolated, and a constant 3.0 interpolated
+		// across a triangle reads 2.9999 on some pixel rows (llvmpipe, GLES) - int() then flipped
+		// the forecourt between the red pavers and the setts row by row, the fine horizontal
+		// stripes at every distance that read as moire on downtown's plazas (paving-aliasing).
+		int k = int(kind + (paa_on() ? 0.5 : 0.0));
 		float scale = k == 0 ? paving_scale.x : (k == 1 ? paving_scale.y : (k == 2 ? paving_scale.z : paving_scale.w));
 		vec3 tint = k == 0 ? paving_tint_0 : (k == 1 ? paving_tint_1 : (k == 2 ? paving_tint_2 : paving_tint_3));
 		bool setts = k == 0 || k == 2;
