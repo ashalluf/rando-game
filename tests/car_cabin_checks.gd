@@ -124,6 +124,7 @@ func _city_cars() -> void:
 	var traffic_n := 0
 	var parked_empty := 0
 	var parked_n := 0
+	var empty_traffic := ""
 	var wrong_glass := 0
 	var mats := {}
 	var split := 0
@@ -149,10 +150,16 @@ func _city_cars() -> void:
 		if car.is_traffic() and car.traffic.has("cp") and int((car.traffic.cp as Dictionary).get("k", -1)) == CarPanic.Kind.ABANDON:
 			# Its driver ran from gunfire (CarPanic): a traffic car with nobody in it, by design.
 			continue
+		if car.is_traffic() and (car.traffic.has("valet") or car.traffic.has("fw_incident")):
+			# A valet stand's car while its driver is out and the valet not yet in (ValetStand), or
+			# a FreewayIncidents stall whose driver stands on the shoulder: empty by design.
+			continue
 		if car.is_traffic():
 			traffic_n += 1
 			if (seats_of(car) & 1) != 0:
 				traffic_in += 1
+			else:
+				empty_traffic += " %s%s" % [car.name, car.traffic.keys()]
 		elif not car._npc_driver:
 			parked_n += 1
 			if seats_of(car) == 0:
@@ -160,7 +167,7 @@ func _city_cars() -> void:
 	_check(wrong_glass == 0 and split == 0 and mats.size() > 0,
 			"every glass-slot car in the city wears the cabin glass: its body's shared one when empty, a copy when not (%d body types, %d wrong, %d split)" % [mats.size(), wrong_glass, split])
 	_check(traffic_in == traffic_n and parked_empty == parked_n and parked_n > 0,
-			"street cars have a driver (%d/%d), parked cars are empty (%d/%d)" % [traffic_in, traffic_n, parked_empty, parked_n])
+			"street cars have a driver (%d/%d), parked cars are empty (%d/%d)%s" % [traffic_in, traffic_n, parked_empty, parked_n, empty_traffic.left(300)])
 
 
 func _parked_and_shared() -> void:
