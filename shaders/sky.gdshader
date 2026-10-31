@@ -30,6 +30,16 @@ uniform float haze : hint_range(0.0, 1.0) = 0.55;
 /// overcast one is the city's sodium light on the cloud base, which DayNight sets from the
 /// weather. At a fixed blue-grey, a rainy night's 88 % cloud came out as a pale grey dusk.
 uniform float night_cloud_light = 0.12;
+// The painted cumulus' night light: a gain on night_cloud_light and the city dome's light on its
+// base (SkyExtras sets 1 and 0 under NIGHT_CLOUDS=0, the A/B). Compatibility mixes in sRGB numbers,
+// where the same light reads darker, so it takes more.
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+uniform float painted_night_gain = 1.8;
+uniform float painted_city_light = 0.22;
+#else
+uniform float painted_night_gain = 1.3;
+uniform float painted_city_light = 0.15;
+#endif
 uniform vec3 night_glow = vec3(0.02, 0.025, 0.04);
 /// What reflections see below the horizon (the street), as a fraction of the horizon's own
 /// brightness, and how far under the horizon it takes over (see the end of sky()).
@@ -739,7 +749,11 @@ vec4 painted_cumulus(vec3 dir, vec3 sdir, vec3 mdir, vec3 sun_light, float sun_u
 		keep_lit = smoothstep(0.0, 0.25, st.a) * sunset;
 	}
 	float mlit = pow(max(dot(dir, mdir), 0.0), 4.0) * moon_vis;
-	vec3 night_cloud = cloud * night_cloud_light + night_glow + moon_tint * mlit * 0.12;
+	// The painted heaps at night (Compatibility, and Forward+ below MEDIUM): lit by the moon, the
+	// night air and, from below, the city's light dome (the volume's amb_bot does the same), so a
+	// clear night's cumulus read as grey-brown heaps over the navy sky, not as dark holes in it.
+	vec3 night_cloud = cloud * night_cloud_light * painted_night_gain + night_glow
+		+ city_glow_color * city_glow * painted_city_light + moon_tint * mlit * 0.12;
 	cloud = mix(cloud, night_cloud, night_factor * (1.0 - keep_lit));
 	cloud = mix(cloud, airlight, deck_haze);
 	return vec4(cloud, density * mix(0.84, 0.99, thick));

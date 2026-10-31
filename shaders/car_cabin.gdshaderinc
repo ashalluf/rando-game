@@ -74,9 +74,13 @@ uniform float cabin_detail = 12.0;
 uniform float burnt = 0.0;
 // A cabin on fire (the wreck): an orange flicker on everything inside, hottest low down.
 uniform float cabin_fire = 0.0;
+// The front airbags after a crash (CrashBreakup): x how full (0..1), y how far they have vented
+// and sagged (0..1). 0 = never fired.
+uniform vec2 airbag = vec2(0.0);
 #else
 const float burnt = 0.0;
 const float cabin_fire = 0.0;
+const vec2 airbag = vec2(0.0);
 #endif
 
 // Who is in the car (CarCabin.seat()): top's colour (linear) and in .a the seats taken (bit 0
@@ -104,6 +108,7 @@ const int CAB_LEGS = 7;
 const int CAB_ARM = 8;
 const int CAB_UPPER = 9;
 const int CAB_CHEST = 10;
+const int CAB_BAG = 11;
 
 // Paints each part of a person its own flat colour (tools/glshot/car_shot.gd CABIN_DEBUG=1).
 uniform bool cabin_debug = false;
@@ -552,6 +557,18 @@ vec3 cabin_view(vec3 o, vec3 d, float dist) {
 			cap_keep(o, d, wc - wn * 0.03, wc - wn * 0.3, 0.032, CAB_PLASTIC, 0.0, best, best_n, best_shade, best_mat, best_aux);
 		}
 	}
+	// The front airbags: the driver's out of the wheel's hub toward him, the passenger's out of
+	// the top of the dash; full for a moment, then hanging limp as the gas vents.
+	if (airbag.x > 0.01 && char_ < 0.5) {
+		float fill = airbag.x;
+		float sag = airbag.y;
+		float sz = 0.4 + 0.6 * fill;
+		vec3 dc = wc + wn * (0.03 + 0.15 * fill) - vec3(0.0, 0.07 * sag, 0.0);
+		ell_keep(o, d, dc, vec3(0.30, 0.28 - 0.06 * sag, 0.09 + 0.12 * fill) * sz, CAB_BAG, 0.0, best, best_n, best_shade, best_mat, best_aux);
+		float pxb = cx - driver_side * (half_w + 0.03) * 0.5;
+		vec3 pc = vec3(pxb, belt_y + 0.07 - 0.12 * sag, dash_rear + back * (0.06 + 0.2 * fill));
+		ell_keep(o, d, pc, vec3(0.31, 0.25 - 0.07 * sag, 0.12 + 0.13 * fill) * sz, CAB_BAG, 1.0, best, best_n, best_shade, best_mat, best_aux);
+	}
 	// Whoever is in the front seats, scaled to the headroom.
 	float seats = occupant_top.a;
 	if (seats > 0.5 && char_ < 0.5) {
@@ -603,6 +620,11 @@ vec3 cabin_view(vec3 o, vec3 d, float dist) {
 			alb = mix(vec3(0.035, 0.034, 0.033), vec3(0.012, 0.01, 0.009), char_);
 		} else if (best_mat == CAB_SCREEN) {
 			alb = vec3(0.012, 0.013, 0.015);
+		} else if (best_mat == CAB_BAG) {
+			// White nylon, creased where it folded in the hub and more so once it sags.
+			vec3 q = best_aux.xyz;
+			float crease = cd_noise3(q * 6.0 + best_aux.w * 3.0) * (0.5 + 0.8 * airbag.y);
+			alb = vec3(0.68, 0.68, 0.66) * (0.72 + 0.28 * (1.0 - crease));
 		} else {
 			alb = person_albedo(best_mat, best_aux, back) * people_light;
 		}
@@ -610,7 +632,7 @@ vec3 cabin_view(vec3 o, vec3 d, float dist) {
 		if (glow > 0.0) {
 			if (best_mat == CAB_SCREEN) {
 				c += vec3(0.4, 0.52, 0.72) * glow * 0.45;
-			} else if (best_mat >= CAB_SKIN) {
+			} else if (best_mat >= CAB_SKIN && best_mat != CAB_BAG) {
 				// The dash lights the faces over it, faintly.
 				c += alb * vec3(0.3, 0.45, 0.8) * glow * 1.2 * max(-best_n.z * back, 0.0);
 			}

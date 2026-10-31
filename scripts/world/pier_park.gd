@@ -268,9 +268,11 @@ static func build(anchor: Vector2, parent: Node3D, _statics: StaticBody3D, _plan
 		_bumper_cars(park)
 	# The wheel stands straight under the parent so it is found where it always was (the chunk's
 	# own child, CityStreamer's far holder's), at its world point.
-	FerrisWheel.build(Vector3(anchor.x + WHEEL_AT.x, DECK_TOP, anchor.y + WHEEL_AT.y), parent, detailed)
+	var wheel := FerrisWheel.build(Vector3(anchor.x + WHEEL_AT.x, DECK_TOP, anchor.y + WHEEL_AT.y), parent, detailed)
 	PierCoaster.build(park, DECK_TOP, detailed)
 	PierCarousel.build(park, Vector3(CAROUSEL_AT.x, DECK_TOP, CAROUSEL_AT.y), detailed)
+	# The pier at night from the beach: the wheel's LEDs from afar, the deck's lights as points.
+	PierNight.dress(park, wheel, DECK_TOP, detailed)
 	if not detailed:
 		return
 	_add_body(park)

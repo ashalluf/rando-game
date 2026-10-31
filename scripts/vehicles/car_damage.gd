@@ -238,6 +238,20 @@ func crumple() -> CrashDeform:
 	return _crumple
 
 
+## What a crash breaks off the car (CrashBreakup), made by the first crash that needs it.
+var _breakup: CrashBreakup = null
+## The velocity a pane bursting in a crash throws its cubes on with (CrashBreakup.glass()).
+var _crash_throw: Vector3 = Vector3.ZERO
+
+
+func breakup() -> CrashBreakup:
+	if _breakup == null:
+		_breakup = CrashBreakup.new()
+		_breakup.attach(self)
+		add_child(_breakup)
+	return _breakup
+
+
 func _exit_tree() -> void:
 	_burning.erase(self)
 	_smokers.erase(self)
@@ -508,6 +522,16 @@ func _glass_burst(c: Vector3, n: Vector3, size: Vector3, amount: float) -> void:
 	p.spread = 55.0
 	p.initial_velocity_min = 0.6
 	p.initial_velocity_max = 3.2
+	var throw := _crash_throw
+	if throw.length() > 2.0:
+		# A crash: the cubes fly on with the car (it stopped, they did not), out of the frame in
+		# a spray, and there are more of them - the whole pane goes at once.
+		world_n = (world_n * 2.5 + throw * 0.12).normalized()
+		p.spread = 38.0
+		p.initial_velocity_min = 1.5 + throw.length() * 0.25
+		p.initial_velocity_max = 3.5 + throw.length() * 0.55
+		p.amount = WeaponFX._count(maxi(6, int(110.0 * amount)))
+		p.lifetime = 1.6
 	p.gravity = Vector3(0.0, -9.8, 0.0)
 	p.angular_velocity_min = -720.0
 	p.angular_velocity_max = 720.0
@@ -579,6 +603,8 @@ func _blast(center: Vector3, falloff: float) -> float:
 		_add_scorch(p, (0.6 + 1.2 * falloff) / _mesh_scale)
 	if CrashDeform.applies(car):
 		crumple().blast(near, push_body, falloff)
+	if CrashBreakup.applies(car):
+		breakup().blast(near, push_body, falloff)
 	# Glass and lamps facing the blast.
 	var toward := (_to_mesh.basis * -push_body).normalized()
 	for i in _panes.size():
@@ -614,7 +640,9 @@ func _crash(at: Vector3, dir: Vector3, over: float) -> float:
 		crumple().crash(body_at, push_body, over, at)
 	if over > 4.0:
 		_break_lamps(_lamps_near(body_at, 0.9 + over * 0.05))
-	if over > 6.0:
+	if CrashBreakup.applies(car):
+		breakup().glass((_to_mesh.basis * -push_body).normalized(), over)
+	elif over > 6.0:
 		var toward := (_to_mesh.basis * -push_body).normalized()
 		for i in _panes.size():
 			var n: Vector3 = _panes[i][2]
@@ -1520,6 +1548,8 @@ func restore() -> void:
 	_swapped.clear()
 	if _crumple != null:
 		_crumple.reset()
+	if _breakup != null:
+		_breakup.reset()
 	_stop_fire()
 	_smokers.erase(self)
 	car._set_lamps_broken(0)
@@ -1723,7 +1753,9 @@ func stage(what: String) -> void:
 		car.take_hit(-1, 7.0, xf.basis * Vector3(-1.0, 0.0, 0.0), xf * Vector3(hw, mid - 0.05, 0.55), Vehicle.HIT_CRASH)
 	# Crashes at a speed (CrashDeform): "front<km/h>" a head-on into a wall, "corner<km/h>" an
 	# offset hit on the nose's right corner, "side<km/h>" a T-bone on the right doors, "rear<km/h>"
-	# a rear-ender, "roll" landing on the roof, "scrape" a slide along a wall down the right side.
+	# a rear-ender, "roll" landing on the roof, "scrape" a slide along a wall down the right side;
+	# CrashBreakup's "wheeloff" (the front right wheel torn off), "airbag", "drag" (sparks off a
+	# hanging bumper or a bare hub as if the car were moving).
 	for part in parts:
 		var kmh := 0.0
 		for pre in ["front", "corner", "side", "rear"]:
@@ -1740,6 +1772,19 @@ func stage(what: String) -> void:
 			car.take_hit(-1, over, xf.basis * Vector3.FORWARD, xf * Vector3(0.0, mid, _len * 0.5 + 0.3), Vehicle.HIT_CRASH)
 		elif part == "roll":
 			car.take_hit(-1, 7.0, xf.basis * Vector3.DOWN, xf * Vector3(-0.2, _top + 0.3, 0.1), Vehicle.HIT_CRASH)
+		elif part == "wheeloff" and CrashBreakup.applies(car):
+			# CrashBreakup: the front wheel on the right torn off (it rolls away).
+			var bk := breakup()
+			for i in car._wheel_rigs.size():
+				var node := car._wheel_rigs[i][0] as Node3D
+				if node.position.x > 0.0 and node.position.z < 0.0:
+					bk.tear_wheel(i, Vector3.LEFT)
+		elif part == "airbag" and CrashBreakup.applies(car):
+			breakup()._fire_airbags()
+		elif part == "drag" and CrashBreakup.applies(car):
+			# Sparks off whatever drags as if the car were doing 50 km/h.
+			breakup().stage_speed = 14.0
+			breakup().set_physics_process(true)
 		elif part == "scrape":
 			car.linear_velocity = xf.basis * Vector3(0.0, 0.0, -12.0)
 			car.take_hit(-1, 1.0, xf.basis * Vector3.LEFT, xf * Vector3(hw + 0.2, mid, 0.3), Vehicle.HIT_CRASH)

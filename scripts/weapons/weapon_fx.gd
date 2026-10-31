@@ -2003,7 +2003,11 @@ static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0
 	# so in daylight it washes out to nothing against a sunlit street.
 	# Slow and fat, not fast and small: a fireball is one rolling mass of overlapping puffs.
 	# Throwing them outward at the blast speed just scatters them into separate dots.
-	_puff_layer(parent, at, _count(38), radius * 0.52, 0.95, radius * 0.18, radius * 0.7, 2.5,
+	# (Blast3: on the desktop the fireball is a ray-marched volume instead of these cards.)
+	Blast3.this_blast_volume = Blast3.takes_fireball()
+	if Blast3.this_blast_volume:
+		Blast3.spawn_volume(parent, at, radius, BlastFX.fuel_next)
+	else: _puff_layer(parent, at, _count(38), radius * 0.52, 0.95, radius * 0.18, radius * 0.7, 2.5,
 		# HDR on purpose, but only at the very start: a fireball's core is many times brighter
 		# than a sunlit street, so the first instant blooms white. After that it has to drop
 		# fast to a deep orange, because AgX takes anything bright toward white - held at 3.0
@@ -2025,8 +2029,11 @@ static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0
 			Color(0.10, 0.09, 0.09, 0.42), Color(0.08, 0.08, 0.08, 0.0)]), false, 180.0, 2.6,
 		Basis(), 0.0, 0.0, 1.0, true)
 
-	# 5. Sparks: small, fast, thrown wide, falling under gravity.
-	_puff_layer(parent, at, _count(34), radius * 0.038, 1.1, radius * 2.6 * push, radius * 4.4 * push,
+	# 5. Sparks: small, fast, thrown wide, falling under gravity. (Blast3: on the desktop they are
+	# BlastBits that land and skitter along the road instead.)
+	if Blast3.bits_on():
+		BlastBits.pool(node).throw_sparks(at + Vector3.UP * 0.4, _count(52), Vector2(radius * 1.5, radius * 3.4) * push)
+	else: _puff_layer(parent, at, _count(34), radius * 0.038, 1.1, radius * 2.6 * push, radius * 4.4 * push,
 		-26.0, _ramp([Color(2.4, 2.1, 1.3, 1.0), Color(1.8, 0.9, 0.25, 1.0), Color(0.8, 0.25, 0.05, 0.0)]),
 		true, 180.0, 0.5)
 
@@ -2061,14 +2068,20 @@ static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0
 
 	# 8. Debris: lit chunks, so they sit in the scene's lighting rather than glowing flat. Small,
 	# dark and many: at 18 cm and a mid brown, a still showed a dozen cardboard boxes in the air.
-	_chip_layer(parent, at, _count(34), 0.11, 1.6, radius * 1.4 * push, radius * 3.0 * push,
-		Color(0.16, 0.15, 0.14), Basis(), 170.0, -32.0)
+	if Blast3.bits_on():
+		BlastBits.pool(node).throw_chips(at + Vector3.UP * 0.3, _count(40), Vector2(radius * 0.9, radius * 2.3) * push,
+			0.11, Color(0.16, 0.15, 0.14), Vector3.UP, 80.0)
+	else:
+		_chip_layer(parent, at, _count(34), 0.11, 1.6, radius * 1.4 * push, radius * 3.0 * push,
+			Color(0.16, 0.15, 0.14), Basis(), 170.0, -32.0)
 
 	# 9. Dust off the ground and off whatever walls are close enough to be scoured.
 	_blast_dust(node, parent, at, radius, push)
 
 	# 10. Heat shimmer over the fireball. Reads the screen, so the web build skips it.
-	if shimmer_enabled and not _web():
+	if Blast3.haze_on():
+		Blast3.spawn_haze(parent, at, radius, BlastFX.fuel_next)
+	elif shimmer_enabled and not _web():
 		_shimmer(parent, at + Vector3.UP * radius * 0.2, radius)
 
 	# 11. Scorch mark on whatever is under the blast. Decals need a rendering device, so the

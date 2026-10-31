@@ -85,7 +85,13 @@ func _initialize() -> void:
 		e.background_color = Color(0.02, 0.025, 0.04)
 		e.ambient_light_color = Color(0.05, 0.06, 0.09)
 		sun.light_energy = 0.05
-	for i in 10:
+	# HOUR=h sets the city's clock (offices' hours, a home's bedtime); WI=0 the window-interiors
+	# pass off (the A/B); SETTLE=n frames before the shot (TIME runs: a walker crosses, a TV cuts).
+	if OS.get_environment("HOUR") != "":
+		RenderingServer.global_shader_parameter_set("city_hour", OS.get_environment("HOUR").to_float())
+	if OS.get_environment("WI") == "0":
+		RenderingServer.global_shader_parameter_set("window_interiors", 0.0)
+	for i in _env_int("SETTLE", 10):
 		await process_frame
 	# BENCH=n: n more frames timed, for the cost of a shader change on a frame full of facade
 	# (llvmpipe runs the fragment shaders on the CPU inside the frame, so wall time is GPU time).

@@ -3845,3 +3845,74 @@ none of either.
   Lead review the same day: the hills are BUILT UP, not lawn - every block on a home hill's slope is
   close-packed lots of houses (stilts, garages at the kerb, stairs to the door, retaining walls), and
   Bunker Hill's towers stand either side of the incline's narrow planted strip.
+- **2026-10-31 The Mac is checked with a button, not a Terminal (HANDOFF "The verify pack",
+  docs/VERIFY.md).** Every fleet picture is the Compatibility renderer on Linux; nobody had seen
+  wave 3 on Forward+. The owner plays the Mac app with no Terminal, so the check is a pause-menu
+  button that shoots the ten refcams (the same table, copied into the game and checked equal) and
+  writes a send folder; the app now knows its build number (stamped by the workflow before the
+  export). No render feature of its own: what it saves is what the game draws. VERIFY_PACK=0.
+- 2026-10-31 (Forward+ review f, wave 4): a lightning strike at night lights the street, it does
+  not erase it - the flash's light is scaled by the night (the exposure is set for the moon) and
+  the bolt stays the brightest thing in the frame. Forward+ lighting verdicts on lavapipe are taken
+  only after the GI has converged (~90 frames). STORM_NIGHT_FLASH=0 is the A/B.
+- **2026-10-31 The first minute is part of the load (loading-first-frame, HANDOFF "The first
+  minute").** Whatever play would build in its first seconds - the traffic, the streamer's own
+  window, wave 3's first-use pipelines - is built behind the shade, and nothing the loading screen
+  builds may be one the streamer throws away at once (the wide FULL preload was). Measured after the
+  shade with LOAD_FIRST_MINUTE, the screen's work headless with LOAD_SCREEN_HEADLESS.
+
+- **2026-10-31 Rooms behind the windows, second pass (window-interiors-2, HANDOFF "Rooms behind
+  the windows, second pass").** A city building is either offices or flats (an integer roll on its
+  seed, by window style: half the punched-window buildings are homes), and everything behind a
+  window - the room kind, what hangs at the glass, a TV, an open sash, a worker at the desk - is an
+  integer roll of the building's seed and the window's (face, row, col), in one include both
+  building shaders read, so the far box draws the same home's lamp tone, TV and curtain average the
+  near wall traces. Occupied offices keep their ceiling lights on in office hours (as real ones
+  do), because a worker in a dark room does not read from the street. Zero geometry: it is all
+  traced per pixel on the glass that was already there. WINDOW_INTERIORS=0 is the A/B.
+- **2026-10-31 The street at eye level (ambient-sound-2, HANDOFF "The street at eye level").** The
+  near layer of the city's sound is EVENT-driven, not rolled: steps come from walkers the listener
+  can see (their own speed and surface), bells and doors from StreetErrands' real shoppers and
+  drivers, air brakes from real buses and trucks coming to a stand; only the far layer (beds,
+  far one-shots) stays statistical. A clip with no CC0 recording (steady wet-tyre hiss) is
+  synthesised in the cutting tool rather than faked from a pass-by. All behind AMBIENT_SOUND_2=0.
+
+- **2026-10-31 Crashes break cars, and a hard side hit rolls them (car-crash-3, HANDOFF "Crashes
+  that break cars").** The owner's rule that a car in the air flies, never tumbles, stays for
+  everything the player does on purpose; a crash past a T-bone's threshold (or a close blast) is the
+  one exception: the car gets a real centre of mass and is let roll by the physics until it rests,
+  and holding boost still flies it out. What breaks off (glass, bonnet, a wheel, pieces) is
+  per-car state made only on a crash; nothing is added to an undamaged car. CRASH_BREAKUP=0 is the A/B.
+- **2026-10-31 The fireball is a volume, and what a blast throws lands (explosions-3, HANDOFF "The
+  blast at arm's length").** Cards cannot have depth: forty billboards always read as a pile of
+  discs from close up. Decision: on the desktop the fireball is ONE ray-marched box (26 steps of a
+  tiling 3D noise, black-body light and lit soot), capped at four at once, the cards kept past the
+  cap and on the web. Everything a blast throws that can be seen landing (chips, sparks, burning
+  lumps) is a scripted point with one ray a tick, never a particle that falls through the road.
+  Smoke is lit by the fires actually burning, not by its own age. All behind EXPLOSIONS_3=0.
+
+- **2026-10-31 The hero's locomotion: one pose by weights, not clip swaps (hero-locomotion-2, HANDOFF
+  "The hero's locomotion").** The gaits are sampled and blended by a modifier over the idle, phase-
+  synced by the toes' touchdowns, so every transition (start, gait change, stop, turn, landing) is
+  a weight that moves. The free clip library has no start / stop / turn / strafe clips, so those
+  are procedural (phase, hip yaw, springs). HERO_LOCO=0 is the A/B.
+- **2026-10-31 The pier at night: draw what a pixel cannot hold (rc-pier-night, HANDOFF "The pier at
+  night from the beach").** From the beach the wheel's 13 cm LED strips are a fifth of a pixel and the
+  deck's lamps and bulbs smaller still, so the Compatibility renderer drew the park as white steel on a
+  black slab under a sky whose painted clouds were dark holes. Rather than fattening the geometry, the
+  far view is drawn on purpose: the wheel's strips analytically in its plane (the same pattern include
+  the LEDs run) once they are under a couple of pixels, NightAtmos halos for every point light (one
+  MultiMesh, thinned on the far copy so a kilometre off they are points, not a smear), real chaser
+  bulbs on the coaster, and the painted cumulus lit at night the way the Forward+ volume already was.
+  Forward+ at HIGH draws the same wheel and bulbs (checked on lavapipe); its volume clouds are
+  untouched. `PIER_NIGHT=0`, `NIGHT_CLOUDS=0`.
+- **2026-10-31 The sky's radiance catches up with a jump (web-hero-rain, HANDOFF "The hero in the
+  rain on the web").** The "blue hero in the rain on the web" was the incremental sky radiance map
+  still holding the clear sky the city loaded in: the wet velour and hair mirror it, and a browser
+  under SwiftShader shows those first frames for minutes. Decision: keep PROCESS_MODE_INCREMENTAL
+  for the drift of the day and hold QUALITY for three frames on a jump (load, an hour or weather
+  snap, a cloud cover step). No shader or colour change. `SKY_SETTLE=0` is the A/B.
+- 2026-10-31 (skyline glass by day, wave 3): what a glass tower mirrors is worked out per pixel from
+  shared globals, never from a probe or a capture: the hour's sky (DayNight's own colours), a cloud
+  deck, the real towers round the camera as up to eight traced boxes, the sun. Near walls, far boxes
+  and crowns share one include so the LOD line does not show. SKYLINE_GLASS=0 is the A/B.
