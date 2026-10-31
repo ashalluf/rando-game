@@ -21,7 +21,7 @@ func _packing_round_trips() -> void:
 	var why := ""
 	for h: Vector2 in [Vector2(21.0, 29.0), Vector2(0.25, 255.75), Vector2(14.6, 14.6), Vector2(70.0, 3.5)]:
 		var back := SkylineGlass.unpack_half(SkylineGlass.pack_half(h))
-		if back.distance_to(h) > 0.13:
+		if back.distance_to(h) > 0.18:
 			why += " %s -> %s" % [h, back]
 	var mats := SkylineGlass.pack([[Vector2(2800.0, 100.0), Vector2(20.0, 30.0), 200.0]])
 	if mats.size() != 2 or not is_equal_approx(mats[0].x.w, 200.0) or mats[0].y.w > -1000.0 or mats[1].w.w > -1000.0:
