@@ -710,7 +710,7 @@ static func flash_gas(_node: Node, parent: Node, at: Vector3, fwd: Vector3, size
 	var aim := _basis_up(fwd)
 	_puff_layer(parent, at + fwd * size * 0.5, 5, size * 1.6, 0.42, 1.2, 3.2, 0.9,
 		_ramp([Color(0.75, 0.72, 0.68, 0.45), Color(0.6, 0.58, 0.55, 0.22), Color(0.5, 0.49, 0.47, 0.0)]),
-		false, 26.0, 2.6, aim, 0.0, 0.3)
+		false, 26.0, 2.6, aim, 0.0, 0.3, 1.0, false, null, _dust_material(false))
 	_puff_layer(parent, at + fwd * size * 0.3, 7, size * 0.16, 0.34, 4.0, 9.0, -14.0,
 		_ramp([Color(2.6, 1.7, 0.6, 1.0), Color(1.6, 0.7, 0.2, 0.8), Color(0.7, 0.2, 0.05, 0.0)]),
 		true, 34.0, 0.6, aim, 0.0, 0.4)
@@ -912,7 +912,8 @@ static func impact(node: Node, at: Vector3, color: Color = Color(1.0, 0.85, 0.5)
 	_impact_times.append(now)
 	_puff_layer(parent, origin, _count(int(look["dust_count"])), float(look["dust_size"]),
 		0.55, float(look["dust_speed"]) * 0.35, float(look["dust_speed"]), -2.6,
-		_ramp(look["dust"]), bool(look["glass"]), 52.0, 2.4, aim, 0.0, 0.3)
+		_ramp(look["dust"]), bool(look["glass"]), 52.0, 2.4, aim, 0.0, 0.3, 1.0, false, null,
+		_dust_material(bool(look["glass"])))
 
 	var sparks := int(look["sparks"])
 	if sparks > 0:
@@ -999,6 +1000,15 @@ static func bullet_hole(node: Node, at: Vector3, normal: Vector3, surf: Surface,
 
 
 ## Counts a bullet mark into the capped pool: past `bullet_hole_max` the oldest goes.
+## The material a cloud of dust or gas draws with: lit (GunplayFeel.smoke_material(): a puff of
+## dust in the dark is dark, and the next flash lights it), where the old unshaded puff glowed
+## white in an unlit street. Glass glitter stays additive; GUNPLAY_FEEL=0 keeps the old puff.
+static func _dust_material(additive: bool) -> Material:
+	if additive or not GunplayFeel.enabled:
+		return null
+	return GunplayFeel.smoke_material()
+
+
 static func keep_hole(mark: Node) -> void:
 	_holes.append(mark)
 	while _holes.size() > bullet_hole_max:
