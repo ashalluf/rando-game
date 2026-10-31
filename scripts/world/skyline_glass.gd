@@ -13,6 +13,8 @@ extends Node
 ## `SKYLINE_GLASS=0` in the environment is the A/B: x 0, the glass exactly as before.
 
 static var enabled: bool = OS.get_environment("SKYLINE_GLASS") != "0"
+## SKYLINE_GLASS_DEBUG=1: traced towers magenta, clouds green in the glass.
+static var debug: bool = OS.get_environment("SKYLINE_GLASS_DEBUG") == "1"
 
 ## How far round the camera a box may be traced (metres), and the shortest that counts.
 const REACH := 1100.0
@@ -138,7 +140,7 @@ func push() -> void:
 	var day := 1.0 - night
 	# Overcast takes the sun out of the glass; an overcast sky's "clouds" are the whole sky.
 	var glint := day * (1.0 - clampf(darken * 1.4, 0.0, 1.0)) * (1.0 - clampf((coverage - 0.7) / 0.25, 0.0, 1.0))
-	_put("skyline_glass", Vector4(1.0, coverage * (1.0 - 0.7 * darken), glint, golden))
+	_put("skyline_glass", Vector4(2.0 if debug else 1.0, coverage * (1.0 - 0.7 * darken), glint, golden))
 	_put("skyline_sky_top", Vector4(top.r, top.g, top.b, low * day * (1.0 - darken)))
 	_put("skyline_sky_rim", Vector4(rim.r, rim.g, rim.b, lerpf(0.12, 1.0, day) * (1.0 - 0.35 * darken)))
 	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null

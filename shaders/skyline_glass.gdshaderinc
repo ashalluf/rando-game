@@ -117,6 +117,9 @@ vec3 sg_clouds(vec3 refl, vec3 sky, float time) {
 	vec3 lit = mix(vec3(0.86, 0.87, 0.88), vec3(0.95, 0.72, 0.50), skyline_glass.w);
 	vec3 base = sg_hue(skyline_sky_rim.rgb, 0.42) * vec3(0.92, 0.94, 1.0);
 	vec3 cloud = sg_srgb_in(mix(base, lit, top) * skyline_sky_rim.w);
+	if (skyline_glass.x > 1.5) {
+		cloud = vec3(0.0, 3.0, 0.0);
+	}
 	return mix(sky, cloud, d * 0.8);
 }
 
@@ -211,6 +214,10 @@ vec4 sg_towers(vec3 o, vec3 d, float px, float cam_d, vec3 sky, vec3 sun, out fl
 	col = sg_srgb_in(col * (0.2 + 0.8 * day));
 	// The air between: the further tower is the hazier one.
 	col = mix(col, sky, 1.0 - exp(-t_hit / 1900.0));
+	// SKYLINE_GLASS_DEBUG=1 (x 2): a traced tower is magenta.
+	if (skyline_glass.x > 1.5) {
+		col = vec3(4.0, 0.0, 4.0);
+	}
 	return vec4(col, 1.0);
 }
 
