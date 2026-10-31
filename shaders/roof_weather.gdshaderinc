@@ -36,23 +36,26 @@ float rw_line(float t, float pitch, float w, float px) {
 
 // The membrane at p (building metres on the roof), `edge` metres in from the roof's edge.
 vec3 rw_membrane(vec2 p, float edge, float sd, float px, out float rough) {
-	vec3 white = vec3(0.70, 0.70, 0.68);
-	// Dirt in drifts: warmer, greyer where it gathers.
-	float dirt = rw_fbm(p * 0.11 + sd * 3.1);
-	vec3 s = mix(white, vec3(0.55, 0.535, 0.50), smoothstep(0.35, 0.85, dirt) * 0.55);
+	vec3 white = vec3(0.68, 0.68, 0.66);
+	// Dirt in drifts: warmer, greyer where it gathers (value-noise fbm sits round 0.5, so the
+	// drifts are its upper half stretched out).
+	float dirt = smoothstep(0.36, 0.64, rw_fbm(p * 0.09 + sd * 3.1));
+	vec3 s = mix(white, vec3(0.47, 0.455, 0.42), dirt * 0.7);
+	// Fine mottle a metre across, gone into the tone once it is under a pixel.
+	s *= 1.0 + 0.06 * (rw_vnoise(p * 1.1 + sd) - 0.5) * (1.0 - smoothstep(0.3, 1.0, px));
 	// Ponds: low spots that hold water, a stain with a darker tide line at its rim.
-	float pn = rw_fbm(p * 0.075 + vec2(sd * 1.7, 5.3));
-	float pond = smoothstep(0.62, 0.70, pn);
-	float rim = smoothstep(0.58, 0.63, pn) * (1.0 - smoothstep(0.64, 0.70, pn));
-	s = mix(s, vec3(0.50, 0.49, 0.46), pond * 0.6);
-	s *= 1.0 - 0.12 * rim;
+	float pn = rw_fbm(p * 0.07 + vec2(sd * 1.7, 5.3));
+	float pond = smoothstep(0.57, 0.63, pn);
+	float rim = smoothstep(0.53, 0.58, pn) * (1.0 - smoothstep(0.59, 0.64, pn));
+	s = mix(s, vec3(0.46, 0.45, 0.42), pond * 0.65);
+	s *= 1.0 - 0.18 * rim;
 	// Rolls along x, welded seams; end laps staggered roll by roll.
 	float roll = floor(p.x / 3.05 + hash21(vec2(sd, 2.0)));
 	float seam = rw_line(p.x + hash21(vec2(sd, 2.0)) * 3.05, 3.05, 0.09, px);
 	float lap = rw_line(p.y + hash21(vec2(roll, sd)) * 15.0, 15.0, 0.12, px);
-	s *= 1.0 - 0.13 * max(seam, lap);
+	s *= 1.0 - 0.14 * max(seam, lap);
 	// Grime along the parapet's foot, where wind drops the dust and the flashing runs.
-	s *= 1.0 - 0.22 * (1.0 - smoothstep(0.2, 1.8, edge)) * (0.6 + 0.4 * dirt);
+	s *= 1.0 - 0.28 * (1.0 - smoothstep(0.2, 2.2, edge)) * (0.6 + 0.4 * dirt);
 	rough = mix(0.82, 0.55, pond * 0.4);
 	return s;
 }

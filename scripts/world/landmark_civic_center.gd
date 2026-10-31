@@ -96,7 +96,7 @@ static func _city_hall(s: Rect2, y0: float, parent: Node3D, statics: StaticBody3
 		"win_band": Vector2(y0 + 3.4, y0 + 30.0), "lit_ratio": 0.3, "grime": 0.25, "base_y": y0,
 		"flood_strength": 0.9, "flood_base_y": y0 + 2.2, "flood_reach": 14.0, "flood_floor": 0.25, "flood_spacing": 4.8, "seed": 3.0})
 	var tower := LandmarkMats.facade("hall_tower", stone_tex, 3.0,
-		{"tint": HALL_WALL, "roughness": 0.78, "texture_contrast": 0.6, "win_pitch": Vector2(2.4, 3.6), "win_size": Vector2(0.38, 0.74), "win_sill": 0.13,
+		{"tint": HALL_WALL, "roughness": 0.78, "texture_contrast": 0.6, "win_pitch": Vector2(2.4, 3.6), "win_size": Vector2(0.40, 0.86), "win_sill": 0.07,
 		"win_band": Vector2(y0 + 36.0, y0 + 106.0), "lit_ratio": 0.28, "grime": 0.0,
 		"flood_strength": 1.15, "flood_base_y": y0 + 30.0, "flood_reach": 45.0, "flood_floor": 0.35, "flood_spacing": 4.8,
 		"flood_top_y": y0 + 118.0, "flood_top_reach": 9.0, "seed": 7.0})

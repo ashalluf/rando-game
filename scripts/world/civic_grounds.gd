@@ -28,8 +28,9 @@ const WALK := 4.0
 ## Trees along a lawn's edges, metres apart, and how far in from its edge.
 const ALLEE_EVERY := 13.0
 const ALLEE_IN := 3.2
-## An irrigated civic lawn: the green end of CityChunk._lawn_color(), barely dry.
-const LAWN_TINT := Color(0.80, 0.95, 0.70)
+## An irrigated civic lawn, barely dry: deeper than the green end of CityChunk._lawn_color(),
+## which read lime from the air.
+const LAWN_TINT := Color(0.56, 0.70, 0.50)
 const LAWN_DRYNESS := 0.15
 
 static var enabled := OS.get_environment("CIVIC_GROUNDS") != "0"
@@ -105,9 +106,31 @@ static func leftovers(plan: CityPlan, id: String) -> Array[Rect2]:
 ## The lawns of `id`'s block in world XZ (what build() lays as lawn): the checks and the probe.
 static func lawn_rects(plan: CityPlan, id: String) -> Array[Rect2]:
 	var out: Array[Rect2] = []
-	for r in leftovers(plan, id):
+	for r in leftovers(plan, id) + inner_rects(plan, id):
 		if minf(r.size.x, r.size.y) >= LAWN_MIN:
 			out.append_array(_quarters(r.grow(-EDGE)))
+	return out
+
+
+## Ground inside a site its builder leaves bare, world XZ. City hall: the site is the block's
+## width, the plinth 74 m of it (LandmarkCivicCenter._city_hall()), so 30 m strips either side of
+## the plinth along the street faces were paving; the real hall has lawns there. Clear of the
+## forecourt's lamps and flagpoles along the park front.
+static func inner_rects(plan: CityPlan, id: String) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	if id != "ziggurat_hall":
+		return out
+	var info := CivicSites.site(plan, id)
+	var s: Rect2 = info.local
+	var pw := minf(74.0, s.size.x - 2.0)
+	var gap := 4.0
+	var x0 := pw * 0.5 + gap
+	if s.end.x - x0 < LAWN_MIN:
+		return out
+	var z0 := s.position.y + 4.0
+	for side: float in [-1.0, 1.0]:
+		var r := Rect2(Vector2(x0 if side > 0.0 else s.position.x, z0), Vector2(s.end.x - x0, s.end.y - z0))
+		out.append(CivicSites.rect_to_world(info, r))
 	return out
 
 
@@ -127,7 +150,8 @@ static func build(plan: CityPlan, id: String, info: Dictionary, parent: Node3D, 
 	if not enabled or not CIVIC.has(id):
 		return
 	var rects := leftovers(plan, id)
-	if rects.is_empty():
+	var inner := inner_rects(plan, id)
+	if rects.is_empty() and inner.is_empty():
 		return
 	var centre: Vector2 = info.centre
 	var y0: float = info.y0
@@ -156,6 +180,10 @@ static func build(plan: CityPlan, id: String, info: Dictionary, parent: Node3D, 
 			ArenaGrounds.bed(g, batch, statics, r.grow(-1.5), y0, seed_value, 11.0, false, false, not detailed)
 			continue
 		_lawn(g, batch, r, y0, seed_value, detailed, chunk, centre)
+	for k in inner.size():
+		var r := Rect2(inner[k].position - centre, inner[k].size)
+		g.cap("cg_paving", LandmarkGeo.ccw(LandmarkArenaDistrict._rect_poly(r)), y0 + 0.03)
+		_lawn(g, batch, r, y0, absi(hash([id, k, "civic_grounds_inner"])), detailed, chunk, centre)
 	if not detailed:
 		ArenaGrounds._far_shadows(batch)
 	g.commit(root, "CivicGrounds")

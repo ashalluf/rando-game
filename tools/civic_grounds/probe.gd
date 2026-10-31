@@ -9,9 +9,8 @@ func _ready() -> void:
 	for id: String in ["ziggurat_hall", "civic_park", "concert_hall", "lattice_museum"]:
 		var info := CivicSites.site(plan, id)
 		print("SITE %s anchor %s block %s site %s yaw %.2f y0 %.2f" % [id, CivicSites.anchor(id), Landmarks.site_rect(plan, CivicSites.anchor(id)), info.world, info.yaw, info.y0])
-		if ClassDB.class_exists("CivicGrounds") or ResourceLoader.exists("res://scripts/world/civic_grounds.gd"):
-			var g: GDScript = load("res://scripts/world/civic_grounds.gd")
-			print("  LEFT ", g.leftovers(plan, id))
+		print("  LEFT ", CivicGrounds.leftovers(plan, id), " INNER ", CivicGrounds.inner_rects(plan, id))
+		print("  LAWNS ", CivicGrounds.lawn_rects(plan, id).size())
 	for x in range(2750, 3300, 100):
 		var bi := plan.block_index_at(Vector2(x, -934))
 		var b := plan.block(bi.x, bi.y)
