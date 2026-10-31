@@ -15,6 +15,9 @@ extends RefCounted
 
 const SKIN := preload("res://shaders/hero_skin.gdshader")
 const HAIR := preload("res://shaders/hero_hair.gdshader")
+## hero-closeup-2: the hair's soft fringe pass, and the hair as it was (HERO_CLOSEUP_2=0).
+const HAIR_FRINGE := preload("res://shaders/hero_hair_fringe.gdshader")
+const HAIR_BASE := preload("res://shaders/hero_hair_base.gdshader")
 const CLOTH := preload("res://shaders/hero_cloth.gdshader")
 const EYE := preload("res://shaders/hero_eye.gdshader")
 const LASH := preload("res://shaders/hero_lash.gdshader")
@@ -103,6 +106,7 @@ func _material_for(src: StandardMaterial3D, s: Dictionary) -> Material:
 			# is the old skin shading (the maps the build bakes stay the new ones).
 			skin.set_shader_parameter("region_tex", _map("skin_region.png"))
 			skin.set_shader_parameter("face2", 1.0 if face2() else 0.0)
+			skin.set_shader_parameter("closeup2", 1.0 if closeup2() else 0.0)
 			# The Compatibility renderer's BACKLIGHT is not scattering, it is a glow: at the old
 			# strength the ears and fingers of every web / opengl3 frame lit up bright orange
 			# against the sun. Forward+ keeps its transmittance as it was.
@@ -111,9 +115,10 @@ func _material_for(src: StandardMaterial3D, s: Dictionary) -> Material:
 			return skin
 		"hero_hair", "hero_brows":
 			var m := ShaderMaterial.new()
-			m.shader = HAIR
+			m.shader = HAIR if closeup2() else HAIR_BASE
 			m.set_shader_parameter("albedo_tex", src.albedo_texture)
 			m.set_shader_parameter("anisotropy", s.get("hair_anisotropy", 0.8))
+			m.set_shader_parameter("closeup2", 1.0 if closeup2() else 0.0)
 			if src.resource_name == "hero_brows":
 				m.set_shader_parameter("strands_from_texture", 1.0)
 				m.set_shader_parameter("specular", 0.2)
@@ -129,6 +134,8 @@ func _material_for(src: StandardMaterial3D, s: Dictionary) -> Material:
 					m.set_shader_parameter("root_fade", 0.22)
 				if face2():
 					m.set_shader_parameter("strand_round", 0.85)
+			if closeup2():
+				_add_fringe(m, src.resource_name == "hero_brows")
 			return m
 		"hero_tracksuit", "hero_tracksuit_rib":
 			var m := ShaderMaterial.new()
@@ -139,6 +146,7 @@ func _material_for(src: StandardMaterial3D, s: Dictionary) -> Material:
 			m.set_shader_parameter("pile_tex", _map("pile.png"))
 			m.set_shader_parameter("sheen", s.get("velour_sheen", 0.55))
 			m.set_shader_parameter("rim", s.get("velour_rim", 0.45))
+			m.set_shader_parameter("closeup2", 1.0 if closeup2() else 0.0)
 			if src.resource_name == "hero_tracksuit":
 				m.set_shader_parameter("bent_tex", _map("suit_bent_normal.jpg"))
 				m.set_shader_parameter("wrinkle_mask", _map("suit_wrinkle_mask.png"))
@@ -153,6 +161,7 @@ func _material_for(src: StandardMaterial3D, s: Dictionary) -> Material:
 			var m := ShaderMaterial.new()
 			m.shader = EYE
 			m.set_shader_parameter("albedo_tex", src.albedo_texture)
+			m.set_shader_parameter("closeup2", 1.0 if closeup2() else 0.0)
 			face.eye = m
 			return m
 		"hero_lashes" when face != null:
@@ -176,6 +185,29 @@ func _material_for(src: StandardMaterial3D, s: Dictionary) -> Material:
 			m.metallic_specular = 0.7
 			return m
 	return null
+
+
+## hero-closeup-2: the hair and brows get a soft blended pass under the core's alpha cut (the
+## fine tips and edges), and the core's dither narrows, since the fringe now fills that edge.
+func _add_fringe(m: ShaderMaterial, brows: bool) -> void:
+	if brows:
+		# finer, translucent hairs: a higher cut for the core, the tips left to the fringe
+		m.set_shader_parameter("alpha_cut", 0.55)
+	m.set_shader_parameter("dither", 0.1)
+	var f := ShaderMaterial.new()
+	f.shader = HAIR_FRINGE
+	for u in m.shader.get_shader_uniform_list():
+		var v: Variant = m.get_shader_parameter(u.name)
+		if v != null:
+			f.set_shader_parameter(u.name, v)
+	f.render_priority = 1
+	m.next_pass = f
+
+
+## The hero-closeup-2 pass (the hair's strand light and fringe, the brows' colour, the lips, the
+## eyes' wet line, the velour); HERO_CLOSEUP_2=0 is the A/B.
+static func closeup2() -> bool:
+	return OS.get_environment("HERO_CLOSEUP_2") != "0"
 
 
 ## The hero-face-2 pass (strand brows, the face's region map, the new transmittance);
