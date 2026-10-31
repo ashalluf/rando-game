@@ -393,7 +393,11 @@ func _warm_shaders() -> void:
 	# Yard sales' tables, goods, racks and signs (YardSaleKit).
 	if YardSales.enabled:
 		effects.append_array(YardSaleKit.warm())
-	for mat: Material in effects:
+	for entry in effects:
+		# Some warm() lists hand back meshes too (a typed loop stopped the whole warm-up on one).
+		var mat := entry as Material
+		if mat == null:
+			continue
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
 		mm.use_colors = true
