@@ -1,0 +1,18 @@
+Rando Game verify pack
+Dev build, 2026-10-31 06:46:52
+Machine: Linux 24.04, llvmpipe (LLVM 20.1.2, 256 bits) (Mesa)
+Renderer: forward_plus / opengl3
+Window 1280x720, 3D scale 1.00, graphics high
+Shots: 10 of 10
+
+shot                    hour  weather   fps   worst ms  cpu ms  gpu ms   M tris  draws   lum p5/p50/p95
+01_street_noon          12:00  clear      0.2    4872.0  5345.76  5317.38     6.73   3275   19/142/183
+02_street_night         21:30  rain       0.2    4694.8  5147.35  5128.19     6.80   3434   5/30/137
+03_sunset               17:51  clear      0.5    1904.7  1754.76  1761.61     2.80   1865   33/77/166
+04_golden_aerial        17:12  clear      0.3    3245.5  3024.65  3029.48     5.13   3025   38/134/167
+05_downtown_aerial      12:30  clear      0.3    3919.9  3778.21  3783.91     3.90   2021   8/70/174
+06_beach                14:00  clear      2.5     482.1  315.72  319.73     0.72    417   79/155/184
+07_hills                15:00  clear      0.9    1153.7  1019.53  1029.23     1.87    787   91/149/182
+08_freeway              13:00  clear      0.2    4940.4  5038.42  5027.42     4.96   2654   27/155/190
+09_macarthur            11:00  clear      0.2    4381.1  3965.62  3971.61     5.81   3517   32/119/213
+10_pier_night           21:00  clear      0.8    1225.4  1126.52  1125.65     1.54    453   4/19/30
