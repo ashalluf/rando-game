@@ -31,6 +31,8 @@ const FILL_TOP := 0.75
 ## The zenith colour handed over at the horizon's brightness times this (the zenith is darker,
 ## but the fill is the whole upper sky, not the darkest point of it).
 const FILL_TOP_LEVEL := 0.85
+## How far from the horizon's colour toward the zenith's that fill's hue goes.
+const FILL_TOP_HUE := 0.5
 ## The painted band's sun follows the real light's energy relative to noon's, never above it.
 const SUN_GAIN_MIN := 0.25
 ## building_lod.gdshader's `mast_cover_dim`.
@@ -62,7 +64,10 @@ static func ground_light(mat: ShaderMaterial, sun_color: Color, sun_energy: floa
 	var top := sky_top.srgb_to_linear()
 	var hor := horizon.srgb_to_linear()
 	var k := _lum(hor) / maxf(_lum(top), 0.001) * FILL_TOP_LEVEL
-	mat.set_shader_parameter("fill_top", Vector3(top.r * k, top.g * k, top.b * k))
+	# At the horizon's brightness the zenith's own hue is a near-pure blue (B over 2.5 linear):
+	# half way from the horizon's colour is the upper sky a slope sees.
+	var fill := hor.lerp(Color(top.r * k, top.g * k, top.b * k), FILL_TOP_HUE)
+	mat.set_shader_parameter("fill_top", Vector3(fill.r, fill.g, fill.b))
 	mat.set_shader_parameter("fill_top_mix", FILL_TOP * clampf(golden, 0.0, 1.0) * day)
 
 
