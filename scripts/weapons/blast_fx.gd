@@ -125,6 +125,7 @@ static func _flash(node: Node, parent: Node, at: Vector3, radius: float) -> void
 	light.light_volumetric_fog_energy = 2.0
 	parent.add_child(light)
 	light.global_position = at + Vector3.UP * radius * 0.45
+	Blast3.add_fire(light)
 	var lt := light.create_tween()
 	lt.tween_interval(flash_time * 0.4)
 	lt.tween_property(light, "light_energy", glow_energy, flash_time).set_ease(Tween.EASE_OUT)
@@ -264,8 +265,12 @@ static func _ground_kick(node: Node, parent: Node, at: Vector3, radius: float, p
 		radius * 3.4 * push, radius * 5.0 * push, 0.4, _ground_ramp, false, 180.0, 3.4,
 		gb, 1.0, 0.3, 2.2, true, null, smoke_material())
 	# Grit: lit dark chips skimming out low along the ground.
-	WeaponFX._chip_layer(parent, ground + Vector3.UP * 0.2, WeaponFX._count(26), 0.06, 0.8,
-		radius * 2.0 * push, radius * 4.0 * push, Color(0.20, 0.19, 0.17), gb, 80.0, -22.0)
+	if Blast3.bits_on():
+		BlastBits.pool(node).throw_chips(ground + Vector3.UP * 0.2, WeaponFX._count(26), Vector2(radius * 1.6, radius * 3.2) * push,
+			0.06, Color(0.20, 0.19, 0.17), hit.normal, 88.0, true)
+	else:
+		WeaponFX._chip_layer(parent, ground + Vector3.UP * 0.2, WeaponFX._count(26), 0.06, 0.8,
+			radius * 2.0 * push, radius * 4.0 * push, Color(0.20, 0.19, 0.17), gb, 80.0, -22.0)
 	last["kick"] = 1
 
 
