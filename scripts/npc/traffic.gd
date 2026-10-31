@@ -540,7 +540,14 @@ func _drive_streets(delta: float) -> void:
 	_drive_serial += 1
 	var tick := _drive_serial
 	for key in groups:
+		# A car that left traffic earlier this tick (parked by an errand, abandoned in a panic) is
+		# still in the group built at the tick's start, with an empty `traffic`: drop it.
 		var group: Array = groups[key]
+		if group.any(func(c: Vehicle) -> bool: return not is_instance_valid(c) or not c.traffic.has("along")):
+			group = group.filter(func(c: Vehicle) -> bool: return is_instance_valid(c) and c.traffic.has("along"))
+			groups[key] = group
+		if group.is_empty():
+			continue
 		var dir := float(group[0].traffic.dir)
 		if group.size() > 1:
 			group.sort_custom(func(a: Vehicle, b: Vehicle) -> bool: return float(a.traffic.along) * dir < float(b.traffic.along) * dir)
@@ -630,7 +637,7 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 	# before the nearest thing standing still ahead.
 	var room := INF
 	var still := INF
-	if leader != null:
+	if leader != null and is_instance_valid(leader) and leader.traffic.has("along"):
 		var lt: Dictionary = leader.traffic
 		var gap: float = (float(lt.along) - along) * dir - half - float(lt.get("rear", lt.get("half", 2.4)))
 		var lead_v := float(lt.get("v", 0.0))

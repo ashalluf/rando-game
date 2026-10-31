@@ -22040,7 +22040,12 @@ take them); the leaves and the far sea on Ambience (enclosed in a car, ducked by
 roll in the wet. **Checks**: `tests/ambient_sound_2_checks.gd`. **Compile**:
 `tools/street_sounds/compile.gd`. **Cost**: one sphere query 4x a second, one ray 5x a second while
 driving, a position read of the street's big vehicles 4x a second; up to 8 + 1 voices. Nothing
-drawn. **Not done / not verified**: nobody has HEARD it (the box has no audio out: levels are the
+drawn. **Gate fix** (traffic.gd, not this feature's): the first gate logged four script errors in
+`_drive_streets()` / `_drive_street()` during the onlookers checks - a car that left traffic earlier
+in the tick (an empty `traffic`) was still in the tick's lane groups (CI 394's `_group_clear` race,
+two more places). The group is filtered when such a car is in it, and a leader without `along`
+counts as no leader.
+**Not done / not verified**: nobody has HEARD it (the box has no audio out: levels are the
 measured loudness table plus taste - tune `walk_step_db`, `layer_db.leaves` / `sea_far` and the
 tyre dBs on the Mac); crowd footsteps are not checked live (the headless audio driver plays
 nothing, and which walkers stand near the camera is not staged); shop doors without an errand do
