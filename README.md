@@ -8,3 +8,5 @@ Downtown, Flower at Olympic (`--spawn=2359.4,880,0,12,2`), and 150 m up over it.
 - 04_after_street_2100_storm.jpg - after at 21:00: sheets sweeping the street in the gust
 - 05_after_150m_noon_storm.jpg - after from 150 m, noon: the curtain reaches the ground
 - 06_after_150m_2100_storm.jpg - after from 150 m, 21:00
+- 07_flash_held_noon.jpg - a strike held at its flash (STORM_FLASH_HOLD), noon
+- 08_flash_held_2100.jpg - the same at 21:00 (shot at FLASH_AMBIENT 1.6, since halved: blown out at the peak)
