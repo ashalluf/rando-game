@@ -297,23 +297,24 @@ static func _vine(acc: FacadeStreet.Acc, top: Vector3, a: Vector3, n: Vector3, w
 		var u := (float(k) - 1.0) * w * 0.33
 		var p := top + a * u + n * (0.02 + 0.03 * float(k))
 		var dk := drop * (0.6 + 0.4 * _h(b, "vine dk", key, k))
-		var c := bc if bloom and k == 1 else leaf.lightened(0.05 * float(k))
-		_card_down(acc, p - a * (w * 0.3), p + a * (w * 0.3), dk, n, K_LEAF, c, float(absi(hash([key, "vine", k])) % 97))
+		var blooms := bloom and k != 2
+		_card_down(acc, p - a * (w * 0.3), p + a * (w * 0.3), dk, n, K_LEAF, bc if blooms else leaf.lightened(0.05 * float(k)),
+			float(absi(hash([key, "vine", k])) % 97), 1.0 if blooms else 0.0)
 
 
 ## A leaf card standing from the line `p0`-`p1` up `h`, both faces (`side` its face normal).
-static func _card(acc: FacadeStreet.Acc, p0: Vector3, p1: Vector3, h: float, side: Vector3, kind: int, c: Color, s: float) -> void:
+static func _card(acc: FacadeStreet.Acc, p0: Vector3, p1: Vector3, h: float, side: Vector3, kind: int, c: Color, s: float, bloom := 0.0) -> void:
 	var up := Vector3(0.0, h, 0.0)
 	var nn := side.normalized()
-	acc.quad(p0, p1, p1 + up, p0 + up, nn, kind, c, Vector2(s, 0.0), Vector2(0.999, 0.999))
-	acc.quad(p0, p1, p1 + up, p0 + up, -nn, kind, c.darkened(0.1), Vector2(s, 0.0), Vector2(0.999, 0.999))
+	acc.quad(p0, p1, p1 + up, p0 + up, nn, kind, c, Vector2(s, 0.0), Vector2(0.999, 0.999), bloom)
+	acc.quad(p0, p1, p1 + up, p0 + up, -nn, kind, c.darkened(0.1), Vector2(s, 0.0), Vector2(0.999, 0.999), bloom)
 
 
 ## A leaf card hanging from the line `p0`-`p1` down `h`, both faces.
-static func _card_down(acc: FacadeStreet.Acc, p0: Vector3, p1: Vector3, h: float, n: Vector3, kind: int, c: Color, s: float) -> void:
+static func _card_down(acc: FacadeStreet.Acc, p0: Vector3, p1: Vector3, h: float, n: Vector3, kind: int, c: Color, s: float, bloom := 0.0) -> void:
 	var dn := Vector3(0.0, -h, 0.0) + n * 0.06
-	acc.quad(p0 + dn, p1 + dn, p1, p0, n, kind, c, Vector2(s, 0.0), Vector2(0.999, 0.999))
-	acc.quad(p0 + dn, p1 + dn, p1, p0, -n, kind, c.darkened(0.1), Vector2(s, 0.0), Vector2(0.999, 0.999))
+	acc.quad(p0 + dn, p1 + dn, p1, p0, n, kind, c, Vector2(s, 0.0), Vector2(0.999, 0.999), bloom)
+	acc.quad(p0 + dn, p1 + dn, p1, p0, -n, kind, c.darkened(0.1), Vector2(s, 0.0), Vector2(0.999, 0.999), bloom)
 
 
 ## A frustum from a circle of `r0` at `p0` to one of `r1` at `p1` (round sides, open ends).

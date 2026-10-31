@@ -65,20 +65,25 @@ void fragment() {
 		// the seed in the integer part of UV.x.
 		vec2 q = fract(UV);
 		float sd = floor(UV.x);
-		float n1 = fm_noise(q * vec2(7.0, 6.0) + sd * 3.1);
-		float n2 = fm_noise(q * vec2(17.0, 15.0) + sd * 1.7);
-		// A rounded crown: fullest a little under the middle, ragged at its rim.
-		float shape = 1.0 - length((q - vec2(0.5, 0.42)) * vec2(2.0, 1.75));
-		float cover = n1 * 0.55 + n2 * 0.45 + shape * 0.95 - 0.5;
-		// Under a pixel a leaf is its cover: keep the card a little fuller so it does not sparkle.
-		cover += smoothstep(0.01, 0.05, px) * 0.12;
+		float n1 = fm_noise(q * vec2(6.0, 5.0) + sd * 3.1);
+		float n2 = fm_noise(q * vec2(19.0, 17.0) + sd * 1.7);
+		float n3 = fm_noise(q * vec2(41.0, 37.0) + sd * 0.9);
+		// A rounded crown: fullest a little under the middle, its rim torn into leaves and gaps.
+		float shape = 1.0 - length((q - vec2(0.5, 0.42)) * vec2(2.1, 1.9));
+		float cover = n1 * 0.45 + n2 * 0.35 + n3 * 0.2 + shape * 0.9 - 0.62;
 		if (cover < 0.0) {
 			discard;
 		}
-		c *= 0.7 + 0.5 * n2;
+		// Leaves in light and shade; a flowering card (UV2.x) is dark foliage with blooms of its colour.
+		vec3 foliage = c;
+		if (UV2.x > 0.5) {
+			foliage = vec3(0.035, 0.07, 0.025);
+			foliage = mix(foliage, c, step(0.6, n3) * step(0.45, n2));
+		}
+		c = foliage * (0.45 + 0.7 * n2 * n3 + 0.25 * smoothstep(0.0, 0.25, cover));
 		rough = 0.7;
 		spec = 0.35;
-		BACKLIGHT = cs_out(c * 0.25);
+		BACKLIGHT = cs_out(c * 0.12);
 	} else if (kind < 4.5) {
 		// Terracotta or glazed pot.
 		c *= 0.88 + 0.22 * fm_noise(UV * vec2(20.0, 8.0));

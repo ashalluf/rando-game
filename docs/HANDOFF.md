@@ -21980,3 +21980,36 @@ the same way, but judge 18:00 on the Mac first - if it reads milky-pink, raise `
 grass under a low red sun is what it is). The painted cumulus on opengl3 draws a big smooth ellipse in
 the aerial and sky shots (before and after alike; the sky's, not this review's). Dawn shares the sky
 ramp and the exposure ramp (both are symmetric in elevation) and was not looked at.
+
+## 9d?. Buildings at mid distance (fleet wave 4, `building-mid-detail`)
+
+The task: a generated Building seen from 20-80 m read as nobody's home - a window grid, the kit's
+cornices, some balconies standing empty. `FacadeMid` (`scripts/world/facade_mid.gd`) hangs the life
+on it, built in code (FacadeStreet's `Acc` writers) into ONE mesh a building, `MidDress`
+(DRAW_DISTANCE 92 m + half the footprint), plus `MidDressNear` for the small pieces (58 m), both on
+`shaders/facade_mid.gdshader` (kind in COLOR.a x 16 = `FacadeMid.K_*`, colours sRGB decoded,
+linear on both renderers, no sampler), no shadow, no collision:
+
+- **Balconies** (`balcony()`, one hook line after the kit / box balcony in
+  `Building._add_facade_details()`): every balcony the Building already rolled gets, by hashes of
+  seed + wall + bay + storey: a reed or canvas privacy screen tied inside the front rail, a towel
+  over it, potted plants (leaf cards cut in the shader, flowers on some), a vine spilling over, a
+  pair of stacking chairs and a table, a drying rack or a line of washing, a kettle grill, storage
+  tubs, a satellite dish on the rail (south-facing walls only, at most `MAX_BALCONY_DISHES`).
+- **Walls** (`face()`, one hook line after `FacadeStreet.face()`): on residential punched walls one
+  roll a window - an extra kit window AC (`kit_ac_window`, the kit's own piece in the kit batch), a
+  through-wall sleeve unit under the sill, the window open (a sash pushed up or a casement swung out,
+  the room and its curtain behind, lit after dark on 55 %), a planted window box - plus vents and
+  wall-bracket dishes on the piers (every dish aims at `DISH_AIM`, one patch of the southern sky);
+  downpipes on the upper tiers FacadeStreet does not reach; galvanised flashing along a roof edge
+  with no parapet or cornice; a painted name (SignFont strokes, drop shadow, flaking by discard;
+  invented hotels, apartments and trades) across the top spandrel of 24 % of low masonry blocks;
+  and on plain rendered walk-ups (`Finish.FLAT`, no balconies) a kit fire escape on one wall
+  (the Building's own escapes are brick only).
+- Nothing reads Building._rng or _roof_rng: the checks build the same buildings with the pass off
+  and on and compare parts, colours, roof plant, shop names and every detail node's count.
+- `FACADE_MID=0` is the A/B. LOD chunks and the far city are untouched.
+
+Look with `tools/glshot/building_shot.gd` (`CAM_POS` / `CAM_LOOK`, `FACADE_MID=0` the before) and
+find seeds with `tools/building_mid_detail/probe.gd` (triangles by kind per seed). Checks:
+`tests/building_mid_detail_checks.gd`.
