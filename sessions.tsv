@@ -1,8 +1,8 @@
-traffic-motion	session_01ThLG8vPkvokufLRbYLNmC8	opus	running
+traffic-motion	session_01ThLG8vPkvokufLRbYLNmC8	opus	merged b26
 skyline-glass-day	session_01ThLG8uowSi6fkwwKFJGq5a	opus	running
 web-hero-rain	session_01ThLG8vJjp7qjfV4kjjLN3F	opus	running
-paving-aliasing	session_01ThLG8vfhsrguA5kfxxjJCu	opus	running
-night-flight	session_01ThLG8wnzhCQYaVRDADLiCR	opus	running
+paving-aliasing	session_01ThLG8vfhsrguA5kfxxjJCu	opus	merged b26
+night-flight	session_01ThLG8wnzhCQYaVRDADLiCR	opus	merged b26
 wet-road-mirror	session_01ThLG8u32iTb3T4iPwqMMb8	opus	running
 dawn-review	-	-	waiting (first launch archived: account limit)
 rc-street-noon	-	-	waiting (first launch archived: account limit)
@@ -18,12 +18,12 @@ rc-pier-night	-	-	waiting (first launch archived: account limit)
 hero-closeup-2	-	-	waiting (first launch archived: account limit)
 hero-locomotion-2	-	-	waiting (first launch archived: account limit)
 crowd-closeup-3	-	-	waiting (first launch archived: account limit)
-car-exterior-closeup	-	-	waiting (first launch archived: account limit)
+car-exterior-closeup	-	-	merged b26
 traffic-behaviour-2	-	-	waiting (first launch archived: account limit)
 pedestrian-flow	-	-	waiting (first launch archived: account limit)
 storefront-closeup-2	-	-	waiting (first launch archived: account limit)
 building-mid-detail	-	-	waiting (first launch archived: account limit)
-tree-light-2	-	-	waiting (first launch archived: account limit)
+tree-light-2	-	-	merged b26
 ground-shadow-contact	-	-	waiting (first launch archived: account limit)
 sky-day-review	-	-	waiting (first launch archived: account limit)
 water-review	-	-	waiting (first launch archived: account limit)
@@ -32,7 +32,7 @@ gunplay-feel	-	-	waiting (first launch archived: account limit)
 police-chase-2	-	-	waiting (first launch archived: account limit)
 wanted-escalation	-	-	waiting (first launch archived: account limit)
 car-crash-3	-	-	waiting (first launch archived: account limit)
-ragdoll-feel	-	-	waiting (first launch archived: account limit)
+ragdoll-feel	-	-	merged b26
 blood-gore-2	-	-	waiting (first launch archived: account limit)
 ambient-sound-2	-	-	waiting (first launch archived: account limit)
 night-lamps-review	-	-	waiting (first launch archived: account limit)
