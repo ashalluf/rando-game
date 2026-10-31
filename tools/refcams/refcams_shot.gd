@@ -14,7 +14,8 @@ extends "res://tools/glshot/still_shot.gd"
 ## camera streams and adapts for (default 30), SETTLE frames with the clock all but stopped
 ## (default 6). Shader TIME is held at zero (water, surf, clouds stand still) unless LIVE_TIME=1.
 ## STRICT=1 is still_shot's DIFF mode as well: people, cars, aircraft, particles and the player
-## hidden, so two runs of one tree differ by a pixel or two.
+## hidden, so two runs of one tree differ by a pixel or two. SPLIT=1 (and OSPLIT=1) prints
+## still_shot's cost split for every camera (SPLITCAM <name> heads each table).
 ## Writes <OUT_DIR>/<name>.png per camera and <OUT_DIR>/frames.json (each shot's GEO counts,
 ## hour, weather, the eye it used and how long it took). The --spawn should be the first
 ## camera's x,z: the load builds round it.
@@ -108,6 +109,11 @@ func _run() -> void:
 		var png := _out_dir.path_join("%s.png" % cam.name)
 		get_root().get_texture().get_image().save_png(png)
 		var c: Array = await _geo_report("GEO_%s" % cam.name)
+		# SPLIT=1 (OSPLIT=1 too): still_shot's cost table for this camera's frame, every category
+		# hidden in turn (tools/perf_audit_4/split_table.py ranks them from the log).
+		if OS.get_environment("SPLIT") == "1":
+			print("SPLITCAM %s" % cam.name)
+			await _geo_split(player, Vector3.ZERO, Vector3.ZERO, false, fov)
 		shots.append({
 			"name": cam.name, "png": "%s.png" % cam.name, "eye": eye_text, "hour": cam.hour,
 			"weather": cam.get("weather", "clear"), "fov": fov,
@@ -191,3 +197,8 @@ func _set_weather(weather: Node, key: String) -> void:
 	weather.call("force_state", idx, true)
 	var wet := clampf(float(weather.call("_rain_level", idx)) * 1.2, 0.0, 1.0)
 	weather.set("wetness", wet)
+
+
+## still_shot's _geo_split re-poses the player before its base count: here that is the free camera.
+func _pose(player: Node3D, _anchor: Vector3, _hold: Vector3, _boost: bool, fov: float) -> void:
+	_place(player, fov)

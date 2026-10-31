@@ -4081,3 +4081,11 @@ none of either.
   Forward+ below MEDIUM) closes into a stratus ceiling from coverage 0.62 to 0.78, so rain and
   storms never fall from a blue sky there; a clear day is untouched. web_build_checks now also
   holds WebGL2's uniform-block (16 KB) and varying floors.
+- **2026-10-31 Perf audit 4: a mesh drawn whole everywhere is tiled, a model's surfaces merged
+  (perf-audit-4, HANDOFF "Perf audit 4").** Judged at the ten refcams against wave 2's numbers,
+  every cut proved with strict pairs against an A/A pair. Decisions: anything with a map-sized
+  cull margin is cut into culled tiles of its own triangles (the horizon plane, the far ring); a
+  far-city tile whose blocks are all dissolved is hidden; scanned models whose surfaces share one
+  material are merged (the knee-high plants: sunset -37 % draws); palm shadow twins follow the
+  trees' shadow LOD rule (the one cut that moves pixels: frond-shadow speckle at 100+ m). All
+  behind HORIZON_TILES / FAR_COVER_HIDE / PLANT_MERGE / PALM_SHADOW_LOD =0.

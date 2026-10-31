@@ -216,21 +216,25 @@ func _ring(city: Node3D, mat) -> void:
 	_t._check(ok, "far ranges: the far ring is built on the horizon plane's own material")
 	if not ok:
 		return
-	var arr := ring.mesh.surface_get_arrays(0)
-	var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
-	var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX]
-	# The innermost edge any triangle has, measured from the ring's centre (Chebyshev).
+	# The innermost edge any triangle has, measured from the ring's centre (Chebyshev), over every
+	# tile the ring is cut into (HorizonTiles).
 	var inner := INF
 	var outer := 0.0
-	for i in range(0, idx.size(), 3):
-		var c := (verts[idx[i]] + verts[idx[i + 1]] + verts[idx[i + 2]]) / 3.0
-		var e := maxf(absf(c.x), absf(c.z))
-		inner = minf(inner, e)
-		outer = maxf(outer, e)
+	var tri_count := 0
+	for m: Mesh in HorizonTiles.meshes_of(ring):
+		var arr := m.surface_get_arrays(0)
+		var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX]
+		tri_count += idx.size() / 3
+		for i in range(0, idx.size(), 3):
+			var c := (verts[idx[i]] + verts[idx[i + 1]] + verts[idx[i + 2]]) / 3.0
+			var e := maxf(absf(c.x), absf(c.z))
+			inner = minf(inner, e)
+			outer = maxf(outer, e)
 	# The plane's edge is within one of its own steps of the ring's centre's grid.
 	var plane_edge_low := size * 0.5 - gstep
 	_t._check(inner < plane_edge_low - 60.0 and outer > FarRanges.RING_EDGE.y,
-		"far ranges: the ring overlaps the plane's edge and reaches past its own rim (inner %.0f m against the plane's %.0f, outer %.0f m, %d triangles)" % [inner, plane_edge_low, outer, idx.size() / 3])
+		"far ranges: the ring overlaps the plane's edge and reaches past its own rim (inner %.0f m against the plane's %.0f, outer %.0f m, %d triangles)" % [inner, plane_edge_low, outer, tri_count])
 	var es := float((mat as ShaderMaterial).get_shader_parameter("edge_start"))
 	var ee := float((mat as ShaderMaterial).get_shader_parameter("edge_end"))
 	var far := 12000.0

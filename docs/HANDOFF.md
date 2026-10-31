@@ -24732,3 +24732,106 @@ touched here: whether the Mac at HIGH also shows holes in rain is for the sky's 
 - Frame rate: SwiftShader cannot say (15-25 s a frame here).
 
 Stills on `shots/web-build-4`.
+
+## 9ka. Perf audit 4: the ten refcams against wave 2, 2026-10-31 (fleet wave 4, agent branch `wt/perf-audit-4`; VISUAL_ROADMAP ?)
+
+**The ask.** Frame cost after wave 3 at the ten reference cameras (tools/refcams): the most
+expensive systems per camera, cut what is over budget without a visible change (DIFF pairs), get
+triangles and draws back under wave 2's numbers (`shots/ref-cameras` base_report.txt, fleet/base
+df0d0d1), and keep the gate's peak RSS under 3,600 MB.
+
+**How it was measured.** `SPLIT=1 OSPLIT=1` now works on refcams (refcams_shot.gd runs
+still_shot's `_geo_split` after every camera; one city load gives every camera's table;
+`tools/perf_audit_4/split_table.py <godot.log> [--stems]` ranks it). OSPLIT now also splits Trees,
+FarCity and Landmark by stem. All ten with SPLIT take ~20 min a camera and the run's RSS climbs
+~0.3 GB a camera hop (8 GB plain, 13.6 GB with SPLIT: it was OOM-killed at camera 9 - shoot at
+most ~6 with SPLIT in one run). Pixel checks are `--strict` pairs against an A/A pair: strict runs
+of one tree differ by 1,300-7,000 pixels over 8 levels on the aerials (streaming state, a hidden
+car's contact shadow), so a cut is "no visible change" when its pair is inside that.
+
+### Before: main e5bb9e4 (plain refcams, opengl3 1280x720; GEO triangles / draws)
+
+| camera | wave 2 | main | top systems on main (camera + shadow triangles) |
+|---|---|---|---|
+| street_noon | 6.92 M / 3,568 | 7.21 M / 3,557 | FarCity 1.52 M, Building 1.47 M (0.96 shadow), Trees 1.16 M, StreetProps 1.05 M (bench 0.16, sc2 bags 0.16), Other 0.82 M |
+| street_night | 7.19 M / 3,732 | 7.23 M / 3,710 | the same |
+| sunset | 2.53 M / 1,772 | 2.81 M / 1,872 | Trees 1.44 M in 963 draws (palms 0.74, flowers 0.22 in 250 draws, gclump 403 draws), horizon plane 0.21 M + far ring 0.12 M |
+| golden_aerial | 4.73 M / 3,493 | 5.17 M / 3,034 | FarCity 1.61 M, Other 0.91 M, Trees 0.84 M |
+| downtown_aerial | 3.43 M / 1,891 | 3.92 M / 2,031 | Building 1.11 M, Other 0.73 M, StreetProps 0.70 M, Trees 0.68 M |
+| beach | 0.52 M / 358 | 0.72 M / 409 | horizon plane 0.21 M + far ring 0.12 M (45 % of the frame) |
+| hills | 1.54 M / 653 | 1.89 M / 795 | FarCity 1.11 M, horizon plane 0.19 M + ring 0.10 M |
+| freeway | 5.12 M / 3,005 | 5.42 M / 2,862 | Building 1.17 M, FarCity 1.09 M, Trees 0.82 M |
+| macarthur | 5.25 M / 4,432 | 5.85 M / 3,553 | Trees 2.56 M (palms 1.54 M, 1.0 M of it shadow), Building 0.64 M |
+| pier_night | 1.30 M / 402 | 1.54 M / 451 | Other 1.03 M, palms 0.38 M |
+
+### What was cut (each behind its own switch)
+
+1. **The horizon plane and the far ring, culled** (`HorizonTiles`, `scripts/world/horizon_tiles.gd`,
+   `HORIZON_TILES=0`). The plane (206 k triangles) and FarRanges' ring (120 k) were each one mesh
+   with a map-sized cull margin, so all of both was drawn at every camera. `split()` cuts each into
+   3 x 3 tiles holding exactly its triangles (subset index lists, compacted with MeshCompact), each
+   with a tight x / z box and the lift's full y range; the vertex shader only moves vertices up and
+   down, so the same pixels. 3 x 3 culls as well as 4 x 4 at the refcams (the camera sits in the
+   middle tile) for ~5 fewer draws (an offline frustum count over the ten cameras). ~0.9 s at load.
+2. **Far-city tiles hidden under chunks** (`Skyline._refresh_tile()`, `FAR_COVER_HIDE=0`): a tile
+   node (boxes, planting, houses, estate lights) whose every block is dissolved (alpha 0; planting
+   only under FULL chunks) is hidden - it drew nothing but still cost its vertices. Shown again the
+   frame a block starts to fade back in.
+3. **Palm shadow twins on the trees' shadow rule** (`PALM_SHADOW_LOD=0`): the twin's LOD bias is
+   FoliageLod.SHADOW_LOD_SCALE (0.5) of the batch's, as the scanned trees' twins have run since
+   9af. The one cut that moves pixels beyond the noise: the speckle of frond shadows on the lawn
+   at 100+ m (MacArthur: 26.8 k pixels over 8 levels against an A/A of ~1-7 k; side by side the
+   lawn reads the same - `06_diff_macarthur.jpg`). Revert with the switch if the lead disagrees.
+4. **Knee-high plants merged to one surface per material** (`PropFactory.plant_merge`,
+   `PLANT_MERGE=0`): BUSHES, PLANTS, FLOWERS and GRASS_CLUMPS keep the generated LODs (no measured
+   ladder), and their glTFs ship one surface per blade cluster on ONE material - bermuda grass 21,
+   sorrel 11, the flowers 5-8 - so every chunk's ground-cover batch was that many draws. Same
+   triangles at LOD 0 (`tools/perf_audit_4/surf_probe.gd` prints both sides), same material.
+
+### After: strict pairs (main behaviour = every switch 0, against the branch)
+
+| camera | triangles | draws | pixels over 8 levels (A/A noise) |
+|---|---|---|---|
+| street_noon | -4.0 % | -4.0 % | 53 |
+| street_night | -3.9 % | -4.1 % | 5 |
+| sunset | -10.1 % | **-37.3 %** (1,786 -> 1,119) | 2,563 (1,390) |
+| golden_aerial | -8.4 % | -4.1 % | 1,180 (7,094) |
+| downtown_aerial | -6.5 % | -4.8 % | 281 |
+| beach | **-23.9 %** | +1.3 % | 129 |
+| hills | -10.0 % | +0.9 % | 2,048 (1,289) |
+| freeway | -5.2 % | -5.8 % | 746 (a hidden car's contact shadow) |
+| macarthur | -10.1 % | -10.3 % | 26,776 (the palm shadows, cut 3) |
+| pier_night | -13.7 % | +1.0 % | 253 |
+
+**Against wave 2** (plain runs; traffic and people move, read +-0.2 M): see the final table in the
+last commit's message and `shots/perf-audit-4` (10_refcams_sheet_branch.jpg). Sunset, freeway and
+MacArthur are back under wave 2 in triangles, golden aerial level; downtown aerial (+0.4 M,
+buildings and street props), hills (FarCity's canopies) and the street cameras (+0.1-0.2 M) are
+still over, and draws are still over at downtown aerial, beach, hills and pier night (+10-60).
+
+### Memory (the gate)
+
+`SMOKE_PROFILE=1` + `tools/perf_audit_4/gate_rss.py <shard log>` ranks a shard's parts by the RSS
+they add (a PART line follows its part). The shards peaked 3,155 / 3,441 / 3,043 MB (this branch
+before the main merge; CI 394: 2,984-3,489): the city load is 2.0-2.8 GB of it, then single parts
+that stream new areas add 0.2-0.5 GB each (metro_underground +472, police_station +468,
+garage_drive_in +234, freeway_incidents +199) and RSS never comes back (the allocator keeps the
+pages). `tools/memory_probe.gd` with three rounds of HOPS over the ten refcam points: Godot's heap
+2.17 -> 2.43 -> 2.51 GB at the same spot; the caches that grow are bounded working sets
+(BeachFigure's bakes and suits, CampFigure._shadows, one seed per crowd model) - fills, not leaks.
+Nothing cut here; `memory_audit_checks.gd`'s budget stays 4,000 (CLAUDE.md said 3,600: corrected).
+
+**The gate** (`SHARDS=3 tests/headless_check.sh`, this branch merged with main at 59eaa64d, 128
+commits newer than the base): 4,624 checks, 0 failed, 1,316 s; shard peaks 2,736 / 3,524 / 3,465 MB
+- under 3,600 but with under 100 MB to spare on shard 1 after main's wave-4 merges, so the next
+memory work is the parts gate_rss.py ranks first.
+
+### Not done / next
+
+(1) The far canopies (FarCity 0.6-1.6 M camera triangles everywhere): a canopy LOD would collapse
+the counter (a LOD'd MultiMesh surface counts once per draw, trap 3) - measure it with TRUE counts.
+(2) Downtown aerial's buildings and street props, the street cameras' Building shadow (0.96 M).
+(3) The SPLIT run's RSS growth per camera hop (13.6 GB) - a SPLIT hides and shows thousands of nodes;
+the plain run grows 0.3 GB a hop too. (4) Beach / pier night "Other" was not broken down past the
+horizon pieces (OSPLIT ranks stems by an estimate that misses them). (5) Forward+ not looked at
+(geometry-only cuts; the palm shadows were judged on opengl3).

@@ -6220,8 +6220,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   scale its error by the instances' stretch with `lod_bias`). A SphereMesh repeats its pole vertices
   (a 6 x 2 sphere is a third zero-area triangles: `PropFactory.without_degenerate()`). Measure an
   aerial bookmark only with `DIFF=1` pairs: two plain runs there differ by millions of triangles.
+- Perf audit 4 (2026-10-31, docs/HANDOFF.md "Perf audit 4"): measure the ten refcams with
+  `SPLIT=1 OSPLIT=1` on refcams.py (one load, every camera's split; `tools/perf_audit_4/split_table.py`
+  ranks it) and `--strict` pairs against an A/A run (the strict noise is thousands of pixels on the
+  aerials). A mesh with a map-sized cull margin is drawn whole at every camera: the horizon plane
+  and the far ring are cut into culled tiles of their own triangles (`HorizonTiles`,
+  `HORIZON_TILES=0`). A far-city tile node whose blocks are all dissolved is hidden
+  (`FAR_COVER_HIDE=0`). A scanned model with many surfaces on one material is a draw per surface
+  per batch: merge it (`PropFactory.MERGE_BY_MATERIAL`, the knee-high plants via `PLANT_MERGE=0`).
+  Palm shadow twins take the trees' shadow LOD scale (`PALM_SHADOW_LOD=0`). Gate memory by part:
+  `SMOKE_PROFILE=1` + `tools/perf_audit_4/gate_rss.py`.
 - Memory (2026-10-05, docs/HANDOFF.md "Memory audit"): the smoke test fails past a peak-RSS
-  budget (`tests/memory_audit_checks.gd`, 3,600 MB, `MEMORY_BUDGET_MB`; it peaked at 2.94 GB).
+  budget (`tests/memory_audit_checks.gd`, 4,000 MB, `MEMORY_BUDGET_MB`; it peaked at 2.94 GB; the
+  shards' own target is 3,600 MB).
   **Never key a cache on a RID or instance id of something that can be unloaded** - a model's
   PackedScene is freed with its last user and comes back with new RIDs, so the cache takes a
   new copy every reload (the car wheel tucks: 100 copies, 80 MB); use `PropFactory.mesh_key()`
