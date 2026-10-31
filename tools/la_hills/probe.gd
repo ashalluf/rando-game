@@ -124,4 +124,20 @@ func _ready() -> void:
 				worst = lh.lift_raw(q)
 				wq = q
 		print("river max lift %.2f at %s" % [worst, wq])
+	var worst := 0.0
+	var wid := ""
+	for lm: Dictionary in Landmarks.all():
+		if lm.has("flat_rect") or lm.has("area"):
+			continue
+		var a: Vector2 = lm.anchor
+		if lh.lift_raw(a) < 1.0:
+			continue
+		var r: float = float(lm.radius) * 0.75
+		var h0 := lh.lift(a, 0.0)
+		for d: Vector2 in [Vector2(r, 0), Vector2(-r, 0), Vector2(0, r), Vector2(0, -r)]:
+			var e := absf(lh.lift(a + d, 0.0) - h0)
+			if e > worst:
+				worst = e
+				wid = lm.id
+	print("landmark level worst %.2f %s" % [worst, wid])
 	get_tree().quit()

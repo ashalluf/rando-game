@@ -90,7 +90,7 @@ const HILLS := [
 	# Baldwin Hills: a skirt round the oil field (OilField) so its hill comes down into rolling
 	# streets; OilField's own hill takes over inside its kerb.
 	{"id": "baldwin_hills", "name": "Baldwin Hills", "h": 14.0, "tilt": Vector2.ZERO, "stairs": false,
-		"poly": [Vector2(40.0, 1000.0), Vector2(780.0, 1000.0), Vector2(1150.0, 1400.0), Vector2(1150.0, 2280.0),
+		"poly": [Vector2(40.0, 1110.0), Vector2(800.0, 1110.0), Vector2(1150.0, 1450.0), Vector2(1150.0, 2280.0),
 			Vector2(40.0, 2280.0)],
 		"w": [[[1.0, 420.0]], [[1.0, 200.0]], [[1.0, 140.0]], [[1.0, 420.0]], [[1.0, 420.0]]]},
 ]
@@ -241,7 +241,11 @@ func lift(pos: Vector2, raw: float) -> float:
 				target = lift_raw(a)
 		if w <= 0.0:
 			continue
-		var wk := pow(w, 3.0)
+		# Nearer landmarks (in their own radii) outweigh farther ones whose discs reach here too.
+		var rel := 1.0
+		if not lm.has("flat_rect"):
+			rel = maxf(pos.distance_to(lm.anchor) / (float(lm.radius) + 1.0), 1.0)
+		var wk := pow(w, 3.0) / pow(rel, 6.0)
 		wsum += wk
 		hsum += wk * target
 		wmax = maxf(wmax, w)
