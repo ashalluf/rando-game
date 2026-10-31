@@ -227,6 +227,11 @@ static func road_tint(plan: CityPlan, axis: int, index: int) -> Color:
 	rng.seed = hash([plan.seed, "road_look", axis, index])
 	var aerial := rng.randf() >= 0.55
 	var tint: Color = CityChunk.ROAD_TINTS[rng.randi() % CityChunk.ROAD_TINTS.size()]
+	# The road's own neutralised tint (PropFactory.road(), StreetNoonReview).
+	var desat := StreetNoonReview.desat("asphalt_aerial" if aerial else "asphalt")
+	if desat > 0.0:
+		var luma := tint.r * 0.2126 + tint.g * 0.7152 + tint.b * 0.0722
+		tint = tint.lerp(Color(luma, luma, luma), desat)
 	if aerial:
 		tint = Color(tint.r * 1.2, tint.g * 1.2, tint.b * 1.2)
 	return tint

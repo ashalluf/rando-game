@@ -645,6 +645,7 @@ static func lane_mesh() -> Mesh:
 	if _lane_material == null:
 		_lane_material = ShaderMaterial.new()
 		_lane_material.shader = load("res://shaders/bike_lane.gdshader")
+		_lane_material.set_shader_parameter("grime", StreetNoonReview.BIKE_GRIME if StreetNoonReview.enabled else 0.0)
 	mesh.surface_set_material(0, _lane_material)
 	_lane_mesh = mesh
 	return mesh

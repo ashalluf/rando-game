@@ -155,10 +155,16 @@ static func road(set_key: String, scale_m: float, tint: Color, seed_value: int, 
 	mat.set_shader_parameter("albedo_tex", texture(set_key, "Color"))
 	mat.set_shader_parameter("normal_tex", texture(set_key, "NormalGL"))
 	mat.set_shader_parameter("rough_tex", texture(set_key, "Roughness"))
+	var desat := StreetNoonReview.desat(set_key)
+	if desat > 0.0:
+		# The tint's hue too: decoded on Forward+, a warm road tint was a fifth redder than blue.
+		var luma := tint.r * 0.2126 + tint.g * 0.7152 + tint.b * 0.0722
+		tint = tint.lerp(Color(luma, luma, luma), desat)
 	mat.set_shader_parameter("tint", tint)
 	mat.set_shader_parameter("tex_scale", scale_m)
 	mat.set_shader_parameter("seed", float(seed_value % 997) * 0.37)
 	mat.set_shader_parameter("joint_spacing", joints)
+	mat.set_shader_parameter("albedo_desat", desat)
 	# Pavements are patched and stained far less than the carriageway.
 	mat.set_shader_parameter("patch_amount", 0.30 * wear)
 	mat.set_shader_parameter("crack_amount", 0.5 * wear)
@@ -2150,6 +2156,7 @@ static func patch() -> Mesh:
 	mat.shader = load("res://shaders/road_patch.gdshader")
 	mat.set_shader_parameter("albedo_tex", texture("asphalt", "Color"))
 	mat.set_shader_parameter("normal_tex", texture("asphalt", "NormalGL"))
+	mat.set_shader_parameter("albedo_desat", StreetNoonReview.desat("asphalt"))
 	mesh.material = mat
 	_cache["patch"] = mesh
 	return mesh

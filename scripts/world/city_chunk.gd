@@ -2546,6 +2546,10 @@ func _mark_road(along_z: bool, center: float, width: float, a: float, b: float, 
 	if b - a < 4.0:
 		return
 	var avenue := width >= plan.avenue_width - 0.1
+	# Two lanes each way: a double yellow (StreetNoonReview, STREET_NOON=0 the old marking).
+	if StreetNoonReview.double_yellow(width, plan.street_width):
+		avenue = true
+		line = Color(0.95, 0.8, 0.2)
 	var yaw := 0.0 if along_z else PI * 0.5
 	# Nothing painted over the light rail's portal trench (LightRail.cuts_in()).
 	var rail := LightRail.of(plan)

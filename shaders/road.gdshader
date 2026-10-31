@@ -21,6 +21,9 @@ uniform sampler2D rough_tex : hint_roughness_r, filter_linear_mipmap_anisotropic
 uniform vec3 tint : source_color = vec3(0.72, 0.72, 0.74);
 // Metres per texture tile.
 uniform float tex_scale = 8.0;
+// How far the texture is taken toward its own luminance before the tint (StreetNoonReview: the
+// asphalt photo is brown, and the grade turned a noon street on Forward+ into a dirt road).
+uniform float albedo_desat = 0.0;
 uniform float seed = 0.0;
 // Size of a resurfacing patch (metres) and how much of the road is patched.
 uniform float patch_size = 7.0;
@@ -213,6 +216,11 @@ void vertex() {
 }
 
 
+vec3 road_desat(vec3 c) {
+	return mix(c, vec3(dot(c, vec3(0.2126, 0.7152, 0.0722))), albedo_desat);
+}
+
+
 void fragment() {
 	// Kerb faces, seat walls, steps and slab edges wear the same material as the ground on top,
 	// and mapped from above a vertical face drew every texel as a streak down its whole height
@@ -226,7 +234,7 @@ void fragment() {
 	vec2 along = normalize(vec2(-wn.z, wn.x) + vec2(1.0e-4, 0.0));
 	vec2 w = mix(world_pos.xz, vec2(dot(world_pos.xz, along), -world_pos.y), side);
 	vec2 uv = w / tex_scale;
-	vec3 base = texture(albedo_tex, uv).rgb * tint;
+	vec3 base = road_desat(texture(albedo_tex, uv).rgb) * tint;
 	float rough = texture(rough_tex, uv).r;
 
 	// Kill the visible repeat. Across a plaza or a long pavement the eye picks the tile grid
@@ -236,7 +244,7 @@ void fragment() {
 	if (ground_detail > 0.5) {
 		vec2 uv2 = (mat2(vec2(0.80, -0.60), vec2(0.60, 0.80)) * w) / (tex_scale * 1.37) + vec2(13.7, 4.1);
 		float variant = smoothstep(0.34, 0.66, fbm(w * 0.019 + 91.0 + seed));
-		base = mix(base, texture(albedo_tex, uv2).rgb * tint, variant);
+		base = mix(base, road_desat(texture(albedo_tex, uv2).rgb) * tint, variant);
 	}
 
 	// Slow mottling: patches of the road that have aged differently.
