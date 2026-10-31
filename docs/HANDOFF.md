@@ -22036,8 +22036,9 @@ tone, TV) are untouched, so the far house still agrees.
 
 **Cost.** Zero geometry and draws: all traced on glass pixels that were already shaded. The home
 trace is a box, two furniture boxes and a capsule per glass pixel; offices add a plane and a
-capsule for each of up to two workers. Measure: `building_shot.gd BENCH=n` (see the end of this
-section for the numbers taken).
+capsule for each of up to two workers. Measured with `building_shot.gd BENCH=20` on llvmpipe, a 24 m apartment block
+filling the frame at 21:00 (glass on most of the screen, the worst case): 55-58 ms -> 60-66 ms a
+frame (~+10 %); a street view where glass is a fraction of the screen pays a fraction of that.
 
 **Switch and tools.** `WINDOW_INTERIORS=0` is the A/B (the `window_interiors` global, pushed by
 `DayNight._ready()` -> `WindowInteriors.install()`): every building offices, house glass's old
