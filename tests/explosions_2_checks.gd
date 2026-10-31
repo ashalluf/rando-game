@@ -39,6 +39,16 @@ func run(t: Node, city: Node3D) -> void:
 				n.queue_free()
 		await _tree.process_frame
 		alive_before = BlastDebris.alive()
+	# An earlier file's blast still fading (its flash glows for seconds) takes the name: Godot
+	# names this blast's "BlastFlash" "@OmniLight3D@n" beside it and the search below misses it
+	# (gate run 505). This check's blast gets the names to itself.
+	var stale := 0
+	for c in parent.get_children():
+		if String(c.name).begins_with("Blast") and not c.is_queued_for_deletion():
+			c.queue_free()
+			stale += 1
+	if stale > 0:
+		await _tree.process_frame
 	var before := {}
 	for c in parent.get_children():
 		before[c] = true
