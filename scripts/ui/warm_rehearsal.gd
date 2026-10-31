@@ -109,6 +109,7 @@ static func run(scene: Node, cam: Camera3D, progress: Callable = Callable(), log
 		await tree.process_frame
 	Police.innocent = innocent_was
 	AudioServer.set_bus_mute(0, bus_was)
+	_purge_statics()
 	if log_times:
 		print("WARM rehearsal total %d ms" % ((Time.get_ticks_usec() - t_all) / 1000))
 
@@ -366,3 +367,13 @@ static func _stage_wave3_cars(cars: Array, fwd: Vector3, tree: SceneTree) -> voi
 	for car: Vehicle in cars:
 		if is_instance_valid(car) and CarInteriors.rig_of(car) != null:
 			inst.deactivate(car)
+
+
+## The burnt rehearsal car stays in CarDamage's static lists (burning, smoking, wrecks) after it is
+## freed: Emergency's scan then met a freed instance every second of play (a SCRIPT ERROR each
+## time) and the caps counted a car that is not there. Drops every entry that is gone.
+static func _purge_statics() -> void:
+	for list: Array in [CarDamage._burning, CarDamage._smokers, CarDamage._wrecks]:
+		for i in range(list.size() - 1, -1, -1):
+			if not is_instance_valid(list[i]):
+				list.remove_at(i)
