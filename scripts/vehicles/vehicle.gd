@@ -558,6 +558,8 @@ var traffic: Dictionary = {}:
 			_occupant_rolls += 1
 		_update_occupant()
 var traffic_speed: float = 0.0
+## The body's pitch, roll and heave while it is placed traffic (TrafficMotion), made when needed.
+var motion: TrafficMotion = null
 var wheels: Array[VehicleWheel3D] = []
 ## Spoke pattern (PropFactory.WHEEL_FACES) and finish (PropFactory.WHEEL_KITS). -1 means "work
 ## it out from the car" in _build(); random_car() sets them from its look seed instead, so a
@@ -1086,7 +1088,10 @@ func _on_bumper_hit(body: Node3D) -> void:
 	if body is Player and (body as Player).vehicle == null:
 		(body as Player).launch(dir * (8.0 + speed) + Vector3.UP * 9.0)
 	elif body.has_method("knock"):
+		# Over the bonnet, not ahead of the car (RagdollFeel).
+		RagdollFeel.note_car(self, dir * speed)
 		body.knock(dir * (8.0 + speed * 0.6) + Vector3.UP * 6.0)
+		RagdollFeel.clear()
 
 
 # --- Model -----------------------------------------------------------------------------
@@ -1622,6 +1627,7 @@ func _update_wheels(delta: float) -> void:
 	var focus := _focus_point()
 	var dist := global_position.distance_to(focus)
 	_update_body_tier(dist)
+	var motion_steer := TrafficMotion.tick(self, yaw_rate, traffic_speed, dist, delta) if motion != null or is_traffic() else NAN
 	if dist > _wheel_far_end:
 		return
 	var near := _wheel_near
@@ -1644,6 +1650,8 @@ func _update_wheels(delta: float) -> void:
 	if is_traffic():
 		# No steering input on a kinematic car, so read it back off the turn it is making.
 		steer = clampf(yaw_rate * 2.7 / maxf(absf(speed), 2.5), -0.55, 0.55)
+		if not is_nan(motion_steer):
+			steer = motion_steer
 	var spun := Basis(Vector3.RIGHT, _wheel_spin)
 	# Suspension travel. VehicleBody3D writes each VehicleWheel3D node's own position every
 	# physics step - that is the hub, moving with the spring - so the visible wheel only has to
@@ -1882,6 +1890,7 @@ func _add_body_model(length: float) -> bool:
 	# wheels and all, and taking them out first would move the bottom of the box and change the
 	# car's scale and ride height.
 	_tuck_model_wheels(inst)
+	CarUnderside.attach(inst, path, body_far_distance)
 	_add_cabin_glass(holder, near_meshes)
 	add_child(holder)
 	if BigVehicles.is_big(body_type):
