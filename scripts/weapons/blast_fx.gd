@@ -93,6 +93,8 @@ static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0
 	_ground_kick(node, parent, at, big, push)
 	if not Blast3.this_blast_volume:
 		_fire_roll(parent, at, big, fuel)
+	else:
+		last["volume"] = 1 # Blast3's volume fireball took the rolling fire
 	Blast3.this_blast_volume = false
 	if heavy:
 		_column(parent, at, big, fuel)
@@ -126,6 +128,7 @@ static func _flash(node: Node, parent: Node, at: Vector3, radius: float) -> void
 	parent.add_child(light)
 	light.global_position = at + Vector3.UP * radius * 0.45
 	Blast3.add_fire(light)
+	Blast3.dress_flash(light)
 	var lt := light.create_tween()
 	lt.tween_interval(flash_time * 0.4)
 	lt.tween_property(light, "light_energy", glow_energy, flash_time).set_ease(Tween.EASE_OUT)
@@ -150,9 +153,10 @@ static func _flash(node: Node, parent: Node, at: Vector3, radius: float) -> void
 	flare.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(flare)
 	flare.global_position = at + Vector3.UP * radius * 0.3
-	flare.scale = Vector3.ONE * radius * 2.2
+	var fs := Blast3.flare_scale if Blast3.enabled else 1.0
+	flare.scale = Vector3.ONE * radius * 2.2 * fs
 	var ft := flare.create_tween()
-	ft.tween_property(flare, "scale", Vector3.ONE * radius * 4.2, 0.09).set_ease(Tween.EASE_OUT)
+	ft.tween_property(flare, "scale", Vector3.ONE * radius * 4.2 * fs, 0.09).set_ease(Tween.EASE_OUT)
 	ft.parallel().tween_property(flare, "transparency", 1.0, 0.13).set_ease(Tween.EASE_IN)
 	ft.tween_callback(flare.queue_free)
 	last["flash"] = 1

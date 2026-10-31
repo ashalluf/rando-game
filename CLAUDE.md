@@ -1414,6 +1414,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   fireball) and toss `car_lift_gain` higher. Caps: `max_heavy` in `heavy_window`, `max_columns`,
   `max_debris`, `max_glass_panes`. `EXPLOSIONS_2=0` is the A/B; strips `FX_TIMES=` / `FX_CAR=1`
   on `tools/glshot/fx_shot.gd`; checks `tests/explosions_2_checks.gd`.
+- The blast at arm's length, third pass (2026-10-31, fleet wave 4 "explosions-3", docs/HANDOFF.md
+  "The blast at arm's length"): `Blast3` (`scripts/weapons/blast_3.gd`, hooks in WeaponFX.explosion,
+  BlastFX, BlastAftermath, BlastDebris) - the fireball is a ray-marched VOLUME (`BlastVolume`,
+  `shaders/blast_volume.gdshader`: a box drawn by its back faces with no depth test, a shape field
+  carved by a 48^3 tiling noise, black-body light raw + lit soot through cs_out(), stopped at the
+  scene depth; `max_volumes` 4, past that the cards); `BlastBits` (`scripts/weapons/blast_bits.gd`,
+  one pool under the scene root, two MultiMeshes) - chips and sparks with one ray a tick that bounce,
+  skid and rest; burning debris settles flat; blast_smoke lit by `fire_list()` (the burning fires)
+  plus a night city glow and a sun forward-scatter; `BlastHaze` (`shaders/blast_haze.gdshader`,
+  render_priority MIN, bends only what is behind it); crater maps with soot fingers, a scoured halo
+  and pit embers (an additive quad on Compatibility: a StandardMaterial emission map there lit the
+  whole cut-out white). The web keeps the cards and particles. `EXPLOSIONS_3=0` is the A/B; strips
+  `tools/explosions_2/blast_room_shot.gd` (FULL, CAM_X, LOOK_Y; `BLAST3_DEBUG=1` the volume's
+  opacity); checks `tests/explosions_3_checks.gd`.
 - Street props break by KIND (2026-10-06, docs/HANDOFF.md "Street props that break like GTA"):
   `PropBreak` (`scripts/world/prop_break.gd`) takes `damage_prop()` / `break_prop()`: a hydrant
   leaves a `HydrantGeyser` (13 m column, wet patch, lifts the player) and a flange; a shelter loses

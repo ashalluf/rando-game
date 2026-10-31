@@ -3786,3 +3786,10 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+- **2026-10-31 The fireball is a volume, and what a blast throws lands (explosions-3, HANDOFF "The
+  blast at arm's length").** Cards cannot have depth: forty billboards always read as a pile of
+  discs from close up. Decision: on the desktop the fireball is ONE ray-marched box (26 steps of a
+  tiling 3D noise, black-body light and lit soot), capped at four at once, the cards kept past the
+  cap and on the web. Everything a blast throws that can be seen landing (chips, sparks, burning
+  lumps) is a scripted point with one ray a tick, never a particle that falls through the road.
+  Smoke is lit by the fires actually burning, not by its own age. All behind EXPLOSIONS_3=0.

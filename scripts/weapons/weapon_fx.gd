@@ -2079,7 +2079,9 @@ static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0
 	_blast_dust(node, parent, at, radius, push)
 
 	# 10. Heat shimmer over the fireball. Reads the screen, so the web build skips it.
-	if shimmer_enabled and not _web():
+	if Blast3.haze_on():
+		Blast3.spawn_haze(parent, at, radius, BlastFX.fuel_next)
+	elif shimmer_enabled and not _web():
 		_shimmer(parent, at + Vector3.UP * radius * 0.2, radius)
 
 	# 11. Scorch mark on whatever is under the blast. Decals need a rendering device, so the

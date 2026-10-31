@@ -140,7 +140,7 @@ static var _fires: Array = []
 ## share, the street lamps' glow on its underside after dark, light through it toward the sun.
 static var smoke_young_glow: float = 0.3
 static var smoke_city_glow: Color = Color(0.85, 0.42, 0.16) # linear
-static var smoke_city_gain: float = 0.25
+static var smoke_city_gain: float = 1.0
 static var smoke_forward: float = 1.0
 
 
@@ -193,6 +193,77 @@ static func push_fires(tree: SceneTree) -> void:
 	m.set_shader_parameter("young_glow", smoke_young_glow * hottest)
 	m.set_shader_parameter("forward_scatter", smoke_forward)
 	m.set_shader_parameter("city_glow", Vector3(smoke_city_glow.r, smoke_city_glow.g, smoke_city_glow.b) * smoke_city_gain)
+
+
+# --- The flash's light ----------------------------------------------------------------------------
+
+## The flash at HIGH quality on Forward+ casts shadows (one blast at a time): the light then
+## falls off round the corner of a car or a pillar instead of lighting the wall behind it.
+static var flash_shadows: bool = true
+## The white-hot flare's size against BlastFX's (its 38 m quad whited out a night street).
+static var flare_scale: float = 0.55
+static var _shadow_light: OmniLight3D
+
+
+## Called by BlastFX._flash() for its light.
+static func dress_flash(light: OmniLight3D) -> void:
+	if not enabled or not flash_shadows or WeaponFX._web() or RenderingServer.get_rendering_device() == null:
+		return
+	var env: Environment = light.get_world_3d().environment if light.is_inside_tree() and light.get_world_3d() != null else null
+	if env != null and not env.sdfgi_enabled:
+		return # below HIGH (Quality turns SDFGI off there)
+	if _shadow_light != null and is_instance_valid(_shadow_light) and _shadow_light.is_inside_tree():
+		return
+	light.shadow_enabled = true
+	light.shadow_bias = 0.08
+	light.shadow_normal_bias = 1.5
+	_shadow_light = light
+
+
+# --- The heat haze ------------------------------------------------------------------------------
+
+## The haze over the fire: seconds it lasts (a fuel fire longer), its bend at the base.
+static var haze_seconds: float = 6.0
+static var haze_fuel_seconds: float = 11.0
+static var haze_strength: float = 0.012
+static var _haze_shader: Shader
+static var _haze_quad: QuadMesh
+
+
+## True when the blast's heat shimmer is BlastHaze (WeaponFX then leaves its old sphere out).
+static func haze_on() -> bool:
+	return enabled and not WeaponFX._web() and WeaponFX.shimmer_enabled
+
+
+static func spawn_haze(parent: Node, at: Vector3, radius: float, fuel: bool) -> MeshInstance3D:
+	if _haze_shader == null:
+		_haze_shader = preload("res://shaders/blast_haze.gdshader")
+		_haze_quad = QuadMesh.new()
+		_haze_quad.size = Vector2.ONE
+	var mat := ShaderMaterial.new()
+	mat.shader = _haze_shader
+	mat.set_shader_parameter("noise3d", noise_texture())
+	mat.set_shader_parameter("strength", haze_strength)
+	mat.set_shader_parameter("fade", 0.0)
+	mat.render_priority = Material.RENDER_PRIORITY_MIN
+	var mi := MeshInstance3D.new()
+	mi.name = "BlastHaze"
+	mi.mesh = _haze_quad
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(mi)
+	var w := radius * (1.7 if fuel else 1.3)
+	var h := radius * (3.6 if fuel else 2.8)
+	mi.global_transform = Transform3D(Basis.from_scale(Vector3(w, h, 1.0)), at - Vector3.UP * 0.3)
+	# Its bounds: the column whichever way it turns (the vertex shader turns it).
+	mi.custom_aabb = AABB(Vector3(-0.6, -0.6, -0.6 * w), Vector3(1.2, 1.8, 1.2 * w))
+	var life := haze_fuel_seconds if fuel else haze_seconds
+	var tw := mi.create_tween()
+	tw.tween_property(mat, "shader_parameter/fade", 1.0, 0.25)
+	tw.tween_interval(life * 0.4)
+	tw.tween_property(mat, "shader_parameter/fade", 0.0, life * 0.6).set_ease(Tween.EASE_IN)
+	tw.tween_callback(mi.queue_free)
+	return mi
 
 
 # --- The crater's maps -------------------------------------------------------------------------

@@ -2689,6 +2689,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The golden-hour review (tests/golden_hour_review_checks.gd, GoldenHour): the sky's twilight
 	# ramp, the blue zenith at sunset, the eased grade, no pop 17:00-19:30, the A/B.
 	load("res://tests/golden_hour_review_checks.gd").new().run(self, city)
+	# The explosion's third pass (tests/explosions_3_checks.gd, Blast3): the volume fireball, bits
+	# that land, debris that settles, fire-lit smoke, the haze, the scorch's maps.
+	await load("res://tests/explosions_3_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
