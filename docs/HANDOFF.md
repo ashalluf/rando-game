@@ -22434,3 +22434,15 @@ linear on both renderers, no sampler), no shadow, no collision:
 Look with `tools/glshot/building_shot.gd` (`CAM_POS` / `CAM_LOOK`, `FACADE_MID=0` the before) and
 find seeds with `tools/building_mid_detail/probe.gd` (triangles by kind per seed). Checks:
 `tests/building_mid_detail_checks.gd`.
+
+**Frame cost** (opengl3, `still_shot.gd DIFF=1`, FACADE_MID=0 vs on, same frame): street_noon refcam
+6,378,338 tris / 2,978 draws both ways (downtown core: no residential wall in range); golden_aerial
+3,883,283 / 1,495 both ways (140 m up, past the 92 m reach); Westlake south of MacArthur Park
+(300, 6 m, 560, looking south between two balcony blocks) 5,974,427 -> 6,002,939 tris (+0.5 %),
+2,842 -> 2,846 draws, shadows unchanged. A dressed building is 1-6k triangles (12 test blocks:
+33k in all). **Not done / not verified:** Forward+ (lavapipe) not shot - the shader is linear on
+both renderers through color_space.gdshaderinc, but the leaf cards' BACKLIGHT and the rooms' night
+glow are unjudged on the Mac; open windows' rooms do not match the traced room the shader draws in
+the neighbouring panes; the gate's one failure on this merge, traffic_motion_checks "no tick turns the
+car by more than a smooth turn would" (worst ~130 deg), is intermittent and fails with FACADE_MID=0 too
+(1 of 2 runs alone) - it is the traffic-motion branch's, left for gate-flakes.
