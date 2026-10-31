@@ -89,9 +89,24 @@ const BLUFF_DIRT := Color(0.22, 0.19, 0.12, 0.0)
 
 
 static func bluff_far(p: Vector3, seed_value: int) -> Color:
-	var c := Vector2i(int(floor(p.x / 9.0)), int(floor(p.z / 9.0)))
-	var h := float(hash([seed_value, c.x, c.y, "bluff_far"]) % 1000) / 999.0
-	var k := float(hash([seed_value, int(floor(p.x / 3.0)), int(floor(p.z / 3.0)), "bluff_fine"]) % 1000) / 999.0
-	var plant := BLUFF_SCRUB.lerp(BLUFF_ICE, k)
-	# About two thirds planted; the rest bare dirt, a little darker than the old flat tan.
-	return plant if h < 0.68 else BLUFF_DIRT.lerp(plant, 0.35 * k)
+	var cover := _value_noise(Vector2(p.x, p.z) / 14.0, seed_value)
+	var tone := _value_noise(Vector2(p.x, p.z) / 5.0, seed_value + 7)
+	var plant := BLUFF_SCRUB.lerp(BLUFF_ICE, tone)
+	# About two thirds planted, in soft-edged patches; the rest bare dirt.
+	return plant.lerp(BLUFF_DIRT, smoothstep(0.55, 0.78, cover))
+
+
+## Value noise 0..1 on a unit lattice (bilinear, smoothstepped), hashed with the seed.
+static func _value_noise(q: Vector2, seed_value: int) -> float:
+	var i := Vector2i(int(floor(q.x)), int(floor(q.y)))
+	var f := q - Vector2(i)
+	f = f * f * (Vector2(3.0, 3.0) - 2.0 * f)
+	var a := _h01(seed_value, i.x, i.y)
+	var b := _h01(seed_value, i.x + 1, i.y)
+	var c := _h01(seed_value, i.x, i.y + 1)
+	var d := _h01(seed_value, i.x + 1, i.y + 1)
+	return lerpf(lerpf(a, b, f.x), lerpf(c, d, f.x), f.y)
+
+
+static func _h01(seed_value: int, x: int, y: int) -> float:
+	return float(hash([seed_value, x, y, "bluff_far"]) % 10007) / 10006.0

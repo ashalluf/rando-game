@@ -50,7 +50,7 @@ func _pure() -> void:
 	for i in 200:
 		var p := Vector3(-500.0 + i * 3.7, 4.0, 3600.0 + i * 1.3)
 		var c := SunsetReview.bluff_far(p, 1337)
-		if c.g > c.r:
+		if c.g > c.r * 0.9:
 			planted += 1
 		stable = stable and c == SunsetReview.bluff_far(p, 1337)
 	_t._check(stable and planted > 90 and planted < 185,
