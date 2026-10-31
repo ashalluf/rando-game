@@ -4,7 +4,8 @@ extends RefCounted
 ## city as it stands, never where an earlier file left the player.
 ##   - HorizonTiles cuts a mesh into tiles holding exactly its triangles, each inside its box;
 ##   - the horizon plane and the far ring are drawn by those tiles, every triangle once;
-##   - a far-city tile node is hidden only when every block in it is dissolved, and shown when any is not.
+##   - a far-city tile node is hidden only when every block in it is dissolved, and shown when any is not;
+##   - the knee-high plants are one surface per material, the palms' shadow twins on the trees' rule.
 
 var _t: Node
 
@@ -14,6 +15,8 @@ func run(t: Node, city: Node3D) -> void:
 	_tiles_exact()
 	_horizon(city)
 	_far_cover(city)
+	_plants()
+	_palm_twins(city)
 
 
 ## Every triangle of a plane comes back in exactly one tile, by its vertices' positions; every
@@ -116,3 +119,36 @@ func _far_cover(city: Node3D) -> void:
 			if (list[k] as Node3D).visible != want[k]:
 				bad += 1
 	_t._check(bad == 0 and nodes > 0, "perf-audit-4: far-city tile nodes are hidden exactly when everything they draw is dissolved (%d of %d hidden, %d wrong)" % [hidden, nodes, bad])
+
+
+## Every knee-high scanned plant draws one surface per material (PropFactory.plant_merge).
+func _plants() -> void:
+	var worst := ""
+	for spec: Array in [["model_grass_clump", PropFactory.GRASS_CLUMPS], ["model_flower", PropFactory.FLOWERS],
+			["model_bush", PropFactory.BUSHES], ["model_plant", PropFactory.PLANTS]]:
+		for v in (spec[1] as Array).size():
+			var m: Mesh = PropFactory.call(spec[0], v)
+			var mats := {}
+			for s in m.get_surface_count():
+				mats[m.surface_get_material(s)] = true
+			if PropFactory.plant_merge and m.get_surface_count() > mats.size():
+				worst = "%s (%d surfaces, %d materials)" % [spec[1][v], m.get_surface_count(), mats.size()]
+	_t._check(worst == "", "perf-audit-4: the knee-high plants draw one surface per material%s" % (", not " + worst if worst != "" else ""))
+
+
+## A streamed palm batch's shadow twin runs at the trees' shadow LOD scale of the batch's bias.
+func _palm_twins(city: Node3D) -> void:
+	var seen := 0
+	var bad := 0
+	for n in city.find_children("Batch_palm_*", "MultiMeshInstance3D", true, false):
+		var node := n as MultiMeshInstance3D
+		if not node.has_meta("shadow_twin"):
+			continue
+		var twin := node.get_meta("shadow_twin") as MultiMeshInstance3D
+		seen += 1
+		var want := node.lod_bias * (FoliageLod.SHADOW_LOD_SCALE if node.multimesh.mesh.has_meta("palm_ladder") else 1.0)
+		if not is_equal_approx(twin.lod_bias, want):
+			bad += 1
+	var tagged := PropFactory.palm(0).has_meta("palm_ladder")
+	_t._check(bad == 0 and tagged == (OS.get_environment("PALM_SHADOW_LOD") != "0"),
+		"perf-audit-4: palm shadow twins pick their LOD at the trees' shadow scale (%d batches, %d wrong)" % [seen, bad])
