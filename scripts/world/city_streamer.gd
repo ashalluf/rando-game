@@ -1036,7 +1036,7 @@ func _build_vignette() -> void:
 	mat.shader = load("res://shaders/vignette.gdshader")
 	mat.set_shader_parameter("strength", vignette_strength)
 	mat.set_shader_parameter("grain", film_grain)
-	mat.set_shader_parameter("fringe", lens_fringe)
+	mat.set_shader_parameter("fringe", lens_fringe * GoldenAerial.FRINGE_GAIN if GoldenAerial.enabled else lens_fringe)
 	rect.material = mat
 	layer.add_child(rect)
 	add_child(layer)

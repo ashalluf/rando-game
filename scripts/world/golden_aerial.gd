@@ -14,6 +14,13 @@ class_name GoldenAerial
 ## - The sky's mid deck (sky.gdshader, painted path and a thin veil next to the volume) was one
 ##   smooth fbm field cut by a threshold: one soft grey blob a quarter of the sky across. It is a
 ##   field of small cloudlets now (`mid_cells`), lit by the low sun like the cirrus.
+## - Every far roof antenna (16 cm across, drawn at least `mast_min_px` wide so it is not lost) was
+##   drawn at full brightness at that width: a forest of pale toothpicks over the far city. Its
+##   albedo now goes down by the share of the width it really covers (building_lod.gdshader
+##   `mast_cover_dim`): a thin dark line, as a lattice mast is against the sky.
+## - The lens's colour fringing split every fine bright line near the frame's corners into red and
+##   cyan two pixels apart (the freeway's lane lines from the air): CLAUDE.md's rule is that you
+##   cannot point at it. Halved (`FRINGE_GAIN`).
 ## GOLDEN_AERIAL=0 in the environment is the A/B: every number as it was.
 
 static var enabled: bool = OS.get_environment("GOLDEN_AERIAL") != "0"
@@ -26,6 +33,10 @@ const FILL_TOP := 0.75
 const FILL_TOP_LEVEL := 0.85
 ## The painted band's sun follows the real light's energy relative to noon's, never above it.
 const SUN_GAIN_MIN := 0.25
+## building_lod.gdshader's `mast_cover_dim`.
+const MAST_DIM := 0.85
+## CityStreamer.lens_fringe's share kept.
+const FRINGE_GAIN := 0.5
 
 
 static func _lum(c: Color) -> float:

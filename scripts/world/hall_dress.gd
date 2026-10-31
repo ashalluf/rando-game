@@ -21,7 +21,7 @@ static func dress(g: LandmarkGeo, hall: Rect2, y0: float, h: float, monitors: Ar
 	var roof_key := key + "_roof"
 	var unit_key := key + "_unit"
 	var trim_key := key + "_trim"
-	g.use(roof_key, LandmarkMats.plain(roof_key, Color(0.60, 0.60, 0.585), 0.88, 0.0))
+	g.use(roof_key, LandmarkMats.plain(roof_key, Color(0.47, 0.47, 0.455), 0.88, 0.0))
 	g.use(unit_key, LandmarkMats.plain(unit_key, Color(0.52, 0.53, 0.52), 0.55, 0.35))
 	g.use(trim_key, LandmarkMats.plain(trim_key, Color(0.42, 0.43, 0.43), 0.75, 0.1))
 	var top := y0 + h + 0.035

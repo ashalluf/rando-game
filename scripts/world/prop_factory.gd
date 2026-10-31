@@ -2118,6 +2118,7 @@ static func building_lod_material(far_city: bool = false) -> ShaderMaterial:
 	mat.set_shader_parameter("facade_variety", FacadeVariety.enabled)
 	mat.set_shader_parameter("mid_city", MidCity.enabled)
 	mat.set_shader_parameter("house_nights", HouseNights.enabled)
+	mat.set_shader_parameter("mast_cover_dim", GoldenAerial.MAST_DIM if GoldenAerial.enabled else 0.0)
 	_cache[key] = mat
 	return mat
 

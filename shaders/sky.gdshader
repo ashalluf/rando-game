@@ -104,7 +104,7 @@ uniform float cloud_speed = 0.006;
 uniform float mid_amount : hint_range(0.0, 1.0) = 0.5;
 /// The mid deck as cloudlets (1) or the old smooth field (0, GOLDEN_AERIAL=0), and their scale.
 uniform float mid_cells : hint_range(0.0, 1.0) = 1.0;
-uniform float mid_cell_scale = 14.0;
+uniform float mid_cell_scale = 21.0;
 uniform float cirrus_amount : hint_range(0.0, 1.0) = 0.45;
 uniform float cloud_detail : hint_range(0.0, 1.0) = 1.0;
 uniform vec3 cloud_color : source_color = vec3(1.0, 1.0, 1.0);
@@ -1220,7 +1220,7 @@ void sky() {
 						vec2 d = g + 0.15 + hh * 0.7 - cf;
 						float r = grow * (0.7 + 0.6 * hash12(ci + g + 31.7));
 						float q = 1.0 - length(d) / r + ragged;
-						puff = max(puff, smoothstep(0.0, 0.45, q));
+						puff = max(puff, smoothstep(0.0, 0.6, q));
 						core = max(core, smoothstep(0.3, 0.9, q));
 					}
 				}
@@ -1247,7 +1247,7 @@ void sky() {
 			}
 			mcol = mix(mcol, mcol * night_cloud_light * 1.15 + night_glow, m_night);
 			// Next to the cumulus volume the painted sheet reads as a smear: keep it thin there.
-			col = mix(col, mcol, mden * (volume ? 0.2 : 0.70));
+			col = mix(col, mcol, mden * (volume ? 0.2 : mix(0.70, 0.55, mid_cells)));
 		}
 	}
 

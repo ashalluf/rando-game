@@ -209,6 +209,9 @@ uniform float small_plant_density = 0.45;
 // out), and its aviation beacon glows this bright after dark (the near one is an unshaded red).
 uniform float mast_min_px = 0.75;
 uniform float mast_max_width = 3.0;
+// How far a widened mast's albedo goes down by the share of its drawn width it really covers
+// (0 off, GOLDEN_AERIAL=0): drawn at full brightness, every far antenna was a pale toothpick.
+uniform float mast_cover_dim = 0.0;
 // How bright a lit office and an open shop glow on a coded part: what building.gdshader's traced
 // rooms come to on average (room paint ~0.4 x its lamps ~0.6 x lit_strength 0.8 x 2.0; a shop at
 // x 2.5 in its own tone). Measured against it with tools/glshot/far_building_shot.gd NIGHT=1 at
@@ -231,6 +234,8 @@ varying flat vec3 codes0;
 varying flat vec3 codes1;
 // The instance's true world XZ (an aviation beacon's flash phase).
 varying flat vec2 inst_xz;
+// A widened mast's true share of the width it is drawn at (GoldenAerial: 1 everywhere else).
+varying float mast_cover;
 
 
 float hash21(vec2 p) {
@@ -381,6 +386,7 @@ void print_plant(vec2 p, float edge, float bs, float density, vec3 sun_n, float 
 
 
 void vertex() {
+	mast_cover = 1.0;
 	// Per-instance dissolve. The far city (Skyline) writes each block's visibility into its
 	// instances' colour alpha while a chunk takes the block over or hands it back; the LOD chunks'
 	// own boxes always carry 1. At zero the box collapses to a point, so a block that a chunk is
@@ -456,6 +462,7 @@ void vertex() {
 			float mpp = 2.0 * d / max(PROJECTION_MATRIX[1][1] * vh, 1.0);
 			float w = min(mast_min_px * mpp, mast_max_width);
 			v_local.xz *= vec2(max(box_size.x, w) / max(box_size.x, 1e-4), max(box_size.z, w) / max(box_size.z, 1e-4));
+			mast_cover = clamp(box_size.x / max(w, 1e-4), 0.0, 1.0);
 		}
 		world = (MODEL_MATRIX * vec4(v_local, 1.0)).xyz;
 		// The renderer's own normal transform, as before skip_vertex_transform: a block plate's
@@ -1792,6 +1799,9 @@ void fragment() {
 	// to the same (HANDOFF 9au).
 	vec3 sky_rim = cs_as_uniform(sky_tint.rgb);
 	emission = mix(emission, sky_rim, rim);
+	// A mast seen at a fraction of a pixel is mostly the sky or the roofs behind it: a thin dark line,
+	// not a lit white one.
+	albedo *= mix(1.0, sqrt(mast_cover), mast_cover_dim);
 	ALBEDO = albedo;
 	ROUGHNESS = rough;
 	METALLIC = 0.0;
