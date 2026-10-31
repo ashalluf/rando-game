@@ -154,7 +154,7 @@ static func atlas_textures() -> Array:
 	for k in 2:
 		var maps: Array = BlastAftermath.crater_textures(k)
 		out.append([maps[0], maps[1]])
-	for kind in 5:
+	for kind in 6:
 		var tex: Array = WeaponFX.blood_textures(kind)
 		out.append([tex[0], tex[1], tex[2]])
 	var lights := CarLights.instance()

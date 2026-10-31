@@ -37,6 +37,13 @@ uniform float rim_tint = 0.6;
 uniform float crush = 0.3;
 
 #include "res://shaders/wet_surface.gdshaderinc"
+#include "res://shaders/blood_spatter.gdshaderinc"
+
+void vertex() {
+	// blood_spatter.gdshaderinc: the posed body in skeleton space, where HeroBlood puts the spatter.
+	v_sp_p = VERTEX;
+	v_sp_n = NORMAL;
+}
 
 void fragment() {
 	vec3 base = texture(albedo_tex, UV).rgb * albedo_color.rgb;
@@ -64,5 +71,13 @@ void fragment() {
 		ALBEDO = mix(ALBEDO, base * 0.6, wet);
 		ROUGHNESS = mix(ROUGHNESS, 0.45, wet);
 		RIM *= 1.0 - 0.6 * wet;
+	}
+	if (spat_count > 0.5) {
+		// Blood spattered on him (HeroBlood): drops of it, wet and dark, drying matt.
+		float sp = sp_cover(v_sp_p, v_sp_n);
+		ALBEDO = mix(ALBEDO, mix(spat_fresh, spat_old, spat_dry), sp);
+		ROUGHNESS = mix(ROUGHNESS, mix(0.1, 0.62, spat_dry), sp);
+		NORMAL_MAP_DEPTH *= 1.0 - 0.6 * sp;
+		RIM *= 1.0 - sp;
 	}
 }

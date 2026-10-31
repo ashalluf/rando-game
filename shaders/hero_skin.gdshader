@@ -64,6 +64,13 @@ uniform float backlight_gain = 1.0;
 uniform float wet_gain = 0.0;
 uniform float wet_hold = -1.0;
 #include "res://shaders/wet_surface.gdshaderinc"
+#include "res://shaders/blood_spatter.gdshaderinc"
+
+void vertex() {
+	// blood_spatter.gdshaderinc: the posed body in skeleton space, where HeroBlood puts the spatter.
+	v_sp_p = VERTEX;
+	v_sp_n = NORMAL;
+}
 
 void fragment() {
 	float wet = (wet_hold >= 0.0 ? wet_hold : (ws_on() ? ws_wet(0.5) : 0.0)) * wet_gain;
@@ -100,4 +107,11 @@ void fragment() {
 	// it there (the Compatibility renderer, with no transmittance, keeps HeroLook's 0.3).
 	float bl_keep = mix(1.0, (CURRENT_RENDERER == RENDERER_COMPATIBILITY) ? 0.6 : backlight_fwd, face2);
 	BACKLIGHT = backlight_color * thin * backlight_gain * bl_keep;
+	if (spat_count > 0.5) {
+		// Blood spattered on him (HeroBlood): drops of it, wet and dark, drying matt.
+		float sp = sp_cover(v_sp_p, v_sp_n);
+		ALBEDO = mix(ALBEDO, mix(spat_fresh, spat_old, spat_dry), sp);
+		ROUGHNESS = mix(ROUGHNESS, mix(0.1, 0.62, spat_dry), sp);
+		NORMAL_MAP_DEPTH *= 1.0 - 0.6 * sp;
+	}
 }
