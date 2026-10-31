@@ -385,6 +385,11 @@ func block(ix: int, iz: int) -> Dictionary:
 			kind = BlockKind.SCHOOL
 		elif grounds != "":
 			kind = BlockKind.PARK
+	# A block on a home hill's slope is lots (LaHills.home_block(): houses up the knoll), after
+	# every roll above, so the block seed and every lot elsewhere are what they were.
+	if macro and macro.la_hills and LaHills.enabled and macro.la_hills.home_block(rect) and not Landmarks.claims(rect):
+		kind = BlockKind.BUILDINGS
+		grounds = ""
 	# A hospital campus (Hospital: pure geometry of the block and the seed), after every roll above.
 	var hospital := macro != null and Hospital.claims_block(self, ix, iz)
 	if hospital:
@@ -528,6 +533,9 @@ func road_open(axis: int, index: int, along: float) -> bool:
 		return false
 	# Nor along a street closed for a film shoot (FilmShoot: barricades at both ends).
 	if macro and FilmShoot.enabled and FilmShoot.road_closed(self, axis, index, along):
+		return false
+	# Nor up a hill street too steep to drive: a public stairway (LaHills).
+	if macro and LaHills.enabled and LaHills.road_closed(self, axis, index, along):
 		return false
 	# The freight line closes the avenue through its yard and severs the streets its ramps cut
 	# (FreightRail.road_open()).
@@ -744,6 +752,10 @@ func _lot_grid(ix: int, iz: int, dropped: Variant) -> Array[Dictionary]:
 	var lot_range: Vector2 = params.lot
 	if macro and params.has("core_lot"):
 		lot_range = lot_range.lerp(params.core_lot, macro.skyline_boost(rect.get_center()))
+	# A home hill's slope is close-packed small lots, a house on each stepping up the knoll (LaHills).
+	var hill_homes := macro != null and macro.la_hills != null and LaHills.enabled and macro.la_hills.home_block(rect)
+	if hill_homes:
+		lot_range = LaHills.HOME_LOT
 	var lot_w := rng.randf_range(lot_range.x, lot_range.y)
 	var lot_d := rng.randf_range(lot_range.x, lot_range.y)
 	var nx := maxi(1, floori(inner.size.x / lot_w))
@@ -752,6 +764,9 @@ func _lot_grid(ix: int, iz: int, dropped: Variant) -> Array[Dictionary]:
 	var gap_range: Vector2 = params.gap
 	# Pocket gardens thin out toward the core (the roll is made either way, so nothing moves).
 	var courtyard: float = float(params.courtyard)
+	if hill_homes:
+		gap_range = LaHills.HOME_GAP
+		courtyard = LaHills.HOME_COURTYARD
 	if macro and params.has("core_courtyard"):
 		courtyard = lerpf(courtyard, float(params.core_courtyard), macro.skyline_boost(rect.get_center()))
 	var blocked: Array[Rect2] = []

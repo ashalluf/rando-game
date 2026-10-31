@@ -4272,6 +4272,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   scanned bark reads its ORM occlusion. No mesh, roll or ladder change. Stills
   `tools/trees_closeup/tree_shot.gd` (both renderers), streets `tools/trees_closeup/probe.gd`;
   checks `tests/trees_closeup_checks.gd`.
+- Los Angeles' hills (2026-10-31, docs/HANDOFF.md "Los Angeles' hills"): `LaHills`
+  (`scripts/world/la_hills.gd`, `MacroMap.la_hills`) is a table of named hills (convex outline,
+  height, per-edge faces) added to `_relief_natural()`'s BASE and held level over landmark discs;
+  downtown towers take `LaHills.landmark_lift()`. Street stretches over `STAIR_GRADE` (30 %) are
+  stairways (`road_closed()` in `CityPlan.road_open()`, `LaHillsBuild.stretch()` in `_build_roads()`);
+  `LaHillsBuild.kerb_walls()` retaining walls; `LaHillsIncline` the Paloma Flight on Bunker Hill (the lots it crosses built either side, `pieces()`); `LaHills.home_block()` makes a home hill's blocks close-packed lots and `LaHillsHomes` stands their houses on stilts with kerb garages and stairs.
+  `homes` hills are SUBURBS. `LA_HILLS=0` is the A/B; probes `tools/la_hills/probe.tscn`,
+  `map_probe.tscn`; checks `tests/la_street_hills_checks.gd`.
 - Trees under light (2026-10-31, docs/HANDOFF.md "Trees under light"): `TreeLight`
   (`scripts/world/tree_light.gd`, marked from `TreesCloseup.mark()` / `dress()`) and
   `shaders/tree_light.gdshaderinc` in foliage_tex / foliage / la_tree: in a directional shadow pass

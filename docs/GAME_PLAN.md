@@ -3901,6 +3901,15 @@ none of either.
   just before the knock (Pedestrian.shot, Vehicle's bumper), so no knock() signature changes; the cap,
   range and freeze stay RagdollJoints'. RAGDOLL_FEEL=0 is the A/B.
 
+
+- **2026-10-31 Los Angeles' hills (la-street-hills, HANDOFF "Los Angeles' hills").** The basin stays
+  flat; named hills (Bunker Hill, Echo Park, Elysian Heights, Solano Canyon, Boyle Heights, San
+  Pedro, a skirt round the Baldwin Hills oil field) are a DATA TABLE folded into the relief's base, held
+  level under every landmark. A street stretch steeper than 30 % is a public stairway closed to cars;
+  everything driveable stays at or under 30 %. Hillside neighbourhoods are houses. LA_HILLS=0 is the A/B.
+  Lead review the same day: the hills are BUILT UP, not lawn - every block on a home hill's slope is
+  close-packed lots of houses (stilts, garages at the kerb, stairs to the door, retaining walls), and
+  Bunker Hill's towers stand either side of the incline's narrow planted strip.
 - **2026-10-31 The Mac is checked with a button, not a Terminal (HANDOFF "The verify pack",
   docs/VERIFY.md).** Every fleet picture is the Compatibility renderer on Linux; nobody had seen
   wave 3 on Forward+. The owner plays the Mac app with no Terminal, so the check is a pause-menu

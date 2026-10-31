@@ -2436,6 +2436,9 @@ func _build_roads(block: Dictionary) -> void:
 	elif FarmersMarket.paves(plan, ix, iz, CityPlan.AXIS_X) or FilmShoot.paves(plan, ix, iz, CityPlan.AXIS_X):
 		# A farmers' market's street is closed to cars but still a street (FarmersMarket).
 		_road_slab(Rect2(rx - wx * 0.5, rect.position.y, wx, rect.size.y), asphalt, look_x.material)
+	elif LaHills.is_stairs(plan, CityPlan.AXIS_X, ix + 1, iz):
+		# Too steep to drive: a public stairway up the hill (LaHills).
+		LaHillsBuild.stretch(self, CityPlan.AXIS_X, Rect2(rx - wx * 0.5, rect.position.y, wx, rect.size.y))
 	# Horizontal road on the +Z side, spanning this block's X range.
 	var look_z := _road_look(CityPlan.AXIS_Z, iz + 1, params)
 	var rz := plan.road_pos(CityPlan.AXIS_Z, iz + 1)
@@ -2445,9 +2448,13 @@ func _build_roads(block: Dictionary) -> void:
 		_road_slab(Rect2(rect.position.x, rz - wz * 0.5, rect.size.x, wz), asphalt, look_z.material)
 	elif FarmersMarket.paves(plan, ix, iz, CityPlan.AXIS_Z) or FilmShoot.paves(plan, ix, iz, CityPlan.AXIS_Z):
 		_road_slab(Rect2(rect.position.x, rz - wz * 0.5, rect.size.x, wz), asphalt, look_z.material)
+	elif LaHills.is_stairs(plan, CityPlan.AXIS_Z, iz + 1, ix):
+		LaHillsBuild.stretch(self, CityPlan.AXIS_Z, Rect2(rect.position.x, rz - wz * 0.5, rect.size.x, wz))
 	# The intersection square at the +X +Z corner.
 	if plan.road_open(CityPlan.AXIS_X, ix + 1, rz) or plan.road_open(CityPlan.AXIS_Z, iz + 1, rx):
 		_road_slab(Rect2(rx - wx * 0.5, rz - wz * 0.5, wx, wz), asphalt, look_x.material)
+	elif LaHills.is_stairs(plan, CityPlan.AXIS_X, ix + 1, iz) or LaHills.is_stairs(plan, CityPlan.AXIS_Z, iz + 1, ix):
+		LaHillsBuild.junction(self, Rect2(rx - wx * 0.5, rz - wz * 0.5, wx, wz))
 	if level == Level.FULL:
 		if open_x:
 			_mark_road(true, rx, wx, rect.position.y, rect.end.y, look_x)
@@ -2700,6 +2707,8 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 		steps.append(func() -> void: DecoBoulevard.block_step(self, block))
 		# The kerb: the pavement's cut ring, its paint and house numbers (Kerbs; hash-seeded).
 		steps.append_array(Kerbs.steps(self, block))
+		# Retaining walls along a hillside block's yards (LaHillsBuild; hash-seeded, after the lots).
+		steps.append(func() -> void: LaHillsBuild.kerb_walls(self, block))
 		# Broadway's goods on the pavement and its street clock (Broadway; hash-seeded).
 		if Broadway.block_side(plan, ix, iz) != 0:
 			steps.append(func() -> void: Broadway.block_step(self, rect))
@@ -3188,6 +3197,19 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	if CornerStore.claims(plan, ix, iz, lot):
 		CornerStore.build_lot(self, lot)
 		return
+	# Bunker Hill's incline and its plaza (LaHillsIncline: the strip mid-block up the east face).
+	if LaHillsIncline.claims(plan, lot):
+		var rest := LaHillsIncline.build_lot(self, lot)
+		if rest.is_empty():
+			return
+		# Either side of the strip the lot is built on as ordinary lots (towers and mid-rises
+		# stepping down the face); a second piece on a private rng, so the chunk's stream is unmoved.
+		for k in range(1, rest.size()):
+			var prng := RandomNumberGenerator.new()
+			prng.seed = int(rest[k].seed)
+			_build_lot(rest[k], params, prng)
+		lot = rest[0]
+		center = lot.center
 	var fill := LotFill.wanted(self, district)
 	# A surface car park (CityPlan.lots() "parking"; the pad roll above is still made).
 	if fill and lot.get("parking", false) and not StarBoulevard.strip_lot(plan, ix, iz, lot):
@@ -3337,6 +3359,8 @@ func _build_house(lot: Dictionary, district: int) -> void:
 	# A timber frame going up on the house's own plan (Construction; a hash of seed + lot).
 	if not Construction.build_house(self, lot, house):
 		HouseKit.build(self, house)
+		# On a hillside lot: stilts, a garage at the kerb, stairs to the door (LaHillsHomes; no roll).
+		LaHillsHomes.dress(self, house)
 	UtilityPoles.note_house(self, house)
 	building_count += 1
 	if YardFill.records(self, district):

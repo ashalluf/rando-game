@@ -2718,6 +2718,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The night flight (tests/night_flight_checks.gd, NightFlight): platoons, the streets' rank, junction
 	# pools, the beams' near fade, the A/B.
 	load("res://tests/night_flight_checks.gd").new().run(self, city)
+	# Los Angeles' hills (tests/la_street_hills_checks.gd, LaHills): Bunker Hill, the grades, the stairways.
+	load("res://tests/la_street_hills_checks.gd").new().run(self, city)
 	# The verify pack (tests/mac_verify_pack_checks.gd, VerifyPack): the camera table, the button,
 	# the folder, a one-camera run that puts everything back.
 	await load("res://tests/mac_verify_pack_checks.gd").new().run(self, city)

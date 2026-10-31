@@ -327,7 +327,7 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, plan: C
 			CivicSites.build(lm.id, parent, statics, plan, detailed)
 		_:
 			if LandmarkDowntown.is_tower(lm.id):
-				LandmarkDowntown.build(lm, parent, statics, detailed)
+				LandmarkDowntown.build(lm, parent, statics, detailed, LaHills.landmark_lift(plan, lm.anchor))
 			elif Lighthouses.is_piece(lm.id):
 				Lighthouses.build(lm, parent, statics, plan, detailed)
 			elif OilIslands.is_island(lm.id):
