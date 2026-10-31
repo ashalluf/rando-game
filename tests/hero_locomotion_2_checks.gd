@@ -92,8 +92,11 @@ func run(t: Node, player: Node3D) -> void:
 		await _t.get_tree().process_frame
 		var w: PackedFloat32Array = loco.get("gait_w")
 		for k in 3:
-			if absf(w[k] - prev_w[k]) > worst_w:
-				worst_w = absf(w[k] - prev_w[k])
+			# What shows: a change in the mix counts as much as the gait is on screen (once it has
+			# faded out the gait's speed drops back to standing unseen).
+			var seen := absf(w[k] - prev_w[k]) * float(loco.get("weight"))
+			if seen > worst_w:
+				worst_w = seen
 				worst_at = "frame %d speed %.2f %s -> %s" % [i, speed, prev_w, w]
 		prev_w = w
 		if i == 23: # 0.08 s after the speed passes 0.4 m/s
