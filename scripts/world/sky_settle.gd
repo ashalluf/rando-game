@@ -49,7 +49,11 @@ func setup(env: Environment, day: Node) -> void:
 	_day = day
 	if _env and _env.sky:
 		_sky_mat = _env.sky.sky_material as ShaderMaterial
+		# The mode to come back to. Never QUALITY: another settle on the same Sky resource (a
+		# second DayNight in a tool or a check) may be holding it there right now.
 		_mode = _env.sky.process_mode
+		if _mode == Sky.PROCESS_MODE_QUALITY:
+			_mode = Sky.PROCESS_MODE_INCREMENTAL
 	# The pause menu and photo mode change the hour and the weather with the tree paused.
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	process_priority = 1000
@@ -88,10 +92,16 @@ func _process(_delta: float) -> void:
 	if _hold > 0:
 		_hold -= 1
 		if not _held:
-			_mode = _env.sky.process_mode
 			_env.sky.process_mode = Sky.PROCESS_MODE_QUALITY
 			_held = true
 			settles += 1
 	elif _held:
+		_env.sky.process_mode = _mode as Sky.ProcessMode
+		_held = false
+
+
+## The Sky is a shared resource (city.tscn's): never leave it held when this city goes.
+func _exit_tree() -> void:
+	if _held and _env and _env.sky:
 		_env.sky.process_mode = _mode as Sky.ProcessMode
 		_held = false
