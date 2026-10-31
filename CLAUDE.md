@@ -420,6 +420,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   under overcast. Look in seconds with `tools/sky/sky_shot.gd` (the city's Environment and
   DayNight, no city; HOUR, YAW, PITCH, MOONAGE, COVERAGE, CONTRAILS, DOME, DETAIL=0 the painted
   path, BENCH). Checks: `tests/sky_checks.gd`.
+- The day sky (wave 4, docs/HANDOFF.md "The day sky"): `SkyDay` (`scripts/world/sky_day.gd`,
+  one hook in DayNight._apply()) hands sky.gdshader `sky_day`, a weight on the CLOCK: exactly 0 at
+  and outside 09:00 / 16:00 (bit-identical, proved with `tools/sky_day/shots.sh` + `diff.py`), full
+  10:00-15:00, none under rain / marine. Every day block is `if (sky_day > 0.0)` (the checks count
+  the reads outside a gate): the blue lower and the haze band thinner (horizon colour untouched),
+  cirrus as wisps, the mid deck thinner, a tight white sun halo and a white half-degree disc, no
+  crepuscular blot, cumulus tops near white with cooler bases, far clouds hazed sooner, fewer
+  fragments; `day_*` uniforms are the knobs. `SKY_DAY=0` is the A/B; checks `tests/sky_day_checks.gd`.
 - The sunset (2026-10-30, docs/HANDOFF.md "The Los Angeles sunset"): `SunsetSky`
   (`scripts/world/sunset_sky.gd`, one hook in DayNight._apply()) hands sky.gdshader a `sunset`
   weight on the sun's elevation alone (0 above ~19 degrees and below ~13 under, 0 in overcast:

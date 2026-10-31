@@ -23401,3 +23401,56 @@ lit by the moon only; not this task's grade); the swash's white "line" along the
 the sheet mirroring the night sky and could be dimmer; the pier's own dark structure is not traced into
 the day mirror (Forward+ SSR draws it on the Mac; Compatibility shows sky); the coaster and the arcade
 are not in the night mirror; no Mac stills.
+
+## 9jg. The day sky: 09:00-16:00 from the street and the air (fleet wave 4, `wt/sky-day-review`)
+
+The task: the daytime sky at street level and from the air (sun disc and glare, the horizon against
+the buildings, the cumulus at noon, the haze gradient), changing ONLY 09:00-16:00 and proving every
+other hour bit-identical. Stills: `shots/sky-day-review` (README there).
+
+**What read fake (main, Forward+ sky_shot and the refcams):**
+1. The cirrus: one long-streaked veil at 45 % cover. It whitened the whole upper sky (30 degrees up at
+   noon measured (169,175,186): grey, not blue) and, seen down its east-west streaks, it fanned out of
+   the horizon like searchlight beams (noon east, 10:30, 14:00, the beach refcam).
+2. The noon sun: a dim cream dot (247,237,214) inside a cream-beige wash a quarter of the sky wide
+   (the glow's cos^6 lobe reaches 40 degrees), plus a cloud-shaped beige blot round it - the painted
+   mid deck (a smooth noise sheet, the "ellipse" golden-hour-review saw) and, on Forward+, the
+   crepuscular "rays" (`sky_rays()` through the weather map) which a high sun does not throw.
+3. The cumulus: barely brighter than the sky (brightest 197 against a 175 median), cream-grey, with
+   dirty dark bases and a carpet of small fragments right out to the horizon at full contrast.
+4. The gradient: a square root plus a haze band over eight units left the lower forty degrees milky.
+   The horizon VALUE itself was not the problem (the far land, the fog and the plane's rim fade to it).
+
+**The fix: `SkyDay`** (`scripts/world/sky_day.gd`, one hook after SunsetSky in DayNight._apply()) hands
+`sky.gdshader` a `sky_day` weight on the clock: exactly 0 at and outside 09:00 / 16:00, eased in by
+10:00 and out from 15:00, faded by rain / storm (`weather_darken` x 1.6) and gone in the marine layer.
+Every use in the shader is behind `if (sky_day > 0.0)` (or `sday`, below), so at 0 the code path is the
+old one; `tests/sky_day_checks.gd` counts every read and fails on one outside a gate. Knobs are the
+`day_*` uniforms (defaults in the shader):
+- gradient: `day_gradient` 0.36 (was the square root), `day_haze_falloff` 15 (was 8), `day_zenith_deep`;
+- cirrus: wisps from two vnoise octaves x `day_cirrus` 0.45, faded under 30 degrees; mid deck x `day_mid` 0.15;
+- sun: a cos^160 / cos^14 halo (`day_sun_halo` 0.35 of the old one kept), halo and aureole light 55 %
+  desaturated, the disc 0.72 the size, 22x the sun light (was 7x) and 80 % desaturated;
+- rays x `day_rays` 0.2 (volume and painted);
+- volume: lit side x `day_cloud_light` 1.4 x `day_cloud_tint` (0.95, 0.98, 1.04) (the DAY grade adds a
+  warm highlight tint: the tops read cream), ambient top whiter, bases `day_cloud_base` 1.35 of a
+  neutral grey (the old warm sun term dropped), far clouds hazed at 0.45 of `cloud_haze_km`, fragments'
+  threshold + `day_fragments` 0.18; painted cumulus lit side x `day_painted_light` 1.18.
+
+**The trap: the sky is the city's fill light.** With the full day look in the radiance / ambient cubemap
+every street went ~20 mired cooler and the refcams' p50 fell 7-21 levels. `sday` = `sky_day` x
+`day_cubemap` (0.25) in the cubemap pass; the refcams' ground (bottom 40 %) then moves 0.3-1.4 levels.
+
+**Proof.** `tools/sky_day/shots.sh` (sky_shot.gd over named views, both renderers; `VIEWS=hold` the other
+hours, `SHADER=` main's shader) and `tools/sky_day/diff.py`: 03:00, 05:30, 07:00, 08:30, 09:00, 16:00,
+16:30, 18:00, 19:00, 22:00 - 0 pixels differ on Forward+ (lavapipe) and opengl3. Day views: mean
+luminance 2-20 levels lower (the sun shot most), the sky bluer. Refcams `--strict` (opengl3, the six day
+cameras) before / after: freeway and macarthur ok, street_noon -8 p50 (sky), beach -20 p50 (the
+whitened cirrus sky was most of that frame), downtown_aerial -17 mired (sky), hills -11 p50.
+
+**Not done / not verified.** The owner's Mac: Forward+ here is the sky alone on lavapipe (the city does
+not fit), so the cumulus-over-buildings frame on the Mac is unseen. The disc stays a warm white
+(249,244,230): the DAY grade's highlight tint caps it, and the grade is not this task's. No bloom
+change (the glow threshold is the cinematic review's). The horizon value was left alone on purpose
+(seams with the fog and the far ground); if the Mac's street frames still read washed, the next lever
+is `day_horizon` in DayNight together with the fog and the plane's haze, not the sky shader alone.

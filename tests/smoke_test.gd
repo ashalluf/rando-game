@@ -118,7 +118,7 @@ const PART_COST := {
 	"shop_vinyl_checks": 0.0, "sky_checks": 0.0, "bonfires_checks": 3.0,
 	"cinematic_review_checks": 0.1, "sunset_clouds_checks": 0.0, "night_street_review_checks": 0.1,
 	"downtown_street_closeup_checks": 1.5, "golden_hour_review_checks": 0.1,
-	"night_flight_checks": 0.0, "mac_verify_pack_checks": 1.0, "fwd_review_f_checks": 0.0, "web_hero_rain_checks": 0.1, "skyline_glass_day_checks": 0.1
+	"night_flight_checks": 0.0, "mac_verify_pack_checks": 1.0, "fwd_review_f_checks": 0.0, "web_hero_rain_checks": 0.1, "skyline_glass_day_checks": 0.1, "sky_day_checks": 0.0
 }
 const DEFAULT_COST := 6.0
 ## Every share pays for its own city load on top of its parts.
@@ -2744,6 +2744,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/gunplay_feel_checks.gd").new().run(self, city)
 	# The water review (tests/water_review_checks.gd, WaterReview): the sea floor, the foam, the A/B.
 	load("res://tests/water_review_checks.gd").new().run(self, city)
+	# The day sky (tests/sky_day_checks.gd, SkyDay): 0 outside 09:00-16:00, gated, handed over.
+	load("res://tests/sky_day_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

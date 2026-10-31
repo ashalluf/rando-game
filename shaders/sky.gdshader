@@ -192,6 +192,41 @@ uniform float city_glow = 0.0;
 uniform float city_wrap = 0.0;
 uniform vec3 city_glow_color : source_color = vec3(1.0, 0.55, 0.26);
 /// Lightning flash (0..1), set by Weather.
+// --- The day sky (SkyDay, docs/HANDOFF.md "The day sky") ------------------------------------
+// 0 outside 09:00-16:00 and under weather, so every other hour draws exactly as before: each day
+// change below is a branch on it or a gain mix(1, g, sky_day), which is 1.0 at 0.
+uniform float sky_day = 0.0;
+// The blue reaches lower: the gradient's exponent and the horizon haze band's falloff by day.
+uniform float day_gradient = 0.36;
+uniform float day_haze_falloff = 15.0;
+// How much deeper / more saturated the upper sky is (the haze band is thinner, the zenith bluer).
+uniform float day_zenith_deep = 0.22;
+// The cirrus veil by day: how much of it is left, broken into wisps.
+uniform float day_cirrus = 0.45;
+// The sun: the wide halo's share, the disc's brightness (x sun light) and size.
+uniform float day_sun_halo = 0.35;
+uniform float day_sun_disc = 22.0;
+uniform float day_sun_size = 0.72;
+// The cumulus: the lit side brighter and whiter, the bases a cooler grey, far clouds into the air
+// sooner (the carpet to the horizon), fewer fragments.
+uniform float day_cloud_light = 1.4;
+uniform float day_cloud_base = 1.35;
+uniform float day_cloud_haze = 0.45;
+// The lit side a touch cooler (the DAY grade warms every highlight: the tops read cream).
+uniform vec3 day_cloud_tint = vec3(0.95, 0.98, 1.04);
+// The crepuscular rays by day: a high sun behind broken cumulus throws none across the sky (they
+// drew a beige blot round the noon sun, shaped like the clouds' weather map).
+uniform float day_rays = 0.2;
+// The painted mid deck by day: a smooth pale smudge next to the volume (a veil round the sun).
+uniform float day_mid = 0.15;
+// How much of the day look the radiance / ambient cubemap gets. The sky IS the city's fill light:
+// the full bluer sky there cooled every street ~20 mired and darkened it ~10 %, which is the
+// lighting's call, not the sky's; the reflections still see a little of it.
+uniform float day_cubemap = 0.25;
+uniform float day_fragments = 0.18;
+// The painted cumulus (web, Compatibility, below MEDIUM): its lit side brighter.
+uniform float day_painted_light = 1.18;
+
 uniform float flash = 0.0;
 /// Where the flash is (StormDrama: toward the strike) and the share of it spread over the whole
 /// sky; 1 is the old even flash.
@@ -340,7 +375,11 @@ float cumulus(vec3 p, float lod, float detail, float coverage, float fp) {
 	top = min(top * mix(0.72, 1.12, smoothstep(0.25, 0.75, wn.r)), 0.97);
 	// The fragments: the map four times finer, kept in the gaps between the heaps, low and flat.
 	vec2 fr = textureLod(cloud_weather, wuv * 4.3 + vec2(0.61, 0.23), lod + 1.0).rg;
-	float fcol = column(fr.x, thr + 0.16 + 0.12 * col, 0.34) * (1.0 - strat);
+	float fthr = thr + 0.16 + 0.12 * col;
+	if (sky_day > 0.0) {
+		fthr += day_fragments * sky_day;
+	}
+	float fcol = column(fr.x, fthr, 0.34) * (1.0 - strat);
 	float ftop = mix(0.05, 0.2, fr.y);
 	// Under the base: only the fringe of fractus.
 	if (hn < 0.0) {
@@ -577,7 +616,11 @@ vec4 cumulus_march(vec3 dir, vec3 ldir, vec3 lcol, vec3 amb_top, vec3 amb_bot, v
 	}
 	// Aerial perspective: the deck far out goes into the air in front of it.
 	float dist = wsum > 1e-4 ? tsum / wsum : t1;
-	float hz = 1.0 - exp(-dist / cloud_haze_km);
+	float haze_km = cloud_haze_km;
+	if (sky_day > 0.0) {
+		haze_km *= mix(1.0, day_cloud_haze, sky_day);
+	}
+	float hz = 1.0 - exp(-dist / haze_km);
 	L = mix(L, airlight * (1.0 - T), hz);
 	return vec4(L, T);
 }
@@ -721,6 +764,9 @@ vec4 painted_cumulus(vec3 dir, vec3 sdir, vec3 mdir, vec3 sun_light, float sun_u
 	// Aerial perspective: slant distance to a deck goes as 1 / sin(elevation).
 	float deck_haze = 1.0 - exp(-0.11 / (up + 0.06));
 	vec3 cloud = mix(cloud_shadow, cloud_color, sunlit);
+	if (sky_day > 0.0) {
+		cloud = mix(cloud, mix(cloud_shadow, cloud_color * day_painted_light, sunlit), sky_day);
+	}
 	cloud = mix(cloud, cloud * mix(vec3(1.0), cloud_shadow, 0.55), thick * 0.55);
 	cloud += sun_light * pow(max(cos_sun, 0.0), 3.0) * sun_up * 0.35;
 	float rim = density * (1.0 - thick) * pow(max(cos_sun, 0.0), 5.0);
@@ -787,6 +833,11 @@ void sky() {
 	float frame = floor(TIME * 60.0);
 	vec2 fc = FRAGCOORD.xy + vec2(frame * 5.588238, frame * 5.588238);
 	float jitter = fract(52.9829189 * fract(dot(fc, vec2(0.06711056, 0.00583715))));
+	// The day look's weight here (SkyDay): a share of it in the cubemap pass.
+	float sday = sky_day;
+	if (sky_day > 0.0 && AT_CUBEMAP_PASS) {
+		sday = sky_day * day_cubemap;
+	}
 
 	// --- The airlight the far clouds go into, and the key light that falls on them -------
 	vec3 airlight = sky_horizon * (1.0 + 0.6 * haze)
@@ -843,6 +894,14 @@ void sky() {
 			vec3 amb_bot = cloud_shadow * hl * 0.55 + sun_light * 0.05 * sun_key;
 			amb_top += night_glow * 0.3;
 			amb_bot += night_glow * 0.45 + city_glow_color * city_glow * 0.3;
+			if (sday > 0.0) {
+				// A noon cumulus: tops near white against the blue (they were barely brighter than
+				// the sky, a cream grey), its shade the sky's own blue-grey, the bases lit by the
+				// bright ground a little more (they were a dirty dark grey).
+				lcol *= mix(vec3(1.0), day_cloud_tint * day_cloud_light, sday);
+				amb_top = mix(amb_top, amb_top * 0.8 + vec3(hl) * 0.35, sday);
+				amb_bot = mix(amb_bot, (cloud_shadow * hl * 0.55 + vec3(0.05) * sun_key) * day_cloud_base, sday);
+			}
 			if (sunset > 0.0) {
 				// At sunset the light under a deck is the glowing horizon (the warm twilight,
 				// strongest toward the sun) and what reaches the tops from above is the deep
@@ -868,6 +927,9 @@ void sky() {
 					vec4 rs = sun_through(max(sdir.y, -0.03), 0.4);
 					ray_col = mix(low_sun, vec3(dot(sun_light, vec3(0.3333))) * rs.rgb * rs.a * 1.3, sunset);
 				}
+				if (sday > 0.0) {
+					shaft *= mix(1.0, day_rays, sday);
+				}
 				// Rays are the air lit between the shadows, so they sit behind any cloud.
 				res.rgb += ray_col * shaft * 0.32 * res.a;
 			}
@@ -884,6 +946,16 @@ void sky() {
 	float t = clamp(up, 0.0, 1.0);
 	vec3 col = mix(sky_horizon, sky_top, pow(t, 0.5));
 	col = mix(col, sky_horizon, haze * exp(-max(up, 0.0) * 8.0));
+	if (sday > 0.0 && up > 0.0) {
+		// By day the blue comes lower and the pale band hugs the horizon: the old gradient (a
+		// square root, haze over eight units) left the lower forty degrees milky, and the frame
+		// over a street was mostly a bright white-blue. The horizon itself is the same colour
+		// (the far land and the fog fade to it), so no seam.
+		vec3 deep = sky_top * mix(1.0, 0.86, day_zenith_deep) + vec3(0.0, 0.0, 0.04) * day_zenith_deep;
+		vec3 dcol = mix(sky_horizon, mix(sky_top, deep, smoothstep(0.2, 0.9, t)), pow(t, day_gradient));
+		dcol = mix(dcol, sky_horizon, haze * exp(-up * day_haze_falloff));
+		col = mix(col, dcol, sday);
+	}
 	float below = clamp(-up * 2.2, 0.0, 1.0);
 	col = mix(col, ground_color, below);
 
@@ -982,19 +1054,36 @@ void sky() {
 	// --- Sun -------------------------------------------------------------------------------
 	float horizon_cut = smoothstep(-0.11, -0.005, up);
 	float glow = pow(max(cos_sun, 0.0), 48.0) * 0.8 + pow(max(cos_sun, 0.0), 6.0) * 0.18;
-	col += glow * sun_glow * sun_up * horizon_cut * sun_light;
+	vec3 glow_light = sun_light;
+	float disc_gain = 7.0;
+	float disc_size = sun_size;
+	if (sday > 0.0) {
+		// A high sun's halo is tight and nearly white: the old wide lobes (a cosine to the sixth
+		// reaches forty degrees) washed a quarter of the noon sky a cream beige round a dim dot.
+		// The disc is the brightest thing in the frame and blooms; a real one is half a degree.
+		float tight = pow(max(cos_sun, 0.0), 160.0) * 0.7 + pow(max(cos_sun, 0.0), 14.0) * 0.07;
+		glow = mix(glow, mix(tight, glow, day_sun_halo), sday);
+		glow_light = mix(sun_light, vec3(dot(sun_light, vec3(0.3333))), 0.55 * sday);
+		disc_gain = mix(7.0, day_sun_disc, sday);
+		disc_size = sun_size * mix(1.0, day_sun_size, sday);
+	}
+	col += glow * sun_glow * sun_up * horizon_cut * glow_light;
 	// The aureole: real circumsolar scatter lives inside three degrees, so an exponential on a
 	// one-degree scale (0.46 of its peak at the limb, 0.14 at two degrees, 0.008 by five).
-	col += sun_light * exp(-ang / 0.018) * 1.8 * sun_glow * sun_up * horizon_cut;
+	col += glow_light * exp(-ang / 0.018) * 1.8 * sun_glow * sun_up * horizon_cut;
 	// A sun down in the smog is diffused: a wider, softer glow round it, and the disc itself
 	// dimmer and redder (the long path through the haze takes the blue out first).
 	col += smog_glow * pow(max(cos_sun, 0.0), 14.0) * 0.55 * smog_sun * sun_up * horizon_cut;
 	// Only the disc: the clouds stand above the layer and still see the sun's own colour.
 	vec3 disc_light = sun_light * mix(vec3(1.0), vec3(1.0, 0.62, 0.42) * 0.55, smog_sun);
-	float disc = 1.0 - smoothstep(sun_size * 0.82, sun_size * 1.02, ang);
+	if (sday > 0.0) {
+		// A high sun is white-hot, not cream (the tonemapper keeps a warm tint's hue all the way up).
+		disc_light = mix(disc_light, vec3(dot(disc_light, vec3(0.3333))), 0.8 * sday);
+	}
+	float disc = 1.0 - smoothstep(disc_size * 0.82, disc_size * 1.02, ang);
 	// Limb darkening: the edge of the disc is dimmer than the middle.
-	float limb = 1.0 - 0.40 * smoothstep(0.5, 1.0, ang / max(sun_size, 1e-4));
-	col = mix(col, disc_light * 7.0 * limb, disc * sun_up * horizon_cut);
+	float limb = 1.0 - 0.40 * smoothstep(0.5, 1.0, ang / max(disc_size, 1e-4));
+	col = mix(col, disc_light * disc_gain * limb, disc * sun_up * horizon_cut);
 
 	// --- Moonlit air --------------------------------------------------------------------------
 	// A bright moon lights the whole night sky a little (blue: it is sunlight scattered again),
@@ -1126,6 +1215,14 @@ void sky() {
 				cir_night = night_factor * (1.0 - c_lit * sunset);
 			}
 			cir *= smoothstep(0.03, 0.34, up) * cirrus_amount * (1.0 - cir_night * 0.85);
+			if (sday > 0.0) {
+				// By day the cirrus is wisps and hooks with blue between them: as one long-streaked
+				// veil it whitened the whole upper sky and, seen down its length, its east-west
+				// streaks fanned out of the horizon like searchlight beams.
+				float dwisp = smoothstep(0.38, 0.78, vnoise(vec2(cuv.x * 1.9, cuv.y * 0.8) + 3.7) * 0.6
+					+ vnoise(vec2(cuv.x * 4.3, cuv.y * 2.1) + 8.2) * 0.4);
+				cir *= mix(1.0, dwisp * day_cirrus * smoothstep(0.08, 0.5, up), sday);
+			}
 			// After dark it is a veil lit by the moon and the city, not a white streak.
 			ccol = mix(ccol, ccol * night_cloud_light * 0.5 + night_glow, cir_night);
 			if (sunset > 0.0) {
@@ -1203,6 +1300,9 @@ void sky() {
 			vec3 mcol = mix(cloud_shadow * 1.08, cloud_color * 0.98, 0.45 + 0.55 * sunlit);
 			mcol = mix(mcol, mcol * night_cloud_light * 1.15 + night_glow, night_factor);
 			// Next to the cumulus volume the painted sheet reads as a smear: keep it thin there.
+			if (sday > 0.0) {
+				mden *= mix(1.0, day_mid, sday);
+			}
 			col = mix(col, mcol, mden * (volume ? 0.2 : 0.70));
 		}
 	}
@@ -1220,6 +1320,9 @@ void sky() {
 	if (up > 0.0) {
 		float shaft = 0.0;
 		vec4 pc = painted_cumulus(dir, sdir, mdir, sun_light, sun_up, moon_vis, ang, cos_sun, airlight, shaft);
+		if (sday > 0.0) {
+			shaft *= mix(1.0, day_rays, sday);
+		}
 		col += sun_light * shaft * 0.38;
 		col = mix(col, pc.rgb, pc.a);
 	}

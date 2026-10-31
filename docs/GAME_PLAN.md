@@ -3940,3 +3940,4 @@ none of either.
   texture, so it holds on the web's renderer path too where enabled; caustics add light at the sand's
   mean colour and never multiply a texture; a mirrored light's column grows a sixth of the way
   travelled. WATER_REVIEW=0 is the A/B. The far sea and the horizon plane's sea are untouched.
+- 2026-10-31 (wave 4, sky-day-review): the day sky (09:00-16:00) is a weight on the clock (SkyDay), exactly 0 outside it so dawn, the golden hour, the sunset and the night stay bit-identical; the look changes in the drawn sky, and only a quarter of it reaches the radiance / ambient cubemap, because the sky is the city's fill light and lighting is the grade's call. The horizon colour is not darkened in the shader alone (it must match the fog and the far ground). SKY_DAY=0 is the A/B.
