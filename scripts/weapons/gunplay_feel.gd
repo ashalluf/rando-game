@@ -210,6 +210,36 @@ static func _quad(st: SurfaceTool, p: Array, uv: Array, nrm: Vector3, piece: flo
 		st.add_vertex(p[i])
 
 
+static var _flare_mat: StandardMaterial3D
+
+
+## The flash where a round strikes: a small star (WeaponFX's flare) that pops and is gone in
+## 0.05 s, grown with distance so a far hit still blinks (`size` is WeaponFX's flash size).
+static func impact_flare(parent: Node, at: Vector3, _color: Color, size: float) -> void:
+	if _flare_mat == null:
+		_flare_mat = WeaponFX.unshaded(Color(2.2, 1.75, 1.15), 1.0)
+		_flare_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_flare_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		_flare_mat.albedo_texture = WeaponFX.flare_texture()
+		_flare_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		_flare_mat.billboard_keep_scale = true
+	var mi := MeshInstance3D.new()
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE
+	mi.mesh = quad
+	mi.material_override = _flare_mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# The fade rides the instance's transparency, so one material serves every hit.
+	parent.add_child(mi)
+	mi.global_position = at
+	var k := size * 1.6
+	mi.scale = Vector3(k * randf_range(0.8, 1.2), k * randf_range(0.8, 1.2), 1.0)
+	var t := mi.create_tween()
+	t.tween_property(mi, "scale", mi.scale * 0.3, 0.05).set_ease(Tween.EASE_IN)
+	t.parallel().tween_property(mi, "transparency", 1.0, 0.05)
+	t.tween_callback(mi.queue_free)
+
+
 # ---------------------------------------------------------------------------------------------
 # Tracers
 # ---------------------------------------------------------------------------------------------

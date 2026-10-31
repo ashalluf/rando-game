@@ -875,12 +875,17 @@ static func impact(node: Node, at: Vector3, color: Color = Color(1.0, 0.85, 0.5)
 	# The hot flash, always. It grows a little with distance so a far hit is still a visible
 	# spark rather than a subpixel dot.
 	var flash_size := 0.12 * clampf(dist / 35.0, 1.0, 3.0)
-	var hot := _sphere(node, at, flash_size, Color(color.r * 2.2, color.g * 2.0, color.b * 1.8), 0.95)
-	_additive(hot)
-	var tw := hot.create_tween()
-	tw.tween_property(hot, "scale", Vector3.ONE * flash_size * 3.5, 0.13)
-	tw.parallel().tween_property(hot.material_override, "albedo_color:a", 0.0, 0.13)
-	tw.tween_callback(hot.queue_free)
+	if GunplayFeel.enabled:
+		# A spark's star, small and gone in a few hundredths of a second: a white ball the size
+		# of a dinner plate on every hit read as a lamp on the wall (GunplayFeel).
+		GunplayFeel.impact_flare(parent, at, color, flash_size)
+	else:
+		var hot := _sphere(node, at, flash_size, Color(color.r * 2.2, color.g * 2.0, color.b * 1.8), 0.95)
+		_additive(hot)
+		var tw := hot.create_tween()
+		tw.tween_property(hot, "scale", Vector3.ONE * flash_size * 3.5, 0.13)
+		tw.parallel().tween_property(hot.material_override, "albedo_color:a", 0.0, 0.13)
+		tw.tween_callback(hot.queue_free)
 
 	# Budget: count the detailed impacts started in the last moment rather than bookkeeping a
 	# live counter through tween callbacks, which is one more thing to leak.
