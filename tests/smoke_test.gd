@@ -3543,7 +3543,7 @@ func _test_weapons(player: Player) -> void:
 	# (Blast3, explosions-3: on the desktop the fireball is one volume and the sparks and chips one
 	# BlastBits pool, in place of three particle systems.)
 	var b3: Script = load("res://scripts/weapons/blast_3.gd")
-	var layered := fx_after.particles - fx_before.particles + (3 if b3.call("bits_on") and int(b3.call("volumes_alive")) > 0 else 0)
+	var layered: int = fx_after.particles - fx_before.particles + (3 if b3.call("bits_on") and int(b3.call("volumes_alive")) > 0 else 0)
 	_check(layered >= 4, "an explosion has layered particles (%d systems)" % layered)
 	_check(player.camera_rig._shake > 0.0, "a nearby explosion shakes the camera")
 
