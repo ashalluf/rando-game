@@ -22484,5 +22484,9 @@ was OOM-killed on this 15 GB box under llvmpipe.)
 **Checks:** `tests/ground_contact_checks.gd` (backyards_checks now leaves the derived BatchContact out of its "other batches keep their counts" list: the yard's grills and loungers have quads of their own) (the table, the shader's inputs, who gets a blob, the
 ground under a point, a well's trunk, a planter on the steepest of a few slopes: level shrubs and a
 box down to the paving). **Stills:** `shots/ground-shadow-contact`.
+**Gate on the merge of main (2026-10-31, 43 commits in):** 4,474 of 4,475; the one failure is
+traffic_motion_checks "no tick turns the car by more than a smooth turn would" (50-130 deg), which
+fails the same way on plain origin/main (measured in a clean worktree: 50.2 deg) - main's, not this
+branch's.
 **Not done:** feet-bone contact (two small blobs at the soles) - one blob a person for now; the
 probe covers city blocks, not the hills, the beach or landmark sites.
