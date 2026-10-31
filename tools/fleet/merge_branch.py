@@ -77,9 +77,17 @@ def main():
         subprocess.run(["git", "checkout", "--conflict=diff3", "--", f])
         s = open(f).read()
         hunks = re.findall(r"<<<<<<< [^\n]*\n(.*?)\|\|\|\|\|\|\| [^\n]*\n(.*?)=======\n(.*?)>>>>>>> [^\n]*\n", s, flags=re.S)
-        if all(b.strip() == "" or (b in o and b in t) for o, b, t in hunks):
+        def tail_line(o, b, t):
+            # Both sides appended to the same last line (PART_COST's closing entry): the base line,
+            # less its newline, starts both sides.
+            k = b.rstrip("\n")
+            return b.count("\n") == 1 and o.startswith(k) and t.startswith(k) and "\n" not in t.rstrip("\n")
+        if all(b.strip() == "" or (b in o and b in t) or tail_line(o, b, t) for o, b, t in hunks):
             def keep(m):
                 o, b, t = m.group(1), m.group(2), m.group(3)
+                if b.strip() and tail_line(o, b, t) and not (b in o and b in t):
+                    k = b.rstrip("\n")
+                    return o.rstrip("\n") + ", " + t[len(k):].lstrip(", ").rstrip("\n") + "\n"
                 if b.strip():
                     return o + t.replace(b, "", 1)
                 return o + t
