@@ -41,7 +41,7 @@ float sp_drops(vec3 p, float cell, float chance, vec3 dir, float salt) {
 	// Stretched along the spray: a drop arriving at a slant is a tear, not a dot.
 	float along = dot(q, dir);
 	q -= dir * along * 0.45;
-	float r = cell * (0.12 + 0.13 * fract(h.x * 7.31 + h.y));
+	float r = cell * (0.16 + 0.2 * fract(h.x * 7.31 + h.y));
 	return 1.0 - smoothstep(r * 0.65, r, length(q));
 }
 
@@ -66,9 +66,11 @@ float sp_cover(vec3 pos, vec3 nrm) {
 		vec3 dir = normalize(d.xyz + vec3(1e-4));
 		float facing = smoothstep(-0.15, 0.35, dot(n, -dir));
 		float fall = pow(clamp(1.0 - dist / 1.25, 0.0, 1.0), 1.3) * d.w * facing;
-		float c = sp_drops(pm, 0.024, fall * 0.5, dir, float(i) * 13.0);
-		c = max(c, sp_drops(pm, 0.011, fall * 0.75, dir, float(i) * 13.0 + 5.0));
-		c = max(c, sp_drops(pm, 0.0045, fall * 0.9, dir, float(i) * 13.0 + 9.0));
+		float c = sp_drops(pm, 0.028, fall * 0.8, dir, float(i) * 13.0);
+		c = max(c, sp_drops(pm, 0.012, fall * 1.1, dir, float(i) * 13.0 + 5.0));
+		c = max(c, sp_drops(pm, 0.005, fall * 1.3, dir, float(i) * 13.0 + 9.0));
+		// A close, heavy wound leaves a wet smear in the middle, not only drops.
+		c = max(c, smoothstep(0.55, 0.95, fall) * 0.85);
 		cover = max(cover, c);
 	}
 	return cover;

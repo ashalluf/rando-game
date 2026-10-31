@@ -33,7 +33,7 @@ void fragment() {
 	float tone = 1.0 + muscle * (fib - 0.5) * 0.7 + fat * (lob - 0.5) * 0.5 + bone * (por - 0.5) * 0.25 + lip * (lob - 0.5) * 0.3;
 	ALBEDO = cs_out(c * tone);
 	// Wet tissue: muscle and fat glisten, the bone's end less, the cloth lip not at all.
-	ROUGHNESS = muscle * mix(0.12, 0.3, fib) + fat * 0.2 + bone * 0.45 + lip * 0.75;
+	ROUGHNESS = muscle * mix(0.2, 0.38, fib) + fat * 0.2 + bone * 0.45 + lip * 0.75;
 	SPECULAR = mix(0.5, 0.35, lip);
 	// A little light through the flesh, none through bone.
 	BACKLIGHT = cs_out(vec3(0.35, 0.02, 0.015) * (muscle + fat) * 0.6);

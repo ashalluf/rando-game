@@ -242,7 +242,7 @@ static func car_bleed(doll: Node3D, car: Node3D, under: Dictionary, bleed: float
 		var span := e - at
 		var len := Vector3(span.x, 0.0, span.z).length()
 		if len > 0.25:
-			_creep(car, WeaponFX._KIND_RIVULET, at + out * 0.2, n, out, 0.12, maxf(len - 0.2, 0.2), 1.2, 6.0)
+			_creep(car, WeaponFX._KIND_RIVULET, at + out * 0.2, n, out, 0.17, maxf(len - 0.2, 0.2), 1.2, 6.0)
 		# Down the face below the edge (the grille, the door): a run on the vertical panel.
 		var face := _face_below(doll, car, e, out)
 		if not face.is_empty():
@@ -250,7 +250,7 @@ static func car_bleed(doll: Node3D, car: Node3D, under: Dictionary, bleed: float
 			var fdown := (Vector3.DOWN - fn * fn.dot(Vector3.DOWN))
 			if fdown.length() > 0.3:
 				_creep(car, WeaponFX._KIND_DRIP, (face.position as Vector3) - fdown.normalized() * 0.02, fn, fdown.normalized(),
-					0.18, 0.45, 5.0, 7.0)
+					0.26, 0.7, 5.0, 7.0)
 		state["edge"] = car.global_transform.affine_inverse() * (e + out * 0.03)
 		state["drip"] = WeaponFX.blood_drip(car, state.edge, 30.0, clampf(0.4 + 0.2 * bleed, 0.4, 1.0))
 		state["last"] = e
@@ -381,7 +381,7 @@ static func stump_mesh(radius: float) -> ArrayMesh:
 		[1.05, -0.45, 1.0, Color(0.36, 0.14, 0.11)],
 		[1.0, 0.0, 1.0, Color(0.42, 0.12, 0.09)],
 		[0.93, 0.12, 0.33, Color(0.78, 0.6, 0.32)],
-		[0.84, 0.16, 0.0, Color(0.5, 0.05, 0.035)],
+		[0.84, 0.16, 0.0, Color(0.4, 0.04, 0.03)],
 		[0.62, 0.32, 0.0, Color(0.42, 0.035, 0.025)],
 		[0.38, 0.38, 0.0, Color(0.36, 0.025, 0.02)],
 	]

@@ -31,10 +31,25 @@ vec4 wb_one(vec4 w, float hr, vec4 wd, vec3 p, vec3 n) {
 		return vec4(0.0);
 	}
 	vec3 q = p - w.xyz;
-	float d = length(q);
-	// Facing the hole's side of the body: nothing round the back of an arm or through a torso.
-	float side = dot(wd.xyz, wd.xyz) > 0.01 ? smoothstep(-0.25, 0.35, dot(normalize(n), normalize(wd.xyz))) : 1.0;
+	float d3 = length(q);
 	vec4 o = vec4(0.0);
+	// Wet over the soak's inner half, drying (rougher, darker) toward its edge.
+	o.z = 1.0 - smoothstep(w.w * 0.22, w.w * 0.62, d3 + (stain_noise(p * 0.3) - 0.5) * w.w * 0.4);
+	if (dot(wd.xyz, wd.xyz) < 0.01) {
+		return o;
+	}
+	// The hole and the run are drawn like a decal projected along the hole's normal: the stain's
+	// centre is inside the body (the round's path), and the skin is wherever the line through it
+	// comes out on the hole's side. `h` is height along the normal, `t` the offset across it.
+	vec3 wn = normalize(wd.xyz);
+	float h = dot(q, wn);
+	vec3 t = q - wn * h;
+	float side = smoothstep(-0.25, 0.35, dot(normalize(n), wn)) * smoothstep(-0.05 * wound_unit, -0.01 * wound_unit, h)
+		* (1.0 - smoothstep(0.16 * wound_unit, 0.24 * wound_unit, h));
+	if (side <= 0.0) {
+		return o;
+	}
+	float d = length(t);
 	if (hr > 0.0 && d < hr * 3.2) {
 		// Ragged outline: two octaves of the stain noise at about the hole's own size.
 		float k = 1.6 / max(hr, 0.05);
@@ -43,27 +58,22 @@ vec4 wb_one(vec4 w, float hr, vec4 wd, vec3 p, vec3 n) {
 		o.x = (1.0 - smoothstep(hr * 0.62, hr * 1.0, dd)) * side;
 		o.y = (1.0 - smoothstep(hr * 1.05, hr * 2.5, dd + (stain_noise(p * k * 0.8 + 3.0) - 0.5) * hr * 0.9)) * side;
 	}
-	// Wet over the soak's inner half, drying (rougher, darker) toward its edge.
-	o.z = 1.0 - smoothstep(w.w * 0.22, w.w * 0.62, d + (stain_noise(p * 0.3) - 0.5) * w.w * 0.4);
-	// The run: from the hole down the way gravity pulls, a ribbon that narrows and wanders.
-	if (wd.w > 0.0) {
-		vec3 g = normalize(wound_down);
-		float along = dot(q, g);
+	// The run: from the hole down the way gravity pulls across the skin, a ribbon that narrows
+	// and wanders. None when gravity points straight into the hole (it pools there instead).
+	vec3 g = normalize(wound_down);
+	vec3 gp = g - wn * dot(g, wn);
+	float glen = length(gp);
+	if (wd.w > 0.0 && glen > 0.25) {
+		gp /= glen;
+		float along = dot(t, gp);
 		if (along > -hr && along < wd.w) {
-			vec3 lat = q - g * along;
-			float t = clamp(along / max(wd.w, 0.001), 0.0, 1.0);
-			float wob = (stain_noise(vec3(along * 0.35, w.x * 0.1, w.z * 0.1)) - 0.5) * max(hr, 0.6 * wound_unit * 0.01) * 2.4;
-			float width = mix(max(hr * 1.1, 0.012 * wound_unit), 0.004 * wound_unit, t * t);
-			// Lateral distance from the wandering centre line, across the run (perpendicular to both
-			// gravity and the hole's normal), and how far it is in or out of the hole's plane.
-			vec3 wn = normalize(wd.xyz);
-			vec3 across = normalize(cross(g, wn) + vec3(1e-4, 0.0, 0.0));
-			float off = dot(lat, across) - wob;
-			float depth = abs(dot(lat, wn));
+			float tt = clamp(along / max(wd.w, 0.001), 0.0, 1.0);
+			float wob = (stain_noise(vec3(along * 0.35, w.x * 0.1, w.z * 0.1)) - 0.5) * max(hr, 0.006 * wound_unit) * 2.4;
+			float width = mix(max(hr * 1.1, 0.012 * wound_unit), 0.004 * wound_unit, tt * tt);
+			float off = dot(t, cross(wn, gp)) - wob * tt;
 			// The tip is a bead of blood that has not got there yet.
 			float tip = 1.0 - smoothstep(wd.w * 0.9, wd.w, along);
-			o.w = (1.0 - smoothstep(width * 0.6, width, abs(off))) * tip * side
-				* (1.0 - smoothstep(0.04 * wound_unit, 0.12 * wound_unit, depth));
+			o.w = (1.0 - smoothstep(width * 0.6, width, abs(off))) * tip * side * glen;
 		}
 	}
 	return o;

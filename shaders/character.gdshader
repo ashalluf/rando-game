@@ -843,7 +843,7 @@ void fragment() {
 			ALBEDO = mix(ALBEDO, c_run * (0.75 + 0.25 * gore.z), gore.w * 0.9);
 			ALBEDO = mix(ALBEDO, c_ring, gore.y * 0.85);
 			ALBEDO = mix(ALBEDO, c_hole, gore.x);
-			NORMAL = wb_bump(NORMAL, VERTEX, -0.006 * gore.x * gore.x + 0.0012 * gore.y);
+			NORMAL = wb_bump(NORMAL, VERTEX, -0.005 * gore.x * gore.x);
 		}
 	}
 

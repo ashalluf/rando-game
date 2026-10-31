@@ -53,7 +53,7 @@ static func splash(at: Vector3, dir: Vector3, strength: float) -> void:
 func _splash(at: Vector3, dir: Vector3, strength: float) -> void:
 	if not is_instance_valid(_skel) or not _skel.is_inside_tree() or not _skel.is_visible_in_tree():
 		return
-	var chest := _bone_world("Spine2", "Spine1")
+	var chest := _bone_world("Spine01", "Spine")
 	var dist := chest.distance_to(at)
 	var reach := REACH * sqrt(clampf(strength, 0.3, 4.0))
 	if dist > reach or dist < 0.05:
@@ -77,9 +77,9 @@ func _splash(at: Vector3, dir: Vector3, strength: float) -> void:
 	var s := {
 		"bone": bone,
 		"local": pose.affine_inverse() * sp,
-		"radius": (0.12 + 0.3 * close) * sqrt(clampf(strength, 0.5, 4.0)) * unit,
+		"radius": (0.18 + 0.32 * close) * sqrt(clampf(strength, 0.5, 4.0)) * unit,
 		"dir": (pose.basis.inverse() * dir_s).normalized(),
-		"density": clampf(0.35 + 0.75 * close, 0.0, 1.0),
+		"density": clampf(0.45 + 0.8 * close, 0.0, 1.0),
 	}
 	if spats.size() >= MAX_SPATS:
 		spats.pop_front()
@@ -99,7 +99,7 @@ func _update() -> void:
 	var dt := _skel.get_process_delta_time() if _skel.is_inside_tree() else 0.0
 	_age += dt
 	# Rain washes it off over half a minute; otherwise it dries, then is gone.
-	var rain := clampf(float(RenderingServer.global_shader_parameter_get("rain_intensity")) if _has_rain() else 0.0, 0.0, 1.0)
+	var rain := clampf(_rain(), 0.0, 1.0)
 	_age += dt * rain * (CLEAN_SECONDS / 30.0)
 	if _age > CLEAN_SECONDS:
 		clear()
@@ -107,13 +107,16 @@ func _update() -> void:
 	_push()
 
 
-static var _rain_known: int = -1
+## How hard it is raining (Weather hands RainCrowd its rain level; loaded by path, so this file
+## names no NPC class).
+static func _rain() -> float:
+	if _rain_script == null:
+		_rain_script = load("res://scripts/npc/rain_crowd.gd")
+	var v: Variant = _rain_script.get("level") if _rain_script != null else 0.0
+	return float(v) if v != null else 0.0
 
 
-static func _has_rain() -> bool:
-	if _rain_known < 0:
-		_rain_known = 1 if RenderingServer.global_shader_parameter_get_list().has(&"rain_intensity") else 0
-	return _rain_known == 1
+static var _rain_script: GDScript
 
 
 func _push() -> void:
