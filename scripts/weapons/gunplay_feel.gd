@@ -35,6 +35,8 @@ static var hand_light_range: float = 2.4
 static var wall_light_energy: float = 1.8
 static var wall_light_min: float = 4.0
 static var wall_light_reach: float = 22.0
+## For stills with no DayNight: taken as the lamp level when higher.
+static var night_override: float = 0.0
 ## Share of the flash's light left at noon (1 at night).
 static var day_light_share: float = 0.35
 ## Seconds the flash's lights last (a real flash is a millisecond; a frame at 60 fps is the
@@ -119,8 +121,9 @@ static func flash(node: Node, at: Vector3, color: Color, size: float, life: floa
 static func _lights(node: Node, parent: Node, at: Vector3, fwd: Vector3, k: float) -> void:
 	var web := OS.has_feature("web")
 	# In sunlight a flash hardly lights anything (it burnt a pale wall white at noon); at night it
-	# lights the street. The night_factor global (DayNight) decides; no DayNight is day.
-	var dark := clampf(float(RenderingServer.global_shader_parameter_get("night_factor")), 0.0, 1.0)
+	# lights the street. DayNight's lamp level decides (the street lamps' own switch: night, or a
+	# storm dark enough to light them); no DayNight is day.
+	var dark := clampf(maxf(DayNight.lamp_now, night_override), 0.0, 1.0)
 	var day_k := lerpf(day_light_share, 1.0, dark)
 	# Energy grows less than the flash: at the shotgun's full 2.4x the old light burnt a wall four
 	# metres off to white.

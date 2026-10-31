@@ -39,8 +39,10 @@ func _initialize() -> void:
 		e.ambient_light_energy = 0.12
 		e.fog_enabled = false
 		(level.get_node("Sun") as DirectionalLight3D).light_energy = 0.0
-		# What DayNight publishes after dark (the flash's lights read it).
+		# What DayNight says after dark (the flash's lights read it; loaded by path, this script
+		# compiles before the autoloads).
 		RenderingServer.global_shader_parameter_set("night_factor", 1.0)
+		(load("res://scripts/weapons/gunplay_feel.gd") as GDScript).set("night_override", 1.0)
 	var hud := level.get_node_or_null("DebugHud") as CanvasLayer
 	if hud != null and _env("HUD", "0") != "1":
 		hud.visible = false
