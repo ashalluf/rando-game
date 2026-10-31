@@ -17,7 +17,10 @@ const BURN := Vector2(2.5, 6.0)
 ## A landing faster than this bounces once.
 const BOUNCE_SPEED := 6.0
 
-static var _alive: int = 0
+## Every BlastDebris thrown; alive() sums the pieces of those still in the tree. (A counter
+## bumped on spawn leaked whenever a blast's debris never entered or left the tree the normal way,
+## and once it reached max_debris no blast threw debris again - gate run 303.)
+static var _all: Array = []
 static var _mesh: Mesh
 static var _mat: StandardMaterial3D
 
@@ -26,12 +29,14 @@ var _flames: CPUParticles3D
 var _trail: CPUParticles3D
 var _done := false
 var _age := 0.0
+## Pieces flying or burning (not yet out).
+var _live := 0
 
 
 ## Throws up to `count` pieces (fewer when `BlastFX.max_debris` are already flying); returns how
 ## many it threw.
 static func spawn(node: Node, parent: Node, at: Vector3, radius: float, push: float, count: int) -> int:
-	count = mini(count, BlastFX.max_debris - _alive)
+	count = mini(count, BlastFX.max_debris - alive())
 	if count <= 0:
 		return 0
 	var d := BlastDebris.new()
@@ -71,7 +76,8 @@ func _throw(radius: float, push: float, count: int) -> void:
 		_pieces.append({"node": mi, "pos": Vector3.ZERO, "vel": vel, "landed": false, "t": 0.0,
 			"burn": randf_range(BURN.x, BURN.y), "axis": Vector3(randf_range(-1, 1), randf_range(-1, 1), randf_range(-1, 1)).normalized(),
 			"spin": randf_range(6.0, 16.0), "out": false})
-	_alive += count
+	_live = count
+	_all.append(self)
 	var k := clampf(radius / 9.0, 0.6, 1.5)
 	# Flame tongues off every piece: short-lived fire puffs, the fireball's material.
 	_flames = _emitter(count * 14, 0.38, WeaponFX._fire_material())
@@ -166,7 +172,7 @@ func _physics_process(dt: float) -> void:
 			mi.rotate(p.axis, p.spin * dt)
 		elif p.t > p.burn:
 			p.out = true
-			_alive -= 1
+			_live -= 1
 			var tw := mi.create_tween()
 			tw.tween_property(mi, "scale", mi.scale * 0.6, 1.5)
 			continue
@@ -186,12 +192,18 @@ func _physics_process(dt: float) -> void:
 
 func _exit_tree() -> void:
 	for p: Dictionary in _pieces:
-		if not p.out:
-			p.out = true
-			_alive -= 1
-	_alive = maxi(_alive, 0)
+		p.out = true
+	_live = 0
+	_all.erase(self)
 
 
 ## Pieces flying or burning now (the checks read it).
 static func alive() -> int:
-	return _alive
+	var n := 0
+	var keep: Array = []
+	for d in _all:
+		if is_instance_valid(d) and (d as Node).is_inside_tree() and not (d as Node).is_queued_for_deletion():
+			keep.append(d)
+			n += (d as BlastDebris)._live
+	_all = keep
+	return n
