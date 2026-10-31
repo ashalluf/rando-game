@@ -142,6 +142,10 @@ func _staged(city: Node3D) -> void:
 		_t._check(false, "night lamps: the city has a camera")
 		return
 	var base := cam.global_position
+	# Only the staged lamps compete: the city's own lamps round the camera leave the group meanwhile.
+	var others: Array = city.get_tree().get_nodes_in_group(LampShadows.GROUP)
+	for o: Node in others:
+		o.remove_from_group(LampShadows.GROUP)
 	var holder := Node3D.new()
 	city.add_child(holder)
 	var lights: Array = []
@@ -191,6 +195,9 @@ func _staged(city: Node3D) -> void:
 	_t._check(not any and LampShadows.active_count == 0, "night lamps: a zero budget (below HIGH) leaves no lamp casting")
 	LampShadows.budget = b0
 	holder.queue_free()
+	for o: Node in others:
+		if is_instance_valid(o):
+			o.add_to_group(LampShadows.GROUP)
 	await city.get_tree().process_frame
 
 
