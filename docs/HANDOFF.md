@@ -22052,3 +22052,62 @@ the same way, but judge 18:00 on the Mac first - if it reads milky-pink, raise `
 grass under a low red sun is what it is). The painted cumulus on opengl3 draws a big smooth ellipse in
 the aerial and sky shots (before and after alike; the sky's, not this review's). Dawn shares the sky
 ramp and the exposure ramp (both are symmetric in elevation) and was not looked at.
+
+## 9im. The night flight: the city from a helicopter at night, 2026-10-31 (fleet wave 3, branch `wt/night-flight`)
+
+**Review.** Nine stills from one load (opengl3 1280x720, `still_shot.gd` with `DIFF=1`, SHOTS
+below; on `shots/night-flight`), 160-800 m up, 21:00-01:30, clear and rain. What already worked:
+lit offices and crowns downtown, the airport's field lights, the port's floods and the refinery's
+flares, the harbour's ships, the hills dark with the estates' points. What broke it, worst first:
+1. **The freeways were solid cream ribbons.** Past a couple of pixels a far lane draws its mean,
+   and at `level` 0.5 x `FT_FAR_BLOOM` that is a flat band nine pixels wide the length of the
+   basin, both carriageways the same cream (the tail lights' 1.6 against the heads' 9).
+2. **The street grid was one even orange hatching.** Every street the same glow whatever its
+   width, so an arterial and a residential side street read alike from the air.
+3. **Every junction was a flat orange tile** (the far ground, the far plates, and in FULL chunks
+   road.gdshader's far glow drew a junction slab as a street running across it), very visible at
+   150-250 m.
+4. **Club searchlights (SkyBeam) were solid white bars** across a camera flying near them.
+Not changed (judged fine or out of scope): the light dome (SkyExtras), tower windows, estates,
+the port, the tier seams at night (no seam visible in these frames past what is listed), the
+moonlit roofs (opengl3's flat light; see the night street review).
+
+**What it is now** (`NightFlight`, `scripts/world/night_flight.gd`, the `night_flight` global;
+`NIGHT_FLIGHT=0` is the A/B, every shader exactly as it was):
+- `ft_platoon()` (far_traffic.gdshaderinc): the share of a lane's cells taken is the hour's
+  level x a smooth noise along the moving road (`FT_PLATOON` 120 m cells, 0.3..1.7, mean 1), keyed
+  per carriageway, in the cars' own frame so the knots travel with the traffic; the near lamps
+  and the far mean read the same factor, so they hand over. A far lane's tail lights weigh
+  `FT_TAIL_MEAN` 2.2 in its mean: the red side of a freeway now reads red.
+- `street_rank(w)` (street_glow.gdshaderinc): a street's glow and lamp heads x 0.45 (9 m) ..
+  1.35 (22 m and wider); width from the slab UV's derivatives in far_ground and road.gdshader, the
+  plate's road width in building_lod, so FULL, LOD and the far city agree with no table.
+- `street_glow_junction(p, uv)`: a junction square lit by four corner pools (where the poles
+  stand), darker in the middle; road.gdshader takes a slab no longer than 1.4 x its width as a
+  junction square.
+- nightlife_beam.gdshader: for a camera over 40-110 m above the lamp, the shaft carries
+  `beam_air_gain` 0.4 and fades toward 0.15 within `beam_near_fade` 600 m; from the street it is
+  as it was.
+
+**Stills** (`shots/night-flight`, 01-18; EYE x,y,z,yaw,pitch@hour): basin from the front range
+`420,330,-1180,-119,-9@22`; over downtown `2300,400,1700,0,-22@21`; the 110 / 10 from the south
+`2100,260,3700,0,-10@23`; the airport `600,180,780,90,-12@22`; the port `3060,300,5300,180,-22@1`;
+midtown at 160 m `1200,160,700,60,-24@0.5`; the basin at 800 m `1900,800,2900,-8,-24@22`; downtown
+in rain `...@23@@rain`. `--spawn=2300,1700,0,0 --hour=22 --nohud --quality=0`.
+
+**Cost.** GEO of all ten frames before / after: identical triangles, draws and objects to the
+count except the rain frames (+-0.4 %, the rain's own particles differ run to run). Everything is
+ALU in fragments that were already running: two smoothed hashes a far lane pixel, two derivative
+pairs on road pixels at night.
+
+**Not verified.** Forward+ (the Mac): tuned on opengl3 only; the platoons' contrast and the
+ranked glow may read stronger under AgX and bloom - knobs `FT_PLATOON_*`, `FT_TAIL_MEAN`,
+`RANK_*`. The airport still in the set predates the last beam change (e4354e0d: 0.4 from the air,
+600 m fade); its effect is not shot. The wingsuit was not flown (the EYEs stand in for it).
+
+**Wave 4 (2026-10-31, resumed).** Merged main (build 395, the golden-hour review); nothing in it
+touches these shaders. Six more stills on `shots/night-flight` (19-31): downtown (2800, z 600-1900)
+and midtown (1000, z 1100-2200) at 150, 400 and 800 m, 22:00, looking north; before = the same
+build with `NIGHT_FLIGHT=0`. Changed pixels (> 8/255): 4-16 % a frame, all in the far glow,
+the freeways and the beams. GEO identical in five of six frames (midtown 150 m +0.1 %, crowd
+LOD noise). Still not seen on Forward+.

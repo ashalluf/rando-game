@@ -3795,3 +3795,8 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+- **2026-10-31 - The night flight (night-flight, HANDOFF "The night flight").** The night aerial is
+  tuned in the shaders that already draw it, never with new geometry: traffic platoons as a smooth
+  noise in the cars' moving frame (the near lamps and the far lane means read the same factor), a
+  street's glow ranked by its width measured from the slab's own UV derivatives (so FULL, LOD and
+  the far plates agree without a table), junctions lit at their corners. NIGHT_FLIGHT=0 is the A/B.

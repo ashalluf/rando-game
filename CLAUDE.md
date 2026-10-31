@@ -1861,6 +1861,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `haze_for()`, shaft gain 0 where volumetric fog is on, halo gain, viewport height), pushed four
   times a second; collapsed by day. `NIGHT_ATMOS=0` is the A/B; checks
   `tests/night_atmos_checks.gd`.
+- The night flight (2026-10-31, docs/HANDOFF.md "The night flight"): the city from 150-800 m
+  at night. `NightFlight` (`scripts/world/night_flight.gd`, the `night_flight` global, installed by
+  DayNight) gates three shader passes: far traffic in moving platoons (`ft_platoon()` in
+  far_traffic.gdshaderinc: the cells' share x a smooth noise along the moving road, mean 1; a far
+  lane's tail lights x `FT_TAIL_MEAN`), the street grid ranked by width (`street_rank()` in
+  street_glow.gdshaderinc, in road.gdshader's far glow, far_ground and the far plates; width from
+  the slab UV's derivatives) with junction squares lit at their corners (`street_glow_junction()`),
+  and nightlife sky beams fading for a camera in the air near them. GDScript copies are checked.
+  `NIGHT_FLIGHT=0` is the A/B; stills: `SHOTS=` EYEs in the HANDOFF section; checks
+  `tests/night_flight_checks.gd`.
 - The night street review (2026-10-30, docs/HANDOFF.md "The night street at eye level"):
   `NightStreetReview` (`scripts/world/night_street_review.gd`) holds the balance: the moon's key
   (`MOON` 0.09: at 0.3 it lit streets evenly blue at ~45 % of the noon sun and hid the lamps),
