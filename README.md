@@ -14,3 +14,4 @@ Second batch (opengl3, the Compatibility renderer = web; not the Mac):
 - 10 / 11: the street_night refcam before / after the first pass (p50 34 -> 37, p95 138 -> 143).
   The first pass's wet streaks read as glowing cones there; 12 / 13 are the final soft, tapering
   streaks on the lamp street (the refcam is re-shot at the end).
+- 14: the street_night refcam, final (p5/p50/p95 8/39/139 against 8/34/138 before; pier_night unchanged).
