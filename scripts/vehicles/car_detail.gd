@@ -746,7 +746,7 @@ static func _tris(car: Vehicle) -> Array:
 	for mi in holder.find_children("*", "MeshInstance3D", true, false):
 		var m := mi as MeshInstance3D
 		var nm := String(m.name)
-		if nm.ends_with("_far") or nm.begins_with("door_") or nm.begins_with("rig_") or nm.contains("_trailer"):
+		if nm.ends_with("_far") or nm.begins_with("door_") or nm.begins_with("rig_") or nm.contains("_trailer") or nm.ends_with("_under"):
 			continue
 		var tri := CarDamage._tri_for(m)
 		if tri.is_empty():

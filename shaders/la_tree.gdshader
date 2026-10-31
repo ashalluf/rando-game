@@ -2,6 +2,7 @@ shader_type spatial;
 render_mode cull_disabled;
 #include "res://shaders/heli_downwash.gdshaderinc"
 #include "res://shaders/tree_wind.gdshaderinc"
+#include "res://shaders/tree_light.gdshaderinc"
 
 // The code-built Los Angeles trees and accents (scripts/world/la_trees.gd). One shader for bark
 // and leaves: UV2.x is what a vertex is (LaTrees' B_* and L_*; a cluster card's style rides in
@@ -19,6 +20,17 @@ global uniform float wind_factor;
 global uniform float road_wetness;
 global uniform vec3 sun_direction;
 global uniform vec2 wind_lean;
+/// The sky's horizon colour (DayNight), raw sRGB numbers on both renderers.
+global uniform vec4 sky_tint;
+
+// --- Trees under light (tree-light-2; TreeLight, tree_light.gdshaderinc). 0 = as it was -------
+uniform float tree_light : hint_range(0.0, 1.0) = 1.0;
+/// The tree's height at scale 1 (metres; LaTrees sets it per species): its sway rate and lag.
+uniform float sway_height : hint_range(0.0, 40.0) = 0.0;
+/// Metres the leaves step back along the light's axis in a directional shadow pass.
+uniform float self_shadow_slack : hint_range(0.0, 3.0) = 0.7;
+/// Sky light through the leaves seen from below.
+uniform float sky_through : hint_range(0.0, 2.0) = 0.45;
 
 // --- Close up (trees-closeup, 2026-10-30; TreesCloseup). 0 = the shader as it was (the A/B) ---
 uniform float closeup : hint_range(0.0, 1.0) = 1.0;
@@ -77,10 +89,16 @@ void vertex() {
 	float w = clamp(max(wind_factor, 0.25), 0.0, 3.0);
 	float old_env = 1.0 - gust_depth + gust_depth * (0.5 + 0.5 * sin(TIME * gust_speed + (origin.x + origin.z) * 0.013));
 	float g = tw_gust(origin.xz + origin_shift.xz, TIME, wind_lean);
-	w *= mix(old_env, 0.55 + 0.95 * g, closeup);
+	float rate = 1.0;
+	if (tree_light > 0.5 && sway_height > 0.5) {
+		float tall_m = sway_height * length(MODEL_MATRIX[1].xyz);
+		rate = tl_rate(tall_m);
+		g = tl_load(origin.xz + origin_shift.xz, TIME, wind_lean, tall_m);
+	}
+	w *= mix(old_env, 0.55 + 0.95 * max(g, 0.0), closeup);
 	float radial = length(VERTEX.xz);
 	vec2 around = VERTEX.xz / max(radial, 1e-4);
-	float t = TIME * speed;
+	float t = TIME * speed * rate;
 	float p = phase + around.x * 1.3 + around.y * 0.9;
 	float gx = sin(t + p) * 0.72 + sin(t * 1.73 + p * 2.1) * 0.28;
 	float gz = sin(t * 0.87 + p * 1.4 + 2.1) * 0.72 + sin(t * 1.51 + p) * 0.28;
@@ -96,6 +114,10 @@ void vertex() {
 		// The flutter: along the leaf's normal, nothing at its stalk, most at its tip.
 		float lp = fract(UV2.y * 7.31) * 6.28;
 		VERTEX += NORMAL * sin(TIME * flutter_speed + lp + phase) * flutter * w * UV.y * (1.0 + closeup * 1.2 * g);
+	}
+	if (tree_light > 0.5 && PROJECTION_MATRIX[3][3] > 0.5) {
+		// Directional shadow pass (orthographic): step back along the light's axis.
+		VERTEX += inverse(mat3(MODEL_MATRIX)) * (-normalize(INV_VIEW_MATRIX[2].xyz) * self_shadow_slack);
 	}
 }
 
@@ -415,5 +437,13 @@ void fragment() {
 	vec3 to_cam = normalize((INV_VIEW_MATRIX * vec4(VIEW, 0.0)).xyz);
 	float facing = clamp(dot(to_cam, -normalize(sun_direction)), 0.0, 1.0);
 	BACKLIGHT = albedo * translucency * (1.0 + scatter_gain * pow(facing, scatter_sharpness));
+	if (tree_light > 0.5 && !IN_SHADOW_PASS) {
+		// Sky light through the leaves seen from below (tree_light.gdshaderinc). Linear on both
+		// renderers here, so sky_tint (raw sRGB numbers) is decoded on both.
+		vec3 sky = sky_tint.rgb;
+		sky = sky * sky * (sky * 0.305306 + 0.682171) + 0.012523 * sky;
+		float below = clamp(-to_cam.y * 1.6 + 0.2, 0.0, 1.0);
+		EMISSION = albedo * vec3(1.05, 1.2, 0.55) * sky * sky_through * below;
+	}
 	}
 }
