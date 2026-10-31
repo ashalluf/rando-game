@@ -134,7 +134,8 @@ that counts the people a build spawns gives it room in the crowd cap; never find
 an earlier file's leftover may hold (Godot renames the newcomer `@Class@n`); a wall-clock budget
 is timed again when over and loosened under `SMOKE_SHARD`; an alarm in a check reaches everyone
 the system can have recruited; traffic cars a system empties on purpose (valets, freeway stalls,
-CarPanic) carry a tag in `traffic` that checks skip.
+CarPanic) carry a tag in `traffic` that checks skip; a walker a check stages carries meta `no_trim`
+(the cap trim, BusyStreets and StreetErrands all leave those alone).
 
 Download a Linux headless-capable build with:
 

@@ -23165,6 +23165,13 @@ clean. Logs were kept per run (`SMOKE_LOG_DIR`); a loop script ran the seeds bac
 | 606 | onlookers "a new shot sends the onlookers running (1 stayed)" | the check's 40 m alarm; Onlookers recruits up to `RECRUIT_REACH` 55 m, and one still walking in never heard it | alarm `RECRUIT_REACH` + 15 m; the message gives each stayer's distance, stage, act |
 | 606 | la_trees "the fig block with LaTrees off is the same block (cars 15/6)" | the first build's parked cars live under the city root: the second build found the kerb spots taken and PhysicsBudget fuller (and 21 cars leaked into every later file) | each build's cars are taken out of the tree after counting |
 
+| 808 | utility_poles "the line rolls nothing from the block" (children 89 / 78) | `CityStreamer.take_crowd_room()` counts the room once a frame, so the second and third synchronous builds in a frame spawned fewer walkers | `CityChunk.build()` resets the streamer's frame count first; the check gives each build room and frees each build's cars (main's 3447f427 also leaves the crowd out of the signature) |
+| 909 | onlookers SCRIPT ERROR (victim "previously freed") | the staged victim lacked the `no_trim` meta the twelve staged walkers carry: the streamer's cap trim, BusyStreets' balance and StreetErrands' borrowing may take it | `no_trim`, no crossings, a FAIL instead of an error if lost |
+| 2121, 3131 | traffic_motion "no tick turns the car by more than a smooth turn would (129.8 deg)" | (the diagnostic: at the junction's centre, axis back to the old road, turn 0) a second turn rolled at the junction just turned through snapped the car back | main's CI 397 fix (`t.node = node` at the snap); this branch's diagnostic was replaced by main's |
+| 2222 | crowd_anim_2 SCRIPT ERROR (`_steer`, walker freed) | staged walker without `no_trim` | `no_trim` on every staged `Pedestrian.new()` in nine more check files |
+| 2222 | emergency "the other brings the stretcher" / "the ambulance leaves" | the stretcher medic pushed at the ambulance's rear corner for 45 s, 6 m short: a car in the kerb lane | the check clears parked cars within 16 m and holds StreetErrands off for the call |
+| 2525 | crowd_anim_2 SCRIPT ERROR (`_walk_check`, chunk freed) | the spawn block's chunk was replaced mid-walk | streaming settled and the chunk required FULL first; validity guards turn an error into a FAIL |
+
 **The gate reset grew two things** (`tests/gate_reset.gd`): every BlastDebris freed, and the crowd:
 the streamer's `max_pedestrians` put back and the head-count trimmed to the snapshot's (farthest
 plain walkers first, `BusyStreets.is_plain_walker()`: nobody on an errand, watching, stopped or
