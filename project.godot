@@ -386,3 +386,7 @@ skyline_towers_b={
 "type": "mat4",
 "value": Projection(0, 0, 0, -100000, 0, 0, 0, -100000, 0, 0, 0, -100000, 0, 0, 0, -100000)
 }
+lamp_ease={
+"type": "float",
+"value": 1.0
+}

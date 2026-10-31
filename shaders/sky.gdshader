@@ -89,6 +89,12 @@ uniform float smog = 0.0;
 uniform vec3 smog_color : source_color = vec3(0.64, 0.54, 0.47);
 uniform vec3 smog_glow : source_color = vec3(1.0, 0.58, 0.40);
 uniform float smog_top = 0.075;
+/// The dusk horizon away from the sun (rc-sunset, SunsetReview): the warm `sky_horizon` belongs to
+/// the sun's side of the sky. Round the other side the low sky at sunset is pale and cool (a
+/// slate-lilac over the sea), so the base gradient there is taken to the sky's own luminance
+/// times `dusk_away_tint` (linear), by `dusk_away` (0 skips it: noon and night untouched).
+uniform float dusk_away = 0.0;
+uniform vec3 dusk_away_tint = vec3(0.80, 0.89, 1.24);
 
 // --- Moon -------------------------------------------------------------------------------------
 /// Direction toward the moon, its tint, its apparent radius in radians (the real moon is about
@@ -953,16 +959,29 @@ void sky() {
 	// height there is a band of that between the land and the true horizon: it has to read as
 	// more haze, not as a dark grey stripe across the bottom of the sky.
 	float t = clamp(up, 0.0, 1.0);
-	vec3 col = mix(sky_horizon, sky_top, pow(t, 0.5));
-	col = mix(col, sky_horizon, haze * exp(-max(up, 0.0) * 8.0));
+	// At dusk the warm horizon colour belongs to the sun's side: round the other side it is the
+	// same brightness in a cool slate-lilac (`dusk_away`, rc-sunset). The zenith keeps its own.
+	vec3 horizon_c = sky_horizon;
+	float away_w = 0.0;
+	if (dusk_away > 0.001) {
+		vec2 dh0 = dir.xz;
+		vec2 sh0 = sdir.xz;
+		float az0 = dot(dh0, sh0) * inversesqrt(max(dot(dh0, dh0) * dot(sh0, sh0), 1e-8));
+		// None within about 40 degrees of the sun, all of it from about 100 degrees round.
+		away_w = clamp(dusk_away * (1.0 - smoothstep(-0.2, 0.75, az0)), 0.0, 1.0);
+		float hl = dot(sky_horizon, vec3(0.299, 0.587, 0.114));
+		horizon_c = mix(sky_horizon, sunset_out(dusk_away_tint) * hl, away_w);
+	}
+	vec3 col = mix(horizon_c, sky_top, pow(t, 0.5));
+	col = mix(col, horizon_c, haze * exp(-max(up, 0.0) * 8.0));
 	if (sday > 0.0 && up > 0.0) {
 		// By day the blue comes lower and the pale band hugs the horizon: the old gradient (a
 		// square root, haze over eight units) left the lower forty degrees milky, and the frame
 		// over a street was mostly a bright white-blue. The horizon itself is the same colour
 		// (the far land and the fog fade to it), so no seam.
 		vec3 deep = sky_top * mix(1.0, 0.86, day_zenith_deep) + vec3(0.0, 0.0, 0.04) * day_zenith_deep;
-		vec3 dcol = mix(sky_horizon, mix(sky_top, deep, smoothstep(0.2, 0.9, t)), pow(t, day_gradient));
-		dcol = mix(dcol, sky_horizon, haze * exp(-up * day_haze_falloff));
+		vec3 dcol = mix(horizon_c, mix(sky_top, deep, smoothstep(0.2, 0.9, t)), pow(t, day_gradient));
+		dcol = mix(dcol, horizon_c, haze * exp(-up * day_haze_falloff));
 		col = mix(col, dcol, sday);
 	}
 	float below = clamp(-up * 2.2, 0.0, 1.0);
@@ -982,7 +1001,7 @@ void sky() {
 			azi = dot(dh, sh) / (dl * sl);
 		}
 		float toward = pow(max(azi, 0.0), 1.6);
-		float warm = exp(-max(up, 0.0) / max(twilight_falloff, 0.02)) * (0.20 + 0.80 * toward);
+		float warm = exp(-max(up, 0.0) / max(twilight_falloff, 0.02)) * (mix(0.20, 0.07, away_w) + 0.80 * toward);
 		col = mix(col, twilight_warm, clamp(warm * twilight_amount, 0.0, 1.0) * (1.0 - below * 0.45));
 		float bh = (up - twilight_band_height) / 0.24;
 		float band = exp(-bh * bh) * (0.26 + 0.46 * (1.0 - toward));

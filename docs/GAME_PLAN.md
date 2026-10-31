@@ -3994,3 +3994,12 @@ none of either.
   evening). The sky's mid deck is cloudlets, never a thresholded smooth field. Big landmark boxes
   seen from the air get their roofs dressed. Anything widened to a minimum pixel width is dimmed by
   the share it really covers. GOLDEN_AERIAL=0 is the A/B.
+- **2026-10-31 The sunset on the Esplanade: the dusk sky is warm only toward the sun (rc-sunset,
+  HANDOFF "The sunset on the Esplanade").** Judged on the `sunset` reference camera at 17:51 and
+  18:36. Decisions: the warm dusk horizon colour belongs to the sun's side of the sky (round the
+  other side it keeps its brightness in a cool slate-lilac); the old violet twilight band waits for
+  the sun to set (the sunset model's earth's shadow already does that job); the depth fog's colour
+  goes to night with the sky, never behind it, and is rose-grey at dusk (the orange toward the sun
+  is fog_sun_scatter's); the street lamps' lights and pools come in on the square of the lamp level
+  at a clear dusk while lamp_factor, the heads and the windows keep their ramp; the replica's far
+  bluff face is planted. All behind `SUNSET_REVIEW=0`.

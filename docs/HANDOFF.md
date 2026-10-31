@@ -23962,3 +23962,77 @@ shard 2, which passes alone twice (worst 0.5 deg) - intermittent, traffic-motion
 **NEEDS MAC CHECK**: the mid deck's cloudlets next to the cumulus volume (Forward+ draws them at
 0.2); the far ranges' tone at 17:00-18:00 on Forward+ (lavapipe on the hill tool: a little darker and
 warmer, as intended; the city's own Forward+ frame was not rendered).
+
+## 9jp. The sunset on the Esplanade: the dusk sky warm only toward the sun, the land dark under the twilight (fleet wave 4, `wt/rc-sunset`; refcam `sunset`)
+
+**How it was judged.** The `sunset` reference camera (the Esplanade looking south down the coast,
+cameras.json hour 17.85 = 17:51, clear; the sun two degrees up over the sea to the right) plus the
+same eye at 18:36 (a second table through `REFCAMS_JSON=`), opengl3 through tools/refcams, main
+`e5bb9e4` (after the golden-hour review) as the before. Then the whole ten with `SUNSET_REVIEW=0`
+and on from one tree (the switch reproduces main exactly: sunset p5/p50/p95 36/80/169, sat 0.376 in
+both), and the sky alone on Forward+ (lavapipe, `tools/sky/sky_shot.gd`, volumetric cumulus).
+
+**What read fake, in the order the eye lands on it:**
+1. **The whole sky was one salmon sheet** at 17:51. DayNight's dusk horizon (peach) was the
+   horizon colour all the way round, and the base gradient's slow `pow(t, 0.5)` carried it up past
+   twenty degrees; the old violet twilight band stood ten degrees up at 80 % with the sun still UP
+   (gain `1 - sun_high`, and sun_high is only 0.2 at two degrees). Looking south, 90 degrees off the
+   sun, a real sky is pale blue over a warm low haze with the clouds lit pink.
+2. **At 18:36 the land was brighter and more orange than the sky above it** (headland 84/54/41
+   RGB under a zenith of 54/53/87). The depth fog's colour followed `moonlight` (half way at 18:36)
+   while the sky had already gone to night on GoldenHour's faster ramp, so the kilometres of air in
+   front of the headland, the hills and the bluff were lit orange-brown at a purple dusk.
+3. **Lamp pools on a road still in daylight** at 17:51: lamp_factor is 0.49 with the sun two
+   degrees up (it ramps from 6.7 degrees up), and the pool quads and OmniLights followed it.
+4. **The far bluff face was a clay wedge**: past the FULL ring ReplicaBuilder lays it as far ground
+   in ONE colour (0.22, 0.19, 0.12) with none of its planting, which the red sun turns into a smooth
+   red-brown slab under the houses.
+
+**What changed** (`SunsetReview`, `scripts/world/sunset_review.gd`; `SUNSET_REVIEW=0` is the A/B):
+- sky.gdshader `dusk_away` / `dusk_away_tint`: in the base gradient the horizon colour is taken to
+  its own luminance times a slate-lilac tint (0.80, 0.89, 1.24, linear) round the side away from the
+  sun (none within ~40 degrees of it, all of it from ~100), by `dusk_away` = `DUSK_AWAY` (1.0) x
+  DayNight's `dusk_rim`; the twilight warm band's all-round floor drops from 0.20 to 0.07 there. The
+  block is skipped at 0 (noon and night bit-identical). The zenith keeps its own colour.
+- `band_gain()`: the old twilight band fades in between sun elevation 0.06 and -0.03 (0.13 at
+  17:51, whole a couple of degrees down); the sunset model's earth's shadow already rises opposite
+  the sun at the right time.
+- `fog_night()`: the fog colour goes to night on max(moonlight, GoldenHour.sky_night()); its dusk
+  colour is `DUSK_FOG` (0.66, 0.53, 0.50) for the old orange (0.72, 0.45, 0.33).
+- `light_level()`: the lamp OmniLights' energy is the square of night_factor (weather's share as
+  before); `lamp_ease` (new shader global, `pool_ease()`: 1 at a clear dusk, 0 in rain and the A/B)
+  makes light_pool.gdshader's round pools `lamp_factor * mix(1, lamp_factor, lamp_ease)`. The
+  global's default is 1, so every glshot tool that sets lamp_factor to 0 or 1 sees no change.
+  lamp_factor itself, the heads, windows and signs are untouched (the golden-hour checks hold).
+- `bluff_far()`: ReplicaBuilder's far "bluff" ground takes a vertex colour from two value-noise
+  octaves (14 m patches, 5 m tone) - olive scrub and greener ice plant over the old dirt, about two
+  thirds planted. A per-vertex hash drew it as stripes along the rows.
+
+**Numbers** (refcam sunset, p5/p50/p95, saturation, CCT): 17:51 36/80/169 0.376 3515 K ->
+36/81/178 0.324 4343 K; the sky at the top of the frame 176/127/135 -> 163/138/147 RGB (and bluer
+higher up); 18:36 headland 84/54/41 -> 41/32/30, left hill 71/46/35 -> 33/26/25 (now under the
+sky's 75/68/104). The other nine cameras (`compare all_off all_on`): none flagged; golden_aerial
+(17:12) saturation -0.02 and 7 mireds cooler, the rest within run noise (freeway p95 -7 is traffic).
+**Frame cost:** none (uniforms and vertex colours; triangles and draws within +-3 % run noise on
+every camera).
+
+**Forward+.** The sky alone at 17:51 looking south on lavapipe (volumetric cumulus): pink before,
+pale lilac-blue with orange-lit cumulus after, not oversaturated. The fog, lamp and bluff changes
+are plain colours and levels both renderers read the same way; the city itself was not rendered on
+Forward+ (it does not fit lavapipe).
+
+**Checks** (`tests/rc_sunset_checks.gd`, 17): the band off with the sun up and whole once it is
+down, `dusk_away` only at dusk (0 at noon and 22:00 live), the fog on the faster ramp and near its
+night colour at 18:36, the lamps' lights on the square half way up (live, an OmniLight's energy),
+the pools' global and its storm case, the far bluff mostly planted, the shader's tint = the
+constant, the A/B.
+
+**Not done / not verified.** The far headland at 17:51 still reads as a flat warm-brown slab (it is
+mostly the horizon plane's own haze, `haze_color` = the warm horizon all round; the same
+away-from-the-sun cooling in macro_ground.gdshader is the next step, but that shader belongs to the
+far ground). The sea mirrors `sky_tint`, one horizon colour for every azimuth (the ocean shaders
+belong to the water session); looking south at sunset it is a little warmer than the sky it
+should mirror. The trees on the bluff past the FULL ring are the far city's dark hexagonal canopy
+blobs (the mid-distance planting's, not this camera's). Dawn shares `band_gain()` and `dusk_away`
+(both symmetric in elevation) and was not looked at; the dawn review owns it. Stills on
+`shots/rc-sunset`.

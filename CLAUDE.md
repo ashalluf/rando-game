@@ -808,6 +808,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   exposure starts toward the night's as the sun falls (`exposure_mix()`, monotonic); the GOLDEN
   look eases at the sunset (`golden_grade()`). `GOLDEN_HOUR_REVIEW=0` is the A/B (`restore()` puts
   DayNight's old numbers back); checks `tests/golden_hour_review_checks.gd`.
+- The sunset on the Esplanade (2026-10-31, refcam `sunset`, docs/HANDOFF.md "The sunset on the
+  Esplanade"): `SunsetReview` (`scripts/world/sunset_review.gd`): the warm dusk horizon belongs to
+  the sun's side (sky.gdshader `dusk_away`: round the other side it is the same brightness in a
+  cool slate-lilac, so the sky away from the sun is pale blue under pink-lit clouds), the old violet
+  twilight band waits for the sun to be down (`band_gain()`), the depth fog goes to night on the
+  faster of the light's and the sky's ramps (`fog_night()`) in a rose-grey dusk colour, the lamps'
+  lights and pools come in on lamp_factor squared at a clear dusk (`light_level()`, the
+  `lamp_ease` global in light_pool.gdshader; lamp_factor itself unchanged), the replica's far
+  bluff face is mottled (`bluff_far()`). `SUNSET_REVIEW=0` is the A/B; checks
+  `tests/rc_sunset_checks.gd`.
 - The map (2026-10-05, "a minimap and a full-screen map with a GPS, GTA style"): the minimap and
   the full-screen map draw the same thing through `MapPainter` (`scripts/ui/map_painter.gd`,
   static; a `MapPainter.View` says where: world-to-canvas transform, pixels per metre, the
