@@ -1482,7 +1482,7 @@ static func model_mesh(path: String, include: PackedStringArray = [], exclude: P
 		var root: Node = scene.instantiate()
 		var importer := ImporterMesh.new()
 		_merge_into(root, root, importer, include, exclude, xform, overrides)
-		if MERGE_BY_MATERIAL.has(path.get_file()):
+		if MERGE_BY_MATERIAL.has(path.get_file()) or (plant_merge and _knee_high(path.get_file())):
 			importer = _merged_by_material(importer)
 		if importer.get_surface_count() > 0:
 			importer.generate_lods(25.0, 60.0, [])
@@ -1509,6 +1509,16 @@ static func model_mesh(path: String, include: PackedStringArray = [], exclude: P
 ## to 320 draws a street frame - and every physics trash can four draws and four more per shadow
 ## cascade. Not the trees: their LOD ladders (FoliageLod) are measured per surface.
 const MERGE_BY_MATERIAL := ["prop_bench_kit.glb", "prop_trash_can.glb"]
+## The knee-high scanned plants (BUSHES, PLANTS, FLOWERS, GRASS_CLUMPS) are merged the same way:
+## they keep the generated LODs (no measured ladder), and their glTFs ship one surface per blade
+## cluster on ONE material - the bermuda grass clump 21, the sorrel bush 11, the flowers 5-8 - so
+## a park's ground cover was hundreds of draws for a few tens of thousands of triangles (400 draws
+## of gclump at the sunset camera, perf-audit-4). PLANT_MERGE=0 in the environment is the A/B.
+static var plant_merge := OS.get_environment("PLANT_MERGE") != "0"
+
+
+static func _knee_high(file: String) -> bool:
+	return BUSHES.has(file) or PLANTS.has(file) or FLOWERS.has(file) or GRASS_CLUMPS.has(file)
 
 
 ## `im` with the surfaces that share a material (the same object, or the same name and albedo
