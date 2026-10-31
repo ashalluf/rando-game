@@ -111,12 +111,12 @@ const PART_COST := {
 	"reservoir_checks": 0.4, "facades_gta_checks": 0.3, "ocean_traffic_checks": 0.3,
 	"refinery_checks": 0.3, "tower_gondolas_checks": 0.3, "building_damage_checks": 0.2,
 	"fwd_review_c_checks": 0.2, "hill_air_checks": 0.2, "lighthouses_checks": 0.2,
-	"marina_checks": 0.2, "ref_cameras_checks": 0.2, "rooftops_checks": 0.2, "web_build_checks": 0.2,
+	"marina_checks": 0.2, "ref_cameras_checks": 0.2, "rooftops_checks": 0.2, "web_build_checks": 0.2, "web_review_3_checks": 0.1,
 	"far_corners_checks": 0.1, "weather_la_checks": 0.1, "color_grade_checks": 0.0,
 	"fwd_review_a_checks": 0.0, "fwd_review_b_checks": 0.0, "garments_2_checks": 0.0,
 	"memory_audit_checks": 0.0, "offshore_island_checks": 0.0, "perf_audit_checks": 0.0,
 	"shop_vinyl_checks": 0.0, "sky_checks": 0.0, "bonfires_checks": 3.0,
-	"cinematic_review_checks": 0.1, "sunset_clouds_checks": 0.0
+	"cinematic_review_checks": 0.1, "sunset_clouds_checks": 0.0, "night_street_review_checks": 0.1
 }
 const DEFAULT_COST := 6.0
 ## Every share pays for its own city load on top of its parts.
@@ -2436,6 +2436,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The web build (tests/web_build_checks.gd): the Web preset, WebGL's texture units and the
 	# global buffer in every shader, and the web's own quality settings.
 	load("res://tests/web_build_checks.gd").new().run(self, city)
+	# The web review after wave 3 (tests/web_review_3_checks.gd): no GLSL ES 3.1+ built-in in a shader.
+	load("res://tests/web_review_3_checks.gd").new().run(self)
 	# The Forward+ review of those four (tests/fwd_review_c_checks.gd): the map scales with the window.
 	await load("res://tests/fwd_review_c_checks.gd").new().run(self, city)
 	# The landmarks' far copies (tests/far_landmarks_checks.gd): the detailed copies' palms and trees.
@@ -2661,12 +2663,20 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The third perf audit (tests/perf_audit_3_checks.gd): cache trims, the crowd feet's stagger,
 	# the sea's life idling inland, the night haze's daytime early-out.
 	await load("res://tests/perf_audit_3_checks.gd").new().run(self, city)
+	# The night street review (tests/night_street_review_checks.gd, NightStreetReview): the moon, the
+	# lamps' pools, the wet reflections, the mirrors' sky in the rain, the A/B.
+	load("res://tests/night_street_review_checks.gd").new().run(self, city)
 	# The aerial review (tests/aerial_review_checks.gd, AerialReview): the two seas agree, the plane's
 	# night band, the hills' mottle from the air, the far tors' haze, the far crowns' colour.
 	load("res://tests/aerial_review_checks.gd").new().run(self, city)
 	# Lawns close up (tests/lawns_closeup_checks.gd, LawnsCloseup): the lawn field shared by the
 	# ground and the blades, the tuft, the parkways and weeds, nothing else moved.
 	load("res://tests/lawns_closeup_checks.gd").new().run(self, city)
+	# The suburbs' and the beach town's nights (tests/house_nights_checks.gd): porch lights, lit rooms, pools.
+	load("res://tests/house_nights_checks.gd").new().run(self, city)
+	# Car paint, second pass (tests/car_paint_2_checks.gd, CarPaint2): rolls by hash only, the switch,
+	# the shader's paint2 uniforms, the materials, a car's condition.
+	load("res://tests/car_paint_2_checks.gd").new().run(self, city)
 	# The skyline's glass by day (tests/skyline_glass_day_checks.gd, SkylineGlass): the tower boxes,
 	# the pick, the shaders sharing the include behind its switch, the node feeding the globals.
 	load("res://tests/skyline_glass_day_checks.gd").new().run(self, city)
