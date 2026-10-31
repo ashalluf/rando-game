@@ -12,7 +12,7 @@ extends RefCounted
 ##   level and force, Traffic's cap and `staged`, and every child's `enabled` / `staged`
 ##   (Police, Emergency, NewsCrews, Birds, OceanTraffic, CoastTraffic, ...);
 ## - the world: WorldState's destruction, the police's stars and units, open onlooker scenes,
-##   wrecks and burning cars, debris (bodies, rubble, BlastDebris), a blast's fading effects, Engine.time_scale, the audio
+##   wrecks and burning cars, debris (bodies, rubble, BlastDebris), a blast's fading effects, car alarms, Engine.time_scale, the audio
 ##   speed, pause, the player out of any car with full health;
 ## - the crowd: the cap, and the head-count trimmed back to the snapshot's (the farthest plain
 ##   walkers freed, as BusyStreets frees them in play), so a file that builds a chunk and counts
@@ -253,6 +253,11 @@ func full(tree: SceneTree) -> void:
 			freed += 1
 	if freed > 0:
 		last["freed"] = freed
+	# Car alarms an earlier file's blasts left sounding (24-46 s) fill CarAlarm.max_alarms.
+	for a in CarAlarm._live.duplicate():
+		if is_instance_valid(a) and a.has_method("_stop"):
+			a._stop()
+			last["alarms"] = true
 	_trim_crowd(tree, player as Node3D)
 
 

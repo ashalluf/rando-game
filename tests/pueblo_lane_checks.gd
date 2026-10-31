@@ -130,7 +130,6 @@ func _build(t: Node, plan: CityPlan, lm: Dictionary, info: Dictionary, L: Dictio
 		tree.root.add_child(root)
 		var body := StaticBody3D.new()
 		root.add_child(body)
-		var zones0 := tree.get_nodes_in_group(Sanctuary.ZONE_GROUP).size()
 		Landmarks.build(lm, root, body if detailed else null, plan, detailed)
 		await tree.process_frame
 		var pivot := root.get_node_or_null("Civic_" + PuebloLane.ID) as Node3D
@@ -139,7 +138,12 @@ func _build(t: Node, plan: CityPlan, lm: Dictionary, info: Dictionary, L: Dictio
 			root.queue_free()
 			return
 		var tris: Dictionary = pivot.get_meta("pueblo_tris", {})
-		var zones := tree.get_nodes_in_group(Sanctuary.ZONE_GROUP).size() - zones0
+		# Only this build's zones: the city's chunks stream their own sanctuaries in and out over
+		# the frame waited above, so the tree-wide count moves by itself (gate run 7171).
+		var zones := 0
+		for z in tree.get_nodes_in_group(Sanctuary.ZONE_GROUP):
+			if root.is_ancestor_of(z):
+				zones += 1
 		if detailed:
 			_t._check(int(tris.get("geo", 0)) > 5000 and int(tris.geo) < GEO_BUDGET and int(tris.market) > 20000 and int(tris.market) < MARKET_BUDGET
 				and int(tris.paper) > 3000 and int(tris.paper) < PAPER_BUDGET,
