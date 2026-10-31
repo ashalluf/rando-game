@@ -13,3 +13,8 @@ opengl3 (Compatibility renderer, not the Mac's Forward+). Before = main / `SAND_
 - 07 / 08: along the shore south: empty water before; people wading knee-deep after (Waders).
 - 09 / 10: close to a swimmer: before only the crown of the head clears the surf zone's water;
   after, head and shoulders out, floated on the drawn sea (SeaSurface), more swimmers.
+- 11 / 12: along the shore north: a palm stood among the towels a dozen metres from the water;
+  after, the palms along the back by the path.
+- 13-15: the final after views on the tree merged with main (batch 26).
+- 16: all ten refcams after; 17: the compare against `SAND_ROADS=0 WADERS=0` (= main): nine
+  unchanged, freeway flagged only because a semi passed the camera in one run (traffic noise).
