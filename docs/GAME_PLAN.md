@@ -4003,3 +4003,11 @@ none of either.
   is fog_sun_scatter's); the street lamps' lights and pools come in on the square of the lamp level
   at a clear dusk while lamp_factor, the heads and the windows keep their ramp; the replica's far
   bluff face is planted. All behind `SUNSET_REVIEW=0`.
+
+- **2026-10-31 The rainy night street is its reflections (rc-street-night, HANDOFF "The rainy night
+  street, refcam review").** A wet night street reads from the long broken streaks lamps and cars
+  lay on the road and from rain seen only where a light catches it. Decisions: a reflection is a
+  soft rippled column peaked at the mirror point, never a constant bar from the pole's foot; cars'
+  lamps get the same streak (one MultiMesh, nearest 18 cars); the rain curtain and the drops' own
+  glow fade at night, and the lit streaks in the lamp cones carry the rain instead (also under
+  Forward+'s volumetric fog); lens drops refract. All behind RAIN_STREET_NIGHT=0.

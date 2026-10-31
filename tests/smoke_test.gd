@@ -2770,6 +2770,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The sunset on the Esplanade (tests/rc_sunset_checks.gd, SunsetReview): the dusk sky cool away
 	# from the sun, the band after sunset, the fog on the sky's ramp, the lamps' lights, the A/B.
 	load("res://tests/rc_sunset_checks.gd").new().run(self, city)
+	# The rainy night street's refcam review (tests/rain_street_night_checks.gd, RainStreetNight):
+	# the lamp streaks, the lit rain, the curtain, the lens, the deck, the car lamps in the wet road.
+	await load("res://tests/rain_street_night_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

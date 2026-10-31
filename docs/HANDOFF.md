@@ -24036,3 +24036,80 @@ should mirror. The trees on the bluff past the FULL ring are the far city's dark
 blobs (the mid-distance planting's, not this camera's). Dawn shares `band_gain()` and `dusk_away`
 (both symmetric in elevation) and was not looked at; the dawn review owns it. Stills on
 `shots/rc-sunset`.
+
+## 9jq. The rainy night street, refcam review (fleet wave 4, branch `wt/rc-street-night`)
+
+The task: the `street_night` reference camera (Flower at Olympic, 21:30, rain) judged as an art
+director would, the worst three to five things that give it away fixed, the other nine cameras held.
+`wet-road-mirror` owns road.gdshader's `mirrored_city()`; nothing here touches it.
+
+**What read fake, worst first** (the before: `build/refcams/before/street_night.png` on main e5bb9e4):
+1. **The lamps' reflections were glowing rods stood on the road.** NightAtmos' `atmos_glow_wet`
+   streak (night_wet.gdshader) was a 1-2 % wide bar of constant colour from each pole's foot to the
+   bottom of the frame - white rods under the LED lamps, orange ones under the sodium twins.
+2. **The car lamps threw nothing on the wet road.** No head-lamp or tail-lamp streak at all
+   (Compatibility has no SSR; Forward+'s misses whatever is off-frame or under the car).
+3. **The rain curtain was the same pale blue at midnight as at noon**: thin white scratches down
+   every dark facade and the black sky (on Forward+ a sheet of TV static over the whole sky).
+4. **Lens drops were flat pale discs** (bokeh dust over the lower corners).
+5. **Rain only showed as the curtain**: no lit drops in the lamps' light, where the eye really sees
+   rain at night; the drawn light cone under a lamp read as a hard-edged orange sail.
+6. The overcast night deck was all but black at the zenith (0.045) over a lit band at the horizon.
+
+**The fixes** (`RainStreetNight`, `scripts/world/rain_street_night.gd`, one class with every number;
+`RAIN_STREET_NIGHT=0` puts each back exactly - every new shader path sits behind a uniform whose
+default is the old look):
+- **Lamp streaks** (`night_wet.gdshader` `look2`, set on NightAtmos' "wet" material by
+  `RainStreetNight.dress_wet()`): a soft column as wide at both ends as at the mirror point
+  (`width2_share` 2.1 % of the distance, min 0.1 m), from 30 % of the way to the mirror point to 40 %
+  of what is left toward the eye (at most 6 m), peaked at the mirror point, cut into rippled rows by
+  two value noises in metres along / across it (the glints of a rough wet surface), ragged edges,
+  a hot core washed toward white. `gain2` 0.62 / `gain2_forward` 0.28 (Forward+ adds in linear HDR).
+- **Car lamps in the wet road** (`WetCarGlints`, `scripts/vehicles/wet_car_glints.gd`, made by
+  NightAtmos' `_ready()`): ONE MultiMesh of the same streak (night_wet's instance contract: origin =
+  road under the light, basis y = its height), four instances a car on the nearest `max_cars` 18
+  running cars (`lights_running()`) within `reach` 75 m, picked every 0.25 s and placed every frame
+  from the cars' transforms; a head lamp by how much it faces the eye, a tail by how much it faces
+  away, brighter on the brake (`light_brake`). Hidden by day and on a dry road (`wanted()`).
+  One draw, at most 72 quads.
+- **Night curtain** (Weather's curtain shader, shared with StormDrama's inner one): `night_look`
+  (baked from `curtain_night_code()`) mixes the tint to `night_tint` (a dim warm grey, `source_color`
+  like the day tint so both renderers decode it) and the alpha x `night_alpha` 0.82 by `lamp_factor`.
+- **Lens drops** (`shaders/rain_lens.gdshader`, Weather loads it in place of its inline shader):
+  each drop refracts the frame behind it, inverted and blurred off the screen mips, darker to its
+  edge, with a thin meniscus rim - at night a lamp seen through it is a small spark, never a disc.
+- **Lit rain in the lamps' light** (`night_shaft.gdshader` `look2`): thin streaks (24 columns a
+  metre across the cone as the eye sees it, so they stand vertical on either face) 0.6 m long,
+  falling 12 m/s, paler than the lamp, `rain2_gain` 5; drawn even where Forward+'s volumetric fog
+  owns the cone's glow (night_atmos.y 0: the fog lights the air, not drops). The cone's top fades in
+  over 20 % of its height (no sail edge). The raindrop particles' own glow drops to 0.12 at night
+  (`drop_glow()`), so drops show where a light catches them.
+- **The deck**: DayNight's storm zenith x1.75 at night (`storm_top()`), the night glow x1.4, the
+  overcast cloud's night light 0.025 -> 0.042 (marine nights untouched).
+
+Hooks in shared files: NightAtmos (two lines: the materials' switch, `WetCarGlints.ensure()`),
+Weather (the curtain's night lines, the lens shader pick, the drops' glow), DayNight (three calls),
+fwd_block_shot.gd (`CARS="x,z,yaw[,b];..."`: cars with a driver in, lamps on - the tool has no traffic).
+
+**Proof**: the fast loop is `fwd_block_shot.tscn` on opengl3 at the refcam's eye (2 min 45 s,
+`EYE=2359.4,2.0,880.0,0,2,21.5,rain` with `CARS=2355.6,862,180;2363.2,852,0;...`). Forward+ on
+lavapipe: the beach town's home block only (`BLOCKS=home`; three blocks were OOM-killed at 13 GB,
+the box's limit), rain 21:30, before / after: the curtain's static gone, the rippled streaks, the
+refracting drops.
+
+**Numbers** (refcams, opengl3, the whole city, `RAIN_STREET_NIGHT=0` then on, one load each;
+`build/refcams/all_off` / `all_on`, `compare`): street_night p5/p50/p95 8/34/138 -> 8/30/140,
+saturation +0.054 (the warm streaks and the darker curtain), triangles +0.5 %, draws +0.3 % - the
+only flagged shot (intended). The other nine are within the noise (pixel |d| <= 0.5, freeway 3.2:
+traffic). Gate (SHARDS=3, merged with main 2026-10-31): 4,464 checks, 0 failed, peak 2.8-3.5 GB a shard.
+Stills on `shots/rc-street-night`.
+
+**Not done / not seen**: the whole street on Forward+ (downtown does not fit lavapipe; the beach
+town's block stood in); the car streaks' Forward+ strength (`gain2_forward`) is a guess from that one
+scene - the Mac may want it lower or higher; the bike lanes' green reads loud against the wet asphalt
+at night (bike_lane.gdshader darkens wet paint only to 0.85) - left for its owner; the puddles of
+StreetClutter2 / road.gdshader still mirror the sky as pale blobs in the carriageway (wet-road-mirror's).
+
+Checks: `tests/rain_street_night_checks.gd` (16: the switch and what it restores, the shaders'
+defaults, the materials, Weather's curtain and lens, the deck numbers, WetCarGlints' lamps and
+facing rule on a staged car).

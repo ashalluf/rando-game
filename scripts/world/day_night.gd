@@ -475,6 +475,7 @@ func _apply() -> void:
 		# grey at every hour, so a rainy night had a pale grey sky and read as dusk.
 		var storm_top := Color(0.16, 0.17, 0.2).lerp(night_storm_top, moonlight)
 		var storm_horizon := Color(0.3, 0.31, 0.34).lerp(night_storm_horizon, moonlight)
+		storm_top = RainStreetNight.storm_top(storm_top, moonlight)
 		if storm > 0.0:
 			var ss: Array = StormDrama.sky(storm_top, storm_horizon, storm, moonlight)
 			storm_top = ss[0]
@@ -501,8 +502,8 @@ func _apply() -> void:
 		_sky.set_shader_parameter("cloud_shadow", day_cloud_shadow.lerp(dusk_cloud_shadow, dusk).lerp(Color(0.2, 0.2, 0.24), weather_darken))
 		# After dark: moonlit cloud on a clear night, the city's own light on an overcast one.
 		var overcast := clampf(weather_darken * 1.6, 0.0, 1.0)
-		_sky.set_shader_parameter("night_cloud_light", lerpf(0.12, 0.025, overcast))
-		_sky.set_shader_parameter("night_glow", Vector3(0.02, 0.025, 0.04).lerp(night_storm_glow, overcast))
+		_sky.set_shader_parameter("night_cloud_light", lerpf(0.12, RainStreetNight.overcast_cloud_light(), overcast))
+		_sky.set_shader_parameter("night_glow", Vector3(0.02, 0.025, 0.04).lerp(night_storm_glow * RainStreetNight.storm_glow_gain(), overcast))
 		_sky.set_shader_parameter("mid_amount", clampf(mid_cloud + cloud_extra * 0.6 - 0.4 * santa_ana, 0.0, 1.0))
 		# Stars on the slow ramp, squared: night_factor is already 1.0 three degrees after sunset,
 		# which had a full star field out over a still-lit dusk sky at 18:24.

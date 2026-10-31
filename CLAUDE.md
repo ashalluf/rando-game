@@ -1999,6 +1999,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   point, collapsed while dry); road.gdshader's mirrored windows smear (`mirror_window*`,
   `mirror_sky`). `NIGHT_STREET_REVIEW=0` is the A/B; bookmarks `tools/night_street/` (shoot.sh
   full city, shoot_fwd.sh small scenes, measure.py); checks `tests/night_street_review_checks.gd`.
+- The rainy night street (2026-10-31, docs/HANDOFF.md "The rainy night street, refcam review"):
+  `RainStreetNight` (`scripts/world/rain_street_night.gd`): NightAtmos' lamp streak is a soft
+  rippled column peaked at the mirror point (night_wet `look2`), `WetCarGlints` lays the same streak
+  under the nearest running cars' head / tail lamps (one MultiMesh), the rain curtain and the drops'
+  glow fade at night while lit streaks fall through the lamp cones (night_shaft `look2`, also under
+  volumetric fog), lens drops refract (`shaders/rain_lens.gdshader`), the overcast deck is lighter.
+  `RAIN_STREET_NIGHT=0` is the A/B (new shader paths default to the old look); `CARS=` on
+  fwd_block_shot.gd stands lit cars; checks `tests/rain_street_night_checks.gd`.
 - Car lights (GAME_PLAN G4 / G6, 2026-10-04): the lamp mesh is `PropFactory.vehicle_lights()`
   on `shaders/car_lights.gdshader` (it replaced light_pool for cars): head and tail glows, the
   beam fan, amber indicators at all four corners, reversing lamps and a red wash on the road
