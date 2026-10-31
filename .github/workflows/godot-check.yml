@@ -60,6 +60,13 @@ jobs:
           unzip -oq -j templates.tpz templates/macos.zip templates/version.txt 'templates/web_*' -d "$DEST"
           rm templates.tpz
 
+      - name: Stamp the build number
+        # BuildInfo (scripts/util/build_info.gd) tells the game which release it is: the verify
+        # pack (docs/VERIFY.md) names its folder and report from it. Only this runner's copy changes.
+        run: |
+          sed -i "s/^const BUILD := \".*\"/const BUILD := \"${GITHUB_RUN_NUMBER}\"/; s/^const COMMIT := \".*\"/const COMMIT := \"${GITHUB_SHA::7}\"/" scripts/util/build_info.gd
+          grep -n "^const" scripts/util/build_info.gd
+
       - name: Export macOS app
         run: |
           mkdir -p build

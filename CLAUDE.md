@@ -877,6 +877,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   layer it hid (all CanvasLayers 0..127; < 0 is part of the picture). Stills:
   `tools/glshot/photo_shot.gd` (`ROOM=1` the test room for a Forward+ DOF shot); checks:
   `tests/photo_mode_checks.gd`.
+- Verify pack (2026-10-31, docs/VERIFY.md, docs/HANDOFF.md "The verify pack"): `VerifyPack`
+  (`scripts/ui/verify_pack.gd`, beside the pause menu, its VERIFY PACK button; `-- --verify`)
+  shoots the ten refcams on the machine the game runs on - the owner's Mac, the only true
+  Forward+ check - at their hours and weather, holds each `hold_seconds`, saves PNGs, a sheet, a
+  report and a `send` folder of JPGs to Pictures/Rando Game/verify_<build>/, then puts the
+  player, camera, clock, weather, graphics level and HUD back. Its `CAMERAS` copy
+  `tools/refcams/cameras.json` (change both; checked). `BuildInfo` is the build number the
+  workflow stamps before export. `VERIFY_PACK=0` the A/B; checks `tests/mac_verify_pack_checks.gd`.
 - Input actions live in `project.godot` under `[input]`. Current actions: `move_forward/back/left/right`,
   `jump`, `boost` (Shift / gamepad B), `look_left/right/up/down` (right stick), `fire`, `alt_fire`,
   `next_weapon`, `prev_weapon` (mouse wheel only), `weapon_1..3`, `weapon_wheel` (Tab / gamepad
