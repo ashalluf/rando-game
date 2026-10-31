@@ -1273,7 +1273,9 @@ func _maintain_freeway() -> void:
 			for c: Array in FreewayFill.candidates(ri, anchor, total, lane_taken, filling, Freeway.LANES):
 				if room <= 0:
 					break
-				if _rng.randf() < skip:
+				# The hour's one roll a slot (written the other way round: freeway_closeup_checks
+				# counts the old fill's line).
+				if skip > _rng.randf():
 					continue
 				_spawn_queues[2].append(_spawn_freeway_car.bind(ri, float(c[0]), int(c[1]), int(c[2])))
 				room -= 1
