@@ -22474,3 +22474,8 @@ with the heading); followers in a crowd-life talk are not kept out of it; the po
 sleepers, park goers and other Pedestrian subclasses are not grouped (they avoid like anyone only
 where they run the base `_walk`); the frame cost was measured headless only (the flow adds no
 geometry).
+
+Gate (SHARDS=3, on a merge of main through batch 26): 4,463 of 4,464 passed; the one failure,
+big_vehicle_checks "a semi rides a freeway deck ... and drives on (3.7 m on)", is freeway traffic
+(no walker involved) and passed alone on a rerun (11.7 m): an intermittent from main to look at.
+Stills on `shots/pedestrian-flow` (kerb bunch and groups, before / after with CROWD_FLOW=0).
