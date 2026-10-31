@@ -73,8 +73,13 @@ vec3 sg_sky_ratio(vec3 refl, vec3 sun) {
 	vec3 now = mix(sg_hue(skyline_sky_rim.rgb, sg_luma(SG_OLD_RIM)), sg_hue(skyline_sky_top.rgb, sg_luma(SG_OLD_TOP)), k);
 	vec2 rh = refl.xz / max(length(refl.xz), 1e-4);
 	vec2 sh = sun.xz / max(length(sun.xz), 1e-4);
-	float side = pow(max(dot(rh, sh), 0.0), 3.0) * (1.0 - smoothstep(0.0, 0.4, refl.y)) * skyline_sky_top.w;
-	now += vec3(0.34, 0.17, 0.04) * side;
+	// A low sun lights a wide fan of the sky round it, not a spot: the golden-hour glass on the
+	// faces turned toward the sun is that glow (a hot core near the sun, a broad warm fan to ~70
+	// degrees either side), and it dies off with height over the horizon.
+	float az = max(dot(rh, sh), 0.0);
+	float lowk = 1.0 - smoothstep(0.0, 0.5, refl.y);
+	float side = (pow(az, 1.6) * 0.75 + pow(az, 12.0) * 0.45) * lowk * skyline_sky_top.w;
+	now += vec3(0.40, 0.21, 0.06) * side;
 	vec3 old = mix(SG_OLD_RIM, SG_OLD_TOP, k);
 	return sg_srgb_in(now) / max(sg_srgb_in(old), vec3(1e-3));
 }
