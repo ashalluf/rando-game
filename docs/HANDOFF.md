@@ -21980,3 +21980,38 @@ the same way, but judge 18:00 on the Mac first - if it reads milky-pink, raise `
 grass under a low red sun is what it is). The painted cumulus on opengl3 draws a big smooth ellipse in
 the aerial and sky shots (before and after alike; the sky's, not this review's). Dawn shares the sky
 ramp and the exposure ramp (both are symmetric in elevation) and was not looked at.
+
+## 9d?. The gate's intermittent failures, wave 4 (fleet wave 4, `gate-flakes`, 2026-10-31)
+
+The task: run `SHARDS=3 tests/headless_check.sh` five times in a row on main with a different
+`SMOKE_SHUFFLE=<seed>` each run, fix every FAIL and script error at its cause, until five runs pass
+clean. Logs were kept per run (`SMOKE_LOG_DIR`); a loop script ran the seeds back to back
+(~20 min a run, ~3.1-3.3 GB a shard).
+
+**What failed on main (`e5bb9e4`), and why** (seeds 101-505, then 606):
+
+| run | check | cause | fix |
+|---|---|---|---|
+| 101 | car_cabin "street cars have a driver (106/107)" | ValetStand empties a called-in car while its driver walks in and before the valet gets in; a FreewayIncidents stall's driver stands on the shoulder; both stay tagged traffic | skipped like CarPanic's abandoned cars (`traffic.valet` / `traffic.fw_incident`); the message names any other empty traffic car |
+| 202 | busy_streets "an emptied near block gets its walkers back (11 -> 21 of 20)" | the bound used the plan at 13:00 while `balance_crowd()` uses the city's hour; walkers crossing from the next block join the ring while it fills | bound from `BusyStreets.hour_now()` + `CROSS_SLACK` 2 |
+| 303 | explosions_2 x4 "threw burning debris (0)", "one flash light", "debris arcs up", "lands on the deck" | `BlastDebris.alive()` was already `max_debris` (24) from earlier files' blasts still burning (files not awaited run with no frames between them), so this blast threw none; and see 505 | `alive()` sums live BlastDebris nodes in the tree (the static counter also leaked for debris that never entered the tree); the gate reset frees leftover debris; the check frees what is left and prints it |
+| 303 | film_shoot "the crew in black (0) and the extras (0)" | earlier files had filled the crowd cap, so `_take_crowd_room()` refused everyone | the check gives the build room in the cap (star_boulevard's way); the gate reset trims the crowd back to the snapshot's head-count |
+| 505 | arroyos "no arroyo build step over 15 ms (21.2)" / 606 "over 30 ms (34.5)" | one wall-clock sample on a box three shards share | 30 ms under `SMOKE_SHARD`, and a step over budget is timed again on a second build (the better reading counts) |
+| 505 | explosions_2 "one flash light, brighter and wider" | an earlier blast's `BlastFlash` still glowing in the fx parent: Godot named the new one `@OmniLight3D@n`, and the name search found only the old one | the check frees every `Blast*` node left before its own blast |
+| 606 | onlookers "a new shot sends the onlookers running (1 stayed)" | the check's 40 m alarm; Onlookers recruits up to `RECRUIT_REACH` 55 m, and one still walking in never heard it | alarm `RECRUIT_REACH` + 15 m; the message gives each stayer's distance, stage, act |
+| 606 | la_trees "the fig block with LaTrees off is the same block (cars 15/6)" | the first build's parked cars live under the city root: the second build found the kerb spots taken and PhysicsBudget fuller (and 21 cars leaked into every later file) | each build's cars are taken out of the tree after counting |
+
+**The gate reset grew two things** (`tests/gate_reset.gd`): every BlastDebris freed, and the crowd:
+the streamer's `max_pedestrians` put back and the head-count trimmed to the snapshot's (farthest
+plain walkers first, `BusyStreets.is_plain_walker()`: nobody on an errand, watching, stopped or
+seated). Ten more check files count the people a chunk build spawns without raising the cap
+(beach_life, bonfires, fashion_district, golf, light_rail, lowriders, metro_underground,
+nightlife, park, valets); the trim is what keeps them from the film shoot's failure.
+
+**Rules this left** (CLAUDE.md, the clean-city paragraph): a check that builds a chunk twice frees
+the first build's cars (they are not the chunk's children); a check that counts spawned people
+gives the build room in the crowd cap; never find a node by a name another file's leftover may
+already hold (Godot renames the newcomer); a wall-clock budget is measured twice and loosened
+under SMOKE_SHARD; a check's alarm reaches everyone the system under test can have recruited.
+
+**Verification**: RESULTS_PLACEHOLDER

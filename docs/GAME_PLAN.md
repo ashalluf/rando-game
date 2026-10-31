@@ -3786,3 +3786,10 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+- **2026-10-31 A flaky check is fixed at its cause, never rerun (HANDOFF "The gate's intermittent
+  failures, wave 4").** Shuffled SHARDS=3 runs found eight intermittent failures on main; each was a
+  check leaning on what an earlier file or a live system left (an empty valet car, a full crowd cap,
+  burning debris holding the debris cap, a leftover node holding a name, a first build's cars), a
+  single wall-clock sample, or an alarm short of the system's own reach. Decisions: the gate reset
+  also frees blast debris and trims the crowd to the snapshot's head-count; BlastDebris counts its
+  live pieces from the nodes in the tree (a counter leaked); and the flake rules in CLAUDE.md.
