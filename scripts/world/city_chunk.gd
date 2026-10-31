@@ -2570,7 +2570,9 @@ func _mark_road(along_z: bool, center: float, width: float, a: float, b: float, 
 			continue
 		_batch.add("manhole", PropFactory.model_manhole(), Transform3D(Basis(Vector3.UP, mh.randf_range(0.0, TAU)), pos))
 	if avenue:
-		for side: float in [-0.3, 0.3]:
+		# A real double yellow is two 10 cm lines 10 cm apart (they were 44 cm apart).
+		var gap := StreetNoonReview.DOUBLE_YELLOW_OFFSET if StreetNoonReview.enabled else 0.3
+		for side: float in [-gap, gap]:
 			# In pieces so the line follows the relief.
 			var t0 := a
 			while t0 < b - 0.5:

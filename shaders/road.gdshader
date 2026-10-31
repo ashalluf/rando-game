@@ -24,6 +24,11 @@ uniform float tex_scale = 8.0;
 // How far the texture is taken toward its own luminance before the tint (StreetNoonReview: the
 // asphalt photo is brown, and the grade turned a noon street on Forward+ into a dirt road).
 uniform float albedo_desat = 0.0;
+// The second, anti-repeat fetch: 0 rotated 37 degrees at another scale (as it was), 1 a quarter
+// turn at the same scale, 2 mirrored at the same scale. A texture that IS a grid (square pavers,
+// running-bond setts) rotated 37 degrees drew a ghost of its grid across itself; turned by a
+// quarter or mirrored its joints land on its own joints (StreetNoonReview.VARIANT_MODE).
+uniform int variant_mode = 0;
 uniform float seed = 0.0;
 // Size of a resurfacing patch (metres) and how much of the road is patched.
 uniform float patch_size = 7.0;
@@ -243,6 +248,11 @@ void fragment() {
 	// one extra fetch, and the grid stops existing.
 	if (ground_detail > 0.5) {
 		vec2 uv2 = (mat2(vec2(0.80, -0.60), vec2(0.60, 0.80)) * w) / (tex_scale * 1.37) + vec2(13.7, 4.1);
+		if (variant_mode == 1) {
+			uv2 = vec2(uv.y, -uv.x) + vec2(13.0, 4.0);
+		} else if (variant_mode == 2) {
+			uv2 = vec2(-uv.x, uv.y) + vec2(13.0, 4.0);
+		}
 		float variant = smoothstep(0.34, 0.66, fbm(w * 0.019 + 91.0 + seed));
 		base = mix(base, road_desat(texture(albedo_tex, uv2).rgb) * tint, variant);
 	}

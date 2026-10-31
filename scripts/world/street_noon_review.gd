@@ -13,6 +13,9 @@ extends RefCounted
 ##   line is really in the street (trench, grade, structure), and only there are they kept off.
 ## - The centre line of a road with two lanes each way: a single dashed yellow is a two-lane
 ##   street's; a four-lane one is a double yellow (`double_yellow()`).
+## - Pavers: the square-slab photo's grout is gravel and moss (bright olive lines at noon), and the
+##   anti-repeat fetch, turned 37 degrees, drew a ghost of the slab grid across the slabs.
+##   `variant_mode()` keeps the second fetch on the grid; `desat()` greys the moss.
 ## - Bike lanes: shaders/bike_lane.gdshader's `grime` (dirt along the kerb, tyre polish, aggregate
 ##   in the paint), set by Micromobility's material when this is on.
 ##
@@ -21,7 +24,12 @@ extends RefCounted
 static var enabled: bool = OS.get_environment("STREET_NOON") != "0"
 
 ## How far toward its own luminance an asphalt texture is taken (0 = the photo as it is).
-const DESAT := {"asphalt": 0.65, "asphalt_aerial": 0.45}
+const DESAT := {"asphalt": 0.65, "asphalt_aerial": 0.45, "pavers": 0.55}
+## road.gdshader `variant_mode` per texture set: the square pavers turn by a quarter, the
+## running-bond setts mirror (their grid lands on itself); everything else keeps the rotation.
+const VARIANT_MODE := {"pavers": 1, "paving": 2}
+## Each line of a double yellow stands this far off the centre (m): the dash box is 16 cm wide.
+const DOUBLE_YELLOW_OFFSET := 0.14
 ## Bike lane paint wear (bike_lane.gdshader `grime`).
 const BIKE_GRIME := 1.0
 ## How near (m) the line has to come out of its tunnel for the street's middle to stay unmarked.
@@ -33,6 +41,13 @@ static func desat(set_key: String) -> float:
 	if not enabled:
 		return 0.0
 	return float(DESAT.get(set_key, 0.0))
+
+
+## `variant_mode` for a road material on texture set `set_key`.
+static func variant_mode(set_key: String) -> int:
+	if not enabled:
+		return 0
+	return int(VARIANT_MODE.get(set_key, 0))
 
 
 ## True when the light rail stands in the street (anything but its tunnel) within RAIL_REACH of
