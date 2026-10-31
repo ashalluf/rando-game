@@ -13,3 +13,6 @@ take_hit a real crash takes). "before" = `CRASH_BREAKUP=0` (main's crumple only)
   just out of frame left), the corner down on its hub.
 - 06: the driver's airbag (white, in the cabin trace) through the burst side window.
 - 07: night: the bare hub dragging on the road throws sparks (staged as if moving at 50 km/h).
+- 08: day: a hanging bumper corner and the hub dragging sparks (staged as if at 50 km/h).
+- 09: the T-bone at 80 km/h, 0.2 s / 0.5 s / 1 s after the hit, from the front: the car tripped
+  over onto its side by the physics.
