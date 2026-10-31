@@ -1,0 +1,129 @@
+{
+ "_doc": "water-review views (docs/HANDOFF.md 'The water from the beach and the pier'): run through tools/refcams with REFCAMS_JSON=<abs path> SHEET_COLS=4.",
+ "resolution": [
+  1280,
+  720
+ ],
+ "cameras": [
+  {
+   "name": "beach_1400",
+   "label": "Beach at the waterline 14:00 (refcam beach)",
+   "eye": [
+    -732.0,
+    2.1,
+    800.0,
+    105.0,
+    -4.0
+   ],
+   "agl": false,
+   "hour": 14.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "swash_1400",
+   "label": "The swash at your feet 14:00",
+   "eye": [
+    -732.0,
+    1.9,
+    800.0,
+    105.0,
+    -22.0
+   ],
+   "agl": false,
+   "hour": 14.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "pier_1400",
+   "label": "The pier from the beach 14:00",
+   "eye": [
+    -945.0,
+    1.8,
+    -235.0,
+    61.7,
+    7.0
+   ],
+   "agl": false,
+   "hour": 14.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "pierend_1400",
+   "label": "Down from the pier's end 14:00",
+   "eye": [
+    -1218.0,
+    8.6,
+    -345.0,
+    90.0,
+    -9.0
+   ],
+   "agl": false,
+   "hour": 14.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "beach_2100",
+   "label": "Beach at the waterline 21:00",
+   "eye": [
+    -732.0,
+    2.1,
+    800.0,
+    105.0,
+    -4.0
+   ],
+   "agl": false,
+   "hour": 21.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "pier_2100",
+   "label": "The pier from the beach 21:00 (refcam pier_night)",
+   "eye": [
+    -945.0,
+    1.8,
+    -235.0,
+    61.7,
+    7.0
+   ],
+   "agl": false,
+   "hour": 21.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "pierend_2100",
+   "label": "Down from the pier's end 21:00",
+   "eye": [
+    -1218.0,
+    8.6,
+    -345.0,
+    90.0,
+    -9.0
+   ],
+   "agl": false,
+   "hour": 21.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "under_2100",
+   "label": "Under the pier 21:00",
+   "eye": [
+    -1121.0,
+    1.8,
+    -368.0,
+    180.0,
+    -8.0
+   ],
+   "agl": false,
+   "hour": 21.0,
+   "weather": "clear",
+   "fov": 55
+  }
+ ]
+}
