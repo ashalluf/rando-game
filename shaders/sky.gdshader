@@ -183,6 +183,10 @@ uniform float city_wrap = 0.0;
 uniform vec3 city_glow_color : source_color = vec3(1.0, 0.55, 0.26);
 /// Lightning flash (0..1), set by Weather.
 uniform float flash = 0.0;
+/// Where the flash is (StormDrama: toward the strike) and the share of it spread over the whole
+/// sky; 1 is the old even flash.
+uniform vec3 flash_dir = vec3(0.0, 1.0, 0.0);
+uniform float flash_spread = 1.0;
 
 const float EARTH_R = 6371.0;
 
@@ -1228,7 +1232,8 @@ void sky() {
 #endif
 		col = mix(col, ground, street);
 	}
-	col += flash * vec3(0.8, 0.85, 1.0);
+	float flash_lobe = flash_spread + (1.0 - flash_spread) * 2.2 * pow(max(dot(dir, flash_dir) * 0.5 + 0.5, 0.0), 6.0);
+	col += flash * flash_lobe * vec3(0.8, 0.85, 1.0);
 	COLOR = col;
 #if CURRENT_RENDERER != RENDERER_COMPATIBILITY
 	}

@@ -17,6 +17,7 @@ street errands, reference cameras), batch 7 (the marketplace lane, shop-window v
 businesses) and batch 8 (street signs as real models, five street lamp types), plus the fixes
 for CI runs 355-357 (a turning car's room in its new lane, errands never parking a placed car,
 the car lights check's pick race), then apartments and tower gondolas (2026-10-29, build 361).
+**Wave 4 (2026-10-31): start at docs/HANDOFF.md section 0000000000** - main is batch 25 (the golden-hour review) plus the CI 394 flake fixes; 45 cloud sessions run on `wt/<slug>` branches (roster on `fleet/brief`), the lead merges them in batches.
 **Wave 3 (2026-10-29)**: 23 cloud sessions finishing wave 2's paused tasks plus `rock-outcrops` and
 `facades-gta` (owner: "make it look like GTA 6"); start at docs/HANDOFF.md section 00000000.
 `SHARDS=3 tests/headless_check.sh` runs the smoke test in three processes (~10 min, ~2.4 GB each).
@@ -486,6 +487,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `shaders/waterline_wet.gdshaderinc` in pier_park.gdshader and `pile_wet.gdshader`. Still no
   texture sampler in the ocean. `OCEAN_CLOSEUP=0` (the `ocean_closeup` shader global) is the A/B;
   checks `tests/ocean_closeup_checks.gd`.
+- Storm drama (2026-10-30, docs/HANDOFF.md "Storm drama"): `StormDrama`
+  (`scripts/world/storm_drama.gd`, Weather's child; hooks in Weather, DayNight, TyreSpray, the sky's
+  `flash_dir` / `flash_spread`): one pure gust clock (`gust(t)`) leans the trees down the storm's
+  wind (added to `wind_lean`) and throws the drops; the rain curtain's `sheets` (veils on the true
+  world running downwind) and `slant`, an inner curtain in the street (desktop), the curtain down to
+  the ground from the air; a bolt (`storm_bolt.gdshader`) for strikes within `BOLT_REACH`, the sky's
+  flash toward the strike, the ambient raised for the flash; a darker, greener day sky and full cover;
+  streams off roof edges and drip lines off awnings (`storm_runoff.gdshader`, rays round the camera);
+  wet litter. Hashes only, never Weather's rng. `STORM_DRAMA=0` the A/B; `STORM_FLASH=<s>`
+  (+ `_DIST`, `_AZ`, `_HOLD`) a strike for stills; checks `tests/storm_drama_checks.gd`.
 - Los Angeles weather (2026-10-05, "beyond clear / overcast / rain / storm"): `Weather.State`
   gains MARINE ("June gloom") and SANTA_ANA (appended: every per-state table has six rows, the
   pause menu's chips are Auto + one per state in order, `--weather=marine|santa_ana`, aliases in
@@ -750,6 +761,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   from a `GRADE_RAW=1` run, then confirm with a normal run and `tools/cinematic/grade_probe.gd`
   (Forward+ in two minutes). HourGrade's looks carry `depth` (a broad shadow gain); DayNight has
   `day_/night_glow_intensity` and `_threshold`. `tests/cinematic_review_checks.gd` pins the ranges.
+- The golden-hour review (2026-10-30, docs/HANDOFF.md "The golden hour review"): 17:00-19:30 is
+  judged on six views x six half hours (`tools/golden_hour/cameras.json` through refcams with
+  `REFCAMS_JSON=` and `SHEET_COLS=6`; `tools/golden_hour/strip.py` the numbers - sky / ground
+  balance, warmth, orange share - and the before / after hour strips). `GoldenHour`
+  (`scripts/world/golden_hour.gd`): the sky's night colours follow their own twilight ramp
+  (`sky_night()`), never night_factor (the lamps' switch, 1 eleven minutes after sunset); the
+  exposure starts toward the night's as the sun falls (`exposure_mix()`, monotonic); the GOLDEN
+  look eases at the sunset (`golden_grade()`). `GOLDEN_HOUR_REVIEW=0` is the A/B (`restore()` puts
+  DayNight's old numbers back); checks `tests/golden_hour_review_checks.gd`.
 - The map (2026-10-05, "a minimap and a full-screen map with a GPS, GTA style"): the minimap and
   the full-screen map draw the same thing through `MapPainter` (`scripts/ui/map_painter.gd`,
   static; a `MapPainter.View` says where: world-to-canvas transform, pixels per metre, the
@@ -2556,6 +2576,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`shaders/street_clutter.gdshader`: paint from INSTANCE_CUSTOM, printed front pages, covers and
   chalk from the vertex alpha), one draw per kind a chunk. StreetDetail still makes the news
   boxes' old rng rolls and hands them over; everything else is hash-seeded.
+  **Street clutter 2** (`StreetClutter2`, `scripts/world/street_clutter_2.gd`, 2026-10-30, docs/HANDOFF.md
+  "The street's small stuff"): one FULL step after RoadWear - trash bags (restaurants; collection
+  nights by block + weekday hash), cardboard and a hand truck by shop doors (`Building.shop_fronts`),
+  steam from RoadHardware's covers / inlets downtown (`street_steam.gdshader`), carts, cones round
+  utility cuts, weeds, butts and gum, puddles collapsed on a dry road, flyers on `upole`s, pages
+  blowing down the gutter, droppings under ledges; one `sc2_*` batch a kind on
+  `street_clutter_2.gdshader` (code in COLOR.a x 16), hashes only, no `_add_prop`.
+  `STREET_CLUTTER_2=0` the A/B (`SC2_HOUR` / `SC2_DAY` for stills); probe
+  `tools/street_clutter_2/probe.gd`; checks `tests/street_clutter_2_checks.gd`.
   **Kerbs** (`Kerbs`, `scripts/world/kerbs.gd`, 2026-10-05): a FULL block's pavement is an
   inner slab (`_block_surface`) plus a ring `RING` 2.6 m wide built by Kerbs in the pavement's own
   material with one trimesh collision: corner ramps cut in line with the crosswalks (dome pads),
@@ -6291,6 +6320,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   RockFar's tors take the range haze and the hill's tone past `aerial_blend`; the far city's tree
   crowns are `CITY_CANOPY_GAIN` darker. `tools/aerial_review/layer_probe.gd` saves every shot again
   with one layer hidden (which node draws that speckle?). Checks `tests/aerial_review_checks.gd`.
+- Downtown at arm's length (2026-10-30, docs/HANDOFF.md "Downtown streets at arm's length"):
+  `StreetCloseup` (`scripts/world/street_closeup.gd`): the kerb face as its own mesh ("KerbFace") on
+  `shaders/kerb_closeup.gdshader` with a rolled arris strip, the 0.6 m concrete gutter pan
+  (StreetDetail's `gutter` batch, kept off inlet aprons), road paint pressed to 4 mm (road_paint
+  `thickness`), LotFill's static cars as real bodies within `REAL_CAR_NEAR` (hidden in the batch,
+  per-cell MultiMeshes; record in `note_car()`, the batches clear their lists when built), Broadway
+  goods off car parks, shed trees out, cafe sets clear of shelters. `STREET_CLOSEUP=0` is the A/B;
+  checks `tests/downtown_street_closeup_checks.gd`.
 - Road hardware (2026-10-05, docs/HANDOFF.md "Road hardware"): `RoadHardware`
   (`scripts/world/road_hardware.gd`, one hook line at the end of `StreetDetail.build_block`, FULL
   chunks) lays cast-iron manhole covers (four cast patterns, proud or sunk in a patched round or

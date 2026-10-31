@@ -114,7 +114,8 @@ static func weights(elevation: float, golden: float, weather_darken: float, mari
 	var blue := smoothstep(0.0, -0.05, elevation) * (1.0 - smoothstep(-0.10, -0.20, elevation))
 	var night := smoothstep(-0.10, -0.26, elevation)
 	return {
-		Look.GOLDEN: golden * (1.0 - blue),
+		# Eased at the sunset itself, where the light is already red (GoldenHour.golden_grade()).
+		Look.GOLDEN: golden * (1.0 - blue) * GoldenHour.golden_grade(elevation),
 		Look.BLUE: blue,
 		Look.NIGHT: night,
 		Look.OVERCAST: clampf(weather_darken * 1.4, 0.0, 1.0) * (1.0 - 0.6 * night),

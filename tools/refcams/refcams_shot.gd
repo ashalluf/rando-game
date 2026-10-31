@@ -94,6 +94,11 @@ func _run() -> void:
 				day.set("hour", float(cam.hour))
 		if OS.get_environment("STRICT") == "1":
 			_diff_freeze(player)
+			# _diff_freeze puts the clock back to the run's --hour= (the FIRST camera's), which drew
+			# the evening cameras with a midday sky in every strict run: this camera's hour again.
+			if day:
+				day.set("hour", float(cam.hour))
+				day.call("_apply")
 		Engine.time_scale = 0.0005
 		for i in _env_int("SETTLE", 6):
 			await process_frame

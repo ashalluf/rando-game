@@ -19,7 +19,7 @@ extends Node
 @export var sun_declination_degrees: float = 0.0
 @export var day_sun_color: Color = Color(1.0, 0.94, 0.82)
 @export var dusk_sun_color: Color = Color(1.0, 0.6, 0.35)
-@export var night_sun_color: Color = Color(0.62, 0.72, 1.0)
+@export var night_sun_color: Color = Color(0.70, 0.76, 0.95)
 ## Key light strength by day. The sun has to out-run the ambient fill by a good margin or
 ## every shadow turns grey and the frame has no value contrast left - the single thing that
 ## made the old aerials read as a pastel model village rather than a city at noon.
@@ -37,8 +37,8 @@ extends Node
 @export_group("Sky")
 @export var day_sky_top: Color = Color(0.08, 0.28, 0.76)
 @export var day_horizon: Color = Color(0.62, 0.78, 0.95)
-@export var dusk_sky_top: Color = Color(0.16, 0.18, 0.42)
-@export var dusk_horizon: Color = Color(1.0, 0.55, 0.3)
+@export var dusk_sky_top: Color = Color(0.10, 0.19, 0.48)
+@export var dusk_horizon: Color = Color(1.0, 0.60, 0.38)
 @export var night_sky_top: Color = Color(0.02, 0.035, 0.09)
 @export var night_horizon: Color = Color(0.07, 0.09, 0.19)
 ## An overcast night over the city (rain, storm): cloud base overhead, the horizon, and the rain
@@ -67,13 +67,13 @@ extends Node
 @export var sunrise_warm: Color = Color(1.0, 0.52, 0.34)
 @export var sunrise_band: Color = Color(0.38, 0.34, 0.62)
 @export var sunset_warm: Color = Color(1.0, 0.40, 0.14)
-@export var sunset_band: Color = Color(0.46, 0.26, 0.52)
+@export var sunset_band: Color = Color(0.40, 0.30, 0.56)
 ## How much of the sky the twilight bands paint over the plain gradient (0..1).
 @export var twilight_strength: float = 0.85
 ## Height the warm band decays over, with the sun on the horizon (x) and once it is well down (y).
 @export var twilight_height: Vector2 = Vector2(0.17, 0.065)
 ## Where the cool band sits above the horizon, with the sun on the horizon (x) and well down (y).
-@export var twilight_band_height: Vector2 = Vector2(0.30, 0.16)
+@export var twilight_band_height: Vector2 = Vector2(0.18, 0.10)
 ## Crepuscular rays through the gaps in the cloud deck (0 off). They are gated on `cloud_detail`
 ## in the shader, so Quality drops them on web and below MEDIUM with the rest of the cloud work.
 @export var god_rays: float = 1.1
@@ -99,7 +99,7 @@ extends Node
 @export var golden_set_elevation: Vector2 = Vector2(-0.16, -0.02)
 ## Depth fog multiplier at the height of golden hour (Weather reads `fog_gain`). The air is no
 ## dirtier at six than at noon, but a sun ten degrees up lights a far longer path of it.
-@export var golden_fog_gain: float = 1.45
+@export var golden_fog_gain: float = 1.25
 ## How far the fog colour goes toward the smog colour at golden hour (0 keeps `dusk_fog`).
 @export var golden_fog_smog: float = 0.55
 ## While the sun is still clearly up (see `sun_high`), how much of the dusk colouring the zenith
@@ -110,7 +110,7 @@ extends Node
 @export var golden_blue_top: float = 0.6
 @export var golden_pale_horizon: float = 0.45
 ## How far the far land under the smog lid goes into it (0..1; macro_ground.gdshader `smog`).
-@export var ground_smog: float = 0.7
+@export var ground_smog: float = 0.5
 @export_group("Marine layer and Santa Ana")
 ## Under the marine layer by day: the deck overhead, the horizon, the cool grey haze.
 @export var marine_top: Color = Color(0.43, 0.49, 0.58)
@@ -205,6 +205,8 @@ var weather_darken: float = 0.0
 ## deep clear sky, warm dusty light, no smog). Both 0 leaves every number below as it was.
 var marine: float = 0.0
 var santa_ana: float = 0.0
+## A storm's weight (Weather, through StormDrama): its darker, greener-grey day sky.
+var storm: float = 0.0
 ## This frame's light, for the weather's own geometry (MarineLayer, SantaAnaFx): 0..1 daylight,
 ## the slow night ramp, the golden-hour tint and the sun's colour.
 var daylight_now: float = 1.0
@@ -272,6 +274,7 @@ func _ready() -> void:
 			_sky = _env.sky.sky_material as ShaderMaterial
 		if _env and HourGrade.enabled:
 			grade = HourGrade.new(_env)
+	GoldenHour.restore(self)
 	_apply_override()
 	if _sky:
 		var extras := SkyExtras.new()
@@ -452,7 +455,11 @@ func _apply() -> void:
 			_sun.light_color = _sun.light_color.lerp(Color(0.85, 0.9, 1.0), clampf(flash, 0.0, 1.0))
 		_sun.shadow_enabled = true
 	if _sky:
-		var horizon := day_horizon.lerp(dusk_horizon, dusk_rim).lerp(night_horizon, night_factor)
+		# The sky's night colours follow its own twilight ramp (GoldenHour, docs/HANDOFF.md "The
+		# golden hour review"): on night_factor the whole sky was night eleven minutes after
+		# sunset, and the sea and the wet sand mirroring it went black under a glowing horizon.
+		var sky_night: float = GoldenHour.sky_night(elevation, night_factor)
+		var horizon := day_horizon.lerp(dusk_horizon, dusk_rim).lerp(night_horizon, sky_night)
 		# What the sky really shows at the horizon, which with the smog up is the smog.
 		_horizon_now = horizon.lerp(smog_horizon, smog)
 		# Overcast by day is grey; overcast over a city at night is the city's own sodium light
@@ -460,7 +467,11 @@ func _apply() -> void:
 		# grey at every hour, so a rainy night had a pale grey sky and read as dusk.
 		var storm_top := Color(0.16, 0.17, 0.2).lerp(night_storm_top, moonlight)
 		var storm_horizon := Color(0.3, 0.31, 0.34).lerp(night_storm_horizon, moonlight)
-		var top := day_sky_top.lerp(dusk_sky_top, dusk_top).lerp(night_sky_top, night_factor)
+		if storm > 0.0:
+			var ss: Array = StormDrama.sky(storm_top, storm_horizon, storm, moonlight)
+			storm_top = ss[0]
+			storm_horizon = ss[1]
+		var top := day_sky_top.lerp(dusk_sky_top, dusk_top).lerp(night_sky_top, sky_night)
 		var rim := horizon
 		if santa_ana > 0.0:
 			# The wind clears the basin: a deeper zenith, a dusty horizon, only by day.
@@ -477,8 +488,8 @@ func _apply() -> void:
 		_sky.set_shader_parameter("sky_horizon", rim.lerp(storm_horizon, weather_darken))
 		# The mirrors (sky_tint) see what the sky draws at the horizon, the weather's too.
 		_horizon_now = NightStreetReview.sky_tint(_horizon_now, storm_horizon, weather_darken)
-		_sky.set_shader_parameter("cloud_color", day_cloud.lerp(dusk_cloud, dusk))
-		_sky.set_shader_parameter("cloud_coverage", clampf(cloud_coverage + 0.12 * sin(hour * 0.9) + cloud_extra + 0.5 * marine - 0.32 * santa_ana, 0.0, 0.98))
+		_sky.set_shader_parameter("cloud_color", day_cloud.lerp(dusk_cloud, dusk).lerp(StormDrama.CLOUD, storm * (1.0 - moonlight) * 0.75))
+		_sky.set_shader_parameter("cloud_coverage", clampf(cloud_coverage + 0.12 * sin(hour * 0.9) + cloud_extra + 0.5 * marine - 0.32 * santa_ana + StormDrama.COVER * storm, 0.0, 0.98))
 		_sky.set_shader_parameter("cloud_shadow", day_cloud_shadow.lerp(dusk_cloud_shadow, dusk).lerp(Color(0.2, 0.2, 0.24), weather_darken))
 		# After dark: moonlit cloud on a clear night, the city's own light on an overcast one.
 		var overcast := clampf(weather_darken * 1.6, 0.0, 1.0)
@@ -526,7 +537,10 @@ func _apply() -> void:
 		if streamer and streamer.has_method("set_ground_smog"):
 			streamer.set_ground_smog(smog * ground_smog, smog_side)
 	if _env:
-		_env.tonemap_exposure = lerpf(day_exposure, night_exposure, moonlight)
+		# The exposure follows the light down (GoldenHour.exposure_mix()): on moonlight alone it
+		# stayed at the day's while the sun fell to its night energy, and the sunset was the
+		# darkest frame of the evening, darker than the blue hour after it.
+		_env.tonemap_exposure = lerpf(day_exposure, night_exposure, GoldenHour.exposure_mix(elevation, moonlight))
 		_env.glow_intensity = lerpf(day_glow_intensity, night_glow_intensity, moonlight)
 		_env.glow_hdr_threshold = lerpf(day_glow_threshold, night_glow_threshold, moonlight)
 		if grade:
@@ -550,6 +564,11 @@ func _apply() -> void:
 			* (1.0 + marine_ambient_gain * marine * (1.0 - moonlight)) * GiTuning.ambient_scale
 		# Rain haze is grey by day and, like the cloud above it, lit by the streets at night.
 		_env.fog_light_color = _env.fog_light_color.lerp(Color(0.35, 0.37, 0.4).lerp(night_storm_fog, moonlight), weather_darken)
+		if storm > 0.0:
+			_env.fog_light_color = _env.fog_light_color.lerp(StormDrama.FOG, storm * (1.0 - moonlight) * weather_darken)
+		# A lightning flash lights the street's shadows too, not only the faces toward it.
+		if storm > 0.0 and _sun:
+			_env.ambient_light_energy *= 1.0 + StormDrama.FLASH_AMBIENT * clampf(float(_sun.get_meta("weather_flash", 0.0)), 0.0, 1.5)
 		if santa_ana > 0.0:
 			_env.fog_light_color = _env.fog_light_color.lerp(santa_fog, 0.7 * santa_ana * (1.0 - moonlight) * (1.0 - dusk))
 		if marine > 0.0:

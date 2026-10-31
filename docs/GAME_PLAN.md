@@ -3760,6 +3760,32 @@ none of either.
   take over near the camera); flake is sampled per pixel-sized cell fixed to the body; new
   finishes, the contrast-roof livery and a car's condition are appended and rolled by hashes of
   the look seed after every roll, so no existing roll moves and CAR_PAINT_2=0 is the old look.
+- **2026-10-30 The street's small stuff (street-clutter-2, HANDOFF "The street's small stuff").**
+  Bags, cardboard, a hand truck, steam, carts, cones, weeds, butts and gum, puddles, flyers, blowing
+  pages and droppings are a second clutter pass, one step after everything a FULL chunk lays, so it
+  can read the shop fronts, the road hardware and the poles instead of guessing; hashes only and no
+  props (nothing else in the block moves); one batch a kind on one shader (the steam on its own,
+  transparent). What is out follows the hour and weekday the chunk is built at, like the vendors.
+- **2026-10-30 Downtown at arm's length (downtown-street-closeup, HANDOFF "Downtown streets at
+  arm's length").** A pedestrian-eye review of downtown listed ten things that break the picture at
+  2-10 m; the worst were fixed in one file (StreetCloseup) with hooks: the kerb face gets its own
+  concrete material and a rolled arris strip, the gutter is LA's poured concrete pan, road paint is
+  pressed to 4 mm, LotFill's static cars become the real bodies' far twins within 42 m (per 24 m
+  cell), Broadway's goods keep off car parks and its sale table is real stock, trees under a
+  construction shed are taken out, cafe sets slide clear of bus shelters. Decisions: positions move
+  only after their rolls, hidden instances keep their indices, `STREET_CLOSEUP=0` is the A/B.
+- 2026-10-30 (storm drama, wave 3): a storm is told from rain by what moves - gusts (one clock that
+  leans every tree and slants the drops and the curtain's sheets), bolts you see for strikes within
+  2.6 km, a sky and street that light toward the strike, and water running off the buildings - on
+  top of a darker, greener, closed-over day sky. All cheap: no new full-screen pass on the web (the
+  inner curtain is desktop only). STORM_DRAMA=0 is the A/B.
+
+- **2026-10-30 The golden hour review: tune ramps, not systems (golden-hour-review, HANDOFF "The
+  golden hour review").** Judged 17:00-19:30 on six views x six half hours by numbers (sky / ground
+  balance, warmth, orange share, crushed). Decisions: the sky's night colours follow their own
+  twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
+  monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
+  eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
 - 2026-10-31 (skyline glass by day, wave 3): what a glass tower mirrors is worked out per pixel from
   shared globals, never from a probe or a capture: the hour's sky (DayNight's own colours), a cloud
   deck, the real towers round the camera as up to eight traced boxes, the sun. Near walls, far boxes

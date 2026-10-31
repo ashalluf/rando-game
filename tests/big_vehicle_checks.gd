@@ -357,10 +357,15 @@ func _freeway_semi() -> void:
 		return
 	var ri := 0
 	var t := fw.length_of(ri) * 0.5
+	# A freeway incident (a stall, tyre tread) rolled onto this stretch slows the semi to a
+	# crawl, which says nothing about its ride height or whether it drives.
+	var incidents_were: bool = FreewayIncidents.enabled
+	FreewayIncidents.enabled = false
 	var semi := _traffic.place_freeway_car(ri, t, 1, BigVehicles.SEMI, 20.0)
 	var p := semi.global_position
 	var deck: Vector3 = fw.point_at(ri, t)[0]
 	var lift: float = (p.y - (_ws.to_local(deck) as Vector3).y) - semi.road_lift()
-	await _ticks(30)
+	await _ticks(60)
 	var moved := float(semi.traffic.t) - t
+	FreewayIncidents.enabled = incidents_were
 	_check(absf(lift) < 0.05 and moved > 5.0 and semi.has_node("Hitch"), "a semi rides a freeway deck at its ride height and drives on (%.3f m off, %.1f m on)" % [lift, moved])

@@ -116,7 +116,9 @@ const PART_COST := {
 	"fwd_review_a_checks": 0.0, "fwd_review_b_checks": 0.0, "garments_2_checks": 0.0,
 	"memory_audit_checks": 0.0, "offshore_island_checks": 0.0, "perf_audit_checks": 0.0,
 	"shop_vinyl_checks": 0.0, "sky_checks": 0.0, "bonfires_checks": 3.0,
-	"cinematic_review_checks": 0.1, "sunset_clouds_checks": 0.0, "night_street_review_checks": 0.1
+	"cinematic_review_checks": 0.1, "sunset_clouds_checks": 0.0, "night_street_review_checks": 0.1,
+	"downtown_street_closeup_checks": 1.5, "golden_hour_review_checks": 0.1,
+	"skyline_glass_day_checks": 0.1
 }
 const DEFAULT_COST := 6.0
 ## Every share pays for its own city load on top of its parts.
@@ -2649,6 +2651,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/police_night_look_checks.gd").new().run(self, city)
 	# The Los Angeles sunset (tests/sunset_clouds_checks.gd, SunsetSky): the weight, the low sun's light.
 	load("res://tests/sunset_clouds_checks.gd").new().run(self, city)
+	# Downtown streets at arm's length (tests/downtown_street_closeup_checks.gd, StreetCloseup): the
+	# kerb face and arris, the concrete gutter pan, pressed paint, real lot cars, sheds, the A/B.
+	load("res://tests/downtown_street_closeup_checks.gd").new().run(self, city)
 	# The freeway close up (tests/freeway_closeup_checks.gd, FreewayCloseup): the concrete deck's
 	# UVs and lane copy, the kit's close-up pass, no geometry or rolls moved, the rush-hour fill.
 	await load("res://tests/freeway_closeup_checks.gd").new().run(self, city)
@@ -2677,6 +2682,14 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Car paint, second pass (tests/car_paint_2_checks.gd, CarPaint2): rolls by hash only, the switch,
 	# the shader's paint2 uniforms, the materials, a car's condition.
 	load("res://tests/car_paint_2_checks.gd").new().run(self, city)
+	# The street's second clutter pass (tests/street_clutter_2_checks.gd): bags, cardboard, carts,
+	# steam, weeds, butts, puddles, flyers, pages, droppings; one batch a kind, nothing else moved.
+	load("res://tests/street_clutter_2_checks.gd").new().run(self, city)
+	# Storm drama (tests/storm_drama_checks.gd, StormDrama): gusts, sheets, bolts, the sky, run-off.
+	await load("res://tests/storm_drama_checks.gd").new().run(self, city)
+	# The golden-hour review (tests/golden_hour_review_checks.gd, GoldenHour): the sky's twilight
+	# ramp, the blue zenith at sunset, the eased grade, no pop 17:00-19:30, the A/B.
+	load("res://tests/golden_hour_review_checks.gd").new().run(self, city)
 	# The skyline's glass by day (tests/skyline_glass_day_checks.gd, SkylineGlass): the tower boxes,
 	# the pick, the shaders sharing the include behind its switch, the node feeding the globals.
 	load("res://tests/skyline_glass_day_checks.gd").new().run(self, city)
