@@ -21980,3 +21980,68 @@ the same way, but judge 18:00 on the Mac first - if it reads milky-pink, raise `
 grass under a low red sun is what it is). The painted cumulus on opengl3 draws a big smooth ellipse in
 the aerial and sky shots (before and after alike; the sky's, not this review's). Dawn shares the sky
 ramp and the exposure ramp (both are symmetric in elevation) and was not looked at.
+
+## 9d?. Trees under light (fleet wave 4, `tree-light-2`, 2026-10-31)
+
+The task: the crowns' self-shadowing and translucency on Forward+, canopy shadows on the ground,
+the sway's weight, the leaf cards' edges at 5-20 m; judged on a small Forward+ scene under lavapipe
+at noon and golden hour. Shader work plus one global; no mesh, ladder, shadow twin, batch or roll
+changes (the FoliageLod table still matches, `tools/foliage_lods.gd` was not needed).
+
+**The tool**: `tools/tree_light/tree_light_shot.tscn` - a pavement row (scanned street trees,
+the jacaranda, palms, LA trees) and a lawn grove planted through `MultiMeshBatch` (so each tree
+casts from its shadow twin and draws its ladder exactly as a chunk does), lit by the city scene's
+own WorldEnvironment, Sun and DayNight held at `-- --hour=h`. `AB=1` saves every view again with
+the pass off (`_off`), `HOLD=1` holds shader TIME, `TAA=1`, `PARAMS=name=v,...` sets tree uniforms,
+views street / crown5 / edge10 / edge20 / palm / ground / grove / back and `sunward` (into the sun
+through a crown, worked out from the sun). opengl3 ~50 s; lavapipe Forward+ 3-4 min a view.
+
+**What was wrong on Forward+ (the before)**: at noon, front-lit crowns drew near black olive with
+yellow flecks, and from under a crown every leaf was black-teal. Two causes, found with A/Bs:
+1. **The shadow twin shaded the sunlit shell.** The twin's thinned, grown cards stand in front of
+   the real outer leaves, so the whole shell sat in its own shadow. Fix: in a directional shadow
+   pass (the projection is orthographic: `PROJECTION_MATRIX[3][3] > 0.5`, the only signal the
+   vertex stage has) the leaves step back `self_shadow_slack` metres along the shadow camera's own
+   axis (foliage_tex 0.9, la_tree 0.7, palms 0.45). Along the light's axis the shadow's footprint
+   on the ground does not move; it is a foliage-only depth bias. Lamps' omni / spot shadows
+   (perspective) are untouched.
+2. **Half the cards faced away from the sun.** Godot turns a back face's normal to the camera,
+   which undid the crown rounding (`canopy_round_close`) on every second card. foliage_tex now keeps
+   the vertex normal on both faces (la_tree already did).
+
+**Light through the crown** (`shaders/tree_light.gdshaderinc`): Godot's BACKLIGHT is one leaf deep
+and multiplied by the shadow map, so inside a crown it is gone. `tl_path(q, d)` is the length of the
+path out of the crown's ellipsoid (TreesCloseup's crown bounds) toward a direction, and
+`tl_through()` the light that survives it; foliage_tex EMITS leaf colour x a leaf filter x (the sky,
+`sky_tint` decoded on Forward+, to a leaf seen from below, through the path UP) + (the sun,
+`tree_sun`, forward-scattered, through the path TOWARD the sun, weighted by facing^4): from below
+the top of a crown glows yellow-green and the bottom stays darker; into a low sun the crown's edges
+glow and its middle stays a silhouette. Palms and LA trees get the sky part (fronds are one leaf
+thick). `tree_sun` is a new shader global (project.godot) kept by one `TreeLight` node under the
+root (made by the first tree material): the scene's Sun's linear colour x energy, faded to 0 at the
+horizon. Known approximation: the emitted share ignores other casters (a crown in a building's
+shadow keeps its sky share and a little sun scatter).
+
+**Weight in the sway**: `tl_rate(height)` (sqrt(10 / h), 0.6..1.5) scales the branch sway's rate
+by the tree's real height (`sway_height` at scale 1 x the instance's scale: scanned trees from their
+AABB, LaTrees per species, palms 14 m), and `tl_load()` is the gust as the crown feels it - the
+front late by `tl_lag(h)` (0.4-1.6 s) plus a swing-back past upright as it drops (to -0.35). Outer
+limbs bob on their own (radial^1.5) and palm fronds dip, later than the crown. `TreeLight.load_of()`
+is the GDScript copy (checks).
+
+**Not changed / looked at**: the canopy shadow on the ground (dappled, the twin's density reads as
+a canopy in the noon `ground` view; the slack leaves it where it was); the leaf edges at 5-20 m
+(trees-closeup's dither still does it; no dark fringe in the Forward+ stills). The scanned trees'
+bark is still a still StandardMaterial3D (the leaves sway, the wood does not).
+
+**Checks** (`tests/tree_light_checks.gd`): the include's numbers against the GDScript copy; a tall
+tree slower than a small one; the load lags the gust and swings back; every tree shader has the
+switch, the slack only in the orthographic pass and the emission never in the shadow pass;
+foliage_tex keeps the rounded normal on both faces; every street tree's sway height is its mesh's
+top; palms and LA trees marked; `sun_light()`; `TREE_LIGHT=0` and `set_all()`.
+
+**Frame cost**: no node, mesh, LOD or draw added (one TreeLight node with a 0.2 s tick); the
+geometry is identical with the pass on and off by construction (the A/B is a uniform on the same
+materials), so geo_count was not run. ALU: foliage_tex's vertex stage two ellipsoid paths and a
+second gust sample; its fragment one emission (~20 ops); the shadow pass one 3x3 inverse a vertex.
+Stills on `shots/tree-light-2`.
