@@ -537,6 +537,7 @@ func _drive_streets(delta: float) -> void:
 			_join_group(groups, int(t.lc_key), car)
 	_sirens = _siren_list()
 	_player_block = _player_in_lanes()
+	TrafficBehaviour.begin_tick(self, delta) # obstacles in the lanes, drivers' heads
 	_drive_serial += 1
 	var tick := _drive_serial
 	for key in groups:
@@ -776,6 +777,12 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 									t.block_t = 0.0
 					elif v > 1.5 or pgap < 10.0:
 						TrafficAI.honk(self, car, "pedestrian", v > 6.0 and pgap < 15.0)
+	# Creeping at a red, giving way, a left turn's gap, a wreck ahead (TrafficBehaviour).
+	var tb := TrafficBehaviour.street_stop(self, car, t, groups, along, v, to_centre, to_line, cw, node, line_hold, delta)
+	if tb < INF:
+		acc = minf(acc, _idm(v, v0, tb, 0.0, 0.2))
+		room = minf(room, tb + 0.2)
+		still = minf(still, tb - 0.2)
 	# A siren behind on this carriageway: pull toward the kerb and stop until it has gone by.
 	for s: Array in _sirens:
 		if int(s[0]) == axis and int(s[1]) == index and int(s[2]) == dir:
@@ -787,6 +794,7 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 		t.yield_t = yielding - delta
 		acc = minf(acc, -minf(brake_comfort, v * 1.5))
 	var want_shift := maxf(maxf(siren_shift if yielding > 0.0 else 0.0, bus_shift), float(t.get("filter_shift", 0.0)))
+	want_shift = TrafficBehaviour.want_shift(t, want_shift)
 	t.shift = move_toward(float(t.get("shift", 0.0)), want_shift, delta * (1.4 if want_shift > float(t.get("shift", 0.0)) else 0.7))
 	acc = maxf(acc, -brake_max)
 	t.why = why
@@ -805,6 +813,7 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 		t.react = float(t.react) - delta
 		t.react_t = float(t.get("react_t", 0.0)) + delta
 		nv = 0.0
+	nv = TrafficBehaviour.post_speed(car, t, v, nv, still, delta)
 	var step := nv * delta
 	if step > room:
 		step = maxf(room, 0.0)
