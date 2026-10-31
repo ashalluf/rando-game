@@ -21868,7 +21868,7 @@ touched, so no seed moves.
 frames, this 4-core box under load): the motion 102 us a physics frame over 3.9 cars in range
 (26 us a car); the traffic tick (`drive_usec`) 15.0 ms on vs 14.3 ms off, the whole physics
 process 57.2 vs 54.8 ms - both inside this box's run-to-run noise. No mesh, material or draw is
-added: the frame's GEO is unchanged (STILLS_GEO).
+added: the frame's GEO is unchanged (still_shot GEO, before -> after: brake 6,294,447 -> 6,265,163 triangles and 2,717 -> 2,670 draws, turn 7,425,756 -> 7,461,103 and 3,158 -> 3,160, pull 8,667,838 both; the differences are where the staged cars stand). Stills on `shots/traffic-motion`: sheet_brake_m0/m1, sheet_pull_m0/m1, sheet_turn_m0/m1, crop_turn_a/b.
 
 **Stills** (`shots/traffic-motion`): `TMOTION=brake|pull|turn` with `TMOTION_STEPS="s,s,..."` on
 `still_shot.gd` (`tools/traffic_motion/stage.gd`: the nearest one-lane street to the camera, the
