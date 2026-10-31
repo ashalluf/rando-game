@@ -40,6 +40,10 @@ static var enabled: bool = OS.get_environment("WARM_REHEARSAL") != "0"
 ## car cabins' door split and kit (CarInteriors: the first car the player walks up to), people
 ## under umbrellas and hoods (RainCrowd), a wild animal. `WARM_WAVE3=0` leaves them out (the A/B).
 static var wave3: bool = OS.get_environment("WARM_WAVE3") != "0"
+## For the first-use probe (tools/shader_warm/), which cannot fit the whole rehearsal's pipelines in
+## lavapipe's memory any more: only these stages ("cars", "people", ...) and body types (empty: all).
+static var only_stages: PackedStringArray = []
+static var only_types: Array = []
 static var _keeper: Node3D
 ## The car bodies and crowd rigs held for the session: freed with the last car or person of a
 ## kind, Godot drops the scene from its cache and the next one reads the .glb from disk again
@@ -85,6 +89,8 @@ static func run(scene: Node, cam: Camera3D, progress: Callable = Callable(), log
 		["idle particles", _stage_ghosts],
 	]
 	for i in stages.size():
+		if not only_stages.is_empty() and not only_stages.has(String(stages[i][0])):
+			continue
 		var t0 := Time.get_ticks_usec()
 		if progress.is_valid():
 			progress.call(float(i) / float(stages.size()), "Rehearsing " + String(stages[i][0]))
@@ -173,7 +179,8 @@ static func atlas_textures() -> Array:
 static func _stage_cars(holder: Node3D, ground: Vector3, fwd: Vector3, right: Vector3, tree: SceneTree) -> void:
 	var types: Array = []
 	for t in Vehicle.BodyType.values():
-		types.append(int(t))
+		if only_types.is_empty() or only_types.has(int(t)):
+			types.append(int(t))
 	var i := 0
 	var cars: Array = []
 	for t in types:
@@ -192,7 +199,7 @@ static func _stage_cars(holder: Node3D, ground: Vector3, fwd: Vector3, right: Ve
 			continue
 		cars.append(car)
 		i += 1
-	for heavy in [false, true]:
+	for heavy in ([false] if not only_types.is_empty() else [false, true]):
 		var cop: PoliceCar = PoliceCar.make(heavy, RandomNumberGenerator.new())
 		cop.set("police", null)
 		cars.append(cop)

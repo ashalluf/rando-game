@@ -97,6 +97,12 @@ func _ready() -> void:
 		await ls.call("_warm_shaders")
 		print("WARM quads done in %d ms, draw compilations %d" % [Time.get_ticks_msec() - t0, int(_mon("draw"))])
 		ls.queue_free()
+	# REHEARSE_STAGES=cars,people and REHEARSE_TYPES=0,1: only part of the rehearsal (it no longer fits
+	# lavapipe whole); WARM_WAVE3=0 leaves out wave 3's stages (the A/B of loading-first-frame).
+	if _env("REHEARSE_STAGES", "") != "":
+		WarmRehearsal.only_stages = PackedStringArray(_env("REHEARSE_STAGES", "").split(",", false))
+	if _env("REHEARSE_TYPES", "") != "":
+		WarmRehearsal.only_types = Array(_env("REHEARSE_TYPES", "").split(",", false)).map(func(x): return int(x))
 	if _env("REHEARSE", "0") == "1":
 		var t1 := Time.get_ticks_msec()
 		await WarmRehearsal.run(_world, _cam, Callable(), true)
