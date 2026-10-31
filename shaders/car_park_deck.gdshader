@@ -16,6 +16,7 @@ shader_type spatial;
 render_mode cull_back;
 
 #include "res://shaders/color_space.gdshaderinc"
+#include "res://shaders/pattern_aa.gdshaderinc"
 
 uniform sampler2D albedo_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
@@ -91,6 +92,9 @@ void fragment() {
 		col *= 1.0 - 0.14 * grime * (1.0 - t);
 		// Dashed yellow centre line: 3 m dash, 3 m gap.
 		float dash = step(0.5, fract(m.x / 6.0));
+		if (paa_on()) {
+			dash = paa_stripes(m.x - 3.0, 6.0, 0.5, px);
+		}
 		paint = line(y, 0.1, px) * dash * step(2.0, abs(m.x) + 2.0);
 		pcol = paint_yellow;
 		// Drips of oil now and then where cars wait.
@@ -123,6 +127,10 @@ void fragment() {
 		float g = fract(m.x / 0.06);
 		float groove = smoothstep(0.0, 0.25, g) * smoothstep(0.55, 0.3, g);
 		float fade = clamp(1.0 - px / 0.05, 0.0, 1.0);
+		// A 6 cm groove aliases from a 3 cm footprint (two pixels a period): gone by then.
+		if (paa_on()) {
+			fade = paa_keep(0.06, px);
+		}
 		nrm_add = vec3(0.0, 0.0, (groove - 0.5) * 0.35 * fade);
 		col *= 1.0 - 0.06 * fade * groove;
 		float t = 0.0;
@@ -132,7 +140,7 @@ void fragment() {
 		}
 		polish = t * 0.8;
 		col *= 1.0 - 0.18 * t;
-		paint = line(y, 0.1, px) * step(0.5, fract(m.x / 4.0));
+		paint = line(y, 0.1, px) * (paa_on() ? paa_stripes(m.x - 2.0, 4.0, 0.5, px) : step(0.5, fract(m.x / 4.0)));
 		pcol = paint_yellow;
 	}
 	// Paint is worn through where the wheels go.
