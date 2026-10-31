@@ -149,7 +149,7 @@ static func pool_laid(node: Node, pool: Node3D, at: Vector3, normal: Vector3) ->
 	if to_gutter:
 		length = maxf(kerb - WeaponFX.blood_pool_size * 0.4, 0.3)
 	var start := at + dir * WeaponFX.blood_pool_size * 0.35
-	var riv := _creep(pool, WeaponFX._KIND_RIVULET, start, n, dir, 0.16, length, RIVULET_DELAY, RIVULET_CREEP)
+	var riv := _creep(pool, WeaponFX._KIND_RIVULET, start, n, dir, 0.22, length, RIVULET_DELAY, RIVULET_CREEP)
 	if riv != null:
 		riv.set_meta("rivulet", true)
 		pool.set_meta("rivulet", riv)

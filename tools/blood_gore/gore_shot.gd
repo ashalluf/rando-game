@@ -96,6 +96,12 @@ func _initialize() -> void:
 				from = wp + wn * float(_env("CAM_DIST", "0.6")) + Vector3(0.05, 0.05, 0.0)
 			if stage == "stump":
 				var stumps := doll.find_children("Stump", "MeshInstance3D", true, false)
+				if stumps.is_empty():
+					# BLOOD_GORE_2=0: the old cap, a sphere on a bone attachment.
+					for att in doll.find_children("*", "BoneAttachment3D", true, false):
+						for c in att.get_children():
+							if c is MeshInstance3D and (c as MeshInstance3D).mesh is SphereMesh:
+								stumps.append(c)
 				print("STUMPS ", stumps.size())
 				look_at = (stumps[0] as Node3D).global_position if not stumps.is_empty() else chest
 				if not stumps.is_empty():
