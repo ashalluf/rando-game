@@ -132,10 +132,10 @@ func _the_node_feeds_the_globals(city: Node3D) -> void:
 		_t._check(true, "the skyline glass is off (SKYLINE_GLASS=0): nothing more to check")
 		return
 	node.push()
-	var g: Vector4 = RenderingServer.global_shader_parameter_get("skyline_glass")
+	var g: Vector4 = node.last.get("skyline_glass", Vector4.ZERO)
 	if g.x < 0.5 or g.y < 0.0 or g.y > 1.0 or g.z < 0.0 or g.z > 1.0:
 		why += " skyline_glass %s" % g
-	var rim: Vector4 = RenderingServer.global_shader_parameter_get("skyline_sky_rim")
+	var rim: Vector4 = node.last.get("skyline_sky_rim", Vector4.ZERO)
 	var sky: ShaderMaterial = dn.get("_sky")
 	if sky:
 		var want: Color = sky.get_shader_parameter("sky_horizon")

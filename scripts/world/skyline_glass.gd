@@ -26,6 +26,8 @@ const PART_MIN_TOP := 40.0
 const UPDATE_SECONDS := 0.25
 
 var _last_ms: int = -1000000
+## What push() last set, by global name (the render server's getter is editor-only).
+var last: Dictionary = {}
 var _landmarks: Array = []
 
 
@@ -128,21 +130,30 @@ func push() -> void:
 		var c: Variant = sky.get_shader_parameter("cloud_coverage")
 		if c != null:
 			coverage = float(c)
-	var sun: Vector3 = RenderingServer.global_shader_parameter_get("sun_direction")
+	var sun := Vector3(0.0, 1.0, 0.0)
+	var sun_node: Node3D = dn.get("_sun") if dn else null
+	if sun_node:
+		sun = sun_node.global_transform.basis.z
 	var low := clampf(1.0 - sun.y / 0.45, 0.0, 1.0) * clampf(sun.y / 0.05 + 0.5, 0.0, 1.0)
 	var day := 1.0 - night
 	# Overcast takes the sun out of the glass; an overcast sky's "clouds" are the whole sky.
 	var glint := day * (1.0 - clampf(darken * 1.4, 0.0, 1.0)) * (1.0 - clampf((coverage - 0.7) / 0.25, 0.0, 1.0))
-	RenderingServer.global_shader_parameter_set("skyline_glass", Vector4(1.0, coverage * (1.0 - 0.7 * darken), glint, golden))
-	RenderingServer.global_shader_parameter_set("skyline_sky_top", Vector4(top.r, top.g, top.b, low * day * (1.0 - darken)))
-	RenderingServer.global_shader_parameter_set("skyline_sky_rim", Vector4(rim.r, rim.g, rim.b, lerpf(0.12, 1.0, day) * (1.0 - 0.35 * darken)))
+	_put("skyline_glass", Vector4(1.0, coverage * (1.0 - 0.7 * darken), glint, golden))
+	_put("skyline_sky_top", Vector4(top.r, top.g, top.b, low * day * (1.0 - darken)))
+	_put("skyline_sky_rim", Vector4(rim.r, rim.g, rim.b, lerpf(0.12, 1.0, day) * (1.0 - 0.35 * darken)))
 	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
 	var cam_true := Vector3.ZERO
 	if cam:
 		cam_true = WorldState.to_world(cam.global_position)
 	var mats := pack(pick(_landmarks + _building_boxes(), cam_true))
-	RenderingServer.global_shader_parameter_set("skyline_towers_a", mats[0])
-	RenderingServer.global_shader_parameter_set("skyline_towers_b", mats[1])
+	_put("skyline_towers_a", mats[0])
+	_put("skyline_towers_b", mats[1])
+
+
+func _put(name: StringName, value: Variant) -> void:
+	last[name] = value
+	RenderingServer.global_shader_parameter_set(name, value)
+
 
 
 static func _color(v: Variant, fallback: Color) -> Color:
