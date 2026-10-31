@@ -22,6 +22,8 @@ extends Node3D
 ## Peak opacity of one puff: spray is a veil, many thin puffs deep.
 @export var puff_alpha: float = 0.42
 @export var scan_interval: float = 0.25
+## StormDrama's gain on the spray in a storm (1 = as it was).
+var gain: float = 1.0
 
 ## Street wetness, 0..1 (Weather.wetness).
 var wetness: float = 0.0
@@ -112,7 +114,7 @@ func _process(delta: float) -> void:
 			continue
 		var car: Node3D = held
 		var speed: float = _speed.get(car.get_instance_id(), 0.0)
-		var amount := wet * clampf((speed - min_speed) / maxf(full_speed - min_speed, 0.1), 0.0, 1.0)
+		var amount := minf(1.0, gain * wet * clampf((speed - min_speed) / maxf(full_speed - min_speed, 0.1), 0.0, 1.0))
 		var rear := 1.4
 		var pose: Variant = Vehicle.WHEEL_POSE.get(car.get("body_type"))
 		if pose is Dictionary:
@@ -121,7 +123,7 @@ func _process(delta: float) -> void:
 		p.global_transform = Transform3D(t.basis.orthonormalized(), t * Vector3(0.0, -0.1, rear))
 		# How thick the spray is: the colour multiplies the ramp, so this thins each new puff.
 		p.color = Color(1.0, 1.0, 1.0, amount)
-		p.initial_velocity_max = 2.0 + 0.2 * speed
+		p.initial_velocity_max = (2.0 + 0.2 * speed) * (0.6 + 0.4 * gain)
 		var on := amount > 0.02
 		if p.emitting != on:
 			p.emitting = on

@@ -205,6 +205,8 @@ var weather_darken: float = 0.0
 ## deep clear sky, warm dusty light, no smog). Both 0 leaves every number below as it was.
 var marine: float = 0.0
 var santa_ana: float = 0.0
+## A storm's weight (Weather, through StormDrama): its darker, greener-grey day sky.
+var storm: float = 0.0
 ## This frame's light, for the weather's own geometry (MarineLayer, SantaAnaFx): 0..1 daylight,
 ## the slow night ramp, the golden-hour tint and the sun's colour.
 var daylight_now: float = 1.0
@@ -456,6 +458,10 @@ func _apply() -> void:
 		# grey at every hour, so a rainy night had a pale grey sky and read as dusk.
 		var storm_top := Color(0.16, 0.17, 0.2).lerp(night_storm_top, moonlight)
 		var storm_horizon := Color(0.3, 0.31, 0.34).lerp(night_storm_horizon, moonlight)
+		if storm > 0.0:
+			var ss: Array = StormDrama.sky(storm_top, storm_horizon, storm, moonlight)
+			storm_top = ss[0]
+			storm_horizon = ss[1]
 		var top := day_sky_top.lerp(dusk_sky_top, dusk_top).lerp(night_sky_top, night_factor)
 		var rim := horizon
 		if santa_ana > 0.0:
@@ -473,8 +479,8 @@ func _apply() -> void:
 		_sky.set_shader_parameter("sky_horizon", rim.lerp(storm_horizon, weather_darken))
 		# The mirrors (sky_tint) see what the sky draws at the horizon, the weather's too.
 		_horizon_now = NightStreetReview.sky_tint(_horizon_now, storm_horizon, weather_darken)
-		_sky.set_shader_parameter("cloud_color", day_cloud.lerp(dusk_cloud, dusk))
-		_sky.set_shader_parameter("cloud_coverage", clampf(cloud_coverage + 0.12 * sin(hour * 0.9) + cloud_extra + 0.5 * marine - 0.32 * santa_ana, 0.0, 0.98))
+		_sky.set_shader_parameter("cloud_color", day_cloud.lerp(dusk_cloud, dusk).lerp(StormDrama.CLOUD, storm * (1.0 - moonlight) * 0.75))
+		_sky.set_shader_parameter("cloud_coverage", clampf(cloud_coverage + 0.12 * sin(hour * 0.9) + cloud_extra + 0.5 * marine - 0.32 * santa_ana + StormDrama.COVER * storm, 0.0, 0.98))
 		_sky.set_shader_parameter("cloud_shadow", day_cloud_shadow.lerp(dusk_cloud_shadow, dusk).lerp(Color(0.2, 0.2, 0.24), weather_darken))
 		# After dark: moonlit cloud on a clear night, the city's own light on an overcast one.
 		var overcast := clampf(weather_darken * 1.6, 0.0, 1.0)
@@ -546,6 +552,11 @@ func _apply() -> void:
 			* (1.0 + marine_ambient_gain * marine * (1.0 - moonlight)) * GiTuning.ambient_scale
 		# Rain haze is grey by day and, like the cloud above it, lit by the streets at night.
 		_env.fog_light_color = _env.fog_light_color.lerp(Color(0.35, 0.37, 0.4).lerp(night_storm_fog, moonlight), weather_darken)
+		if storm > 0.0:
+			_env.fog_light_color = _env.fog_light_color.lerp(StormDrama.FOG, storm * (1.0 - moonlight) * weather_darken)
+		# A lightning flash lights the street's shadows too, not only the faces toward it.
+		if storm > 0.0 and _sun:
+			_env.ambient_light_energy *= 1.0 + StormDrama.FLASH_AMBIENT * clampf(float(_sun.get_meta("weather_flash", 0.0)), 0.0, 1.5)
 		if santa_ana > 0.0:
 			_env.fog_light_color = _env.fog_light_color.lerp(santa_fog, 0.7 * santa_ana * (1.0 - moonlight) * (1.0 - dusk))
 		if marine > 0.0:

@@ -21745,3 +21745,66 @@ the kerb face adds a draw per FULL block. If it must come down: `REAL_CAR_NEAR` 
 (lavapipe) still of the kerb shader - the arris is a normal roll and reads strongest under a real
 sun; the arris strip may z-fight on the web build's 24-bit depth inside 28 m on very shallow views;
 items 7-10 above.
+
+## 9ij. Storm drama (fleet wave 3, `storm-drama`, 2026-10-30)
+
+Task: storms that look like a AAA storm at street level and from the air, day and night - rain
+sheets sweeping the street in gusts, trees and palms bent hard, litter, lightning that lights the
+street and the cloud base with the thunder's delay, water off roofs and awnings, spray off cars, a
+darker greener-grey sky; cheap, no new full-screen pass on the web.
+
+**What was already there** (reviewed at `--weather=storm`, noon and 21:00, pavement and 150 m up):
+the drops, splashes, the 90 m curtain, lens rain, a flash (sky + a directional light), thunder at
+distance / 343 m/s, TyreSpray, RoofRain, the gutter run in road.gdshader. Weakest: the noon sky had
+blue gaps and white clouds (it read as a shower), nothing in the air moved sideways, a strike was an
+even white sky with no bolt, the trees swayed no harder than a breeze (wind_factor clamps at 3).
+
+**`StormDrama`** (`scripts/world/storm_drama.gd`, Weather's child; `STORM_DRAMA=0` builds nothing):
+- **Gusts**: `gust(t)` (pure, 0..1, peaky). `lean_for()` adds the storm's lean (LEAN 0.7, never
+  under LEAN_LULL of it) down the storm wind (`WIND_DIR` = rain_wind) to `wind_lean`, which every
+  tree shader's gust front already runs along - palms and street trees lie over hard and the fronts
+  cross the street. The drops' gravity takes `GUST_RAIN` x the wind in a gust; litter speed too.
+- **Rain sheets**: Weather's curtain shader gains `sheets` (crests on the TRUE world along the wind,
+  running downwind at SHEET_SPEED, bent across it), `slant` (a streak's foot downwind of its head),
+  `radius` / `rows_gain` / `cells_gain` / `bottom_fade` (a stretched or smaller curtain keeps its
+  streaks in metres). All default to the old curtain exactly. An inner curtain (22 m, desktop only)
+  puts the sheets in the street; from the air the outer curtain reaches down to the ground.
+- **Lightning**: `on_strike()` from Weather's `_strike()` draws a bolt (`bolt_paths()`: midpoint
+  displacement from a hash of the strike counter, 2-4 branches; camera-facing ribbons about two
+  pixels wide at any range, `shaders/storm_bolt.gdshader`, additive, fog-free) for strikes within
+  BOLT_REACH 2.6 km. The sky's flash leans toward the strike (`flash_dir`, `flash_spread` 0.3; 1 =
+  the old even flash) - the cloud base round it lights - and DayNight raises the ambient by
+  FLASH_AMBIENT x the flash, so shadows light too. Weather's thunder delay is unchanged.
+- **Sky**: DayNight's `storm` hook lerps the day storm top / horizon / fog / cloud colour toward
+  greener, darker greys (`StormDrama.sky()`, SKY_TOP, SKY_HORIZON, FOG, CLOUD) and adds COVER 0.35
+  cloud; nights keep the sodium cloud base.
+- **Run-off**: one probe every 0.18 s (a golden-angle ray out from the camera's ground to a wall,
+  then down over the roof and in front of the wall): roofs under 40 m pour a stream with a splash,
+  an edge 2.1-6.5 m up (awnings, canopies) a drip line. ONE MultiMesh (`storm_runoff.gdshader`,
+  camera-facing about Y, kind / height / seed in INSTANCE_CUSTOM), at most 26 within 32 m.
+- **Litter**: wet leaves and paper, one CPUParticles3D (72, web 36) downwind in the gusts.
+- **Spray**: TyreSpray's new `gain` (1.9 in a full storm).
+Every roll is a hash; Weather's rng is never called (`force_strike()` spends none).
+
+**Stills** (`shots/storm-drama`; still_shot.gd opengl3, `--spawn=2359.4,880,0,12,2 --weather=storm`,
+SHOTS `@21;2359.4,150,880,0,-18@12;@21`): before / after at noon and 21:00, after from 150 m.
+`STORM_FLASH=<s>` (`_DIST`, `_AZ` degrees, `_HOLD` level) forces and holds a strike for a still.
+
+**Cost** (GEO, same frames): street noon 7.60 M -> 7.53 M tris, 4,013 -> 3,998 draws; street 21:00
+7.93 M -> 7.76 M, 4,147 -> 4,121 (run-to-run noise; the additions are a handful of draws: two
+curtains, the run-off MultiMesh, the litter, a bolt for a frame).
+
+Checks: `tests/storm_drama_checks.gd` (gust range, lean, the wind's agreement, sky colours, the
+bolt's determinism, the shaders' defaults, a forced storm and strike, the run-off probe on a staged
+building in the air).
+
+The held-flash stills (07, 08: `STORM_FLASH=1 STORM_FLASH_HOLD=0.9 STORM_FLASH_AZ=-75
+STORM_FLASH_DIST=1100`) were shot with FLASH_AMBIENT 1.6: the 21:00 frame at the flash's peak was
+blown out, so it is 0.8 now (not re-shot); the bolt there stands behind the right-hand tower and
+reads faint - frame one where the sky is open.
+
+Not done / not verified: no Forward+ (lavapipe) still - the bolt's HDR core and the flash lobe on
+the Mac are unseen; the inner curtain on Forward+ TAA may ghost (see the particles trap); the
+run-off streams are seen in no still yet (the downtown bookmark's walls are towers over 40 m); no
+storm audio was added (wind gust sound would be next); spray off fast cars is a gain on the
+existing spray only.

@@ -2684,6 +2684,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The street's second clutter pass (tests/street_clutter_2_checks.gd): bags, cardboard, carts,
 	# steam, weeds, butts, puddles, flyers, pages, droppings; one batch a kind, nothing else moved.
 	load("res://tests/street_clutter_2_checks.gd").new().run(self, city)
+	# Storm drama (tests/storm_drama_checks.gd, StormDrama): gusts, sheets, bolts, the sky, run-off.
+	await load("res://tests/storm_drama_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
