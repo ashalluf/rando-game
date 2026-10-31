@@ -117,7 +117,8 @@ const PART_COST := {
 	"memory_audit_checks": 0.0, "offshore_island_checks": 0.0, "perf_audit_checks": 0.0,
 	"shop_vinyl_checks": 0.0, "sky_checks": 0.0, "bonfires_checks": 3.0,
 	"cinematic_review_checks": 0.1, "sunset_clouds_checks": 0.0, "night_street_review_checks": 0.1,
-	"downtown_street_closeup_checks": 1.5, "golden_hour_review_checks": 0.1
+	"downtown_street_closeup_checks": 1.5, "golden_hour_review_checks": 0.1,
+	"night_flight_checks": 0.0
 }
 const DEFAULT_COST := 6.0
 ## Every share pays for its own city load on top of its parts.
@@ -2391,6 +2392,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/la_trees_checks.gd").new().run(self, city)
 	# Street trees close up (tests/trees_closeup_checks.gd, TreesCloseup): the gust field, the switch, crowns, bark.
 	load("res://tests/trees_closeup_checks.gd").new().run(self, city)
+	# Trees under light (tests/tree_light_checks.gd, TreeLight): weighted sway, shadow slack, light through crowns.
+	load("res://tests/tree_light_checks.gd").new().run(self, city)
 	# Car dealerships (tests/car_dealers_checks.gd): auto rows of new-car dealers and used lots, pure
 	# sites inside their blocks, the lot cars, stickers, tube men and cars for sale, nothing else moved.
 	load("res://tests/car_dealers_checks.gd").new().run(self, city)
@@ -2571,6 +2574,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/car_radio_checks.gd").new().run(self, city)
 	# Jointed ragdolls (tests/ragdolls_checks.gd): parts, joints, settling, freezing, gibs, the cap.
 	await load("res://tests/ragdolls_checks.gd").new().run(self, city)
+	# Ragdoll feel (tests/ragdoll_feel_checks.gd, RagdollFeel): the stagger, trailing limbs, a car's
+	# bonnet, rolling down steps, the A/B.
+	await load("res://tests/ragdoll_feel_checks.gd").new().run(self, city)
 	# The light rail's underground station (tests/metro_underground_checks.gd): the plan, the build,
 	# standing on every floor, the tunnel trains while the player is down there, the riders, the A/B.
 	await load("res://tests/metro_underground_checks.gd").new().run(self, city)
@@ -2622,6 +2628,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/night_atmos_checks.gd").new().run(self, city)
 	# Close-up car detail (tests/car_detail_checks.gd): plates, badges, tyre lettering, grime, the A/B.
 	await load("res://tests/car_detail_checks.gd").new().run(self, city)
+	# Cars at arm's length (tests/car_exterior_closeup_checks.gd, CarUnderside): liners, struts,
+	# exhaust and tips, the underbody; one shadowless node near, the A/B.
+	await load("res://tests/car_exterior_closeup_checks.gd").new().run(self, city)
 	# Busy streets (tests/busy_streets_checks.gd): the hour, the focused spawns and rear retires,
 	# the extra kerb cars (a hash, nothing moved), the near crowd topped up.
 	await load("res://tests/busy_streets_checks.gd").new().run(self, city)
@@ -2686,9 +2695,18 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/street_clutter_2_checks.gd").new().run(self, city)
 	# Storm drama (tests/storm_drama_checks.gd, StormDrama): gusts, sheets, bolts, the sky, run-off.
 	await load("res://tests/storm_drama_checks.gd").new().run(self, city)
+	# Patterned ground without moire (tests/paving_aliasing_checks.gd, PavingAA): the box filter, the
+	# rounded kinds (the forecourt's row stripes), the switch.
+	load("res://tests/paving_aliasing_checks.gd").new().run(self, city)
+	# Traffic that moves like cars (tests/traffic_motion_checks.gd, TrafficMotion): the body's dive,
+	# squat and lean, the steering held at a stop, the queue beat, the switch, the cost.
+	await load("res://tests/traffic_motion_checks.gd").new().run(self, city)
 	# The golden-hour review (tests/golden_hour_review_checks.gd, GoldenHour): the sky's twilight
 	# ramp, the blue zenith at sunset, the eased grade, no pop 17:00-19:30, the A/B.
 	load("res://tests/golden_hour_review_checks.gd").new().run(self, city)
+	# The night flight (tests/night_flight_checks.gd, NightFlight): platoons, the streets' rank, junction
+	# pools, the beams' near fade, the A/B.
+	load("res://tests/night_flight_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

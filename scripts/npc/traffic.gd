@@ -512,6 +512,8 @@ func _drive_streets(delta: float) -> void:
 			continue
 		var t: Dictionary = car.traffic
 		var wp := WorldState.to_world(car.global_position)
+		if t.has("tm_logic"):
+			wp = TrafficMotion.logical(t, wp) # where the logic has it, not where its turn draws it
 		t.along = wp.z if int(t.axis) == CityPlan.AXIS_X else wp.x
 		t.wp = wp
 		# A car on a closed stretch (a landmark's site, CityPlan.road_open) has no business there
@@ -801,6 +803,7 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 	# cars that cannot make up their minds.
 	if v < 0.8 and still < 1.2:
 		nv = 0.0
+	TrafficMotion.queue_react(car, t, leader, v) # the beat before following the car ahead off
 	if float(t.get("react", 0.0)) > 0.0:
 		t.react = float(t.react) - delta
 		t.react_t = float(t.get("react_t", 0.0)) + delta
@@ -1063,6 +1066,16 @@ func _relief_sample(i: int, j: int) -> float:
 ## one pushes a transform change down every child the car has - body, glass, lights, twelve wheel
 ## and caliper meshes - to the renderer and the physics server. Same result, a quarter of the work.
 func _place(car: Vehicle, pos: Vector3, yaw: float, pitch: float) -> void:
+	# A turn is drawn round a fillet, not snapped at the junction's centre (TrafficMotion).
+	if TrafficMotion.enabled and car.traffic.has("axis"):
+		var w := WorldState.to_world(pos)
+		var arc := TrafficMotion.turn_pose(self, car, w, yaw)
+		if not is_nan(arc.w):
+			pos = WorldState.to_local(Vector3(arc.x, w.y, arc.z))
+			yaw = arc.w
+			car.traffic.tm_logic = [w, Vector3(arc.x, w.y, arc.z)]
+		elif car.traffic.has("tm_logic"):
+			car.traffic.erase("tm_logic")
 	var xf := Transform3D(Basis.from_euler(Vector3(pitch, yaw, 0.0)), pos)
 	# A car standing in a queue is placed where it already is: the write would push the same
 	# transform down every child (body, glass, lights, wheels) to the renderer and the physics
