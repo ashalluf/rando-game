@@ -26,6 +26,7 @@ varying float variant;
 varying vec3 world_p;
 
 #include "res://shaders/color_space.gdshaderinc"
+#include "res://shaders/pattern_aa.gdshaderinc"
 
 vec3 disp(vec3 c) {
 	return cs_linear_renderer() ? cs_linear_to_srgb(c) : c;
@@ -102,6 +103,9 @@ void vertex() {
 void fragment() {
 	vec2 p = UV;
 	vec2 w = world_p.xz;
+	// The speed bump's chevron coordinate and its footprint, here in uniform control flow.
+	float chev_t = (abs(p.y) * 0.9 + p.x * 1.6) / 0.9;
+	float chev_fw = fwidth(chev_t);
 	float hw = max(UV2.x, 0.5);
 	float seed = UV2.y;
 	float foot = length(vec2(length(dFdx(p)), length(dFdy(p))));
@@ -248,6 +252,9 @@ void fragment() {
 		vec3 a = disp(texture(asphalt_tex, p / 2.0).rgb);
 		albedo = a * 0.55;
 		float chev = step(0.5, fract((abs(p.y) * 0.9 + p.x * 1.6) / 0.9));
+		if (paa_on()) {
+			chev = paa_stripes(chev_t - 0.5, 1.0, 0.5, chev_fw);
+		}
 		float worn = smoothstep(0.35, 0.75, fbm(p * 3.0 + 5.0));
 		albedo = mix(albedo, vec3(0.86, 0.68, 0.14), chev * (1.0 - worn * 0.75));
 		rough = 0.8;
