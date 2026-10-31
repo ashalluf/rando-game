@@ -129,44 +129,48 @@ func _groups(here: Vector2) -> String:
 	var rect: Rect2 = _plan.block(b.x, b.y).rect
 	# The north or south pavement, whichever the camera is nearer.
 	var north := absf(here.y - rect.position.y) < absf(here.y - rect.end.y)
-	var y := rect.position.y + 2.0 if north else rect.end.y - 2.0
-	var x0 := clampf(here.x, rect.position.x + 10.0, rect.end.x - 40.0)
-	_clear(Vector2(x0 + 15.0, y), 40.0)
+	var y := rect.position.y + 2.2 if north else rect.end.y - 2.2
+	var x0 := clampf(here.x, rect.position.x + 30.0, rect.end.x - 30.0)
+	_clear(Vector2(x0, y), 45.0)
 	await _ticks(2)
 	var n := _envi("FLOW_PEOPLE", 12)
 	var made := 0
 	var k := 0
-	var leaders: Array = []
-	# Pairs and threes heading +x, singles coming -x.
-	while made < n:
-		var x := x0 + 3.0 * float(k)
+	var walkers: Array = []
+	# Pairs and threes from x0 heading -x (toward the camera), singles coming the other way.
+	while made < n and k < 20:
+		var x := x0 + 3.2 * float(k)
 		if k % 3 != 2:
 			var l := _walker(rect, Vector2(x, y), 77200 + k)
 			if l == null:
 				break
 			made += 1
-			leaders.append(l)
+			walkers.append(l)
+			l.set_meta("flow_goal", Vector2(x0 - 40.0, y + (0.4 if k % 2 == 0 else -0.4)))
 			var m := 1 if k % 4 != 1 else 2
 			for j in m:
 				if made >= n:
 					break
-				var f := _walker(rect, Vector2(x - 0.5, y + 0.6), 77300 + k * 3 + j)
+				var f := _walker(rect, Vector2(x + 0.5, y + 0.6), 77300 + k * 3 + j)
 				if f:
 					await _ticks(1)
 					CrowdFlow.join(f, l, true)
+					walkers.append(f)
 					made += 1
-			l.set_meta("flow_goal", Vector2(x0 + 40.0, y + (0.4 if k % 2 == 0 else -0.4)))
 		else:
-			var s := _walker(rect, Vector2(x + 14.0, y + 0.3), 77400 + k)
+			var s := _walker(rect, Vector2(x0 - 12.0 - 3.0 * float(k), y + 0.3), 77400 + k)
 			if s == null:
 				break
 			made += 1
-			s.set_meta("flow_goal", Vector2(x0 - 10.0, y))
-			leaders.append(s)
+			s.set_meta("flow_goal", Vector2(x0 + 40.0, y))
+			walkers.append(s)
 		k += 1
 	await _ticks(2)
-	for l: Pedestrian in leaders:
-		l._go_to(l.get_meta("flow_goal"))
+	for w: Pedestrian in walkers:
+		if w.has_meta("flow_goal"):
+			w._go_to(w.get_meta("flow_goal"))
 	await _ticks(int(60.0 * _envf("FLOW_SECONDS", 3.0)))
-	var eye := Vector2(x0 + 30.0, y + (1.2 if north else -1.2))
-	return _eye(eye, 1.65, Vector3(x0 + 8.0, _plan.height_at(Vector2(x0 + 8.0, y)) + 1.1, y))
+	for w: Pedestrian in walkers:
+		print("FLOW groups walker at %s leader %s" % [Vector2(w.position.x, w.position.z), w.flow.get("leader") != null])
+	var eye := Vector2(x0 - 16.0, y + (1.4 if north else -1.4))
+	return _eye(eye, 1.65, Vector3(x0 + 2.0, _plan.height_at(Vector2(x0 + 2.0, y)) + 1.0, y))
