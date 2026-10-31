@@ -149,6 +149,7 @@ static func material(sp: int) -> ShaderMaterial:
 	m.set_shader_parameter("translucency", float(p.get("trans", 0.4)))
 	var under: Color = p.get("under", Color(1.08, 1.08, 1.0))
 	m.set_shader_parameter("underside", Vector3(under.r, under.g, under.b))
+	m.set_shader_parameter("sway_height", float(p.get("height", 0.0)))
 	_mats[sp] = m
 	return m
 
