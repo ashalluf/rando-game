@@ -3881,3 +3881,9 @@ none of either.
   cap and on the web. Everything a blast throws that can be seen landing (chips, sparks, burning
   lumps) is a scripted point with one ray a tick, never a particle that falls through the road.
   Smoke is lit by the fires actually burning, not by its own age. All behind EXPLOSIONS_3=0.
+
+- **2026-10-31 The hero's locomotion: one pose by weights, not clip swaps (hero-locomotion-2, HANDOFF
+  "The hero's locomotion").** The gaits are sampled and blended by a modifier over the idle, phase-
+  synced by the toes' touchdowns, so every transition (start, gait change, stop, turn, landing) is
+  a weight that moves. The free clip library has no start / stop / turn / strafe clips, so those
+  are procedural (phase, hip yaw, springs). HERO_LOCO=0 is the A/B.

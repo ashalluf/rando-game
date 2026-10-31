@@ -5934,6 +5934,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/glshot/hero_moves_shot.gd` (several stills a load: a clip frozen or a staged move -
   fly, fall, hit_*, draw, land_<speed>, roll, idle_*; `STEP=1` for the foot IK); checks
   `tests/hero_moves_checks.gd`.
+- Hero locomotion (wave 4, docs/HANDOFF.md "The hero's locomotion"): `HeroLoco`
+  (`scripts/player/hero_loco.gd`, FIRST in his skeleton's stack) samples the walk / run / sprint
+  itself and lays them over the idle by a weight, phase-synced by the left toe's touchdowns
+  (`GAITS`, sync markers from `tools/hero_locomotion/gait_probe.gd`; rerun after a clip changes),
+  so nothing is a clip swap. `Avatar._drive_loco()`: the start (fade in, the chest driven into
+  the acceleration on a spring), the stop (the stride runs on to a foot down, then fades out and
+  settles back), the turn on the spot (feet planted to `turn_step_angle`, then a step round), the
+  strafe / backpedal while the body faces the aim (hips toward the travel, chest held, the gait
+  backward past ~110 degrees), the lean into a running turn (`_roll`, about the feet) and the
+  land-and-run (no stop clip: a dip on HeroMotion's hips_drop). The UAL free files have no
+  start, stop, turn or strafe clips: these are procedural. `HERO_LOCO=0` is the A/B; strips
+  `hero_moves_shot.gd STRIP=n` (start, stop, accel, move_<v>, strafe_l / _r, back, sprint_turn,
+  land_run); checks `tests/hero_locomotion_2_checks.gd`.
 - The hero close up (wave 3, docs/HANDOFF.md "The hero close up"): no face bones, so `HeroFace`
   (`scripts/player/hero_face.gd`, owned by HeroLook, ticked on skeleton_updated) drives
   `shaders/hero_eye.gdshader` / `hero_lash.gdshader`: saccades, blinks (the upper lid PAINTED onto
