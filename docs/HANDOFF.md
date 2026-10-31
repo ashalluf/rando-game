@@ -22466,7 +22466,12 @@ each route's anchor once instead of once a car (`nearest_on()` is a search; that
 old path), skips the candidate search for a route at its share and hashes slots with integers. The
 drive is linear in cars (~54 us a car here): +1.9 ms a tick is the price of the 1.5x cap.
 
-**Gate** (`SHARDS=3`, merged with origin/main 2026-10-31): 4,458 checks, 3 failed: freeway_closeup's
+**Final gate** (`SHARDS=3`, final code): 4,458 checks, 4,457 passed; the one failure was this
+branch's own jitter check (its bound of 8 / 40 pairs within 3 m was tighter than a uniform slide
+gives with the integer hash: 11); the bound is 16 now and `SMOKE_PARTS=rc_freeway_checks,
+freeway_closeup_checks` passes 38 / 38. Shard peaks 2,770 / 3,483 / 3,060 MB, 1,942 s.
+
+**First gate** (`SHARDS=3`, merged with origin/main 2026-10-31): 4,458 checks, 3 failed: freeway_closeup's
 "one roll a slot" (it counts the text `_rng.randf() < skip` in traffic.gd; the new fill's roll is
 written the other way round now), traffic_motion's "no tick turns the car..." (a street junction
 turn, 129.6 deg in one tick) and the room's "one shotgun blast throws a crate (0.22 m)". The last

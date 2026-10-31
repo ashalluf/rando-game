@@ -32,7 +32,8 @@ func _fill_pure() -> void:
 			same += 1
 		if FreewayFill.slot_of(t0) != slot:
 			same += 100
-	_t._check(same < 8, "freeway fill: each lane's slots are its own, jittered inside the slot (%d alike)" % same)
+	# A uniform slide over 0.7 of a 42 m slot puts ~1 pair in 5 within 3 m; lined-up lanes were 40 of 40.
+	_t._check(same < 16, "freeway fill: each lane's slots are its own, jittered inside the slot (%d of 40 alike)" % same)
 	# Nearest first, the window, the band, taken slots.
 	var anchor := 2000.0
 	var taken := {Vector3i(FreewayFill.slot_of(anchor), 1, 2): true}
