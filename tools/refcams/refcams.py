@@ -37,7 +37,9 @@ from PIL import Image, ImageDraw, ImageFont
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
-CAMERAS = os.path.join(HERE, "cameras.json")
+# REFCAMS_JSON points the run, the report and the sheet at another table (the golden-hour strips,
+# tools/golden_hour/cameras.json); the shot script reads the same variable.
+CAMERAS = os.environ.get("REFCAMS_JSON") or os.path.join(HERE, "cameras.json")
 
 # Default tolerances for compare: a shot is FLAGGED when any is passed. Luminance in 0-255 levels,
 # saturation in HSV S, temperature in mireds (1e6 / K: even steps to the eye, and steady where a
@@ -185,7 +187,8 @@ def contact_sheet(run_dir, width=1920, out=None):
 	path = os.path.join(run_dir, "report.json")
 	report = json.load(open(path)) if os.path.exists(path) else build_report(run_dir)
 	shots = report["shots"]
-	cols, rows = 5, 2
+	cols = int(os.environ.get("SHEET_COLS", "5"))
+	rows = max(2, (len(shots) + cols - 1) // cols)
 	cell_w = width // cols
 	cell_h = cell_w * 9 // 16
 	cap = max(30, cell_w // 7)

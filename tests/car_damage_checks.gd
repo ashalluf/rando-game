@@ -199,6 +199,15 @@ func _crash() -> void:
 
 
 func _rocket_to_wreck() -> void:
+	# No crater, rubble or heaved slabs here: the wreck landing on a chunk of its own rocket's rubble
+	# rested 2.65 m over the deck (CI 395). The aftermath has its own checks.
+	var aftermath := BlastAftermath.enabled
+	BlastAftermath.enabled = false
+	await _rocket_to_wreck_run()
+	BlastAftermath.enabled = aftermath
+
+
+func _rocket_to_wreck_run() -> void:
 	var r := _car(14.0)
 	await _ticks(40)
 	var blasts := Explosion.blast_count
@@ -236,7 +245,7 @@ func _rocket_to_wreck() -> void:
 	while landed < 480 and still < 20:
 		await _tree.physics_frame
 		landed += 1
-		if r.linear_velocity.length() < 0.5 and r.global_position.y < _top.y + 3.0:
+		if r.linear_velocity.length() < 0.5 and r.global_position.y < _top.y + 2.6:
 			still += 1
 		else:
 			still = 0
