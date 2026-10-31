@@ -603,6 +603,8 @@ func _blast(center: Vector3, falloff: float) -> float:
 		_add_scorch(p, (0.6 + 1.2 * falloff) / _mesh_scale)
 	if CrashDeform.applies(car):
 		crumple().blast(near, push_body, falloff)
+	if CrashBreakup.applies(car):
+		breakup().blast(near, push_body, falloff)
 	# Glass and lamps facing the blast.
 	var toward := (_to_mesh.basis * -push_body).normalized()
 	for i in _panes.size():

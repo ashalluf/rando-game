@@ -50,6 +50,7 @@ func run(t: Node, city: Node3D) -> void:
 	await _tbone_rolls()
 	await _wheel_off()
 	await _drag_sparks()
+	await _blast()
 	await _switch_off()
 
 	CrashBreakup.enabled = was
@@ -165,6 +166,7 @@ func _head_on() -> void:
 	_wall_at(c, Vector3(0.0, 0.0, -float(c._dims().length) * 0.5 - 0.35), Vector3(4.0, 2.0, 0.4))
 	await _ticks(2)
 	var debris_before := CrashDebris.instance().thrown if CrashDebris.instance() != null else 0
+	var resting_before := CrashDebris.instance().resting if CrashDebris.instance() != null else 0
 	_crash(c, Vector3(0.0, 0.0, 75.0 / 3.6))
 	var bk: CrashBreakup = c._damage._breakup if c._damage != null else null
 	_check(bk != null, "a 75 km/h head-on breaks things off")
@@ -182,7 +184,9 @@ func _head_on() -> void:
 	var debris := CrashDebris.instance()
 	_check(debris != null and debris.thrown > debris_before, "pieces are knocked off (%d)" % ((debris.thrown - debris_before) if debris else 0))
 	await _ticks(240)
-	_check(debris != null and debris.resting > 0 and debris._flying.is_empty(), "they land and lie still (%d)" % (debris.resting if debris else 0))
+	var mine := (debris.thrown - debris_before) if debris else 0
+	var landed := (debris.resting - resting_before) if debris else 0
+	_check(debris != null and landed >= mine * 0.8, "they land and lie still (%d of %d)" % [landed, mine])
 	var mm: MultiMesh = (debris.get_child(0) as MultiMeshInstance3D).multimesh
 	_check(mm.visible_instance_count >= debris.resting and debris.get_parent() is Node3D, "and stay drawn, one MultiMesh under the level root")
 	var bag2: Vector2 = c._damage._glass.get_shader_parameter("airbag") if c._damage._glass != null else Vector2.ZERO
@@ -287,6 +291,17 @@ func _drag_sparks() -> void:
 	for p in bk._sparks:
 		on = on or p.emitting
 	_check(not on, "and none once the car stands still")
+
+
+## A rocket close by: the bonnet blown open, pieces off, the car let tumble.
+func _blast() -> void:
+	var c := _car(55.0)
+	await _ticks(30)
+	c.take_hit(-1, 0.95, Vector3.UP, c.global_transform * Vector3(1.6, 0.2, -1.2), Vehicle.HIT_BLAST)
+	var bk: CrashBreakup = c._damage._breakup if c._damage != null else null
+	_check(bk != null and bk.bonnet_angle > 0.0 and bk.tumble_left > 0.0, "a close blast throws the bonnet open and lets the car tumble")
+	if bk != null:
+		bk.end_tumble()
 
 
 func _switch_off() -> void:

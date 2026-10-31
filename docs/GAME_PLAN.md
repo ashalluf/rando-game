@@ -3786,3 +3786,10 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+
+- **2026-10-31 Crashes break cars, and a hard side hit rolls them (car-crash-3, HANDOFF "Crashes
+  that break cars").** The owner's rule that a car in the air flies, never tumbles, stays for
+  everything the player does on purpose; a crash past a T-bone's threshold (or a close blast) is the
+  one exception: the car gets a real centre of mass and is let roll by the physics until it rests,
+  and holding boost still flies it out. What breaks off (glass, bonnet, a wheel, pieces) is
+  per-car state made only on a crash; nothing is added to an undamaged car. CRASH_BREAKUP=0 is the A/B.

@@ -162,6 +162,20 @@ func crash(body_at: Vector3, push_body: Vector3, over: float, world_at: Vector3)
 	set_physics_process(true)
 
 
+## A blast at `falloff` (CarDamage._blast, past CrashDeform's own): a close one throws the bonnet
+## open, knocks pieces off the side facing it and lets the car tumble the way it is thrown.
+func blast(body_near: Vector3, push_body: Vector3, falloff: float) -> void:
+	if falloff < 0.55 or BigVehicles.is_big(car.body_type):
+		return
+	if bonnet_angle < 0.0 and not CarDamage.MID_ENGINE.has(car.body_type) and dmg._crumple != null and falloff > 0.7:
+		_release_bonnet(6.0 + falloff * 6.0)
+	var world := car.global_transform * body_near
+	CrashDebris.throw_off(car, world, car.linear_velocity, (car.global_basis * push_body).normalized(), 6.0 + falloff * 6.0,
+			CrashDebris.Kind.PANEL, int(4.0 + falloff * 6.0), car.paint)
+	CrashDebris.throw_off(car, world, car.linear_velocity, (car.global_basis * push_body).normalized(), 6.0, CrashDebris.Kind.BUMPER, 3)
+	_start_tumble(6.0)
+
+
 ## Which glass a crash breaks (CarDamage._crash): `toward` the mesh-space direction to the hit.
 func glass(toward: Vector3, over: float) -> void:
 	var throw := car.linear_velocity
@@ -184,7 +198,7 @@ func glass(toward: Vector3, over: float) -> void:
 			dmg._set_pane(i, 2.0)
 			dmg._crash_throw = Vector3.ZERO
 			bursts += 1
-		elif over > glass_burst_at * 0.6 and facing > -0.4:
+		elif over > glass_burst_at * 0.6 and facing > 0.3:
 			dmg._set_pane(i, 1.0)
 
 
@@ -602,7 +616,6 @@ func _make_sparks() -> CPUParticles3D:
 	var p := CPUParticles3D.new()
 	p.name = "DragSparks%d" % _sparks.size()
 	var quad := QuadMesh.new()
-	quad.size = Vector2(0.025, 0.22)
 	quad.material = _spark_material()
 	p.mesh = quad
 	p.amount = WeaponFX._count(40)
@@ -620,8 +633,9 @@ func _make_sparks() -> CPUParticles3D:
 	p.scale_amount_min = 0.6
 	p.scale_amount_max = 1.3
 	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	p.color_ramp = WeaponFX._ramp([Color(1.0, 0.9, 0.6, 1.0), Color(1.0, 0.55, 0.15, 0.95),
-		Color(0.9, 0.25, 0.05, 0.6), Color(0.5, 0.08, 0.02, 0.0)])
+	# Steel ground on the road: orange from the start, cooling to red (linear, HDR by the shader).
+	p.color_ramp = WeaponFX._ramp([Color(1.0, 0.72, 0.32, 1.0), Color(1.0, 0.45, 0.1, 0.95),
+		Color(0.85, 0.2, 0.04, 0.6), Color(0.45, 0.06, 0.02, 0.0)])
 	p.visibility_aabb = AABB(Vector3(-8.0, -2.0, -8.0), Vector3(16.0, 6.0, 16.0))
 	p.emitting = false
 	add_child(p)

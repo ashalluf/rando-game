@@ -4,7 +4,7 @@ extends Node3D
 ## of bumper plastic, a grille's slats, a mirror housing in the car's paint, a strip of trim, a
 ## shard of bent wing. CrashLitter's shards are the centimetre glitter; these are the 10-45 cm
 ## pieces a player sees from the car and that make a junction read as "something happened here".
-## ONE MultiMesh for the whole level (one draw; it casts a shadow), a ring of CAPACITY pieces:
+## ONE MultiMesh for the whole level (one draw, no shadow), a ring of CAPACITY pieces:
 ## each is thrown off the car with its velocity plus a kick, flies a ballistic arc simulated here
 ## (one ground ray a piece a tick while it flies, at most MAX_FLYING at once), bounces once or
 ## twice, slides to rest and then STAYS - the ring reuses the oldest piece only once it is full.
@@ -59,7 +59,8 @@ func _ready() -> void:
 	var mi := MultiMeshInstance3D.new()
 	mi.name = "Pieces"
 	mi.multimesh = _mm
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	# Flat on the road: a shadow would be four more draws (the cascades) for the whole level, always.
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.material_override = _material()
 	mi.custom_aabb = AABB(Vector3(-1e5, -1e4, -1e5), Vector3(2e5, 2e4, 2e5))
 	add_child(mi)
