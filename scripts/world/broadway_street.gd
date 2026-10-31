@@ -57,6 +57,7 @@ static func add_lamp(ch: CityChunk, at: Vector3, _inward: Vector2) -> void:
 	# Its globes hang 4-5 m up a couple of metres off the shop fronts: at the cobras' level they
 	# blew the pale facades beside them out to a flat white (the night street review).
 	light.set_meta("lamp_gain", NightStreetReview.broadway_light())
+	light.add_to_group(LampShadows.GROUP)
 	ch.add_child(light)
 	PropBreak.own_light(ch, light)
 
