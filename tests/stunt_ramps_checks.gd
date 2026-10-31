@@ -246,7 +246,9 @@ func _director(t: Node) -> void:
 	# shard) 600 ms can be two frames: wait for the frames too.
 	var t0 := Time.get_ticks_msec()
 	var frames := 0
-	while (Time.get_ticks_msec() - t0 < 600 or frames < 4) and frames < 120:
+	# (Batch 28's gate: 4 frames took 5.8 s and the ease, at most 0.1 s a frame, reached 0.82: keep
+	# going until it has slowed, up to the cap.)
+	while ((Time.get_ticks_msec() - t0 < 600 or frames < 4) or (Engine.time_scale >= 0.6 and frames < 40)) and frames < 120:
 		await t.get_tree().process_frame
 		frames += 1
 	var slowed := Engine.time_scale < 0.6
