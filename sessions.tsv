@@ -1,6 +1,6 @@
 traffic-motion	session_01ThLG8vPkvokufLRbYLNmC8	opus	merged b26
-skyline-glass-day	session_01ThLG8uowSi6fkwwKFJGq5a	opus	running
-web-hero-rain	session_01ThLG8vJjp7qjfV4kjjLN3F	opus	running
+skyline-glass-day	session_01ThLG8uowSi6fkwwKFJGq5a	opus	merged b27
+web-hero-rain	session_01ThLG8vJjp7qjfV4kjjLN3F	opus	merged b27
 paving-aliasing	session_01ThLG8vfhsrguA5kfxxjJCu	opus	merged b26
 night-flight	session_01ThLG8wnzhCQYaVRDADLiCR	opus	merged b26
 wet-road-mirror	session_01ThLG8u32iTb3T4iPwqMMb8	opus	running
@@ -14,9 +14,9 @@ rc-beach	-	-	waiting (first launch archived: account limit)
 rc-hills	-	-	waiting (first launch archived: account limit)
 rc-freeway	-	-	waiting (first launch archived: account limit)
 rc-macarthur	-	-	waiting (first launch archived: account limit)
-rc-pier-night	-	-	waiting (first launch archived: account limit)
+rc-pier-night	-	-	merged b27
 hero-closeup-2	-	-	waiting (first launch archived: account limit)
-hero-locomotion-2	-	-	waiting (first launch archived: account limit)
+hero-locomotion-2	-	-	merged b27
 crowd-closeup-3	-	-	waiting (first launch archived: account limit)
 car-exterior-closeup	-	-	merged b26
 traffic-behaviour-2	-	-	waiting (first launch archived: account limit)
@@ -27,20 +27,20 @@ tree-light-2	-	-	merged b26
 ground-shadow-contact	-	-	waiting (first launch archived: account limit)
 sky-day-review	-	-	waiting (first launch archived: account limit)
 water-review	-	-	waiting (first launch archived: account limit)
-explosions-3	-	-	waiting (first launch archived: account limit)
+explosions-3	-	-	merged b27
 gunplay-feel	-	-	waiting (first launch archived: account limit)
 police-chase-2	-	-	waiting (first launch archived: account limit)
 wanted-escalation	-	-	waiting (first launch archived: account limit)
-car-crash-3	-	-	waiting (first launch archived: account limit)
+car-crash-3	-	-	merged b27
 ragdoll-feel	-	-	merged b26
 blood-gore-2	-	-	waiting (first launch archived: account limit)
-ambient-sound-2	-	-	waiting (first launch archived: account limit)
+ambient-sound-2	-	-	merged b27
 night-lamps-review	-	-	waiting (first launch archived: account limit)
-window-interiors-2	-	-	waiting (first launch archived: account limit)
-loading-first-frame	-	-	waiting (first launch archived: account limit)
+window-interiors-2	-	-	merged b27
+loading-first-frame	-	-	merged b27
 perf-audit-4	-	-	waiting (first launch archived: account limit)
 gate-flakes	-	-	waiting (first launch archived: account limit)
-fwd-review-f	-	-	waiting (first launch archived: account limit)
+fwd-review-f	-	-	merged b27
 web-build-4	-	-	waiting (first launch archived: account limit)
-mac-verify-pack	-	-	waiting (first launch archived: account limit)
+mac-verify-pack	-	-	merged b27
 la-street-hills	session_01ThLG8vqXUj9ppezUCfrpw6	opus	running
