@@ -90,6 +90,19 @@ func _ready() -> void:
 		await get_tree().process_frame
 	var img := get_viewport().get_texture().get_image()
 	print("HERO_RGB ", _torso_mean(img, cam))
+	_crop("base", img, cam)
+	# steps=a,b,...: switch one suspect at a time, a few frames, the colour and a crop each.
+	var steps := _arg("steps", "")
+	if steps != "":
+		for st in steps.split(",", false):
+			_toggle(st, true)
+			for i in int(_arg("step_frames", "3")):
+				await get_tree().process_frame
+			var im := get_viewport().get_texture().get_image()
+			print("STEP %s %s" % [st, _torso_mean(im, cam)])
+			_crop(st, im, cam)
+			_toggle(st, false)
+		print("STEPS_DONE")
 	if OS.has_feature("web") or _arg("quit", "1") != "1":
 		return
 	img.save_png(_arg("out", "hero_rain.png"))
@@ -114,3 +127,87 @@ func _torso_mean(img: Image, cam: Camera3D) -> String:
 		return "none"
 	s = s / n * 255.0
 	return "%d %d %d" % [roundi(s.x), roundi(s.y), roundi(s.z)]
+
+
+## PROBE_IMG <step> <base64 png>: a crop round the hero (the web has no file to save to).
+func _crop(step: String, img: Image, cam: Camera3D) -> void:
+	if _arg("crops", "1") != "1":
+		return
+	var a := cam.unproject_position(Vector3(0, 2.0, 0))
+	var b := cam.unproject_position(Vector3(0, -0.05, 0))
+	var h := absf(b.y - a.y)
+	var r := Rect2i(int(a.x - h * 0.4), int(minf(a.y, b.y)), int(h * 0.8), int(h))
+	r = r.intersection(Rect2i(0, 0, img.get_width(), img.get_height()))
+	if r.size.x > 2 and r.size.y > 2:
+		print("PROBE_IMG %s %s" % [step, Marshalls.raw_to_base64(img.get_region(r).save_png_to_buffer())])
+
+
+var _saved := {}
+
+
+func _hero_mats(want: String) -> Array:
+	var out := []
+	for n in find_children("*", "MeshInstance3D", true, false):
+		var mi := n as MeshInstance3D
+		for i in mi.get_surface_override_material_count():
+			var m := mi.get_surface_override_material(i)
+			if m is ShaderMaterial and str((m as ShaderMaterial).shader.resource_path).contains(want):
+				out.append([mi, i, m])
+	return out
+
+
+## One suspect off (on = true) or back (false).
+func _toggle(st: String, on: bool) -> void:
+	var env := (get_node("WorldEnvironment") as WorldEnvironment).environment
+	match st:
+		"dry":
+			RenderingServer.global_shader_parameter_set("wet_world", 0.0 if on else 1.0)
+		"refl":
+			if on:
+				_saved["refl"] = env.reflected_light_source
+			env.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED if on else _saved["refl"]
+		"ambient":
+			if on:
+				_saved["amb"] = env.ambient_light_source
+			env.ambient_light_source = Environment.AMBIENT_SOURCE_DISABLED if on else _saved["amb"]
+		"sun":
+			var sun := get_node_or_null("Sun") as Light3D
+			if sun:
+				sun.visible = not on
+		"fog":
+			if on:
+				_saved["fog"] = env.fog_enabled
+			env.fog_enabled = false if on else _saved["fog"]
+		"glow":
+			if on:
+				_saved["glow"] = env.glow_enabled
+			env.glow_enabled = false if on else _saved["glow"]
+		"grade":
+			if on:
+				_saved["adj"] = env.adjustment_enabled
+			env.adjustment_enabled = false if on else _saved["adj"]
+		"rough1", "spec0", "noalbedo":
+			for e in _hero_mats("hero_cloth") + _hero_mats("hero_hair"):
+				var m := e[2] as ShaderMaterial
+				var key := [m, st]
+				if on:
+					var k := {"rough1": "roughness", "spec0": "specular", "noalbedo": "albedo_color"}[st] as String
+					_saved[key] = [k, m.get_shader_parameter(k)]
+					var v: Variant = 1.0 if st == "rough1" else (0.0 if st == "spec0" else Color(0, 0, 0, 1))
+					m.set_shader_parameter(k, v)
+				elif _saved.has(key):
+					m.set_shader_parameter(_saved[key][0], _saved[key][1])
+					_saved.erase(key)
+		"flatcloth", "flathair":
+			var want := "hero_cloth" if st == "flatcloth" else "hero_hair"
+			for e in _hero_mats(want) if on else []:
+				var flat := StandardMaterial3D.new()
+				flat.albedo_color = Color(0.02, 0.02, 0.02)
+				flat.roughness = 0.45
+				_saved[[e[0], e[1]]] = e[2]
+				(e[0] as MeshInstance3D).set_surface_override_material(e[1], flat)
+			if not on:
+				for k in _saved.keys():
+					if k is Array and k.size() == 2 and k[0] is MeshInstance3D:
+						(k[0] as MeshInstance3D).set_surface_override_material(k[1], _saved[k])
+						_saved.erase(k)
