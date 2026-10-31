@@ -5698,6 +5698,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   gathers riders and surfers there; `tools/beach/probe.gd` walks the coast (`PEOPLE=1`),
   `tools/beach/chunks.gd` lists the built chunks, `tools/beach/checks.gd` runs the checks alone.
   Checks: `tests/beach_life_checks.gd`.
+- The beach refcam (wave 4, rc-beach, docs/HANDOFF.md "The beach refcam"): `SandRoads`
+  (`scripts/npc/sand_roads.gd`, pure, per chunk) says which grid street stretches the sand or the
+  sea covers (a sea chunk builds no road, a shore beach chunk sands its +Z street, the sand's
+  landward lip buries a north-south street it reaches); `TrafficManager._road_open()` is
+  `road_open()` less those (cars drove on onto the beach). `Waders` (`scripts/world/waders.gd`):
+  people standing in the shallows (BeachActivity's water list, soles on the sand mesh's foreshore,
+  `bed_y()`), busier swimmers (`SWIMMERS_BUSY`), swimmers and sitting surfers floated on
+  `SeaSurface.height()` (`float_y()`, t = 0 under a held shader TIME), beach palms in the back
+  third (`BeachLife.palm_across()`, after the roll). `SAND_ROADS=0` / `WADERS=0` the A/B; probes
+  `tools/rc_beach/`; checks `tests/rc_beach_checks.gd`.
 - Beach amenities (2026-10-30, wave 3, docs/HANDOFF.md "Beach amenities"): `BeachAmenities`
   (`scripts/world/beach_amenities.gd`, one hook line in `CityChunk._build_beach()` before
   `BeachLife.build()`, whose obstacles it extends, and one in its LOD branch) puts split-face block

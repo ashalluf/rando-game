@@ -3786,3 +3786,10 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+
+- **2026-10-31 The beach refcam: what moves on the beach must stand where the beach is drawn
+  (rc-beach, HANDOFF "The beach refcam").** The traffic now treats a street stretch the sand or the
+  sea covers as closed (SandRoads; CityPlan.road_open() untouched, so nothing built moves), and the
+  people in the water are placed on the surfaces that are drawn - waders on the sand mesh's
+  foreshore, swimmers and surfers on the ocean's own height model - rather than at a fixed level.
+  A summer afternoon's water is busy (waders, more swimmers). SAND_ROADS=0 / WADERS=0 the A/B.
