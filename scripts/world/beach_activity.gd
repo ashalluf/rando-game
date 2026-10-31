@@ -33,7 +33,7 @@ var _tower: Dictionary = {}
 var _dens: float = 0.0
 var _hour: float = 15.0
 
-## Water people: {node, kind ("swim" / "surf"), s (m offshore), z, yaw, phase, state, t, meshes}.
+## Water people: {node, kind ("swim" / "surf" / "wade"), s (m offshore), z, yaw, phase, state, t, meshes}.
 var _water: Array = []
 var _riders: Array[BeachRider] = []
 var _players: Array = []
@@ -43,6 +43,9 @@ var _last_alarm_ms: int = -1
 var _to_wake: int = 0
 var _alarm_at := Vector3.INF
 var _clock: float = 0.0
+var _tick: int = 0
+## SeaSurface's sea state, refreshed now and then (Waders.float_y()).
+var sea_state: Array = []
 var _shape := Vector4(0.9, 24.0, 8.0, 38.0)
 var _extra := Vector4(12.0, 0.6, 116.0, 1.3)
 
@@ -117,6 +120,7 @@ func _build_water() -> void:
 			"z_home": z, "yaw": PI * 0.5, "phase": _h(["surf_ph", i]) * TAU, "state": "sit",
 			"t": lerpf(4.0, 30.0, _h(["surf_wait", i])), "rides": rides, "meshes": {"sit": sit, "paddle": paddle, "ride": ride},
 			"dir_z": 1.0 if _h(["surf_dir", i]) < 0.5 else -1.0})
+	_water.append_array(Waders.place(self, int(_counts.get("waders", 0))))
 	if stage_z >= z0 and stage_z < z1:
 		var k := 0
 		for w: Dictionary in _water:
@@ -181,8 +185,15 @@ func _place_water(w: Dictionary) -> void:
 	var x := macro.coast_x(z) - float(w.s)
 	var y := _sea_y(float(w.s), float(w.phase))
 	var yaw: float = w.yaw
+	if String(w.kind) == "wade":
+		Waders.pose(w, x, z, _clock)
+		return
+	# On the sea that is drawn (Waders.float_y(): the surf zone's water stands well over the old
+	# fixed level, and the swimmers' heads were under it).
+	if Waders.enabled and String(w.get("state", "sit")) != "ride":
+		y = Waders.float_y(self, w, x, z, _tick)
 	if String(w.kind) == "swim":
-		y -= float(w.sink)
+		y -= float(w.sink) if not Waders.enabled else Waders.SWIM_SINK
 		yaw += sin(_clock * 0.3 + float(w.phase)) * 0.6
 		node.transform = Transform3D(Basis(Vector3.UP, yaw), Vector3(x, y, z))
 		return
@@ -444,6 +455,7 @@ func _build_walkers() -> void:
 
 func _physics_process(dt: float) -> void:
 	_clock += dt
+	_tick += 1
 	var player := Pedestrian._player
 	var near := true
 	if player and is_instance_valid(player) and chunk and chunk.is_inside_tree():

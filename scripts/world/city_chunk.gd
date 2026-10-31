@@ -1340,7 +1340,7 @@ func _build_beach(block: Dictionary) -> void:
 	var obstacles: Array = []
 	for i in rng.randi_range(6, 14):
 		var z := rng.randf_range(block.rect.position.y + 4.0, block.rect.end.y - 4.0)
-		var across := rng.randf_range(0.18, 0.95)
+		var across := BeachLife.palm_across(rng.randf_range(0.18, 0.95))
 		if path and absf(across - BeachLife.PATH_AT) < 0.05:
 			across = BeachLife.PATH_AT + (0.06 if across >= BeachLife.PATH_AT else -0.06)
 		var at := Vector3(_dry_sand_x(z, across), _sand_y(z, across), z)

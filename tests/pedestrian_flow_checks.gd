@@ -49,7 +49,8 @@ func _pure() -> void:
 	var closest := INF
 	var a_right_at_pass := false
 	var dt := 1.0 / 60.0
-	for i in 60 * 14:
+	# 25 s: in CI 400's shard the pair stepped round each other (0.64 m) but had not passed by 14 s.
+	for i in 60 * 25:
 		var da := (ga - a).normalized() if a.distance_to(ga) > 0.2 else Vector2.ZERO
 		var db := (gb - b).normalized() if b.distance_to(gb) > 0.2 else Vector2.ZERO
 		var ra := CrowdFlow.step(a, da, 1.3, [[b, vb]]) if da != Vector2.ZERO else Vector3.ZERO
@@ -203,7 +204,8 @@ func _passing(city: Node3D, chunk: Node3D) -> void:
 	b._go_to(at + Vector2(-3.0, 0.0))
 	var closest := INF
 	var passed := false
-	for i in 60 * 14:
+	# 25 s: in CI 400's shard the pair stepped round each other (0.64 m) but had not passed by 14 s.
+	for i in 60 * 25:
 		await _tree.physics_frame
 		var pa := Vector2(a.position.x, a.position.z)
 		var pb := Vector2(b.position.x, b.position.z)
@@ -211,8 +213,10 @@ func _passing(city: Node3D, chunk: Node3D) -> void:
 		if pa.x > pb.x + 1.0:
 			passed = true
 			break
+	var pa_end := Vector2(a.position.x, a.position.z) - at if is_instance_valid(a) else Vector2.INF
+	var pb_end := Vector2(b.position.x, b.position.z) - at if is_instance_valid(b) else Vector2.INF
 	_check(passed and closest > 0.45,
-		"two walkers on one line step round each other instead of through (closest %.2f m, passed %s, kinematic %s)" % [closest, passed, a._kinematic])
+		"two walkers on one line step round each other instead of through (closest %.2f m, passed %s, kinematic %s, ended at %s and %s from the start)" % [closest, passed, a._kinematic, pa_end, pb_end])
 	a.queue_free()
 	b.queue_free()
 

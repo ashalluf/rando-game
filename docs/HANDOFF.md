@@ -25103,3 +25103,55 @@ snap main fixed as CI 397, rehearsal stragglers, alarms, the church zone).
   crowd_life 4444, ragdolls 7272): no rebuild path outside CityStreamer's own level logic was found.
   The three files settle streaming first and turn a swap into a named FAIL instead of a SCRIPT
   ERROR; the cause is still to find (log `_install_chunk` for the home block under SMOKE_SHARD).
+
+## 9ke. The beach refcam: no cars on the sand, people in the water (wave 4, `rc-beach`, branch `wt/rc-beach`)
+
+The reference camera `beach` (the waterline at z 800, 14:00 clear) looks out to sea from the water's
+edge: its frame is the sky (sky-day-review's), the sea, the foam and the swash (water-review's
+shaders) and, of the beach itself, only the near water and the pier on the left. So the session
+judged the frame AND the beach round it, shooting six extra views from the same spot in one load
+(`REFCAMS_JSON=` a table of them: along the shore both ways, inland, a group of sunbathers, 30 m up).
+What gave it away, in the order the eye found it:
+
+1. **Cars and a bus on the sand.** A white sedan stood at the waterline and a bus by the volleyball
+   courts. The grid's streets run on under the beach, where nobody draws them - a sea chunk builds no
+   road at all, a shore beach chunk lays its sand over its +Z street, and the sand's landward lip
+   (`SAND_LIP`) buries the near half of a north-south street it reaches (x -645 behind the airport
+   beach) - and TrafficManager only checked the zone where a car was PUT DOWN, so a car spawned in
+   the city drove straight on down its street into the sand. `SandRoads.on_sand(plan, axis, index,
+   along)` (`scripts/npc/sand_roads.gd`, pure, cached per chunk: the owning chunk's zone the way
+   CityChunk decides what to build, its shore and the sand's landward edge) says which stretches
+   those are; `TrafficManager._road_open()` is `CityPlan.road_open()` less them, used at the spawn,
+   the per-tick "closed stretch -> pool" check and the turn decision (a car turns at the last
+   junction before the sand). CityPlan.road_open() itself is NOT changed: junction_closed() reads it
+   and would move signals and crosswalks on the coast. `SAND_ROADS=0` is the A/B.
+2. **Nobody in the water at 2 pm.** From the waterline the sea was empty: the swimmers rolled 0..8 a
+   stretch (none in the camera's two chunks), the surfers sit 46-60 m out and a few pixels high, and
+   nobody stood in the shallows. `Waders` (`scripts/world/waders.gd`): people standing in the
+   shallows in groups of one to three (a pair or three facing each other, someone alone looking out
+   to sea), soles on the sand mesh's own foreshore under the water (`bed_y()`: SAND_EDGE at the
+   waterline, SAND_STEEP_Y at 3.5 m, SAND_LOW at 26 m), ankle to waist deep, shifting their weight;
+   BeachActivity's water list (`plan_activity()`'s `waders`, `WADERS` 11 a chunk at full density).
+   The swimmers are `SWIMMERS_BUSY` 16 x 0.55..1 a chunk.
+3. **The swimmers were under the water.** They hung at a fixed 0.15 m sea level less 1.28 m, and the
+   surf zone's drawn water stands well over 0.15 (the bores, the swell): only crowns showed, so even
+   the swimmers in frame were invisible. Swimmers and sitting / paddling surfers now float on
+   `SeaSurface.height()` (the ocean shader's vertex stage in GDScript; Swim keeps its clock in step)
+   at `SWIM_SINK` 1.22 m (head and shoulders out), worked out every `FLOAT_EVERY` (6) ticks per
+   person, staggered, eased between; 144 us a call on the build box, ~50 swimmers near the player =
+   ~1.2 ms/s. A still that holds shader TIME at zero (still_shot / refcams' rollover) is read at t 0.
+4. **Palms in the swash's reach.** Beach palms were rolled across 0.18..0.95 of the dry sand, so
+   some stood a dozen metres from the water in the middle of the towels. `BeachLife.palm_across()`
+   maps the roll into `BACK_PALMS` (0.64..0.97: the back third, by the path, as on the real
+   beaches), after the roll, so the block's stream and its palm count do not move.
+
+`WADERS=0` turns 2-4 off (the old water, the old palms). Not touched (other sessions own them): the
+foam lace's leopard-spot cells and the swash's flat white band (ocean / beach_sand, water-review),
+the brown blotches in the shallows in front of the camera (ocean shader's sandy shallows), the
+sky's cirrus fan (sky-day-review). Those are the worst things left in this frame.
+
+Probes: `tools/rc_beach/sand_roads_probe.gd` (headless: every coast street stretch the sand covers),
+`tools/rc_beach/water_probe.gd` (opengl3: every BeachActivity's water people and the cars near the
+beach; `LOOK=swim|wade|surf` saves a close look at the first one). Checks `tests/rc_beach_checks.gd`.
+Stills on `shots/rc-beach`.
+
