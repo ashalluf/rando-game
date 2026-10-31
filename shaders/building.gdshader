@@ -243,6 +243,8 @@ float hash31(vec3 p) {
 	return hash21(vec2(hash21(p.xy), p.z));
 }
 
+#include "res://shaders/roof_weather.gdshaderinc"
+
 // ---- Street level after dark ---------------------------------------------------------------
 // Each shop's night is rolled from INTEGERS: whether it is open, the colour of its lights, a neon
 // piece in its window, a roll-down shutter, what kind of sign it has. Building rolls the very same
@@ -782,6 +784,8 @@ void fragment() {
 	vec3 n = normalize(local_normal);
 	// Metres a pixel covers here, taken in uniform control flow for the neon tubes' width.
 	float px_m = length(fwidth(world_pos));
+	// The roof's footprint per pixel (roof_weather.gdshaderinc), likewise outside any branch.
+	float roof_px = length(fwidth(local_pos.xz));
 	vec3 albedo = facade_color;
 	float rough = 0.85;
 	float metal = 0.0;
@@ -823,7 +827,11 @@ void fragment() {
 			parapet = 1.0 - step(0.5, UV.x);
 		}
 		vec3 surface;
-		if (roof_style == 1) {
+		if (roof_weather && roof_style == 1) {
+			surface = rw_membrane(local_pos.xz, min(edge.x, edge.y), seed, roof_px, rough);
+		} else if (roof_weather && roof_style == 2) {
+			surface = rw_bitumen(local_pos.xz, min(edge.x, edge.y), seed, rough);
+		} else if (roof_style == 1) {
 			// White single-ply membrane, rolled in strips and welded at the seams, weathered
 			// grey where water sits.
 			surface = vec3(0.78, 0.78, 0.76);

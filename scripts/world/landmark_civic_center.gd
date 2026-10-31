@@ -31,8 +31,8 @@ const STATION_NAME := "PUEBLO STATION"
 
 ## City hall's stone: a warm off-white granite and terracotta, a little darker on the recessed
 ## wall than on the piers standing proud of it, so the vertical lines read at any distance.
-const HALL_STONE := Color(0.86, 0.83, 0.76)
-const HALL_WALL := Color(0.80, 0.77, 0.70)
+const HALL_STONE := Color(0.80, 0.77, 0.70)
+const HALL_WALL := Color(0.72, 0.69, 0.62)
 ## Grand-park pink: every bench and chair in the park.
 const PARK_PINK := Color(0.93, 0.16, 0.52)
 const STUCCO := Color(0.94, 0.90, 0.81)
@@ -101,12 +101,12 @@ static func _city_hall(s: Rect2, y0: float, parent: Node3D, statics: StaticBody3
 		"flood_strength": 1.15, "flood_base_y": y0 + 30.0, "flood_reach": 45.0, "flood_floor": 0.35, "flood_spacing": 4.8,
 		"flood_top_y": y0 + 118.0, "flood_top_reach": 9.0, "seed": 7.0})
 	var crown := LandmarkMats.facade("hall_crown", stone_tex, 3.0,
-		{"tint": Color(0.90, 0.88, 0.83), "roughness": 0.7, "texture_contrast": 0.5,
+		{"tint": Color(0.85, 0.83, 0.78), "roughness": 0.7, "texture_contrast": 0.5,
 		"flood_strength": 1.4, "flood_base_y": y0 + 106.0, "flood_reach": 14.0, "flood_floor": 0.4, "flood_spacing": 3.0})
 	var trim := LandmarkMats.facade("hall_trim", stone_tex, 3.0, {"tint": Color(0.83, 0.80, 0.73), "roughness": 0.75, "texture_contrast": 0.5,
 		"flood_strength": 0.9, "flood_base_y": y0 + 2.2, "flood_reach": 20.0, "flood_floor": 0.3})
 	var pier := LandmarkMats.facade("hall_pier", stone_tex, 3.0,
-		{"tint": Color(0.90, 0.88, 0.82), "roughness": 0.74, "texture_contrast": 0.6,
+		{"tint": Color(0.86, 0.84, 0.78), "roughness": 0.74, "texture_contrast": 0.6,
 		"flood_strength": 1.15, "flood_base_y": y0 + 30.0, "flood_reach": 45.0, "flood_floor": 0.35, "flood_spacing": 4.8})
 	g.use("hall", hall)
 	g.use("tower", tower)
@@ -187,18 +187,19 @@ static func _city_hall(s: Rect2, y0: float, parent: Node3D, statics: StaticBody3
 		var piers: int = shaft[k][2]
 		g.box("tower", Vector3(tx, y + h * 0.5, tz), Vector3(w, h, w), Color.WHITE, Basis(), bev, false, w / float(piers))
 		LandmarkGeo.shape_box(statics, Vector3(tx, y + h * 0.5, tz), Vector3(w, h, w))
-		if detailed:
-			# Piers standing proud between the window bays, full height: the vertical lines
-			# that make the tower read as tall. Bevelled, so each one catches the light.
-			var pitch := w / float(piers)
-			for f in 4:
-				var ang := float(f) * PI * 0.5
-				var out := Vector3(sin(ang), 0.0, cos(ang))
-				var along := Vector3(cos(ang), 0.0, -sin(ang))
-				for i in piers + 1:
-					var o := -w * 0.5 + pitch * float(i)
-					var at := Vector3(tx, y + h * 0.5, tz) + out * (w * 0.5 + 0.25) + along * o
-					g.box("pier", at, Vector3(0.62, h, 0.5), Color(1.0, 1.0, 1.0), LandmarkGeo.yaw(ang), 0.1)
+		# Piers standing proud between the window bays, full height: the vertical lines
+		# that make the tower read as tall. Bevelled, so each one catches the light. The far
+		# copy has them too (unbevelled): without them the tower read as a white box with
+		# black specks from the park.
+		var pitch := w / float(piers)
+		for f in 4:
+			var ang := float(f) * PI * 0.5
+			var out := Vector3(sin(ang), 0.0, cos(ang))
+			var along := Vector3(cos(ang), 0.0, -sin(ang))
+			for i in piers + 1:
+				var o := -w * 0.5 + pitch * float(i)
+				var at := Vector3(tx, y + h * 0.5, tz) + out * (w * 0.5 + 0.25) + along * o
+				g.box("pier", at, Vector3(0.62, h, 0.5), Color(1.0, 1.0, 1.0), LandmarkGeo.yaw(ang), 0.1 if detailed else 0.0)
 		# Cornice.
 		g.box("crown", Vector3(tx, y + h + 0.6, tz), Vector3(w + 2.2, 1.2, w + 2.2), Color.WHITE, Basis(), bev)
 		LandmarkGeo.shape_box(statics, Vector3(tx, y + h + 0.6, tz), Vector3(w + 2.2, 1.2, w + 2.2))

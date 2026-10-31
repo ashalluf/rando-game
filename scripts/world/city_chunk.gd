@@ -3402,7 +3402,7 @@ func _build_park(rect: Rect2, rng: RandomNumberGenerator) -> void:
 	var inner := rect.grow(-2.0)
 	var center := inner.get_center()
 	# Lawns range from lush to summer-dry.
-	var lawn := _lawn_color(rng)
+	var lawn := CivicGrounds.park_lawn(rect, _lawn_color(rng))
 	var park_lawn := PropFactory.lawn(lawn, hash([plan.seed, ix, iz, "lawn"]))
 	_add_slab(Vector3(center.x, SIDEWALK_TOP + 0.02, center.y), Vector3(inner.size.x, 0.04, inner.size.y), style.grass, false, park_lawn)
 	if level != Level.FULL:

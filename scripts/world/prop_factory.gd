@@ -2097,6 +2097,7 @@ static func far_ground_material() -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/far_ground.gdshader")
 	mat.set_shader_parameter("mid_city", MidCity.enabled)
+	mat.set_shader_parameter("roof_weather", CivicGrounds.roof_weather)
 	_cache["far_ground_mat"] = mat
 	return mat
 
