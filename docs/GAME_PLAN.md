@@ -3887,3 +3887,13 @@ none of either.
   synced by the toes' touchdowns, so every transition (start, gait change, stop, turn, landing) is
   a weight that moves. The free clip library has no start / stop / turn / strafe clips, so those
   are procedural (phase, hip yaw, springs). HERO_LOCO=0 is the A/B.
+- **2026-10-31 The pier at night: draw what a pixel cannot hold (rc-pier-night, HANDOFF "The pier at
+  night from the beach").** From the beach the wheel's 13 cm LED strips are a fifth of a pixel and the
+  deck's lamps and bulbs smaller still, so the Compatibility renderer drew the park as white steel on a
+  black slab under a sky whose painted clouds were dark holes. Rather than fattening the geometry, the
+  far view is drawn on purpose: the wheel's strips analytically in its plane (the same pattern include
+  the LEDs run) once they are under a couple of pixels, NightAtmos halos for every point light (one
+  MultiMesh, thinned on the far copy so a kilometre off they are points, not a smear), real chaser
+  bulbs on the coaster, and the painted cumulus lit at night the way the Forward+ volume already was.
+  Forward+ at HIGH draws the same wheel and bulbs (checked on lavapipe); its volume clouds are
+  untouched. `PIER_NIGHT=0`, `NIGHT_CLOUDS=0`.
