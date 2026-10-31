@@ -394,6 +394,15 @@ func _write_sparks() -> void:
 		return
 
 
+## Every chip and spark gone at once (tests and stills stage a clean pool).
+func clear() -> void:
+	_cstate.fill(FREE)
+	_sstate.fill(FREE)
+	_live_chips = 0
+	_live_sparks = 0
+	_idle_written = false
+
+
 func chips_alive() -> int:
 	return _live_chips
 

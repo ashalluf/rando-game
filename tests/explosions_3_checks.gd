@@ -30,6 +30,9 @@ func run(t: Node, city: Node3D) -> void:
 	for c in parent.get_children():
 		before[c] = true
 	await _ticks(3)
+	# An earlier file's chips (thrown on a deck it has freed since) are not this file's.
+	if BlastBits.current() != null:
+		BlastBits.current().clear()
 	var at := _top + Vector3(0.0, 1.0, 0.0)
 	WeaponFX.explosion(city, at, 9.0, 1.0)
 	await _tree.process_frame
