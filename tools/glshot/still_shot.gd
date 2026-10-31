@@ -71,6 +71,7 @@ extends SceneTree
 ## camera and moves a free camera to frame it (ServiceFleet.stage_for_shot; SERVICE_EYE=0 keeps
 ## the camera, SERVICE_LIFT 0..1 how far up the garbage truck's arm has its cart).
 ## MOTO=ride|throw|filter|parked|riders stages motorcycles (tools/moto/stage.gd has the knobs).
+## FLOW=kerb|groups stages the crowd's flow ahead of the camera (CrowdFlow; tools/pedestrian_flow/stage.gd).
 ## ERRAND=bus|car|jay|shop|deliver stages a street errand ahead of the camera (StreetErrands; see
 ## tools/street_errands/stage.gd for ERRAND_PICK and the framing knobs); STREET_ERRANDS=0 turns
 ## the errands off (the A/B).
@@ -736,6 +737,18 @@ func _initialize() -> void:
 		print("ERRAND %s eye %s" % [errand_env, er_eye])
 		_eye(player, fov)
 		for i in _env_int("ERRAND_FRAMES", 12):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
+	# FLOW=kerb|groups: the crowd's flow staged in front of the camera and framed by a free camera
+	# (tools/pedestrian_flow/stage.gd: FLOW_PEOPLE, FLOW_SECONDS; CROWD_FLOW=0 is the A/B).
+	var flow_env := OS.get_environment("FLOW")
+	if flow_env != "" and current_scene:
+		var fl_eye: String = await load("res://tools/pedestrian_flow/stage.gd").new().stage(current_scene, flow_env, get_root().get_camera_3d())
+		if fl_eye != "":
+			OS.set_environment("EYE", fl_eye)
+		print("FLOW %s eye %s" % [flow_env, fl_eye])
+		_eye(player, fov)
+		for i in _env_int("FLOW_SHOT_FRAMES", 4):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
 	# VALET=drop|queue|back: the valet stand nearest the camera at work, framed by a free camera

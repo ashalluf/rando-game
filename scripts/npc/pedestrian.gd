@@ -1467,6 +1467,7 @@ func _physics_process(delta: float) -> void:
 	delta *= _lod_stride
 	if _anim:
 		_anim.advance(delta)
+	CrowdFlow.note(self)
 	_walk(delta)
 	_animate_gait()
 	if _look_near:
@@ -1499,6 +1500,9 @@ func _walk(delta: float) -> void:
 		return
 	# Watching a wreck, a blast site or a body after the panic (Onlookers).
 	if not watch.is_empty() and Onlookers.walk(self, delta, panicking):
+		return
+	# Walking with somebody (CrowdFlow): beside the group's leader, at their pace.
+	if not flow.is_empty() and CrowdFlow.follow(self, delta, panicking):
 		return
 	# Standing still: waiting at a kerb, looking in a window, checking a phone. A crowd where
 	# every single person walks without ever stopping reads as a conveyor belt.
@@ -1557,6 +1561,8 @@ func _walk(delta: float) -> void:
 			_go_to(_flee_point())
 		elif rain != null and _life_near and rain.on_walk_end():
 			pass
+		elif CrowdFlow.enabled and CrowdFlow.join_bunch(self):
+			pass
 		elif _way.randf() < cross_chance and plan_crossing(-1):
 			pass
 		elif _life_near and _life.randf() < life_chance and _try_life(false):
@@ -1578,6 +1584,10 @@ func _walk(delta: float) -> void:
 		want *= rain.pace(panicking)
 	if stops:
 		want = minf(want, sqrt(2.0 * stop_decel * maxf(to_target.length() - 0.2, 0.0)) + 0.15)
+	if CrowdFlow.enabled:
+		var fv := CrowdFlow.avoid(self, to_target, want, panicking)
+		to_target = Vector2(fv.x, fv.y)
+		want = fv.z
 	var v := _steer(to_target, want, delta, panicking)
 	_move(v, delta)
 	if not _kinematic:
@@ -2412,8 +2422,9 @@ func plan_crossing(prefer_axis: int = -1) -> bool:
 		_cross_signal = kind == CityPlan.Intersection.SIGNALS
 		_cross_wait = 0.0
 		_cross_patience = _way.randf_range(stop_sign_patience.x, stop_sign_patience.y)
+		CrowdFlow.on_plan_crossing(self, spread)
 		_pause_left = 0.0
-		_go_to(from)
+		_go_to(_cross_from)
 		return true
 	return false
 
@@ -2470,7 +2481,7 @@ func _wait_at_kerb(delta: float) -> void:
 		go = _cross_wait >= _cross_patience
 	var across := (_cross_to - _cross_from).normalized()
 	_turn_on_spot(atan2(-across.x, -across.y), delta)
-	if go:
+	if go and CrowdFlow.may_go(self):
 		_start_crossing()
 	elif _cross_wait > 75.0:
 		_cross = Cross.NONE
@@ -2506,7 +2517,13 @@ func _walk_crossing(delta: float, panicking: bool) -> void:
 	var here := Vector2(position.x, position.z)
 	var to := _cross_to - here
 	var across := (_cross_to - _cross_from).normalized()
-	var v := _steer(to, _run_pace if panicking else walk_speed * cross_pace, delta, panicking)
+	var aim := to
+	var pace := _run_pace if panicking else walk_speed * cross_pace
+	if CrowdFlow.enabled:
+		var fv := CrowdFlow.avoid(self, to, pace, panicking)
+		aim = Vector2(fv.x, fv.y)
+		pace = fv.z
+	var v := _steer(aim, pace, delta, panicking)
 	var step := v.length() * delta
 	if to.length() <= step + 0.05 or to.dot(across) <= 0.0:
 		position = Vector3(_cross_to.x, _ground_y(_cross_to.x, _cross_to.y, position.y), _cross_to.y)
@@ -2672,6 +2689,8 @@ var _leg_bones := PackedInt32Array()
 var errand: Dictionary = {}
 ## This person's part at a scene they came back to look at (Onlookers), {} for none.
 var watch: Dictionary = {}
+## The crowd's flow (CrowdFlow): a group's leader and slot, a place at the kerb, a dodge.
+var flow: Dictionary = {}
 ## The crowd in the rain (RainCrowd: umbrellas, hoods, hurrying, shelter), null for nobody.
 var rain: RainCrowd
 ## Foot placement on uneven ground (CrowdFeet), made on first use near the camera.
@@ -2759,7 +2778,8 @@ func _setup_life() -> void:
 ## Whether this person could start something now (and join a group).
 func _life_free() -> bool:
 	return _life_ok and _life_near and not _down and _act == CrowdLife.Act.NONE and _panic_left <= 0.0 \
-		and _cross == Cross.NONE and not _jogger and _pause_left <= 0.0 and errand.is_empty()
+		and _cross == Cross.NONE and not _jogger and _pause_left <= 0.0 and errand.is_empty() \
+		and flow.get("leader") == null # walking with somebody (CrowdFlow): they decide where
 
 
 ## At the end of a walk, near the player: maybe stop and do something. True when it did.

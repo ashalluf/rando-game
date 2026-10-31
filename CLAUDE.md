@@ -5529,6 +5529,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `ERRAND_DEBUG=1` prints every errand called off. Stills: `ERRAND=bus|car|jay|shop|deliver` on
   `still_shot.gd` (`tools/street_errands/stage.gd`); checks: `tests/street_errands_checks.gd`,
   alone in a minute with `tools/street_errands/run_checks.tscn`.
+- The crowd's flow (2026-10-31, docs/HANDOFF.md "The crowd's flow"): `CrowdFlow`
+  (`scripts/npc/crowd_flow.gd`; hooks: `note()` / `follow()` / `avoid()` / `on_plan_crossing()` /
+  `may_go()` / `join_bunch()` in Pedestrian, `spawned()` in CityChunk._spawn_walker). Within
+  `RANGE` (35 m, physics_range) walkers write a per-frame grid and `step()` (pure) sidesteps the
+  closest approach (head on: keep right), falls in behind, slows in a crowd; a knee-high probe
+  dodges props. A third of a chunk's walkers are followers of one spawned before them on the ring
+  (`flow.leader`, a slot beside it; they stop, talk and cross with it). Kerb slots and rows, a beat
+  before stepping off, a coming car let past (`car_blocks()`); `door_tick()` sends somebody out of
+  a shop near the player (StreetErrands' pool / far walker), `_pass_door()` turns walkers in.
+  Timing on the physics clock, rolls hash(seed, "flow"). `CROWD_FLOW=0` the A/B; stills
+  `FLOW=kerb|groups` on still_shot.gd; checks `tests/pedestrian_flow_checks.gd`.
 - Onlookers (2026-10-05, fleet "onlookers"; docs/HANDOFF.md, the onlookers section): after the
   panic near a wreck, a blast or a body, `Onlookers` (`scripts/npc/onlookers.gd`, one Node under
   the tree root made by the first walker with life clips) brings free walkers (`_life_free()`,

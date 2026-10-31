@@ -3961,3 +3961,9 @@ none of either.
   the kit and shader already draw (their integer rolls), all into FacadeStreet's one StreetDress
   mesh (no new draw); awning cloth sags and its valance is scalloped in real metres; open shops are
   lit by day, closed ones dimmer. SHOPFRONT_DRESS=0 is the A/B.
+- **2026-10-31 The crowd's flow (pedestrian-flow, HANDOFF "The crowd's flow").** Local avoidance is
+  a cheap reciprocal step over a per-frame grid, only within physics_range of the camera (past it
+  nobody can see two figures overlap); groups are made at spawn from walkers the chunk already
+  makes (no extra people), so the crowd cap and every seed's crowd count stay as they were; kerb
+  waits and door traffic reuse the crossing and StreetErrands state machines rather than adding
+  new ones. CROWD_FLOW=0 is the A/B.

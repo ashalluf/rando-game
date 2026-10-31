@@ -23644,3 +23644,80 @@ them draws as before). `ShopfrontDress.day_light()` sets them from Building.
 so `FACADES_STREET=0` leaves the dress out too. `SF_DEBUG=1 tools/storefront_closeup_2/probe.gd`
 builds buildings as `tools/glshot/building_shot.gd` does (LOT, HMIN, HMAX, FINISH, SEED, N) and
 prints every piece with a CAM_POS / CAM_LOOK for it. Checks: `tests/storefront_closeup_2_checks.gd`.
+
+## 9jk. The crowd's flow (fleet wave 4, `pedestrian-flow`, 2026-10-31)
+
+The task: people walk in pairs and small groups, step round each other and round props without
+stopping dead, slow in a crowd, cross at the lights in a bunch, walk out of shop doors and into
+them, wait at the kerb for a car to pass. Before this every walker steered straight at its own ring
+point: two walkers on one line walked through each other (a walker's collision mask is the world
+only), everybody walked alone, a red light stacked its waiters within a 2 m spread, they all
+stepped off on the same tick, and a stop-sign crossing went on patience alone.
+
+**`CrowdFlow`** (`scripts/npc/crowd_flow.gd`, new) owns all of it; pedestrian.gd has seven
+one-line hooks (a `flow` dictionary, `note()` before `_walk`, `follow()` after the onlookers'
+hook, `avoid()` before both `_steer()` calls - the pavement and the crosswalk -, `join_bunch()` in
+the leg-end choice, `on_plan_crossing()` in plan_crossing (whose `_go_to(from)` is now
+`_go_to(_cross_from)`, the same thing with the flow off) and `may_go()` in `_wait_at_kerb`);
+city_chunk.gd one (`CrowdFlow.spawned(self, ped)` after `_spawn_walker`'s add_child).
+
+- **Avoidance.** Walkers within `RANGE` (35 m = Pedestrian.physics_range, where everyone ticks every
+  frame and moves through move_and_slide) write themselves into a 4 m grid each physics frame
+  (`note()`); a walker steering reads LAST frame's grid (`_neighbours()`, its own group left out)
+  and `step()` (pure, the checks call it) works out each neighbour's time and point of closest
+  approach over `HORIZON` 2.4 s, sidesteps away from that point (half each when both move, all of
+  it round somebody standing; dead ahead: keep right, so a head-on pair passes right shoulder to
+  right shoulder), falls in behind somebody slower it cannot pass, and slows by `DENSITY_SLOW` a
+  neighbour within 2 m down to `DENSITY_MIN`. The result is a heading handed to `_steer()`, so the
+  turn rate and the body's lean round the swerve are the walker's own. **Props:** a knee-high ray
+  (world + props layers) every `PROBE_EVERY` 0.3 s along the heading; something solid within
+  1.9 m turns the walker `DODGE_TURN` toward the more open side for `DODGE_SECONDS` - before the old
+  stuck rule (0.8 s walked flat into something, a new leg) has to fire.
+- **Groups.** Of the walkers a FULL chunk spawns, `GROUP_SHARE` (0.34) join the last one spawned on
+  the same ring that can lead (`_can_lead()`: a plain walker with life clips, no jogger, dog
+  walker or errand; a leader takes one follower, `TRIO_SHARE` two) and are put at its side at once
+  (the chunk is still being built). In the default city: 89 followers of 292 groupable walkers, 10
+  threes. A follower (`flow.leader`, a WeakRef) walks a slot (`slot_point()`: abreast at
+  `PAIR_GAP`, the third on the other side a little behind; `band_clamp()` keeps it on the
+  pavement) off the leader's EASED heading, at the leader's pace plus a catch-up term; when the
+  leader stops it stops beside it, turned to it (a talk); when the leader goes to a crosswalk it
+  takes its own kerb slot (`_copy_cross()`) and steps off a beat after it. It walks alone again
+  (`leave()`, its own pause / cross chances back) when the leader is gone, hidden, panicking, on
+  an errand, crossing elsewhere, or 40 m off. Followers never start errands or crossings of their
+  own; somebody else's talk can still take one in, and it follows again afterwards.
+- **Kerbs.** `kerb_slot()` gives each walker planning a crosswalk the next free place along the kerb
+  (`SLOT_LAT`, rows of six, the next row `ROW_BACK` back), replacing plan_crossing's ±1.1 m spread
+  (its roll is still made). `may_go()`: when the light (or the stop sign's patience) says go, each
+  waits its own `REACT` beat (0.15-0.9 s, +0.45 s a row back), then lets a car coming on the
+  crossed road pass (`car_blocks()`: on that road, within 32 m and 4.5 s, or on the crosswalk now;
+  at a signal only within 12 m - a turn -, held at most 3 s; at a stop sign at most 12 s) using
+  Pedestrian's quarter-second car survey. `join_bunch()`: a walker ending a leg within 22 m of a
+  crosswalk where somebody already waits on its ring joins them `BUNCH_SHARE` of the time.
+- **Doors.** `door_tick()` (the flow's own clock, every 4-10 s): a shop door of the FULL chunks
+  round the player 8-42 m from him gets somebody coming OUT - one already inside a shop
+  (`StreetErrands._from_pool`), else a walker borrowed from past 95 m (`_from_far`) - put into the
+  "inside" step of StreetErrands' shop visit for a moment, so StreetErrands shows them at the door
+  and walks them out to the pavement. `_pass_door()`: a free walker passing within 2.4 m of a door
+  on its own pavement turns in `PASS_SHARE` of the time (StreetErrands._start_shop). Both skip a
+  `staged` traffic (tests and stills).
+
+Numbers: the switch is `CROWD_FLOW=0`. Cost: the grid and the step are a few array reads per near
+walker per frame; the probe is three rays per near moving walker every 0.3 s at most (one when the
+way is clear). Nothing far is touched (past 35 m everything returns at once), and no node or draw is
+added. Checks: `tests/pedestrian_flow_checks.gd` (pure head-on / standing / crowd / boxed-in steps,
+slots and the band, the car rule, the switch; live: the chunks' groups, a follower beside its
+leader, two walkers on one line passing, two kerb slots, the beat before stepping off, somebody out
+of a shop door). Stills: `FLOW=kerb|groups` on `tools/glshot/still_shot.gd`
+(`tools/pedestrian_flow/stage.gd`: `FLOW_PEOPLE`, `FLOW_SECONDS`, `FLOW_FRAMES`); with
+`CROWD_FLOW=0` the same staging is the before.
+
+Not done / not verified: no animation of its own for a sidestep (the walk clip turns and leans
+with the heading); followers in a crowd-life talk are not kept out of it; the police, rough
+sleepers, park goers and other Pedestrian subclasses are not grouped (they avoid like anyone only
+where they run the base `_walk`); the frame cost was measured headless only (the flow adds no
+geometry).
+
+Gate (SHARDS=3, on a merge of main through batch 26): 4,463 of 4,464 passed; the one failure,
+big_vehicle_checks "a semi rides a freeway deck ... and drives on (3.7 m on)", is freeway traffic
+(no walker involved) and passed alone on a rerun (11.7 m): an intermittent from main to look at.
+Stills on `shots/pedestrian-flow` (kerb bunch and groups, before / after with CROWD_FLOW=0).
