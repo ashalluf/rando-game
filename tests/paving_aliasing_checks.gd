@@ -16,7 +16,7 @@ const GROUND_SHADERS := ["res://shaders/road.gdshader", "res://shaders/lot_groun
 
 ## The shaders that use the filter (each must keep its old line behind paa_on()).
 const FILTERED := ["res://shaders/road.gdshader", "res://shaders/lot_ground.gdshader",
-	"res://shaders/alley_ground.gdshader", "res://shaders/car_park_deck.gdshader",
+	"res://shaders/lot_yard.gdshader", "res://shaders/alley_ground.gdshader", "res://shaders/car_park_deck.gdshader",
 	"res://shaders/parklet.gdshader"]
 
 
@@ -28,6 +28,7 @@ func run(t: Node, _city: Node3D) -> void:
 	_filter_math()
 	_rounding()
 	_switch()
+	_texture_fade()
 	print("PAVING_ALIASING_CHECKS %d ms" % (Time.get_ticks_msec() - t0))
 
 
@@ -135,3 +136,36 @@ func _switch() -> void:
 	PavingAA.set_enabled(was)
 	var read_ok := off == null or on == null or (float(off) == 0.0 and float(on) == 1.0)
 	_check(not off_flag and read_ok, "paving aa: the switch turns the filter off and back on (global %s / %s)" % [str(off), str(on)])
+
+
+## Laid paving TEXTURES (setts, pavers, bricks) fade to their own mean once a module is under two
+## pixels: every road() material of a patterned set carries its module, the shaders fade the
+## albedo by the footprint's major axis, and the fade itself is whole at four pixels a module and
+## gone at two.
+func _texture_fade() -> void:
+	var inc := _text("res://shaders/pattern_aa.gdshaderinc")
+	_check(inc.contains("vec3 paa_tex_mean(sampler2D tex)") and inc.contains("return mix(mean, sampled, paa_keep(module, fw));"),
+		"paving aa: the include fades a texture to its last mip by footprint")
+	var mods_ok := true
+	for k: String in PavingAA.MODULE:
+		var m: ShaderMaterial = PropFactory.road(k, 2.5, Color(1, 1, 1), 4242, 0.0, 0.5)
+		var got: float = float(m.get_shader_parameter("pattern_module"))
+		mods_ok = mods_ok and absf(got - PavingAA.module_m(k, 2.5)) < 1.0e-5 and got > 0.0
+	var plain: ShaderMaterial = PropFactory.road("sidewalk", 3.0, Color(1, 1, 1), 4243, 1.6, 0.45)
+	_check(mods_ok and float(plain.get_shader_parameter("pattern_module")) == 0.0,
+		"paving aa: patterned sets carry their module into road(), plain concrete none")
+	var road := _text("res://shaders/road.gdshader")
+	var lot := _text("res://shaders/lot_ground.gdshader")
+	var yard := _text("res://shaders/lot_yard.gdshader")
+	_check(road.contains("paa_tex_mean(albedo_tex)") and lot.contains("paa_tex_mean(setts_tex)")
+		and lot.contains("paa_tex_mean(pavers_tex)") and yard.contains("paa_tex_mean(brick_tex)"),
+		"paving aa: pavements / plazas, forecourts and yard bricks fade their texture to its mean")
+	# The forecourt's module copies (in the shader) are PavingAA's.
+	_check(lot.contains("1.0 / 14.0") and lot.contains("1.0 / 3.0") and yard.contains("1.6 / 15.0")
+		and is_equal_approx(PavingAA.MODULE["paving"], 1.0 / 14.0) and is_equal_approx(PavingAA.MODULE["pavers"], 1.0 / 3.0)
+		and is_equal_approx(PavingAA.MODULE["brick"], 1.0 / 15.0),
+		"paving aa: the shaders' module copies match PavingAA.MODULE")
+	# A 15 cm course: whole at 3.75 cm a pixel (four pixels), gone at 7.5 (two).
+	_check(is_equal_approx(PavingAA.keep(0.15, 0.0375), 1.0) and PavingAA.keep(0.15, 0.075) == 0.0
+		and PavingAA.keep(0.15, 0.05) > 0.0 and PavingAA.keep(0.15, 0.05) < 1.0,
+		"paving aa: a laid pattern is whole at four pixels a module and its average at two")

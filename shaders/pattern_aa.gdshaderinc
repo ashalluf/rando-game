@@ -54,3 +54,17 @@ float paa_stripes(float x, float p, float duty, float fw) {
 float paa_keep(float size, float fw) {
 	return 1.0 - smoothstep(0.5, 1.0, fw / max(size, 1.0e-6) * 2.0);
 }
+
+// A paving TEXTURE's pattern (setts, bricks, pavers) faded to the texture's own average once its
+// module (one stone / course, in the caller's units) is under a couple of pixels. The mips do most
+// of this, but they are picked by the minor axis under anisotropic filtering, and a grazing row
+// of courses (the depth axis, where moire lives) can still beat against the pixel grid; this takes
+// the MAJOR axis (`fw` = max of fwidth() over the coordinate), like the lettering and the joints.
+// The mean is the texture's last mip, so no table to keep in step with the art.
+vec3 paa_tex_mean(sampler2D tex) {
+	return textureLod(tex, vec2(0.5), 14.0).rgb;
+}
+
+vec3 paa_tex_fade(vec3 sampled, vec3 mean, float module, float fw) {
+	return mix(mean, sampled, paa_keep(module, fw));
+}

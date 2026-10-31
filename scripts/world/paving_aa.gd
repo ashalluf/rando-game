@@ -10,6 +10,22 @@ extends RefCounted
 
 static var enabled: bool = OS.get_environment("PAVING_AA") != "0"
 
+## A paving texture set's MODULE as a share of one tile: the smallest repeat of its pattern (a
+## sett row, a brick course, a paver), measured by the art's spectrum (the strongest period along
+## each axis, the finer one; HANDOFF "Patterned ground without moire"). A ground shader fades the
+## texture to its mean once a module is under two pixels (paa_tex_fade). Sets with no laid
+## pattern (concrete, gravel, asphalt) are not listed: 0, never faded.
+const MODULE := {
+	"paving": 1.0 / 14.0,  # PavingStones138: setts in ~14 rows a tile
+	"pavers": 1.0 / 3.0,   # LargeSquarePattern01: 3 x 3 square pavers
+	"brick": 1.0 / 15.0,   # Bricks104: 15 courses a tile
+}
+
+
+## The module in metres of a set laid at `scale_m` metres a tile (0 = no pattern).
+static func module_m(set_key: String, scale_m: float) -> float:
+	return float(MODULE.get(set_key, 0.0)) * scale_m
+
 
 ## Pushes the switch to the shaders (Weather._ready(), beside WetWorld's).
 static func install() -> void:
