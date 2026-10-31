@@ -2686,6 +2686,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/street_clutter_2_checks.gd").new().run(self, city)
 	# Storm drama (tests/storm_drama_checks.gd, StormDrama): gusts, sheets, bolts, the sky, run-off.
 	await load("res://tests/storm_drama_checks.gd").new().run(self, city)
+	# Patterned ground without moire (tests/paving_aliasing_checks.gd, PavingAA): the box filter, the
+	# rounded kinds (the forecourt's row stripes), the switch.
+	load("res://tests/paving_aliasing_checks.gd").new().run(self, city)
 	# The golden-hour review (tests/golden_hour_review_checks.gd, GoldenHour): the sky's twilight
 	# ramp, the blue zenith at sunset, the eased grade, no pop 17:00-19:30, the A/B.
 	load("res://tests/golden_hour_review_checks.gd").new().run(self, city)

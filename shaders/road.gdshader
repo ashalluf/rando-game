@@ -31,6 +31,8 @@ uniform float normal_depth = 0.75;
 // Spacing of expansion joints in metres (0 = none). Pavements are poured in slabs; the grid of
 // joints between them is the single most recognisable thing about a concrete sidewalk.
 uniform float joint_spacing = 0.0;
+// The albedo texture's laid pattern (a sett row, a paver), metres; 0 = none (PavingAA.MODULE).
+uniform float pattern_module = 0.0;
 uniform float joint_depth = 0.26;
 // After the rain: metres of running water along each kerb, how fast it runs (m/s) and how
 // rippled it is (normal depth), how much sooner the wheel tracks dry, how much longer the kerb
@@ -86,6 +88,7 @@ varying vec2 slab_uv;
 
 #include "res://shaders/street_glow.gdshaderinc"
 #include "res://shaders/color_space.gdshaderinc"
+#include "res://shaders/pattern_aa.gdshaderinc"
 // Which way this road's lamps run (CityChunk._road_look): 0 no glow, 1 along Z, 2 along X. Seen
 // from past `street_glow_near` metres the road wears the same lamp glow the far chunks do
 // (far_ground.gdshader); closer in, the real lamps and their light pools take over.
@@ -226,8 +229,17 @@ void fragment() {
 	vec2 along = normalize(vec2(-wn.z, wn.x) + vec2(1.0e-4, 0.0));
 	vec2 w = mix(world_pos.xz, vec2(dot(world_pos.xz, along), -world_pos.y), side);
 	vec2 uv = w / tex_scale;
+	vec2 joint_fw = fwidth(w);
 	vec3 base = texture(albedo_tex, uv).rgb * tint;
 	float rough = texture(rough_tex, uv).r;
+	// A laid pattern (setts, pavers) under two pixels is its average, not moire (pattern_aa): the
+	// albedo, roughness and relief all fade by the footprint's major axis.
+	float pattern_keep = 1.0;
+	if (paa_on() && pattern_module > 0.0) {
+		pattern_keep = paa_keep(pattern_module, max(joint_fw.x, joint_fw.y));
+		base = mix(paa_tex_mean(albedo_tex) * tint, base, pattern_keep);
+		rough = mix(paa_tex_mean(rough_tex).r, rough, pattern_keep);
+	}
 
 	// Kill the visible repeat. Across a plaza or a long pavement the eye picks the tile grid
 	// out immediately, and no amount of wear on top hides it. Sample the same texture a second
@@ -236,7 +248,11 @@ void fragment() {
 	if (ground_detail > 0.5) {
 		vec2 uv2 = (mat2(vec2(0.80, -0.60), vec2(0.60, 0.80)) * w) / (tex_scale * 1.37) + vec2(13.7, 4.1);
 		float variant = smoothstep(0.34, 0.66, fbm(w * 0.019 + 91.0 + seed));
-		base = mix(base, texture(albedo_tex, uv2).rgb * tint, variant);
+		vec3 second = texture(albedo_tex, uv2).rgb * tint;
+		if (paa_on() && pattern_module > 0.0) {
+			second = mix(paa_tex_mean(albedo_tex) * tint, second, paa_keep(pattern_module * 1.37, max(joint_fw.x, joint_fw.y)));
+		}
+		base = mix(base, second, variant);
 	}
 
 	// Slow mottling: patches of the road that have aged differently.
@@ -288,9 +304,19 @@ void fragment() {
 		// 1 - joint_depth across its whole face and wore a BRIGHT grid where the joints should
 		// be, which is most of why the ground read as a dark sheet from the air.
 		float line = smoothstep(0.5 - 0.025, 0.5, max(edge.x, edge.y));
+		// Box-filtered by the pixel's footprint (pattern_aa): unfiltered, the 5 cm joints of a
+		// 2 m slab grid shimmered into moire from about 15 m and from the air (paving-aliasing).
+		if (paa_on()) {
+			line = paa_grid(w, joint_spacing, 0.03 * joint_spacing, joint_fw);
+		}
 		base *= mix(1.0, 1.0 - joint_depth, line);
 		rough = mix(rough, 1.0, line * 0.5);
-		base *= 0.965 + 0.07 * hash12(floor(slab) + seed);
+		float slab_tone = 0.07 * (hash12(floor(slab) + seed) - 0.5);
+		// A slab under a pixel or two is noise: fade its tone to the mean.
+		if (paa_on()) {
+			slab_tone *= paa_keep(joint_spacing, max(joint_fw.x, joint_fw.y));
+		}
+		base *= 1.0 + slab_tone;
 	}
 
 	// Wet tarmac goes darker and far glossier, and water stands in the low spots. The puddles
@@ -404,7 +430,7 @@ void fragment() {
 	// The gutter keeps a ripple of its own: running water is never mirror-flat, and its streaky
 	// glints are what tell it from a puddle while the whole street is still glossy. The slopes
 	// are mixed rather than the maps, so a dry street is exactly the texture at normal_depth.
-	vec2 slope = (texture(normal_tex, uv).rg * 2.0 - 1.0) * (normal_depth * (1.0 - 0.6 * film) * (1.0 - puddle));
+	vec2 slope = (texture(normal_tex, uv).rg * 2.0 - 1.0) * (normal_depth * (1.0 - 0.6 * film) * (1.0 - puddle)) * mix(0.3, 1.0, pattern_keep);
 	slope = mix(slope, (flow_normal.rg * 2.0 - 1.0) * gutter_ripple, gutter);
 	// Rain ringing the standing water. Faded out once a ring is under a few pixels (metres per
 	// pixel from the derivatives, taken here in uniform control flow), where it would shimmer.
