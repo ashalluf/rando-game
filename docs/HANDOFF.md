@@ -21914,6 +21914,166 @@ the Mac are unseen; the inner curtain on Forward+ TAA may ghost (see the particl
 run-off streams are seen in no still yet (the downtown bookmark's walls are towers over 40 m); no
 storm audio was added (wind gust sound would be next); spray off fast cars is a gain on the
 existing spray only.
+## 9il. Patterned ground without moire (fleet wave 3, branch `wt/paving-aliasing`; VISUAL_ROADMAP ?)
+
+**The task**: downtown's red brick / herringbone paving drew as fine red-and-grey stripes 3-15 m
+from the camera (shots/street-clutter-2 `07_before_dt_day.jpg`); survey every patterned ground and
+fix the aliasing at the source.
+
+**What it really was.** Not aliasing. The stripes are horizontal in SCREEN space at every distance,
+right down to the camera's feet, which no mipmapped texture or analytic pattern does. They are the
+LotFill forecourt (`shaders/lot_ground.gdshader`) flipping between two of its four pavings row by
+row: the surface kind rides COLOR.r into a smooth `varying float kind`, and the fragment did
+`int(kind)`. A constant 3.0 interpolated across a triangle comes out 2.9999 on some pixel rows
+(llvmpipe and GLES; the sign of the error changes per triangle, which is why a big quad also split
+into a red half and a setts half along its diagonal), so `int()` drew paving 2 (setts, warm tint)
+in stripes through paving 3 (red pavers). Found by elimination: the forecourt rects never overlap
+(`tools/paving_aa/overlap_probe.gd`), nothing else lies within 4 cm of them
+(`tools/paving_aa/stack_probe.gd`), and a block shot reproduces it with nothing streamed round.
+Fixed by rounding (`int(kind + 0.5)`). The same truncation was in `cemetery_stone.gdshader` and
+`chinatown.gdshader` (`int(v_kind)`), and `lot_yard.gdshader` seeded its slab shades and lawn
+clover with `floor(variant * 31 / 997)` on an interpolated 8-bit value (0.0 can read -1e-7):
+snapped to the 8-bit value first. **Rule**: an integer carried through a varying is rounded (or the
+varying is `flat`) before `int()` / `floor()` / `==`; a vertex-colour code is encoded centred,
+`(k + 0.5) / N` (8-bit colour: `floor(k / N * N)` is wrong for some k).
+
+**The aliasing that was real**: repeating lines drawn with step()/smoothstep() on fract() and
+"anti-aliased" by widening the edge by fwidth() - which GROWS the line (a parklet's 6 mm board gap
+covered half of each board 10 m off and the deck went dark in bands). `shaders/pattern_aa.gdshaderinc`
+box-filters them instead: `paa_lines(x, period, width, footprint)` is the exact integral of the
+pulse train over the pixel (from its antiderivative, `paa_prim()`), so a line is crisp up close,
+thins, and far off is exactly width / period - flat, no moire; `paa_grid()`, `paa_stripes()`
+(dashes, chevrons), `paa_keep()` (details that cannot be integrated fade to their mean). Take the
+footprint (`fwidth()`) in uniform control flow, never inside a branch. Users: the pavement's slab
+joints (`road.gdshader`, 3 % of the spacing - the old soft 5 % ramp's mean - and the per-slab shade
+faded once a slab is under a couple of pixels), parklet deck gaps and butt joints, the alley speed
+bump's chevrons, the car park's dashed centre and ramp lines and its 6 cm ramp grooves (they were
+faded from 5 cm a pixel; they alias from 3). Each keeps its old line behind `paa_on()`.
+
+**Surveyed and left alone** (already filtered or textured with sane mips): kerb_marks (domes,
+grates, stencils fade by footprint), park_ground and golf_turf (analytic lines filtered),
+lot_yard's joints, alley / industrial / vacant joints (`fwidth`-filtered, faded), industrial rail
+ties (faded), walk_of_fame, the paving textures (all ground .imports have mipmaps). Crosswalk bars
+and road paint are geometry: TAA on Forward+ handles their edges, Compatibility has no AA there.
+
+**Second pass (wave 4): laid textures fade to their mean.** The paving TEXTURES themselves (the
+setts, `PavingStones138`; the square pavers, `LargeSquarePattern01`; the yards' bricks,
+`Bricks104`) relied on their mips alone. Under anisotropic filtering the mip is picked by the
+MINOR axis, so a grazing run of courses receding from the eye - the depth axis, where moire lives -
+could still beat against the pixel rows. Each set now has a MODULE (`PavingAA.MODULE`: its finest
+strong period as a share of a tile, read off the art's spectrum: setts 1/14, pavers 1/3, bricks
+1/15); `PropFactory.road()` hands it to road.gdshader as `pattern_module` (metres), and the
+albedo, roughness and relief fade to the texture's own last mip (`paa_tex_mean()`, `textureLod`
+at 14: no colour table to keep in step) from four pixels a module to two, by the footprint's MAJOR
+axis (`paa_tex_fade`). That covers every pavement, plaza and kerb ring (`_block_surface`'s paving
+sets go through `road()`) and the replica's / Esplanade's walks (`road("sidewalk")`: gravel concrete
+has no laid pattern, module 0; their slab joints were already box-filtered). The forecourts
+(`lot_ground`, setts and pavers) and the yards (`lot_yard`: brick paths; concrete and saltillo
+joints now `paa_grid` with the footprint taken in uniform control flow, per-slab / per-tile shades
+faded to the mean) do the same. Not covered: landmark pads on `PropFactory.pbr()` (StandardMaterial3D;
+mips only). No sampler added (WebGL's limit), no geometry. block_shot now pushes the switch itself
+(`PavingAA.install()`), so `PAVING_AA=0` works there.
+
+**The switch**: `PAVING_AA=0` (`PavingAA`, `scripts/world/paving_aa.gd`, the `paving_aa` shader
+global, pushed from `Weather._ready()`), which also puts the forecourt's truncation back (for the
+before stills). **Cost**: shader-only, no geometry: block_shot GEO identical on and off (downtown
+pavement eyes: 3.07 M / 3.06 M / 2.83 M / 3.62 M triangles, 1776 / 1891 / 1629 / 2056 draws both
+ways); the filter is ~12 ALU a line where used. **Checks**: `tests/paving_aliasing_checks.gd` (the
+shaders compile and honour the switch, the include and its GDScript mirror agree, the filter is
+exact up close / keeps the mean at every footprint / flat far off, no ground shader truncates an
+interpolated kind, the global and the switch). **Stills** on `shots/paving-aliasing`: block shots of
+the red forecourt at (2700, 20) and (2630, 100) before / after, the Hill St pavement frontage,
+and the same forecourt in the city at 10:00. **Unverified**: Forward+ (TAA) was not shot (lavapipe
+time); the yards' and car parks' decks / grooves were fixed by maths and checks, not by stills (the
+first yard eyes landed in the marina and the sea).
+
+## 9in. Traffic that moves like cars (wave 3, branch `wt/traffic-motion`, VISUAL_ROADMAP #239)
+
+The task: kinematic street and freeway cars seen MOVING from the pavement or a chase camera at
+3-25 m glide. Reviewed as frame sequences (`TMOTION=brake|pull|turn` on still_shot.gd, below), what
+read as fake:
+
+- **The body never moved.** No dive under braking, no squat pulling away, no lean in a turn, no
+  bounce: a model on a wire.
+- **Turns snapped.** `TrafficManager._drive_street()` puts a turning car onto the cross street at
+  the junction's centre in ONE tick, turned 90 degrees and jumped up to a lane width along. The
+  yaw-rate steering estimate then slammed the front wheels to full lock for that one frame.
+- **The front wheels straightened at every stop** (the steering was read off the yaw rate, which
+  is 0 standing) and turned instantly with no steering rate.
+- **A queue pulled away in one tick**: only the car held by the stop line waits its reaction
+  time; the IDM followers start the moment the gap opens.
+- Not wrong: the wheels' spin (`traffic_speed` is set from `t.v` every tick, `_wheel_radius` is the
+  model's), the freeway's lane changes (nosed by `lc_lat`).
+
+**`TrafficMotion`** (`scripts/vehicles/traffic_motion.gd`, state on the car as `Vehicle.motion`,
+made on first need). ONE hook in `Vehicle._update_wheels()` (so every kinematic car whose script
+runs - street, freeway, police, emergency, news, stack, coast traffic - gets it), within `RANGE`
+70 m of the camera, never on a car with a driver, a wreck, a motorcycle (its own Pose), a lowrider
+on its hydraulics, or a car in CarPanic's hands (that one dives as a whole already):
+- **Pitch, roll, heave** as damped springs (`spring()`, sub-stepped; pitch 1.35 Hz zeta 0.38, so a
+  stop rocks back once past level; big vehicles x0.75 slower, rolling x1.4) driven by the
+  longitudinal acceleration (smoothed: the freeway's follow rule changes speed in steps;
+  `pitch_for()`: 0.0075 rad per m/s^2 braking, 0.0045 squat, cap 0.055) and the lateral one (v x
+  yaw rate, `roll_for()` 0.0085 rad per m/s^2 outward), plus a few mm of road texture with speed.
+  Written to the BodyModel holder and NightLights about a pivot between the axles half a metre up
+  (`m * rest`), only when it changed by over 1e-5; the car's transform and physics are untouched.
+  A kneeling bus (BusFittings) keeps its body.
+- **Potholes**: RoadWear's deep potholes (`bump_for()`) under each wheel rig drop that wheel in and
+  kick the body toward the corner; the wheel climbs out at `POT_CLIMB`.
+- **Steering**: `steer_for()` = atan(wheelbase x yaw rate / v) at `STEER_RATE` 1.3 rad/s, HELD
+  under 0.6 m/s (wheelbase from the car's own wheel rigs).
+- **Turn fillets** (`turn_pose()` from `TrafficManager._place()`): the turning car is drawn round a
+  circular fillet tangent to its lane and the target lane (`fillet()`: the lanes' meeting point
+  C, the way in F and out G, radius what the junction box leaves + 1.5 m, 4-14 m), on the car's
+  own progress through the turn (pre-snap along F, post-snap along G, mapped onto one parameter so
+  it is continuous at the snap and at both tangent points). The target lane is
+  `TrafficAI.turn_lane()` (no rolls: `_lane_offset()` spends the traffic rng). The logic is
+  unchanged: TrafficManager reads a car's position back off its transform each tick, so the drawn
+  pose would feed back - `t.tm_logic` keeps [logical, drawn] and `TrafficMotion.logical()` hands
+  the logical one back while the car is where it was drawn. A dropped turn (its lane was taken)
+  goes back to the straight line at once (rare). The next junction's turn, rolled the tick after
+  the snap, does not replace a fillet still being drawn.
+- **The queue beat** (`queue_react()`, one line in `_drive_street()` before its reaction rule): a
+  car that stood behind a standing car waits `queue_delay()` (its mood's m_react x 0.75 + a hashed
+  0-0.25 s, 0.3-1.6 s) once that car moves off. Cars placed by hand (`placed`) get none unless
+  `TRAFFIC_REACT_PLACED=1` / `TrafficMotion.react_placed` (the stills set it), so every check that
+  times a staged queue is unchanged.
+
+`TRAFFIC_MOTION=0` is the A/B (the old glide, the old steering, the snap, no beat). Every roll is a
+hash (the texture phase of `look_seed`, the beat of seed + moment); the traffic rng is never
+touched, so no seed moves.
+
+**Cost**: `tools/traffic_motion/bench.tscn` (headless, downtown at Flower and Olympic, 600 physics
+frames, this 4-core box under load): the motion 102 us a physics frame over 3.9 cars in range
+(26 us a car); the traffic tick (`drive_usec`) 15.0 ms on vs 14.3 ms off, the whole physics
+process 57.2 vs 54.8 ms - both inside this box's run-to-run noise. No mesh, material or draw is
+added: the frame's GEO is unchanged (still_shot GEO, before -> after: brake 6,294,447 -> 6,265,163 triangles and 2,717 -> 2,670 draws, turn 7,425,756 -> 7,461,103 and 3,158 -> 3,160, pull 8,667,838 both; the differences are where the staged cars stand). Stills on `shots/traffic-motion`: sheet_brake_m0/m1, sheet_pull_m0/m1, sheet_turn_m0/m1, crop_turn_a/b.
+
+**Stills** (`shots/traffic-motion`): `TMOTION=brake|pull|turn` with `TMOTION_STEPS="s,s,..."` on
+`still_shot.gd` (`tools/traffic_motion/stage.gd`: the nearest one-lane street to the camera, the
+traffic staged and moved only by `advance()`, which also ticks every car's wheels and body),
+saved as OUT with `_m1`, `_m2`...; `TRAFFIC_MOTION=0` on the same command is the before.
+`TrafficAI.advance_shot()` now ticks `_update_wheels()` (wheels, lamps, body) instead of only the
+lamps, so the TRAFFIC= sequences show it too.
+
+Checks: `tests/traffic_motion_checks.gd` (the pure rules, a placed car braking to a stop behind a
+standing one - body nose down, car level, wheels still, body back at rest -, a placed car turning
+round the fillet with no tick over 7 degrees of yaw, its wheels steered and body leaning, the
+switch, out-of-traffic rest, the beat, the cost). Tools: `tools/traffic_motion/compile.gd`.
+
+Not done / not verified: no Forward+ still (the motion is transforms only, nothing colour-related);
+cars past PhysicsBudget's `vehicle_script_radius` (100 m from the player) do not run it, which only
+matters for a free camera far from the player; U-turns (turn 2) and the stack / coast / replica
+traffic's own corners still turn the way they did; a dropped turn snaps back straight; the
+freeway's lane change still has no steering lead before the yaw (the yaw is the logic's).
+
+**Wave 4 (2026-10-31, resumed):** merged origin/main (build 395+, batch 25), no code change. Gate
+`SHARDS=3 tests/headless_check.sh`: 4,369 checks passed, 0 failed (shard peaks 3.2 / 3.4 / 3.0 GB).
+New stills on `shots/traffic-motion` (10-15): `STREET=queue STREET_EYE=1` before / after and the
+turn from a chase camera, `TMOTION=chase TMOTION_STEPS=2.0,0.8,0.6,0.6,0.6,0.8` at
+`--spawn=2359.4,880,0,12,2 --hour=15.5` (the car steered 13.2 deg and leaned 2.0 deg on the arc;
+before, it runs straight into the junction and snaps at its centre). Still no Forward+ still.
+
 
 ## 9ik. The golden hour review: 17:00-19:30 across six views, four fixes by tuning (fleet wave 3, `wt/golden-hour-review`; VISUAL_ROADMAP 236)
 
@@ -21981,6 +22141,267 @@ grass under a low red sun is what it is). The painted cumulus on opengl3 draws a
 the aerial and sky shots (before and after alike; the sky's, not this review's). Dawn shares the sky
 ramp and the exposure ramp (both are symmetric in elevation) and was not looked at.
 
+## 9im. The night flight: the city from a helicopter at night, 2026-10-31 (fleet wave 3, branch `wt/night-flight`)
+
+**Review.** Nine stills from one load (opengl3 1280x720, `still_shot.gd` with `DIFF=1`, SHOTS
+below; on `shots/night-flight`), 160-800 m up, 21:00-01:30, clear and rain. What already worked:
+lit offices and crowns downtown, the airport's field lights, the port's floods and the refinery's
+flares, the harbour's ships, the hills dark with the estates' points. What broke it, worst first:
+1. **The freeways were solid cream ribbons.** Past a couple of pixels a far lane draws its mean,
+   and at `level` 0.5 x `FT_FAR_BLOOM` that is a flat band nine pixels wide the length of the
+   basin, both carriageways the same cream (the tail lights' 1.6 against the heads' 9).
+2. **The street grid was one even orange hatching.** Every street the same glow whatever its
+   width, so an arterial and a residential side street read alike from the air.
+3. **Every junction was a flat orange tile** (the far ground, the far plates, and in FULL chunks
+   road.gdshader's far glow drew a junction slab as a street running across it), very visible at
+   150-250 m.
+4. **Club searchlights (SkyBeam) were solid white bars** across a camera flying near them.
+Not changed (judged fine or out of scope): the light dome (SkyExtras), tower windows, estates,
+the port, the tier seams at night (no seam visible in these frames past what is listed), the
+moonlit roofs (opengl3's flat light; see the night street review).
+
+**What it is now** (`NightFlight`, `scripts/world/night_flight.gd`, the `night_flight` global;
+`NIGHT_FLIGHT=0` is the A/B, every shader exactly as it was):
+- `ft_platoon()` (far_traffic.gdshaderinc): the share of a lane's cells taken is the hour's
+  level x a smooth noise along the moving road (`FT_PLATOON` 120 m cells, 0.3..1.7, mean 1), keyed
+  per carriageway, in the cars' own frame so the knots travel with the traffic; the near lamps
+  and the far mean read the same factor, so they hand over. A far lane's tail lights weigh
+  `FT_TAIL_MEAN` 2.2 in its mean: the red side of a freeway now reads red.
+- `street_rank(w)` (street_glow.gdshaderinc): a street's glow and lamp heads x 0.45 (9 m) ..
+  1.35 (22 m and wider); width from the slab UV's derivatives in far_ground and road.gdshader, the
+  plate's road width in building_lod, so FULL, LOD and the far city agree with no table.
+- `street_glow_junction(p, uv)`: a junction square lit by four corner pools (where the poles
+  stand), darker in the middle; road.gdshader takes a slab no longer than 1.4 x its width as a
+  junction square.
+- nightlife_beam.gdshader: for a camera over 40-110 m above the lamp, the shaft carries
+  `beam_air_gain` 0.4 and fades toward 0.15 within `beam_near_fade` 600 m; from the street it is
+  as it was.
+
+**Stills** (`shots/night-flight`, 01-18; EYE x,y,z,yaw,pitch@hour): basin from the front range
+`420,330,-1180,-119,-9@22`; over downtown `2300,400,1700,0,-22@21`; the 110 / 10 from the south
+`2100,260,3700,0,-10@23`; the airport `600,180,780,90,-12@22`; the port `3060,300,5300,180,-22@1`;
+midtown at 160 m `1200,160,700,60,-24@0.5`; the basin at 800 m `1900,800,2900,-8,-24@22`; downtown
+in rain `...@23@@rain`. `--spawn=2300,1700,0,0 --hour=22 --nohud --quality=0`.
+
+**Cost.** GEO of all ten frames before / after: identical triangles, draws and objects to the
+count except the rain frames (+-0.4 %, the rain's own particles differ run to run). Everything is
+ALU in fragments that were already running: two smoothed hashes a far lane pixel, two derivative
+pairs on road pixels at night.
+
+**Not verified.** Forward+ (the Mac): tuned on opengl3 only; the platoons' contrast and the
+ranked glow may read stronger under AgX and bloom - knobs `FT_PLATOON_*`, `FT_TAIL_MEAN`,
+`RANK_*`. The airport still in the set predates the last beam change (e4354e0d: 0.4 from the air,
+600 m fade); its effect is not shot. The wingsuit was not flown (the EYEs stand in for it).
+
+**Wave 4 (2026-10-31, resumed).** Merged main (build 395, the golden-hour review); nothing in it
+touches these shaders. Six more stills on `shots/night-flight` (19-31): downtown (2800, z 600-1900)
+and midtown (1000, z 1100-2200) at 150, 400 and 800 m, 22:00, looking north; before = the same
+build with `NIGHT_FLIGHT=0`. Changed pixels (> 8/255): 4-16 % a frame, all in the far glow,
+the freeways and the beams. GEO identical in five of six frames (midtown 150 m +0.1 %, crowd
+LOD noise). Still not seen on Forward+.
+
+## 9io. Cars at arm's length: under and inside the arches (fleet wave 4, `car-exterior-closeup`)
+
+The task: cars at arm's length - panel gaps on every lofted body, handles, mirrors with glass,
+badges, the arches' inner lining, brakes through the spokes, exhaust tips, an underbody that is not
+a flat plane. **What was already there** (checked in stills before any change): every lofted body
+(make_road_cars / make_more_cars / make_cars_3 / make_lowriders) already cuts 4 mm panel gaps and
+flush door handles, carries wing mirrors with a glass face (the CHROME slot: a mirror on Forward+,
+satin grey on Compatibility), and CarDetail's plates and badges; the game's generated wheels already
+draw a brake disc and a painted caliper behind the spokes. **What was missing**: the arches were bare
+black pockets (the boolean cutter's walls), no car had an exhaust (the cars_3 docstrings promise tips
+the code never built), and under the sills was the loft's decimated floor - in the PAINT slot, so a
+flipped or flying car showed a car-coloured flat plane.
+
+**What was built.** `tools/make_car_undersides.py` writes `assets/models/road_<name>_under.glb` for
+all 16 lofted bodies (sedan, crossover, pickup, van, hatchback, suv, minivan, taxi, beater, ev_hatch,
+lux_sedan, compact_suv, work_truck, coupe, both lowriders): it rebuilds each loft WITHOUT details
+(`rc.build(spec, False)`, ~1 s; compact_suv gets its post_scale) only to raycast it - the floor under
+any point, the tail's lowest face (`Fit.tail_face()`: the floor walked back until it ends, then a ray
+from behind just over that edge), the skin round each arch - and lays, in the body's own coordinates:
+- arch liners: a ribbed shell 1.4 cm inside each pocket from the inner wall to 2 cm short of the skin,
+  front wall, crown and rear wall, a back on the inner wall, three push-in clips;
+- struts in the arches behind the tyre (damper, top mount, and at the front the coil spring and seat);
+- front: subframe rails and cross members, lower arms to the hubs, the rack, tie rods and boots, the
+  sump and gearbox (the EV: a ribbed battery tray instead), a splash shield;
+- the exhaust (not on the EV): front pipe, resonator, heat shields against the floor, over the rear
+  axle into a transverse silencer, then each tailpipe sideways and straight back to a polished tip
+  with a rolled lip and a sooty bore, 2 cm past the bumper's lowest face (`EXHAUST`: one, two or the
+  coupe's four);
+- the fuel tank and its straps; the rear axle: a twist beam, trailing arms and coil springs, or on
+  `FRAME_BODIES` (pickup, work truck, van, lowriders) a ladder frame, a live axle with the diff and
+  driveshaft, leaf springs and dampers;
+- jacking pads on the sills, and a black underseal sheet 4 mm under the loft's floor (`floor_pan()`,
+  a grid kept off the arches and the floor's edges) - the painted floor is gone from view.
+All of it is ONE surface (4.6-5.6k triangles), the kind in the vertex colour's r (`K_*` / 16), a
+variant in g, UV metres along / across. **In the game** `CarUnderside`
+(`scripts/vehicles/car_underside.gd`) hangs it under the placed model (one hook line in
+`Vehicle._add_body_model()`, after the wheel tuck; the file is the body's path + `_under`), with
+`shaders/car_underside.gdshader` (linear on both renderers through color_space; ribs and felt on the
+liners, heat-tinted and rusted exhaust, polished tips, the shield's embossing, road grime from below,
+the wet world), no shadow, `DRAW_DISTANCE` 22 m. It is not one of `_body_meshes` (damage, cabins,
+CarDetail, CrashDeform never see it; CarDetail's plate search skips `_under` meshes by name). The body
+.glb, its LODs and its far twin are untouched, so nothing a car already was moves, and every road
+car - traffic, parked, police in a sedan body, the delivery van - gets it.
+
+**Cost** (car_shot GEO, one sedan, opengl3): front3 42 -> 43 draws, 188.2k -> 194.5k triangles;
+rear3 41 -> 42, 174.8k -> 181.1k; close 34 -> 35, 166.1k -> 172.4k (the importer's LODs cut it with
+distance); far (the twin) 14 draws / 19,838 triangles before and after. One draw (+ its depth
+pre-pass) per car within 22 m.
+
+**Look**: `tools/glshot/car_shot.gd` views `tail` (crouched behind the bumper), `liner` (low at the
+front wheel) and `under` (from below the road, the ground hidden and the sun turned to shine up as on
+a car on its roof - put it LAST in `--views`, it leaves the sun there). `CAR_UNDERSIDE=0` the A/B.
+Stills on `shots/car-exterior-closeup`. Rebuild: `python3.11 -m venv v && v/bin/pip install
+bpy==4.2.0` (pip has no bpy 4.2 for python 3.13), `v/bin/python tools/make_car_undersides.py
+[names]`, then `--import`.
+
+**Checks** (`tests/car_exterior_closeup_checks.gd`): every lofted body has its file and the bus,
+exotics and motorcycles none; a sedan, a pickup and the EV each hang one shadowless node on the shared
+material drawn inside the near range, not in `_body_meshes`, inside the footprint and off the road;
+CAR_UNDERSIDE off builds none and the same body meshes.
+
+**Not done / not verified.** The body .glbs were NOT rebuilt (the mirrors' heads are still bevelled
+boxes and the handles flat pulls in pockets; a rebuild of all 16 under pip bpy rather than the
+Blender 4.2.23 binary might move booleans across the fleet, so it was left for a session that can
+diff every body). Forward+ (the Mac) not rendered: the tips are a true metal there and the liners
+take SDFGI bounce - judge the arch on the Mac. The underside does not crumple with CrashDeform or
+char on a burnt wreck (it is mostly hidden; a wreck on its roof shows a clean underside). Big
+vehicles (bus, trucks, service and emergency bodies) have none.
+
+## 9ip. Trees under light (fleet wave 4, `tree-light-2`, 2026-10-31)
+
+The task: the crowns' self-shadowing and translucency on Forward+, canopy shadows on the ground,
+the sway's weight, the leaf cards' edges at 5-20 m; judged on a small Forward+ scene under lavapipe
+at noon and golden hour. Shader work plus one global; no mesh, ladder, shadow twin, batch or roll
+changes (the FoliageLod table still matches, `tools/foliage_lods.gd` was not needed).
+
+**The tool**: `tools/tree_light/tree_light_shot.tscn` - a pavement row (scanned street trees,
+the jacaranda, palms, LA trees) and a lawn grove planted through `MultiMeshBatch` (so each tree
+casts from its shadow twin and draws its ladder exactly as a chunk does), lit by the city scene's
+own WorldEnvironment, Sun and DayNight held at `-- --hour=h`. `AB=1` saves every view again with
+the pass off (`_off`), `HOLD=1` holds shader TIME, `TAA=1`, `PARAMS=name=v,...` sets tree uniforms,
+views street / crown5 / edge10 / edge20 / palm / ground / grove / back and `sunward` (into the sun
+through a crown, worked out from the sun). opengl3 ~50 s; lavapipe Forward+ 3-4 min a view.
+
+**What was wrong on Forward+ (the before)**: at noon, front-lit crowns drew near black olive with
+yellow flecks, and from under a crown every leaf was black-teal. Two causes, found with A/Bs:
+1. **The shadow twin shaded the sunlit shell.** The twin's thinned, grown cards stand in front of
+   the real outer leaves, so the whole shell sat in its own shadow. Fix: in a directional shadow
+   pass (the projection is orthographic: `PROJECTION_MATRIX[3][3] > 0.5`, the only signal the
+   vertex stage has) the leaves step back `self_shadow_slack` metres along the shadow camera's own
+   axis (foliage_tex 0.9, la_tree 0.7, palms 0.45). Along the light's axis the shadow's footprint
+   on the ground does not move; it is a foliage-only depth bias. Lamps' omni / spot shadows
+   (perspective) are untouched.
+2. **Half the cards faced away from the sun.** Godot turns a back face's normal to the camera,
+   which undid the crown rounding (`canopy_round_close`) on every second card. foliage_tex now keeps
+   the vertex normal on both faces (la_tree already did).
+
+**Light through the crown** (`shaders/tree_light.gdshaderinc`): Godot's BACKLIGHT is one leaf deep
+and multiplied by the shadow map, so inside a crown it is gone. `tl_path(q, d)` is the length of the
+path out of the crown's ellipsoid (TreesCloseup's crown bounds) toward a direction, and
+`tl_through()` the light that survives it; foliage_tex EMITS leaf colour x a leaf filter x (the sky,
+`sky_tint` decoded on Forward+, to a leaf seen from below, through the path UP) + (the sun,
+`tree_sun`, forward-scattered, through the path TOWARD the sun, weighted by facing^4): from below
+the top of a crown glows yellow-green and the bottom stays darker; into a low sun the crown's edges
+glow and its middle stays a silhouette. Palms and LA trees get the sky part (fronds are one leaf
+thick). `tree_sun` is a new shader global (project.godot) kept by one `TreeLight` node under the
+root (made by the first tree material): the scene's Sun's linear colour x energy, faded to 0 at the
+horizon. Known approximation: the emitted share ignores other casters (a crown in a building's
+shadow keeps its sky share and a little sun scatter).
+
+**Weight in the sway**: `tl_rate(height)` (sqrt(10 / h), 0.6..1.5) scales the branch sway's rate
+by the tree's real height (`sway_height` at scale 1 x the instance's scale: scanned trees from their
+AABB, LaTrees per species, palms 14 m), and `tl_load()` is the gust as the crown feels it - the
+front late by `tl_lag(h)` (0.4-1.6 s) plus a swing-back past upright as it drops (to -0.35). Outer
+limbs bob on their own (radial^1.5) and palm fronds dip, later than the crown. `TreeLight.load_of()`
+is the GDScript copy (checks).
+
+**Not changed / looked at**: the canopy shadow on the ground (dappled, the twin's density reads as
+a canopy in the noon `ground` view; the slack leaves it where it was); the leaf edges at 5-20 m
+(trees-closeup's dither still does it; no dark fringe in the Forward+ stills). The scanned trees'
+bark is still a still StandardMaterial3D (the leaves sway, the wood does not).
+
+**Checks** (`tests/tree_light_checks.gd`): the include's numbers against the GDScript copy; a tall
+tree slower than a small one; the load lags the gust and swings back; every tree shader has the
+switch, the slack only in the orthographic pass and the emission never in the shadow pass;
+foliage_tex keeps the rounded normal on both faces; every street tree's sway height is its mesh's
+top; palms and LA trees marked; `sun_light()`; `TREE_LIGHT=0` and `set_all()`.
+
+**Frame cost**: no node, mesh, LOD or draw added (one TreeLight node with a 0.2 s tick); the
+geometry is identical with the pass on and off by construction (the A/B is a uniform on the same
+materials), so geo_count was not run. ALU: foliage_tex's vertex stage two ellipsoid paths and a
+second gust sample; its fragment one emission (~20 ops); the shadow pass one 3x3 inverse a vertex.
+Stills on `shots/tree-light-2`.
+
+## 9iq. Ragdolls that read right: the stagger, trailing limbs, the bonnet, the stairs, 2026-10-31 (fleet wave 4, `wt/ragdoll-feel`; VISUAL_ROADMAP "?")
+
+**What changed.** Section 9gk's jointed dolls fell like people but every one was flung the same
+way: a rifle round threw a walker 15 m/s out of frame as a spinning star, a car's bumper threw the
+body AHEAD of the car (faster than it), and a doll knocked onto a flight of steps stopped across the
+top three. `RagdollFeel` (`scripts/npc/ragdoll_feel.gd`) shapes the fling by what hit them and runs a
+little every physics step while the doll is jointed (`RagdollJoints.feel`, from `Ragdoll.fling()`):
+
+- **SHOT** (`Pedestrian.shot()` calls `RagdollFeel.note_shot()` before its knock; a knock no faster
+  than `stagger_max_speed` 24 m/s - the rifle's 14.9, not a full shotgun blast or a rocket). For
+  `stagger_time` (0.42-0.68 s, a hash per doll) the doll keeps its MUSCLES: every part's angular
+  velocity is blended toward its standing basis (the basis it was made in, captured at the fling),
+  leaned along the round (hips 9, chest 24, head 20 degrees; a head shot snaps the head 38 in the
+  first quarter), with a JOLT (0.7 x the lean) in the first tenth of a second, the shoulders turned
+  by which side of the middle the round went in (`TWIST_DEG`), and gravity cancelled by a support
+  share that fades with the muscles; the knees buckle toward the person's FRONT (`RagdollJoints.fwd`)
+  as they let go, then `fall_push` 2.6 m/s along the round. The doll starts with `stagger_kick` 16 %
+  of the round's speed. So a shot from in front recoils, staggers back, sits down and falls on its
+  back; from behind it pitches forward to the knees and onto its face. It is direction-dependent by
+  construction - there are no hit-reaction CLIPS (none in the crowd's libraries; retargeting UAL's
+  would need the download): the muscles are the reaction, on the doll that already exists, so the
+  blood, the shotgun's pellet gathering, the police's knocked_down, Emergency and the onlookers see
+  a doll from the first frame exactly as before.
+- **FLY** (every other knock): the trunk carries the knock's speed a little faster and the limbs
+  start at `LIMB_LAG` 0.82 of it (momentum kept), the per-limb flail is 35 % of the old; every step
+  **joint damping** eases each joint's relative spin out (`joint_damp` 5/s, `spine_damp` 8/s,
+  scalar inertias, the pair's angular momentum kept) and **air drag** v|v|k is five times stronger
+  on the limbs (`DRAG_LIMB` 0.022 / `DRAG_CORE` 0.004 per metre, only over 3 m/s): the body flies
+  trunk first, arms and legs trailing.
+- **CAR** (`Vehicle._on_bumper_hit()` calls `RagdollFeel.note_car(self, dir * speed)`): the legs take
+  `CAR_LEGS` 1.02 of the car's speed, the hips 0.85, the trunk 0.45, a lift of 1.6 m/s and a pitch
+  that puts the feet forward and the head back over the car; past `CAR_THROW_SPEED` 26 m/s it blends
+  back to the old throw. The car runs under the trunk: the body folds over the bonnet, rides it, and
+  slides off the front when the car brakes (or over the roof if it keeps going).
+- **STAIRS / SLOPES**: `RagdollJoints.tick()` asks `feel.rolling_down()` every tick (two world-layer
+  rays 0.35 m either side of the pelvis along its way): on ground steeper than `roll_slope_deg` 12
+  (a flight of steps reads as a ramp) it is not "still", every part gets `ROLL_NUDGE` 2.4 m/s2
+  downhill, the trunk is eased toward the spin of a 0.3 m wheel rolling at its speed (at most 5
+  rad/s), and the parts wear a friction-0.4 material (`restore()` puts theirs back once it stops, and
+  in `freeze()`), for at most `roll_max` 6 s. A doll knocked at the top of ten steps tumbles head over
+  heels to the bottom (before: across the top three).
+
+The cap, the range, the freeze and every number of 9gk are unchanged; `RAGDOLL_FEEL=0` in the
+environment is the A/B (the joints' own fling, nothing per step). Also: `RagdollJoints.gap()` and the
+new damping no longer cast a torn-off limb's freed part (a SCRIPT ERROR after a gib).
+
+**Look.** `tools/ragdoll_feel/feel_shot.tscn` (opengl3, a minute; `SCENE=shot_front|shot_back|
+shot_side|shot_head|fly|car|stairs`, `FRAMES`, `CAM` / `LOOK`, `FOLLOW=1` a camera that follows the
+pelvis, `NOSHOT=1` only the TRACE lines, `RAGDOLL_FEEL=0` the before). It raises PhysicsBudget's
+debris lifetime: debris dies by the WALL clock (`Time.get_ticks_msec()`), and a software render
+spends 12 s in under 100 steps - the doll vanished mid-tumble in the first stills.
+Checks: `tests/ragdoll_feel_checks.gd` (each scene on a floor of its own 30 m up).
+
+**Cost.** No meshes, so draws and triangles are unchanged by construction. Per step, GDScript on
+the jointed dolls only (at most `max_active`): `tools/ragdolls/probe.tscn --n=6` (headless,
+`--fixed-fps 60`) 0.76-0.93 wall ms a step tumbling with it against 0.65-0.79 without, settled
+0.017 both; the slope rays run every third tick. Joints hold as before (probe worst gap 0.056-0.059
+both ways). Stills: `shots/ragdoll-feel`.
+
+**Not done / not verified.** No hit-reaction CLIPS (the muscles stand in; a clip set per direction
+would need UAL's hit clips retargeted). The car wrap is tuned on a sedan at 14 m/s in the tool and
+the checks; a bus or a truck's tall flat front still knocks people ahead (the bonnet is not there to
+ride, which is right, but untuned). Traffic cars do not brake for the body on their bonnet: a
+kinematic traffic car that knocks someone carries on (as before), so in the city the wrap ends with
+the body riding up and off over the roof more often than sliding off the front. Stairs in the city
+whose collision is a ramp (the Esplanade's beach stairs: walkable ramps over steps, with the real
+treads on the foot-ground layer) are rolled down as a ramp. Seen on opengl3 only; physics is
+renderer-independent.
 ## 9d?. MacArthur Park from the air (wave 4, rc-macarthur)
 
 The reference camera `macarthur` (tools/refcams: MacArthur Park from the south, 120 m up, 11:00,
