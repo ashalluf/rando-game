@@ -116,7 +116,8 @@ static func build(surf: int, variant: int, px: int) -> Array:
 					var a := clampf((split + ring_a + ring_b) * (1.0 - smoothstep(0.30, 0.9, r)) + hub, 0.0, 1.0)
 					c = Color(0.9, 0.95, 1.0, a)
 					height = -0.3 * split - hub
-					rough = 0.1
+					rough = 0.1 + 0.3 * split
+					ao = 1.0 - 0.35 * a
 				_:
 					# Concrete (and anything else hard).
 					var rp := 0.11 + 0.025 * n1.get_noise_2d(cos(ang) * 2.0, sin(ang) * 2.0)
