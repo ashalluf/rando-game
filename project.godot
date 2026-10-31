@@ -342,6 +342,10 @@ ocean_closeup={
 "type": "float",
 "value": 1.0
 }
+water_review={
+"type": "float",
+"value": 1.0
+}
 lawns_closeup={
 "type": "float",
 "value": 1.0

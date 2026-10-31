@@ -43,8 +43,13 @@ uniform float wet_darken = 0.42;
 uniform float wet_roughness = 0.30;
 // The sheet of water: how much it darkens the sand under it, its own tint (LINEAR), and how
 // strongly it mirrors the sky.
-uniform float sheet_darken = 0.50;
-uniform vec3 sheet_tint = vec3(0.80, 0.93, 0.95);
+uniform float sheet_darken = 0.24;
+uniform vec3 sheet_tint = vec3(0.90, 0.97, 0.98);
+// Caustics on the sand under the sheet (surf_caustic(); the ocean's shallows use the same net).
+uniform float caustic_gain = 0.8;
+// The wet sand's mean colour under the sheet (LINEAR, handed over in the renderer's own space; the
+// sea's floor_color), which the caustics add.
+uniform vec3 caustic_tone = vec3(0.085, 0.068, 0.042);
 uniform float sheet_mirror = 1.0;
 uniform vec3 lace_color = vec3(0.82, 0.85, 0.86);
 // Past this distance (metres) the swash is not worked out at all.
@@ -131,7 +136,22 @@ void fragment() {
 	// The sheet: sand seen through a few centimetres of water, darker and a touch cooler, with
 	// the texture's relief drowned and a fine ripple of its own running with the flow.
 	float sh = smoothstep(0.0, 0.10, sheet);
-	alb *= mix(vec3(1.0), sheet_tint * (1.0 - sheet_darken), sh);
+	bool wrv = water_review > 0.5;
+	// (WATER_REVIEW=0: the old sheet, half as dark again and bluer.)
+	vec3 s_tint = wrv ? sheet_tint * (1.0 - sheet_darken) : vec3(0.80, 0.93, 0.95) * 0.50;
+	alb *= mix(vec3(1.0), s_tint, sh);
+	// The sun's caustics on the sand under it (surf_caustic(), the shallows' own net): the brightest
+	// tell that the sheet is clear water and not a grey film (water-review).
+	if (wrv && sh > 0.001 && ground_detail > 0.5 && dist < swash_distance * 0.4) {
+		vec3 sn = normalize(sun_direction);
+		float sun_in = smoothstep(-0.02, 0.2, sn.y) * (1.0 - night_factor) * (1.0 - road_wetness);
+		if (sun_in > 0.001) {
+			float c = surf_caustic(tw, 0.04 + 0.12 * sheet, px, TIME);
+			// Added at the wet sand's mean colour, not multiplied into the texture: multiplied, every
+			// bright grain of the sand under a line became a sparkle, in rows down the beach.
+			alb += cs_as_uniform(caustic_tone) * caustic_gain * sun_in * sh * c * (1.0 - smoothstep(swash_distance * 0.25, swash_distance * 0.4, dist));
+		}
+	}
 	rough = mix(rough, 0.06, sh);
 	nm = mix(nm, vec3(0.5, 0.5, 1.0), sh * 0.85);
 	float lace = 0.0;
@@ -140,25 +160,47 @@ void fragment() {
 		vec2 flow = vec2(-rush * TIME * 1.6, 0.0);
 		float rip = surf_noise(tw * vec2(1.6, 0.7) + flow + vec2(0.0, TIME * 0.3));
 		nm.xy += (vec2(rip, surf_noise(tw * vec2(0.7, 1.6) - flow + 5.0)) - 0.5) * 0.18 * sh;
-		// Foam: a thin web of bubble lines along the moving edge (thin lines where warped noise
-		// crosses its middle, never blobs), a fine fizz through the uprush. Under a pixel both
-		// are drawn as their average.
-		vec2 wp = tw * 2.4 + vec2(rush * TIME * 0.8, 0.0);
-		// How many web cells a pixel spans (the screen derivative, so a grazing view, where a
-		// pixel is long down the beach, fades as it should).
-		float px = clamp((length(fwidth(wp)) - 0.25) / 0.6, 0.0, 1.0);
-		vec2 warp = vec2(surf_noise(wp * 0.37 + 2.0), surf_noise(wp * 0.37 + 6.0)) - 0.5;
-		float web = surf_noise(wp + warp * 2.2);
-		float lw = mix(0.05, 0.16, px);
-		float lines = 1.0 - smoothstep(lw * 0.4, lw, abs(web - 0.5));
-		lines = mix(lines, 0.3, px * px);
-		float fizz = rich ? smoothstep(0.86, 0.95, surf_noise(tw * 16.0 + vec2(TIME * 0.5, 0.0))) : 0.0;
-		fizz *= smoothstep(0.3, 0.7, surf_noise(tw * 1.1 + 4.0));
-		fizz = mix(fizz, 0.04, clamp(px * 2.0, 0.0, 1.0));
-		// The foam line itself (the last ~30 cm of the sheet), and the web behind it.
-		float line = smoothstep(0.86, 0.95, front) * mix(0.75, 1.0, surf_noise(tw * vec2(0.8, 3.0)));
-		float edge = max(line, lines * pow(front, 1.5) * 0.85);
-		float bubbles = sh * max(rush, 0.0) * fizz * 0.35;
+		float fizz;
+		float edge;
+		if (wrv) {
+			// Foam (water-review): the moving edge carries a ragged band of churned foam that breaks into
+			// islands and threads behind it (surf_foam(), the ocean's own foam, stretched along the
+			// shore), a fine fizz through the uprush. Under a pixel both are drawn as their average. It
+			// was a web of noise contours, which read as white spaghetti on the sheet.
+			vec2 wp = vec2(tw.x / 0.42, tw.y / 0.62) + vec2(rush * TIME * 0.45, 0.0);
+			float fpx = px / 0.42;
+			// Fresh only along the very edge: a hand's breadth behind it the foam is already breaking up.
+			float age = clamp((1.0 - front) * 2.2, 0.0, 1.0);
+			float fm = surf_foam(wp, mix(0.10, 0.92, age), fpx);
+			fizz = rich ? smoothstep(0.86, 0.95, surf_noise(tw * 16.0 + vec2(TIME * 0.5, 0.0))) : 0.0;
+			fizz *= smoothstep(0.3, 0.7, surf_noise(tw * 1.1 + 4.0));
+			// Its cells are 6 cm: averaged once a pixel is a few centimetres (at 0.42 m it aliased into
+			// rows of white specks down the beach).
+			fizz = mix(fizz, 0.04, smoothstep(0.015, 0.05, px));
+			// The foam line itself (the last ~30 cm of the sheet), and the churn behind it.
+			float line = smoothstep(0.86, 0.95, front) * mix(0.55, 1.0, fm);
+			edge = max(line, fm * pow(front, 2.0) * 0.9);
+		} else {
+			// Foam: a thin web of bubble lines along the moving edge (thin lines where warped noise
+			// crosses its middle, never blobs), a fine fizz through the uprush. Under a pixel both
+			// are drawn as their average.
+			vec2 wp = tw * 2.4 + vec2(rush * TIME * 0.8, 0.0);
+			// How many web cells a pixel spans (the screen derivative, so a grazing view, where a
+			// pixel is long down the beach, fades as it should).
+			float px = clamp((length(fwidth(wp)) - 0.25) / 0.6, 0.0, 1.0);
+			vec2 warp = vec2(surf_noise(wp * 0.37 + 2.0), surf_noise(wp * 0.37 + 6.0)) - 0.5;
+			float web = surf_noise(wp + warp * 2.2);
+			float lw = mix(0.05, 0.16, px);
+			float lines = 1.0 - smoothstep(lw * 0.4, lw, abs(web - 0.5));
+			lines = mix(lines, 0.3, px * px);
+			fizz = rich ? smoothstep(0.86, 0.95, surf_noise(tw * 16.0 + vec2(TIME * 0.5, 0.0))) : 0.0;
+			fizz *= smoothstep(0.3, 0.7, surf_noise(tw * 1.1 + 4.0));
+			fizz = mix(fizz, 0.04, clamp(px * 2.0, 0.0, 1.0));
+			// The foam line itself (the last ~30 cm of the sheet), and the web behind it.
+			float line = smoothstep(0.86, 0.95, front) * mix(0.75, 1.0, surf_noise(tw * vec2(0.8, 3.0)));
+			edge = max(line, lines * pow(front, 1.5) * 0.85);
+		}
+		float bubbles = sh * max(rush, 0.0) * fizz * (wrv ? 0.16 : 0.35);
 		lace = clamp(max(edge, bubbles), 0.0, 1.0);
 		lace *= 1.0 - smoothstep(swash_distance * 0.5, swash_distance, dist);
 	}
