@@ -81,7 +81,8 @@ float band(float x, float a, float b, float w) {
 }
 
 void fragment() {
-	int k = int(v_kind);
+	// Rounded: an interpolated 3.0 can read 2.9999 (stripes; see lot_ground.gdshader).
+	int k = int(v_kind + 0.5);
 	vec3 col = v_paint;
 	vec3 emit = vec3(0.0);
 	float rough = 0.6;
