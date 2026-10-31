@@ -185,6 +185,7 @@ static func terrain_material() -> ShaderMaterial:
 	mat.set_shader_parameter("rock_normal", texture("hill_outcrop", "NormalGL"))
 	HillGround3.apply(mat)
 	AerialReview.apply_terrain(mat)
+	RcHills.apply_terrain(mat)
 	_cache["terrain_mat"] = mat
 	return mat
 

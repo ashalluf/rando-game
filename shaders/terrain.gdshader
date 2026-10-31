@@ -44,6 +44,14 @@ uniform vec2 mottle_far_px = vec2(0.28, 0.75);
 uniform float mottle_far_keep : hint_range(0.0, 1.0) = 0.55;
 uniform float dirt_scale = 4.5;
 uniform float rock_scale = 7.0;
+// Steep faces (refcam hills): every texture is laid from above, in world XZ, which stretches it
+// 1/cos(slope) times down a face - from across a canyon a 50-degree face read as a combed curtain
+// of vertical streaks. Where the ground is steeper than `side_slope` (the normal's y, from x to y)
+// that share of each texture is laid from the side instead (world y up, the face's horizontal
+// across; two fetches each, only on those pixels), and the top-down normal maps fade out with it.
+// 0 is the old projection (RcHills off).
+uniform float side_mix : hint_range(0.0, 1.0) = 0.0;
+uniform vec2 side_slope = vec2(0.82, 0.6);
 // Each texture's mean luminance (linear), so recolouring keeps its detail at the colour asked.
 uniform float grass_mean_luma = 0.145;
 uniform float mottle_mean_luma = 0.126;
@@ -117,6 +125,20 @@ float luma(vec3 c) {
 }
 
 
+// A texture laid on the two vertical planes (facing x, facing z), weighted by how much the face
+// looks along each: the side half of a biplanar mapping. `p` is TRUE world (x, y, z).
+vec3 side_tex(sampler2D t, vec3 p, float scale, vec2 bw) {
+	vec3 c = vec3(0.0);
+	if (bw.x > 0.01) {
+		c += texture(t, vec2(p.z, -p.y) / scale).rgb * bw.x;
+	}
+	if (bw.y > 0.01) {
+		c += texture(t, vec2(p.x, -p.y) / scale).rgb * bw.y;
+	}
+	return c;
+}
+
+
 void fragment() {
 	vec2 w = world_pos.xz + world_offset;
 	vec3 wn = normalize(world_nrm);
@@ -149,9 +171,18 @@ void fragment() {
 	float leaf = mix(0.5, leaf_n.x, leaf_fade);
 	float tuft = bush * 0.6 + leaf * 0.4;
 
+	// The side projection's share and weights (side_mix: RcHills).
+	float side = side_mix * smoothstep(side_slope.x, side_slope.y, wn.y);
+	vec2 side_w = wn.xz * wn.xz;
+	side_w /= max(side_w.x + side_w.y, 1e-4);
+	vec3 p3 = vec3(w.x, world_pos.y, w.y);
+
 	// ---- grass: the lawn texture's blades recoloured to straw, mottled by the aerial scan ---
 	vec2 uv = w / grass_scale;
 	vec3 g = cs_in(texture(grass_albedo, uv).rgb);
+	if (side > 0.001) {
+		g = mix(g, cs_in(side_tex(grass_albedo, p3, grass_scale, side_w)), side);
+	}
 	if (ground_detail > 0.5) {
 		vec2 uv2 = (mat2(vec2(0.74, -0.67), vec2(0.67, 0.74)) * w) / (grass_scale * 1.61) + vec2(7.3, 2.9);
 		float blend = smoothstep(0.32, 0.68, vnoiset(w * 0.021 + 5.0));
@@ -159,12 +190,20 @@ void fragment() {
 	}
 	// The blades mip away to one flat tone past a few tens of metres; the aerial scan's worn
 	// patches and tufts, at a much larger tile, carry the grain from there out to the LOD ring.
-	float mot = clamp(luma(cs_in(texture(mottle_albedo, w / mottle_scale).rgb)) / mottle_mean_luma, 0.4, 1.8);
+	vec3 mot_c = texture(mottle_albedo, w / mottle_scale).rgb;
+	if (side > 0.001) {
+		mot_c = mix(mot_c, side_tex(mottle_albedo, p3, mottle_scale, side_w), side);
+	}
+	float mot = clamp(luma(cs_in(mot_c)) / mottle_mean_luma, 0.4, 1.8);
 	if (aerial_mottle) {
 		float far_m = smoothstep(mottle_far_px.x, mottle_far_px.y, length(fwidth(w)));
 		if (far_m > 0.001) {
 			vec2 uvm = (mat2(vec2(0.61, 0.79), vec2(-0.79, 0.61)) * w) / (mottle_scale * 2.37) + vec2(3.1, 8.4);
-			float mot2 = clamp(luma(cs_in(texture(mottle_albedo, uvm).rgb)) / mottle_mean_luma, 0.4, 1.8);
+			vec3 mot2_c = texture(mottle_albedo, uvm).rgb;
+			if (side > 0.001) {
+				mot2_c = mix(mot2_c, side_tex(mottle_albedo, p3 + vec3(31.0, 7.0, 17.0), mottle_scale * 2.37, side_w), side);
+			}
+			float mot2 = clamp(luma(cs_in(mot2_c)) / mottle_mean_luma, 0.4, 1.8);
 			float mix2 = 0.35 + 0.3 * vnoiset(w * 0.011 + 2.0);
 			float m_far = 1.0 + (mix(mot, mot2, mix2) - 1.0) * mottle_far_keep;
 			mot = mix(mot, m_far, far_m);
@@ -178,6 +217,9 @@ void fragment() {
 	vec3 grass = mix(straw_color, straw_green_color, green * 0.8) * gl * mix(0.78, 1.2, tuft);
 	vec2 duv = w / dirt_scale;
 	vec3 d = cs_in(texture(dirt_albedo, duv).rgb);
+	if (side > 0.001) {
+		d = mix(d, cs_in(side_tex(dirt_albedo, p3, dirt_scale, side_w)), side);
+	}
 	vec3 dirt = mix(dirt_color * clamp(luma(d) / dirt_mean_luma, 0.3, 2.0), d * (luma(dirt_color) / dirt_mean_luma), dirt_keep_hue);
 	// The dirt between the tufts: a narrow cut of the tuft noise, widened by what has faded out of
 	// it and by how fast it changes across a pixel - cut sharp from the air, the half-resolved
@@ -239,6 +281,9 @@ void fragment() {
 	// ---- rock: outcrops on the steepest faces, and a few breaking through on the ridges ----
 	vec2 ruv = w / rock_scale;
 	vec3 r = cs_in(texture(rock_albedo, ruv).rgb);
+	if (side > 0.001) {
+		r = mix(r, cs_in(side_tex(rock_albedo, p3, rock_scale, side_w)), side);
+	}
 	vec3 rock = mix(rock_color * clamp(luma(r) / rock_mean_luma, 0.3, 2.2), r * (luma(rock_color) / rock_mean_luma), rock_keep_hue);
 	float crag = vnoiset(w * 0.021 + 29.0);
 	float rocky = hill_rocky(slope, crag, patchy, drain, bush);
@@ -273,7 +318,7 @@ void fragment() {
 	ds = mix(ds, nm_slope(texture(dirt_normal, duv).rgb), bare);
 	ds = mix(ds, nm_slope(texture(rock_normal, ruv).rgb) * 1.3, rocky);
 	// A normal map's slopes are dimensionless, so its tile size does not enter.
-	ds *= detail_normal;
+	ds *= detail_normal * (1.0 - 0.75 * side);
 	// Bushes: a canopy brush_relief high over the gaps, leaf clumps on top, only in the stands.
 	vec2 canopy = (bush_n.yz * 0.29 * brush_relief * bush_fade + leaf_n.yz * 0.9 * leaf_relief * leaf_fade
 		- crowns.yz * crown_relief * crown_fade * step(0.001, crowns.x))
