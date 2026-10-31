@@ -18,7 +18,7 @@ import re
 import subprocess
 import sys
 
-KEEP_BOTH = ["tests/smoke_test.gd", "tools/glshot/still_shot.gd", "scripts/world/city_chunk.gd", "scripts/world/city_plan.gd", "project.godot", "scripts/ui/loading_screen.gd", "scripts/util/sfx.gd", "scripts/ui/minimap.gd"]
+KEEP_BOTH = ["tests/smoke_test.gd", "scripts/world/day_night.gd", "tools/glshot/still_shot.gd", "scripts/world/city_chunk.gd", "scripts/world/city_plan.gd", "project.godot", "scripts/ui/loading_screen.gd", "scripts/util/sfx.gd", "scripts/ui/minimap.gd"]
 DOCS = ["docs/HANDOFF.md", "VISUAL_ROADMAP.md", "docs/GAME_PLAN.md", "CLAUDE.md", "docs/ASSETS.md"]
 
 
