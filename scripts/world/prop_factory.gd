@@ -2097,7 +2097,6 @@ static func far_ground_material() -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/far_ground.gdshader")
 	mat.set_shader_parameter("mid_city", MidCity.enabled)
-	mat.set_shader_parameter("roof_weather", CivicGrounds.roof_weather)
 	_cache["far_ground_mat"] = mat
 	return mat
 
@@ -2118,6 +2117,7 @@ static func building_lod_material(far_city: bool = false) -> ShaderMaterial:
 	mat.set_shader_parameter("print_small_plant", far_city)
 	mat.set_shader_parameter("facade_variety", FacadeVariety.enabled)
 	mat.set_shader_parameter("mid_city", MidCity.enabled)
+	mat.set_shader_parameter("roof_weather", CivicGrounds.roof_weather)
 	mat.set_shader_parameter("house_nights", HouseNights.enabled)
 	_cache[key] = mat
 	return mat

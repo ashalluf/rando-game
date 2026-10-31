@@ -54,9 +54,9 @@ func _grounds(plan: CityPlan, city: Node3D) -> void:
 			var mm := (mmi as MultiMeshInstance3D).multimesh
 			if mm == null:
 				continue
-			if String(mmi.name).contains("tree_"):
+			if String(mmi.name).begins_with("Batch_tree_"):
 				trees += mm.instance_count
-			elif String(mmi.name).contains("cg_bench"):
+			elif String(mmi.name).begins_with("Batch_cg_bench"):
 				benches += mm.instance_count
 		counts.append([trees, benches])
 		_t._check(holder.get_node_or_null("CivicGrounds_ziggurat_hall") != null, "downtown aerial: CivicGrounds builds city hall's grounds (%s)" % ("near" if detailed else "far"))
