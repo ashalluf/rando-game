@@ -90,6 +90,10 @@ var pose: RagdollPose
 var age: float = 0.0
 var _still: float = 0.0
 var frozen: bool = false
+## Which way the person faced when the doll was made (world, flat), and its feel (RagdollFeel:
+## the stagger, joint damping, drag, rolling down slopes; null with RAGDOLL_FEEL=0).
+var fwd := Vector3.FORWARD
+var feel: RagdollFeel
 
 
 ## Whether a doll made at `at` (world) may be jointed now: enabled, near the camera.
@@ -128,6 +132,7 @@ static func attach(rag: Node3D, body: RigidBody3D, rig: Node3D, anim: AnimationP
 	fwd = Vector3(fwd.x, 0.0, fwd.z).normalized() if Vector2(fwd.x, fwd.z).length() > 0.1 else Vector3.FORWARD
 	var j := RagdollJoints.new()
 	j.doll = rag
+	j.fwd = fwd
 	j.pose = RagdollPose.new()
 	j.pose.name = "RagdollPose"
 	var total: float = Ragdoll.TOTAL_MASS
@@ -336,9 +341,12 @@ func fling(impulse: Vector3) -> void:
 func gap() -> float:
 	var worst := 0.0
 	for a: Array in anchors:
+		# A torn-off limb's parts are freed: never cast before the check.
+		if not is_instance_valid(a[0]) or not is_instance_valid(a[1]):
+			continue
 		var par := a[0] as RigidBody3D
 		var ch := a[1] as RigidBody3D
-		if par == null or ch == null or not is_instance_valid(par) or not is_instance_valid(ch) or par.is_queued_for_deletion() or ch.is_queued_for_deletion():
+		if par.is_queued_for_deletion() or ch.is_queued_for_deletion():
 			continue
 		worst = maxf(worst, (par.global_transform * (a[2] as Vector3)).distance_to(ch.global_position))
 	return worst
@@ -393,6 +401,9 @@ func tick(delta: float) -> bool:
 		if rb.linear_velocity.length() > settle_speed or rb.angular_velocity.length() > settle_spin:
 			still = false
 			break
+	# Rolling down a slope or a flight of steps is not lying still (RagdollFeel).
+	if feel != null and feel.rolling_down(delta):
+		still = false
 	_still = _still + delta if still else 0.0
 	var gone := false
 	var cam := doll.get_viewport().get_camera_3d() if doll.is_inside_tree() else null
@@ -411,6 +422,8 @@ func freeze() -> void:
 		return
 	frozen = true
 	frozen_count += 1
+	if feel != null:
+		feel.restore()
 	_active.erase(doll.get_instance_id())
 	var pelvis: RigidBody3D = parts.get("pelvis")
 	if pelvis == null or not is_instance_valid(pelvis):

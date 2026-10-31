@@ -2587,7 +2587,10 @@ func knock(impulse: Vector3, gibs: int = 0) -> void:
 ## (Ragdoll.shot), so it stains, pools and trails. Hit again before this node is gone (a
 ## shotgun's other pellets in the same frame) and the round goes into the body it became.
 func shot(at: Vector3, dir: Vector3, impulse: Vector3, strength: float = 1.0) -> void:
+	# The doll staggers before it falls (RagdollFeel).
+	RagdollFeel.note_shot(at, dir, impulse)
 	knock(impulse)
+	RagdollFeel.clear()
 	if _doll != null and is_instance_valid(_doll):
 		_doll.shot(at, dir, Vector3.ZERO, strength)
 	else:
