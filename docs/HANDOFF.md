@@ -25066,9 +25066,11 @@ clean. Logs were kept per run (`SMOKE_LOG_DIR`); a loop script ran the seeds bac
 | 5454 | birds "a gunshot 20 m away startles a flock up" | the check's own `advance(40)` let the surveys fill the bird cap, so the next `stage()` got no birds (id 0) | every staging lifts the cap for itself (`_stage()`) |
 | 5757 | shader_warm "the rehearsal's effects leave no node (@CPUParticles3D@n)" | a one-shot effect started by a delayed hit after the rehearsal's own sweep (it frees itself) | the check gives transient effects up to 300 frames to expire before it calls a node a leak |
 | 5757 | traffic_ai "live traffic ... never drives into another car (tightest -4.35 m)" | **not fixed**: a car changing lanes for a turn (kerb -> inner, lc_p 0.37, still a ghost) stood beside a bus dwelling at its stop; the lane group sorts by centre, so the short car beside the long bus's front half counted as AHEAD of it and never braked for it (CI 382's -1.85 m is the same family) | for the traffic owner: order a lane group by front / rear extents, not centres, when a vehicle is long |
+| 7171 | explosion_aftermath "a blast nearby / a hit sets a parked car's alarm off" | alarms an earlier blast left sounding (24-46 s) filled `CarAlarm.max_alarms` | the check quiets them first; the gate reset stops every sounding alarm |
+| 7171 | pueblo_lane "the far copy keeps the church's sanctuary zone" | counted as the tree-wide sanctuary group's change over a frame, which streaming chunks move | only zones under the build's root |
 
-**The gate reset grew three things** (`tests/gate_reset.gd`): every BlastDebris freed, a blast's still-fading `Blast*` effect nodes freed
-(BlastBits, the shared chip pool, kept), and the crowd:
+**The gate reset grew four things** (`tests/gate_reset.gd`): every BlastDebris freed, a blast's still-fading `Blast*` effect nodes freed
+(BlastBits, the shared chip pool, kept), every sounding car alarm stopped, and the crowd:
 the streamer's `max_pedestrians` put back and the head-count trimmed to the snapshot's (farthest
 plain walkers first, `BusyStreets.is_plain_walker()`: nobody on an errand, watching, stopped or
 seated). Ten more check files count the people a chunk build spawns without raising the cap
