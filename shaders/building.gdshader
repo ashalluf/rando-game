@@ -1419,7 +1419,7 @@ void fragment() {
 			}
 			// Schlick: nearly transparent head on, a mirror at a glancing angle.
 			float fres = pow(1.0 - clamp(-dot(to_frag, world_normal), 0.0, 1.0), 4.0);
-			vec2 m_ends = sg_mirror_ends(window_style == 2 && !storefront);
+			vec2 m_ends = sg_mirror_ends((window_style == 2 || (window_style == 1 && facade_finish == 3)) && !storefront);
 			float mirror = mix(m_ends.x, m_ends.y, fres) * reflect_strength * (1.0 - 0.85 * night_factor) * pv.y;
 			// A lit shop interior competes with the reflection; an empty office does not.
 			if (storefront) {

@@ -825,7 +825,7 @@ void fragment() {
 				sky_ref = mix(cs_as_uniform(vec3(0.09, 0.09, 0.10)), sky_ref, smoothstep(-0.22, 0.10, refl.y));
 			}
 			float fres = pow(1.0 - clamp(-dot(to_frag, world_normal), 0.0, 1.0), 4.0);
-			vec2 m_ends = sg_mirror_ends(ws == 2 && !storefront);
+			vec2 m_ends = sg_mirror_ends((ws == 2 || (ws == 1 && fin == 3)) && !storefront);
 			float mirror = mix(m_ends.x, m_ends.y, fres) * (1.0 - 0.85 * night_factor) * (storefront ? 0.66 : 1.0) * mix(1.0, pv.y, cell_fade);
 			float sky_now = clamp(dot(sky_tint.rgb, vec3(0.299, 0.587, 0.114)) / 0.74, 0.0, 1.5);
 			vec3 refl_emit = sky_ref * mirror * reflect_emit * reflect_energy * sky_now;
