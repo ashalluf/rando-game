@@ -2801,6 +2801,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/traffic_behaviour_2_checks.gd").new().run(self, city)
 	# The crowd up close, third pass (tests/crowd_closeup_3_checks.gd): the measured strides, the hair edges, the builder's shoes and hands.
 	await load("res://tests/crowd_closeup_3_checks.gd").new().run(self, city)
+	# The beach refcam (tests/rc_beach_checks.gd, SandRoads, Waders): no traffic on the streets the
+	# sand covers, people standing in the shallows.
+	load("res://tests/rc_beach_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

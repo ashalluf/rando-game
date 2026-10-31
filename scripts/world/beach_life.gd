@@ -54,7 +54,14 @@ const COURT_SIZE := Vector2(8.0, 16.0)
 const COURT_CLEAR := 3.0
 ## People in the water at full density, per chunk: swimmers inside the break, surfers outside it.
 const SWIMMERS := 6
+## With Waders on, a stretch never empties its water: the swimmers are 0.55 to 1 of SWIMMERS_BUSY
+## (the old roll was 0 to 1.4 of SWIMMERS, so a camera at the waterline often saw nobody at all; a
+## summer afternoon has a head every dozen metres of shore inside the break).
+const SWIMMERS_BUSY := 16
 const SURFERS := 6
+## People standing in the shallows at full density, per chunk (in groups of one to three, ankle to
+## waist deep on the steep foreshore; BeachActivity places them on the sand under the water).
+const WADERS := 11
 ## Riders on the bike path per chunk at full density, and how many of them skate.
 const RIDERS := 4
 const SKATERS := 2
@@ -63,6 +70,10 @@ const WALKERS := 4
 ## Landmarks whose ground is their own (the boardwalk's courts and walk, the piers): nothing here
 ## within this many metres of their anchor along the shore.
 const KEEP_OFF := {"venice_boardwalk": 225.0, "manhattan_pier": 22.0, "redondo_pier": 80.0, "power_plant": 16.0}
+## Palms on the sand stand along the back of the beach, by the path, as on the real ones (the roll
+## of 0.18..0.95 of the dry sand put them in the swash's reach): palm_across() maps the rolled
+## fraction into BACK_PALMS (after the roll, so the block's stream does not move). Off with WADERS=0.
+const BACK_PALMS := Vector2(0.64, 0.97)
 ## How far the figures draw and their shadows reach (m).
 const FIGURE_DRAW := 170.0
 const FIGURE_SHADOW := 60.0
@@ -364,6 +375,13 @@ static func plan_stretch(plan: CityPlan, z0: float, z1: float, dens: float, obst
 	return out
 
 
+## Where a palm rolled at `across` of the dry sand stands (see BACK_PALMS).
+static func palm_across(across: float) -> float:
+	if not Waders.enabled:
+		return across
+	return lerpf(BACK_PALMS.x, BACK_PALMS.y, clampf((across - 0.18) / 0.77, 0.0, 1.0))
+
+
 ## The crowd rig of person `pick` at shore z: each 200 m of shore uses MODELS_PER_STRETCH of the
 ## beach rigs (each one material, so a cell of figures is that many draws), hashed per stretch.
 const MODELS_PER_STRETCH := 4
@@ -393,7 +411,8 @@ static func plan_activity(plan: CityPlan, z0: float, z1: float, dens: float) -> 
 	var f := clampf(dens, 0.0, 1.0)
 	var with_path := not kept_off(plan, (z0 + z1) * 0.5)
 	return {
-		"swimmers": roundi(SWIMMERS * f * _h([plan.seed, "swim", k]) * 1.4),
+		"swimmers": roundi(SWIMMERS * f * _h([plan.seed, "swim", k]) * 1.4) if not Waders.enabled else roundi(SWIMMERS_BUSY * f * (0.55 + 0.45 * _h([plan.seed, "swim", k]))),
+		"waders": roundi(WADERS * f * (0.45 + 0.55 * _h([plan.seed, "wade", k]))) if Waders.enabled else 0,
 		"surfers": roundi(SURFERS * (0.3 + 0.7 * f) * (0.5 + 0.5 * _h([plan.seed, "surf", k]))) if dens > 0.0 else 0,
 		"riders": roundi(RIDERS * f * (0.5 + 0.5 * _h([plan.seed, "ride", k]))) if with_path else 0,
 		"skaters": roundi(SKATERS * f * _h([plan.seed, "skate", k])) if with_path else 0,

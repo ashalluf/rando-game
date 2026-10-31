@@ -4112,3 +4112,10 @@ none of either.
   single wall-clock sample, or an alarm short of the system's own reach. Decisions: the gate reset
   also frees blast debris and trims the crowd to the snapshot's head-count; BlastDebris counts its
   live pieces from the nodes in the tree (a counter leaked); and the flake rules in CLAUDE.md.
+
+- **2026-10-31 The beach refcam: what moves on the beach must stand where the beach is drawn
+  (rc-beach, HANDOFF "The beach refcam").** The traffic now treats a street stretch the sand or the
+  sea covers as closed (SandRoads; CityPlan.road_open() untouched, so nothing built moves), and the
+  people in the water are placed on the surfaces that are drawn - waders on the sand mesh's
+  foreshore, swimmers and surfers on the ocean's own height model - rather than at a fixed level.
+  A summer afternoon's water is busy (waders, more swimmers). SAND_ROADS=0 / WADERS=0 the A/B.

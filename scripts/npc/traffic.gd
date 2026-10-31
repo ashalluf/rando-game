@@ -305,7 +305,7 @@ func _spawn_near(pw: Vector3, density: float = 1.0) -> void:
 	var pos2 := Vector2(plan.road_pos(axis, index) + lane, along) if axis == CityPlan.AXIS_X else Vector2(along, plan.road_pos(axis, index) + lane)
 	# Open where it stands AND just ahead: a car put down inside a crossing, past its centre, next
 	# checks the crossing after, and drove straight on into a road closed by a landmark's site.
-	if plan.zone_at(pos2) != MacroMap.Zone.CITY or _replica_blocks(pos2, 6.0) or not plan.road_open(axis, index, along) or not plan.road_open(axis, index, along + dir * 15.0):
+	if plan.zone_at(pos2) != MacroMap.Zone.CITY or _replica_blocks(pos2, 6.0) or not _road_open(axis, index, along) or not _road_open(axis, index, along + dir * 15.0):
 		return
 	var kind := _street_kind(axis, index, pos2)
 	if kind == BigVehicles.BUS:
@@ -336,6 +336,12 @@ func _spawn_near(pw: Vector3, density: float = 1.0) -> void:
 	_enter_at(car, WorldState.to_local(Vector3(pos2.x, _relief(pos2) + CityChunk.ROAD_TOP + car.road_lift(), pos2.y)), _heading(axis, dir), 0.0)
 	car.traffic_speed = car.traffic.speed
 	cars.append(car)
+
+
+## CityPlan.road_open(), less the stretches the beach's sand covers (SandRoads: nobody drew the
+## road there, so a car driving on down its street ended up on the sand among the sunbathers).
+func _road_open(axis: int, index: int, along: float) -> bool:
+	return plan.road_open(axis, index, along) and not SandRoads.on_sand(plan, axis, index, along)
 
 
 ## Grid cars keep out of a replica area's corridor (ReplicaAreas.blocks_grid()): the grid's own
@@ -521,7 +527,7 @@ func _drive_streets(delta: float) -> void:
 		# forced off closed roads before the crossing - but a car moved by anything else (an
 		# origin shift from outside the physics tick, a placement) would otherwise drive on
 		# through MacArthur Park's lake. Inside a crossing and short of it always reads open.
-		if not plan.road_open(int(t.axis), int(t.index), float(t.along)):
+		if not _road_open(int(t.axis), int(t.index), float(t.along)):
 			cars.erase(car)
 			_retire(car)
 			continue
@@ -602,14 +608,14 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 		var lane_here: float = plan.road_pos(axis, index)
 		var past_cross := cw * 0.5 + 3.0
 		var past_here := plan.road_width(axis, index) * 0.5 + 3.0
-		var ahead_open := plan.road_open(axis, index, cross_pos + dir * past_cross)
+		var ahead_open := _road_open(axis, index, cross_pos + dir * past_cross)
 		# Remembered so a blocked turn knows whether going straight on is allowed at all.
 		t.forced = not ahead_open
 		if not ahead_open or (_rng.randf() < turn_chance and not t.has("no_turns")):
 			var nd := 1 if _rng.randf() < 0.5 else -1
-			if not plan.road_open(cross_axis, cross_index, lane_here + nd * past_here):
+			if not _road_open(cross_axis, cross_index, lane_here + nd * past_here):
 				nd = -nd
-			if plan.road_open(cross_axis, cross_index, lane_here + nd * past_here):
+			if _road_open(cross_axis, cross_index, lane_here + nd * past_here):
 				t.turn = nd
 			elif not ahead_open:
 				t.turn = 2
