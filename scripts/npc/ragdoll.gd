@@ -111,11 +111,13 @@ func build_from_rig(path: String, look: int = -1) -> bool:
 
 
 ## While jointed, no part spins past RagdollJoints.max_spin.
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if _joints == null or _joints.frozen:
 		set_physics_process(false)
 		return
 	_joints.clamp_spin()
+	if _joints.feel != null:
+		_joints.feel.step(delta)
 
 
 func _process(delta: float) -> void:
@@ -757,8 +759,10 @@ func _ready() -> void:
 
 func fling(impulse: Vector3) -> void:
 	if _joints != null and not _joints.frozen:
-		_joints.fling(impulse)
+		# Shaped by what hit them (RagdollFeel: a round staggers, a car wraps them over its bonnet).
+		_joints.feel = RagdollFeel.start(_joints, impulse)
 		return
+	RagdollFeel.clear()
 	for b in bodies:
 		b.apply_central_impulse(impulse * b.mass / TOTAL_MASS)
 		b.angular_velocity = Vector3(randf_range(-6, 6), randf_range(-6, 6), randf_range(-6, 6))
