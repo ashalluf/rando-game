@@ -3386,6 +3386,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   slots fill by the hour (`spawn_skip()`, the same one roll a slot). The lane numbers in the deck
   shader are Freeway's (checked). `FREEWAY_CLOSEUP=0` is the A/B; checks
   `tests/freeway_closeup_checks.gd`.
+- The freeway refcam (wave 4, docs/HANDOFF.md "The freeway at noon"): `FreewayFill`
+  (`scripts/npc/freeway_fill.gd`, hooked in `TrafficManager._maintain_freeway()`) gives every
+  freeway LANE its own hash-jittered slots (`LANE_GAP`), offered nearest the player first while a
+  route is short and only past `INFLOW_FROM` once filled, never within `KEEP_CLEAR`; the cap is
+  `CAP_GAIN` x max_freeway_cars, shared mostly to the route under the player, retired at
+  `retire_reach()`. `FreewayLook` (`scripts/world/freeway_look.gd`): the deck's tining fades before
+  it beats into rings, the rumble strip is milled scoops, expansion joints dull steel with an
+  antialiased seam, and deck / girder / barriers are mitred at segment ends (`mitre()`).
+  `FREEWAY_FILL=0` / `FREEWAY_LOOK=0` are the A/Bs; checks `tests/rc_freeway_checks.gd`.
 - Footbridges (2026-10-30, docs/HANDOFF.md "Footbridges"): `Footbridges` (pure placement: boulevards
   >= 22 m by schools / parks, one freeway slot of 36 segments at a time with caged stair towers on
   the corridor lots), `FootbridgeKit` (one mesh, `shaders/footbridge.gdshader`, kind in COLOR.a / 16),

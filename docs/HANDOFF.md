@@ -21980,3 +21980,50 @@ the same way, but judge 18:00 on the Mac first - if it reads milky-pink, raise `
 grass under a low red sun is what it is). The painted cumulus on opengl3 draws a big smooth ellipse in
 the aerial and sky shots (before and after alike; the sky's, not this review's). Dawn shares the sky
 ramp and the exposure ramp (both are symmetric in elevation) and was not looked at.
+
+## 9d?. The freeway at noon (wave 4 refcam, branch `wt/rc-freeway`; VISUAL_ROADMAP ?)
+
+The task: judge the `freeway` reference camera (the 110's deck by downtown, 13:00 clear) like an
+art director, fix the worst three to five things, hold the other nine cameras.
+
+**What gave it away, in the order the eye lands on it:**
+1. **An empty freeway at 1 pm.** `TrafficManager._maintain_freeway()` offered ONE slot per
+   `freeway_gap` (34 m) and direction for all four lanes, walked from the far end of the window
+   up (so the cap ran out before the stretch in front of the player), every lane's car on the
+   same metre. At best a car per 136 lane-metres, abreast when they came; the refcam had a box
+   truck and four cars in a kilometre.
+2. **Rings across the lanes.** The deck's longitudinal tining (1.9 cm pitch, square grooves) only
+   faded once a groove was under ~1 pixel; at two or three pixels it beat with the pixel grid into
+   concentric moire rings across every near lane (`block_shot` close up).
+3. **A ladder of black tiles down the shoulder.** The milled rumble strip was flat cells, darkened
+   x0.84 and tilted one way per half: crisp dark rectangles at even pitch.
+4. **A dashed crack down the outer barrier at every bend.** Deck segments (24 m) were extruded on
+   their own normal at both ends: at a bend the outer barrier, fascia and deck top open a wedge.
+5. **Black pencil lines across a lane.** The expansion joints' finger seam is a 3 cm zig-zag that
+   aliased into broken dashes, on a 0.75-metal plate the Compatibility renderer drew near black.
+
+**What changed** (two switches, both on by default):
+- `FreewayFill` (`scripts/npc/freeway_fill.gd`; `FREEWAY_FILL=0` is the old fill exactly): every
+  lane has its own slots `LANE_GAP` (42 m) apart, each car slid inside its slot by a hash
+  (`slot_t()`), so lanes never line up; free slots are offered nearest the player first while a
+  route holds under `FILL_BELOW` of its share (load, teleport), and once filled only past
+  `INFLOW_FROM` (330 m, where a car is a few pixels; the flow brings them in), never within
+  `KEEP_CLEAR` (40 m: the first version put a car on the camera). The cap is `CAP_GAIN` (1.7) x
+  `max_freeway_cars` (so Quality and the web still scale it), shared mostly to the route under
+  the player (`shares()`, `FAR_WEIGHT` 0.3 at freeway_range), and cars leave at `retire_reach()`
+  (680 m, was 837). Trucks only take the two slow lanes' slots, twice as often there, so their
+  share is unchanged. The hour's empty-slot roll (FreewayCloseup.spawn_skip()) is kept, one roll a
+  slot. Hook: three small edits in `traffic.gd` (retire reach, cap, the slot loop) and an optional
+  `want_li` on `_spawn_freeway_car()`.
+- `FreewayLook` (`scripts/world/freeway_look.gd`; `FREEWAY_LOOK=0` leaves every shader default and
+  vertex as it was): deck `tine_fade` 0.12..0.45 pixels per pitch with a rounded (band-limited)
+  groove; `rumble_scoop`: each scoop a shallow cylinder cut rounded at its ends, shade from the lip
+  to the far wall, dust in the bottom, fading to a faint band; paint `joint_steel`: dull dusty
+  steel with an antialiased seam whose zig-zag flattens with distance; and `mitre()`: the deck top,
+  girder and both barriers of a main-deck segment end on the bisector of its neighbour's normal
+  (scaled to keep the width; none past 25 degrees or at a route end). Same triangles, same rolls.
+
+**Checks**: `tests/rc_freeway_checks.gd` (cap, reach, shares, per-lane jittered slots, nearest
+first, the dense window and the inflow band, keep-clear, the A/B; a spawned car keeps its slot's
+lane and no truck lands in a fast lane; the materials carry the look; the shaders' defaults are the
+old look).
