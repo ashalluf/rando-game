@@ -56,8 +56,6 @@ func _check_flow(city: Node3D, player: Node3D) -> void:
 	var off_road := player.global_position + Vector3(0.0, 0.0, 0.0)
 	var f := BloodGore.flow(player, off_road + Vector3(5000.0, 0.0, 5000.0), tilt)
 	_check((f.dir as Vector3).dot(Vector3.RIGHT) > 0.9, "blood runs downhill on a slope (%s)" % f.dir)
-	var flat := BloodGore.flow(player, off_road + Vector3(5000.0, 0.0, 5000.0), Vector3.UP)
-	_check(flat.dir == Vector3.ZERO, "on flat ground away from the roads it pools round")
 	# On a road: the camber takes it to the nearer kerb.
 	var plan = city.get("plan")
 	if plan == null:
@@ -72,6 +70,9 @@ func _check_flow(city: Node3D, player: Node3D) -> void:
 	var r := BloodGore.flow(player, local, Vector3.UP)
 	_check((r.dir as Vector3).dot(Vector3.RIGHT) > 0.9 and float(r.kerb) > 0.0 and float(r.kerb) < hw,
 		"on a flat road the camber takes blood to the nearer kerb (%s, kerb %.2f m of half width %.1f)" % [r.dir, float(r.kerb), hw])
+	var centre: Vector2 = (plan.block(0, 0).rect as Rect2).get_center()
+	var flat := BloodGore.flow(player, ws.to_local(Vector3(centre.x, 0.0, centre.y)), Vector3.UP)
+	_check(flat.dir == Vector3.ZERO, "on flat ground off the carriageway (a block's middle) it pools round")
 	var other := BloodGore.flow(player, ws.to_local(Vector3(cx - hw * 0.4, 0.0, (cz0 + cz1) * 0.5)), Vector3.UP)
 	_check((other.dir as Vector3).dot(Vector3.LEFT) > 0.9, "and on the other half of the road to the other kerb (%s)" % other.dir)
 
@@ -104,7 +105,7 @@ func _check_wounds(player: Node3D) -> void:
 	var doll := Ragdoll.new()
 	doll.position = player.position + Vector3(0.0, 0.0, -3.0)
 	player.get_parent().add_child(doll)
-	if not doll.build_from_rig(Pedestrian.MODELS[0]):
+	if not doll.build_from_rig(Pedestrian.MODELS[0], 3):
 		_check(false, "blood gore 2: a rigged doll to shoot")
 		doll.queue_free()
 		return
@@ -194,7 +195,7 @@ func _check_car(player: Node3D) -> void:
 			on_car += 1
 	_check(state.get("car") == car and on_car >= 2,
 		"a body bleeding on a car leaves blood on the car that drives off with it (%d marks / drips)" % on_car)
-	_check(state.has("edge") and is_instance_valid(state.get("drip")), "and drips off the panel's edge (%s)" % state.keys())
+	_check(state.has("edge") and is_instance_valid(state.get("drip")), "and drips off the panel's edge (%s)" % [state.keys()])
 	car.global_position += Vector3(0.0, 0.0, 3.0)
 	await _tree.physics_frame
 	var left := int(state.get("left", 0))

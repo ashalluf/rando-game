@@ -95,7 +95,9 @@ static func flow(node: Node, at: Vector3, normal: Vector3) -> Dictionary:
 static func _road_at(node: Node, at: Vector3) -> Dictionary:
 	if node == null or not node.is_inside_tree():
 		return {}
-	var scene := node.get_tree().current_scene
+	var scene: Node = node.get_tree().get_first_node_in_group("city")
+	if scene == null:
+		scene = node.get_tree().current_scene
 	var plan = scene.get("plan") if scene != null else null
 	if plan == null or not (plan is Object) or not plan.has_method("block_index_at"):
 		return {}
@@ -452,8 +454,8 @@ static func stump_mesh(radius: float) -> ArrayMesh:
 
 
 static func _tri(st: SurfaceTool, a: Array, b: Array, c: Array) -> void:
-	# Godot's front faces wind clockwise seen from outside: the stump is seen from +Y and outside.
-	for v: Array in [a, c, b]:
+	# Wound so the faces (and generate_normals()) look out of the cut, +Y.
+	for v: Array in [a, b, c]:
 		var col: Color = v[1]
 		st.set_color(Color(col.r, col.g, col.b, float(v[2])))
 		st.set_uv(Vector2((v[0] as Vector3).x, (v[0] as Vector3).z) * 20.0)
