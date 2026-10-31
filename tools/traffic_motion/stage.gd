@@ -142,9 +142,9 @@ static func advance(tm: TrafficManager, seconds: float) -> void:
 				rad_to_deg(st.pitch) if st else 0.0, rad_to_deg(st.roll) if st else 0.0, rad_to_deg(st.steer) if st else 0.0])
 
 
-## The nearest open city street with a block of 120 m and more: one lane each way, or (`signal`,
+## The nearest open city street with a block of 120 m and more: one lane each way, or (`need_signal`,
 ## for the queue at a red) any street whose junction at the block's far end has signals.
-static func _find_road(tm: TrafficManager, near: Vector2, signal: bool = false) -> Array:
+static func _find_road(tm: TrafficManager, near: Vector2, need_signal: bool = false) -> Array:
 	var plan := tm.plan
 	var best := []
 	var bd := INF
@@ -154,10 +154,10 @@ static func _find_road(tm: TrafficManager, near: Vector2, signal: bool = false) 
 		var i0 := c0.x if axis == CityPlan.AXIS_X else c0.y
 		var k0 := c0.y if axis == CityPlan.AXIS_X else c0.x
 		for index in range(i0 - 6, i0 + 7):
-			if (TrafficAI.lanes_of(plan, axis, index) >= 2 and not signal) or tm._rail_street(axis, index):
+			if (TrafficAI.lanes_of(plan, axis, index) >= 2 and not need_signal) or tm._rail_street(axis, index):
 				continue
 			for k in range(k0 - 6, k0 + 7):
-				if signal:
+				if need_signal:
 					var n := Vector2i(index, k + 1) if axis == CityPlan.AXIS_X else Vector2i(k + 1, index)
 					if not TrafficSignals.is_signal(plan, n.x, n.y):
 						continue
