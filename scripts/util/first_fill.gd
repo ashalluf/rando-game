@@ -7,7 +7,7 @@ extends RefCounted
 ## for a dozen 35 ms car builds in one frame of play. But a launch hands it an EMPTY city: the
 ## loading screen holds a few dozen frames, so play started with 4 street cars of a ~40-car
 ## target and 2 on the freeway, and the next 15-20 s were cars popping into sight one a frame
-## round the camera (FIRST_MINUTE=40 on tools/load_time/load_time.sh measured it). The same first
+## round the camera (LOAD_FIRST_MINUTE=40 on tools/load_time/load_time.sh measured it). The same first
 ## fill done while the shade is still up costs the same builds and nobody sees them land.
 ##
 ## `traffic()` runs TrafficManager's own upkeep (the same spawns, from the same queues, on its own

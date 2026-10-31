@@ -830,7 +830,10 @@ func finish_far_city() -> void:
 ## finishes first - it needs the player, the camera and the plan to exist before it can build
 ## anything or draw a shader in front of anything.
 func _start_loading_screen() -> void:
-	if not show_loading_screen or OS.has_feature("web") or DisplayServer.get_name() == "headless":
+	# LOAD_SCREEN_HEADLESS=1: the loading screen's work under the dummy renderer too (its draws
+	# compile nothing there), so tools/load_time can time it in ~2 GB (docs/HANDOFF.md "The first minute").
+	var headless_screen := OS.get_environment("LOAD_SCREEN_HEADLESS") == "1"
+	if not show_loading_screen or OS.has_feature("web") or (DisplayServer.get_name() == "headless" and not headless_screen):
 		return
 	# The screenshot harnesses (tools/glshot/*, tools/webshot) drive the game with `--nohud` and
 	# grab a frame after a fixed number of frames. With the loading screen up they photograph

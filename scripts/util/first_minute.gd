@@ -1,6 +1,6 @@
 extends Node
 ## What the first minute of play still has to do after the loading screen lifts (fleet wave 4,
-## loading-first-frame; docs/HANDOFF.md "The first minute"). `FIRST_MINUTE=<seconds>` in the
+## loading-first-frame; docs/HANDOFF.md "The first minute"). `LOAD_FIRST_MINUTE=<seconds>` in the
 ## environment: LoadClock.loaded() adds this node instead of quitting, and it prints one line a
 ## second, then a summary, then quits (with LOAD_QUIT=1) - so tools/load_time/load_time.sh measures
 ## the load AND what pops in after it:
@@ -28,9 +28,9 @@ var _worst: float = 0.0
 var _over: float = 0.0
 
 
-## Adds the monitor when FIRST_MINUTE is set; true when it did (the caller then does not quit).
+## Adds the monitor when LOAD_FIRST_MINUTE is set; true when it did (the caller then does not quit).
 static func start(tree: SceneTree) -> bool:
-	var s := OS.get_environment("FIRST_MINUTE")
+	var s := OS.get_environment("LOAD_FIRST_MINUTE")
 	if s == "" or s == "0" or tree == null:
 		return false
 	var m: Node = load("res://scripts/util/first_minute.gd").new()
