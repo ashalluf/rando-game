@@ -9897,6 +9897,10 @@ with a vase 204, uprights 20-100, monuments 30-340).
 
 ### Not done / not verified
 
+- Gate: traffic_motion_checks' "no tick turns the car" is intermittent on main itself (pass 0.5 deg,
+  fail 129.8 deg, same tree); emergency_checks' stretcher pair failed once in the sharded gate and
+  passed twice alone.
+
 - Not seen on Forward+ (the Mac): every still is opengl3. The night look (chapel windows, gate and
   drive lanterns, floodlit mausoleum) needs a Forward+ look. The bright lines the first night still
   showed on the fence posts are gone (kind codes mid-band, rougher iron); the mausoleum's floodlight
@@ -22426,7 +22430,7 @@ thumb, hair card edges, the walk's foot slide. Judged with a new bone-framed clo
 
 ### What it does now
 
-- **Hands** (`tools/crowd/build_character.py`): their own budget, `budget.hands` 2,600 in
+- **Hands** (`tools/crowd/build_character.py`): their own budget, `budget.hands` 2,000 in
   `crowd_config.json` (the rest of the skin keeps exactly what it had: its share is still worked
   out from the old 16 %). A relaxed pose: knuckles (22-35 deg) bend more than the middle joints
   (22-31), the tips little (10-16), and `FINGER_TOGETHER["Thumb"]` 30 swings the thumb in along
@@ -22438,7 +22442,7 @@ thumb, hair card edges, the walk's foot slide. Judged with a new bone-framed clo
   a derby, 04 a loafer):
   - the OUTLINE at the ground: the outermost low vertex per angle bin in the shoe's ellipse
     metric, smoothed hard (the outermost vertex jitters bin to bin, and the first sole's rim waved),
-    resampled to `N_RING` 44 points, with each point's own ground height (toe spring kept);
+    resampled to `N_RING` 36 points, with each point's own ground height (toe spring kept);
   - the SOLE: a profile swept round it (`build_sole()`), from a strip of underside, up a sidewall
     standing `welt` proud of the upper (a sneaker's foam, a boot's lug band and welt ledge, a dress
     shoe's edge with a stacked heel under the back quarter), over a ledge onto the upper, its inner
@@ -22459,8 +22463,13 @@ thumb, hair card edges, the walk's foot slide. Judged with a new bone-framed clo
   - `OWN_CLOTH` in build_character.py: the torso-cover and armpit rules stayed keyed on our own
     GARMENTS (b, c, f and g, in library clothes, now have own shoe parts and would otherwise have
     changed which skin is kept).
-  - Budget: `budget.shoes` 1,300 -> 2,400 (the upper keeps its shape); soles 880-1,232, laces
-    736-1,264, eyelets 240-300 (boots and derbies). A body is ~15-18k triangles near (was ~12-13k): the 32 rigs' Body meshes sum 420,537 -> 565,861 at LOD 0 and +35 % at every importer LOD (`tools/crowd_closeup_3/lod_probe.gd`).
+  - Budget: `budget.shoes` 1,300 -> 1,700 (the upper keeps its shape), a 36-point sole ring, laces
+    of three spans a segment. The 32 rigs' meshes sum 420,537 -> 513,872 triangles at LOD 0 and
+    +22 % at every importer LOD (`tools/crowd_closeup_3/lod_probe.gd`); a first build at hands 2,600
+    / shoes 2,400 was +35 % and over the gate's limits. The gate's crowd limits were raised for it:
+    the contract 20k -> 24k a rig (worst now 22.9k), garments-2 16k -> 19.5k, crowd-variety 16.5k
+    -> 20k. Downtown frame (geo_count, 800x600): 6.56 M main vs 6.22 M branch, but the two loads
+    drew different crowds and traffic (5,209 vs 4,625 objects): not a usable A/B.
 - **Hair edges** (`shaders/crowd_hair.gdshader`, uniform `closeup`): the alpha near the cut rides
   a noise of thin streaks along the strands (V runs along the MakeHuman cards), so an edge ends in
   strand tips; colour streaks the same way; a card seen edge-on thins (`silhouette_fade`); the
