@@ -131,7 +131,7 @@ static func build(surf: int, variant: int, px: int) -> Array:
 					elif r < rs:
 						var k := (r - rp) / maxf(rs - rp, 0.01)
 						# Fresh concrete, in shadow down the crater's wall, bright on its rim.
-						var fresh := lerpf(0.3, 0.8, smoothstep(0.0, 0.8, k)) + 0.1 * agg
+						var fresh := lerpf(0.22, 0.6, smoothstep(0.0, 0.8, k)) + 0.08 * agg
 						c = Color(fresh, fresh * 0.97, fresh * 0.92, 1.0)
 						height = -0.65 * (1.0 - k) + 0.12 * agg
 						ao = 0.55 + 0.45 * k
@@ -149,7 +149,7 @@ static func build(surf: int, variant: int, px: int) -> Array:
 							c = Color(0.08, 0.075, 0.07, crack * 0.9)
 							height = -0.25 * crack
 						else:
-							c = Color(0.74, 0.72, 0.68, dust)
+							c = Color(0.62, 0.6, 0.57, dust * 0.7)
 			# Nothing within a few pixels of the border.
 			c.a *= 1.0 - smoothstep(0.86, 0.98, maxf(absf(u), absf(v)))
 			col.set_pixel(x, y, c)
