@@ -48,14 +48,14 @@ uniform float roughness_ruffled = 0.12;
 // black hole the Mac never showed), the margin reads as murky shallows over a silted bottom with
 // a scum of algae against the wall, the body as deep green-teal, and the sky is decoded.
 uniform float shore_look = 0.0;
-uniform vec3 look_deep = vec3(0.020, 0.040, 0.034);
-uniform vec3 look_mid = vec3(0.030, 0.052, 0.040);
-uniform vec3 look_shallow = vec3(0.058, 0.066, 0.042);
-uniform vec3 look_scum = vec3(0.075, 0.095, 0.045);
+uniform vec3 look_deep = vec3(0.012, 0.026, 0.017);
+uniform vec3 look_mid = vec3(0.021, 0.036, 0.021);
+uniform vec3 look_shallow = vec3(0.036, 0.042, 0.027);
+uniform vec3 look_scum = vec3(0.052, 0.066, 0.030);
 // Metres from the wall over which the bottom fades out of sight, and the scum's reach.
 uniform float look_shelf = 7.0;
 uniform float look_scum_reach = 1.6;
-uniform float look_sky_emit = 0.55;
+uniform float look_sky_emit = 0.12;
 
 varying vec3 v_local;
 varying float v_shore;
@@ -152,6 +152,9 @@ void fragment() {
 		vec3 lb = mix(b, vec3(0.42, 0.45, 0.44), churn * 0.7);
 		ALBEDO = cs_out(lb);
 		ROUGHNESS = mix(ROUGHNESS, 0.5, scum * 0.7);
+		// Water's own F0 (0.02, Godot's SPECULAR 0.25): 0.5 is a dielectric's 0.04, which mirrored
+		// twice the sky water does and turned the murk sky-blue from the air.
+		SPECULAR = 0.25;
 		vec3 sky_lin = cs_srgb_to_linear(sky_tint.rgb) * (1.0 - 0.85 * night_factor);
 		EMISSION = cs_out(sky_lin * fres * look_sky_emit * (1.0 - churn * 0.6) * (1.0 - scum * 0.6));
 	}

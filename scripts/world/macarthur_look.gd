@@ -34,8 +34,8 @@ const WATER_CELL := 4.0
 const SHORE_STRIDE := 2
 ## The park's lawn: tint (deeper than the old 0.86 / 0.97 / 0.72), dryness, wear (the city's
 ## lawns are 0.3) and mower stripe width.
-const LAWN_TINT := Color(0.74, 0.86, 0.60)
-const LAWN_DRYNESS := 0.48
+const LAWN_TINT := Color(0.66, 0.72, 0.62)
+const LAWN_DRYNESS := 0.32
 const LAWN_WEAR := 0.42
 const LAWN_STRIPES := 4.2
 
