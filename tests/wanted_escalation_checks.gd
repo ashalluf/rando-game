@@ -113,7 +113,7 @@ func _agency_truck(city: Node3D, police: Node) -> void:
 					paint_seen = col
 				if col.g > col.b and col.g >= col.r and col.v < 0.25 and col.v > 0.05:
 					paint_ok = true
-	var lettered := OS.has_feature("web") or truck.find_children("Lettering", "MeshInstance3D", true, false).size() >= 2
+	var lettered := OS.has_feature("web") or truck.find_children("Lettering*", "MeshInstance3D", true, false).size() >= 2
 	_check(truck.body_type == Vehicle.BodyType.BOX_TRUCK and truck.agency and truck.crew_aboard == 4 and truck.crew_alive == 4
 			and String(truck.get_meta("fleet", "")) == WantedEscalation.AGENCY,
 			"the agency's unit is a box truck with four aboard, its fleet the invented %s" % WantedEscalation.AGENCY)
@@ -123,9 +123,10 @@ func _agency_truck(city: Node3D, police: Node) -> void:
 	# A trooper: field drab, a carbine, the helmet.
 	var o := PoliceOfficer.new()
 	o.setup_officer(police as Police, truck, 0, false, 4321)
+	# Read straight after it enters the tree (_ready builds the body): a trooper hanging over
+	# nothing is gone a tick or two later.
+	o.position = truck.position + Vector3(2.5, 0.0, 0.0)
 	city.add_child(o)
-	o.global_position = truck.global_position + Vector3(2.5, 0.0, 0.0)
-	await _ticks(2)
 	var drab := false
 	for mi in o.find_children("*", "MeshInstance3D", true, false):
 		var ov := (mi as MeshInstance3D).material_override as ShaderMaterial
@@ -137,7 +138,8 @@ func _agency_truck(city: Node3D, police: Node) -> void:
 			"a trooper wears field drab and carries a carbine (drab %s)" % drab)
 	_check(helmet != null and helmet.mesh != null and o.find_child("Hat", true, false) == null,
 			"a trooper wears the ballistic helmet, not the peaked cap")
-	o.queue_free()
+	if is_instance_valid(o):
+		o.queue_free()
 	truck.queue_free()
 	# The helmet itself, from the rig's measured head: a full shell the size of a helmet.
 	var rig := "res://assets/models/crowd_a.glb"
