@@ -21980,3 +21980,59 @@ the same way, but judge 18:00 on the Mac first - if it reads milky-pink, raise `
 grass under a low red sun is what it is). The painted cumulus on opengl3 draws a big smooth ellipse in
 the aerial and sky shots (before and after alike; the sky's, not this review's). Dawn shares the sky
 ramp and the exposure ramp (both are symmetric in elevation) and was not looked at.
+
+## 9d?. Shop fronts at arm's length (fleet wave 4, `wt/storefront-closeup-2`)
+
+The task: standing 2-6 m from a shop on the street_noon refcam's pavement (Flower at Olympic), the
+storefront read as a printed wall: nothing at the doors, awnings as stiff flat sheets, and at noon
+the glass of half the shops a dark hole. ShopfrontKit's frames, doors, piers and trims were right;
+what a shop PUTS OUT was missing. Stills on `shots/storefront-closeup-2`.
+
+**What a shop puts out** (`ShopfrontDress`, `scripts/world/shopfront_dress.gd`; one hook in
+`Building._add_facade_details()` beside `ShopfrontKit.storefront_face()`, the same layout): every
+piece is written into the building's `StreetDress` mesh (FacadeStreet's one draw, no collision) on
+`shaders/facade_street_props.gdshader`, kinds 10-15 after FacadeStreet's 0-9 (K_COIR, K_LEAF,
+K_SOIL, K_PAPER, K_SIGN with the emblem in UV2.y, K_GLAZE). Per shop run, at its DOOR bay
+(ShopfrontKit.door_index(), recessed() and single_door(): the shop_byte salts the shader and the kit
+use, so it is where the door is drawn), by shares per ShopRoom (`MAT_ODDS`, `PLANTER_ODDS`,
+`BOARD_ODDS`, `HANG_ODDS`, `MENU_ODDS`):
+- a door mat: coir (tufts in rows, trodden patches) in a rubber border, or a black ribbed entrance
+  mat; under the leaf of a single door, centred on a pair; none at a recessed entry;
+- planters by the door (a pair, one where the door is against a pier): a tapered square trough, a
+  tall round tub, a glazed pot or a low concrete trough, mulch, and a clipped box ball, a cone
+  topiary, a standard on its stem or a grass tuft (code meshes; the leaves are a shader cover);
+- a sandwich board beside the door, a chalk slate in a timber or steel frame (hand-chalked heading,
+  rule, lines and prices, the wipe smear);
+- a hanging sign on two chains from a scrolled iron bracket on the pier at the door's end, a
+  painted board with a gilt border and the trade's emblem (cup, fork and knife, barber pole, tag,
+  scissors, star), only on shops with no awning, canopy or blade sign of their own;
+- a menu case on the pier beside a cafe's or restaurant's door (not where FacadeStreet's meter box
+  is), the printed menu behind glass, lit after dark if the shop is open.
+Pieces never land inside another wing or twice on a face two parts share (`_blocked()`, the
+building's own footprints), and sit on the forecourt paving where LotFill lays it
+(`Building.podium_lot`: LotFill.PAVING_LIFT over the pavement; `_floor()` asks the chunk's relief).
+Their footprints are a meta on the Building (`sf_dress`), which `StreetClutter._occupied()` reads
+(one line), so StreetClutter's A-frames and StreetClutter2's cardboard, bags and hand trucks step
+round them.
+
+**The awnings' cloth** (`ShopfrontKit._build_awning_dome()` / `_build_awning_roller()`, the kit's
+slice rules kept: interior columns are S-anchored fractions of the width): the dome has two more
+hoops at thirds of the width and its canvas pulls in 2.8 cm between hoops (`AWNING_SAG`); the
+roller's canvas bellies 4.5 cm between cassette and front bar. Both valances are scalloped: the
+valance's vertex alpha runs `VALANCE_TOP` 0.62 -> `VALANCE_BOTTOM` 0.12 (every other kit vertex is
+1), and `facade_kit.gdshaderinc` (fabric materials only, `stripes`) cuts 0.30 m scallops in REAL
+metres (UV.x) whatever the awning's width, and binds the edge in a 2 cm tape of the darker colour.
+The Blender kit's sloped awning is untouched.
+
+**The glass** (`building.gdshader`): a cafe's or restaurant's A3 menu taped inside the pane next to
+the door (`menu_bay`, shop_byte salts 58-59, new; never with the poster or a promo in that bay):
+heading, rule, dishes and prices, four strips of yellowed tape. And by day an OPEN shop keeps its
+lights on: `shop_day_open` (0.62) for open shops, `shop_day_light` (0.16) for closed ones, where
+every shop had 0.30 before (the shader defaults are still 0.30 / 0.30: a material that does not set
+them draws as before). `ShopfrontDress.day_light()` sets them from Building.
+
+**A/B and tools.** `SHOPFRONT_DRESS=0` in the environment: no dress, and the day light as before
+(the awning cloth and the taped menu stay: they are kit and shader). It rides FacadeStreet's mesh,
+so `FACADES_STREET=0` leaves the dress out too. `SF_DEBUG=1 tools/storefront_closeup_2/probe.gd`
+builds buildings as `tools/glshot/building_shot.gd` does (LOT, HMIN, HMAX, FINISH, SEED, N) and
+prints every piece with a CAM_POS / CAM_LOOK for it. Checks: `tests/storefront_closeup_2_checks.gd`.

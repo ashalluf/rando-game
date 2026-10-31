@@ -3786,3 +3786,10 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+
+- **2026-10-31 Shop fronts at arm's length: what a shop puts out (storefront-closeup-2, HANDOFF
+  "Shop fronts at arm's length").** At 2-6 m a storefront is judged by what stands at its door, so
+  each shop run gets a mat, planters, a sandwich board, a hanging sign or a menu case at the door
+  the kit and shader already draw (their integer rolls), all into FacadeStreet's one StreetDress
+  mesh (no new draw); awning cloth sags and its valance is scalloped in real metres; open shops are
+  lit by day, closed ones dimmer. SHOPFRONT_DRESS=0 is the A/B.
