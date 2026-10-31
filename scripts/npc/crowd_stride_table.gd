@@ -18,7 +18,7 @@ const TABLE := {
 	"crowd_l": {"walk": 0.7559, "run": 2.8371, "jog": 3.1331},
 	"crowd_m": {"walk": 0.8984, "run": 3.4084, "jog": 3.7011},
 	"crowd_n": {"walk": 0.6706, "run": 2.4926, "jog": 2.7714},
-	"crowd_o": {"walk": 0.8282, "run": 3.1299, "jog": 3.4099},
+	"crowd_o": {"walk": 0.8282, "run": 3.1299, "jog": 3.4098},
 	"crowd_p": {"walk": 0.7371, "run": 2.7873, "jog": 2.9548},
 	"crowd_q": {"walk": 0.8630, "run": 3.2706, "jog": 3.5035},
 	"crowd_r": {"walk": 0.7395, "run": 2.7730, "jog": 3.0042},
