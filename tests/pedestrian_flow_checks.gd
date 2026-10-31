@@ -24,8 +24,14 @@ func run(t: Node, city: Node3D) -> void:
 	if chunk == null:
 		return
 	_groups_spawned(city)
+	# The staged walkers are at the spawn block, but in a shard the player can be anywhere: past
+	# physics_range they go kinematic (no stepping round each other) and step at 1/8 rate (a
+	# follower notices its leader gone late). Batch 29's gate failed both; widen it for the run.
+	var range_was := Pedestrian.physics_range
+	Pedestrian.physics_range = 100000.0
 	await _follower(city, chunk)
 	await _passing(city, chunk)
+	Pedestrian.physics_range = range_was
 	await _kerb(city, chunk)
 	await _doors(city)
 
@@ -178,6 +184,10 @@ func _follower(city: Node3D, chunk: Node3D) -> void:
 		"a follower walks beside its leader and stands with it when it stops (mean %.2f m apart, leader went %.1f m, grouped %s)" % [mean, moved, f.flow.get("leader") != null])
 	l.queue_free()
 	await _ticks(2)
+	for i in 30:
+		if f.flow.get("leader") == null:
+			break
+		await _tree.physics_frame
 	_check(f.flow.get("leader") == null, "a follower whose leader is gone walks on alone")
 	f.queue_free()
 

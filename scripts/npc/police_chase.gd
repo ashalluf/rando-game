@@ -128,6 +128,12 @@ func _ready() -> void:
 	add_child(radio)
 
 
+## Back in the tree after its Police node was taken out and put back (a check's staging):
+## _exit_tree() cleared the instance and _ready() does not run twice (batch 29's gate).
+func _enter_tree() -> void:
+	_inst = self
+
+
 func _exit_tree() -> void:
 	if _inst == self:
 		_inst = null
