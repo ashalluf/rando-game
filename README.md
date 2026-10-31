@@ -15,3 +15,10 @@ diagonal where the sign of the error flips per triangle).
 - `10/11`: Hill St pavement looking south (slab joints box-filtered; the red frontage strip's stripes gone)
 - `12`: crop of 10/11 - top before, bottom after
 - `13/14`: from a car in the lane
+
+## Wave 4 (texture fade, block_shot.tscn, PAVING_AA=0 before / on after, the merged main)
+Laid paving textures (setts, pavers, bricks) now fade to their own last mip once a module is under
+two pixels, on top of the rounded kind. 2 m and 20 m eyes over the forecourt at (2700, 20):
+- `15/16`: eye 2 m, looking south - the row stripes and the setts wedge before, even red pavers after
+- `17/18`: eye 20 m, looking down on the same forecourt
+- `19/20`: eye 2 m at (2630, 100) looking east
