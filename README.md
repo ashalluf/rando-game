@@ -16,3 +16,22 @@ after-still predates the last beam change, e4354e0d).
 | 15/16 downtown in rain | 2300,400,1700,0,-22@23 rain |
 | 17 crop: junction squares (left before, right after) | from 11/12 |
 | 18 crop: the 110's light streams (left before, right after) | from 13/14 |
+
+## Wave 4 set (2026-10-31): downtown and midtown at 150, 400 and 800 m, 22:00
+
+opengl3 1280x720, `still_shot.gd` DIFF=1, one load each; before = the same build with
+`NIGHT_FLIGHT=0` (every shader as on main), after = wt/night-flight merged with main e5bb9e4.
+Cameras (EYE x,y,z,yaw,pitch, all looking grid-north, `--hour=22`):
+
+| files | camera |
+|---|---|
+| 19/20 downtown 150 m | 2800,150,600,0,-30 |
+| 21/22 downtown 400 m | 2800,400,1100,0,-26 |
+| 23/24 downtown 800 m | 2800,800,1900,0,-25 |
+| 25/26 midtown 150 m | 1000,150,1100,0,-30 |
+| 27/28 midtown 400 m | 1000,400,1500,0,-26 |
+| 29/30 midtown 800 m | 1000,800,2200,0,-25 |
+| 31 crop: the 110 from midtown 800 m (left before, right after) | from 29/30 |
+
+Frame cost (GEO): identical triangles, draws and objects in five of six; midtown 150 m +2.6k
+triangles (0.1 %, the crowd's run-to-run noise; DIFF hides people but not their LOD picks).
