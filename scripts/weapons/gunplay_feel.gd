@@ -32,7 +32,7 @@ static var hand_light_energy: float = 2.6
 static var hand_light_range: float = 2.4
 ## The light thrown on a wall the barrel points at, from `wall_light_min` to `wall_light_reach`
 ## metres (closer than that the main light reaches it already).
-static var wall_light_energy: float = 3.2
+static var wall_light_energy: float = 1.8
 static var wall_light_min: float = 4.0
 static var wall_light_reach: float = 22.0
 ## Seconds the flash's lights last (a real flash is a millisecond; a frame at 60 fps is the
@@ -123,7 +123,10 @@ static func _lights(node: Node, parent: Node, at: Vector3, fwd: Vector3, k: floa
 		return
 	# Back at the hands: the flash lights the shooter's own arms and the gun's top for a frame,
 	# which a light out ahead of the muzzle mostly missed.
-	_light(parent, at - fwd * 0.18 + Vector3.UP * 0.05, hand_light_energy * k, hand_light_range * clampf(k, 0.8, 1.6), light_time)
+	# A bigger charge is a bigger flash, but the extra lights only grow a little with it: scaled
+	# by the shotgun's whole size they burnt the hands and a wall a few metres off to white.
+	var kl := clampf(k, 0.7, 1.35)
+	_light(parent, at - fwd * 0.18 + Vector3.UP * 0.05, hand_light_energy * kl, hand_light_range * kl, light_time)
 	# The wall the barrel points at.
 	var space := WeaponFX._space(node)
 	if space == null:
@@ -138,8 +141,8 @@ static func _lights(node: Node, parent: Node, at: Vector3, fwd: Vector3, k: floa
 	var n: Vector3 = hit.normal
 	# Falls off with distance like a real flash would, eased so a wall down the street still
 	# blinks with every round.
-	var e := wall_light_energy * k * clampf(9.0 / d, 0.35, 1.0)
-	_light(parent, hit.position + n * 0.9 - fwd * 0.4, e, 2.6 + d * 0.06, light_time)
+	var e := wall_light_energy * kl * clampf(9.0 / d, 0.35, 1.0)
+	_light(parent, hit.position + n * 1.3 - fwd * 0.4, e, 2.8 + d * 0.06, light_time)
 	stats["wall_lights"] = int(stats["wall_lights"]) + 1
 
 

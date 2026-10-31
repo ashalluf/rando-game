@@ -173,8 +173,12 @@ static func build_pattern(px: int) -> Array:
 			var u := (float(x) + 0.5) / float(px) * 2.0 - 1.0
 			var v := (float(y) + 0.5) / float(px) * 2.0 - 1.0
 			var r := sqrt(u * u + v * v) * (1.0 + 0.18 * n1.get_noise_2d(u, v))
-			var a := (1.0 - smoothstep(0.35, 0.92, r)) * (0.42 + 0.2 * n1.get_noise_2d(u * 3.0, v * 3.0))
-			var g := 0.2 + 0.08 * r
+			# Specks of lead and burnt powder thrown round the pellets, thinning outward, over a
+			# faint grey wash: a flat disc read as a stain.
+			var speck := smoothstep(0.35, 0.6, n1.get_noise_2d(u * 14.0, v * 14.0))
+			var wash := (1.0 - smoothstep(0.3, 0.9, r)) * 0.14
+			var a := wash + speck * (1.0 - smoothstep(0.2, 0.85, r)) * 0.55
+			var g := 0.18 + 0.1 * r
 			col.set_pixel(x, y, Color(g, g, g * 1.04, clampf(a, 0.0, 1.0)))
 			orm.set_pixel(x, y, Color(1.0, 0.95, 0.0))
 	return [_tex(col), _tex(_normal(h, px, 1.0)), _tex(orm)]
