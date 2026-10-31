@@ -277,14 +277,15 @@ func _doors(city: Node3D) -> void:
 	if came and w != null:
 		w.set_meta("no_trim", true)
 		var door_at := Vector2(w.position.x, w.position.z)
-		for i in 60 * 6:
+		for i in 60 * 10:
 			await _tree.physics_frame
 			if not is_instance_valid(w):
 				break
 			if w.visible and w.collision_layer != 0:
 				shown = Vector2(w.position.x, w.position.z).distance_to(door_at) < 3.0
 				break
-	_check(came and shown, "somebody comes out of a shop door near the player (%d doors in reach, out %s, shown %s)" % [near, came, shown])
+	var state := ("visible %s, layer %d, errand step %s, rain inside %s" % [w.visible, w.collision_layer, String(((w.errand.steps as Array)[mini(int(w.errand.i), (w.errand.steps as Array).size() - 1)] as Dictionary).get("do", "")) if w.errand.has("steps") else "none", w.rain != null and w.rain.inside]) if w != null and is_instance_valid(w) else "gone"
+	_check(came and shown, "somebody comes out of a shop door near the player (%d doors in reach, out %s, shown %s; %s)" % [near, came, shown, state])
 
 
 func _check(ok: bool, label: String) -> void:

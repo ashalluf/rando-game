@@ -641,8 +641,10 @@ static func door_tick(p: Pedestrian) -> void:
 		return
 	var door: Dictionary = picks[_rng.randi() % picks.size()]
 	var w := StreetErrands._from_pool(door.p, 160.0)
+	if w != null and w.rain != null and w.rain.inside:
+		w = null
 	if w == null:
-		w = StreetErrands._from_far(p, door.p)
+		w = _far_walker(p, door.p, player.global_position)
 	if w == null:
 		return
 	if w.flow.get("leader") != null:
@@ -656,10 +658,33 @@ static func door_tick(p: Pedestrian) -> void:
 	last_out = weakref(w)
 
 
+## A walker out of sight (past StreetErrands.FAR_TAKE of the player) nearest `at`, to be the one
+## who comes out of a door: StreetErrands._from_far's rule, less anyone the rain has sent indoors
+## (RainCrowd: their tick stops while inside, so an errand on them would never run).
+static func _far_walker(near: Node, at: Vector2, player_at: Vector3) -> Pedestrian:
+	var best: Pedestrian = null
+	var best_d := 320.0
+	for n in near.get_tree().get_nodes_in_group("pedestrian"):
+		var w := n as Pedestrian
+		if w == null or w._down or not w.visible or not w.errand.is_empty() or not w._lives() \
+				or w._cross != Pedestrian.Cross.NONE or w.has_meta("no_trim") or (w.rain != null and w.rain.inside):
+			continue
+		if w.global_position.distance_to(player_at) < StreetErrands.FAR_TAKE:
+			continue
+		var d := Vector2(w.position.x, w.position.z).distance_to(at)
+		if d < best_d:
+			best_d = d
+			best = w
+	if best:
+		best._end_act(true)
+		best._leave_crosswalk()
+	return best
+
+
 ## A walker passing a shop door on its own pavement: now and then they turn in (StreetErrands'
 ## shop visit). One look a second per walker.
 static func _pass_door(p: Pedestrian) -> void:
-	if not StreetErrands.enabled or not p._life_free() or p._dog_walker or int(p.flow.get("followers", 0)) > 0 \
+	if not StreetErrands.enabled or not (p.get_parent() is CityChunk) or not p._life_free() or p._dog_walker or int(p.flow.get("followers", 0)) > 0 \
 			or p.flow.get("leader") != null:
 		return
 	var now := _now()
