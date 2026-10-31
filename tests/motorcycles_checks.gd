@@ -258,6 +258,11 @@ func _player_ride(player: Player) -> void:
 	if ride != null:
 		var sk: Skeleton3D = avatar.get("_skeleton")
 		var hips := sk.global_transform * sk.get_bone_global_pose(sk.find_bone("Hips"))
+		# Where HeroRide put the hips (the root bone): a pose read back after the frame is the
+		# clip's, the modifiers' result is gone by then (it measured the idle's sway).
+		var solver = ride.get("_solver")
+		if solver != null:
+			hips.origin = sk.global_transform * (solver.get("_hips_pos") as Vector3)
 		seat_err = hips.origin.distance_to(m.rider_frame().global_transform * (m.geo().seat as Vector3) + Vector3.UP * 0.1)
 	_check(player.is_driving() and player.visible and ride != null and seat_err < 0.3,
 			"the player on a bike is the hero, seen, on its seat (HeroRide; %.2f m)" % seat_err)

@@ -995,6 +995,4 @@ func _physics_process(_delta: float) -> void:
 		_tilt = 0.0
 		_bank = 0.0
 		transform = Transform3D.IDENTITY
-		if _motion:
-			_motion.hips_drop = 0.0
 	_was_driving = driving
