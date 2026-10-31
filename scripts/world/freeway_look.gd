@@ -28,3 +28,26 @@ static func apply_paint(mat: ShaderMaterial) -> void:
 	if not enabled:
 		return
 	mat.set_shader_parameter("joint_steel", true)
+
+
+## The mitred normal at one end of deck segment `idx` of route `ri` (`at_a`: its start), scaled
+## so an offset of w along it is w across both segments. The segment's own normal at a route's
+## end or past MAX_TURN degrees.
+const MAX_TURN := 25.0
+
+
+static func mitre(fw: Freeway, ri: int, idx: int, nrm: Vector2, at_a: bool) -> Vector2:
+	var pts: PackedVector2Array = fw._line(ri).points
+	var j0 := idx - 1 if at_a else idx + 1
+	var j1 := idx if at_a else idx + 2
+	if j0 < 0 or j1 >= pts.size():
+		return nrm
+	var d := pts[j1] - pts[j0]
+	if d.length() < 0.5:
+		return nrm
+	d = d.normalized()
+	var other := Vector2(-d.y, d.x)
+	if other.dot(nrm) < cos(deg_to_rad(MAX_TURN)):
+		return nrm
+	var m := (other + nrm).normalized()
+	return m / maxf(m.dot(nrm), 0.5)

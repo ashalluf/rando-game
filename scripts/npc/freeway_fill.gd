@@ -22,6 +22,9 @@ const LANE_GAP := 42.0
 const JITTER := 0.7
 ## The window filled nearest-first while a route is short of its share (load, teleport).
 const DENSE_REACH := 420.0
+## Never a new car this close to the player along the route (it would appear on top of him; the
+## flow fills it in a second or two).
+const KEEP_CLEAR := 40.0
 ## Once filled, new cars enter only this far from the player (both ends of the window).
 const INFLOW_FROM := 330.0
 ## A route counts as short (fill mode) below this share of its cars.
@@ -96,7 +99,7 @@ static func candidates(ri: int, anchor: float, total_len: float, taken: Dictiona
 				if t <= 1.0 or t >= total_len - 1.0:
 					continue
 				var d := absf(t - anchor)
-				if d > reach or (not filling and d < INFLOW_FROM):
+				if d > reach or d < KEEP_CLEAR or (not filling and d < INFLOW_FROM):
 					continue
 				out.append([d, t, dir, li])
 	out.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
