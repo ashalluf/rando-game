@@ -6317,6 +6317,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   per-cell MultiMeshes; record in `note_car()`, the batches clear their lists when built), Broadway
   goods off car parks, shed trees out, cafe sets clear of shelters. `STREET_CLOSEUP=0` is the A/B;
   checks `tests/downtown_street_closeup_checks.gd`.
+- The street at noon (wave 4, docs/HANDOFF.md "The street at noon", refcam street_noon):
+  `StreetNoonReview` (`scripts/world/street_noon_review.gd`): road.gdshader / road_patch take
+  `albedo_desat` (and PropFactory.road() neutralises the tint) per texture set - Asphalt033 is a
+  brown photo and read as a dirt road on Forward+; `variant_mode` keeps the anti-repeat fetch on a
+  patterned set's grid (pavers a quarter turn, setts mirrored: rotated 37 degrees it drew a ghost
+  grid); RoadHardware's markers and Botts' dots go on over the light rail's TUNNEL
+  (`marks_rail_street()`); a road with two lanes each way is a tight double yellow; bike lanes
+  wear `grime`; RoadWear drops (after its rolls) oil under a bike lane. `STREET_NOON=0` is the
+  A/B; probe `tools/rc_street_noon/road_probe.tscn` (the real road materials on either renderer,
+  prints sRGB); checks `tests/rc_street_noon_checks.gd`.
 - Road hardware (2026-10-05, docs/HANDOFF.md "Road hardware"): `RoadHardware`
   (`scripts/world/road_hardware.gd`, one hook line at the end of `StreetDetail.build_block`, FULL
   chunks) lays cast-iron manhole covers (four cast patterns, proud or sunk in a patched round or

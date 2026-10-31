@@ -69,10 +69,11 @@ func _markings(plan: CityPlan) -> void:
 		_t._check(StreetNoonReview.marks_rail_street(plan, rail.pts[tunnel]),
 			"street noon: over the tunnel (%.0f, %.0f) the street gets its markers and dots" % [rail.pts[tunnel].x, rail.pts[tunnel].y])
 	# The station's openings (the stair kiosks in the median) keep the middle clear too.
-	var cut := MetroStation.cut_rect(rail)
-	if cut.has_area():
-		_t._check(StreetNoonReview.rail_surface_near(plan, cut.get_center()),
-			"street noon: no markers over the underground station's openings")
+	var area := MetroStation.cut_rect(rail)
+	if area.has_area():
+		var cuts := MetroStation.cuts_in(plan, area.grow(120.0))
+		_t._check(not cuts.is_empty() and StreetNoonReview.rail_surface_near(plan, cuts[0].get_center()),
+			"street noon: no markers over the underground station's openings (%d cuts)" % cuts.size())
 
 
 func _switch() -> void:
