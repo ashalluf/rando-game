@@ -196,7 +196,8 @@ func _signature(ch: CityChunk) -> Array:
 		var n := String(c.name)
 		if n.begins_with("Batch_"):
 			var key := n.trim_prefix("Batch_")
-			if not key in OWN:
+			# Street clutter 2's flyers are hashed by the pole's foot, which moved (like the climbers).
+			if not key in OWN and not key.begins_with("sc2_"):
 				out.append("%s:%d" % [key, (c as MultiMeshInstance3D).multimesh.instance_count])
 		# Climbers grow trumpet vines up some poles by a hash of the pole's foot, which moved.
 		elif n != "UtilityWires" and not n.begins_with("BatchShadow") and not n.begins_with("Climbe"):

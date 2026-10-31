@@ -407,6 +407,8 @@ static func road_paint_material() -> ShaderMaterial:
 		return _cache["road_paint_mat"]
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/road_paint.gdshader")
+	# Pressed to a few millimetres (StreetCloseup; 0 keeps the old boxes).
+	mat.set_shader_parameter("thickness", StreetCloseup.PAINT_THICK if StreetCloseup.enabled else 0.0)
 	_cache["road_paint_mat"] = mat
 	return mat
 
@@ -2115,6 +2117,7 @@ static func building_lod_material(far_city: bool = false) -> ShaderMaterial:
 	mat.set_shader_parameter("print_small_plant", far_city)
 	mat.set_shader_parameter("facade_variety", FacadeVariety.enabled)
 	mat.set_shader_parameter("mid_city", MidCity.enabled)
+	mat.set_shader_parameter("house_nights", HouseNights.enabled)
 	_cache[key] = mat
 	return mat
 

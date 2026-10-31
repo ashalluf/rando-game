@@ -3612,6 +3612,22 @@ already mapped so milestone 2 is script-only.
   one a chunk for furniture), weaker where SDFGI / SSAO already occlude. The deep underpass at HIGH
   stays dark: a coarser SDFGI cell leaks the sunlit deck through the soffit, so it is left for a
   fill on the freeway kit.
+- **2026-10-30 The web build is checked in the full Chromium, one tab, without firing (web-review-3,
+  HANDOFF "The web build after wave 3").** After ~70 merges the browser build still loads and draws
+  every bookmark with a clean console and a ~720 MB wasm heap; what broke was the harness (the
+  headless-shell Chromium never delivered a screenshot frame, two tabs no longer fit 16 GB, and its
+  click fired the rifle). No game code changed; the rule that every shader stays GLSL ES 3.00 is
+  now a check. The export stays at 600 MB of pck: the remaining "unused" assets the probe lists are
+  reached by name tables, so nothing more is excluded blind.
+- **2026-10-30 The night street is lit by its lamps, not the moon (night-street-review, HANDOFF
+  "The night street at eye level").** Reviewed from the pavement at 21:00 and 00:30, clear and rain,
+  on both renderers. Decisions: the moon's key drops to 0.09 (it was ~45 % of the noon sun through
+  the night exposure, so every street was evenly blue and the pools invisible) and the lamps' pools
+  and ranges grow instead; a rainy night keeps most of its fill (overcast city nights are lighter,
+  not darker); the mirrors' sky follows the rain's horizon the sky draws; the lit-window grid
+  painted on the wet road is smeared to a glow; each FULL lamp gets a wet-road reflection streak in
+  its own prop record; Broadway's lanterns at 0.6 of the level. All tuning of existing systems plus
+  one quad a lamp; `NIGHT_STREET_REVIEW=0` restores the old numbers.
 
 - **2026-10-30 Traffic that moves like cars (traffic-motion, HANDOFF "Traffic that moves like
   cars").** Kinematic traffic glided: no dive, squat, lean or bounce, turns snapped 90 degrees at
@@ -3742,3 +3758,34 @@ none of either.
   shrink into the lawn by 62 m with no band and the grass cells draw to 86 m instead of 115 (the
   saving pays for 1.4x denser, mown tufts). Suburb streets get grass parkways between the kerb and
   the walk; weeds grow in the walk's joints and along the yard fences. LAWNS_CLOSEUP=0 is the A/B.
+- **2026-10-30 A house's night is one integer (house-nights, HANDOFF "Houses at night").** Every
+  house's night - dark or lived in, lamp tone, rooms lit, TV, porch, carriage lamps, number,
+  landscape lights - is a hash of its key (seed mod 997), which the near glass carries in UV2 and
+  the far box already carried in INSTANCE_CUSTOM.b, so the street and the hills agree. Fixtures are
+  geometry, their light additive quads in four batches a chunk; real lights only on the nearest
+  porches on Forward+ desktop.
+- **2026-10-30 - Car paint, second pass (car-paint-2, HANDOFF "Car paint that reads as
+  photographed").** Decisions: the street a car mirrors is a world-fixed skyline per reflected
+  azimuth that cuts the sky's mirror and emits facades and the road (both renderers; the probes
+  take over near the camera); flake is sampled per pixel-sized cell fixed to the body; new
+  finishes, the contrast-roof livery and a car's condition are appended and rolled by hashes of
+  the look seed after every roll, so no existing roll moves and CAR_PAINT_2=0 is the old look.
+- **2026-10-30 The street's small stuff (street-clutter-2, HANDOFF "The street's small stuff").**
+  Bags, cardboard, a hand truck, steam, carts, cones, weeds, butts and gum, puddles, flyers, blowing
+  pages and droppings are a second clutter pass, one step after everything a FULL chunk lays, so it
+  can read the shop fronts, the road hardware and the poles instead of guessing; hashes only and no
+  props (nothing else in the block moves); one batch a kind on one shader (the steam on its own,
+  transparent). What is out follows the hour and weekday the chunk is built at, like the vendors.
+- **2026-10-30 Downtown at arm's length (downtown-street-closeup, HANDOFF "Downtown streets at
+  arm's length").** A pedestrian-eye review of downtown listed ten things that break the picture at
+  2-10 m; the worst were fixed in one file (StreetCloseup) with hooks: the kerb face gets its own
+  concrete material and a rolled arris strip, the gutter is LA's poured concrete pan, road paint is
+  pressed to 4 mm, LotFill's static cars become the real bodies' far twins within 42 m (per 24 m
+  cell), Broadway's goods keep off car parks and its sale table is real stock, trees under a
+  construction shed are taken out, cafe sets slide clear of bus shelters. Decisions: positions move
+  only after their rolls, hidden instances keep their indices, `STREET_CLOSEUP=0` is the A/B.
+- 2026-10-30 (storm drama, wave 3): a storm is told from rain by what moves - gusts (one clock that
+  leans every tree and slants the drops and the curtain's sheets), bolts you see for strikes within
+  2.6 km, a sky and street that light toward the strike, and water running off the buildings - on
+  top of a darker, greener, closed-over day sky. All cheap: no new full-screen pass on the web (the
+  inner curtain is desktop only). STORM_DRAMA=0 is the A/B.

@@ -41,7 +41,7 @@ extends SceneTree
 ## queue's cars those body types in turn). With --hour=21 it is the lit heads
 ## at night. STREET_EYE=1 then moves a free camera onto the pavement behind the queue, looking up
 ## it (STREET_EYE_BACK, _SIDE, _TURN, _HEIGHT, _PITCH).
-## SHOTS="x,y,z,yaw,pitch@hour[@fov];..." then takes more EYE shots from the same load, saved as OUT
+## SHOTS="x,y,z,yaw,pitch@hour[@fov[@weather]];..." then takes more EYE shots from the same load, saved as OUT
 ## with _1, _2, ... (SHOT_FRAMES frames each to stream in; GEO_n lines give each one's cost). An empty camera ("@21.5") is the last
 ## shot's camera at another hour.
 ## OCCLUSION=0 renders with occlusion culling off; OCCLUDERS=0 without the extra occluders
@@ -947,8 +947,14 @@ func _initialize() -> void:
 			day.set("hour", bits[1].to_float())
 		Engine.time_scale = 1.0
 		# A third field is this shot's own field of view ("x,y,z,yaw,pitch@hour@fov").
-		if bits.size() > 2:
+		if bits.size() > 2 and bits[2] != "":
 			fov = bits[2].to_float()
+		# A fourth field is this shot's weather (a Weather.STATE_KEYS name, forced at once: a
+		# wetter state soaks the street, so shoot the dry ones first).
+		if bits.size() > 3 and bits[3] != "":
+			var wx := current_scene.find_child("Weather", true, false) if current_scene else null
+			if wx and wx.has_method("force_state"):
+				wx.call("force_state", (wx.get("STATE_KEYS") as Array).find(bits[3]))
 		# Systems that stage a sequence (FreewayIncidents' FW_INCIDENT_TIMES) read which shot this is.
 		Engine.set_meta("still_shot_index", k)
 		_eye(player, fov)

@@ -21293,6 +21293,521 @@ the gate) - the colour match was built through cs_as_uniform() and needs a Mac l
 and the rec parks' blades use a generic lawn look, not their ground's; dappled shade is whatever
 the trees' real shadows give (nothing faked).
 
+## 9id. The web build after wave 3, 2026-10-30 (fleet session `web-review-3`, branch `wt/web-review-3`; VISUAL_ROADMAP "?")
+
+**What was asked.** About 70 features merged on 2026-10-30. Export the web build, load it in a
+real browser and check: it loads, the console is clean, the reference bookmarks draw, the export
+stays under GitHub Pages' 1 GB, desktop-only features degrade gracefully. Fix what breaks without
+touching the desktop.
+
+**How.** main `3192f643`, the 4.7.2 `web_nothreads_release` template (as CI), `--export-release
+"Web" build/web/index.html` (36 s), `tools/webshot/webshot.js` in headless Chromium 1243
+(SwiftShader, WebGL 2.0 / GLSL ES 3.00) at 960x540, 7 minutes of streaming before the gesture,
+ONE tab at a time, `LOG=` and the new `PROBE=1` on every run. Bookmarks (all `&weather=clear&nohud`
+unless said): downtown noon `?spawn=2359.4,880,0,12,2&hour=12`, the same at `hour=21.5` (night
+street) and `hour=13&weather=rain`, the 110 `?spawn=1989,160,-6,-3&hour=12`, the hills
+`?spawn=300,-650,0,-6,260&hour=15`, MacArthur Park `?spawn=300,430,0,-8&hour=12`, the beach by the
+pier `?spawn=-925,-310,62,-4&hour=15`.
+
+**Result: the game is fine in the browser; the harness was broken.** Every bookmark loads and draws:
+
+| bookmark | console | wasm heap | JS heap at the end | frame (SwiftShader) |
+|---|---|---|---|---|
+| downtown noon | clean | 721 MB | 0.73 GB | 19.8 s |
+| downtown, a shot fired (left click) | clean | 721 MB | 0.73 GB | - |
+| night street 21:30 | clean | 721 MB | 0.72 GB | - |
+| rain 13:00 | clean | 721 MB | 0.84 GB | 20.6 s |
+| the 110 (the player falls under the deck; spawn heights do not hold here) | clean | 721 MB | 0.77 GB | - |
+| hills 15:00 | clean | 721 MB | 0.74 GB | - |
+| MacArthur Park | clean | 721 MB | 0.85 GB | - |
+| beach and pier 15:00 | clean | 721 MB | 0.77 GB | - |
+
+The beach view still has the pier's flat-coloured primitive stall tables in the foreground, as in
+wave 2 and in a native opengl3 still: a landmark's look, not the web. These runs were on main
+`3192f643`; main then moved 49 commits (contact shadows, the GI review, the beach's golden hour,
+...), merged here before the gate: their shaders pass the ES 3.00 scan and the sampler budget, and
+ContactShadows is built for both renderers. The merged build (pck 600.5 MB) loaded at downtown
+noon: clean console, wasm heap 727 MB, JS heap 0.73 GB, 18.3 s a frame (still 10).
+
+**The console.** At every bookmark the same lines as in wave 2 and nothing else: the template's
+`Occlusion culling is disabled at build-time`, Chrome's AudioContext autoplay notice until the
+gesture, plus four `GPU stall due to ReadPixels` performance notes (Chrome's, not errors): those
+are `Texture2D.get_image()` read-backs on the Compatibility renderer - `Pedestrian._region_means()`
+/ `_hair_mean()` (each crowd atlas the first time its rig is dressed) and `RockKit._mean_luminance()`
+- a one-off stall per atlas, not per frame. No `SHADER ERROR`, WebGL error, global-buffer error,
+script error or out-of-memory anywhere, including after a fired shot.
+
+**Memory and load.** The wasm heap (`PROBE=1` reads the module's `WebAssembly.Memory`) is 721 MB
+after load and stays there at every bookmark, after a fired shot too - the browser's cap is 4 GB.
+Renderer process ~2.2 GB, Chromium's GPU process (SwiftShader's software textures) ~3.5 GB. The
+JS heap 0.72-0.73 GB. Web Audio: 18-22 decoded sample buffers (110-141 MB) after load (the ambience
+beds); Godot's sample playback re-copies a looping bed's whole buffer on every loop restart
+(`Sample._duplicateAudioBuffer` from `SampleNode.restart`, Godot's own JS), so the count climbs
+~10 MB a bed every 20-28 s, and the garbage collector takes the old copies (renderer flat). Load,
+from localhost: the engine prints at 3 s, `LOADING spawn and first streaming` at 61.5 s of engine
+time (65 s from page load) on this 4-core box - the macro map 7.7 s, the ground bake 9.3 s, far
+landmarks 6.6 s, the first 12 FULL + 94 LOD chunks 20 s, far city tiles 6.6 s. The load cache
+missed (first launch in a fresh profile). A frame under SwiftShader is ~20 s downtown by day (it
+was ~35 s in wave 2 on the same harness; not comparable across boxes), so frame cost cannot be
+read here.
+
+**Size.** `index.pck` 599.6 MB (600.5 MB after merging main), `index.wasm` 39.5 MB, `index.js` 0.28 MB, the rest 0.04 MB:
+**639.5 MB**, 360 MB under Pages' 1 GB (web-build-2 left it at 550 MB of pck; wave 3's 70
+features added ~50 MB). S3TC textures are 491 MB of it (588 of them; the biggest are the 4K
+sign atlas 8 MB, the hero's 2K maps, road wear, climbers, the billboard atlas). No exclusion was
+added: `tools/webshot/unused_probe.gd` lists 261 "unused" assets, but the ones checked (Fabric036,
+Grass004, Metal016, the bird normals, ...) are reached through `PropFactory.TEXTURE_SETS` keys or
+path tables the probe cannot see, so excluding them blind would ship pink materials.
+
+**Desktop-only features degrade.** Checked in code and in the stills: reflection probes, heat
+haze, car spot lights, police night strobes, motion blur / DOF, sky beams' and the searchlight's
+volumetric cones, the metro probe, decals (blood, craters, landing cracks: quads on the web), the
+cloud volume (`CURRENT_RENDERER`) and car door splitting (`CarDoorSplit.threaded` is off on the
+web, so no WorkerThreadPool task waits forever in the single-threaded build) all check
+`OS.has_feature("web")` or the RenderingDevice. No shader uses a GLSL ES 3.1+ built-in (the new
+check). `web_build_checks.gd` still holds samplers (most 7 of 9), no `instance uniform`, the
+preset and the exclude filter.
+
+**The harness, fixed.**
+- The box's Playwright is now chromium-1243, and `webshot.js`'s pinned `chromium-1194` path was
+  gone, so it fell back to Playwright's default **`chrome-headless-shell`**. There
+  `page.screenshot()` waits for a compositor frame that never arrives while a Godot frame takes
+  20 s: every shot timed out at 400 s, and after the harness's left click the renderer ballooned
+  2.3 -> 6 GB and two tabs were OOM-killed. The same click in the FULL Chromium leaves the wasm heap
+  flat at 721 MB and the renderer at 2.2 GB, so it was the shell, not the game. `webshot.js` now
+  finds the newest full `chromium-<n>/chrome-linux*/chrome` under /opt/pw-browsers (`CHROME=` still
+  overrides).
+- **One tab at a time.** A tab is ~2.2 GB renderer + ~3.5 GB GPU process now; two were killed by
+  the cgroup OOM on the 16 GB box (wave 2 ran two).
+- **The click fires the rifle** (left button = `fire`; at 20 s a frame the press and release land
+  in one frame and `is_action_just_pressed` still sees it). Stills should not start with a shot:
+  `KEY=k` presses an unbound key instead (a user gesture: Web Audio starts, nothing fires),
+  `NOCLICK=1` skips the gesture, `BUTTON=middle` captures the mouse without firing.
+- `PROBE=1` loads `tools/webshot/probe.js` before Godot: a `[probe]` line with the wasm heap, Web
+  Audio buffers (with the JS callers that made the big ones), buffer sources and worklet nodes
+  (its "gl uploads" figure counts wasm heap views and is meaningless).
+- A screenshot needs a whole frame inside `SHOT_TIMEOUT` (still 400 s by default). The rain
+  bookmark's first capture timed out although its frames are ~20 s like the dry ones (the capture
+  waits on the compositor, not a Godot frame); `SHOT_TIMEOUT=1200000` got it. A bookmark now takes
+  12-16 minutes alone.
+
+**Checks.** `tests/web_review_3_checks.gd` (one line in the smoke test): every `.gdshader` /
+`.gdshaderinc` free of GLSL ES 3.1+ and desktop-only built-ins (bitfieldExtract, findMSB,
+textureGather, fma, dFdxFine, textureQueryLod, ...) outside comments - WebGL2 is GLSL ES 3.00 and
+Godot passes built-ins through, so one compiles on the Mac and in every opengl3 still and draws a
+blank material in the browser - and the scan proven on a planted call. Gate on the merge with main: `SHARDS=3 tests/headless_check.sh` SMOKE TEST PASSED, 4,188 checks, 0 failed, 1,087 s, peak RSS 2,969 MB.
+
+**An open question: the hero turns blue in the rain on the web.** At the rain bookmark his
+black velour top and his hair read saturated royal blue (still 04); the trousers stay black. The
+wet branches only darken and lower the roughness (`hero_cloth` velour 0.45, `hero_hair` 0.2), so
+the blue is the sky's radiance in a glossier surface - and at 13:00 rain is only ~0.75 cloud
+coverage (`cloud_coverage` 0.42 + the hour's swing + `_cloud(RAIN)` 0.42), whose painted deck
+leaves blue holes overhead. The hero alone in native opengl3 with `road_wetness` 1 (still 09) goes
+darker and glossier, not blue, and a native opengl3 city still of the same rain view
+(`still_shot.gd --hour=13 --weather=rain`, on the merged main; a different pose, the player
+mid-air with his back up) shows him black. Not resolved here: for wet-world / the sky (a stratus
+ceiling in `painted_cumulus()` from ~0.7 coverage, as the volume's `strat`, would close the holes
+the web and Forward+ below MEDIUM see in rain).
+
+**Not done / not verified.** Real frame rate in a browser on a GPU (SwiftShader cannot say); the
+ReadPixels read-backs could move to the loading screen; the 600 MB download is still the biggest
+cost for the owner (next saving: web-only smaller crowd / hero / atlas textures, which 4.7 has no
+per-platform import setting for). Stills on `shots/web-review-3`.
+
+## 9ie. Houses at night (wave 3, branch `wt/house-nights`; VISUAL_ROADMAP ?)
+
+The owner's bar: the suburbs and the beach town at 21:00-23:30 should feel lived-in, like GTA 6.
+Before this a house's night was `house_glass.gdshader`'s per-pane roll (42 % of panes lit one
+yellow, no curtains, nothing outside), and the far house boxes a per-cell roll that knew nothing of
+the house. Now:
+
+- **One integer per house.** `HouseNights.key(seed)` = |seed| mod 997. The far box already carried
+  exactly that in INSTANCE_CUSTOM.b (`MidCity.house_custom()`, exact as a half float, checked); the
+  near glass now carries it in UV2.x - 1 (`HouseBuild._tri()`, only on the "glass" surface, only
+  when on). `shaders/house_nights.gdshaderinc` and `HouseNights` hold the same integer hash
+  (lowbias32 of key x 7919 + salt): dark (11 %), lamp tone (warm incandescent, soft white,
+  neutral, cool LED), share of rooms lit (0.32-0.74), bedtime 22:24-24:48 off `city_hour` (then
+  28 % of that), a TV (34 % of the lived-in), porch (82 %; 35 % of dark houses, a timer),
+  carriage lamps, lit number, NICE (30 %: landscape lights). Pools: their own key (the far box's,
+  `pool_key()`), 65 % lit.
+- **Near glass** (`house_glass.gdshader`, panes with UV2 only; the replica's and the coast
+  highway's keep their old look): the room traced behind the pane with a lamp's hotspot on the back
+  wall, the ceiling lit off it, a sofa line and a picture; per room the house's tone nudged toward
+  another; sheers drawn with a gap (55 %, folds, glowing with the room behind), slatted blinds
+  (25 %), bare glass; the TV room is blue, cutting shots and flickering (`hn_tv_light()`); unlit
+  rooms show the curtain faintly. Emission is linear and handed over with `cs_out()`.
+- **Far boxes** (`building_lod.gdshader`, `house_nights` uniform set by PropFactory): a house wing
+  (custom.a 0.25) lights `hn_share()` of its windows in its tone, the TV room blue, no whole-floor
+  lighting; a yard pool box glows turquoise when its pool is on. LOD chunks and the far city both.
+- **Fixtures** (`HouseNights.dress()`, one line in `HouseKit.build()` after LaTrees): a lantern
+  beside the door, carriage lamps either side of the garage (not carports), a backlit three-digit
+  number plaque (`house_lamp.gdshader`, seven-segment digits from UV.x's integer part), on NICE
+  houses path-light posts down the front walk (skipped where the drive is in the way). All in ONE
+  shadowless "h_lamp" mesh a chunk, housings included (kind 3), so no other house surface changes.
+- **Light** (`shaders/house_glow.gdshader`, four shadowless batches `hn_pool`, `hn_uplight`,
+  `hn_scallop`, `hn_halo`, additive in DISPLAY numbers on both renderers - fwd-review-e's rule):
+  the lantern's scallop on the wall and pool on the step, the carriage lamps' scallops and a pool
+  on the drive, path-light pools, uplight cones up the facade between its bays and up both sides of
+  each cypress LaTrees planted (NICE), halos at every lamp never under 3.4 px (so a street reads
+  from the air), a turquoise glow over each lit pool. Halos draw to 900 m, the rest to 260 m.
+- **Real lights** (`HouseNightLights`, one node under the root, Forward+ desktop only): `budget`
+  OmniLights (Quality 4 / 2 / 0 / 0) on the nearest lit porches within 48 m, picked every 0.4 s
+  from the porches FULL chunks register (`add_spot()`, chunk-local; freed chunks pruned).
+- **Pools near**: YardFill gives a pool piece `HouseNights.pool_variant()` (0 the old pool, 0.25
+  off, 0.75 on) and `pool_glow()`; `lot_yard.gdshader` emits the lit water.
+- **No rng drift**: every roll is a hash of the key; nothing is added to any rng, prop list or
+  existing batch. The checks build the same FULL chunk off and on: every batch's count, every prop
+  id and every House_* mesh but the glass is the same.
+
+`HOUSE_NIGHTS=0` is the A/B. Checks: `tests/house_nights_checks.gd` (the include mirrors the
+numbers and hash; the shares; near / far keys through half floats; pools; the chunk off / on; the
+fixtures mesh and glow batches shadowless; porches registered; every pane keyed; LOD builds none).
+
+## 9if. Car paint that reads as photographed (car-paint-2)
+
+Wave 3 task `car-paint-2` (owner's bar: "make it look like GTA 6"). Branch `wt/car-paint-2`,
+stills on `shots/car-paint-2`.
+
+**What was wrong.** Reviewed with `car_shot.gd` close-ups on lavapipe Forward+ and opengl3, noon,
+golden hour and night: on a door the lacquer mirrored the open sky (the radiance map) dimmed by
+a smooth ramp near the horizon, so a flank was the same colour all the way down - no street line,
+nothing that bends over the curves. The flake was `ALBEDO +=` a world-space hash (it slid over a
+moving car and crawled), no orange peel, and every car came off the same few finishes, all new.
+
+**What it does** (`CarPaint2`, `scripts/vehicles/car_paint_2.gd`; the `paint2` block of
+`shaders/car_paint.gdshaderinc`; every new uniform defaults to 0, so every material Vehicle does
+not set up - car parks, police stations, lowriders - and `CAR_PAINT_2=0` compile and draw the old
+shader bit for bit):
+- **The street in the lacquer.** A world-fixed skyline per azimuth of the reflected ray (22-36
+  buildings round the horizon, 3-30 degrees up, a gap now and then; the pattern changes every
+  70 m of true world) cuts the clearcoat's sky mirror where a ray meets a building, with a
+  one-pixel edge - the hard horizon line across a door that photographs of cars always have - and
+  EMITS what is there instead (facades in their own tones, rows of windows with the sky in them by
+  day and lit rooms after dark, the street under the horizon with the bright far-kerb line), by
+  Fresnel and the coat's strength. Inside the reflection probes' reach both hand over to the real
+  probe. Same on both renderers (the web has no reflections of its own).
+- **Orange peel**: the coat's roughness and the normal ripple at 6 and 2.4 mm within ~3 m (the
+  reflection crawls like real lacquer), a slightly softer mirror past that; every coat 28 %
+  crisper than before.
+- **Flake**: aluminium flakes ~0.7 mm, fixed to the body, sampled in cells the size of a pixel
+  (two LOD levels blended): a pixel is one draw of the flakes it covers, so it sparkles round the
+  sun's highlight from 1 to ~10 m and never crawls; discs inside their cell up close. Emitted, so
+  only on sun-facing panels in daylight (it has no shadow test).
+- **New finishes, appended** (`Vehicle.Finish.CANDY`, `TRICOAT`, `SATIN`): candy (a tinted
+  lacquer deep where the panel turns away, `candy_deep`), tri-coat and colour-shift pearls (the
+  flip colour per paint, `Vehicle.paint_flip`), satin vinyl wraps (no lacquer, a broad soft
+  sheen). `CarPaint2.PAINTS_2` (20 entries): ~10 % of private cars, ~34 % of sports cars.
+- **Contrast roofs** (`Vehicle.Livery.CONTRAST_ROOF`, appended; shader `stripe_mode` 6): the
+  pillars and roof over `ROOF_LINE[body]` in gloss black (silver-white on a dark car), on
+  crossovers 20 %, compact SUVs 24 %, EV hatches 30 %, hatchbacks 14 %, coupes 12 %, the rest a
+  few %.
+- **Condition**: a dust film on 34 % of plain cars (0.15-0.45; 12 % of them pollen), settled on
+  what faces the sky with thin run-off streaks on the flanks; oxidised single-stage paint (chalky,
+  the clear lifting off the roof and bonnet in ragged sheets with a pale rim) on every beater and
+  10 % of solid-gloss private sedans, pickups, vans, hatchbacks and minivans. Never on police,
+  emergency or show cars (`car.get_script() == Vehicle` only).
+
+**Rolls.** `PAINTS` is untouched; `random_car()` makes exactly its old rng calls (checked over
+2,500 seeds), and every new decision is a hash of the look seed after them (salts 61-63, 71-76).
+A car the hashes do not pick keeps its colour, finish, livery and trim; the A/B gives every car
+back exactly.
+
+**Cost.** No geometry, no new material per car (each car already had its own paint material).
+A paint-filled close-up on opengl3 (llvmpipe): 200-222 ms a frame either way (noise +-10 ms;
+TIME=40 on car_shot.gd, four runs). Downtown noon bookmark (`--spawn=2359.4,880,0,12,2`, DIFF=1, opengl3): 6,734,938 triangles, 3,312 draws with CAR_PAINT_2=0 and =1 alike - but no car was in that frame, so no street still was made.
+
+**Stills / tools.** `car_shot.gd` takes `PAINT_ENV=golden` (a low warm sun), `PAINT_ENV=street`
+(two rows of facades; lit windows at night), `FLIP=#rrggbb`, `TRIM=#rrggbb`, `LOOK=n` for any
+body, and `CAR_COND=dust,oxide[,pollen]` forces the condition. Checks:
+`tests/car_paint_2_checks.gd` (19).
+
+**Not done / not seen.** The skyline is a fixed pattern, not the real street (the probes are, on
+Forward+ near the camera); the flake glints have no shadow test (sun-facing only); no wrap seams or
+chrome wraps; the Meshy sports body's colour-shift pearl reads greyish on Forward+; nothing yet
+judged on the owner's Mac at 60 fps (orange peel and flake are about motion).
+
+## 9ig. The night street at eye level (fleet wave 3, branch `wt/night-street-review`; VISUAL_ROADMAP ?)
+
+A review of the night street from the pavement - Broadway downtown, Wilshire in midtown, a suburban
+street, the beach town - at 21:00 and 00:30, clear and in rain, on opengl3 (the whole city, one load,
+16 stills) and on lavapipe Forward+ (small scenes: the suburb and the beach; downtown blocks do not
+fit lavapipe even alone, 13.6 GB). Everything is tuning of what existed plus one new reflection quad;
+no roll moved. `NIGHT_STREET_REVIEW=0` puts all of it back.
+
+What read wrong, and why:
+
+- **The moon was a second sun.** `night_sun_energy` 0.3 through `night_exposure` 2.3 is ~45 % of the
+  noon key: every street was lit evenly blue, trees and wires threw crisp moon shadows, the beach sand
+  read as dusk, and the lamps' pools were invisible against it. Now `NightStreetReview.MOON` 0.09
+  (`night_sun_energy`'s default reads it). The lamps carry the street: StreetLamps' pools x1.3 and
+  OmniLight ranges x1.25 (`POOL_SCALE`, `RANGE_SCALE`; type, place and paint unchanged).
+- **The wet road's mirrors showed a navy sky under a brown cloud base.** `DayNight._horizon_now`
+  (pushed as `sky_tint`) was the CLEAR horizon even in rain, while the sky shader blends to
+  `storm_horizon` by `weather_darken`; every mirror (road, car paint, glass) read the wrong sky.
+  `NightStreetReview.sky_tint()` applies the same blend.
+- **Rain made the night darker than clear.** The ambient cut of 35 % x `weather_darken` hit the night
+  too, where a real overcast night is LIGHTER (the city's sodium glow on the cloud base). The cut is
+  now 25 % of itself at night (`RAIN_NIGHT_CUT`, eased by `moonlight`).
+- **A grid of lit squares painted on the wet asphalt.** road.gdshader's `mirrored_city()` drew the
+  canyon's office windows as sharp rectangles in every puddle - the most CG thing in a rain still.
+  Now `mirror_windows` 0.25, `mirror_window_lit` 0.8 and the rows smeared (`mirror_window_smear` 0.7),
+  and the film mirrors `sky_tint` by Fresnel (`mirror_sky` 1.0) through `cs_as_uniform()`.
+- **No lamp was reflected in the wet road.** Compatibility has no SSR and Forward+'s misses every lamp
+  above the frame. NightAtmos now lays one more instance per FULL lamp in the lamp's own prop record
+  (`atmos_glow_wet`, so a popped lamp takes it): `shaders/night_wet.gdshader`, a flat additive quad
+  placed in the vertex stage from the lamp's foot toward the camera to the mirror point
+  (`d * h / (h + eye)`) and smeared on past it, a screen-constant width, ripples, collapsed while dry
+  or by day; strength per lamp `WET_PER_LIGHT` x heads, capped `WET_MAX`.
+- **Broadway's lanterns were the brightest thing downtown and had no halo.** Their light is now 0.6 of
+  the level (an OmniLight's meta `lamp_gain`, read by DayNight's lamp loop) and they wear NightAtmos'
+  halos and the reflection like every other lamp.
+
+Numbers (opengl3, the whole city; low-half p50 is the median of the darker half of the frame, holes
+the share of 32 px tiles under 8/255; before -> after): Broadway 21:00 clear p50 55 -> 30, low 54 ->
+26; Wilshire 21:00 low 47 -> 25; suburb 21:00 low 32 -> 18; beach 21:00 low 95 -> 58 (the moonlit
+sand), 00:30 74 -> 42; Broadway 00:30 low 31 -> 14. Lit pixels (the lamps and shop fronts) and p95 /
+p99 are unchanged, so the frame's contrast now comes from the lights. In rain the holes went UP on
+Broadway (6.5 -> 12.8 %) and Wilshire (4.2 -> 9.8 %): that is the fake window grid gone from the
+asphalt, which was what filled them; the wet road is now dark navy with the lamps' streaks in it.
+`tools/night_street/measure.py <after> <before>` prints the table.
+
+Tools: `tools/night_street/shoot.sh <out>` (the 16 stills, one city load, ~70 min, ~9 GB),
+`shoot_fwd.sh` (fwd_block_shot small scenes; `DRIVER=opengl3` the minutes loop; `PLACES=`, `EXTRA=`),
+`measure.py`, `sheet.py` (contact sheet), `pairs.py` (before / after jpgs), `eye_probe.gd` (a street
+EYE for a point). still_shot.gd's SHOTS take a 4th field, the weather; fwd_block_shot.gd takes
+`FREE_PREV=1`, `EXTRA=`, a weather in the EYE's 7th field, `PICK=` and `GLOBALS=1`. Lavapipe needs a
+temporary `override.cfg` with `[threading] worker_pool/max_threads=1` for the suburb and beach scenes
+(12.7 GB peak); never commit it.
+
+Checks: `tests/night_street_review_checks.gd` (the tuned numbers and the switch, the sky blend, a lamp
+placed the same on and off, the reflection only in FULL chunks and capped, the shaders' tunables and
+colour handling, `lamp_gain`).
+
+Not done / not seen: the Wilshire small scene (fwd_block_shot) draws an empty ground plane there, so
+Wilshire was judged on opengl3 only; Broadway was never seen on Forward+ (does not fit lavapipe); the
+rain streaks on opengl3 read a touch thin and white near the eye - `width_share` / `gain` in
+night_wet.gdshader are the knobs; the suburb stays dark between lamps (its lamps are 40 m apart and
+the gardens are unlit, which is how it is), 20 % holes.
+
+## 9ih. The street's small stuff (street-clutter-2, 2026-10-30, roadmap #233)
+
+The owner's bar is GTA 6, whose streets are dense with the small stuff of real life. `StreetClutter2`
+(`scripts/world/street_clutter_2.gd`) is a second clutter pass after StreetClutter's news boxes and
+gutter litter, ONE build step of every FULL city chunk (after RoadWear, so the furniture, the parked
+cars, RoadHardware's covers / inlets / cuts, the utility poles and every Building's shop fronts are
+down). It lays, at real size and built in code:
+
+- **Trash bags**: two pile variants of four to six tied 33-gallon bags (lumpy squashed lofts with a
+  gathered neck and knot; black, a grey one, a dark green one), a restaurant's or cafe's pile at the
+  end of its front (to the kerb after 20:00), and on a **collection night** (a hash of block and
+  weekday, `COLLECTION_ODDS` by district, 18:30-07:00) a pile every `BAG_PILE_EVERY` m of kerb.
+- **Cardboard**: four flattened boxes leaning on the wall by a shop door with a strap, one flat in
+  front; flutes, ink stamps, tape, dirt rising from the pavement, soggy in the rain.
+- **A hand truck** with three cases by a shop door while a delivery is on (by day, hashed per hour).
+- **Steam** out of covers and kerb inlets (`STEAM_ODDS`: downtown's old steam lines), a transparent
+  plume on `shaders/street_steam.gdshader`: four camera-turned puffs per plume, billows scrolling up,
+  drifting downwind (`wind_lean`, `wind_factor`), thicker at night and in the rain, warmed by the lamps.
+- **Shopping carts** (wire basket cut out of a grid and dithered to its cover under a pixel, chrome
+  frame, red handle, casters), `CART_TIPPED` of them on their side.
+- **Traffic cones** (28", two reflective collars that glint by `lamp_factor`) round a third of
+  RoadHardware's utility cuts, now and then one knocked over.
+- **Weeds** in a crack at the foot of the walls and behind the kerb (blades that sway, a rosette);
+  not in lawn districts (LawnsCloseup lays those blocks' weeds and the parkway).
+- **Butts and gum** round every bus stop and in front of some shop doors (more at cafes and bars).
+- **Puddles** in the gutter, the parking lane and the corner ramps: collapsed in the vertex stage
+  on a dry street, grown from `road_wetness` (`puddle_from` .. `puddle_full`) as a noisy blob with a
+  damp ring, the sky mirrored by Fresnel (emitted; `mirror_forward` under Forward+'s SSR), rain rings,
+  the lamps' warmth at night. They outlast the road's own film as it dries.
+- **Flyers** stapled round utility poles (`upole`): five or six sheets wrapped on the shaft, a
+  curled corner, staples, lost-pet photos, bold titles, tear-off phone tabs with some taken, faded and
+  torn with age. (StreetWear's flat flyers stay; these are the paper on top.)
+- **Newspaper pages blowing** down the gutter: one 7 x 5 sheet the vertex shader slides along its run
+  (custom.b), hops, tips and flutters, resting at each end and blowing back (ping-pong), faster in wind.
+- **Pigeon droppings** on the pavement under the ledges downtown (cut-out splashes, fresh or old).
+
+All of it is ONE material (`shaders/street_clutter_2.gdshader`, what a face is in COLOR.a x 16 =
+`StreetClutter2.C_*`, checked) except the steam; one batch per kind a chunk (`sc2_*`, 13 keys), the
+flat kinds and the flyers and steam shadowless, the upright ones casting only within `SHADOW_REACH`
+45 m, each drawn to its own distance (45-220 m). Linear on both renderers (color_space include).
+Meshes reuse StreetClutter's static builders (`_bbox`, `_cyl`, `_tube`, `_quad`, `_vtx`).
+
+**Seeding**: every roll is `h01()` of the seed and the place (block, kerb, shop key, cover, pole),
+never a chunk / block / Building rng, and nothing goes through `_add_prop`: the block's props keep
+their ids, its parked cars and crowd their rolls (the checks build each block with it off and
+compare). What is out depends on the hour the chunk is built at and the weekday
+(`BeachLife.hour_now`, `FarmersMarket.weekday`; `force_hour` / `force_day`, env `SC2_HOUR` / `SC2_DAY`
+for stills). Hooks: one step line in `CityChunk.begin_build()`, `Building` records `shop_fronts`
+when StreetClutter2 is on too (was Parklets / NightLife only; a record, no roll), the loading
+screen warms the meshes. `STREET_CLUTTER_2=0` is the A/B.
+
+Probe: `tools/street_clutter_2/probe.gd -- --spawn=x,z,0,0` (counts per kind and block, the step's
+plan time, an EYE per kind; `HOUR=`, `DAY=`, `KIND=`, `R=`). Compile: `tools/street_clutter_2/compile.gd`.
+Checks: `tests/street_clutter_2_checks.gd` (the last city file).
+
+**Frame cost** (opengl3, `still_shot.gd DIFF=1`, people and traffic hidden; `STREET_CLUTTER_2=0` then 1,
+same cameras): downtown 21:30 wet 3.78 -> 3.99 M triangles (+5.6 %, +20 draws), 3.02 -> 3.13 M
+(+3.6 %, +18), 3.50 -> 3.52 M (+0.6 %, +16), from 6 m up 1.74 -> 1.91 M (+9.7 %, +12); downtown 10:00
+close-ups +1.0 to +2.8 % (+16 to +30 draws); midtown 21:30 +0.7 to +3.0 % (+13 to +28); the beach town
++6.3 / +9.1 % (+16 / +28) on small frames (~2 M). Most of the added triangles are SHADOW (the bag piles'
+twins, ~1,100 triangles a pile, inside `SHADOW_REACH`); lower it, or give the piles a coarse shadow
+mesh, if a bookmark needs it. The step itself plans in 2-5 ms a block (probe `plan=`).
+
+Stills on `shots/street-clutter-2` (before / after pairs, downtown night and day, midtown and the beach
+town at night, and the kit alone from `tools/street_clutter_2/kit_shot.gd`, seconds: `NIGHT=1`, `WET=`).
+
+Not done / not seen: nothing on Forward+ (the steam's alpha and the puddles' mirror want a look on the
+Mac: SSR adds to the puddles there, `mirror_forward`); the pages and the steam move off shader TIME, so
+DIFF stills show them frozen; carts and bags are drawn only (no collision, nothing to knock over);
+the flyers only go on utility poles (lamp and signal poles vary in radius); posters and droppings are
+procedural, no atlas art.
+
+## 9ii. Downtown streets at arm's length (fleet wave 3, `downtown-street-closeup`)
+
+The task: a pedestrian-eye review of downtown (the historic core, Broadway, the Financial District,
+South Park) at 2-10 m, at noon, 17:30 and 21:00, listing the ten things that most break the AAA
+illusion up close, and fixing the worst properly. Stills on `shots/downtown-street-closeup`.
+
+**The ten, worst first** (block_shot.tscn opengl3 at noon; still_shot.gd at 17:30 and 21:00):
+1. **Surface car parks behind the pavement wall** (LotFill's lots, Broadway, South Park): the parked
+   cars were ArenaGrounds' 260-triangle static boxes, three metres from the eye. FIXED.
+2. **The kerb**: its face was drawn in the pavement's top-down material (a flat grey band), its
+   top edge a razor, and the gutter a dark strip on the asphalt. FIXED (face, arris, concrete pan).
+3. **Broadway's sale tables**: nine saturated cubes on a board, and set out 0.6 m past the pavement
+   even where the frontage was a car park's wall (the table stood half inside it). FIXED.
+4. **A street tree growing up through a building site's covered walkway deck** (Construction's shed
+   over the pavement on Broadway by 5th). FIXED.
+5. **A pavement cafe set laid through a bus shelter's bench** (Flower by 7th): the cafe props are
+   rolled before the shelters exist, and the stop benches took a cafe for a 0.6 m post. FIXED.
+6. **Road paint stood 2.5 cm proud** on lit box sides (thermoplastic is 2-4 mm). FIXED (pressed).
+7. Fallen share bikes read thin and toy-like at 2 m (Micromobility) - not touched.
+8. Pavement slabs under a shed or a canopy read as one flat plane (the joints are lost in shade) -
+   not touched (road.gdshader's joints are albedo only).
+9. Kerb paint (red zones) is a flat colour with no relief at the arris - not touched.
+10. Encampment tents read rubbery up close (Encampment kit) - not touched; outside this pass.
+
+**The fixes** (`scripts/world/street_closeup.gd`, `StreetCloseup`; `STREET_CLOSEUP=0` in the
+environment puts every surface back exactly as it was):
+- **Kerb face and arris.** Kerbs._kerb_face writes the face into its own mesh ("KerbFace", one more
+  draw a FULL block) on `shaders/kerb_closeup.gdshader`: UV = (metres along in world terms, metres
+  over the road), the pavement's own texture and tint sampled across the face, grime and road splash
+  at its foot, black tyre scuffs where cars rubbed it, chips knocked out of the arris, 10 ft joints.
+  The face's top 2.5 cm rolls its normal up, and a 2.5 cm ARRIS strip on the kerb's top (2 mm over
+  the pavement, discarding itself past `arris_reach` 28 m) rolls it the rest of the way, so the edge
+  catches the light as a formed radius, not a razor. Collision and the ring's mesh are unchanged.
+- **Curb and gutter.** StreetDetail's gutter strip is now `StreetCloseup.lay_gutter()`: a 0.6 m
+  concrete pan box per piece on the same shader (`gutter` on), INSTANCE_CUSTOM.r saying which side
+  its kerb is: dished toward the kerb in the normal, a silt / leaf-stain flow line, a tide mark,
+  oil where cars park over it, a sealed seam at the asphalt, the same joints as the face. Top 6 mm
+  over the road: over RoadWear's stamps (4.2 mm), under the pressed paint (9 mm). No piece is laid
+  over a kerb inlet's apron (`inlet_alongs()`, RoadHardware._inlets()' own test).
+- **Pressed paint.** road_paint.gdshader's `thickness` (4 mm): every box vertex over the box's
+  centre is moved to its underside plus that, so dashes, stripes, stop lines and stalls are films.
+- **Lot cars.** LotFill._car() records each static car it laid in a FULL chunk (after its rolls,
+  `note_car()`); at the finish `commit_cars()` hides it in the chunk-wide batch and draws it again
+  per 24 m cell: CarParkBuild.real_body() (the road bodies' far twins) within `REAL_CAR_NEAR` 42 m,
+  the same static box past it, in the stand-in's own paint (no colour change at the hand-over).
+  Covers every caller of LotFill._car (surface lots, podium decks, approach parking, vacant gravel
+  lots, beach drives). The other static-car users (CarDealers, Industrial, Roadside, civic) are not.
+- **Broadway goods** keep off a car park or a vacant lot's frontage (`goods_blocked()`, pure, after
+  the roll); the sale table (`sale_table_mesh()`) is a navy cloth over the top and down both sides,
+  stacks of folded tees in muted colours, two open cartons of stock, a shoebox pile, the price card.
+- **Sheds.** Construction records each covered walkway's deck (`note_shed()`); before the chunk's
+  batches build (they clear their lists), `before_build()` finds the street trees whose trunks stand
+  under it and `clear_sheds()` hides them (the grate stays): a shed goes up where the trees were
+  boxed and taken down.
+- **Cafe sets** slide along the kerb out of `SHELTER_CLEAR` 6 m of a bus shelter's spot
+  (`shelter_spots()`, BigVehicles.build_bus_stops()' own sums), after their rolls; the stop benches
+  take a cafe set's clearance as `CAFE_CLEAR` 1.4 m (StreetFurniture._obstacles()).
+
+**Rolls.** Nothing rolls: the cafe and stop-bench moves are positions after the rolls, the lot cars
+and shed trees hide instances that keep their indices, the pan is split round the inlets (more
+pieces in the `gutter` batch). The checks build the Broadway block with the pass off and on: the
+same props (cafes and the stop benches' own sequence aside) and the same batch counts (the gutter
+and Broadway's goods aside).
+
+**Cost** (still_shot.gd GEO, opengl3, the same city frames with `STREET_CLOSEUP=0` / on; EYE
+heights above the ground):
+
+| view | before tris / draws | after tris / draws |
+|---|---|---|
+| Broadway car park, noon (2980,1.5,-40) | 4.35 M / 2,119 | 5.02 M / 2,347 |
+| kerb from the road, noon (2986,1.4,-70) | 4.49 M / 2,001 | 4.60 M / 2,108 |
+| the shed, noon (2979,1.6,-60) | 7.79 M / 3,677 | 7.37 M / 3,691 |
+| Broadway car park, 21:00 | 4.54 M / 2,220 | 5.20 M / 2,439 |
+| kerb from the road, 21:00 | 4.65 M / 2,146 | 4.83 M / 2,242 |
+| Spring St, 21:00 (3124,1.6,250) | 5.78 M / 3,222 | 5.65 M / 3,201 |
+
+The real lot cars are the cost (~8k triangles a car within 42 m, a draw per body type and cell);
+the kerb face adds a draw per FULL block. If it must come down: `REAL_CAR_NEAR` (42 m) and
+`CAR_CELL` (24 m; bigger cells, fewer draws, coarser hand-over).
+
+**Checks:** `tests/downtown_street_closeup_checks.gd`. **Not done / not verified:** no Forward+
+(lavapipe) still of the kerb shader - the arris is a normal roll and reads strongest under a real
+sun; the arris strip may z-fight on the web build's 24-bit depth inside 28 m on very shallow views;
+items 7-10 above.
+
+## 9ij. Storm drama (fleet wave 3, `storm-drama`, 2026-10-30)
+
+Task: storms that look like a AAA storm at street level and from the air, day and night - rain
+sheets sweeping the street in gusts, trees and palms bent hard, litter, lightning that lights the
+street and the cloud base with the thunder's delay, water off roofs and awnings, spray off cars, a
+darker greener-grey sky; cheap, no new full-screen pass on the web.
+
+**What was already there** (reviewed at `--weather=storm`, noon and 21:00, pavement and 150 m up):
+the drops, splashes, the 90 m curtain, lens rain, a flash (sky + a directional light), thunder at
+distance / 343 m/s, TyreSpray, RoofRain, the gutter run in road.gdshader. Weakest: the noon sky had
+blue gaps and white clouds (it read as a shower), nothing in the air moved sideways, a strike was an
+even white sky with no bolt, the trees swayed no harder than a breeze (wind_factor clamps at 3).
+
+**`StormDrama`** (`scripts/world/storm_drama.gd`, Weather's child; `STORM_DRAMA=0` builds nothing):
+- **Gusts**: `gust(t)` (pure, 0..1, peaky). `lean_for()` adds the storm's lean (LEAN 0.7, never
+  under LEAN_LULL of it) down the storm wind (`WIND_DIR` = rain_wind) to `wind_lean`, which every
+  tree shader's gust front already runs along - palms and street trees lie over hard and the fronts
+  cross the street. The drops' gravity takes `GUST_RAIN` x the wind in a gust; litter speed too.
+- **Rain sheets**: Weather's curtain shader gains `sheets` (crests on the TRUE world along the wind,
+  running downwind at SHEET_SPEED, bent across it), `slant` (a streak's foot downwind of its head),
+  `radius` / `rows_gain` / `cells_gain` / `bottom_fade` (a stretched or smaller curtain keeps its
+  streaks in metres). All default to the old curtain exactly. An inner curtain (22 m, desktop only)
+  puts the sheets in the street; from the air the outer curtain reaches down to the ground.
+- **Lightning**: `on_strike()` from Weather's `_strike()` draws a bolt (`bolt_paths()`: midpoint
+  displacement from a hash of the strike counter, 2-4 branches; camera-facing ribbons about two
+  pixels wide at any range, `shaders/storm_bolt.gdshader`, additive, fog-free) for strikes within
+  BOLT_REACH 2.6 km. The sky's flash leans toward the strike (`flash_dir`, `flash_spread` 0.3; 1 =
+  the old even flash) - the cloud base round it lights - and DayNight raises the ambient by
+  FLASH_AMBIENT x the flash, so shadows light too. Weather's thunder delay is unchanged.
+- **Sky**: DayNight's `storm` hook lerps the day storm top / horizon / fog / cloud colour toward
+  greener, darker greys (`StormDrama.sky()`, SKY_TOP, SKY_HORIZON, FOG, CLOUD) and adds COVER 0.35
+  cloud; nights keep the sodium cloud base.
+- **Run-off**: one probe every 0.18 s (a golden-angle ray out from the camera's ground to a wall,
+  then down over the roof and in front of the wall): roofs under 40 m pour a stream with a splash,
+  an edge 2.1-6.5 m up (awnings, canopies) a drip line. ONE MultiMesh (`storm_runoff.gdshader`,
+  camera-facing about Y, kind / height / seed in INSTANCE_CUSTOM), at most 26 within 32 m.
+- **Litter**: wet leaves and paper, one CPUParticles3D (72, web 36) downwind in the gusts.
+- **Spray**: TyreSpray's new `gain` (1.9 in a full storm).
+Every roll is a hash; Weather's rng is never called (`force_strike()` spends none).
+
+**Stills** (`shots/storm-drama`; still_shot.gd opengl3, `--spawn=2359.4,880,0,12,2 --weather=storm`,
+SHOTS `@21;2359.4,150,880,0,-18@12;@21`): before / after at noon and 21:00, after from 150 m.
+`STORM_FLASH=<s>` (`_DIST`, `_AZ` degrees, `_HOLD` level) forces and holds a strike for a still.
+
+**Cost** (GEO, same frames): street noon 7.60 M -> 7.53 M tris, 4,013 -> 3,998 draws; street 21:00
+7.93 M -> 7.76 M, 4,147 -> 4,121 (run-to-run noise; the additions are a handful of draws: two
+curtains, the run-off MultiMesh, the litter, a bolt for a frame).
+
+Checks: `tests/storm_drama_checks.gd` (gust range, lean, the wind's agreement, sky colours, the
+bolt's determinism, the shaders' defaults, a forced storm and strike, the run-off probe on a staged
+building in the air).
+
+The held-flash stills (07, 08: `STORM_FLASH=1 STORM_FLASH_HOLD=0.9 STORM_FLASH_AZ=-75
+STORM_FLASH_DIST=1100`) were shot with FLASH_AMBIENT 1.6: the 21:00 frame at the flash's peak was
+blown out, so it is 0.8 now (not re-shot); the bolt there stands behind the right-hand tower and
+reads faint - frame one where the sky is open.
+
+Not done / not verified: no Forward+ (lavapipe) still - the bolt's HDR core and the flash lobe on
+the Mac are unseen; the inner curtain on Forward+ TAA may ghost (see the particles trap); the
+run-off streams are seen in no still yet (the downtown bookmark's walls are towers over 40 m); no
+storm audio was added (wind gust sound would be next); spray off fast cars is a gain on the
+existing spray only.
 ## 9d?. Traffic that moves like cars (wave 3, branch `wt/traffic-motion`, VISUAL_ROADMAP #?)
 
 The task: kinematic street and freeway cars seen MOVING from the pavement or a chase camera at

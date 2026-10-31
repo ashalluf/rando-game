@@ -181,6 +181,10 @@ uniform bool facade_variety = false;
 uniform float window_recess_far = 0.20;
 #include "res://shaders/far_traffic.gdshaderinc"
 #include "res://shaders/far_cars.gdshaderinc"
+// HouseNights: a house wing's box (MidCity.HOUSE_FLAG) lit by its house's key in custom.b x 997,
+// the near glass's rolls; a yard pool's light by its own key. Off: the old windows (the A/B).
+#include "res://shaders/house_nights.gdshaderinc"
+uniform bool house_nights = false;
 // The mid distance (MidCity, docs/HANDOFF.md "The mid distance"; off: MID_CITY=0): parked and
 // moving cars by day on the plates' streets and the decks (far_cars.gdshaderinc), the asphalt a
 // weathered grey rather than black, the yards' pools (INSTANCE_CUSTOM.a 5), a house's flat roof
@@ -1115,6 +1119,10 @@ void fragment() {
 		vec3 water = c * (0.85 + 0.15 * smoothstep(-0.4, 0.4, sin(q.x * 2.1 + q.y * 1.3 + TIME * 0.8)) * detail(1.5, mpp));
 		albedo = mix(water, cs_as_uniform(vec3(0.82, 0.80, 0.75)), cop);
 		emission += (cs_srgb_to_linear(sky_tint.rgb) * 0.25 * fres + c * 0.12 * day) * (1.0 - cop);
+		if (house_nights && hn_pool_on(int(custom.b * 997.0 + 0.5))) {
+			// Its pool light after dark (lot_yard.gdshader's, near).
+			emission += cs_as_uniform(vec3(0.06, 0.62, 0.72)) * 1.1 * lamp_factor * (1.0 - cop);
+		}
 		rough = mix(0.08, 0.85, cop);
 		spec = 0.5;
 	} else if (custom.a > 3.5) {
@@ -1584,17 +1592,28 @@ void fragment() {
 			emission += glare * 0.20 * facing;
 
 			rough = 0.18;
-			if (k < custom.g) {
+			bool hn_house = house_nights && abs(custom.a - 0.25) < 0.05;
+			int hn_key = int(custom.b * 997.0 + 0.5);
+			float lit_share = hn_house ? hn_share(hn_key, city_hour) : custom.g;
+			if (k < lit_share) {
 				// Lit rooms. Whole floors light up as well as single rooms, which is what an
 				// office tower at dusk looks like - but only after dark: by day that read as a
 				// handful of floors glowing under full sun.
 				// See building.gdshader: no daytime floor, or every tower a few hundred metres
 				// out keeps the gold-and-black checkerboard after the near one loses it.
 				float on = night_factor;
-				float whole = step(hash21(vec2(row, bseed * 77.0)), 0.10) * night_factor;
+				float whole = hn_house ? 0.0 : step(hash21(vec2(row, bseed * 77.0)), 0.10) * night_factor;
 				on = min(1.0, on * (1.0 + whole));
 				float glow = 0.55 + 0.45 * hash31(vec3(row + 7.0, col + 3.0, bseed));
-				albedo = mix(albedo, lit_color, 0.70 * on);
+				vec3 room_c = lit_color;
+				if (hn_house) {
+					// The house's lamp tone, and its TV room flickering blue.
+					room_c = hn_lit(hn_tone(hn_tone_index(hn_key)));
+					if (hn_tv(hn_key) && k < lit_share * 0.3) {
+						room_c = hn_lit(hn_tv_light(hn_key, TIME) * 0.8);
+					}
+				}
+				albedo = mix(albedo, room_c, 0.70 * on);
 				// 2.9, not 1.15. This lit_color is a source_color uniform too: (1.0, 0.85, 0.55)
 				// decodes to (1.000, 0.692, 0.263), and on and glow both peak at 1.0, so a lit
 				// window peaked at exactly 1.15 - under the Environment's glow_hdr_threshold of
@@ -1605,7 +1624,7 @@ void fragment() {
 				// two drift apart, a tower steps brightness the moment it crosses the LOD line.
 				// Scaled with building.gdshader's lit_strength (1.2 -> 0.8): 2.9 -> 1.9, still over the
 				// 1.3 glow threshold so the far skyline keeps its bloom.
-				emission += lit_color * on * glow * 1.9;
+				emission += room_c * on * glow * (hn_house ? 1.5 : 1.9);
 				rough = 0.45;
 			}
 			spec = 0.42;

@@ -36,6 +36,13 @@ static var enabled: bool = OS.get_environment("NIGHT_ATMOS") != "0"
 const HALO_KEY := "atmos_glow_halo"
 const SHAFT_KEY := "atmos_beam_shaft"
 const SHOP_KEY := "atmos_shop_glow"
+## A FULL lamp's reflection in the wet road (night_wet.gdshader; the night street review): the key
+## holds "glow" so PropBreak treats it as the lamp's light.
+const WET_KEY := "atmos_glow_wet"
+const WET_DISTANCE := 160.0
+## A reflection's strength per light of the lamp (a twin globe's two heads make one brighter streak).
+const WET_PER_LIGHT := 0.7
+const WET_MAX := 1.4
 
 ## Haze per Weather.State (CLEAR, OVERCAST, RAIN, STORM, MARINE, SANTA_ANA).
 const HAZE_BY_STATE := [0.3, 0.45, 0.8, 0.95, 0.92, 0.06]
@@ -129,6 +136,9 @@ static func lamp_parts(lights: Array, head: Vector3, foot_y: float, pool: float,
 	if full and h > 1.5:
 		var r := maxf(pool * SHAFT_FOOT, 1.2)
 		out.append([SHAFT_KEY, shaft_mesh(), Transform3D(Basis.from_scale(Vector3(r, h, r)), head + Vector3(0.0, -0.2, 0.0)), col, Color(1.0, 0.0, 0.0, 0.0)])
+	if full and h > 1.5 and NightStreetReview.enabled:
+		# The reflection: on the ground under the head, its height in the basis' y.
+		out.append([WET_KEY, wet_mesh(), Transform3D(Basis.from_scale(Vector3(1.0, h, 1.0)), Vector3(head.x, foot_y, head.z)), col, Color(minf(float(lights.size()) * WET_PER_LIGHT, WET_MAX), 0.0, 0.0, 0.0)])
 	return out
 
 
@@ -151,8 +161,9 @@ static func shop_part(xf: Transform3D, color: Color, foot_y: float) -> Variant:
 
 ## After a chunk's batch keys are filled: no shadows, the draw distances.
 static func finish_batch(batch: MultiMeshBatch) -> void:
-	for k: String in [HALO_KEY, SHAFT_KEY, SHOP_KEY]:
+	for k: String in [HALO_KEY, SHAFT_KEY, SHOP_KEY, WET_KEY]:
 		batch.set_no_shadow(k)
+	batch.set_draw_distance(WET_KEY, WET_DISTANCE)
 	batch.set_draw_distance(HALO_KEY, DRAW_DISTANCE)
 	batch.set_draw_distance(SHAFT_KEY, SHAFT_DISTANCE)
 	batch.set_draw_distance(SHOP_KEY, 220.0)
@@ -173,6 +184,18 @@ static func halo_mesh() -> Mesh:
 	m.surface_set_material(0, atmos_material("halo"))
 	m.custom_aabb = AABB(Vector3(-5, -5, -5), Vector3(10, 10, 10))
 	_meshes.halo = m
+	return m
+
+
+## The wet reflection's quad (corners at +-1; night_wet.gdshader lays it on the road toward the
+## camera). Its bounds cover the longest streak the shader lays from the lamp's foot.
+static func wet_mesh() -> Mesh:
+	if _meshes.has("wet"):
+		return _meshes.wet
+	var m := (halo_mesh() as ArrayMesh).duplicate() as ArrayMesh
+	m.surface_set_material(0, atmos_material("wet"))
+	m.custom_aabb = AABB(Vector3(-40, -2, -40), Vector3(80, 4, 80))
+	_meshes.wet = m
 	return m
 
 
@@ -210,7 +233,7 @@ static func atmos_material(kind: String) -> ShaderMaterial:
 	if _meshes.has(key):
 		return _meshes[key]
 	var mat := ShaderMaterial.new()
-	mat.shader = load("res://shaders/night_halo.gdshader" if kind == "halo" else "res://shaders/night_shaft.gdshader")
+	mat.shader = load({"halo": "res://shaders/night_halo.gdshader", "wet": "res://shaders/night_wet.gdshader"}.get(kind, "res://shaders/night_shaft.gdshader"))
 	_meshes[key] = mat
 	return mat
 
