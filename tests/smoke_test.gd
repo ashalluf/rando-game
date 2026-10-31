@@ -3605,6 +3605,10 @@ func _test_weapons(player: Player) -> void:
 		await get_tree().physics_frame
 		player.global_position = crate.global_position + Vector3(5.0, 0.6, 0.0)
 		player.velocity = Vector3.ZERO
+		# PhysicsBudget froze the crate while earlier room checks had the player far off, and only
+		# wakes it on its next 0.25 s look (gate run 5555: the pellets hit it, it moved 0.00 m).
+		crate.freeze = false
+		crate.sleeping = false
 		await _ticks(5)
 		player.camera_rig.look_at_point(crate.global_position)
 		await _ticks(2)
