@@ -21980,3 +21980,61 @@ the same way, but judge 18:00 on the Mac first - if it reads milky-pink, raise `
 grass under a low red sun is what it is). The painted cumulus on opengl3 draws a big smooth ellipse in
 the aerial and sky shots (before and after alike; the sky's, not this review's). Dawn shares the sky
 ramp and the exposure ramp (both are symmetric in elevation) and was not looked at.
+
+## 9d?. The wet road's mirror: streaks, not tiles (fleet wave 4, `wt/wet-road-mirror`)
+
+**The problem.** road.gdshader's `mirrored_city()` (the night city in the water, for the web and the
+Compatibility renderer where nothing else mirrors, and under SSR on Forward+) looked the reflected
+ray up in a canyon on a fixed grid: 90 heading slots a turn x a floor every 1/36 of elevation, each
+window a crisp rectangle. In puddles (which cover half the road in rain) that was a regular grid
+of squares across the carriageway (still 04 shows it plainly; the street_night refcam had it faint).
+
+**What it is now** (`shaders/wet_road_mirror.gdshaderinc`, called from the same place in
+road.gdshader's fragment, inside the wet-and-lit branch):
+- *The physics it fakes.* A rough wet surface is a mirror with facets tilted at random; at a grazing
+  view a tilt moves the reflected ray ~2d in elevation but only ~2d sin(g) in heading, so lights
+  smear into vertical streaks. Every feature is a box in (heading, elevation) or (along, height),
+  and a box blurred by a gaussian is two ramps (`wrm_box()`), so the blur is free. `se` (elevation
+  sigma) comes from a per-pixel roughness field (the texture's roughness + two value-noise octaves:
+  `wrm_smear_min` 0.035 .. `wrm_smear_max` 0.13), `wrm_smear_puddle` 0.014 in standing water (a
+  rain-stirred puddle, not optically flat), heading `sh` = se x sin(g). `wrm_keep()` gives a smear
+  back part of the brightness its blur spreads (`wrm_spread_keep` 0.75).
+- *Street-aware.* On a street slab (width and kerb position from the slab UV's derivatives, the
+  drying code's trick, taken in uniform control flow before the branch) the reflected ray is
+  followed to the facade plane `wrm_setback` (4.5 m) past the kerb on its side; the front there is
+  units of ~`wrm_unit` 9 m along the street, hashed from the PLAN position (so a streak stays under
+  its shop as you move): a lit shop band 0.4-3..4.4 m (6 in 10 lit, a few very bright, warm / white
+  / cool / pink), neon over some, floors and bays of its own size, the roofline. Faded into the old
+  direction-only canyon (now on warped, uneven cells: `wrm_city()`) as the ray runs past
+  `wrm_street_reach`. The fronts are hashed, not the real buildings': `wrm_street_gain` (0.2) keeps
+  them modest so a dark wall does not get a bright shop mirrored under it.
+- *Glints.* The film is broken by world-fixed aggregate specks (`wrm_glint_size` 6 cm, faded to
+  their mean by the pixel footprint computed from the projection, no derivatives in the branch) and
+  patches (two turned octaves, so value-noise cells never show). **Trap, found by a still:** a
+  pattern in the view's own frame (along / across the view) is constant along each view ray, so
+  it drew lines fanning from the camera - screen-vertical stripes over the whole road. The sky in
+  the water takes only the soft patches (the glints over the whole road read as grass).
+- Windows, smeared past a floor, average into the facade's glow (a column per bay drew a comb).
+
+**Unchanged.** The dry road is bit-identical (everything is inside `if (wet > 0.01 && lamp_factor
+> 0.05 ...)`; Forward+ dry diff 0 pixels). Forward+ keeps the SSR blend (`near_mirror()`'s
+`mirror_forward`); the night street review's uniforms (`mirror_windows`, `_window_lit`,
+`_window_smear`, `mirror_sky`) are kept and read by the new code. No sampler, no instance uniform.
+
+**Switch.** `WET_ROAD_MIRROR=0` (`WetRoadMirror`, `scripts/world/wet_road_mirror.gd`, installed by
+`Weather._ready()`; the `wet_road_mirror` shader global, project.godot) draws the old
+`mirrored_city()`, still in road.gdshader.
+
+**Tools.** `tools/wet_road_mirror/mirror_shot.gd`: one street slab on the real road material, rows
+of lit fronts and windows, lamps, SSR - 30 s on opengl3, ~1 min on Forward+ under lavapipe (a city
+block under lavapipe is 13 GB and was OOM-killed twice, home block included). `WET`, `RAIN`,
+`LAMP`, `SSR`, `EYE`, `WET_ROAD_MIRROR`. For the city: `fwd_block_shot.tscn` on opengl3 (2-3 min).
+
+**Numbers.** street_night refcam before (main) -> after: p5/p50/p95 8/34/138 -> 7/33/129 (the p95
+drop is mostly a traffic car that entered the frame; the road's own brightness is level: Wilshire
+and downtown block crops p50 unchanged, mean +0.0 / +0.9). Triangles +3 % / draws +2 % (traffic
+and crowd, not this: the change adds no geometry). Stills: `shots/wet-road-mirror`.
+
+**Not done.** The mirrored fronts are hashed, not the real facades (a real reflection probe of the
+street would be the next step); the full ten-camera refcam set was not re-run (every other camera
+is dry, where the road is bit-identical by construction).

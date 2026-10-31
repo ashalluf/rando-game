@@ -3786,3 +3786,11 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+
+- **2026-10-31 The wet road mirrors streaks, not tiles (wet-road-mirror, HANDOFF "The wet road's
+  mirror").** The night mirror in road.gdshader drew the lit windows on a fixed heading x elevation
+  grid, which read as a grid of squares across the carriageway. Decisions: the mirrored canyon is
+  drawn already blurred, mostly in elevation, by a roughness field; on a street the facades are
+  placed past each kerb so streaks sit under (hashed, plan-fixed) shop fronts; every pattern is
+  fixed to the road, never to the view; the dry road stays bit-identical and Forward+ keeps its SSR
+  blend. WET_ROAD_MIRROR=0 is the A/B.
