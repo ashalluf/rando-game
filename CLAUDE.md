@@ -912,6 +912,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   and a `max_spin` cap (`clamp_spin()`, each physics step) - never snap parts back by teleport, it
   fights the contacts and diverged. `RAGDOLLS=0` is the A/B (`RAGDOLL_INERTIA=0` the old inertia); probe `tools/ragdolls/probe.tscn`, stills `tools/ragdolls/ragdoll_shot.tscn`; checks
   `tests/ragdolls_checks.gd`.
+  **How a doll moves** (2026-10-31, docs/HANDOFF.md "Ragdolls that read right"): `RagdollFeel`
+  (`scripts/npc/ragdoll_feel.gd`, `RagdollJoints.feel`) shapes the fling by a hint said just before
+  the knock (`note_shot()` in Pedestrian.shot, `note_car()` in Vehicle's bumper): a round under
+  `stagger_max_speed` staggers (muscles toward the standing pose, leaned along the round, then the
+  knees go), a car sweeps the legs under the trunk (over the bonnet), anything else flies with joint
+  damping and limb drag (limbs trail); on a slope or steps `rolling_down()` keeps it rolling.
+  `RAGDOLL_FEEL=0` is the A/B; stills `tools/ragdoll_feel/feel_shot.tscn`; checks
+  `tests/ragdoll_feel_checks.gd`.
   Dismemberment (owner, same day: "body parts limbs flying off ... from the rocket launcher"):
   `Explosion.blast()` passes `gibs` (up to 3 inside `gib_reach` of the radius) to
   `Pedestrian.knock()`, and `Ragdoll.dismember()` collapses each lost limb with a `LimbHider`
@@ -1103,6 +1111,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `ai`. `TRAFFIC_AI=0` is the A/B; `TrafficManager.drive_usec` is the traffic tick's cost. Stills:
   `TRAFFIC=bus|merge|pullout TRAFFIC_STEPS=s,s,...` on `still_shot.gd` (the staged traffic moves
   only by `advance_shot()`, saved `_t1`, `_t2`, ...). Checks: `tests/traffic_ai_checks.gd` (alone: `tools/traffic_ai/checks.tscn`).
+- Traffic motion (2026-10-30, docs/HANDOFF.md "Traffic that moves like cars"): `TrafficMotion`
+  (`scripts/vehicles/traffic_motion.gd`, `Vehicle.motion`, one hook in `_update_wheels()`) moves a
+  kinematic car's BodyModel and NightLights on springs (dive, squat, lean, road texture, RoadWear's
+  potholes drop the wheel rigs) within 70 m of the camera, steers the front wheels at a real rate
+  and holds them at a stop; `turn_pose()` (from `TrafficManager._place()`) draws a street turn
+  round a fillet - the logic reads its own position back through `TrafficMotion.logical()`
+  (`t.tm_logic`), never the drawn one; `queue_react()` gives followers a beat (not `placed` cars).
+  `TRAFFIC_MOTION=0` the A/B; stills `TMOTION=brake|pull|turn` on still_shot.gd; bench
+  `tools/traffic_motion/bench.tscn`; checks `tests/traffic_motion_checks.gd`.
 - Street signs (2026-10-05, docs/HANDOFF.md "The street's signs"): `StreetSigns`
   (`scripts/world/street_signs.gd`) places them, `StreetSignKit` (`street_sign_kit.gd`; BoulevardSigns has the other `SignKit`) builds them in code at
   real size (plates, sheeting border and legend a few mm proud, mill backs, round galvanised
@@ -1450,6 +1467,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   windscreen dust (`screen_dust`) on the shared cabin glass. `CAR_DETAIL=0` the A/B; `CAR_GRIME=`
   and views `plate|nose|wheel|arch` on car_shot.gd; probe `tools/car_detail_probe.gd`; checks
   `tests/car_detail_checks.gd`.
+- Cars at arm's length (2026-10-31, docs/HANDOFF.md "Cars at arm's length: under and inside the
+  arches"): every lofted road body has a second file, `road_<name>_under.glb`
+  (`tools/make_car_undersides.py`: the loft rebuilt without details, ~2 s, only to raycast the floor,
+  the tail and the arch skin; `bpy==4.2.0` under python3.11) - ribbed arch liners, strut springs,
+  subframes and arms, the exhaust run with its tips (none on the EV), tank, rear axle (a ladder frame
+  and leaf springs on the trucks, the van, the lowriders) and a black underseal sheet over the loft's
+  PAINTED floor. `CarUnderside` hangs it under the placed model (one hook in `_add_body_model()`): one
+  shadowless surface on `shaders/car_underside.gdshader` (kind in COLOR.r / 16), drawn to 22 m, NOT
+  one of `_body_meshes`; the body .glb and its far twin are untouched. `CAR_UNDERSIDE=0` the A/B;
+  views `tail`, `liner`, `under` (last) on car_shot.gd; checks `tests/car_exterior_closeup_checks.gd`.
 - Car paint, second pass (2026-10-30, docs/HANDOFF.md "Car paint that reads as photographed"):
   `CarPaint2` (`scripts/vehicles/car_paint_2.gd`, two hooks in Vehicle) and the `paint2` block of
   car_paint.gdshaderinc (every uniform 0 by default: other materials and `CAR_PAINT_2=0` keep the
@@ -1861,6 +1888,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `haze_for()`, shaft gain 0 where volumetric fog is on, halo gain, viewport height), pushed four
   times a second; collapsed by day. `NIGHT_ATMOS=0` is the A/B; checks
   `tests/night_atmos_checks.gd`.
+- The night flight (2026-10-31, docs/HANDOFF.md "The night flight"): the city from 150-800 m
+  at night. `NightFlight` (`scripts/world/night_flight.gd`, the `night_flight` global, installed by
+  DayNight) gates three shader passes: far traffic in moving platoons (`ft_platoon()` in
+  far_traffic.gdshaderinc: the cells' share x a smooth noise along the moving road, mean 1; a far
+  lane's tail lights x `FT_TAIL_MEAN`), the street grid ranked by width (`street_rank()` in
+  street_glow.gdshaderinc, in road.gdshader's far glow, far_ground and the far plates; width from
+  the slab UV's derivatives) with junction squares lit at their corners (`street_glow_junction()`),
+  and nightlife sky beams fading for a camera in the air near them. GDScript copies are checked.
+  `NIGHT_FLIGHT=0` is the A/B; stills: `SHOTS=` EYEs in the HANDOFF section; checks
+  `tests/night_flight_checks.gd`.
 - The night street review (2026-10-30, docs/HANDOFF.md "The night street at eye level"):
   `NightStreetReview` (`scripts/world/night_street_review.gd`) holds the balance: the moon's key
   (`MOON` 0.09: at 0.3 it lit streets evenly blue at ~45 % of the noon sun and hid the lamps),
@@ -4090,6 +4127,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   scanned bark reads its ORM occlusion. No mesh, roll or ladder change. Stills
   `tools/trees_closeup/tree_shot.gd` (both renderers), streets `tools/trees_closeup/probe.gd`;
   checks `tests/trees_closeup_checks.gd`.
+- Trees under light (2026-10-31, docs/HANDOFF.md "Trees under light"): `TreeLight`
+  (`scripts/world/tree_light.gd`, marked from `TreesCloseup.mark()` / `dress()`) and
+  `shaders/tree_light.gdshaderinc` in foliage_tex / foliage / la_tree: in a directional shadow pass
+  (`PROJECTION_MATRIX[3][3] > 0.5`) leaves step back `self_shadow_slack` along the light's axis (the
+  twin's coarse cards shaded the sunlit shell; the ground shadow does not move); scanned leaves keep
+  the rounded normal on both faces; light through the crown is EMISSION from `tl_path()` (the path out
+  of the crown ellipsoid) toward the sky (`sky_tint`) and the sun (`tree_sun` global, the sun's linear
+  colour x energy, kept by a TreeLight node); the sway is weighted (`tl_rate()` by `sway_height`,
+  `tl_load()` late with a swing-back; `TreeLight.load_of()` the GDScript copy). `TREE_LIGHT=0` the A/B;
+  stills `tools/tree_light/tree_light_shot.tscn` (AB=1, PARAMS=); checks `tests/tree_light_checks.gd`.
 - Replica areas (see the technical rule): `ReplicaAreas` (`scripts/world/replica_areas.gd`,
   `MacroMap.replica`, built in `MacroMap.setup()` before the hill roads, `fit_hill_profile()`
   after) holds each area as a table - today only `ESPLANADE`: Knob Hill down the Redondo
@@ -6326,6 +6373,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   per-cell MultiMeshes; record in `note_car()`, the batches clear their lists when built), Broadway
   goods off car parks, shed trees out, cafe sets clear of shelters. `STREET_CLOSEUP=0` is the A/B;
   checks `tests/downtown_street_closeup_checks.gd`.
+- Patterned ground (2026-10-31, docs/HANDOFF.md "Patterned ground without moire"): an integer
+  carried through a varying is ROUNDED before `int()` / `floor()` (an interpolated 3.0 reads 2.9999
+  on some rows: the forecourts' red / grey row stripes); repeating ground lines are box-filtered by
+  their footprint with `shaders/pattern_aa.gdshaderinc` (`paa_lines/grid/stripes/keep`), never
+  widened by fwidth() (that grows the line); a laid paving TEXTURE (setts, pavers, bricks) fades to
+  its last mip once its module (`PavingAA.MODULE`, a share of the tile; `road()` passes
+  `pattern_module`) is under two pixels (`paa_tex_fade`). `PAVING_AA=0` is the A/B; checks
+  `tests/paving_aliasing_checks.gd`; probes `tools/paving_aa/`.
 - Road hardware (2026-10-05, docs/HANDOFF.md "Road hardware"): `RoadHardware`
   (`scripts/world/road_hardware.gd`, one hook line at the end of `StreetDetail.build_block`, FULL
   chunks) lays cast-iron manhole covers (four cast patterns, proud or sunk in a patched round or
