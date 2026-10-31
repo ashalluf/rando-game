@@ -3629,6 +3629,26 @@ already mapped so milestone 2 is script-only.
   its own prop record; Broadway's lanterns at 0.6 of the level. All tuning of existing systems plus
   one quad a lamp; `NIGHT_STREET_REVIEW=0` restores the old numbers.
 
+- **2026-10-30 Traffic that moves like cars (traffic-motion, HANDOFF "Traffic that moves like
+  cars").** Kinematic traffic glided: no dive, squat, lean or bounce, turns snapped 90 degrees at
+  the junction centre, front wheels straightened at every stop, a queue left in one tick.
+  Decisions: the motion is VISUAL only, springs on the body model and its lamps (TrafficMotion,
+  one hook in Vehicle._update_wheels), within 70 m of the camera; gains a little over a real
+  saloon's so a game camera reads them; turns are drawn round a fillet in TrafficManager._place()
+  while the logic keeps its own position (t.tm_logic), so no queue rule changes; a follower waits
+  a hashed beat after the car ahead moves off, but not cars placed by checks. TRAFFIC_MOTION=0 is
+  the A/B.
+- **2026-10-31 Trees are lit THROUGH, and the shadow map stays off their sunlit shell (tree-light-2,
+  HANDOFF "Trees under light").** Judged on a small Forward+ scene under lavapipe (the real batch
+  path, so the shadow twins and ladders are the game's) at 13:00 and 17:36. Decisions: a directional
+  shadow pass pushes leaves back along the light's own axis (`self_shadow_slack`: the ground
+  shadow does not move, the twin's coarse cards stop shading the shell they stand in front of);
+  the crown normal stays rounded on both faces of a card; the light that comes through a crown is
+  an emitted term from an analytic path through the crown's ellipsoid toward the sky and the sun
+  (Godot's BACKLIGHT is one leaf deep and the shadow map kills it inside a crown); the sway gets
+  weight (rate by height, the gust answered late with a swing-back). No mesh, ladder or twin
+  changed. `TREE_LIGHT=0` is the A/B.
+
 ## Correction: what build 135 (0ce833f) actually contained
 
 That commit's subject says "denser grass, real palm fronds, finer ground". It also shipped a
@@ -3779,6 +3799,15 @@ none of either.
   2.6 km, a sky and street that light toward the strike, and water running off the buildings - on
   top of a darker, greener, closed-over day sky. All cheap: no new full-screen pass on the web (the
   inner curtain is desktop only). STORM_DRAMA=0 is the A/B.
+- **2026-10-31, patterned ground without moire (paving-aliasing).** The "moire" on downtown's red
+  forecourts was not aliasing: lot_ground.gdshader truncated its interpolated surface kind with
+  int(), and an interpolated 3.0 reads 2.9999 on some pixel rows, so the paving flipped between red
+  pavers and setts row by row. Decisions: every integer carried through a varying is ROUNDED (or
+  the varying is flat) before int() / floor(); repeating ground lines are box-filtered by their
+  footprint with one include (shaders/pattern_aa.gdshaderinc, the exact integral of a pulse train)
+  rather than widened by fwidth(), which grows a line instead of filtering it; PAVING_AA=0 is the A/B.
+  Wave 4: a laid paving texture fades to its own last mip once its module (PavingAA.MODULE) is
+  under two pixels by the footprint's major axis - mips alone pick the minor axis under anisotropy.
 
 - **2026-10-30 The golden hour review: tune ramps, not systems (golden-hour-review, HANDOFF "The
   golden hour review").** Judged 17:00-19:30 on six views x six half hours by numbers (sky / ground
@@ -3786,3 +3815,95 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+- **2026-10-31 - The night flight (night-flight, HANDOFF "The night flight").** The night aerial is
+  tuned in the shaders that already draw it, never with new geometry: traffic platoons as a smooth
+  noise in the cars' moving frame (the near lamps and the far lane means read the same factor), a
+  street's glow ranked by its width measured from the slab's own UV derivatives (so FULL, LOD and
+  the far plates agree without a table), junctions lit at their corners. NIGHT_FLIGHT=0 is the A/B.
+- **2026-10-31 Cars at arm's length (car-exterior-closeup, HANDOFF "Cars at arm's length")**: what
+  is under a car and inside its arches is a SECOND file per body (`road_<name>_under.glb`), fitted to
+  the loft by raycasts and hung under the placed model, rather than a rebuild of the body .glbs: the
+  bodies, their LODs and far twins stay bit for bit, it is drawn only within 22 m with no shadow, and
+  it can be switched off (CAR_UNDERSIDE=0). The loft's floor was in the paint slot; a black underseal
+  sheet now covers it.
+
+- **2026-10-31 Ragdolls that read right (ragdoll-feel, HANDOFF "Ragdolls that read right").** A shot
+  person staggers before falling, a flung one trails its limbs, a car hit wraps over the bonnet, a
+  doll rolls down steps. Decisions: the hit reaction is MUSCLES on the jointed doll (driven toward
+  its standing pose, leaned along the round, then let go), not a clip played before the doll is made
+  - the doll exists from the first frame, so blood, police, Emergency and onlookers are untouched,
+  and the reaction follows the round's direction by construction; what hit the person is a hint said
+  just before the knock (Pedestrian.shot, Vehicle's bumper), so no knock() signature changes; the cap,
+  range and freeze stay RagdollJoints'. RAGDOLL_FEEL=0 is the A/B.
+
+- **2026-10-31 The Mac is checked with a button, not a Terminal (HANDOFF "The verify pack",
+  docs/VERIFY.md).** Every fleet picture is the Compatibility renderer on Linux; nobody had seen
+  wave 3 on Forward+. The owner plays the Mac app with no Terminal, so the check is a pause-menu
+  button that shoots the ten refcams (the same table, copied into the game and checked equal) and
+  writes a send folder; the app now knows its build number (stamped by the workflow before the
+  export). No render feature of its own: what it saves is what the game draws. VERIFY_PACK=0.
+- 2026-10-31 (Forward+ review f, wave 4): a lightning strike at night lights the street, it does
+  not erase it - the flash's light is scaled by the night (the exposure is set for the moon) and
+  the bolt stays the brightest thing in the frame. Forward+ lighting verdicts on lavapipe are taken
+  only after the GI has converged (~90 frames). STORM_NIGHT_FLASH=0 is the A/B.
+- **2026-10-31 The first minute is part of the load (loading-first-frame, HANDOFF "The first
+  minute").** Whatever play would build in its first seconds - the traffic, the streamer's own
+  window, wave 3's first-use pipelines - is built behind the shade, and nothing the loading screen
+  builds may be one the streamer throws away at once (the wide FULL preload was). Measured after the
+  shade with LOAD_FIRST_MINUTE, the screen's work headless with LOAD_SCREEN_HEADLESS.
+
+- **2026-10-31 Rooms behind the windows, second pass (window-interiors-2, HANDOFF "Rooms behind
+  the windows, second pass").** A city building is either offices or flats (an integer roll on its
+  seed, by window style: half the punched-window buildings are homes), and everything behind a
+  window - the room kind, what hangs at the glass, a TV, an open sash, a worker at the desk - is an
+  integer roll of the building's seed and the window's (face, row, col), in one include both
+  building shaders read, so the far box draws the same home's lamp tone, TV and curtain average the
+  near wall traces. Occupied offices keep their ceiling lights on in office hours (as real ones
+  do), because a worker in a dark room does not read from the street. Zero geometry: it is all
+  traced per pixel on the glass that was already there. WINDOW_INTERIORS=0 is the A/B.
+- **2026-10-31 The street at eye level (ambient-sound-2, HANDOFF "The street at eye level").** The
+  near layer of the city's sound is EVENT-driven, not rolled: steps come from walkers the listener
+  can see (their own speed and surface), bells and doors from StreetErrands' real shoppers and
+  drivers, air brakes from real buses and trucks coming to a stand; only the far layer (beds,
+  far one-shots) stays statistical. A clip with no CC0 recording (steady wet-tyre hiss) is
+  synthesised in the cutting tool rather than faked from a pass-by. All behind AMBIENT_SOUND_2=0.
+
+- **2026-10-31 Crashes break cars, and a hard side hit rolls them (car-crash-3, HANDOFF "Crashes
+  that break cars").** The owner's rule that a car in the air flies, never tumbles, stays for
+  everything the player does on purpose; a crash past a T-bone's threshold (or a close blast) is the
+  one exception: the car gets a real centre of mass and is let roll by the physics until it rests,
+  and holding boost still flies it out. What breaks off (glass, bonnet, a wheel, pieces) is
+  per-car state made only on a crash; nothing is added to an undamaged car. CRASH_BREAKUP=0 is the A/B.
+- **2026-10-31 The fireball is a volume, and what a blast throws lands (explosions-3, HANDOFF "The
+  blast at arm's length").** Cards cannot have depth: forty billboards always read as a pile of
+  discs from close up. Decision: on the desktop the fireball is ONE ray-marched box (26 steps of a
+  tiling 3D noise, black-body light and lit soot), capped at four at once, the cards kept past the
+  cap and on the web. Everything a blast throws that can be seen landing (chips, sparks, burning
+  lumps) is a scripted point with one ray a tick, never a particle that falls through the road.
+  Smoke is lit by the fires actually burning, not by its own age. All behind EXPLOSIONS_3=0.
+
+- **2026-10-31 The hero's locomotion: one pose by weights, not clip swaps (hero-locomotion-2, HANDOFF
+  "The hero's locomotion").** The gaits are sampled and blended by a modifier over the idle, phase-
+  synced by the toes' touchdowns, so every transition (start, gait change, stop, turn, landing) is
+  a weight that moves. The free clip library has no start / stop / turn / strafe clips, so those
+  are procedural (phase, hip yaw, springs). HERO_LOCO=0 is the A/B.
+- **2026-10-31 The pier at night: draw what a pixel cannot hold (rc-pier-night, HANDOFF "The pier at
+  night from the beach").** From the beach the wheel's 13 cm LED strips are a fifth of a pixel and the
+  deck's lamps and bulbs smaller still, so the Compatibility renderer drew the park as white steel on a
+  black slab under a sky whose painted clouds were dark holes. Rather than fattening the geometry, the
+  far view is drawn on purpose: the wheel's strips analytically in its plane (the same pattern include
+  the LEDs run) once they are under a couple of pixels, NightAtmos halos for every point light (one
+  MultiMesh, thinned on the far copy so a kilometre off they are points, not a smear), real chaser
+  bulbs on the coaster, and the painted cumulus lit at night the way the Forward+ volume already was.
+  Forward+ at HIGH draws the same wheel and bulbs (checked on lavapipe); its volume clouds are
+  untouched. `PIER_NIGHT=0`, `NIGHT_CLOUDS=0`.
+- **2026-10-31 The sky's radiance catches up with a jump (web-hero-rain, HANDOFF "The hero in the
+  rain on the web").** The "blue hero in the rain on the web" was the incremental sky radiance map
+  still holding the clear sky the city loaded in: the wet velour and hair mirror it, and a browser
+  under SwiftShader shows those first frames for minutes. Decision: keep PROCESS_MODE_INCREMENTAL
+  for the drift of the day and hold QUALITY for three frames on a jump (load, an hour or weather
+  snap, a cloud cover step). No shader or colour change. `SKY_SETTLE=0` is the A/B.
+- 2026-10-31 (skyline glass by day, wave 3): what a glass tower mirrors is worked out per pixel from
+  shared globals, never from a probe or a capture: the hour's sky (DayNight's own colours), a cloud
+  deck, the real towers round the camera as up to eight traced boxes, the sun. Near walls, far boxes
+  and crowns share one include so the LOD line does not show. SKYLINE_GLASS=0 is the A/B.

@@ -307,7 +307,8 @@ func _craters() -> void:
 			budgeted += 1
 	_check(rubble > 0 and budgeted == rubble and debris0 >= 0, "the rubble counts against the physics budget")
 	var maps := BlastAftermath.crater_textures(0)
-	_check(maps.size() == 2 and (maps[0] as Texture2D).get_width() == 256, "the crater's maps are generated")
+	# Two maps of 256 px, or Blast3's three of 384 (explosions-3: soot fingers, embers).
+	_check(maps.size() >= 2 and (maps[0] as Texture2D).get_width() >= 256, "the crater's maps are generated")
 	# A car's own blast: scorch, no pit.
 	var car := _car(30.0, 60.0)
 	await _ticks(10)

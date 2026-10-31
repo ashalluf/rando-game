@@ -512,6 +512,8 @@ func _drive_streets(delta: float) -> void:
 			continue
 		var t: Dictionary = car.traffic
 		var wp := WorldState.to_world(car.global_position)
+		if t.has("tm_logic"):
+			wp = TrafficMotion.logical(t, wp) # where the logic has it, not where its turn draws it
 		t.along = wp.z if int(t.axis) == CityPlan.AXIS_X else wp.x
 		t.wp = wp
 		# A car on a closed stretch (a landmark's site, CityPlan.road_open) has no business there
@@ -540,7 +542,14 @@ func _drive_streets(delta: float) -> void:
 	_drive_serial += 1
 	var tick := _drive_serial
 	for key in groups:
+		# A car that left traffic earlier this tick (parked by an errand, abandoned in a panic) is
+		# still in the group built at the tick's start, with an empty `traffic`: drop it.
 		var group: Array = groups[key]
+		if group.any(func(c: Vehicle) -> bool: return not is_instance_valid(c) or not c.traffic.has("along")):
+			group = group.filter(func(c: Vehicle) -> bool: return is_instance_valid(c) and c.traffic.has("along"))
+			groups[key] = group
+		if group.is_empty():
+			continue
 		var dir := float(group[0].traffic.dir)
 		if group.size() > 1:
 			group.sort_custom(func(a: Vehicle, b: Vehicle) -> bool: return float(a.traffic.along) * dir < float(b.traffic.along) * dir)
@@ -630,7 +639,7 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 	# before the nearest thing standing still ahead.
 	var room := INF
 	var still := INF
-	if leader != null:
+	if leader != null and is_instance_valid(leader) and leader.traffic.has("along"):
 		var lt: Dictionary = leader.traffic
 		var gap: float = (float(lt.along) - along) * dir - half - float(lt.get("rear", lt.get("half", 2.4)))
 		var lead_v := float(lt.get("v", 0.0))
@@ -801,6 +810,7 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 	# cars that cannot make up their minds.
 	if v < 0.8 and still < 1.2:
 		nv = 0.0
+	TrafficMotion.queue_react(car, t, leader, v) # the beat before following the car ahead off
 	if float(t.get("react", 0.0)) > 0.0:
 		t.react = float(t.react) - delta
 		t.react_t = float(t.get("react_t", 0.0)) + delta
@@ -856,7 +866,13 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 			t.dir = new_dir
 			t.lane = lane
 			t.turn = 0
-			t.node = Vector2i(-999999, -999999)
+			# The junction it just turned through is the "next" one on the new road too (the car's
+			# along is its old lane, short of the centre): marked as seen, or a second turn was rolled
+			# there and the car snapped back onto the road it came from (CI 397).
+			t.node = node
+			t.forced = false
+			t.sign_ok = true
+			t.amber_go = true
 			var road := plan.road_pos(cross_axis, cross_index)
 			# Rebuild the world position on the new road, keeping the intersection's coordinate.
 			var pos2 := Vector2(wp.x, road + lane) if cross_axis == CityPlan.AXIS_Z else Vector2(road + lane, wp.z)
@@ -1063,6 +1079,16 @@ func _relief_sample(i: int, j: int) -> float:
 ## one pushes a transform change down every child the car has - body, glass, lights, twelve wheel
 ## and caliper meshes - to the renderer and the physics server. Same result, a quarter of the work.
 func _place(car: Vehicle, pos: Vector3, yaw: float, pitch: float) -> void:
+	# A turn is drawn round a fillet, not snapped at the junction's centre (TrafficMotion).
+	if TrafficMotion.enabled and car.traffic.has("axis"):
+		var w := WorldState.to_world(pos)
+		var arc := TrafficMotion.turn_pose(self, car, w, yaw)
+		if not is_nan(arc.w):
+			pos = WorldState.to_local(Vector3(arc.x, w.y, arc.z))
+			yaw = arc.w
+			car.traffic.tm_logic = [w, Vector3(arc.x, w.y, arc.z)]
+		elif car.traffic.has("tm_logic"):
+			car.traffic.erase("tm_logic")
 	var xf := Transform3D(Basis.from_euler(Vector3(pitch, yaw, 0.0)), pos)
 	# A car standing in a queue is placed where it already is: the write would push the same
 	# transform down every child (body, glass, lights, wheels) to the renderer and the physics

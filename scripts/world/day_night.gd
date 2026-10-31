@@ -266,6 +266,8 @@ func _exit_tree() -> void:
 func _ready() -> void:
 	hour = start_hour
 	NightSkyline.install()
+	NightFlight.install()
+	WindowInteriors.install()
 	_sun = get_node_or_null(sun_path) as DirectionalLight3D
 	var we := get_node_or_null(environment_path) as WorldEnvironment
 	if we:
@@ -287,6 +289,15 @@ func _ready() -> void:
 			island.name = "OffshoreIsland"
 			add_child(island)
 			island.setup(_sky, self)
+	if _env and _env.sky and SkySettle.enabled():
+		var settle := SkySettle.new()
+		settle.name = "SkySettle"
+		add_child(settle)
+		settle.setup(_env, self)
+		# The skyline's glass: this hour's sky, the clouds and the towers round the camera.
+		var skyline_glass := SkylineGlass.new()
+		skyline_glass.name = "SkylineGlass"
+		add_child(skyline_glass)
 	_apply()
 
 

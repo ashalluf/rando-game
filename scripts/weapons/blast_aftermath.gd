@@ -102,12 +102,38 @@ static func crater(node: Node, at: Vector3, normal: Vector3, radius: float, pit:
 		d.lower_fade = 0.3
 		d.cull_mask = 1
 		mark.add_child(d)
+		if maps.size() > 2 and pit:
+			# The pit's embers glow, then go out (Blast3).
+			d.texture_emission = maps[2]
+			d.emission_energy = 4.0
+			var et := d.create_tween()
+			et.tween_property(d, "emission_energy", 0.0, Blast3.ember_seconds).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 	else:
 		var q := MeshInstance3D.new()
 		var pm := PlaneMesh.new()
 		pm.size = Vector2(size * 2.0, size * 2.0)
 		q.mesh = pm
 		q.material_override = mark_material(maps, pit)
+		if maps.size() > 2 and pit:
+			# The pit's embers (Blast3): an additive quad of the emission map just over the mark
+			# (a StandardMaterial's emission map on the cut-out quad lit the whole mark white on
+			# the Compatibility renderer), dimmed to nothing.
+			var eq := MeshInstance3D.new()
+			eq.mesh = pm
+			var em := StandardMaterial3D.new()
+			em.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			em.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			em.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+			em.albedo_texture = maps[2]
+			em.albedo_color = Color(4.0, 4.0, 4.0, 1.0)
+			em.render_priority = -1
+			eq.material_override = em
+			eq.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			eq.position = Vector3(0.0, 0.1, 0.0)
+			mark.add_child(eq)
+			var et := eq.create_tween()
+			et.tween_property(em, "albedo_color", Color(0.0, 0.0, 0.0, 1.0), Blast3.ember_seconds).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+			et.tween_callback(eq.queue_free)
 		q.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		# Over the drawn ground, which stands a few centimetres proud of its collision on the
 		# pavements and plazas (the slabs follow the relief, the box under them does not).
@@ -241,6 +267,8 @@ static func _chunk_mesh(sides: int, size: Vector3, seed_: int, top: Color, side:
 ## The crater's maps, made once: [albedo (alpha the coverage), normal]. Kind 0 the pit with its
 ## scorch, 1 the scorch alone. 256 px, a few tens of ms each, warmed on the loading screen.
 static func crater_textures(kind: int = 0) -> Array:
+	if Blast3.enabled:
+		return Blast3.crater_maps(kind) # fingered soot, a scoured halo, glowing embers (explosions-3)
 	if _crater_tex.size() > kind and _crater_tex[kind] != null:
 		return _crater_tex[kind]
 	while _crater_tex.size() <= kind:

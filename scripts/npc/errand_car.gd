@@ -84,7 +84,9 @@ func _physics_process(delta: float) -> void:
 	if car.driver != null or car.is_wreck() or (car._damage != null and is_instance_valid(car._damage) and car._damage.state >= CarDamage.State.SMOKING):
 		_finish()
 		return
+	var was_open := _open
 	_open = move_toward(_open, 1.0 if want_open else 0.0, delta / ErrandProps.DOOR_TIME)
+	StreetSounds.car_door_moved(door, was_open, _open)
 	ErrandProps.swing(door, _open)
 	_t += delta
 	match mode:

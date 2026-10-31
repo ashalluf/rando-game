@@ -58,6 +58,17 @@ const BOLT_WIDTH_PER_M := 0.0021
 const FLASH_AMBIENT := 0.8
 ## The sky's flash toward the strike: the share spread over the whole sky (1 = the old even flash).
 const FLASH_SPREAD := 0.3
+## At night a strike's LIGHT is this share of the day's (the lightning's directional light, the
+## sun's flash term), and the sky's flash this share: the exposure is set for a 0.09 moon, so a
+## held 0.9 flash at the day's energy was ~350x the moonlight and whited out the whole frame -
+## street and sky at 200-230 of 255 on both renderers, the bolt lost in it (fwd-review-f). The
+## bolt itself is not scaled: it stays the brightest thing in the frame. STORM_NIGHT_FLASH=0 is
+## the A/B.
+const NIGHT_FLASH_LIGHT := 0.22
+const NIGHT_FLASH_SKY := 0.45
+static var night_flash_on: bool = OS.get_environment("STORM_NIGHT_FLASH") != "0"
+## The lightning light's volumetric-fog energy (Godot's default 1.0 with the switch off).
+const FLASH_FOG_ENERGY := 0.3
 ## Storm sky by day: darker and greener than the rain's grey (Colors, as DayNight passes them).
 const SKY_TOP := Color(0.105, 0.128, 0.122)
 const SKY_HORIZON := Color(0.205, 0.238, 0.222)
@@ -385,6 +396,18 @@ func on_strike(dist: float, dir: Vector3) -> void:
 	_bolt.global_transform = Transform3D.IDENTITY
 	_bolt_age = 0.0
 	bolts += 1
+
+
+## What a flash's light (`sky` false) or the sky's flash (`sky` true) is scaled by at `moonlight`
+## (DayNight.moonlight_now: 0 by day, 1 at night).
+static func night_flash_gain(moonlight: float, sky: bool = false) -> float:
+	if not night_flash_on:
+		return 1.0
+	return lerpf(1.0, NIGHT_FLASH_SKY if sky else NIGHT_FLASH_LIGHT, clampf(moonlight, 0.0, 1.0))
+
+
+static func flash_fog_energy() -> float:
+	return FLASH_FOG_ENERGY if night_flash_on else 1.0
 
 
 ## The flash this frame: Weather's flicker, or the held one of a still (STORM_FLASH_HOLD).
