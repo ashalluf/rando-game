@@ -2775,7 +2775,8 @@ func _setup_life() -> void:
 ## Whether this person could start something now (and join a group).
 func _life_free() -> bool:
 	return _life_ok and _life_near and not _down and _act == CrowdLife.Act.NONE and _panic_left <= 0.0 \
-		and _cross == Cross.NONE and not _jogger and _pause_left <= 0.0 and errand.is_empty()
+		and _cross == Cross.NONE and not _jogger and _pause_left <= 0.0 and errand.is_empty() \
+		and flow.get("leader") == null # walking with somebody (CrowdFlow): they decide where
 
 
 ## At the end of a walk, near the player: maybe stop and do something. True when it did.
