@@ -544,17 +544,24 @@ func _build() -> void:
 	column.add_child(seed_row)
 	column.add_child(_spacer(22.0))
 
+	# Settings and the verify pack share a row (a fourth big button pushed Quit into the footer).
+	var extras := HBoxContainer.new()
+	extras.add_theme_constant_override("separation", 18)
 	if GameSettings.enabled():
 		var settings := _big_button("Settings")
 		settings.name = "SettingsButton"
 		settings.pressed.connect(func(): _show_settings(true))
-		column.add_child(settings)
-
+		extras.add_child(settings)
 	if VerifyPack.enabled():
-		var verify := _big_button("Verify pack (10 pictures)")
+		var verify := _big_button("Verify pack")
 		verify.name = "VerifyButton"
+		verify.tooltip_text = "Takes the ten reference pictures on this machine (docs/VERIFY.md)"
 		verify.pressed.connect(_start_verify)
-		column.add_child(verify)
+		extras.add_child(verify)
+	for b in extras.get_children():
+		(b as Control).custom_minimum_size.x = 301.0 # half the column each
+	if extras.get_child_count() > 0:
+		column.add_child(extras)
 
 	var quit := _big_button("Quit")
 	quit.pressed.connect(func(): get_tree().quit())

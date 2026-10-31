@@ -3786,3 +3786,10 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+
+- **2026-10-31 The Mac is checked with a button, not a Terminal (HANDOFF "The verify pack",
+  docs/VERIFY.md).** Every fleet picture is the Compatibility renderer on Linux; nobody had seen
+  wave 3 on Forward+. The owner plays the Mac app with no Terminal, so the check is a pause-menu
+  button that shoots the ten refcams (the same table, copied into the game and checked equal) and
+  writes a send folder; the app now knows its build number (stamped by the workflow before the
+  export). No render feature of its own: what it saves is what the game draws. VERIFY_PACK=0.

@@ -14,7 +14,7 @@ extends CanvasLayer
 ##
 ## Env: VERIFY_PACK=0 (the A/B: no button, `--verify` ignored), VERIFY_HOLD=<s> the hold,
 ## VERIFY_ONLY=<names> a subset, VERIFY_DIR=<dir> where the folder goes, VERIFY_QUIT=1 quit when
-## done (the harness). Off on the web (a browser cannot write a folder).
+## done (the harness), VERIFY_CARD_SHOT=<png> a picture of the end card. Off on the web (a browser cannot write a folder).
 
 ## The ten cameras, as tools/refcams/cameras.json (the export ships no .json, so the table is
 ## here; tests/mac_verify_pack_checks.gd holds the two equal). eye = TRUE world x, y, z, yaw,
@@ -88,6 +88,14 @@ func _autostart() -> void:
 	while Time.get_ticks_msec() - t0 < 2000:
 		await get_tree().process_frame
 	await run()
+	# VERIFY_CARD_SHOT=<png>: the end card as the owner sees it (the harness's proof of the card).
+	var card_shot := OS.get_environment("VERIFY_CARD_SHOT")
+	if card_shot != "":
+		await RenderingServer.frame_post_draw
+		await RenderingServer.frame_post_draw
+		var img := get_viewport().get_texture().get_image()
+		if img:
+			img.save_png(card_shot)
 	if OS.get_environment("VERIFY_QUIT") == "1":
 		get_tree().quit()
 
@@ -203,6 +211,7 @@ func _begin(city: Node, player: Node3D) -> void:
 			_cam.attributes = attr
 	_cam.make_current()
 	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
+	_layout()
 	_overlay.visible = true
 
 
@@ -473,7 +482,7 @@ func _write_sheet(folder: String, shots: Array) -> void:
 		l1.position = Vector2(x, y + thh + 4)
 		vp.add_child(l1)
 		var lum: Array = s.get("lum", [0, 0, 0, 0, 0])
-		var l2 := _text("%.0f fps  gpu %.1f ms   %.2f M tris  %d draws   L %d/%d/%d" % [s.fps, s.gpu_ms,
+		var l2 := _text("%.1f fps  gpu %.1f ms   %.2f M tris  %d draws   L %d/%d/%d" % [s.fps, s.gpu_ms,
 			s.tris / 1.0e6, s.draws, lum[1], lum[2], lum[3]], HudTheme.text(), 15, Color(1, 1, 1, 0.7))
 		l2.position = Vector2(x, y + thh + 28)
 		vp.add_child(l2)
@@ -536,7 +545,7 @@ func _write_report(folder: String, shots: Array) -> void:
 
 
 func _renderer_text() -> String:
-	return "%s / %s" % [ProjectSettings.get_setting("rendering/renderer/rendering_method", "?"),
+	return "%s / %s" % [RenderingServer.get_current_rendering_method(),
 		RenderingServer.get_current_rendering_driver_name()]
 
 
@@ -559,18 +568,17 @@ func _build_ui() -> void:
 	_overlay = Control.new()
 	_overlay.name = "Progress"
 	_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_overlay.visible = false
 	add_child(_overlay)
-	_progress = _text("", HudTheme.text_medium(), 20, Color.WHITE)
-	_progress.position = Vector2(28, 22)
+	_progress = _text("", HudTheme.text_medium(), 28, Color.WHITE)
+	_progress.position = Vector2(40, 32)
 	_progress.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 	_progress.add_theme_constant_override("outline_size", 6)
 	_overlay.add_child(_progress)
 
+	# Laid out at 1080 lines and scaled with the window (_layout), like the pause menu.
 	_card = Control.new()
 	_card.name = "Card"
-	_card.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_card.visible = false
 	add_child(_card)
 	var shade := ColorRect.new()
@@ -592,26 +600,47 @@ func _build_ui() -> void:
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 14)
 	panel.add_child(col)
-	col.add_child(_text("VERIFY PACK", HudTheme.display_bold(), 44, Color.WHITE))
-	_card_text = _text("", HudTheme.text(), 20, Color(1, 1, 1, 0.85))
-	_card_text.custom_minimum_size = Vector2(720, 0)
+	col.add_child(_text("VERIFY PACK", HudTheme.display_bold(), 64, Color.WHITE))
+	_card_text = _text("", HudTheme.text(), 28, Color(1, 1, 1, 0.85))
+	_card_text.custom_minimum_size = Vector2(1000, 0)
 	_card_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	col.add_child(_card_text)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
 	col.add_child(row)
-	var open := Button.new()
+	var open := _button("Open folder", 300)
 	open.name = "OpenFolder"
-	open.text = "Open folder"
-	open.custom_minimum_size = Vector2(220, 52)
 	open.pressed.connect(func(): if last_folder != "": OS.shell_open(last_folder))
 	row.add_child(open)
-	var done := Button.new()
+	var done := _button("Done", 200)
 	done.name = "Done"
-	done.text = "Done"
-	done.custom_minimum_size = Vector2(160, 52)
 	done.pressed.connect(_close_card)
 	row.add_child(done)
+
+
+func _button(text: String, width: float) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.custom_minimum_size = Vector2(width, 72)
+	b.add_theme_font_override("font", HudTheme.text_medium())
+	b.add_theme_font_size_override("font_size", 28)
+	for st: Array in [["normal", 0.12], ["hover", 0.24], ["pressed", 0.3], ["focus", 0.12]]:
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(1, 1, 1, st[1])
+		sb.set_corner_radius_all(14)
+		sb.set_content_margin_all(12)
+		b.add_theme_stylebox_override(String(st[0]), sb)
+	return b
+
+
+## The card and the progress line at 1080-line units scaled to the window.
+func _layout() -> void:
+	var view := get_viewport().get_visible_rect().size if is_inside_tree() else Vector2(1920, 1080)
+	var sc := clampf(view.y / 1080.0, 0.6, 3.0)
+	_card.scale = Vector2(sc, sc)
+	_card.size = view / sc
+	_overlay.scale = Vector2(sc, sc)
+	_overlay.size = view / sc
 
 
 func _show_card(folder: String, shots: int, wanted: int) -> void:
@@ -621,8 +650,9 @@ func _show_card(folder: String, shots: int, wanted: int) -> void:
 		where = "~" + where.substr(home.length())
 	var head := "%d of %d pictures taken." % [shots, wanted] if shots == wanted else \
 		"Stopped after %d of %d pictures." % [shots, wanted]
-	_card_text.text = "%s  %s.\n\nSaved in %s\n\nSend the files in its \"send\" folder (sheet.jpg, report.txt and the ten small pictures). docs/VERIFY.md has the steps." % [head, BuildInfo.label(), where] \
+	_card_text.text = "%s  %s.\n\nSaved in %s\n\nSend the files in its \"send\" folder: sheet.jpg, report.txt and the small pictures (docs/VERIFY.md on GitHub has the steps)." % [head, BuildInfo.label(), where] \
 		if folder != "" else "%s  Nothing could be saved (no folder could be written)." % head
+	_layout()
 	_card.visible = true
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	get_tree().paused = true

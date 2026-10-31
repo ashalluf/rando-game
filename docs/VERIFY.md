@@ -16,7 +16,7 @@ It takes about two minutes. You do not need Terminal or Godot.
    https://github.com/ashalluf/rando-game/releases/latest and open **Rando Game.app**
    (the first time: System Settings > Privacy & Security > **Open Anyway**).
 2. Wait for the city to load, then press **Esc** (the pause menu).
-3. Click **Verify pack (10 pictures)**, near the bottom of the left column.
+3. Click **Verify pack**, beside **Settings** near the bottom of the left column.
 4. Hands off for about two minutes. The game jumps to each of the ten views, sets its time of day
    and weather, holds it for three seconds and takes a picture. The top-left corner says which
    one it is on ("VERIFY PACK 3 / 10 ..."). The jumps can stutter: that is the city being built
