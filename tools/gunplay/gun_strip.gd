@@ -39,6 +39,8 @@ func _initialize() -> void:
 		e.ambient_light_energy = 0.12
 		e.fog_enabled = false
 		(level.get_node("Sun") as DirectionalLight3D).light_energy = 0.0
+		# What DayNight publishes after dark (the flash's lights read it).
+		RenderingServer.global_shader_parameter_set("night_factor", 1.0)
 	var hud := level.get_node_or_null("DebugHud") as CanvasLayer
 	if hud != null and _env("HUD", "0") != "1":
 		hud.visible = false

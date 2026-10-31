@@ -35,6 +35,8 @@ static var hand_light_range: float = 2.4
 static var wall_light_energy: float = 1.8
 static var wall_light_min: float = 4.0
 static var wall_light_reach: float = 22.0
+## Share of the flash's light left at noon (1 at night).
+static var day_light_share: float = 0.35
 ## Seconds the flash's lights last (a real flash is a millisecond; a frame at 60 fps is the
 ## least the eye gets, and two read as a flash rather than a flicker).
 static var light_time: float = 0.06
@@ -116,9 +118,13 @@ static func flash(node: Node, at: Vector3, color: Color, size: float, life: floa
 ## (the old light, down the bore), and on the wall the barrel points at.
 static func _lights(node: Node, parent: Node, at: Vector3, fwd: Vector3, k: float) -> void:
 	var web := OS.has_feature("web")
+	# In sunlight a flash hardly lights anything (it burnt a pale wall white at noon); at night it
+	# lights the street. The night_factor global (DayNight) decides; no DayNight is day.
+	var dark := clampf(float(RenderingServer.global_shader_parameter_get("night_factor")), 0.0, 1.0)
+	var day_k := lerpf(day_light_share, 1.0, dark)
 	# Energy grows less than the flash: at the shotgun's full 2.4x the old light burnt a wall four
-	# metres off to white, in daylight too.
-	var main := _light(parent, at + fwd * 0.45 * k, WeaponFX.muzzle_light_energy * clampf(k, 0.7, 1.5),
+	# metres off to white.
+	var main := _light(parent, at + fwd * 0.45 * k, WeaponFX.muzzle_light_energy * clampf(k, 0.7, 1.5) * day_k,
 		WeaponFX.muzzle_light_range * clampf(k, 0.7, 1.4), WeaponFX.muzzle_light_time)
 	if not web:
 		# Volumetric fog takes it too (Forward+ HIGH): a flash in the haze is a puff of light.
@@ -130,7 +136,7 @@ static func _lights(node: Node, parent: Node, at: Vector3, fwd: Vector3, k: floa
 	# A bigger charge is a bigger flash, but the extra lights only grow a little with it: scaled
 	# by the shotgun's whole size they burnt the hands and a wall a few metres off to white.
 	var kl := clampf(k, 0.7, 1.35)
-	_light(parent, at - fwd * 0.18 + Vector3.UP * 0.05, hand_light_energy * kl, hand_light_range * kl, light_time)
+	_light(parent, at - fwd * 0.18 + Vector3.UP * 0.05, hand_light_energy * kl * day_k, hand_light_range * kl, light_time)
 	# The wall the barrel points at.
 	var space := WeaponFX._space(node)
 	if space == null:
@@ -145,7 +151,7 @@ static func _lights(node: Node, parent: Node, at: Vector3, fwd: Vector3, k: floa
 	var n: Vector3 = hit.normal
 	# Falls off with distance like a real flash would, eased so a wall down the street still
 	# blinks with every round.
-	var e := wall_light_energy * kl * clampf(9.0 / d, 0.35, 1.0)
+	var e := wall_light_energy * kl * day_k * clampf(9.0 / d, 0.35, 1.0)
 	_light(parent, hit.position + n * 1.3 - fwd * 0.4, e, 2.8 + d * 0.06, light_time)
 	stats["wall_lights"] = int(stats["wall_lights"]) + 1
 
