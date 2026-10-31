@@ -320,6 +320,9 @@ static func build_block(ch: CityChunk, rect: Rect2, side: int) -> void:
 			if z > c.x - 1.0 and z < c.y + 1.0:
 				skip = true
 		var roll := Broadway.h01([plan.seed, ch.ix, ch.iz, "bw_goods", i])
+		# Not in front of a car park's wall or a vacant lot's fence (StreetCloseup).
+		if not skip and roll < GOODS_ODDS and StreetCloseup.goods_blocked(plan, ch.ix, ch.iz, Vector2(x, z)):
+			skip = true
 		if not skip and roll < GOODS_ODDS:
 			var kind := Broadway.h01([plan.seed, ch.ix, ch.iz, "bw_goods_kind", i])
 			var at := Vector3(x, CityChunk.SIDEWALK_TOP, z)
@@ -416,6 +419,9 @@ static func gown_mesh() -> Mesh:
 ## A folding sale table of goods: boxes, stacked phones and radios, a price board.
 static func table_mesh() -> Mesh:
 	if _cache.has("table"):
+		return _cache.table
+	if StreetCloseup.enabled:
+		_cache.table = StreetCloseup.sale_table_mesh(_vc_material(0.7))
 		return _cache.table
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)

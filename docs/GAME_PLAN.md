@@ -3766,3 +3766,11 @@ none of either.
   can read the shop fronts, the road hardware and the poles instead of guessing; hashes only and no
   props (nothing else in the block moves); one batch a kind on one shader (the steam on its own,
   transparent). What is out follows the hour and weekday the chunk is built at, like the vendors.
+- **2026-10-30 Downtown at arm's length (downtown-street-closeup, HANDOFF "Downtown streets at
+  arm's length").** A pedestrian-eye review of downtown listed ten things that break the picture at
+  2-10 m; the worst were fixed in one file (StreetCloseup) with hooks: the kerb face gets its own
+  concrete material and a rolled arris strip, the gutter is LA's poured concrete pan, road paint is
+  pressed to 4 mm, LotFill's static cars become the real bodies' far twins within 42 m (per 24 m
+  cell), Broadway's goods keep off car parks and its sale table is real stock, trees under a
+  construction shed are taken out, cafe sets slide clear of bus shelters. Decisions: positions move
+  only after their rolls, hidden instances keep their indices, `STREET_CLOSEUP=0` is the A/B.

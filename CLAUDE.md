@@ -6289,6 +6289,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   RockFar's tors take the range haze and the hill's tone past `aerial_blend`; the far city's tree
   crowns are `CITY_CANOPY_GAIN` darker. `tools/aerial_review/layer_probe.gd` saves every shot again
   with one layer hidden (which node draws that speckle?). Checks `tests/aerial_review_checks.gd`.
+- Downtown at arm's length (2026-10-30, docs/HANDOFF.md "Downtown streets at arm's length"):
+  `StreetCloseup` (`scripts/world/street_closeup.gd`): the kerb face as its own mesh ("KerbFace") on
+  `shaders/kerb_closeup.gdshader` with a rolled arris strip, the 0.6 m concrete gutter pan
+  (StreetDetail's `gutter` batch, kept off inlet aprons), road paint pressed to 4 mm (road_paint
+  `thickness`), LotFill's static cars as real bodies within `REAL_CAR_NEAR` (hidden in the batch,
+  per-cell MultiMeshes; record in `note_car()`, the batches clear their lists when built), Broadway
+  goods off car parks, shed trees out, cafe sets clear of shelters. `STREET_CLOSEUP=0` is the A/B;
+  checks `tests/downtown_street_closeup_checks.gd`.
 - Road hardware (2026-10-05, docs/HANDOFF.md "Road hardware"): `RoadHardware`
   (`scripts/world/road_hardware.gd`, one hook line at the end of `StreetDetail.build_block`, FULL
   chunks) lays cast-iron manhole covers (four cast patterns, proud or sunk in a patched round or
