@@ -117,8 +117,9 @@ func _kerb(here: Vector2) -> String:
 	var from := crossing._cross_from
 	var to := crossing._cross_to
 	var dir := (to - from).normalized()
-	var eye := to + dir * 2.5 + Vector2(-dir.y, dir.x) * 2.0
-	var mid := Vector3(from.x, _plan.height_at(from) + 1.2, from.y)
+	# Out on the crosswalk, a little to the side, about seven metres off them.
+	var eye := from + dir * _envf("FLOW_EYE_OUT", 7.5) + Vector2(-dir.y, dir.x) * _envf("FLOW_EYE_SIDE", 3.5)
+	var mid := Vector3(from.x, _plan.height_at(from) + 0.9, from.y)
 	print("FLOW kerb: %d waiting at %s, slots %s" % [people.size(), from, people.map(func(q): return int(q.flow.get("kerb_slot", -1)))])
 	return _eye(eye, 1.65, mid)
 
