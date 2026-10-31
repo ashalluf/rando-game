@@ -152,6 +152,14 @@ func _land(at: Vector3) -> void:
 			continue
 		near += 1
 		under += 1 if p.y < _top.y - 0.25 else 0
+	if under > 0:
+		var shown := 0
+		for k in BlastBits.max_chips:
+			if bits._cstate[k] != BlastBits.FREE and shown < 6:
+				var p := bits.to_global(bits._cp[k])
+				if p.y < _top.y - 0.25:
+					shown += 1
+					print("EXPLOSIONS_3 under chip state=%d age=%.2f y=%.2f top=%.2f v=%s" % [bits._cstate[k], bits._cage[k], p.y, _top.y, bits._cv[k]])
 	_t._check(bits.chips_resting() > 10, "explosions_3: chips come to rest (%d resting)" % bits.chips_resting())
 	_t._check(near > 0 and under == 0, "explosions_3: no chip through the deck (%d of %d)" % [under, near])
 	_t._check(int(bits.stats.sparks_landed) > landed0, "explosions_3: sparks land on the deck (%d)" % (int(bits.stats.sparks_landed) - landed0))
