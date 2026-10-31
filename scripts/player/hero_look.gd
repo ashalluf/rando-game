@@ -5,8 +5,9 @@ extends RefCounted
 ## every frame turns the skeleton's elbow and knee angles into the tracksuit's wrinkle weights.
 ##
 ##   hero_skin         -> shaders/hero_skin.gdshader  (pores, stubble, subsurface, T-zone oil)
-##   hero_hair         -> shaders/hero_hair.gdshader  (dithered cut, anisotropic shine)
-##   hero_brows        -> the hair shader on the brow texture
+##   hero_hair         -> shaders/hero_hair.gdshader  (dithered cut, strand light; a blended fringe
+##                        pass, hero_hair_fringe, as its next_pass - hero-closeup-2)
+##   hero_brows        -> the hair shader on the brow texture (a dark brown, the fringe for the tips)
 ##   hero_tracksuit    -> shaders/hero_cloth.gdshader (pose-driven folds, velour pile and sheen)
 ##   hero_tracksuit_rib-> the cloth shader, no wrinkles
 ##   hero_eyes, hero_dial -> the glTF material plus a clearcoat: the wet eye, the watch glass

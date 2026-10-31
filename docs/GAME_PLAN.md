@@ -3629,6 +3629,16 @@ already mapped so milestone 2 is script-only.
   its own prop record; Broadway's lanterns at 0.6 of the level. All tuning of existing systems plus
   one quad a lamp; `NIGHT_STREET_REVIEW=0` restores the old numbers.
 
+- **2026-10-31 The hero at arm's length, second pass (hero-closeup-2, HANDOFF "The hero at arm's
+  length, second pass").** Judged at 0.5-2.4 m on both renderers (hero_shot.gd, opengl3 and lavapipe
+  Forward+, day / golden / night). Decisions: hair and brows get their own light() (Kajiya-Kay)
+  instead of Godot's anisotropic GGX on cards, which blew whole cards out to white; card edges are a
+  second, blended pass (next_pass) under the core's alpha cut rather than a wider dither, because
+  Compatibility has no TAA; the lips, oil, hands and velour are shaded from the maps already shipped
+  (no hero rebuild), and the one map defect (the T-zone's hard box) is fixed in both the generator
+  and the shipped PNGs. Forward+ is the target: where the two renderers' balance differs (linear vs
+  raw albedo against a light lobe) the shader carries a Forward+ gain. All behind HERO_CLOSEUP_2=0.
+
 ## Correction: what build 135 (0ce833f) actually contained
 
 That commit's subject says "denser grass, real palm fronds, finer ground". It also shipped a

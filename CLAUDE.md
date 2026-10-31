@@ -5846,6 +5846,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   does the velour and hair). `HERO_CLOSEUP=0` the A/B, `HERO_FACE=0`, stills `HERO_FACE_BLINK`,
   `HERO_FACE_GAZE`, `HERO_WET`, `CAM_AT=face` / `LIGHT=golden|night` on hero_shot.gd; checks
   `tests/hero_closeup_checks.gd`.
+- The hero at arm's length, second pass (wave 4, docs/HANDOFF.md "The hero at arm's length, second
+  pass"): hair and brows are `shaders/hero_hair.gdshaderinc` behind three shaders - the opaque core
+  with its own Kajiya-Kay light() (`HAIR_LIGHT`), a blended fringe as its `next_pass` for the card
+  edges (`HAIR_FRINGE`), and `hero_hair_base` (the A/B). Lips, oil, hands and the eye's tear line
+  are shaded from the shipped maps; the velour has a cloth-lobe light(). Forward+ lights the linear
+  albedo, so a light lobe tuned on Compatibility is ~13x too strong there: those shaders carry a
+  Forward+ gain. `HERO_CLOSEUP_2=0` is the A/B; checks `tests/hero_closeup_2_checks.gd`.
 - Crowd foot placement (G5, 2026-10-29, docs/HANDOFF.md "Crowd foot placement"): `CrowdFeet`
   (`scripts/npc/crowd_feet.gd`, one line at the end of `Pedestrian._physics_process()`, so every
   subclass that runs it gets it) plants a person's feet on what is under them within

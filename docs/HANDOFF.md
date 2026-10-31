@@ -21980,3 +21980,78 @@ the same way, but judge 18:00 on the Mac first - if it reads milky-pink, raise `
 grass under a low red sun is what it is). The painted cumulus on opengl3 draws a big smooth ellipse in
 the aerial and sky shots (before and after alike; the sky's, not this review's). Dawn shares the sky
 ramp and the exposure ramp (both are symmetric in elevation) and was not looked at.
+
+## 9d?. The hero at arm's length, second pass (wave 4, branch `wt/hero-closeup-2`)
+
+The task: the hero at arm's length (owner: GTA 6) - the tracksuit's cloth, the hands, what still
+read waxy in the face after hero-face-2 (lips, the eyes' wetness, the brows) and the hair cards'
+edges. No hero rebuild (no Blender in this pass): shaders, HeroLook, and two shipped maps
+post-processed. Judged with `tools/glshot/hero_shot.gd` on opengl3 and on Forward+ under lavapipe
+(`--rendering-driver vulkan`, two minutes a still), `CAM_AT=face|hands`, `LIGHT=golden|night`.
+
+What read worst, and what was done (all behind `HERO_CLOSEUP_2=0`, `HeroLook.closeup2()`):
+- **The hair**: on opengl3 a blue-white moire of stripes over the whole head (the sky mirrored in
+  near-black hair, and hero-face-2's `strand_round` bending each strand column's normal as a
+  sawtooth); on Forward+ whole cards at the crown blown out to flat white planks (Godot's
+  anisotropic GGX). Now `shaders/hero_hair.gdshaderinc` (the code) with three shaders:
+  `hero_hair.gdshader` (opaque core, `#define HAIR_LIGHT`), `hero_hair_fringe.gdshader` (the core
+  material's `next_pass`: blended, no depth write, draws only the soft part of each strand under
+  the cut - the fine tips the scissor threw away, which without TAA were a hard dithered fringe),
+  `hero_hair_base.gdshader` (no light(): the A/B). The light() is a Kajiya-Kay pair along the
+  strand (BINORMAL, the card's V): a white primary shifted to the root, a hair-tinted secondary
+  toward the tip, broken up per strand, no shine from behind; diffuse half wrapped. The sky's
+  reflection is turned down (`sky_specular` 0.3, `sky_roughness` 0.55). Edge-on cards are thinned
+  (the grey planks at the temples). **Forward+ needs its own gain** (`forward_spec` 0.45): there the
+  hair's `root_color` decodes to ~0.002 linear against 0.03 raw on Compatibility, so the same lobe
+  stands 13x brighter against the hair - tuned on Compatibility alone it turned the hair beige.
+- **The brows** (strand cards, hero-face-2) read as two painted black bars: now `brow_color` (a
+  dark brown, varied hair to hair, lighter to the tip), the core's cut at 0.55 (the strands'
+  bodies only) and the fringe for the tips: fine, translucent, the skin between.
+- **The lips** were pale lavender with a pale halo round their outline (the atlas) and glossy:
+  the region map's lip patch (G redness with no pores R: only the lips) is recoloured to a dusky
+  rose keeping the atlas' shading as a ratio (capped, so the halo goes), moist (`lip_roughness`
+  0.42), less specular, vertical furrows in the normal (the head island is turned a quarter: the
+  furrows run along u), half the scattering.
+- **The nose's waxy patch**: a pale sky-coloured trapezoid down the bridge and across the forehead
+  was the T-zone, built in `tools/hero/prep_textures.py` from HARD steps across the face
+  (`ax < 0.02`, `ax < 0.055`): two sharp rectangles in the roughness map and the mask's oil channel.
+  The generator now uses smoothsteps; `tools/hero_closeup_2/soften_tzone.py` applied the same fix
+  to the shipped `hero_hero_skin_roughness.png` and `hero_x_skin_mask.png` (run once; the nose box
+  smoothed inside a feathered window). The shader also breaks the oil up by the pores (`oil_floor`,
+  `oil_breakup`) so it glints in points.
+- **Skin on Forward+**: the screen-space scattering blurred the pores into wax at half a metre:
+  `forward_sss` 0.72 and `forward_pores` 1.3 there only. **The hands** (their atlas islands,
+  UV.y > 0.8 and UV.x < 0.75) get deeper crosshatch and drier skin (`hand_detail`,
+  `hand_roughness`). The grip itself is right (`tools/grip_fit.gd`: every hand within its
+  tolerances); it looked off in the stills only because the black grip vanishes against the black
+  jacket.
+- **The eyes**: a tear meniscus (a thin line of water along the lower lid: glossy, clear-coated),
+  the pink caruncle in the inner corner, the whites warmer and faintly veined toward the corners,
+  glossier, a sharper cornea coat (`hero_eye.gdshader`, `eye_side` per eye).
+- **The velour** read as matte black plastic: `hero_cloth.gdshader` gets a light() with a cloth
+  lobe (Charlie distribution, Neubelt visibility; `sheen_gain` 1.0 on Compatibility,
+  `sheen_gain_forward` 2.9 - the same renderer imbalance as the hair) and the folds read: the fold
+  normals' divergence in UV (two more taps of each map) darkens valleys and lifts ridges
+  (`crease_ao`, `crease_lift`), so the elbow rings and knee bags show in motion. With closeup2 0 the
+  light() approximates the renderer's own Burley + GGX + rim (not bit-exact, the one inexact A/B;
+  kept in the one file so web-hero-rain's fix to this shader merges cleanly).
+
+**Merge notes**: `hero_hair.gdshader` became `hero_hair.gdshaderinc` (git mv) plus three small
+shaders; `tests/wet_world_checks.gd` lists the include now. `tests/hero_face_2_checks.gd`'s brow
+check accepts the higher cut when the fringe pass is there. web-hero-rain owns the hero in rain on
+the web: its fix in `hero_cloth.gdshader`'s wet block should merge beside the closeup2 code.
+
+Cost: the fringe draws the hair and brow cards again (+2 draws, ~+29k triangles on the hero: 156,994
+-> 185,808 in hero_shot's face GEO on opengl3), blended, no depth write; a few more ALU and four
+more taps on the velour.
+
+Checks: `tests/hero_closeup_2_checks.gd` (room part): closeup2 on every material, the core and
+fringe shaders and the A/B shader's lighting, the fringe reading the same strands and cut, the
+brows' cut and colour, no hard step left in the T-zone (mask and the nose's roughness), the lip
+patch on the region map, prep_textures.py's smooth edges.
+
+**Not done**: no face bones still (no mouth or brow motion); the hair's top layer is still cards
+(a rebuild in tools/hero would add more, finer cards at the temples and nape); the jacket's ballooning
+right sleeve and the jagged skin edge under the right cuff are the mesh's (tracksuit.py); the
+velour's and the hair highlight's strength are tuned on lavapipe - the Mac is the real Forward+.
+Stills on `shots/hero-closeup-2`.
