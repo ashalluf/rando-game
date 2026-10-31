@@ -715,6 +715,18 @@ func _initialize() -> void:
 		for i in _env_int("VALET_FRAMES", 6):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
+	# CHASE=box|pit|spikes|doors: the police chase staged down the street the camera looks along
+	# (tools/police_chase/stage.gd: CHASE_LIVE seconds of play, CHASE_AFTER, CHASE_EYE).
+	var chase_env := OS.get_environment("CHASE")
+	if chase_env != "" and current_scene:
+		var pc_eye: String = await load("res://tools/police_chase/stage.gd").new().stage(self, current_scene, chase_env, get_root().get_camera_3d())
+		if pc_eye != "":
+			OS.set_environment("EYE", pc_eye)
+		print("CHASE %s eye %s" % [chase_env, pc_eye])
+		_eye(player, fov)
+		for i in _env_int("CHASE_FRAMES", 2):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
 	# RAIN_STAGE=<level>: the crowd as the rain leaves it (tools/rain_crowd/stage.gd: umbrellas,
 	# hoods, doorways, shelters; RAIN_FOCUS frames one; RAIN_CROWD=0 is the A/B).
 	if OS.get_environment("RAIN_STAGE") != "" and current_scene:

@@ -3628,6 +3628,15 @@ already mapped so milestone 2 is script-only.
   painted on the wet road is smeared to a glow; each FULL lamp gets a wet-road reflection streak in
   its own prop record; Broadway's lanterns at 0.6 of the level. All tuning of existing systems plus
   one quad a lamp; `NIGHT_STREET_REVIEW=0` restores the old numbers.
+- **2026-10-31 The police chase is manoeuvres on top of the cruisers' own driving (police-chase-2,
+  HANDOFF "The police chase").** Decisions: a new node (PoliceChase) deals roles to cruisers within
+  55 m of the player's car - box in under 7 m/s, PIT over 11 m/s, flank otherwise - and PoliceCar only
+  asks it for an aim and a speed, so routing, the caps and the dispatch stay Police.gd's (the
+  wanted-escalation task's); the PIT's contact is ASSISTED (a yaw impulse and the rear grip let go),
+  because VehicleBody3D wheels never let a tapped car rotate; roadblocks lay a spike strip on the
+  player's side and a flat tyre is a smaller wheel radius with a fraction of the grip, never repaired;
+  officers use the CarInterior door rigs as cover and advance one at a time; the radio is synthesised
+  speech-like babble (no CC0 dispatch voice exists). POLICE_CHASE=0 / POLICE_RADIO=0 are the A/B.
 
 ## Correction: what build 135 (0ce833f) actually contained
 

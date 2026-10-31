@@ -545,17 +545,32 @@ static func door_spot(car: Vehicle, side: float) -> Vector3:
 
 
 func _open_door(car: PoliceCar, side: float) -> void:
-	if not door_cars.has(car.get_instance_id()) and door_cars.size() >= max_door_cars:
+	var id := car.get_instance_id()
+	if not door_cars.has(id) and door_cars.size() >= max_door_cars:
 		return
-	door_cars[car.get_instance_id()] = car
-	var inst := CarInteriors.instance()
-	if inst != null:
-		inst.activate(car)
+	door_cars[id] = car
+	var sides: Dictionary = car.get_meta("chase_doors", {})
+	sides[side] = true
+	car.set_meta("chase_doors", sides)
+	_jam_doors(car)
+
+
+## Swings `car`'s doors that its crew got out of open and holds them there; the rig is asked for
+## until it is built (CarInteriors makes it on a worker thread).
+func _jam_doors(car: PoliceCar) -> void:
 	var rig := CarInteriors.rig_of(car)
-	if rig != null:
-		rig.jam(side, 1.0, 0.0)
+	if rig == null:
+		var inst := CarInteriors.instance()
+		if inst != null and CarInteriors.supported(car):
+			rig = inst.activate(car)
+	if rig == null:
+		return
+	var sides: Dictionary = car.get_meta("chase_doors", {})
+	for side: float in sides.keys():
 		var d := rig.door(side)
-		if not d.is_empty():
+		if not d.is_empty() and not bool(d.lost) and not bool(d.get("chase_open", false)):
+			d.chase_ajar = float(d.get("ajar", 0.0))
+			rig.jam(side, 1.0, 0.0)
 			d.chase_open = true
 
 
@@ -571,13 +586,15 @@ func _tick_doors() -> void:
 		var done := car.crew_aboard >= car.crew_alive or car.mode != PoliceCar.Mode.PARKED or car.driver != null \
 				or not car.is_inside_tree() or police.stars <= 0
 		if not done:
+			_jam_doors(car)
 			continue
 		var rig := CarInteriors.rig_of(car)
 		if rig != null:
 			for d: Dictionary in rig.doors:
 				if bool(d.get("chase_open", false)):
-					d.ajar = 0.0
+					d.ajar = float(d.get("chase_ajar", 0.0))
 					d.erase("chase_open")
+		car.remove_meta("chase_doors")
 		door_cars.erase(id)
 	for oid in _bounds.keys():
 		if not is_instance_id_valid(oid):

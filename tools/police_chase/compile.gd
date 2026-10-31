@@ -6,7 +6,7 @@ extends SceneTree
 const SCRIPTS := ["res://scripts/npc/police_chase.gd", "res://scripts/npc/chase_spike_strip.gd",
 	"res://scripts/npc/chase_flat_tyres.gd", "res://scripts/npc/chase_radio.gd", "res://scripts/npc/police.gd",
 	"res://scripts/npc/police_car.gd", "res://scripts/npc/police_officer.gd", "res://scripts/world/air_traffic.gd",
-	"res://scripts/vehicles/car_interiors.gd"]
+	"res://scripts/vehicles/car_interiors.gd", "res://tests/police_chase_checks.gd", "res://tools/police_chase/stage.gd"]
 
 func _initialize() -> void:
 	await process_frame
