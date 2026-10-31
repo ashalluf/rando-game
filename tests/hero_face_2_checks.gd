@@ -100,7 +100,8 @@ func _check_brows(avatar: Node3D) -> void:
 	_check(eye and lash, "the eyes and lashes keep their materials (HeroFace's contract)")
 	_check(brow != null and brow.shader == HeroLook.HAIR, "the brows wear the hair shader")
 	if brow:
-		_check(float(brow.get_shader_parameter("alpha_cut")) < 0.3, "the strand brows keep their fine hairs (alpha cut %.2f)" % float(brow.get_shader_parameter("alpha_cut")))
+		# (hero-closeup-2 raises the core's cut and draws the fine tips in the blended next pass)
+		_check(float(brow.get_shader_parameter("alpha_cut")) < 0.3 or brow.next_pass != null, "the strand brows keep their fine hairs (alpha cut %.2f)" % float(brow.get_shader_parameter("alpha_cut")))
 		var tex := brow.get_shader_parameter("albedo_tex") as Texture2D
 		# the strand atlas is 256 px of eight columns; the old painted brow was 512
 		_check(tex != null and tex.get_width() == 256, "the brows are the strand atlas (%d px)" % (tex.get_width() if tex else -1))
