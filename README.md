@@ -14,3 +14,13 @@ Kinematic street traffic before (`TRAFFIC_MOTION=0`) and after, opengl3 stills a
 
 GEO (whole frame): brake 6,294,447 -> 6,265,163 tris; turn 7,425,756 -> 7,461,103; pull 8,667,838 both.
 The motion adds no geometry: the differences are where the staged cars stand in each frame.
+
+## Wave 4 (after merging main, build 395+), opengl3 1280x720 at 15:30, spawn 2359.4,880 (Flower at Olympic)
+
+- `10_before_street_queue.jpg` / `11_after_street_queue.jpg`: `STREET=queue STREET_EYE=1` on still_shot.gd, a queue
+  standing at the red from the pavement. A standing queue looks the same either way (the bodies are at rest, level);
+  the queue's cars differ because the live traffic that fills it differs run to run.
+- `12_before_chase_turn_sheet.jpg` / `13_after_chase_turn_sheet.jpg`: `TMOTION=chase TMOTION_STEPS=2.0,0.8,0.6,0.6,0.6,0.8`,
+  frames 3-6 from a chase camera. Before (`TRAFFIC_MOTION=0`): the car runs straight into the junction and snaps
+  90 degrees at its centre later. After: it follows the fillet arc, front wheels steered 13.2 deg, body leaned 2.0 deg.
+- `14_before_chase_turn_frame6.jpg` / `15_after_chase_turn_frame6.jpg`: frame 6 alone, full size.
