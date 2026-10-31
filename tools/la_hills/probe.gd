@@ -107,4 +107,21 @@ func _ready() -> void:
 				if d < best:
 					best = d
 					bp = q
+	for fr in macro.freeway.routes:
+		var worst := 0.0
+		var wq := Vector2.ZERO
+		for q: Vector2 in (fr.points as PackedVector2Array):
+			if lh.lift_raw(q) > worst:
+				worst = lh.lift_raw(q)
+				wq = q
+		if worst > 0.0:
+			print("freeway %s max lift %.2f at %s hill %s" % [fr.name, worst, wq, lh.hill_at(wq).get("id", "")])
+	if macro.river:
+		var worst := 0.0
+		var wq := Vector2.ZERO
+		for q: Vector2 in macro.river.pts:
+			if lh.lift_raw(q) > worst:
+				worst = lh.lift_raw(q)
+				wq = q
+		print("river max lift %.2f at %s" % [worst, wq])
 	get_tree().quit()

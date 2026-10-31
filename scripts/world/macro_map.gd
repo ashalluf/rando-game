@@ -995,6 +995,9 @@ func district_at(pos: Vector2) -> CityPlan.District:
 	var dd := downtown_distance(pos)
 	if dd < core_margin or core_distance(pos) < core_margin:
 		return CityPlan.District.DOWNTOWN
+	# Los Angeles' hillside neighbourhoods are houses (LaHills.homes_at(): Echo Park, the bluffs).
+	if la_hills and la_hills.homes_at(pos):
+		return CityPlan.District.SUBURBS
 	if pos.x > industrial_corner.x and pos.y > industrial_corner.y:
 		return CityPlan.District.INDUSTRIAL
 	var ext := DowntownReal.game_extent()

@@ -21980,3 +21980,76 @@ the same way, but judge 18:00 on the Mac first - if it reads milky-pink, raise `
 grass under a low red sun is what it is). The painted cumulus on opengl3 draws a big smooth ellipse in
 the aerial and sky shots (before and after alike; the sky's, not this review's). Dawn shares the sky
 ramp and the exposure ramp (both are symmetric in elevation) and was not looked at.
+
+## 9d?. Los Angeles' hills: steep streets, stairways, Bunker Hill's incline (fleet wave 4, `la-street-hills`)
+
+Owner, 2026-10-31: "capture the proper vertical recreations of streets - not every street in Los
+Angeles is flat ... make the geography as realistic as possible". The basin stays the flat plain it
+really is; the city now breaks into named hills in roughly their real places relative to the 1:1
+downtown.
+
+**The table** is `LaHills` (`scripts/world/la_hills.gd`, `MacroMap.la_hills`, made in `setup()` right
+after the landmark grid, before the replica, river and oil field read the relief). Each row: a convex
+outline in world XZ, a crest height, a crest tilt, and per edge a list of [share, face width] (an edge
+can be a short steep scarp on a long gentle slope). Lift = height x the product of every edge's
+smoothstep face profile (a terrace with mitred, rounded corners), hills combined by max(), the outline
+wobbled by a seeded FastNoiseLite (never a roll on any rng) and a few metres of roll on the crest.
+Rows today:
+- `bunker_hill`: crest 25 m along Grand / Hope from 2nd to 4th; the east face falls across the Olive -
+  Hill block to Hill St (a 0.55 share scarp 120 m wide on a 330 m slope), the south face to 5th St, the
+  north to Temple, the west to the 110. The Hill St west kerb is the foot (x 2855), Pershing Square
+  and Broadway stay on the plain.
+- `echo_park`, `elysian_heights`, `elysian_slopes` ("Solano Canyon"): steep knolls in the wedge
+  between the front range's foot and downtown and north of Chinatown (36-38 m, faces 150-200 m).
+- `boyle_heights`: the bluff east of the river (24 m, a 70 m scarp facing the river), back to the
+  east range's foot. `san_pedro`: the headland's foot west of the 110, its bluff facing the port.
+- `baldwin_hills`: a 14 m skirt round the oil field (OilField computes its `base_h` from
+  `_relief_natural()`, so its hill now sits on the skirt and comes down into rolling streets).
+Rows with `"homes": true` make `MacroMap.district_at()` answer SUBURBS where their lift is over
+`HOMES_LIFT` (houses on the hillsides; Boyle Heights was INDUSTRIAL), checked after DOWNTOWN.
+
+**How it folds in.** `_relief_natural()` adds `la_hills.lift(pos, raw)` to its BASE, next to the
+replica's terrace: downtown's flatness and the landmark discs only fade the seeded noise, so the 1:1
+grid sits on Bunker Hill's terrace. `lift()` holds the hill's own lift at each landmark's anchor over
+the same disc and fade the noise is flattened on (`flat_rect` landmarks at the rect's centre), so every
+landmark still stands level, and hands over to a range rising under it (`1 - smoothstep(0, lift, raw)`,
+the replica's rule). The downtown towers were built at an absolute `BASE_Y`: `LandmarkDowntown.build()`
+takes a `y0`, which `Landmarks.build()` passes as `LaHills.landmark_lift(plan, anchor)` (0 with the
+hills off). Civic sites already sat on `LandmarkArenaDistrict.ground()`. Everything else that reads the
+relief (road slabs, kerbs, parking, traffic pitch, pedestrians, the light rail / freight / freeway
+profiles, LaRiver's terrace, the level tests of Hospital / Schools / stations, the far plates, the bake)
+follows with no code of its own; the freeways, the river and the light rail are kept off the hills by
+the table (checked).
+
+**Streets.** `LaHills.stretch(plan, axis, index, k)` measures one road stretch (between crossings k and
+k + 1) on the real ground (raw + relief; a stretch whose middle or steepest point is not CITY zone is
+ignored), its steepest `SAMPLE_SPAN` 12 m window; cached in the plan's meta. Over `STAIR_GRADE` (0.30)
+on a hill with `stairs` it is a public stairway: `CityPlan.road_open()` closes it (`road_closed()`,
+one compare for any road far from a hill) and `CityChunk._build_roads()` calls `LaHillsBuild.stretch()`
+instead of the road slab (and `junction()` for a crossing with no open arm). Default seed: Bunker Hill
+43 stretches, 17 over 15 %, one stairway (Hope St, 4th to 5th: the Bunker Hill Steps' place); Echo
+Park 7, Elysian Heights 7, Solano Canyon 4, Boyle Heights 2, San Pedro 4; the steepest open street
+30 %. Probe: `tools/la_hills/probe.tscn` (`HILL=id`, `ALL=1`; every stairway with an EYE);
+`tools/la_hills/map_probe.tscn -- --rect=x0,z0,x1,z1 --out=map.png` draws relief contours, freeways,
+river and landmarks.
+
+**LaHillsBuild** (`scripts/world/la_hills_build.gd`): the stairway is a relief-following bank slab
+(dry lawn, collision: the player walks the ramp) with, at FULL, ONE LandmarkGeo mesh on the
+footbridges' shader (`FootbridgeKit.material()`): treads grouped by level quantised to `RISER`
+(a gentle stretch is a landing), risers, nosings, cheek walls, painted pipe rails on posts; shrubs
+in the chunk's bush batches and a street tree now and then on the banks (a private rng of seed +
+stretch). `kerb_walls()` (a FULL block step after Kerbs) stands retaining walls along the front of a
+hillside house lot where its yard rises from the street (YardFill's lot plans; opened for the drive and
+the front walk; box collision per run).
+
+**Paloma Flight** (`LaHillsIncline`, `scripts/world/la_hills_incline.gd`): the form of Bunker Hill's
+little incline railway, invented name and look - a steel trestle on concrete piers following the
+smoothed hill, two counterbalanced teal / red cars on parallel tracks worked out from the clock
+(`ride_u()`: a dwell at each end, a ride between), an arched gateway with the name on Hill St, a canopy
+at the top on Olive St, a stairway beside it, a lawn knoll with trees on the lots it crosses (claimed in
+`CityChunk._build_lot()` after every other claim; `site()` from DowntownReal's Hill / Olive / 3rd / 4th).
+
+`LA_HILLS=0` is the A/B (the city exactly as before). Checks: `tests/la_street_hills_checks.gd`.
+Known gaps: houses on the steepest lots stand on tall plain foundation walls (HouseBuild's base), not
+stilts; the stairs' collision is the ramp under them; Boyle Heights' and San Pedro's industrial blocks
+on the slopes keep their plinths.

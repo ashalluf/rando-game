@@ -38,6 +38,9 @@ const WOBBLE := 14.0
 const WOBBLE_FREQ := 0.006
 ## Surface undulation on top of a hill (m), so a crest is not a table.
 const TOP_ROLL := 3.0
+## The disc a landmark holds level: its radius plus HOLD_CORE, eased out by radius + HOLD_REACH.
+const HOLD_CORE := 8.0
+const HOLD_REACH := 110.0
 
 ## Downtown's grid in world XZ (DowntownReal: x = 2800 + u, z = 102.7 + v).
 const _DX := 2800.0
@@ -51,43 +54,45 @@ const HILLS := [
 	# Hill block to Hill St (the incline and the stairs stand there), the long fall south to 5th St
 	# past the towers' plazas, the north face down to Temple, the west side easing to Figueroa and
 	# the 110 in its trench.
-	{"id": "bunker_hill", "name": "Bunker Hill", "h": 25.0, "tilt": Vector2(0.006, 0.0), "stairs": true,
+	{"id": "bunker_hill", "name": "Bunker Hill", "h": 25.0, "tilt": Vector2(0.006, -0.018), "stairs": true,
+		# Hope St from 4th down to 5th is a stairway whatever its grade (the hill's famous steps).
+		"force_stairs": [["HOPE ST", "4TH ST", "5TH ST"]],
 		"poly": [Vector2(_DX - 700.0, _DZ - 1200.0), Vector2(_DX + 55.0, _DZ - 1200.0),
 			Vector2(_DX + 55.0, _DZ - 112.0), Vector2(_DX - 700.0, _DZ - 112.0)],
 		# north (Temple), east (Hill St), south (5th St), west (the 110)
-		"w": [[[1.0, 280.0]], [[0.55, 120.0], [0.45, 330.0]], [[1.0, 300.0]], [[1.0, 170.0]]]},
+		"w": [[[1.0, 280.0]], [[0.55, 120.0], [0.45, 330.0]], [[1.0, 360.0]], [[1.0, 170.0]]]},
 	# Echo Park: a steep knoll in the wedge between the front range's foot and downtown.
-	{"id": "echo_park", "name": "Echo Park", "h": 36.0, "tilt": Vector2(-0.02, -0.01), "stairs": true,
+	{"id": "echo_park", "homes": true, "name": "Echo Park", "h": 36.0, "tilt": Vector2(-0.02, -0.01), "stairs": true,
 		"poly": [Vector2(1250.0, -1930.0), Vector2(1520.0, -1960.0), Vector2(1640.0, -1760.0),
 			Vector2(1590.0, -1500.0), Vector2(1340.0, -1450.0), Vector2(1220.0, -1650.0)],
 		"w": [[[1.0, 190.0]], [[1.0, 170.0]], [[1.0, 190.0]], [[1.0, 200.0]], [[1.0, 170.0]], [[1.0, 190.0]]]},
 	# Elysian Heights: knolls against the range's foot north of Echo Park, rising into it.
-	{"id": "elysian_heights", "name": "Elysian Heights", "h": 38.0, "tilt": Vector2(0.0, -0.03), "stairs": true,
+	{"id": "elysian_heights", "homes": true, "name": "Elysian Heights", "h": 38.0, "tilt": Vector2(0.0, -0.03), "stairs": true,
 		"poly": [Vector2(1480.0, -2260.0), Vector2(1980.0, -2260.0), Vector2(1960.0, -1980.0),
 			Vector2(1700.0, -1880.0), Vector2(1500.0, -1990.0)],
 		"w": [[[1.0, 120.0]], [[1.0, 190.0]], [[1.0, 190.0]], [[1.0, 180.0]], [[1.0, 180.0]]]},
 	# The Elysian slopes north of Chinatown, between the 110's stub and Chinatown.
-	{"id": "elysian_slopes", "name": "Solano Canyon", "h": 32.0, "tilt": Vector2(0.0, -0.025), "stairs": true,
+	{"id": "elysian_slopes", "homes": true, "name": "Solano Canyon", "h": 32.0, "tilt": Vector2(0.0, -0.025), "stairs": true,
 		"poly": [Vector2(2240.0, -2280.0), Vector2(2640.0, -2280.0), Vector2(2640.0, -1880.0),
 			Vector2(2260.0, -1880.0)],
 		"w": [[[1.0, 120.0]], [[1.0, 200.0]], [[1.0, 200.0]], [[1.0, 190.0]]]},
 	# Boyle Heights: the bluff east of the river, its scarp facing the river flats, running back
 	# to the east range's foot.
-	{"id": "boyle_heights", "name": "Boyle Heights", "h": 24.0, "tilt": Vector2(0.004, 0.0), "stairs": true,
-		"poly": [Vector2(4470.0, -700.0), Vector2(5200.0, -700.0), Vector2(5200.0, 1350.0),
-			Vector2(4590.0, 1350.0)],
+	{"id": "boyle_heights", "homes": true, "name": "Boyle Heights", "h": 24.0, "tilt": Vector2(0.004, 0.0), "stairs": true,
+		"poly": [Vector2(4480.0, -700.0), Vector2(5200.0, -700.0), Vector2(5200.0, 1350.0),
+			Vector2(4760.0, 1350.0)],
 		"w": [[[1.0, 220.0]], [[1.0, 60.0]], [[1.0, 260.0]], [[0.7, 70.0], [0.3, 240.0]]]},
 	# San Pedro: the headland's foot east of the peninsula, its bluff facing the port and the 110.
-	{"id": "san_pedro", "name": "San Pedro", "h": 30.0, "tilt": Vector2(-0.01, 0.0), "stairs": true,
+	{"id": "san_pedro", "homes": true, "name": "San Pedro", "h": 30.0, "tilt": Vector2(-0.01, 0.0), "stairs": true,
 		"poly": [Vector2(1700.0, 5150.0), Vector2(2390.0, 5150.0), Vector2(2390.0, 5950.0),
 			Vector2(1700.0, 5950.0)],
 		"w": [[[1.0, 200.0]], [[0.65, 60.0], [0.35, 210.0]], [[1.0, 120.0]], [[1.0, 80.0]]]},
 	# Baldwin Hills: a skirt round the oil field (OilField) so its hill comes down into rolling
 	# streets; OilField's own hill takes over inside its kerb.
 	{"id": "baldwin_hills", "name": "Baldwin Hills", "h": 14.0, "tilt": Vector2.ZERO, "stairs": false,
-		"poly": [Vector2(40.0, 1000.0), Vector2(1440.0, 1000.0), Vector2(1440.0, 2280.0),
+		"poly": [Vector2(40.0, 1000.0), Vector2(780.0, 1000.0), Vector2(1150.0, 1400.0), Vector2(1150.0, 2280.0),
 			Vector2(40.0, 2280.0)],
-		"w": [[[1.0, 420.0]], [[1.0, 420.0]], [[1.0, 420.0]], [[1.0, 420.0]]]},
+		"w": [[[1.0, 420.0]], [[1.0, 200.0]], [[1.0, 140.0]], [[1.0, 420.0]], [[1.0, 420.0]]]},
 ]
 
 var macro: MacroMap
@@ -135,7 +140,8 @@ func _setup(sd: int) -> void:
 			box = box.expand(p)
 		box = box.grow(WOBBLE + 2.0)
 		_hills.append({"id": row.id, "name": row.name, "poly": pts, "n": normals, "o": offs,
-			"w": row.w, "h": float(row.h), "tilt": row.tilt, "c": c, "box": box, "stairs": row.stairs})
+			"w": row.w, "h": float(row.h), "tilt": row.tilt, "c": c, "box": box, "stairs": row.stairs,
+			"homes": row.get("homes", false), "force": row.get("force_stairs", [])})
 		_box = box if first else _box.merge(box)
 		first = false
 
@@ -156,6 +162,18 @@ func hill_at(pos: Vector2) -> Dictionary:
 				top = v
 				best = hl
 	return best
+
+
+## True on a hillside neighbourhood of houses (MacroMap.district_at() makes it SUBURBS): a hill
+## marked `homes` whose lift there is at least HOMES_LIFT.
+const HOMES_LIFT := 2.0
+func homes_at(pos: Vector2) -> bool:
+	if not _box.has_point(pos):
+		return false
+	for hl: Dictionary in _hills:
+		if hl.homes and (hl.box as Rect2).has_point(pos) and _one(hl, pos) >= HOMES_LIFT:
+			return true
+	return false
 
 
 ## The hills' lift at `pos` before landmarks hold it level or a range takes over (m).
@@ -197,21 +215,38 @@ func lift(pos: Vector2, raw: float) -> float:
 	if not _box.has_point(pos):
 		return 0.0
 	var v := lift_raw(pos)
+	# Every landmark whose disc reaches here pulls the lift toward the lift at its own anchor, by
+	# its weight (1 inside radius + HOLD_CORE, easing out by radius + HOLD_REACH: tighter than the
+	# noise's disc, so a tower holds its footprint level and its plaza takes the slope); the
+	# strongest wins, so a landmark's own core is exactly level whatever stands near it.
 	var grid: Dictionary = macro._lm_grid
+	var wsum := 0.0
+	var hsum := 0.0
+	var wmax := 0.0
 	for lm: Dictionary in grid.get(Vector2i(floori(pos.x / MacroMap.LM_CELL), floori(pos.y / MacroMap.LM_CELL)), []):
+		var w := 0.0
+		var target := 0.0
 		if lm.has("flat_rect"):
 			var fr: Rect2 = lm.flat_rect
-			var f := MacroMap._rect_fade(pos, fr, float(lm.flat_margin))
-			if f < 1.0:
-				v = lerpf(lift_raw(fr.get_center()), v, f)
+			w = 1.0 - MacroMap._rect_fade(pos, fr, float(lm.flat_margin))
+			if w > 0.0:
+				target = lift_raw(fr.get_center())
+		else:
+			var radius: float = lm.radius
+			var a: Vector2 = lm.anchor
+			if absf(pos.x - a.x) > radius + 150.0 or absf(pos.y - a.y) > radius + 150.0:
+				continue
+			w = 1.0 - smoothstep(radius + HOLD_CORE, radius + HOLD_REACH, pos.distance_to(a))
+			if w > 0.0:
+				target = lift_raw(a)
+		if w <= 0.0:
 			continue
-		var radius: float = lm.radius
-		var a: Vector2 = lm.anchor
-		if absf(pos.x - a.x) > radius + 150.0 or absf(pos.y - a.y) > radius + 150.0:
-			continue
-		var f := smoothstep(radius + 30.0, radius + 150.0, pos.distance_to(a))
-		if f < 1.0:
-			v = lerpf(lift_raw(a), v, f)
+		var wk := pow(w, 3.0)
+		wsum += wk
+		hsum += wk * target
+		wmax = maxf(wmax, w)
+	if wsum > 0.0:
+		v = lerpf(v, hsum / wsum, wmax)
 	if v <= 0.0:
 		return 0.0
 	return v * (1.0 - smoothstep(0.0, maxf(v, 1.0), raw))
@@ -322,4 +357,10 @@ static func is_stairs(plan: CityPlan, axis: int, index: int, k: int) -> bool:
 	var hl := lh.hill_at(p)
 	if hl.is_empty() or not hl.stairs:
 		return false
+	if not (hl.force as Array).is_empty():
+		var other := CityPlan.AXIS_Z if axis == CityPlan.AXIS_X else CityPlan.AXIS_X
+		var names := [plan.road_name(axis, index).to_upper(), plan.road_name(other, k).to_upper(), plan.road_name(other, k + 1).to_upper()]
+		for f: Array in hl.force:
+			if names[0] == f[0] and ((names[1] == f[1] and names[2] == f[2]) or (names[1] == f[2] and names[2] == f[1])):
+				return true
 	return float(st.grade) > STAIR_GRADE

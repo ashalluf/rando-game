@@ -2701,6 +2701,8 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 		steps.append(func() -> void: DecoBoulevard.block_step(self, block))
 		# The kerb: the pavement's cut ring, its paint and house numbers (Kerbs; hash-seeded).
 		steps.append_array(Kerbs.steps(self, block))
+		# Retaining walls along a hillside block's yards (LaHillsBuild; hash-seeded, after the lots).
+		steps.append(func() -> void: LaHillsBuild.kerb_walls(self, block))
 		# Broadway's goods on the pavement and its street clock (Broadway; hash-seeded).
 		if Broadway.block_side(plan, ix, iz) != 0:
 			steps.append(func() -> void: Broadway.block_step(self, rect))
@@ -3187,6 +3189,10 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	# hash-seeded, after every roll and claim above).
 	if CornerStore.claims(plan, ix, iz, lot):
 		CornerStore.build_lot(self, lot)
+		return
+	# Bunker Hill's incline and its plaza (LaHillsIncline: the strip mid-block up the east face).
+	if LaHillsIncline.claims(plan, lot):
+		LaHillsIncline.build_lot(self, lot)
 		return
 	var fill := LotFill.wanted(self, district)
 	# A surface car park (CityPlan.lots() "parking"; the pad roll above is still made).

@@ -3786,3 +3786,9 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+
+- **2026-10-31 Los Angeles' hills (la-street-hills, HANDOFF "Los Angeles' hills").** The basin stays
+  flat; named hills (Bunker Hill, Echo Park, Elysian Heights, Solano Canyon, Boyle Heights, San
+  Pedro, a skirt round the Baldwin Hills oil field) are a DATA TABLE folded into the relief's base, held
+  level under every landmark. A street stretch steeper than 30 % is a public stairway closed to cars;
+  everything driveable stays at or under 30 %. Hillside neighbourhoods are houses. LA_HILLS=0 is the A/B.

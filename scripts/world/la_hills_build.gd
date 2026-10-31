@@ -22,14 +22,14 @@ const POST_EVERY := 2.6
 const RAIL_PAINT := Color(0.16, 0.25, 0.19)
 const CONCRETE := Color(0.80, 0.78, 0.74)
 ## The banks either side: an ivy / ice plant slab (linear-ish tint over the grass set).
-const BANK_TINT := Color(0.42, 0.55, 0.32)
+const BANK_TINT := Color(0.40, 0.46, 0.26)
 
 static var _bank_mat: Material
 
 
 static func _bank_material() -> Material:
 	if _bank_mat == null:
-		_bank_mat = PropFactory.pbr("grass", 3.0, BANK_TINT)
+		_bank_mat = PropFactory.lawn(BANK_TINT, 4401, 0.62, 0.0)
 	return _bank_mat
 
 
@@ -53,6 +53,37 @@ static func stretch(ch: CityChunk, axis: int, r: Rect2) -> void:
 	var mi := g.commit(ch, "HillStairs", true, 260.0)
 	if mi:
 		mi.position = o
+	_plant(ch, along_x, mid, s0, s1, (r.size.y if along_x else r.size.x) * 0.5)
+
+
+## The banks either side of the flight: shrubs in the chunk's own bush batches and a street tree now
+## and then, from a private rng of seed + stretch (never the block's).
+static func _plant(ch: CityChunk, along_x: bool, mid: float, s0: float, s1: float, half_w: float) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([ch.plan.seed, "la_hills_stairs", int(mid), int(s0)])
+	var inner := WIDTH * 0.5 + CHEEK_W + 0.9
+	var outer := half_w - 0.8
+	if outer <= inner + 0.5:
+		return
+	var pick := rng.randi() % PropFactory.BUSHES.size()
+	var s := s0 + 2.5
+	var next_tree := s0 + rng.randf_range(6.0, 16.0)
+	while s < s1 - 2.5:
+		for side: float in [-1.0, 1.0]:
+			if rng.randf() < 0.25:
+				continue
+			var t := mid + side * rng.randf_range(inner, outer)
+			var p := _p(along_x, s + rng.randf_range(-0.8, 0.8), t)
+			var sc := rng.randf_range(0.8, 1.5)
+			var basis := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(sc, sc, sc))
+			var tint := Color(rng.randf_range(0.8, 1.05), rng.randf_range(0.9, 1.1), rng.randf_range(0.8, 1.0))
+			ch._batch.add("bush_%d" % pick, PropFactory.model_bush(pick), Transform3D(basis, Vector3(p.x, CityChunk.SIDEWALK_TOP, p.y)), tint)
+		if s >= next_tree:
+			var side := -1.0 if rng.randf() < 0.5 else 1.0
+			var tp := _p(along_x, s, mid + side * (inner + outer) * 0.5)
+			ch._add_tree(Vector3(tp.x, CityChunk.SIDEWALK_TOP, tp.y), rng)
+			next_tree = s + rng.randf_range(14.0, 26.0)
+		s += 2.4
 
 
 ## A crossing whose arms are all stairs: the bank slab over the square.
@@ -191,3 +222,112 @@ static func _tube(g: LandmarkGeo, a: Vector3, b: Vector3, r: float, col: Color) 
 		var p1 := a + n1 * r
 		g.quad_n("fb", p0, p1, p1 + z * length, p0 + z * length, n0, n1, n1, n0,
 			Vector2(0, 0), Vector2(0.1, 0), Vector2(0.1, length), Vector2(0, length), c)
+
+
+# --- Retaining walls ------------------------------------------------------------------------------
+
+## Retaining walls at the back of the pavement on a hillside block of houses: where a yard rises
+## from the street, a wall along its front edge holds it (board-formed concrete, block or stone by a
+## hash of the lot), opened for the driveway and the front walk (YardFill's plan of the block). The
+## ground itself is not cut; the wall stands up to the yard's level behind it. FULL chunks.
+const WALL_MIN := 0.45
+const WALL_MAX := 2.2
+const WALL_T := 0.32
+const WALL_SEG := 1.0
+const WALL_COLORS := [Color(0.88, 0.86, 0.82), Color(0.95, 0.88, 0.74), Color(0.80, 0.76, 0.70),
+	Color(0.92, 0.80, 0.68), Color(0.72, 0.72, 0.70)]
+
+
+static func kerb_walls(ch: CityChunk, block: Dictionary) -> void:
+	if ch.capturing or ch.level != CityChunk.Level.FULL or not YardFill.enabled or ch._yard_lots.is_empty():
+		return
+	var lh: LaHills = ch.plan.macro.la_hills if ch.plan.macro else null
+	if lh == null:
+		return
+	var rect: Rect2 = block.rect
+	var lifted := false
+	for p: Vector2 in [rect.position, rect.end, Vector2(rect.position.x, rect.end.y), Vector2(rect.end.x, rect.position.y), rect.get_center()]:
+		if lh.lift_raw(p) > 0.5:
+			lifted = true
+	if not lifted:
+		return
+	var bp := YardFill.beach_block(ch.plan, ch.ix, ch.iz, ch._yard_lots)
+	var g := LandmarkGeo.new()
+	g.use("fb", FootbridgeKit.material())
+	var body := StaticBody3D.new()
+	body.name = "HillWallsBody"
+	body.collision_layer = 1
+	body.collision_mask = 0
+	var runs := 0
+	for lp: Dictionary in bp.lots:
+		if lp.walk_front:
+			continue
+		var f: Dictionary = lp.frame
+		var o: Vector2 = f.o
+		var fu: Vector2 = f.u
+		var fv: Vector2 = f.v
+		var U: float = f.U
+		# Openings: the drive and the paths, in u.
+		var gaps: Array = []
+		for pc: Array in lp.pieces:
+			if str(pc[3]) == "drive" or str(pc[3]) == "path":
+				var fr := YardFill._to_frame(f, pc[0])
+				if fr.position.y < 1.5:
+					gaps.append(Vector2(fr.position.x - 0.5, fr.end.x + 0.5))
+		var col: Color = WALL_COLORS[absi(hash([ch.plan.seed, "hill_wall", lp.lot.seed])) % WALL_COLORS.size()]
+		var run_a := -1.0
+		var run_h := 0.0
+		var u := 0.0
+		while u < U - 0.01:
+			var u1 := minf(u + WALL_SEG, U)
+			var open := false
+			for gp: Vector2 in gaps:
+				if u1 > gp.x and u < gp.y:
+					open = true
+			var h := 0.0
+			var base := INF
+			if not open:
+				for uu: float in [u, u1]:
+					var p := o + fu * uu
+					var g0 := ch._gy(p.x, p.y) + CityChunk.SIDEWALK_TOP
+					var q := p + fv * 3.0
+					var gb := ch._gy(q.x, q.y) + CityChunk.SIDEWALK_TOP + 0.2
+					h = maxf(h, gb - g0)
+					base = minf(base, g0)
+			if not open and h >= WALL_MIN:
+				h = minf(h, WALL_MAX)
+				var a := o + fu * u + fv * (WALL_T * 0.5)
+				var b := o + fu * u1 + fv * (WALL_T * 0.5)
+				var c := (a + b) * 0.5
+				var size := Vector3(absf(b.x - a.x) + (WALL_T if absf(fu.y) > 0.5 else 0.0), h + 0.3, absf(b.y - a.y) + (WALL_T if absf(fu.x) > 0.5 else 0.0))
+				g.box("fb", Vector3(c.x, base - 0.3 + (h + 0.3) * 0.5, c.y), size, FootbridgeKit.kc(col, FootbridgeKit.K_CONCRETE))
+				# The cap.
+				var cap := size + Vector3(0.08, 0.0, 0.08)
+				cap.y = 0.08
+				g.box("fb", Vector3(c.x, base + h + 0.04, c.y), cap, FootbridgeKit.kc(col.lightened(0.15), FootbridgeKit.K_CONCRETE))
+				if run_a < 0.0:
+					run_a = u
+					run_h = 0.0
+				run_h = maxf(run_h, base + h)
+			elif run_a >= 0.0:
+				_wall_shape(ch, body, o, fu, fv, run_a, u, run_h)
+				runs += 1
+				run_a = -1.0
+			u = u1
+		if run_a >= 0.0:
+			_wall_shape(ch, body, o, fu, fv, run_a, U, run_h)
+			runs += 1
+	if runs == 0:
+		body.free()
+		return
+	ch.add_child(body)
+	g.commit(ch, "HillWalls", true, 220.0)
+
+
+static func _wall_shape(ch: CityChunk, body: StaticBody3D, o: Vector2, fu: Vector2, fv: Vector2, u0: float, u1: float, top: float) -> void:
+	var a := o + fu * u0 + fv * (WALL_T * 0.5)
+	var b := o + fu * u1 + fv * (WALL_T * 0.5)
+	var c := (a + b) * 0.5
+	var low := minf(ch._gy(a.x, a.y), ch._gy(b.x, b.y))
+	var size := Vector3(maxf(absf(b.x - a.x), WALL_T), top - low, maxf(absf(b.y - a.y), WALL_T))
+	LandmarkGeo.shape_box(body, Vector3(c.x, (top + low) * 0.5, c.y), size)

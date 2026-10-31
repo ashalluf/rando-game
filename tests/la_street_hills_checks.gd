@@ -106,7 +106,7 @@ func _landmarks_level(plan: CityPlan, lh: LaHills) -> void:
 		if lh.lift_raw(a) < 1.0:
 			continue
 		n += 1
-		var r: float = minf(float(lm.radius), 60.0) + 25.0
+		var r: float = float(lm.radius) + LaHills.HOLD_CORE * 0.8
 		var h0 := lh.lift(a, 0.0)
 		for d: Vector2 in [Vector2(r, 0), Vector2(-r, 0), Vector2(0, r), Vector2(0, -r)]:
 			var e := absf(lh.lift(a + d, 0.0) - h0)
