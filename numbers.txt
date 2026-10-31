@@ -1,0 +1,36 @@
+coast_1700      L  48/ 94/174 ->  48/ 95/174  gnd  82-> 82 sat 0.34->0.34 warm 1.18->1.15 orange 0.06->0.06 crush 0.00->0.00  tris +0.4% draws +6
+coast_1730      L  35/ 79/169 ->  36/ 81/172  gnd  60-> 62 sat 0.38->0.37 warm 2.01->1.84 orange 0.16->0.13 crush 0.00->0.00  tris +0.5% draws +10
+coast_1800      L  11/ 35/113 ->  39/ 78/165  gnd  20-> 59 sat 0.73->0.48 warm 5.71->3.09 orange 0.15->0.15 crush 0.00->0.00  tris +0.3% draws +8
+coast_1830      L   5/ 35/ 84 ->  10/ 48/108  gnd  15-> 25 sat 0.41->0.37 warm 0.96->0.94 orange 0.01->0.01 crush 0.11->0.01  tris +0.4% draws +11
+coast_1900      L   4/ 30/ 85 ->   4/ 29/ 89  gnd  14-> 15 sat 0.43->0.41 warm 0.67->0.72 orange 0.00->0.00 crush 0.14->0.14  tris +0.3% draws +10
+coast_1930      L   3/ 20/100 ->   3/ 21/105  gnd  13-> 14 sat 0.56->0.50 warm 0.52->0.69 orange 0.00->0.00 crush 0.17->0.17  tris +0.1% draws +4
+beachsun_1700   L  79/165/225 ->  79/166/225  gnd 113->113 sat 0.16->0.15 warm 1.41->1.38 orange 0.00->0.00 crush 0.00->0.00  tris +0.0% draws +0
+beachsun_1730   L  63/148/223 ->  64/150/224  gnd  95-> 97 sat 0.37->0.35 warm 2.55->2.42 orange 0.13->0.11 crush 0.00->0.00  tris +0.0% draws +0
+beachsun_1800   L  11/ 99/213 ->  25/150/229  gnd  32-> 79 sat 0.68->0.48 warm 6.14->3.45 orange 0.50->0.23 crush 0.00->0.00  tris +0.0% draws +1
+beachsun_1830   L   5/ 17/ 98 ->   5/ 51/131  gnd   6-> 13 sat 0.54->0.37 warm 1.43->1.38 orange 0.01->0.00 crush 0.25->0.11  tris +0.0% draws +0
+beachsun_1900   L   3/ 12/ 61 ->   3/ 12/ 63  gnd   4->  4 sat 0.46->0.47 warm 0.84->0.78 orange 0.00->0.00 crush 0.43->0.43  tris +0.0% draws +0
+beachsun_1930   L   3/ 11/ 35 ->   3/ 11/ 35  gnd   4->  4 sat 0.55->0.55 warm 0.24->0.24 orange 0.00->0.00 crush 0.45->0.45  tris -0.0% draws +0
+aerial_1700     L  43/147/181 ->  42/147/181  gnd  95-> 94 sat 0.31->0.31 warm 1.12->1.09 orange 0.07->0.07 crush 0.00->0.00  tris -0.7% draws +21
+aerial_1730     L  44/139/167 ->  42/141/170  gnd  81-> 79 sat 0.39->0.39 warm 1.91->1.75 orange 0.29->0.28 crush 0.00->0.00  tris +0.4% draws +11
+aerial_1800     L  37/ 98/139 ->  53/140/174  gnd  73-> 98 sat 0.65->0.48 warm 5.68->3.18 orange 0.36->0.29 crush 0.00->0.00  tris +0.7% draws -16
+aerial_1830     L  22/ 62/117 ->  26/ 80/134  gnd  47-> 57 sat 0.35->0.30 warm 1.25->1.14 orange 0.01->0.01 crush 0.00->0.00  tris +1.0% draws +27
+aerial_1900     L   9/ 41/128 ->   9/ 39/132  gnd  37-> 38 sat 0.35->0.35 warm 0.96->0.97 orange 0.01->0.01 crush 0.04->0.03  tris -0.6% draws -20
+aerial_1930     L   7/ 33/130 ->   7/ 33/134  gnd  35-> 37 sat 0.45->0.43 warm 0.75->0.86 orange 0.01->0.01 crush 0.05->0.05  tris +0.5% draws +1
+hills_1700      L  46/111/163 ->  46/110/164  gnd  91-> 90 sat 0.37->0.36 warm 1.60->1.55 orange 0.06->0.06 crush 0.00->0.00  tris -0.5% draws -6
+hills_1730      L  47/ 89/158 ->  45/ 88/160  gnd  66-> 65 sat 0.49->0.47 warm 2.67->2.42 orange 0.47->0.44 crush 0.00->0.00  tris -0.5% draws -6
+hills_1800      L  45/ 76/128 ->  65/106/153  gnd  62-> 88 sat 0.80->0.64 warm 9.44->5.13 orange 0.73->0.70 crush 0.00->0.00  tris -0.3% draws -6
+hills_1830      L  29/ 56/ 83 ->  35/ 72/103  gnd  49-> 59 sat 0.37->0.32 warm 1.55->1.43 orange 0.00->0.00 crush 0.00->0.00  tris -0.5% draws -6
+hills_1900      L  16/ 38/ 80 ->  17/ 38/ 84  gnd  42-> 45 sat 0.31->0.30 warm 0.76->0.94 orange 0.00->0.00 crush 0.01->0.01  tris -0.5% draws -6
+hills_1930      L  11/ 29/ 78 ->  11/ 31/ 83  gnd  41-> 44 sat 0.50->0.41 warm 0.53->0.77 orange 0.00->0.00 crush 0.02->0.02  tris -0.5% draws -6
+street_1700     L  22/ 51/156 ->  22/ 56/157  gnd  47-> 50 sat 0.38->0.36 warm 0.94->0.94 orange 0.02->0.03 crush 0.00->0.00  tris -2.2% draws -15
+street_1730     L  21/ 56/143 ->  22/ 56/144  gnd  55-> 55 sat 0.42->0.40 warm 1.76->1.42 orange 0.12->0.10 crush 0.00->0.00  tris -0.2% draws +14
+street_1800     L  13/ 24/109 ->  29/ 51/154  gnd  16-> 46 sat 0.68->0.45 warm 4.76->2.36 orange 0.13->0.12 crush 0.00->0.00  tris -6.7% draws +4
+street_1830     L   7/ 37/114 ->  12/ 50/141  gnd  37-> 44 sat 0.40->0.39 warm 1.30->1.04 orange 0.02->0.01 crush 0.04->0.01  tris -9.5% draws -106
+street_1900     L   4/ 42/123 ->   4/ 43/127  gnd  48-> 51 sat 0.42->0.39 warm 0.96->1.10 orange 0.02->0.02 crush 0.14->0.14  tris -9.2% draws -47
+street_1930     L   4/ 42/126 ->   4/ 44/129  gnd  51-> 54 sat 0.48->0.43 warm 0.77->0.93 orange 0.02->0.02 crush 0.15->0.15  tris -10.6% draws -47
+streetwest_1700 L  17/ 42/147 ->  18/ 42/149  gnd  47-> 48 sat 0.36->0.36 warm 1.05->1.05 orange 0.01->0.01 crush 0.00->0.00  tris -1.3% draws -100
+streetwest_1730 L  17/ 41/125 ->  18/ 43/127  gnd  65-> 68 sat 0.38->0.37 warm 2.05->1.92 orange 0.03->0.03 crush 0.00->0.00  tris -2.0% draws -120
+streetwest_1800 L   8/ 20/119 ->  16/ 49/167  gnd  17-> 43 sat 0.65->0.44 warm 2.42->1.92 orange 0.09->0.09 crush 0.01->0.00  tris -1.1% draws -97
+streetwest_1830 L   6/ 40/179 ->   6/ 49/170  gnd  48-> 54 sat 0.43->0.34 warm 2.10->1.18 orange 0.10->0.02 crush 0.09->0.05  tris -5.0% draws -79
+streetwest_1900 L   4/ 39/182 ->   4/ 43/194  gnd  41-> 48 sat 0.46->0.40 warm 1.09->1.02 orange 0.03->0.02 crush 0.14->0.14  tris +0.3% draws -29
+streetwest_1930 L   4/ 39/184 ->   3/ 39/187  gnd  42-> 41 sat 0.51->0.46 warm 1.00->1.10 orange 0.03->0.02 crush 0.15->0.17  tris +4.4% draws +21
