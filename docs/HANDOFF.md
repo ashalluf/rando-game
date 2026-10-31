@@ -22007,11 +22007,11 @@ art director, fix the worst three to five things, hold the other nine cameras.
   lane has its own slots `LANE_GAP` (42 m) apart, each car slid inside its slot by a hash
   (`slot_t()`), so lanes never line up; free slots are offered nearest the player first while a
   route holds under `FILL_BELOW` of its share (load, teleport), and once filled only past
-  `INFLOW_FROM` (330 m, where a car is a few pixels; the flow brings them in), never within
-  `KEEP_CLEAR` (40 m: the first version put a car on the camera). The cap is `CAP_GAIN` (1.7) x
+  `INFLOW_FROM` (300 m, where a car is a few pixels; the flow brings them in), never within
+  `KEEP_CLEAR` (40 m: the first version put a car on the camera). The cap is `CAP_GAIN` (1.5) x
   `max_freeway_cars` (so Quality and the web still scale it), shared mostly to the route under
   the player (`shares()`, `FAR_WEIGHT` 0.3 at freeway_range), and cars leave at `retire_reach()`
-  (680 m, was 837). Trucks only take the two slow lanes' slots, twice as often there, so their
+  (580 m, was 837). Trucks only take the two slow lanes' slots, twice as often there, so their
   share is unchanged. The hour's empty-slot roll (FreewayCloseup.spawn_skip()) is kept, one roll a
   slot. Hook: three small edits in `traffic.gd` (retire reach, cap, the slot loop) and an optional
   `want_li` on `_spawn_freeway_car()`.

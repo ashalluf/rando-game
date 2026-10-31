@@ -21,16 +21,16 @@ const LANE_GAP := 42.0
 ## How much of a slot's length its car may be slid by its hash (so lanes do not line up).
 const JITTER := 0.7
 ## The window filled nearest-first while a route is short of its share (load, teleport).
-const DENSE_REACH := 420.0
+const DENSE_REACH := 380.0
 ## Never a new car this close to the player along the route (it would appear on top of him; the
 ## flow fills it in a second or two).
 const KEEP_CLEAR := 40.0
 ## Once filled, new cars enter only this far from the player (both ends of the window).
-const INFLOW_FROM := 330.0
+const INFLOW_FROM := 300.0
 ## A route counts as short (fill mode) below this share of its cars.
 const FILL_BELOW := 0.6
 ## The freeway car cap times this (the old cap left the deck nearly empty).
-const CAP_GAIN := 1.7
+const CAP_GAIN := 1.5
 ## A route nearer than this gets a full share; at freeway_range a share of FAR_WEIGHT.
 const NEAR_ROUTE := 120.0
 const FAR_WEIGHT := 0.3
@@ -46,7 +46,7 @@ static func cap(max_cars: int) -> int:
 
 ## How far along its route a car may be from the player before it leaves (was 1.35 x range).
 static func retire_reach(freeway_range: float) -> float:
-	return minf(freeway_range * 1.35, DENSE_REACH + 260.0) if enabled else freeway_range * 1.35
+	return minf(freeway_range * 1.35, DENSE_REACH + 200.0) if enabled else freeway_range * 1.35
 
 
 ## Cars per live route: `dists` are the routes' distances from the player (metres), `total` the
