@@ -107,6 +107,7 @@ float joint1(float x, float spacing, float w) {
 }
 
 #include "res://shaders/lawn_field.gdshaderinc"
+#include "res://shaders/pattern_aa.gdshaderinc"
 
 // Bark mulch up close (lawns_closeup on): shredded chips about 3-6 cm long lying every which way,
 // each its own tone of brown - fresh red-brown to weathered grey - with dark gaps and shade
@@ -156,6 +157,8 @@ void vertex() {
 
 void fragment() {
 	vec2 p = local_pos.xz;
+	// The footprint in metres, in uniform control flow (pattern_aa: never inside a branch).
+	vec2 fwp = fwidth(p);
 	vec3 albedo = vec3(0.5);
 	float rough = 0.88;
 	vec3 nm = vec3(0.5, 0.5, 1.0);
@@ -171,7 +174,7 @@ void fragment() {
 		if (lawn_field_on()) {
 			// The lawn field's clover and brown spots (lawn_field.gdshaderinc), the seed from the
 			// lawn's thirst so neighbouring yards differ.
-			float ls = floor(variant * 997.0) * 0.37;
+			float ls = floor(floor(variant * 255.0 + 0.5) * 997.0 / 255.0) * 0.37;
 			float d2 = clamp(dry + smoothstep(0.68, 0.86, lf_noise(p * 0.42 + ls * 2.9 + 17.0)) * 0.4, 0.0, 1.0);
 			float clover = lf_clover(p, ls, d2);
 			albedo = g * mix(mix(disp(lawn_tint), disp(lawn_dry), d2), disp(lawn_tint) * vec3(0.86, 0.97, 1.03), clover * 0.6) * mottle;
@@ -182,11 +185,17 @@ void fragment() {
 		// Concrete: broom-finished slabs between tooled joints, a slab or two a shade off its
 		// neighbours (poured on different days), darker toward the lot's old oil and leaf stains.
 		vec2 cell = floor(p / joint_spacing);
-		float slab = hash12(cell + floor(variant * 31.0));
+		// The variant snapped to its 8-bit vertex value first: interpolated, a constant 0.0 can
+		// read -1e-7 on some pixel rows and floor() flipped every slab's shade in stripes.
+		float slab = hash12(cell + floor(floor(variant * 255.0 + 0.5) * 31.0 / 255.0));
+		if (paa_on()) {
+			// A slab's own shade under two pixels is its mean (pattern_aa).
+			slab = mix(0.5, slab, paa_keep(joint_spacing, max(fwp.x, fwp.y)));
+		}
 		vec3 c = tiled(concrete_tex, p, 3.2) * disp(concrete_tint) * (0.9 + 0.14 * slab);
 		float stain = smoothstep(0.6, 0.85, vnoise(p * 0.45 + 11.0 + variant * 5.0));
 		c *= 1.0 - 0.22 * stain - 0.18 * variant;
-		float j = joints(p, joint_spacing, 0.012);
+		float j = paa_on() ? paa_grid(p, joint_spacing, 0.012, fwp) : joints(p, joint_spacing, 0.012);
 		albedo = c * (1.0 - 0.45 * j) * mottle;
 		nm = texture(concrete_nrm, p / 3.2).rgb;
 		nm_depth = 0.35;
@@ -201,21 +210,31 @@ void fragment() {
 		// (Sampled once: the rotated second sample tiled() blends in crosses a pattern like this
 		// with a diagonal hatch.)
 		vec2 q = variant > 0.5 ? p.yx : p;
-		albedo = disp(texture(brick_tex, q / 1.6).rgb) * disp(brick_tint) * mottle;
+		vec3 laid = texture(brick_tex, q / 1.6).rgb;
 		nm = texture(brick_nrm, q / 1.6).rgb;
+		nm_depth = 0.6;
+		if (paa_on()) {
+			// The courses under two pixels are their average, not moire (PavingAA.MODULE).
+			float keep = paa_keep(1.6 / 15.0, max(fwp.x, fwp.y));
+			laid = mix(paa_tex_mean(brick_tex), laid, keep);
+			nm_depth *= mix(0.3, 1.0, keep);
+		}
+		albedo = disp(laid) * disp(brick_tint) * mottle;
 		if (variant > 0.5) {
 			nm.xy = nm.yx;
 		}
-		nm_depth = 0.6;
 		rough = 0.82;
 	} else if (kind < 4.5) {
 		// Saltillo tile: square terracotta pavers, every one fired a little differently, in pale
 		// grout - the courtyard of a Spanish revival apartment.
 		vec2 t = floor(p / tile_size);
 		float h = hash12(t + 17.0);
+		if (paa_on()) {
+			h = mix(0.5, h, paa_keep(tile_size, max(fwp.x, fwp.y)));
+		}
 		vec3 base = tiled(concrete_tex, p, 2.0);
 		vec3 clay = disp(tile_tint) * mix(vec3(0.82, 0.86, 0.9), vec3(1.15, 1.06, 0.96), h) * (0.75 + 0.5 * dot(base, vec3(0.33)));
-		float g = joints(p, tile_size, 0.014);
+		float g = paa_on() ? paa_grid(p, tile_size, 0.014, fwp) : joints(p, tile_size, 0.014);
 		albedo = mix(clay, vec3(0.62, 0.58, 0.52), g) * mottle;
 		rough = mix(0.62, 0.9, g);
 	} else if (kind < 5.5) {

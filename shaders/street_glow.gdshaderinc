@@ -99,3 +99,35 @@ float street_lamp_heads(float along, float across, float w, float mpp) {
 	v += 2.0 * 0.55 * 3.14159 * re * re * gain / (street_glow_spacing * max(w, 4.0)) * (1.0 - sharp);
 	return v * lamp_head_energy;
 }
+
+
+// --- The night flight pass (NightFlight; NIGHT_FLIGHT=0 sets the global 0: the A/B) ---
+// From a helicopter the grid read as one even orange hatching: every street lit the same, and
+// every junction a flat orange tile. A real city from the air has a hierarchy - the arterials
+// bright ribbons (more lamps, taller heads, the shops along them), the side streets dim threads -
+// and a junction is lit at its corners, where the poles stand, darker in the middle.
+#ifndef NIGHT_FLIGHT_DECLARED
+#define NIGHT_FLIGHT_DECLARED
+global uniform float night_flight;
+#endif
+// A street's glow by its kerb-to-kerb width, metres (NightFlight.street_rank() is the copy).
+const float RANK_LO = 0.45;
+const float RANK_HI = 1.35;
+const float RANK_W0 = 9.0;
+const float RANK_W1 = 22.0;
+float street_rank(float w) {
+	if (night_flight < 0.5 || w <= 0.0) {
+		return 1.0;
+	}
+	return mix(RANK_LO, RANK_HI, smoothstep(RANK_W0, RANK_W1, w));
+}
+
+// A junction square's glow: pools at its four corners. `uv` 0..1 across the square.
+vec3 street_glow_junction(vec2 p, vec2 uv) {
+	if (night_flight < 0.5) {
+		return street_glow(p, uv, 0);
+	}
+	vec2 q = min(clamp(uv, 0.0, 1.0), 1.0 - clamp(uv, 0.0, 1.0));
+	float pool = 1.0 - smoothstep(0.0, 0.5, length(q));
+	return street_glow_color * (street_glow_base + street_glow_pool * 0.8 * pool);
+}
