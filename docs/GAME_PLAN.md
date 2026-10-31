@@ -3988,3 +3988,9 @@ none of either.
   lake, lawn, planting and walks change behind MACARTHUR_LOOK, the lake shader's other users (golf)
   keep their look (`shore_look` 0; their sky term is now decoded on Forward+, the fwd-review-d rule). Water is drawn in linear colour on both renderers with water's
   real F0 (0.02); a landmark's lawn uses ONE material near and far so the LOD hand-over is no seam.
+- **2026-10-31 The golden aerial (rc-golden-aerial, HANDOFF "The golden aerial").** Every painted
+  light must follow DayNight's: the horizon plane's painted band now takes the sun's real colour
+  and energy and a zenith-coloured fill at golden hour (it lit the far ranges at noon strength all
+  evening). The sky's mid deck is cloudlets, never a thresholded smooth field. Big landmark boxes
+  seen from the air get their roofs dressed. Anything widened to a minimum pixel width is dimmed by
+  the share it really covers. GOLDEN_AERIAL=0 is the A/B.

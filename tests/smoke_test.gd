@@ -118,7 +118,7 @@ const PART_COST := {
 	"shop_vinyl_checks": 0.0, "sky_checks": 0.0, "bonfires_checks": 3.0,
 	"cinematic_review_checks": 0.1, "sunset_clouds_checks": 0.0, "night_street_review_checks": 0.1,
 	"downtown_street_closeup_checks": 1.5, "golden_hour_review_checks": 0.1,
-	"night_flight_checks": 0.0, "mac_verify_pack_checks": 1.0, "fwd_review_f_checks": 0.0, "web_hero_rain_checks": 0.1, "skyline_glass_day_checks": 0.1, "sky_day_checks": 0.0
+	"night_flight_checks": 0.0, "mac_verify_pack_checks": 1.0, "fwd_review_f_checks": 0.0, "web_hero_rain_checks": 0.1, "skyline_glass_day_checks": 0.1, "sky_day_checks": 0.0, "rc_golden_aerial_checks": 0.1
 }
 const DEFAULT_COST := 6.0
 ## Every share pays for its own city load on top of its parts.
@@ -2764,6 +2764,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The downtown aerial refcam (tests/rc_downtown_aerial_checks.gd): city hall's grounds, watered
 	# downtown lawns, weathered roofs near and far, antialiased landmark windows, the camera's aim.
 	load("res://tests/rc_downtown_aerial_checks.gd").new().run(self, city)
+	# The golden-aerial review (tests/rc_golden_aerial_checks.gd, GoldenAerial): the far ranges in the
+	# low sun, the mid deck as cloudlets, far antennas, the halls, the lens fringe.
+	load("res://tests/rc_golden_aerial_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

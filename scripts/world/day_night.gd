@@ -277,6 +277,7 @@ func _ready() -> void:
 		if _env and HourGrade.enabled:
 			grade = HourGrade.new(_env)
 	GoldenHour.restore(self)
+	GoldenAerial.sky(_sky)
 	_apply_override()
 	if _sky:
 		var extras := SkyExtras.new()
@@ -544,6 +545,8 @@ func _apply() -> void:
 			streamer.set_ground_haze(hz, _sun.global_transform.basis.z if _sun else Vector3.UP)
 		if streamer and streamer.has_method("set_ground_smog"):
 			streamer.set_ground_smog(smog * ground_smog, smog_side)
+		if streamer and streamer.has_method("set_ground_light") and _sun:
+			streamer.set_ground_light(_sun.light_color, _sun.light_energy, day_sun_energy, _sky.get_shader_parameter("sky_top"), _horizon_now, golden, night_factor)
 	if _env:
 		# The exposure follows the light down (GoldenHour.exposure_mix()): on moonlight alone it
 		# stayed at the day's while the sun fell to its night energy, and the sunset was the

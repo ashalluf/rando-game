@@ -98,6 +98,8 @@ func run(t: SceneTree) -> void:
 		var ground := plan.height_at(Vector2(c.x, c.z))
 		var eye := c + dir * dist
 		eye.y = maxf(ground + 2.0 + dist * 0.08, c.y - box.size.y * 0.15)
+		if OS.get_environment("RISE") != "":
+			eye.y = ground + dist * float(OS.get_environment("RISE"))
 		cam.fov = clampf(rad_to_deg(2.0 * atan(r * 1.1 / dist)), 6.0, 70.0)
 		cam.look_at_from_position(eye, c, Vector3.UP)
 		var stem := "%s_%s" % [out, id]

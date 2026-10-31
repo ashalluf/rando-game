@@ -687,6 +687,7 @@ static func _convention(s: Rect2, y0: float, parent: Node3D, statics: StaticBody
 		var z := hall.position.y + hall.size.y * (0.22 + 0.28 * float(i))
 		g.box("white", Vector3(hc.x, y0 + hall_h + 1.2, z), Vector3(hall.size.x - 10.0, 2.4, 4.0), Color(0.95, 0.95, 0.94), Basis(), 0.1 if detailed else 0.0)
 		g.wall("band", Vector2(hall.end.x - 5.2, z - 2.03), Vector2(hall.position.x + 5.2, z - 2.03), y0 + hall_h + 0.2, y0 + hall_h + 2.1)
+	HallDress.dress(g, hall, y0, hall_h, [0.22, 0.50, 0.78].map(func(f: float) -> float: return hall.position.y + hall.size.y * f), "white", detailed)
 	# The two pavilions at the front corners, their green glass walls tilting outward as they
 	# rise, capped by an exposed white space frame; and the glass concourse between them.
 	var pw := clampf(s.size.x * 0.24, 14.0, 22.0)

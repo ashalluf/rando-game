@@ -81,13 +81,14 @@ def main():
             # Both sides appended to the same last line (PART_COST's closing entry): the base line,
             # less its newline, starts both sides.
             k = b.rstrip("\n")
-            return b.count("\n") == 1 and o.startswith(k) and t.startswith(k) and "\n" not in t.rstrip("\n")
+            return b.count("\n") == 1 and o.startswith(k) and t.startswith(k) and k.strip().startswith('"')
         if all(b.strip() == "" or (b in o and b in t) or tail_line(o, b, t) for o, b, t in hunks):
             def keep(m):
                 o, b, t = m.group(1), m.group(2), m.group(3)
                 if b.strip() and tail_line(o, b, t) and not (b in o and b in t):
                     k = b.rstrip("\n")
-                    return o.rstrip("\n") + ", " + t[len(k):].lstrip(", ").rstrip("\n") + "\n"
+                    extra = re.sub(r",?\s*\n\s*", ", ", t[len(k):].strip()).lstrip(", ").rstrip(", ")
+                    return o.rstrip("\n") + (", " + extra if extra else "") + "\n"
                 if b.strip():
                     return o + t.replace(b, "", 1)
                 return o + t

@@ -23886,3 +23886,79 @@ roof in the foreground has no plant at all (Building's roll); Grand Park's own l
 white diagonal path strips from the generic park build; the hall still reads very white at noon on
 opengl3 (its real stone is white too). Colour changes were judged on opengl3 only; the lawn tint
 and the membrane are plain albedo moves (darker on both renderers), not verified on Forward+.
+
+## 9jo. The golden aerial: downtown from the south-west at 17:12 (fleet wave 4, `rc-golden-aerial`)
+
+**The ask** (refcam session): judge the `golden_aerial` reference camera (downtown from the
+south-west, 140 m up, 17:12 clear; `tools/refcams/cameras.json` - the README's "18:18" is out of
+date) as an art director would, fix the worst three to five fakes, hold the other nine cameras.
+
+**What gave it away, in the order the eye lands** (main, `shots/rc-golden-aerial` 01):
+1. **A soft grey blob a quarter of the sky across** over the skyline. Not the cumulus: the sky's
+   MID DECK (`sky.gdshader`, the painted "altocumulus" sheet, drawn at 0.70 on the painted path and
+   0.2 next to the Forward+ volume) was three smooth fbm octaves cut by a threshold - at the zenith
+   one featureless oval, grey because nothing lit it at sunset. Found in seconds with
+   `tools/sky/sky_shot.gd PARAMS="mid_amount=0"`.
+2. **The mountains behind downtown pale cream and paper flat**, brighter than the sunlit city.
+   The horizon plane's painted band (past ~2.3 km it lights itself) had a FIXED noon sun
+   (`sun_color` (1, 0.955, 0.88) at full `sun_strength`, never set by anyone) and took its sky fill
+   from the HORIZON colour, warm beige at golden hour - so the shade was the light's hue. (The
+   bigger part of the wash is the depth fog plus the plane's range haze and smog at 3-6 km; left
+   alone, see below.)
+3. **The convention centre's two exhibition halls** - two of the largest shapes in the frame - were
+   blank white boxes: a blown-out white roof with nothing on it over a blank white wall.
+4. **A forest of pale toothpicks** over the far city: every far roof antenna (16 cm across) is
+   drawn at least `mast_min_px` wide so it is not lost, at full brightness at that width.
+5. **Red / cyan lines at the frame's corners**: the lens fringe split the freeway's lane lines two
+   pixels apart (CLAUDE.md: "subtle enough that you cannot point at it").
+
+**What changed** (`GoldenAerial`, `scripts/world/golden_aerial.gd`; `GOLDEN_AERIAL=0` is the exact
+A/B for all of it):
+- `sky.gdshader` mid deck: `mid_cells` 1 makes it a field of cloudlets - a warped Worley grid
+  (`mid_cell_scale` 21, cells elongated along the wind, ragged edges, growing and merging where the
+  old field was thick, faded to their average cover under a pixel), cores a little shaded, and lit
+  at sunset at 5 km through `sun_through()` like the cirrus. Opacity 0.55 on the painted path.
+  Cost: 9 hashes + 4 value-noise taps per sky pixel where the deck is, on top of the old 3 octaves.
+- `macro_ground.gdshader`: `sun_gain` (the real light energy / noon's, `SUN_GAIN_MIN` 0.25) and
+  `sun_color` (DayNight's light colour) from `GoldenAerial.ground_light()`, called through
+  `CityStreamer.set_ground_light()` (one hook in DayNight beside set_ground_smog; hill_ground_shot
+  has the same method), and the shaded faces' fill toward the zenith (`fill_top`, linear, at the
+  horizon's brightness x 0.85) by `fill_top_mix` = 0.75 x golden. Noon and night are bit-for-bit as
+  they were (gain 1, mix 0).
+- `HallDress` (`scripts/world/hall_dress.gd`, one call in each hall builder: LandmarkArenaDistrict
+  `_convention`, ArenaGrounds `_second_hall`): a grey membrane roof in 6 m sheets each a shade off
+  (lifted 25 cm: at 600 m a 3.5 cm lift z-fought and the white won), rows of packaged rooftop units
+  with fan housings (and duct runs, detailed only) between the monitors, pilasters on the blank
+  walls, a grey plinth. Geometry only, on fixed pitches and hashes, no collision.
+- `building_lod.gdshader` `mast_cover_dim` (0.85, set by PropFactory.building_lod_material()): a
+  widened mast's albedo x sqrt(true width / drawn width) - a thin dark line, as a lattice mast is.
+- `CityStreamer` vignette: `lens_fringe` x `FRINGE_GAIN` 0.5.
+- Tools: `far_landmark_shot.gd` takes `RISE=` (camera height as a share of the distance, for
+  roofs).
+
+**Not changed, seen**: the needle crests on the front range behind downtown are the terrain itself
+(the bake of a range steeper than 45 degrees), not the plane's crags (|n|, 40 m); the far mountains'
+wash is mostly the golden-hour depth fog (x1.25) plus range haze and smog - LA at 17:00 is hazy and
+the golden-hour review already thinned it, so it stays; the downtown towers' glass reads as
+salt-and-pepper (per-pane mirror / blinds) at this range - `skyline-glass-day`'s; the yellow
+crane's jib is already darkened to its lattice average.
+
+**Numbers** (refcams, opengl3; main before -> branch): golden_aerial luminance p5/p50/p95 41/142/171
+-> 40/138/169, saturation 0.345 -> 0.352, CCT 5485 -> 5596 K; the hall roofs 165/136/107 -> grey;
+triangles 5.29 M / 3,016 draws -> 5.16 M / 3,033 (traffic noise). All ten cameras, GOLDEN_AERIAL=0
+-> 1 on the same tree: 0 of 10 flagged, every p50 within 4 levels (golden_aerial -4), triangles
+-3.5 % .. +0.8 %, draws -2 % .. +0.7 % (`build/refcams/cmp`).
+**Frame cost**: the halls add ~1-2 k triangles in a handful of draws to one landmark; the plane,
+the far boxes and the vignette a few ALU; the sky's mid deck a Worley 3x3 where the deck is.
+
+**Checks**: `tests/rc_golden_aerial_checks.gd` (the plane's painted light at noon / golden hour /
+night, live through DayNight at 12:30 and 17:12, the mid deck's switch, the far antennas' dim, the
+halls dressed and not with the switch off, the fringe).
+
+**Gate** (SHARDS=3, on main 2026-10-31 merged in): 4,461 of 4,462 passed; the one FAIL was
+traffic_motion_checks "no tick turns the car by more than a smooth turn would (worst 50.2 deg)" in
+shard 2, which passes alone twice (worst 0.5 deg) - intermittent, traffic-motion's, for gate-flakes.
+
+**NEEDS MAC CHECK**: the mid deck's cloudlets next to the cumulus volume (Forward+ draws them at
+0.2); the far ranges' tone at 17:00-18:00 on Forward+ (lavapipe on the hill tool: a little darker and
+warmer, as intended; the city's own Forward+ frame was not rendered).

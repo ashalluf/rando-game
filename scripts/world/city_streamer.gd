@@ -1042,7 +1042,7 @@ func _build_vignette() -> void:
 	mat.shader = load("res://shaders/vignette.gdshader")
 	mat.set_shader_parameter("strength", vignette_strength)
 	mat.set_shader_parameter("grain", film_grain)
-	mat.set_shader_parameter("fringe", lens_fringe)
+	mat.set_shader_parameter("fringe", lens_fringe * GoldenAerial.FRINGE_GAIN if GoldenAerial.enabled else lens_fringe)
 	rect.material = mat
 	layer.add_child(rect)
 	add_child(layer)
@@ -1121,6 +1121,11 @@ func set_ground_smog(amount: float, color: Color) -> void:
 	if _ground_material:
 		_ground_material.set_shader_parameter("smog", amount)
 		_ground_material.set_shader_parameter("smog_color", color)
+
+
+## DayNight's sun and sky for the plane's painted light (GoldenAerial).
+func set_ground_light(sun_color: Color, energy: float, day_energy: float, top: Color, horizon: Color, golden: float, night: float) -> void:
+	GoldenAerial.ground_light(_ground_material, sun_color, energy, day_energy, top, horizon, golden, night)
 
 
 ## Where the horizon plane's rim hands over to the sky, as fractions of its half-size (see
