@@ -3786,3 +3786,10 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+
+- **2026-10-31 Gore at arm's length is on top of the old blood, never instead of it (blood-gore-2,
+  HANDOFF "Blood and gore at arm's length").** The owner asked for more. Wounds, runs and the hero's
+  spatter are shader work on the materials the bodies already have (a shot doll's own copy, the
+  hero's), so the crowd pays nothing; pools follow the ground and the road's camber to the gutter,
+  bodies on cars bleed onto the paint and off its edge, stumps are torn flesh and bone. The caps,
+  the budget and the satin / coverage rules of the old marks stay as they were. BLOOD_GORE_2=0.
