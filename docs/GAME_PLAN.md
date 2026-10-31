@@ -3786,3 +3786,4 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+- 2026-10-31 (wave 4, sky-day-review): the day sky (09:00-16:00) is a weight on the clock (SkyDay), exactly 0 outside it so dawn, the golden hour, the sunset and the night stay bit-identical; the look changes in the drawn sky, and only a quarter of it reaches the radiance / ambient cubemap, because the sky is the city's fill light and lighting is the grade's call. The horizon colour is not darkened in the shader alone (it must match the fog and the far ground). SKY_DAY=0 is the A/B.

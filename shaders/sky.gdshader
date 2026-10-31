@@ -208,7 +208,7 @@ uniform vec3 day_cloud_tint = vec3(0.95, 0.98, 1.04);
 // drew a beige blot round the noon sun, shaped like the clouds' weather map).
 uniform float day_rays = 0.2;
 // The painted mid deck by day: a smooth pale smudge next to the volume (a veil round the sun).
-uniform float day_mid = 0.3;
+uniform float day_mid = 0.15;
 // How much of the day look the radiance / ambient cubemap gets. The sky IS the city's fill light:
 // the full bluer sky there cooled every street ~20 mired and darkened it ~10 %, which is the
 // lighting's call, not the sky's; the reflections still see a little of it.
