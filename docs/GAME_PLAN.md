@@ -3955,3 +3955,9 @@ none of either.
   (paving is drawn over the slab that collides), through each instance's origin; every fix moves a
   placement's height only, after the rolls, so no seed's city moves.
 
+- **2026-10-31 Shop fronts at arm's length: what a shop puts out (storefront-closeup-2, HANDOFF
+  "Shop fronts at arm's length").** At 2-6 m a storefront is judged by what stands at its door, so
+  each shop run gets a mat, planters, a sandwich board, a hanging sign or a menu case at the door
+  the kit and shader already draw (their integer rolls), all into FacadeStreet's one StreetDress
+  mesh (no new draw); awning cloth sags and its valance is scalloped in real metres; open shops are
+  lit by day, closed ones dimmer. SHOPFRONT_DRESS=0 is the A/B.

@@ -216,6 +216,8 @@ static func _occupied(chunk: CityChunk) -> Array:
 	for c in chunk.get_children():
 		if c is TrashCan or c is PhysicsProp:
 			out.append([Vector2((c as Node3D).position.x, (c as Node3D).position.z), CLEAR])
+	# The shops' mats and planters at their doors (ShopfrontDress).
+	out.append_array(ShopfrontDress.occupied(chunk))
 	return out
 
 

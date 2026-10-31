@@ -2752,6 +2752,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Buildings at mid distance (tests/building_mid_detail_checks.gd, FacadeMid): balcony life and wall
 	# hardware inside the lot, glass towers plain, nothing a building rolled moving.
 	load("res://tests/building_mid_detail_checks.gd").new().run(self, city)
+	# Shop fronts at arm's length (tests/storefront_closeup_2_checks.gd, ShopfrontDress): mats,
+	# planters, hanging signs, menus, the awnings' valance and sag, the A/B.
+	load("res://tests/storefront_closeup_2_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

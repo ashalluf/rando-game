@@ -5005,6 +5005,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   kit window ACs, sleeve ACs, vents, dishes, open windows, window boxes, flashing, painted names, fire
   escapes on FLAT walk-ups. Hashes only. `FACADE_MID=0` the A/B; probe
   `tools/building_mid_detail/probe.gd`; checks `tests/building_mid_detail_checks.gd`.
+- Shop fronts at arm's length (2026-10-31, docs/HANDOFF.md "Shop fronts at arm's length"):
+  `ShopfrontDress` (`scripts/world/shopfront_dress.gd`, one hook beside
+  `ShopfrontKit.storefront_face()`) puts mats, planters, a chalk sandwich board, a hanging sign on
+  chains and a menu case at each shop's DOOR (the kit's integer rolls) into FacadeStreet's
+  StreetDress mesh (props shader kinds 10-15); footprints in Building meta `sf_dress`, read by
+  `StreetClutter._occupied()`. The dome / roller awnings' cloth sags; their valance's vertex alpha
+  (0.62 -> 0.12) is cut into 0.30 m scallops by facade_kit.gdshaderinc. building.gdshader tapes an
+  A3 menu in cafe windows (salts 58-59) and lights OPEN shops by day (`shop_day_open`).
+  `SHOPFRONT_DRESS=0` is the A/B; probe `tools/storefront_closeup_2/probe.gd` (SF_DEBUG=1); checks
+  `tests/storefront_closeup_2_checks.gd`.
 - The street level up close (2026-10-30, docs/HANDOFF.md "The street level up close"): within
   ~55 m `shaders/facade_street.gdshaderinc` (in building.gdshader) gives the walls relief as a
   height field in metres on (u, v) applied as a tilt of NORMAL at the end (stucco grain and trowel,

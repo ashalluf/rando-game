@@ -181,6 +181,10 @@ uniform bool interior_enabled = true;
 // A shop's own lights by day, over the daylight in its room (shop_interior.gdshaderinc), and how
 // bright its fittings' practical lights (pendants, chillers, tills, lift indicators) are.
 uniform float shop_day_light = 0.30;
+// The same for a shop that is OPEN (shop_open): its lights are on all day, so from the pavement at
+// noon the room reads lit, not as a dark hole (ShopfrontDress sets it with shop_day_light, the
+// closed shops' level; at their defaults every shop is lit alike, as before).
+uniform float shop_day_open = 0.30;
 uniform float shop_glow = 1.0;
 // Past this distance (metres to the glass) a shop's fittings are not traced, only its room.
 uniform float shop_fittings_distance = 80.0;
@@ -414,6 +418,7 @@ vec4 shop_decal(vec2 p, vec2 pane, uint shop, float bay, bool door, float glass_
 		bool vinyl = shop_byte(shop, 20u) < 150u;
 		bool name_bay = abs(bay - mod(door_i + span - 1.0, span)) < 0.5;
 		bool poster_bay = shop_byte(shop, 21u) < 120u && abs(bay - float(shop_byte(shop, 22u) % 3u)) < 0.5;
+		bool menu_bay = (kind == 2u || kind == 3u) && shop_byte(shop, 58u) < 180u && abs(abs(bay - door_i) - 1.0) < 0.5 && !poster_bay;
 		// Ink: white, gold leaf with a dark keyline, now and then red.
 		uint ink_roll = shop_byte(shop, 23u);
 		vec3 ink = ink_roll < 90u ? vec3(0.86, 0.68, 0.30) : (ink_roll < 120u ? vec3(0.80, 0.08, 0.06) : vec3(0.93, 0.93, 0.90));
@@ -430,7 +435,7 @@ vec4 shop_decal(vec2 p, vec2 pane, uint shop, float bay, bool door, float glass_
 				c = max(c, vinyl_line(sub, p, cx, 1.76 - glass_low - 0.115, 0.055, pane.x * 0.7, 0.5, keyline * 0.8, shop, px_m));
 			}
 			out_c = vec4(mix(vec3(0.05), ink, c.x / max(c.x + c.y, 1e-4)), clamp(c.x + c.y, 0.0, 1.0) * 0.95);
-		} else if (vinyl && !poster_bay && shop_byte(shop, 53u) < 150u) {
+		} else if (vinyl && !poster_bay && !menu_bay && shop_byte(shop, 53u) < 150u) {
 			// A promo across another bay, at eye height.
 			int pr = VT_PROMO[int(kind) * 8 + int(shop_byte(shop, 54u) % 8u)];
 			int s = VT_PHRASE0 + pr;
@@ -468,6 +473,41 @@ vec4 shop_decal(vec2 p, vec2 pane, uint shop, float bay, bool door, float glass_
 					c = mix(c, vec3(0.94, 0.93, 0.90), clamp(border, 0.0, 1.0));
 					out_c = vec4(c, 1.0);
 				}
+			}
+		}
+		// A cafe's or restaurant's menu taped up inside the window next to the door (salts 58-59;
+		// ShopfrontDress's menu case is on the pier): an A3 sheet at eye height on the door's side
+		// of the pane, a heading, lines of dishes with their prices, four strips of tape.
+		if (menu_bay) {
+			vec2 msz = vec2(0.297, 0.42);
+			float mx = bay > door_i ? 0.09 : pane.x - 0.09 - msz.x;
+			vec2 mat0 = vec2(mx, 1.22 - glass_low + float(shop_byte(shop, 59u) % 9u) * 0.012);
+			vec2 q = (p - mat0) / msz;
+			vec2 qa = abs(q - 0.5);
+			// Tape: a strip across each corner, clear and a little yellowed.
+			vec2 tq = vec2(qa.x - 0.5, qa.y - 0.5) * msz;
+			vec2 tr = vec2(tq.x + tq.y, tq.y - tq.x) * 0.7071;
+			float tape = step(abs(tr.y), 0.009) * step(abs(tr.x), 0.03);
+			if (q.x > 0.0 && q.x < 1.0 && q.y > 0.0 && q.y < 1.0) {
+				float ink = 0.0;
+				float fine = fade;
+				if (q.y > 0.84 && q.y < 0.92 && qa.x < 0.28) {
+					ink = step(0.35, hash21(vec2(floor(q.x * 22.0), float(shop % 97u)))) * fine + 0.45 * (1.0 - fine);
+				} else if (q.y > 0.795 && q.y < 0.805 && qa.x < 0.38) {
+					ink = 1.0;
+				} else if (q.y > 0.07 && q.y < 0.76 && qa.x < 0.42) {
+					float ln = floor(q.y * 30.0);
+					float on_line = step(0.45, fract(q.y * 30.0)) * step(0.2, hash21(vec2(ln, 7.0 + float(shop % 13u))));
+					float word = step(0.28, hash21(vec2(floor(q.x * 38.0), ln)));
+					float len = 0.4 + 0.4 * hash21(vec2(ln, 1.0));
+					float price = step(0.8, q.x) * step(q.x, 0.9);
+					ink = on_line * (step(q.x, 0.08 + len * 0.7) * word + price) * fine + on_line * 0.33 * (1.0 - fine);
+				}
+				vec3 paper = shop_byte(shop, 59u) < 40u ? vec3(0.90, 0.82, 0.62) : vec3(0.94, 0.93, 0.89);
+				out_c = vec4(mix(paper, vec3(0.07, 0.06, 0.06), clamp(ink, 0.0, 1.0)), 1.0);
+				out_c.rgb = mix(out_c.rgb, vec3(0.97, 0.95, 0.85), tape * 0.45);
+			} else if (tape > 0.5 && qa.x < 0.54 && qa.y < 0.54) {
+				out_c = vec4(vec3(0.95, 0.93, 0.82), 0.35);
 			}
 		}
 	} else {
@@ -1577,7 +1617,7 @@ void fragment() {
 				// A shop is lit inside all day too: a little of its own light over what the day
 				// lights, so one on the shaded side of the street is not a black hole. Then what
 				// its fittings give off, while it is open.
-				emission += room_raw * room_tone(room_kind, shop_key) * room_lamp * shop_day_light * (1.0 - shop_on);
+				emission += room_raw * room_tone(room_kind, shop_key) * room_lamp * (lit ? shop_day_open : shop_day_light) * (1.0 - shop_on);
 				emission += room_glow * shop_glow * (lit ? 1.0 : 1.0 - shop_on);
 			}
 			if (storefront && lit && neon_bay && !lobby && shop_byte(shop_key, 5u) < 90u) {

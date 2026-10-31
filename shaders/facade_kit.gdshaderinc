@@ -91,6 +91,9 @@ varying vec3 v_world_normal;
 varying vec3 v_world_pos;
 varying float v_stripe;
 varying float v_glow;
+// A valance's vertex alpha (ShopfrontKit._valance(): VALANCE_TOP at the bar, VALANCE_BOTTOM at the
+// hem; 1 on everything else).
+varying float v_hem;
 
 float kit_slice(float x, float extra) {
 	return abs(x) < 0.5 ? x * (1.0 + 2.0 * extra) : x + sign(x) * extra;
@@ -164,6 +167,7 @@ void vertex() {
 	v_tint = tint;
 	v_stripe = c.g;
 	v_glow = COLOR.a * c.r;
+	v_hem = COLOR.a;
 	v_world_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	v_world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
@@ -183,6 +187,21 @@ void fragment() {
 		// Stripes run down the slope, so they are bands across x (UV.x is metres along it).
 		float s = fract(UV.x / (2.0 * stripe_width));
 		tint = mix(tint, stripe_color, smoothstep(0.47, 0.53, s) * (1.0 - smoothstep(0.97, 1.0, s)));
+	}
+	float hem_tape = 0.0;
+	if (stripes && v_hem < 0.985) {
+		// A scalloped valance (ShopfrontKit._valance()): 0 at the front bar, 1 at its hem. The
+		// scallops are 0.30 m of real canvas whatever the awning's width (UV.x is metres along
+		// it), cut out, and their edge bound in a 2 cm tape of the darker colour.
+		float hv = clamp((0.62 - v_hem) / 0.5, 0.0, 1.0);
+		float sx = fract(UV.x / 0.30) - 0.5;
+		float edge = 0.62 + 0.38 * sqrt(max(1.0 - 4.0 * sx * sx, 0.0));
+		if (hv > edge) {
+			discard;
+		}
+		float hpx = max(fwidth(hv), 1e-4);
+		hem_tape = 1.0 - smoothstep(0.08, 0.08 + hpx * 1.5, edge - hv);
+		hem_tape = max(hem_tape, 1.0 - smoothstep(0.06, 0.06 + hpx * 1.5, hv));
 	}
 	vec3 albedo = tint;
 	float rough = roughness;
@@ -206,6 +225,9 @@ void fragment() {
 		float wet = ws_wet(0.35 + 0.4 * face_up) * mix(0.55, 1.0, face_up);
 		albedo *= mix(1.0, 0.6, wet);
 		rough = mix(rough, 0.18, wet * face_up);
+	}
+	if (hem_tape > 0.0) {
+		albedo = mix(albedo, min(v_tint, stripe_color) * 0.55, hem_tape);
 	}
 	ALBEDO = clamp(albedo * (1.0 - occ * 0.55), vec3(0.0), vec3(1.0));
 	AO = 1.0 - occ;
