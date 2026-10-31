@@ -114,7 +114,9 @@ static func flash(node: Node, at: Vector3, color: Color, size: float, life: floa
 ## (the old light, down the bore), and on the wall the barrel points at.
 static func _lights(node: Node, parent: Node, at: Vector3, fwd: Vector3, k: float) -> void:
 	var web := OS.has_feature("web")
-	var main := _light(parent, at + fwd * 0.45 * k, WeaponFX.muzzle_light_energy * k,
+	# Energy grows less than the flash: at the shotgun's full 2.4x the old light burnt a wall four
+	# metres off to white, in daylight too.
+	var main := _light(parent, at + fwd * 0.45 * k, WeaponFX.muzzle_light_energy * clampf(k, 0.7, 1.5),
 		WeaponFX.muzzle_light_range * clampf(k, 0.7, 2.5), WeaponFX.muzzle_light_time)
 	if not web:
 		# Volumetric fog takes it too (Forward+ HIGH): a flash in the haze is a puff of light.
