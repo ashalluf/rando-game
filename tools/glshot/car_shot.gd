@@ -10,6 +10,7 @@ extends SceneTree
 ## Writes $OUT_<view>.png per view. `--type=N` body type (0 sedan; see Vehicle.BodyType; the taxi,
 ## 17, comes in its livery, and it and the beater, 18, take their per-car look from `LOOK=n`),
 ## `--views` any of front3 rear3 side front rear top close (the front wheel) plate nose wheel arch (CarDetail close-ups;
+## under, tail, liner: CarUnderside - from below the road, at the exhaust, into the front arch;
 ## `CAR_GRIME=g,mud,scratch,dust` forces the grime) far (44 m out,
 ## narrow lens: the far twin), `--cam=x,y,z
 ## --look=x,y,z` for one custom view (the car's nose points -Z, its centre is the origin),
@@ -161,6 +162,7 @@ func _initialize() -> void:
 		RenderingServer.global_shader_parameter_set("sky_tint", Color(0.03, 0.035, 0.05))
 
 	var sun := DirectionalLight3D.new()
+	sun.name = "Sun"
 	sun.rotation_degrees = Vector3(-44.0, -130.0, 0.0)
 	sun.light_energy = 0.05 if night else 1.4
 	if paint_env.contains("golden"):
@@ -186,6 +188,7 @@ func _initialize() -> void:
 	shape.position = Vector3(0.0, -1.0, 0.0)
 	floor_body.add_child(shape)
 	var ground := MeshInstance3D.new()
+	ground.name = "GroundPlane"
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(200.0, 200.0)
 	ground.mesh = plane
@@ -489,6 +492,18 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 					# Behind and above, where the player's camera follows a car.
 					at = Vector3(1.2, 2.6, 8.5)
 					target = Vector3(0.0, 0.9, -1.0)
+				"under":
+					# CarUnderside: from under the road looking up (the ground is hidden).
+					at = Vector3(1.6, -2.2, 1.2)
+					target = Vector3(0.0, 0.2, -0.2)
+				"tail":
+					# Crouched behind the rear bumper: the exhaust tips and the silencer.
+					at = Vector3(1.1, 0.38, 4.3)
+					target = Vector3(0.2, 0.28, 2.0)
+				"liner":
+					# Low at the front wheel, looking into the arch: liner, strut, arms.
+					at = Vector3(2.2, 0.55, -3.0)
+					target = Vector3(0.75, 0.42, -1.45)
 				"far":
 					# Past Vehicle.body_far_distance, with a narrow lens: the far twin.
 					at = Vector3(26.0, 5.0, -36.0)
@@ -499,6 +514,14 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 			if big > 1.0 and cam_at == Vector3.INF:
 				at = Vector3(at.x * sqrt(big), at.y * sqrt(big), at.z * big)
 				target = Vector3(target.x, target.y * sqrt(big) * 1.3, target.z * big)
+		var gplane := get_root().find_child("GroundPlane", true, false) as Node3D
+		if gplane:
+			gplane.visible = view != "under"
+		# The underside as a car on its roof shows it: the sun from below.
+		var sun_n := get_root().find_child("Sun", true, false) as DirectionalLight3D
+		if sun_n and view == "under":
+			sun_n.rotation_degrees = Vector3(50.0, -130.0, 0.0)
+			sun_n.shadow_enabled = false
 		cam.fov = 9.0 if view == "far" else fov
 		cam.look_at_from_position(at, target)
 		for i in 4:
