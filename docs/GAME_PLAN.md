@@ -3786,3 +3786,10 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+
+- **2026-10-31 The crowd's flow (pedestrian-flow, HANDOFF "The crowd's flow").** Local avoidance is
+  a cheap reciprocal step over a per-frame grid, only within physics_range of the camera (past it
+  nobody can see two figures overlap); groups are made at spawn from walkers the chunk already
+  makes (no extra people), so the crowd cap and every seed's crowd count stay as they were; kerb
+  waits and door traffic reuse the crossing and StreetErrands state machines rather than adding
+  new ones. CROWD_FLOW=0 is the A/B.
