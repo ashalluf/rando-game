@@ -21980,3 +21980,57 @@ the same way, but judge 18:00 on the Mac first - if it reads milky-pink, raise `
 grass under a low red sun is what it is). The painted cumulus on opengl3 draws a big smooth ellipse in
 the aerial and sky shots (before and after alike; the sky's, not this review's). Dawn shares the sky
 ramp and the exposure ramp (both are symmetric in elevation) and was not looked at.
+
+## 9d?. The five stars as distinct (fleet wave 4, `wanted-escalation`, 2026-10-31)
+
+Every wanted star now brings its own response, look and sound. One table, `WantedEscalation`
+(`scripts/npc/wanted_escalation.gd`), read by everything that escalates:
+
+| stars | on the street | in the air | sound | under the stars |
+|---|---|---|---|---|
+| 1 | one cruiser (2 officers) | - | one slow wail, a single dispatch beep, a call every ~13 s | PATROL UNIT RESPONDING |
+| 2 | 3 cruisers (6) | - | wail far out, the yelp within 70 m, double beep | UNITS CONVERGING |
+| 3 | 4 (8), roadblocks ahead of a car | the police helicopter | yelp within 95 m, rising triple tone | AIR SUPPORT · ROADBLOCKS |
+| 4 | 5 (12), every other unit a tactical van: black, carbines, ballistic helmets | a second helicopter | the vans' air horn in blasts close in, long two-tone alert | TACTICAL UNITS DEPLOYED |
+| 5 | 7 (18): the BASIN DEFENSE CORPS' olive troop trucks two in four, a van and a cruiser | three, the third the gunship | the trucks' hi-lo two-tone, the emergency warble, a call every ~3 s | BASIN DEFENSE CORPS MOBILIZED |
+
+**Hooks** (all small): `Police._ready()` calls `WantedEscalation.apply()` (caps,
+`roadblock_stars` 3, `heavy_stars` 4) and `WantedAudio.attach()`; `_dispatch()` /
+`_dispatch_from_station()` take `_take_unit()` (`unit_for(stars, dispatched)`, the pattern per
+star); `_take_car()` / `spawn_cruiser()` take an `agency` flag (the pool matches it);
+`stage_for_shot()` stages the same mix. `PoliceCar.make(heavy, rng, agency)`: the agency unit is a
+`BOX_TRUCK` body (BigVehicles tunes its mass and letters the box with the meta `fleet`), matte olive
+drab with a dark belt band (`Livery.DELIVERY`), the light bar on the box's front edge, four aboard,
+a grille guard and roof lockers (`WantedEscalation.dress_truck()`, one shared code mesh).
+`PoliceOfficer`: `agency` from its car; a trooper is `heavy` (carbine, five-round bursts) in field
+drab (`uniform_material(..., agency)`), and both the van's officers and the troopers wear
+`TacticalHelmet` (`scripts/npc/tactical_helmet.gd`: a high-cut ballistic shell modelled round each
+rig's head from CrowdHatTable like FireHelmet, rubber edge trim, side rails, a night-vision mount;
+black or olive) where the van used to go bareheaded. AirTraffic: `want` is
+`WantedEscalation.helicopters()`; the third pursuer at five stars is `arm_gunship()`ed (matte
+charcoal over dark olive, police lettering painted out, stub wings with four rocket pods, the
+searchlight x1.8 and 9.5 degrees wide), orbiting wider and 24 m higher; `stage("gunship")` for
+stills (`AIR=gunship`).
+
+**Audio** (`WantedAudio`, `scripts/npc/wanted_audio.gd`, a child of Police; `WANTED_AUDIO=0` leaves
+it out): four times a second it picks each cruiser's siren voice (`PoliceCar.set_siren_voice()`:
+the stream swaps and the loop restarts only on a change) and blasts the vans' / trucks' air horn
+(Sfx `fire_horn`); a non-positional `Radio` player on the World bus plays the alert tone of each
+new star, a falling pair when they clear, and garbled calls (squelch, two-formant noise syllables
+over a 118 Hz buzz, roger beep) every `RADIO_GAP`. All of it is synthesised in the file (no assets,
+nothing added to Sfx). The radio is ours; police-chase-2 was also given "radio chatter" - if both
+land, keep one (`WANTED_AUDIO=0` turns ours off).
+
+**HUD**: `WantedTicker` (`scripts/ui/wanted_ticker.gd`, a child of WantedHud, one line there) draws
+the star's line under the stars for 3.2 s with a red / blue tick (HudTheme type).
+
+Original only: the agency, its trucks and the gunship carry no real army, guard or police name,
+insignia or livery. `WANTED_ESCALATION=0` is the A/B (the old caps, roadblocks at four, vans at
+five, two helicopters, one wail). Checks: `tests/wanted_escalation_checks.gd` (the table, the
+Police node wearing it, the units per star, the truck and a trooper, the helmet's shell, AirTraffic's
+three-and-a-gunship, the siren mix by distance, the radio's tones, the ticker, a real five-star
+dispatch sending a truck). The police stay off in every other check.
+
+Not done: the gunship does not shoot (the brief asked for its spotlight); the trucks drive the
+lanes and pursue like cruisers (police-chase-2 owns manoeuvres); no Forward+ still of the gunship's
+volumetric beam.

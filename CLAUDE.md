@@ -995,6 +995,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   minimap; the minimap draws the units as flashing red/blue blips and the search area. The
   smoke test runs with `Police.enabled` false except in `_test_police`. Stills: `STARS=n
   POLICE=standoff|pursuit` on `tools/glshot/still_shot.gd`.
+- The five stars (2026-10-31, docs/HANDOFF.md "The five stars as distinct"): `WantedEscalation`
+  (`scripts/npc/wanted_escalation.gd`, one table) sets Police's caps per star, roadblocks from 3,
+  tactical vans from 4 (helmeted, `TacticalHelmet`), at 5 the invented BASIN DEFENSE CORPS' olive
+  box-truck troop carriers (`PoliceCar.agency`, field-drab troopers) and a gunship (AirTraffic's
+  third helicopter, `arm_gunship()`); `unit_for(stars, n)` is what a dispatch sends.
+  `WantedAudio` (Police's child) picks each siren's voice by star and distance (wail, yelp, the
+  trucks' hi-lo, air horns) and plays a synthesised radio; `WantedTicker` names the response under
+  the stars. `WANTED_ESCALATION=0` / `WANTED_AUDIO=0` the A/B; stills `STARS=5`, `AIR=gunship` on
+  still_shot.gd; checks `tests/wanted_escalation_checks.gd`.
 - Street life (owner, 2026-09-24: "GTA-level street life"). **Signals are worked out, never
   ticked.** `TrafficSignals` (`scripts/world/traffic_signals.gd`, static) is one shared clock
   (`clock`, advanced once a physics tick by `TrafficManager` and pushed as the `signal_clock`

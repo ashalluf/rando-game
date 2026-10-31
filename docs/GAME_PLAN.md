@@ -3629,6 +3629,16 @@ already mapped so milestone 2 is script-only.
   its own prop record; Broadway's lanterns at 0.6 of the level. All tuning of existing systems plus
   one quad a lamp; `NIGHT_STREET_REVIEW=0` restores the old numbers.
 
+- **2026-10-31 Each wanted star is its own response (wanted-escalation, HANDOFF "The five stars
+  as distinct").** Decisions: one table (`WantedEscalation`) owns what every star brings - caps,
+  roadblocks from three (was four), tactical vans from four (was five), the helicopter at three, a
+  second at four, a gunship third at five; five stars bring an invented agency (the Basin Defense
+  Corps) in olive box-truck troop carriers, its troopers in field drab with carbines and ballistic
+  helmets. Each star also sounds and reads different: the sirens' voice is picked by star and
+  distance (wail, yelp, air horn, the agency's hi-lo), a synthesised police radio announces every
+  new star and calls more often, and a line under the stars names the response. No real agency's
+  name or livery; `WANTED_ESCALATION=0` restores the old response.
+
 ## Correction: what build 135 (0ce833f) actually contained
 
 That commit's subject says "denser grass, real palm fronds, finer ground". It also shipped a

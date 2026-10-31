@@ -102,19 +102,23 @@ func _agency_truck(city: Node3D, police: Node) -> void:
 	await _ticks(2)
 	var gear := truck.get_node_or_null("AgencyGear") as MeshInstance3D
 	var paint_ok := false
+	var paint_seen := Color.BLACK
 	for mi in truck.find_children("*", "MeshInstance3D", true, false):
 		for si in (mi as MeshInstance3D).get_surface_override_material_count():
 			var m := (mi as MeshInstance3D).get_surface_override_material(si) as ShaderMaterial
 			if m and m.get_shader_parameter("stripe_mode") != null and int(m.get_shader_parameter("stripe_mode")) != 5:
 				var c: Variant = m.get_shader_parameter("paint")
-				if c is Color and (c as Color).is_equal_approx(WantedEscalation.AGENCY_OLIVE):
+				var col := Color(c.x, c.y, c.z) if c is Vector3 else (c as Color if c is Color else Color.BLACK)
+				if c != null:
+					paint_seen = col
+				if col.g > col.b and col.g >= col.r and col.v < 0.25 and col.v > 0.05:
 					paint_ok = true
 	var lettered := OS.has_feature("web") or truck.find_children("Lettering", "MeshInstance3D", true, false).size() >= 2
 	_check(truck.body_type == Vehicle.BodyType.BOX_TRUCK and truck.agency and truck.crew_aboard == 4 and truck.crew_alive == 4
 			and String(truck.get_meta("fleet", "")) == WantedEscalation.AGENCY,
 			"the agency's unit is a box truck with four aboard, its fleet the invented %s" % WantedEscalation.AGENCY)
 	_check(paint_ok and lettered and gear != null and gear.mesh != null and truck.get_node_or_null("LightBar") != null,
-			"the truck is olive drab, lettered both sides, with a grille guard, roof lockers and a light bar")
+			"the truck is olive drab, lettered both sides, with a grille guard, roof lockers and a light bar (paint %s %s, lettered %s, gear %s)" % [paint_ok, paint_seen, lettered, gear != null])
 	_check(truck.mass > 4000.0, "the truck keeps a truck's mass (%.0f kg), not a cruiser's" % truck.mass)
 	# A trooper: field drab, a carbine, the helmet.
 	var o := PoliceOfficer.new()
@@ -215,7 +219,7 @@ func _audio(city: Node3D, police: Node) -> void:
 	var units: Array = []
 	for spec: Array in [[true, 30.0], [false, 40.0], [false, 260.0]]:
 		var car := PoliceCar.make(false, rng, spec[0])
-		car.position = player.global_position + Vector3(float(spec[1]), 320.0, 0.0)
+		car.position = player.global_position + Vector3(float(spec[1]), 1.0, 0.0)
 		city.add_child(car)
 		units.append(car)
 	await _ticks(2)

@@ -801,6 +801,10 @@ func _order_police(dt: float) -> void:
 		if pursuers.size() < want and _police_respawn_left <= 0.0:
 			pursuers.append(spawn_helicopter(Helicopter.Role.POLICE, far_spawn_point(), "pursuit"))
 			_police_respawn_left = 6.0
+		# Fewer stars than helicopters: the last to join (the gunship first) flies off.
+		while WantedEscalation.enabled and pursuers.size() > want:
+			var extra: Helicopter = pursuers.pop_back()
+			extra.task = "leaving"
 	var ground := ground_height(Vector2(p.x, p.z))
 	_look_timer += dt
 	for i in pursuers.size():
@@ -910,6 +914,12 @@ func stage(kind: String, cam: Camera3D, dist: float, side: float = 0.0) -> Ambie
 			h.apply_pose()
 			h.snap_gear()
 			return h
+		"gunship":
+			# The five-star gunship (WantedEscalation), staged like the police helicopter.
+			var g := stage("police", cam, dist, side)
+			forced_stars = 5
+			WantedEscalation.arm_gunship(g)
+			return g
 		"police":
 			forced_stars = police_stars
 			var at := spot + Vector3.UP * police_orbit_height
