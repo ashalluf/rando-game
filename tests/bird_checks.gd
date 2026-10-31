@@ -162,7 +162,7 @@ func _flock(birds: Node) -> void:
 		_t._check(false, "birds: found open ground near the player to stage a flock on")
 		return
 	var before: int = birds.call("bird_count")
-	var id: int = birds.call("stage", "pigeon", p, 20, 3.0)
+	var id: int = _stage(birds, "pigeon", p, 20, 3.0)
 	_t._check(id != 0 and int(birds.call("bird_count")) == before + 20, "birds: a staged flock of 20 pigeons stands on the ground")
 	if id == 0:
 		return
@@ -182,9 +182,9 @@ func _flock(birds: Node) -> void:
 	info = _info(birds, id)
 	_t._check(int(info.state) != Birds.FlockState.AIR and int(info.count) == 20, "birds: within 40 s the flock has come down again somewhere, all 20 (state %d)" % int(info.state))
 	# An alarm (a gunshot, Pedestrian.alarm) startles a grounded flock in reach.
-	var id2: int = birds.call("stage", "pigeon", p, 10, 2.0)
+	var id2: int = _stage(birds, "pigeon", p, 10, 2.0)
 	Birds.startle(p + Vector3(20.0, 0.0, 0.0), 45.0)
-	_t._check(int(_info(birds, id2).state) == Birds.FlockState.AIR, "birds: a gunshot 20 m away startles a flock up")
+	_t._check(id2 != 0 and int(_info(birds, id2).state) == Birds.FlockState.AIR, "birds: a gunshot 20 m away startles a flock up (staged %s)" % (id2 != 0))
 	await _tree.process_frame
 
 
@@ -193,7 +193,7 @@ func _shots(birds: Node) -> void:
 	var p := _ground_point(player.global_position + Vector3(-11.0, 0.0, 6.0))
 	if p == Vector3.INF:
 		return
-	var id: int = birds.call("stage", "gull", p, 6, 3.0)
+	var id: int = _stage(birds, "gull", p, 6, 3.0)
 	if id == 0:
 		_t._check(false, "birds: staged gulls for the shot")
 		return
@@ -218,7 +218,7 @@ func _shots(birds: Node) -> void:
 			lying = true
 	_t._check(lying, "birds: the shot gull falls and lies on the ground")
 	# A blast kills what is close.
-	var id3: int = birds.call("stage", "pigeon", p, 12, 1.5)
+	var id3: int = _stage(birds, "pigeon", p, 12, 1.5)
 	if id3 != 0:
 		kills = Birds.kills
 		live._blasted(live.to_local(p))
@@ -245,6 +245,17 @@ func _wire(_birds: Node) -> void:
 	var s1 := s0 + 1.0 / float(n)
 	var want := lerpf(8.6 - 1.1 * 4.0 * s0 * (1.0 - s0), 8.6 - 1.1 * 4.0 * s1 * (1.0 - s1), (0.5 - s0) / (s1 - s0))
 	_t._check(ends and absf(mid.y - want) < 1e-3, "birds: a bird on a span sits on the sagging wire StreetDetail draws (mid %.2f m)" % mid.y)
+
+
+## A staged flock, with room made under the city's bird cap: the surveys fill it round the player
+## (the check's own advance() runs them), and a full cap stages nothing - gate run 5454's second
+## flock was never there to startle.
+func _stage(birds: Node, species: String, at: Vector3, count: int, radius: float) -> int:
+	var cap: int = birds.get("_cap")
+	birds.set("_cap", 100000)
+	var id: int = birds.call("stage", species, at, count, radius)
+	birds.set("_cap", cap)
+	return id
 
 
 func _info(birds: Node, id: int) -> Dictionary:
