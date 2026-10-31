@@ -241,18 +241,20 @@ func _director(t: Node) -> void:
 	for i in 20:
 		dir.watch(foot + Vector3(0.0, 2.0 + float(i) * 0.1, 5.0 + float(i) * 0.33), Vector3(0.0, 3.0, 20.0), true, dt)
 	var started := StuntDirector.moments == moments + 1 and dir.is_active() and StuntDirector.last_launch_id == "stunt_check"
-	# Let the ease run a few real frames.
-	# The director's ease steps at most 0.1 s a frame, so on a slow frame (a busy city in a
-	# shard) 600 ms can be two frames: wait for the frames too.
+	# Run the ease on synthetic 50 ms ticks rather than real frames. In a shard the frames were
+	# ~500 ms each and something earlier in the shard's order wrote the time scale between them, so
+	# the director let go (as it must when another owner takes it) and the check read 1.00 (batch 28).
 	var t0 := Time.get_ticks_msec()
 	var frames := 0
-	# (Batch 28's gate: 4 frames took 5.8 s and the ease, at most 0.1 s a frame, reached 0.82: keep
-	# going until it has slowed, up to the cap.)
-	while ((Time.get_ticks_msec() - t0 < 600 or frames < 4) or (Engine.time_scale >= 0.6 and frames < 40)) and frames < 120:
-		await t.get_tree().process_frame
+	dir.set_process(false)
+	while Engine.time_scale >= 0.6 and frames < 40:
+		dir._last_ms = Time.get_ticks_msec() - 50
+		dir._process(0.05)
 		frames += 1
+	dir.set_process(true)
+	var paused := t.get_tree().paused
 	var slowed := Engine.time_scale < 0.6
-	var slowed_at := "%.2f after %d frames in %d ms" % [Engine.time_scale, frames, Time.get_ticks_msec() - t0]
+	var slowed_at := "%.2f after %d ticks in %d ms, paused %s" % [Engine.time_scale, frames, Time.get_ticks_msec() - t0, paused]
 	# Touch down: the world comes back to speed.
 	for i in 10:
 		dir.watch(foot + Vector3(0.0, 0.0, 14.0), Vector3(0.0, 0.0, 15.0), false, dt)
