@@ -2465,6 +2465,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`police_station_glass.gdshader`, `trace`). Judge a block at night with
   `tools/glshot/station_night_shot.tscn` (the city's real DayNight, lamps on; block_shot's NIGHT=1
   never switches the lamps on). `POLICE_NIGHT=0` is the A/B; checks `tests/police_night_checks.gd`.
+- The police chase (2026-10-31, docs/HANDOFF.md "The police chase"): `PoliceChase`
+  (`scripts/npc/police_chase.gd`, Police's child) deals cruisers within 55 m of the player's car a
+  role - BOX (under 7 m/s: four slots, stop there), PIT (over 11 m/s: line up at the rear wheel, turn
+  in; the contact is assisted by `pit_assist()`), FLANK - and `PoliceCar._pursue()` takes its aim and
+  speed from `tactic()`; roadblocks lay a `ChaseSpikeStrip` (flats: `ChaseFlatTyres`, radius down,
+  grip x0.32); officers cover behind their CarInterior doors (`door_cover()`, jammed open) and bound
+  forward one at a time; the heli light leads the car (`spot_target()`); `ChaseRadio` synthesises
+  chatter. `POLICE_CHASE=0` / `POLICE_RADIO=0` the A/B; stills `CHASE=box|pit|spikes|doors` on
+  still_shot.gd; checks `tests/police_chase_checks.gd`.
 - The police at night (2026-10-30, docs/HANDOFF.md "Red and blue at night"): `PoliceNightLook`
   (`scripts/npc/police_night_look.gd`, one node under the root made by the first PoliceCar) owns
   ONE flash clock (`clock`) that the bar's lenses (police_lights.gdshader `clock`, hotter after

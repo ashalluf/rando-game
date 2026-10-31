@@ -679,6 +679,9 @@ func _pursue(delta: float) -> void:
 	var want := pursuit_speed
 	var routed := false
 	var direct := in_car and known and mode != Mode.LEAVING and dist < ram_range and police._clear_line(global_position + Vector3.UP, target)
+	# The chase's manoeuvres (PoliceChase: box in, PIT, flank) take over close to a player's car.
+	var tac := PoliceChase.tactic(self) if in_car and known and mode == Mode.PURSUE else {}
+	direct = direct or not tac.is_empty()
 	if not direct and _plan != null:
 		var wp := WorldState.to_world(global_position)
 		var here := Vector2(wp.x, wp.z)
@@ -712,6 +715,9 @@ func _pursue(delta: float) -> void:
 		if dist < stop_at + 3.0 and absf(speed) < 4.0:
 			stop_here()
 			return
+	if not tac.is_empty():
+		aim = tac.aim
+		want = tac.want
 	var to_aim := aim - global_position
 	to_aim.y = 0.0
 	var aim_d := to_aim.length()

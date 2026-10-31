@@ -220,6 +220,10 @@ func _pick() -> void:
 		for i in mini(near.size(), max_parked):
 			var c: Vehicle = near[i][1]
 			want[c.get_instance_id()] = c
+	# Police cruisers whose crews stand behind their open doors (PoliceChase).
+	for c: Vehicle in PoliceChase.open_door_cars():
+		if supported(c):
+			want[c.get_instance_id()] = c
 	for id: int in rigs.keys():
 		var rig: Variant = rigs[id]
 		if rig == null or not is_instance_valid(rig):

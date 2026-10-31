@@ -388,6 +388,13 @@ func _think() -> void:
 		return
 	_search_point = Vector3.INF
 	var car_d := car.global_position.distance_to(pp) if car_ok else INF
+	# Behind its open door, then forward by bounds (PoliceChase), close up too (a box-in).
+	if car_ok and car.mode == PoliceCar.Mode.PARKED and car_d > 2.5 and car_d < cover_reach and car.global_basis.y.y > 0.6:
+		var door := PoliceChase.door_cover(self, car, pp)
+		if door != Vector3.INF:
+			task = Task.COVER
+			_dest = door
+			return
 	if car_ok and car.mode == PoliceCar.Mode.PARKED and car_d > 9.0 and car_d < cover_reach and car.global_basis.y.y > 0.6:
 		task = Task.COVER
 		var away := car.global_position - pp

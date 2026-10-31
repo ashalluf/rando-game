@@ -2737,6 +2737,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/skyline_glass_day_checks.gd").new().run(self, city)
 	# The street lamps at eye level (tests/night_lamps_checks.gd, NightLamps, LampShadows).
 	await load("res://tests/night_lamps_checks.gd").new().run(self, city)
+	# The police chase (tests/police_chase_checks.gd, PoliceChase): box-in, PIT, spikes, doors, radio.
+	await load("res://tests/police_chase_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

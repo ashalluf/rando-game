@@ -23198,3 +23198,73 @@ shadows only). Checks: `tests/night_lamps_checks.gd` (the pool's frame and profi
 with the switch off, the lights' normalisation, the wet uniforms, the budget, the pure pick and
 fade, a staged run of the node: two nearest lit lamps cast, a hand-over fades, a zero budget
 stops all; the layer move; a FULL downtown chunk's lamps in the group).
+
+## 9jd. The police chase: box-ins, the PIT, spike strips, door cover (fleet wave 4, `police-chase-2`)
+
+Task: "a police chase that reads like GTA: cruisers that box the player's car in, a PIT manoeuvre
+at speed, spike strips at a roadblock, officers that take cover behind doors and advance, a
+helicopter spotlight that tracks, radio chatter". `wanted-escalation` owns Police.gd's per-star caps
+and signatures; this is the manoeuvres, in new files with one- or two-line hooks.
+
+**`PoliceChase`** (`scripts/npc/police_chase.gd`, one node "Chase" under the Police node,
+`PoliceChase.attach()` from `Police._ready()`; `POLICE_CHASE=0` the A/B). Four times a second it
+deals ROLES to the PURSUE-mode cruisers within `tactic_range` (55 m) of the player's car, nearest
+first; `PoliceCar._pursue()` asks `PoliceChase.tactic(self)` each tick and, when it answers, drives
+straight (`direct`) at its `aim` at its `want` speed instead of routing:
+- **BOX** (the car under `box_speed`, 7 m/s): four slots round the car (`box_slots()`: behind, in
+  front, either side, `box_gap` 0.7 m off its body), each taken by the nearest free cruiser; it closes
+  nose-in and `stop_here()`s once within `box_arrive` - PARKED, the crew out. Two or more stopped
+  within 7.5 m is a box-in (`boxes`, the radio's "boxed").
+- **PIT** (over `pit_speed`, 11 m/s, `pit_cooldown` 7 s apart): the nearest cruiser behind lines
+  up alongside on its own side (`pit_slot()`: its front bumper level with the car's rear wheel),
+  matches speed for `pit_hold`, then turns in at the rear quarter. The contact is ASSISTED
+  (`pit_assist()`): a VehicleBody3D's wheels hold a car straight through any real tap, so at the
+  cruiser's front corner within `pit_reach` it gets `pit_spin` (2.0 rad/s) of yaw straight onto its
+  angular velocity, a `pit_shove` through its centre of mass (an impulse at the bumper sits above a
+  Vehicle's lowered centre of mass and ROLLED the car over), its rear wheels' grip at `pit_slip_share`
+  and its fronts' at twice that for `pit_slip_seconds` (given back by `_tick_slips()`, times a flat's
+  share; gripping fronts tripped the sliding car onto two wheels), and the cruiser eases off for
+  1.6 s (phase 2: rammed again, the car rolled). Gives up after `pit_timeout` / 12 s of lining up.
+- **FLANK**: every other cruiser near a fast car rides off its rear quarter, the sides alternating.
+- **SPIKES**: `Police._place_roadblock()` ends with `PoliceChase.roadblock()`: a `ChaseSpikeStrip`
+  (`scripts/npc/chase_spike_strip.gd`) `spike_ahead` (15 m) short of the cruisers, across the road
+  (road width - 1.2), unfolding from one kerb over 0.7 s; a scissor lattice of 0.32 m links (crossed
+  bars, yellow pivot blocks, four slant-cut hollow spikes; ~108 triangles a link) as ONE MultiMesh.
+  It sweeps the wheels of the player's car each tick and of any car a 5 Hz box query found (layer 3):
+  a hub that crossed its line since the last tick is punctured. Police cars are never punctured; at
+  most four strips, each `life` 75 s. **`ChaseFlatTyres`** (`chase_flat_tyres.gd`, a child of the car):
+  the wheel's radius - `rim_drop` (the drawn tyre squats on its rim), grip x `grip` (0.32), rolling
+  drag and a yaw wobble per flat, rim sparks and the `scrape` loop past `spark_speed`. Never restored.
+- **DOORS**: `PoliceOfficer._think()` asks `PoliceChase.door_cover()` before its old cover rule
+  (for a car 2.5-32 m from the player, so a box-in too): with the player ahead of the car the
+  officer stands behind its own front door (`door_spot()`: off the CarInterior rig's hinge, behind
+  the open door; seat 0 the driver's door), which is jammed open (`CarInterior.jam(side, 1.0)`;
+  `CarInteriors._pick()` keeps the rig on `open_door_cars()`, at most `max_door_cars` 3; the rig is
+  built on a worker thread, so `_jam_doors()` asks again every half second). After `advance_after`
+  (6.5 s) it BOUNDS forward `bound_length` toward the player, holds `bound_hold`, and goes again,
+  never while its partner is mid-bound, stopping `advance_stop` (16 m) out. Crew back in or stars
+  gone: the doors are let go (their old `ajar` back).
+- **AIR**: AirTraffic's police helicopter aims `PoliceChase.spot_target(p, wobble)`: the player led
+  by `light_lead` (0.32 s, the gimbal's slew lag) of the car's velocity, the hunting wobble down to
+  `light_calm` at chase speed. On foot it is the old target exactly.
+- **RADIO**: `ChaseRadio` (`chase_radio.gd`, `POLICE_RADIO=0`): no CC0 dispatch speech exists, so a
+  transmission is synthesised - key-up chirp, a babble of syllables (a 100-140 Hz glottal pulse train
+  through two formant resonators per syllable, fricative onsets, a falling contour), the squelch
+  tail; band-passed 300-3000 Hz, soft-clipped, hissy, 16 kHz mono, ~30 ms to build, six variants per
+  length cached. Events: pursuit (the player known in a car), pit / pit_done, box / boxed, spikes,
+  advance, down (an officer, from `Police.officer_down()`), lost (the stars start to flash). One at a
+  time, `gap_seconds` 2.2 apart, a call stale after 4 s, only while wanted, -15 dB on the World bus.
+
+Stills: `CHASE=box|pit|spikes|doors` on `tools/glshot/still_shot.gd` (`tools/police_chase/stage.gd`:
+lays it out down the street the camera looks along; `CHASE_LIVE` seconds of play first, `CHASE_AFTER`
+how long after the PIT / the puncture, `CHASE_EYE=high|front`). Probes: `tools/police_chase/compile.gd`
+(compiles; `RADIO_WAV=<dir>` writes every transmission as a .wav), `strip_probe.tscn` (a car over a
+strip, alone, seconds). Checks: `tests/police_chase_checks.gd` (a deck 300 m up; the Police node on
+for them only, its own dispatch off through a zero `cruisers_per_star`).
+
+Not done / not verified: the PIT is assisted, not emergent (the assist is what makes it read on
+VehicleBody3D); no crouch pose behind the door (the rigs have no crouch clip: officers stand and
+aim over the door top); boxing has no "player trying to push out" logic beyond physics; cruisers on
+the way in still route on the lanes and only get roles inside 55 m; flats are never repaired (a
+respawned car is a new car); the radio is placeholder speech-like noise until a CC0 recording turns
+up. The radio's bus routing and level are untested on the Mac.

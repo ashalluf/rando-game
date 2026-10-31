@@ -817,7 +817,7 @@ func _order_police(dt: float) -> void:
 		h.orbit_height = police_orbit_height
 		# The beam hunts round him a little instead of sitting dead on him.
 		var wobble := Vector3(sin(_look_timer * 0.9 + i * 2.0), 0.0, cos(_look_timer * 1.3 + i)) * 2.5
-		h.look_target = p + wobble
+		h.look_target = PoliceChase.spot_target(p, wobble)
 		h.searchlight_on = true
 	for h in police:
 		if h.task == "leaving":
