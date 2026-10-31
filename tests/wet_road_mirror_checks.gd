@@ -41,10 +41,16 @@ func run(t: Object, _city: Node3D) -> void:
 	_t._check(proj.contains("wet_road_mirror={\n\"type\": \"float\",\n\"value\": 1.0\n}"), "wet road mirror: project.godot declares the global at 1")
 	_t._check(FileAccess.get_file_as_string("res://scripts/world/weather.gd").contains("WetRoadMirror.install()"),
 		"wet road mirror: Weather installs the switch")
+	# The switch. The headless dummy renderer keeps no shader globals (the get returns null), so
+	# the global is only compared where a real renderer holds it.
 	var was := WetRoadMirror.enabled
 	WetRoadMirror.set_enabled(false)
-	var off := float(RenderingServer.global_shader_parameter_get("wet_road_mirror"))
+	var off: Variant = RenderingServer.global_shader_parameter_get("wet_road_mirror")
+	var off_flag := WetRoadMirror.enabled
 	WetRoadMirror.set_enabled(true)
-	var on := float(RenderingServer.global_shader_parameter_get("wet_road_mirror"))
+	var on: Variant = RenderingServer.global_shader_parameter_get("wet_road_mirror")
+	var on_flag := WetRoadMirror.enabled
 	WetRoadMirror.set_enabled(was)
-	_t._check(off == 0.0 and on == 1.0, "wet road mirror: the switch sets the global (off %.1f, on %.1f)" % [off, on])
+	_t._check(not off_flag and on_flag, "wet road mirror: the switch turns off and on")
+	if off != null and on != null:
+		_t._check(float(off) == 0.0 and float(on) == 1.0, "wet road mirror: the switch sets the global (off %s, on %s)" % [off, on])
