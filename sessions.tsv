@@ -4,38 +4,38 @@ web-hero-rain	session_01ThLG8vJjp7qjfV4kjjLN3F	opus	merged b27
 paving-aliasing	session_01ThLG8vfhsrguA5kfxxjJCu	opus	merged b26
 night-flight	session_01ThLG8wnzhCQYaVRDADLiCR	opus	merged b26
 wet-road-mirror	session_01ThLG8u32iTb3T4iPwqMMb8	opus	running
-dawn-review	-	-	waiting (first launch archived: account limit)
-rc-street-noon	-	-	waiting (first launch archived: account limit)
-rc-street-night	-	-	waiting (first launch archived: account limit)
-rc-sunset	-	-	waiting (first launch archived: account limit)
-rc-golden-aerial	-	-	waiting (first launch archived: account limit)
-rc-downtown-aerial	-	-	waiting (first launch archived: account limit)
+dawn-review	-	-	merged b29
+rc-street-noon	-	-	merged b29
+rc-street-night	-	-	merged b29
+rc-sunset	-	-	merged b29
+rc-golden-aerial	-	-	merged b29
+rc-downtown-aerial	-	-	merged b29
 rc-beach	-	-	waiting (first launch archived: account limit)
 rc-hills	-	-	waiting (first launch archived: account limit)
-rc-freeway	-	-	waiting (first launch archived: account limit)
-rc-macarthur	-	-	waiting (first launch archived: account limit)
+rc-freeway	-	-	merged b29
+rc-macarthur	-	-	merged b29
 rc-pier-night	-	-	merged b27
-hero-closeup-2	-	-	waiting (first launch archived: account limit)
+hero-closeup-2	-	-	merged b28
 hero-locomotion-2	-	-	merged b27
 crowd-closeup-3	-	-	waiting (first launch archived: account limit)
 car-exterior-closeup	-	-	merged b26
 traffic-behaviour-2	-	-	waiting (first launch archived: account limit)
-pedestrian-flow	-	-	waiting (first launch archived: account limit)
-storefront-closeup-2	-	-	waiting (first launch archived: account limit)
-building-mid-detail	-	-	waiting (first launch archived: account limit)
+pedestrian-flow	-	-	merged b28
+storefront-closeup-2	-	-	merged b28
+building-mid-detail	-	-	merged b28
 tree-light-2	-	-	merged b26
-ground-shadow-contact	-	-	waiting (first launch archived: account limit)
-sky-day-review	-	-	waiting (first launch archived: account limit)
-water-review	-	-	waiting (first launch archived: account limit)
+ground-shadow-contact	-	-	merged b28
+sky-day-review	-	-	merged b28
+water-review	-	-	merged b28
 explosions-3	-	-	merged b27
-gunplay-feel	-	-	waiting (first launch archived: account limit)
-police-chase-2	-	-	waiting (first launch archived: account limit)
-wanted-escalation	-	-	waiting (first launch archived: account limit)
+gunplay-feel	-	-	merged b28
+police-chase-2	-	-	merged b28
+wanted-escalation	-	-	merged b29
 car-crash-3	-	-	merged b27
 ragdoll-feel	-	-	merged b26
-blood-gore-2	-	-	waiting (first launch archived: account limit)
+blood-gore-2	-	-	merged b29
 ambient-sound-2	-	-	merged b27
-night-lamps-review	-	-	waiting (first launch archived: account limit)
+night-lamps-review	-	-	merged b28
 window-interiors-2	-	-	merged b27
 loading-first-frame	-	-	merged b27
 perf-audit-4	-	-	waiting (first launch archived: account limit)
@@ -43,4 +43,4 @@ gate-flakes	-	-	waiting (first launch archived: account limit)
 fwd-review-f	-	-	merged b27
 web-build-4	-	-	waiting (first launch archived: account limit)
 mac-verify-pack	-	-	merged b27
-la-street-hills	session_01ThLG8vqXUj9ppezUCfrpw6	opus	running
+la-street-hills	session_01ThLG8vqXUj9ppezUCfrpw6	opus	merged b29
