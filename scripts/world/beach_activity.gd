@@ -43,6 +43,9 @@ var _last_alarm_ms: int = -1
 var _to_wake: int = 0
 var _alarm_at := Vector3.INF
 var _clock: float = 0.0
+var _tick: int = 0
+## SeaSurface's sea state, refreshed now and then (Waders.float_y()).
+var sea_state: Array = []
 var _shape := Vector4(0.9, 24.0, 8.0, 38.0)
 var _extra := Vector4(12.0, 0.6, 116.0, 1.3)
 
@@ -185,8 +188,12 @@ func _place_water(w: Dictionary) -> void:
 	if String(w.kind) == "wade":
 		Waders.pose(w, x, z, _clock)
 		return
+	# On the sea that is drawn (Waders.float_y(): the surf zone's water stands well over the old
+	# fixed level, and the swimmers' heads were under it).
+	if Waders.enabled and String(w.get("state", "sit")) != "ride":
+		y = Waders.float_y(self, w, x, z, _tick)
 	if String(w.kind) == "swim":
-		y -= float(w.sink)
+		y -= float(w.sink) if not Waders.enabled else Waders.SWIM_SINK
 		yaw += sin(_clock * 0.3 + float(w.phase)) * 0.6
 		node.transform = Transform3D(Basis(Vector3.UP, yaw), Vector3(x, y, z))
 		return
@@ -448,6 +455,7 @@ func _build_walkers() -> void:
 
 func _physics_process(dt: float) -> void:
 	_clock += dt
+	_tick += 1
 	var player := Pedestrian._player
 	var near := true
 	if player and is_instance_valid(player) and chunk and chunk.is_inside_tree():

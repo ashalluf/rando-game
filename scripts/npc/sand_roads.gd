@@ -18,9 +18,13 @@ static var enabled: bool = OS.get_environment("SAND_ROADS") != "0"
 
 ## Per plan (instance id): chunk Vector2i -> [kind, sand_x]: kind 0 a road chunk, 1 a sea chunk (no
 ## road at all), 2 a beach chunk, 3 a beach chunk holding the shore (its +Z street end is under the
-## sand); sand_x the sand's landward edge at the chunk's middle (a beach chunk's streets are under
-## the sand west of it).
+## sand); sand_x where the sand meets the town at the chunk's middle (the beach's width and the
+## lip, CityChunk._build_sand(): a beach chunk's streets are under the sand west of it).
 static var _cache: Dictionary = {}
+
+## How far (m) the sand may reach over a north-south street's kerb before the street counts as
+## buried (a kerb's worth of sand blown over it is a street).
+const LIP_CLEAR := 1.0
 
 
 ## True where the street (axis, index) at `along` lies under the sand or the sea: nobody drew it.
@@ -38,7 +42,13 @@ static func on_sand(plan: CityPlan, axis: int, index: int, along: float) -> bool
 	# A shore beach chunk's sand runs over its +Z street (the AXIS_Z road iz + 1); anywhere in a
 	# beach chunk, a street inside the sand band is under it (the sand is laid over the whole
 	# beach; the road slab under it is never seen).
-	return (kind == 3 and axis == CityPlan.AXIS_Z and index == k.y + 1) or p.x < float(c[1])
+	if kind == 3 and axis == CityPlan.AXIS_Z and index == k.y + 1:
+		return true
+	# The sand runs SAND_LIP past the beach's width before it meets the town, burying the near side
+	# of a north-south street that runs there: a street the sand reaches is under it.
+	if axis == CityPlan.AXIS_X:
+		return p.x - plan.road_width(axis, index) * 0.5 < float(c[1]) - LIP_CLEAR
+	return p.x < float(c[1])
 
 
 static func _kind(plan: CityPlan, k: Vector2i) -> Array:
@@ -63,6 +73,6 @@ static func _kind(plan: CityPlan, k: Vector2i) -> Array:
 			var z := own.get_center().y
 			var cx := plan.macro.coast_x(z)
 			kind = 3 if cx >= own.position.x and cx < own.end.x else 2
-			sand_x = cx + plan.macro.beach_width_at(z)
+			sand_x = cx + plan.macro.beach_width_at(z) + CityChunk.SAND_LIP
 	per[k] = [kind, sand_x]
 	return per[k]

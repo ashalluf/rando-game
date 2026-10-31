@@ -25,6 +25,10 @@ const S_MAX := 4.6
 const MAX_DEPTH := 1.05
 ## The rest level of the sea (the swimmers' and the ocean plane's).
 const SEA_Y := 0.15
+## How far under the drawn sea a swimmer's soles hang (m): head and shoulders out, treading water.
+const SWIM_SINK := 1.22
+## A water person's sea height is worked out every this many physics ticks (staggered), and eased.
+const FLOAT_EVERY := 6
 ## Spacing between people of a group (m), and how far a group stays inside the chunk's ends (m).
 const SPACING := Vector2(0.75, 1.25)
 const END_PAD := 4.0
@@ -90,3 +94,23 @@ static func pose(w: Dictionary, x: float, z: float, clock: float) -> void:
 			w.y = bed_y(act, s, z)
 	var yaw: float = float(w.yaw) + sin(clock * 0.31 + float(w.phase)) * 0.12
 	node.transform = Transform3D(Basis(Vector3.UP, yaw), Vector3(x, float(w.y), z))
+
+
+## The drawn sea's height (SeaSurface: the ocean shader's vertex stage in GDScript) under water person
+## `w` at true world (x, z), worked out every FLOAT_EVERY ticks (staggered by the person) and eased
+## between. A still that holds shader TIME at zero (still_shot / refcams' time rollover) is read at
+## t = 0, so the figure floats on the very frame that is drawn.
+static func float_y(act: BeachActivity, w: Dictionary, x: float, z: float, tick: int) -> float:
+	if not w.has("slot"):
+		w.slot = act._hi(["float", float(w.phase)]) % FLOAT_EVERY
+	if not w.has("sea") or (tick + int(w.slot)) % FLOAT_EVERY == 0:
+		if act.sea_state.is_empty() or tick % 240 == 0:
+			act.sea_state = SeaSurface.state(act.get_tree())
+		var held := float(ProjectSettings.get_setting("rendering/limits/time/time_rollover_secs", 3600.0)) < 0.01
+		var h := SeaSurface.height(act.plan_ref.macro, Vector2(x, z), 0.0 if held else SeaSurface.now(), act.sea_state)
+		w.sea = h if not w.has("sea") else lerpf(float(w.sea), h, 0.6)
+		w.sea_t = h
+	else:
+		w.sea = lerpf(float(w.sea), float(w.sea_t), 0.25)
+	return float(w.sea)
+
