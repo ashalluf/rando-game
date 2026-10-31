@@ -96,7 +96,8 @@ float lettering(vec2 uv, float v0, float rows, float h, float w, float seed) {
 }
 
 void fragment() {
-	int k = int(v_kind);
+	// Rounded: an interpolated 3.0 can read 2.9999 (stripes; see lot_ground.gdshader).
+	int k = int(v_kind + 0.5);
 	vec3 inst = cs_srgb_to_linear(clamp(v_color, 0.0, 1.0));
 	vec2 uv = UV;
 	float px = max(length(fwidth(uv)), 1e-4);
