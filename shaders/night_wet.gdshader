@@ -114,8 +114,10 @@ void fragment() {
 		vec2 g = v_world * 9.0 + vec2(0.0, TIME * 1.7);
 		float f = nw_noise(g) * nw_noise(g * 2.3 + 7.1);
 		float glint = smoothstep(0.32, 0.6, f) * 3.2;
-		float soft = exp(-across * across * 2.2);
-		a = mix(a, soft * along * (0.25 * broken + glint), sparkle);
+		// Reaches nothing at the quad's sides and fades out over the near end (no hard edges).
+		float soft = exp(-across * across * 4.0) * (1.0 - across);
+		float tail = smoothstep(0.0, 0.3, UV.y);
+		a = mix(a, soft * along * tail * (0.3 * broken + glint), sparkle);
 	}
 	ALBEDO = cs_out(v_col * a * v_amp);
 }
