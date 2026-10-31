@@ -22464,6 +22464,13 @@ waits in the box and turns only after the oncoming car; a car waits 1.0 m back f
 and looks; a wreck on two lanes is passed in the other lane at <= 4.5 m/s, on one lane edged round
 2.35 m to its side and back; heads turn toward a target either side; the shader reads the uniform.
 
+**Cost** (tools/perf_audit_2/traffic_bench.tscn at the downtown bookmark, headless on the 4-core
+box, `_drive_streets` per tick, six runs each, noise about +-1 ms): on 15.0 ms, off 13.1 ms. About
+1 ms of it is the code (a fast path out after a handful of reads for a moving car with nothing
+near; most calls take the slower path because a red holds every car coming up to it - only its
+last 40 m count), the rest is the behaviour itself (standing cars that inch and creep are placed
+again each tick). The obstacle survey caches what lanes each standing car covers (`_seen`).
+
 **Stills** `TB2=wreck|left|heads|bus TRAFFIC_STEPS=s,s,...` on `tools/glshot/still_shot.gd`
 (`tools/traffic_behaviour/stage.gd`; `TRAFFIC_BEHAVIOUR=0` the before), on `shots/traffic-behaviour-2`.
 

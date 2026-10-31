@@ -66,6 +66,8 @@ static var _obst: Dictionary = {}
 ## Road (axis, index) -> the same records, for the lanes beside (rubbernecking).
 static var _obst_road: Dictionary = {}
 static var _survey_t: float = 0.0
+## Instance id -> [true world position at the last survey, whether it covered a lane].
+static var _seen: Dictionary = {}
 static var _look_tick: int = 0
 ## What the checks count.
 static var counts: Dictionary = {}
@@ -118,11 +120,23 @@ static func survey(tm: TrafficManager) -> void:
 		# Flying, or riding something (a wreck on a tow truck's bed has no collision).
 		if c.linear_velocity.length_squared() > 9.0 or c.collision_layer == 0:
 			continue
-		register(plan, c, wp)
+		# Most of these are parked cars that have not moved since the last survey: what lanes they
+		# cover is remembered (nothing, for a car in its parking lane).
+		var id := c.get_instance_id()
+		var seen: Array = _seen.get(id, [])
+		if not seen.is_empty() and (seen[0] as Vector3).distance_squared_to(wp) < 0.04:
+			if seen[1]:
+				register(plan, c, wp)
+			continue
+		_seen[id] = [wp, register(plan, c, wp)]
+	if _seen.size() > 4000:
+		_seen.clear()
 
 
 ## Puts car `c` standing at true world `wp` on the lanes it covers (tests call it directly).
-static func register(plan: CityPlan, c: Vehicle, wp: Vector3) -> void:
+## True when it covers any.
+static func register(plan: CityPlan, c: Vehicle, wp: Vector3) -> bool:
+	var any := false
 	var half := TrafficManager.car_half_length(c)
 	for axis: int in [CityPlan.AXIS_X, CityPlan.AXIS_Z]:
 		var across := wp.x if axis == CityPlan.AXIS_X else wp.z
@@ -156,9 +170,11 @@ static func register(plan: CityPlan, c: Vehicle, wp: Vector3) -> void:
 						(_obst[key] as Array).append(rec)
 						hit = true
 			if hit:
+				any = true
 				if not _obst_road.has(road_key):
 					_obst_road[road_key] = []
 				(_obst_road[road_key] as Array).append(rec)
+	return any
 
 
 # --- Stop points (TrafficManager._drive_street) ------------------------------------------------
@@ -171,11 +187,21 @@ static func street_stop(tm: TrafficManager, car: Vehicle, t: Dictionary, groups:
 	# TrafficAI's `ai`: the checks that place cars measure stops to the centimetre.
 	if not enabled or (t.has("placed") and not t.has("tb")):
 		return INF
-	var plan := tm.plan
 	var axis: int = t.axis
 	var index: int = t.index
 	var dir: int = t.dir
 	var half: float = t.get("half", 2.4)
+	var to_far := to_centre + cw * 0.5 + 0.15 - half
+	# Most cars most ticks: moving, nothing at the line, no turn coming up, no crosswalk close, no
+	# bus, nothing standing on the road. Out after a handful of reads (this runs for every car).
+	# (A red holds every car coming up to it from a block away: only its last 40 m matter here.)
+	if v > 1.0 and (not line_hold or to_line > 40.0) and to_far > 30.0 and not t.has("bus") and not t.has("tb_dodge") and (to_centre > LEFT_WAIT_AT + 24.0 or int(t.get("turn", 0)) == 0) and (_obst_road.is_empty() or not _obst_road.has(Vector2i(axis, index))):
+		if t.has("tb_foot"):
+			t.erase("tb_foot")
+		if t.has("tb_creep"):
+			t.erase("tb_creep")
+		return INF
+	var plan := tm.plan
 	var gap := INF
 	if not t.has("tb_r"):
 		t.tb_r = [roll(car, 1), roll(car, 2), roll(car, 3), roll(car, 4)]
@@ -184,8 +210,7 @@ static func street_stop(tm: TrafficManager, car: Vehicle, t: Dictionary, groups:
 	# Stand still long enough and the foot comes off the brake now and then (the lamps read it).
 	_foot(t, r, v, delta)
 	# Creep at a red: stop short, stand, then roll up to the line (post_speed does the roll).
-	var creeper := float(r[0]) < CREEP_SHARE and not t.has("bus") and not BigVehicles.is_big(car.body_type)
-	if line_hold and creeper and to_line > -0.2:
+	if line_hold and to_line > -0.2 and float(r[0]) < CREEP_SHARE and not t.has("bus") and not BigVehicles.is_big(car.body_type):
 		var state := int(t.get("tb_creep", 0))
 		var short := lerpf(CREEP_SHORT.x, CREEP_SHORT.y, float(r[1]))
 		if state == 0:
@@ -205,15 +230,15 @@ static func street_stop(tm: TrafficManager, car: Vehicle, t: Dictionary, groups:
 	if t.has("bus"):
 		gap = minf(gap, _bus_out(tm, car, t, along, delta))
 	# Somebody still on the far crosswalk: wait a little back from it, not with the nose on it.
-	var to_far := to_centre + cw * 0.5 + 0.15 - half
 	if to_far > -0.4 and to_far < 40.0 and Pedestrian.crosswalk_busy(node, axis, dir):
 		gap = minf(gap, maxf(to_far - POLITE_BACK, 0.0) if v < 0.5 or to_far > POLITE_BACK + 0.6 else INF)
 		_look_at(t, _crosswalk_point(plan, axis, index, node, dir, cw, now), now)
 	elif line_hold and to_line < 8.0 and Pedestrian.crosswalk_busy(node, axis, -dir):
 		_look_at(t, _crosswalk_point(plan, axis, index, node, -dir, cw, now), now)
 	# Turning left across the oncoming traffic: into the box, then wait for a gap.
-	var side := TrafficAI.turn_side(axis, dir, int(t.get("turn", 0)))
-	if int(t.get("turn", 0)) != 2 and side < 0 and to_centre > 0.0:
+	var turn := int(t.get("turn", 0))
+	var side := TrafficAI.turn_side(axis, dir, turn) if turn == 1 or turn == -1 else 0
+	if side < 0 and to_centre > 0.0:
 		gap = minf(gap, _left_wait(tm, car, t, groups, along, v, to_centre, to_line, node, line_hold, delta))
 	elif t.has("tb_left"):
 		t.erase("tb_left")
@@ -226,7 +251,9 @@ static func street_stop(tm: TrafficManager, car: Vehicle, t: Dictionary, groups:
 ## stands a car closed up on something): the creep at the line and the inch up a queue.
 ## `still` is the slack (m) before the nearest thing standing still ahead.
 static func post_speed(car: Vehicle, t: Dictionary, v: float, nv: float, still: float, delta: float) -> float:
-	if not enabled or float(t.get("react", 0.0)) > 0.0 or (t.has("placed") and not t.has("tb")):
+	if not enabled or (v > 0.5 and nv > 0.5 and not t.has("tb_slow") and not t.has("tb_inch") and not t.has("tb_creep")):
+		return nv
+	if float(t.get("react", 0.0)) > 0.0 or (t.has("placed") and not t.has("tb")):
 		return nv
 	if t.has("tb_slow"):
 		var cap := float(t.tb_slow)
@@ -522,7 +549,8 @@ static func _heads(tm: TrafficManager, dt: float) -> void:
 		if c.global_position.distance_squared_to(cp) > range2:
 			continue
 		var t: Dictionary = c.traffic
-		if t.is_empty() or c.cabin_seats() == 0:
+		# Nobody inside (Vehicle._occupant_key is 0 for an empty cabin).
+		if t.is_empty() or c._occupant_key == 0:
 			continue
 		var target := look_target(c, t, player, now)
 		var cur: Vector2 = t.get("tb_look", Vector2.ZERO)
