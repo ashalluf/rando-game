@@ -912,6 +912,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   and a `max_spin` cap (`clamp_spin()`, each physics step) - never snap parts back by teleport, it
   fights the contacts and diverged. `RAGDOLLS=0` is the A/B (`RAGDOLL_INERTIA=0` the old inertia); probe `tools/ragdolls/probe.tscn`, stills `tools/ragdolls/ragdoll_shot.tscn`; checks
   `tests/ragdolls_checks.gd`.
+  **How a doll moves** (2026-10-31, docs/HANDOFF.md "Ragdolls that read right"): `RagdollFeel`
+  (`scripts/npc/ragdoll_feel.gd`, `RagdollJoints.feel`) shapes the fling by a hint said just before
+  the knock (`note_shot()` in Pedestrian.shot, `note_car()` in Vehicle's bumper): a round under
+  `stagger_max_speed` staggers (muscles toward the standing pose, leaned along the round, then the
+  knees go), a car sweeps the legs under the trunk (over the bonnet), anything else flies with joint
+  damping and limb drag (limbs trail); on a slope or steps `rolling_down()` keeps it rolling.
+  `RAGDOLL_FEEL=0` is the A/B; stills `tools/ragdoll_feel/feel_shot.tscn`; checks
+  `tests/ragdoll_feel_checks.gd`.
   Dismemberment (owner, same day: "body parts limbs flying off ... from the rocket launcher"):
   `Explosion.blast()` passes `gibs` (up to 3 inside `gib_reach` of the radius) to
   `Pedestrian.knock()`, and `Ragdoll.dismember()` collapses each lost limb with a `LimbHider`

@@ -3826,3 +3826,12 @@ none of either.
   bodies, their LODs and far twins stay bit for bit, it is drawn only within 22 m with no shadow, and
   it can be switched off (CAR_UNDERSIDE=0). The loft's floor was in the paint slot; a black underseal
   sheet now covers it.
+
+- **2026-10-31 Ragdolls that read right (ragdoll-feel, HANDOFF "Ragdolls that read right").** A shot
+  person staggers before falling, a flung one trails its limbs, a car hit wraps over the bonnet, a
+  doll rolls down steps. Decisions: the hit reaction is MUSCLES on the jointed doll (driven toward
+  its standing pose, leaned along the round, then let go), not a clip played before the doll is made
+  - the doll exists from the first frame, so blood, police, Emergency and onlookers are untouched,
+  and the reaction follows the round's direction by construction; what hit the person is a hint said
+  just before the knock (Pedestrian.shot, Vehicle's bumper), so no knock() signature changes; the cap,
+  range and freeze stay RagdollJoints'. RAGDOLL_FEEL=0 is the A/B.

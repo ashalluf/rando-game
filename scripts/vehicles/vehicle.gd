@@ -1088,7 +1088,10 @@ func _on_bumper_hit(body: Node3D) -> void:
 	if body is Player and (body as Player).vehicle == null:
 		(body as Player).launch(dir * (8.0 + speed) + Vector3.UP * 9.0)
 	elif body.has_method("knock"):
+		# Over the bonnet, not ahead of the car (RagdollFeel).
+		RagdollFeel.note_car(self, dir * speed)
 		body.knock(dir * (8.0 + speed * 0.6) + Vector3.UP * 6.0)
+		RagdollFeel.clear()
 
 
 # --- Model -----------------------------------------------------------------------------
