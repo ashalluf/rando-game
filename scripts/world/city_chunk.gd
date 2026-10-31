@@ -279,6 +279,10 @@ static func _mesh_tris(mesh: Mesh) -> int:
 
 ## The whole build at once: the loading screen, teleports and the smoke test use this.
 func build() -> void:
+	# The streamer counts the crowd's room once a frame (take_crowd_room); a whole build in a frame
+	# where another chunk was just freed (a teleport, a test's A/B build) recounts it first.
+	if get_parent() and "_crowd_frame" in get_parent():
+		get_parent().set("_crowd_frame", -1)
 	begin_build()
 	while not build_step():
 		pass

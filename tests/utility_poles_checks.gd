@@ -45,8 +45,7 @@ func run(t: Node, city: Node3D) -> void:
 	for k: Vector2i in keys:
 		if built >= 2:
 			break
-		var chunk: CityChunk = city._new_chunk(k, CityChunk.Level.FULL)
-		chunk.build()
+		var chunk: CityChunk = _build(city, k)
 		var sm: Dictionary = chunk.get_meta("utility_poles", {})
 		if int(sm.get("poles", 0)) == 0:
 			_free(chunk)
@@ -82,15 +81,13 @@ func run(t: Node, city: Node3D) -> void:
 		var sig := _signature(chunk)
 		var sm_copy := sm.duplicate(true)
 		_free(chunk)
-		var again: CityChunk = city._new_chunk(k, CityChunk.Level.FULL)
-		again.build()
+		var again: CityChunk = _build(city, k)
 		var sm2: Dictionary = again.get_meta("utility_poles", {})
 		for key in ["poles", "xfmrs", "lights", "risers", "guys", "splices", "coils", "wall_drops", "houses", "house_drops", "wires"]:
 			same = same and int(sm2.get(key, -1)) == int(sm_copy[key])
 		_free(again)
 		UtilityPoles.enabled = false
-		var bare: CityChunk = city._new_chunk(k, CityChunk.Level.FULL)
-		bare.build()
+		var bare: CityChunk = _build(city, k)
 		UtilityPoles.enabled = true
 		var bare_sig := _signature(bare)
 		if bare_sig != sig:
@@ -207,7 +204,26 @@ func _signature(ch: CityChunk) -> Array:
 	return out
 
 
+## A FULL build of block k that the builds before it in the same frame leave alone: the streamer
+## counts the crowd's room once a frame (take_crowd_room), so a second build in the frame spawned
+## fewer walkers than the first (gate run 808: 89 children against 78), and the cap gets room.
+func _build(city: Node3D, k: Vector2i) -> CityChunk:
+	var cap: int = city.get("max_pedestrians")
+	city.set("max_pedestrians", maxi(cap, -CityChunk.count_crowd_room(city.get_tree(), 0)) + 200)
+	city.set("_crowd_frame", -1)
+	var ch: CityChunk = city._new_chunk(k, CityChunk.Level.FULL)
+	ch.build()
+	city.set("max_pedestrians", cap)
+	city.set("_crowd_frame", -1)
+	return ch
+
+
 func _free(ch: CityChunk) -> void:
+	# Its parked cars stand under the city root: out with the chunk (the next build's kerbs).
+	for car in (ch.get("_cars") as Array):
+		if is_instance_valid(car) and car.get_parent() != null and car.get_parent() != ch:
+			car.get_parent().remove_child(car)
+			(car as Node).queue_free()
 	if ch.get_parent() != null:
 		ch.get_parent().remove_child(ch)
 	ch.free()
