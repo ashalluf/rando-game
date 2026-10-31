@@ -21980,3 +21980,58 @@ the same way, but judge 18:00 on the Mac first - if it reads milky-pink, raise `
 grass under a low red sun is what it is). The painted cumulus on opengl3 draws a big smooth ellipse in
 the aerial and sky shots (before and after alike; the sky's, not this review's). Dawn shares the sky
 ramp and the exposure ramp (both are symmetric in elevation) and was not looked at.
+
+## 9d?. The civic centre from the air (rc-downtown-aerial, 2026-10-31)
+
+Wave 4's refcam session for `downtown_aerial` (the civic centre, 60 m up, 12:30 clear). Branch
+`wt/rc-downtown-aerial`, stills on `shots/rc-downtown-aerial`.
+
+**The camera was pointing at a wall.** main's pose (2600, 60 m, -450, yaw -50) is the right
+direction (city hall is 750 m dead ahead) but a seeded Bunker Hill infill tower stands 20 m in
+front of it, so the shot was 60 % one dark curtain-wall tower and the civic centre was not in it
+at all. The camera now stands south-west of city hall: `eye [2950, 60, -700, -55, -10]` (60 m over
+the ground, same hour, weather, FOV). Runs before this branch are not comparable for this shot;
+the lead's base must be re-shot with the new `cameras.json` (this branch's own compare did that:
+`build/refcams/base` = main's code with the new table). `tests/rc_downtown_aerial_checks.gd` holds
+city hall inside the camera's field of view.
+
+What read fake from there, worst first, and what changed:
+1. **City hall stood in an empty car park.** At 1:1 the hall's block is 97 x 286 m and its site
+   (CivicSites) 140 m of it, so two 97 x 72 m slabs of bare paving lay north and south of it, and
+   30 m strips either side of the 74 m plinth were bare too. `CivicGrounds`
+   (`scripts/world/civic_grounds.gd`, one hook in `CivicSites.build()` for the civic-centre ids)
+   cuts the civic sites' leftovers out of their blocks (ArenaGrounds' cut, for `CIVIC`) plus the
+   hall's side strips (`inner_rects()`), and lays each as a lawn quartered by walks with a paved
+   margin and a concrete lip, an allee of broadleaf street trees round it, a jacaranda in each big
+   quarter, benches on the walks (near only), the chunk's grass blades on the near copy. The far
+   copy plants the same trees shadowless. Narrow leftovers (the concert hall's, the museum's west
+   strip) get ArenaGrounds' planted beds. Every roll a private rng of a hash of the site and rect.
+2. **Grand Park was straw-yellow.** The two PARK blocks between the civic park and the hall rolled
+   CityChunk's "burnt off" lawn; downtown's civic parks are irrigated. `CivicGrounds.park_lawn()`
+   (one hook in `CityChunk._build_park()`, after the roll) gives any PARK block inside
+   DowntownReal's extent `LAWN_TINT` (0.56, 0.70, 0.50); the roll is still made.
+3. **Every flat roof was a faint checkerboard on a clean white sheet.** building.gdshader's
+   membrane "ponding" was a hash per 2.9 m square. `shaders/roof_weather.gdshaderinc` (included by
+   building.gdshader AND building_lod.gdshader, so the coded far boxes match the handover):
+   10 ft rolls along x with staggered end laps, dirt in smooth drifts, ponds with a darker tide
+   line, grime at the parapet's foot, a fine mottle up close, all box-filtered by the pixel
+   footprint (taken outside the roof branch); bitumen gets smooth patches. The membrane's mean
+   drops from ~0.78 to ~0.62 (less glare from the air). Uniform `roof_weather`, set from
+   `CivicGrounds.roof_weather` on every Building material and on PropFactory's far-box material.
+4. **City hall's windows were a field of black specks.** `landmark_facade.gdshader`'s windows were
+   a hard in/out test; now coverage over the pixel footprint (taken before the branch), handed to
+   the window's area average once a cell is under ~2 px (lit share and reveal too). Every landmark
+   on that shader benefits (station, arena drum, ...). The tower's windows are nearly full storey
+   height (`win_size` 0.40 x 0.86) so its bays read as vertical strips; its piers are in the far
+   copy too (unbevelled); the stone is a little warmer and darker (HALL_STONE 0.80, HALL_WALL 0.72)
+   with the piers 0.86, so they read against the wall.
+
+A/B: `CIVIC_GROUNDS=0` (no grounds, the rolled park lawns), `ROOF_WEATHER=0` (the old roof).
+Probe: `tools/civic_grounds/probe.tscn` (sites, leftovers, inner strips, lawn count; seconds).
+
+Not done / seen and left: the police HQ's block south of city hall is a huge mostly empty paved car
+park in the right of the frame (PoliceStation.hq(): give it the real HQ's lawn on 1st St); the big
+roof in the foreground has no plant at all (Building's roll); Grand Park's own lawns carry thin
+white diagonal path strips from the generic park build; the hall still reads very white at noon on
+opengl3 (its real stone is white too). Colour changes were judged on opengl3 only; the lawn tint
+and the membrane are plain albedo moves (darker on both renderers), not verified on Forward+.

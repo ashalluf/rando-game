@@ -3628,6 +3628,14 @@ already mapped so milestone 2 is script-only.
   painted on the wet road is smeared to a glow; each FULL lamp gets a wet-road reflection streak in
   its own prop record; Broadway's lanterns at 0.6 of the level. All tuning of existing systems plus
   one quad a lamp; `NIGHT_STREET_REVIEW=0` restores the old numbers.
+- **2026-10-31 The downtown aerial refcam looks at the civic centre, and the civic centre has
+  grounds (rc-downtown-aerial, HANDOFF "The civic centre from the air").** The camera's old pose
+  looked into a seeded tower 20 m away; it was moved on purpose (a refcam that does not show its
+  subject measures nothing) and the lead re-shoots its base. Decisions: a civic site's leftover
+  block is never bare paving (lawns, walks, trees, the same in the far copy); downtown's park lawns
+  are irrigated whatever the block rolled; flat roofs weather smoothly with the same function near
+  and far; landmark windows are coverage, never a hard test. All behind CIVIC_GROUNDS=0 /
+  ROOF_WEATHER=0.
 
 ## Correction: what build 135 (0ce833f) actually contained
 
