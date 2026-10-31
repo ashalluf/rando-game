@@ -2677,6 +2677,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Car paint, second pass (tests/car_paint_2_checks.gd, CarPaint2): rolls by hash only, the switch,
 	# the shader's paint2 uniforms, the materials, a car's condition.
 	load("res://tests/car_paint_2_checks.gd").new().run(self, city)
+	# The street's second clutter pass (tests/street_clutter_2_checks.gd): bags, cardboard, carts,
+	# steam, weeds, butts, puddles, flyers, pages, droppings; one batch a kind, nothing else moved.
+	load("res://tests/street_clutter_2_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

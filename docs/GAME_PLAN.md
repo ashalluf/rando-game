@@ -3760,3 +3760,9 @@ none of either.
   take over near the camera); flake is sampled per pixel-sized cell fixed to the body; new
   finishes, the contrast-roof livery and a car's condition are appended and rolled by hashes of
   the look seed after every roll, so no existing roll moves and CAR_PAINT_2=0 is the old look.
+- **2026-10-30 The street's small stuff (street-clutter-2, HANDOFF "The street's small stuff").**
+  Bags, cardboard, a hand truck, steam, carts, cones, weeds, butts and gum, puddles, flyers, blowing
+  pages and droppings are a second clutter pass, one step after everything a FULL chunk lays, so it
+  can read the shop fronts, the road hardware and the poles instead of guessing; hashes only and no
+  props (nothing else in the block moves); one batch a kind on one shader (the steam on its own,
+  transparent). What is out follows the hour and weekday the chunk is built at, like the vendors.

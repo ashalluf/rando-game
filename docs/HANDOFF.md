@@ -21588,3 +21588,75 @@ Wilshire was judged on opengl3 only; Broadway was never seen on Forward+ (does n
 rain streaks on opengl3 read a touch thin and white near the eye - `width_share` / `gain` in
 night_wet.gdshader are the knobs; the suburb stays dark between lamps (its lamps are 40 m apart and
 the gardens are unlit, which is how it is), 20 % holes.
+
+## 9ih. The street's small stuff (street-clutter-2, 2026-10-30, roadmap #233)
+
+The owner's bar is GTA 6, whose streets are dense with the small stuff of real life. `StreetClutter2`
+(`scripts/world/street_clutter_2.gd`) is a second clutter pass after StreetClutter's news boxes and
+gutter litter, ONE build step of every FULL city chunk (after RoadWear, so the furniture, the parked
+cars, RoadHardware's covers / inlets / cuts, the utility poles and every Building's shop fronts are
+down). It lays, at real size and built in code:
+
+- **Trash bags**: two pile variants of four to six tied 33-gallon bags (lumpy squashed lofts with a
+  gathered neck and knot; black, a grey one, a dark green one), a restaurant's or cafe's pile at the
+  end of its front (to the kerb after 20:00), and on a **collection night** (a hash of block and
+  weekday, `COLLECTION_ODDS` by district, 18:30-07:00) a pile every `BAG_PILE_EVERY` m of kerb.
+- **Cardboard**: four flattened boxes leaning on the wall by a shop door with a strap, one flat in
+  front; flutes, ink stamps, tape, dirt rising from the pavement, soggy in the rain.
+- **A hand truck** with three cases by a shop door while a delivery is on (by day, hashed per hour).
+- **Steam** out of covers and kerb inlets (`STEAM_ODDS`: downtown's old steam lines), a transparent
+  plume on `shaders/street_steam.gdshader`: four camera-turned puffs per plume, billows scrolling up,
+  drifting downwind (`wind_lean`, `wind_factor`), thicker at night and in the rain, warmed by the lamps.
+- **Shopping carts** (wire basket cut out of a grid and dithered to its cover under a pixel, chrome
+  frame, red handle, casters), `CART_TIPPED` of them on their side.
+- **Traffic cones** (28", two reflective collars that glint by `lamp_factor`) round a third of
+  RoadHardware's utility cuts, now and then one knocked over.
+- **Weeds** in a crack at the foot of the walls and behind the kerb (blades that sway, a rosette);
+  not in lawn districts (LawnsCloseup lays those blocks' weeds and the parkway).
+- **Butts and gum** round every bus stop and in front of some shop doors (more at cafes and bars).
+- **Puddles** in the gutter, the parking lane and the corner ramps: collapsed in the vertex stage
+  on a dry street, grown from `road_wetness` (`puddle_from` .. `puddle_full`) as a noisy blob with a
+  damp ring, the sky mirrored by Fresnel (emitted; `mirror_forward` under Forward+'s SSR), rain rings,
+  the lamps' warmth at night. They outlast the road's own film as it dries.
+- **Flyers** stapled round utility poles (`upole`): five or six sheets wrapped on the shaft, a
+  curled corner, staples, lost-pet photos, bold titles, tear-off phone tabs with some taken, faded and
+  torn with age. (StreetWear's flat flyers stay; these are the paper on top.)
+- **Newspaper pages blowing** down the gutter: one 7 x 5 sheet the vertex shader slides along its run
+  (custom.b), hops, tips and flutters, resting at each end and blowing back (ping-pong), faster in wind.
+- **Pigeon droppings** on the pavement under the ledges downtown (cut-out splashes, fresh or old).
+
+All of it is ONE material (`shaders/street_clutter_2.gdshader`, what a face is in COLOR.a x 16 =
+`StreetClutter2.C_*`, checked) except the steam; one batch per kind a chunk (`sc2_*`, 13 keys), the
+flat kinds and the flyers and steam shadowless, the upright ones casting only within `SHADOW_REACH`
+45 m, each drawn to its own distance (45-220 m). Linear on both renderers (color_space include).
+Meshes reuse StreetClutter's static builders (`_bbox`, `_cyl`, `_tube`, `_quad`, `_vtx`).
+
+**Seeding**: every roll is `h01()` of the seed and the place (block, kerb, shop key, cover, pole),
+never a chunk / block / Building rng, and nothing goes through `_add_prop`: the block's props keep
+their ids, its parked cars and crowd their rolls (the checks build each block with it off and
+compare). What is out depends on the hour the chunk is built at and the weekday
+(`BeachLife.hour_now`, `FarmersMarket.weekday`; `force_hour` / `force_day`, env `SC2_HOUR` / `SC2_DAY`
+for stills). Hooks: one step line in `CityChunk.begin_build()`, `Building` records `shop_fronts`
+when StreetClutter2 is on too (was Parklets / NightLife only; a record, no roll), the loading
+screen warms the meshes. `STREET_CLUTTER_2=0` is the A/B.
+
+Probe: `tools/street_clutter_2/probe.gd -- --spawn=x,z,0,0` (counts per kind and block, the step's
+plan time, an EYE per kind; `HOUR=`, `DAY=`, `KIND=`, `R=`). Compile: `tools/street_clutter_2/compile.gd`.
+Checks: `tests/street_clutter_2_checks.gd` (the last city file).
+
+**Frame cost** (opengl3, `still_shot.gd DIFF=1`, people and traffic hidden; `STREET_CLUTTER_2=0` then 1,
+same cameras): downtown 21:30 wet 3.78 -> 3.99 M triangles (+5.6 %, +20 draws), 3.02 -> 3.13 M
+(+3.6 %, +18), 3.50 -> 3.52 M (+0.6 %, +16), from 6 m up 1.74 -> 1.91 M (+9.7 %, +12); downtown 10:00
+close-ups +1.0 to +2.8 % (+16 to +30 draws); midtown 21:30 +0.7 to +3.0 % (+13 to +28); the beach town
++6.3 / +9.1 % (+16 / +28) on small frames (~2 M). Most of the added triangles are SHADOW (the bag piles'
+twins, ~1,100 triangles a pile, inside `SHADOW_REACH`); lower it, or give the piles a coarse shadow
+mesh, if a bookmark needs it. The step itself plans in 2-5 ms a block (probe `plan=`).
+
+Stills on `shots/street-clutter-2` (before / after pairs, downtown night and day, midtown and the beach
+town at night, and the kit alone from `tools/street_clutter_2/kit_shot.gd`, seconds: `NIGHT=1`, `WET=`).
+
+Not done / not seen: nothing on Forward+ (the steam's alpha and the puddles' mirror want a look on the
+Mac: SSR adds to the puddles there, `mirror_forward`); the pages and the steam move off shader TIME, so
+DIFF stills show them frozen; carts and bags are drawn only (no collision, nothing to knock over);
+the flyers only go on utility poles (lamp and signal poles vary in radius); posters and droppings are
+procedural, no atlas art.

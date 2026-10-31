@@ -493,6 +493,9 @@ func begin_build() -> void:
 		# Potholes, cracks, patches, ruts and stains on the roads, pavements and car parks (RoadWear:
 		# one batch from a 25-stamp atlas, hash-seeded).
 		_steps.append(RoadWear.build.bind(self))
+		# Bags, cardboard, carts, cones, steam, weeds, butts, puddles, flyers, blowing pages and
+		# droppings (StreetClutter2: one batch a kind, hash-seeded, after everything it keeps clear of).
+		_steps.append(StreetClutter2.build.bind(self))
 		# Bougainvillea, ivy, fig, jasmine, vines and accent plants on what the build laid
 		# (ClimbingPlants: hash-seeded, moves itself behind the deferred steps).
 		_steps.append(ClimbingPlants.build.bind(self))
