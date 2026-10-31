@@ -1517,11 +1517,15 @@ def paint(name, size):
             paint_trousers(pt, B, X, shell, L, spec, color)
             paint_rib_cuffs(pt, X, pidx, parts)
             paint_patches(pt, X, pidx, parts, spec, spec.get("thread"))
+        elif kind == "shoes":
+            # crowd-closeup-3: soles, outsoles, laces and eyelets (crowd_shoes.py / shoe_paint.py)
+            import shoe_paint
+            shoe_paint.paint_shoes(pt, B, X, pidx, parts, L, spec)
         elif kind in PAINTERS:
             PAINTERS[kind](pt, B, X, pidx, parts, L, spec)
         # "other" parts (buttons, zips) keep their own colour
         for k in pidx:
-            if parts[k]["region"] == "other":
+            if parts[k]["region"] == "other" and kind != "shoes":
                 m = X.part == k
                 c = spec.get(parts[k]["part"] + "_color", spec.get("trim_color", [232, 228, 218] if kind == "shirt" else [40, 40, 42]))
                 pt.lin[m] = T.srgb_to_lin(srgb(c))
