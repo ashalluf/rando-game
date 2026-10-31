@@ -2,6 +2,7 @@ shader_type spatial;
 render_mode cull_disabled;
 #include "res://shaders/heli_downwash.gdshaderinc"
 #include "res://shaders/tree_wind.gdshaderinc"
+#include "res://shaders/tree_light.gdshaderinc"
 
 // Wind sway and light for the generated foliage (palms). Nothing in this city moved except the
 // grass, and a street of palms standing dead still is one of the things that reads as "model"
@@ -29,6 +30,8 @@ global uniform vec2 wind_lean;
 global uniform float road_wetness;
 /// Points TOWARDS the sun (published by DayNight). Drives the frond-glow lobe.
 global uniform vec3 sun_direction;
+/// The sky's horizon colour (DayNight), raw sRGB numbers on both renderers.
+global uniform vec4 sky_tint;
 
 // --- Wind ---------------------------------------------------------------------------------
 /// Metres of sideways bend per metre-squared of height. 0.0015 puts a 15 m palm's crown through
@@ -78,6 +81,17 @@ uniform float bark_relief : hint_range(0.0, 3.0) = 1.0;
 varying float leaf_out;
 varying vec3 rest_pos;
 
+// --- Trees under light (tree-light-2; TreeLight, tree_light.gdshaderinc). 0 = as it was -------
+uniform float tree_light : hint_range(0.0, 1.0) = 1.0;
+/// A palm's height at scale 1 (metres): sets its sway rate and how late it answers a gust.
+uniform float sway_height : hint_range(0.0, 40.0) = 14.0;
+/// Metres the fronds step back along the light's axis in a directional shadow pass (the
+/// shadow twin's coarse fronds otherwise shade the real ones in front of them).
+uniform float self_shadow_slack : hint_range(0.0, 3.0) = 0.45;
+/// Sky light through a frond seen from below (fronds are one leaf thick: it is most of what
+/// a palm's underside is in the shade).
+uniform float sky_through : hint_range(0.0, 2.0) = 0.35;
+
 
 void vertex() {
 	vec3 origin = MODEL_MATRIX[3].xyz;
@@ -86,7 +100,13 @@ void vertex() {
 	// The travelling gust envelope.
 	float old_env = 1.0 - gust_depth + gust_depth * (0.5 + 0.5 * sin(TIME * gust_speed + (origin.x + origin.z) * 0.013));
 	float g = tw_gust(origin.xz + origin_shift.xz, TIME, wind_lean);
-	w *= mix(old_env, 0.55 + 0.95 * g, closeup);
+	float rate = 1.0;
+	if (tree_light > 0.5 && sway_height > 0.5) {
+		float tall_m = sway_height * length(MODEL_MATRIX[1].xyz);
+		rate = tl_rate(tall_m);
+		g = tl_load(origin.xz + origin_shift.xz, TIME, wind_lean, tall_m);
+	}
+	w *= mix(old_env, 0.55 + 0.95 * max(g, 0.0), closeup);
 
 	// Distance from the trunk axis, and a CONTINUOUS direction around it. atan() would be the
 	// obvious way to get an azimuth and it would tear the mesh along the -X axis where it wraps;
@@ -99,7 +119,7 @@ void vertex() {
 
 	// 1. Trunk and frond ribs: slow, wide, growing with the square of height, phase-shifted by
 	//    which side of the trunk the frond leaves from.
-	float t = TIME * speed;
+	float t = TIME * speed * rate;
 	float lag = frond_lag * mix(1.0, frond_follow * smoothstep(0.4, 3.0, radial), closeup);
 	float p = phase + around.x * lag + around.y * lag * 0.7;
 	// Two frequencies so the sway wanders instead of ticking like a metronome.
@@ -131,6 +151,15 @@ void vertex() {
 	ft *= 1.0 + 0.3 * closeup * g;
 	VERTEX.y += sin(ft + p + radial * 1.7) * radial * flutter * w * 0.25 * (1.0 + closeup * g);
 	VERTEX.xz += around.yx * vec2(1.0, -1.0) * cos(ft * 0.79 + p) * radial * flutter * w * 0.12;
+	// Fronds are heavy: out along each one it dips and rises on its own, later than the crown.
+	if (tree_light > 0.5) {
+		float droop = sin(t * 1.9 + p * 2.7) * 0.6 + sin(t * 3.1 + p * 1.1) * 0.4;
+		VERTEX.y += droop * smoothstep(0.8, 4.0, radial) * radial * 0.025 * w * (0.6 + 0.7 * max(g, 0.0));
+	}
+	// Directional shadow pass (orthographic): step back along the light's axis.
+	if (tree_light > 0.5 && PROJECTION_MATRIX[3][3] > 0.5) {
+		VERTEX += inverse(mat3(MODEL_MATRIX)) * (-normalize(INV_VIEW_MATRIX[2].xyz) * self_shadow_slack);
+	}
 }
 
 
@@ -196,4 +225,13 @@ void fragment() {
 	vec3 to_cam = normalize((INV_VIEW_MATRIX * vec4(VIEW, 0.0)).xyz);
 	float facing = clamp(dot(to_cam, -normalize(sun_direction)), 0.0, 1.0);
 	BACKLIGHT = through * (1.0 + scatter_gain * pow(facing, scatter_sharpness)) * mix(1.0, occl, closeup * 0.7);
+	// Sky light through a frond seen from below (tree_light.gdshaderinc; renderer space).
+	if (tree_light > 0.5 && !IN_SHADOW_PASS) {
+		vec3 sky = sky_tint.rgb;
+#if CURRENT_RENDERER == RENDERER_FORWARD_PLUS
+		sky = sky * sky * (sky * 0.305306 + 0.682171) + 0.012523 * sky;
+#endif
+		float below = clamp(-to_cam.y * 1.6 + 0.2, 0.0, 1.0);
+		EMISSION = albedo * vec3(1.05, 1.2, 0.55) * sky * sky_through * below * (1.0 - burnt) * mix(1.0, occl, 0.6) * clamp(0.3 + leaf_out * 0.35, 0.0, 1.0) * (frond ? 1.0 : 0.0);
+	}
 }

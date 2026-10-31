@@ -2,6 +2,7 @@ shader_type spatial;
 render_mode cull_disabled, depth_prepass_alpha;
 #include "res://shaders/heli_downwash.gdshaderinc"
 #include "res://shaders/tree_wind.gdshaderinc"
+#include "res://shaders/tree_light.gdshaderinc"
 
 // Leaf cards for the downloaded trees, bushes, flowers and grass clumps. Only the leaf surfaces
 // use this; the trunk and branches stay on their own opaque material, which keeps them out of the
@@ -45,6 +46,8 @@ global uniform vec2 wind_lean;
 global uniform float road_wetness;
 /// Points TOWARDS the sun (published by DayNight). Drives the leaf-glow lobe.
 global uniform vec3 sun_direction;
+/// The sky's horizon colour (DayNight), raw sRGB numbers on both renderers.
+global uniform vec4 sky_tint;
 
 uniform sampler2D albedo_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap, repeat_enable;
@@ -187,6 +190,27 @@ varying float v_depth;
 varying vec3 v_out_world;
 varying float v_cell;
 
+// --- Trees under light (tree-light-2, 2026-10-31; TreeLight, tree_light.gdshaderinc) ---------
+// 1 = on; TREE_LIGHT=0 sets 0 and every term below is the shader as it was (the A/B).
+uniform float tree_light : hint_range(0.0, 1.0) = 1.0;
+/// Metres the leaves are pushed away from the light in the shadow pass only (along the shadow
+/// camera's own axis, so the shadow on the ground does not move). The shadow twin's coarse,
+/// grown cards stood in front of the real outer leaves and put the whole sunlit shell of a crown
+/// in its own shadow: front-lit at noon, crowns drew near black with a few yellow flecks.
+uniform float self_shadow_slack : hint_range(0.0, 3.0) = 0.9;
+/// Sky light passed through the crown to a leaf seen from below or inside (its share of the sky,
+/// times the leaves' colour twice: green-gold), and the forward-scattered share of the sun seen
+/// through the crown's thin parts toward it.
+uniform float sky_through : hint_range(0.0, 2.0) = 0.55;
+uniform float sun_through : hint_range(0.0, 2.0) = 0.22;
+/// How fast light dies through the crown, per crown radius of leaves.
+uniform float crown_density : hint_range(0.0, 8.0) = 1.7;
+/// The sway's weight: the crown's height in metres at scale 1 (TreeLight.dress() sets it from
+/// the mesh; 0 = the old rate and an undelayed gust).
+uniform float sway_height = 0.0;
+varying float v_path_up;
+varying float v_path_sun;
+
 
 // Two independent smooth noise fields from one lattice: one set of corners, two values each, so
 // the thinning and the blossom patches do not correlate and neither costs a second walk.
@@ -258,11 +282,19 @@ void vertex() {
 	// The gust that crosses the street (tree_wind.gdshaderinc): the same front reaches the trees
 	// one after another.
 	float g = tw_gust(origin.xz + origin_shift.xz, TIME, wind_lean);
-	w *= mix(old_env, 0.55 + 0.95 * g, closeup);
+	// The sway's weight (tree_light.gdshaderinc): a big tree swings slower and answers the gust
+	// late, then swings back past upright as it drops.
+	float rate = 1.0;
+	if (tree_light > 0.5 && sway_height > 0.5) {
+		float tall_m = sway_height * length(MODEL_MATRIX[1].xyz);
+		rate = tl_rate(tall_m);
+		g = tl_load(origin.xz + origin_shift.xz, TIME, wind_lean, tall_m);
+	}
+	w *= mix(old_env, 0.55 + 0.95 * max(g, 0.0), closeup);
 
 	// 1. Branch sway. Slow, wide, growing with the square of height above the instance origin, and
 	//    phase-shifted by which side of the trunk the branch leaves from.
-	float bt = TIME * branch_speed;
+	float bt = TIME * branch_speed * rate;
 	float bp = phase + around.x * branch_lag + around.y * branch_lag * 0.7;
 	float gust_x = sin(bt + bp) * 0.72 + sin(bt * 1.73 + bp * 2.1) * 0.28;
 	float gust_z = sin(bt * 0.87 + bp * 1.4 + 2.1) * 0.72 + sin(bt * 1.51 + bp) * 0.28;
@@ -281,6 +313,13 @@ void vertex() {
 	// The front bows the whole crown downwind as it passes, and lets it spring back.
 	if (closeup > 0.5) {
 		VERTEX.xz += tw_dir_model(MODEL_MATRIX, wind_lean) * h * h * branch_bend * gust_push * g * clamp(w, 0.0, 3.0);
+	}
+
+	// The limbs carry weight: the outer ones bob on their own, slower than the leaves and later
+	// than the trunk, more the further out they hang (a crown is not one rigid ball).
+	if (tree_light > 0.5 && sway_height > 0.5) {
+		float limb = sin(bt * 2.3 + bp * 3.1 + v_cell * 2.0) * 0.6 + sin(bt * 3.7 + bp * 1.3) * 0.4;
+		VERTEX.y += limb * radial * sqrt(radial) * branch_bend * 6.0 * w * (0.5 + 0.8 * max(g, 0.0));
 	}
 
 	// The rotor wash of a helicopter low overhead (heli_downwash.gdshaderinc).
@@ -313,6 +352,22 @@ void vertex() {
 	}
 	vec3 od = normalize(vec3(VERTEX.x - crown_center.x, (VERTEX.y - crown_center.y) * 0.8 + 0.3, VERTEX.z - crown_center.z) + vec3(0.0, 1e-4, 0.0));
 	v_out_world = normalize((MODEL_MATRIX * vec4(od, 0.0)).xyz);
+	// The paths out of the crown toward the sky and the sun, in crown radii.
+	v_path_up = 0.0;
+	v_path_sun = 0.0;
+	if (tree_light > 0.5 && crown_radius.x > 0.01) {
+		vec3 rad = max(crown_radius, vec3(0.05));
+		vec3 q = (VERTEX - crown_center) / rad;
+		v_path_up = tl_path(q, normalize(vec3(0.0, 1.0, 0.0) / rad));
+		vec3 sm = transpose(mat3(MODEL_MATRIX)) * normalize(sun_direction);
+		v_path_sun = tl_path(q, normalize(sm / rad));
+	}
+	// Shadow pass of a directional light (an orthographic projection): the leaves step back
+	// along the light's own axis, so the shell is not shadowed by the twin's cards in front of it.
+	if (tree_light > 0.5 && PROJECTION_MATRIX[3][3] > 0.5) {
+		vec3 away = -normalize(INV_VIEW_MATRIX[2].xyz) * self_shadow_slack;
+		VERTEX += inverse(mat3(MODEL_MATRIX)) * away;
+	}
 }
 
 
@@ -449,4 +504,18 @@ void fragment() {
 	// The shell lets the light through; the core's leaves sit behind other leaves.
 	through *= mix(1.0, 1.25 - 0.85 * v_depth, closeup);
 	BACKLIGHT = through;
+	// Light that came through the crown (tree_light.gdshaderinc): sky light to a leaf seen from
+	// below or inside it, and the sun's forward scatter through the thin parts toward it. Leaves
+	// pass green-gold light, so it is the leaf's colour times the leaf filter. In the renderer's
+	// own space: sky_tint is raw sRGB on both (decoded here on Forward+), tree_sun linear.
+	if (tree_light > 0.5 && crown_radius.x > 0.01 && !IN_SHADOW_PASS) {
+		vec3 sky = sky_tint.rgb;
+		sky = mix(sky, sky * sky * (sky * 0.305306 + 0.682171) + 0.012523 * sky, lin);
+		vec3 sun_c = mix(sqrt(max(tree_sun, vec3(0.0))), tree_sun, lin);
+		vec3 leaf = ALBEDO * vec3(1.05, 1.2, 0.55) * (1.0 - bloom_on * 0.6);
+		float below = clamp(-to_cam.y * 1.6 + 0.2, 0.0, 1.0);
+		vec3 em = leaf * sky * sky_through * tl_through(v_path_up, crown_density) * below;
+		em += leaf * sun_c * sun_through * tl_through(v_path_sun, crown_density) * (0.25 + 0.75 * pow(facing, 3.0)) * (0.35 + 0.65 * thin);
+		EMISSION = em * (1.0 - wet * 0.3);
+	}
 }

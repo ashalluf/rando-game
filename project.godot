@@ -346,3 +346,7 @@ lawns_closeup={
 "type": "float",
 "value": 1.0
 }
+tree_sun={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
