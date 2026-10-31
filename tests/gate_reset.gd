@@ -12,8 +12,12 @@ extends RefCounted
 ##   level and force, Traffic's cap and `staged`, and every child's `enabled` / `staged`
 ##   (Police, Emergency, NewsCrews, Birds, OceanTraffic, CoastTraffic, ...);
 ## - the world: WorldState's destruction, the police's stars and units, open onlooker scenes,
-##   wrecks and burning cars, debris (bodies, rubble), Engine.time_scale, the audio speed, pause,
-##   the player out of any car with full health.
+##   wrecks and burning cars, debris (bodies, rubble, BlastDebris), Engine.time_scale, the audio
+##   speed, pause, the player out of any car with full health;
+## - the crowd: the cap, and the head-count trimmed back to the snapshot's (the farthest plain
+##   walkers freed, as BusyStreets frees them in play), so a file that builds a chunk and counts
+##   its vendors, crew or diners always finds the clean city's room in the cap (gate run 303 built
+##   the film shoot with nobody on it after earlier files had filled the crowd).
 ## `light()` is the statics alone (no node freed, no frame waited): it runs before a file the
 ## list does not await. `full()` is everything; the proxy then stages the player at home.
 ## SMOKE_LEAKS=1 prints, after each file, every primitive static it changed (counters too), so a
@@ -36,6 +40,8 @@ var _hour := 9.0
 var _quality := {}
 var _traffic := {}
 var _player_masks := Vector2i(-1, -1)
+var _crowd := -1 # live pedestrians at the snapshot
+var _max_peds := -1 # the streamer's crowd cap at the snapshot
 var leaks := OS.get_environment("SMOKE_LEAKS") == "1"
 ## How many resets ran, and what the last put back (the checks read them).
 var count := 0
@@ -103,6 +109,9 @@ func snapshot(city: Node) -> void:
 	var traffic: Node = city.get_node_or_null("Traffic")
 	if traffic:
 		_traffic = {"max_cars": traffic.get("max_cars"), "staged": traffic.get("staged")}
+	if "max_pedestrians" in city:
+		_max_peds = int(city.get("max_pedestrians"))
+	_crowd = _live_crowd(city.get_tree())
 	var player := city.get_tree().get_first_node_in_group("player") as CollisionObject3D
 	if player:
 		_player_masks = Vector2i(player.collision_layer, player.collision_mask)
@@ -229,8 +238,47 @@ func full(tree: SceneTree) -> void:
 		if is_instance_valid(node) and not node.is_queued_for_deletion():
 			node.queue_free()
 			freed += 1
+	for d in BlastDebris._all:
+		if is_instance_valid(d) and not (d as Node).is_queued_for_deletion():
+			(d as Node).queue_free()
+			freed += 1
 	if freed > 0:
 		last["freed"] = freed
+	_trim_crowd(tree, player as Node3D)
+
+
+## Pedestrians counted against the cap (CityChunk.count_crowd_room's rule).
+static func _live_crowd(tree: SceneTree) -> int:
+	return -CityChunk.count_crowd_room(tree, 0)
+
+
+## The cap put back and the crowd trimmed to the snapshot's head-count, farthest plain walkers
+## first (never anyone busy: an errand, a watch, a stop, a seat).
+func _trim_crowd(tree: SceneTree, player: Node3D) -> void:
+	if _max_peds >= 0 and int(_city.get("max_pedestrians")) != _max_peds:
+		_city.set("max_pedestrians", _max_peds)
+		last["crowd:cap"] = true
+	if "_crowd_frame" in _city:
+		_city.set("_crowd_frame", -1)
+	var over := _live_crowd(tree) - _crowd
+	if _crowd < 0 or over <= 0:
+		return
+	var at := player.global_position if player else Vector3.ZERO
+	var walkers: Array = []
+	for n in tree.get_nodes_in_group("pedestrian"):
+		if BusyStreets.is_plain_walker(n) and not n.get_parent().is_queued_for_deletion():
+			walkers.append([(n as Node3D).global_position.distance_squared_to(at), n])
+	walkers.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) > float(b[0]))
+	var trimmed := 0
+	for w: Array in walkers:
+		if trimmed >= over:
+			break
+		var n: Node = w[1]
+		n.remove_from_group("pedestrian")
+		n.queue_free()
+		trimmed += 1
+	if trimmed > 0:
+		last["crowd:trimmed"] = trimmed
 
 
 ## SMOKE_LEAKS=1: which primitive statics the file just run changed (and left changed).
