@@ -22032,3 +22032,10 @@ pairs on road pixels at night.
 ranked glow may read stronger under AgX and bloom - knobs `FT_PLATOON_*`, `FT_TAIL_MEAN`,
 `RANK_*`. The airport still in the set predates the last beam change (e4354e0d: 0.4 from the air,
 600 m fade); its effect is not shot. The wingsuit was not flown (the EYEs stand in for it).
+
+**Wave 4 (2026-10-31, resumed).** Merged main (build 395, the golden-hour review); nothing in it
+touches these shaders. Six more stills on `shots/night-flight` (19-31): downtown (2800, z 600-1900)
+and midtown (1000, z 1100-2200) at 150, 400 and 800 m, 22:00, looking north; before = the same
+build with `NIGHT_FLIGHT=0`. Changed pixels (> 8/255): 4-16 % a frame, all in the far glow,
+the freeways and the beams. GEO identical in five of six frames (midtown 150 m +0.1 %, crowd
+LOD noise). Still not seen on Forward+.
