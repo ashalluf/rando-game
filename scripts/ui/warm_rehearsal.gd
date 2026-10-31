@@ -106,14 +106,20 @@ static func run(scene: Node, cam: Camera3D, progress: Callable = Callable(), log
 	# Swept again for a moment after: blood drops traced along their arcs are still in the air and
 	# lay their splats (Decals on the scene) as they land, some frames after the holder is gone -
 	# which rig the staged people roll decides how long they fall.
-	for f in SWEEP_FRAMES:
+	# And on while anything still turns up (a delayed spark or a drop landing late on a slow
+	# frame: batch 30's gate found one CPUParticles3D after the fixed sweep), up to 4x as long.
+	var f := 0
+	var last_found := 0
+	while f < SWEEP_FRAMES or (f - last_found < 12 and f < SWEEP_FRAMES * 4):
 		for c in fx_root.get_children():
 			if before.has(c.get_instance_id()) or c == holder or c.is_queued_for_deletion():
 				continue
 			if c.get_script() == null or String(c.name).begins_with("BlastCrater"):
 				c.queue_free()
+				last_found = f
 		await tree.process_frame
 		_purge_statics()
+		f += 1
 	Police.innocent = innocent_was
 	AudioServer.set_bus_mute(0, bus_was)
 	_purge_statics()

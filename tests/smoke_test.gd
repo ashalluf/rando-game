@@ -3587,9 +3587,17 @@ func _test_weapons(player: Player) -> void:
 		_check(manager.current.get("_cooldown") <= cooldown_before, "the gun does not fire while the wheel is open")
 		Input.action_release("weapon_wheel")
 		await _ticks(3)
+		# The wheel reads the release in _process: on a loaded runner three physics ticks can
+		# all fall inside one rendered frame, so wait for frames too (batch 30's gate).
+		for i in 3:
+			await get_tree().process_frame
 		_check(manager.current is RocketLauncher and not wheel.is_open() and not manager.wheel_open,
 			"releasing the wheel equips the highlighted rocket launcher")
+		# The ease back runs at most 0.1 s a frame: on slow frames 0.3 s is a frame or two.
+		var ease_t0 := Time.get_ticks_msec()
 		await get_tree().create_timer(0.3, true, false, true).timeout
+		while Engine.time_scale != 1.0 and Time.get_ticks_msec() - ease_t0 < 5000:
+			await get_tree().process_frame
 		_check(Engine.time_scale == 1.0 and AudioServer.playback_speed_scale == 1.0,
 			"time and audio are back to normal after the wheel closes (%.2f, %.2f)" % [Engine.time_scale, AudioServer.playback_speed_scale])
 		await _press("weapon_wheel")
