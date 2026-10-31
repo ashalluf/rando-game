@@ -3760,3 +3760,10 @@ none of either.
   take over near the camera); flake is sampled per pixel-sized cell fixed to the body; new
   finishes, the contrast-roof livery and a car's condition are appended and rolled by hashes of
   the look seed after every roll, so no existing roll moves and CAR_PAINT_2=0 is the old look.
+- **2026-10-31, patterned ground without moire (paving-aliasing).** The "moire" on downtown's red
+  forecourts was not aliasing: lot_ground.gdshader truncated its interpolated surface kind with
+  int(), and an interpolated 3.0 reads 2.9999 on some pixel rows, so the paving flipped between red
+  pavers and setts row by row. Decisions: every integer carried through a varying is ROUNDED (or
+  the varying is flat) before int() / floor(); repeating ground lines are box-filtered by their
+  footprint with one include (shaders/pattern_aa.gdshaderinc, the exact integral of a pulse train)
+  rather than widened by fwidth(), which grows a line instead of filtering it; PAVING_AA=0 is the A/B.

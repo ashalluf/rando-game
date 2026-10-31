@@ -6280,6 +6280,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   RockFar's tors take the range haze and the hill's tone past `aerial_blend`; the far city's tree
   crowns are `CITY_CANOPY_GAIN` darker. `tools/aerial_review/layer_probe.gd` saves every shot again
   with one layer hidden (which node draws that speckle?). Checks `tests/aerial_review_checks.gd`.
+- Patterned ground (2026-10-31, docs/HANDOFF.md "Patterned ground without moire"): an integer
+  carried through a varying is ROUNDED before `int()` / `floor()` (an interpolated 3.0 reads 2.9999
+  on some rows: the forecourts' red / grey row stripes); repeating ground lines are box-filtered by
+  their footprint with `shaders/pattern_aa.gdshaderinc` (`paa_lines/grid/stripes/keep`), never
+  widened by fwidth() (that grows the line). `PAVING_AA=0` is the A/B; checks
+  `tests/paving_aliasing_checks.gd`; probes `tools/paving_aa/`.
 - Road hardware (2026-10-05, docs/HANDOFF.md "Road hardware"): `RoadHardware`
   (`scripts/world/road_hardware.gd`, one hook line at the end of `StreetDetail.build_block`, FULL
   chunks) lays cast-iron manhole covers (four cast patterns, proud or sunk in a patched round or

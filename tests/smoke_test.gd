@@ -2677,6 +2677,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Car paint, second pass (tests/car_paint_2_checks.gd, CarPaint2): rolls by hash only, the switch,
 	# the shader's paint2 uniforms, the materials, a car's condition.
 	load("res://tests/car_paint_2_checks.gd").new().run(self, city)
+	# Patterned ground without moire (tests/paving_aliasing_checks.gd, PavingAA): the box filter, the
+	# rounded kinds (the forecourt's row stripes), the switch.
+	load("res://tests/paving_aliasing_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

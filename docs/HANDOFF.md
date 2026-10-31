@@ -21588,3 +21588,58 @@ Wilshire was judged on opengl3 only; Broadway was never seen on Forward+ (does n
 rain streaks on opengl3 read a touch thin and white near the eye - `width_share` / `gain` in
 night_wet.gdshader are the knobs; the suburb stays dark between lamps (its lamps are 40 m apart and
 the gardens are unlit, which is how it is), 20 % holes.
+
+## 9d?. Patterned ground without moire (fleet wave 3, branch `wt/paving-aliasing`; VISUAL_ROADMAP ?)
+
+**The task**: downtown's red brick / herringbone paving drew as fine red-and-grey stripes 3-15 m
+from the camera (shots/street-clutter-2 `07_before_dt_day.jpg`); survey every patterned ground and
+fix the aliasing at the source.
+
+**What it really was.** Not aliasing. The stripes are horizontal in SCREEN space at every distance,
+right down to the camera's feet, which no mipmapped texture or analytic pattern does. They are the
+LotFill forecourt (`shaders/lot_ground.gdshader`) flipping between two of its four pavings row by
+row: the surface kind rides COLOR.r into a smooth `varying float kind`, and the fragment did
+`int(kind)`. A constant 3.0 interpolated across a triangle comes out 2.9999 on some pixel rows
+(llvmpipe and GLES; the sign of the error changes per triangle, which is why a big quad also split
+into a red half and a setts half along its diagonal), so `int()` drew paving 2 (setts, warm tint)
+in stripes through paving 3 (red pavers). Found by elimination: the forecourt rects never overlap
+(`tools/paving_aa/overlap_probe.gd`), nothing else lies within 4 cm of them
+(`tools/paving_aa/stack_probe.gd`), and a block shot reproduces it with nothing streamed round.
+Fixed by rounding (`int(kind + 0.5)`). The same truncation was in `cemetery_stone.gdshader` and
+`chinatown.gdshader` (`int(v_kind)`), and `lot_yard.gdshader` seeded its slab shades and lawn
+clover with `floor(variant * 31 / 997)` on an interpolated 8-bit value (0.0 can read -1e-7):
+snapped to the 8-bit value first. **Rule**: an integer carried through a varying is rounded (or the
+varying is `flat`) before `int()` / `floor()` / `==`; a vertex-colour code is encoded centred,
+`(k + 0.5) / N` (8-bit colour: `floor(k / N * N)` is wrong for some k).
+
+**The aliasing that was real**: repeating lines drawn with step()/smoothstep() on fract() and
+"anti-aliased" by widening the edge by fwidth() - which GROWS the line (a parklet's 6 mm board gap
+covered half of each board 10 m off and the deck went dark in bands). `shaders/pattern_aa.gdshaderinc`
+box-filters them instead: `paa_lines(x, period, width, footprint)` is the exact integral of the
+pulse train over the pixel (from its antiderivative, `paa_prim()`), so a line is crisp up close,
+thins, and far off is exactly width / period - flat, no moire; `paa_grid()`, `paa_stripes()`
+(dashes, chevrons), `paa_keep()` (details that cannot be integrated fade to their mean). Take the
+footprint (`fwidth()`) in uniform control flow, never inside a branch. Users: the pavement's slab
+joints (`road.gdshader`, 3 % of the spacing - the old soft 5 % ramp's mean - and the per-slab shade
+faded once a slab is under a couple of pixels), parklet deck gaps and butt joints, the alley speed
+bump's chevrons, the car park's dashed centre and ramp lines and its 6 cm ramp grooves (they were
+faded from 5 cm a pixel; they alias from 3). Each keeps its old line behind `paa_on()`.
+
+**Surveyed and left alone** (already filtered or textured with sane mips): kerb_marks (domes,
+grates, stencils fade by footprint), park_ground and golf_turf (analytic lines filtered),
+lot_yard's joints, alley / industrial / vacant joints (`fwidth`-filtered, faded), industrial rail
+ties (faded), walk_of_fame, the paving textures (all ground .imports have mipmaps). Crosswalk bars
+and road paint are geometry: TAA on Forward+ handles their edges, Compatibility has no AA there.
+
+**The switch**: `PAVING_AA=0` (`PavingAA`, `scripts/world/paving_aa.gd`, the `paving_aa` shader
+global, pushed from `Weather._ready()`), which also puts the forecourt's truncation back (for the
+before stills). **Cost**: shader-only, no geometry: block_shot GEO identical on and off (downtown
+pavement eyes: 3.07 M / 3.06 M / 2.83 M / 3.62 M triangles, 1776 / 1891 / 1629 / 2056 draws both
+ways); the filter is ~12 ALU a line where used. **Checks**: `tests/paving_aliasing_checks.gd` (the
+shaders compile and honour the switch, the include and its GDScript mirror agree, the filter is
+exact up close / keeps the mean at every footprint / flat far off, no ground shader truncates an
+interpolated kind, the global and the switch). **Stills** on `shots/paving-aliasing`: block shots of
+the red forecourt at (2700, 20) and (2630, 100) before / after, the Hill St pavement frontage,
+and the same forecourt in the city at 10:00. **Unverified**: Forward+ (TAA) was not shot (lavapipe
+time); the yards' and car parks' decks / grooves were fixed by maths and checks, not by stills (the
+first yard eyes landed in the marina and the sea).
