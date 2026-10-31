@@ -3723,3 +3723,10 @@ none of either.
   triangles; balconies get a hand-made LOD and shadow twins; static mesh caches that grow with the
   places visited drop what only they hold (CacheTrim) instead of clearing at a size. Plain runs of
   an aerial bookmark differ by millions of triangles, so frame costs there are DIFF=1 pairs only.
+
+- **2026-10-30 The golden hour review: tune ramps, not systems (golden-hour-review, HANDOFF "The
+  golden hour review").** Judged 17:00-19:30 on six views x six half hours by numbers (sky / ground
+  balance, warmth, orange share, crushed). Decisions: the sky's night colours follow their own
+  twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
+  monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
+  eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.

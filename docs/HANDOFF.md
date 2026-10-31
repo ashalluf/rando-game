@@ -21156,3 +21156,69 @@ Not done / not seen: the motion blur on Forward+ (above); a pad's look-behind sh
 on-foot dive / wingsuit (both off in a car); no per-surface buzz beyond terrain (DrivingFX knows
 sand and dirt, not shared); the camera does not yet look into the corner AHEAD (GTA's slight
 lead) - the lag shows the flank instead.
+
+## 9d?. The golden hour review: 17:00-19:30 across six views, four fixes by tuning (fleet wave 3, `wt/golden-hour-review`; VISUAL_ROADMAP "?")
+
+**How it was judged.** Six views x six half hours (`tools/golden_hour/cameras.json`: the Esplanade
+looking south, the beach toward the sun, downtown from the south-west at 140 m, the front range from
+260 m, Flower at Olympic looking north, and the same corner looking west into the sun), shot through
+refcams with the new `REFCAMS_JSON=` (and `SHEET_COLS=6`), opengl3. `tools/golden_hour/strip.py
+numbers <run>` adds what refcams does not measure: the SKY band (top fifth) and GROUND band (bottom
+two fifths) medians and their ratio, warmth (mean linear R / B), the ORANGE share (hue 15-45 degrees,
+saturation > 0.55) and the crushed share; `strips <before> <after> <out>` makes the hour strips.
+A run is ~90-150 s a shot plus a 10-minute load (36 shots ~75 min; give refcams `--timeout 7000`).
+
+**What main showed** (before -> after in `build/gh/compare.txt`, stills on `shots/golden-hour-review`):
+1. **The sunset drowned in red.** At 18:00 every view was red-orange including the shadows: hills
+   saturation 0.80, warmth 9.4, 73 % orange; coast warmth 5.7. The violet earth's-shadow band stood
+   17 degrees up at full strength over a magenta zenith (the ambient IS the sky), and the GOLDEN grade
+   (red mid gamma 0.80, saturation 1.48) pushed red on top.
+2. **A brightness trough at the sunset.** The sun falls to its night energy at elevation 0 (daylight
+   = elevation x 3) but the exposure followed `moonlight` (1 only at -20 degrees): 18:00 was the darkest
+   frame of the evening - street ground median 16 at 18:00, 37 at 18:30, 48 at 19:00.
+3. **The sky went night eleven minutes after sunset.** Its top and horizon lerped to the night
+   colours on `night_factor` (1 at 18:11); `sky_tint` and the cubemap's ground followed, so the sea and
+   wet sand toward a still-glowing horizon were 25-45 % crushed from 18:30.
+4. **Smaller:** the moonlight blue enough to turn the tan hills teal at 19:00; the golden-hour smog lid
+   (fog x1.45, ground smog 0.7) flattening the ranges and far city to one beige at 17:30.
+Lamps and windows: NO pop - they ramp on `night_factor` over 17:34-18:12 (the checks hold every step
+under 0.026 a game minute). Judged fine and left: 17:00, 19:30, the sunset sky model, the night.
+
+**What changed** (all tuning; `GoldenHour`, `scripts/world/golden_hour.gd`, holds the ramps and the
+old numbers; `GOLDEN_HOUR_REVIEW=0` is the exact A/B):
+- `GoldenHour.sky_night()`: the sky's night colours (top, horizon, so `sky_tint`, `ground_color`, the
+  ground haze) follow smoothstep(0.03, -0.22) of the sun's elevation (civil to nautical dusk, ~18:01 to
+  18:50) instead of night_factor; night_factor stays the lamps' and windows' switch.
+- `GoldenHour.exposure_mix()`: the exposure goes half way to the night's between 17:25 and 18:05 as
+  the light falls, then hands over to moonlight (max of the two: monotonic). Bloom still on moonlight.
+- `GoldenHour.golden_grade()`: HourGrade's GOLDEN weight x 0.45 with the sun on the horizon, back to
+  1 by elevation 0.12 (17:32). The LOOKS are untouched (the cinematic checks hold).
+- DayNight: `dusk_sky_top` (0.16, 0.18, 0.42) -> (0.10, 0.19, 0.48), `dusk_horizon` (1, 0.55, 0.3) ->
+  (1, 0.60, 0.38), `sunset_band` (0.46, 0.26, 0.52) -> (0.40, 0.30, 0.56), `twilight_band_height`
+  (0.30, 0.16) -> (0.18, 0.10), `night_sun_color` (0.62, 0.72, 1.0) -> (0.70, 0.76, 0.95),
+  `golden_fog_gain` 1.45 -> 1.25, `ground_smog` 0.7 -> 0.5.
+
+**Numbers** (luminance p5/p50/p95, ground median, saturation, warmth): coast 18:00 11/35/113 g20
+0.73 5.7 -> 39/78/165 g59 0.48 3.1; beach 18:00 11/99/213 g32 0.68 6.1 -> 25/150/229 g79 0.48 3.5,
+18:30 crushed 25 % -> 11 %, ground 6 -> 13; aerial 18:00 37/98/139 0.65 5.7 -> 53/140/174 0.48 3.2;
+hills 18:00 sat 0.80 warm 9.4 -> 0.64 5.1; street 18:00 13/24/109 g16 -> 29/51/154 g46 (now monotonic:
+55, 46, 44, 51 from 17:30); 17:00 and 19:00-19:30 within 1-5 levels (unchanged on purpose).
+**Frame cost**: none (uniforms only); the refcams GEO counts move -10 % .. +4 % triangles and +-120
+draws between the two runs on the street (traffic and people), under 1 % elsewhere.
+
+**Also fixed**: `refcams --strict` drew every evening camera at noon - still_shot's `_diff_freeze()`
+put the clock back to the run's `--hour=` (the first camera's); refcams_shot sets each camera's hour
+again after it (HANDOFF "The Los Angeles sunset" reported the symptom).
+
+**Checks** (`tests/golden_hour_review_checks.gd`, 15): the twilight ramp (part way at 18:15, night by
+19:15), the blue zenith at the sunset (export and live), the eased grade, `sky_tint` still glowing at
+18:15, no colour DayNight hands out stepping more than 0.05 between two game minutes 17:00-19:30, the
+exposure monotonic and a third of the way to night's by the sunset, the lamps a ramp, the A/B.
+
+**Not done / not verified.** Forward+ (the Mac) was not rendered: the city does not fit lavapipe and
+the sky-only and grade probes were not rerun; the changes are colours and ramps both renderers read
+the same way, but judge 18:00 on the Mac first - if it reads milky-pink, raise `SUNSET_GRADE` toward
+0.6 before touching the sky. The 18:00 frames still lean pink-orange (hills 70 % orange - the tan
+grass under a low red sun is what it is). The painted cumulus on opengl3 draws a big smooth ellipse in
+the aerial and sky shots (before and after alike; the sky's, not this review's). Dawn shares the sky
+ramp and the exposure ramp (both are symmetric in elevation) and was not looked at.
