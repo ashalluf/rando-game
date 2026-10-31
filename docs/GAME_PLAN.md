@@ -3786,3 +3786,9 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+
+- **2026-10-31 The first minute is part of the load (loading-first-frame, HANDOFF "The first
+  minute").** Whatever play would build in its first seconds - the traffic, the streamer's own
+  window, wave 3's first-use pipelines - is built behind the shade, and nothing the loading screen
+  builds may be one the streamer throws away at once (the wide FULL preload was). Measured after the
+  shade with LOAD_FIRST_MINUTE, the screen's work headless with LOAD_SCREEN_HEADLESS.

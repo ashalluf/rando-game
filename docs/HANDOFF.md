@@ -21980,3 +21980,92 @@ the same way, but judge 18:00 on the Mac first - if it reads milky-pink, raise `
 grass under a low red sun is what it is). The painted cumulus on opengl3 draws a big smooth ellipse in
 the aerial and sky shots (before and after alike; the sky's, not this review's). Dawn shares the sky
 ramp and the exposure ramp (both are symmetric in elevation) and was not looked at.
+
+## 9d?. The first minute: what the loading screen left undone, and four fixes, 2026-10-31 (agent branch `wt/loading-first-frame`)
+
+**Ask (wave 4, infra):** the first minute of play - the loading screen's time, what pops in after
+the shade lifts, the first-use stutters of what wave 3 added. Measure, fix the three biggest.
+
+**New tools.**
+- `LOAD_FIRST_MINUTE=<s>` (with `LOAD_QUIT=1`, which `tools/load_time/load_time.sh` sets): after the
+  load, `scripts/util/first_minute.gd` prints a `FIRSTMIN` line a second - frame median / worst,
+  chunks pending and MISSING (blocks the streamer's window wants at a level that is not standing),
+  chunk SWAPS that second (each a visible pop), far-city work left, street / freeway cars, spawns
+  queued, walkers - then a summary and quits. Loaded by path (the Sfx autoload compiles LoadClock).
+- `LOAD_SCREEN_HEADLESS=1`: the loading screen runs under the dummy renderer too, so its WORK and the
+  minute after it are timed in ~2.4 GB. The desktop path no longer fits this box (below).
+- `load_time.sh` uses `tools/peak_rss.py` where there is no `/usr/bin/time`; `LOAD_PROFILE=1` also
+  prints every far landmark's build time.
+- `first_use_probe` gained `EVENTS=wave3` (enter_car, crash, police_night, umbrellas, wildlife) and
+  `REHEARSE_STAGES=` / `REHEARSE_TYPES=` (a part of the rehearsal). Run it on **opengl3**
+  (`xvfb-run ... --rendering-driver opengl3 res://tools/shader_warm/first_use_probe.tscn`, 2.8 GB):
+  under lavapipe even two body types' rehearsal now passes 13.6 GB and is OOM-killed.
+- `LOAD_*` names stay out of LoadCache's key; any other env var a script reads is IN it, so a debug
+  switch like `WARM_LOG=1` or `FIRST_FILL=0` makes the next launch cold (30 s of bake again).
+
+**Measured** (main at e5bb9e4, this 4-core box). Headless, cold cache: engine + script compile 22 s
+before the first line of game code (was 9 s in wave 2), macro map 7.6 s (ballpark + ridges 4.3 s),
+ground bake 30.5 s cold / 0.7 s warm (18 s in wave 2), far landmarks 10 s (pueblo_lane 1.8 s,
+rental_lot 1.4 s, civic_park 0.8 s: mostly the first build of kit meshes and tree ladders that are
+paid once anyway), first streaming 18 FULL + 129 LOD chunks 37 s, near far city 19 s cold.
+The loading screen's work (headless): shaders 13 s, camp 0.8 s, beach 3.4 s, preload 24 s, far
+city 41 s cold, trees 1.5 s, rigs 4 s. **Desktop opengl3 under Xvfb is OOM-killed at 13.6 GB**
+inside the rehearsal (2 GB before the first frame, +8 GB through the shader warm-up as llvmpipe
+compiles the city behind the screen): it peaked at 5.8 GB in wave 2. That is llvmpipe's GL program
+memory, not a measured Mac number, but nobody can run the desktop launch on a 15 GB cloud box now.
+
+| the minute after the shade (headless loading screen) | before | after |
+|---|---|---|
+| chunk swaps in the first 30 s | 43 (the last at 28.7 s) | 13 |
+| LOD blocks missing at t=1 s / 10 s / 30 s | 48 / 38 / 7 | 9 / 4 / 8 (ordinary streaming) |
+| street / freeway cars at t=1 s | 47 / 48 (headless no-screen: 4 / 2) | 48 / 70 |
+| traffic settled (nothing queued) | 4.1 s (16 s with no screen) | 1.1 s |
+| loading screen "preload world" | 24.2 s | 0.05 s |
+| peak RSS | 2,955 MB | 2,369 MB |
+
+| first use, opengl3 (base frame ~0.55 s) | worst frame, rehearsal without wave 3 | with |
+|---|---|---|
+| getting into a car (cabin, doors, drive cam, radio card) | 1,414 ms | 708 ms |
+| a crash (crumple, litter) | 4,556 | 1,814 |
+| people putting up umbrellas and hoods | 1,417 | 860 |
+| a lit cruiser at night, a coyote | 788 / 708 | 620 / 698 |
+| total over 1.5x a frame | 5,290 ms | 1,596 ms |
+
+**What changed.**
+1. **The warm-up's effect list aborted half-way.** `NightLifeKit.warm()` hands back MESHES; the loop
+   was typed `for mat: Material in effects`, so at the first mesh GDScript stopped the whole of
+   `_warm_shaders()`: every effect after the night life (valets, signs, the farmers' market, film
+   shoots, billboards, the beach, the pier, LA trees, car damage's fire, the boost streaks, the blast
+   aftermath, furniture, backyards, yard sales), the mesh materials and the blood decals were never
+   warmed, and the holder of ~280 warm-up quads was never freed - it stayed under the camera all
+   session. The list is `LoadingScreen.effect_list()` now; a Mesh in it is drawn as itself (its own
+   vertex format, a hundredth of its size).
+2. **The preload built a wider ring than the streamer keeps.** `_preload_world()` raised the FULL
+   radius to 5 (57 FULL chunks against the window's 18); the moment play began the streamer wanted
+   ~48 of them at LOD and rebuilt them a few a tick for half a minute, drawing them in full detail
+   meanwhile. It preloads the streamer's own window now (`LOAD_WIDE_PRELOAD=1` the old), and runs
+   once more just before the fade (the window moves while the far city and the rehearsal run).
+3. **The traffic was filled one car a frame in front of the player.** `FirstFill`
+   (`scripts/util/first_fill.gd`): the loading screen's last stage runs TrafficManager's own upkeep
+   and spawns with no per-frame cap until street, freeway and airport loop hold their target (the
+   same spawns, queues and rng). `FIRST_FILL=0` the A/B.
+4. **Wave 3's first uses rehearsed** (`WarmRehearsal.wave3`, `WARM_WAVE3=0` the A/B): a crash on the
+   second car (CrashDeform, CrashLitter), a lit cruiser (PoliceNightLook's washes), every everyday
+   body's cabin split and kit (`CarInteriors.activate()`, waited on up to `CABIN_WAIT` frames, then
+   deactivated: the split is cached per body type, so the first car walked up to has it), the staged
+   people under forced rain (`RainCrowd.forced`, umbrellas and hoods). And the burnt rehearsal car no
+   longer lingers in CarDamage's static lists (`_purge_statics()`): Emergency's scan met the freed
+   car every second of play (a SCRIPT ERROR each time) and the fire caps counted it.
+
+Checks: `tests/loading_first_frame_checks.gd` (the effect list's types, the purge, the preload
+radius, FirstFill staged / filling, the monitor off by default).
+
+**Not done / not verified.**
+- Nothing on the Mac. The cold launch the owner gets after every release is the cold column: 22 s of
+  script compile, 30 s of bake, ~60 s of far city, then the screen. The bake grew 18 -> 30 s with
+  wave 3's terrain (rock outcrops 4.2 s inside it); not attacked here (`height_at()` is not
+  thread-safe).
+- The desktop (opengl3) launch can no longer be measured on a 15 GB box; lavapipe cannot hold the
+  rehearsal. A Mac launch log (`LOADING` lines) is the real measure.
+- A crash still costs a second on first use after the rehearsal (CPU work in CrashDeform, not a
+  compile, by the look of it); umbrellas 0.3 s.
