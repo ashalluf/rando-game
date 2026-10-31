@@ -44,9 +44,9 @@ void vertex() {
 	side = sl > 1e-4 ? side / sl : vec3(1.0, 0.0, 0.0);
 	// Metres a pixel covers at this depth (abs: PROJECTION[1][1] is negative on Compatibility).
 	float px = max(-p.z, 0.05) * 2.0 / max(abs(PROJECTION_MATRIX[1][1]) * viewport_px, 1.0);
-	float w = max(width_m * 2.5, px * min_px * 2.5);
+	float w = max(width_m * 1.8, px * min_px * 1.8);
 	// How much the drawn width outgrew the real one: a thread under a pixel is spread thinner.
-	v_px_scale = clamp(width_m * 2.5 / w, 0.08, 1.0);
+	v_px_scale = clamp(width_m * 1.8 / w, 0.08, 1.0);
 	VERTEX = p + side * UV.y * w;
 	NORMAL = -normalize(p);
 }
@@ -56,8 +56,8 @@ void fragment() {
 	float s = UV.x * length_m;
 	float across = abs(UV.y);
 	// A hot core and a soft sleeve, both to zero at the edge.
-	float core = (1.0 - smoothstep(0.0, 0.35, across));
-	float sleeve = pow(1.0 - across, 2.2);
+	float core = (1.0 - smoothstep(0.0, 0.45, across));
+	float sleeve = pow(1.0 - across, 3.0);
 	// The streak: brightest at the round, fading back over `tail`; nothing ahead of it.
 	float d = head - s;
 	float streak = step(0.0, d) * (1.0 - smoothstep(0.0, max(tail, 0.01), d));
@@ -65,7 +65,7 @@ void fragment() {
 	// The trail: everything the round has passed, faint.
 	float passed = step(0.0, d);
 	float air = passed * trail * 0.12;
-	vec3 col = core_color * core * streak * 1.3 + glow_color * sleeve * (streak * 0.45 + air);
+	vec3 col = core_color * core * streak * 1.3 + glow_color * sleeve * (streak * 0.22 + air);
 	col *= v_px_scale * heat;
 	// Never right at the muzzle (the flash is there).
 	col *= smoothstep(0.15, 0.9, s);
