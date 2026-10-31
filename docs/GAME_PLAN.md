@@ -3786,3 +3786,12 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+
+- **2026-10-31 Ragdolls that read right (ragdoll-feel, HANDOFF "Ragdolls that read right").** A shot
+  person staggers before falling, a flung one trails its limbs, a car hit wraps over the bonnet, a
+  doll rolls down steps. Decisions: the hit reaction is MUSCLES on the jointed doll (driven toward
+  its standing pose, leaned along the round, then let go), not a clip played before the doll is made
+  - the doll exists from the first frame, so blood, police, Emergency and onlookers are untouched,
+  and the reaction follows the round's direction by construction; what hit the person is a hint said
+  just before the knock (Pedestrian.shot, Vehicle's bumper), so no knock() signature changes; the cap,
+  range and freeze stay RagdollJoints'. RAGDOLL_FEEL=0 is the A/B.

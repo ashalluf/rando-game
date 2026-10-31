@@ -24,9 +24,11 @@ func run(t: Node, city: Node3D) -> void:
 	_check(chunk != null, "the spawn block's chunk is loaded for the ragdoll feel checks")
 	if chunk == null:
 		return
-	var was := [RagdollJoints.enabled, RagdollJoints.joint_range, RagdollJoints.max_active, RagdollFeel.enabled]
+	var was := [RagdollJoints.enabled, RagdollJoints.joint_range, RagdollJoints.max_active, RagdollFeel.enabled, RagdollJoints.leave_range]
 	RagdollJoints.enabled = true
 	RagdollJoints.joint_range = 100000.0
+	# The floors stand up to 200 m off; a doll the camera "left" would freeze at once.
+	RagdollJoints.leave_range = 100000.0
 	RagdollJoints.max_active = 6
 	RagdollFeel.enabled = true
 	await _check_stagger(city, chunk)
@@ -38,6 +40,7 @@ func run(t: Node, city: Node3D) -> void:
 	RagdollJoints.joint_range = was[1]
 	RagdollJoints.max_active = was[2]
 	RagdollFeel.enabled = was[3]
+	RagdollJoints.leave_range = was[4]
 	for n in _made:
 		if is_instance_valid(n):
 			(n as Node).queue_free()
@@ -183,7 +186,7 @@ func _check_car(city: Node3D, chunk: Node3D) -> void:
 	var doll: Ragdoll = null
 	for i in 150:
 		if is_instance_valid(car):
-			var vx := -14.0 if i < 60 else minf(car.linear_velocity.x + 7.4 / 60.0, 0.0)
+			var vx := -14.0 if i < 42 else minf(car.linear_velocity.x + 7.4 / 60.0, 0.0)
 			car.linear_velocity = Vector3(vx, car.linear_velocity.y, car.linear_velocity.z)
 		await _ticks(1)
 		if doll == null and is_instance_valid(p) and p._doll != null:
@@ -209,6 +212,8 @@ func _check_stairs(city: Node3D, chunk: Node3D) -> void:
 		_box(chunk, base + Vector3(0.0, h * 0.5, z), Vector3(4.0, h, 0.3 if i > 0 else 2.3), 1)
 	await _ticks(2)
 	var p: Pedestrian = await _walker(city, chunk, ground + Vector3(0.0, 1.7, -1.2), 8104)
+	if OS.get_environment("RF_DEBUG") == "1":
+		print("RF walker at ", p.global_position - ground)
 	p.knock(Vector3(0.0, 1.5, 2.2))
 	var doll := _doll_of(p)
 	if doll == null or doll._joints == null:
@@ -222,6 +227,8 @@ func _check_stairs(city: Node3D, chunk: Node3D) -> void:
 			break
 		if j.feel != null and j.feel.rolling > 0.0:
 			rolled = true
+		if OS.get_environment("RF_DEBUG") == "1" and i % 20 == 0:
+			print("RF stairs %d hips %s frozen %s" % [i, doll._pelvis() - ground, j.frozen])
 		if j.frozen:
 			break
 	_check(rolled, "the doll knows it is rolling down the steps")

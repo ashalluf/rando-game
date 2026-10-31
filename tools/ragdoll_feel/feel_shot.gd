@@ -8,7 +8,8 @@ extends Node
 ##     tools/ragdoll_feel/feel_shot.tscn --resolution 1280x720
 ##
 ## Env: SCENE=shot_front|shot_back|shot_side|shot_head|fly|car|stairs, OUT (prefix, _NN.png),
-## FRAMES (physics steps, comma list), CAM / LOOK (x,y,z), NOSHOT=1 (only the TRACE lines: pelvis,
+## FRAMES (physics steps, comma list), CAM / LOOK (x,y,z), FOLLOW=1 (the camera keeps CAM - LOOK
+## from the pelvis), NOSHOT=1 (only the TRACE lines: pelvis,
 ## head and chest heights and the worst joint gap every 6 steps), RAGDOLL_FEEL=0 the before.
 
 func _ready() -> void:
@@ -118,7 +119,13 @@ func _run() -> void:
 	var n := 0
 	var last: int = frames.max()
 	var worst := 0.0
+	var follow := _env("FOLLOW", "") == "1"
+	var offset := cam.global_position - _v3(_env("LOOK", look))
 	while step <= last:
+		if follow and doll != null and is_instance_valid(doll) and not doll.bodies.is_empty():
+			var at := doll._pelvis()
+			cam.global_position = cam.global_position.lerp(at + offset, 0.25)
+			cam.look_at(at + Vector3.UP * 0.2)
 		if car != null and is_instance_valid(car):
 			# 14 m/s into the walker, then the driver stands on the brakes (0.75 g).
 			var vx := -14.0 if step < 36 else minf(car.linear_velocity.x + 7.4 / 60.0, 0.0)

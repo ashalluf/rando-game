@@ -341,9 +341,12 @@ func fling(impulse: Vector3) -> void:
 func gap() -> float:
 	var worst := 0.0
 	for a: Array in anchors:
+		# A torn-off limb's parts are freed: never cast before the check.
+		if not is_instance_valid(a[0]) or not is_instance_valid(a[1]):
+			continue
 		var par := a[0] as RigidBody3D
 		var ch := a[1] as RigidBody3D
-		if par == null or ch == null or not is_instance_valid(par) or not is_instance_valid(ch) or par.is_queued_for_deletion() or ch.is_queued_for_deletion():
+		if par.is_queued_for_deletion() or ch.is_queued_for_deletion():
 			continue
 		worst = maxf(worst, (par.global_transform * (a[2] as Vector3)).distance_to(ch.global_position))
 	return worst

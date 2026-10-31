@@ -328,9 +328,12 @@ func _muscles(dt: float) -> void:
 ## Joint damping: each joint's relative spin eased out, the angular momentum of the pair kept.
 func _joint_damping(dt: float) -> void:
 	for a: Array in joints.anchors:
+		# A torn-off limb's anchors still name its freed parts: never cast before the check.
+		if not is_instance_valid(a[0]) or not is_instance_valid(a[1]):
+			continue
 		var par := a[0] as RigidBody3D
 		var ch := a[1] as RigidBody3D
-		if par == null or ch == null or not is_instance_valid(par) or not is_instance_valid(ch) or par.is_queued_for_deletion() or ch.is_queued_for_deletion():
+		if par.is_queued_for_deletion() or ch.is_queued_for_deletion():
 			continue
 		var rate := spine_damp if ch == joints.parts.get("chest") or ch == joints.parts.get("head") else joint_damp
 		var f := 1.0 - exp(-rate * dt)

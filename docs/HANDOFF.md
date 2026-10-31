@@ -21980,3 +21980,56 @@ the same way, but judge 18:00 on the Mac first - if it reads milky-pink, raise `
 grass under a low red sun is what it is). The painted cumulus on opengl3 draws a big smooth ellipse in
 the aerial and sky shots (before and after alike; the sky's, not this review's). Dawn shares the sky
 ramp and the exposure ramp (both are symmetric in elevation) and was not looked at.
+
+## 9d?. Ragdolls that read right: the stagger, trailing limbs, the bonnet, the stairs, 2026-10-31 (fleet wave 4, `wt/ragdoll-feel`; VISUAL_ROADMAP "?")
+
+**What changed.** Section 9gk's jointed dolls fell like people but every one was flung the same
+way: a rifle round threw a walker 15 m/s out of frame as a spinning star, a car's bumper threw the
+body AHEAD of the car (faster than it), and a doll knocked onto a flight of steps stopped across the
+top three. `RagdollFeel` (`scripts/npc/ragdoll_feel.gd`) shapes the fling by what hit them and runs a
+little every physics step while the doll is jointed (`RagdollJoints.feel`, from `Ragdoll.fling()`):
+
+- **SHOT** (`Pedestrian.shot()` calls `RagdollFeel.note_shot()` before its knock; a knock no faster
+  than `stagger_max_speed` 24 m/s - the rifle's 14.9, not a full shotgun blast or a rocket). For
+  `stagger_time` (0.42-0.68 s, a hash per doll) the doll keeps its MUSCLES: every part's angular
+  velocity is blended toward its standing basis (the basis it was made in, captured at the fling),
+  leaned along the round (hips 9, chest 24, head 20 degrees; a head shot snaps the head 38 in the
+  first quarter), with a JOLT (0.7 x the lean) in the first tenth of a second, the shoulders turned
+  by which side of the middle the round went in (`TWIST_DEG`), and gravity cancelled by a support
+  share that fades with the muscles; the knees buckle toward the person's FRONT (`RagdollJoints.fwd`)
+  as they let go, then `fall_push` 2.6 m/s along the round. The doll starts with `stagger_kick` 16 %
+  of the round's speed. So a shot from in front recoils, staggers back, sits down and falls on its
+  back; from behind it pitches forward to the knees and onto its face. It is direction-dependent by
+  construction - there are no hit-reaction CLIPS (none in the crowd's libraries; retargeting UAL's
+  would need the download): the muscles are the reaction, on the doll that already exists, so the
+  blood, the shotgun's pellet gathering, the police's knocked_down, Emergency and the onlookers see
+  a doll from the first frame exactly as before.
+- **FLY** (every other knock): the trunk carries the knock's speed a little faster and the limbs
+  start at `LIMB_LAG` 0.82 of it (momentum kept), the per-limb flail is 35 % of the old; every step
+  **joint damping** eases each joint's relative spin out (`joint_damp` 5/s, `spine_damp` 8/s,
+  scalar inertias, the pair's angular momentum kept) and **air drag** v|v|k is five times stronger
+  on the limbs (`DRAG_LIMB` 0.022 / `DRAG_CORE` 0.004 per metre, only over 3 m/s): the body flies
+  trunk first, arms and legs trailing.
+- **CAR** (`Vehicle._on_bumper_hit()` calls `RagdollFeel.note_car(self, dir * speed)`): the legs take
+  `CAR_LEGS` 1.02 of the car's speed, the hips 0.85, the trunk 0.45, a lift of 1.6 m/s and a pitch
+  that puts the feet forward and the head back over the car; past `CAR_THROW_SPEED` 26 m/s it blends
+  back to the old throw. The car runs under the trunk: the body folds over the bonnet, rides it, and
+  slides off the front when the car brakes (or over the roof if it keeps going).
+- **STAIRS / SLOPES**: `RagdollJoints.tick()` asks `feel.rolling_down()` every tick (two world-layer
+  rays 0.35 m either side of the pelvis along its way): on ground steeper than `roll_slope_deg` 12
+  (a flight of steps reads as a ramp) it is not "still", every part gets `ROLL_NUDGE` 2.4 m/s2
+  downhill, the trunk is eased toward the spin of a 0.3 m wheel rolling at its speed (at most 5
+  rad/s), and the parts wear a friction-0.4 material (`restore()` puts theirs back once it stops, and
+  in `freeze()`), for at most `roll_max` 6 s. A doll knocked at the top of ten steps tumbles head over
+  heels to the bottom (before: across the top three).
+
+The cap, the range, the freeze and every number of 9gk are unchanged; `RAGDOLL_FEEL=0` in the
+environment is the A/B (the joints' own fling, nothing per step). Also: `RagdollJoints.gap()` and the
+new damping no longer cast a torn-off limb's freed part (a SCRIPT ERROR after a gib).
+
+**Look.** `tools/ragdoll_feel/feel_shot.tscn` (opengl3, a minute; `SCENE=shot_front|shot_back|
+shot_side|shot_head|fly|car|stairs`, `FRAMES`, `CAM` / `LOOK`, `FOLLOW=1` a camera that follows the
+pelvis, `NOSHOT=1` only the TRACE lines, `RAGDOLL_FEEL=0` the before). It raises PhysicsBudget's
+debris lifetime: debris dies by the WALL clock (`Time.get_ticks_msec()`), and a software render
+spends 12 s in under 100 steps - the doll vanished mid-tumble in the first stills.
+Checks: `tests/ragdoll_feel_checks.gd` (each scene on a floor of its own 30 m up).
