@@ -3732,3 +3732,7 @@ none of either.
   shrink into the lawn by 62 m with no band and the grass cells draw to 86 m instead of 115 (the
   saving pays for 1.4x denser, mown tufts). Suburb streets get grass parkways between the kerb and
   the walk; weeds grow in the walk's joints and along the yard fences. LAWNS_CLOSEUP=0 is the A/B.
+- 2026-10-31 (skyline glass by day, wave 3): what a glass tower mirrors is worked out per pixel from
+  shared globals, never from a probe or a capture: the hour's sky (DayNight's own colours), a cloud
+  deck, the real towers round the camera as up to eight traced boxes, the sun. Near walls, far boxes
+  and crowns share one include so the LOD line does not show. SKYLINE_GLASS=0 is the A/B.

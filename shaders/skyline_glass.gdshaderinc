@@ -230,6 +230,15 @@ vec3 sg_glint(vec3 refl, vec3 sun) {
 }
 
 
+// How much a pane mirrors head on and at a glancing angle (Schlick's ends). A curtain wall's
+// coated glass mirrors far more than a punched window's plain pane: at the old 26 % head on a
+// glass tower from 300 m was the dark room behind it, a grid of near-black panels; reflective
+// coatings run 30-45 %. Everything else keeps the old numbers.
+vec2 sg_mirror_ends(bool curtain) {
+	return (sg_on() && curtain) ? vec2(0.42, 0.95) : vec2(0.26, 0.90);
+}
+
+
 // A line `w` wide every `pitch` from 0 (at x = 0 .. w), box filtered over a pixel `f` wide: its
 // coverage of the pixel. For the curtain wall's frame lines at a distance.
 float sg_line(float x, float f, float pitch, float w) {
