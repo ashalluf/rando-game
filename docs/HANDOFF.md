@@ -22449,8 +22449,8 @@ ignored), its steepest `SAMPLE_SPAN` 12 m window; cached in the plan's meta. Ove
 on a hill with `stairs` it is a public stairway: `CityPlan.road_open()` closes it (`road_closed()`,
 one compare for any road far from a hill) and `CityChunk._build_roads()` calls `LaHillsBuild.stretch()`
 instead of the road slab (and `junction()` for a crossing with no open arm). Default seed: Bunker Hill
-43 stretches, 17 over 15 %, one stairway (Hope St, 4th to 5th: the Bunker Hill Steps' place); Echo
-Park 7, Elysian Heights 7, Solano Canyon 4, Boyle Heights 2, San Pedro 4; the steepest open street
+46 stretches, 17 over 15 %, one stairway (Hope St, 4th to 5th, forced by the row's `force_stairs`: the Bunker Hill Steps' place); Echo
+Park 7, Elysian Heights 7, Solano Canyon 4, Boyle Heights 9, San Pedro 4 (32 in all); the steepest open street
 30 %. Probe: `tools/la_hills/probe.tscn` (`HILL=id`, `ALL=1`; every stairway with an EYE);
 `tools/la_hills/map_probe.tscn -- --rect=x0,z0,x1,z1 --out=map.png` draws relief contours, freeways,
 river and landmarks.

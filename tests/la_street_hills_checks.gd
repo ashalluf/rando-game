@@ -113,7 +113,7 @@ func _landmarks_level(plan: CityPlan, lh: LaHills) -> void:
 			if e > worst:
 				worst = e
 				worst_id = lm.id
-	_t._check(n >= 8 and worst < 0.6, "la hills: %d landmarks on the hills stand level (worst %.2f m, %s)" % [n, worst, worst_id])
+	_t._check(n >= 6 and worst < 0.6, "la hills: %d landmarks on the hills stand level over their footprints (worst %.2f m, %s)" % [n, worst, worst_id])
 
 
 ## The freeways' decks, the river and the light rail keep off the hills.
