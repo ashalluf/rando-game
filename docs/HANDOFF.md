@@ -22449,3 +22449,26 @@ art director, fix the worst three to five things, hold the other nine cameras.
 first, the dense window and the inflow band, keep-clear, the A/B; a spawned car keeps its slot's
 lane and no truck lands in a fast lane; the materials carry the look; the shaders' defaults are the
 old look).
+
+**Measured** (refcams, opengl3 1280x720; traffic differs run to run, so the freeway's cost moves
+with whatever stands near the camera): the freeway camera on main e5bb9e4 5.26 M triangles / 2,825
+draws (p5/p50/p95 28/153/212); with the A/Bs off on this branch 5.07 M / 2,719; with this pass
+5.72 M / 2,946 (cap x1.7 run), 5.95 M / 3,058 (a semi parked in front), 6.14 M / 3,010 (final,
+cap x1.5): about +0.5-0.9 M triangles and +200-300 draws, all of it cars. The whole set, before
+(`FREEWAY_FILL=0 FREEWAY_LOOK=0`) vs after in one tree: the other nine cameras within noise
+(triangles -2.7 %..+2.2 %, no flags); only the freeway flagged (the traffic). Stills on
+`shots/rc-freeway` (README there).
+
+**Gate** (`SHARDS=3`, merged with origin/main 2026-10-31): 4,458 checks, 3 failed: freeway_closeup's
+"one roll a slot" (it counts the text `_rng.randf() < skip` in traffic.gd; the new fill's roll is
+written the other way round now), traffic_motion's "no tick turns the car..." (a street junction
+turn, 129.6 deg in one tick) and the room's "one shotgun blast throws a crate (0.22 m)". The last
+two are not freeway code; `SMOKE_PARTS=room,traffic_motion_checks,freeway_closeup_checks,rc_freeway_checks`
+then passed 207 / 207. Shard peaks 2,780 / 3,473 / 3,033 MB.
+
+**Not done / not verified.** Forward+ (the Mac) not rendered: the tining fade and the scoops are
+shading, judged on opengl3 only (TAA will soften what is left). The per-tick CPU of ~50 % more
+freeway cars was not benched (tools/perf_audit_2/traffic_bench.tscn is the tool). Steady-state
+inflow (cars entering past 300 m) and pop-in were reasoned, not watched over minutes of play. Seen
+in the shots and left to their owners: the red brake-glow discs under a semi's trailer lamps by day
+(vehicle lights), the box truck / trailer bodies' flat sides, the mountain backdrop's blotches.
