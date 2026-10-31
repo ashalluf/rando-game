@@ -17,3 +17,10 @@
 - 15_before_street_up_1730.jpg
 - 16_after_street_up_1730.jpg
 - 17_debug_street_up_traced_towers_magenta_clouds_green.jpg (SKYLINE_GLASS_DEBUG=1)
+
+## Wave 4 (resume, 2026-10-31) - refcams, opengl3 1280x720, before = SKYLINE_GLASS=0 on the merged branch
+
+- 18_before_golden_aerial_1712.jpg / 19_after_golden_aerial_1712.jpg (refcam golden_aerial, with the wider sun fan)
+- 20_before_downtown_aerial_1230.jpg / 21_after_downtown_aerial_1230.jpg (refcam downtown_aerial)
+- 22_before_street_300m_flower_1400.jpg / 23_after_street_300m_flower_1400.jpg (Flower St, z 480, looking north up at the core, ~300 m)
+- 24_golden_aerial_core_zoom_before_after_after2.jpg (2x crop of the core: before, after, after with the wider sun fan)
