@@ -4070,3 +4070,9 @@ none of either.
   placed past each kerb so streaks sit under (hashed, plan-fixed) shop fronts; every pattern is
   fixed to the road, never to the view; the dry road stays bit-identical and Forward+ keeps its SSR
   blend. WET_ROAD_MIRROR=0 is the A/B.
+- **2026-10-31 The hills refcam (rc-hills, HANDOFF "The hills refcam").** Judged the front range
+  from 260 m at 15:00 and fixed what the eye lands on: the summit spire, pale far-tor flecks,
+  combed streaks down steep faces, polka-dot shrub clumps and the voxel sign. Decisions: a far
+  object under a few pixels is dropped by its share of the frame, not drawn as a fleck; steep
+  terrain is textured from the side; the ground's tone is not retuned from opengl3 stills (on
+  Forward+ it already reads as dark chaparral). All behind RC_HILLS=0.

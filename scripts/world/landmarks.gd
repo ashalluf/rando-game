@@ -357,6 +357,9 @@ static func sign_line(anchor: Vector2, plan: CityPlan) -> Dictionary:
 
 
 static func _build_sign(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: CityPlan, detailed: bool) -> void:
+	if RcHills.on():
+		HillSignLetters.build(anchor, parent, statics, plan, detailed)
+		return
 	# Fit the name to the ridge rather than fixing the letter size: SHALLUFERWOOD is thirteen
 	# characters where RANDOWOOD was nine, and at the old fixed 6 m cell it would have run half
 	# a kilometre across the hill and straight through the lots the landmark radius reserves.

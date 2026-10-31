@@ -24582,3 +24582,87 @@ and crowd, not this: the change adds no geometry). Stills: `shots/wet-road-mirro
 **Not done.** The mirrored fronts are hashed, not the real facades (a real reflection probe of the
 street would be the next step); the full ten-camera refcam set was not re-run (every other camera
 is dry, where the road is bit-identical by construction).
+
+## 9jy. The hills refcam: the front range from 260 m at 15:00 (fleet wave 4, `wt/rc-hills`)
+
+The task: judge refcam `hills` (`tools/refcams/cameras.json`: (300, 260 AGL, -650) looking north
+at 15:00, clear) against a 2026 AAA game and fix the worst three to five things that read fake.
+Stills on `shots/rc-hills`. Everything is behind **`RC_HILLS=0`** (`RcHills`,
+`scripts/world/rc_hills.gd`: the switch and every number), which is main's look exactly.
+
+**What read fake, in the order the eye found it** (pinned with `tools/aerial_review/layer_probe.gd`
+- every layer hidden in turn - and the one-minute small scene `tools/glshot/hill_ground_shot.tscn
+EYE=300,260,-650,0,-6 BLOCKS=1 LOD=4 DAYNIGHT=1 GROUND=1`):
+
+1. **A stone finger on the summit.** RockOutcrops stood every summit crag up as a spire 35-70 m
+   high (stretch 0.55-0.85 x 1.3-1.9 x 0.6-0.9): on the skyline beside the sign it read as a
+   statue. Now a summit is the cliff or the block scan, broad and low (stretch 1.15-1.6 x 0.7-1.0 x
+   1.0-1.4), sunk 34-46 % of its height into the crown (`_make_tor()`; same hashes, only the shape
+   and the jumble's radius move). Tallest standing tor 27 m.
+2. **Pale square flecks over the back ranges.** That was RockFar's far cells: thousands of small
+   tors seated on the horizon plane, a few pixels each, lit up-facing in full sun against slopes
+   the plane paints and hazes (`HIDE=RockFar` cleared them). `rock_outcrop.gdshader` far mode now
+   drops a tor whose standing height covers less than `far_cull_ndc` of the frame (0.010-0.024 of
+   half the frame's height, each tor at its own point in the range: a hash of its tone, so a range
+   thins gradually with distance; a 10 m tor goes past ~1.6 km, a 27 m crag past ~4 km at FOV 55),
+   collapsed in the vertex stage (no dither, no cost), and the aerial blend's target is darkened
+   (`far_grey_gain` 0.72). `RcHills.apply_rock()` from RockFar.attach().
+3. **Combed vertical streaks down every steep face.** terrain.gdshader lays every texture from
+   above in world XZ, stretched 1/cos(slope) down a 50-degree face. Now past `side_slope` (normal y
+   0.82 -> 0.6) that share of the grass, mottle, dirt and rock fetches is laid from the side (world
+   y up, biplanar on the x- and z-facing planes, `side_tex()`), and the top-down normal maps fade
+   with it. **Trap:** the side fetches sit in a branch, where `texture()` has no derivatives and
+   picked a wrong mip - a fine grid of lines over every face; they are `textureGrad()` with the
+   derivatives taken before the branch (GLSL ES 3.00 has it: the web is fine). Laid either way, the
+   dirt and rock tiles' own structure still drew a lattice a few pixels a tile out there, so past
+   `tile_fade_px` (0.7-1.8 m a pixel, 3D footprint) they keep only their hue and a non-repeating
+   world-space grain replaces them. `RcHills.apply_terrain()` from PropFactory.terrain_material().
+4. **Polka dots.** HillScatter's clumps sat one per jittered 4 m (6 m LOD) cell, all one size:
+   on Forward+ (lavapipe, `fwd_*` stills) a slope read as evenly spaced identical domes. Now a slow
+   two-octave value noise (`RcHills.cluster()`, 21 m and 7 m, pure in world metres) gathers them:
+   under `CLUSTER_GAP` 0.24 (+0.12 per clump) a clump is left out, above it the clump is scaled by
+   the field (0.75-1.6x FULL, 0.85-1.3x LOD) and stretched its own way, so domes merge into thickets
+   with gaps between (a FULL chunk 1,206 -> 956 clumps). Rolls are a second hash of the clump's
+   cell (`_u()` only has 30 bits of one hash: k 3+ read zero).
+5. **A voxel font on the ridge.** The sign was runs of 5 x 7 pixel boxes, one MeshInstance3D each.
+   `HillSignLetters` (`scripts/world/hill_sign_letters.gd`): SignFont's strokes at a heavy pen
+   (0.19 cap), widened to the old 342 m span, as sheet-metal letters (one mesh, box collision per
+   stroke) on a galvanised pipe frame behind them (posts every 4.6 m down to the slope, rails,
+   braces, arms; one mesh, the far copy draws it to 600 m). And each letter stands on its own
+   ground (the highest under its width, in front and under its frame, + 1.5 m, never more than
+   `STEP_MAX` 0.25 caps under the old level line): the old single level was taken at the letters'
+   centres and the ridge rises under the S and H, so from the basin the name read "?A LUFERWOOD".
+   **And the far copy no longer sinks into the hill**: CityStreamer seats it on the horizon
+   plane's ridge as one piece (far_canopy.gdshader's rigid mode), but inside the LOD ring the real
+   terrain is drawn round it and the plane's lift is faded out, so the shift pulled the whole name
+   down into the real hill - from the refcam the S, H and A were under the ground whatever the
+   letters' own heights (the small scene, which builds the detailed copy, showed them fine). The
+   shift now fades in from the LOD reach to `SIGN_SEAT_MARGIN` past it (`rigid_real_reach`,
+   `RcHills.seat_far_sign()`, one hook line in `_seat_far_sign()`). Draws at the camera 794 -> 515
+   (the old letters were ~270 nodes).
+
+**What was looked at and left**: the near ground's tone. On the opengl3 still the lit brush reads
+pale khaki and the stands only as shadow; on Forward+ (lavapipe, same eye lower: `fwd_main` /
+`fwd_after`) it is the dark olive chaparral hill-ground-3 tuned. Not retuned from the
+Compatibility renderer (measurement trap 4). The far ranges' pale plaster grey is the plane's
+haze on opengl3; not judged on Forward+ (the city does not fit lavapipe).
+
+**Measured** (refcam hills, opengl3 1280x720): main 2,027,285 tris / 809 draws, after 2,027,405 /
+537. The full ten-camera compare (RC_HILLS=0 against on) is below.
+
+**Ten-camera compare** (`refcams.py compare`, RC_HILLS=0 against on, one load each): only hills
+moves (draws -35 %, tris -0.7 %); freeway is flagged for moved traffic only (its diff map is the
+cars); every other camera within 0-1 levels and 0-2 % of its cost. **Gate** on the merge of main
+`69b73707` + this branch: 4,631 checks in 3 shards, 2 failed - both emergency_checks' ambulance
+stretcher steps, which pass when the file is run alone (`SMOKE_PARTS=emergency_checks`, 57 / 57):
+an intermittent outside this work. Peak RSS 3.52 GB a shard.
+
+**Tools**: `tools/rc_hills/sign_probe.tscn` (headless, seconds: the ground on a grid round the sign
+and the refcam's sight lines to each letter). Checks: `tests/rc_hills_checks.gd` (crags lower than
+wide, the far cull and gain on RockFar's materials, the side projection and its textureGrad, the
+cluster field, the sign's span and steps).
+
+**Not done / not verified**: never seen on the Mac. The side projection and tile fade are proved on
+opengl3 and the thickets on lavapipe in a small scene; the far cull is resolution independent (a
+share of the frame) but on a Retina Mac the pixels are three times smaller, so a culled tor was
+~13 px there. HillShrubs (the bright code-built mounds within 160 m) are still evenly spaced.

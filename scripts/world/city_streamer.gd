@@ -319,6 +319,7 @@ func _seat_far_sign(holder: Node3D, anchor: Vector2) -> void:
 	mat.set_shader_parameter("seat_a", line.a)
 	mat.set_shader_parameter("seat_b", line.b)
 	mat.set_shader_parameter("seat_ground", line.ground)
+	RcHills.seat_far_sign(mat, lod_reach_metres())
 	_far_ground_materials.append(mat)
 	for mi in holder.find_children("*", "MeshInstance3D", true, false):
 		(mi as MeshInstance3D).material_override = mat

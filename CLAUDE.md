@@ -4094,6 +4094,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `HILL_GROUND_3=0` puts the old numbers back (`HillGround3.apply()` on the three materials);
   `tools/hill_ground_3/topdown.gd` maps the stands in seconds; hill_ground_shot `TERRAIN_DEBUG=1`
   paints brush / bare / rock; checks `tests/hill_ground_3_checks.gd`.
+- The hills refcam (2026-10-31, docs/HANDOFF.md "The hills refcam"): `RcHills`
+  (`scripts/world/rc_hills.gd`): summit crags broad and low (RockOutcrops), far tors under
+  `FAR_CULL_NDC` of the frame dropped in rock_outcrop.gdshader's vertex stage, terrain.gdshader's
+  steep faces laid from the side (`side_tex()` - textureGrad, never texture() in that branch) and
+  the dirt / rock tiles faded past `TILE_FADE_PX`, HillScatter's clumps gathered by `cluster()`,
+  the ridge sign `HillSignLetters` (strokes on a pipe frame, each letter on its own ground), the far
+  sign's rigid seat held off inside the LOD ring (far_canopy `rigid_real_reach`).
+  `RC_HILLS=0` is the A/B; probe `tools/rc_hills/sign_probe.tscn`; checks `tests/rc_hills_checks.gd`.
 - The hills' planted volume (2026-10-30, docs/HANDOFF.md "The hills' planted volume"): `HillScatter`
   (`scripts/world/hill_scatter.gd`, one step after `_plant_hills` in both levels' HILLS list) puts
   a code-built clump (three lumpy domes, 63 / 15 / 6 triangles on one buffer, measured edges) on
