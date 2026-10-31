@@ -616,6 +616,7 @@ static func _bag(st: SurfaceTool, c: Vector3, size: Vector3, yaw: float, lean: V
 	var rings := 7
 	var sectors := 12
 	var grid: Array = []
+	var axis: Array = []
 	var bumps: Array = []
 	for j in sectors:
 		bumps.append(rng.randf_range(0.82, 1.12))
@@ -634,6 +635,7 @@ static func _bag(st: SurfaceTool, c: Vector3, size: Vector3, yaw: float, lean: V
 			p.y = maxf(p.y, 0.0)
 			row.append(c + b * p)
 		grid.append(row)
+		axis.append(c + b * (Vector3(0.0, hgt, 0.0) + Vector3(lean.x, 0.0, lean.y) * v * v))
 	var centre := c + b * Vector3(0.0, size.y * 0.45, 0.0)
 	var rm := Vector2(0.3, 0.0)
 	for i in rings:
@@ -643,14 +645,54 @@ static func _bag(st: SurfaceTool, c: Vector3, size: Vector3, yaw: float, lean: V
 			var p10: Vector3 = grid[i + 1][j]
 			var p11: Vector3 = grid[i + 1][(j + 1) % sectors]
 			var out := (p00 + p01 + p10 + p11) * 0.25 - centre
-			StreetClutter._quad(st, p00, p01, p11, p10, out, col, rm)
-	# The knot and its two ears.
+			# Smooth: each vertex's normal points out from the bag's axis at its height (with a
+			# little of the ring's slope), so the plastic shades as one round mass, not facets.
+			var nn := [_bag_normal(p00, axis[i], axis[i + 1] - axis[i], i == 0),
+				_bag_normal(p01, axis[i], axis[i + 1] - axis[i], i == 0),
+				_bag_normal(p11, axis[i + 1], axis[i + 1] - axis[i], false),
+				_bag_normal(p10, axis[i + 1], axis[i + 1] - axis[i], false)]
+			_smooth_tri(st, [p00, p01, p11], [nn[0], nn[1], nn[2]], out, col, rm)
+			_smooth_tri(st, [p00, p11, p10], [nn[0], nn[2], nn[3]], out, col, rm)
+	# The knot (the ears were flat cards that caught the light as grey wedges).
 	var top: Vector3 = c + b * (Vector3(0.0, size.y, 0.0) + Vector3(lean.x, 0.0, lean.y))
 	StreetClutter._cyl(st, Transform3D(Basis(), top - Vector3(0.0, 0.02, 0.0)), 0.035, 0.025, 0.06, col, rm, 6)
 	for s in [-1.0, 1.0]:
-		var ear := b * Vector3(s * 0.07, 0.05, rng.randf_range(-0.03, 0.03))
-		StreetClutter._tri(st, top + Vector3(0.0, 0.03, 0.0), top + ear, top + ear * 0.6 + Vector3(0.0, 0.06, 0.0), b * Vector3(0, 0, 1), col, rm)
-		StreetClutter._tri(st, top + Vector3(0.0, 0.03, 0.0), top + ear * 0.6 + Vector3(0.0, 0.06, 0.0), top + ear, b * Vector3(0, 0, -1), col, rm)
+		rng.randf_range(-0.03, 0.03)
+
+
+static func _bag_normal(p: Vector3, axis_p: Vector3, along: Vector3, bottom: bool) -> Vector3:
+	var radial := p - axis_p
+	radial.y = 0.0
+	if radial.length_squared() < 1e-8:
+		return Vector3.DOWN if bottom else Vector3.UP
+	var n := radial.normalized()
+	if bottom:
+		n = (n + Vector3.DOWN * 0.6).normalized()
+	return n
+
+
+static func _smooth_tri(st: SurfaceTool, p: Array, n: Array, want: Vector3, col: Color, rm: Vector2) -> void:
+	var a: Vector3 = p[0]
+	var b: Vector3 = p[1]
+	var c: Vector3 = p[2]
+	var na: Vector3 = n[0]
+	var nb: Vector3 = n[1]
+	var nc: Vector3 = n[2]
+	var cr := (c - a).cross(b - a)
+	if cr.length_squared() < 1e-14:
+		return
+	if cr.dot(want) < 0.0:
+		var t := b
+		b = c
+		c = t
+		var tn := nb
+		nb = nc
+		nc = tn
+	var fn := cr.normalized() if cr.dot(want) >= 0.0 else -cr.normalized()
+	for k in 3:
+		var q: Vector3 = [a, b, c][k]
+		var qn: Vector3 = [na, nb, nc][k]
+		StreetClutter._vtx(st, q, qn, StreetClutter._proj(q, fn), col, rm)
 
 
 ## A pile of tied black bags (`variant` 0..1): four to six, leaning on each other, one on top.
@@ -662,7 +704,7 @@ static func bags(variant: int) -> Mesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(["sc2_bags", variant])
 	var st := StreetClutter._begin()
-	var black := _c(Color(0.035, 0.035, 0.04), C_BAG)
+	var black := _c(Color(0.07, 0.07, 0.075), C_BAG)
 	var spots := [Vector3(-0.42, 0, 0.08), Vector3(0.05, 0, 0.14), Vector3(0.48, 0, 0.02), Vector3(-0.2, 0, -0.34), Vector3(0.3, 0, -0.32)]
 	if variant == 1:
 		spots = [Vector3(-0.3, 0, 0.1), Vector3(0.28, 0, 0.12), Vector3(0.0, 0, -0.33), Vector3(0.62, 0, -0.18)]

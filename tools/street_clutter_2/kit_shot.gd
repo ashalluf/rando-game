@@ -54,6 +54,11 @@ func _initialize() -> void:
 	cam.position = Vector3(0, 2.2, 7.5)
 	cam.rotation_degrees = Vector3(-14, 0, 0)
 	cam.fov = 70
+	# CAM=x,y,z,pitch,yaw frames one piece (the bags are at x -9 and -7.5).
+	var cv := OS.get_environment("CAM").split(",")
+	if cv.size() == 5:
+		cam.position = Vector3(float(cv[0]), float(cv[1]), float(cv[2]))
+		cam.rotation_degrees = Vector3(float(cv[3]), float(cv[4]), 0)
 	root3.add_child(cam)
 	cam.current = true
 	for i in 6:
