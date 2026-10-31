@@ -25,6 +25,8 @@ render_mode cull_back;
 #include "res://shaders/color_space.gdshaderinc"
 // The piles' waterline (OceanCloseup): weed, barnacles and the wet splash zone.
 #include "res://shaders/waterline_wet.gdshaderinc"
+// The wheel's LED patterns (shared with its glow, pier_wheel_glow.gdshader).
+#include "res://shaders/pier_led.gdshaderinc"
 
 global uniform float lamp_factor;
 global uniform float ocean_closeup;
@@ -38,7 +40,7 @@ uniform float radius = 10.0;
 uniform vec2 floor_half = vec2(10.0, 8.0);
 uniform float spokes = 20.0;
 uniform float pattern_seconds = 14.0;
-uniform float led_energy = 22.0;
+uniform float led_energy = 4.5;
 uniform float bulb_energy = 5.0;
 uniform float sign_energy = 2.2;
 uniform float neon_energy = 6.0;
@@ -60,10 +62,6 @@ vec3 rot_y(vec3 p, float a) {
 	float c = cos(a);
 	float s = sin(a);
 	return vec3(p.x * c + p.z * s, p.y, -p.x * s + p.z * c);
-}
-
-float h11(float n) {
-	return fract(sin(n * 127.1) * 43758.5453);
 }
 
 void vertex() {
@@ -114,36 +112,6 @@ void vertex() {
 	}
 }
 
-// Wheel LED patterns: brightness and colour of an LED at radius r (0..1 of the rim) on spoke s.
-vec3 hue(float h) {
-	vec3 k = clamp(abs(fract(h + vec3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0) - 1.0, 0.0, 1.0);
-	return k * k;
-}
-
-vec3 led_pattern(int p, float s, float r, float t) {
-	float n = spokes;
-	if (p == 0) {
-		// Runs of light racing out along every spoke, a colour per spoke round the wheel.
-		float run = fract(r * 1.6 - t * 0.55);
-		float b = smoothstep(0.0, 0.08, run) * smoothstep(0.42, 0.18, run);
-		return hue(s / n + t * 0.03) * b;
-	} else if (p == 1) {
-		// A sweep going round: the spokes light one after another, with a fading tail.
-		float a = fract(s / n - t * 0.12);
-		float b = pow(1.0 - a, 6.0) + 0.06;
-		return mix(vec3(1.0, 0.25, 0.55), vec3(0.3, 0.6, 1.0), r) * b;
-	} else if (p == 2) {
-		// A spiral: the phase runs round and out together.
-		float ph = fract(s / n * 2.0 + r * 1.2 - t * 0.35);
-		float b = smoothstep(0.5, 0.0, abs(ph - 0.5) * 2.0 - 0.35);
-		return hue(ph * 0.5 + 0.55) * (0.15 + b);
-	}
-	// The whole wheel in one slow colour with a sparkle running through it.
-	float sp = step(0.93, h11(floor(t * 7.0) * 13.1 + s * 3.7 + floor(r * 22.0) * 1.3));
-	vec3 base = hue(t * 0.02 + 0.6) * 0.55;
-	return base + vec3(1.0) * sp;
-}
-
 void fragment() {
 	int kind = int(v_data.x + 0.5);
 	vec3 paint = cs_srgb_to_linear(COLOR.rgb);
@@ -189,13 +157,7 @@ void fragment() {
 		// An LED on the wheel: UV.x the distance from the hub, v_data.y the spoke.
 		float r01 = clamp(uv.x / max(radius, 1.0), 0.0, 1.2);
 		float s = floor(v_data.y + 0.5);
-		float cyc = t / pattern_seconds;
-		int p0 = int(mod(floor(cyc), 4.0));
-		int p1 = int(mod(floor(cyc) + 1.0, 4.0));
-		float fade = smoothstep(0.85, 1.0, fract(cyc));
-		vec3 c = mix(led_pattern(p0, s, r01, t), led_pattern(p1, s, r01, t), fade);
-		// Every LED keeps a faint glow of the wheel's colour, so the whole wheel draws its outline.
-		c += hue(t * 0.015 + 0.55) * 0.08;
+		vec3 c = led_wheel(s, r01, t, spokes, pattern_seconds);
 		// Dots every 0.3 m, averaged once a dot is under a pixel.
 		float dot_m = abs(fract(uv.x / 0.3) - 0.5) * 2.0;
 		float dots = mix(smoothstep(0.75, 0.35, dot_m), 0.55, clamp(px / 0.3, 0.0, 1.0));
