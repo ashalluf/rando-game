@@ -101,5 +101,16 @@ func _sign(plan: CityPlan) -> void:
 	var line := Landmarks.sign_line(lm.anchor, plan)
 	var old := Landmarks.SIGN_SPAN
 	_t._check(ok and absf(span - old) < old * 0.05, "rc-hills: the sign is letters and a frame across the old span (%.0f m of %.0f)" % [span, old])
-	_t._check(ok and letters.mesh.get_aabb().position.y >= float(line.ground) + 1.0, "rc-hills: the letters stand on the old level line")
+	var n := Landmarks.SIGN_TEXT.length()
+	var cap := 7.0 * Landmarks.SIGN_SPAN / (float(n) * 5.0 + float(n - 1) * 1.5)
+	var low := float(line.ground) + 2.0 - HillSignLetters.STEP_MAX * cap
+	_t._check(ok and letters.mesh.get_aabb().position.y >= low - HillSignLetters.PEN * cap * 0.5 - 0.5, "rc-hills: no letter steps further down the hill than %.0f m under the old line" % (float(line.ground) + 2.0 - low))
+	# Each letter clear of the ground under its middle (the end letters used to sink into the ridge).
+	var buried := 0
+	var aabb := letters.mesh.get_aabb() if ok else AABB()
+	for i in n:
+		var x := aabb.position.x + aabb.size.x * (float(i) + 0.5) / float(n)
+		if plan.height_at(Vector2(x, float(lm.anchor.y))) > aabb.end.y - cap:
+			buried += 1
+	_t._check(ok and buried == 0, "rc-hills: no letter's ground stands over the lowest letter's foot (%d)" % buried)
 	holder.free()

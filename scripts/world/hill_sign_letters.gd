@@ -12,6 +12,8 @@ const PEN := 0.19
 const DEPTH := 0.6
 const FRAME_BACK := 1.4
 const POST_PITCH := 4.6
+## A letter steps down with the hill at most this many cap heights under the old level line.
+const STEP_MAX := 0.25
 const PIPE := 0.28
 
 static var _letter_mat: StandardMaterial3D
@@ -24,7 +26,7 @@ static func build(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: 
 	var cell: float = Landmarks.SIGN_SPAN / (float(n) * 5.0 + float(n - 1) * 1.5)
 	var cap := 7.0 * cell
 	var total := float(n) * 5.0 * cell + float(n - 1) * 1.5 * cell
-	var base_y: float = Landmarks.sign_line(anchor, plan).ground + 2.0
+	var level: float = Landmarks.sign_line(anchor, plan).ground + 2.0
 	var pen := PEN * cap
 	var lay := SignFont.layout(text, cap, pen)
 	var strokes: Array = lay[0]
@@ -32,13 +34,43 @@ static func build(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: 
 	var sx: float = (total - pen) / maxf(float(lay[1]), 1.0)
 	var x0 := anchor.x - total * 0.5 + pen * 0.5
 	var z := anchor.y
+	# Each letter's x extent (a letter's strokes overlap in x) and the stroke -> letter index.
+	var spans: Array = []
+	var of: Array = []
+	for s: PackedVector2Array in strokes:
+		var lo := INF
+		var hi := -INF
+		for v in s:
+			lo = minf(lo, x0 + v.x * sx)
+			hi = maxf(hi, x0 + v.x * sx)
+		lo -= pen * 0.5
+		hi += pen * 0.5
+		if not spans.is_empty() and lo < float(spans[-1].y) + pen * 0.6:
+			spans[-1] = Vector2(minf(spans[-1].x, lo), maxf(spans[-1].y, hi))
+		else:
+			spans.append(Vector2(lo, hi))
+		of.append(spans.size() - 1)
+	# Each letter stands on its own ground, as a hillside sign's letters do: the highest ground
+	# under its width, in front of it and under its frame, never lower than STEP_MAX caps under the
+	# old level line. One level for the whole name sank the end letters where the ridge rises under
+	# them (the S and H were half in the hill from the basin).
+	var bases: Array = []
+	for sp: Vector2 in spans:
+		var g := -INF
+		var x: float = sp.x
+		while x <= sp.y + 0.01:
+			for dz: float in [2.0, 0.0, -FRAME_BACK]:
+				g = maxf(g, plan.height_at(Vector2(x, z + dz)))
+			x += 2.0
+		bases.append(maxf(g + 1.5, level - STEP_MAX * cap))
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	# Each letter its own touch of weathering (one roll per glyph, a hash of the index).
-	var glyph_x: Array = []
-	for s: PackedVector2Array in strokes:
-		var gx := s[0].x
-		var shade := 0.9 + 0.06 * fposmod(sin(floor(gx / (cap * 0.4)) * 12.9898) * 43758.5453, 1.0)
+	for si in strokes.size():
+		var s: PackedVector2Array = strokes[si]
+		var li: int = of[si]
+		var base_y: float = bases[li]
+		# Each letter its own touch of weathering (a hash of its index).
+		var shade := 0.9 + 0.06 * fposmod(sin(float(li) * 12.9898 + 1.3) * 43758.5453, 1.0)
 		for k in s.size() - 1:
 			var a := Vector2(x0 + s[k].x * sx, base_y + s[k].y)
 			var b := Vector2(x0 + s[k + 1].x * sx, base_y + s[k + 1].y)
@@ -56,38 +88,25 @@ static func build(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: 
 				cs.shape = bs
 				cs.transform = xf
 				statics.add_child(cs)
-		glyph_x.append(gx)
 	var mi := MeshInstance3D.new()
 	mi.name = "SignLetters"
 	mi.mesh = st.commit()
 	mi.material_override = _letters()
 	parent.add_child(mi)
-	_frame(anchor, parent, statics, plan, detailed, x0, sx, cap, pen, base_y, strokes)
+	_frame(anchor, parent, statics, plan, detailed, cap, spans, bases)
 
 
-## The pipe frame behind each letter: posts under its strokes' extent every POST_PITCH, down to
-## the ground, rails at a third, two thirds and the top, a brace in every other bay.
+## The pipe frame behind each letter: posts across its width every POST_PITCH, down to the
+## ground, rails at a third, two thirds and the top, a brace in every other bay.
 static func _frame(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: CityPlan, detailed: bool,
-		x0: float, sx: float, cap: float, pen: float, base_y: float, strokes: Array) -> void:
-	# Each letter's x extent: strokes are laid left to right, a letter's strokes overlap in x.
-	var spans: Array = []
-	for s: PackedVector2Array in strokes:
-		var lo := INF
-		var hi := -INF
-		for v in s:
-			lo = minf(lo, x0 + v.x * sx)
-			hi = maxf(hi, x0 + v.x * sx)
-		lo -= pen * 0.5
-		hi += pen * 0.5
-		if not spans.is_empty() and lo < float(spans[-1].y) + pen * 0.6:
-			spans[-1] = Vector2(minf(spans[-1].x, lo), maxf(spans[-1].y, hi))
-		else:
-			spans.append(Vector2(lo, hi))
+		cap: float, spans: Array, bases: Array) -> void:
 	var z := anchor.y - FRAME_BACK
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var grey := Color(0.42, 0.43, 0.44)
-	for sp: Vector2 in spans:
+	for li in spans.size():
+		var sp: Vector2 = spans[li]
+		var base_y: float = bases[li]
 		var w: float = sp.y - sp.x
 		var posts := maxi(2, int(ceil(w / POST_PITCH)) + 1)
 		var xs: Array = []
