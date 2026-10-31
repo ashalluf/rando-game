@@ -1216,20 +1216,23 @@ func _maintain_freeway() -> void:
 		# Off the end of its route, or the player has left it behind.
 		var ri: int = car.traffic.fw
 		var t: float = car.traffic.t
-		if t <= 0.0 or t >= fw.length_of(ri) or absf(t - _fw_anchor(ri, here)) > freeway_range * 1.35:
+		if t <= 0.0 or t >= fw.length_of(ri) or absf(t - _fw_anchor(ri, here)) > FreewayFill.retire_reach(freeway_range):
 			freeway_cars.erase(car)
 			_retire(car)
-	if freeway_cars.size() >= max_freeway_cars or not PhysicsBudget.can_spawn():
+	if freeway_cars.size() >= FreewayFill.cap(max_freeway_cars) or not PhysicsBudget.can_spawn():
 		return
 	# Which routes are close enough to bother with, and where along each the player is.
 	var live: Array[Vector2i] = []
+	var dists: Array = []
 	for ri in fw.routes.size():
 		var near: Array = fw.nearest_on(ri, here)
 		if float(near[1]) < freeway_range:
 			live.append(Vector2i(ri, int(near[0])))
+			dists.append(float(near[1]))
 	if live.is_empty():
 		return
 	var per_route := maxi(1, max_freeway_cars / live.size())
+	var route_shares: Array[int] = FreewayFill.shares(dists, FreewayFill.cap(max_freeway_cars), freeway_range)
 	var added := 0
 	# The share of free slots left empty: by the hour (FreewayCloseup), the old 0.35 when staged.
 	var skip := 0.35 if staged else FreewayCloseup.spawn_skip(BusyStreets.hour_now(self))
@@ -1245,6 +1248,23 @@ func _maintain_freeway() -> void:
 				taken[Vector2i(int(car.traffic.t / freeway_gap), int(car.traffic.dir))] = true
 		if TrafficAI.enabled and not staged:
 			TrafficAI.maybe_ramp_cars(self, fw, ri, here)
+		if FreewayFill.enabled:
+			# Per-lane slots, nearest the player first (FreewayFill).
+			var share: int = route_shares[live.find(entry)]
+			var lane_taken := {}
+			for car in freeway_cars:
+				if car.traffic.fw == ri:
+					lane_taken[Vector3i(FreewayFill.slot_of(float(car.traffic.t)), int(car.traffic.dir), TrafficAI.fw_lane(fw, car.traffic))] = true
+			var filling := on_route < int(float(share) * FreewayFill.FILL_BELOW)
+			var room := mini(share - on_route, FreewayFill.PER_TICK_FILL if filling else FreewayFill.PER_TICK)
+			for c: Array in FreewayFill.candidates(ri, anchor, total, lane_taken, filling, Freeway.LANES):
+				if room <= 0:
+					break
+				if _rng.randf() < skip:
+					continue
+				_spawn_queues[2].append(_spawn_freeway_car.bind(ri, float(c[0]), int(c[1]), int(c[2])))
+				room -= 1
+			continue
 		var lo := maxf(0.0, anchor - freeway_range)
 		var hi := minf(total, anchor + freeway_range)
 		var slot := int(lo / freeway_gap)
@@ -1271,22 +1291,29 @@ func _fw_anchor(ri: int, here: Vector2) -> float:
 	return float(fw.nearest_on(ri, here)[0])
 
 
-func _spawn_freeway_car(ri: int, t: float, dir: int) -> void:
+func _spawn_freeway_car(ri: int, t: float, dir: int, want_li: int = -1) -> void:
 	var fw := _freeway()
 	var width := float(fw.routes[ri].width)
 	var li := _rng.randi() % Freeway.LANES
+	if want_li >= 0:
+		li = want_li
 	var lane: float = Freeway.lane_fraction(width, li) * float(dir)
 	var roll := _rng.randf()
 	var kind := -1
-	if roll < BigVehicles.FREEWAY_SEMI_SHARE:
+	# A slot in a given lane (FreewayFill): trucks only in the two slow lanes' slots, twice as often
+	# there, so their share of the traffic stays what it was.
+	var truck_gain := 1.0 if want_li < 0 else (2.0 if want_li >= Freeway.LANES - 2 else 0.0)
+	if roll < BigVehicles.FREEWAY_SEMI_SHARE * truck_gain:
 		kind = BigVehicles.SEMI
-	elif roll < BigVehicles.FREEWAY_SEMI_SHARE + BigVehicles.FREEWAY_BOX_SHARE:
+	elif roll < (BigVehicles.FREEWAY_SEMI_SHARE + BigVehicles.FREEWAY_BOX_SHARE) * truck_gain:
 		kind = BigVehicles.BOX_TRUCK
 	elif Motorcycle.enabled and roll > 1.0 - Motorcycle.FREEWAY_SHARE:
 		kind = Motorcycle.type_for(fposmod(roll * 7919.0, 1.0), CityPlan.District.MIDTOWN)
 	if BigVehicles.is_big(kind):
 		# Trucks keep to the two slow lanes, a little under the flow.
 		li = Freeway.LANES - 1 - _rng.randi() % 2
+		if want_li >= 0:
+			li = want_li
 		lane = Freeway.lane_fraction(width, li) * float(dir)
 	var free_li := FreewayIncidents.spawn_lane(ri, t, dir, li)
 	if free_li != li:

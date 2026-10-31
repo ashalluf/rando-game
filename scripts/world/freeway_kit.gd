@@ -154,6 +154,7 @@ static func paint_material() -> ShaderMaterial:
 		_paint_mat = ShaderMaterial.new()
 		_paint_mat.shader = load("res://shaders/freeway_paint.gdshader")
 		_paint_mat.set_shader_parameter("closeup", FreewayCloseup.enabled)
+		FreewayLook.apply_paint(_paint_mat)
 	return _paint_mat
 
 
