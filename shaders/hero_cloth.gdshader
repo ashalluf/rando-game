@@ -45,7 +45,9 @@ uniform float crush = 0.3;
 //    bags show at the street distance and not only in a grazing light
 uniform float closeup2 = 0.0;
 uniform float sheen_roughness = 0.42;
-uniform float sheen_gain = 1.6;
+// The cloth lobe's strength: on Compatibility, and on Forward+ (see forward_sheen).
+uniform float sheen_gain = 1.0;
+uniform float sheen_gain_forward = 2.9;
 // Forward+ decodes sheen_color (0.30 -> 0.07 linear) and lights in linear: the same sheen was a
 // quarter as strong there as on Compatibility, and the velour read as matte black on the Mac.
 uniform float forward_sheen = 1.8;
@@ -92,7 +94,7 @@ void fragment() {
 	float nv = clamp(dot(NORMAL, VIEW), 0.0, 1.0);
 	float cr = mix(1.0 - crush, 1.0 + crush, p.a);
 	float fsh = (CURRENT_RENDERER == RENDERER_COMPATIBILITY) ? 1.0 : mix(1.0, forward_sheen, closeup2);
-	sheen_scale = fsh;
+	sheen_scale = (CURRENT_RENDERER == RENDERER_COMPATIBILITY) ? sheen_gain : sheen_gain_forward;
 	ALBEDO = base + sheen_color * sheen * pow(1.0 - nv, sheen_power) * cr * mix(1.0, 0.7, closeup2) * fsh;
 	pile_crush = cr;
 	if (closeup2 > 0.5) {
@@ -130,7 +132,7 @@ void light() {
 		float inv = 1.0 / max(sheen_roughness, 0.05);
 		float d = (2.0 + inv) * pow(max(1.0 - nh * nh, 1e-4), inv * 0.5) / (2.0 * PI);
 		float vis = 1.0 / (4.0 * (nl + nv - nl * nv) + 1e-3);
-		SPECULAR_LIGHT += sheen_color * sheen_gain * sheen_scale * d * vis * nl * pile_crush * (1.0 - 0.6 * max(-crease, 0.0)) * ATTENUATION * LIGHT_COLOR;
+		SPECULAR_LIGHT += sheen_color * sheen_scale * d * vis * nl * pile_crush * (1.0 - 0.6 * max(-crease, 0.0)) * ATTENUATION * LIGHT_COLOR;
 	} else {
 		// The renderer's own lobes, near enough: Burley diffuse, a GGX of the material's
 		// roughness, Godot's rim.
