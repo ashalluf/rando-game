@@ -820,6 +820,8 @@ func _part_material(style: Dictionary) -> ShaderMaterial:
 	mat.set_shader_parameter("shop_kit", kit_enabled and ShopfrontKit.enabled)
 	mat.set_shader_parameter("shop_paint_near", shop_paint_near)
 	mat.set_shader_parameter("shop_paint_far", shop_paint_far)
+	# By day an open shop's lights are on, a closed one's off (ShopfrontDress; off: both as before).
+	ShopfrontDress.day_light(mat)
 	# A curtain wall draws its spandrels and thin transom lines in the frame paint (the kit's caps
 	# stand on those lines), and rolls its spandrel pale or dark as the far shader does.
 	mat.set_shader_parameter("curtain_spandrel", window_style == WindowStyle.CURTAIN)
@@ -1506,6 +1508,9 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 			if _kit != null and ShopfrontKit.enabled:
 				ShopfrontKit.storefront_face(self, _kit, face_index + 1, fc, a, n, size_u, cols, pitch, cut, bottom,
 					storefront, spans[face_index], stops, masonry, floor_h, top, accent.lightened(0.05))
+			# What each shop puts out at its door: mats, planters, a hanging sign, a menu case.
+			ShopfrontDress.face(self, face_index + 1, fc, a, n, size_u, cols, pitch, cut, bottom, storefront, spans[face_index],
+				masonry, has_awnings or kit_awnings_extra, has_canopy, top - bottom)
 			# Where people go in and out of the shops (StreetErrands), off the same shop rolls.
 			StreetErrands.note_shop_doors(self, face_index + 1, fc, a, n, size_u, cols, pitch, cut, bottom, spans[face_index])
 		# Shop signs. The sign band is drawn by the shader on the storefront; this puts the

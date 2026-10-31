@@ -460,8 +460,10 @@ static func _build_fascia(surfaces: Dictionary) -> void:
 
 
 ## A traditional dome awning: a quarter-ellipse barrel of canvas (0.95 m deep, 0.85 m tall,
-## hanging from y = 0) with flat cheeks at the two sliced edges, a valance, and an iron frame.
-## x from the low to the high edge of the unit opening (the awning's width).
+## hanging from y = 0) with flat cheeks at the two sliced edges, a scalloped valance, and an iron
+## frame of a hoop at each end and two between (at thirds of the width: the slice keeps them
+## there), the canvas pulled a little in between the hoops. x from the low to the high edge of
+## the unit opening (the awning's width).
 static func _build_awning_dome(surfaces: Dictionary) -> void:
 	var cloth := _acc(surfaces, "kit_fabric")
 	var iron := _acc(surfaces, "kit_iron")
@@ -470,33 +472,50 @@ static func _build_awning_dome(surfaces: Dictionary) -> void:
 	var high := 0.85
 	var seg := 9
 	var prof: Array[Vector2] = []   # (z, y)
+	var pn: Array[Vector2] = []     # outward normal in (z, y)
 	for i in seg + 1:
 		var t := float(i) / float(seg) * PI * 0.5
 		prof.append(Vector2(depth * sin(t), -high * (1.0 - cos(t))))
-	for i in seg:
-		var a := prof[i]
-		var b := prof[i + 1]
-		var n := Vector3(0.0, b.x - a.x, -(b.y - a.y)).normalized()
-		if n.z < 0.0:
-			n = -n
-		_poly(cloth, [[_ax(LO, 0.0), _ax(S, a.y), a.x], [_ax(HI, 0.0), _ax(S, a.y), a.x],
-			[_ax(HI, 0.0), _ax(S, b.y), b.x], [_ax(LO, 0.0), _ax(S, b.y), b.x]], n, w, 0)
-	# Valance, straight.
+		pn.append(Vector2(high * sin(t), depth * cos(t)).normalized())
+	# The canvas: rows down the barrel, columns across, pulled in by SAG between the hoops.
+	var bays := 3
+	var cols := bays * 6
+	var rows: Array = []
+	var norms: Array = []
+	for i in seg + 1:
+		var row: Array = []
+		var nrow: Array = []
+		for j in cols + 1:
+			var xu := -0.5 + float(j) / float(cols)
+			var f := fmod(float(j) / float(cols) * float(bays), 1.0)
+			# Not at the wall rail or the front bar: the canvas is held there along its length.
+			var held := sin(PI * float(i) / float(seg)) if i < seg else 0.0
+			var sag := AWNING_SAG * sin(PI * f) * held
+			var p := prof[i] - pn[i] * sag
+			row.append(Vector3(xu, p.y, p.x))
+			nrow.append(Vector3(0.0, pn[i].y, pn[i].x))
+		rows.append(row)
+		norms.append(nrow)
+	_sheet(cloth, rows, norms, w)
+	# The valance: scalloped by the shader (its vertex alpha says how far down it a point is).
 	var fb := prof[seg]
-	_poly(cloth, [[_ax(LO, 0.0), _ax(S, fb.y), fb.x], [_ax(HI, 0.0), _ax(S, fb.y), fb.x],
-		[_ax(HI, 0.0), _ax(S, fb.y - 0.22), fb.x], [_ax(LO, 0.0), _ax(S, fb.y - 0.22), fb.x]], Vector3(0, 0, 1), w, 0)
+	_valance(cloth, fb.y, fb.x, 0.22)
 	# Cheeks: fans from the wall at the bottom.
 	for side: int in [LO, HI]:
 		var cheek: Array = [[_ax(side, 0.0), _ax(S, -high), 0.0]]
 		for i in seg + 1:
 			cheek.append([_ax(side, 0.0), _ax(S, prof[i].y), prof[i].x])
 		_poly(cloth, cheek, Vector3(-1.0 if side == LO else 1.0, 0.0, 0.0), w, 0)
-	# Frame: a rail on the wall, the front bar, and a hoop at each end.
+	# Frame: a rail on the wall, the front bar, a hoop at each end and the two between.
 	_bar(iron, _ax(LO, -0.02), _ax(HI, 0.02), _ax(S, -0.04), _ax(S, 0.0), 0.0, 0.04, 0.0, w)
 	_rod(iron, [_ax(LO, 0.0), _ax(S, fb.y), fb.x], [_ax(HI, 0.0), _ax(S, fb.y), fb.x], 0.014, w)
-	for side: int in [LO, HI]:
+	var hoops: Array = [_ax(LO, 0.0), _ax(S, -0.5 + 1.0 / 3.0), _ax(S, -0.5 + 2.0 / 3.0), _ax(HI, 0.0)]
+	for hx: Vector2 in hoops:
 		for i in seg:
-			_rod(iron, [_ax(side, 0.0), _ax(S, prof[i].y), prof[i].x], [_ax(side, 0.0), _ax(S, prof[i + 1].y), prof[i + 1].x], 0.011, w)
+			# Under the canvas (a hair inside it), so only the end hoops and a ridge show.
+			var a0 := prof[i] - pn[i] * 0.012
+			var a1 := prof[i + 1] - pn[i + 1] * 0.012
+			_rod(iron, [hx, _ax(S, a0.y), a0.x], [hx, _ax(S, a1.y), a1.x], 0.011, w)
 
 
 ## A flat metal canopy: a thin slab 1.2 m out from y = 0 with a deeper fascia lip, held by two
@@ -514,8 +533,9 @@ static func _build_awning_flat(surfaces: Dictionary) -> void:
 		_bar(acc, _ax(side, off - 0.05), _ax(side, off + 0.05), _ax(S, 0.88), _ax(S, 1.0), 0.0, 0.02, 0.004, w)
 
 
-## A retractable awning: the cassette on the wall, the canvas sloping down 1.5 m out, the front
-## bar with a valance, and a folding arm at each end under it.
+## A retractable awning: the cassette on the wall, the canvas sloping down 1.5 m out with a belly
+## between the cassette and the front bar, the front bar with a scalloped valance, and a folding
+## arm at each end under it.
 static func _build_awning_roller(surfaces: Dictionary) -> void:
 	var cloth := _acc(surfaces, "kit_fabric")
 	var iron := _acc(surfaces, "kit_iron")
@@ -526,10 +546,27 @@ static func _build_awning_roller(surfaces: Dictionary) -> void:
 	var y1 := y0 - drop
 	_bar(iron, _ax(LO, -0.03), _ax(HI, 0.03), _ax(S, -0.19), _ax(S, 0.0), 0.0, 0.19, 0.04, w)
 	var n := Vector3(0.0, reach, drop).normalized()
-	_poly(cloth, [[_ax(LO, 0.0), _ax(S, y0), 0.17], [_ax(HI, 0.0), _ax(S, y0), 0.17],
-		[_ax(HI, 0.0), _ax(S, y1), reach], [_ax(LO, 0.0), _ax(S, y1), reach]], n, w, 0)
-	_poly(cloth, [[_ax(LO, 0.0), _ax(S, y1), reach + 0.01], [_ax(HI, 0.0), _ax(S, y1), reach + 0.01],
-		[_ax(HI, 0.0), _ax(S, y1 - 0.24), reach + 0.01], [_ax(LO, 0.0), _ax(S, y1 - 0.24), reach + 0.01]], Vector3(0, 0, 1), w, 0)
+	var rows: Array = []
+	var norms: Array = []
+	var depth_n := 6
+	var cols := 12
+	for i in depth_n + 1:
+		var t := float(i) / float(depth_n)
+		var row: Array = []
+		var nrow: Array = []
+		for j in cols + 1:
+			var xu := -0.5 + float(j) / float(cols)
+			# The belly: deepest a little past the middle, a touch more toward the free ends.
+			var belly := AWNING_SAG * 1.6 * sin(PI * t) * (1.0 + 0.25 * pow(2.0 * absf(xu), 2.0))
+			var z := lerpf(0.17, reach, t)
+			var y := lerpf(y0, y1, t) - belly
+			row.append(Vector3(xu, y, z))
+			var slope := cos(PI * t) * PI * AWNING_SAG * 1.6 / (reach - 0.17)
+			nrow.append((n + Vector3(0.0, 0.0, slope)).normalized())
+		rows.append(row)
+		norms.append(nrow)
+	_sheet(cloth, rows, norms, w)
+	_valance(cloth, y1, reach + 0.01, 0.24)
 	_bar(iron, _ax(LO, -0.02), _ax(HI, 0.02), _ax(S, y1 - 0.05), _ax(S, y1 + 0.02), reach - 0.06, reach, 0.01, w)
 	for side: int in [LO, HI]:
 		var off := 0.18 if side == LO else -0.18
@@ -540,6 +577,67 @@ static func _build_awning_roller(surfaces: Dictionary) -> void:
 		_rod(iron, shoulder, elbow, 0.018, w)
 		_rod(iron, elbow, hand, 0.016, w)
 		_bar(iron, _ax(side, off - 0.05), _ax(side, off + 0.05), _ax(S, -1.02), _ax(S, -0.88), 0.0, 0.05, 0.01, w)
+
+
+## How far canvas pulls in between its supports (metres): the dome between hoops, the roller's
+## belly is 1.6 times it.
+const AWNING_SAG := 0.028
+
+
+## A sheet of canvas: rows of points (x a unit-opening fraction, sliced; y and z as authored) with
+## their normals, as quads. Two-sided material: one winding is enough.
+static func _sheet(acc: Acc, rows: Array, norms: Array, col: Color) -> void:
+	var nr := rows.size()
+	var nc: int = (rows[0] as Array).size()
+	var base := acc.verts.size()
+	for i in nr:
+		for j in nc:
+			var p: Vector3 = rows[i][j]
+			var code := S
+			if j == 0:
+				code = LO
+			elif j == nc - 1:
+				code = HI
+			acc.verts.append(p)
+			acc.norms.append(norms[i][j])
+			acc.uvs.append(Vector2(p.x, 1.0 + p.y))
+			acc.uv2s.append(Vector2(0.0, 1.0 + float(code)))
+			acc.cols.append(col)
+	for i in nr - 1:
+		for j in nc - 1:
+			var p0 := base + i * nc + j
+			var p1 := p0 + 1
+			var p2 := p0 + nc
+			var p3 := p2 + 1
+			var a: Vector3 = rows[i][j]
+			var b: Vector3 = rows[i][j + 1]
+			var c: Vector3 = rows[i + 1][j]
+			var nrm: Vector3 = norms[i][j]
+			if (b - a).cross(c - a).dot(nrm) > 0.0:
+				acc.idx.append_array([p0, p2, p1, p1, p2, p3])
+			else:
+				acc.idx.append_array([p0, p1, p2, p1, p3, p2])
+
+
+## A valance hanging `h` from the front bar at (y, z): one quad whose vertex alpha runs from
+## VALANCE_TOP to VALANCE_BOTTOM, which facade_kit.gdshaderinc reads to cut its scallops and bind
+## the edge (alpha 1 is plain canvas, as every other kit piece's).
+static func _valance(acc: Acc, y: float, z: float, h: float) -> void:
+	var top := Color(1.0, 1.0, 1.0, VALANCE_TOP)
+	var bot := Color(1.0, 1.0, 1.0, VALANCE_BOTTOM)
+	var base := acc.verts.size()
+	for p: Array in [[LO, y, top], [HI, y, top], [HI, y - h, bot], [LO, y - h, bot]]:
+		var v := Vector3(-0.5 if p[0] == LO else 0.5, float(p[1]), z)
+		acc.verts.append(v)
+		acc.norms.append(Vector3(0.0, 0.0, 1.0))
+		acc.uvs.append(Vector2(v.x, 1.0 + v.y))
+		acc.uv2s.append(Vector2(0.0, 1.0 + float(int(p[0]))))
+		acc.cols.append(p[2])
+	acc.idx.append_array([base, base + 1, base + 2, base, base + 2, base + 3])
+
+
+const VALANCE_TOP := 0.62
+const VALANCE_BOTTOM := 0.12
 
 
 ## A projecting blade sign: a board 0.14 m thick standing 0.62 m out from the wall on two iron
