@@ -320,6 +320,9 @@ uint shop_frame_index(uint shop) {
 // Per-pane variety, the street opposite in the glass, the members' depth, roofline drips (shared
 // with the far boxes).
 #include "res://shaders/facade_variety.gdshaderinc"
+// The skyline's glass by day: the sky of this hour, its clouds, the towers round it, the sun.
+global uniform vec3 origin_shift;
+#include "res://shaders/skyline_glass.gdshaderinc"
 // Broken panes, blast holes and soot (scripts/world/building_damage.gd).
 #include "res://shaders/building_damage.gdshaderinc"
 #include "res://shaders/wet_surface.gdshaderinc"
@@ -929,6 +932,8 @@ void fragment() {
 		// Window mask for this style.
 		bool glass = false;
 		bool frame = false;
+		// The frame lines drawn as coverage (skyline glass, see the curtain wall below).
+		bool frame_aa = false;
 		// Street level is a row of separate businesses, not one continuous glass ribbon. A run
 		// of two to four bays is one shop, and it gets its own sign band, its own bulkhead
 		// colour and one bay turned into a door.
@@ -1078,6 +1083,15 @@ void fragment() {
 				glass = !frame;
 				win_c = vec2(0.525, 0.53);
 				win_h = vec2(0.475, 0.47);
+			}
+			// Skyline glass: once a pixel spans a good part of a frame line the lines are box
+			// filtered (sg_line()) over the glass rather than stepped, or they crawl and break into
+			// moire across a tower 100-600 m off. Up close the step is the same picture.
+			if (sg_on() && !storefront && px_m > 0.02 * pitch) {
+				frame_aa = true;
+				frame = false;
+				spandrel = curtain_spandrel && (fv < 0.0675 || fv > 0.9425);
+				glass = !spandrel;
 			}
 		} else {
 			glass = abs(fu - 0.5) < 0.16 && abs(fv - 0.5) < 0.40;
@@ -1374,6 +1388,16 @@ void fragment() {
 				refl = normalize(refl + vec3(0.0, wave, 0.0) + world_normal * (bow.y * 0.02));
 			}
 			vec3 sky_ref = mix(sky_horizon, sky_zenith, smoothstep(0.0, 0.55, refl.y));
+			// Skyline glass: the sky of this hour and its clouds; then the towers round it, the
+			// street opposite in front of them, and the sun where nothing is in the way.
+			bool sg = sg_on();
+			vec3 sun_g = normalize(sun_direction);
+			float sg_block = 0.0;
+			float sg_t = 1e9;
+			if (sg) {
+				sky_ref *= sg_sky_ratio(refl, sun_g);
+				sky_ref = sg_clouds(refl, sky_ref, TIME);
+			}
 			if (reflect_city > 0.0) {
 				// The city opposite, mirrored. A pane reflecting one colour of "buildings" is
 				// what made every shopfront milk glass and every tower a gradient: real glass
@@ -1401,15 +1425,26 @@ void fragment() {
 					// The street below the horizon is the ray meeting the street, not a blend by angle.
 					float in_far2 = 1.0 - smoothstep(far_roof - soft, far_roof + soft, refl.y);
 					sky_ref = mix(sky_ref, far_wall, in_far2 * reflect_city);
+					if (sg) {
+						vec4 tw = sg_towers(world_pos + origin_shift, refl, px_m, length(VERTEX), sky_ref, sun_g, sg_t);
+						sky_ref = mix(sky_ref, tw.rgb, tw.a);
+						sg_block = tw.a;
+					}
 					vec3 tan_r = normalize(world_tangent - world_normal * dot(world_tangent, world_normal)) * u_sign;
 					vec3 rw = vec3(dot(refl, tan_r), refl.y, dot(refl, world_normal));
 					float opp_hit;
 					vec3 opp = fx_opposite(rw, u, max(world_y - pt_base_y, 0.3), wl_face_row(seed, face_id, 0.0),
 						sky_ref, street_reflect, -dot(normalize(sun_direction), world_normal), px_m, opp_hit);
 					sky_ref = mix(sky_ref, opp, reflect_city);
+					sg_block = max(sg_block, opp_hit * reflect_city);
 				} else {
 					sky_ref = mix(sky_ref, far_wall, in_far * reflect_city);
 					sky_ref = mix(sky_ref, near_wall, in_near * reflect_city);
+					if (sg) {
+						vec4 tw = sg_towers(world_pos + origin_shift, refl, px_m, length(VERTEX), sky_ref, sun_g, sg_t);
+						sky_ref = mix(sky_ref, tw.rgb, tw.a);
+						sg_block = max(tw.a, max(in_near, in_far) * reflect_city);
+					}
 				}
 			}
 			if (!facade_variety || reflect_city <= 0.0) {
@@ -1417,7 +1452,8 @@ void fragment() {
 			}
 			// Schlick: nearly transparent head on, a mirror at a glancing angle.
 			float fres = pow(1.0 - clamp(-dot(to_frag, world_normal), 0.0, 1.0), 4.0);
-			float mirror = mix(0.26, 0.90, fres) * reflect_strength * (1.0 - 0.85 * night_factor) * pv.y * (1.0 - wi_open_k);
+			vec2 m_ends = sg_mirror_ends((window_style == 2 || (window_style == 1 && facade_finish == 3)) && !storefront);
+			float mirror = mix(m_ends.x, m_ends.y, fres) * reflect_strength * (1.0 - 0.85 * night_factor) * pv.y * (1.0 - wi_open_k);
 			// A lit shop interior competes with the reflection; an empty office does not.
 			if (storefront) {
 				mirror *= 0.66;
@@ -1431,6 +1467,9 @@ void fragment() {
 			albedo = mix(albedo, sky_ref, mirror * (1.0 - reflect_emit));
 			float sky_now = clamp(dot(sky_tint.rgb, vec3(0.299, 0.587, 0.114)) / 0.74, 0.0, 1.5);
 			reflected = sky_ref * mirror * reflect_emit * reflect_energy * sky_now;
+			if (sg && refl.y > -0.05) {
+				reflected += sg_glint(refl, sun_g) * mirror * (1.0 - sg_block) * (storefront ? 0.5 : 1.0);
+			}
 
 			// Tinted glass, not a mirror: with more metal the panes reflect pure sky and whole
 			// curtain-wall towers read as see-through cages from a distance.
@@ -1964,6 +2003,24 @@ void fragment() {
 			emission += wash * (glass ? max(albedo, vec3(0.16)) : albedo);
 		}
 
+		// Skyline glass: the curtain wall's frame lines as box-filtered coverage over what the
+		// glass, the spandrel and the members drew (frame_aa, set where they were left out).
+		if (frame_aa) {
+			float cu = sg_line(fu * pitch, px_m, pitch, 0.05 * pitch);
+			float cv;
+			if (curtain_spandrel) {
+				float lw = 0.025 * pt_floor;
+				cv = max(sg_line(fv * pt_floor - (0.08 * pt_floor - 0.5 * lw), px_m, pt_floor, lw),
+					sg_line(fv * pt_floor - (0.93 * pt_floor - 0.5 * lw), px_m, pt_floor, lw));
+			} else {
+				cv = sg_line(fv * pt_floor, px_m, pt_floor, 0.06 * pt_floor);
+			}
+			float cov = 1.0 - (1.0 - cu) * (1.0 - cv);
+			albedo = mix(albedo, curtain_spandrel ? mullion_color : accent_color, cov);
+			emission *= 1.0 - cov;
+			rough = mix(rough, 0.6, cov);
+			metal = mix(metal, 0.2, cov);
+		}
 		// ---- The facade pass: the members' depth, the drips from the roofline ---------------
 		// A curtain wall's mullions, fins and slab bands stand proud of the glass: from an angle
 		// you see their sides, and the sun throws their shadows across the panes beside and

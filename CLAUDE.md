@@ -4895,6 +4895,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   vertical corners (`Building._bevel_arrays()`, `FacadeVariety.bevel()`; collision stays the box).
   `FACADES_GTA=0` is the A/B; checks `tests/facades_gta_checks.gd`; look with
   `far_building_shot.gd CAM_POS= CAM_LOOK= FOV=`.
+- The skyline's glass by day (2026-10-31, docs/HANDOFF.md "The skyline's glass by day"):
+  `shaders/skyline_glass.gdshaderinc` (building.gdshader, building_lod.gdshader, tower_crown.gdshader)
+  makes the glass mirror THIS hour's sky (the hue of DayNight's own zenith and horizon at the old
+  constants' brightness - it was a fixed noon gradient at every hour), a cloud deck, up to eight
+  real towers round the camera traced as boxes (`skyline_towers_a/b`, two mat4 globals in TRUE
+  world) and the sun's glint; curtain walls mirror 42 % head on (was 26 %), and their frame lines
+  are box filtered past a pixel (`sg_line()`). `SkylineGlass` (`scripts/world/skyline_glass.gd`,
+  DayNight's child) pushes the globals four times a second on the REAL clock; their project.godot
+  defaults are the old sky with nothing traced. `SKYLINE_GLASS=0` is the A/B; checks
+  `tests/skyline_glass_day_checks.gd`. The render server's global getter is editor-only: read
+  `SkylineGlass.last`.
 - Storefronts and curtain walls (owner, 2026-09-27: "next level ... AAA studio quality"): the
   kit's code-built half, `ShopfrontKit` (`scripts/world/shopfront_kit.gd`), meshes built in
   GDScript in the kit's frame and conventions, wearing `PropFactory.kit_material()` and added

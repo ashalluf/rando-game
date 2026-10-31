@@ -23061,3 +23061,87 @@ mid-way there; compare a web still with a native run of the same FRAME COUNT, no
 
 **Not done / not verified.** The Mac (Forward+ runs the same INCREMENTAL sky; the settle applies
 there too and should be invisible but for the first frames). A real GPU browser.
+
+## 9jb. The skyline's glass by day (fleet "skyline-glass-day", wave 3)
+
+The task: downtown's towers by day from 100-600 m - the freeway, the street looking up, a
+helicopter - where the curtain-wall glass is most of what the skyline is; fix what reads fake.
+
+**What was wrong.** Every pane in the city mirrored ONE fixed noon gradient at every hour: the
+building shader's `sky_zenith` / `sky_horizon` are material defaults nothing sets on a Building,
+and the far boxes hard-code the same two colours. So a tower at 17:30 mirrored a midday blue sky;
+there were no clouds in any glass; a tower never mirrored the real towers beside it (only
+fx_opposite's fake street, at most ~105 m tall, and heading-keyed fake skyline rows); curtain
+walls mirrored 26 % head on, so from a helicopter a glass tower was the dark room behind it, a
+grid of near-black panels; the frame lines were a hard step (fu < 0.05), which crawls into
+moire at 100-600 m on Compatibility; the lit crowns emitted sky_tint's display numbers raw (pale
+on Forward+) and their ribs were a hard step too.
+
+**What changed.** One include, `shaders/skyline_glass.gdshaderinc`, shared by building.gdshader,
+building_lod.gdshader (the same calls in the coded far glass, so the LOD line does not show) and
+tower_crown.gdshader:
+- `sg_sky_ratio()`: the glass's old gradient times the ratio of THIS hour's sky (the hue of
+  DayNight's own `sky_top` / `sky_horizon`, at the old constants' luminance, a fifth to grey) to
+  the old constants, plus a warm glow toward a low sun. Brightness over the day still comes from
+  `sky_now`, and a material's own sky tint (the arena district's) is kept.
+- `sg_clouds()`: a cloud deck on the reflected ray (three value-noise octaves, DayNight's coverage,
+  thinned to haze at the horizon, lit tops warm at golden hour, grey bases).
+- `sg_towers()`: up to eight real towers traced as boxes (side faces with their own glass tint,
+  storeys and mullions faded to their average past a couple of pixels, the sun on their faces,
+  roofs, a parapet, haze by distance). A box the ray starts inside is the wall's own tower. They
+  sit behind the street opposite (fx_opposite still wins where it hits).
+- `sg_glint()`: the sun's disc in a pane, emitted, warm at golden hour, broken pane by pane by
+  the existing bow; zero where a tower or the street opposite is in the way.
+- `sg_mirror_ends()`: a curtain wall, or a glass tower's ribbon band, mirrors 42 % head on and
+  95 % at a glancing angle (was 26 / 90); punched windows and shops unchanged.
+- `sg_line()`: the curtain wall's frame lines (mullions, transoms) as box-filtered coverage once
+  a pixel spans 2 % of a bay (`frame_aa` in building.gdshader; the far boxes already did this);
+  the crowns' ribs the same.
+
+**CPU side.** `SkylineGlass` (`scripts/world/skyline_glass.gd`), DayNight's child (one hook next
+to SkyExtras), pushes five globals four times a second on the REAL clock (stills hold the game
+clock): `skyline_glass` (on, coverage, glint gain, golden), `skyline_sky_top` / `_rim` (DayNight's
+colours as set on the sky, raw display numbers, + the low-sun glow and the cloud light),
+`skyline_towers_a` / `_b` (two mat4s, a column a box: centre x, z in TRUE world, the half sizes
+packed as round(hx*4) + round(hz*4)*1024, top y). Candidates: every LandmarkDowntown tower (a pair
+split into its two towers) and every part over 40 m of the Buildings in the tree; `pick()` keeps
+the eight tallest for their distance within 1.1 km. project.godot's defaults are the old sky with
+nothing traced, so a tool without DayNight still draws sensibly. The render server's global
+getter is editor-only at run time: `SkylineGlass.last` holds what was pushed.
+
+**A/B and tools.** `SKYLINE_GLASS=0`: the glass exactly as before (the frame step too).
+`SKYLINE_GLASS_DEBUG=1`: traced towers magenta, clouds green in the glass (what proved the trace
+reaches the helicopter view). Stills: `still_shot.gd` with the eight cameras in this section's
+stills README (shots/skyline-glass-day). Checks: `tests/skyline_glass_day_checks.gd`.
+
+**Cost.** No geometry, nodes or draws: GEO on the eight bookmarks moves only by the run-to-run
+noise of the city (-2 % .. +2 % triangles, e.g. freeway 4.18 M -> 4.09 M, street 6.35 M -> 6.39 M,
+heli 2.46 M both). Shader: on glass pixels about 8 box tests (~20 ALU each), three noise octaves
+and a glint (~250 ALU in all), the frame filter (~40) on curtain-wall pixels; no new samplers (the
+WebGL budget is unchanged); five globals (11 vec4 slots of the Compatibility buffer).
+
+**Not done / not verified.** Judged on opengl3 stills only - no lavapipe Forward+ still of the
+city fits, and a small Forward+ scene was not run; colours go through the same decode as the
+rest of the glass (sg_srgb_in = cs_as_uniform), so Forward+ should agree, but the owner's Mac
+should look at the street-looking-up view at 14:00 and the helicopter at 17:30. Infill towers in
+LOD chunks / the far city are not traced (only Buildings in the tree and the landmark towers);
+the set changes every 0.25 s, so a reflected tower can pop as the camera moves. Flat tower tops
+were not touched (Rooftops covers infill roofs). The far boxes' second glass path (the old
+uncoded path) is unchanged.
+
+**Wave 4 (resume, 2026-10-31).** Merged origin/main (batch 25, the golden-hour review: GoldenHour
+leaves DayNight's sky colours on their twilight ramp, which SkylineGlass reads as they are set, so
+nothing to reconcile). The low sun's glow in the glass is a wide fan now (`sg_sky_ratio()`: a broad
+pow(az, 1.6) plus a hot pow(az, 12) core, out to half way up the sky) - a low sun lights a fan of sky
+70 degrees either side, and the old pow 3 spot only reached panes turned almost at the sun.
+Before / after through the refcams (`REFCAMS_JSON` with golden_aerial, downtown_aerial and a third
+camera `street_300m` = Flower St at z 480 looking north up at the core, 14:00, pitch 14):
+`refcams.py compare` flags nothing (golden_aerial pix 0.27, downtown_aerial 1.01, street_300m 2.58,
+luminance within 2 levels, triangles +0..1 %). What reads: street_300m's curtain wall mirrors blue
+sky, clouds and the towers across Flower where it mirrored a flat dark gradient; downtown_aerial's
+tiered tower gets sky in its upper panes; golden_aerial loses the white salt-and-pepper sparkle on the
+far glass towers (the frame step's moire), but from 1.5 km its core is mostly spandrel, stone and
+grade, so the glass changes it little - the broader sun fan does not move it either (the camera
+looks NE, the sunward faces mirror sky 45-60 degrees off the sun). Forward+: a downtown block under
+lavapipe is OOM-killed even at `BLOCKS=home` (15 GB box); a lone curtain-wall tower
+(`building_shot.gd` under vulkan, FINISH=3 STYLE=2) was rendered A/B instead (see below / stills).

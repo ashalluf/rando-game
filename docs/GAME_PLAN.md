@@ -3903,3 +3903,7 @@ none of either.
   under SwiftShader shows those first frames for minutes. Decision: keep PROCESS_MODE_INCREMENTAL
   for the drift of the day and hold QUALITY for three frames on a jump (load, an hour or weather
   snap, a cloud cover step). No shader or colour change. `SKY_SETTLE=0` is the A/B.
+- 2026-10-31 (skyline glass by day, wave 3): what a glass tower mirrors is worked out per pixel from
+  shared globals, never from a probe or a capture: the hour's sky (DayNight's own colours), a cloud
+  deck, the real towers round the camera as up to eight traced boxes, the sun. Near walls, far boxes
+  and crowns share one include so the LOD line does not show. SKYLINE_GLASS=0 is the A/B.

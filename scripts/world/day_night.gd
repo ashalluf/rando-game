@@ -294,6 +294,10 @@ func _ready() -> void:
 		settle.name = "SkySettle"
 		add_child(settle)
 		settle.setup(_env, self)
+		# The skyline's glass: this hour's sky, the clouds and the towers round the camera.
+		var skyline_glass := SkylineGlass.new()
+		skyline_glass.name = "SkylineGlass"
+		add_child(skyline_glass)
 	_apply()
 
 
