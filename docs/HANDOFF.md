@@ -23543,3 +23543,48 @@ fails the same way on plain origin/main (measured in a clean worktree: 50.2 deg)
 branch's.
 **Not done:** feet-bone contact (two small blobs at the soles) - one blob a person for now; the
 probe covers city blocks, not the hills, the beach or landmark sites.
+
+## 9ji. Buildings at mid distance (fleet wave 4, `building-mid-detail`)
+
+The task: a generated Building seen from 20-80 m read as nobody's home - a window grid, the kit's
+cornices, some balconies standing empty. `FacadeMid` (`scripts/world/facade_mid.gd`) hangs the life
+on it, built in code (FacadeStreet's `Acc` writers) into ONE mesh a building, `MidDress`
+(DRAW_DISTANCE 92 m + half the footprint), plus `MidDressNear` for the small pieces (58 m), both on
+`shaders/facade_mid.gdshader` (kind in COLOR.a x 16 = `FacadeMid.K_*`, colours sRGB decoded,
+linear on both renderers, no sampler), no shadow, no collision:
+
+- **Balconies** (`balcony()`, one hook line after the kit / box balcony in
+  `Building._add_facade_details()`): every balcony the Building already rolled gets, by hashes of
+  seed + wall + bay + storey: a reed or canvas privacy screen tied inside the front rail, a towel
+  over it, potted plants (leaf cards cut in the shader, flowers on some), a vine spilling over, a
+  pair of stacking chairs and a table, a drying rack or a line of washing, a kettle grill, storage
+  tubs, a satellite dish on the rail (south-facing walls only, at most `MAX_BALCONY_DISHES`).
+- **Walls** (`face()`, one hook line after `FacadeStreet.face()`): on residential punched walls one
+  roll a window - an extra kit window AC (`kit_ac_window`, the kit's own piece in the kit batch), a
+  through-wall sleeve unit under the sill, the window open (a sash pushed up or a casement swung out,
+  the room and its curtain behind, lit after dark on 55 %), a planted window box - plus vents and
+  wall-bracket dishes on the piers (every dish aims at `DISH_AIM`, one patch of the southern sky);
+  downpipes on the upper tiers FacadeStreet does not reach; galvanised flashing along a roof edge
+  with no parapet or cornice; a painted name (SignFont strokes, drop shadow, flaking by discard;
+  invented hotels, apartments and trades) across the top spandrel of 24 % of low masonry blocks;
+  and on plain rendered walk-ups (`Finish.FLAT`, no balconies) a kit fire escape on one wall
+  (the Building's own escapes are brick only).
+- Nothing reads Building._rng or _roof_rng: the checks build the same buildings with the pass off
+  and on and compare parts, colours, roof plant, shop names and every detail node's count.
+- `FACADE_MID=0` is the A/B. LOD chunks and the far city are untouched.
+
+Look with `tools/glshot/building_shot.gd` (`CAM_POS` / `CAM_LOOK`, `FACADE_MID=0` the before) and
+find seeds with `tools/building_mid_detail/probe.gd` (triangles by kind per seed). Checks:
+`tests/building_mid_detail_checks.gd`.
+
+**Frame cost** (opengl3, `still_shot.gd DIFF=1`, FACADE_MID=0 vs on, same frame): street_noon refcam
+6,378,338 tris / 2,978 draws both ways (downtown core: no residential wall in range); golden_aerial
+3,883,283 / 1,495 both ways (140 m up, past the 92 m reach); Westlake south of MacArthur Park
+(300, 6 m, 560, looking south between two balcony blocks) 5,974,427 -> 6,002,939 tris (+0.5 %),
+2,842 -> 2,846 draws, shadows unchanged. A dressed building is 1-6k triangles (12 test blocks:
+33k in all). **Not done / not verified:** Forward+ (lavapipe) not shot - the shader is linear on
+both renderers through color_space.gdshaderinc, but the leaf cards' BACKLIGHT and the rooms' night
+glow are unjudged on the Mac; open windows' rooms do not match the traced room the shader draws in
+the neighbouring panes; the gate's one failure on this merge, traffic_motion_checks "no tick turns the
+car by more than a smooth turn would" (worst ~130 deg), is intermittent and fails with FACADE_MID=0 too
+(1 of 2 runs alone) - it is the traffic-motion branch's, left for gate-flakes.

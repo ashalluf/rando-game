@@ -4998,6 +4998,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`ShopfrontKit.TextAcc`): never `SurfaceTool.append_from()` a mesh per building (a read-back
   from the renderer). Look with `tools/glshot/still_shot.gd` `EYE=` / `SHOTS=` (a third `@fov`
   field per shot); `building_shot.gd` for one building.
+- Buildings at mid distance (2026-10-31, docs/HANDOFF.md "Buildings at mid distance"): `FacadeMid`
+  (`scripts/world/facade_mid.gd`, hooks: `balcony()` after each balcony, `face()` after
+  FacadeStreet.face(), `commit()` in `generate()`) builds ONE mesh a building (`MidDress`, 92 m;
+  `MidDressNear`, 58 m) on `shaders/facade_mid.gdshader` (kind in COLOR.a x 16): balcony life, extra
+  kit window ACs, sleeve ACs, vents, dishes, open windows, window boxes, flashing, painted names, fire
+  escapes on FLAT walk-ups. Hashes only. `FACADE_MID=0` the A/B; probe
+  `tools/building_mid_detail/probe.gd`; checks `tests/building_mid_detail_checks.gd`.
 - The street level up close (2026-10-30, docs/HANDOFF.md "The street level up close"): within
   ~55 m `shaders/facade_street.gdshaderinc` (in building.gdshader) gives the walls relief as a
   height field in metres on (u, v) applied as a tilt of NORMAL at the end (stucco grain and trowel,

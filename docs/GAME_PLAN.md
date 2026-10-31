@@ -302,6 +302,12 @@ already mapped so milestone 2 is script-only.
   carries, applied in one Avatar hook so the hands ride it. Taken over by one hook line in each
   WeaponFX function, never round Weapon.tick (Sanctuary). GUNPLAY_FEEL=0 the A/B.
 
+- **2026-10-31 A building's middle storeys are dressed by hashes, in one mesh a building (fleet
+  wave 4, `building-mid-detail`, HANDOFF "Buildings at mid distance").** Balcony life, wall ACs,
+  vents, dishes, open windows, flashing, painted names and walk-up fire escapes are FacadeMid's: one
+  code-built mesh a building (plus one for the small pieces, to 58 m), no shadow, no collision, every
+  roll a hash of seed + wall + window so nothing a seed built before moves; the far tiers keep their
+  boxes. FACADE_MID=0 is the A/B.
 - **2026-10-30 Busy streets spend the caps where the camera looks, not more caps (HANDOFF "Busy
   streets").** Measured at the downtown bookmark the traffic was at its 150-car cap but spread evenly
   over a 380 m circle (5-9 moving cars in view), every queued street spawn was dropped while the kerbs'

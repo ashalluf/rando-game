@@ -2749,6 +2749,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Ground contact (tests/ground_contact_checks.gd, GroundContact): trunks, poles and people on
 	# contact quads, grime, a well's tree sunk with its dirt, a slope's planter on the paving.
 	load("res://tests/ground_contact_checks.gd").new().run(self, city)
+	# Buildings at mid distance (tests/building_mid_detail_checks.gd, FacadeMid): balcony life and wall
+	# hardware inside the lot, glass towers plain, nothing a building rolled moving.
+	load("res://tests/building_mid_detail_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
