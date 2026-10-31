@@ -21588,3 +21588,160 @@ Wilshire was judged on opengl3 only; Broadway was never seen on Forward+ (does n
 rain streaks on opengl3 read a touch thin and white near the eye - `width_share` / `gain` in
 night_wet.gdshader are the knobs; the suburb stays dark between lamps (its lamps are 40 m apart and
 the gardens are unlit, which is how it is), 20 % holes.
+
+## 9ih. The street's small stuff (street-clutter-2, 2026-10-30, roadmap #233)
+
+The owner's bar is GTA 6, whose streets are dense with the small stuff of real life. `StreetClutter2`
+(`scripts/world/street_clutter_2.gd`) is a second clutter pass after StreetClutter's news boxes and
+gutter litter, ONE build step of every FULL city chunk (after RoadWear, so the furniture, the parked
+cars, RoadHardware's covers / inlets / cuts, the utility poles and every Building's shop fronts are
+down). It lays, at real size and built in code:
+
+- **Trash bags**: two pile variants of four to six tied 33-gallon bags (lumpy squashed lofts with a
+  gathered neck and knot; black, a grey one, a dark green one), a restaurant's or cafe's pile at the
+  end of its front (to the kerb after 20:00), and on a **collection night** (a hash of block and
+  weekday, `COLLECTION_ODDS` by district, 18:30-07:00) a pile every `BAG_PILE_EVERY` m of kerb.
+- **Cardboard**: four flattened boxes leaning on the wall by a shop door with a strap, one flat in
+  front; flutes, ink stamps, tape, dirt rising from the pavement, soggy in the rain.
+- **A hand truck** with three cases by a shop door while a delivery is on (by day, hashed per hour).
+- **Steam** out of covers and kerb inlets (`STEAM_ODDS`: downtown's old steam lines), a transparent
+  plume on `shaders/street_steam.gdshader`: four camera-turned puffs per plume, billows scrolling up,
+  drifting downwind (`wind_lean`, `wind_factor`), thicker at night and in the rain, warmed by the lamps.
+- **Shopping carts** (wire basket cut out of a grid and dithered to its cover under a pixel, chrome
+  frame, red handle, casters), `CART_TIPPED` of them on their side.
+- **Traffic cones** (28", two reflective collars that glint by `lamp_factor`) round a third of
+  RoadHardware's utility cuts, now and then one knocked over.
+- **Weeds** in a crack at the foot of the walls and behind the kerb (blades that sway, a rosette);
+  not in lawn districts (LawnsCloseup lays those blocks' weeds and the parkway).
+- **Butts and gum** round every bus stop and in front of some shop doors (more at cafes and bars).
+- **Puddles** in the gutter, the parking lane and the corner ramps: collapsed in the vertex stage
+  on a dry street, grown from `road_wetness` (`puddle_from` .. `puddle_full`) as a noisy blob with a
+  damp ring, the sky mirrored by Fresnel (emitted; `mirror_forward` under Forward+'s SSR), rain rings,
+  the lamps' warmth at night. They outlast the road's own film as it dries.
+- **Flyers** stapled round utility poles (`upole`): five or six sheets wrapped on the shaft, a
+  curled corner, staples, lost-pet photos, bold titles, tear-off phone tabs with some taken, faded and
+  torn with age. (StreetWear's flat flyers stay; these are the paper on top.)
+- **Newspaper pages blowing** down the gutter: one 7 x 5 sheet the vertex shader slides along its run
+  (custom.b), hops, tips and flutters, resting at each end and blowing back (ping-pong), faster in wind.
+- **Pigeon droppings** on the pavement under the ledges downtown (cut-out splashes, fresh or old).
+
+All of it is ONE material (`shaders/street_clutter_2.gdshader`, what a face is in COLOR.a x 16 =
+`StreetClutter2.C_*`, checked) except the steam; one batch per kind a chunk (`sc2_*`, 13 keys), the
+flat kinds and the flyers and steam shadowless, the upright ones casting only within `SHADOW_REACH`
+45 m, each drawn to its own distance (45-220 m). Linear on both renderers (color_space include).
+Meshes reuse StreetClutter's static builders (`_bbox`, `_cyl`, `_tube`, `_quad`, `_vtx`).
+
+**Seeding**: every roll is `h01()` of the seed and the place (block, kerb, shop key, cover, pole),
+never a chunk / block / Building rng, and nothing goes through `_add_prop`: the block's props keep
+their ids, its parked cars and crowd their rolls (the checks build each block with it off and
+compare). What is out depends on the hour the chunk is built at and the weekday
+(`BeachLife.hour_now`, `FarmersMarket.weekday`; `force_hour` / `force_day`, env `SC2_HOUR` / `SC2_DAY`
+for stills). Hooks: one step line in `CityChunk.begin_build()`, `Building` records `shop_fronts`
+when StreetClutter2 is on too (was Parklets / NightLife only; a record, no roll), the loading
+screen warms the meshes. `STREET_CLUTTER_2=0` is the A/B.
+
+Probe: `tools/street_clutter_2/probe.gd -- --spawn=x,z,0,0` (counts per kind and block, the step's
+plan time, an EYE per kind; `HOUR=`, `DAY=`, `KIND=`, `R=`). Compile: `tools/street_clutter_2/compile.gd`.
+Checks: `tests/street_clutter_2_checks.gd` (the last city file).
+
+**Frame cost** (opengl3, `still_shot.gd DIFF=1`, people and traffic hidden; `STREET_CLUTTER_2=0` then 1,
+same cameras): downtown 21:30 wet 3.78 -> 3.99 M triangles (+5.6 %, +20 draws), 3.02 -> 3.13 M
+(+3.6 %, +18), 3.50 -> 3.52 M (+0.6 %, +16), from 6 m up 1.74 -> 1.91 M (+9.7 %, +12); downtown 10:00
+close-ups +1.0 to +2.8 % (+16 to +30 draws); midtown 21:30 +0.7 to +3.0 % (+13 to +28); the beach town
++6.3 / +9.1 % (+16 / +28) on small frames (~2 M). Most of the added triangles are SHADOW (the bag piles'
+twins, ~1,100 triangles a pile, inside `SHADOW_REACH`); lower it, or give the piles a coarse shadow
+mesh, if a bookmark needs it. The step itself plans in 2-5 ms a block (probe `plan=`).
+
+Stills on `shots/street-clutter-2` (before / after pairs, downtown night and day, midtown and the beach
+town at night, and the kit alone from `tools/street_clutter_2/kit_shot.gd`, seconds: `NIGHT=1`, `WET=`).
+
+Not done / not seen: nothing on Forward+ (the steam's alpha and the puddles' mirror want a look on the
+Mac: SSR adds to the puddles there, `mirror_forward`); the pages and the steam move off shader TIME, so
+DIFF stills show them frozen; carts and bags are drawn only (no collision, nothing to knock over);
+the flyers only go on utility poles (lamp and signal poles vary in radius); posters and droppings are
+procedural, no atlas art.
+
+## 9ii. Downtown streets at arm's length (fleet wave 3, `downtown-street-closeup`)
+
+The task: a pedestrian-eye review of downtown (the historic core, Broadway, the Financial District,
+South Park) at 2-10 m, at noon, 17:30 and 21:00, listing the ten things that most break the AAA
+illusion up close, and fixing the worst properly. Stills on `shots/downtown-street-closeup`.
+
+**The ten, worst first** (block_shot.tscn opengl3 at noon; still_shot.gd at 17:30 and 21:00):
+1. **Surface car parks behind the pavement wall** (LotFill's lots, Broadway, South Park): the parked
+   cars were ArenaGrounds' 260-triangle static boxes, three metres from the eye. FIXED.
+2. **The kerb**: its face was drawn in the pavement's top-down material (a flat grey band), its
+   top edge a razor, and the gutter a dark strip on the asphalt. FIXED (face, arris, concrete pan).
+3. **Broadway's sale tables**: nine saturated cubes on a board, and set out 0.6 m past the pavement
+   even where the frontage was a car park's wall (the table stood half inside it). FIXED.
+4. **A street tree growing up through a building site's covered walkway deck** (Construction's shed
+   over the pavement on Broadway by 5th). FIXED.
+5. **A pavement cafe set laid through a bus shelter's bench** (Flower by 7th): the cafe props are
+   rolled before the shelters exist, and the stop benches took a cafe for a 0.6 m post. FIXED.
+6. **Road paint stood 2.5 cm proud** on lit box sides (thermoplastic is 2-4 mm). FIXED (pressed).
+7. Fallen share bikes read thin and toy-like at 2 m (Micromobility) - not touched.
+8. Pavement slabs under a shed or a canopy read as one flat plane (the joints are lost in shade) -
+   not touched (road.gdshader's joints are albedo only).
+9. Kerb paint (red zones) is a flat colour with no relief at the arris - not touched.
+10. Encampment tents read rubbery up close (Encampment kit) - not touched; outside this pass.
+
+**The fixes** (`scripts/world/street_closeup.gd`, `StreetCloseup`; `STREET_CLOSEUP=0` in the
+environment puts every surface back exactly as it was):
+- **Kerb face and arris.** Kerbs._kerb_face writes the face into its own mesh ("KerbFace", one more
+  draw a FULL block) on `shaders/kerb_closeup.gdshader`: UV = (metres along in world terms, metres
+  over the road), the pavement's own texture and tint sampled across the face, grime and road splash
+  at its foot, black tyre scuffs where cars rubbed it, chips knocked out of the arris, 10 ft joints.
+  The face's top 2.5 cm rolls its normal up, and a 2.5 cm ARRIS strip on the kerb's top (2 mm over
+  the pavement, discarding itself past `arris_reach` 28 m) rolls it the rest of the way, so the edge
+  catches the light as a formed radius, not a razor. Collision and the ring's mesh are unchanged.
+- **Curb and gutter.** StreetDetail's gutter strip is now `StreetCloseup.lay_gutter()`: a 0.6 m
+  concrete pan box per piece on the same shader (`gutter` on), INSTANCE_CUSTOM.r saying which side
+  its kerb is: dished toward the kerb in the normal, a silt / leaf-stain flow line, a tide mark,
+  oil where cars park over it, a sealed seam at the asphalt, the same joints as the face. Top 6 mm
+  over the road: over RoadWear's stamps (4.2 mm), under the pressed paint (9 mm). No piece is laid
+  over a kerb inlet's apron (`inlet_alongs()`, RoadHardware._inlets()' own test).
+- **Pressed paint.** road_paint.gdshader's `thickness` (4 mm): every box vertex over the box's
+  centre is moved to its underside plus that, so dashes, stripes, stop lines and stalls are films.
+- **Lot cars.** LotFill._car() records each static car it laid in a FULL chunk (after its rolls,
+  `note_car()`); at the finish `commit_cars()` hides it in the chunk-wide batch and draws it again
+  per 24 m cell: CarParkBuild.real_body() (the road bodies' far twins) within `REAL_CAR_NEAR` 42 m,
+  the same static box past it, in the stand-in's own paint (no colour change at the hand-over).
+  Covers every caller of LotFill._car (surface lots, podium decks, approach parking, vacant gravel
+  lots, beach drives). The other static-car users (CarDealers, Industrial, Roadside, civic) are not.
+- **Broadway goods** keep off a car park or a vacant lot's frontage (`goods_blocked()`, pure, after
+  the roll); the sale table (`sale_table_mesh()`) is a navy cloth over the top and down both sides,
+  stacks of folded tees in muted colours, two open cartons of stock, a shoebox pile, the price card.
+- **Sheds.** Construction records each covered walkway's deck (`note_shed()`); before the chunk's
+  batches build (they clear their lists), `before_build()` finds the street trees whose trunks stand
+  under it and `clear_sheds()` hides them (the grate stays): a shed goes up where the trees were
+  boxed and taken down.
+- **Cafe sets** slide along the kerb out of `SHELTER_CLEAR` 6 m of a bus shelter's spot
+  (`shelter_spots()`, BigVehicles.build_bus_stops()' own sums), after their rolls; the stop benches
+  take a cafe set's clearance as `CAFE_CLEAR` 1.4 m (StreetFurniture._obstacles()).
+
+**Rolls.** Nothing rolls: the cafe and stop-bench moves are positions after the rolls, the lot cars
+and shed trees hide instances that keep their indices, the pan is split round the inlets (more
+pieces in the `gutter` batch). The checks build the Broadway block with the pass off and on: the
+same props (cafes and the stop benches' own sequence aside) and the same batch counts (the gutter
+and Broadway's goods aside).
+
+**Cost** (still_shot.gd GEO, opengl3, the same city frames with `STREET_CLOSEUP=0` / on; EYE
+heights above the ground):
+
+| view | before tris / draws | after tris / draws |
+|---|---|---|
+| Broadway car park, noon (2980,1.5,-40) | 4.35 M / 2,119 | 5.02 M / 2,347 |
+| kerb from the road, noon (2986,1.4,-70) | 4.49 M / 2,001 | 4.60 M / 2,108 |
+| the shed, noon (2979,1.6,-60) | 7.79 M / 3,677 | 7.37 M / 3,691 |
+| Broadway car park, 21:00 | 4.54 M / 2,220 | 5.20 M / 2,439 |
+| kerb from the road, 21:00 | 4.65 M / 2,146 | 4.83 M / 2,242 |
+| Spring St, 21:00 (3124,1.6,250) | 5.78 M / 3,222 | 5.65 M / 3,201 |
+
+The real lot cars are the cost (~8k triangles a car within 42 m, a draw per body type and cell);
+the kerb face adds a draw per FULL block. If it must come down: `REAL_CAR_NEAR` (42 m) and
+`CAR_CELL` (24 m; bigger cells, fewer draws, coarser hand-over).
+
+**Checks:** `tests/downtown_street_closeup_checks.gd`. **Not done / not verified:** no Forward+
+(lavapipe) still of the kerb shader - the arris is a normal roll and reads strongest under a real
+sun; the arris strip may z-fight on the web build's 24-bit depth inside 28 m on very shallow views;
+items 7-10 above.

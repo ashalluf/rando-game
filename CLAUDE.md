@@ -2566,6 +2566,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`shaders/street_clutter.gdshader`: paint from INSTANCE_CUSTOM, printed front pages, covers and
   chalk from the vertex alpha), one draw per kind a chunk. StreetDetail still makes the news
   boxes' old rng rolls and hands them over; everything else is hash-seeded.
+  **Street clutter 2** (`StreetClutter2`, `scripts/world/street_clutter_2.gd`, 2026-10-30, docs/HANDOFF.md
+  "The street's small stuff"): one FULL step after RoadWear - trash bags (restaurants; collection
+  nights by block + weekday hash), cardboard and a hand truck by shop doors (`Building.shop_fronts`),
+  steam from RoadHardware's covers / inlets downtown (`street_steam.gdshader`), carts, cones round
+  utility cuts, weeds, butts and gum, puddles collapsed on a dry road, flyers on `upole`s, pages
+  blowing down the gutter, droppings under ledges; one `sc2_*` batch a kind on
+  `street_clutter_2.gdshader` (code in COLOR.a x 16), hashes only, no `_add_prop`.
+  `STREET_CLUTTER_2=0` the A/B (`SC2_HOUR` / `SC2_DAY` for stills); probe
+  `tools/street_clutter_2/probe.gd`; checks `tests/street_clutter_2_checks.gd`.
   **Kerbs** (`Kerbs`, `scripts/world/kerbs.gd`, 2026-10-05): a FULL block's pavement is an
   inner slab (`_block_surface`) plus a ring `RING` 2.6 m wide built by Kerbs in the pavement's own
   material with one trimesh collision: corner ramps cut in line with the crosswalks (dome pads),
@@ -6290,6 +6299,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   RockFar's tors take the range haze and the hill's tone past `aerial_blend`; the far city's tree
   crowns are `CITY_CANOPY_GAIN` darker. `tools/aerial_review/layer_probe.gd` saves every shot again
   with one layer hidden (which node draws that speckle?). Checks `tests/aerial_review_checks.gd`.
+- Downtown at arm's length (2026-10-30, docs/HANDOFF.md "Downtown streets at arm's length"):
+  `StreetCloseup` (`scripts/world/street_closeup.gd`): the kerb face as its own mesh ("KerbFace") on
+  `shaders/kerb_closeup.gdshader` with a rolled arris strip, the 0.6 m concrete gutter pan
+  (StreetDetail's `gutter` batch, kept off inlet aprons), road paint pressed to 4 mm (road_paint
+  `thickness`), LotFill's static cars as real bodies within `REAL_CAR_NEAR` (hidden in the batch,
+  per-cell MultiMeshes; record in `note_car()`, the batches clear their lists when built), Broadway
+  goods off car parks, shed trees out, cafe sets clear of shelters. `STREET_CLOSEUP=0` is the A/B;
+  checks `tests/downtown_street_closeup_checks.gd`.
 - Road hardware (2026-10-05, docs/HANDOFF.md "Road hardware"): `RoadHardware`
   (`scripts/world/road_hardware.gd`, one hook line at the end of `StreetDetail.build_block`, FULL
   chunks) lays cast-iron manhole covers (four cast patterns, proud or sunk in a patched round or
