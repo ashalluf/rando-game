@@ -10,10 +10,12 @@ MODE="${1:-desktop}"; shift || true
 GODOT="${GODOT:-godot}"
 LOG="${LOG:-/tmp/load_time_${MODE}.log}"
 export LOAD_QUIT=1
+# /usr/bin/time where there is one, else tools/peak_rss.py (the cloud box has no `time`).
+if [ -x /usr/bin/time ]; then TIMER=(/usr/bin/time -v); else TIMER=(python3 tools/peak_rss.py --); fi
 if [ "$MODE" = headless ]; then
-	/usr/bin/time -v "$GODOT" --headless --path . "$@" > "$LOG" 2>&1 || true
+	"${TIMER[@]}" "$GODOT" --headless --path . "$@" > "$LOG" 2>&1 || true
 else
-	/usr/bin/time -v xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path . --rendering-driver opengl3 \
+	"${TIMER[@]}" xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" --path . --rendering-driver opengl3 \
 		--resolution 1280x720 "$@" > "$LOG" 2>&1 || true
 fi
-grep -E "^LOADING|SCRIPT ERROR|Maximum resident" "$LOG" || true
+grep -E "^LOADING|^FIRSTMIN|SCRIPT ERROR|Maximum resident|PEAK RSS" "$LOG" || true

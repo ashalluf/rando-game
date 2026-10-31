@@ -11,7 +11,8 @@ extends SceneTree
 ## Env: OUT (stem; `_t<seconds>.png` each), TIMES, NIGHT=1 (no sun, a dark sky, night_factor 1),
 ## CAR=1 (a parked car's own explosion: fuel fireball and toss), DIST (camera metres from the
 ## blast, default 34), HEIGHT (camera eye, 1.7), RADIUS (9), SCALE (slow motion before 1 s,
-## 0.375 = 0.05 s a frame), LATE (after 1 s, 2.0). EXPLOSIONS_2=0 is the old blast (the before).
+## 0.375 = 0.05 s a frame), LATE (after 1 s, 2.0), CAM_X (camera sideways, -4), LOOK_Y (aim height,
+## 9), FULL=0 (WeaponFX.explosion alone; by default Explosion.blast(), so the crater and rubble too). EXPLOSIONS_2=0 is the old blast (the before).
 ## Loads WeaponFX, Vehicle and Building by path: naming them compiles them before the autoloads.
 
 func _initialize() -> void:
@@ -88,8 +89,8 @@ func _initialize() -> void:
 	cam.fov = 62.0
 	cam.far = 2000.0
 	root.add_child(cam)
-	cam.global_position = centre + Vector3(-4.0, h, dist)
-	cam.look_at(centre + Vector3(0.0, 9.0, 0.0))
+	cam.global_position = centre + Vector3(float(_env("CAM_X", "-4")), h, dist)
+	cam.look_at(centre + Vector3(0.0, float(_env("LOOK_Y", "9")), 0.0))
 	cam.current = true
 	cam.attributes = CameraAttributesPractical.new()
 	var hud := get_first_node_in_group("debug_hud")
@@ -111,6 +112,9 @@ func _initialize() -> void:
 		for i in 6:
 			await physics_frame
 		car.call("damage_state").explode()
+	elif OS.get_environment("FULL") != "0":
+		# The whole blast as a rocket sets it off (crater, rubble, dust: BlastAftermath too).
+		load("res://scripts/weapons/explosion.gd").blast(player, at, radius, 30.0, 0.0)
 	else:
 		load("res://scripts/weapons/weapon_fx.gd").explosion(player, at, radius)
 	var out := _env("OUT", "blast_room.png")

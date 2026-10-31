@@ -71,6 +71,41 @@ const RUN_CLIP_SPEED := 5.0
 ## How far the fingers close round a grip is the gun's own (Weapon.curl_*, fitted per gun by
 ## tools/grip_fit.gd). Which way the curl goes: flip if the fingers bend back instead of closing.
 @export var palm_curl_sign: float = 1.0
+
+@export_group("Hero locomotion")
+## Seconds the gait takes to come in over the idle (a start) and to go out (after a stop).
+@export var loco_fade_in: float = 0.16
+@export var loco_fade_out: float = 0.3
+## How fast the gait's own speed follows the body's (1/s): the walk, run and sprint show in turn
+## as he speeds up (the body reaches walk_speed in a tenth of a second).
+@export var gait_follow: float = 7.0
+## Gait speeds (m/s) over which the walk hands over to the run, and the run to the sprint.
+@export var walk_run_band: Vector2 = Vector2(1.4, 2.6)
+@export var run_sprint_band: Vector2 = Vector2(5.0, 7.4)
+## A stop: the stride runs on to the next foot down, at least this fast (s for what is left).
+@export var stop_max: float = 0.26
+## Standing, the feet stay planted while the body turns until it is this far round (radians),
+## then he steps round at `turn_step_speed` (radians a second) with the walk at `turn_step_weight`.
+@export var turn_step_angle: float = 0.6
+@export var turn_step_speed: float = 7.0
+@export var turn_step_weight: float = 0.75
+## While the body faces the aim, how far the hips turn toward the way he moves (radians): the
+## strafe; past ~110 degrees off his facing he backpedals (the gait played backward).
+@export var strafe_max: float = 1.15
+## Not aiming: how far the hips lead into a turn.
+@export var turn_lead_max: float = 0.45
+## The chest pitched into an acceleration (radians per m/s2), the most, and its spring.
+@export var accel_drive: float = 0.0035
+@export var drive_max: float = 0.2
+@export var drive_stiffness: float = 70.0
+@export var drive_damping: float = 7.5
+## The lean into a running turn: share of the angle a bike would lean (atan(v w / g)), the most.
+@export var bank_gain: float = 0.4
+@export var bank_max: float = 0.3
+## The land-and-run: metres of hips dip per m/s of fall (the spring takes it), and its spring.
+@export var land_run_dip: float = 0.003
+@export var dip_stiffness: float = 140.0
+@export var dip_damping: float = 15.0
 ## Rim sheen on the hero's velour tracksuit in the sun (0 flat cotton, 1 satin-bright edges).
 @export var velour_rim: float = 0.45
 ## The velour's edge-on brightening in any light (the pile catching light sideways).
@@ -151,6 +186,23 @@ var _vel_yaw := 0.0
 var _vel_yaw_rate := 0.0
 var _feet_lift := Vector2.ZERO
 var _hips_drop := 0.0
+# The locomotion (HeroLoco, null with HERO_LOCO=0 or on a crowd rig).
+var _loco: HeroLoco
+var _loco_moving := false
+var _gait_speed := 0.0
+var _stopping := false
+var _stop_to := 0.0
+var _stop_rate := 0.0
+var _stepping := false
+var _feet_yaw := 0.0
+var _back := false
+var _drive := 0.0
+var _drive_v := 0.0
+var _prev_fwd := 0.0
+var _accel := 0.0
+var _roll := 0.0
+var _dip := 0.0
+var _dip_v := 0.0
 
 
 ## Loads the rig; false when the file is missing or has no AnimationPlayer.
@@ -182,7 +234,15 @@ func load_model(path: String, look: int = 3, tracksuit: Color = Color(0, 0, 0, 0
 	if hero_look != null and _skeleton and ResourceLoader.exists(MOVES_LIBRARY) and not _anim.has_animation_library("moves"):
 		_anim.add_animation_library("moves", load(MOVES_LIBRARY))
 		_moves = true
-		# First in the stack: setup_gun_hands() adds the stance, the IK and the hands after it.
+		# The gait first (HeroLoco), then HeroMotion: setup_gun_hands() adds the stance, the IK
+		# and the hands after them.
+		if OS.get_environment("HERO_LOCO") != "0":
+			_loco = HeroLoco.new()
+			_loco.name = "HeroLoco"
+			_skeleton.add_child(_loco)
+			if not _loco.setup(_anim, _skeleton):
+				_loco.queue_free()
+				_loco = null
 		_motion = HeroMotion.new()
 		_motion.name = "HeroMotion"
 		_skeleton.add_child(_motion)
@@ -483,6 +543,7 @@ func swim_body(lay: float, roll: float, rise: float) -> void:
 	_lean = 0.0
 	_low = 0.0
 	_play(IDLE_CLIP, 1.0)
+	_loco_reset()
 	if _motion:
 		_motion.fly = 0.0
 		_motion.fall = 0.0
@@ -555,6 +616,16 @@ func jumped(air: bool) -> void:
 func landed(fall: float, run: float) -> void:
 	if not _moves:
 		return
+	if _loco and run >= 2.0 and fall < land_hard:
+		# The land-and-run: the stride carries on from a foot coming down, the knees take the
+		# landing in it (a dip of the hips, the chest driving forward) instead of a stop.
+		_loco.phase = _loco.next_contact(not _back)
+		_loco.weight = maxf(_loco.weight, 0.6)
+		_loco_moving = true
+		_gait_speed = maxf(_gait_speed, run)
+		_dip_v += fall * land_run_dip * 9.0
+		_drive_v += minf(fall, 60.0) * 0.02
+		return
 	if fall >= land_hard:
 		_low = 1.0 # the gun is in against the thigh as he hits the ground
 	if fall >= land_hard and run >= roll_speed:
@@ -592,6 +663,7 @@ func debug_reset() -> void:
 	_draw = 1.0
 	_low = 0.0
 	_clip = ""
+	_loco_reset()
 	transform = Transform3D.IDENTITY
 	if _anim:
 		_play(IDLE_CLIP, 1.0)
@@ -662,10 +734,10 @@ func _drive_moves(delta: float, speed: float, on_floor: bool, vertical: float, b
 			else:
 				_play("moves/jump_air", 1.0 if vertical > -fall_pose_speed else 1.6)
 		elif speed < 0.4:
-			if absf(_yaw_rate) > turn_step_rate:
+			if _loco == null and absf(_yaw_rate) > turn_step_rate:
 				# Stepping round on the spot: the walk in place, as fast as the turn.
 				_play(WALK_CLIP, clampf(absf(_yaw_rate) * 0.5, 0.6, 1.6))
-			elif _idle_t > _idle_next:
+			elif _idle_t > _idle_next and not _stepping and not _stopping:
 				_idle_t = 0.0
 				_idle_next = _rng.randf_range(idle_variant_after.x, idle_variant_after.y)
 				var pick: String = IDLE_VARIANTS[_rng.randi() % IDLE_VARIANTS.size()]
@@ -679,10 +751,16 @@ func _drive_moves(delta: float, speed: float, on_floor: bool, vertical: float, b
 			else:
 				_play(IDLE_CLIP, 1.0)
 		else:
-			var gait := hero_gait(speed, boosting)
-			_play(gait[0], gait[1])
-			if gait[0] == "moves/sprint" and boosting:
-				lean_target = ground_lean
+			if _loco:
+				# The gait is HeroLoco's, over the idle underneath (see its header).
+				_play(IDLE_CLIP, 1.0)
+				if boosting:
+					lean_target = ground_lean
+			else:
+				var gait := hero_gait(speed, boosting)
+				_play(gait[0], gait[1])
+				if gait[0] == "moves/sprint" and boosting:
+					lean_target = ground_lean
 	_left = move_toward(_left, left_target, delta / LEFT_RAMP)
 	_low = move_toward(_low, low_target, delta / LEFT_RAMP)
 	# The flight: the body laid along the velocity (0 upright when climbing straight up, a right
@@ -700,7 +778,9 @@ func _drive_moves(delta: float, speed: float, on_floor: bool, vertical: float, b
 	_lean = lerpf(_lean, lean_target, 1.0 - exp(-8.0 * delta))
 	var air := 1.0 - (1.0 if on_floor else 0.0) * (1.0 - _fly)
 	var pivot := Vector3(0.0, 0.95 * clampf(maxf(_fly, glide) + air * 0.5, 0.0, 1.0), 0.0)
-	var b := Basis(Vector3.RIGHT, -(_tilt + _lean)) * Basis(Vector3.UP, _bank)
+	if _loco:
+		_drive_loco(delta, speed, on_floor, boosting, velocity, parent)
+	var b := Basis(Vector3.RIGHT, -(_tilt + _lean)) * Basis(Vector3.BACK, _roll) * Basis(Vector3.UP, _bank)
 	transform = Transform3D(b, pivot - b * pivot)
 	# The flinch: a spring the hits kick.
 	_flinch_v += (-flinch_stiffness * _flinch - flinch_damping * _flinch_v) * delta
@@ -712,6 +792,8 @@ func _drive_moves(delta: float, speed: float, on_floor: bool, vertical: float, b
 		_motion.fall = _fall
 		_motion.flinch = _flinch
 		_feet(delta, on_floor and speed < 3.0 and _oneshot == "" and _fly < 0.01)
+		if _dip > 0.0:
+			_motion.hips_drop += _dip
 
 
 ## The foot IK: a ray down at each foot, the ground's rise under it handed to HeroMotion.
@@ -742,3 +824,175 @@ func _feet(delta: float, planted: bool) -> void:
 	_hips_drop = lerpf(_hips_drop, drop, k)
 	_motion.foot_lift = _feet_lift
 	_motion.hips_drop = _hips_drop
+
+
+# --- The hero's locomotion (HeroLoco) ---------------------------------------------------------
+
+## Back to standing with the gait out (swimming, the shot tool between shots).
+func _loco_reset() -> void:
+	_loco_moving = false
+	_gait_speed = 0.0
+	_stopping = false
+	_stepping = false
+	_back = false
+	_drive = 0.0
+	_drive_v = 0.0
+	_accel = 0.0
+	_roll = 0.0
+	_dip = 0.0
+	_dip_v = 0.0
+	var parent := get_parent() as Node3D
+	_feet_yaw = parent.global_rotation.y if parent and parent.is_inside_tree() else 0.0
+	if _loco:
+		_loco.weight = 0.0
+		_loco.hips_yaw = 0.0
+		_loco.drive = 0.0
+		_loco.phase = 0.0
+
+
+## Is the body held facing the aim (the player's aim timer after a shot, or aiming)?
+func _facing_locked() -> bool:
+	if _player == null:
+		return false
+	var lock = _player.get("lock_on")
+	return float(_player.get("_aim_timer")) > 0.0 or (lock != null and bool(lock.get("aiming")))
+
+
+## The gait's weights and phase, the start, the stop, the turn on the spot, the strafe and the
+## backpedal, the chest's drive into an acceleration, the lean into a running turn and the dip
+## of a landing he runs out of. Every number eases or springs: nothing jumps a frame.
+func _drive_loco(delta: float, speed: float, on_floor: bool, boosting: bool, velocity: Vector3, parent: Node3D) -> void:
+	var dt := maxf(delta, 1e-4)
+	var vis_yaw := parent.global_rotation.y if parent else 0.0
+	var free := on_floor and _oneshot == "" and _fly < 0.01 and glide < 0.01
+	var moving := free and (speed >= 0.4 or (boosting and on_floor))
+	var was := _loco_moving
+	_loco_moving = moving
+	# The forward speed's change: the chest drives into a start and is thrown back by a stop.
+	var local_v := (parent.global_basis.orthonormalized().inverse() * velocity) if parent else velocity
+	var fwd := -local_v.z
+	_accel = lerpf(_accel, (fwd - _prev_fwd) / dt, 1.0 - exp(-20.0 * dt))
+	_prev_fwd = fwd
+	if was and not moving and free and _loco.weight > 0.3:
+		# The stop: the stride runs on to the next foot down, then the gait goes out.
+		_stopping = true
+		_stop_to = _loco.next_contact(not _back)
+		var freq := _cadence()
+		_stop_rate = maxf(freq, absf(_stop_to - _loco.phase) / maxf(stop_max, 0.05))
+	if moving or not free:
+		_stopping = false
+	# The gait's own speed: follows the body's (so the walk, the run and the sprint show in turn)
+	# and holds while a stop finishes its stride.
+	var want_speed := speed
+	if boosting and on_floor:
+		want_speed = maxf(want_speed, 8.0)
+	if moving:
+		_gait_speed = lerpf(_gait_speed, want_speed, 1.0 - exp(-gait_follow * dt))
+	elif not _stopping and not _stepping and _loco.weight < 0.05:
+		# (held while a stop's pose fades out, so the feet do not change gait as they settle)
+		_gait_speed = lerpf(_gait_speed, 0.0, 1.0 - exp(-gait_follow * dt))
+	# Where the lower body points: toward the way he goes, the chest staying on the aim.
+	var locked := _facing_locked()
+	var rel := 0.0
+	var flat := Vector2(velocity.x, velocity.z)
+	if flat.length() > 0.5:
+		rel = wrapf(atan2(-velocity.x, -velocity.z) - vis_yaw, -PI, PI)
+	if moving and locked:
+		_back = absf(rel) > (1.75 if _back else 2.05)
+	elif moving:
+		_back = false
+	var hips_want := 0.0
+	if moving:
+		var off := wrapf(rel - PI, -PI, PI) if _back else rel
+		var reach := strafe_max if locked else turn_lead_max
+		hips_want = clampf(off, -reach, reach)
+		_feet_yaw = vis_yaw + _loco.hips_yaw
+		_stepping = false
+	elif free and not _stopping:
+		# On the spot: the feet stay where they are while the body turns, until he steps round.
+		var lag := wrapf(_feet_yaw - vis_yaw, -PI, PI)
+		if not _stepping and absf(lag) > turn_step_angle:
+			_stepping = true
+			_gait_speed = 0.0
+		if _stepping:
+			var step := turn_step_speed * dt
+			_feet_yaw = vis_yaw + (lag - clampf(lag, -step, step))
+			if absf(wrapf(_feet_yaw - vis_yaw, -PI, PI)) < 0.02:
+				_stepping = false
+				_stopping = true
+				_stop_to = _loco.next_contact(true)
+				_stop_rate = maxf(_cadence(), absf(_stop_to - _loco.phase) / maxf(stop_max, 0.05))
+		hips_want = clampf(wrapf(_feet_yaw - vis_yaw, -PI, PI), -strafe_max, strafe_max)
+	else:
+		_feet_yaw = vis_yaw + _loco.hips_yaw
+	_loco.hips_yaw = lerp_angle(_loco.hips_yaw, hips_want, 1.0 - exp(-(30.0 if not moving else 10.0) * dt))
+	# The weights of the walk, the run and the sprint.
+	var gs := _gait_speed
+	var w_run := smoothstep(walk_run_band.x, walk_run_band.y, gs)
+	var w_spr := smoothstep(run_sprint_band.x, run_sprint_band.y, gs)
+	if _stepping:
+		w_run = 0.0
+		w_spr = 0.0
+	_loco.gait_w = PackedFloat32Array([1.0 - w_run, w_run * (1.0 - w_spr), w_run * w_spr])
+	# The phase, and the gait's weight over the idle.
+	var target := 0.0
+	if _stopping:
+		_loco.phase = move_toward(_loco.phase, _stop_to, _stop_rate * dt)
+		if absf(_loco.phase - _stop_to) < 1e-4:
+			_stopping = false
+		target = _loco.weight # held while the stride finishes, then it goes out
+	elif moving:
+		_loco.phase += _cadence() * dt * (-1.0 if _back else 1.0)
+		target = 1.0
+	elif _stepping:
+		_loco.phase += 1.1 / HeroLoco.cycle_seconds(0) * dt
+		target = turn_step_weight
+	if not _stopping:
+		_loco.phase = fposmod(_loco.phase, HeroLoco.period())
+	var fade := loco_fade_in if target > _loco.weight else (loco_fade_out if on_floor else 0.1)
+	_loco.weight = move_toward(_loco.weight, target, dt / maxf(fade, 0.02))
+	# The chest's drive into the acceleration (a spring: it settles past upright after a stop).
+	var drive_want := clampf(_accel * accel_drive, -drive_max, drive_max) if on_floor else 0.0
+	_drive_v += (drive_stiffness * (drive_want - _drive) - drive_damping * _drive_v) * dt
+	_drive += _drive_v * dt
+	_drive = clampf(_drive, -drive_max * 1.5, drive_max * 1.5)
+	_loco.drive = _drive if on_floor else _drive * 0.3
+	# The lean into a running turn, about the feet.
+	var roll_want := 0.0
+	if on_floor and speed > 3.0 and not locked:
+		roll_want = clampf(atan(speed * _vel_yaw_rate / 9.8) * bank_gain, -bank_max, bank_max)
+	_roll = lerpf(_roll, roll_want, 1.0 - exp(-6.0 * dt))
+	# The landing's dip (a spring the land-and-run kicks).
+	_dip_v += (-dip_stiffness * _dip - dip_damping * _dip_v) * dt
+	_dip += _dip_v * dt
+	_dip = clampf(_dip, -0.05, 0.22)
+
+
+## Gait cycles a second at the gait's speed: each clip at its stride-matched rate, blended.
+func _cadence() -> float:
+	var gs := maxf(_gait_speed, 0.3)
+	var rates := [clampf(gs / HERO_WALK_SPEED, HERO_WALK_RATE.x, HERO_WALK_RATE.y),
+		clampf(gs / HERO_RUN_SPEED, HERO_RUN_RATE.x, HERO_RUN_RATE.y),
+		clampf(gs / HERO_SPRINT_SPEED, HERO_SPRINT_RATE.x, HERO_SPRINT_RATE.y)]
+	var f := 0.0
+	for i in 3:
+		f += _loco.gait_w[i] * rates[i] / HeroLoco.cycle_seconds(i)
+	return f
+
+
+## In a vehicle the player stops driving the Avatar: the gait, its springs and the body's lean
+## would hang on as they were (a bike's HeroRide poses from an upright body), so they go once.
+var _was_driving := false
+
+
+func _physics_process(_delta: float) -> void:
+	if _loco == null or _player == null or not _player.has_method("is_driving"):
+		return
+	var driving: bool = _player.is_driving()
+	if driving and not _was_driving:
+		_loco_reset()
+		_lean = 0.0
+		_tilt = 0.0
+		_bank = 0.0
+		transform = Transform3D.IDENTITY
+	_was_driving = driving

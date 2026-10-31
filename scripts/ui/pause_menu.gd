@@ -87,6 +87,11 @@ func _ready() -> void:
 		var photo := PhotoMode.new()
 		photo.name = "PhotoMode"
 		get_parent().add_child.call_deferred(photo)
+	# The verify pack (scripts/ui/verify_pack.gd, docs/VERIFY.md) beside it.
+	if VerifyPack.enabled() and get_parent() and get_parent().get_node_or_null("VerifyPack") == null:
+		var verify := VerifyPack.new()
+		verify.name = "VerifyPack"
+		get_parent().add_child.call_deferred(verify)
 	var city := get_tree().get_first_node_in_group("city")
 	if city:
 		seed_edit.text = str(city.get("world_seed"))
@@ -198,6 +203,15 @@ func _apply_seed() -> void:
 	get_tree().paused = false
 	_open = false
 	get_tree().reload_current_scene()
+
+
+## Closes the menu and runs the verify pack (it puts the game back as it was when it is done).
+func _start_verify() -> void:
+	var pack := _scene_node("VerifyPack")
+	if pack == null or bool(pack.get("running")):
+		return
+	close()
+	pack.call("run")
 
 
 ## Lights the weather and graphics buttons for what is in force now.
@@ -530,11 +544,24 @@ func _build() -> void:
 	column.add_child(seed_row)
 	column.add_child(_spacer(22.0))
 
+	# Settings and the verify pack share a row (a fourth big button pushed Quit into the footer).
+	var extras := HBoxContainer.new()
+	extras.add_theme_constant_override("separation", 18)
 	if GameSettings.enabled():
 		var settings := _big_button("Settings")
 		settings.name = "SettingsButton"
 		settings.pressed.connect(func(): _show_settings(true))
-		column.add_child(settings)
+		extras.add_child(settings)
+	if VerifyPack.enabled():
+		var verify := _big_button("Verify pack")
+		verify.name = "VerifyButton"
+		verify.tooltip_text = "Takes the ten reference pictures on this machine (docs/VERIFY.md)"
+		verify.pressed.connect(_start_verify)
+		extras.add_child(verify)
+	for b in extras.get_children():
+		(b as Control).custom_minimum_size.x = 301.0 # half the column each
+	if extras.get_child_count() > 0:
+		column.add_child(extras)
 
 	var quit := _big_button("Quit")
 	quit.pressed.connect(func(): get_tree().quit())

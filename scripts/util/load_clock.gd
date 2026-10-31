@@ -69,5 +69,10 @@ static func loaded(tree: SceneTree) -> void:
 	if profiling:
 		print_profile()
 	print("LOADING total: %d ms (at %d ms)" % [Time.get_ticks_msec(), Time.get_ticks_msec()])
+	# LOAD_FIRST_MINUTE=<s>: watch what still pops in after the load for that long, then quit.
+	# (Loaded by path: the Sfx autoload compiles this script before the other autoloads exist.)
+	if OS.get_environment("LOAD_FIRST_MINUTE") not in ["", "0"] and tree:
+		load("res://scripts/util/first_minute.gd").call("start", tree)
+		return
 	if quit_after_load() and tree:
 		tree.quit()

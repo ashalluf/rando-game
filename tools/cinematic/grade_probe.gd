@@ -11,7 +11,10 @@ extends SceneTree
 ##     xvfb-run -a -s "-screen 0 1280x720x24" godot --rendering-driver vulkan --display-driver x11 \
 ##     --audio-driver Dummy --path . --script tools/cinematic/grade_probe.gd --resolution 960x540
 ##
-## Writes OUT_<hour>.png per hour. FRAMES per hour (default 20); YAW / PITCH / CAM_Y the camera;
+## Writes OUT_<hour>.png per hour. FRAMES per hour (default 20; on lavapipe Forward+ the GI takes
+## ~90 frames to settle, and with several HOURS each one starts from the last one's light - at
+## 18:00 p5 read 31 after a cold start, 46 after 17:30, 41 converged: use FRAMES=90 for a verdict,
+## fwd-review-f); YAW / PITCH / CAM_Y the camera;
 ## HOUR_GRADE=0 the old single curve.
 
 var _frame := 0

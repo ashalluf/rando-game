@@ -104,7 +104,7 @@ func _paint_of(car: Vehicle) -> ShaderMaterial:
 			continue
 		for si in m.mesh.get_surface_count():
 			var mat := m.get_surface_override_material(si) as ShaderMaterial
-			if mat != null and (mat.shader == Vehicle.PAINT_SHADER or mat.shader == CarDamage.PAINT_DAMAGE_SHADER):
+			if mat != null and (mat.shader == Vehicle.PAINT_SHADER or mat.shader == CarDamage.PAINT_DAMAGE_SHADER or mat.shader == CrashBreakup.OPEN_PAINT):
 				return mat
 	return null
 
