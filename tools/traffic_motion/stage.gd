@@ -35,7 +35,7 @@ static func stage(tm: TrafficManager, kind: String, cam: Camera3D) -> String:
 	_turn = 0
 	var plan := tm.plan
 	var cp := WorldState.to_world(cam.global_position)
-	var road := _find_road(tm, Vector2(cp.x, cp.z))
+	var road := _find_road(tm, Vector2(cp.x, cp.z), kind == "pull")
 	if road.is_empty():
 		print("TMOTION: no street")
 		return ""
@@ -63,10 +63,10 @@ static func stage(tm: TrafficManager, kind: String, cam: Camera3D) -> String:
 			_add(_car)
 			# Low on the kerb a few metres short of the standing car, looking back up the lane at
 			# the one coming in: it stops about five metres away, three-quarter front on.
-			# Low in the empty oncoming lane a little short of the standing car, looking back up the
-			# lane at the one coming in: it stops a few metres away, three-quarter front on.
-			var at := stop_at - float(dir) * 4.0
-			return _eye(plan, _xz(axis, road_x - kerb * 1.6, at), 1.0, _xz(axis, road_x + kerb * 1.6, stop_at - float(dir) * 18.0), 0.55)
+			# Low in the empty oncoming lane a little past the standing car, looking back up the lane
+			# at the one coming in: it stops about a dozen metres away, three-quarter front on.
+			var at := stop_at + float(dir) * 6.0
+			return _eye(plan, _xz(axis, road_x - kerb * 1.6, at), 1.0, _xz(axis, road_x + kerb * 1.6, stop_at - float(dir) * 14.0), 0.55)
 		"pull":
 			var line := plan.road_pos(cross, k) - float(dir) * (plan.road_width(cross, k) * 0.5 + tm.stop_line_back)
 			if TrafficSignals.is_signal(plan, _node.x, _node.y):
@@ -91,15 +91,15 @@ static func stage(tm: TrafficManager, kind: String, cam: Camera3D) -> String:
 			if _turn == 0:
 				return ""
 			_green_at = 0.0
-			_car = tm.place_car(axis, index, dir, 0, hi - 34.0, 8.0, true, Vehicle.BodyType.SEDAN)
+			_car = tm.place_car(axis, index, dir, 0, hi - 26.0, 7.0, true, Vehicle.BodyType.SEDAN)
 			_add(_car)
-			# The far corner of the junction the car turns toward, looking back at the turn.
 			var cpos := plan.road_pos(cross, k)
 			var cw := plan.road_width(cross, k) * 0.5
-			# Past the junction in the oncoming lane, facing back: the car comes on and turns off.
-			var eye := _xz(axis, road_x - kerb * 1.5, cpos + float(dir) * (cw + 9.0))
-			var centre := _xz(axis, road_x + kerb * 1.0, cpos - float(dir) * 3.0)
-			return _eye(plan, eye, 1.3, centre, 0.6)
+			# On the far corner across from where it turns, raised a little, looking back at the
+			# junction's near side: the car comes up to it and turns off across the frame.
+			var eye := _xz(axis, road_x - float(_turn) * (half_w + 2.0), cpos + float(dir) * (cw + 2.0))
+			var centre := _xz(axis, road_x, cpos - float(dir) * 5.0)
+			return _eye(plan, eye, 3.2, centre, 0.4)
 	return ""
 
 
@@ -131,6 +131,7 @@ static func advance(tm: TrafficManager, seconds: float) -> void:
 			TrafficSignals.force(tm.plan, _node.x, _node.y, _axis, TrafficSignals.Light.GREEN, 0.05)
 		if _turn != 0 and is_instance_valid(_car) and int(_car.traffic.axis) == _axis and _car.traffic.get("node", Vector2i.ZERO) == _node:
 			_car.traffic.turn = _turn
+			_car.traffic.sign_ok = true # (a stop sign would hold the still's car at the line)
 		tm._drive_streets(dt)
 		for c in tm.cars:
 			if is_instance_valid(c):
@@ -141,7 +142,9 @@ static func advance(tm: TrafficManager, seconds: float) -> void:
 				rad_to_deg(st.pitch) if st else 0.0, rad_to_deg(st.roll) if st else 0.0, rad_to_deg(st.steer) if st else 0.0])
 
 
-static func _find_road(tm: TrafficManager, near: Vector2) -> Array:
+## The nearest open city street with a block of 120 m and more: one lane each way, or (`signal`,
+## for the queue at a red) any street whose junction at the block's far end has signals.
+static func _find_road(tm: TrafficManager, near: Vector2, signal: bool = false) -> Array:
 	var plan := tm.plan
 	var best := []
 	var bd := INF
@@ -151,9 +154,13 @@ static func _find_road(tm: TrafficManager, near: Vector2) -> Array:
 		var i0 := c0.x if axis == CityPlan.AXIS_X else c0.y
 		var k0 := c0.y if axis == CityPlan.AXIS_X else c0.x
 		for index in range(i0 - 6, i0 + 7):
-			if TrafficAI.lanes_of(plan, axis, index) >= 2 or tm._rail_street(axis, index):
+			if (TrafficAI.lanes_of(plan, axis, index) >= 2 and not signal) or tm._rail_street(axis, index):
 				continue
 			for k in range(k0 - 6, k0 + 7):
+				if signal:
+					var n := Vector2i(index, k + 1) if axis == CityPlan.AXIS_X else Vector2i(k + 1, index)
+					if not TrafficSignals.is_signal(plan, n.x, n.y):
+						continue
 				var lo := plan.road_pos(cross, k) + plan.road_width(cross, k) * 0.5
 				var hi := plan.road_pos(cross, k + 1) - plan.road_width(cross, k + 1) * 0.5
 				if hi - lo < 120.0:
