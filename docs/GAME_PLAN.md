@@ -4089,3 +4089,12 @@ none of either.
   material are merged (the knee-high plants: sunset -37 % draws); palm shadow twins follow the
   trees' shadow LOD rule (the one cut that moves pixels: frond-shadow speckle at 100+ m). All
   behind HORIZON_TILES / FAR_COVER_HIDE / PLANT_MERGE / PALM_SHADOW_LOD =0.
+- **2026-10-31 Traffic that reads alive at eye level (traffic-behaviour-2, HANDOFF "Traffic that
+  reads alive at eye level").** The street traffic's IDM queues stood like parked furniture at a
+  red; now drivers creep, inch, ease off the brake, signal out of a bus stop, wait in the box to
+  turn left, give a crosswalk room, get round a wreck, and turn their heads. Decisions: one static
+  file on hook lines (traffic-motion owns how a kinematic car's body and wheels move, this owns what
+  the driver decides); state rides in the car's `traffic` dictionary (`tb_*`), so the pool resets it;
+  heads are a uniform on the car's own glass copy, written only on a change and only near the camera;
+  every per-car tick is O(1) (the obstacle survey is every 0.4 s, the oncoming scans only for cars
+  waiting to turn left). TRAFFIC_BEHAVIOUR=0 is the A/B.

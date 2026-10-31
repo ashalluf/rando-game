@@ -1192,6 +1192,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`t.tm_logic`), never the drawn one; `queue_react()` gives followers a beat (not `placed` cars).
   `TRAFFIC_MOTION=0` the A/B; stills `TMOTION=brake|pull|turn` on still_shot.gd; bench
   `tools/traffic_motion/bench.tscn`; checks `tests/traffic_motion_checks.gd`.
+- Traffic behaviour (2026-10-31, docs/HANDOFF.md "Traffic that reads alive at eye level"):
+  `TrafficBehaviour` (`scripts/npc/traffic_behaviour.gd`, static; hooks: `begin_tick()` in
+  `_drive_streets`, `street_stop()` / `want_shift()` / `post_speed()` in `_drive_street`, `tb_foot` in
+  `Vehicle._tick_lights`) - half the drivers stop short at a red and creep to the line, queued cars
+  inch up (brake lamps go off and on down a queue), a foot eases off the brake at a stop, a bus
+  signals left before it pulls out, left-turners wait in the box for an oncoming gap (and clear on
+  the amber), cars wait back from a busy crosswalk, a car standing in a lane (wreck, knocked out:
+  `survey()` every 0.4 s) is changed round via TrafficAI on two lanes or edged round (`tb_dodge`, a
+  negative kerb shift) when the oncoming side is clear, slowly. Heads: car_cabin.gdshaderinc
+  `occupant_look` (radians to the car's right, driver / passengers) on the car's own glass copy,
+  cars within 30 m of the camera. State is `tb_*` keys in `traffic`; placed cars only with `tb`. `TRAFFIC_BEHAVIOUR=0` is the A/B;
+  stills `TB2=wreck|left|heads|bus` on still_shot.gd (`tools/traffic_behaviour/stage.gd`); checks
+  `tests/traffic_behaviour_2_checks.gd`.
 - Street signs (2026-10-05, docs/HANDOFF.md "The street's signs"): `StreetSigns`
   (`scripts/world/street_signs.gd`) places them, `StreetSignKit` (`street_sign_kit.gd`; BoulevardSigns has the other `SignKit`) builds them in code at
   real size (plates, sheeting border and legend a few mm proud, mill backs, round galvanised

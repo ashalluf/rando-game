@@ -24835,3 +24835,79 @@ the counter (a LOD'd MultiMesh surface counts once per draw, trap 3) - measure i
 the plain run grows 0.3 GB a hop too. (4) Beach / pier night "Other" was not broken down past the
 horizon pieces (OSPLIT ranks stems by an estimate that misses them). (5) Forward+ not looked at
 (geometry-only cuts; the palm shadows were judged on opengl3).
+
+## 9kb. Traffic that reads alive at eye level (fleet wave 4, `wt/traffic-behaviour-2`, 2026-10-31)
+
+The task: "cars that creep at a red, drivers' heads that turn, brake lights that flicker on and off
+in a queue, a bus pulling out with its indicator, cars giving way to a pedestrian mid-crossing, a
+car waiting to turn left across traffic, cars dodging a wreck", on TrafficManager + TrafficAI's
+hooks only, every per-car tick O(1); traffic-motion owns wheels, steering and body motion.
+
+**The file:** `scripts/npc/traffic_behaviour.gd` (`TrafficBehaviour`, static). Hooks, one line each:
+- `TrafficManager._drive_streets()`: `TrafficBehaviour.begin_tick(self, delta)` after the lane groups
+  are built (the obstacle survey every `OBSTACLE_EVERY` 0.4 s, the heads every third tick).
+- `TrafficManager._drive_street()`: `street_stop(...)` before the siren block returns the nearest
+  extra place to stand (a gap from the nose, fed to the IDM, `room` and `still` like every other
+  stop); `want_shift(t, want_shift)` after the kerb shift is worked out; `post_speed(...)` after the
+  react block (the creep and the inch override the "closed up: stand still" clamp, never `room`).
+- `Vehicle._tick_lights()`: a traffic car with `tb_foot` in its dict is not braking.
+State is `tb_*` keys in the car's `traffic` dictionary, so pooling resets it. A car a check or a
+still PLACED (`place_car()`, `placed`) is left alone unless it carries `tb` (TrafficAI's `ai` rule:
+the street-life and traffic-AI checks measure placed cars' stops to the centimetre).
+
+**What it does** (consts at the top of the file):
+- CREEP: `CREEP_SHARE` of drivers (not buses / big vehicles) stop `CREEP_SHORT` (1.7-3.4 m) short of
+  a red's line, stand `CREEP_AFTER` (2-6.5 s), then roll up at `CREEP_SPEED` to the line's own stop
+  point (`tb_creep` 0 approach, 1 standing short, 2 creeping, 3 done).
+- INCH: a car standing with `INCH_SLACK`+ of slack before the next still thing (the IDM's clamp
+  leaves up to 1.2 m) rolls up after `INCH_AFTER`; when the front car creeps, the queue follows car
+  by car, and each one's brake lamps go off while it rolls (speed rising) and on again.
+- FOOT: `FOOT_SHARE` of drivers at a stop lift the brake for `FOOT_FOR` every `FOOT_EVERY` (`tb_foot`).
+- BUS: once its doors close (`dwell` past `dwell_need`) the bus signals left; once `served` it holds
+  `BUS_SIGNAL` more seconds at its stop shift (`want_shift`), then eases out, the indicator on until
+  its shift is under 0.12 m.
+- LEFT TURNS: a car whose rolled turn is a left (not a U-turn) drives into the box and stands with
+  its centre `LEFT_WAIT_AT` short of the junction centre while `oncoming_clear()` finds a moving car
+  of the opposite lanes within `LEFT_GAP_SECONDS` (+ the time still to reach the turn); it commits
+  only within 3 m of the wait point, goes when the light is no longer green (clearing the junction)
+  or after `LEFT_GIVE_UP`. The scan is over the oncoming lane groups, only for cars about to turn left.
+- CROSSWALK: somebody on the far crosswalk (`Pedestrian.crosswalk_busy`): the car waits `POLITE_BACK`
+  back from it (the old rule stopped the nose 0.2 m off the stripes) and its driver looks at it.
+- WRECKS: `survey()` puts every non-traffic car standing in a travel lane within `OBSTACLE_REACH` of
+  the player (wrecks, cars knocked out of the traffic, one the player left in the road; not parked
+  cars, which sit in the parking lane, nor anything in a junction box) on its lane keys. A car with
+  one in its lane ahead: on a two-lane road it asks TrafficAI for the other lane (`lc_want`, reason
+  "pass"; TrafficAI signals and waits for the gap) and stands behind it meanwhile; on a one-lane road
+  it edges toward the centre line (`tb_dodge`, a negative kerb shift, `DODGE_CLEAR` 2.35 m from the
+  obstacle's centre) once the oncoming side is clear for 5 s, signalling left, and back after it.
+  Everybody passing anything standing on the road slows to `RUBBERNECK_SPEED` and looks at it.
+- HEADS: car_cabin.gdshaderinc `uniform vec2 occupant_look` (radians toward the car's right; x the
+  driver, y the passengers) turns the traced head's face / hair pattern (the sphere point is
+  rotated back before `person_albedo` reads it). `_heads()` writes it on the car's OWN glass copy
+  (never the shared one; occupied traffic cars have their own) for cars within `LOOK_RANGE` 30 m of
+  the camera, only when it moved by 0.025 rad. Targets (`look_target()`): what street_stop set
+  (wreck, crosswalk, the oncoming lane), the player within 14 m, glances both ways before a turn,
+  idle glances (more while standing); passengers look at the driver or out of their window.
+  `look_override` holds every head on one point for stills.
+
+**Checks** `tests/traffic_behaviour_2_checks.gd` (39 with the smoke test's own; alone:
+`SMOKE_PARTS=traffic_behaviour_2_checks`, ~3.5 min): creep (stood 3.6 m short, ends 0.38 m short,
+never past), the car behind inches 3.6 m, never closer than 2.3 m, the lamps go dark on a foot lift;
+the bus signals 1.9 s at its stop, lamp lit, pulls out signalling, off in its lane; the left-turner
+waits in the box and turns only after the oncoming car; a car waits 1.0 m back from a busy crosswalk
+and looks; a wreck on two lanes is passed in the other lane at <= 4.5 m/s, on one lane edged round
+2.35 m to its side and back; heads turn toward a target either side; the shader reads the uniform.
+
+**Cost** (tools/perf_audit_2/traffic_bench.tscn at the downtown bookmark, headless on the 4-core
+box, `_drive_streets` per tick, six runs each, noise about +-1 ms): on 15.0 ms, off 13.1 ms. About
+1 ms of it is the code (a fast path out after a handful of reads for a moving car with nothing
+near; most calls take the slower path because a red holds every car coming up to it - only its
+last 40 m count), the rest is the behaviour itself (standing cars that inch and creep are placed
+again each tick). The obstacle survey caches what lanes each standing car covers (`_seen`).
+
+**Stills** `TB2=wreck|left|heads|bus TRAFFIC_STEPS=s,s,...` on `tools/glshot/still_shot.gd`
+(`tools/traffic_behaviour/stage.gd`; `TRAFFIC_BEHAVIOUR=0` the before), on `shots/traffic-behaviour-2`.
+
+**Not done / not verified:** the heads only on Compatibility stills (the cabin trace is the same code
+on Forward+); freeway traffic gets none of this (street cars only); a wreck inside a junction box is
+not an obstacle; cyclists, the light rail and motorcycles filtering do not read the obstacles.
