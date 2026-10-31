@@ -119,10 +119,21 @@ static func attach(p: Police) -> void:
 
 
 static func instance() -> PoliceChase:
-	return _inst if _inst != null and is_instance_valid(_inst) and _inst.is_inside_tree() else null
+	if _inst != null and is_instance_valid(_inst) and _inst.is_inside_tree():
+		return _inst
+	# A second Police made and freed (a scene built for a check, a reload) took the instance with
+	# it on its way out; the city's own chase is still there (CI 399).
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree:
+		for n in tree.get_nodes_in_group("police_chase"):
+			if n is PoliceChase and (n as Node).is_inside_tree() and not (n as Node).is_queued_for_deletion():
+				_inst = n
+				return _inst
+	return null
 
 
 func _ready() -> void:
+	add_to_group("police_chase")
 	radio = ChaseRadio.new()
 	radio.name = "Radio"
 	add_child(radio)
