@@ -23212,6 +23212,13 @@ haze on opengl3; not judged on Forward+ (the city does not fit lavapipe).
 **Measured** (refcam hills, opengl3 1280x720): main 2,027,285 tris / 809 draws, after 2,027,405 /
 537. The full ten-camera compare (RC_HILLS=0 against on) is below.
 
+**Ten-camera compare** (`refcams.py compare`, RC_HILLS=0 against on, one load each): only hills
+moves (draws -35 %, tris -0.7 %); freeway is flagged for moved traffic only (its diff map is the
+cars); every other camera within 0-1 levels and 0-2 % of its cost. **Gate** on the merge of main
+`69b73707` + this branch: 4,631 checks in 3 shards, 2 failed - both emergency_checks' ambulance
+stretcher steps, which pass when the file is run alone (`SMOKE_PARTS=emergency_checks`, 57 / 57):
+an intermittent outside this work. Peak RSS 3.52 GB a shard.
+
 **Tools**: `tools/rc_hills/sign_probe.tscn` (headless, seconds: the ground on a grid round the sign
 and the refcam's sight lines to each letter). Checks: `tests/rc_hills_checks.gd` (crags lower than
 wide, the far cull and gain on RockFar's materials, the side projection and its textureGrad, the
