@@ -22467,7 +22467,7 @@ refracting drops.
 `build/refcams/all_off` / `all_on`, `compare`): street_night p5/p50/p95 8/34/138 -> 8/30/140,
 saturation +0.054 (the warm streaks and the darker curtain), triangles +0.5 %, draws +0.3 % - the
 only flagged shot (intended). The other nine are within the noise (pixel |d| <= 0.5, freeway 3.2:
-traffic). Gate (SHARDS=3, merged with main 2026-10-31): 4,464 checks, 0 failed, peak 3.0 GB a shard.
+traffic). Gate (SHARDS=3, merged with main 2026-10-31): 4,464 checks, 0 failed, peak 2.8-3.5 GB a shard.
 Stills on `shots/rc-street-night`.
 
 **Not done / not seen**: the whole street on Forward+ (downtown does not fit lavapipe; the beach
