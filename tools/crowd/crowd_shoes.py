@@ -49,7 +49,7 @@ COLORS = {
     "shoes05": {"sole": [224, 222, 216], "outsole": [74, 74, 76], "lace": [240, 238, 232], "eyelet": [228, 226, 220]},
     "shoes06": {"sole": [222, 220, 214], "outsole": [54, 60, 74], "lace": [36, 44, 74], "eyelet": [40, 48, 78]},
 }
-N_RING = 44               # points round a sole
+N_RING = 36               # points round a sole
 LACE_W, LACE_T = 0.0068, 0.0017
 BINS = 72
 
@@ -346,8 +346,8 @@ def build_laces(ctx, sides, st):
 
         def lace(a, na, b, nb, lift):
             pts, nrs = [], []
-            for k in range(5):
-                t = k / 4
+            for k in range(4):
+                t = k / 3
                 q = a * (1 - t) + b * t
                 ng = na * (1 - t) + nb * t
                 ng /= max(np.linalg.norm(ng), 1e-9)

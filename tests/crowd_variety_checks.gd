@@ -87,7 +87,7 @@ func run(t: Node, _city: Node3D) -> void:
 		worst = maxi(worst, body_tris)
 		bodies = bodies and body_tris > 4000 and hair
 		inst.free()
-	_t._check(bodies and worst <= 16500, "crowd-variety: the new bodies are real, with hair cards, at most 16.5k triangles (worst %d)" % worst)
+	_t._check(bodies and worst <= 20000, "crowd-variety: the new bodies are real, with hair cards, at most 20k (16.5k before crowd-closeup-3's shoes and hands) triangles (worst %d)" % worst)
 	var spread := 0.0
 	if heights.size() == NEW.size():
 		spread = heights.max() - heights.min()

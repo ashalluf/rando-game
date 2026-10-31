@@ -4046,12 +4046,12 @@ func _check_crowd_rigs() -> void:
 			why += " body (one surface, region colours, masked look)"
 		if not hair_ok:
 			why += " hair material"
-		if tris > 20000:
+		if tris > 24000:
 			why += " %d triangles" % tris
 		if why != "":
 			bad.append(path.get_file() + ":" + why)
 		rig.queue_free()
-	_check(rigs >= 26 and bad.is_empty(), "the %d crowd rigs keep the contract (24 bones, clips, masked body with detail UV2, cut-out hair, <= 20k triangles)%s" % [rigs, "" if bad.is_empty() else " " + str(bad)])
+	_check(rigs >= 26 and bad.is_empty(), "the %d crowd rigs keep the contract (24 bones, clips, masked body with detail UV2, cut-out hair, <= 24k triangles: 20k until the shoes' soles and laces and the hands' own budget, crowd-closeup-3)%s" % [rigs, "" if bad.is_empty() else " " + str(bad)])
 	# a rig whose head is covered (the headscarf) is one of the crowd, and never wears a hat
 	var no_hat_ok := true
 	for path: String in ped_script.NO_HAT_MODELS:
