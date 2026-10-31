@@ -2436,6 +2436,9 @@ func _build_roads(block: Dictionary) -> void:
 	elif FarmersMarket.paves(plan, ix, iz, CityPlan.AXIS_X) or FilmShoot.paves(plan, ix, iz, CityPlan.AXIS_X):
 		# A farmers' market's street is closed to cars but still a street (FarmersMarket).
 		_road_slab(Rect2(rx - wx * 0.5, rect.position.y, wx, rect.size.y), asphalt, look_x.material)
+	elif LaHills.is_stairs(plan, CityPlan.AXIS_X, ix + 1, iz):
+		# Too steep to drive: a public stairway up the hill (LaHills).
+		LaHillsBuild.stretch(self, CityPlan.AXIS_X, Rect2(rx - wx * 0.5, rect.position.y, wx, rect.size.y))
 	# Horizontal road on the +Z side, spanning this block's X range.
 	var look_z := _road_look(CityPlan.AXIS_Z, iz + 1, params)
 	var rz := plan.road_pos(CityPlan.AXIS_Z, iz + 1)
@@ -2445,9 +2448,13 @@ func _build_roads(block: Dictionary) -> void:
 		_road_slab(Rect2(rect.position.x, rz - wz * 0.5, rect.size.x, wz), asphalt, look_z.material)
 	elif FarmersMarket.paves(plan, ix, iz, CityPlan.AXIS_Z) or FilmShoot.paves(plan, ix, iz, CityPlan.AXIS_Z):
 		_road_slab(Rect2(rect.position.x, rz - wz * 0.5, rect.size.x, wz), asphalt, look_z.material)
+	elif LaHills.is_stairs(plan, CityPlan.AXIS_Z, iz + 1, ix):
+		LaHillsBuild.stretch(self, CityPlan.AXIS_Z, Rect2(rect.position.x, rz - wz * 0.5, rect.size.x, wz))
 	# The intersection square at the +X +Z corner.
 	if plan.road_open(CityPlan.AXIS_X, ix + 1, rz) or plan.road_open(CityPlan.AXIS_Z, iz + 1, rx):
 		_road_slab(Rect2(rx - wx * 0.5, rz - wz * 0.5, wx, wz), asphalt, look_x.material)
+	elif LaHills.is_stairs(plan, CityPlan.AXIS_X, ix + 1, iz) or LaHills.is_stairs(plan, CityPlan.AXIS_Z, iz + 1, ix):
+		LaHillsBuild.junction(self, Rect2(rx - wx * 0.5, rz - wz * 0.5, wx, wz))
 	if level == Level.FULL:
 		if open_x:
 			_mark_road(true, rx, wx, rect.position.y, rect.end.y, look_x)
