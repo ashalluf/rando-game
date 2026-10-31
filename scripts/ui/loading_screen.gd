@@ -265,6 +265,19 @@ func run(city: Node3D) -> void:
 	print("LOADING dogs: %d ms" % ((Time.get_ticks_usec() - t_dogs) / 1000))
 	print("LOADING people: %d camp figures %d ms, %d rigs %d ms" % [kinds.size(), t_camp / 1000, models.size(), t_rigs / 1000])
 	LoadClock.stop("screen: rigs")
+	# The traffic the first seconds of play would build one car a frame, built here (FirstFill).
+	_step("Filling the streets", 0.99)
+	await _frames(1)
+	LoadClock.start("screen: traffic")
+	var filled: Array = FirstFill.traffic(city.get_node_or_null("Traffic"))
+	print("LOADING traffic filled: %d street, %d freeway, %d built" % filled)
+	LoadClock.stop("screen: traffic")
+	# The window as it stands now (the player settled and the far city, the rehearsal and the rigs
+	# took their time since the preload): whatever it wants that is not standing yet is built
+	# behind the shade, not in the first seconds of play.
+	LoadClock.start("screen: final streaming")
+	_preload_world(city)
+	LoadClock.stop("screen: final streaming")
 	_step("Ready", 1.0)
 	await _frames(2)
 	await _fade_out()
@@ -331,6 +344,96 @@ func _warm_shaders() -> void:
 	# drew them, and a particle system draws through a MultiMesh - its own pipeline variant. The
 	# first rocket used to compile all of it mid-blast. Drawn here once as a one-instance
 	# MultiMesh laid out the way CPUParticles3D lays its buffer out.
+	var effects: Array = effect_list()
+	# A kit's warm() may hand back its MESHES (NightLifeKit's): those are drawn as they are, through
+	# a one-instance MultiMesh at a hundredth of their size - their own materials on their own vertex
+	# format. (Typed `for mat: Material` here, the first mesh aborted the whole warm-up: every effect
+	# after it went unwarmed and the holder of quads was never freed - LoadingFirstFrame, 2026-10-31.)
+	for item: Variant in effects:
+		if not (item is Material or item is Mesh):
+			continue
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
+		mm.use_custom_data = true
+		mm.mesh = item if item is Mesh else quad
+		mm.instance_count = 1
+		mm.set_instance_transform(0, Transform3D.IDENTITY.scaled(Vector3.ONE * (0.01 if item is Mesh else 1.0)))
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		if item is Material:
+			mmi.material_override = item
+		mmi.position = Vector3(0.0, 0.0, -0.3)
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		holder.add_child(mmi)
+	for mat: Material in WeaponFX.warm_mesh_materials():
+		var mi := MeshInstance3D.new()
+		mi.mesh = quad
+		mi.material_override = mat
+		mi.position = Vector3(0.0, 0.0, -0.3)
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		holder.add_child(mi)
+	# Blood decals: the first to use a texture repacks the decal atlas.
+	for dec: Node3D in WeaponFX.warm_decals():
+		dec.position = Vector3(0.0, 0.0, -0.3)
+		holder.add_child(dec)
+	_step("Compiling effects", 0.5)
+	await _frames(warm_frames)
+	await _frames(1)
+	holder.queue_free()
+
+
+func _shader_files() -> PackedStringArray:
+	var out := PackedStringArray()
+	var dir := DirAccess.open("res://shaders")
+	if dir == null:
+		return out
+	for f in dir.get_files():
+		# Exported builds see .remap; the editor sees the file itself.
+		var name := f.trim_suffix(".remap")
+		if not only_shaders.is_empty() and not _wanted(name):
+			continue
+		if name.ends_with(".gdshader"):
+			out.append("res://shaders/" + name)
+	return out
+
+
+func _wanted(file: String) -> bool:
+	for k in only_shaders:
+		if file.contains(k):
+			return true
+	return false
+
+
+## Builds a much wider area than the streamer's normal window, so the opening minute of driving
+## is not solid chunk generation.
+func _preload_world(city: Node3D) -> void:
+	if city == null:
+		return
+	var was: int = city.get("load_radius_blocks")
+	# Only the streamer's own window (LoadingFirstFrame, 2026-10-31): the wider FULL ring this built
+	# (57 FULL chunks against the window's 18) was wanted at LOD the moment play began, so for the
+	# first minute the streamer rebuilt ~48 of them as LOD chunks, a few a tick, drawing them in full
+	# detail meanwhile - ~24 s of loading screen for work thrown away. `LOAD_WIDE_PRELOAD=1` is the old.
+	var radius := preload_radius_blocks if OS.get_environment("LOAD_WIDE_PRELOAD") == "1" else was
+	city.set("load_radius_blocks", maxi(radius, was))
+	city.call("update_streaming", true)
+	city.set("load_radius_blocks", was)
+
+
+func _fade_out() -> void:
+	var t := 0.0
+	while t < 0.45:
+		t += get_process_delta_time()
+		var a: float = 1.0 - clampf(t / 0.45, 0.0, 1.0)
+		if _shade:
+			_shade.modulate.a = a
+		await get_tree().process_frame
+
+
+## Everything the warm-up draws through a one-instance MultiMesh: the effect materials and the
+## kits' materials (or meshes: see _warm_shaders()). Static, so the checks can read the list.
+static func effect_list() -> Array:
 	var effects: Array = WeaponFX.warm_materials()
 	effects.append(Ragdoll.wound_material())
 	# The facade kit only ever draws through a MultiMesh too, so the quads above warmed the wrong
@@ -393,75 +496,4 @@ func _warm_shaders() -> void:
 	# Yard sales' tables, goods, racks and signs (YardSaleKit).
 	if YardSales.enabled:
 		effects.append_array(YardSaleKit.warm())
-	for mat: Material in effects:
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.use_colors = true
-		mm.use_custom_data = true
-		mm.mesh = quad
-		mm.instance_count = 1
-		mm.set_instance_transform(0, Transform3D.IDENTITY)
-		var mmi := MultiMeshInstance3D.new()
-		mmi.multimesh = mm
-		mmi.material_override = mat
-		mmi.position = Vector3(0.0, 0.0, -0.3)
-		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		holder.add_child(mmi)
-	for mat: Material in WeaponFX.warm_mesh_materials():
-		var mi := MeshInstance3D.new()
-		mi.mesh = quad
-		mi.material_override = mat
-		mi.position = Vector3(0.0, 0.0, -0.3)
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		holder.add_child(mi)
-	# Blood decals: the first to use a texture repacks the decal atlas.
-	for dec: Node3D in WeaponFX.warm_decals():
-		dec.position = Vector3(0.0, 0.0, -0.3)
-		holder.add_child(dec)
-	_step("Compiling effects", 0.5)
-	await _frames(warm_frames)
-	await _frames(1)
-	holder.queue_free()
-
-
-func _shader_files() -> PackedStringArray:
-	var out := PackedStringArray()
-	var dir := DirAccess.open("res://shaders")
-	if dir == null:
-		return out
-	for f in dir.get_files():
-		# Exported builds see .remap; the editor sees the file itself.
-		var name := f.trim_suffix(".remap")
-		if not only_shaders.is_empty() and not _wanted(name):
-			continue
-		if name.ends_with(".gdshader"):
-			out.append("res://shaders/" + name)
-	return out
-
-
-func _wanted(file: String) -> bool:
-	for k in only_shaders:
-		if file.contains(k):
-			return true
-	return false
-
-
-## Builds a much wider area than the streamer's normal window, so the opening minute of driving
-## is not solid chunk generation.
-func _preload_world(city: Node3D) -> void:
-	if city == null:
-		return
-	var was: int = city.get("load_radius_blocks")
-	city.set("load_radius_blocks", maxi(preload_radius_blocks, was))
-	city.call("update_streaming", true)
-	city.set("load_radius_blocks", was)
-
-
-func _fade_out() -> void:
-	var t := 0.0
-	while t < 0.45:
-		t += get_process_delta_time()
-		var a: float = 1.0 - clampf(t / 0.45, 0.0, 1.0)
-		if _shade:
-			_shade.modulate.a = a
-		await get_tree().process_frame
+	return effects

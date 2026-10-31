@@ -3846,3 +3846,8 @@ none of either.
   not erase it - the flash's light is scaled by the night (the exposure is set for the moon) and
   the bolt stays the brightest thing in the frame. Forward+ lighting verdicts on lavapipe are taken
   only after the GI has converged (~90 frames). STORM_NIGHT_FLASH=0 is the A/B.
+- **2026-10-31 The first minute is part of the load (loading-first-frame, HANDOFF "The first
+  minute").** Whatever play would build in its first seconds - the traffic, the streamer's own
+  window, wave 3's first-use pipelines - is built behind the shade, and nothing the loading screen
+  builds may be one the streamer throws away at once (the wide FULL preload was). Measured after the
+  shade with LOAD_FIRST_MINUTE, the screen's work headless with LOAD_SCREEN_HEADLESS.

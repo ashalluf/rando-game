@@ -5989,6 +5989,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   WorldState cannot. The loading screen draws its shaders `shader_batch` (16) at a time and
   gives the bar a frame only every `bar_interval_ms` of work: each frame renders the whole city
   behind the screen (3.6 s on llvmpipe).
+- The first minute (2026-10-31, docs/HANDOFF.md "The first minute"): what play would build in its
+  first seconds is built behind the loading shade - `FirstFill` (`scripts/util/first_fill.gd`) the
+  traffic, the preload the streamer's OWN window (a wider FULL ring was rebuilt as LOD for half a
+  minute; `LOAD_WIDE_PRELOAD=1` the old), WarmRehearsal's wave-3 stages (`WARM_WAVE3=0`). A kit's
+  `warm()` may return meshes: `LoadingScreen.effect_list()` draws both (never type that loop).
+  Measure with `LOAD_FIRST_MINUTE=<s>` (FIRSTMIN lines: missing chunks, swaps, cars) and
+  `LOAD_SCREEN_HEADLESS=1` on `tools/load_time/load_time.sh headless`; the desktop launch is
+  OOM-killed on a 15 GB box now, and first-use probes run on opengl3. `FIRST_FILL=0` the A/B.
 - Performance: `Quality` node in the city scene (`scripts/util/quality.gd`) starts desktop at
   **HIGH** (owner, 2026-09-21: "I need it PS5 level graphics" - global illumination is the single
   biggest difference between this and a modern-looking game) and steps down to MEDIUM, LOW and
