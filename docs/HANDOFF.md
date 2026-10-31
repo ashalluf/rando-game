@@ -22054,7 +22054,13 @@ slab that collides, and every bollard read 5 cm afloat.
   sunk 5 cm into the grass parkways (LawnsCloseup's parkway is 5 cm proud), the shelter glass's
   gap, umbrellas and plants that stand on another prop.
 
-**Checks:** `tests/ground_contact_checks.gd` (the table, the shader's inputs, who gets a blob, the
+**Cost:** block_shot GEO at Flower St (2366, 880), 3 x 3 FULL blocks, GROUND_CONTACT=0 -> on:
+5,038,587 -> 5,040,217 triangles (+0.03 %), 3,024 -> 3,026 draws (the quads ride the chunks'
+existing BatchContact and ContactShadows' one MultiMesh; ~270 quads a downtown block, one draw).
+CPU: 32 rays every 0.25 s for the people, one a frame for the player. (The whole-city geo_count
+was OOM-killed on this 15 GB box under llvmpipe.)
+
+**Checks:** `tests/ground_contact_checks.gd` (backyards_checks now leaves the derived BatchContact out of its "other batches keep their counts" list: the yard's grills and loungers have quads of their own) (the table, the shader's inputs, who gets a blob, the
 ground under a point, a well's trunk, a planter on the steepest of a few slopes: level shrubs and a
 box down to the paving). **Stills:** `shots/ground-shadow-contact`.
 **Not done:** feet-bone contact (two small blobs at the soles) - one blob a person for now; the
