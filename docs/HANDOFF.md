@@ -9897,6 +9897,10 @@ with a vase 204, uprights 20-100, monuments 30-340).
 
 ### Not done / not verified
 
+- Gate: traffic_motion_checks' "no tick turns the car" is intermittent on main itself (pass 0.5 deg,
+  fail 129.8 deg, same tree); emergency_checks' stretcher pair failed once in the sharded gate and
+  passed twice alone.
+
 - Not seen on Forward+ (the Mac): every still is opengl3. The night look (chapel windows, gate and
   drive lanterns, floodlit mausoleum) needs a Forward+ look. The bright lines the first night still
   showed on the fence posts are gone (kind codes mid-band, rougher iron); the mausoleum's floodlight
@@ -24911,3 +24915,119 @@ again each tick). The obstacle survey caches what lanes each standing car covers
 **Not done / not verified:** the heads only on Compatibility stills (the cabin trace is the same code
 on Forward+); freeway traffic gets none of this (street cars only); a wreck inside a junction box is
 not an obstacle; cyclists, the light rail and motorcycles filtering do not read the obstacles.
+
+## 9kc. The crowd up close, third pass: soles and laces, hands with a thumb, hair edges, strides (fleet wave 4, `crowd-closeup-3`)
+
+The ask: the crowd at 2-6 m - garment edges and seams, the shoes ("one flat slab"), hands with a
+thumb, hair card edges, the walk's foot slide. Judged with a new bone-framed close-up tool and
+`crowd_lineup.gd`; every rig rebuilt through `tools/crowd`, and the five per-rig tools rerun.
+
+### What was wrong, measured
+
+- **Hands:** the builder cut the skin's hand region to 16 % of the skin budget: 6,282 -> 1,024
+  triangles for both hands, about 500 a hand. The fingers merged into a lumpy club. The baked
+  relaxed pose bent each finger hardest at its MIDDLE joint (26-38 / 36-46 / 20-26 degrees), so a
+  hanging hand read as a hook, and the thumb was never brought in: it stood straight down, apart
+  from the fingers (seen from the front, a claw).
+- **Shoes:** the MakeHuman pack shoe is a smooth closed upper with the sole, laces and stitching
+  only in its photo, cut from ~1,500 to ~650 triangles a shoe. No sole edge, no laces.
+- **Hair:** the cards are near-opaque to their geometric edge and the cut ran as a smooth curve,
+  so every head of hair read as a helmet with a clean outline; the dither was a static sin-hash.
+- **Foot slide:** 16 % of walkers (gait "classic") play the rig's OWN walk at WALK_CLIP_SPEED 0.8
+  m/s, every runner the rig's run at RUN_CLIP_SPEED 2.75 and every jogger the life jog at 3.0 - one
+  constant for 32 rigs from 1.55 to 1.95 m. Measured (the planted toe's backward travel): walk
+  0.67-0.91 m/s, run 2.49-3.48, jog 2.9-3.6. A tall rig's run skated 26 %, a short rig shuffled.
+
+### What it does now
+
+- **Hands** (`tools/crowd/build_character.py`): their own budget, `budget.hands` 2,000 in
+  `crowd_config.json` (the rest of the skin keeps exactly what it had: its share is still worked
+  out from the old 16 %). A relaxed pose: knuckles (22-35 deg) bend more than the middle joints
+  (22-31), the tips little (10-16), and `FINGER_TOGETHER["Thumb"]` 30 swings the thumb in along
+  the index (`fixarms` is the hero's module; the crowd builder only updates its dicts in its own
+  Blender process, so the hero is untouched).
+- **Shoes** (`tools/crowd/crowd_shoes.py`, called by build_character.py after the garments;
+  `CROWD_SHOES=0` in the build's environment leaves the pack shoe as it was). From the shoe mesh and
+  the foot bones, for each of the six pack shoes (`STYLES`: shoes02/05/06 sneakers, 03 a boot, 01
+  a derby, 04 a loafer):
+  - the OUTLINE at the ground: the outermost low vertex per angle bin in the shoe's ellipse
+    metric, smoothed hard (the outermost vertex jitters bin to bin, and the first sole's rim waved),
+    resampled to `N_RING` 36 points, with each point's own ground height (toe spring kept);
+  - the SOLE: a profile swept round it (`build_sole()`), from a strip of underside, up a sidewall
+    standing `welt` proud of the upper (a sneaker's foam, a boot's lug band and welt ledge, a dress
+    shoe's edge with a stacked heel under the back quarter), over a ledge onto the upper, its inner
+    lip 3 mm INSIDE the upper at that height (a horizontal ray finds where the upper is). Height
+    per style from heel to toe (`SOLE.h`). The upper's photographed sole is hidden behind it. The
+    band's metric v is the height up the sidewall (< 0 the underside, past h the ledge), which is
+    what `shoe_paint.py` paints by;
+  - the OUTSOLE: a fan over the band's inner ring, seen at every toe-off (sneaker waves, boot
+    lugs, a dress shoe's heel lift);
+  - LACES on the laced styles: eyelet pairs found on the throat by casting down (up the front of
+    a boot's shaft by casting back), criss-crossing flat four-sided ribbons arched off the upper,
+    each face oriented out from its own centre line (an open tube: recalc guesses), and a bow;
+    metal EYELETS on boots and derbies (a sneaker's are punched in its photo);
+  - all of it "own" parts (region "other": vertex colour 0, never recoloured, like the shoe),
+    gid 90, weighted from the shoe by a data transfer so they bend with the foot. Colours per pack
+    shoe in `COLORS`, `shoe` in a character's config overrides. `garment_paint.paint()` hands kind
+    "shoes" to `shoe_paint.paint_shoes()`, and skips its flat "other" colour for them.
+  - `OWN_CLOTH` in build_character.py: the torso-cover and armpit rules stayed keyed on our own
+    GARMENTS (b, c, f and g, in library clothes, now have own shoe parts and would otherwise have
+    changed which skin is kept).
+  - Budget: `budget.shoes` 1,300 -> 1,700 (the upper keeps its shape), a 36-point sole ring, laces
+    of three spans a segment. The 32 rigs' meshes sum 420,537 -> 513,872 triangles at LOD 0 and
+    +22 % at every importer LOD (`tools/crowd_closeup_3/lod_probe.gd`); a first build at hands 2,600
+    / shoes 2,400 was +35 % and over the gate's limits. The gate's crowd limits were raised for it:
+    the contract 20k -> 24k a rig (worst now 22.9k), garments-2 16k -> 19.5k, crowd-variety 16.5k
+    -> 20k. Downtown frame (geo_count, 800x600): 6.56 M main vs 6.22 M branch, but the two loads
+    drew different crowds and traffic (5,209 vs 4,625 objects): not a usable A/B.
+- **Hair edges** (`shaders/crowd_hair.gdshader`, uniform `closeup`): the alpha near the cut rides
+  a noise of thin streaks along the strands (V runs along the MakeHuman cards), so an edge ends in
+  strand tips; colour streaks the same way; a card seen edge-on thins (`silhouette_fade`); the
+  dither is interleaved-gradient noise, stepped per frame on Forward+ (TAA softens it) and held
+  still on Compatibility. Everything faded to nothing once a streak is under a texel. The opaque
+  ends of cards (a nape cut straight across) are still the card's geometry: the shader cannot tell
+  where a card ends.
+- **Strides** (`scripts/npc/crowd_closeup_3.gd`, `CrowdCloseup3.fit_strides()`, one line after
+  `CrowdGait.apply()` in `Pedestrian._add_model()`): each rig's own walk, run and jog play at its
+  measured speeds (`CrowdStrideTable`, written by `tools/crowd_closeup_3/stride_fit.gd WRITE=1` -
+  the same measure gait_clips.gd uses: the planted toe's backward travel while it is within 1.5 cm
+  of its lowest). Pedestrian's `_own_walk_speed`, `_run_clip_speed`, `_jog_clip_speed`; the rough
+  sleeper's cart push and the beach goer's walk / run read them too. A gait-library walk keeps
+  its own clip's meta.
+- `CROWD_CLOSEUP_3=0` in the environment is the A/B for the runtime parts (the constants, the
+  old hair cut). The rigs themselves are baked; `CROWD_SHOES=0` and the old budgets in the config
+  rebuild the old ones.
+
+### Tools
+
+- `tools/crowd_closeup_3/closeup_shot.gd`: rigs framed on their own bones (PARTS=rhand, lhand,
+  rfoot, lfoot, feet, head, hair, torso, legs, hem, cuff, collar, ankle; YAW, DIST, PHASE, CLIP,
+  LIGHT=street), one grid image per load, seconds a rig.
+- `tools/crowd_closeup_3/stride_fit.gd`: the stride table. RERUN IT (WRITE=1) after any crowd
+  rig rebuild, with hat_fit.gd, face_fit.gd, life_clips.gd, gait_clips.gd and busk_clips.gd; the
+  check measures two rigs again and fails on a stale table.
+
+### Traps
+
+- `import shoes` in a crowd Blender script loads `tools/hero/shoes.py` (crowd_common puts
+  tools/hero on the path) and runs the HERO's lace step on the crowd: the module is
+  `crowd_shoes.py`.
+- `$GODOT` set in one backgrounded shell is not set in the next: an `--import` that is the empty
+  string imports nothing, and the next render is of the OLD rig (the CLAUDE.md trap 1 in another
+  coat). Use the binary's path.
+- Godot's front faces are clockwise and `fix_winding()` only flips a whole object: build open
+  tubes (laces) with each face oriented on its own.
+
+### Checks
+
+`tests/crowd_closeup_3_checks.gd`: a stride row per rig with a person's speeds; crowd_a and
+crowd_n measured again against the table; fit_strides on a classic and a gait walker; the rate
+maths reads the fitted speeds; the hair switch; the builder's shoe hook and hand budget.
+
+### Not done / not verified
+
+- Garment edges and seams: only judged (the existing hems, lips, collars and topstitching hold at
+  2 m on the opengl3 path); nothing changed there. crowd_a's left thumb tip pokes through the
+  jeans in one walk frame (the thumb now lies closer to the thigh).
+- Forward+ / the Mac: the hair dither's temporal path and the soles under SSAO / SSIL are
+  unverified on the real renderer.

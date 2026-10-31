@@ -4098,3 +4098,10 @@ none of either.
   heads are a uniform on the car's own glass copy, written only on a change and only near the camera;
   every per-car tick is O(1) (the obstacle survey is every 0.4 s, the oncoming scans only for cars
   waiting to turn left). TRAFFIC_BEHAVIOUR=0 is the A/B.
+- **2026-10-31 The crowd up close, third pass: build it, then measure it (crowd-closeup-3, HANDOFF
+  "The crowd up close, third pass").** Shoes get real geometry where the eye lands at 2-6 m (a
+  sole's sidewall and the laces), built from the pack shoe's own mesh by the crowd builder rather
+  than new models; hands get their own triangle budget instead of a share of the skin's (the share
+  cut them to 500 triangles a hand); clip rates come from each rig's measured stride, never one
+  constant for every rig (that constant was 0.67-0.91 m/s off by rig). The rigs grew ~5k triangles
+  near; their LODs carry the distance.

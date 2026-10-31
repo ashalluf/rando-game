@@ -244,6 +244,10 @@ var _arm_swing: float = 1.0
 var gait: String = ""
 var _walk_clip: String = WALK_CLIP
 var _walk_clip_speed: float = WALK_CLIP_SPEED
+## The rig's own walk, run and jog clips' ground speeds (CrowdCloseup3.fit_strides: measured per rig).
+var _own_walk_speed: float = WALK_CLIP_SPEED
+var _run_clip_speed: float = RUN_CLIP_SPEED
+var _jog_clip_speed: float = CrowdLife.JOG_CLIP_SPEED
 var _walk_cycles: float = WALK_CYCLES
 var _walk_left_down: float = WALK_LEFT_DOWN
 var _idle_clip: String = IDLE_CLIP
@@ -409,6 +413,7 @@ func _add_model() -> bool:
 		fix_arm_pose(_anim, path)
 		if _lives():
 			CrowdGait.apply(self, _anim, _life_seed)
+		CrowdCloseup3.fit_strides(self)
 		_has_walk = _anim.has_animation(_walk_clip)
 		_has_run = _anim.has_animation(RUN_CLIP)
 		_has_idle = _anim.has_animation(_idle_clip)
@@ -467,13 +472,13 @@ func _animate_gait() -> void:
 		rate = 1.0
 	elif _jogger and _life_ok and _panic_left <= 0.0 and _speed > 1.2:
 		_set_clip(CrowdLife.JOG, 0.3)
-		rate = _speed / (CrowdLife.JOG_CLIP_SPEED * _stride)
+		rate = _speed / (_jog_clip_speed * _stride)
 	elif _pivoting and _speed < 0.35 and _has_walk:
 		_set_clip(_walk_clip, 0.3)
 		rate = pivot_cadence * WALK_CLIP_SPEED / _walk_clip_speed
 	elif _speed > run_clip_from - (0.4 if _clip == RUN_CLIP else 0.0) and _has_run:
 		_set_clip(RUN_CLIP, 0.3)
-		rate = _speed / (RUN_CLIP_SPEED * _stride)
+		rate = _speed / (_run_clip_speed * _stride)
 	elif _speed > (0.22 if _clip == _idle_clip else 0.1) or not _has_idle:
 		_set_clip(_walk_clip, 0.35)
 		rate = maxf(_speed, 0.4) / (_walk_clip_speed * _stride)
@@ -1068,6 +1073,7 @@ static func hair_material(albedo: Texture2D, look_mat: ShaderMaterial, grime: fl
 	mat.set_shader_parameter("hair_color", color)
 	mat.set_shader_parameter("hair_strength", strength)
 	mat.set_shader_parameter("grime", grime)
+	mat.set_shader_parameter("closeup", CrowdCloseup3.hair_closeup())
 	_hair_looks[key] = mat
 	return mat
 

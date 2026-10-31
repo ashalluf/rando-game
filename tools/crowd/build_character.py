@@ -147,9 +147,13 @@ RP = CFG.get("rest_pose", {})
 # A hand at rest: the MakeHuman rest hand is flat with the fingers fanned wide, so the crowd's
 # fingers close up more than the hero's clip keys do (these are baked in; there are no finger
 # bones left to key).
-fixarms.FINGER_CURL.update({"Index": (26, 36, 20), "Middle": (30, 40, 22), "Ring": (34, 44, 24), "Pinky": (38, 46, 26)})
-fixarms.FINGER_TOGETHER.update({"Index": 10, "Ring": 7, "Pinky": 15})
-fixarms.THUMB_CURL = (14, 20, 18)
+# crowd-closeup-3: the old curl (26-38 / 36-46 / 20-26 degrees) bent each finger hardest at its
+# middle joint, so a hanging hand read as a hook, and the thumb, never brought in, stood straight
+# down away from it. A relaxed hand bends most at the knuckles, a little less at the middle joint,
+# and its thumb lies along the side of the index.
+fixarms.FINGER_CURL.update({"Index": (22, 22, 10), "Middle": (27, 26, 12), "Ring": (31, 29, 14), "Pinky": (35, 31, 16)})
+fixarms.FINGER_TOGETHER.update({"Index": 8, "Ring": 6, "Pinky": 12, "Thumb": 30})
+fixarms.THUMB_CURL = (10, 16, 14)
 curl = fixarms.finger_curl(arm)
 activate(arm)
 bpy.ops.object.mode_set(mode='POSE')
@@ -240,6 +244,15 @@ if CFG.get("outfit"):
     import garments  # noqa: E402
     OWN = garments.build(body, arm, CFG, NAME)
     meshes += OWN
+OWN_CLOTH = list(OWN)
+# crowd-closeup-3: real soles, outsoles, laces and eyelets on the pack shoes (tools/crowd/crowd_shoes.py),
+# own parts like the garments (painted by shoe_paint.py). CROWD_SHOES=0 builds the shoes as before.
+if os.environ.get("CROWD_SHOES", "1") != "0":
+    import crowd_shoes  # noqa: E402
+    for _so in [o for o in meshes if o.name.split(".")[-1].startswith("shoes") and not o.get("crowd_own")]:
+        _new = crowd_shoes.build(body, arm, CFG, NAME, _so)
+        OWN += _new
+        meshes += _new
 
 # ---- what each object is ----------------------------------------------------------------------------
 def own(o):
@@ -328,7 +341,7 @@ if cover:
     # missed the cloth, the skin was kept, and with the arm down it pushed out through the back
     # of every long-sleeved top. Arm skin is left to its normal (below a sleeve it shows).
     torso_skin = None
-    if OWN:
+    if OWN_CLOTH:
         _bones = {b.name for b in arm.data.bones}
         _gn = {g.index: g.name for g in body.vertex_groups if g.name in _bones}
         _torso = ("Hips", "Spine02", "Spine01", "Spine", "LeftShoulder", "RightShoulder")
@@ -358,7 +371,7 @@ if cover:
             if r.length > 1e-6:
                 r.normalize()
                 covered[v.index] = bvh.ray_cast(w + r * 0.0005, r, reach)[0] is not None
-    if OWN:
+    if OWN_CLOTH:
         # and a miss among covered neighbours is covered too: at the apex of each armpit the
         # normals point across the crease, four vertices missed the cloth, and the ring kept
         # round them was the whole armpit (a garment's real edge has plenty of misses round it)
@@ -588,9 +601,12 @@ for f in bm.faces:
     counts[region_of(f, dl)] += len(f.verts) - 2
 bm.free()
 b_skin = BUDGET["skin"]
-want = {"hand": min(counts["hand"], 0.16 * b_skin)}
+# The hands have a budget of their own (crowd-closeup-3): at 16 % of the skin's (about 500
+# triangles a hand) the fingers merged into a lumpy club with no thumb. The rest of the skin keeps
+# what it had.
+want = {"hand": min(counts["hand"], BUDGET.get("hands", 0.16 * b_skin))}
 want["head"] = min(counts["head"], 0.56 * b_skin)
-want["rest"] = max(b_skin - want["hand"] - want["head"], 0.3 * counts["rest"])
+want["rest"] = max(b_skin - 0.16 * b_skin - want["head"], 0.3 * counts["rest"])
 print("CROWD skin tris by region", counts, "->", {k: int(v) for k, v in want.items()})
 for reg in ("hand", "rest", "head"):
     if counts[reg] > 0:
@@ -1062,7 +1078,7 @@ for o in body_parts:
     lips = lip_faces(o) if rec else set()
     if rec:
         # our own: the painter gets every non-lip triangle; the fold field only the shells
-        gspec = CFG["outfit"][rec["gid"]]
+        gspec = CFG["outfit"][rec["gid"]] if rec["gid"] < len(CFG.get("outfit", [])) else {}
         # 0.7 by default (the library tees ran 0.75): at 1.0 the cuff and ankle stacking rang
         # round every long sleeve like a Michelin man's
         gain = gspec.get("fold_gain", 0.7) * CFG.get("fold_gain", 1.0) if rec["part"] == "shell" else 0.0
