@@ -79,9 +79,12 @@ func _switch() -> void:
 	var was := NightFlight.enabled
 	NightFlight.set_enabled(false)
 	var off_ok := is_equal_approx(NightFlight.street_rank(8.0), 1.0) and is_equal_approx(NightFlight.platoon(123.0, 1.0), 1.0)
-	var g := float(RenderingServer.global_shader_parameter_get("night_flight"))
+	# The dummy renderer (headless) keeps no globals: null there.
+	var g_raw = RenderingServer.global_shader_parameter_get("night_flight")
+	var g := float(g_raw) if g_raw != null else 0.0
 	NightFlight.set_enabled(true)
-	var g_on := float(RenderingServer.global_shader_parameter_get("night_flight"))
+	var on_raw = RenderingServer.global_shader_parameter_get("night_flight")
+	var g_on := float(on_raw) if on_raw != null else 1.0
 	NightFlight.set_enabled(was)
 	_t._check(off_ok and is_zero_approx(g) and is_equal_approx(g_on, 1.0),
 		"NIGHT_FLIGHT=0 puts every street and lane back as it was (global %.0f / %.0f)" % [g, g_on])
