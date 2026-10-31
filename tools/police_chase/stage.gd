@@ -36,6 +36,9 @@ func stage(tree: SceneTree, scene: Node, kind: String, cam: Camera3D) -> String:
 	_police.lose_seconds = 1.0e6
 	_police.accuracy_base = 0.0
 	_police.enabled = true
+	# The player stays where the scene puts him (on foot in view, or in his car): the free camera
+	# would otherwise pull him to itself and every officer would turn to aim at the lens.
+	OS.set_environment("EYE_KEEP_PLAYER", "1")
 	var tm: Variant = scene.get_node_or_null("Traffic")
 	if tm:
 		tm.set("staged", true)
@@ -146,6 +149,8 @@ func _pit(player: Player) -> String:
 	await _ticks(4)
 	player.enter_vehicle(mine)
 	_police.set_wanted(2)
+	# The door he got in by swings shut before the run (CarInteriors holds it open a moment).
+	await _ticks(100)
 	var fwd := Vector3(_u.x, 0.0, _u.y)
 	mine.linear_velocity = fwd * 17.0
 	cop.linear_velocity = fwd * 18.0
@@ -158,6 +163,8 @@ func _pit(player: Player) -> String:
 	for i in int(_live(5.0) * 60.0):
 		await _tree.physics_frame
 		t += dt
+		if chase and chase.pits == 0:
+			mine.linear_velocity = fwd * 17.0 + Vector3.UP * minf(mine.linear_velocity.y, 0.0)
 		if chase and chase.pits == 0 and t > 0.4:
 			chase._pit_cool = 0.0
 			var lat := (cop.global_position - mine.global_position).dot(Vector3(_r.x, 0.0, _r.y))
@@ -190,11 +197,14 @@ func _spikes(player: Player) -> String:
 	var mine := _car(_at(14.0, _lane), _yaw(), Color(0.85, 0.85, 0.82))
 	await _ticks(4)
 	player.enter_vehicle(mine)
-	mine.linear_velocity = Vector3(_u.x, 0.0, _u.y) * 15.0
+	await _ticks(100)
 	mine.hold_crash_watch(3)
+	var fwd := Vector3(_u.x, 0.0, _u.y)
 	for i in int(_live(4.0) * 60.0):
 		await _tree.physics_frame
-		mine.linear_velocity.y = minf(mine.linear_velocity.y, 0.0)
+		# Held at speed until it is on the strip (a staged car with nobody's foot down slows).
+		if ChaseFlatTyres.flats(mine) == 0:
+			mine.linear_velocity = fwd * 15.0 + Vector3.UP * minf(mine.linear_velocity.y, 0.0)
 		if ChaseFlatTyres.flats(mine) >= 2 and i > 0:
 			var after := float(OS.get_environment("CHASE_AFTER")) if OS.get_environment("CHASE_AFTER") != "" else 0.25
 			await _ticks(int(after * 60.0))
@@ -216,4 +226,4 @@ func _doors(player: Player) -> String:
 	print("CHASE doors: %d officers, doors open %s" % [_police.officers.size(), str(PoliceChase.instance().door_cars.has(cop.get_instance_id()) if PoliceChase.instance() else false)])
 	if OS.get_environment("CHASE_EYE") == "front":
 		return _eye(9.0, 1.2, 1.5, 17.0, 0.5, 1.0)
-	return _eye(23.5, 3.6, 1.7, 0.0, -0.5, 1.0)
+	return _eye(23.0, -3.4, 1.45, 4.0, 1.2, 1.1)
