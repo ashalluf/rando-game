@@ -3629,6 +3629,26 @@ already mapped so milestone 2 is script-only.
   its own prop record; Broadway's lanterns at 0.6 of the level. All tuning of existing systems plus
   one quad a lamp; `NIGHT_STREET_REVIEW=0` restores the old numbers.
 
+- **2026-10-30 Traffic that moves like cars (traffic-motion, HANDOFF "Traffic that moves like
+  cars").** Kinematic traffic glided: no dive, squat, lean or bounce, turns snapped 90 degrees at
+  the junction centre, front wheels straightened at every stop, a queue left in one tick.
+  Decisions: the motion is VISUAL only, springs on the body model and its lamps (TrafficMotion,
+  one hook in Vehicle._update_wheels), within 70 m of the camera; gains a little over a real
+  saloon's so a game camera reads them; turns are drawn round a fillet in TrafficManager._place()
+  while the logic keeps its own position (t.tm_logic), so no queue rule changes; a follower waits
+  a hashed beat after the car ahead moves off, but not cars placed by checks. TRAFFIC_MOTION=0 is
+  the A/B.
+- **2026-10-31 Trees are lit THROUGH, and the shadow map stays off their sunlit shell (tree-light-2,
+  HANDOFF "Trees under light").** Judged on a small Forward+ scene under lavapipe (the real batch
+  path, so the shadow twins and ladders are the game's) at 13:00 and 17:36. Decisions: a directional
+  shadow pass pushes leaves back along the light's own axis (`self_shadow_slack`: the ground
+  shadow does not move, the twin's coarse cards stop shading the shell they stand in front of);
+  the crown normal stays rounded on both faces of a card; the light that comes through a crown is
+  an emitted term from an analytic path through the crown's ellipsoid toward the sky and the sun
+  (Godot's BACKLIGHT is one leaf deep and the shadow map kills it inside a crown); the sway gets
+  weight (rate by height, the gust answered late with a swing-back). No mesh, ladder or twin
+  changed. `TREE_LIGHT=0` is the A/B.
+
 ## Correction: what build 135 (0ce833f) actually contained
 
 That commit's subject says "denser grass, real palm fronds, finer ground". It also shipped a
@@ -3779,6 +3799,15 @@ none of either.
   2.6 km, a sky and street that light toward the strike, and water running off the buildings - on
   top of a darker, greener, closed-over day sky. All cheap: no new full-screen pass on the web (the
   inner curtain is desktop only). STORM_DRAMA=0 is the A/B.
+- **2026-10-31, patterned ground without moire (paving-aliasing).** The "moire" on downtown's red
+  forecourts was not aliasing: lot_ground.gdshader truncated its interpolated surface kind with
+  int(), and an interpolated 3.0 reads 2.9999 on some pixel rows, so the paving flipped between red
+  pavers and setts row by row. Decisions: every integer carried through a varying is ROUNDED (or
+  the varying is flat) before int() / floor(); repeating ground lines are box-filtered by their
+  footprint with one include (shaders/pattern_aa.gdshaderinc, the exact integral of a pulse train)
+  rather than widened by fwidth(), which grows a line instead of filtering it; PAVING_AA=0 is the A/B.
+  Wave 4: a laid paving texture fades to its own last mip once its module (PavingAA.MODULE) is
+  under two pixels by the footprint's major axis - mips alone pick the minor axis under anisotropy.
 
 - **2026-10-30 The golden hour review: tune ramps, not systems (golden-hour-review, HANDOFF "The
   golden hour review").** Judged 17:00-19:30 on six views x six half hours by numbers (sky / ground
@@ -3787,6 +3816,26 @@ none of either.
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
 
+- **2026-10-31 Ragdolls that read right (ragdoll-feel, HANDOFF "Ragdolls that read right").** A shot
+  person staggers before falling, a flung one trails its limbs, a car hit wraps over the bonnet, a
+  doll rolls down steps. Decisions: the hit reaction is MUSCLES on the jointed doll (driven toward
+  its standing pose, leaned along the round, then let go), not a clip played before the doll is made
+  - the doll exists from the first frame, so blood, police, Emergency and onlookers are untouched,
+  and the reaction follows the round's direction by construction; what hit the person is a hint said
+  just before the knock (Pedestrian.shot, Vehicle's bumper), so no knock() signature changes; the cap,
+  range and freeze stay RagdollJoints'. RAGDOLL_FEEL=0 is the A/B.
+
+- **2026-10-31 - The night flight (night-flight, HANDOFF "The night flight").** The night aerial is
+  tuned in the shaders that already draw it, never with new geometry: traffic platoons as a smooth
+  noise in the cars' moving frame (the near lamps and the far lane means read the same factor), a
+  street's glow ranked by its width measured from the slab's own UV derivatives (so FULL, LOD and
+  the far plates agree without a table), junctions lit at their corners. NIGHT_FLIGHT=0 is the A/B.
+- **2026-10-31 Cars at arm's length (car-exterior-closeup, HANDOFF "Cars at arm's length")**: what
+  is under a car and inside its arches is a SECOND file per body (`road_<name>_under.glb`), fitted to
+  the loft by raycasts and hung under the placed model, rather than a rebuild of the body .glbs: the
+  bodies, their LODs and far twins stay bit for bit, it is drawn only within 22 m with no shadow, and
+  it can be switched off (CAR_UNDERSIDE=0). The loft's floor was in the paint slot; a black underseal
+  sheet now covers it.
 - **2026-10-31 The street at noon (rc-street-noon, HANDOFF "The street at noon").** Judged the
   street_noon refcam and fixed what reads fake at eye level: asphalt is grey (a photo texture's hue
   and a warm tint are taken out per texture set, proved on Forward+ with a probe of the real

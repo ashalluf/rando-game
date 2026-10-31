@@ -166,6 +166,8 @@ static func road(set_key: String, scale_m: float, tint: Color, seed_value: int, 
 	mat.set_shader_parameter("joint_spacing", joints)
 	mat.set_shader_parameter("albedo_desat", desat)
 	mat.set_shader_parameter("variant_mode", StreetNoonReview.variant_mode(set_key))
+	# Its laid pattern's module, faded to the mean under two pixels (PavingAA, pattern_aa).
+	mat.set_shader_parameter("pattern_module", PavingAA.module_m(set_key, scale_m))
 	# Pavements are patched and stained far less than the carriageway.
 	mat.set_shader_parameter("patch_amount", 0.30 * wear)
 	mat.set_shader_parameter("crack_amount", 0.5 * wear)
