@@ -978,3 +978,23 @@ func _cadence() -> float:
 	for i in 3:
 		f += _loco.gait_w[i] * rates[i] / HeroLoco.cycle_seconds(i)
 	return f
+
+
+## In a vehicle the player stops driving the Avatar: the gait, its springs and the body's lean
+## would hang on as they were (a bike's HeroRide poses from an upright body), so they go once.
+var _was_driving := false
+
+
+func _physics_process(_delta: float) -> void:
+	if _loco == null or _player == null or not _player.has_method("is_driving"):
+		return
+	var driving: bool = _player.is_driving()
+	if driving and not _was_driving:
+		_loco_reset()
+		_lean = 0.0
+		_tilt = 0.0
+		_bank = 0.0
+		transform = Transform3D.IDENTITY
+		if _motion:
+			_motion.hips_drop = 0.0
+	_was_driving = driving
