@@ -3786,3 +3786,13 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+
+- **2026-10-31 Rooms behind the windows, second pass (window-interiors-2, HANDOFF "Rooms behind
+  the windows, second pass").** A city building is either offices or flats (an integer roll on its
+  seed, by window style: half the punched-window buildings are homes), and everything behind a
+  window - the room kind, what hangs at the glass, a TV, an open sash, a worker at the desk - is an
+  integer roll of the building's seed and the window's (face, row, col), in one include both
+  building shaders read, so the far box draws the same home's lamp tone, TV and curtain average the
+  near wall traces. Occupied offices keep their ceiling lights on in office hours (as real ones
+  do), because a worker in a dark room does not read from the street. Zero geometry: it is all
+  traced per pixel on the glass that was already there. WINDOW_INTERIORS=0 is the A/B.

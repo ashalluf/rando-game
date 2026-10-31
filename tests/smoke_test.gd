@@ -2689,6 +2689,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The golden-hour review (tests/golden_hour_review_checks.gd, GoldenHour): the sky's twilight
 	# ramp, the blue zenith at sunset, the eased grade, no pop 17:00-19:30, the A/B.
 	load("res://tests/golden_hour_review_checks.gd").new().run(self, city)
+	# The rooms behind the windows, second pass (tests/window_interiors_checks.gd, WindowInteriors): homes,
+	# covers, TVs, open sashes, office workers; near and far rolling the same.
+	load("res://tests/window_interiors_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
