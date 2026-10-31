@@ -3786,3 +3786,8 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+- 2026-10-31 (web-build-4): the web build after batch 25 loads clean at all eight bookmarks
+  (wasm 723 MB, pck 601 MB of the 650 MB budget). Decision: the painted cloud deck (the web and
+  Forward+ below MEDIUM) closes into a stratus ceiling from coverage 0.62 to 0.78, so rain and
+  storms never fall from a blue sky there; a clear day is untouched. web_build_checks now also
+  holds WebGL2's uniform-block (16 KB) and varying floors.
