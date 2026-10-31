@@ -21980,3 +21980,52 @@ the same way, but judge 18:00 on the Mac first - if it reads milky-pink, raise `
 grass under a low red sun is what it is). The painted cumulus on opengl3 draws a big smooth ellipse in
 the aerial and sky shots (before and after alike; the sky's, not this review's). Dawn shares the sky
 ramp and the exposure ramp (both are symmetric in elevation) and was not looked at.
+
+## 9d?. Gunplay at arm's length (wave 4, `wt/gunplay-feel`)
+
+The guns' feedback seen from the chase camera a metre or two off the hands. Before: the muzzle flash
+was a glowing ball with a billboarded star (from the side, a light bulb on the barrel), every tracer
+a solid cylinder from the muzzle to the hit drawn whole on its first frame (a laser line), every
+bullet hole one grey pit texture tinted per surface (and NO holes at all on the Compatibility
+renderer: the web), the recoil a lerp of the gun straight back along its bore.
+
+**`GunplayFeel`** (`scripts/weapons/gunplay_feel.gd`) takes over three WeaponFX functions by one
+hook line each (`flash`, `tracer`, `bullet_hole`); `GUNPLAY_FEEL=0` hands them back (the A/B):
+- **The flash is a volume** (`shaders/muzzle_flash.gdshader` on `flash_mesh()`): four lances of
+  flame crossed round the bore, a crown facing down it, four tongues off the sides; each card fades
+  as it turns edge-on, so any view sees a few at a slant adding into a volume. Value-noise breakup
+  by a per-shot seed, cooling white -> orange -> nothing over the flash's life, rolled at random.
+  Colours linear, `cs_out()`. Three lights: ahead down the bore (the old one, with volumetric fog
+  energy), one just behind the muzzle on the hands and gun, one on the wall the barrel points at
+  (one world ray, 4-22 m). Web: the ahead light only. WeaponFX's gas puffs and grit stay
+  (`WeaponFX.flash_gas()`, its every-third-shot cadence).
+- **The barrel smokes after a burst**: `BarrelSmoke` (a CPUParticles3D under the muzzle, world
+  space, lit puffs) heats by `heat_per_round` a round (double for a slow gun), cools by `heat_cool`
+  a second and emits only while hotter than `smoke_from_heat` and 0.12 s after the last round.
+- **Tracers** (`shaders/tracer_streak.gdshader` on one shared quad down -Z, the node scaled to the
+  round's length): turned to the camera about its axis in the vertex stage, never under `min_px`
+  (1.6) pixels (thinner rounds dimmed rather than widened), a short hot streak at the round's place
+  (`head`, tweened at `WeaponFX.tracer_head_speed`) with a faint trail of the air behind it.
+- **Marks by surface** (`HoleArt`, `scripts/weapons/hole_art.gd`, painted from one height field
+  into albedo + OpenGL normal + ORM; baked by `tools/gunplay/make_holes.gd` into
+  `assets/textures/bullet_holes/`, 3 variants x concrete / metal / wood / dirt / glass + the
+  shotgun pattern; GDScript took 21 s to paint them, so they ship as files and are painted only
+  if one is missing): a spalled crater with straight jagged cracks in concrete, a punched hole with
+  a petalled lip and chipped ring of bare steel (metallic 1 in the ORM) in metal, a split along the
+  grain with pale torn fibres in wood, a soft crater and clods in dirt, a crack star in glass. A
+  Decal on Forward+, a lit alpha quad on Compatibility (`_mark()`); both join WeaponFX's capped pool
+  (`WeaponFX.keep_hole()`). All in the decal atlas for the session (`WarmRehearsal.atlas_textures()`).
+- **The shotgun**: its pellets set `GunplayFeel.pellet_mode` (pits at `pellet_hole_scale` of a
+  round's hole) and `spread_mark()` puts a smudge of grey lead round three or more pellets bunched
+  in one surface (within 1.6 m), and a ragged rathole at point-blank range (< 2.5 m).
+- **Recoil is a spring** (Weapon's "Recoil" exports: `recoil_rise_deg`, `recoil_roll_deg`,
+  `recoil_yaw_deg`, `recoil_pivot` - the butt, gun space - `recoil_freq`, `recoil_damping`,
+  `camera_punch`): back by `kick_distance`, up, rolled mostly right, about the butt; under-damped,
+  so the gun dips past rest and settles. Stepped in `Weapon.tick()` (physics), applied by ONE line
+  in `Avatar.hold_gun()` (`weapon.apply_recoil()`) after the hold rotation and before the grips
+  are read, so the hands ride it through the IK. Numbers set per gun in `_init()` (AK snappy,
+  shotgun a big slow lift, launcher a shove).
+
+**Stills**: `tools/gunplay/gun_strip.gd` (the test room, a 5 x 3.5 m wall of one surface `WALL` m
+ahead, `VIEW=side|behind|wall|far|front` placed off the gun, `LIGHT=night`, `STRIP=` moments of game
+time, `GEO` per still). Checks: `tests/gunplay_feel_checks.gd`.

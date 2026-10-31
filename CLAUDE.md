@@ -2501,6 +2501,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/glshot/still_shot.gd`): Godot caps a frame at eight physics ticks (0.133 s) however
   long a software frame really takes, so they count the effect's own elapsed time, never the
   wall clock - the wall-clock version stopped every shot in the first milliseconds.
+- Gunplay at arm's length (2026-10-31, docs/HANDOFF.md "Gunplay at arm's length"): `GunplayFeel`
+  (`scripts/weapons/gunplay_feel.gd`, one hook line in WeaponFX's flash / tracer / bullet_hole)
+  draws the flash as crossed flame cards (`muzzle_flash.gdshader`) with lights on the hands, ahead
+  and the wall, a smoking barrel after a burst (`BarrelSmoke`), tracers as camera-facing streaks
+  (`tracer_streak.gdshader`), marks per surface baked from `HoleArt` (`tools/gunplay/make_holes.gd`
+  -> `assets/textures/bullet_holes/`; quads where there are no decals), the shotgun's pits and
+  pattern; recoil is Weapon's spring (`recoil_*` exports, `apply_recoil()` from Avatar.hold_gun).
+  `GUNPLAY_FEEL=0` the A/B; stills `tools/gunplay/gun_strip.gd`; checks `tests/gunplay_feel_checks.gd`.
 - Weapons: subclass `Weapon` (`scripts/weapons/weapon.gd`), build the model in `_build_model()`,
   call `_make_muzzle()`, implement `_fire(aim)`. Register it in `WeaponManager._ready()`. Effects go
   through `WeaponFX` static functions. `Player.get_aim()` is the crosshair ray (origin, direction,
