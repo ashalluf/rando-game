@@ -2897,6 +2897,7 @@ func _spawn_walker(rect: Rect2, sidewalk: float, rng: RandomNumberGenerator) -> 
 	var start := ped._random_ring_point(sidewalk)
 	ped.position = Vector3(start.x, SIDEWALK_TOP + 0.1 + _gy(start.x, start.y), start.y)
 	add_child(ped)
+	CrowdFlow.spawned(self, ped)
 
 
 ## The stall line mesh is shared with the car parks' 4.4 m bays (Commercial); a kerb bay is
