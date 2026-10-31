@@ -22046,3 +22046,20 @@ LOD chunks / the far city are not traced (only Buildings in the tree and the lan
 the set changes every 0.25 s, so a reflected tower can pop as the camera moves. Flat tower tops
 were not touched (Rooftops covers infill roofs). The far boxes' second glass path (the old
 uncoded path) is unchanged.
+
+**Wave 4 (resume, 2026-10-31).** Merged origin/main (batch 25, the golden-hour review: GoldenHour
+leaves DayNight's sky colours on their twilight ramp, which SkylineGlass reads as they are set, so
+nothing to reconcile). The low sun's glow in the glass is a wide fan now (`sg_sky_ratio()`: a broad
+pow(az, 1.6) plus a hot pow(az, 12) core, out to half way up the sky) - a low sun lights a fan of sky
+70 degrees either side, and the old pow 3 spot only reached panes turned almost at the sun.
+Before / after through the refcams (`REFCAMS_JSON` with golden_aerial, downtown_aerial and a third
+camera `street_300m` = Flower St at z 480 looking north up at the core, 14:00, pitch 14):
+`refcams.py compare` flags nothing (golden_aerial pix 0.27, downtown_aerial 1.01, street_300m 2.58,
+luminance within 2 levels, triangles +0..1 %). What reads: street_300m's curtain wall mirrors blue
+sky, clouds and the towers across Flower where it mirrored a flat dark gradient; downtown_aerial's
+tiered tower gets sky in its upper panes; golden_aerial loses the white salt-and-pepper sparkle on the
+far glass towers (the frame step's moire), but from 1.5 km its core is mostly spandrel, stone and
+grade, so the glass changes it little - the broader sun fan does not move it either (the camera
+looks NE, the sunward faces mirror sky 45-60 degrees off the sun). Forward+: a downtown block under
+lavapipe is OOM-killed even at `BLOCKS=home` (15 GB box); a lone curtain-wall tower
+(`building_shot.gd` under vulkan, FINISH=3 STYLE=2) was rendered A/B instead (see below / stills).
