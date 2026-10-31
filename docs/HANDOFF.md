@@ -23317,3 +23317,87 @@ hook line each (`flash`, `tracer`, `bullet_hole`); `GUNPLAY_FEEL=0` hands them b
 **Stills**: `tools/gunplay/gun_strip.gd` (the test room, a 5 x 3.5 m wall of one surface `WALL` m
 ahead, `VIEW=side|behind|wall|far|front` placed off the gun, `LIGHT=night`, `STRIP=` moments of game
 time, `GEO` per still). Checks: `tests/gunplay_feel_checks.gd`.
+
+## 9jf. The water from the beach and the pier, 14:00 and 21:00 (fleet wave 4, `water-review`, branch `wt/water-review`)
+
+**Ask:** the near sea from the beach and the pier at 14:00 and 21:00 - colour, foam, glitter,
+transparency over the sand (ocean-closeup's finish), the pier's and its lamps' reflections at night,
+the swash's wet sand - holding the far sea and the horizon plane's sea.
+
+**Judged on eight views** (`tools/water_review/cameras.json`, through refcams:
+`REFCAMS_JSON=$PWD/tools/water_review/cameras.json SHEET_COLS=4 GODOT=... python3 tools/refcams/refcams.py run build/water/<label>`):
+the beach refcam and the swash at your feet at 14:00, the pier from the beach (the pier_night refcam's
+eye) at 14:00 and 21:00, down from the pier's end both hours, the beach and under the pier at 21:00.
+What gave the water away, in the order the eye lands on it:
+1. **The foam was a pattern**: the surf's bubble net a threshold on Worley F1 (rows of round polka
+   dots from the beach), the inner zone's old lace and the swash's web noise contours (thick white
+   "spaghetti" loops); bores ruler-straight across the frame.
+2. **The sea over the sand was opaque**: a flat grey-blue sheet up to the waterline; the swash sheet
+   darkened the sand by half and tinted it blue, so it read as a grey film.
+3. **At night the pier mirrored as a short band of dots**: lamp columns a twentieth of the way
+   travelled, and nothing of the lit Ferris wheel (the brightest thing on the coast).
+
+**What changed** (all behind `WATER_REVIEW=0`, the `water_review` global, `WaterReview`
+`scripts/world/water_review.gd`, set from `OceanCloseup.apply()`; the old code is kept in the else
+branches):
+- **One foam** (`surf_foam()` in surf.gdshaderinc, so the ocean, the sand and the spray share it): a
+  warped four-octave value noise cut at a threshold that rises with age (fresh = solid, old = islands
+  and threads; holes of every size that merge and split), the fine octaves and faint bubble walls only
+  above a pixel or two, its average below. Used by the bores' trail (behind the bore only - frame
+  `along / 0.62, shore / 0.34`), the inner zone's old lace (`along / 1.7`), the open water's lace and
+  the swash's edge (fresh only a hand's breadth behind the edge). Two dead ends on the way, so do not
+  go back: F2 - F1 edges at a threshold read as leopard spots (every hole the same size), and a
+  multiplied bubble-wall net read as crackle glaze.
+- **Bores**: the leading edge wanders 0.4 of the face up and down along the shore (`rag`), the bore is
+  thinner in some 30 m sections than others (`section`), and fresh whitewater carries churned lumps in
+  its own shade (`ww_tone`).
+- **Clear shallows** (ocean.gdshader, close-up only - `rich`, `near_c`, inside `shallows_reach` 60 m):
+  the view ray is refracted (1/1.333) through the COARSE ripple only (`grad_lens`: the capillaries
+  scattered the floor into dots a pixel apart) down to `oc_seabed(shore)` - the beach's own rows under
+  the water (CityChunk SAND_STEEP_AT / _Y, SAND_WET, SAND_LOW from the water plane's MESH_Y, then 9 cm a
+  metre), which is `SeaSurface.seabed()` line for line (checked) - where `oc_sea_floor()` draws wet sand
+  (`floor_color`, the swash sheet's colour), ripple marks along the shore (faded before 13 cm is under
+  three pixels) and caustics; the floor is dimmed down and back up by `shallow_absorb` (red first, so
+  sand -> jade -> the sea's own colour with depth), cloudier in the surf zone (`shallow_turbid`). No
+  depth texture: the web's renderer path could take it too, but it stays off there with the rest of
+  the close-up pass.
+- **Caustics** (`surf_caustic()`, shared): two drifting, strongly warped Voronoi edge nets crossed,
+  thin cores (a cube of the edge distance), brightest where they cross, patchy; a line is never drawn
+  under 2.5 px (widened and dimmed by as much - at a grazing view a thin core aliased into dotted rows).
+  They are ADDED at the sand's mean colour (`caustic_tone`, `floor_color`), never multiplied into the
+  sand texture: multiplied, every bright grain under a line sparkled in rows down the beach.
+- **The swash sheet** (beach_sand.gdshader): `sheet_darken` 0.50 -> 0.24, `sheet_tint` warmer, so the
+  sand shows through; caustics under it in sun; the fizz faded at 1.5-5 cm a pixel (it faded at 42 cm
+  and drew rows of white specks) and halved.
+- **Night mirror**: lamp columns `0.16 x` the distance travelled (was 0.05), and the pier park's wheel
+  (`oc_wheel_mirror()`: the reflected ray met with the wheel's own plane - it faces north and south -,
+  both rims and twenty spokes in a slow cycle of hues, smeared up the view by the ripple, the energy
+  kept as it spreads; `OceanCloseup.wheel_hub()` from PierPark.WHEEL_AT / DECK_TOP and FerrisWheel.HUB_H
+  / RADIUS, checked); none under the pier park's decks (`wheel_deck()`), which hide it there (the first
+  version flooded the water under the pier in green and orange).
+
+**Held:** the far sea, the hand-over and the horizon plane's sea are untouched (nothing new past
+`near_c`); no texture sampler in the ocean (checked); frame cost flat on all eight views (triangles
++0.0 %, draws -0.9 .. +0.0 %, the refcams compare); the vertex stage (and so SeaSurface, the swimmer,
+the boats) untouched.
+
+**Proof:** opengl3 before / after on the eight views (`build/water/before`, `after`, compare: the beach
+and swash shots flagged for the intended change - p5 +13 / +19, the shallows brighter -, under the pier
+for the lamp columns; the rest under 1 mean pixel). **Forward+ (lavapipe, the Mac's renderer)** with
+`tools/glshot/fwd_block_shot.tscn` (BLOCKS=1 only: BLOCKS=2 peaked past 15 GB and was OOM-killed; one
+eye at a time, ~13 GB): the swash at 14:00 before the caustic tune (caustics far too strong and thick
+there: what set the 0.8 / 1.1 gains and the 2.5 px width), the swash after, the pier at 21:00 (the
+wheel and lamps in coloured columns, SSR adds the signs in the wet sand). Stills on `shots/water-review`.
+
+**Checks:** `tests/water_review_checks.gd` (last in city_files, source text and plain data): the
+shader's sea floor constants and curve against CityChunk / SeaSurface; surf_foam in the four places,
+the old code behind the switch; the shallows close-up only and refracted through the coarse ripple; the
+caustics added, not multiplied, and widened under a few pixels; the sea floor takes its pixel size from
+the caller (no derivatives inside a branch); no sampler; the wheel's hub and deck from PierPark /
+FerrisWheel and on the ocean material; the global declared; `WATER_REVIEW=0` turns it off.
+
+**Not done / not verified:** the 21:00 beach view is near black on both renderers (the moonlit sea is
+lit by the moon only; not this task's grade); the swash's white "line" along the waterline at night is
+the sheet mirroring the night sky and could be dimmer; the pier's own dark structure is not traced into
+the day mirror (Forward+ SSR draws it on the Mac; Compatibility shows sky); the coaster and the arcade
+are not in the night mirror; no Mac stills.

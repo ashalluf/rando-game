@@ -22,6 +22,7 @@ static func enabled() -> bool:
 ## Sets the A/B global and hands the ocean material the piers' pile grids.
 static func apply(mat: ShaderMaterial) -> void:
 	RenderingServer.global_shader_parameter_set("ocean_closeup", 1.0 if enabled() else 0.0)
+	WaterReview.apply()
 	if mat == null:
 		return
 	var grids := pile_grids()
@@ -39,6 +40,21 @@ static func apply(mat: ShaderMaterial) -> void:
 	mat.set_shader_parameter("pile_a", a)
 	mat.set_shader_parameter("pile_b", b)
 	mat.set_shader_parameter("pile_count", n)
+	mat.set_shader_parameter("pier_wheel", wheel_hub())
+	mat.set_shader_parameter("pier_deck", wheel_deck())
+
+
+## The pier park's Ferris wheel for the ocean's night mirror (ocean_closeup.gdshaderinc
+## oc_wheel_mirror()): the hub in TRUE world and the rim radius, from FerrisWheel / PierPark's own
+## constants (PierPark.build() puts the wheel at anchor + WHEEL_AT on the deck). Zero when there is
+## no pier.
+static func wheel_hub() -> Vector4:
+	for lm: Dictionary in Landmarks.all():
+		if str(lm.id) == "pier":
+			var at: Vector2 = lm.anchor
+			return Vector4(at.x + PierPark.WHEEL_AT.x, PierPark.DECK_TOP + FerrisWheel.HUB_H,
+				at.y + PierPark.WHEEL_AT.y, FerrisWheel.RADIUS)
+	return Vector4.ZERO
 
 
 ## The piers' piles as grids in TRUE world XZ: [Vector4(first x, first z, step x, step z),
@@ -108,3 +124,14 @@ static func pile_material(base: Color, rough: float, timber: bool, fallback: Mat
 
 
 static var _mats: Dictionary = {}
+
+
+## The pier park's decks (PierPark.MAIN, NORTH, SOUTH) as one box in TRUE world (x0, z0, x1, z1):
+## the night mirror draws no wheel under them.
+static func wheel_deck() -> Vector4:
+	for lm: Dictionary in Landmarks.all():
+		if str(lm.id) == "pier":
+			var at: Vector2 = lm.anchor
+			var r := PierPark.MAIN.merge(PierPark.NORTH).merge(PierPark.SOUTH)
+			return Vector4(at.x + r.position.x, at.y + r.position.y, at.x + r.end.x, at.y + r.end.y)
+	return Vector4.ZERO

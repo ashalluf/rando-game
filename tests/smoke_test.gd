@@ -2742,6 +2742,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Gunplay at arm's length (tests/gunplay_feel_checks.gd, GunplayFeel): the volume flash, tracers,
 	# marks by surface, the shotgun's pattern, the recoil spring, the barrel smoke, the switch.
 	load("res://tests/gunplay_feel_checks.gd").new().run(self, city)
+	# The water review (tests/water_review_checks.gd, WaterReview): the sea floor, the foam, the A/B.
+	load("res://tests/water_review_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
