@@ -26,11 +26,17 @@ func run(t: Node, city: Node3D) -> void:
 	var was := [RagdollJoints.enabled, RagdollJoints.joint_range, RagdollJoints.max_active]
 	RagdollJoints.enabled = true
 	RagdollJoints.joint_range = 100000.0 # wherever the camera stands by now
-	await _check_fall(city, chunk)
-	await _check_bonnet(city, chunk)
-	await _check_hard_tumbles(city, chunk)
-	await _check_gibs(city, chunk)
-	await _check_cap_and_range(city, chunk)
+	# The spawn chunk can be replaced while the dolls tumble (gate run 7272: the doll went with it
+	# and the next part got a freed chunk - a SCRIPT ERROR). Each part takes the chunk as it is
+	# then, and a swapped one is a FAIL that says so.
+	for part in [_check_fall, _check_bonnet, _check_hard_tumbles, _check_gibs, _check_cap_and_range]:
+		if not is_instance_valid(chunk):
+			city.update_streaming(true)
+			chunk = city.chunks.get(Vector2i(0, 0))
+			_check(false, "the spawn block's chunk lasts the ragdoll checks (replaced before %s)" % (part as Callable).get_method())
+			if chunk == null:
+				break
+		await (part as Callable).call(city, chunk)
 	RagdollJoints.enabled = was[0]
 	RagdollJoints.joint_range = was[1]
 	RagdollJoints.max_active = was[2]
