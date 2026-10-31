@@ -23175,6 +23175,7 @@ clean. Logs were kept per run (`SMOKE_LOG_DIR`); a loop script ran the seeds bac
 | 4444 | crowd_life SCRIPT ERROR (sitter freed) | the spawn chunk swapped mid-check, as 2525 | settled streaming, a FULL chunk, guards |
 | 4444 | traffic_ai "a car with an exit leaves the freeway (left false)" | StackTraffic takes a share of freeway cars coming up to a diverge, out of `freeway_cars` | `take_share` 0 for the exit test; the message says where the car went |
 | 4444 | room "one shotgun blast throws a crate (0.13 m)" | not found | the message names what the aim ray hit and the crate |
+| 5151 | shader_warm "the rehearsal's effects leave no node (Blood (Decal))" + SCRIPT ERROR in WarmRehearsal._stage_people | a live traffic car knocked one of the rehearsal's people (its cars are off every layer, its people were not) | the rehearsal's people are off the npc layer with their hit zone not monitoring; the loop is untyped and checks validity |
 
 **The gate reset grew three things** (`tests/gate_reset.gd`): every BlastDebris freed, a blast's still-fading `Blast*` effect nodes freed
 (BlastBits, the shared chip pool, kept), and the crowd:
