@@ -3786,3 +3786,10 @@ none of either.
   the varying is flat) before int() / floor(); repeating ground lines are box-filtered by their
   footprint with one include (shaders/pattern_aa.gdshaderinc, the exact integral of a pulse train)
   rather than widened by fwidth(), which grows a line instead of filtering it; PAVING_AA=0 is the A/B.
+
+- **2026-10-30 The golden hour review: tune ramps, not systems (golden-hour-review, HANDOFF "The
+  golden hour review").** Judged 17:00-19:30 on six views x six half hours by numbers (sky / ground
+  balance, warmth, orange share, crushed). Decisions: the sky's night colours follow their own
+  twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
+  monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
+  eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
