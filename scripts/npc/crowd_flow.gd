@@ -68,9 +68,9 @@ const CATCH_UP := 3.0
 const LOSE := 40.0
 ## How quickly a follower takes up the leader's heading (per second).
 const HEADING_RATE := 3.0
-## Kerb slots: along the kerb from the crossing's line (metres), rows of this many, the next row
-## this far back from the road.
-const SLOT_LAT := [0.0, 0.72, -0.72, 1.44, -1.44, 2.1]
+## Kerb slots: along the kerb from the crossing's line (metres, + away from the junction: the
+## line is 1.8 m from its corner), rows of this many, the next row this far back from the road.
+const SLOT_LAT := [0.0, 0.72, 1.44, -0.45, 2.16, 2.88]
 const ROW := 6
 const ROW_BACK := 0.8
 ## Stepping off when the walking figure comes up: the first row within REACT.x..REACT.y seconds,
@@ -549,7 +549,8 @@ static func kerb_slot(p: Pedestrian, key: Vector4i, from: Vector2, to: Vector2) 
 	var along := Vector2(absf(across.y), absf(across.x))
 	var rng := _rng_of(p)
 	var row := k / ROW
-	var lat := float(SLOT_LAT[k % ROW]) + 0.36 * float(row % 2) + rng.randf_range(-0.16, 0.16)
+	var away := 1.0 if (p.ring.get_center() - from).dot(along) >= 0.0 else -1.0
+	var lat := away * (float(SLOT_LAT[k % ROW]) + 0.36 * float(row % 2) + rng.randf_range(-0.16, 0.16))
 	var back := float(row) * ROW_BACK + rng.randf_range(0.0, 0.18)
 	return [from + along * lat - across * back, to + along * lat]
 
