@@ -575,7 +575,7 @@ func _initialize() -> void:
 				t_img.save_png(t_out)
 			var sc: Variant = tm.get_meta("shot_car") if tm.has_meta("shot_car") else null
 			print("saved %s: car %s" % [t_out, str((sc as Node).get("traffic")) if sc != null and is_instance_valid(sc) else "-"])
-	# TMOTION=brake|pull|turn: traffic seen moving (TrafficMotion; tools/traffic_motion/stage.gd),
+	# TMOTION=brake|pull|turn|chase: traffic seen moving (TrafficMotion; tools/traffic_motion/stage.gd),
 	# moved only by TMOTION_STEPS="s,s,..." seconds before each still, saved as OUT with _m1, _m2, ...
 	var tmo_env := OS.get_environment("TMOTION")
 	if tmo_env != "" and current_scene and current_scene.get_node_or_null("Traffic"):
@@ -595,6 +595,11 @@ func _initialize() -> void:
 		var m_steps := OS.get_environment("TMOTION_STEPS").split(",", false)
 		for s_i in m_steps.size():
 			tms.call("advance", mtm, m_steps[s_i].to_float())
+			if tmo_env == "chase":
+				# The chase camera follows the car: re-aimed after every step.
+				var c_eye: String = tms.call("chase_eye", mtm)
+				if c_eye != "":
+					OS.set_environment("EYE", c_eye)
 			Engine.time_scale = 0.0005
 			for i in _env_int("SETTLE", 6):
 				await process_frame

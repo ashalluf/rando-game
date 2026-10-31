@@ -4,6 +4,7 @@ extends RefCounted
 ##   brake  a car at 12 m/s brakes to a stop behind a standing one, seen side-on from the pavement
 ##   pull   three cars wait at a red; it turns green at the first step and they pull away
 ##   turn   a car turns off the street at the junction in front of a camera on the corner
+##   chase  the same turn from a chase camera behind the car (chase_eye() re-aims it each step)
 ## The traffic is staged (TrafficManager.staged, its own tick off) and moved only by advance(),
 ## which drives it, ticks every car's wheels and body (Vehicle._update_wheels) and forces the turn
 ## and the greens. Loaded, not named: still_shot compiles before the autoloads exist.
@@ -82,7 +83,7 @@ static func stage(tm: TrafficManager, kind: String, cam: Camera3D) -> String:
 			# Behind the queue in the oncoming lane, a chase camera's height, looking up it.
 			var at2 := line - float(dir) * 26.0
 			return _eye(plan, _xz(axis, road_x - kerb * 1.4, at2), 1.6, _xz(axis, road_x + kerb * 1.6, line - float(dir) * 8.0), 0.6)
-		"turn":
+		"turn", "chase":
 			var past := half_w + 3.0
 			for d: int in [1, -1]:
 				if plan.road_open(cross, k, road_x + float(d) * past):
@@ -99,8 +100,37 @@ static func stage(tm: TrafficManager, kind: String, cam: Camera3D) -> String:
 			# junction's near side: the car comes up to it and turns off across the frame.
 			var eye := _xz(axis, road_x - float(_turn) * (half_w + 2.0), cpos + float(dir) * (cw + 2.0))
 			var centre := _xz(axis, road_x, cpos - float(dir) * 5.0)
+			if kind == "chase":
+				_chase_dir = Vector2.ZERO
+				return chase_eye(tm)
 			return _eye(plan, eye, 3.2, centre, 0.4)
 	return ""
+
+
+## Chase camera: behind and a little over the staged car, following its heading with a lag (a
+## chase camera swings after the car, not with it), looking at its roof. The EYE string for
+## still_shot, re-read after every advance().
+const CHASE_BACK := 7.5
+const CHASE_UP := 2.4
+const CHASE_LAG := 0.55
+static var _chase_dir := Vector2.ZERO
+
+
+static func chase_eye(tm: TrafficManager) -> String:
+	if not is_instance_valid(_car):
+		return ""
+	var xf := _car.global_transform
+	var w := WorldState.to_world(xf.origin)
+	var fwd := -xf.basis.z
+	var h := Vector2(fwd.x, fwd.z).normalized()
+	if _chase_dir == Vector2.ZERO:
+		_chase_dir = h
+	else:
+		_chase_dir = _chase_dir.lerp(h, CHASE_LAG).normalized()
+	var e := Vector2(w.x, w.z) - _chase_dir * CHASE_BACK
+	var y := tm.plan.height_at(e) + CHASE_UP
+	var d := Vector3(w.x - e.x, (w.y + 0.9) - y, w.z - e.y)
+	return "%.2f,%.2f,%.2f,%.2f,%.2f" % [e.x, y, e.y, rad_to_deg(atan2(-d.x, -d.z)), rad_to_deg(atan2(d.y, Vector2(d.x, d.z).length()))]
 
 
 static func _add(c: Vehicle) -> void:
