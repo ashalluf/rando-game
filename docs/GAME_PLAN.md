@@ -3774,6 +3774,11 @@ none of either.
   cell), Broadway's goods keep off car parks and its sale table is real stock, trees under a
   construction shed are taken out, cafe sets slide clear of bus shelters. Decisions: positions move
   only after their rolls, hidden instances keep their indices, `STREET_CLOSEUP=0` is the A/B.
+- 2026-10-30 (storm drama, wave 3): a storm is told from rain by what moves - gusts (one clock that
+  leans every tree and slants the drops and the curtain's sheets), bolts you see for strikes within
+  2.6 km, a sky and street that light toward the strike, and water running off the buildings - on
+  top of a darker, greener, closed-over day sky. All cheap: no new full-screen pass on the web (the
+  inner curtain is desktop only). STORM_DRAMA=0 is the A/B.
 - **2026-10-31 - The night flight (night-flight, HANDOFF "The night flight").** The night aerial is
   tuned in the shaders that already draw it, never with new geometry: traffic platoons as a smooth
   noise in the cars' moving frame (the near lamps and the far lane means read the same factor), a

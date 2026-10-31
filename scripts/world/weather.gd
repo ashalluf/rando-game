@@ -185,6 +185,7 @@ var _marine_layer: MarineLayer
 var _santa: SantaAnaFx
 var _haze: HeatHaze
 var _roof_rain: RoofRain
+var _drama: StormDrama
 var _fog_height0: float = 16.0
 var _fog_height_density0: float = 0.0006
 var _lean_now: Vector2 = Vector2(1.0e9, 0.0)
@@ -229,6 +230,10 @@ func _ready() -> void:
 		add_child(_haze)
 	_roof_rain = RoofRain.new()
 	add_child(_roof_rain)
+	if StormDrama.enabled:
+		_drama = StormDrama.new()
+		_drama.name = "StormDrama"
+		add_child(_drama)
 	_apply_override()
 	_timer = _rng.randf_range(state_length.x, state_length.y)
 	blend = 1.0
@@ -517,8 +522,23 @@ uniform vec3 tint : source_color = vec3(0.66, 0.72, 0.82);
 // Cells per second the streak sheets fall. At 34 cells over a 70 m cylinder this is about
 // 14 m/s, which is roughly what rain does; at the old 2.4 it drifted down at walking pace.
 uniform float fall = 7.0;
+// StormDrama (scripts/world/storm_drama.gd): rain SHEETS, denser veils laid on the true world
+// along the wind and running downwind (0 = none, the old curtain exactly), the gust, the streaks'
+// slant with the wind, and the curtain's own size (a curtain stretched or another radius keeps a
+// streak's size in metres: rows_gain, cells_gain; bottom_fade how much of its foot fades).
+uniform float sheets = 0.0;
+uniform float gust = 0.0;
+uniform float slant = 0.0;
+uniform float radius = 90.0;
+uniform float rows_gain = 1.0;
+uniform float cells_gain = 1.0;
+uniform float bottom_fade = 0.25;
+uniform vec2 sheet_dir = vec2(0.949, 0.316);
+uniform float sheet_speed = 13.0;
+global uniform vec3 origin_shift;
 
 varying vec3 local_pos;
+varying vec3 world_pos;
 
 float hash12(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -530,6 +550,7 @@ void vertex() {
 	// Object space, not UV: a CylinderMesh packs its side into half its UV range, and a veil
 	// that is silently invisible over half its height is a long afternoon.
 	local_pos = VERTEX;
+	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 
 void fragment() {
@@ -548,15 +569,30 @@ void fragment() {
 		float fi = float(i);
 		// PLUS, not minus: a streak sits at a constant cell.y, so up = (const - TIME * fall) / k
 		// and the pattern falls. With a minus the streaks climb, and the rain went up the sky.
-		vec2 cell = vec2(ang * (260.0 + fi * 140.0), up * (34.0 + fi * 13.0) + TIME * (fall + fi * 0.8));
+		// The wind slants a falling streak: its foot lies downwind of its head.
+		float tang = sheet_dir.x * cos(ang) - sheet_dir.y * sin(ang);
+		float ang2 = ang + slant * tang * up * height * rows_gain / max(radius, 1.0);
+		vec2 cell = vec2(ang2 * (260.0 + fi * 140.0) * cells_gain, up * (34.0 + fi * 13.0) * rows_gain + TIME * (fall + fi * 0.8));
 		float r = hash12(floor(cell) + fi * 17.3);
 		float column = 1.0 - abs(fract(cell.x) - 0.5) * 2.0;
 		v += smoothstep(0.45, 1.0, r) * column * (0.42 - fi * 0.1);
 	}
 	// Soft top and bottom, so the cylinder never shows its own rim.
-	float band = smoothstep(0.0, 0.25, up) * (1.0 - smoothstep(0.72, 1.0, up));
+	float band = smoothstep(0.0, bottom_fade, up) * (1.0 - smoothstep(0.72, 1.0, up));
+	float k = 1.0;
+	if (sheets > 0.0) {
+		// Sheets: crests SHEET spacing apart along the wind, bent across it, running downwind.
+		vec2 wxz = world_pos.xz + origin_shift.xz;
+		float along = dot(wxz, sheet_dir) - TIME * sheet_speed;
+		float across = dot(wxz, vec2(-sheet_dir.y, sheet_dir.x));
+		along += sin(across * 0.021 + TIME * 0.05) * 16.0;
+		float s1 = 0.5 + 0.5 * sin(along * 0.1142);
+		float s2 = 0.5 + 0.5 * sin(along * 0.2732 + 1.9 + across * 0.013);
+		float sheet = s1 * s1 * (0.55 + 0.45 * s2);
+		k = mix(1.0, (0.3 + 1.7 * sheet) * (0.75 + 0.5 * gust), sheets);
+	}
 	ALBEDO = tint;
-	ALPHA = clamp(v, 0.0, 1.0) * band * strength;
+	ALPHA = clamp(clamp(v, 0.0, 1.0) * band * strength * k, 0.0, 1.0);
 }
 """
 	_curtain_mat.shader = shader
@@ -736,6 +772,10 @@ func _process(delta: float) -> void:
 			if _player:
 				_curtain.global_position = _player.global_position + Vector3(0.0, curtain_height * 0.28, 0.0)
 			_curtain_mat.set_shader_parameter("strength", curtain_opacity * rain)
+	if _drama:
+		_drama.drive(weight_of(State.STORM), rain, delta, _player, _low_detail)
+		if _daynight:
+			_daynight.set("storm", _drama.storm)
 	if _lens_rect:
 		_lens_rect.visible = rain > 0.03 and not _low_detail
 		if _lens_rect.visible:
@@ -833,6 +873,23 @@ func _strike() -> void:
 		t += length + _rng.randf_range(0.03, 0.12)
 	_pulse_end = t
 	_strike_age = 0.0
+	if _drama:
+		_drama.on_strike(dist, _strike_dir)
+
+
+## A strike now, `dist` metres toward `dir` (XZ): StormDrama's STORM_FLASH for stills. Spends no
+## roll of the weather's own rng.
+func force_strike(dist: float, dir: Vector3) -> void:
+	_strike_dir = Vector3(dir.x, 0.0, dir.z).normalized()
+	_strike_near = 1.0 - clampf((dist - strike_distance.x) / maxf(strike_distance.y - strike_distance.x, 1.0), 0.0, 1.0)
+	_thunder_in = dist / SOUND_SPEED
+	var level := lerpf(0.4, 1.25, _strike_near)
+	_pulses = [Vector3(0.0, flash_seconds * 1.4, level), Vector3(flash_seconds * 1.6, flash_seconds, level * 0.7),
+		Vector3(flash_seconds * 2.9, flash_seconds * 1.2, level * 0.9)]
+	_pulse_end = flash_seconds * 4.1
+	_strike_age = 0.0
+	if _drama:
+		_drama.on_strike(dist, _strike_dir)
 
 
 ## Runs the flicker: the sky shader's flash, the sun's flash meta (DayNight reads it) and the
@@ -846,8 +903,12 @@ func _update_flash(delta: float) -> void:
 				flash = maxf(flash, p.z * (1.0 - (_strike_age - p.x) / p.y))
 		if _strike_age > _pulse_end:
 			_strike_age = -1.0
+	if _drama:
+		flash = _drama.held_flash(flash)
 	if _sky:
 		_sky.set_shader_parameter("flash", flash)
+	if _drama:
+		_drama.on_flash(flash, _sky, _strike_dir)
 	if _sun:
 		_sun.set_meta("weather_flash", flash)
 	if _flash_light:
@@ -1012,6 +1073,8 @@ func _update_la(delta: float, _fog: float, _vol: float) -> void:
 			_env.fog_light_color if _env else Color(0.6, 0.62, 0.65), delta)
 	# The Santa Ana.
 	var lean := Vector2(LaWeather.SANTA_ANA_DIR) * santa_ana_lean * santa_ana_weight
+	if _drama:
+		lean += StormDrama.lean_for(_drama.storm, _drama.clock())
 	if lean.distance_to(_lean_now) > 0.002:
 		_lean_now = lean
 		RenderingServer.global_shader_parameter_set("wind_lean", lean)

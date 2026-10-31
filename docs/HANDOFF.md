@@ -1,11 +1,68 @@
-# Handoff: Rando Game (written 2026-09-19; section 00000000 is the newest state: fleet wave 3, 2026-10-29)
+# Handoff: Rando Game (written 2026-09-19; section 000000000 is the newest state: the wave-3 lead stopped, 2026-10-31)
 
 This is the narrative handoff for whoever picks the project up next, from any Claude Code account
 or as a person. `CLAUDE.md` is the rulebook and `docs/GAME_PLAN.md` is the roadmap plus the
 decisions log; both stay the source of truth. This file is the story: where things stand, how
 the day-to-day work goes, what is fragile, what to do next. Read all three before touching code.
 
-## 00000000. Fleet wave 3 (2026-10-29; read this first)
+## 000000000. The wave-3 lead stopped (2026-10-31 ~01:45 UTC; read this first, then 00000000)
+
+The owner: "stop everything, we ran out of tokens, put a handoff in the repo so I can start from a
+new account". Everything below is the state at that moment.
+
+**`main` = `230ab090`** (batch 24, storm drama). Releases 390 (batch 21) and 391 (batch 22) are green;
+392 (batch 23, `15ee2588`) and 393 (batch 24) were building - check the Actions tab first, and if
+either is red, fix it before anything else. Since section 00000000 the lead merged wave 3 in batches
+of finished `wt/<slug>` branches (all through `tools/fleet/merge_branch.py`, each gated with
+`SHARDS=3 tests/headless_check.sh` before the push). The last batches:
+- 21: aerial-review, lawns-closeup. 22: web-review-3, house-nights, car-paint-2, night-street-review.
+- 23: street-clutter-2 (+ the lead's own fix: trash bags shaded round, not faceted), downtown-street-
+  closeup, and three TEST fixes for intermittent failures - a lane-filtering motorcycle was counted as
+  a crash (street_life_checks, traffic_ai_checks), a freeway semi was judged behind a FreewayIncidents
+  stall (big_vehicle_checks).
+- 24: storm-drama.
+
+**Not on main: `wt/batch25-untested` (`f3ced35a`)** = main + `wt/golden-hour-review` (dusk without
+the magenta cast, crushed sea / sand lifted at 18:30, the 18:00 street no longer murky red; stills on
+`shots/golden-hour-review`). It conflicted with storm drama in `scripts/world/day_night.gd` (resolved:
+the storm sky block kept, then the sky top on GoldenHour's own twilight ramp) and in
+`tests/smoke_test.gd` (both kept). Its gate was killed when the owner stopped. Next step: check it out,
+`godot --headless --path . --import`, `SHARDS=3 GODOT=... tests/headless_check.sh`, and if green
+fast-forward main to it.
+
+**Paused sessions** (interrupted, not archived; each was briefed from the wave-3 prompt template -
+read the task in the session or its HANDOFF section; a new account cannot resume another account's
+sessions, so re-launch the task on its branch if it matters):
+
+| slug | branch head | state when stopped |
+|---|---|---|
+| traffic-motion | `wt/traffic-motion` 4e5b1307 | wheel spin, steering, brake dive / roll on kinematic traffic; 39 checks passing; stills not pushed, no final gate |
+| skyline-glass-day | `wt/skyline-glass-day` 89b1a970, `shots/` 1719773f | tower curtain glass by day from 100-600 m; mid-work, no final gate |
+| web-hero-rain | `wt/web-hero-rain` ba9a2284 | the hero's tracksuit reads BLUE in rain on the WEB build only (native fine); cause not found yet |
+| paving-aliasing | `wt/paving-aliasing` 7115dec9, `shots/` aa9dde2b | red brick / herringbone pavement moire at eye level; forecourt and pavement fixes pushed, its gate was running |
+| night-flight | `wt/night-flight` 9194e756, `shots/` 2f0059fe | the night city from 150-800 m; mid-work |
+| wet-road-mirror | none pushed | the wet road at night mirrors lit windows as a regular GRID OF SQUARES across the carriageway (road.gdshader `mirrored_city()`); should be long streaks under lamps and shop fronts. Not started on GitHub |
+| dawn-review | none pushed | the golden-hour review for 05:00-08:30 (marine layer, east sun); not started |
+
+A merge-ready branch is one whose session said its SHARDS=3 gate passed on a merge of current main.
+None of the seven had said so. Merge one with `python3 tools/fleet/merge_branch.py <slug> "<subject>"`
+on a branch off origin/main (it renumbers this file's `9d?` sections and VISUAL_ROADMAP's `?` rows;
+on a conflict resolve by hand and fix any `?` left in the heading), `--import`, gate, review the
+`shots/<slug>` stills against main's and REJECT anything that looks worse, push, send the owner
+stills.
+
+**Known intermittent gate failures** (each passed on rerun; fix them rather than rerunning forever):
+- `load_time_checks`: "the far city keeps its tiles for the load cache (0)" - the three shards share
+  `user://load_cache`, so one shard's write races another's read. Give each shard its own cache dir
+  (or skip the check unless SMOKE_SHARD is unset).
+- `ragdolls_checks`: "the joints hold through the hardest tumble" - worst gap 0.10-0.13 m against 0.1.
+
+**The look still to fix** (seen in the stills, not yet anyone's task): the wet road's grid-of-squares
+mirror (above); pavement moire (paving-aliasing); the web hero in rain (web-hero-rain); and every
+session listed "Forward+ / the owner's Mac unverified" - the owner's Mac is the only true Forward+
+check, so ask the owner for screenshots of the newest release before tuning colour further.
+
+## 00000000. Fleet wave 3 (2026-10-29; read after 000000000)
 
 The owner: "this needs to start looking like GTA 6" and "keep working until I say STOP".
 
@@ -21746,6 +21803,68 @@ the kerb face adds a draw per FULL block. If it must come down: `REAL_CAR_NEAR` 
 sun; the arris strip may z-fight on the web build's 24-bit depth inside 28 m on very shallow views;
 items 7-10 above.
 
+## 9ij. Storm drama (fleet wave 3, `storm-drama`, 2026-10-30)
+
+Task: storms that look like a AAA storm at street level and from the air, day and night - rain
+sheets sweeping the street in gusts, trees and palms bent hard, litter, lightning that lights the
+street and the cloud base with the thunder's delay, water off roofs and awnings, spray off cars, a
+darker greener-grey sky; cheap, no new full-screen pass on the web.
+
+**What was already there** (reviewed at `--weather=storm`, noon and 21:00, pavement and 150 m up):
+the drops, splashes, the 90 m curtain, lens rain, a flash (sky + a directional light), thunder at
+distance / 343 m/s, TyreSpray, RoofRain, the gutter run in road.gdshader. Weakest: the noon sky had
+blue gaps and white clouds (it read as a shower), nothing in the air moved sideways, a strike was an
+even white sky with no bolt, the trees swayed no harder than a breeze (wind_factor clamps at 3).
+
+**`StormDrama`** (`scripts/world/storm_drama.gd`, Weather's child; `STORM_DRAMA=0` builds nothing):
+- **Gusts**: `gust(t)` (pure, 0..1, peaky). `lean_for()` adds the storm's lean (LEAN 0.7, never
+  under LEAN_LULL of it) down the storm wind (`WIND_DIR` = rain_wind) to `wind_lean`, which every
+  tree shader's gust front already runs along - palms and street trees lie over hard and the fronts
+  cross the street. The drops' gravity takes `GUST_RAIN` x the wind in a gust; litter speed too.
+- **Rain sheets**: Weather's curtain shader gains `sheets` (crests on the TRUE world along the wind,
+  running downwind at SHEET_SPEED, bent across it), `slant` (a streak's foot downwind of its head),
+  `radius` / `rows_gain` / `cells_gain` / `bottom_fade` (a stretched or smaller curtain keeps its
+  streaks in metres). All default to the old curtain exactly. An inner curtain (22 m, desktop only)
+  puts the sheets in the street; from the air the outer curtain reaches down to the ground.
+- **Lightning**: `on_strike()` from Weather's `_strike()` draws a bolt (`bolt_paths()`: midpoint
+  displacement from a hash of the strike counter, 2-4 branches; camera-facing ribbons about two
+  pixels wide at any range, `shaders/storm_bolt.gdshader`, additive, fog-free) for strikes within
+  BOLT_REACH 2.6 km. The sky's flash leans toward the strike (`flash_dir`, `flash_spread` 0.3; 1 =
+  the old even flash) - the cloud base round it lights - and DayNight raises the ambient by
+  FLASH_AMBIENT x the flash, so shadows light too. Weather's thunder delay is unchanged.
+- **Sky**: DayNight's `storm` hook lerps the day storm top / horizon / fog / cloud colour toward
+  greener, darker greys (`StormDrama.sky()`, SKY_TOP, SKY_HORIZON, FOG, CLOUD) and adds COVER 0.35
+  cloud; nights keep the sodium cloud base.
+- **Run-off**: one probe every 0.18 s (a golden-angle ray out from the camera's ground to a wall,
+  then down over the roof and in front of the wall): roofs under 40 m pour a stream with a splash,
+  an edge 2.1-6.5 m up (awnings, canopies) a drip line. ONE MultiMesh (`storm_runoff.gdshader`,
+  camera-facing about Y, kind / height / seed in INSTANCE_CUSTOM), at most 26 within 32 m.
+- **Litter**: wet leaves and paper, one CPUParticles3D (72, web 36) downwind in the gusts.
+- **Spray**: TyreSpray's new `gain` (1.9 in a full storm).
+Every roll is a hash; Weather's rng is never called (`force_strike()` spends none).
+
+**Stills** (`shots/storm-drama`; still_shot.gd opengl3, `--spawn=2359.4,880,0,12,2 --weather=storm`,
+SHOTS `@21;2359.4,150,880,0,-18@12;@21`): before / after at noon and 21:00, after from 150 m.
+`STORM_FLASH=<s>` (`_DIST`, `_AZ` degrees, `_HOLD` level) forces and holds a strike for a still.
+
+**Cost** (GEO, same frames): street noon 7.60 M -> 7.53 M tris, 4,013 -> 3,998 draws; street 21:00
+7.93 M -> 7.76 M, 4,147 -> 4,121 (run-to-run noise; the additions are a handful of draws: two
+curtains, the run-off MultiMesh, the litter, a bolt for a frame).
+
+Checks: `tests/storm_drama_checks.gd` (gust range, lean, the wind's agreement, sky colours, the
+bolt's determinism, the shaders' defaults, a forced storm and strike, the run-off probe on a staged
+building in the air).
+
+The held-flash stills (07, 08: `STORM_FLASH=1 STORM_FLASH_HOLD=0.9 STORM_FLASH_AZ=-75
+STORM_FLASH_DIST=1100`) were shot with FLASH_AMBIENT 1.6: the 21:00 frame at the flash's peak was
+blown out, so it is 0.8 now (not re-shot); the bolt there stands behind the right-hand tower and
+reads faint - frame one where the sky is open.
+
+Not done / not verified: no Forward+ (lavapipe) still - the bolt's HDR core and the flash lobe on
+the Mac are unseen; the inner curtain on Forward+ TAA may ghost (see the particles trap); the
+run-off streams are seen in no still yet (the downtown bookmark's walls are towers over 40 m); no
+storm audio was added (wind gust sound would be next); spray off fast cars is a gain on the
+existing spray only.
 ## 9d?. The night flight: the city from a helicopter at night, 2026-10-31 (fleet wave 3, branch `wt/night-flight`)
 
 **Review.** Nine stills from one load (opengl3 1280x720, `still_shot.gd` with `DIFF=1`, SHOTS
