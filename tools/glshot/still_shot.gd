@@ -71,6 +71,7 @@ extends SceneTree
 ## camera and moves a free camera to frame it (ServiceFleet.stage_for_shot; SERVICE_EYE=0 keeps
 ## the camera, SERVICE_LIFT 0..1 how far up the garbage truck's arm has its cart).
 ## MOTO=ride|throw|filter|parked|riders stages motorcycles (tools/moto/stage.gd has the knobs).
+## FLOW=kerb|groups stages the crowd's flow ahead of the camera (CrowdFlow; tools/pedestrian_flow/stage.gd).
 ## ERRAND=bus|car|jay|shop|deliver stages a street errand ahead of the camera (StreetErrands; see
 ## tools/street_errands/stage.gd for ERRAND_PICK and the framing knobs); STREET_ERRANDS=0 turns
 ## the errands off (the A/B).
@@ -610,6 +611,37 @@ func _initialize() -> void:
 			if m_img:
 				m_img.save_png(m_out)
 			print("saved %s" % m_out)
+	# TB2=wreck|left|heads|bus: TrafficBehaviour's moments (tools/traffic_behaviour/stage.gd),
+	# moved on by TRAFFIC_STEPS like TRAFFIC's, saved as OUT with _t1, _t2, ... added.
+	var tb2_env := OS.get_environment("TB2")
+	if tb2_env != "" and current_scene and current_scene.get_node_or_null("Traffic"):
+		var tai2 = load("res://scripts/npc/traffic_ai.gd")
+		var tm2: Node = current_scene.get_node("Traffic")
+		var b_eye: String = load("res://tools/traffic_behaviour/stage.gd").call("stage", tm2, tb2_env, get_root().get_camera_3d())
+		print("TB2 %s eye %s" % [tb2_env, b_eye])
+		if b_eye != "":
+			OS.set_environment("EYE", b_eye)
+			OS.set_environment("EYE_AGL", "")
+		_eye(player, fov)
+		if current_scene.has_method("update_streaming"):
+			current_scene.call("update_streaming", true)
+		for i in _env_int("TRAFFIC_FRAMES", 30):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
+		var b_steps := OS.get_environment("TRAFFIC_STEPS").split(",", false)
+		for s_i in b_steps.size():
+			tai2.call("advance_shot", tm2, b_steps[s_i].to_float())
+			Engine.time_scale = 0.0005
+			for i in _env_int("SETTLE", 6):
+				await process_frame
+				_pose(player, anchor, hold, boost, fov)
+			Engine.time_scale = 1.0
+			var b_out := OS.get_environment("OUT").get_basename() + "_t%d.png" % (s_i + 1)
+			var b_img := get_root().get_texture().get_image()
+			if b_img:
+				b_img.save_png(b_out)
+			var bc: Variant = tm2.get_meta("shot_car") if tm2.has_meta("shot_car") else null
+			print("saved %s: car %s" % [b_out, str((bc as Node).get("traffic")) if bc != null and is_instance_valid(bc) else "-"])
 	# PANIC=brake|swerve|kerb|reverse|abandon: a driver reacting to a shot on the nearest one-lane
 	# street (CarPanic.stage_for_shot; PANIC_SIDE=near puts the camera on the car's kerb side), the
 	# traffic moved only by PANIC_STEPS="s,s,..." seconds before each still, saved as OUT with _p1,
@@ -738,6 +770,18 @@ func _initialize() -> void:
 		for i in _env_int("ERRAND_FRAMES", 12):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
+	# FLOW=kerb|groups: the crowd's flow staged in front of the camera and framed by a free camera
+	# (tools/pedestrian_flow/stage.gd: FLOW_PEOPLE, FLOW_SECONDS; CROWD_FLOW=0 is the A/B).
+	var flow_env := OS.get_environment("FLOW")
+	if flow_env != "" and current_scene:
+		var fl_eye: String = await load("res://tools/pedestrian_flow/stage.gd").new().stage(current_scene, flow_env, get_root().get_camera_3d())
+		if fl_eye != "":
+			OS.set_environment("EYE", fl_eye)
+		print("FLOW %s eye %s" % [flow_env, fl_eye])
+		_eye(player, fov)
+		for i in _env_int("FLOW_SHOT_FRAMES", 4):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
 	# VALET=drop|queue|back: the valet stand nearest the camera at work, framed by a free camera
 	# (tools/valets/stage.gd: VALET_T, VALET_VIEW, VALET_PICK; VALETS=0 is the A/B).
 	var valet_env := OS.get_environment("VALET")
@@ -748,6 +792,18 @@ func _initialize() -> void:
 		print("VALET %s eye %s" % [valet_env, va_eye])
 		_eye(player, fov)
 		for i in _env_int("VALET_FRAMES", 6):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
+	# CHASE=box|pit|spikes|doors: the police chase staged down the street the camera looks along
+	# (tools/police_chase/stage.gd: CHASE_LIVE seconds of play, CHASE_AFTER, CHASE_EYE).
+	var chase_env := OS.get_environment("CHASE")
+	if chase_env != "" and current_scene:
+		var pc_eye: String = await load("res://tools/police_chase/stage.gd").new().stage(self, current_scene, chase_env, get_root().get_camera_3d())
+		if pc_eye != "":
+			OS.set_environment("EYE", pc_eye)
+		print("CHASE %s eye %s" % [chase_env, pc_eye])
+		_eye(player, fov)
+		for i in _env_int("CHASE_FRAMES", 2):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
 	# RAIN_STAGE=<level>: the crowd as the rain leaves it (tools/rain_crowd/stage.gd: umbrellas,
@@ -1353,7 +1409,7 @@ func _geo_split(player: Node3D, anchor: Vector3, hold: Vector3, boost: bool, fov
 	if OS.get_environment("OSPLIT") == "1":
 		var stems := {}
 		var est := {}
-		for c in ["Other", "StreetProps", "LightRail", "River", "Parks", "Houses", "Industrial"]:
+		for c in ["Other", "StreetProps", "LightRail", "River", "Parks", "Houses", "Industrial", "Trees", "FarCity", "Landmark"]:
 			for gi: GeometryInstance3D in nodes[c]:
 				if not is_instance_valid(gi):
 					continue

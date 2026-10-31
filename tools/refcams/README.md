@@ -12,7 +12,7 @@ number, not by someone happening to look.
 | street_night | the same street | 21:30 | rain |
 | sunset | the Esplanade down the coast | 18:36 | clear |
 | golden_aerial | downtown from the south-west, 140 m up | 18:18 | clear |
-| downtown_aerial | the civic centre, 60 m up | 12:30 | clear |
+| downtown_aerial | the civic centre: city hall from the south-west, 60 m up (moved 2026-10-31: the old pose looked into a tower) | 12:30 | clear |
 | beach | the waterline at z 800 | 14:00 | clear |
 | hills | the front range from 260 m | 15:00 | clear |
 | freeway | the 110's deck by downtown | 13:00 | clear |

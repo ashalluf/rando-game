@@ -41,6 +41,11 @@ uniform vec2 seat_a = vec2(0.0);
 uniform vec2 seat_b = vec2(0.0);
 uniform float seat_ground = 0.0;
 uniform vec3 rigid_color : source_color = vec3(0.96, 0.96, 0.94);
+// Inside the LOD ring the real terrain is drawn round the sign, and the plane's lift is faded out
+// there: seated on the plane the sign sank into the hill (refcam hills: the S, H and A gone).
+// The shift fades in from 0 at `rigid_real_reach`.x metres from the camera to whole at .y; 0, 0
+// is always seated (RcHills off).
+uniform vec2 rigid_real_reach = vec2(0.0);
 // Where the horizon plane hands over to the sky (macro_ground.gdshader, set by CityStreamer).
 uniform float edge_start = 5040.0;
 uniform float edge_end = 6860.0;
@@ -110,6 +115,10 @@ void vertex() {
 		tint = rigid_color;
 		shade = 1.0;
 		shift = plane_y + top - seat_ground;
+		if (rigid_real_reach.y > 0.0) {
+			vec2 mid = 0.5 * (seat_a + seat_b) - world_offset;
+			shift *= smoothstep(rigid_real_reach.x, rigid_real_reach.y, length(mid - cam.xz));
+		}
 	} else {
 		vec3 origin = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
 		float h = length(MODEL_MATRIX[1].xyz);

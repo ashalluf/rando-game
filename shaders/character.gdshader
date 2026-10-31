@@ -343,6 +343,8 @@ float wound_soak(vec4 w, vec3 p) {
 	return 1.0 - smoothstep(0.55, 0.92, d + (n - 0.5) * 0.55);
 }
 
+#include "res://shaders/blood_wound.gdshaderinc"
+
 
 vec3 hsv_to_rgb(vec3 c) {
 	vec3 p = abs(fract(c.xxx + vec3(1.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0);
@@ -357,6 +359,7 @@ void vertex() {
 	v_pipe = CUSTOM0.xyz;
 	v_bind = CUSTOM1.xyz;
 	v_skel = VERTEX;
+	v_skel_n = NORMAL;
 	v_trim_a = CUSTOM2;
 	v_trim_b = CUSTOM3;
 	v_code = floor(CUSTOM2.z);
@@ -816,6 +819,7 @@ void fragment() {
 		ALBEDO = mix(ALBEDO, ALBEDO * 0.5 + dirt * 0.35, clamp(grimed, 0.0, 0.85));
 	}
 	float soak = 0.0;
+	vec4 gore = vec4(0.0);
 	if (wound_count > 0.5) {
 		soak = max(max(wound_soak(wound_0, v_skel), wound_soak(wound_1, v_skel)),
 			max(wound_soak(wound_2, v_skel), wound_soak(wound_3, v_skel)));
@@ -825,6 +829,22 @@ void fragment() {
 			soaked = to_linear(soaked);
 		}
 		ALBEDO = mix(ALBEDO, soaked, soak * 0.92);
+		if (wound_gore > 0.5) {
+			// blood_wound.gdshaderinc: the hole, its ring, the run below it, the wet fresh blood.
+			gore = wb_wounds(v_skel, v_skel_n);
+			vec3 c_run = vec3(0.26, 0.018, 0.014);
+			vec3 c_ring = vec3(0.11, 0.016, 0.012);
+			vec3 c_hole = vec3(0.035, 0.004, 0.003);
+			if (value_is_linear > 0.5) {
+				c_run = to_linear(c_run);
+				c_ring = to_linear(c_ring);
+				c_hole = to_linear(c_hole);
+			}
+			ALBEDO = mix(ALBEDO, c_run * (0.75 + 0.25 * gore.z), gore.w * 0.9);
+			ALBEDO = mix(ALBEDO, c_ring, gore.y * 0.85);
+			ALBEDO = mix(ALBEDO, c_hole, gore.x);
+			NORMAL = wb_bump(NORMAL, VERTEX, -0.005 * gore.x * gore.x);
+		}
 	}
 
 	// Rain (wet_surface.gdshaderinc): the shoulders, the head and whatever faces the sky soak first,
@@ -859,6 +879,9 @@ void fragment() {
 	ROUGHNESS = min(ROUGHNESS + grimed * 0.08, 1.0);
 	// Soaked cloth is wet, and wet is glossy.
 	ROUGHNESS = mix(ROUGHNESS, 0.24, soak);
+	// Fresh blood is a wet film: glossy over the hole, its ring, the run and the soak's middle.
+	float gore_wet = max(max(gore.x, gore.y), max(gore.w, gore.z * soak));
+	ROUGHNESS = mix(ROUGHNESS, 0.09, gore_wet);
 	ROUGHNESS = mix(ROUGHNESS, mix(mix(0.5, 0.3, is_skin), 0.22, is_hair), rain_wet);
 	if (trim_rough > 0.0) {
 		// Trim, belt leather and metal are smoother than the canvas round them.
@@ -876,6 +899,7 @@ void fragment() {
 	SPECULAR = mix(SPECULAR, 0.28, clamp(velour * 2.0, 0.0, 1.0) * garment_mix);
 	SPECULAR = mix(SPECULAR, 0.55 * eye_shade * eye_shade, eye * (1.0 - eye_lid));
 	SPECULAR += fz.b * 0.08 * is_skin;
+	SPECULAR = mix(SPECULAR, 0.5, gore_wet);
 	// The baked relief. normal_strength is 0 for any rig with no map, and at 0 Godot blends
 	// straight back to the geometric normal, so an unbound sampler here is harmless rather
 	// than a white wall of noise. Declaring these two uniforms without ever sampling them -
@@ -888,7 +912,8 @@ void fragment() {
 		nxy += (det2.rg * 2.0 - 1.0) * 1.2;
 		NORMAL_MAP = vec3(nxy * 0.5 + 0.5, 1.0);
 	}
-	NORMAL_MAP_DEPTH = normal_strength;
+	// Blood fills the weave and the pores: a wet film has no relief of its own.
+	NORMAL_MAP_DEPTH = normal_strength * (1.0 - 0.75 * gore_wet);
 	// Thin extremities catch light from behind the way real skin does.
 	BACKLIGHT = (region_mask > 0.5 ? skin_backlight : vec3(1.0)) * skin_subsurface * is_skin * 0.5;
 	SSS_STRENGTH = skin_sss * is_skin;

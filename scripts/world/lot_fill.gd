@@ -574,7 +574,14 @@ static func _planter(ch: CityChunk, r: Rect2, rng: RandomNumberGenerator, tree: 
 		return
 	var c := r.get_center()
 	var h := PLANTER_HEIGHT
-	_solid(ch, Vector3(c.x, base + h * 0.5, c.y), Vector3(r.size.x, h, r.size.y), Building.plinth_material())
+	# The box is level at its centre's relief: on a slope its downhill end stood off the paving
+	# (docs/HANDOFF.md "Ground contact"), so its foot runs down to the lowest corner's ground, and
+	# what is planted in it is set on ITS soil, not on the slope under each plant.
+	var gc := ch._gy(c.x, c.y)
+	var drop := 0.0
+	for k: Vector2 in [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]:
+		drop = maxf(drop, gc - ch._gy(k.x, k.y))
+	_solid(ch, Vector3(c.x, base + (h - drop) * 0.5, c.y), Vector3(r.size.x, h + drop, r.size.y), Building.plinth_material())
 	# The planted top stands a hair proud of the kerb box (which is solid), inside its rim.
 	var soil_top := base + h + 0.012
 	_box(ch, Vector3(r.size.x - 0.4, 0.04, r.size.y - 0.4), Vector3(c.x, soil_top - 0.02 + ch._gy(c.x, c.y), c.y), KIND_SOIL)
@@ -585,7 +592,7 @@ static func _planter(ch: CityChunk, r: Rect2, rng: RandomNumberGenerator, tree: 
 		var p := Vector2(rng.randf_range(inner.position.x, inner.end.x), rng.randf_range(inner.position.y, inner.end.y))
 		if has_tree and p.distance_to(c) < 0.9:
 			continue
-		_shrub(ch, Vector3(p.x, soil_top, p.y), rng)
+		_shrub(ch, Vector3(p.x, soil_top + gc - ch._gy(p.x, p.y), p.y), rng)
 	if has_tree:
 		ch._fill_trees += 1
 		_tree(ch, Vector3(c.x, soil_top, c.y), rng)
@@ -775,12 +782,11 @@ static func _lamp(ch: CityChunk, at: Vector3) -> void:
 	if StreetLamps.enabled:
 		var lp := StreetLamps.place(ch.plan, at, Vector2.ZERO, StreetLamps.car_park_type(Vector2(at.x, at.z)))
 		var head: Vector3 = lp.lights[0]
-		var size: float = lp.pool * 1.15
-		var lpool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(size, 1.0, size)), Vector3(head.x, at.y + 0.05, head.z))
+		var lpool := NightLamps.pool_instance(lp, head, at, 0.05, 1.15)
 		var box: Vector3 = lp.box
 		ch._add_prop("lamp", at, Color(0.28, 0.29, 0.32), [
 			[lp.key, lp.mesh, lp.xform, lp.paint, lp.custom],
-			["lamp_pool", PropFactory.light_pool(), lpool, StreetLamps.pool_color(lp.type, Vector2(at.x, at.z))],
+			["lamp_pool", PropFactory.light_pool(), lpool[0], lpool[1], lpool[2]],
 		], [[box, at + Vector3(0.0, box.y * 0.5, 0.0), 0.0]])
 		return
 	var pool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(CityChunk.LAMP_POOL_SIZE * 1.3, 1.0, CityChunk.LAMP_POOL_SIZE * 1.3)), at + Vector3(0.0, 0.05, 0.0))

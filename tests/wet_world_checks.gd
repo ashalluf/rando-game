@@ -17,7 +17,7 @@ const SHADERS := [
 	"res://shaders/building.gdshader", "res://shaders/building_lod.gdshader",
 	"res://shaders/facade_kit.gdshaderinc", "res://shaders/rooftop.gdshader",
 	"res://shaders/character.gdshader", "res://shaders/crowd_hair.gdshader",
-	"res://shaders/hero_cloth.gdshader", "res://shaders/hero_hair.gdshader",
+	"res://shaders/hero_cloth.gdshader", "res://shaders/hero_hair.gdshaderinc",
 ]
 
 var _t: Object

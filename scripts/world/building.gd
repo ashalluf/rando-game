@@ -321,6 +321,7 @@ func generate() -> void:
 	_finish_kit()
 	_commit_blade_texts()
 	FacadeStreet.commit(self)
+	FacadeMid.commit(self)
 
 
 func _build_plinth() -> void:
@@ -796,6 +797,7 @@ func _part_material(style: Dictionary) -> ShaderMaterial:
 	mat.set_shader_parameter("lit_ratio", style.lit_ratio)
 	mat.set_shader_parameter("seed", float(seed % 1000))
 	mat.set_shader_parameter("roof_style", roof_style)
+	mat.set_shader_parameter("roof_weather", CivicGrounds.roof_weather)
 	# The street level up close (FacadeStreet, shaders/facade_street.gdshaderinc).
 	mat.set_shader_parameter("facade_street", FacadeStreet.enabled and shape != Shape.WAREHOUSE)
 	mat.set_shader_parameter("street_back_face", back_face)
@@ -820,6 +822,8 @@ func _part_material(style: Dictionary) -> ShaderMaterial:
 	mat.set_shader_parameter("shop_kit", kit_enabled and ShopfrontKit.enabled)
 	mat.set_shader_parameter("shop_paint_near", shop_paint_near)
 	mat.set_shader_parameter("shop_paint_far", shop_paint_far)
+	# By day an open shop's lights are on, a closed one's off (ShopfrontDress; off: both as before).
+	ShopfrontDress.day_light(mat)
 	# A curtain wall draws its spandrels and thin transom lines in the frame paint (the kit's caps
 	# stand on those lines), and rolls its spandrel pale or dark as the far shader does.
 	mat.set_shader_parameter("curtain_spandrel", window_style == WindowStyle.CURTAIN)
@@ -1449,6 +1453,9 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		FacadeStreet.face(self, face_index, fc, a, n, size_u, cols, pitch, cut, bottom, storefront, floor_h, rows, top,
 			face_shops and shape != Shape.WAREHOUSE, spans[face_index], has_awnings or has_canopy or kit_awnings_extra,
 			has_balconies or (has_escape and face_index == escape_face), masonry)
+		FacadeMid.face(self, face_index, fc, a, n, size_u, cols, pitch, cut, bottom, storefront, floor_h, rows, top, masonry, residential,
+			has_balconies or (has_escape and face_index == escape_face), cap_bands.is_empty() and not kit_cornice and _roof_edge_free(center, size),
+			finish == Finish.FLAT and masonry and not has_balconies)
 		if curtain_caps:
 			ShopfrontKit.curtain_face(self, _kit, fc, a, n, size_u, cols, pitch, cut, bottom, storefront, floor_h, rows, top, frame_color)
 		if has_escape and face_index == escape_face and cols - 2 * skip >= 2:
@@ -1506,6 +1513,9 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 			if _kit != null and ShopfrontKit.enabled:
 				ShopfrontKit.storefront_face(self, _kit, face_index + 1, fc, a, n, size_u, cols, pitch, cut, bottom,
 					storefront, spans[face_index], stops, masonry, floor_h, top, accent.lightened(0.05))
+			# What each shop puts out at its door: mats, planters, a hanging sign, a menu case.
+			ShopfrontDress.face(self, face_index + 1, fc, a, n, size_u, cols, pitch, cut, bottom, storefront, spans[face_index],
+				masonry, has_awnings or kit_awnings_extra, has_canopy, top - bottom)
 			# Where people go in and out of the shops (StreetErrands), off the same shop rolls.
 			StreetErrands.note_shop_doors(self, face_index + 1, fc, a, n, size_u, cols, pitch, cut, bottom, spans[face_index])
 		# Shop signs. The sign band is drawn by the shader on the storefront; this puts the
@@ -1604,6 +1614,7 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 						_kit_solid_box(kxf, Vector3(0.0, -0.08, 0.585), Vector3(2.24, 0.16, 1.27))
 					else:
 						balconies.append(bxf)
+					FacadeMid.balcony(self, bxf, _kit != null, face_index, col, row)
 		if kit_awnings_extra and face_shops:
 			_kit_awnings(face_index, fc, a, n, size_u, cols, pitch, cut, bottom, storefront, spans[face_index])
 		if has_awnings:

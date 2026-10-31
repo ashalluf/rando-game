@@ -227,6 +227,11 @@ static func road_tint(plan: CityPlan, axis: int, index: int) -> Color:
 	rng.seed = hash([plan.seed, "road_look", axis, index])
 	var aerial := rng.randf() >= 0.55
 	var tint: Color = CityChunk.ROAD_TINTS[rng.randi() % CityChunk.ROAD_TINTS.size()]
+	# The road's own neutralised tint (PropFactory.road(), StreetNoonReview).
+	var desat := StreetNoonReview.desat("asphalt_aerial" if aerial else "asphalt")
+	if desat > 0.0:
+		var luma := tint.r * 0.2126 + tint.g * 0.7152 + tint.b * 0.0722
+		tint = tint.lerp(Color(luma, luma, luma), desat)
 	if aerial:
 		tint = Color(tint.r * 1.2, tint.g * 1.2, tint.b * 1.2)
 	return tint
@@ -312,10 +317,12 @@ static func _road(ctx: Dictionary, axis: int, index: int, block_i: int, c: float
 			_stamp(ctx, rng, name, at.call(u, v), top, yaw, tint, _age(rng, age_bias), true, name == "edge_break")
 		# The parking lane: drips under where cars stand.
 		var n_oil := int(round(length / 6.5 * 0.16 * clampf(level, 0.4, 1.4)))
+		# Nobody parks in a bike lane, so nothing drips there (StreetNoonReview, after the rolls).
+		var no_cars := StreetNoonReview.enabled and Micromobility.enabled and Micromobility.lane_on(plan, axis, index, block_i)
 		for k in n_oil:
 			var v := rng.randf_range(2.0, length - 2.0)
 			var u := side * (half - CityPlan.PARKING_LANE * 0.5 + rng.randf_range(-0.4, 0.4))
-			_stamp(ctx, rng, "oil_drips" if rng.randf() < 0.9 else "burnout", at.call(u, v), top, along_yaw + rng.randf_range(-0.2, 0.2), tint, _age(rng, age_bias), false)
+			_stamp(ctx, rng, "oil_drips" if rng.randf() < 0.9 else "burnout", at.call(u, v), top, along_yaw + rng.randf_range(-0.2, 0.2), tint, _age(rng, age_bias), false, false, 0.0, no_cars)
 	# 3. Longitudinal joint down the middle (where the two paving passes met), cracked and sealed.
 	# Short pieces that wander off the line and leave gaps: laid end to end on it they read as a
 	# line ruled down the road.
@@ -448,7 +455,7 @@ static func _pavements(ctx: Dictionary, rect: Rect2, district: int) -> void:
 ## v along the yaw's local z). `aligned` keeps the yaw (a stamp that runs with the road), else the
 ## turn is free. `fixed_u` pins the stamp's u size (metres) instead of the kind's scale range: a
 ## crack across a carriageway, edge break-up against a kerb.
-static func _stamp(ctx: Dictionary, rng: RandomNumberGenerator, name: String, p: Vector2, y: float, yaw: float, tint: Color, age: float, aligned: bool, kerb: bool = false, fixed_u: float = 0.0) -> void:
+static func _stamp(ctx: Dictionary, rng: RandomNumberGenerator, name: String, p: Vector2, y: float, yaw: float, tint: Color, age: float, aligned: bool, kerb: bool = false, fixed_u: float = 0.0, drop: bool = false) -> void:
 	if int(ctx.count) >= MAX_PER_CHUNK:
 		return
 	var i := index_of(name)
@@ -507,6 +514,9 @@ static func _stamp(ctx: Dictionary, rng: RandomNumberGenerator, name: String, p:
 		custom_g += 64
 	if (flags & RoadWearTable.DEEP) != 0:
 		custom_g += 128
+	# Every roll is made; a dropped stamp lays nothing (StreetNoonReview: no oil under a bike lane).
+	if drop:
+		return
 	var basis := Basis(Vector3.UP, yaw).scaled_local(Vector3(size.x, 1.0, size.y))
 	var chunk: CityChunk = ctx.chunk
 	var custom := Color(custom_r, float(custom_g), float(thr_a * 32 + thr_b), float(zoom))

@@ -319,6 +319,7 @@ func _seat_far_sign(holder: Node3D, anchor: Vector2) -> void:
 	mat.set_shader_parameter("seat_a", line.a)
 	mat.set_shader_parameter("seat_b", line.b)
 	mat.set_shader_parameter("seat_ground", line.ground)
+	RcHills.seat_far_sign(mat, lod_reach_metres())
 	_far_ground_materials.append(mat)
 	for mi in holder.find_children("*", "MeshInstance3D", true, false):
 		(mi as MeshInstance3D).material_override = mat
@@ -1042,7 +1043,7 @@ func _build_vignette() -> void:
 	mat.shader = load("res://shaders/vignette.gdshader")
 	mat.set_shader_parameter("strength", vignette_strength)
 	mat.set_shader_parameter("grain", film_grain)
-	mat.set_shader_parameter("fringe", lens_fringe)
+	mat.set_shader_parameter("fringe", lens_fringe * GoldenAerial.FRINGE_GAIN if GoldenAerial.enabled else lens_fringe)
 	rect.material = mat
 	layer.add_child(rect)
 	add_child(layer)
@@ -1123,6 +1124,11 @@ func set_ground_smog(amount: float, color: Color) -> void:
 		_ground_material.set_shader_parameter("smog_color", color)
 
 
+## DayNight's sun and sky for the plane's painted light (GoldenAerial).
+func set_ground_light(sun_color: Color, energy: float, day_energy: float, top: Color, horizon: Color, golden: float, night: float) -> void:
+	GoldenAerial.ground_light(_ground_material, sun_color, energy, day_energy, top, horizon, golden, night)
+
+
 ## Where the horizon plane's rim hands over to the sky, as fractions of its half-size (see
 ## edge_start in macro_ground.gdshader).
 const GROUND_EDGE_FADE := Vector2(0.72, 0.98)
@@ -1155,10 +1161,12 @@ func _build_ground() -> void:
 	# four shadow cascades every frame for nothing. It still RECEIVES, which is what matters.
 	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_ground.add_child(mesh)
+	HorizonTiles.split(mesh)
 	add_child(_ground)
 	# The far ranges' ring out to the camera's far plane (FarRanges; null when FAR_RANGES=0).
 	_far_ring = FarRanges.build_ring(_ground_material, ground_size, ground_step())
 	if _far_ring:
+		HorizonTiles.split(_far_ring)
 		add_child(_far_ring)
 	MountainOccluder.attach(self, plan.macro, macro_span)
 	RockFar.attach(self, plan, _canopy_material)

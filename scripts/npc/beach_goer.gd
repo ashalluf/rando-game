@@ -647,7 +647,7 @@ func _volley_tick(delta: float) -> void:
 	if _anim:
 		var clip := IDLE_CLIP if _speed < 0.3 else (RUN_CLIP if _speed > 2.4 and _has_run else WALK_CLIP)
 		_set_clip(clip, 0.15)
-		_anim.speed_scale = 1.0 if clip == IDLE_CLIP else _speed / ((RUN_CLIP_SPEED if clip == RUN_CLIP else WALK_CLIP_SPEED) * maxf(_stride, 0.5))
+		_anim.speed_scale = 1.0 if clip == IDLE_CLIP else _speed / ((_run_clip_speed if clip == RUN_CLIP else _own_walk_speed) * maxf(_stride, 0.5))
 		_anim.advance(delta)
 	_volley_hit = maxf(_volley_hit - delta, 0.0)
 	_volley_hop = maxf(_volley_hop - delta, 0.0)

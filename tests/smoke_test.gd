@@ -69,7 +69,7 @@ const CITY_PARTS := ["city_streaming", "city_terrain", "city_landmarks", "city_c
 const INLINE_FILES := ["downtown_checks", "hero_moves_checks", "street_life_checks",
 	"crowd_anim_checks", "crowd_life_checks", "crowd_hat_checks", "photo_mode_checks",
 	"wingsuit_checks", "traffic_ai_checks", "street_errands_checks", "dog_checks", "hero_closeup_checks",
-	"hero_face_2_checks", "hero_locomotion_2_checks"]
+	"hero_face_2_checks", "hero_locomotion_2_checks", "hero_closeup_2_checks"]
 ## Wall seconds each part took in a whole run on the 4-core fleet box (SMOKE_PROFILE=1 prints
 ## them as PART lines; refreshed 2026-10-30 from main a3db077f, tools/gate/part_costs.py); a file missing here counts DEFAULT_COST. Only the deal depends on them.
 const PART_COST := {
@@ -118,7 +118,7 @@ const PART_COST := {
 	"shop_vinyl_checks": 0.0, "sky_checks": 0.0, "bonfires_checks": 3.0,
 	"cinematic_review_checks": 0.1, "sunset_clouds_checks": 0.0, "night_street_review_checks": 0.1,
 	"downtown_street_closeup_checks": 1.5, "golden_hour_review_checks": 0.1,
-	"night_flight_checks": 0.0, "mac_verify_pack_checks": 1.0, "fwd_review_f_checks": 0.0, "web_hero_rain_checks": 0.1, "skyline_glass_day_checks": 0.1
+	"night_flight_checks": 0.0, "mac_verify_pack_checks": 1.0, "fwd_review_f_checks": 0.0, "web_hero_rain_checks": 0.1, "skyline_glass_day_checks": 0.1, "sky_day_checks": 0.0, "rc_golden_aerial_checks": 0.1, "rc_sunset_checks": 0.1, "rc_street_noon_checks": 0.1, "dawn_review_checks": 0.1
 }
 const DEFAULT_COST := 6.0
 ## Every share pays for its own city load on top of its parts.
@@ -414,6 +414,8 @@ func _run() -> void:
 	await load("res://tests/hero_face_2_checks.gd").new().run(self, player)
 	# The hero's locomotion (tests/hero_locomotion_2_checks.gd): synced gaits, start, stop, turn, strafe.
 	await load("res://tests/hero_locomotion_2_checks.gd").new().run(self, player)
+	# The hero at arm's length, second pass (tests/hero_closeup_2_checks.gd): hair, brows, lips, velour.
+	await load("res://tests/hero_closeup_2_checks.gd").new().run(self, player)
 	await _test_weapons(player)
 	_test_buildings()
 	level.free() # Free now, so the city scene cannot pick up this level's player.
@@ -2255,6 +2257,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# MacArthur Park and the downtown encampments (tests/westlake_checks.gd): the park builds with
 	# water and collision, camps only downtown, the people at them hold their poses, caps hold.
 	await load("res://tests/westlake_checks.gd").new().run(self, city)
+	# MacArthur Park from the air (tests/rc_macarthur_checks.gd): lake shore grid, palm ring, trees.
+	await load("res://tests/rc_macarthur_checks.gd").new().run(self, city)
 	# The valley golf course (tests/golf_checks.gd): the site and its closed roads, the layout, the
 	# turf mesh and its seams, LOD and far, the golfers and the carts.
 	await load("res://tests/golf_checks.gd").new().run(self, city)
@@ -2708,9 +2712,14 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The golden-hour review (tests/golden_hour_review_checks.gd, GoldenHour): the sky's twilight
 	# ramp, the blue zenith at sunset, the eased grade, no pop 17:00-19:30, the A/B.
 	load("res://tests/golden_hour_review_checks.gd").new().run(self, city)
+	# The street_noon review (tests/rc_street_noon_checks.gd, StreetNoonReview): grey asphalt, lane
+	# markings over the light rail's tunnel, double yellows, grimy bike lanes, the A/B.
+	load("res://tests/rc_street_noon_checks.gd").new().run(self, city)
 	# The night flight (tests/night_flight_checks.gd, NightFlight): platoons, the streets' rank, junction
 	# pools, the beams' near fade, the A/B.
 	load("res://tests/night_flight_checks.gd").new().run(self, city)
+	# Los Angeles' hills (tests/la_street_hills_checks.gd, LaHills): Bunker Hill, the grades, the stairways.
+	load("res://tests/la_street_hills_checks.gd").new().run(self, city)
 	# The verify pack (tests/mac_verify_pack_checks.gd, VerifyPack): the camera table, the button,
 	# the folder, a one-camera run that puts everything back.
 	await load("res://tests/mac_verify_pack_checks.gd").new().run(self, city)
@@ -2735,6 +2744,63 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The skyline's glass by day (tests/skyline_glass_day_checks.gd, SkylineGlass): the tower boxes,
 	# the pick, the shaders sharing the include behind its switch, the node feeding the globals.
 	load("res://tests/skyline_glass_day_checks.gd").new().run(self, city)
+	# The street lamps at eye level (tests/night_lamps_checks.gd, NightLamps, LampShadows).
+	await load("res://tests/night_lamps_checks.gd").new().run(self, city)
+	# The police chase (tests/police_chase_checks.gd, PoliceChase): box-in, PIT, spikes, doors, radio.
+	await load("res://tests/police_chase_checks.gd").new().run(self, city)
+	# Gunplay at arm's length (tests/gunplay_feel_checks.gd, GunplayFeel): the volume flash, tracers,
+	# marks by surface, the shotgun's pattern, the recoil spring, the barrel smoke, the switch.
+	load("res://tests/gunplay_feel_checks.gd").new().run(self, city)
+	# The water review (tests/water_review_checks.gd, WaterReview): the sea floor, the foam, the A/B.
+	load("res://tests/water_review_checks.gd").new().run(self, city)
+	# The day sky (tests/sky_day_checks.gd, SkyDay): 0 outside 09:00-16:00, gated, handed over.
+	load("res://tests/sky_day_checks.gd").new().run(self, city)
+	# Ground contact (tests/ground_contact_checks.gd, GroundContact): trunks, poles and people on
+	# contact quads, grime, a well's tree sunk with its dirt, a slope's planter on the paving.
+	load("res://tests/ground_contact_checks.gd").new().run(self, city)
+	# Buildings at mid distance (tests/building_mid_detail_checks.gd, FacadeMid): balcony life and wall
+	# hardware inside the lot, glass towers plain, nothing a building rolled moving.
+	load("res://tests/building_mid_detail_checks.gd").new().run(self, city)
+	# Shop fronts at arm's length (tests/storefront_closeup_2_checks.gd, ShopfrontDress): mats,
+	# planters, hanging signs, menus, the awnings' valance and sag, the A/B.
+	load("res://tests/storefront_closeup_2_checks.gd").new().run(self, city)
+	# The crowd's flow (tests/pedestrian_flow_checks.gd, CrowdFlow): passing, groups, kerbs, doors.
+	await load("res://tests/pedestrian_flow_checks.gd").new().run(self, city)
+	# The downtown aerial refcam (tests/rc_downtown_aerial_checks.gd): city hall's grounds, watered
+	# downtown lawns, weathered roofs near and far, antialiased landmark windows, the camera's aim.
+	load("res://tests/rc_downtown_aerial_checks.gd").new().run(self, city)
+	# The golden-aerial review (tests/rc_golden_aerial_checks.gd, GoldenAerial): the far ranges in the
+	# low sun, the mid deck as cloudlets, far antennas, the halls, the lens fringe.
+	load("res://tests/rc_golden_aerial_checks.gd").new().run(self, city)
+	# The sunset on the Esplanade (tests/rc_sunset_checks.gd, SunsetReview): the dusk sky cool away
+	# from the sun, the band after sunset, the fog on the sky's ramp, the lamps' lights, the A/B.
+	load("res://tests/rc_sunset_checks.gd").new().run(self, city)
+	# The rainy night street's refcam review (tests/rain_street_night_checks.gd, RainStreetNight):
+	# the lamp streaks, the lit rain, the curtain, the lens, the deck, the car lamps in the wet road.
+	await load("res://tests/rain_street_night_checks.gd").new().run(self, city)
+	# The dawn review (tests/dawn_review_checks.gd, DawnReview): a cooler, cleaner dawn, the lamps
+	# out before the sunrise, noon / evening / night bit-identical, the A/B.
+	load("res://tests/dawn_review_checks.gd").new().run(self, city)
+	# Blood and gore at arm's length (tests/blood_gore_2_checks.gd, BloodGore, HeroBlood).
+	await load("res://tests/blood_gore_2_checks.gd").new().run(self, city)
+	# The five stars as distinct (tests/wanted_escalation_checks.gd, WantedEscalation, WantedAudio):
+	# caps per star, vans, the agency's trucks and troopers, the gunship, the sirens and the radio.
+	await load("res://tests/wanted_escalation_checks.gd").new().run(self, city)
+	# The freeway refcam (tests/rc_freeway_checks.gd, FreewayFill / FreewayLook): per-lane slots
+	# nearest first, the cap and shares, the deck's tining, rumble scoops and joints, the A/Bs.
+	await load("res://tests/rc_freeway_checks.gd").new().run(self, city)
+	# The wet road's mirror (tests/wet_road_mirror_checks.gd, WetRoadMirror): streaks in the wet
+	# branch only, the old mirror kept for the A/B, the SSR blend, the switch.
+	load("res://tests/wet_road_mirror_checks.gd").new().run(self, city)
+	# The hills refcam (tests/rc_hills_checks.gd, RcHills): crags, far tors, steep faces, thickets, sign.
+	load("res://tests/rc_hills_checks.gd").new().run(self, city)
+	# The fourth perf audit (tests/perf_audit_4_checks.gd): the horizon tiles, the far city's hidden tiles.
+	load("res://tests/perf_audit_4_checks.gd").new().run(self, city)
+	# Traffic behaviour (tests/traffic_behaviour_2_checks.gd, TrafficBehaviour): creep at a red,
+	# inching queues, brake flicker, a bus pulling out, left turns' gaps, wrecks, heads turning.
+	await load("res://tests/traffic_behaviour_2_checks.gd").new().run(self, city)
+	# The crowd up close, third pass (tests/crowd_closeup_3_checks.gd): the measured strides, the hair edges, the builder's shoes and hands.
+	await load("res://tests/crowd_closeup_3_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
@@ -3521,9 +3587,17 @@ func _test_weapons(player: Player) -> void:
 		_check(manager.current.get("_cooldown") <= cooldown_before, "the gun does not fire while the wheel is open")
 		Input.action_release("weapon_wheel")
 		await _ticks(3)
+		# The wheel reads the release in _process: on a loaded runner three physics ticks can
+		# all fall inside one rendered frame, so wait for frames too (batch 30's gate).
+		for i in 3:
+			await get_tree().process_frame
 		_check(manager.current is RocketLauncher and not wheel.is_open() and not manager.wheel_open,
 			"releasing the wheel equips the highlighted rocket launcher")
+		# The ease back runs at most 0.1 s a frame: on slow frames 0.3 s is a frame or two.
+		var ease_t0 := Time.get_ticks_msec()
 		await get_tree().create_timer(0.3, true, false, true).timeout
+		while Engine.time_scale != 1.0 and Time.get_ticks_msec() - ease_t0 < 5000:
+			await get_tree().process_frame
 		_check(Engine.time_scale == 1.0 and AudioServer.playback_speed_scale == 1.0,
 			"time and audio are back to normal after the wheel closes (%.2f, %.2f)" % [Engine.time_scale, AudioServer.playback_speed_scale])
 		await _press("weapon_wheel")
@@ -4081,12 +4155,12 @@ func _check_crowd_rigs() -> void:
 			why += " body (one surface, region colours, masked look)"
 		if not hair_ok:
 			why += " hair material"
-		if tris > 20000:
+		if tris > 24000:
 			why += " %d triangles" % tris
 		if why != "":
 			bad.append(path.get_file() + ":" + why)
 		rig.queue_free()
-	_check(rigs >= 26 and bad.is_empty(), "the %d crowd rigs keep the contract (24 bones, clips, masked body with detail UV2, cut-out hair, <= 20k triangles)%s" % [rigs, "" if bad.is_empty() else " " + str(bad)])
+	_check(rigs >= 26 and bad.is_empty(), "the %d crowd rigs keep the contract (24 bones, clips, masked body with detail UV2, cut-out hair, <= 24k triangles: 20k until the shoes' soles and laces and the hands' own budget, crowd-closeup-3)%s" % [rigs, "" if bad.is_empty() else " " + str(bad)])
 	# a rig whose head is covered (the headscarf) is one of the crowd, and never wears a hat
 	var no_hat_ok := true
 	for path: String in ped_script.NO_HAT_MODELS:

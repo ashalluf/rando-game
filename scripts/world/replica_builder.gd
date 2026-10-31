@@ -1658,6 +1658,11 @@ func _commit_far() -> void:
 			var cols := PackedColorArray()
 			cols.resize(n)
 			cols.fill(FAR_COLORS[name])
+			if name == "bluff" and SunsetReview.enabled:
+				# The bluff face is planted (scrub, ice plant): mottled, not one clay colour.
+				var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+				for vi in n:
+					cols[vi] = SunsetReview.bluff_far(verts[vi], plan.seed)
 			arrays[Mesh.ARRAY_COLOR] = cols
 			var tinted := ArrayMesh.new()
 			tinted.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)

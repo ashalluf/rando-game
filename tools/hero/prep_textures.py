@@ -139,8 +139,11 @@ if "skin" not in SKIP:
     hair = ss(-0.003, 0.009, sd) * (z > ear_c[2] - 0.1) * (1 - ears)
     d_eye = np.minimum(np.linalg.norm(Pc - eye_l, axis=1), np.linalg.norm(Pc - eye_r, axis=1))
     socket = np.exp(-((d_eye - 0.012) / 0.010) ** 2) * head
-    forehead = ss(eye_z + 0.018, eye_z + 0.03, z) * (1 - ss(hz - 0.012, hz, z)) * (ax < 0.055) * front
-    nose = (ax < 0.02) * ss(lip_top + 0.008, lip_top + 0.015, z) * (1 - ss(eye_z - 0.005, eye_z + 0.012, z)) * (y < face_y + 0.035)
+    # smooth edges across the face (hero-closeup-2): the hard `ax < 0.055` / `ax < 0.02` steps
+    # left the oily T-zone as two sharp rectangles in the roughness map (a pale trapezoid of sky
+    # down the nose in the game; tools/hero_closeup_2/soften_tzone.py fixed the shipped maps)
+    forehead = ss(eye_z + 0.018, eye_z + 0.03, z) * (1 - ss(hz - 0.012, hz, z)) * (1 - ss(0.04, 0.065, ax)) * front
+    nose = (1 - ss(0.013, 0.027, ax)) * ss(lip_top + 0.008, lip_top + 0.015, z) * (1 - ss(eye_z - 0.005, eye_z + 0.012, z)) * (y < face_y + 0.035)
     nose_tip = np.exp(-(ax / 0.011) ** 2 - ((z - (lip_top + 0.024)) / 0.012) ** 2) * (y < face_y + 0.02)
     cheeks = np.exp(-((ax - 0.043) / 0.016) ** 2 - ((z - (eye_z - 0.03)) / 0.018) ** 2) * front * head
     chin = np.exp(-(ax / 0.018) ** 2 - ((z - (lip_bot - 0.025)) / 0.012) ** 2) * front

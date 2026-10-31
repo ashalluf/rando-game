@@ -197,7 +197,7 @@ func _full(city: Node3D) -> void:
 			continue
 		if n.begins_with("Batch_by_"):
 			kinds += 1
-		elif not n.begins_with("BatchShadow_by_"):
+		elif not n.begins_with("BatchShadow_by_") and n != "BatchContact": # the contact quads include the yard's own (GroundContact)
 			var cnt := (c as MultiMeshInstance3D).multimesh.instance_count
 			if int(off_batches.get(n, -1)) != cnt:
 				moved.append("%s %d->%d" % [n, int(off_batches.get(n, -1)), cnt])

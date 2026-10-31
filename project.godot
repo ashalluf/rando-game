@@ -346,6 +346,10 @@ ocean_closeup={
 "type": "float",
 "value": 1.0
 }
+water_review={
+"type": "float",
+"value": 1.0
+}
 lawns_closeup={
 "type": "float",
 "value": 1.0
@@ -381,4 +385,13 @@ skyline_towers_a={
 skyline_towers_b={
 "type": "mat4",
 "value": Projection(0, 0, 0, -100000, 0, 0, 0, -100000, 0, 0, 0, -100000, 0, 0, 0, -100000)
+}
+lamp_ease={
+"type": "float",
+"value": 1.0
+}
+
+wet_road_mirror={
+"type": "float",
+"value": 1.0
 }

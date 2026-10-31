@@ -163,6 +163,9 @@ func _ready() -> void:
 	add_to_group("wanted")
 	_rng.seed = 5150
 	_web = OS.has_feature("web")
+	PoliceChase.attach(self)
+	WantedEscalation.apply(self)
+	WantedAudio.attach(self)
 
 
 # --- Crimes ------------------------------------------------------------------------------------
@@ -641,6 +644,7 @@ func board(o: PoliceOfficer, car: PoliceCar) -> void:
 
 func officer_down(o: PoliceOfficer) -> void:
 	officers.erase(o)
+	PoliceChase.say("down")
 	if is_instance_valid(o.car):
 		o.car.crew_alive = maxi(o.car.crew_alive - 1, 0)
 
@@ -660,9 +664,9 @@ func cruiser_stolen(car: PoliceCar) -> void:
 
 ## A cruiser on the street right now (tests, screenshots, roadblocks): at `world_pos` facing
 ## `yaw`, either chasing ("pursue") or stopped with its crew out ("parked").
-func spawn_cruiser(world_pos: Vector3, yaw: float, kind: String = "parked", is_heavy: bool = false) -> PoliceCar:
+func spawn_cruiser(world_pos: Vector3, yaw: float, kind: String = "parked", is_heavy: bool = false, agency: bool = false) -> PoliceCar:
 	_ensure_refs()
-	var car := _take_car(is_heavy)
+	var car := _take_car(is_heavy, agency)
 	car.police = self
 	car._plan = plan
 	car.goal = Vector2(world_pos.x, world_pos.z)
@@ -679,16 +683,23 @@ func spawn_cruiser(world_pos: Vector3, yaw: float, kind: String = "parked", is_h
 	return car
 
 
-func _take_car(is_heavy: bool) -> PoliceCar:
+func _take_car(is_heavy: bool, agency: bool = false) -> PoliceCar:
 	for i in range(_pool.size() - 1, -1, -1):
 		var c: PoliceCar = _pool[i]
 		if not is_instance_valid(c):
 			_pool.remove_at(i)
 			continue
-		if c.heavy == is_heavy:
+		if c.heavy == is_heavy and c.agency == agency:
 			_pool.remove_at(i)
 			return c
-	return PoliceCar.make(is_heavy, _rng)
+	return PoliceCar.make(is_heavy, _rng, agency)
+
+
+## The unit the next dispatch sends at this wanted level (WantedEscalation): a cruiser, a
+## tactical van or, at five stars, one of the agency's trucks.
+func _take_unit() -> PoliceCar:
+	var u := WantedEscalation.unit_for(stars, dispatched)
+	return _take_car(u == WantedEscalation.Unit.VAN, u == WantedEscalation.Unit.TRUCK)
 
 
 func _retire_car(c: Variant) -> void:
@@ -770,6 +781,7 @@ func _update_losing(delta: float) -> void:
 	if not flashing:
 		flashing = true
 		_flash_left = flash_seconds
+		PoliceChase.say("lost")
 	_flash_left -= delta
 	if _flash_left <= 0.0:
 		_flash_left = flash_seconds
@@ -940,8 +952,7 @@ func _dispatch() -> void:
 		break
 	if pick.is_empty():
 		return
-	var heavy := stars >= heavy_stars and dispatched % 2 == 1
-	var car := _take_car(heavy)
+	var car := _take_unit()
 	car.police = self
 	car.begin_dispatch(plan, pick[0], pick[1], pick[2], car.dispatch_speed * 0.85)
 	car.goal = xz
@@ -964,8 +975,7 @@ func _dispatch_from_station(st: Dictionary, goal: Vector2) -> bool:
 	var lane_spec := PoliceStation.exit_lane(plan, st, goal)
 	if lane_spec.is_empty():
 		return false
-	var heavy := stars >= heavy_stars and dispatched % 2 == 1
-	var car := _take_car(heavy)
+	var car := _take_unit()
 	car.police = self
 	car.begin_dispatch(plan, lane_spec[0], lane_spec[1], lane_spec[2], 0.0)
 	car.goal = goal
@@ -1179,6 +1189,7 @@ func _place_roadblock() -> void:
 		var at := mid + (Vector2(lat, 0.0) if axis == CityPlan.AXIS_X else Vector2(0.0, lat))
 		var h := traffic._relief(at) if traffic else 0.0
 		spawn_cruiser(Vector3(at.x, 0.9 + h, at.y), yaw + (PI if k == 1 else 0.0), "roadblock")
+	PoliceChase.roadblock(self, mid, axis, index, travel)
 
 
 # --- Screenshots --------------------------------------------------------------------------------
@@ -1207,7 +1218,8 @@ func stage_for_shot(n_stars: int, scene: String) -> void:
 		at.y = 0.9 + h
 		# Facing the player for a chase, broadside across the street for a standoff.
 		var yaw := atan2(fwd.x, fwd.z) if scene == "pursuit" else atan2(-fwd.x, -fwd.z) + PI * 0.5 + 0.35 * float(i)
-		var car := spawn_cruiser(at, yaw, "pursue" if scene == "pursuit" else "parked", n_stars >= heavy_stars and i == 1)
+		var u := WantedEscalation.unit_for(n_stars, i + 1)
+		var car := spawn_cruiser(at, yaw, "pursue" if scene == "pursuit" else "parked", u == WantedEscalation.Unit.VAN, u == WantedEscalation.Unit.TRUCK)
 		if scene == "pursuit":
 			car.linear_velocity = -car.global_basis.z * 14.0
 			car.hold_crash_watch(3)

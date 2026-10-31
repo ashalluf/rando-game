@@ -1317,7 +1317,7 @@ func _tick_lights(delta: float) -> void:
 		var v := traffic_speed
 		var decel := (_prev_traffic_speed - v) / maxf(delta, 0.0001)
 		# (A kerbside show car, a lowrider at its meet, has its foot off the pedal.)
-		braking = (v < 0.3 or decel > 0.8) and not traffic.get("parked", false)
+		braking = (v < 0.3 or decel > 0.8) and not traffic.get("parked", false) and not traffic.has("tb_foot")
 		_prev_traffic_speed = v
 		reversing = traffic.get("rev", false) # backing away from gunfire (CarPanic)
 		sig = _traffic_signal()

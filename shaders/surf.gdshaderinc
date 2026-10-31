@@ -25,6 +25,9 @@
 //   surf_extra = (run-up m, lip throw (fraction of height), surf zone width m, swash length (periods))
 global uniform vec4 surf_shape;
 global uniform vec4 surf_extra;
+// The water review (WaterReview, WATER_REVIEW=0 the A/B: 0 draws the foam, swash, shallows and night
+// mirror as they were before it).
+global uniform float water_review;
 
 const float SURF_H_LO = 0.62;
 const float SURF_H_SPAN = 0.68;
@@ -43,6 +46,88 @@ float surf_noise(vec2 p) {
 	f = f * f * (3.0 - 2.0 * f);
 	return mix(mix(surf_hash(i), surf_hash(i + vec2(1.0, 0.0)), f.x),
 		mix(surf_hash(i + vec2(0.0, 1.0)), surf_hash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+
+
+vec2 surf_hash22(vec2 p) {
+	vec3 p3 = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973));
+	p3 += dot(p3, p3.yzx + 33.33);
+	return fract((p3.xx + p3.yz) * p3.zy);
+}
+
+
+// Worley F1 and F2 (cell units): the nearest and the second-nearest of a jittered grid of points.
+vec2 surf_worley2(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = p - i;
+	float d1 = 8.0;
+	float d2 = 8.0;
+	for (int y = -1; y <= 1; y++) {
+		for (int x = -1; x <= 1; x++) {
+			vec2 g = vec2(float(x), float(y));
+			vec2 o = surf_hash22(i + g) * 0.86 + 0.07;
+			float d = length(g + o - f);
+			d2 = d < d1 ? d1 : min(d2, d);
+			d1 = min(d1, d);
+		}
+	}
+	return vec2(d1, d2);
+}
+
+
+// Churned foam (water-review; the ocean's whitewater and old foam, the swash's lace): coverage
+// 0..1 at `p` (the caller's own foam frame, about half a metre a unit), `age` 0 fresh (solid) .. 1
+// old (threads and islands), `px` a pixel's size in those units. A warped four-octave noise cut at
+// a threshold that rises with age, so the holes come in every size, merge and split and the foam
+// between them runs in streaks and islands - not the round, evenly spaced dots a threshold on Worley
+// F1 gives (the old nets read as rows of polka dots from the beach), nor thin noise contours (the
+// swash's old web read as white spaghetti). The finer octaves and the bubble walls only where they
+// span a pixel or two; under that the cut is its average.
+float surf_foam(vec2 p, float age, float px) {
+	float pch = surf_noise(p * 0.07 + 3.0);
+	vec2 warp = vec2(surf_noise(p * 0.23 + 1.3), surf_noise(p * 0.23 + 8.1)) - 0.5;
+	vec2 q = p + warp * 3.0;
+	float f = surf_noise(q * 0.31) * 0.47 + surf_noise(q * 0.77 + 5.2) * 0.29;
+	float k2 = 1.0 - smoothstep(0.5, 1.4, px);
+	float k3 = 1.0 - smoothstep(0.2, 0.6, px);
+	f += mix(0.5, surf_noise(q * 1.9 + 9.7), k2) * 0.16 + mix(0.5, surf_noise(q * 4.3 + 2.4), k3) * 0.08;
+	float th = mix(0.18, 0.62, age) + (pch - 0.5) * 0.28;
+	float soft = 0.035 + 0.12 * smoothstep(0.2, 2.5, px);
+	float cov = smoothstep(th - soft, th + soft, f);
+	// The bubbles inside it: faint walls round darker cells, more open as the foam ages.
+	if (k3 > 0.01) {
+		vec2 c = surf_worley2(q * 1.7);
+		float walls = 1.0 - smoothstep(0.0, 0.08 + 0.06 * (1.0 - age), c.y - c.x);
+		cov *= mix(1.0, 0.78 + 0.22 * walls, (0.2 + 0.5 * age) * k3);
+	}
+	return clamp(cov, 0.0, 1.0);
+}
+
+
+// Caustics on a sandy floor at true-world `fw` (water-review): the light the ripples on the
+// surface focus into a drifting net of bright lines - two Voronoi edge fields, crossed - sharp under
+// a few centimetres of water, softer and wider with `depth` (metres). 0..~1.2; under a few pixels
+// (`px` metres a pixel) the net is its average.
+float surf_caustic(vec2 fw, float depth, float px, float t) {
+	float cs = 0.7 + 0.3 * clamp(depth, 0.0, 2.0);
+	vec2 q = fw / cs;
+	// A strong slow warp rounds the cells and bends their edges, as the swell's lens does.
+	vec2 warp = vec2(surf_noise(q * 0.45 + t * 0.19), surf_noise(q * 0.45 + 4.0 - t * 0.15)) - 0.5;
+	vec2 a = surf_worley2(q + warp * 2.2 + vec2(t * 0.27, t * 0.11));
+	vec2 b = surf_worley2(q * 1.31 + warp * 2.8 - vec2(t * 0.19, t * 0.24) + 7.0);
+	float soft0 = 0.10 + 0.14 * clamp(depth, 0.0, 2.5);
+	// A line is never drawn thinner than a few pixels (seen at a grazing angle a thin core aliased
+	// into dotted rows down the beach): widened past that, and dimmed by as much, so it keeps its
+	// energy as it blurs into the average.
+	float soft = max(soft0, 2.5 * px / cs);
+	float keep = soft0 / soft;
+	// Thin bright cores fading out to the cell (a power of the edge distance, not a step).
+	float la = pow(1.0 - clamp((a.y - a.x) / soft, 0.0, 1.0), 3.0) * keep;
+	float lb = pow(1.0 - clamp((b.y - b.x) / soft, 0.0, 1.0), 3.0) * keep;
+	// Brightest where the two nets cross; patchy, as the focusing comes and goes with the swell.
+	float lines = (la * 0.55 + lb * 0.45) * (0.7 + 0.6 * la * lb / max(keep, 0.05));
+	lines *= 0.35 + 0.9 * smoothstep(0.3, 0.75, surf_noise(fw * 0.23 + t * 0.05 + 2.0));
+	return mix(lines, 0.12, smoothstep(cs * 0.05, cs * 0.25, px));
 }
 
 

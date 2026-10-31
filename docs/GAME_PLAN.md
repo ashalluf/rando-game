@@ -295,6 +295,19 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-31 Gunplay at arm's length (gunplay-feel, HANDOFF "Gunplay at arm's length").** The flash
+  is a volume of crossed flame cards in a shader, not a sprite (a sprite seen from the side is a
+  ball); the tracer a streak in flight, not a line; the marks per surface painted in code from a
+  height field and BAKED to files (21 s of GDScript is no load-time job); recoil a spring the IK
+  carries, applied in one Avatar hook so the hands ride it. Taken over by one hook line in each
+  WeaponFX function, never round Weapon.tick (Sanctuary). GUNPLAY_FEEL=0 the A/B.
+
+- **2026-10-31 A building's middle storeys are dressed by hashes, in one mesh a building (fleet
+  wave 4, `building-mid-detail`, HANDOFF "Buildings at mid distance").** Balcony life, wall ACs,
+  vents, dishes, open windows, flashing, painted names and walk-up fire escapes are FacadeMid's: one
+  code-built mesh a building (plus one for the small pieces, to 58 m), no shadow, no collision, every
+  roll a hash of seed + wall + window so nothing a seed built before moves; the far tiers keep their
+  boxes. FACADE_MID=0 is the A/B.
 - **2026-10-30 Busy streets spend the caps where the camera looks, not more caps (HANDOFF "Busy
   streets").** Measured at the downtown bookmark the traffic was at its 150-car cap but spread evenly
   over a 380 m circle (5-9 moving cars in view), every queued street spawn was dropped while the kerbs'
@@ -3628,6 +3641,30 @@ already mapped so milestone 2 is script-only.
   painted on the wet road is smeared to a glow; each FULL lamp gets a wet-road reflection streak in
   its own prop record; Broadway's lanterns at 0.6 of the level. All tuning of existing systems plus
   one quad a lamp; `NIGHT_STREET_REVIEW=0` restores the old numbers.
+- **2026-10-31 The police chase is manoeuvres on top of the cruisers' own driving (police-chase-2,
+  HANDOFF "The police chase").** Decisions: a new node (PoliceChase) deals roles to cruisers within
+  55 m of the player's car - box in under 7 m/s, PIT over 11 m/s, flank otherwise - and PoliceCar only
+  asks it for an aim and a speed, so routing, the caps and the dispatch stay Police.gd's (the
+  wanted-escalation task's); the PIT's contact is ASSISTED (a yaw impulse and the rear grip let go),
+  because VehicleBody3D wheels never let a tapped car rotate; roadblocks lay a spike strip on the
+  player's side and a flat tyre is a smaller wheel radius with a fraction of the grip, never repaired;
+  officers use the CarInterior door rigs as cover and advance one at a time; the radio is synthesised
+  speech-like babble (no CC0 dispatch voice exists). POLICE_CHASE=0 / POLICE_RADIO=0 are the A/B.
+- **2026-10-31 The downtown aerial refcam looks at the civic centre, and the civic centre has
+  grounds (rc-downtown-aerial, HANDOFF "The civic centre from the air").** The camera's old pose
+  looked into a seeded tower 20 m away; it was moved on purpose (a refcam that does not show its
+  subject measures nothing) and the lead re-shoots its base. Decisions: a civic site's leftover
+  block is never bare paving (lawns, walks, trees, the same in the far copy); downtown's park lawns
+  are irrigated whatever the block rolled; flat roofs weather smoothly with the same function near
+  and far; landmark windows are coverage, never a hard test. All behind CIVIC_GROUNDS=0 /
+  ROOF_WEATHER=0.
+- **2026-10-31 The freeway at noon is full and seamless (rc-freeway, HANDOFF "The freeway at
+  noon").** The freeway refcam had a handful of cars in a kilometre at 13:00, moire rings in the
+  tining, a ladder of black rumble tiles and a crack at every deck bend. Decisions: freeway traffic
+  is filled per LANE (own jittered slots), nearest the player first and never on him, with a 1.5x
+  cap given mostly to the route he is on - density is spent where the camera is, not spread over
+  1.2 km; shading detail on the deck fades while it still spans pixels rather than at one; segment
+  geometry is mitred, not overlapped. `FREEWAY_FILL=0` / `FREEWAY_LOOK=0` restore the old.
 
 - **2026-10-30 Traffic that moves like cars (traffic-motion, HANDOFF "Traffic that moves like
   cars").** Kinematic traffic glided: no dive, squat, lean or bounce, turns snapped 90 degrees at
@@ -3648,6 +3685,24 @@ already mapped so milestone 2 is script-only.
   (Godot's BACKLIGHT is one leaf deep and the shadow map kills it inside a crown); the sway gets
   weight (rate by height, the gust answered late with a swing-back). No mesh, ladder or twin
   changed. `TREE_LIGHT=0` is the A/B.
+- **2026-10-31 The hero at arm's length, second pass (hero-closeup-2, HANDOFF "The hero at arm's
+  length, second pass").** Judged at 0.5-2.4 m on both renderers (hero_shot.gd, opengl3 and lavapipe
+  Forward+, day / golden / night). Decisions: hair and brows get their own light() (Kajiya-Kay)
+  instead of Godot's anisotropic GGX on cards, which blew whole cards out to white; card edges are a
+  second, blended pass (next_pass) under the core's alpha cut rather than a wider dither, because
+  Compatibility has no TAA; the lips, oil, hands and velour are shaded from the maps already shipped
+  (no hero rebuild), and the one map defect (the T-zone's hard box) is fixed in both the generator
+  and the shipped PNGs. Forward+ is the target: where the two renderers' balance differs (linear vs
+  raw albedo against a light lobe) the shader carries a Forward+ gain. All behind HERO_CLOSEUP_2=0.
+- **2026-10-31 Each wanted star is its own response (wanted-escalation, HANDOFF "The five stars
+  as distinct").** Decisions: one table (`WantedEscalation`) owns what every star brings - caps,
+  roadblocks from three (was four), tactical vans from four (was five), the helicopter at three, a
+  second at four, a gunship third at five; five stars bring an invented agency (the Basin Defense
+  Corps) in olive box-truck troop carriers, its troopers in field drab with carbines and ballistic
+  helmets. Each star also sounds and reads different: the sirens' voice is picked by star and
+  distance (wail, yelp, air horn, the agency's hi-lo), a synthesised police radio announces every
+  new star and calls more often, and a line under the stars names the response. No real agency's
+  name or livery; `WANTED_ESCALATION=0` restores the old response.
 
 ## Correction: what build 135 (0ce833f) actually contained
 
@@ -3815,6 +3870,16 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+
+- **2026-10-31 Ragdolls that read right (ragdoll-feel, HANDOFF "Ragdolls that read right").** A shot
+  person staggers before falling, a flung one trails its limbs, a car hit wraps over the bonnet, a
+  doll rolls down steps. Decisions: the hit reaction is MUSCLES on the jointed doll (driven toward
+  its standing pose, leaned along the round, then let go), not a clip played before the doll is made
+  - the doll exists from the first frame, so blood, police, Emergency and onlookers are untouched,
+  and the reaction follows the round's direction by construction; what hit the person is a hint said
+  just before the knock (Pedestrian.shot, Vehicle's bumper), so no knock() signature changes; the cap,
+  range and freeze stay RagdollJoints'. RAGDOLL_FEEL=0 is the A/B.
+
 - **2026-10-31 - The night flight (night-flight, HANDOFF "The night flight").** The night aerial is
   tuned in the shaders that already draw it, never with new geometry: traffic platoons as a smooth
   noise in the cars' moving frame (the near lamps and the far lane means read the same factor), a
@@ -3836,6 +3901,15 @@ none of either.
   just before the knock (Pedestrian.shot, Vehicle's bumper), so no knock() signature changes; the cap,
   range and freeze stay RagdollJoints'. RAGDOLL_FEEL=0 is the A/B.
 
+
+- **2026-10-31 Los Angeles' hills (la-street-hills, HANDOFF "Los Angeles' hills").** The basin stays
+  flat; named hills (Bunker Hill, Echo Park, Elysian Heights, Solano Canyon, Boyle Heights, San
+  Pedro, a skirt round the Baldwin Hills oil field) are a DATA TABLE folded into the relief's base, held
+  level under every landmark. A street stretch steeper than 30 % is a public stairway closed to cars;
+  everything driveable stays at or under 30 %. Hillside neighbourhoods are houses. LA_HILLS=0 is the A/B.
+  Lead review the same day: the hills are BUILT UP, not lawn - every block on a home hill's slope is
+  close-packed lots of houses (stilts, garages at the kerb, stairs to the door, retaining walls), and
+  Bunker Hill's towers stand either side of the incline's narrow planted strip.
 - **2026-10-31 The Mac is checked with a button, not a Terminal (HANDOFF "The verify pack",
   docs/VERIFY.md).** Every fleet picture is the Compatibility renderer on Linux; nobody had seen
   wave 3 on Forward+. The owner plays the Mac app with no Terminal, so the check is a pause-menu
@@ -3907,6 +3981,130 @@ none of either.
   shared globals, never from a probe or a capture: the hour's sky (DayNight's own colours), a cloud
   deck, the real towers round the camera as up to eight traced boxes, the sun. Near walls, far boxes
   and crowns share one include so the LOD line does not show. SKYLINE_GLASS=0 is the A/B.
+- **2026-10-31 The street lamps at eye level (night-lamps-review, HANDOFF "The street lamps at eye
+  level").** Judged on Forward+ (a small lamp street under lavapipe), not the opengl3 stills: there
+  the lamps lit almost nothing. Decisions: a lamp's real light is normalised by its head's height
+  (every type lands the same light under it) with a steeper falloff so pools read; the additive pool
+  is a point source's falloff in the lamp's frame and, on Forward+, added in display numbers at a
+  share (the light does the rest); sodium deep amber, LED warm-white; real shadows only from the two
+  nearest lamps at HIGH, dual-paraboloid, faded, the lamps' own models kept out of their casters.
+  NIGHT_LAMPS=0 / LAMP_SHADOWS=0 are the A/B.
+- **2026-10-31 The water review: water is seen through, foam is never a pattern (water-review, HANDOFF
+  "The water from the beach and the pier").** From the beach the giveaways were regular foam nets
+  (polka dots, then leopard spots, then spaghetti lines), ruler-straight bores, and an opaque sea over
+  the sand. Decisions: every foam is one shared cut of warped multi-octave noise (surf_foam()) whose
+  threshold rises with age; the near shallows are drawn by refracting the view ray onto a sea floor
+  that IS the beach's own underwater rows (oc_seabed() = SeaSurface.seabed(), checked) - no depth
+  texture, so it holds on the web's renderer path too where enabled; caustics add light at the sand's
+  mean colour and never multiply a texture; a mirrored light's column grows a sixth of the way
+  travelled. WATER_REVIEW=0 is the A/B. The far sea and the horizon plane's sea are untouched.
+- 2026-10-31 (wave 4, sky-day-review): the day sky (09:00-16:00) is a weight on the clock (SkyDay), exactly 0 outside it so dawn, the golden hour, the sunset and the night stay bit-identical; the look changes in the drawn sky, and only a quarter of it reaches the radiance / ambient cubemap, because the sky is the city's fill light and lighting is the grade's call. The horizon colour is not darkened in the shader alone (it must match the fog and the far ground). SKY_DAY=0 is the A/B.
+- **2026-10-31 Ground contact: one quad system for everything on the ground, floats fixed at the
+  lift (ground-shadow-contact, HANDOFF "Ground contact").** Trunks, poles, furniture and people get
+  ContactShadows' existing quads (round at a trunk's own diameter, grime round street fixtures, a
+  blob under each near person) rather than a new system or a screen effect, because the web and the
+  opengl3 stills have no SSAO. Floating is measured against the DRAWN ground, never the collision
+  (paving is drawn over the slab that collides), through each instance's origin; every fix moves a
+  placement's height only, after the rolls, so no seed's city moves.
+
+- **2026-10-31 Shop fronts at arm's length: what a shop puts out (storefront-closeup-2, HANDOFF
+  "Shop fronts at arm's length").** At 2-6 m a storefront is judged by what stands at its door, so
+  each shop run gets a mat, planters, a sandwich board, a hanging sign or a menu case at the door
+  the kit and shader already draw (their integer rolls), all into FacadeStreet's one StreetDress
+  mesh (no new draw); awning cloth sags and its valance is scalloped in real metres; open shops are
+  lit by day, closed ones dimmer. SHOPFRONT_DRESS=0 is the A/B.
+- **2026-10-31 The crowd's flow (pedestrian-flow, HANDOFF "The crowd's flow").** Local avoidance is
+  a cheap reciprocal step over a per-frame grid, only within physics_range of the camera (past it
+  nobody can see two figures overlap); groups are made at spawn from walkers the chunk already
+  makes (no extra people), so the crowd cap and every seed's crowd count stay as they were; kerb
+  waits and door traffic reuse the crossing and StreetErrands state machines rather than adding
+  new ones. CROWD_FLOW=0 is the A/B.
+- 2026-10-31 (rc-macarthur, wave 4): a refcam's fixes stay inside the thing it looks at - the park's
+  lake, lawn, planting and walks change behind MACARTHUR_LOOK, the lake shader's other users (golf)
+  keep their look (`shore_look` 0; their sky term is now decoded on Forward+, the fwd-review-d rule). Water is drawn in linear colour on both renderers with water's
+  real F0 (0.02); a landmark's lawn uses ONE material near and far so the LOD hand-over is no seam.
+- **2026-10-31 The golden aerial (rc-golden-aerial, HANDOFF "The golden aerial").** Every painted
+  light must follow DayNight's: the horizon plane's painted band now takes the sun's real colour
+  and energy and a zenith-coloured fill at golden hour (it lit the far ranges at noon strength all
+  evening). The sky's mid deck is cloudlets, never a thresholded smooth field. Big landmark boxes
+  seen from the air get their roofs dressed. Anything widened to a minimum pixel width is dimmed by
+  the share it really covers. GOLDEN_AERIAL=0 is the A/B.
+- **2026-10-31 The sunset on the Esplanade: the dusk sky is warm only toward the sun (rc-sunset,
+  HANDOFF "The sunset on the Esplanade").** Judged on the `sunset` reference camera at 17:51 and
+  18:36. Decisions: the warm dusk horizon colour belongs to the sun's side of the sky (round the
+  other side it keeps its brightness in a cool slate-lilac); the old violet twilight band waits for
+  the sun to set (the sunset model's earth's shadow already does that job); the depth fog's colour
+  goes to night with the sky, never behind it, and is rose-grey at dusk (the orange toward the sun
+  is fog_sun_scatter's); the street lamps' lights and pools come in on the square of the lamp level
+  at a clear dusk while lamp_factor, the heads and the windows keep their ramp; the replica's far
+  bluff face is planted. All behind `SUNSET_REVIEW=0`.
+
+- **2026-10-31 The rainy night street is its reflections (rc-street-night, HANDOFF "The rainy night
+  street, refcam review").** A wet night street reads from the long broken streaks lamps and cars
+  lay on the road and from rain seen only where a light catches it. Decisions: a reflection is a
+  soft rippled column peaked at the mirror point, never a constant bar from the pole's foot; cars'
+  lamps get the same streak (one MultiMesh, nearest 18 cars); the rain curtain and the drops' own
+  glow fade at night, and the lit streaks in the lamp cones carry the rain instead (also under
+  Forward+'s volumetric fog); lens drops refract. All behind RAIN_STREET_NIGHT=0.
+- **2026-10-31 The street at noon (rc-street-noon, HANDOFF "The street at noon").** Judged the
+  street_noon refcam and fixed what reads fake at eye level: asphalt is grey (a photo texture's hue
+  and a warm tint are taken out per texture set, proved on Forward+ with a probe of the real
+  materials, since the opengl3 stills hid the brown); a light-rail street is marked like any road
+  where the line runs underground; four-lane roads carry a double yellow; bike lanes are dirty;
+  patterned paving keeps its anti-repeat fetch on its own grid. All behind STREET_NOON=0.
+- **2026-10-31, the dawn review (docs/HANDOFF.md "The dawn review").** The morning is no longer the
+  evening's ramps run backwards: a weight on the MORNING alone (0 from noon on and at night, so both
+  are bit-identical) gives the sunrise a pinker gold sun, a rose horizon, cleaner air and a rose-grey
+  mist, eases the golden grade, and switches the street lamps off before the sunrise. Behind
+  DAWN_REVIEW=0.
+- **2026-10-31 Gore at arm's length is on top of the old blood, never instead of it (blood-gore-2,
+  HANDOFF "Blood and gore at arm's length").** The owner asked for more. Wounds, runs and the hero's
+  spatter are shader work on the materials the bodies already have (a shot doll's own copy, the
+  hero's), so the crowd pays nothing; pools follow the ground and the road's camber to the gutter,
+  bodies on cars bleed onto the paint and off its edge, stumps are torn flesh and bone. The caps,
+  the budget and the satin / coverage rules of the old marks stay as they were. BLOOD_GORE_2=0.
+- **2026-10-31 The wet road mirrors streaks, not tiles (wet-road-mirror, HANDOFF "The wet road's
+  mirror").** The night mirror in road.gdshader drew the lit windows on a fixed heading x elevation
+  grid, which read as a grid of squares across the carriageway. Decisions: the mirrored canyon is
+  drawn already blurred, mostly in elevation, by a roughness field; on a street the facades are
+  placed past each kerb so streaks sit under (hashed, plan-fixed) shop fronts; every pattern is
+  fixed to the road, never to the view; the dry road stays bit-identical and Forward+ keeps its SSR
+  blend. WET_ROAD_MIRROR=0 is the A/B.
+- **2026-10-31 The hills refcam (rc-hills, HANDOFF "The hills refcam").** Judged the front range
+  from 260 m at 15:00 and fixed what the eye lands on: the summit spire, pale far-tor flecks,
+  combed streaks down steep faces, polka-dot shrub clumps and the voxel sign. Decisions: a far
+  object under a few pixels is dropped by its share of the frame, not drawn as a fleck; steep
+  terrain is textured from the side; the ground's tone is not retuned from opengl3 stills (on
+  Forward+ it already reads as dark chaparral). All behind RC_HILLS=0.
+- 2026-10-31 (web-build-4): the web build after batch 25 loads clean at all eight bookmarks
+  (wasm 723 MB, pck 601 MB of the 650 MB budget). Decision: the painted cloud deck (the web and
+  Forward+ below MEDIUM) closes into a stratus ceiling from coverage 0.62 to 0.78, so rain and
+  storms never fall from a blue sky there; a clear day is untouched. web_build_checks now also
+  holds WebGL2's uniform-block (16 KB) and varying floors.
+- **2026-10-31 Perf audit 4: a mesh drawn whole everywhere is tiled, a model's surfaces merged
+  (perf-audit-4, HANDOFF "Perf audit 4").** Judged at the ten refcams against wave 2's numbers,
+  every cut proved with strict pairs against an A/A pair. Decisions: anything with a map-sized
+  cull margin is cut into culled tiles of its own triangles (the horizon plane, the far ring); a
+  far-city tile whose blocks are all dissolved is hidden; scanned models whose surfaces share one
+  material are merged (the knee-high plants: sunset -37 % draws); palm shadow twins follow the
+  trees' shadow LOD rule (the one cut that moves pixels: frond-shadow speckle at 100+ m). All
+  behind HORIZON_TILES / FAR_COVER_HIDE / PLANT_MERGE / PALM_SHADOW_LOD =0.
+- **2026-10-31 Traffic that reads alive at eye level (traffic-behaviour-2, HANDOFF "Traffic that
+  reads alive at eye level").** The street traffic's IDM queues stood like parked furniture at a
+  red; now drivers creep, inch, ease off the brake, signal out of a bus stop, wait in the box to
+  turn left, give a crosswalk room, get round a wreck, and turn their heads. Decisions: one static
+  file on hook lines (traffic-motion owns how a kinematic car's body and wheels move, this owns what
+  the driver decides); state rides in the car's `traffic` dictionary (`tb_*`), so the pool resets it;
+  heads are a uniform on the car's own glass copy, written only on a change and only near the camera;
+  every per-car tick is O(1) (the obstacle survey is every 0.4 s, the oncoming scans only for cars
+  waiting to turn left). TRAFFIC_BEHAVIOUR=0 is the A/B.
+- **2026-10-31 The crowd up close, third pass: build it, then measure it (crowd-closeup-3, HANDOFF
+  "The crowd up close, third pass").** Shoes get real geometry where the eye lands at 2-6 m (a
+  sole's sidewall and the laces), built from the pack shoe's own mesh by the crowd builder rather
+  than new models; hands get their own triangle budget instead of a share of the skin's (the share
+  cut them to 500 triangles a hand); clip rates come from each rig's measured stride, never one
+  constant for every rig (that constant was 0.67-0.91 m/s off by rig). The rigs grew ~5k triangles
+  near; their LODs carry the distance.
 - **2026-10-31 A flaky check is fixed at its cause, never rerun (HANDOFF "The gate's intermittent
   failures, wave 4").** Shuffled SHARDS=3 runs found eight intermittent failures on main; each was a
   check leaning on what an earlier file or a live system left (an empty valet car, a full crowd cap,

@@ -539,6 +539,7 @@ func _drive_streets(delta: float) -> void:
 			_join_group(groups, int(t.lc_key), car)
 	_sirens = _siren_list()
 	_player_block = _player_in_lanes()
+	TrafficBehaviour.begin_tick(self, delta) # obstacles in the lanes, drivers' heads
 	_drive_serial += 1
 	var tick := _drive_serial
 	for key in groups:
@@ -785,6 +786,12 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 									t.block_t = 0.0
 					elif v > 1.5 or pgap < 10.0:
 						TrafficAI.honk(self, car, "pedestrian", v > 6.0 and pgap < 15.0)
+	# Creeping at a red, giving way, a left turn's gap, a wreck ahead (TrafficBehaviour).
+	var tb := TrafficBehaviour.street_stop(self, car, t, groups, along, v, to_centre, to_line, cw, node, line_hold, delta)
+	if tb < INF:
+		acc = minf(acc, _idm(v, v0, tb, 0.0, 0.2))
+		room = minf(room, tb + 0.2)
+		still = minf(still, tb - 0.2)
 	# A siren behind on this carriageway: pull toward the kerb and stop until it has gone by.
 	for s: Array in _sirens:
 		if int(s[0]) == axis and int(s[1]) == index and int(s[2]) == dir:
@@ -796,6 +803,7 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 		t.yield_t = yielding - delta
 		acc = minf(acc, -minf(brake_comfort, v * 1.5))
 	var want_shift := maxf(maxf(siren_shift if yielding > 0.0 else 0.0, bus_shift), float(t.get("filter_shift", 0.0)))
+	want_shift = TrafficBehaviour.want_shift(t, want_shift)
 	t.shift = move_toward(float(t.get("shift", 0.0)), want_shift, delta * (1.4 if want_shift > float(t.get("shift", 0.0)) else 0.7))
 	acc = maxf(acc, -brake_max)
 	t.why = why
@@ -815,6 +823,7 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 		t.react = float(t.react) - delta
 		t.react_t = float(t.get("react_t", 0.0)) + delta
 		nv = 0.0
+	nv = TrafficBehaviour.post_speed(car, t, v, nv, still, delta)
 	var step := nv * delta
 	if step > room:
 		step = maxf(room, 0.0)
@@ -1235,6 +1244,8 @@ func _maintain_freeway() -> void:
 		return
 	var pw := WorldState.to_world(_player.global_position)
 	var here := Vector2(pw.x, pw.z)
+	# Where the player is along each route, worked out once a route (nearest_on() is a search).
+	var anchors := {}
 	for car in freeway_cars.duplicate():
 		if not is_instance_valid(car) or not car.is_traffic():
 			freeway_cars.erase(car)
@@ -1242,20 +1253,25 @@ func _maintain_freeway() -> void:
 		# Off the end of its route, or the player has left it behind.
 		var ri: int = car.traffic.fw
 		var t: float = car.traffic.t
-		if t <= 0.0 or t >= fw.length_of(ri) or absf(t - _fw_anchor(ri, here)) > freeway_range * 1.35:
+		if not anchors.has(ri):
+			anchors[ri] = _fw_anchor(ri, here)
+		if t <= 0.0 or t >= fw.length_of(ri) or absf(t - float(anchors[ri])) > FreewayFill.retire_reach(freeway_range):
 			freeway_cars.erase(car)
 			_retire(car)
-	if freeway_cars.size() >= max_freeway_cars or not PhysicsBudget.can_spawn():
+	if freeway_cars.size() >= FreewayFill.cap(max_freeway_cars) or not PhysicsBudget.can_spawn():
 		return
 	# Which routes are close enough to bother with, and where along each the player is.
 	var live: Array[Vector2i] = []
+	var dists: Array = []
 	for ri in fw.routes.size():
 		var near: Array = fw.nearest_on(ri, here)
 		if float(near[1]) < freeway_range:
 			live.append(Vector2i(ri, int(near[0])))
+			dists.append(float(near[1]))
 	if live.is_empty():
 		return
 	var per_route := maxi(1, max_freeway_cars / live.size())
+	var route_shares: Array[int] = FreewayFill.shares(dists, FreewayFill.cap(max_freeway_cars), freeway_range)
 	var added := 0
 	# The share of free slots left empty: by the hour (FreewayCloseup), the old 0.35 when staged.
 	var skip := 0.35 if staged else FreewayCloseup.spawn_skip(BusyStreets.hour_now(self))
@@ -1271,6 +1287,27 @@ func _maintain_freeway() -> void:
 				taken[Vector2i(int(car.traffic.t / freeway_gap), int(car.traffic.dir))] = true
 		if TrafficAI.enabled and not staged:
 			TrafficAI.maybe_ramp_cars(self, fw, ri, here)
+		if FreewayFill.enabled:
+			# Per-lane slots, nearest the player first (FreewayFill).
+			var share: int = route_shares[live.find(entry)]
+			if on_route >= share:
+				continue
+			var lane_taken := {}
+			for car in freeway_cars:
+				if car.traffic.fw == ri:
+					lane_taken[Vector3i(FreewayFill.slot_of(float(car.traffic.t)), int(car.traffic.dir), TrafficAI.fw_lane(fw, car.traffic))] = true
+			var filling := on_route < int(float(share) * FreewayFill.FILL_BELOW)
+			var room := mini(share - on_route, FreewayFill.PER_TICK_FILL if filling else FreewayFill.PER_TICK)
+			for c: Array in FreewayFill.candidates(ri, anchor, total, lane_taken, filling, Freeway.LANES):
+				if room <= 0:
+					break
+				# The hour's one roll a slot (written the other way round: freeway_closeup_checks
+				# counts the old fill's line).
+				if skip > _rng.randf():
+					continue
+				_spawn_queues[2].append(_spawn_freeway_car.bind(ri, float(c[0]), int(c[1]), int(c[2])))
+				room -= 1
+			continue
 		var lo := maxf(0.0, anchor - freeway_range)
 		var hi := minf(total, anchor + freeway_range)
 		var slot := int(lo / freeway_gap)
@@ -1297,22 +1334,29 @@ func _fw_anchor(ri: int, here: Vector2) -> float:
 	return float(fw.nearest_on(ri, here)[0])
 
 
-func _spawn_freeway_car(ri: int, t: float, dir: int) -> void:
+func _spawn_freeway_car(ri: int, t: float, dir: int, want_li: int = -1) -> void:
 	var fw := _freeway()
 	var width := float(fw.routes[ri].width)
 	var li := _rng.randi() % Freeway.LANES
+	if want_li >= 0:
+		li = want_li
 	var lane: float = Freeway.lane_fraction(width, li) * float(dir)
 	var roll := _rng.randf()
 	var kind := -1
-	if roll < BigVehicles.FREEWAY_SEMI_SHARE:
+	# A slot in a given lane (FreewayFill): trucks only in the two slow lanes' slots, twice as often
+	# there, so their share of the traffic stays what it was.
+	var truck_gain := 1.0 if want_li < 0 else (2.0 if want_li >= Freeway.LANES - 2 else 0.0)
+	if roll < BigVehicles.FREEWAY_SEMI_SHARE * truck_gain:
 		kind = BigVehicles.SEMI
-	elif roll < BigVehicles.FREEWAY_SEMI_SHARE + BigVehicles.FREEWAY_BOX_SHARE:
+	elif roll < (BigVehicles.FREEWAY_SEMI_SHARE + BigVehicles.FREEWAY_BOX_SHARE) * truck_gain:
 		kind = BigVehicles.BOX_TRUCK
 	elif Motorcycle.enabled and roll > 1.0 - Motorcycle.FREEWAY_SHARE:
 		kind = Motorcycle.type_for(fposmod(roll * 7919.0, 1.0), CityPlan.District.MIDTOWN)
 	if BigVehicles.is_big(kind):
 		# Trucks keep to the two slow lanes, a little under the flow.
 		li = Freeway.LANES - 1 - _rng.randi() % 2
+		if want_li >= 0:
+			li = want_li
 		lane = Freeway.lane_fraction(width, li) * float(dir)
 	var free_li := FreewayIncidents.spawn_lane(ri, t, dir, li)
 	if free_li != li:

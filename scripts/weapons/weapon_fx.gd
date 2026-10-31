@@ -572,6 +572,9 @@ static func _chip_layer(parent: Node, at: Vector3, count: int, chip_size: float,
 ## as a drawn line: an HDR core the glow pass blooms, a wide soft sleeve around it, and a
 ## bright head that actually travels the distance so the eye follows the shot out.
 static func tracer(node: Node, from: Vector3, to: Vector3, color: Color, life: float = 0.06, radius: float = 0.03) -> void:
+	if GunplayFeel.enabled:
+		GunplayFeel.tracer(node, from, to, color, life, radius)
+		return
 	var dir := to - from
 	var length := dir.length()
 	if length < 0.05:
@@ -645,8 +648,10 @@ static func _beam(parent: Node, aim: Transform3D, radius: float, length: float, 
 ## The flash at the muzzle. It lights the world: a real light for a few hundredths of a second
 ## is what puts the shot in the street with the player instead of on top of the picture.
 static func flash(node: Node, at: Vector3, color: Color = Color(1.0, 0.8, 0.3), size: float = 0.25, life: float = 0.05) -> void:
+	if GunplayFeel.enabled:
+		GunplayFeel.flash(node, at, color, size, life)
+		return
 	var parent := fx_parent(node)
-	_shot_count += 1
 	# Down the weapon's own -Z: the barrel direction, which is where the light and the gas go.
 	var n3 := node as Node3D
 	var fwd := -n3.global_basis.z if n3 != null and n3.is_inside_tree() else Vector3.FORWARD
@@ -694,14 +699,18 @@ static func flash(node: Node, at: Vector3, color: Color = Color(1.0, 0.8, 0.3), 
 	ft.parallel().tween_property(flare_mat, "albedo_color:a", 0.0, life * 1.6)
 	ft.tween_callback(flare.queue_free)
 
+	flash_gas(node, parent, at, fwd, size)
+
+
+## Every few shots, the gas and grit leaving the barrel (the old flash's and GunplayFeel's).
+static func flash_gas(_node: Node, parent: Node, at: Vector3, fwd: Vector3, size: float) -> void:
+	_shot_count += 1
 	if _web() or _shot_count % maxi(1, muzzle_smoke_every) != 0:
 		return
-
-	# Every few shots, gas and grit leaving the barrel.
 	var aim := _basis_up(fwd)
 	_puff_layer(parent, at + fwd * size * 0.5, 5, size * 1.6, 0.42, 1.2, 3.2, 0.9,
 		_ramp([Color(0.75, 0.72, 0.68, 0.45), Color(0.6, 0.58, 0.55, 0.22), Color(0.5, 0.49, 0.47, 0.0)]),
-		false, 26.0, 2.6, aim, 0.0, 0.3)
+		false, 26.0, 2.6, aim, 0.0, 0.3, 1.0, false, null, _dust_material(false))
 	_puff_layer(parent, at + fwd * size * 0.3, 7, size * 0.16, 0.34, 4.0, 9.0, -14.0,
 		_ramp([Color(2.6, 1.7, 0.6, 1.0), Color(1.6, 0.7, 0.2, 0.8), Color(0.7, 0.2, 0.05, 0.0)]),
 		true, 34.0, 0.6, aim, 0.0, 0.4)
@@ -866,12 +875,17 @@ static func impact(node: Node, at: Vector3, color: Color = Color(1.0, 0.85, 0.5)
 	# The hot flash, always. It grows a little with distance so a far hit is still a visible
 	# spark rather than a subpixel dot.
 	var flash_size := 0.12 * clampf(dist / 35.0, 1.0, 3.0)
-	var hot := _sphere(node, at, flash_size, Color(color.r * 2.2, color.g * 2.0, color.b * 1.8), 0.95)
-	_additive(hot)
-	var tw := hot.create_tween()
-	tw.tween_property(hot, "scale", Vector3.ONE * flash_size * 3.5, 0.13)
-	tw.parallel().tween_property(hot.material_override, "albedo_color:a", 0.0, 0.13)
-	tw.tween_callback(hot.queue_free)
+	if GunplayFeel.enabled:
+		# A spark's star, small and gone in a few hundredths of a second: a white ball the size
+		# of a dinner plate on every hit read as a lamp on the wall (GunplayFeel).
+		GunplayFeel.impact_flare(parent, at, color, flash_size)
+	else:
+		var hot := _sphere(node, at, flash_size, Color(color.r * 2.2, color.g * 2.0, color.b * 1.8), 0.95)
+		_additive(hot)
+		var tw := hot.create_tween()
+		tw.tween_property(hot, "scale", Vector3.ONE * flash_size * 3.5, 0.13)
+		tw.parallel().tween_property(hot.material_override, "albedo_color:a", 0.0, 0.13)
+		tw.tween_callback(hot.queue_free)
 
 	# Budget: count the detailed impacts started in the last moment rather than bookkeeping a
 	# live counter through tween callbacks, which is one more thing to leak.
@@ -903,7 +917,8 @@ static func impact(node: Node, at: Vector3, color: Color = Color(1.0, 0.85, 0.5)
 	_impact_times.append(now)
 	_puff_layer(parent, origin, _count(int(look["dust_count"])), float(look["dust_size"]),
 		0.55, float(look["dust_speed"]) * 0.35, float(look["dust_speed"]), -2.6,
-		_ramp(look["dust"]), bool(look["glass"]), 52.0, 2.4, aim, 0.0, 0.3)
+		_ramp(look["dust"]), bool(look["glass"]), 52.0, 2.4, aim, 0.0, 0.3, 1.0, false, null,
+		_dust_material(bool(look["glass"])))
 
 	var sparks := int(look["sparks"])
 	if sparks > 0:
@@ -947,6 +962,9 @@ static func _impact_sound(surf: Surface, at: Vector3, now: float) -> void:
 
 
 static func bullet_hole(node: Node, at: Vector3, normal: Vector3, surf: Surface, collider: Object = null) -> void:
+	if GunplayFeel.enabled:
+		GunplayFeel.hole(node, at, normal, surf, collider)
+		return
 	if RenderingServer.get_rendering_device() == null:
 		return
 	if Sanctuary.is_sanctuary(collider):
@@ -979,15 +997,29 @@ static func bullet_hole(node: Node, at: Vector3, normal: Vector3, surf: Surface,
 	host.add_child(decal)
 	decal.global_transform = Transform3D(_basis_up(normal, randf_range(-PI, PI)), at + normal * 0.02)
 
-	_holes.append(decal)
-	while _holes.size() > bullet_hole_max:
-		var old: Object = _holes.pop_front()
-		if is_instance_valid(old):
-			(old as Node).queue_free()
+	keep_hole(decal)
 	var t := decal.create_tween()
 	t.tween_interval(bullet_hole_life)
 	t.tween_property(decal, "modulate:a", 0.0, 3.0)
 	t.tween_callback(decal.queue_free)
+
+
+## Counts a bullet mark into the capped pool: past `bullet_hole_max` the oldest goes.
+## The material a cloud of dust or gas draws with: lit (GunplayFeel.smoke_material(): a puff of
+## dust in the dark is dark, and the next flash lights it), where the old unshaded puff glowed
+## white in an unlit street. Glass glitter stays additive; GUNPLAY_FEEL=0 keeps the old puff.
+static func _dust_material(additive: bool) -> Material:
+	if additive or not GunplayFeel.enabled:
+		return null
+	return GunplayFeel.smoke_material()
+
+
+static func keep_hole(mark: Node) -> void:
+	_holes.append(mark)
+	while _holes.size() > bullet_hole_max:
+		var old: Object = _holes.pop_front()
+		if is_instance_valid(old):
+			(old as Node).queue_free()
 
 
 # ---------------------------------------------------------------------------------------------
@@ -1008,7 +1040,7 @@ static func smoke_material() -> StandardMaterial3D:
 static func warm_materials() -> Array:
 	# The blood marks' textures are generated here too (a few tens of milliseconds for all five
 	# kinds), so the first wound does not pay for them.
-	for kind in [_KIND_DROP, _KIND_SPATTER, _KIND_POOL, _KIND_SMEAR, _KIND_DRIP]:
+	for kind in [_KIND_DROP, _KIND_SPATTER, _KIND_POOL, _KIND_SMEAR, _KIND_DRIP, _KIND_RIVULET]:
 		blood_textures(kind)
 	return [_puff_material(false), _puff_material(true), _puff_material(false, true), _fire_material(),
 		_blood_drop_material(), _blood_mist_material()]
@@ -1022,7 +1054,7 @@ static func warm_decals() -> Array:
 	var out: Array = []
 	if not _decals():
 		return out
-	for kind in [_KIND_DROP, _KIND_SPATTER, _KIND_POOL, _KIND_SMEAR, _KIND_DRIP]:
+	for kind in [_KIND_DROP, _KIND_SPATTER, _KIND_POOL, _KIND_SMEAR, _KIND_DRIP, _KIND_RIVULET]:
 		var tex := blood_textures(kind)
 		var dec := Decal.new()
 		dec.texture_albedo = tex[0]
@@ -1073,6 +1105,8 @@ const _KIND_SPATTER := 1
 const _KIND_POOL := 2
 const _KIND_SMEAR := 3
 const _KIND_DRIP := 4
+## A rivulet run off a pool downhill / down the camber to the gutter (BloodGore).
+const _KIND_RIVULET := 5
 
 static var _splats: Array = []
 static var _walls: Array = []
@@ -1147,6 +1181,7 @@ static func _bleed(node: Node, at: Vector3, dir: Vector3, strength: float, victi
 	if dist > blood_far_distance:
 		return
 	blood_stats["wounds"] += 1
+	HeroBlood.splash(at, dir, strength) # blood-gore-2: spatter on the hero's clothes when close
 	var parent := fx_parent(node)
 	var exit_at := at + d * (blood_exit_depth if entry else 0.0)
 	var grow := sqrt(s)
@@ -1523,6 +1558,7 @@ static func blood_pool(node: Node, at: Vector3, normal: Vector3, strength: float
 	_pools.append(pool)
 	_trim(_pools, blood_pool_max)
 	blood_stats["pools"] += 1
+	BloodGore.pool_laid(node, pool, at, normal) # blood-gore-2: it spreads downhill, runs to the gutter
 	feed_pool(pool, strength)
 	return pool
 
@@ -1735,7 +1771,7 @@ static func blood_textures(kind: int) -> Array:
 		return _blood_tex[kind]
 	var w := 128
 	var h := 128
-	if kind == _KIND_DRIP:
+	if kind == _KIND_DRIP or kind == _KIND_RIVULET:
 		w = 64
 	elif kind == _KIND_SMEAR:
 		h = 64
@@ -1752,6 +1788,8 @@ static func blood_textures(kind: int) -> Array:
 			_paint_pool(f, w, h, rng)
 		_KIND_SMEAR:
 			_paint_smear(f, w, h, rng)
+		_KIND_RIVULET:
+			BloodGore.paint_rivulet(f, w, h, rng)
 		_:
 			_paint_drip(f, w, h, rng)
 	var maps := _shade_blood(f, w, h, rng)

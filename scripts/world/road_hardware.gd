@@ -185,11 +185,12 @@ static func _free(taken: Array, p: Vector2, r: float) -> bool:
 
 ## Whether a lane item at `p` (across offset `off`) may go on this road: off the rail's
 ## trackway and its trench.
-static func _lane_ok(plan: CityPlan, road: Dictionary, p: Vector2, off: float) -> bool:
+static func _lane_ok(plan: CityPlan, road: Dictionary, p: Vector2, off: float, marks: bool = false) -> bool:
 	var rail := LightRail.of(plan)
 	if rail == null:
 		return true
-	if rail.street_rail(road.axis, road.index) and absf(off) < RAIL_KEEP:
+	# Markers and Botts' dots go on over the line's tunnel (StreetNoonReview).
+	if rail.street_rail(road.axis, road.index) and absf(off) < RAIL_KEEP and not (marks and StreetNoonReview.marks_rail_street(plan, p)):
 		return false
 	for r: Rect2 in rail.cuts_in(Rect2(p - Vector2(2.0, 2.0), Vector2(4.0, 4.0))):
 		if r.grow(1.0).has_point(p):
@@ -308,7 +309,7 @@ static func _road(chunk: CityChunk, plan: CityPlan, road: Dictionary, rec: Array
 		var t := ceilf((a + end) / RPM_SPACING) * RPM_SPACING
 		while t < b - end:
 			var p := road_point(road, t, 0.0)
-			if _lane_ok(plan, road, p, 0.0) and h01(key + ["rpm", int(t)]) > MISSING * (2.0 if old else 1.0):
+			if _lane_ok(plan, road, p, 0.0, true) and h01(key + ["rpm", int(t)]) > MISSING * (2.0 if old else 1.0):
 				batch.add("rh_marker", marker_mesh(), Transform3D(Basis(Vector3.UP, yaw_along), Vector3(p.x, y, p.y)), Color.WHITE, Color(0.125, h01(key + ["rw", int(t)]), 0.5, 0.0))
 				rec.append({"kind": "marker", "pos": p})
 			t += RPM_SPACING
@@ -331,7 +332,7 @@ static func _road(chunk: CityChunk, plan: CityPlan, road: Dictionary, rec: Array
 						continue
 					var jit := (h01(dk + ["j"]) - 0.5) * (0.05 if old else 0.02)
 					var p := road_point(road, t, off + jit)
-					if not _lane_ok(plan, road, p, off):
+					if not _lane_ok(plan, road, p, off, true):
 						continue
 					if d == 4:
 						batch.add("rh_marker", marker_mesh(), Transform3D(Basis(Vector3.UP, face_yaw), Vector3(p.x, y, p.y)), Color.WHITE, Color(0.625, h01(dk + ["w"]), 0.5, 0.0))

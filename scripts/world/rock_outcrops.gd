@@ -178,10 +178,14 @@ static func _make_tor(plan: CityPlan, p: Vector2, grad: Vector2, drain: float, s
 		s = force_s
 		summit = false
 	elif summit:
-		# A summit crag: the scan stood up as a spire or a fin of rock tens of metres high, the
-		# range's skyline from the basin.
+		# A summit crag: the range's skyline from the basin. Stood up as a spire it read as a
+		# statue on every summit (refcam hills); with RcHills on it is a broad, low tor - the
+		# cliff or the block, wider than tall, bedded in the crown.
 		kind = RockKit.FACE_A if _h01(hs + ["kind"]) < 0.55 else RockKit.TOR_A
 		s = lerpf(3.5, 6.0, size) if kind == RockKit.FACE_A else lerpf(4.0, 7.0, size)
+		if RcHills.on():
+			kind = RockKit.TOR_A if _h01(hs + ["kind"]) < 0.6 else RockKit.TOR_B
+			s = lerpf(3.0, 5.2, size) if kind == RockKit.TOR_A else lerpf(3.2, 5.6, size)
 	elif crest and _h01(hs + ["kind"]) < 0.7:
 		kind = RockKit.TOR_A
 		s = lerpf(1.6, 6.0, pow(size, 1.3))
@@ -203,7 +207,10 @@ static func _make_tor(plan: CityPlan, p: Vector2, grad: Vector2, drain: float, s
 	else:
 		yaw = _h01(hs + ["yaw"]) * TAU
 	var stretch := Vector3(lerpf(0.85, 1.25, _h01(hs + ["sx"])), lerpf(0.9, 1.45, _h01(hs + ["sy"])), lerpf(0.85, 1.2, _h01(hs + ["sz"])))
-	if summit:
+	if summit and RcHills.on():
+		# Spread and squat: summit rock is a heap of weathered blocks, not a finger.
+		stretch = Vector3(lerpf(1.15, 1.6, _h01(hs + ["sx"])), lerpf(0.7, 1.0, _h01(hs + ["sy"])), lerpf(1.0, 1.4, _h01(hs + ["sz"])))
+	elif summit:
 		# Stood up: a spire or a fin, narrower than it is tall (jointed sandstone weathers that way).
 		stretch = Vector3(lerpf(0.55, 0.85, _h01(hs + ["sx"])), lerpf(1.3, 1.9, _h01(hs + ["sy"])), lerpf(0.6, 0.9, _h01(hs + ["sz"])))
 	var sc := stretch * s
@@ -217,6 +224,8 @@ static func _make_tor(plan: CityPlan, p: Vector2, grad: Vector2, drain: float, s
 	if summit:
 		# The summit falls away on every side: nothing uphill to bury it in.
 		sink = tall * lerpf(0.22, 0.34, _h01(hs + ["sink"]))
+		if RcHills.on():
+			sink = tall * lerpf(0.34, 0.46, _h01(hs + ["sink"]))
 	return {"pos": p, "y": gy - sink, "sink": sink, "kind": kind, "basis": basis,
 		"tone": _h01(hs + ["tone"]), "radius": radius, "top": tall - sink, "summit": summit}
 

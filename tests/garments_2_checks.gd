@@ -70,4 +70,4 @@ func run(t: Node, _city: Node3D) -> void:
 		worst = maxi(worst, body_tris)
 		bodies = bodies and body_tris > 4000
 		inst.free()
-	_t._check(bodies and worst <= 16000, "garments-2: the new bodies are real and at most 16k triangles (worst %d)" % worst)
+	_t._check(bodies and worst <= 19500, "garments-2: the new bodies are real and at most 19.5k (16k before crowd-closeup-3's shoes and hands) triangles (worst %d)" % worst)

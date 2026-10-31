@@ -277,6 +277,7 @@ func _ready() -> void:
 		if _env and HourGrade.enabled:
 			grade = HourGrade.new(_env)
 	GoldenHour.restore(self)
+	GoldenAerial.sky(_sky)
 	_apply_override()
 	if _sky:
 		var extras := SkyExtras.new()
@@ -405,6 +406,11 @@ func _apply() -> void:
 	var smog := golden * smog_amount * (smog_morning if hour < 12.0 else 1.0) \
 		* (1.0 - clampf(weather_darken * 1.6, 0.0, 1.0)) * (1.0 - marine) * (1.0 - 0.5 * santa_ana)
 	fog_gain = lerpf(1.0, golden_fog_gain, smog / maxf(smog_amount, 0.001))
+	# The dawn is not the dusk backwards (DawnReview, docs/HANDOFF.md "The dawn review"): cleaner
+	# air, a cooler pinker sky and sun, a grey-blue morning haze. 0 from noon on.
+	var dawn_w := DawnReview.weight(hour, elevation)
+	smog = DawnReview.smog(smog, dawn_w)
+	fog_gain = DawnReview.fog_gain(fog_gain, dawn_w, elevation)
 	# The layer is lit air, so it dims with the light: full with the sun up, a fifth of that
 	# once it is eight degrees under.
 	var smog_light := 1.0 - 0.8 * deep
@@ -421,7 +427,8 @@ func _apply() -> void:
 	daylight_now = daylight
 	moonlight_now = moonlight
 	dusk_now = dusk
-	sun_color_now = day_sun_color.lerp(dusk_sun_color, dusk)
+	var sun_low := DawnReview.color(dusk_sun_color, DawnReview.SUN, dawn_w)
+	sun_color_now = day_sun_color.lerp(sun_low, dusk)
 	# Where the sun and the moon actually are. The sky shader needs the sun's direction even
 	# after it has set (the twilight bands are anchored to it), so it is never special-cased.
 	var sun_basis := _arc_basis(t)
@@ -444,7 +451,7 @@ func _apply() -> void:
 			var to_moon := _look_basis(lit).get_rotation_quaternion()
 			light_basis = Basis(sun_basis.get_rotation_quaternion().slerp(to_moon, moon_mix))
 		_sun.basis = light_basis
-		_sun.light_color = day_sun_color.lerp(dusk_sun_color, dusk).lerp(santa_sun, 0.45 * santa_ana * (1.0 - dusk)) \
+		_sun.light_color = day_sun_color.lerp(sun_low, dusk).lerp(santa_sun, 0.45 * santa_ana * (1.0 - dusk)) \
 			.lerp(marine_sun, 0.6 * marine).lerp(night_sun_color, moonlight)
 		var flash: float = _sun.get_meta("weather_flash", 0.0)
 		# The moon lights the night by its phase: a new-moon night is darker than a full one
@@ -466,7 +473,7 @@ func _apply() -> void:
 		# golden hour review"): on night_factor the whole sky was night eleven minutes after
 		# sunset, and the sea and the wet sand mirroring it went black under a glowing horizon.
 		var sky_night: float = GoldenHour.sky_night(elevation, night_factor)
-		var horizon := day_horizon.lerp(dusk_horizon, dusk_rim).lerp(night_horizon, sky_night)
+		var horizon := day_horizon.lerp(DawnReview.color(dusk_horizon, DawnReview.HORIZON, dawn_w), dusk_rim).lerp(night_horizon, sky_night)
 		# What the sky really shows at the horizon, which with the smog up is the smog.
 		_horizon_now = horizon.lerp(smog_horizon, smog)
 		# Overcast by day is grey; overcast over a city at night is the city's own sodium light
@@ -474,11 +481,12 @@ func _apply() -> void:
 		# grey at every hour, so a rainy night had a pale grey sky and read as dusk.
 		var storm_top := Color(0.16, 0.17, 0.2).lerp(night_storm_top, moonlight)
 		var storm_horizon := Color(0.3, 0.31, 0.34).lerp(night_storm_horizon, moonlight)
+		storm_top = RainStreetNight.storm_top(storm_top, moonlight)
 		if storm > 0.0:
 			var ss: Array = StormDrama.sky(storm_top, storm_horizon, storm, moonlight)
 			storm_top = ss[0]
 			storm_horizon = ss[1]
-		var top := day_sky_top.lerp(dusk_sky_top, dusk_top).lerp(night_sky_top, sky_night)
+		var top := day_sky_top.lerp(DawnReview.color(dusk_sky_top, DawnReview.SKY_TOP, dawn_w), dusk_top).lerp(night_sky_top, sky_night)
 		var rim := horizon
 		if santa_ana > 0.0:
 			# The wind clears the basin: a deeper zenith, a dusty horizon, only by day.
@@ -495,13 +503,13 @@ func _apply() -> void:
 		_sky.set_shader_parameter("sky_horizon", rim.lerp(storm_horizon, weather_darken))
 		# The mirrors (sky_tint) see what the sky draws at the horizon, the weather's too.
 		_horizon_now = NightStreetReview.sky_tint(_horizon_now, storm_horizon, weather_darken)
-		_sky.set_shader_parameter("cloud_color", day_cloud.lerp(dusk_cloud, dusk).lerp(StormDrama.CLOUD, storm * (1.0 - moonlight) * 0.75))
+		_sky.set_shader_parameter("cloud_color", day_cloud.lerp(DawnReview.color(dusk_cloud, DawnReview.CLOUD, dawn_w), dusk).lerp(StormDrama.CLOUD, storm * (1.0 - moonlight) * 0.75))
 		_sky.set_shader_parameter("cloud_coverage", clampf(cloud_coverage + 0.12 * sin(hour * 0.9) + cloud_extra + 0.5 * marine - 0.32 * santa_ana + StormDrama.COVER * storm, 0.0, 0.98))
-		_sky.set_shader_parameter("cloud_shadow", day_cloud_shadow.lerp(dusk_cloud_shadow, dusk).lerp(Color(0.2, 0.2, 0.24), weather_darken))
+		_sky.set_shader_parameter("cloud_shadow", day_cloud_shadow.lerp(DawnReview.color(dusk_cloud_shadow, DawnReview.CLOUD_SHADOW, dawn_w), dusk).lerp(Color(0.2, 0.2, 0.24), weather_darken))
 		# After dark: moonlit cloud on a clear night, the city's own light on an overcast one.
 		var overcast := clampf(weather_darken * 1.6, 0.0, 1.0)
-		_sky.set_shader_parameter("night_cloud_light", lerpf(0.12, 0.025, overcast))
-		_sky.set_shader_parameter("night_glow", Vector3(0.02, 0.025, 0.04).lerp(night_storm_glow, overcast))
+		_sky.set_shader_parameter("night_cloud_light", lerpf(0.12, RainStreetNight.overcast_cloud_light(), overcast))
+		_sky.set_shader_parameter("night_glow", Vector3(0.02, 0.025, 0.04).lerp(night_storm_glow * RainStreetNight.storm_glow_gain(), overcast))
 		_sky.set_shader_parameter("mid_amount", clampf(mid_cloud + cloud_extra * 0.6 - 0.4 * santa_ana, 0.0, 1.0))
 		# Stars on the slow ramp, squared: night_factor is already 1.0 three degrees after sunset,
 		# which had a full star field out over a still-lit dusk sky at 18:24.
@@ -515,7 +523,7 @@ func _apply() -> void:
 		_sky.set_shader_parameter("smog_top", smog_top)
 		# The sun's own colour, not the light's: the light turns into the moon after dark.
 		_sky.set_shader_parameter("sun_dir", sun_dir)
-		_sky.set_shader_parameter("sun_color", day_sun_color.lerp(dusk_sun_color, dusk))
+		_sky.set_shader_parameter("sun_color", day_sun_color.lerp(sun_low, dusk))
 		_sky.set_shader_parameter("moon_dir", moon_dir)
 		_sky.set_shader_parameter("moon_tint", moon_color)
 		_sky.set_shader_parameter("moon_size", moon_radius)
@@ -527,11 +535,15 @@ func _apply() -> void:
 		_sky.set_shader_parameter("twilight_band", sunrise_band if morning else sunset_band)
 		_sky.set_shader_parameter("twilight_amount", dusk * twilight_strength * (1.0 - weather_darken * 0.8))
 		_sky.set_shader_parameter("twilight_falloff", lerpf(twilight_height.x, twilight_height.y, deep))
-		_sky.set_shader_parameter("twilight_band_gain", 1.0 - sun_high)
+		_sky.set_shader_parameter("twilight_band_gain", SunsetReview.band_gain(elevation, sun_high))
+		# The warm dusk horizon belongs to the sun's side of the sky (SunsetReview, rc-sunset).
+		_sky.set_shader_parameter("dusk_away", SunsetReview.dusk_away(dusk_rim))
 		_sky.set_shader_parameter("twilight_band_height", lerpf(twilight_band_height.x, twilight_band_height.y, deep))
 		# Rays are at their most obvious with a low sun behind broken cloud.
 		_sky.set_shader_parameter("god_rays", god_rays * (0.45 + 0.55 * dusk) * (1.0 - night_factor) * (1.0 - weather_darken * 0.6))
 		SunsetSky.apply(_sky, elevation, weather_darken, marine)
+		SkyDay.apply(_sky, hour, weather_darken, marine)
+		_sky.set_shader_parameter("dawn", dawn_w)
 		# Under the horizon is the far haze the ground plane fades into, not a grey floor.
 		_sky.set_shader_parameter("ground_color", horizon.lerp(Color(0.32, 0.34, 0.37), 0.30))
 		# The ground follower's horizon has to wash out into the same colour the sky meets it
@@ -543,6 +555,8 @@ func _apply() -> void:
 			streamer.set_ground_haze(hz, _sun.global_transform.basis.z if _sun else Vector3.UP)
 		if streamer and streamer.has_method("set_ground_smog"):
 			streamer.set_ground_smog(smog * ground_smog, smog_side)
+		if streamer and streamer.has_method("set_ground_light") and _sun:
+			streamer.set_ground_light(_sun.light_color, _sun.light_energy, day_sun_energy, _sky.get_shader_parameter("sky_top"), _horizon_now, golden, night_factor)
 	if _env:
 		# The exposure follows the light down (GoldenHour.exposure_mix()): on moonlight alone it
 		# stayed at the day's while the sun fell to its night energy, and the sunset was the
@@ -551,12 +565,13 @@ func _apply() -> void:
 		_env.glow_intensity = lerpf(day_glow_intensity, night_glow_intensity, moonlight)
 		_env.glow_hdr_threshold = lerpf(day_glow_threshold, night_glow_threshold, moonlight)
 		if grade:
-			grade.update(elevation, golden, weather_darken, marine, santa_ana)
+			grade.update(elevation, DawnReview.golden_grade(golden, dawn_w), weather_darken, marine, santa_ana)
 		_env.sdfgi_energy = lerpf(day_gi_energy * GiTuning.gi_scale, night_gi_energy, moonlight)
 		# At golden hour the distance goes the smog's brown-grey rather than dusk_fog's orange:
 		# the orange belongs to the air toward the sun, which fog_sun_scatter already adds.
-		_env.fog_light_color = day_fog.lerp(dusk_fog, dusk).lerp(smog_side, golden_fog_smog * smog) \
-			.lerp(night_fog, moonlight)
+		# The fog goes to night with the sky, not the slower light (SunsetReview, rc-sunset).
+		_env.fog_light_color = day_fog.lerp(SunsetReview.dusk_fog(DawnReview.color(dusk_fog, DawnReview.FOG, dawn_w)), dusk).lerp(smog_side, golden_fog_smog * smog) \
+			.lerp(night_fog, SunsetReview.fog_night(moonlight, GoldenHour.sky_night(elevation, night_factor)))
 		# Ambient comes from the sky cubemap, so shadows take the sky's own colour (blue at
 		# midday, warm at dusk) instead of a flat grey fill: the single biggest realism win in
 		# outdoor lighting. At night the sky is nearly black, so we blend back toward a colour
@@ -584,8 +599,12 @@ func _apply() -> void:
 	# the value moves leaves every lamp that streamed in since the last change sitting at zero,
 	# which is why the streets stayed black the first time. Refresh on a slow tick instead, so
 	# newly loaded chunks pick the level up within a third of a second.
-	var lamp_factor := maxf(night_factor, weather_darken * 0.85)
-	var want := lamp_factor * lamp_energy * lamp_scale
+	# At dawn the photocells switch the lamps off before the sunrise (DawnReview.lamp_factor()).
+	var nf_lamps := DawnReview.lamp_factor(night_factor, hour, elevation)
+	var lamp_factor := maxf(nf_lamps, weather_darken * 0.85)
+	# The lights themselves come in on the square of the level: a lamp's pool switched on at sunset
+	# is not seen against the daylight (SunsetReview, rc-sunset). Weather's share is as it was.
+	var want := maxf(SunsetReview.light_level(nf_lamps), weather_darken * 0.85) * lamp_energy * lamp_scale
 	# _apply() is also called from _ready(), where there is no delta parameter to use.
 	_lamp_timer -= get_process_delta_time()
 	if _lamp_timer <= 0.0 or absf(want - _lamp_level) > 0.04:
@@ -607,6 +626,7 @@ func _apply() -> void:
 				l.remove_meta("dark_hidden")
 	RenderingServer.global_shader_parameter_set("night_factor", night_factor)
 	RenderingServer.global_shader_parameter_set("lamp_factor", lamp_factor)
+	RenderingServer.global_shader_parameter_set("lamp_ease", SunsetReview.pool_ease(weather_darken))
 	# The clock, for what changes with the hour after dark (the far traffic, lit offices).
 	RenderingServer.global_shader_parameter_set("city_hour", hour)
 	lamp_now = lamp_factor

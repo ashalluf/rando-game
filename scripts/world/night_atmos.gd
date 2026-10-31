@@ -234,6 +234,9 @@ static func atmos_material(kind: String) -> ShaderMaterial:
 		return _meshes[key]
 	var mat := ShaderMaterial.new()
 	mat.shader = load({"halo": "res://shaders/night_halo.gdshader", "wet": "res://shaders/night_wet.gdshader"}.get(kind, "res://shaders/night_shaft.gdshader"))
+	NightLamps.dress_material(kind, mat)
+	if kind == "wet" or kind == "shaft":
+		RainStreetNight.dress_wet(mat)
 	_meshes[key] = mat
 	return mat
 
@@ -260,6 +263,7 @@ static func node() -> NightAtmos:
 func _ready() -> void:
 	process_priority = 50
 	_push()
+	WetCarGlints.ensure(get_parent())
 
 
 func _exit_tree() -> void:

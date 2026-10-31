@@ -588,7 +588,7 @@ func _animate_gait() -> void:
 		super._animate_gait()
 		return
 	_set_clip(WALK_CLIP, 0.3)
-	var rate := _speed / (WALK_CLIP_SPEED * _stride)
+	var rate := _speed / (_own_walk_speed * _stride)
 	if absf(rate - _rate) > 0.005:
 		_rate = rate
 		_anim.speed_scale = rate

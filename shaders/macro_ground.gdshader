@@ -92,6 +92,11 @@ uniform float ambient_strength = 0.30;
 // Warm light bounced back up off the ground in front of a slope.
 uniform float bounce_strength = 0.12;
 uniform vec3 sun_color : source_color = vec3(1.0, 0.955, 0.88);
+// GoldenAerial: the painted sun's energy as a share of noon's (1 keeps the old light), and the
+// shaded faces' sky fill toward the zenith's colour (LINEAR, set as a Vector3) by fill_top_mix.
+uniform float sun_gain = 1.0;
+uniform vec3 fill_top = vec3(0.0);
+uniform float fill_top_mix = 0.0;
 // Steps of the ray march that asks whether this point can see the sun. 0 turns it off.
 uniform int shadow_steps : hint_range(0, 16) = 10;
 // How far along the sun direction that march looks, in metres.
@@ -598,13 +603,16 @@ void fragment() {
 		float ndl = max(dot(n, L), 0.0);
 		// Sky fill from above, warm bounce from below: a slope facing away from the sun is lit
 		// by the sky and by the ground in front of it, not by a flat grey constant.
-		vec3 sun_in = sun_c * mix(vec3(1.0), sky, 0.18) * (sun_strength * ndl);
-		vec3 fill = sky * (ambient_strength * (0.55 + 0.45 * n.y))
+		vec3 sun_in = sun_c * mix(vec3(1.0), sky, 0.18) * (sun_strength * sun_gain * ndl);
+		// A slope's sky light comes mostly from above it: at golden hour the zenith's blue
+		// (GoldenAerial), so the shade is cool under a warm sun rather than the horizon's beige.
+		vec3 sky_fill = mix(sky, fill_top, fill_top_mix * (0.35 + 0.65 * clamp(n.y, 0.0, 1.0)));
+		vec3 fill = sky_fill * (ambient_strength * (0.55 + 0.45 * n.y))
 			+ bounce_c * (bounce_strength * max(-dot(n, vec3(L.x, -L.y, L.z)), 0.0));
-		vec3 sky_w = cs_out(sky);
+		vec3 sky_w = cs_out(sky_fill);
 		vec3 fill_w = sky_w * (ambient_strength * (0.55 + 0.45 * n.y))
 			+ cs_out(bounce_c) * (bounce_strength * max(-dot(n, vec3(L.x, -L.y, L.z)), 0.0));
-		lit_ws = cs_out(sun_c) * mix(vec3(1.0), sky_w, 0.18) * (sun_strength * ndl) * sun_vis + fill_w;
+		lit_ws = cs_out(sun_c) * mix(vec3(1.0), cs_out(sky), 0.18) * (sun_strength * sun_gain * ndl) * sun_vis + fill_w;
 		// Where the renderer lights this plane its shadow maps have run out (500 m), so the
 		// ridges threw no shadow between there and the painted band. Take the direct share the
 		// march says is blocked off the albedo: not the clouds (the tiles beside it have none),

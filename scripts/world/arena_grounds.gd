@@ -706,6 +706,10 @@ static func _second_hall(g: LandmarkGeo, batch: MultiMeshBatch, pivot: Node3D, s
 	for i in n:
 		var z := hall.position.y + hall.size.y * (float(i) + 0.5) / float(n)
 		g.box("hall2_white", Vector3(hc.x, y0 + h + 1.1, z), Vector3(hall.size.x - 12.0, 2.2, 4.0), Color(0.95, 0.95, 0.94), Basis(), 0.1 if detailed else 0.0)
+	var mz: Array = []
+	for i in n:
+		mz.append(hall.position.y + hall.size.y * (float(i) + 0.5) / float(n))
+	HallDress.dress(g, hall, y0, h, mz, "hall2_white", detailed)
 	LandmarkArenaDistrict._occluder(pivot, [[hc, Vector3(hall.size.x, h, hall.size.y)]])
 	if not detailed:
 		return

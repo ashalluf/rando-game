@@ -137,6 +137,13 @@ func _init(c: CityChunk) -> void:
 
 # --- Materials ------------------------------------------------------------------------------
 
+# The current deck segment's mitred end normals (scaled to keep the width), FreewayLook.
+var _mitre_on := false
+var _mitre_nrm := Vector2.ZERO
+var _mitre_a := Vector2.ZERO
+var _mitre_b := Vector2.ZERO
+
+
 static func structure_material() -> ShaderMaterial:
 	if _structure_mat == null:
 		_structure_mat = ShaderMaterial.new()
@@ -154,6 +161,7 @@ static func paint_material() -> ShaderMaterial:
 		_paint_mat = ShaderMaterial.new()
 		_paint_mat.shader = load("res://shaders/freeway_paint.gdshader")
 		_paint_mat.set_shader_parameter("closeup", FreewayCloseup.enabled)
+		FreewayLook.apply_paint(_paint_mat)
 	return _paint_mat
 
 
@@ -249,6 +257,13 @@ func quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, want:
 func extrude(st: SurfaceTool, a3: Vector3, b3: Vector3, nrm: Vector2, run0: float, run1: float,
 		pts: PackedVector2Array, inside: Vector2, cols: Array, flags: PackedFloat32Array) -> void:
 	var n3 := Vector3(nrm.x, 0.0, nrm.y)
+	# The deck segment being built ends mitred against its neighbours (FreewayLook), so the
+	# girder and barriers meet the next segment's without a crack.
+	var n3a := n3
+	var n3b := n3
+	if _mitre_on and nrm.is_equal_approx(_mitre_nrm):
+		n3a = Vector3(_mitre_a.x, 0.0, _mitre_a.y)
+		n3b = Vector3(_mitre_b.x, 0.0, _mitre_b.y)
 	for i in pts.size() - 1:
 		var p := pts[i]
 		var q := pts[i + 1]
@@ -261,8 +276,8 @@ func extrude(st: SurfaceTool, a3: Vector3, b3: Vector3, nrm: Vector2, run0: floa
 		var soffit := int(round((cols[i] as Color).a * KIND_SCALE)) == S_SOFFIT
 		var vp := p.x if soffit else p.y
 		var vq := q.x if soffit else q.y
-		quad(st, a3 + n3 * p.x + Vector3.UP * p.y, a3 + n3 * q.x + Vector3.UP * q.y,
-			b3 + n3 * q.x + Vector3.UP * q.y, b3 + n3 * p.x + Vector3.UP * p.y, want, cols[i],
+		quad(st, a3 + n3a * p.x + Vector3.UP * p.y, a3 + n3a * q.x + Vector3.UP * q.y,
+			b3 + n3b * q.x + Vector3.UP * q.y, b3 + n3b * p.x + Vector3.UP * p.y, want, cols[i],
 			Vector2(run0, vp), Vector2(run0, vq), Vector2(run1, vq), Vector2(run1, vp), Vector2(flags[i], 0.0))
 
 
@@ -508,12 +523,18 @@ func build_segments(segs: Array[Dictionary], area: Rect2) -> int:
 		var b3 := Vector3(b.x, hb, b.y)
 		var lay := Freeway.lane_layout(width)
 
-		# Deck top (the road material).
+		# Deck top (the road material), its ends mitred against the neighbouring segments.
+		_mitre_on = FreewayLook.enabled
+		_mitre_nrm = nrm
+		_mitre_a = FreewayLook.mitre(fw, ri, idx, nrm, true)
+		_mitre_b = FreewayLook.mitre(fw, ri, idx, nrm, false)
 		var e := nrm * half
-		var l0 := Vector3(a.x - e.x, ha, a.y - e.y)
-		var r0 := Vector3(a.x + e.x, ha, a.y + e.y)
-		var l1 := Vector3(b.x - e.x, hb, b.y - e.y)
-		var r1 := Vector3(b.x + e.x, hb, b.y + e.y)
+		var ea := _mitre_a * half if _mitre_on else e
+		var eb := _mitre_b * half if _mitre_on else e
+		var l0 := Vector3(a.x - ea.x, ha, a.y - ea.y)
+		var r0 := Vector3(a.x + ea.x, ha, a.y + ea.y)
+		var l1 := Vector3(b.x - eb.x, hb, b.y - eb.y)
+		var r1 := Vector3(b.x + eb.x, hb, b.y + eb.y)
 		var uvs := {l0: Vector2(run0, -half), r0: Vector2(run0, half), l1: Vector2(run1, -half), r1: Vector2(run1, half)}
 		for v: Vector3 in [l0, r1, r0, l0, l1, r1]:
 			top_vertex(v, uvs[v], half, float(ri) + 1.0)
@@ -528,6 +549,7 @@ func build_segments(segs: Array[Dictionary], area: Rect2) -> int:
 		var under := stack != null and stack.covered.has(Vector2i(ri, idx))
 		_girder(a3, b3, nrm, half, run0, run1)
 		_barriers(a3, b3, nrm, half, run0, run1, open_side)
+		_mitre_on = false
 		_markings(a3, b3, nrm, dir, lay, idx, run0, run1, ri, open_side)
 		if idx % pillar_every == 0 and not (stack and stack.skips_bent(plan, ri, idx)):
 			var ground := plan.height_at(a)

@@ -6,7 +6,7 @@
 		{"name": "street_night", "label": "Street, 21:30 rain", "eye": [2359.4, 2.0, 880.0, 0.0, 2.0], "agl": true, "hour": 21.5, "weather": "rain", "fov": 55},
 		{"name": "sunset", "label": "Esplanade at sunset 17:51", "eye": [-441.66, 9.94, 3534.58, -178.0, -1.5], "agl": false, "hour": 17.85, "weather": "clear", "fov": 44},
 		{"name": "golden_aerial", "label": "Golden hour aerial, downtown from the SW 17:12", "eye": [1450.0, 140.0, 2150.0, -38.0, 4.0], "agl": true, "hour": 17.2, "weather": "clear", "fov": 55},
-		{"name": "downtown_aerial", "label": "Downtown aerial, civic centre noon", "eye": [2600.0, 60.0, -450.0, -50.0, -4.0], "agl": true, "hour": 12.5, "weather": "clear", "fov": 55},
+		{"name": "downtown_aerial", "label": "Downtown aerial, civic centre noon (city hall from the SW)", "eye": [2950.0, 60.0, -700.0, -55.0, -10.0], "agl": true, "hour": 12.5, "weather": "clear", "fov": 55},
 		{"name": "beach", "label": "Beach at the waterline 14:00", "eye": [-732.0, 2.1, 800.0, 105.0, -4.0], "agl": false, "hour": 14.0, "weather": "clear", "fov": 55},
 		{"name": "hills", "label": "Front range from 260 m, 15:00", "eye": [300.0, 260.0, -650.0, 0.0, -6.0], "agl": true, "hour": 15.0, "weather": "clear", "fov": 55},
 		{"name": "freeway", "label": "The 110 deck by downtown 13:00", "eye": [1989.0, 12.0, 160.0, -6.0, -3.0], "agl": false, "hour": 13.0, "weather": "clear", "fov": 55},

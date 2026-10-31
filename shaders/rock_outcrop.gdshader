@@ -82,6 +82,15 @@ uniform vec2 aerial_blend = vec2(1100.0, 3600.0);
 uniform float aerial_blend_max : hint_range(0.0, 1.0) = 0.75;
 // How much of that share also lays the far tor's normal over to the slope's (up).
 uniform float aerial_flatten : hint_range(0.0, 1.5) = 1.25;
+// A far tor whose standing height covers less of the screen than this (in NDC: height over
+// distance times the projection's y scale, so a fraction of half the frame) is dropped, each at its
+// own point in the range (a hash of its tone), so a range thins out gradually with distance. Under
+// a few pixels a tor was only a pale square fleck on the plane's slope (refcam hills). 0 keeps
+// every tor (RcHills off).
+uniform vec2 far_cull_ndc = vec2(0.0);
+// The aerial blend's target tone times this: flattened to face up the blended tor takes the full
+// sun on a slope the plane paints and hazes, and still read a few levels over it.
+uniform float far_grey_gain = 1.0;
 
 varying vec3 world_pos;
 varying vec3 world_nrm;
@@ -153,6 +162,13 @@ void vertex() {
 	if (seat && INSTANCE_CUSTOM.a < 0.5) {
 		VERTEX = vec3(0.0);
 	}
+	if (far_mode && far_cull_ndc.y > 0.0) {
+		float standing = max(mesh_height * length(MODEL_MATRIX[1].xyz) - INSTANCE_CUSTOM.b * 100.0, 0.0);
+		float ndc = standing * abs(PROJECTION_MATRIX[1][1]) / max(length(origin - cam), 1.0);
+		if (ndc < mix(far_cull_ndc.x, far_cull_ndc.y, fract(tone * 13.7 + 0.31))) {
+			VERTEX = vec3(0.0);
+		}
+	}
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	world_nrm = normalize(mat3(MODEL_MATRIX) * NORMAL);
 	cam_dist = length(world_pos - cam);
@@ -210,7 +226,7 @@ void fragment() {
 		// The rock's mean tone (its palette under the detail's mean of ~1), at the slope's measured
 		// tone: laid flat it takes the full sun, which put it a few levels over the slope.
 		float l_mean = dot(base, vec3(0.2126, 0.7152, 0.0722));
-		vec3 grey = vec3(mix(l, l_mean, 0.6)) * vec3(0.70, 0.73, 0.74);
+		vec3 grey = vec3(mix(l, l_mean, 0.6)) * vec3(0.70, 0.73, 0.74) * far_grey_gain;
 		col = mix(col, grey, fb);
 		// What made each tor a fleck was its sunlit and shaded halves against a slope the plane
 		// shades smoothly: far off it is lit as the ground it stands on (up), more as it shrinks.

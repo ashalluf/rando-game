@@ -54,6 +54,10 @@ func _ready() -> void:
 	_bar.material = _bar_mat
 	add_child(_bar)
 	_stars.modulate.a = 0.0
+	# What the new star brings, under the stars (WantedEscalation).
+	var ticker := WantedTicker.new()
+	ticker.name = "WantedTicker"
+	add_child(ticker)
 
 
 func _process(delta: float) -> void:

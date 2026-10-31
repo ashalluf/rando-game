@@ -84,6 +84,9 @@ var crew_aboard: int = 2:
 var crew_alive: int = 2
 ## Five-star tactical unit: a van, three officers with carbines.
 var heavy: bool = false
+## The invented agency's troop truck at five stars (WantedEscalation): a box truck in olive drab
+## with four troopers in the back.
+var agency: bool = false
 ## The crew has been told to get back in (Police sets it, officers read it).
 var recall_crew: bool = false
 ## Part of a roadblock: parked across the street from the start, never chases.
@@ -127,10 +130,18 @@ var _stop_at_dest: bool = false
 
 ## A new cruiser, set up but not yet in the tree. `rng` picks the phase of its lights so a row of
 ## cruisers does not flash in step.
-static func make(is_heavy: bool, rng: RandomNumberGenerator) -> PoliceCar:
+static func make(is_heavy: bool, rng: RandomNumberGenerator, is_agency: bool = false) -> PoliceCar:
 	var car := PoliceCar.new()
 	car.heavy = is_heavy
-	if is_heavy:
+	car.agency = is_agency
+	if is_agency:
+		car.setup(BodyType.BOX_TRUCK, WantedEscalation.AGENCY_OLIVE, Addon.NONE)
+		car.setup_look(Finish.MATTE, Livery.DELIVERY, WantedEscalation.AGENCY_BAND)
+		# BigVehicles letters the box with it (both sides), and a unit number.
+		car.set_meta("fleet", WantedEscalation.AGENCY)
+		car.set_meta("fleet_no", 100 + rng.randi() % 800)
+		car.crew_aboard = 4
+	elif is_heavy:
 		car.setup(BodyType.VAN, HEAVY_PAINT, Addon.NONE)
 		car.setup_look(Finish.GLOSS, Livery.NONE, POLICE_WHITE)
 		car.crew_aboard = 3
@@ -155,8 +166,9 @@ func _ready() -> void:
 	add_to_group("police_car")
 	set_meta("police", true)
 	# Heavier and stronger than a street car, so it wins a shove and a ram does something.
-	mass = 1900.0 if heavy else 1500.0
-	engine_power = 9500.0 if heavy else 8200.0
+	if not agency:
+		mass = 1900.0 if heavy else 1500.0
+		engine_power = 9500.0 if heavy else 8200.0
 	_build_light_bar()
 	PoliceNightLook.ensure(self)
 	_siren = Sfx.loop_player("siren", siren_volume_db)
@@ -164,12 +176,17 @@ func _ready() -> void:
 	_siren.unit_size = 34.0
 	_siren.pitch_scale = 0.97 + 0.06 * _phase
 	add_child(_siren)
+	if agency:
+		WantedEscalation.dress_truck(self)
 
 
 ## The livery: the base paint is black, the white is the shader's second colour, laid over the
 ## doors and the roof (car_paint.gdshader, stripe_mode 5). The van wears a belt band instead.
 func _paint_material(albedo: Texture2D, normal: Texture2D) -> ShaderMaterial:
 	var mat := super._paint_material(albedo, normal)
+	if agency:
+		# Olive drab with a dark belt band (Livery.DELIVERY, BigVehicles' band height): no white.
+		return mat
 	mat.set_shader_parameter("stripe_color", POLICE_WHITE)
 	if heavy:
 		mat.set_shader_parameter("stripe_mode", 3)
@@ -195,7 +212,7 @@ func _cabin_seats() -> int:
 func _cabin_look() -> Dictionary:
 	if driver != null:
 		return CarCabin.player_look()
-	return CarCabin.police_look(heavy, hash([_phase, 41]))
+	return CarCabin.police_look(heavy or agency, hash([_phase, 41]))
 
 
 # --- Light bar -------------------------------------------------------------------------------
@@ -225,6 +242,11 @@ func _build_light_bar() -> void:
 		# On the flat roof just behind the high roof's raked front (road_van).
 		bar.position.z = -length * 0.17
 		bar.scale = Vector3(1.25, 1.0, 1.0)
+	elif agency:
+		# Along the front edge of the box, over the cab (road_box_truck: the cab is the first
+		# 2.3 m of the nose).
+		bar.position.z = -length * 0.5 + 2.75
+		bar.scale = Vector3(1.6, 1.0, 1.0)
 	add_child(bar)
 	if not OS.has_feature("web"):
 		_bar_light = OmniLight3D.new()
@@ -326,6 +348,24 @@ func flash_phase() -> float:
 
 func _lights_on() -> bool:
 	return police != null and (police.stars > 0 or mode != Mode.LEAVING) and crew_alive > 0 or _stolen
+
+
+## Plays `stream` (a siren voice from WantedAudio) at `volume_db` from now on; the loop restarts
+## only when the voice changes.
+func set_siren_voice(stream: AudioStream, volume_db: float) -> void:
+	if _siren == null or stream == null:
+		return
+	_siren.volume_db = volume_db
+	if _siren.stream == stream:
+		return
+	var was := _siren.playing
+	_siren.stream = stream
+	if was:
+		_siren.play()
+
+
+func siren_player() -> AudioStreamPlayer3D:
+	return _siren
 
 
 ## True while the siren is going (TrafficManager pulls cars over for it).
@@ -679,6 +719,9 @@ func _pursue(delta: float) -> void:
 	var want := pursuit_speed
 	var routed := false
 	var direct := in_car and known and mode != Mode.LEAVING and dist < ram_range and police._clear_line(global_position + Vector3.UP, target)
+	# The chase's manoeuvres (PoliceChase: box in, PIT, flank) take over close to a player's car.
+	var tac := PoliceChase.tactic(self) if in_car and known and mode == Mode.PURSUE else {}
+	direct = direct or not tac.is_empty()
 	if not direct and _plan != null:
 		var wp := WorldState.to_world(global_position)
 		var here := Vector2(wp.x, wp.z)
@@ -712,6 +755,9 @@ func _pursue(delta: float) -> void:
 		if dist < stop_at + 3.0 and absf(speed) < 4.0:
 			stop_here()
 			return
+	if not tac.is_empty():
+		aim = tac.aim
+		want = tac.want
 	var to_aim := aim - global_position
 	to_aim.y = 0.0
 	var aim_d := to_aim.length()
@@ -879,7 +925,7 @@ func strip_for_pool() -> void:
 	freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
 	freeze = true
 	collision_mask = _mask()
-	crew_aboard = 3 if heavy else 2
+	crew_aboard = 4 if agency else (3 if heavy else 2)
 	crew_alive = crew_aboard
 	recall_crew = false
 	roadblock = false

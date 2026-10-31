@@ -74,6 +74,10 @@ uniform float grit_amount = 0.85;
 uniform float weed_share = 0.32;
 // Rumble strip on the outer shoulder: milled dimples (along pitch, along length, across width).
 uniform vec3 rumble = vec3(0.30, 0.18, 0.40);
+// The refcam pass (FreewayLook; FREEWAY_LOOK=0 sets the old values back): where the tining fades
+// (pixels per groove pitch, from .x to .y) and the rumble strip as rounded scoops.
+uniform vec2 tine_fade = vec2(0.35, 1.0);
+uniform bool rumble_scoop = false;
 
 varying vec3 w_pos;
 
@@ -312,14 +316,23 @@ void fragment() {
 	// --- Tining -------------------------------------------------------------------------------
 	// Longitudinal grooves: a tilt of the normal across the lane, faded once a groove is under
 	// ~2 pixels; their average shows as a slightly rougher, darker concrete.
-	float tf = tine * (1.0 - smoothstep(0.35, 1.0, px_x / tine_pitch));
+	// The fade starts while a groove still spans several pixels (rc-freeway): from 0.35 a groove
+	// was two to three pixels across the near lanes and beat with the pixel grid into rings.
+	float tf = tine * (1.0 - smoothstep(tine_fade.x, tine_fade.y, px_x / tine_pitch));
 	if (tine > 0.0) {
 		float ph = x / tine_pitch + h01(slab_key + 12u) * 7.0 + vnoise(vec2(s * 0.5, slab_i)) * 0.6;
 		float gp = fract(ph);
-		// Asymmetric groove: a steep wall and a shallow one.
-		float tilt = (gp < 0.35 ? -1.0 : (gp < 0.5 ? 1.6 : 0.0)) * tine_tilt;
-		slope.x += tilt * tf;
-		alb *= 1.0 - 0.05 * tine * (1.0 - tf) - (gp < 0.5 ? 0.06 : 0.0) * tf;
+		if (tine_fade.x < 0.3) {
+			// A rounded groove (band-limited: no step edges to alias).
+			float tilt = -sin(gp * 6.2832) * tine_tilt * 0.8;
+			slope.x += tilt * tf;
+			alb *= 1.0 - 0.05 * tine * (1.0 - tf) - (0.03 - 0.03 * cos(gp * 6.2832)) * tf;
+		} else {
+			// Asymmetric groove: a steep wall and a shallow one.
+			float tilt = (gp < 0.35 ? -1.0 : (gp < 0.5 ? 1.6 : 0.0)) * tine_tilt;
+			slope.x += tilt * tf;
+			alb *= 1.0 - 0.05 * tine * (1.0 - tf) - (gp < 0.5 ? 0.06 : 0.0) * tf;
+		}
 		rough = mix(rough, 0.9, tine * 0.4);
 	}
 
@@ -355,7 +368,29 @@ void fragment() {
 		rough = mix(rough, 0.95, weed);
 		slope += vec2(vnoise(vec2(s, x) * 30.0) - 0.5, vnoise(vec2(x, s) * 30.0) - 0.5) * weed * 1.2;
 		// The milled rumble strip on the outer shoulder, just past the edge line.
-		if (a > outer_edge && rumble.x > 0.0) {
+		if (a > outer_edge && rumble.x > 0.0 && rumble_scoop) {
+			// Milled scoops (rc-freeway): each a shallow cylinder cut, rounded at its ends - the
+			// shade runs from the shadowed lip to the lit far wall, dust lies in the bottom, and
+			// the whole strip fades to a faint band once a scoop is under a few pixels. Drawn as
+			// flat tilted cells they read as a ladder of black tiles down the shoulder.
+			float ra = a - outer_edge - 0.25 - rumble.z * 0.5;
+			float rs = mod(s, rumble.x) - rumble.x * 0.5;
+			float hl = rumble.y * 0.5;
+			float hw = rumble.z * 0.5;
+			// Rounded ends: the cut is shorter toward its ends across.
+			float ex = clamp(abs(ra) / hw, 0.0, 1.0);
+			float hl_here = hl * sqrt(max(0.0, 1.0 - ex * ex * ex * ex));
+			float u = clamp(rs / max(hl_here, 0.001), -1.0, 1.0);
+			float inside = (1.0 - smoothstep(hw - px, hw + px, abs(ra)))
+				* (1.0 - smoothstep(hl_here - px_s, hl_here + px_s, abs(rs)));
+			float fade_r = 1.0 - smoothstep(0.02, 0.07, px_s);
+			// Depth profile 1 - u^2: slope along is its derivative (a cut 12 mm deep over 9 cm).
+			slope.y += -u * inside * 0.32 * fade_r;
+			float dusty = 0.5 + 0.5 * vnoise(vec2(s * 3.0, x * 5.0));
+			alb = mix(alb, grit_color * 0.95, inside * (1.0 - u * u) * 0.3 * dusty * fade_r);
+			alb *= 1.0 - inside * (0.04 + 0.05 * (1.0 - u * u)) * fade_r - inside * 0.035 * (1.0 - fade_r);
+			grit = max(grit, inside * 0.3);
+		} else if (a > outer_edge && rumble.x > 0.0) {
 			float ra = a - outer_edge - 0.25;
 			float rs = mod(s, rumble.x) - rumble.x * 0.5;
 			float inside = (1.0 - smoothstep(rumble.z * 0.5 - px, rumble.z * 0.5, abs(ra - rumble.z * 0.5)))

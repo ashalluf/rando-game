@@ -134,6 +134,8 @@ void fragment() {
 
 	vec3 emission = vec3(0.0);
 	float window = 0.0;
+	// A pixel's footprint on the wall, outside any branch (derivatives in one are undefined).
+	vec2 px = max(vec2(fwidth(uv.x), fwidth(wpos.y)), vec2(1e-4));
 	if (wall && win_pitch.x > 0.0 && wpos.y > win_band.x && wpos.y < win_band.y) {
 		vec2 cell = vec2(uv.x / win_pitch.x, (wpos.y - win_band.x) / win_pitch.y);
 		vec2 id = floor(cell);
@@ -142,34 +144,45 @@ void fragment() {
 		vec2 d = abs(f - centre) * win_pitch;
 		vec2 half_w = win_size * win_pitch * 0.5;
 		vec2 edge = half_w - d;
-		if (edge.x > 0.0 && edge.y > 0.0) {
-			window = 1.0;
+		// Coverage, not a hard test (rc-downtown-aerial): a pixel's footprint on the wall in
+		// metres, the window's edge spread over it, and once a cell is under a couple of pixels
+		// the pattern hands over to its average - at a few hundred metres the hard edge drew the
+		// windows as a field of random black specks.
+		vec2 cov2 = clamp(edge / px + 0.5, 0.0, 1.0);
+		float cov = cov2.x * cov2.y;
+		float far_w = smoothstep(0.3, 0.6, max(px.x / win_pitch.x, px.y / win_pitch.y));
+		cov = mix(cov, win_size.x * win_size.y, far_w);
+		if (cov > 0.001) {
+			window = cov;
 			vec3 V = normalize(CAMERA_POSITION_WORLD - wpos);
 			vec3 N = normalize(wnrm);
 			vec3 refl = reflect(-V, N);
 			float fres = pow(1.0 - clamp(dot(V, N), 0.0, 1.0), 4.0);
 			vec3 sky = lm_reflection(refl, sky_zenith, sky_horizon, street_reflect, 1.0);
 			float mirror = mix(0.22, 0.85, fres) * (1.0 - 0.85 * night_factor);
-			// The reveal: head and jambs shade the glass, most at the top.
-			float rv = smoothstep(0.0, win_reveal, min(edge.x, edge.y * 0.8));
+			// The reveal: head and jambs shade the glass, most at the top (its average far off).
+			float rv = mix(smoothstep(0.0, win_reveal, min(max(edge.x, 0.0), max(edge.y, 0.0) * 0.8)), 0.75, far_w);
 			vec3 g = glass_color * mix(0.45, 1.0, rv);
-			base = mix(g, sky, mirror * 0.3);
-			emission += sky * mirror * 0.7 * reflect_energy * lm_sky_now() * mix(0.6, 1.0, rv);
-			rough = 0.12;
-			metal = 0.0;
+			vec3 gl = mix(g, sky, mirror * 0.3);
+			vec3 em = sky * mirror * 0.7 * reflect_energy * lm_sky_now() * mix(0.6, 1.0, rv);
 			float h = lm_hash21(id + vec2(seed * 1.7, seed));
-			if (h < lit_ratio) {
-				float glow = 0.55 + 0.45 * lm_hash21(id * 1.3 + seed);
+			float lit_share = mix(step(h, lit_ratio), lit_ratio, far_w);
+			if (lit_share > 0.0) {
+				float glow = mix(0.55 + 0.45 * lm_hash21(id * 1.3 + seed), 0.775, far_w);
 				// A lit room is brightest up at its ceiling.
-				float up = clamp((f.y - win_sill) / max(win_size.y, 0.01), 0.0, 1.0);
-				emission += lit_color * lit_strength * glow * night_factor * mix(0.6, 1.1, up) * rv;
-				base *= 1.0 - 0.6 * night_factor;
+				float up = mix(clamp((f.y - win_sill) / max(win_size.y, 0.01), 0.0, 1.0), 0.5, far_w);
+				em += lit_color * lit_strength * glow * night_factor * mix(0.6, 1.1, up) * rv * lit_share;
+				gl *= 1.0 - 0.6 * night_factor * lit_share;
 			}
-			nmap = vec3(0.5, 0.5, 1.0);
+			base = mix(base, gl, cov);
+			emission += em * cov;
+			rough = mix(rough, 0.12, cov);
+			metal = mix(metal, 0.0, cov);
+			nmap = mix(nmap, vec3(0.5, 0.5, 1.0), cov);
 		}
 	}
 	// Floodlight.
-	if (flood_strength > 0.0 && window < 0.5) {
+	if (flood_strength > 0.0 && window < 0.999) {
 		float up = max(wpos.y - flood_base_y, 0.0);
 		float wash = flood_floor + (1.0 - flood_floor) * exp(-up / max(flood_reach, 0.1));
 		if (wpos.y < flood_top_y) {
@@ -178,7 +191,7 @@ void fragment() {
 		// Scallops: each fitting throws a cone, brightest straight up from it.
 		float sc = 0.72 + 0.28 * cos(uv.x / max(flood_spacing, 0.5) * 6.2831853);
 		float grazing = wall ? 1.0 : 0.55;
-		emission += base * flood_color * flood_strength * lamp_factor * wash * mix(1.0, sc, smoothstep(0.0, 8.0, up)) * grazing;
+		emission += base * flood_color * flood_strength * lamp_factor * wash * mix(1.0, sc, smoothstep(0.0, 8.0, up)) * grazing * (1.0 - window);
 	}
 	emission += base * night_self * lamp_factor;
 	ALBEDO = base;

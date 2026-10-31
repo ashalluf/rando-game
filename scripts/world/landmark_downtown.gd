@@ -152,11 +152,12 @@ static func is_tower(id: String) -> bool:
 
 ## Builds one tower under `parent` at its anchor (children at true world coordinates, like every
 ## landmark). `statics` null means the far copy: no collision, no street-level detail.
-static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, detailed: bool) -> void:
+static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, detailed: bool, y0: float = 0.0) -> void:
 	var id: String = lm.id
 	var t := tower(id)
 	var anchor: Vector2 = lm.anchor
-	var at := Vector3(anchor.x, BASE_Y, anchor.y)
+	# y0: the ground Bunker Hill lifts it to (LaHills.landmark_lift(); 0 on the flat).
+	var at := Vector3(anchor.x, BASE_Y + y0, anchor.y)
 	var body := MeshInstance3D.new()
 	body.name = "Tower_" + id
 	body.mesh = t.mesh

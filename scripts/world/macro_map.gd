@@ -284,6 +284,8 @@ var _relief: FastNoiseLite
 var _landmarks: Array[Dictionary] = []
 ## The oil field (OilField), or null.
 var oil: OilField = null
+## Los Angeles' named hills (LaHills: Bunker Hill, Echo Park, the bluffs), or null (LA_HILLS=0).
+var la_hills: LaHills = null
 ## The landmarks whose relief-flattening box (radius + 150 m, or a flat_rect and its margin)
 ## reaches each LM_CELL square, in Landmarks.all()'s order: _relief_natural() runs for every ground
 ## sample a chunk lays, and looping all ~100 landmarks with two dictionary reads each was most of a
@@ -337,6 +339,8 @@ func setup() -> void:
 				if not _lm_grid.has(ck):
 					_lm_grid[ck] = []
 				(_lm_grid[ck] as Array).append(lm)
+	# The named hills (LaHills), folded into the relief's base: before anything below reads it.
+	la_hills = LaHills.make(self)
 	_calm_spots = []
 	for lm in _landmarks:
 		if raw_height_at(lm.anchor) > 3.0:
@@ -556,6 +560,10 @@ func _relief_natural(pos: Vector2, raw: float) -> float:
 		if terrace.x > 0.0:
 			base += terrace.x * (1.0 - smoothstep(0.0, maxf(terrace.x, 1.0), raw))
 		calm = terrace.y
+	# Los Angeles' named hills (LaHills): a base too, so downtown's flatness and the landmarks'
+	# discs (which fade the noise below) keep the terraces they stand on.
+	if la_hills:
+		base += la_hills.lift(pos, raw)
 	# Fade the rolling relief out over the first `relief_fade_height` metres of mountain, not the
 	# first 2.5. At the foot of a range raw climbs from 0 to 3 m in about twenty metres of ground,
 	# so a narrow window switched the relief off in one step and left a metres-high wall along the
@@ -987,6 +995,9 @@ func district_at(pos: Vector2) -> CityPlan.District:
 	var dd := downtown_distance(pos)
 	if dd < core_margin or core_distance(pos) < core_margin:
 		return CityPlan.District.DOWNTOWN
+	# Los Angeles' hillside neighbourhoods are houses (LaHills.homes_at(): Echo Park, the bluffs).
+	if la_hills and la_hills.homes_at(pos):
+		return CityPlan.District.SUBURBS
 	if pos.x > industrial_corner.x and pos.y > industrial_corner.y:
 		return CityPlan.District.INDUSTRIAL
 	var ext := DowntownReal.game_extent()

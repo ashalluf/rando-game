@@ -218,10 +218,20 @@ static func step(ch: CityChunk) -> bool:
 			var grad: Vector2 = a[1]
 			var slope: float = a[2]
 			var s := lerpf(sc.x, sc.y, _u(h0, 2))
+			var stretch := Vector2(1.1, 1.0)
+			if RcHills.on():
+				# Masses, not polka dots (refcam hills): a slow field gathers the clumps into thickets
+				# with gaps between them, big where it is high, and each dome is stretched its own way.
+				var c := RcHills.cluster(p)
+				var h1 := hash([h0, "rc"])
+				if c < RcHills.CLUSTER_GAP + 0.12 * _u(h1, 0):
+					continue
+				s *= lerpf(0.75, 1.6, c) if full else lerpf(0.85, 1.3, c)
+				stretch = Vector2(lerpf(0.85, 1.45, _u(h1, 1)), lerpf(0.8, 1.2, _u(h1, 2)))
 			var up := Vector3(-grad.x, 1.0, -grad.y).normalized().lerp(Vector3.UP, 0.55).normalized()
 			var basis := Basis(Quaternion(Vector3.UP, up)) * Basis(Vector3.UP, TAU * float((h0 >> 21) & 255) / 256.0)
 			# Wider than tall, and pressed into the slope at its downhill side.
-			basis = basis.scaled(Vector3(s * 1.1, s * lerpf(0.8, 1.15, _u(h0, 1)), s))
+			basis = basis.scaled(Vector3(s * stretch.x, s * lerpf(0.8, 1.15, _u(h0, 1)), s * stretch.y))
 			ch._batch.add(key, m, Transform3D(basis, Vector3(p.x, y - 0.1 - slope * 1.4 * s, p.y)), Color.WHITE,
 				Color(_u(h0, 0), _u(h0, 2), float(full), 0.0))
 			st.count = int(st.count) + 1

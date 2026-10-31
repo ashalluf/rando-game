@@ -114,6 +114,112 @@ float oc_worley(vec2 p) {
 }
 
 
+// The sea floor under the near water (water-review), `s` metres offshore: SeaSurface.seabed() line
+// for line (the sand's own rows under the water, CityChunk SAND_STEEP_AT / SAND_STEEP_Y / SAND_WET /
+// SAND_LOW, from the water plane's MESH_Y, then shelving at 9 cm a metre to the floor box).
+// tests/water_review_checks.gd reads these numbers back against the GDScript: change one, change both.
+const float OC_BED_TOP = 0.15;
+const float OC_BED_STEEP_AT = 3.5;
+const float OC_BED_STEEP_Y = -0.6;
+const float OC_BED_WET = 26.0;
+const float OC_BED_LOW = -3.0;
+const float OC_BED_SHELF = 0.09;
+float oc_seabed(float s) {
+	if (s < OC_BED_STEEP_AT) {
+		return mix(OC_BED_TOP, OC_BED_STEEP_Y, clamp(s / OC_BED_STEEP_AT, 0.0, 1.0));
+	}
+	if (s < OC_BED_WET) {
+		return mix(OC_BED_STEEP_Y, OC_BED_LOW, (s - OC_BED_STEEP_AT) / (OC_BED_WET - OC_BED_STEEP_AT));
+	}
+	return max(OC_BED_LOW - (s - OC_BED_WET) * OC_BED_SHELF, -13.0);
+}
+
+
+// Clear shallows: how far the water is seen through (1/m absorption, LINEAR, red first), the wet
+// sand on the floor (LINEAR: the swash sheet's colour on beach_sand), and the caustics' strength.
+uniform vec3 shallow_absorb = vec3(0.42, 0.095, 0.075);
+uniform float shallow_turbid = 0.55;
+uniform vec3 floor_color = vec3(0.098, 0.076, 0.047);
+uniform float caustic_gain = 1.1;
+uniform float shallows_reach = 60.0;
+
+
+// The floor seen through the water at true-world `fw`: wet sand with ripple marks running along the
+// shore (oscillation ripples a dozen centimetres apart, broken and wandering) and a few darker
+// patches, lit by caustics - the light the ripples on the surface focus into a moving net of bright
+// lines, sharp in a few centimetres of water and gone by a few metres. `depth` metres of water,
+// `px` a pixel's size in metres, `sun` 0..1 how much sunlight reaches it.
+vec3 oc_sea_floor(vec2 fw, float depth, float px, float t, float sun) {
+	vec3 c = floor_color * (0.85 + 0.3 * oc_vnoise(fw * 0.21 + 2.0));
+	// Ripple marks: crests along the shore (true-world z), wandering.
+	float wob = oc_vnoise(fw * vec2(0.6, 0.25) + 5.0) * 2.0;
+	float rp = fw.x / 0.13 + wob * 3.0 + oc_vnoise(fw * vec2(0.9, 0.4)) * 1.6;
+	// Gone before a 13 cm ripple is under three pixels (at 1.4 it aliased into dotted lines down the
+	// beach). `px` is taken outside any branch by the caller: derivatives in divergent flow are
+	// undefined.
+	float keep = 1.0 - smoothstep(0.02, 0.045, px);
+	float rip = mix(0.5, 0.5 + 0.5 * sin(rp * 6.2832), keep * smoothstep(0.25, 0.6, oc_vnoise(fw * 0.35 + 9.0)));
+	c *= 0.86 + 0.24 * rip;
+	// Shell grit and darker weed-stained patches.
+	c *= mix(1.0, 0.72, smoothstep(0.66, 0.82, oc_vnoise(fw * 0.08 + 13.0)));
+	// Caustics (surf.gdshaderinc, shared with the swash on the sand).
+	if (sun > 0.001) {
+		c += floor_color * (caustic_gain * sun * surf_caustic(fw, depth, px, t) * exp(-depth * 0.55));
+	}
+	return c;
+}
+
+
+// The pier park's Ferris wheel mirrored at night (water-review): its LED rims and spokes are the
+// brightest thing on the coast after dark, and on the water they were missing. `pier_wheel` is the
+// hub in TRUE world (x, y, z) and the rim radius (w; 0 = none), from FerrisWheel / PierPark's
+// constants (OceanCloseup.apply()); the wheel stands in the world XY plane (it faces north and
+// south). The reflected ray is intersected with that plane, and what it meets - the two rims and
+// twenty spokes - is drawn smeared along the view by the water's ripple (`smear_m` metres at the
+// plane, growing with distance), in a slow cycle of the wheel's colours.
+uniform vec4 pier_wheel = vec4(0.0);
+// The pier park's decks round the wheel in TRUE world (x0, z0, x1, z1): under them the deck hides
+// the wheel from the water (OceanCloseup.wheel_deck()).
+uniform vec4 pier_deck = vec4(0.0);
+uniform float wheel_light = 1.6;
+const float OC_WHEEL_SPOKES = 20.0;
+vec3 oc_hue(float h) {
+	vec3 k = clamp(abs(fract(h + vec3(0.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0) - 1.0, 0.0, 1.0);
+	return k * k;
+}
+vec3 oc_wheel_mirror(vec3 p, vec3 refl, float smear, float t) {
+	if (pier_wheel.w <= 0.0 || abs(refl.z) < 0.0005) {
+		return vec3(0.0);
+	}
+	// Under the deck (and a few metres round it, where the deck's edge still cuts the view up).
+	vec2 dk = max(pier_deck.xy - p.xz, p.xz - pier_deck.zw);
+	float under = 1.0 - smoothstep(-1.0, 4.0, max(dk.x, dk.y));
+	if (under > 0.999) {
+		return vec3(0.0);
+	}
+	float tt = (pier_wheel.z - p.z) / refl.z;
+	if (tt <= 0.0 || tt > 2500.0) {
+		return vec3(0.0);
+	}
+	vec3 hit = p + refl * tt;
+	vec2 d = hit.xy - pier_wheel.xy;
+	float r = length(d);
+	float R = pier_wheel.w;
+	// Ripples smear the reflection up and down the view far more than across it: the vertical
+	// tolerance grows with the distance travelled, the sideways one a little.
+	float sv = 0.35 + tt * 0.14 * smear;
+	float sh = 0.25 + tt * 0.006;
+	float w = mix(sh, sv, abs(d.y) / max(r, 0.01));
+	float rim = exp(-pow((r - R) / w, 2.0)) + 0.6 * exp(-pow((r - R * 0.89) / w, 2.0));
+	float a = atan(d.y, d.x) / 6.2832 + 0.5;
+	float sp = (fract(a * OC_WHEEL_SPOKES) - 0.5) * (6.2832 * r / OC_WHEEL_SPOKES);
+	float spoke = exp(-pow(sp / sh, 2.0)) * (1.0 - smoothstep(R * 0.95, R + w, r)) * smoothstep(0.0, 2.0, r);
+	vec3 c = oc_hue(a + t * 0.03) * 0.8 + vec3(0.2);
+	// The energy is kept as the smear spreads it (a wider streak is a dimmer one).
+	return c * (rim + spoke * 0.55) * sqrt(0.35 / sv) * wheel_light * (1.0 - under);
+}
+
+
 // The wind's frame on the water: `wv` down the wind, `wp` across it.
 void oc_wind_frame(vec2 wind, out vec2 wv, out vec2 wp) {
 	wv = normalize(wind + vec2(0.0001, 0.0));

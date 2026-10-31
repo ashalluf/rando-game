@@ -95,6 +95,9 @@ uniform vec4 occupant_top = vec4(0.0);
 uniform vec4 occupant_skin = vec4(0.0);
 uniform vec4 occupant_hair = vec4(0.0);
 uniform vec4 occupant_mate = vec4(0.0);
+// Where their heads are turned (TrafficBehaviour): radians toward the car's right, x the driver,
+// y the passengers. 0 looks ahead (the default: nothing turns).
+uniform vec2 occupant_look = vec2(0.0);
 
 // What a cabin hit is (the furniture's `mat`).
 const int CAB_FABRIC = 0;
@@ -412,6 +415,13 @@ vec3 person_albedo(int mat, vec4 aux, float back) {
 	}
 	// The head: `aux.xyz` is the point on its unit sphere; `qb` toward the back of the head.
 	vec3 q = aux.xyz;
+	// Turned toward what they look at: the face's pattern is read off the sphere turned back.
+	float look = mate ? occupant_look.y : occupant_look.x;
+	if (look != 0.0) {
+		float lc = cos(look);
+		float ls = sin(look);
+		q = vec3(q.x * lc + q.z * ls, q.y, -q.x * ls + q.z * lc);
+	}
 	float qb = q.z * back;
 	if (style > 2.5) {
 		// A cap over the crown with its peak to the front, short hair under it at the back.
