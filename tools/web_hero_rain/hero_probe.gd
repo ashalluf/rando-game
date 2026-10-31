@@ -43,14 +43,34 @@ func _go() -> void:
 	while Time.get_ticks_msec() - t0 < settle:
 		await get_tree().process_frame
 	_report_lights()
-	var steps := _arg("steps", "base,cloth,wet,refl,ambient,sun,skyflat,lamps,base").split(",")
+	var steps := _arg("steps", "base,cloth,unshaded,hair,skin,wet,refl,ambient,sun,lamps,fog,glow,grade,skyflat,base").split(",")
 	for s in steps:
 		_apply(s, true)
 		for i in int(_arg("frames", "3")):
 			await get_tree().process_frame
 		print("PROBE %s %s" % [s, _torso()])
+		_crop(s)
 		_apply(s, false)
 	print("PROBE_DONE")
+
+
+## A PNG crop round the hero, base64 in the console (the harness keeps the console; the web has
+## no file to save to): PROBE_IMG <step> <base64>.
+func _crop(step: String) -> void:
+	var p := get_tree().get_first_node_in_group("player") as Node3D
+	var cam := get_viewport().get_camera_3d()
+	if p == null or cam == null or _arg("crops", "1") != "1":
+		return
+	var img := get_viewport().get_texture().get_image()
+	var a := cam.unproject_position(p.global_position + Vector3(0, 2.1, 0))
+	var b := cam.unproject_position(p.global_position + Vector3(0, -0.2, 0))
+	var h := absf(b.y - a.y)
+	var r := Rect2i(int(a.x - h * 0.45), int(min(a.y, b.y)), int(h * 0.9), int(h))
+	r = r.intersection(Rect2i(0, 0, img.get_width(), img.get_height()))
+	if r.size.x < 2 or r.size.y < 2:
+		return
+	var c := img.get_region(r)
+	print("PROBE_IMG %s %s" % [step, Marshalls.raw_to_base64(c.save_png_to_buffer())])
 
 
 var _hidden: Array = []
@@ -76,23 +96,47 @@ func _apply(step: String, on: bool) -> void:
 						l.visible = true
 				_hidden.clear()
 	match step:
-		"cloth":
+		"cloth", "unshaded", "hair", "skin":
+			var want := {"cloth": "hero_cloth", "unshaded": "hero_cloth", "hair": "hero_hair", "skin": "hero_skin"}[step] as String
 			var av := get_tree().get_first_node_in_group("player")
 			for n in av.find_children("*", "MeshInstance3D", true, false):
 				var mi := n as MeshInstance3D
 				for i in mi.get_surface_override_material_count():
 					var m := mi.get_surface_override_material(i)
-					if on and m is ShaderMaterial and str((m as ShaderMaterial).shader.resource_path).contains("hero_cloth"):
+					if on and m is ShaderMaterial and str((m as ShaderMaterial).shader.resource_path).contains(want):
 						_saved[[mi, i]] = m
 						var flat := StandardMaterial3D.new()
-						flat.albedo_color = Color(0.02, 0.02, 0.02)
+						flat.albedo_color = Color(0.02, 0.02, 0.02) if step != "skin" else Color(0.5, 0.35, 0.28)
 						flat.roughness = 0.45
+						if step == "unshaded":
+							flat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+							flat.albedo_color = Color(0.08, 0.08, 0.08)
 						mi.set_surface_override_material(i, flat)
 			if not on:
 				for k in _saved.keys():
 					if k is Array:
 						(k[0] as MeshInstance3D).set_surface_override_material(k[1], _saved[k])
 						_saved.erase(k)
+		"fog":
+			if env:
+				if on:
+					_saved["fog"] = env.fog_enabled
+					_saved["vfog"] = env.volumetric_fog_enabled
+					env.fog_enabled = false
+					env.volumetric_fog_enabled = false
+				else:
+					env.fog_enabled = _saved["fog"]
+					env.volumetric_fog_enabled = _saved["vfog"]
+		"glow":
+			if env:
+				if on:
+					_saved["glow"] = env.glow_enabled
+				env.glow_enabled = false if on else _saved["glow"]
+		"grade":
+			if env:
+				if on:
+					_saved["adj"] = env.adjustment_enabled
+				env.adjustment_enabled = false if on else _saved["adj"]
 		"skyflat":
 			if env:
 				if on:
