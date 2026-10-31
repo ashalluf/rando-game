@@ -4076,3 +4076,8 @@ none of either.
   object under a few pixels is dropped by its share of the frame, not drawn as a fleck; steep
   terrain is textured from the side; the ground's tone is not retuned from opengl3 stills (on
   Forward+ it already reads as dark chaparral). All behind RC_HILLS=0.
+- 2026-10-31 (web-build-4): the web build after batch 25 loads clean at all eight bookmarks
+  (wasm 723 MB, pck 601 MB of the 650 MB budget). Decision: the painted cloud deck (the web and
+  Forward+ below MEDIUM) closes into a stratus ceiling from coverage 0.62 to 0.78, so rain and
+  storms never fall from a blue sky there; a clear day is untouched. web_build_checks now also
+  holds WebGL2's uniform-block (16 KB) and varying floors.

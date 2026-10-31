@@ -757,6 +757,11 @@ vec3 moon_face(vec2 p) {
 // --- The painted cumulus (Compatibility, and Forward+ below MEDIUM) ---------------------------
 // The old 2D deck: one fbm layer at a sliding scale, the sun side sculpted by stepping the field
 // toward the sun. Returns the deck's colour in rgb and its opacity in a; `shaft` gets the rays.
+// Where the painted deck closes into a stratus ceiling (cloud_coverage; tests/web_build_checks.gd
+// holds rain closed and a clear day open).
+const float PAINTED_STRAT_LO = 0.62;
+const float PAINTED_STRAT_HI = 0.78;
+
 vec4 painted_cumulus(vec3 dir, vec3 sdir, vec3 mdir, vec3 sun_light, float sun_up, float moon_vis,
 		float ang, float cos_sun, vec3 airlight, out float shaft) {
 	float up = dir.y;
@@ -770,6 +775,11 @@ vec4 painted_cumulus(vec3 dir, vec3 sdir, vec3 mdir, vec3 sun_light, float sun_u
 	float edge0 = 1.0 - cloud_coverage;
 	float density = smoothstep(edge0, edge0 + cloud_softness, shape) * smoothstep(0.0, 0.22, up);
 	float thick = clamp((shape - edge0) / max(cloud_softness, 0.02), 0.0, 1.0);
+	// A rain or heavy overcast deck closes into a stratus ceiling (the volume's `strat`, earlier:
+	// painted, a rain day's 0.75 coverage left blue holes over the rain on the web).
+	float strat = smoothstep(PAINTED_STRAT_LO, PAINTED_STRAT_HI, cloud_coverage);
+	density = mix(density, max(density, (0.9 + 0.1 * d) * smoothstep(0.0, 0.1, up)), strat);
+	thick = mix(thick, max(thick, 0.55 + 0.45 * shape), strat);
 	float sunlit = 0.5;
 	shaft = 0.0;
 	if (cloud_detail > 0.5) {
@@ -790,6 +800,7 @@ vec4 painted_cumulus(vec3 dir, vec3 sdir, vec3 mdir, vec3 sun_light, float sun_u
 			* smoothstep(0.04, 0.32, cloud_coverage) * (1.0 - density);
 	}
 	sunlit = mix(0.5, sunlit, sun_up);
+	sunlit = mix(sunlit, 0.35 + 0.3 * shape, strat);
 	// Aerial perspective: slant distance to a deck goes as 1 / sin(elevation).
 	float deck_haze = 1.0 - exp(-0.11 / (up + 0.06));
 	vec3 cloud = mix(cloud_shadow, cloud_color, sunlit);
@@ -797,7 +808,7 @@ vec4 painted_cumulus(vec3 dir, vec3 sdir, vec3 mdir, vec3 sun_light, float sun_u
 		cloud = mix(cloud, mix(cloud_shadow, cloud_color * day_painted_light, sunlit), sky_day);
 	}
 	cloud = mix(cloud, cloud * mix(vec3(1.0), cloud_shadow, 0.55), thick * 0.55);
-	cloud += sun_light * pow(max(cos_sun, 0.0), 3.0) * sun_up * 0.35;
+	cloud += sun_light * pow(max(cos_sun, 0.0), 3.0) * sun_up * 0.35 * (1.0 - 0.7 * strat);
 	float rim = density * (1.0 - thick) * pow(max(cos_sun, 0.0), 5.0);
 	cloud += sun_light * rim * 1.1 * sun_up;
 	// How much of the night's darkening the deck escapes: the sun still lights it (sunset only).

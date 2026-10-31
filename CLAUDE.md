@@ -6824,6 +6824,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `BUTTON=middle`); `PROBE=1` (tools/webshot/probe.js) prints the wasm heap, Web Audio buffers and
   their callers. Shaders must stay GLSL ES 3.00: no bitfieldExtract / findMSB / textureGather /
   fma / dFdxFine ... (`tests/web_review_3_checks.gd`).
+- The web build after batch 25 (2026-10-31, docs/HANDOFF.md "The web build after batch 25"): all
+  eight bookmarks clean (`tools/webshot/bookmarks.sh <outdir> [name]`, one tab at a time), wasm
+  723 MB, pck 601 MB (budget 650). The painted sky (web, Forward+ below MEDIUM) closes into a
+  stratus ceiling between coverage `PAINTED_STRAT_LO` / `_HI` (sky.gdshader): rain had blue holes.
+  web_build_checks also holds every material's uniform block under 16 KB and custom varyings
+  under 40 components. A local export packs `build/` too unless it has a `.gdignore`.
 - Forward+ review of small scenes (2026-10-05, docs/HANDOFF.md "Forward+ review A"): lavapipe
   renders `block_shot.tscn` (a few FULL blocks, ~10 min a run, ~12 GB) and the room tools
   (`hero_moves_shot.gd`, `photo_shot.gd ROOM=1`, ~2 min) with `--rendering-driver vulkan` and

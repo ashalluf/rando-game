@@ -24666,3 +24666,69 @@ cluster field, the sign's span and steps).
 opengl3 and the thickets on lavapipe in a small scene; the far cull is resolution independent (a
 share of the frame) but on a Retina Mac the pixels are three times smaller, so a culled tor was
 ~13 px there. HillShrubs (the bright code-built mounds within 160 m) are still evenly spaced.
+
+## 9jz. The web build after batch 25, 2026-10-31 (fleet wave 4 session `web-build-4`, branch `wt/web-build-4`; VISUAL_ROADMAP "?")
+
+**What was asked.** Export the web build after batch 25 (the golden-hour review), load every
+bookmark in `tools/webshot` one tab at a time, fix any shader / WebGL / global-buffer error and
+anything that reads wrong there (the hero's blue tracksuit in rain is `web-hero-rain`'s), keep the
+pck under 650 MB, update `tests/web_build_checks.gd`.
+
+**How.** main `e5bb9e4`, the 4.7.2 `web_nothreads_release` template, `--export-release "Web"`
+(45 s), headless Chromium 1243 (the FULL one, SwiftShader, WebGL 2.0) at 960x540, 7 minutes of
+streaming, then `KEY=k` as the gesture (nothing fired), `PROBE=1`, ONE tab at a time. The eight
+bookmarks are now a script: `tools/webshot/bookmarks.sh <outdir> [name ...]` (downtown noon,
+night street 21:30, rain 13:00, golden 18:30, storm 16:00, hills 15:00, MacArthur Park, beach and
+pier 15:00; 12-28 minutes each, a line per bookmark with its count of unexpected console lines).
+
+**Result: every bookmark loads and draws, console clean.** At all eight the only lines are the
+template's `Occlusion culling is disabled at build-time` and Chrome's AudioContext autoplay notice
+before the gesture: no `SHADER ERROR`, WebGL error, global-buffer error, script error or
+out-of-memory. The wasm heap is 723 MB after load at every bookmark and stays there (the browser
+caps it at 4 GB); the JS heap ends at 0.74-0.84 GB. Web Audio buffers still climb from ~18
+(110 MB) to ~100 (500 MB) over 20 minutes - Godot's own sample playback copies a looping bed on
+every restart (`Sample._duplicateAudioBuffer` from `SampleNode.restart`, section 9id) and the
+garbage collector takes the old copies; the renderer process stays flat.
+
+**Size.** `index.pck` 600.8 MB, `index.wasm` 39.5 MB, the rest 0.3 MB: 640.6 MB, under the 650 MB
+pck budget and 360 MB under Pages' 1 GB. No exclusion needed this time (batches 23-25 added ~1 MB).
+Note for local exports: `build/` is exported too unless it holds a `.gdignore` - stills or a
+probe script left there go into the pck (CI exports a fresh checkout, so the release is not
+affected).
+
+**Fixed: rain under a blue sky.** In rain (still `c_rain`) and even in a storm (`h_storm`) the
+web's sky had big blue holes over the falling rain. The web (and Forward+ below MEDIUM) draws the
+painted cumulus, `painted_cumulus()` in `sky.gdshader`, which had no stratus fill: a rain day's
+cloud coverage is ~0.75 (0.42 base, the hour's +-0.12 swing, `Weather._cloud(RAIN)` 0.42), which
+the painted deck turned into broken cumulus. Now the deck closes into a ceiling between coverage
+`PAINTED_STRAT_LO` 0.62 and `PAINTED_STRAT_HI` 0.78: the density goes to ~0.9-1 everywhere above
+the horizon, the base is thick and evenly lit (`sunlit` 0.35-0.65 by the noise), and the sun's
+glow through it is cut to 30 %. A clear day (at most 0.54) is bit for bit unchanged, overcast
+(0.51-0.75) closes over the cloudier half of its hours, rain from 0.68 at its thinnest hour, a
+storm and the marine layer fully. Proven on `tools/sky/sky_shot.gd DETAIL=0 PARAMS=cloud_coverage=`
+(blue share of the upper frame: 0.63 0.42 -> 0.42, 0.70 0.33 -> 0.06, 0.75 0.27 -> 0.00) and in
+the browser (`c2_rain`, `h2_storm`). The Forward+ volume keeps its own `strat` (0.72-0.95), not
+touched here: whether the Mac at HIGH also shows holes in rain is for the sky's owner.
+
+**Checks** (`tests/web_build_checks.gd`, already loaded by the smoke test):
+- every material's non-sampler uniforms laid out std140 within WebGL2's 16 KB uniform block
+  floor (the most: ocean, 2,888 bytes; car paint 2,768), the estimate proven on a planted source;
+- every shader's custom varyings within 40 components (WebGL2 guarantees 60 in all, and the
+  renderer takes its own): the most is `building_lod`, 34, then `building` 28;
+- the painted sky closes over rain at its thinnest hour (>= 0.6) and leaves the clearest day
+  alone, read from the shader's constants, `DayNight.cloud_coverage` and `Weather._cloud(RAIN)`.
+
+**Looked at, not changed.**
+- MacArthur Park (`f_macarthur`): the near palm's trunk reads more yellow and smoother in the
+  browser than in a native opengl3 still of the same spawn (blue channel ~25 % lower). The palm
+  alone through `opengl3` and `opengl3_es` (`tools/trees_closeup/tree_shot.gd`) is pixel-identical,
+  and nothing web-only touches the palms, so the cause is not found (a different crown / LOD
+  state at the moment of the shot is possible).
+- The beach (`g_beach`): the pier entrance's flat-coloured primitive stall tables and blocky sign
+  are the landmark's own look (native too), not the web's; nobody owns them in wave 4.
+- The wet road in rain and storm reads pale and milky on the web: the road's sky mirror on
+  Compatibility; `wet-road-mirror` owns `mirrored_city()`.
+- The hero in rain: black at the rain bookmark this time (web-hero-rain's).
+- Frame rate: SwiftShader cannot say (15-25 s a frame here).
+
+Stills on `shots/web-build-4`.
