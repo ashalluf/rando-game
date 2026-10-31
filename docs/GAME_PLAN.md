@@ -4105,3 +4105,10 @@ none of either.
   cut them to 500 triangles a hand); clip rates come from each rig's measured stride, never one
   constant for every rig (that constant was 0.67-0.91 m/s off by rig). The rigs grew ~5k triangles
   near; their LODs carry the distance.
+- **2026-10-31 A flaky check is fixed at its cause, never rerun (HANDOFF "The gate's intermittent
+  failures, wave 4").** Shuffled SHARDS=3 runs found eight intermittent failures on main; each was a
+  check leaning on what an earlier file or a live system left (an empty valet car, a full crowd cap,
+  burning debris holding the debris cap, a leftover node holding a name, a first build's cars), a
+  single wall-clock sample, or an alarm short of the system's own reach. Decisions: the gate reset
+  also frees blast debris and trims the crowd to the snapshot's head-count; BlastDebris counts its
+  live pieces from the nodes in the tree (a counter leaked); and the flake rules in CLAUDE.md.

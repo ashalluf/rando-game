@@ -25031,3 +25031,52 @@ maths reads the fitted speeds; the hair switch; the builder's shoe hook and hand
   jeans in one walk frame (the thumb now lies closer to the thigh).
 - Forward+ / the Mac: the hair dither's temporal path and the soles under SSAO / SSIL are
   unverified on the real renderer.
+
+## 9kd. The gate's intermittent failures, wave 4 (fleet wave 4, `gate-flakes`, 2026-10-31)
+
+The task: run `SHARDS=3 tests/headless_check.sh` five times in a row on main with a different
+`SMOKE_SHUFFLE=<seed>` each run, fix every FAIL and script error at its cause, until five runs pass
+clean. Logs were kept per run (`SMOKE_LOG_DIR`); a loop script ran the seeds back to back
+(~20 min a run, ~3.1-3.3 GB a shard).
+
+**What failed on main (`e5bb9e4`), and why** (seeds 101-505, then 606):
+
+| run | check | cause | fix |
+|---|---|---|---|
+| 101 | car_cabin "street cars have a driver (106/107)" | ValetStand empties a called-in car while its driver walks in and before the valet gets in; a FreewayIncidents stall's driver stands on the shoulder; both stay tagged traffic | skipped like CarPanic's abandoned cars (`traffic.valet` / `traffic.fw_incident`); the message names any other empty traffic car |
+| 202 | busy_streets "an emptied near block gets its walkers back (11 -> 21 of 20)" | the bound used the plan at 13:00 while `balance_crowd()` uses the city's hour; walkers crossing from the next block join the ring while it fills | bound from `BusyStreets.hour_now()` + `CROSS_SLACK` 2 |
+| 303 | explosions_2 x4 "threw burning debris (0)", "one flash light", "debris arcs up", "lands on the deck" | `BlastDebris.alive()` was already `max_debris` (24) from earlier files' blasts still burning (files not awaited run with no frames between them), so this blast threw none; and see 505 | `alive()` sums live BlastDebris nodes in the tree (the static counter also leaked for debris that never entered the tree); the gate reset frees leftover debris; the check frees what is left and prints it |
+| 303 | film_shoot "the crew in black (0) and the extras (0)" | earlier files had filled the crowd cap, so `_take_crowd_room()` refused everyone | the check gives the build room in the cap (star_boulevard's way); the gate reset trims the crowd back to the snapshot's head-count |
+| 505 | arroyos "no arroyo build step over 15 ms (21.2)" / 606 "over 30 ms (34.5)" | one wall-clock sample on a box three shards share | 30 ms under `SMOKE_SHARD`, and a step over budget is timed again on a second build (the better reading counts) |
+| 505 | explosions_2 "one flash light, brighter and wider" | an earlier blast's `BlastFlash` still glowing in the fx parent: Godot named the new one `@OmniLight3D@n`, and the name search found only the old one | the check frees every `Blast*` node left before its own blast |
+| 606 | onlookers "a new shot sends the onlookers running (1 stayed)" | the check's 40 m alarm; Onlookers recruits up to `RECRUIT_REACH` 55 m, and one still walking in never heard it | alarm `RECRUIT_REACH` + 15 m; the message gives each stayer's distance, stage, act |
+| 606 | la_trees "the fig block with LaTrees off is the same block (cars 15/6)" | the first build's parked cars live under the city root: the second build found the kerb spots taken and PhysicsBudget fuller (and 21 cars leaked into every later file) | each build's cars are taken out of the tree after counting |
+
+| 808 | utility_poles "the line rolls nothing from the block" (children 89 / 78) | `CityStreamer.take_crowd_room()` counts the room once a frame, so the second and third synchronous builds in a frame spawned fewer walkers | `CityChunk.build()` resets the streamer's frame count first; the check gives each build room and frees each build's cars (main's 3447f427 also leaves the crowd out of the signature) |
+| 909 | onlookers SCRIPT ERROR (victim "previously freed") | the staged victim lacked the `no_trim` meta the twelve staged walkers carry: the streamer's cap trim, BusyStreets' balance and StreetErrands' borrowing may take it | `no_trim`, no crossings, a FAIL instead of an error if lost |
+| 2121, 3131 | traffic_motion "no tick turns the car by more than a smooth turn would (129.8 deg)" | (the diagnostic: at the junction's centre, axis back to the old road, turn 0) a second turn rolled at the junction just turned through snapped the car back | main's CI 397 fix (`t.node = node` at the snap); this branch's diagnostic was replaced by main's |
+| 2222 | crowd_anim_2 SCRIPT ERROR (`_steer`, walker freed) | staged walker without `no_trim` | `no_trim` on every staged `Pedestrian.new()` in nine more check files |
+| 2222 | emergency "the other brings the stretcher" / "the ambulance leaves" | the stretcher medic pushed at the ambulance's rear corner for 45 s, 6 m short: a car in the kerb lane | the check clears parked cars within 16 m and holds StreetErrands off for the call |
+| 2525 | crowd_anim_2 SCRIPT ERROR (`_walk_check`, chunk freed) | the spawn block's chunk was replaced mid-walk | streaming settled and the chunk required FULL first; validity guards turn an error into a FAIL |
+| 4242 | explosions_3 x3 "one volume node", "the volume's box", "the heat haze reads the screen first" | explosions_2's rename trap again (BlastVolume / BlastHaze) | both explosion checks free an earlier blast's `Blast*` nodes (not the `BlastBits` pool); the gate reset does it before every file |
+| 4444 | crowd_life SCRIPT ERROR (sitter freed) | the spawn chunk swapped mid-check, as 2525 | settled streaming, a FULL chunk, guards |
+| 4444 | traffic_ai "a car with an exit leaves the freeway (left false)" | StackTraffic takes a share of freeway cars coming up to a diverge, out of `freeway_cars` | `take_share` 0 for the exit test; the message says where the car went |
+| 4444, 5555 | room "one shotgun blast throws a crate (0.13 m / 0.00 m, aimed at the crate)" | PhysicsBudget froze the crate while earlier room checks had the player far off; it wakes props on its 0.25 s look and the shot came 7 ticks after the player was put back | the check unfreezes and wakes the crate first; the message names what the aim hit |
+| 5151 | shader_warm "the rehearsal's effects leave no node (Blood (Decal))" + SCRIPT ERROR in WarmRehearsal._stage_people | a live traffic car knocked one of the rehearsal's people (its cars are off every layer, its people were not) | the rehearsal's people are off the npc layer with their hit zone not monitoring; the loop is untyped and checks validity |
+| 5454 | birds "a gunshot 20 m away startles a flock up" | the check's own `advance(40)` let the surveys fill the bird cap, so the next `stage()` got no birds (id 0) | every staging lifts the cap for itself (`_stage()`) |
+
+**The gate reset grew three things** (`tests/gate_reset.gd`): every BlastDebris freed, a blast's still-fading `Blast*` effect nodes freed
+(BlastBits, the shared chip pool, kept), and the crowd:
+the streamer's `max_pedestrians` put back and the head-count trimmed to the snapshot's (farthest
+plain walkers first, `BusyStreets.is_plain_walker()`: nobody on an errand, watching, stopped or
+seated). Ten more check files count the people a chunk build spawns without raising the cap
+(beach_life, bonfires, fashion_district, golf, light_rail, lowriders, metro_underground,
+nightlife, park, valets); the trim is what keeps them from the film shoot's failure.
+
+**Rules this left** (CLAUDE.md, the clean-city paragraph): a check that builds a chunk twice frees
+the first build's cars (they are not the chunk's children); a check that counts spawned people
+gives the build room in the crowd cap; never find a node by a name another file's leftover may
+already hold (Godot renames the newcomer); a wall-clock budget is measured twice and loosened
+under SMOKE_SHARD; a check's alarm reaches everyone the system under test can have recruited.
+
+**Verification**: RESULTS_PLACEHOLDER

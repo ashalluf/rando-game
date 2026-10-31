@@ -634,6 +634,12 @@ func _freeway_ramps() -> void:
 	# single-process CI run): the exit is the AI's, so stage it with none.
 	var incidents_were: bool = FreewayIncidents.enabled
 	FreewayIncidents.enabled = false
+	# Nor does the four-level stack take it at a diverge on the way (StackTraffic takes a share of
+	# the cars coming up to one off the main line: gate run 4444, "left false, went down false").
+	var stack_traffic: Node = _traffic.get_parent().get_node_or_null("StackTraffic") if _traffic.get_parent() else null
+	var take_was: float = stack_traffic.get("take_share") if stack_traffic else 0.0
+	if stack_traffic:
+		stack_traffic.set("take_share", 0.0)
 	var leaver := _traffic.place_freeway_car(ri_off, t0, 1, -1, 22.0)
 	var width := float(fw.routes[ri_off].width)
 	leaver.traffic.li = Freeway.LANES - 1
@@ -656,7 +662,10 @@ func _freeway_ramps() -> void:
 		if left and leaver.global_position.y < top_y - 4.0:
 			down = true
 	FreewayIncidents.enabled = incidents_were
-	_check(left and down and int(TrafficAI.counts.get("fw_exit", 0)) > exits, "a car with an exit leaves the freeway down the off-ramp (left %s, went down %s)" % [left, down])
+	if stack_traffic:
+		stack_traffic.set("take_share", take_was)
+	var gone := "" if left else (" (%s)" % ("freed" if not is_instance_valid(leaver) else ("parent %s, fw car %s" % [leaver.get_parent().name if leaver.get_parent() else "none", _traffic.freeway_cars.has(leaver)])))
+	_check(left and down and int(TrafficAI.counts.get("fw_exit", 0)) > exits, "a car with an exit leaves the freeway down the off-ramp (left %s, went down %s%s)" % [left, down, gone])
 
 
 ## The live traffic with all of it on: no car ever inside another on the same carriageway (as

@@ -60,6 +60,7 @@ func _check_behaviour(city: Node3D, chunk: Node3D) -> void:
 	var peds: Array[Pedestrian] = []
 	for i in 6:
 		var p := Pedestrian.new()
+		p.set_meta("no_trim", true) # never trimmed or borrowed by the live crowd systems
 		p.setup(rect, plan.sidewalk_width, 9100 + i * 37)
 		p.pause_chance = 0.0
 		p.cross_chance = 0.0
@@ -80,6 +81,7 @@ func _check_behaviour(city: Node3D, chunk: Node3D) -> void:
 		return
 	# Same seed, same umbrella.
 	var twin := Pedestrian.new()
+	twin.set_meta("no_trim", true) # never trimmed or borrowed by the live crowd systems
 	twin.setup(rect, plan.sidewalk_width, 9100)
 	twin.position = peds[0].position
 	chunk.add_child(twin)
@@ -163,6 +165,7 @@ func _check_behaviour(city: Node3D, chunk: Node3D) -> void:
 	# Out of crowd life's range: no held umbrella, no shelter, nobody goes in; they hurry, and an
 	# umbrella carrier still shows the coarse open canopy over the head (RainCrowd.FAR_REACH).
 	var far := Pedestrian.new()
+	far.set_meta("no_trim", true) # never trimmed or borrowed by the live crowd systems
 	far.setup(rect, plan.sidewalk_width, 9400)
 	far.position = peds[4].position
 	far.life_range = 0.5

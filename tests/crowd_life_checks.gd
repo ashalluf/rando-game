@@ -25,8 +25,12 @@ func _run(t: Node, city: Node3D) -> void:
 	# scenes would recruit these walkers, and the weather may be raining. Neither is tested here.
 	Onlookers.enabled = false
 	RainCrowd.forced = 0.0
+	# The streaming settled first, and the chunk in full: one still due to be replaced was freed
+	# under the check, walkers and all (gate run 4444: SCRIPT ERROR, the sitter "previously freed").
+	city.update_streaming(true)
+	await _tree.process_frame
 	var chunk: Node3D = city.chunks.get(Vector2i(0, 0))
-	_check(chunk != null, "the spawn block's chunk is loaded for the crowd life checks")
+	_check(chunk != null and int(chunk.get("level")) == CityChunk.Level.FULL, "the spawn block's chunk is loaded in full for the crowd life checks")
 	if chunk == null:
 		return
 	await _check_behaviour(city, chunk)
@@ -101,6 +105,7 @@ func _check_behaviour(city: Node3D, chunk: Node3D) -> void:
 	var peds: Array[Pedestrian] = []
 	for i in 4:
 		var p := Pedestrian.new()
+		p.set_meta("no_trim", true) # never trimmed or borrowed by the live crowd systems
 		p.setup(rect, plan.sidewalk_width, 7100 + i * 31)
 		p.pause_chance = 0.0
 		p.cross_chance = 0.0
@@ -118,6 +123,7 @@ func _check_behaviour(city: Node3D, chunk: Node3D) -> void:
 	_check(lead._life_ok and lead._life_near, "a walker near the player has the life clips and is in life range")
 	# Same seed, same person.
 	var twin := Pedestrian.new()
+	twin.set_meta("no_trim", true) # never trimmed or borrowed by the live crowd systems
 	twin.setup(rect, plan.sidewalk_width, 7100)
 	twin.jogger_share = Vector2.ZERO
 	twin.dog_share = Vector2.ZERO
@@ -153,6 +159,9 @@ func _check_behaviour(city: Node3D, chunk: Node3D) -> void:
 		sitter._end_act(true)
 	_check(sitter._plan_sit(true), "a walker finds the bench's free seat")
 	await _ticks(90)
+	if not is_instance_valid(sitter) or not is_instance_valid(chunk):
+		_check(false, "the sitter and the spawn chunk last the sitting check")
+		return
 	var skel := sitter._head_skel
 	var hips_y := (skel.global_transform * skel.get_bone_global_pose(skel.find_bone("Hips")).origin).y
 	var foot_y := (skel.global_transform * skel.get_bone_global_pose(skel.find_bone("LeftToeBase")).origin).y
@@ -180,6 +189,7 @@ func _check_behaviour(city: Node3D, chunk: Node3D) -> void:
 	_check(CrowdLife.free_seat(chunk, Vector2(bench.x, bench.z), 2.0).size() > 0 and sitter._seat.is_empty(), "the bench is free again")
 	# Far from the player: no stops, no props.
 	var far := Pedestrian.new()
+	far.set_meta("no_trim", true) # never trimmed or borrowed by the live crowd systems
 	far.setup(rect, plan.sidewalk_width, 7300)
 	far.position = carrier.position
 	chunk.add_child(far)

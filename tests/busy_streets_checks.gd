@@ -209,8 +209,12 @@ func _crowd(t: Node, city: Node3D) -> void:
 		total += BusyStreets.balance_crowd(city)
 		await t.get_tree().process_frame
 	var after := _live(best, ring)
-	var want := roundi(int(best_entry[2]) * BusyStreets.crowd_factor(13.0))
-	_check(after > before and after <= maxi(want, before), "an emptied near block gets its walkers back (%d -> %d of %d)" % [before, after, want])
+	var want := roundi(int(best_entry[2]) * BusyStreets.crowd_factor(BusyStreets.hour_now(city)))
+	# Walkers keep crossing between blocks while it fills (Pedestrian's crosswalks hand a walker the
+	# next block's ring), so one or two may join the ring on their own: the top-up itself is held
+	# to the plan, the live flow gets CROSS_SLACK.
+	const CROSS_SLACK := 2
+	_check(after > before and after <= maxi(want, before) + CROSS_SLACK, "an emptied near block gets its walkers back (%d -> %d of %d)" % [before, after, want])
 	var close_in_view := 0
 	var fwd: Vector3 = e[1]
 	for child in best.get_children():

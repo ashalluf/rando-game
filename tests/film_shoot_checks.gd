@@ -144,7 +144,14 @@ func _chunks(city: Node3D, plan: CityPlan, m: Dictionary) -> void:
 	var owner: Vector2i = m.owner
 	var lay := FilmShoot.layout(m)
 	var chunk: CityChunk = city._new_chunk(owner, CityChunk.Level.FULL)
+	# Room in the crowd cap for the crew and the extras: the city an earlier file left may have
+	# filled it (gate run 303 built the shoot with nobody on it), as star_boulevard_checks does.
+	var cap: int = city.get("max_pedestrians")
+	city.set("max_pedestrians", maxi(cap, -CityChunk.count_crowd_room(city.get_tree(), 0)) + 200)
+	city.set("_crowd_frame", -1)
 	chunk.build()
+	city.set("max_pedestrians", cap)
+	city.set("_crowd_frame", -1)
 	var trailers := 0
 	var items := 0
 	for c in chunk.get_children():

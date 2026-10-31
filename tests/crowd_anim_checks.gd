@@ -30,6 +30,7 @@ func _run(t: Node, city: Node3D) -> void:
 	var plan: CityPlan = city.plan
 	var rect: Rect2 = plan.block(0, 0).rect
 	var ped := Pedestrian.new()
+	ped.set_meta("no_trim", true) # never trimmed or borrowed by the live crowd systems
 	ped.setup(rect, plan.sidewalk_width, 4242)
 	ped.pause_chance = 0.0
 	ped.cross_chance = 0.0

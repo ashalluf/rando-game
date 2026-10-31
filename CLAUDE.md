@@ -118,7 +118,8 @@ starts from a clean city"): `tests/gate_reset.gd` snapshots the city after its s
 back before EVERY file, in one process too - static switches (public bools and any static named
 `force*` / `*_forced` / `staged` / `hold`, read off every class), Weather, DayNight's hour,
 Quality, Traffic's cap and `staged`, every city child's `enabled` / `staged`, WorldState's
-destruction, the police's stars, onlooker scenes, wrecks, burning cars, debris, time scale, pause,
+destruction, the police's stars, onlooker scenes, wrecks, burning cars, debris (BlastDebris too),
+the crowd cap and head-count (trimmed to the snapshot's), time scale, pause,
 the player out of his car at full health - then `stage_home()`. A file the list does not await
 gets the statics only. So never lean on what an earlier file left; and a new switch of your own
 is reset for free if it is a public static bool. `SMOKE_SHUFFLE=<seed>` runs city_files in a
@@ -127,6 +128,14 @@ seeded order (the proof), `SMOKE_LEAKS=1` prints every static a file changed and
 (gate_speed_2_checks fails on one that is in neither list). `SHARDS=auto` (CI) picks the shards
 from the cores and memory (`SHARD_MB`, 3200 a shard). Refresh `PART_COST` with
 `tools/gate/part_costs.py <SMOKE_PROFILE=1 log>` when the deal goes lopsided.
+**Flake rules** (2026-10-31, docs/HANDOFF.md "The gate's intermittent failures, wave 4"): a check
+that builds a chunk twice frees the first build's parked cars (they live under the city root); one
+that counts the people a build spawns gives it room in the crowd cap; never find a node by a name
+an earlier file's leftover may hold (Godot renames the newcomer `@Class@n`); a wall-clock budget
+is timed again when over and loosened under `SMOKE_SHARD`; an alarm in a check reaches everyone
+the system can have recruited; traffic cars a system empties on purpose (valets, freeway stalls,
+CarPanic) carry a tag in `traffic` that checks skip; a walker a check stages carries meta `no_trim`
+(the cap trim, BusyStreets and StreetErrands all leave those alone).
 
 Download a Linux headless-capable build with:
 

@@ -323,6 +323,7 @@ func _down_call(player: Player) -> void:
 	var at := _road_point(40.0, _plan.road_width(CityPlan.AXIS_X, 0) * 0.5 + 2.0)
 	player.global_position = _ws.to_local(_road_point(70.0, -6.0)) + Vector3.UP * 1.0
 	var ped := Pedestrian.new()
+	ped.set_meta("no_trim", true) # never trimmed or borrowed by the live crowd systems
 	ped.setup(Rect2(at.x - 1.0, at.z - 1.0, 2.0, 2.0), 1.0, 99)
 	ped.position = _ws.to_local(at) + Vector3.UP * 0.3
 	_city.add_child(ped)
@@ -333,10 +334,23 @@ func _down_call(player: Player) -> void:
 	_check(doll != null and is_instance_valid(doll), "somebody knocked down is a body on the street")
 	if doll == null or not is_instance_valid(doll):
 		return
+	# The stretcher goes from the ambulance's back across the kerb lane: a parked car there (or
+	# one StreetErrands parks there meanwhile) walls the cot in (gate run 2222: the medic pushed
+	# at the ambulance's rear corner for 45 s, 6 m short). The kerb by the scene is cleared and
+	# nobody parks while the call is on.
+	var errands_were: bool = StreetErrands.enabled
+	StreetErrands.enabled = false
+	for n in _tree.get_nodes_in_group("vehicle"):
+		var v := n as Vehicle
+		if v != null and not v.is_traffic() and v.driver == null and not (v is EmergencyCar) \
+				and v.global_position.distance_to(doll.bodies[0].global_position) < 16.0:
+			v.get_parent().remove_child(v)
+			v.queue_free()
 	var inc := _em.open_call(Emergency.KIND_DOWN, _ws.to_world(doll.bodies[0].global_position), null, doll)
 	var unit := _em.stage(EmergencyCar.Kind.AMBULANCE, inc)
 	_check(unit != null and _em.crews.size() == 2, "an ambulance pulls up and two paramedics get out (%d)" % _em.crews.size())
 	if unit == null:
+		StreetErrands.enabled = errands_were
 		return
 	var knelt := false
 	var cot := false
@@ -359,6 +373,7 @@ func _down_call(player: Player) -> void:
 	_check(knelt, "a paramedic kneels at the body with the bag")
 	_check(cot and inc.loaded and not is_instance_valid(doll), "the other brings the stretcher and they take the body")
 	_check(left, "they climb back in and the ambulance leaves (for a hospital, with the patient)")
+	StreetErrands.enabled = errands_were
 
 
 ## A unit sent from off the street: on the lanes with its siren (the traffic sees it), and at the

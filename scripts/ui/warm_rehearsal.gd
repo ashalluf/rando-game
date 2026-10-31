@@ -243,6 +243,12 @@ static func _stage_people(holder: Node3D, ground: Vector3, fwd: Vector3, right: 
 		holder.add_child(p)
 		p.position = local + Vector3.UP * 0.1
 		p.set("_pause_left", 30.0)
+		# Off the npc layer and its hit zone off, like the cars off theirs: a live traffic car
+		# through the row knocked one down mid-rehearsal (gate run 5151), leaving its blood and a
+		# freed walker in this list. The shot and the knock below are direct calls.
+		p.collision_layer = 0
+		if p._hit_shape and p._hit_shape.get_parent() is Area3D:
+			(p._hit_shape.get_parent() as Area3D).monitoring = false
 		peds.append(p)
 	for f in 2:
 		await tree.process_frame
@@ -250,7 +256,7 @@ static func _stage_people(holder: Node3D, ground: Vector3, fwd: Vector3, right: 
 	if wave3 and RainCrowd.enabled:
 		var was := RainCrowd.forced
 		RainCrowd.forced = 1.0
-		for p: Pedestrian in peds:
+		for p in peds:
 			if is_instance_valid(p) and p.get("rain") != null:
 				p.rain.settle_now()
 		for f in HOLD_FRAMES:

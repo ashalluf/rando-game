@@ -3671,11 +3671,16 @@ func _test_weapons(player: Player) -> void:
 		await get_tree().physics_frame
 		player.global_position = crate.global_position + Vector3(5.0, 0.6, 0.0)
 		player.velocity = Vector3.ZERO
+		# PhysicsBudget froze the crate while earlier room checks had the player far off, and only
+		# wakes it on its next 0.25 s look (gate run 5555: the pellets hit it, it moved 0.00 m).
+		crate.freeze = false
+		crate.sleeping = false
 		await _ticks(5)
 		player.camera_rig.look_at_point(crate.global_position)
 		await _ticks(2)
 		var crate_at := crate.global_position
 		var shells_before := get_tree().get_nodes_in_group("spent_shell").size()
+		var aim_hit: Variant = player.get_aim().get("collider")
 		await _press("fire")
 		var pumped := 0.0
 		for i in 40:
@@ -3685,7 +3690,7 @@ func _test_weapons(player: Player) -> void:
 		_check(gun.pump_amount() == 0.0, "and slides home again")
 		_check(get_tree().get_nodes_in_group("spent_shell").size() > shells_before, "the pump throws a spent shell")
 		var shoved := crate.global_position.distance_to(crate_at)
-		_check(shoved > 0.3, "one shotgun blast throws a crate (%.2f m)" % shoved)
+		_check(shoved > 0.3, "one shotgun blast throws a crate (%.2f m; aimed at %s, the crate %s)" % [shoved, aim_hit.name if aim_hit is Node else str(aim_hit), crate.name])
 		# Every pellet goes down the rifle's hit path: a prop hit straight on gets the impulse.
 		# The blast just threw this crate, so put it back and let it stand still first: a pellet
 		# fired at a crate still tumbling behind the others hit whichever one was in the way.

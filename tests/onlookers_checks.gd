@@ -85,9 +85,16 @@ func _check_scene(city: Node3D, chunk: Node3D) -> void:
 	var vx := x0 + 12.0
 	var victim := Pedestrian.new()
 	victim.setup(rect, plan.sidewalk_width, 9900)
+	# Like the walkers: BusyStreets' crowd balance frees far plain walkers, and the player may be
+	# anywhere by now (gate run 909 lost the victim in these four ticks: a script error).
+	victim.set_meta("no_trim", true)
+	victim.cross_chance = 0.0
 	victim.position = Vector3(vx, chunk.ground_y(vx, z + 1.0) + 0.1, z + 1.0)
 	chunk.add_child(victim)
 	await _ticks(4)
+	_check(is_instance_valid(victim) and not victim._down, "the staged victim is still standing to be knocked down")
+	if not is_instance_valid(victim):
+		return
 	var shot_at := victim.global_position + Vector3.UP
 	victim.knock(Vector3(0.0, 1.0, 1.0))
 	Pedestrian.alarm(_tree, shot_at, 40.0, 0, true, "")
@@ -168,7 +175,9 @@ func _check_scene(city: Node3D, chunk: Node3D) -> void:
 	_check(call_ok, "a caller holds the phone to the ear (the phone clip)")
 	_check(film_ok or not film_seen, "a filmer holds the phone up at eye level in front of the face, its screen to them")
 	# A new shot: everyone runs, at once.
-	Pedestrian.alarm(_tree, centre + Vector3.UP, 40.0, 0, true, "")
+	# Loud enough to reach everyone recruited: a member still walking in can be RECRUIT_REACH off
+	# (gate run 606: one 40 m alarm missed stayed in the scene).
+	Pedestrian.alarm(_tree, centre + Vector3.UP, Onlookers.RECRUIT_REACH + 15.0, 0, true, "")
 	# A walker mid-step lets go on its next life tick (a far one's tick is every few frames).
 	var still: Array = []
 	for i in 12:
@@ -176,7 +185,10 @@ func _check_scene(city: Node3D, chunk: Node3D) -> void:
 		still = (scene.members as Array).filter(func(m): return is_instance_valid(m))
 		if still.is_empty():
 			break
-	_check(still.is_empty(), "a new shot sends the onlookers running (%d stayed)" % still.size())
+	var stayed := ""
+	for m in still:
+		stayed += " %.0f m stage %d act %d" % [(m as Node3D).global_position.distance_to(centre), int(m._stage), int(m._act)]
+	_check(still.is_empty(), "a new shot sends the onlookers running (%d stayed%s)" % [still.size(), stayed])
 	# And they come back once it is quiet.
 	var back := 0
 	for i in 1800:

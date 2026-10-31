@@ -30,6 +30,26 @@ func run(t: Node, city: Node3D) -> void:
 	var parent := WeaponFX.fx_parent(city)
 	# Debris an earlier check's blasts left flying is not this check's.
 	var alive_before := BlastDebris.alive()
+	if alive_before > 0:
+		# Debris still burning from an earlier file: say whose, so a leak names itself.
+		for d in BlastDebris._all:
+			if is_instance_valid(d):
+				var n := d as Node
+				print("EXPLOSIONS_2 debris left: %s live %d age %.1f processing %s" % [n.get_path(), d._live, d._age, n.can_process()])
+				n.queue_free()
+		await _tree.process_frame
+		alive_before = BlastDebris.alive()
+	# An earlier file's blast still fading (its flash glows for seconds) takes the name: Godot
+	# names this blast's "BlastFlash" "@OmniLight3D@n" beside it and the search below misses it
+	# (gate run 505). This check's blast gets the names to itself.
+	var stale := 0
+	for c in parent.get_children():
+		# (BlastBits is the chips' shared pool, not a blast's: it stays.)
+		if String(c.name).begins_with("Blast") and not String(c.name).begins_with("BlastBits") and not c.is_queued_for_deletion():
+			c.queue_free()
+			stale += 1
+	if stale > 0:
+		await _tree.process_frame
 	var before := {}
 	for c in parent.get_children():
 		before[c] = true
