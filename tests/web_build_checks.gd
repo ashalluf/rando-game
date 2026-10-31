@@ -13,6 +13,14 @@ extends RefCounted
 ##    runs apply_level().
 
 const WEB_SAMPLERS := 9
+## WebGL2's floor for MAX_UNIFORM_BLOCK_SIZE: the Compatibility renderer puts a material's
+## uniforms in one std140 block (the most today: ocean, ~2.9 KB).
+const WEB_UBO_BYTES := 16384
+## Custom varying components a shader may add on top of the renderer's own (normal, tangent,
+## UVs, colour, shadow coordinates). WebGL2 guarantees only 60 in all (MAX_VARYING_COMPONENTS);
+## the most today is building_lod, 34. Past this the program fails to LINK in a browser with a
+## low limit and the material draws nothing.
+const WEB_VARYING_COMPONENTS := 40
 
 var _t: Node
 
@@ -106,6 +114,12 @@ func _shaders() -> void:
 	var over: Array[String] = []
 	var instance: Array[String] = []
 	var count := 0
+	var big_ubo := 0
+	var big_ubo_name := ""
+	var ubo_over: Array[String] = []
+	var big_vary := 0
+	var big_vary_name := ""
+	var vary_over: Array[String] = []
 	for file in DirAccess.get_files_at("res://shaders"):
 		if not file.ends_with(".gdshader"):
 			continue
@@ -121,10 +135,69 @@ func _shaders() -> void:
 			over.append("%s (%d)" % [file, samplers])
 		if RegEx.create_from_string("\\binstance\\s+uniform\\b").search(src):
 			instance.append(file)
+		var ubo := ubo_bytes(src)
+		if ubo > big_ubo:
+			big_ubo = ubo
+			big_ubo_name = file
+		if ubo > WEB_UBO_BYTES:
+			ubo_over.append("%s (%d)" % [file, ubo])
+		var vary := varying_components(src)
+		if vary > big_vary:
+			big_vary = vary
+			big_vary_name = file
+		if vary > WEB_VARYING_COMPONENTS:
+			vary_over.append("%s (%d)" % [file, vary])
 	_t._check(count > 50, "web: the shader folder was read (%d shaders)" % count)
 	_t._check(over.is_empty(), "web: every shader within %d texture samplers (most %d, %s) %s" % [
 		WEB_SAMPLERS, worst, worst_name, over])
 	_t._check(instance.is_empty(), "web: no shader uses instance uniforms %s" % [instance])
+	_t._check(big_ubo > 1000 and ubo_over.is_empty(),
+		"web: every material's uniforms fit WebGL2's %d-byte block (most %d, %s) %s" % [
+		WEB_UBO_BYTES, big_ubo, big_ubo_name, ubo_over])
+	_t._check(big_vary > 10 and vary_over.is_empty(),
+		"web: every shader within %d custom varying components (most %d, %s) %s" % [
+		WEB_VARYING_COMPONENTS, big_vary, big_vary_name, vary_over])
+	# The two counters, proven on planted sources.
+	_t._check(ubo_bytes("uniform float a; uniform vec3 b; uniform vec4 c[4]; uniform sampler2D t; global uniform vec4 g;") == 96,
+		"web: the uniform block estimate is std140 (%d, wants 96)" % ubo_bytes("uniform float a; uniform vec3 b; uniform vec4 c[4];"))
+	_t._check(varying_components("varying vec3 a; varying flat float b; varying vec2 c[2];") == 8,
+		"web: the varying count adds components")
+
+
+const _TYPE_SIZE := {"float": [4, 4], "int": [4, 4], "uint": [4, 4], "bool": [4, 4],
+	"vec2": [8, 8], "ivec2": [8, 8], "uvec2": [8, 8], "bvec2": [8, 8],
+	"vec3": [12, 16], "ivec3": [12, 16], "uvec3": [12, 16], "bvec3": [12, 16],
+	"vec4": [16, 16], "ivec4": [16, 16], "uvec4": [16, 16], "bvec4": [16, 16],
+	"mat2": [32, 16], "mat3": [48, 16], "mat4": [64, 16]}
+
+
+## A material's non-sampler uniforms laid out std140 (an upper bound: uniforms behind an
+## #ifdef count too). Global and instance uniforms live elsewhere.
+static func ubo_bytes(src: String) -> int:
+	var re := RegEx.create_from_string("(?<!global )(?<!instance )\\buniform\\s+(?:lowp\\s+|mediump\\s+|highp\\s+)?(\\w+)\\s+\\w+\\s*(?:\\[\\s*(\\d+)\\s*\\])?")
+	var off := 0
+	for m in re.search_all(src):
+		var t := m.get_string(1)
+		if t.contains("sampler") or not _TYPE_SIZE.has(t):
+			continue
+		var sz: int = _TYPE_SIZE[t][0]
+		var al: int = _TYPE_SIZE[t][1]
+		if m.get_string(2) != "":
+			al = 16
+			sz = ((sz + 15) / 16) * 16 * int(m.get_string(2))
+		off = ((off + al - 1) / al) * al + sz
+	return off
+
+
+static func varying_components(src: String) -> int:
+	const PER := {"float": 1, "int": 1, "uint": 1, "vec2": 2, "ivec2": 2, "uvec2": 2,
+		"vec3": 3, "ivec3": 3, "uvec3": 3, "vec4": 4, "ivec4": 4, "uvec4": 4,
+		"mat2": 4, "mat3": 9, "mat4": 16}
+	var re := RegEx.create_from_string("\\bvarying\\s+(?:flat\\s+|smooth\\s+)?(?:lowp\\s+|mediump\\s+|highp\\s+)?(\\w+)\\s+\\w+\\s*(?:\\[\\s*(\\d+)\\s*\\])?")
+	var n := 0
+	for m in re.search_all(src):
+		n += int(PER.get(m.get_string(1), 4)) * (int(m.get_string(2)) if m.get_string(2) != "" else 1)
+	return n
 
 
 func _quality(city: Node) -> void:
