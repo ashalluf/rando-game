@@ -43,7 +43,7 @@ func _go() -> void:
 	while Time.get_ticks_msec() - t0 < settle:
 		await get_tree().process_frame
 	_report_lights()
-	var steps := _arg("steps", "base,lamps,wet,refl,sun,ambient,all").split(",")
+	var steps := _arg("steps", "base,cloth,wet,refl,ambient,sun,skyflat,lamps,base").split(",")
 	for s in steps:
 		_apply(s, true)
 		for i in int(_arg("frames", "3")):
@@ -76,6 +76,33 @@ func _apply(step: String, on: bool) -> void:
 						l.visible = true
 				_hidden.clear()
 	match step:
+		"cloth":
+			var av := get_tree().get_first_node_in_group("player")
+			for n in av.find_children("*", "MeshInstance3D", true, false):
+				var mi := n as MeshInstance3D
+				for i in mi.get_surface_override_material_count():
+					var m := mi.get_surface_override_material(i)
+					if on and m is ShaderMaterial and str((m as ShaderMaterial).shader.resource_path).contains("hero_cloth"):
+						_saved[[mi, i]] = m
+						var flat := StandardMaterial3D.new()
+						flat.albedo_color = Color(0.02, 0.02, 0.02)
+						flat.roughness = 0.45
+						mi.set_surface_override_material(i, flat)
+			if not on:
+				for k in _saved.keys():
+					if k is Array:
+						(k[0] as MeshInstance3D).set_surface_override_material(k[1], _saved[k])
+						_saved.erase(k)
+		"skyflat":
+			if env:
+				if on:
+					_saved["bg"] = env.background_mode
+					_saved["sky"] = env.sky
+					var sk := Sky.new()
+					sk.sky_material = ProceduralSkyMaterial.new()
+					env.sky = sk
+				else:
+					env.sky = _saved["sky"]
 		"wet":
 			RenderingServer.global_shader_parameter_set("wet_world", 0.0 if on else 1.0)
 		"refl":
