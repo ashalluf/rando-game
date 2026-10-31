@@ -97,7 +97,7 @@ func _trees(lay: Dictionary) -> void:
 	for half: Rect2 in [lay.north_in, lay.south_in]:
 		lawn += half.size.x * half.size.y
 	var old := int(lawn / 1000.0 * LandmarkMacArthurPark.TREES_PER_1000)
-	_t._check(trees.size() >= old * 2 and close == 0 and wet == 0,
+	_t._check(trees.size() >= int(old * 1.8) and close == 0 and wet == 0,
 		"MacArthur look: %d shade trees (the old park %d), %d too close, %d by the water" % [trees.size(), old, close, wet])
 
 

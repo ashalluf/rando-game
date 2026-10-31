@@ -363,7 +363,7 @@ static func _tree_spots(lay: Dictionary, seed_value: int) -> Array:
 		var area := half.size.x * half.size.y
 		var want := int(area / 1000.0 * (MacArthurLook.TREES_PER_1000 if MacArthurLook.enabled else TREES_PER_1000))
 		var placed := 0
-		for i in want * 4:
+		for i in want * (MacArthurLook.TREE_TRIES if MacArthurLook.enabled else 4):
 			if placed >= want:
 				break
 			var p := Vector2(rng.randf_range(half.position.x + 8.0, half.end.x - 8.0), rng.randf_range(half.position.y + 8.0, half.end.y - 8.0))

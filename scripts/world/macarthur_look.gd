@@ -22,6 +22,8 @@ static var enabled: bool = OS.get_environment("MACARTHUR_LOOK") != "0"
 ## Shade trees per 1000 m2 of lawn (the old park: 1.1) and the least spacing between them.
 const TREES_PER_1000 := 3.2
 const TREE_SPACING := 10.5
+## Tries per wanted tree (the old 4 gave up long before the lawns were full).
+const TREE_TRIES := 14
 ## The lake's palm ring: the share of the evenly spaced spots kept, how far each is slid along
 ## and across the ring (m), and how often a kept palm gets a second one beside it (a clump).
 const PALM_KEEP := 0.72
