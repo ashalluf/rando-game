@@ -1,0 +1,909 @@
+{
+ "_doc": "The dawn review's strips (docs/HANDOFF.md 'The dawn review'): the golden-hour review's six views at 05:00-08:00 every half hour (the two into-the-sun views turned east), clear, plus a marine-layer row at 06, 07 and 08. Run through tools/refcams with REFCAMS_JSON=<abs path of this file> SHEET_COLS=7.",
+ "resolution": [
+  1280,
+  720
+ ],
+ "cameras": [
+  {
+   "name": "coast_0500",
+   "label": "The Esplanade down the coast 0500",
+   "eye": [
+    -441.66,
+    9.94,
+    3534.58,
+    -178.0,
+    -1.5
+   ],
+   "agl": false,
+   "hour": 5.0,
+   "weather": "clear",
+   "fov": 44
+  },
+  {
+   "name": "coast_0530",
+   "label": "The Esplanade down the coast 0530",
+   "eye": [
+    -441.66,
+    9.94,
+    3534.58,
+    -178.0,
+    -1.5
+   ],
+   "agl": false,
+   "hour": 5.5,
+   "weather": "clear",
+   "fov": 44
+  },
+  {
+   "name": "coast_0600",
+   "label": "The Esplanade down the coast 0600",
+   "eye": [
+    -441.66,
+    9.94,
+    3534.58,
+    -178.0,
+    -1.5
+   ],
+   "agl": false,
+   "hour": 6.0,
+   "weather": "clear",
+   "fov": 44
+  },
+  {
+   "name": "coast_0630",
+   "label": "The Esplanade down the coast 0630",
+   "eye": [
+    -441.66,
+    9.94,
+    3534.58,
+    -178.0,
+    -1.5
+   ],
+   "agl": false,
+   "hour": 6.5,
+   "weather": "clear",
+   "fov": 44
+  },
+  {
+   "name": "coast_0700",
+   "label": "The Esplanade down the coast 0700",
+   "eye": [
+    -441.66,
+    9.94,
+    3534.58,
+    -178.0,
+    -1.5
+   ],
+   "agl": false,
+   "hour": 7.0,
+   "weather": "clear",
+   "fov": 44
+  },
+  {
+   "name": "coast_0730",
+   "label": "The Esplanade down the coast 0730",
+   "eye": [
+    -441.66,
+    9.94,
+    3534.58,
+    -178.0,
+    -1.5
+   ],
+   "agl": false,
+   "hour": 7.5,
+   "weather": "clear",
+   "fov": 44
+  },
+  {
+   "name": "coast_0800",
+   "label": "The Esplanade down the coast 0800",
+   "eye": [
+    -441.66,
+    9.94,
+    3534.58,
+    -178.0,
+    -1.5
+   ],
+   "agl": false,
+   "hour": 8.0,
+   "weather": "clear",
+   "fov": 44
+  },
+  {
+   "name": "beacheast_0500",
+   "label": "Beach waterline toward downtown and the sunrise 0500",
+   "eye": [
+    -732.0,
+    2.1,
+    800.0,
+    -77.0,
+    -1.0
+   ],
+   "agl": false,
+   "hour": 5.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "beacheast_0530",
+   "label": "Beach waterline toward downtown and the sunrise 0530",
+   "eye": [
+    -732.0,
+    2.1,
+    800.0,
+    -77.0,
+    -1.0
+   ],
+   "agl": false,
+   "hour": 5.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "beacheast_0600",
+   "label": "Beach waterline toward downtown and the sunrise 0600",
+   "eye": [
+    -732.0,
+    2.1,
+    800.0,
+    -77.0,
+    -1.0
+   ],
+   "agl": false,
+   "hour": 6.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "beacheast_0630",
+   "label": "Beach waterline toward downtown and the sunrise 0630",
+   "eye": [
+    -732.0,
+    2.1,
+    800.0,
+    -77.0,
+    -1.0
+   ],
+   "agl": false,
+   "hour": 6.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "beacheast_0700",
+   "label": "Beach waterline toward downtown and the sunrise 0700",
+   "eye": [
+    -732.0,
+    2.1,
+    800.0,
+    -77.0,
+    -1.0
+   ],
+   "agl": false,
+   "hour": 7.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "beacheast_0730",
+   "label": "Beach waterline toward downtown and the sunrise 0730",
+   "eye": [
+    -732.0,
+    2.1,
+    800.0,
+    -77.0,
+    -1.0
+   ],
+   "agl": false,
+   "hour": 7.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "beacheast_0800",
+   "label": "Beach waterline toward downtown and the sunrise 0800",
+   "eye": [
+    -732.0,
+    2.1,
+    800.0,
+    -77.0,
+    -1.0
+   ],
+   "agl": false,
+   "hour": 8.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "aerial_0500",
+   "label": "Downtown from the SW, 140 m 0500",
+   "eye": [
+    1450.0,
+    140.0,
+    2150.0,
+    -38.0,
+    4.0
+   ],
+   "agl": true,
+   "hour": 5.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "aerial_0530",
+   "label": "Downtown from the SW, 140 m 0530",
+   "eye": [
+    1450.0,
+    140.0,
+    2150.0,
+    -38.0,
+    4.0
+   ],
+   "agl": true,
+   "hour": 5.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "aerial_0600",
+   "label": "Downtown from the SW, 140 m 0600",
+   "eye": [
+    1450.0,
+    140.0,
+    2150.0,
+    -38.0,
+    4.0
+   ],
+   "agl": true,
+   "hour": 6.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "aerial_0630",
+   "label": "Downtown from the SW, 140 m 0630",
+   "eye": [
+    1450.0,
+    140.0,
+    2150.0,
+    -38.0,
+    4.0
+   ],
+   "agl": true,
+   "hour": 6.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "aerial_0700",
+   "label": "Downtown from the SW, 140 m 0700",
+   "eye": [
+    1450.0,
+    140.0,
+    2150.0,
+    -38.0,
+    4.0
+   ],
+   "agl": true,
+   "hour": 7.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "aerial_0730",
+   "label": "Downtown from the SW, 140 m 0730",
+   "eye": [
+    1450.0,
+    140.0,
+    2150.0,
+    -38.0,
+    4.0
+   ],
+   "agl": true,
+   "hour": 7.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "aerial_0800",
+   "label": "Downtown from the SW, 140 m 0800",
+   "eye": [
+    1450.0,
+    140.0,
+    2150.0,
+    -38.0,
+    4.0
+   ],
+   "agl": true,
+   "hour": 8.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "hills_0500",
+   "label": "Front range from 260 m 0500",
+   "eye": [
+    300.0,
+    260.0,
+    -650.0,
+    0.0,
+    -6.0
+   ],
+   "agl": true,
+   "hour": 5.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "hills_0530",
+   "label": "Front range from 260 m 0530",
+   "eye": [
+    300.0,
+    260.0,
+    -650.0,
+    0.0,
+    -6.0
+   ],
+   "agl": true,
+   "hour": 5.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "hills_0600",
+   "label": "Front range from 260 m 0600",
+   "eye": [
+    300.0,
+    260.0,
+    -650.0,
+    0.0,
+    -6.0
+   ],
+   "agl": true,
+   "hour": 6.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "hills_0630",
+   "label": "Front range from 260 m 0630",
+   "eye": [
+    300.0,
+    260.0,
+    -650.0,
+    0.0,
+    -6.0
+   ],
+   "agl": true,
+   "hour": 6.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "hills_0700",
+   "label": "Front range from 260 m 0700",
+   "eye": [
+    300.0,
+    260.0,
+    -650.0,
+    0.0,
+    -6.0
+   ],
+   "agl": true,
+   "hour": 7.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "hills_0730",
+   "label": "Front range from 260 m 0730",
+   "eye": [
+    300.0,
+    260.0,
+    -650.0,
+    0.0,
+    -6.0
+   ],
+   "agl": true,
+   "hour": 7.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "hills_0800",
+   "label": "Front range from 260 m 0800",
+   "eye": [
+    300.0,
+    260.0,
+    -650.0,
+    0.0,
+    -6.0
+   ],
+   "agl": true,
+   "hour": 8.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "street_0500",
+   "label": "Flower at Olympic, north 0500",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    0.0,
+    2.0
+   ],
+   "agl": true,
+   "hour": 5.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "street_0530",
+   "label": "Flower at Olympic, north 0530",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    0.0,
+    2.0
+   ],
+   "agl": true,
+   "hour": 5.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "street_0600",
+   "label": "Flower at Olympic, north 0600",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    0.0,
+    2.0
+   ],
+   "agl": true,
+   "hour": 6.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "street_0630",
+   "label": "Flower at Olympic, north 0630",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    0.0,
+    2.0
+   ],
+   "agl": true,
+   "hour": 6.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "street_0700",
+   "label": "Flower at Olympic, north 0700",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    0.0,
+    2.0
+   ],
+   "agl": true,
+   "hour": 7.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "street_0730",
+   "label": "Flower at Olympic, north 0730",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    0.0,
+    2.0
+   ],
+   "agl": true,
+   "hour": 7.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "street_0800",
+   "label": "Flower at Olympic, north 0800",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    0.0,
+    2.0
+   ],
+   "agl": true,
+   "hour": 8.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "streeteast_0500",
+   "label": "Olympic toward the sunrise (east) 0500",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    -90.0,
+    3.0
+   ],
+   "agl": true,
+   "hour": 5.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "streeteast_0530",
+   "label": "Olympic toward the sunrise (east) 0530",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    -90.0,
+    3.0
+   ],
+   "agl": true,
+   "hour": 5.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "streeteast_0600",
+   "label": "Olympic toward the sunrise (east) 0600",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    -90.0,
+    3.0
+   ],
+   "agl": true,
+   "hour": 6.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "streeteast_0630",
+   "label": "Olympic toward the sunrise (east) 0630",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    -90.0,
+    3.0
+   ],
+   "agl": true,
+   "hour": 6.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "streeteast_0700",
+   "label": "Olympic toward the sunrise (east) 0700",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    -90.0,
+    3.0
+   ],
+   "agl": true,
+   "hour": 7.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "streeteast_0730",
+   "label": "Olympic toward the sunrise (east) 0730",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    -90.0,
+    3.0
+   ],
+   "agl": true,
+   "hour": 7.5,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "streeteast_0800",
+   "label": "Olympic toward the sunrise (east) 0800",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    -90.0,
+    3.0
+   ],
+   "agl": true,
+   "hour": 8.0,
+   "weather": "clear",
+   "fov": 55
+  },
+  {
+   "name": "coastmarine_0600",
+   "label": "The Esplanade down the coast 0600 marine",
+   "eye": [
+    -441.66,
+    9.94,
+    3534.58,
+    -178.0,
+    -1.5
+   ],
+   "agl": false,
+   "hour": 6.0,
+   "weather": "marine",
+   "fov": 44
+  },
+  {
+   "name": "coastmarine_0700",
+   "label": "The Esplanade down the coast 0700 marine",
+   "eye": [
+    -441.66,
+    9.94,
+    3534.58,
+    -178.0,
+    -1.5
+   ],
+   "agl": false,
+   "hour": 7.0,
+   "weather": "marine",
+   "fov": 44
+  },
+  {
+   "name": "coastmarine_0800",
+   "label": "The Esplanade down the coast 0800 marine",
+   "eye": [
+    -441.66,
+    9.94,
+    3534.58,
+    -178.0,
+    -1.5
+   ],
+   "agl": false,
+   "hour": 8.0,
+   "weather": "marine",
+   "fov": 44
+  },
+  {
+   "name": "beacheastmarine_0600",
+   "label": "Beach waterline toward downtown and the sunrise 0600 marine",
+   "eye": [
+    -732.0,
+    2.1,
+    800.0,
+    -77.0,
+    -1.0
+   ],
+   "agl": false,
+   "hour": 6.0,
+   "weather": "marine",
+   "fov": 55
+  },
+  {
+   "name": "beacheastmarine_0700",
+   "label": "Beach waterline toward downtown and the sunrise 0700 marine",
+   "eye": [
+    -732.0,
+    2.1,
+    800.0,
+    -77.0,
+    -1.0
+   ],
+   "agl": false,
+   "hour": 7.0,
+   "weather": "marine",
+   "fov": 55
+  },
+  {
+   "name": "beacheastmarine_0800",
+   "label": "Beach waterline toward downtown and the sunrise 0800 marine",
+   "eye": [
+    -732.0,
+    2.1,
+    800.0,
+    -77.0,
+    -1.0
+   ],
+   "agl": false,
+   "hour": 8.0,
+   "weather": "marine",
+   "fov": 55
+  },
+  {
+   "name": "aerialmarine_0600",
+   "label": "Downtown from the SW, 140 m 0600 marine",
+   "eye": [
+    1450.0,
+    140.0,
+    2150.0,
+    -38.0,
+    4.0
+   ],
+   "agl": true,
+   "hour": 6.0,
+   "weather": "marine",
+   "fov": 55
+  },
+  {
+   "name": "aerialmarine_0700",
+   "label": "Downtown from the SW, 140 m 0700 marine",
+   "eye": [
+    1450.0,
+    140.0,
+    2150.0,
+    -38.0,
+    4.0
+   ],
+   "agl": true,
+   "hour": 7.0,
+   "weather": "marine",
+   "fov": 55
+  },
+  {
+   "name": "aerialmarine_0800",
+   "label": "Downtown from the SW, 140 m 0800 marine",
+   "eye": [
+    1450.0,
+    140.0,
+    2150.0,
+    -38.0,
+    4.0
+   ],
+   "agl": true,
+   "hour": 8.0,
+   "weather": "marine",
+   "fov": 55
+  },
+  {
+   "name": "hillsmarine_0600",
+   "label": "Front range from 260 m 0600 marine",
+   "eye": [
+    300.0,
+    260.0,
+    -650.0,
+    0.0,
+    -6.0
+   ],
+   "agl": true,
+   "hour": 6.0,
+   "weather": "marine",
+   "fov": 55
+  },
+  {
+   "name": "hillsmarine_0700",
+   "label": "Front range from 260 m 0700 marine",
+   "eye": [
+    300.0,
+    260.0,
+    -650.0,
+    0.0,
+    -6.0
+   ],
+   "agl": true,
+   "hour": 7.0,
+   "weather": "marine",
+   "fov": 55
+  },
+  {
+   "name": "hillsmarine_0800",
+   "label": "Front range from 260 m 0800 marine",
+   "eye": [
+    300.0,
+    260.0,
+    -650.0,
+    0.0,
+    -6.0
+   ],
+   "agl": true,
+   "hour": 8.0,
+   "weather": "marine",
+   "fov": 55
+  },
+  {
+   "name": "streetmarine_0600",
+   "label": "Flower at Olympic, north 0600 marine",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    0.0,
+    2.0
+   ],
+   "agl": true,
+   "hour": 6.0,
+   "weather": "marine",
+   "fov": 55
+  },
+  {
+   "name": "streetmarine_0700",
+   "label": "Flower at Olympic, north 0700 marine",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    0.0,
+    2.0
+   ],
+   "agl": true,
+   "hour": 7.0,
+   "weather": "marine",
+   "fov": 55
+  },
+  {
+   "name": "streetmarine_0800",
+   "label": "Flower at Olympic, north 0800 marine",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    0.0,
+    2.0
+   ],
+   "agl": true,
+   "hour": 8.0,
+   "weather": "marine",
+   "fov": 55
+  },
+  {
+   "name": "streeteastmarine_0600",
+   "label": "Olympic toward the sunrise (east) 0600 marine",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    -90.0,
+    3.0
+   ],
+   "agl": true,
+   "hour": 6.0,
+   "weather": "marine",
+   "fov": 55
+  },
+  {
+   "name": "streeteastmarine_0700",
+   "label": "Olympic toward the sunrise (east) 0700 marine",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    -90.0,
+    3.0
+   ],
+   "agl": true,
+   "hour": 7.0,
+   "weather": "marine",
+   "fov": 55
+  },
+  {
+   "name": "streeteastmarine_0800",
+   "label": "Olympic toward the sunrise (east) 0800 marine",
+   "eye": [
+    2359.4,
+    2.0,
+    880.0,
+    -90.0,
+    3.0
+   ],
+   "agl": true,
+   "hour": 8.0,
+   "weather": "marine",
+   "fov": 55
+  }
+ ]
+}
