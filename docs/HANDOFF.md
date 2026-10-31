@@ -21994,6 +21994,13 @@ matters for a free camera far from the player; U-turns (turn 2) and the stack / 
 traffic's own corners still turn the way they did; a dropped turn snaps back straight; the
 freeway's lane change still has no steering lead before the yaw (the yaw is the logic's).
 
+**Wave 4 (2026-10-31, resumed):** merged origin/main (build 395+, batch 25), no code change. Gate
+`SHARDS=3 tests/headless_check.sh`: 4,369 checks passed, 0 failed (shard peaks 3.2 / 3.4 / 3.0 GB).
+New stills on `shots/traffic-motion` (10-15): `STREET=queue STREET_EYE=1` before / after and the
+turn from a chase camera, `TMOTION=chase TMOTION_STEPS=2.0,0.8,0.6,0.6,0.6,0.8` at
+`--spawn=2359.4,880,0,12,2 --hour=15.5` (the car steered 13.2 deg and leaned 2.0 deg on the arc;
+before, it runs straight into the junction and snaps at its centre). Still no Forward+ still.
+
 
 ## 9ik. The golden hour review: 17:00-19:30 across six views, four fixes by tuning (fleet wave 3, `wt/golden-hour-review`; VISUAL_ROADMAP 236)
 
