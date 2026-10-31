@@ -127,7 +127,7 @@ func _plants() -> void:
 	for spec: Array in [["model_grass_clump", PropFactory.GRASS_CLUMPS], ["model_flower", PropFactory.FLOWERS],
 			["model_bush", PropFactory.BUSHES], ["model_plant", PropFactory.PLANTS]]:
 		for v in (spec[1] as Array).size():
-			var m: Mesh = PropFactory.call(spec[0], v)
+			var m: Mesh = (load("res://scripts/world/prop_factory.gd") as GDScript).call(spec[0], v)
 			var mats := {}
 			for s in m.get_surface_count():
 				mats[m.surface_get_material(s)] = true
