@@ -8,7 +8,7 @@ and `OCCUPANT=pair OCC_LOOK=...` on tools/glshot/car_shot.gd. `TRAFFIC_BEHAVIOUR
   side is clear, passes 2.35 m to the wreck's side at rubbernecking speed, the next one follows.
 - 05/06/07 the traced driver behind the side glass: before looking ahead (hair to the camera),
   after turned to the camera (the eye band) - occupant_look on the car's own glass.
-- 08/09 front view, driver and passenger (passenger glancing at the driver after).
+- 08/09 front view, driver and passenger, before / after (passenger glancing at the driver after).
 - 10/11 a bus done at its stop: left indicator on, still at its stop shift, then pulling out
   still signalling (shift 1.4 -> 0.78 m), the indicator off once back in the lane.
 Not shown in stills (proved by tests/traffic_behaviour_2_checks.gd): the creep at a red, the
