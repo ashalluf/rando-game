@@ -46,8 +46,11 @@ uniform float crush = 0.3;
 uniform float closeup2 = 0.0;
 uniform float sheen_roughness = 0.42;
 uniform float sheen_gain = 1.6;
+// Forward+ decodes sheen_color (0.30 -> 0.07 linear) and lights in linear: the same sheen was a
+// quarter as strong there as on Compatibility, and the velour read as matte black on the Mac.
+uniform float forward_sheen = 1.8;
 uniform float crease_ao = 0.55;
-uniform float crease_lift = 0.25;
+uniform float crease_lift = 0.12;
 // The fold maps' texel, for the curvature taps.
 uniform float fold_texel = 0.0012;
 
@@ -55,6 +58,7 @@ uniform float fold_texel = 0.0012;
 
 varying float pile_crush;
 varying float crease;
+varying float sheen_scale;
 
 void fragment() {
 	vec3 base = texture(albedo_tex, UV).rgb * albedo_color.rgb;
@@ -87,13 +91,15 @@ void fragment() {
 	NORMAL_MAP_DEPTH = normal_depth;
 	float nv = clamp(dot(NORMAL, VIEW), 0.0, 1.0);
 	float cr = mix(1.0 - crush, 1.0 + crush, p.a);
-	ALBEDO = base + sheen_color * sheen * pow(1.0 - nv, sheen_power) * cr * mix(1.0, 0.7, closeup2);
+	float fsh = (CURRENT_RENDERER == RENDERER_COMPATIBILITY) ? 1.0 : mix(1.0, forward_sheen, closeup2);
+	sheen_scale = fsh;
+	ALBEDO = base + sheen_color * sheen * pow(1.0 - nv, sheen_power) * cr * mix(1.0, 0.7, closeup2) * fsh;
 	pile_crush = cr;
 	if (closeup2 > 0.5) {
 		float valley = max(-crease, 0.0);
 		float ridge = max(crease, 0.0);
 		ALBEDO *= 1.0 - crease_ao * valley;
-		ALBEDO += sheen_color * crease_lift * ridge * (1.0 - nv * 0.5);
+		ALBEDO += sheen_color * crease_lift * fsh * ridge * (1.0 - nv * 0.5);
 		AO = 1.0 - crease_ao * 0.8 * valley;
 	}
 	ROUGHNESS = roughness;
@@ -124,7 +130,7 @@ void light() {
 		float inv = 1.0 / max(sheen_roughness, 0.05);
 		float d = (2.0 + inv) * pow(max(1.0 - nh * nh, 1e-4), inv * 0.5) / (2.0 * PI);
 		float vis = 1.0 / (4.0 * (nl + nv - nl * nv) + 1e-3);
-		SPECULAR_LIGHT += sheen_color * sheen_gain * d * vis * nl * pile_crush * (1.0 - 0.6 * max(-crease, 0.0)) * ATTENUATION * LIGHT_COLOR;
+		SPECULAR_LIGHT += sheen_color * sheen_gain * sheen_scale * d * vis * nl * pile_crush * (1.0 - 0.6 * max(-crease, 0.0)) * ATTENUATION * LIGHT_COLOR;
 	} else {
 		// The renderer's own lobes, near enough: Burley diffuse, a GGX of the material's
 		// roughness, Godot's rim.

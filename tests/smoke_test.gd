@@ -69,7 +69,7 @@ const CITY_PARTS := ["city_streaming", "city_terrain", "city_landmarks", "city_c
 const INLINE_FILES := ["downtown_checks", "hero_moves_checks", "street_life_checks",
 	"crowd_anim_checks", "crowd_life_checks", "crowd_hat_checks", "photo_mode_checks",
 	"wingsuit_checks", "traffic_ai_checks", "street_errands_checks", "dog_checks", "hero_closeup_checks",
-	"hero_face_2_checks"]
+	"hero_face_2_checks", "hero_closeup_2_checks"]
 ## Wall seconds each part took in a whole run on the 4-core fleet box (SMOKE_PROFILE=1 prints
 ## them as PART lines; refreshed 2026-10-30 from main a3db077f, tools/gate/part_costs.py); a file missing here counts DEFAULT_COST. Only the deal depends on them.
 const PART_COST := {
@@ -411,6 +411,8 @@ func _run() -> void:
 	await load("res://tests/hero_closeup_checks.gd").new().run(self, player)
 	# The hero's face, second pass (tests/hero_face_2_checks.gd): skin regions, strand brows.
 	await load("res://tests/hero_face_2_checks.gd").new().run(self, player)
+	# The hero at arm's length, second pass (tests/hero_closeup_2_checks.gd): hair, brows, lips, velour.
+	await load("res://tests/hero_closeup_2_checks.gd").new().run(self, player)
 	await _test_weapons(player)
 	_test_buildings()
 	level.free() # Free now, so the city scene cannot pick up this level's player.

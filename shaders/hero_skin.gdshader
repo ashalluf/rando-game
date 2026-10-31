@@ -81,6 +81,11 @@ uniform float oil_breakup = 0.7;
 // half a metre); a little less of it, and deeper pores there.
 uniform float forward_sss = 0.72;
 uniform float forward_pores = 1.3;
+// The hands (their atlas islands, the bottom row left of the mouth's: UV.y > 0.8, UV.x < 0.75 -
+// the feet beside them are inside the shoes): deeper crosshatch and creases, drier and less
+// glossy, so a hand on the gun at arm's length is skin and not rubber.
+uniform float hand_detail = 1.7;
+uniform float hand_roughness = 0.12;
 #include "res://shaders/wet_surface.gdshaderinc"
 
 void fragment() {
@@ -89,6 +94,7 @@ void fragment() {
 	vec4 d = texture(detail_tex, UV * detail_scale);
 	vec3 rg = mix(vec3(1.0, 0.0, 0.0), texture(region_tex, UV).rgb, face2);
 	vec3 alb = texture(albedo_tex, UV).rgb * albedo_tint.rgb;
+	float hand = closeup2 * step(0.8, UV.y) * step(UV.x, 0.75);
 	float hairs = clamp(d.a * m.r * stubble_amount, 0.0, 1.0);
 	// pores: how deep depends on where on the face (the nose and cheeks most, lips none)
 	float pw = mix(1.0, mix(0.25, pore_region_gain, rg.r), face2);
@@ -116,6 +122,7 @@ void fragment() {
 	rough = mix(rough, max(rough, oil_floor + (1.0 - ridge) * 0.25 * oil_breakup), oil);
 	// The lips: moist, a little rougher where the furrows run.
 	rough = mix(rough, lip_roughness + 0.12 * (0.5 - br), lip);
+	rough += hand * hand_roughness * (0.6 + 0.8 * (1.0 - d.b));
 	ROUGHNESS = clamp(mix(mix(rough, 0.72, hairs), 0.12 + 0.3 * abs(d.r * 2.0 - 1.0), wet * 0.85), 0.04, 1.0);
 	float oil_spec = oil_specular * m.a * mix(1.0, mix(0.35, 1.25, ridge), oil_breakup * closeup2);
 	SPECULAR = clamp((specular_level * mix(1.0, m.b, cavity_strength) + oil_spec) * cav * mix(1.0, 0.55, lip) + 0.2 * wet, 0.0, 1.0);
@@ -123,7 +130,7 @@ void fragment() {
 	// imported as a two-channel normal map, so its z is rebuilt here.
 	vec2 nb = texture(normal_tex, UV).rg * 2.0 - 1.0;
 	float fwd = (CURRENT_RENDERER == RENDERER_COMPATIBILITY) ? 0.0 : closeup2;
-	vec2 nd = (d.rg * 2.0 - 1.0) * detail_strength * pw * mix(1.0, forward_pores, fwd);
+	vec2 nd = (d.rg * 2.0 - 1.0) * detail_strength * pw * mix(1.0, forward_pores, fwd) * mix(1.0, hand_detail, hand);
 	vec2 nxy = nb + nd * (1.0 - hairs * 0.5);
 	// The lips' vertical furrows. The head's atlas island is turned a quarter: the mouth's
 	// line runs along v there, so the furrows across it run along u and vary with v. Faded
