@@ -574,7 +574,14 @@ static func _planter(ch: CityChunk, r: Rect2, rng: RandomNumberGenerator, tree: 
 		return
 	var c := r.get_center()
 	var h := PLANTER_HEIGHT
-	_solid(ch, Vector3(c.x, base + h * 0.5, c.y), Vector3(r.size.x, h, r.size.y), Building.plinth_material())
+	# The box is level at its centre's relief: on a slope its downhill end stood off the paving
+	# (docs/HANDOFF.md "Ground contact"), so its foot runs down to the lowest corner's ground, and
+	# what is planted in it is set on ITS soil, not on the slope under each plant.
+	var gc := ch._gy(c.x, c.y)
+	var drop := 0.0
+	for k: Vector2 in [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]:
+		drop = maxf(drop, gc - ch._gy(k.x, k.y))
+	_solid(ch, Vector3(c.x, base + (h - drop) * 0.5, c.y), Vector3(r.size.x, h + drop, r.size.y), Building.plinth_material())
 	# The planted top stands a hair proud of the kerb box (which is solid), inside its rim.
 	var soil_top := base + h + 0.012
 	_box(ch, Vector3(r.size.x - 0.4, 0.04, r.size.y - 0.4), Vector3(c.x, soil_top - 0.02 + ch._gy(c.x, c.y), c.y), KIND_SOIL)
@@ -585,7 +592,7 @@ static func _planter(ch: CityChunk, r: Rect2, rng: RandomNumberGenerator, tree: 
 		var p := Vector2(rng.randf_range(inner.position.x, inner.end.x), rng.randf_range(inner.position.y, inner.end.y))
 		if has_tree and p.distance_to(c) < 0.9:
 			continue
-		_shrub(ch, Vector3(p.x, soil_top, p.y), rng)
+		_shrub(ch, Vector3(p.x, soil_top + gc - ch._gy(p.x, p.y), p.y), rng)
 	if has_tree:
 		ch._fill_trees += 1
 		_tree(ch, Vector3(c.x, soil_top, c.y), rng)
