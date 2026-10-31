@@ -95,7 +95,15 @@ func _initialize() -> void:
 				look_at = wp
 				from = wp + wn * float(_env("CAM_DIST", "0.6")) + Vector3(0.05, 0.05, 0.0)
 			if stage == "stump":
-				var stumps := doll.find_children("Stump", "MeshInstance3D", true, false)
+				var stumps: Array = []
+				# The thrown limb's torn end, lying in the open (STUMP_ON=body: the body's).
+				if _env("STUMP_ON", "limb") == "limb":
+					for g in get_nodes_in_group("gib"):
+						for c in (g as Node).get_children():
+							if c is MeshInstance3D and (c.name == "Stump" or (c as MeshInstance3D).mesh is SphereMesh):
+								stumps.append(c)
+				if stumps.is_empty():
+					stumps = doll.find_children("Stump", "MeshInstance3D", true, false)
 				if stumps.is_empty():
 					# BLOOD_GORE_2=0: the old cap, a sphere on a bone attachment.
 					for att in doll.find_children("*", "BoneAttachment3D", true, false):
@@ -106,8 +114,7 @@ func _initialize() -> void:
 				look_at = (stumps[0] as Node3D).global_position if not stumps.is_empty() else chest
 				if not stumps.is_empty():
 					var ax := (stumps[0] as Node3D).global_basis.y.normalized()
-					var flat := Vector3(ax.x, 0.0, ax.z)
-					from = look_at + (flat.normalized() * 0.8 + Vector3.UP * 1.0).normalized() * float(_env("CAM_DIST", "0.6"))
+					from = look_at + Vector3(0.5, 0.55, 0.35).normalized() * float(_env("CAM_DIST", "0.6"))
 			var d := float(_env("CAM_DIST", "1.1" if stage != "pool" else "3.2"))
 			var up := float(_env("CAM_UP", "0.7" if stage != "pool" else "2.4"))
 			if from == ground + Vector3(0.0, 1.2, 1.0) or stage == "pool":
