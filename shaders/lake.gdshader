@@ -16,6 +16,8 @@ render_mode cull_back, depth_draw_opaque;
 // Runs on the web renderer too: no depth or screen texture, the sky term is emitted from the
 // `sky_tint` global because Compatibility has no screen-space reflections to carry it.
 
+#include "res://shaders/color_space.gdshaderinc"
+
 global uniform vec4 sky_tint;
 global uniform vec3 sun_direction;
 global uniform float night_factor;
@@ -39,7 +41,24 @@ uniform float sky_emit = 0.22;
 uniform float roughness_calm = 0.035;
 uniform float roughness_ruffled = 0.12;
 
+// The park look (MacArthurLook, MACARTHUR_LOOK=0 the A/B; 0 for every other water using this
+// shader, which stays exactly as it was). On: the mesh carries the metres to the shore in UV2.x,
+// the colours below are LINEAR on both renderers (color_space.gdshaderinc, cs_out() at the end:
+// the old numbers were renderer-space, so the web and every opengl3 still drew the lake as a
+// black hole the Mac never showed), the margin reads as murky shallows over a silted bottom with
+// a scum of algae against the wall, the body as deep green-teal, and the sky is decoded.
+uniform float shore_look = 0.0;
+uniform vec3 look_deep = vec3(0.020, 0.040, 0.034);
+uniform vec3 look_mid = vec3(0.030, 0.052, 0.040);
+uniform vec3 look_shallow = vec3(0.058, 0.066, 0.042);
+uniform vec3 look_scum = vec3(0.075, 0.095, 0.045);
+// Metres from the wall over which the bottom fades out of sight, and the scum's reach.
+uniform float look_shelf = 7.0;
+uniform float look_scum_reach = 1.6;
+uniform float look_sky_emit = 0.55;
+
 varying vec3 v_local;
+varying float v_shore;
 
 float lake_hash(vec2 p) {
 	p = fract(p * vec2(123.34, 456.21));
@@ -73,6 +92,7 @@ vec3 wavelets(vec2 p, float t) {
 
 void vertex() {
 	v_local = VERTEX;
+	v_shore = UV2.x;
 }
 
 void fragment() {
@@ -112,4 +132,27 @@ void fragment() {
 	// shows, and the renderer's own reflections carry those).
 	vec3 sky = sky_tint.rgb * (1.0 - 0.85 * night_factor);
 	EMISSION = sky * fres * sky_emit * (1.0 - churn * 0.6);
+	if (shore_look > 0.5) {
+		// Depth from the wall: the silted shelf shows through the first metres, then the murk.
+		float d = max(v_shore, 0.0);
+		float shelf = 1.0 - smoothstep(0.0, look_shelf, d + (lake_noise(p * 0.21) - 0.5) * 2.5);
+		float deep = smoothstep(look_shelf * 0.6, look_shelf * 3.2, d);
+		vec3 b = mix(look_mid, look_deep, deep);
+		// Slow blooms of suspended algae in the open water, a few tens of metres across.
+		float bloom = smoothstep(0.45, 0.85, lake_noise(p * 0.028 + 3.7) * 0.7 + lake_noise(p * 0.11) * 0.3);
+		b = mix(b, look_mid * vec3(1.15, 1.25, 1.0), bloom * 0.6);
+		// The bottom: silt and leaf litter in patches, seen through less water near the wall.
+		float silt = 0.75 + 0.5 * lake_noise(p * 0.6 + 11.0);
+		b = mix(b, look_shallow * silt, shelf * 0.85);
+		// Scum and floating leaves where the wind piles them against the wall, ragged.
+		float scum = (1.0 - smoothstep(0.0, look_scum_reach, d)) * smoothstep(0.35, 0.7, lake_noise(p * 0.35 + 5.0));
+		b = mix(b, look_scum, scum * 0.7);
+		// A dark line where the coping shades the water right under it.
+		b *= mix(0.55, 1.0, smoothstep(0.0, 0.45, d));
+		vec3 lb = mix(b, vec3(0.42, 0.45, 0.44), churn * 0.7);
+		ALBEDO = cs_out(lb);
+		ROUGHNESS = mix(ROUGHNESS, 0.5, scum * 0.7);
+		vec3 sky_lin = cs_srgb_to_linear(sky_tint.rgb) * (1.0 - 0.85 * night_factor);
+		EMISSION = cs_out(sky_lin * fres * look_sky_emit * (1.0 - churn * 0.6) * (1.0 - scum * 0.6));
+	}
 }

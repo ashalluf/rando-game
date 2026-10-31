@@ -198,7 +198,7 @@ static func layout(plan: CityPlan) -> Dictionary:
 	lay.wilshire_rect = Rect2(north.position.x, north.end.y, north.size.x, south.position.y - north.end.y)
 	lay.crossing = Vector2(north.position.x + north.size.x * float(SITE.crossing_u), wz)
 	lay.paths = _paths(lay)
-	lay.palms = _palm_spots(lay)
+	lay.palms = _palm_spots(lay, plan.seed)
 	lay.trees = _tree_spots(lay, plan.seed)
 	lay.benches = _bench_spots(lay)
 	lay.lamps = _lamp_spots(lay)
@@ -286,6 +286,8 @@ static func _paths(lay: Dictionary) -> Array:
 	out.append({"pts": PackedVector2Array([Vector2(crossing.x + 60.0, walk_z), Vector2(crossing.x + 60.0, n_in.position.y - PAVEMENT * 0.5)]), "width": 3.2, "closed": false})
 	var fr: Rect2 = (lay.field as Rect2).grow(3.5)
 	out.append({"pts": PackedVector2Array([fr.position, Vector2(fr.end.x, fr.position.y), fr.end, Vector2(fr.position.x, fr.end.y)]), "width": 2.8, "closed": true})
+	if MacArthurLook.enabled:
+		out.append_array(MacArthurLook.extra_paths(lay))
 	return out
 
 
@@ -328,11 +330,19 @@ static func _near_path(lay: Dictionary, p: Vector2, pad: float) -> bool:
 	return false
 
 
-static func _palm_spots(lay: Dictionary) -> Array:
+static func _palm_spots(lay: Dictionary, seed_value: int) -> Array:
 	var out: Array = []
+	var ring_i := 0
 	for s: Array in _along(lay.palm_ring, PALM_RING_STEP, true):
-		if (s[0] as Vector2).distance_to(lay.boathouse) > 15.0:
+		ring_i += 1
+		if (s[0] as Vector2).distance_to(lay.boathouse) <= 15.0:
+			continue
+		if not MacArthurLook.enabled:
 			out.append(s[0])
+		elif MacArthurLook.palm_keep(seed_value, ring_i):
+			for q: Vector2 in MacArthurLook.palm_spots(seed_value, ring_i, s[0], s[1]):
+				if not in_lake(lay, q, COPING_W + PROMENADE_W + 1.0):
+					out.append(q)
 	# Along the park's streets, just inside the pavement ring, on all four sides of both halves.
 	for half: Rect2 in [lay.north_in, lay.south_in]:
 		var r := half.grow(-(PERIMETER_PALM_INSET - PAVEMENT))
@@ -351,7 +361,7 @@ static func _tree_spots(lay: Dictionary, seed_value: int) -> Array:
 	rng.seed = hash([seed_value, "macarthur_trees"])
 	for half: Rect2 in [lay.north_in, lay.south_in]:
 		var area := half.size.x * half.size.y
-		var want := int(area / 1000.0 * TREES_PER_1000)
+		var want := int(area / 1000.0 * (MacArthurLook.TREES_PER_1000 if MacArthurLook.enabled else TREES_PER_1000))
 		var placed := 0
 		for i in want * 4:
 			if placed >= want:
@@ -363,7 +373,7 @@ static func _tree_spots(lay: Dictionary, seed_value: int) -> Array:
 				continue
 			var clear := true
 			for q: Vector2 in out:
-				if q.distance_to(p) < 9.0:
+				if q.distance_to(p) < (MacArthurLook.TREE_SPACING if MacArthurLook.enabled else 9.0):
 					clear = false
 					break
 			if clear:
@@ -468,6 +478,8 @@ static func site_steps(chunk: CityChunk) -> Array[Callable]:
 				rng.seed = hash([chunk.plan.seed, "macarthur_crowd", int(r.position.x), int(r.position.y)])
 				steps.append_array(chunk._crowd_steps(r, minf(4.0, minf(r.size.x, r.size.y) * 0.4), int(c[1]), rng))
 	else:
+		if MacArthurLook.enabled:
+			steps.append(_walks.bind(chunk, lay, area))
 		steps.append(_far_planting.bind(chunk, lay, area))
 		steps.append(chunk._add_relief_floor)
 	return steps
@@ -552,7 +564,9 @@ static func _lawn(chunk: CityChunk, lay: Dictionary, rect: Rect2, full: bool) ->
 	var mi := MeshInstance3D.new()
 	mi.name = "ParkLawn"
 	mi.mesh = mesh
-	if full:
+	if MacArthurLook.enabled:
+		mi.material_override = MacArthurLook.lawn_material(chunk.plan.seed)
+	elif full:
 		mi.material_override = PropFactory.lawn(Color(0.86, 0.97, 0.72), hash([chunk.plan.seed, "macarthur_lawn"]), 0.3, 4.2)
 	else:
 		mi.material_override = PropFactory.material(Color(0.30, 0.40, 0.20), 0.95)
@@ -565,7 +579,7 @@ static func _lawn(chunk: CityChunk, lay: Dictionary, rect: Rect2, full: bool) ->
 
 
 ## One upward-facing triangle at height `y` (plus the relief), wound so it faces up.
-static func _flat_tri(st: SurfaceTool, chunk: CityChunk, a: Vector2, b: Vector2, c: Vector2, y: float) -> void:
+static func _flat_tri(st: SurfaceTool, chunk: CityChunk, a: Vector2, b: Vector2, c: Vector2, y: float, shore: PackedVector2Array = PackedVector2Array()) -> void:
 	var cross := (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
 	# Godot's front faces are clockwise as the viewer sees them. Looking down on (x, z) - x to the
 	# right, z down the screen - that is a POSITIVE 2D cross product (the freeway deck's l0, r1, r0
@@ -576,6 +590,8 @@ static func _flat_tri(st: SurfaceTool, chunk: CityChunk, a: Vector2, b: Vector2,
 		c = t
 	for p: Vector2 in [a, b, c]:
 		st.set_uv(p * 0.2)
+		if not shore.is_empty():
+			st.set_uv2(Vector2(MacArthurLook.shore_distance(shore, p), 0.0))
 		st.add_vertex(Vector3(p.x, y + chunk._gy(p.x, p.y), p.y))
 
 
@@ -596,10 +612,15 @@ static func _water(chunk: CityChunk, lay: Dictionary, area: Rect2) -> void:
 	for poly: PackedVector2Array in pieces:
 		var idx := Geometry2D.triangulate_polygon(poly)
 		for k in range(0, idx.size(), 3):
-			_flat_tri(water, chunk, poly[idx[k]], poly[idx[k + 1]], poly[idx[k + 2]], WATER_Y)
+			if not MacArthurLook.enabled:
+				_flat_tri(water, chunk, poly[idx[k]], poly[idx[k + 1]], poly[idx[k + 2]], WATER_Y)
 			for q in [poly[idx[k]], poly[idx[k + 1]], poly[idx[k + 2]]]:
 				floor_tris.append(Vector3(q.x, FLOOR_Y, q.y))
 			any = true
+	if any and MacArthurLook.enabled:
+		# A grid of cells, each vertex with its metres to the wall (UV2.x) for the shore shading.
+		for t: Array in MacArthurLook.water_tris(lake, lay.lake_bounds, area):
+			_flat_tri(water, chunk, t[0], t[1], t[2], WATER_Y, lake)
 	if any:
 		var mi := MeshInstance3D.new()
 		mi.name = "Lake"
@@ -678,6 +699,7 @@ static func lake_material(lay: Dictionary) -> ShaderMaterial:
 		_lake_mat = ShaderMaterial.new()
 		_lake_mat.shader = load("res://shaders/lake.gdshader")
 	_lake_mat.set_shader_parameter("fountain_at", lay.fountain)
+	_lake_mat.set_shader_parameter("shore_look", 1.0 if MacArthurLook.enabled else 0.0)
 	return _lake_mat
 
 
@@ -837,7 +859,7 @@ static func _walks(chunk: CityChunk, lay: Dictionary, area: Rect2) -> void:
 	mi.mesh = st.commit()
 	mi.material_override = PropFactory.road("paving", 2.6, Color(1.02, 0.99, 0.94), hash([chunk.plan.seed, "macarthur_walks"]), 1.4, 0.35)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	mi.visibility_range_end = PATH_DRAW
+	mi.visibility_range_end = MacArthurLook.PATH_DRAW if MacArthurLook.enabled else PATH_DRAW
 	chunk.add_child(mi)
 
 
