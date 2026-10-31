@@ -22450,6 +22450,14 @@ first, the dense window and the inflow band, keep-clear, the A/B; a spawned car 
 lane and no truck lands in a fast lane; the materials carry the look; the shaders' defaults are the
 old look).
 
+**The lead's "big red object on the lens"** (main e5bb9e4's freeway refcam): the camera stands in
+the slow lane 2.5 m over the deck, so a freeway car the old fill spawned on the player's slot (the
+player is parked on the eye), or a truck driving through at shot time, filled the frame - this
+branch's first fill did the same with a purple car. Two fixes: FreewayFill never spawns within
+`KEEP_CLEAR` (40 m) of the player, and `tools/refcams/refcams_shot.gd` `_clear_lens()` hides, for
+that shot only, any vehicle whose mesh box (grown 0.6 m) holds the eye, printing `REFCAM <shot>:
+hid <car>` in godot.log. The camera itself is not moved (its runs stay comparable).
+
 **Measured** (refcams, opengl3 1280x720; traffic differs run to run, so the freeway's cost moves
 with whatever stands near the camera): the freeway camera on main e5bb9e4 5.26 M triangles / 2,825
 draws (p5/p50/p95 28/153/212); with the A/Bs off on this branch 5.07 M / 2,719; with this pass

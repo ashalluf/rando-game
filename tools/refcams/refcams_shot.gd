@@ -103,6 +103,8 @@ func _run() -> void:
 		for i in _env_int("SETTLE", 6):
 			await process_frame
 			_place(player, fov)
+		_clear_lens(cam.name)
+		await process_frame
 		var png := _out_dir.path_join("%s.png" % cam.name)
 		get_root().get_texture().get_image().save_png(png)
 		var c: Array = await _geo_report("GEO_%s" % cam.name)
@@ -117,6 +119,34 @@ func _run() -> void:
 		print("REFCAM %s saved %s eye %s hour %.2f %s" % [cam.name, png, eye_text, float(cam.hour), cam.get("weather", "clear")])
 	print("REFCAMS done, %d shots in %d ms" % [shots.size(), Time.get_ticks_msec() - started])
 	quit()
+
+
+## A traffic car the shot's clock left with the lens inside or just against its body (the freeway
+## camera stands in a slow lane 2.5 m over the deck; on main e5bb9e4 a truck filled the frame) is
+## hidden for the shot and named in the log. Only bodies whose box, grown LENS_ROOM, holds the eye.
+const LENS_ROOM := 0.6
+
+
+func _clear_lens(shot: String) -> void:
+	if _eye_cam == null:
+		return
+	var eye := _eye_cam.global_position
+	for v in get_nodes_in_group("vehicle"):
+		var car := v as Node3D
+		if car == null or not car.is_visible_in_tree() or car.global_position.distance_to(eye) > 30.0:
+			continue
+		var box := AABB()
+		var first := true
+		for mi in car.find_children("*", "MeshInstance3D", true, false):
+			var m := mi as MeshInstance3D
+			if m.mesh == null or not m.is_visible_in_tree():
+				continue
+			var b := m.global_transform * m.get_aabb()
+			box = b if first else box.merge(b)
+			first = false
+		if not first and box.grow(LENS_ROOM).has_point(eye):
+			car.visible = false
+			print("REFCAM %s: hid %s, its body held the lens" % [shot, car.name])
 
 
 ## frames.json, rewritten after every shot so a run that dies part way keeps what it shot.
