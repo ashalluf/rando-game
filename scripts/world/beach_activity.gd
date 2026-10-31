@@ -33,7 +33,7 @@ var _tower: Dictionary = {}
 var _dens: float = 0.0
 var _hour: float = 15.0
 
-## Water people: {node, kind ("swim" / "surf"), s (m offshore), z, yaw, phase, state, t, meshes}.
+## Water people: {node, kind ("swim" / "surf" / "wade"), s (m offshore), z, yaw, phase, state, t, meshes}.
 var _water: Array = []
 var _riders: Array[BeachRider] = []
 var _players: Array = []
@@ -117,6 +117,7 @@ func _build_water() -> void:
 			"z_home": z, "yaw": PI * 0.5, "phase": _h(["surf_ph", i]) * TAU, "state": "sit",
 			"t": lerpf(4.0, 30.0, _h(["surf_wait", i])), "rides": rides, "meshes": {"sit": sit, "paddle": paddle, "ride": ride},
 			"dir_z": 1.0 if _h(["surf_dir", i]) < 0.5 else -1.0})
+	_water.append_array(Waders.place(self, int(_counts.get("waders", 0))))
 	if stage_z >= z0 and stage_z < z1:
 		var k := 0
 		for w: Dictionary in _water:
@@ -181,6 +182,9 @@ func _place_water(w: Dictionary) -> void:
 	var x := macro.coast_x(z) - float(w.s)
 	var y := _sea_y(float(w.s), float(w.phase))
 	var yaw: float = w.yaw
+	if String(w.kind) == "wade":
+		Waders.pose(w, x, z, _clock)
+		return
 	if String(w.kind) == "swim":
 		y -= float(w.sink)
 		yaw += sin(_clock * 0.3 + float(w.phase)) * 0.6

@@ -55,6 +55,9 @@ const COURT_CLEAR := 3.0
 ## People in the water at full density, per chunk: swimmers inside the break, surfers outside it.
 const SWIMMERS := 6
 const SURFERS := 6
+## People standing in the shallows at full density, per chunk (in groups of one to three, ankle to
+## waist deep on the steep foreshore; BeachActivity places them on the sand under the water).
+const WADERS := 11
 ## Riders on the bike path per chunk at full density, and how many of them skate.
 const RIDERS := 4
 const SKATERS := 2
@@ -394,6 +397,7 @@ static func plan_activity(plan: CityPlan, z0: float, z1: float, dens: float) -> 
 	var with_path := not kept_off(plan, (z0 + z1) * 0.5)
 	return {
 		"swimmers": roundi(SWIMMERS * f * _h([plan.seed, "swim", k]) * 1.4),
+		"waders": roundi(WADERS * f * (0.45 + 0.55 * _h([plan.seed, "wade", k]))) if Waders.enabled else 0,
 		"surfers": roundi(SURFERS * (0.3 + 0.7 * f) * (0.5 + 0.5 * _h([plan.seed, "surf", k]))) if dens > 0.0 else 0,
 		"riders": roundi(RIDERS * f * (0.5 + 0.5 * _h([plan.seed, "ride", k]))) if with_path else 0,
 		"skaters": roundi(SKATERS * f * _h([plan.seed, "skate", k])) if with_path else 0,
