@@ -160,6 +160,8 @@ static func atlas_textures() -> Array:
 	var lights := CarLights.instance()
 	if lights != null and lights.get("_cookie") != null:
 		out.append([lights.get("_cookie")])
+	if GunplayFeel.enabled:
+		out.append_array(GunplayFeel.all_hole_textures()) # every surface's bullet marks
 	return out
 
 

@@ -62,6 +62,15 @@ func _init() -> void:
 	hold_aim = Vector3(0.031, -0.056, -0.390)
 	hold_hip = Vector3(-0.156, -0.096, -0.188)
 	hold_hip_rot = Vector3(-24.0, 24.0, 3.0)
+	# The recoil spring (GunplayFeel): a short sharp rise and a roll to the right about the butt,
+	# springing back past rest; a little shake of the view each round.
+	recoil_rise_deg = 2.6
+	recoil_roll_deg = 2.2
+	recoil_yaw_deg = 0.9
+	recoil_pivot = Vector3(0.0, -0.04, 0.31)
+	recoil_freq = 24.0
+	recoil_damping = 0.42
+	camera_punch = 0.08
 
 
 func _build_model() -> void:

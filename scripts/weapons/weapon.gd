@@ -24,6 +24,22 @@ extends Node3D
 ## target nearest the crosshair (Player.lock_on). Off for a gun whose alt fire does something.
 @export var lock_on: bool = true
 
+@export_group("Recoil")
+## The recoil as a spring (GunplayFeel; off, the old straight kick of `kick_distance`): each round
+## throws the gun back by about `kick_distance`, up by `recoil_rise_deg`, rolls it by up to
+## `recoil_roll_deg` (mostly to the right) and turns it by up to `recoil_yaw_deg`, about
+## `recoil_pivot` - the butt in the shoulder, in the gun's own space. It springs back at
+## `recoil_freq` (rad/s) with `recoil_damping` (under 1 overshoots: the gun dips past rest and
+## settles), and the hands ride it by the IK.
+@export var recoil_rise_deg: float = 3.0
+@export var recoil_roll_deg: float = 2.0
+@export var recoil_yaw_deg: float = 0.8
+@export var recoil_pivot: Vector3 = Vector3(0.0, -0.03, 0.3)
+@export var recoil_freq: float = 22.0
+@export var recoil_damping: float = 0.45
+## A small shake of the view per round (CameraRig.shake, 0..1), on top of the pitch kick.
+@export var camera_punch: float = 0.0
+
 @export_group("Hold")
 ## Where the right and left WRISTS go on this gun, in its own space (forward -Z): behind the
 ## pistol grip, and under the handguard. Two-bone IK pulls the hero's hands there
@@ -70,6 +86,11 @@ var _cooldown: float = 0.0
 var blocked_by_sanctuary: bool = false
 var _kick: float = 0.0
 var _rest_position: Vector3
+## The recoil spring: back (m), rise, roll, yaw (rad), and how fast each is moving.
+var _rec := Vector4.ZERO
+var _rec_v := Vector4.ZERO
+## True once Avatar.hold_gun places the gun (it applies the recoil itself, apply_recoil()).
+var _recoil_driven := false
 
 
 func _ready() -> void:
@@ -81,6 +102,10 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_cooldown = maxf(_cooldown - delta, 0.0)
+	if GunplayFeel.enabled:
+		if not _recoil_driven:
+			transform = Transform3D(Basis(), _rest_position) * recoil_local()
+		return
 	_kick = lerpf(_kick, 0.0, 1.0 - exp(-kick_recover_speed * delta))
 	position = _rest_position + Vector3(0.0, 0.0, _kick)
 
@@ -103,13 +128,60 @@ func tick(delta: float) -> void:
 	if wants_fire and _cooldown <= 0.0:
 		_cooldown = 1.0 / fire_rate
 		_kick = kick_distance
+		_recoil_kick()
 		_fire(aim)
 		player.camera_rig.kick(camera_kick_deg)
+		if GunplayFeel.enabled and camera_punch > 0.0:
+			player.camera_rig.shake(camera_punch)
 		player.notify_fired()
 		Pedestrian.alarm(get_tree(), player.global_position, alarm_radius, alarm_screams)
 	if Input.is_action_just_pressed("alt_fire"):
 		_alt_fire(player.get_aim())
 	_update(delta)
+	_recoil_step(delta)
+
+
+## One round's kick into the spring: a velocity sized so the swing peaks near the asked amount.
+func _recoil_kick() -> void:
+	if not GunplayFeel.enabled:
+		return
+	var k := recoil_freq * 1.45
+	_rec_v += Vector4(kick_distance * randf_range(0.85, 1.1), deg_to_rad(recoil_rise_deg) * randf_range(0.8, 1.15),
+		-deg_to_rad(recoil_roll_deg) * randf_range(-0.35, 1.0), deg_to_rad(recoil_yaw_deg) * randf_range(-1.0, 1.0)) * k
+
+
+## The spring, a few sub-steps a tick (stiff springs blow up on a long step).
+func _recoil_step(delta: float) -> void:
+	if not GunplayFeel.enabled or (_rec == Vector4.ZERO and _rec_v == Vector4.ZERO):
+		return
+	var w := recoil_freq
+	var steps := clampi(int(ceil(delta * 240.0)), 1, 8)
+	var h := minf(delta, 0.05) / float(steps)
+	for i in steps:
+		var a := -_rec * (w * w) - _rec_v * (2.0 * recoil_damping * w)
+		_rec_v += a * h
+		_rec += _rec_v * h
+	if _rec.length_squared() < 1e-10 and _rec_v.length_squared() < 1e-8:
+		_rec = Vector4.ZERO
+		_rec_v = Vector4.ZERO
+
+
+## The recoil as a transform in the gun's own space: back along the bore, then turned about the
+## butt in the shoulder (identity at rest).
+func recoil_local() -> Transform3D:
+	if _rec == Vector4.ZERO:
+		return Transform3D()
+	var r := Basis.from_euler(Vector3(_rec.y, _rec.w, _rec.z))
+	return Transform3D(r, recoil_pivot - r * recoil_pivot) * Transform3D(Basis(), Vector3(0.0, 0.0, _rec.x))
+
+
+## Avatar.hold_gun's hook, after it has set the gun's hold rotation and before it reads the gun's
+## transform for the grips: the recoil on top, so the hands ride it.
+func apply_recoil() -> void:
+	if not GunplayFeel.enabled:
+		return
+	_recoil_driven = true
+	transform = Transform3D(Basis.from_euler(rotation), _rest_position) * recoil_local()
 
 
 func on_equip() -> void:

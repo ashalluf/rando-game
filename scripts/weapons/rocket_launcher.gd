@@ -32,6 +32,13 @@ func _init() -> void:
 	automatic = false
 	kick_distance = 0.3
 	camera_kick_deg = 2.5
+	# Shoulder-fired: a shove back and a slow lift (GunplayFeel's spring).
+	recoil_rise_deg = 4.0
+	recoil_roll_deg = 1.0
+	recoil_yaw_deg = 1.0
+	recoil_pivot = Vector3(0.0, 0.0, 0.1)
+	recoil_freq = 11.0
+	recoil_damping = 0.6
 	# Shoulder-fired: the rear heat shield rests on top of the shoulder, the venturi sticking out
 	# behind. The right hand round the trigger grip, the left round the vertical fore grip with
 	# the palm turned in against it (fitted to the hero by tools/grip_fit.gd).
