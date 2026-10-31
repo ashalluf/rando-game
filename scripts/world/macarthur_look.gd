@@ -11,7 +11,7 @@ class_name MacArthurLook
 ##     green-teal body in LINEAR colour on both renderers.
 ##   * A perfectly even picket of identical palms round the water and almost no shade trees: the
 ##     lake ring is jittered, gapped and broken into clumps (`palm_keep()` / `palm_jitter()`, hashes)
-##     and the lawns carry ~3x the broadleaf trees (`TREES_PER_1000`).
+##     and the lawns carry as many broadleaf trees as they hold at TREE_SPACING (85 against ~50).
 ##   * The walks vanished 260 m out, and the LOD halves had none: drawn at both levels to
 ##     `PATH_DRAW`, with diagonals across the north lawn (`extra_paths()`).
 ##   * The lake's outline (`LAKE`) and the fountain's boil (a soft billow, `boil()`).
