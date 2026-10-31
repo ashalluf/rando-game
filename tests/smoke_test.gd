@@ -2739,6 +2739,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/night_lamps_checks.gd").new().run(self, city)
 	# The police chase (tests/police_chase_checks.gd, PoliceChase): box-in, PIT, spikes, doors, radio.
 	await load("res://tests/police_chase_checks.gd").new().run(self, city)
+	# Gunplay at arm's length (tests/gunplay_feel_checks.gd, GunplayFeel): the volume flash, tracers,
+	# marks by surface, the shotgun's pattern, the recoil spring, the barrel smoke, the switch.
+	load("res://tests/gunplay_feel_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

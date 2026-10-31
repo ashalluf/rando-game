@@ -457,6 +457,7 @@ func hold_gun(weapon: Weapon, raised: bool, delta: float) -> void:
 		var head := lay * Vector3.UP
 		var pitch := atan2(head.y, -head.z) - _mount.rotation.x
 		weapon.rotation = weapon.rotation.lerp(Vector3(pitch, 0.0, 0.0), fly)
+	weapon.apply_recoil() # the recoil spring on top of the hold (GunplayFeel)
 	# In the mount's space, through the gun's own transform so the recoil kick carries the hands.
 	_grip_r.transform = weapon.transform * Transform3D(_hand_basis(weapon.grip_right_fingers, weapon.grip_right_palm), weapon.grip_right)
 	_grip_l.transform = weapon.transform * Transform3D(_hand_basis(weapon.grip_left_fingers, weapon.grip_left_palm), weapon.grip_left)

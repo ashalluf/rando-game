@@ -88,6 +88,13 @@ func _init() -> void:
 	hold_aim = Vector3(0.022, -0.056, -0.425)
 	hold_hip = Vector3(-0.264, -0.150, -0.196)
 	hold_hip_rot = Vector3(-16.0, 33.5, 4.0)
+	# A 12 gauge rides up hard and comes down slow (GunplayFeel's spring).
+	recoil_rise_deg = 9.0
+	recoil_roll_deg = 3.5
+	recoil_yaw_deg = 1.5
+	recoil_pivot = Vector3(0.0, -0.05, 0.36)
+	recoil_freq = 15.0
+	recoil_damping = 0.5
 	_grip_left_rest = grip_left
 
 
@@ -182,8 +189,17 @@ func _fire(aim: Dictionary) -> void:
 	_ejected = false
 	var from: Vector3 = aim.origin
 	var people := {}
+	# The pellets leave pits, not round holes, and where they bunch in one surface the pattern
+	# shows as a smudge of lead (GunplayFeel.spread_mark).
+	GunplayFeel.pellet_mode = true
+	var marks: Array = []
 	for i in pellets:
-		fire_pellet(from, _spread(aim.direction), people)
+		var hit := fire_pellet(from, _spread(aim.direction), people)
+		if not hit.is_empty():
+			marks.append([hit.collider, hit.position, hit.normal])
+	GunplayFeel.pellet_mode = false
+	if GunplayFeel.enabled:
+		GunplayFeel.spread_mark(self, muzzle.global_position, marks)
 	# People take the whole charge at once, as one wound as heavy as the pellets in it: thrown by
 	# all of it, bleeding out of the far side, onto the wall behind and the ground, then pooling
 	# (WeaponFX.bullet_wound). A body already down just bleeds again (its pellets shoved it).

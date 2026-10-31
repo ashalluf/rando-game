@@ -295,6 +295,13 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-31 Gunplay at arm's length (gunplay-feel, HANDOFF "Gunplay at arm's length").** The flash
+  is a volume of crossed flame cards in a shader, not a sprite (a sprite seen from the side is a
+  ball); the tracer a streak in flight, not a line; the marks per surface painted in code from a
+  height field and BAKED to files (21 s of GDScript is no load-time job); recoil a spring the IK
+  carries, applied in one Avatar hook so the hands ride it. Taken over by one hook line in each
+  WeaponFX function, never round Weapon.tick (Sanctuary). GUNPLAY_FEEL=0 the A/B.
+
 - **2026-10-30 Busy streets spend the caps where the camera looks, not more caps (HANDOFF "Busy
   streets").** Measured at the downtown bookmark the traffic was at its 150-car cap but spread evenly
   over a 380 m circle (5-9 moving cars in view), every queued street spawn was dropped while the kerbs'
