@@ -1103,6 +1103,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `ai`. `TRAFFIC_AI=0` is the A/B; `TrafficManager.drive_usec` is the traffic tick's cost. Stills:
   `TRAFFIC=bus|merge|pullout TRAFFIC_STEPS=s,s,...` on `still_shot.gd` (the staged traffic moves
   only by `advance_shot()`, saved `_t1`, `_t2`, ...). Checks: `tests/traffic_ai_checks.gd` (alone: `tools/traffic_ai/checks.tscn`).
+- Traffic motion (2026-10-30, docs/HANDOFF.md "Traffic that moves like cars"): `TrafficMotion`
+  (`scripts/vehicles/traffic_motion.gd`, `Vehicle.motion`, one hook in `_update_wheels()`) moves a
+  kinematic car's BodyModel and NightLights on springs (dive, squat, lean, road texture, RoadWear's
+  potholes drop the wheel rigs) within 70 m of the camera, steers the front wheels at a real rate
+  and holds them at a stop; `turn_pose()` (from `TrafficManager._place()`) draws a street turn
+  round a fillet - the logic reads its own position back through `TrafficMotion.logical()`
+  (`t.tm_logic`), never the drawn one; `queue_react()` gives followers a beat (not `placed` cars).
+  `TRAFFIC_MOTION=0` the A/B; stills `TMOTION=brake|pull|turn` on still_shot.gd; bench
+  `tools/traffic_motion/bench.tscn`; checks `tests/traffic_motion_checks.gd`.
 - Street signs (2026-10-05, docs/HANDOFF.md "The street's signs"): `StreetSigns`
   (`scripts/world/street_signs.gd`) places them, `StreetSignKit` (`street_sign_kit.gd`; BoulevardSigns has the other `SignKit`) builds them in code at
   real size (plates, sheeting border and legend a few mm proud, mill backs, round galvanised

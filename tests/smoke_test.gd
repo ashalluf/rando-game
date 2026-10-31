@@ -2690,6 +2690,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Patterned ground without moire (tests/paving_aliasing_checks.gd, PavingAA): the box filter, the
 	# rounded kinds (the forecourt's row stripes), the switch.
 	load("res://tests/paving_aliasing_checks.gd").new().run(self, city)
+	# Traffic that moves like cars (tests/traffic_motion_checks.gd, TrafficMotion): the body's dive,
+	# squat and lean, the steering held at a stop, the queue beat, the switch, the cost.
+	await load("res://tests/traffic_motion_checks.gd").new().run(self, city)
 	# The golden-hour review (tests/golden_hour_review_checks.gd, GoldenHour): the sky's twilight
 	# ramp, the blue zenith at sunset, the eased grade, no pop 17:00-19:30, the A/B.
 	load("res://tests/golden_hour_review_checks.gd").new().run(self, city)
