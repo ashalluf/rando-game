@@ -25189,5 +25189,18 @@ Gate-flakes' open traffic failures (section 9kd), fixed at the cause:
    "a car swerves round the player" failed once here because the staged car rolled a double park
    (2.5 % a block, `dp_at`) 4 m in: traffic honours `no_dp`, the check sets it.
 
-Not reproduced: valets "the valet walks back to the podium" (passed in every run here; nothing in
-its path code was changed).
+5. **Spawns see a car half out of their lane** (`TrafficManager._lane_clear()`). The second gate
+   run here read -4.76 m: a car moving inner -> kerb for its turn stood in a queue 64 % across, and a
+   car was spawned on top of it in the inner lane at 10 m/s - the spawn test only looked at cars
+   whose CURRENT lane was the spawn lane. It now counts a lane change's ghost (`lc_key`, under
+   `GHOST_UNTIL`) and a committed cross-lane turn (`tx_key`) too.
+
+Valets "the valet walks back to the podium" failed once more here (gate run 2, shard 1) and passed
+in every other run, alone and with the files before it; the check now prints the valet's distance,
+stage, act, job, panic and errand when it fails, for whoever sees it next. Also seen once (gate run
+1): speedboats "flat out she stays on the water (highest 2.82 m)", passing alone (0.5 m) - not
+traffic, left open.
+
+Gate: three SHARDS=3 runs on this branch: run 1 one FAIL (the boat), run 2 two (the -4.76 m spawn,
+fixed above, and the valet), run 3 (the branch merged with origin/main `bb03d731`) green, 5,079
+checks.
