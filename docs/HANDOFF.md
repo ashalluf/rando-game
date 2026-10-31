@@ -22402,3 +22402,53 @@ the body riding up and off over the roof more often than sliding off the front. 
 whose collision is a ramp (the Esplanade's beach stairs: walkable ramps over steps, with the real
 treads on the foot-ground layer) are rolled down as a ramp. Seen on opengl3 only; physics is
 renderer-independent.
+
+## 9ir. The verify pack (wave 4, `mac-verify-pack`)
+
+**Why.** Every picture the fleet has looked at is the Compatibility renderer on Linux (opengl3 +
+llvmpipe); the owner's Mac draws Forward+, and nobody had seen wave 3 there. The owner plays the
+released Mac app with no Terminal. So the check is ONE pause-menu button.
+
+**What.** `VerifyPack` (`scripts/ui/verify_pack.gd`, a CanvasLayer at 7 the pause menu adds beside
+PhotoMode; the menu's **Verify pack** button sits beside Settings, `-- --verify` starts it after the
+load). For each of the ten refcams (`CAMERAS`, a copy of `tools/refcams/cameras.json`: the export
+ships no .json; the checks hold them equal) it hides the HUD (photo mode's rule), parks the player
+DISABLED and hidden on a free camera (the player camera's auto exposure, its DOF off, no motion
+blur), sets the camera's hour (DayNight paused) and weather (soaked or dried to match, refcams'
+rule), holds the graphics level (Auto would drop a level on the teleport hitches), streams with
+`update_streaming(true)`, waits `settle_frames` (20) then holds `hold_seconds` (3, real clock)
+measuring fps, worst frame, CPU / GPU render time (viewport measure), then saves the root viewport
+(without its progress line) as `NN_<name>.png`. Then `sheet.jpg` (a SubViewport of thumbnails and
+captions), `report.txt` / `report.json` (OS, GPU, renderer method and driver, window, 3D scale,
+level; per shot fps, ms, triangles, draws and the luminance p5/p50/p95 - PIL's L, refcams.py's
+numbers) and `send/` (1280-wide JPGs, the sheet, the report: what the owner attaches). Everything
+goes back: player (true-world position, process mode, visibility), camera, clock and its pause,
+weather (and its forced flag) and wetness, the graphics mode, the HUD, the mouse, time scale. The
+card says where the folder is; **Open folder** opens it in Finder; the tree is paused under it.
+Esc stops a run (what was taken is kept). Folder: `Pictures/Rando Game/verify_<build>[_n]`, else
+`user://verify`.
+
+**Build number.** `BuildInfo` (`scripts/util/build_info.gd`): `BUILD` / `COMMIT` empty in the repo,
+written by the workflow's new "Stamp the build number" step (sed, run number and short sha) just
+before the exports, so the app knows it is "build-396". Local runs say `dev`. (LoadCache keys on
+the scripts' md5, so a stamped build misses the cache of an unstamped one: harmless.)
+
+**Proved (opengl3 harness).** `-- --verify --noload --quality=0` under Xvfb at 1280x720 with
+`VERIFY_DIR`, `VERIFY_QUIT=1`: 10 of 10 shots, the sheet, both reports and the send folder, in about
+20 minutes on llvmpipe (each shot ~2 min there: 0.2-2.5 fps). The full loading screen under
+llvmpipe went past 13.6 GB and was OOM-killed - the harness MUST pass `--noload` (as every glshot
+tool does); the Mac path (the loading screen) is unchanged. `VERIFY_CARD_SHOT=<png>` saves the end
+card. Stills on `shots/mac-verify-pack`.
+
+**Not verified.** Nothing on Forward+ / Metal: the GPU timings, the Pictures folder and Finder's
+Open folder are the Mac's to prove (the first pack the owner sends is the test). The pack adds no
+render feature and no frame cost outside a run.
+
+**Switches.** `VERIFY_PACK=0` (no node, no button), `VERIFY_HOLD`, `VERIFY_ONLY`, `VERIFY_DIR`,
+`VERIFY_QUIT`, `VERIFY_CARD_SHOT`. Off on the web. Checks: `tests/mac_verify_pack_checks.gd`
+(the table, the folder naming, the luminance numbers, a one-camera run that restores everything).
+Owner's page: `docs/VERIFY.md`.
+
+**Gate (2026-10-31).** SHARDS=3: 4,360 of 4,361; the one FAIL was utility poles' "the line rolls nothing
+from the block" in shard 0 (the verify checks ran in shard 2), which passes alone (30 of 30): an intermittent
+outside this branch. The verify checks alone: 35 of 35. Peak RSS of a part run 2.4 GB.

@@ -118,7 +118,7 @@ const PART_COST := {
 	"shop_vinyl_checks": 0.0, "sky_checks": 0.0, "bonfires_checks": 3.0,
 	"cinematic_review_checks": 0.1, "sunset_clouds_checks": 0.0, "night_street_review_checks": 0.1,
 	"downtown_street_closeup_checks": 1.5, "golden_hour_review_checks": 0.1,
-	"night_flight_checks": 0.0
+	"night_flight_checks": 0.0, "mac_verify_pack_checks": 1.0
 }
 const DEFAULT_COST := 6.0
 ## Every share pays for its own city load on top of its parts.
@@ -2707,6 +2707,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The night flight (tests/night_flight_checks.gd, NightFlight): platoons, the streets' rank, junction
 	# pools, the beams' near fade, the A/B.
 	load("res://tests/night_flight_checks.gd").new().run(self, city)
+	# The verify pack (tests/mac_verify_pack_checks.gd, VerifyPack): the camera table, the button,
+	# the folder, a one-camera run that puts everything back.
+	await load("res://tests/mac_verify_pack_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
