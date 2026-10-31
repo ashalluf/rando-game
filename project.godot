@@ -346,3 +346,7 @@ lawns_closeup={
 "type": "float",
 "value": 1.0
 }
+lamp_ease={
+"type": "float",
+"value": 1.0
+}

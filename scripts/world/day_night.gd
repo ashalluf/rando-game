@@ -516,7 +516,9 @@ func _apply() -> void:
 		_sky.set_shader_parameter("twilight_band", sunrise_band if morning else sunset_band)
 		_sky.set_shader_parameter("twilight_amount", dusk * twilight_strength * (1.0 - weather_darken * 0.8))
 		_sky.set_shader_parameter("twilight_falloff", lerpf(twilight_height.x, twilight_height.y, deep))
-		_sky.set_shader_parameter("twilight_band_gain", 1.0 - sun_high)
+		_sky.set_shader_parameter("twilight_band_gain", SunsetReview.band_gain(elevation, sun_high))
+		# The warm dusk horizon belongs to the sun's side of the sky (SunsetReview, rc-sunset).
+		_sky.set_shader_parameter("dusk_away", SunsetReview.dusk_away(dusk_rim))
 		_sky.set_shader_parameter("twilight_band_height", lerpf(twilight_band_height.x, twilight_band_height.y, deep))
 		# Rays are at their most obvious with a low sun behind broken cloud.
 		_sky.set_shader_parameter("god_rays", god_rays * (0.45 + 0.55 * dusk) * (1.0 - night_factor) * (1.0 - weather_darken * 0.6))
@@ -544,8 +546,9 @@ func _apply() -> void:
 		_env.sdfgi_energy = lerpf(day_gi_energy * GiTuning.gi_scale, night_gi_energy, moonlight)
 		# At golden hour the distance goes the smog's brown-grey rather than dusk_fog's orange:
 		# the orange belongs to the air toward the sun, which fog_sun_scatter already adds.
-		_env.fog_light_color = day_fog.lerp(dusk_fog, dusk).lerp(smog_side, golden_fog_smog * smog) \
-			.lerp(night_fog, moonlight)
+		# The fog goes to night with the sky, not the slower light (SunsetReview, rc-sunset).
+		_env.fog_light_color = day_fog.lerp(SunsetReview.dusk_fog(dusk_fog), dusk).lerp(smog_side, golden_fog_smog * smog) \
+			.lerp(night_fog, SunsetReview.fog_night(moonlight, GoldenHour.sky_night(elevation, night_factor)))
 		# Ambient comes from the sky cubemap, so shadows take the sky's own colour (blue at
 		# midday, warm at dusk) instead of a flat grey fill: the single biggest realism win in
 		# outdoor lighting. At night the sky is nearly black, so we blend back toward a colour
@@ -574,7 +577,9 @@ func _apply() -> void:
 	# which is why the streets stayed black the first time. Refresh on a slow tick instead, so
 	# newly loaded chunks pick the level up within a third of a second.
 	var lamp_factor := maxf(night_factor, weather_darken * 0.85)
-	var want := lamp_factor * lamp_energy * lamp_scale
+	# The lights themselves come in on the square of the level: a lamp's pool switched on at sunset
+	# is not seen against the daylight (SunsetReview, rc-sunset). Weather's share is as it was.
+	var want := maxf(SunsetReview.light_level(night_factor), weather_darken * 0.85) * lamp_energy * lamp_scale
 	# _apply() is also called from _ready(), where there is no delta parameter to use.
 	_lamp_timer -= get_process_delta_time()
 	if _lamp_timer <= 0.0 or absf(want - _lamp_level) > 0.04:
@@ -596,6 +601,7 @@ func _apply() -> void:
 				l.remove_meta("dark_hidden")
 	RenderingServer.global_shader_parameter_set("night_factor", night_factor)
 	RenderingServer.global_shader_parameter_set("lamp_factor", lamp_factor)
+	RenderingServer.global_shader_parameter_set("lamp_ease", SunsetReview.pool_ease(weather_darken))
 	# The clock, for what changes with the hour after dark (the far traffic, lit offices).
 	RenderingServer.global_shader_parameter_set("city_hour", hour)
 	lamp_now = lamp_factor

@@ -9,6 +9,10 @@ render_mode unshaded, blend_add, cull_disabled, depth_draw_never, shadows_disabl
 // Not night_factor: the lamps come on in a storm too, and a storm at noon is dark enough that
 // a black street reads as a bug. DayNight sets this to max(night, weather).
 global uniform float lamp_factor;
+// How much of the way the pools come in on the square of lamp_factor (DayNight hands it from
+// SunsetReview: 1 at a clear dusk, 0 in the A/B and in bad weather): a lamp switched on at sunset
+// does not lay a pool on a road still in daylight. 1 by default, where it changes nothing at 0 or 1.
+global uniform float lamp_ease;
 uniform vec3 tint : source_color = vec3(1.0, 0.84, 0.58);
 uniform float strength : hint_range(0.0, 4.0) = 1.0;
 // How hard the pool falls off from the centre. Higher is a tighter, brighter middle.
@@ -25,7 +29,7 @@ vec3 lp_to_linear(vec3 c) {
 
 void fragment() {
 	float r = clamp(1.0 - length(UV - vec2(0.5)) * 2.0, 0.0, 1.0);
-	float a = pow(r, falloff) * lamp_factor * strength;
+	float a = pow(r, falloff) * lamp_factor * mix(1.0, lamp_factor, lamp_ease) * strength;
 	// A headlight beam (PropFactory.vehicle_lights() shifts its UVs to 2..3): a fan that starts
 	// at the bumper, widens and dies away down the road. Drawn as a round pool it was a white
 	// oval on the asphalt - at dusk, as bright as the sky - and from beside the car a smear.
