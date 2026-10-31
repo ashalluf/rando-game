@@ -3786,3 +3786,9 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+- **2026-10-31 The sky's radiance catches up with a jump (web-hero-rain, HANDOFF "The hero in the
+  rain on the web").** The "blue hero in the rain on the web" was the incremental sky radiance map
+  still holding the clear sky the city loaded in: the wet velour and hair mirror it, and a browser
+  under SwiftShader shows those first frames for minutes. Decision: keep PROCESS_MODE_INCREMENTAL
+  for the drift of the day and hold QUALITY for three frames on a jump (load, an hour or weather
+  snap, a cloud cover step). No shader or colour change. `SKY_SETTLE=0` is the A/B.

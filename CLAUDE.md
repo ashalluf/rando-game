@@ -366,6 +366,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   zenith and horizon keep most of their day colour (`golden_blue_top`, `golden_pale_horizon`)
   and the violet earth's-shadow band is off (`twilight_band_gain`) - at 17:36 the sky used to be
   a full sunset already, and the ambient, which is the sky, turned every shadow lavender.
+- The sky's radiance after a jump (2026-10-31, docs/HANDOFF.md "The hero in the rain on the web"):
+  the city's Sky is INCREMENTAL, so after a jump (load, then the forced weather; the pause menu's
+  hour or weather) every mirror showed the OLD sky for dozens of frames - the wet hero read blue,
+  and in a browser at ~20 s a frame that lasted minutes. `SkySettle`
+  (`scripts/world/sky_settle.gd`, DayNight's child) holds the sky at QUALITY for `hold_frames` on a
+  jump, then puts the mode back. `SKY_SETTLE=0` (`?sky_settle=0`) is the A/B; checks
+  `tests/web_hero_rain_checks.gd`. A web still judged after a handful of frames shows stale mirrors.
 - Sky (2026-10-05, "an AAA sky"; HANDOFF 9ci): `sky.gdshader` plus `SkyExtras`
   (`scripts/world/sky_extras.gd`, made by DayNight as its child). **The cumulus are a volume on
   Forward+** (`cloud_volume` 1 once SkyExtras hands over the noise; `cloud_detail` on): a march
