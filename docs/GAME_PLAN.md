@@ -3786,3 +3786,9 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+- **2026-10-31 The street at eye level (ambient-sound-2, HANDOFF "The street at eye level").** The
+  near layer of the city's sound is EVENT-driven, not rolled: steps come from walkers the listener
+  can see (their own speed and surface), bells and doors from StreetErrands' real shoppers and
+  drivers, air brakes from real buses and trucks coming to a stand; only the far layer (beds,
+  far one-shots) stays statistical. A clip with no CC0 recording (steady wet-tyre hiss) is
+  synthesised in the cutting tool rather than faked from a pass-by. All behind AMBIENT_SOUND_2=0.

@@ -814,3 +814,29 @@ The containers are PortKit's. Railroad, marks and livery invented (Arroyo Pacifi
 | Asset | Source | License | Used for | Added |
 |---|---|---|---|---|
 | `assets/textures/star_boulevard/walk_atlas.png` (1024 x 2048, names, signatures, emblems) | `tools/make_star_boulevard_art.py` (PIL); glyphs rendered offline from DejaVu Serif Bold (Bitstream Vera licence) and Liberation Serif Italic / Bold Italic (SIL OFL); emblems drawn in code; every name invented | ours (fonts permit rendered output) | the walk of fame's stars and forecourt slabs | 2026-10-05 |
+
+## The street at eye level audio (Freesound CC0; one loop synthesised)
+
+`StreetSounds` and Ambience's two new beds (wave 4, `ambient-sound-2`), added 2026-10-31. Every
+Freesound page checked by `tools/ambience_audio.py get` (its licence link the CC0 1.0 deed only,
+the description read). `251662` (tyres on gravel) was dropped: its description says children's
+voices are audible in it. Cut by `tools/street_audio.py build` from the HQ previews (one-shots
+peak -1 dB, 44.1 kHz mono; loops cross-faded and levelled to -22 dB RMS at 32 kHz; the heels'
+steps split at their onsets, the loudest kept). `air_brake` reuses `bus_hiss_0` and `bus_hiss_2`
+(City ambience section) as its second and third takes. About 0.9 MB.
+
+| Recording (author) | Source URL | License | Clips (span used) | Added |
+|---|---|---|---|---|
+| shop_door_bell.wav (3bagbrew) | https://freesound.org/s/57743/ | CC0 1.0 | `shop_bell_0` 0.00-3.20 s | 2026-10-31 |
+| Shop door bell.wav (775noise) | https://freesound.org/s/494565/ | CC0 1.0 | `shop_bell_1` 0.25-2.25 s, `shop_bell_2` 2.30-4.20 s | 2026-10-31 |
+| Ryuuzan_shop_door_bell00.wav (ryuuzan) | https://freesound.org/s/192761/ | CC0 1.0 | `shop_bell_3` 0.00-0.90 s | 2026-10-31 |
+| car door close.wav (monotraum) | https://freesound.org/s/208695/ | CC0 1.0 | `car_door_0` 0.00-0.57 s | 2026-10-31 |
+| car_door_closed.aif (Heigh-hoo) | https://freesound.org/s/9876/ | CC0 1.0 | `car_door_1` 0.00-0.55 s | 2026-10-31 |
+| car door close.wav (ninebilly) | https://freesound.org/s/173009/ | CC0 1.0 | `car_door_2` 0.22-0.77 s | 2026-10-31 |
+| opening_Car_door.wav (rnl) | https://freesound.org/s/335102/ | CC0 1.0 | `car_door_open_0` 0.30-1.25 s | 2026-10-31 |
+| air_brakes_loud_fade_out.wav (rabbydaw) | https://freesound.org/s/504865/ | CC0 1.0 | `air_brake_0` 0.00-2.60 s | 2026-10-31 |
+| concrete_female_heels.wav (LOVEBURD) | https://freesound.org/s/343390/ | CC0 1.0 | `footstep_heels_0..4` (7.12-7.42, 8.07-8.38, 13.54-13.84, 14.54-14.85, 15.10-15.39 s) | 2026-10-31 |
+| Leaves Rustling in Wind - Zoom H6.wav (lunchmoney) | https://freesound.org/s/378725/ | CC0 1.0 | `amb_leaves_0` 0.0-26.5 s (stereo loop) | 2026-10-31 |
+| 11ft waves breaking on sandy beach in the distance from the top of the cliff (chris_dagorne) | https://freesound.org/s/426074/ | CC0 1.0 | `amb_sea_far_0` 29.0-59.5 s (stereo loop, low-passed 6 kHz) | 2026-10-31 |
+| car tire on gravel rear cu blyth 21 6 12.flac (TRP) | https://freesound.org/s/577504/ | CC0 1.0 | `tyre_gravel_0` 26.5-35.3 s (mono loop) | 2026-10-31 |
+| code (`tools/street_audio.py make_wet`) | this repo | original (ours) | `tyre_wet_0`: tyre hiss on a wet road - noise band-passed 1.4-7.5 kHz with a slow swell and a crackle of droplets, a seamless 6 s loop (no CC0 recording of steady wet-road tyre hiss was found, only pass-bys) | 2026-10-31 |
