@@ -12,7 +12,7 @@ extends RefCounted
 ##   level and force, Traffic's cap and `staged`, and every child's `enabled` / `staged`
 ##   (Police, Emergency, NewsCrews, Birds, OceanTraffic, CoastTraffic, ...);
 ## - the world: WorldState's destruction, the police's stars and units, open onlooker scenes,
-##   wrecks and burning cars, debris (bodies, rubble, BlastDebris), Engine.time_scale, the audio
+##   wrecks and burning cars, debris (bodies, rubble, BlastDebris), a blast's fading effects, Engine.time_scale, the audio
 ##   speed, pause, the player out of any car with full health;
 ## - the crowd: the cap, and the head-count trimmed back to the snapshot's (the farthest plain
 ##   walkers freed, as BusyStreets frees them in play), so a file that builds a chunk and counts
@@ -241,6 +241,15 @@ func full(tree: SceneTree) -> void:
 	for d in BlastDebris._all:
 		if is_instance_valid(d) and not (d as Node).is_queued_for_deletion():
 			(d as Node).queue_free()
+			freed += 1
+	# A blast's effects still fading (flash, flare, volume, haze, column: seconds each) hold their
+	# names in the fx parent, and the next file's blast gets "@Class@n" names its checks cannot
+	# find (explosions_2 in gate run 505, explosions_3 in 4242). BlastBits is a shared pool: kept.
+	var fx: Node = tree.current_scene if tree.current_scene else tree.root
+	for c in fx.get_children():
+		var nm := String(c.name)
+		if nm.begins_with("Blast") and not nm.begins_with("BlastBits") and not c.is_queued_for_deletion():
+			c.queue_free()
 			freed += 1
 	if freed > 0:
 		last["freed"] = freed
