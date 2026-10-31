@@ -22752,3 +22752,83 @@ tyre dBs on the Mac); crowd footsteps are not checked live (the headless audio d
 nothing, and which walkers stand near the camera is not staged); shop doors without an errand do
 not ring; freeway expansion-joint thumps were looked at (866213) and left out - the recording is a
 continuous wash, not a clean thump.
+
+## 9iw. Crashes that break cars (fleet wave 4, branch `wt/car-crash-3`)
+
+The task: "crashes at speed - windows that burst in a spray of cubes on impact (not only when
+shot), bumpers that hang and drag with sparks, bonnets that fly open, airbags, a wheel torn off
+rolling away, the body rolling over realistically (centre of mass), debris that stays". After
+CarDamage (dents, holes, fire) and CrashDeform (crumple zones, sprung panels), a head-on at 70 km/h
+still left the bonnet shut 3 cm ajar, every crash glass rule was "facing it, past 9 m/s over", a
+T-bone never rolled anything (the handling's centre of mass is 0.28 m over the road and a car in
+the air is held level by `Vehicle._fly`), and nothing came off the car but centimetre shards.
+
+**`CrashBreakup`** (`scripts/vehicles/crash_breakup.gd`), CarDamage's child like CrashDeform, made
+by the first crash that needs it (`CarDamage.breakup()`), called at the end of
+`CrashDeform.crash()` and from `CarDamage._blast()`; an undamaged car still has no node:
+- **Glass** (`glass()`, which replaces CarDamage's old crash-glass rule when it applies): past
+  `glass_burst_at` (4 m/s over) the side and rear glass facing the hit bursts out, past
+  `glass_all_at` (13) all of it; the windscreen (laminated) webs right across. The cubes fly on
+  with the car's own velocity (`CarDamage._crash_throw` read by `_glass_burst()`: more cubes,
+  faster, along the old travel) and CrashLitter lays them on the road as before.
+- **Bonnet**: past `bonnet_fly_at` (0.28 m of crush at the nose) or a hard frontal hit the catch
+  lets go. CrashDeform's lid region is a LEVEL box from the windscreen's foot, which misses a bonnet
+  that slopes down to the nose, so `_fit_bonnet()` traces the real bonnet off the body mesh
+  (`CarDamage._trace`, the TriangleMesh the rounds use) and lays the region along it with a sharp
+  edge. Then it is a spring (`bonnet_spring`, `bonnet_damp`) round a rest angle (0.35-0.95 rad by a
+  hash of the car) plus the wind (`bonnet_wind` x forward speed, a flutter), stopped by the
+  windscreen at `bonnet_max` 1.22 with a clank. Two traps, both found in stills: the lifted bonnet
+  shows its UNDERSIDE, which the body's single-sided skin culls - the car's damage paint goes onto
+  `shaders/car_paint_open.gdshader` (the same include with `CAR_OPEN_PANEL`, cull_disabled, back
+  faces primer grey); and a triangle with corners on both sides of the panel's edge stretches a
+  rubber sheet from the wing to the lifted panel - `car_crumple.gdshaderinc` `cr_open_w()` /
+  `cr_torn()`: the paint and part shaders pass each vertex's panel weight and cut triangles whose
+  corners disagree AND whose area the move grew 1.7x (screen derivatives of rest vs moved
+  positions), which leaves a real shut-line gap. An `EngineBay` mesh (inner wings, floor, bulkhead,
+  block, cam cover, airbox, battery, strut towers; body space, behind the crushed nose) shows under
+  it.
+- **Bumper and hub**: CrashDeform's hanging bumper (a panel turned about its intact corner) now
+  bounces and throws sparks (`spark_streak.gdshader`, an orange ramp) where its torn corner meets
+  the road while the car moves past `drag_speed`, with the Sfx `scrape` loop; a ray ten times a
+  second checks the road is there. A bare hub does the same.
+- **Wheels**: a crash past `wheel_tear_at` (11 m/s over, ~80 km/h) within `wheel_tear_reach` of a
+  wheel (further needs harder) tears it off: the rig node hidden, the physics wheel down to a
+  0.1 m hub with little grip (the corner drops and drags), a `TornWheel` RigidBody3D (the wheel's own
+  mesh, a cylinder, the props layer) thrown off with the car's speed and its spin, beside the car
+  (the level root), PhysicsBudget debris for `wheel_life` 300 s; a hubcap piece too.
+- **Airbags**: a frontal hit past `airbag_at` (5 m/s over, ~47 km/h) fires both front bags: the
+  `airbag` uniform (fill, sag) in `car_cabin.gdshaderinc`'s CABIN_FIRE block (only the damage glass
+  has it), two ellipsoids traced like the people - out of the wheel's hub toward the driver and out
+  of the dash's top - in creased white nylon (`CAB_BAG`), full in 30 ms, venting to limp over 1.3 s
+  (`airbag_shape()`).
+- **Rollover**: a side hit past `roll_at` (6 m/s over) TRIPS the car - the centre of mass goes to
+  `roll_com_height` 0.58 m over the road (a real saloon's), angular damping to 0.05, a roll of
+  `roll_gain` x (over - roll_at / 2) rad/s about the car's length (top toward the push) and a small
+  hop - and the physics does the rest: the T-bone at 80 km/h ends on its side or its roof. Any hit
+  past roll_at + 4 or a close blast lets the car tumble the same way. `Vehicle.tumble_until` (one
+  float, one condition) holds `_fly` off while it tumbles unless boost is held (the owner's flying
+  car is one key away). When it rests (or after `tumble_max`), the handling's numbers come back.
+- **Debris**: `CrashDebris` (`scripts/vehicles/crash_debris.gd`), CrashLitter's big brother: one
+  MultiMesh ring (220, 90 on the web; no shadow) of 10-45 cm pieces - bumper plastic, grille, trim,
+  a mirror in the paint, bits of wing, a hubcap - flown ballistically in GDScript (one ray a piece
+  a tick, at most 64 flying), bouncing, laid flat where they stop, and left there.
+
+`CRASH_BREAKUP=0` is the A/B (CrashDeform only). Stills on `tools/glshot/car_shot.gd`: the
+`DAMAGE=` speeds as before plus `wheeloff`, `airbag`, `drag` (sparks as if at 50 km/h);
+`CRASH_DEBUG=1` prints the bonnet's fitted region. Checks: `tests/car_crash_3_checks.gd` (a deck
+300 m up: the shaders, a shot car breaks nothing, a 75 km/h head-on - bonnet up, two-sided paint,
+engine bay, airbags full then limp, debris lands and stays, restore() -, an 80 km/h T-bone bursts
+the glass and rolls the car by the physics with flight held off and the centre of mass put back,
+a 100 km/h corner hit tears the wheel off and it rolls 3+ m away, the hanging bumper's sparks only
+while moving, a close blast, the A/B).
+
+Cost (car_shot GEO, one sedan, front70, 200 frames on): 43 -> 46 draws (the engine bay, the debris
+ring, the paint now two-sided on this car only), 190.9k -> 200.4k triangles (the shards of the
+extra panes that burst). An undamaged car and the city are unchanged: no node, no material, one
+float and one condition in Vehicle. Stills on `shots/car-crash-3`.
+
+Not done / not verified: Forward+ (the Mac) not seen - the bonnet's primer underside and the
+engine bay are plain colours (vertex colours / a literal ALBEDO), the sparks are DrivingFX's shader.
+The bumper never tears fully off (it hangs and drags); doors do not fly open (CarInterior's jam
+stays the only door rig); a bus, a truck or a motorcycle breaks nothing off; the far twin keeps its
+baked wheel past 30 m after a wheel is torn off; a rolled car's underbody is the model's flat black.

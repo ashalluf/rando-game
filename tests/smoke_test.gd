@@ -2720,6 +2720,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The street at eye level (tests/ambient_sound_2_checks.gd, StreetSounds): crowd steps, shop
 	# bells, car doors, air brakes, tyres by surface, the leaves and far-sea beds; the mix is pure.
 	await load("res://tests/ambient_sound_2_checks.gd").new().run(self, city)
+	# Crashes at speed (tests/car_crash_3_checks.gd, CrashBreakup): bonnet, airbags, glass, rollover, torn wheel, debris.
+	await load("res://tests/car_crash_3_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

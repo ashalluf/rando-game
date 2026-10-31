@@ -3867,3 +3867,10 @@ none of either.
   drivers, air brakes from real buses and trucks coming to a stand; only the far layer (beds,
   far one-shots) stays statistical. A clip with no CC0 recording (steady wet-tyre hiss) is
   synthesised in the cutting tool rather than faked from a pass-by. All behind AMBIENT_SOUND_2=0.
+
+- **2026-10-31 Crashes break cars, and a hard side hit rolls them (car-crash-3, HANDOFF "Crashes
+  that break cars").** The owner's rule that a car in the air flies, never tumbles, stays for
+  everything the player does on purpose; a crash past a T-bone's threshold (or a close blast) is the
+  one exception: the car gets a real centre of mass and is let roll by the physics until it rests,
+  and holding boost still flies it out. What breaks off (glass, bonnet, a wheel, pieces) is
+  per-car state made only on a crash; nothing is added to an undamaged car. CRASH_BREAKUP=0 is the A/B.

@@ -133,6 +133,28 @@ vec3 cr_move(vec3 p, vec3 n) {
 	return q;
 }
 
+// How far rest point `p` belongs to a panel turned well open (a flown bonnet, a hanging bumper:
+// CrashBreakup): 0 the body, 1 the panel. A triangle with corners on both sides would stretch a
+// sheet from the wing to the lifted panel; the shaders pass this per vertex and cut the triangles
+// whose surface the move stretched (cr_torn(): corners on both sides and its area grown 1.7 times,
+// measured by the screen derivatives of the rest and the moved positions), which leaves the gap a real one has.
+float cr_open_w(vec3 p) {
+	float w = 0.0;
+	for (int i = 0; i < panel_count && i < 4; i++) {
+		if (abs(panel_pivot[i].w) < 0.15) {
+			continue;
+		}
+		vec3 d = p - panel_c[i].xyz;
+		float m = panel_c[i].w;
+		w = max(w, cr_slab(d, panel_u[i].xyz, m) * cr_slab(d, panel_v[i].xyz, m) * cr_slab(d, panel_w[i].xyz, m));
+	}
+	return w;
+}
+
+bool cr_torn(float w, float stretch) {
+	return w > 0.02 && w < 0.98 && stretch > 1.7;
+}
+
 bool cr_any() {
 	return crumple_count > 0 || panel_count > 0;
 }

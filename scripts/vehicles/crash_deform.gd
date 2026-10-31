@@ -130,6 +130,8 @@ func crash(body_at: Vector3, push_body: Vector3, over: float, world_at: Vector3)
 			int(8.0 * clampf(depth / 0.4, 0.3, 1.5)), car.paint)
 	if zone >= 0:
 		crumples_made += 1
+	if CrashBreakup.applies(car):
+		dmg.breakup().crash(body_at, push_body, over, world_at)
 
 
 ## A blast's side of the car caved in (only past `blast_from`).
