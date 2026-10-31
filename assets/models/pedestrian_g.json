@@ -1,0 +1,17 @@
+{
+  "name": "pedestrian_g",
+  "prompt": "South Asian woman in her 20s, athletic wear: fitted zip-up training jacket, dark leggings, running shoes, long hair in a high ponytail, natural face, full body standing, ultra realistic, photorealistic, highly detailed, physically accurate materials and proportions, real-world scale, no cartoon or stylized look",
+  "credits": 44,
+  "tasks": {
+    "preview": "01a0caae-1085-7432-9012-022401051eb4",
+    "refine": "01a0caaf-003c-7625-b13e-2ad42e71b3b5",
+    "rig": "01a0caaf-d2c1-7373-afa1-c64f916bc95b",
+    "animations": "01a0cab0-8621-774d-b7be-4232ba36fe95"
+  },
+  "source": "Meshy (generated for this project)",
+  "animations": [
+    0,
+    613,
+    659
+  ]
+}

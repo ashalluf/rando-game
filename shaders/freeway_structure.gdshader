@@ -1,0 +1,309 @@
+shader_type spatial;
+render_mode cull_back;
+
+// Everything structural on a freeway deck (FreewayKit's `body` mesh): the box girder, the New
+// Jersey barriers, the bents, the gantries, light standards, roadside furniture. One material for
+// all of it; what a vertex IS rides in its colour's alpha (FreewayKit.S_*, alpha * 32), its base
+// colour (sRGB) in the rgb. UV is (metres along the route or across a face, metres up the
+// feature); UV2.x is a flag (1 = a barrier face the traffic sees; a lens's brightness), UV2.y a
+// box's total height.
+//
+// Concrete is the Concrete034 scan projected triplanar on the mesh's own (true world) position,
+// as detail round the vertex colour, plus pours that differ in tone, then the weather: grime at
+// the foot of every barrier, black tyre scuffs along the faces the traffic sees, drip streaks
+// off every top, rust bleeding down the fascia under each scupper (SCUPPER_SPACING, the grates
+// FreewayKit lays at the barrier toe) and down the columns from the bent cap, soot and
+// efflorescence on the soffit, splash dirt at the column feet. Steel is galvanised (mottled
+// zinc), lenses glow off `lamp_factor`.
+
+#include "res://shaders/color_space.gdshaderinc"
+
+global uniform float lamp_factor;
+global uniform float road_wetness;
+
+uniform sampler2D concrete_tex : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D concrete_rough : filter_linear_mipmap, repeat_enable;
+// Metres per tile of the concrete scan, and its mean (LINEAR, PropFactory.TEXTURE_MEAN).
+uniform float tex_metres = 3.0;
+uniform float tex_mean = 0.4818;
+// How much of the scan's variation reaches the albedo (0 = flat vertex colour).
+uniform float tex_detail = 0.45;
+// Linear colours the weathering darkens toward.
+uniform vec3 grime_color = vec3(0.075, 0.066, 0.055);
+uniform vec3 rust_color = vec3(0.20, 0.085, 0.030);
+uniform vec3 scuff_color = vec3(0.018, 0.018, 0.019);
+// Exhaust soot under the deck: neutral, not the brown of road grime.
+uniform vec3 soot_color = vec3(0.045, 0.045, 0.047);
+uniform float grime_amount = 0.55;
+uniform float scuff_amount = 0.75;
+uniform float rust_amount = 0.7;
+// Scuppers along the fascia (FreewayKit.SCUPPER_SPACING; grates at along = k * spacing + spacing / 2).
+uniform float scupper_spacing = 12.0;
+// The soffit's plywood formwork panels, metres (along, across).
+uniform vec2 form_panel = vec2(2.44, 1.22);
+// Contraction joints in the slip-formed barrier, metres apart.
+uniform float barrier_joint = 6.1;
+// Lamp lenses: emission at full lamp_factor.
+uniform float lens_energy = 9.0;
+// The close-up pass (FreewayCloseup; FREEWAY_CLOSEUP=0 turns it off, the A/B): chipped barrier
+// tops and a recast panel now and then, graffiti on the barriers (handstyles on the faces the
+// traffic sees, throw-ups on the outer faces the street and the hills see), the gantry steel's
+// bolts and weathering.
+uniform bool closeup = true;
+uniform sampler2D tag_atlas : filter_linear_mipmap, repeat_disable;
+// Graffiti: a slot every barrier panel, taken at these odds (traffic faces, outer faces).
+uniform float tag_odds_inner = 0.07;
+uniform float tag_odds_outer = 0.22;
+// The daylight a deck's underside gets back off the street round it, emitted (GiTuning sets it at
+// HIGH: SDFGI under a 30 m deck leaves the soffit black, and a coarser cell leaks the sunlit top
+// through it). Emitted light feeds SDFGI too, so it also lifts the street under the deck. 0: off.
+uniform float under_fill = 0.0;
+
+varying vec3 obj_pos;
+varying vec3 obj_nrm;
+
+// Linear spray-can colours (river_concrete.gdshader's).
+const vec3 PAINTS[10] = vec3[](
+	vec3(0.70, 0.70, 0.66), vec3(0.04, 0.04, 0.045), vec3(0.62, 0.08, 0.05), vec3(0.06, 0.18, 0.55),
+	vec3(0.75, 0.55, 0.06), vec3(0.08, 0.40, 0.18), vec3(0.55, 0.12, 0.45), vec3(0.85, 0.30, 0.05),
+	vec3(0.30, 0.62, 0.78), vec3(0.62, 0.62, 0.62)
+);
+
+
+uint ihash(uint x) {
+	x ^= x >> 16u;
+	x *= 0x7feb352du;
+	x ^= x >> 15u;
+	x *= 0x846ca68bu;
+	x ^= x >> 16u;
+	return x;
+}
+
+
+float ih01(uint x) {
+	return float(ihash(x) & 0xFFFFFFu) / 16777216.0;
+}
+
+
+// A piece of graffiti in the slot `tk` on a face whose UV is (along, up) metres: `small` picks the
+// handstyles (atlas cells 0-7), else throw-ups and roller letters (8-15). Returns the painted
+// colour in rgb and its cover in a.
+vec4 graffiti(uint tk, vec2 uv, float slot_w, float h_lo, float h_hi, bool small) {
+	uint cell = small ? ihash(tk + 1u) % 8u : 8u + ihash(tk + 1u) % 8u;
+	float h = clamp(mix(h_hi - h_lo, (h_hi - h_lo) * 0.6, ih01(tk + 2u)), 0.15, 3.0);
+	float w = h * (small ? 2.4 : 2.0);
+	float s0 = floor(uv.x / slot_w) * slot_w + ih01(tk + 3u) * max(slot_w - w, 0.1);
+	float v0 = h_lo + ih01(tk + 4u) * max(h_hi - h_lo - h, 0.0);
+	vec2 local = vec2((uv.x - s0) / w, (uv.y - v0) / h);
+	if (local.x <= 0.0 || local.x >= 1.0 || local.y <= 0.0 || local.y >= 1.0) {
+		return vec4(0.0);
+	}
+	vec2 cxy = vec2(float(cell % 4u), float(cell / 4u));
+	vec3 m = texture(tag_atlas, (cxy + local) / 4.0).rgb;
+	vec3 fill = PAINTS[ihash(tk + 5u) % 10u];
+	vec3 outline = PAINTS[ihash(tk + 6u) % 10u];
+	float age = ih01(tk + 7u);
+	float a = 0.92 - age * 0.45;
+	vec3 col = mix(outline, fill, m.r / max(m.r + m.g, 0.001));
+	col = mix(col, vec3(0.9), m.b * 0.7);
+	float cover = clamp(m.r + m.g + m.b * 0.8, 0.0, 1.0) * a;
+	// Some are buffed out in a grey that never matches.
+	if (age > 0.88) {
+		vec2 bl = abs(local - 0.5);
+		return vec4(vec3(0.30, 0.295, 0.28), (1.0 - smoothstep(0.42, 0.5, max(bl.x * 0.9, bl.y))) * 0.9);
+	}
+	return vec4(col, cover);
+}
+
+
+float hash12(vec2 p) {
+	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+	p3 += dot(p3, p3.yzx + 33.33);
+	return fract((p3.x + p3.y) * p3.z);
+}
+
+
+float vnoise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(hash12(i), hash12(i + vec2(1.0, 0.0)), f.x),
+		mix(hash12(i + vec2(0.0, 1.0)), hash12(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+
+
+float fbm(vec2 p) {
+	return vnoise(p) * 0.5 + vnoise(p * 2.03 + 7.1) * 0.3 + vnoise(p * 4.11 + 3.3) * 0.2;
+}
+
+
+void vertex() {
+	obj_pos = VERTEX;
+	obj_nrm = NORMAL;
+}
+
+
+void fragment() {
+	int kind = int(round(COLOR.a * 32.0));
+	vec3 base = cs_srgb_to_linear(COLOR.rgb);
+	float along = UV.x;
+	float h = UV.y;
+	float flag = UV2.x;
+	vec3 an = abs(normalize(obj_nrm));
+	vec3 w = pow(an, vec3(4.0));
+	w /= (w.x + w.y + w.z);
+	vec2 px = obj_pos.zy / tex_metres;
+	vec2 py = obj_pos.xz / tex_metres;
+	vec2 pz = obj_pos.xy / tex_metres;
+	vec3 tex = cs_in(texture(concrete_tex, px).rgb) * w.x + cs_in(texture(concrete_tex, py).rgb) * w.y
+		+ cs_in(texture(concrete_tex, pz).rgb) * w.z;
+	float trough = texture(concrete_rough, px).r * w.x + texture(concrete_rough, py).r * w.y + texture(concrete_rough, pz).r * w.z;
+	float tl = dot(tex, vec3(0.3333)) / tex_mean;
+	// Pours: big soft patches a shade lighter or darker.
+	float pour = fbm(obj_pos.xz * 0.06 + obj_pos.y * 0.04);
+	vec3 conc = base * mix(1.0, tl, tex_detail) * (0.86 + 0.28 * pour);
+	vec3 alb = conc;
+	float rough = clamp(0.78 + (trough - 0.5) * 0.3, 0.55, 0.98);
+	float metal = 0.0;
+	vec3 emit = vec3(0.0);
+
+	if (kind == 2) {
+		// Barrier. Joint grooves, grime at the foot, drip streaks off the top.
+		float jd = abs(mod(along + 0.3, barrier_joint) - barrier_joint * 0.5) - barrier_joint * 0.5;
+		float joint = 1.0 - smoothstep(0.012, 0.03, abs(jd));
+		float foot = (1.0 - smoothstep(0.02, 0.4, h)) * (0.6 + 0.4 * vnoise(vec2(along * 0.7, 0.0)));
+		float drip = smoothstep(0.55, 0.85, vnoise(vec2(along * 3.1, h * 0.8)) * (0.4 + 0.6 * vnoise(vec2(along * 0.4, 3.0))))
+			* smoothstep(0.1, 0.9, h);
+		alb = mix(alb, grime_color, clamp(foot * grime_amount + drip * 0.35, 0.0, 1.0));
+		alb *= 1.0 - joint * 0.55;
+		if (closeup) {
+			// A recast panel now and then (paler, crisper), chips off the top edge and the arris,
+			// graffiti: handstyles on the faces the traffic sees, pieces on the outer faces.
+			float panel = floor((along + 0.3) / barrier_joint);
+			uint pk = uint(int(panel) + 100000) * 7919u + uint(int(round(obj_pos.y * 0.1)) + 64) * 31u + uint(flag > 0.5 ? 1 : 2);
+			float pr = ih01(pk);
+			if (pr < 0.06) {
+				alb *= 1.18;
+			}
+			float chip = smoothstep(0.68, 0.82, vnoise(vec2(along * 5.0, h * 9.0))) * smoothstep(0.8, 0.93, h);
+			alb = mix(alb, alb * 1.25 + vec3(0.02), chip * 0.6);
+			bool outer_face = flag < 0.5 && abs(obj_nrm.y) < 0.4;
+			if (flag > 0.5 || outer_face) {
+				uint tk = pk * 3u + 17u;
+				if (ih01(tk) < (outer_face ? tag_odds_outer : tag_odds_inner)) {
+					vec4 g = graffiti(tk, vec2(along, h), barrier_joint, outer_face ? 0.12 : 0.3, outer_face ? 0.9 : 0.85, !outer_face);
+					alb = mix(alb, g.rgb * (0.85 + 0.3 * tl), g.a);
+					rough = mix(rough, 0.55, g.a);
+				}
+			}
+		}
+		if (flag > 0.5) {
+			// Tyre scuffs: black rubber smeared along the face in long streaks, in runs where
+			// cars have rubbed it (a few metres of scuffs, then clean face).
+			float run = smoothstep(0.5, 0.75, fbm(vec2(along * 0.09, 1.7)));
+			float band = smoothstep(0.04, 0.12, h) * (1.0 - smoothstep(0.38, 0.62, h));
+			float streak = smoothstep(0.45, 0.8, vnoise(vec2(along * 0.6, h * 22.0)) * 0.6 + vnoise(vec2(along * 2.5, h * 40.0)) * 0.4);
+			float scuff = run * band * streak;
+			alb = mix(alb, scuff_color, scuff * scuff_amount);
+			rough = mix(rough, 0.6, scuff);
+		}
+	} else if (kind == 9) {
+		// Fascia: rust bleeding down under each scupper, a drip line along the bottom edge.
+		float dx = abs(mod(along, scupper_spacing) - scupper_spacing * 0.5);
+		float k = floor(along / scupper_spacing);
+		float live = step(0.35, hash12(vec2(k, 17.0)));
+		float down = clamp(-h / 0.55, 0.0, 1.0);
+		float wide = 0.08 + 0.35 * down + 0.1 * vnoise(vec2(along * 6.0, h * 3.0));
+		float rust = live * (1.0 - smoothstep(wide * 0.5, wide, dx)) * (0.35 + 0.65 * down)
+			* (0.7 + 0.3 * vnoise(vec2(along * 9.0, h * 2.0)));
+		float stain = smoothstep(0.55, 0.85, vnoise(vec2(along * 1.7, h * 0.5))) * 0.5;
+		alb = mix(alb, grime_color, stain * 0.6 + down * 0.15);
+		alb = mix(alb, rust_color, rust * rust_amount);
+		if (closeup) {
+			// The fascia under the outer barrier: the piece over it often runs on down here.
+			uint tk = uint(int(floor(along / 15.0)) + 100000) * 104729u + 5u;
+			if (ih01(tk) < 0.18) {
+				vec4 g = graffiti(tk, vec2(along, h + 0.55), 15.0, 0.05, 0.5, false);
+				alb = mix(alb, g.rgb * (0.85 + 0.3 * tl), g.a * (1.0 - rust * 0.5));
+			}
+		}
+	} else if (kind == 4) {
+		// Soffit: board-formed concrete seen from the street. Plywood panel seams (FORM_PANEL,
+		// UV.y here is metres across the deck), a tie hole near each panel's corners, soot that
+		// gathers toward the edges where the exhaust rises past the fascia, efflorescence where
+		// the segments meet. The scan stays faint: at its full contrast, seen from below at a
+		// grazing angle, its 3 m blotches read as camouflage.
+		alb = base * mix(1.0, tl, tex_detail * 0.3) * (0.9 + 0.12 * pour) * 0.9;
+		vec2 fp = vec2(along, h) / form_panel;
+		vec2 fw = fwidth(fp) + 0.0001;
+		vec2 seam_d = abs(fract(fp + 0.5) - 0.5) / fw;
+		float seam = (1.0 - clamp(min(seam_d.x, seam_d.y) - 0.5, 0.0, 1.0)) * (1.0 - smoothstep(0.25, 0.6, max(fw.x, fw.y)));
+		alb *= 1.0 - seam * 0.22;
+		vec2 q = abs(fract(fp + 0.5) - 0.5);
+		float hole = (1.0 - smoothstep(0.012, 0.022, length((q - vec2(0.15)) * form_panel)))
+			* (1.0 - smoothstep(0.05, 0.2, max(fw.x, fw.y)));
+		alb *= 1.0 - hole * 0.5;
+		float edge = smoothstep(4.0, 15.0, abs(h));
+		float soot = (vnoise(vec2(along * 0.08, h * 0.15)) * 0.6 + vnoise(vec2(along * 0.6, h * 0.9)) * 0.4);
+		alb = mix(alb, soot_color, clamp(edge * 0.3 + smoothstep(0.55, 0.9, soot) * 0.15, 0.0, 0.5));
+		float joint = 1.0 - smoothstep(0.0, 0.6, abs(mod(along, 24.0) - 12.0) - 11.2);
+		float eff = joint * smoothstep(0.35, 0.7, vnoise(vec2(along * 1.5, h * 0.7)));
+		alb = mix(alb, vec3(0.55, 0.54, 0.51), eff * 0.45);
+		rough = 0.92;
+	} else if (kind == 3) {
+		// Columns and caps: water and rust streaks from the top, splash dirt at the foot.
+		float depth = UV2.y - h;
+		float st = smoothstep(0.5, 0.82, vnoise(vec2(along * 2.6 + obj_pos.y * 0.0, 0.0) + vec2(0.0, depth * 0.12))
+			* (0.6 + 0.4 * vnoise(vec2(along * 0.5, 9.0))));
+		float fade = 1.0 - smoothstep(0.5, 7.0, depth);
+		alb = mix(alb, mix(grime_color, rust_color, 0.45), st * fade * 0.75);
+		float foot = 1.0 - smoothstep(0.6, 1.9, h);
+		alb = mix(alb, grime_color * 1.4, foot * (0.5 + 0.3 * vnoise(vec2(along * 3.0, h * 5.0))));
+	} else if (kind == 1) {
+		float stain = smoothstep(0.55, 0.85, vnoise(vec2(along * 1.9, h * 0.6)));
+		alb = mix(alb, grime_color, stain * 0.35);
+	} else if (kind == 5) {
+		// Galvanised steel: mottled zinc, darker where the weather sits.
+		float m = vnoise(obj_pos.xz * 3.0 + obj_pos.y * 2.0) * 0.6 + vnoise(obj_pos.xy * 11.0) * 0.4;
+		alb = base * (0.72 + 0.42 * m);
+		metal = 0.7;
+		rough = 0.42 + 0.25 * m;
+		if (closeup) {
+			// White rust where water sits (the top of every member) and dark grime under it.
+			float up = smoothstep(0.4, 0.9, obj_nrm.y);
+			float wr = smoothstep(0.55, 0.8, vnoise(obj_pos.xz * 1.7 + obj_pos.y)) * up;
+			alb = mix(alb, vec3(0.42, 0.42, 0.40), wr * 0.6);
+			metal = mix(metal, 0.2, wr);
+			rough = mix(rough, 0.85, wr);
+			float dn = smoothstep(-0.4, -0.9, obj_nrm.y);
+			alb *= 1.0 - dn * 0.35 * vnoise(obj_pos.xz * 4.0);
+		}
+	} else if (kind == 6) {
+		alb = base * (0.9 + 0.15 * vnoise(obj_pos.xz * 5.0));
+		rough = 0.55;
+		metal = 0.15;
+	} else if (kind == 7) {
+		alb = base * 0.25;
+		rough = 0.2;
+		emit = base * lens_energy * max(lamp_factor, 0.0) * (flag > 0.0 ? flag : 1.0);
+	} else if (kind == 8) {
+		alb = base * (0.8 + 0.3 * vnoise(obj_pos.xz * 9.0));
+		rough = 0.9;
+	}
+
+	if (under_fill > 0.0) {
+		vec3 un = normalize(obj_nrm);
+		float down = smoothstep(-0.2, -0.8, un.y) + 0.25 * (1.0 - abs(un.y));
+		emit += alb * under_fill * down * vec3(1.0, 0.95, 0.88) * (1.0 - clamp(lamp_factor, 0.0, 1.0));
+	}
+
+	// Rain darkens and glosses what faces the sky most.
+	float wet = clamp(road_wetness, 0.0, 1.0) * mix(0.35, 1.0, smoothstep(0.3, 0.9, obj_nrm.y));
+	alb *= mix(1.0, 0.68, wet);
+	rough = mix(rough, 0.3, wet * 0.8);
+
+	ALBEDO = cs_out(alb);
+	ROUGHNESS = rough;
+	METALLIC = metal;
+	EMISSION = cs_out(emit);
+}
