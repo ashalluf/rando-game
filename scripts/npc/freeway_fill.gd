@@ -78,8 +78,11 @@ static func slot_of(t: float) -> int:
 
 ## Where in slot `slot` of (route, direction, lane) its car starts: a hash slides it along.
 static func slot_t(ri: int, dir: int, li: int, slot: int) -> float:
-	var h := absi(hash([ri, dir, li, slot, "fw_fill"]))
-	return (float(slot) + 0.5 * (1.0 - JITTER) + JITTER * float(h % 1000) / 1000.0) * LANE_GAP
+	# An integer hash (a few hundred of these a route each upkeep: no Array to build and hash).
+	var h := (slot * 73856093) ^ (li * 19349663) ^ ((dir + 2) * 83492791) ^ (ri * 2654435761)
+	h = (h ^ (h >> 13)) * 1274126177
+	h = h ^ (h >> 16)
+	return (float(slot) + 0.5 * (1.0 - JITTER) + JITTER * float(posmod(h, 1000)) / 1000.0) * LANE_GAP
 
 
 ## The free slots to offer, nearest the player first: Array of [t, dir, li]. `taken` holds the

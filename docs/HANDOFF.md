@@ -22459,6 +22459,13 @@ cap x1.5): about +0.5-0.9 M triangles and +200-300 draws, all of it cars. The wh
 (triangles -2.7 %..+2.2 %, no flags); only the freeway flagged (the traffic). Stills on
 `shots/rc-freeway` (README there).
 
+**CPU** (`tools/perf_audit_2/traffic_bench.tscn -- --spawn=1989,160,-6,-3 --hour=13`, headless, mean us
+a call): `FREEWAY_FILL=0` 70 freeway cars, `_maintain_freeway` 4,923, `_drive_freeway` 3,771; the first
+fill 105 cars, 9,702 / 5,636; final 105 cars, 1,752 / 5,689 - the upkeep (every 0.5 s) now works out
+each route's anchor once instead of once a car (`nearest_on()` is a search; that also speeds the
+old path), skips the candidate search for a route at its share and hashes slots with integers. The
+drive is linear in cars (~54 us a car here): +1.9 ms a tick is the price of the 1.5x cap.
+
 **Gate** (`SHARDS=3`, merged with origin/main 2026-10-31): 4,458 checks, 3 failed: freeway_closeup's
 "one roll a slot" (it counts the text `_rng.randf() < skip` in traffic.gd; the new fill's roll is
 written the other way round now), traffic_motion's "no tick turns the car..." (a street junction
@@ -22467,8 +22474,7 @@ two are not freeway code; `SMOKE_PARTS=room,traffic_motion_checks,freeway_closeu
 then passed 207 / 207. Shard peaks 2,780 / 3,473 / 3,033 MB.
 
 **Not done / not verified.** Forward+ (the Mac) not rendered: the tining fade and the scoops are
-shading, judged on opengl3 only (TAA will soften what is left). The per-tick CPU of ~50 % more
-freeway cars was not benched (tools/perf_audit_2/traffic_bench.tscn is the tool). Steady-state
+shading, judged on opengl3 only (TAA will soften what is left). Steady-state
 inflow (cars entering past 300 m) and pop-in were reasoned, not watched over minutes of play. Seen
 in the shots and left to their owners: the red brake-glow discs under a semi's trailer lamps by day
 (vehicle lights), the box truck / trailer bodies' flat sides, the mountain backdrop's blotches.

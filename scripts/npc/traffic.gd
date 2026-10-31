@@ -1222,6 +1222,8 @@ func _maintain_freeway() -> void:
 		return
 	var pw := WorldState.to_world(_player.global_position)
 	var here := Vector2(pw.x, pw.z)
+	# Where the player is along each route, worked out once a route (nearest_on() is a search).
+	var anchors := {}
 	for car in freeway_cars.duplicate():
 		if not is_instance_valid(car) or not car.is_traffic():
 			freeway_cars.erase(car)
@@ -1229,7 +1231,9 @@ func _maintain_freeway() -> void:
 		# Off the end of its route, or the player has left it behind.
 		var ri: int = car.traffic.fw
 		var t: float = car.traffic.t
-		if t <= 0.0 or t >= fw.length_of(ri) or absf(t - _fw_anchor(ri, here)) > FreewayFill.retire_reach(freeway_range):
+		if not anchors.has(ri):
+			anchors[ri] = _fw_anchor(ri, here)
+		if t <= 0.0 or t >= fw.length_of(ri) or absf(t - float(anchors[ri])) > FreewayFill.retire_reach(freeway_range):
 			freeway_cars.erase(car)
 			_retire(car)
 	if freeway_cars.size() >= FreewayFill.cap(max_freeway_cars) or not PhysicsBudget.can_spawn():
@@ -1264,6 +1268,8 @@ func _maintain_freeway() -> void:
 		if FreewayFill.enabled:
 			# Per-lane slots, nearest the player first (FreewayFill).
 			var share: int = route_shares[live.find(entry)]
+			if on_route >= share:
+				continue
 			var lane_taken := {}
 			for car in freeway_cars:
 				if car.traffic.fw == ri:
