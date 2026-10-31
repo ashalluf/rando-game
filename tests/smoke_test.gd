@@ -3540,7 +3540,11 @@ func _test_weapons(player: Player) -> void:
 	await _ticks(2)
 	var fx_after := _count_fx()
 	_check(fx_after.lights > fx_before.lights, "an explosion lights the scene (%d flash lights)" % fx_after.lights)
-	_check(fx_after.particles - fx_before.particles >= 4, "an explosion has layered particles (%d systems)" % (fx_after.particles - fx_before.particles))
+	# (Blast3, explosions-3: on the desktop the fireball is one volume and the sparks and chips one
+	# BlastBits pool, in place of three particle systems.)
+	var b3: Script = load("res://scripts/weapons/blast_3.gd")
+	var layered := fx_after.particles - fx_before.particles + (3 if b3.call("bits_on") and int(b3.call("volumes_alive")) > 0 else 0)
+	_check(layered >= 4, "an explosion has layered particles (%d systems)" % layered)
 	_check(player.camera_rig._shake > 0.0, "a nearby explosion shakes the camera")
 
 	# Shotgun (owner, 2026-09-24: "lose the gravity gun, give us a shotgun"): one blast of pellets
