@@ -222,6 +222,8 @@ enum Finish {
 	PEARL,    ## Flake plus a second coat that only shows at grazing angles (the pearl flip).
 	DEEP,     ## Deep candy metallic: dark, very glossy, coarse flake. Reads as an expensive car.
 	MATTE,    ## Satin wrap: no lacquer at all, high roughness. Rare, and very distinctive.
+	# The second paint pass (CarPaint2, rolled by hash only): candy, tri-coat pearl, satin wrap.
+	CANDY, TRICOAT, SATIN,
 }
 ## The graphic painted on top of the base colour, in body space (see car_paint.gdshader).
 enum Livery {
@@ -231,6 +233,7 @@ enum Livery {
 	TAXI,     ## Yellow, checker band along the doors, lit roof sign.
 	DELIVERY, ## Fleet colour with a belt band and a roof vent pod (vans).
 	SERVICE,  ## Municipal white/orange with a belt band and an amber beacon (pickups).
+	CONTRAST_ROOF, ## Pillars and roof in a second colour (CarPaint2, stripe_mode 6).
 }
 
 ## Paint colours. The weighting IS the duplication - random_car() picks uniformly from this list,
@@ -530,6 +533,8 @@ var finish: Finish = Finish.METALLIC
 var livery: Livery = Livery.NONE
 ## Second colour: racing stripes, the two-tone lower body, a fleet band, the taxi checker.
 var trim_color: Color = Color(0.92, 0.92, 0.93)
+## A new paint's pearl flip or candy depth colour (CarPaint2.PAINTS_2; alpha 0 = none).
+var paint_flip: Color = Color(0, 0, 0, 0)
 ## The Player driving, or null. Setting it seats him in the glass's cabin (CarCabin) in place of
 ## whoever the traffic had at the wheel.
 var driver: Node3D:
@@ -2143,6 +2148,7 @@ func _paint_material(albedo: Texture2D, normal: Texture2D) -> ShaderMaterial:
 		mat.set_shader_parameter("stripe_width", g.width)
 		mat.set_shader_parameter("stripe_gap", g.get("gap", 0.058))
 		mat.set_shader_parameter("stripe_height", g.get("height", 0.42))
+	CarPaint2.apply(self, mat)
 	return mat
 
 
@@ -2250,8 +2256,12 @@ static func random_car(rng: RandomNumberGenerator) -> Vehicle:
 			livery = Livery.RACING
 		elif type != BodyType.SPORTS and graphic < racing + TWO_TONE_SHARE:
 			livery = Livery.TWO_TONE
+	# The second paint pass (hashes of the look seed only, after every roll): new paints, roofs.
+	var p2: Array = CarPaint2.roll(look, type, livery, color, fin, trim)
+	color = p2[0]
+	car.paint_flip = p2[4]
 	car.setup(type, color, extra)
-	car.setup_look(fin, livery, trim)
+	car.setup_look(p2[1], p2[2], p2[3])
 	# Off the look seed, so it costs no rng call and cannot move anything else in the city.
 	car.wheel_style = absi(hash([look, 31])) % PropFactory.WHEEL_FACES.size()
 	car.wheel_kit = absi(hash([look, 33])) % PropFactory.WHEEL_KITS.size()

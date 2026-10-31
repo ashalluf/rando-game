@@ -107,9 +107,9 @@ const BRICK := Color(1.0, 1.0, 1.0)
 
 ## Materials: every house in a FULL chunk is one mesh per name.
 const MATS := ["h_wall", "h_siding", "h_brick", "h_trim", "h_door", "h_metal", "h_dark", "h_roof", "h_shingle",
-	"h_flat", "glass", "h_solar", "h_breeze"]
+	"h_flat", "glass", "h_solar", "h_breeze", "h_lamp"]
 ## Surfaces whose shadow is only cascade fill (they lie on or in something that casts already).
-const NO_SHADOW := ["glass", "h_solar", "h_dark", "h_breeze", "h_rail"]
+const NO_SHADOW := ["glass", "h_solar", "h_dark", "h_breeze", "h_rail", "h_lamp"]
 
 
 static func wanted(ch: CityChunk, district: int) -> bool:
@@ -629,13 +629,17 @@ static func build(ch: CityChunk, h: Dictionary) -> void:
 		b.acc.count += 1
 		b.full()
 		# A cypress pair by the walk and the front garden's accents (LaTrees, hashes only).
+		var cyp0: int = (ch.get_meta("la_cypress_at", []) as Array).size()
 		LaTrees.house(ch, h)
+		# Its night: porch and carriage lamps, the number, landscape lights (HouseNights).
+		HouseNights.dress(b, cyp0)
 	else:
 		b.lod()
 
 
 ## The chunk's finish: every house of the chunk as one mesh per material, and one static body.
 static func commit(ch: CityChunk) -> void:
+	HouseNights.finish(ch)
 	if not ch.has_meta("house_kit"):
 		return
 	var acc: Acc = ch.get_meta("house_kit")
@@ -672,6 +676,9 @@ static func material(name: String) -> Material:
 	match name:
 		"h_wall", "h_trim", "h_door", "h_metal", "h_dark", "h_flat", "glass":
 			m = ReplicaHouses.material(name)
+		"h_lamp":
+			# A house's night fixtures (HouseNights).
+			m = HouseNights.lamp_material()
 		"h_rail":
 			# An apartment's pickets and bars (ApartmentBuild): the metal, drawn without a shadow.
 			m = ReplicaHouses.material("h_metal")

@@ -676,6 +676,9 @@ func _live_and_cost() -> void:
 		for car in _traffic.cars:
 			if not is_instance_valid(car) or not car.is_inside_tree() or not car.traffic.has("along") or car.traffic.has("pull"):
 				continue
+			# A filtering motorcycle rides between the lanes beside the queue it passes.
+			if car.traffic.get("filtering", false):
+				continue
 			var key := Vector3i(int(car.traffic.axis), int(car.traffic.index), int(car.traffic.dir))
 			if not by_road.has(key):
 				by_road[key] = []

@@ -32,11 +32,15 @@ static var _cache: Dictionary = {}
 ## CityChunk's lamp slot, Broadway's lantern in it (FULL chunks only build pavement props).
 static func add_lamp(ch: CityChunk, at: Vector3, _inward: Vector2) -> void:
 	var pool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(CityChunk.LAMP_POOL_SIZE, 1.0, CityChunk.LAMP_POOL_SIZE)), at + Vector3(0.0, 0.09, 0.0))
+	# The night air round its three globes and its reflection in a wet road (NightAtmos; the night
+	# street review: Broadway's lanterns were the one lamp in the city without them).
+	var globes: Array = [at + Vector3(-0.78, 4.05, 0.0), at + Vector3(0.78, 4.05, 0.0), at + Vector3(0.0, 5.13, 0.0)]
 	ch._add_prop("lamp", at, LAMP_IRON, [
 		["bw_lamp", lamp_mesh(), Transform3D(Basis(), at)],
 		["lamp_pool", PropFactory.light_pool(), pool],
-	], [[Vector3(0.4, LAMP_HEIGHT, 0.4), at + Vector3(0.0, LAMP_HEIGHT * 0.5, 0.0), 0.0]])
+	] + ch._night_atmos(globes, at + Vector3(0.0, 4.6, 0.0), at, CityChunk.LAMP_POOL_SIZE), [[Vector3(0.4, LAMP_HEIGHT, 0.4), at + Vector3(0.0, LAMP_HEIGHT * 0.5, 0.0), 0.0]])
 	ch._batch.set_no_shadow("lamp_pool")
+	NightAtmos.finish_batch(ch._batch)
 	if ch.level != CityChunk.Level.FULL:
 		return
 	var light := OmniLight3D.new()
@@ -50,6 +54,9 @@ static func add_lamp(ch: CityChunk, at: Vector3, _inward: Vector2) -> void:
 	light.distance_fade_begin = 45.0
 	light.distance_fade_length = 15.0
 	light.add_to_group("lamp_light")
+	# Its globes hang 4-5 m up a couple of metres off the shop fronts: at the cobras' level they
+	# blew the pale facades beside them out to a flat white (the night street review).
+	light.set_meta("lamp_gain", NightStreetReview.broadway_light())
 	ch.add_child(light)
 	PropBreak.own_light(ch, light)
 
@@ -313,6 +320,9 @@ static func build_block(ch: CityChunk, rect: Rect2, side: int) -> void:
 			if z > c.x - 1.0 and z < c.y + 1.0:
 				skip = true
 		var roll := Broadway.h01([plan.seed, ch.ix, ch.iz, "bw_goods", i])
+		# Not in front of a car park's wall or a vacant lot's fence (StreetCloseup).
+		if not skip and roll < GOODS_ODDS and StreetCloseup.goods_blocked(plan, ch.ix, ch.iz, Vector2(x, z)):
+			skip = true
 		if not skip and roll < GOODS_ODDS:
 			var kind := Broadway.h01([plan.seed, ch.ix, ch.iz, "bw_goods_kind", i])
 			var at := Vector3(x, CityChunk.SIDEWALK_TOP, z)
@@ -409,6 +419,9 @@ static func gown_mesh() -> Mesh:
 ## A folding sale table of goods: boxes, stacked phones and radios, a price board.
 static func table_mesh() -> Mesh:
 	if _cache.has("table"):
+		return _cache.table
+	if StreetCloseup.enabled:
+		_cache.table = StreetCloseup.sale_table_mesh(_vc_material(0.7))
 		return _cache.table
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)

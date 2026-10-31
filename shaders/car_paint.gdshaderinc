@@ -48,8 +48,9 @@ uniform float pearl_power = 2.5;
 // Livery graphic, painted in body space so it works on any of the car models without needing
 // per-model UV layouts. 0 none, 1 twin racing stripes over the length, 2 two-tone lower body,
 // 3 fleet belt band round the flanks, 4 taxi checker band, 5 police black-and-white (the second
-// colour over the doors and the roof, the base paint on the nose, the tail and the sills).
-uniform int stripe_mode : hint_range(0, 5) = 0;
+// colour over the doors and the roof, the base paint on the nose, the tail and the sills), 6 a
+// contrast roof (everything over `stripe_height` - the pillars and the roof - the second colour).
+uniform int stripe_mode : hint_range(0, 6) = 0;
 uniform vec3 stripe_color : source_color = vec3(0.92, 0.92, 0.93);
 // Half width of a stripe / band, as a fraction of the car's width (mode 1) or height (2, 3, 4).
 uniform float stripe_width = 0.032;
@@ -103,6 +104,9 @@ uniform float canyon_rise = 0.45;
 global uniform float probe_reach;
 global uniform vec3 sun_direction;
 global uniform float night_factor;
+global uniform vec3 origin_shift;
+global uniform float lamp_factor;
+global uniform vec4 sky_tint;
 
 #ifdef CAR_DAMAGE
 #include "res://shaders/car_damage.gdshaderinc"
@@ -203,6 +207,27 @@ uniform float mud = 0.0;
 uniform float scratches = 0.0;
 uniform vec4 grime_arch = vec4(-1.4, 1.4, 0.2, 0.34);
 uniform vec3 grime_frame = vec3(-0.2, 1.0, 1.0);
+
+// Paint, second pass (car-paint-2, docs/HANDOFF.md "Car paint that reads as photographed"). 0 on
+// every material Vehicle did not set up (CAR_PAINT_2=0 too), which skips all of it, so that path
+// is the old shader bit for bit. `peel` is the orange peel in the lacquer (its amplitude: 0 none,
+// 1 a factory coat); `sparkle` the strength of the flake glints worked out per pixel-sized cell
+// (fixed to the body, so a moving car carries them); `candy_amount` a tinted lacquer over a bright
+// base (`candy_deep` the colour the panel runs to where it turns away); `wrap` a satin vinyl wrap
+// (a soft broad sheen, no flake); `oxidize` a single-stage paint gone chalky and its clear coat
+// peeling on what faces the sun; `dust_film` a film of dust (or pollen: `dust_tint`) settled on
+// the roof, bonnet and boot; `skyline` how much the lacquer's mirror is cut where a reflected ray
+// would meet a building (a world-fixed skyline per azimuth), which is what puts the hard horizon
+// line of a street across a car door.
+uniform float paint2 = 0.0;
+uniform float peel = 0.0;
+uniform float sparkle = 0.0;
+uniform float candy_amount = 0.0;
+uniform float wrap = 0.0;
+uniform float oxidize = 0.0;
+uniform float dust_film = 0.0;
+uniform vec3 dust_tint : source_color = vec3(0.60, 0.56, 0.49);
+uniform float skyline = 0.0;
 // (road_wetness comes from wet_surface.gdshaderinc.)
 
 varying vec3 world_pos;
@@ -359,6 +384,12 @@ float livery_mask() {
 		float roof = smoothstep(roof_from - 0.01, roof_from + 0.01, body_uv.y) * smoothstep(0.6, 0.85, facing.y);
 		return max(doors, roof);
 	}
+	if (stripe_mode == 6) {
+		// Contrast roof: the glasshouse's pillars and the roof over the belt line, the
+		// "floating roof" of a crossover or a city car. Nothing low that faces the sky (the
+		// bonnet and the boot sit under the line on every body it is rolled for).
+		return smoothstep(stripe_height - feather, stripe_height + feather, body_uv.y);
+	}
 	float band = 1.0 - smoothstep(stripe_width - feather, stripe_width + feather, abs(body_uv.y - stripe_height));
 	if (stripe_mode == 3) {
 		// A fleet band wraps the flanks, the nose and the back doors but not anything the sky
@@ -385,6 +416,10 @@ float livery_mask() {
 
 
 void fragment() {
+	// Derivatives for the paint2 blocks, taken here in uniform control flow (llvmpipe returns 0
+	// for fwidth inside a branch): metres on the body per pixel.
+	float p2_ms = length(MODEL_MATRIX[0].xyz);
+	float p2_fp = max(length(fwidth(paint_rest)) * p2_ms, 1e-6);
 	vec4 base = texture(albedo_tex, UV);
 	float lum = dot(base.rgb, vec3(0.299, 0.587, 0.114));
 	float body = smoothstep(dark_below, body_above, lum);
@@ -421,6 +456,12 @@ void fragment() {
 		float fres = pow(1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0), pearl_power);
 		coat = mix(coat, pearl_color, fres * pearl_amount * (1.0 - livery));
 	}
+	// Candy (paint2): a tinted lacquer over a bright base, so the colour runs deep where the
+	// panel turns away (a longer path through the tint) and glows where it faces the eye.
+	if (candy_amount > 0.0) {
+		float cndv = clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0);
+		coat = mix(coat, mix(candy_deep, coat, pow(cndv, 0.6)), candy_amount * (1.0 - livery));
+	}
 	// The beater's wear: which of its paint is another car's door, primer, chalky or rusty.
 	float worn_rough = 0.0;
 	float worn_coat = 0.0;
@@ -451,6 +492,28 @@ void fragment() {
 		coat = mix(coat, mix(vec3(0.20, 0.08, 0.035), vec3(0.32, 0.15, 0.06), n2), rust);
 		worn_rough = max(max(chalk, primer), rust);
 		worn_coat = mix(0.55 * (1.0 - door), 1.0, worn_rough) * wear;
+	}
+	// Oxidised single-stage paint (paint2): what faces the sun has gone chalky and pale, and the
+	// clear coat lifts off the roof and the bonnet in ragged sheets with a pale rim of loose
+	// lacquer round each. Metres on the body, so it rides with the car.
+	float ox_peel = 0.0;
+	float ox_chalk = 0.0;
+	if (oxidize > 0.0) {
+		vec3 q = paint_rest * p2_ms;
+		float up = smoothstep(0.25, 0.8, body_ny);
+		float n1 = wear_noise(q * 1.7 + 4.2);
+		float n2 = wear_noise(q * 6.5 + 1.3);
+		float n3 = wear_noise(q * 23.0 + 8.8);
+		ox_chalk = clamp(up * (0.55 + 0.45 * n1) + (1.0 - up) * 0.3 * n1, 0.0, 1.0) * oxidize;
+		vec3 pale = mix(coat, vec3(dot(coat, vec3(0.3, 0.59, 0.11))), 0.5) * 0.78 + grime_col(vec3(0.42)) * 0.30;
+		coat = mix(coat, pale, ox_chalk * 0.85);
+		float field = n1 * 0.55 + n2 * 0.33 + n3 * 0.12;
+		float th = mix(0.80, 0.52, oxidize);
+		float aa = clamp(p2_fp * 8.0, 0.006, 0.2);
+		ox_peel = smoothstep(th - aa, th + aa, field) * up * (1.0 - livery);
+		float rim = (smoothstep(th - 0.045, th - aa, field) - ox_peel) * up;
+		coat = mix(coat, pale * 0.9, ox_peel * 0.65);
+		coat = mix(coat, grime_col(vec3(0.70, 0.69, 0.66)), clamp(rim, 0.0, 1.0) * 0.4 * oxidize);
 	}
 	// The lowriders' paint: candy depth, the patterned roof and the pinstripes.
 	float lr_pin = 0.0;
@@ -587,6 +650,21 @@ void fragment() {
 		grime_rough = max(dirt * 0.85, mudm);
 		grime_cc = max(max(dirt, mudm), scr * 0.8);
 	}
+	// A film of dust or pollen (paint2) settled on what faces the sky - roof, bonnet, boot - with a
+	// little on the flanks, thinner where the last rain ran it off in streaks; pollen in grains.
+	float dust_m = 0.0;
+	if (dust_film > 0.0) {
+		vec3 q = paint_rest * p2_ms;
+		float up = smoothstep(0.35, 0.85, body_ny);
+		float n1 = wear_noise(q * 2.2 + 11.0);
+		float n2 = wear_noise(q * 9.0 + 3.7);
+		float runs = wear_noise(vec3(q.x * 30.0, q.y * 1.2, q.z * 30.0));
+		float grains = mix(step(0.62, hash13(floor(q * 900.0))), 0.38, smoothstep(0.4, 1.2, p2_fp * 900.0));
+		dust_m = up * (0.55 + 0.45 * n1) * (0.7 + 0.3 * n2) * (0.75 + 0.25 * grains);
+		dust_m += (1.0 - up) * (1.0 - facing.y) * 0.16 * n1 * smoothstep(0.35, 0.75, runs);
+		dust_m = clamp(dust_m, 0.0, 1.0) * dust_film;
+		coat = mix(coat, dust_tint, dust_m * 0.6);
+	}
 	vec3 painted = coat * (0.55 + 0.45 * lum * paint_brightness);
 	vec3 dark = base.rgb * 0.6;
 	ALBEDO = mix(dark, painted, body);
@@ -605,6 +683,10 @@ void fragment() {
 	rough = mix(rough, max(rough * 1.6, 0.42), worn_coat * body);
 	rough = mix(rough, 0.78, worn_rough * body);
 	rough = mix(rough, 0.82, grime_rough * body);
+	rough = mix(rough, max(rough, 0.55), ox_chalk * 0.7 * body);
+	rough = mix(rough, 0.72, ox_peel * body);
+	rough = mix(rough, max(rough, 0.62), dust_m * body);
+	metal = mix(metal, 0.0, max(ox_peel, dust_m * 0.6) * body);
 	metal = mix(metal, 0.0, worn_rough * body);
 	// A pinstripe is enamel laid on the lacquer: no flake under it.
 	metal = mix(metal, 0.05, lr_pin * body);
@@ -796,6 +878,45 @@ void fragment() {
 		vec3 tint = mix(flake_tint, coat * 1.6, 0.55);
 		float flake = mix(0.35 * glint, disc * glint * 4.0, resolved);
 		EMISSION += tint * (flake * flake_strength * body * near * day * (1.0 - lr_pin));
+	} else if (near > 0.0 && sparkle > 0.0) {
+		// The flake (paint2): aluminium flakes under a millimetre, each tilted its own way, fixed
+		// to the body. Worked out per cell the size of a pixel (two LOD levels blended), so a
+		// pixel is one sample of the flakes it covers: a crisp sparkle round the sun's highlight
+		// that never crawls, a disc inside its cell once a cell is bigger than a pixel, and past
+		// the flakes' reach a broad soft lift of the highlight.
+		vec3 q = paint_rest * p2_ms;
+		float fp = p2_fp;
+		float flake_m = 0.0007 * 190.0 / max(flake_scale, 1.0);
+		float lod = log2(max(fp * 1.25 / flake_m, 1.0));
+		float l0 = floor(lod);
+		float lf = lod - l0;
+		vec3 fn = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
+		vec3 fv = normalize((INV_VIEW_MATRIX * vec4(VIEW, 0.0)).xyz);
+		vec3 sd = normalize(sun_direction);
+		float g = 0.0;
+		for (int k = 0; k < 2; k++) {
+			float lv = l0 + float(k);
+			float cs = flake_m * exp2(lv);
+			vec3 gq = q / cs;
+			vec3 c = floor(gq) + lv * 37.0;
+			vec3 tilt = (vec3(hash13(c + 1.7), hash13(c + 5.3), hash13(c + 9.1)) - 0.5) * 0.62;
+			float sp = pow(max(dot(reflect(-fv, normalize(fn + tilt)), sd), 0.0), 260.0);
+			float res = clamp(cs / fp - 1.0, 0.0, 1.0);
+			vec3 j = vec3(hash13(c + 3.1), hash13(c + 7.7), hash13(c + 11.3)) * 0.5 + 0.25;
+			float disc = mix(1.0, 1.0 - smoothstep(0.24, 0.36, length(fract(gq) - j)), res);
+			float hosts = step(hash13(c + 13.9), 0.55);
+			g += sp * disc * hosts * (k == 0 ? 1.0 - lf : lf);
+		}
+		float glow = pow(max(dot(reflect(-fv, fn), sd), 0.0), 16.0);
+		float day = smoothstep(-0.02, 0.12, sd.y) * (1.0 - night_factor);
+		vec3 tint = mix(vec3(1.0), coat * 2.2 + 0.08, 0.5);
+		// Only on what faces the sun (the glints have no shadow test of their own).
+		float lit_side = smoothstep(0.05, 0.3, dot(fn, sd));
+		EMISSION += tint * (g * 1.6 + glow * 0.06) * sparkle * body * near * day * lit_side
+			* (1.0 - worn_rough) * (1.0 - ox_peel) * (1.0 - dust_m) * (1.0 - livery * 0.7);
+#ifdef CAR_DAMAGE
+		EMISSION *= cc_keep;
+#endif
 	} else if (near > 0.0 && flake_strength > 0.0) {
 		float flake = hash13(floor(world_pos * flake_scale));
 		flake = smoothstep(0.90, 1.0, flake);
@@ -843,13 +964,112 @@ void fragment() {
 	vec3 w_view = normalize((INV_VIEW_MATRIX * vec4(VIEW, 0.0)).xyz);
 	float rise = reflect(-w_view, w_normal).y;
 	float open_sky = mix(canyon_reflect, 1.0, smoothstep(0.0, canyon_rise, rise));
+	vec3 p2_rr = reflect(-w_view, w_normal);
+	float p2_az = atan(p2_rr.z, p2_rr.x) / 6.2831853 + 0.5;
+	float p2_daz = fwidth(p2_az);
+	float p2_dry = fwidth(p2_rr.y);
 	if (probe_reach > 0.0) {
 		open_sky = mix(open_sky, 1.0, 1.0 - smoothstep(probe_reach * 0.6, probe_reach, length(VERTEX)));
+	}
+	float cc_rough = clearcoat_roughness_value;
+	float cc_extra = 1.0;
+	vec3 p2_env = vec3(0.0);
+	if (paint2 > 0.0) {
+		// The street in the lacquer: a world-fixed skyline per azimuth of the reflected ray
+		// (rooftops 3-30 degrees up, a gap now and then) cuts the mirror where a ray meets a
+		// building, so a door carries the hard horizon line of the street and the sky above it
+		// bends over every curve of the body. Inside the probes' reach the real street is mirrored.
+		vec3 rr = p2_rr;
+		vec3 tw = world_pos + origin_shift;
+		float place = hash13(vec3(floor(tw.xz / 70.0), 5.0));
+		float az = p2_az * (22.0 + 14.0 * place) + place * 9.0;
+		float daz = min(p2_daz * (22.0 + 14.0 * place), 0.5) * 0.5;
+		float sky_h = 0.0;
+		for (int k = 0; k < 2; k++) {
+			float b = floor(az + (k == 0 ? -daz : daz));
+			float hb = hash13(vec3(b, place * 17.0, 2.0));
+			float tall = mix(0.05, 0.52, hb * hb) * mix(0.55, 1.0, place);
+			sky_h += mix(tall, 0.015, step(0.82, hash13(vec3(b, 3.0, place)))) * 0.5;
+		}
+		float aa = max(p2_dry, 0.004);
+		float building = 1.0 - smoothstep(sky_h - aa, sky_h + aa, rr.y);
+		float city_open = mix(canyon_reflect * 0.2, 1.0, 1.0 - building);
+		float probe_in = 0.0;
+		if (probe_reach > 0.0) {
+			probe_in = 1.0 - smoothstep(probe_reach * 0.6, probe_reach, length(VERTEX));
+			city_open = mix(city_open, 1.0, probe_in);
+		}
+		open_sky = mix(open_sky, city_open, skyline);
+		// What the mirror shows there instead, EMITTED (the radiance map is the open sky, and the
+		// web has no reflections of its own): facades in their own tones with rows of windows -
+		// the sky in the panes by day, lit rooms at night - and the street under the horizon, a
+		// bright line where the far pavement meets the walls. Faded to the real one in a probe.
+		{
+			float b = floor(az);
+			float tone = hash13(vec3(b, 7.0, place));
+			float fu = fract(az) * (4.0 + floor(tone * 7.0));
+			float elev = asin(clamp(rr.y, -1.0, 1.0));
+			float fv = elev * (28.0 + 20.0 * hash13(vec3(b, 11.0, place)));
+			float dpx = max(p2_daz * (22.0 + 14.0 * place) * (4.0 + floor(tone * 7.0)), p2_dry * 40.0);
+			float pane = smoothstep(0.18, 0.18 + dpx, fract(fu)) * smoothstep(0.82, 0.82 - dpx, fract(fu))
+				* smoothstep(0.25, 0.25 + dpx, fract(fv)) * smoothstep(0.85, 0.85 - dpx, fract(fv));
+			pane = mix(pane, 0.36, smoothstep(0.25, 0.6, dpx));
+			vec3 sky_l = grime_col(sky_tint.rgb);
+			float day_l = (1.0 - night_factor) * 0.85 + 0.03;
+			vec3 wall = grime_col(mix(vec3(0.42, 0.40, 0.37), vec3(0.70, 0.66, 0.60), tone)) * (sky_l * 0.55 + vec3(0.18) * smoothstep(-0.05, 0.3, sun_direction.y)) * day_l;
+			float lit = step(0.55, hash13(vec3(floor(fu), floor(fv), b + place * 31.0))) * lamp_factor;
+			vec3 glass_c = mix(sky_l * 0.35 * day_l, grime_col(vec3(1.0, 0.78, 0.50)) * 0.55, lit);
+			vec3 facade = mix(wall, glass_c, pane);
+			float under = 1.0 - smoothstep(-aa, aa, rr.y);
+			vec3 street = grime_col(vec3(0.26, 0.25, 0.24)) * (sky_l * 0.45 + 0.12) * day_l
+				+ grime_col(vec3(0.95, 0.70, 0.40)) * 0.05 * lamp_factor;
+			street += (sky_l * 0.5 * day_l + grime_col(vec3(1.0, 0.72, 0.45)) * 0.12 * lamp_factor)
+				* (1.0 - smoothstep(0.0, 0.05, abs(rr.y + 0.02)));
+			vec3 env = mix(facade, street, under);
+			float ndv = clamp(dot(w_normal, w_view), 0.0, 1.0);
+			float fr = 0.04 + 0.96 * pow(1.0 - ndv, 5.0);
+			p2_env = env * fr * building * skyline * (1.0 - probe_in);
+		}
+		// Orange peel: the lacquer's dimpled skin, a few millimetres across - a crawl in the
+		// mirror up close (the normal and the coat's roughness ripple), a slightly softer mirror
+		// once it is under a pixel. Crisper lacquer than before on every finish.
+		cc_rough *= 0.72;
+		if (peel > 0.0) {
+			vec3 q = paint_rest * p2_ms;
+			float fp = p2_fp;
+			float resolve = 1.0 - smoothstep(0.0012, 0.0045, fp);
+			float pn = wear_noise(q * 170.0) * 0.65 + wear_noise(q * 430.0 + 3.0) * 0.35;
+			cc_rough *= mix(1.0 + 0.6 * peel, 0.75 + 0.9 * pn * peel, resolve);
+			cc_extra = mix(1.0, 0.88 + 0.24 * pn, resolve * peel);
+			if (resolve > 0.01) {
+				float e = 0.0015;
+				vec3 nb = normalize(wet_nrm);
+				float p0 = wear_noise(q * 170.0);
+				vec3 gr = vec3(wear_noise((q + vec3(e, 0.0, 0.0)) * 170.0) - p0,
+					wear_noise((q + vec3(0.0, e, 0.0)) * 170.0) - p0,
+					wear_noise((q + vec3(0.0, 0.0, e)) * 170.0) - p0) / e;
+				gr -= nb * dot(gr, nb);
+				vec3 tv = (VIEW_MATRIX * (MODEL_MATRIX * vec4(gr, 0.0))).xyz;
+				NORMAL = normalize(NORMAL - tv * (0.00006 * peel * resolve * body));
+			}
+		}
 	}
 	CLEARCOAT = max(clearcoat_amount * body, glass_clearcoat * glass * mix(1.0, 0.6, shape_glass)) * open_sky;
 	CLEARCOAT *= 1.0 - worn_coat * body;
 	CLEARCOAT *= 1.0 - grime_cc * body;
-	CLEARCOAT_ROUGHNESS = mix(clearcoat_roughness_value, 0.25, worn_coat);
+	CLEARCOAT_ROUGHNESS = mix(cc_rough, 0.25, worn_coat);
+	if (paint2 > 0.0) {
+		CLEARCOAT *= mix(1.0, cc_extra, body);
+		// The aged and the dusty: the lacquer goes where it peeled, dulls under chalk and dust.
+		CLEARCOAT *= 1.0 - (ox_peel + ox_chalk * 0.45 + dust_m * 0.6) * body;
+		CLEARCOAT_ROUGHNESS = mix(CLEARCOAT_ROUGHNESS, 0.3, clamp(ox_chalk + dust_m, 0.0, 1.0) * body);
+		// The emitted street, as strong as the lacquer that mirrors it (a wrap's sheen blurs it).
+		float coat_k = clamp(clearcoat_amount * body * (1.0 - worn_coat) * (1.0 - grime_cc) * (1.0 - ox_peel) * (1.0 - dust_m * 0.7), 0.0, 1.0);
+		EMISSION += p2_env * (coat_k + 0.35 * wrap * body) * mix(1.0, 0.5, wrap);
+		// A satin wrap: no lacquer, a soft broad sheen off the vinyl.
+		CLEARCOAT = max(CLEARCOAT, 0.4 * wrap * body * open_sky * (1.0 - dust_m));
+		CLEARCOAT_ROUGHNESS = mix(CLEARCOAT_ROUGHNESS, 0.36, wrap * body);
+	}
 	// A wet body is all lacquer: even a dull or worn coat mirrors under its film of water.
 	CLEARCOAT = max(CLEARCOAT, 0.9 * wet_px * open_sky * max(body, glass));
 	CLEARCOAT_ROUGHNESS = mix(CLEARCOAT_ROUGHNESS, 0.03, wet_px);

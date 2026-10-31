@@ -12,7 +12,9 @@ extends Node3D
 ## (opengl3 for the Compatibility path.) EYE=x,y,z,yaw,pitch (TRUE world, y metres over the
 ## ground there; yaw 0 north, 90 west), SHOTS="eye;eye" more from the same load (OUT_1.png ...),
 ## FOV, FRAMES (default 30), BLOCKS (chunks each way, default 1; 0 none - sky and weather only),
-## A sixth EYE field is that shot's hour (DayNight.hour set and applied before its frames), so a
+## A sixth EYE field is that shot's hour, a seventh its weather (forced; dry ones first);
+## FREE_PREV=1 frees each EYE's blocks before the next, EXTRA="dx,dz;..." adds blocks round each.
+## (DayNight.hour set and applied before its frames), so a
 ## day and a night still come from one load.
 ## FAR (camera far, default 12000), GEO=1 prints triangles and draws. --hour= and --weather= are
 ## read by DayNight and Weather themselves. The tool node carries `plan` and `world_seed` the way
@@ -77,33 +79,79 @@ func _ready() -> void:
 		var at := Vector3(p[0].to_float(), p[1].to_float(), p[2].to_float())
 		at.y += plan.height_at(Vector2(at.x, at.z))
 		var home: Vector2i = plan.block_index_at(Vector2(at.x, at.z))
+		# FREE_PREV=1 frees the blocks earlier EYEs built when this one stands elsewhere (several
+		# places in one lavapipe load: order the EYEs place by place);
+		# EXTRA="dx,dz;..." builds those blocks round each EYE's home block too (with BLOCKS=home:
+		# the block across the street, without the rest of the 3 x 3).
+		if _env("FREE_PREV", "") == "1" and not built.has(home):
+			for bk0 in built.keys():
+				(built[bk0] as Node).queue_free()
+			built.clear()
+			for i in 3:
+				await get_tree().process_frame
+		var want_blocks: Array[Vector2i] = []
 		if blocks > 0 or home_only:
 			for dz in range(-blocks, blocks + 1):
 				for dx in range(-blocks, blocks + 1):
-					var bk := Vector2i(home.x + dx, home.y + dz)
-					if built.has(bk):
-						continue
-					var ch = chunk_script.new()
-					ch.plan = plan
-					ch.ix = bk.x
-					ch.iz = bk.y
-					ch.level = 0
-					ch.style = style
-					add_child(ch)
-					ch.build()
-					built[bk] = ch
+					want_blocks.append(Vector2i(home.x + dx, home.y + dz))
+		for e in _env("EXTRA", "").split(";", false):
+			var d := e.split(",")
+			want_blocks.append(Vector2i(home.x + d[0].to_int(), home.y + d[1].to_int()))
+		for bk: Vector2i in want_blocks:
+			if built.has(bk):
+				continue
+			var ch = chunk_script.new()
+			ch.plan = plan
+			ch.ix = bk.x
+			ch.iz = bk.y
+			ch.level = 0
+			ch.style = style
+			add_child(ch)
+			ch.build()
+			built[bk] = ch
 		if p.size() > 5:
 			var dn: Node = get_node_or_null("DayNight")
 			if dn:
 				dn.set("hour", p[5].to_float())
 				dn.call("_apply")
+		# A seventh field is the weather (a Weather.STATE_KEYS name, forced at once).
+		if p.size() > 6:
+			var wx: Node = get_node_or_null("Weather")
+			if wx:
+				wx.call("force_state", (wx.get("STATE_KEYS") as Array).find(p[6]))
+				# A dry state after a wet one starts dry (place by place, a clear shot follows rain).
+				if p[6] == "clear" or p[6] == "santa_ana":
+					wx.set("wetness", 0.0)
 		stand.global_position = at
 		cam.global_transform = Transform3D(Basis.from_euler(Vector3(deg_to_rad(p[4].to_float()), deg_to_rad(p[3].to_float()), 0.0)), at)
 		for i in int(_env("FRAMES", "30")):
 			await get_tree().process_frame
+		# PICK=px,py lists the drawn nodes whose bounds the ray through that pixel crosses within
+		# 40 m, nearest first (which mesh a surface in the frame is).
+		if _env("PICK", "") != "":
+			var pp := _env("PICK", "").split(",")
+			var o := cam.project_ray_origin(Vector2(pp[0].to_float(), pp[1].to_float()))
+			var dvec := cam.project_ray_normal(Vector2(pp[0].to_float(), pp[1].to_float()))
+			var hits: Array = []
+			for gi: Node in find_children("*", "GeometryInstance3D", true, false):
+				var g := gi as GeometryInstance3D
+				if not g.is_visible_in_tree():
+					continue
+				var box: AABB = g.global_transform * g.get_aabb()
+				var hit = box.intersects_segment(o, o + dvec * 40.0)
+				if hit != null:
+					hits.append([o.distance_to(hit), str(g.get_path()).right(90), g.get_class()])
+			hits.sort()
+			for h in hits.slice(0, 12):
+				print("PICK %.1f m %s %s" % h)
 		var file := out if k == 0 else out.get_basename() + "_%d.png" % k
 		get_viewport().get_texture().get_image().save_png(file)
 		print("saved ", file)
+		if _env("GLOBALS", "") == "1":
+			var dn2: Node = get_node_or_null("DayNight")
+			var wx2: Node = get_node_or_null("Weather")
+			print("GLOBAL horizon %s lamp %s wetness %s rain %s" % [dn2.get("_horizon_now") if dn2 else null,
+				dn2.get("lamp_now") if dn2 else null, wx2.get("wetness") if wx2 else null, wx2.get("rain_level") if wx2 else null])
 		if _env("GEO", "") == "1":
 			print("GEO_%d tris=%d draws=%d" % [k, Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME), Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)])
 	# Tearing the scene down under lavapipe can take minutes (and holds its 10 GB meanwhile):
