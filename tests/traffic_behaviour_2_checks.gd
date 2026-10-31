@@ -51,6 +51,7 @@ func run(t: Node, city: Node3D) -> void:
 	await _wreck_one_lane()
 	_clear_traffic()
 	_heads()
+	_placed_untouched()
 	_traffic.staged = false
 	TrafficBehaviour.enabled = was
 	if police:
@@ -173,8 +174,10 @@ func _creep_inch_foot() -> void:
 	_clear_crosswalks(node)
 	var front := _traffic.place_car(axis, index, 1, 0, cross_pos - cw * 0.5 - 30.0, 7.0, false)
 	front.traffic.tb_r = [0.0, 0.5, 0.0, 0.0]
+	front.traffic.tb = true
 	var back := _traffic.place_car(axis, index, 1, 0, cross_pos - cw * 0.5 - 48.0, 7.0, false)
 	back.traffic.tb_r = [0.9, 0.5, 0.1, 0.9]
+	back.traffic.tb = true
 	var c0 := TrafficBehaviour.counts.duplicate()
 	var first_stop := INF
 	var worst_line := INF
@@ -247,6 +250,7 @@ func _bus_pull_out() -> void:
 	var lanes := TrafficAI.lanes_of(_plan, axis, index)
 	var bus := _traffic.place_car(axis, index, dir, lanes - 1, stop - float(dir) * 12.0, 4.0, false, BigVehicles.BUS)
 	bus.traffic.dwell_need = 2.5
+	bus.traffic.tb = true
 	var c0 := int(TrafficBehaviour.counts.get("bus_signal", 0))
 	var signalled_still := false
 	var lit := false
@@ -320,6 +324,7 @@ func _left_turn_gap() -> void:
 	_clear_crosswalks(node)
 	var car := _traffic.place_car(axis, index, 1, 0, cross_pos - cw * 0.5 - 22.0, 7.0, true)
 	var t: Dictionary = car.traffic
+	t.tb = true
 	t.node = node
 	t.turn = left
 	t.forced = false
@@ -379,6 +384,7 @@ func _polite_crosswalk() -> void:
 	var key := Vector4i(node.x, node.y, axis, 1)
 	Pedestrian._crosswalks[key] = 1
 	var car := _traffic.place_car(axis, index, 1, 0, cross_pos - cw * 0.5 - 30.0, 7.0, false)
+	car.traffic.tb = true
 	var stood := INF
 	var looked := false
 	for i in 60 * 10:
@@ -435,6 +441,7 @@ func _wreck_two_lane() -> void:
 	var wreck := _obstacle(axis, index, 1, 1, mid)
 	var car := _traffic.place_car(axis, index, 1, 1, lo + 6.0, 9.0, false)
 	car.traffic.ai = true
+	car.traffic.tb = true
 	var c0 := int(TrafficBehaviour.counts.get("wreck_lane_change", 0))
 	var worst := INF
 	var passed := false
@@ -481,6 +488,7 @@ func _wreck_one_lane() -> void:
 	await _ticks(2)
 	var wreck := _obstacle(axis, index, 1, 0, mid)
 	var car := _traffic.place_car(axis, index, 1, 0, lo + 6.0, 8.0, false)
+	car.traffic.tb = true
 	var c0 := int(TrafficBehaviour.counts.get("wreck_dodge", 0))
 	var clear_beside := INF
 	var passed := false
@@ -505,6 +513,17 @@ func _wreck_one_lane() -> void:
 	_check(int(TrafficBehaviour.counts.get("wreck_dodge", 0)) > c0 and sig, "on a one-lane road a car edges out round a wreck, signalling")
 	_check(passed and clear_beside > TrafficBehaviour.DODGE_CLEAR - 0.3, "clear of it as it passes (%.2f m to the side)" % clear_beside)
 	_check(back, "and back into its lane after it")
+
+
+## A placed car that did not ask for it (`tb`) is left exactly as TrafficManager drives it.
+func _placed_untouched() -> void:
+	var car := _traffic.place_car(CityPlan.AXIS_X, 0, 1, 0, _home.z, 5.0, false)
+	var t: Dictionary = car.traffic
+	var gap := TrafficBehaviour.street_stop(_traffic, car, t, {}, _home.z, 0.0, 30.0, 0.5, 12.0, Vector2i(0, 1), true, 0.016)
+	var nv := TrafficBehaviour.post_speed(car, t, 0.0, 0.0, 2.0, 0.016)
+	_check(is_inf(gap) and nv == 0.0 and not t.has("tb_r"), "a car a check placed is left exactly as the traffic drives it (no tb)")
+	_traffic._retire(car)
+	_traffic.cars.erase(car)
 
 
 ## Heads: a look target on the car's right turns the driver's head right, on its left left.

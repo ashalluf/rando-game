@@ -21996,7 +21996,9 @@ hooks only, every per-car tick O(1); traffic-motion owns wheels, steering and bo
   stop); `want_shift(t, want_shift)` after the kerb shift is worked out; `post_speed(...)` after the
   react block (the creep and the inch override the "closed up: stand still" clamp, never `room`).
 - `Vehicle._tick_lights()`: a traffic car with `tb_foot` in its dict is not braking.
-State is `tb_*` keys in the car's `traffic` dictionary, so pooling resets it.
+State is `tb_*` keys in the car's `traffic` dictionary, so pooling resets it. A car a check or a
+still PLACED (`place_car()`, `placed`) is left alone unless it carries `tb` (TrafficAI's `ai` rule:
+the street-life and traffic-AI checks measure placed cars' stops to the centimetre).
 
 **What it does** (consts at the top of the file):
 - CREEP: `CREEP_SHARE` of drivers (not buses / big vehicles) stop `CREEP_SHORT` (1.7-3.4 m) short of

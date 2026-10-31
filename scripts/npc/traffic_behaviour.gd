@@ -167,7 +167,9 @@ static func register(plan: CityPlan, c: Vehicle, wp: Vector3) -> void:
 ## Also sets the car's look target and its dodge shift. `line_hold`: a light / sign / crosswalk
 ## holds it at `to_line` this tick.
 static func street_stop(tm: TrafficManager, car: Vehicle, t: Dictionary, groups: Dictionary, along: float, v: float, to_centre: float, to_line: float, cw: float, node: Vector2i, line_hold: bool, delta: float) -> float:
-	if not enabled:
+	# A car a check or a still placed drives exactly as told unless it asks for this (`tb`), like
+	# TrafficAI's `ai`: the checks that place cars measure stops to the centimetre.
+	if not enabled or (t.has("placed") and not t.has("tb")):
 		return INF
 	var plan := tm.plan
 	var axis: int = t.axis
@@ -224,7 +226,7 @@ static func street_stop(tm: TrafficManager, car: Vehicle, t: Dictionary, groups:
 ## stands a car closed up on something): the creep at the line and the inch up a queue.
 ## `still` is the slack (m) before the nearest thing standing still ahead.
 static func post_speed(car: Vehicle, t: Dictionary, v: float, nv: float, still: float, delta: float) -> float:
-	if not enabled or float(t.get("react", 0.0)) > 0.0:
+	if not enabled or float(t.get("react", 0.0)) > 0.0 or (t.has("placed") and not t.has("tb")):
 		return nv
 	if t.has("tb_slow"):
 		var cap := float(t.tb_slow)

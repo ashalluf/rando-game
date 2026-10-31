@@ -13,6 +13,15 @@ extends RefCounted
 static func stage(tm: TrafficManager, kind: String, cam: Camera3D) -> String:
 	if tm == null or cam == null:
 		return ""
+	var eye := _stage(tm, kind, cam)
+	# Placed cars drive exactly as told unless they ask for TrafficBehaviour (`tb`).
+	for c in tm.cars:
+		if is_instance_valid(c) and c.is_traffic():
+			c.traffic.tb = true
+	return eye
+
+
+static func _stage(tm: TrafficManager, kind: String, cam: Camera3D) -> String:
 	tm.staged = true
 	for c in tm.cars.duplicate():
 		if is_instance_valid(c):
