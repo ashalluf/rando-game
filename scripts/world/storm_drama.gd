@@ -55,7 +55,7 @@ const BOLT_REACH := 2600.0
 const BOLT_BASE := 820.0
 const BOLT_WIDTH_PER_M := 0.0021
 ## The ambient fill a full flash adds (times DayNight's ambient energy).
-const FLASH_AMBIENT := 1.6
+const FLASH_AMBIENT := 0.8
 ## The sky's flash toward the strike: the share spread over the whole sky (1 = the old even flash).
 const FLASH_SPREAD := 0.3
 ## Storm sky by day: darker and greener than the rain's grey (Colors, as DayNight passes them).

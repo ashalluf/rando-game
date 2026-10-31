@@ -21641,6 +21641,11 @@ Checks: `tests/storm_drama_checks.gd` (gust range, lean, the wind's agreement, s
 bolt's determinism, the shaders' defaults, a forced storm and strike, the run-off probe on a staged
 building in the air).
 
+The held-flash stills (07, 08: `STORM_FLASH=1 STORM_FLASH_HOLD=0.9 STORM_FLASH_AZ=-75
+STORM_FLASH_DIST=1100`) were shot with FLASH_AMBIENT 1.6: the 21:00 frame at the flash's peak was
+blown out, so it is 0.8 now (not re-shot); the bolt there stands behind the right-hand tower and
+reads faint - frame one where the sky is open.
+
 Not done / not verified: no Forward+ (lavapipe) still - the bolt's HDR core and the flash lobe on
 the Mac are unseen; the inner curtain on Forward+ TAA may ghost (see the particles trap); the
 run-off streams are seen in no still yet (the downtown bookmark's walls are towers over 40 m); no
