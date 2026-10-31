@@ -103,6 +103,13 @@ static func lawn(tint: Color, seed_value: int, dryness: float = 0.35, stripes: f
 	mat.set_shader_parameter("seed", float(seed_value % 997) * 0.37)
 	mat.set_shader_parameter("dryness", dryness)
 	mat.set_shader_parameter("stripe_width", stripes)
+	# The close-up pass (LawnsCloseup): the edge's style, and what the blades on this lawn need.
+	mat.set_shader_parameter("edge_cut", 1.0 if absi(hash([seed_value, "edge_cut"])) % 100 < 55 else 0.0)
+	mat.set_meta("lawn_tint", tint)
+	mat.set_meta("lawn_dryness", dryness)
+	mat.set_meta("lawn_seed_index", seed_value % 997)
+	mat.set_meta("lawn_striped", stripes > 0.01)
+	LawnsCloseup.install()
 	_cache[key] = mat
 	return mat
 
@@ -177,6 +184,7 @@ static func terrain_material() -> ShaderMaterial:
 	mat.set_shader_parameter("rock_albedo", texture("hill_outcrop", "Color"))
 	mat.set_shader_parameter("rock_normal", texture("hill_outcrop", "NormalGL"))
 	HillGround3.apply(mat)
+	AerialReview.apply_terrain(mat)
 	_cache["terrain_mat"] = mat
 	return mat
 
@@ -2107,6 +2115,7 @@ static func building_lod_material(far_city: bool = false) -> ShaderMaterial:
 	mat.set_shader_parameter("print_small_plant", far_city)
 	mat.set_shader_parameter("facade_variety", FacadeVariety.enabled)
 	mat.set_shader_parameter("mid_city", MidCity.enabled)
+	mat.set_shader_parameter("house_nights", HouseNights.enabled)
 	_cache[key] = mat
 	return mat
 
@@ -2383,6 +2392,7 @@ static func ocean_material() -> ShaderMaterial:
 		return _cache["ocean_mat"]
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/ocean.gdshader")
+	AerialReview.apply_ocean(mat)
 	_cache["ocean_mat"] = mat
 	return mat
 

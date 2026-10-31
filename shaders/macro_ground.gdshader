@@ -148,6 +148,13 @@ uniform float paint_end = 2300.0;
 // Debug: -1 as drawn; 0 the whole plane lit by the renderer, 1 the whole plane painted - the same
 // pixel both ways is how paint_gain is measured.
 uniform int paint_debug = -1;
+// The sea is painted on the ocean chunks' own hand-over window (ocean.gdshader handover_start /
+// _end), not on the land's paint_start .. paint_end: an ocean chunk past 470 m is EMITTED at face
+// value, and the plane's sea lit by the renderer out to 900-2300 m beside it was a pale sheet cut
+// along the chunk grid in every aerial at noon (aerial review, AerialReview). Off: the old split.
+uniform bool aerial_review = true;
+uniform float sea_paint_start = 230.0;
+uniform float sea_paint_end = 470.0;
 // The light the ground in front of a slope bounces back up into it. A hue, not an albedo.
 uniform vec3 bounce_color : source_color = vec3(0.62, 0.52, 0.34);
 // Out in the painted band, on the full normal (the crags'), the slopes where scree and then bare
@@ -343,6 +350,9 @@ void fragment() {
 	// How much of this point is painted by hand rather than lit by the renderer (see the split
 	// at the bottom).
 	float painted = paint_debug < 0 ? smoothstep(paint_start, paint_end, dist) : float(paint_debug);
+	if (aerial_review && paint_debug < 0 && water > 0.5) {
+		painted = max(painted, smoothstep(sea_paint_start, sea_paint_end, dist));
+	}
 
 	// `base` is the unlit surface colour (linear) and `lit_ws` the light falling on it. They are
 	// kept apart because this plane is lit two different ways at once: see the ALBEDO/EMISSION
@@ -622,13 +632,16 @@ void fragment() {
 
 	float hz = smoothstep(haze_start, haze_end, dist) * haze_strength;
 	float dim = mix(1.0, 0.16, night_factor);
-	vec3 albedo = mix(base * shade, haze, hz) * dim;
+	// Where the renderer lights this plane its own moonlight is the night; dimmed on top of it the
+	// plane was a sixth of the streamed hill tiles butted against it, a dark ring round every tile
+	// edge at night (aerial review). The painted band keeps `dim`: it lights itself.
+	vec3 albedo = mix(base * shade, haze, hz) * (aerial_review ? 1.0 : dim);
 	// The painted band in the renderer's own space (see lit_ws).
 	vec3 emitted = mix(cs_out(base_e) * lit_ws, cs_out(haze), hz) * dim + city_light_color * (glow * (1.0 - hz));
 	if (smog > 0.002) {
 		float under = 1.0 - smoothstep(smog_lid * 0.35, smog_lid, world_pos.y);
 		float sm = smog * under * (1.0 - exp(-dist / smog_reach));
-		albedo = mix(albedo, smog_c * dim, sm);
+		albedo = mix(albedo, smog_c * (aerial_review ? 1.0 : dim), sm);
 		emitted = mix(emitted, cs_out(smog_c) * dim, sm);
 	}
 	// The layered distance haze (macro_relief.gdshaderinc): taken off what the renderer lights and
@@ -639,8 +652,9 @@ void fragment() {
 	emitted = emitted * (1.0 - rh) + rh_ws;
 	// Compatibility does not add EMISSION at face value (HANDOFF 9au: 0.25 emitted over a lit
 	// 0.25 albedo drew 0.35, not 0.5); this is its painted band measured against its lit one.
+	// The painted sea takes none (ocean.gdshader's painted water has none either).
 	if (!cs_linear_renderer()) {
-		emitted *= compat_paint_gain;
+		emitted *= (aerial_review && water > 0.5) ? 1.0 : compat_paint_gain;
 	}
 
 	// Beyond the detail band this plane is a painted horizon, not a surface: past the near band

@@ -71,6 +71,7 @@ static func attach(streamer: Node3D, plan: CityPlan, canopy: ShaderMaterial) -> 
 		for far in [false, true]:
 			var mat := RockKit.material(kind, true, far)
 			_copy_plane(canopy, mat)
+			AerialReview.apply_rock(mat)
 			f._materials.append(mat)
 	# The near rock (a chunk's batch) hashes its tone off the true origin: it needs world_offset.
 	for kind in RockKit.KINDS.size():

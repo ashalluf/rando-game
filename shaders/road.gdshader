@@ -54,10 +54,22 @@ uniform float mirror_night = 1.1;
 uniform float mirror_film = 0.35;
 uniform float mirror_fade = 70.0;
 uniform float mirror_forward = 0.5;
+// The mirrored office windows (the night street review, 2026-10-30): how bright they stand in the
+// water, how many are lit, and how far each is smeared down the water toward the viewer - drawn
+// as crisp rectangles the soaked street was a regular grid of orange tiles, which no wet road is.
+uniform float mirror_windows = 0.25;
+uniform float mirror_window_lit = 0.8;
+uniform float mirror_window_smear = 0.7;
+// The night sky (the horizon's colour, sky_tint) in the wet road, by Fresnel: a soaked street at
+// night was a black hole wherever no light stood over it (the Compatibility renderer mirrors no
+// lit cloud base, and a black sky's radiance gives nothing), so the far road now shines faintly
+// with the sky's own glow - an overcast night's sodium cloud base most of all.
+uniform float mirror_sky = 1.0;
 // CityPlan.PARKING_LANE: the wheel tracks run in the travel lanes inside it.
 const float CITY_PARKING_LANE = 2.6;
 
 global uniform float road_wetness;
+global uniform vec4 sky_tint;
 // How hard it is raining right now (Weather.rain_level, 0..1): drops ring the puddles.
 global uniform float rain_intensity;
 // 0 turns off the second texture fetch that breaks up the tiling. Quality clears it on the web
@@ -73,6 +85,7 @@ varying vec2 plan_pos;
 varying vec2 slab_uv;
 
 #include "res://shaders/street_glow.gdshaderinc"
+#include "res://shaders/color_space.gdshaderinc"
 // Which way this road's lamps run (CityChunk._road_look): 0 no glow, 1 along Z, 2 along X. Seen
 // from past `street_glow_near` metres the road wears the same lamp glow the far chunks do
 // (far_ground.gdshader); closer in, the real lamps and their light pools take over.
@@ -162,13 +175,14 @@ vec3 mirrored_city(vec3 r, float sharp) {
 	float rows_f = e * 36.0;
 	float bays_f = slot_f * 4.0;
 	vec2 cell = floor(vec2(bays_f, rows_f));
-	float lit = step(0.66, hash12(cell + vec2(slot * 0.37, 5.0)));
-	float pane = smoothstep(0.3, 0.4, fract(rows_f)) * smoothstep(0.2, 0.3, fract(bays_f)) * smoothstep(0.95, 0.85, fract(bays_f));
+	float lit = step(mirror_window_lit, hash12(cell + vec2(slot * 0.37, 5.0)));
+	float pane = mix(smoothstep(0.3, 0.4, fract(rows_f)), 0.75, mirror_window_smear)
+		* smoothstep(0.15, 0.4, fract(bays_f)) * smoothstep(0.95, 0.7, fract(bays_f));
 	float fine = 1.0 - smoothstep(0.35, 0.9, max(fwidth(rows_f), fwidth(bays_f)));
 	float windows = mix(0.1, lit * pane, fine * sharp);
 	float facade = 1.0 - smoothstep(roof - 0.01, roof + 0.01, e);
 	float band = 1.0 - smoothstep(0.035, 0.07, e);
-	vec3 sharp_city = shop_col * (band * shop_on * shop_edge * 1.4) + vec3(1.0, 0.8, 0.55) * (windows * facade * (1.0 - band) * 0.7);
+	vec3 sharp_city = shop_col * (band * shop_on * shop_edge * 1.4) + vec3(1.0, 0.8, 0.55) * (windows * facade * (1.0 - band) * mirror_windows);
 	// Smeared: only the brighter shop fronts streak, each at its own strength, brightest near
 	// the horizon. Every front streaking alike combed the whole street with even stripes.
 	float streak_k = shop_on * pow(hash12(vec2(slot, 23.1)), 3.0);
@@ -428,6 +442,9 @@ void fragment() {
 		float film_break = smoothstep(0.35, 0.75, value_noise(w * 0.7 + seed));
 		float gain = mirror_night * lamp_factor * fres * max(standing, film * mirror_film * film_break);
 		glow += city * gain * near_mirror(length(VERTEX));
+		// The night sky in the water, everywhere the city's lights are not: the horizon's colour.
+		float sky_k = mirror_sky * lamp_factor * fres * max(standing, film * film_break);
+		glow += cs_as_uniform(sky_tint.rgb) * sky_k * near_mirror(0.0);
 	}
 	EMISSION = glow;
 }
