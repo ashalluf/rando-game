@@ -130,7 +130,9 @@ void fragment() {
 	SPECULAR = 0.5;
 	// The sky seen in it, dimmed at night (the lamps and the lit towers are what a lake at night
 	// shows, and the renderer's own reflections carry those).
-	vec3 sky = sky_tint.rgb * (1.0 - 0.85 * night_factor);
+	// sky_tint is raw sRGB on both renderers; this path works in the renderer's own space, so it
+	// is decoded where the renderer is linear (cs_as_uniform(), spelled out - fwd-review-d).
+	vec3 sky = (cs_linear_renderer() ? cs_srgb_to_linear(sky_tint.rgb) : sky_tint.rgb) * (1.0 - 0.85 * night_factor);
 	EMISSION = sky * fres * sky_emit * (1.0 - churn * 0.6);
 	if (shore_look > 0.5) {
 		// Depth from the wall: the silted shelf shows through the first metres, then the murk.
