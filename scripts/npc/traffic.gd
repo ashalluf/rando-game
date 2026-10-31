@@ -973,8 +973,12 @@ func _group_clear(groups: Dictionary, key: int, along: float, clear: float, car:
 		half = float(car.traffic.get("half", 2.4))
 		rear = float(car.traffic.get("rear", half))
 	for other in groups.get(key, []):
+		if other == car or not is_instance_valid(other):
+			continue
 		var ot: Dictionary = (other as Vehicle).traffic
-		if other == car:
+		# A car that left traffic earlier this tick (parked by an errand, abandoned, knocked out)
+		# is still in the groups built at the tick's start with an emptied dict (CI 394).
+		if not ot.has("along"):
 			continue
 		if car == null or dir == 0:
 			if absf(float(ot.along) - along) < clear:

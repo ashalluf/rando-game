@@ -3779,6 +3779,13 @@ none of either.
   2.6 km, a sky and street that light toward the strike, and water running off the buildings - on
   top of a darker, greener, closed-over day sky. All cheap: no new full-screen pass on the web (the
   inner curtain is desktop only). STORM_DRAMA=0 is the A/B.
+
+- **2026-10-30 The golden hour review: tune ramps, not systems (golden-hour-review, HANDOFF "The
+  golden hour review").** Judged 17:00-19:30 on six views x six half hours by numbers (sky / ground
+  balance, warmth, orange share, crushed). Decisions: the sky's night colours follow their own
+  twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
+  monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
+  eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
 - **2026-10-31 - The night flight (night-flight, HANDOFF "The night flight").** The night aerial is
   tuned in the shaders that already draw it, never with new geometry: traffic platoons as a smooth
   noise in the cars' moving frame (the near lamps and the far lane means read the same factor), a
