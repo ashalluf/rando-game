@@ -184,6 +184,7 @@ static func build(id: String, parent: Node3D, statics: StaticBody3D, plan: CityP
 			PuebloLane.build(info, pivot, body, detailed)
 		_:
 			LandmarkCivicCenter.build(id, info.local, info.y0, pivot, body, detailed)
+			CivicGrounds.build(plan, id, info, parent, detailed)
 	ctx = {}
 
 

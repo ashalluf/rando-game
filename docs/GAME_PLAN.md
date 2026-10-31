@@ -3650,6 +3650,14 @@ already mapped so milestone 2 is script-only.
   player's side and a flat tyre is a smaller wheel radius with a fraction of the grip, never repaired;
   officers use the CarInterior door rigs as cover and advance one at a time; the radio is synthesised
   speech-like babble (no CC0 dispatch voice exists). POLICE_CHASE=0 / POLICE_RADIO=0 are the A/B.
+- **2026-10-31 The downtown aerial refcam looks at the civic centre, and the civic centre has
+  grounds (rc-downtown-aerial, HANDOFF "The civic centre from the air").** The camera's old pose
+  looked into a seeded tower 20 m away; it was moved on purpose (a refcam that does not show its
+  subject measures nothing) and the lead re-shoots its base. Decisions: a civic site's leftover
+  block is never bare paving (lawns, walks, trees, the same in the far copy); downtown's park lawns
+  are irrigated whatever the block rolled; flat roofs weather smoothly with the same function near
+  and far; landmark windows are coverage, never a hard test. All behind CIVIC_GROUNDS=0 /
+  ROOF_WEATHER=0.
 
 - **2026-10-30 Traffic that moves like cars (traffic-motion, HANDOFF "Traffic that moves like
   cars").** Kinematic traffic glided: no dive, squat, lean or bounce, turns snapped 90 degrees at

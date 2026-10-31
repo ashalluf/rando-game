@@ -797,6 +797,7 @@ func _part_material(style: Dictionary) -> ShaderMaterial:
 	mat.set_shader_parameter("lit_ratio", style.lit_ratio)
 	mat.set_shader_parameter("seed", float(seed % 1000))
 	mat.set_shader_parameter("roof_style", roof_style)
+	mat.set_shader_parameter("roof_weather", CivicGrounds.roof_weather)
 	# The street level up close (FacadeStreet, shaders/facade_street.gdshaderinc).
 	mat.set_shader_parameter("facade_street", FacadeStreet.enabled and shape != Shape.WAREHOUSE)
 	mat.set_shader_parameter("street_back_face", back_face)

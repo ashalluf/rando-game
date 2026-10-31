@@ -4492,6 +4492,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   sharing `landmark_common.gdshaderinc`. Far versions are the same builders at low detail (a few
   draws each). Checks: `tests/civic_checks.gd`. Frame them with `tools/glshot/landmark_shot.gd`
   (free camera: `CAM`, `LOOK`, `FOV`).
+- The civic centre from the air (2026-10-31, docs/HANDOFF.md "The civic centre from the air"):
+  `CivicGrounds` (`scripts/world/civic_grounds.gd`, one hook in `CivicSites.build()`) lays the
+  civic sites' leftover block ground and city hall's side strips as lawns with walks, an allee and
+  jacarandas (far copy: same trees); `park_lawn()` waters downtown's PARK blocks (one hook in
+  `_build_park()`, after the roll). Flat roofs weather through `shaders/roof_weather.gdshaderinc`,
+  included by building.gdshader AND building_lod.gdshader (change one, both change). Landmark
+  facade windows are coverage by pixel footprint. `CIVIC_GROUNDS=0` / `ROOF_WEATHER=0` the A/B;
+  probe `tools/civic_grounds/probe.tscn`; checks `tests/rc_downtown_aerial_checks.gd`.
 - Broadway's theatre district (2026-10-05, HANDOFF "Broadway"): `Broadway`
   (`scripts/world/broadway.gd`) places eleven invented movie palaces by their REAL house numbers on
   S Broadway (`THEATRES`, `address_z()` through the real cross streets) on the Broadway-fronting lot

@@ -253,6 +253,9 @@ float detail(float period, float mpp) {
 	return smoothstep(detail_px_min, detail_px_full, period / max(mpp, 1e-5));
 }
 
+// The weathered flat roofs, the very function the near building draws (rc-downtown-aerial).
+#include "res://shaders/roof_weather.gdshaderinc"
+
 
 // --- Building's palettes, as it wrote them (sRGB numbers; cs_as_uniform() them before use).
 // tests/far_city_checks.gd reads these back out of this source and compares them with Building.
@@ -588,7 +591,11 @@ void fragment() {
 				surface = mix(surface, c, ring);
 				rough = 0.9;
 			} else {
-				if (roof_kind == 1) {
+				if (roof_weather && roof_kind == 1) {
+					surface = rw_membrane(p, edge, sd, mpp, rough);
+				} else if (roof_weather && roof_kind == 2) {
+					surface = rw_bitumen(p, edge, sd, rough);
+				} else if (roof_kind == 1) {
 					// White single-ply membrane in welded strips, grey where water sits.
 					surface = vec3(0.78, 0.78, 0.76);
 					float strip = fract(p.x * 0.5 + hash21(vec2(sd, 2.0)));
@@ -1381,6 +1388,8 @@ void fragment() {
 				: (rr < 0.80 ? vec3(0.52, 0.52, 0.50) : vec3(0.075, 0.072, 0.068)));
 			surface = cover * (0.9 + 0.2 * hash21(floor(p * 0.5) + bseed) * detail(2.0, mpp));
 			rough = 0.9;
+		} else if (rr < 0.42 && roof_weather) {
+			surface = rw_membrane(p, edge, bseed, mpp, rough);
 		} else if (rr < 0.42) {
 			// White single-ply membrane, rolled in strips and welded, grey where water ponds.
 			surface = vec3(0.80, 0.80, 0.77);

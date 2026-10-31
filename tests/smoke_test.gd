@@ -2761,6 +2761,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/storefront_closeup_2_checks.gd").new().run(self, city)
 	# The crowd's flow (tests/pedestrian_flow_checks.gd, CrowdFlow): passing, groups, kerbs, doors.
 	await load("res://tests/pedestrian_flow_checks.gd").new().run(self, city)
+	# The downtown aerial refcam (tests/rc_downtown_aerial_checks.gd): city hall's grounds, watered
+	# downtown lawns, weathered roofs near and far, antialiased landmark windows, the camera's aim.
+	load("res://tests/rc_downtown_aerial_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
