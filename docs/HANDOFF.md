@@ -22026,3 +22026,7 @@ render feature and no frame cost outside a run.
 `VERIFY_QUIT`, `VERIFY_CARD_SHOT`. Off on the web. Checks: `tests/mac_verify_pack_checks.gd`
 (the table, the folder naming, the luminance numbers, a one-camera run that restores everything).
 Owner's page: `docs/VERIFY.md`.
+
+**Gate (2026-10-31).** SHARDS=3: 4,360 of 4,361; the one FAIL was utility poles' "the line rolls nothing
+from the block" in shard 0 (the verify checks ran in shard 2), which passes alone (30 of 30): an intermittent
+outside this branch. The verify checks alone: 35 of 35. Peak RSS of a part run 2.4 GB.
