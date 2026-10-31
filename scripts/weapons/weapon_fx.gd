@@ -2003,7 +2003,11 @@ static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0
 	# so in daylight it washes out to nothing against a sunlit street.
 	# Slow and fat, not fast and small: a fireball is one rolling mass of overlapping puffs.
 	# Throwing them outward at the blast speed just scatters them into separate dots.
-	_puff_layer(parent, at, _count(38), radius * 0.52, 0.95, radius * 0.18, radius * 0.7, 2.5,
+	# (Blast3: on the desktop the fireball is a ray-marched volume instead of these cards.)
+	Blast3.this_blast_volume = Blast3.takes_fireball()
+	if Blast3.this_blast_volume:
+		Blast3.spawn_volume(parent, at, radius, BlastFX.fuel_next)
+	else: _puff_layer(parent, at, _count(38), radius * 0.52, 0.95, radius * 0.18, radius * 0.7, 2.5,
 		# HDR on purpose, but only at the very start: a fireball's core is many times brighter
 		# than a sunlit street, so the first instant blooms white. After that it has to drop
 		# fast to a deep orange, because AgX takes anything bright toward white - held at 3.0

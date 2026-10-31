@@ -91,7 +91,9 @@ static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0
 	if not WeaponFX._web():
 		_pressure_wave(parent, at, big)
 	_ground_kick(node, parent, at, big, push)
-	_fire_roll(parent, at, big, fuel)
+	if not Blast3.this_blast_volume:
+		_fire_roll(parent, at, big, fuel)
+	Blast3.this_blast_volume = false
 	if heavy:
 		_column(parent, at, big, fuel)
 		last["debris"] = BlastDebris.spawn(node, parent, at, big, push, mini(debris_pieces + (3 if fuel else 0), max_debris))
