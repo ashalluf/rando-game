@@ -3786,3 +3786,11 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+
+- **2026-10-31 The rainy night street is its reflections (rc-street-night, HANDOFF "The rainy night
+  street, refcam review").** A wet night street reads from the long broken streaks lamps and cars
+  lay on the road and from rain seen only where a light catches it. Decisions: a reflection is a
+  soft rippled column peaked at the mirror point, never a constant bar from the pole's foot; cars'
+  lamps get the same streak (one MultiMesh, nearest 18 cars); the rain curtain and the drops' own
+  glow fade at night, and the lit streaks in the lamp cones carry the rain instead (also under
+  Forward+'s volumetric fog); lens drops refract. All behind RAIN_STREET_NIGHT=0.
