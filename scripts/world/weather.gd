@@ -674,6 +674,9 @@ func _build_flash_light() -> void:
 	_flash_light.light_energy = 0.0
 	_flash_light.shadow_enabled = false
 	_flash_light.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
+	# Rain thickens the volumetric fog (Forward+ only) many times over; lit at full strength by
+	# the flash it hung over the whole frame as a milky veil the web never shows (fwd-review-f).
+	_flash_light.light_volumetric_fog_energy = StormDrama.flash_fog_energy()
 	_flash_light.visible = false
 	add_child(_flash_light)
 
@@ -906,18 +909,21 @@ func _update_flash(delta: float) -> void:
 			_strike_age = -1.0
 	if _drama:
 		flash = _drama.held_flash(flash)
+	# At night the flash's light and the sky's flash are scaled down (StormDrama.night_flash_gain);
+	# the bolt (on_flash) keeps the whole flicker.
+	var moon: float = float(_daynight.get("moonlight_now")) if _daynight else 0.0
 	if _sky:
-		_sky.set_shader_parameter("flash", flash)
+		_sky.set_shader_parameter("flash", flash * StormDrama.night_flash_gain(moon, true))
 	if _drama:
 		_drama.on_flash(flash, _sky, _strike_dir)
 	if _sun:
-		_sun.set_meta("weather_flash", flash)
+		_sun.set_meta("weather_flash", flash * StormDrama.night_flash_gain(moon))
 	if _flash_light:
 		_flash_light.visible = flash > 0.001
 		if _flash_light.visible:
 			var dir := Vector3(-_strike_dir.x, -0.5, -_strike_dir.z).normalized()
 			_flash_light.global_transform = Transform3D(Basis.looking_at(dir, Vector3.UP), Vector3.ZERO)
-			_flash_light.light_energy = flash * flash_light_energy
+			_flash_light.light_energy = flash * flash_light_energy * StormDrama.night_flash_gain(moon)
 
 
 ## The odds of each state for a roll at `hour`: the marine layer is common overnight and in the

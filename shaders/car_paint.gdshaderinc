@@ -140,6 +140,10 @@ uniform vec3 glass_left = vec3(-1.0, 0.0, 0.0);
 // Mesh-space position and normal before any dent, so the marks stay where they were made.
 varying vec3 local_rest;
 varying vec3 local_nrm;
+// How far this vertex is on a panel turned well open (cr_open_w), and where the crash moved it:
+// a triangle stretched across the panel's edge is cut (cr_torn()).
+varying float cr_gap;
+varying vec3 cr_moved;
 
 
 // How far the dents move a point of the mesh.
@@ -326,6 +330,8 @@ void vertex() {
 #ifdef CAR_DAMAGE
 	local_rest = VERTEX;
 	local_nrm = NORMAL;
+	cr_gap = panel_count > 0 ? cr_open_w(VERTEX) : 0.0;
+	cr_moved = VERTEX;
 	if (dent_count > 0 || cr_any()) {
 		// The normal of the dented (and crushed: car_crumple.gdshaderinc) surface, from where
 		// two points either side moved to.
@@ -343,6 +349,7 @@ void vertex() {
 		}
 		NORMAL = normalize(nn);
 		VERTEX = o0;
+		cr_moved = o0;
 	}
 #endif
 #ifdef PAINT_FROM_CUSTOM
@@ -420,6 +427,14 @@ void fragment() {
 	// for fwidth inside a branch): metres on the body per pixel.
 	float p2_ms = length(MODEL_MATRIX[0].xyz);
 	float p2_fp = max(length(fwidth(paint_rest)) * p2_ms, 1e-6);
+#ifdef CAR_DAMAGE
+	float cr_stretch = length(cross(dFdx(cr_moved), dFdy(cr_moved))) / max(length(cross(dFdx(local_rest), dFdy(local_rest))), 1e-14);
+	if (cr_torn(cr_gap, cr_stretch)) {
+		discard;
+	}
+#endif
+#ifdef CAR_DAMAGE
+#endif
 	vec4 base = texture(albedo_tex, UV);
 	float lum = dot(base.rgb, vec3(0.299, 0.587, 0.114));
 	float body = smoothstep(dark_below, body_above, lum);
@@ -1075,5 +1090,15 @@ void fragment() {
 	CLEARCOAT_ROUGHNESS = mix(CLEARCOAT_ROUGHNESS, 0.03, wet_px);
 #ifdef CAR_DAMAGE
 	CLEARCOAT *= cc_keep;
+#endif
+#ifdef CAR_OPEN_PANEL
+	if (!FRONT_FACING) {
+		// The inside of the skin: a lifted bonnet's underside, primer grey with its bracing dark.
+		ALBEDO = vec3(0.055, 0.057, 0.06);
+		ROUGHNESS = 0.75;
+		METALLIC = 0.15;
+		CLEARCOAT = 0.0;
+		EMISSION = vec3(0.0);
+	}
 #endif
 }

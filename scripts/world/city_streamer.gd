@@ -288,6 +288,7 @@ func _build_far_landmarks() -> void:
 	if plan.macro == null:
 		return
 	for lm in Landmarks.all():
+		var t_lm := Time.get_ticks_usec()
 		var holder := Node3D.new()
 		holder.name = "FarLandmark_" + lm.id
 		holder.position = -WorldState.world_offset
@@ -299,6 +300,8 @@ func _build_far_landmarks() -> void:
 		# Far copies are built box by box (a pier, a mall, a ship are dozens of them) and never
 		# change after this: one draw per material instead of one per box.
 		MultiMeshBatch.merge_meshes(holder)
+		if LoadClock.profiling:
+			print("LOADING far landmark %s: %d ms" % [lm.id, (Time.get_ticks_usec() - t_lm) / 1000])
 	# The refinery's far pieces, one a block, hidden block by block under its FULL chunks.
 	RefineryFar.attach(self, plan)
 
@@ -828,7 +831,10 @@ func finish_far_city() -> void:
 ## finishes first - it needs the player, the camera and the plan to exist before it can build
 ## anything or draw a shader in front of anything.
 func _start_loading_screen() -> void:
-	if not show_loading_screen or OS.has_feature("web") or DisplayServer.get_name() == "headless":
+	# LOAD_SCREEN_HEADLESS=1: the loading screen's work under the dummy renderer too (its draws
+	# compile nothing there), so tools/load_time can time it in ~2 GB (docs/HANDOFF.md "The first minute").
+	var headless_screen := OS.get_environment("LOAD_SCREEN_HEADLESS") == "1"
+	if not show_loading_screen or OS.has_feature("web") or (DisplayServer.get_name() == "headless" and not headless_screen):
 		return
 	# The screenshot harnesses (tools/glshot/*, tools/webshot) drive the game with `--nohud` and
 	# grab a frame after a fixed number of frames. With the loading screen up they photograph

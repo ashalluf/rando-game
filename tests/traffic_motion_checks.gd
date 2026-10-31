@@ -282,11 +282,17 @@ func _turn(road: Array) -> void:
 	var steer_max := 0.0
 	var roll_max := 0.0
 	var arc_seen := false
+	var life: Dictionary = car.traffic
+	var worst_at := "-"
 	for i in 1800:
 		await _tree.physics_frame
 		if not is_instance_valid(car) or not car.is_traffic():
 			break
 		var t: Dictionary = car.traffic
+		# The upkeep can pool the car and hand it out again somewhere else (CI 397, after an
+		# earlier check's traffic in one shard): that is a new car, not a turn.
+		if not is_same(t, life):
+			break
 		if int(t.axis) == axis and int(t.get("turn", 0)) != nd and t.get("node", Vector2i.ZERO) == node:
 			t.turn = nd
 		if TrafficSignals.is_signal(_plan, node.x, node.y) and i % 30 == 0:
@@ -294,7 +300,10 @@ func _turn(road: Array) -> void:
 		if t.has("tm_arc"):
 			arc_seen = true
 		var y := car.global_rotation.y
-		worst = maxf(worst, absf(wrapf(y - last_yaw, -PI, PI)))
+		var dy := absf(wrapf(y - last_yaw, -PI, PI))
+		if dy > worst:
+			worst = dy
+			worst_at = "tick %d axis %s along %.1f v %.2f turn %s arc %s cp %s placed %s" % [i, t.get("axis"), float(t.get("along", 0.0)), float(t.get("v", 0.0)), t.get("turn"), t.has("tm_arc"), t.get("cp"), t.get("placed")]
 		last_yaw = y
 		for rig: Array in car._wheel_rigs:
 			if rig[4]:
@@ -311,7 +320,7 @@ func _turn(road: Array) -> void:
 		var tt: Dictionary = car.traffic
 		info = "axis %s along %.1f v %.2f turn %s node %s want %s why %s to_c %.1f" % [tt.get("axis"), float(tt.get("along", 0.0)), float(tt.get("v", 0.0)), tt.get("turn"), tt.get("node"), node, tt.get("why"), float(tt.get("to_c", 0.0))]
 	_check(turned and arc_seen, "the placed car turned onto the cross street round a fillet (%s)" % info)
-	_check(worst < 0.12, "no tick turns the car by more than a smooth turn would (worst %.1f deg; the snap was 90)" % rad_to_deg(worst))
+	_check(worst < 0.12, "no tick turns the car by more than a smooth turn would (worst %.1f deg at %s; the snap was 90)" % [rad_to_deg(worst), worst_at])
 	_check(steer_max > 0.12, "its front wheels steer into the turn (%.1f deg)" % rad_to_deg(steer_max))
 	_check(roll_max > 0.002, "the body leans out of the turn (%.2f deg)" % rad_to_deg(roll_max))
 	print("traffic motion turn: worst %.1f deg a tick, steer %.1f deg, roll %.2f deg" % [rad_to_deg(worst), rad_to_deg(steer_max), rad_to_deg(roll_max)])
