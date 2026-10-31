@@ -21980,3 +21980,82 @@ the same way, but judge 18:00 on the Mac first - if it reads milky-pink, raise `
 grass under a low red sun is what it is). The painted cumulus on opengl3 draws a big smooth ellipse in
 the aerial and sky shots (before and after alike; the sky's, not this review's). Dawn shares the sky
 ramp and the exposure ramp (both are symmetric in elevation) and was not looked at.
+
+## 9d?. Ground contact: trunks, poles and people meet the ground, and nothing floats (fleet wave 4, `ground-shadow-contact`, 2026-10-31)
+
+**The brief:** everything that stands on the ground meets it - occlusion and a contact shadow under
+cars (ContactShadows, gi-review, already there), bins, benches, people, trunks, planters, poles;
+dirt and wear round the foot of poles and hydrants; and no floating props: a probe that rays every
+FULL chunk prop to the ground and lists what floats over 3 cm or sinks over 5 cm, then fix the lift
+(never the roll).
+
+**What was there:** ContactShadows (`scripts/world/contact_shadows.gd`, one MultiMesh of soft quads,
+`shaders/contact_shadow.gdshader`) laid a quad under cars, loose physics props and nine furniture
+batches (`CONTACT_KEYS`). Trees, palms, every lamp, pole and post, bollards, more furniture and
+every person stood on the pavement with nothing under them - and on the Compatibility renderer (the
+web, every opengl3 still) nothing else darkens a foot.
+
+**`GroundContact`** (`scripts/world/ground_contact.gd`, a table and helpers; `GROUND_CONTACT=0` the
+A/B) extends ContactShadows' two sets, same quads, same shader, no new draw:
+- STATIC (`FEET`, `FEET_PREFIX`): `batch_contacts()` now walks every batch it is handed and asks
+  `GroundContact.spec(key)` after its own keys. A trunk or a pole (`tree_*`, `palm_*`, `la_*`,
+  `lamp_*` - not `lamp_pool` -, `upole`, `sig_pole`, `sg_post`, `sign_post`, `shelter_post`,
+  `pylon_pole`, `ss_*` signs, `bollard`) gets a ROUND quad of its own diameter at the instance's
+  ORIGIN times its scale (its mesh box is the crown or the cobra's arm); furniture (pay stations,
+  signal cabinets, barriers, A-boards, mag racks, vendors' carts, scooters, valet stands, backyard
+  grills, loungers, doghouses, trampolines) its box footprint. `NOT` keeps lit quads, grates and
+  heads out. Grime (`FEET[...][3]`, `GRIME` for ContactShadows' own keys: hydrants, meters,
+  mailboxes, news boxes) is the shader's ragged dirty band round a fixture's foot.
+- DYNAMIC: `people_near()` (groups player - only on foot -, pedestrian, police, responder; at most
+  `people_budget` 32 within `people_reach` 32 m) re-picked with the cars every 0.25 s; one
+  world-layer ray each at pick time (`ground_drop()`) keeps the drop under the origin, so the blob
+  follows a walk up a slope; the player's is re-cast every frame and the blob fades out by
+  `AIR_FADE` 3 m up and spreads by `AIR_SPREAD` a metre (a jump reads). `PERSON` is the blob
+  (0.38 x 0.26 m, margin 0.36, strength 0.9; round: darkest at the soles), turned with the heading. The MultiMesh has
+  `budget + people_budget` instances.
+- The shader takes two more numbers from the instance COLOR (raw on both renderers): `.g` the corner
+  rounding share (0.22 the old boxes, 0.5 round), `.b` grime (noise in TRUE world metres via
+  `origin_shift`, mod 4096, a Hoskins hash - no `sin()` of big numbers). Still black alpha
+  (never `blend_mul`: Compatibility tonemaps a multiplier), no instance uniforms.
+
+**The probe** (`tools/ground_contact/probe.tscn`, run under `xvfb-run ... --rendering-driver
+opengl3`, never headless - it needs mesh data): builds FULL blocks standalone (one per district
+near `ANCHORS`, or `BLOCKS=`), records every batch through `ContactShadows.recorder` (a static hook
+in `batch_contacts()`: under the dummy renderer a MultiMesh reads back identity), makes every DRAWN
+mesh and every batch instance a trimesh body on layer 20, and rays each instance down from its own
+height (at most 1.5 m: a plant buried in a planter meets the planter's soil above its foot) through
+its ORIGIN (a lamp's or a tree's box leans off its foot), skipping itself. One line a key (count,
+float, sink, median, worst with an EYE; `LIST=n` the worst n and what they stand on; flat things -
+paint, covers, litter - count as sunk only when their TOP is under the ground; `SKIP` leaves out lit
+quads, decals and the facade kit); `BOXES` lines for the merged solid boxes (every downward corner
+with ground within a metre but not touching it); `TRACE=x,z` lists every surface a vertical ray
+meets. Measuring against the COLLISION first was wrong: the forecourt paving is drawn 5 cm over the
+slab that collides, and every bollard read 5 cm afloat.
+
+**What floated, and the fixes (each a lift, never a roll):**
+- LotFill's raised planters on a slope (the worst: 0.55 m): the box was level at its centre's
+  relief, its downhill end in the air, and each shrub stood on the slope under ITSELF (the batch adds
+  the relief per instance), so uphill shrubs floated over the soil and downhill ones were buried.
+  `_planter()` runs the box's foot down to its lowest corner's ground and sets every shrub on its
+  soil (`soil_top + gc - _gy(p)`). Block (-6,-1): bush_2 12 floating -> 0, bird of paradise 9 -> 0.
+- Parklet bistro sets (+-0.15 m on a slope): set on the deck's level, not the road under each set.
+- Utility guy guards (+0.06-0.23 m): the sleeve now reaches the ground over the anchor rod.
+- Roadside pads' frontage planters (+0.1-0.21 m, the same slope bug): the box runs down to its
+  lower end and the shrubs stand in its soil (`Roadside._shrub(..., y)`).
+- Trees in Kerbs' bare dirt wells (+0.035 m over the dirt): `GroundContact.sink_trunk()` from
+  `Kerbs._trees()` lowers the trunk standing in a new well by `WELL_DIRT_DEPTH`.
+- Probe, blocks (-6,-1), (22,12), (9,-5), (-6,0), main -> this branch: bush_0 85 of 234 floating (up
+  to 0.56 m) -> 0, bush_2 12 -> 0, bird of paradise 7 -> 0, palms 12 -> 0, roadside shrubs 24 -> 0,
+  parklet sets 5 -> 0, guy guards 5 -> 1 (4 cm), merged boxes off the ground 46 corners -> 9 (a
+  box on a batch prop 3 m up, not ground). Left: chain-link fabric 5 cm up (real), the shelter
+  glass's gap, a garage lift on its own floor, pole-mounted gear, price stickers on cars.
+- Measured and left alone (deliberate, or under a few cm): posts and signal poles sunk 35-40 cm
+  (footings), road hardware sunk into the road, plants rooted a few cm, the lamp posts / mailboxes
+  sunk 5 cm into the grass parkways (LawnsCloseup's parkway is 5 cm proud), the shelter glass's
+  gap, umbrellas and plants that stand on another prop.
+
+**Checks:** `tests/ground_contact_checks.gd` (the table, the shader's inputs, who gets a blob, the
+ground under a point, a well's trunk, a planter on the steepest of a few slopes: level shrubs and a
+box down to the paving). **Stills:** `shots/ground-shadow-contact`.
+**Not done:** feet-bone contact (two small blobs at the soles) - one blob a person for now; the
+probe covers city blocks, not the hills, the beach or landmark sites.

@@ -3786,3 +3786,11 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+- **2026-10-31 Ground contact: one quad system for everything on the ground, floats fixed at the
+  lift (ground-shadow-contact, HANDOFF "Ground contact").** Trunks, poles, furniture and people get
+  ContactShadows' existing quads (round at a trunk's own diameter, grime round street fixtures, a
+  blob under each near person) rather than a new system or a screen effect, because the web and the
+  opengl3 stills have no SSAO. Floating is measured against the DRAWN ground, never the collision
+  (paving is drawn over the slab that collides), through each instance's origin; every fix moves a
+  placement's height only, after the rolls, so no seed's city moves.
+

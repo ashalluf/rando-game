@@ -25,8 +25,8 @@ static var enabled: bool = OS.get_environment("GROUND_CONTACT") != "0"
 
 ## A batch key (exact) -> [diameter (m, 0 = the mesh box's footprint), margin (m), strength, grime].
 const FEET := {
-	"bollard": [0.24, 0.22, 0.55, 0.5],
-	"upole": [0.32, 0.26, 0.5, 0.75],
+	"bollard": [0.24, 0.24, 0.8, 0.5],
+	"upole": [0.32, 0.3, 0.75, 0.75],
 	"sg_post": [0.07, 0.16, 0.4, 0.45],
 	"sign_post": [0.08, 0.16, 0.4, 0.45],
 	"shelter_post": [0.1, 0.2, 0.45, 0.3],
@@ -64,11 +64,11 @@ const FEET := {
 ## A batch key's prefix -> the same row. Trunks are measured at the instance's scale: a 0.5x
 ## street tree has a 0.5x trunk.
 const FEET_PREFIX := {
-	"lamp_": [0.34, 0.3, 0.55, 0.7],
-	"tree_": [0.42, 0.55, 0.55, 0.0],
-	"palm_": [0.44, 0.45, 0.55, 0.0],
-	"la_": [0.5, 0.5, 0.5, 0.0],
-	"sig_pole": [0.36, 0.3, 0.55, 0.7],
+	"lamp_": [0.34, 0.32, 0.8, 0.7],
+	"tree_": [0.42, 0.6, 0.75, 0.0],
+	"palm_": [0.44, 0.5, 0.75, 0.0],
+	"la_": [0.5, 0.55, 0.7, 0.0],
+	"sig_pole": [0.36, 0.32, 0.8, 0.7],
 	"ss_": [0.08, 0.16, 0.4, 0.45],
 }
 ## Never these, whatever their prefix: lit quads, decals and the grate a tree stands in.
@@ -77,7 +77,7 @@ const NOT := ["pool", "spill", "glow", "halo", "grate", "atmos", "shaft", "head"
 const GRIME := {"hydrant": 0.9, "hydrant_aged": 1.0, "meter": 0.5, "mailbox": 0.4, "sc_newsbox": 0.35}
 
 ## A person's blob: across, along (m), margin, strength.
-const PERSON := Vector4(0.52, 0.4, 0.26, 0.72)
+const PERSON := Vector4(0.38, 0.26, 0.36, 0.9)
 static var people_budget: int = 32
 static var people_reach: float = 32.0
 ## Off the ground (m) at which the player's blob is gone; it spreads by this share a metre up.

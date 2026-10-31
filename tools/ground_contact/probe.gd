@@ -201,7 +201,7 @@ var _last_hit := ""
 ## The chunk's merged solid boxes (CityChunk._merge_box(): planters, plinths, walls, kerbs):
 ## every corner of a downward face that has drawn ground within BOX_REACH under it but not
 ## touching it is a box standing off the ground. One line per merged mesh.
-const BOX_REACH := 1.0
+const BOX_REACH := 0.35
 
 
 func _box_bottoms(space: PhysicsDirectSpaceState3D, ch: Node, bk: Vector2i) -> void:

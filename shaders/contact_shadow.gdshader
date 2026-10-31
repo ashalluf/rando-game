@@ -29,7 +29,7 @@ uniform float body_soft = 0.85;
 // Wheel blob radius (m) across and along.
 uniform vec2 wheel_size = vec2(0.34, 0.55);
 // Darkness of the grime round a pole's or a hydrant's foot at its darkest.
-uniform float grime_dark = 0.38;
+uniform float grime_dark = 0.42;
 
 varying vec4 v_info;
 varying float v_strength;
@@ -79,6 +79,11 @@ void fragment() {
 	// Occlusion: full well inside, falling off to nothing `margin` outside - the shape of the
 	// sky the body hides from a point on the ground.
 	float body = 1.0 - smoothstep(-min(body_soft, 0.45 * min(wid, len)), margin, d);
+	if (v_round > 0.45) {
+		// Round (a trunk, a pole, a person's feet): the occlusion is darkest right at the foot
+		// and falls away over the margin - a box's long soft ramp inside a 30 cm pole was nothing.
+		body = 1.0 - smoothstep(0.0, margin, d);
+	}
 	body *= body * body_dark;
 	float wheels = 0.0;
 	if (v_info.b > 0.01) {
@@ -95,7 +100,9 @@ void fragment() {
 		float reach = margin * (0.55 + 0.6 * n);
 		grime = (1.0 - smoothstep(0.0, reach, d)) * smoothstep(0.18, 0.6, n + 0.25) * grime_dark * v_grime;
 	}
-	float a = max(max(body, wheels), grime) * v_strength;
+	// Grime is dirt, not occlusion: neither the renderer's SSAO gain nor the quad's strength
+	// takes it down.
+	float a = max(max(body, wheels) * v_strength, grime);
 	ALBEDO = vec3(0.0);
 	ALPHA = clamp(a, 0.0, 0.95);
 }
