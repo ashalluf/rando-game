@@ -24,7 +24,8 @@ static func dress(g: LandmarkGeo, hall: Rect2, y0: float, h: float, monitors: Ar
 	g.use(roof_key, LandmarkMats.plain(roof_key, Color(0.47, 0.47, 0.455), 0.88, 0.0))
 	g.use(unit_key, LandmarkMats.plain(unit_key, Color(0.52, 0.53, 0.52), 0.55, 0.35))
 	g.use(trim_key, LandmarkMats.plain(trim_key, Color(0.42, 0.43, 0.43), 0.75, 0.1))
-	var top := y0 + h + 0.035
+	# Lifted clear of the box top under it: at 600 m a few centimetres z-fought and the white won.
+	var top := y0 + h + 0.25
 	# The membrane, in sheets across the roof, each a shade off its neighbour (dirt, age, patches).
 	var n := maxi(1, int(hall.size.x / STRIP))
 	var w := hall.size.x / float(n)
