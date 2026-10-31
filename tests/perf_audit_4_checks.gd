@@ -74,12 +74,12 @@ func _horizon(city: Node3D) -> void:
 			boxed = boxed and (c as MeshInstance3D).custom_aabb.size.x > 0.0 and (c as MeshInstance3D).material_override == mi.material_override
 	var n: int = city.get_script().get_script_constant_map().get("GROUND_SUBDIVISIONS", 320) + 1
 	var tiles := HorizonTiles.meshes_of(mi).size()
-	_t._check(tris == n * n * 2 and boxed and (tiles == 16 if HorizonTiles.enabled else tiles == 1),
+	_t._check(tris == n * n * 2 and boxed and (tiles == HorizonTiles.TILES * HorizonTiles.TILES if HorizonTiles.enabled else tiles == 1),
 		"perf-audit-4: the horizon plane is %d tiles on its own material with tight boxes, %d triangles (a %d x %d grid)" % [tiles, tris, n, n])
 	var ring: MeshInstance3D = city.get("_far_ring")
 	if ring:
 		var rt := HorizonTiles.meshes_of(ring).size()
-		_t._check(rt > 4 if HorizonTiles.enabled else rt == 1,
+		_t._check(rt > 3 if HorizonTiles.enabled else rt == 1,
 			"perf-audit-4: the far ranges' ring is cut into %d tiles" % rt)
 
 

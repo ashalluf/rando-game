@@ -14,7 +14,7 @@ extends RefCounted
 static var enabled := OS.get_environment("HORIZON_TILES") != "0"
 
 ## Tiles per side of the grid.
-const TILES := 4
+const TILES := 3
 ## The box's height range (mesh space): the bake lifts the plane up to MacroMap.BAKE_HEIGHT_SCALE
 ## (1,600 m) plus crags, and sinks it with distance and under water.
 const Y_MIN := -1500.0
