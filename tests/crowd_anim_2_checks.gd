@@ -175,6 +175,7 @@ func _walk_check(chunk: Node3D, rect: Rect2, g: String) -> void:
 
 func _make(chunk: Node3D, rect: Rect2, seed_value: int) -> Pedestrian:
 	var p := Pedestrian.new()
+	p.set_meta("no_trim", true) # never trimmed or borrowed by the live crowd systems
 	p.setup(rect, 4.0, seed_value)
 	p.pause_chance = 0.0
 	p.cross_chance = 0.0

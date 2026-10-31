@@ -43,6 +43,7 @@ func _tables() -> void:
 	for kind in Buskers.Kind.size():
 		var s := Buskers.seed_for(hash(["buskers_checks", kind]), Buskers.RIGS[kind])
 		var p := Pedestrian.new()
+		p.set_meta("no_trim", true) # never trimmed or borrowed by the live crowd systems
 		p.setup(Rect2(0, 0, 50, 50), 4.0, s)
 		var holder := Node3D.new()
 		_t.get_tree().root.add_child(holder)

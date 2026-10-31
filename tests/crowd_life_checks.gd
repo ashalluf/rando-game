@@ -101,6 +101,7 @@ func _check_behaviour(city: Node3D, chunk: Node3D) -> void:
 	var peds: Array[Pedestrian] = []
 	for i in 4:
 		var p := Pedestrian.new()
+		p.set_meta("no_trim", true) # never trimmed or borrowed by the live crowd systems
 		p.setup(rect, plan.sidewalk_width, 7100 + i * 31)
 		p.pause_chance = 0.0
 		p.cross_chance = 0.0
@@ -118,6 +119,7 @@ func _check_behaviour(city: Node3D, chunk: Node3D) -> void:
 	_check(lead._life_ok and lead._life_near, "a walker near the player has the life clips and is in life range")
 	# Same seed, same person.
 	var twin := Pedestrian.new()
+	twin.set_meta("no_trim", true) # never trimmed or borrowed by the live crowd systems
 	twin.setup(rect, plan.sidewalk_width, 7100)
 	twin.jogger_share = Vector2.ZERO
 	twin.dog_share = Vector2.ZERO
@@ -180,6 +182,7 @@ func _check_behaviour(city: Node3D, chunk: Node3D) -> void:
 	_check(CrowdLife.free_seat(chunk, Vector2(bench.x, bench.z), 2.0).size() > 0 and sitter._seat.is_empty(), "the bench is free again")
 	# Far from the player: no stops, no props.
 	var far := Pedestrian.new()
+	far.set_meta("no_trim", true) # never trimmed or borrowed by the live crowd systems
 	far.setup(rect, plan.sidewalk_width, 7300)
 	far.position = carrier.position
 	chunk.add_child(far)

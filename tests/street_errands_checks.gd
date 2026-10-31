@@ -76,6 +76,7 @@ func _clear_traffic() -> void:
 func _walker(at: Vector2, seed_value: int) -> Pedestrian:
 	_player_to(at)
 	var ped := Pedestrian.new()
+	ped.set_meta("no_trim", true) # never trimmed or borrowed by the live crowd systems
 	ped.setup(_rect, _plan.sidewalk_width, seed_value)
 	ped.cross_chance = 0.0
 	ped.life_chance = 0.0

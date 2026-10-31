@@ -288,6 +288,7 @@ func _crossing() -> void:
 		return
 	var rect: Rect2 = _plan.block(0, 0).rect
 	var ped := Pedestrian.new()
+	ped.set_meta("no_trim", true) # never trimmed or borrowed by the live crowd systems
 	ped.setup(rect, _plan.sidewalk_width, 777)
 	ped.walk_speed = 3.2
 	ped.cross_chance = 0.0
