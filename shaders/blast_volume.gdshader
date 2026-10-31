@@ -68,9 +68,9 @@ vec3 blackbody(float k) {
 	// Brightness climbs steeply with heat (a dull red flame is dim; the core is blinding): the
 	// cooling stages must be DARK or AgX turns a bright red into salmon pink.
 	vec3 c = vec3(0.16, 0.014, 0.0) * smoothstep(0.0, 0.3, k) * smoothstep(0.0, 0.3, k);
-	c = mix(c, vec3(0.85, 0.26, 0.035), smoothstep(0.25, 0.55, k));
-	c = mix(c, vec3(3.0, 1.55, 0.35), smoothstep(0.5, 0.8, k));
-	c = mix(c, vec3(8.0, 6.4, 4.4), smoothstep(0.8, 1.0, k));
+	c = mix(c, vec3(0.95, 0.27, 0.035), smoothstep(0.25, 0.55, k));
+	c = mix(c, vec3(2.6, 1.1, 0.2), smoothstep(0.5, 0.8, k));
+	c = mix(c, vec3(6.5, 4.8, 2.9), smoothstep(0.82, 1.0, k));
 	return c;
 }
 
@@ -135,7 +135,7 @@ vec2 field(vec3 q) {
 	float heat = heat_at(t);
 	// The whole surface burns at first (what you see of a young fireball is fire), hottest on the
 	// billows' crowns and in the heart, sooty in the creases; as it cools the creases go first.
-	float temp = clamp(heat * (0.62 + sh.y * 0.4 + (n1 - 0.5) * 1.5 + (n2 - 0.5) * 1.2), 0.0, 1.0);
+	float temp = clamp(heat * (0.57 + sh.y * 0.4 + (n1 - 0.5) * 1.5 + (n2 - 0.5) * 1.2), 0.0, 1.0);
 	return vec2(dens, temp);
 }
 
