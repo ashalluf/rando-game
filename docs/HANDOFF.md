@@ -22461,7 +22461,20 @@ fwd_block_shot.gd (`CARS="x,z,yaw[,b];..."`: cars with a driver in, lamps on - t
 `EYE=2359.4,2.0,880.0,0,2,21.5,rain` with `CARS=2355.6,862,180;2363.2,852,0;...`). Forward+ on
 lavapipe: the beach town's home block only (`BLOCKS=home`; three blocks were OOM-killed at 13 GB,
 the box's limit), rain 21:30, before / after: the curtain's static gone, the rippled streaks, the
-refracting drops. Numbers and the ten-camera compare: see the end of this section.
+refracting drops.
+
+**Numbers** (refcams, opengl3, the whole city, `RAIN_STREET_NIGHT=0` then on, one load each;
+`build/refcams/all_off` / `all_on`, `compare`): street_night p5/p50/p95 8/34/138 -> 8/30/140,
+saturation +0.054 (the warm streaks and the darker curtain), triangles +0.5 %, draws +0.3 % - the
+only flagged shot (intended). The other nine are within the noise (pixel |d| <= 0.5, freeway 3.2:
+traffic). Gate (SHARDS=3, merged with main 2026-10-31): 4,464 checks, 0 failed, peak 3.0 GB a shard.
+Stills on `shots/rc-street-night`.
+
+**Not done / not seen**: the whole street on Forward+ (downtown does not fit lavapipe; the beach
+town's block stood in); the car streaks' Forward+ strength (`gain2_forward`) is a guess from that one
+scene - the Mac may want it lower or higher; the bike lanes' green reads loud against the wet asphalt
+at night (bike_lane.gdshader darkens wet paint only to 0.85) - left for its owner; the puddles of
+StreetClutter2 / road.gdshader still mirror the sky as pale blobs in the carriageway (wet-road-mirror's).
 
 Checks: `tests/rain_street_night_checks.gd` (16: the switch and what it restores, the shaders'
 defaults, the materials, Weather's curtain and lens, the deck numbers, WetCarGlints' lamps and
