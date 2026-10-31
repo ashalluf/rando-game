@@ -107,8 +107,10 @@ func _place(cam: Camera3D, player: Node3D, wall_d: float) -> void:
 			eye = g + Vector3(0.45, 0.32, 1.7)
 			look = g + Vector3(-0.1, 0.0, -wall_d)
 		"wall":
-			eye = p + Vector3(1.7, 1.2, -wall_d + 2.8)
-			look = p + Vector3(0.0, 0.6, -wall_d)
+			# On where the rounds land: the crosshair's point on the wall.
+			var aim: Dictionary = player.call("get_aim")
+			look = aim.get("point", p + Vector3(0.0, 0.6, -wall_d))
+			eye = look + Vector3(1.0, 0.25, 1.9)
 		"far":
 			eye = g + Vector3(4.0, 0.6, -wall_d * 0.5)
 			look = g + Vector3(0.0, 0.0, -wall_d * 0.5)
