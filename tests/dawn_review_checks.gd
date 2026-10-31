@@ -128,7 +128,8 @@ func _dawn(day: Node) -> void:
 		_t._check(float(on["dawn"]) > 0.99 and float(dusk["dawn"]) == 0.0, "dawn: the sky's dawn uniform is on at 06:15, off at 17:45")
 	if on.has("fog"):
 		var f: Color = on["fog"]
-		_t._check(f.b >= f.r * 0.9, "dawn: the morning haze is cool (%s)" % f)
+		var fd: Color = dusk["fog"]
+		_t._check(f.b > fd.b and f.r - f.b < fd.r - fd.b, "dawn: the morning haze is cooler than the evening's (%s vs %s)" % [f, fd])
 		_t._check(float(on["fog_gain"]) > float(off["fog_gain"]), "dawn: the morning haze is thicker with the sun low")
 
 
