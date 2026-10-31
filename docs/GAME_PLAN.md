@@ -3786,3 +3786,10 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+
+- **2026-10-31 The street at noon (rc-street-noon, HANDOFF "The street at noon").** Judged the
+  street_noon refcam and fixed what reads fake at eye level: asphalt is grey (a photo texture's hue
+  and a warm tint are taken out per texture set, proved on Forward+ with a probe of the real
+  materials, since the opengl3 stills hid the brown); a light-rail street is marked like any road
+  where the line runs underground; four-lane roads carry a double yellow; bike lanes are dirty;
+  patterned paving keeps its anti-repeat fetch on its own grid. All behind STREET_NOON=0.
