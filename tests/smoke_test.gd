@@ -2689,6 +2689,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The golden-hour review (tests/golden_hour_review_checks.gd, GoldenHour): the sky's twilight
 	# ramp, the blue zenith at sunset, the eased grade, no pop 17:00-19:30, the A/B.
 	load("res://tests/golden_hour_review_checks.gd").new().run(self, city)
+	# The rainy night street's refcam review (tests/rain_street_night_checks.gd, RainStreetNight):
+	# the lamp streaks, the lit rain, the curtain, the lens, the deck, the car lamps in the wet road.
+	await load("res://tests/rain_street_night_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

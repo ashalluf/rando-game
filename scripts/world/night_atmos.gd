@@ -234,7 +234,7 @@ static func atmos_material(kind: String) -> ShaderMaterial:
 		return _meshes[key]
 	var mat := ShaderMaterial.new()
 	mat.shader = load({"halo": "res://shaders/night_halo.gdshader", "wet": "res://shaders/night_wet.gdshader"}.get(kind, "res://shaders/night_shaft.gdshader"))
-	if kind == "wet":
+	if kind == "wet" or kind == "shaft":
 		RainStreetNight.dress_wet(mat)
 	_meshes[key] = mat
 	return mat

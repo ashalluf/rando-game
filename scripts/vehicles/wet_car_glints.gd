@@ -33,6 +33,10 @@ var _mm: MultiMesh
 var _inst: MultiMeshInstance3D
 var _cars: Array = []
 var _pick_t: float = 0.0
+## What the last _place() laid: head and tail streaks (the checks read these; a MultiMesh reads
+## back nothing under the headless renderer).
+var last_heads: int = 0
+var last_tails: int = 0
 
 
 ## Makes the node once under `city` (NightAtmos calls it from its own _ready). Safe to call again.
@@ -136,6 +140,8 @@ static func lamps(car: Vehicle) -> Array:
 func _place(eye: Vector3) -> void:
 	var to_local := global_transform.affine_inverse()
 	var n := 0
+	last_heads = 0
+	last_tails = 0
 	for car in _cars:
 		if not is_instance_valid(car) or not (car as Vehicle).is_inside_tree():
 			continue
@@ -160,4 +166,8 @@ func _place(eye: Vector3) -> void:
 			_mm.set_instance_color(n, HEAD if head else TAIL)
 			_mm.set_instance_custom_data(n, Color(s, 0.0, 0.0, 0.0))
 			n += 1
+			if head:
+				last_heads += 1
+			else:
+				last_tails += 1
 	_mm.visible_instance_count = n

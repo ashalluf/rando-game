@@ -540,8 +540,8 @@ global uniform vec3 origin_shift;
 // (lit by nothing else, a curtain of pale blue streaks read as scratches down the dark facades).
 global uniform float lamp_factor;
 uniform float night_look = NIGHT_LOOK;
-uniform vec3 night_tint = vec3(0.46, 0.41, 0.35);
-uniform float night_alpha = 0.72;
+uniform vec3 night_tint : source_color = vec3(0.46, 0.41, 0.35);
+uniform float night_alpha = 0.82;
 
 varying vec3 local_pos;
 varying vec3 world_pos;

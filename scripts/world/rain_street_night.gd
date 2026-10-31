@@ -22,7 +22,7 @@ static var enabled: bool = OS.get_environment("RAIN_STREET_NIGHT") != "0"
 
 ## The rain particles' emission (Weather's raindrop material) by day and at full lamp level.
 const DROP_GLOW_DAY := 0.18
-const DROP_GLOW_NIGHT := 0.09
+const DROP_GLOW_NIGHT := 0.12
 
 
 ## The streak shader's switch, set on NightAtmos' "wet" material when it is made.
@@ -47,3 +47,29 @@ static func drop_glow(lamp: float) -> float:
 ## The lens drops' shader, or null for Weather's old inline one.
 static func lens_shader() -> Shader:
 	return load("res://shaders/rain_lens.gdshader") if enabled else null
+
+
+## The overcast night sky: the city's sodium light on a low rain deck. At DayNight's numbers the
+## zenith of a rainy night was 0.045 (all but black) over a lit band at the horizon, so the deck
+## read as a clear black sky with a few lit wisps; a real one is a dull orange-brown lid all over.
+## Its zenith colour x STORM_TOP_GAIN at night, the night glow x STORM_GLOW_GAIN, the cloud's own
+## night light under full overcast OVERCAST_CLOUD (DayNight's 0.025).
+const STORM_TOP_GAIN := 1.75
+const STORM_GLOW_GAIN := 1.4
+const OVERCAST_CLOUD := 0.042
+const OVERCAST_CLOUD_OLD := 0.025
+
+
+static func storm_top(top: Color, moonlight: float) -> Color:
+	if not enabled:
+		return top
+	var k := lerpf(1.0, STORM_TOP_GAIN, clampf(moonlight, 0.0, 1.0))
+	return Color(top.r * k, top.g * k, top.b * k, top.a)
+
+
+static func storm_glow_gain() -> float:
+	return STORM_GLOW_GAIN if enabled else 1.0
+
+
+static func overcast_cloud_light() -> float:
+	return OVERCAST_CLOUD if enabled else OVERCAST_CLOUD_OLD

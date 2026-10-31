@@ -48,7 +48,7 @@ uniform float start2_share = 0.3;
 uniform float smear2_share = 0.4;
 uniform float smear2_max = 6.0;
 uniform float gain2 = 0.62;
-uniform float gain2_forward = 0.42;
+uniform float gain2_forward = 0.28;
 
 varying float v_amp;
 varying float v_peak;
