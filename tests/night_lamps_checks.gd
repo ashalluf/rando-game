@@ -86,8 +86,8 @@ func _lights() -> void:
 	var gt := float(tall.get_meta("lamp_gain", 1.0))
 	var gl := float(low.get_meta("lamp_gain", 1.0))
 	# What reaches the road under the head: gain x d^-attenuation; a tall head no longer a quarter of a post's.
-	var et := gt * pow(8.35, -1.1)
-	var el := gl * pow(4.4, -1.18)
+	var et := gt * pow(8.35, -tall.omni_attenuation)
+	var el := gl * pow(4.4, -low.omni_attenuation)
 	_t._check(tall.omni_range >= 2.4 * 8.35 - 0.01 and absf(et / el - 1.0) < 0.05 and gt > gl,
 		"night lamps: a tall head's light reaches %.1f m and lands as bright under it as a post's (%.2f / %.2f)" % [tall.omni_range, et, el])
 	NightLamps.enabled = false

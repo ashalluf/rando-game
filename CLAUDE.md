@@ -1851,6 +1851,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `uv_shift`), and `UV.y > 1.5` is how the shader knows to draw a fan that widens and fades
   along the road instead of a round pool; drawn as a pool, a beam laid flat on the street read
   as a long white smear.
+- Street lamps at eye level (2026-10-31, docs/HANDOFF.md "The street lamps at eye level"):
+  `NightLamps` (`scripts/world/night_lamps.gd`): each lamp's OmniLight normalised by head height
+  (`tune_light()`, meta `lamp_gain`, reach 2.4 h, falloff 1.5), the pool a point source's falloff in
+  the lamp's frame (`pool_instance()`, light_pool.gdshader's INSTANCE_CUSTOM.a branch; display-number
+  add on Forward+), sodium / LED colours, the wet streaks' flare. `LampShadows`: the two nearest lit
+  street lamps (group `street_lamp_light`) cast dual-paraboloid shadows at HIGH on Forward+, the lamp
+  models on render layer 18 out of their casters. `NIGHT_LAMPS=0` / `LAMP_SHADOWS=0` the A/B; scene
+  `tools/night_lamps/lamp_street.tscn` (Forward+ in minutes); checks `tests/night_lamps_checks.gd`.
 - Night atmosphere (2026-10-30, docs/HANDOFF.md "Night street atmosphere"): `NightAtmos`
   (`scripts/world/night_atmos.gd`): camera-facing halos round every lamp head
   (`atmos_glow_halo`) and lit shop front (`atmos_shop_glow`), a drawn light cone under each FULL

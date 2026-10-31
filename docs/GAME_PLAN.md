@@ -3786,3 +3786,12 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+
+- **2026-10-31 The street lamps at eye level (night-lamps-review, HANDOFF "The street lamps at eye
+  level").** Judged on Forward+ (a small lamp street under lavapipe), not the opengl3 stills: there
+  the lamps lit almost nothing. Decisions: a lamp's real light is normalised by its head's height
+  (every type lands the same light under it) with a steeper falloff so pools read; the additive pool
+  is a point source's falloff in the lamp's frame and, on Forward+, added in display numbers at a
+  share (the light does the rest); sodium deep amber, LED warm-white; real shadows only from the two
+  nearest lamps at HIGH, dual-paraboloid, faded, the lamps' own models kept out of their casters.
+  NIGHT_LAMPS=0 / LAMP_SHADOWS=0 are the A/B.
