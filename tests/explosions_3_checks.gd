@@ -26,6 +26,17 @@ func run(t: Node, city: Node3D) -> void:
 	_build_deck()
 	BlastFX._recent.clear()
 	var parent := WeaponFX.fx_parent(city)
+	# An earlier file's blast still fading holds the names: Godot names this blast's BlastVolume /
+	# BlastHaze "@MeshInstance3D@n" beside it and the searches below miss them (gate run 4242, as
+	# explosions_2 in run 505). This blast gets the names to itself.
+	var stale := 0
+	for c in parent.get_children():
+		# (BlastBits is the chips' shared pool, not a blast's: it stays.)
+		if String(c.name).begins_with("Blast") and not String(c.name).begins_with("BlastBits") and not c.is_queued_for_deletion():
+			c.queue_free()
+			stale += 1
+	if stale > 0:
+		await _tree.process_frame
 	var before := {}
 	for c in parent.get_children():
 		before[c] = true

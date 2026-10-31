@@ -44,7 +44,8 @@ func run(t: Node, city: Node3D) -> void:
 	# (gate run 505). This check's blast gets the names to itself.
 	var stale := 0
 	for c in parent.get_children():
-		if String(c.name).begins_with("Blast") and not c.is_queued_for_deletion():
+		# (BlastBits is the chips' shared pool, not a blast's: it stays.)
+		if String(c.name).begins_with("Blast") and not String(c.name).begins_with("BlastBits") and not c.is_queued_for_deletion():
 			c.queue_free()
 			stale += 1
 	if stale > 0:
