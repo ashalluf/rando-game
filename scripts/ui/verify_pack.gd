@@ -91,8 +91,8 @@ func _autostart() -> void:
 	# VERIFY_CARD_SHOT=<png>: the end card as the owner sees it (the harness's proof of the card).
 	var card_shot := OS.get_environment("VERIFY_CARD_SHOT")
 	if card_shot != "":
-		await RenderingServer.frame_post_draw
-		await RenderingServer.frame_post_draw
+		await _drawn()
+		await _drawn()
 		var img := get_viewport().get_texture().get_image()
 		if img:
 			img.save_png(card_shot)
@@ -302,8 +302,8 @@ func _shoot(city: Node, player: Node3D, cam: Dictionary, i: int, n: int, folder:
 		Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME)]
 	# The picture, without the progress line.
 	_overlay.visible = false
-	await RenderingServer.frame_post_draw
-	await RenderingServer.frame_post_draw
+	await _drawn()
+	await _drawn()
 	var img: Image = null
 	var tex := get_viewport().get_texture()
 	if tex:
@@ -324,6 +324,14 @@ func _shoot(city: Node, player: Node3D, cam: Dictionary, i: int, n: int, folder:
 			small.save_jpg(folder.path_join("send").path_join(file.get_basename() + ".jpg"), 0.88)
 			shot.thumb = _scaled(img, sheet_thumb)
 	return shot
+
+
+## One drawn frame (the dummy renderer of the headless check never emits frame_post_draw).
+func _drawn() -> void:
+	if DisplayServer.get_name() == "headless":
+		await get_tree().process_frame
+	else:
+		await RenderingServer.frame_post_draw
 
 
 func _place(player: Node3D, at_true: Vector3, basis: Basis) -> void:
@@ -486,9 +494,9 @@ func _write_sheet(folder: String, shots: Array) -> void:
 			s.tris / 1.0e6, s.draws, lum[1], lum[2], lum[3]], HudTheme.text(), 15, Color(1, 1, 1, 0.7))
 		l2.position = Vector2(x, y + thh + 28)
 		vp.add_child(l2)
-	await RenderingServer.frame_post_draw
-	await RenderingServer.frame_post_draw
-	await RenderingServer.frame_post_draw
+	await _drawn()
+	await _drawn()
+	await _drawn()
 	var img := vp.get_texture().get_image() if vp.get_texture() else null
 	if img != null and not img.is_empty():
 		img.convert(Image.FORMAT_RGB8)

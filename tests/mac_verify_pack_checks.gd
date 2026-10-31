@@ -109,7 +109,7 @@ func _check_run(city: Node3D, pack: Node) -> void:
 	var folder: String = ""
 	var done := {"v": false}
 	var runner := func() -> void:
-		folder = await pack.call("run")
+		await pack.call("run")
 		done.v = true
 	runner.call()
 	var t0 := Time.get_ticks_msec()
@@ -124,6 +124,7 @@ func _check_run(city: Node3D, pack: Node) -> void:
 	OS.set_environment("VERIFY_HOLD", "")
 	pack.set("settle_frames", 20)
 	_check(done.v, "a one-camera verify run finishes")
+	folder = String(pack.get("last_folder"))
 	_check(mid and seen.rain and is_equal_approx(seen.hour, 21.5) and seen.hud_off,
 		"during the run the camera's hour (21:30) and weather (rain) are set, the player parked hidden, the HUD hidden")
 	var shots: Array = pack.get("last_shots")
