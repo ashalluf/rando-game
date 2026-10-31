@@ -5221,6 +5221,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`_walk_clip_speed`), clamped to `CADENCE`; use `_walk_clip` / `_idle_clip`, never the
   constants, in the plain walker's code. Turns bank (`turn_lean()`), carrying hands swing less.
   `CROWD_ANIM_2=0` is the A/B; `crowd_lab.tscn SCENARIO=gaits`; checks `tests/crowd_anim_2_checks.gd`.
+- The crowd up close, third pass (wave 4, docs/HANDOFF.md "The crowd up close, third pass"):
+  `tools/crowd/crowd_shoes.py` (from build_character.py) adds to every pack shoe a sole band swept
+  round its ground outline (sidewall, outsole edge; a boot's welt and lugs, a dress shoe's stacked
+  heel), an outsole, laces with a bow and eyelets, as own parts (gid 90, region "other") painted
+  by `shoe_paint.py`; hands have their own budget (`budget.hands`) and a relaxed pose with the
+  thumb in. `CrowdCloseup3` (`scripts/npc/crowd_closeup_3.gd`): each rig's own walk / run / jog
+  play at its measured speed (`CrowdStrideTable`, `tools/crowd_closeup_3/stride_fit.gd WRITE=1`:
+  rerun it with hat_fit / face_fit / life / gait / busk clips after any rig rebuild); the hair
+  cards' cut breaks into strands (crowd_hair.gdshader `closeup`). `CROWD_CLOSEUP_3=0` the runtime
+  A/B, `CROWD_SHOES=0` the build's; close-ups `tools/crowd_closeup_3/closeup_shot.gd` (PARTS=
+  rhand,feet,head,...); checks `tests/crowd_closeup_3_checks.gd`.
 - Crowd faces (2026-10-30, docs/HANDOFF.md "The crowd's faces up close"): a branch of
   `character.gdshader` (`face_pass`, set by `CrowdFaces.apply()` from `Pedestrian.character_material()`)
   that runs only within `CrowdFaces.REACH` (11 m) of the camera on the crowd rigs. Per rig,

@@ -3786,3 +3786,11 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+
+- **2026-10-31 The crowd up close, third pass: build it, then measure it (crowd-closeup-3, HANDOFF
+  "The crowd up close, third pass").** Shoes get real geometry where the eye lands at 2-6 m (a
+  sole's sidewall and the laces), built from the pack shoe's own mesh by the crowd builder rather
+  than new models; hands get their own triangle budget instead of a share of the skin's (the share
+  cut them to 500 triangles a hand); clip rates come from each rig's measured stride, never one
+  constant for every rig (that constant was 0.67-0.91 m/s off by rig). The rigs grew ~5k triangles
+  near; their LODs carry the distance.
