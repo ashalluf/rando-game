@@ -4192,6 +4192,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   screen (`PierPark.warm()`). Stills: `PIER_COASTER_S=<s>` (or `PIER_COASTER=<seconds>`) holds
   the train; EYEs in HANDOFF 9ca. Probe: `tools/pier/compile.gd` (compiles, builds near and far,
   prints the cost, runs the layout checks; seconds, headless).
+- The pier at night (wave 4, refcam pier_night, docs/HANDOFF.md "The pier at night from the
+  beach"): `PierNight` (`scripts/world/pier_night.gd`, one hook in `PierPark.build()`, one in
+  `PierCoaster._track_mesh()`): the wheel's sub-pixel LED strips drawn analytically in its plane
+  past a couple of pixels plus a glow of its colour (`shaders/pier_wheel_glow.gdshader`; the
+  patterns are `shaders/pier_led.gdshaderinc`, shared with pier_park.gdshader - change them
+  there), NightAtmos halos on the lamp globes, string bulbs, stand fronts, carousel crown and new
+  coaster chaser bulbs (one MultiMesh, thinned on the far copy). sky.gdshader's painted cumulus
+  take `painted_night_gain` / `painted_city_light` at night (Compatibility and below MEDIUM only).
+  `PIER_NIGHT=0` / `NIGHT_CLOUDS=0` are the A/B; the pier alone in a minute:
+  `tools/pier_night/pier_shot.tscn` (`EYE`, `T`, `FAR=1`, either renderer); checks
+  `tests/rc_pier_night_checks.gd`.
 - Downtown skyline (owner, 2026-09-24: "a 1:1 match of DTLA skyline ... It needs more
   buildings"): `LandmarkDowntown` (`scripts/world/landmark_downtown.gd`) builds nineteen `dt_*`
   landmarks, listed in ONE contiguous block at the end of `Landmarks.all()` (other branches add
