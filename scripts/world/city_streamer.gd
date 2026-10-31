@@ -1117,6 +1117,11 @@ func set_ground_smog(amount: float, color: Color) -> void:
 		_ground_material.set_shader_parameter("smog_color", color)
 
 
+## DayNight's sun and sky for the plane's painted light (GoldenAerial).
+func set_ground_light(sun_color: Color, energy: float, day_energy: float, top: Color, horizon: Color, golden: float, night: float) -> void:
+	GoldenAerial.ground_light(_ground_material, sun_color, energy, day_energy, top, horizon, golden, night)
+
+
 ## Where the horizon plane's rim hands over to the sky, as fractions of its half-size (see
 ## edge_start in macro_ground.gdshader).
 const GROUND_EDGE_FADE := Vector2(0.72, 0.98)

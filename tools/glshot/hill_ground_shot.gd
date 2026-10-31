@@ -40,6 +40,10 @@ func set_ground_haze(color: Color, sun_direction: Vector3) -> void:
 		_ground_mat.set_shader_parameter("sun_dir", sun_direction)
 
 
+func set_ground_light(sun_color: Color, energy: float, day_energy: float, top: Color, horizon: Color, golden: float, night: float) -> void:
+	GoldenAerial.ground_light(_ground_mat, sun_color, energy, day_energy, top, horizon, golden, night)
+
+
 func set_ground_smog(amount: float, color: Color) -> void:
 	if _ground_mat:
 		_ground_mat.set_shader_parameter("smog", amount)

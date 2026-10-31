@@ -102,6 +102,9 @@ uniform float cloud_speed = 0.006;
 /// The decks above the cumulus: a broken mid-altitude sheet and high cirrus. Both, the sun-side
 /// sculpting and the crepuscular rays are gated on `cloud_detail`; it costs five noise taps.
 uniform float mid_amount : hint_range(0.0, 1.0) = 0.5;
+/// The mid deck as cloudlets (1) or the old smooth field (0, GOLDEN_AERIAL=0), and their scale.
+uniform float mid_cells : hint_range(0.0, 1.0) = 1.0;
+uniform float mid_cell_scale = 14.0;
 uniform float cirrus_amount : hint_range(0.0, 1.0) = 0.45;
 uniform float cloud_detail : hint_range(0.0, 1.0) = 1.0;
 uniform vec3 cloud_color : source_color = vec3(1.0, 1.0, 1.0);
@@ -194,6 +197,12 @@ float hash12(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
 	p3 += dot(p3, p3.yzx + 33.33);
 	return fract((p3.x + p3.y) * p3.z);
+}
+
+vec2 hash22m(vec2 p) {
+	vec3 p3 = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973));
+	p3 += dot(p3, p3.yzx + 33.33);
+	return fract((p3.xx + p3.yz) * p3.zy);
 }
 
 float hash13(vec3 p3) {
@@ -1185,9 +1194,58 @@ void sky() {
 				+ vec2(TIME * cloud_speed * 0.42, TIME * cloud_speed * 0.20);
 			float mv = cloud_lo(muv * 1.7 + 41.0);
 			float mth = 1.0 - cloud_coverage * 0.75;
-			float mden = smoothstep(mth, mth + 0.28, mv) * mid_amount * smoothstep(0.04, 0.34, up);
+			float menv = smoothstep(mth, mth + 0.28, mv);
+			float m_core = 0.0;
+			if (mid_cells > 0.0) {
+				// The golden-aerial review: the field alone, three smooth octaves cut by a
+				// threshold, drew ONE soft grey blob a quarter of the sky across, the most fake
+				// thing in the evening aerial. Altocumulus is a field of small cloudlets with sky
+				// between them; the field is only where the sheet is, and thicker in its middle.
+				vec2 cuv = muv * mid_cell_scale * vec2(0.8, 1.25);
+				float fp = length(fwidth(cuv));
+				// Warped, so the cells run in wavy rows rather than on a grid.
+				cuv += vec2(vnoise(cuv * 0.21 + 3.1), vnoise(cuv * 0.21 + 8.7)) * 1.6;
+				float ragged = (vnoise(cuv * 2.7 + 1.9) - 0.5) * 0.5 + (vnoise(cuv * 6.1) - 0.5) * 0.25;
+				vec2 ci = floor(cuv);
+				vec2 cf = fract(cuv);
+				// Each cell a cloudlet: a jittered centre and its own size, rounded, soft at
+				// its edge; neighbours merge where the sheet is thick.
+				float puff = 0.0;
+				float core = 0.0;
+				float grow = mix(0.34, 0.62, menv);
+				for (int j = -1; j <= 1; j++) {
+					for (int i = -1; i <= 1; i++) {
+						vec2 g = vec2(float(i), float(j));
+						vec2 hh = hash22m(ci + g);
+						vec2 d = g + 0.15 + hh * 0.7 - cf;
+						float r = grow * (0.7 + 0.6 * hash12(ci + g + 31.7));
+						float q = 1.0 - length(d) / r + ragged;
+						puff = max(puff, smoothstep(0.0, 0.45, q));
+						core = max(core, smoothstep(0.3, 0.9, q));
+					}
+				}
+				// Under a pixel a cloudlet is only its average cover.
+				float far_c = smoothstep(0.3, 1.0, fp);
+				puff = mix(puff, 0.55 * grow + 0.25, far_c);
+				m_core = core * (1.0 - far_c);
+				menv *= mix(1.0, puff, mid_cells);
+			}
+			float mden = menv * mid_amount * smoothstep(0.04, 0.34, up);
 			vec3 mcol = mix(cloud_shadow * 1.08, cloud_color * 0.98, 0.45 + 0.55 * sunlit);
-			mcol = mix(mcol, mcol * night_cloud_light * 1.15 + night_glow, night_factor);
+			mcol = mix(mcol, mcol * mix(vec3(1.0), cloud_shadow, 0.6), m_core * 0.45 * mid_cells);
+			float m_night = night_factor;
+			if (sunset > 0.0 && mid_cells > 0.0) {
+				// Five kilometres up, the low sun's light: the sheet glows with it like the cirrus.
+				float mt = rise_t(max(up, 0.01), max(5.0 - view_km.y, 0.5));
+				float mel = sdir.y + dot(dir.xz * mt, normalize(sdir.xz + vec2(1e-5, 0.0))) / EARTH_R;
+				vec4 mst = sun_through(mel, 5.0);
+				float mfwd = 0.7 + 1.4 * pow(max(cos_sun, 0.0), 4.0);
+				vec3 mhot = sunset_out(mst.rgb * mst.a * mfwd * sunset_cloud_gain);
+				vec3 mshade = col * 0.82 + night_glow;
+				mcol = mix(mcol, mix(mshade, mix(mhot, mcol, 0.35), mst.a), sunset);
+				m_night = night_factor * (1.0 - mst.a * sunset);
+			}
+			mcol = mix(mcol, mcol * night_cloud_light * 1.15 + night_glow, m_night);
 			// Next to the cumulus volume the painted sheet reads as a smear: keep it thin there.
 			col = mix(col, mcol, mden * (volume ? 0.2 : 0.70));
 		}
