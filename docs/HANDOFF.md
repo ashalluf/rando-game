@@ -21980,3 +21980,49 @@ the same way, but judge 18:00 on the Mac first - if it reads milky-pink, raise `
 grass under a low red sun is what it is). The painted cumulus on opengl3 draws a big smooth ellipse in
 the aerial and sky shots (before and after alike; the sky's, not this review's). Dawn shares the sky
 ramp and the exposure ramp (both are symmetric in elevation) and was not looked at.
+
+## 9d?. The pier at night from the beach (fleet wave 4, `rc-pier-night`, refcam pier_night)
+
+The pier_night reference camera (eye (-945, 1.8, -235), 21:00 clear) judged as an art director
+would. What gave it away, in the order the eye lands on it:
+
+1. **The wheel read as white steel.** Its LED strips are 13 cm wide: from the beach (100-300 m) a
+   fifth of a pixel, so the Compatibility renderer (no MSAA) drew the white-painted frame with a
+   few aliased specks of colour (wheel pixels mean (142, 158, 159), saturation ~0.1).
+2. **The deck was a black slab.** Lamp globes (0.24 m), string bulbs (5 cm) and the stands' fronts
+   were all under a pixel; only the arcade's windows and two lamp posts showed.
+3. **The coaster was an unlit red line** - the real pier rides carry chaser bulbs.
+4. **The night clouds were dark holes** in the navy sky on the painted (Compatibility) path:
+   desaturated grey at night_cloud_light 0.12 against a saturated sky. Forward+'s volume already
+   lit them warm grey-brown from the city below.
+
+Fixes (`PierNight`, `scripts/world/pier_night.gd`; `PIER_NIGHT=0` the A/B):
+- **The wheel's LEDs drawn on purpose** (`shaders/pier_wheel_glow.gdshader`): two quads in the
+  wheel's plane, one over each face's LEDs, turning with the wheel. Every spoke strip and both
+  rings are drawn analytically at their place and pattern, at least `min_px` 1.6 pixels wide with
+  their light spread over it (sqrt of the coverage kept: the LEDs bloom), faded in only once the
+  real strips are under a couple of pixels (`far_px`). Plus a glow of the wheel's mean colour in
+  the air, worked out in the vertex stage from the same patterns, zero at the quad's edge. The
+  patterns moved into `shaders/pier_led.gdshaderinc`, which pier_park.gdshader includes too.
+  pier_park's own `led_energy` 22 -> 4.5: through AgX the old value drew every colour white.
+- **The deck's lights as points**: NightAtmos halos (night_halo.gdshader, its core never under
+  1.7 px) on every lamp globe (40), every third string bulb, every stand and booth front, the
+  carousel crown and the coaster bulbs - one MultiMesh, one draw, collapsed by day. The far copy
+  takes every 4th bulb at 0.4 of the strength (all of them smeared into one blob at 1 km).
+- **Coaster chaser bulbs**: a bulb every 2.4 m outside each rail in the near track mesh
+  (pier_park's bulb kind, chasing by index), +5.3 k vertices.
+- **The painted cumulus at night** (sky.gdshader `painted_night_gain` 1.8 / `painted_city_light`
+  0.22 on Compatibility, 1.3 / 0.15 on Forward+ below MEDIUM, where the painted path runs; the
+  volume at HIGH is untouched): lit by the moon, the air and the city dome from below.
+  `NIGHT_CLOUDS=0` (SkyExtras.setup) is the A/B.
+
+Numbers (refcams, opengl3, all ten, A/B switches off vs on, same tree): pier_night p50 20 -> 22,
+p95 33 -> 45, saturation 0.60 -> 0.58 (the sky's share), tris +0.2 %, draws +0.4 %. The other
+nine within tolerance except freeway (a semi in one run only: traffic noise, see the diff map).
+Forward+ checked on the pier alone on lavapipe (`tools/pier_night/pier_shot.tscn`, vulkan): the
+wheel, bulbs and halos read, no flat discs; the volume clouds unchanged.
+
+Not done / owned elsewhere: the sea's reflections of the wheel and lamps and the bright swash
+line along the sand (water-review owns ocean / beach_sand); no bonfire rings in this view (the
+boardwalk's keep-off); the crowd on the deck is too small to read from the beach; the pier's
+underside stays a dark band.
