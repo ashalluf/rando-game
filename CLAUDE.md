@@ -6300,6 +6300,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   kerbs and far_traffic's own cars (same keys) by day on the plates, decks and LOD ground, the
   asphalt x`mid_road_gain`. Hashes only, nothing else moves. `MID_CITY=0` is the A/B; probe
   `tools/mid_city/probe.gd -- --at=x,z`; checks `tests/mid_city_checks.gd`.
+- The golden aerial (2026-10-31, docs/HANDOFF.md "The golden aerial"): `GoldenAerial`
+  (`scripts/world/golden_aerial.gd`) hands macro_ground's painted band DayNight's sun colour and
+  energy (`sun_gain`) and a zenith fill at golden hour (`fill_top`, via `CityStreamer.set_ground_light()`);
+  the sky's mid deck is Worley cloudlets (`mid_cells`); `HallDress` dresses the convention halls'
+  roofs and walls; far antennas are dimmed by their coverage (`mast_cover_dim`); the lens fringe is
+  halved. `GOLDEN_AERIAL=0` is the A/B; checks `tests/rc_golden_aerial_checks.gd`.
 - The aerial review (2026-10-30, docs/HANDOFF.md "The aerial review"): what breaks at the tier
   seams from 100-800 m, fixed behind `AerialReview` (`scripts/world/aerial_review.gd`;
   `AERIAL_REVIEW=0` the A/B): the horizon plane paints its sea on the ocean chunks' own hand-over

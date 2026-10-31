@@ -3786,3 +3786,10 @@ none of either.
   twilight ramp, never night_factor (which stays the lamps' switch); the exposure must fall
   monotonically with the light (it now starts toward the night's as the sun sets); the GOLDEN grade
   eases while the light itself is red; the sunset zenith stays blue. All behind GOLDEN_HOUR_REVIEW=0.
+
+- **2026-10-31 The golden aerial (rc-golden-aerial, HANDOFF "The golden aerial").** Every painted
+  light must follow DayNight's: the horizon plane's painted band now takes the sun's real colour
+  and energy and a zenith-coloured fill at golden hour (it lit the far ranges at noon strength all
+  evening). The sky's mid deck is cloudlets, never a thresholded smooth field. Big landmark boxes
+  seen from the air get their roofs dressed. Anything widened to a minimum pixel width is dimmed by
+  the share it really covers. GOLDEN_AERIAL=0 is the A/B.
