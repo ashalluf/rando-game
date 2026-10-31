@@ -336,16 +336,23 @@ static func hole(node: Node, at: Vector3, normal: Vector3, surf: int, collider: 
 	if pellet:
 		w *= pellet_hole_scale
 	stats["holes"] = int(stats["holes"]) + 1
-	var mark := _mark(host, maps, at, normal, w, bool(look["glass"]))
+	var mark := _mark(host, maps, at, normal, w, bool(look["glass"]), -1.0, surf == WeaponFX.Surface.WOOD)
 	if mark != null:
 		WeaponFX.keep_hole(mark)
 	return mark
 
 
 ## A mark of `maps` ([albedo, normal, orm]) `w` across at `at` on a surface facing `normal`.
-static func _mark(host: Node3D, maps: Array, at: Vector3, normal: Vector3, w: float, glass: bool, life: float = -1.0) -> Node3D:
+static func _mark(host: Node3D, maps: Array, at: Vector3, normal: Vector3, w: float, glass: bool, life: float = -1.0, grain: bool = false) -> Node3D:
 	var n: Node3D
 	var roll := randf_range(-PI, PI)
+	if grain:
+		# Along the grain (taken as vertical on a wall, the slope's fall elsewhere): the mark's
+		# split runs down its texture's v, which is the basis' z.
+		var up := Vector3.UP - normal * normal.dot(Vector3.UP)
+		if up.length_squared() > 1e-4:
+			var z0 := WeaponFX._basis_up(normal).z
+			roll = z0.signed_angle_to(up.normalized(), normal) + randf_range(-0.12, 0.12)
 	if RenderingServer.get_rendering_device() != null:
 		var decal := Decal.new()
 		decal.texture_albedo = maps[0]
