@@ -22452,3 +22452,73 @@ Owner's page: `docs/VERIFY.md`.
 **Gate (2026-10-31).** SHARDS=3: 4,360 of 4,361; the one FAIL was utility poles' "the line rolls nothing
 from the block" in shard 0 (the verify checks ran in shard 2), which passes alone (30 of 30): an intermittent
 outside this branch. The verify checks alone: 35 of 35. Peak RSS of a part run 2.4 GB.
+
+## 9is. Forward+ review f: wave 3's batches 21-25 on the Mac's renderer (fleet wave 4, session `fwd-review-f`, branch `wt/fwd-review-f`)
+
+Same method as reviews a-e: each feature in a SMALL scene on the real Forward+ pipeline under
+lavapipe beside the same frame on opengl3, measured (luminance p5 / p50 / p95), stills and their
+README on `shots/fwd-review-f`. Seed 1337. Batches 21-25 = aerial-review, lawns-closeup,
+web-review-3, house-nights, car-paint-2, night-street-review, street-clutter-2,
+downtown-street-closeup, storm-drama, golden-hour-review.
+
+**First a static pass** over every shader those branches added or changed (house_glow, house_lamp,
+house_nights, house_glass, night_wet, storm_bolt, storm_runoff, street_steam, street_clutter_2,
+kerb_closeup, lawn / lawn_field / grass / lawn_weed / lot_yard, car_paint's paint2 block,
+macro_ground, rock_outcrop, sky's flash lobe) against the colour-space rules (fwd-review-d / e and
+CLAUDE.md's traps): every one decodes vertex / instance colours with `cs_srgb_to_linear()`, takes
+`sky_tint` through `cs_srgb_to_linear()` (linear shaders) or `cs_as_uniform()` / `grime_col()`
+(renderer-space ones), adds additively in display numbers where it is broad (house_glow) and fades
+its additive quads to zero at the edge (storm_bolt, night_wet). Nothing to fix there.
+
+**Fixed: a lightning strike at night whited out the frame** (both renderers; worse on Forward+).
+A held 0.9 strike at 21:30 (`STORM_FLASH=1 STORM_FLASH_HOLD=0.9 STORM_FLASH_AZ=10
+STORM_FLASH_DIST=1100`, suburb street 1801.8,1.7,4135.2) drew street and sky at p50 218
+(opengl3) / 201 (Forward+), p95 ~230: the flash's light (the sun's `+ flash * 2.5` and the
+lightning DirectionalLight's 5.5) is the day's against an exposure set for a 0.09 moon, ~350x
+the moonlight; the bolt was lost in the white. storm-drama had cut FLASH_AMBIENT for this but never
+re-shot it. On Forward+ the lightning light also lit the rain-thickened volumetric fog (its
+`light_volumetric_fog_energy` was Godot's 1.0) into a milky veil (p5 97). Now
+`StormDrama.night_flash_gain(moonlight)` scales the flash's light by `NIGHT_FLASH_LIGHT` 0.22 and
+the sky's flash by `NIGHT_FLASH_SKY` 0.45 at night (1 by day), the bolt keeps the whole flicker
+(`on_flash()` unscaled), and the lightning light's fog energy is `FLASH_FOG_ENERGY` 0.3.
+After: opengl3 p5/p50/p95 15/169/201, Forward+ 29/135/205, the bolt plainly visible on both.
+`STORM_NIGHT_FLASH=0` is the A/B. Checks: `tests/fwd_review_f_checks.gd`.
+
+**Looked at, nothing to fix (Forward+ against opengl3):**
+- Lawns close up (suburb parkway and front lawns at 12:00, 07:00 with the sprinklers, 21:30): the
+  blades take the ground's colour on Forward+ as on opengl3 (cs_as_uniform(COLOR) x the grass mean);
+  the night parkway is as dark as the walk beside it on both (measured ~58 vs ~50), not black.
+- House nights (the same street at 21:30): lit windows, porch lanterns and their scallops match;
+  the house_glow pools are display-additive, no white discs.
+- Car paint 2 (`car_shot.gd PAINT_ENV=street` and `golden,street`, the pickup in navy): the street
+  line in the lacquer and the coat read alike; Forward+ is darker navy, the renderers' usual
+  difference. (car_shot's bare ProceduralSky has a brown ground, which chrome mirrors as rust.)
+- The golden hour (tools/cinematic/grade_probe.gd, 17:30 / 18:00 / 18:30 / 19:00): the review's
+  change holds on Forward+. A first run looked milky pink at 18:00 (p5 46); it was the PROBE: with
+  several HOURS each starts from the previous hour's GI, and 20 frames does not settle SDFGI on
+  lavapipe. Cold start p5 31, converged (FRAMES=90) 41 / p50 64 against GOLDEN_HOUR_REVIEW=0's
+  17 / 36: the same lift the review made on opengl3 (16 -> 48). A trial SUNSET_GRADE 0.75 on
+  Forward+ moved it by 1 level and was dropped. The probe's header now says so.
+- The aerial review (hill_ground_shot.tscn GROUND=1 LOD=3 DAYNIGHT=1): the sea from 260 m at 12:30
+  joins the plane without the old seam on Forward+ (a faint line at the FULL ocean chunk's edge on
+  both renderers); the hills at 21:30 from 520 m are darker on Forward+ (p50 18 vs 29) - the pale
+  moonlit hills are the opengl3 side; moonlit cloud tops in the volume read bright, as moonlit cloud
+  does (five times the ground's albedo). FULL hill chunks with BLOCKS=1 run lavapipe out of memory:
+  BLOCKS=0.
+- The rainy night (the same street, 21:30 rain) and the storm by day: the wet road on Forward+
+  still mirrors lit windows as a grid of squares - wave 4's `wet-road-mirror` session owns it; the
+  rainy night sky is 2.6x brighter and redder on Forward+ (66,44,34 against 25,20,17): the sky
+  shader's linear night constants (`night_glow`, the light dome) are read as display numbers on
+  Compatibility, so it is the WEB / opengl3 side that is too dark there. Left for the sky's owner.
+
+**Not rendered:** downtown (street clutter's steam and bags, the kerb close-up's arris under a real
+sun, Broadway's lanterns) - a downtown block alone needs ~13.6 GB on lavapipe; storm run-off, the
+inner curtain's TAA ghosting at 60 fps. The web build (web-review-3) is the browser's and was not
+re-shot.
+
+**Tools:** `tools/fwd_review_f/shoot.sh <out> <eye> "<eyes>" [env...]` (fwd_block_shot on vulkan
+then opengl3; DRIVERS=, BLOCKS=, EXTRA=, FRAMES=). Lavapipe needs a temporary `override.cfg` with
+`[threading] worker_pool/max_threads=1` (never commit it) and `EXTRA=""` for a suburb block; a
+second place in one load (FREE_PREV off) is what OOMs it.
+
+**Frame cost:** none (two light energies and a uniform's value at night; no node, mesh or draw).
