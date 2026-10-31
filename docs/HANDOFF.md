@@ -22492,7 +22492,8 @@ concrete garage is cut into the bank at the kerb (sectional door, lamp, a deck w
 and a flight of concrete steps with a rail runs from the back of the pavement to the door (beside the
 garage), wherever the door is `STAIR_RISE` 0.9 m or more over the pavement. One mesh a chunk
 (`HillHomes`, FootbridgeKit's material) and one body (garages, steps). Hashes only. The stairways'
-banks are ground cover and dense shrubs now (`_scatter_ground_cover()`, a private rng), not mown lawn.
+banks are planted now: the hills' own shrub mounds (`HillShrub`) and ground cover
+(`_scatter_ground_cover()`), a private rng, over the bank slab.
 
 `LA_HILLS=0` is the A/B (the city exactly as before). Checks: `tests/la_street_hills_checks.gd`.
 Known gaps: houses on a 1-2.8 m drop still stand on plain wall (HouseBuild's base), only the steeper

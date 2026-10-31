@@ -77,7 +77,15 @@ static func _plant(ch: CityChunk, along_x: bool, mid: float, s0: float, s1: floa
 			var sc := rng.randf_range(1.0, 1.9)
 			var basis := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(sc, sc, sc))
 			var tint := Color(rng.randf_range(0.8, 1.05), rng.randf_range(0.9, 1.1), rng.randf_range(0.8, 1.0))
-			ch._batch.add("bush_%d" % pick, PropFactory.model_bush(pick), Transform3D(basis, Vector3(p.x, CityChunk.SIDEWALK_TOP, p.y)), tint)
+			if rng.randf() < 0.3:
+				ch._batch.add("bush_%d" % pick, PropFactory.model_bush(pick), Transform3D(basis, Vector3(p.x, CityChunk.SIDEWALK_TOP, p.y)), tint)
+			else:
+				# A planted bank's mass: the hills' own shrub mound (HillShrub), 0.8-1.6 m, wider than tall.
+				var v := rng.randi() % HillShrub.VARIANTS
+				var hs := rng.randf_range(0.8, 1.6) / HillShrub.HEIGHT
+				var mb := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(hs * 1.6, hs, hs * 1.6))
+				ch._batch.add("hill_shrub_%d" % v, HillShrub.mesh(v), Transform3D(mb, Vector3(p.x, CityChunk.SIDEWALK_TOP - 0.1, p.y)),
+					Color(1.0, 1.0, 1.0).lerp(Color(1.18, 1.15, 1.08), rng.randf()), Color(rng.randf() * 0.3, rng.randf(), rng.randf(), 0.0))
 		if s >= next_tree:
 			var side := -1.0 if rng.randf() < 0.5 else 1.0
 			var tp := _p(along_x, s, mid + side * (inner + outer) * 0.5)
