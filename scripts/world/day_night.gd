@@ -289,6 +289,11 @@ func _ready() -> void:
 			island.name = "OffshoreIsland"
 			add_child(island)
 			island.setup(_sky, self)
+	if _env and _env.sky and SkySettle.enabled():
+		var settle := SkySettle.new()
+		settle.name = "SkySettle"
+		add_child(settle)
+		settle.setup(_env, self)
 	_apply()
 
 

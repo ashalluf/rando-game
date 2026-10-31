@@ -200,6 +200,10 @@ func _signature(ch: CityChunk) -> Array:
 			if not key in OWN and not key.begins_with("sc2_"):
 				out.append("%s:%d" % [key, (c as MultiMeshInstance3D).multimesh.instance_count])
 		# Climbers grow trumpet vines up some poles by a hash of the pole's foot, which moved.
+		# People (and their dogs) spawn against the city-wide crowd cap, which is whatever the
+		# checks before this one left: not the block's rolls.
+		elif c is CharacterBody3D or (c.get_script() != null and str(c.get_script().resource_path).contains("/npc/")):
+			pass
 		elif n != "UtilityWires" and not n.begins_with("BatchShadow") and not n.begins_with("Climbe"):
 			kids += 1
 	out.append("children:%d" % kids)

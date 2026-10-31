@@ -23013,3 +23013,51 @@ Not done / owned elsewhere: the sea's reflections of the wheel and lamps and the
 line along the sand (water-review owns ocean / beach_sand); no bonfire rings in this view (the
 boardwalk's keep-off); the crowd on the deck is too small to read from the beach; the pier's
 underside stays a dark band.
+
+## 9ja. The hero in the rain on the web (wave 4, branch `wt/web-hero-rain`; VISUAL_ROADMAP ?)
+
+**The report** (web-review-3, HANDOFF 9id): at the rain bookmark the hero's black velour top and
+his hair read royal blue in the browser, not on the Mac or in opengl3 stills.
+
+**The cause: a stale sky radiance map, not a shader or a colour space.** The city's Sky is
+`process_mode = 2` (INCREMENTAL): when the sky changes, the cubemap is re-rendered and its rough
+levels are refiltered over the following frames. The city loads in a clear sky and the forced rain
+(and any hour or weather snap) arrives a frame later, so for dozens of frames every mirror - the
+wet velour (roughness 0.45) and hair (0.2) most of all, the wet road too - shows the OLD clear blue
+sky. Natively that is a fraction of a second; in a browser under SwiftShader a frame is ~20 s, so a
+webshot taken a few minutes after load is still inside that window. Bisected:
+- `tools/web_hero_rain/hero_probe.tscn` in the browser at the rain bookmark (frames 2, settle
+  200 s): base 33,35,38 (bluish); the cloth's wet branch off 36,35,34; reflections off 31,28,25; and
+  every step after the first toggle of the environment neutral (36,34,33) - the toggles rebuilt
+  the radiance. The crops showed the blue fading with time, not with a material.
+- `tools/web_hero_rain/hero_rain.tscn` natively (opengl3, `FRAMES=n`): 2 frames 30,30,29; 6 frames
+  21,24,27; 12 frames 17,19,23; 40 frames 20,20,21. The same scene in the browser at 40 frames was
+  black (21,21,22). `opengl3_es` (GLES 3.2, like WebGL2) agreed with opengl3. So nothing is
+  web-only except the frame rate.
+
+**The fix: `SkySettle`** (`scripts/world/sky_settle.gd`, DayNight's child, one hook in
+`DayNight._ready()`): on a jump - the first `start_frames` (6) after load, an hour step over
+`hour_jump` (0.2 h) in a frame, a Weather state change, a `cloud_coverage` step over `cover_jump`
+(0.05) - it sets the sky to PROCESS_MODE_QUALITY (every level filtered in one frame) for
+`hold_frames` (3), then puts the mode back. It runs PROCESS_MODE_ALWAYS (the pause menu and photo
+mode change the sky with the tree paused). Natively at 6 frames 21,24,27 -> 23,23,23; at 12
+frames 17,19,23 -> 18,19,20; the wet road stops being blue-grey the same way. In the browser at the
+rain bookmark: 33,35,38 -> 37,35,34. Cost: a QUALITY refilter of a 256 px radiance for three frames
+after a jump, nothing on any other frame. `SKY_SETTLE=0` (`?sky_settle=0` on the web) is the A/B.
+
+**Checks.** `tests/web_hero_rain_checks.gd` (one line in the smoke test): the node is there, the
+sky is back at INCREMENTAL after the start-up frames, an ordinary frame refilters nothing, an hour
+jump and a forced weather snap hold QUALITY and let go.
+
+**Tools.** `tools/web_hero_rain/`: `hero_rain.tscn` (the hero, the city's sky / sun / DayNight /
+Weather on a wet patch; `STEPS=` / `?steps=` bisects suspects with a crop each), `hero_probe.tscn`
+(the real city in the browser, one suspect at a time), `export_web.sh` (exports either as the web
+build's main scene into build/web_hero and puts project.godot back). Read crops out of a harness
+log with a few lines of Python (`PROBE_IMG <step> <base64 png>`).
+
+**Lesson for every web still:** the harness judges the first handful of frames. Anything that
+converges over frames (incremental radiance, TAA-less accumulation, streaming, particles) is
+mid-way there; compare a web still with a native run of the same FRAME COUNT, not the same time.
+
+**Not done / not verified.** The Mac (Forward+ runs the same INCREMENTAL sky; the settle applies
+there too and should be invisible but for the first frames). A real GPU browser.
