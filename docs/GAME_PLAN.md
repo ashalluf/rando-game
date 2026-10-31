@@ -3810,3 +3810,9 @@ none of either.
   noise in the cars' moving frame (the near lamps and the far lane means read the same factor), a
   street's glow ranked by its width measured from the slab's own UV derivatives (so FULL, LOD and
   the far plates agree without a table), junctions lit at their corners. NIGHT_FLIGHT=0 is the A/B.
+- **2026-10-31 Cars at arm's length (car-exterior-closeup, HANDOFF "Cars at arm's length")**: what
+  is under a car and inside its arches is a SECOND file per body (`road_<name>_under.glb`), fitted to
+  the loft by raycasts and hung under the placed model, rather than a rebuild of the body .glbs: the
+  bodies, their LODs and far twins stay bit for bit, it is drawn only within 22 m with no shadow, and
+  it can be switched off (CAR_UNDERSIDE=0). The loft's floor was in the paint slot; a black underseal
+  sheet now covers it.

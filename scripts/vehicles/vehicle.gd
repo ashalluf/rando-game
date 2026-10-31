@@ -1887,6 +1887,7 @@ func _add_body_model(length: float) -> bool:
 	# wheels and all, and taking them out first would move the bottom of the box and change the
 	# car's scale and ride height.
 	_tuck_model_wheels(inst)
+	CarUnderside.attach(inst, path, body_far_distance)
 	_add_cabin_glass(holder, near_meshes)
 	add_child(holder)
 	if BigVehicles.is_big(body_type):
