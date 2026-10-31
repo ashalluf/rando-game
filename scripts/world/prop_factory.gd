@@ -535,6 +535,12 @@ static func palm(variant: int) -> Mesh:
 	# single-sided.
 	var mesh := _palm_ladder(levels, 0)
 	var proxy := _palm_ladder(levels, PALM_SHADOW_LEVEL)
+	# The palms' shadow twins take the trees' shadow LOD rule (FoliageLod.SHADOW_LOD_SCALE: a
+	# shadow map shows no detail under its penumbra): MultiMeshBatch reads this meta. They ran at
+	# the camera's full bias, a million shadow triangles over MacArthur Park (perf-audit-4).
+	# PALM_SHADOW_LOD=0 is the A/B.
+	if OS.get_environment("PALM_SHADOW_LOD") != "0":
+		mesh.set_meta("palm_ladder", true)
 	_shadow_proxies[mesh] = proxy
 	_cache[key] = mesh
 	return mesh
