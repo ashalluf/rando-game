@@ -120,11 +120,15 @@ func _live() -> void:
 	_check(OS.has_feature("web") or (inner != null and inner.visible), "the inner rain sheets stand round the camera in a storm")
 	var bolts := int(drama.get("bolts"))
 	weather.force_strike(900.0, Vector3(1.0, 0.0, 0.0))
-	await _ticks(2)
+	# Read at once: a frame headless can be several physics ticks, and the flash is a fifth of a second.
+	var thunder := float(weather.get("_thunder_in"))
 	var bolt: MeshInstance3D = drama.get("_bolt")
-	_check(int(drama.get("bolts")) == bolts + 1 and bolt.mesh != null and bolt.visible
-		and absf(float(weather.get("_thunder_in")) - 900.0 / 343.0) < 0.2,
-		"a strike 900 m off draws its bolt for the flash, its thunder %.2f s behind" % float(weather.get("_thunder_in")))
+	_check(int(drama.get("bolts")) == bolts + 1 and bolt.mesh != null and float(drama.get("_bolt_age")) >= 0.0
+		and absf(thunder - 900.0 / 343.0) < 0.05,
+		"a strike 900 m off draws its bolt for the flash, its thunder %.2f s behind" % thunder)
+	drama.call("on_flash", 0.8, null, Vector3.RIGHT)
+	_check(bolt.visible, "the bolt shows while its flash is on")
+	await _ticks(2)
 	var far_bolts := int(drama.get("bolts"))
 	weather.force_strike(StormDrama.BOLT_REACH + 300.0, Vector3(0.0, 0.0, 1.0))
 	_check(int(drama.get("bolts")) == far_bolts, "a strike past BOLT_REACH flashes with no bolt")
