@@ -3786,6 +3786,8 @@ none of either.
   the varying is flat) before int() / floor(); repeating ground lines are box-filtered by their
   footprint with one include (shaders/pattern_aa.gdshaderinc, the exact integral of a pulse train)
   rather than widened by fwidth(), which grows a line instead of filtering it; PAVING_AA=0 is the A/B.
+  Wave 4: a laid paving texture fades to its own last mip once its module (PavingAA.MODULE) is
+  under two pixels by the footprint's major axis - mips alone pick the minor axis under anisotropy.
 
 - **2026-10-30 The golden hour review: tune ramps, not systems (golden-hour-review, HANDOFF "The
   golden hour review").** Judged 17:00-19:30 on six views x six half hours by numbers (sky / ground

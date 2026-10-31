@@ -21956,6 +21956,24 @@ lot_yard's joints, alley / industrial / vacant joints (`fwidth`-filtered, faded)
 ties (faded), walk_of_fame, the paving textures (all ground .imports have mipmaps). Crosswalk bars
 and road paint are geometry: TAA on Forward+ handles their edges, Compatibility has no AA there.
 
+**Second pass (wave 4): laid textures fade to their mean.** The paving TEXTURES themselves (the
+setts, `PavingStones138`; the square pavers, `LargeSquarePattern01`; the yards' bricks,
+`Bricks104`) relied on their mips alone. Under anisotropic filtering the mip is picked by the
+MINOR axis, so a grazing run of courses receding from the eye - the depth axis, where moire lives -
+could still beat against the pixel rows. Each set now has a MODULE (`PavingAA.MODULE`: its finest
+strong period as a share of a tile, read off the art's spectrum: setts 1/14, pavers 1/3, bricks
+1/15); `PropFactory.road()` hands it to road.gdshader as `pattern_module` (metres), and the
+albedo, roughness and relief fade to the texture's own last mip (`paa_tex_mean()`, `textureLod`
+at 14: no colour table to keep in step) from four pixels a module to two, by the footprint's MAJOR
+axis (`paa_tex_fade`). That covers every pavement, plaza and kerb ring (`_block_surface`'s paving
+sets go through `road()`) and the replica's / Esplanade's walks (`road("sidewalk")`: gravel concrete
+has no laid pattern, module 0; their slab joints were already box-filtered). The forecourts
+(`lot_ground`, setts and pavers) and the yards (`lot_yard`: brick paths; concrete and saltillo
+joints now `paa_grid` with the footprint taken in uniform control flow, per-slab / per-tile shades
+faded to the mean) do the same. Not covered: landmark pads on `PropFactory.pbr()` (StandardMaterial3D;
+mips only). No sampler added (WebGL's limit), no geometry. block_shot now pushes the switch itself
+(`PavingAA.install()`), so `PAVING_AA=0` works there.
+
 **The switch**: `PAVING_AA=0` (`PavingAA`, `scripts/world/paving_aa.gd`, the `paving_aa` shader
 global, pushed from `Weather._ready()`), which also puts the forecourt's truncation back (for the
 before stills). **Cost**: shader-only, no geometry: block_shot GEO identical on and off (downtown
