@@ -2257,6 +2257,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# MacArthur Park and the downtown encampments (tests/westlake_checks.gd): the park builds with
 	# water and collision, camps only downtown, the people at them hold their poses, caps hold.
 	await load("res://tests/westlake_checks.gd").new().run(self, city)
+	# MacArthur Park from the air (tests/rc_macarthur_checks.gd): lake shore grid, palm ring, trees.
+	await load("res://tests/rc_macarthur_checks.gd").new().run(self, city)
 	# The valley golf course (tests/golf_checks.gd): the site and its closed roads, the layout, the
 	# turf mesh and its seams, LOD and far, the golfers and the carts.
 	await load("res://tests/golf_checks.gd").new().run(self, city)

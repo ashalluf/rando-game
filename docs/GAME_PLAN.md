@@ -3976,3 +3976,7 @@ none of either.
   makes (no extra people), so the crowd cap and every seed's crowd count stay as they were; kerb
   waits and door traffic reuse the crossing and StreetErrands state machines rather than adding
   new ones. CROWD_FLOW=0 is the A/B.
+- 2026-10-31 (rc-macarthur, wave 4): a refcam's fixes stay inside the thing it looks at - the park's
+  lake, lawn, planting and walks change behind MACARTHUR_LOOK, the lake shader's other users (golf)
+  keep their look (`shore_look` 0; their sky term is now decoded on Forward+, the fwd-review-d rule). Water is drawn in linear colour on both renderers with water's
+  real F0 (0.02); a landmark's lawn uses ONE material near and far so the LOD hand-over is no seam.

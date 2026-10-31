@@ -4613,6 +4613,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   lake-shaped `LakeSplash` Area3D adds a collision exception between each player/props body in
   it and the GroundBody (`_sink`), removed on exit or when the chunk unloads. Keep `FLOOR_Y`
   above `under_city_ground()`'s 1.5 m or the player standing in the lake is lifted out.
+  MacArthur Park from the air (2026-10-31, docs/HANDOFF.md "MacArthur Park from the air"):
+  `MacArthurLook` (`scripts/world/macarthur_look.gd`): the lake on a 4 m grid with the shore
+  distance in UV2.x for lake.gdshader's `shore_look` (linear colour, F0 0.02; golf keeps 0), an
+  irregular outline (`LAKE`), one worn lawn near and far, a hashed irregular palm ring, the lawns
+  filled with shade trees, walks at both levels. `MACARTHUR_LOOK=0` is the A/B; checks
+  `tests/rc_macarthur_checks.gd`.
   Encampments: `Encampment` (`scripts/world/encampment.gd`, static, a step after
   `_build_sidewalk_props`) on DOWNTOWN `BUILDINGS` blocks, far denser since the owner's
   "multiply by 20" (2026-09-27): some streets far more than others (`CAMP_STREET_SHARE`,
