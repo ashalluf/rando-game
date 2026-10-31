@@ -67,20 +67,25 @@ void fragment() {
 		if (a > 0.35) {
 			int axis = a > 0.9 ? 1 : (a > 0.6 ? 2 : 0);
 			vec3 lr = lamp_ratio(plan_pos);
-			EMISSION = street_glow(plan_pos, slab_uv, axis) * lr * street_glow_level() * far_glow_gain * (axis == 0 ? junction_glow : 1.0);
+			// The slab's UV runs 0..1 across its rect: its width in metres is the ratio of the
+			// plan position's screen derivatives to the UV's (road.gdshader's rule). Out here,
+			// before any branch, so every pixel of a quad takes the derivatives.
+			float across_p = axis == 1 ? plan_pos.x : plan_pos.y;
+			float across_uv = axis == 1 ? slab_uv.x : slab_uv.y;
+			float width = length(vec2(dFdx(across_p), dFdy(across_p))) / max(length(vec2(dFdx(across_uv), dFdy(across_uv))), 1.0e-7);
+			bool sized = axis != 0 && width > 8.0 && width < 60.0;
+			// A street glows by its rank (street_glow.gdshaderinc), a junction at its corners.
+			float rank = sized ? street_rank(width) : 1.0;
+			EMISSION = (axis == 0 ? street_glow_junction(plan_pos, slab_uv) : street_glow(plan_pos, slab_uv, axis)) * lr
+				* street_glow_level() * far_glow_gain * rank * (axis == 0 ? junction_glow : 1.0);
 			float far = smoothstep(traffic_fade_start, traffic_fade_end, length(world_pos - CAMERA_POSITION_WORLD));
 			if (axis != 0) {
-				// The slab's UV runs 0..1 across its rect: its width in metres is the ratio of
-				// the plan position's screen derivatives to the UV's (road.gdshader's rule).
-				float across_p = axis == 1 ? plan_pos.x : plan_pos.y;
-				float across_uv = axis == 1 ? slab_uv.x : slab_uv.y;
-				float width = length(vec2(dFdx(across_p), dFdy(across_p))) / max(length(vec2(dFdx(across_uv), dFdy(across_uv))), 1.0e-7);
-				if (width > 8.0 && width < 60.0) {
+				if (sized) {
 					float centre = (clamp(across_uv, 0.0, 1.0) - 0.5) * width;
 					float mpp = max(fwidth(plan_pos.x), fwidth(plan_pos.y));
 					float road_id = floor(across_p - centre + 0.5);
 					EMISSION += street_glow_color * lr * street_lamp_heads(axis == 1 ? plan_pos.y : plan_pos.x,
-						clamp(across_uv, 0.0, 1.0) * width, width, mpp) * street_glow_level();
+						clamp(across_uv, 0.0, 1.0) * width, width, mpp) * street_glow_level() * rank;
 					EMISSION += street_traffic(axis == 1 ? plan_pos.y : plan_pos.x, axis == 1 ? -centre : centre, width,
 						axis == 1 ? vec2(0.0, 1.0) : vec2(1.0, 0.0), normalize(CAMERA_POSITION_WORLD - world_pos), mpp, road_id) * lamp_factor * far;
 				}

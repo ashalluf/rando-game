@@ -32,6 +32,8 @@ uniform float grass_scale = 3.0;
 global uniform float road_wetness;
 global uniform float ground_detail;
 
+#include "res://shaders/pattern_aa.gdshaderinc"
+
 varying vec3 local_pos;
 varying vec3 local_normal;
 varying float kind;
@@ -69,6 +71,8 @@ void vertex() {
 
 void fragment() {
 	vec2 p = local_pos.xz;
+	// The footprint in metres, in uniform control flow (pattern_aa: never inside a branch).
+	vec2 fwp = fwidth(p);
 	vec3 albedo = vec3(0.5);
 	float rough = 0.85;
 	float metal = 0.0;
@@ -77,13 +81,25 @@ void fragment() {
 	float wet_k = 1.0;
 	float mottle = 0.9 + 0.2 * vnoise(p * 0.11) + 0.06 * (vnoise(p * 0.9) - 0.5);
 	if (kind < 3.5) {
-		int k = int(kind);
+		// Rounded, never truncated: `kind` is interpolated, and a constant 3.0 interpolated
+		// across a triangle reads 2.9999 on some pixel rows (llvmpipe, GLES) - int() then flipped
+		// the forecourt between the red pavers and the setts row by row, the fine horizontal
+		// stripes at every distance that read as moire on downtown's plazas (paving-aliasing).
+		int k = int(kind + (paa_on() ? 0.5 : 0.0));
 		float scale = k == 0 ? paving_scale.x : (k == 1 ? paving_scale.y : (k == 2 ? paving_scale.z : paving_scale.w));
 		vec3 tint = k == 0 ? paving_tint_0 : (k == 1 ? paving_tint_1 : (k == 2 ? paving_tint_2 : paving_tint_3));
 		bool setts = k == 0 || k == 2;
-		albedo = (setts ? tiled(setts_tex, p, scale) : tiled(pavers_tex, p, scale)) * tint * mottle;
+		vec3 laid = setts ? tiled(setts_tex, p, scale) : tiled(pavers_tex, p, scale);
 		nm = setts ? texture(setts_nrm, p / scale).rgb : texture(pavers_nrm, p / scale).rgb;
 		nm_depth = 0.7;
+		if (paa_on()) {
+			// The setts' rows and the pavers' squares under two pixels are their average, not
+			// moire (PavingAA.MODULE: setts 14 rows a tile, pavers 3).
+			float keep = paa_keep(scale * (setts ? 1.0 / 14.0 : 1.0 / 3.0), max(fwp.x, fwp.y));
+			laid = mix(setts ? paa_tex_mean(setts_tex) : paa_tex_mean(pavers_tex), laid, keep);
+			nm_depth *= mix(0.3, 1.0, keep);
+		}
+		albedo = laid * tint * mottle;
 		rough = 0.82;
 	} else if (kind < 4.5) {
 		albedo = tiled(asphalt_tex, p, asphalt_scale) * asphalt_tint * mottle;

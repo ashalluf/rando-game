@@ -1134,7 +1134,8 @@ static func advance_shot(tm: TrafficManager, seconds: float) -> void:
 		tm._drive_freeway(dt)
 		for c in tm.cars + tm.freeway_cars:
 			if is_instance_valid(c):
-				c._tick_lights(dt)
+				# The wheels, the lamps and the body's motion (TrafficMotion), as a physics tick would.
+				c._update_wheels(dt)
 
 
 ## Green at junction k0 of road (axis, index) (force() sets the one shared clock, so only one
