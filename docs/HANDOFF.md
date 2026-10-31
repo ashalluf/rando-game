@@ -25099,6 +25099,9 @@ snap main fixed as CI 397, rehearsal stragglers, alarms, the church zone).
 - "golden aerial: live, the noon far ground is unchanged (gain 0.90, fill 0.00)" (run 7373).
 - street_errands "somebody comes out of a shop door near the player (... errand step inside)"
   (run 7272).
+- The final gate on the batch-31 merge (`65ef0d2f`, plain SHARDS=3, 5,078 checks): traffic_ai "a fast
+  freeway car moves over and passes a slow one (moved false, passed false)" and valets "the valet
+  walks back to the podium" - both live-traffic checks, both first seen there.
 - The spawn block's chunk is now and then REPLACED while a file uses it (crowd_anim_2 2525,
   crowd_life 4444, ragdolls 7272): no rebuild path outside CityStreamer's own level logic was found.
   The three files settle streaming first and turn a swap into a named FAIL instead of a SCRIPT
