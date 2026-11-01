@@ -16,3 +16,10 @@ held, people and cars hidden), same EYEs before (main `bb03d731`) and after (`wt
 
 What changed: piers standing proud of recessed window strips on punched / slot-window masonry,
 stepped and raised parapets on half the masonry blocks (near and far), weathered gravel roofs.
+
+Golden hour, 17:20 (same load per side, `--hour=17.3`; the after set was shot with the pier
+shadow at 0.5, the branch's final value is 0.42 - a touch lighter in the strips):
+- 17/18 the historic core from 28 m
+- 19/20 east of downtown from 45 m (the tan block's piers in raking light; its gravel roof)
+- 21/22 midtown from 70 m
+- 23/24 the east side from 30 m (3400,30,350,-30,-4: ribbon and curtain walls, unchanged by design)
