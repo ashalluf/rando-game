@@ -21,6 +21,14 @@ const WEB_UBO_BYTES := 16384
 ## the most today is building_lod, 34. Past this the program fails to LINK in a browser with a
 ## low limit and the material draws nothing.
 const WEB_VARYING_COMPONENTS := 40
+## A shader's source with its includes, comments stripped (KB): the browser translates and
+## compiles every byte when the material is first drawn, and the page stops while it does
+## (building.gdshader, 160 KB after wave 4, is the slowest program the web compiles). A budget
+## so the next pass that grows it sees the number.
+const WEB_SOURCE_KB := 200
+## Elements of a shader's constant arrays, summed (const_array_items()): building's vinyl glyph
+## table is 1,240 after wave 4. ANGLE on Windows unrolls them into the program.
+const WEB_CONST_ITEMS := 1600
 
 var _t: Node
 
@@ -126,9 +134,7 @@ func _shaders() -> void:
 			continue
 		count += 1
 		var src := _strip_comments(_source("res://shaders/" + file, {}))
-		var samplers := 0
-		var re := RegEx.create_from_string("\\buniform\\s+(?:lowp\\s+|mediump\\s+|highp\\s+)?(?:u|i)?sampler(?:2D|3D|Cube|2DArray)\\w*\\b")
-		samplers = re.search_all(src).size()
+		var samplers := sampler_count(src)
 		if samplers > worst:
 			worst = samplers
 			worst_name = file
@@ -158,11 +164,76 @@ func _shaders() -> void:
 	_t._check(big_vary > 10 and vary_over.is_empty(),
 		"web: every shader within %d custom varying components (most %d, %s) %s" % [
 		WEB_VARYING_COMPONENTS, big_vary, big_vary_name, vary_over])
+	var big_kb := 0
+	var big_kb_name := ""
+	var big_const := 0
+	var big_const_name := ""
+	var size_over: Array[String] = []
+	for file in DirAccess.get_files_at("res://shaders"):
+		if not file.ends_with(".gdshader"):
+			continue
+		var src2 := _strip_comments(_source("res://shaders/" + file, {}))
+		var kb := src2.length() / 1024
+		var items := const_array_items(src2)
+		if kb > big_kb:
+			big_kb = kb
+			big_kb_name = file
+		if items > big_const:
+			big_const = items
+			big_const_name = file
+		if kb > WEB_SOURCE_KB or items > WEB_CONST_ITEMS:
+			size_over.append("%s (%d KB, %d const items)" % [file, kb, items])
+	_t._check(big_kb > 20 and big_const > 100 and size_over.is_empty(),
+		"web: every shader within %d KB of source and %d constant-array items (most %d KB %s, %d items %s) %s" % [
+		WEB_SOURCE_KB, WEB_CONST_ITEMS, big_kb, big_kb_name, big_const, big_const_name, size_over])
+	_t._check(const_array_items("const float A[3] = float[](1.0, 2.0, 3.0); const vec2 B[] = vec2[](vec2(0.0, 1.0), vec2(2.0, 3.0));") == 5,
+		"web: the constant-array count reads sized and unsized tables")
 	# The two counters, proven on planted sources.
 	_t._check(ubo_bytes("uniform float a; uniform vec3 b; uniform vec4 c[4]; uniform sampler2D t; global uniform vec4 g;") == 96,
 		"web: the uniform block estimate is std140 (%d, wants 96)" % ubo_bytes("uniform float a; uniform vec3 b; uniform vec4 c[4];"))
 	_t._check(varying_components("varying vec3 a; varying flat float b; varying vec2 c[2];") == 8,
 		"web: the varying count adds components")
+
+
+static func sampler_count(src: String) -> int:
+	var re := RegEx.create_from_string("\\buniform\\s+(?:lowp\\s+|mediump\\s+|highp\\s+)?(?:u|i)?sampler(?:2D|3D|Cube|2DArray)\\w*\\b")
+	return re.search_all(src).size()
+
+
+## Elements in a shader's constant arrays (`const T name[N]` or `= T[](...)`), summed: the
+## generated tables (vinyl glyphs, letter strokes). Each element is an instruction the browser's
+## shader translator must emit and its driver compile; on ANGLE (Chrome on Windows / D3D) big
+## constant tables are the slowest thing to compile, and the page stalls while it does.
+static func const_array_items(src: String) -> int:
+	var re := RegEx.create_from_string("\\bconst\\s+(?:lowp\\s+|mediump\\s+|highp\\s+)?\\w+\\s+\\w+\\s*\\[\\s*(\\d*)\\s*\\]\\s*=")
+	var n := 0
+	for m in re.search_all(src):
+		if m.get_string(1) != "":
+			n += int(m.get_string(1))
+			continue
+		# No size: count the initialiser's top-level elements.
+		var i := m.get_end()
+		var depth := 0
+		var items := 0
+		var seen := false
+		while i < src.length():
+			var ch := src[i]
+			if ch == "(" or ch == "{":
+				depth += 1
+				if depth == 1:
+					seen = true
+					items = 1
+			elif ch == ")" or ch == "}":
+				depth -= 1
+				if depth == 0 and seen:
+					break
+			elif ch == "," and depth == 1:
+				items += 1
+			elif ch == ";" and depth == 0:
+				break
+			i += 1
+		n += items
+	return n
 
 
 const _TYPE_SIZE := {"float": [4, 4], "int": [4, 4], "uint": [4, 4], "bool": [4, 4],
