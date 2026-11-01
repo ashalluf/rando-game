@@ -275,8 +275,8 @@ func _walk(delta: float) -> bool:
 	_place(Vector3(0.0, 1.7, maxf(z, -110.0)), float(_env("YAW", "0")), float(_env("PITCH", "2")))
 	var img := root.get_texture().get_image()
 	var st := _stats(img)
-	print("LENS_WALK %.2f %.1f %s encl %.2f speed %.2f" % [_t, z, st,
-			float(_lens.get("enclosure")) if _lens else 0.0, float(_lens.get("speed_now")) if _lens else 0.0])
+	print("LENS_WALK %.2f %.1f %s encl %.2f comp %.2f" % [_t, z, st,
+			float(_lens.get("enclosure")) if _lens else 0.0, float(_lens.get("compensation")) if _lens else 0.0])
 	for sa in _save_at:
 		if _t >= sa and not _saved.has(sa):
 			_saved[sa] = true

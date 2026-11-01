@@ -4,18 +4,18 @@ extends Node
 ## photograph rather than a render. CameraPost makes one beside itself under the CameraRig (one
 ## line), so the city and the test room both get it. Four parts, all on the camera:
 ##
-##   exposure  the eye's adaptation. Godot meters the frame (the mean of each pixel's brightest
-##             channel) and clamps that to [min, max] sensitivity; the gain is scale / mean. The
-##             player camera used to adapt over a fixed 1.6 stops at one speed, so walking from a
-##             sunlit street into an underpass barely opened up, and walking out again took as
-##             long as walking in. By day the dark limit now opens to `day_min_sensitivity` (a
-##             frame darker than the old floor - a tunnel, a garage, a deep alley - gains up to
-##             1.8x more; an open street never reaches it, so it is untouched), at night it stays
-##             at the old 200 (the nights were tuned on it). The speed follows the eye: slow
-##             opening into the dark (`speed_darken`), fast closing down into the light
-##             (`speed_brighten`: the brief blow-out stepping out of a tunnel), worked out from
-##             an enclosure probe (one ray up, eight around, every `probe_interval`) - Godot's
-##             adaptation is symmetric and nothing on the CPU can read the metered value.
+##   exposure  the eye's adaptation into the dark. Godot meters the frame (the mean of each
+##             pixel's brightest channel) and divides `auto_exposure_scale` by it, clamped to the
+##             camera's [min, max] sensitivity - and by day every frame, the open noon street as
+##             much as the inside of an underpass, meters UNDER the dark limit (measured on
+##             Forward+ with tools/camera_lens/lens_probe.gd), so main's adaptation was a constant
+##             1.6x gain: walking into a tunnel the frame simply went black (p50 20 of 255). The
+##             clamps and Godot's speed stay main's (an open street is untouched, bit for bit),
+##             and the lens adds an exposure compensation on `auto_exposure_scale` from an
+##             enclosure probe (one ray up, eight round, every `probe_interval`): up to
+##             `day_open_gain` under a lid by day (`night_open_gain` at night, where the lamps
+##             light a garage), reached slowly going in (`open_seconds`, the eye opening up) and
+##             left fast coming out (`close_seconds`: the short blow-out stepping into the sun).
 ##   flare     toward the sun: a veiling glow round it, six thin aperture spikes, a row of faint
 ##             hexagonal ghosts on the line through the frame's centre, and a veiling lift of the
 ##             whole frame when the sun is in or near it (contrast drops shooting into the sun).
@@ -40,18 +40,15 @@ const GLOW_LEVELS: Array[float] = [0.0, 0.25, 0.55, 0.45, 0.4, 0.25, 0.1]
 const GLOW_LEVELS_OLD: Array[float] = [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]
 
 @export_group("Exposure")
-## The dark limit by day (ISO; the old 200 everywhere). Lower opens a dark frame up further.
-@export var day_min_sensitivity: float = 110.0
-## The dark limit at night: the old value, which the nights' look was tuned on.
-@export var night_min_sensitivity: float = 200.0
-## The bright limit (ISO), as on main.
-@export var max_sensitivity: float = 620.0
-## Adaptation speed into darker scenes (Godot's speed: fraction a second).
-@export var speed_darken: float = 0.42
-## Adaptation speed into brighter scenes: the eye closes down fast.
-@export var speed_brighten: float = 1.7
-## Adaptation speed when nothing round the camera is changing (main's 0.6).
-@export var speed_steady: float = 0.75
+## Most the camera opens up under a lid by day (x main's gain), and at night.
+@export var day_open_gain: float = 2.6
+@export var night_open_gain: float = 1.3
+## Enclosure (0..1, the probe's) where the compensation starts and where it is full.
+@export var open_from: float = 0.3
+@export var open_full: float = 0.75
+## Seconds (time constant) to open up going into the dark, and to close down coming out.
+@export var open_seconds: float = 1.8
+@export var close_seconds: float = 0.35
 ## Seconds between enclosure probes.
 @export var probe_interval: float = 0.12
 ## Reach of the probe's rays (metres): up, then the eight round.
@@ -71,8 +68,9 @@ const GLOW_LEVELS_OLD: Array[float] = [0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]
 ## This frame's numbers, for the checks and the HUD: 0..1 how enclosed the camera is, the
 ## adaptation speed in use, the dark limit, the sun's flare weight.
 var enclosure: float = 0.0
-var speed_now: float = 0.0
-var min_sensitivity_now: float = 200.0
+## The exposure compensation in use (1 = main's) and the one it is heading for.
+var compensation: float = 1.0
+var compensation_target: float = 1.0
 var flare_now: float = 0.0
 ## Quality's say (CameraPost.quality_level): no flare at LOWEST.
 var flare_allowed: bool = true
@@ -81,7 +79,8 @@ var _post: Node
 var _day: Node
 var _day_lookup: float = 0.0
 var _probe_t: float = 0.0
-var _encl_slow: float = 0.0
+var _base_scale: float = -1.0
+var _attrs: CameraAttributesPractical
 var _env_done: Environment
 var _mat: ShaderMaterial
 var _mat_lookup: float = 0.0
@@ -104,20 +103,20 @@ static func attach(post: Node) -> CameraLens:
 	return lens
 
 
-## The dark limit (ISO) for the hour: the day's wider range by day, the old one at night.
-static func min_sensitivity_for(daylight: float, moonlight: float, day_min: float, night_min: float) -> float:
+## The compensation the camera heads for: 1 in the open, up to the hour's gain under a lid.
+static func open_target(enclosure_now: float, daylight: float, moonlight: float, day_gain: float,
+		night_gain: float, from: float, full: float) -> float:
 	var day := clampf(daylight, 0.0, 1.0) * (1.0 - clampf(moonlight, 0.0, 1.0))
-	return lerpf(night_min, day_min, day)
+	var w := smoothstep(from, full, enclosure_now)
+	return lerpf(1.0, lerpf(night_gain, day_gain, day), w)
 
 
-## The adaptation speed from how the enclosure is moving (`trend` > 0: the camera is going in,
-## the frame getting darker; < 0: coming out into the light).
-static func speed_for(trend: float, darken: float, brighten: float, steady: float) -> float:
-	if trend > 0.04:
-		return lerpf(steady, darken, clampf((trend - 0.04) / 0.12, 0.0, 1.0))
-	if trend < -0.04:
-		return lerpf(steady, brighten, clampf((-trend - 0.04) / 0.12, 0.0, 1.0))
-	return steady
+## One step of the eye toward `target`: slow opening up, fast closing down (log space, so a stop
+## takes as long at any level).
+static func adapt(current: float, target: float, dt: float, open_s: float, close_s: float) -> float:
+	var tau := open_s if target > current else close_s
+	var k := 1.0 - exp(-dt / maxf(tau, 0.001))
+	return exp(lerpf(log(maxf(current, 0.001)), log(maxf(target, 0.001)), k))
 
 
 ## How strongly the sun flares: up in the sky, through clear air, by day.
@@ -126,9 +125,9 @@ static func sun_weight(sun_y: float, weather_darken: float, marine: float) -> fl
 	return up * clampf(1.0 - weather_darken * 1.4, 0.0, 1.0) * clampf(1.0 - marine * 1.2, 0.0, 1.0)
 
 
-## 0..1 the camera opened up into the dark: the dark limit's gain over the open-street gain.
-static func dark_gain(min_sens: float, max_sens: float, enclosure_now: float) -> float:
-	return clampf(enclosure_now, 0.0, 1.0) * clampf((max_sens / maxf(min_sens, 1.0) - 1.0) / 4.0, 0.0, 1.0)
+## 0..1 how far the camera has opened up (for the grain).
+static func dark_gain(comp: float, day_gain: float) -> float:
+	return clampf((comp - 1.0) / maxf(day_gain - 1.0, 0.001), 0.0, 1.0)
 
 
 func _ready() -> void:
@@ -194,26 +193,23 @@ func _update_exposure(day: Node, dt: float) -> void:
 	var attrs := cam.attributes as CameraAttributesPractical
 	if attrs == null:
 		return
+	if attrs != _attrs:
+		_attrs = attrs
+		_base_scale = attrs.auto_exposure_scale
 	var daylight := 1.0
 	var moon := 0.0
 	if day:
 		daylight = float(day.get("daylight_now"))
 		moon = float(day.get("moonlight_now"))
-	min_sensitivity_now = min_sensitivity_for(daylight, moon, day_min_sensitivity, night_min_sensitivity)
 	_probe_t -= dt
 	if _probe_t <= 0.0:
 		_probe_t = probe_interval
 		enclosure = _probe(cam)
-	# The trend: the enclosure now against a half-second average of it.
-	var trend := enclosure - _encl_slow
-	_encl_slow = lerpf(_encl_slow, enclosure, 1.0 - exp(-dt / 0.5))
-	speed_now = speed_for(trend, speed_darken, speed_brighten, speed_steady)
-	if not is_equal_approx(attrs.auto_exposure_min_sensitivity, min_sensitivity_now):
-		attrs.auto_exposure_min_sensitivity = min_sensitivity_now
-	if not is_equal_approx(attrs.auto_exposure_max_sensitivity, max_sensitivity):
-		attrs.auto_exposure_max_sensitivity = max_sensitivity
-	if absf(attrs.auto_exposure_speed - speed_now) > 0.01:
-		attrs.auto_exposure_speed = speed_now
+	compensation_target = open_target(enclosure, daylight, moon, day_open_gain, night_open_gain, open_from, open_full)
+	compensation = adapt(compensation, compensation_target, dt, open_seconds, close_seconds)
+	var want := _base_scale * compensation
+	if absf(attrs.auto_exposure_scale - want) > 0.0005 * _base_scale:
+		attrs.auto_exposure_scale = want
 
 
 ## 0..1: a lid overhead counts most, then walls round.
@@ -263,7 +259,7 @@ func _update_lens(day: Node) -> void:
 	if mat == null:
 		return
 	mat.set_shader_parameter("lens_mode", 1)
-	var g := dark_gain(min_sensitivity_now, max_sensitivity, enclosure)
+	var g := dark_gain(compensation, day_open_gain)
 	if day:
 		g = maxf(g, float(day.get("moonlight_now")) * 0.6)
 	mat.set_shader_parameter("grain_gain", lerpf(1.0, grain_dark_gain, g))

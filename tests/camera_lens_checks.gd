@@ -1,7 +1,7 @@
 extends RefCounted
 ## The camera lens (docs/HANDOFF.md "The camera lens", CameraLens) for tests/smoke_test.gd.
-## - The exposure's dark limit opens by day only (nights keep main's 200), the bright limit is
-##   main's; the adaptation is slow into the dark, fast into the light, main-like when steady.
+## - The exposure: main's clamps and speed, a compensation under a lid (more by day than at
+##   night, none in the open or a street canyon), slow to open up and fast to close down.
 ## - The sun flare's weight: none under the horizon, none in rain or under the marine layer.
 ## - Grain from the exposure: more with the camera opened up, never less than the user's grain.
 ## - The lens pass: the old grain and no flare by default (what CAMERA_LENS=0 draws), the flare
@@ -21,23 +21,26 @@ func run(t: Node, city: Node3D) -> void:
 
 
 func _pure() -> void:
-	var day := CameraLens.min_sensitivity_for(1.0, 0.0, 110.0, 200.0)
-	var night := CameraLens.min_sensitivity_for(0.0, 1.0, 110.0, 200.0)
-	_t._check(is_equal_approx(day, 110.0) and is_equal_approx(night, 200.0),
-		"camera lens: the dark limit opens by day (%.0f) and stays main's at night (%.0f)" % [day, night])
-	var dusk := CameraLens.min_sensitivity_for(0.5, 0.3, 110.0, 200.0)
-	_t._check(dusk > day and dusk < night, "camera lens: the dark limit blends through dusk (%.0f)" % dusk)
-	var into := CameraLens.speed_for(0.3, 0.42, 1.7, 0.75)
-	var out := CameraLens.speed_for(-0.3, 0.42, 1.7, 0.75)
-	var still := CameraLens.speed_for(0.0, 0.42, 1.7, 0.75)
-	_t._check(into < still and out > still * 2.0 and is_equal_approx(still, 0.75),
-		"camera lens: slow into the dark (%.2f), fast into the light (%.2f), steady between (%.2f)" % [into, out, still])
+	var open_noon := CameraLens.open_target(0.0, 1.0, 0.0, 2.6, 1.3, 0.3, 0.75)
+	var lid_noon := CameraLens.open_target(0.9, 1.0, 0.0, 2.6, 1.3, 0.3, 0.75)
+	var lid_night := CameraLens.open_target(0.9, 0.0, 1.0, 2.6, 1.3, 0.3, 0.75)
+	_t._check(open_noon == 1.0 and is_equal_approx(lid_noon, 2.6) and is_equal_approx(lid_night, 1.3),
+		"camera lens: the open street keeps main's exposure; a lid opens it up by day (%.2f), less at night (%.2f)" % [lid_noon, lid_night])
+	_t._check(CameraLens.open_target(0.15, 1.0, 0.0, 2.6, 1.3, 0.3, 0.75) == 1.0,
+		"camera lens: walls alone (a street canyon) do not open the camera")
+	# One second each way: opening up is slow, closing down fast.
+	var up := 1.0
+	var down := 2.6
+	for i in 30:
+		up = CameraLens.adapt(up, 2.6, 1.0 / 30.0, 1.8, 0.35)
+		down = CameraLens.adapt(down, 1.0, 1.0 / 30.0, 1.8, 0.35)
+	_t._check(up > 1.2 and up < 2.0 and down < 1.1,
+		"camera lens: a second in, the eye is part open (%.2f); a second out, it has closed (%.2f)" % [up, down])
 	_t._check(CameraLens.sun_weight(-0.1, 0.0, 0.0) == 0.0 and CameraLens.sun_weight(0.5, 0.0, 0.0) > 0.99,
 		"camera lens: the flare is the sun's only while it is up")
 	_t._check(CameraLens.sun_weight(0.5, 0.8, 0.0) < 0.01 and CameraLens.sun_weight(0.5, 0.0, 0.9) < 0.01,
 		"camera lens: rain and the marine layer take the flare away")
-	_t._check(CameraLens.dark_gain(110.0, 620.0, 0.0) == 0.0 and CameraLens.dark_gain(110.0, 620.0, 1.0) > 0.9
-			and CameraLens.dark_gain(200.0, 620.0, 1.0) < CameraLens.dark_gain(110.0, 620.0, 1.0),
+	_t._check(CameraLens.dark_gain(1.0, 2.6) == 0.0 and CameraLens.dark_gain(2.6, 2.6) == 1.0,
 		"camera lens: the grain gain follows how far the camera opens up")
 	var total := 0.0
 	var old := 0.0
@@ -69,12 +72,9 @@ func _live(city: Node3D) -> void:
 		return
 	var cam := lens.get_parent().get_node_or_null("SpringArm3D/Camera3D") as Camera3D
 	var attrs := cam.attributes as CameraAttributesPractical if cam else null
-	_t._check(attrs != null and is_equal_approx(attrs.auto_exposure_min_sensitivity, lens.min_sensitivity_now)
-			and is_equal_approx(attrs.auto_exposure_max_sensitivity, lens.max_sensitivity),
-		"camera lens: the player camera's exposure limits follow the lens (%.0f..%.0f)" % [
-			attrs.auto_exposure_min_sensitivity if attrs else -1.0, attrs.auto_exposure_max_sensitivity if attrs else -1.0])
-	_t._check(lens.speed_now > 0.0 and attrs != null and absf(attrs.auto_exposure_speed - lens.speed_now) <= 0.011,
-		"camera lens: the adaptation speed is the lens's (%.2f)" % lens.speed_now)
+	_t._check(attrs != null and is_equal_approx(attrs.auto_exposure_min_sensitivity, 200.0)
+			and is_equal_approx(attrs.auto_exposure_max_sensitivity, 620.0) and is_equal_approx(attrs.auto_exposure_speed, 0.6),
+		"camera lens: the player camera keeps main's exposure limits and speed")
 	var layer := city.get_node_or_null("Vignette")
 	var mat := (layer.get_child(0) as CanvasItem).material as ShaderMaterial if layer and layer.get_child_count() > 0 else null
 	_t._check(mat != null and int(mat.get_shader_parameter("lens_mode")) == 1,
@@ -103,5 +103,8 @@ func _live(city: Node3D) -> void:
 		seen = maxf(seen, lens.enclosure)
 		if seen > 0.5:
 			break
+	var comp_under := lens.compensation_target
 	body.queue_free()
 	_t._check(seen > 0.5, "camera lens: a deck over the camera reads as enclosed (%.2f)" % seen)
+	_t._check(comp_under > 1.0 and attrs != null and attrs.auto_exposure_scale > 0.4,
+		"camera lens: under it the camera opens up (target %.2f, scale %.3f)" % [comp_under, attrs.auto_exposure_scale if attrs else 0.0])
