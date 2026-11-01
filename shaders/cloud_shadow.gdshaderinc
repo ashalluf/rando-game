@@ -22,9 +22,9 @@ uniform float cs_body = 0.18;
 // day_fragments x sky_day: the sky's daytime thinning of the fragments.
 uniform float cs_fragments = 0.0;
 // The envelope's values over which a shadow comes in (its penumbra).
-uniform vec2 cs_edge = vec2(0.35, 0.65);
+uniform vec2 cs_edge = vec2(0.3, 0.72);
 // The map's mip: a little softer than its texels (a real shadow edge is a penumbra ~100 m wide).
-uniform float cs_lod = 0.6;
+uniform float cs_lod = 1.2;
 
 // The share of the sun a cloud takes away over a TRUE-world point (metres), the sun along L.
 // 0 = full sun, 1 = a cloud's full shadow.
