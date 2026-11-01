@@ -36,6 +36,7 @@ varying float kind;
 varying float variant;
 varying vec3 world_p;
 varying vec3 local_p;
+varying float along_z;
 
 #include "res://shaders/color_space.gdshaderinc"
 #include "res://shaders/pattern_aa.gdshaderinc"
@@ -109,15 +110,29 @@ float band(float v, float c, float w) {
 void vertex() {
 	kind = floor(COLOR.r * 16.0);
 	variant = COLOR.g;
+	along_z = COLOR.b;
 	world_p = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	local_p = VERTEX;
 }
 
-// The alley's lamps seen in still water at `p` (chunk-local) from `cam`: each lamp's mirror image
-// (its head reflected in the ground's plane) meets the ground where the eye's ray to it does; the
-// glow is a tight core there and a streak toward the eye (the ripples), faded with distance.
-vec3 lamp_mirror(vec3 p, vec3 cam) {
-	vec3 sum = vec3(0.0);
+// What still water at `p` (chunk-local, `o` metres across the alley's centre line, `hw` its half
+// width, `az` 1 where it runs along z) mirrors from `cam`: the reflected ray followed to the wall it
+// meets (a facade `wall_back` past the alley's edge, `wall_top` high) - dark, washed warm or cool
+// round each lamp head that lights it - or over the walls the night sky; and each lamp's own image,
+// a tight core where its mirror image meets the ground and a streak toward the eye (the ripples).
+uniform float wall_back = 0.25;
+uniform float wall_top = 11.0;
+vec3 canyon_mirror(vec3 p, vec3 cam, float o, float hw, float az) {
+	vec3 d = normalize(p - cam);
+	vec3 r = vec3(d.x, -d.y, d.z);
+	vec2 across_v = az > 0.5 ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+	float ro = dot(r.xz, across_v);
+	float t = ro > 0.0 ? (hw + wall_back - o) / max(ro, 1e-3) : (-(hw + wall_back) - o) / min(ro, -1e-3);
+	vec3 hit = p + r * t;
+	float wall = step(hit.y - p.y, wall_top) * step(abs(ro), 0.999);
+	// The wall: dull brick-to-concrete, lit only round the lamps.
+	vec3 wall_col = vec3(0.035, 0.03, 0.028);
+	vec3 lamps = vec3(0.0);
 	vec2 to_eye = cam.xz - p.xz;
 	float de = max(length(to_eye), 0.1);
 	vec2 along = to_eye / de;
@@ -127,24 +142,24 @@ vec3 lamp_mirror(vec3 p, vec3 cam) {
 			break;
 		}
 		vec4 h = lamp_heads[i];
+		vec3 tint = h.w > 0.5 ? vec3(1.0, 0.72, 0.42) : vec3(0.82, 0.88, 1.0);
+		vec3 dw = hit - h.xyz;
+		// A wall-washer's throw: brighter under the head, a cone down the wall.
+		wall_col += tint * 0.55 * exp(-dot(dw.xz, dw.xz) / 3.5 - max(dw.y, 0.0) * max(dw.y, 0.0) / 1.2 - min(dw.y, 0.0) * min(dw.y, 0.0) / 6.0);
 		vec3 img = vec3(h.x, 2.0 * p.y - h.y, h.z);
-		float t = (cam.y - p.y) / max(cam.y - img.y, 0.05);
-		vec2 q = cam.xz + (img.xz - cam.xz) * t;
-		vec2 d = p.xz - q;
-		float da = dot(d, along);
-		float dc = dot(d, acr);
-		// The streak's length grows with how far the image is (a grazing look smears it).
+		float ti = (cam.y - p.y) / max(cam.y - img.y, 0.05);
+		vec2 q = cam.xz + (img.xz - cam.xz) * ti;
+		vec2 dq = p.xz - q;
+		float da = dot(dq, along);
+		float dc = dot(dq, acr);
 		float len = 0.25 + 0.06 * distance(q, cam.xz);
-		// The lit wall round the lamp, seen in the water near its foot.
-		vec2 dl = p.xz - h.xz;
-		float wash = exp(-dot(dl, dl) / 7.0) * 0.32;
 		float core = exp(-(dc * dc) / 0.012 - (da * da) / (len * len * 0.12));
 		float streak = exp(-(dc * dc) / 0.03 - (da * da) / (len * len));
 		float fall = 1.0 / (1.0 + 0.004 * dot(q - cam.xz, q - cam.xz));
-		vec3 tint = h.w > 0.5 ? vec3(1.0, 0.72, 0.42) : vec3(0.82, 0.88, 1.0);
-		sum += tint * ((core * 2.4 + streak * 0.9) * fall + wash);
+		lamps += tint * (core * 2.4 + streak * 0.9) * fall;
 	}
-	return sum;
+	vec3 sky = sky_tint.rgb * 0.8;
+	return mix(sky, wall_col * lamp_factor + sky * 0.15, wall) + lamps * lamp_factor;
 }
 
 void fragment() {
@@ -325,9 +340,9 @@ void fragment() {
 		float ao2 = abs(p.y);
 		float gut = (1.0 - smoothstep(0.18, 0.5, ao2 + 0.12 * (vnoise(vec2(p.x * 1.3, 2.0)) - 0.5)))
 			* smoothstep(0.42, 0.58, vnoise(vec2(p.x * 0.16, 5.0) + seed * 9.0));
-		float dip = fbm(vec2(p.x * 0.42, p.y * 0.7) + seed * 21.0 + 3.0);
-		float dip_pool = smoothstep(0.66, 0.70, dip) * (1.0 - smoothstep(hw - 0.5, hw - 0.1, ao2));
-		float d_ring = smoothstep(0.55, 0.66, dip) * (1.0 - smoothstep(hw - 0.3, hw, ao2));
+		float dip = fbm(vec2(p.x * 0.55, p.y * 0.9) + seed * 21.0 + 3.0) + 0.06 * (vnoise(vec2(p.x, p.y) * 4.0) - 0.5);
+		float dip_pool = smoothstep(0.685, 0.70, dip) * (1.0 - smoothstep(hw - 0.5, hw - 0.1, ao2));
+		float d_ring = smoothstep(0.5, 0.68, dip) * (1.0 - smoothstep(hw - 0.3, hw, ao2));
 		float g_ring = (1.0 - smoothstep(0.3, 0.9, ao2)) * smoothstep(0.32, 0.5, vnoise(vec2(p.x * 0.16, 5.0) + seed * 9.0));
 		pool = max(gut, dip_pool);
 		halo = max(max(d_ring, g_ring), pool);
@@ -344,7 +359,7 @@ void fragment() {
 		float fres = 0.25 + 0.75 * pow(1.0 - clamp(v.y, 0.0, 1.0), 4.0);
 		float g = mirror_gain * (cs_linear_renderer() ? mirror_forward : 1.0);
 		// The night sky over the canyon (sky_tint: raw display numbers on both renderers) and the lamps.
-		vec3 m = sky_tint.rgb * 0.8 + min(lamp_mirror(local_p, cam), vec3(3.0)) * lamp_factor;
+		vec3 m = min(canyon_mirror(local_p, cam, p.y, hw, along_z), vec3(3.0));
 		EMISSION = to_lit(m) * pool * fres * g;
 	}
 }
