@@ -797,7 +797,7 @@ func _process(delta: float) -> void:
 	if _lens_rect:
 		_lens_rect.visible = rain > 0.03 and not _low_detail
 		if _lens_rect.visible:
-			_lens_mat.set_shader_parameter("strength", lens_rain * rain)
+			_lens_mat.set_shader_parameter("strength", lens_rain * rain * RainDay.lens_gain(float(_daynight.get("daylight_now")) if _daynight else 0.0))
 	# The city's Ambience node layers the rain itself (street, downpour, a roof, a car roof), so
 	# this loop only plays where there is no Ambience (the test room).
 	if rain > 0.05 and _rain_loop == null and Sfx.has("rain") and get_parent().get_node_or_null("Ambience") == null:

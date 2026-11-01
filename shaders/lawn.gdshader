@@ -49,6 +49,11 @@ varying vec3 world_pos;
 // The close-up pass (lawns_closeup on; LawnsCloseup): clover, brown spots, the edge along the
 // pavement, the morning's sprinklers, the thatch between the blades. Off, the lawn is as it was.
 global uniform float city_hour;
+// The rain on the lawn by day (RainDay: `rain_day` is its daylight weight, 0 at night and with
+// RAIN_DAY=0): a soaked lawn is darker, a little greyer and glossy, like the watered patch the
+// sprinklers leave - the neon-green of a dry lawn under a rain deck read as a painted carpet.
+global uniform float road_wetness;
+global uniform float rain_day;
 // Edge style along the lawn's rect (a hash of the lawn): 0 an edged lawn, a crisp line of soil
 // cut along the concrete; 1 an overgrown one, darker grass lapping the edge.
 uniform float edge_cut : hint_range(0.0, 1.0) = 0.55;
@@ -147,6 +152,9 @@ void fragment() {
 		col *= mix(1.0, 0.86, lap * edge_cut);
 		// The morning's watering: wet grass is darker and glossy, in the throw of each head.
 		float spray = lf_sprinkler(wp, seed, city_hour);
+		float rain_wet = clamp(road_wetness, 0.0, 1.0) * rain_day;
+		spray = max(spray, rain_wet);
+		col = mix(col, vec3(dot(col, vec3(0.3, 0.55, 0.15))), 0.25 * rain_wet);
 		col *= 1.0 - 0.18 * spray;
 		rough = mix(rough, 0.32, spray);
 		vec3 lit = alb * col;
@@ -180,6 +188,10 @@ void fragment() {
 		float wear = smoothstep(0.62, 0.86, fbm(wp * 0.09 + 57.0 + seed)) * wear_amount;
 		col = mix(col, dirt_tint, wear);
 		rough = mix(rough, 0.95, wear);
+		// Soaked by the rain by day (as the near branch's sprinkler patch).
+		float rain_wet = clamp(road_wetness, 0.0, 1.0) * rain_day;
+		col = mix(col, vec3(dot(col, vec3(0.3, 0.55, 0.15))), 0.25 * rain_wet) * (1.0 - 0.18 * rain_wet);
+		rough = mix(rough, 0.32, rain_wet);
 
 		// No boost. The road shader next to it writes its albedo straight, and a lawn lit 15% hotter
 		// than the road it borders is what made the grass the brightest thing in a night frame: the
@@ -193,7 +205,7 @@ void fragment() {
 		ALBEDO = lit;
 		NORMAL_MAP = nrm;
 		NORMAL_MAP_DEPTH = normal_depth * (1.0 - wear * 0.6);
-		ROUGHNESS = clamp(rough, 0.35, 1.0);
-		SPECULAR = 0.22;
+		ROUGHNESS = clamp(rough, mix(0.35, 0.3, rain_wet), 1.0);
+		SPECULAR = mix(0.22, 0.45, rain_wet);
 	}
 }

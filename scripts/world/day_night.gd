@@ -458,9 +458,9 @@ func _apply() -> void:
 		# (about 1 at the default gibbous, so the night grade keeps its level).
 		var moon_lit := 0.5 - 0.5 * sun_dir.dot(moon_dir)
 		_sun.light_energy = lerpf(night_sun_energy * lerpf(0.45, 1.05, moon_lit), day_sun_energy, daylight) * (1.0 - 0.75 * weather_darken) \
-			* (1.0 - marine_sun_cut * marine) * (1.0 + 0.06 * santa_ana) + flash * 2.5
+			* (1.0 - marine_sun_cut * marine) * (1.0 + 0.06 * santa_ana) * RainDay.sun_gain(weather_darken, moonlight) + flash * 2.5
 		# Under the deck the light is the whole grey sky: shadows go soft and faint.
-		_sun.shadow_opacity = 1.0 - marine_shadow_cut * marine
+		_sun.shadow_opacity = (1.0 - marine_shadow_cut * marine) * RainDay.shadow_gain(weather_darken, moonlight)
 		# A rainy night's haze is lit by the street lamps, not by a moon behind the cloud. Rain
 		# thickens the volumetric fog seventy-fold, and lit by the moonlight fill it hung over
 		# the whole street as a pale grey veil, so a rainy night read as a grey dusk.
@@ -578,12 +578,14 @@ func _apply() -> void:
 		# fill so the city does not go pitch dark.
 		_env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 		_env.ambient_light_sky_contribution = lerpf(GiTuning.sky_contribution, 0.35, moonlight)
+		# Under a rain deck by day the sky is the light (RainDay, refcam rain_day).
+		var rain_fill := RainDay.ambient_gain(weather_darken, moonlight)
 		_env.ambient_light_color = day_ambient.lerp(night_ambient, moonlight)
 		# Rain takes 35 % of the fill by day; at night the cloud base bounces the streets' light back,
 		# so a rainy night keeps most of it (NightStreetReview.rain_night_cut()).
 		_env.ambient_light_energy = lerpf(day_ambient_energy, night_ambient_energy, moonlight) \
 			* (1.0 - 0.35 * weather_darken * lerpf(1.0, NightStreetReview.rain_night_cut(), moonlight)) \
-			* (1.0 + marine_ambient_gain * marine * (1.0 - moonlight)) * GiTuning.ambient_scale
+			* (1.0 + marine_ambient_gain * marine * (1.0 - moonlight)) * GiTuning.ambient_scale * rain_fill
 		# Rain haze is grey by day and, like the cloud above it, lit by the streets at night.
 		_env.fog_light_color = _env.fog_light_color.lerp(Color(0.35, 0.37, 0.4).lerp(night_storm_fog, moonlight), weather_darken)
 		if storm > 0.0:
@@ -630,6 +632,7 @@ func _apply() -> void:
 	# The clock, for what changes with the hour after dark (the far traffic, lit offices).
 	RenderingServer.global_shader_parameter_set("city_hour", hour)
 	lamp_now = lamp_factor
+	RainDay.publish(nf_lamps)
 	# Published for anything that needs to reflect the sky without owning a copy of it (the
 	# ocean, and whatever else wants it): the colour the sky meets the horizon with, and the
 	# direction back toward the sun.
