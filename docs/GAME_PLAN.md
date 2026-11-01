@@ -4119,3 +4119,13 @@ none of either.
   people in the water are placed on the surfaces that are drawn - waders on the sand mesh's
   foreshore, swimmers and surfers on the ocean's own height model - rather than at a fixed level.
   A summer afternoon's water is busy (waders, more swimmers). SAND_ROADS=0 / WADERS=0 the A/B.
+
+- **2026-11-01 The glass at arm's length: shops have people in them, and their light lands where
+  the window says (interiors-glass, HANDOFF "The glass at arm's length").** People behind the glass
+  are shader-only bodies (ray-marched SDFs inside their own box, near the camera only) laid out from
+  the same integer rolls as the traced fittings, never geometry or nodes: they cost nothing past
+  34 m and nothing on a pane nobody looks through. They do not react to the world (no gunfire
+  response) - a deliberate trade for zero CPU. The night spill is the window's projection (riser
+  shade, mullion shadows) in display numbers; the stronger day mirror is near-only so the far boxes
+  keep step. INTERIORS_GLASS=0 is the A/B.
+

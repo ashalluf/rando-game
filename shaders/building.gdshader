@@ -1508,7 +1508,8 @@ void fragment() {
 				// By day the street outside is many stops brighter than any shop, and its reflection
 				// lies over the room: what makes a storefront read as GLASS from the pavement rather
 				// than as an open hole (InteriorsGlass). After dark the lit room wins, as before.
-				mirror *= mix(0.66, ip_shop_mirror_day, ip_on() * (1.0 - night_factor));
+				// Near only: past ~100 m the far boxes' storefronts take over, and they keep the old balance.
+				mirror *= mix(0.66, ip_shop_mirror_day, ip_on() * (1.0 - night_factor) * (1.0 - smoothstep(60.0, 110.0, length(VERTEX))));
 			}
 			// Most of the mirror is EMITTED, not painted on. What a pane reflects does not
 			// depend on the light falling on the pane: a window in the shade still shows the sky

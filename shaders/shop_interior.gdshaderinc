@@ -442,7 +442,8 @@ bool shop_person(uint key, uint kind, int i, float W, float D, float tm, bool tr
 		// A lobby: the guard at the desk, somebody crossing.
 		if (i == 0) {
 			if (r > 0.9) return false;
-			at = vec2(W * 0.5 + (r2 - 0.5) * 1.6, D * 0.55 + 1.3);
+			// Off the middle: the middle column stands right in front of the desk's centre.
+			at = vec2(W * 0.5 + (r2 < 0.5 ? -1.0 : 1.0) * min(W / 6.0, 1.5), D * 0.55 + 1.3);
 		} else if (i == 1) {
 			if (r > 0.7) return false;
 			float k = shop_pace(tm + r2 * 20.0, 16.0 + 8.0 * r, dir, mv);

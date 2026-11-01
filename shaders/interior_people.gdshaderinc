@@ -219,15 +219,23 @@ vec3 ip_color(int mat, uint k, vec3 n) {
 		vec3 c = r2 < 0.45 ? vec3(0.08, 0.11, 0.20) : (r2 < 0.7 ? vec3(0.04) : (r2 < 0.85 ? vec3(0.36, 0.30, 0.20) : vec3(0.20)));
 		return c;
 	}
-	// Tops: muted colours, whites and blacks.
-	vec3 c = 0.5 + 0.5 * cos(6.2832 * (r1 + vec3(0.0, 0.33, 0.67)));
-	c = mix(vec3(dot(c, vec3(0.333))), c, 0.55) * mix(0.25, 0.75, r0);
-	if (r2 > 0.78) {
-		c = vec3(0.72, 0.71, 0.68);
-	} else if (r2 < 0.18) {
-		c = vec3(0.04);
-	}
-	return c;
+	// Tops: what people wear (LINEAR): black, white, greys, navy, denim, olive, burgundy, beige,
+	// rust, teal, a muted red, mustard - most of a street in dark and neutral colours.
+	uint t = (k / 31u) % 16u;
+	vec3 c = vec3(0.03);
+	if (t == 1u || t == 2u) c = vec3(0.70, 0.69, 0.66);
+	else if (t == 3u) c = vec3(0.18);
+	else if (t == 4u) c = vec3(0.38, 0.38, 0.37);
+	else if (t == 5u || t == 6u) c = vec3(0.025, 0.035, 0.08);
+	else if (t == 7u) c = vec3(0.10, 0.16, 0.28);
+	else if (t == 8u) c = vec3(0.12, 0.13, 0.06);
+	else if (t == 9u) c = vec3(0.20, 0.03, 0.04);
+	else if (t == 10u) c = vec3(0.52, 0.43, 0.30);
+	else if (t == 11u) c = vec3(0.35, 0.10, 0.04);
+	else if (t == 12u) c = vec3(0.03, 0.17, 0.17);
+	else if (t == 13u) c = vec3(0.45, 0.06, 0.05);
+	else if (t == 14u) c = vec3(0.50, 0.36, 0.06);
+	return c * (0.85 + 0.3 * r0);
 }
 
 // The soft dark patch under somebody's feet on the floor (0..1).

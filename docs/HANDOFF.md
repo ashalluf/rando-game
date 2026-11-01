@@ -25155,3 +25155,66 @@ Probes: `tools/rc_beach/sand_roads_probe.gd` (headless: every coast street stret
 beach; `LOOK=swim|wade|surf` saves a close look at the first one). Checks `tests/rc_beach_checks.gd`.
 Stills on `shots/rc-beach`.
 
+
+## 9d?. The glass at arm's length: people in the shops, the fittings' light, the window on the pavement (fleet wave 5, `wt/interiors-glass`, 2026-11-01)
+
+The task: walk the street 2-6 m from storefronts and apartment windows at 13:00 and 21:00 and fix
+what reads as a painted plane. Before (downtown, the storefronts on the Flower / Olympic block at
+EYE `2373.6,1.7,862,-90,-4`; stills on `shots/interiors-glass`): every shop was EMPTY - a lobby, a
+grocer, a cafe with nobody in them; head-on at noon the glass carried almost no reflection and read
+as an open hole; at night a lit room was one tone floor to ceiling, and the light on the pavement
+was a soft round dot.
+
+**People in the shops** (`shaders/interior_people.gdshaderinc`, the biggest of the four): a person
+is a signed distance field - head, neck, a torso of two capsules (shoulders and a chest wider than
+deep), hips, two-segment arms and legs - ray-marched (28 steps at most) only inside its own box,
+lit by the normal it hits, coloured by what part it hit (skin, hair, a top from a 16-colour street
+palette, trousers, shoes). Poses STAND (idle sway), WALK (legs and arms swing with the distance
+walked, the knee bends on the swing), SIT (thighs level, shins down; sit_y the seat's height),
+REACH (an arm up at a shelf). `shop_person()` (shop_interior.gdshaderinc) lays up to four out per
+shop AGAINST THE FITTINGS shop_interior() traces, from the same rolls (flip, var_k, the table and
+chair pitches): a clerk behind the till, shoppers pacing an aisle between gondolas or the front
+aisle and reaching at the back wall (retail); a clerk at the counter's end and browsers between the
+rails (clothing); a barista behind the counter, diners on the chairs facing the street, somebody
+waiting at the counter (cafe); a waiter between the rows (restaurant); a customer in the barber's
+chair with the barber beside it and somebody on the waiting bench; tellers and a customer at the
+line (bank); the guard behind the lobby desk (off the middle column) and somebody crossing. Walking
+is `shop_pace()` (to and fro with a pause at each end, a cycle of 10-24 s, from shader TIME); every
+roll is `shop_hash(key, 120..143)`. People are there while the shop trades (shop_open, or 09:00-19:00
+by `city_hour`), within `IP_NEAR` (34 m) of the camera; they put a soft shadow on the floor.
+The homes' walker and the offices' workers (window_rooms.gdshaderinc) are the same bodies inside
+IP_NEAR and keep the old capsules past it (`home_room()` / `office_people()` take the distance).
+
+**The fittings' light** (shop_interior's lighting, within shop_fittings_distance): a downlight grid
+(cafes, restaurants, clothing, barbers, banks) throws a SCALLOP down every wall (`shop_scallop()`:
+each light's ~40 degree cone cut by the wall) and a pool on the floor under each light; a hard
+floor mirrors the fittings over it (the reflected ray followed to the ceiling's own pattern,
+blurred with the bounce, Fresnel; gloss by floor: stone 0.30, vinyl 0.20, planks 0.10).
+
+**The glass by day**: a storefront's mirror was 0.66 of a window's; by day within ~60 m it is now
+1.25 (`ip_shop_mirror_day`, faded back by 110 m so the far boxes keep step), so the street opposite
+lies over the room and the pane reads as glass. After dark nothing changed.
+
+**The window on the pavement** (`shaders/shop_spill.gdshader`, PropFactory.shop_spill()): each open
+shop's pool (Building.shop_pools now carries a third entry, `Color(pitch, bays, reach, 1)`, handed
+to the batch's custom data) is the window it comes through: the stallriser's shade for the first
+half metre, a band that falls off with the distance from the room's light (2.6 m back, 2.9 m up), the
+shop's width fanning out, and a soft shadow of every mullion running out from the glass; added in
+display numbers on Forward+ (light_pool's display_add rule). Off (or a pool without the custom),
+the shader is light_pool's old dot to the number.
+
+**Switch, tools, checks.** `INTERIORS_GLASS=0` (the `interiors_glass` global, pushed by
+`DayNight._ready()` -> `InteriorsGlass.install()`) is the A/B: empty shops, the old light, the old
+mirror, the old dot. `tools/glshot/building_shot.gd IG=0`. Checks: `tests/interiors_glass_checks.gd`.
+Forward+ (lavapipe, building_shot with `--rendering-driver vulkan`): the people and scallops read
+as on opengl3; the spill's Forward+ path is light_pool's proven display_add, not shot on lavapipe.
+
+**Cost**: zero geometry and draws. Per glass pixel within 34 m: up to four box tests and, for the
+pixels whose ray enters a person's box, a march; the fittings' light is a few lines per room pixel.
+Measured: see the end of the session's message (building_shot BENCH, a storefront filling the frame).
+
+**Not done / open**: no people in the shops of LOD chunks or past 34 m (by design); the people do
+not see the player or react to gunfire (they are shader-only: a blast in the street leaves the
+barista serving); clothes have no garment detail (a top is one colour); no kitchens behind a
+restaurant; the reflection over the glass by day is still the shader's fake street opposite
+(Forward+'s probes take over within their reach).

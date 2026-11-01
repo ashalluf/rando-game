@@ -19,7 +19,7 @@ uniform float strength = 1.0;
 uniform float falloff = 1.7;
 // The window pattern's brightness against the old dot, and where its light comes from: metres
 // behind the glass and up from the floor (the room's ceiling lights).
-uniform float window_gain = 1.6;
+uniform float window_gain = 1.2;
 uniform float source_back = 2.6;
 uniform float source_up = 2.9;
 // The stallriser's top (metres): the glass starts there.
