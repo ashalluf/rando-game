@@ -97,6 +97,10 @@ func _initialize() -> void:
 	var env := (_scene_resource("res://scenes/levels/city.tscn", "WorldEnvironment", "environment") as Environment).duplicate(true) as Environment
 	var attrs := (_scene_resource("res://scenes/player/player.tscn", "Camera3D", "attributes") as CameraAttributesPractical).duplicate(true) as CameraAttributesPractical
 	attrs.dof_blur_far_enabled = false
+	# LUM_OPEN=1 (with CAMERA_LENS=0): no clamp, so LUM=1 reads the frame's true metered value.
+	if _env("LUM_OPEN", "0") == "1":
+		attrs.auto_exposure_min_sensitivity = 1.0
+		attrs.auto_exposure_max_sensitivity = 100000.0
 	var top := Node3D.new()
 	top.name = "LensProbe"
 	var we := WorldEnvironment.new()
@@ -203,6 +207,10 @@ func _initialize() -> void:
 	root.add_child(top)
 	_cam.make_current()
 	root.use_taa = true
+	# LUM=1: draw Godot's metered scene luminance instead of the picture (what the auto exposure
+	# divides by; the shot's LENS_LUM line is its value). The gain is scale / clamp(lum, min, max).
+	if _env("LUM", "0") == "1":
+		root.debug_draw = Viewport.DEBUG_DRAW_SCENE_LUMINANCE
 	_mode = _env("MODE", "shots")
 	for s in _env("SHOTS", "street@12@0,1.7,10@0,4@120").split(";", false):
 		_shots.append(s.split("@"))
@@ -244,6 +252,10 @@ func _process(delta: float) -> bool:
 	if _frame == int(s[4]):
 		var img := root.get_texture().get_image()
 		img.save_png("%s_%s.png" % [_env("OUT", "/tmp/lens"), s[0]])
+		if root.debug_draw == Viewport.DEBUG_DRAW_SCENE_LUMINANCE:
+			var c := img.get_pixel(img.get_width() / 2, img.get_height() / 2)
+			print("LENS_LUM %s %.4f (min %.4f max %.4f)" % [s[0], c.r, _cam.attributes.auto_exposure_min_sensitivity * 0.00125,
+					_cam.attributes.auto_exposure_max_sensitivity * 0.00125])
 		print("LENS_SHOT %s %s flare %.2f encl %.2f" % [s[0], _stats(img),
 				float(_lens.get("flare_now")) if _lens else 0.0, float(_lens.get("enclosure")) if _lens else 0.0])
 		_frame = 0
