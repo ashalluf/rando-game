@@ -33,9 +33,9 @@ uniform float aspect = 1.7778;
 uniform vec3 sun_tint = vec3(1.0, 0.95, 0.86);
 // Strengths of the parts: the glow round the sun, the aperture spikes, the ghosts, and the veil
 // over the whole frame shooting into the sun.
-uniform float flare_glow = 0.30;
-uniform float flare_spikes = 0.10;
-uniform float flare_ghosts = 0.045;
+uniform float flare_glow = 0.35;
+uniform float flare_spikes = 0.16;
+uniform float flare_ghosts = 0.11;
 uniform float flare_veil = 0.045;
 
 // A regular hexagon's distance (the aperture's six blades), r its inner radius.
@@ -104,7 +104,7 @@ void fragment() {
 		// What the picture shows at the sun: one tap a few mips down, so a tower, a tree or a
 		// cloud over the sun covers the flare as much as it covers the sun's neighbourhood.
 		vec3 at_sun = textureLod(screen_tex, clamp(sun_uv, vec2(0.004), vec2(0.996)), 3.0).rgb;
-		float vis = smoothstep(0.6, 0.94, max(at_sun.r, max(at_sun.g, at_sun.b)));
+		float vis = smoothstep(0.5, 0.86, max(at_sun.r, max(at_sun.g, at_sun.b)));
 		if (vis > 0.0) {
 			vec3 f = clamp(sun_flare(uv, vis), 0.0, 1.0);
 			col = col + f - col * f;
