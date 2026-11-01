@@ -230,6 +230,10 @@ uniform vec3 day_cloud_tint = vec3(0.95, 0.98, 1.04);
 // The crepuscular rays by day: a high sun behind broken cumulus throws none across the sky (they
 // drew a beige blot round the noon sun, shaped like the clouds' weather map).
 uniform float day_rays = 0.2;
+// The sun's elevation (sine) over which the day's thin rays and wispy cirrus come in by the sun
+// itself, whatever the clock's weight: 09:00 (36 degrees up) and 16:00 (25) get them.
+uniform float high_sun_from = 0.3;
+uniform float high_sun_to = 0.5;
 // The painted mid deck by day: a smooth pale smudge next to the volume (a veil round the sun).
 uniform float day_mid = 0.15;
 // How much of the day look the radiance / ambient cubemap gets. The sky IS the city's fill light:
@@ -967,9 +971,13 @@ void sky() {
 					vec4 rs = sun_through(max(sdir.y, -0.03), 0.4);
 					ray_col = mix(low_sun, vec3(dot(sun_light, vec3(0.3333))) * rs.rgb * rs.a * 1.3, sunset);
 				}
+				// A high sun throws few: by its elevation, so 09:00 and 16:00 (outside the clock's
+				// day weight) lose the searchlight fan too.
+				float hi_rays = smoothstep(high_sun_from, high_sun_to, sdir.y);
 				if (sday > 0.0) {
-					shaft *= mix(1.0, day_rays, sday);
+					hi_rays = max(hi_rays, sday);
 				}
+				shaft *= mix(1.0, day_rays, hi_rays);
 				// Rays are the air lit between the shadows, so they sit behind any cloud.
 				res.rgb += ray_col * shaft * 0.32 * res.a;
 			}
@@ -1268,13 +1276,21 @@ void sky() {
 				cir_night = night_factor * (1.0 - c_lit * sunset);
 			}
 			cir *= smoothstep(0.03, 0.34, up) * cirrus_amount * (1.0 - cir_night * 0.85);
+			float hi_cir = smoothstep(high_sun_from, high_sun_to, sdir.y) * (1.0 - sunset);
+			// The ambient cubemap takes the same share the day weight gives it (sday).
+			if (AT_CUBEMAP_PASS) {
+				hi_cir *= day_cubemap;
+			}
 			if (sday > 0.0) {
+				hi_cir = max(hi_cir, sday);
+			}
+			if (hi_cir > 0.0) {
 				// By day the cirrus is wisps and hooks with blue between them: as one long-streaked
 				// veil it whitened the whole upper sky and, seen down its length, its east-west
 				// streaks fanned out of the horizon like searchlight beams.
 				float dwisp = smoothstep(0.38, 0.78, vnoise(vec2(cuv.x * 1.9, cuv.y * 0.8) + 3.7) * 0.6
 					+ vnoise(vec2(cuv.x * 4.3, cuv.y * 2.1) + 8.2) * 0.4);
-				cir *= mix(1.0, dwisp * day_cirrus * smoothstep(0.08, 0.5, up), sday);
+				cir *= mix(1.0, dwisp * day_cirrus * smoothstep(0.08, 0.5, up), hi_cir);
 			}
 			// After dark it is a veil lit by the moon and the city, not a white streak.
 			ccol = mix(ccol, ccol * night_cloud_light * 0.5 + night_glow, cir_night);

@@ -29,6 +29,8 @@ uniform float mirror_keep = 0.45;
 uniform float fade_near = 1500.0;
 uniform float fade_far = 9000.0;
 uniform float far_keep = 0.35;
+// 1 paints the raw shadow field (white = full sun) for tuning (CLOUD_SHADOW_DEBUG=1).
+uniform float debug_field = 0.0;
 
 void vertex() {
 	POSITION = vec4(VERTEX.xy * 2.0, 1.0, 1.0);
@@ -47,6 +49,10 @@ void fragment() {
 	vec3 world = (INV_VIEW_MATRIX * vec4(view.xyz, 1.0)).xyz + origin_shift;
 	vec3 L = normalize(sun_direction);
 	float sh = cs_shadow(world, L);
+	if (debug_field > 0.5) {
+		ALBEDO = vec3(1.0 - sh) * 4.0;
+		return;
+	}
 	if (sh <= 0.002) {
 		discard;
 	}
