@@ -1,13 +1,13 @@
-# Rando Game fleet brief, wave 4 (shared rules for every parallel session; 2026-10-31)
+# Rando Game fleet brief, wave 5 (shared rules for every parallel session; 2026-11-01)
 
-You are a fresh Claude Code session on "Rando Game" (github.com/ashalluf/rando-game), a Godot 4.7.2 open-world chaos sandbox set in a seeded, LA-like city. You are one of about 40 sessions working in parallel, one area each. A lead session reviews your branch and merges it into main. Nobody is watching to answer questions: work autonomously to the end.
+You are a fresh Claude Code session on "Rando Game" (github.com/ashalluf/rando-game), a Godot 4.7.2 open-world chaos sandbox set in a seeded, LA-like city. You are one of about 26 sessions working in parallel, one area each. A lead session reviews your branch and merges it into main. Nobody is watching to answer questions: work autonomously to the end.
 
 FIRST read, in full: CLAUDE.md (the rulebook), the top of docs/HANDOFF.md (section 000000000 first, then 00000000, then the newest 9xx sections), VISUAL_ROADMAP.md and the docs sections your task points to. They are the source of truth. The owner's bar (2026-10-29): "this needs to start looking like GTA 6". AAA, like a real 2026 game. Realistic and high-poly, never low-poly or cartoon. Tone of the game: silly, over the top, overpowered player; the WORLD is realistic.
 
 ## Your starting point
-- **Start from `origin/main`** (2026-10-31, build 395+: wave 3 merged through batch 25, the golden-hour review). `git fetch origin main && git checkout -b wt/<slug> origin/main`. Ignore any older line that says fleet/base or a build number.
+- **Start from `origin/main`** (2026-11-01, build 402+: ALL of wave 4 merged, batch 32). `git fetch origin main && git checkout -b wt/<slug> origin/main`. Ignore any older line that says fleet/base or a build number.
 - Resuming a branch (your task says "resume wt/<slug>"): `git fetch origin wt/<slug> main && git checkout -b wt/<slug> origin/wt/<slug>`, then MERGE `origin/main` into it first thing (read every conflict hunk, keep both sides' intent). The repo clone may be shallow: `git fetch --unshallow` if a merge cannot find a base. Also fetch `shots/<slug>` if it exists and add to it.
-- Read docs/HANDOFF.md section 000000000 (the state when wave 3 stopped) and 00000000, then CLAUDE.md's bullet nearest your area and the 9xx HANDOFF section it names.
+- Read docs/HANDOFF.md section 0000000000 (wave 4) and 000000000, then CLAUDE.md's bullet nearest your area and the 9xx HANDOFF section it names.
 
 ## Setup (nothing is preinstalled)
 - Godot (downloads.godotengine.org is BLOCKED by the network policy; use GitHub):
@@ -41,8 +41,12 @@ FIRST read, in full: CLAUDE.md (the rulebook), the top of docs/HANDOFF.md (secti
 ## When you are done
 Finish your last message with: branch head, check result (number of checks passed and failed), peak memory of the check if you measured it, frame-cost numbers, the still names, and what is not done or not verified.
 
-## Wave 4's areas (one session each; stay out of the others')
-The list is `tasks.tsv` on this branch (wave 2's list is `tasks_w2.tsv`) (slug, kind, task). Kinds: `resume` (finish a paused branch), `refcam` (one of the ten reference cameras: judge that ONE view against a 2026 AAA game, list what reads fake in it, fix the worst three to five things, prove each with a before/after of that camera), `new`, `infra`.
+## Wave 5's areas (one session each; stay out of the others')
+The list is `tasks_w5.tsv` on this branch (wave 4's is `tasks.tsv`, wave 2's `tasks_w2.tsv`) (slug, kind, task). Kinds: `resume` (finish a paused branch), `refcam` (one of the ten reference cameras: judge that ONE view against a 2026 AAA game, list what reads fake in it, fix the worst three to five things, prove each with a before/after of that camera), `new`, `infra`.
 
 ## Refcam sessions, how to work
 `tools/refcams/` (README there) shoots the ten reference cameras from one city load: `GODOT=... python3 tools/refcams/refcams.py run build/refcams/<label> --only <camera>` (~6 min for one camera, ~3.5 GB) gives the PNG and its numbers. Shoot the camera on main FIRST (the before). Then look at it the way an art director would: what gives it away as a game? (flat shading, tiling, repeated props, floating things, hard edges where there should be a bevel, lights that do not light anything, people stood still, empty roads, a sky that does not match the light.) Fix the worst things in order of what the eye lands on first. Every fix must hold on the other nine cameras: run the whole set once before your final push and compare with `compare`. Remember the two renderers (opengl3 stills are not the Mac): a colour or lighting change is proved on a SMALL Forward+ scene under lavapipe (CLAUDE.md, the measurement traps), never on the opengl3 still alone.
+
+
+## Refcam2 sessions (wave 5), how to work
+Same method as the refcam sessions above, but your camera is NEW. Pick the exact eye yourself (a view that a player really sees, framed like a 2026 AAA screenshot, not an empty corner), and add ONE row for it to `tools/refcams/cameras_w5.json` (create the file with the same header and `resolution` as cameras.json if it does not exist yet; keep your row on its own line so the lead's merges are trivial). Run it with `REFCAMS_JSON=tools/refcams/cameras_w5.json python3 tools/refcams/refcams.py run build/refcams/<label> --only <camera>`. If your view needs staging (a car, the player, an effect), add a minimal, optional key to the camera row and its handling in refcams_shot.gd (default off, never changing the other cameras). Shoot the before on main FIRST and push it to shots/<slug> early. Every fix must hold on the ten original cameras: run `refcams.py run` on cameras.json once before your final push and `compare` it with main's.
