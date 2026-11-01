@@ -247,7 +247,14 @@ func _process(delta: float) -> bool:
 	_day.call("set_paused", true)
 	var p := (s[2] as String).split(",")
 	var a := (s[3] as String).split(",")
-	_place(Vector3(float(p[0]), float(p[1]), float(p[2])), float(a[0]), float(a[1]))
+	# "sun,dx,dy": aim at the sun, then turn dx degrees right and dy up (the sun off the centre).
+	if a[0] == "sun":
+		var d: Vector3 = _day.get("sun_dir")
+		var yaw := rad_to_deg(atan2(-d.x, -d.z)) - float(a[1])
+		var pitch := rad_to_deg(asin(clampf(d.y, -1.0, 1.0))) - float(a[2])
+		_place(Vector3(float(p[0]), float(p[1]), float(p[2])), yaw, pitch)
+	else:
+		_place(Vector3(float(p[0]), float(p[1]), float(p[2])), float(a[0]), float(a[1]))
 	_frame += 1
 	if _frame == int(s[4]):
 		var img := root.get_texture().get_image()
