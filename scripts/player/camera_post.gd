@@ -139,6 +139,7 @@ func _ready() -> void:
 		compositor.compositor_effects = [effect]
 		_camera.compositor = compositor
 	_push_motion_blur(1.0 / 60.0)
+	CameraLens.attach(self)
 
 
 ## True where the motion blur can run: Forward+ with a RenderingDevice (not Compatibility, not
