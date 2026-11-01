@@ -1,12 +1,10 @@
-# Rando Game
+# shots/load-time-3
 
-A 3D open-world chaos sandbox in Godot 4.7.2. Overpowered player, unlimited guns, a seeded low-poly
-city to wreck.
+An infra task (load time and first-use hitches), so the stills are the measurements:
 
-- `CLAUDE.md` — how the project is built and how to work in it (read first).
-- `docs/GAME_PLAN.md` — roadmap, current state, decisions log.
-- `docs/ASSETS.md` — asset sources and licenses.
-
-**Play it:** install Godot 4.7.2, clone this repo, open Godot, Import `project.godot`, press Play.
-
-**Check it headless:** `GODOT=/path/to/godot tests/headless_check.sh`
+- `01_first_use_hitches_wave4.jpg` - ms of hitch the first time each of wave 4's things appears after
+  the loading screen (tools/shader_warm/first_use_probe.tscn EVENTS=wave4, opengl3, rehearsal on):
+  main 4.1 s in all, this branch 0.
+- `02_cold_launch_stages.jpg` - cold-cache launch stages (headless, LOAD_SCREEN_HEADLESS=1): the
+  ground bake 25.1 -> 20.0 s (byte-identical images), the rehearsal now has its own LOADING line.
+  The other stages are unchanged (run-to-run noise of a few seconds).
