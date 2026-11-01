@@ -25207,7 +25207,7 @@ says). `AIRPORT_APRON=0` on the branch is main's look (the before stills).
    standing-seam roofs with visible seams (`ROOF_PARAMS`); the infield is straw, not lime
    (lawn.gdshader `straw`, 0 on every other lawn, and the far plates' colour `GRASS_FAR`).
 
-**Checks**: `tests/rc2_airport_checks.gd` (12: the lifts and their order, borders only where they
+**Checks**: `tests/rc2_airport_checks.gd` (13: the lifts and their order, borders only where they
 belong, the A/B, stains per stand and off the taxiway, purity, the materials' passes, a street lawn
 untouched, the livery's derivatives, the camera row, a FULL chunk painting at the new lift and its
 patch batch).
