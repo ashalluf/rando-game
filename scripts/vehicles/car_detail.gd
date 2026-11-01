@@ -77,6 +77,11 @@ const MAKES := {
 	Vehicle.BodyType.COMPACT_SUV: [2, "RANGLO"],
 	Vehicle.BodyType.WORK_TRUCK: [2, "HAULDER WT"],
 	Vehicle.BodyType.COUPE: [0, "STRADA"],
+	Vehicle.BodyType.WAGON: [3, "VENTRA"],
+	Vehicle.BodyType.MUSCLE: [2, "BRUTANO"],
+	Vehicle.BodyType.LUX_SUV: [1, "SOVRANA"],
+	Vehicle.BodyType.KEI_VAN: [4, "MINIMO"],
+	Vehicle.BodyType.CLASSIC: [0, "CORDALE"],
 }
 ## Where the plates go, per body type: [rear height, rear x, front height] in metres over the
 ## road (the generators' plate recesses, tools/make_road_cars.py / make_more_cars.py; the van's
@@ -100,6 +105,11 @@ const PLATE_AT := {
 	Vehicle.BodyType.COMPACT_SUV: [0.66, 0.0, 0.45],
 	Vehicle.BodyType.WORK_TRUCK: [0.87, 0.0, 0.50],
 	Vehicle.BodyType.COUPE: [0.567, 0.0, 0.38],
+	Vehicle.BodyType.WAGON: [0.755, 0.0, 0.36],
+	Vehicle.BodyType.MUSCLE: [0.567, 0.0, 0.36],
+	Vehicle.BodyType.LUX_SUV: [1.14, 0.0, 0.45],
+	Vehicle.BodyType.KEI_VAN: [0.665, 0.0, 0.40],
+	Vehicle.BodyType.CLASSIC: [0.60, 0.0, 0.40],
 }
 ## Tyre makers and lines moulded into the sidewall (invented).
 const TYRE_MAKERS := ["VORANTA", "TERRAVAL", "MARENZO", "QUILLAN"]
