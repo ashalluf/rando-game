@@ -74,6 +74,8 @@ var enclosure: float = 0.0
 var speed_now: float = 0.0
 var min_sensitivity_now: float = 200.0
 var flare_now: float = 0.0
+## Quality's say (CameraPost.quality_level): no flare at LOWEST.
+var flare_allowed: bool = true
 
 var _post: Node
 var _day: Node
@@ -142,6 +144,8 @@ func _process(_delta: float) -> void:
 	# Probes that render at a fixed frame rate (--fixed-fps) step the clock by the frame.
 	if Engine.has_meta("camera_lens_fixed"):
 		real_dt = _delta
+	if _post and is_instance_valid(_post):
+		flare_allowed = int(_post.get("quality_level")) <= 2
 	var day := _day_night()
 	_apply_glow()
 	_update_exposure(day, real_dt)
@@ -265,7 +269,7 @@ func _update_lens(day: Node) -> void:
 	mat.set_shader_parameter("grain_gain", lerpf(1.0, grain_dark_gain, g))
 	flare_now = 0.0
 	var cam := get_viewport().get_camera_3d()
-	if not supported() or day == null or cam == null or flare_strength <= 0.0:
+	if not supported() or not flare_allowed or day == null or cam == null or flare_strength <= 0.0:
 		mat.set_shader_parameter("flare_amount", 0.0)
 		return
 	var sun_dir: Vector3 = day.get("sun_dir")

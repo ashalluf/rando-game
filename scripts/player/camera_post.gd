@@ -103,6 +103,8 @@ extends Node
 var motion_blur_allowed: bool = true
 var ambient_dof_allowed: bool = true
 var focus_dof_allowed: bool = true
+## The last Quality level (0 HIGH .. 3 LOWEST), for CameraLens (no sun flare at LOWEST).
+var quality_level: int = 0
 ## The settings screen's depth of field toggle (GameSettings): off, no far blur in any state.
 var user_dof: bool = true
 ## The effect on the camera's Compositor, or null where the renderer cannot run it.
@@ -157,6 +159,7 @@ func apply_quality(level: int) -> void:
 	motion_blur_allowed = level <= 1
 	ambient_dof_allowed = level == 0
 	focus_dof_allowed = level <= 1
+	quality_level = level
 
 
 ## True while the motion blur is really drawing (the HUD's quality line reads it).
