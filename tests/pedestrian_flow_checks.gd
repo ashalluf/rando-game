@@ -154,7 +154,7 @@ func _walker(chunk: Node3D, rect: Rect2, at: Vector2, seed_value: int) -> Pedest
 
 
 ## The north pavement of the spawn block nearest the camera, and a run along it.
-func _strip(city: Node3D, chunk: Node3D) -> Array:
+func _strip(city: Node3D, chunk: Node3D, nearer: bool = false) -> Array:
 	var rect: Rect2 = city.plan.block(0, 0).rect
 	var cam := _tree.root.get_viewport().get_camera_3d()
 	var cw := WorldState.to_world(cam.global_position) if cam else Vector3(rect.get_center().x, 0.0, rect.position.y)
@@ -163,7 +163,7 @@ func _strip(city: Node3D, chunk: Node3D) -> Array:
 	# CrowdFlow.RANGE (35 m) of it, and the north one alone was 24 m off at the usual look and over
 	# 35 at another (shuffled gate 1202: the pair walked through each other).
 	var z := rect.position.y + 2.0
-	if absf(cw.z - (rect.end.y - 2.0)) < absf(cw.z - z):
+	if nearer and absf(cw.z - (rect.end.y - 2.0)) < absf(cw.z - z):
 		z = rect.end.y - 2.0
 	return [rect, Vector2(x0, z)]
 
@@ -200,7 +200,7 @@ func _follower(city: Node3D, chunk: Node3D) -> void:
 
 
 func _passing(city: Node3D, chunk: Node3D) -> void:
-	var s := _strip(city, chunk)
+	var s := _strip(city, chunk, true)
 	var rect: Rect2 = s[0]
 	var at: Vector2 = s[1]
 	var a := _walker(chunk, rect, at, 90201)
