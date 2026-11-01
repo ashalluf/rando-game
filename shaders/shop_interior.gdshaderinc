@@ -451,8 +451,19 @@ bool shop_person(uint key, uint kind, int i, float W, float D, float tm, bool tr
 			yaw = mv > 0.5 ? (dir > 0.0 ? 1.5708 : -1.5708) : 3.14159;
 			pose = mv > 0.5 ? IP_WALK : IP_STAND;
 			ph = mv > 0.5 ? k * (W - 2.0) / 1.3 * 6.2832 : idle;
+		} else if (i == 2) {
+			// Waiting at the lifts.
+			if (r > 0.6) return false;
+			at = vec2(mix(1.2, W - 1.2, r2), D - 1.4);
+			yaw = 0.0;
 		} else {
-			return false;
+			// Somebody crossing nearer the glass, between the bench and the columns.
+			if (r > 0.55 || D * 0.3 < 3.6) return false;
+			float k = shop_pace(tm + r2 * 37.0, 14.0 + 9.0 * r, dir, mv);
+			at = vec2(mix(0.9, W - 0.9, k), 3.2);
+			yaw = mv > 0.5 ? (dir > 0.0 ? 1.5708 : -1.5708) : 3.14159;
+			pose = mv > 0.5 ? IP_WALK : IP_STAND;
+			ph = mv > 0.5 ? k * (W - 1.8) / 1.3 * 6.2832 : idle;
 		}
 	}
 	return true;
