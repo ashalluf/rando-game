@@ -4119,3 +4119,12 @@ none of either.
   people in the water are placed on the surfaces that are drawn - waders on the sand mesh's
   foreshore, swimmers and surfers on the ocean's own height model - rather than at a fixed level.
   A summer afternoon's water is busy (waders, more swimmers). SAND_ROADS=0 / WADERS=0 the A/B.
+
+- **2026-11-01 The rainy day is lit by the sky, not the sun (rc2-rain-day, HANDOFF "The rainy day").**
+  Daylight rain was the clear day with a grey sky drawn over it. Decisions: under a rain deck by day
+  the sun keeps about a third of its key and its shadows fade (RainDay); a wet road by day mirrors
+  the sky down its middle and the fronts along its sides, worked out from the plan like the night
+  mirror, and the night city's mirror and sky emission belong to the night only; things that burn
+  only after dark (searchlights, premiere beams) follow the lamps' night level, not the weather's
+  share (street and car lamps still come on under a storm at noon). New refcam `rain_day` in
+  tools/refcams/cameras_w5.json. RAIN_DAY=0 the A/B.

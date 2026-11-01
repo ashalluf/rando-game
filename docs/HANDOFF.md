@@ -25155,3 +25155,76 @@ Probes: `tools/rc_beach/sand_roads_probe.gd` (headless: every coast street stret
 beach; `LOOK=swim|wade|surf` saves a close look at the first one). Checks `tests/rc_beach_checks.gd`.
 Stills on `shots/rc-beach`.
 
+
+## 9d?. The rainy day: Wilshire at 14:00 in the rain (fleet wave 5, `wt/rc2-rain-day`; refcam `rain_day`)
+
+The task: a NEW reference view, "rain_day" - a midtown boulevard at 14:00 in rain (overcast
+daylight, not night) - judged as an art director would, the worst three to five things fixed. The
+row is in `tools/refcams/cameras_w5.json`: Wilshire's north pavement at x 1405, looking ESE down the
+boulevard toward downtown (the deco "NOVALINE" corner and its shops on the right, a rec park on the
+left), FOV 55, plus an optional `street_cars` key (below). Run it with
+`REFCAMS_JSON=tools/refcams/cameras_w5.json python3 tools/refcams/refcams.py run <dir> --only rain_day`
+(~13 min, the load is ~11 min, peak ~10.7 GB on this box).
+
+**What read fake, worst first** (before: `RAIN_DAY=0`, which is main's look; stills
+`shots/rc2-rain-day` 02 / 03):
+1. **A sunny afternoon with a grey sky painted on.** Rain cut the sun only by 0.75 x darken (to
+   62 %) at full shadow opacity: the lamp pole and every palm threw crisp shadows across a sunlit
+   pavement under a rain deck.
+2. **The wet road mirrored bright sky from kerb to kerb.** By day the renderer's reflection is the
+   sky's radiance map, so a soaked boulevard read pale and dry; and the night city mirror and night
+   sky emission ran by day too (the weather's lamp level is 0.42 at 14:00 in rain), putting lit shop
+   fronts into the puddles.
+3. **Neon-green turf and dry paving** - the park's turf, dirt and the lawn shaders ignored the rain.
+4. **Searchlights at 14:00**: a police patrol helicopter's sweep and a premiere's sky beams burn
+   whenever DayNight's lamp level is up, which the rain raises at noon.
+5. **A flat grey sky** (the painted stratus ceiling, one tone horizon to zenith) and grey lens-drop
+   discs over it; **no traffic and no spray in view** (TyreSpray reached 55 m, full at 24 m/s).
+
+**The fixes** (`RainDay`, `scripts/world/rain_day.gd`, every number with the switch; `RAIN_DAY=0`
+puts each back, and nothing changes at night or on a clear day, so the other ten refcams are
+untouched by construction):
+- **Overcast light** (DayNight, three hooks): `overcast()` = weather_darken's 1.6 ramp x (1 -
+  moonlight); the sun's key x `1 - SUN_CUT 0.7 x overcast` (0.36 of a clear sun's 1.3 in rain), its
+  `shadow_opacity` x `1 - SHADOW_CUT 0.8 x overcast` (0.36), the ambient energy x `1 + 0.9 x
+  overcast`. Godot ignores ambient_light_energy at sky contribution 1.0 (HIGH): there the fill is
+  the sky and SDFGI, and the camera's auto exposure takes up the rest.
+- **The wet road by day** (`shaders/rain_day_mirror.gdshaderinc`, in road.gdshader's wet branch
+  behind the `rain_day` global): the reflected ray is followed to the fronts `wrm_setback` past each
+  kerb (wet_road_mirror's street frame and per-unit rooflines, so the day canyon is the night one's
+  geometry); where a front stands in the mirror the sky's SPECULAR is taken away (`rdm_spec_cut`)
+  and the front's overcast light emitted (`rdm_wall` 0.26 x sky_tint x a per-front tone); off a
+  street slab a generic canyon by the ray's elevation. The night mirrors (WetRoadMirror's city and
+  the night sky) now run on `lamp_factor x (1 - rain_day)`. Paving darkens 22 % more and keeps a
+  0.2 sheen, never asphalt's mirror. `rain_day` = 1 - the lamps' own night level (`publish()`), 0
+  at night: the night road is bit for bit.
+- **Soaked turf**: lawn.gdshader (both branches) and park_ground.gdshader (turf, soccer, diamond,
+  lawn, decomposed granite) darken, grey and gloss by `road_wetness x rain_day`.
+- **After dark only**: `RainDay.after_dark_lamp()` (the lamps' night level, `night_lamp`, not the
+  weather's share) for SkyBeam and the helicopter's searchlight; street and car lamps keep coming
+  on under a storm at noon as designed.
+- **The rain deck** (sky.gdshader `rain_deck`, `RainDay.rain_deck()`: rain and storm by day, not
+  plain overcast, 0 at night): two noise fields on the deck's plane (a big slow one, a finer faster
+  scud) mottle the sky into heavy darker masses and paler thin places, after both the painted and
+  the volume cumulus, faded into the horizon haze.
+- **Lens drops** by day x `LENS_DAY` 0.35; **tyre spray**: `SPRAY_REACH` 95 m, full at 16 m/s, puff
+  alpha 0.6 (TyreSpray reads them once in `_ready()`; this does change the street_night shot's
+  spray, the only effect off the rainy day).
+
+**Staging** (`refcams_shot.gd`, optional row key, the ten original rows do not have it):
+`"street_cars": {"axis": "z", "at": 312.7, "cars": [[along, dir, lane, speed], ...]}` places street
+cars through `TrafficManager.place_car()` on the road nearest `at` as the camera starts, with the
+upkeep held (`staged`) until the shot. The bus at its stop in the frame is the load's own traffic.
+
+**Proof**: refcams on opengl3 (`RAIN_DAY=0` vs on, same row) and a small Forward+ scene on lavapipe
+(fwd_block_shot at the same eye, the home block plus east and south, `tools/fwd_review_f/shoot.sh`
+with `override.cfg` threads 1 - never commit it). Numbers in the last section of this entry.
+
+Checks: `tests/rc2_rain_day_checks.gd` (22: the pure numbers, the switch, nights and clear days
+untouched, the shaders' gates and defaults, the live city at 14:00 in rain and at 23:00).
+
+**Not done / not seen**: the facades' wetness by day (wet-world's ws_wall) reads faintly at this
+range on opengl3, untouched; the pink-brown pavement stain in the foreground is a StreetWear stain,
+not rain; the rain curtain by day is thin against a pale sky (left as is); Forward+'s SSR adds the
+on-screen reflections on top of the day canyon - the balance (`rdm_spec_cut`) may want lowering on
+the Mac.

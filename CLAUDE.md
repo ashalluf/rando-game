@@ -499,6 +499,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `light_volumetric_fog_energy` down in bad weather - rain thickens the volumetric fog seventy
   times, and lit by the moonlight fill it hung over the street as a pale grey veil. At 88 %
   cloud the sky IS the clouds, so the night cloud colour is what decides it.
+- The rainy day (2026-11-01, docs/HANDOFF.md "The rainy day", refcam `rain_day` in
+  `tools/refcams/cameras_w5.json`): `RainDay` (`scripts/world/rain_day.gd`) - under rain by day the
+  sun keeps ~1/3 of its key with faint shadows and more sky fill; the wet road mirrors the canyon of
+  fronts by day (`shaders/rain_day_mirror.gdshaderinc`, the `rain_day` global, 0 at night) and the
+  night mirrors only run after dark; turf and paving soak; sky.gdshader's `rain_deck` mottles the
+  deck; spray reaches 95 m; searchlights use `RainDay.after_dark_lamp()`. Nights and clear days are
+  untouched. `RAIN_DAY=0` is the A/B; checks `tests/rc2_rain_day_checks.gd`.
 - The wet world (2026-10-30, docs/HANDOFF.md "The wet world"): everything that is not a road takes
   the rain from the road's globals through `shaders/wet_surface.gdshaderinc` (no samplers; call it
   only behind `if (ws_on())`, the one dry branch; never with wet_drying.gdshaderinc): car paint and
