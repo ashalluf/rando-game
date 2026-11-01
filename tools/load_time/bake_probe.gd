@@ -26,6 +26,10 @@ func _ready() -> void:
 	var parts := {
 		"raw_height_at": func(p: Vector2) -> void: mm.raw_height_at(p),
 		"height_at": func(p: Vector2) -> void: mm.height_at(p),
+		"_relief_at": func(p: Vector2) -> void: mm._relief_at(p, 0.0),
+		"Ballpark.carve": func(p: Vector2) -> void: Ballpark.carve(p, 0.0),
+		"hill_roads.carve": func(p: Vector2) -> void: mm.hill_roads.carve(p, 0.0) if mm.hill_roads else null,
+		"Lighthouses.carve": func(p: Vector2) -> void: Lighthouses.carve(mm, p, 0.0),
 		"zone_at": func(p: Vector2) -> void: mm.zone_at(p),
 		"district_at": func(p: Vector2) -> void: mm.district_at(p),
 		"freeway.blocks": func(p: Vector2) -> void: mm.freeway.blocks(p, MacroMap.BAKE_FREEWAY_MARGIN) if mm.freeway else null,
@@ -41,7 +45,15 @@ func _ready() -> void:
 		var us := float(Time.get_ticks_usec() - t)
 		print("BAKE %-18s %6.1f us/px  ~%6d ms for the bake" % [k, us / pts.size(), int(us * scale / 1000.0)])
 	if OS.get_environment("FULL") == "1":
-		var t := Time.get_ticks_usec()
-		mm.bake(Vector2.ZERO, span, 256)
-		print("BAKE full %d ms" % ((Time.get_ticks_usec() - t) / 1000))
+		# The real bake twice, with the raw-height memo and without: the time, and that the two
+		# images (colour and height) are the same bytes.
+		var out := {}
+		for memo in [true, false]:
+			MacroMap.bake_memo = memo
+			var t := Time.get_ticks_usec()
+			var img := mm.bake(Vector2.ZERO, span, 256)
+			print("BAKE full memo=%s %d ms" % [memo, (Time.get_ticks_usec() - t) / 1000])
+			out[memo] = [img.get_data(), mm.bake_height.get_data()]
+		MacroMap.bake_memo = true
+		print("BAKE identical colour=%s height=%s" % [out[true][0] == out[false][0], out[true][1] == out[false][1]])
 	get_tree().quit()

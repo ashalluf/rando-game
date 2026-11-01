@@ -25155,3 +25155,73 @@ Probes: `tools/rc_beach/sand_roads_probe.gd` (headless: every coast street stret
 beach; `LOOK=swim|wade|surf` saves a close look at the first one). Checks `tests/rc_beach_checks.gd`.
 Stills on `shots/rc-beach`.
 
+
+## 9d?. Load time after wave 4: wave 4's first uses rehearsed, the rehearsal timed, the bake memo (fleet wave 5, `wt/load-time-3`, 2026-11-01)
+
+**Ask (wave 5, infra):** load time and the first minute after wave 4 - LoadClock stages, the
+loading screen's warm-up and WarmRehearsal's coverage of what wave 4 added, the load cache.
+Measure with tools/load_time/ and tools/shader_warm/, fix the biggest items.
+
+**Measured on main (bb03d73, this 4-core box, headless with `LOAD_SCREEN_HEADLESS=1`).** Cold cache
+185 s, warm 114 s. Cold: engine + script compile 20 s, macro map 5.9 s, ground bake 25.1 s, far
+landmarks 7.2 s, first streaming 46.6 s (18 FULL 21 s, 129 LOD 8.6 s, 57 near far-city tiles 16.6 s),
+shaders and effects 13.4 s (headless: the kits' GDScript, no compile), beach figures 3.8 s, far city
+35.6 s (371 tiles), the rehearsal ~12 s WITH NO LOADING LINE, trees 1.1 s, rigs 3.5 s. Warm, the
+bake is 1.5 s and the far city 0.4 s (LoadCache), the rest the same. A SCRIPT ERROR on every launch
+(`Emergency._scan`: "Left operand of 'is' is a previously freed instance"). The first 30 s after the
+shade: 0 swaps, traffic settled at 1.1 s (wave 4's FirstFill holds). **Trap met:** editing any
+script between two launches makes the second cold (every script is in LoadCache's key) - measure
+warm with nothing touched in between.
+
+First use on opengl3 with the rehearsal on (`first_use_probe.tscn`, `WARM=0 REHEARSE=1`, base frame
+~0.4 s at 480 x 270; the full shader warm-up, `WARM=1`, is OOM-killed on opengl3 now - llvmpipe keeps
+every GL program - so the rehearsal alone is what is compared):
+
+| first use, ms over 1.5 x base | before | after |
+|---|---|---|
+| the five-star troop truck (wanted-escalation) | 1,097 | 0 |
+| the gunship / the first helicopter of any kind | 1,079 (519 in an A/B rerun) | 0 |
+| a long rifle burst (barrel smoke, marks, streaks) | 824 | 0 |
+| a corner crash at speed (torn wheel, debris) | 404 | 0 |
+| a spike strip and a flat | 395 | 0 |
+| blood on the hero | 308 | 0 |
+| a blast (volume, bits), gibs, troopers | 0 | 0 |
+| total over the wave-4 events | 4,136 | 333 -> 0 (gore's 666 in one run was frame noise: 0 in both arms of the A/B) |
+
+**What changed.**
+1. **`WarmRehearsal.wave4`** (`WARM_WAVE4=0` the A/B): the cars stage adds the agency's troop truck
+   (`PoliceCar.make(false, rng, true)`), then `_stage_wave4_cars()`: a ChaseSpikeStrip deployed
+   across the row and two of a car's tyres punctured on it, and a corner crash at 28 m/s over on
+   another car (CrashBreakup's torn wheel, hub sparks, debris). The people stage splashes the hero
+   (HeroBlood, cleared after). The effects stage adds `_stage_wave4_effects()`: a bullet mark on
+   every baked surface (on Compatibility one quad material per mark set; all mark textures loaded),
+   BarrelSmoke on the player's gun (it stays, as it would after the first burst), and a police
+   Helicopter armed as the gunship (no helicopter was ever rehearsed; the air traffic flies them
+   over the city in the first minute).
+2. **The rehearsal is a LOADING stage** (`screen: rehearsal`, plus `LOADING rehearsal <stage>` per
+   stage, always printed): it was the one loading-screen step with no line.
+3. **Freed entries in CarDamage's lists**: `Emergency._scan()` and `Blast3.fire_list()` test
+   `is_instance_valid()` before `is` (the rehearsal's burnt car is freed a tick before
+   `_purge_statics()` runs). The purge also drops freed bullet marks from `WeaponFX._holes`, and
+   `WarmRehearsal.clear_pools()` empties CrashDebris' and BlastBits' rings (the rehearsal's crash
+   and blast pieces lay at the spawn all session).
+4. **The bake's raw-height memo**: inside `MacroMap.bake()` a pixel's `raw_height_at()` was worked
+   out three times (height_at, zone_at, district_at). A one-entry memo (`_bake_memo`, on only inside
+   the bake; `MacroMap.bake_memo` false the A/B) hands it back with its drainage: 17.0 -> 13.5 s in
+   the probe, 25.1 -> 20.0 s in a cold launch, colour and height images byte-identical
+   (`bake_probe.tscn FULL=1` prints `identical colour=true height=true`).
+
+**New tools.** `tools/load_time/bake_probe.tscn` (the bake's cost by call, `FULL=1` the memo A/B and
+the byte check), `tools/load_time/warm_probe.tscn` (every loading-screen warm-up's GDScript time:
+beach figures 2.6 s, camp figures 1.9 s, BlastAftermath 0.8 s, LaTrees 0.8 s, bonfires 0.7 s, dogs
+0.7 s, wildlife 0.5 s, ... 12 s in all), `first_use_probe` `EVENTS=wave4` (blast3, burst, crash_hard,
+spikes, troop, officers, gunship, gore, hero_blood). Checks: `tests/load_time_3_checks.gd`.
+
+**Not done / not verified.**
+- Nothing on the Mac (a launch log's LOADING lines, now with the rehearsal's, is the real measure).
+- The cold launch is still ~3 minutes on this box, and the owner gets it after every release (any
+  script edit misses LoadCache): far city 52 s, bake 20 s, FULL chunks 21-25 s (parked cars ~4 ms
+  and walkers ~9 ms each to build), kits 6 s. Narrowing the cache key per entry, or shipping a
+  cache built by CI, would make a release launch warm; neither tried (the key must stay safe).
+- Forward+ first uses (LampShadows' shadowed omnis, Blast3's haze) are not measured: lavapipe cannot
+  hold the rehearsal.

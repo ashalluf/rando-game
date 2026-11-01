@@ -4119,3 +4119,9 @@ none of either.
   people in the water are placed on the surfaces that are drawn - waders on the sand mesh's
   foreshore, swimmers and surfers on the ocean's own height model - rather than at a fixed level.
   A summer afternoon's water is busy (waders, more swimmers). SAND_ROADS=0 / WADERS=0 the A/B.
+
+- **2026-11-01 Load time after wave 4 (load-time-3, HANDOFF "Load time after wave 4").** Every
+  system a wave adds that first appears mid-play gets a stage in WarmRehearsal, measured with the
+  first-use probe's events for that wave (`EVENTS=wave4`); wave 4's are behind `WARM_WAVE4=0`.
+  The rehearsal is timed like every other loading-screen step. Bake-only memoisation is allowed
+  where it is proved byte-identical (the raw-height memo); LoadCache's key stays every script.
