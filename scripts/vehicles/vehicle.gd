@@ -811,6 +811,7 @@ func take_hit(_shape_index: int, damage: float, dir: Vector3, at: Vector3 = Vect
 ## This car's damage, made now if it has none yet.
 func damage_state() -> CarDamage:
 	if _damage == null or not is_instance_valid(_damage):
+		CarLodBlend.revert(self)
 		_damage = CarDamage.new()
 		_damage.attach(self)
 		add_child(_damage)
@@ -1899,6 +1900,8 @@ func _add_body_model(length: float) -> bool:
 	add_child(holder)
 	if BigVehicles.is_big(body_type):
 		BigVehicles.fit(self, holder, trailer, doors)
+	# The near body and its far twin crossfade (screen door) instead of swapping in one frame.
+	CarLodBlend.apply(self, near_meshes, far_meshes, body_far_distance)
 	return true
 
 

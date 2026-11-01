@@ -281,6 +281,8 @@ func _ready() -> void:
 			LoadClock.loaded.call_deferred(get_tree())
 	# Box-projected reflection probes in the streets round the camera (Forward+ only).
 	ReflectionProbes.ensure(self)
+	# Hard draw-distance cuts become crossfades on Forward+ (LOD_POPS=0 the A/B).
+	LodFade.install(self)
 
 
 ## Cheap versions of every landmark, always present, so the sign and the wheel show from anywhere.

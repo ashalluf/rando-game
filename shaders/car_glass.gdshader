@@ -13,6 +13,7 @@ render_mode cull_disabled;
 // which draws the same cabin.
 
 #include "res://shaders/car_cabin.gdshaderinc"
+#include "res://shaders/lod_blend.gdshaderinc"
 #include "res://shaders/car_glass_wet.gdshaderinc"
 
 // The model's own glass material.
@@ -36,6 +37,9 @@ void vertex() {
 
 
 void fragment() {
+	if (lod_blend_cut(FRAGCOORD.xy, VIEW_MATRIX, MODEL_MATRIX, IN_SHADOW_PASS)) {
+		discard;
+	}
 	vec3 n = normalize(ln);
 	vec3 to = lp - cam_local;
 	float dist = length(to);

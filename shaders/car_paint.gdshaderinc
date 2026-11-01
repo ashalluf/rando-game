@@ -17,6 +17,7 @@
 // the finish (gloss / metallic / pearl / deep / matte) and a livery graphic painted in body
 // space - racing stripes, a two-tone lower body, a fleet belt band, a taxi checker. All of it
 // is uniforms, so a whole city of cars is still one shader and one texture set per model.
+#include "res://shaders/lod_blend.gdshaderinc"
 uniform sampler2D albedo_tex : source_color, filter_linear_mipmap;
 uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap;
 uniform bool has_normal = false;
@@ -423,6 +424,9 @@ float livery_mask() {
 
 
 void fragment() {
+	if (lod_blend_cut(FRAGCOORD.xy, VIEW_MATRIX, MODEL_MATRIX, IN_SHADOW_PASS)) {
+		discard;
+	}
 	// Derivatives for the paint2 blocks, taken here in uniform control flow (llvmpipe returns 0
 	// for fwidth inside a branch): metres on the body per pixel.
 	float p2_ms = length(MODEL_MATRIX[0].xyz);
