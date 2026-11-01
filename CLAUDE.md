@@ -6440,6 +6440,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `LAMPS_AT_ZERO=1` on `still_shot.gd` and `gpu_profile.gd`. The whole city no longer fits
   lavapipe (12.7 GB, OOM-killed with another session's process): never render it there;
   `gpu_profile.gd LIGHT_WORLD=1` is for a bigger box.
+  **A hard range is a pop** (wave 5, docs/HANDOFF.md "Popping while driving and flying"):
+  Godot's FADE_SELF is an ALPHA blend on Forward+ (nothing on Compatibility), fine on a sign,
+  wrong on a car (it shows the body through itself). `LodFade` (`scripts/util/lod_fade.gd`)
+  softens every hard range on Forward+ except vehicles and skinned meshes (meta `lod_hard` opts
+  out); a near / far pair of a many-part body crossfades by a screen door in its shaders
+  (`shaders/lod_blend.gdshaderinc`, `CarLodBlend`). `LOD_POPS=0` / `CAR_LOD_BLEND=0` the A/B;
+  audit `tools/lod_pops/range_audit.gd`, strips `pop_strip.gd` + `pops.py`, proof
+  `car_pop_shot.gd`; checks `tests/lod_pops_checks.gd`.
   **Batch extents decide what a range does** (perf audit 2026-10-05, HANDOFF 9b?): a batch's
   draw and shadow ranges are measured to the centre of its bounds, so a chunk-wide batch of
   something dense (the lawn grass) is drawn whole while its centre is in range - grass is batched

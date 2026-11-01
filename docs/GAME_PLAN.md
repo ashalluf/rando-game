@@ -4119,3 +4119,9 @@ none of either.
   people in the water are placed on the surfaces that are drawn - waders on the sand mesh's
   foreshore, swimmers and surfers on the ocean's own height model - rather than at a fixed level.
   A summer afternoon's water is busy (waders, more swimmers). SAND_ROADS=0 / WADERS=0 the A/B.
+- **2026-11-01 Popping: fade what alpha can fade, dissolve what it cannot (lod-pops, HANDOFF
+  "Popping while driving and flying").** Godot's visibility-range fade is an alpha blend on
+  Forward+ and nothing on Compatibility, so it is given to flat things only (LodFade, Forward+
+  desktop); a car's near body and far twin crossfade by a complementary screen door in their own
+  shaders (CarLodBlend), which is opaque and needs TAA; the web keeps every cut. LOD_POPS=0 /
+  CAR_LOD_BLEND=0 the A/B.

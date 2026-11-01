@@ -6,6 +6,8 @@ extends SceneTree
 ## tools/lod_pops/pops.py then finds the regions that change in ONE frame (a pop) rather than
 ## smoothly (parallax, traffic) and lists them with the chunk events of that frame.
 ##
+## Pass --spawn at the route's start (the loading screen streams round the spawn), e.g. for
+## ROUTE=drive -- --spawn=2363,960,0,-4,2.
 ##   OUT_DIR=build/pops/drive ROUTE=drive xvfb-run -a -s "-screen 0 960x540x24" godot \
 ##     --rendering-driver opengl3 --display-driver x11 --audio-driver Dummy --path . \
 ##     --fixed-fps 60 --script tools/lod_pops/pop_strip.gd --resolution 960x540 -- --hour=13 --nohud

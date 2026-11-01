@@ -46,6 +46,11 @@ def main() -> None:
     for t in range(2, n - 1):
         spike = D[t] - np.maximum(D[t - 1], D[t + 1])
         mask = spike > thresh
+        # Things leaving or entering at the frame's edge spike too: not pops.
+        mask[:, :1] = False
+        mask[:, -1:] = False
+        mask[:1, :] = False
+        mask[-1:, :] = False
         if not mask.any():
             continue
         # Connected blobs (4-neighbour flood fill on the tile grid).
