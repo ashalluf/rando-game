@@ -497,6 +497,9 @@ static func _dress(ch: CityChunk, sp: Dictionary, r: Dictionary, idx: int) -> vo
 			_count(ch, "van")
 			_collide(ch, xf, Vector3(0.0, 1.7, 0.0), Vector3(2.34, 3.3, 7.2))
 			(taken[int(side)] as Array).append(Vector2(sv - 4.2, sv + 4.2))
+	# A steaming drain in the gutter (AlleyNight).
+	var dm := _wp(along_x, lerpf(s0, s1, 0.35 + 0.3 * Alleys._h01([plan.seed, sp.bx, sp.bz, "drain", idx])), c)
+	AlleyNight.drain(ch, Vector3(dm.x, CityChunk.SIDEWALK_TOP + Alleys.LIFT - 0.02 + ch._gy(dm.x, dm.y), dm.y), [plan.seed, sp.bx, sp.bz, "alley_drain", idx])
 	# The back walls along each side.
 	var parts := StreetWear._ground_parts(ch)
 	for side_i: int in [-1, 1]:
@@ -601,6 +604,7 @@ static func _face(ch: CityChunk, st: SurfaceTool, sp: Dictionary, r: Dictionary,
 			addr = "%d" % (100 + (absi(hash([plan.seed, sp.bx, sp.bz, int(s)])) % 89) * 10 + (2 if side > 0.0 else 1))
 		_put(st, _xf(ch, along_x, s, face, out, 0.0), back_door.bind(DOOR_PAINT[rng.randi() % DOOR_PAINT.size()], addr, stoop))
 		_count(ch, "door")
+		AlleyNight.door(ch, st, _xf(ch, along_x, s, face, out, 0.0), s, stoop)
 		if stoop:
 			_collide(ch, _xf(ch, along_x, s, face, out, 0.0), Vector3(0.0, 0.085, 0.42), Vector3(1.5, 0.17, 0.84))
 		_lamp_at(ch, st, along_x, s, face, out, 2.62 + (0.17 if stoop else 0.0), rng)
@@ -614,6 +618,11 @@ static func _face(ch: CityChunk, st: SurfaceTool, sp: Dictionary, r: Dictionary,
 			var look := out.rotated(Vector3.UP, rng.randf_range(-0.9, 0.9))
 			var seed_value := absi(hash([plan.seed, sp.bx, sp.bz, "cook", int(cs)]))
 			_queue.append([null, Transform3D(), spawn_cook.bind(ch, sp.rect, seed_value, at, atan2(-look.x, -look.z)), false])
+	# The plain wall between the doors, docks and the fire escape: tags later (AlleyNight).
+	for free: Vector2 in StreetWear._subtract(piece, wall_taken):
+		var wa := _wp(along_x, free.x + 0.3, face)
+		var wb := _wp(along_x, free.y - 0.3, face)
+		AlleyNight.wall(ch, Vector3(wa.x, 0.0, wa.y), Vector3(wb.x, 0.0, wb.y), out, ground_y, height)
 	# Along the foot of the wall, a walk: every few metres the next thing a back of house puts
 	# out - a dumpster, a row of carts, a grease bin, pallets, crates, a condenser on its pad, the
 	# gas meters, now and then an old mattress - or nothing, where it fits beside what is there.
@@ -748,8 +757,11 @@ static func _lamp_at(ch: CityChunk, st: SurfaceTool, along_x: bool, s: float, fa
 	_put(st, _xf(ch, along_x, s, face, out, 0.0), lamp.bind(y, LAMP_WARM if warm else LAMP_COOL))
 	_count(ch, "lamp")
 	var p := _wp(along_x, s, face) + Vector2(out.x, out.z) * 1.6
-	var pool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(7.5, 1.0, 7.5)), Vector3(p.x, CityChunk.SIDEWALK_TOP + Alleys.LIFT + 0.1, p.y))
-	ch._batch.add("alley_pool", PropFactory.light_pool(Color(1.0, 0.82, 0.58), 0.85, 1.7), pool)
+	var ps := AlleyNight.pool_size()
+	var pool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(ps, 1.0, ps)), Vector3(p.x, CityChunk.SIDEWALK_TOP + Alleys.LIFT + 0.1, p.y))
+	ch._batch.add("alley_pool", PropFactory.light_pool(Color(1.0, 0.82, 0.58), AlleyNight.pool_strength(), 1.7), pool)
+	var hp := _wp(along_x, s, face) + Vector2(out.x, out.z) * 0.2
+	AlleyNight.lamp(ch, Vector3(hp.x, CityChunk.SIDEWALK_TOP + Alleys.LIFT + y - 0.05 + ch._gy(hp.x, hp.y), hp.y), warm)
 	if int(state.lights) < Alleys.MAX_LIGHTS and rng.randf() < 0.5:
 		state.lights = int(state.lights) + 1
 		var light := OmniLight3D.new()
@@ -846,6 +858,7 @@ static func wear(ch: CityChunk, sp: Dictionary, rs: Array) -> void:
 	if edges.size() > 4:
 		edges.resize(4)
 	StreetWear._walls(ctx, edges, int(sp.district))
+	AlleyNight.tags(ch, ctx)
 	if int(ctx.count) > 0:
 		ch._batch.set_no_shadow(StreetWear.KEY)
 		ch._batch.set_draw_distance(StreetWear.KEY, StreetWear.DRAW_DISTANCE)

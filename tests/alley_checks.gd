@@ -113,7 +113,7 @@ func _full(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 		if String(c.name) == "AlleyWalls":
 			uprights += 1
 	_t._check(ground != null and grounds == 1 and ground.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		and ground.material_override == Alleys.ground_material(), "the alley's ground is one shadowless mesh on the alley shader (block %d,%d)" % [k.x, k.y])
+		and (ground.material_override as ShaderMaterial).shader == Alleys.ground_material().shader, "the alley's ground is one shadowless mesh on the alley shader (block %d,%d)" % [k.x, k.y])
 	_t._check(walls != null and uprights == 1 and walls.material_override == IndustrialKit.walls_material(),
 		"everything upright in the alley is one mesh on the industrial walls material")
 	var runs: Array = chunk.get_meta("alley_runs", [])

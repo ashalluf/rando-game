@@ -118,7 +118,7 @@ const PART_COST := {
 	"shop_vinyl_checks": 0.0, "sky_checks": 0.0, "bonfires_checks": 3.0,
 	"cinematic_review_checks": 0.1, "sunset_clouds_checks": 0.0, "night_street_review_checks": 0.1,
 	"downtown_street_closeup_checks": 1.5, "golden_hour_review_checks": 0.1,
-	"night_flight_checks": 0.0, "mac_verify_pack_checks": 1.0, "fwd_review_f_checks": 0.0, "web_hero_rain_checks": 0.1, "skyline_glass_day_checks": 0.1, "sky_day_checks": 0.0, "rc_golden_aerial_checks": 0.1, "rc_sunset_checks": 0.1, "rc_street_noon_checks": 0.1, "dawn_review_checks": 0.1
+	"night_flight_checks": 0.0, "mac_verify_pack_checks": 1.0, "fwd_review_f_checks": 0.0, "web_hero_rain_checks": 0.1, "skyline_glass_day_checks": 0.1, "sky_day_checks": 0.0, "rc_golden_aerial_checks": 0.1, "rc_sunset_checks": 0.1, "rc_street_noon_checks": 0.1, "dawn_review_checks": 0.1, "rc_alley_night_checks": 2.0
 }
 const DEFAULT_COST := 6.0
 ## Every share pays for its own city load on top of its parts.
@@ -2804,6 +2804,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The beach refcam (tests/rc_beach_checks.gd, SandRoads, Waders): no traffic on the streets the
 	# sand covers, people standing in the shallows.
 	load("res://tests/rc_beach_checks.gd").new().run(self, city)
+	# The alley at night (tests/rc_alley_night_checks.gd, AlleyNight): water mirroring the lamps,
+	# halos, steam, tags on the back walls.
+	load("res://tests/rc_alley_night_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

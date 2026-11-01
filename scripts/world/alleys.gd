@@ -542,7 +542,7 @@ static func commit(ch: CityChunk) -> void:
 		var mi := MeshInstance3D.new()
 		mi.name = "AlleyGround"
 		mi.mesh = g.commit()
-		mi.material_override = ground_material()
+		mi.material_override = AlleyNight.ground(ch, ground_material())
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		ch.add_child(mi)
 	if st.walls != null:

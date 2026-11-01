@@ -20,10 +20,21 @@ uniform sampler2D concrete_tex : source_color, filter_linear_mipmap_anisotropic,
 uniform sampler2D cracked_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 
 global uniform float road_wetness;
+global uniform float lamp_factor;
+
+// AlleyNight (ALLEY_NIGHT, the chunk's own copy): standing water down the gutter and in the slab's
+// dips, and the chunk's alley lamps (chunk-local heads, w 1 warm / 0 cool) mirrored in it.
+uniform float wet_on = 0.0;
+uniform vec4 lamp_heads[18];
+uniform int lamp_count = 0;
+// The mirror's strength: Forward+ adds its own SSR and the real lights' specular on top.
+uniform float mirror_gain = 1.0;
+uniform float mirror_forward = 0.6;
 
 varying float kind;
 varying float variant;
 varying vec3 world_p;
+varying vec3 local_p;
 
 #include "res://shaders/color_space.gdshaderinc"
 #include "res://shaders/pattern_aa.gdshaderinc"
@@ -98,6 +109,38 @@ void vertex() {
 	kind = floor(COLOR.r * 16.0);
 	variant = COLOR.g;
 	world_p = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	local_p = VERTEX;
+}
+
+// The alley's lamps seen in still water at `p` (chunk-local) from `cam`: each lamp's mirror image
+// (its head reflected in the ground's plane) meets the ground where the eye's ray to it does; the
+// glow is a tight core there and a streak toward the eye (the ripples), faded with distance.
+vec3 lamp_mirror(vec3 p, vec3 cam) {
+	vec3 sum = vec3(0.0);
+	vec2 to_eye = cam.xz - p.xz;
+	float de = max(length(to_eye), 0.1);
+	vec2 along = to_eye / de;
+	vec2 acr = vec2(-along.y, along.x);
+	for (int i = 0; i < 18; i++) {
+		if (i >= lamp_count) {
+			break;
+		}
+		vec4 h = lamp_heads[i];
+		vec3 img = vec3(h.x, 2.0 * p.y - h.y, h.z);
+		float t = (cam.y - p.y) / max(cam.y - img.y, 0.05);
+		vec2 q = cam.xz + (img.xz - cam.xz) * t;
+		vec2 d = p.xz - q;
+		float da = dot(d, along);
+		float dc = dot(d, acr);
+		// The streak's length grows with how far the image is (a grazing look smears it).
+		float len = 0.25 + 0.06 * distance(q, cam.xz);
+		float core = exp(-(dc * dc) / 0.012 - (da * da) / (len * len * 0.12));
+		float streak = exp(-(dc * dc) / 0.03 - (da * da) / (len * len));
+		float fall = 1.0 / (1.0 + 0.004 * dot(q - cam.xz, q - cam.xz));
+		vec3 tint = h.w > 0.5 ? vec3(1.0, 0.72, 0.42) : vec3(0.82, 0.88, 1.0);
+		sum += tint * (core * 2.4 + streak * 0.9) * fall;
+	}
+	return sum;
 }
 
 void fragment() {
@@ -270,7 +313,32 @@ void fragment() {
 	float wet = clamp(road_wetness, 0.0, 1.0) * wet_k;
 	wet = max(wet, damp * 0.5);
 	albedo *= 1.0 - 0.32 * wet;
+	float pool = 0.0;
+	float halo = 0.0;
+	if (wet_on > 0.5 && kind < 0.5) {
+		// Water that never dries in a restaurant alley: down the V in lengths, in the slab's low
+		// spots (by the wheel paths), each with a darker damp ring round it.
+		float ao2 = abs(p.y);
+		float gut = (1.0 - smoothstep(0.18, 0.5, ao2 + 0.12 * (vnoise(vec2(p.x * 1.3, 2.0)) - 0.5)))
+			* smoothstep(0.42, 0.58, vnoise(vec2(p.x * 0.16, 5.0) + seed * 9.0));
+		float dip = fbm(vec2(p.x * 0.42, p.y * 0.7) + seed * 21.0 + 3.0);
+		float dip_pool = smoothstep(0.66, 0.70, dip) * (1.0 - smoothstep(hw - 0.5, hw - 0.1, ao2));
+		float d_ring = smoothstep(0.55, 0.66, dip) * (1.0 - smoothstep(hw - 0.3, hw, ao2));
+		float g_ring = (1.0 - smoothstep(0.3, 0.9, ao2)) * smoothstep(0.32, 0.5, vnoise(vec2(p.x * 0.16, 5.0) + seed * 9.0));
+		pool = max(gut, dip_pool);
+		halo = max(max(d_ring, g_ring), pool);
+		albedo *= 1.0 - 0.3 * halo;
+		albedo = mix(albedo, albedo * vec3(0.42, 0.42, 0.44), pool);
+	}
 	ALBEDO = to_lit(clamp(albedo, vec3(0.0), vec3(1.0)));
-	ROUGHNESS = mix(rough, 0.12, wet * 0.8);
-	SPECULAR = 0.5;
+	ROUGHNESS = mix(mix(rough, 0.12, wet * 0.8), 0.35, halo * 0.7);
+	ROUGHNESS = mix(ROUGHNESS, 0.03, pool);
+	SPECULAR = mix(0.5, 0.6, pool);
+	if (pool > 0.01 && lamp_factor > 0.01) {
+		vec3 cam = (inverse(MODEL_MATRIX) * vec4(CAMERA_POSITION_WORLD, 1.0)).xyz;
+		vec3 v = normalize(cam - local_p);
+		float fres = 0.25 + 0.75 * pow(1.0 - clamp(v.y, 0.0, 1.0), 4.0);
+		float g = mirror_gain * (cs_linear_renderer() ? mirror_forward : 1.0);
+		EMISSION = to_lit(min(lamp_mirror(local_p, cam), vec3(3.0))) * pool * fres * lamp_factor * g;
+	}
 }
