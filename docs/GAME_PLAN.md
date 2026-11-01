@@ -4119,3 +4119,9 @@ none of either.
   people in the water are placed on the surfaces that are drawn - waders on the sand mesh's
   foreshore, swimmers and surfers on the ocean's own height model - rather than at a fixed level.
   A summer afternoon's water is busy (waders, more swimmers). SAND_ROADS=0 / WADERS=0 the A/B.
+- **2026-11-01 A build that is no longer wanted is dropped, even half done (HANDOFF "The gate's
+  intermittent failures, wave 5"):** the "spawn chunk replaced mid-file" flake was a real streaming
+  bug - a build started at the other level while the player was elsewhere finished after he came
+  back and replaced the chunk standing there. CityStreamer now cancels a pending build once the
+  block stands at the wanted level (STALE_BUILD_CANCEL=0 the A/B); a hidden shopper whose door was
+  rebuilt finds it again (REVIVE_DOORS=0). Gate loops run from their own worktree.

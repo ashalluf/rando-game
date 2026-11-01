@@ -136,6 +136,12 @@ is timed again when over and loosened under `SMOKE_SHARD`; an alarm in a check r
 the system can have recruited; traffic cars a system empties on purpose (valets, freeway stalls,
 CarPanic) carry a tag in `traffic` that checks skip; a walker a check stages carries meta `no_trim`
 (the cap trim, BusyStreets and StreetErrands all leave those alone).
+**Flake rules, wave 5** (docs/HANDOFF.md "The gate's intermittent failures, wave 5"): the streamer
+drops a pending build once its block stands at the wanted level (`STALE_BUILD_CANCEL=0` the A/B:
+it was installed over the chunk, the "spawn chunk replaced" family); anything that works round the
+camera (CrowdFlow's 35 m) is staged near the CURRENT camera and the gate reset makes the setup's
+camera current again; a weather-dependent check holds every DayNight weather hook (`marine`,
+`santa_ana`, the flash), not only `weather_darken`; gate loops run from a separate worktree.
 
 Download a Linux headless-capable build with:
 

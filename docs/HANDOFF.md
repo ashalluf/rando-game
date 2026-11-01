@@ -25204,3 +25204,45 @@ traffic, left open.
 Gate: three SHARDS=3 runs on this branch: run 1 one FAIL (the boat), run 2 two (the -4.76 m spawn,
 fixed above, and the valet), run 3 (the branch merged with origin/main `bb03d731`) green, 5,079
 checks.
+
+## 9d?. The gate's intermittent failures, wave 5 (fleet wave 5, `gate-flakes-2`, branch `wt/gate-flakes-2`)
+
+The task: section 9kd's "Still open" list, then shuffled `SHARDS=3` runs (`SMOKE_SHUFFLE=<seed>`,
+one at a time, logs per run in `SMOKE_LOG_DIR`) with every failure fixed at its cause. The gate loop
+ran from a separate `git worktree` with a copy of `.godot`, so edits in the main tree never leaked
+into a running gate (check files are `load()`ed lazily, mid-run).
+
+**9kd's open items:**
+- traffic_ai "tightest -4.35 m" and "the on-ramp merge (merged false)": fixed by wave 4's
+  `traffic-order-fix` (section 9kf: lane groups ordered by noses, a turn across a lane commits or
+  goes on, the outer lane lets a waiting ramp car in, spawns see cars half out of their lane). That
+  branch was done but not merged; this branch MERGES it, and every run below includes it.
+- golden aerial "the noon far ground is unchanged (gain 0.90)": the far ground's painted sun is the
+  sun's energy over noon's, and an earlier file had left Weather on MARINE: under the deck DayNight
+  cuts the sun by `marine_sun_cut` (0.74 x 0.135 here). The live check now holds `marine`,
+  `santa_ana` and the lightning flash at 0 with `weather_darken`, and prints them.
+- **The spawn block's chunk REPLACED while a file uses it: found.** `CityStreamer.update_streaming()`
+  only looked at blocks whose standing chunk was the WRONG level. A build started at the other level
+  while the window was elsewhere (a file teleported the player away: the home block became LOD-wanted
+  and a LOD build began; stage_home brought him back) stayed pending once the FULL chunk stood at the
+  wanted level again - and `_advance_builds()` finished it a few frames later and `_install_chunk()`
+  put it OVER the FULL chunk (then the next update rebuilt it FULL: two swaps mid-file). In play it is
+  the same thing: drive off and come straight back, and the block you are on goes LOD and back. Now a
+  pending build whose block already stands at the wanted level is cancelled
+  (`CityStreamer.stale_builds_cancelled` counts them; `STALE_BUILD_CANCEL=0` is the A/B).
+  `tests/gate_flakes_2_checks.gd` stages exactly that and holds the chunk for 20 ticks.
+- street_errands / pedestrian_flow "somebody comes out of a shop door near the player (errand step
+  inside)": the walker sent in by `CrowdFlow.door_tick()` holds a door whose chunk was replaced (the
+  previous item); `StreetErrands._do_inside()` then let them out only once the player had gone. Now a
+  dead door is looked up again on the chunk standing there (`_revived_door()`: same key, same spot;
+  `REVIVE_DOORS=0` the A/B).
+
+**Found by the shuffled runs:**
+
+| run | check | cause | fix |
+|---|---|---|---|
+| 1202 | pedestrian_flow "two walkers on one line step round each other (closest 0.04 m)" | CrowdFlow's avoidance runs only within `RANGE` 35 m of the CURRENT camera; the staged pair walked the block's north pavement, 24 m from the camera at the usual look and past 35 at another | the pair walks whichever of the north / south pavements is nearer the camera; the message prints the camera's distance and both LOD strides; the gate reset also makes the setup's camera current again if a file left another (or none) |
+| 1202 | car_damage "the wreck comes down and rests on the deck (2.70 m over it)" | the toss spins the wreck 10-20 m; it came down on an earlier section's car or the crash wall still on the deck | the rocket run frees every earlier car and loose body on the deck first; a wreck over 2.6 m says what it rests on |
+
+**Runs** (each `SHARDS=3`, ~30 min, a shard peaking at ~3.4-3.5 GB): see the table at the end of
+this section.
