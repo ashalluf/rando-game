@@ -96,8 +96,11 @@ func _process(_delta: float) -> void:
 	if cam:
 		global_position = cam.global_position
 	_mat.set_shader_parameter("strength", s)
-	if OS.get_environment("CLOUD_SHADOW_DEBUG") == "1":
-		_mat.set_shader_parameter("debug_field", 1.0)
+	var dbg := OS.get_environment("CLOUD_SHADOW_DEBUG")
+	if dbg != "":
+		_mat.set_shader_parameter("debug_field", float(dbg))
+	if OS.get_environment("CLOUD_SHADOW_PRINT") == "1" and Engine.get_process_frames() % 8 == 0:
+		print("CLOUDSHADOW s=%.3f cov=%.3f sun=%s vol=%s" % [s, cov, str(sun), str(volume)])
 	_mat.set_shader_parameter("cs_coverage", cov)
 	for k in [["cs_wind", "cloud_wind"], ["cs_weather_tile", "weather_tile"], ["cs_billow_tile", "billow_tile"],
 			["cs_base", "cloud_base"], ["cs_depth", "cloud_depth"],

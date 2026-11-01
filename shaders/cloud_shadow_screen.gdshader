@@ -49,8 +49,10 @@ void fragment() {
 	vec3 world = (INV_VIEW_MATRIX * vec4(view.xyz, 1.0)).xyz + origin_shift;
 	vec3 L = normalize(sun_direction);
 	float sh = cs_shadow(world, L);
-	if (debug_field > 0.5) {
-		ALBEDO = vec3(1.0 - sh) * 4.0;
+	if (debug_field > 1.5) {
+		ALBEDO = vec3(0.5, 1.0, 0.5);
+	} else if (debug_field > 0.5) {
+		ALBEDO = vec3(1.0 - sh, 1.0, 1.0 - sh);
 	} else {
 		if (sh <= 0.002) {
 			discard;
