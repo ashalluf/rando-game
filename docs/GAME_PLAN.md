@@ -3703,6 +3703,13 @@ already mapped so milestone 2 is script-only.
   distance (wail, yelp, air horn, the agency's hi-lo), a synthesised police radio announces every
   new star and calls more often, and a line under the stars names the response. No real agency's
   name or livery; `WANTED_ESCALATION=0` restores the old response.
+- **2026-11-01 The alley at night (rc2-alley-night, HANDOFF "The alley at night").** A new
+  reference camera, a downtown service alley at 23:00. Decisions: the alleys are always wet in
+  patches (restaurant backs are hosed down; the alley shader's water does not wait for rain), and
+  the water's reflection is modelled (the alley as two facades lit round its own lamps, the sky
+  above) and EMITTED, so the web and the Compatibility renderer see it too; the bulkhead lamps get a
+  smaller halo than a street lamp's; steam comes from kitchen exhausts and drains, tags fill the
+  plain back walls. All behind ALLEY_NIGHT=0.
 
 ## Correction: what build 135 (0ce833f) actually contained
 

@@ -25155,3 +25155,47 @@ Probes: `tools/rc_beach/sand_roads_probe.gd` (headless: every coast street stret
 beach; `LOOK=swim|wade|surf` saves a close look at the first one). Checks `tests/rc_beach_checks.gd`.
 Stills on `shots/rc-beach`.
 
+
+## 9d?. The alley at night (refcam `alley_night`), 2026-11-01 (agent branch `wt/rc2-alley-night`)
+
+**The camera.** A new reference view in `tools/refcams/cameras_w5.json` (wave 5's table):
+`alley_night`, the downtown brick service alley of block 19,-1 at (1797, 1.7 agl, -71.7) looking
+east (yaw -90, pitch 2, FOV 55) down the alley to the skyline, 23:00, clear. Run it with
+`REFCAMS_JSON=tools/refcams/cameras_w5.json python3 tools/refcams/refcams.py run <dir> --only alley_night`.
+Found with `tools/alleys/probe.tscn -- AREA=1700,-1700,3900,2000 WALLED=0.6` (its EYE lines).
+
+**What read as a game** (main, `shots/rc2-alley-night` 01): a clean, evenly lit, bone-dry slab
+(nothing for the lamps to shine in); bulkhead lamps that were a lit box with a faint smudge under
+them; the plain brick between the back doors bare (StreetWear's spot finder sees the back walls
+as window bays and finds little wall); nothing moving in the air. Fixed, all behind `AlleyNight`
+(`scripts/world/alley_night.gd`, `ALLEY_NIGHT=0` the A/B), hooked into the alley pass by one line
+each in `AlleyKit._lamp_at()` / `_face()` / `_dress()` / `wear()` and `Alleys.commit()`:
+1. **Standing water that mirrors the alley.** `alley_ground.gdshader` (behind `wet_on`, 0 by
+   default: the shared material and every other alley are bit-identical with it off): water down
+   the V-gutter in lengths and in the slab's low spots along the wheel paths, a darker damp halo
+   round each, roughness 0.03. The water EMITS what it mirrors (`canyon_mirror()`): the reflected
+   ray followed to the facade it meets (`wall_back` past the alley's edge, `wall_top` high) - dark,
+   washed warm or cool round each lamp head on it - or the night sky (`sky_tint`) over the walls,
+   plus each lamp's own image (where its mirror image meets the ground: a tight core and a streak
+   toward the eye). The heads are the chunk's (up to 18, chunk-local) on the AlleyGround's OWN
+   material copy (`AlleyNight.ground()`). Forward+ at `mirror_forward` 0.6 (its SSR and the real
+   omnis' specular add on top).
+2. **Lamps that read as lamps.** A small NightAtmos halo on every alley lamp (`HALO_SCALE` /
+   `HALO_STRENGTH` 0.6 of a street lamp's: the full one threw cobra-head lens streaks), and the pool
+   under it wider and stronger (`POOL_SIZE` 9.5 m, `POOL_STRENGTH` 1.35; was 7.5 / 0.85).
+3. **Steam.** A galvanised kitchen exhaust (hood, louvres, a grease stain) over `EXHAUST_ODDS` of
+   the back doors and a steaming drain in the gutter of half the runs, each breathing StreetClutter2's
+   steam plume (one `alley_steam` batch a chunk, `MAX_STEAM` 6, shadowless, 110 m).
+4. **Tags.** The plain stretches of each back wall (between the doors, docks and the fire escape,
+   recorded by `_face()`) get tags, throw-ups and buffs at hand height (`TAGS_PER_M` 0.32) through
+   `StreetWear._put()`, in the chunk's one wear cap (the refcam's chunk: 22 -> 41 wear pieces).
+Every roll is a hash of the seed and the place; AlleyKit's rngs are untouched, so no prop moves.
+
+**Checks** `tests/rc_alley_night_checks.gd` (the refcam's chunk: the ground's own material with
+the water on and one head per lamp, the heads on the walls, halos, the steam cap, the wear, the
+shader's switch, the A/B). `tests/alley_checks.gd` now compares the ground's shader, not the
+material object.
+
+**Not done / not verified.** The mirror is a model of the canyon (two flat facades), not the real
+walls: windows and the skyline at the alley's end are not in it. The halos and pool numbers were
+judged on opengl3.

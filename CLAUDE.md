@@ -3115,6 +3115,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `ALLEYS=0` in the environment is the A/B; `tools/alleys/probe.tscn` lists alleys (`WALLED=`
   walled-in ones, an EYE each) and builds one block (`BUILD=bx,bz`: props by kind, triangles;
   `ALLEY_TIME=1` the steps' times); checks `tests/alley_checks.gd`.
+- The alley at night (2026-11-01, refcam `alley_night` in tools/refcams/cameras_w5.json,
+  docs/HANDOFF.md "The alley at night"): `AlleyNight` (`scripts/world/alley_night.gd`, hook lines in
+  AlleyKit and `Alleys.commit()`): standing water in alley_ground.gdshader (`wet_on`, the chunk's
+  own material copy with its lamp heads) that emits a mirror of the alley (two facades lit round
+  each lamp, the sky, the lamps' images); small halos and wider pools on the bulkhead lamps; steam
+  from kitchen exhausts and drains (`alley_steam`); tags on the plain back walls. `ALLEY_NIGHT=0`
+  the A/B; checks `tests/rc_alley_night_checks.gd`.
 - Car dealerships (2026-10-05, "the auto rows of LA's boulevards"; HANDOFF 9da): `CarDealers`
   (`scripts/world/car_dealers.gd`, static). **Where is worked out, never placed**: an avenue-wide
   road is an auto row by a hash (`ROW_ODDS`), a stretch of `RUN` blocks of it has dealers by a
