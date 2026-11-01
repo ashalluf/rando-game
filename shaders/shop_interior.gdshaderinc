@@ -46,6 +46,7 @@ const int SI_FOLIAGE = 22;  // the plant in it
 const int SI_COLUMN = 23;   // a stone column
 const int SI_CUBBY = 24;    // wall cubbies of folded clothes
 const int SI_FIGURE = 25;   // a mannequin in the window
+const int SI_PERSON = 26;   // somebody in the shop (interior_people.gdshaderinc)
 
 // 0..1 from a shop's byte.
 float shop_unit(uint key, uint salt) {
@@ -202,6 +203,260 @@ vec3 garment_face(vec2 q, float rack, float seed_k, float px, float top) {
 	return c;
 }
 
+// Walking to and fro between two ends with a pause at each: where along (0..1), which way (+-1)
+// and whether moving, over a cycle of `period` seconds.
+float shop_pace(float t, float period, out float dir, out float moving) {
+	float f = fract(t / period);
+	dir = 1.0;
+	moving = 0.0;
+	if (f < 0.4) {
+		moving = 1.0;
+		return smoothstep(0.0, 1.0, f / 0.4) * 0.15 + (f / 0.4) * 0.85;
+	} else if (f < 0.5) {
+		return 1.0;
+	} else if (f < 0.9) {
+		moving = 1.0;
+		dir = -1.0;
+		float g = (f - 0.5) / 0.4;
+		return 1.0 - (smoothstep(0.0, 1.0, g) * 0.15 + g * 0.85);
+	}
+	return 0.0;
+}
+
+// The scallop a downlight grid (one every 1.6 m along, 1.8 m in, at the ceiling `H`) throws down a
+// wall: each light's cone (about 40 degrees off the vertical) cuts the wall in a curve that opens
+// downward, brightest just under its apex and falling off with the distance. `back` the back wall
+// (z = D, along x), else a side wall (x = 0 or W, along z). 0..~1.
+float shop_scallop(vec3 p, bool back, float W, float H, float D) {
+	float along = back ? p.x : p.z;
+	float o = back ? 0.8 : 0.9;
+	float pitch = back ? 1.6 : 1.8;
+	// The row of lights nearest the wall, and how far it stands off it.
+	float off;
+	if (back) {
+		off = D - (floor((D - 0.9) / 1.8) * 1.8 + 0.9);
+	} else {
+		float wx = p.x < W * 0.5 ? 0.0 : W;
+		float lx = floor((wx - 0.8) / 1.6 + 0.5) * 1.6 + 0.8;
+		lx = clamp(lx, 0.8, max(W - 0.8, 0.8));
+		off = abs(wx - lx);
+	}
+	off = max(off, 0.25);
+	float base = floor((along - o) / pitch + 0.5) * pitch + o;
+	float sum = 0.0;
+	for (int k = -1; k <= 1; k++) {
+		float lx = base + float(k) * pitch;
+		float dy = H - p.y;
+		if (dy <= 0.02) continue;
+		vec3 L = vec3(along - lx, dy, off);
+		float hd = length(L.xz);
+		float cone = 1.0 - smoothstep(0.62, 0.95, hd / dy);
+		sum += cone * (dy / length(L)) * 1.4 / (1.0 + 0.45 * dot(L, L));
+	}
+	return min(sum, 1.2);
+}
+
+// Person `i` (0..3) of a shop: whether somebody is there now, where they stand in the shop's frame
+// (x along, z in), which way they face (yaw, 0 = +z, into the shop), the pose, the gait phase,
+// the seat's height, their scale and build. Laid out against the fittings shop_interior() traces
+// (the same rolls), so a barista stands behind the counter, diners sit on the cafe's chairs, a
+// customer is in the barber's chair. `trading` is whether the shop is open now.
+bool shop_person(uint key, uint kind, int i, float W, float D, float tm, bool trading,
+		out vec2 at, out float yaw, out int pose, out float ph, out float sit_y, out float s, out float build) {
+	at = vec2(0.0);
+	yaw = 3.14159;
+	pose = IP_STAND;
+	ph = 0.0;
+	sit_y = 0.0;
+	uint pk = shop_hash(key, 120u + uint(i));
+	s = 0.92 + 0.14 * float(pk % 101u) / 100.0;
+	build = float((pk / 101u) % 97u) / 96.0;
+	float r = float((pk / 9797u) % 1000u) / 1000.0;
+	float r2 = float((pk / 7u) % 1009u) / 1008.0;
+	if (!trading) {
+		return false;
+	}
+	bool flip = shop_byte(key, 41u) < 128u;
+	float var_k = shop_unit(key, 43u);
+	float idle = tm * (0.6 + 0.5 * r) + r2 * 40.0;
+	ph = idle;
+	float dir;
+	float mv;
+	if (kind == ROOM_RETAIL) {
+		float gp = mix(2.2, 2.7, var_k);
+		float n_g = max(floor((W - 1.0) / gp), 1.0);
+		float g0 = (W - n_g * gp) * 0.5;
+		float cx = flip ? 0.5 : W - 2.6;
+		if (i == 0) {
+			if (r > 0.85) return false;
+			at = vec2(cx + 1.05 + (r2 - 0.5) * 0.8, 1.78);
+		} else if (i == 1) {
+			if (r > 0.75 || D < 5.0) return false;
+			float aisle = g0 + floor(r2 * (n_g + 0.999)) * gp;
+			float k = shop_pace(tm + r * 50.0, 14.0 + 10.0 * r2, dir, mv);
+			float z0 = 2.6;
+			float z1 = max(D - 1.9, z0 + 0.5);
+			at = vec2(clamp(aisle, 0.5, W - 0.5), mix(z0, z1, k));
+			yaw = mv > 0.5 ? (dir > 0.0 ? 0.0 : 3.14159) : (r2 > 0.5 ? 1.5708 : -1.5708);
+			pose = mv > 0.5 ? IP_WALK : (r > 0.5 ? IP_REACH : IP_STAND);
+			ph = mv > 0.5 ? k * (z1 - z0) / 1.3 * 6.2832 : idle;
+		} else if (i == 2) {
+			if (r > 0.5) return false;
+			float k = shop_pace(tm + r2 * 30.0, 11.0 + 9.0 * r, dir, mv);
+			float x0 = flip ? 3.0 : 0.8;
+			float x1 = flip ? W - 0.8 : W - 3.2;
+			if (x1 < x0 + 0.6) return false;
+			at = vec2(mix(x0, x1, k), 1.95);
+			yaw = mv > 0.5 ? (dir > 0.0 ? 1.5708 : -1.5708) : 0.0;
+			pose = mv > 0.5 ? IP_WALK : IP_STAND;
+			ph = mv > 0.5 ? k * (x1 - x0) / 1.3 * 6.2832 : idle;
+		} else {
+			if (r > 0.4) return false;
+			at = vec2(mix(0.9, W - 0.9, r2), D - 0.80);
+			yaw = 0.0;
+			pose = IP_REACH;
+		}
+	} else if (kind == ROOM_CLOTHING) {
+		float tx = flip ? W - 2.2 : 0.7;
+		if (i == 0) {
+			if (r > 0.8) return false;
+			at = vec2(flip ? tx - 0.45 : tx + 1.95, 1.45);
+			yaw = flip ? 1.5708 : -1.5708;
+		} else if (i == 1 || i == 2) {
+			if (r > (i == 1 ? 0.8 : 0.45) || D < 4.4) return false;
+			float k = shop_pace(tm + r * 40.0 + float(i) * 7.0, 13.0 + 9.0 * r2, dir, mv);
+			float z = D > 5.0 ? 3.25 : 3.0;
+			float x0 = 0.9 + float(i - 1) * W * 0.3;
+			float x1 = max(W - 0.9 - float(2 - i) * W * 0.3, x0 + 0.6);
+			at = vec2(mix(x0, x1, k), z);
+			yaw = mv > 0.5 ? (dir > 0.0 ? 1.5708 : -1.5708) : (r2 > 0.5 ? 0.0 : 3.14159);
+			pose = mv > 0.5 ? IP_WALK : IP_STAND;
+			ph = mv > 0.5 ? k * (x1 - x0) / 1.3 * 6.2832 : idle;
+		} else {
+			if (r > 0.35) return false;
+			at = vec2(mix(0.9, W - 0.9, r2), D - 0.75);
+			yaw = 0.0;
+			pose = IP_REACH;
+		}
+	} else if (kind == ROOM_CAFE || kind == ROOM_RESTAURANT) {
+		bool cafe = kind == ROOM_CAFE;
+		float tp = cafe ? 1.85 : 2.05;
+		float n_t = max(floor((W - 0.6) / tp), 1.0);
+		float t0 = (W - n_t * tp) * 0.5;
+		float tw = cafe ? 0.68 : 0.86;
+		if (i == 0) {
+			if (cafe) {
+				if (r > 0.9) return false;
+				float ce = flip ? 0.4 : 1.6;
+				at = vec2(mix(ce + 0.6, W - 2.6 + ce, r2), D - 0.92);
+			} else {
+				// The waiter, between the rows (or along the banquette).
+				if (r > 0.75) return false;
+				float k = shop_pace(tm + r2 * 30.0, 10.0 + 8.0 * r, dir, mv);
+				float z = D >= 6.4 ? 2.95 : D - 1.3;
+				at = vec2(mix(0.8, W - 0.8, k), z);
+				yaw = mv > 0.5 ? (dir > 0.0 ? 1.5708 : -1.5708) : 3.14159;
+				pose = mv > 0.5 ? IP_WALK : IP_STAND;
+				ph = mv > 0.5 ? k * (W - 1.6) / 1.3 * 6.2832 : idle;
+			}
+		} else if (i == 3 && cafe) {
+			// Waiting at the counter.
+			if (r > 0.55) return false;
+			float ce = flip ? 0.4 : 1.6;
+			at = vec2(mix(ce + 0.5, W - 2.5 + ce, r2), D - 2.45);
+			yaw = 0.0;
+		} else {
+			// A diner on a chair at one of the tables, facing the street.
+			if (r > 0.62) return false;
+			float row = (i == 3 && D >= 6.4) ? 1.0 : 0.0;
+			float z0 = row > 0.5 ? 3.35 : 1.15;
+			float k = min(floor(r2 * n_t), n_t - 1.0);
+			if (i == 2 && n_t > 1.0) {
+				k = mod(k + 1.0 + floor(r * 2.0), n_t);
+			}
+			float x0 = t0 + (row > 0.5 ? tp * 0.5 * (flip ? 1.0 : 0.0) : 0.0);
+			float x = x0 + k * tp + tp * 0.5;
+			if (x > W - 0.4) return false;
+			float cz = z0 + tw + 0.12;
+			at = vec2(x, cz + 0.24);
+			yaw = 3.14159;
+			pose = IP_SIT;
+			sit_y = 0.48;
+		}
+	} else if (kind == ROOM_LAUNDROMAT) {
+		if (i == 0) {
+			if (r > 0.7) return false;
+			at = vec2(mix(1.6, W - 1.6, r2), 2.32);
+			yaw = 3.14159;
+		} else if (i == 1) {
+			if (r > 0.45 || D < 5.2) return false;
+			at = vec2(mix(0.8, W - 0.8, r2), D - 1.25);
+			yaw = 0.0;
+		} else {
+			return false;
+		}
+	} else if (kind == ROOM_BARBER) {
+		float bp = 1.65;
+		float n_b = max(floor((W - 0.6) / bp), 1.0);
+		float b0 = (W - n_b * bp) * 0.5;
+		float k = min(floor(r2 * n_b), n_b - 1.0);
+		float cxc = b0 + k * bp + bp * 0.5;
+		if (i == 0) {
+			if (r > 0.8) return false;
+			at = vec2(cxc, D - 1.66);
+			yaw = 0.0;
+			pose = IP_SIT;
+			sit_y = 0.62;
+		} else if (i == 1) {
+			// The barber at the customer's chair (the same roll as person 0's chair).
+			uint p0 = shop_hash(key, 120u);
+			float q2 = float((p0 / 7u) % 1009u) / 1008.0;
+			float q = float((p0 / 9797u) % 1000u) / 1000.0;
+			if (q > 0.8) return false;
+			float k0 = min(floor(q2 * n_b), n_b - 1.0);
+			at = vec2(b0 + k0 * bp + bp * 0.5 + 0.58, D - 1.30);
+			yaw = -2.2;
+			pose = IP_REACH;
+		} else if (i == 2) {
+			if (r > 0.5) return false;
+			float wx = flip ? 0.4 : W * 0.5;
+			at = vec2(wx + mix(0.4, W * 0.5 - 0.8, r2), 0.98);
+			yaw = 0.0;
+			pose = IP_SIT;
+			sit_y = 0.46;
+		} else {
+			return false;
+		}
+	} else if (kind == ROOM_BANK) {
+		if (i <= 1) {
+			if (r > 0.8) return false;
+			at = vec2(W * (i == 0 ? 0.3 : 0.7) + (r2 - 0.5) * 0.6, D - 1.9);
+		} else if (i == 2) {
+			if (r > 0.65) return false;
+			at = vec2(W * mix(0.25, 0.75, r2), D - 3.45);
+			yaw = 0.0;
+		} else {
+			return false;
+		}
+	} else {
+		// A lobby: the guard at the desk, somebody crossing.
+		if (i == 0) {
+			if (r > 0.9) return false;
+			at = vec2(W * 0.5 + (r2 - 0.5) * 1.6, D * 0.55 + 1.3);
+		} else if (i == 1) {
+			if (r > 0.7) return false;
+			float k = shop_pace(tm + r2 * 20.0, 16.0 + 8.0 * r, dir, mv);
+			at = vec2(mix(1.0, W - 1.0, k), D * 0.46);
+			yaw = mv > 0.5 ? (dir > 0.0 ? 1.5708 : -1.5708) : 3.14159;
+			pose = mv > 0.5 ? IP_WALK : IP_STAND;
+			ph = mv > 0.5 ? k * (W - 2.0) / 1.3 * 6.2832 : idle;
+		} else {
+			return false;
+		}
+	}
+	return true;
+}
+
 // The room behind a shop's glass. `ro` is where the view ray crosses the pane (shop frame), `rd`
 // the ray, `wide` the shop's width, `high` its ceiling, `deep` its depth. `px` is metres a pixel
 // covers at the glass, `dist` the camera's distance to it. Returns the surface's colour as lit by
@@ -210,7 +465,7 @@ vec3 garment_face(vec2 q, float rack, float seed_k, float px, float top) {
 // little by day: a shop is lit inside all day), in `glow` light the fittings give off themselves -
 // pendants, a fridge, a till, a lift's indicator - and in `depth_t` how far in the hit is (0..2).
 vec3 shop_interior(vec3 ro, vec3 rd, float wide, float high, float deep, uint key, uint kind,
-		float px, float dist, out float depth_t, out float lamp, out vec3 glow) {
+		float px, float dist, float tm, bool trading, out float depth_t, out float lamp, out vec3 glow) {
 	glow = vec3(0.0);
 	vec3 inv = 1.0 / mix(rd, sign(rd) * 1e-5 + vec3(1e-6), lessThan(abs(rd), vec3(1e-5)));
 	float W = wide;
@@ -340,6 +595,33 @@ vec3 shop_interior(vec3 ro, vec3 rd, float wide, float high, float deep, uint ke
 		shop_row(ro, rd, inv, vec3(0.85 - pp * 0.5, 0.0, D * 0.52), vec3(0.85 + pp * 1.5, 0.75, D * 0.52 + 0.9), pp, 0.9, SI_PLANTER, best, bn, bid, bcell);
 		shop_row(ro, rd, inv, vec3(0.85 - pp * 0.5, 0.75, D * 0.52 + 0.1), vec3(0.85 + pp * 1.5, mix(2.0, 2.8, var_k), D * 0.52 + 0.8), pp, 0.8, SI_FOLIAGE, best, bn, bid, bcell);
 		shop_box(ro, rd, inv, vec3(W * 0.5 - 1.3, 0.0, 2.0), vec3(W * 0.5 + 1.3, 0.44, 2.55), SI_SEAT, best, bn, bid, bcell);
+	}
+
+	// The people in the shop (interior_people.gdshaderinc), near the camera only.
+	vec3 person_col = vec3(0.0);
+	bool people = ip_on() > 0.5 && dist < IP_NEAR;
+	if (people) {
+		for (int i = 0; i < 4; i++) {
+			vec2 pat;
+			float pyaw;
+			int ppose;
+			float pph;
+			float psit;
+			float ps;
+			float pb;
+			if (!shop_person(key, kind, i, W, D, tm, trading, pat, pyaw, ppose, pph, psit, ps, pb)) {
+				continue;
+			}
+			vec3 pn;
+			int pm;
+			float tp = ip_trace(ro, rd, pat, pyaw, ppose, pph, ps, pb, psit, best, pn, pm);
+			if (tp < best) {
+				best = tp;
+				bn = pn;
+				bid = SI_PERSON;
+				person_col = ip_color(pm, shop_hash(key, 140u + uint(i)), pn);
+			}
+		}
 	}
 
 	vec3 p = ro + rd * best;
@@ -615,9 +897,27 @@ vec3 shop_interior(vec3 ro, vec3 rd, float wide, float high, float deep, uint ke
 		col = p.y > 1.48 ? vec3(0.86, 0.84, 0.80) : dress * (0.85 + 0.15 * step(1.1, p.y));
 	}
 
+	if (bid == SI_PERSON) {
+		col = person_col;
+	}
 	// Contact shadows on the floor under the fittings near the glass.
 	if (bid == SI_FLOOR) {
 		float sh = 0.0;
+		float psh = 0.0;
+		if (people) {
+			for (int i = 0; i < 4; i++) {
+				vec2 pat;
+				float pyaw;
+				int ppose;
+				float pph;
+				float psit;
+				float ps;
+				float pb;
+				if (shop_person(key, kind, i, W, D, tm, trading, pat, pyaw, ppose, pph, psit, ps, pb)) {
+					psh = max(psh, ip_foot_shadow(p.xz, pat + (ppose == IP_SIT ? vec2(sin(pyaw), cos(pyaw)) * 0.25 : vec2(0.0)), ps) * 0.8);
+				}
+			}
+		}
 		if (kind == ROOM_RETAIL) {
 			float gp = mix(2.2, 2.7, var_k);
 			float g0 = (W - max(floor((W - 1.0) / gp), 1.0) * gp) * 0.5;
@@ -631,7 +931,7 @@ vec3 shop_interior(vec3 ro, vec3 rd, float wide, float high, float deep, uint ke
 		}
 		// The foot of every wall.
 		float wall_d = min(min(p.x, W - p.x), D - p.z);
-		col *= mix(0.62, 1.0, smoothstep(0.0, 0.45, wall_d)) * (1.0 - 0.5 * sh);
+		col *= mix(0.62, 1.0, smoothstep(0.0, 0.45, wall_d)) * (1.0 - 0.5 * max(sh, psh));
 	}
 
 	// Light. The day comes in at the front: faces toward the street and tops catch it, the back
@@ -650,6 +950,46 @@ vec3 shop_interior(vec3 ro, vec3 rd, float wide, float high, float deep, uint ke
 	// A lobby is mostly light stone and lit high: a little brighter in its own right.
 	if (kind == ROOM_LOBBY) {
 		lamp *= 1.15;
+	}
+	if (ip_on() > 0.5 && dist < shop_fittings_distance) {
+		// The light of the fittings, as it falls (InteriorsGlass): a downlight grid throws a scallop
+		// down every wall and a pool on the floor under each light, and a hard floor mirrors the
+		// fittings over it. Without them a shop at night was one flat tone from floor to ceiling.
+		bool runs = kind == ROOM_RETAIL || kind == ROOM_LAUNDROMAT;
+		bool slots = kind == ROOM_LOBBY;
+		if ((bid == SI_BACK || bid == SI_SIDE) && !runs && !slots) {
+			lamp += 1.15 * shop_scallop(p, bid == SI_BACK, W, H, D);
+		}
+		if (bid == SI_FLOOR) {
+			if (!runs && !slots) {
+				vec2 g = p.xz - (floor((p.xz - vec2(0.8, 0.9)) / vec2(1.6, 1.8) + 0.5) * vec2(1.6, 1.8) + vec2(0.8, 0.9));
+				lamp += 0.75 * exp(-dot(g, g) / (0.18 * H * H));
+			}
+			// The fittings mirrored in the floor: follow the ray reflected off it up to the ceiling.
+			float gloss = (kind == ROOM_LOBBY || kind == ROOM_BANK) ? 0.30 : ((runs || kind == ROOM_BARBER) ? 0.20 : 0.10);
+			vec3 rr = vec3(rd.x, -rd.y, rd.z);
+			if (rr.y > 1e-3) {
+				float tc = H / rr.y;
+				vec3 q = p + rr * tc;
+				// Blurred with the length of the bounce (a satin floor, not a mirror).
+				float blur = 0.04 + 0.05 * tc;
+				float f;
+				if (runs) {
+					float lx = abs(fract(q.x / 2.4) - 0.5) * 2.4;
+					f = (1.0 - smoothstep(0.07, 0.12 + blur, lx)) * step(0.8, q.z) * step(q.z, D - 0.6);
+				} else if (slots) {
+					float lz = abs(fract(q.z / 2.5) - 0.5) * 2.5;
+					f = 1.0 - smoothstep(0.04, 0.08 + blur, lz);
+				} else {
+					vec2 g = abs(fract(q.xz / vec2(1.6, 1.8)) - 0.5) * vec2(1.6, 1.8);
+					f = 1.0 - smoothstep(0.06, 0.10 + blur, length(g));
+				}
+				f *= step(0.0, q.x) * step(q.x, W) * step(q.z, D) * fine;
+				// Fresnel: stronger the more grazing the look along the floor.
+				float fr = 0.35 + 0.65 * pow(1.0 - clamp(-rd.y, 0.0, 1.0), 3.0);
+				glow += vec3(1.0, 0.95, 0.88) * f * gloss * fr * 0.9;
+			}
+		}
 	}
 	return col * day;
 }

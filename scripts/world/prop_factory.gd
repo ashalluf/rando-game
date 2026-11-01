@@ -1138,7 +1138,9 @@ static func shop_spill() -> Mesh:
 	var mesh := QuadMesh.new()
 	mesh.size = Vector2.ONE
 	var mat := ShaderMaterial.new()
-	mat.shader = load("res://shaders/light_pool.gdshader")
+	# shop_spill.gdshader is light_pool's dot (the same numbers) until InteriorsGlass lays the
+	# window it comes through on the pavement.
+	mat.shader = load("res://shaders/shop_spill.gdshader")
 	mat.set_shader_parameter("tint", Color.WHITE)
 	mat.set_shader_parameter("strength", 1.0)
 	mat.set_shader_parameter("falloff", 1.7)

@@ -59,7 +59,7 @@ float wr_person(vec3 ro, vec3 rd, vec2 at, float y0, float y1, float r, float he
 // `lamp` comes back as how strongly the lamp lights the point (room_interior's contract), `glow`
 // what glows by itself (the shade), `open_k` 1 where the lower sash stands open (no glass there).
 vec3 home_room(vec2 w, vec3 dir, float wide, float high, float deep_in, uint key, float t, float wind, float night,
-		out float depth_t, out float lamp, out vec3 glow, out float open_k) {
+		float dist, out float depth_t, out float lamp, out vec3 glow, out float open_k) {
 	vec3 rd = normalize(dir);
 	vec3 ro = vec3(w.x * wide, w.y * high, 0.0);
 	float r1 = float(wl_hash(key, 110u) % 1000u) / 1000.0;
@@ -101,13 +101,31 @@ vec3 home_room(vec2 w, vec3 dir, float wide, float high, float deep_in, uint key
 	bool walking = wi_walker(key) && s < 1.0;
 	bool head = false;
 	vec3 pc = vec3(0.0);
+	vec3 ip_n = vec3(0.0, 0.0, -1.0);
+	vec3 ip_c = vec3(0.0);
 	if (walking) {
 		float dir_k = mod(floor(phase), 2.0) < 0.5 ? s : 1.0 - s;
 		float px = mix(lo.x - 0.3, hi.x + 0.3, dir_k);
 		float pz = deep - 1.45;
 		float bob = 0.025 * abs(sin(s * 14.0));
-		float tp = wr_person(ro, rd, vec2(px, pz), floor_y, floor_y + 1.45 + bob, 0.19, 0.115, head);
-		if (tp < best) { best = tp; surf = head ? 7 : 6; pc = vec3(px, floor_y + 1.0, pz); }
+		if (ip_on() > 0.5 && dist < IP_NEAR) {
+			// A body (interior_people.gdshaderinc), walking across the room, the floor under it.
+			vec3 pn;
+			int pm;
+			float wdir = mod(floor(phase), 2.0) < 0.5 ? 1.0 : -1.0;
+			float ps = 0.93 + 0.12 * r2;
+			float tp = ip_trace(ro - vec3(0.0, floor_y, 0.0), rd, vec2(px, pz), wdir * 1.5708, IP_WALK,
+				dir_k * (hi.x - lo.x + 0.6) / 1.3 * 6.2832, ps, r1, 0.0, best, pn, pm);
+			if (tp < best) {
+				best = tp;
+				surf = 8;
+				ip_n = pn;
+				ip_c = ip_color(pm, wl_hash(key, 113u), pn);
+			}
+		} else {
+			float tp = wr_person(ro, rd, vec2(px, pz), floor_y, floor_y + 1.45 + bob, 0.19, 0.115, head);
+			if (tp < best) { best = tp; surf = head ? 7 : 6; pc = vec3(px, floor_y + 1.0, pz); }
+		}
 	}
 
 	vec3 hit = ro + rd * best;
@@ -143,6 +161,9 @@ vec3 home_room(vec2 w, vec3 dir, float wide, float high, float deep_in, uint key
 		col = band < 0.08 ? vec3(0.30, 0.22, 0.14) : mix(vec3(0.18, 0.14, 0.12), vec3(0.45, 0.30, 0.20), fract(sin(floor(hit.z * 9.0) * 12.9898) * 437.585));
 	} else if (surf == 6) {
 		col = mix(vec3(0.10, 0.11, 0.14), vec3(0.32, 0.18, 0.14), r2);
+	} else if (surf == 8) {
+		// Lit as a body: the side toward the window and the lamp brighter.
+		col = ip_c * (0.62 + 0.38 * max(-ip_n.z, 0.0) + 0.18 * max(ip_n.y, 0.0));
 	} else {
 		col = mix(vec3(0.45, 0.30, 0.22), vec3(0.20, 0.14, 0.10), r1);
 	}
@@ -158,6 +179,8 @@ vec3 home_room(vec2 w, vec3 dir, float wide, float high, float deep_in, uint key
 	}
 	if (surf == 6 || surf == 7) {
 		lamp *= 0.55;
+	} else if (surf == 8) {
+		lamp *= 0.6 + 0.5 * max(dot(ip_n, normalize(-dl)), 0.0);
 	}
 	// The shade itself, glowing, where the ray passes it before what it hits.
 	vec3 oc = lp - ro;
@@ -257,7 +280,7 @@ vec3 home_room(vec2 w, vec3 dir, float wide, float high, float deep_in, uint key
 // is in. Overrides col / depth_t / lamp where the person or the screen is nearer, and returns the
 // screen's light in `glow`.
 vec3 office_people(vec2 w, vec3 dir, float wide, float high, float deep, float room_seed, bool present, vec3 col_in,
-		inout float depth_t, inout float lamp, out vec3 glow) {
+		float dist, inout float depth_t, inout float lamp, out vec3 glow) {
 	glow = vec3(0.0);
 	vec3 col = col_in;
 	if (!present || hash21(vec2(room_seed, 41.7)) <= 0.5 || dir.z <= 1e-4) {
@@ -299,8 +322,24 @@ vec3 office_people(vec2 w, vec3 dir, float wide, float high, float deep, float r
 		// The worker, seated a little nearer the window than the screen: shoulders and head over
 		// the chair, the rest hidden by it and the desk.
 		bool head = false;
-		float tp = wr_person(ro, rd, vec2(x + 0.05, z0 - 0.55), top - 0.25, top + 0.36, 0.20, 0.105, head);
-		if (tp < best) {
+		float tp;
+		vec3 pn = vec3(0.0);
+		int pm = 0;
+		if (ip_on() > 0.5 && dist < IP_NEAR) {
+			// A seated body (interior_people.gdshaderinc), its back to us, the desk top at `top`.
+			float fy = top - 0.74;
+			tp = ip_trace(ro - vec3(0.0, fy, 0.0), rd, vec2(x + 0.05, z0 - 0.62), 0.0, IP_SIT,
+				room_seed + i * 3.0, 0.95 + 0.1 * hash21(vec2(room_seed, 55.3 + i)), hash21(vec2(room_seed, 56.1 + i)), 0.47, best, pn, pm);
+		} else {
+			tp = wr_person(ro, rd, vec2(x + 0.05, z0 - 0.55), top - 0.25, top + 0.36, 0.20, 0.105, head);
+		}
+		if (tp < best && pm > 0) {
+			col = ip_color(pm, uint(room_seed * 1000.0) + uint(i) * 7919u, pn) * (0.7 + 0.3 * max(-pn.z, 0.0) + 0.2 * max(pn.y, 0.0));
+			lamp = 0.5 + 0.3 * max(pn.y, 0.0);
+			glow = vec3(0.0);
+			best = tp;
+			depth_t = clamp(tp / max(deep, 0.01), 0.0, 2.0);
+		} else if (tp < best) {
 			col = head ? vec3(0.10, 0.07, 0.05) : mix(vec3(0.10, 0.11, 0.14), vec3(0.42, 0.40, 0.38), hash21(vec2(room_seed, 54.1 + i)));
 			lamp = 0.5;
 			glow = vec3(0.0);
