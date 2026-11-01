@@ -25,6 +25,10 @@ uniform vec3 lawn_tint : source_color = vec3(0.42, 0.56, 0.27);
 uniform vec3 lawn_dry : source_color = vec3(0.62, 0.60, 0.36);
 uniform vec3 concrete_tint : source_color = vec3(0.86, 0.85, 0.82);
 uniform vec3 dg_tint : source_color = vec3(1.08, 0.96, 0.80);
+// RcSuburb: 1 the pale crushed-granite DG (display numbers, a plain uniform: raw on both
+// renderers), 0 the old orange (RC2_SUBURB=0).
+uniform float dg_real = 1.0;
+uniform vec3 dg_color = vec3(0.64, 0.62, 0.58);
 uniform vec3 brick_tint : source_color = vec3(0.92, 0.78, 0.70);
 uniform vec3 tile_tint : source_color = vec3(0.70, 0.47, 0.37);
 uniform vec3 deck_tint : source_color = vec3(1.25, 1.02, 0.80);
@@ -203,6 +207,22 @@ void fragment() {
 	} else if (kind < 2.5) {
 		// Decomposed granite: the tan crushed stone of a drought-tolerant yard.
 		albedo = tiled(dirt_tex, p, 2.2) * disp(dg_tint) * mix(vec3(1.0), vec3(1.06, 1.0, 0.92), variant) * mottle;
+		if (dg_real > 0.5) {
+			// RcSuburb (rc2-suburb): the tinted dry-ground scan read as orange clay. Real DG is
+			// a pale tan of crushed granite: the scan's own relief at 40 % of its colour, the tan
+			// laid on, and grains of pale feldspar and dark mica under a few cm, faded to their
+			// average once a grain is under a pixel.
+			vec3 t = tiled(dirt_tex, p, 2.2);
+			float l = dot(t, vec3(0.299, 0.587, 0.114));
+			vec3 g = mix(vec3(l), t, 0.4) / 121.0 * 255.0;
+			vec2 gc = floor(p * 38.0);
+			float gr = hash12(gc + variant * 31.0);
+			float grain = (gr > 0.86 ? 0.22 : (gr < 0.1 ? -0.3 : (gr - 0.5) * 0.12));
+			grain *= 1.0 - smoothstep(0.012, 0.045, max(fwp.x, fwp.y));
+			albedo = g * dg_color * mix(vec3(1.0), vec3(1.03, 1.0, 0.95), variant) * mottle * (1.0 + grain);
+			// The edges of a bed scuffed into the soil, the middle raked lighter.
+			albedo *= 0.94 + 0.08 * vnoise(p * 0.7 + 3.0);
+		}
 		rough = 0.95;
 		wet_k = 0.7;
 	} else if (kind < 3.5) {

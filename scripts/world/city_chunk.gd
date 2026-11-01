@@ -2975,6 +2975,10 @@ func _park_car_steps(rect: Rect2, rng: RandomNumberGenerator, params: Dictionary
 	if BusyStreets.enabled:
 		for spot in spots:
 			steps.append(_park_extra.bind(spot))
+	# Residents' cars on a suburb's kerbs (RcSuburb: a hash per stall, after every roll).
+	if RcSuburb.residential(int(plan.block(ix, iz).district)):
+		for spot in spots:
+			steps.append(_park_resident.bind(spot))
 	return steps
 
 
@@ -3018,6 +3022,30 @@ func _park_extra(spot: Array) -> void:
 		return
 	# Fills whatever the pass left empty, so it moves with anything that takes a kerb spot.
 	car.set_meta("busy_extra", true)
+	var holder: Node = get_parent() if get_parent() else self
+	var spot_pos: Vector3 = at + Vector3(0.0, 0.3 + _gy(at.x, at.z), 0.0)
+	car.position = WorldState.to_local(spot_pos) if holder != self else spot_pos
+	car.rotation.y = float(spot[1]) + (PI if r.randf() < 0.5 else 0.0)
+	holder.add_child(car)
+	car.visible = visible
+	_cars.append(car)
+	spot.append(true) # taken: RcSuburb's residents leave it
+
+
+## A resident's car on a suburb kerb stall nobody decided (RcSuburb; a hash of seed + stall, every
+## keep-clear of the block's own pass).
+func _park_resident(spot: Array) -> void:
+	if spot.size() > 3 or not RcSuburb.resident_roll(plan.seed, spot) or not PhysicsBudget.can_spawn():
+		return
+	var at: Vector3 = spot[0]
+	if _kerb_reserved(spot):
+		return
+	var r := RcSuburb.resident_rng(plan.seed, spot)
+	var car := Vehicle.random_car(r)
+	if _kerb_taken(spot, car):
+		car.free()
+		return
+	car.set_meta("rc2_resident", true)
 	var holder: Node = get_parent() if get_parent() else self
 	var spot_pos: Vector3 = at + Vector3(0.0, 0.3 + _gy(at.x, at.z), 0.0)
 	car.position = WorldState.to_local(spot_pos) if holder != self else spot_pos

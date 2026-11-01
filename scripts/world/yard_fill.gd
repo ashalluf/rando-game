@@ -1765,6 +1765,7 @@ static func yard_material() -> ShaderMaterial:
 	mat.set_shader_parameter("brick_tex", PropFactory.texture("brick", "Color"))
 	mat.set_shader_parameter("brick_nrm", PropFactory.texture("brick", "NormalGL"))
 	mat.set_shader_parameter("planks_tex", PropFactory.texture("planks", "Color"))
+	RcSuburb.dress_yard(mat)
 	_yard_material = mat
 	return mat
 
