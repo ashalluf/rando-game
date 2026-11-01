@@ -56,3 +56,35 @@ float saa_shine(float shine, vec3 dn_dx, vec3 dn_dy) {
 float saa_shine_gain(float shine, float widened) {
 	return clamp((widened + 2.0) / (shine + 2.0), 0.0, 1.0);
 }
+
+// A per-pixel threshold for coverage-by-dither (alpha-to-coverage without MSAA): a feature too
+// small to draw is kept at `cover` where saa_dither() < cover. On Forward+ the threshold changes
+// every frame, so TAA resolves it to the exact share (foliage_tex's rule); on Compatibility (no
+// temporal pass) it is a fixed 4 x 4 ordered pattern, so a region of steady cover is a steady
+// screen of the right density rather than features flicking on and off as the camera moves.
+float saa_dither(vec2 frag, float t) {
+#if CURRENT_RENDERER == RENDERER_FORWARD_PLUS
+	return fract(sin(dot(frag + vec2(fract(t * 7.13) * 61.0, fract(t * 3.71) * 37.0), vec2(12.9898, 78.233))) * 43758.5453);
+#else
+	ivec2 q = ivec2(mod(frag, 4.0));
+	int i = q.x + q.y * 4;
+	int m[16] = int[](0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5);
+	return (float(m[i]) + 0.5) / 16.0;
+#endif
+}
+
+// Coverage of a centred box `2 h` wide every `1` (cell units) over a footprint `fw` (cell units)
+// at `x` (cell units, continuous across cells): the exact box filter of a periodic pulse.
+float saa_prim(float x, float w) {
+	float s = x + 0.5 * w;
+	return floor(s) * w + min(fract(s), w);
+}
+
+float saa_pulse(float x, float c, float h, float fw) {
+	float f = max(fw, 1.0e-4);
+	if (f > 8.0) {
+		return 2.0 * h;
+	}
+	float xc = x - c;
+	return clamp((saa_prim(xc + 0.5 * f, 2.0 * h) - saa_prim(xc - 0.5 * f, 2.0 * h)) / f, 0.0, 1.0);
+}

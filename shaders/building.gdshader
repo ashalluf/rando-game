@@ -333,6 +333,7 @@ global uniform vec3 origin_shift;
 #include "res://shaders/building_damage.gdshaderinc"
 #include "res://shaders/wet_surface.gdshaderinc"
 #include "res://shaders/facade_street.gdshaderinc"
+#include "res://shaders/specular_aa.gdshaderinc"
 
 // A door's framing, painted: `p` in metres from the opening's corner at the pavement on
 // ShopfrontKit's low edge (the high end of `u`), `w` the opening's width. The members of the
@@ -1145,6 +1146,31 @@ void fragment() {
 			glass = abs(fu - 0.5) < 0.16 && abs(fv - 0.5) < 0.40;
 			win_c = vec2(0.5, 0.5);
 			win_h = vec2(0.16, 0.40);
+		}
+		// Specular-aliasing pass (specular_aa.gdshaderinc): a punched, ribbon or slot window under a
+		// few pixels was glass or wall by where the pixel's centre fell, so a tower's window grid
+		// crawled into moire as the camera moved (the landmark towers draw with this shader at
+		// every distance). Under ~4 pixels the glass is kept by its box-filtered coverage over a
+		// footprint that widens to two pixels, dithered (saa_dither: TAA resolves it on Forward+),
+		// so a pixel shows its cell's glass or wall in the right share and the grid fades to its
+		// average instead of beating against the pixels.
+		if (saa_on() && !storefront && !chamfer && !garage && window_style != 2 && row >= 0.0) {
+			vec2 wc = window_style == 0 ? vec2(0.5, 0.52) : (window_style == 1 ? vec2(0.5, 0.55) : vec2(0.5, 0.5));
+			vec2 wh = window_style == 0 ? vec2(0.27, 0.25) : (window_style == 1 ? vec2(0.47, 0.27) : vec2(0.16, 0.40));
+			float open_px = min(2.0 * wh.x * pitch, 2.0 * wh.y * pt_floor) / max(px_m, 1.0e-5);
+			float far_k = 1.0 - smoothstep(1.5, 4.0, open_px);
+			if (far_k > 0.0) {
+				float fw = px_m * (1.0 + far_k);
+				float cu = saa_pulse(u / pitch, wc.x, wh.x, fw / pitch);
+				float cv = saa_pulse((v - pt_ground) / pt_floor, wc.y, wh.y, fw / pt_floor);
+				float cover = cu * cv;
+				bool g = cover > saa_dither(FRAGCOORD.xy, TIME);
+				// Handed over to the stepped mask as the window grows back over four pixels.
+				if (saa_dither(FRAGCOORD.yx + vec2(1.0, 2.0), TIME * 1.37) < far_k) {
+					glass = g;
+					frame = false;
+				}
+			}
 		}
 
 		// ---- The street level: a door in a ground floor without shops ---------------------

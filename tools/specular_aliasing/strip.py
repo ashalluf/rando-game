@@ -67,11 +67,32 @@ def eyes(eye, step, frames):
 	return out
 
 
+# Rotated-grid sub-pixel offsets (pixels): --ss 4 renders every frame four times, the camera turned
+# by these, and averages them - what TAA's jitter integrates on the Mac for a still camera. What
+# still flickers in such a strip is what TAA cannot take out either.
+SS_GRID = {1: [(0.0, 0.0)], 4: [(-0.125, -0.375), (0.375, -0.125), (0.125, 0.375), (-0.375, 0.125)]}
+
+
+def jittered(ev, ss, fov, res_h):
+	if ss <= 1:
+		return ev
+	px_deg = float(fov) / float(res_h)
+	out = []
+	for e in ev:
+		x, y, z, yaw, pitch = [float(v) for v in e.split(",")]
+		for dx, dy in SS_GRID[ss]:
+			out.append("%.4f,%.4f,%.4f,%.5f,%.5f" % (x, y, z, yaw - dx * px_deg, pitch - dy * px_deg))
+	return out
+
+
 def run(out_dir, o):
 	godot = os.environ.get("GODOT", "godot")
 	os.makedirs(out_dir, exist_ok=True)
 	frames = int(o.get("frames", 10))
-	ev = eyes(o["eye"], o.get("step", "yaw=0.02"), frames)
+	ss = int(o.get("ss", "1"))
+	ev = jittered(eyes(o["eye"], o.get("step", "yaw=0.02"), frames), ss, o.get("fov", "55"), o.get("res", "1920x1080").split("x")[1])
+	with open(os.path.join(out_dir, "ss.txt"), "w") as fh:
+		fh.write(str(ss))
 	hour = o.get("hour", "12")
 	fov = o.get("fov", "55")
 	w = o.get("weather", "")
@@ -120,12 +141,18 @@ def load(d, crop=None):
 			x, y, w, h = crop
 			im = im.crop((x, y, x + w, y + h))
 		ims.append(np.asarray(im).astype(np.float32))
+	ssf = os.path.join(d, "ss.txt")
+	ss = int(open(ssf).read()) if os.path.exists(ssf) else 1
+	if ss > 1:
+		# Average each frame's jittered renders (in linear light, as a resolve would).
+		lin = [np.power(im / 255.0, 2.2) for im in ims]
+		ims = [255.0 * np.power(sum(lin[k:k + ss]) / ss, 1.0 / 2.2) for k in range(0, len(lin) - ss + 1, ss)]
 	return ims
 
 
 def heat_of(ims):
 	# The first frame had the long warm-up at full speed; skip it if the strip is long enough.
-	if len(ims) >= 6:
+	if len(ims) >= 7:
 		ims = ims[1:]
 	lum = [im @ np.array([0.2126, 0.7152, 0.0722], np.float32) for im in ims]
 	acc = np.zeros_like(lum[0])
