@@ -28,3 +28,22 @@ static func plain(look: int, crowd_rig: bool) -> bool:
 	if not enabled or not crowd_rig:
 		return look % 2 == 0
 	return look % PLAIN_EVERY == 0
+
+
+## The most saturated a recoloured top or bottom may be, and how much of its rolled saturation it
+## keeps: the "something bright" bucket rolled 0.45-0.80 at value 0.45-0.78, which is a sports
+## kit's colour - a plaza at lunch (crowd plaza refcam) read as a toy box of orange, pink, yellow
+## and teal tees. Muted, a bright top is still the brightest thing on the street.
+const SAT_KEEP := 0.72
+const SAT_MAX := 0.5
+
+
+## Called by Pedestrian.character_material() once a look's colours are rolled (after every roll,
+## so the rolls themselves are unchanged).
+static func tame(mat: ShaderMaterial, crowd_rig: bool) -> void:
+	if not enabled or not crowd_rig or mat == null:
+		return
+	for part: String in ["cloth_sat", "pants_sat"]:
+		var s: Variant = mat.get_shader_parameter(part)
+		if s != null:
+			mat.set_shader_parameter(part, minf(float(s) * SAT_KEEP, SAT_MAX))
