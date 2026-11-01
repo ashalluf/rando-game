@@ -21,7 +21,7 @@ func run(t: Object, city: Node3D) -> void:
 func _margins() -> void:
 	_t._check(is_equal_approx(LodFade.margin_for(30.0), 3.6) and LodFade.margin_for(5.0) == LodFade.MIN_MARGIN
 		and LodFade.margin_for(9000.0) == LodFade.MAX_MARGIN,
-		"lod pops: a margin is 12 % of the range, 2 m at least, 40 m at most (30 m -> %.2f)" % LodFade.margin_for(30.0))
+		"lod pops: a margin is 12 percent of the range, 2 m at least, 40 m at most (30 m -> %.2f)" % LodFade.margin_for(30.0))
 
 
 func _soften() -> void:
