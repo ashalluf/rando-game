@@ -7,8 +7,11 @@ class_name FwdReviewG
 static var enabled: bool = OS.get_environment("FWD_REVIEW_G") != "0"
 
 
-## The sky (SkyExtras): the closed deck past the cloud volume's 90 km reach is handed over as its
+## The sky (SkyExtras, at load): the closed deck past the cloud volume's 90 km reach is handed over as its
 ## haze (sky.gdshader `far_deck`), not cut off at the horizon.
+## Also pushes the `fwd_review_g` shader global (building.gdshader / building_lod.gdshader: the
+## traced room behind a pane decoded on Forward+); project.godot's default is 1.
 static func apply_sky(sky: ShaderMaterial) -> void:
+	RenderingServer.global_shader_parameter_set("fwd_review_g", 1.0 if enabled else 0.0)
 	if sky != null:
 		sky.set_shader_parameter("far_deck", 1.0 if enabled else 0.0)
