@@ -2437,6 +2437,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/load_time_checks.gd").new().run(self, city)
 	# The first minute (tests/loading_first_frame_checks.gd): the warm-up list, the rehearsal's purge, the preload, FirstFill.
 	load("res://tests/loading_first_frame_checks.gd").new().run(self, city)
+	# Load time after wave 4 (tests/load_time_3_checks.gd): the rehearsal's stages, freed list entries.
+	load("res://tests/load_time_3_checks.gd").new().run(self, city)
 	# The extra occluders (tests/occluders_checks.gd): hill terrain, decks, banks, sound walls and
 	# the far mountains, each inside what it stands for.
 	await load("res://tests/occluders_checks.gd").new().run(self, city)
