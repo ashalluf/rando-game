@@ -51,17 +51,17 @@ void fragment() {
 	float sh = cs_shadow(world, L);
 	if (debug_field > 0.5) {
 		ALBEDO = vec3(1.0 - sh) * 4.0;
-		return;
+	} else {
+		if (sh <= 0.002) {
+			discard;
+		}
+		vec4 nr = textureLod(nr_tex, uv, 0.0);
+		float rough = nr.w > 0.5 ? 1.0 - nr.w : nr.w;
+		rough /= (127.0 / 255.0);
+		vec3 n = normalize(mat3(INV_VIEW_MATRIX) * (nr.xyz * 2.0 - 1.0));
+		float lit = mix(shade_keep, 1.0, smoothstep(-0.02, 0.25, dot(n, L)));
+		lit *= mix(mirror_keep, 1.0, smoothstep(0.08, 0.3, rough));
+		lit *= mix(1.0, far_keep, smoothstep(fade_near, fade_far, dist));
+		ALBEDO = vec3(1.0 - strength * sh * lit);
 	}
-	if (sh <= 0.002) {
-		discard;
-	}
-	vec4 nr = textureLod(nr_tex, uv, 0.0);
-	float rough = nr.w > 0.5 ? 1.0 - nr.w : nr.w;
-	rough /= (127.0 / 255.0);
-	vec3 n = normalize(mat3(INV_VIEW_MATRIX) * (nr.xyz * 2.0 - 1.0));
-	float lit = mix(shade_keep, 1.0, smoothstep(-0.02, 0.25, dot(n, L)));
-	lit *= mix(mirror_keep, 1.0, smoothstep(0.08, 0.3, rough));
-	lit *= mix(1.0, far_keep, smoothstep(fade_near, fade_far, dist));
-	ALBEDO = vec3(1.0 - strength * sh * lit);
 }
