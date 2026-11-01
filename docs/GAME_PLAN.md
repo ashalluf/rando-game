@@ -4119,3 +4119,11 @@ none of either.
   people in the water are placed on the surfaces that are drawn - waders on the sand mesh's
   foreshore, swimmers and surfers on the ocean's own height model - rather than at a fixed level.
   A summer afternoon's water is busy (waders, more swimmers). SAND_ROADS=0 / WADERS=0 the A/B.
+
+- **2026-11-01 The LA River from the bed: water mirrors what stands round it, and the channel is
+  lived in (rc2-river, HANDOFF "The LA River from the bed").** A new reference camera, la_river,
+  on the bed at the 6th St ribbon bridge. The low flow's mirror is the channel's own banks traced
+  analytically (the sky only over them), not a sky sheet; joints are filtered per axis so the
+  concrete keeps its pattern at a grazing angle; the shaded bank of the pale concrete canyon takes
+  a bounce; weeds, litter and a denser layer of graffiti are part of the river's look.
+  RIVER_LOOK=0 the A/B.
