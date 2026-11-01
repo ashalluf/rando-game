@@ -13,7 +13,7 @@ var _t: Node
 ## The shaders that use the include (each must keep its old line behind saa_on()).
 const USERS := ["res://shaders/car_paint.gdshader", "res://shaders/car_paint_damage.gdshader",
 	"res://shaders/car_park_car.gdshader", "res://shaders/road.gdshader",
-	"res://shaders/road_paint.gdshader", "res://shaders/building.gdshader"]
+	"res://shaders/road_paint.gdshader", "res://shaders/building.gdshader", "res://shaders/facade_detail.gdshader"]
 
 
 func run(t: Node, _city: Node3D) -> void:
