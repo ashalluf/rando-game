@@ -1,0 +1,7 @@
+{
+	"_doc": "Wave 5's new reference cameras (tools/refcams/README.md; same format as cameras.json). One row per camera, each on its own line, so the lead's merges stay trivial. Run with REFCAMS_JSON=tools/refcams/cameras_w5.json.",
+	"resolution": [1280, 720],
+	"cameras": [
+		{"name": "night_aerial", "label": "Night aerial, downtown and the basin from the SW, 350 m, 22:30", "eye": [1500.0, 350.0, 2400.0, -30.0, -12.0], "agl": true, "hour": 22.5, "weather": "clear", "fov": 55}
+	]
+}

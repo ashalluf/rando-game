@@ -32,6 +32,16 @@ uniform float beam_near_floor = 0.15;
 // Seen from the air the shaft stands against the lit city, not the black sky, and the eye has
 // nothing to adapt to: it carries this share of its street-level strength.
 uniform float beam_air_gain = 0.4;
+// The night aerial review (NightAerial; NIGHT_AERIAL=0 sets the global 0): from the air and far off
+// (`beam_far_from`..`beam_far_to` metres) the cone's two walls still summed to a solid white bar; a
+// shaft of lit haze a couple of kilometres away is a faint pale line. It falls to `beam_far_gain`.
+#ifndef NIGHT_AERIAL_DECLARED
+#define NIGHT_AERIAL_DECLARED
+global uniform float night_aerial;
+#endif
+uniform float beam_far_gain = 0.35;
+uniform float beam_far_from = 700.0;
+uniform float beam_far_to = 2200.0;
 
 varying flat vec3 lens_world;
 
@@ -51,6 +61,9 @@ void fragment() {
 		float above = smoothstep(40.0, 110.0, CAMERA_POSITION_WORLD.y - lens_world.y);
 		float near_k = mix(beam_near_floor, 1.0, smoothstep(beam_near_fade * 0.12, beam_near_fade, length(VERTEX)));
 		fade *= mix(1.0, near_k * beam_air_gain, above);
+		if (night_aerial > 0.5) {
+			fade *= mix(1.0, beam_far_gain, above * smoothstep(beam_far_from, beam_far_to, length(VERTEX)));
+		}
 	}
 	ALBEDO = tint;
 	ALPHA = clamp(fade * face * strength * haze * clamp(lamp_factor * 1.4 - 0.2, 0.0, 1.0), 0.0, 1.0);
