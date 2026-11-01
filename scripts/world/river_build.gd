@@ -390,9 +390,7 @@ func _water(s0: float, s1: float) -> void:
 	var y1 := rv.water_at(s1)
 	# The water's mirror needs the channel round it (river_water.gdshader): the +o direction in
 	# world xz (r, g as 0..1), the bed's half width / 40 (b) and the bank's height / 10 (a).
-	var sm := (s0 + s1) * 0.5
-	var lat := (rv.point(sm, 1.0) - rv.point(sm, 0.0)).normalized()
-	var col := Color(lat.x * 0.5 + 0.5, lat.y * 0.5 + 0.5, rv.bed_half(sm) / 40.0, rv.depth(sm) / 10.0)
+	var col := RiverLook.water_color(rv, (s0 + s1) * 0.5)
 	tri("water", P(s0, -w, y0), P(s1, -w, y1), P(s1, w, y1), Vector3.UP, col, Vector2(s0, -w), Vector2(s1, -w), Vector2(s1, w), Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, false)
 	tri("water", P(s0, -w, y0), P(s1, w, y1), P(s0, w, y0), Vector3.UP, col, Vector2(s0, -w), Vector2(s1, w), Vector2(s0, w), Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, false)
 

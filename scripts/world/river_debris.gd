@@ -100,6 +100,7 @@ static func dress(b: RiverBuild) -> void:
 			if rv.h01(lk) < LITTER_ODDS and litter < MAX_LITTER:
 				_litter(b, lerpf(s0, s1, rv.h01(lk + ["s"])), sg * lerpf(lf + 1.2, bh - 1.5, rv.h01(lk + ["o"])), lk)
 				litter += 1
+	ch.set_meta("rv_debris", Vector2i(weeds, litter))
 	if OS.get_environment("RIVER_DEBUG") == "1":
 		print("RiverDebris chunk ", ch.ix, ",", ch.iz, " weeds ", weeds, " litter ", litter,)
 	if weeds > 0:
