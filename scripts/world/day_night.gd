@@ -468,6 +468,9 @@ func _apply() -> void:
 		if flash > 0.0:
 			_sun.light_color = _sun.light_color.lerp(Color(0.85, 0.9, 1.0), clampf(flash, 0.0, 1.0))
 		_sun.shadow_enabled = true
+		# The cascades follow the camera's clearance (ShadowTuning: from the air they start where
+		# the ground does and reach the LOD ring).
+		ShadowTuning.follow(_sun, get_viewport().get_camera_3d())
 	if _sky:
 		# The sky's night colours follow its own twilight ramp (GoldenHour, docs/HANDOFF.md "The
 		# golden hour review"): on night_factor the whole sky was night eleven minutes after

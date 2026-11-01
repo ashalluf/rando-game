@@ -197,6 +197,8 @@ func _apply_render() -> void:
 	if _sun:
 		_sun.directional_shadow_max_distance = shadow_distance[i]
 		_sun.shadow_blur = 1.0 if level <= Level.MEDIUM else 0.7
+		# The cascades' splits, fade and their slide out with the camera's height (ShadowTuning).
+		ShadowTuning.apply_level(_sun, i)
 	# The sky's second cloud layer and its sun-side sampling cost three noise taps per pixel,
 	# and the sky fills a lot of an outdoor frame. Drop them once we are stepping quality down,
 	# and on the web, where the Compatibility renderer is doing all of this on one thread.
