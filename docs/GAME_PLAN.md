@@ -4119,3 +4119,12 @@ none of either.
   people in the water are placed on the surfaces that are drawn - waders on the sand mesh's
   foreshore, swimmers and surfers on the ocean's own height model - rather than at a fixed level.
   A summer afternoon's water is busy (waders, more swimmers). SAND_ROADS=0 / WADERS=0 the A/B.
+
+- **2026-11-01 The crowd plaza refcam: a plaza is open ground, and no crowd has twins
+  (rc2-crowd-plaza, HANDOFF "The crowd plaza refcam").** A new reference view at eye level in
+  STARLIGHT PLAZA at lunch. Decisions: a landmark crowd rect 14 m+ either way is open ground whose
+  head-count follows the hour (PlazaCrowd, capped at a person per 14 m2) and whose walkers cross it
+  rather than walking its edges; a crowd look's colours are rolled per rig, a quarter of looks keep
+  the rig's own outfit, and recolours are muted (CrowdDress); on a plaza rigs and looks are dealt,
+  not rolled. The library's standing clips keep their legs near the rig's own stance (0.88).
+  PLAZA_CROWD=0 / CROWD_DRESS=0 the A/B.
