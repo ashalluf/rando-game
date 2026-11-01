@@ -49,6 +49,10 @@ func _mirror() -> void:
 		["float ftop = mix(0.05, 0.2, fr.y);", "float ftop = mix(0.05, 0.2, fr.y);"],
 		["vec2 lean = normalize(cloud_wind + vec2(1e-5)) * hc * hc * 0.22;", "vec2 lean = normalize(cs_wind + vec2(1e-5)) * cs_body * cs_body * 0.22;"],
 		["p.xz += wind;", "+ cs_wind * TIME;"],
+		["float rr = smoothstep(0.22, 1.0, rel);", "float rr = smoothstep(0.22, 1.0, rel);"],
+		["rr = rr * rr * (1.0 + 0.4 * rr);", "rr = rr * rr * (1.0 + 0.4 * rr);"],
+		["float d_big = rel < 1.0 ? clamp((sqrt(col) - rr) / max(1.0 - rr, 0.05), 0.0, 1.0) : 0.0;", "float d_big = rel < 1.0 ? clamp((sqrt(col) - rr) / max(1.0 - rr, 0.05), 0.0, 1.0) : 0.0;"],
+		["float fr2 = smoothstep(0.1, 1.0, frel);", "float fr2 = smoothstep(0.1, 1.0, frel);"],
 	]
 	var miss: Array[String] = []
 	for pair: Array in lines:

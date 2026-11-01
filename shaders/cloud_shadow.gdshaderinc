@@ -21,10 +21,8 @@ uniform float cs_depth = 1.7;
 uniform float cs_body = 0.18;
 // day_fragments x sky_day: the sky's daytime thinning of the fragments.
 uniform float cs_fragments = 0.0;
-// Extinction per km of cloud (the sky's cloud_extinction) and how much of it a shadow keeps
-// (a cloud lets light through its thin margins and scatters some down through its body).
-uniform float cs_extinction = 22.0;
-uniform float cs_od_gain = 0.08;
+// The envelope's values over which a shadow comes in (its penumbra).
+uniform vec2 cs_edge = vec2(0.35, 0.65);
 // The map's mip: a little softer than its texels (a real shadow edge is a penumbra ~100 m wide).
 uniform float cs_lod = 0.6;
 
@@ -51,7 +49,20 @@ float cs_shadow(vec3 world_m, vec3 L) {
 	float fthr = thr + 0.16 + 0.12 * col + cs_fragments;
 	float fcol = smoothstep(fthr, fthr + 0.34, fr.x);
 	float ftop = mix(0.05, 0.2, fr.y);
-	// Optical depth down the column: its density at the base times its height.
-	float od = (sqrt(col) * top + sqrt(fcol) * 0.7 * ftop * 0.6) * cs_depth * cs_extinction * cs_od_gain;
-	return 1.0 - exp(-od * 3.0);
+	// The body as cumulus() draws it at the shadow's height: the heap's envelope (as wide as its
+	// base up to its skirt) and the fragments'. The billows then keep the part of an envelope over
+	// about a half, so that is where the cloud is; the edge is a short ramp either side (the
+	// penumbra). A field-wide optical depth instead put half the ground in a grey wash.
+	float rel = cs_body / max(top, 0.05);
+	float rr = smoothstep(0.22, 1.0, rel);
+	rr = rr * rr * (1.0 + 0.4 * rr);
+	float d_big = rel < 1.0 ? clamp((sqrt(col) - rr) / max(1.0 - rr, 0.05), 0.0, 1.0) : 0.0;
+	float frel = cs_body * 0.5 / ftop;
+	float fr2 = smoothstep(0.1, 1.0, frel);
+	float d_frag = frel < 1.0 ? clamp((sqrt(fcol) * 0.7 - fr2 * fr2) / max(1.0 - fr2 * fr2, 0.05), 0.0, 1.0) : 0.0;
+	float body = smoothstep(cs_edge.x, cs_edge.y, d_big);
+	// A fragment is thin: it takes less of the sun.
+	body = max(body, smoothstep(cs_edge.x, cs_edge.y, d_frag) * 0.55);
+	// A thick heap is darker under its middle than a thin one.
+	return body * mix(0.7, 1.0, smoothstep(0.25, 0.7, top));
 }

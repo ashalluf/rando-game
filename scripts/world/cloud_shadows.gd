@@ -100,7 +100,7 @@ func _process(_delta: float) -> void:
 		_mat.set_shader_parameter("debug_field", 1.0)
 	_mat.set_shader_parameter("cs_coverage", cov)
 	for k in [["cs_wind", "cloud_wind"], ["cs_weather_tile", "weather_tile"], ["cs_billow_tile", "billow_tile"],
-			["cs_base", "cloud_base"], ["cs_depth", "cloud_depth"], ["cs_extinction", "cloud_extinction"],
+			["cs_base", "cloud_base"], ["cs_depth", "cloud_depth"],
 			["cs_weather", "cloud_weather"], ["cs_shape", "cloud_shape"]]:
 		var v: Variant = _sky.get_shader_parameter(k[1])
 		if v != null:
