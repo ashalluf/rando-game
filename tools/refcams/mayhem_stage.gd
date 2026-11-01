@@ -17,10 +17,15 @@ extends RefCounted
 
 ## Where things stand, metres along the camera's forward (x) and to its right (y), from the eye.
 const HERO := Vector2(4.6, -1.3)
-const CAR := Vector2(15.0, 2.6)
-const WRECK := Vector2(30.0, -4.5)
+const CAR := Vector2(18.0, 3.4)
+const WRECK := Vector2(34.0, -6.0)
+## Civilians put on both pavements this far ahead (metres), who panic and run at the camera.
+const RUNNERS := [16.0, 19.0, 22.0, 25.0, 28.0, 31.0, 34.0, 38.0, 42.0, 46.0]
+static var _made: Array = []
 ## The panic: an alarm this far round the blast spot, before the police have even stopped.
-const PANIC_RADIUS := 70.0
+const PANIC_RADIUS := 90.0
+## Where the panic starts (metres ahead): beyond the runners, so they run back at the camera.
+const PANIC_FROM := 75.0
 const MAYHEM_SEED := 4242
 
 ## The hero's spot (local), facing yaw; set by stage(), read by refcams_shot's _place() each frame.
@@ -51,8 +56,11 @@ static func stage(tree: SceneTree, scene: Node, cam: Camera3D, player: Node3D, p
 			await tree.process_frame
 			place.call()
 		wreck.call("damage_state").explode()
+	_runners(tree, scene, eye, fwd)
+	for i in 2:
+		await tree.physics_frame
 	# The street panics before the police arrive (gunfire up the street), so people are running.
-	Pedestrian.alarm(tree, eye + fwd * CAR.x, PANIC_RADIUS, 6, true, "")
+	Pedestrian.alarm(tree, eye + fwd * PANIC_FROM, PANIC_RADIUS, 6, true, "")
 	var police := scene.get_node_or_null("Police")
 	if police and OS.get_environment("MAYHEM_NO_POLICE") != "1":
 		police.set("enabled", true)
@@ -82,6 +90,8 @@ static func stage(tree: SceneTree, scene: Node, cam: Camera3D, player: Node3D, p
 			if is_instance_valid(o) and o.get("police") != null:
 				var target: Vector3 = police.call("player_aim_point")
 				o.call("_shoot", target, (o as Node3D).global_position.distance_to(target))
+	# The hero answers: his rifle's flash and tracers in the frame.
+	Input.action_press("fire")
 	var want := _f("MAYHEM_FX_TIME", 0.3)
 	var elapsed := 0.0
 	while elapsed < want:
@@ -89,9 +99,74 @@ static func stage(tree: SceneTree, scene: Node, cam: Camera3D, player: Node3D, p
 		elapsed += tree.root.get_process_delta_time()
 		place.call()
 		_tough(player)
+	Input.action_release("fire")
+	for w: Node3D in _made:
+		if is_instance_valid(w):
+			print("MAYHEM runner %s at %s panic %.1f visible %s" % [w.name, WorldState.to_world(w.global_position), float(w.get("_panic_left")), w.is_visible_in_tree()])
+		else:
+			print("MAYHEM runner gone")
+	if OS.get_environment("MAYHEM_DUMP") == "1":
+		_dump(tree, eye + fwd * CAR.x + right * CAR.y)
 	print("MAYHEM staged: hero %s, car %s, %d cruisers, %d officers, fx %.2f s" % [WorldState.to_world(hero_at),
 		WorldState.to_world(car.global_position) if car else Vector3.ZERO,
 		(police.get("cruisers") as Array).size() if police else 0, (police.get("officers") as Array).size() if police else 0, elapsed])
+
+
+## Walkers on the pavements either side of the street ahead (the block rings the camera's street
+## runs between), alternating sides, so the alarm sends them running back past the hero.
+static func _runners(tree: SceneTree, scene: Node, eye: Vector3, fwd: Vector3) -> void:
+	var plan: CityPlan = scene.get("plan")
+	var chunks: Dictionary = scene.get("chunks")
+	if plan == null or chunks == null:
+		return
+	var right := fwd.cross(Vector3.UP).normalized()
+	var k := 0
+	for d: float in RUNNERS:
+		var side := 1.0 if k % 2 == 0 else -1.0
+		var probe := WorldState.to_world(eye + fwd * d + right * side * 9.0)
+		var at2 := Vector2(probe.x, probe.z)
+		var b := plan.block_index_at(at2)
+		var rect: Rect2 = plan.block(b.x, b.y).rect
+		# The pavement edge nearest the camera's street: the rect's side facing the eye's line.
+		var e := WorldState.to_world(eye)
+		var p := Vector2(clampf(at2.x, rect.position.x + 1.5, rect.end.x - 1.5), clampf(at2.y, rect.position.y + 1.5, rect.end.y - 1.5))
+		if absf(fwd.x) > absf(fwd.z):
+			p.y = rect.position.y + 2.0 if absf(e.z - rect.position.y) < absf(e.z - rect.end.y) else rect.end.y - 2.0
+		else:
+			p.x = rect.position.x + 2.0 if absf(e.x - rect.position.x) < absf(e.x - rect.end.x) else rect.end.x - 2.0
+		var chunk: Node = chunks.get(plan.chunk_index_at(rect.get_center()))
+		k += 1
+		if chunk == null:
+			continue
+		var w := Pedestrian.new()
+		w.setup(rect, plan.sidewalk_width, 88100 + k)
+		w.pause_chance = 0.0
+		w.cross_chance = 0.0
+		w.set_meta("no_trim", true)
+		w.position = Vector3(p.x, chunk.call("ground_y", p.x, p.y) + 0.1, p.y)
+		chunk.add_child(w)
+		_made.append(w)
+
+
+## MAYHEM_DUMP=1: every flat thing drawn near the car's spot, to name a surface in the still.
+static func _dump(tree: SceneTree, at: Vector3) -> void:
+	for gi in tree.root.find_children("*", "GeometryInstance3D", true, false):
+		var g := gi as GeometryInstance3D
+		if not g.is_visible_in_tree():
+			continue
+		var box := g.global_transform * g.get_aabb()
+		if box.size.x > 40.0 or box.size.z > 40.0 or box.size.y > 3.0:
+			continue
+		var c := box.get_center()
+		if Vector2(c.x - at.x, c.z - at.z).length() > 9.0:
+			continue
+		var mat: Material = g.material_override
+		if mat == null and g is MeshInstance3D and (g as MeshInstance3D).mesh and (g as MeshInstance3D).mesh.get_surface_count() > 0:
+			mat = (g as MeshInstance3D).get_active_material(0)
+		var what: String = mat.resource_name if mat else "-"
+		if mat is ShaderMaterial and (mat as ShaderMaterial).shader:
+			what = (mat as ShaderMaterial).shader.resource_path
+		print("MAYHEM_DUMP %s %s size %s at %s mat %s" % [g.get_path(), g.get_class(), box.size, c, what])
 
 
 ## A seeded random road car parked at `at` (local), turned to `yaw`.

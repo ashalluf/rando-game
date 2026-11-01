@@ -49,6 +49,14 @@ uniform float cool_time = 0.85;
 // Sun and sky on the soot.
 uniform float sun_gain = 2.0;
 uniform float sky_gain = 0.8;
+// The mayhem refcam's look (RcMayhem, rc2-mayhem; 0 = the explosions-3 field bit for bit): heat
+// follows the depth into the ball, so only the heart is white and the surface burns orange, and
+// a fuel fireball's outside rolls black soot from its first tenths of a second (fuel-rich
+// burning), so the fire shows through gaps in a dark shell instead of a cream cotton ball.
+uniform float rc_look = 0.0;
+// How much of a fuel ball's surface goes to soot, and how fast (seconds).
+uniform float rc_soot = 0.75;
+uniform float rc_soot_time = 0.35;
 // 1 draws the opacity as grey (tuning).
 uniform int debug = 0;
 
@@ -136,6 +144,17 @@ vec2 field(vec3 q) {
 	// The whole surface burns at first (what you see of a young fireball is fire), hottest on the
 	// billows' crowns and in the heart, sooty in the creases; as it cools the creases go first.
 	float temp = clamp(heat * (0.57 + sh.y * 0.4 + (n1 - 0.5) * 1.5 + (n2 - 0.5) * 1.2), 0.0, 1.0);
+	if (rc_look > 0.0) {
+		// Deep = hot: the heart white-yellow, the billows' crowns orange, the creases dark red.
+		float deep = clamp(heat * (0.34 + sh.y * 1.05 + (n1 - 0.5) * 1.3 + (n2 - 0.5) * 0.9), 0.0, 1.0);
+		// Soot on the outside, in the creases first, rolling over the crowns as it grows.
+		float shell = (1.0 - smoothstep(0.05, 0.45, sh.y)) * smoothstep(0.03, rc_soot_time, t);
+		float sooty = clamp(shell * (0.45 + 0.4 * fuel) * rc_soot / 0.75 * (1.2 - n2 * 0.9 + (0.5 - n1) * 0.6), 0.0, 1.0);
+		deep *= 1.0 - sooty;
+		temp = mix(temp, deep, rc_look);
+		// Soot is thick: the shell is opaque where it has gone dark.
+		dens = mix(dens, max(dens, smoothstep(0.0, crisp * 2.0, f + 0.15) * sooty), rc_look);
+	}
 	return vec2(dens, temp);
 }
 

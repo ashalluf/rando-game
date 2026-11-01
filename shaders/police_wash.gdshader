@@ -44,6 +44,11 @@ uniform float mirror_gain = 0.7;
 // The bar's height over the pool's plane (m), for the mirrored streak.
 uniform float bar_height = 1.6;
 uniform float pool_shift = 0.15;
+// The mayhem refcam's pool (RcMayhem; 0 = the old pool bit for bit): a soft light falling off from
+// under the bar instead of a 10 m disc of flat red - the bank's HDR red times a slow falloff stood
+// at saturation over most of it, and from a chase camera it read as paint on the road.
+uniform float rc_soft = 0.0;
+uniform float rc_pool_gain = 0.32;
 
 varying float v_kind;
 varying float v_bank;
@@ -117,6 +122,9 @@ void fragment() {
 			vec2 lean = vec2(-side * pool_shift, 0.0);
 			float d = length((p - lean) * vec2(1.0, 1.35)) / (0.5 - pool_shift);
 			float pool = pow(max(1.0 - d, 0.0), 2.2);
+			if (rc_soft > 0.0) {
+				pool = mix(pool, exp(-d * d * 3.2) * (1.0 - smoothstep(0.7, 1.0, d)) * rc_pool_gain, rc_soft);
+			}
 			// Grows a little in the rain: the light carries in the wet air and on the wet road.
 			col = c * pool * pool_gain * (1.0 + 0.6 * road_wetness) * gain;
 			// The bar in the wet road: its mirror image at (0, -h, 0) seen from the camera lands on

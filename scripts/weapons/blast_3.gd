@@ -114,6 +114,7 @@ static func spawn_volume(parent: Node, at: Vector3, radius: float, fuel: bool) -
 	mat.set_shader_parameter("centre_r", centre)
 	mat.set_shader_parameter("seed", Vector3(randf() * 7.0, randf() * 7.0, randf() * 7.0))
 	mat.set_shader_parameter("steps", volume_steps)
+	RcMayhem.dress_volume(mat)
 	if OS.get_environment("BLAST3_DEBUG") != "":
 		mat.set_shader_parameter("debug", int(OS.get_environment("BLAST3_DEBUG")))
 	mi.material_override = mat

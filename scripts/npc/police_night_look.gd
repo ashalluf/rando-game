@@ -199,6 +199,7 @@ func _make_glow(car: PoliceCar) -> Node3D:
 	mat.shader = load("res://shaders/police_wash.gdshader")
 	mat.set_shader_parameter("rate", car.flash_rate)
 	mat.set_shader_parameter("phase", car.flash_phase())
+	RcMayhem.dress_police(mat)
 	glow.set_meta("mat", mat)
 	var bar := car.get_node_or_null("LightBar") as Node3D
 	var flare := MeshInstance3D.new()
