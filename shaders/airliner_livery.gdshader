@@ -243,7 +243,9 @@ void fragment() {
 		// Metres along the jet (38 m long) and up it.
 		float sx = u * 38.0;
 		float sy = p.y * 20.0;
-		int id = int(clamp(v_livery, 0.0, 5.0));
+		// Rounded: an interpolated 2.0 reads 1.9999 on some pixels, and int() of that drew another
+		// airline's letters there (a speckle through every title).
+		int id = int(clamp(floor(v_livery + 0.5), 0.0, 5.0));
 		if (fuselage) {
 			float side = smoothstep(0.045, 0.065, az);
 			// The airline's name along the crown above the windows, reading nose to tail on the
