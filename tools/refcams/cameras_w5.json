@@ -1,0 +1,7 @@
+{
+	"_doc": "Wave 5 reference cameras (tools/refcams/README.md): the same format as cameras.json, one row a line. Run with REFCAMS_JSON=tools/refcams/cameras_w5.json.",
+	"resolution": [1280, 720],
+	"cameras": [
+		{"name": "marine_morning", "label": "Beach town at 08:00 under the marine layer (11th St toward the sand)", "eye": [-585.0, 1.7, 1205.0, 91.0, 0.5], "agl": true, "hour": 8.0, "weather": "marine", "fov": 55}
+	]
+}

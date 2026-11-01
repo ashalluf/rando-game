@@ -750,6 +750,9 @@ func _process(delta: float) -> void:
 	# Streets soak through while it rains and dry out slowly afterwards, rather than tracking the
 	# rain instantly: a shower that stops does not leave dry tarmac behind it.
 	var wet_target := clampf(rain * 1.2, 0.0, 1.0)
+	# Mist, not rain: a floor that dries the uneven way (below).
+	var misty := _marine_damp > wet_target
+	wet_target = maxf(wet_target, _marine_damp)
 	if _wet_hold >= 0.0:
 		wet_target = _wet_hold
 	var soak := delta / maxf(soak_seconds, 0.01) if wet_target > wetness else delta / maxf(dry_seconds, 0.01)
@@ -761,6 +764,8 @@ func _process(delta: float) -> void:
 	# Rain wets a street evenly; once the water is leaving it dries unevenly. Switched over a few
 	# seconds rather than snapped, so a shower that starts again does not flash the street.
 	var drying_target := 1.0 if wet_target < wetness - 0.001 else (0.0 if wet_target > 0.001 else drying)
+	if misty and _wet_hold < 0.0 and wetness <= wet_target + 0.02:
+		drying_target = MarineMorning.DRYING
 	if _wet_hold >= 0.0:
 		drying_target = drying
 	var was_drying := drying
@@ -1009,6 +1014,23 @@ func is_forced() -> bool:
 	return _forced
 
 
+## Sets the streets at once to the wetness state `s` settles to at `hour` for a camera at the
+## true world `pos` (the rain's, or the marine layer's morning damp, which dries unevenly):
+## stills and reference cameras, whose few frames would never soak it in.
+func settle_wet(s: int, hour: float, pos: Vector3) -> void:
+	var w := clampf(_rain_level(s) * 1.2, 0.0, 1.0)
+	var damp := 0.0
+	if s == State.MARINE:
+		var deck := LaWeather.deck_heights(hour)
+		damp = MarineMorning.damp(LaWeather.cover_at(_coast_x(), hour, pos.x, pos.z)
+			* LaWeather.under_deck(pos.y, deck.y), hour)
+	wetness = maxf(w, damp)
+	PropFactory.set_wetness(wetness)
+	if damp > w:
+		drying = MarineMorning.DRYING
+		RenderingServer.global_shader_parameter_set("road_drying", drying)
+
+
 static func _rain_level(s: State) -> float:
 	return [0.0, 0.0, 0.7, 1.0, 0.0, 0.0][s]
 
@@ -1038,6 +1060,8 @@ func _coast_x() -> float:
 
 var _marine_fog_add: float = 0.0
 var _marine_vol_add: float = 0.0
+## The street wetness floor the marine layer's mist leaves (MarineMorning.damp()).
+var _marine_damp: float = 0.0
 
 
 ## The marine layer, the Santa Ana, the heat and the roof splashes, each frame. Sets the hooks on
@@ -1054,6 +1078,9 @@ func _update_la(delta: float, _fog: float, _vol: float) -> void:
 	var deck := LaWeather.deck_heights(hour)
 	marine_here = marine_weight * cover * LaWeather.under_deck(cam_w.y, deck.y)
 	_marine_fog_add = marine_here * (marine_fog + marine_bank_fog * bank)
+	# June gloom at street level (MarineMorning): the coast's morning mist, the damp streets.
+	_marine_fog_add += MarineMorning.mist(marine_here, hour, cam_w.x - coast)
+	_marine_damp = MarineMorning.damp(marine_here, hour)
 	_marine_vol_add = marine_here * marine_volumetric
 	if _env:
 		# Godot's height fog: positive density thickens it DOWN from fog_height (the ground haze
