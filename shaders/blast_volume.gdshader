@@ -75,7 +75,7 @@ uniform float ms_lift = 0.3;
 uniform vec4 fires[4];
 uniform int fire_count = 0;
 uniform vec3 fire_col = vec3(2.6, 0.9, 0.22);
-uniform float fire_gain = 1.5;
+uniform float fire_gain = 0.32;
 uniform vec3 city_glow = vec3(0.0);
 global uniform float lamp_factor;
 
@@ -355,9 +355,11 @@ void fragment() {
 				float reach = floor(fr.w);
 				float fd = distance(fr.xyz, wp);
 				// Lit from below: a puff over the fire takes more of it than one beside it.
-				float below = clamp((wp.y - fr.y) / max(fd, 0.01) * 0.5 + 0.6, 0.2, 1.0);
-				fl += fire_col * fire_gain * mix(0.22, 1.0, night_factor) * fract(fr.w) * 2.0 * below / (1.0 + fd * fd / max(reach * reach * 0.6, 1.0));
+				float below = clamp((wp.y - fr.y) / max(fd, 0.01) * 0.5 + 0.55, 0.1, 1.0);
+				below *= below;
+				fl += fire_col * fire_gain * mix(0.22, 1.0, night_factor) * fract(fr.w) * 2.0 * below / (1.0 + fd * fd / max(reach * reach * 0.3, 1.0));
 			}
+			fl = min(fl, vec3(2.4, 0.9, 0.25));
 			vec3 lit4 = alb4 * (fl + sun * sun_gain * (t_sun4 + lift + fwd_lobe * (1.0 - f4.x) * t_sun4) + amb4 + inner4) * (1.0 - 0.85 * smoothstep(0.15, 0.5, f4.y));
 			col += tr * a4 * lit4;
 			glow += tr * a4 * blackbody(f4.y) * heat_gain * (1.0 + 0.4 * gas);
