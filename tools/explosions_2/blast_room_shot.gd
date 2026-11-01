@@ -12,7 +12,7 @@ extends SceneTree
 ## CAR=1 (a parked car's own explosion: fuel fireball and toss), DIST (camera metres from the
 ## blast, default 34), HEIGHT (camera eye, 1.7), RADIUS (9), SCALE (slow motion before 1 s,
 ## 0.375 = 0.05 s a frame), LATE (after 1 s, 2.0), CAM_X (camera sideways, -4), LOOK_Y (aim height,
-## 9), FULL=0 (WeaponFX.explosion alone; by default Explosion.blast(), so the crater and rubble too). EXPLOSIONS_2=0 is the old blast (the before).
+## 9), WEB=1 (the web build's card path), GAS=1 (a petrol pump's vapour blast, Blast4), FULL=0 (WeaponFX.explosion alone; by default Explosion.blast(), so the crater and rubble too). EXPLOSIONS_2=0 is the old blast (the before).
 ## Loads WeaponFX, Vehicle and Building by path: naming them compiles them before the autoloads.
 
 func _initialize() -> void:
@@ -101,6 +101,9 @@ func _initialize() -> void:
 			(c as CanvasLayer).visible = false
 	for i in int(_env("WARM", "8")):
 		await process_frame
+	if OS.get_environment("WEB") == "1":
+		# The web build's path (cards, CPU particles, no volume or haze) on this renderer.
+		load("res://scripts/weapons/weapon_fx.gd")._web_cache = 1
 	var radius := float(_env("RADIUS", "9"))
 	var at := centre + Vector3(1.5, 0.6, 0.0)
 	Engine.time_scale = float(_env("SCALE", "0.375"))
@@ -112,6 +115,10 @@ func _initialize() -> void:
 		for i in 6:
 			await physics_frame
 		car.call("damage_state").explode()
+	elif OS.get_environment("GAS") == "1":
+		# A petrol pump's vapour blast (Blast4): what PropBreak's pump hook sets off.
+		load("res://scripts/weapons/blast_4.gd").gas_next = true
+		load("res://scripts/weapons/explosion.gd").blast(player, at, radius, 26.0, 0.0)
 	elif OS.get_environment("FULL") != "0":
 		# The whole blast as a rocket sets it off (crater, rubble, dust: BlastAftermath too).
 		load("res://scripts/weapons/explosion.gd").blast(player, at, radius, 30.0, 0.0)

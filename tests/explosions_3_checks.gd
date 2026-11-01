@@ -211,7 +211,7 @@ func _volume_life(parent: Node) -> void:
 		WeaponFX.explosion(_city, _top + Vector3(float(i) * 6.0 - 18.0, 1.0, 60.0), 9.0, 1.0)
 	_t._check(Blast3.volumes_alive() <= Blast3.max_volumes, "explosions_3: volumes capped (%d)" % Blast3.volumes_alive())
 	var t0 := Time.get_ticks_msec()
-	while Blast3.volumes_alive() > 0 and Time.get_ticks_msec() - t0 < 20000:
+	while Blast3.volumes_alive() > 0 and Time.get_ticks_msec() - t0 < 60000: # (Blast4's mushroom lives 9-12 s)
 		await _tree.process_frame
 	_t._check(Blast3.volumes_alive() == 0, "explosions_3: the volumes free themselves")
 

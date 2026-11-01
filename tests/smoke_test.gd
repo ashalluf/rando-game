@@ -2736,6 +2736,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The explosion's third pass (tests/explosions_3_checks.gd, Blast3): the volume fireball, bits
 	# that land, debris that settles, fire-lit smoke, the haze, the scorch's maps.
 	await load("res://tests/explosions_3_checks.gd").new().run(self, city)
+	# The explosion's fourth pass (tests/explosions_4_checks.gd, Blast4): the mushroom volume, the
+	# fuel pool, the secondary pops, the chain fuse, the bang at the speed of sound.
+	await load("res://tests/explosions_4_checks.gd").new().run(self, city)
 	# The pier at night (tests/rc_pier_night_checks.gd, PierNight): the wheel's glow, the halos.
 	load("res://tests/rc_pier_night_checks.gd").new().run(self, city)
 	# The sky's radiance catches up with a jump (tests/web_hero_rain_checks.gd, SkySettle): the

@@ -1552,6 +1552,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   whole cut-out white). The web keeps the cards and particles. `EXPLOSIONS_3=0` is the A/B; strips
   `tools/explosions_2/blast_room_shot.gd` (FULL, CAM_X, LOOK_Y; `BLAST3_DEBUG=1` the volume's
   opacity); checks `tests/explosions_3_checks.gd`.
+- The blast, fourth pass (2026-11-01, fleet wave 5 "explosions-4", docs/HANDOFF.md "The blast,
+  fourth pass"): `Blast4` (`scripts/weapons/blast_4.gd`; hooks in Blast3.spawn_volume, BlastFX,
+  Explosion.blast, PropBreak's pump, `CarDamage.chain_fuse()`) - the volume LIVES ON as the mushroom
+  (blast_volume.gdshader `v4`, every block behind it: a vortex-ring cap over a stem, the noise rolled
+  round the ring core and curl-advected, three shadow taps, lit by Blast3's fires at night; 9 s, a
+  car 12, gas 8; BlastFX's card cap left out, its column handed over at half life); `BlastPool`
+  (`scripts/weapons/blast_pool.gd`, `shaders/blast_pool.gdshader`) burning fuel where a car or pump
+  went up; secondary pops; a chain fuse to the cars beside a fuel blast (`chain_depth`); a shot
+  petrol pump is a gas blast (`gas_next`); the bang at the speed of sound with a thump, the shake with
+  the wave. `EXPLOSIONS_4=0` is the A/B; strips blast_room_shot.gd (`GAS=1`, `WEB=1`); checks
+  `tests/explosions_4_checks.gd`.
 - Street props break by KIND (2026-10-06, docs/HANDOFF.md "Street props that break like GTA"):
   `PropBreak` (`scripts/world/prop_break.gd`) takes `damage_prop()` / `break_prop()`: a hydrant
   leaves a `HydrantGeyser` (13 m column, wet patch, lifts the player) and a flange; a shelter loses

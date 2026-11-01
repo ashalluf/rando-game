@@ -155,6 +155,38 @@ static func after_blast(node: Node, parent: Node, at: Vector3, radius: float, fu
 	return made
 
 
+## Gas: a petrol pump shot to pieces goes up (PropBreak.broke()'s hook, the pump still breaks the
+## old way too). The blast waits a beat (the fuel finds the spark), and at most `gas_burst` pumps go
+## in `gas_window` seconds, each a little after the last, so a forecourt goes up in a ripple, not
+## all in one frame.
+static var gas_radius: float = 8.5
+static var gas_burst: int = 3
+static var gas_window: float = 4.0
+static var _gas_times: Array[float] = []
+
+
+static func pump_break(ch: Node3D, record: Dictionary) -> bool:
+	if not enabled or ch == null or not ch.is_inside_tree():
+		return false
+	var now := Time.get_ticks_msec() * 0.001
+	_gas_times = _gas_times.filter(func(t): return now - t < gas_window)
+	if _gas_times.size() >= gas_burst:
+		return false
+	var at := ch.to_global(record.position as Vector3)
+	var space := ch.get_world_3d().direct_space_state
+	var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(at + Vector3.UP * 4.0, at - Vector3.UP * 6.0, 1))
+	if not hit.is_empty():
+		at = hit.position
+	var delay := 0.12 + 0.35 * float(_gas_times.size()) + randf() * 0.15
+	_gas_times.append(now + delay)
+	ch.get_tree().create_timer(delay, false).timeout.connect(func():
+		if is_instance_valid(ch) and ch.is_inside_tree():
+			gas_next = true
+			Explosion.blast(ch, at + Vector3.UP * 0.9, gas_radius, 26.0, 18.0)
+			gas_next = false)
+	return true
+
+
 ## The secondary pops: scheduled on timers (the tree's, paused with it). Returns how many.
 static func secondaries(node: Node, parent: Node, at: Vector3, radius: float, gas: bool) -> int:
 	var n := randi_range(secondary_count.x, secondary_count.y) + (1 if gas else 0)

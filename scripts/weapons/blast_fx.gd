@@ -375,6 +375,18 @@ static func _column(parent: Node, at: Vector3, radius: float, fuel: bool, v4: bo
 	stem_ramp.colors = PackedColorArray([Color(0.05, 0.045, 0.04, 0.0), Color(0.055, 0.05, 0.045, 0.85),
 		Color(0.065, 0.06, 0.055, 0.8), Color(0.085, 0.08, 0.075, 0.55), Color(0.11, 0.11, 0.11, 0.0)])
 	col.color_ramp = stem_ramp
+	if Blast4.enabled and not v4:
+		# Blast4, on the card path (the web, or no room for another volume): more, bigger, thinner
+		# puffs, so the column is one rising mass instead of a string of separate grey balls.
+		col.amount = WeaponFX._count(int(column_life * 15.0))
+		col.scale_amount_min = radius * 0.65
+		col.scale_amount_max = radius * 0.95
+		col.spread = 18.0
+		var thin := Gradient.new()
+		thin.offsets = stem_ramp.offsets
+		thin.colors = PackedColorArray([Color(0.05, 0.045, 0.04, 0.0), Color(0.055, 0.05, 0.045, 0.6),
+			Color(0.065, 0.06, 0.055, 0.55), Color(0.085, 0.08, 0.075, 0.36), Color(0.11, 0.11, 0.11, 0.0)])
+		col.color_ramp = thin
 	var reach := column_life * column_rise * 1.6 * sc + radius * 4.0
 	for e: CPUParticles3D in [cap, col]:
 		e.custom_aabb = AABB(Vector3(-reach, -radius, -reach), Vector3(reach * 2.0, reach + radius, reach * 2.0))
