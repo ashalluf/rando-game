@@ -194,6 +194,11 @@ var _retiring: Dictionary = {}
 ## faces (unit XZ), as of the last update: what stream_priority_at() weighs against.
 var _eye: Vector2 = Vector2.ZERO
 var _lead: Vector2 = Vector2.ZERO
+## A pending build whose block already stands at the wanted level is dropped (update_streaming).
+## STALE_BUILD_CANCEL=0 in the environment is the A/B (the old: it finished and was installed).
+static var STALE_BUILD_CANCEL: bool = OS.get_environment("STALE_BUILD_CANCEL") != "0"
+## How many such builds were dropped (the checks read it).
+static var stale_builds_cancelled: int = 0
 var _view_dir: Vector2 = Vector2(0.0, -1.0)
 
 
@@ -751,6 +756,16 @@ func update_streaming(immediate: bool) -> void:
 
 	var todo: Array = []
 	for k in wanted:
+		# A build started at the other level while the window was elsewhere (the player went off
+		# and came back, a check teleported him) is not wanted any more once the chunk standing
+		# here is already the right level: left to finish, it was installed OVER that chunk a few
+		# frames later (a FULL block swapped for a LOD one, then rebuilt FULL: the gate's "spawn
+		# block's chunk replaced while a file uses it", docs/HANDOFF.md 9kd).
+		if chunks.has(k) and chunks[k].level == wanted[k]:
+			if _pending.has(k) and STALE_BUILD_CANCEL:
+				_cancel_build(k)
+				stale_builds_cancelled += 1
+			continue
 		if not chunks.has(k) or chunks[k].level != wanted[k]:
 			# Already on its way: let it finish, even at the other level - a hard turn would
 			# otherwise throw away a half-built block and start it again. When everything is

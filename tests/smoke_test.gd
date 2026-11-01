@@ -2804,6 +2804,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The beach refcam (tests/rc_beach_checks.gd, SandRoads, Waders): no traffic on the streets the
 	# sand covers, people standing in the shallows.
 	load("res://tests/rc_beach_checks.gd").new().run(self, city)
+	# The gate's intermittent failures, wave 5 (tests/gate_flakes_2_checks.gd): a stale pending build.
+	await load("res://tests/gate_flakes_2_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
