@@ -25155,3 +25155,56 @@ Probes: `tools/rc_beach/sand_roads_probe.gd` (headless: every coast street stret
 beach; `LOOK=swim|wade|surf` saves a close look at the first one). Checks `tests/rc_beach_checks.gd`.
 Stills on `shots/rc-beach`.
 
+
+## 9d?. The night aerial review: no ember boxes, freeways as rivers of cars (wave 5, `rc2-night-aerial`)
+
+**The camera.** A new reference view, `night_aerial`, in `tools/refcams/cameras_w5.json` (wave 5's
+table, same format as cameras.json): eye (1500, 350 m over the plan, 2400), yaw -30, pitch -12,
+22:30 clear, fov 55 - downtown and the convention centre from the south-west with the 110 and the
+10 curving in under the camera, the basin's grid beyond and the front range against the sky.
+`REFCAMS_JSON=tools/refcams/cameras_w5.json python3 tools/refcams/refcams.py run <dir> --only night_aerial`.
+
+**The review** (opengl3, the before is main bb03d731; stills on `shots/rc2-night-aerial`). What the
+eye landed on first, in order:
+1. **The near freeways were solid cream slabs** (one carriageway cream, the other red) with a row of
+   hard white discs down the median. The slab: the LOD decks' far-traffic skin (far_traffic.gdshader)
+   - at 400-900 m and a grazing angle a pixel spans metres along the road, so each lane drew its
+   lamps' MEAN, spread evenly over the whole 3.6 m lane and bloomed x3.5 (a gain meant for a river
+   kilometres off): four lanes became one slab. The discs: FreewayKit's light pools (light_pool,
+   `display_add`), whose `pow(r, 0.75)` falloff rises from 0 with an infinite slope - a hard rim.
+   Pinned with `tools/rc2_night_aerial/hide_probe.gd` (every shot saved again with a name pattern
+   hidden: `*Traffic*` took the slab, `*Glow*` the discs).
+2. **Orange-red ember boxes all over the basin.** `tower_wash()` (window_lights.gdshaderinc) uplit
+   60 % of masonry buildings over 22 m warm from the foot; on brick and render that is a saturated
+   orange box, and the far city is mostly masonry.
+3. **A club searchlight drawn as a solid white wedge** from 1.4 km. Its alpha (strength x haze) runs
+   well over 1 and was hard-clamped, so the night flight's air gain (applied before the clamp) did
+   nothing and the cone was one flat white.
+Seen and left: the convention halls' white roof monitors (HallDress, read as stripes, not wrong);
+the unfinished tower's dark glass shell (true to the real one); the general moonlit blue-grey of the
+roofs (renderer-dependent: opengl3's flat light; not touched without a Forward+ proof); the front
+range's comb of spires (the hills' own); the street lamps as dots (right from the air).
+
+**What it is now** (`NightAerial`, `scripts/world/night_aerial.gd`, the `night_aerial` global,
+installed by DayNight; `NIGHT_AERIAL=0` is the A/B, every shader exactly as it was):
+- `ft_mean_shape()` (far_traffic.gdshaderinc): where a pixel spans less than ~a car cell along the
+  road (`FT_CELLS_FROM` 5 .. `FT_CELLS_GONE` 13 m a pixel) the lane mean is drawn as the cars it
+  averages - each cell the same roll as ft_lane's takes lit along its car's 4.6 m and dark between,
+  held across the lane to the lamps' line (a pixel at least), the total kept
+  (`NightAerial.mean_along()` proves it) - and the far bloom eases in with distance (`FT_NEAR_BLOOM`
+  0.5 at 1 m a pixel to all of it at `FT_BLOOM_FULL` 8 m). The far streets (far_ground,
+  street_traffic) take the same path: from the air they are streams of single lights now.
+- light_pool.gdshader, `display_add` pools only (the freeway's): the rim eased in
+  (`smoothstep(0, 0.45, r)`) and the pool down to `pool_air_gain` 0.45 for a camera 45-220 m over it.
+- tower_wash(): a third of the masonry floods kept (salt 113, `FLOOD_KEEP`; a fifth of masonry in
+  all), the warm ones cooler (1.0, 0.88, 0.72) at `FLOOD_GAIN` 1.1.
+- nightlife_beam.gdshader, for a camera in the air over the lamp: a soft knee (`1 - exp(-1.3 a)`)
+  instead of the hard clamp, then down to `beam_far_gain` 0.3 from 300 to 1400 m away.
+
+**Numbers** (refcams, night_aerial): before p5/p50/p95 4/31/116, crushed 7.9 %, 3.00 M triangles,
+844 draws; after: see the final run in the session's report on `shots/rc2-night-aerial`. Triangles
+and draws are the same to noise: shader-only changes (two hashes and a smoothstep a far lane pixel).
+
+**Not verified.** Forward+ (the Mac): tuned on opengl3. The lane mean is emitted light; under AgX and
+bloom the knots may read hotter - knobs `FT_NEAR_BLOOM`, `FT_CELLS_*` (with their copies in
+NightAerial). The beam is tuned on one premiere beam at 1.4 km.

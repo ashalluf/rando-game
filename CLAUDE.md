@@ -2027,6 +2027,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   and nightlife sky beams fading for a camera in the air near them. GDScript copies are checked.
   `NIGHT_FLIGHT=0` is the A/B; stills: `SHOTS=` EYEs in the HANDOFF section; checks
   `tests/night_flight_checks.gd`.
+- The night aerial refcam (2026-11-01, docs/HANDOFF.md "The night aerial review", camera
+  `night_aerial` in `tools/refcams/cameras_w5.json`): `NightAerial` (`scripts/world/night_aerial.gd`,
+  the `night_aerial` global) - far traffic's lane mean drawn as its cars where a pixel can tell them
+  apart, the far bloom eased in with distance (`ft_mean_shape()`, far_traffic.gdshaderinc); the
+  freeway's `display_add` pools without a hard rim and dimmed from the air; a third of tower_wash()'s
+  masonry floods kept (salt 113); far searchlights from the air with a soft knee and a distance fade.
+  `NIGHT_AERIAL=0` the A/B; `tools/rc2_night_aerial/hide_probe.gd` pins a glow on its node; checks
+  `tests/rc2_night_aerial_checks.gd`.
 - The night street review (2026-10-30, docs/HANDOFF.md "The night street at eye level"):
   `NightStreetReview` (`scripts/world/night_street_review.gd`) holds the balance: the moon's key
   (`MOON` 0.09: at 0.3 it lit streets evenly blue at ~45 % of the noon sun and hid the lamps),
