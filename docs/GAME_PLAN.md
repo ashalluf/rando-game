@@ -4119,3 +4119,10 @@ none of either.
   people in the water are placed on the surfaces that are drawn - waders on the sand mesh's
   foreshore, swimmers and surfers on the ocean's own height model - rather than at a fixed level.
   A summer afternoon's water is busy (waders, more swimmers). SAND_ROADS=0 / WADERS=0 the A/B.
+
+- **2026-11-01 The container terminal from the crane (rc2-port, HANDOFF "The container terminal
+  from the crane").** A new reference camera, `port_crane` (cameras_w5.json), and the four things
+  that gave the port away from 45 m: a yard a third empty and two boxes high (now 3-4 tiers, most
+  slots full, from PortFill's own stream after every old roll, so no box the yard had moves), a
+  yellow box for a mast head, clean candy-coloured roofs, and a ship with a slab for a bow lying
+  untied off the quay. PORT_FILL / PORT_ROOF / PORT_SHIP / PORT_MOORING =0 the A/Bs.
