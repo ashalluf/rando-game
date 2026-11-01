@@ -724,6 +724,18 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   grows with the square of the radius (`lens_fringe`), and a luminance film grain re-rolled at
   24 fps (`film_grain`). Every lens and film stock does these; keep each subtle enough that you
   cannot point at it (0 turns any of them off).
+- The camera lens (wave 5, docs/HANDOFF.md "The camera lens"): `CameraLens`
+  (`scripts/player/camera_lens.gd`, made by `CameraPost._ready()`). **By day Godot's meter sits
+  under the camera's dark limit everywhere** (an open noon street too: measured with
+  `tools/camera_lens/lens_probe.gd LUM_OPEN=1`), so main's auto exposure is a constant 1.6x gain
+  and never adapted; never lower `auto_exposure_min_sensitivity` to fix a dark scene, it brightens
+  every day frame. The lens keeps main's clamps and speed and scales `auto_exposure_scale` by a
+  compensation from an enclosure probe (a lid overhead: up to `day_open_gain` 2.6, 1.3 at night),
+  slow to open up (`open_seconds`), fast to close down (`close_seconds`). The lens pass draws a sun
+  flare (glow, six spikes, hex ghosts, a veil; occluded by one screen-mip tap at the sun; off on
+  the web and at LOWEST) and film grain scaled by the exposure (`lens_mode` 1); the bloom gets a
+  core-plus-tail spread (`GLOW_LEVELS`). `CAMERA_LENS=0` is the A/B; checks
+  `tests/camera_lens_checks.gd`.
 - Motion blur and depth of field (VISUAL_ROADMAP #12, 2026-09-27): both belong to `CameraPost`
   (`scripts/player/camera_post.gd`), the `Post` node under the player's CameraRig (so the test
   room has it too); every knob is an export there. **Motion blur** is `MotionBlurEffect`
