@@ -274,6 +274,8 @@ static var _cars_prev: Dictionary = {}
 static var _arm_means: Dictionary = {}
 
 var ring: Rect2
+## On a plaza's open ground (PlazaCrowd): targets anywhere in `ring`, walked to straight.
+var open_ground := false
 var shirt: Color
 var pants: Color
 var skin: Color
@@ -389,12 +391,17 @@ func _add_model() -> bool:
 	if available.is_empty():
 		return false
 	var path: String = available[_style.randi() % available.size()]
+	var dealt: Array = PlazaCrowd.deal(self, available)
+	if not dealt.is_empty():
+		path = dealt[0]
 	var scene: PackedScene = load(path)
 	if scene == null:
 		return false
 	var inst := scene.instantiate() as Node3D
 	inst.rotation.y = PI # Meshy rigs face +Z; our visuals face -Z
 	_look = _style.randi() % CHARACTER_LOOKS
+	if not dealt.is_empty():
+		_look = int(dealt[1])
 	prepare_rig(inst, _look)
 	_visual.add_child(inst)
 	for mi in inst.find_children("*", "MeshInstance3D", true, false):
@@ -1170,7 +1177,8 @@ static func character_material(albedo: Texture2D, look: int) -> ShaderMaterial:
 	if _looks.has(key):
 		return _looks[key]
 	var rng := RandomNumberGenerator.new()
-	rng.seed = 4200 + (look % CHARACTER_LOOKS)
+	var info: Dictionary = _rig_info.get(albedo, {})
+	rng.seed = CrowdDress.look_seed(albedo, look % CHARACTER_LOOKS, not info.is_empty())
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/character.gdshader")
 	mat.set_shader_parameter("albedo_tex", albedo)
@@ -1178,7 +1186,6 @@ static func character_material(albedo: Texture2D, look: int) -> ShaderMaterial:
 	# (pedestrian_a_anim_texture_0.jpg -> pedestrian_a_nrm.png). Rigs without one keep
 	# normal_strength at the shader's 0.0 and render off the mesh normal exactly as before.
 	var nrm := _normal_map_for(albedo)
-	var info: Dictionary = _rig_info.get(albedo, {})
 	if not info.is_empty():
 		mat.set_shader_parameter("region_mask", 1.0)
 		var means: Vector3 = info.means
@@ -1199,7 +1206,7 @@ static func character_material(albedo: Texture2D, look: int) -> ShaderMaterial:
 	# Half the looks keep the model's own outfit. The recolour was the only source of variety
 	# when there were two models; with a real wardrobe of them, a photographed jacket beats a
 	# repainted one, so it now only has to stop two copies of a model dressing alike.
-	var plain := look % 2 == 0
+	var plain := CrowdDress.plain(look % CHARACTER_LOOKS, not info.is_empty())
 	# The top, rolled as a wardrobe rather than as one range. `cloth_value` is the garment's own
 	# brightness, 0 black to 1 white; the shader keeps the source texture's value as shading
 	# around it. It used to be a multiplier on that source value, which is why the whole city
@@ -2183,6 +2190,8 @@ func _ring_origin() -> Vector2:
 
 
 func _random_ring_point(sidewalk: float) -> Vector2:
+	if open_ground:
+		return PlazaCrowd.point(self)
 	# A point on the sidewalk ring: pick an edge, then a spot 1..(sidewalk-1) m in from the curb.
 	var inset := _rng.randf_range(1.0, maxf(sidewalk - 1.0, 1.2))
 	var edge := _rng.randi() % 4
@@ -2299,6 +2308,8 @@ func _go_to(target: Vector2) -> void:
 ## straight through them). Empty when both are on the same side.
 func _ring_route(from: Vector2, to: Vector2) -> PackedVector2Array:
 	var out := PackedVector2Array()
+	if open_ground:
+		return out
 	var w := ring.size.x
 	var h := ring.size.y
 	if w < 4.0 or h < 4.0:

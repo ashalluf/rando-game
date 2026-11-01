@@ -1,0 +1,7 @@
+{
+	"_doc": "Wave-5 reference cameras (tools/refcams/README.md): same format as cameras.json, one row a camera on its own line. Run with REFCAMS_JSON=tools/refcams/cameras_w5.json.",
+	"resolution": [1280, 720],
+	"cameras": [
+		{"name": "crowd_plaza", "label": "Starlight Plaza at lunch 12:30, eye level in the crowd", "eye": [2158.0, 1.7, 1112.0, 0.0, -1.0], "agl": true, "hour": 12.5, "weather": "clear", "fov": 55}
+	]
+}
