@@ -59,17 +59,15 @@ float saa_shine_gain(float shine, float widened) {
 
 // A per-pixel threshold for coverage-by-dither (alpha-to-coverage without MSAA): a feature too
 // small to draw is kept at `cover` where saa_dither() < cover. On Forward+ the threshold changes
-// every frame, so TAA resolves it to the exact share (foliage_tex's rule); on Compatibility (no
-// temporal pass) it is a fixed 4 x 4 ordered pattern, so a region of steady cover is a steady
-// screen of the right density rather than features flicking on and off as the camera moves.
+// every frame, so TAA resolves it to the exact share (foliage_tex's rule). Compatibility has no
+// temporal pass: a fixed screen pattern read as a checkerboard on the far towers and still crawled
+// (measured, HANDOFF "Shimmer and crawl in motion"), so there the threshold is a plain half - a
+// feature is kept while it covers half its pixel and dropped after, which is steady.
 float saa_dither(vec2 frag, float t) {
 #if CURRENT_RENDERER == RENDERER_FORWARD_PLUS
 	return fract(sin(dot(frag + vec2(fract(t * 7.13) * 61.0, fract(t * 3.71) * 37.0), vec2(12.9898, 78.233))) * 43758.5453);
 #else
-	ivec2 q = ivec2(mod(frag, 4.0));
-	int i = q.x + q.y * 4;
-	int m[16] = int[](0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5);
-	return (float(m[i]) + 0.5) / 16.0;
+	return 0.5;
 #endif
 }
 

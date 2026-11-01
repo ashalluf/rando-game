@@ -1150,15 +1150,18 @@ void fragment() {
 		// Specular-aliasing pass (specular_aa.gdshaderinc): a punched, ribbon or slot window under a
 		// few pixels was glass or wall by where the pixel's centre fell, so a tower's window grid
 		// crawled into moire as the camera moved (the landmark towers draw with this shader at
-		// every distance). Under ~4 pixels the glass is kept by its box-filtered coverage over a
+		// every distance). Under ~2.5 pixels the glass is kept by its box-filtered coverage over a
 		// footprint that widens to two pixels, dithered (saa_dither: TAA resolves it on Forward+),
 		// so a pixel shows its cell's glass or wall in the right share and the grid fades to its
 		// average instead of beating against the pixels.
+		// Forward+ only: on Compatibility (no temporal pass) the stepped mask is steadier than
+		// any fixed dither of it.
+#if CURRENT_RENDERER == RENDERER_FORWARD_PLUS
 		if (saa_on() && !storefront && !chamfer && !garage && window_style != 2 && row >= 0.0) {
 			vec2 wc = window_style == 0 ? vec2(0.5, 0.52) : (window_style == 1 ? vec2(0.5, 0.55) : vec2(0.5, 0.5));
 			vec2 wh = window_style == 0 ? vec2(0.27, 0.25) : (window_style == 1 ? vec2(0.47, 0.27) : vec2(0.16, 0.40));
 			float open_px = min(2.0 * wh.x * pitch, 2.0 * wh.y * pt_floor) / max(px_m, 1.0e-5);
-			float far_k = 1.0 - smoothstep(1.5, 4.0, open_px);
+			float far_k = 1.0 - smoothstep(1.0, 2.5, open_px);
 			if (far_k > 0.0) {
 				float fw = px_m * (1.0 + far_k);
 				float cu = saa_pulse(u / pitch, wc.x, wh.x, fw / pitch);
@@ -1172,6 +1175,7 @@ void fragment() {
 				}
 			}
 		}
+#endif
 
 		// ---- The street level: a door in a ground floor without shops ---------------------
 		// (facade_street.gdshaderinc; FacadeStreet puts the lamp over it and the step under it on
