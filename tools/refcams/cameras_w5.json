@@ -1,0 +1,7 @@
+{
+	"_doc": "Wave 5's new reference cameras (tools/refcams/README.md; same format as cameras.json). Run with REFCAMS_JSON=tools/refcams/cameras_w5.json. One row a line so merges stay trivial. A \"drive\" key stages the player's own car and shoots his chase camera (tools/refcams/chase_stage.gd); eye is then only where the load builds round.",
+	"resolution": [1280, 720],
+	"cameras": [
+		{"name": "chase_cam", "label": "Chase camera, own car up Grand Ave at 40 km/h, 16:00", "eye": [2610.8, 2.0, 700.0, 0.0, 0.0], "agl": true, "hour": 16.0, "weather": "clear", "fov": 55, "drive": {"axis": 0, "x": 2610.8, "dir": -1, "lane": 0, "along": 700.0, "kmh": 40.0, "lead": 2.6, "body": "LUX_SEDAN", "paint": [0.42, 0.03, 0.04], "traffic": [[-1, 1, 14.0, 38.0, ""], [-1, 0, 30.0, 40.0, ""], [-1, 1, 52.0, 36.0, "BOX_TRUCK"], [-1, 0, 75.0, 40.0, ""], [1, 0, 40.0, 40.0, ""], [1, 1, 62.0, 38.0, ""], [1, 0, 95.0, 40.0, "BUS"], [1, 1, 120.0, 40.0, ""]]}}
+	]
+}

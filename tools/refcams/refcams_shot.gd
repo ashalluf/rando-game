@@ -85,10 +85,19 @@ func _run() -> void:
 			day.set("hour", float(cam.hour))
 			day.call("_apply")
 		Engine.time_scale = 1.0
-		_place(player, fov)
-		if scene.has_method("update_streaming"):
-			scene.call("update_streaming", true)
-		for i in _env_int("SHOT_FRAMES", 30):
+		# A "drive" row (cameras_w5.json, chase_cam): the player drives his own car and the shot is
+		# his chase camera (tools/refcams/chase_stage.gd), not the free eye.
+		var drive: RefCounted = null
+		if cam.has("drive"):
+			OS.set_environment("EYE", "")
+			drive = load("res://tools/refcams/chase_stage.gd").new()
+			await drive.call("run", self, cam, player)
+			fov = player.get("camera").fov
+		else:
+			_place(player, fov)
+			if scene.has_method("update_streaming"):
+				scene.call("update_streaming", true)
+		for i in (0 if drive else _env_int("SHOT_FRAMES", 30)):
 			await process_frame
 			_place(player, fov)
 			if day:
@@ -103,8 +112,12 @@ func _run() -> void:
 		Engine.time_scale = 0.0005
 		for i in _env_int("SETTLE", 6):
 			await process_frame
-			_place(player, fov)
-		_clear_lens(cam.name)
+			if drive:
+				drive.call("hold")
+			else:
+				_place(player, fov)
+		if not drive:
+			_clear_lens(cam.name)
 		await process_frame
 		var png := _out_dir.path_join("%s.png" % cam.name)
 		get_root().get_texture().get_image().save_png(png)
@@ -121,6 +134,12 @@ func _run() -> void:
 				"shadow_tris": c[4], "camera_draws": c[5], "shadow_draws": c[6]},
 			"shot_ms": Time.get_ticks_msec() - t0,
 		})
+		if drive:
+			await drive.call("debug", _out_dir)
+			drive.call("finish")
+			Engine.time_scale = 1.0
+			if _eye_cam:
+				_eye_cam.make_current()
 		_write_frames(load_ms, shots)
 		print("REFCAM %s saved %s eye %s hour %.2f %s" % [cam.name, png, eye_text, float(cam.hour), cam.get("weather", "clear")])
 	print("REFCAMS done, %d shots in %d ms" % [shots.size(), Time.get_ticks_msec() - started])
@@ -201,4 +220,6 @@ func _set_weather(weather: Node, key: String) -> void:
 
 ## still_shot's _geo_split re-poses the player before its base count: here that is the free camera.
 func _pose(player: Node3D, _anchor: Vector3, _hold: Vector3, _boost: bool, fov: float) -> void:
+	if player.get("vehicle") != null:
+		return
 	_place(player, fov)
