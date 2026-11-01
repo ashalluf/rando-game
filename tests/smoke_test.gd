@@ -2804,6 +2804,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The beach refcam (tests/rc_beach_checks.gd, SandRoads, Waders): no traffic on the streets the
 	# sand covers, people standing in the shallows.
 	load("res://tests/rc_beach_checks.gd").new().run(self, city)
+	# The chase_cam review (tests/rc2_chase_cam_checks.gd, ChaseCamReview): lane wear on the asphalt.
+	load("res://tests/rc2_chase_cam_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

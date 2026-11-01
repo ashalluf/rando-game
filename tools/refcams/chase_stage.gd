@@ -24,6 +24,8 @@ var _police_was := true
 var _staged_was := false
 var _placed: Array = []
 var _fwd := Vector3.FORWARD
+var _under: Array = []
+var _box: Array = []
 
 
 func run(st: SceneTree, cam: Dictionary, p: Node3D) -> void:
@@ -127,9 +129,15 @@ func _road_index(plan: CityPlan, axis: int, at: float) -> int:
 
 func _drive(v: float, seconds: float) -> void:
 	var t := 0.0
+	var dbg := OS.get_environment("CHASE_DEBUG") == "1"
 	while t < seconds - 0.0001:
 		_steer(v)
 		await tree.physics_frame
+		if dbg:
+			var st := PhysicsServer3D.body_get_direct_state(car.get_rid())
+			for i in st.get_contact_count():
+				var o: Object = st.get_contact_collider_object(i)
+				print("CHASE_TICK %.2f contact %s local %s" % [t, str(o.get_path()) if o is Node else str(o), str(st.get_contact_local_position(i) - st.transform.origin)])
 		t += 1.0 / Engine.physics_ticks_per_second
 
 
@@ -147,9 +155,19 @@ func _place(plan: CityPlan, world: Vector3, yaw: float) -> void:
 	city.call("update_streaming", true)
 	for i in 4:
 		await tree.process_frame
+	# The road's real top by a ray (plan.height_at() is the relief, which downtown's hills and the
+	# street slabs do not follow exactly: a car dropped from it sat sunk in the GroundBody box and
+	# scraped it, sparking, the whole drive).
 	var gy := plan.height_at(Vector2(world.x, world.z))
+	var top := WorldState.to_local(Vector3(world.x, gy + 40.0, world.z))
+	var q := PhysicsRayQueryParameters3D.create(top, top + Vector3.DOWN * 80.0, 1)
+	q.exclude = [car.get_rid(), player.get_rid()]
+	var hit := car.get_world_3d().direct_space_state.intersect_ray(q)
+	if not hit.is_empty():
+		print("REFCAM drive: road top %.3f (plan %.3f) under %s" % [WorldState.to_world(hit.position).y, gy, str(hit.collider.get_path() if hit.collider is Node else hit.collider)])
+		gy = WorldState.to_world(hit.position).y
 	car.hold_crash_watch(6)
-	car.global_transform = Transform3D(Basis(Vector3.UP, yaw), WorldState.to_local(Vector3(world.x, gy + 0.9, world.z)))
+	car.global_transform = Transform3D(Basis(Vector3.UP, yaw), WorldState.to_local(Vector3(world.x, gy + 0.6, world.z)))
 	car.linear_velocity = Vector3.ZERO
 	car.angular_velocity = Vector3.ZERO
 	city.call("update_streaming", true)
@@ -164,6 +182,51 @@ func _place(plan: CityPlan, world: Vector3, yaw: float) -> void:
 ## the frame again with each named node under the root or the scene hidden (<name>.png in out).
 func debug(out_dir: String) -> void:
 	if OS.get_environment("CHASE_DEBUG") == "1":
+		var st := PhysicsServer3D.body_get_direct_state(car.get_rid())
+		print("CHASE_CONTACTS %d monitor %s mask %d layer %d" % [st.get_contact_count(), str(car.contact_monitor), car.collision_mask, car.collision_layer])
+		for i in st.get_contact_count():
+			var o: Object = st.get_contact_collider_object(i)
+			print("CHASE_CONTACT %s local %s normal %s" % [str(o.get_path()) if o is Node else str(o), str(st.get_contact_local_position(i) - st.transform.origin), str(st.get_contact_local_normal(i))])
+		for c in car.find_children("*", "GeometryInstance3D", true, false):
+			var gi := c as GeometryInstance3D
+			if gi.is_visible_in_tree():
+				var mat: Variant = gi.material_override
+				print("CHASE_PART %s %s aabb %s mat %s" % [gi.get_class(), str(car.get_path_to(gi)), str(gi.get_aabb()), str(mat.resource_path if mat else "")])
+		# Everything drawn where the box beside the rear bumper shows (CHASE_AB=box:*).
+		var probes := [car.global_transform * Vector3(1.2, 0.45, 2.4), car.global_transform * Vector3(-1.2, 0.45, 2.4), car.global_transform * Vector3(1.15, 0.6, 1.8)]
+		var cam_p := player.camera.global_position
+		for n in tree.root.find_children("*", "GeometryInstance3D", true, false):
+			var g := n as GeometryInstance3D
+			if not g.is_visible_in_tree():
+				continue
+			var gb := g.global_transform * g.get_aabb()
+			if gb.size.length() > 200.0:
+				continue
+			var hitp := false
+			for pr: Vector3 in probes:
+				# Anything on the line from the camera to the probe.
+				for k in 9:
+					if gb.grow(0.05).has_point(cam_p.lerp(pr, 0.2 + 0.1 * k)):
+						hitp = true
+			if hitp:
+				_box.append(g)
+				print("CHASE_BOX %s %s size %s" % [g.get_class(), str(g.get_path()), str(gb.size)])
+		var ground := car.global_position + Vector3.DOWN * 0.4
+		var cover := []
+		for n in tree.root.find_children("*", "GeometryInstance3D", true, false):
+			var g := n as GeometryInstance3D
+			if not g.is_visible_in_tree() or car.is_ancestor_of(g):
+				continue
+			var gb := g.global_transform * g.get_aabb()
+			if gb.grow(0.5).has_point(ground) or gb.grow(0.5).has_point(ground + car.global_basis.z * 3.0):
+				var sh := ""
+				var m: Material = g.material_override
+				if m == null and g is MeshInstance3D and (g as MeshInstance3D).mesh and (g as MeshInstance3D).mesh.get_surface_count() > 0:
+					m = (g as MeshInstance3D).mesh.surface_get_material(0)
+				if m is ShaderMaterial and (m as ShaderMaterial).shader:
+					sh = (m as ShaderMaterial).shader.resource_path
+				_under.append(g)
+				print("CHASE_UNDER %s %s size %s shader %s" % [g.get_class(), str(g.get_path()), str(gb.size), sh])
 		var cam := player.camera
 		var here := car.global_position
 		for n in tree.root.find_children("*", "GeometryInstance3D", true, false):
@@ -182,14 +245,30 @@ func debug(out_dir: String) -> void:
 	var ab := OS.get_environment("CHASE_AB")
 	if ab == "":
 		return
+	var names := []
 	for name in ab.split(",", false):
-		var n: Node = tree.root.find_child(name, true, false)
+		if name == "box:*":
+			for g in _box:
+				names.append("path:" + str(g.get_path()))
+			continue
+		if name == "under:*":
+			for g in _under:
+				names.append("path:" + str(g.get_path()))
+			continue
+		if name == "car:*":
+			for c in car.get_children():
+				if c is Node3D and (c as Node3D).visible:
+					names.append("car:" + String(c.name))
+		else:
+			names.append(name)
+	for name: String in names:
+		var n: Node = car.get_node_or_null(name.substr(4)) if name.begins_with("car:") else (tree.root.get_node_or_null(name.substr(5)) if name.begins_with("path:") else tree.root.find_child(name, true, false))
 		if not (n is Node3D or n is CanvasItem or n is CanvasLayer):
 			print("CHASE_AB no node %s" % name)
 			continue
 		n.set("visible", false)
 		for i in 3:
 			await tree.process_frame
-		tree.root.get_texture().get_image().save_png(out_dir.path_join("hide_%s.png" % name))
+		tree.root.get_texture().get_image().save_png(out_dir.path_join("hide_%s.png" % name.validate_filename()))
 		n.set("visible", true)
 		print("CHASE_AB hid %s (%s)" % [name, str(n.get_path())])

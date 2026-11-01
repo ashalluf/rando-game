@@ -143,6 +143,7 @@ float fbm(vec2 p) {
 
 #include "res://shaders/wet_drying.gdshaderinc"
 #include "res://shaders/wet_road_mirror.gdshaderinc"
+#include "res://shaders/road_lane_wear.gdshaderinc"
 
 
 // Raindrop rings on standing water, as a tangent-space slope (xy). Three offset layers of cells,
@@ -313,6 +314,13 @@ void fragment() {
 	float stain = smoothstep(0.82, 0.98, fbm(w * 1.15 + 41.0 + seed)) * stain_amount;
 	base *= 1.0 - 0.15 * stain;
 	rough = mix(rough, 0.45, stain * 0.5);
+
+	// The lanes' own wear: wheel tracks, the oil band, kerb grit (road_lane_wear.gdshaderinc; only
+	// where ChaseCamReview gives a material `lane_wear`).
+	vec4 lane_w = road_lane_wear(plan_pos, slab_uv, ground_detail > 0.5 ? lamp_axis : 0, seed);
+	lane_w = mix(lane_w, vec4(1.0, 1.0, 0.0, 0.0), side);
+	base *= lane_w.x;
+	rough = mix(rough * lane_w.y, 1.0, lane_w.z);
 
 	// Expansion joints, with each slab cast at a slightly different shade.
 	if (joint_spacing > 0.01) {

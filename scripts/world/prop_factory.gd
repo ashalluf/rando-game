@@ -173,6 +173,8 @@ static func road(set_key: String, scale_m: float, tint: Color, seed_value: int, 
 	mat.set_shader_parameter("crack_amount", 0.5 * wear)
 	mat.set_shader_parameter("stain_amount", 0.32 * wear)
 	mat.set_meta("texture_set", set_key)
+	# The lanes' dry wear (wheel tracks, oil band, kerb grit; ChaseCamReview).
+	mat.set_shader_parameter("lane_wear", ChaseCamReview.lane_wear(set_key, joints, wear))
 	_cache[key] = mat
 	return mat
 
