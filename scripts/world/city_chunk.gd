@@ -815,7 +815,7 @@ func _port_yard(st: Dictionary) -> void:
 	var area := owned_rect()
 	var c := area.get_center()
 	_port_lift = _gy(c.x, c.y)
-	_add_slab(Vector3(c.x, 0.1, c.y), Vector3(area.size.x, 0.2, area.size.y), style.concrete, level == Level.FULL, PropFactory.road("concrete", 5.0, PORT_YARD_TINT, hash([plan.seed, ix, iz, "yard"]), 6.0, 0.6))
+	_add_slab(Vector3(c.x, 0.1, c.y), Vector3(area.size.x, 0.2, area.size.y), style.concrete, level == Level.FULL, PropFactory.road("concrete", 5.0, PORT_YARD_TINT, hash([plan.seed, ix, iz, "yard"]), 6.0, PortFill.YARD_WEAR if PortFill.enabled else 0.6))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = block.seed
 	var kit := RandomNumberGenerator.new()

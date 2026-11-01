@@ -40,3 +40,7 @@ static func target(n: int, fill: RandomNumberGenerator) -> int:
 		return n
 	var t := TIERS + (1 if fill.randf() < TALL_SHARE else 0)
 	return maxi(n, t)
+
+## The yard's paving wear (road.gdshader's patches, cracks and oil): a terminal's concrete is
+## patched and stained by thousands of tractor and straddle passes a day (was 0.6, a pavement's).
+const YARD_WEAR := 1.5
