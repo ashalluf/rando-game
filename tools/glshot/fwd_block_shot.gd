@@ -1,0 +1,179 @@
+extends Node3D
+## block_shot.gd with the city's own sky and weather: the FULL chunks round each EYE, lit by the
+## city scene's WorldEnvironment, Sun, DayNight and Weather nodes (moved out of city.tscn, so the
+## hour, the weather states, the marine layer, the Santa Ana, the heat haze, the lamps and the
+## sky are the game's). No far city, no horizon plane, no traffic. Small enough for Forward+
+## under lavapipe (the whole city is not), which is what it is for:
+##
+##   OUT=/tmp/f.png EYE=2984,1.7,170,180,4 xvfb-run -a -s "-screen 0 1280x720x24" godot \
+##     --rendering-driver vulkan --display-driver x11 --audio-driver Dummy --path . \
+##     res://tools/glshot/fwd_block_shot.tscn --resolution 960x540 -- --hour=21 --weather=clear
+##
+## (opengl3 for the Compatibility path.) EYE=x,y,z,yaw,pitch (TRUE world, y metres over the
+## ground there; yaw 0 north, 90 west), SHOTS="eye;eye" more from the same load (OUT_1.png ...),
+## FOV, FRAMES (default 30), BLOCKS (chunks each way, default 1; 0 none - sky and weather only),
+## A sixth EYE field is that shot's hour, a seventh its weather (forced; dry ones first);
+## FREE_PREV=1 frees each EYE's blocks before the next, EXTRA="dx,dz;..." adds blocks round each.
+## CARS="x,z,yaw[,b];..." stands cars with a driver in (lamps on) for the first EYE.
+## (DayNight.hour set and applied before its frames), so a
+## day and a night still come from one load.
+## FAR (camera far, default 12000), GEO=1 prints triangles and draws. --hour= and --weather= are
+## read by DayNight and Weather themselves. The tool node carries `plan` and `world_seed` the way
+## CityStreamer does, so Weather finds the fire site and the coast.
+
+var plan: CityPlan
+var world_seed: int = 0
+
+
+func _env(k: String, d: String) -> String:
+	var v := OS.get_environment(k)
+	return v if v != "" else d
+
+
+func _ready() -> void:
+	var city: Node = (load("res://scenes/levels/city.tscn") as PackedScene).instantiate()
+	world_seed = city.world_seed
+	plan = CityPlan.new()
+	plan.seed = city.world_seed
+	plan.block_size_range = city.block_size_range
+	plan.street_width = city.street_width
+	plan.avenue_width = city.avenue_width
+	plan.sidewalk_width = city.sidewalk_width
+	plan.downtown_radius = city.downtown_radius
+	plan.midtown_radius = city.midtown_radius
+	plan.macro = MacroMap.new()
+	plan.macro.seed = city.world_seed
+	plan.macro.setup()
+	var style: Dictionary = city.chunk_style()
+	var eyes: Array = [_env("EYE", "0,2,0,0,0")]
+	for e in _env("SHOTS", "").split(";", false):
+		eyes.append(e)
+	var first: PackedStringArray = (eyes[0] as String).split(",")
+	var at0 := Vector3(first[0].to_float(), first[1].to_float(), first[2].to_float())
+	at0.y += plan.height_at(Vector2(at0.x, at0.z))
+	# A stand-in player where the camera is (rain, litter and dust follow "player").
+	var stand := Node3D.new()
+	stand.name = "PlayerStandIn"
+	stand.add_to_group("player")
+	add_child(stand)
+	stand.global_position = at0
+	var cam := Camera3D.new()
+	cam.fov = float(_env("FOV", "55"))
+	cam.far = float(_env("FAR", "12000"))
+	add_child(cam)
+	cam.make_current()
+	cam.global_transform = Transform3D(Basis.from_euler(Vector3(deg_to_rad(first[4].to_float()), deg_to_rad(first[3].to_float()), 0.0)), at0)
+	for keep in ["WorldEnvironment", "Sun", "DayNight", "Weather"]:
+		var n: Node = city.get_node_or_null(keep)
+		if n:
+			city.remove_child(n)
+			n.owner = null
+			add_child(n)
+	var built := {}
+	var chunk_script: GDScript = load("res://scripts/world/city_chunk.gd")
+	# BLOCKS=home builds only the block under each EYE (downtown's 3 x 3 runs lavapipe out of memory).
+	var home_only := _env("BLOCKS", "1") == "home"
+	var blocks := 0 if home_only else int(_env("BLOCKS", "1"))
+	var out := _env("OUT", "fwd_block.png")
+	for k in eyes.size():
+		var p: PackedStringArray = (eyes[k] as String).split(",")
+		var at := Vector3(p[0].to_float(), p[1].to_float(), p[2].to_float())
+		at.y += plan.height_at(Vector2(at.x, at.z))
+		var home: Vector2i = plan.block_index_at(Vector2(at.x, at.z))
+		# FREE_PREV=1 frees the blocks earlier EYEs built when this one stands elsewhere (several
+		# places in one lavapipe load: order the EYEs place by place);
+		# EXTRA="dx,dz;..." builds those blocks round each EYE's home block too (with BLOCKS=home:
+		# the block across the street, without the rest of the 3 x 3).
+		if _env("FREE_PREV", "") == "1" and not built.has(home):
+			for bk0 in built.keys():
+				(built[bk0] as Node).queue_free()
+			built.clear()
+			for i in 3:
+				await get_tree().process_frame
+		var want_blocks: Array[Vector2i] = []
+		if blocks > 0 or home_only:
+			for dz in range(-blocks, blocks + 1):
+				for dx in range(-blocks, blocks + 1):
+					want_blocks.append(Vector2i(home.x + dx, home.y + dz))
+		for e in _env("EXTRA", "").split(";", false):
+			var d := e.split(",")
+			want_blocks.append(Vector2i(home.x + d[0].to_int(), home.y + d[1].to_int()))
+		for bk: Vector2i in want_blocks:
+			if built.has(bk):
+				continue
+			var ch = chunk_script.new()
+			ch.plan = plan
+			ch.ix = bk.x
+			ch.iz = bk.y
+			ch.level = 0
+			ch.style = style
+			add_child(ch)
+			ch.build()
+			built[bk] = ch
+		if p.size() > 5:
+			var dn: Node = get_node_or_null("DayNight")
+			if dn:
+				dn.set("hour", p[5].to_float())
+				dn.call("_apply")
+		# A seventh field is the weather (a Weather.STATE_KEYS name, forced at once).
+		if p.size() > 6:
+			var wx: Node = get_node_or_null("Weather")
+			if wx:
+				wx.call("force_state", (wx.get("STATE_KEYS") as Array).find(p[6]))
+				# A dry state after a wet one starts dry (place by place, a clear shot follows rain).
+				if p[6] == "clear" or p[6] == "santa_ana":
+					wx.set("wetness", 0.0)
+		stand.global_position = at
+		# CARS="x,z,yaw[,b];..." (TRUE world, yaw as the EYE's: 0 the car's nose north) stands cars
+		# with a driver in, lamps on (a waiting driver's: brake lit; b=0 the brake off) - the
+		# shot's traffic, which this tool has none of (RainStreetNight's wet car glints).
+		if k == 0:
+			var crng := RandomNumberGenerator.new()
+			crng.seed = 77
+			var ci := 0
+			for cs in _env("CARS", "").split(";", false):
+				var cp := cs.split(",")
+				var car := Vehicle.random_car(crng)
+				add_child(car)
+				var cx := cp[0].to_float()
+				var cz := cp[1].to_float()
+				car.global_transform = Transform3D(Basis(Vector3.UP, deg_to_rad(cp[2].to_float())), Vector3(cx, plan.height_at(Vector2(cx, cz)) + 0.6, cz))
+				car.seat_waiting_driver(1000 + ci)
+				if cp.size() > 3 and cp[3] == "0":
+					car.light_brake = false
+				ci += 1
+		cam.global_transform = Transform3D(Basis.from_euler(Vector3(deg_to_rad(p[4].to_float()), deg_to_rad(p[3].to_float()), 0.0)), at)
+		for i in int(_env("FRAMES", "30")):
+			await get_tree().process_frame
+		# PICK=px,py lists the drawn nodes whose bounds the ray through that pixel crosses within
+		# 40 m, nearest first (which mesh a surface in the frame is).
+		if _env("PICK", "") != "":
+			var pp := _env("PICK", "").split(",")
+			var o := cam.project_ray_origin(Vector2(pp[0].to_float(), pp[1].to_float()))
+			var dvec := cam.project_ray_normal(Vector2(pp[0].to_float(), pp[1].to_float()))
+			var hits: Array = []
+			for gi: Node in find_children("*", "GeometryInstance3D", true, false):
+				var g := gi as GeometryInstance3D
+				if not g.is_visible_in_tree():
+					continue
+				var box: AABB = g.global_transform * g.get_aabb()
+				var hit = box.intersects_segment(o, o + dvec * 40.0)
+				if hit != null:
+					hits.append([o.distance_to(hit), str(g.get_path()).right(90), g.get_class()])
+			hits.sort()
+			for h in hits.slice(0, 12):
+				print("PICK %.1f m %s %s" % h)
+		var file := out if k == 0 else out.get_basename() + "_%d.png" % k
+		get_viewport().get_texture().get_image().save_png(file)
+		print("saved ", file)
+		if _env("GLOBALS", "") == "1":
+			var dn2: Node = get_node_or_null("DayNight")
+			var wx2: Node = get_node_or_null("Weather")
+			print("GLOBAL horizon %s lamp %s wetness %s rain %s" % [dn2.get("_horizon_now") if dn2 else null,
+				dn2.get("lamp_now") if dn2 else null, wx2.get("wetness") if wx2 else null, wx2.get("rain_level") if wx2 else null])
+		if _env("GEO", "") == "1":
+			print("GEO_%d tris=%d draws=%d" % [k, Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME), Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)])
+	# Tearing the scene down under lavapipe can take minutes (and holds its 10 GB meanwhile):
+	# the shots are on disk, so leave at once.
+	print("DONE")
+	OS.kill(OS.get_process_id())
