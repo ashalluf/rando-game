@@ -2,6 +2,7 @@
 
 Seed 1337. "fwd" = Forward+ (vulkan, lavapipe: the Mac's renderer); "opengl3" = Compatibility (the web, every refcam still).
 
+- `00_rain_night_street_fwd_before_after.jpg` - a suburb street at 21:30 in rain on Forward+ (top before: the orange band along the horizon under the deck; bottom after).
 - `01_rain_night_sky_fwd_before_after.jpg` - the rainy night sky alone (fwd_block_shot BLOCKS=0, 21:30 rain), Forward+: left before (the deck stops dead at the horizon, a saturated orange band under it), right after (far deck handed over as its haze).
 - `02_rain_night_sky_opengl3_reference.jpg` - the same frame on opengl3 (no hard line there; unchanged by the fix).
 - `03_rain_night_from_300m_fwd_first_try_vs_final.jpg` - from 300 m: a first try that eased back to the dome under the horizon (still a line) vs the final.
