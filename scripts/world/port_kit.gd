@@ -115,6 +115,8 @@ const S_RIBBED := 7.0
 const S_RED_LAMP := 8.0
 const S_WINDOWS := 9.0
 const S_LETTERED := 10.0
+## Hull plating below the lettered band (port_steel.gdshader part 14).
+const S_HULL := 14.0
 
 # --- Container ship (ship frame: origin at the anchor on the water, bow toward -X, y 0 is sea
 # level). The hull's size is the old box hull's, which the collision still uses. -------------
@@ -127,6 +129,11 @@ const SHIP_CARGO_Y := 9.0
 const SHIP_KEEL_Y := -4.0
 const SHIP_EDGES := [0.0, 0.4, 1.4]
 const HULL_NAVY := Color(0.08, 0.11, 0.17)
+## The ship's raked, flared bow, its bulb and the hull's plating (refcam port_crane: the bow was
+## a flat vertical slab). SHIP_LOOK false (PORT_SHIP=0) is the old hull.
+static var SHIP_LOOK: bool = OS.get_environment("PORT_SHIP") != "0"
+const SHIP_RAKE := 7.5
+const SHIP_BULB := 4.0
 const HULL_RED := Color(0.45, 0.11, 0.08)
 
 static var _cache: Dictionary = {}
@@ -341,6 +348,8 @@ static func container_material() -> ShaderMaterial:
 		return _cache["container_mat"]
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/container.gdshader")
+	if OS.get_environment("PORT_ROOF") == "0":
+		mat.set_shader_parameter("roof_dust", 0.0)
 	_cache["container_mat"] = mat
 	return mat
 
@@ -1162,7 +1171,7 @@ static func _ship_level(lv: int) -> Buf:
 	# a side (keel, bilge, waterline, boot-top, deck edge), painted by height.
 	var stations: Array[float] = []
 	var step := 4.0 if lv == 0 else (8.0 if lv == 1 else 16.0)
-	var x := SHIP_BOW_X + 0.6
+	var x := SHIP_BOW_X + (0.15 if SHIP_LOOK else 0.6)
 	while x < SHIP_HALF_L:
 		stations.append(x)
 		x += step if x > -60.0 and x < 60.0 else step * 0.5
@@ -1176,7 +1185,7 @@ static func _ship_level(lv: int) -> Buf:
 			for k in pa.size() - 1:
 				var ya: float = (pa[k].y + pa[k + 1].y) * 0.5
 				b.color = HULL_RED if ya < 0.2 else (BLACK if ya < 1.3 else HULL_NAVY)
-				b.part = S_LETTERED if ya >= 1.3 else S_PAINT
+				b.part = S_LETTERED if ya >= 1.3 else (S_HULL if SHIP_LOOK else S_PAINT)
 				var nrm := (pb[k] - pa[k]).cross(pa[k + 1] - pa[k]).normalized() * side
 				if nrm.z * side < 0.0:
 					nrm = -nrm
@@ -1213,7 +1222,9 @@ static func _ship_level(lv: int) -> Buf:
 				var yb := _ship_deck_y(xb) - 0.9
 				var za := side * (_ship_half_beam(xa, true) + 0.02)
 				var zb := side * (_ship_half_beam(xb, true) + 0.02)
-				b.quad(Vector3(xa, ya, za), Vector3(xb, yb, zb), Vector3(xb, yb + 0.35, zb), Vector3(xa, ya + 0.35, za), Vector3(0.0, 0.0, side))
+				var ra := _ship_rake(xa, ya)
+				var rb := _ship_rake(xb, yb)
+				b.quad(Vector3(xa + ra, ya, za), Vector3(xb + rb, yb, zb), Vector3(xb + rb, yb + 0.35, zb), Vector3(xa + ra, ya + 0.35, za), Vector3(0.0, 0.0, side))
 	# --- Hatch covers under the ten bays of containers, lashing bridges between the bays.
 	for i in 10:
 		var bx := -70.0 + i * 14.0
@@ -1306,8 +1317,20 @@ static func _ship_section(x: float, side: float) -> Array[Vector3]:
 	var deck := _ship_deck_y(x)
 	var bow := clampf((-45.0 - x) / (-45.0 - SHIP_BOW_X), 0.0, 1.0)
 	var bilge := wl * lerpf(0.86, 0.3, bow)
-	return [Vector3(x, SHIP_KEEL_Y, side * bilge * 0.7), Vector3(x, SHIP_KEEL_Y + 2.2, side * lerpf(wl * 0.98, wl * 0.55, bow)),
-		Vector3(x, 0.15, side * wl), Vector3(x, 1.3, side * lerpf(wl, dk, 0.2)), Vector3(x, deck, side * dk)]
+	return [Vector3(x + _ship_rake(x, SHIP_KEEL_Y), SHIP_KEEL_Y, side * bilge * 0.7), Vector3(x + _ship_rake(x, SHIP_KEEL_Y + 2.2), SHIP_KEEL_Y + 2.2, side * lerpf(wl * 0.98, wl * 0.55, bow)),
+		Vector3(x, 0.15, side * wl), Vector3(x + _ship_rake(x, 1.3), 1.3, side * lerpf(wl, dk, 0.2)), Vector3(x + _ship_rake(x, deck), deck, side * dk)]
+
+
+## How far forward (-x) the bow carries a point `y` up at station `x` (refcam port_crane): the
+## stem rakes and the bow flares over the water - SHIP_RAKE at the deck, nothing at the
+## waterline - and under the water a bulb noses forward. Aft of the entrance, nothing.
+static func _ship_rake(x: float, y: float) -> float:
+	if not SHIP_LOOK:
+		return 0.0
+	var w := clampf((-58.0 - x) / (-58.0 - SHIP_BOW_X), 0.0, 1.0)
+	if y >= 0.15:
+		return -SHIP_RAKE * pow(w, 1.6) * clampf((y - 0.15) / (SHIP_DECK_Y + 2.6 - 0.15), 0.0, 1.0)
+	return -SHIP_BULB * pow(w, 3.0) * clampf((0.15 - y) / 3.0, 0.0, 1.0)
 
 
 # --- Quay furniture ---------------------------------------------------------------------------

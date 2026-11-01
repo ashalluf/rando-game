@@ -1073,12 +1073,17 @@ func _build_quay(area: Rect2, kit: RandomNumberGenerator) -> void:
 	_add_slab(Vector3(cx, PORT_YARD_TOP + cope_h * 0.5, qz - 0.6), Vector3(w, cope_h, 1.2), Color(0.64, 0.63, 0.6))
 	_port_line(Vector2(area.position.x, qz - 0.15), Vector2(area.end.x, qz - 0.15), 0.25, PORT_PAINT_YELLOW)
 	var x := area.position.x + 8.0
+	var moor: Array = []
 	while x < area.end.x - 2.0:
 		var at := Vector3(x, PORT_YARD_TOP + cope_h, qz - 0.75)
+		moor.append(at + Vector3(0.0, _pgy(x, at.z), 0.0))
 		_batch.add("port_bollard", PortKit.bollard_mesh(), Transform3D(Basis(), at))
 		_add_shape(Vector3(0.6, 0.8, 0.6), at + Vector3(0.0, 0.4 + _pgy(x, at.z), 0.0))
 		_batch.add("port_fender", PortKit.fender_mesh(), Transform3D(Basis(), Vector3(x + 8.0, PORT_YARD_TOP + 0.1, qz)))
 		x += 16.0
+	var lines := PortMooring.build(moor, ship)
+	if lines:
+		add_child(lines)
 	# The apron: the yellow keep-clear line inside the waterside rail and the truck lanes'
 	# dashed lines between the rails.
 	var lane_x0 := area.position.x + 1.0
