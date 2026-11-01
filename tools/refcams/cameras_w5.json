@@ -1,0 +1,7 @@
+{
+	"_doc": "Wave 5's new reference cameras (same format as cameras.json; tools/refcams/README.md). One row per camera, each on its own line.",
+	"resolution": [1280, 720],
+	"cameras": [
+		{"name": "port_crane", "label": "The container terminal from 45 m, 16:30 (STS cranes at the ship)", "eye": [2955.0, 45.0, 6385.0, -132.0, -17.0], "agl": true, "hour": 16.5, "weather": "clear", "fov": 55}
+	]
+}

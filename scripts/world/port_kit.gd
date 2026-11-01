@@ -1340,22 +1340,44 @@ static func mast_mesh() -> ArrayMesh:
 	if _cache.has("mast"):
 		return _cache["mast"]
 	var b := Buf.new()
-	b.color = Color(0.6, 0.62, 0.6)
+	var galv := Color(0.58, 0.6, 0.6)
 	b.part = S_PAINT
-	b.box(Vector3(-0.8, 0.0, -0.8), Vector3(0.8, 0.9, 0.8), 1 | 2 | 4 | 16 | 32)
-	b.cyl(Vector3(0.0, 0.9, 0.0), Vector3(0.0, MAST_H, 0.0), 0.42, 8, false, 0.2)
-	b.color = GREY
-	b.box(Vector3(-1.9, MAST_H - 0.3, -1.9), Vector3(1.9, MAST_H, 1.9))
-	b.color = YELLOW
-	for s: float in [-1.0, 1.0]:
-		b.box(Vector3(-1.9, MAST_H, s * 1.9 - 0.03), Vector3(1.9, MAST_H + 1.0, s * 1.9 + 0.03), 16 | 32 | 4)
-		b.box(Vector3(s * 1.9 - 0.03, MAST_H, -1.9), Vector3(s * 1.9 + 0.03, MAST_H + 1.0, 1.9), 1 | 2 | 4)
-	b.color = GREY
-	b.part = S_LAMP
-	for i in 8:
-		var a := TAU * float(i) / 8.0
-		var c := Vector3(cos(a) * 1.5, MAST_H - 0.75, sin(a) * 1.5)
-		b.box(c - Vector3(0.35, 0.35, 0.35), c + Vector3(0.35, 0.35, 0.35))
+	# A galvanised sixteen-sided pole on a bolted base flange, tapering 0.46 -> 0.21 m
+	# (2026-11-01, refcam port_crane: the old head was a 3.8 m box of solid yellow panels and read
+	# as a yellow crate on a stick from 45 m up).
+	b.color = Color(0.5, 0.5, 0.48)
+	b.cyl(Vector3(0.0, 0.0, 0.0), Vector3(0.0, 0.45, 0.0), 0.95, 12, true)
+	b.color = galv
+	b.cyl(Vector3(0.0, 0.45, 0.0), Vector3(0.0, MAST_H - 1.2, 0.0), 0.46, 16, false, 0.21)
+	# The headframe: a lowering ring on its carriage, the luminaires round it.
+	var ring_y := MAST_H - 0.9
+	var rr := 1.35
+	b.color = Color(0.48, 0.5, 0.5)
+	b.cyl(Vector3(0.0, MAST_H - 1.4, 0.0), Vector3(0.0, MAST_H + 0.2, 0.0), 0.3, 10, true)
+	for i in 12:
+		var a0 := TAU * float(i) / 12.0
+		var a1 := TAU * float(i + 1) / 12.0
+		b.cyl(Vector3(cos(a0) * rr, ring_y, sin(a0) * rr), Vector3(cos(a1) * rr, ring_y, sin(a1) * rr), 0.07, 5)
+	for i in 4:
+		var a0 := TAU * (float(i) + 0.5) / 4.0
+		b.cyl(Vector3(0.0, ring_y + 0.25, 0.0), Vector3(cos(a0) * rr, ring_y, sin(a0) * rr), 0.06, 5)
+	# Ten floodlights tilted down and out, each a dark housing with its lens on the low face.
+	for i in 10:
+		var a := TAU * (float(i) + 0.25) / 10.0
+		var out := Vector3(cos(a), 0.0, sin(a))
+		var tg := Vector3(-out.z, 0.0, out.x)
+		var c := out * (rr + 0.18) + Vector3(0.0, ring_y - 0.05, 0.0)
+		var down := (out * 0.55 - Vector3.UP).normalized()
+		b.color = Color(0.2, 0.21, 0.22)
+		b.beam(c - down * 0.12, c + down * 0.12, 0.62, 0.48, -1.0, -1.0, tg)
+		b.part = S_LAMP
+		b.color = GREY
+		b.beam(c + down * 0.12, c + down * 0.15, 0.54, 0.4, -1.0, -1.0, tg)
+		b.part = S_PAINT
+	# A red obstruction lamp on top.
+	b.part = S_RED_LAMP
+	b.color = Color(0.8, 0.1, 0.08)
+	b.box(Vector3(-0.12, MAST_H + 0.2, -0.12), Vector3(0.12, MAST_H + 0.45, 0.12))
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, b.arrays())
 	mesh.surface_set_material(0, steel_material())
