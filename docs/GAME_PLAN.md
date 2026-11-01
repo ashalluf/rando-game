@@ -4119,3 +4119,11 @@ none of either.
   people in the water are placed on the surfaces that are drawn - waders on the sand mesh's
   foreshore, swimmers and surfers on the ocean's own height model - rather than at a fixed level.
   A summer afternoon's water is busy (waders, more swimmers). SAND_ROADS=0 / WADERS=0 the A/B.
+
+- **2026-11-01 Aliasing is judged in motion, by a measure, and fixed by footprint (specular-aliasing,
+  HANDOFF "Shimmer and crawl in motion").** A still hides shimmer, so the proof is a frame strip of a
+  slow pan scored by its second temporal difference, through a jittered TAA-like proxy (four
+  sub-pixel-turned renders a frame) so polygon edges the Mac's TAA takes do not drown it. Fixes widen
+  lobes and features to what a pixel can hold (geometric / Toksvig specular AA, widened road paint
+  blended by cover, LOD sooner) rather than blur the picture; dithered coverage only where a temporal
+  pass resolves it (Forward+), never a fixed screen pattern. SPECULAR_AA=0 the A/B.

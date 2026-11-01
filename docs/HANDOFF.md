@@ -25155,3 +25155,74 @@ Probes: `tools/rc_beach/sand_roads_probe.gd` (headless: every coast street stret
 beach; `LOOK=swim|wade|surf` saves a close look at the first one). Checks `tests/rc_beach_checks.gd`.
 Stills on `shots/rc-beach`.
 
+
+## 9d?. Shimmer and crawl in motion (fleet wave 5, `specular-aliasing`, 2026-11-01)
+
+The task: thin geometry and high-frequency specular flicker and stair-step in motion at 1080p.
+Stills hide it, so the first job was a way to SEE it.
+
+**The measure** (`tools/specular_aliasing/strip.py`): a frame strip of a slow camera move from
+one city load (still_shot.gd's SHOTS with DIFF=1: shader TIME and the clock held, so only the camera
+moves; `DIFF_KEEP=vehicle` keeps the parked cars and traffic), then per pixel the SECOND temporal
+difference |f[k+1] - 2 f[k] + f[k-1]| averaged over the strip. A filtered image panning a fraction of
+a pixel a frame is near linear in time (~0); an aliased edge, a sparkle or a cut-out that jumps texel
+to texel gives its full contrast. `heat.png` is the map, MEAN / P99 / FLICKER (share of pixels over
+6/255) the score, `compare` the before / after sheet. Two traps found on the way:
+- Without any AA (opengl3 has none) every polygon edge in the frame dominates the score, and the Mac
+  has TAA. `MSAA=4` on still_shot.gd multisamples the geometry; better, `--ss 4` renders every frame
+  four times turned by a rotated-grid sub-pixel offset and averages them in linear light - what TAA's
+  jitter integrates for a still camera - so what still flickers in a `--ss 4` strip is what TAA cannot
+  take out either. That is the proxy every number below uses.
+- A fixed screen-space dither (Bayer) of a sub-pixel feature does NOT help without a temporal pass:
+  the far tower's slot windows turned into a checkerboard that crawled as much as before. So
+  `saa_dither()` is a per-frame hash on Forward+ (TAA resolves it to the exact share, foliage_tex's
+  rule) and a plain half threshold on Compatibility.
+
+`tools/specular_aliasing/car_strip.sh` is the same for one car (car_shot.gd, a launch a frame,
+orbiting); `fwd_compile.gd` compiles every touched shader on a real renderer (lavapipe Forward+ /
+opengl3: the headless dummy never compiles a `#if CURRENT_RENDERER == RENDERER_FORWARD_PLUS`
+branch to GLSL; `apt-get install mesa-vulkan-drivers` for lavapipe).
+
+**What flickered, worst first** (the street_noon camera, Flower at Olympic, a 0.025-degree-a-frame
+pan, `--ss 4`): the palm crowns (60 % of a crown's pixels over the threshold), the far towers' window
+grids, the road's double yellow and bike-lane lines, street trees, the scooters' thin frames, car
+lacquer highlights. The fixes, each behind `SPECULAR_AA=0` (`SpecularAA`, scripts/world/specular_aa.gd,
+the `specular_aa` shader global; shaders/specular_aa.gdshaderinc):
+1. **Car lacquer.** `CLEARCOAT_ROUGHNESS` 0.035 is a sun glint narrower than any pixel on a wing's
+   curve, and Godot's roughness limiter (Forward+) does not touch the clear coat. car_paint takes the
+   geometric normal's screen derivatives up front (uniform control flow) and widens the coat by
+   Kaplanyan / Tokuyoshi geometric specular AA (`saa_geometric`, amount 0.5, limit 0.18) on both
+   renderers, the base ROUGHNESS too on Compatibility (where there is no limiter). Car strip
+   (a dark sedan 22 m off, orbiting 0.06 degrees a frame): flicker MEAN -40 %, flicker pixels -29 %,
+   the still the same picture.
+2. **Wet road.** Asphalt033's normal map is 0.041 mean squared slope at full detail and nearly all of
+   it is gone by mip 3, so a 0.07 wet film far off drew the averaged (flat) normal's mirror lobe and
+   the texels that still bent it flashed. road.gdshader adds the lost variance to the roughness by
+   the texels a pixel covers (Toksvig by footprint, `saa_minified`, `normal_slope_var`), and on
+   Compatibility the slope's own turn across the pixel. A dry street moves by ~0.01 roughness.
+3. **Road paint.** A marking under `min_px` (1.2) projected pixels across either axis (a 10 cm centre
+   line 40 m off, a stop line seen edge on - measured by projecting both edges, so foreshortening
+   counts) is widened in road_paint's vertex shader to `min_px` and its colour mixed toward the
+   asphalt by the share it really covers (`paint_cover`): width x cover is kept. The 9 cm wear grain
+   is faded out of the wear edge once it is under a couple of pixels.
+4. **Window frames.** Building's `Frames` (a 45-60 mm section) draw to 240 m, a quarter of a pixel
+   there. facade_detail.gdshader's `thin_m` (0.05, set on the Frames node only) keeps them by
+   dithered coverage under a pixel (temporal on Forward+, dropped under half a pixel on
+   Compatibility).
+5. **Distant punched / ribbon / slot windows** (the landmark towers draw building.gdshader at every
+   distance): under ~2.5 pixels the glass decision is the window's box-filtered coverage over a
+   footprint that widens to two pixels (`saa_pulse`), dithered per frame. Forward+ only (see the trap
+   above); Compatibility keeps the stepped mask, which the jittered strip showed to be the steadier.
+6. **Palms.** Their LOD ladder switched each merged-leaflet level in at a one-pixel departure, so the
+   full crown's 3-4 cm leaflets were drawn out to ~230 m. Palm batches take
+   `SpecularAA.PALM_LOD_BIAS` 0.33 (MultiMeshBatch.build(), one hook): each level comes in at about a
+   three-pixel departure - wider blades of the same leaf area sooner (and fewer triangles).
+
+Numbers (street_noon, `--ss 4`): see the table at the end of this section. Stills on
+`shots/specular-aliasing`.
+
+**Not done / not verified:** Forward+ with real TAA in motion (lavapipe cannot hold the city; the
+compile is verified, the look is the opengl3 jittered proxy); the scooters' and bike racks' thin
+tubes, the street trees' cards beyond the dither foliage_tex already has, chain-link (already
+footprint-faded) and the ocean's glints (already footprint-handed) were left alone. The project's
+own roughness limiter (amount 0.25, limit 0.18) is untouched.
