@@ -1,0 +1,7 @@
+{
+	"_doc": "Wave 5 reference cameras (refcam2 sessions), same format as cameras.json: one row per line so merges stay trivial.",
+	"resolution": [1280, 720],
+	"cameras": [
+		{"name": "alley_night", "label": "Downtown service alley 23:00 clear, eye level", "eye": [1797.0, 1.7, -71.7, -90.0, 2.0], "agl": true, "hour": 23.0, "weather": "clear", "fov": 55}
+	]
+}
