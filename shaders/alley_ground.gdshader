@@ -21,6 +21,7 @@ uniform sampler2D cracked_tex : source_color, filter_linear_mipmap_anisotropic, 
 
 global uniform float road_wetness;
 global uniform float lamp_factor;
+global uniform vec4 sky_tint;
 
 // AlleyNight (ALLEY_NIGHT, the chunk's own copy): standing water down the gutter and in the slab's
 // dips, and the chunk's alley lamps (chunk-local heads, w 1 warm / 0 cool) mirrored in it.
@@ -134,11 +135,14 @@ vec3 lamp_mirror(vec3 p, vec3 cam) {
 		float dc = dot(d, acr);
 		// The streak's length grows with how far the image is (a grazing look smears it).
 		float len = 0.25 + 0.06 * distance(q, cam.xz);
+		// The lit wall round the lamp, seen in the water near its foot.
+		vec2 dl = p.xz - h.xz;
+		float wash = exp(-dot(dl, dl) / 7.0) * 0.32;
 		float core = exp(-(dc * dc) / 0.012 - (da * da) / (len * len * 0.12));
 		float streak = exp(-(dc * dc) / 0.03 - (da * da) / (len * len));
 		float fall = 1.0 / (1.0 + 0.004 * dot(q - cam.xz, q - cam.xz));
 		vec3 tint = h.w > 0.5 ? vec3(1.0, 0.72, 0.42) : vec3(0.82, 0.88, 1.0);
-		sum += tint * (core * 2.4 + streak * 0.9) * fall;
+		sum += tint * ((core * 2.4 + streak * 0.9) * fall + wash);
 	}
 	return sum;
 }
@@ -328,7 +332,7 @@ void fragment() {
 		pool = max(gut, dip_pool);
 		halo = max(max(d_ring, g_ring), pool);
 		albedo *= 1.0 - 0.3 * halo;
-		albedo = mix(albedo, albedo * vec3(0.42, 0.42, 0.44), pool);
+		albedo = mix(albedo, albedo * vec3(0.6, 0.6, 0.62), pool);
 	}
 	ALBEDO = to_lit(clamp(albedo, vec3(0.0), vec3(1.0)));
 	ROUGHNESS = mix(mix(rough, 0.12, wet * 0.8), 0.35, halo * 0.7);
@@ -339,6 +343,8 @@ void fragment() {
 		vec3 v = normalize(cam - local_p);
 		float fres = 0.25 + 0.75 * pow(1.0 - clamp(v.y, 0.0, 1.0), 4.0);
 		float g = mirror_gain * (cs_linear_renderer() ? mirror_forward : 1.0);
-		EMISSION = to_lit(min(lamp_mirror(local_p, cam), vec3(3.0))) * pool * fres * lamp_factor * g;
+		// The night sky over the canyon (sky_tint: raw display numbers on both renderers) and the lamps.
+		vec3 m = sky_tint.rgb * 0.8 + min(lamp_mirror(local_p, cam), vec3(3.0)) * lamp_factor;
+		EMISSION = to_lit(m) * pool * fres * g;
 	}
 }

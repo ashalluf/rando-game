@@ -22,6 +22,9 @@ extends RefCounted
 
 static var enabled: bool = OS.get_environment("ALLEY_NIGHT") != "0"
 
+## The lamps' halos against a street lamp's (size and strength).
+const HALO_SCALE := 0.6
+const HALO_STRENGTH := 0.6
 ## Most lamp heads one chunk's ground mirrors (the shader's array).
 const MAX_HEADS := 18
 ## The lamps' pool on the ground: size (metres across) and strength (AlleyKit's was 7.5 / 0.85).
@@ -61,11 +64,13 @@ static func lamp(ch: CityChunk, head: Vector3, warm: bool) -> void:
 	var n := _state(ch)
 	if (n.heads as Array).size() < MAX_HEADS:
 		(n.heads as Array).append(Vector4(head.x, head.y, head.z, 1.0 if warm else 0.0))
-	var ground := head.y - 2.6
-	var w2 := Vector2(head.x, head.z)
-	for part: Array in NightAtmos.lamp_parts([head - Vector3(0.0, ch._gy(head.x, head.z), 0.0)], head - Vector3(0.0, ch._gy(head.x, head.z), 0.0), ground - ch._gy(head.x, head.z), 4.0, w2, false):
-		ch._batch.add(part[0], part[1], part[2], part[3], part[4])
-	NightAtmos.finish_batch(ch._batch)
+	if NightAtmos.enabled:
+		# A small, soft halo (a street lamp's at HALO_SCALE of its size and strength): a caged
+		# bulkhead lamp, not a cobra head.
+		var col := NightAtmos.HALO_LED if not warm else NightAtmos.HALO_SODIUM
+		var at := head - Vector3(0.0, ch._gy(head.x, head.z) + 0.04, 0.0)
+		ch._batch.add(NightAtmos.HALO_KEY, NightAtmos.halo_mesh(), Transform3D(Basis.from_scale(Vector3.ONE * NightAtmos.LAMP_HALO * HALO_SCALE), at), col, Color(HALO_STRENGTH, 0.0, 0.0, 0.0))
+		NightAtmos.finish_batch(ch._batch)
 
 
 ## The pool AlleyKit lays under a lamp, scaled and brightened.
@@ -110,7 +115,7 @@ static func drain(ch: CityChunk, at: Vector3, key: Array) -> void:
 
 static func _steam(ch: CityChunk, at: Vector3, key: Array, inlet: float, scale: float) -> void:
 	var xf := Transform3D(Basis(Vector3.UP, _h01(key + ["yaw"]) * TAU).scaled(Vector3.ONE * scale * (0.85 + 0.3 * _h01(key + ["s"]))), at - Vector3(0.0, ch._gy(at.x, at.z), 0.0))
-	ch._batch.add(STEAM_KEY, StreetClutter2.steam(), xf, Color.WHITE, Color(_h01(key + ["phase"]), 0.65 + 0.35 * _h01(key + ["k"]), inlet, 0.0))
+	ch._batch.add(STEAM_KEY, StreetClutter2.steam(), xf, Color.WHITE, Color(_h01(key + ["phase"]), 0.4 + 0.3 * _h01(key + ["k"]), inlet, 0.0))
 	ch._batch.set_no_shadow(STEAM_KEY)
 	ch._batch.set_draw_distance(STEAM_KEY, STEAM_DRAW)
 
