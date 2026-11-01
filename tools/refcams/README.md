@@ -19,6 +19,11 @@ number, not by someone happening to look.
 | macarthur | MacArthur Park from the south, 120 m up | 11:00 | clear |
 | pier_night | the pier and its wheel from the beach | 21:00 | clear |
 
+Wave 5 adds cameras of its own in `cameras_w5.json` (same format, one row a line; run them with
+`REFCAMS_JSON=tools/refcams/cameras_w5.json`): `marine_morning` - the beach town at 08:00 under the
+marine layer, 11th St toward the sand (the street damp from the mist: refcams_shot calls
+`Weather.settle_wet()` once the hour and the eye are set).
+
 The table is `cameras.json` (eye = TRUE world x, y, z, yaw, pitch; `agl` = y over the plan's
 ground). **Change a camera only on purpose**: the runs before stop being comparable for it.
 

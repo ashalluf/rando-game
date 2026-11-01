@@ -79,6 +79,8 @@ uniform float mirror_sky = 1.0;
 const float CITY_PARKING_LANE = 2.6;
 
 global uniform float road_wetness;
+// MarineMorning's mist share of the wetness (0..1; 0 = the rain's wet street, bit for bit).
+global uniform float road_mist;
 global uniform vec4 sky_tint;
 // How hard it is raining right now (Weather.rain_level, 0..1): drops ring the puddles.
 global uniform float rain_intensity;
@@ -431,6 +433,15 @@ void fragment() {
 			damp = fd.y;
 			pw = mix(wet, sqrt(wet) * smoothstep(0.01, 0.1, wet), drying);
 			gutter *= smoothstep(0.03, 0.2, wet);
+		}
+		// Mist, not rain (MarineMorning, the `road_mist` global, 0 everywhere else): soaked in -
+		// dark and nearly matte, a sheen only at a grazing angle, no running gutter, water standing
+		// only in the deepest hollows. An even film of 0.3 read lighter than the dry street.
+		if (road_mist > 0.0) {
+			film *= 1.0 - 0.6 * road_mist;
+			damp = min(1.0, damp * (1.0 + 1.3 * road_mist));
+			pw *= 1.0 - 0.75 * road_mist;
+			gutter *= 1.0 - road_mist;
 		}
 		float cover = mix(0.80, 0.52, pw) + (joint_spacing > 0.01 ? 0.08 : 0.0);
 		puddle = smoothstep(cover, cover + 0.05, pn) * pw;

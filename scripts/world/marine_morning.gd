@@ -24,15 +24,15 @@ static var enabled: bool = OS.get_environment("MARINE_MORNING") != "0"
 ## 0.84 and soaks; 0.3 is a damp, darkened street with water only in the low spots).
 const DAMP := 0.3
 ## Extra depth fog under the deck at the coast in the morning (Godot fog density; the marine
-## layer's own haze is Weather.marine_fog 0.00022). 0.00055 puts e^-1 at ~1.3 km together.
-const MIST := 0.00055
+## layer's own haze is Weather.marine_fog 0.00022). 0.001 with it puts e^-1 at ~0.8 km at the beach (about the visibility of a gloomy morning).
+const MIST := 0.001
 ## The mist fades out between these distances inland of the coast line (m).
 const COAST_NEAR := 900.0
 const COAST_REACH := 3200.0
 ## How unevenly the damp lies (Weather's `road_drying` while only the mist wets the street): 0
 ## is a shower's even film, 1 the ragged patches of a street drying after rain, which with a thin
 ## damp read as hard-edged oil stains. Between: the film is even, mottled at its edges.
-const DRYING := 0.35
+const DRYING := 0.0
 ## marine_layer.gdshader `look` while on (1 = the cellular underside).
 const LOOK := 1.0
 

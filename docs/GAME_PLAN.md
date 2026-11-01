@@ -4119,3 +4119,13 @@ none of either.
   people in the water are placed on the surfaces that are drawn - waders on the sand mesh's
   foreshore, swimmers and surfers on the ocean's own height model - rather than at a fixed level.
   A summer afternoon's water is busy (waders, more swimmers). SAND_ROADS=0 / WADERS=0 the A/B.
+
+- **2026-11-01 June gloom at street level (rc2-marine, HANDOFF "June gloom at street level").** A new
+  reference camera, marine_morning (the beach town at 08:00 under the marine layer, the start of
+  cameras_w5.json). The marine layer is weather the street feels, not only a grey sky: under the
+  deck in the morning the streets are damp from the mist (soaked in and matte, never the rain's
+  glossy film), the air at the coast is misty, and the cloud base has the cells and rolls of real
+  stratocumulus. Decisions: the damp is a floor under Weather's wetness with its own `road_mist`
+  share in road.gdshader (an even rain film at the same wetness read lighter than a dry street,
+  the drying patches read as oil stains); the deck underside takes half the low air's haze, since
+  the scene's fog is the ground layer's. MARINE_MORNING=0 the A/B.

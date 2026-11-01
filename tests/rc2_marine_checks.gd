@@ -48,12 +48,15 @@ func _weather(city: Node3D) -> void:
 	weather.call("settle_wet", marine, 8.0, eye)
 	var morning_wet := float(weather.get("wetness"))
 	var morning_drying := float(weather.get("drying"))
+	var morning_mist := float(weather.get("road_mist"))
 	weather.call("settle_wet", marine, 14.0, eye)
 	var afternoon_wet := float(weather.get("wetness"))
 	weather.call("settle_wet", clear, 8.0, eye)
 	var clear_wet := float(weather.get("wetness"))
 	_t._check(absf(morning_wet - MarineMorning.DAMP) < 0.02 and is_equal_approx(morning_drying, MarineMorning.DRYING),
 		"Weather.settle_wet: the beach town is damp (%.2f, drying %.1f) under the deck at 08:00" % [morning_wet, morning_drying])
+	_t._check(is_equal_approx(morning_mist, 1.0) and float(weather.get("road_mist")) == 0.0,
+		"Weather.settle_wet: the morning damp is the mist's (road_mist 1), none under a clear sky")
 	_t._check(afternoon_wet < 0.01 and clear_wet < 0.01,
 		"Weather.settle_wet: dry once the deck has burnt off (%.2f) and under a clear sky (%.2f)" % [afternoon_wet, clear_wet])
 	# High over the deck there is no mist on the street to make damp.
@@ -65,6 +68,9 @@ func _weather(city: Node3D) -> void:
 
 func _shader_and_camera() -> void:
 	var src := FileAccess.get_file_as_string("res://shaders/marine_layer.gdshader")
+	var road := FileAccess.get_file_as_string("res://shaders/road.gdshader")
+	_t._check(road.contains("global uniform float road_mist;") and road.contains("if (road_mist > 0.0)"),
+		"road.gdshader: the mist's matte damp sits behind road_mist (0: the rain's street, as before)")
 	_t._check(src.contains("uniform float look = 0.0;") and src.contains("if (look > 0.5)"),
 		"marine_layer.gdshader: the stratocumulus underside sits behind `look`, 0 by default (the old deck)")
 	_t._check(is_equal_approx(MarineMorning.deck_look(), MarineMorning.LOOK if MarineMorning.enabled else 0.0),

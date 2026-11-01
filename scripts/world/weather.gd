@@ -768,6 +768,11 @@ func _process(delta: float) -> void:
 		drying_target = MarineMorning.DRYING
 	if _wet_hold >= 0.0:
 		drying_target = drying
+	# How much of the street's water is the mist's (road.gdshader `road_mist`: soaked in, matte).
+	var mist_to := 1.0 if misty and _wet_hold < 0.0 else 0.0
+	if mist_to != road_mist:
+		road_mist = move_toward(road_mist, mist_to, delta / maxf(drying_switch_seconds, 0.01))
+		RenderingServer.global_shader_parameter_set("road_mist", road_mist)
 	var was_drying := drying
 	drying = move_toward(drying, drying_target, delta / maxf(drying_switch_seconds, 0.01))
 	if absf(drying - was_drying) > 0.0:
@@ -1029,6 +1034,8 @@ func settle_wet(s: int, hour: float, pos: Vector3) -> void:
 	if damp > w:
 		drying = MarineMorning.DRYING
 		RenderingServer.global_shader_parameter_set("road_drying", drying)
+	road_mist = 1.0 if damp > w else 0.0
+	RenderingServer.global_shader_parameter_set("road_mist", road_mist)
 
 
 static func _rain_level(s: State) -> float:
@@ -1062,6 +1069,8 @@ var _marine_fog_add: float = 0.0
 var _marine_vol_add: float = 0.0
 ## The street wetness floor the marine layer's mist leaves (MarineMorning.damp()).
 var _marine_damp: float = 0.0
+## How much of the street's water is that mist's, 0..1 (the `road_mist` global).
+var road_mist: float = 0.0
 
 
 ## The marine layer, the Santa Ana, the heat and the roof splashes, each frame. Sets the hooks on
