@@ -1528,7 +1528,12 @@ func _diff_freeze(player: Node3D) -> void:
 	(load("res://scripts/world/traffic_signals.gd") as GDScript).set("clock", 0.0)
 	RenderingServer.global_shader_parameter_set("signal_clock", 0.0)
 	var hidden := 0
+	# DIFF_KEEP=vehicle,...: groups left visible (tools/specular_aliasing/strip.py keeps the parked
+	# cars for the car paint's shimmer; with SHOT_FRAMES=0 the clock never runs at full speed).
+	var keep := OS.get_environment("DIFF_KEEP").split(",", false)
 	for g in ["pedestrian", "police", "vehicle", "police_car", "debris", "gib", "player"]:
+		if keep.has(g):
+			continue
 		for n in get_nodes_in_group(g):
 			if n is Node3D:
 				(n as Node3D).visible = false
