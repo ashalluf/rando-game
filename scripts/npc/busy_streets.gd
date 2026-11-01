@@ -248,7 +248,7 @@ static func balance_crowd(streamer: Node3D) -> int:
 			for child in ch.get_children():
 				if child is Pedestrian and (child as Pedestrian).ring == r and not child.is_queued_for_deletion():
 					live += 1
-			near.append([ch, entry, live, roundi(int(entry[2]) * factor), d])
+			near.append([ch, entry, live, roundi(int(entry[2]) * factor * ShopCrowd.gain(entry, d)), d])
 	if near.is_empty():
 		return 0
 	near.sort_custom(func(a: Array, b: Array) -> bool: return float(a[4]) < float(b[4]))

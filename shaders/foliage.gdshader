@@ -3,6 +3,7 @@ render_mode cull_disabled;
 #include "res://shaders/heli_downwash.gdshaderinc"
 #include "res://shaders/tree_wind.gdshaderinc"
 #include "res://shaders/tree_light.gdshaderinc"
+#include "res://shaders/camera_fade.gdshaderinc"
 
 // Wind sway and light for the generated foliage (palms). Nothing in this city moved except the
 // grass, and a street of palms standing dead still is one of the things that reads as "model"
@@ -164,6 +165,9 @@ void vertex() {
 
 
 void fragment() {
+	if (cf_gone(VERTEX, FRAGCOORD.xy, PROJECTION_MATRIX)) {
+		discard;
+	}
 	float wet = clamp(road_wetness, 0.0, 1.0);
 	vec3 albedo = COLOR.rgb * mix(1.0, 0.86, wet);
 	if (burnt > 0.0) {

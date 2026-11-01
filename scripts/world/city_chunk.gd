@@ -2772,6 +2772,8 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 		steps.append_array(LowriderMeet.steps(self, plan, ix, iz, rect))
 		steps.append_array(_park_car_steps(rect, rng, params))
 		steps.append_array(_pedestrian_steps(rect, rng, params, FashionDistrict.walk_sidewalk(self, block, Encampment.PATH_KEEP + 1.0 if camps & Encampment.FACES else -1.0)))
+		# A shopping block near the camera is busier (ShopCrowd; hash-seeded, after the walkers).
+		steps.append_array(ShopCrowd.steps(self, block))
 		# The rec park's or school's people (Parks; their own stream, after the block's walkers).
 		steps.append_array(Parks.people_steps(self, block))
 	return steps

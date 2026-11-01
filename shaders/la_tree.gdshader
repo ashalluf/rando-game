@@ -3,6 +3,7 @@ render_mode cull_disabled;
 #include "res://shaders/heli_downwash.gdshaderinc"
 #include "res://shaders/tree_wind.gdshaderinc"
 #include "res://shaders/tree_light.gdshaderinc"
+#include "res://shaders/camera_fade.gdshaderinc"
 
 // The code-built Los Angeles trees and accents (scripts/world/la_trees.gd). One shader for bark
 // and leaves: UV2.x is what a vertex is (LaTrees' B_* and L_*; a cluster card's style rides in
@@ -275,6 +276,9 @@ float cluster_card(vec2 uv, float cover, float rnd, float style) {
 }
 
 void fragment() {
+	if (cf_gone(VERTEX, FRAGCOORD.xy, PROJECTION_MATRIX)) {
+		discard;
+	}
 	float kind = v_kind;
 	float rnd = fract(v_rnd);
 	vec3 albedo = COLOR.rgb;

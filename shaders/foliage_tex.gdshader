@@ -3,6 +3,7 @@ render_mode cull_disabled, depth_prepass_alpha;
 #include "res://shaders/heli_downwash.gdshaderinc"
 #include "res://shaders/tree_wind.gdshaderinc"
 #include "res://shaders/tree_light.gdshaderinc"
+#include "res://shaders/camera_fade.gdshaderinc"
 
 // Leaf cards for the downloaded trees, bushes, flowers and grass clumps. Only the leaf surfaces
 // use this; the trunk and branches stay on their own opaque material, which keeps them out of the
@@ -372,6 +373,9 @@ void vertex() {
 
 
 void fragment() {
+	if (cf_gone(VERTEX, FRAGCOORD.xy, PROJECTION_MATRIX)) {
+		discard;
+	}
 	// The rounded crown normal for both faces of a card (tree-light-2): Godot turns a back face's
 	// normal to the camera, which undid the rounding on half the cards - every second leaf of a
 	// sunlit crown faced away from the sun and the crown drew as dark flecks.
