@@ -4119,3 +4119,11 @@ none of either.
   people in the water are placed on the surfaces that are drawn - waders on the sand mesh's
   foreshore, swimmers and surfers on the ocean's own height model - rather than at a fixed level.
   A summer afternoon's water is busy (waders, more swimmers). SAND_ROADS=0 / WADERS=0 the A/B.
+
+- **2026-11-01 The airport apron refcam (rc2-airport, HANDOFF "The airport apron from 25 m").** A new
+  reference camera over the apron at noon with a jet taxiing below it. Decisions: the airport's
+  paint is lifted to stand proud of the pressed street paint's rule (it had been under the ground
+  at FULL); apron yellow on a black border, as on real light concrete; stands carry stains from the
+  street's own patch batch (no new draw); the liveries get names (invented) and close-up detail in
+  the shader, not a texture; ground equipment is bevelled rather than remodelled. AIRPORT_APRON=0
+  is the A/B.

@@ -1850,6 +1850,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   touchdown was at the far end). Stills: `AIR=taxi|pushback|apron` on still_shot.gd (`AIR_SIDE` the
   stand, `AIR_DIST` seconds in). Checks: `tests/airport_life_checks.gd` (alone in a minute:
   `tools/airport_life/run_checks.gd`).
+- The airport apron refcam (wave 5, `airport_apron` in `tools/refcams/cameras_w5.json`, docs/HANDOFF.md
+  "The airport apron from 25 m"): `AirportApron` (`scripts/world/airport_apron.gd`). The airport's
+  paint is lifted to `PAINT_LIFT` (road_paint's 4 mm press had put every line UNDER the apron; set at
+  paint time, never in a static initialiser - the two classes refer to each other); apron yellow on a
+  black border; oil / rubber / tyre-track stains per stand in the "patch" batch (`stain_list()`, pure);
+  airliner titles, registrations, seams, dark fans, grime (`detail` on airliner_livery.gdshader; the
+  livery index from a varying is ROUNDED); chamfered AirportKit boxes and grime; the concourse glass
+  lit by day; weathered roofs; a straw infield (lawn.gdshader `straw`). `AIRPORT_APRON=0` the A/B;
+  the jet alone `tools/airport_apron/jet_shot.gd`; checks `tests/rc2_airport_checks.gd`.
 - Shop signs: storefront sign bands carry real names. `Building` picks how many window bays
   make one shop per face (`_shop_spans()`, hashed from the seed, never from `_rng`) and passes
   it to the shader as `shop_span`, so the bands the shader draws and the `TextMesh` names the
