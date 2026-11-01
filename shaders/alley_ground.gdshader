@@ -341,12 +341,12 @@ void fragment() {
 		float gut = (1.0 - smoothstep(0.18, 0.5, ao2 + 0.12 * (vnoise(vec2(p.x * 1.3, 2.0)) - 0.5)))
 			* smoothstep(0.42, 0.58, vnoise(vec2(p.x * 0.16, 5.0) + seed * 9.0));
 		float dip = fbm(vec2(p.x * 0.3, p.y * 1.1) + seed * 21.0 + 3.0) + 0.05 * (vnoise(vec2(p.x * 2.0, p.y * 5.0)) - 0.5);
-		float dip_pool = smoothstep(0.7, 0.725, dip) * (1.0 - smoothstep(hw - 0.5, hw - 0.1, ao2));
-		float d_ring = smoothstep(0.56, 0.7, dip) * (1.0 - smoothstep(hw - 0.3, hw, ao2));
+		float dip_pool = smoothstep(0.645, 0.665, dip) * (1.0 - smoothstep(hw - 0.5, hw - 0.1, ao2));
+		float d_ring = smoothstep(0.58, 0.65, dip) * (1.0 - smoothstep(hw - 0.3, hw, ao2));
 		float g_ring = (1.0 - smoothstep(0.3, 0.9, ao2)) * smoothstep(0.32, 0.5, vnoise(vec2(p.x * 0.16, 5.0) + seed * 9.0));
 		pool = max(gut, dip_pool);
 		halo = max(max(d_ring, g_ring), pool);
-		albedo *= 1.0 - 0.42 * halo;
+		albedo *= 1.0 - 0.3 * halo;
 		albedo = mix(albedo, albedo * vec3(0.6, 0.6, 0.62), pool);
 	}
 	ALBEDO = to_lit(clamp(albedo, vec3(0.0), vec3(1.0)));
