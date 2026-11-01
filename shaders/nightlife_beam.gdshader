@@ -39,9 +39,9 @@ uniform float beam_air_gain = 0.4;
 #define NIGHT_AERIAL_DECLARED
 global uniform float night_aerial;
 #endif
-uniform float beam_far_gain = 0.35;
-uniform float beam_far_from = 700.0;
-uniform float beam_far_to = 2200.0;
+uniform float beam_far_gain = 0.3;
+uniform float beam_far_from = 300.0;
+uniform float beam_far_to = 1400.0;
 
 varying flat vec3 lens_world;
 
@@ -61,10 +61,14 @@ void fragment() {
 		float above = smoothstep(40.0, 110.0, CAMERA_POSITION_WORLD.y - lens_world.y);
 		float near_k = mix(beam_near_floor, 1.0, smoothstep(beam_near_fade * 0.12, beam_near_fade, length(VERTEX)));
 		fade *= mix(1.0, near_k * beam_air_gain, above);
-		if (night_aerial > 0.5) {
-			fade *= mix(1.0, beam_far_gain, above * smoothstep(beam_far_from, beam_far_to, length(VERTEX)));
-		}
 	}
 	ALBEDO = tint;
-	ALPHA = clamp(fade * face * strength * haze * clamp(lamp_factor * 1.4 - 0.2, 0.0, 1.0), 0.0, 1.0);
+	float a = fade * face * strength * haze * clamp(lamp_factor * 1.4 - 0.2, 0.0, 1.0);
+	if (night_aerial > 0.5 && night_flight > 0.5) {
+		// strength x haze runs well over 1, so the hard clamp made the whole cone one flat white and
+		// a gain before it did nothing: a soft knee keeps the shaft's fall-off, then the far fade.
+		float above_a = smoothstep(40.0, 110.0, CAMERA_POSITION_WORLD.y - lens_world.y);
+		a = mix(clamp(a, 0.0, 1.0), 1.0 - exp(-a * 1.3), above_a) * mix(1.0, beam_far_gain, above_a * smoothstep(beam_far_from, beam_far_to, length(VERTEX)));
+	}
+	ALPHA = clamp(a, 0.0, 1.0);
 }

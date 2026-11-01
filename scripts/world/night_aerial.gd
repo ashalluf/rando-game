@@ -7,6 +7,15 @@ extends RefCounted
 ##   22 m were uplit warm from the foot, and on brick and render that is a saturated orange-red box;
 ##   from the air the basin was dotted with glowing embers. Now a third of those (salt 113,
 ##   FLOOD_KEEP) keep their floods, a fifth of the masonry in all, and the light is a cooler white.
+## - THE FREEWAY AS A CREAM SLAB (far_traffic.gdshaderinc ft_mean_shape()): an LOD deck 400-900 m
+##   below drew each lane's light mean evenly over the whole lane and bloomed for a river kilometres
+##   off. Where a pixel still spans less than a car cell, the mean is drawn as its cars (each cell
+##   taken lit along its car, held to the lamps' line across the lane, the total kept) and the bloom
+##   eases in with distance (FT_NEAR_BLOOM .. FT_BLOOM_FULL).
+## - THE FREEWAY'S POOLS (light_pool.gdshader, display_add pools): a hard rim and a white disc per
+##   light standard down the deck; the rim is eased in and they dim for a camera in the air.
+## - FAR SEARCHLIGHTS (nightlife_beam.gdshader): from the air a beam a kilometre off still drew as a
+##   solid white bar; it fades with distance to `beam_far_gain`.
 ## `NIGHT_AERIAL=0` in the environment turns it off (the A/B): the global goes to 0 and every
 ## shader is as it was. tests/rc2_night_aerial_checks.gd holds the copies below equal.
 
@@ -35,3 +44,22 @@ static func floodlit(b_seed: int) -> bool:
 	if NightSkyline.roll(s, 68) >= NightSkyline.FLOOD_SHARE:
 		return false
 	return not enabled or NightSkyline.roll(s, 113) < FLOOD_KEEP
+
+
+## far_traffic.gdshaderinc's mean shape: the bloom's share at a couple of metres a pixel, where it is
+## full, and the pixel sizes (metres) over which the car cells fade out.
+const NEAR_BLOOM := 0.5
+const BLOOM_FULL := 8.0
+const CELLS_FROM := 5.0
+const CELLS_GONE := 13.0
+
+
+## ft_mean_shape()'s along term averaged over a lane: 1 for any share taken (the total is kept).
+## Pure, for the checks: `cells` cells at share `lvl` over many roads (a seed per 32), rolled like the shader's.
+static func mean_along(lvl: float, seed: float, cells: int = 3200) -> float:
+	var total := 0.0
+	for c in cells:
+		var key := Vector3(float(c % 32), 0.0, seed + float(c >> 5))
+		if NightFlight.ft_hash(key) < lvl:
+			total += 14.0 / (4.6 * lvl) * 4.6
+	return total / (14.0 * float(cells))

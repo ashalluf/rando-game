@@ -13,6 +13,7 @@ func run(t: Node, _city: Node3D = null) -> void:
 	_floods()
 	_pools()
 	_beams()
+	_lane_mean()
 	_camera_row()
 
 
@@ -67,8 +68,8 @@ func _pools() -> void:
 ## The far searchlight shaft fades from the air past beam_far_from.
 func _beams() -> void:
 	var sh := FileAccess.get_file_as_string("res://shaders/nightlife_beam.gdshader")
-	_t._check(sh.contains("if (night_aerial > 0.5)") and sh.contains("beam_far_gain")
-			and sh.contains("above * smoothstep(beam_far_from, beam_far_to, length(VERTEX))"),
+	_t._check(sh.contains("if (night_aerial > 0.5 && night_flight > 0.5)") and sh.contains("1.0 - exp(-a * 1.3), above_a)")
+			and sh.contains("above_a * smoothstep(beam_far_from, beam_far_to, length(VERTEX))"),
 		"the searchlight shaft fades far off from the air, behind the switch")
 
 
@@ -82,3 +83,18 @@ func _camera_row() -> void:
 			if String(c.get("name", "")) == "night_aerial":
 				found = float(c.get("hour", 0.0)) > 22.0 and (c.get("eye", []) as Array).size() == 5
 	_t._check(found, "the night_aerial refcam is in tools/refcams/cameras_w5.json")
+
+
+## The freeway's lane mean: its numbers are NightAerial's and its along term keeps the total.
+func _lane_mean() -> void:
+	var inc := FileAccess.get_file_as_string("res://shaders/far_traffic.gdshaderinc")
+	_t._check(inc.contains("const float FT_NEAR_BLOOM = %.1f;" % NightAerial.NEAR_BLOOM)
+			and inc.contains("const float FT_BLOOM_FULL = %.1f;" % NightAerial.BLOOM_FULL)
+			and inc.contains("const float FT_CELLS_FROM = %.1f;" % NightAerial.CELLS_FROM)
+			and inc.contains("const float FT_CELLS_GONE = %.1f;" % NightAerial.CELLS_GONE)
+			and inc.contains("shape = ft_mean_shape("),
+		"far_traffic's lane mean shape holds NightAerial's numbers and is used in the mean")
+	var worst := 0.0
+	for lvl: float in [0.2, 0.45, 0.8]:
+		worst = maxf(worst, absf(NightAerial.mean_along(lvl, 37.0) - 1.0))
+	_t._check(worst < 0.15, "the lane mean drawn as cars keeps its total (worst %.2f off)" % worst)
