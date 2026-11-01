@@ -100,6 +100,12 @@ func _run() -> void:
 			if day:
 				day.set("hour", float(cam.hour))
 				day.call("_apply")
+		# A staged camera ("stage": "mayhem" in cameras_w5.json): the scene is set up now, once
+		# the chunks round the eye stand, and the effect clock stepped to its moment.
+		var stage := String(cam.get("stage", ""))
+		if stage == "mayhem":
+			_stager = load("res://tools/refcams/mayhem_stage.gd")
+			await _stager.stage(self, scene, _eye_cam, player, func() -> void: _place(player, fov))
 		Engine.time_scale = 0.0005
 		for i in _env_int("SETTLE", 6):
 			await process_frame
@@ -122,6 +128,8 @@ func _run() -> void:
 			"shot_ms": Time.get_ticks_msec() - t0,
 		})
 		_write_frames(load_ms, shots)
+		if _stager != null:
+			_unstage(scene, player)
 		print("REFCAM %s saved %s eye %s hour %.2f %s" % [cam.name, png, eye_text, float(cam.hour), cam.get("weather", "clear")])
 	print("REFCAMS done, %d shots in %d ms" % [shots.size(), Time.get_ticks_msec() - started])
 	quit()
@@ -155,6 +163,21 @@ func _clear_lens(shot: String) -> void:
 			print("REFCAM %s: hid %s, its body held the lens" % [shot, car.name])
 
 
+## The staging script of the camera being shot (null for a plain camera).
+var _stager: GDScript = null
+
+
+## After a staged camera: the hero hidden again, the aim let go, the police stood down.
+func _unstage(scene: Node, player: Node3D) -> void:
+	_stager.set("hero_at", Vector3.INF)
+	_stager = null
+	Input.action_release("alt_fire")
+	var police := scene.get_node_or_null("Police")
+	if police:
+		police.call("set_wanted", 0)
+	player.visible = false
+
+
 ## frames.json, rewritten after every shot so a run that dies part way keeps what it shot.
 func _write_frames(load_ms: int, shots: Array) -> void:
 	var out := {"renderer": RenderingServer.get_current_rendering_driver_name(),
@@ -182,6 +205,13 @@ func _place(player: Node3D, fov: float) -> void:
 	if _eye_cam:
 		player.global_position = _eye_cam.global_position
 	player.set("velocity", Vector3.ZERO)
+	# A staged camera puts the hero in the shot, at the stage's spot, facing down the street.
+	if _stager != null and _stager.get("hero_at") != Vector3.INF:
+		player.visible = true
+		player.global_position = _stager.get("hero_at")
+		var vis := player.get_node_or_null("Visual") as Node3D
+		if vis:
+			vis.rotation.y = float(_stager.get("hero_yaw"))
 
 
 ## The weather held for the shot, with the streets as wet as that weather leaves them (a clear
