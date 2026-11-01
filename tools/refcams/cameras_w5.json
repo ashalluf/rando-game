@@ -1,0 +1,7 @@
+{
+	"_doc": "Wave-5 reference cameras (tools/refcams/README.md; same format as cameras.json). One row per line so merges stay trivial. A row with \"hero\" stages the player on foot at the eye's x, z (eye y unused) and shoots through his own CameraRig, eye yaw / pitch its look (refcams_shot.gd _hero_start).",
+	"resolution": [1280, 720],
+	"cameras": [
+		{"name": "hero_foot", "label": "On foot behind the hero, midtown shops 13:30", "eye": [1501.0, 0.0, 1470.0, 0.0, -8.0], "agl": true, "hour": 13.5, "weather": "clear", "fov": 75, "hero": {"walk": 0.35}}
+	]
+}
