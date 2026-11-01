@@ -33,6 +33,7 @@ static var last_blast_world: Vector3 = Vector3.ZERO
 ## `exclude` is left alone (a car's own blast: CarDamage throws the wreck itself).
 static func blast(node: Node3D, at: Vector3, radius: float, launch_speed: float, player_launch_speed: float, exclude: Object = null) -> int:
 	blast_count += 1
+	var fuel4 := BlastFX.fuel_next or Blast4.gas_next # (WeaponFX.explosion consumes them)
 	last_blast_world = WorldState.to_world(at)
 	var shape := SphereShape3D.new()
 	shape.radius = radius
@@ -95,7 +96,9 @@ static func blast(node: Node3D, at: Vector3, radius: float, launch_speed: float,
 	WeaponFX.explosion(node, at, radius, launch_speed / maxf(reference_launch, 1.0))
 	# Windows blown in, a hole in the wall (BuildingDamage).
 	BuildingDamage.blast(node, at, radius, launch_speed / maxf(reference_launch, 1.0))
-	Sfx.play("explosion", at, 4.0)
+	# Blast4: the bang at the speed of sound with a thump under it, the shake with the wave.
+	if not Blast4.punch(node, at, radius, fuel4):
+		Sfx.play("explosion", at, 4.0)
 	# Everyone for a block around runs; the ones nearest scream.
 	Pedestrian.alarm(node.get_tree(), at, maxf(55.0, radius * 6.0), 5, true)
 	# What it leaves behind: a crater and rubble, dust, leaves, trees alight, car alarms.

@@ -96,11 +96,12 @@ static func volume_material() -> ShaderMaterial:
 
 
 ## The volume fireball at `at` (global) of `radius`. Returns the node.
-static func spawn_volume(parent: Node, at: Vector3, radius: float, fuel: bool) -> MeshInstance3D:
+static func spawn_volume(parent: Node, at: Vector3, radius: float, fuel: bool, life_override: float = -1.0) -> MeshInstance3D:
 	_prune()
 	var big := 1.0 + (0.3 if fuel else 0.0)
 	var half := Vector3(1.5, 1.6, 1.5) * big
 	var centre := Vector3(0.0, 1.3, 0.0) * big
+	var v4: Array = []
 	if _box == null:
 		_box = BoxMesh.new()
 		_box.size = Vector3(2.0, 2.0, 2.0)
@@ -114,6 +115,16 @@ static func spawn_volume(parent: Node, at: Vector3, radius: float, fuel: bool) -
 	mat.set_shader_parameter("centre_r", centre)
 	mat.set_shader_parameter("seed", Vector3(randf() * 7.0, randf() * 7.0, randf() * 7.0))
 	mat.set_shader_parameter("steps", volume_steps)
+	if Blast4.enabled:
+		# The fourth pass: the volume lives on as the mushroom (a taller box, its own life).
+		v4 = Blast4.dress_volume(mat, fuel, Blast4.gas_next)
+		if life_override > 0.0:
+			v4[2] = life_override
+			mat.set_shader_parameter("life", life_override)
+		half = v4[0]
+		centre = v4[1]
+		mat.set_shader_parameter("half_r", half)
+		mat.set_shader_parameter("centre_r", centre)
 	if OS.get_environment("BLAST3_DEBUG") != "":
 		mat.set_shader_parameter("debug", int(OS.get_environment("BLAST3_DEBUG")))
 	mi.material_override = mat
@@ -122,11 +133,13 @@ static func spawn_volume(parent: Node, at: Vector3, radius: float, fuel: bool) -
 	mi.global_transform = Transform3D(Basis.from_scale(half * radius), at + centre * radius)
 	# Its bounds for culling: the box itself (a box mesh's own AABB is right; nothing to add).
 	var life := fuel_life if fuel else volume_life
+	if not v4.is_empty():
+		life = v4[2]
 	var tw := mi.create_tween()
 	tw.tween_method(func(v: float):
 		if is_instance_valid(mat):
 			mat.set_shader_parameter("t", v)
-			mat.set_shader_parameter("fade", 1.0 - smoothstep(life * 0.55, life, v)),
+			mat.set_shader_parameter("fade", Blast4.fade_at(v, life) if not v4.is_empty() else 1.0 - smoothstep(life * 0.55, life, v)),
 		0.0, life, life)
 	tw.tween_callback(mi.queue_free)
 	_volumes.append(mi)
@@ -193,6 +206,15 @@ static func push_fires(tree: SceneTree) -> void:
 	m.set_shader_parameter("young_glow", smoke_young_glow * hottest)
 	m.set_shader_parameter("forward_scatter", smoke_forward)
 	m.set_shader_parameter("city_glow", Vector3(smoke_city_glow.r, smoke_city_glow.g, smoke_city_glow.b) * smoke_city_gain)
+	# Blast4: the mushroom volumes are lit by the same fires.
+	if Blast4.enabled:
+		_prune()
+		for v in _volumes:
+			var vm := (v as MeshInstance3D).material_override as ShaderMaterial
+			if vm != null:
+				vm.set_shader_parameter("fires", arr)
+				vm.set_shader_parameter("fire_count", list.size())
+				vm.set_shader_parameter("city_glow", Vector3(smoke_city_glow.r, smoke_city_glow.g, smoke_city_glow.b) * smoke_city_gain)
 
 
 # --- The flash's light ----------------------------------------------------------------------------

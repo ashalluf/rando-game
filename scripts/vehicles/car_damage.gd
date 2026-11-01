@@ -835,6 +835,20 @@ func _bonnet() -> Vector3:
 var _bonnet_at: Vector3 = Vector3.INF
 
 
+## Blast4's chain reaction (a car going up beside this one): catch fire now, if there is room
+## for another fire, with at most `fuse` seconds left before it goes too. True when it will.
+func chain_fuse(fuse: float) -> bool:
+	if state == State.WRECK or _stage_hold:
+		return false
+	if state != State.BURNING:
+		health = minf(health, max_health * fire_at)
+		_ignite(true)
+	if state != State.BURNING:
+		return false
+	_fuse = minf(_fuse, fuse)
+	return true
+
+
 func _ignite(quick: bool) -> void:
 	if state == State.BURNING or state == State.WRECK:
 		if quick and state == State.BURNING:
