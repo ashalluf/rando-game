@@ -159,7 +159,13 @@ func _strip(city: Node3D, chunk: Node3D) -> Array:
 	var cam := _tree.root.get_viewport().get_camera_3d()
 	var cw := WorldState.to_world(cam.global_position) if cam else Vector3(rect.get_center().x, 0.0, rect.position.y)
 	var x0 := clampf(cw.x, rect.position.x + 12.0, rect.end.x - 26.0)
-	return [rect, Vector2(x0, rect.position.y + 2.0)]
+	# The north or the south pavement, whichever the camera is nearer: avoidance only runs within
+	# CrowdFlow.RANGE (35 m) of it, and the north one alone was 24 m off at the usual look and over
+	# 35 at another (shuffled gate 1202: the pair walked through each other).
+	var z := rect.position.y + 2.0
+	if absf(cw.z - (rect.end.y - 2.0)) < absf(cw.z - z):
+		z = rect.end.y - 2.0
+	return [rect, Vector2(x0, z)]
 
 
 func _follower(city: Node3D, chunk: Node3D) -> void:
