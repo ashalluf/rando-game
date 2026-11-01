@@ -439,6 +439,10 @@ void fragment() {
 	puddle *= 1.0 - side;
 	gutter *= 1.0 - side;
 	base *= mix(1.0, 0.62, damp);
+	// A soaked pavement by day (RainDay's rain_day, 0 at night): paving darkens further than tarmac
+	// (porous concrete drinks the water) and keeps a sheen, never asphalt's mirror.
+	float pave_day = joint_spacing > 0.01 ? rain_day * damp : 0.0;
+	base *= 1.0 - 0.22 * pave_day;
 	float standing = max(puddle, gutter);
 	base *= 1.0 - 0.35 * standing;
 
@@ -446,7 +450,7 @@ void fragment() {
 	// 0.07, not 0.18: at 0.18 the screen-space reflections blur into a warm smear, and a soaked
 	// street at night is nearly a mirror - the lit windows and tail lights standing in it are
 	// the whole look.
-	ROUGHNESS = clamp(mix(mix(rough, 0.07, film), 0.02, standing), 0.02, 1.0);
+	ROUGHNESS = clamp(mix(mix(rough, mix(0.07, 0.2, pave_day), film), 0.02, standing), 0.02, 1.0);
 	METALLIC = 0.0;
 	SPECULAR = mix(0.5, 0.85, max(film, gutter));
 	// The gutter keeps a ripple of its own: running water is never mirror-flat, and its streaky

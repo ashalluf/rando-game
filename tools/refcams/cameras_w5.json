@@ -2,6 +2,6 @@
 	"_doc": "Wave-5 reference cameras (same format as cameras.json; tools/refcams/README.md). One row a camera, each on its own line. Run with REFCAMS_JSON=tools/refcams/cameras_w5.json.",
 	"resolution": [1280, 720],
 	"cameras": [
-		{"name": "rain_day", "label": "Wilshire in midtown, 14:00 rain (east toward downtown)", "eye": [1400.0, 1.7, 298.5, -97.0, 2.0], "agl": true, "hour": 14.0, "weather": "rain", "fov": 55}
+		{"name": "rain_day", "label": "Wilshire in midtown, 14:00 rain (east toward downtown)", "eye": [1405.0, 1.7, 296.0, -104.0, 1.0], "agl": true, "hour": 14.0, "weather": "rain", "fov": 55, "street_cars": {"axis": "z", "at": 312.7, "cars": [[1418, 1, 0, 14], [1440, 1, 1, 12], [1470, 1, 0, 13], [1585, -1, 1, 12], [1625, -1, 0, 13], [1670, -1, 1, 11]]}}
 	]
 }

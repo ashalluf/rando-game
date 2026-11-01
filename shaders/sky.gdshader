@@ -209,6 +209,11 @@ uniform vec3 city_glow_color : source_color = vec3(1.0, 0.55, 0.26);
 // 0 outside 09:00-16:00 and under weather, so every other hour draws exactly as before: each day
 // change below is a branch on it or a gain mix(1, g, sky_day), which is 1.0 at 0.
 uniform float sky_day = 0.0;
+// A rain deck by day (RainDay, refcam rain_day; 0 otherwise, so every other sky is bit for bit):
+// the stratus ceiling was one flat grey from horizon to zenith. Under it, a real rain sky is heavy
+// darker masses and paler thin places drifting over, with ragged scud under the base.
+uniform float rain_deck = 0.0;
+uniform float rain_deck_mottle = 0.85;
 // The blue reaches lower: the gradient's exponent and the horizon haze band's falloff by day.
 uniform float day_gradient = 0.36;
 uniform float day_haze_falloff = 15.0;
@@ -1427,6 +1432,16 @@ void sky() {
 		}
 		col += sun_light * shaft * 0.38;
 		col = mix(col, pc.rgb, pc.a);
+	}
+	// The rain deck's masses (RainDay): a big slow field and a faster finer one (the scud), both
+	// on the deck's own plane, faded into the horizon's haze. Painted and volume alike.
+	if (rain_deck > 0.0 && up > 0.0) {
+		vec2 drift_r = vec2(TIME * cloud_speed * 0.5, TIME * cloud_speed * 0.2);
+		vec2 ruv = dir.xz / (up + 0.1) * 0.9 + drift_r;
+		float m1 = fbm(ruv * 0.6 + 7.3);
+		float m2 = fbm3(ruv * 2.1 + vec2(3.1, 1.7) + drift_r * 2.0);
+		float mott = (0.5 + 0.85 * m1) * (0.8 + 0.4 * m2);
+		col *= mix(1.0, mott, rain_deck * rain_deck_mottle * smoothstep(0.0, 0.22, up));
 	}
 	// What reflections and the sky ambient see below the horizon. The drawn sky fades into haze
 	// over 27 degrees under it, because from the air that band is far land seen through air. But

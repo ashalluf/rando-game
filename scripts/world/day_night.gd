@@ -543,6 +543,7 @@ func _apply() -> void:
 		_sky.set_shader_parameter("god_rays", god_rays * (0.45 + 0.55 * dusk) * (1.0 - night_factor) * (1.0 - weather_darken * 0.6))
 		SunsetSky.apply(_sky, elevation, weather_darken, marine)
 		SkyDay.apply(_sky, hour, weather_darken, marine)
+		_sky.set_shader_parameter("rain_deck", RainDay.rain_deck(weather_darken, moonlight))
 		_sky.set_shader_parameter("dawn", dawn_w)
 		# Under the horizon is the far haze the ground plane fades into, not a grey floor.
 		_sky.set_shader_parameter("ground_color", horizon.lerp(Color(0.32, 0.34, 0.37), 0.30))

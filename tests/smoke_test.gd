@@ -2804,6 +2804,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The beach refcam (tests/rc_beach_checks.gd, SandRoads, Waders): no traffic on the streets the
 	# sand covers, people standing in the shallows.
 	load("res://tests/rc_beach_checks.gd").new().run(self, city)
+	# The rainy day (tests/rc2_rain_day_checks.gd, RainDay): the overcast light, the wet road's day
+	# mirror, soaked lawns, no searchlights by day, nights and clear days untouched, the A/B.
+	await load("res://tests/rc2_rain_day_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

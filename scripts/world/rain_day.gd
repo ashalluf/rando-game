@@ -48,6 +48,14 @@ static func ambient_gain(weather_darken: float, moonlight: float) -> float:
 	return 1.0 + AMBIENT_GAIN * overcast(weather_darken, moonlight)
 
 
+## The sky's rain deck by day (sky.gdshader `rain_deck`): rain and a storm (weather_darken 0.5 and
+## over), not plain overcast (0.25), and nothing at night.
+static func rain_deck(weather_darken: float, moonlight: float) -> float:
+	if not enabled:
+		return 0.0
+	return smoothstep(0.25, 0.5, weather_darken) * clampf(1.0 - moonlight, 0.0, 1.0)
+
+
 ## The lamp level a thing that only burns AFTER DARK should see (a premiere's searchlight): the
 ## lamps' own night level, not the weather's share that DayNight adds so the street lamps and car
 ## lamps come on under a storm at noon. DayNight writes `night_lamp` each frame.
@@ -75,6 +83,15 @@ static func publish(night_lamps: float) -> void:
 	if absf(w - _pushed) > 0.0005 or (w == 0.0 and _pushed != 0.0):
 		_pushed = w
 		RenderingServer.global_shader_parameter_set("rain_day", w)
+
+
+## Tyre spray (TyreSpray's exports, set once in its _ready()): cars throw it out to SPRAY_REACH m
+## (55 was half a block: a boulevard's spray down the street was never drawn), at its fullest from
+## a city street's speed (24 m/s was freeway speed), each puff a thicker veil. The six emitters
+## still go to the fastest cars, nearest first.
+const SPRAY_REACH := 95.0
+const SPRAY_FULL_SPEED := 16.0
+const SPRAY_ALPHA := 0.6
 
 
 ## The lens drops by day: refracting the bright, even sky behind them they read as grey dust

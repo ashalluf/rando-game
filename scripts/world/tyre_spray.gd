@@ -38,6 +38,12 @@ var _scan_left: float = 0.0
 
 
 func _ready() -> void:
+	# The rainy day's spray (RainDay; RAIN_DAY=0 keeps these exports): a boulevard's traffic throws
+	# a veil you see down the street, not only within half a block.
+	if RainDay.enabled:
+		reach = RainDay.SPRAY_REACH
+		full_speed = RainDay.SPRAY_FULL_SPEED
+		puff_alpha = RainDay.SPRAY_ALPHA
 	var n := maxi(1, emitters / 2) if OS.has_feature("web") else emitters
 	var mat := StandardMaterial3D.new()
 	mat.albedo_texture = WeaponFX.puff_texture()
