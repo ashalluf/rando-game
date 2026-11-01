@@ -153,9 +153,13 @@ static func boxes(building: Building, style: Dictionary, plinth: float) -> Array
 	# The rooftop pieces (Rooftops: helipads, pool decks, penthouses, masts), planned from the
 	# plant roof_plan() just laid, as the near building plans them.
 	out.append_array(Rooftops.far_boxes(building, roof_pieces))
-	# Stepped and raised parapets (FacadeMid3), a silhouette the far city keeps.
-	for piece: Array in FacadeMid3.parapet_steps(building, style):
-		_unit(out, piece[1] - Vector3(0.0, (piece[0] as Vector3).y * 0.5, 0.0), 1.0, piece[0], Vector3(0.0, (piece[0] as Vector3).y * 0.5, 0.0), piece[2])
+	# Stepped and raised parapets (FacadeMid3): the panels are a silhouette the far city keeps, their
+	# 12 cm copings (every other piece) stay in the LOD ring, under a pixel past it.
+	var steps := FacadeMid3.parapet_steps(building, style)
+	for si in steps.size():
+		var piece: Array = steps[si]
+		var half := Vector3(0.0, (piece[0] as Vector3).y * 0.5, 0.0)
+		_unit(out, piece[1] - half, 1.0 if si % 2 == 0 else 0.0, piece[0], half, piece[2])
 	out.append_array(ends)
 	return out
 
