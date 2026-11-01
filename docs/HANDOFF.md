@@ -25155,3 +25155,89 @@ Probes: `tools/rc_beach/sand_roads_probe.gd` (headless: every coast street stret
 beach; `LOOK=swim|wade|surf` saves a close look at the first one). Checks `tests/rc_beach_checks.gd`.
 Stills on `shots/rc-beach`.
 
+
+## 9d?. Forward+ review g: wave 4's look work on the Mac's renderer (fleet wave 5, session `fwd-review-g`, branch `wt/fwd-review-g`)
+
+Same method as reviews a-f: each feature in a SMALL scene on the real Forward+ pipeline under
+lavapipe beside the same frame on opengl3, measured; stills and their README on
+`shots/fwd-review-g`. Seed 1337. Wave 4 = batches 26-32 (every shader changed since e5bb9e4f:
+~100 files).
+
+**Static pass first** (render modes, colour-space includes, cs_out / disp / source_color / COLOR
+use of every changed shader; every new light and its `light_volumetric_fog_energy`). The new
+additive quads (muzzle_flash, tracer_streak, blast_spark, pier_wheel_glow, night_wet / night_shaft
+`look2`) hand linear numbers over with cs_out() and carry Forward+ gains where broad (night_wet
+`gain2_forward`, light_pool's street pools in display numbers); the hero's hair / cloth carry their
+Forward+ lobe gains; tree_light decodes sky_tint per renderer; skyline_glass decodes DayNight's
+display-number sky (sg_srgb_in()); roof_weather and window_rooms use raw numbers like the code they
+replace (see the second fix). The only new light is GunplayFeel's (main at fog energy 3.0, hands
+and wall at Godot's 1.0).
+
+**Fixed 1: under a closed deck the sky stopped dead at the horizon (Forward+ only).** The cumulus
+volume's march (sky.gdshader `cumulus_march()`) gives up when the deck is entered more than 90 km
+out - under a 1.4 km deck that is about half a degree over the horizon - and the half-res pass
+skipped everything under -0.08. So in rain or a storm the deck ended in a hard line and the city's
+light dome showed under it in its own saturated orange (21:30 rain, the sky alone: deck
+(98,75,55) then (128,67,45) across one row; opengl3's painted deck runs on into its haze, 108 ->
+114). From the street the far city hides most of that band; from the air (and in the small-scene
+tools, which have no horizon plane) it is a red stripe across the frame. Now, from under a deck
+the march cannot reach, it returns the deck's own airlight at the stratus share
+(`smoothstep(0.72, 0.95, coverage)`, the volume's own `strat`), and the half-res pass also runs
+under the horizon while the deck is closed and the camera is under it (above the deck nothing
+changes). The march's own aerial haze is 91 % airlight at 90 km (`cloud_haze_km` 38), so there is
+no seam: rows 395 / 400 / 450 now read (98,75,55) / (102,77,57) / (102,76,57). Day storm: the horizon
+joins (121 -> 124 -> 124), and under it the storm's own green-grey haze replaces a pale blue band
+brighter than the deck. Overcast under coverage 0.72 and clear skies are bit-identical
+(`far_deck` only acts past the old cut, and the march is never compiled on Compatibility).
+`sky.gdshader` `far_deck` (1), set by `FwdReviewG.apply_sky()` from SkyExtras.
+
+**Fixed 2: by day every window was a pale panel on the Mac (Forward+ only; predates wave 4).**
+building.gdshader is a renderer-space shader with no colour include: its wall colours, glass tint
+and mirror are `source_color` (decoded on Forward+), but the room traced behind each pane -
+room_interior()'s offices, wave 4's homes (window_rooms.gdshaderinc), shop_interior() - is written
+in display numbers straight into the albedo, which Forward+ reads as linear (0.4 display read as
+0.4 linear is 0.66 display). An apartment block at 11:00 (`building_shot.gd BSEED=11 HMIN=20
+HMAX=26 STYLE=0`): pane luminance 69-80 beside a 107 wall on Forward+, 20-35 beside 79 on opengl3
+(WINDOW_INTERIORS=0 measured the same: it is the old office rule too). Now the room is decoded
+(`fx_srgb_in()`, facade_variety's, a no-op on Compatibility) after its exposure and before the
+albedo takes it, behind the new `fwd_review_g` shader global; `room_raw` (the lit room's emission
+at night) keeps its numbers, so the night block is unchanged (p50/p95 31/141 -> 31/140). The far
+box's stand-ins for the room (building_lod.gdshader: the office, shop, blind and home-cover
+averages) follow through `fg_room()` = cs_as_uniform(). After: panes 56-67 (the rest is Forward+'s
+own specular off the glass, which opengl3 does not have). Compatibility, the web and every refcam
+still are bit-identical by construction.
+
+**Looked at, nothing to fix (Forward+ against opengl3):**
+- The muzzle flash's lights in rain fog at night (`fwd_block_shot.gd FLASH=1`, new: GunplayFeel's
+  real `_lights()` held with the clock stopped, saved as `<file>_flash.png`; suburb street
+  1801.8,1.7,4135.2 at 21:30 rain): no veil - mean change 0.07 levels. The volumetric fog's
+  temporal reprojection (0.9) takes ~20 frames to show a light, and a 0.07 s flash lasts ~4, so
+  the main light's fog energy 3.0 is harmless. Lightning is different only because it is held.
+- The guns at night (`gun_strip.gd LIGHT=night`, AK and shotgun, 0.02 / 0.05 s): the flash, the
+  hands and the floor light alike; Forward+ clips less (1.45 % of the frame against 2.72 % for the
+  shotgun).
+- The pier at night (`pier_shot.tscn`): the wheel's analytic LEDs and glow (pier_wheel_glow, zero
+  at its quad's edge) read the same; the night cumulus are brown on Forward+ (the city glow on
+  their bases, the light dome's colour) where opengl3's painted ones are grey-blue.
+- The wet road's mirror (`mirror_shot.gd`): on Forward+ SSR adds a crisp mirror of the lit fronts
+  on top of the drawn streaks (the soaked road's roughness 0.07 is a deliberate choice, see
+  CLAUDE.md's Weather note); the window grid in it is the real windows', not wave 4's old hashed
+  grid.
+- Dawn 06:15 and noon 12:30 (`sky_shot.gd`): the usual renderer difference (Forward+ pinker at
+  dawn, paler blue at noon), no seam or clip.
+- Buildings near and far (`far_building_shot.gd`): far / near luminance 0.93 by day and 0.91 at
+  night on Forward+. On opengl3 the night ratio is 0.63 (the far boxes darker) - unchanged with
+  WINDOW_INTERIORS=0 and FACADE_MID=0, so it predates wave 4; left for the far city's owner.
+
+**Not rendered:** downtown blocks and the whole city (lavapipe OOM), the explosions-3 volume at
+night in rain, the street lamps' LampShadows, the hero close-up (its own session measured both).
+
+**Tools:** `fwd_block_shot.gd FLASH=<k>` (FLASH_AT); with BLOCKS=0 it is the sky and weather
+alone in ~3 minutes on lavapipe - the fastest way to see a weather sky on Forward+.
+
+**Switch:** `FWD_REVIEW_G=0` (`FwdReviewG`, `scripts/world/fwd_review_g.gd`) puts both back (the
+sky's `far_deck` 0 and the `fwd_review_g` global 0). Checks: `tests/fwd_review_g_checks.gd`.
+
+**Frame cost:** none in the city's usual skies. Under a closed deck the half-res sky pass now
+also runs under the horizon, where the march returns at once (one slab test a pixel); no node,
+mesh or draw.
