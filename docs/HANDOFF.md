@@ -25240,4 +25240,7 @@ sky's `far_deck` 0 and the `fwd_review_g` global 0). Checks: `tests/fwd_review_g
 
 **Frame cost:** none in the city's usual skies. Under a closed deck the half-res sky pass now
 also runs under the horizon, where the march returns at once (one slab test a pixel); no node,
-mesh or draw.
+mesh or draw (so GEO is unchanged by construction and was not re-measured). Lavapipe, sky alone at
+21:30 under coverage 0.95 looking 6 degrees down, 960x540, `sky_shot.gd BENCH=30` off / on / off /
+on: 34.4 / 32.4 / 31.2 / 30.1 ms a frame - the run-to-run drift, no cost to see. The room decode
+is a few ALU on glass pixels. Gate: SHARDS=3, 5,093 checks passed, 0 failed, peak RSS 3,675 MB.
