@@ -52,6 +52,11 @@ const STAND_STAINS := [
 const TRACK_FROM := 3.0
 const TRACK_TO := 44.0
 const TRACK_SHADE := 0.36
+## The terminal's and concourses' roofs (AirportTerminal._steel()): the pale sheet read as a blank
+## white slab over the apron; a weathered grey standing-seam roof whose seams show from the apron,
+## streaked and dirtier toward the eaves.
+const ROOF_PARAMS := {"tint": Color(0.64, 0.65, 0.66), "roughness": 0.55, "metallic": 0.3,
+	"joint_spacing": Vector2(1.2, 0.0), "joint_width": 0.07, "joint_dark": 0.32, "grime": 0.45}
 ## The concourse's hall by day, through its glass (curtain_glass interior_day).
 const GLASS_DAY := 0.62
 ## AirportKit's boxes: chamfer every box at least BEVEL_MIN thick by BEVEL_SHARE of its thinnest
@@ -113,6 +118,17 @@ static func stains(ch: CityChunk, area: Rect2, top: float) -> void:
 	if not enabled:
 		return
 	var y := top + 0.003
+	for st: Array in stain_list():
+		var p: Vector2 = st[0]
+		if area.has_point(p):
+			ch._batch.add("patch", PropFactory.patch(), Transform3D(Basis(Vector3.UP, float(st[1])).scaled_local(Vector3(float(st[3]), 1.0, float(st[2]))),
+				Vector3(p.x, y, p.y)), Color(float(st[4]), float(st[4]), float(st[4]) * 1.06))
+
+
+## Every stand's stains, pure (hashes of the stand): [centre (world XZ), yaw, length, width, shade].
+static func stain_list() -> Array:
+	if not _stains.is_empty():
+		return _stains
 	for g: Dictionary in Airport.gates():
 		if g.get("empty", false):
 			continue
@@ -124,7 +140,7 @@ static func stains(ch: CityChunk, area: Rect2, top: float) -> void:
 		var k := 0
 		for s: Array in STAND_STAINS:
 			var p: Vector2 = nose + n * float(s[0]) + t * float(s[1])
-			_stain(ch, area, p, yaw + (_h(gi, k, 0) - 0.5) * 0.3, float(s[2]) * (0.85 + 0.3 * _h(gi, k, 1)), float(s[3]) * (0.85 + 0.3 * _h(gi, k, 2)), float(s[4]) + (_h(gi, k, 3) - 0.5) * 0.08, y)
+			_stains.append([p, yaw + (_h(gi, k, 0) - 0.5) * 0.3, float(s[2]) * (0.85 + 0.3 * _h(gi, k, 1)), float(s[3]) * (0.85 + 0.3 * _h(gi, k, 2)), float(s[4]) + (_h(gi, k, 3) - 0.5) * 0.08])
 			k += 1
 		# Tyre tracks down the lead-in, in a few pieces so their ragged rims break the run.
 		for side: float in [0.0, -3.6, 3.6]:
@@ -132,21 +148,18 @@ static func stains(ch: CityChunk, area: Rect2, top: float) -> void:
 			while s0 < TRACK_TO:
 				var run := 6.0 + 4.0 * _h(gi, k, 4)
 				var p: Vector2 = nose + n * (s0 + run * 0.5) + t * (side + (_h(gi, k, 5) - 0.5) * 0.4)
-				_stain(ch, area, p, yaw, run, 0.75 if side == 0.0 else 1.1, TRACK_SHADE + _h(gi, k, 6) * 0.1, y)
+				_stains.append([p, yaw, run, 0.75 if side == 0.0 else 1.1, TRACK_SHADE + _h(gi, k, 6) * 0.1])
 				s0 += run + 0.5 + 3.0 * _h(gi, k, 7)
 				k += 1
 		for j in SPILLS:
 			var back := 2.0 + 34.0 * _h(gi, j, 20)
 			var off := (_h(gi, j, 21) - 0.5) * 20.0
 			var size := 0.7 + 2.2 * _h(gi, j, 22)
-			_stain(ch, area, nose + n * back + t * off, _h(gi, j, 23) * TAU, size, size * (0.5 + 0.5 * _h(gi, j, 24)), 0.24 + 0.14 * _h(gi, j, 25), y)
+			_stains.append([nose + n * back + t * off, _h(gi, j, 23) * TAU, size, size * (0.5 + 0.5 * _h(gi, j, 24)), 0.24 + 0.14 * _h(gi, j, 25)])
+	return _stains
 
 
-static func _stain(ch: CityChunk, area: Rect2, p: Vector2, yaw: float, length: float, width: float, shade: float, y: float) -> void:
-	if not area.has_point(p):
-		return
-	ch._batch.add("patch", PropFactory.patch(), Transform3D(Basis(Vector3.UP, yaw).scaled_local(Vector3(width, 1.0, length)), Vector3(p.x, y, p.y)),
-		Color(shade, shade, shade * 1.06))
+static var _stains: Array = []
 
 
 static func _h(gate: int, k: int, salt: int) -> float:

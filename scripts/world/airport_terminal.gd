@@ -44,6 +44,8 @@ static func _glass(key: String, y0: float, storey: float, depth: float) -> Shade
 ## Roofing: pale standing-seam metal (the brushed steel shader mirrored the sky and read as a
 ## blue plastic sheet from the air).
 static func _steel(key: String) -> ShaderMaterial:
+	if AirportApron.enabled:
+		return LandmarkMats.facade("airport_roof_" + key, "", 1.0, AirportApron.ROOF_PARAMS)
 	return LandmarkMats.facade("airport_roof_" + key, "", 1.0, {"tint": Color(0.80, 0.80, 0.79), "roughness": 0.5, "metallic": 0.25,
 		"joint_spacing": Vector2(0.6, 0.0), "joint_width": 0.03, "joint_dark": 0.22, "grime": 0.15})
 
