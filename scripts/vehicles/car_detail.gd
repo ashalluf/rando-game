@@ -106,7 +106,7 @@ const PLATE_AT := {
 	Vehicle.BodyType.WORK_TRUCK: [0.87, 0.0, 0.50],
 	Vehicle.BodyType.COUPE: [0.567, 0.0, 0.38],
 	Vehicle.BodyType.WAGON: [0.755, 0.0, 0.36],
-	Vehicle.BodyType.MUSCLE: [0.567, 0.0, 0.36],
+	Vehicle.BodyType.MUSCLE: [0.567, 0.0, 0.31],
 	Vehicle.BodyType.LUX_SUV: [1.14, 0.0, 0.45],
 	Vehicle.BodyType.KEI_VAN: [0.665, 0.0, 0.40],
 	Vehicle.BodyType.CLASSIC: [0.60, 0.0, 0.40],
