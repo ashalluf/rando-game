@@ -197,6 +197,8 @@ static func owns_face(plan: CityPlan, bx: int, bz: int, e: int) -> bool:
 ## and the goods, walling the stock off from the shoppers (rc3-fashion-district). FD_PLANTERS=0
 ## keeps them.
 static var clear_planters: bool = OS.get_environment("FD_PLANTERS") != "0"
+## Planters left out so far (checks).
+static var planters_cleared: int = 0
 
 
 static func clears_planter(ch: CityChunk, r: Rect2) -> bool:
@@ -212,6 +214,7 @@ static func clears_planter(ch: CityChunk, r: Rect2) -> bool:
 	var d := [c.y - rect.position.y, rect.end.y - c.y, c.x - rect.position.x, rect.end.x - c.x]
 	for e: int in info.faces:
 		if float(d[e]) < MAX_WALL_DEPTH + 1.0:
+			planters_cleared += 1
 			return true
 	return false
 
