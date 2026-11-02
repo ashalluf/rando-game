@@ -3744,6 +3744,17 @@ already mapped so milestone 2 is script-only.
   people the player never sees. Planter soil is mulch, not lawn. The camera's own fov and distance
   are the owner's feel and stay. CAMERA_FADE=0 / SHOP_CROWD=0 / PLANTER_MULCH=0.
 
+- **2026-11-02 The golf course at 08:30 (rc3-golf-morning, HANDOFF "The golf course at 08:30").**
+  A new reference camera behind a group on the 9th tee. Decisions: the course's look stays code
+  (shader passes over the existing distance fields, no new geometry but the tee balls); the morning
+  is told by dew (the turf greyer and glossier toward the low sun, trails where people walked, the
+  greens mown dark) that burns off by 10:30 and never runs in rain; a mown stripe's sheen fades to
+  nothing where the view is square to the mower rather than flipping; the course is planted with
+  LA's trees (sycamores, eucalyptus) in the firs' spots, after every roll. A camera may stage a
+  group of golfers (`golf_group`), the seed's own groups untouched. The front range seen from the
+  valley reads as beige dunes at this hour: the brush is there (the stand rule says ~80 %), the
+  morning's warm light and fog take its colour; left for a hills / atmosphere pass. GOLF_MORNING=0.
+
 ## Correction: what build 135 (0ce833f) actually contained
 
 That commit's subject says "denser grass, real palm fronds, finer ground". It also shipped a

@@ -2892,6 +2892,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc3_rooftop_golden_checks.gd").new().run(self, city)
 	# The oil field refcam (tests/rc3_oil_field_checks.gd, OilFieldPlanting): the hill planted, the pickups, the dirt's edge.
 	load("res://tests/rc3_oil_field_checks.gd").new().run(self, city)
+	# The golf course at 08:30 (tests/rc3_golf_morning_checks.gd, GolfMorning): the staged group,
+	# the turf's morning passes behind their switch, the course's sycamores and eucalyptus.
+	load("res://tests/rc3_golf_morning_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

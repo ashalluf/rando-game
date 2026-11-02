@@ -144,3 +144,8 @@ change, they do not say what the Mac draws (CLAUDE.md, measurement trap 4).
 Run with `REFCAMS_JSON=tools/refcams/cameras_w6.json`. `pier_day` - Gullwing Park on Rando Pier at
 15:00 clear, from the promenade in the crowd toward the wheel and the sea end (PierDay,
 docs/HANDOFF.md "The pier by day from the deck").
+
+Wave 6's cameras are in `cameras_w6.json` (run with `REFCAMS_JSON=tools/refcams/cameras_w6.json`):
+`golf_morning` - the golf course at 08:30 from behind the 9th tee toward the clubhouse and the front
+range. Its optional `golf_group` key ("hole:stage[:tee[:count]]") stages a group of golfers there
+(GolfLife.force_group via the GOLF_GROUP environment variable, set before the city loads).
