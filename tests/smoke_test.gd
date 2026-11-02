@@ -2825,6 +2825,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc2_river_checks.gd").new().run(self, city)
 	# The airport apron refcam (tests/rc2_airport_checks.gd, AirportApron): paint over the ground, stains, liveries.
 	await load("res://tests/rc2_airport_checks.gd").new().run(self, city)
+	# The airfield at night (tests/rc3_airport_night_checks.gd, AirportNight): floods, logo lights, landing lights.
+	await load("res://tests/rc3_airport_night_checks.gd").new().run(self, city)
 	# The container terminal refcam (tests/rc2_port_checks.gd, PortFill, PortMooring): the yard's
 	# tiers, the mast's floodlights, the ship's bow and plating, the mooring lines, dusty roofs.
 	load("res://tests/rc2_port_checks.gd").new().run(self, city)
