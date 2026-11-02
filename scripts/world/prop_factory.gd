@@ -577,7 +577,10 @@ static func _palm_ladder(levels: Array, first: int) -> ArrayMesh:
 		lods[float(PALM_LEVELS[l].edge)] = idx
 		offset += (src[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
 	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], lods)
+	var flags := 0
+	if arrays[Mesh.ARRAY_CUSTOM0] != null:
+		flags = Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], lods, flags)
 	mesh.surface_set_material(0, foliage_material())
 	return mesh
 
@@ -589,6 +592,10 @@ static func _palm_level(variant: int, lv: Dictionary) -> Array:
 	rng.seed = 7000 + variant
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# CUSTOM0: a leaflet vertex's offset across its blade (_palm_leaf_vertex), zero elsewhere.
+	if PalmShimmer.enabled:
+		st.set_custom_format(0, SurfaceTool.CUSTOM_RGBA_FLOAT)
+		st.set_custom(0, Color(0.0, 0.0, 0.0, 0.0))
 
 	# Tall and slender, like the Washingtonia palms that line Los Angeles streets, rather than
 	# the short fat coconut palm the old primitive suggested.
@@ -675,7 +682,10 @@ static func _palm_level(variant: int, lv: Dictionary) -> Array:
 			var nt := (Vector3.UP * 0.85 + bd).normalized()
 			_quad(st, e0, e1, tip1, tip0, boot, nt, nt)
 			var under := Vector3(0.0, -0.045 * (height / 14.0), 0.0)
-			_quad(st, tip0 + under, tip1 + under, e1 + under, e0 + under, boot * 0.66, -nt, -nt)
+			var nu := -nt
+			if PalmShimmer.enabled:
+				nu = (bd * PalmShimmer.BOOT_UNDER_OUT - Vector3.UP * (1.0 - PalmShimmer.BOOT_UNDER_OUT)).normalized()
+			_quad(st, tip0 + under, tip1 + under, e1 + under, e0 + under, boot * 0.66, nu, nu)
 
 	var top: Vector3 = centre.call(1.0)
 	# The crownshaft: the smooth green column the fronds actually grow out of. Without it the
@@ -819,6 +829,7 @@ static func _palm_leaflet(st: SurfaceTool, a: Vector3, b: Vector3, dir: Vector3,
 	var half := (b - a) * 0.5
 	var prev_a := a
 	var prev_b := b
+	var prev_w := 1.0
 	for seg in segments:
 		var u := float(seg + 1) / float(segments)
 		# Width runs out to nothing at the tip; the drop is the leaflet's own droop.
@@ -837,15 +848,30 @@ static func _palm_leaflet(st: SurfaceTool, a: Vector3, b: Vector3, dir: Vector3,
 		var nb := c + half * w
 		if seg == segments - 1:
 			# The tip: one triangle closing on the point.
-			for v: Vector3 in [prev_a, prev_b, c]:
-				st.set_color(tone)
-				st.set_uv(Vector2.ZERO)
-				st.set_normal(nrm)
-				st.add_vertex(v)
+			for pv: Array in [[prev_a, -half * prev_w], [prev_b, half * prev_w], [c, Vector3.ZERO]]:
+				_palm_leaf_vertex(st, pv[0], pv[1], tone, nrm)
 		else:
-			_quad(st, prev_a, prev_b, nb, na, tone, nrm, nrm)
+			for pv: Array in [[prev_a, -half * prev_w], [prev_b, half * prev_w], [nb, half * w],
+					[prev_a, -half * prev_w], [nb, half * w], [na, -half * w]]:
+				_palm_leaf_vertex(st, pv[0], pv[1], tone, nrm)
 		prev_a = na
 		prev_b = nb
+		prev_w = w
+	# Back to "not a leaflet" for whatever the palm draws next (CUSTOM0 carries over).
+	if PalmShimmer.enabled:
+		st.set_custom(0, Color(0.0, 0.0, 0.0, 0.0))
+
+
+## One leaflet vertex. CUSTOM0 (palm-shimmer) is the vertex's offset from the leaflet's centre
+## line across the blade (model metres; the tip's is zero) and 1 in w: foliage.gdshader widens a
+## leaflet narrower than a pixel to one along it and keeps it by its true coverage.
+static func _palm_leaf_vertex(st: SurfaceTool, v: Vector3, off: Vector3, tone: Color, nrm: Vector3) -> void:
+	if PalmShimmer.enabled:
+		st.set_custom(0, Color(off.x, off.y, off.z, 1.0))
+	st.set_color(tone)
+	st.set_uv(Vector2.ZERO)
+	st.set_normal(nrm)
+	st.add_vertex(v)
 
 
 ## A quad a-b-c-d. `na` / `nb` are the normals for the a,d and b,c edges; leave them at zero to
@@ -1158,6 +1184,7 @@ static func foliage_material() -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/foliage.gdshader")
 	TreesCloseup.mark(mat)
+	PalmShimmer.mark(mat)
 	_cache["foliage_mat"] = mat
 	return mat
 

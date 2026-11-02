@@ -2867,6 +2867,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc2_night_aerial_checks.gd").new().run(self, city)
 	# The chase_cam review (tests/rc2_chase_cam_checks.gd, ChaseCamReview): lane wear on the asphalt.
 	load("res://tests/rc2_chase_cam_checks.gd").new().run(self, city)
+	# Palm crowns without the flecks (tests/palm_shimmer_checks.gd, PalmShimmer): back faces keep their
+	# normal, sub-pixel leaflets widened and kept by coverage, the switch.
+	load("res://tests/palm_shimmer_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
