@@ -37,6 +37,7 @@ func _initialize() -> void:
 		_out_dir = OS.get_environment("OUT_DIR")
 	DirAccess.make_dir_recursive_absolute(_out_dir)
 	_golf_group()
+	_bonfire_lit()
 	change_scene_to_file("res://scenes/levels/city.tscn")
 	_run.call_deferred()
 
@@ -87,6 +88,7 @@ func _run() -> void:
 		if not _hero.is_empty():
 			_hero_start(player, eye, y)
 		_set_weather(weather, String(cam.get("weather", "clear")))
+		_bonfire_lit_for(cam)
 		if day:
 			day.set("hour", float(cam.hour))
 			day.call("_apply")
@@ -349,6 +351,26 @@ func _write_frames(load_ms: int, shots: Array) -> void:
 	var f := FileAccess.open(_out_dir.path_join("frames.json"), FileAccess.WRITE)
 	f.store_string(JSON.stringify(out, "\t"))
 	f.close()
+
+
+## A row's optional "bonfire_lit" (wave 7's bonfire_night): 1 lights every beach bonfire ring
+## (Bonfires.force_lit, as BONFIRE_LIT=1), so the rings round the eye burn with their groups whatever
+## the night's rolls. Set before the city loads (a ring's group is planned as its chunk builds) when
+## a camera of this run asks; each camera then sets it again (the key, or -1: the hashes decide).
+func _bonfire_lit() -> void:
+	if OS.get_environment("BONFIRE_LIT") != "":
+		return
+	var only := OS.get_environment("ONLY").split(",", false)
+	for cam: Dictionary in _cameras().get("cameras", []):
+		if cam.has("bonfire_lit") and (only.is_empty() or String(cam.name) in only):
+			OS.set_environment("BONFIRE_LIT", str(int(cam.bonfire_lit)))
+
+
+func _bonfire_lit_for(cam: Dictionary) -> void:
+	if not cam.has("bonfire_lit") and OS.get_environment("BONFIRE_LIT") == "":
+		return
+	var bf: GDScript = load("res://scripts/world/bonfires.gd")
+	bf.set("force_lit", int(cam.get("bonfire_lit", -1)))
 
 
 ## A row's optional "golf_group" ("hole:stage[:tee[:count]]", wave 6's golf_morning) puts a group
