@@ -3755,6 +3755,13 @@ already mapped so milestone 2 is script-only.
   valley reads as beige dunes at this hour: the brush is there (the stand rule says ~80 %), the
   morning's warm light and fog take its colour; left for a hills / atmosphere pass. GOLF_MORNING=0.
 
+- **2026-11-02 The canals by day (rc4-canals-day, HANDOFF "The canals by day from a footbridge").**
+  A new reference camera on a Heron Canal footbridge at 11:00. Decisions: a shader that emits its
+  own mirror (sky included) turns the engine's specular off on Compatibility rather than stacking
+  two skies; Forward+ keeps SSR. The canal's coping runs down past the bank's top row (a slot
+  between them showed the void as a dark strip). Banks planted to the waterline and more boats tied
+  up, every addition a hash after the old rolls. RC4_CANALS=0.
+
 ## Correction: what build 135 (0ce833f) actually contained
 
 That commit's subject says "denser grass, real palm fronds, finer ground". It also shipped a

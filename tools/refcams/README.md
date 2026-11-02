@@ -149,3 +149,9 @@ Wave 6's cameras are in `cameras_w6.json` (run with `REFCAMS_JSON=tools/refcams/
 `golf_morning` - the golf course at 08:30 from behind the 9th tee toward the clubhouse and the front
 range. Its optional `golf_group` key ("hole:stage[:tee[:count]]") stages a group of golfers there
 (GolfLife.force_group via the GOLF_GROUP environment variable, set before the city loads).
+
+## Wave 7's cameras (`cameras_w7.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w7.json` (the file is new in wave 7, the cameras_w6.json
+format). `canals_day`: Marisol Canals at 11:00 clear, on Heron Canal's southern footbridge looking
+north down the canal (no staging).
