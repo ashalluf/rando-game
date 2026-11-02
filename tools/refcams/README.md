@@ -79,6 +79,11 @@ north to south), `kind` a Vehicle.BodyType name or "", and every other traffic c
 metres of the eye hidden for the shot (the load's own traffic put a box truck on the lens). The log
 prints each staged car's distance at the shot.
 
+## Wave 6's cameras (`cameras_w6.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w6.json`. `rooftop_golden`: the black twins' north
+helipad (deck 215.55 m), 17:45 clear, looking SSW over the skyline to the basin and the sea.
+
 ## Running
 
 ```

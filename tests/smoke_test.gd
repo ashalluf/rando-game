@@ -2888,6 +2888,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The refinery at night refcam (tests/rc3_refinery_night_checks.gd, RefineryNight): the camera
 	# row, the flares' light on the plant, the A/B.
 	load("res://tests/rc3_refinery_night_checks.gd").new().run(self, city)
+	# The rooftop refcam (tests/rc3_rooftop_golden_checks.gd, RcRooftop, LandmarkRoofs): dressed tower roofs, the island.
+	load("res://tests/rc3_rooftop_golden_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

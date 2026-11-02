@@ -9,6 +9,7 @@
 		{"name": "vernon_industrial", "label": "Vernon industrial street 14:00 clear, eye level on the corner: truck courts behind chain-link, tilt-ups", "eye": [2600.0, 1.7, 2972.0, 125.0, 0.0], "agl": true, "hour": 14.0, "weather": "clear", "fov": 55},
 		{"name": "freeway_night", "label": "The 110 northbound at 22:00, driver's eye toward the skyline", "eye": [1795.8, 10.7, 1092.3, -14.0, 0.5], "agl": false, "hour": 22.0, "weather": "clear", "fov": 55, "freeway_cars": {"route": 3, "clear": 45, "cars": [[48, 2, -1, 26, ""], [85, 1, -1, 27, ""], [120, 3, -1, 22, "SEMI"], [165, 2, -1, 26, ""], [215, 0, -1, 30, ""], [280, 1, -1, 27, ""], [360, 3, -1, 24, "BOX_TRUCK"], [430, 2, -1, 26, ""], [70, 1, 1, 27, ""], [150, 2, 1, 26, ""], [240, 0, 1, 29, ""], [330, 3, 1, 23, "BOX_TRUCK"]]}},
 		{"name": "chinatown_dusk", "label": "Chinatown plaza, the hall and the plaza gate, 19:15 clear, eye level", "eye": [2958.0, 1.7, -2096.0, 72.0, 7.0], "agl": true, "hour": 19.25, "weather": "clear", "fov": 60},
-		{"name": "refinery_night", "label": "The refinery at 22:30 from the south street (Bay Works: flares, tanks, process units, steam)", "eye": [3180.0, 1.7, 5838.0, 40.0, 7.0], "agl": true, "hour": 22.5, "weather": "clear", "fov": 55}
+		{"name": "refinery_night", "label": "The refinery at 22:30 from the south street (Bay Works: flares, tanks, process units, steam)", "eye": [3180.0, 1.7, 5838.0, 40.0, 7.0], "agl": true, "hour": 22.5, "weather": "clear", "fov": 55},
+		{"name": "rooftop_golden", "label": "Downtown skyline from the black twins' helipad 17:45 clear", "eye": [2288.5, 218.3, 43.0, 165.0, -11.0], "agl": false, "hour": 17.75, "weather": "clear", "fov": 55}
 	]
 }

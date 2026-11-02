@@ -5463,6 +5463,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   penthouse|mast|bmu`, `NIGHT=1`, `GOLDEN=1`, seconds), find them in the city with
   `tools/rooftops/find.gd -- --at=x,z --radius=m` (an EYE per pad and pool), count with
   `tools/rooftop_probe.gd`. Checks: `tests/rooftops_checks.gd`.
+- Tower roofs from a roof (wave 6, refcam `rooftop_golden` in tools/refcams/cameras_w6.json,
+  docs/HANDOFF.md "The skyline from a tower's roof"): `LandmarkRoofs` (`scripts/world/landmark_roofs.gd`,
+  one hook in LandmarkDowntown.build()) clads each downtown tower's concrete roof box (TowerMesh.boxes)
+  as a louvred penthouse and lays plant on that roof tier, off the helipad; rooftop.gdshader
+  `pad_closeup` draws the deck as planks; `RcRooftop.windsock()`; offshore_island `island_soft`.
+  Bunker Hill lifts towers (`LaHills.landmark_lift()`): an eye at the table's height is inside the
+  tower and its occluder. `RC_ROOFTOP=0` / `LANDMARK_ROOFS=0` the A/B; checks
+  `tests/rc3_rooftop_golden_checks.gd`.
 - Walk of fame (2026-10-05, docs/HANDOFF.md "The walk of fame"): `StarBoulevard`
   (`scripts/world/star_boulevard.gd`) - a hash-chosen midtown east-west boulevard (`plan_for()`,
   pure, cached; seed 1337: Canyon Blvd) whose pavements get a band of terrazzo stars 2.6-4.0 m in

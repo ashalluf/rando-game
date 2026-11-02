@@ -582,6 +582,7 @@ static func material() -> ShaderMaterial:
 	if _material == null:
 		_material = ShaderMaterial.new()
 		_material.shader = load("res://shaders/rooftop.gdshader")
+		_material.set_shader_parameter("pad_closeup", RcRooftop.pad_closeup())
 	return _material
 
 
@@ -737,7 +738,10 @@ static func _helipad(b: Building, g: RooftopGeo, f: Dictionary, origin: Vector3,
 	# Drooping a little: the tail end lower.
 	sock_basis = sock_basis.rotated(Vector3.UP.cross(wind).normalized(), 0.25)
 	g.xf = saved * Transform3D(sock_basis, hoop)
-	g.cyl(Vector3.ZERO, 0.38, 0.14, 2.4, 10, Color.WHITE, 15, false, false)
+	if RcRooftop.enabled:
+		RcRooftop.windsock(g)
+	else:
+		g.cyl(Vector3.ZERO, 0.38, 0.14, 2.4, 10, Color.WHITE, 15, false, false)
 	g.xf = saved
 	g.beam(mast_at + Vector3(0, 3.05, 0), hoop + wind * 0.05, 0.03, 0.03, STEEL, 1)
 	g.box(mast_at + Vector3(0, 3.25, 0), Vector3(0.18, 0.18, 0.18), Color(1.0, 0.15, 0.08), 17)

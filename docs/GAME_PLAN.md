@@ -4375,3 +4375,9 @@ none of either.
   bright red-heavy emission reads pale pink, so the silk stays under ~0.85 in red with green under
   half of it); shop glass in Chinatown traces a lit room behind it, never a painted pane; the hall
   is lit from inside through its screens rather than washed from the street. RC3_CHINATOWN=0 is the A/B.
+- **2026-11-02 The skyline from a tower's roof (rc3-rooftop-golden, HANDOFF "The skyline from a
+  tower's roof").** A new reference camera (`rooftop_golden`, wave 6's table) stands on the black
+  twins' helipad at 17:45. Decisions: a landmark tower's roof is never a blank cap with a concrete
+  block - its mechanical box is a louvred penthouse and its flat roof carries plant, worked out from
+  the tower's own tiers and boxes (no new table); the helipad deck is drawn as extruded planks up
+  close; the island against a low sun is haze, not land colour. RC_ROOFTOP=0 is the A/B.
