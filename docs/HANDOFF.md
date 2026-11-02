@@ -25199,3 +25199,8 @@ OOM-killed a one-block scene twice on this 15 GB box; the sky alone fits).
 Checks: `tests/rc2_marine_checks.gd` (12: the hour curve, damp and mist and their reaches, the
 switch, `settle_wet` damp at 08:00 / dry at 14:00, under a clear sky and above the deck, road_mist,
 the two shader gates, the camera row). Stills on `shots/rc2-marine`.
+
+Ten original refcams, main bb03d731 vs this branch (`compare`): 7 ok, 3 flagged by traffic alone
+(street_noon and street_night: a bus pulled in beside the lens; freeway: a box truck in lane) -
+nothing here runs outside the marine layer. Frame cost at marine_morning: 2.66 M triangles / 2,204
+draws before, 2.58 M / 2,182 after (traffic noise; no new geometry, the deck is still three draws).
