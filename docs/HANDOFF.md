@@ -25219,9 +25219,12 @@ The piers and the gravel are shader work on wall and roof pixels: no triangles, 
 flakes (9kd): traffic_ai "never drives into another car" / "a car climbs an on-ramp and merges"
 (both listed open in 9kd; "a car swerves round the player" is the same family), ragdoll_feel "then
 they go down" (a freed body in `_check_trailing`), night_atmos "every prop keeps its id" (passed
-alone). The `city_crowd` part alone: 2 of 2 green with FACADES_MID3=0, 3 of 3 with one different
-traffic_ai failure with it on - a short sample; the pass touches no traffic, physics query or
-shared rng (the parapets' collision boxes stand on the roofs), so it is recorded, not explained.
+alone). The final gate (after the merge with main `bb03d731`): 5,068 checks, 2 failed - traffic_ai
+"a fast freeway car moves over and passes a slow one" and street_clutter_2 "the same block built
+twice gets the same pieces" (passed alone). The `city_crowd` part (traffic_ai) alone: with the pass
+on 2 of 4 runs green (the other two one different traffic_ai check each), off 2 of 2 green; the
+pass touches no traffic, physics query or shared rng (its only headless effect is the parapets'
+roof plant and collision boxes on the roofs), so these are taken for the open traffic_ai flakes.
 
 **Not done / not verified.** Ribbon and curtain walls are untouched (the facade_variety pass has
 their depth). The parapet panels are the parapet's colour, not the wall texture, and carry no
