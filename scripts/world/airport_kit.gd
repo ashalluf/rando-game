@@ -44,6 +44,7 @@ static func material() -> ShaderMaterial:
 		_material = ShaderMaterial.new()
 		_material.shader = load("res://shaders/airport_kit.gdshader")
 		_material.set_shader_parameter("grime", 1.0 if AirportApron.enabled else 0.0)
+		AirportNight.dress(_material, AirportNight.KIT_GAIN)
 	return _material
 
 

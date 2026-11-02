@@ -12,6 +12,7 @@ var _t: Node
 func run(t: Node, city: Node3D) -> void:
 	_t = t
 	await _stale_build(city)
+	_exit_hold(city)
 
 
 func _stale_build(city: Node3D) -> void:
@@ -47,3 +48,51 @@ func _stale_build(city: Node3D) -> void:
 	city.call("update_streaming", true)
 	_t._check(not pending.has(k) and chunks.get(k) == home,
 		"gate flakes 2: update_streaming(true) drops it too and keeps the chunk")
+
+
+## A freeway car in the outer lane with its exit 500 m on, behind a slower car: it stays in the
+## lane (EXIT_HOLD); with the hold off it pulls out to pass, which is how it missed its off-ramp.
+func _exit_hold(city: Node3D) -> void:
+	var traffic: Node = city.get_node_or_null("Traffic")
+	var plan: CityPlan = city.get("plan")
+	var fw: Freeway = plan.macro.freeway if plan and plan.macro else null
+	if traffic == null or fw == null:
+		_t._check(true, "gate flakes 2: no freeway to hold an exit on (skipped)")
+		return
+	var ri := -1
+	var off := {}
+	for r_i in fw.routes.size():
+		for r: Dictionary in TrafficAI.ramps_of(traffic, fw, r_i):
+			if not bool(r.on) and off.is_empty() and float(r.t) > 700.0:
+				off = r
+				ri = r_i
+	if off.is_empty():
+		_t._check(true, "gate flakes 2: no off-ramp to hold an exit for (skipped)")
+		return
+	var outer := Freeway.LANES - 1
+	var width := float(fw.routes[ri].width)
+	var me: Vehicle = traffic.call("place_freeway_car", ri, float(off.t) - 500.0, 1, -1, 25.0)
+	var slow: Vehicle = traffic.call("place_freeway_car", ri, float(off.t) - 470.0, 1, -1, 8.0)
+	for c: Vehicle in [me, slow]:
+		c.traffic.li = outer
+		c.traffic.lane = Freeway.lane_fraction(width, outer)
+	slow.traffic.v = 8.0
+	me.traffic.v = 25.0
+	me.traffic.exit = true
+	me.traffic.ai = true
+	var held := []
+	for hold: bool in [true, false]:
+		TrafficAI.EXIT_HOLD = hold
+		for k in ["lc_from", "lc_to", "lc_p", "lc_dur", "lc_src", "sig", "lc_next"]:
+			me.traffic.erase(k)
+		me.traffic.li = outer
+		me.traffic.lane = Freeway.lane_fraction(width, outer)
+		# No groups: every other lane is empty, so a pass is always open.
+		TrafficAI.freeway_think(traffic, fw, me, slow, {}, 10.0)
+		held.append(not me.traffic.has("lc_from"))
+	TrafficAI.EXIT_HOLD = true
+	for c: Vehicle in [me, slow]:
+		(traffic.get("freeway_cars") as Array).erase(c)
+		traffic.call("_retire", c)
+	_t._check(held[0] and not held[1],
+		"gate flakes 2: within a kilometre of its exit a car behind a slower one keeps its lane (held %s; with EXIT_HOLD=0 %s)" % [held[0], held[1]])

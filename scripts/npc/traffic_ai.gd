@@ -759,6 +759,10 @@ static func ramp_point(ramp: Dictionary, u: float) -> Array:
 ## A freeway car's thinking every FW_THINK_SECONDS: pass a slower car ahead (left first, then
 ## right), keep right once past, get over for its exit; trucks keep to the two slow lanes. Starts
 ## a move (`lc_*` in lane fractions) into a lane only with room ahead and behind.
+## A car within a kilometre of its exit keeps out of passing (EXIT_HOLD=0 in the environment: the old way).
+static var EXIT_HOLD: bool = OS.get_environment("EXIT_HOLD") != "0"
+
+
 static func freeway_think(tm: TrafficManager, fw: Freeway, car: Vehicle, leader: Vehicle, groups: Dictionary, delta: float) -> void:
 	var t: Dictionary = car.traffic
 	if t.has("lc_from") or t.has("ramp"):
@@ -777,14 +781,21 @@ static func freeway_think(tm: TrafficManager, fw: Freeway, car: Vehicle, leader:
 	var want := -1
 	var reason := ""
 	# The exit: over to the outer lane within a kilometre of its off-ramp.
+	var exit_near := false
 	if t.has("exit"):
 		var ramp: Dictionary = t.get("exit_ramp", {})
 		if ramp.is_empty():
 			ramp = next_ramp(tm, fw, int(t.fw), float(t.t), dir, false)
-		if not ramp.is_empty() and (float(ramp.t) - float(t.t)) * float(dir) < 1000.0 and li < Freeway.LANES - 1:
+		exit_near = not ramp.is_empty() and (float(ramp.t) - float(t.t)) * float(dir) < 1000.0
+		if exit_near and li < Freeway.LANES - 1:
 			want = li + 1
 			reason = "exit"
-	if want < 0 and leader != null and is_instance_valid(leader):
+	# Within a kilometre of its exit a car does not pull out to pass: in the outer lane behind a
+	# slower car it used to move left, and then missed its off-ramp (the gate's "a car with an exit
+	# leaves the freeway", batch 45: left false, still a freeway car). EXIT_HOLD=0 is the old way.
+	if exit_near and EXIT_HOLD:
+		pass
+	elif want < 0 and leader != null and is_instance_valid(leader):
 		var lt: Dictionary = leader.traffic
 		var gap := absf(float(lt.t) - float(t.t))
 		var lv := float(lt.get("v", lt.speed))
