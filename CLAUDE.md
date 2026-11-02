@@ -2032,7 +2032,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the `night_aerial` global) - far traffic's lane mean drawn as its cars where a pixel can tell them
   apart, the far bloom eased in with distance (`ft_mean_shape()`, far_traffic.gdshaderinc); the
   freeway's `display_add` pools without a hard rim and dimmed from the air; a third of tower_wash()'s
-  masonry floods kept (salt 113); far searchlights from the air with a soft knee and a distance fade.
+  masonry floods kept (salt 113); far searchlights (searchlight_beam: the helicopters'; nightlife_beam from the air) with a soft knee
+  and a distance fade.
   `NIGHT_AERIAL=0` the A/B; `tools/rc2_night_aerial/hide_probe.gd` pins a glow on its node; checks
   `tests/rc2_night_aerial_checks.gd`.
 - The night street review (2026-10-30, docs/HANDOFF.md "The night street at eye level"):

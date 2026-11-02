@@ -71,6 +71,10 @@ func _beams() -> void:
 	_t._check(sh.contains("if (night_aerial > 0.5 && night_flight > 0.5)") and sh.contains("1.0 - exp(-a * 1.3), above_a)")
 			and sh.contains("above_a * smoothstep(beam_far_from, beam_far_to, length(VERTEX))"),
 		"the searchlight shaft fades far off from the air, behind the switch")
+	var heli := FileAccess.get_file_as_string("res://shaders/searchlight_beam.gdshader")
+	_t._check(heli.contains("if (night_aerial > 0.5)") and heli.contains("smoothstep(far_from, far_to, length(VERTEX))")
+			and heli.contains("1.0 - exp(-a * 1.3), far_k)") and heli.contains("uniform float far_gain = 0.2;"),
+		"a helicopter's searchlight shaft far off saturates softly and fades, behind the switch")
 
 
 ## The camera this review is judged on is in wave 5's table.

@@ -14,8 +14,9 @@ extends RefCounted
 ##   eases in with distance (FT_NEAR_BLOOM .. FT_BLOOM_FULL).
 ## - THE FREEWAY'S POOLS (light_pool.gdshader, display_add pools): a hard rim and a white disc per
 ##   light standard down the deck; the rim is eased in and they dim for a camera in the air.
-## - FAR SEARCHLIGHTS (nightlife_beam.gdshader): from the air a beam a kilometre off still drew as a
-##   solid white bar; it fades with distance to `beam_far_gain`.
+## - FAR SEARCHLIGHTS (searchlight_beam.gdshader, the helicopters'; nightlife_beam.gdshader from the
+##   air): a shaft a kilometre or two off drew as a solid white wedge (its alpha runs far over 1 and
+##   was hard-clamped); far off it now saturates softly and fades to `far_gain` / `beam_far_gain`.
 ## `NIGHT_AERIAL=0` in the environment turns it off (the A/B): the global goes to 0 and every
 ## shader is as it was. tests/rc2_night_aerial_checks.gd holds the copies below equal.
 

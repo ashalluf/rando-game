@@ -16,6 +16,18 @@ uniform float length_fade : hint_range(0.05, 1.0) = 0.85;
 // its axis, motes drifting through it, thicker in rain (the drops catch the light). 0 the old one.
 uniform float look = 0.0;
 global uniform float rain_intensity;
+// The night aerial review (NightAerial; NIGHT_AERIAL=0 sets the global 0): a helicopter's shaft a
+// kilometre or two off - a police patrol seen from the air or across the basin - drew as a solid
+// white wedge (the lit-haze look's gain runs the core well over 1, hard-clamped). Far off, between
+// `far_from` and `far_to` metres, it saturates softly and falls to `far_gain`: a faint line, with
+// its pool on the ground still the bright end. Up close it is as it was.
+#ifndef NIGHT_AERIAL_DECLARED
+#define NIGHT_AERIAL_DECLARED
+global uniform float night_aerial;
+#endif
+uniform float far_gain = 0.2;
+uniform float far_from = 200.0;
+uniform float far_to = 1000.0;
 
 float sl_hash(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -47,5 +59,10 @@ void fragment() {
 		fade = mix(fade, pow(1.0 - along, 0.7) * smoothstep(0.0, 0.03, along), 0.5);
 	}
 	ALBEDO = tint;
-	ALPHA = clamp(fade * face * strength * gain * lamp_factor, 0.0, 1.0);
+	float a = fade * face * strength * gain * lamp_factor;
+	if (night_aerial > 0.5) {
+		float far_k = smoothstep(far_from, far_to, length(VERTEX));
+		a = mix(clamp(a, 0.0, 1.0), 1.0 - exp(-a * 1.3), far_k) * mix(1.0, far_gain, far_k);
+	}
+	ALPHA = clamp(a, 0.0, 1.0);
 }

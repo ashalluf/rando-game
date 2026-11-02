@@ -25177,9 +25177,12 @@ eye landed on first, in order:
 2. **Orange-red ember boxes all over the basin.** `tower_wash()` (window_lights.gdshaderinc) uplit
    60 % of masonry buildings over 22 m warm from the foot; on brick and render that is a saturated
    orange box, and the far city is mostly masonry.
-3. **A club searchlight drawn as a solid white wedge** from 1.4 km. Its alpha (strength x haze) runs
-   well over 1 and was hard-clamped, so the night flight's air gain (applied before the clamp) did
-   nothing and the cone was one flat white.
+3. **A searchlight drawn as a solid white wedge** 1.5-2.5 km off. It is the police helicopter's
+   (AirTraffic's patrol, `Searchlight` node, searchlight_beam.gdshader; found with hide_probe after a
+   fix to the club beams changed nothing): PoliceNightLook's lit-haze gain runs the core well over 1
+   and it is hard-clamped, so the whole cone was one flat white at any distance. The club beams
+   (nightlife_beam) have the same clamp, which made the night flight's air gain (applied before it)
+   a no-op for a bright beam.
 Seen and left: the convention halls' white roof monitors (HallDress, read as stripes, not wrong);
 the unfinished tower's dark glass shell (true to the real one); the general moonlit blue-grey of the
 roofs (renderer-dependent: opengl3's flat light; not touched without a Forward+ proof); the front
@@ -25198,8 +25201,10 @@ installed by DayNight; `NIGHT_AERIAL=0` is the A/B, every shader exactly as it w
   (`smoothstep(0, 0.45, r)`) and the pool down to `pool_air_gain` 0.45 for a camera 45-220 m over it.
 - tower_wash(): a third of the masonry floods kept (salt 113, `FLOOD_KEEP`; a fifth of masonry in
   all), the warm ones cooler (1.0, 0.88, 0.72) at `FLOOD_GAIN` 1.1.
-- nightlife_beam.gdshader, for a camera in the air over the lamp: a soft knee (`1 - exp(-1.3 a)`)
-  instead of the hard clamp, then down to `beam_far_gain` 0.3 from 300 to 1400 m away.
+- searchlight_beam.gdshader (the helicopters'): from `far_from` 200 to `far_to` 1000 m away a soft
+  knee (`1 - exp(-1.3 a)`) instead of the hard clamp, and down to `far_gain` 0.2; nearer it is as it
+  was. nightlife_beam.gdshader, for a camera in the air over the lamp: the same knee, then down to
+  `beam_far_gain` 0.3 from 300 to 1400 m away (not seen in this camera: no club beam is in frame).
 
 **Numbers** (refcams, night_aerial): before p5/p50/p95 4/31/116, crushed 7.9 %, 3.00 M triangles,
 844 draws; after: see the final run in the session's report on `shots/rc2-night-aerial`. Triangles
