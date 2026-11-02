@@ -139,11 +139,13 @@ func _check_kerb(_city: Node3D, o: Vector3) -> void:
 		"the foot over the kerb goes down to the road, the other stays (lift %s)" % lift)
 	_check(f.applied_hips < -0.05 and f.applied_hips >= minf(lift.x, lift.y) - 0.005,
 		"the hips come down with the lower foot, never past it (hips %.3f)" % f.applied_hips)
-	# Each ankle stands over its own ground as high as the flat reference's planted ankles do.
-	var ref := minf(_ankle(flat, "LeftFoot").y - o.y, _ankle(flat, "RightFoot").y - o.y)
+	# Each ankle stands over its own ground as high as the same ankle of the flat reference does
+	# (per foot: the idle lifts one heel, so the lower flat ankle was only right for one of them -
+	# rc3-person-closeup's narrower idle put that heel lift at 4.2 cm and the old check over 4).
 	var worst := 0.0
 	for b in ["LeftFoot", "RightFoot"]:
 		var at := _ankle(kerb, b)
+		var ref := _ankle(flat, b).y - o.y
 		worst = maxf(worst, absf((at.y - _ground(at)) - ref))
 	_check(worst < 0.04, "both feet at the kerb stand on their own ground (worst %.3f m off the flat stance)" % worst)
 	# Nothing accumulates: the kerb person's hips stay where the same person's on the flat road

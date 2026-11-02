@@ -2966,6 +2966,21 @@ uniform float shade_lift = 0.20;
 // How dirty the wheel is (CarDetail, one of three shared copies per kit): brake dust on the rim
 // face, more in the barrel and on the caliper, road dust on the tyre; 0 skips it all.
 uniform float dust = 0.0;
+// The tyre where it meets the road (CarCloseup, rc3-car-closeup; 0 = the old round tyre): a car
+// wheel's vertices carry 1 + its tyre's radius in UV.y. The lower half of the tread and shoulder
+// is grown `squash` metres and cut flat at the radius under the hub - a contact patch on the road,
+// in WORLD down, so it stays at the bottom while the wheel turns - and the sidewall bows out over
+// it. The hub keeps its height: the physics and the ride height are untouched.
+uniform float squash = 0.0;
+// 1: the sidewall's satin rubber (CarCloseup): rubber read as a dead-black hole at 0.95 roughness.
+uniform float rubber_look = 0.0;
+// Compatibility only (CarCloseup; the shipped web build and every opengl3 still): that renderer
+// has no radiance map for a metal to reflect, so the alloy was re-expressed as plain paint and
+// read as grey plastic at two metres. This much of the metal's light comes back as a mirror of the
+// sky over a dark street, split at the horizon of the reflected ray (sky_tint is raw on both
+// renderers, and Compatibility lights raw numbers). Forward+ never sets it.
+uniform float fake_env = 0.0;
+global uniform vec4 sky_tint;
 
 varying vec3 wl;
 varying vec3 wn;
@@ -2973,6 +2988,22 @@ varying vec3 wn;
 void vertex() {
 	wl = VERTEX;
 	wn = NORMAL;
+	if (squash > 0.0 && UV.y > 1.0 && UV.x < 0.25) {
+		float rr = UV.y - 1.0;
+		vec3 down = transpose(mat3(MODEL_MATRIX)) * vec3(0.0, -1.0, 0.0);
+		float dl = length(down.yz);
+		if (dl > 0.5) {
+			vec2 dn = down.yz / dl;
+			float d = max(length(VERTEX.yz), 1e-4);
+			float low = smoothstep(0.30, 0.95, dot(VERTEX.yz, dn) / d);
+			vec2 yz = VERTEX.yz + VERTEX.yz / d * squash * low * smoothstep(rr * 0.70, rr * 0.97, d);
+			float over = max(dot(yz, dn) - rr, 0.0);
+			yz -= dn * over;
+			VERTEX.yz = yz;
+			float bulge = squash * 0.8 * low * low * smoothstep(rr * 0.62, rr * 0.88, d);
+			VERTEX.x += sign(VERTEX.x) * bulge * clamp(abs(VERTEX.x) / (rr * 0.25), 0.0, 1.0);
+		}
+	}
 }
 
 float wh13(vec3 p) {
@@ -2994,7 +3025,16 @@ void fragment() {
 	vec3 shade = mix(vec3(1.0), COLOR.rgb, 1.0 - shade_lift);
 	vec3 alb = c_dark;
 	vec2 mr = m_dark;
-	if (slot == 0) { alb = c_rubber; mr = m_rubber; }
+	if (slot == 0) {
+		alb = c_rubber;
+		mr = m_rubber;
+		if (rubber_look > 0.0) {
+			// The sidewall is satin (moulded, a little dressed); the tread stays matte.
+			float sw = smoothstep(0.55, 0.85, abs(normalize(wn).x));
+			alb *= mix(1.0, 1.3, sw * rubber_look);
+			mr.y = mix(mr.y, mix(0.90, 0.66, sw), rubber_look);
+		}
+	}
 	else if (slot == 1) { alb = c_letter; mr = m_letter; }
 	else if (slot == 2) { alb = c_face; mr = m_face; }
 	else if (slot == 3) { alb = c_barrel; mr = m_barrel; }
@@ -3030,6 +3070,18 @@ void fragment() {
 	ALBEDO = alb * shade;
 	METALLIC = mr.x;
 	ROUGHNESS = mr.y;
+	if (fake_env > 0.0 && (slot == 2 || slot == 3 || slot == 6)) {
+		// mr.x is the metal's own metallic x 0.22 on this renderer (wheel_material()).
+		float k = fake_env * clamp(mr.x / 0.22, 0.0, 1.0);
+		vec3 rw = (INV_VIEW_MATRIX * vec4(reflect(-VIEW, NORMAL), 0.0)).xyz;
+		float up = smoothstep(-0.04, 0.22, rw.y);
+		// Below the horizon: the sunlit street and the cars across it, about a third of the sky.
+		vec3 env = mix(sky_tint.rgb * 0.32, sky_tint.rgb, up);
+		// The far facades' bright band just over the horizon.
+		env += vec3(0.25) * (1.0 - smoothstep(0.0, 0.18, abs(rw.y - 0.08)));
+		ALBEDO = alb * shade * (1.0 - 0.3 * k);
+		EMISSION = env * alb * shade * 0.5 * k;
+	}
 }
 """
 ## The uniform suffixes, in WheelSlot order.
@@ -3101,14 +3153,25 @@ static func wheel_material(kit: int, force_metal: bool = false, dust: int = 0) -
 	# CarDetail's dust levels: light, dirty, filthy.
 	if dust > 0:
 		mat.set_shader_parameter("dust", [0.0, 0.35, 0.65, 0.95][clampi(dust, 0, 3)])
+	if CarCloseup.enabled:
+		mat.set_shader_parameter("squash", CarCloseup.TYRE_SQUASH)
+		mat.set_shader_parameter("rubber_look", 1.0)
+		if not has_reflections() and not force_metal:
+			mat.set_shader_parameter("fake_env", 1.0)
 	_cache[key] = mat
 	return mat
+
+
+## UV.y of the wheel vertices being written: 0.5 (nothing), or 1 + the tyre's outer radius in
+## metres while car_wheel() builds a car wheel - what the wheel shader's contact patch reads
+## (CarCloseup, `squash`). Other wheels built from these helpers (the trucks') stay untagged.
+static var _wheel_tag := 0.5
 
 
 ## One vertex of a wheel: position, normal, shading colour and material slot.
 static func _wv(st: SurfaceTool, p: Vector3, n: Vector3, shade: float, slot: int) -> void:
 	st.set_color(Color(shade, shade, shade))
-	st.set_uv(Vector2((float(slot) + 0.5) / float(WHEEL_SLOTS), 0.5))
+	st.set_uv(Vector2((float(slot) + 0.5) / float(WHEEL_SLOTS), _wheel_tag))
 	st.set_normal(n)
 	st.add_vertex(p)
 
@@ -3248,6 +3311,7 @@ static func car_wheel(style: int, radius: float, width: float, near: bool, seg_o
 	var seg := seg_override if seg_override > 0 else (96 if near else 20)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	_wheel_tag = 1.0 + radius
 	_wheel_tyre(st, radius, rim_r, hw, seg, near, letters)
 	if letters:
 		# Raised moulded lettering on the sidewall (CarDetail; the band under it is plain rubber).
@@ -3255,6 +3319,7 @@ static func car_wheel(style: int, radius: float, width: float, near: bool, seg_o
 	_wheel_barrel(st, rim_r, hw, seg, near)
 	_wheel_brake(st, rim_r, hw, near)
 	_wheel_face(st, face, rim_r, hw, near)
+	_wheel_tag = 0.5
 	# Indexed, not a raw triangle soup. A near wheel is eleven thousand triangles and the city
 	# ends up holding one per style and size; welding the shared vertices roughly halves what
 	# that costs in memory and gives the GPU a post-transform cache to work with.

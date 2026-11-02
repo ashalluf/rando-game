@@ -258,6 +258,7 @@ static func build(parent: Node3D, statics: StaticBody3D, detailed: bool) -> void
 	glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	(material("glow") as ShaderMaterial).set_shader_parameter("radii", radii)
 	holder.add_child(glow)
+	StadiumNight.dress(holder, detailed)
 	if not detailed:
 		return
 	if statics:
@@ -663,6 +664,7 @@ static func _bank(st: Acc, glare: Acc, foot: Vector3, top: float, aim: Vector3, 
 			st.quad(corner.call(x - h2, y - h2, 0.12), corner.call(x + h2, y - h2, 0.12), corner.call(x + h2, y + h2, 0.12), corner.call(x - h2, y + h2, 0.12), face,
 				Vector2.ZERO, Vector2.ONE, Vector2.ONE, Vector2.ZERO, _kc(Color.WHITE, K_LENS))
 			_glare(glare, corner.call(x, y, 0.4), face, 2.6 if near else 3.4)
+	StadiumNight.note_bank(near, ctr + face * 0.6, face, aim, bw, bh)
 
 
 ## One glare sprite for aircraft_lights.gdshader: four corners at the centre, UV the corner, UV2

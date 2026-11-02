@@ -47,6 +47,8 @@ var occluders: Array[AABB] = []
 var lights: Array = []
 ## Every prism tier as [outline, y0, y1, parapet, solid] (TowerGondolas finds the faces it hangs on).
 var tiers: Array = []
+## Every box() as [centre, size, colour] (LandmarkRoofs clads the roof's mechanical boxes).
+var boxes: Array = []
 ## The plan's extent in local XZ, grown by every prism (the footprint the landmark stands on).
 var extent := Rect2()
 var _extent_set := false
@@ -287,6 +289,7 @@ func slab(surface: String, outline: PackedVector2Array, y0: float, y1: float, co
 ## a box laid along direction d takes turn = atan2(d.z, d.x)).
 func box(surface: String, centre: Vector3, size: Vector3, color: Color, turn: float = 0.0, lit: float = 0.0, collide: bool = false) -> void:
 	var o := moved(rect(size.x, size.z), Vector2(centre.x, centre.z), Vector2.ONE, turn)
+	boxes.append([centre, size, color, turn])
 	loft(surface, o, centre.y - size.y * 0.5, o, centre.y + size.y * 0.5, color, lit, true, collide)
 
 

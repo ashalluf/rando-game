@@ -78,6 +78,13 @@ jobs:
           mkdir -p build/web
           "$RUNNER_TEMP/godot" --headless --path . --export-release "Web" build/web/index.html
           ls -la build/web
+          # The web's size budget (docs/HANDOFF.md, the web build sections): the pck under 650 MB
+          # warns, the whole site under GitHub Pages' 1 GB cap fails (Pages would refuse it).
+          PCK_MB=$(( $(stat -c %s build/web/index.pck) / 1000000 ))
+          SITE_MB=$(( $(du -sb build/web | cut -f1) / 1000000 ))
+          echo "web pck ${PCK_MB} MB, site ${SITE_MB} MB"
+          if [ "$PCK_MB" -gt 650 ]; then echo "::warning::web index.pck is ${PCK_MB} MB, over the 650 MB budget"; fi
+          if [ "$SITE_MB" -gt 1000 ]; then echo "::error::web build is ${SITE_MB} MB, over GitHub Pages' 1 GB"; exit 1; fi
 
       - name: Upload Mac build artifact
         uses: actions/upload-artifact@v4

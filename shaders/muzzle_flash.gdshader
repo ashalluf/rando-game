@@ -25,6 +25,7 @@ render_mode unshaded, blend_add, depth_draw_never, cull_disabled, shadows_disabl
 // quad - CLAUDE.md, fwd-review-d).
 
 #include "res://shaders/color_space.gdshaderinc"
+#include "res://shaders/additive_fog.gdshaderinc"
 
 // 0 at the instant the round leaves, 1 when the flash is gone.
 uniform float age = 0.0;
@@ -120,5 +121,8 @@ void fragment() {
 	hot *= 1.0 - smoothstep(0.0, 0.6, life);
 	vec3 col = mix(edge_color * 0.55, core_color * 1.15, hot) * (0.35 + 0.65 * hot);
 	float glow = shape * vis * fade;
-	ALBEDO = cs_out(col * heat * glow);
+	// Coverage in the alpha, or the fog colour is added over the whole quad (additive_fog).
+	vec4 af = af_cover(cs_out(col * heat * glow));
+	ALBEDO = af.rgb;
+	ALPHA = af.a;
 }

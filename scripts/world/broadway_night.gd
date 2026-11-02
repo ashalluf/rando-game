@@ -91,9 +91,9 @@ static func side_dress(g: LandmarkGeo, spec: Dictionary, aw: float, ha: float, f
 		var basis := Basis(Vector3(0.0, 0.0, -sx), Vector3.UP, Vector3(sx, 0.0, 0.0))
 		var sign_z := z0 - minf(depth * 0.45, 14.0)
 		var cap := clampf(ha * 0.11, 1.8, 3.0)
-		BroadwayTheatre.text(g, name, Transform3D(basis, Vector3(x + sx * 0.03, ha * 0.62, sign_z)), cap, minf(depth * 0.8, 24.0),
+		BroadwayTheatre.text(g, name, Transform3D(basis, Vector3(x + sx * 0.07, ha * 0.62, sign_z)), cap, minf(depth * 0.8, 24.0),
 			BroadwayTheatre.kc(paint, BroadwayTheatre.K_ENAMEL), n)
-		BroadwayTheatre.text(g, "PICTURES", Transform3D(basis, Vector3(x + sx * 0.03, ha * 0.62 - cap * 1.25, sign_z)), cap * 0.55, minf(depth * 0.6, 16.0),
+		BroadwayTheatre.text(g, "PICTURES", Transform3D(basis, Vector3(x + sx * 0.07, ha * 0.62 - cap * 1.25, sign_z)), cap * 0.55, minf(depth * 0.6, 16.0),
 			BroadwayTheatre.kc(paint.darkened(0.12), BroadwayTheatre.K_ENAMEL), n)
 		# Exit doors at the foot, each under a caged lamp (a small warm glow).
 		for k in 2:

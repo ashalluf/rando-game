@@ -28,6 +28,9 @@ const PLAY_HOURS := Vector2(6.4, 19.2)
 @export var active_range: float = 900.0
 
 static var force_hour: float = -1.0
+## A group put on one hole whatever its roll, for stills and the golf_morning refcam:
+## GOLF_GROUP="hole:stage[:tee[:count]]" (stage 0 tee, 1 fairway, 2 green). "" = the rolls alone.
+static var force_group: String = OS.get_environment("GOLF_GROUP")
 static var enabled: bool = OS.get_environment("GOLF_LIFE") != "0"
 static var _cart_mesh: ArrayMesh
 
@@ -58,12 +61,18 @@ static func groups(l: Dictionary) -> Array:
 	var ps: int = l.seed
 	for h: Dictionary in l.holes:
 		var n: int = h.n
-		if GolfCourse.h01([ps, "golf_group", n]) >= GROUP_ODDS:
+		var forced := _forced(n)
+		if forced.is_empty() and GolfCourse.h01([ps, "golf_group", n]) >= GROUP_ODDS:
 			continue
 		var stage := int(GolfCourse.h01([ps, "golf_stage", n]) * 2.999)
 		if int(h.par) == 3 and stage == 1:
 			stage = 2
 		var count := 2 + int(GolfCourse.h01([ps, "golf_count", n]) * 2.999)
+		var tee_pick := int(GolfCourse.h01([ps, "golf_tee", n]) * 2.999)
+		if not forced.is_empty():
+			stage = forced[0]
+			tee_pick = forced[1] if forced[1] >= 0 else tee_pick
+			count = forced[2] if forced[2] > 0 else count
 		var pts: PackedVector2Array = h.pts
 		var members: Array = []
 		var at: Vector2
@@ -71,7 +80,7 @@ static func groups(l: Dictionary) -> Array:
 		var role: int
 		match stage:
 			0:
-				var t: Dictionary = (h.tees as Array)[int(GolfCourse.h01([ps, "golf_tee", n]) * 2.999)]
+				var t: Dictionary = (h.tees as Array)[clampi(tee_pick, 0, 2)]
 				at = t.c
 				dir = t.u
 				role = Golfer.Role.DRIVE if int(h.par) >= 4 else Golfer.Role.IRON
@@ -105,6 +114,16 @@ static func groups(l: Dictionary) -> Array:
 		var cp := _nearest_on(l.path, at)
 		out.append({"hole": n, "stage": stage, "members": members, "cart": cp})
 	return out
+
+
+## GOLF_GROUP's [stage, tee (-1 the roll's), count (0 the roll's)] for hole n, or [] for none.
+static func _forced(n: int) -> Array:
+	if force_group == "":
+		return []
+	var f := force_group.split(":")
+	if f.size() < 2 or int(f[0]) != n:
+		return []
+	return [clampi(int(f[1]), 0, 2), int(f[2]) if f.size() > 2 else -1, int(f[3]) if f.size() > 3 else 0]
 
 
 ## The range's tee line: a golfer in some bays, all hitting north up the range.
