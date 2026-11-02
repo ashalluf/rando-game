@@ -34,3 +34,10 @@ Batch 2 (Forward+, lavapipe - the Mac's renderer - and a car in daylight):
 - `18_night_rocket_glow_old_top_new_bottom_1_2.5_5.jpg` - the flash's glow rising with the cap and
   lingering after dark (bottom) against before (top); the room's night sky is pure black (no city
   light dome), so the mushroom's silhouette shows less than in the game.
+
+## Batch 6 (round 3)
+- `19_city_night_car_0.3_2_6.jpg` - a car's blast in the real city at 22:00 (fx_shot.gd, opengl3,
+  midtown): the flash lighting the street, the rolling mushroom lit orange from below, the dark
+  plume over the burning wreck.
+- `20_dither_old2_old4_new2_new4.jpg` - the screen door: left pair before, right pair with the march
+  backing up and refining in dense smoke (60 m, 2 s and 4 s).
