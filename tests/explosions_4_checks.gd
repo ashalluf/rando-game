@@ -48,6 +48,7 @@ func run(t: Node, city: Node3D) -> void:
 	_round6(parent)
 	_round7(parent)
 	_round8()
+	await _round9()
 	for c in parent.get_children():
 		if not before.has(c) and c != _deck and not (c is BlastBits):
 			c.queue_free()
@@ -329,3 +330,27 @@ func _round8() -> void:
 	Blast4.dress_volume(m, false, false)
 	var d: Vector3 = m.get_shader_parameter("dust")
 	_t._check(not Blast4.dark_dust or d.x < 0.15, "explosions_4: the volume's dust ring is darker (%.3f)" % d.x)
+
+
+## Round 9: the shock ring kicks loose bodies outside the radius when the wave reaches them.
+func _round9() -> void:
+	var body := RigidBody3D.new()
+	body.collision_layer = 4
+	body.collision_mask = 1
+	var cs := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = Vector3(0.6, 1.0, 0.6)
+	cs.shape = bs
+	body.add_child(cs)
+	_city.add_child(body)
+	var at := _top + Vector3(60.0, 1.0, -60.0)
+	body.global_position = at + Vector3(12.0, 0.5, 0.0)
+	await _ticks(3)
+	var n := Blast4.shock_kick(_city, at, 9.0)
+	await _ticks(8)
+	_t._check(not Blast4.shock_enabled or (n >= 1 and body.linear_velocity.x > 0.5),
+		"explosions_4: the shock ring kicks a loose body outside the radius outward (%d, %.2f m/s)" % [n, body.linear_velocity.x])
+	body.queue_free()
+	_t._check(Blast4.flash_night() <= 1.0 and Blast4.flash_night() >= Blast4.night_flash - 0.001
+		and Blast4.fire_night_gain() >= 1.0 and Blast4.fire_night_range() >= 1.0,
+		"explosions_4: night holds the flash down and lifts the fires (%.2f, %.2f)" % [Blast4.flash_night(), Blast4.fire_night_gain()])
