@@ -27216,7 +27216,17 @@ mirrors are still bevelled boxes (the body .glbs were not rebuilt, as in 9io).
   barrel and cap give back part of their light as a mirror of `sky_tint` over a sunlit street, split
   at the reflected ray's horizon with a bright band just above it. Forward+ never sets it.
 
-**Numbers**: see the last paragraph (filled in from the final runs).
+**Numbers** (refcams, opengl3, one load each, the ten cameras plus car_closeup; `CAR_CLOSEUP=0`
+-> on, `build/refcams/all_off` / `all_on`, `compare`): car_closeup p5/p50/p95 23/67/171 both,
+9.92 M -> 9.89 M triangles, 5,393 -> 5,412 draws (a BumperBands draw for each car within 18 m, the
+rest live traffic), mean pixel change 0.79 (the change is local to the car). The ten originals:
+sunset, golden_aerial, downtown_aerial, beach, hills, macarthur and pier_night within noise (|d| <=
+1.3); street_noon, street_night and freeway flagged by live traffic only (a bus pulling up beside
+the lens, another truck on the deck: the cars' look is the only change and none of those cars is
+within 18 m with a bumper in view). Peak memory of a refcams run 9.4-10.6 GB.
+Gate (SHARDS=3, 5,457 checks): one failure, pedestrian_flow_checks "somebody comes out of a shop
+door near the player" (the walker it waited on was a valet in its errand) - it passes alone
+(`SMOKE_PARTS=pedestrian_flow_checks`, 32/32): a shard-order flake, not this branch's area.
 
 Checks: `tests/rc3_car_closeup_checks.gd` (22: the piece picker on synthetic islands, the wheel
 material's uniforms and the shader's gates, the tag put back, the crossover's paint taking the new
