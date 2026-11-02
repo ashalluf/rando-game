@@ -25768,6 +25768,24 @@ the water on and one head per lamp, the heads on the walls, halos, the steam cap
 shader's switch, the A/B). `tests/alley_checks.gd` now compares the ground's shader, not the
 material object.
 
+**Forward+.** The city's chunks OOM lavapipe (13 GB, even one block), so the water is proved on
+`tools/alley_night/mirror_shot.tscn` (a 40 m alley on the real material, three lamps with real
+omnis, AgX; `WET=0` the dry slab; either renderer): both renderers show the same balance (lamp
+images, the wash, no blow-out; `shots/rc2-alley-night` 03).
+
+**Cost and A/B.** The refcam: 4.463 M -> 4.466 M triangles, 2,390 -> 2,559 draws (+7 %: the halos,
+the steam and the extra wear batches, and the per-chunk ground material breaks one batch), p50 37
+-> 34, p95 154 -> 162. The ten original cameras with ALLEY_NIGHT=0 against on: only traffic, rain
+and people noise moved (street_noon / street_night / freeway flags were cars, drops and the hidden
+cars' contact shadows); the `hills` camera hangs in this box's refcams run with and without the
+change (both runs stopped there), so it was not compared.
+
+**Gate** (SHARDS=3, merged with main): 5,202 of 5,203; the one failure, explosions_3's "burning
+debris lies flat" (2 of 5), passes alone (4 of 5). An earlier run's building_damage / parklets
+failures in shard 2 did not reproduce (that shard alone passed 1,893 of 1,893 with the change on and
+off).
+
 **Not done / not verified.** The mirror is a model of the canyon (two flat facades), not the real
 walls: windows and the skyline at the alley's end are not in it. The halos and pool numbers were
-judged on opengl3.
+judged on opengl3. The puddles are the same in every alley at every hour (they do not dry by day);
+the damp rings can read as shadow from far off.
