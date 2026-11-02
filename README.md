@@ -10,3 +10,4 @@ Palm crowns flickered and showed dark flecks / holes: every second leaflet was d
 - 11 golden hour, backlit crowns: before | after (frond specular 0.18)
 - 12 Forward+ (lavapipe, TAA): main's chalky trunks and milky crowns | after (vertex colours decoded)
 - 13 a crown from below, before | after; 14 mid distance in rain, before | after
+- 15 the street_noon refcam's centre palm, before | after (x2)
