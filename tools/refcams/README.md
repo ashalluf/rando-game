@@ -105,3 +105,9 @@ use `--strict` on both sides when a change should be pixel-small.
 
 Opengl3 is the Compatibility renderer (the web build), not the Mac's Forward+: the numbers track
 change, they do not say what the Mac draws (CLAUDE.md, measurement trap 4).
+
+## Wave 6's cameras (`cameras_w6.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w6.json`. `pier_day` - Gullwing Park on Rando Pier at
+15:00 clear, from the promenade in the crowd toward the wheel and the sea end (PierDay,
+docs/HANDOFF.md "The pier by day from the deck").

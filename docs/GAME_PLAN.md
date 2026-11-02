@@ -295,6 +295,11 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-11-02 The pier by day (rc3-pier-day, HANDOFF "The pier by day from the deck").** A deck
+  the camera stands on is worked out per board in its own shader (transverse boards, gaps,
+  weathering, wear) rather than a tiled plank photo, which smooths into a brown sheet at grazing
+  angles; a summer-afternoon pier is packed, so its crowd follows the hour (up to 110 more people)
+  and people stop at the rail. PIER_DAY=0 the A/B.
 - **2026-11-02 The chase camera's street (rc2-chase-cam, HANDOFF "The chase camera's street").** A
   driving view is a reference camera too: a camera row may stage the player's own car (`drive`) and
   shoot his DriveCam. The carriageway's wear is per lane in the road shader (wheel tracks, oil band,
@@ -4108,6 +4113,11 @@ none of either.
   Forward+ below MEDIUM) closes into a stratus ceiling from coverage 0.62 to 0.78, so rain and
   storms never fall from a blue sky there; a clear day is untouched. web_build_checks now also
   holds WebGL2's uniform-block (16 KB) and varying floors.
+- 2026-11-01 (web-build-5): the web build after wave 4 loads clean at all eight bookmarks (pck
+  609 MB of the 650 MB budget, wasm 821 MB). Decision: MacArthur Park's fountain particle plume is
+  not built on the web - in the browser it blew up into a park-wide glare (root not found; no
+  property of it fixed it); `?fountain_plume=1` is the A/B. CI warns past the pck budget and fails
+  past Pages' 1 GB. The hero reading blue in the rain on the web is open (not the radiance).
 - **2026-10-31 Perf audit 4: a mesh drawn whole everywhere is tiled, a model's surfaces merged
   (perf-audit-4, HANDOFF "Perf audit 4").** Judged at the ten refcams against wave 2's numbers,
   every cut proved with strict pairs against an A/A pair. Decisions: anything with a map-sized
@@ -4315,6 +4325,18 @@ none of either.
   comes in with distance; broad road-light pools have no hard rim and dim from the air; floodlit
   masonry is a fifth of the old brick and render, not most of it; a far searchlight seen from the air
   saturates softly and fades with distance. NIGHT_AERIAL=0 is the A/B.
+- 2026-11-02 (chase-box-bug): an additive (blend_add) shader must be `fog_disabled` or write a coverage
+  alpha (`af_cover()`, shaders/additive_fog.gdshaderinc): with ALPHA left at 1 the renderer adds the fog
+  colour over the whole quad, which drew a grey square round each tail lamp of the player's car.
+
+
+- **2026-11-02 The night game from the hill (rc3-stadium-night, HANDOFF "The night game from the
+  hill").** A new reference camera (`stadium_night`, wave 6's table) judged the ravine ballpark from
+  the bank above the north lot at 21:00. Decisions: a car park seen from the hills holds real (box)
+  cars in every stall it fills, never painted ones; a floodlight bank is the air round it (bloom,
+  shafts), not only its lenses; a crowd past the seat detail is a mosaic of groups, not the tier's
+  tint; a night game has players on the field; the ballpark's far copy keeps its planting.
+  STADIUM_NIGHT=0 is the A/B.
 
 - **2026-11-02 The fashion district refcam: the goods are drawn and reachable (rc3-fashion-district,
   HANDOFF "The fashion district refcam").** A new reference camera (`fashion_district`, wave 6's

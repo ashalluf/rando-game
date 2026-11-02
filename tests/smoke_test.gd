@@ -2867,6 +2867,12 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc2_night_aerial_checks.gd").new().run(self, city)
 	# The chase_cam review (tests/rc2_chase_cam_checks.gd, ChaseCamReview): lane wear on the asphalt.
 	load("res://tests/rc2_chase_cam_checks.gd").new().run(self, city)
+	# The pale box round the player's car (tests/chase_box_bug_checks.gd): additive shaders and the fog.
+	load("res://tests/chase_box_bug_checks.gd").new().run(self, city)
+	# The night game from the hill (tests/rc3_stadium_night_checks.gd, StadiumNight): box cars, banks, players.
+	load("res://tests/rc3_stadium_night_checks.gd").new().run(self, city)
+	# The pier_day refcam (tests/rc3_pier_day_checks.gd, PierDay): the board deck, weathering, the crowd.
+	load("res://tests/rc3_pier_day_checks.gd").new().run(self)
 	# The fashion_district refcam (tests/rc3_fashion_district_checks.gd): goods batched per face stretch, no planter in front.
 	load("res://tests/rc3_fashion_district_checks.gd").new().run(self, city)
 
@@ -3751,6 +3757,9 @@ func _test_weapons(player: Player) -> void:
 		# wakes it on its next 0.25 s look (gate run 5555: the pellets hit it, it moved 0.00 m).
 		crate.freeze = false
 		crate.sleeping = false
+		# A slowed clock left by an earlier part (a stunt's slow motion, the wheel) makes the
+		# crate crawl: this check is about the shove, so the clock runs at 1.
+		Engine.time_scale = 1.0
 		await _ticks(5)
 		player.camera_rig.look_at_point(crate.global_position)
 		await _ticks(2)
@@ -3766,6 +3775,11 @@ func _test_weapons(player: Player) -> void:
 		_check(gun.pump_amount() == 0.0, "and slides home again")
 		_check(get_tree().get_nodes_in_group("spent_shell").size() > shells_before, "the pump throws a spent shell")
 		var shoved := crate.global_position.distance_to(crate_at)
+		for i in 80:
+			if shoved > 0.3:
+				break
+			await _ticks(1)
+			shoved = maxf(shoved, crate.global_position.distance_to(crate_at))
 		_check(shoved > 0.3, "one shotgun blast throws a crate (%.2f m; aimed at %s, the crate %s)" % [shoved, aim_hit.name if aim_hit is Node else str(aim_hit), crate.name])
 		# Every pellet goes down the rifle's hit path: a prop hit straight on gets the impulse.
 		# The blast just threw this crate, so put it back and let it stand still first: a pellet
