@@ -25605,3 +25605,64 @@ grows weeds and litter within the caps, LOD none.
 assumption that SSIL / SDFGI give the rest; the mirror's sun term is a fixed warm colour, not the
 real sun's. The bridge is not in the water's mirror (only the banks and the sky). The Arts District
 cannot be seen from the bed at this spot.
+
+## 9kl. The airport apron from 25 m (wave 5 refcam2 `rc2-airport`, branch `wt/rc2-airport`)
+
+**The camera.** A new reference view, `airport_apron` in `tools/refcams/cameras_w5.json`: eye
+(-410, 25 m over the ground, 815), yaw 16, pitch -15, fov 55, noon, clear - over the taxiway's south
+edge looking north at the gates west of the concourse's middle, the terminal roof and the tower
+behind, a landed airliner taxiing to stand 16 below the lens (`"air": "taxi", "air_dist": 72,
+"air_side": 5`: AirTraffic.stage(), the same as still_shot's AIR=taxi). Two optional row keys in
+`refcams_shot.gd`, both inert for every other row: `air` / `air_dist` / `air_side` (`_stage_air()`)
+and `shot_frames` (120 here: the airport's big chunks were not all FULL after the default 30, and the
+taxiway's chunk was still its LOD build - which paints only the runways - in two runs out of five;
+whatever a row stages is staged the default 30 frames before the shot, so the jet is where the row
+says). `AIRPORT_APRON=0` on the branch is main's look (the before stills).
+
+**What gave it away, in the order the eye found it, and what was done** (`AirportApron`,
+`scripts/world/airport_apron.gd`, all of it behind `AIRPORT_APRON`):
+1. **No markings at all at FULL.** Every taxiway centre line, lead-in, stop bar, red envelope,
+   hold-short and runway marking at FULL had been invisible since StreetCloseup pressed the street
+   paint to 4 mm: road_paint.gdshader moves the stripe box's top to its underside + `thickness`, and
+   Airport laid its 2 cm boxes centred 2 mm over the surface, so the pressed top was 6 mm UNDER the
+   apron (the stand numbers are TextMesh and stayed; LOD's runway paint, lifted 3 cm, stayed too).
+   `PAINT_LIFT` 0.014 (pressed top 8 mm proud). Trap found on the way: the lift was first set in
+   Airport's static initialiser through AirportApron, which refers back to Airport - read during
+   Airport's own load, AirportApron's switch was still unset and the old lift came back, so the lines
+   showed only in runs where an LOD airport chunk had built first and reset it. It is set at paint
+   time now (`build_chunk()`), and the check reads `Airport._paint_lift` after a FULL build.
+2. **The apron's lines on pale concrete**: yellow lines on the apron's own surface get a black
+   border (`outline()`, `BORDER_LIFT` 0.008 under the yellow, 0.32 m wider, a hair past the ends) -
+   the real rule on light concrete. Taxiway, red and white paint get none (`wants_border()`).
+3. **The stands were spotless.** `stain_list()` (pure, hashes of the stand): oil under the nose gear
+   and the tug, hydraulic and rubber at the mains, fuel and oil under the engines, the APU, tyre
+   tracks down the lead-in in broken pieces, five spills - into the chunk's existing "patch" batch
+   (road_patch.gdshader: dark shades soak in blotchy and see-through). No new draw.
+4. **The airliners read as toys.** airliner_livery.gdshader's `detail` pass: the airline's name
+   along the crown (port_lettering's stroke font; six invented names, VANTERRA, PALMERA, MARINDO,
+   VERDANT, AMETRIA, KARMINE), a registration aft, panel seams round the frames and along the lap
+   joints with a tone per panel, belly grime behind the wing and soot on the tail cone, bare-metal
+   leading edges on wings, tailplane and fin, a dark fan face behind a polished intake lip and a dark
+   exhaust, cowl seams. Derivatives are taken once at the top of the fragment and passed in
+   (llvmpipe reads 0 inside a branch). Trap: the livery index rides a varying, and an interpolated
+   2.0 reads 1.9999 on some pixels - int() drew another airline's letters there, a speckle through
+   every title on both renderers; it is rounded now. Proved on Forward+ with the jet alone under
+   lavapipe (`tools/airport_apron/jet_shot.gd`, seconds; DETAIL=0 the before).
+5. **Ground equipment as pastel boxes**: AirportKit's boxes 12 cm and thicker are chamfered
+   (`_bevel_box()`: faces inset, a strip on each edge, a triangle at each corner; no strip at an open
+   bottom) so their edges catch the light; airport_kit.gdshader's `grime` darkens the lower body and
+   mottles and chalks the paint.
+6. Also: the concourses' and the head house's glass shows its lit hall by day (`glass_params()`:
+   paler tint, `interior_day` 0.62 - it was a black band a concourse long); weathered grey
+   standing-seam roofs with visible seams (`ROOF_PARAMS`); the infield is straw, not lime
+   (lawn.gdshader `straw`, 0 on every other lawn, and the far plates' colour `GRASS_FAR`).
+
+**Checks**: `tests/rc2_airport_checks.gd` (13: the lifts and their order, borders only where they
+belong, the A/B, stains per stand and off the taxiway, purity, the materials' passes, a street lawn
+untouched, the livery's derivatives, the camera row, a FULL chunk painting at the new lift and its
+patch batch).
+
+**Not done / not verified**: the head-house roof still reads near white from the camera on opengl3;
+the Meshy airliner's geometry is what it is (engines as blobs from behind); shadow acne shows on the
+fuselage's coloured paint on the opengl3 still; the concourse interior is curtain_glass's generic
+trace (no gate lounges); the ground vehicles are still box-built (now bevelled).

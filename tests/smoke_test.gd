@@ -2818,6 +2818,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The LA River from the bed (tests/rc2_river_checks.gd, RiverLook, RiverDebris): the water's
 	# bank mirror, the concrete's A/B, weeds and litter on a FULL chunk's bed.
 	load("res://tests/rc2_river_checks.gd").new().run(self, city)
+	# The airport apron refcam (tests/rc2_airport_checks.gd, AirportApron): paint over the ground, stains, liveries.
+	await load("res://tests/rc2_airport_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

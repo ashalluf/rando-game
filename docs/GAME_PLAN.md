@@ -4160,3 +4160,11 @@ none of either.
   concrete keeps its pattern at a grazing angle; the shaded bank of the pale concrete canyon takes
   a bounce; weeds, litter and a denser layer of graffiti are part of the river's look.
   RIVER_LOOK=0 the A/B.
+
+- **2026-11-01 The airport apron refcam (rc2-airport, HANDOFF "The airport apron from 25 m").** A new
+  reference camera over the apron at noon with a jet taxiing below it. Decisions: the airport's
+  paint is lifted to stand proud of the pressed street paint's rule (it had been under the ground
+  at FULL); apron yellow on a black border, as on real light concrete; stands carry stains from the
+  street's own patch batch (no new draw); the liveries get names (invented) and close-up detail in
+  the shader, not a texture; ground equipment is bevelled rather than remodelled. AIRPORT_APRON=0
+  is the A/B.
