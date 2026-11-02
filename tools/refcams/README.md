@@ -78,6 +78,10 @@ in the direction it looks, lane 0 by the median, dir -1 toward the route's start
 north to south), `kind` a Vehicle.BodyType name or "", and every other traffic car within `clear`
 metres of the eye hidden for the shot (the load's own traffic put a box truck on the lens). The log
 prints each staged car's distance at the shot.
+Run with `REFCAMS_JSON=tools/refcams/cameras_w6.json`. `airport_night` - the apron at 21:30 clear from
+the first stand west of the concourse, a jet staged on final to 27L (`air` final: the flare over the
+threshold at the shot). A row that stages an aircraft prints `REFCAM <name> air at x,y,z` (TRUE world,
+at the shot): tune `air_dist` / `air_side` from it.
 
 ## Wave 6's cameras (`cameras_w6.json`)
 
@@ -152,6 +156,17 @@ range. Its optional `golf_group` key ("hole:stage[:tee[:count]]") stages a group
 
 ## Wave 7's cameras (`cameras_w7.json`)
 
+Run with `REFCAMS_JSON=tools/refcams/cameras_w7.json` (the file is new in wave 7, the cameras_w6.json
+format). `canals_day`: Marisol Canals at 11:00 clear, on Heron Canal's southern footbridge looking
+north down the canal (no staging).
+
+## Wave 7's cameras (`cameras_w7.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w7.json`. `port_night` (rc4-port-night): the container
+terminal at 22:00 clear from the quay's apron. Its optional `port_t` key holds PortLife's clock
+(seconds) for the shot, so the cranes and tractors are where the row was framed (`_port_clock()` in
+refcams_shot.gd; rows without it leave the clock alone). `OCCLUSION=0` turns occlusion culling off
+for a run.
 Run with `REFCAMS_JSON=tools/refcams/cameras_w7.json`. `metro_station`: on the Coral Line's
 underground island at 7th St toward the bank's escalators and the glass lift, a train dwelling on
 the left with its doors open. Its optional `rail_at` key (`"<station>[:<dir>[:<seconds from

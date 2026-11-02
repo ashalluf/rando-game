@@ -16,7 +16,11 @@ extends RefCounted
 ## levels: NEAR (everything, ~2-4k triangles), MID (no lifelines or thin lines but the stays,
 ## coarser hull, ~0.6-1k), FAR (a few boxes and the mast, ~60-150).
 
-enum Region { HULL, BOTTOM, DECK, GELCOAT, GLASS, METAL, CANVAS, TEAK, LIGHT, RUBBER, SAIL, ENGINE }
+enum Region { HULL, BOTTOM, DECK, GELCOAT, GLASS, METAL, CANVAS, TEAK, LIGHT, RUBBER, SAIL, ENGINE, WIRE }
+## Tubes this thin or thinner are rigging (WIRE: widened to a pixel in the shader, MarinaGolden).
+const WIRE_RADIUS := 0.02
+## MarinaGolden's switch, read here too so BoatMesh compiles without the city (MARINA_GOLDEN=0).
+static var wire_mode := OS.get_environment("MARINA_GOLDEN") != "0"
 enum Level { NEAR, MID, FAR }
 
 const WHITE := Color(0.93, 0.93, 0.92)
@@ -723,6 +727,9 @@ class Acc:
 		var axis := b - a
 		if axis.length_squared() < 1e-8:
 			return
+		if BoatMesh.wire_mode and maxf(r0, r1) <= WIRE_RADIUS:
+			wire(a, b, r0 + r1, col)
+			return
 		var d := axis.normalized()
 		var side := d.cross(Vector3.UP if absf(d.y) < 0.95 else Vector3.RIGHT).normalized()
 		var up := side.cross(d).normalized()
@@ -753,11 +760,33 @@ class Acc:
 
 	## A thin line as two crossed strips (double-sided in the shader).
 	func line(a: Vector3, b: Vector3, w: float, col: Color, region: int) -> void:
+		if BoatMesh.wire_mode:
+			wire(a, b, w, col)
+			return
 		var d := (b - a).normalized()
 		var s1 := d.cross(Vector3.UP if absf(d.y) < 0.95 else Vector3.RIGHT).normalized() * w * 0.5
 		var s2 := d.cross(s1).normalized() * w * 0.5
 		quad(a - s1, b - s1, b + s1, a + s1, col, region, s2)
 		quad(a - s2, b - s2, b + s2, a + s2, col, region, s1)
+
+	## Rigging (MarinaGolden): two crossed strips of width w whose vertices carry the offset from
+	## the wire's centre line as their NORMAL and the half width in UV.x, region WIRE, so
+	## boat_body.gdshaderinc can widen them to `wire_px` pixels and fade them by what they cover.
+	func wire(a: Vector3, b: Vector3, w: float, col: Color) -> void:
+		var d := (b - a).normalized()
+		var s1 := d.cross(Vector3.UP if absf(d.y) < 0.95 else Vector3.RIGHT).normalized()
+		var s2 := d.cross(s1).normalized()
+		var hw := w * 0.5
+		var k := _col(col, Region.WIRE)
+		for sd: Vector3 in [s1, s2]:
+			var o := v.size()
+			for e: Array in [[a, -1.0], [b, -1.0], [b, 1.0], [a, 1.0]]:
+				var off: Vector3 = sd * float(e[1])
+				v.append((e[0] as Vector3) + off * hw)
+				n.append(off)
+				c.append(k)
+				uv.append(Vector2(hw, 0.0))
+			idx.append_array(PackedInt32Array([o, o + 1, o + 2, o, o + 2, o + 3]))
 
 	## A small octahedron (a lamp lens).
 	func octa(at: Vector3, r: float, col: Color, region: int) -> void:

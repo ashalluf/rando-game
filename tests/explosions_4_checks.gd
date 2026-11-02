@@ -45,6 +45,10 @@ func run(t: Node, city: Node3D) -> void:
 	await _chain()
 	_round4(parent)
 	await _round5(parent)
+	_round6(parent)
+	_round7(parent)
+	_round8()
+	await _round9()
 	for c in parent.get_children():
 		if not before.has(c) and c != _deck and not (c is BlastBits):
 			c.queue_free()
@@ -265,3 +269,88 @@ func _round5(parent: Node) -> void:
 	await _ticks(2)
 	_t._check(FileAccess.get_file_as_string("res://scripts/weapons/blast_3.gd").contains("Blast4.crater_smooth"),
 		"explosions_4: the crater's soot and cracks can be smooth")
+
+
+## Round 6: flames as licking tongues, the crater's pit with depth, a lip and rubble.
+func _round6(parent: Node) -> void:
+	var q := QuadMesh.new()
+	q.size = Vector2(1.0, 1.0)
+	Blast4.tongue_quad(q)
+	if Blast4.tongues():
+		_t._check(q.size.y > q.size.x and q.material is ShaderMaterial
+			and (q.material as ShaderMaterial).shader.resource_path.ends_with("flame_tongue.gdshader"),
+			"explosions_4: a flame card is a tall tongue on the flame shader")
+	else:
+		_t._check(q.size == Vector2.ONE, "explosions_4: the flame tongues stay off when switched off")
+	var fs := FileAccess.get_file_as_string("res://shaders/flame_tongue.gdshader")
+	_t._check(fs.contains("INV_VIEW_MATRIX") and fs.contains("climb"), "explosions_4: the flame tongue stands upright and climbs")
+	var mark := Node3D.new()
+	parent.add_child(mark)
+	mark.global_position = _top + Vector3(-40.0, 0.0, 30.0)
+	var dressed := Blast4.pit_dress(mark, 1.7)
+	_t._check(dressed == Blast4.pit_enabled and (not dressed or (mark.get_node_or_null("PitBowl") != null
+		and mark.get_node_or_null("PitLip") != null and mark.get_node_or_null("PitRubble") != null)),
+		"explosions_4: the pit has a traced bowl, a lip and loose rubble")
+	_t._check(Blast4.lip_height(1.2, 2.0) > 0.0 and Blast4.lip_height(0.5, 2.0) == 0.0,
+		"explosions_4: the lip stands round the opening, not over it")
+	mark.queue_free()
+	var qm := ShaderMaterial.new()
+	qm.shader = load("res://shaders/blast_volume.gdshader")
+	Blast4.dress_volume(qm, false, false)
+	_t._check(float(qm.get_shader_parameter("quiet4")) == (Blast4.quiet_jitter if Blast4.quiet_enabled else 0.0)
+		and FileAccess.get_file_as_string("res://shaders/blast_volume.gdshader").contains("jit = 0.5 + (jit - 0.5) * quiet4;"),
+		"explosions_4: the march's jitter is narrowed (TAA does not clear it)")
+
+
+## Round 7: the violent first half second, smoke ribbons behind debris, the shop fronts answer.
+func _round7(parent: Node) -> void:
+	var vs := FileAccess.get_file_as_string("res://shaders/blast_volume.gdshader")
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/blast_volume.gdshader")
+	Blast4.dress_volume(m, true, false)
+	_t._check(vs.contains("uniform float core4 = 0.0;") and vs.contains("vec3 blackbody4(float k)")
+		and float(m.get_shader_parameter("core4")) == (1.0 if Blast4.core_enabled else 0.0),
+		"explosions_4: the young ball's heat follows its depth (core4, off by default)")
+	var r := Blast4.ribbon_material()
+	_t._check(r != null and r.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA, "explosions_4: the debris smoke ribbons have their material")
+	var bs := FileAccess.get_file_as_string("res://scripts/weapons/blast_debris.gd")
+	_t._check(bs.contains("_ribbon.global_transform = Transform3D(Basis(), global_position)"),
+		"explosions_4: the ribbons' box sits at the blast (at the world origin they were culled)")
+	var got: Array = Blast4.facade_response(_city, _top + Vector3(0.0, 1.0, -120.0), 9.0)
+	_t._check(got.size() == 2 and int(got[0]) >= 0, "explosions_4: the shop fronts' response runs (%d awnings, %d signs)" % [int(got[0]), int(got[1])])
+
+
+## Round 8: the flesh cools faster than the heart; the dust is darker near the ground.
+func _round8() -> void:
+	var vs := FileAccess.get_file_as_string("res://shaders/blast_volume.gdshader")
+	_t._check(vs.contains("temp * temp * 1.12, core4 * smoothstep(0.04, 0.14, t)"),
+		"explosions_4: the young ball's flesh cools to orange-red under its white heart")
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/blast_volume.gdshader")
+	Blast4.dress_volume(m, false, false)
+	var d: Vector3 = m.get_shader_parameter("dust")
+	_t._check(not Blast4.dark_dust or d.x < 0.15, "explosions_4: the volume's dust ring is darker (%.3f)" % d.x)
+
+
+## Round 9: the shock ring kicks loose bodies outside the radius when the wave reaches them.
+func _round9() -> void:
+	var body := RigidBody3D.new()
+	body.collision_layer = 4
+	body.collision_mask = 1
+	var cs := CollisionShape3D.new()
+	var bs := BoxShape3D.new()
+	bs.size = Vector3(0.6, 1.0, 0.6)
+	cs.shape = bs
+	body.add_child(cs)
+	_city.add_child(body)
+	var at := _top + Vector3(60.0, 1.0, -60.0)
+	body.global_position = at + Vector3(12.0, 0.5, 0.0)
+	await _ticks(3)
+	var n := Blast4.shock_kick(_city, at, 9.0)
+	await _ticks(8)
+	_t._check(not Blast4.shock_enabled or (n >= 1 and body.linear_velocity.x > 0.5),
+		"explosions_4: the shock ring kicks a loose body outside the radius outward (%d, %.2f m/s)" % [n, body.linear_velocity.x])
+	body.queue_free()
+	_t._check(Blast4.flash_night() <= 1.0 and Blast4.flash_night() >= Blast4.night_flash - 0.001
+		and Blast4.fire_night_gain() >= 1.0 and Blast4.fire_night_range() >= 1.0,
+		"explosions_4: night holds the flash down and lifts the fires (%.2f, %.2f)" % [Blast4.flash_night(), Blast4.fire_night_gain()])

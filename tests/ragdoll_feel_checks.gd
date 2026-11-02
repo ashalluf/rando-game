@@ -244,17 +244,26 @@ func _check_stairs(city: Node3D, chunk: Node3D) -> void:
 		return
 	var j: RagdollJoints = doll._joints
 	var rolled := false
+	var froze_at := -1
+	var fastest := 0.0
+	var last := doll._pelvis()
 	for i in int((RagdollJoints.settle_max + 1.0) * 60.0):
 		await _ticks(1)
 		if not is_instance_valid(doll):
 			break
+		fastest = maxf(fastest, (doll._pelvis() - last).length() * 60.0)
+		last = doll._pelvis()
+		if j.frozen and froze_at < 0:
+			froze_at = i
 		if j.feel != null and j.feel.rolling > 0.0:
 			rolled = true
 		if OS.get_environment("RF_DEBUG") == "1" and i % 20 == 0:
 			print("RF stairs %d hips %s frozen %s" % [i, doll._pelvis() - ground, j.frozen])
 		if j.frozen:
 			break
-	_check(rolled, "the doll knows it is rolling down the steps")
+	# (Shuffled gate 15202: it stayed on the top step, 1.89 m up, never rolling: the message says
+	# when it froze and how fast the hips ever went.)
+	_check(rolled, "the doll knows it is rolling down the steps (froze at tick %d, hips at most %.1f m/s, feel %s)" % [froze_at, fastest, j.feel != null])
 	if not is_instance_valid(doll):
 		return
 	var at := doll._pelvis() - ground

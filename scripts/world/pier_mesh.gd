@@ -408,5 +408,7 @@ static func material(key: String, ride: int = 0, params: Dictionary = {}) -> Sha
 	mat.set_shader_parameter("weathered", PierDay.weathered())
 	for p: String in params:
 		mat.set_shader_parameter(p, params[p])
+	# The park lit by its own lamps after dark (RcPierNight, rc4-pier-night-2).
+	RcPierNight.dress_material(mat)
 	_mats[key] = mat
 	return mat

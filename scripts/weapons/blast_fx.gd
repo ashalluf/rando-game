@@ -105,6 +105,7 @@ static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0
 		_column(parent, at, big, fuel, vol and Blast4.enabled)
 		last["debris"] = BlastDebris.spawn(node, parent, at, big, push, mini(debris_pieces + (3 if fuel else 0), max_debris))
 		last["glass"] = _glass(node, at, radius)
+		last["facade"] = Blast4.facade_response(node, at, radius)
 	last["heavy"] = heavy
 	# The fourth pass: the fuel pool, the secondary pops, the chain (Blast4).
 	last.merge(Blast4.after_blast(node, parent, at, radius, fuel, gas))
@@ -127,7 +128,7 @@ static func _flash(node: Node, parent: Node, at: Vector3, radius: float) -> void
 	var light := OmniLight3D.new()
 	light.name = "BlastFlash"
 	light.light_color = Color(1.0, 0.86, 0.66)
-	light.light_energy = flash_energy
+	light.light_energy = flash_energy * Blast4.flash_night()
 	light.omni_range = radius * flash_reach
 	light.omni_attenuation = 1.4
 	light.shadow_enabled = false
@@ -160,7 +161,9 @@ static func _flash(node: Node, parent: Node, at: Vector3, radius: float) -> void
 	flare.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	parent.add_child(flare)
 	flare.global_position = at + Vector3.UP * radius * 0.3
-	var fs := Blast3.flare_scale if Blast3.enabled else 1.0
+	var fs := (Blast3.flare_scale if Blast3.enabled else 1.0) * lerpf(1.0, 0.75, 1.0 - Blast4.flash_night())
+	# At night it starts part faded too (Blast4.flash_night()): in the dark it whited the frame out.
+	flare.transparency = 1.0 - Blast4.flash_night() * 0.9 - 0.1 if Blast4.flash_night() < 0.999 else 0.0
 	flare.scale = Vector3.ONE * radius * 2.2 * fs
 	var ft := flare.create_tween()
 	ft.tween_property(flare, "scale", Vector3.ONE * radius * Blast4.flare_grow() * fs, 0.09).set_ease(Tween.EASE_OUT)
@@ -198,7 +201,7 @@ static func _screen_flash(node: Node, at: Vector3, radius: float) -> void:
 	var d := to.length()
 	var near := clampf(1.0 - d / (radius * screen_flash_reach), 0.0, 1.0)
 	var facing := clampf(to.normalized().dot(-cam.global_basis.z) * 0.5 + 0.5, 0.0, 1.0) if d > 0.01 else 1.0
-	var peak := screen_flash * near * near * (0.35 + 0.65 * facing)
+	var peak := screen_flash * near * near * (0.35 + 0.65 * facing) * Blast4.flash_night()
 	if peak < 0.02:
 		return
 	var tree := node.get_tree()

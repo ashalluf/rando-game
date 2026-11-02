@@ -973,6 +973,7 @@ func _flame_system(sys_name: String, amount: int, quad_size: Vector2, angle: flo
 	# The root of a tongue at the particle, the rest of it above.
 	quad.center_offset = Vector3(0.0, (quad_size.y - quad_size.x) * 0.5, 0.0)
 	quad.material = fire_material()
+	Blast4.tongue_quad(quad)
 	p.mesh = quad
 	# The particles are in world space and a fire's box is a car or two across; set it or the
 	# whole fire can vanish (CLAUDE.md, effects).
@@ -1126,6 +1127,7 @@ func _start_fire(size: float) -> void:
 			_fire_light.distance_fade_begin = 90.0
 			_fire_light.distance_fade_length = 30.0
 			RcMayhem.dress_fire_light(self, _fire_light)
+			_fire_light.omni_range *= Blast4.fire_night_range()
 			add_child(_fire_light)
 		_fire_sound = Sfx.loop_player("fire_loop", -3.0)
 		_fire_sound.unit_size = 6.0
@@ -1238,7 +1240,7 @@ func _process(delta: float) -> void:
 		_flick = lerpf(_flick, randf(), 1.0 - exp(-delta * 14.0))
 		var t := Time.get_ticks_msec() * 0.001
 		var level := 1.0 if state == State.BURNING else clampf(1.0 - _wreck_t / wreck_fire_seconds, 0.2, 1.0)
-		_fire_light.light_energy = fire_light_energy * level * (0.62 + 0.5 * _flick + 0.12 * sin(t * 29.0))
+		_fire_light.light_energy = fire_light_energy * level * (0.62 + 0.5 * _flick + 0.12 * sin(t * 29.0)) * Blast4.fire_night_gain()
 	if not busy:
 		set_process(false)
 

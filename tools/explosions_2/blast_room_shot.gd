@@ -9,11 +9,13 @@ extends SceneTree
 ##     --audio-driver Dummy --path . --script tools/explosions_2/blast_room_shot.gd --resolution 960x540
 ##
 ## Env: OUT (stem; `_t<seconds>.png` each), TIMES, NIGHT=1 (no sun, a dark sky, night_factor 1),
-## GOLDEN=1 (a low warm sun, a peach horizon),
+## GOLDEN=1 (a low warm sun, a peach horizon), SUN=pitch,yaw (degrees, the sun turned), WET=1 (a glossy wet road), PROPS=1 (bins and parked cars in the shock ring),
 ## CAR=1 (a parked car's own explosion: fuel fireball and toss; CHAIN=1 two more cars beside it), DIST (camera metres from the
 ## blast, default 34), HEIGHT (camera eye, 1.7), RADIUS (9), SCALE (slow motion before 1 s,
 ## 0.375 = 0.05 s a frame), LATE (after 1 s, 2.0), CAM_X (camera sideways, -4), LOOK_Y (aim height,
 ## 9), WEB=1 (the web build's card path), GAS=1 (a petrol pump's vapour blast, Blast4), FULL=0 (WeaponFX.explosion alone; by default Explosion.blast(), so the crater and rubble too). EXPLOSIONS_2=0 is the old blast (the before).
+## FRAMES=n saves n more frames after each time with the clock all but stopped, or with
+## FRAMES_SCALE=1 under `--fixed-fps 60` at true 60 fps steps (what TAA integrates on the Mac).
 ## Loads WeaponFX, Vehicle and Building by path: naming them compiles them before the autoloads.
 
 func _initialize() -> void:
@@ -35,6 +37,11 @@ func _initialize() -> void:
 	var sun := level.get_node("Sun") as DirectionalLight3D
 	sun.rotation_degrees = Vector3(-38.0, -35.0, 0.0)
 	RenderingServer.global_shader_parameter_set("sun_direction", sun.global_basis.z)
+	if OS.get_environment("SUN") != "":
+		# SUN=pitch,yaw (degrees): the sun turned for a still (a crater out of a building's shadow).
+		var sv := OS.get_environment("SUN").split(",")
+		sun.rotation_degrees = Vector3(float(sv[0]), float(sv[1]), 0.0)
+		RenderingServer.global_shader_parameter_set("sun_direction", sun.global_basis.z)
 	if night:
 		sun.light_energy = 0.03
 		env.background_energy_multiplier = 0.05
@@ -78,6 +85,10 @@ func _initialize() -> void:
 	var asphalt := StandardMaterial3D.new()
 	asphalt.albedo_color = Color(0.16, 0.16, 0.17)
 	asphalt.roughness = 0.9
+	if OS.get_environment("WET") == "1":
+		# WET=1: a rain-soaked road (dark, glossy): what a night blast should light and mirror.
+		asphalt.albedo_color = Color(0.08, 0.08, 0.085)
+		asphalt.roughness = 0.12
 	fm.material_override = asphalt
 	floor_body.add_child(fm)
 	root.add_child(floor_body)
@@ -118,6 +129,23 @@ func _initialize() -> void:
 		load("res://scripts/weapons/weapon_fx.gd")._web_cache = 1
 	var radius := float(_env("RADIUS", "9"))
 	var at := centre + Vector3(1.5, 0.6, 0.0)
+	if OS.get_environment("PROPS") == "1":
+		# PROPS=1: bins and two parked cars in the blast's shock ring (12-20 m), to see it kick them.
+		for k in 6:
+			var can: Node3D = load("res://scripts/world/trash_can.gd").new()
+			root.add_child(can)
+			var a := float(k) * 1.05 - 2.6
+			can.global_position = at + Vector3(sin(a) * (11.0 + float(k)), -0.55, cos(a) * (11.0 + float(k)))
+		for k in 2:
+			var pc: Node3D = load("res://scripts/vehicles/vehicle.gd").random_car(RandomNumberGenerator.new())
+			root.add_child(pc)
+			pc.global_position = at + Vector3(-7.0 + 14.0 * float(k), 0.8, 13.0 + 3.0 * float(k))
+			pc.rotation.y = 0.3 * float(k)
+		for i in 40:
+			await physics_frame
+		for c in root.get_children():
+			if c is RigidBody3D:
+				c.set_meta("shot_start", (c as Node3D).global_position)
 	Engine.time_scale = float(_env("SCALE", "0.375"))
 	if OS.get_environment("CAR") == "1":
 		var car: Node3D = load("res://scripts/vehicles/vehicle.gd").random_car(RandomNumberGenerator.new())
@@ -154,11 +182,28 @@ func _initialize() -> void:
 		var path := out.get_basename() + "_t%05.2f.png" % want
 		root.get_texture().get_image().save_png(path)
 		print("saved ", path, " at ", elapsed)
+		# FRAMES=n: n more frames right after, the clock all but stopped (what TAA averages: is a
+		# dither resolved, or does it stay a screen door?).
+		var extra := int(_env("FRAMES", "0"))
+		if extra > 0:
+			var keep := Engine.time_scale
+			Engine.time_scale = float(_env("FRAMES_SCALE", "0.0001"))
+			for k in extra:
+				await process_frame
+				var fp := out.get_basename() + "_t%05.2f_f%02d.png" % [want, k]
+				root.get_texture().get_image().save_png(fp)
+			print("saved ", extra, " frames after ", path)
+			Engine.time_scale = keep
 		# The frame's cost with the blast in it (opengl3 / vulkan; zero under --headless).
 		print("GEO t=%.2f draws=%d objects=%d tris=%d" % [elapsed,
 			Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
 			Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME),
 			Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)])
+	if OS.get_environment("PROPS") == "1":
+		for c in root.get_children():
+			if c is RigidBody3D and c.has_meta("shot_start"):
+				var st: Vector3 = c.get_meta("shot_start")
+				print("MOVED %s %.2f m (at %.1f m from the blast)" % ["car" if c is VehicleBody3D else "bin", (c as Node3D).global_position.distance_to(st), st.distance_to(at)])
 	quit()
 
 

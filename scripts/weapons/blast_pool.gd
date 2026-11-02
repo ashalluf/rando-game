@@ -138,7 +138,7 @@ func _ready() -> void:
 		_light = OmniLight3D.new()
 		_light.name = "PoolLight"
 		_light.light_color = Color(1.0, 0.5, 0.17)
-		_light.omni_range = radius * 4.5
+		_light.omni_range = radius * 4.5 * Blast4.fire_night_range()
 		_light.omni_attenuation = 1.3
 		_light.distance_fade_enabled = true
 		_light.distance_fade_begin = 110.0
@@ -178,6 +178,7 @@ func _flame_system(sys_name: String, amount: int, quad_size: Vector2) -> CPUPart
 	quad.size = quad_size
 	quad.center_offset = Vector3(0.0, (quad_size.y - quad_size.x) * 0.5, 0.0)
 	quad.material = CarDamage.fire_material()
+	Blast4.tongue_quad(quad)
 	p.mesh = quad
 	p.custom_aabb = AABB(Vector3(-12.0, -2.0, -12.0), Vector3(24.0, 16.0, 24.0))
 	add_child(p)
@@ -230,7 +231,7 @@ func _apply(_delta: float) -> void:
 	if _light != null:
 		var t := age
 		var f := 0.78 + 0.22 * sin(t * 37.0) * sin(t * 13.0 + 0.7) + 0.06 * sin(t * 91.0)
-		_light.light_energy = 6.5 * b * f
+		_light.light_energy = 6.5 * b * f * Blast4.fire_night_gain()
 		_light.visible = b > 0.01
 	if _sound != null:
 		_sound.volume_db = linear_to_db(maxf(b, 0.001)) - 1.0
