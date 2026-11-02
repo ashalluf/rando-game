@@ -1499,7 +1499,8 @@ static func _honk(car: Node3D) -> void:
 static func _from_pool(at: Vector2, reach: float) -> Pedestrian:
 	for id: int in _hidden.keys():
 		var p: Pedestrian = _hidden[id]
-		if not is_instance_valid(p) or p.errand.is_empty() or p._down:
+		# The plain crowd only: anyone else's tick does not run an errand, so they would never come out.
+		if not is_instance_valid(p) or p.errand.is_empty() or p._down or not p._lives():
 			continue
 		var s: Dictionary = (p.errand.steps as Array)[int(p.errand.i)]
 		if s.do != "inside" or Vector2(p.position.x, p.position.z).distance_to(at) > reach:

@@ -684,10 +684,12 @@ static func _far_walker(near: Node, at: Vector2, player_at: Vector3) -> Pedestri
 ## A walker passing a shop door on its own pavement: now and then they turn in (StreetErrands'
 ## shop visit). One look a second per walker.
 static func _pass_door(p: Pedestrian) -> void:
-	# A walker somebody placed on purpose (meta no_trim: a check's, a venue's line) is never sent
-	# in: two staged walkers turned into a shop door mid-check (shuffled gate 8101).
+	# Only the plain crowd goes in (Pedestrian._lives()): a valet, a diner or a night-goer walks
+	# through avoid() too, and sent in here it stayed hidden for good - its own tick never runs the
+	# errand - until door_tick() borrowed it from the pool and it never came out (batch 38, 5101).
+	# Nor a walker somebody placed on purpose (meta no_trim: a check's, a venue's line).
 	if not StreetErrands.enabled or not (p.get_parent() is CityChunk) or not p._life_free() or p._dog_walker or int(p.flow.get("followers", 0)) > 0 \
-			or p.flow.get("leader") != null or p.has_meta("no_trim"):
+			or p.flow.get("leader") != null or p.has_meta("no_trim") or not p._lives():
 		return
 	var now := _now()
 	if now < int(p.flow.get("pass_t", 0)):
