@@ -26110,7 +26110,7 @@ into a running gate (check files are `load()`ed lazily, mid-run).
 
 **Runs** (each `SHARDS=3`, ~30 min, a shard peaking at ~3.4-3.5 GB): see the table at the end of
 this section.
-## 9ku. The blast, fourth pass (2026-11-01, fleet wave 5, branch `wt/explosions-4`)
+## 9ky. The blast, fourth pass (2026-11-01, fleet wave 5, branch `wt/explosions-4`)
 
 The owner's top priority for wave 5 was "make the explosions EXTREMELY AAA quality". The third pass
 (9ix) made the fireball a ray-marched volume, but it died after ~3 s and the rest of the blast was
@@ -26211,3 +26211,10 @@ with a hot heart, 0.55 s a black sooty mass with fire in its gaps, 3 s grey-blac
 On Compatibility (desktop opengl3, the refcams; no TAA) the march's per-frame jitter drew a
 crosshatch over the fireball: there the v4 march takes twice the steps from each step's middle
 (jitter 0.5); the web never runs the volume. Frame cost unchanged (GEO within a few draws).
+
+**Tried and dropped: a condensation shell** (a torn white cloud shell racing out with the shock,
+0.06-0.3 s). Smooth it read as a glass soap bubble over the street, torn as faint stringy streaks
+over the facades - an artifact, not a cloud, at street level by day. Not shipped. Debris (BlastBits
+chips that bounce and skid, BlastDebris' burning pieces with trails), the glass across the street
+(SHATTER records plus shards timed by the wave's travel at 343 m/s) and the refracting pressure
+wave stay as the second and third passes made them.
