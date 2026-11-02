@@ -7,6 +7,7 @@ render_mode unshaded, blend_add, cull_front, depth_draw_never, depth_test_disabl
 // what is behind them. Nothing by day (lamp_factor). Works on both renderers.
 
 #include "res://shaders/ballpark_common.gdshaderinc"
+#include "res://shaders/additive_fog.gdshaderinc"
 
 uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
 uniform vec3 radii = vec3(170.0, 90.0, 170.0);
@@ -72,5 +73,8 @@ void fragment() {
 	// the game, so it fades in with the eye's distance from the bowl.
 	float away = smoothstep(away_from, 450.0, length(cam - centre)) * away_gain;
 	float glow = acc * 0.25 * (t1 - t0) * density * level * away;
-	ALBEDO = cs_out(glow_color * min(glow, 1.5));
+	// Coverage in the alpha, or the fog colour is added over the whole quad (additive_fog).
+	vec4 af = af_cover(cs_out(glow_color * min(glow, 1.5)));
+	ALBEDO = af.rgb;
+	ALPHA = af.a;
 }

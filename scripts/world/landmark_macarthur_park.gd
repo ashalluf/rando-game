@@ -1083,6 +1083,15 @@ static func build(_anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan:
 	_build_boathouse(parent, statics, lay, detailed)
 
 
+## The fountain's particle plume: everywhere but the web, where `?fountain_plume=1` brings it back
+## (the A/B). See _build_fountain().
+static func plume_allowed() -> bool:
+	if not OS.has_feature("web"):
+		return true
+	var search: Variant = JavaScriptBridge.eval("window.location.search", true)
+	return search is String and (search as String).contains("fountain_plume=1")
+
+
 static func _build_fountain(parent: Node3D, lay: Dictionary, detailed: bool) -> void:
 	var f: Vector2 = lay.fountain
 	var base := Vector3(f.x, WATER_Y, f.y)
@@ -1110,54 +1119,58 @@ static func _build_fountain(parent: Node3D, lay: Dictionary, detailed: bool) -> 
 	parent.add_child(column)
 	if not detailed:
 		return
-	# The plume: water thrown up the jet and falling back round it as spray and mist.
-	var plume := CPUParticles3D.new()
-	plume.name = "FountainPlume"
-	plume.amount = FOUNTAIN_PARTICLES
-	plume.lifetime = 3.6
-	plume.preprocess = 3.6
-	plume.direction = Vector3.UP
-	plume.spread = 3.5
-	var v := sqrt(2.0 * 9.8 * FOUNTAIN_HEIGHT)
-	plume.initial_velocity_min = v * 0.82
-	plume.initial_velocity_max = v
-	plume.gravity = Vector3(0.0, -9.8, 0.0)
-	plume.damping_min = 0.4
-	plume.damping_max = 1.2
-	plume.scale_amount_min = 0.6
-	plume.scale_amount_max = 2.4
-	var grow := Curve.new()
-	grow.max_value = 3.0
-	grow.add_point(Vector2(0.0, 0.4))
-	grow.add_point(Vector2(0.5, 1.2))
-	grow.add_point(Vector2(1.0, 2.6))
-	plume.scale_amount_curve = grow
-	var ramp := Gradient.new()
-	ramp.set_color(0, Color(1.0, 1.0, 1.0, 0.55))
-	ramp.set_color(1, Color(1.0, 1.0, 1.0, 0.0))
-	plume.color_ramp = ramp
-	var quad := QuadMesh.new()
-	quad.size = Vector2.ONE
-	var pm := StandardMaterial3D.new()
-	pm.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	pm.billboard_keep_scale = true
-	pm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	pm.vertex_color_use_as_albedo = true
-	pm.albedo_texture = WeaponFX.puff_texture()
-	pm.albedo_color = Color(0.92, 0.95, 0.96, 0.8)
-	pm.roughness = 0.5
-	pm.emission_enabled = true
-	pm.emission = Color(0.12, 0.13, 0.14)
-	if not OS.has_feature("web"):
-		pm.proximity_fade_enabled = true
-		pm.proximity_fade_distance = 1.5
-	quad.material = pm
-	plume.mesh = quad
-	plume.custom_aabb = AABB(Vector3(-14.0, -2.0, -14.0), Vector3(28.0, FOUNTAIN_HEIGHT + 8.0, 28.0))
-	plume.position = base + Vector3(0.0, 0.3, 0.0)
-	plume.visibility_range_end = FOUNTAIN_DRAW
-	plume.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	parent.add_child(plume)
+	# The plume: water thrown up the jet and falling back round it as spray and mist. Not on the
+	# web (web-build-5): in the browser this 420-particle system blew up over a few minutes into
+	# a wall of green-white glare across the park (and lit the hero); nothing else did it, and
+	# no property of it fixed it but leaving it out. The jet and the boil carry the fountain there.
+	if plume_allowed():
+		var plume := CPUParticles3D.new()
+		plume.name = "FountainPlume"
+		plume.amount = FOUNTAIN_PARTICLES
+		plume.lifetime = 3.6
+		plume.preprocess = 3.6
+		plume.direction = Vector3.UP
+		plume.spread = 3.5
+		var v := sqrt(2.0 * 9.8 * FOUNTAIN_HEIGHT)
+		plume.initial_velocity_min = v * 0.82
+		plume.initial_velocity_max = v
+		plume.gravity = Vector3(0.0, -9.8, 0.0)
+		plume.damping_min = 0.4
+		plume.damping_max = 1.2
+		plume.scale_amount_min = 0.6
+		plume.scale_amount_max = 2.4
+		var grow := Curve.new()
+		grow.max_value = 3.0
+		grow.add_point(Vector2(0.0, 0.4))
+		grow.add_point(Vector2(0.5, 1.2))
+		grow.add_point(Vector2(1.0, 2.6))
+		plume.scale_amount_curve = grow
+		var ramp := Gradient.new()
+		ramp.set_color(0, Color(1.0, 1.0, 1.0, 0.55))
+		ramp.set_color(1, Color(1.0, 1.0, 1.0, 0.0))
+		plume.color_ramp = ramp
+		var quad := QuadMesh.new()
+		quad.size = Vector2.ONE
+		var pm := StandardMaterial3D.new()
+		pm.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+		pm.billboard_keep_scale = true
+		pm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		pm.vertex_color_use_as_albedo = true
+		pm.albedo_texture = WeaponFX.puff_texture()
+		pm.albedo_color = Color(0.92, 0.95, 0.96, 0.8)
+		pm.roughness = 0.5
+		pm.emission_enabled = true
+		pm.emission = Color(0.12, 0.13, 0.14)
+		if not OS.has_feature("web"):
+			pm.proximity_fade_enabled = true
+			pm.proximity_fade_distance = 1.5
+		quad.material = pm
+		plume.mesh = quad
+		plume.custom_aabb = AABB(Vector3(-14.0, -2.0, -14.0), Vector3(28.0, FOUNTAIN_HEIGHT + 8.0, 28.0))
+		plume.position = base + Vector3(0.0, 0.3, 0.0)
+		plume.visibility_range_end = FOUNTAIN_DRAW
+		plume.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		parent.add_child(plume)
 	# The boil at its foot: a ring of churned white water.
 	if MacArthurLook.enabled:
 		var boil := MacArthurLook.boil()

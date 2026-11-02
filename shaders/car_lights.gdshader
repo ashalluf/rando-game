@@ -16,6 +16,7 @@ global uniform float lamp_factor;
 // Parts 6 and 7 are the head and tail lamps' halos in the night air (NightAtmos): four corners on
 // one point, turned to the camera here and sized by the air like the street lamps' halos.
 #include "res://shaders/night_halo.gdshaderinc"
+#include "res://shaders/additive_fog.gdshaderinc"
 uniform float halo_head = 0.34;
 uniform float halo_tail = 0.26;
 uniform float halo_core = 2.4;
@@ -113,8 +114,12 @@ void fragment() {
 	}
 	if (part > 5.5) {
 		// The halo's light can pass 1: it goes in the colour, never the alpha (clamped on a
-		// UNORM target).
-		ALBEDO = tint * COLOR.rgb * a * strength * COLOR.a;
+		// UNORM target). The alpha is its coverage (additive_fog.gdshaderinc): left at 1, the
+		// renderer added the fog colour over the whole quad - by day, when the halo is dark but
+		// its quad is not collapsed, a pale square round each lamp of every running car.
+		vec4 o = af_cover(tint * COLOR.rgb * a * strength * COLOR.a);
+		ALBEDO = o.rgb;
+		ALPHA = o.a;
 	} else {
 		ALBEDO = tint * COLOR.rgb;
 		ALPHA = a * strength * COLOR.a;
