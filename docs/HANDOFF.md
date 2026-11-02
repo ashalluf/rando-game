@@ -28753,6 +28753,21 @@ lost the train.
 as wave 3 left them). Nothing outside the station's chunk and the cars' bullets changes: no roll,
 no prop id, no other camera's frame (the ten cameras compared both ways).
 
+**Numbers.** The camera (opengl3 refcam, GEO all tris / draws): METRO_LOOK=0 METRO_CROWD=0
+3.64 M / 2,314, on 3.80 M / 2,377 (+4 %, +63 draws: the riders; the station's own meshes are
+still one draw each, +~150 triangles of ads, lift and bins). Luminance p50 123 -> 116 (the floor
+less uniformly bright, the mirror streaks on top), p95 200 -> 196. The ten original cameras, A/B
+on this branch (both plain runs): seven within noise; street_noon, street_night and freeway
+flagged by the moving traffic between two runs (a bus, freeway cars), nothing of the station's.
+Gate on the merged branch: 5,787 checks passed in three shards (peak 3.8 GB a shard). Seen in the
+first gate and passed alone both ways: pedestrian_flow's shop door and follower checks
+(shard-order flakes).
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the mirror there is halved under SSR and
+the probe, judged only by reasoning. The escalators still do not carry the player. Riders on an
+escalator stand through a shot or a knock like anyone (a knock ragdolls them on the step). The
+train's interior is empty and its saloon lit a peach colour. The concourse view is unchanged.
+
 **Files.** New: `scripts/world/metro_look.gd`, `scripts/npc/metro_crowd.gd`,
 `tests/rc4_metro_station_checks.gd`, `tools/refcams/cameras_w7.json`. Touched:
 `shaders/metro_station.gdshader` (K_AD, floor_mirror, three uniforms), `scripts/world/metro_build.gd`
