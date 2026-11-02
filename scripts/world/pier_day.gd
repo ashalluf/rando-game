@@ -34,16 +34,17 @@ static var _deck: Material
 
 
 ## How full the pier is at `hour` (0..1): a few morning walkers, full from late morning into the
-## evening (the lights draw people after dark too), thinning toward midnight.
+## early evening, thinning after dark toward midnight (each extra person is a draw call even far
+## off: the pier_night camera paid +18 % draws for the old curve's full crowd at 21:00).
 static func density(hour: float) -> float:
 	var h := fposmod(hour, 24.0)
 	if h < 7.0:
 		return 0.08
 	if h < 12.0:
 		return lerpf(0.15, 1.0, smoothstep(7.0, 12.0, h))
-	if h < 20.0:
+	if h < 19.0:
 		return 1.0
-	return lerpf(1.0, 0.2, smoothstep(20.0, 24.0, h))
+	return lerpf(1.0, 0.15, smoothstep(19.0, 23.5, h))
 
 
 ## How many extra people the pier gets at `hour` in the weather of `node`'s scene.

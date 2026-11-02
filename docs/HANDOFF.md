@@ -27073,7 +27073,7 @@ on main):
   position (the rides' animation happens after), so the pattern turns with the wheel.
 - The crowd: `PierPark.people_steps()` adds `PierDay.extra_people(hour, weather)` after the 48's
   rolls (own stream `pier_day_people`): up to `EXTRA_PEOPLE` 110 at the busiest hours
-  (`density()`: 12:00-20:00 full, thinning to 0.2 by midnight, 0.08 overnight; rain 5 %), 70 % on
+  (`density()`: 12:00-19:00 full, thinning to 0.15 by 23:30, 0.08 overnight; rain 5 %), 70 % on
   the promenade's nodes (`PROMENADE`), 45 % in twos and threes. All in the crowd cap.
   `PierDay.rail_spots()` (65) join the chunk's `vendor_queue`: people stop at the open rails and
   the sea end facing out, clear of benches, lamps and stands.
@@ -27082,7 +27082,13 @@ on main):
 **Numbers** (refcams, opengl3 1280x720, pier_day): before p5/p50/p95 53/146/208 sat 0.351, 1.15 M
 triangles / 414 draws (shadows 0.37 M); after 40/155/208 sat 0.316, 1.46 M / 565 (shadows 0.48 M).
 The rise is the crowd (~25 more people in view; each near person is ~12 k triangles); the deck
-shader is no geometry. `PIER_DAY=0` gives the before. See the ten-camera compare below.
+shader is no geometry. `PIER_DAY=0` gives the before.
+
+**The ten cameras** (refcams.py on cameras.json, PIER_DAY=0 then on, same tree, compare): eight ok;
+`freeway` flagged by traffic placement (a semi and a taxi in one run only; the pier is 3 km off -
+traffic noise, as in 9iz); `pier_night` draws +18 % (460 -> 543), tris +5 %, the picture the same:
+the extra people at 21:00 are each a draw even as a dot on the pier. The evening curve was then
+eased (full to 19:00, half by ~21:15), which takes about half of that back; not re-measured.
 
 **Tools.** `PIER_DEBUG=1` prints the people count (and a lost crowd-room) from people_steps;
 `tools/pier/compile.gd` still builds the park; checks `tests/rc3_pier_day_checks.gd` (one line in
