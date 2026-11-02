@@ -228,6 +228,10 @@ static func taxiway_material(seed_value: int) -> ShaderMaterial:
 
 ## The infield: dry LA grass, mown in stripes (lawn.gdshader, very dry).
 static func grass_material() -> ShaderMaterial:
+	if AirportApron.enabled:
+		var straw := PropFactory.lawn(AirportApron.GRASS_TINT, 4821, 0.85, 9.0)
+		AirportApron.dress_grass(straw)
+		return straw
 	return PropFactory.lawn(Color(0.74, 0.70, 0.52), 4821, 0.85, 9.0)
 
 
@@ -264,7 +268,7 @@ static func build_chunk(ch: CityChunk) -> void:
 				col = ch.style.tarmac
 			G_GRASS:
 				mat = grass_material()
-				col = GRASS_COLOR
+				col = AirportApron.GRASS_FAR if AirportApron.enabled else GRASS_COLOR
 			G_TAXI:
 				mat = taxiway_material(hash([seed_value, "taxi"]))
 			_:
@@ -284,12 +288,16 @@ static func build_chunk(ch: CityChunk) -> void:
 		_texts.clear()
 		_paint_runways(ch, area, macro, true)
 		_commit_texts(ch)
-		_paint_lift = 0.002
+		_paint_lift = AirportApron.paint_lift()
 		return
 	_texts.clear()
+	# Set here, never in the static's initialiser: AirportApron refers back to this class, and
+	# read during this class's own load its switch was not set yet (the lines stayed buried).
+	_paint_lift = AirportApron.paint_lift()
 	_paint_runways(ch, area, macro)
 	_paint_taxiways(ch, area, macro)
 	_paint_apron(ch, area, macro)
+	AirportApron.stains(ch, area, macro.tarmac_top)
 	_commit_texts(ch)
 	_fixtures(ch, area, macro)
 	_gate_service(ch, area, seed_value)
@@ -427,6 +435,8 @@ static func _line(ch: CityChunk, area: Rect2, a: Vector2, b: Vector2, width: flo
 	var mid := (pa + pb) * 0.5
 	var seg := length * (t1 - t0)
 	var yaw := atan2(d.x, d.y)
+	if AirportApron.wants_border(col, top, ch.plan.macro.tarmac_top):
+		AirportApron.outline(ch, area, a, b, width, top)
 	ch._batch.add("stripe", PropFactory.stripe(), Transform3D(Basis(Vector3.UP, yaw).scaled_local(Vector3(width / 0.6, 1.0, seg / 3.0)),
 		Vector3(mid.x, top + _paint_lift, mid.y)), col)
 

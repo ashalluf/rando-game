@@ -136,7 +136,7 @@ static func profile_for(car: Vehicle) -> String:
 static func profile_for_type(t: int) -> String:
 	match t:
 		Vehicle.BodyType.PICKUP, Vehicle.BodyType.SUV, Vehicle.BodyType.SPORTS, Vehicle.BodyType.WORK_TRUCK, \
-				Vehicle.BodyType.COUPE:
+				Vehicle.BodyType.COUPE, Vehicle.BodyType.MUSCLE, Vehicle.BodyType.LUX_SUV, Vehicle.BodyType.CLASSIC:
 			return "v8"
 		Vehicle.BodyType.SUPER, Vehicle.BodyType.SPIDER, Vehicle.BodyType.HYPER, Vehicle.BodyType.TRACK:
 			return "v12"
