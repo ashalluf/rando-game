@@ -512,6 +512,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `light_volumetric_fog_energy` down in bad weather - rain thickens the volumetric fog seventy
   times, and lit by the moonlight fill it hung over the street as a pale grey veil. At 88 %
   cloud the sky IS the clouds, so the night cloud colour is what decides it.
+- The rainy day (2026-11-01, docs/HANDOFF.md "The rainy day", refcam `rain_day` in
+  `tools/refcams/cameras_w5.json`): `RainDay` (`scripts/world/rain_day.gd`) - under rain by day the
+  sun keeps ~1/3 of its key with faint shadows and more sky fill; the wet road mirrors the canyon of
+  fronts by day (`shaders/rain_day_mirror.gdshaderinc`, the `rain_day` global, 0 at night) and the
+  night mirrors only run after dark; turf and paving soak; sky.gdshader's `rain_deck` mottles the
+  deck; spray reaches 95 m; searchlights use `RainDay.after_dark_lamp()`. Nights and clear days are
+  untouched. `RAIN_DAY=0` is the A/B; checks `tests/rc2_rain_day_checks.gd`.
 - The wet world (2026-10-30, docs/HANDOFF.md "The wet world"): everything that is not a road takes
   the rain from the road's globals through `shaders/wet_surface.gdshaderinc` (no samplers; call it
   only behind `if (ws_on())`, the one dry branch; never with wet_drying.gdshaderinc): car paint and
@@ -756,6 +763,18 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   grows with the square of the radius (`lens_fringe`), and a luminance film grain re-rolled at
   24 fps (`film_grain`). Every lens and film stock does these; keep each subtle enough that you
   cannot point at it (0 turns any of them off).
+- The camera lens (wave 5, docs/HANDOFF.md "The camera lens"): `CameraLens`
+  (`scripts/player/camera_lens.gd`, made by `CameraPost._ready()`). **By day Godot's meter sits
+  under the camera's dark limit everywhere** (an open noon street too: measured with
+  `tools/camera_lens/lens_probe.gd LUM_OPEN=1`), so main's auto exposure is a constant 1.6x gain
+  and never adapted; never lower `auto_exposure_min_sensitivity` to fix a dark scene, it brightens
+  every day frame. The lens keeps main's clamps and speed and scales `auto_exposure_scale` by a
+  compensation from an enclosure probe (a lid overhead: up to `day_open_gain` 2.6, 1.3 at night),
+  slow to open up (`open_seconds`), fast to close down (`close_seconds`). The lens pass draws a sun
+  flare (glow, six spikes, hex ghosts, a veil; occluded by one screen-mip tap at the sun; off on
+  the web and at LOWEST) and film grain scaled by the exposure (`lens_mode` 1); the bloom gets a
+  core-plus-tail spread (`GLOW_LEVELS`). `CAMERA_LENS=0` is the A/B; checks
+  `tests/camera_lens_checks.gd`.
 - Motion blur and depth of field (VISUAL_ROADMAP #12, 2026-09-27): both belong to `CameraPost`
   (`scripts/player/camera_post.gd`), the `Post` node under the player's CameraRig (so the test
   room has it too); every knob is an export there. **Motion blur** is `MotionBlurEffect`
@@ -2096,6 +2115,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   and nightlife sky beams fading for a camera in the air near them. GDScript copies are checked.
   `NIGHT_FLIGHT=0` is the A/B; stills: `SHOTS=` EYEs in the HANDOFF section; checks
   `tests/night_flight_checks.gd`.
+- The night aerial refcam (2026-11-01, docs/HANDOFF.md "The night aerial review", camera
+  `night_aerial` in `tools/refcams/cameras_w5.json`): `NightAerial` (`scripts/world/night_aerial.gd`,
+  the `night_aerial` global) - far traffic's lane mean drawn as its cars where a pixel can tell them
+  apart, the far bloom eased in with distance (`ft_mean_shape()`, far_traffic.gdshaderinc); the
+  freeway's `display_add` pools without a hard rim and dimmed from the air; a third of tower_wash()'s
+  masonry floods kept (salt 113); far searchlights (searchlight_beam: the helicopters'; nightlife_beam from the air) with a soft knee
+  and a distance fade.
+  `NIGHT_AERIAL=0` the A/B; `tools/rc2_night_aerial/hide_probe.gd` pins a glow on its node; checks
+  `tests/rc2_night_aerial_checks.gd`.
 - The night street review (2026-10-30, docs/HANDOFF.md "The night street at eye level"):
   `NightStreetReview` (`scripts/world/night_street_review.gd`) holds the balance: the moon's key
   (`MOON` 0.09: at 0.3 it lit streets evenly blue at ~45 % of the noon sun and hid the lamps),
@@ -6601,6 +6629,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `LAMPS_AT_ZERO=1` on `still_shot.gd` and `gpu_profile.gd`. The whole city no longer fits
   lavapipe (12.7 GB, OOM-killed with another session's process): never render it there;
   `gpu_profile.gd LIGHT_WORLD=1` is for a bigger box.
+  **A hard range is a pop** (wave 5, docs/HANDOFF.md "Popping while driving and flying"):
+  Godot's FADE_SELF is an ALPHA blend on Forward+ (nothing on Compatibility), fine on a sign,
+  wrong on a car (it shows the body through itself). `LodFade` (`scripts/util/lod_fade.gd`)
+  softens every hard range on Forward+ except vehicles and skinned meshes (meta `lod_hard` opts
+  out); a near / far pair of a many-part body crossfades by a screen door in its shaders
+  (`shaders/lod_blend.gdshaderinc`, `CarLodBlend`). `LOD_POPS=0` / `CAR_LOD_BLEND=0` the A/B;
+  audit `tools/lod_pops/range_audit.gd`, strips `pop_strip.gd` + `pops.py`, proof
+  `car_pop_shot.gd`; checks `tests/lod_pops_checks.gd`.
   **Batch extents decide what a range does** (perf audit 2026-10-05, HANDOFF 9b?): a batch's
   draw and shadow ranges are measured to the centre of its bounds, so a chunk-wide batch of
   something dense (the lawn grass) is drawn whole while its centre is in range - grass is batched
@@ -6875,6 +6911,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   wear `grime`; RoadWear drops (after its rolls) oil under a bike lane. `STREET_NOON=0` is the
   A/B; probe `tools/rc_street_noon/road_probe.tscn` (the real road materials on either renderer,
   prints sRGB); checks `tests/rc_street_noon_checks.gd`.
+- The chase camera's street (wave 5, refcam2 `chase_cam` in `tools/refcams/cameras_w5.json`, docs/HANDOFF.md
+  "The chase camera's street"): a camera row's `drive` key stages the player's own car with placed
+  traffic and shoots his DriveCam (`tools/refcams/chase_stage.gd`; car put on the road by a ray,
+  never `plan.height_at()`; CHASE_DEBUG / CHASE_AB / CHASE_BISECT probes). `ChaseCamReview`
+  (`scripts/world/chase_cam_review.gd`) gives street asphalt `lane_wear`
+  (`shaders/road_lane_wear.gdshaderinc`: tyre-polished wheel tracks, the oil band, queue oil at the
+  block's end, kerb grit; dry or wet, 0 = old road). `CHASE_CAM_REVIEW=0` is the A/B; checks
+  `tests/rc2_chase_cam_checks.gd`.
 - Patterned ground (2026-10-31, docs/HANDOFF.md "Patterned ground without moire"): an integer
   carried through a varying is ROUNDED before `int()` / `floor()` (an interpolated 3.0 reads 2.9999
   on some rows: the forecourts' red / grey row stripes); repeating ground lines are box-filtered by

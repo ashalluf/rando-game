@@ -260,6 +260,10 @@ func _kerb(road: Array) -> void:
 		await _ticks(2)
 		Pedestrian.alarm(_tree, _beside(car, road, 10.0, -5.0), 45.0, 1, false, "")
 		var fell := car.traffic.has("cp") and int(car.traffic.cp.k) == CarPanic.Kind.SWERVE
+		# In a busy shard the kerb that was taken when it was looked at can be clear by the time
+		# the panic starts: then mounting it is right. Only a mount onto a kerb still taken fails.
+		if not fell and car.traffic.has("cp") and int(car.traffic.cp.k) == CarPanic.Kind.KERB:
+			fell = CarPanic.kerb_clear(_traffic, car, CarPanic._frame(_traffic, car))
 		_check(fell, "with no clear kerb near the spawn a driver told to mount it swerves instead (%s; cp %s)" % [fell, str(car.traffic.get("cp", {}).get("k", "none")) if car.traffic.get("cp") is Dictionary else "none"])
 		return
 	CarPanic.force_kind = CarPanic.Kind.KERB

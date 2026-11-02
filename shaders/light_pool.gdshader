@@ -24,6 +24,19 @@ uniform float falloff : hint_range(0.5, 6.0) = 2.4;
 uniform bool display_add = false;
 // A street lamp's pool on Forward+, where the lamp's real light already lights the road (see below).
 uniform float street_forward = 0.4;
+// The night aerial review (NightAerial; NIGHT_AERIAL=0 sets the global 0): a road light's broad
+// pool (display_add: the freeway's) seen from the air. Each one had a hard rim (pow(r, 0.75) rises
+// from 0 with an infinite slope) and they overlapped down the deck into a white tube of discs: the
+// rim is eased in and, for a camera `pool_air_from`..`pool_air_to` metres over it, the pool falls
+// to `pool_air_gain` (from the air the cars' lights carry a freeway, not the deck it is lit on).
+#ifndef NIGHT_AERIAL_DECLARED
+#define NIGHT_AERIAL_DECLARED
+global uniform float night_aerial;
+#endif
+uniform float pool_air_gain = 0.45;
+uniform float pool_air_from = 45.0;
+uniform float pool_air_to = 220.0;
+varying float v_air;
 
 // A street lamp's pool (StreetLamps, the night lamps review): INSTANCE_CUSTOM.a 1 marks it, and
 // the pool is the light a real head throws rather than a soft dot - illuminance off a point
@@ -36,6 +49,11 @@ varying vec4 v_custom;
 
 void vertex() {
 	v_custom = INSTANCE_CUSTOM;
+	v_air = 0.0;
+	if (display_add && night_aerial > 0.5) {
+		float over = CAMERA_POSITION_WORLD.y - (MODEL_MATRIX * vec4(VERTEX, 1.0)).y;
+		v_air = smoothstep(pool_air_from, pool_air_to, over);
+	}
 }
 
 vec3 lp_to_linear(vec3 c) {
@@ -45,6 +63,9 @@ vec3 lp_to_linear(vec3 c) {
 void fragment() {
 	float r = clamp(1.0 - length(UV - vec2(0.5)) * 2.0, 0.0, 1.0);
 	float a = pow(r, falloff) * lamp_factor * mix(1.0, lamp_factor, lamp_ease) * strength;
+	if (display_add && night_aerial > 0.5) {
+		a *= smoothstep(0.0, 0.45, r) * mix(1.0, pool_air_gain, v_air);
+	}
 	if (v_custom.a > 0.5) {
 		vec2 q = (UV - vec2(0.5)) * 2.0;
 		float hr = max(v_custom.r, 0.05);

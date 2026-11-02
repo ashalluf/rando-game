@@ -340,8 +340,8 @@ func _doors(city: Node3D) -> void:
 		# What the hidden walker's tick needed (shuffled gate 5101: still inside after 10 s).
 		var st: Dictionary = ((w.errand.steps as Array)[mini(int(w.errand.i), (w.errand.steps as Array).size() - 1)] as Dictionary) if w.errand.has("steps") else {}
 		var dd: Variant = st.get("door")
-		state += "; in tree %s, can process %s, down %s, stride %d, until in %d ms, door alive %s, life near %s, act %d" % [
-			w.is_inside_tree(), w.can_process(), w._down, w._lod_stride, int(st.get("until", 0)) - Pedestrian._life_now_ms(),
+		state += "; script %s, in tree %s, can process %s, down %s, stride %d, until in %d ms, door alive %s, life near %s, act %d" % [
+			(w.get_script() as Script).resource_path.get_file(), w.is_inside_tree(), w.can_process(), w._down, w._lod_stride, int(st.get("until", 0)) - Pedestrian._life_now_ms(),
 			StreetErrands._door_alive(dd) if dd is Dictionary else "none", w._life_near, int(w._act)]
 	_check(came and shown, "somebody comes out of a shop door near the player (%d doors in reach, out %s, shown %s at %.1f m; %s)" % [near, came, shown, out_d, state])
 

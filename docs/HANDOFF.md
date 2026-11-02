@@ -26110,7 +26110,7 @@ into a running gate (check files are `load()`ed lazily, mid-run).
 | 3101 | building_damage "another building stays clean" | "another building" was the first in the group with a facade material: a retiring chunk's copy of the SAME building (same key, so the same records) or one an earlier file had shot | the other building is clean beforehand and has a different key |
 | 4101 | gate_speed_2 "the full reset puts the weather back (state 0, forced false)" | the reset put back its SNAPSHOT's weather; the check compared against the weather at its own start, which Weather's auto roll had changed since (the hour check already used the snapshot's) | it expects the snapshot's state and forcing |
 | 5101 | crowd_look "a performer ahead and to the right is watched (5 degrees, wanted -40)" | a busker the city put near home (or one a file left) is in `crowd_look_magnet` too and won the head | the staged performer is the only magnet while it is watched; the message gives the kind that won |
-| 5101 | pedestrian_flow "somebody comes out of a shop door (still inside after 10 s)" | **not found**; the check now prints the walker's tree / process state, LOD stride, time left inside, the door's state and act | - |
+| 5101, the lead's batch 38 | pedestrian_flow "somebody comes out of a shop door (still inside after 10 s; overdue 1.7 s, door alive, in tree, processing)" | `CrowdFlow._pass_door()` had no `_lives()` test: a valet, a diner, a night-goer (any Pedestrian subclass walking through `avoid()`) could be sent in at a shop door, where it stayed hidden for good because its own tick never runs an errand; `door_tick()` then borrowed it from the pool (`StreetErrands._from_pool()`, no `_lives()` test either) and it "never came out" | both take the plain crowd only; the message names the walker's script |
 | 6101 | traffic_behaviour_2 "a car behind a wreck asks for the other lane" / car_panic "with no clear kerb ... swerves instead" / distance "from 600 m up no block is drawn by two tiers at once (1)" | **not found** (seen once each, in one heavy run); the first two print where the car got to and its panic kind now | - |
 | 1303, 6101 | pedestrian_flow "a follower walks beside its leader (mean 2.1 m, leader 6.9 m)" | **not found**: the strip sits at the camera's x and may meet pavement furniture the follower dodges; moving the strip off furniture was tried and made the pair walk off east to one spot every time (7101, 8101, 9101: the same end point to the millimetre), so it was taken back out | - |
 | 1202 + the lead's batch 37 | pedestrian_flow "two walkers ... (closest 0.04 m, passed true; camera 24.3 m off, strides 1, flow on)" | **not found**: no sidestep at all with every precondition met; the message now also prints what each saw of the other in CrowdFlow's grid, their group ids, layers and visibility | - |
@@ -26693,6 +26693,347 @@ chips that bounce and skid, BlastDebris' burning pieces with trails), the glass 
 (SHATTER records plus shards timed by the wave's travel at 343 m/s) and the refracting pressure
 wave stay as the second and third passes made them.
 
+## 9lb. The camera lens (wave 5, `camera-lens`)
+
+**What.** The camera itself: exposure adaptation, the sun's flare, grain, the bloom's spread.
+`CameraLens` (`scripts/player/camera_lens.gd`), one node beside CameraPost under the player's
+CameraRig (`CameraLens.attach()`, one line in `CameraPost._ready()`), plus new paths in the lens
+pass (`shaders/vignette.gdshader`) whose defaults draw exactly what main drew. `CAMERA_LENS=0` is
+the A/B (the lens is never made; the shader's new uniforms stay at their defaults).
+
+**The finding that shaped it.** Godot's auto exposure divides `auto_exposure_scale` (0.4) by the
+frame's metered luminance clamped to [min, max] sensitivity x 0.00125 (200..620 ISO = 0.25..0.775).
+Measured on Forward+ with the probe (`LUM_OPEN=1` unclamps the meter; main vs unclamped p50 at
+noon 129 vs 144, in the underpass 20 vs 35, low sun 136 vs 142, night 21 vs 36): **by day and by
+night every frame meters UNDER the dark limit**, so main's adaptation was a constant 1.6x gain -
+the camera never adapted to anything, and an underpass was simply black. Lowering the dark limit
+(the first attempt) opens the underpass but brightens the open noon street too (p50 129 -> 143),
+and the whole day look was tuned on that 1.6x. So the clamps and Godot's speed stay main's and the
+lens adds its own compensation:
+
+- **Exposure.** An enclosure probe every `probe_interval` (0.12 s): one world-layer ray up
+  (`probe_up` 16 m), eight round (`probe_round` 14 m); 0.65 x lid + 0.35 x share of walls. A street
+  canyon reads 0.04-0.09, the underpass 0.64. `open_target()`: 1 below `open_from` 0.3, up to
+  `day_open_gain` 2.6 at `open_full` 0.75 by day, `night_open_gain` 1.3 at night (a lamp-lit garage).
+  `adapt()` heads there in log space with `open_seconds` 1.8 going in (the eye opening up) and
+  `close_seconds` 0.35 coming out (the short blow-out stepping into the sun), and the lens writes
+  `auto_exposure_scale` = main's x compensation. An open street is bit for bit main's.
+- **Flare** (Forward+ desktop and Compatibility desktop; off on the web and at Quality LOWEST,
+  `CameraPost.quality_level`): CameraLens projects DayNight's `sun_dir` into the frame and hands the
+  lens pass `sun_uv`, `aspect`, `sun_tint` (DayNight's sun colour toward white) and `flare_amount`
+  (`sun_weight()`: up in the sky, through clear air - weather_darken and the marine layer take it
+  away - and fading `flare_outside` 0.25 screen heights outside the frame). The shader takes ONE
+  tap of the screen's mip 3 at the sun: `vis` = smoothstep(0.5, 0.86, its brightest channel), so a
+  tower, a tree or a cloud over the sun covers the flare as it covers the sun. Parts (display
+  numbers, screen-blended so nothing clips): a glow round the sun (`flare_glow` 0.35, a tight
+  exponential and a long tail), six thin aperture spikes plus a fainter rotated set
+  (`flare_spikes` 0.16), five soft hexagonal ghosts with brighter rims on the line through the
+  centre, tinted by coatings (`flare_ghosts` 0.11), and a veil over the whole frame (`flare_veil`
+  0.045: shooting into the sun lifts the blacks). No tap and no cost while `flare_amount` is 0.
+- **Grain** (`lens_mode` 1): two hashes (triangular noise), strongest in the shadows and lower mids,
+  almost none in the highlights (film), times `grain_gain` = 1..`grain_dark_gain` 1.6 by how far
+  the camera has opened up (and 0.6 x the night's moonlight). The settings screen's grain toggle
+  still sets `grain` (0 turns it off).
+- **Bloom spread**: `CameraLens.GLOW_LEVELS` on the city's Environment (levels 2-7: 0.25, 0.55,
+  0.45, 0.4, 0.25, 0.1; main's Godot defaults are levels 3 and 5 at 1.0; same total, 2.0): a tight
+  core and a long tail like a real lens's point spread. DayNight keeps the intensity and threshold.
+- Chromatic fringe and the vignette: judged fine (cinematic review's numbers, GoldenAerial's halved
+  fringe), not changed.
+
+**Numbers** (Forward+, lavapipe, `tools/camera_lens/lens_probe.gd` at 640x360, luminance p5/p50/p95):
+noon street main 38/129/177 -> 39/130/177; inside the underpass after 5 s 13/20/163 -> 24/50/199;
+night 3/21/55 -> 3/21/57; low sun 17:18 51/136/189 -> 56/141/194 (the veil); sun at 10:00 in frame
+94/131/189 -> 99/137/192. The walk through the underpass at 6 m/s (`MODE=walk`): p50 at 1, 2, 3, 4 s
+in: main 20, 17, 23, 49; lens 29, 29, 56, 85; a second after coming out 125 / 130 (comp back to 1.07).
+Frame cost: no geometry, no draw (one more full-screen ALU path only while the sun is in or near the
+frame; Godot's glow levels are the same passes, two more blur levels sampled).
+
+**Tools.** `tools/camera_lens/lens_probe.gd` (usage in its header: `MODE=shots` with
+`SHOTS=name@hour@x,y,z@yaw,pitch@frames` - `sun,dx,dy` aims at the sun - or `MODE=walk`;
+`LUM=1` / `LUM_OPEN=1` the meter; `CAMERA_LENS=0` the before; run with `--fixed-fps`, ~4 min a
+set of five at 640x360). Checks: `tests/camera_lens_checks.gd`.
+
+**Not done / not verified.** The Mac (Forward+, a real GPU, 60 fps) has not seen it: the flare's
+strength at full resolution, the grain at 1440p, the adaptation's feel while playing. The probe
+measures enclosure, not light: a brightly lit covered place (a lit car park deck by day) opens up
+too, and a dark open place (a deep alley without a lid) does not. No flare from the moon, street
+lamps or headlights (the bloom carries those). Godot's own meter could be made useful by lowering
+`auto_exposure_scale` and both clamps together; that changes every frame's look and needs the
+grade re-tuned on the Mac first.
+
+## 9lc. Popping while driving and flying (wave 5, lod-pops)
+
+**What pops, and why.** `tools/lod_pops/range_audit.gd` walks a loaded city and lists every
+drawn node with a visibility range, grouped by kind; at the Flower St bookmark ~200 kinds had a
+HARD range (`VISIBILITY_RANGE_FADE_DISABLED`, or a zero margin): every car's near body / far twin
+swap at 30 m (60 for buses), the wheel rigs at 85, shop names and blade signs at 75 (~1,900
+nodes), hats and hand props at 60, the car parks' real / static cars at 42, the cars' night
+lamps at 160, facade frames, bays, StreetDress / MidDress, camp figures. Script-driven swaps
+(the crowd's body tiers at 45 / 50 / 140 m to the PLAYER) had no hysteresis at all.
+
+**What Godot's range fade really is** (`tools/lod_pops/fade_probe.gd`, measured): on Forward+ a
+FADE_SELF range is an ALPHA blend (the instance goes to the transparent pass, no depth write)
+over [end, end + margin] / [begin - margin, begin]; on Compatibility (the web, every opengl3
+still) there is no fade at all, a margin only moves the cut. Alpha suits a flat thing; on a car
+it shows the body through itself (underside, doubled wheels: `tools/lod_pops/car_pop_shot.gd`,
+`l1` stills) - worse than the cut.
+
+**Fixes.**
+- `LodFade` (`scripts/util/lod_fade.gd`, one hook in `CityStreamer._ready()`): on Forward+ desktop
+  (a real display, never headless) it watches `SceneTree.node_added` and, a frame later, gives every hard range a margin of 12 % of
+  its distance (2..40 m) and FADE_SELF. Vehicles (anything under a "vehicle" node), skinned
+  meshes and the car parks' real far bodies are skipped; meta `lod_hard` opts out. Nothing on
+  Compatibility.
+- `CarLodBlend` (`scripts/vehicles/car_lod_blend.gd`, one hook at the end of
+  `Vehicle._add_body_model()`, one in `damage_state()`): the near body and far twin overlap by
+  6 m round the swap and SCREEN-DOOR crossfade (`shaders/lod_blend.gdshaderinc`: interleaved
+  gradient noise, StandardMaterial3D's OBJECT_DITHER rule line for line, so the glTF part
+  materials faded that way take the same pixels): each pixel is drawn by exactly one of the two,
+  opaque; TAA makes it a dissolve. The far twin gets its own paint copy (side 1); never in a
+  shadow pass (the shadow twins overlap). The first hit puts the hard swap back (CarDamage copies
+  the paint). Forward+ desktop only.
+- Crowd tiers: `LodFade.tier_band()` holds a body tier 4 m past its threshold.
+
+**A/B:** `LOD_POPS=0` (all of it), `CAR_LOD_BLEND=0` (the cars).
+
+**Measured / not measured.** Proof is a small Forward+ scene (`tools/lod_pops/car_pop_shot.gd`,
+lavapipe: a row of parked cars, the camera backing away 26 -> 34 m; `CAR_LOD_BLEND=0` the
+before), stills on `shots/lod-pops`. The city can only be stripped on opengl3
+(`tools/lod_pops/pop_strip.gd` + `pops.py`: one-frame changes per 16 px tile with the chunk
+events of that frame), where neither fix runs (Compatibility has no fade), so the strips are the
+"before" and a pop finder, not the proof. Frame cost: nothing changes on Compatibility. On
+Forward+ each softened range draws `SHARE` (12 %) further, in the transparent pass while inside
+its margin (~25 % more sign / lettering / hat instances on screen at the edge of their range),
+and a car inside the 9 m overlap draws both bodies; the car paint and cabin glass now carry a
+`discard` (their depth pre-pass already ran their own vertex code). Not measured on a GPU - ask the
+owner for an F1 FULL screenshot of a busy street.
+
+**Gate notes.** Headless reports `forward_plus`, so `LodFade.supported()` also asks for a real
+display (`DisplayServer.get_name() != "headless"`): with LodFade and CarLodBlend running in the
+gate, shard 2's `night_atmos_checks` "every prop keeps its id and place" failed three runs in a row
+and passed with them off (cause not found; nothing they touch is read by a chunk build). The
+checks force both on for themselves, on free-standing meshes and a stand-in "vehicle" node (a real
+Vehicle built in the city disturbed the next file's twice-built block). Shard 2 still shows
+intermittent failures that move from run to run - `street_clutter_2` / `night_atmos` "built twice",
+`traffic_motion` "costs little" (wall clock), valets, emergency "fire goes out", boats "stays on the
+water" - several of them also with `LOD_POPS=0`.
+
+**Not done.** The FULL chunk's arrival (its trees, props and cars appear at once while the LOD
+boxes dissolve; at the ring's 240 m it is a few pixels each); shadow twins still cut (a shadow
+cannot be faded); mesh LOD switches inside a batch (Godot picks them by pixel error); the crowd's
+body swaps are still swaps (only held by the band); motorcycles keep their own hard 26 m swap;
+CarDetail plates, wipers and the underside still end at their own distances.
+
+## 9ld. The rainy day: Wilshire at 14:00 in the rain (fleet wave 5, `wt/rc2-rain-day`; refcam `rain_day`)
+
+The task: a NEW reference view, "rain_day" - a midtown boulevard at 14:00 in rain (overcast
+daylight, not night) - judged as an art director would, the worst three to five things fixed. The
+row is in `tools/refcams/cameras_w5.json`: Wilshire's north pavement at x 1405, looking ESE down the
+boulevard toward downtown (the deco "NOVALINE" corner and its shops on the right, a rec park on the
+left), FOV 55, plus an optional `street_cars` key (below). Run it with
+`REFCAMS_JSON=tools/refcams/cameras_w5.json python3 tools/refcams/refcams.py run <dir> --only rain_day`
+(~13 min, the load is ~11 min, peak ~10.7 GB on this box).
+
+**What read fake, worst first** (before: `RAIN_DAY=0`, which is main's look; stills
+`shots/rc2-rain-day` 02 / 03):
+1. **A sunny afternoon with a grey sky painted on.** Rain cut the sun only by 0.75 x darken (to
+   62 %) at full shadow opacity: the lamp pole and every palm threw crisp shadows across a sunlit
+   pavement under a rain deck.
+2. **The wet road mirrored bright sky from kerb to kerb.** By day the renderer's reflection is the
+   sky's radiance map, so a soaked boulevard read pale and dry; and the night city mirror and night
+   sky emission ran by day too (the weather's lamp level is 0.42 at 14:00 in rain), putting lit shop
+   fronts into the puddles.
+3. **Neon-green turf and dry paving** - the park's turf, dirt and the lawn shaders ignored the rain.
+4. **Searchlights at 14:00**: a police patrol helicopter's sweep and a premiere's sky beams burn
+   whenever DayNight's lamp level is up, which the rain raises at noon.
+5. **A flat grey sky** (the painted stratus ceiling, one tone horizon to zenith) and grey lens-drop
+   discs over it; **no traffic and no spray in view** (TyreSpray reached 55 m, full at 24 m/s).
+
+**The fixes** (`RainDay`, `scripts/world/rain_day.gd`, every number with the switch; `RAIN_DAY=0`
+puts each back, and nothing changes at night or on a clear day, so the other ten refcams are
+untouched by construction):
+- **Overcast light** (DayNight, three hooks): `overcast()` = weather_darken's 1.6 ramp x (1 -
+  moonlight); the sun's key x `1 - SUN_CUT 0.7 x overcast` (0.36 of a clear sun's 1.3 in rain), its
+  `shadow_opacity` x `1 - SHADOW_CUT 0.8 x overcast` (0.36), the ambient energy x `1 + 0.9 x
+  overcast`. Godot ignores ambient_light_energy at sky contribution 1.0 (HIGH): there the fill is
+  the sky and SDFGI, and the camera's auto exposure takes up the rest.
+- **The wet road by day** (`shaders/rain_day_mirror.gdshaderinc`, in road.gdshader's wet branch
+  behind the `rain_day` global): the reflected ray is followed to the fronts `wrm_setback` past each
+  kerb (wet_road_mirror's street frame and per-unit rooflines, so the day canyon is the night one's
+  geometry); where a front stands in the mirror the sky's SPECULAR is taken away (`rdm_spec_cut`)
+  and the front's overcast light emitted (`rdm_wall` 0.26 x sky_tint x a per-front tone); off a
+  street slab a generic canyon by the ray's elevation. The night mirrors (WetRoadMirror's city and
+  the night sky) now run on `lamp_factor x (1 - rain_day)`. Paving darkens 22 % more and keeps a
+  0.2 sheen, never asphalt's mirror. `rain_day` = 1 - the lamps' own night level (`publish()`), 0
+  at night: the night road is bit for bit.
+- **Soaked turf**: lawn.gdshader (both branches) and park_ground.gdshader (turf, soccer, diamond,
+  lawn, decomposed granite) darken, grey and gloss by `road_wetness x rain_day`.
+- **After dark only**: `RainDay.after_dark_lamp()` (the lamps' night level, `night_lamp`, not the
+  weather's share) for SkyBeam and the helicopter's searchlight; street and car lamps keep coming
+  on under a storm at noon as designed.
+- **The rain deck** (sky.gdshader `rain_deck`, `RainDay.rain_deck()`: rain and storm by day, not
+  plain overcast, 0 at night): two noise fields on the deck's plane (a big slow one, a finer faster
+  scud) mottle the sky into heavy darker masses and paler thin places, after both the painted and
+  the volume cumulus, faded into the horizon haze.
+- **Lens drops** by day x `LENS_DAY` 0.35; **tyre spray**: `SPRAY_REACH` 95 m, full at 16 m/s, puff
+  alpha 0.6 (TyreSpray reads them once in `_ready()`; this does change the street_night shot's
+  spray, the only effect off the rainy day).
+
+**Staging** (`refcams_shot.gd`, optional row key, the ten original rows do not have it):
+`"street_cars": {"axis": "z", "at": 312.7, "cars": [[along, dir, lane, speed], ...]}` places street
+cars through `TrafficManager.place_car()` on the road nearest `at` as the camera starts, with the
+upkeep held (`staged`) until the shot. The bus at its stop in the frame is the load's own traffic.
+
+**Proof**: refcams on opengl3 (`RAIN_DAY=0` vs on, same row) and a small Forward+ scene on lavapipe
+(fwd_block_shot at the same eye, the home block plus east and south, `tools/fwd_review_f/shoot.sh`
+with `override.cfg` threads 1 - never commit it). Numbers in the last section of this entry.
+
+**Numbers** (refcams, opengl3, one load each). rain_day, `RAIN_DAY=0` -> on: p5/p50/p95 41/140/197
+-> 37/120/163 (a rainy afternoon, no longer a bright one), saturation 0.240 -> 0.243, triangles
+5.93 M -> 5.61 M and draws 3,257 -> 3,232 (the difference is the live traffic: shader-only changes
+plus one uniform, no node, mesh or draw added). The ten original cameras, `RAIN_DAY=0` vs on
+(`build/refcams/all_off` / `all_on`, `compare`): the seven quiet ones within pixel noise (|d| <=
+1.75); street_noon, freeway and street_night flagged by live traffic only (a bus pulling up, a
+truck, a bus at the stop: the lighting is identical, as designed - nights and clear days are
+untouched).
+
+Checks: `tests/rc2_rain_day_checks.gd` (22: the pure numbers, the switch, nights and clear days
+untouched, the shaders' gates and defaults, the live city at 14:00 in rain and at 23:00).
+
+**Gate flake fixed on the way** (`tests/rc_golden_aerial_checks.gd`): that file is not awaited, so
+the gate puts back only the statics before it; in this branch's shard deal it ran after
+storm_drama_checks, whose forced strikes leave the `weather_flash` meta on the sun, which DayNight
+adds to the sun's energy and colour - the 17:12 reading came out at gain 0.95-1.0 instead of 0.65
+(with RAIN_DAY=0 too). It now holds the flash and the weather hooks (marine, Santa Ana, storm) at 0
+while it reads and puts them back. Still seen, not fixed (outside this area): traffic_ai_checks'
+"never drives into another car" / the on-ramp merge failed twice under three parallel shards and
+passed every time with two processes or alone, RAIN_DAY on and off alike.
+
+**Not done / not seen**: the facades' wetness by day (wet-world's ws_wall) reads faintly at this
+range on opengl3, untouched; the pink-brown pavement stain in the foreground is a StreetWear stain,
+not rain; the rain curtain by day is thin against a pale sky (left as is); Forward+'s SSR adds the
+on-screen reflections on top of the day canyon - the balance (`rdm_spec_cut`) may want lowering on
+the Mac.
+
+## 9le. The night aerial review: no ember boxes, freeways as rivers of cars (wave 5, `rc2-night-aerial`)
+
+**The camera.** A new reference view, `night_aerial`, in `tools/refcams/cameras_w5.json` (wave 5's
+table, same format as cameras.json): eye (1500, 350 m over the plan, 2400), yaw -30, pitch -12,
+22:30 clear, fov 55 - downtown and the convention centre from the south-west with the 110 and the
+10 curving in under the camera, the basin's grid beyond and the front range against the sky.
+`REFCAMS_JSON=tools/refcams/cameras_w5.json python3 tools/refcams/refcams.py run <dir> --only night_aerial`.
+
+**The review** (opengl3, the before is main bb03d731; stills on `shots/rc2-night-aerial`). What the
+eye landed on first, in order:
+1. **The near freeways were solid cream slabs** (one carriageway cream, the other red) with a row of
+   hard white discs down the median. The slab: the LOD decks' far-traffic skin (far_traffic.gdshader)
+   - at 400-900 m and a grazing angle a pixel spans metres along the road, so each lane drew its
+   lamps' MEAN, spread evenly over the whole 3.6 m lane and bloomed x3.5 (a gain meant for a river
+   kilometres off): four lanes became one slab. The discs: FreewayKit's light pools (light_pool,
+   `display_add`), whose `pow(r, 0.75)` falloff rises from 0 with an infinite slope - a hard rim.
+   Pinned with `tools/rc2_night_aerial/hide_probe.gd` (every shot saved again with a name pattern
+   hidden: `*Traffic*` took the slab, `*Glow*` the discs).
+2. **Orange-red ember boxes all over the basin.** `tower_wash()` (window_lights.gdshaderinc) uplit
+   60 % of masonry buildings over 22 m warm from the foot; on brick and render that is a saturated
+   orange box, and the far city is mostly masonry.
+3. **A searchlight drawn as a solid white wedge** 1.5-2.5 km off. It is the police helicopter's
+   (AirTraffic's patrol, `Searchlight` node, searchlight_beam.gdshader; found with hide_probe after a
+   fix to the club beams changed nothing): PoliceNightLook's lit-haze gain runs the core well over 1
+   and it is hard-clamped, so the whole cone was one flat white at any distance. The club beams
+   (nightlife_beam) have the same clamp, which made the night flight's air gain (applied before it)
+   a no-op for a bright beam.
+Seen and left: the convention halls' white roof monitors (HallDress, read as stripes, not wrong);
+the unfinished tower's dark glass shell (true to the real one); the general moonlit blue-grey of the
+roofs (renderer-dependent: opengl3's flat light; not touched without a Forward+ proof); the front
+range's comb of spires (the hills' own); the street lamps as dots (right from the air).
+
+**What it is now** (`NightAerial`, `scripts/world/night_aerial.gd`, the `night_aerial` global,
+installed by DayNight; `NIGHT_AERIAL=0` is the A/B, every shader exactly as it was):
+- `ft_mean_shape()` (far_traffic.gdshaderinc): where a pixel spans less than ~a car cell along the
+  road (`FT_CELLS_FROM` 5 .. `FT_CELLS_GONE` 13 m a pixel) the lane mean is drawn as the cars it
+  averages - each cell the same roll as ft_lane's takes lit along its car's 4.6 m and dark between,
+  held across the lane to the lamps' line (a pixel at least), the total kept
+  (`NightAerial.mean_along()` proves it) - and the far bloom eases in with distance (`FT_NEAR_BLOOM`
+  0.5 at 1 m a pixel to all of it at `FT_BLOOM_FULL` 8 m). The far streets (far_ground,
+  street_traffic) take the same path: from the air they are streams of single lights now.
+- light_pool.gdshader, `display_add` pools only (the freeway's): the rim eased in
+  (`smoothstep(0, 0.45, r)`) and the pool down to `pool_air_gain` 0.45 for a camera 45-220 m over it.
+- tower_wash(): a third of the masonry floods kept (salt 113, `FLOOD_KEEP`; a fifth of masonry in
+  all), the warm ones cooler (1.0, 0.88, 0.72) at `FLOOD_GAIN` 1.1.
+- searchlight_beam.gdshader (the helicopters'): from `far_from` 200 to `far_to` 1000 m away a soft
+  knee (`1 - exp(-1.3 a)`) instead of the hard clamp, and down to `far_gain` 0.2; nearer it is as it
+  was. nightlife_beam.gdshader, for a camera in the air over the lamp: the same knee, then down to
+  `beam_far_gain` 0.3 from 300 to 1400 m away (not seen in this camera: no club beam is in frame).
+
+**Numbers** (refcams, night_aerial, opengl3): main p5/p50/p95/p99 4/31/116/200, 3.00 M triangles, 844
+draws; the branch 4/26/98/173, 3.00 M, 844 (the dark is the cream slabs and ember boxes gone; the
+mean colour cooler, 5880 -> 6730 K). Shader-only changes: triangles and draws equal to the count at
+this camera. The eleven cameras (the ten + this) shot as an A/B (`NIGHT_AERIAL=0` / on, one load each,
+`refcams.py compare`): only night_aerial and freeway flagged, the freeway by its moving traffic (the
+diff map is the cars alone); street_night and pier_night within noise. The helicopter-shaft range was
+tightened after that run and only night_aerial was shot again.
+
+**Not verified.** Forward+ (the Mac): tuned on opengl3. The lane mean is emitted light; under AgX and
+bloom the knots may read hotter - knobs `FT_NEAR_BLOOM`, `FT_CELLS_*` (with their copies in
+NightAerial). The beam is tuned on one premiere beam at 1.4 km.
+
+## 9lf. The chase camera's street (wave 5, refcam2 `chase_cam`, branch wt/rc2-chase-cam)
+
+**The camera.** A new reference view, `chase_cam` in `tools/refcams/cameras_w5.json`: what the player
+sees most while driving - his own car from his chase camera (DriveCam), 40 km/h up Grand Ave (x
+2610.8) between 9th and 8th, 16:00 clear, traffic placed round him (two cars ahead in each lane, a
+box truck, oncoming cars and a bus). The row's `drive` key is staged by `tools/refcams/chase_stage.gd`
+(loaded by path from `refcams_shot.gd` once the autoloads exist): the car is put on the road by a
+ray, the player enters it, the player's camera is made current, the placed traffic
+(`TrafficManager.place_car()`, `staged` on) starts `lead` seconds back so everyone is where the row
+says at the shot, the car's velocity is set every tick (it rides its wheels), and after the shot
+everything is put back (the free eye current again, police and staging as they were). Run:
+`REFCAMS_JSON=tools/refcams/cameras_w5.json python3 tools/refcams/refcams.py run <dir> --only chase_cam`.
+
+**What read fake first, in order.**
+1. **Sparks streaming off the car** while it cruised. That was the staging (and the same staging in
+   `tools/driving_camera/drive_strip_run.gd`, whose stills on `shots/driving-camera` show it too): the
+   car was dropped from `plan.height_at()`, which is the relief, not the street slab's top (0.1 m
+   higher here), so its body box met the road and DrivingFX threw sparks the whole drive. The stage
+   now finds the road's top with a ray. (drive_strip_run.gd still uses the old drop.)
+2. **The carriageway was one even sheet.** Half the frame from a chase camera, and in the towers'
+   shadow at 16:00 it was flat navy plastic. `ChaseCamReview` (`scripts/world/chase_cam_review.gd`)
+   gives the street asphalt materials (`asphalt`, `asphalt_aerial`, no joints, full wear: never
+   pavements, plazas, car parks or yards) road.gdshader's new `lane_wear`
+   (`shaders/road_lane_wear.gdshaderinc`, called once in road.gdshader after the stains): per travel
+   lane (CityPlan.lane_center()'s, found from the slab's UV like the wet drying's) two tyre-polished
+   wheel tracks (smoother, a little darker; they catch the sky's sheen at a grazing view, which is
+   what makes them visible in shadow) that wander and come and go in stretches, the oil and drip band
+   between them (blotchy, heavier over the last `lw_queue_run` metres before the block's end where
+   cars queue), and dust and a dirt line in the parking lane and gutter pan. Junction squares,
+   skirts and replica pieces get nothing; the web (ground_detail 0) gets nothing. Knobs: the `lw_*`
+   uniforms in the include. ALU only: no triangle or draw moves.
+3. **Open: a pale translucent rectangle round the car's rear bumper.** It is there in main's own
+   drive-strip stills (shots/driving-camera 06_after_frame_30kmh.jpg), so it is not the staging. What
+   it is NOT, each tested by hiding it in the frame (`CHASE_AB`): any child of the car (body, far and
+   shadow twins, NightLights, CarDetail, wheels), the street slab and every batch under the car,
+   ContactShadows (also with CONTACT_SHADOWS=0), DrivingFX, every particle system within 40 m, every
+   light and VisualInstance near it, every CanvasLayer, the player's own nodes. It survives
+   `Viewport.DEBUG_DRAW_UNSHADED` (so it is translucent geometry, not lighting), the overdraw view
+   shows an extra layer over the car's footprint, and a bisection over all ~10,700 drawables found
+   no single node (`CHASE_BISECT=1`). It does not show in car_shot.gd with OCCUPANT=player. Next
+   step for whoever picks it up: bisect with two nodes at a time, or check what Player.enter_vehicle
+   / CarInteriors.driver_changed add for the player's own car only.
+
+**Not changed (other sessions own them):** the towers' shadow on the street is a saturated sky blue
+on opengl3 (no GI there; Forward+ was not measured: lavapipe was set up and lost with a container
+restart) - shadows-review / camera-lens; the Botts' dots read as scattered white specks at this
+distance (they are LA's real dots-only lane lines).
+
+**Numbers.** chase_cam: 7.33 M triangles, 3,471 draws before and after (the lane wear is shader
+work only). The ten original cameras, `CHASE_CAM_REVIEW=0` vs on (refcams compare): nine ok (p50
+0 to -1, mean pixel difference 0.0-2.4, street_noon 0.9); freeway flagged, and it is traffic (a box
+truck in one run, a red car in the other; the deck is freeway_deck.gdshader, not touched).
+
+**A/B, checks, probes.** `CHASE_CAM_REVIEW=0` turns the lane wear off. `tests/rc2_chase_cam_checks.gd`
+(one line in smoke_test.gd's city_files): street asphalt gets lane wear and pavements / car parks do
+not, the shader applies it and 0 is the old road, the switch, the camera row and its staging
+script. Stills on `shots/rc2-chase-cam`.
 ## 9d?. The pale box round the player's car (wave 5, `chase-box-bug`, branch `wt/chase-box-bug`)
 
 **The bug.** Every chase-camera still (shots/rc2-chase-cam 02_after_chase_cam.jpg, shots/driving-camera

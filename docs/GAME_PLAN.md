@@ -295,6 +295,11 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-11-02 The chase camera's street (rc2-chase-cam, HANDOFF "The chase camera's street").** A
+  driving view is a reference camera too: a camera row may stage the player's own car (`drive`) and
+  shoot his DriveCam. The carriageway's wear is per lane in the road shader (wheel tracks, oil band,
+  kerb grit) rather than more stamps: it follows every street for free and costs no geometry.
+  CHASE_CAM_REVIEW=0 the A/B.
 - **2026-10-31 Gunplay at arm's length (gunplay-feel, HANDOFF "Gunplay at arm's length").** The flash
   is a volume of crossed flame cards in a shader, not a sprite (a sprite seen from the side is a
   ball); the tracer a streak in flight, not a line; the marks per surface painted in code from a
@@ -4281,6 +4286,35 @@ none of either.
   them out with the camera's clearance over whatever is under it (a roof counts), the reach capped
   at 600 m at HIGH (1000 m doubled an aerial's shadow passes). The bias stays (lower values brought acne at golden hour in the lab), the fade is
   20 %, and far landmark planting casts within 450 m. SHADOW_TUNING=0 is the A/B.
+- **2026-11-02 The camera lens: measure the meter before touching the clamps (camera-lens, HANDOFF
+  "The camera lens").** Godot's auto exposure meters every frame of this city under the camera's
+  dark limit, so the player camera never adapted (a constant 1.6x gain). Lowering the limit would
+  have re-exposed every day frame the grade was tuned on, so the clamps stay and the lens adds an
+  exposure compensation from an enclosure probe (slow to open up, fast to close down); the sun gets
+  a flare in the lens pass occluded by one screen tap, the grain follows the exposure, the bloom a
+  wider spread. CAMERA_LENS=0 the A/B.
+- **2026-11-01 Popping: fade what alpha can fade, dissolve what it cannot (lod-pops, HANDOFF
+  "Popping while driving and flying").** Godot's visibility-range fade is an alpha blend on
+  Forward+ and nothing on Compatibility, so it is given to flat things only (LodFade, Forward+
+  desktop); a car's near body and far twin crossfade by a complementary screen door in their own
+  shaders (CarLodBlend), which is opaque and needs TAA; the web keeps every cut. LOD_POPS=0 /
+  CAR_LOD_BLEND=0 the A/B.
+- **2026-11-01 The rainy day is lit by the sky, not the sun (rc2-rain-day, HANDOFF "The rainy day").**
+  Daylight rain was the clear day with a grey sky drawn over it. Decisions: under a rain deck by day
+  the sun keeps about a third of its key and its shadows fade (RainDay); a wet road by day mirrors
+  the sky down its middle and the fronts along its sides, worked out from the plan like the night
+  mirror, and the night city's mirror and sky emission belong to the night only; things that burn
+  only after dark (searchlights, premiere beams) follow the lamps' night level, not the weather's
+  share (street and car lamps still come on under a storm at noon). New refcam `rain_day` in
+  tools/refcams/cameras_w5.json. RAIN_DAY=0 the A/B.
+
+- **2026-11-01 The night aerial refcam: light from the air is points, not slabs (rc2-night-aerial,
+  HANDOFF "The night aerial review").** A new reference camera (`night_aerial`, wave 5's table)
+  judged the city from 350 m at 22:30. Decisions: a lane's averaged traffic light is drawn as the
+  cars it averages wherever a pixel can still tell them apart, and its far-distance bloom only
+  comes in with distance; broad road-light pools have no hard rim and dim from the air; floodlit
+  masonry is a fifth of the old brick and render, not most of it; a far searchlight seen from the air
+  saturates softly and fades with distance. NIGHT_AERIAL=0 is the A/B.
 - 2026-11-02 (chase-box-bug): an additive (blend_add) shader must be `fog_disabled` or write a coverage
   alpha (`af_cover()`, shaders/additive_fog.gdshaderinc): with ALPHA left at 1 the renderer adds the fog
   colour over the whole quad, which drew a grey square round each tail lamp of the player's car.

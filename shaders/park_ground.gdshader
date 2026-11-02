@@ -36,6 +36,8 @@ uniform float stripe_amount = 0.075;
 uniform float stripe_width = 4.0;
 
 global uniform float road_wetness;
+// RainDay's daylight weight (0 at night and with RAIN_DAY=0): the turf and the dirt soak too.
+global uniform float rain_day;
 global uniform float lamp_factor;
 global uniform float night_factor;
 global uniform vec4 sky_tint;
@@ -571,6 +573,14 @@ void fragment() {
 	float hard = (k == 3 || k == 4 || k == 5 || k == 8 || k == 9 || k == 11 || k == 13) ? 1.0 : 0.0;
 	c *= 1.0 - 0.25 * road_wetness * hard;
 	rough = mix(rough, 0.25, road_wetness * hard * 0.7);
+	// Soaked turf and dirt by day (RainDay): darker and greyer, the dirt most (a wet infield goes a
+	// deep brown); the dry neon-green turf under a rain deck read as a painted carpet.
+	float soft = (k == 0 || k == 1 || k == 2 || k == 12) ? 1.0 : (k == 10 ? 1.5 : 0.0);
+	float soak = clamp(road_wetness, 0.0, 1.0) * rain_day * soft;
+	if (soak > 0.0) {
+		c = mix(c, vec3(dot(c, vec3(0.3, 0.55, 0.15))), 0.2 * min(soak, 1.0)) * (1.0 - 0.2 * soak);
+		rough = mix(rough, 0.4, 0.5 * min(soak, 1.0));
+	}
 	ALBEDO = to_lit(clamp(c, vec3(0.0), vec3(1.0)));
 	ROUGHNESS = rough;
 	SPECULAR = spec;

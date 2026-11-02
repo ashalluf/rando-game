@@ -51,6 +51,23 @@ const float FT_PLATOON_LO = 0.3;
 const float FT_PLATOON_SPAN = 1.4;
 const float FT_TAIL_MEAN = 2.2;
 
+// The night aerial review (NightAerial; NIGHT_AERIAL=0 sets the global 0: the A/B). A freeway
+// 400-900 m below a camera in the air drew each lane's mean spread evenly over the lane and bloomed
+// for a river kilometres off, so four lanes were one solid cream slab. Where a pixel still spans
+// less than a car cell along the road the mean is drawn as the cars it averages: each cell taken
+// lit along its car's 4.6 m and dark between, the light held to the lamps' line across the lane
+// (two lamps 1.5 m apart, not the lane's 3.6 m), its total kept; and the bloom eases in with
+// distance (FT_NEAR_BLOOM of it at a couple of metres a pixel, all of it from FT_BLOOM_FULL).
+#ifndef NIGHT_AERIAL_DECLARED
+#define NIGHT_AERIAL_DECLARED
+global uniform float night_aerial;
+#endif
+const float FT_NEAR_BLOOM = 0.5;
+const float FT_BLOOM_FULL = 8.0;
+// Up to this many metres a pixel the cells are drawn; gone by FT_CELLS_GONE.
+const float FT_CELLS_FROM = 5.0;
+const float FT_CELLS_GONE = 13.0;
+
 
 // Cars on the road through the day, 0..1 of the lanes' cells taken (an LA weekday: the morning
 // and evening peaks, a busy evening, near empty at three in the morning).
@@ -85,6 +102,33 @@ float ft_platoon(float u, float key) {
 	t = t * t * (3.0 - 2.0 * t);
 	float n = mix(ft_hash(vec3(c, key, 5.3)), ft_hash(vec3(c + 1.0, key, 5.3)), t);
 	return FT_PLATOON_LO + FT_PLATOON_SPAN * smoothstep(0.1, 0.9, n);
+}
+
+
+// The lane mean's shape at (u, lx): 1 on average, more on a car and on the lamps' line, less
+// between. `u` the moving road (s - sgn v t), `key_lane` and `seed` as ft_lane's, `lvl` the share of
+// cells taken (with the platoons), `mpp` metres a pixel.
+float ft_mean_shape(float u, float lx, float sgn, float lane, float lane_w, float lvl, float seed, float mpp) {
+	if (night_aerial < 0.5) {
+		return 1.0;
+	}
+	// Across: the lamps' line, never narrower than a pixel or wider than the lane.
+	float hw = min(max(0.75 + FT_LAMP_R * 2.0, mpp * 0.5), lane_w * 0.5);
+	float across = (1.0 - smoothstep(hw - mpp * 0.25, hw + mpp * 0.25, abs(lx))) * (lane_w * 0.5 / hw);
+	// Along: the cells, each taken or not by the same roll as ft_lane's.
+	float cells = 1.0 - smoothstep(FT_CELLS_FROM, FT_CELLS_GONE, mpp);
+	float along = 1.0;
+	if (cells > 0.001 && lvl > 0.001) {
+		float c = floor(u / FT_CELL);
+		float w = u - c * FT_CELL;
+		vec3 key = vec3(mod(c, FT_CELLS), lane * 7.0 + (sgn > 0.0 ? 3.0 : 0.0), seed);
+		float taken = ft_hash(key) < lvl ? 1.0 : 0.0;
+		float j = 0.5 + ft_hash(key + 11.7) * (FT_CELL - 5.6);
+		float soft = max(mpp * 0.5, 0.3);
+		float car = smoothstep(j - soft, j + soft, w) * (1.0 - smoothstep(j + 4.6 - soft, j + 4.6 + soft, w));
+		along = mix(1.0, taken * car * FT_CELL / (4.6 * lvl), cells);
+	}
+	return across * along;
 }
 
 
@@ -151,7 +195,13 @@ vec3 traffic_lights(float s, float x, float x0, float lane_w, float lanes, vec2 
 		float area = 2.0 * 0.6 * re * re * 3.14159 * gain / (FT_CELL * lane_w);
 		float lvl = min(level * ft_platoon(s - sgn * v * TIME, seed * 2.0 + (sgn > 0.0 ? 1.0 : 0.0)), 1.0);
 		float tail_k = night_flight > 0.5 ? FT_TAIL_MEAN : 1.0;
-		col += (FT_HEAD * head_w + FT_TAIL * tail_k * tail_w) * lvl * area * FT_FAR_BLOOM * (1.0 - sharp);
+		float bloom = FT_FAR_BLOOM;
+		float shape = 1.0;
+		if (night_aerial > 0.5) {
+			bloom *= mix(FT_NEAR_BLOOM, 1.0, smoothstep(1.0, FT_BLOOM_FULL, mpp));
+			shape = ft_mean_shape(s - sgn * v * TIME, lx, sgn, lane, lane_w, lvl, seed, mpp);
+		}
+		col += (FT_HEAD * head_w + FT_TAIL * tail_k * tail_w) * lvl * area * bloom * shape * (1.0 - sharp);
 	}
 	return col;
 }
