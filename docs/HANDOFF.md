@@ -26125,8 +26125,21 @@ into a running gate (check files are `load()`ed lazily, mid-run).
 | 8101, the lead's batches 35 / 37 | car_panic "a driver mounts the clear kerb ..." (up false, never a KERB panic) | the test found the kerb clear, then placed the follower and waited two ticks before `CarPanic.start()`, which looks again: a walker of a busy shard had stepped onto the kerb and the driver rightly swerved | the follower is placed and the panic started in the same frame the kerb was found clear (also in the retry loop) |
 | batches 35-37 (the lead) | street_furniture "the furniture moves nothing in a downtown block" (rebuild signature) | trash cans and parked cars roll only while `PhysicsBudget.can_spawn()`, and a busy shard's city sits at the 500-body cap, so builds of one block differed | the check's builds run with the cap lifted |
 
-**Runs** (each `SHARDS=3`, ~30 min, a shard peaking at ~3.4-3.5 GB): see the table at the end of
-this section.
+**Runs** (each `SHARDS=3`, 28-40 min on this 4-core box, a shard peaking at 3.0-3.8 GB RSS;
+5,084 -> 5,443 checks as main grew): 30 shuffled runs, seeds 1101 .. 15202, each failure fixed as
+it appeared, so the tree moved under the runs (and main merged four times: batches 34-38).
+Clean: 1101, 1404, 1505, 1606, 2101, 2202, 10101, 10202, 10303, 12101, 13101, 14101, 15101.
+Longest streak on one tree: three (1404-1606 on cb5cc5c4; 10101-10303 on 5a18bde8). **Five
+consecutive clean runs on one unchanged tree were not reached**: about every other run still
+turned up a once-seen failure (1-2 checks of ~5,400), most of them a check leaning on a live
+system or on what an earlier file left, a few real game bugs (the stale pending build, the shop
+door's subclass walkers, CrowdFlow's camera). Each run's `FAIL` lines are in the tables above.
+
+**Still open** (seen once or twice, diagnostics added, not fixed): the follower lagging its
+leader (1303, 6101), ragdoll_feel's stair roll (15202), crowd_anim_2's bank (the lead, batch 35-37),
+and whether CrowdFlow's camera was the passing pair's cause (12202: the next failure's message
+says CrowdFlow's own camera distance and grid size). `CHUNK_SWAP_LOG=1` prints any chunk swap
+near the player with the stack, should a spawn-chunk replacement come back.
 
 ## 9ky. The blast, fourth pass (2026-11-01, fleet wave 5, branch `wt/explosions-4`)
 
