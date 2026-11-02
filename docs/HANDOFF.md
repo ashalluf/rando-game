@@ -28557,6 +28557,8 @@ that wall?). Stills on `shots/rc3-broadway-night`.
 
 ## 9mb. The canals by day from a footbridge (wave 7, refcam `canals_day`, branch `wt/rc4-canals-day`)
 
+## 9mb. The canals by day from a footbridge (wave 7, refcam `canals_day`, branch `wt/rc4-canals-day`)
+
 **The view.** A new reference camera in `tools/refcams/cameras_w7.json` (created here, the
 cameras_w6.json format): Marisol Canals at 11:00 clear, standing on Heron Canal's southern
 footbridge (bridge at (-773.9, -55.9); eye (-772.3, 3.4 agl, -56.3), yaw 2, pitch -6, fov 55)
@@ -28680,3 +28682,10 @@ apron pools and halos), `ground_probe.gd` (the yard's surface by ray against the
 floods and the apron pools; `PORT_NIGHT=0` the old night; `GLOBALS="night_aerial=1"`).
 
 **Checks:** `tests/rc4_port_night_checks.gd`.
+The ten original cameras, this branch against `RC4_CANALS=0` from one tree: eight within tolerance
+(beach and pier_night bit-near-identical); street_noon and freeway flagged by live traffic only (a
+box truck vs an SUV in the freeway lane, the bus in another place), the scenery identical. Gate
+(SHARDS=3): 5,651 of 5,652, the one failure pedestrian_flow's "comes out of a shop door" (it took a
+valet), which passes alone (32 / 32): a shard-order flake.
+Stills on `shots/rc4-canals-day`.
+
