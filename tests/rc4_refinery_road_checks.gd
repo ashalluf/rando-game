@@ -27,6 +27,12 @@ func run(t: Node, city: Node3D) -> void:
 	_chunk(city, plan, lay)
 
 
+## A material's rr_on (unset reads null: off).
+func _on(m: ShaderMaterial) -> bool:
+	var v: Variant = m.get_shader_parameter("rr_on")
+	return v != null and float(v) > 0.5
+
+
 func _shader() -> void:
 	var inc := FileAccess.get_file_as_string("res://shaders/refinery_road.gdshaderinc")
 	var road := FileAccess.get_file_as_string("res://shaders/road.gdshader")
@@ -79,7 +85,7 @@ func _roads(plan: CityPlan, lay: Dictionary) -> void:
 	var base := PropFactory.road("asphalt", 7.0, Color(0.8, 0.8, 0.8), 4242)
 	var d := RcRefineryRoad.road_material(base, plan, CityPlan.AXIS_Z, iz)
 	if RcRefineryRoad.enabled:
-		_t._check(d != base and float(d.get_shader_parameter("rr_on")) > 0.5 and float(base.get_shader_parameter("rr_on")) < 0.5,
+		_t._check(d != base and _on(d) and not _on(base),
 			"rc4-refinery-road: a near road wears a dressed copy, the shared material is untouched")
 		_t._check(RcRefineryRoad.road_material(base, plan, CityPlan.AXIS_Z, far_idx) == base, "rc4-refinery-road: a far road keeps its material")
 
@@ -135,11 +141,12 @@ func _chunk(city: Node3D, plan: CityPlan, lay: Dictionary) -> void:
 	for c in chunk.get_children():
 		if c is MeshInstance3D and (c as MeshInstance3D).material_override is ShaderMaterial:
 			var m := (c as MeshInstance3D).material_override as ShaderMaterial
-			if m.shader != null and m.shader.resource_path.ends_with("road.gdshader") and float(m.get_shader_parameter("rr_on")) > 0.5:
+			if m.shader != null and m.shader.resource_path.ends_with("road.gdshader") and _on(m):
 				dressed += 1
 	_t._check(dressed >= 2, "rc4-refinery-road: the site chunk's street and pavement wear the plant's light (%d meshes)" % dressed)
 	_t._check(int(chunk.get_meta("rr_verge", 0)) > 20, "rc4-refinery-road: weeds grow along the fence's foot (%d)" % int(chunk.get_meta("rr_verge", 0)))
-	_t._check(float(RefineryKit.material().get_shader_parameter("rc4_look")) > 0.5, "rc4-refinery-road: the plant's tanks take their floods in fans")
+	var look: Variant = RefineryKit.material().get_shader_parameter("rc4_look")
+	_t._check(look != null and float(look) > 0.5, "rc4-refinery-road: the plant's tanks take their floods in fans")
 	chunk.queue_free()
 	# The flares' smoke: one node of puffs on its own shader.
 	var host := Node3D.new()
