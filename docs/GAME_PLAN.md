@@ -4119,3 +4119,13 @@ none of either.
   people in the water are placed on the surfaces that are drawn - waders on the sand mesh's
   foreshore, swimmers and surfers on the ocean's own height model - rather than at a fixed level.
   A summer afternoon's water is busy (waders, more swimmers). SAND_ROADS=0 / WADERS=0 the A/B.
+
+- **2026-11-02 The canyon road refcam: hill roads read as roads (rc2-canyon-road, HANDOFF "The
+  canyon road refcam").** A new reference view on a front-range switchback (cameras_w5.json,
+  `canyon_road`). Decisions: every drawn hill road at least 5 m wide is a marked two-lane canyon
+  road with a gravel shoulder (one shader, the lateral metres in the strip's UVs; everything else
+  off true world XZ, so chunks meet); a fill side whose ground falls 1.6 m within 4.5 m of the edge
+  gets a W-beam guardrail on timber posts with buried ends (pure, off the plan's ground; off
+  driveways and junctions); the hill boulders are gathered and bedded after their rolls, so no
+  seed's layout moves. CANYON_ROAD=0 the A/B. Occlusion culling hangs the opengl3 stills on this
+  box (an engine lost wakeup in RaycastOcclusionCull); shots are taken with it off.

@@ -25155,3 +25155,78 @@ Probes: `tools/rc_beach/sand_roads_probe.gd` (headless: every coast street stret
 beach; `LOOK=swim|wade|surf` saves a close look at the first one). Checks `tests/rc_beach_checks.gd`.
 Stills on `shots/rc-beach`.
 
+
+## 9d?. The canyon road refcam: a front-range switchback at 17:40 (fleet wave 5, `wt/rc2-canyon-road`)
+
+The task: a NEW reference view, `canyon_road`, on a front-range switchback road at 1.7 m, 17:40
+clear, looking out over the basin past a hill home; judge it against a 2026 AAA game and fix the
+worst three to five things. The row is in `tools/refcams/cameras_w5.json` (eye (545, 1.7 AGL,
+-1927.6), yaw 208, pitch -4, FOV 55: the uphill lane of Switchback 35 looking SSE down the road,
+the guardrail, a contemporary hill home on its pad, downtown standing in the smog). Stills on
+`shots/rc2-canyon-road`. Everything is behind **`CANYON_ROAD=0`** (`CanyonRoad`,
+`scripts/world/canyon_road.gd`), which is main's look exactly.
+
+**Finding the view.** `tools/rc2_canyon_road/probe.gd` (headless, seconds) lists points on the
+switchbacks and canyon roads with an estate within 90 m and the ground falling toward the basin;
+five candidates were shot from one load (Switchback 35 won: a 160 m bench with the whole basin
+below it).
+
+**What read fake, in the order the eye found it:**
+1. **The road.** Every hill road was one strip of the plain tiled asphalt photo (a
+   StandardMaterial, brown-grey) with a hard straight edge on the bank: no centre line, no edge
+   lines, nothing worn - a grey ribbon laid on a hill. `CityChunk._build_hill_roads()` now hands its
+   segments to `CanyonRoad.build()` (one hook line): the strip is rebuilt a piece at a time (the
+   old piece length and mitres) with a 1.1 m shoulder past each edge, UV.x the metres across from
+   the centre line and UV2 (half width, outer half width), on `shaders/canyon_road.gdshader`
+   (linear, color_space): the asphalt at its own luminance (the photo's brown read as dirt),
+   mottled, patched, polished in the tyre tracks, oil down each lane's middle, sealed joints (the
+   longitudinal joint by the centre line and one down a wheel path, wandering, in broken runs, plus a
+   sparse net of finer snakes - the first try was |fbm - 0.5| contours and read as a map), a worn
+   double yellow and white edge lines (speckled where they thin, faded to their mean under a pixel),
+   the asphalt's edge crumbled into gravel and dirt, the shoulder's outer edge torn into the bank
+   (discard). Roads under 5 m wide (estate lanes) keep the plain strip; fire roads, pads and drives
+   are not drawn here, as before. Wet: darker and smoother from `road_wetness`.
+2. **No guardrail on a drop.** A canyon road with the basin falling away beside it had nothing
+   between the lane and the drop. `CanyonRoad.needs_rail()` (pure): where the carved ground 4.5 m
+   (and 7.5 m) past the edge stands 1.6 m under the road, the fill side gets a W-beam (a seven-point
+   section) on 6x8 timber posts with blockouts every 1.905 m, reflector tabs every eighth post, the
+   run's ends bent down into the ground over a piece (buried ends), kept 9 m off any estate's
+   driveway mouth and off other roads' junctions; one mesh a FULL chunk (`HillGuardrail`, drawn to
+   260 m) on `shaders/canyon_guardrail.gdshader` (two-sided: galvanised zinc with spangle, grime
+   and rust weeping from the splices; weathered grey timber; retroreflective tabs after dark).
+3. **Pale eggs on the bank.** `_scatter_hills()`'s boulders (two scans, uniform at random, 15 %
+   sunk, ±0.25 rad tilt) sat on the slope like eggs on a lawn. `CanyonRoad.bed_rock()`, AFTER the
+   rolls (the rng stream is untouched): a boulder where `RcHills.cluster()` (its own offset) is under
+   0.42 is left out with its collision box, the rest squashed to 0.78 of their height and sunk 30 %
+   of it more (the collision box follows).
+
+**Looked at and left:** the near grass shells and ground read blue-grey on the opengl3 still (the
+sky ambient on the Compatibility renderer; not tuned from it: measurement trap 4); the dark
+evenly spaced shrub mounds (HillScatter / HillShrub, gathered by rc-hills already); the house's long
+stark pad wall.
+
+**An engine hang that blocks every opengl3 city run on this box.** refcams.py, still_shot.gd and
+city_shot.gd hung 4 times out of 5 right after the load (`LOADING far city: ...` the last line, the
+process idle, every thread in a futex wait). gdb: the main thread waits in WorkerThreadPool under a
+virtual call on `RaycastOcclusionCull` (vtable typeinfo `20RaycastOcclusionCull`), i.e. occlusion
+culling's threaded raycast buffer update, with every worker idle - a lost wakeup. It happens on
+main too (`street_noon` alone), with `WARM_REHEARSAL=0`, and with `worker_pool/max_threads=1`. The
+workaround used for every shot of this task (before and after alike, so the comparison is fair): a
+temporary `override.cfg` with `[rendering] occlusion_culling/use_occlusion_culling=false` (never
+commit it). Occlusion culling changes no pixel, only the counted triangles and draws. A watchdog
+wrapper that kills and retries a stalled run is the other half (`/tmp`-only; the loop is: log
+static 300 s after "far city" and the process under 10 % CPU for 30 s). Not fixed in the engine.
+
+**Measured** (refcam canyon_road, opengl3 1280x720, occlusion off): main 4,762,942 tris / 1,886
+draws at the first eye; after (first eye) 4,788,120 / 1,884 (+0.5 % / 0). The rail is one mesh a
+chunk; the road one mesh as before.
+
+**Checks:** `tests/rc2_canyon_road_checks.gd` (the camera row, the materials and their shaders'
+paint / shoulder / linear handling, the boulders gathered and bedded and pure, the switchback's
+FULL chunk building its road on the canyon material and a guardrail, the road at the eye railed on
+one side only). Probe: `tools/rc2_canyon_road/probe.gd`.
+
+**Not done / not verified:** never seen on the Mac (Forward+): the road and rail colours are linear
+by construction but only judged on opengl3. No delineator posts, curve signs or utility poles
+along the hill roads. The LOD chunks draw the canyon material too (their roads are visible from the
+basin) but no rail. Fire roads stay unpaved and unmarked (`draw: false`).

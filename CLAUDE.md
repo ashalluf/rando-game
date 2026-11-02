@@ -4124,6 +4124,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the ridge sign `HillSignLetters` (strokes on a pipe frame, each letter on its own ground), the far
   sign's rigid seat held off inside the LOD ring (far_canopy `rigid_real_reach`).
   `RC_HILLS=0` is the A/B; probe `tools/rc_hills/sign_probe.tscn`; checks `tests/rc_hills_checks.gd`.
+- The canyon road refcam (2026-11-02, docs/HANDOFF.md "The canyon road refcam"): `CanyonRoad`
+  (`scripts/world/canyon_road.gd`, one hook in `_build_hill_roads()`) rebuilds drawn hill roads
+  >= 5 m wide with a gravel shoulder and lateral metres in UV.x on `shaders/canyon_road.gdshader`
+  (double yellow, edge lines, sealed joints, crumbling edge) and lays a W-beam guardrail
+  (`canyon_guardrail.gdshader`) where `needs_rail()` finds a fill-side drop; `bed_rock()` gathers
+  and beds `_scatter_hills()`'s boulders after their rolls. `CANYON_ROAD=0` is the A/B; refcam
+  `canyon_road` in `tools/refcams/cameras_w5.json`; checks `tests/rc2_canyon_road_checks.gd`.
+  opengl3 city stills can hang in Godot's occlusion raycast (a lost wakeup): shoot with a temporary
+  `override.cfg` `[rendering] occlusion_culling/use_occlusion_culling=false`, never committed.
 - The hills' planted volume (2026-10-30, docs/HANDOFF.md "The hills' planted volume"): `HillScatter`
   (`scripts/world/hill_scatter.gd`, one step after `_plant_hills` in both levels' HILLS list) puts
   a code-built clump (three lumpy domes, 63 / 15 / 6 triangles on one buffer, measured edges) on

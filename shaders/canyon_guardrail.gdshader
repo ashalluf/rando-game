@@ -10,7 +10,7 @@ render_mode cull_disabled;
 
 uniform vec3 zinc = vec3(0.30, 0.31, 0.31);
 uniform vec3 zinc_dull = vec3(0.17, 0.17, 0.165);
-uniform vec3 timber = vec3(0.085, 0.066, 0.05);
+uniform vec3 timber = vec3(0.07, 0.064, 0.057);
 uniform vec3 rust = vec3(0.12, 0.05, 0.02);
 uniform vec3 reflector = vec3(0.9, 0.55, 0.05);
 
