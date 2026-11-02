@@ -126,6 +126,8 @@ static func dress_volume(mat: ShaderMaterial, fuel: bool, gas: bool) -> Array:
 	mat.set_shader_parameter("stem_hold", 1.0 if stem_enabled else 0.0)
 	mat.set_shader_parameter("quiet4", quiet_jitter if quiet_enabled else 0.0)
 	mat.set_shader_parameter("core4", 1.0 if core_enabled else 0.0)
+	if dark_dust:
+		mat.set_shader_parameter("dust", Vector3(0.085, 0.077, 0.066))
 	return [Vector3(2.3, 2.1, 2.3) * big, Vector3(0.0, 2.0, 0.0) * big, life]
 
 
@@ -348,11 +350,26 @@ static func glow_height(t: float, base_time: float) -> float:
 ## own tint. Returns false when off (the old wave). BLAST_DUST_ROLL=0 is the A/B.
 static var dust_roll_enabled: bool = OS.get_environment("BLAST_DUST_ROLL") != "0"
 static var _dust_ramps: Array = []
+## Round 8: the dust skirt and the volume's dust ring darker and denser near the ground.
+## BLAST_DUST_DARK=0 is the A/B.
+static var dark_dust: bool = OS.get_environment("BLAST_DUST_DARK") != "0"
 
 
 static func dust_roll(parent: Node, ground: Vector3, normal: Vector3, reach: float) -> bool:
 	if not enabled or not dust_roll_enabled or parent == null:
 		return false
+	if _dust_ramps.is_empty() and dark_dust:
+		# Round 8: the skirt is grime and soot-laden debris near the ground, darker and denser
+		# (the pale beige read as a sunlit cloud bank, not street filth thrown out by a blast);
+		# the sun still lights its upper edges.
+		_dust_ramps = [
+			WeaponFX._ramp([Color(0.085, 0.077, 0.068, 0.0), Color(0.09, 0.082, 0.072, 0.9),
+				Color(0.12, 0.11, 0.098, 0.62), Color(0.15, 0.14, 0.125, 0.0)]),
+			WeaponFX._ramp([Color(0.075, 0.068, 0.06, 0.0), Color(0.085, 0.078, 0.068, 0.78),
+				Color(0.11, 0.1, 0.09, 0.46), Color(0.14, 0.13, 0.12, 0.0)]),
+			WeaponFX._ramp([Color(0.13, 0.12, 0.11, 0.0), Color(0.14, 0.13, 0.12, 0.3),
+				Color(0.16, 0.15, 0.14, 0.2), Color(0.18, 0.17, 0.16, 0.0)]),
+			WeaponFX._ramp([Color(0.8, 0.76, 0.72, 1.0), Color(1.0, 0.97, 0.92, 1.0), Color(1.15, 1.1, 1.0, 1.0)])]
 	if _dust_ramps.is_empty():
 		# Linear albedo for the lit smoke material: street dust, alpha shaping each layer's life.
 		_dust_ramps = [

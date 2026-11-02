@@ -26799,6 +26799,19 @@ Checks: `_round6()` in tests/explosions_4_checks.gd.
    12-34 degrees askew and drops a little. The glass was already BlastFX's. `BLAST_FACADES=0`.
 Checks: `_round7()` in tests/explosions_4_checks.gd. Stills 49 on.
 
+**Round 9: burning fuel at 0.08-0.15 s, a darker skirt** (the lead's next list):
+1. **0.08-0.15 s still read gold-pale** on Forward+ (a lit cloud). Under `core4`, from 0.05 s the
+   flesh's temperature is squared (`temp * temp * 1.12`, eased in over 0.04-0.14 s, 40 % for gas):
+   the mid heats fall to orange-red and dull red while the heart stays white, so the ball is
+   saturated flame against soot. `BLAST_CORE=0` is still the A/B for all of core4.
+2. **The skirt read as a sunlit beige cloud bank.** `Blast4.dark_dust`: the rolling front's three
+   layers are grime-dark (albedo 0.075-0.18 linear, denser: 0.9 / 0.78 / 0.3 alpha; at twice that
+   it still read beige on Forward+) and the volume's dust ring is 0.085 (was 0.21); the sun still lights their upper edges.
+   `BLAST_DUST_DARK=0`.
+3. The debris ribbons fade out within 4-10 m of the camera (a piece flying past the lens dragged a
+   band across the frame).
+Checks: `_round8()`. Stills 54 on.
+
 ## 9lb. The camera lens (wave 5, `camera-lens`)
 
 **What.** The camera itself: exposure adaptation, the sun's flare, grain, the bloom's spread.

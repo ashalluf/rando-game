@@ -47,6 +47,7 @@ func run(t: Node, city: Node3D) -> void:
 	await _round5(parent)
 	_round6(parent)
 	_round7(parent)
+	_round8()
 	for c in parent.get_children():
 		if not before.has(c) and c != _deck and not (c is BlastBits):
 			c.queue_free()
@@ -316,3 +317,15 @@ func _round7(parent: Node) -> void:
 		"explosions_4: the ribbons' box sits at the blast (at the world origin they were culled)")
 	var got: Array = Blast4.facade_response(_city, _top + Vector3(0.0, 1.0, -120.0), 9.0)
 	_t._check(got.size() == 2 and int(got[0]) >= 0, "explosions_4: the shop fronts' response runs (%d awnings, %d signs)" % [int(got[0]), int(got[1])])
+
+
+## Round 8: the flesh cools faster than the heart; the dust is darker near the ground.
+func _round8() -> void:
+	var vs := FileAccess.get_file_as_string("res://shaders/blast_volume.gdshader")
+	_t._check(vs.contains("temp * temp * 1.12, core4 * smoothstep(0.04, 0.14, t)"),
+		"explosions_4: the young ball's flesh cools to orange-red under its white heart")
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/blast_volume.gdshader")
+	Blast4.dress_volume(m, false, false)
+	var d: Vector3 = m.get_shader_parameter("dust")
+	_t._check(not Blast4.dark_dust or d.x < 0.15, "explosions_4: the volume's dust ring is darker (%.3f)" % d.x)
