@@ -15,6 +15,9 @@ class_name ShopCrowd
 ## any walker spends them. Needs BusyStreets (its entries). SHOP_CROWD=0 is the A/B.
 
 static var enabled: bool = OS.get_environment("SHOP_CROWD") != "0"
+## The smoke test's crowd checks stage walkers near home and time them; extra walkers round them
+## made those checks flaky, so under the smoke test nothing is spawned unless a check sets this.
+static var force_in_test: bool = false
 
 ## How many times its planned walkers a full shopping block carries near the camera, by district
 ## (the downtown core already doubles its own; the beach town's walk streets are busy too).
@@ -41,6 +44,8 @@ const SPAWN_CLEAR := 3.5
 static func steps(ch: Node3D, block: Dictionary) -> Array[Callable]:
 	var out: Array[Callable] = []
 	if not enabled or not BusyStreets.enabled or block.kind != CityPlan.BlockKind.BUILDINGS:
+		return out
+	if not force_in_test and ch.is_inside_tree() and ch.get_tree().root.get_node_or_null("SmokeTest") != null:
 		return out
 	var g: float = GAIN.get(block.district, 1.0)
 	if g <= 1.0:

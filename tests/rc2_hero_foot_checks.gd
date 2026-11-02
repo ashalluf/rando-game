@@ -45,7 +45,7 @@ func _camera_fade() -> void:
 	_t._check(CameraFade.NEAR < CameraFade.FAR and CameraFade.FAR < 3.8,
 		"CameraFade: the fade ends inside the aiming camera's 3.8 m (the hero's own tree never fades)")
 	# A tree material made through TreesCloseup carries the numbers.
-	var palm := PropFactory.foliage_material() if PropFactory.has_method("foliage_material") else null
+	var palm: Material = PropFactory.foliage_material()
 	if palm is ShaderMaterial and CameraFade.enabled:
 		_t._check(is_equal_approx(float((palm as ShaderMaterial).get_shader_parameter("cf_far")), CameraFade.FAR),
 			"CameraFade: the palms' material fades near the camera")
@@ -73,11 +73,15 @@ func _camera_fade() -> void:
 	CameraFade.mark(fresh)
 	CameraFade.mark(sm)
 	CameraFade.enabled = was
-	_t._check(fresh.distance_fade_mode == BaseMaterial3D.DISTANCE_FADE_DISABLED and float(sm.get_shader_parameter("cf_far")) == 0.0,
+	_t._check(fresh.distance_fade_mode == BaseMaterial3D.DISTANCE_FADE_DISABLED and (sm.get_shader_parameter("cf_far") == null or float(sm.get_shader_parameter("cf_far")) == 0.0),
 		"CAMERA_FADE=0 marks nothing")
 
 
 func _shop_crowd(city: Node3D) -> void:
+	if not ShopCrowd.enabled:
+		_t._check(ShopCrowd.gain([Rect2(), 3.0, 20, 1.2], 0.0) == 1.0, "SHOP_CROWD=0: no gain")
+		return
+	ShopCrowd.force_in_test = true
 	var entry := [Rect2(0, 0, 100, 100), 3.0, 20, 1.2]
 	_t._check(is_equal_approx(ShopCrowd.gain(entry, 10.0), 2.2) and is_equal_approx(ShopCrowd.gain(entry, ShopCrowd.FAR + 1.0), 1.0),
 		"ShopCrowd: full gain near the camera, none past FAR")
@@ -96,6 +100,7 @@ func _shop_crowd(city: Node3D) -> void:
 		var park := ShopCrowd.steps(city, {"kind": CityPlan.BlockKind.PARK, "district": CityPlan.District.MIDTOWN, "rect": Rect2()}).size()
 		_t._check(n == ShopCrowd.MAX_EXTRA + 1 and sub == 0 and park == 0,
 			"ShopCrowd: steps for a midtown buildings block only (%d, suburbs %d, park %d)" % [n, sub, park])
+	ShopCrowd.force_in_test = false
 	# Every weighed entry of the city's FULL chunks is inside 0 .. gain - 1.
 	var weighed := 0
 	var inside := true
