@@ -27034,3 +27034,94 @@ truck in one run, a red car in the other; the deck is freeway_deck.gdshader, not
 (one line in smoke_test.gd's city_files): street asphalt gets lane wear and pavements / car parks do
 not, the shader applies it and 0 is the old road, the switch, the camera row and its staging
 script. Stills on `shots/rc2-chase-cam`.
+
+## 9d?. A person at arm's length: the person_closeup refcam (fleet wave 6, `rc3-person-closeup`)
+
+The task: a new reference view of ONE pedestrian standing on a pavement at 13:00 clear, the lens
+1.6 m away at head height - face, hair, skin, the garments, shoes, hands - judged against a 2026
+crowd close-up; fix the worst three to five things on the person.
+
+### The camera
+
+`person_closeup` in `tools/refcams/cameras_w6.json`: eye (1501, 1.62 over the ground, 1470), yaw 0,
+pitch -18, fov 60 (the hero_foot pavement in midtown, looking north up the pavement with the shops
+on the right). `"stage": "person"` runs `tools/refcams/person_stage.gd`: a Pedestrian found by seed
+search (`seed_for()`: the first seed from 770000 whose own style rolls deal the row's rig and look
+and then no hat or pack - so the head and hair are what is judged), placed `dist` along the heading
+on the ground, turned `turn` degrees off facing the lens, held standing (`_pause_left`, the idle, or
+a carry's stand), `no_trim`, no dog or jog; walkers within 2.5 m of the line of sight are hidden.
+The row's `person` key: model, look, dist, turn, carry (env `PERSON_MODEL` / `_LOOK` / `_DIST` /
+`_TURN` / `_CARRY` / `_SEED` for framing). It is crowd_h (an East Asian man in his forties,
+striped shirt, jeans, brown leather shoes), look 0, seed 770592, who also rolls a shopping bag.
+The run: `REFCAMS_JSON=tools/refcams/cameras_w6.json python3 tools/refcams/refcams.py run <dir>
+--only person_closeup` (17 min on a cold box, ~7 min warm; peak 7.3 GB).
+
+### What gave him away, in the order the eye lands on it
+
+1. **The stance.** Standing still he squared up like a gunslinger: shoulders up, upper arms held
+   out from the ribs, elbows bent, hands clawed, feet 44 cm apart sideways. Every standing person
+   in the game plays one of the library idles (CrowdGait's `gait/idle` for 80 % of the crowd,
+   CrowdLife's `life/idle`, `nod`, `shake`, `talk`): Quaternius' UAL Idle_Loop retargeted, a ready
+   stance. The rig's OWN "Idle" (after `fix_arm_pose`) hangs its arms properly but turns the whole
+   body round 44 degrees as it looks about, so it cannot simply be used.
+2. **The shopping bag** hung from the wrist (the hand bone's origin), its two cords standing
+   straight up beside the hand like sticks, never reaching it; its width across the body, into the
+   leg.
+3. **The hair** (crowd_h's side-part fringe most of all): a smooth black sheet with one broad glossy
+   highlight band across it - a lacquered helmet.
+4. **The lips**: the MakeHuman photo's lips are a saturated salmon, glossed: every face, men's too,
+   read as lipstick at arm's length.
+5. Not fixed (garment geometry, a Blender rebuild): the stand collar's fall pokes up as two grey
+   points at the shoulders, and the collar's inside reads pale blue.
+
+### What it does now
+
+- **`IdleRelax`** (`scripts/npc/idle_relax.gd`; one line each after the library is added in
+  `CrowdGait.apply()` and `CrowdLife.attach()`): once per library resource (meta `idle_relaxed`;
+  the libraries are cached per rig) the clips in `CLIPS` are rebuilt: the eight arm bones (shoulder
+  to hand) slerped toward the rig's own Idle at the same time (looped) by 0.85 (talk 0.45, so its
+  gestures stay), and each thigh turned 5.5 degrees in toward the other about the pelvis' forward
+  axis, the foot turned back so the sole stays where it was. Measured on crowd_h's gait idle: feet
+  0.44 -> 0.29 m apart sideways, hands 0.17 -> 0.13 m out from the hips, the head exactly where it
+  was, the feet 1 cm lower at most. **Trap:** the library tracks are COMPRESSED (Godot refuses to
+  set, insert or remove their keys), so each clip is resampled at 30 fps into a new Animation and
+  put back under its name. Blending the legs toward the rig's Idle (tried first) pulled in that
+  clip's 44-degree body turn and its staggered stance; the hips must keep the clip's own facing.
+- **The bag** (`CrowdLife.prop_mesh(BAG)`, `BAG_GRIP`, `Pedestrian._show_props()`): hung plumb from
+  the fist (8.5 cm along the fingers, 2.5 cm out of the palm, in the grip frame), its four
+  twisted-paper cords meeting there, a turned-over top band, the gusset's fold and a dark open
+  mouth; width fore and aft along the leg.
+- **Hair** (`crowd_hair.gdshader` `strand_detail`, set by `Pedestrian.hair_material()`): a finer
+  streak octave in the tone, a coarse clump octave along the cards, and the specular and roughness
+  riding both, so the single band breaks into strands and clumps. Faded with the strands
+  themselves (under a pixel nothing changes); 0 is the old shader bit for bit.
+- **Lips** (`character.gdshader` `lip_tame`, set by `CrowdFaces.apply()`): inside the face map's lip
+  zone the colour goes toward a warm neutral of the same brightness and a little darker, and keeps
+  less of the gloss. (Toward grey first: mauve and dead.)
+- `PERSON_CLOSEUP=0` turns all of it off (`PersonCloseup`, `scripts/npc/person_closeup.gd`);
+  `IDLE_RELAX=0` the stance alone.
+
+### Tools
+
+- `tools/glshot/crowd_lineup.gd` takes `CLIPS=a,b,...` (a clip per person in turn) and loads the
+  gait library for `gait/<name>` clips; it applies IdleRelax like the game (`IDLE_RELAX=0` the old).
+- The bone-framed close-ups are `tools/crowd_closeup_3/closeup_shot.gd` (PARTS=head,hair,...), the
+  bag `tools/crowd/crowd_lab.tscn SCENARIO=props`.
+
+### Checks
+
+`tests/rc3_person_closeup_checks.gd` (one line in smoke_test.gd's city files, ~32 checks with the
+part's own): on a private copy of crowd_h and its gait library, the relaxed idle's feet come in and
+stay apart, the hands come in, the head and feet stay put, the clip keeps its tracks, a library is
+relaxed once; the bag's cords meet at the grip and the grip is in the fingers; the two uniforms are
+off by default and the hair material sets its one; the switch; the camera row and the seed search.
+
+### Not done / not verified
+
+- Forward+ (the Mac): judged on opengl3 only. The changes are pose, geometry and two shader terms
+  in the material's own space (no colour constants added outside the existing lip mix, which follows
+  the shader's `value_is_linear` path), but the hair's strand shine under SSAO / TAA is unverified.
+- The shirt collar's points and its pale inside (garment geometry, `tools/crowd/garments.py`), the
+  claw-ish hanging fingers of the relaxed hand pose and the shoes' saturated tan under the noon sun
+  were seen and left.
+- Hands: the relaxed idle keeps a slight elbow bend from the library clip (arm weight 0.85).
