@@ -145,11 +145,61 @@ static func room(f: OilField, p: Vector2, extra: float) -> bool:
 	return c.x > ROAD_KEEP + extra and c.y > PAD_KEEP + extra
 
 
-## The hill shells on the field's ground mesh (FULL): the node, or null.
-static func shells(mesh: Mesh, area: Rect2, lo: float, hi: float) -> Node:
-	if not enabled or not CityChunk.shells_enabled:
-		return null
-	return HillShells.make(mesh, area, lo, hi)
+## Metres (about) of a hill-shell tile: HillShells draws its layers by the camera's distance to its
+## tile's rect, and a field chunk is ~390 m long - one tile a chunk drew all sixteen layers over
+## all of it while the camera stood in it (~0.6 M triangles at the refcam).
+const SHELL_TILE := 64.0
+
+
+## The hill shells over the field's ground grid (FULL): the grid's own vertices (row-major,
+## (nx + 1) x (nz + 1)) cut into tiles of about SHELL_TILE, each its own HillShells node.
+static func shell_tiles(ch: CityChunk, verts: PackedVector3Array, norms: PackedVector3Array, cols: PackedColorArray, nx: int, nz: int) -> int:
+	if not enabled or not CityChunk.shells_enabled or nx < 1 or nz < 1:
+		return 0
+	var sx := maxf((verts[nx].x - verts[0].x) / float(nx), 0.01)
+	var sz := maxf((verts[nz * (nx + 1)].z - verts[0].z) / float(nz), 0.01)
+	var ti := maxi(1, roundi(SHELL_TILE / sx))
+	var tj := maxi(1, roundi(SHELL_TILE / sz))
+	var made := 0
+	for j0 in range(0, nz, tj):
+		for i0 in range(0, nx, ti):
+			var i1 := mini(i0 + ti, nx)
+			var j1 := mini(j0 + tj, nz)
+			var w := i1 - i0 + 1
+			var v := PackedVector3Array()
+			var n := PackedVector3Array()
+			var c := PackedColorArray()
+			var grow := false
+			var lo := INF
+			var hi := -INF
+			for j in range(j0, j1 + 1):
+				for i in range(i0, i1 + 1):
+					var k := j * (nx + 1) + i
+					v.append(verts[k])
+					n.append(norms[k])
+					c.append(cols[k])
+					grow = grow or cols[k].b > 0.5
+					lo = minf(lo, verts[k].y)
+					hi = maxf(hi, verts[k].y)
+			if not grow:
+				continue
+			var idx := PackedInt32Array()
+			for j in j1 - j0:
+				for i in i1 - i0:
+					var a := j * w + i
+					idx.append_array(PackedInt32Array([a, a + 1, a + w, a + 1, a + w + 1, a + w]))
+			var arrays := []
+			arrays.resize(Mesh.ARRAY_MAX)
+			arrays[Mesh.ARRAY_VERTEX] = v
+			arrays[Mesh.ARRAY_NORMAL] = n
+			arrays[Mesh.ARRAY_COLOR] = c
+			arrays[Mesh.ARRAY_INDEX] = idx
+			var mesh := ArrayMesh.new()
+			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+			var rect := Rect2(Vector2(v[0].x, v[0].z), Vector2(v[v.size() - 1].x - v[0].x, v[v.size() - 1].z - v[0].z))
+			ch.add_child(HillShells.make(mesh, rect, lo, hi))
+			made += 1
+	return made
 
 
 ## The planting step of a field chunk (OilFieldBuild.site_steps()); returns true when done.

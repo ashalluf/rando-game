@@ -120,5 +120,9 @@ func _chunk(city: Node3D, plan: CityPlan, f: OilField) -> void:
 		"rc3-oil-field: a LOD chunk plants clumps only (%d)" % int(ld.get("clump", 0)))
 	lod.queue_free()
 	if CityChunk.shells_enabled:
-		_t._check(chunk.find_child("HillShells", false, false) != null, "rc3-oil-field: the field's ground grows the hill shells")
+		var tiles := 0
+		for c in chunk.get_children():
+			if c is HillShells:
+				tiles += 1
+		_t._check(tiles >= 2, "rc3-oil-field: the field's ground grows the hill shells, in tiles (%d)" % tiles)
 	chunk.queue_free()

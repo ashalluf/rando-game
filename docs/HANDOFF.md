@@ -27034,3 +27034,61 @@ truck in one run, a red car in the other; the deck is freeway_deck.gdshader, not
 (one line in smoke_test.gd's city_files): street asphalt gets lane wear and pavements / car parks do
 not, the shader applies it and 0 is the old road, the switch, the camera row and its staging
 script. Stills on `shots/rc2-chase-cam`.
+
+## 9d?. The oil field from its lease road (fleet wave 6, refcam3 `oil_field`, branch wt/rc3-oil-field)
+
+**The camera.** `oil_field` in `tools/refcams/cameras_w6.json`: the crest loop's lease road on the
+oil field hill (TRUE world 611.4, 1.7 AGL, 1542.8; yaw -56.6, pitch -2; 16:00 clear; fov 55),
+looking north-east down a row of nodding pumpjacks at the downtown skyline, the tank battery on the
+right. Picked by `tools/rc3_oil_field/eye_probe.tscn` (every lease-road point scored by the
+pumpjacks in a 50-degree cone toward downtown); two other candidates (the flank road at 771, 1782
+and a pumpjack close-up on the crest at 598, 1575) are in the before shots.
+
+**What gave it away** (the before, main 484a7897), in the order the eye lands on it:
+1. The hill was a bare beige sheet. The field's ground is the hills' terrain material on a plain
+   grid with none of the hill chunks' planting: no shells, no shrubs, no clumps, no trees - from the
+   road a flat colour out to the fence, a desert where the real Baldwin Hills / Signal Hill are wild
+   oats, coyote brush and sage.
+2. The dirt roads' and pads' edges were a band of screen-space Bayer dots (a halftone on every still
+   and crawling in motion).
+3. Nothing lived there: no vehicle, nothing at the verges.
+4. The pumpjacks were clean pale-grey plastic.
+
+**What changed** (`OilFieldPlanting`, `scripts/world/oil_field_planting.gd`; `OIL_PLANTING=0` the
+A/B for all of it):
+- **Hill shells on the field's ground** (FULL): `OilFieldBuild._ground()` writes COLOR.b =
+  `shell_keep()` (0.5 at the edge of a road / pad / the fence, a distance so the edge runs straight)
+  and COLOR.a 0.5 (no rill), and adds `HillShells.make()` over the mesh.
+- **Planting** (one step in `site_steps()`, hashes of seed + world grid cell, time-sliced): HillShrub
+  stands where `stand()` (a slow simplex cluster + `OilField.drainage()`) is over 0.5, lone sage
+  outside them; HillScatter clumps (the FULL ones fade in from 70 m; LOD chunks the bigger ones);
+  live oaks in the gullies; VacantKit's foxtail tufts along the lease roads' verges and pad edges,
+  patches of wild mustard and fennel. Keep-outs come from the field's own cell index (`clear()`:
+  road edge, pad edge) and the fence. **Trap**: a field chunk is ~88 x 390 m, and a batch's
+  draw range is measured to its bounds' centre, so a chunk-wide shrub batch with HillGround3's 160 m
+  range was out of range while the camera stood in it - the shrubs are batched in 80 m cells
+  (`SHRUB_CELL`), the weeds in 40 m ones.
+- **Service pickups**: on 40 % of wells pads and 70 % of tank batteries a real parked Vehicle
+  (WORK_TRUCK / PICKUP in fleet whites and greys) along the pad's road edge, built as a deferred step
+  (`_run_or_defer`), in the chunk's `_cars`; past PhysicsBudget's cap the far twin in the batch
+  (`CarParkBuild.real_body()`). The far twin was tried first: its folded wheels are white discs
+  from 10 m.
+- **The dirt's edge** (`oil_dirt.gdshader` `crumble_edge`): world-space grains (a 3.5 cm hash plus
+  two noises) instead of `bayer4(FRAGCOORD)`, with a darker lip of loose soil; a clean edge from the
+  air as before.
+- **Pumpjacks** (`pumpjack.gdshader` `weather_pass`): a dust band up the lower 1.5 m, oil and grime
+  streaks hung in the unit's frame under the saddle bearing and the gearbox, chalked dusty tops
+  (`fwidth` taken outside the branch).
+- **Bug found and fixed on the way**: the step's phase loop sent a LOD chunk back to phase 1 from the
+  FULL-only phases - the build never ended (a refcam load hung in "far landmarks"). The checks now
+  build a LOD chunk too.
+
+**Tools** (`tools/rc3_oil_field/`): `eye_probe.tscn` (camera candidates), `stand_probe.tscn` (ASCII
+stand / keep-out map round AT), `map_probe.tscn` (a 1 m/px PNG of roads, pads, stands, keep-outs and
+the view line: `OUT=`, `AT=`, `YAW=`), `check_runner.tscn` (the checks alone, ~2 min,
+`RC3_DEBUG=1` prints the chunk's counts).
+
+**Checks** (`tests/rc3_oil_field_checks.gd`, one line in smoke_test's city files): the camera row;
+keep-outs pure and right (roads, pads, the fence; the shells' COLOR.b); the eye's FULL chunk plants
+shrubs, clumps and verge weeds, nothing on a road, pad or the fence, every pickup on a pad, the shells
+present; a LOD chunk plants clumps only; the dirt material's `crumble_edge`.

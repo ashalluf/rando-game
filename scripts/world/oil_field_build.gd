@@ -197,14 +197,7 @@ func _ground() -> void:
 	mi.mesh = mesh
 	ch.add_child(mi)
 	if plant:
-		var lo := INF
-		var hi := -INF
-		for v in verts:
-			lo = minf(lo, v.y)
-			hi = maxf(hi, v.y)
-		var sh := OilFieldPlanting.shells(mesh, inner, lo, hi)
-		if sh:
-			ch.add_child(sh)
+		OilFieldPlanting.shell_tiles(ch, verts, norms, cols, nx, nz)
 	if full:
 		var body := StaticBody3D.new()
 		body.name = "OilGroundBody"
