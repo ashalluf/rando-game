@@ -641,10 +641,13 @@ static func _puff_mesh(points: Array, per: int, glow: bool, salt: String) -> Arr
 	var corners := [Vector2(0.0, 0.0), Vector2(1.0, 0.0), Vector2(1.0, 1.0), Vector2(0.0, 1.0)]
 	var j := 0
 	for p: Vector3 in points:
-		var n := per + (1 if glow else 0)
+		var haze := glow and RefineryNight.enabled
+		var n := per + (1 if glow else 0) + (1 if haze else 0)
 		for i in n:
 			var rnd := h01([salt, j, i])
 			var slot := 2.0 if (glow and i == per) else (float(i) + rnd * 0.6) / float(per)
+			if haze and i == per + 1:
+				slot = 3.0
 			for k: int in [0, 1, 2, 0, 2, 3]:
 				st.set_uv(corners[k])
 				st.set_uv2(Vector2(slot, rnd))
@@ -663,7 +666,7 @@ static func add_fx(parent: Node3D, flames: Array, plumes: Array) -> void:
 		mi.material_override = flame_material()
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mi.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
-		mi.custom_aabb = _fx_aabb(flames, 40.0, 40.0)
+		mi.custom_aabb = _fx_aabb(flames, 95.0 if RefineryNight.enabled else 40.0, 95.0 if RefineryNight.enabled else 40.0)
 		mi.extra_cull_margin = 2000.0
 		parent.add_child(mi)
 	if not plumes.is_empty():
@@ -731,6 +734,7 @@ static func site_steps(ch: CityChunk) -> Array[Callable]:
 	if lay.is_empty():
 		return steps
 	var area := ch.owned_rect()
+	RefineryNight.ensure(lay, ch.plan)
 	steps.append(_ground.bind(ch, lay, area))
 	if ch.level == CityChunk.Level.FULL:
 		steps.append(_fence.bind(ch, lay, area))
@@ -956,6 +960,11 @@ static func _commit(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
 			l.position = Vector3(at.x, BASE_Y + float(it.h) - 2.0 + ch._gy(at.x, at.y), at.y)
 			l.light_color = Color(1.0, 0.7, 0.42)
 			l.omni_range = 48.0
+			if RefineryNight.enabled:
+				# A high-mast flood is a pool with an edge, not an even wash: the street outside the
+				# fence was lit flat grey from end to end (wave 6, RefineryNight).
+				l.omni_range = RefineryNight.MAST_RANGE
+				l.omni_attenuation = RefineryNight.MAST_ATTENUATION
 			l.light_energy = 0.0
 			l.shadow_enabled = false
 			l.distance_fade_enabled = true
@@ -967,7 +976,7 @@ static func _commit(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
 			ch.add_child(l)
 			n_omni += 1
 		# The flares light their surroundings orange, day and night.
-		for t: Vector3 in acc.flames:
+		for t: Vector3 in ([] if RefineryNight.enabled else acc.flames):
 			var fl := OmniLight3D.new()
 			fl.position = t + Vector3(0.0, 4.0, 0.0)
 			fl.light_color = Color(1.0, 0.5, 0.18)
