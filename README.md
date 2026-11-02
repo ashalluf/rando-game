@@ -48,3 +48,7 @@ Frame cost with the blast in view (blast_room_shot GEO, opengl3, 1280x720), four
 EXPLOSIONS_4=0: 0.3 s 409 / 411 draws, 505k / 506k tris; 2 s 402 / 406, 504.5k / 504.7k;
 5 s 378 / 380, 502.0k / 502.0k. The volume's cost is ALU per covered pixel (40 steps, up to 16
 refined), not geometry.
+
+22: Forward+ car blast, top before / bottom after the depth heat and soot shell (0.3, 0.8, 3 s;
+the shell's onset was moved later after this sheet). 23: opengl3, final numbers, 0.3 / 0.55 /
+0.8 s: no crosshatch, fire then soot with fire in its gaps.
