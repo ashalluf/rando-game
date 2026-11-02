@@ -437,8 +437,6 @@ class Acc:
 	var walk: SurfaceTool
 	var lawn: SurfaceTool
 	var glass: SurfaceTool
-	## The studio streets' asphalt on the city's road material (Rc4FilmLot).
-	var road: SurfaceTool
 	var shapes: int = 0
 
 
@@ -456,8 +454,6 @@ static func _acc(ch: CityChunk) -> Acc:
 		a.lawn.begin(Mesh.PRIMITIVE_TRIANGLES)
 		a.glass = SurfaceTool.new()
 		a.glass.begin(Mesh.PRIMITIVE_TRIANGLES)
-		a.road = SurfaceTool.new()
-		a.road.begin(Mesh.PRIMITIVE_TRIANGLES)
 		ch.set_meta("studio_acc", a)
 	return ch.get_meta("studio_acc")
 
@@ -568,10 +564,7 @@ static func _ground(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
 		aprons.append(Rect2((sg.c as Vector2) - ext * 0.5, ext))
 	for r: Rect2 in _parts(inside, area):
 		for piece: Rect2 in Parks.minus(r, aprons, 0.05):
-			if Rc4FilmLot.enabled:
-				Rc4FilmLot.road_rect(acc.road, ch, piece, BASE_Y)
-			else:
-				Industrial._ground_rect(acc.ground, ch, piece, BASE_Y, Industrial.G_ASPHALT, 0.15, true)
+			Industrial._ground_rect(acc.ground, ch, piece, BASE_Y, Industrial.G_ASPHALT, 0.15, true, Rc4FilmLot.track_axis(lay, piece) if Rc4FilmLot.enabled else 0.0)
 		for ap: Rect2 in aprons:
 			var p := ap.intersection(r)
 			if p.size.x > 0.05 and p.size.y > 0.05:
@@ -788,6 +781,8 @@ static func _vehicles(ch: CityChunk, lay: Dictionary, area: Rect2, i0: int = 0, 
 				FilmStudioKit.trailer(acc.st, xf, float(pk.length) - 1.6, false, int(pk.band))
 			"honey":
 				FilmStudioKit.trailer(acc.st, xf, float(pk.length) - 1.6, true, int(pk.band))
+			_ when Rc4FilmLot.enabled:
+				Rc4FilmLot.place_truck(ch, Transform3D(xf.basis, Vector3(p.x, BASE_Y, p.y)), int(pk.band))
 			_:
 				FilmStudioKit.truck(acc.st, xf, int(pk.band))
 		var l: float = float(pk.length)
@@ -893,10 +888,9 @@ static func _commit(ch: CityChunk) -> void:
 	if _walk_mat == null:
 		_walk_mat = PropFactory.road("sidewalk", 3.0, Color(1.45, 1.43, 1.38), 7713, 1.5, 0.35)
 		_lawn_mat = PropFactory.lawn(Color(0.86, 0.98, 0.72), 5521, 0.25, 3.0)
-	var parts := [["StudioLot", acc.st, FilmStudioKit.material(), true], ["StudioGround", acc.ground, Industrial.ground_material(), false],
+	var parts := [["StudioLot", acc.st, FilmStudioKit.material(), true], ["StudioGround", acc.ground, Rc4FilmLot.ground_material() if Rc4FilmLot.enabled else Industrial.ground_material(), false],
 		["StudioPavement", acc.walk, _walk_mat, false], ["StudioLawn", acc.lawn, _lawn_mat, false],
-		["StudioGlass", acc.glass, FilmStudioKit.glass_material(), true],
-		["StudioRoad", acc.road, Rc4FilmLot.road_material(), false]]
+		["StudioGlass", acc.glass, FilmStudioKit.glass_material(), true]]
 	for p: Array in parts:
 		var st: SurfaceTool = p[1]
 		var mesh := st.commit()

@@ -7,7 +7,8 @@ extends RefCounted
 ##     rails and folding steps, roof air conditioners in rounded shrouds, a roll-up awning case
 ##     (an awning out on some), the A-frame tongue with its jack and propane bottles.
 ##   - The studio streets wore the industrial yards' failed asphalt (alligator cracks with weeds:
-##     lime patches down the whole street). A studio keeps its streets: the city's road material.
+##     lime patches down the whole street). A studio keeps its streets: the same material KEPT
+##     (industrial_ground.gdshader `kept`), tyre tracks worn along each street.
 ##   - The street was empty between the trailers: golf carts parked in the basecamp's gaps, a
 ##     chair, a cooler and a stinger at the trailer doors, cable ramps across, wardrobe racks and
 ##     carts of gear - all hashes of the seed and the spot (FilmStudio's own layout untouched).
@@ -31,7 +32,7 @@ const BLACK := Color(0.07, 0.07, 0.075)
 const ALU := Color(0.72, 0.73, 0.74)
 const CART_PAINTS := [Color(0.92, 0.92, 0.9), Color(0.9, 0.86, 0.74), Color(0.2, 0.34, 0.24), Color(0.12, 0.12, 0.13), Color(0.6, 0.12, 0.1)]
 
-static var _road_mat: Material
+static var _ground_mat: Material
 ## Built once per variant (key -> ArrayMesh on the studio material), placed through the chunk's
 ## MultiMesh batch: a trailer is ~2,500 triangles of GDScript (~75 ms a copy), so never per copy.
 static var _meshes: Dictionary = {}
@@ -73,13 +74,24 @@ static func h01(parts: Array) -> float:
 	return float(absi(hash(parts)) % 100003) / 100003.0
 
 
-## The studio streets' asphalt: the city's road material (well kept, joints of resurfacing, no
-## weeds), one for the lot.
-static func road_material() -> Material:
-	if _road_mat == null:
-		var m := PropFactory.road("asphalt", 7.0, Color(0.80, 0.80, 0.83), 4417, 0.0, 0.55)
-		_road_mat = m
-	return _road_mat
+## The studio's ground: the industrial yards' material with its asphalt KEPT (industrial_ground's
+## `kept`: no failed patches, no weeds in the cracks, the long cracks mostly gone).
+static func ground_material() -> Material:
+	if _ground_mat == null:
+		var m := Industrial.ground_material().duplicate() as ShaderMaterial
+		m.set_shader_parameter("kept", 1.0)
+		_ground_mat = m
+	return _ground_mat
+
+
+## The tyre tracks' axis for an asphalt piece (industrial_ground's COLOR.b, RcVernon's code): along
+## the studio street it lies in, none off the streets.
+static func track_axis(lay: Dictionary, piece: Rect2) -> float:
+	var c := piece.get_center()
+	for st: Dictionary in lay.streets:
+		if (st.rect as Rect2).has_point(c):
+			return 0.25 if int(st.axis) == 0 else 0.75
+	return 0.0
 
 
 # --- Writers ----------------------------------------------------------------------------------
@@ -326,6 +338,70 @@ static func trailer(st: SurfaceTool, xf: Transform3D, length: float, honey: bool
 		FilmStudioKit.box(st, xf * Transform3D(Basis(), Vector3(s2 * (hw + 0.005), top - 0.22, L * 0.5 - 0.8)), Vector3(0.03, 0.06, 0.12), K_LAMP, Color(1.0, 0.6, 0.15))
 
 
+## A five-ton grip / electric truck, nose toward +z, foot centre at xf's origin: a cab-over cab
+## lofted round a rounded section with its glass, mirrors and grille; a box body on radiused corner
+## posts with the band, rub rails and a roll-up door at the back over a folded lift gate; fuel tank,
+## steps, mudflaps, dual rear wheels.
+static func truck(st: SurfaceTool, xf: Transform3D, band: int, seed: int) -> void:
+	var white := Color(0.94, 0.94, 0.93)
+	# The cab: 2.3 wide, 2.3 tall from 0.95, its nose rounded.
+	var cab := section(1.15, 0.95, 3.15, 0.08, 0.22, 3)
+	loft(st, xf, cab, [[2.55, 0.97], [2.62, 1.0], [4.3, 1.0], [4.52, 0.95], [4.6, 0.86]], K_TRAILER, white, 0.95, 2.2, 4.0)
+	# Glass: the windscreen across the nose, side windows, the black band of the grille.
+	FilmStudioKit.box(st, xf * Transform3D(Basis(Vector3.RIGHT, -0.08), Vector3(0.0, 2.45, 4.58)), Vector3(2.0, 0.95, 0.03), K_GLASS, Color(0.12, 0.13, 0.15), 2.1)
+	for s2: float in [-1.0, 1.0]:
+		FilmStudioKit.box(st, xf * Transform3D(Basis(), Vector3(s2 * 1.155, 2.45, 3.85)), Vector3(0.03, 0.85, 1.0), K_GLASS, Color(0.12, 0.13, 0.15), 1.1)
+		FilmStudioKit.box(st, xf * Transform3D(Basis(), Vector3(s2 * 1.16, 1.65, 3.85)), Vector3(0.02, 0.02, 0.9), K_RUBBER, BLACK)
+		# Mirrors on arms, a step under the door, the headlamp.
+		FilmStudioKit.beam(st, xf * Vector3(s2 * 1.15, 2.6, 4.3), xf * Vector3(s2 * 1.45, 2.7, 4.35), 0.03, 0.03, K_STEEL, BLACK)
+		FilmStudioKit.box(st, xf * Transform3D(Basis(), Vector3(s2 * 1.5, 2.55, 4.35)), Vector3(0.08, 0.42, 0.22), K_RUBBER, BLACK)
+		FilmStudioKit.box(st, xf * Transform3D(Basis(), Vector3(s2 * 1.05, 0.65, 3.9)), Vector3(0.3, 0.05, 0.6), K_STEEL, Color(0.5, 0.5, 0.52))
+		FilmStudioKit.box(st, xf * Transform3D(Basis(), Vector3(s2 * 0.82, 1.28, 4.58)), Vector3(0.34, 0.2, 0.05), K_LAMP, Color(1.0, 0.96, 0.88))
+	FilmStudioKit.box(st, xf * Transform3D(Basis(), Vector3(0.0, 1.55, 4.6)), Vector3(1.2, 0.35, 0.03), K_RUBBER, Color(0.1, 0.1, 0.11))
+	FilmStudioKit.box(st, xf * Transform3D(Basis(), Vector3(0.0, 0.85, 4.6)), Vector3(2.3, 0.3, 0.18), K_STEEL, Color(0.16, 0.16, 0.17))
+	# Chassis rails, the fuel tank, battery box.
+	for s2: float in [-1.0, 1.0]:
+		FilmStudioKit.box(st, xf * Transform3D(Basis(), Vector3(s2 * 0.45, 0.85, 0.0)), Vector3(0.1, 0.28, 9.2), K_STEEL, Color(0.1, 0.1, 0.1))
+	FilmStudioKit.cyl(st, xf * Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(-0.95, 0.72, 0.9)), 0.28, 1.2, K_CHROME, ALU, 12, true)
+	FilmStudioKit.box(st, xf * Transform3D(Basis(), Vector3(0.95, 0.75, 1.5)), Vector3(0.5, 0.45, 0.7), K_STEEL, BLACK)
+	# The box: 2.5 x 3.1 x 7.4 on radiused corner posts.
+	var bz0 := -4.95
+	var bz1 := 2.45
+	var box_sec := section(1.25, 1.18, 4.3, 0.05, 0.1, 2)
+	loft(st, xf, box_sec, [[bz0, 1.0], [bz1, 1.0]], K_TRAILER, white, 1.18, 3.12, float(band))
+	for c: Vector2 in [Vector2(-1.26, bz0 + 0.03), Vector2(1.26, bz0 + 0.03), Vector2(-1.26, bz1 - 0.03), Vector2(1.26, bz1 - 0.03)]:
+		FilmStudioKit.box(st, xf * Transform3D(Basis(), Vector3(c.x, 2.74, c.y)), Vector3(0.07, 3.12, 0.07), K_CHROME, ALU)
+	for s2: float in [-1.0, 1.0]:
+		for yy: float in [1.25, 4.25]:
+			FilmStudioKit.box(st, xf * Transform3D(Basis(), Vector3(s2 * 1.27, yy, (bz0 + bz1) * 0.5)), Vector3(0.05, 0.1, bz1 - bz0), K_CHROME, ALU)
+		# A side door near the front of the box, its steps.
+		FilmStudioKit.box(st, xf * Transform3D(Basis(), Vector3(s2 * 1.27, 2.45, bz1 - 1.2)), Vector3(0.02, 2.1, 0.9), K_STEEL, Color(0.84, 0.84, 0.82))
+		FilmStudioKit.box(st, xf * Transform3D(Basis(), Vector3(s2 * 1.28, 2.4, bz1 - 0.85)), Vector3(0.04, 0.06, 0.18), K_CHROME, ALU)
+		# Marker lamps along the top.
+		for k in 3:
+			FilmStudioKit.box(st, xf * Transform3D(Basis(), Vector3(s2 * 1.27, 4.15, bz0 + 0.6 + float(k) * 3.0)), Vector3(0.03, 0.06, 0.1), K_LAMP, Color(1.0, 0.6, 0.15))
+	# The roll-up door (its slats) at the back, the folded lift gate under it, tail lamps.
+	FilmStudioKit.box(st, xf * Transform3D(Basis(), Vector3(0.0, 2.7, bz0 - 0.02)), Vector3(2.25, 2.85, 0.04), FilmStudioKit.K_DOOR, Color(0.88, 0.88, 0.86), 1.1)
+	FilmStudioKit.box(st, xf * Transform3D(Basis(), Vector3(0.0, 1.08, bz0 - 0.25)), Vector3(2.4, 0.12, 0.5), K_STEEL, Color(0.5, 0.5, 0.52))
+	FilmStudioKit.box(st, xf * Transform3D(Basis(Vector3.RIGHT, 0.12), Vector3(0.0, 1.45, bz0 - 0.48)), Vector3(2.3, 0.7, 0.06), K_STEEL, Color(0.55, 0.56, 0.57))
+	for s2: float in [-1.0, 1.0]:
+		FilmStudioKit.box(st, xf * Transform3D(Basis(), Vector3(s2 * 1.0, 1.4, bz0 - 0.05)), Vector3(0.24, 0.16, 0.05), K_LAMP, Color(1.0, 0.1, 0.05))
+		# Mudflaps behind the rear wheels.
+		FilmStudioKit.box(st, xf * Transform3D(Basis(), Vector3(s2 * 0.95, 0.45, -3.85)), Vector3(0.6, 0.7, 0.02), K_RUBBER, BLACK)
+	# Wheels: singles under the cab, duals at the back.
+	for s2: float in [-1.0, 1.0]:
+		wheel(st, xf, Vector3(s2 * 1.0, 0.5, 3.4), 0.5, 0.3)
+		wheel(st, xf, Vector3(s2 * 0.92, 0.5, -3.0), 0.5, 0.28)
+		wheel(st, xf, Vector3(s2 * 1.2, 0.5, -3.0), 0.5, 0.26)
+
+
+## A truck through the batch.
+static func place_truck(ch: CityChunk, xf: Transform3D, band: int) -> void:
+	var key := "rc4_truck_%d" % band
+	var mesh := cached(key, func(st: SurfaceTool) -> void: truck(st, Transform3D.IDENTITY, band, band))
+	ch._batch.add(key, mesh, xf)
+
+
 ## A golf cart (2.4 x 1.2), nose toward +z: a moulded body with a rounded cowl, two bench cushions,
 ## a canopy on four posts, a tinted windscreen, tyres on alloys; a cargo bed on some.
 static func golf_cart(st: SurfaceTool, xf: Transform3D, paint: Color, bed: bool) -> void:
@@ -525,30 +601,6 @@ static func _ramp_piece(st: SurfaceTool) -> void:
 	var sec := section(0.3, 0.0, 0.07, 0.01, 0.05, 2)
 	loft(st, Transform3D.IDENTITY, sec, [[-0.44, 1.0], [0.44, 1.0]], K_RUBBER, Color(0.12, 0.12, 0.12), 0.0, 0.07)
 	FilmStudioKit.box(st, Transform3D(Basis(), Vector3(0.0, 0.072, 0.0)), Vector3(0.22, 0.008, 0.86), K_CANVAS, Color(0.92, 0.72, 0.1))
-
-
-## Asphalt over `r` at `y` on the relief, in 8 m cells (one quad a court misses the lamps' additive
-## passes on Compatibility; Industrial._ground_rect's reason), UV world metres, for road_material().
-static func road_rect(st: SurfaceTool, ch: CityChunk, r: Rect2, y: float) -> void:
-	if r.size.x < 0.05 or r.size.y < 0.05:
-		return
-	var nx := clampi(ceili(r.size.x / 8.0), 1, 64)
-	var nz := clampi(ceili(r.size.y / 8.0), 1, 64)
-	for j in nz:
-		for i in nx:
-			var x0 := r.position.x + r.size.x * i / nx
-			var x1 := r.position.x + r.size.x * (i + 1) / nx
-			var z0 := r.position.y + r.size.y * j / nz
-			var z1 := r.position.y + r.size.y * (j + 1) / nz
-			var a := Vector3(x0, y + ch._gy(x0, z0), z0)
-			var b := Vector3(x1, y + ch._gy(x1, z0), z0)
-			var c := Vector3(x1, y + ch._gy(x1, z1), z1)
-			var d := Vector3(x0, y + ch._gy(x0, z1), z1)
-			for v: Vector3 in [a, c, b, a, d, c]:
-				st.set_color(Color.WHITE)
-				st.set_normal(Vector3.UP)
-				st.set_uv(Vector2(0.5, 0.5))
-				st.add_vertex(v)
 
 
 ## FilmStudio's build step for the dressing (its own step: the lot mesh's accumulator).
