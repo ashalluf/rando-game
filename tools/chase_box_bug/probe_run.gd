@@ -77,7 +77,8 @@ func _find_spots() -> void:
 	var first := true
 	for n in car.find_children("*", "MeshInstance3D", true, false):
 		var mi := n as MeshInstance3D
-		if mi.mesh == null:
+		# The lamps' mesh reaches 10 m down the road (the beam) and 5 m behind (the red pool).
+		if mi.mesh == null or mi.name == "NightLights":
 			continue
 		var b: AABB = car.global_transform.affine_inverse() * mi.global_transform * mi.get_aabb()
 		box = b if first else box.merge(b)

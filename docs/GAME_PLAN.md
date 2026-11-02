@@ -4281,3 +4281,6 @@ none of either.
   them out with the camera's clearance over whatever is under it (a roof counts), the reach capped
   at 600 m at HIGH (1000 m doubled an aerial's shadow passes). The bias stays (lower values brought acne at golden hour in the lab), the fade is
   20 %, and far landmark planting casts within 450 m. SHADOW_TUNING=0 is the A/B.
+- 2026-11-02 (chase-box-bug): an additive (blend_add) shader must be `fog_disabled` or write a coverage
+  alpha (`af_cover()`, shaders/additive_fog.gdshaderinc): with ALPHA left at 1 the renderer adds the fog
+  colour over the whole quad, which drew a grey square round each tail lamp of the player's car.
