@@ -78,6 +78,10 @@ in the direction it looks, lane 0 by the median, dir -1 toward the route's start
 north to south), `kind` a Vehicle.BodyType name or "", and every other traffic car within `clear`
 metres of the eye hidden for the shot (the load's own traffic put a box truck on the lens). The log
 prints each staged car's distance at the shot.
+Run with `REFCAMS_JSON=tools/refcams/cameras_w6.json`. `airport_night` - the apron at 21:30 clear from
+the first stand west of the concourse, a jet staged on final to 27L (`air` final: the flare over the
+threshold at the shot). A row that stages an aircraft prints `REFCAM <name> air at x,y,z` (TRUE world,
+at the shot): tune `air_dist` / `air_side` from it.
 
 ## Wave 6's cameras (`cameras_w6.json`)
 

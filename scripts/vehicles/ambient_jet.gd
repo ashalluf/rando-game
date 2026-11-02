@@ -296,6 +296,8 @@ func _fly(dt: float) -> void:
 	if done:
 		return
 	_update_shimmer()
+	if AirportNight.enabled:
+		AirportNight.landing_pool(self, world_pos.y - runway_y, AmbientCraft.yaw_dir(yaw))
 	if fading_out and _step_fade(dt):
 		_finish()
 	elif not fading_out and fade > 0.0:

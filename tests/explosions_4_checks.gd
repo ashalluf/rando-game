@@ -45,6 +45,7 @@ func run(t: Node, city: Node3D) -> void:
 	await _chain()
 	_round4(parent)
 	await _round5(parent)
+	_round6(parent)
 	for c in parent.get_children():
 		if not before.has(c) and c != _deck and not (c is BlastBits):
 			c.queue_free()
@@ -265,3 +266,34 @@ func _round5(parent: Node) -> void:
 	await _ticks(2)
 	_t._check(FileAccess.get_file_as_string("res://scripts/weapons/blast_3.gd").contains("Blast4.crater_smooth"),
 		"explosions_4: the crater's soot and cracks can be smooth")
+
+
+## Round 6: flames as licking tongues, the crater's pit with depth, a lip and rubble.
+func _round6(parent: Node) -> void:
+	var q := QuadMesh.new()
+	q.size = Vector2(1.0, 1.0)
+	Blast4.tongue_quad(q)
+	if Blast4.tongues():
+		_t._check(q.size.y > q.size.x and q.material is ShaderMaterial
+			and (q.material as ShaderMaterial).shader.resource_path.ends_with("flame_tongue.gdshader"),
+			"explosions_4: a flame card is a tall tongue on the flame shader")
+	else:
+		_t._check(q.size == Vector2.ONE, "explosions_4: the flame tongues stay off when switched off")
+	var fs := FileAccess.get_file_as_string("res://shaders/flame_tongue.gdshader")
+	_t._check(fs.contains("INV_VIEW_MATRIX") and fs.contains("climb"), "explosions_4: the flame tongue stands upright and climbs")
+	var mark := Node3D.new()
+	parent.add_child(mark)
+	mark.global_position = _top + Vector3(-40.0, 0.0, 30.0)
+	var dressed := Blast4.pit_dress(mark, 1.7)
+	_t._check(dressed == Blast4.pit_enabled and (not dressed or (mark.get_node_or_null("PitBowl") != null
+		and mark.get_node_or_null("PitLip") != null and mark.get_node_or_null("PitRubble") != null)),
+		"explosions_4: the pit has a traced bowl, a lip and loose rubble")
+	_t._check(Blast4.lip_height(1.2, 2.0) > 0.0 and Blast4.lip_height(0.5, 2.0) == 0.0,
+		"explosions_4: the lip stands round the opening, not over it")
+	mark.queue_free()
+	var qm := ShaderMaterial.new()
+	qm.shader = load("res://shaders/blast_volume.gdshader")
+	Blast4.dress_volume(qm, false, false)
+	_t._check(float(qm.get_shader_parameter("quiet4")) == (Blast4.quiet_jitter if Blast4.quiet_enabled else 0.0)
+		and FileAccess.get_file_as_string("res://shaders/blast_volume.gdshader").contains("jit = 0.5 + (jit - 0.5) * quiet4;"),
+		"explosions_4: the march's jitter is narrowed (TAA does not clear it)")

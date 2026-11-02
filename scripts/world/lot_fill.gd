@@ -583,10 +583,15 @@ static func _planter(ch: CityChunk, r: Rect2, rng: RandomNumberGenerator, tree: 
 	var drop := 0.0
 	for k: Vector2 in [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]:
 		drop = maxf(drop, gc - ch._gy(k.x, k.y))
-	_solid(ch, Vector3(c.x, base + (h - drop) * 0.5, c.y), Vector3(r.size.x, h + drop, r.size.y), Building.plinth_material())
+	# The fashion district keeps its goods' frontage clear (FashionDistrict.clears_planter()): the
+	# planter is not built, its rolls below are still made, so nothing after it moves.
+	var dry := FashionDistrict.clears_planter(ch, r)
+	if not dry:
+		_solid(ch, Vector3(c.x, base + (h - drop) * 0.5, c.y), Vector3(r.size.x, h + drop, r.size.y), Building.plinth_material())
 	# The planted top stands a hair proud of the kerb box (which is solid), inside its rim.
 	var soil_top := base + h + 0.012
-	_box(ch, Vector3(r.size.x - 0.4, 0.04, r.size.y - 0.4), Vector3(c.x, soil_top - 0.02 + ch._gy(c.x, c.y), c.y), KIND_SOIL)
+	if not dry:
+		_box(ch, Vector3(r.size.x - 0.4, 0.04, r.size.y - 0.4), Vector3(c.x, soil_top - 0.02 + ch._gy(c.x, c.y), c.y), KIND_SOIL)
 	var inner := r.grow(-0.35)
 	var area := inner.size.x * inner.size.y
 	var has_tree := tree and ch._fill_trees < MAX_TREES and minf(r.size.x, r.size.y) >= 1.4
@@ -594,20 +599,22 @@ static func _planter(ch: CityChunk, r: Rect2, rng: RandomNumberGenerator, tree: 
 		var p := Vector2(rng.randf_range(inner.position.x, inner.end.x), rng.randf_range(inner.position.y, inner.end.y))
 		if has_tree and p.distance_to(c) < 0.9:
 			continue
-		_shrub(ch, Vector3(p.x, soil_top + gc - ch._gy(p.x, p.y), p.y), rng)
+		_shrub(ch, Vector3(p.x, soil_top + gc - ch._gy(p.x, p.y), p.y), rng, dry)
 	if has_tree:
 		ch._fill_trees += 1
-		_tree(ch, Vector3(c.x, soil_top, c.y), rng)
+		_tree(ch, Vector3(c.x, soil_top, c.y), rng, dry)
 
 
 ## A shrub in a planter: ONE species a chunk (a batch key is a draw call, and its shadow twin
 ## another - planted with CityChunk._add_bush()'s eight-way roll, the planters alone put up to
 ## sixteen new draws on a chunk).
-static func _shrub(ch: CityChunk, at: Vector3, rng: RandomNumberGenerator) -> void:
+static func _shrub(ch: CityChunk, at: Vector3, rng: RandomNumberGenerator, dry: bool = false) -> void:
 	var pick := absi(hash([ch.plan.seed, ch.ix, ch.iz, "fill_shrub"])) % PropFactory.BUSHES.size()
 	var sc := rng.randf_range(0.9, 1.4)
 	var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc, sc, sc))
 	var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.0))
+	if dry:
+		return
 	if LaTrees.accent_shrub(ch, at, LaTrees.PLANTER_ACCENT):
 		return
 	ch._batch.add("bush_%d" % pick, PropFactory.model_bush(pick), Transform3D(basis, at), tint)
@@ -615,12 +622,14 @@ static func _shrub(ch: CityChunk, at: Vector3, rng: RandomNumberGenerator) -> vo
 
 ## A planter's tree: the block's own street tree (CityChunk._tree_bias, the species its street
 ## already plants, so usually no new batch), at a planter's size.
-static func _tree(ch: CityChunk, at: Vector3, rng: RandomNumberGenerator) -> void:
+static func _tree(ch: CityChunk, at: Vector3, rng: RandomNumberGenerator, dry: bool = false) -> void:
 	var variant := clampi(ch._tree_bias, 0, PropFactory.CITY_TREES.size() - 1)
 	var s := PropFactory.city_tree_scale(variant, PropFactory.city_tree_height(variant, rng) * 0.8)
 	var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.05))
 	var variety := Color(rng.randf(), rng.randf(), rng.randf(), rng.randf_range(0.25, 1.0))
 	var yaw := rng.randf() * TAU
+	if dry:
+		return
 	if LaTrees.lot_tree(ch, at, yaw, tint):
 		return
 	ch._batch.add("tree_%d" % variant, PropFactory.model_tree(variant), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at), tint, variety)
