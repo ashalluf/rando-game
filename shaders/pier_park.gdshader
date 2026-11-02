@@ -62,6 +62,8 @@ uniform vec3 wash_pt_col[10];
 uniform int wash_pt_count = 0;
 // A floor of light on everything (the midway's own glow off the deck and the air).
 uniform float wash_floor = 0.0;
+// The downlights under the deck (on the piles and bracing), relative to the lamps above.
+uniform float wash_under = 0.1;
 
 varying vec2 v_data;
 varying vec3 v_local;
@@ -113,10 +115,15 @@ vec3 pier_weather(vec3 alb, int kind, vec3 wp, float hd, inout float rough) {
 // wrapped (a lamp-lit night is all scatter). Under the deck the lamps above see nothing: a tenth.
 vec3 park_wash(vec3 p, vec3 n) {
 	vec3 e = vec3(wash_floor);
-	float under = p.y < 5.6 ? 0.1 : 1.0;
+	// Under the deck the lamps above see nothing; a row of downlights under the stringers lights
+	// the piles and the bracing instead (dimmer, closer in).
+	bool below = p.y < 5.6;
+	float under = below ? wash_under : 1.0;
+	float ly = below ? 5.1 : wash_row.w;
+	float lz = below ? wash_row.z * 0.55 : wash_row.z;
 	for (int s = 0; s < 2; s++) {
-		float zs = s == 0 ? -wash_row.z : wash_row.z;
-		vec3 to = vec3(0.0, wash_row.w - p.y, zs - p.z);
+		float zs = s == 0 ? -lz : lz;
+		vec3 to = vec3(0.0, ly - p.y, zs - p.z);
 		float r = max(length(to), 0.6);
 		float u0 = wash_row.x - p.x;
 		float u1 = wash_row.y - p.x;

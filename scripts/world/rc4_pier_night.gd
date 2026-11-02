@@ -37,6 +37,8 @@ static var enabled: bool = OS.get_environment("RC4_PIER_NIGHT") != "0"
 ## pier_park.gdshader's wash: overall gain, the floor every surface gets after dark.
 const WASH := 0.55
 const WASH_FLOOR := 0.035
+## The downlights under the deck that light the piles (x the lamp rows' strength).
+const WASH_UNDER := 0.45
 ## The midway's glows (park frame x, y, z; intensity; colour): what lights the platform's south
 ## faces toward the beach, which the lamp rows (along the main deck) never see.
 const GLOWS: Array = [
@@ -58,6 +60,7 @@ static func dress_material(mat: ShaderMaterial) -> void:
 	var anchor := pier_anchor()
 	mat.set_shader_parameter("wash", WASH)
 	mat.set_shader_parameter("wash_floor", WASH_FLOOR)
+	mat.set_shader_parameter("wash_under", WASH_UNDER)
 	mat.set_shader_parameter("wash_anchor", Vector3(anchor.x, 0.0, anchor.y))
 	mat.set_shader_parameter("wash_row", Vector4(PierPark.LAMP_FROM, PierPark.LAMP_FROM - float(PierPark.LAMP_COUNT - 1) * PierPark.LAMP_STEP,
 		PierPark.LAMP_Z, PierPark.DECK_TOP + 5.35))
@@ -182,6 +185,8 @@ static func stroller_count(plan: CityPlan, z0: float, z1: float, hour: float, we
 ## Puts the strollers in a FULL beach chunk (BeachLife.build()), in the crowd cap, as build steps.
 static func night_strollers(ch: CityChunk, z0: float, z1: float, hour: float, weather: float) -> void:
 	var n := stroller_count(ch.plan, z0, z1, hour, weather)
+	if OS.get_environment("RC4_DEBUG") != "" and n > 0:
+		print("RC4 strollers %d in chunk %d,%d (z %.0f..%.0f, hour %.2f)" % [n, ch.ix, ch.iz, z0, z1, hour])
 	for i in n:
 		ch._run_or_defer(func() -> bool:
 			_add_stroller(ch, z0, z1, i)
