@@ -25155,3 +25155,54 @@ Probes: `tools/rc_beach/sand_roads_probe.gd` (headless: every coast street stret
 beach; `LOOK=swim|wade|surf` saves a close look at the first one). Checks `tests/rc_beach_checks.gd`.
 Stills on `shots/rc-beach`.
 
+
+## 9d?. The suburban street at 09:30 (wave 5, `rc2-suburb`, branch `wt/rc2-suburb`)
+
+A new reference camera, `suburb_morning` (tools/refcams/cameras_w5.json): on the pavement of a
+suburban residential street in the valley (block 21,32 on seed 1337, Craftsman and Spanish houses,
+a pole line with a transformer, kerb carts out) looking east at 09:30, clear - eye (1979, 1.7 AGL,
+4256.8), yaw -96, pitch 1, FOV 55. `REFCAMS_JSON=tools/refcams/cameras_w5.json python3
+tools/refcams/refcams.py run build/refcams/<label> --only suburb_morning` (one load, ~25 min on a
+4-core box). Stills on `shots/rc2-suburb`.
+
+**What gave it away, in the order the eye found it, and what was done** (`RcSuburb`,
+`scripts/world/rc_suburb.gd`; `RC2_SUBURB=0` turns every one off, which is main's look):
+1. **Every lawn was weeds.** The lawn tufts (`CityChunk._add_grass()`, LawnsCloseup's mown blade
+   mesh) stood 25 cm on average and up to 0.7 m (0.34 m blades x 0.42-1.35 x MOWN 0.75 x an instance
+   scale up to 1.6 x 1.35) in 2-3 cm wide blades: dark swords over the lawn texture. Each tuft now
+   also takes `RcSuburb.TUFT_SCALE` (0.75, 0.5, 0.75) - mowing height, thinner blades - after every
+   rng call, so the lawns' streams are unchanged. Every lawn in the city (parks, campus, MacArthur)
+   gets it; from the air the tufts were already faded into the lawn shader.
+2. **Decomposed-granite gardens read as orange clay courts** (lot_yard.gdshader: the hill_dirt scan
+   x `dg_tint` came out ~(235, 186, 116) in sun). `dg_real` (default 1, the material gets the
+   switch in `YardFill.yard_material()`): the scan's relief at 40 % of its colour under a pale tan
+   (`dg_color`, display numbers), round 4-13 mm stones in 3 cm jittered cells with a shade rim,
+   faded to their mean once a stone is under a pixel. Same in the beach town.
+3. **The kerbs were empty at 09:30.** A suburb block parks `"parked"` 8 cars over ~60 stalls, then
+   the kerb carts and swept streets take some. `CityChunk._park_resident()` (a step after
+   BusyStreets' extras in `_park_car_steps()`, SUBURBS and BEACHTOWN only) puts a car on
+   `RESIDENT_ODDS` 0.3 of the stalls nobody decided, from `RcSuburb.resident_roll()` (a hash of seed +
+   stall, never the block rng), with the old pass's `_kerb_reserved()` / `_kerb_taken()` (aprons, red
+   kerbs, bins, swept streets, vendors...). `_park_extra()` now marks its stall taken (the 4th entry)
+   so the two never double-park. Cars carry meta `rc2_resident`.
+4. **The parkway's edge was a carpet tile**: a vertical lawn-textured skirt 5 cm proud with the
+   lawn shader's soil lip on it, black from the pavement. `LawnsCloseup._strip_mesh()` slopes it out
+   45 degrees with the lawn's interior UV: the turf rolls over the edge.
+5. **The code-built street trees' leaves drew as horizontal streaks** without TAA (Compatibility:
+   the web and every opengl3 still). la_tree.gdshader's sub-pixel dither (meant for TAA) started
+   4-8 m out and `h21()` on FRAGCOORD has a row pattern. On Compatibility only (`#if
+   CURRENT_RENDERER`, `sprig_dither_fix`): the dither waits 2.2x longer and uses a row-free hash
+   (`hash_px`). Forward+ is unchanged.
+
+**Cost** (opengl3, the camera, GEO): 6,111,649 -> 6,237,298 triangles (+2.1 %), 2,857 -> 2,917
+draws (+2.1 %): the residents' cars (sleeping bodies on their far twin past 30 m). Shadow pass
+2.40 M -> 2.42 M.
+
+**Not done / seen:** a jogger or dog walker is not staged (the crowd's own rolls; one may or may
+not be in frame); the houses' close-up materials (flat siding, plain trim) and the wide empty
+carriageway are the next things the eye finds; Forward+ not checked on lavapipe for the DG
+(plain display-number arithmetic like the rest of lot_yard, so it holds there by construction).
+Checks: `tests/rc2_suburb_checks.gd` (rolls, districts, shader uniforms and materials, a suburb
+block built with and without the residents keeps every car and never doubles a stall). Probe:
+`tools/rc2_suburb/yard_probe.tscn -- --spawn=x,z` (the front-garden kinds YardFill plans round a
+point).
