@@ -734,6 +734,8 @@ static func _warehouse(ch: CityChunk, lp: Dictionary) -> void:
 					_fb(cx, u, front_v - 0.02, 6.1, Vector3(ow - 1.2, 2.6, 0.06), IndustrialKit.K_GLASS, Color(0.3, 0.36, 0.4), 1.5)
 				_fb(cx, u, front_v - 1.0, 4.25, Vector3(4.5, 0.25, 2.0), IndustrialKit.K_STEEL, Color(0.22, 0.23, 0.25))
 				_fb(cx, u, front_v - 0.03, 1.15, Vector3(1.9, 2.3, 0.05), IndustrialKit.K_GLASS, Color(0.18, 0.2, 0.22), 0.95)
+				if not brick:
+					RcVernon.office_popout(cx, u, ow, front_v, h, top, paint, s)
 			0:
 				# Dock door, its seal, bumpers, the dock light, the plate below.
 				_fb(cx, u, front_v - 0.02, DOCK_SILL + DOCK_DOOR.y * 0.5, Vector3(DOCK_DOOR.x, DOCK_DOOR.y, 0.05), IndustrialKit.K_ROLLUP, door_paint, 0.075)
@@ -824,7 +826,7 @@ static func _panel_w(brick: bool, len: float) -> float:
 static func _dock_traffic(ch: CityChunk, lp: Dictionary, u: float) -> void:
 	var s: int = lp.seed
 	var court: float = lp.court
-	if court <= 0.0 or _h01([s, "ind_trl", int(u * 10.0)]) >= TRAILER_ODDS:
+	if court <= 0.0 or not RcVernon.dock_has_trailer(_h01([s, "ind_trl", int(u * 10.0)]), TRAILER_ODDS, _h01([s, "ind_trl2", int(u * 10.0)])):
 		return
 	if not _count(ch, "trailers", MAX_TRAILERS):
 		return
@@ -859,7 +861,7 @@ static func _far_trailers(ch: CityChunk, lp: Dictionary) -> void:
 			continue
 		var u: float = dk.u
 		var s: int = lp.seed
-		if float(lp.court) <= 0.0 or _h01([s, "ind_trl", int(u * 10.0)]) >= TRAILER_ODDS:
+		if float(lp.court) <= 0.0 or not RcVernon.dock_has_trailer(_h01([s, "ind_trl", int(u * 10.0)]), TRAILER_ODDS, _h01([s, "ind_trl2", int(u * 10.0)])):
 			continue
 		var kind := 2 if _h01([s, "ind_trl_k", int(u * 10.0)]) < 0.15 else 0
 		var length := 16.15 if kind != 2 else 12.2
@@ -898,7 +900,10 @@ static func block_step(ch: CityChunk, block: Dictionary) -> void:
 		var r: Rect2 = pc[0]
 		ch._lot_rects.append(r)
 		if full:
-			ch._ind.ground.append([r, int(pc[2]), _h01([ch.plan.seed, r.position, "ind_var"])])
+			# A court's or apron's asphalt is driven straight in and out (RcVernon: its tyre tracks
+			# run that way): the axis rides in COLOR.b (0.25 along z, 0.75 along x).
+			var axis_b := RcVernon.track_axis(String(pc[1]), int(pc[3]))
+			ch._ind.ground.append([r, int(pc[2]), _h01([ch.plan.seed, r.position, "ind_var"]), axis_b])
 		elif r.get_area() >= 60.0 and maxf(r.size.x, r.size.y) >= 6.0:
 			var col := _far_ground(int(pc[2]))
 			var c := r.get_center()
@@ -1261,6 +1266,7 @@ static func ground_material() -> ShaderMaterial:
 	mat.set_shader_parameter("concrete_tex", PropFactory.texture("concrete", "Color"))
 	mat.set_shader_parameter("dirt_tex", PropFactory.texture("hill_dirt", "Color"))
 	mat.set_shader_parameter("gravel_tex", PropFactory.texture("sidewalk", "Color"))
+	RcVernon.apply(mat)
 	_ground_material = mat
 	return mat
 

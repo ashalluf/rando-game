@@ -26,6 +26,9 @@ global uniform float road_wetness;
 global uniform float lamp_factor;
 global uniform float night_factor;
 global uniform vec4 sky_tint;
+// RcVernon (scripts/world/rc3_vernon.gd): 1 the vernon_industrial refcam's pass (worn steel, a real
+// storefront glass, weathered tilt-up), 0 the look before it (RC3_VERNON=0, the A/B).
+uniform float rc3 = 1.0;
 
 varying float kind;
 varying vec3 world_n;
@@ -220,6 +223,22 @@ void fragment() {
 			albedo = mix(albedo, albedo * mix(vec3(0.9, 0.9, 0.88), vec3(1.06, 1.04, 1.0), step(0.5, hash12(vec2(panel, 2.0)))), buff);
 			float dirt = streaks(uv, h, seedv * 13.0);
 			albedo *= 1.0 - 0.3 * dirt;
+			if (rc3 > 0.5) {
+				// Each panel cast on its own day: a tone of its own, a touch warmer or cooler.
+				float pt = hash12(vec2(panel, seedv * 57.0 + 1.0));
+				albedo *= (0.93 + 0.12 * pt) * mix(vec3(1.0, 0.99, 0.97), vec3(0.98, 0.995, 1.01), hash12(vec2(panel, 8.0)));
+				// Rain runs down from the coping either side of every joint and under the wall
+				// packs (every other panel's middle, 1.4 m under the top).
+				float jd = abs(fract(uv.x / pw + 0.5) - 0.5) * pw;
+				float from_top = clamp((h - uv.y) / max(h, 1.0), 0.0, 1.0);
+				float run = (1.0 - smoothstep(0.04, 0.35 + 0.25 * vnoise(vec2(uv.x * 2.0, 1.0)), jd)) * (1.0 - from_top * 0.8) * (0.5 + 0.5 * vnoise(vec2(uv.x * 9.0, uv.y * 0.3)));
+				float mid = abs(fract(uv.x / pw) - 0.5) * pw;
+				float pack = step(0.5, mod(panel, 2.0)) * (1.0 - smoothstep(0.08, 0.3 + 0.15 * vnoise(vec2(uv.x * 6.0, 2.0)), mid)) * smoothstep(h - 1.5, h - 4.5 - 2.0 * vnoise(vec2(uv.x * 3.0, 5.0)), uv.y) * step(uv.y, h - 1.5);
+				albedo *= 1.0 - 0.16 * run - 0.2 * pack;
+				// Splash-back: dust and soil kicked up the foot by rain and tyres, ragged at the top.
+				float splash = 1.0 - smoothstep(0.15, 0.7 + 0.5 * vnoise(vec2(uv.x * 1.3, 3.0)), uv.y);
+				albedo = mix(albedo, albedo * vec3(0.78, 0.72, 0.62), splash * 0.55);
+			}
 			// Grime under the coping where the rain runs off the parapet.
 			albedo *= 1.0 - 0.18 * smoothstep(h - 1.2, h, uv.y) * (0.6 + 0.4 * vnoise(uv * vec2(2.0, 0.5)));
 			albedo *= 1.0 - 0.32 * foot * (0.7 + 0.3 * vnoise(uv * 2.0));
@@ -295,7 +314,21 @@ void fragment() {
 	} else if (kind < 5.5) {
 		// Painted steel: scuffed, rusting at the edges and foot.
 		float rust = smoothstep(0.66, 0.9, vnoise(uv * 2.7 + paint.rg * 9.0)) * 0.7 + foot * 0.3;
-		albedo = mix(paint * (0.92 + 0.12 * vnoise(uv * 7.0)), vec3(0.36, 0.2, 0.12), clamp(rust, 0.0, 0.75));
+		vec3 base_paint = paint * (0.92 + 0.12 * vnoise(uv * 7.0));
+		if (rc3 > 0.5) {
+			// Rust where steel really goes: along the lip, a band at the foot, runs down from
+			// the lip and small chips - never big blotches across a face (they read as cheese).
+			float lip = smoothstep(h - 0.12, h, uv.y) * (top ? 0.0 : 1.0);
+			float runs = smoothstep(0.62, 0.9, vnoise(vec2(uv.x * 3.1 + paint.r * 17.0, 0.5))) * smoothstep(h * 0.35, h, uv.y);
+			float chips = smoothstep(0.78, 0.92, vnoise(uv * 9.0 + paint.gb * 11.0)) * 0.8;
+			float low = (1.0 - smoothstep(0.0, 0.35, uv.y)) * (0.5 + 0.5 * vnoise(uv * vec2(4.0, 1.0)));
+			rust = clamp(max(max(lip, low * 0.8), max(runs * 0.55, chips)), 0.0, 1.0) * (top ? 0.35 : 1.0);
+			// Faded, scuffed paint: chalky in broad patches, darker dents.
+			float fade = vnoise(uv * vec2(0.6, 0.9) + paint.rb * 5.0);
+			base_paint = mix(paint, paint * 0.82 + vec3(0.06), smoothstep(0.4, 0.8, fade) * 0.6) * (0.94 + 0.08 * vnoise(uv * 13.0));
+			base_paint *= 1.0 - 0.12 * smoothstep(0.7, 0.85, vnoise(uv * 2.2 + 31.0));
+		}
+		albedo = mix(base_paint, vec3(0.36, 0.2, 0.12) * (0.8 + 0.4 * vnoise(uv * 21.0)), clamp(rust, 0.0, 0.75));
 		rough = mix(0.5, 0.9, rust);
 		metal = 0.3;
 	} else if (kind < 6.5) {
@@ -340,6 +373,37 @@ void fragment() {
 		float fres = pow(1.0 - clamp(dot(normalize(VIEW), NORMAL), 0.0, 1.0), 3.0);
 		vec3 mirror = sky_tint.rgb * (0.25 + 0.7 * fres) * (0.85 + 0.3 * vnoise(vec2(uv.x / pitch, 0.5) * 3.0));
 		albedo = mix(paint * 0.35, vec3(0.16, 0.17, 0.18), mull);
+		if (rc3 > 0.5) {
+			// A storefront: anodised frames round every lite (sill, head, a transom), the glass
+			// mirroring what is across the street - sky over a skyline of roofs, the ground under
+			// the horizon - by the REFLECTED ray, so the horizon line runs across the panes; blinds
+			// down to their own height in some lites. Mirrors are emitted (they do not depend on
+			// the light falling on the pane).
+			float frame_w = 0.06;
+			mull = max(max(lines(uv.x, pitch, 0.09), band(uv.y, h * 0.62, 0.05)), max(1.0 - smoothstep(frame_w, frame_w + fwidth(uv.y), uv.y), smoothstep(h - frame_w - fwidth(uv.y), h - frame_w, uv.y)));
+			float lite = floor(uv.x / pitch) + floor(uv.y / (h * 0.62)) * 37.0;
+			float lh = hash12(vec2(lite, seedv * 17.0 + 4.0));
+			vec3 vdir = normalize(world_p - CAMERA_POSITION_WORLD);
+			vec3 r = reflect(vdir, normalize(world_n));
+			// A lite is never quite flat: its own small bow.
+			r.y += (lh - 0.5) * 0.04;
+			float az = atan(r.x, r.z);
+			float roofs = 0.02 + 0.06 * vnoise(vec2(az * 9.0, 2.0)) + 0.05 * step(0.7, vnoise(vec2(az * 23.0, 7.0)));
+			vec3 sky_lin = cs_srgb_to_linear(sky_tint.rgb);
+			vec3 zen = sky_lin * vec3(0.55, 0.7, 1.15);
+			vec3 refl = mix(sky_lin * 1.05, zen, smoothstep(0.0, 0.6, r.y));
+			refl = mix(refl, vec3(0.11, 0.105, 0.1) * (0.8 + 0.4 * vnoise(vec2(az * 40.0, r.y * 30.0))), step(r.y, roofs));
+			// Under the horizon: the sunlit street and court, darker straight down.
+			refl = mix(refl, vec3(0.2, 0.19, 0.17) * (0.75 + 0.35 * vnoise(vec2(az * 30.0, r.y * 20.0))) * (0.6 + 0.4 * smoothstep(-0.6, -0.05, r.y)), step(r.y, -0.02));
+			float k = 0.18 + 0.7 * fres;
+			vec3 tint = vec3(0.55, 0.68, 0.68);
+			// The room behind: dark, a pale blind dropped to its own height in a third of the lites.
+			float lite_v = fract(uv.y / (h * 0.62));
+			float blind = step(lh, 0.4) * step(1.0 - (0.25 + 0.6 * fract(lh * 7.0)), lite_v);
+			// Clear anodised frames: pale satin aluminium against the dark glass.
+			albedo = mix(vec3(0.035, 0.04, 0.04) + blind * vec3(0.32, 0.31, 0.28) * (0.8 + 0.2 * lines(uv.y, 0.06, 0.02)), vec3(0.52, 0.53, 0.54), mull);
+			mirror = refl * tint * k * (1.0 - night_factor * 0.85) * 1.6;
+		}
 		emit += mirror * 0.55 * (1.0 - mull) * (1.0 - night_factor * 0.7);
 		float lit = step(0.35, hash12(vec2(floor(uv.x / pitch), floor(uv.y / (h * 0.62)) + seedv * 9.0))) * lamp_factor;
 		emit += vec3(1.0, 0.86, 0.66) * 0.5 * lit * (1.0 - mull);
@@ -399,6 +463,20 @@ void fragment() {
 			albedo = mix(albedo, vec3(0.48, 0.5, 0.52), band(uv.y, 0.06, 0.06) + band(uv.y, h - 0.05, 0.05));
 			albedo *= 1.0 - 0.35 * smoothstep(1.4, 0.0, uv.y) * vnoise(uv * vec2(0.8, 3.0));
 			albedo *= 1.0 - 0.18 * streaks(uv, h, paint.r * 30.0);
+			if (rc3 > 0.5) {
+				// A fleet band along the top on most trailers (colour from the paint's own hash: an
+				// invented fleet, no lettering), and the red / white conspicuity tape every US
+				// trailer carries along its lower rail.
+				float fh = hash12(floor(paint.rg * 97.0) + 3.0);
+				vec3 fleet = fh < 0.3 ? vec3(0.08, 0.2, 0.48) : (fh < 0.55 ? vec3(0.62, 0.08, 0.06) : (fh < 0.75 ? vec3(0.05, 0.36, 0.22) : vec3(0.2, 0.2, 0.22)));
+				float bandm = step(0.25, fh) * band(uv.y, h - 0.55, 0.17) * step(0.4, uv.x) * step(uv.x, max(param, 1.0) - 0.4);
+				albedo = mix(albedo, fleet * (0.9 + 0.1 * vnoise(uv * 3.0)), bandm * 0.9);
+				float tape = band(uv.y, 0.26, 0.035) * step(0.3, uv.x) * step(uv.x, max(param, 1.0) - 0.3);
+				vec3 tcol = step(0.5, fract(uv.x / 0.9)) > 0.5 ? vec3(0.78, 0.1, 0.07) : vec3(0.85, 0.85, 0.82);
+				albedo = mix(albedo, tcol, tape * 0.92);
+				// Grime along the roof rail where the rain runs off.
+				albedo *= 1.0 - 0.15 * smoothstep(h - 0.6, h, uv.y) * vnoise(uv * vec2(1.5, 4.0));
+			}
 			metal = 0.04;
 			rough = 0.62;
 		} else if (rear > 0.5) {

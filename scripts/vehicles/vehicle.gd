@@ -1952,6 +1952,8 @@ func _add_body_model(length: float) -> bool:
 	# car's scale and ride height.
 	_tuck_model_wheels(inst)
 	CarUnderside.attach(inst, path, body_far_distance)
+	# The bumper trim drawn clear of the skin that pokes through it (CarCloseup, rc3-car-closeup).
+	CarCloseup.apply(near_meshes, aabb, along_x)
 	_add_cabin_glass(holder, near_meshes)
 	add_child(holder)
 	if BigVehicles.is_big(body_type):

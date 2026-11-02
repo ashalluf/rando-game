@@ -47,10 +47,54 @@ uniform float neon_energy = 6.0;
 uniform float window_energy = 1.6;
 uniform float stripe_width = 0.55;
 uniform float time_offset = 0.0;
+// PierDay: salt grime toward the deck, sun fade, rust streaks on the white steel, a blotchy tone
+// (0 = the park as it was, showroom clean).
+uniform float weathered = 0.0;
 
 varying vec2 v_data;
 varying vec3 v_local;
 varying vec3 v_wpos;
+
+float pw_noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	vec2 u = f * f * (3.0 - 2.0 * f);
+	float a = h11(i.x + i.y * 57.0);
+	float b = h11(i.x + 1.0 + i.y * 57.0);
+	float c = h11(i.x + (i.y + 1.0) * 57.0);
+	float d = h11(i.x + 1.0 + (i.y + 1.0) * 57.0);
+	return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
+// The park after years of salt air and sun (PierDay): only on paint, steel, canvas, sign boards
+// and painted boards, each term faded to its average once its feature is under a pixel.
+vec3 pier_weather(vec3 alb, int kind, vec3 wp, float hd, inout float rough) {
+	float px = max(length(fwidth(wp)), 1e-4);
+	float lum = dot(alb, vec3(0.2126, 0.7152, 0.0722));
+	// Sun fade: paint loses some of its colour and lifts a little.
+	if (kind == 0 || kind == 2 || kind == 7 || kind == 5) {
+		alb = mix(alb, vec3(lum) * 1.05 + 0.01, 0.16 * weathered);
+	}
+	// A blotchy tone over metres: patched paint, old touch-ups.
+	float blot = pw_noise(wp.xz * 0.45 + vec2(wp.y * 0.35, 0.0)) * 0.6 + pw_noise(wp.xz * 1.7 + vec2(0.0, wp.y * 1.3)) * 0.4;
+	alb *= 1.0 + (blot - 0.5) * 0.16 * weathered;
+	// Salt grime and kicked-up dirt toward the deck.
+	float low = exp(-max(hd, 0.0) / 0.55) * step(-0.4, hd);
+	alb *= 1.0 - 0.28 * low * weathered;
+	rough = mix(rough, 0.8, 0.5 * low * weathered);
+	// Rust run from bolts and joints down the white steel (light paint and galvanised).
+	if ((kind == 0 && lum > 0.45) || kind == 1) {
+		float h = wp.x * 0.83 + wp.z * 0.56;
+		float n = pw_noise(vec2(h * 7.0, wp.y * 0.22)) * 0.7 + pw_noise(vec2(h * 19.0, wp.y * 0.6)) * 0.3;
+		float streak = smoothstep(0.66, 0.86, n);
+		streak = mix(streak, 0.12, smoothstep(0.03, 0.12, px));
+		float mottle = smoothstep(0.55, 0.8, pw_noise(wp.xz * 3.1 + vec2(wp.y * 2.3, 7.0)));
+		mottle = mix(mottle, 0.2, smoothstep(0.05, 0.2, px));
+		vec3 rust = vec3(0.16, 0.065, 0.025);
+		alb = mix(alb, rust, (0.30 * streak + 0.12 * mottle) * weathered);
+	}
+	return alb;
+}
 
 vec3 rot_z(vec3 p, float a) {
 	float c = cos(a);
@@ -199,6 +243,10 @@ void fragment() {
 		alb = vec3(0.95, 0.70, 0.30);
 		metal = 1.0;
 		rough = 0.28;
+	}
+	if (weathered > 0.0 && (kind <= 2 || kind == 5 || kind == 7)) {
+		vec3 wp = v_wpos + origin_shift;
+		alb = pier_weather(alb, kind, wp, v_wpos.y - 6.4, rough);
 	}
 	// The piles where they stand in the sea (nothing else on the pier comes down near the water).
 	if (kind == 0 && v_wpos.y < 3.4 && ocean_closeup > 0.5) {
