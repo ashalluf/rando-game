@@ -122,6 +122,17 @@ func _free(chunk: CityChunk) -> void:
 
 
 func _downtown(city: Node3D, plan: CityPlan) -> void:
+	# Headroom in PhysicsBudget for every build here: a block's trash cans and parked cars are rolled
+	# only while it can spawn, and a busy shard's city sits at its 500-body cap, so two builds of one
+	# block came out with different cans and cars (the rebuild signature, batches 35-37).
+	var budget: Node = city.get_tree().root.get_node("PhysicsBudget")
+	var cap_was: int = budget.get("max_active_bodies")
+	budget.set("max_active_bodies", 1000000)
+	_downtown_run(city, plan)
+	budget.set("max_active_bodies", cap_was)
+
+
+func _downtown_run(city: Node3D, plan: CityPlan) -> void:
 	var centre := plan.block_index_at(plan.macro.downtown_center if plan.macro else Vector2.ZERO)
 	var found: CityChunk = null
 	var fallback: CityChunk = null

@@ -159,9 +159,10 @@ func _strip(city: Node3D, chunk: Node3D, nearer: bool = false) -> Array:
 	var cam := _tree.root.get_viewport().get_camera_3d()
 	var cw := WorldState.to_world(cam.global_position) if cam else Vector3(rect.get_center().x, 0.0, rect.position.y)
 	var x0 := clampf(cw.x, rect.position.x + 12.0, rect.end.x - 26.0)
-	# The north or the south pavement, whichever the camera is nearer: avoidance only runs within
-	# CrowdFlow.RANGE (35 m) of it, and the north one alone was 24 m off at the usual look and over
-	# 35 at another (shuffled gate 1202: the pair walked through each other).
+	# The north pavement at the camera's x. (`nearer` takes the south one when the camera is nearer it,
+	# since avoidance only runs within CrowdFlow.RANGE of the camera; nothing uses it now. Moving the
+	# strip off pavement furniture was tried too: it put the pair where both walked off east to the
+	# same spot every time - shuffled gates 7101, 8101, 9101 - so the strip stays where it was.)
 	var z := rect.position.y + 2.0
 	if nearer and absf(cw.z - (rect.end.y - 2.0)) < absf(cw.z - z):
 		z = rect.end.y - 2.0
@@ -200,7 +201,7 @@ func _follower(city: Node3D, chunk: Node3D) -> void:
 
 
 func _passing(city: Node3D, chunk: Node3D) -> void:
-	var s := _strip(city, chunk, true)
+	var s := _strip(city, chunk)
 	var rect: Rect2 = s[0]
 	var at: Vector2 = s[1]
 	var a := _walker(chunk, rect, at, 90201)
@@ -215,19 +216,28 @@ func _passing(city: Node3D, chunk: Node3D) -> void:
 	var cam := _tree.root.get_viewport().get_camera_3d()
 	var cam_d := cam.global_position.distance_to(a.global_position) if cam else -1.0
 	var strides := Vector2i(a._lod_stride, b._lod_stride)
+	var seen_max := -1
 	# 25 s: in CI 400's shard the pair stepped round each other (0.64 m) but had not passed by 14 s.
 	for i in 60 * 25:
 		await _tree.physics_frame
 		var pa := Vector2(a.position.x, a.position.z)
 		var pb := Vector2(b.position.x, b.position.z)
 		closest = minf(closest, pa.distance_to(pb))
+		# What a saw of b in CrowdFlow's grid (the lead's batch-37 shard: camera 24 m off, strides 1,
+		# flow on, and still no sidestep at all).
+		if pa.distance_to(pb) < CrowdFlow.LOOK:
+			var ga := a.global_position
+			seen_max = maxi(seen_max, CrowdFlow._neighbours(Vector2(ga.x, ga.z), a, int(a.flow.get("gid", 0))).size())
 		if pa.x > pb.x + 1.0:
 			passed = true
 			break
 	var pa_end := Vector2(a.position.x, a.position.z) - at if is_instance_valid(a) else Vector2.INF
 	var pb_end := Vector2(b.position.x, b.position.z) - at if is_instance_valid(b) else Vector2.INF
 	_check(passed and closest > 0.45,
-		"two walkers on one line step round each other instead of through (closest %.2f m, passed %s, kinematic %s, ended at %s and %s from the start; camera %.1f m off, strides %s, flow %s)" % [closest, passed, a._kinematic, pa_end, pb_end, cam_d, strides, CrowdFlow.enabled])
+		"two walkers on one line step round each other instead of through (closest %.2f m, passed %s, kinematic %s, ended at %s and %s from the start; camera %.1f m off, strides %s, flow %s, neighbours seen %d, gids %d/%d, layers %d/%d, visible %s/%s)" % [closest, passed, a._kinematic, pa_end, pb_end, cam_d, strides, CrowdFlow.enabled,
+			seen_max, int(a.flow.get("gid", 0)) if is_instance_valid(a) else -1, int(b.flow.get("gid", 0)) if is_instance_valid(b) else -1,
+			a.collision_layer if is_instance_valid(a) else -1, b.collision_layer if is_instance_valid(b) else -1,
+			a.visible if is_instance_valid(a) else false, b.visible if is_instance_valid(b) else false])
 	a.queue_free()
 	b.queue_free()
 
@@ -326,6 +336,13 @@ func _doors(city: Node3D) -> void:
 					out_d = -2.0
 				break
 	var state := ("visible %s, layer %d, errand step %s, rain inside %s" % [w.visible, w.collision_layer, String(((w.errand.steps as Array)[mini(int(w.errand.i), (w.errand.steps as Array).size() - 1)] as Dictionary).get("do", "")) if w.errand.has("steps") else "none", w.rain != null and w.rain.inside]) if w != null and is_instance_valid(w) else "gone"
+	if w != null and is_instance_valid(w) and not (came and shown):
+		# What the hidden walker's tick needed (shuffled gate 5101: still inside after 10 s).
+		var st: Dictionary = ((w.errand.steps as Array)[mini(int(w.errand.i), (w.errand.steps as Array).size() - 1)] as Dictionary) if w.errand.has("steps") else {}
+		var dd: Variant = st.get("door")
+		state += "; in tree %s, can process %s, down %s, stride %d, until in %d ms, door alive %s, life near %s, act %d" % [
+			w.is_inside_tree(), w.can_process(), w._down, w._lod_stride, int(st.get("until", 0)) - Pedestrian._life_now_ms(),
+			StreetErrands._door_alive(dd) if dd is Dictionary else "none", w._life_near, int(w._act)]
 	_check(came and shown, "somebody comes out of a shop door near the player (%d doors in reach, out %s, shown %s at %.1f m; %s)" % [near, came, shown, out_d, state])
 
 

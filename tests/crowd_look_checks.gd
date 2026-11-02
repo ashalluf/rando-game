@@ -85,6 +85,11 @@ func run(t: Node, city: Node3D) -> void:
 	_check(absf(ped._look_yaw - total) < 0.01, "the pedestrian's _look_yaw reports the modifier's turn")
 	# Quiet things: a magnet behind is not seen, one ahead and to the right is.
 	CrowdLook._events.clear()
+	# Only the staged performer: a busker the city put on a nearby block (or one an earlier file
+	# left) is a magnet too, and the head went to it (shuffled gate 5101: 5 degrees, wanted -40).
+	var others: Array = _tree.get_nodes_in_group("crowd_look_magnet")
+	for o in others:
+		(o as Node).remove_from_group("crowd_look_magnet")
 	var behind := Node3D.new()
 	behind.add_to_group("crowd_look_magnet")
 	chunk.get_parent().add_child(behind)
@@ -100,7 +105,10 @@ func run(t: Node, city: Node3D) -> void:
 	await _ticks(70)
 	var want := -atan2(5.0, 6.0)
 	_check(mod._kind == CrowdLook.Kind.MAGNET and absf((mod.yaw + mod.chest) - want) < deg_to_rad(12.0),
-		"a performer ahead and to the right is watched (%.0f degrees, wanted %.0f)" % [rad_to_deg(mod.yaw + mod.chest), rad_to_deg(want)])
+		"a performer ahead and to the right is watched (%.0f degrees, wanted %.0f, kind %d)" % [rad_to_deg(mod.yaw + mod.chest), rad_to_deg(want), mod._kind])
+	for o in others:
+		if is_instance_valid(o):
+			(o as Node).add_to_group("crowd_look_magnet")
 	# Another system holds the head: the look fades out under it.
 	CrowdLook.hold_off(ped, 2.0)
 	await _ticks(30)
