@@ -54,9 +54,11 @@ void fragment() {
 	float wetness = puddle * clamp(burn * 1.6 + 0.15, 0.0, 1.0);
 	vec3 alb = mix(soot, wet, wetness);
 	ALBEDO = cs_out(alb);
-	ROUGHNESS = mix(0.92, 0.12, wetness);
+	// Burning fuel's surface is broken by the fire and filmed with soot: it does not mirror the
+	// sky (a glossy burning patch read lilac under a blue sky).
+	ROUGHNESS = mix(0.92, mix(0.12, 0.6, clamp(burn * 1.5, 0.0, 1.0)), wetness);
 	SPECULAR = 0.5;
 	// The flame-light on the fuel, and a dull red glow from the hot fuel under it.
-	EMISSION = flame * lit + vec3(0.35, 0.06, 0.008) * puddle * burn * burn * (0.4 + 0.6 * fp);
+	EMISSION = flame * lit + vec3(0.3, 0.11, 0.02) * puddle * burn * burn * (0.4 + 0.6 * fp);
 	ALPHA = clamp(max(wetness, scorch) + lit, 0.0, 1.0) * smoothstep(1.3, 1.02, r);
 }

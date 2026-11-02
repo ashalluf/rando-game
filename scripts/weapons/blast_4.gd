@@ -43,6 +43,21 @@ static var wreck_fire_enabled: bool = OS.get_environment("BLAST_WRECK_FIRE") != 
 static var side_flame_seconds: float = 14.0
 ## The crater's soot specks from a smooth noise (Blast3.crater_maps()): BLAST_CRATER=0 the A/B.
 static var crater_smooth: bool = OS.get_environment("BLAST_CRATER") != "0"
+## Flames as tall licking tongues (shaders/flame_tongue.gdshader) in place of the round fire
+## puffs: the car fire, the pools, the wreck's sides, the burning debris. BLAST_FLAMES=0 the A/B.
+static var flames_enabled: bool = OS.get_environment("BLAST_FLAMES") != "0"
+## The crater's pit with depth (`pit_dress()`): a traced bowl, a raised lip of earth and loose
+## chunks on it. BLAST_PIT=0 is the A/B.
+static var pit_enabled: bool = OS.get_environment("BLAST_PIT") != "0"
+## The volume's march jitter narrowed (blast_volume.gdshader `quiet4`): TAA does not clear it.
+## BLAST_QUIET=0 is the A/B.
+static var quiet_enabled: bool = OS.get_environment("BLAST_QUIET") != "0"
+static var quiet_jitter: float = 0.3
+static var pit_depth: float = 0.35 # metres of depth per metre of pit radius
+static var _pit_shader: Shader
+static var _lip_mat: StandardMaterial3D
+static var _rock_mesh: ArrayMesh
+static var _flame_mat: ShaderMaterial
 
 ## The volume's life (seconds) by kind, and the march's steps (the mushroom's box is taller).
 static var volume_life: float = 9.0
@@ -97,6 +112,7 @@ static func dress_volume(mat: ShaderMaterial, fuel: bool, gas: bool) -> Array:
 	mat.set_shader_parameter("value4", value_range if value_enabled else 0.0)
 	mat.set_shader_parameter("under4", underlight_gain if underlight_enabled else 0.0)
 	mat.set_shader_parameter("stem_hold", 1.0 if stem_enabled else 0.0)
+	mat.set_shader_parameter("quiet4", quiet_jitter if quiet_enabled else 0.0)
 	return [Vector3(2.3, 2.1, 2.3) * big, Vector3(0.0, 2.0, 0.0) * big, life]
 
 
@@ -472,6 +488,7 @@ static func side_flames(car: Node3D) -> CPUParticles3D:
 	quad.size = Vector2(0.55, 1.45)
 	quad.center_offset = Vector3(0.0, 0.45, 0.0)
 	quad.material = CarDamage.fire_material()
+	tongue_quad(quad, 1.25)
 	f.mesh = quad
 	f.custom_aabb = AABB(Vector3(-8.0, -2.0, -8.0), Vector3(16.0, 10.0, 16.0))
 	car.add_child(f)
@@ -482,3 +499,129 @@ static func side_flames(car: Node3D) -> CPUParticles3D:
 	tw.tween_interval(1.2)
 	tw.tween_callback(f.queue_free)
 	return f
+
+
+## True when the flame tongues replace the round fire puffs (not on the web: no depth texture).
+static func tongues() -> bool:
+	return enabled and flames_enabled and not WeaponFX._web()
+
+
+## The flame tongue material, shared by every fire that uses it.
+static func flame_material() -> Material:
+	if not tongues():
+		return CarDamage.fire_material()
+	if _flame_mat == null:
+		_flame_mat = ShaderMaterial.new()
+		_flame_mat.shader = preload("res://shaders/flame_tongue.gdshader")
+		_flame_mat.set_shader_parameter("noise3d", Blast3.noise_texture())
+	return _flame_mat
+
+
+## A flame system's card made a tongue: taller and narrower, its root at the particle.
+static func tongue_quad(quad: QuadMesh, gain: float = 1.6) -> void:
+	if not tongues():
+		return
+	quad.size = Vector2(quad.size.x * 1.15, quad.size.y * gain)
+	quad.center_offset = Vector3(0.0, quad.size.y * 0.42, 0.0)
+	quad.material = flame_material()
+
+
+## The pit's depth, lip and loose rubble on a crater mark (BlastAftermath.crater()'s hook).
+static func pit_dress(mark: Node3D, pit_r: float) -> bool:
+	if not enabled or not pit_enabled or mark == null or pit_r < 0.4:
+		return false
+	var h := hash([int(mark.global_position.x * 8.0), int(mark.global_position.z * 8.0), "pit"])
+	# The bowl, traced on a quad just over the road.
+	if _pit_shader == null:
+		_pit_shader = preload("res://shaders/blast_pit.gdshader")
+	var m := ShaderMaterial.new()
+	m.shader = _pit_shader
+	m.set_shader_parameter("noise3d", Blast3.noise_texture())
+	m.set_shader_parameter("pit_r", pit_r)
+	m.set_shader_parameter("depth", pit_r * pit_depth)
+	m.set_shader_parameter("seed", float(h & 1023) / 97.0)
+	m.render_priority = 1
+	var quad := MeshInstance3D.new()
+	quad.name = "PitBowl"
+	var pm := PlaneMesh.new()
+	pm.size = Vector2.ONE * pit_r * 2.08
+	quad.mesh = pm
+	quad.material_override = m
+	quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	quad.position = Vector3(0.0, 0.11, 0.0)
+	mark.add_child(quad)
+	# The lip: earth and crushed base course thrown up round the opening.
+	var lip := MeshInstance3D.new()
+	lip.name = "PitLip"
+	lip.mesh = lip_mesh(pit_r, h)
+	if _lip_mat == null:
+		_lip_mat = StandardMaterial3D.new()
+		_lip_mat.vertex_color_use_as_albedo = true
+		_lip_mat.roughness = 0.96
+	lip.material_override = _lip_mat
+	lip.position = Vector3(0.0, 0.02, 0.0)
+	mark.add_child(lip)
+	# Loose chunks on the lip and tipped into the opening.
+	if _rock_mesh == null:
+		_rock_mesh = BlastAftermath._chunk_mesh(6, Vector3(0.26, 0.16, 0.2), 29, Color(0.08, 0.075, 0.07), Color(0.3, 0.27, 0.24))
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = _rock_mesh
+	var n := clampi(int(pit_r * 9.0), 8, 28)
+	mm.instance_count = n
+	for i in n:
+		var hi := hash([h, i])
+		var a := float(hi & 1023) / 1023.0 * TAU
+		var d := pit_r * (0.92 + 0.5 * float((hi >> 10) & 255) / 255.0)
+		var sc := 0.6 + 1.3 * float((hi >> 18) & 63) / 63.0
+		var b := Basis(Vector3(float((hi >> 3) & 7) - 3.5, 2.0, float((hi >> 6) & 7) - 3.5).normalized(), float(hi & 255) / 40.0)
+		var y := lip_height(d / pit_r, pit_r) * 0.85
+		mm.set_instance_transform(i, Transform3D(b.scaled(Vector3.ONE * sc), Vector3(cos(a) * d, y, sin(a) * d)))
+	var mi := MultiMeshInstance3D.new()
+	mi.name = "PitRubble"
+	mi.multimesh = mm
+	mi.visibility_range_end = 120.0
+	mark.add_child(mi)
+	return true
+
+
+## The lip's height at s (distance / pit radius): up from the opening's edge to a crest, falling
+## away over the road.
+static func lip_height(s: float, pit_r: float) -> float:
+	var k := clampf((s - 0.92) / 0.6, 0.0, 1.0)
+	return pit_r * 0.075 * sin(k * PI) * (1.0 - 0.3 * k)
+
+
+## The lip as a ring of quads: the opening's edge to 1.55 radii, raised by lip_height(), ragged.
+static func lip_mesh(pit_r: float, h: int) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var na := 40
+	var nr := 6
+	var pts: Array = []
+	for j in nr + 1:
+		var row: Array = []
+		for i in na:
+			var a := TAU * float(i) / float(na)
+			var jit := float(hash([h, i, j]) & 255) / 255.0
+			var s := 0.92 + 0.6 * float(j) / float(nr) + (jit - 0.5) * 0.06
+			var y := lip_height(s, pit_r) * (0.7 + 0.6 * jit)
+			if j == nr:
+				y = -0.02
+			row.append(Vector3(cos(a) * s * pit_r, y, sin(a) * s * pit_r))
+		pts.append(row)
+	for j in nr:
+		for i in na:
+			var i2 := (i + 1) % na
+			var p00: Vector3 = pts[j][i]
+			var p01: Vector3 = pts[j][i2]
+			var p10: Vector3 = pts[j + 1][i]
+			var p11: Vector3 = pts[j + 1][i2]
+			var c0 := Color(0.2, 0.18, 0.15).lerp(Color(0.1, 0.095, 0.09), float(j) / float(nr))
+			var c1 := Color(0.2, 0.18, 0.15).lerp(Color(0.1, 0.095, 0.09), float(j + 1) / float(nr))
+			# Wound clockwise seen from above (Godot's front faces).
+			for v in [[p00, c0], [p01, c0], [p10, c1], [p01, c0], [p11, c1], [p10, c1]]:
+				st.set_color(v[1])
+				st.add_vertex(v[0])
+	st.generate_normals()
+	return st.commit()

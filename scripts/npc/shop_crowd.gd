@@ -48,6 +48,7 @@ static func steps(ch: Node3D, block: Dictionary) -> Array[Callable]:
 	if not force_in_test and ch.is_inside_tree() and ch.get_tree().root.get_node_or_null("SmokeTest") != null:
 		return out
 	var g: float = GAIN.get(block.district, 1.0)
+	g = FashionDistrict.crowd_gain(ch, block, g)
 	if g <= 1.0:
 		return out
 	var state := {"extra": 0, "entry": [], "at": Vector3.INF}

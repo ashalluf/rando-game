@@ -4400,6 +4400,26 @@ none of either.
   edge crumbles in world-space grains, never a screen-space dither; a pad's service pickup is a real
   parked car, not a far twin, because it stands beside the road; a big site's planting is batched
   in cells, because a batch's range is measured to its centre. OIL_PLANTING=0 is the A/B.
+
+- **2026-11-02 The fashion district refcam: the goods are drawn and reachable (rc3-fashion-district,
+  HANDOFF "The fashion district refcam").** A new reference camera (`fashion_district`, wave 6's
+  table) judged the district's pavement at 11:30. Decisions: a batch with a draw range is cut into
+  stretches near the size of its range (a block-wide batch was never drawn beside its goods); the
+  district's frontage has no forecourt planter in front of the goods (rolls kept); the frontage is
+  dense and the pavement packed near the camera (2.6x walkers); folded stock carries creases.
+  FD_CELLS / FD_PLANTERS / FD_DENSE / FD_FOLDS =0 are the A/Bs.
+- **2026-11-02 The marina at golden hour: a harbour mirrors its boats (rc3-marina-golden, HANDOFF
+  "The marina at golden hour").** A new reference camera (`marina_golden`, wave 6's table) judged
+  the marina from the east headwalk at 18:00. Decisions: the water traces its reflected ray against
+  the nearest boats (hull, cabin, mast) rather than a second render (a planar reflection is a whole
+  extra pass and nothing on the web); where a boat stands in the mirror the renderer's reflection is
+  taken away by zeroing SPECULAR, not darkened; thin rigging is drawn at least a pixel wide and faded
+  by its coverage rather than at its true width. MARINA_GOLDEN=0 the A/B.
+- 2026-11-02 (wave 6, rc3-airport-night): the airfield at night is lit by its own masts - the apron
+  floods lay real pools and fall on the jets and ground equipment as emitted light, the parked jets
+  show logo lights on their fins, a landing jet's lights flare and light the runway ahead, and a
+  patrol helicopter's searchlight is faint in clear air (a pursuit keeps the full shaft).
+  AIRPORT_NIGHT=0 is the A/B.
 - **2026-11-02 The bonfire_night refcam: a ring never silently vanishes, and night sand is moonlit
   (rc4-bonfire-night, HANDOFF "The beach bonfires at night").** A new reference camera
   (`bonfire_night`, wave 7's table) stood on the sand at 21:00 behind a fire group toward the pier.
