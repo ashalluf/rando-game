@@ -192,6 +192,30 @@ static func owns_face(plan: CityPlan, bx: int, bz: int, e: int) -> bool:
 	return not info.is_empty() and e in (info.faces as Array)
 
 
+## LotFill._planter(): a forecourt planter in the frontage band of a goods face (within
+## MAX_WALL_DEPTH of the kerb) is not built - it stood as a bare concrete box between the pavement
+## and the goods, walling the stock off from the shoppers (rc3-fashion-district). FD_PLANTERS=0
+## keeps them.
+static var clear_planters: bool = OS.get_environment("FD_PLANTERS") != "0"
+
+
+static func clears_planter(ch: CityChunk, r: Rect2) -> bool:
+	if not clear_planters or ch == null or ch.capturing or ch.level != CityChunk.Level.FULL:
+		return false
+	var info := block_info(ch.plan, ch.ix, ch.iz)
+	if info.is_empty() or (info.faces as Array).is_empty():
+		return false
+	var rect: Rect2 = info.rect
+	var c := r.get_center()
+	if c.x > float(info.east):
+		return false
+	var d := [c.y - rect.position.y, rect.end.y - c.y, c.x - rect.position.x, rect.end.x - c.x]
+	for e: int in info.faces:
+		if float(d[e]) < MAX_WALL_DEPTH + 1.0:
+			return true
+	return false
+
+
 ## The walkers' sidewalk inset on a district block (they keep to the kerb half), or `fallback`.
 static func walk_sidewalk(ch: CityChunk, block: Dictionary, fallback: float) -> float:
 	return WALK_SIDEWALK if fallback < 0.0 and wanted(ch, block) else fallback
