@@ -28414,8 +28414,11 @@ right, looking north to the water tower with the front range behind. No staging 
 
 **Numbers** (refcams opengl3, film_lot): before tris 3.70 M / draws 1,633 / shadow 1.13 M; after
 3.95 M / 1,801 / 1.29 M (+7 % triangles, +10 % draws: each variant is a batch node a chunk). Luma
-p5/p50/p95 53/119/220 -> 48/120/219. The ten original cameras: see the compare at the end of the
-branch's last message (none of them sees the lot; the industrial shader change is default-off).
+p5/p50/p95 53/119/220 -> 48/120/219. The ten original cameras (`refcams.py compare`, main 6ffcde38
+against this branch before its merge): eight within tolerance; street_night and freeway flagged by
+live traffic alone (a bus pulled out of the street, a box truck in the freeway lane in one run and
+not the other) - neither view sees the lot, and the industrial shader change is default-off. Gate
+(SHARDS=3, merged with main 0584ebdf): 5,690 checks passed, 0 failed, peak 3.8 GB a shard.
 
 **Not done / not verified.** Forward+ (the Mac) not seen: the new geometry is on the existing studio
 shader (display numbers, its own to_lit()), so nothing new in colour space, but the lofted shells'
