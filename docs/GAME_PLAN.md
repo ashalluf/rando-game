@@ -4415,6 +4415,30 @@ none of either.
   extra pass and nothing on the web); where a boat stands in the mirror the renderer's reflection is
   taken away by zeroing SPECULAR, not darkened; thin rigging is drawn at least a pixel wide and faded
   by its coverage rather than at its true width. MARINA_GOLDEN=0 the A/B.
+- 2026-11-02 (wave 6, rc3-airport-night): the airfield at night is lit by its own masts - the apron
+  floods lay real pools and fall on the jets and ground equipment as emitted light, the parked jets
+  show logo lights on their fins, a landing jet's lights flare and light the runway ahead, and a
+  patrol helicopter's searchlight is faint in clear air (a pursuit keeps the full shaft).
+  AIRPORT_NIGHT=0 is the A/B.
+
+- **2026-11-02 Palm crowns: a leaf keeps its own normal, and a leaf under a pixel keeps its share
+  (palm-shimmer, HANDOFF "Palm crowns without the flecks").** The palm's two leaflet ranks wind
+  opposite ways, so Godot's back-face flip turned every second leaflet's normal to the ground: half
+  of each crown drew near-black, and those sub-pixel dark blades between lit ones were the flecks,
+  holes and crawl. The shader keeps the mesh normal on both faces and shades the underside by the
+  view, never by the winding. A leaflet narrower than 1.5 px is widened to it (at most 4x) and kept
+  by its coverage - dithered for TAA on Forward+, whole on Compatibility, where a fixed dither
+  would crawl. The palm's vertex colours, display numbers, are decoded on Forward+ (they drew twice
+  as bright there once the black half was gone). PALM_SHIMMER=0 is the A/B.
+
+- **2026-11-02 The ridge sign refcam: the city's postcard reads built, not modelled (rc3-ridge-sign,
+  HANDOFF "The ridge sign refcam").** A new reference camera (`ridge_sign`, wave 6's table) judged the
+  big sign from ~120 m at 16:30. Decisions: the sign's letters are continuous mitred sheet-metal
+  ribbons with painted panels and weathering, never boxes per stroke; a hill's code-built shrubs are
+  gathered into thickets by a field, never an even scatter; whatever a chunk builds on a block, the
+  far tiers show the same kind of ground (a hill block's flat foot is hill on the horizon plane, a
+  plaza keeps its beds at LOD); a tor stands on the terrain its chunk draws, and a summit crag never
+  overhangs a spike. RC3_SIGN=0 is the A/B.
 - **2026-11-02 The port_night refcam: a floodlit place is lit where its lamps point, and a pool
   must say it is a pool (rc4-port-night, HANDOFF "The container terminal at 22:00").** A new
   reference camera (`port_night`, wave 7's table) stood on the quay's apron at 22:00. Decisions:

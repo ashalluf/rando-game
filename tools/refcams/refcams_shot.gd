@@ -198,6 +198,12 @@ func _run() -> void:
 		if _stager != null:
 			_unstage(scene, player)
 		print("REFCAM %s saved %s eye %s hour %.2f %s" % [cam.name, png, eye_text, float(cam.hour), cam.get("weather", "clear")])
+		if is_instance_valid(_air_staged) and _air_staged is Node3D:
+			# Where the staged aircraft is at the shot (TRUE world): a row's air_dist / air_side are
+			# tuned from this line.
+			var at: Vector3 = _air_staged.get("world_pos") if _air_staged.get("world_pos") != null else (_air_staged as Node3D).global_position
+			print("REFCAM %s air at %.1f,%.1f,%.1f" % [cam.name, at.x, at.y, at.z])
+		_air_staged = null
 	print("REFCAMS done, %d shots in %d ms" % [shots.size(), Time.get_ticks_msec() - started])
 	quit()
 
@@ -296,6 +302,7 @@ func _stage_air(scene: Node, cam: Dictionary) -> void:
 		return
 	var placed: Node = air.call("stage", kind, lens, float(cam.get("air_dist", 300.0)), float(cam.get("air_side", 0.0)))
 	print("REFCAM %s: staged %s (%s)" % [cam.name, kind, placed.name if placed else "nothing"])
+	_air_staged = placed
 
 
 ## A traffic car the shot's clock left with the lens inside or just against its body (the freeway
@@ -328,6 +335,7 @@ func _clear_lens(shot: String) -> void:
 
 ## The staging script of the camera being shot (null for a plain camera).
 var _stager: GDScript = null
+var _air_staged: Node = null
 
 
 ## After a staged camera: the hero hidden again, the aim let go, the police stood down.

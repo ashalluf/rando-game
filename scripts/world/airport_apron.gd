@@ -177,6 +177,7 @@ static func dress_grass(mat: ShaderMaterial) -> void:
 ## An airliner livery material's close-up pass (airliner_livery.gdshader `detail`).
 static func dress_jet(mat: ShaderMaterial) -> void:
 	mat.set_shader_parameter("detail", 1.0 if enabled else 0.0)
+	AirportNight.dress_jet(mat)
 
 
 ## The terminal's and concourses' glass (AirportTerminal._glass()): by day the old numbers drew a

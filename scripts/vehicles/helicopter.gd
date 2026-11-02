@@ -90,6 +90,7 @@ var _camera_ball: Node3D
 var _spot: SpotLight3D
 var _beam: MeshInstance3D
 var _beam_mat: ShaderMaterial
+var _beam_gain := 1.0
 var _pool: MeshInstance3D
 var _lens_mat: StandardMaterial3D
 var _spin: float = 0.0
@@ -562,6 +563,11 @@ func _aim_gear(dt: float) -> void:
 		_pool.visible = false
 	_beam.visible = not volumetric
 	if _beam.visible:
+		# AirportNight: a patrol's sweep is a faint line in clear air, a pursuit's the full shaft.
+		var gain := AirportNight.PATROL_BEAM if AirportNight.enabled and task == "patrol" else 1.0
+		if gain != _beam_gain:
+			_beam_gain = gain
+			_beam_mat.set_shader_parameter("strength", 0.22 * gain)
 		var wide := reach * tan(deg_to_rad(searchlight_angle))
 		_beam.transform = Transform3D(Basis(Vector3.RIGHT, PI * 0.5).scaled_local(Vector3(wide, reach, wide)), _spot.position + Vector3(0.0, 0.0, -reach * 0.5))
 

@@ -181,6 +181,7 @@ func _follower(city: Node3D, chunk: Node3D) -> void:
 	var sum := 0.0
 	var n := 0
 	var start := Vector2(l.position.x, l.position.z)
+	var dodges0 := int(CrowdFlow.stats.get("dodges", 0))
 	for i in 60 * 9:
 		await _tree.physics_frame
 		if i > 150:
@@ -189,7 +190,8 @@ func _follower(city: Node3D, chunk: Node3D) -> void:
 	var moved := Vector2(l.position.x, l.position.z).distance_to(start)
 	var mean := sum / maxf(float(n), 1.0)
 	_check(f.flow.get("leader") != null and mean < 1.6 and moved > 6.0,
-		"a follower walks beside its leader and stands with it when it stops (mean %.2f m apart, leader went %.1f m, grouped %s)" % [mean, moved, f.flow.get("leader") != null])
+		"a follower walks beside its leader and stands with it when it stops (mean %.2f m apart, leader went %.1f m, grouped %s; %d prop dodges city-wide meanwhile, end gap %.1f m, follower at %s)" % [mean, moved, f.flow.get("leader") != null,
+			int(CrowdFlow.stats.get("dodges", 0)) - dodges0, Vector2(f.position.x, f.position.z).distance_to(Vector2(l.position.x, l.position.z)), Vector2(f.position.x, f.position.z) - at])
 	l.queue_free()
 	await _ticks(2)
 	for i in 30:
@@ -217,6 +219,8 @@ func _passing(city: Node3D, chunk: Node3D) -> void:
 	var cam_d := cam.global_position.distance_to(a.global_position) if cam else -1.0
 	var strides := Vector2i(a._lod_stride, b._lod_stride)
 	var seen_max := -1
+	var flow_cam := -2.0
+	var grid_cells := -1
 	# 25 s: in CI 400's shard the pair stepped round each other (0.64 m) but had not passed by 14 s.
 	for i in 60 * 25:
 		await _tree.physics_frame
@@ -228,14 +232,16 @@ func _passing(city: Node3D, chunk: Node3D) -> void:
 		if pa.distance_to(pb) < CrowdFlow.LOOK:
 			var ga := a.global_position
 			seen_max = maxi(seen_max, CrowdFlow._neighbours(Vector2(ga.x, ga.z), a, int(a.flow.get("gid", 0))).size())
+			flow_cam = CrowdFlow._cam.distance_to(ga) if CrowdFlow._cam != Vector3.INF else -1.0
+			grid_cells = (CrowdFlow._prev as Dictionary).size()
 		if pa.x > pb.x + 1.0:
 			passed = true
 			break
 	var pa_end := Vector2(a.position.x, a.position.z) - at if is_instance_valid(a) else Vector2.INF
 	var pb_end := Vector2(b.position.x, b.position.z) - at if is_instance_valid(b) else Vector2.INF
 	_check(passed and closest > 0.45,
-		"two walkers on one line step round each other instead of through (closest %.2f m, passed %s, kinematic %s, ended at %s and %s from the start; camera %.1f m off, strides %s, flow %s, neighbours seen %d, gids %d/%d, layers %d/%d, visible %s/%s)" % [closest, passed, a._kinematic, pa_end, pb_end, cam_d, strides, CrowdFlow.enabled,
-			seen_max, int(a.flow.get("gid", 0)) if is_instance_valid(a) else -1, int(b.flow.get("gid", 0)) if is_instance_valid(b) else -1,
+		"two walkers on one line step round each other instead of through (closest %.2f m, passed %s, kinematic %s, ended at %s and %s from the start; camera %.1f m off, strides %s, flow %s, neighbours seen %d (CrowdFlow's camera %.1f m off, %d grid cells), gids %d/%d, layers %d/%d, visible %s/%s)" % [closest, passed, a._kinematic, pa_end, pb_end, cam_d, strides, CrowdFlow.enabled,
+			seen_max, flow_cam, grid_cells, int(a.flow.get("gid", 0)) if is_instance_valid(a) else -1, int(b.flow.get("gid", 0)) if is_instance_valid(b) else -1,
 			a.collision_layer if is_instance_valid(a) else -1, b.collision_layer if is_instance_valid(b) else -1,
 			a.visible if is_instance_valid(a) else false, b.visible if is_instance_valid(b) else false])
 	a.queue_free()
