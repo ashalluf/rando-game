@@ -27926,3 +27926,46 @@ spawns no golfers (use the refcam for those).
 **Checks**: `tests/rc3_golf_morning_checks.gd` (the camera row and its group, force_group touching
 only its hole, every pass gated, the dew hours mirrored, a FULL chunk planting sycamores and
 eucalyptus where the firs were). Stills on `shots/rc3-golf-morning`.
+
+## 9lt. The fashion district refcam, 2026-11-02 (fleet wave 6, branch `wt/rc3-fashion-district`; VISUAL_ROADMAP "?")
+
+**The camera.** `fashion_district` in `tools/refcams/cameras_w6.json`: on the south block's
+pavement east of Main St (eye 3330, 1.7, 1021, yaw -95, pitch -4, fov 55), 11:30 clear, looking
+east along the shop fronts (ZAPATERIA, NOVIAS ELENA) with the shoppers walking the kerb half.
+Run it with `REFCAMS_JSON=tools/refcams/cameras_w6.json python3 tools/refcams/refcams.py run
+build/refcams/<label> --only fashion_district` (~15 min on a warm box, 7.7 GB peak).
+
+**What it showed on main, worst first, and the fixes.**
+1. **The goods were not drawn at all.** Every frontage set of a block went into ONE batch per
+   variant (`fd_set_<v>`), and a node's 75 m draw range is measured to its bounds' centre: on a
+   downtown block (200 m faces) that centre is out of range while you stand beside the racks. Now
+   one batch per variant, face and `SET_CELL` (36 m) stretch (`fd_set_<v>_<face>_<cell>`; the keys
+   used are kept in the chunk's fashion state). `FD_CELLS=0` is the old batching. This is the same
+   trap CLAUDE.md names for the grass; any chunk-wide batch with a draw range has it.
+2. **A bare concrete planter walled the goods off.** LotFill's forecourt strip planters (0.55 m
+   kerb boxes) ran along the district's shop fronts, and the goods stood behind them. On a goods
+   face, within `MAX_WALL_DEPTH` + 1 m of the kerb, FULL chunks only, `LotFill._planter()` now
+   builds nothing (`FashionDistrict.clears_planter()`), its rolls - shrubs, tree - still made so
+   nothing after it moves. `FD_PLANTERS=0` keeps them.
+3. **A sparse frontage and an empty pavement.** Door gaps 1.7 -> 1.15 m and empty slots 18 % ->
+   5 % (`DENSE_GAP`, `DENSE_EMPTY_ODDS`), and a district block near the camera carries 2.6x its
+   planned walkers through ShopCrowd (`FashionDistrict.crowd_gain()`, one hook line in
+   `ShopCrowd.steps()`; downtown's default gain is 1.35). `FD_DENSE=0` is the old density.
+4. **Folded stock read as neon plastic slabs.** `fashion_goods.gdshader` `folded_detail`: each
+   folded piece its own tone, the sleeves' and centre creases, a collar band, rounded edges.
+   `FD_FOLDS=0` the old slabs.
+
+**Cost** (refcams GEO, opengl3 1280x720, the camera): main 5.72 M triangles / 3,970 draws,
+after 5.42 M / 3,792 (the crowd and what streams in differ a little run to run; flat).
+
+**Checks.** `tests/rc3_fashion_district_checks.gd` (the city files' last line): the densest
+district block's goods batches span at most SET_CELL + 8 m each, every one with a draw range; a
+kerb-band planter rect is cleared and the block's middle is not; every prop, building and other
+batch identical with the planters kept and left out.
+
+**Stills** on `shots/rc3-fashion-district` (01 before ... 06 close crop).
+
+**Not done / not verified.** Forward+ (the Mac) not seen for this view (no colour or lighting
+change was made: geometry, batching and a shader detail term). The garments on the racks are still
+simple lofted sacks (plain at 1 m); the paving's dark forecourt strip under the goods is LotFill's
+paving look, left as it is.

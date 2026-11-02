@@ -28,6 +28,8 @@ uniform float weave = 0.12;
 uniform float detail_fade_px = 2.0;
 // How much sun a tarp or awning lets through to its shaded side (BACKLIGHT, both renderers).
 uniform float canvas_through = 0.55;
+// Folded stock's creases and per-piece tone (rc3-fashion-district; 0 the old flat slabs).
+uniform float folded_detail = 1.0;
 
 varying vec3 v_local;
 varying flat int v_kind;
@@ -182,6 +184,22 @@ void fragment() {
 			float edge = smoothstep(0.08, 0.0, min(min(uv.x, uv.y), 0.04));
 			base *= 1.0 - 0.15 * edge;
 			base = fg_pattern(pattern, base, uv, px, rough, metal);
+			if (folded_detail > 0.0) {
+				// A folded tee or pair of jeans on a table (rc3-fashion-district): the piece's own
+				// tone (no two folds dyed alike), the sleeves folded in as two soft creases, a centre
+				// fold, a collar band at one end, and cloth that rounds over its folded edges - a
+				// flat slab of dye read as a plastic block.
+				float tone = fg_hash(floor(v_local.xz * 7.0) + floor(v_local.y * 28.0));
+				base *= mix(1.0, 0.86 + 0.22 * tone, folded_detail);
+				float crease = 0.0;
+				crease += 1.0 - smoothstep(0.0, 0.012, abs(uv.x - 0.085));
+				crease += 1.0 - smoothstep(0.0, 0.012, abs(uv.x - 0.215));
+				crease += 0.6 * (1.0 - smoothstep(0.0, 0.01, abs(uv.y - 0.13)));
+				float collar = smoothstep(0.035, 0.02, uv.y) * step(0.1, uv.x) * step(uv.x, 0.2);
+				ao *= 1.0 - folded_detail * fade * (0.22 * clamp(crease, 0.0, 1.0) + 0.18 * collar);
+				ao *= 1.0 - folded_detail * 0.25 * edge;
+				sheen = 0.2;
+			}
 		} else {
 			base = fg_pattern(pattern, base, uv, px, rough, metal);
 			// Folds down a hung garment: soft vertical valleys, deeper toward the hem.

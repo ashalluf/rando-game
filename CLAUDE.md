@@ -4838,6 +4838,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   include). **`set_shadow_distance()` does nothing on these code meshes: use `set_shadow_reach()`.**
   Every roll a hash; FULL only. `FASHION=0` is the A/B; probe `tools/fashion/probe.tscn`
   (`BUILD=1`, `AT=`, `FASHION_DEBUG=1`); checks `tests/fashion_district_checks.gd`.
+- The fashion district refcam (2026-11-02, refcam `fashion_district` in `tools/refcams/cameras_w6.json`,
+  docs/HANDOFF.md "The fashion district refcam"): the pavement goods are batched per variant, face and
+  `SET_CELL` 36 m stretch (a block-wide batch's 75 m range is measured to its centre: never drawn beside
+  you); `FashionDistrict.clears_planter()` leaves LotFill's forecourt planters out of a goods face
+  (rolls kept); denser frontage and `crowd_gain()` 2.6x walkers via ShopCrowd; folded stock creases.
+  `FD_CELLS=0` / `FD_PLANTERS=0` / `FD_DENSE=0` / `FD_FOLDS=0` the A/Bs; checks
+  `tests/rc3_fashion_district_checks.gd`.
 - Chinatown (2026-10-05, HANDOFF "Chinatown"): `Chinatown` (`scripts/world/chinatown.gd`) is a
   site table off the pinned streets - the district (Olive to Main, 520 m north of Cesar Chavez),
   the plaza's Hill-Broadway block, the gate over Broadway - applied LAST in `CityPlan.block()`
