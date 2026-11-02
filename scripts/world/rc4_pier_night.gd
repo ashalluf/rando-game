@@ -38,7 +38,7 @@ static var enabled: bool = OS.get_environment("RC4_PIER_NIGHT") != "0"
 const WASH := 0.55
 const WASH_FLOOR := 0.035
 ## The downlights under the deck that light the piles (x the lamp rows' strength).
-const WASH_UNDER := 0.45
+const WASH_UNDER := 3.0
 ## The midway's glows (park frame x, y, z; intensity; colour): what lights the platform's south
 ## faces toward the beach, which the lamp rows (along the main deck) never see.
 const GLOWS: Array = [
