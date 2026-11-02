@@ -2,5 +2,6 @@
 	"_doc": "Wave 6 reference cameras (tools/refcams/README.md), the same format as cameras.json and cameras_w5.json. One row a camera, each on its own line. Run with REFCAMS_JSON=tools/refcams/cameras_w6.json.",
 	"resolution": [1280, 720],
 	"cameras": [
+		{"name": "rooftop_golden", "label": "Downtown skyline from the black twins' helipad 17:45 clear", "eye": [2288.5, 218.3, 43.0, 165.0, -11.0], "agl": false, "hour": 17.75, "weather": "clear", "fov": 55}
 	]
 }
