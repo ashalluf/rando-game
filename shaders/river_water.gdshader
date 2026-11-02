@@ -16,6 +16,8 @@ global uniform float night_factor;
 global uniform float lamp_factor;
 global uniform float ground_detail;
 global uniform float rain_intensity;
+global uniform vec3 sun_direction;
+global uniform float river_look;
 
 #include "res://shaders/color_space.gdshaderinc"
 
@@ -33,6 +35,8 @@ uniform float ripple = 0.65;
 uniform float sky_emit = 0.12;
 
 varying vec2 v_uv;
+varying vec4 v_chan;
+
 
 float rw_hash(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -67,8 +71,59 @@ vec3 riffles(vec2 p, float t) {
 	return r;
 }
 
+// rc2-river (RiverLook, river_look global 1): what the low flow mirrors. At eye height on the bed the
+// reflected rays mostly meet the channel's own banks, not the sky - a pale sky sheet read as a strip of
+// mint plastic. The banks are the trapezoid LaRiver builds (bed half width and bank height in COLOR,
+// the +o direction in world xz in COLOR.rg), lit here by the sun and the sky by hand; the sky above
+// them; the renderer's own specular kept small so it does not paint the sky over everything again.
+uniform vec3 bank_albedo = vec3(0.19, 0.18, 0.16);
+uniform vec3 sun_light = vec3(2.9, 2.55, 2.0);
+uniform float sky_light = 0.6;
+uniform vec3 murk_color = vec3(0.020, 0.024, 0.012);
+// Must match LaRiver: SLOPE (bank run per metre of rise) and the toe's height over the water
+// (BED_FALL + LF_DEPTH - WATER_DEPTH).
+const float RW_SLOPE = 1.6;
+const float RW_TOE = 0.57;
+
+vec3 rw_mirror(vec3 r, float o0, float s0, vec3 sky) {
+	vec2 lat = v_chan.rg * 2.0 - 1.0;
+	float bh = v_chan.b * 40.0;
+	float dep = v_chan.a * 10.0;
+	float a = dot(r.xz, lat);
+	float up = max(r.y, 0.0005);
+	float sg = a >= 0.0 ? 1.0 : -1.0;
+	float aa = max(abs(a), 1e-4);
+	float o_top = bh + dep * RW_SLOPE;
+	float t_top = (o_top - sg * o0) / aa;
+	float h_top = RW_TOE + dep;
+	if (up * t_top >= h_top + 2.2) {
+		return sky;
+	}
+	// Where the ray meets the bank face (or the fence band over the coping).
+	float denom = up - aa / RW_SLOPE;
+	float t_hit = denom > 1e-4 ? (RW_TOE + (sg * o0 - bh) / RW_SLOPE) / denom : t_top;
+	t_hit = clamp(t_hit, 0.0, t_top);
+	float y_hit = up * t_hit;
+	if (up * t_top >= h_top) {
+		// Over the coping: sky through the chain-link, a little darker.
+		return sky * 0.82;
+	}
+	vec2 rd = vec2(lat.y, -lat.x);
+	float s_hit = s0 + dot(r.xz, rd) * t_hit;
+	vec3 lat3 = vec3(lat.x, 0.0, lat.y);
+	vec3 n = normalize(vec3(0.0, 1.0, 0.0) - lat3 * (sg / RW_SLOPE));
+	vec3 sn = normalize(sun_direction);
+	float sun = max(dot(n, sn), 0.0) * smoothstep(0.0, 0.12, sn.y) * (1.0 - night_factor);
+	vec3 alb = bank_albedo * (0.82 + 0.3 * rw_noise(vec2(s_hit * 0.11, y_hit * 0.5)));
+	// The streaks run down the bank, the wet dark band and algae at its foot.
+	alb *= 1.0 - 0.35 * smoothstep(0.5, 0.85, rw_noise(vec2(s_hit * 1.2, y_hit * 0.08)));
+	alb = mix(alb, vec3(0.035, 0.05, 0.02), 1.0 - smoothstep(0.55, 1.3, y_hit));
+	return alb * (sun_light * sun + sky * sky_light) + vec3(0.05, 0.03, 0.012) * lamp_factor * 0.2;
+}
+
 void vertex() {
 	v_uv = UV;
+	v_chan = COLOR;
 }
 
 void fragment() {
@@ -100,13 +155,26 @@ void fragment() {
 	vec3 mats = mix(algae_color, algae_bright, clump);
 	vec3 body = mix(bed, mats, edge);
 	body = mix(body, foam_color, foam * (1.0 - edge));
-	ALBEDO = cs_out(body);
-	ROUGHNESS = mix(mix(0.06, 0.16, clamp(length(grad) * 4.0, 0.0, 1.0) + rain * 0.4), 0.75, edge);
-	SPECULAR = 0.5;
-	METALLIC = 0.0;
-	// The sky mirrored at a grazing angle (the web's only reflection; a floor under SSR on
-	// Forward+), dark at night but for a little of the city's sodium glow.
 	// sky_tint is raw sRGB numbers on both renderers (fwd-review-d): decoded, then handed over.
 	vec3 sky = cs_srgb_to_linear(sky_tint.rgb * (1.0 - 0.9 * night_factor) + vec3(0.05, 0.03, 0.012) * lamp_factor);
-	EMISSION = cs_out(sky) * fres * sky_emit * (1.0 - edge) * (1.0 - foam);
+	if (river_look > 0.5) {
+		// Turbid: the sheet over the concrete is a murky green-brown; the mirror is emitted by
+		// Fresnel and the renderer's specular is kept small.
+		body = mix(mix(murk_color, body, 0.45), foam_color * 0.6, foam * 0.5 * (1.0 - edge));
+		vec3 r = reflect(-(INV_VIEW_MATRIX * vec4(VIEW, 0.0)).xyz, normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz));
+		float f2 = min(0.02 + 0.98 * pow(1.0 - nv, 5.0), 0.62);
+		ALBEDO = cs_out(body * (1.0 - f2));
+		ROUGHNESS = mix(mix(0.05, 0.12, clamp(length(grad) * 4.0, 0.0, 1.0) + rain * 0.4), 0.8, edge);
+		SPECULAR = 0.12;
+		METALLIC = 0.0;
+		EMISSION = cs_out(rw_mirror(r, p.y, p.x, sky)) * f2 * (1.0 - edge) * (1.0 - foam * 0.7);
+	} else {
+		ALBEDO = cs_out(body);
+		ROUGHNESS = mix(mix(0.06, 0.16, clamp(length(grad) * 4.0, 0.0, 1.0) + rain * 0.4), 0.75, edge);
+		SPECULAR = 0.5;
+		METALLIC = 0.0;
+		// The sky mirrored at a grazing angle (the web's only reflection; a floor under SSR on
+		// Forward+), dark at night but for a little of the city's sodium glow.
+		EMISSION = cs_out(sky) * fres * sky_emit * (1.0 - edge) * (1.0 - foam);
+	}
 }
