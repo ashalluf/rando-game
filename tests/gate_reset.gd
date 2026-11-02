@@ -44,6 +44,9 @@ var _player_masks := Vector2i(-1, -1)
 ## left it (or freed it, leaving none) turned off everything that works round the camera - the
 ## crowd's local avoidance (CrowdFlow.RANGE of it), BusyStreets' focus, the LOD tiers.
 var _camera: WeakRef = null
+## How many aircraft AirTraffic had flying at the snapshot: a file that shot them down or cleared
+## the sky left air_traffic_checks' "the sky is populated from the start" two aircraft short.
+var _aircraft := -1
 var _crowd := -1 # live pedestrians at the snapshot
 var _max_peds := -1 # the streamer's crowd cap at the snapshot
 var leaks := OS.get_environment("SMOKE_LEAKS") == "1"
@@ -121,6 +124,9 @@ func snapshot(city: Node) -> void:
 		_player_masks = Vector2i(player.collision_layer, player.collision_mask)
 	var cam := city.get_viewport().get_camera_3d()
 	_camera = weakref(cam) if cam else null
+	var air: Node = city.get_node_or_null("AirTraffic")
+	if air and air.has_method("crafts"):
+		_aircraft = (air.call("crafts") as Array).size()
 
 
 ## Statics only: synchronous, no node freed.
@@ -208,6 +214,14 @@ func full(tree: SceneTree) -> void:
 				last["player:downed"] = true
 			health.set("downed", false)
 			health.set("health", float(health.get("max_health")))
+	# The sky: under three aircraft (fewer than the setup flew, and what air_traffic_checks wants),
+	# AirTraffic populated afresh; the schedule's own coming and going is left alone.
+	var air: Node = _city.get_node_or_null("AirTraffic")
+	if air and _aircraft > 0 and air.has_method("crafts") and (air.call("crafts") as Array).size() < mini(_aircraft, 3) \
+			and air.has_method("clear_all") and air.has_method("_populate") and not (air.get("routes") as Dictionary).is_empty():
+		air.call("clear_all")
+		air.call("_populate")
+		last["AirTraffic:crafts"] = true
 	# The camera: the setup's own one current again.
 	var cam0: Camera3D = _camera.get_ref() as Camera3D if _camera else null
 	if cam0 and is_instance_valid(cam0) and cam0.is_inside_tree() and tree.root.get_viewport().get_camera_3d() != cam0:

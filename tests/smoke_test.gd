@@ -2825,6 +2825,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc2_river_checks.gd").new().run(self, city)
 	# The airport apron refcam (tests/rc2_airport_checks.gd, AirportApron): paint over the ground, stains, liveries.
 	await load("res://tests/rc2_airport_checks.gd").new().run(self, city)
+	# The airfield at night (tests/rc3_airport_night_checks.gd, AirportNight): floods, logo lights, landing lights.
+	await load("res://tests/rc3_airport_night_checks.gd").new().run(self, city)
 	# The container terminal refcam (tests/rc2_port_checks.gd, PortFill, PortMooring): the yard's
 	# tiers, the mast's floodlights, the ship's bow and plating, the mooring lines, dusty roofs.
 	load("res://tests/rc2_port_checks.gd").new().run(self, city)
@@ -2899,6 +2901,11 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc3_fashion_district_checks.gd").new().run(self, city)
 	# The marina at golden hour (tests/rc3_marina_golden_checks.gd, MarinaGolden): the water's mirror, the rigging.
 	load("res://tests/rc3_marina_golden_checks.gd").new().run(self, city)
+	# Palm crowns without the flecks (tests/palm_shimmer_checks.gd, PalmShimmer): back faces keep their
+	# normal, sub-pixel leaflets widened and kept by coverage, the switch.
+	load("res://tests/palm_shimmer_checks.gd").new().run(self, city)
+	# The ridge sign refcam (tests/rc3_ridge_sign_checks.gd, RcRidgeSign): letters, shrubs, bake, plazas.
+	load("res://tests/rc3_ridge_sign_checks.gd").new().run(self, city)
 	# The canals_day refcam (tests/rc4_canals_day_checks.gd, Rc4Canals): the water, the coping, the banks.
 	load("res://tests/rc4_canals_day_checks.gd").new().run(self)
 

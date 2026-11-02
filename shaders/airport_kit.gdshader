@@ -16,6 +16,9 @@ render_mode cull_back;
 #include "res://shaders/color_space.gdshaderinc"
 
 global uniform float lamp_factor;
+global uniform vec3 origin_shift;
+// The apron masts' floods on the vehicles and fixtures (AirportNight; af_gain 0 is the old look).
+#include "res://shaders/airport_flood.gdshaderinc"
 // Working dirt (AirportApron): road grime up the lower body from the tyres, the paint mottled and
 // chalky where the sun has had it for years. 0 (AIRPORT_APRON=0) is the old clean finish.
 uniform float grime = 0.0;
@@ -68,6 +71,10 @@ void fragment() {
 			col = mix(col, vec3(dot(col, vec3(0.3, 0.55, 0.15))) * 1.05, grime * 0.12 * (1.0 - low));
 			rough = mix(rough, 0.68, grime * (0.4 * low + 0.25 * mottle));
 		}
+	}
+	if (af_count > 0) {
+		vec3 wn = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
+		emit += col * af_flood(v_world + origin_shift, wn);
 	}
 	ALBEDO = cs_out(col);
 	ROUGHNESS = rough;
