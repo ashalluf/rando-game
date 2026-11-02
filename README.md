@@ -52,3 +52,9 @@ refined), not geometry.
 22: Forward+ car blast, top before / bottom after the depth heat and soot shell (0.3, 0.8, 3 s;
 the shell's onset was moved later after this sheet). 23: opengl3, final numbers, 0.3 / 0.55 /
 0.8 s: no crosshatch, fire then soot with fire in its gaps.
+
+Round 4 (opengl3, the room): 24-26 the five-case strips before (top) / after (bottom) for gas
+(0.3, 1, 2.5, 5, 8 s), rocket at 60 m and a chain of three cars (0.3, 1, 2, 3.5, 6 s); 27 the dust
+at 2.5 s, before left / after right (gas, chain, rocket): one rolling lit front instead of three
+layers standing up into a flat beige wall. 28 / 29 the golden-hour car at 20 m and the night car,
+before. The daylight plume pales with age (value4): sunlit billows lighter, folds darker.
