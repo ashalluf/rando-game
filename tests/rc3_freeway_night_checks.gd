@@ -108,12 +108,6 @@ func _live(city: Node3D, plan: CityPlan) -> void:
 			deck_ok = true
 	_t._check(decks == 0 or deck_ok, "freeway night: a freeway chunk's deck is on its own layer (%d decks)" % decks)
 	var inst := FreewayNight.instance()
-	if inst != null:
-		var mask_ok := true
-		for l in inst.get_children():
-			if l is OmniLight3D and ((l as OmniLight3D).light_cull_mask & FreewayNight.DECK_LAYER) != 0:
-				mask_ok = false
-		_t._check(mask_ok, "freeway night: the lights leave the deck to its pools")
 	# A placed freeway car's lamps reach FAR_LIGHTS once the node deals; a street car's 160.
 	var fw: Freeway = plan.macro.freeway
 	var player := _t.get_tree().get_first_node_in_group("player") as Node3D
@@ -127,6 +121,12 @@ func _live(city: Node3D, plan: CityPlan) -> void:
 		city.add_child(inst)
 		await _t.get_tree().process_frame
 	inst.update_now()
+	var mask_ok := true
+	for l in inst.get_children():
+		if l is OmniLight3D and ((l as OmniLight3D).light_cull_mask & FreewayNight.DECK_LAYER) != 0:
+			mask_ok = false
+	_t._check(mask_ok and inst.get_child_count() == FreewayNight.budget(),
+		"freeway night: %d lights, all leaving the deck to its pools" % inst.get_child_count())
 	var nl: MeshInstance3D = car.get("_night_lights") if car else null
 	_t._check(nl != null and is_equal_approx(nl.visibility_range_end, FreewayNight.FAR_LIGHTS),
 		"freeway night: a freeway car's lamps reach %.0f m" % FreewayNight.FAR_LIGHTS)

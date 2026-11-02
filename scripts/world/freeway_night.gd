@@ -147,6 +147,7 @@ func _process(delta: float) -> void:
 
 ## Deal the lights to the nearest heads (ahead of the camera first) and set the cars' lamp reach.
 func update_now() -> void:
+	_car_reach()
 	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
 	if cam == null:
 		return
@@ -180,7 +181,6 @@ func update_now() -> void:
 			l.visible = lit
 			if not lit:
 				l.set_meta("dark_hidden", true)
-	_car_reach()
 
 
 ## Freeway cars' lamps reach FAR_LIGHTS, street cars' NEAR_LIGHTS (a pooled car changes job).
