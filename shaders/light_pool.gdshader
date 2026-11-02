@@ -34,6 +34,12 @@ uniform float street_forward = 0.4;
 global uniform float night_aerial;
 #endif
 uniform float pool_air_gain = 0.45;
+// A freeway light standard's cobra-head pool (FreewayNight, rc3-freeway-night): FreewayKit shifts the
+// quad's u by 4 (`cobra` in pool()). x the head's height over the deck, y the quad's length along
+// the road, z its width across (metres), both centred on the head's foot; w a gain. The light is
+// the illuminance a point source h metres up throws, (1 + d^2/h^2)^-1.5: a pool under each standard
+// and a darker road between them, never one even wash. 0 (every other material): never read.
+uniform vec4 cobra_size = vec4(0.0);
 uniform float pool_air_from = 45.0;
 uniform float pool_air_to = 220.0;
 varying float v_air;
@@ -66,7 +72,17 @@ void fragment() {
 	if (display_add && night_aerial > 0.5) {
 		a *= smoothstep(0.0, 0.45, r) * mix(1.0, pool_air_gain, v_air);
 	}
-	if (v_custom.a > 0.5) {
+	if (UV.x > 3.5 && cobra_size.x > 0.0) {
+		vec2 q = vec2(UV.x - 4.0, UV.y) - vec2(0.5);
+		vec2 m = q * vec2(cobra_size.z, cobra_size.y);
+		float e = pow(1.0 + dot(m, m) / (cobra_size.x * cobra_size.x), -1.5);
+		vec2 k = abs(q) * 2.0;
+		float rim = (1.0 - smoothstep(0.62, 1.0, k.x)) * (1.0 - smoothstep(0.55, 1.0, k.y));
+		a = e * rim * cobra_size.w * lamp_factor * mix(1.0, lamp_factor, lamp_ease) * strength;
+		if (night_aerial > 0.5) {
+			a *= mix(1.0, pool_air_gain, v_air);
+		}
+	} else if (v_custom.a > 0.5) {
 		vec2 q = (UV - vec2(0.5)) * 2.0;
 		float hr = max(v_custom.r, 0.05);
 		float aspect = max(v_custom.g, 0.5);

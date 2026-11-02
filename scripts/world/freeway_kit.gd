@@ -203,6 +203,7 @@ static func pool_material() -> ShaderMaterial:
 		_pool_mat.set_shader_parameter("falloff", POOL_FALLOFF)
 		# Broad, flat pools: added as display numbers on Forward+ too (light_pool.gdshader).
 		_pool_mat.set_shader_parameter("display_add", true)
+		FreewayNight.dress_pool(_pool_mat)
 	return _pool_mat
 
 
@@ -342,12 +343,15 @@ func strip(a3: Vector3, b3: Vector3, nrm: Vector2, u: float, w: float, s0: float
 
 
 ## A light pool on the deck (additive, light_pool.gdshader): centre, along direction, size.
-func pool(c: Vector3, along: Vector3, size: Vector2, col: Color) -> void:
+func pool(c: Vector3, along: Vector3, size: Vector2, col: Color, cobra := false) -> void:
 	var ac := Vector3(-along.z, 0.0, along.x)
 	var a := along * size.x * 0.5
 	var b := ac * size.y * 0.5
 	var corners := [c - a - b, c - a + b, c + a + b, c + a - b]
 	var uvs := [Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)]
+	if cobra:
+		# light_pool.gdshader's cobra branch: u shifted by 4 (its size is the material's cobra_size).
+		uvs = [Vector2(4, 0), Vector2(5, 0), Vector2(5, 1), Vector2(4, 1)]
 	for i: int in [0, 1, 2, 0, 2, 3]:
 		glow.set_color(col)
 		glow.set_normal(Vector3.UP)
@@ -747,7 +751,12 @@ func _light_standard(a3: Vector3, dir: Vector2, nrm: Vector2, ri: int) -> void:
 		box(body, hc - Vector3(0.0, 0.13, 0.0), n3 * (0.32 * side), Vector3(0.0, 0.045, 0.0), d3 * 0.13, kind_color(lamp_col, S_LENS), 1.0, false)
 		# The pool it throws, a little out from under the head toward the traffic lanes.
 		var pc := a3 + n3 * ((LIGHT_ARM + 3.2) * side) + Vector3(0.0, 0.07, 0.0)
-		pool(pc, d3, POOL_SIZE, Color(lamp_col.r, lamp_col.g, lamp_col.b, POOL_SODIUM if sodium else POOL_LED))
+		if FreewayNight.enabled:
+			# A cobra head's own pool, centred under the head (FreewayNight, rc3-freeway-night).
+			pc = a3 + n3 * ((LIGHT_ARM + 0.35) * side) + Vector3(0.0, 0.07, 0.0)
+			pool(pc, d3, FreewayNight.POOL_SIZE, Color(lamp_col.r, lamp_col.g, lamp_col.b, POOL_SODIUM if sodium else POOL_LED), true)
+		else:
+			pool(pc, d3, POOL_SIZE, Color(lamp_col.r, lamp_col.g, lamp_col.b, POOL_SODIUM if sodium else POOL_LED))
 		# Its halo in the night air (FreewayCloseup: NightAtmos's halo in the chunk's batch).
 		FreewayCloseup.lamp_halo(chunk, hc - Vector3(0.0, 0.2, 0.0), sodium)
 
@@ -1081,7 +1090,8 @@ func ramp_piece(p0: Vector3, p1: Vector3, nrm: Vector2, width: float, run0: floa
 ## Commits the meshes into `chunk`: <prefix>Deck, <prefix>Structure, <prefix>Paint, <prefix>Glow.
 func commit(road_mat: Material, prefix := "Freeway") -> void:
 	top.generate_normals()
-	_add(prefix + "Deck", top.commit(), FreewayCloseup.deck_material() if FreewayCloseup.enabled else road_mat)
+	var deck := _add(prefix + "Deck", top.commit(), FreewayCloseup.deck_material() if FreewayCloseup.enabled else road_mat)
+	FreewayNight.deck_built(chunk, deck, full)
 	_add(prefix + "Structure", body.commit(), structure_material())
 	if _paint_any:
 		var mi := _add(prefix + "Paint", paint.commit(), paint_material())
