@@ -2901,6 +2901,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc3_fashion_district_checks.gd").new().run(self, city)
 	# The marina at golden hour (tests/rc3_marina_golden_checks.gd, MarinaGolden): the water's mirror, the rigging.
 	load("res://tests/rc3_marina_golden_checks.gd").new().run(self, city)
+	# Palm crowns without the flecks (tests/palm_shimmer_checks.gd, PalmShimmer): back faces keep their
+	# normal, sub-pixel leaflets widened and kept by coverage, the switch.
+	load("res://tests/palm_shimmer_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
