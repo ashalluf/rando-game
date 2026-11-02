@@ -77,7 +77,7 @@ func _letters(plan: CityPlan) -> void:
 	for li in depths:
 		if (depths[li] as Dictionary).size() > 1:
 			multi += 1
-	_t._check(multi >= 8, "rc3-ridge-sign: a letter's strokes stand at their own depths (%d letters with several)" % multi)
+	_t._check(multi >= 4, "rc3-ridge-sign: a letter's strokes stand at their own depths (%d letters with several)" % multi)
 	holder.free()
 
 

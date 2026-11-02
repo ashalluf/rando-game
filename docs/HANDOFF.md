@@ -27091,3 +27091,25 @@ the far city's cover and a tor's claim; `tools/rc3_ridge_sign/spot_probe.gd` / `
 **Looked at and left.** The back ranges' pale plaster grey (the plane's painted band on opengl3, as
 rc-hills noted; not judgeable on lavapipe at city scale). The hill's smooth draped shading between
 the stands (hill-ground-3's domain). A bird or the blimp in frame now and then (their own clocks).
+
+**Proved on Forward+** (lavapipe, the small scene `tools/glshot/hill_ground_shot.tscn CENTRE=0,-1180
+BLOCKS=1 DAYNIGHT=1 GROUND=1 EYE=-200,200,-1080,-62,-8 -- --hour=16.5`, RC3_SIGN=0 against on): main's S
+is the notched polygon there too; the new letters are smooth, the same brightness as main's (no
+colour-space slip: the paint is a linear 0.70), the sheets read as a faint vertical banding (at the
+first seam strength, 0.45, they read as tiled walls - now 0.16 / 0.08), the braced legs a lattice
+down the slope. Kill Godot by its PID once the still is saved (it can hang on exit; `pkill -f` with
+the scene's name in the pattern kills your own shell).
+
+**Measured** (refcam ridge_sign, opengl3 1280x720): main 3,015,870 tris / 814 draws / 347,030 shadow
+tris; after 3,052,110 / 814 / 373,238 (+1.2 %: the braced legs, which cast, and the larger shrubs).
+**Ten-camera compare** (`cameras.json`, RC3_SIGN=0 against on, one load each): eight within 0-1
+levels and 0-1.4 % of their cost; street_night and freeway flagged for live traffic only (a bus /
+different cars in the lane; the diff maps are the vehicles). Peak RSS of a ten-camera run on this box
+12.1 GB (the first run after an edit rebuilds the bake and the far city: load 545 s).
+
+**Not done / not verified.** Never seen on the Mac. The bake's block-zone pass costs one
+`CityPlan.block()` per block of the 16 km bake on a cold LoadCache (the far city asks for every one
+of them anyway; not timed separately). The far copy of the sign (far_canopy's rigid material, seated on the
+plane from past the LOD ring) is built from the same ribbons but drawn in that material's one colour:
+no panels or dust from the basin (under a pixel there anyway). HillScatter's clumps (between
+the shrubs) are RcHills' field, not this one.

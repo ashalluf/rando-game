@@ -270,7 +270,8 @@ static func _ribbon(st: SurfaceTool, pts: PackedVector2Array, h: float, zf: floa
 		var m := (na + nb).normalized()
 		if m.length() < 0.5:
 			m = nb
-		var c := maxf(m.dot(nb), 0.35)
+		# A very sharp corner (the W's and V's points) is bevelled: a true mitre there runs 1.4 pens out.
+		var c := maxf(m.dot(nb), 0.72)
 		off.append(m * (h / c))
 		smooth.append(a.dot(b) > 0.86)
 	var L := PackedVector2Array()
