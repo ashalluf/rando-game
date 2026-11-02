@@ -27082,7 +27082,12 @@ piece back):
 **Frame cost** (refcam GEO, opengl3 1280x720): 1,306,020 tris / 955 draws -> 1,314,444 / 960
 (the rounder piles); the water's trace is ALU only.
 
-**Forward+**: see the end of this section.
+**Forward+** (lavapipe, `tools/glshot/fwd_block_shot.tscn BLOCKS=home EXTRA="-1,0"
+EYE=-621.5,0.4,136,110,-1.5 --hour=18`, ~6 GB; the default 3 x 3 blocks of the marina were
+OOM-killed at 14.3 GB, and `override.cfg` with `[threading] worker_pool/max_threads=1`): there SSR
+already mirrored the boats as dark smears; with MarinaGolden the traced hulls and masts take over
+where they stand (the same colours as the opengl3 still - the trace is linear on both) and SSR keeps
+the rest. Stills 03 / 04 on the shots branch.
 
 **Checks**: `tests/rc3_marina_golden_checks.gd` (the pick, the packing, the shader's array size and
 the mm_count 0 path, the wires' centre line and levels, the boat material's switches, the camera row).
