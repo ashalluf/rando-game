@@ -263,8 +263,10 @@ func _kerb(road: Array) -> void:
 		_check(fell, "with no clear kerb near the spawn a driver told to mount it swerves instead (%s; cp %s)" % [fell, str(car.traffic.get("cp", {}).get("k", "none")) if car.traffic.get("cp") is Dictionary else "none"])
 		return
 	CarPanic.force_kind = CarPanic.Kind.KERB
+	# The follower 30 m back (outside what kerb_clear() looks at) and the panic started in the SAME
+	# frame the kerb was found clear: start() looks again, and with ticks between the two a walker
+	# of a busy shard stepped onto the kerb and the driver rightly swerved (batches 35, 37; 8101).
 	var follower := _traffic.place_car(axis, index, dir, 0, at - 30.0, 9.0, false)
-	await _ticks(2)
 	CarPanic.start(_traffic, car, _beside(car, road, 10.0, -5.0), 0.2, false)
 	# In a busy shard a walker or a parked car can fill the kerb in the ticks after it was found
 	# clear, and the driver rightly swerves instead: try the next stretch of the block then.
@@ -278,9 +280,10 @@ func _kerb(road: Array) -> void:
 		_stand(road, at + 40.0)
 		await _ticks(2)
 		car = _traffic.place_car(axis, index, dir, 0, at, 9.0, false)
-		follower = _traffic.place_car(axis, index, dir, 0, at - 30.0, 9.0, false)
 		await _ticks(2)
+		follower = _traffic.place_car(axis, index, dir, 0, at - 30.0, 9.0, false)
 		CarPanic.start(_traffic, car, _beside(car, road, 10.0, -5.0), 0.2, false)
+	var kind0: String = str((car.traffic.cp as Dictionary).get("k")) if car.traffic.get("cp") is Dictionary else "none"
 	var w2 := _plan.road_width(axis, index) * 0.5
 	var up := false
 	var out_of_lane := false
@@ -298,7 +301,7 @@ func _kerb(road: Array) -> void:
 			back = true
 			break
 	_check(up and out_of_lane and passed and back,
-		"a driver mounts the clear kerb with two wheels, out of the lane's queue, the car behind drives past, and it comes back down (up %s, out of the queue %s, passed %s, back %s)" % [up, out_of_lane, passed, back])
+		"a driver mounts the clear kerb with two wheels, out of the lane's queue, the car behind drives past, and it comes back down (up %s, out of the queue %s, passed %s, back %s; kind %s, %d retries)" % [up, out_of_lane, passed, back, kind0, tries])
 
 
 ## A threat ahead: it backs away, reversing lamps on, never into the car behind.
