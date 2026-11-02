@@ -25200,3 +25200,29 @@ CAM_LOOK=0,28,0` (parapets); `far_building_shot.gd DIST=120` + `far_pair.py` for
 City EYEs (`EYE_AGL=1`): Spring St `3108,2,330,0,9` (FOV 62), the historic core from 28 m
 `3113,28,430,8,-5`, east of downtown `3300,45,720,25,-10`, Wilshire `1100,2,300,-92,7`, midtown
 from 70 m `1150,70,520,10,-16`, golden hour (17.3) the same plus `3400,30,350,-30,-4`.
+
+**Forward+.** The strips' darkening and the pier shadow are tuned on the opengl3 stills
+(Compatibility lights the albedo as it is); Forward+ lights linear albedo, where the same 0.8 reads
+like 0.9 and the piers all but vanished in a lavapipe still. `fm3_display()` raises the factor to
+2.2 there (`CURRENT_RENDERER`); `building_shot.gd` under lavapipe (`--rendering-driver vulkan`,
+an `override.cfg` with `[threading] worker_pool/max_threads=1`, never committed) shows the piers
+and the parapets (still 25 on `shots/facades-mid-3`). The whole city was not rendered on Forward+.
+
+**Frame cost** (opengl3, `still_shot.gd DIFF=1`, the same EYEs, main vs this branch before the far
+city dropped the copings): draws unchanged (+0..+6), triangles +1.3 % (Spring St 6.13 M -> 6.21 M),
++1.8 % (historic core from 28 m), +2.4 % (east side from 45 m), +2.8 % (Wilshire), +1.5 % (midtown
+from 70 m); golden hour +1.3 .. +2.5 %. Almost all of it is the far city's parapet boxes (12
+triangles a box over thousands of buildings); the copings (half the boxes) are LOD-ring only now.
+The piers and the gravel are shader work on wall and roof pixels: no triangles, nodes or draws.
+
+**Gate.** `SHARDS=3`: 5,072 checks, 3 failed, all re-run alone green or matching the gate's open
+flakes (9kd): traffic_ai "never drives into another car" / "a car climbs an on-ramp and merges"
+(both listed open in 9kd; "a car swerves round the player" is the same family), ragdoll_feel "then
+they go down" (a freed body in `_check_trailing`), night_atmos "every prop keeps its id" (passed
+alone). The `city_crowd` part alone: 2 of 2 green with FACADES_MID3=0, 3 of 3 with one different
+traffic_ai failure with it on - a short sample; the pass touches no traffic, physics query or
+shared rng (the parapets' collision boxes stand on the roofs), so it is recorded, not explained.
+
+**Not done / not verified.** Ribbon and curtain walls are untouched (the facade_variety pass has
+their depth). The parapet panels are the parapet's colour, not the wall texture, and carry no
+moulding. The landmark towers (`uv_facade`) get none of it. No Forward+ city still.
