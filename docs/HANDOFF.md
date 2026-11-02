@@ -26866,6 +26866,20 @@ Checks: `_round9()`. Stills 58 on.
    the sky lit from below. Off with `BLAST_NIGHT=0`.
 Checks: `_round9()`'s last line. Stills 61 on.
 
+**Round 12: a rocket into a facade, a blast from the air** (the lead's next list; `FACADE=1` and
+`UP=150` on blast_room_shot.gd):
+1. **Into a facade at 30 m**: the fireball and BuildingDamage's broken panes were there, but nothing
+   came out of the wall afterwards. `Blast4.wall_blast()` (after the facade response; it finds the
+   wall with eight rays round the blast, only one at least 1.5 m above the ground): lit smoke
+   pouring out of the hole and rising up the face for `wall_smoke_seconds` (22), masonry chunks
+   and glass glints thrown out and falling to the street (their life is the fall). `BLAST_WALL=0`.
+2. **From 150 m up** the blast read as a small pale blob, and the round-8 dark dust disappears
+   against the road from above. `Blast4.ground_ring()` (from `dust_roll()`): one quad on the
+   ground (`shaders/blast_ring.gdshader`): a pale ragged band of dust racing out to 1.25x the dust
+   reach in its first half second and fading over 6 s - the blast's footprint on the street from
+   the air. `BLAST_RING=0`. Judged on opengl3 only this round.
+Checks: `_round11()`. Stills 64 on.
+
 ## 9lb. The camera lens (wave 5, `camera-lens`)
 
 **What.** The camera itself: exposure adaptation, the sun's flare, grain, the bloom's spread.
