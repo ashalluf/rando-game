@@ -7108,6 +7108,11 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   stratus ceiling between coverage `PAINTED_STRAT_LO` / `_HI` (sky.gdshader): rain had blue holes.
   web_build_checks also holds every material's uniform block under 16 KB and custom varyings
   under 40 components. A local export packs `build/` too unless it has a `.gdignore`.
+- The web build after wave 4 (2026-11-01, docs/HANDOFF.md "The web build after wave 4"): eight
+  bookmarks clean, pck 609 MB, wasm 821 MB. MacArthur Park's fountain plume is left out on the web
+  (`plume_allowed()`, `?fountain_plume=1`): it blew up into glare there. Bisect a web-only look on
+  the REAL build with `tools/web_probe/export_probe.sh` (an autoload probe: `ap_hide=` steps,
+  frames as PROBE_IMG); `tools/webshot/web_budget.gd` prints every shader's web budgets.
 - Forward+ review of small scenes (2026-10-05, docs/HANDOFF.md "Forward+ review A"): lavapipe
   renders `block_shot.tscn` (a few FULL blocks, ~10 min a run, ~12 GB) and the room tools
   (`hero_moves_shot.gd`, `photo_shot.gd ROOM=1`, ~2 min) with `--rendering-driver vulkan` and

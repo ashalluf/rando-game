@@ -4108,6 +4108,11 @@ none of either.
   Forward+ below MEDIUM) closes into a stratus ceiling from coverage 0.62 to 0.78, so rain and
   storms never fall from a blue sky there; a clear day is untouched. web_build_checks now also
   holds WebGL2's uniform-block (16 KB) and varying floors.
+- 2026-11-01 (web-build-5): the web build after wave 4 loads clean at all eight bookmarks (pck
+  609 MB of the 650 MB budget, wasm 821 MB). Decision: MacArthur Park's fountain particle plume is
+  not built on the web - in the browser it blew up into a park-wide glare (root not found; no
+  property of it fixed it); `?fountain_plume=1` is the A/B. CI warns past the pck budget and fails
+  past Pages' 1 GB. The hero reading blue in the rain on the web is open (not the radiance).
 - **2026-10-31 Perf audit 4: a mesh drawn whole everywhere is tiled, a model's surfaces merged
   (perf-audit-4, HANDOFF "Perf audit 4").** Judged at the ten refcams against wave 2's numbers,
   every cut proved with strict pairs against an A/A pair. Decisions: anything with a map-sized
