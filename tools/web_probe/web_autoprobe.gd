@@ -47,9 +47,29 @@ func _run() -> void:
 	var hides := _arg("ap_hide", "").split(",", false)
 	for i in int(_arg("ap_n", "6")):
 		if i >= 1 and i - 1 < hides.size():
-			for n in get_tree().root.find_children("*", "GeometryInstance3D", true, false):
-				if str(n.get_path()).contains(hides[i - 1]):
-					(n as Node3D).visible = false
+			var h: String = hides[i - 1]
+			if h.begins_with("plume:"):
+				# One change to every fountain plume (web-build-5's A/B of the MacArthur glare).
+				for n in get_tree().root.find_children("*FountainPlume", "CPUParticles3D", true, false):
+					var pl := n as CPUParticles3D
+					match h.substr(6):
+						"fixed":
+							pl.fixed_fps = 30
+						"unshaded":
+							((pl.mesh as QuadMesh).material as StandardMaterial3D).shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+						"nocurve":
+							pl.scale_amount_curve = null
+						"nodamp":
+							pl.damping_min = 0.0
+							pl.damping_max = 0.0
+						"local":
+							pl.local_coords = true
+						"restart":
+							pl.restart()
+			else:
+				for n in get_tree().root.find_children("*", "GeometryInstance3D", true, false):
+					if str(n.get_path()).contains(h):
+						(n as Node3D).visible = false
 			print("AUTOPROBE_HIDE %d %s" % [i, hides[i - 1]])
 		_report(i)
 		var t1 := Time.get_ticks_msec()
