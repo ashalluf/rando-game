@@ -25,6 +25,8 @@ func run(st: SceneTree) -> void:
 	var police: Node = city.get_node_or_null("Police")
 	if police:
 		police.set("enabled", false)
+	# Rendering the city is seconds a frame on the software renderer: only for the stills.
+	tree.root.disable_3d = true
 	for i in 30:
 		await tree.process_frame
 	car = Vehicle.new()
@@ -112,6 +114,7 @@ func _vals(img: Image) -> Array:
 
 
 func _shot(name: String) -> Image:
+	tree.root.disable_3d = false
 	await tree.process_frame
 	await RenderingServer.frame_post_draw
 	await tree.process_frame
