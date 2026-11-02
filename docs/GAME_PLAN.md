@@ -4430,3 +4430,12 @@ none of either.
   by its coverage - dithered for TAA on Forward+, whole on Compatibility, where a fixed dither
   would crawl. The palm's vertex colours, display numbers, are decoded on Forward+ (they drew twice
   as bright there once the black half was gone). PALM_SHIMMER=0 is the A/B.
+
+- **2026-11-02 The ridge sign refcam: the city's postcard reads built, not modelled (rc3-ridge-sign,
+  HANDOFF "The ridge sign refcam").** A new reference camera (`ridge_sign`, wave 6's table) judged the
+  big sign from ~120 m at 16:30. Decisions: the sign's letters are continuous mitred sheet-metal
+  ribbons with painted panels and weathering, never boxes per stroke; a hill's code-built shrubs are
+  gathered into thickets by a field, never an even scatter; whatever a chunk builds on a block, the
+  far tiers show the same kind of ground (a hill block's flat foot is hill on the horizon plane, a
+  plaza keeps its beds at LOD); a tor stands on the terrain its chunk draws, and a summit crag never
+  overhangs a spike. RC3_SIGN=0 is the A/B.

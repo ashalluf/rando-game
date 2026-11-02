@@ -1097,7 +1097,9 @@ func _build_ground_material() -> ShaderMaterial:
 		img = cached[0]
 		plan.macro.bake_height = cached[1]
 	else:
+		plan.macro.bake_block_zone = RcRidgeSign.block_zone_fn(plan)
 		img = plan.macro.bake(Vector2.ZERO, macro_span, size)
+		plan.macro.bake_block_zone = Callable()
 		LoadCache.save_images("macro_bake", bake_inputs, [img, plan.macro.bake_height])
 	var tex := ImageTexture.create_from_image(img)
 	var htex := ImageTexture.create_from_image(plan.macro.bake_height)

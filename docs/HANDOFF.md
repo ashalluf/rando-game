@@ -28270,3 +28270,88 @@ freeway's cars) - street_noon's centre palm now a solid crown; triangles and dra
 the sky and the trunks' edges at 1-3 pixels, which four jittered samples do not fully resolve (the
 Mac's TAA integrates more). Forward+ was checked on lavapipe stills of the palm street (TAA on, the
 dither resolving), not in motion. The ten original refcams: see the compare line above.
+
+## 9lx. The ridge sign refcam (fleet wave 6, `rc3-ridge-sign`, branch `wt/rc3-ridge-sign`)
+
+**The camera.** A new reference view, `ridge_sign` in `tools/refcams/cameras_w6.json`: the big sign
+on the front range from the west end of its row, ~110-130 m from the S (eye (-262, 388, -1030) true
+world, yaw -68, pitch -11, FOV 55), 16:30 clear - the letters receding along the slope, the hill
+falling away under them, the basin, downtown and the back ranges beyond. Run:
+`REFCAMS_JSON=tools/refcams/cameras_w6.json python3 tools/refcams/refcams.py run <dir> --only ridge_sign`.
+Everything below is behind **`RC3_SIGN=0`** (`RcRidgeSign`, `scripts/world/rc_ridge_sign.gd`: the switch
+and every number), which is main's look exactly.
+
+**What read fake, in the order the eye found it** (pinned with `tools/aerial_review/layer_probe.gd`,
+and two probes of this branch: `tools/rc3_ridge_sign/cover_probe.gd` - who draws the blocks in a box,
+the far city's cover and a tor's claim; `tools/rc3_ridge_sign/spot_probe.gd` / `tor_probe.tscn`):
+
+1. **The letters were boxes.** HillSignLetters (rc-hills) laid each stroke segment as its own box:
+   the S, U, O, D and R were polygons of boxes with their square corners poking out of every bend,
+   and the strokes of a letter overlapped with their front faces in one plane (z-fighting at
+   distance), all one flat cream. Now every stroke is ONE mitred ribbon (`_letters_v2()` /
+   `_ribbon()`: a mitre at each joint, square ends, the returns smooth round a curve and hard at a
+   corner), the strokes of a letter 4.5 cm apart in depth, on `shaders/ridge_sign.gdshader`: 4 x 8 ft
+   painted sheets (each its own age), seams and laps box-filtered by the pixel's footprint, rust and
+   grime streaks hanging under the fixings, dust blown up the foot of each letter (5 m), greyer
+   returns, a galvanised back. Linear on both renderers (color_space). Same span, level line and
+   collision as before.
+2. **An empty grey street grid at the foot of the hill**, 800 m out (four blocks, x 500-800, z
+   -1076..-790). Those blocks' centres are on the slope, so their chunk is a HILLS chunk (terrain
+   only) and the far city captures nothing city there - but their south half is flat basin, which
+   `MacroMap.bake()` painted by its own zone as a midtown district, and the horizon plane drew it as a
+   paved grid with nothing standing on it. The bake now asks `bake_block_zone` (set by CityStreamer
+   only around the bake: `RcRidgeSign.block_zone_fn()`, the zone of the block's centre, cached per
+   block) and paints such pixels as the hill's foot (`BAKE_GRASS`), which is what the LOD and FULL
+   hill chunks draw there. LoadCache's key already covers it (the switch is read by a script).
+3. **Polka dots.** The code-built HillShrubs (hill-ground-3) were an even jittered grid of identical
+   round mounds over every stand: from the sign the slope was spotted like a dalmatian. Now
+   `shrub_gather()` (RcHills' cluster field, its own phase, 0.7x the frequency) leaves a shrub out
+   under `SHRUB_GAP` (+ a share of its own size roll) and scales the rest 0.7-1.55x by the field, so
+   the mounds of a thicket close up and straw shows between thickets. After every roll (the row's
+   stream is unchanged; only `hill_planting.chaparral` counts fewer).
+4. **A pale slab floating in the sky** over the ridge west of the sign (top-left of the frame). That
+   was a summit tor (RcHills' broad, low crag, 46 m across) on a front-range spike: its far end
+   overhung the falling ground. And every tor a chunk claims stood at the TRUE ground, which a LOD
+   tile's ~14 m lattice cuts lower on a sharp crest. Now a claiming chunk hands RockFar the drop to
+   the terrain it really draws (`RcRidgeSign.tor_drops()` from `RockBuild._claim()`, kept in
+   `RockFar._drops`, written into the instance transforms of the tor's near and far cells, forgotten
+   on release), and a summit crag is lowered until the lowest 30 % of its height meets the drawn
+   ground at eight points round its footprint (`_overhang()`); never up, at most `TOR_DROP_MAX` 40 m.
+5. **The legs.** Under letters held up off the falling slope the posts ran down bare: a comb of
+   lines under the name. `_legs_braced()` adds a tie every 4.5 m down each bay and a diagonal across
+   it, alternating, to where the ground meets the posts.
+6. (Off this camera's frame but found with it.) A PLAZA block past the FULL ring was one bare tan
+   slab (`_build_plaza()` returned before any furnishing at LOD and in the far capture). It now lays
+   the four lawn beds the FULL build furnishes (`plaza_far_beds()`, the same rects, no roll).
+
+**Looked at and left.** The back ranges' pale plaster grey (the plane's painted band on opengl3, as
+rc-hills noted; not judgeable on lavapipe at city scale). The hill's smooth draped shading between
+the stands (hill-ground-3's domain). A bird or the blimp in frame now and then (their own clocks).
+
+**Proved on Forward+** (lavapipe, the small scene `tools/glshot/hill_ground_shot.tscn CENTRE=0,-1180
+BLOCKS=1 DAYNIGHT=1 GROUND=1 EYE=-200,200,-1080,-62,-8 -- --hour=16.5`, RC3_SIGN=0 against on): main's S
+is the notched polygon there too; the new letters are smooth, the same brightness as main's (no
+colour-space slip: the paint is a linear 0.70), the sheets read as a faint vertical banding (at the
+first seam strength, 0.45, they read as tiled walls - now 0.16 / 0.08), the braced legs a lattice
+down the slope. Kill Godot by its PID once the still is saved (it can hang on exit; `pkill -f` with
+the scene's name in the pattern kills your own shell).
+
+**Measured** (refcam ridge_sign, opengl3 1280x720): main 3,015,870 tris / 814 draws / 347,030 shadow
+tris; after 3,052,110 / 814 / 373,238 (+1.2 %: the braced legs, which cast, and the larger shrubs).
+**Ten-camera compare** (`cameras.json`, RC3_SIGN=0 against on, one load each): eight within 0-1
+levels and 0-1.4 % of their cost; street_night and freeway flagged for live traffic only (a bus /
+different cars in the lane; the diff maps are the vehicles). Peak RSS of a ten-camera run on this box
+12.1 GB (the first run after an edit rebuilds the bake and the far city: load 545 s).
+
+**Gate** on the merge of main `378dc685` + this branch: `SHARDS=3`, 5,591 checks, all passed; peak
+RSS 3.76 GB a shard. (A run before the merge had one shard-order flake outside this work,
+pedestrian_flow_checks' "somebody comes out of a shop door", which passes alone.) Checks:
+`tests/rc3_ridge_sign_checks.gd` (letters one ribbon mesh on the shader, every front facing out,
+strokes at their own depths, the bake's block zone, the shrub field, tor drops and release, the row).
+
+**Not done / not verified.** Never seen on the Mac. The bake's block-zone pass costs one
+`CityPlan.block()` per block of the 16 km bake on a cold LoadCache (the far city asks for every one
+of them anyway; not timed separately). The far copy of the sign (far_canopy's rigid material, seated on the
+plane from past the LOD ring) is built from the same ribbons but drawn in that material's one colour:
+no panels or dust from the basin (under a pixel there anyway). HillScatter's clumps (between
+the shrubs) are RcHills' field, not this one.
