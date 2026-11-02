@@ -25783,5 +25783,9 @@ shrubs (the chunk's accent species planted a few dry sprigs). The default camera
 (vertical) makes him small in the frame; it is the settings' default and the owner's feel, left.
 
 **Cost** (opengl3 GEO, this view): 7.97 M tris / 3,901 draws -> 8.05 M / 3,974 (+1 %, +2 %).
-Checks: `tests/rc2_hero_foot_checks.gd`. Forward+ (the Mac) not verified for the mulch colour or
-the dither.
+Checks: `tests/rc2_hero_foot_checks.gd` (under the smoke test ShopCrowd spawns nothing unless a
+check sets `force_in_test`: its walkers round home made the staged crowd-gait and flow checks flaky).
+Gate on the merge of main 2026-11-02: SHARDS=3, 5210 / 5210. The ten original refcams with the three
+switches off vs on: eight within tolerance; street_noon and freeway flagged for traffic that moved
+between runs (street_noon also shows a few more walkers on its far pavement, by design). Forward+
+(the Mac) not verified for the mulch colour or the dither.
