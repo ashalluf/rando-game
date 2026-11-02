@@ -26120,3 +26120,414 @@ into a running gate (check files are `load()`ed lazily, mid-run).
 
 **Runs** (each `SHARDS=3`, ~30 min, a shard peaking at ~3.4-3.5 GB): see the table at the end of
 this section.
+
+## 9ky. The blast, fourth pass (2026-11-01, fleet wave 5, branch `wt/explosions-4`)
+
+The owner's top priority for wave 5 was "make the explosions EXTREMELY AAA quality". The third pass
+(9ix) made the fireball a ray-marched volume, but it died after ~3 s and the rest of the blast was
+the second pass's billboards. This pass keeps the volume alive as the whole event and adds what a
+fuel blast leaves.
+
+**What changed (`Blast4`, `scripts/weapons/blast_4.gd`; `EXPLOSIONS_4=0` is the A/B):**
+- **The mushroom** (`shaders/blast_volume.gdshader`, the `v4` uniform; every block is behind
+  `if (v4 > 0.5)`, so 0 is the third pass bit for bit): `Blast3.spawn_volume()` asks
+  `Blast4.dress_volume()` for a taller box (`half` 1.75 x 2.1 x 1.75 radii, centre 2 radii up)
+  and a life (`volume_life` 9 s, a car 12, gas 8). Shape `shape4()`: a ball that rises and
+  flattens into a torus cap at `cap_y4()` (the same formula as `Blast4.handover_height()`, checked),
+  a skirt, a short-lived dust ring at the foot, a wavering stem. The noise is advected by
+  `advect4()`: a roll round the ring's core plus the curl of a sinusoid potential (cheap, no
+  texture). Temperature spreads over a wider band (`field4()`): the skin cools first, so the
+  surface reads as rolling soot with a fire core instead of salmon (AgX's red-heavy trap).
+  Lighting: three shadow taps along the light (0.12 / 0.36 / 0.85), a multiple-scattering lift,
+  a desaturated sky ambient (raw, it put bluish patches on the smoke), and the fires
+  (`Blast3.push_fires()` hands `fires[4]`, `fire_count`, `city_glow` to every live volume):
+  each lights only the underside (`below` squared), capped, `fire_gain` 0.32. At 1.0 Forward+
+  flooded the whole mushroom orange; opengl3 never showed it.
+- **Lit like a cloud** (second round, after the lead's notes on the first stills): the aged
+  smoke had read as one flat grey cutout (half-transparent, every pixel averaged its lit and dark
+  sides; softened to a blur). Now a sooty dark core with paler thin edges (`alb4` by density), warm
+  brown low down and cooler grey in the cap, the sky's light shaded by what hangs over a point
+  (one tap straight up, `occ4`), a warm bounce off the sunlit ground on the undersides, the sun
+  x1.35; a third noise octave, curl-advected and sliding with time, cuts turrets into the
+  silhouette only (`rim`), and `crisp` stays at 0.24 as it ages. The cap rolls wider (`wide` to
+  1.55), the stem is thicker and lasts to 60 % of the life, the dust skirt hangs for half of it
+  (the box is 2.3 radii wide to hold it). A gas ball's glow is held back for its first 0.04-0.25 s
+  so its noise shows instead of a white disc.
+- **The flash's glow** (BlastFX's light) rises with the cap (`Blast4.glow_height()`), lasts 1.7x
+  for a car, 1.3x for gas, again 1.8x after dark with a softer fall (`glow_stretch()`,
+  `glow_fall()`, off `DayNight.lamp_now`): at night it is all that shows the smoke.
+- **The card column waits**: BlastFX keeps the card cap hidden and the stem invisible
+  until `handover_height(life * 0.5)`, then restarts it. **Trap:** a CPUParticles3D that never
+  ran draws its whole multimesh at its ORIGIN - a dark ball floated over every blast until the
+  stem was hidden as well as not emitting.
+- **Fuel pools** (`BlastPool`, `scripts/weapons/blast_pool.gd`, `shaders/blast_pool.gdshader`): a
+  car's or a pump's blast leaves a burning puddle on the ground under it (ray), ragged outline
+  from the tiling noise, spreading in its first second, flickering burning patches, soot past the
+  rim that stays; CarDamage's flame material for the flames (ring emitters), embers, an OmniLight
+  that is also a Blast3 fire (it lights the mushroom from below), `fire_loop`. 15-24 s, at most 4.
+- **Secondary pops**: 2-4 over 1.6 s within 0.55 radii (`Blast4.pop()`): a small volume with a
+  3 s life while there is room, else cards; a light, sparks, a higher-pitched bang.
+- **Chain reactions**: a fuel blast gives the cars within 1.15 radii `CarDamage.chain_fuse()`
+  (0.5-1.7 s), the depth counted in meta `chain_gen`, stopped at `chain_depth` 3.
+- **Petrol pumps**: `PropBreak.broke()` -> `Blast4.pump_break()`: a gas blast (`gas_next`,
+  shorter and paler) 8.5 m round, rate-limited, then the pump breaks as before.
+- **The bang and the shake** (`Blast4.punch()`, from `Explosion.blast()`): the sound is delayed
+  by the camera's distance / 343 m/s, a low thump inside `thump_reach`, the shake arrives with
+  the wave (a small jolt, the main shake, a rumble). Roof dust shed by the wave is delayed the
+  same way and drawn as a pale flat sheet.
+- **The wreck's smoke** (`CarDamage._continuous_smoke()`, under Blast4): twice the puffs, thinner,
+  wider spread, damping and a radial push, growing to 4.8x: one leaning column instead of a string
+  of beads. Note the harness: at ~1 frame a second, CPUParticles emit in bursts, so a column high
+  up still reads beaded in stills; judge it in the game.
+
+**Stills** (branch `shots/explosions-4`, README there): before / after strips of a rocket and a
+car blast at noon (opengl3), a Forward+ night car strip (lavapipe), the over-lit WIP for
+comparison, the wreck smoke at 4 / 9 / 16 s. `tools/explosions_2/blast_room_shot.gd` takes `GAS=1`
+and `WEB=1`; `tools/explosions_4/dump.gd` prints a blast's nodes.
+
+**Checks**: `tests/explosions_4_checks.gd` (switch and hooks; the pure functions; the shader's cap
+height matches the hand-over; the mushroom's uniforms and box; the card cap hidden and the stem
+waiting; a fuel blast's pool on a deck burns, lights the smoke, pops go off, it frees itself; a
+web pop is cards; the chain fuse and its depth). `tests/explosions_3_checks.gd` waits up to 60 s
+for the volume to free itself (it lives longer now).
+
+`blast_room_shot.gd` also takes `GOLDEN=1` (a low warm sun) now, and `NIGHT=1` sets
+`DayNight.lamp_now`.
+
+**Round 3**: the screen door the Forward+ stills showed was mostly the march, not lavapipe's TAA:
+with a fixed step the first sample in dense smoke took nearly all the opacity, so the surface
+snapped to the step grid. The march now BACKS UP one step there and goes on in thirds for 12
+samples (`n + 16` at most); what is left is the per-frame rotated jitter TAA resolves. Debris,
+glass and the pressure wave are the second and third passes' (BlastDebris trails, BlastBits
+chips tumbling and skidding, BuildingDamage SHATTER with the wave, blast_wave.gdshader, roof dust
+now delayed to the wave). Shot in the city at night: `fx_shot.gd FX_CAR=1 FX_TIMES=0.3,2,6
+--spawn=650,300,0,-4 --hour=22` (still 19). `blast_room_shot.gd` prints `GEO` per still.
+
+**Frame cost with the blast in view** (blast_room_shot GEO, opengl3, 1280 x 720, fourth pass vs
+`EXPLOSIONS_4=0`): 0.3 s 409 / 411 draws, 505k / 506k triangles; 2 s 402 / 406, 504.5k / 504.7k;
+5 s 378 / 380, 502.0k / 502.0k - no more draws than the third pass. The volume costs ALU per
+covered pixel instead. The web keeps the cards (still 21).
+
+**Not done / not verified**: the dither at 60 fps was not seen (lavapipe runs at ~1 fps); the
+night mushroom against the light dome only in the opengl3 city still; no GPU timing of the
+volume (lavapipe's numbers are not a GPU's).
+
+## 9ku. Perf audit 5: the ten refcams after wave 4 (fleet wave 5, agent branch `wt/perf-audit-5`)
+
+**The ask.** Frame cost after wave 4's 45 branches at the ten reference cameras, against "Perf
+audit 4" (9ka): what grew, cut the biggest costs without a visible change, and the gate's peak RSS
+by part.
+
+**How it was measured.** `refcams.py run` plain on main (bb03d731) and on the branch (same box,
+warm caches), and `SPLIT=1 OSPLIT=1` runs of three cameras each (freeway / MacArthur / pier night,
+then street noon / golden aerial / freeway). OSPLIT now also splits the Vehicle and Pedestrian
+categories, and `OSPLIT_CATS=Vehicle,Trees,...` picks which categories to split (still_shot.gd).
+Two plain runs of one tree differ by +-0.4 M on the freeway and golden aerial (traffic, streaming
+order: golden aerial read 5.07 M as the fourth camera and 5.94 M as the second), so read single
+numbers with that in mind; the cuts below were also proved alone (car_shot A/B, counts per mesh).
+
+### What grew since Perf audit 4 (main, GEO triangles)
+
+| camera | PA4 after (est.) | main now | what grew |
+|---|---|---|---|
+| street_noon | 6.92 M | 7.19-7.24 M | Pedestrian 0.43 M (crowd-closeup-3's rigs, +22 %), wheels 0.22 M, bus body |
+| freeway | 5.14 M | 5.55-6.09 M | **Vehicle 0.85-1.40 M** (FreewayFill's cars): near wheels 0.78 M (0.56 M of it shadow), body shadow twins 0.30 M |
+| macarthur | 5.26 M | 5.58 M | palms 1.11 M (MacArthurLook's ring), knee-high bushes / shrubs 0.46 M (0.36 M shadow) |
+| golden_aerial | 4.74 M | 5.07-5.94 M | FarCity 1.1-2.0 M (streaming order), bushes / shrubs |
+| others | | within noise of PA4 | |
+
+The biggest single new cost is the **near car wheel**: `PropFactory.car_wheel(near)` is 12-14k
+triangles (96 segments, tread, moulded letters since car-detail), with no LODs, casting at full
+detail into every cascade it reaches, out to `wheel_lod_distance` (30 m). On the freeway refcam
+that was ~60 near wheels. The second: the knee-high plants' shadow twins (BUSHES, PLANTS, FLOWERS,
+GRASS_CLUMPS, the shrub kit) drew their proxy at the camera's full LOD bias - 0.19 M shadow
+triangles of bushes over MacArthur Park against 0.06 M in the camera pass.
+
+### What was cut (each behind its own switch)
+
+1. **The near car wheel casts from a plain twin** (`Vehicle._wheel_shadow_twin()`,
+   `PropFactory.car_wheel_shadow()`, `WHEEL_SHADOW_LITE=0`): a SHADOWS_ONLY child of the wheel's
+   mesh node (so it spins and steers with it), the far wheel's build at 40 segments (2.3-2.5k
+   triangles against 12.4-14.2k), shown exactly while the wheel is near; the near wheel itself
+   casts nothing. Car rigs only (trucks, lowriders, motorcycles keep theirs).
+2. **The near car wheel draws through generated LODs** (`PropFactory._with_lods()`, `WHEEL_LOD=0`):
+   13.6k -> 6.8k at 5 mm error, 3.4k at 7 cm; the renderer switches under a pixel.
+   One sedan alone in car_shot (`close`, `side`, `front3`): 171-207k -> 111-114k triangles,
+   195-295 pixels differ (`01_wheel_side_ab.jpg`).
+3. **The knee-high plants' shadow twins take the trees' shadow LOD scale**
+   (`PropFactory._mark_knee_shadow()`, meta `knee_shadow_lod`, read by MultiMeshBatch with the
+   palms' and trees' metas; `KNEE_SHADOW_LOD=0`).
+4. **A person between 12 m and the shadow range casts from the welded middle body**
+   (`Pedestrian._lite_shadow()`, `shadow_full_range` 12 m, `PED_SHADOW_LITE=0`): a skinned
+   SHADOWS_ONLY sibling sharing the rig's skeleton and skin (~2,100 triangles, the body the same
+   people wear from 50 m), made the first time it is wanted; inside 12 m the rig casts as before.
+   Under the dummy renderer there is no welded body (no mesh data) and the rig keeps its shadow.
+
+### After: main plain against the branch plain (same box, warm caches)
+
+| camera | main | branch | change |
+|---|---|---|---|
+| street_noon | 7.19 M / 3,530 | 6.89 M / 3,520 | -4.1 % (shadow 3.06 -> 2.80 M) |
+| street_night | 7.06 M / 3,620 | 6.93 M / 3,630 | -1.8 % |
+| sunset | 2.53 M / 1,195 | 2.44 M / 1,193 | -3.3 % |
+| golden_aerial | 5.07 M / 3,010 | 4.84 M / 2,995 | -4.5 % |
+| downtown_aerial | 3.56 M / 1,978 | 3.40 M / 1,962 | -4.6 % |
+| beach | 0.509 M | 0.509 M | 0 |
+| hills | 1.714 M | 1.709 M | -0.3 % |
+| freeway | 5.93 M / 2,775 | 5.22 M / 2,757 | **-11.9 %** (5.55-6.09 M on main across three runs) |
+| macarthur | 5.58 M (split run) | 5.18 M / 3,213 | -7 % |
+| pier_night | 1.19 M (split run) | 1.21 M | noise |
+
+So every camera is back at or under Perf audit 4's "after" level, the freeway within 0.1 M of it
+with half again as many cars on the deck. `refcams.py compare`: street noon and freeway flagged on
+pixels only - the bus and the walkers moved between runs (`03_compare_street_noon.jpg`); the rest
+within tolerance.
+
+### Memory
+
+- **Refcams:** the first-ever run on a fresh box (empty Godot and Mesa shader caches) was
+  OOM-killed at camera 9 at 13.9 GB anon RSS; every later run of the ten peaked 8.5 GB (6.2 GB
+  after the load, +0.3-0.8 GB a camera hop). A launch with `LOAD_CACHE=0` (cold far city and bake)
+  peaked 6.2 GB after the load, the same as warm: the cold load path is not it. Run refcams once
+  for a few cameras on a fresh box before a full set, or expect the kill.
+- **The gate:** see the table below (`SMOKE_PROFILE=1` + `tools/perf_audit_4/gate_rss.py`).
+
+**The gate** (`SHARDS=3`, `SMOKE_PROFILE=1`, this branch merged with main a48fa02f): 5,196 of
+5,197 passed in 2,208 s; the one failure, "a dispatch at five stars sends one of the agency's
+trucks onto the street", passes alone (`SMOKE_PARTS=wanted_escalation_checks`, 38 / 38) - an
+intermittent, not this branch (the agency's trucks wear BigVehicles' own wheel rigs, untouched).
+Shard peaks **2,902 / 3,763 / 3,792 MB**: two shards are now over the 3,600 MB target (under the
+4,000 MB budget). What raises RSS, by part (`tools/perf_audit_4/gate_rss.py`; the city load first):
+
+| shard | the load | then the parts that add most |
+|---|---|---|
+| 0 | city_polish 2,110 MB | city_crowd +286, masjid_checks +252, engine_audio +68 |
+| 1 | city_streaming 2,990 MB | freeway_incidents +257, garage_drive_in +239, hospital +139 |
+| 2 | city_cars 2,277 MB | **police_station +579**, **mac_verify_pack +473**, city_people +210 |
+
+The two new big ones are parts that teleport into areas their shard has not streamed:
+police_station_checks (the stations and the HQ) and mac_verify_pack_checks (wave 4: a real
+one-camera verify run, street_night downtown). RSS never comes back after a part (the allocator
+keeps the pages), so the next memory work is either these two staging nearer `stage_home()` or
+`PART_COST` dealing them to different shards (both landed on shard 2 here).
+
+### Not done / next
+
+(1) The car bodies' shadow twins (0.30 M on the freeway, cars 30-70 m: the far twin at LOD bias
+0.3) - a cheaper twin or a shorter `body_shadow_distance` would be the next car cut, but a car's
+shadow at 50 m is visible from a deck. (2) The facade kit's shadow twins (0.35 M at street noon,
+the roofline within its 80 m reach). (3) Golden aerial's FarCity (1.1-2.0 M depending on what
+streamed first). (6) CPU per physics tick: only the whole was measured (`tools/cpu_probe.gd` at the street-noon
+spawn, headless on the 4-core box: process 40.7 ms a frame, physics 12.9 ms a step, 425 active
+bodies); the per-script table (`BY_SCRIPT=1`) runs ~3.5 min a row here and was stopped. The cuts
+here add no per-tick work (the twins are made once, toggled on a tier change). (4) The crowd cut was not shown in a still (the strict refcam mode hides people);
+it was judged by the welded body's own use from 50 m. (5) Forward+ not looked at (geometry-only cuts).
+
+## 9kv. The alley at night (refcam `alley_night`), 2026-11-01 (agent branch `wt/rc2-alley-night`)
+
+**The camera.** A new reference view in `tools/refcams/cameras_w5.json` (wave 5's table):
+`alley_night`, the downtown brick service alley of block 19,-1 at (1797, 1.7 agl, -71.7) looking
+east (yaw -90, pitch 2, FOV 55) down the alley to the skyline, 23:00, clear. Run it with
+`REFCAMS_JSON=tools/refcams/cameras_w5.json python3 tools/refcams/refcams.py run <dir> --only alley_night`.
+Found with `tools/alleys/probe.tscn -- AREA=1700,-1700,3900,2000 WALLED=0.6` (its EYE lines).
+
+**What read as a game** (main, `shots/rc2-alley-night` 01): a clean, evenly lit, bone-dry slab
+(nothing for the lamps to shine in); bulkhead lamps that were a lit box with a faint smudge under
+them; the plain brick between the back doors bare (StreetWear's spot finder sees the back walls
+as window bays and finds little wall); nothing moving in the air. Fixed, all behind `AlleyNight`
+(`scripts/world/alley_night.gd`, `ALLEY_NIGHT=0` the A/B), hooked into the alley pass by one line
+each in `AlleyKit._lamp_at()` / `_face()` / `_dress()` / `wear()` and `Alleys.commit()`:
+1. **Standing water that mirrors the alley.** `alley_ground.gdshader` (behind `wet_on`, 0 by
+   default: the shared material and every other alley are bit-identical with it off): water down
+   the V-gutter in lengths and in the slab's low spots along the wheel paths, a darker damp halo
+   round each, roughness 0.03. The water EMITS what it mirrors (`canyon_mirror()`): the reflected
+   ray followed to the facade it meets (`wall_back` past the alley's edge, `wall_top` high) - dark,
+   washed warm or cool round each lamp head on it - or the night sky (`sky_tint`) over the walls,
+   plus each lamp's own image (where its mirror image meets the ground: a tight core and a streak
+   toward the eye). The heads are the chunk's (up to 18, chunk-local) on the AlleyGround's OWN
+   material copy (`AlleyNight.ground()`). Forward+ at `mirror_forward` 0.6 (its SSR and the real
+   omnis' specular add on top).
+2. **Lamps that read as lamps.** A small NightAtmos halo on every alley lamp (`HALO_SCALE` /
+   `HALO_STRENGTH` 0.6 of a street lamp's: the full one threw cobra-head lens streaks), and the pool
+   under it wider and stronger (`POOL_SIZE` 9.5 m, `POOL_STRENGTH` 1.35; was 7.5 / 0.85).
+3. **Steam.** A galvanised kitchen exhaust (hood, louvres, a grease stain) over `EXHAUST_ODDS` of
+   the back doors and a steaming drain in the gutter of half the runs, each breathing StreetClutter2's
+   steam plume (one `alley_steam` batch a chunk, `MAX_STEAM` 6, shadowless, 110 m).
+4. **Tags.** The plain stretches of each back wall (between the doors, docks and the fire escape,
+   recorded by `_face()`) get tags, throw-ups and buffs at hand height (`TAGS_PER_M` 0.32) through
+   `StreetWear._put()`, in the chunk's one wear cap (the refcam's chunk: 22 -> 41 wear pieces).
+Every roll is a hash of the seed and the place; AlleyKit's rngs are untouched, so no prop moves.
+
+**Checks** `tests/rc_alley_night_checks.gd` (the refcam's chunk: the ground's own material with
+the water on and one head per lamp, the heads on the walls, halos, the steam cap, the wear, the
+shader's switch, the A/B). `tests/alley_checks.gd` now compares the ground's shader, not the
+material object.
+
+**Forward+.** The city's chunks OOM lavapipe (13 GB, even one block), so the water is proved on
+`tools/alley_night/mirror_shot.tscn` (a 40 m alley on the real material, three lamps with real
+omnis, AgX; `WET=0` the dry slab; either renderer): both renderers show the same balance (lamp
+images, the wash, no blow-out; `shots/rc2-alley-night` 03).
+
+**Cost and A/B.** The refcam: 4.463 M -> 4.466 M triangles, 2,390 -> 2,559 draws (+7 %: the halos,
+the steam and the extra wear batches, and the per-chunk ground material breaks one batch), p50 37
+-> 34, p95 154 -> 162. The ten original cameras with ALLEY_NIGHT=0 against on: only traffic, rain
+and people noise moved (street_noon / street_night / freeway flags were cars, drops and the hidden
+cars' contact shadows); the `hills` camera hangs in this box's refcams run with and without the
+change (both runs stopped there), so it was not compared.
+
+**Gate** (SHARDS=3, merged with main): 5,202 of 5,203; the one failure, explosions_3's "burning
+debris lies flat" (2 of 5), passes alone (4 of 5). An earlier run's building_damage / parklets
+failures in shard 2 did not reproduce (that shard alone passed 1,893 of 1,893 with the change on and
+off).
+
+**Not done / not verified.** The mirror is a model of the canyon (two flat facades), not the real
+walls: windows and the skyline at the alley's end are not in it. The halos and pool numbers were
+judged on opengl3. The puddles are the same in every alley at every hour (they do not dry by day);
+the damp rings can read as shadow from far off.
+
+## 9kw. The canyon road refcam: a front-range switchback at 17:40 (fleet wave 5, `wt/rc2-canyon-road`)
+
+The task: a NEW reference view, `canyon_road`, on a front-range switchback road at 1.7 m, 17:40
+clear, looking out over the basin past a hill home; judge it against a 2026 AAA game and fix the
+worst three to five things. The row is in `tools/refcams/cameras_w5.json` (eye (545, 1.7 AGL,
+-1927.6), yaw 208, pitch -4, FOV 55: the uphill lane of Switchback 35 looking SSE down the road,
+the guardrail, a contemporary hill home on its pad, downtown standing in the smog). Stills on
+`shots/rc2-canyon-road`. Everything is behind **`CANYON_ROAD=0`** (`CanyonRoad`,
+`scripts/world/canyon_road.gd`), which is main's look exactly.
+
+**Finding the view.** `tools/rc2_canyon_road/probe.gd` (headless, seconds) lists points on the
+switchbacks and canyon roads with an estate within 90 m and the ground falling toward the basin;
+five candidates were shot from one load (Switchback 35 won: a 160 m bench with the whole basin
+below it).
+
+**What read fake, in the order the eye found it:**
+1. **The road.** Every hill road was one strip of the plain tiled asphalt photo (a
+   StandardMaterial, brown-grey) with a hard straight edge on the bank: no centre line, no edge
+   lines, nothing worn - a grey ribbon laid on a hill. `CityChunk._build_hill_roads()` now hands its
+   segments to `CanyonRoad.build()` (one hook line): the strip is rebuilt a piece at a time (the
+   old piece length and mitres) with a 1.1 m shoulder past each edge, UV.x the metres across from
+   the centre line and UV2 (half width, outer half width), on `shaders/canyon_road.gdshader`
+   (linear, color_space): the asphalt at its own luminance (the photo's brown read as dirt),
+   mottled, patched, polished in the tyre tracks, oil down each lane's middle, sealed joints (the
+   longitudinal joint by the centre line and one down a wheel path, wandering, in broken runs, plus a
+   sparse net of finer snakes - the first try was |fbm - 0.5| contours and read as a map), a worn
+   double yellow and white edge lines (speckled where they thin, faded to their mean under a pixel),
+   the asphalt's edge crumbled into gravel and dirt, the shoulder's outer edge torn into the bank
+   (discard). Roads under 5 m wide (estate lanes) keep the plain strip; fire roads, pads and drives
+   are not drawn here, as before. Wet: darker and smoother from `road_wetness`.
+2. **No guardrail on a drop.** A canyon road with the basin falling away beside it had nothing
+   between the lane and the drop. `CanyonRoad.needs_rail()` (pure): where the carved ground 4.5 m
+   (and 7.5 m) past the edge stands 1.6 m under the road, the fill side gets a W-beam (a seven-point
+   section) on 6x8 timber posts with blockouts every 1.905 m, reflector tabs every eighth post, the
+   run's ends bent down into the ground over a piece (buried ends), kept 9 m off any estate's
+   driveway mouth and off other roads' junctions; one mesh a FULL chunk (`HillGuardrail`, drawn to
+   260 m) on `shaders/canyon_guardrail.gdshader` (two-sided: galvanised zinc with spangle, grime
+   and rust weeping from the splices; weathered grey timber; retroreflective tabs after dark).
+3. **Pale eggs on the bank.** `_scatter_hills()`'s boulders (two scans, uniform at random, 15 %
+   sunk, ±0.25 rad tilt) sat on the slope like eggs on a lawn. `CanyonRoad.bed_rock()`, AFTER the
+   rolls (the rng stream is untouched): a boulder where `RcHills.cluster()` (its own offset) is under
+   0.42 is left out with its collision box, the rest squashed to 0.78 of their height and sunk 30 %
+   of it more (the collision box follows).
+
+**Looked at and left:** the near grass shells and ground read blue-grey on the opengl3 still (the
+sky ambient on the Compatibility renderer; not tuned from it: measurement trap 4); the dark
+evenly spaced shrub mounds (HillScatter / HillShrub, gathered by rc-hills already); the house's long
+stark pad wall.
+
+**An engine hang that blocks every opengl3 city run on this box.** refcams.py, still_shot.gd and
+city_shot.gd hung 4 times out of 5 right after the load (`LOADING far city: ...` the last line, the
+process idle, every thread in a futex wait). gdb: the main thread waits in WorkerThreadPool under a
+virtual call on `RaycastOcclusionCull` (vtable typeinfo `20RaycastOcclusionCull`), i.e. occlusion
+culling's threaded raycast buffer update, with every worker idle - a lost wakeup. It happens on
+main too (`street_noon` alone), with `WARM_REHEARSAL=0`, and with `worker_pool/max_threads=1`. The
+workaround used for every shot of this task (before and after alike, so the comparison is fair): a
+temporary `override.cfg` with `[rendering] occlusion_culling/use_occlusion_culling=false` (never
+commit it). Occlusion culling changes no pixel, only the counted triangles and draws. A watchdog
+wrapper that kills and retries a stalled run is the other half (`/tmp`-only; the loop is: log
+static 300 s after "far city" and the process under 10 % CPU for 30 s). Not fixed in the engine.
+
+**Measured** (refcam canyon_road, opengl3 1280x720, occlusion off, one load each): CANYON_ROAD=0
+5,495,237 tris / 2,016 draws (shadow 1,191,851), on 5,695,492 / 2,037 (shadow 1,327,675): +3.6 % /
++1 %, most of it the rail in the shadow passes. The rail is one mesh a chunk; the road one mesh as
+before. Luminance p5/p50/p95 26/53/179 -> 27/61/179 (the asphalt at its luminance, the paint).
+
+**Ten-camera compare** (`refcams.py compare`, all ten + canyon_road, CANYON_ROAD=0 against on): only
+canyon_road moves (p50 +8, saturation +0.04); freeway is flagged for moved traffic only (its diff
+map is the cars); every other camera within a level and 0-2.3 % of its triangles (hills +0.2 %).
+
+**Gate** (SHARDS=3, on the merge of main `5de88f6c` + this branch): 5,202 checks, 3 failed -
+pedestrian_flow's sidestep, street_clutter_2's "hash-seeded" and explosions_3's flat debris - all
+three pass run alone with the canyon checks (88 / 88). street_clutter_2's "the same block built
+twice gets the same pieces" also failed in the first sharded run (before the merge): an
+intermittent outside this work, worth a look. Peak RSS 3.76 GB a shard.
+
+**Checks:** `tests/rc2_canyon_road_checks.gd` (the camera row, the materials and their shaders'
+paint / shoulder / linear handling, the boulders gathered and bedded and pure, the switchback's
+FULL chunk building its road on the canyon material and a guardrail, the road at the eye railed on
+one side only). Probe: `tools/rc2_canyon_road/probe.gd`.
+
+**Not done / not verified:** never seen on the Mac (Forward+): the road and rail colours are linear
+by construction but only judged on opengl3. No delineator posts, curve signs or utility poles
+along the hill roads. The LOD chunks draw the canyon material too (their roads are visible from the
+basin) but no rail. Fire roads stay unpaved and unmarked (`draw: false`).
+
+## 9kx. The mayhem refcam (fleet wave 5, rc2-mayhem, 2026-11-01)
+
+A NEW reference camera, `mayhem` in `tools/refcams/cameras_w5.json` (its own file, one row a line,
+same format as cameras.json): Wilshire in midtown at (760, 318) looking east down the boulevard
+toward downtown, 3 m up, 18:00 clear, FOV 60. It is STAGED (`"stage": "mayhem"`): refcams_shot.gd,
+once the chunks round the eye stand, loads `tools/refcams/mayhem_stage.gd`, which (all in the
+camera's frame, the cars seeded) puts the hero 4.6 m ahead with his rifle up and firing, blows up
+a wreck 34 m out (burning and smoking by the shot), puts ten civilians on both pavements 36-65 m
+out and panics them from 95 m (they run back past the hero), calls a three-star police standoff
+(Police.stage_for_shot), then blows up a car 18 m out and steps the effect clock to
+`MAYHEM_FX_TIME` (0.6 s) the way fx_shot.gd does; the settle frames hold it. No other camera is
+staged (checked); `_unstage()` puts the hero, the aim and the stars back. Knobs: MAYHEM_FX_TIME,
+MAYHEM_STARS, MAYHEM_NO_POLICE / _CAR / _WRECK, MAYHEM_DUMP=1 (every flat thing near the car
+printed, to name a surface in the still). Run it:
+
+```
+REFCAMS_JSON=tools/refcams/cameras_w5.json GODOT=... python3 tools/refcams/refcams.py run build/refcams/<label> --only mayhem
+```
+
+About 20 minutes on a 4-core box (the 45 load frames under llvmpipe are most of it).
+
+What read fake, worst first, and what changed (`RcMayhem`, `scripts/weapons/rc_mayhem.gd`;
+`RC_MAYHEM=0` is the A/B of all of it):
+1. **A flat salmon disc round the shooter.** GunplayFeel's main muzzle light (7 energy, 9 m,
+   attenuation 1.4) lit the road in a disc clipped at its range; frozen in a still (or photo mode)
+   it was a 9 m pink circle. `RcMayhem.dress_muzzle()`: 4.2 m, attenuation 2.2 - a muzzle flash is
+   a small source.
+2. **The police pool** (police_wash.gdshader `rc_soft`): a soft falloff at a third of the bank's
+   HDR red instead of `pow(1 - d, 2.2)` at full - from a chase camera it stood at saturation over
+   most of its 10 m.
+3. **A flat red disc under a burning car.** CarDamage's fire light (11 m, attenuation 1.4) lit the
+   road in a saturated disc cut at its range (the opengl3 still; desktop only, the web has no
+   fire light). `RcMayhem.dress_fire_light()`: inverse square (2.0), range 14 m, energy x1.6 -
+   about as bright on the car's own flank, fading out long before the range.
+4. **A script error** under every staged blast: `Emergency._scan` ran `is` on a wreck the cap had
+   just freed. Main fixed the same line meanwhile (wave 5 batch 33); the merge keeps main's.
+
+**Handed to explosions-4 (the lead moved the blast to that session; this branch leaves every
+blast_* / fire_puff file as main has it).** The worst thing in this camera is the fireball itself:
+on Forward+ (lavapipe, tools/explosions_2/blast_room_shot.gd CAR=1) the explosions-3 volume is
+white-hot over its whole surface at 0.3 s - `field()` in blast_volume.gdshader starts the
+temperature at 0.57 x heat everywhere, so every billow sits in the blackbody's white stage and the
+car blast reads as a cream cotton ball, then a tan sphere at 0.8 s and brown smoke at 3 s. What
+worked here (tried and reverted, stills 04 / 05 on shots/rc2-mayhem): temperature from the depth
+into the ball, `heat * (0.34 + sh.y * 1.05 + (n1 - 0.5) * 1.3 + (n2 - 0.5) * 0.9)`, and a fuel
+ball's outside going to soot from ~0.03-0.35 s (`(1 - smoothstep(0.05, 0.45, sh.y))`, more in the
+creases by n2), made opaque - 0.3 s orange with a hot heart, 0.8 s a dark sooty mass with fire in
+its gaps, 3 s grey-black. Also: on the Compatibility renderer (desktop opengl3 stills, the refcams)
+the march's per-frame jitter shows as a crosshatch over the whole fireball (no TAA there); twice
+the steps with the jitter at 0.5 removed it.
+
+Found and left alone: the dark flat rectangle on the road under the fireball (every run, the
+same world spot near the right kerb, x ~778-790, z ~320-325) is not the blast's: MAYHEM_PROBE=<dir>
+saves the frame again with each suspect hidden (scorch quad, contact shadows, car undersides, every
+vehicle, crash litter, debris) and none removed it, nor did Compatibility's lights-per-object cap
+(tried at 16, reverted) - it is street hardware in the parking lane (steel plates), dark and glossy
+under the fire. The officers stand stiff in the standoff; traffic differs run to run (a semi was
+launched in one run), and any car or truck whose body comes within 10 m of the eye is hidden for the shot.
+
+Stills on `shots/rc2-mayhem`. Checks `tests/rc2_mayhem_checks.gd`.

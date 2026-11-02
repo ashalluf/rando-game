@@ -76,6 +76,8 @@ static var last: Dictionary = {}
 static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0) -> void:
 	var fuel := fuel_next
 	fuel_next = false
+	var gas := Blast4.gas_next
+	Blast4.gas_next = false
 	if not enabled or node == null or not node.is_inside_tree():
 		return
 	var parent := WeaponFX.fx_parent(node)
@@ -84,8 +86,11 @@ static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0
 	last = {}
 	var heavy := _take_heavy(node)
 	var push := clampf(power, 0.5, 2.0)
-	var big := radius * (1.25 if fuel else 1.0)
+	var big := radius * (1.25 if fuel or gas else 1.0)
+	var vol := Blast3.this_blast_volume
 	(WeaponFX._fire_material() as Material).set("shader_parameter/relief", 0.75)
+	Blast4.this_fuel = fuel
+	Blast4.this_gas = gas
 	_flash(node, parent, at, big)
 	_screen_flash(node, at, big)
 	if not WeaponFX._web():
@@ -97,10 +102,12 @@ static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0
 		last["volume"] = 1 # Blast3's volume fireball took the rolling fire
 	Blast3.this_blast_volume = false
 	if heavy:
-		_column(parent, at, big, fuel)
+		_column(parent, at, big, fuel, vol and Blast4.enabled)
 		last["debris"] = BlastDebris.spawn(node, parent, at, big, push, mini(debris_pieces + (3 if fuel else 0), max_debris))
 		last["glass"] = _glass(node, at, radius)
 	last["heavy"] = heavy
+	# The fourth pass: the fuel pool, the secondary pops, the chain (Blast4).
+	last.merge(Blast4.after_blast(node, parent, at, radius, fuel, gas))
 
 
 ## True while fewer than `max_heavy` blasts went off in the last `heavy_window` seconds.
@@ -138,9 +145,9 @@ static func _flash(node: Node, parent: Node, at: Vector3, radius: float) -> void
 	lt.tween_method(func(t: float):
 		if is_instance_valid(light):
 			var f := 0.82 + 0.18 * sin(t * 61.0) * sin(t * 23.0 + 1.3)
-			light.light_energy = glow_energy * pow(1.0 - t, 1.6) * f
-			light.global_position = at + Vector3.UP * radius * (0.45 + 0.9 * t),
-		0.0, 1.0, glow_time)
+			light.light_energy = glow_energy * pow(1.0 - t, Blast4.glow_fall()) * f
+			light.global_position = at + Vector3.UP * radius * Blast4.glow_height(t, glow_time),
+		0.0, 1.0, glow_time * Blast4.glow_stretch())
 	lt.tween_callback(light.queue_free)
 	# The white-hot flare: one additive billboard several radii across, gone in a tenth of a
 	# second. It is what the eye sees as "too bright to look at" before the fireball has a shape.
@@ -311,7 +318,7 @@ static func smoke_material() -> ShaderMaterial:
 
 ## The cap and the column. Both are lit puffs in the column node's own space (local_coords), so
 ## an origin re-centre carries them; the column node shifts with the scene like everything else.
-static func _column(parent: Node, at: Vector3, radius: float, fuel: bool) -> void:
+static func _column(parent: Node, at: Vector3, radius: float, fuel: bool, v4: bool = false) -> void:
 	_prune_columns()
 	while _columns.size() >= max_columns:
 		var old: Node = _columns.pop_front()
@@ -370,12 +377,44 @@ static func _column(parent: Node, at: Vector3, radius: float, fuel: bool) -> voi
 	stem_ramp.colors = PackedColorArray([Color(0.05, 0.045, 0.04, 0.0), Color(0.055, 0.05, 0.045, 0.85),
 		Color(0.065, 0.06, 0.055, 0.8), Color(0.085, 0.08, 0.075, 0.55), Color(0.11, 0.11, 0.11, 0.0)])
 	col.color_ramp = stem_ramp
+	if Blast4.enabled and not v4:
+		# Blast4, on the card path (the web, or no room for another volume): more, bigger, thinner
+		# puffs, so the column is one rising mass instead of a string of separate grey balls.
+		col.amount = WeaponFX._count(int(column_life * 15.0))
+		col.scale_amount_min = radius * 0.65
+		col.scale_amount_max = radius * 0.95
+		col.spread = 18.0
+		var thin := Gradient.new()
+		thin.offsets = stem_ramp.offsets
+		thin.colors = PackedColorArray([Color(0.05, 0.045, 0.04, 0.0), Color(0.055, 0.05, 0.045, 0.6),
+			Color(0.065, 0.06, 0.055, 0.55), Color(0.085, 0.08, 0.075, 0.36), Color(0.11, 0.11, 0.11, 0.0)])
+		col.color_ramp = thin
 	var reach := column_life * column_rise * 1.6 * sc + radius * 4.0
 	for e: CPUParticles3D in [cap, col]:
 		e.custom_aabb = AABB(Vector3(-reach, -radius, -reach), Vector3(reach * 2.0, reach + radius, reach * 2.0))
+		if v4:
+			e.emitting = false # (Blast4: started late below, or never)
+			continue
 		e.restart()
 		e.emitting = true
 	var t := holder.create_tween()
+	if v4:
+		# Blast4: the volume IS the cap and the stem for its life; the cards are the smoke it hands
+		# over to - from high up, where its cap is, once it starts to thin.
+		cap.visible = false
+		var hand := Blast4.life_for(fuel, false) * 0.5
+		col.position = Vector3.UP * radius * Blast4.handover_height(hand)
+		col.emission_sphere_radius = radius * 0.7
+		col.initial_velocity_min = column_rise * 0.25 * sc
+		col.initial_velocity_max = column_rise * 0.5 * sc
+		_scale_curve(col, radius * 0.8, radius * 1.05, 3.0)
+		t.tween_interval(hand)
+		# (Hidden until then: a CPUParticles3D that never ran draws its whole multimesh at its origin.)
+		col.visible = false
+		t.tween_callback(func():
+			if is_instance_valid(col):
+				col.visible = true
+				col.restart())
 	t.tween_interval(column_emit)
 	t.tween_callback(func(): if is_instance_valid(col): col.emitting = false)
 	t.tween_interval(column_life + 2.5)

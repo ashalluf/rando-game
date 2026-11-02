@@ -3703,6 +3703,13 @@ already mapped so milestone 2 is script-only.
   distance (wail, yelp, air horn, the agency's hi-lo), a synthesised police radio announces every
   new star and calls more often, and a line under the stars names the response. No real agency's
   name or livery; `WANTED_ESCALATION=0` restores the old response.
+- **2026-11-01 The alley at night (rc2-alley-night, HANDOFF "The alley at night").** A new
+  reference camera, a downtown service alley at 23:00. Decisions: the alleys are always wet in
+  patches (restaurant backs are hosed down; the alley shader's water does not wait for rain), and
+  the water's reflection is modelled (the alley as two facades lit round its own lamps, the sky
+  above) and EMITTED, so the web and the Compatibility renderer see it too; the bulkhead lamps get a
+  smaller halo than a street lamp's; steam comes from kitchen exhausts and drains, tags fill the
+  plain back walls. All behind ALLEY_NIGHT=0.
 
 ## Correction: what build 135 (0ce833f) actually contained
 
@@ -4093,6 +4100,14 @@ none of either.
   material are merged (the knee-high plants: sunset -37 % draws); palm shadow twins follow the
   trees' shadow LOD rule (the one cut that moves pixels: frond-shadow speckle at 100+ m). All
   behind HORIZON_TILES / FAR_COVER_HIDE / PLANT_MERGE / PALM_SHADOW_LOD =0.
+- **2026-11-02 Perf audit 5: what casts a shadow is lighter than what is drawn (perf-audit-5,
+  HANDOFF "Perf audit 5").** Wave 4 put the frame back over Perf audit 4's numbers mostly through
+  shadows: the near car wheel (12-14k triangles, no LODs, every cascade) on a freeway now full of
+  cars, the knee-high plants' shadow twins at full LOD bias, the crowd's heavier rigs. Decisions:
+  a near wheel casts from a plain 40-segment twin and draws through generated LODs; the knee-high
+  plants follow the trees' shadow LOD scale; a person past 12 m casts from the welded middle body.
+  Proved per mesh and per car (car_shot A/B), and on the refcams: freeway -12 %, MacArthur -7 %.
+  WHEEL_SHADOW_LITE / WHEEL_LOD / KNEE_SHADOW_LOD / PED_SHADOW_LITE =0 are the A/Bs.
 - **2026-10-31 Traffic that reads alive at eye level (traffic-behaviour-2, HANDOFF "Traffic that
   reads alive at eye level").** The street traffic's IDM queues stood like parked furniture at a
   red; now drivers creep, inch, ease off the brake, signal out of a bus stop, wait in the box to
@@ -4223,3 +4238,28 @@ none of either.
   back and replaced the chunk standing there. CityStreamer now cancels a pending build once the
   block stands at the wanted level (STALE_BUILD_CANCEL=0 the A/B); a hidden shopper whose door was
   rebuilt finds it again (REVIVE_DOORS=0). Gate loops run from their own worktree.
+- **2026-11-01 The fireball lives on as the mushroom, and fuel keeps burning (explosions-4, HANDOFF
+  "The blast, fourth pass").** The third pass's ray-marched fireball died after a few seconds and
+  handed over to card smoke, which is where every blast read as a game effect. Decision: the volume
+  itself lives on for 9-12 s and rolls up into a vortex-ring cap over a stem (curl-advected noise,
+  three shadow taps, lit from below by the fires actually burning), and the card column only takes
+  over at half its life. A car or a pump is a fuel blast: a pool of burning fuel where it went up,
+  two to four secondary pops, and a chain fuse to the cars beside it (depth-limited). The bang
+  arrives at the speed of sound and the shake with the wave. All behind EXPLOSIONS_4=0; the web
+  keeps the cards.
+
+- **2026-11-02 The canyon road refcam: hill roads read as roads (rc2-canyon-road, HANDOFF "The
+  canyon road refcam").** A new reference view on a front-range switchback (cameras_w5.json,
+  `canyon_road`). Decisions: every drawn hill road at least 5 m wide is a marked two-lane canyon
+  road with a gravel shoulder (one shader, the lateral metres in the strip's UVs; everything else
+  off true world XZ, so chunks meet); a fill side whose ground falls 1.6 m within 4.5 m of the edge
+  gets a W-beam guardrail on timber posts with buried ends (pure, off the plan's ground; off
+  driveways and junctions); the hill boulders are gathered and bedded after their rolls, so no
+  seed's layout moves. CANYON_ROAD=0 the A/B. Occlusion culling hangs the opengl3 stills on this
+  box (an engine lost wakeup in RaycastOcclusionCull); shots are taken with it off.
+
+- **2026-11-01 The mayhem refcam: a staged combat moment is judged like the other cameras
+  (rc2-mayhem, HANDOFF "The mayhem refcam").** The eleventh view lives in cameras_w5.json and is
+  staged by a script the row names, so effects, police and crowd are judged where a player sees
+  them. A muzzle flash lights a few metres, a burning car's light falls off by the inverse square,
+  the police pool falls off softly; the fireball's look belongs to explosions-4. RC_MAYHEM=0 is the A/B.

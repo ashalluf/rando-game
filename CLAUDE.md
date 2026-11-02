@@ -1573,6 +1573,23 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   whole cut-out white). The web keeps the cards and particles. `EXPLOSIONS_3=0` is the A/B; strips
   `tools/explosions_2/blast_room_shot.gd` (FULL, CAM_X, LOOK_Y; `BLAST3_DEBUG=1` the volume's
   opacity); checks `tests/explosions_3_checks.gd`.
+- The blast, fourth pass (2026-11-01, fleet wave 5 "explosions-4", docs/HANDOFF.md "The blast,
+  fourth pass"): `Blast4` (`scripts/weapons/blast_4.gd`; hooks in Blast3.spawn_volume, BlastFX,
+  Explosion.blast, PropBreak's pump, `CarDamage.chain_fuse()`) - the volume LIVES ON as the mushroom
+  (blast_volume.gdshader `v4`, every block behind it: a vortex-ring cap over a stem, the noise rolled
+  round the ring core and curl-advected, three shadow taps, lit by Blast3's fires at night; 9 s, a
+  car 12, gas 8; BlastFX's card cap left out, its column handed over at half life); `BlastPool`
+  (`scripts/weapons/blast_pool.gd`, `shaders/blast_pool.gdshader`) burning fuel where a car or pump
+  went up; secondary pops; a chain fuse to the cars beside a fuel blast (`chain_depth`); a shot
+  petrol pump is a gas blast (`gas_next`); the bang at the speed of sound with a thump, the shake with
+  the wave. `EXPLOSIONS_4=0` is the A/B; strips blast_room_shot.gd (`GAS=1`, `WEB=1`); checks
+  `tests/explosions_4_checks.gd`.
+- The mayhem refcam (2026-11-01, docs/HANDOFF.md "The mayhem refcam"): `mayhem` in
+  `tools/refcams/cameras_w5.json` is STAGED (`"stage": "mayhem"` -> `tools/refcams/mayhem_stage.gd`:
+  hero firing, a car blast, a burning wreck, a police standoff, fleeing people). `RcMayhem`
+  (`scripts/weapons/rc_mayhem.gd`): a short muzzle light, police_wash's soft pool, an inverse-square
+  burning-car light (the fireball's own look is explosions-4's; HANDOFF lists what this view found). `RC_MAYHEM=0` is the A/B; checks
+  `tests/rc2_mayhem_checks.gd`.
 - Street props break by KIND (2026-10-06, docs/HANDOFF.md "Street props that break like GTA"):
   `PropBreak` (`scripts/world/prop_break.gd`) takes `damage_prop()` / `break_prop()`: a hydrant
   leaves a `HydrantGeyser` (13 m column, wet patch, lifts the player) and a flange; a shelter loses
@@ -3153,6 +3170,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `ALLEYS=0` in the environment is the A/B; `tools/alleys/probe.tscn` lists alleys (`WALLED=`
   walled-in ones, an EYE each) and builds one block (`BUILD=bx,bz`: props by kind, triangles;
   `ALLEY_TIME=1` the steps' times); checks `tests/alley_checks.gd`.
+- The alley at night (2026-11-01, refcam `alley_night` in tools/refcams/cameras_w5.json,
+  docs/HANDOFF.md "The alley at night"): `AlleyNight` (`scripts/world/alley_night.gd`, hook lines in
+  AlleyKit and `Alleys.commit()`): standing water in alley_ground.gdshader (`wet_on`, the chunk's
+  own material copy with its lamp heads) that emits a mirror of the alley (two facades lit round
+  each lamp, the sky, the lamps' images); small halos and wider pools on the bulkhead lamps; steam
+  from kitchen exhausts and drains (`alley_steam`); tags on the plain back walls. `ALLEY_NIGHT=0`
+  the A/B; checks `tests/rc_alley_night_checks.gd`.
 - Car dealerships (2026-10-05, "the auto rows of LA's boulevards"; HANDOFF 9da): `CarDealers`
   (`scripts/world/car_dealers.gd`, static). **Where is worked out, never placed**: an avenue-wide
   road is an auto row by a hash (`ROW_ODDS`), a stretch of `RUN` blocks of it has dealers by a
@@ -4178,6 +4202,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the ridge sign `HillSignLetters` (strokes on a pipe frame, each letter on its own ground), the far
   sign's rigid seat held off inside the LOD ring (far_canopy `rigid_real_reach`).
   `RC_HILLS=0` is the A/B; probe `tools/rc_hills/sign_probe.tscn`; checks `tests/rc_hills_checks.gd`.
+- The canyon road refcam (2026-11-02, docs/HANDOFF.md "The canyon road refcam"): `CanyonRoad`
+  (`scripts/world/canyon_road.gd`, one hook in `_build_hill_roads()`) rebuilds drawn hill roads
+  >= 5 m wide with a gravel shoulder and lateral metres in UV.x on `shaders/canyon_road.gdshader`
+  (double yellow, edge lines, sealed joints, crumbling edge) and lays a W-beam guardrail
+  (`canyon_guardrail.gdshader`) where `needs_rail()` finds a fill-side drop; `bed_rock()` gathers
+  and beds `_scatter_hills()`'s boulders after their rolls. `CANYON_ROAD=0` is the A/B; refcam
+  `canyon_road` in `tools/refcams/cameras_w5.json`; checks `tests/rc2_canyon_road_checks.gd`.
+  opengl3 city stills can hang in Godot's occlusion raycast (a lost wakeup): shoot with a temporary
+  `override.cfg` `[rendering] occlusion_culling/use_occlusion_culling=false`, never committed.
 - The hills' planted volume (2026-10-30, docs/HANDOFF.md "The hills' planted volume"): `HillScatter`
   (`scripts/world/hill_scatter.gd`, one step after `_plant_hills` in both levels' HILLS list) puts
   a code-built clump (three lumpy domes, 63 / 15 / 6 triangles on one buffer, measured edges) on
@@ -6359,6 +6392,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   per batch: merge it (`PropFactory.MERGE_BY_MATERIAL`, the knee-high plants via `PLANT_MERGE=0`).
   Palm shadow twins take the trees' shadow LOD scale (`PALM_SHADOW_LOD=0`). Gate memory by part:
   `SMOKE_PROFILE=1` + `tools/perf_audit_4/gate_rss.py`.
+- Perf audit 5 (2026-11-02, docs/HANDOFF.md "Perf audit 5"): what casts is lighter than what is
+  drawn - the near car wheel casts from `PropFactory.car_wheel_shadow()` (a SHADOWS_ONLY child of
+  the wheel mesh) and has generated LODs, the knee-high plants' twins carry meta `knee_shadow_lod`
+  (the trees' shadow LOD scale), a person between `Pedestrian.shadow_full_range` (12 m) and the
+  shadow range casts from the welded middle body (a skinned sibling). A new heavy code-built mesh
+  near the camera gets a shadow twin and LODs. `OSPLIT_CATS=` on still_shot / refcams splits any
+  category. The first refcams run on a fresh box (empty shader caches) peaks far higher (13.9 GB,
+  OOM) than later ones (8.5 GB).
 - Memory (2026-10-05, docs/HANDOFF.md "Memory audit"): the smoke test fails past a peak-RSS
   budget (`tests/memory_audit_checks.gd`, 4,000 MB, `MEMORY_BUDGET_MB`; it peaked at 2.94 GB; the
   shards' own target is 3,600 MB).
