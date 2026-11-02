@@ -58,3 +58,8 @@ Round 4 (opengl3, the room): 24-26 the five-case strips before (top) / after (bo
 at 2.5 s, before left / after right (gas, chain, rocket): one rolling lit front instead of three
 layers standing up into a flat beige wall. 28 / 29 the golden-hour car at 20 m and the night car,
 before. The daylight plume pales with age (value4): sunlit billows lighter, folds darker.
+
+Round 12/13: 69 the debris smoke ribbons before (long straight grey wires across the sky) / after
+(short broken puffs, under 8 m each, widening and fading with age). 70 the heavier masonry burst on
+a facade at 30 m and 14 m (slabs, pale masonry dust, a rubble heap at the foot). 71 the 14 m view
+at 0.6 s full size. 72 the 150 m aerial on Forward+ (lavapipe): 0.15, 0.6, 2 s.
