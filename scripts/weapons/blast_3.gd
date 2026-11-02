@@ -167,18 +167,23 @@ static func fire_list(tree: SceneTree) -> Array[Vector4]:
 	var out: Array[Vector4] = []
 	_fires = _fires.filter(func(l): return is_instance_valid(l) and (l as Node).is_inside_tree())
 	for l: OmniLight3D in _fires:
-		if out.size() >= 4:
-			break
 		var str_ := clampf(l.light_energy / maxf(BlastFX.glow_energy, 0.01), 0.0, 1.0)
 		if str_ > 0.02:
 			out.append(Vector4(l.global_position.x, l.global_position.y, l.global_position.z, floorf(maxf(l.omni_range, 1.0)) + str_ * 0.499))
-	if tree != null and out.size() < 4:
+	if tree != null:
 		for c in CarDamage._burning:
-			if out.size() >= 4:
-				break
 			if is_instance_valid(c) and c is Node3D and (c as Node).is_inside_tree():
 				var p: Vector3 = (c as Node3D).global_position + Vector3.UP * 1.2
 				out.append(Vector4(p.x, p.y, p.z, 14.0 + 0.6 * 0.499))
+	if out.size() > 4:
+		# The four nearest the camera: the smoke shader takes four, and the first four registered
+		# were older fires (earlier blasts' glows, a car burning across town) while the one in front
+		# of the camera went unlit (the gate's "the pool's fire lights the smoke").
+		var cam := tree.root.get_camera_3d() if tree != null and tree.root else null
+		var eye := cam.global_position if cam else Vector3.ZERO
+		out.sort_custom(func(a: Vector4, b: Vector4) -> bool:
+			return Vector3(a.x, a.y, a.z).distance_squared_to(eye) < Vector3(b.x, b.y, b.z).distance_squared_to(eye))
+		out.resize(4)
 	return out
 
 
