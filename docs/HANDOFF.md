@@ -27575,3 +27575,71 @@ held them with the courts; c_e in the probe's candidates - `2610,1.7,3290,180` -
 the office glass is still a shader trace, not a room; the LOD far boxes do not carry the pop-out.
 Forward+ (the Mac) not verified: the glass mirror is emitted in linear (sky_tint decoded), the
 rest are albedo in display numbers through the shaders' own disp()/to_lit().
+
+## 9ln. The freeway at night (wave 6 refcam3, branch `wt/rc3-freeway-night`)
+
+The task: a NEW reference view, `freeway_night` (`tools/refcams/cameras_w6.json`): the 110
+northbound at 22:00 clear, a driver's eye 1.2 m over the deck in lane 2 at (1795.8, 1092.3), yaw
+-14, toward the downtown skyline, with the traffic's tail lights ahead, the sign gantries and the
+light standards in frame. Judge it like an art director, fix the worst three to five things.
+
+**The view needed staging first.** The load's own freeway traffic put a box truck on the lens
+(still 00). `refcams_shot.gd` takes an optional `freeway_cars` key (README there): cars placed
+through `TrafficManager.place_freeway_car()` three frames before the shot, `ahead` metres along
+the route in the look direction, in a given lane, and every other traffic car within `clear` metres
+hidden for the shot. Eight northbound (two trucks) and four southbound are staged.
+
+**What gave it away, in the order the eye lands on it (still 01):**
+1. **A flat blue slab of a deck.** Each median standard's two cobra heads threw a 46 x 16 m soft
+   dot every 48 m: one continuous warm strip over the carpool lane, nothing under the light and no
+   darker road between two standards; the other three lanes were moonlit blue.
+2. **Lights that light nothing.** The heads had no real light: cars, trucks, the barriers and the
+   gantries drove through the pools as dark shapes.
+3. **The traffic went dark past a few cars.** A car's lamp mesh stopped drawing at 160 m
+   (`Vehicle._add_night_lights`), so the line of tail lights the view is about was three or four
+   pairs, then unlit bodies.
+4. Seen and left: the eucalyptus right of the deck reads as pale limbs on opengl3 (its leaves
+   dither to nothing there; TAA on the Mac resolves them); the sail tower's lit crown is
+   intentional; the gantry signs' lettering is soft at 100 m.
+
+**What changed** (`FreewayNight`, `scripts/world/freeway_night.gd`; `FREEWAY_NIGHT=0` is the A/B,
+which puts every number back):
+- *Cobra pools.* light_pool.gdshader has a `cobra_size` branch (off by default: x the head's height,
+  y / z the quad, w a gain) that FreewayKit's light-standard pools take (their u shifted by 4,
+  `pool(..., cobra = true)`): a 62 x 28 m quad centred under each head carrying a point source's
+  illuminance, (1 + d^2/h^2)^-1.5 with h = HEAD_H 12.7 m, rim eased. Bright under the standard, a
+  fifth of it halfway to the next, the outer lanes dimmer; the quad stays on the deck (it would
+  float in the air past the edge). The bents' under-deck pools keep the old dot.
+- *Real lights near the camera.* A FreewayNight node (made by the first FULL freeway chunk under the
+  city root) deals `budget()` OmniLight3Ds (8 Forward+, 6 Compatibility desktop, 0 on the web) to the
+  nearest heads every 0.25 real seconds (`heads_near()`, pure on the plan: FreewayKit's rule, every
+  LIGHT_EVERY-th segment, none under the stack), ahead of the camera first. They are `lamp_light`s
+  (DayNight drives them, NightLamps normalises them for the head's height, x LIGHT_GAIN 0.45). The
+  deck top is on its own render layer (`DECK_LAYER`, layer 17) which their cull mask leaves out:
+  the deck's light is its pools at every distance, so a near pool is never brighter than a far one;
+  the cars, the barriers, the poles and the gantries are lit. (A blast's crater decal, cull mask 1,
+  no longer lands on the deck top.)
+- *Far tail lights.* Freeway cars' lamp meshes draw to FAR_LIGHTS (720 m; car_lights.gdshader keeps
+  a far lamp's core 1.5 px across), street cars go back to 160 m (a pooled car changes job).
+
+**Checks:** `tests/rc3_freeway_night_checks.gd` (heads: count, order, pairs and spacing, HEAD_H over
+the deck, the pool on the deck, none under the stack; the pool material's numbers and the A/B; the
+shader branch off by default; a FULL deck on DECK_LAYER and the lights' mask; a placed freeway car's
+reach and the street cars'). Compile and the heads round the camera: `tools/freeway_night/compile.tscn`.
+
+**Measured** (refcams, opengl3 1280x720, staged traffic): the camera on main 6.35 M triangles /
+3,278 draws (p5/p50/p95 4/41/116); this pass 6.39 M / 3,324 (5/49/114): the +46 draws are the
+freeway cars' lamps past 160 m. The ten original cameras, `FREEWAY_NIGHT=0` against on in one tree:
+seven identical (pixel |d| 0.01-1.3), street_noon / street_night / freeway flagged by the traffic
+moving between runs (a bus in street_night; the noon street flags too, where this change does
+nothing). The opengl3 city load peaked at 10.7 GB on this box (refcams, ~12 min to load).
+Gate (`SHARDS=3`, merged with origin/main 0c5f221a): 5,465 checks, all passed; shard peaks
+3,404 / 3,769 / 3,692 MB, 2,046 s.
+
+**Not done / not verified.** Forward+ (the Mac) not rendered: lavapipe climbed past the box's 15 GB
+compiling pipelines even for one block (`fwd_block_shot BLOCKS=home`), so the cobra pool's
+display-space add and the lights' strength on Forward+ are reasoned (the pool path is the old
+display_add one, the lights are ordinary `lamp_light`s), not seen. The pools' rhythm is clearer from
+the air than at the driver's grazing angle. Seen and left: the right-of-way eucalyptus's pale limbs
+on opengl3, the gantry lettering's softness, no headlights of the viewer's own car (the camera has
+no car). Stills on `shots/rc3-freeway-night`.

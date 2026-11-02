@@ -2881,6 +2881,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The vernon_industrial refcam (tests/rc3_vernon_industrial_checks.gd, RcVernon): worn steel,
 	# the office storefront and pop-out, the courts' asphalt and trailers, weathered tilt-up.
 	load("res://tests/rc3_vernon_industrial_checks.gd").new().run(self, city)
+	# The freeway at night refcam (tests/rc3_freeway_night_checks.gd, FreewayNight): pools, lights, tail lights.
+	await load("res://tests/rc3_freeway_night_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

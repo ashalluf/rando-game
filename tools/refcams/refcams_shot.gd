@@ -123,6 +123,8 @@ func _run() -> void:
 					park = load("res://tools/refcams/park_stage.gd").new()
 					if not park.call("stage", self, cam, scene, plan):
 						park = null
+			if i == frames - 3:
+				_stage_freeway_cars(cam, scene)
 			await process_frame
 			_place(player, fov)
 			if day:
@@ -155,6 +157,10 @@ func _run() -> void:
 			_clear_lens(cam.name)
 		if park and _eye_cam:
 			park.call("clear_people", self, _eye_cam.global_position)
+		for car in _fw_staged:
+			if is_instance_valid(car) and _eye_cam:
+				print("REFCAM %s: staged %s at %.1f m, visible %s, in tree %s" % [cam.name, car.name, (car as Node3D).global_position.distance_to(_eye_cam.global_position), (car as Node3D).is_visible_in_tree(), (car as Node).is_inside_tree()])
+		_fw_staged.clear()
 		await process_frame
 		if not _hero.is_empty():
 			_hero_report(player, cam.name)
@@ -219,6 +225,56 @@ func _stage_street_cars(cam: Dictionary, scene: Node, plan: Variant) -> bool:
 			placed += 1
 	print("REFCAM %s: placed %d street cars on road %d (axis %d at %.1f)" % [cam.name, placed, best, axis, float(plan.road_pos(axis, best))])
 	return true
+
+
+## A camera row's optional `freeway_cars` (wave 6, freeway_night): {"route": the Freeway route
+## index, "clear": metres round the eye in which no other traffic car is kept, "cars": [[ahead, li,
+## dir, speed, kind], ...]} - freeway cars placed through TrafficManager.place_freeway_car() a few
+## frames before the shot, `ahead` metres along the route from the eye in the direction the
+## camera looks (dir -1 runs toward the route's start), in lane `li` (0 by the median), `kind` a
+## Vehicle.BodyType name or "". Rows without the key place nothing.
+var _fw_staged: Array = []
+
+
+func _stage_freeway_cars(cam: Dictionary, scene: Node) -> void:
+	var spec: Variant = cam.get("freeway_cars")
+	var traffic := scene.get_node_or_null("Traffic")
+	if not spec is Dictionary or traffic == null or _eye_cam == null:
+		return
+	var fw: Variant = traffic.call("_freeway")
+	if fw == null:
+		return
+	var ri := int(spec.get("route", 3))
+	var eye: Vector3 = get_root().get_node("/root/WorldState").call("to_world", _eye_cam.global_position)
+	var t0: float = fw.nearest_on(ri, Vector2(eye.x, eye.z))[0]
+	var look := -_eye_cam.global_transform.basis.z
+	var d: Vector2 = fw.point_at(ri, t0)[1]
+	var toward := 1.0 if Vector2(look.x, look.z).dot(d) >= 0.0 else -1.0
+	var clear := float(spec.get("clear", 40.0))
+	for v in traffic.get("freeway_cars"):
+		var car := v as Node3D
+		if is_instance_valid(car) and car.global_position.distance_to(_eye_cam.global_position) < clear:
+			car.visible = false
+			print("REFCAM %s: hid %s (inside the staged clearance)" % [cam.name, car.name])
+	var width := float(fw.routes[ri].width)
+	var fw_script: GDScript = fw.get_script()
+	var body_types: Dictionary = load("res://scripts/vehicles/vehicle.gd").get_script_constant_map().get("BodyType", {})
+	var placed := 0
+	for c: Array in spec.get("cars", []):
+		var kind := -1
+		if c.size() > 4 and String(c[4]) != "":
+			kind = int(body_types.get(String(c[4]), -1))
+		var dir := int(c[2])
+		var car: Node3D = traffic.call("place_freeway_car", ri, t0 + float(c[0]) * toward, dir, kind, float(c[3]))
+		if car == null:
+			continue
+		var t: Dictionary = car.get("traffic")
+		t.lane = float(fw_script.call("lane_fraction", width, int(c[1]))) * float(dir)
+		t.li = int(c[1])
+		traffic.call("_place_freeway_car", car, fw)
+		_fw_staged.append(car)
+		placed += 1
+	print("REFCAM %s: placed %d freeway cars on route %d at t %.1f" % [cam.name, placed, ri, t0])
 
 
 ## A camera row's optional "air" key (cameras_w5.json): AirTraffic.stage() of that kind with
