@@ -25203,6 +25203,11 @@ and a car inside the 9 m overlap draws both bodies; the car paint and cabin glas
 `discard` (their depth pre-pass already ran their own vertex code). Not measured on a GPU - ask the
 owner for an F1 FULL screenshot of a busy street.
 
+**Gate trap found on the way:** headless reports `forward_plus`, so LodFade and CarLodBlend run in
+the gate; and a check file that built a real Vehicle in the city (even freed at once) made the
+NEXT file's "the same block built twice" check fail (`night_atmos_checks`, in shard 2 only). The
+checks here use free-standing meshes and a stand-in "vehicle" node instead.
+
 **Not done.** The FULL chunk's arrival (its trees, props and cars appear at once while the LOD
 boxes dissolve; at the ring's 240 m it is a few pixels each); shadow twins still cut (a shadow
 cannot be faded); mesh LOD switches inside a batch (Godot picks them by pixel error); the crowd's
