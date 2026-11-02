@@ -313,10 +313,17 @@ static func crater_maps(kind: int) -> Array:
 	noise.frequency = 0.03
 	noise.fractal_type = FastNoiseLite.FRACTAL_FBM
 	noise.fractal_octaves = 4
+	var smooth := Blast4.enabled and Blast4.crater_smooth
 	var fine := FastNoiseLite.new()
 	fine.noise_type = FastNoiseLite.TYPE_VALUE
 	fine.seed = 17
 	fine.frequency = 0.35
+	# Blast4 round 5: at 5 m a value noise's cells read as blocky steps along every finger (the
+	# specks are a threshold of it): a smooth noise with a soft threshold instead.
+	if smooth:
+		fine.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+		fine.fractal_type = FastNoiseLite.FRACTAL_FBM
+		fine.fractal_octaves = 2
 	var cell := FastNoiseLite.new()
 	cell.noise_type = FastNoiseLite.TYPE_CELLULAR
 	cell.seed = 5
@@ -331,6 +338,8 @@ static func crater_maps(kind: int) -> Array:
 	for i in 46:
 		var a := rng.randf() * TAU
 		var w := rng.randf_range(0.006, 0.05)
+		if smooth:
+			w = maxf(w, 0.014) # never thinner than a few texels across
 		var l := rng.randf_range(0.5, 0.97)
 		for b in bins:
 			var ang := TAU * float(b) / float(bins)
@@ -355,8 +364,12 @@ static func crater_maps(kind: int) -> Array:
 			var ang := atan2(v, u)
 			var nz := noise.get_noise_2d(float(x), float(y)) * 0.5 + 0.5
 			var fz := fine.get_noise_2d(float(x), float(y)) * 0.5 + 0.5
-			var bi := int(wrapf(ang, 0.0, TAU) / TAU * float(bins)) % bins
-			var fr: float = reach[bi] * (0.9 + 0.2 * nz)
+			var bf := wrapf(ang, 0.0, TAU) / TAU * float(bins)
+			var bi := int(bf) % bins
+			var fr: float = reach[bi]
+			if smooth:
+				fr = lerpf(reach[bi], reach[(bi + 1) % bins], bf - floorf(bf))
+			fr *= 0.9 + 0.2 * nz
 			var col := Color(0.0, 0.0, 0.0)
 			var a := 0.0
 			var hgt := 0.0
@@ -370,7 +383,10 @@ static func crater_maps(kind: int) -> Array:
 			var soot := 1.0 - smoothstep(fr * 0.75, fr, r)
 			soot *= 0.75 + 0.25 * fz
 			# Specks of soot past the fingers.
-			if r > fr and r < 0.95 and fz > 0.83 and nz > 0.45:
+			if smooth:
+				if r > fr and r < 0.95:
+					soot = maxf(soot, 0.55 * smoothstep(0.66, 0.74, fz) * smoothstep(0.4, 0.5, nz))
+			elif r > fr and r < 0.95 and fz > 0.83 and nz > 0.45:
 				soot = maxf(soot, 0.55)
 			if soot > 0.0:
 				var sc := Color(0.028, 0.026, 0.024).lerp(Color(0.075, 0.068, 0.06), fz * 0.5 + r * 0.4)
@@ -392,7 +408,7 @@ static func crater_maps(kind: int) -> Array:
 					var k2 := (r - pr) / (pr * 0.55)
 					var slab := smoothstep(0.02, 0.12, cz)
 					hgt = sin(k2 * PI) * (0.4 + 0.6 * fz) * slab + (1.0 - slab) * -0.3
-					col = Color(0.075, 0.07, 0.065).lerp(Color(0.17, 0.155, 0.14), slab * (1.0 if fz > 0.6 else 0.35))
+					col = Color(0.075, 0.07, 0.065).lerp(Color(0.17, 0.155, 0.14), slab * (lerpf(0.35, 1.0, smoothstep(0.52, 0.68, fz)) if smooth else (1.0 if fz > 0.6 else 0.35)))
 					if slab < 0.5:
 						col = Color(0.26, 0.23, 0.2) # the crushed base course between slabs
 					a = 1.0
@@ -400,6 +416,17 @@ static func crater_maps(kind: int) -> Array:
 					var da := absf(wrapf(ang - float(c[0]), -PI, PI))
 					var wob := (nz - 0.5) * 0.1
 					var cr: float = float(c[1])
+					if smooth:
+						# A soft crack a few texels wide, fading out toward its tip.
+						var cw := maxf(float(c[2]) * (1.3 - r), 0.007)
+						var tip := 1.0 - smoothstep(0.7, 1.0, (r - pr) / maxf(cr * (1.0 - pr), 0.001))
+						var ck: float = (1.0 - smoothstep(cw * 0.4, cw * 1.4, absf(da - wob) * r)) * tip * (1.0 if r >= pr else 0.0)
+						if ck > 0.0:
+							col = col.lerp(Color(0.012, 0.011, 0.01), ck)
+							hgt -= 0.4 * ck
+							a = maxf(a, 0.95 * ck)
+							glow = maxf(glow, 0.45 * ck * clampf(1.0 - (r - pr) / (pr * 0.35), 0.0, 1.0))
+						continue
 					if r > pr and r < pr + cr * (1.0 - pr) and absf(da - wob) * r < float(c[2]) * (1.3 - r):
 						col = Color(0.012, 0.011, 0.01)
 						hgt -= 0.4

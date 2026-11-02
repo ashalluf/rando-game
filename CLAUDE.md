@@ -1623,8 +1623,11 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`scripts/weapons/blast_pool.gd`, `shaders/blast_pool.gdshader`) burning fuel where a car or pump
   went up; secondary pops; a chain fuse to the cars beside a fuel blast (`chain_depth`); a shot
   petrol pump is a gas blast (`gas_next`); the bang at the speed of sound with a thump, the shake with
-  the wave. `EXPLOSIONS_4=0` is the A/B; strips blast_room_shot.gd (`GAS=1`, `WEB=1`); checks
-  `tests/explosions_4_checks.gd`.
+  the wave; later rounds: a rolling lit dust front, the plume's value range, panel debris, the fires'
+  underlight on the cap, a held stem, fuel trails and flames up the wreck's sides, a soft crater.
+  `EXPLOSIONS_4=0` is the A/B (`BLAST_DUST_ROLL`, `BLAST_VALUE`, `BLAST_CHUNKS`, `BLAST_UNDERLIGHT`,
+  `BLAST_STEM`, `BLAST_WRECK_FIRE`, `BLAST_CRATER` =0 each part); strips blast_room_shot.gd (`GAS=1`,
+  `WEB=1`, `CAR=1 CHAIN=1`); checks `tests/explosions_4_checks.gd`.
 - The mayhem refcam (2026-11-01, docs/HANDOFF.md "The mayhem refcam"): `mayhem` in
   `tools/refcams/cameras_w5.json` is STAGED (`"stage": "mayhem"` -> `tools/refcams/mayhem_stage.gd`:
   hero firing, a car blast, a burning wreck, a police standoff, fleeing people). `RcMayhem`
