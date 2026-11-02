@@ -383,3 +383,9 @@ static func add_smoke(parent: Node3D, flames: Array) -> void:
 	mi.custom_aabb = Refinery._fx_aabb(flames, 110.0, 130.0)
 	mi.extra_cull_margin = 2000.0
 	parent.add_child(mi)
+
+
+## The plant's own material (RefineryKit.material(), from RefineryNight.apply()): the tanks' floods
+## as light on their paint in tight fans, the flares' light following the facing (rc4_look).
+static func apply_plant(mat: ShaderMaterial) -> void:
+	mat.set_shader_parameter("rc4_look", 1.0 if enabled else 0.0)

@@ -38,6 +38,8 @@ func _shader() -> void:
 	_t._check(inc.contains("float fall = (half_d * half_d) / (half_d * half_d + dist * dist);")
 		and inc.contains("return pow(q, -1.5) * (1.0 - smoothstep(reach * 0.7, reach, r));"),
 		"rc4-refinery-road: the shader's falloffs are RcRefineryRoad.light_at()'s")
+	_t._check(FileAccess.get_file_as_string("res://shaders/refinery.gdshader").contains("uniform float rc4_look = 0.0;"),
+		"rc4-refinery-road: the plant's old tank look is the default (rc4_look 0)")
 	var lamp := FileAccess.get_file_as_string("res://shaders/street_lamp.gdshader")
 	_t._check(lamp.contains("is_out = INSTANCE_CUSTOM.b;"), "rc4-refinery-road: a lamp that is out is dark (INSTANCE_CUSTOM.b)")
 
@@ -136,4 +138,13 @@ func _chunk(city: Node3D, plan: CityPlan, lay: Dictionary) -> void:
 			if m.shader != null and m.shader.resource_path.ends_with("road.gdshader") and float(m.get_shader_parameter("rr_on")) > 0.5:
 				dressed += 1
 	_t._check(dressed >= 2, "rc4-refinery-road: the site chunk's street and pavement wear the plant's light (%d meshes)" % dressed)
+	_t._check(int(chunk.get_meta("rr_verge", 0)) > 20, "rc4-refinery-road: weeds grow along the fence's foot (%d)" % int(chunk.get_meta("rr_verge", 0)))
+	_t._check(float(RefineryKit.material().get_shader_parameter("rc4_look")) > 0.5, "rc4-refinery-road: the plant's tanks take their floods in fans")
 	chunk.queue_free()
+	# The flares' smoke: one node of puffs on its own shader.
+	var host := Node3D.new()
+	RcRefineryRoad.add_smoke(host, [Vector3(0.0, 90.0, 0.0), Vector3(30.0, 80.0, 0.0)])
+	var smoke := host.get_node_or_null("RefineryFlareSmoke") as MeshInstance3D
+	_t._check(smoke != null and smoke.material_override == RcRefineryRoad.smoke_material() and smoke.custom_aabb.size.y > 100.0,
+		"rc4-refinery-road: the flares trail smoke")
+	host.free()

@@ -37,6 +37,8 @@ uniform float rr_mast_half = 12.0;
 uniform float rr_damp = 0.5;
 uniform float rr_glint = 1.0;
 uniform float rr_glint_power = 160.0;
+// The glints' share on Forward+ (see rr_light()).
+uniform float rr_glint_forward = 0.22;
 global uniform vec3 origin_shift;
 
 
@@ -109,6 +111,12 @@ vec3 rr_light(vec3 wpos, vec3 cam, inout vec3 albedo_io, inout float rough_io, f
 	// The glints only where the tarmac is smooth enough to hold them (a crack or a rough patch
 	// breaks the streak), dimmed by the albedo the light was not reflected off.
 	float smooth_k = 1.0 - smoothstep(0.45, 0.85, rough_io);
-	emit += cs_as_uniform(cs_linear_to_srgb(glint)) * fres * smooth_k * damp * rr_glint;
+	float glint_k = rr_glint;
+#if CURRENT_RENDERER != RENDERER_COMPATIBILITY
+	// Forward+ adds the emission in linear HDR under the night's higher exposure: at the
+	// Compatibility gain the flames' glint was a pale sheet across the lower half of the frame.
+	glint_k *= rr_glint_forward;
+#endif
+	emit += cs_as_uniform(cs_linear_to_srgb(glint)) * fres * smooth_k * damp * glint_k;
 	return emit * night;
 }
