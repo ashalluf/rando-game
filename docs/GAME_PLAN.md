@@ -4400,3 +4400,11 @@ none of either.
   edge crumbles in world-space grains, never a screen-space dither; a pad's service pickup is a real
   parked car, not a far twin, because it stands beside the road; a big site's planting is batched
   in cells, because a batch's range is measured to its centre. OIL_PLANTING=0 is the A/B.
+- **2026-11-02 The bonfire_night refcam: a ring never silently vanishes, and night sand is moonlit
+  (rc4-bonfire-night, HANDOFF "The beach bonfires at night").** A new reference camera
+  (`bonfire_night`, wave 7's table) stood on the sand at 21:00 behind a fire group toward the pier.
+  Decisions: a planned ring that a palm or a beach station blocks is slid along the shore to the
+  nearest clear spot rather than dropped (the plan stays pure; only the build moves it); a fire is
+  judged from 10-100 m, so it carries a glow whose core only comes in with distance; firelight falls
+  off within a few metres; the dry sand loses its colour by moonlight, gated on the clock, never on
+  sun_direction (the moon's at night). RC4_BONFIRE=0 is the A/B.

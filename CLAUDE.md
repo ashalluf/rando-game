@@ -6336,6 +6336,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`BonfireFigure`, BeachFigure bakes in STREET CLOTHES: `BeachGoer.clothed`). None in rain,
   storms or a Santa Ana. LOD chunks lay the pools. `BONFIRES=0` the A/B, `BONFIRE_LIT=1` lights
   every ring; probe `tools/bonfires/probe.gd`; checks `tests/bonfires_checks.gd`.
+- The beach bonfires at night (wave 7, refcam `bonfire_night` in `tools/refcams/cameras_w7.json`,
+  its `bonfire_lit` key = BONFIRE_LIT; docs/HANDOFF.md "The beach bonfires at night"): a ring whose
+  spot a palm, the tower or a beach station takes slides along the shore (`Bonfires.slide_clear()`,
+  `SLIDES`) instead of being dropped; the flames rise from the rim and fade out still orange; a
+  fog-free additive glow (`shaders/bonfire_glow.gdshader`, core only from afar); the pool and omni
+  fall off fast; beach_sand `night_look` (19:48-04:12 by `city_hour`: sun_direction is the moon's at
+  night) greys the dry sand. `RC4_BONFIRE=0` is the A/B; checks `tests/rc4_bonfire_night_checks.gd`.
 - The hero (owner, 2026-09-24: "Blender with real fingers from scratch AAA studio level"):
   `assets/models/hero.glb`, built by **`tools/hero/`** in Blender 4.2 with MPFB2 from CC0
   MakeHuman assets plus our own tracksuit, rib tank, rope chain, watch, ring, laced sneakers and
