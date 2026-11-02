@@ -26125,6 +26125,8 @@ into a running gate (check files are `load()`ed lazily, mid-run).
 | 15303 (again) | emergency stretcher | the body had landed 0.57 m up on something standing on the pavement (what stands there goes with the hour and day); the cot pusher steps up only 0.34 m | the down call chooses a spot with nothing on the pavement (a box query) |
 | batches 35-37 | crowd_anim_2 "a walker banks into a bend and straightens after it" | CrowdFlow's sidesteps on the straight are turns too | judged with CrowdFlow off for the bend |
 | 17101 | explosions_4 "the pool's fire lights the smoke" | `Blast3.fire_list()` hands the smoke shader four fires and took the FIRST four registered: older glows and burning cars across town filled them and the fire in front of the camera was left out | the four nearest the camera |
+| 18505 | film_studio "the backlot street's parked cars are real Vehicle bodies (0)" | the backlot's cars are placed only while `PhysicsBudget.can_spawn()`, and the city sat at the cap | the build runs with the cap lifted (the street_furniture rule) |
+| 18505 | pedestrian_flow "a follower walks beside its leader (mean 2.14 m, leader 6.9 m; 2 prop dodges city-wide, end gap 2.0 m)" | **not found**: the same numbers as 1303 and 6101, so a deterministic outcome some earlier state switches on; few dodges, so not the furniture | - |
 | (8101) | - | `CrowdFlow._pass_door()` sent walkers in at shop doors without sparing `no_trim` (the staging meta the flake rules promise every system leaves alone) | spares them now |
 | 8101 | service_vehicle "a tow truck is sent (physics budget full)" | PhysicsBudget at its 500-body cap in a busy city | the check gives the truck room in the cap for the send |
 | 8101, the lead's batches 35 / 37 | car_panic "a driver mounts the clear kerb ..." (up false, never a KERB panic) | the test found the kerb clear, then placed the follower and waited two ticks before `CarPanic.start()`, which looks again: a walker of a busy shard had stepped onto the kerb and the driver rightly swerved | the follower is placed and the panic started in the same frame the kerb was found clear (also in the retry loop) |
@@ -26134,7 +26136,8 @@ into a running gate (check files are `load()`ed lazily, mid-run).
 5,084 -> 5,443 checks as main grew): 31 shuffled runs, seeds 1101 .. 15303, each failure fixed as
 it appeared, so the tree moved under the runs (and main merged four times: batches 34-38).
 Clean: 1101, 1404, 1505, 1606, 2101, 2202, 10101, 10202, 10303, 12101, 13101, 14101, 15101 (13 of 31).
-Longest streak on one tree: three (1404-1606 on cb5cc5c4; 10101-10303 on 5a18bde8). **Five
+Longest streak on one tree: four (18101-18404 on d070d94e, then 18505 failed two checks); three
+twice before (1404-1606, 10101-10303). **Five
 consecutive clean runs on one unchanged tree were not reached**: about every other run still
 turned up a once-seen failure (1-2 checks of ~5,400), most of them a check leaning on a live
 system or on what an earlier file left, a few real game bugs (the stale pending build, the shop
