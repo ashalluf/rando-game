@@ -117,7 +117,7 @@ vec4 shop_room(vec2 p, vec3 d, float seed, float lit, float px) {
 	float t = min(tx, min(ty, tz));
 	vec3 h = o + d * t;
 	float rh = hash21(vec2(cell, seed));
-	vec3 wall = mix(vec3(0.42, 0.36, 0.28), vec3(0.50, 0.44, 0.40), rh);
+	vec3 wall = mix(vec3(0.20, 0.15, 0.11), vec3(0.28, 0.24, 0.20), rh);
 	vec3 lightc = mix(vec3(1.0, 0.78, 0.52), vec3(0.92, 0.95, 1.0), step(0.72, rh));
 	vec3 c;
 	float avg = smoothstep(0.25, 0.8, px * (1.0 + t * 0.4));
@@ -141,17 +141,19 @@ vec4 shop_room(vec2 p, vec3 d, float seed, float lit, float px) {
 		float shelf = fract(h.y / 0.42);
 		vec2 gc = floor(vec2(along / 0.24, h.y / 0.42));
 		float g1 = hash21(gc + seed * 1.7);
-		vec3 goods = mix(vec3(0.62, 0.10, 0.06), vec3(0.80, 0.60, 0.20), g1);
+		vec3 goods = mix(vec3(0.55, 0.06, 0.03), vec3(0.75, 0.48, 0.10), g1);
 		goods = mix(goods, vec3(0.12, 0.40, 0.22), step(0.72, hash21(gc * 1.3 + 2.0)));
 		goods = mix(goods, vec3(0.75, 0.74, 0.70), step(0.88, hash21(gc * 0.7 + 5.0)));
 		float item = step(0.22, shelf) * step(shelf, 0.86) * step(0.16, g1) * step(h.y, 2.3) * step(0.35, h.y);
 		float board = 1.0 - smoothstep(0.0, 0.07, shelf);
-		c = mix(wall, goods, mix(item, 0.4 * step(h.y, 2.3), avg));
+		c = mix(wall, goods, mix(item, 0.55 * step(h.y, 2.3) * step(0.35, h.y), avg));
 		c = mix(c, vec3(0.09, 0.07, 0.06), board * step(h.y, 2.4) * (1.0 - avg));
 		// The sides darker than the back (no light falls on them straight).
 		c *= t == tz ? 1.0 : 0.72;
 		// Light falling from the ceiling panels, brighter high up.
-		c *= 0.55 + 0.45 * smoothstep(0.0, 3.0, h.y);
+		c *= 0.45 + 0.55 * smoothstep(0.0, 3.0, h.y);
+		// Further in is further from the panels near the glass.
+		c *= 1.0 - 0.4 * clamp(-h.z / depth, 0.0, 1.0);
 	}
 	// A counter across the front third of some bays, its lit front toward the glass.
 	float cz = -1.3;
@@ -330,6 +332,17 @@ void fragment() {
 		vec3 glass = k == 7 ? mix(vec3(0.03, 0.035, 0.04), cs_srgb_to_linear(sky_tint.rgb) * 0.3, 0.3) : vec3(0.025, 0.02, 0.018);
 		col = mix(glass, frame, bars);
 		emit = room * (k == 7 ? window_night : window_night * 0.5) * lit * (1.0 - bars) * (k == 7 ? 1.0 : 0.6);
+		if (rc3 > 0.5 && k == 7) {
+			// rc3: a lit flat upstairs, not a cream panel - a lamp's warm pool high in the pane,
+			// falling off toward the sill, and drawn curtains (thin, backlit) in half the rooms.
+			float wv = clamp((fract((uv.y - 4.4) / 3.4) - 0.28) / 0.51, 0.0, 1.0);
+			float ch = hash21(floor(v_world.xz * 0.45) + floor(v_world.y / 3.0) * 3.3);
+			vec3 tone = mix(vec3(1.0, 0.55, 0.24), vec3(1.0, 0.72, 0.45), ch);
+			float grad = 0.35 + 0.65 * smoothstep(0.0, 1.0, wv);
+			vec3 curtain = mix(vec3(0.75, 0.18, 0.08), vec3(0.85, 0.70, 0.45), step(0.5, fract(ch * 7.0)));
+			vec3 inside = mix(tone * grad, curtain * 0.55, step(0.55, ch));
+			emit = inside * 0.85 * lit * (1.0 - bars);
+		}
 		if (rc3 > 0.5 && v_lit > 0.5) {
 			// The hall's screens: a warm hall behind the fretwork, brighter low (lamps inside),
 			// the timber itself catching a little of it.
