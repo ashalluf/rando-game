@@ -32,6 +32,7 @@ const K_TACTILE := 14
 const K_DARK := 15
 const K_MAP := 16
 const K_CEIL := 17
+const K_AD := 18
 
 const TILE_WALL := Color(0.90, 0.89, 0.86)
 const TILE_PLAT := Color(0.86, 0.87, 0.85)
@@ -206,6 +207,29 @@ func _disc(c: Vector3, out: Vector3, radius: float, col: Color) -> void:
 		tri(body, w, w + (a * cos(t0) + Vector3.UP * sin(t0)) * radius, w + (a * cos(t1) + Vector3.UP * sin(t1)) * radius, o, _kc(col, K_PAINT))
 
 
+## An ad lightbox centred at frame point `at` on a wall facing frame normal `out` (+-u or +-v):
+## a steel frame standing 8 cm off the wall and the print (K_AD, atlas UV baked in) on its face.
+func _ad(at: Vector3, out: Vector3, w: float, hgt: float, fmt: int, idx: int) -> void:
+	var axis := Vector3(1, 0, 0) if absf(out.z) > 0.5 else Vector3(0, 0, 1)
+	# The reader's right on that face (MetroBuild._text()'s rule), in frame terms.
+	var reading_w := Vector3.UP.cross(_n(out)).normalized()
+	var s := signf(reading_w.dot(_n(axis)))
+	var r := MetroLook.cell(fmt, idx)
+	# The frame: from the wall (8 cm behind the face) out to the face, 7 cm proud all round.
+	var hw := w * 0.5 + 0.07
+	var wall := at - out * 0.08
+	if axis.x > 0.5:
+		_box(at.x - hw, at.x + hw, at.y - hgt * 0.5 - 0.07, at.y + hgt * 0.5 + 0.07, minf(at.z, wall.z), maxf(at.z, wall.z), K_STEEL, STEEL * 0.55)
+	else:
+		_box(minf(at.x, wall.x), maxf(at.x, wall.x), at.y - hgt * 0.5 - 0.07, at.y + hgt * 0.5 + 0.07, at.z - hw, at.z + hw, K_STEEL, STEEL * 0.55)
+	var face := at + out * 0.003
+	var left := face - axis * s * w * 0.5
+	var right := face + axis * s * w * 0.5
+	var dn := Vector3.UP * hgt * 0.5
+	_q(body, left - dn, right - dn, right + dn, left + dn, out, K_AD, Color(1, 1, 1),
+		Vector2(r.position.x, r.end.y), Vector2(r.end.x, r.end.y), Vector2(r.end.x, r.position.y), Vector2(r.position.x, r.position.y))
+
+
 ## A glass pane in the frame (vertical or not), both faces.
 func _pane(a: Vector3, b: Vector3, c: Vector3, d: Vector3, n: Vector3) -> void:
 	quad(glass, _w(a), _w(b), _w(c), _w(d), _n(n), Color(1, 1, 1, 1))
@@ -359,7 +383,10 @@ func _platform_walls() -> void:
 			var at := Vector3(u, p + 3.05, v - side * 0.104)
 			_box(u - 2.3, u + 2.3, p + 2.65, p + 3.45, v - side * 0.1, v, K_ENAMEL, ENAMEL)
 			_text(str(f.name), 0.4, at, Vector3(0, 0, -side), M_WHITE, 4.3)
-			if k < 2:
+			if k < 2 and MetroLook.enabled and k != -1:
+				# Wave 7: an ad lightbox where a blank map board stood (one map a side stays).
+				_ad(Vector3(u + 6.0, p + 1.34, v - side * 0.081), Vector3(0, 0, -side), 2.6, 1.3, MetroLook.POSTER, MetroLook.ad_for([side, k]))
+			elif k < 2:
 				var mu := u + 6.0
 				_box(mu - 1.3, mu + 1.3, p + 0.75, p + 1.95, v - side * 0.08, v, K_STEEL, STEEL * 0.8)
 				_q(body, Vector3(mu - 1.2, p + 0.82, v - side * 0.081), Vector3(mu + 1.2, p + 0.82, v - side * 0.081),
@@ -413,6 +440,9 @@ func _bank() -> void:
 		_ramp_beam(ua, top_h + 1.05, ub, foot_h + 1.05, v, 0.07, K_RUBBER, ENAMEL)
 		_solid(-bu, bu, foot_h, top_h - 0.5, v - side * 0.05, v + side * 0.1)
 	_wall_v(-bh, bh, -bu, foot_h, top_h - 0.6, -1.0, K_TILE, TILE_PLAT)
+	if MetroLook.enabled:
+		# Wave 7: a bulletin lightbox on the bank's tiled back wall over the island.
+		_ad(Vector3(-bu - 0.09, foot_h + 2.35, 0.0), Vector3(-1, 0, 0), 4.3, 1.25, MetroLook.BULLETIN, MetroLook.ad_for(["bank"]) % 12)
 	# The block under the bank: steps of solid so nobody walks under it.
 	for i in 4:
 		var u0 := lerpf(-bu, ub, float(i) / 4.0)
@@ -526,7 +556,21 @@ func _lift() -> void:
 	_box(u - a - 0.06, u + a + 0.06, h1, h1 + 0.25, -a - 0.06, a + 0.06, K_STEEL, STEEL * 0.85, true)
 	# The car, parked at the platform: a steel floor and ceiling and a lit panel.
 	_box(u - a + 0.1, u + a - 0.1, h0, h0 + 0.05, -a + 0.1, a - 0.1, K_STEEL, STEEL * 0.6)
-	_box(u - a + 0.1, u + a - 0.1, h0 + 2.3, h0 + 2.36, -a + 0.1, a - 0.1, K_LAMP, LAMP, true)
+	if MetroLook.enabled:
+		# Wave 7: a car, not a lamp floating in the shaft - a steel canopy with an inset light
+		# panel, corner posts, kick plates and a top band, and a steel back wall with the rail.
+		var c0 := a - 0.1
+		_box(u - c0, u + c0, h0 + 2.3, h0 + 2.42, -c0, c0, K_STEEL, STEEL * 0.7, true)
+		_box(u - c0 + 0.22, u + c0 - 0.22, h0 + 2.28, h0 + 2.3, -c0 + 0.22, c0 - 0.22, K_LAMP, LAMP, true)
+		for cu: float in [-c0, c0]:
+			for cv: float in [-c0, c0]:
+				_box(u + cu - 0.04, u + cu + 0.04, h0 + 0.05, h0 + 2.3, cv - 0.04, cv + 0.04, K_STEEL, STEEL * 0.8)
+		for e: float in [-1.0, 1.0]:
+			_box(u + e * c0 - 0.03, u + e * c0 + 0.03, h0 + 0.05, h0 + 0.3, -c0, c0, K_STEEL, STEEL * 0.75)
+			_box(u + e * c0 - 0.03, u + e * c0 + 0.03, h0 + 2.12, h0 + 2.3, -c0, c0, K_STEEL, STEEL * 0.75)
+		_box(u - c0, u + c0, h0 + 0.05, h0 + 2.3, -c0, -c0 + 0.05, K_STEEL, STEEL * 0.9)
+	else:
+		_box(u - a + 0.1, u + a - 0.1, h0 + 2.3, h0 + 2.36, -a + 0.1, a - 0.1, K_LAMP, LAMP, true)
 	for rail_h: float in [h0 + 0.95]:
 		_beam(u - a + 0.12, -a + 0.15, u + a - 0.12, -a + 0.15, rail_h, rail_h + 0.04, 0.04, K_STEEL, STEEL)
 	_solid(u - a - 0.1, u + a + 0.1, h0, h1, -a - 0.1, a + 0.1)
@@ -814,6 +858,9 @@ func _material() -> ShaderMaterial:
 	m.set_shader_parameter("plat_ceil", MetroStation.PLAT_CEIL)
 	m.set_shader_parameter("box_u", MetroStation.BOX_U)
 	m.set_shader_parameter("conc_u", MetroStation.CONC_U)
+	if MetroLook.enabled:
+		m.set_shader_parameter("mirror_gain", MetroLook.MIRROR)
+		m.set_shader_parameter("ad_atlas", load(MetroLook.ATLAS))
 	return m
 
 
@@ -1024,3 +1071,5 @@ func _add_riders() -> void:
 		var p := ped._random_ring_point(3.0)
 		ped.position = Vector3(p.x, ped._ground_y(p.x, p.y, 0.0), p.y)
 		chunk.add_child(ped)
+	# People on the bank's escalators, and new arrivals while the player is down here (wave 7).
+	MetroCrowd.attach(chunk, f, line, idx, plan.seed)
