@@ -27964,15 +27964,21 @@ row's `street_cars` key (`axis` "x", at 2991). Run:
    the warm pool under each is 1.25x wider and 1.45x stronger, and the light under the marquee reaches
    17 m at 2.2x the lamps' level (meta `lamp_gain`).
 
-**Numbers** (refcams, opengl3, 1280x720): before p5/p50/p95 4/30/171, after 4/30/170 (the beams'
-glare out of the sky, the marquee and signs in); triangles 6.07 M -> see the final run in the
-shots README (the side dress, the trees gone); draws flat (no new node).
+**Numbers** (refcams, opengl3, 1280x720): before p5/p50/p95 4/30/171, after 5/33/189 (the beams'
+glare out of the sky, the lit sign and the marquee in); triangles 6.07 M -> 6.03 M, draws 3,018 ->
+3,036 (no new node: the side dress is on the palace's own surfaces). The ten original cameras
+against main: 3 flagged (street_noon, street_night, freeway), each by traffic alone (a bus or a
+truck elsewhere in the frame); street_night's searchlights are fainter too.
+
+**Known flaw.** In the painted name some curved letters (the R of EMPRESS, the U of PICTURES) drop
+out or draw faint - not z-fighting (7 cm off the wall changed nothing), something in
+`ShopfrontKit._text_geo()`'s outlines when lit (the blade sign's emissive letters hide it). It reads
+as worn paint; a real fix would bake the ghost sign into a texture or decal.
 
 **Traps found.** `tools/broadway_probe.gd` prints no palaces: under `--script` the autoloads do not
 exist, Broadway's dependencies fail to compile and `palaces()` returns nothing (a misleading empty
 list, not a regression; the game and the checks see all eleven). `ShopfrontKit._text_geo()` dropped
-the A of "THEATRE" in a painted line (the stacked blade-sign letters are fine), so the ghost sign
-says PICTURES. The `build/` folder needs a `.gdignore` before `--import`, or Godot imports every
+the A of "THEATRE" in a painted line (see the known flaw), so the ghost sign says PICTURES. The `build/` folder needs a `.gdignore` before `--import`, or Godot imports every
 refcam PNG. `pkill -f <pattern>` from the tool shell kills the shell itself when the pattern is in
 its own command line: kill by PID. A Forward+ small scene of the Broadway blocks
 (`fwd_block_shot.tscn`, BLOCKS=home + two EXTRA blocks, 800x450, one worker thread) was OOM-killed
