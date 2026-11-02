@@ -28090,7 +28090,21 @@ from the apron the stacks hide them - an eye in an aisle, e.g. (2885, 1.7, 6418)
 on the lens at `port_t` 96); the far city's port boxes get no flood (Skyline's lod_box path).
 
 **Forward+:** the flood is emission computed in renderer space (`col()`), the pools `display_add`.
-See the end of this section for the lavapipe check.
+Checked on lavapipe with `port_shot.gd NIGHT=1` against opengl3 (shots/rc4-port-night `03_*`): the
+same look, a touch brighter on the stacks under Forward+; no colour shift. The whole port_night view
+on Forward+ is not checked (the city does not fit lavapipe).
+
+**Frame cost** (opengl3 GEO, port_night): 929,401 tris / 566 draws / 326k shadow -> 947,433 / 591 /
+326k (+1.9 % triangles; the extra draws are each port chunk's halo and apron-pool batches).
+
+**Gate** (SHARDS=3, merged with main 20855e18): 5,665 checks, 1 failed - crowd_look_checks "a
+performer ahead and to the right is watched", which passes alone (`SMOKE_PARTS=crowd_look_checks,
+rc4_port_night_checks`: 56 / 56); peak RSS 3.8 GB a shard.
+
+**The ten refcams** (this branch with `PORT_NIGHT=0` -> on, one tree, `refcams.py compare`): eight
+within tolerance; street_night and freeway flagged on pixels by the traffic, crowd and rain alone
+(the diff maps hold only vehicles, people and drops; neither view sees the port); triangles within
++-3 %. Peak RSS of a ten-camera run 13.4 GB.
 
 **Tools.** `tools/rc4_port_night/probe.gd` (headless: the sources, each built port chunk's pools,
 apron pools and halos), `ground_probe.gd` (the yard's surface by ray against the relief),
