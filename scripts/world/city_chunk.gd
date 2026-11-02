@@ -1806,9 +1806,13 @@ func _scatter_hills() -> bool:
 			var v := rng.randi() % 2
 			var sc := rng.randf_range(0.6, 1.7)
 			var tilt := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, rng.randf_range(-0.25, 0.25))
-			_batch.add("rock_%d" % v, RockKit.mesh(RockKit.BOULDER_A + v) if RockOutcrops.enabled else PropFactory.model_rock(v), Transform3D(tilt.scaled(Vector3(sc, sc, sc)), at - Vector3(0.0, 0.15 * sc, 0.0)))
-			var size := (Vector3(2.4, 0.8, 1.2) if v == 0 else Vector3(2.4, 1.8, 2.4)) * sc
-			_add_shape(size, at + Vector3(0.0, size.y * 0.5 - 0.15 * sc, 0.0), yaw)
+			var rock_xf := Transform3D(tilt.scaled(Vector3(sc, sc, sc)), at - Vector3(0.0, 0.15 * sc, 0.0))
+			# Bedded and gathered (CanyonRoad.bed_rock(), after the rolls): [] leaves this one out.
+			var bed: Array = CanyonRoad.bed_rock(p, v, sc, rock_xf)
+			if not bed.is_empty():
+				_batch.add("rock_%d" % v, RockKit.mesh(RockKit.BOULDER_A + v) if RockOutcrops.enabled else PropFactory.model_rock(v), bed[0])
+				var size := (Vector3(2.4, 0.8, 1.2) if v == 0 else Vector3(2.4, 1.8, 2.4)) * sc
+				_add_shape(size, at + Vector3(0.0, size.y * 0.5 - 0.15 * sc - float(bed[1]), 0.0), yaw)
 		elif roll < 0.38:
 			var v := rng.randi() % 4
 			var sc := rng.randf_range(0.6, 1.2)
@@ -2152,6 +2156,8 @@ func _near_pad(p: Vector2, pads: Array[Dictionary], margin: float) -> bool:
 func _build_hill_roads() -> void:
 	var segs := _hill_segments()
 	if segs.is_empty():
+		return
+	if CanyonRoad.build(self, segs):
 		return
 	var area := owned_rect()
 	var st := SurfaceTool.new()
