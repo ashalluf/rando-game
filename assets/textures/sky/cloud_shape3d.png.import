@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://rq11r5t33oj8"
+path="res://.godot/imported/cloud_shape3d.png-34f5b2370b00df3e2ae72632e201783a.image"
+
+[deps]
+
+source_file="res://assets/textures/sky/cloud_shape3d.png"
+dest_files=["res://.godot/imported/cloud_shape3d.png-34f5b2370b00df3e2ae72632e201783a.image"]
+
+[params]
+
