@@ -28536,3 +28536,51 @@ the held sequence, the brick tint, the side dressing on both walls (none with th
 beam's and the marquee light's pass, the trees kept off a frontage. `tools/rc3_broadway_night/pick.gd`
 loads the city headless and prints what a grid of camera rays from an EYE lands on (which node is
 that wall?). Stills on `shots/rc3-broadway-night`.
+
+## 9mb. The canals by day from a footbridge (wave 7, refcam `canals_day`, branch `wt/rc4-canals-day`)
+
+**The view.** A new reference camera in `tools/refcams/cameras_w7.json` (created here, the
+cameras_w6.json format): Marisol Canals at 11:00 clear, standing on Heron Canal's southern
+footbridge (bridge at (-773.9, -55.9); eye (-772.3, 3.4 agl, -56.3), yaw 2, pitch -6, fov 55)
+looking north down the canal, the bridge's railing across the bottom of the frame, the houses on
+the water, docks and boats, the next footbridges and the front range beyond. The first eye stood
+on the arch's crown, where the crown newel filled the frame: moved 1.6 m off the crown, 0.9 m
+back from the rail.
+
+**What gave it away, in the order the eye found it, and the fixes** (`Rc4Canals`,
+`scripts/world/rc4_canals.gd`; `RC4_CANALS=0` is the A/B, the canals exactly as before):
+- **A dark strip down both sides of every canal.** Not paint: a slot. The coping's water face
+  stopped 5 cm under the bank's top (`BANK_TOP_Y - 0.05`) while the bank's top row, between
+  COPE_IN - 0.4 and COPE_IN, drops 27 cm, so between the coping and the grass you looked through to
+  the void (dark navy in the city, sky grey in block_shot). Found by tinting the coping top red and
+  its face magenta: the strip was neither. The face now runs down past that row
+  (`Rc4Canals.cope_foot()`). The face and the canal end walls also take the ground lift
+  (`Rc4Canals.lift()`): they were built at plain WALK_Y / COPE_Y, which is right where the relief is
+  0 and half a metre off where it is not (0.3 m at z -20, the site's south edge).
+- **The water was a cyan swimming pool.** On Compatibility the engine reflects the sky radiance
+  itself (shot `06_debug...`: the shader's emission off, the water still bright cyan with clouds
+  in it), and the shader's emitted mirror - the sky, the house fronts, the sun - was added on top,
+  so every mirrored house was washed out by a doubled sky. canal_water.gdshader's `rc4`: on
+  Compatibility SPECULAR 0 and the mirror at full gain (the shader carries the sun's glint); the
+  ruffle at 0.45 (still water, a faint breeze); the body a murky green-brown with mottling. Forward+
+  keeps SPECULAR 0.5 and SSR under its `mirror_forward` (not verified on lavapipe this session).
+- **The banks** were a clean lawn strip with a wide stripe of bare mud: the mud is a narrow wet
+  margin now, the grass less acid and clumpier (canal_bank.gdshader `rc4`), and the banks carry
+  more reed clumps, shrubs in drifts and a flowering ground cover under the coping
+  (`Rc4Canals.bank_planting()`, its own stream after the old rolls, existing batch keys plus one
+  flower batch).
+- **Boats**: one lot in eight had a boat tied to its bank; now 42 % (`BANK_BOAT_ODDS`; the same
+  hash, a higher threshold, so the old boats stay where they were).
+- **The railing** in the foreground was flat vertex white with no surface: the bridge mesh's paint
+  surface wears `Rc4Canals.rail_material()` (WhitePlaster02's grain, warm off-white).
+
+**Numbers** (refcams, opengl3, 1280x720): before (`RC4_CANALS=0`, same eye) p5/p50/p95 58/149/224,
+3.91 M tris, 3,021 draws; after 59/147/199, 4.07 M tris (+4 %), 3,058 draws (+1.2 %). The p95 drop
+is the water no longer near-white.
+
+**Not done / seen.** The water still mirrors made-up house fronts (the shader's planes), not the
+real houses across the canal (no planar reflection on Compatibility); the stucco boxes on the
+right of the view are plain; no people on the walks at that moment; the front range behind is the
+hills' look (not this area). Forward+ (the Mac) not shot. Checks: `tests/rc4_canals_day_checks.gd`.
+Stills on `shots/rc4-canals-day`.
+

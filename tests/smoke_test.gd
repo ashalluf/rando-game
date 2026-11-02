@@ -2914,6 +2914,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The broadway_night refcam (tests/rc3_broadway_night_checks.gd, BroadwayNight): signs held lit,
 	# blazing marquees, brick auditorium sides, soft searchlight shafts, the camera row, the A/B.
 	load("res://tests/rc3_broadway_night_checks.gd").new().run(self, city)
+	# The canals_day refcam (tests/rc4_canals_day_checks.gd, Rc4Canals): the water, the coping, the banks.
+	load("res://tests/rc4_canals_day_checks.gd").new().run(self)
 
 	city.queue_free()
 	_world_state().reset()

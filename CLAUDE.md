@@ -5087,6 +5087,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Every roll is a hash of the seed and the lot. `CANALS=0` in the environment is the A/B (no site,
   the blocks are ordinary beach town). Probe: `tools/canals/probe.gd` (layout, styles, bridges,
   road closures). Checks: `tests/canals_checks.gd`.
+- The canals by day (wave 7, refcam `canals_day` in `tools/refcams/cameras_w7.json`, docs/HANDOFF.md
+  "The canals by day from a footbridge"): `Rc4Canals` (`scripts/world/rc4_canals.gd`): canal_water's
+  `rc4` turns the engine's specular off on Compatibility (the shader's emitted mirror carries the sky;
+  doubled it was a cyan pool), calmer and murkier; the coping's water face runs past the bank's top
+  row (`cope_foot()`: a slot showed the void as a dark strip) and takes the ground lift; banks planted,
+  more boats, a painted railing. `RC4_CANALS=0` is the A/B; checks `tests/rc4_canals_day_checks.gd`.
 - The golf course (VISUAL_ROADMAP #98, 2026-10-05; docs/HANDOFF.md, golf section): Valley Oaks
   Golf Club (invented), nine holes, a range, a clubhouse, on the valley floor (x -389..298,
   z -3131..-2544, default seed). A landmark AREA like MacArthur Park (`GolfCourse.entry()`'s

@@ -3763,6 +3763,12 @@ already mapped so milestone 2 is script-only.
   in the shader (the pier's lamp rows as line sources on its steel, piles, sand and sea) where real
   lights cannot reach on Compatibility or past their fade; after dark people stroll the wet sand by
   a lit pier, clothed, in the crowd cap. RC4_PIER_NIGHT=0 (COAST_EXPOSURE=0 the exposure alone).
+- **2026-11-02 The canals by day (rc4-canals-day, HANDOFF "The canals by day from a footbridge").**
+  A new reference camera on a Heron Canal footbridge at 11:00. Decisions: a shader that emits its
+  own mirror (sky included) turns the engine's specular off on Compatibility rather than stacking
+  two skies; Forward+ keeps SSR. The canal's coping runs down past the bank's top row (a slot
+  between them showed the void as a dark strip). Banks planted to the waterline and more boats tied
+  up, every addition a hash after the old rolls. RC4_CANALS=0.
 
 ## Correction: what build 135 (0ce833f) actually contained
 

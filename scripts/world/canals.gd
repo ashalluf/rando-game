@@ -489,10 +489,15 @@ static func _ground(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
 				var p0 := Vector2(o, a0) if axis == 0 else Vector2(a0, o)
 				var p1 := Vector2(o, a1) if axis == 0 else Vector2(a1, o)
 				var facing := Vector3(-sgn, 0.0, 0.0) if axis == 0 else Vector3(0.0, 0.0, -sgn)
-				var qa := Vector3(p0.x, COPE_Y, p0.y)
-				var qb := Vector3(p1.x, COPE_Y, p1.y)
-				var qc := Vector3(p1.x, BANK_TOP_Y - 0.05, p1.y)
-				var qd := Vector3(p0.x, BANK_TOP_Y - 0.05, p0.y)
+				# Lifted by the ground like the coping's top and the bank (Rc4Canals: it was not, and
+				# on the beach town's terrace the face stood ~0.5 m low under an open slot).
+				var g0 := Rc4Canals.lift(ch, p0)
+				var g1 := Rc4Canals.lift(ch, p1)
+				var qa := Vector3(p0.x, COPE_Y + g0, p0.y)
+				var qb := Vector3(p1.x, COPE_Y + g1, p1.y)
+				var foot := Rc4Canals.cope_foot()
+				var qc := Vector3(p1.x, foot + g1, p1.y)
+				var qd := Vector3(p0.x, foot + g0, p0.y)
 				_wall_quad(cope_st, qa, qb, qc, qd, facing)
 				_acc(ch).faces.append_array([qa, qb, qc, qa, qc, qd])
 
@@ -587,10 +592,12 @@ static func _banks(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
 				var o1 := float(segs[k + 1])
 				var q0 := Vector2(float(c.c) + o0, end) if axis == 0 else Vector2(end, float(c.c) + o0)
 				var q1 := Vector2(float(c.c) + o1, end) if axis == 0 else Vector2(end, float(c.c) + o1)
-				var qa := Vector3(q0.x, WALK_Y, q0.y)
-				var qb := Vector3(q1.x, WALK_Y, q1.y)
-				var qc := Vector3(q1.x, bank_y(absf(o1)) - 0.02, q1.y)
-				var qd := Vector3(q0.x, bank_y(absf(o0)) - 0.02, q0.y)
+				var g0 := Rc4Canals.lift(ch, q0)
+				var g1 := Rc4Canals.lift(ch, q1)
+				var qa := Vector3(q0.x, WALK_Y + g0, q0.y)
+				var qb := Vector3(q1.x, WALK_Y + g1, q1.y)
+				var qc := Vector3(q1.x, bank_y(absf(o1)) - 0.02 + g1, q1.y)
+				var qd := Vector3(q0.x, bank_y(absf(o0)) - 0.02 + g0, q0.y)
 				_wall_quad(wst, qa, qb, qc, qd, facing)
 				_acc(ch).faces.append_array([qa, qb, qc, qa, qc, qd])
 			# A white railing along the pavement edge over the end wall.
@@ -855,6 +862,7 @@ static func _planting(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
 					var v := rng.randi() % 4
 					var sc := rng.randf_range(0.55, 0.85)
 					ch._batch.add("shrub_%d" % v, PropFactory.model_shrub(v), Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(sc, sc, sc)), Vector3(p.x, bank_y(o) - 0.03, p.y)), Color(0.9, 1.0, 0.9))
+				Rc4Canals.bank_planting(ch, c, ci, sgn, part, length, reed, reed_key)
 	ch._batch.set_draw_distance(reed_key, PLANT_DRAW)
 	ch._batch.set_no_shadow(reed_key)
 
@@ -885,7 +893,7 @@ static func _docks(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
 		var dir: float = lot.dir
 		if lot.dock:
 			CanalKit.add_dock(ch, p, dir, int(lot.seed))
-		elif _h01([ps, lot.seed, "bank_boat"]) < BANK_BOAT_ODDS:
+		elif _h01([ps, lot.seed, "bank_boat"]) < Rc4Canals.bank_boat_odds():
 			var boat := Vector3(p.x + dir * 0.6, WATER_Y, p.y + 1.0)
 			CanalKit.add_boat(ch, boat, PI * 0.5 if _h01([ps, lot.seed, "flip"]) < 0.5 else -PI * 0.5, int(lot.seed) ^ 77)
 
@@ -963,12 +971,14 @@ static func material(name: String) -> Material:
 			sm.set_shader_parameter("grass_tex", PropFactory.texture("grass", "Color"))
 			sm.set_shader_parameter("mud_tex", PropFactory.texture("hill_dirt", "Color"))
 			sm.set_shader_parameter("water_y", WATER_Y)
+			sm.set_shader_parameter("rc4", 1.0 if Rc4Canals.enabled else 0.0)
 			m = sm
 		"water":
 			var wm := ShaderMaterial.new()
 			wm.shader = load("res://shaders/canal_water.gdshader")
 			wm.set_shader_parameter("facade_offset", HALF + WALK_W + GARDEN + 2.2)
 			wm.set_shader_parameter("lot_width", LOT_W)
+			Rc4Canals.water(wm)
 			m = wm
 		"paint", "boat", "iron":
 			var pm := StandardMaterial3D.new()
@@ -977,6 +987,8 @@ static func material(name: String) -> Material:
 			pm.roughness = 0.55 if name == "paint" else (0.42 if name == "boat" else 0.5)
 			pm.metallic = 0.6 if name == "iron" else 0.0
 			m = pm
+		"rail_paint":
+			m = Rc4Canals.rail_material()
 		"timber":
 			var tm := (PropFactory.pbr("planks", 1.8, Color.WHITE) as StandardMaterial3D).duplicate() as StandardMaterial3D
 			tm.vertex_color_use_as_albedo = true
