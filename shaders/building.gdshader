@@ -321,6 +321,7 @@ uint shop_frame_index(uint shop) {
 	return b < 77u ? 0u : (b < 141u ? 1u : (b < 205u ? 2u : (b < 230u ? 3u : 4u)));
 }
 
+#include "res://shaders/interior_people.gdshaderinc"
 #include "res://shaders/shop_interior.gdshaderinc"
 #include "res://shaders/vinyl_lettering.gdshaderinc"
 // Which offices are lit and which spandrels are pale, rolled exactly as the far boxes roll them.
@@ -1392,12 +1393,12 @@ void fragment() {
 					float ceil_h = lobby ? sf_h + 0.85 * pt_floor : 0.86 * sf_h;
 					float deep = lobby ? 13.0 : mix(6.0, 9.5, shop_unit(shop_key, 45u));
 					room = shop_interior(vec3(x0, y0, 0.02), normalize(ray), shop_w, ceil_h, deep, shop_key, room_kind,
-						px_m, length(VERTEX), depth_t, room_lamp, room_glow);
+						px_m, length(VERTEX), TIME, shop_open || (mod(city_hour, 24.0) > 9.0 && mod(city_hour, 24.0) < 19.0), depth_t, room_lamp, room_glow);
 				} else {
 					// Offices are full of blinds.
 					// A pane blown out took the blind with it.
 					if (wi_is_home) {
-						room = home_room(w, ray, wide, high, room_depth, wi_k, TIME, wind_factor, night_factor, depth_t, room_lamp, wi_glow, wi_open_k);
+						room = home_room(w, ray, wide, high, room_depth, wi_k, TIME, wind_factor, night_factor, length(VERTEX), depth_t, room_lamp, wi_glow, wi_open_k);
 						wi_open_k *= dmg_state > 0.5 ? 0.0 : 1.0;
 					} else {
 						room = room_interior(w, ray, wide, high, room_depth, room_seed, dmg_state > 1.5 ? 0.0 : 0.72, facade_variety ? pv.z : -1.0, depth_t, room_lamp);
@@ -1408,7 +1409,7 @@ void fragment() {
 							bool in_now = wi_worker(wi_k) && (night_factor < 0.5 ? in_hours : lit);
 							wi_busy = in_now && in_hours;
 							float rl = room_lamp;
-							room = office_people(w, ray, wide, high, room_depth, room_seed, in_now, room, depth_t, rl, wi_glow);
+							room = office_people(w, ray, wide, high, room_depth, room_seed, in_now, room, length(VERTEX), depth_t, rl, wi_glow);
 							room_lamp = rl;
 						}
 					}
@@ -1545,7 +1546,11 @@ void fragment() {
 			float mirror = mix(m_ends.x, m_ends.y, fres) * reflect_strength * (1.0 - 0.85 * night_factor) * pv.y * (1.0 - wi_open_k);
 			// A lit shop interior competes with the reflection; an empty office does not.
 			if (storefront) {
-				mirror *= 0.66;
+				// By day the street outside is many stops brighter than any shop, and its reflection
+				// lies over the room: what makes a storefront read as GLASS from the pavement rather
+				// than as an open hole (InteriorsGlass). After dark the lit room wins, as before.
+				// Near only: past ~100 m the far boxes' storefronts take over, and they keep the old balance.
+				mirror *= mix(0.66, ip_shop_mirror_day, ip_on() * (1.0 - night_factor) * (1.0 - smoothstep(60.0, 110.0, length(VERTEX))));
 			}
 			// Most of the mirror is EMITTED, not painted on. What a pane reflects does not
 			// depend on the light falling on the pane: a window in the shade still shows the sky

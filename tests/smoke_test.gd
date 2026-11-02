@@ -2823,6 +2823,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The container terminal refcam (tests/rc2_port_checks.gd, PortFill, PortMooring): the yard's
 	# tiers, the mast's floodlights, the ship's bow and plating, the mooring lines, dusty roofs.
 	load("res://tests/rc2_port_checks.gd").new().run(self, city)
+	# The glass at arm's length (tests/interiors_glass_checks.gd, InteriorsGlass): people in the shops,
+	# the fittings' light, the day mirror, the spill's window, the A/B.
+	load("res://tests/interiors_glass_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

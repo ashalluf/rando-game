@@ -643,7 +643,7 @@ func _add_shop_spill() -> void:
 			for pool: Array in b.shop_pools:
 				var xf: Transform3D = b.transform * (pool[0] as Transform3D)
 				xf.origin.y = SIDEWALK_TOP + 0.06
-				_batch.add("shop_spill", mesh, xf, pool[1])
+				_batch.add("shop_spill", mesh, xf, pool[1], pool[2] if pool.size() > 2 else Color.BLACK)
 				var glow: Variant = NightAtmos.shop_part(xf, pool[1], SIDEWALK_TOP)
 				if glow != null:
 					_batch.add(glow[0], glow[1], glow[2], glow[3], glow[4])

@@ -5212,6 +5212,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   frame cost is ALU on storefront glass pixels only. Judge with `building_shot.gd` (`NIGHT=1`,
   `BENCH=n`) and `still_shot.gd` `EYE=`/`SHOTS=` from the pavement; `tools/glshot/shop_probe.gd`
   (headless) lists the storefronts near a point with an EYE for each face.
+- The glass at arm's length (2026-11-01, docs/HANDOFF.md "The glass at arm's length"):
+  `shaders/interior_people.gdshaderinc` ray-marches people (SDF bodies: stand, walk, sit, reach)
+  inside their box within `IP_NEAR` 34 m; `shop_person()` (shop_interior.gdshaderinc) lays up to four
+  per shop against the traced fittings from `shop_hash(key, 120..143)`; homes / offices use the same
+  bodies near. Shops get downlight scallops, floor pools and mirrored fittings; a stronger storefront
+  mirror by day (near only); the night spill is the window (`shaders/shop_spill.gdshader`, pools
+  carry `Color(pitch, bays, reach, 1)`). `INTERIORS_GLASS=0` the A/B (`InteriorsGlass`); checks
+  `tests/interiors_glass_checks.gd`.
 - Rooms behind the windows, second pass (2026-10-31, docs/HANDOFF.md "Rooms behind the windows,
   second pass"): `shaders/window_interiors.gdshaderinc` (integer rolls, salts 100-112, in BOTH
   building shaders; `WindowInteriors`, `scripts/world/window_interiors.gd`, the GDScript copy)

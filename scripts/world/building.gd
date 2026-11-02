@@ -1576,7 +1576,8 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 				var wide := span * pitch * shop_spill_widen
 				var light := shop_light(key, ShopRoom.LOBBY if lobby else shop_room(face_index + 1, run))
 				var xf := Transform3D(Basis(a * wide, n * (2.0 * shop_spill_reach), a.cross(n)), fc + a * along + n * 0.15)
-				shop_pools.append([xf, Color(light.r, light.g, light.b, light.a * shop_spill_strength)])
+				shop_pools.append([xf, Color(light.r, light.g, light.b, light.a * shop_spill_strength),
+					Color(pitch, span, shop_spill_reach, 1.0)])
 		if has_fins:
 			var bw: float = minf(pitch * 0.94, 3.2)
 			var run_h := fin_top - fin_bottom

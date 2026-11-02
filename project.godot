@@ -409,3 +409,7 @@ river_look={
 "type": "float",
 "value": 1.0
 }
+interiors_glass={
+"type": "float",
+"value": 1.0
+}

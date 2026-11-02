@@ -4175,3 +4175,12 @@ none of either.
   slots full, from PortFill's own stream after every old roll, so no box the yard had moves), a
   yellow box for a mast head, clean candy-coloured roofs, and a ship with a slab for a bow lying
   untied off the quay. PORT_FILL / PORT_ROOF / PORT_SHIP / PORT_MOORING =0 the A/Bs.
+- **2026-11-01 The glass at arm's length: shops have people in them, and their light lands where
+  the window says (interiors-glass, HANDOFF "The glass at arm's length").** People behind the glass
+  are shader-only bodies (ray-marched SDFs inside their own box, near the camera only) laid out from
+  the same integer rolls as the traced fittings, never geometry or nodes: they cost nothing past
+  34 m and nothing on a pane nobody looks through. They do not react to the world (no gunfire
+  response) - a deliberate trade for zero CPU. The night spill is the window's projection (riser
+  shade, mullion shadows) in display numbers; the stronger day mirror is near-only so the far boxes
+  keep step. INTERIORS_GLASS=0 is the A/B.
+
