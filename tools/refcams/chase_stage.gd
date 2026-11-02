@@ -242,11 +242,48 @@ func debug(out_dir: String) -> void:
 				continue
 			var sp := cam.unproject_position(c)
 			print("CHASE_NODE %s %s size %s screen %s" % [g.get_class(), str(g.get_path()).trim_prefix("/root/"), str(box.size), str(sp)])
+	if OS.get_environment("CHASE_BISECT") == "1":
+		await _bisect(out_dir)
 	var ab := OS.get_environment("CHASE_AB")
 	if ab == "":
 		return
 	var names := []
 	for name in ab.split(",", false):
+		if name == "2d:*":
+			for n in tree.root.find_children("*", "CanvasLayer", true, false):
+				if (n as CanvasLayer).visible:
+					names.append("path:" + str(n.get_path()))
+			continue
+		if name == "decal:*":
+			for n in tree.root.find_children("*", "VisualInstance3D", true, false):
+				if not (n is GeometryInstance3D) and (n as Node3D).is_visible_in_tree() and (n as Node3D).global_position.distance_to(car.global_position) < 30.0:
+					print("CHASE_VI %s %s at %s" % [n.get_class(), str(n.get_path()), str((n as Node3D).global_position - car.global_position)])
+					names.append("path:" + str(n.get_path()))
+			continue
+		if name == "lights:*":
+			for n in tree.root.find_children("*", "Light3D", true, false):
+				if (n as Node3D).is_visible_in_tree() and (n as Node3D).global_position.distance_to(car.global_position) < 25.0:
+					names.append("path:" + str(n.get_path()))
+			continue
+		if name == "root:*":
+			for n in tree.root.get_children():
+				if n is Node3D and n != city and (n as Node3D).visible:
+					names.append("path:" + str(n.get_path()))
+			continue
+		if name == "cam:*":
+			# Everything under the player that draws (the camera rig, the body, its effects).
+			for n in player.find_children("*", "Node3D", true, false):
+				if (n is GeometryInstance3D or n is Decal or n is Light3D) and (n as Node3D).is_visible_in_tree():
+					names.append("path:" + str(n.get_path()))
+			for n in player.camera.find_children("*", "Node", true, false):
+				if n is CanvasItem or n is CanvasLayer:
+					names.append("path:" + str(n.get_path()))
+			continue
+		if name == "fx:*":
+			for n in tree.root.find_children("*", "GeometryInstance3D", true, false):
+				if (n is CPUParticles3D or n is GPUParticles3D) and (n as Node3D).is_visible_in_tree() and bool(n.get("emitting")) and (n as Node3D).global_position.distance_to(car.global_position) < 40.0:
+					names.append("path:" + str(n.get_path()))
+			continue
 		if name == "box:*":
 			for g in _box:
 				names.append("path:" + str(g.get_path()))
@@ -262,8 +299,18 @@ func debug(out_dir: String) -> void:
 		else:
 			names.append(name)
 	for name: String in names:
+		if name.begins_with("dbg:"):
+			var mode: int = {"unshaded": Viewport.DEBUG_DRAW_UNSHADED, "wireframe": Viewport.DEBUG_DRAW_WIREFRAME, "overdraw": Viewport.DEBUG_DRAW_OVERDRAW, "lighting": Viewport.DEBUG_DRAW_LIGHTING}.get(name.substr(4), 0)
+			tree.root.debug_draw = mode
+			for i in 3:
+				await tree.process_frame
+			tree.root.get_texture().get_image().save_png(out_dir.path_join("dbg_%s.png" % name.substr(4)))
+			tree.root.debug_draw = Viewport.DEBUG_DRAW_DISABLED
+			print("CHASE_AB debug draw %s" % name)
+			continue
 		var n: Node = car.get_node_or_null(name.substr(4)) if name.begins_with("car:") else (tree.root.get_node_or_null(name.substr(5)) if name.begins_with("path:") else tree.root.find_child(name, true, false))
 		if not (n is Node3D or n is CanvasItem or n is CanvasLayer):
+			print("CHASE_AB skip %s" % name)
 			print("CHASE_AB no node %s" % name)
 			continue
 		n.set("visible", false)
@@ -272,3 +319,41 @@ func debug(out_dir: String) -> void:
 		tree.root.get_texture().get_image().save_png(out_dir.path_join("hide_%s.png" % name.validate_filename()))
 		n.set("visible", true)
 		print("CHASE_AB hid %s (%s)" % [name, str(n.get_path())])
+
+
+## CHASE_BISECT=1: finds what draws the pale box behind the car by halving the set of visible
+## drawables until one is left (the box measured as the road's brightness inside it minus outside).
+func _box_level() -> float:
+	for i in 3:
+		await tree.process_frame
+	var img := tree.root.get_texture().get_image()
+	var sc := Vector2(img.get_width(), img.get_height()) / Vector2(1280.0, 720.0)
+	var a := img.get_pixel(int(540 * sc.x), int(510 * sc.y))
+	var b := img.get_pixel(int(520 * sc.x), int(510 * sc.y))
+	return (a.r + a.g + a.b - b.r - b.g - b.b) * 255.0 / 3.0
+
+
+func _bisect(out_dir: String) -> void:
+	var all: Array = []
+	for n in tree.root.find_children("*", "VisualInstance3D", true, false):
+		if (n as Node3D).is_visible_in_tree():
+			all.append(n)
+	var base: float = await _box_level()
+	print("CHASE_BISECT %d drawables, box %.1f" % [all.size(), base])
+	var cand := all
+	while cand.size() > 1:
+		var half := cand.slice(0, cand.size() / 2)
+		for n in half:
+			(n as Node3D).visible = false
+		var lvl: float = await _box_level()
+		for n in half:
+			(n as Node3D).visible = true
+		print("CHASE_BISECT %d hidden -> box %.1f" % [half.size(), lvl])
+		cand = half if lvl < base * 0.6 else cand.slice(cand.size() / 2)
+	if cand.size() == 1:
+		var n: Node3D = cand[0]
+		n.visible = false
+		var lvl: float = await _box_level()
+		tree.root.get_texture().get_image().save_png(out_dir.path_join("bisect_hidden.png"))
+		n.visible = true
+		print("CHASE_BISECT found %s %s (box %.1f -> %.1f)" % [n.get_class(), str(n.get_path()), base, lvl])

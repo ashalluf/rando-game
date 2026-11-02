@@ -19,18 +19,18 @@
 uniform float lane_wear = 0.0;
 // Wheel tracks: how much darker, how much smoother, their half width (m) and spacing from the
 // lane's middle (m, half a car's track).
-uniform float lw_track_dark = 0.08;
-uniform float lw_track_polish = 0.1;
+uniform float lw_track_dark = 0.04;
+uniform float lw_track_polish = 0.2;
 uniform float lw_track_half = 0.34;
 uniform float lw_track_offset = 0.82;
 // The oil band down a lane's middle: darker by, half width (m), and how much worse it gets over
 // the last `lw_queue_run` metres before the block's end (cars standing at the light).
-uniform float lw_oil_dark = 0.16;
-uniform float lw_oil_half = 0.32;
+uniform float lw_oil_dark = 0.3;
+uniform float lw_oil_half = 0.38;
 uniform float lw_queue_run = 28.0;
 // The parking lane and gutter: dust (lighter, rougher) and the gutter pan's dirt line.
-uniform float lw_kerb_dust = 0.1;
-uniform float lw_gutter_dark = 0.16;
+uniform float lw_kerb_dust = 0.14;
+uniform float lw_gutter_dark = 0.22;
 
 vec4 road_lane_wear(vec2 pp, vec2 suv, int axis_mode, float seed_v) {
 	if (lane_wear <= 0.0 || axis_mode <= 0) {
@@ -71,7 +71,7 @@ vec4 road_lane_wear(vec2 pp, vec2 suv, int axis_mode, float seed_v) {
 		// A lane's wear wanders a little and comes and goes in stretches.
 		float wander = 0.3 * (value_noise(vec2(along_p * 0.025, lane_id * 3.1 + seed_v)) - 0.5);
 		float o = (fract(from_centre / lane_w) - 0.5) * lane_w + wander;
-		float stretch = 0.25 + 0.75 * smoothstep(0.2, 0.75, value_noise(vec2(along_p * 0.05 + 11.0, lane_id * 5.7 + seed_v)));
+		float stretch = 0.15 + 0.85 * smoothstep(0.2, 0.8, value_noise(vec2(along_p * 0.05 + 11.0, lane_id * 5.7 + seed_v)));
 		// Each track a soft band with a ragged edge (aggregate polished more or less).
 		float edge_n = value_noise(vec2(along_p * 1.3, a * 2.1 + seed_v)) - 0.5;
 		float tw = lw_track_half * (1.0 + 0.35 * edge_n) + px;
