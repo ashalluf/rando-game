@@ -25155,3 +25155,60 @@ Probes: `tools/rc_beach/sand_roads_probe.gd` (headless: every coast street stret
 beach; `LOOK=swim|wade|surf` saves a close look at the first one). Checks `tests/rc_beach_checks.gd`.
 Stills on `shots/rc-beach`.
 
+
+## 9kf. Cloud shadows from the real clouds, and the 09:00 / 16:00 sky (fleet wave 5, `sky-clouds-3`)
+
+The task: the sky through a day from the street and from 300 m - the cumulus at 09:00, 12:00,
+15:00, 18:00, overcast and broken skies, cloud shadows on the ground, the horizon haze against the
+far ranges. Stills: `shots/sky-clouds-3` (README there; Forward+ on lavapipe, `tools/sky/sky_shot.gd`).
+
+**What read fake:**
+1. **No cloud shadows where the player is.** The streamed city had none at all; the horizon plane
+   and the far sea drew their own from a value noise that had nothing to do with the cumulus
+   overhead (a shadow crawled over the mountains under a clear sky and the ground under a heap
+   stayed in full sun).
+2. **09:00 and 16:00 kept the old sky.** SkyDay's weight is on the CLOCK (0 at and outside
+   09:00 / 16:00), so a 36-degree morning sun drew a searchlight fan of crepuscular rays across
+   half the sky and the long-streaked cirrus veil whitened it (the before of the day-sky review).
+3. 18:00 (not changed, see below): every cloud the same flat saturated orange.
+
+**The fixes.**
+- **`CloudShadows`** (`scripts/world/cloud_shadows.gd`, a MeshInstance3D DayNight makes in one hook
+  line; `CLOUD_SHADOWS=0` the A/B): one full-screen quad on `shaders/cloud_shadow_screen.gdshader`,
+  `blend_mul`, render_priority MIN (before every transparent), multiplying the lit HDR picture -
+  so before AgX - by the sun the clouds take away at each pixel's ground point. The field is
+  `shaders/cloud_shadow.gdshaderinc`: cumulus()'s own weather-map columns (the warp, the map's
+  tiling and offsets, the field term, the heap and fragment envelopes at the body's height,
+  `cs_body` 0.18 of the deck) read up the sun's direction from the TRUE world point (depth +
+  `origin_shift`) at the deck's height and drifted by `cloud_wind * TIME`, as the sky drifts them.
+  So a shadow lies under the cloud you see, offset by the sun, moving with it. Every number is
+  copied off the sky material each frame. The sun's share of a pixel is estimated: a face turned
+  from the sun keeps `shade_keep` 0.25 of the darkening, mirror-like pixels (roughness from the
+  normal buffer) `mirror_keep`, the far haze fades to `far_keep` past 1.5-9 km. Strength
+  (`strength_for()`, pure): 0.5 by day, in from sun sin 0.05 to 0.2, out between coverage 0.74
+  and 0.92 (overcast is all shade), none in rain or the marine layer. Forward+ desktop only and
+  only while the sky draws its volume (HIGH / MEDIUM); while it runs the horizon plane's and the
+  ocean's own noise shadows are turned to 0 (no double shadow); elsewhere they stay as they were.
+  `CLOUD_SHADOW_DEBUG=1` paints the field green / magenta, `=2` paints the pass's coverage,
+  `CLOUD_SHADOW_PRINT=1` prints what is pushed.
+  **Trap:** the first field was a field-wide optical depth (col x height x extinction): half the
+  ground under a grey wash and no shapes. The cloud is where the billows keep the envelope, about
+  half and over; `cs_edge` is the penumbra. Measured offline (python over cloud_weather.png):
+  13 / 23 / 35 / 48 / 60 % of the ground shadowed at coverage 0.35 / 0.45 / 0.55 / 0.65 / 0.75.
+  From 300 m at noon (coverage ~0.3) the shadows of the clouds in view lie kilometres out (the deck
+  is 1.5 km up), so most of the time they are near the horizon: correct, not a bug.
+- **Rays and cirrus by the sun's elevation** (`sky.gdshader` `high_sun_from` / `high_sun_to`, sin
+  0.3-0.5): the day's thin rays (`day_rays`) and wispy cirrus come in by the sun itself as well as
+  by the clock's weight (max of the two, inside the same gates; the cubemap takes `day_cubemap`
+  of the cirrus change, as of everything else). 09:00 (sin 0.59) gets the day look, 16:00 (0.41)
+  most of it, 16:30 a trace, the golden hour, the sunset, dawn before ~08:15 and the night are
+  untouched.
+
+**Not done / not verified.** The city frame on the Mac (Forward+): seen only on lavapipe sky-only
+scenes (the city does not fit). The sun share is an estimate - a street in a building's shadow is
+darkened a little under a cloud too (shade_keep). HeatHaze reads the screen before this pass, so
+on a hot afternoon its far shimmer band shows the unshadowed copy. From above the deck (4 km) the
+sky draws no clouds below the camera (the volume skips rays under the horizon) - the shadows are
+there without their clouds. 18:00's flat orange cumulus and the far ranges' haze were looked at
+but not changed (the sunset's and the far ranges' sessions' tuning; the far ranges cannot be seen
+in a sky-only scene). Checks: `tests/sky_clouds_3_checks.gd`.

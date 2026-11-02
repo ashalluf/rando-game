@@ -437,6 +437,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   cirrus as wisps, the mid deck thinner, a tight white sun halo and a white half-degree disc, no
   crepuscular blot, cumulus tops near white with cooler bases, far clouds hazed sooner, fewer
   fragments; `day_*` uniforms are the knobs. `SKY_DAY=0` is the A/B; checks `tests/sky_day_checks.gd`.
+- Cloud shadows (wave 5, docs/HANDOFF.md "Cloud shadows from the real clouds"): `CloudShadows`
+  (`scripts/world/cloud_shadows.gd`, DayNight's child, Forward+ desktop while the volume draws) is
+  one full-screen `blend_mul` quad (`shaders/cloud_shadow_screen.gdshader`) darkening each pixel by
+  `shaders/cloud_shadow.gdshaderinc` - cumulus()'s own columns up the sun (change both; checked) -
+  and zeroes the far plane's and ocean's noise shadows meanwhile. The day's rays and cirrus also
+  follow the sun's elevation (`high_sun_from/to`). `CLOUD_SHADOWS=0` the A/B,
+  `CLOUD_SHADOW_DEBUG=1`; checks `tests/sky_clouds_3_checks.gd`.
 - The sunset (2026-10-30, docs/HANDOFF.md "The Los Angeles sunset"): `SunsetSky`
   (`scripts/world/sunset_sky.gd`, one hook in DayNight._apply()) hands sky.gdshader a `sunset`
   weight on the sun's elevation alone (0 above ~19 degrees and below ~13 under, 0 in overcast:

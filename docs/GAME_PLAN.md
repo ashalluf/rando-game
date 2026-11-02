@@ -4119,3 +4119,8 @@ none of either.
   people in the water are placed on the surfaces that are drawn - waders on the sand mesh's
   foreshore, swimmers and surfers on the ocean's own height model - rather than at a fixed level.
   A summer afternoon's water is busy (waders, more swimmers). SAND_ROADS=0 / WADERS=0 the A/B.
+- **2026-11-01 Cloud shadows come from the clouds the sky draws (sky-clouds-3, HANDOFF "Cloud
+  shadows from the real clouds").** On Forward+ one screen pass multiplies the lit picture by the
+  volume's own weather-map columns seen up the sun (no new texture, no per-material code); the old
+  noise shadows on the far plane and the sea stay only where the volume is not drawn. A sky look
+  that depends on the sun is keyed on its elevation, not the clock (the day's rays and cirrus).
