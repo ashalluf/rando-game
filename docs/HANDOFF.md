@@ -26121,6 +26121,9 @@ into a running gate (check files are `load()`ed lazily, mid-run).
 | 14202 | explosions_2 "debris lands on the deck, none through it (0 landed, 0 under)" | the landings were counted once, after 120 ticks, by when a busy run had freed or emptied the debris | counted tick by tick as they happen |
 | 15202 | ragdoll_feel "the doll knows it is rolling down the steps" / "it ends at the foot of the flight (hips 1.89 m up)" | **not found**: the knocked doll stayed on the top step; the message now says when it froze and how fast its hips went | - |
 | 15303 | emergency "the other brings the stretcher and they take the body" / "the ambulance leaves" | **not found** (wave 4's 2222 had the same lines: a car in the kerb lane; that fix holds parked cars and errands off, so this is something else) | - |
+| the lead's batch 45 | traffic_ai "a car with an exit leaves the freeway down the off-ramp (left false, still a freeway car)" | a real traffic bug: `TrafficAI.freeway_think()` let a car already in the outer lane with its exit coming up pull out to pass a slower car, so it was out of the lane at its off-ramp and missed it (the lead's empty deck, 20855e18, hid it by removing the slow car) | within a kilometre of its exit a car keeps out of passing (`EXIT_HOLD=0` the A/B; gate_flakes_2_checks proves both ways) |
+| 15303 (again) | emergency stretcher | the body had landed 0.57 m up on something standing on the pavement (what stands there goes with the hour and day); the cot pusher steps up only 0.34 m | the down call chooses a spot with nothing on the pavement (a box query) |
+| batches 35-37 | crowd_anim_2 "a walker banks into a bend and straightens after it" | CrowdFlow's sidesteps on the straight are turns too | judged with CrowdFlow off for the bend |
 | (8101) | - | `CrowdFlow._pass_door()` sent walkers in at shop doors without sparing `no_trim` (the staging meta the flake rules promise every system leaves alone) | spares them now |
 | 8101 | service_vehicle "a tow truck is sent (physics budget full)" | PhysicsBudget at its 500-body cap in a busy city | the check gives the truck room in the cap for the send |
 | 8101, the lead's batches 35 / 37 | car_panic "a driver mounts the clear kerb ..." (up false, never a KERB panic) | the test found the kerb clear, then placed the follower and waited two ticks before `CarPanic.start()`, which looks again: a walker of a busy shard had stepped onto the kerb and the driver rightly swerved | the follower is placed and the panic started in the same frame the kerb was found clear (also in the retry loop) |
@@ -26140,7 +26143,7 @@ Final gate on the branch merged with main (`afac849b`, batch 38+), unshuffled `S
 5,624 checks, shards peaking at 3.1 / 3.7 / 3.8 GB RSS.
 
 **Still open** (seen once or twice, diagnostics added, not fixed): the follower lagging its
-leader (1303, 6101), ragdoll_feel's stair roll (15202), emergency's stretcher (15303), crowd_anim_2's bank (the lead, batch 35-37),
+leader (1303, 6101), ragdoll_feel's stair roll (15202),
 and whether CrowdFlow's camera was the passing pair's cause (12202: the next failure's message
 says CrowdFlow's own camera distance and grid size). `CHUNK_SWAP_LOG=1` prints any chunk swap
 near the player with the stack, should a spawn-chunk replacement come back.
