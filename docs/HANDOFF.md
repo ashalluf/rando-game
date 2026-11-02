@@ -25834,5 +25834,8 @@ keeps the pages), so the next memory work is either these two staging nearer `st
 0.3) - a cheaper twin or a shorter `body_shadow_distance` would be the next car cut, but a car's
 shadow at 50 m is visible from a deck. (2) The facade kit's shadow twins (0.35 M at street noon,
 the roofline within its 80 m reach). (3) Golden aerial's FarCity (1.1-2.0 M depending on what
-streamed first). (4) The crowd cut was not shown in a still (the strict refcam mode hides people);
+streamed first). (6) CPU per physics tick: only the whole was measured (`tools/cpu_probe.gd` at the street-noon
+spawn, headless on the 4-core box: process 40.7 ms a frame, physics 12.9 ms a step, 425 active
+bodies); the per-script table (`BY_SCRIPT=1`) runs ~3.5 min a row here and was stopped. The cuts
+here add no per-tick work (the twins are made once, toggled on a tier change). (4) The crowd cut was not shown in a still (the strict refcam mode hides people);
 it was judged by the welded body's own use from 50 m. (5) Forward+ not looked at (geometry-only cuts).
