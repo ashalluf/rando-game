@@ -587,7 +587,7 @@ static func _er_bay(ch: CityChunk, st: Dictionary) -> void:
 	# A red light box with white letters: the way an ER sign reads from a block away at night
 	# (red letters on a lit white face wash out to pink).
 	var red := sign_material("white_er", SIGN_WHITE_FACE, SIGN_WHITE_GLOW, 2.4, 0.3)
-	var box_mat := sign_material("er_box", SIGN_RED_FACE, SIGN_RED_GLOW, 1.5, 0.25, true)
+	var box_mat := RcHospitalEr.box_material() if RcHospitalEr.enabled else sign_material("er_box", SIGN_RED_FACE, SIGN_RED_GLOW, 1.5, 0.25, true)
 	var face := MeshInstance3D.new()
 	face.name = "ERSignFace"
 	var qm := QuadMesh.new()
@@ -599,7 +599,15 @@ static func _er_bay(ch: CityChunk, st: Dictionary) -> void:
 	node.add_child(face)
 	_text(node, "ERSign", "EMERGENCY", ER_LETTER, red, _p(lay, wall_u + 0.52, mid, sy + 0.02), out, 900.0)
 	var white := sign_material("white", SIGN_WHITE_FACE, SIGN_WHITE_GLOW, 2.2, 0.25)
-	_text(node, "AmbulanceWords", "AMBULANCE ENTRANCE", 0.42, white, _p(lay, cu1 + 0.12, mid, y0 + BAY_CANOPY_H + 0.5), out, 130.0)
+	if RcHospitalEr.enabled:
+		_text(node, "AmbulanceWords", "AMBULANCE ENTRANCE", RcHospitalEr.FASCIA_LETTER, white, _p(lay, cu1 + 0.16, mid, y0 + BAY_CANOPY_H + 0.5), out, 160.0)
+		RcHospitalEr.canopy(g, lay, node, batch, y_court, y0 + BAY_CANOPY_H)
+		var dspec: Array = []
+		for di in doors.size():
+			dspec.append([doors[di], 1.9 if di == 0 else 1.4])
+		node.set_meta("rc4_glaze", RcHospitalEr.glazing(g, lay, wall_u, (lay.podium as Rect2).position.y + 0.6, (lay.podium as Rect2).end.y - 0.6, dspec, y0))
+	else:
+		_text(node, "AmbulanceWords", "AMBULANCE ENTRANCE", 0.42, white, _p(lay, cu1 + 0.12, mid, y0 + BAY_CANOPY_H + 0.5), out, 130.0)
 	# The red glow it throws on the court at night.
 	batch.add("h_pool_red", PropFactory.light_pool(Color(1.0, 0.18, 0.12), 0.7),
 			Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(12.0, 1.0, 7.0)), _p(lay, cu1 + 3.0, mid, y_court + 0.025)))
