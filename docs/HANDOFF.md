@@ -26658,3 +26658,20 @@ Gate on the merge of main 2026-11-02: SHARDS=3, 5210 / 5210. The ten original re
 switches off vs on: eight within tolerance; street_noon and freeway flagged for traffic that moved
 between runs (street_noon also shows a few more walkers on its far pavement, by design). Forward+
 (the Mac) not verified for the mulch colour or the dither.
+**Round 4: the colour of the first half second** (from rc2-mayhem's finding). On Forward+ the
+car fireball was white-hot over its whole skin at 0.3 s: `field4()` started the temperature at
+0.5 + 0.5 x depth, so every billow sat in the blackbody's white stage (a cream cotton ball). Now
+the heat follows the DEPTH into the ball (`0.38 + sh.y * 1.1` plus the noise: a white heart,
+orange flesh, a dull red skin), and a fuel ball's outside turns to soot from 0.15 to 0.6 s
+(`shell`, deepest in the creases by n2, denser; never for gas). The arc: 0.3 s an orange ball
+with a hot heart, 0.55 s a black sooty mass with fire in its gaps, 3 s grey-black (still 22).
+On Compatibility (desktop opengl3, the refcams; no TAA) the march's per-frame jitter drew a
+crosshatch over the fireball: there the v4 march takes twice the steps from each step's middle
+(jitter 0.5); the web never runs the volume. Frame cost unchanged (GEO within a few draws).
+
+**Tried and dropped: a condensation shell** (a torn white cloud shell racing out with the shock,
+0.06-0.3 s). Smooth it read as a glass soap bubble over the street, torn as faint stringy streaks
+over the facades - an artifact, not a cloud, at street level by day. Not shipped. Debris (BlastBits
+chips that bounce and skid, BlastDebris' burning pieces with trails), the glass across the street
+(SHATTER records plus shards timed by the wave's travel at 343 m/s) and the refracting pressure
+wave stay as the second and third passes made them.

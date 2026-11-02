@@ -4201,6 +4201,15 @@ none of either.
   slots full, from PortFill's own stream after every old roll, so no box the yard had moves), a
   yellow box for a mast head, clean candy-coloured roofs, and a ship with a slab for a bow lying
   untied off the quay. PORT_FILL / PORT_ROOF / PORT_SHIP / PORT_MOORING =0 the A/Bs.
+- **2026-11-01 The fireball lives on as the mushroom, and fuel keeps burning (explosions-4, HANDOFF
+  "The blast, fourth pass").** The third pass's ray-marched fireball died after a few seconds and
+  handed over to card smoke, which is where every blast read as a game effect. Decision: the volume
+  itself lives on for 9-12 s and rolls up into a vortex-ring cap over a stem (curl-advected noise,
+  three shadow taps, lit from below by the fires actually burning), and the card column only takes
+  over at half its life. A car or a pump is a fuel blast: a pool of burning fuel where it went up,
+  two to four secondary pops, and a chain fuse to the cars beside it (depth-limited). The bang
+  arrives at the speed of sound and the shake with the wave. All behind EXPLOSIONS_4=0; the web
+  keeps the cards.
 - **2026-11-01 The glass at arm's length: shops have people in them, and their light lands where
   the window says (interiors-glass, HANDOFF "The glass at arm's length").** People behind the glass
   are shader-only bodies (ray-marched SDFs inside their own box, near the camera only) laid out from
