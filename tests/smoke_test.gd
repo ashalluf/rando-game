@@ -2916,6 +2916,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc3_broadway_night_checks.gd").new().run(self, city)
 	# The canals_day refcam (tests/rc4_canals_day_checks.gd, Rc4Canals): the water, the coping, the banks.
 	load("res://tests/rc4_canals_day_checks.gd").new().run(self)
+	# The container terminal at night (tests/rc4_port_night_checks.gd, PortNight): floods, halos, windows.
+	load("res://tests/rc4_port_night_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

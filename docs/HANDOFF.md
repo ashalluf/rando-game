@@ -28583,6 +28583,8 @@ that wall?). Stills on `shots/rc3-broadway-night`.
 
 ## 9mb. The canals by day from a footbridge (wave 7, refcam `canals_day`, branch `wt/rc4-canals-day`)
 
+## 9mb. The canals by day from a footbridge (wave 7, refcam `canals_day`, branch `wt/rc4-canals-day`)
+
 **The view.** A new reference camera in `tools/refcams/cameras_w7.json` (created here, the
 cameras_w6.json format): Marisol Canals at 11:00 clear, standing on Heron Canal's southern
 footbridge (bridge at (-773.9, -55.9); eye (-772.3, 3.4 agl, -56.3), yaw 2, pitch -6, fov 55)
@@ -28626,5 +28628,90 @@ is the water no longer near-white.
 real houses across the canal (no planar reflection on Compatibility); the stucco boxes on the
 right of the view are plain; no people on the walks at that moment; the front range behind is the
 hills' look (not this area). Forward+ (the Mac) not shot. Checks: `tests/rc4_canals_day_checks.gd`.
+Stills on `shots/rc4-canals-day`.
+
+## 9mc. The container terminal at 22:00 (wave 7 refcam `port_night`, `wt/rc4-port-night`)
+
+**The camera.** `port_night` in `tools/refcams/cameras_w7.json` (new file, cameras_w6.json's
+format): eye (3182, 1.7 m over the yard, 6490), on the quay's apron at its east end inside the
+crane gauge, looking west (yaw 101, pitch 10, fov 55) at 22:00, clear - the moored ship and its
+deckhouse on the left, the working cranes' portals in a row overhead, a yard tractor under crane 58
+with a box coming down onto it, the stacks on the right. Its `port_t` key (refcams_shot.gd
+`_port_clock()`) holds PortLife's clock at 162 s, so two cranes have boxes in the air; rows without
+it leave the clock as it was. `REFCAMS_JSON=tools/refcams/cameras_w7.json python3
+tools/refcams/refcams.py run build/refcams/<label> --only port_night` (~6 min). refcams_shot.gd also
+takes `OCCLUSION=0` now (culling off).
+
+**What gave it away (main 6ffcde38), in the order the eye lands:**
+1. **A "floodlit" terminal lit by the moon.** The high masts and the cranes' portal lamps only laid
+   an additive pool on the concrete; every box, crane leg and the ship stood blue-black. **Fixed:**
+   `PortNight` (`scripts/world/port_night.gd`, one hook in `CityChunk._port_kit()`) hands
+   container.gdshader and port_steel.gdshader every flood (`sources()`, pure, cached per plan:
+   each port chunk's mast head, each quay crane's two portal-beam lamp rows, a working crane's
+   boom lamps over the ship; TRUE world, 53 on seed 1337, `MAX_SOURCES` 64), and
+   `shaders/port_flood.gdshaderinc` lights what they draw: inverse-square-ish from a third of the
+   reach, the face turned to the lamp most, **aimed down** (`cone`: nothing level with a lamp or
+   above it - without it the girders over the portal lamps burned white, `90_rejected_*` on the
+   shots branch), summed and capped (`flood_cap`), times albedo, the warm tint and lamp_factor, as
+   EMISSION. The same in FULL and LOD chunks on both renderers; nothing per frame on the CPU.
+   `PortNight.flood_at()` is the GDScript copy (checked).
+2. **An unlit apron, and pools that were never pools.** `MultiMeshBatch.add()`'s custom defaults
+   to `Color.BLACK`, whose **alpha 1** sends light_pool.gdshader down its NightLamps branch (a
+   point source of INSTANCE_CUSTOM.r = 0.05 of the quad's half width): every mast's 92 m pool and
+   every crane's 60 m pool in the port has drawn as a 3-5 m hot spot since that branch went in.
+   **Fixed for the port:** its pools carry `PortNight.POOL_CUSTOM` (alpha 0), are toned to the
+   floods (`POOL_STRENGTH` 0.16), marked `display_add` (no flat disc on Forward+), and the apron
+   gets two rows of wide flat pools (`APRON_*`). **Not fixed - the same default custom is passed
+   by other features' pools** (grep `batch.add("[a-z_]*pool"`): `ind_pool` (Industrial's docks),
+   `alley_pool`, `oil_pool`, `ap_pool` (airport masts), `mr_pool` (marina), `park_pool`,
+   `studio_pool`, `bam_pool`, `res_pool`, `pueblo_pool`, the arena's, the beach piers', the
+   cemetery's lamp pools... Each is a tiny spot, not a pool, wherever it is. Fixing it means
+   passing `Color(0, 0, 0, 0)` at each call and re-toning each feature's strength (a pool that
+   finally covers its area adds far more light); it changes those features' night views, so it
+   is left to their owners / the lead.
+3. **Lamps as flat beige boxes.** The portal lamps' housings are dark now (port_steel part 5 under
+   `port_night`) with only the lens face lit, and every crane lamp and mast head carries a
+   NightAtmos halo in the chunk's batch (`crane_halos()`, `mast_halo()`, at 2-2.6x a street lamp's
+   strength).
+4. **The deckhouse a grid of big half-lit squares.** port_steel part 9 under `port_night`: framed
+   0.95 x 0.8 m windows with rounded corners 1.7 m apart, under a third lit, in warm / cool / blue
+   tones and brightnesses, some blinds part drawn, antialiased and faded to their average.
+
+**Not fixed (next):** the ship's hull is still a near-black wall (its paint is near black; the
+floods do reach it); the trolley's work light (PortLife's part 12) is a glowing cube lit on every
+face; no straddle carrier is in this frame (they loop the interior blocks north of the quay row;
+from the apron the stacks hide them - an eye in an aisle, e.g. (2885, 1.7, 6418) yaw -97, puts one
+on the lens at `port_t` 96); the far city's port boxes get no flood (Skyline's lod_box path).
+
+**Forward+:** the flood is emission computed in renderer space (`col()`), the pools `display_add`.
+Checked on lavapipe with `port_shot.gd NIGHT=1` against opengl3 (shots/rc4-port-night `03_*`): the
+same look, a touch brighter on the stacks under Forward+; no colour shift. The whole port_night view
+on Forward+ is not checked (the city does not fit lavapipe).
+
+**Frame cost** (opengl3 GEO, port_night): 929,401 tris / 566 draws / 326k shadow -> 947,433 / 591 /
+326k (+1.9 % triangles; the extra draws are each port chunk's halo and apron-pool batches).
+
+**Gate** (SHARDS=3, merged with main 0584ebdf): 5,710 checks passed, 0 failed, peak RSS 3.8 GB a
+shard. An earlier run (merged with 20855e18): 5,665 checks, 1 failed - crowd_look_checks "a
+performer ahead and to the right is watched", which passes alone (`SMOKE_PARTS=crowd_look_checks,
+rc4_port_night_checks`: 56 / 56); peak RSS 3.8 GB a shard.
+
+**The ten refcams** (this branch with `PORT_NIGHT=0` -> on, one tree, `refcams.py compare`): eight
+within tolerance; street_night and freeway flagged on pixels by the traffic, crowd and rain alone
+(the diff maps hold only vehicles, people and drops; neither view sees the port); triangles within
++-3 %. Peak RSS of a ten-camera run 13.4 GB.
+
+**Tools.** `tools/rc4_port_night/probe.gd` (headless: the sources, each built port chunk's pools,
+apron pools and halos), `ground_probe.gd` (the yard's surface by ray against the relief),
+`what_is_here.gd` (every visual whose bounds hold a point - MultiMeshes read empty headless);
+`tools/glshot/port_shot.gd NIGHT=1` (the kit alone at night with a mast and the crane's lamps as
+floods and the apron pools; `PORT_NIGHT=0` the old night; `GLOBALS="night_aerial=1"`).
+
+**Checks:** `tests/rc4_port_night_checks.gd`.
+The ten original cameras, this branch against `RC4_CANALS=0` from one tree: eight within tolerance
+(beach and pier_night bit-near-identical); street_noon and freeway flagged by live traffic only (a
+box truck vs an SUV in the freeway lane, the bus in another place), the scenery identical. Gate
+(SHARDS=3): 5,651 of 5,652, the one failure pedestrian_flow's "comes out of a shop door" (it took a
+valet), which passes alone (32 / 32): a shard-order flake.
 Stills on `shots/rc4-canals-day`.
 

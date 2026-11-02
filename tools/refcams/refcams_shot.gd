@@ -38,6 +38,9 @@ func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(_out_dir)
 	_golf_group()
 	_bonfire_lit()
+	# OCCLUSION=0: occlusion culling off (still_shot's switch), to tell what is culled in plain sight.
+	if OS.get_environment("OCCLUSION") == "0":
+		get_root().use_occlusion_culling = false
 	change_scene_to_file("res://scenes/levels/city.tscn")
 	_run.call_deferred()
 
@@ -92,6 +95,7 @@ func _run() -> void:
 		if day:
 			day.set("hour", float(cam.hour))
 			day.call("_apply")
+		_port_clock(cam)
 		Engine.time_scale = 1.0
 		# A "drive" row (cameras_w5.json, chase_cam): the player drives his own car and the shot is
 		# his chase camera (tools/refcams/chase_stage.gd), not the free eye.
@@ -514,3 +518,15 @@ func _hero_report(player: Node3D, shot: String) -> void:
 	print("REFCAM %s hero at %s speed %.2f, camera %s, %d people within 12 m (%d at 3-12 m)" % [shot,
 		str(ws.call("to_world", player.global_position)) if ws else "?", float(player.call("horizontal_speed")),
 		str(ws.call("to_world", cam.global_position)) if ws and cam else "?", within, near])
+
+
+## A camera row's optional `port_t` (wave 7, port_night): the container terminal's clock
+## (PortLife.clock, seconds) held there for the shot, so the cranes, tractors and straddle carriers
+## stand where the row was framed for. Rows without it let the clock run as before.
+func _port_clock(cam: Dictionary) -> void:
+	var pl: GDScript = load("res://scripts/world/port_life.gd")
+	if cam.has("port_t"):
+		pl.set("clock", float(cam.port_t))
+		pl.set("hold", true)
+	else:
+		pl.set("hold", OS.get_environment("PORT_HOLD") == "1")

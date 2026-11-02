@@ -4048,6 +4048,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   checked) - FULL and far alike, no OmniLight -; a haze sprite a flare (flame mesh UV2.x 3); steam
   lit from luminance; dirt berms; the masts' omnis shorter. `REFINERY_NIGHT=0` is the A/B (every
   shader block behind `night_look`); checks `tests/rc3_refinery_night_checks.gd`.
+- The container terminal at night (wave 7, refcam `port_night` in `tools/refcams/cameras_w7.json`,
+  its `port_t` holds PortLife's clock; docs/HANDOFF.md "The container terminal at 22:00"):
+  `PortNight` (`scripts/world/port_night.gd`, one hook in `CityChunk._port_kit()`): every mast's
+  and quay crane's flood (`sources()`, TRUE world, pure) lights container.gdshader and
+  port_steel.gdshader through `shaders/port_flood.gdshaderinc` (aimed down; `flood_at()` the
+  GDScript copy), halos on the lamps, pools on the apron, framed deckhouse windows. Trap: a
+  MultiMeshBatch instance's default custom is Color.BLACK (alpha 1), which light_pool.gdshader
+  takes as a NightLamps point source - a pool needs `Color(0, 0, 0, 0)` (`POOL_CUSTOM`).
+  `PORT_NIGHT=0` is the A/B; checks `tests/rc4_port_night_checks.gd`.
 - The oil islands (2026-10-30, docs/HANDOFF.md "The oil islands"): three decorated drilling
   islands in San Pedro Bay 600-700 m off the Long Beach sand (the FORM of the real ones; names and
   the operator invented). A DATA TABLE (`OilIslands`, `scripts/world/oil_islands.gd`: anchors,
