@@ -19,6 +19,10 @@ uniform float seat_pitch = 0.5;
 uniform float aisle_every = 14.0;
 uniform float aisle_width = 1.3;
 const float RISER = 0.3;
+// StadiumNight (0 = the old look): sections fuller or emptier than their tier, and the rows
+// under the deck above (or the top deck's roof) out of the light banks' reach after dark.
+uniform float night2 = 0.0;
+uniform float shade_floor = 0.2;
 
 varying vec3 seat;
 varying float fill;
@@ -64,8 +68,28 @@ void fragment() {
 	float aisle = 1.0 - step(aisle_width * 0.5, ax);
 	int ri = int(row);
 	int si = int(sidx);
-	float occ_below = step(bp_hash01(si * 3 + 1, ri - 1), fill);
-	float occ_here = step(bp_hash01(si * 3 + 1, ri), fill);
+	// Which tier this is, from its fill (BallparkBuild's TIERS / the pavilions): the row from
+	// which the deck above shades it (99 = open to the sky).
+	float shade_row = 99.0;
+	int tier = 4;
+	if (fill > 0.83) { shade_row = 21.0; tier = 0; }
+	else if (fill > 0.76) { shade_row = 15.0; tier = 1; }
+	else if (fill > 0.67) { shade_row = 17.0; tier = 2; }
+	else if (fill < 0.59) { shade_row = 10.0; tier = 3; }
+	float fill0 = fill;
+	float ff = fill;
+	if (night2 > 0.0) {
+		// A section between two aisles is fuller or emptier than its tier (behind the plate and
+		// low down fuller, the corners of the upper decks thin), and a patch of a few rows
+		// within it now and then a group's empty block.
+		int sec = int(floor(UV.x / aisle_every));
+		float sf = mix(0.5, 1.3, bp_hash01(sec * 13 + tier, 5101));
+		float patch = bp_hash01(sec * 7 + tier * 3, int(floor(row / 5.0)) + 6200);
+		sf *= patch < 0.18 ? 0.45 : 1.0;
+		ff = clamp(mix(fill0, fill0 * sf, night2), 0.0, 0.97);
+	}
+	float occ_below = step(bp_hash01(si * 3 + 1, ri - 1), ff);
+	float occ_here = step(bp_hash01(si * 3 + 1, ri), ff);
 	float tone_below = bp_hash01(si * 5 + 2, ri - 1 + 4000);
 	float tone_here = bp_hash01(si * 5 + 2, ri + 4000);
 	vec3 col;
@@ -102,11 +126,24 @@ void fragment() {
 	col = mix(col, concrete * (0.9 + 0.1 * f), aisle);
 	// Under a pixel: the tier's colour and its crowd by how full it is.
 	vec3 crowd_avg = vec3(0.13, 0.13, 0.16);
-	vec3 avg = mix(mix(seat * 0.85, crowd_avg, fill * 0.7), concrete, aisle_width / aisle_every);
+	vec3 avg = mix(mix(seat * 0.85, crowd_avg, ff * 0.7), concrete, aisle_width / aisle_every);
 	float px = max(fwidth(UV.x) / seat_pitch, fwidth(UV.y) * 1.5);
-	col = mix(col, avg, smoothstep(0.35, 1.0, px));
+	// The second pass hands over sooner: half-resolved rows beat into rings round the bowl.
+	col = mix(col, avg, night2 > 0.0 ? smoothstep(0.15, 0.55, px) : smoothstep(0.35, 1.0, px));
 	vec3 alb = col;
+	float lit = 1.0;
+	if (night2 > 0.0) {
+		// Under the overhang: the banks on the roof cannot see these rows; the concourse's warm
+		// lights and the bounce off the field are what reach them.
+		float under = smoothstep(shade_row - 1.5, shade_row + 1.0, row);
+		lit = mix(1.0, shade_floor, under * night2);
+		alb *= mix(1.0, 0.9, under * night2);
+	}
 	ALBEDO = cs_out(alb);
 	ROUGHNESS = 0.75;
-	EMISSION = cs_out(alb * bp_flood() * flood_energy);
+	vec3 e = alb * bp_flood() * flood_energy * lit;
+	if (night2 > 0.0 && lit < 0.999) {
+		e += alb * vec3(1.0, 0.82, 0.6) * bp_flood() * flood_energy * 0.18 * (1.0 - lit);
+	}
+	EMISSION = cs_out(e);
 }

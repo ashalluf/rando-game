@@ -31,10 +31,15 @@ uniform float terrace_v1 = 25.0;
 uniform float fence_line = 100.6;
 uniform float fence_alley = 114.3;
 uniform float fence_center = 120.4;
+// StadiumNight: within this many metres of the camera every filled stall holds a box car
+// (stadium_car.gdshader), so its painted car becomes the car's contact shadow. 0 = paint them all.
+uniform float box_reach = 0.0;
 
 varying float edge;
+varying vec3 v_world;
 
 void vertex() {
+	v_world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	// COLOR.r: metres inside the site's outline (-Ballpark.site_sd), / 16, clamped to 0..1.
 	edge = -COLOR.r * 16.0;
 }
@@ -174,8 +179,15 @@ void fragment() {
 				float along = (side == 0 ? -c.y : c.y) / 2.3;
 				float glass = smoothstep(-0.55, -0.45, along) * smoothstep(0.45, 0.35, along) * step(abs(c.x), 0.78);
 				vec3 cc = mix(p, vec3(0.02, 0.025, 0.03), glass * 0.85);
+				float boxed = box_reach > 0.0 ? 1.0 - smoothstep(box_reach - 20.0, box_reach, length(v_world - CAMERA_POSITION_WORLD)) : 0.0;
+				if (boxed > 0.0) {
+					// A box car stands here: its shadow on the asphalt, soft past the body.
+					float sh = smoothstep(0.55, -0.15, max(e.x, e.y));
+					cc = mix(cc, col * 0.4, boxed);
+					body = mix(body, sh, boxed);
+				}
 				col = mix(col, cc, body);
-				rough = mix(rough, 0.3, body);
+				rough = mix(rough, 0.3, body * (1.0 - boxed));
 			}
 		}
 		// Aisle arrows' worth of wear: darker wheel tracks down the aisles.
