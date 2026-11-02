@@ -25244,3 +25244,10 @@ compile is verified, the look is the opengl3 jittered proxy); the scooters' and 
 tubes, the street trees' cards beyond the dither foliage_tex already has, chain-link (already
 footprint-faded) and the ocean's glints (already footprint-handed) were left alone. The project's
 own roughness limiter (amount 0.25, limit 0.18) is untouched.
+
+**The gate on this branch** (SHARDS=3, merged with origin/main bb03d731): 5,096 of 5,098; the two
+failures were traffic_ai's "a fast freeway car moves over and passes a slow one" and explosions_2's
+"debris lands on the deck" (both physics / traffic, nothing this pass touches). Rerun alone both
+passed; a third traffic_ai check ("a car swerves into the clear lane round the player") failed once
+in that rerun and passed in two more runs of city_crowd, with SPECULAR_AA on and off. Intermittent,
+not fixed here. Peak RSS of a shard 3,694 MB.
