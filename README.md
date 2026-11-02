@@ -9,3 +9,4 @@ Downtown storefronts on the Flower / Olympic block, 4 m from the glass (opengl3 
 - 08 / 09 - close-up (single-building harness), before / after: a diner at the deli's table, a customer in the barber's chair.
 - 10 - Forward+ (lavapipe), night, before (top) / after (bottom): downlight scallops on the barber's walls, the diner.
 - 11 - after: people in the dry cleaner's, the bank's teller, the barber's chair.
+- 12 / 13 - after, a tower lobby on the block's east face at 13:00 and 21:00: somebody crossing the lobby near the glass.
