@@ -51,6 +51,13 @@ and ignored by the ten originals:
   `2d:*`, `dbg:unshaded`...) renders the frame again with each hidden, `CHASE_BISECT=1` halves the
   drawables to find what draws a given pixel difference.
 
+## Wave 6's cameras (`cameras_w6.json`)
+
+Run with `REFCAMS_JSON=tools/refcams/cameras_w6.json`. `airport_night` - the apron at 21:30 clear from
+the first stand west of the concourse, a jet staged on final to 27L (`air` final: the flare over the
+threshold at the shot). A row that stages an aircraft prints `REFCAM <name> air at x,y,z` (TRUE world,
+at the shot): tune `air_dist` / `air_side` from it.
+
 ## Running
 
 ```
