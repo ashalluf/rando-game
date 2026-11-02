@@ -25205,7 +25205,9 @@ restart) - shadows-review / camera-lens; the Botts' dots read as scattered white
 distance (they are LA's real dots-only lane lines).
 
 **Numbers.** chase_cam: 7.33 M triangles, 3,471 draws before and after (the lane wear is shader
-work only). The ten original cameras `CHASE_CAM_REVIEW=0` vs on: see the compare below.
+work only). The ten original cameras, `CHASE_CAM_REVIEW=0` vs on (refcams compare): nine ok (p50
+0 to -1, mean pixel difference 0.0-2.4, street_noon 0.9); freeway flagged, and it is traffic (a box
+truck in one run, a red car in the other; the deck is freeway_deck.gdshader, not touched).
 
 **A/B, checks, probes.** `CHASE_CAM_REVIEW=0` turns the lane wear off. `tests/rc2_chase_cam_checks.gd`
 (one line in smoke_test.gd's city_files): street asphalt gets lane wear and pavements / car parks do
