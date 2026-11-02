@@ -51,6 +51,15 @@ and ignored by the ten originals:
   `2d:*`, `dbg:unshaded`...) renders the frame again with each hidden, `CHASE_BISECT=1` halves the
   drawables to find what draws a given pixel difference.
 
+## Wave 6's cameras (`cameras_w6.json`)
+
+Run them with `REFCAMS_JSON=tools/refcams/cameras_w6.json`. `car_closeup` (rc3-car-closeup) carries
+`park_car` (`tools/refcams/park_stage.gd`): a car of a body type (`random_car()` walked from `seed`
+until the type matches, no livery) parked on the kerb of the road nearest `at`, `along` the TRUE
+world coordinate, `side` which kerb; the parked cars round it freed; the eye and the point aimed at
+given in the car's own frame (x right, -z ahead of the nose), so the frame holds whatever the load
+rolled. `tools/refcams/kerb_probe.gd -- --spawn=x,z` lists kerbs round a point.
+
 ## Running
 
 ```

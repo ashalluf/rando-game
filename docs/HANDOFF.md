@@ -27034,3 +27034,72 @@ truck in one run, a red car in the other; the deck is freeway_deck.gdshader, not
 (one line in smoke_test.gd's city_files): street asphalt gets lane wear and pavements / car parks do
 not, the shader applies it and 0 is the old road, the switch, the camera row and its staging
 script. Stills on `shots/rc2-chase-cam`.
+
+## 9d?. The parked car at arm's length: refcam3 `car_closeup` (fleet wave 6, `wt/rc3-car-closeup`)
+
+The task: a NEW reference view - a parked everyday car on a midtown kerb at 15:00 clear, from about
+2 m off its front quarter: paint, glass, wheels, tyres, plates, panel gaps, the kerb and the road
+under it ("what the player sees walking up to a car") - judged as an art director would, the worst
+three to five things fixed ON THE CARS. The row is `car_closeup` in `tools/refcams/cameras_w6.json`:
+Cedar Ave (a 14 m midtown street, road x 1391 on seed 1337), the west kerb at z 1400, a crossover
+facing south, the eye on the pavement 2.3 m right of and 3.5 m ahead of the car's centre, 1.5 m up,
+FOV 55. Run it with `REFCAMS_JSON=tools/refcams/cameras_w6.json python3 tools/refcams/refcams.py run
+<dir> --only car_closeup` (the first launch on a fresh box loads in ~16 min: cold shader caches).
+
+**Staging** (`tools/refcams/park_stage.gd`, the row's optional `park_car` key; the other rows have
+none): `random_car()` from a seeded generator walked on until the body type matches with no livery
+(seed 2026 -> 2037 is a teal crossover), parked on the kerb of the road nearest `at`, `along` the
+TRUE world coordinate, `side` which kerb (right-hand traffic decides which way it faces); the city's
+own parked cars within 7.5 m are freed first; the eye and the point aimed at are given in the car's
+frame and written to EYE, so the frame holds whatever the load rolled. People within 2.5 m of the
+lens are hidden for the shot. `tools/refcams/kerb_probe.gd -- --spawn=x,z` lists kerbs (district,
+width, bike lane, the kerb lines) round a point.
+
+**What read fake, worst first** (before: `build/refcams/before`, main; stills on
+`shots/rc3-car-closeup`):
+1. **The body poked through the bumper trim.** The bumper bands are raycast grids laid 3-5 cm proud
+   of the loft (make_road_cars.py `wrap_band`, rows=3 over ~25 cm), and between the rays the curved
+   skin bulges out through them: ragged teeth of body colour along the black lower band and round
+   the fog pockets, on every lofted body, both renderers (Forward+ proved on lavapipe).
+2. **Grime as tan camouflage.** CarDetail's road grime was an opaque tan coat (mix 0.9) with a hard
+   noisy edge, a band to 0.46 m and a 0.75 m ring round each arch: big pale blotches up the doors and
+   fenders of most cars (65 % of the fleet rolls a level > 0), on a dark car worst of all.
+3. **Tyres as round black holes.** A perfect torus touching the road at a point, rubber at 0.95
+   roughness: no contact, no shape.
+4. **Grey plastic wheels on the web.** On Compatibility the alloy is re-expressed as paint (there is
+   no radiance map to reflect), so a silver five-spoke read as a matte grey hubcap.
+Seen, not fixed: the panel shut lines (4 mm booleans) alias into dotted lines on opengl3 at 3-4 m
+(TAA resolves them on the Mac); the front plate sits a little crooked on the curved bumper; the wing
+mirrors are still bevelled boxes (the body .glbs were not rebuilt, as in 9io).
+
+**The fixes** (`CarCloseup`, `scripts/vehicles/car_closeup.gd`; `CAR_CLOSEUP=0` puts every one back):
+- **Bumper trim**: one hook at the end of `Vehicle._add_body_model()` (after the wheel tuck).
+  `pieces()` (pure) welds the near body's "trim" surface by position, unions it into pieces and keeps
+  the pieces lying WHOLLY under `ZONE_TOP` (0.45) of the body's height and within `ZONE_END` (0.25) of
+  its length from an end: the bands, fog pockets, lower grille surrounds - never a lamp bezel (above
+  the zone) or a sill (it runs the length), and nothing that crosses the zone's top (a first try that
+  grew everything in a height zone left slivers on the grille's corners and swallowed the headlamps,
+  whose bezels are trim too). Those triangles are drawn again `PUSH` 1.2 cm out along their normals
+  as ONE `BumperBands` child of the near body mesh (the glTF's own trim material, no shadow, to
+  `NEAR` 18 m), built once per body mesh and kept as meta on the mesh resource. Headless keeps no
+  mesh data: no copy there. Cost: one draw for each car within 18 m (a few hundred triangles).
+- **Grime** (car_paint.gdshaderinc `grime_look`, set to 1 by CarDetail's `_paint_grime()`): a film
+  (mix 0.58, so the paint reads through) whose strength follows the car's level (light 0.32 shows
+  light), the band's edge graded over 0.34 m with less noise, the arch spray tight (rr + 0.10 m, +
+  0.26 behind the wheel) and soft. Every other material keeps 0 (the old look bit for bit).
+- **Tyres** (PropFactory's wheel shader `squash`, `rubber_look`): `car_wheel()` tags its vertices
+  UV.y = 1 + the tyre's outer radius (`_wheel_tag`; 0.5 everywhere else, so the trucks' wheels on the
+  same shader are untouched); in the vertex stage the lower half of the rubber is grown `TYRE_SQUASH`
+  (1.4 cm) and cut flat at the radius under the hub along WORLD down (the wheel turns; the patch
+  stays at the bottom), and the sidewall bows out over it. The hub keeps its height: physics, ride
+  height and CONTACT are untouched. The sidewall goes satin (roughness 0.66, a touch lighter), the
+  tread stays matte.
+- **Alloy on Compatibility** (`fake_env`, set only where `has_reflections()` is false): the face,
+  barrel and cap give back part of their light as a mirror of `sky_tint` over a sunlit street, split
+  at the reflected ray's horizon with a bright band just above it. Forward+ never sets it.
+
+**Numbers**: see the last paragraph (filled in from the final runs).
+
+Checks: `tests/rc3_car_closeup_checks.gd` (22: the piece picker on synthetic islands, the wheel
+material's uniforms and the shader's gates, the tag put back, the crossover's paint taking the new
+grime, the copy's draw range, the camera row).

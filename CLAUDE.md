@@ -1677,6 +1677,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   shadowless surface on `shaders/car_underside.gdshader` (kind in COLOR.r / 16), drawn to 22 m, NOT
   one of `_body_meshes`; the body .glb and its far twin are untouched. `CAR_UNDERSIDE=0` the A/B;
   views `tail`, `liner`, `under` (last) on car_shot.gd; checks `tests/car_exterior_closeup_checks.gd`.
+- The parked car at arm's length (2026-11-02, refcam `car_closeup` in `tools/refcams/cameras_w6.json`,
+  staged by its `park_car` key, docs/HANDOFF.md "The parked car at arm's length"): `CarCloseup`
+  (`scripts/vehicles/car_closeup.gd`, one hook in `_add_body_model()`) draws the trim pieces lying
+  wholly in a low end zone (bumper bands, fog pockets: `pieces()`, pure) again 1.2 cm proud within
+  18 m - the loft poked through them; car_paint's `grime_look` makes grime a soft film; the car
+  wheel shader's `squash` (vertices tagged UV.y = 1 + tyre radius by car_wheel()) flattens the tyre
+  on a contact patch at world down, `rubber_look` a satin sidewall, `fake_env` (Compatibility only)
+  a sky-over-street mirror on the alloy. `CAR_CLOSEUP=0` is the A/B; checks
+  `tests/rc3_car_closeup_checks.gd`.
 - Car paint, second pass (2026-10-30, docs/HANDOFF.md "Car paint that reads as photographed"):
   `CarPaint2` (`scripts/vehicles/car_paint_2.gd`, two hooks in Vehicle) and the `paint2` block of
   car_paint.gdshaderinc (every uniform 0 by default: other materials and `CAR_PAINT_2=0` keep the
