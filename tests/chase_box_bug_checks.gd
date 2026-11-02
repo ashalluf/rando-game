@@ -71,7 +71,7 @@ func _cover() -> void:
 		worst = maxf(worst, (back - light).length() / maxf(light.length(), 1e-9))
 	var dark := af_cover(Vector3.ZERO)
 	_t._check(worst < 1e-5 and dark.w == 0.0 and af_cover(Vector3(1.0, 0.2, 0.1)).w == 1.0,
-		"af_cover: the blend gives back the light exactly (worst %.1e), no light no alpha, a bright light full alpha" % worst)
+		"af_cover: the blend gives back the light exactly (worst %.7f), no light no alpha, a bright light full alpha" % worst)
 
 
 func _car_lamps() -> void:
