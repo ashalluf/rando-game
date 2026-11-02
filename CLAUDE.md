@@ -5187,6 +5187,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   kit has its own `cyl()` / `cone()`. `FILM_STUDIO=0` is the A/B. Probe
   `tools/film_studio/probe.tscn`; checks `tests/film_studio_checks.gd`
   (`tools/film_studio/checks_only.tscn` alone).
+- The film lot refcam (wave 7, `film_lot` in `tools/refcams/cameras_w7.json`, docs/HANDOFF.md "The
+  film lot at 14:00"): `Rc4FilmLot` (`scripts/world/rc4_film_lot.gd`): trailers, grip trucks and golf
+  carts lofted round rounded sections (`section()` / `loft()`), built ONCE per variant (`cached()`)
+  and placed through the chunk's batch (a trailer is ~75 ms of GDScript); the studio ground is the
+  industrial material with industrial_ground's `kept` (no failed asphalt, no weeds) and tyre tracks
+  along the streets; the basecamp dressed (`dressing()`, pure: carts in the gaps, chairs, racks,
+  cable ramps); three in four walkers dressed as crew (`dress_crew()`). `RC4_FILM_LOT=0` is the A/B;
+  checks `tests/rc4_film_lot_checks.gd`.
 - The marketplace lane (2026-10-05, docs/HANDOFF.md "Paseo de las Golondrinas"): `PuebloLane`
   (`scripts/world/pueblo_lane.gd`), the FORM of the real historic lane and plaza across Alameda
   from the station, invented names, a civic block site (`CivicSites.SITES["pueblo_lane"]`, the

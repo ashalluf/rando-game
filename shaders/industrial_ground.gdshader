@@ -18,6 +18,9 @@ global uniform float road_wetness;
 // RcVernon (scripts/world/rc3_vernon.gd): 1 the vernon_industrial refcam's asphalt (neutral, driven
 // tyre tracks along a court's axis in COLOR.b), 0 the look before it (RC3_VERNON=0).
 uniform float rc3 = 1.0;
+// Rc4FilmLot (scripts/world/rc4_film_lot.gd): 1 a kept lot's asphalt (the film studio's streets:
+// resurfaced, a few hairline cracks, no failed patches with weeds); 0 everywhere else.
+uniform float kept = 0.0;
 
 varying float kind;
 varying float variant;
@@ -115,6 +118,7 @@ void fragment() {
 		float patch_n = fbm(p * 0.045 + variant * 17.0);
 		float patch_ = smoothstep(0.655, 0.675, patch_n);
 		float failed = smoothstep(0.52, 0.66, fbm(p * 0.06 + 11.0 + variant * 5.0)) * (1.0 - patch_);
+		failed *= 1.0 - 0.9 * kept;
 		// The pixel's footprint on the ground: the LONGER axis, since a grazing view stretches it.
 		float foot = length(vec2(length(dFdx(p)), length(dFdy(p))));
 		float cd = crack_dist(p + vec2(vnoise(p * 0.8), vnoise(p * 0.8 + 3.0)) * 0.5, 0.9);
@@ -126,6 +130,7 @@ void fragment() {
 		float cd2 = crack_dist(p * vec2(1.0, 0.35), 7.0);
 		// The long cracks were a 7 m net over the whole court, weeds in every one: a few, fainter.
 		float long_k = rc3 > 0.5 ? 0.38 * smoothstep(0.35, 0.65, vnoise(p * 0.08 + 5.0)) : 0.7;
+		long_k *= 1.0 - 0.75 * kept;
 		crack = max(crack, (1.0 - smoothstep(0.008, 0.008 + foot, cd2)) * fade * long_k * (1.0 - patch_));
 		albedo *= 1.0 - 0.55 * crack;
 		albedo *= 1.0 - 0.06 * failed * (1.0 - fade);

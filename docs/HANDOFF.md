@@ -28769,3 +28769,72 @@ shadow is opengl3's. The pocket gardens under the decks (yard lots, LotFill) kee
 and walks: diverting them to the right of way would move the block rng. The connectors' far boxes
 are still unbanked (9cm). Only the stack's own right of way is planted; the rest of the freeway's
 corridors keep YardFill's rows.
+
+## 9me. The film lot at 14:00: the film_lot refcam (fleet wave 7, refcam4 `film_lot`, branch `wt/rc4-film-lot`)
+
+**The camera.** `film_lot` in `tools/refcams/cameras_w7.json` (created by this task, cameras_w6's
+format): eye `640, 1.7 (agl), -470`, yaw -10, pitch 6, fov 55, 14:00 clear - the middle of the
+SUNSPIRE lot's studio street (closed road x 7) between stages 5-7 on the left and the basecamp on the
+right, looking north to the water tower with the front range behind. No staging key. Run:
+`REFCAMS_JSON=tools/refcams/cameras_w7.json python3 tools/refcams/refcams.py run <dir> --only film_lot`.
+
+**What gave it away (the before, shots/rc4-film-lot 01), in the order the eye lands:**
+1. The production trailers and the grip truck were white boxes with stuck-on squares (and the nearest
+   truck a 4 m blank wall at the frame's right edge).
+2. The studio street wore the industrial yards' FAILED asphalt (Industrial's G_ASPHALT): alligator
+   cracks with lime weed tufts in patches all down the street - it read as moss paint on a car park.
+3. The street was empty between the trailers; the golf carts that existed (at the stage doors) were
+   stacked boxes.
+4. The "crew" were the city's ordinary walkers (a green cardigan and a denim skirt on a film lot).
+
+**The fixes** (`Rc4FilmLot`, `scripts/world/rc4_film_lot.gd`; `RC4_FILM_LOT=0` is the A/B):
+- **Lofted vehicles.** `section()` (a rounded rectangle, its own radii top and bottom) and `loft()`
+  (rings along z with a scale each, smooth normals tilted where a ring shrinks, ends fanned shut) on
+  the studio shader's vertex format. The trailer: a fibreglass shell radiused at both ends, a black
+  belly skirt with wheel wells, tandem tyres on alloys (`wheel()`, a lofted tread), frame rails,
+  framed windows with blinds in some, kerb-side doors with a window, handle, grab rail, porch lamp and
+  folding steps, a roll-up awning case (an awning out with its arms on half the star trailers), two
+  roof air conditioners in rounded shrouds, the A-frame tongue with jack, propane bottles and battery
+  box, stabiliser jacks on wood pads, tail and marker lamps. The grip truck: a cab-over cab lofted
+  with its windscreen, mirrors on arms, grille, bumper and steps; a box on radiused corner posts with
+  rub rails, a side door, marker lamps, the roll-up door and lift gate, dual rear wheels, mudflaps, a
+  fuel tank, and an invented rental house painted down both sides ("SUNSPIRE GRIP & ELECTRIC",
+  "BACKLOT LIGHTING CO.", ...). The golf cart: a moulded body with a cowl, cushions, posts, roof,
+  windscreen, steering wheel, lamps, a cargo bed on some.
+- **Built once, batched.** A trailer is ~2,100 triangles and ~75 ms of GDScript; written per copy into
+  the lot mesh it made a chunk's vehicle step 270 ms. Every vehicle and dressing piece is a variant
+  (`cached()`: band x three dressings for trailers, band for trucks, paint x bed for carts) built once
+  into an ArrayMesh on `FilmStudioKit.material()` and placed with `ch._batch.add()` (the batch adds the
+  relief, so the transform's y is `BASE_Y`). Worst site step now 47-122 ms (was 48-134 before the
+  task). The lot mesh shrank (21-35k triangles a chunk).
+- **Kept asphalt.** `industrial_ground.gdshader` has a new uniform `kept` (default 0: the industrial
+  district is bit-identical): failed patches x0.1, long cracks x0.25, hence no weeds. The studio's
+  `StudioGround` wears `Rc4FilmLot.ground_material()` (Industrial's material duplicated, kept 1), and
+  the street pieces carry RcVernon's tyre-track axis in COLOR.b (`track_axis()`), so the lanes show
+  rubber in the wheel paths. Tried first and dropped: the city's road material on a plain quad grid -
+  it drew pale blocky patches and black seams in the refcam (its patch / kerb logic wants the city's
+  slab UVs); not worth fighting.
+- **The basecamp dressed.** `dressing(lay, seed)` (pure, from FilmStudio's layout, hashes of seed +
+  street + slot): golf carts nose-out in the gaps between trailers (a wardrobe rack or a grip cart in
+  some), director's chairs with a cooler and a coiled stinger off a trailer's street side, yellow-
+  lidded cable ramps across the carriageway every 40-70 m (lamp side to trailer side, never under a
+  trailer). Collision boxes for carts, racks and carts of gear. Its own build step (`dressing_step`).
+- **Crew.** `dress_crew()` (a step after FilmStudio's crowd, and on the chunk's child_entered_tree
+  for BusyStreets' later top-ups): three in four plain walkers get their look material copied once per
+  (material, outfit) with crew tops (black, charcoal, navy, olive) and trousers (black, charcoal,
+  dark denim, khaki); material_override survives the middle and far body swaps.
+
+**Numbers** (refcams opengl3, film_lot): before tris 3.70 M / draws 1,633 / shadow 1.13 M; after
+3.95 M / 1,801 / 1.29 M (+7 % triangles, +10 % draws: each variant is a batch node a chunk). Luma
+p5/p50/p95 53/119/220 -> 48/120/219. The ten original cameras (`refcams.py compare`, main 6ffcde38
+against this branch before its merge): eight within tolerance; street_night and freeway flagged by
+live traffic alone (a bus pulled out of the street, a box truck in the freeway lane in one run and
+not the other) - neither view sees the lot, and the industrial shader change is default-off. Gate
+(SHARDS=3, merged with main 0584ebdf): 5,690 checks passed, 0 failed, peak 3.8 GB a shard.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the new geometry is on the existing studio
+shader (display numbers, its own to_lit()), so nothing new in colour space, but the lofted shells'
+smooth normals on Forward+ are unproved. No crew AT WORK (no shoot, no dolly, carts parked, not
+driven: the film-shoot session's area); the stage walls are as they were; the trailers' variants all
+share three dressings, so a long row repeats every third; the far LOD of the trailers is the old
+`lod_box` path. Checks: `tests/rc4_film_lot_checks.gd` (10). Probe: `tools/rc4_film_lot/crew_probe.tscn`.
