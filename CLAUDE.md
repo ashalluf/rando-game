@@ -1623,8 +1623,11 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`scripts/weapons/blast_pool.gd`, `shaders/blast_pool.gdshader`) burning fuel where a car or pump
   went up; secondary pops; a chain fuse to the cars beside a fuel blast (`chain_depth`); a shot
   petrol pump is a gas blast (`gas_next`); the bang at the speed of sound with a thump, the shake with
-  the wave. `EXPLOSIONS_4=0` is the A/B; strips blast_room_shot.gd (`GAS=1`, `WEB=1`); checks
-  `tests/explosions_4_checks.gd`.
+  the wave; later rounds: a rolling lit dust front, the plume's value range, panel debris, the fires'
+  underlight on the cap, a held stem, fuel trails and flames up the wreck's sides, a soft crater.
+  `EXPLOSIONS_4=0` is the A/B (`BLAST_DUST_ROLL`, `BLAST_VALUE`, `BLAST_CHUNKS`, `BLAST_UNDERLIGHT`,
+  `BLAST_STEM`, `BLAST_WRECK_FIRE`, `BLAST_CRATER` =0 each part); strips blast_room_shot.gd (`GAS=1`,
+  `WEB=1`, `CAR=1 CHAIN=1`); checks `tests/explosions_4_checks.gd`.
 - The mayhem refcam (2026-11-01, docs/HANDOFF.md "The mayhem refcam"): `mayhem` in
   `tools/refcams/cameras_w5.json` is STAGED (`"stage": "mayhem"` -> `tools/refcams/mayhem_stage.gd`:
   hero firing, a car blast, a burning wreck, a police standoff, fleeing people). `RcMayhem`
@@ -4597,6 +4600,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   screen (`PierPark.warm()`). Stills: `PIER_COASTER_S=<s>` (or `PIER_COASTER=<seconds>`) holds
   the train; EYEs in HANDOFF 9ca. Probe: `tools/pier/compile.gd` (compiles, builds near and far,
   prints the cost, runs the layout checks; seconds, headless).
+- The pier by day (wave 6, refcam `pier_day` in `tools/refcams/cameras_w6.json`, docs/HANDOFF.md
+  "The pier by day from the deck"): `PierDay` (`scripts/world/pier_day.gd`): the deck is
+  `shaders/pier_deck.gdshader` (transverse weathered boards from the mesh's park-frame coordinates,
+  gaps box-filtered, wear path, rail grime, gum, nails), pier_park.gdshader's `weathered` uniform
+  (salt grime, sun fade, rust runs on the white steel), up to `EXTRA_PEOPLE` more PierGoers by the
+  hour (`density()`) and rail spots in the queue list where they stop and look out to sea; stands
+  chamfered. `PIER_DAY=0` is the A/B; checks `tests/rc3_pier_day_checks.gd`.
 - The pier at night (wave 4, refcam pier_night, docs/HANDOFF.md "The pier at night from the
   beach"): `PierNight` (`scripts/world/pier_night.gd`, one hook in `PierPark.build()`, one in
   `PierCoaster._track_mesh()`): the wheel's sub-pixel LED strips drawn analytically in its plane
@@ -4840,6 +4850,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `BALLPARK=0` in the environment leaves it out (the A/B; it also restores the hills).
   Probe: `tools/stadium/probe.gd` (ground, cut and fill, the roads' earthwork), timing
   `tools/stadium/bench.gd`.
+
+- The night game from the hill (2026-11-02, refcam `stadium_night` in tools/refcams/cameras_w6.json,
+  docs/HANDOFF.md "The night game from the hill"): `StadiumNight` (`scripts/world/stadium_night.gd`,
+  one hook in `BallparkBuild.build()`, one in `_bank()`): a 22-triangle box car in every stall
+  `Ballpark.stall_car()` fills, both copies, to 560 m (`stadium_car.gdshader`, lit by the lot's pole
+  pools; the lot paints a contact shadow under them, `box_reach`); a bloom and a haze shaft per light
+  bank (`stadium_bank_glow.gdshader`); the stands' far average a crowd mosaic and the rows under each
+  deck shaded (ballpark_seats `night2`); players on the field; shrub medians (`planting2`); the far
+  copy's palms. From that eye the city draws the FAR copy. `STADIUM_NIGHT=0` is the A/B; the park
+  alone in a minute `tools/stadium_night/park_shot.tscn`; checks `tests/rc3_stadium_night_checks.gd`.
 
 - Historic core (2026-10-05, docs/HANDOFF.md "The historic core"): `HistoricCore`
   (`scripts/world/historic_core.gd`) dresses every Building fronting Spring St or Main St between

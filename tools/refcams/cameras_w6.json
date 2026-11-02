@@ -2,6 +2,8 @@
 	"_doc": "Wave 6 reference cameras (tools/refcams/README.md), the same format as cameras.json and cameras_w5.json. One row a camera, each on its own line. Run with REFCAMS_JSON=tools/refcams/cameras_w6.json.",
 	"resolution": [1280, 720],
 	"cameras": [
+		{"name": "stadium_night", "label": "The ravine ballpark during a night game, 21:00 clear, from the bank above the north lot into the bowl, downtown beyond", "eye": [1965.6, 235.0, -3155.6, -173.6, -14.0], "agl": false, "hour": 21.0, "weather": "clear", "fov": 48},
+		{"name": "pier_day", "label": "Gullwing Park on Rando Pier at 15:00, on the promenade in the crowd, toward the wheel, the coaster, the carousel and the sea end", "eye": [-1020.0, 8.1, -352.0, 115.0, 6.0], "agl": false, "hour": 15.0, "weather": "clear", "fov": 55},
 		{"name": "marina_golden", "label": "The marina at 18:00 clear, from the east headwalk west across the docks to the bridge", "eye": [-621.5, 2.3, 136.0, 110.0, -1.5], "agl": false, "hour": 18.0, "weather": "clear", "fov": 55}
 	]
 }

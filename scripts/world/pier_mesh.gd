@@ -405,6 +405,7 @@ static func material(key: String, ride: int = 0, params: Dictionary = {}) -> Sha
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/pier_park.gdshader")
 	mat.set_shader_parameter("ride", ride)
+	mat.set_shader_parameter("weathered", PierDay.weathered())
 	for p: String in params:
 		mat.set_shader_parameter(p, params[p])
 	_mats[key] = mat

@@ -43,6 +43,8 @@ func run(t: Node, city: Node3D) -> void:
 	await _fuel(parent, at + Vector3(0.0, 0.0, 70.0))
 	_web_pop(parent)
 	await _chain()
+	_round4(parent)
+	await _round5(parent)
 	for c in parent.get_children():
 		if not before.has(c) and c != _deck and not (c is BlastBits):
 			c.queue_free()
@@ -144,7 +146,7 @@ func _fuel(parent: Node, at: Vector3) -> void:
 	_t._check(int(made.get("secondaries", 0)) >= Blast4.secondary_count.x, "explosions_4: secondary pops are set (%d)" % int(made.get("secondaries", 0)))
 	var pool: BlastPool = null
 	for c in parent.get_children():
-		if c is BlastPool and not c.is_queued_for_deletion() and (c as Node3D).global_position.distance_to(at) < 8.0:
+		if c is BlastPool and not c.is_queued_for_deletion() and (c as BlastPool).stretch <= 1.2 and (c as Node3D).global_position.distance_to(at) < 8.0:
 			pool = c
 	_t._check(pool != null and absf(pool.global_position.y - _top.y) < 0.2, "explosions_4: the pool lies ON the deck")
 	if pool == null:
@@ -212,3 +214,54 @@ func _chain() -> void:
 		if is_instance_valid(car):
 			car.queue_free()
 	await _ticks(2)
+
+
+## Round 4: the rolling dust front, the plume's value range, the debris chunks, the smaller flare.
+func _round4(parent: Node) -> void:
+	var n0 := parent.get_child_count()
+	var rolled := Blast4.dust_roll(parent, _top, Vector3.UP, 28.0)
+	_t._check(rolled and parent.get_child_count() >= n0 + 2, "explosions_4: the dust rolls out as its own layers")
+	_t._check(FileAccess.get_file_as_string("res://scripts/weapons/blast_aftermath.gd").contains("Blast4.dust_roll("),
+		"explosions_4: the aftermath's dust wave hands over to the rolling front")
+	var vs := FileAccess.get_file_as_string("res://shaders/blast_volume.gdshader")
+	_t._check(vs.contains("uniform float value4 = 0.0;") and vs.contains("value4 * 0.9 * smoothstep(1.5, 6.0, t)"),
+		"explosions_4: the plume's value range is in the volume (off by default)")
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/blast_volume.gdshader")
+	Blast4.dress_volume(m, false, false)
+	_t._check(float(m.get_shader_parameter("value4")) == (Blast4.value_range if Blast4.value_enabled else 0.0),
+		"explosions_4: a volume is dressed with the value range")
+	var pm := Blast4.panel_mesh()
+	_t._check(pm != null and pm.get_surface_count() == 1 and pm.get_aabb().size.x > 0.9, "explosions_4: the torn panel chunk is built")
+	_t._check(Blast4.flare_grow() < 4.2 and Blast4.flare_fade() < 0.13, "explosions_4: the flare is smaller and shorter")
+
+
+## Round 5: the fires' underlight on the smoke, the stem held, the wreck's side flames and the
+## fuel trail, the crater's soft soot and cracks.
+func _round5(parent: Node) -> void:
+	var vs := FileAccess.get_file_as_string("res://shaders/blast_volume.gdshader")
+	_t._check(vs.contains("uniform float under4 = 0.0;") and vs.contains("uniform float stem_hold = 0.0;"),
+		"explosions_4: the underlight and the stem hold are in the volume (off by default)")
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/blast_volume.gdshader")
+	Blast4.dress_volume(m, true, false)
+	_t._check(float(m.get_shader_parameter("under4")) == (Blast4.underlight_gain if Blast4.underlight_enabled else 0.0)
+		and float(m.get_shader_parameter("stem_hold")) == (1.0 if Blast4.stem_enabled else 0.0),
+		"explosions_4: a volume is dressed with the underlight and the stem hold")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 505
+	var car := Vehicle.random_car(rng)
+	_city.add_child(car)
+	car.global_position = _top + Vector3(-80.0, 1.0, 0.0)
+	await _ticks(2)
+	var f := Blast4.side_flames(car)
+	_t._check(f != null and f.get_parent() == car and f.emission_points.size() >= 16,
+		"explosions_4: flames climb the wreck's sides from points round its sills")
+	var pool := BlastPool.spawn(car, parent, _top + Vector3(-90.0, 0.5, 0.0), 3.5, false, 1.0, 2.6)
+	_t._check(pool != null and is_equal_approx(pool.stretch, 2.6), "explosions_4: a fuel trail is a stretched pool")
+	if pool != null:
+		pool.queue_free()
+	car.queue_free()
+	await _ticks(2)
+	_t._check(FileAccess.get_file_as_string("res://scripts/weapons/blast_3.gd").contains("Blast4.crater_smooth"),
+		"explosions_4: the crater's soot and cracks can be smooth")
