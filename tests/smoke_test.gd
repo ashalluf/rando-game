@@ -2878,6 +2878,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/rc3_person_closeup_checks.gd").new().run(self, city)
 	# The parked car at arm's length (tests/rc3_car_closeup_checks.gd, CarCloseup): bumper trim, tyres, grime.
 	await load("res://tests/rc3_car_closeup_checks.gd").new().run(self, city)
+	# The vernon_industrial refcam (tests/rc3_vernon_industrial_checks.gd, RcVernon): worn steel,
+	# the office storefront and pop-out, the courts' asphalt and trailers, weathered tilt-up.
+	load("res://tests/rc3_vernon_industrial_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

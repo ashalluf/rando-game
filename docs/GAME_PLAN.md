@@ -4352,3 +4352,10 @@ none of either.
   never an opaque band; tyres sit on a contact patch drawn in the wheel shader at world down (the
   physics and ride height untouched); on the Compatibility renderer the alloy mirrors a sky over a
   street. CAR_CLOSEUP=0 is the A/B.
+- **2026-11-02 The Vernon industrial street: busy courts, framed glass, rust where steel rusts
+  (rc3-vernon-industrial, HANDOFF "The Vernon industrial street").** A new reference camera
+  (`vernon_industrial`, wave 6's table) judged a Vernon street at eye level at 14:00. Decisions:
+  most docks carry a trailer (an added hash, never moving the old ones); court asphalt is neutral
+  grey and driven along the court's axis; the office storefront is framed, mirrors the street by
+  the reflected ray and sits in a tilt-up pop-out; painted steel rusts along lips, feet and chips,
+  never in blotches; a contact shadow never outlives its hidden body. RC3_VERNON=0 is the A/B.
