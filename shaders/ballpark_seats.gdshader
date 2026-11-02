@@ -127,6 +127,17 @@ void fragment() {
 	// Under a pixel: the tier's colour and its crowd by how full it is.
 	vec3 crowd_avg = vec3(0.13, 0.13, 0.16);
 	vec3 avg = mix(mix(seat * 0.85, crowd_avg, ff * 0.7), concrete, aisle_width / aisle_every);
+	if (night2 > 0.0) {
+		// From the hills a crowd is a mosaic, not a tint: groups of a few seats over two rows each
+		// their own mix of shirts, emptier groups showing the seats, the aisles' concrete between.
+		int gx = int(floor(UV.x / (seat_pitch * 3.0)));
+		int gy = int(floor(row / 2.0));
+		float g_occ = clamp(ff + (bp_hash01(gx * 17 + tier, gy + 7100) - 0.5) * 0.7, 0.0, 1.0);
+		vec3 g_shirt = mix(shirt(bp_hash01(gx * 3 + 1, gy + 7300)), shirt(bp_hash01(gx * 3 + 2, gy + 7400)), 0.5);
+		vec3 g_crowd = mix(g_shirt, skin(bp_hash01(gx, gy + 7500)), 0.22);
+		vec3 mosaic = mix(seat * 0.78, g_crowd, g_occ * 0.92);
+		avg = mix(avg, mix(mosaic, concrete, aisle_width / aisle_every), night2);
+	}
 	float px = max(fwidth(UV.x) / seat_pitch, fwidth(UV.y) * 1.5);
 	// The second pass hands over sooner: half-resolved rows beat into rings round the bowl.
 	col = mix(col, avg, night2 > 0.0 ? smoothstep(0.15, 0.55, px) : smoothstep(0.35, 1.0, px));

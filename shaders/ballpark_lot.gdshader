@@ -34,6 +34,8 @@ uniform float fence_center = 120.4;
 // StadiumNight: within this many metres of the camera every filled stall holds a box car
 // (stadium_car.gdshader), so its painted car becomes the car's contact shadow. 0 = paint them all.
 uniform float box_reach = 0.0;
+// StadiumNight: the planting as clumped shrubs over mulch (0 = the old flat ground cover).
+uniform float planting2 = 0.0;
 
 varying float edge;
 varying vec3 v_world;
@@ -139,6 +141,12 @@ void fragment() {
 		col = mix(vec3(0.03, 0.08, 0.025), vec3(0.06, 0.12, 0.03), m);
 		float fl = smoothstep(0.78, 0.86, vnoise(q * 3.7 + 9.0));
 		col = mix(col, vec3(0.45, 0.04, 0.22), fl * 0.7);
+		if (planting2 > 0.0) {
+			// Shrub clumps with mulch and shade between them, darker toward the site's edge.
+			float clump = smoothstep(0.3, 0.7, vnoise(q * 0.45 + 1.7) * 0.6 + vnoise(q * 1.6) * 0.4);
+			vec3 mulch = vec3(0.065, 0.045, 0.03) * (0.8 + 0.4 * vnoise(q * 4.0));
+			col = mix(mulch, col * (0.7 + 0.6 * vnoise(q * 2.9 + 5.0)), mix(1.0, clump, planting2));
+		}
 		rough = 0.95;
 	} else {
 		// Lot: stall rows across u, cross aisles every block, medians every fourth module.
@@ -154,6 +162,13 @@ void fragment() {
 		if (median && vin < stall_d * 2.0 && !cross) {
 			float m = vnoise(q * 0.9);
 			col = mix(vec3(0.03, 0.08, 0.025), vec3(0.07, 0.11, 0.035), m);
+			if (planting2 > 0.0) {
+				// StadiumNight: clumped shrubs and ice plant over bark mulch, not a lawn.
+				float clump = smoothstep(0.35, 0.75, vnoise(q * 0.55 + 3.1) * 0.6 + vnoise(q * 1.9) * 0.4);
+				vec3 mulch = vec3(0.07, 0.045, 0.03) * (0.8 + 0.4 * vnoise(q * 4.0));
+				col = mix(mulch, col * (0.75 + 0.5 * vnoise(q * 3.3 + 7.0)), clump);
+				col = mix(col, vec3(0.42, 0.05, 0.2), smoothstep(0.82, 0.9, vnoise(q * 3.7 + 9.0)) * clump * 0.6);
+			}
 			rough = 0.95;
 			stalls = false;
 		}

@@ -20,6 +20,8 @@ extends RefCounted
 const FAR_DRAW := 560.0
 const FAR_TILE := 160.0
 const FADE := 40.0
+## The far copy's palms: from the hills round the ravine, not from across the basin.
+const PALM_DRAW := 900.0
 
 static var _enabled := -1
 static var _car_mesh: ArrayMesh = null
@@ -58,6 +60,8 @@ static func dress(holder: Node3D, detailed: bool) -> void:
 		var batch := MultiMeshBatch.new()
 		BallparkBuild._palms(batch)
 		ArenaGrounds._far_shadows(batch)
+		for key: String in batch.keys():
+			batch.set_draw_distance(key, PALM_DRAW)
 		batch.build(holder)
 	tune_materials()
 
@@ -65,8 +69,9 @@ static func dress(holder: Node3D, detailed: bool) -> void:
 ## The shaders' second-pass knobs (each defaults to the old look).
 static func tune_materials() -> void:
 	(BallparkBuild.material("seats") as ShaderMaterial).set_shader_parameter("night2", 1.0)
+	(BallparkBuild.material("lot") as ShaderMaterial).set_shader_parameter("planting2", 1.0)
 	(BallparkBuild.material("glow") as ShaderMaterial).set_shader_parameter("away_from", 60.0)
-	(BallparkBuild.material("glow") as ShaderMaterial).set_shader_parameter("away_gain", 1.8)
+	(BallparkBuild.material("glow") as ShaderMaterial).set_shader_parameter("away_gain", 1.0)
 
 
 ## A box car the size of ArenaGrounds' saloon: body (COLOR.a 0 flanks, 0.25 bonnet and boot; the

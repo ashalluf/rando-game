@@ -2867,6 +2867,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/rc2_night_aerial_checks.gd").new().run(self, city)
 	# The chase_cam review (tests/rc2_chase_cam_checks.gd, ChaseCamReview): lane wear on the asphalt.
 	load("res://tests/rc2_chase_cam_checks.gd").new().run(self, city)
+	# The night game from the hill (tests/rc3_stadium_night_checks.gd, StadiumNight): box cars, banks, players.
+	load("res://tests/rc3_stadium_night_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
